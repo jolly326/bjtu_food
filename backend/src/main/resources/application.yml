@@ -1,0 +1,60 @@
+# ============================================================
+# 校园食堂信息系统 - 应用主配置
+# ============================================================
+
+server:
+  port: 8080                    # 服务端口
+  servlet:
+    context-path: /api          # 所有接口统一前缀（如 /api/dishes）
+
+spring:
+  application:
+    name: bjtu-food
+
+  # ---------- 数据源配置 ----------
+  datasource:
+    url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # ---------- 文件上传配置 ----------
+  servlet:
+    multipart:
+      max-file-size: 5MB        # 单文件最大 5MB
+      max-request-size: 20MB    # 单次请求最大 20MB
+
+  # ---------- Jackson 日期序列化 ----------
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss   # 日期格式
+    time-zone: Asia/Shanghai           # 时区
+
+# ---------- MyBatis-Plus 配置 ----------
+mybatis-plus:
+  configuration:
+    # 开发环境打印 SQL（方便调试），生产环境关闭
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 数据库字段下划线命名 <-> Java 实体类驼峰命名自动映射
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      # 逻辑删除全局配置（所有实体类统一使用 is_deleted 字段）
+      logic-delete-field: is_deleted
+      logic-delete-value: 1      # 已删除
+      logic-not-delete-value: 0  # 未删除
+
+# ---------- Knife4j API 文档配置 ----------
+knife4j:
+  enable: true
+
+# ---------- JWT 配置 ----------
+jwt:
+  # JWT 签名密钥（生产环境请更换为复杂密钥）
+  secret: BjtuFoodSecretKey2024ForJwtTokenSigning
+  # Token 过期时间：7天（单位：毫秒）
+  expiration: 604800000
+
+# ---------- 文件上传存储路径 ----------
+upload:
+  # 上传文件存储的相对路径（相对于项目根目录）
+  path: ./uploads
