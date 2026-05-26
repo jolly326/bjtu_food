@@ -1,16 +1,66 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+	"pages": [
 		{
-			"path": "pages/index/index",
+			"path": "pages/home/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				"navigationBarTitleText": "首页",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/find/index",
+			"style": {
+				"navigationBarTitleText": "搜索",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/dish/detail",
+			"style": {
+				"navigationBarTitleText": "菜品详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/canteen/index",
+			"style": {
+				"navigationBarTitleText": "食堂详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/stall/index",
+			"style": {
+				"navigationBarTitleText": "档口详情",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/review/add",
+			"style": {
+				"navigationBarTitleText": "发表评价",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/favorite/index",
+			"style": {
+				"navigationBarTitleText": "收藏",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/index",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationStyle": "custom"
 			}
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#F8F8F8",
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "食在交大",
+		"navigationBarBackgroundColor": "#8B3A2B",
 		"backgroundColor": "#F8F8F8"
 	}
 }
