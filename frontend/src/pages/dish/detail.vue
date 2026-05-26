@@ -3,7 +3,7 @@
     <Header title="菜品详情" showBack />
 
     <view class="dish-image">
-      <ImageFallback :src="dish.image" placeholder="🍽️" />
+      <ImageFallback :src="dish.image" />
     </view>
 
     <CardSection>
@@ -12,22 +12,25 @@
           <text class="dish-name">{{ dish.name }}</text>
           <TagLabel v-if="dish.tags.includes('必吃推荐')" text="必吃推荐" />
         </view>
-        <text class="fav-btn" :class="{ favorited: isFavorited }" @tap="toggleFavorite">
-          {{ isFavorited ? '❤️' : '🤍' }}
-        </text>
+        <text class="price-text">¥{{ dish.price }}</text>
       </view>
 
       <view class="rating-row">
         <view class="rating-left">
-          <text class="star-icon">⭐</text>
+          <image class="star-icon-img" src="/static/icons/star-active.svg" />
           <text class="rating-value">{{ dish.rating }}</text>
           <text class="rating-count">({{ dish.ratingCount }}条评价)</text>
         </view>
-        <text class="price-text">¥{{ dish.price }}</text>
+          <view class="fav-btn" @tap="toggleFavorite">
+            <image
+              :src="isFavorited ? '/static/icons/heart-active.svg' : '/static/icons/heart.svg'"
+              class="fav-icon"
+            />
+          </view>
       </view>
 
       <view class="location-row" @tap="goToStall">
-        <text class="location-icon">📍</text>
+        <image class="location-icon-img" src="/static/icons/location.svg" />
         <text class="location-text">{{ dish.canteen }} · {{ dish.stallName }}</text>
         <text class="location-arrow">›</text>
       </view>
@@ -41,9 +44,11 @@
       <view class="review-header-row">
         <text class="review-title">用户评价 ({{ reviewList.length }})</text>
         <view class="review-actions">
-          <text class="write-review" @tap="goToReview">📝 写评价</text>
-          <text class="action-sep">—</text>
-          <text class="view-more" @tap="goToReviewList">查看更多 ›</text>
+          <view class="write-review" @tap="goToReview">
+            <image class="write-icon" src="/static/icons/edit.svg" />
+            <text>写评价</text>
+          </view>
+          <text class="view-more" @tap="goToReviewList">查看更多</text>
         </view>
       </view>
 
@@ -52,7 +57,14 @@
           <view class="review-top">
             <view class="review-user">
               <text class="review-name">{{ rv.userName }}</text>
-              <text class="review-stars">{{ renderStars(rv.rating) }}</text>
+              <view class="review-stars">
+                <image
+                  v-for="i in starCount(rv.rating)"
+                  :key="i"
+                  class="review-star"
+                  src="/static/icons/star-active.svg"
+                />
+              </view>
             </view>
             <text class="review-time">{{ relativeTime(rv.createTime) }}</text>
           </view>
@@ -96,6 +108,10 @@ function toggleFavorite() {
   }
 }
 
+function starCount(rating: number): number {
+  return Math.round(rating)
+}
+
 function goToReview() {
   if (!userStore.requireAuth()) return
   uni.navigateTo({ url: `/pages/review/add?dishId=${dishId.value}` })
@@ -111,10 +127,6 @@ function goToStall() {
     dishStore.navParams.canteen = dish.value.canteen
     uni.navigateTo({ url: '/pages/stall/index' })
   }
-}
-
-function renderStars(rating: number): string {
-  return '⭐'.repeat(Math.round(rating))
 }
 
 function relativeTime(dateStr: string): string {
@@ -164,18 +176,28 @@ onLoad((query) => {
   min-width: 0;
 }
 .dish-name {
-  font-size: 36rpx;
+  font-size: var(--font-h2);
   font-weight: 600;
   color: var(--text-primary);
   flex-shrink: 0;
 }
 .fav-btn {
-  font-size: 44rpx;
   flex-shrink: 0;
-  padding: 8rpx;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs);
 }
-.fav-btn.favorited {
-  color: var(--color-primary);
+.fav-icon {
+  width: 40rpx;
+  height: 40rpx;
+  display: block;
+}
+
+.price-text {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--color-price);
+  flex-shrink: 0;
 }
 
 /* ===== 评分行 ===== */
@@ -190,22 +212,18 @@ onLoad((query) => {
   align-items: center;
   gap: 6rpx;
 }
-.star-icon {
-  font-size: 28rpx;
+.star-icon-img {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 .rating-value {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--text-primary);
 }
 .rating-count {
-  font-size: 24rpx;
+  font-size: var(--font-aux);
   color: var(--text-secondary);
-}
-.price-text {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--color-price);
 }
 
 /* ===== 位置信息 ===== */
@@ -217,11 +235,12 @@ onLoad((query) => {
   padding-top: var(--spacing-sm);
   border-top: 2rpx solid var(--border-color);
 }
-.location-icon {
-  font-size: 32rpx;
+.location-icon-img {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
 }
 .location-text {
-  font-size: 26rpx;
+  font-size: var(--font-aux);
   color: var(--text-secondary);
   flex: 1;
 }
@@ -246,27 +265,31 @@ onLoad((query) => {
   justify-content: space-between;
 }
 .review-title {
-  font-size: 30rpx;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--text-primary);
 }
 .review-actions {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: var(--spacing-xs);
   flex-shrink: 0;
 }
 .write-review {
-  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: var(--font-aux);
   color: var(--color-primary);
 }
-.action-sep {
-  font-size: 24rpx;
-  color: var(--text-tertiary);
+.write-icon {
+  width: 24rpx;
+  height: 24rpx;
 }
 .view-more {
-  font-size: 26rpx;
+  font-size: var(--font-aux);
   color: var(--text-secondary);
+  padding-left: var(--spacing-sm);
 }
 
 /* ===== 评价列表 ===== */
@@ -284,12 +307,12 @@ onLoad((query) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8rpx;
+  margin-bottom: var(--spacing-xs);
 }
 .review-user {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: var(--spacing-xs);
 }
 .review-name {
   font-size: var(--font-body);
@@ -297,7 +320,14 @@ onLoad((query) => {
   color: var(--text-primary);
 }
 .review-stars {
-  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 2rpx;
+}
+.review-star {
+  width: 24rpx;
+  height: 24rpx;
+  color: #F5A623;
 }
 .review-time {
   font-size: var(--font-aux);

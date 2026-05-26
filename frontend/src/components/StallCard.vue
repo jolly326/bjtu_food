@@ -1,161 +1,426 @@
 <script lang="ts">
-export interface StallInfo {
+export interface DishPreview {
+  id: number
   name: string
-  location: string
-  dishes: Dish[]
+  price: number
+  image: string
 }
 
-import type { Dish } from '@/types/dish'
+export interface StallInfo {
+  id: number
+  name: string
+  location: string
+  dishCount: number
+  dishes: DishPreview[]
+  image?: string
+  rating?: number
+  ratingCount?: number
+}
 </script>
 
 <template>
-  <view class="stall-card" @tap="handleClick">
+  <!-- ========== 骨架屏：加载态 ========== -->
+  <view v-if="loading" class="stall-card stall-skeleton">
     <view class="stall-header">
-      <view class="stall-title-row">
-        <text class="stall-icon">🏪</text>
-        <text class="stall-name">{{ stall.name }}</text>
+      <view class="skeleton-icon" />
+      <view class="skeleton-info">
+        <view class="skeleton-line skeleton-name" />
+        <view class="skeleton-line skeleton-location" />
       </view>
-      <text class="stall-location">📍 {{ stall.location }}</text>
     </view>
-    <view class="stall-dishes">
-      <view
-        v-for="dish in visibleDishes"
-        :key="dish.id"
-        class="stall-dish-item"
-        @tap.stop="goToDetail(dish)"
-      >
-        <view class="dish-img">
-          <ImageFallback :src="dish.image" />
-        </view>
-        <view class="dish-info">
-          <text class="dish-name">{{ dish.name }}</text>
-          <view class="dish-meta">
-            <text class="dish-price">¥{{ dish.price }}</text>
-            <text class="dish-rating">⭐ {{ dish.rating }}</text>
+    <view class="stall-dishes-preview">
+      <view v-for="i in 3" :key="i" class="skeleton-dish-item">
+        <view class="skeleton-dish-img" />
+        <view class="skeleton-dish-name" />
+        <view class="skeleton-dish-price" />
+      </view>
+    </view>
+  </view>
+
+  <!-- ========== 正常卡片 ========== -->
+  <view v-else class="stall-card" @tap="handleClick">
+    <!-- 上半部分：档口信息行 -->
+    <view class="stall-header">
+      <!-- 左侧：档口图标 -->
+      <view class="stall-icon-box">
+        <image
+          :src="getImageUrl(stall.image || '/static/dish_placeholder.jpg')"
+          mode="aspectFill"
+          class="stall-icon-img"
+        />
+      </view>
+
+      <!-- 中间：档口详细信息 -->
+      <view class="stall-info">
+        <!-- 第一行：档口名 + 评分 -->
+        <view class="stall-row-top">
+          <text class="stall-name">{{ stall.name }}</text>
+          <view v-if="stall.rating" class="stall-rating">
+            <image class="stall-rating-star" src="/static/icons/star-active.svg" />
+            <text class="stall-rating-value">{{ stall.rating.toFixed(1) }}</text>
           </view>
         </view>
-      </view>
-      <view class="stall-more" v-if="stall.dishes.length > 3">
-        <text class="more-text">查看全部 {{ stall.dishes.length }} 道菜品 ›</text>
+        <!-- 第二行：位置 + 菜品数量 -->
+        <view class="stall-row-bottom">
+          <image class="stall-location-icon" src="/static/icons/location.svg" />
+          <text class="stall-location-text">{{ stall.location }}</text>
+          <text class="stall-dish-dot">·</text>
+          <text class="stall-dish-count">{{ stall.dishCount }}道菜</text>
+        </view>
       </view>
     </view>
+
+    <!-- 下半部分：菜品预览区 -->
+    <view v-if="stall.dishes && stall.dishes.length > 0" class="stall-dishes-preview">
+      <scroll-view
+        class="dish-scroll"
+        scroll-x
+        enhanced
+        show-scrollbar="false"
+      >
+          <view
+            v-for="dish in stall.dishes.slice(0, 10)"
+            :key="dish.id"
+            class="dish-mini-card"
+            @click.stop="goToDish(dish)"
+          >
+            <image
+              v-if="dish.image"
+              :src="getImageUrl(dish.image)"
+              mode="aspectFill"
+              class="dish-mini-img"
+            />
+            <text v-else class="dish-mini-img-placeholder">🍽️</text>
+            <view class="dish-mini-info">
+              <text class="dish-mini-name">{{ dish.name }}</text>
+              <text class="dish-mini-price">￥{{ dish.price }}</text>
+            </view>
+          </view>
+      </scroll-view>
+    </view>
+
+    <!-- 无菜品 -->
+    <view v-else class="stall-empty-dishes">
+      <text class="empty-text">暂无菜品</text>
+    </view>
+
+    <!-- 底部留白 -->
+    <view class="stall-spacer" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import ImageFallback from './ImageFallback.vue'
+// StallInfo 已在上方 <script lang="ts"> 中导出，无需重复导入
+import { getImageUrl } from '@/utils/image'
 
-const props = defineProps<{
+const _props = defineProps<{
   stall: StallInfo
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
   click: [stall: StallInfo]
-  dishClick: [dish: Dish]
+  dishClick: [dish: DishPreview]
 }>()
 
-const visibleDishes = computed(() => props.stall?.dishes?.slice(0, 3) || [])
-
 function handleClick() {
-  emit('click', props.stall)
+  emit('click', _props.stall)
 }
 
-function goToDetail(dish: Dish) {
+function goToDish(dish: DishPreview) {
   emit('dishClick', dish)
 }
 </script>
 
 <style scoped>
+/* ==================== 卡片容器 ==================== */
 .stall-card {
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  overflow: hidden;
+  padding: 20rpx var(--spacing-lg);
   box-shadow: var(--shadow-card);
+  box-sizing: border-box;
 }
+
+/* ==================== 上半部分：档口信息行 ==================== */
 .stall-header {
-  padding: 20rpx var(--spacing-md);
-  border-bottom: 2rpx solid var(--border-color);
-}
-.stall-title-row {
   display: flex;
-  align-items: center;
-  gap: 8rpx;
+  align-items: flex-start;
 }
-.stall-icon {
-  font-size: 32rpx;
-}
-.stall-name {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.stall-location {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  display: block;
-  margin-top: 6rpx;
-  padding-left: 40rpx;
-}
-.stall-dishes {
-  padding: 0;
-}
-.stall-dish-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 2rpx solid var(--bg-page);
-}
-.stall-dish-item:last-child {
-  border-bottom: none;
-}
-.dish-img {
+
+/* 左侧：档口图标 */
+.stall-icon-box {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
+  border-radius: var(--radius-card);
   background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.dish-img image {
+
+.stall-icon-img {
   width: 100%;
   height: 100%;
+  border-radius: var(--radius-card);
 }
-.dish-info {
+
+/* 中间：档口详细信息 */
+.stall-info {
   flex: 1;
   min-width: 0;
+  margin-left: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
 }
-.dish-name {
-  font-size: var(--font-body);
-  font-weight: 500;
+
+/* 第一行：档口名 + 评分 */
+.stall-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stall-name {
+  font-size: 34rpx;
+  font-weight: 600;
   color: var(--text-primary);
-  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  margin-right: 12rpx;
+}
+
+.stall-rating {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stall-rating-star {
+  height: 32rpx;
+  width: 32rpx;
+  flex-shrink: 0;
+  margin-right: 4rpx;
+}
+
+.stall-rating-value {
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: var(--color-star);
+}
+
+/* 第二行：位置图标 + 地址 + 数量 */
+.stall-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.stall-location-icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex-shrink: 0;
+}
+
+.stall-location-text {
+  font-size: var(--font-body);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.dish-meta {
+
+.stall-dish-dot {
+  font-size: var(--font-body);
+  color: var(--border-bold);
+  margin: 0 4rpx;
+}
+
+.stall-dish-count {
+  font-size: var(--font-body);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ==================== 下半部分：菜品预览区 ==================== */
+.stall-dishes-preview {
+  margin-top: 20rpx;
+}
+
+.dish-scroll {
+  width: 100%;
+  white-space: nowrap;
+  font-size: 0;
+}
+
+/* 菜品小卡片 — 上：图片，下：名称+价格水平排布 */
+.dish-mini-card {
+  width: 260rpx;
+  display: inline-flex;
+  flex-direction: column;
+  border-radius: var(--radius-icon);
+  background: var(--bg-page);
+  overflow: hidden;
+  margin-right: 20rpx;
+  vertical-align: top;
+}
+
+.dish-mini-card:last-child {
+  margin-right: 0;
+}
+
+.dish-mini-img {
+  width: 100%;
+  height: 180rpx;
+  flex-shrink: 0;
+  background: var(--border-color);
+}
+
+.dish-mini-img-placeholder {
+  width: 100%;
+  height: 180rpx;
+  background: var(--border-color);
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  margin-top: 8rpx;
+  justify-content: center;
+  font-size: var(--font-h2);
+  flex-shrink: 0;
 }
-.dish-price {
+
+.dish-mini-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx var(--spacing-sm);
+  gap: 6rpx;
+}
+
+.dish-mini-name {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dish-mini-price {
   font-size: var(--font-body);
   font-weight: 600;
   color: var(--color-price);
+  flex-shrink: 0;
 }
-.dish-rating {
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-}
-.stall-more {
-  padding: 20rpx var(--spacing-md);
+
+/* ==================== 无菜品状态 ==================== */
+.stall-empty-dishes {
+  margin-top: var(--spacing-sm);
+  padding: 20rpx 0;
   text-align: center;
 }
-.more-text {
-  font-size: 26rpx;
-  color: var(--color-primary);
+
+.empty-text {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+}
+
+/* ==================== 骨架屏 ==================== */
+.stall-skeleton {
+  pointer-events: none;
+}
+
+.skeleton-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--radius-card);
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-info {
+  flex: 1;
+  margin-left: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10rpx;
+}
+
+.skeleton-line {
+  border-radius: 6rpx;
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-name {
+  width: 55%;
+  height: 32rpx;
+}
+
+.skeleton-location {
+  width: 60%;
+  height: 24rpx;
+  margin-top: 10rpx;
+}
+
+.skeleton-dish-item {
+  width: 200rpx;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: var(--spacing-sm);
+  vertical-align: top;
+}
+
+.skeleton-dish-img {
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: var(--radius-icon);
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-dish-name {
+  width: 70%;
+  height: 24rpx;
+  border-radius: 6rpx;
+  margin: 12rpx auto 0;
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-dish-price {
+  width: 40%;
+  height: 22rpx;
+  border-radius: 6rpx;
+  margin: 6rpx auto 0;
+  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ==================== 动画 ==================== */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ==================== 底部留白 ==================== */
+.stall-spacer {
+  height: 0;
 }
 </style>

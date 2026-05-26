@@ -1,4 +1,3 @@
-import { request } from './request'
 import type { FoodList, ListCreate } from '@/types/list'
 
 export function getMyLists(): Promise<FoodList[]> {
@@ -22,10 +21,4 @@ export function createList(data: ListCreate): Promise<FoodList> {
   })
 }
 
-export function getListDetail(id: number): Promise<FoodList> {
-  return getMyLists().then(lists => {
-    const list = lists.find(l => l.id === id)
-    if (!list) throw new Error('清单不存在')
-    return list
-  })
-}
+

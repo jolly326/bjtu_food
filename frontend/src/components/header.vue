@@ -37,14 +37,14 @@ function handleBack() {
 }
 .header {
   display: flex;
-  padding: 0 32rpx 20rpx;
+  padding: 0 var(--spacing-lg) 20rpx;
   justify-content: center;
   align-items: center;
   position: relative;
 }
 .back-area {
   position: absolute;
-  left: 16rpx;
+  left: var(--spacing-sm);
   width: 80rpx;
   height: 80rpx;
   display: flex;

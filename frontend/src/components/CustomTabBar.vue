@@ -21,7 +21,7 @@ const props = defineProps<{
 const tabs = [
   { text: '首页', page: '/pages/home/index', icon: '/static/icons/Homepage.svg', activeIcon: '/static/icons/Homepage-active.svg' },
   { text: '发现', page: '/pages/find/index', icon: '/static/icons/search.svg', activeIcon: '/static/icons/search-active.svg' },
-  { text: '收藏', page: '/pages/favorite/index', icon: '/static/icons/like.svg', activeIcon: '/static/icons/like-active.svg' },
+  { text: '收藏', page: '/pages/favorite/index', icon: '/static/icons/star.svg', activeIcon: '/static/icons/star.svg' },
   { text: '我的', page: '/pages/profile/index', icon: '/static/icons/user.svg', activeIcon: '/static/icons/user-active.svg' },
 ]
 
@@ -57,7 +57,7 @@ function switchTab(page: string) {
   height: 48rpx;
 }
 .tab-text {
-  font-size: 24rpx;
+  font-size: var(--font-aux);
   color: var(--text-tertiary);
 }
 .tab-item.active .tab-text {

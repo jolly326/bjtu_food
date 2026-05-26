@@ -50,7 +50,7 @@ function handleTap() {
   margin-right: 20rpx;
 }
 .search-placeholder {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   color: var(--text-tertiary);
   flex: 1;
 }

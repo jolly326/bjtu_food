@@ -1,14 +1,14 @@
 <template>
   <view class="dish-card" @tap="handleClick">
     <view class="card-image">
-      <image v-if="dish.image" :src="dish.image" mode="aspectFill" />
+      <image v-if="imgSrc" :src="imgSrc" mode="aspectFill" />
       <view v-else class="image-placeholder">
         <text class="placeholder-icon">🍽️</text>
       </view>
       <view class="card-rating-badge">
-        <text class="star-icon">★</text>
+        <image class="star-icon" src="/static/icons/star-active.svg" />
         <text class="rating-text">{{ dish.rating }}</text>
-      </view>
+      </view>  
     </view>
     <view class="card-info">
       <view class="name-row">
@@ -24,7 +24,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Dish } from '@/types/dish'
+import { getImageUrl } from '@/utils/image'
 import TagLabel from './TagLabel.vue'
 
 const props = defineProps<{
@@ -34,6 +36,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   click: [dish: Dish]
 }>()
+
+/** 图片 URL：通过 getImageUrl 处理（兼容相对路径与完整 URL） */
+const imgSrc = computed(() => getImageUrl(props.dish.image))
 
 function handleClick() {
   emit('click', props.dish)
@@ -79,17 +84,18 @@ function handleClick() {
   align-items: center;
   gap: 4rpx;
 }
-.star-icon {
-  color: #F5A623;
-  font-size: 20rpx;
+image.star-icon {
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
 }
 .rating-text {
   color: #fff;
-  font-size: 22rpx;
+  font-size: var(--font-tiny);
   font-weight: bold;
 }
 .card-info {
-  padding: 20rpx 24rpx;
+  padding: 20rpx var(--spacing-md);
 }
 .name-row {
   display: flex;
@@ -116,13 +122,13 @@ function handleClick() {
 .card-stall {
   font-size: var(--font-aux);
   color: var(--text-secondary);
-  margin-top: 8rpx;
+  margin-top: var(--spacing-xs);
   display: block;
 }
 .card-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6rpx;
-  margin-top: 8rpx;
+  margin-top: var(--spacing-xs);
 }
 </style>

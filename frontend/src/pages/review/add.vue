@@ -134,7 +134,7 @@ onLoad((query) => {
   text-align: right;
   font-size: var(--font-tiny);
   color: var(--text-tertiary);
-  margin-top: 8rpx;
+  margin-top: var(--spacing-xs);
 }
 .image-list {
   display: flex;

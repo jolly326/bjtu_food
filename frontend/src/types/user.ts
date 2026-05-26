@@ -6,9 +6,3 @@ export interface UserInfo {
   avatar: string
   role: UserRole
 }
-
-export interface UserState {
-  token: string
-  userInfo: UserInfo | null
-  role: UserRole
-}

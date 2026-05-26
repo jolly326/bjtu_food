@@ -1,20 +1,23 @@
 <template>
   <view class="image-fallback">
-    <image v-if="src" :src="src" mode="aspectFill" />
+    <image v-if="imgSrc" :src="imgSrc" mode="aspectFill" />
     <view v-else class="placeholder">
-      <text class="placeholder-icon">{{ placeholder }}</text>
+      <image class="placeholder-icon" src="/static/icons/food.svg" />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { computed } from 'vue'
+import { getImageUrl } from '@/utils/image'
+
+const props = withDefaults(defineProps<{
   src?: string
-  placeholder?: string
 }>(), {
   src: '',
-  placeholder: '🍽️',
 })
+
+const imgSrc = computed(() => getImageUrl(props.src))
 </script>
 
 <style scoped>
@@ -36,6 +39,7 @@ withDefaults(defineProps<{
   background: var(--bg-page);
 }
 .placeholder-icon {
-  font-size: 64rpx;
+  width: 64rpx !important;
+  height: 64rpx !important;
 }
 </style>

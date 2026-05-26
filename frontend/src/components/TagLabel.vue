@@ -24,34 +24,34 @@ const typeClass = computed(() => {
 <style scoped>
 .tag-label {
   display: inline-block;
-  font-size: 22rpx;
-  padding: 8rpx 16rpx;
-  border-radius: 8rpx;
+  font-size: var(--font-tiny);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-icon);
   line-height: 1.4;
 }
-/* 必吃推荐 */
+/* 必吃推荐 — 红色系（推荐强调） */
 .tag-recommend {
-  background: var(--color-error);
-  color: var(--text-white);
+  background: #FDE8E8;
+  color: #C0392B;
 }
-/* 招牌菜 (浅色版) */
+/* 招牌菜 — 砖红系（品牌色） */
 .tag-featured {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
+  background: #FEF0EF;
+  color: #8B3A2B;
 }
-/* 新品 */
+/* 新品 — 绿色系（新鲜感） */
 .tag-new {
-  background: var(--color-accent);
-  color: var(--text-white);
+  background: #E8F8F0;
+  color: #27AE60;
 }
-/* 热卖 */
+/* 热卖 — 橙色系（热卖氛围） */
 .tag-hot {
-  background: var(--color-warning);
-  color: var(--text-white);
+  background: #FEF3E0;
+  color: #E67E22;
 }
 /* 默认 */
 .tag-default {
-  background: var(--bg-page);
-  color: var(--color-primary);
+  background: #F0F0F0;
+  color: #666666;
 }
 </style>

@@ -1,4 +1,3 @@
-import { request } from './request'
 import type { UserInfo } from '@/types/user'
 
 export function login(code: string): Promise<{ token: string; userInfo: UserInfo }> {
@@ -14,11 +13,4 @@ export function login(code: string): Promise<{ token: string; userInfo: UserInfo
   })
 }
 
-export function getUserInfo(): Promise<UserInfo> {
-  return Promise.resolve({
-    id: 1,
-    nickname: '交大学子',
-    avatar: '',
-    role: 'student',
-  })
-}
+

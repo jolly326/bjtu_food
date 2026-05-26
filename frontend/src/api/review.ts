@@ -1,4 +1,3 @@
-import { request } from './request'
 import type { Review, ReviewSubmit } from '@/types/review'
 
 export function getReviewsByDish(dishId: number): Promise<Review[]> {

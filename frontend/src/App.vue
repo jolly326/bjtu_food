@@ -48,6 +48,7 @@ page {
 
   /* 边框色 */
   --border-color: #EEEEEE;
+  --border-bold: #E0E0E0;
 
   /* 价格高亮色 (使用辅助色) */
   --color-price: #E67E22;

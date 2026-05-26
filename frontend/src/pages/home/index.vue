@@ -17,7 +17,8 @@
         circular
       >
         <swiper-item v-for="(item, idx) in swiperList" :key="idx">
-          <view class="swiper-slide" :style="{ background: item.bg }">
+          <view class="swiper-slide" :style="{ backgroundImage: `url(${item.image})` }">
+            <view class="swiper-overlay" />
             <text class="swiper-title">{{ item.title }}</text>
             <text class="swiper-subtitle">{{ item.subtitle }}</text>
           </view>
@@ -31,17 +32,18 @@
         class="canteen-swiper"
         circular
         :current="currentSwiperIndex"
-        previous-margin="200rpx"
-        next-margin="200rpx"
+        previous-margin="150rpx"
+        next-margin="150rpx"
         @change="onSwiperChange"
       >
         <swiper-item v-for="(item, idx) in canteens" :key="item.name">
           <view
             class="canteen-card"
             :class="{ active: currentSwiperIndex === idx }"
+            :style="canteenStyle(item)"
             @tap="goToCanteen(item.name)"
           >
-            <text class="canteen-icon">{{ item.icon }}</text>
+            <view class="canteen-overlay" />
             <text class="canteen-name">{{ item.name }}</text>
             <text class="canteen-count">{{ item.count }}个档口</text>
           </view>
@@ -75,33 +77,35 @@ import DishCard from '@/components/DishCard.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
+import { getHomeBanners, getCanteenImages } from '@/api/dish'
+import type { BannerItem } from '@/stores/types'
 
 const dishStore = useDishStore()
 
-const swiperList = [
-  { title: '🍜 交大美食季', subtitle: '发现校园里的每一道美味', bg: '#4e4646' },
-  { title: '🔥 新菜品上架', subtitle: '一食堂二层新窗口开业', bg: '#5a3e2b' },
-  { title: '🏆 热门排行', subtitle: '同学们都在吃什么', bg: '#3d4a3d' },
-]
+// ==================== 横幅轮播 ====================
+const swiperList = ref<BannerItem[]>([])
 
+// ==================== 食堂滚动 ====================
 const currentCanteen = ref('')
 const currentSwiperIndex = ref(0)
 
-// 从菜品数据提取食堂列表
+/** 食堂背景图片映射 { 食堂名 → 图片路径 } */
+const canteenImageMap = ref<Record<string, string>>({})
+
+/** 食堂列表（从菜品数据中提取 + 背景图） */
 const canteens = computed(() => {
   const list = dishStore.recommendList as unknown as Dish[]
-  const iconMap: Record<string, string> = {
-    '第一食堂': '🍜',
-    '第二食堂': '🍛',
-    '第三食堂': '🥗',
-  }
   const seen = new Set<string>()
-  const result: { name: string; icon: string; count: number }[] = []
+  const result: { name: string; image: string; count: number }[] = []
   for (const dish of list) {
     if (!seen.has(dish.canteen)) {
       seen.add(dish.canteen)
       const count = list.filter((d: Dish) => d.canteen === dish.canteen).length
-      result.push({ name: dish.canteen, icon: iconMap[dish.canteen] || '🍴', count })
+      result.push({
+        name: dish.canteen,
+        image: canteenImageMap.value[dish.canteen] || '',
+        count,
+      })
     }
   }
   return result
@@ -112,6 +116,13 @@ const displayList = computed(() => {
   const list = dishStore.recommendList as unknown as Dish[]
   return list.filter((d: Dish) => d.canteen === currentCanteen.value)
 })
+
+function canteenStyle(item: { image?: string }) {
+  if (item.image) {
+    return { backgroundImage: `url(${item.image})` }
+  }
+  return { backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }
+}
 
 function goToCanteen(name: string) {
   uni.navigateTo({ url: `/pages/canteen/index?canteen=${encodeURIComponent(name)}` })
@@ -135,7 +146,15 @@ function goToDetail(dish: Dish) {
 }
 
 onMounted(async () => {
-  await dishStore.fetchRecommend()
+  // 并发加载首页所需数据
+  const [banners, canteenImages] = await Promise.all([
+    getHomeBanners(),
+    getCanteenImages(),
+    dishStore.fetchRecommend(),
+  ])
+  swiperList.value = banners
+  canteenImageMap.value = canteenImages
+
   // 数据加载完后，默认选中第一张食堂卡片
   if (canteens.value.length > 0) {
     currentSwiperIndex.value = 0
@@ -150,8 +169,6 @@ onMounted(async () => {
   background: var(--bg-page);
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
 }
-
-
 
 .swiper-section {
   padding: 0 var(--spacing-md);
@@ -168,70 +185,78 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+.swiper-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 .swiper-title {
-  font-size: 36rpx;
+  font-size: var(--font-h2);
   font-weight: bold;
   color: var(--text-white);
   margin-bottom: 10rpx;
+  z-index: 1;
 }
 .swiper-subtitle {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   color: var(--text-white-secondary);
+  z-index: 1;
 }
 
 .canteen-section {
   margin-bottom: var(--spacing-md);
 }
 .canteen-swiper {
-  height: 240rpx;
+  height: 280rpx;
 }
 .canteen-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 220rpx;
-  background: var(--bg-card);
+  height: 260rpx;
   border-radius: var(--radius-card);
-  margin: 0 16rpx;
+  margin: 0 var(--spacing-sm);
   box-shadow: var(--shadow-card);
   position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
 }
-.canteen-card.active::after {
-  content: '';
+.canteen-overlay {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40rpx;
-  height: 4rpx;
-  background: var(--color-primary);
-  border-radius: 2rpx;
-}
-.canteen-icon {
-  font-size: 48rpx;
-  margin-top: 6rpx;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 .canteen-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-top: 10rpx;
-}
-.canteen-card.active .canteen-name {
-  color: var(--color-primary);
+  position: absolute;
+  left: var(--spacing-md);
+  bottom: var(--spacing-md);
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-white);
+  z-index: 1;
 }
 .canteen-count {
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-  margin-top: 6rpx;
+  position: absolute;
+  right: var(--spacing-md);
+  bottom: 28rpx;
+  font-size: var(--font-aux);
+  color: var(--text-white-secondary);
+  z-index: 1;
 }
 
 .dish-section {
   padding: 0 var(--spacing-md);
 }
-
-
-
 </style>

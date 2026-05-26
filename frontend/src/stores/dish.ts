@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Dish, DishDetail, DishQuery } from '@/types/dish'
 import type { Review, ReviewSubmit } from '@/types/review'
-import type { CanteenInfo } from '@/api/dish'
+import type { CanteenInfo } from '@/stores/types'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
 

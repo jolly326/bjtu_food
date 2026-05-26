@@ -21,11 +21,10 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import StallCard from '@/components/StallCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import type { StallInfo } from '@/components/StallCard.vue'
+import type { StallInfo, DishPreview } from '@/components/StallCard.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
-import type { CanteenInfo } from '@/api/dish'
+import type { CanteenInfo } from '@/stores/types'
 
 const dishStore = useDishStore()
 const canteenName = ref('')
@@ -45,10 +44,23 @@ const stallList = computed(() => {
   const result: StallInfo[] = []
   for (const [name, stallDishes] of stallMap) {
     const canteenInfo = (dishStore.canteenList as unknown as CanteenInfo[]).find(c => c.name === canteenName.value)
+    const totalRating = stallDishes.reduce((sum, d) => sum + (d.rating || 0), 0)
+    const totalCount = stallDishes.reduce((sum, d) => sum + (d.ratingCount || 0), 0)
+    const avgRating = totalCount > 0 ? totalRating / stallDishes.length : 0
     result.push({
+      id: stallDishes[0]?.id ?? 0,
       name,
       location: canteenInfo?.location || '位置待定',
-      dishes: stallDishes,
+      dishCount: stallDishes.length,
+      image: '/static/dish_placeholder.jpg',
+      rating: avgRating,
+      ratingCount: totalCount,
+      dishes: stallDishes.map(d => ({
+        id: d.id,
+        name: d.name,
+        price: d.price,
+        image: d.image,
+      })),
     })
   }
   return result
@@ -60,7 +72,7 @@ function goToStall(stall: StallInfo) {
   uni.navigateTo({ url: '/pages/stall/index' })
 }
 
-function goToDetail(dish: Dish) {
+function goToDetail(dish: DishPreview) {
   uni.navigateTo({ url: `/pages/dish/detail?id=${dish.id}` })
 }
 

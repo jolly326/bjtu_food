@@ -8,7 +8,7 @@
         <!-- 学号输入 -->
         <view class="form-group">
           <view class="input-wrap" :class="{ focused: focusField === 'studentId' }">
-            <text class="input-icon">👤</text>
+            <image class="profile-icon" src="/static/icons/user.svg" />
             <input
               v-model="form.studentId"
               class="form-input"
@@ -23,7 +23,7 @@
         <!-- 验证码输入 -->
         <view class="form-group">
           <view class="input-wrap code-wrap" :class="{ focused: focusField === 'code' }">
-            <text class="input-icon">🔐</text>
+            <image class="lock-icon" src="/static/icons/lock.svg" />
             <input
               v-model="form.code"
               class="form-input code-input"
@@ -60,7 +60,7 @@
         <view class="user-info">
           <view class="avatar-wrap">
             <image v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
-            <view v-else class="avatar-placeholder">👤</view>
+            <image v-else class="profile-icon" src="/static/icons/user.svg" />
           </view>
           <text class="nickname">{{ userInfo?.nickname || '未知用户' }}</text>
         </view>
@@ -156,17 +156,6 @@ function handleLogout() {
   padding: 0 30rpx;
 }
 
-/* ===== Logo ===== */
-.logo-area {
-  text-align: center;
-  margin-bottom: 48rpx;
-}
-.logo {
-  font-size: 48rpx;
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
 /* ===== 表单项 ===== */
 .form-group {
   margin-bottom: var(--spacing-md);
@@ -177,8 +166,8 @@ function handleLogout() {
   background: var(--bg-page);
   border-radius: var(--radius-card);
   height: 88rpx;
-  padding: 0 24rpx;
-  border: 2rpx solid transparent;
+  padding: 0 var(--spacing-md);
+  border: 2rpx solid var(--border-color);
   transition: border-color 0.2s;
 }
 .input-wrap.focused {
@@ -186,12 +175,6 @@ function handleLogout() {
 }
 .code-wrap {
   padding-right: 0;
-}
-.input-icon {
-  font-size: 32rpx;
-  color: var(--text-tertiary);
-  margin-right: var(--spacing-sm);
-  flex-shrink: 0;
 }
 .form-input {
   flex: 1;
@@ -203,12 +186,12 @@ function handleLogout() {
   outline: none;
 }
 .code-input {
-  margin-right: 8rpx;
+  margin-right: var(--spacing-xs);
 }
 .get-code-btn {
-  font-size: 26rpx;
+  font-size: var(--font-aux);
   color: var(--color-primary);
-  padding: 0 24rpx;
+  padding: 0 var(--spacing-md);
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -225,7 +208,7 @@ function handleLogout() {
 }
 .tip-text {
   display: block;
-  font-size: 24rpx;
+  font-size: var(--font-aux);
   color: var(--text-tertiary);
   line-height: 1.6;
 }
@@ -245,21 +228,19 @@ function handleLogout() {
   border-radius: 50%;
   background: var(--border-color);
 }
-.avatar-placeholder {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 50%;
-  background: var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 56rpx;
-}
 .nickname {
   font-size: 32rpx;
   font-weight: 500;
   color: var(--text-primary);
 }
-
-
+.profile-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: var(--spacing-sm);
+}
+.lock-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: var(--spacing-sm);
+}
 </style>

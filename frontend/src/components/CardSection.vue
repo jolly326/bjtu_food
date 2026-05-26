@@ -16,7 +16,7 @@ withDefaults(defineProps<{
 <style scoped>
 .card-section {
   background: var(--bg-card);
-  margin: var(--spacing-sm) 30rpx;
+  margin: var(--spacing-sm) var(--spacing-md);
   padding: var(--spacing-md);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -26,7 +26,7 @@ withDefaults(defineProps<{
 }
 .section-title {
   display: block;
-  font-size: 30rpx;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: var(--spacing-sm);

@@ -1,13 +1,16 @@
 <template>
-  <view class="rating" :class="{ interactive: readonly }">
+  <view class="rating" :class="{ interactive: !readonly }">
     <view
       v-for="star in 5"
       :key="star"
       class="star"
-      :class="{ active: star <= modelValue, half: star - 0.5 === modelValue }"
+      :class="{ active: star <= modelValue }"
       @tap="readonly ? null : $emit('update:modelValue', star)"
     >
-      <text class="star-icon">{{ star <= modelValue ? '★' : '☆' }}</text>
+      <image
+        :src="star <= modelValue ? '/static/icons/star-active.svg' : '/static/icons/star.svg'"
+        class="star-icon-img"
+      />
     </view>
     <text v-if="showText && modelValue" class="rating-text">{{ modelValue }}分</text>
   </view>
@@ -33,20 +36,18 @@ defineEmits<{
 .rating {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 12rpx;
 }
-.star-icon {
-  font-size: 28rpx;
-  color: #E0E0E0;
-}
-.star.active .star-icon {
-  color: #F5A623;
+.star-icon-img {
+  width: 48rpx;
+  height: 48rpx;
+  display: block;
 }
 .interactive .star {
-  padding: 4rpx;
+  padding: 6rpx;
 }
 .rating-text {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: var(--text-secondary);
   margin-left: 8rpx;
 }

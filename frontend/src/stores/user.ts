@@ -5,7 +5,7 @@ import * as userApi from '@/api/user'
 
 export const useUserStore = defineStore('user', () => {
   const userInfo = ref<UserInfo | null>(null)
-  const token = ref('')
+  const token = ref(uni.getStorageSync('token') || 'mock_token_2024')
   const loading = ref(false)
 
   async function login(code: string) {

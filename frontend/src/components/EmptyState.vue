@@ -34,7 +34,7 @@ withDefaults(defineProps<{
 .empty-text {
   font-size: var(--font-body);
   color: var(--text-secondary);
-  margin-bottom: 8rpx;
+  margin-bottom: var(--spacing-xs);
 }
 .empty-hint {
   font-size: var(--font-aux);
