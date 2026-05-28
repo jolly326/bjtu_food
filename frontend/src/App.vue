@@ -1,13 +1,7 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
+import { onLaunch } from "@dcloudio/uni-app";
 onLaunch(() => {
-  console.log("App Launch");
-});
-onShow(() => {
-  console.log("App Show");
-});
-onHide(() => {
-  console.log("App Hide");
+  // 预留：登录态恢复等全局初始化
 });
 </script>
 <style>
@@ -61,7 +55,9 @@ page {
   --spacing-xl: 48rpx;
 
   /* 圆角 */
+  --radius-modal: 24rpx;
   --radius-card: 16rpx;
+  --radius-tag: 12rpx;
   --radius-btn: 48rpx;
   --radius-icon: 8rpx;
 
@@ -72,7 +68,11 @@ page {
   /* 字体大小 */
   --font-h1: 44rpx;
   --font-h2: 36rpx;
+  --font-subtitle: 34rpx;
+  --font-card: 32rpx;
+  --font-caption: 30rpx;
   --font-body: 28rpx;
+  --font-small: 26rpx;
   --font-aux: 24rpx;
   --font-tiny: 22rpx;
 

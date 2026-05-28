@@ -21,9 +21,10 @@ export const useFavoriteStore = defineStore('favorite', () => {
   async function addFavorite(dishId: number) {
     try {
       await favoriteApi.addFavorite(dishId)
+      // toggle 成功后重新拉取全量列表以获取最新顺序和数据
       await fetchFavorites()
     } catch (e: any) {
-      throw new Error(e.message || '收藏失败')
+      console.error('收藏失败', e)
     }
   }
 
@@ -32,7 +33,7 @@ export const useFavoriteStore = defineStore('favorite', () => {
       await favoriteApi.removeFavorite(dishId)
       favoriteList.value = favoriteList.value.filter(d => d.id !== dishId)
     } catch (e: any) {
-      throw new Error(e.message || '取消收藏失败')
+      console.error('取消收藏失败', e)
     }
   }
 

@@ -44,10 +44,14 @@ export interface StallInfo {
       <!-- 左侧：档口图标 -->
       <view class="stall-icon-box">
         <image
-          :src="getImageUrl(stall.image || '/static/dish_placeholder.jpg')"
+          v-if="stall.image"
+          :src="getImageUrl(stall.image)"
           mode="aspectFill"
           class="stall-icon-img"
         />
+        <view v-else class="stall-icon-placeholder">
+          <image class="stall-icon-fallback" src="/static/icons/food.svg" />
+        </view>
       </view>
 
       <!-- 中间：档口详细信息 -->
@@ -56,7 +60,7 @@ export interface StallInfo {
         <view class="stall-row-top">
           <text class="stall-name">{{ stall.name }}</text>
           <view v-if="stall.rating" class="stall-rating">
-            <image class="stall-rating-star" src="/static/icons/star-active.svg" />
+            <image class="stall-rating-star" src="/static/icons/star-yellow.svg" />
             <text class="stall-rating-value">{{ stall.rating.toFixed(1) }}</text>
           </view>
         </view>
@@ -90,7 +94,9 @@ export interface StallInfo {
               mode="aspectFill"
               class="dish-mini-img"
             />
-            <text v-else class="dish-mini-img-placeholder">🍽️</text>
+            <view v-else class="dish-mini-img-placeholder">
+              <image class="dish-mini-fallback" src="/static/icons/food.svg" />
+            </view>
             <view class="dish-mini-info">
               <text class="dish-mini-name">{{ dish.name }}</text>
               <text class="dish-mini-price">￥{{ dish.price }}</text>
@@ -166,6 +172,19 @@ function goToDish(dish: DishPreview) {
   border-radius: var(--radius-card);
 }
 
+.stall-icon-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stall-icon-fallback {
+  width: 48rpx !important;
+  height: 48rpx !important;
+}
+
 /* 中间：档口详细信息 */
 .stall-info {
   flex: 1;
@@ -184,7 +203,7 @@ function goToDish(dish: DishPreview) {
 }
 
 .stall-name {
-  font-size: 34rpx;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -192,7 +211,7 @@ function goToDish(dish: DishPreview) {
   white-space: nowrap;
   flex: 1;
   min-width: 0;
-  margin-right: 12rpx;
+  margin-right: var(--spacing-sm);
 }
 
 .stall-rating {
@@ -288,8 +307,11 @@ function goToDish(dish: DishPreview) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-h2);
   flex-shrink: 0;
+}
+.dish-mini-fallback {
+  width: 64rpx;
+  height: 64rpx;
 }
 
 .dish-mini-info {

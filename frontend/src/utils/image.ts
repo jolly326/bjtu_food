@@ -2,7 +2,7 @@
  * 图片 URL 工具函数
  *
  * 当前（MVP Mock 阶段）：
- * - image 字段存本地静态路径如 "/static/dish_placeholder.jpg"
+ * - image 字段存本地静态路径
  * - getImageUrl() 直接透传，由 uni-app 自动解析静态资源
  *
  * 后续切换到真实后端后：
@@ -19,9 +19,9 @@
  * @returns 可使用的图片 URL
  *
  * @example
- * getImageUrl('/static/dish_placeholder.jpg')  // → '/static/dish_placeholder.jpg'
- * getImageUrl('')                               // → ''
- * getImageUrl(null)                             // → ''
+ * getImageUrl('/static/icons/food.svg')  // → '/static/icons/food.svg'
+ * getImageUrl('')                         // → ''
+ * getImageUrl(null)                       // → ''
  */
 export function getImageUrl(path?: string | null): string {
   if (!path) return ''

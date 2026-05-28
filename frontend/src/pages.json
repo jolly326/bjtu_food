@@ -15,34 +15,6 @@
 			}
 		},
 		{
-			"path": "pages/dish/detail",
-			"style": {
-				"navigationBarTitleText": "菜品详情",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/canteen/index",
-			"style": {
-				"navigationBarTitleText": "食堂详情",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/stall/index",
-			"style": {
-				"navigationBarTitleText": "档口详情",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/review/add",
-			"style": {
-				"navigationBarTitleText": "发表评价",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/favorite/index",
 			"style": {
 				"navigationBarTitleText": "收藏",
@@ -55,6 +27,41 @@
 				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
 			}
+		}
+	],
+	"subPackages": [
+		{
+			"root": "pages/pages-detail/",
+			"pages": [
+				{
+					"path": "canteen",
+					"style": {
+						"navigationBarTitleText": "食堂详情",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "dish",
+					"style": {
+						"navigationBarTitleText": "菜品详情",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "review",
+					"style": {
+						"navigationBarTitleText": "发表评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "stall",
+					"style": {
+						"navigationBarTitleText": "档口详情",
+						"navigationStyle": "custom"
+					}
+				}
+			]
 		}
 	],
 	"globalStyle": {

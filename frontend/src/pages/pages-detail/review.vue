@@ -30,15 +30,15 @@
           <image :src="img" mode="aspectFill" class="preview-img" />
           <text class="remove-btn" @tap="removeImage(idx)">✕</text>
         </view>
-        <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="uploadImage">
+        <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
           <text class="upload-icon">+</text>
         </view>
       </view>
     </CardSection>
 
     <!-- 提交按钮 -->
-    <view style="padding: 30rpx;">
-      <AppButton text="提交评价" type="gradient" :disabled="!canSubmit" @tap="handleSubmit" />
+    <view style="padding: var(--spacing-lg);">
+      <AppButton text="提交评价" type="gradient" :disabled="!canSubmit" @click="handleSubmit" />
     </view>
   </view>
 </template>
@@ -54,9 +54,11 @@ import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
 import { useDishStore } from '@/stores/dish'
+import { uploadImage as uploadImageApi } from '@/api/upload'
 
 const dishStore = useDishStore()
 const dishId = ref(0)
+const uploading = ref(false)
 const form = reactive({
   rating: 5,
   content: '',
@@ -69,7 +71,7 @@ function removeImage(idx: number) {
   form.images.splice(idx, 1)
 }
 
-function uploadImage() {
+function selectImage() {
   uni.chooseImage({
     count: 3 - form.images.length,
     success: (res) => {
@@ -79,18 +81,34 @@ function uploadImage() {
 }
 
 async function handleSubmit() {
-  if (!canSubmit.value) return
+  if (!canSubmit.value || uploading.value) return
+  uploading.value = true
+
   try {
+    // 将本地图片上传到服务器，获取可访问的 URL
+    const uploadedUrls: string[] = []
+    for (const localPath of form.images) {
+      try {
+        const url = await uploadImageApi(localPath)
+        uploadedUrls.push(url)
+      } catch {
+        // 单张上传失败不影响整体提交
+        console.warn('图片上传失败，跳过:', localPath)
+      }
+    }
+
     await dishStore.submitReview({
       dishId: dishId.value,
       rating: form.rating,
       content: form.content,
-      images: form.images,
+      images: uploadedUrls,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: any) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    uploading.value = false
   }
 }
 
@@ -103,7 +121,7 @@ onLoad((query) => {
 .review-page {
   min-height: 100vh;
   background: var(--bg-page);
-  padding-bottom: 120rpx;
+  padding-bottom: var(--spacing-xl);
 }
 .section-label {
   font-size: var(--font-body);
@@ -115,7 +133,7 @@ onLoad((query) => {
 .rating-panel {
   display: flex;
   justify-content: center;
-  padding: 20rpx 0;
+  padding: var(--spacing-md) 0;
 }
 .content-input {
   width: 100%;
@@ -177,7 +195,7 @@ onLoad((query) => {
   background: var(--bg-page);
 }
 .upload-icon {
-  font-size: 60rpx;
+  font-size: var(--font-h1);
   color: var(--text-tertiary);
 }
 

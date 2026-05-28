@@ -6,3 +6,8 @@ export interface UserInfo {
   avatar: string
   role: UserRole
 }
+
+export interface UserStats {
+  favoriteCount: number
+  reviewCount: number
+}

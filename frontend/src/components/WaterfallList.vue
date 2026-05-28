@@ -1,14 +1,13 @@
 <template>
   <view class="waterfall-grid">
-    <view v-for="(item, index) in props.list" :key="item[keyName]" class="waterfall-item">
+    <view v-for="(item, index) in props.list" :key="item[props.itemKey]" class="waterfall-item">
       <slot name="card" :item="item" />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
+import { computed } from "vue";
 const props = withDefaults(defineProps<{
   list: any[]
   itemKey?: string

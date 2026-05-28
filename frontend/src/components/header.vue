@@ -33,6 +33,9 @@ function handleBack() {
 
 <style scoped>
 .header-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: var(--color-primary);
 }
 .header {

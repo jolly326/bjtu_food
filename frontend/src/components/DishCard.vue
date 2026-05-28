@@ -3,10 +3,10 @@
     <view class="card-image">
       <image v-if="imgSrc" :src="imgSrc" mode="aspectFill" />
       <view v-else class="image-placeholder">
-        <text class="placeholder-icon">🍽️</text>
+        <image class="placeholder-icon" src="/static/icons/food.svg" />
       </view>
       <view class="card-rating-badge">
-        <image class="star-icon" src="/static/icons/star-active.svg" />
+        <image class="star-icon" src="/static/icons/star-yellow.svg" />
         <text class="rating-text">{{ dish.rating }}</text>
       </view>  
     </view>
@@ -70,16 +70,17 @@ function handleClick() {
   align-items: center;
   justify-content: center;
 }
-.placeholder-icon {
-  font-size: 64rpx;
+image.placeholder-icon {
+  width: 100rpx;
+  height: 100rpx;
 }
 .card-rating-badge {
   position: absolute;
   top: 10rpx;
   right: 10rpx;
   background: rgba(0, 0, 0, 0.6);
-  border-radius: 20rpx;
-  padding: 4rpx 12rpx;
+  border-radius: var(--radius-card);
+  padding: var(--spacing-xs) var(--spacing-sm);
   display: flex;
   align-items: center;
   gap: 4rpx;
@@ -90,7 +91,7 @@ image.star-icon {
   flex-shrink: 0;
 }
 .rating-text {
-  color: #fff;
+  color: var(--text-white);
   font-size: var(--font-tiny);
   font-weight: bold;
 }
@@ -114,7 +115,7 @@ image.star-icon {
   min-width: 0;
 }
 .card-price {
-  font-size: 30rpx;
+  font-size: var(--font-caption);
   color: var(--color-price);
   font-weight: bold;
   flex-shrink: 0;

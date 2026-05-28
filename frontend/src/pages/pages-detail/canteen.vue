@@ -11,8 +11,6 @@
         @dish-click="goToDetail"
       />
     </view>
-
-    <EmptyState v-else icon="🍽️" text="该食堂暂无档口数据" />
   </view>
 </template>
 
@@ -24,7 +22,7 @@ import StallCard from '@/components/StallCard.vue'
 import type { StallInfo, DishPreview } from '@/components/StallCard.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
-import type { CanteenInfo } from '@/stores/types'
+import type { CanteenInfo } from '@/types/canteen'
 
 const dishStore = useDishStore()
 const canteenName = ref('')
@@ -50,9 +48,9 @@ const stallList = computed(() => {
     result.push({
       id: stallDishes[0]?.id ?? 0,
       name,
-      location: canteenInfo?.location || '位置待定',
+      location: canteenInfo?.location || canteenName.value,
       dishCount: stallDishes.length,
-      image: '/static/dish_placeholder.jpg',
+      image: '',
       rating: avgRating,
       ratingCount: totalCount,
       dishes: stallDishes.map(d => ({
@@ -69,11 +67,11 @@ const stallList = computed(() => {
 function goToStall(stall: StallInfo) {
   dishStore.navParams.stallName = stall.name
   dishStore.navParams.canteen = canteenName.value
-  uni.navigateTo({ url: '/pages/stall/index' })
+  uni.navigateTo({ url: '/pages/pages-detail/stall' })
 }
 
 function goToDetail(dish: DishPreview) {
-  uni.navigateTo({ url: `/pages/dish/detail?id=${dish.id}` })
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
 }
 
 onLoad(async (query) => {

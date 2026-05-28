@@ -5,12 +5,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   text: string
-  type?: 'featured' | 'recommend' | 'default'
-}>(), {
-  type: 'default',
-})
+}>()
 
 const typeClass = computed(() => {
   if (props.text === '必吃推荐') return 'tag-recommend'

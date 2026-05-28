@@ -8,7 +8,7 @@
       @tap="readonly ? null : $emit('update:modelValue', star)"
     >
       <image
-        :src="star <= modelValue ? '/static/icons/star-active.svg' : '/static/icons/star.svg'"
+        :src="star <= modelValue ? '/static/icons/star-yellow.svg' : '/static/icons/star.svg'"
         class="star-icon-img"
       />
     </view>
@@ -36,19 +36,19 @@ defineEmits<{
 .rating {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: var(--spacing-sm);
 }
 .star-icon-img {
-  width: 48rpx;
-  height: 48rpx;
+  width: 72rpx;
+  height: 72rpx;
   display: block;
 }
 .interactive .star {
-  padding: 6rpx;
+  padding: var(--spacing-sm);
 }
 .rating-text {
-  font-size: 26rpx;
+  font-size: var(--font-h2);
   color: var(--text-secondary);
-  margin-left: 8rpx;
+  margin-left: var(--spacing-xs);
 }
 </style>
