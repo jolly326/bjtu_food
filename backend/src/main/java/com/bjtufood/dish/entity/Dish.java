@@ -56,6 +56,7 @@ public class Dish {
 
     /** 收藏量 */
     @Schema(description = "收藏量")
+    @TableField("favorite_count")
     private Integer collectCount;
 
     /** 平均评分 */
@@ -65,11 +66,6 @@ public class Dish {
     /** 评价数 */
     @Schema(description = "评价数")
     private Integer ratingCount;
-
-    /** 软删除标记 */
-    @TableLogic
-    @Schema(description = "是否删除（0=未删除, 1=已删除）")
-    private Integer isDeleted;
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

@@ -45,11 +45,6 @@ public class Review {
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")
     private Integer isHidden;
 
-    /** 软删除标记 */
-    @TableLogic
-    @Schema(description = "是否删除（0=未删除, 1=已删除）")
-    private Integer isDeleted;
-
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

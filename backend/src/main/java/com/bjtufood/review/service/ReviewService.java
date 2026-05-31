@@ -18,7 +18,7 @@ public interface ReviewService {
     /**
      * 获取菜品评价列表
      * <p>
-     * 只返回 is_hidden=0 AND is_deleted=0 的评价
+     * 只返回 is_hidden=0 的评价
      * 按创建时间降序排列
      * 每条评价包含评价者的昵称和头像
      *
@@ -80,7 +80,7 @@ public interface ReviewService {
      * @param page     页码
      * @param pageSize 每页条数
      * @param isHidden 是否隐藏（可选）
-     * @param isDeleted 是否删除（可选）
+     * @param isDeleted 兼容旧接口参数，现有数据库未使用
      * @return 分页评价列表
      */
     IPage<ReviewVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted);

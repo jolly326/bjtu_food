@@ -23,7 +23,7 @@ public interface DishService {
      * <p>
      * 支持参数：keyword, canteenId, stallId, tag, minPrice, maxPrice, sortBy, sortOrder
      * 默认排序：综合热度（收藏量*3 + 浏览量*1 + 评价数*5）降序
-     * 公开接口只查 status=on 且 is_deleted=0 的菜品
+     * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
      * @return 分页菜品列表（DishVO 含档口/食堂名称）
@@ -49,7 +49,7 @@ public interface DishService {
      * @param id     菜品ID
      * @param userId 当前用户ID（未登录可为null）
      * @return 菜品详情
-     * @throws com.bjtufood.common.exception.BusinessException 菜品不存在或已删除
+     * @throws com.bjtufood.common.exception.BusinessException 菜品不存在
      */
     DishVO getDishDetail(Long id, Long userId);
 

@@ -1,0 +1,5 @@
+# Created at 2026-05-31T15:19:14.827
+Boot Manifest-JAR contains absolute paths in classpath 'D:\Github\bjtu_food\bjtu_food\backend\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

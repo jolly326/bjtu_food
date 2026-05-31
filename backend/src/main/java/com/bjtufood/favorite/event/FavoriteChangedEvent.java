@@ -9,8 +9,8 @@ import org.springframework.context.ApplicationEvent;
  * 当用户收藏或取消收藏菜品时，由 FavoriteService 发布此事件。
  * Dish 模块的 CollectCountListener 监听此事件，同步更新菜品收藏量。
  * <p>
- * isAdd=true 表示新增收藏 → collect_count +1
- * isAdd=false 表示取消收藏 → collect_count -1
+ * isAdd=true 表示新增收藏 → favorite_count +1
+ * isAdd=false 表示取消收藏 → favorite_count -1
  */
 @Getter
 public class FavoriteChangedEvent extends ApplicationEvent {

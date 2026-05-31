@@ -1,5 +1,6 @@
 package com.bjtufood;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -17,6 +18,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - list：清单模块（创建清单、分享）
  * - upload：文件上传模块（图片上传）
  */
+@MapperScan("com.bjtufood.**.mapper")
 @SpringBootApplication
 public class BjtuFoodApplication {
 
