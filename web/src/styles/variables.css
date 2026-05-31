@@ -1,0 +1,54 @@
+:root {
+  /* ===== 主色系 — 砖红色 ===== */
+  --color-primary: #8B3A2B;
+  --color-primary-light: #A0522D;
+  --color-primary-dark: #6B1010;
+  --color-primary-bg: #fef0ef;
+  --color-accent: #E67E22;
+  --color-star: #F5A623;
+  --color-price: #E67E22;
+
+  /* ===== 状态色 ===== */
+  --color-success: #27AE60;
+  --color-success-bg: #e8f5e9;
+  --color-warning: #F39C12;
+  --color-warning-bg: #fff8e1;
+  --color-error: #E74C3C;
+  --color-error-bg: #fdecea;
+
+  /* ===== 文字色 ===== */
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-light: #bbbbbb;
+  --text-white: #FFFFFF;
+  --text-white-secondary: rgba(255,255,255,0.85);
+
+  /* ===== 背景 ===== */
+  --bg-page: #F8F8F8;
+  --bg-card: #FFFFFF;
+
+  /* ===== 边框 ===== */
+  --border-color: #EEEEEE;
+  --border-light: #f2f2f2;
+
+  /* ===== 圆角 ===== */
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ===== 阴影 ===== */
+  --shadow-card: 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,0.1);
+
+  /* 别名 — 兼容旧引用 */
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-light);
+  --success: var(--color-success);
+  --success-bg: var(--color-success-bg);
+  --warning: var(--color-warning);
+  --danger: var(--color-error);
+  --danger-bg: var(--color-error-bg);
+  --border: var(--border-color);
+  --shadow: var(--shadow-card);
+}
