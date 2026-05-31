@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,13 +7,50 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-.DS_Store
-dist
+# Java / Maven
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+
+# Spring / local runtime
+uploads/
+**/uploads/
+!backend/uploads/.gitkeep
+application-local.yml
+application-*.local.yml
+
+# Node / uni-app / Vite
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+**/.vite/
+unpackage/
+**/unpackage/
 *.local
 
+# WeChat / uni-app private project settings
+project.private.config.json
+**/project.private.config.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
 # Editor directories and files
-.idea
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
