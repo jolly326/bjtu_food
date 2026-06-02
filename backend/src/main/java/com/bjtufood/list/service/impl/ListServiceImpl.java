@@ -2,7 +2,12 @@ package com.bjtufood.list.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.favorite.service.FavoriteService;
+import com.bjtufood.canteen.entity.Stall;
+import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.list.dto.ListCreateReq;
 import com.bjtufood.list.dto.ListDetailVO;
 import com.bjtufood.list.dto.ListVO;
@@ -25,6 +30,9 @@ public class ListServiceImpl implements ListService {
     private final ItemListMapper itemListMapper;
     private final ListItemMapper listItemMapper;
     private final FavoriteService favoriteService;
+    private final DishMapper dishMapper;
+    private final StallMapper stallMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public Long createList(Long userId, ListCreateReq req) {
@@ -34,7 +42,8 @@ public class ListServiceImpl implements ListService {
         list.setDescription(req.getDescription());
         list.setShareToken(UUID.randomUUID().toString().replace("-", ""));
         itemListMapper.insert(list);
-        for (Long dishId : req.getDishIds()) {
+        List<Long> dishIds = req.getDishIds().stream().distinct().toList();
+        for (Long dishId : dishIds) {
             ListItem item = new ListItem();
             item.setListId(list.getId());
             item.setDishId(dishId);
@@ -107,7 +116,30 @@ public class ListServiceImpl implements ListService {
         vo.setDescription(list.getDescription());
         vo.setShareToken(list.getShareToken());
         vo.setCreatedAt(list.getCreatedAt());
-        vo.setDishes(List.of());
+        List<ListDetailVO.DishItem> dishes = listItemMapper.selectList(new LambdaQueryWrapper<ListItem>()
+                        .eq(ListItem::getListId, list.getId()))
+                .stream()
+                .map(ListItem::getDishId)
+                .map(this::toDishItem)
+                .filter(item -> item != null)
+                .toList();
+        vo.setDishes(dishes);
         return vo;
+    }
+
+    private ListDetailVO.DishItem toDishItem(Long dishId) {
+        Dish dish = dishMapper.selectById(dishId);
+        if (dish == null || !"on".equals(dish.getStatus())) {
+            return null;
+        }
+        Stall stall = stallMapper.selectById(dish.getStallId());
+        ListDetailVO.DishItem item = new ListDetailVO.DishItem();
+        item.setId(dish.getId());
+        item.setName(dish.getName());
+        item.setPrice(dish.getPrice());
+        item.setImages(imageUrlUtil.parseAndToAbsoluteUrls(dish.getImages()));
+        item.setAvgRating(dish.getAvgRating());
+        item.setStallName(stall == null ? null : stall.getName());
+        return item;
     }
 }

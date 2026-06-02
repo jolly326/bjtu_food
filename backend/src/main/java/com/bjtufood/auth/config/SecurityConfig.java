@@ -73,7 +73,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 公开接口
                         .requestMatchers(PUBLIC_URLS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()  // 静态资源
+                        .requestMatchers(HttpMethod.GET, "/images/**").permitAll()  // 上传的静态图片资源
                         // 管理端接口需要管理员角色
                         .requestMatchers("/admin/**").hasAnyRole("CANTEEN_ADMIN", "SYS_ADMIN")
                         // 其他接口需要登录

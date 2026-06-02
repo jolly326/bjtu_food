@@ -1,6 +1,7 @@
 package com.bjtufood.review.controller;
 
 import com.bjtufood.common.result.Result;
+import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,16 +29,15 @@ public class ReviewController {
     public Result<?> listReviews(
             @PathVariable Long dishId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        // TODO: 调用 ReviewService.listByDishId(dishId, page, pageSize)
-        return Result.success("评价列表");
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.success(reviewService.listByDishId(dishId, page, pageSize));
     }
 
     @Operation(summary = "提交评价", description = "对菜品进行评分和图文评价（每人每菜只能评价一次）")
     @PostMapping("/reviews")
     public Result<Void> submitReview(@Valid @RequestBody ReviewReq req) {
-        // TODO: 获取当前 userId，调用 ReviewService.submitReview(userId, req)
-        // 提交成功后自动触发评分重算事件
+        Long userId = SecurityUtil.getCurrentUserId();
+        reviewService.submitReview(userId, req);
         return Result.success();
     }
 
@@ -46,15 +46,16 @@ public class ReviewController {
     public Result<Void> updateReview(
             @PathVariable Long id,
             @RequestBody ReviewReq req) {
-        // TODO: 获取当前 userId
-        // 调用 ReviewService.updateReview(id, userId, req.getRating(), req.getContent())
+        Long userId = SecurityUtil.getCurrentUserId();
+        reviewService.updateReview(id, userId, req.getRating(), req.getContent());
         return Result.success();
     }
 
     @Operation(summary = "删除评价", description = "删除自己的评价（软删除）")
     @DeleteMapping("/reviews/{id}")
     public Result<Void> deleteReview(@PathVariable Long id) {
-        // TODO: 获取当前 userId，调用 ReviewService.deleteReview(id, userId)
+        Long userId = SecurityUtil.getCurrentUserId();
+        reviewService.deleteReview(id, userId);
         return Result.success();
     }
 }

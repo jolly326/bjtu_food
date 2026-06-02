@@ -1,5 +1,6 @@
 package com.bjtufood.canteen.service;
 
+import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Stall;
 
 import java.util.List;
@@ -17,7 +18,7 @@ public interface StallService {
      * @param canteenId 食堂ID
      * @return 该食堂下的档口列表
      */
-    List<Stall> listByCanteenId(Long canteenId);
+    List<StallDetailVO> listByCanteenId(Long canteenId);
 
     /**
      * 新增档口

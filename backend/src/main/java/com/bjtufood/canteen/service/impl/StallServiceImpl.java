@@ -1,11 +1,13 @@
 package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +22,17 @@ public class StallServiceImpl implements StallService {
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
     private final DishMapper dishMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
-    public List<Stall> listByCanteenId(Long canteenId) {
+    public List<StallDetailVO> listByCanteenId(Long canteenId) {
         return stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, canteenId)
-                .orderByAsc(Stall::getSortOrder));
+                .eq(Stall::getStatus, "open")
+                .orderByAsc(Stall::getSortOrder))
+                .stream()
+                .map(this::toVO)
+                .toList();
     }
 
     @Override
@@ -59,5 +66,15 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException("Stall not found");
         }
         return stall;
+    }
+
+    private StallDetailVO toVO(Stall stall) {
+        StallDetailVO vo = new StallDetailVO();
+        vo.setId(stall.getId());
+        vo.setName(stall.getName());
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
+        vo.setLocation(stall.getLocation());
+        vo.setDescription(stall.getDescription());
+        return vo;
     }
 }

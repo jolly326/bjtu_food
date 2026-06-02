@@ -1,41 +1,41 @@
-# 食在交大 — 前端 API 接口文档
+﻿# 椋熷湪浜ゅぇ 鈥?鍓嶇 API 鎺ュ彛鏂囨。
 
-> 基础地址：`http://localhost:8080/api`
+> 鍩虹鍦板潃锛歚http://localhost:8080/api`
 >
-> 统一响应格式：
+> 缁熶竴鍝嶅簲鏍煎紡锛?
 > ```json
 > { "code": 200, "message": "success", "data": <T> }
 > ```
 >
-> 鉴权方式：`Authorization: Bearer <token>`（登录后所有接口自动携带）
+> 閴存潈鏂瑰紡锛歚Authorization: Bearer <token>`锛堢櫥褰曞悗鎵€鏈夋帴鍙ｈ嚜鍔ㄦ惡甯︼級
 
 ---
 
-## 目录
+## 鐩綍
 
-| 模块 | 接口 | 方法 | 用途 |
+| 妯″潡 | 鎺ュ彛 | 鏂规硶 | 鐢ㄩ€?|
 |------|------|------|------|
-| 认证 | `/auth/login` | POST | 登录/注册 |
-| 认证 | `/auth/profile` | PUT | 修改昵称/头像 |
-| 认证 | `/auth/stats` | GET | 获取用户统计 |
-| 菜品 | `/dishes/hot` | GET | 首页推荐菜品 |
-| 菜品 | `/dishes` | GET | 搜索/筛选菜品 |
-| 菜品 | `/dishes/:id` | GET | 菜品详情 |
-| 食堂 | `/canteens/banners` | GET | 首页轮播图 |
-| 食堂 | `/canteens` | GET | 食堂列表 |
-| 食堂 | `/canteens/images` | GET | 食堂背景图片 |
-| 食堂 | `/canteens/stallDetail` | GET | 档口详情 |
-| 评价 | `/dishes/:id/reviews` | GET | 菜品评价列表 |
-| 评价 | `/reviews` | POST | 提交评价 |
-| 收藏 | `/favorites` | GET | 收藏列表 |
-| 收藏 | `/favorites/toggle` | POST | 切换收藏（添加/取消） |
-| 上传 | `/upload/image` | POST | 上传图片 |
+| 璁よ瘉 | `/auth/login` | POST | 鐧诲綍/娉ㄥ唽 |
+| 璁よ瘉 | `/auth/profile` | PUT | 淇敼鏄电О/澶村儚 |
+| 璁よ瘉 | `/auth/stats` | GET | 鑾峰彇鐢ㄦ埛缁熻 |
+| 鑿滃搧 | `/dishes/hot` | GET | 棣栭〉鎺ㄨ崘鑿滃搧 |
+| 鑿滃搧 | `/dishes` | GET | 鎼滅储/绛涢€夎彍鍝?|
+| 鑿滃搧 | `/dishes/:id` | GET | 鑿滃搧璇︽儏 |
+| 椋熷爞 | `/canteens/banners` | GET | 棣栭〉杞挱鍥?|
+| 椋熷爞 | `/canteens` | GET | 椋熷爞鍒楄〃 |
+| 椋熷爞 | `/canteens/images` | GET | 椋熷爞鑳屾櫙鍥剧墖 |
+| 椋熷爞 | `/canteens/stallDetail` | GET | 妗ｅ彛璇︽儏 |
+| 璇勪环 | `/dishes/:id/reviews` | GET | 鑿滃搧璇勪环鍒楄〃 |
+| 璇勪环 | `/reviews` | POST | 鎻愪氦璇勪环 |
+| 鏀惰棌 | `/favorites` | GET | 鏀惰棌鍒楄〃 |
+| 鏀惰棌 | `/favorites/toggle` | POST | 鍒囨崲鏀惰棌锛堟坊鍔?鍙栨秷锛?|
+| 涓婁紶 | `/upload/image` | POST | 涓婁紶鍥剧墖 |
 
 ---
 
-## 1. 认证模块
+## 1. 璁よ瘉妯″潡
 
-### 1.1 登录 / 自动注册
+### 1.1 鐧诲綍 / 鑷姩娉ㄥ唽
 
 ```
 POST /auth/login
@@ -50,10 +50,10 @@ POST /auth/login
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `username` | string | 是 | 学号 |
-| `password` | string | 是 | 验证码（首次登录自动创建账号） |
+| `username` | string | 鏄?| 瀛﹀彿 |
+| `password` | string | 鏄?| 楠岃瘉鐮侊紙棣栨鐧诲綍鑷姩鍒涘缓璐﹀彿锛?|
 
 **Response `data`:**
 
@@ -61,67 +61,67 @@ POST /auth/login
 {
   "token": "jwt_token_string",
   "userId": 1,
-  "nickname": "交大学子",
+  "nickname": "浜ゅぇ瀛﹀瓙",
   "avatar": "http://.../avatar.jpg",
   "role": "student"
 }
 ```
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `token` | string | JWT token，后续接口通过 `Authorization: Bearer <token>` 传递 |
-| `userId` | number | 用户 ID |
-| `nickname` | string | 昵称 |
-| `avatar` | string | 头像 URL（可能为空） |
-| `role` | `"student" \| "visitor"` | 角色 |
+| `token` | string | JWT token锛屽悗缁帴鍙ｉ€氳繃 `Authorization: Bearer <token>` 浼犻€?|
+| `userId` | number | 鐢ㄦ埛 ID |
+| `nickname` | string | 鏄电О |
+| `avatar` | string | 澶村儚 URL锛堝彲鑳戒负绌猴級 |
+| `role` | `"student" \| "visitor"` | 瑙掕壊 |
 
 ---
 
-### 1.2 修改资料
+### 1.2 淇敼璧勬枡
 
 ```
 PUT /auth/profile
 ```
 
-**Request Body**（两个字段至少传一个）：
+**Request Body**锛堜袱涓瓧娈佃嚦灏戜紶涓€涓級锛?
 
 ```json
 {
-  "nickname": "新昵称",
+  "nickname": "鏂版樀绉?,
   "avatar": "http://.../new_avatar.jpg"
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `nickname` | string | 否 | 新昵称，最多 20 字 |
-| `avatar` | string | 否 | 头像图片 URL（**必须先通过上传接口获取 URL**，不可直接传本地临时路径） |
+| `nickname` | string | 鍚?| 鏂版樀绉帮紝鏈€澶?20 瀛?|
+| `avatar` | string | 鍚?| 澶村儚鍥剧墖 URL锛?*蹇呴』鍏堥€氳繃涓婁紶鎺ュ彛鑾峰彇 URL**锛屼笉鍙洿鎺ヤ紶鏈湴涓存椂璺緞锛?|
 
-> ⚠️ **前端调用顺序**：`uni.chooseImage` → `POST /upload/image`（获取 URL）→ `PUT /auth/profile`（传入 URL）
+> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堣幏鍙?URL锛夆啋 `PUT /auth/profile`锛堜紶鍏?URL锛?
 
-**Response `data`:** 更新后的 `UserInfo` 对象
+**Response `data`:** 鏇存柊鍚庣殑 `UserInfo` 瀵硅薄
 
 ```json
 {
   "id": 1,
-  "nickname": "新昵称",
+  "nickname": "鏂版樀绉?,
   "avatar": "http://.../new_avatar.jpg",
   "role": "student"
 }
 ```
 
-**前端类型 `UserInfo`：**
+**鍓嶇绫诲瀷 `UserInfo`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `id` | number | 用户 ID |
-| `nickname` | string | 昵称 |
-| `avatar` | string | 头像 URL |
-| `role` | `"student" \| "visitor"` | 角色 |
+| `id` | number | 鐢ㄦ埛 ID |
+| `nickname` | string | 鏄电О |
+| `avatar` | string | 澶村儚 URL |
+| `role` | `"student" \| "visitor"` | 瑙掕壊 |
 
 ---
 
-### 1.3 获取用户统计
+### 1.3 鑾峰彇鐢ㄦ埛缁熻
 
 ```
 GET /auth/stats
@@ -136,29 +136,29 @@ GET /auth/stats
 }
 ```
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `favoriteCount` | number | 收藏数 |
-| `reviewCount` | number | 评价数 |
+| `favoriteCount` | number | 鏀惰棌鏁?|
+| `reviewCount` | number | 璇勪环鏁?|
 
-**前端类型 `UserStats`：**
+**鍓嶇绫诲瀷 `UserStats`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `favoriteCount` | number | 收藏数 |
-| `reviewCount` | number | 评价数 |
+| `favoriteCount` | number | 鏀惰棌鏁?|
+| `reviewCount` | number | 璇勪环鏁?|
 
 ---
 
-## 2. 菜品模块
+## 2. 鑿滃搧妯″潡
 
-### 2.1 首页推荐菜品
+### 2.1 棣栭〉鎺ㄨ崘鑿滃搧
 
 ```
 GET /dishes/hot
 ```
 
-无参数。
+鏃犲弬鏁般€?
 
 **Response `data`:** `Dish[]`
 
@@ -166,22 +166,22 @@ GET /dishes/hot
 [
   {
     "id": 1,
-    "name": "红烧牛肉面",
+    "name": "绾㈢儳鐗涜倝闈?,
     "price": 1500,
-    "image": "http://.../dish1.jpg",
+    "images": ["http://.../dish1.jpg"],
     "avgRating": 4.8,
     "ratingCount": 256,
     "tags": ["recommended", "signature"],
-    "description": "浓汤慢炖，牛肉酥烂",
-    "canteenName": "第一食堂",
-    "stallName": "面面俱到"
+    "description": "娴撴堡鎱㈢倴锛岀墰鑲夐叆鐑?,
+    "canteenName": "绗竴椋熷爞",
+    "stallName": "闈㈤潰淇卞埌"
   }
 ]
 ```
 
 ---
 
-### 2.2 搜索 / 筛选菜品
+### 2.2 鎼滅储 / 绛涢€夎彍鍝?
 
 ```
 GET /dishes
@@ -189,20 +189,20 @@ GET /dishes
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
+| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `keyword` | string | 否 | 关键词搜索（匹配菜品名、档口名） |
-| `minPrice` | number | 否 | 最低价格（**分**） |
-| `maxPrice` | number | 否 | 最高价格（**分**） |
-| `sortBy` | `"rating" \| "price"` | 否 | 排序方式 |
-| `page` | number | 否 | 分页页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数，默认 20 |
+| `keyword` | string | 鍚?| 鍏抽敭璇嶆悳绱紙鍖归厤鑿滃搧鍚嶃€佹。鍙ｅ悕锛?|
+| `minPrice` | number | 鍚?| 鏈€浣庝环鏍硷紙**鍒?*锛?|
+| `maxPrice` | number | 鍚?| 鏈€楂樹环鏍硷紙**鍒?*锛?|
+| `sortBy` | `"rating" \| "price"` | 鍚?| 鎺掑簭鏂瑰紡 |
+| `page` | number | 鍚?| 鍒嗛〉椤电爜锛岄粯璁?1 |
+| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?20 |
 
-> 前端当前版本暂未传 `page` / `pageSize`，后端可先默认返回所有匹配结果或分页。
+> 鍓嶇褰撳墠鐗堟湰鏆傛湭浼?`page` / `pageSize`锛屽悗绔彲鍏堥粯璁よ繑鍥炴墍鏈夊尮閰嶇粨鏋滄垨鍒嗛〉銆?
 
-**Response `data`:** 分页或数组
+**Response `data`:** 鍒嗛〉鎴栨暟缁?
 
-分页格式（若支持分页）：
+鍒嗛〉鏍煎紡锛堣嫢鏀寔鍒嗛〉锛夛細
 
 ```json
 {
@@ -213,11 +213,11 @@ GET /dishes
 }
 ```
 
-若不分页则直接返回 `Dish[]`。
+鑻ヤ笉鍒嗛〉鍒欑洿鎺ヨ繑鍥?`Dish[]`銆?
 
 ---
 
-### 2.3 菜品详情
+### 2.3 鑿滃搧璇︽儏
 
 ```
 GET /dishes/:id
@@ -228,17 +228,16 @@ GET /dishes/:id
 ```json
 {
   "id": 1,
-  "name": "红烧牛肉面",
+  "name": "绾㈢儳鐗涜倝闈?,
   "price": 1500,
-  "image": "http://.../dish1.jpg",
   "images": ["http://.../img1.jpg", "http://.../img2.jpg"],
   "avgRating": 4.8,
   "ratingCount": 256,
   "collectCount": 120,
   "tags": ["recommended", "signature"],
-  "description": "浓汤慢炖，牛肉酥烂",
-  "canteenName": "第一食堂",
-  "stallName": "面面俱到",
+  "description": "娴撴堡鎱㈢倴锛岀墰鑲夐叆鐑?,
+  "canteenName": "绗竴椋熷爞",
+  "stallName": "闈㈤潰淇卞埌",
   "ratingDistribution": [
     { "star": 5, "count": 156 },
     { "star": 4, "count": 68 },
@@ -249,41 +248,40 @@ GET /dishes/:id
 }
 ```
 
-**前端类型 `Dish`：**
+**鍓嶇绫诲瀷 `Dish`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `id` | number | 菜品 ID |
-| `name` | string | 菜品名 |
-| `price` | number | **单位：分**，前端显示时 /100 转为元 |
-| `image` | string | 主图 URL |
-| `images` | string[] | 多图（可选） |
-| `avgRating` / `rating` | number | 评分（前端优先取 `avgRating`） |
-| `ratingCount` | number | 评价数 |
-| `collectCount` / `favoriteCount` | number | 收藏数 |
-| `tags` | string[] | 标签数组，后端传英文 key（见下方映射表） |
-| `description` | string | 描述 |
-| `canteenName` / `canteen` | string | 所属食堂 |
-| `stallName` | string | 所属档口 |
+| `id` | number | 鑿滃搧 ID |
+| `name` | string | 鑿滃搧鍚?|
+| `price` | number | **鍗曚綅锛氬垎**锛屽墠绔樉绀烘椂 /100 杞负鍏?|
+| `images` | string[] | 图片 URL 列表；单图时仅包含 1 个 URL |
+| `avgRating` / `rating` | number | 璇勫垎锛堝墠绔紭鍏堝彇 `avgRating`锛?|
+| `ratingCount` | number | 璇勪环鏁?|
+| `collectCount` / `favoriteCount` | number | 鏀惰棌鏁?|
+| `tags` | string[] | 鏍囩鏁扮粍锛屽悗绔紶鑻辨枃 key锛堣涓嬫柟鏄犲皠琛級 |
+| `description` | string | 鎻忚堪 |
+| `canteenName` / `canteen` | string | 鎵€灞為鍫?|
+| `stallName` | string | 鎵€灞炴。鍙?|
 
-**标签映射表（后端 → 前端显示）：**
+**鏍囩鏄犲皠琛紙鍚庣 鈫?鍓嶇鏄剧ず锛夛細**
 
-| 后端值 | 前端显示 |
+| 鍚庣鍊?| 鍓嶇鏄剧ず |
 |--------|----------|
-| `recommended` | 必吃推荐 |
-| `signature` | 招牌菜 |
+| `recommended` | 蹇呭悆鎺ㄨ崘 |
+| `signature` | 鎷涚墝鑿?|
 
-**详情额外字段 `DishDetail`：**
+**璇︽儏棰濆瀛楁 `DishDetail`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `ratingDistribution` | `{ star: number, count: number }[]` | 各星级人数（1-5 星各一个） |
+| `ratingDistribution` | `{ star: number, count: number }[]` | 鍚勬槦绾т汉鏁帮紙1-5 鏄熷悇涓€涓級 |
 
 ---
 
-## 3. 食堂模块
+## 3. 椋熷爞妯″潡
 
-### 3.1 首页轮播图
+### 3.1 棣栭〉杞挱鍥?
 
 ```
 GET /canteens/banners
@@ -294,24 +292,24 @@ GET /canteens/banners
 ```json
 [
   {
-    "title": "🍜 交大美食季",
-    "subtitle": "发现校园里的每一道美味",
-    "image": "http://.../banner1.jpg"
+    "title": "馃崪 浜ゅぇ缇庨瀛?,
+    "subtitle": "鍙戠幇鏍″洯閲岀殑姣忎竴閬撶編鍛?,
+    "images": ["http://.../banner1.jpg"]
   }
 ]
 ```
 
-**前端类型 `BannerItem`：**
+**鍓嶇绫诲瀷 `BannerItem`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `title` | string | 标题 |
-| `subtitle` | string | 副标题 |
-| `image` | string | 背景图片 URL（可为空，前端用 SVG 占位） |
+| `title` | string | 鏍囬 |
+| `subtitle` | string | 鍓爣棰?|
+| `images` | string[] | 图片 URL 列表；单图时仅包含 1 个 URL |
 
 ---
 
-### 3.2 食堂列表
+### 3.2 椋熷爞鍒楄〃
 
 ```
 GET /canteens
@@ -322,45 +320,45 @@ GET /canteens
 ```json
 [
   {
-    "name": "第一食堂",
-    "description": "一食堂一层",
-    "icon": "http://.../canteen_icon.svg"
+    "name": "绗竴椋熷爞",
+    "description": "涓€椋熷爞涓€灞?,
+    "images": ["http://.../canteen_icon.svg"]
   }
 ]
 ```
 
-**前端类型 `CanteenInfo`：**
+**鍓嶇绫诲瀷 `CanteenInfo`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `name` | string | 食堂名称 |
-| `location` / `description` | string | 位置描述 |
-| `icon` | string | 图标 URL（可为空） |
+| `name` | string | 椋熷爞鍚嶇О |
+| `location` / `description` | string | 浣嶇疆鎻忚堪 |
+| `images` | string[] | 食堂图片 URL 列表；单图时仅包含 1 个 URL |
 
-> 前端优先取 `description`，取不到则取 `location`。
+> 鍓嶇浼樺厛鍙?`description`锛屽彇涓嶅埌鍒欏彇 `location`銆?
 
 ---
 
-### 3.3 食堂背景图片
+### 3.3 椋熷爞鑳屾櫙鍥剧墖
 
 ```
 GET /canteens/images
 ```
 
-**Response `data`:** `Record<string, string>` — key 为食堂名，value 为图片 URL
+**Response `data`:** `Record<string, string[]>` - key 为食堂名，value 为图片 URL 数组
 
 ```json
 {
-  "第一食堂": "http://.../canteen1_bg.jpg",
-  "第二食堂": "http://.../canteen2_bg.jpg"
+  "绗竴椋熷爞": ["http://.../canteen1_bg.jpg"],
+  "绗簩椋熷爞": ["http://.../canteen2_bg.jpg"]
 }
 ```
 
-> 前端用此接口获取食堂页的背景图片，若无返回则使用默认占位。
+> 鍓嶇鐢ㄦ鎺ュ彛鑾峰彇椋熷爞椤电殑鑳屾櫙鍥剧墖锛岃嫢鏃犺繑鍥炲垯浣跨敤榛樿鍗犱綅銆?
 
 ---
 
-### 3.4 档口详情
+### 3.4 妗ｅ彛璇︽儏
 
 ```
 GET /canteens/stallDetail
@@ -368,36 +366,36 @@ GET /canteens/stallDetail
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
+| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `canteen` | string | 是 | 食堂名称 |
-| `stallName` | string | 是 | 档口名称 |
+| `canteen` | string | 鏄?| 椋熷爞鍚嶇О |
+| `stallName` | string | 鏄?| 妗ｅ彛鍚嶇О |
 
 **Response `data`:** `StallDetail`
 
 ```json
 {
-  "name": "面面俱到",
+  "name": "闈㈤潰淇卞埌",
   "images": ["http://.../stall1.jpg", "http://.../stall2.jpg"],
-  "location": "第一食堂",
-  "description": "第一食堂·面面俱到，为您提供美味的校园餐饮体验。"
+  "location": "绗竴椋熷爞",
+  "description": "绗竴椋熷爞路闈㈤潰淇卞埌锛屼负鎮ㄦ彁渚涚編鍛崇殑鏍″洯椁愰ギ浣撻獙銆?
 }
 ```
 
-**前端类型 `StallDetail`：**
+**鍓嶇绫诲瀷 `StallDetail`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `name` | string | 档口名称 |
-| `images` | string[] | 档口展示图片（支持多张） |
-| `location` | string | 位置 |
-| `description` | string | 描述文案 |
+| `name` | string | 妗ｅ彛鍚嶇О |
+| `images` | string[] | 妗ｅ彛灞曠ず鍥剧墖锛堟敮鎸佸寮狅級 |
+| `location` | string | 浣嶇疆 |
+| `description` | string | 鎻忚堪鏂囨 |
 
 ---
 
-## 4. 评价模块
+## 4. 璇勪环妯″潡
 
-### 4.1 获取菜品评价列表
+### 4.1 鑾峰彇鑿滃搧璇勪环鍒楄〃
 
 ```
 GET /dishes/:dishId/reviews
@@ -405,14 +403,14 @@ GET /dishes/:dishId/reviews
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
+| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `page` | number | 否 | 页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数，默认 20 |
+| `page` | number | 鍚?| 椤电爜锛岄粯璁?1 |
+| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?20 |
 
 **Response `data`:**
 
-分页格式：
+鍒嗛〉鏍煎紡锛?
 
 ```json
 {
@@ -423,25 +421,25 @@ GET /dishes/:dishId/reviews
 }
 ```
 
-或不分页直接返回 `Review[]`。
+鎴栦笉鍒嗛〉鐩存帴杩斿洖 `Review[]`銆?
 
-**前端类型 `Review`：**
+**鍓嶇绫诲瀷 `Review`锛?*
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `id` | number | 评价 ID |
-| `userId` | number | 用户 ID |
-| `userNickname` | string | 用户昵称（前端 fallback 为"匿名用户"） |
-| `userAvatar` | string | 用户头像 URL（可为空） |
-| `dishId` | number | 关联菜品 ID |
-| `rating` | number | 评分（1-5） |
-| `content` | string | 评价内容 |
-| `images` | string[] | 评价图片 URL 列表 |
-| `createdAt` | string | 创建时间（ISO 8601 格式） |
+| `id` | number | 璇勪环 ID |
+| `userId` | number | 鐢ㄦ埛 ID |
+| `userNickname` | string | 鐢ㄦ埛鏄电О锛堝墠绔?fallback 涓?鍖垮悕鐢ㄦ埛"锛?|
+| `userAvatar` | string | 鐢ㄦ埛澶村儚 URL锛堝彲涓虹┖锛?|
+| `dishId` | number | 鍏宠仈鑿滃搧 ID |
+| `rating` | number | 璇勫垎锛?-5锛?|
+| `content` | string | 璇勪环鍐呭 |
+| `images` | string[] | 璇勪环鍥剧墖 URL 鍒楄〃 |
+| `createdAt` | string | 鍒涘缓鏃堕棿锛圛SO 8601 鏍煎紡锛?|
 
 ---
 
-### 4.2 提交评价
+### 4.2 鎻愪氦璇勪环
 
 ```
 POST /reviews
@@ -453,28 +451,28 @@ POST /reviews
 {
   "dishId": 1,
   "rating": 5,
-  "content": "超级好吃！",
+  "content": "瓒呯骇濂藉悆锛?,
   "images": ["http://.../review_img1.jpg"]
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `dishId` | number | 是 | 菜品 ID |
-| `rating` | number | 是 | 评分（1-5） |
-| `content` | string | 是 | 正文，最长 500 字 |
-| `images` | string[] | 否 | 图片 URL 列表（最多 3 张） |
+| `dishId` | number | 鏄?| 鑿滃搧 ID |
+| `rating` | number | 鏄?| 璇勫垎锛?-5锛?|
+| `content` | string | 鏄?| 姝ｆ枃锛屾渶闀?500 瀛?|
+| `images` | string[] | 鍚?| 鍥剧墖 URL 鍒楄〃锛堟渶澶?3 寮狅級 |
 
-**Response `data`:** 无 `data`，仅返回 `{ code: 200, message: "success" }`。
+**Response `data`:** 鏃?`data`锛屼粎杩斿洖 `{ code: 200, message: "success" }`銆?
 
-> ⚠️ **前端调用顺序**：`uni.chooseImage` → `POST /upload/image`（逐一上传获取 URL）→ `POST /reviews`（传入 URL 数组）
+> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堥€愪竴涓婁紶鑾峰彇 URL锛夆啋 `POST /reviews`锛堜紶鍏?URL 鏁扮粍锛?
 
 
 ---
 
-## 5. 收藏模块
+## 5. 鏀惰棌妯″潡
 
-### 5.1 获取收藏列表
+### 5.1 鑾峰彇鏀惰棌鍒楄〃
 
 ```
 GET /favorites
@@ -482,20 +480,20 @@ GET /favorites
 
 **Query Parameters:**
 
-| 参数 | 类型 | 必填 | 说明 |
+| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `page` | number | 否 | 页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数，默认 50 |
+| `page` | number | 鍚?| 椤电爜锛岄粯璁?1 |
+| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?50 |
 
-**Response `data`:** `Dish[]`（与菜品模块的 `Dish` 类型一致）
+**Response `data`:** `Dish[]`锛堜笌鑿滃搧妯″潡鐨?`Dish` 绫诲瀷涓€鑷达級
 
 ```json
 [
   {
     "id": 1,
-    "name": "红烧牛肉面",
+    "name": "绾㈢儳鐗涜倝闈?,
     "price": 1500,
-    "image": "http://.../dish1.jpg",
+    "images": ["http://.../dish1.jpg"],
     ...
   }
 ]
@@ -503,7 +501,7 @@ GET /favorites
 
 ---
 
-### 5.2 切换收藏
+### 5.2 鍒囨崲鏀惰棌
 
 ```
 POST /favorites/toggle
@@ -517,22 +515,22 @@ POST /favorites/toggle
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
+| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `dishId` | number | 是 | 菜品 ID |
+| `dishId` | number | 鏄?| 鑿滃搧 ID |
 
-**行为说明：** 服务端做 toggle（若已收藏则取消，未收藏则添加）。前端调用后重新拉取收藏列表。
+**琛屼负璇存槑锛?* 鏈嶅姟绔仛 toggle锛堣嫢宸叉敹钘忓垯鍙栨秷锛屾湭鏀惰棌鍒欐坊鍔狅級銆傚墠绔皟鐢ㄥ悗閲嶆柊鎷夊彇鏀惰棌鍒楄〃銆?
 
-**Response `data`:** 无 `data`，仅返回 `{ code: 200, message: "success" }`。
+**Response `data`:** 鏃?`data`锛屼粎杩斿洖 `{ code: 200, message: "success" }`銆?
 
-> ⚠️ **前端调用顺序**：`uni.chooseImage` → `POST /upload/image`（逐一上传获取 URL）→ `POST /reviews`（传入 URL 数组）
+> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堥€愪竴涓婁紶鑾峰彇 URL锛夆啋 `POST /reviews`锛堜紶鍏?URL 鏁扮粍锛?
 
 
 ---
 
-## 6. 上传模块
+## 6. 涓婁紶妯″潡
 
-### 6.1 上传图片
+### 6.1 涓婁紶鍥剧墖
 
 ```
 POST /upload/image
@@ -541,9 +539,9 @@ Content-Type: multipart/form-data
 
 **Form Data:**
 
-| 字段 | 类型 | 必填 | 说明 |
+| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
 |------|------|------|------|
-| `file` | file | 是 | 图片文件 |
+| `file` | file | 鏄?| 鍥剧墖鏂囦欢 |
 
 **Response `data`:**
 
@@ -553,39 +551,39 @@ Content-Type: multipart/form-data
 }
 ```
 
-| 字段 | 类型 | 说明 |
+| 瀛楁 | 绫诲瀷 | 璇存槑 |
 |------|------|------|
-| `url` | string | 上传后可访问的完整图片 URL |
+| `url` | string | 涓婁紶鍚庡彲璁块棶鐨勫畬鏁村浘鐗?URL |
 
 ---
 
-## 附录
+## 闄勫綍
 
-### A. 价格单位约定
+### A. 浠锋牸鍗曚綅绾﹀畾
 
-所有接口中价格字段 **以「分」为单位**，前端在显示时 `/100` 转换为「元」。
+鎵€鏈夋帴鍙ｄ腑浠锋牸瀛楁 **浠ャ€屽垎銆嶄负鍗曚綅**锛屽墠绔湪鏄剧ず鏃?`/100` 杞崲涓恒€屽厓銆嶃€?
 
-| 接口字段 | 单位 | 示例值 | 前端显示 |
+| 鎺ュ彛瀛楁 | 鍗曚綅 | 绀轰緥鍊?| 鍓嶇鏄剧ず |
 |---------|------|--------|---------|
-| `Dish.price` | 分 | 1500 | ¥15 |
-| 搜索参数 `minPrice` / `maxPrice` | 分 | 1000 | 前端先转为分再传参 |
+| `Dish.price` | 鍒?| 1500 | 楼15 |
+| 鎼滅储鍙傛暟 `minPrice` / `maxPrice` | 鍒?| 1000 | 鍓嶇鍏堣浆涓哄垎鍐嶄紶鍙?|
 
-### B. 通用响应错误码
+### B. 閫氱敤鍝嶅簲閿欒鐮?
 
-| `code` | 说明 |
+| `code` | 璇存槑 |
 |--------|------|
-| 200 | 成功 |
-| 400 | 请求参数错误 |
-| 401 | 未登录 / token 过期 |
-| 403 | 无权限 |
-| 404 | 资源不存在 |
-| 500 | 服务端内部错误 |
+| 200 | 鎴愬姛 |
+| 400 | 璇锋眰鍙傛暟閿欒 |
+| 401 | 鏈櫥褰?/ token 杩囨湡 |
+| 403 | 鏃犳潈闄?|
+| 404 | 璧勬簮涓嶅瓨鍦?|
+| 500 | 鏈嶅姟绔唴閮ㄩ敊璇?|
 
-### C. 标签枚举
+### C. 鏍囩鏋氫妇
 
-请后端按以下枚举值返回 `tags` 字段：
+璇峰悗绔寜浠ヤ笅鏋氫妇鍊艰繑鍥?`tags` 瀛楁锛?
 
-| 值 | 含义 |
+| 鍊?| 鍚箟 |
 |----|------|
-| `recommended` | 必吃推荐 |
-| `signature` | 招牌菜 |
+| `recommended` | 蹇呭悆鎺ㄨ崘 |
+| `signature` | 鎷涚墝鑿?|

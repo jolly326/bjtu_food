@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.entity.Review;
@@ -14,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,14 +24,12 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize) {
-        return reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
-                        .eq(Review::getDishId, dishId)
-                        .eq(Review::getIsHidden, 0)
-                        .orderByDesc(Review::getCreatedAt))
-                .convert(this::toVO);
+        return reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId)
+                .convert(this::enrichImages);
     }
 
     @Override
@@ -37,14 +37,14 @@ public class ReviewServiceImpl implements ReviewService {
         if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
                 .eq(Review::getDishId, req.getDishId())) > 0) {
-            throw new BusinessException("Review already exists");
+            throw new BusinessException("Already reviewed this dish");
         }
         Review review = new Review();
         review.setUserId(userId);
         review.setDishId(req.getDishId());
         review.setRating(req.getRating());
         review.setContent(req.getContent());
-        review.setImages(req.getImages() == null ? null : String.join(",", req.getImages()));
+        review.setImages(JsonListUtil.toJson(req.getImages()));
         review.setIsHidden(0);
         reviewMapper.insert(review);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
@@ -105,14 +105,21 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewVO vo = new ReviewVO();
         vo.setId(review.getId());
         vo.setUserId(review.getUserId());
+        vo.setDishId(review.getDishId());
         vo.setRating(review.getRating());
         vo.setContent(review.getContent());
-        vo.setImages(review.getImages() == null || review.getImages().isBlank()
-                ? Collections.emptyList()
-                : java.util.Arrays.asList(review.getImages().split(",")));
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(review.getImages()));
         vo.setCreatedAt(review.getCreatedAt());
         vo.setIsHidden(review.getIsHidden());
         vo.setHasSensitive(false);
+        return vo;
+    }
+
+    private ReviewVO enrichImages(ReviewVO vo) {
+        if (vo == null) {
+            return null;
+        }
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
         return vo;
     }
 }

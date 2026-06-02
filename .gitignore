@@ -20,6 +20,10 @@ target/
 uploads/
 **/uploads/
 !backend/uploads/.gitkeep
+!backend/uploads/
+!backend/uploads/images/
+!backend/uploads/images/seed/
+!backend/uploads/images/seed/**
 application-local.yml
 application-*.local.yml
 

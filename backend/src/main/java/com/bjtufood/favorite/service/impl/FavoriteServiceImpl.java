@@ -3,6 +3,8 @@ package com.bjtufood.favorite.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.favorite.entity.Favorite;
 import com.bjtufood.favorite.event.FavoriteChangedEvent;
 import com.bjtufood.favorite.mapper.FavoriteMapper;
@@ -11,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,7 @@ public class FavoriteServiceImpl implements FavoriteService {
 
     private final FavoriteMapper favoriteMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public boolean toggle(Long userId, Long dishId) {
@@ -39,16 +41,9 @@ public class FavoriteServiceImpl implements FavoriteService {
     }
 
     @Override
-    public IPage<Map<String, Object>> listByUserId(Long userId, int page, int pageSize) {
-        return favoriteMapper.selectPage(new Page<>(page, pageSize),
-                        new LambdaQueryWrapper<Favorite>().eq(Favorite::getUserId, userId).orderByDesc(Favorite::getCreatedAt))
-                .convert(favorite -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("id", favorite.getId());
-                    item.put("dishId", favorite.getDishId());
-                    item.put("createdAt", favorite.getCreatedAt());
-                    return item;
-                });
+    public IPage<DishVO> listFavoriteDishes(Long userId, int page, int pageSize) {
+        return favoriteMapper.selectFavoriteDishes(new Page<>(page, pageSize), userId)
+                .convert(this::enrichImages);
     }
 
     @Override
@@ -73,11 +68,20 @@ public class FavoriteServiceImpl implements FavoriteService {
 
     @Override
     public Map<Long, Boolean> batchCheckFavorited(Long userId, List<Long> dishIds) {
-        Map<Long, Boolean> result = new HashMap<>();
+        Map<Long, Boolean> result = new java.util.HashMap<>();
         for (Long dishId : dishIds) {
             result.put(dishId, isFavorited(userId, dishId));
         }
         return result;
+    }
+
+    /**
+     * 从 images_json 解析图片列表。
+     */
+    private DishVO enrichImages(DishVO vo) {
+        if (vo == null) return null;
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
+        return vo;
     }
 
     private LambdaQueryWrapper<Favorite> query(Long userId, Long dishId) {
