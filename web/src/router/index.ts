@@ -18,6 +18,7 @@ const router = createRouter({
         { path: 'canteens/:canteenId/stalls/:stallId/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
         { path: 'users', name: 'users', component: () => import('@/views/user/UserView.vue') },
         { path: 'admins', name: 'admins', component: () => import('@/views/admin/AdminManageView.vue') },
+        { path: 'banners', name: 'banners', component: () => import('@/views/banner/BannerManageView.vue') },
       ],
     },
   ],

@@ -6,7 +6,7 @@ import { reviewApi } from '@/api'
 export const useReviewStore = defineStore('review', () => {
   const list = ref<Review[]>([])
 
-  function loadAll() { list.value = reviewApi.getAll() }
+  function loadAll() { list.value = [...reviewApi.getAll()] }
   function remove(id: number) { reviewApi.deleteById(id); loadAll() }
 
   loadAll()
