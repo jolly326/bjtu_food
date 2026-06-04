@@ -3,6 +3,7 @@ package com.bjtufood.dish.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
@@ -45,4 +46,9 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 按星级分组，统计各星级人数
      */
     List<RatingDistributionVO> selectRatingDistribution(@Param("dishId") Long dishId);
+
+    /**
+     * 查询全部菜品列表（含已下架），联表档口和食堂名称
+     */
+    List<DishAdminVO> selectAllForAdmin();
 }

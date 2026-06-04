@@ -12,6 +12,7 @@ import Trophy from '@/static/icon/Trophy.svg'
 import yellowStar from '@/static/icon/yellow-star.svg'
 import comment from '@/static/icon/comment.svg'
 import Food from '@/static/icon/Food.svg'
+import { uploadImage } from '@/api/upload'
 
 const router = useRouter()
 const route = useRoute()
@@ -57,13 +58,20 @@ function openImageModal() {
   showImageModal.value = true
 }
 function modalAddImage() { modalFileInput.value?.click() }
-function modalHandleFile(e: Event) {
+async function modalHandleFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  modalImages.value.push(URL.createObjectURL(file))
-  input.value = ''
+  try {
+    const result = await uploadImage(file)
+    modalImages.value.push(result.relativeUrl)
+    toast.success('图片上传成功')
+  } catch (err: any) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    input.value = ''
+  }
 }
 function modalRemoveImage(idx: number) { modalImages.value.splice(idx, 1) }
 function saveImageModal() {

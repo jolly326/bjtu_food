@@ -2,9 +2,9 @@ package com.bjtufood.dish.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
-import com.bjtufood.dish.entity.Dish;
 
 import java.util.List;
 
@@ -66,11 +66,11 @@ public interface DishService {
     // ==================== 管理端接口（管理员） ====================
 
     /**
-     * 查询全部菜品列表（含已下架）
+     * 查询全部菜品列表（含已下架），返回带完整图片 URL 的 VO
      *
-     * @return 菜品列表（含已下架）
+     * @return 后台菜品 VO 列表
      */
-    List<Dish> listAllForAdmin();
+    List<DishAdminVO> listAllForAdmin();
 
     /**
      * 新增菜品
@@ -89,7 +89,9 @@ public interface DishService {
     void updateDish(Long id, DishAdminReq req);
 
     /**
-     * 删除菜品（软删除）
+     * 删除/下架菜品
+     * <p>
+     * 将菜品 status 设为 off（下架），避免物理删除导致评价、收藏数据断裂。
      *
      * @param id 菜品ID
      */

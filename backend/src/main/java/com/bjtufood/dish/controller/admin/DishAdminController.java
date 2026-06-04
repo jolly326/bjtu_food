@@ -22,7 +22,7 @@ public class DishAdminController {
 
     private final DishService dishService;
 
-    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品。")
+    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架）。images 返回可访问的完整 URL 数组。")
     @GetMapping
     public Result<?> listMyDishes() {
         return Result.success(dishService.listAllForAdmin());
@@ -59,7 +59,7 @@ public class DishAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除菜品", description = "用途：删除菜品。当前 Service 为物理删除，后续建议改为 status=off 软删除。")
+    @Operation(summary = "删除/下架菜品", description = "用途：下架菜品（status 设为 off）。不物理删除，保留评价和收藏数据。")
     @DeleteMapping("/{id}")
     public Result<Void> deleteDish(
             @Parameter(description = "菜品ID", example = "1")

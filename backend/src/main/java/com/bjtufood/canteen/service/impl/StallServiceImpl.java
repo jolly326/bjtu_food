@@ -1,6 +1,7 @@
 package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
@@ -33,6 +34,17 @@ public class StallServiceImpl implements StallService {
                 .stream()
                 .map(this::toVO)
                 .toList();
+    }
+
+    @Override
+    public List<StallAdminVO> listAllForAdmin() {
+        return stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                        .orderByAsc(Stall::getCanteenId)
+                        .orderByAsc(Stall::getSortOrder)
+                        .orderByDesc(Stall::getUpdatedAt))
+                .stream()
+                .map(this::toAdminVO)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
@@ -75,6 +87,22 @@ public class StallServiceImpl implements StallService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
+        return vo;
+    }
+
+    private StallAdminVO toAdminVO(Stall stall) {
+        StallAdminVO vo = new StallAdminVO();
+        vo.setId(stall.getId());
+        vo.setCanteenId(stall.getCanteenId());
+        vo.setName(stall.getName());
+        vo.setLocation(stall.getLocation());
+        vo.setDescription(stall.getDescription());
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
+        vo.setAvgRating(stall.getAvgRating());
+        vo.setSortOrder(stall.getSortOrder());
+        vo.setStatus(stall.getStatus());
+        vo.setCreatedAt(stall.getCreatedAt());
+        vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
     }
 }

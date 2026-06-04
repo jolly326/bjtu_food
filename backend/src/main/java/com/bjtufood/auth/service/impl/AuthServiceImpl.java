@@ -3,6 +3,7 @@ package com.bjtufood.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordUpdateReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
 import com.bjtufood.auth.dto.UserStatsVO;
@@ -131,6 +132,19 @@ public class AuthServiceImpl implements AuthService {
                         .eq(Review::getUserId, userId)
                         .eq(Review::getIsHidden, 0));
         return new UserStatsVO(favoriteCount, reviewCount);
+    }
+
+    @Override
+    public void updatePassword(Long userId, PasswordUpdateReq req) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
+            throw new BusinessException("旧密码错误");
+        }
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userMapper.updateById(user);
     }
 
     private LoginResp toLoginResp(User user) {

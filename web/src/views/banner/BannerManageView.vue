@@ -5,6 +5,7 @@ import { useToastStore } from '@/stores/toastStore'
 import { usePageStore } from '@/stores/pageStore'
 import Modal from '@/components/Modal.vue'
 import guanbi from '@/static/icon/guanbi.svg'
+import { uploadImage } from '@/api/upload'
 
 const store = useAdminStore()
 const toast = useToastStore()
@@ -28,13 +29,20 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const hasImage = computed(() => !!form.value.image)
 const imageUrl = computed(() => form.value.image)
 
-function handleFileChange(e: Event) {
+async function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  form.value.image = URL.createObjectURL(file)
-  input.value = ''
+  try {
+    const result = await uploadImage(file)
+    form.value.image = result.url
+    toast.success('图片上传成功')
+  } catch (err: any) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    input.value = ''
+  }
 }
 
 function removeImage() {

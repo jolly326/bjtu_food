@@ -1,5 +1,6 @@
 package com.bjtufood.canteen.service;
 
+import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Stall;
 
@@ -19,6 +20,13 @@ public interface StallService {
      * @return 该食堂下的档口列表
      */
     List<StallDetailVO> listByCanteenId(Long canteenId);
+
+    /**
+     * 后台档口列表
+     *
+     * @return 后台档口 VO 列表（含完整图片 URL）
+     */
+    List<StallAdminVO> listAllForAdmin();
 
     /**
      * 新增档口

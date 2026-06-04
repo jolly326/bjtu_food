@@ -2,6 +2,7 @@ package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.canteen.dto.BannerVO;
+import com.bjtufood.canteen.dto.CanteenAdminVO;
 import com.bjtufood.canteen.dto.CanteenInfoVO;
 import com.bjtufood.canteen.dto.CanteenWithStallsVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
@@ -134,6 +135,16 @@ public class CanteenServiceImpl implements CanteenService {
     }
 
     @Override
+    public List<CanteenAdminVO> listAllForAdmin() {
+        return canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
+                        .orderByAsc(Canteen::getSortOrder)
+                        .orderByDesc(Canteen::getUpdatedAt))
+                .stream()
+                .map(this::toAdminVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void add(Canteen canteen) {
         canteenMapper.insert(canteen);
     }
@@ -161,6 +172,20 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
+        return vo;
+    }
+
+    private CanteenAdminVO toAdminVO(Canteen canteen) {
+        CanteenAdminVO vo = new CanteenAdminVO();
+        vo.setId(canteen.getId());
+        vo.setName(canteen.getName());
+        vo.setLocation(canteen.getLocation());
+        vo.setDescription(canteen.getDescription());
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
+        vo.setSortOrder(canteen.getSortOrder());
+        vo.setStatus(canteen.getStatus());
+        vo.setCreatedAt(canteen.getCreatedAt());
+        vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;
     }
 }

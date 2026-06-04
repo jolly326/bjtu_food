@@ -1,6 +1,7 @@
 package com.bjtufood.canteen.service;
 
 import com.bjtufood.canteen.dto.BannerVO;
+import com.bjtufood.canteen.dto.CanteenAdminVO;
 import com.bjtufood.canteen.dto.CanteenInfoVO;
 import com.bjtufood.canteen.dto.CanteenWithStallsVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
@@ -66,6 +67,13 @@ public interface CanteenService {
      * @return 食堂列表（含档口）
      */
     List<CanteenWithStallsVO> listWithStalls();
+
+    /**
+     * 后台食堂列表
+     *
+     * @return 后台食堂 VO 列表（含完整图片 URL）
+     */
+    List<CanteenAdminVO> listAllForAdmin();
 
     /**
      * 新增食堂

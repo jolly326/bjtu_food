@@ -1,470 +1,350 @@
-# 食在交大 · 管理后台 API 接口文档
+# 食在交大 · 浏览器管理端 API 接口文档
 
 > 基础地址：`http://localhost:8080/api`
 >
-> 统一响应格式：
-> ```json
-> { "code": 200, "message": "success", "data": <T> }
-> ```
+> Knife4j 地址：`http://localhost:8080/api/doc.html`
 >
-> 鉴权方式：`Authorization: Bearer <token>`（登录后自动携带）
+> 统一响应格式：`{ "code": 200, "message": "操作成功", "data": ... }`
 >
-> 降级策略：后端未启动时自动降级为 Mock 数据（每个接口 5 秒超时），控制台输出 `[模块名] 降级到 Mock`
+> 鉴权方式：登录后在 Header 中携带 `Authorization: Bearer <token>`。
 
----
+## 1. 对齐结论
 
-## 目录
+当前浏览器管理端应调用后端真实接口，不再使用旧版 `/canteens`、`/stalls`、`/dishes`、`/users`、`/banners` 作为后台 CRUD 路径。
 
-| 模块 | 方法 | 路径 | 用途 |
-|------|------|------|------|
-| 认证 | POST | `/auth/login` | 管理员登录 |
-| 食堂 | GET | `/canteens` | 食堂列表 |
-| 食堂 | POST | `/canteens` | 新增食堂 |
-| 食堂 | PUT | `/canteens/:id` | 更新食堂 |
-| 食堂 | DELETE | `/canteens/:id` | 删除食堂 |
-| 档口 | GET | `/stalls` | 档口列表 |
-| 档口 | POST | `/stalls` | 新增档口 |
-| 档口 | PUT | `/stalls/:id` | 更新档口 |
-| 档口 | DELETE | `/stalls/:id` | 删除档口 |
-| 菜品 | GET | `/dishes` | 菜品列表 |
-| 菜品 | POST | `/dishes` | 新增菜品 |
-| 菜品 | PUT | `/dishes/:id` | 更新菜品 |
-| 菜品 | DELETE | `/dishes/:id` | 删除菜品 |
-| 评论 | GET | `/reviews` | 评论列表 |
-| 评论 | POST | `/reviews` | 新增评论 |
-| 评论 | PUT | `/reviews/:id` | 更新评论 |
-| 评论 | DELETE | `/reviews/:id` | 删除评论 |
-| 用户 | GET | `/users` | 用户列表 |
-| 用户 | POST | `/users` | 新增用户 |
-| 用户 | PUT | `/users/:id` | 更新用户资料 |
-| 用户 | DELETE | `/users/:id` | 删除用户 |
-| 用户 | PUT | `/users/:id/toggle-status` | 切换用户状态 |
-| Banner | GET | `/banners` | Banner 列表 |
-| Banner | POST | `/banners` | 新增 Banner |
-| Banner | PUT | `/banners/:id` | 更新 Banner |
-| Banner | DELETE | `/banners/:id` | 删除 Banner |
+| 模块 | 浏览器端应使用 | 旧文档/旧前端问题 |
+|---|---|---|
+| 登录 | `POST /auth/login`，字段 `account/password` | 旧字段 `username/password` 不匹配 |
+| 食堂管理 | `/admin/canteens` | 旧 CRUD 路径 `/canteens` 与公开查询冲突 |
+| 档口管理 | `/admin/stalls` | 旧 CRUD 路径 `/stalls` 只适合公开查询 |
+| 菜品管理 | `/admin/dishes` | 旧 CRUD 路径 `/dishes` 只适合公开查询 |
+| 用户管理 | `/admin/users` | 后端只支持列表、状态、角色，不支持后台新增/删除用户 |
+| 评价审核 | `/admin/reviews` | 旧路径 `/reviews` 是普通用户评价接口 |
+| Banner | `GET /canteens/banners` | 后端暂未实现 Banner 后台 CRUD |
 
----
+## 2. 登录
 
-## 1. 认证模块
+### POST `/auth/login`
 
-### 1.1 管理员登录
+用途：管理员登录浏览器后台。
 
-```
-POST /auth/login
-```
-
-**Request Body:**
+请求体：
 
 ```json
 {
-  "username": "admin",
+  "account": "admin001",
   "password": "123456"
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `username` | string | 是 | 管理员用户名 |
-| `password` | string | 是 | 管理员密码 |
-
-**Response `data`:**
+响应 `data`：
 
 ```json
 {
-  "token": "jwt_token_string",
-  "username": "admin"
+  "token": "jwt-token",
+  "userId": 2,
+  "username": "admin001",
+  "email": "admin001@bjtu.edu.cn",
+  "nickname": "管理员",
+  "avatar": "http://localhost:8080/api/images/seed/canteens/canteen-food-counter.jpg",
+  "role": "admin"
 }
 ```
 
+浏览器端保存 `data.token`，后续所有 `/admin/**` 请求携带 Bearer Token。
+
+## 3. 图片上传
+
+### POST `/upload/image`
+
+请求类型：`multipart/form-data`
+
+字段：
+
 | 字段 | 类型 | 说明 |
-|------|------|------|
-| `token` | string | JWT token，后续接口通过 `Authorization: Bearer <token>` 传递 |
-| `username` | string | 管理员用户名 |
+|---|---|---|
+| `file` | file | 图片文件，支持 jpg/jpeg/png/webp |
 
----
+响应 `data`：
 
-## 2. 食堂模块
-
-### 2.1 食堂列表
-
+```json
+{
+  "url": "http://localhost:8080/api/images/2026/06/uuid.jpg",
+  "relativeUrl": "/images/2026/06/uuid.jpg"
+}
 ```
+
+建议保存 `relativeUrl` 到数据库；展示时可以直接使用 `url`，或由前端/后端拼接为完整地址。
+
+## 4. 食堂管理
+
+### GET `/admin/canteens`
+
+用途：后台查看全部食堂，包含 `open/closed` 状态。
+
+响应 `data`：`Canteen[]`
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 食堂 ID |
+| `name` | 食堂名称 |
+| `images` | 图片 JSON 字符串，例如 `["/images/a.jpg"]` |
+| `location` | 食堂位置 |
+| `description` | 食堂说明 |
+| `sortOrder` | 排序值，越小越靠前 |
+| `status` | `open` 营业、`closed` 关闭 |
+| `createdAt` / `updatedAt` | 创建/更新时间 |
+
+### POST `/admin/canteens`
+
+```json
+{
+  "name": "测试食堂",
+  "images": "[\"/images/seed/canteens/canteen-dining-hall.jpg\"]",
+  "location": "主校区",
+  "description": "后台测试新增食堂",
+  "sortOrder": 99,
+  "status": "open"
+}
+```
+
+### PUT `/admin/canteens/{id}`
+
+请求体同新增接口，可传完整字段。
+
+### DELETE `/admin/canteens/{id}`
+
+删除食堂。若食堂下仍有档口，后端会拒绝删除。
+
+## 5. 档口管理
+
+### GET `/admin/stalls`
+
+用途：后台查看全部档口，包含 `open/closed` 状态。
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 档口 ID |
+| `canteenId` | 所属食堂 ID |
+| `name` | 档口名称 |
+| `images` | 图片 JSON 字符串 |
+| `location` | 档口位置 |
+| `description` | 档口说明 |
+| `avgRating` | 平均评分 |
+| `sortOrder` | 排序值 |
+| `status` | `open` 营业、`closed` 关闭 |
+
+### POST `/admin/stalls`
+
+```json
+{
+  "canteenId": 1,
+  "name": "测试档口",
+  "images": "[\"/images/seed/canteens/canteen-food-counter.jpg\"]",
+  "location": "一层",
+  "description": "后台测试新增档口",
+  "avgRating": 0,
+  "sortOrder": 99,
+  "status": "open"
+}
+```
+
+### PUT `/admin/stalls/{id}`
+
+请求体同新增接口。
+
+### DELETE `/admin/stalls/{id}`
+
+删除档口。若档口下仍有菜品，后端会拒绝删除。
+
+## 6. 菜品管理
+
+### GET `/admin/dishes`
+
+用途：后台查看全部菜品。
+
+核心字段：
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 菜品 ID |
+| `stallId` | 所属档口 ID |
+| `name` | 菜品名称 |
+| `price` | 价格，单位分，`1200` 表示 12 元 |
+| `images` | 数据库实体返回时为 JSON 字符串；新增/编辑请求中为数组 |
+| `tags` | 英文逗号分隔标签，如 `daily,recommended` |
+| `status` | `on` 上架、`off` 下架 |
+| `avgRating` / `ratingCount` | 平均评分/评价数 |
+| `collectCount` | 收藏数，对应数据库 `favorite_count` |
+| `viewCount` | 浏览数 |
+
+### POST `/admin/dishes`
+
+```json
+{
+  "stallId": 1,
+  "name": "测试菜品",
+  "price": 1200,
+  "description": "后台测试新增菜品",
+  "images": ["/images/seed/dishes/tomato-egg.jpg"],
+  "tags": "daily,recommended",
+  "status": "on"
+}
+```
+
+### PUT `/admin/dishes/{id}`
+
+请求体同新增接口。
+
+### DELETE `/admin/dishes/{id}`
+
+将菜品 `status` 设为 `off`（下架）。不再物理删除，保留评价和收藏数据。
+
+## 7. 用户管理
+
+### GET `/admin/users`
+
+查询参数：
+
+| 参数 | 说明 |
+|---|---|
+| `page` | 页码，默认 1 |
+| `pageSize` | 每页条数，默认 10 |
+| `role` | 可选，`user` 或 `admin` |
+| `status` | 可选，`active` 或 `disabled` |
+
+示例：
+
+```text
+/admin/users?page=1&pageSize=10&role=user&status=active
+```
+
+响应 `data` 为分页对象，列表在 `data.records`。
+
+### PUT `/admin/users/{id}/status`
+
+```json
+{
+  "status": "disabled"
+}
+```
+
+### PUT `/admin/users/{id}/role`
+
+```json
+{
+  "role": "admin"
+}
+```
+
+注意：后端暂不支持后台新增用户、删除用户、修改用户名。用户创建应走注册流程；禁用账号用状态接口完成。密码修改请参考下方「11. 密码修改」。
+
+## 8. 评价审核
+
+### GET `/admin/reviews`
+
+查询参数：
+
+| 参数 | 说明 |
+|---|---|
+| `page` | 页码 |
+| `pageSize` | 每页条数 |
+| `isHidden` | 可选，`0` 显示、`1` 隐藏 |
+| `isDeleted` | 当前参数保留，现阶段后端未做软删除 |
+
+响应 `data` 为分页对象，列表在 `data.records`。
+
+### PUT `/admin/reviews/{id}/hide`
+
+切换隐藏/显示评价。
+
+### DELETE `/admin/reviews/{id}`
+
+管理员删除评价，并触发菜品评分重算。
+
+## 9. 统计接口
+
+```text
+GET /admin/stats/overview
+GET /admin/stats/trend?days=7
+GET /admin/stats/rank
+```
+
+当前统计接口仍为占位返回，浏览器前端可以展示，但不要作为最终业务数据验收依据。
+
+## 10. 轮播图管理（新增）
+
+### GET `/admin/banners`
+
+用途：后台查看全部轮播图，按 sort_order 排序。
+
+响应 `data`：`BannerAdminVO[]`
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 轮播图 ID |
+| `title` | 标题 |
+| `subtitle` | 副标题 |
+| `images` | 图片 URL 数组（完整可访问地址） |
+| `type` | 跳转类型：`dish` / `url` |
+| `targetId` | 跳转目标 ID（type=dish时） |
+| `targetUrl` | 跳转目标 URL（type=url时） |
+| `canteenId` | 关联食堂 ID（可选） |
+| `sortOrder` | 排序值，越小越靠前 |
+| `status` | `enabled` 启用、`disabled` 禁用 |
+| `createdAt` / `updatedAt` | 创建/更新时间 |
+
+### POST `/admin/banners`
+
+```json
+{
+  "title": "首页推荐",
+  "subtitle": "今日热菜推荐",
+  "type": "dish",
+  "targetId": 1,
+  "canteenId": 1,
+  "sortOrder": 1,
+  "status": "enabled",
+  "images": "[\"/images/xxx.jpg\"]"
+}
+```
+
+### PUT `/admin/banners/{id}`
+
+请求体同新增接口。
+
+### DELETE `/admin/banners/{id}`
+
+删除轮播图。
+
+## 11. 密码修改（新增）
+
+### PUT `/auth/password`
+
+用途：修改当前用户密码。需要登录。
+
+```json
+{
+  "oldPassword": "123456",
+  "newPassword": "654321"
+}
+```
+
+## 12. 公共查询接口
+
+浏览器端如果需要只读展示，也可以使用公开接口：
+
+```text
 GET /canteens
+GET /canteens/all
+GET /stalls?canteenId=1
+GET /dishes?page=1&pageSize=10
+GET /dishes/{id}
+GET /canteens/banners
 ```
 
-无参数。
-
-**Response `data`:** `Canteen[]`
-
-```json
-[
-  {
-    "id": 1,
-    "name": "学苑食堂",
-    "image": "http://.../canteen.jpg",
-    "location": "主校区东侧",
-    "description": "两层大型食堂，品种丰富",
-    "sort_order": 1,
-    "status": "active",
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | 食堂 ID |
-| `name` | string | 食堂名称 |
-| `image` | string | 图片 URL（可能为空） |
-| `location` | string | 位置 |
-| `description` | string | 描述 |
-| `sort_order` | number | 排序号 |
-| `status` | `"active" \| "inactive"` | 状态 |
-
----
-
-### 2.2 新增食堂
-
-```
-POST /canteens
-```
-
-**Request Body:**
-
-```json
-{
-  "name": "学苑食堂",
-  "image": "",
-  "location": "主校区东侧",
-  "description": "两层大型食堂",
-  "sort_order": 1,
-  "status": "active"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `name` | string | 是 | 食堂名称 |
-| `image` | string | 否 | 图片，多张用 `\|\|\|` 拼接 |
-| `location` | string | 否 | 位置 |
-| `description` | string | 否 | 描述 |
-| `sort_order` | number | 否 | 排序号 |
-| `status` | string | 否 | 默认 `active` |
-
-**Response `data`:** 创建的 `Canteen` 对象
-
----
-
-### 2.3 更新食堂
-
-```
-PUT /canteens/:id
-```
-
-**Request Body:** 部分字段，同新增
-
-**Response `data`:** 更新后的 `Canteen` 对象
-
----
-
-### 2.4 删除食堂
-
-```
-DELETE /canteens/:id
-```
-
-无 Request Body。**Response `data`:** 无
-
----
-
-## 3. 档口模块
-
-### 3.1 档口列表
-
-```
-GET /stalls
-```
-
-无参数。
-
-**Response `data`:** `Stall[]`
-
-```json
-[
-  {
-    "id": 1,
-    "canteen_id": 1,
-    "name": "麻辣香锅",
-    "image": "",
-    "location": "",
-    "description": "自选麻辣香锅",
-    "avg_rating": 4.5,
-    "sort_order": 1,
-    "status": "active",
-    "created_at": "2024-01-10T00:00:00.000Z",
-    "updated_at": "2024-01-10T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | 档口 ID |
-| `canteen_id` | number | 所属食堂 ID |
-| `name` | string | 档口名称 |
-| `image` | string | 图片 URL |
-| `location` | string | 位置描述 |
-| `description` | string | 描述 |
-| `avg_rating` | number | 平均评分 |
-| `sort_order` | number | 排序号 |
-| `status` | `"active" \| "inactive"` | 状态 |
-
-### 3.2 新增 / 更新 / 删除
-
-```
-POST   /stalls         新增（同食堂新增模式）
-PUT    /stalls/:id     更新
-DELETE /stalls/:id     删除
-```
-
----
-
-## 4. 菜品模块
-
-### 4.1 菜品列表
-
-```
-GET /dishes
-```
-
-无参数。
-
-**Response `data`:** `Dish[]`
-
-```json
-[
-  {
-    "id": 1,
-    "stall_id": 1,
-    "name": "牛肉拉面",
-    "image": "",
-    "price": 15,
-    "tags": "[\"招牌菜\",\"必吃推荐\"]",
-    "description": "正宗兰州牛肉拉面",
-    "avg_rating": 4.8,
-    "rating_count": 50,
-    "favorite_count": 40,
-    "view_count": 500,
-    "status": "active",
-    "created_at": "2024-01-10T00:00:00.000Z",
-    "updated_at": "2024-01-10T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | 菜品 ID |
-| `stall_id` | number | 所属档口 ID |
-| `name` | string | 菜品名称 |
-| `image` | string | 图片 URL |
-| `price` | number | 价格（单位：元） |
-| `tags` | string | JSON 字符串数组 |
-| `description` | string | 描述 |
-| `avg_rating` | number | 平均评分 |
-| `rating_count` | number | 评价数 |
-| `favorite_count` | number | 收藏数 |
-| `view_count` | number | 浏览数 |
-| `status` | `"active" \| "inactive"` | 状态 |
-
-### 4.2 新增 / 更新 / 删除
-
-```
-POST   /dishes        新增
-PUT    /dishes/:id    更新
-DELETE /dishes/:id    删除
-```
-
----
-
-## 5. 评论模块
-
-### 5.1 评论列表
-
-```
-GET /reviews
-```
-
-无参数。
-
-**Response `data`:** `Review[]`
-
-```json
-[
-  {
-    "id": 1,
-    "user_id": 1,
-    "dish_id": 3,
-    "rating": 5,
-    "content": "味道正宗，牛肉很大块！",
-    "images": "",
-    "is_hidden": 0,
-    "created_at": "2024-03-01T00:00:00.000Z",
-    "updated_at": "2024-03-01T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | 评论 ID |
-| `user_id` | number | 用户 ID |
-| `dish_id` | number | 菜品 ID |
-| `rating` | number | 评分（1-5） |
-| `content` | string | 内容 |
-| `images` | string | 图片 URL，多张用 `\|\|\|` 拼接 |
-| `is_hidden` | number | 是否隐藏（0/1） |
-
-### 5.2 新增 / 更新 / 删除
-
-```
-POST   /reviews        新增
-PUT    /reviews/:id    更新
-DELETE /reviews/:id    删除
-```
-
----
-
-## 6. 用户模块
-
-### 6.1 用户列表
-
-```
-GET /users
-```
-
-无参数。
-
-**Response `data`:** `User[]`
-
-```json
-[
-  {
-    "id": 1,
-    "username": "zhangsan",
-    "password": "123456",
-    "nickname": "张三",
-    "avatar": "",
-    "role": "user",
-    "status": "active",
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | 用户 ID |
-| `username` | string | 用户名 |
-| `password` | string | 密码（明文，仅供管理后台使用） |
-| `nickname` | string | 昵称 |
-| `avatar` | string | 头像 URL |
-| `role` | `"admin" \| "user"` | 角色 |
-| `status` | `"active" \| "disabled"` | 状态 |
-
-### 6.2 新增 / 更新 / 删除 / 切换状态
-
-```
-POST   /users                 新增
-PUT    /users/:id             更新用户资料
-DELETE /users/:id             删除
-PUT    /users/:id/toggle-status  切换启用/禁用
-
-PUT /users/:id 的 Request Body:
-{
-  "nickname": "新昵称",
-  "username": "new_username",
-  "password": "new_password",
-  "avatar": "http://.../avatar.jpg"
-}
-```
-
----
-
-## 7. Banner 模块
-
-### 7.1 Banner 列表
-
-```
-GET /banners
-```
-
-无参数。
-
-**Response `data`:** `Banner[]`
-
-```json
-[
-  {
-    "id": 1,
-    "title": "开学季优惠",
-    "image": "http://.../banner.jpg",
-    "type": "carousel",
-    "target_id": null,
-    "target_type": null,
-    "canteen_id": null,
-    "sort_order": 1,
-    "status": "active",
-    "created_at": "2024-09-01T00:00:00.000Z",
-    "updated_at": "2024-09-01T00:00:00.000Z"
-  }
-]
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | number | Banner ID |
-| `title` | string | 标题 |
-| `image` | string | 图片 URL |
-| `type` | string | 类型（如 `carousel`） |
-| `sort_order` | number | 排序号 |
-| `status` | `"active" \| "inactive"` | 状态 |
-
-### 7.2 新增 / 更新 / 删除
-
-```
-POST   /banners        新增
-PUT    /banners/:id    更新
-DELETE /banners/:id    删除
-```
-
----
-
-## 附录
-
-### A. 通用响应错误码
-
-| `code` | 说明 |
-|--------|------|
-| 200 | 成功 |
-| 400 | 请求参数错误 |
-| 401 | 未登录 / token 过期 |
-| 403 | 无权限 |
-| 404 | 资源不存在 |
-| 500 | 服务器内部错误 |
-
-### B. Mock 数据降级流程
-
-```
-请求发起
-  ↓
-fetch(`{API_BASE_URL}{path}`)
-  ↓ 成功 ↙        ↘ 5秒超时/网络错误
-返回真实数据        输出 [模块名] 降级到 Mock
-                    ↓
-                 返回本地 Mock 数据（按引用修改，支持 CRUD）
-```
-
-Mock 数据在页面刷新后重置为初始状态。后端启动后自动切换为真实数据。
+这些接口会过滤公开状态，只适合学生端或前台展示，不适合后台管理全量数据。

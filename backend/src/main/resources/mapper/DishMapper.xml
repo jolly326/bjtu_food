@@ -134,6 +134,18 @@
         LIMIT 1
     </select>
 
+    <!-- DishAdminVO 结果映射（后台全部菜品） -->
+    <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
+        <id property="id" column="id"/>
+        <result property="stallId" column="stall_id"/>
+    </resultMap>
+
+    <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称） -->
+    <select id="selectAllForAdmin" resultMap="dishAdminVOMap">
+        <include refid="joinDishSql"/>
+        ORDER BY d.updated_at DESC
+    </select>
+
     <!-- 评分分布 -->
     <select id="selectRatingDistribution" resultType="com.bjtufood.dish.dto.RatingDistributionVO">
         SELECT rating AS star, COUNT(*) AS count

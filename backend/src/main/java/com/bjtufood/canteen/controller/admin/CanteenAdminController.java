@@ -25,6 +25,12 @@ public class CanteenAdminController {
     private final CanteenService canteenService;
     private final StallService stallService;
 
+    @Operation(summary = "后台食堂列表", description = "用途：浏览器管理端查看全部食堂，包含 open/closed 状态。images 返回可访问的完整 URL 数组。")
+    @GetMapping("/canteens")
+    public Result<?> listCanteens() {
+        return Result.success(canteenService.listAllForAdmin());
+    }
+
     @Operation(
             summary = "新增食堂",
             description = "用途：创建新的物理食堂/餐厅。images 字段传 JSON 字符串，例如 [\"/images/a.jpg\"]。",
@@ -85,6 +91,12 @@ public class CanteenAdminController {
     public Result<Void> addStall(@Valid @RequestBody Stall stall) {
         stallService.add(stall);
         return Result.success();
+    }
+
+    @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看全部档口，包含 open/closed 状态。images 返回可访问的完整 URL 数组。")
+    @GetMapping("/stalls")
+    public Result<?> listStalls() {
+        return Result.success(stallService.listAllForAdmin());
     }
 
     @Operation(summary = "编辑档口", description = "用途：修改档口基础信息。")

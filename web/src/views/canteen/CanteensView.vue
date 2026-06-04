@@ -8,6 +8,7 @@ import Modal from '@/components/Modal.vue'
 import guanbi from '@/static/icon/guanbi.svg'
 import location from '@/static/icon/location.svg'
 import canteen from '@/static/icon/canteen.svg'
+import { uploadImage } from '@/api/upload'
 
 const router = useRouter()
 const store = useAdminStore()
@@ -44,14 +45,23 @@ function handleAddImage() {
   fileInput.value?.click()
 }
 
-function handleFileChange(e: Event) {
+async function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  imagePreviews.value.push(URL.createObjectURL(file))
-  form.value.image = imagePreviews.value.join('|||')
-  input.value = ''
+  try {
+    const result = await uploadImage(file)
+    imagePreviews.value.push(result.url)
+    const saved = form.value.image ? form.value.image.split('|||').filter(Boolean) : []
+    saved.push(result.relativeUrl)
+    form.value.image = saved.join('|||')
+    toast.success('图片上传成功')
+  } catch (err: any) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    input.value = ''
+  }
 }
 
 function removeImage(idx: number) {

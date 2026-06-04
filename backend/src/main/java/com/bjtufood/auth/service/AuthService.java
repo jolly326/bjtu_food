@@ -2,6 +2,7 @@ package com.bjtufood.auth.service;
 
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordUpdateReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
 import com.bjtufood.auth.dto.UserStatsVO;
@@ -83,4 +84,15 @@ public interface AuthService {
      * @return 用户统计数据（favoriteCount, reviewCount）
      */
     UserStatsVO getUserStats(Long userId);
+
+    /**
+     * 修改密码
+     * <p>
+     * 校验旧密码后使用 BCrypt 加密新密码保存。
+     *
+     * @param userId 用户ID
+     * @param req    旧密码和新密码
+     * @throws com.bjtufood.common.exception.BusinessException 旧密码错误/用户不存在
+     */
+    void updatePassword(Long userId, PasswordUpdateReq req);
 }

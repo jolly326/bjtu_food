@@ -6,7 +6,7 @@ const MOCK_STATS: UserStats = { favoriteCount: 12, reviewCount: 8 }
 
 export async function login(code: string, studentId: string): Promise<{ token: string; userInfo: UserInfo }> {
   try {
-    const resp: any = await post('/auth/login', { username: studentId, password: code })
+    const resp: any = await post('/auth/login', { account: studentId, password: code })
     return {
       token: resp.token,
       userInfo: {

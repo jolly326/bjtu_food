@@ -7,8 +7,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @Tag(name = "07. 图片上传", description = "上传菜品图、评价图、头像图。需要登录，返回可保存到数据库的图片路径。")
 @RestController
@@ -27,8 +30,8 @@ public class UploadController {
                     返回：data.url（完整可访问 URL），data.relativeUrl（用于数据库保存的相对路径）。
                     """
     )
-    @PostMapping("/image")
-    public Result<?> uploadImage(
+    @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Map<String, String>> uploadImage(
             @Parameter(description = "图片文件，支持 jpg/jpeg/png/webp")
             @RequestParam("file") MultipartFile file) {
         return Result.success(uploadService.uploadImage(file));

@@ -3,6 +3,7 @@ package com.bjtufood.auth.controller;
 import com.bjtufood.auth.dto.EmailCodeReq;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordUpdateReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
 import com.bjtufood.auth.dto.UserStatsVO;
@@ -122,5 +123,23 @@ public class AuthController {
     public Result<UserStatsVO> stats() {
         Long userId = SecurityUtil.getCurrentUserId();
         return Result.success(authService.getUserStats(userId));
+    }
+
+    @Operation(
+            summary = "修改密码",
+            description = "用途：修改当前用户登录密码。需要旧密码验证，新密码使用 BCrypt 加密保存。修改后前端可让用户重新登录。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "oldPassword": "123456",
+                      "newPassword": "654321"
+                    }
+                    """)))
+    )
+    @PutMapping("/auth/password")
+    public Result<Void> updatePassword(@Valid @RequestBody PasswordUpdateReq req) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        authService.updatePassword(userId, req);
+        return Result.success();
     }
 }

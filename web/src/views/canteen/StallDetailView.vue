@@ -10,6 +10,7 @@ import guanbi from '@/static/icon/guanbi.svg'
 import Food from '@/static/icon/Food.svg'
 import Trophy from '@/static/icon/Trophy.svg'
 import yellowStar from '@/static/icon/yellow-star.svg'
+import { uploadImage } from '@/api/upload'
 
 const router = useRouter()
 const route = useRoute()
@@ -44,13 +45,20 @@ function openImageModal() {
   showImageModal.value = true
 }
 function modalAddImage() { modalFileInput.value?.click() }
-function modalHandleFile(e: Event) {
+async function modalHandleFile(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  modalImages.value.push(URL.createObjectURL(file))
-  input.value = ''
+  try {
+    const result = await uploadImage(file)
+    modalImages.value.push(result.relativeUrl)
+    toast.success('图片上传成功')
+  } catch (err: any) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    input.value = ''
+  }
 }
 function modalRemoveImage(idx: number) { modalImages.value.splice(idx, 1) }
 function saveImageModal() {
@@ -135,14 +143,23 @@ const imagePreviews = ref<string[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 
 function handleAddImage() { fileInput.value?.click() }
-function handleFileChange(e: Event) {
+async function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  imagePreviews.value.push(URL.createObjectURL(file))
-  form.value.image = imagePreviews.value.join('|||')
-  input.value = ''
+  try {
+    const result = await uploadImage(file)
+    imagePreviews.value.push(result.url)
+    const saved = form.value.image ? form.value.image.split('|||').filter(Boolean) : []
+    saved.push(result.relativeUrl)
+    form.value.image = saved.join('|||')
+    toast.success('图片上传成功')
+  } catch (err: any) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    input.value = ''
+  }
 }
 function removeImage(idx: number) {
   imagePreviews.value.splice(idx, 1)

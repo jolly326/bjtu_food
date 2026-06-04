@@ -4,6 +4,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { usePageStore } from '@/stores/pageStore'
 import Modal from '@/components/Modal.vue'
+import { uploadImage } from '@/api/upload'
 
 const store = useAdminStore()
 const toast = useToastStore()
@@ -58,17 +59,18 @@ function cancelEdit() {
 // ============ 头像 ============
 const fileInput = ref<HTMLInputElement>()
 function triggerAvatarUpload() { fileInput.value?.click() }
-function onAvatarChange(e: Event) {
+async function onAvatarChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
   if (file.size > 2 * 1024 * 1024) { toast.error('图片大小不能超过 2MB'); return }
-  const reader = new FileReader()
-  reader.onload = () => {
-    store.updateUserProfile(Number(currentUser.value!.id), { avatar: reader.result as string })
+  try {
+    const result = await uploadImage(file)
+    store.updateUserProfile(Number(currentUser.value!.id), { avatar: result.relativeUrl })
     toast.success('头像已更新')
+  } catch (err: any) {
+    toast.error(err.message || '头像上传失败')
   }
-  reader.readAsDataURL(file)
 }
 
 // ============ 修改密码 ============

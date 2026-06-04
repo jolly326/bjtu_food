@@ -8,6 +8,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
@@ -97,8 +98,11 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public List<Dish> listAllForAdmin() {
-        return dishMapper.selectList(new LambdaQueryWrapper<Dish>().orderByDesc(Dish::getUpdatedAt));
+    public List<DishAdminVO> listAllForAdmin() {
+        return dishMapper.selectAllForAdmin()
+                .stream()
+                .map(this::enrichDishAdminImages)
+                .toList();
     }
 
     @Override
@@ -131,7 +135,12 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void deleteDish(Long id) {
-        dishMapper.deleteById(id);
+        Dish dish = dishMapper.selectById(id);
+        if (dish == null) {
+            throw new BusinessException("菜品不存在");
+        }
+        dish.setStatus("off");
+        dishMapper.updateById(dish);
     }
 
     @Override
@@ -178,6 +187,17 @@ public class DishServiceImpl implements DishService {
      * 将数据库原始的 imagesJson 解析为 List{@literal <String>} 并回填到 images
      */
     private DishVO enrichImages(DishVO vo) {
+        if (vo == null) {
+            return null;
+        }
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
+        return vo;
+    }
+
+    /**
+     * 对后台菜品 VO 的 imagesJson 字段进行 URL 转换
+     */
+    private DishAdminVO enrichDishAdminImages(DishAdminVO vo) {
         if (vo == null) {
             return null;
         }

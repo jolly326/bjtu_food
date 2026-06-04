@@ -54,9 +54,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 1. 从请求头获取 Token
         String authHeader = request.getHeader(HEADER_NAME);
 
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith(TOKEN_PREFIX)) {
-            String token = authHeader.substring(TOKEN_PREFIX.length()).trim();
+        String token = extractToken(authHeader);
 
+        if (StringUtils.hasText(token)) {
             // 2. 校验 Token
             if (jwtUtil.validateToken(token)) {
                 // 3. 解析用户信息
@@ -84,5 +84,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // 6. 放行（无论是否登录都放行，权限控制由 @PreAuthorize 负责）
         filterChain.doFilter(request, response);
+    }
+
+    private String extractToken(String authHeader) {
+        if (!StringUtils.hasText(authHeader)) {
+            return null;
+        }
+        String token = authHeader.trim();
+        while (token.regionMatches(true, 0, TOKEN_PREFIX, 0, TOKEN_PREFIX.length())) {
+            token = token.substring(TOKEN_PREFIX.length()).trim();
+        }
+        return token;
     }
 }
