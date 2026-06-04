@@ -3,6 +3,7 @@ package com.bjtufood.dish.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
@@ -31,6 +32,7 @@ import java.util.List;
 public class DishServiceImpl implements DishService {
 
     private final DishMapper dishMapper;
+    private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
     private final FavoriteMapper favoriteMapper;
     private final ImageUrlUtil imageUrlUtil;
@@ -101,6 +103,10 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void addDish(DishAdminReq req) {
+        // 校验 stallId 对应的档口是否存在
+        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
+            throw new BusinessException("档口不存在");
+        }
         Dish dish = new Dish();
         applyReq(dish, req);
         dish.setAvgRating(BigDecimal.ZERO);

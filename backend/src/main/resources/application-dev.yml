@@ -20,4 +20,4 @@ jwt:
   expiration: 604800000
 
 upload:
-  path: ./uploads
+  path: ./uploads/images

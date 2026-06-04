@@ -12,6 +12,7 @@ import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -25,7 +26,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.time.LocalDateTime;
@@ -38,28 +38,16 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final UserMapper userMapper;
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
+    private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final FavoriteMapper favoriteMapper;
     private final ReviewMapper reviewMapper;
     private final ImageUrlUtil imageUrlUtil;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
-    public String createEmailCode(String email, String purpose) {
-        String normalizedEmail = normalizeEmail(email);
-        validateCampusEmail(normalizedEmail);
-        String normalizedPurpose = normalizePurpose(purpose);
-        String code = String.format("%06d", secureRandom.nextInt(1_000_000));
-
-        EmailVerificationCode record = new EmailVerificationCode();
-        record.setEmail(normalizedEmail);
-        record.setCodeHash(passwordEncoder.encode(code));
-        record.setPurpose(normalizedPurpose);
-        record.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        emailVerificationCodeMapper.insert(record);
-
-        return code;
+    public void createEmailCode(String email, String purpose) {
+        emailCodeService.sendCode(email, purpose);
     }
 
     @Override

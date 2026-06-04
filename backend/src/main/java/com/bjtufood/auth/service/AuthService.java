@@ -17,13 +17,15 @@ import java.util.Map;
 public interface AuthService {
 
     /**
-     * 生成邮箱验证码。当前开发版本直接返回验证码，便于联调；接入真实邮件后改为发送邮件。
+     * 发送邮箱验证码
+     * <p>
+     * 向指定校园邮箱发送 6 位验证码，验证码 BCrypt 加密存入数据库。
+     * 同一邮箱同一用途 60 秒内不能重复发送。
      *
-     * @param email   校园邮箱
+     * @param email   校园邮箱（需 @bjtu.edu.cn）
      * @param purpose 用途：login/register
-     * @return 明文验证码，仅开发联调用
      */
-    String createEmailCode(String email, String purpose);
+    void createEmailCode(String email, String purpose);
 
     /**
      * 用户登录（首次登录自动注册）

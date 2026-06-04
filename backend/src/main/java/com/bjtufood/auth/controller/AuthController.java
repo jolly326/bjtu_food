@@ -1,5 +1,6 @@
 package com.bjtufood.auth.controller;
 
+import com.bjtufood.auth.dto.EmailCodeReq;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
@@ -29,7 +30,11 @@ public class AuthController {
 
     @Operation(
             summary = "获取邮箱验证码",
-            description = "用途：开发联调阶段生成邮箱验证码。真实上线时应改为发送邮件且不返回验证码。",
+            description = """
+                    用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码。
+                    规则：同一邮箱同一用途 60 秒内不能重复发送，验证码 10 分钟有效。
+                    注意：验证码通过邮件发送，不会在响应中返回。
+                    """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
                       "email": "20240001@bjtu.edu.cn",
@@ -38,9 +43,9 @@ public class AuthController {
                     """)))
     )
     @PostMapping("/auth/email-code")
-    public Result<Map<String, String>> createEmailCode(@RequestBody Map<String, String> body) {
-        String code = authService.createEmailCode(body.get("email"), body.get("purpose"));
-        return Result.success(Map.of("code", code));
+    public Result<Map<String, String>> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
+        authService.createEmailCode(req.getEmail(), req.getPurpose());
+        return Result.success(Map.of("message", "验证码已发送"));
     }
 
     @Operation(

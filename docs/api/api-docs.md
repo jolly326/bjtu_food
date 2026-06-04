@@ -81,7 +81,7 @@ http://192.168.1.23:8080/api
 
 ### POST `/auth/email-code`
 
-用途：获取邮箱验证码。开发联调阶段接口会直接返回验证码；真实业务环境应改为发送邮件且不返回验证码。
+用途：向 `@bjtu.edu.cn` 校园邮箱发送 6 位验证码。同一邮箱同一用途 60 秒内不能重复发送，验证码 10 分钟有效。
 
 请求体：
 
@@ -96,7 +96,7 @@ http://192.168.1.23:8080/api
 
 ```json
 {
-  "code": "123456"
+  "message": "验证码已发送"
 }
 ```
 
@@ -397,11 +397,12 @@ http://192.168.1.23:8080/api
 
 ```json
 {
-  "url": "/images/2026/06/uuid.jpg"
+  "url": "http://localhost:8080/api/images/2026/06/uuid.jpg",
+  "relativeUrl": "/images/2026/06/uuid.jpg"
 }
 ```
 
-返回的 `url` 可作为 `avatar` 或 `images` 字段保存。
+建议将 `relativeUrl` 保存到数据库，后续通过 `ImageUrlUtil` 自动转换为完整 URL。`url` 可直接用于前端展示。
 
 ## 10. 后台管理接口
 

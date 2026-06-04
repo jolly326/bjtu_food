@@ -3,6 +3,7 @@ package com.bjtufood;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 校园食堂信息系统 - 后端启动类
@@ -20,6 +21,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @MapperScan("com.bjtufood.**.mapper")
 @SpringBootApplication
+@EnableScheduling
 public class BjtuFoodApplication {
 
     public static void main(String[] args) {

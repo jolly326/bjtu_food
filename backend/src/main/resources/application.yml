@@ -25,6 +25,27 @@ spring:
       max-file-size: 5MB        # 单文件最大 5MB
       max-request-size: 20MB    # 单次请求最大 20MB
 
+  # ---------- SMTP 邮件配置 ----------
+  # 发送邮箱验证码必须配置环境变量：
+  # MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD
+  # 未配置时 /auth/email-code 会发送失败。
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 3269728411@qq.com
+    password: bnwxvookwzzhdbbc
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+          socketFactoryClass: javax.net.ssl.SSLSocketFactory
+
   # ---------- Jackson 日期序列化 ----------
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss   # 日期格式
