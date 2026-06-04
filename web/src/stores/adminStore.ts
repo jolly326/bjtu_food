@@ -4,6 +4,7 @@ import { useStallStore } from './stallStore'
 import { useDishStore } from './dishStore'
 import { useReviewStore } from './reviewStore'
 import { useUserStore } from './userStore'
+import { useBannerStore } from './bannerStore'
 
 export const useAdminStore = defineStore('admin', () => {
   const canteen = useCanteenStore()
@@ -11,6 +12,7 @@ export const useAdminStore = defineStore('admin', () => {
   const dish = useDishStore()
   const review = useReviewStore()
   const user = useUserStore()
+  const banner = useBannerStore()
 
   return {
     canteens: canteen.list,
@@ -33,6 +35,12 @@ export const useAdminStore = defineStore('admin', () => {
     deleteReview: review.remove,
     toggleUserStatus: user.toggleUserStatus,
     updateUserProfile: user.updateProfile,
+    banners: banner.sortedList,
+    activeBanners: banner.activeList,
+    maxBannerSortOrder: banner.maxSortOrder,
+    addBanner: banner.add,
+    updateBanner: banner.update,
+    deleteBanner: banner.remove,
     get stats() {
       return {
         totalCanteens: canteen.list.length,
@@ -40,6 +48,7 @@ export const useAdminStore = defineStore('admin', () => {
         totalDishes: dish.list.length,
         totalReviews: review.list.length,
         totalUsers: user.list.length,
+        totalBanners: banner.list.length,
         todayOrders: 0,
       }
     },

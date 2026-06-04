@@ -7,6 +7,7 @@ import SearchInput from '@/components/SearchInput.vue'
 import canteenIcon from '@/static/icon/canteen.svg'
 import chartBarIcon from '@/static/icon/chart-bar.svg'
 import groupIcon from '@/static/icon/group.svg'
+import tagIcon from '@/static/icon/tag.svg'
 
 
 const router = useRouter()
@@ -37,6 +38,9 @@ function goBreadcrumb(item: { label: string; path?: string }) {
         </div>
         <div class="nav-item" :class="{ active: activePath === '/dashboard/users' }" @click="router.push('/dashboard/users')">
           <img :src="groupIcon" class="nav-icon-img" alt="" /><span class="nav-label">用户管理</span>
+        </div>
+        <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/banners') }" @click="router.push('/dashboard/banners')">
+          <img :src="tagIcon" class="nav-icon-img" alt="" /><span class="nav-label">轮播管理</span>
         </div>
       </nav>
       <div class="sidebar-footer">

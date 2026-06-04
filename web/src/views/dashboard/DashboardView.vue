@@ -7,6 +7,7 @@ import foodIcon from '@/static/icon/Food.svg'
 import commentIcon from '@/static/icon/comment.svg'
 import groupIcon from '@/static/icon/group.svg'
 import chartBarIcon from '@/static/icon/chart-bar.svg'
+import tagIcon from '@/static/icon/tag.svg'
 
 const store = useAdminStore()
 const page = usePageStore()
@@ -60,6 +61,13 @@ function getDishName(dishId: number | bigint): string {
           <img :src="groupIcon" class="kpi-icon" />
         </div>
         <span class="kpi-label">用户</span>
+      </div>
+      <div class="kpi-card kpi-banner">
+        <div class="kpi-top">
+          <span class="kpi-num">{{ store.stats.totalBanners }}</span>
+          <img :src="tagIcon" class="kpi-icon" />
+        </div>
+        <span class="kpi-label">Banner</span>
       </div>
     </div>
 
@@ -125,7 +133,7 @@ function getDishName(dishId: number | bigint): string {
 /* ===== KPI 卡片 ===== */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -165,6 +173,8 @@ function getDishName(dishId: number | bigint): string {
 .kpi-review .kpi-icon { filter: brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1042%) hue-rotate(200deg) brightness(97%) contrast(89%); }
 .kpi-user .kpi-num { color: #7b1fa2; }
 .kpi-user .kpi-icon { filter: brightness(0) saturate(100%) invert(22%) sepia(98%) saturate(2299%) hue-rotate(270deg) brightness(91%) contrast(97%); }
+.kpi-banner .kpi-num { color: #d32f2f; }
+.kpi-banner .kpi-icon { filter: brightness(0) saturate(100%) invert(18%) sepia(86%) saturate(2163%) hue-rotate(346deg) brightness(88%) contrast(91%); }
 
 /* ===== 底部 ===== */
 .dash-bottom {

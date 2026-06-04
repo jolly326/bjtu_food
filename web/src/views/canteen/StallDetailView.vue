@@ -153,7 +153,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
                 <input v-else v-model="stallForm.location" class="inline-input" placeholder="档口位置" />
               </div>
             </div>
-            <div class="field-row">
+            <div class="field-row ">
               <span class="field-label">描述</span>
               <div class="field-control">
                 <span v-if="!editing" class="field-value text-desc">{{ stallForm.description || '-' }}</span>
