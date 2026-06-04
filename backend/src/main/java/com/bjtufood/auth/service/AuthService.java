@@ -17,17 +17,26 @@ import java.util.Map;
 public interface AuthService {
 
     /**
+     * 生成邮箱验证码。当前开发版本直接返回验证码，便于联调；接入真实邮件后改为发送邮件。
+     *
+     * @param email   校园邮箱
+     * @param purpose 用途：login/register
+     * @return 明文验证码，仅开发联调用
+     */
+    String createEmailCode(String email, String purpose);
+
+    /**
      * 用户登录（首次登录自动注册）
      * <p>
      * 处理流程：
      * 1. 根据 username 查询用户
-     * 2. 用户不存在 → 自动创建 student 用户
-     * 3. 用户存在 → 校验密码（bcrypt）
+     * 2. 校验邮箱验证码
+     * 3. 根据邮箱查询已注册用户
      * 4. 检查用户状态（disabled 则拒绝登录）
      * 5. 生成 JWT Token
-     * 6. 返回 LoginResp（含 token、userInfo、stallId）
+     * 6. 返回 LoginResp（含 token、用户信息）
      *
-     * @param req 登录请求（用户名 + 密码）
+     * @param req 登录请求（邮箱 + 验证码）
      * @return 登录响应（token + 用户信息）
      * @throws com.bjtufood.common.exception.BusinessException 密码错误/账号禁用
      */
@@ -38,8 +47,8 @@ public interface AuthService {
      * <p>
      * 处理流程：
      * 1. 检查用户名是否已存在
-     * 2. 密码 bcrypt 加密
-     * 3. 创建用户（默认角色 student，状态 active）
+     * 2. 校验校园邮箱验证码
+     * 3. 创建用户（默认角色 user，状态 active）
      * 4. 生成 JWT Token 并返回（注册即登录）
      *
      * @param req 注册请求

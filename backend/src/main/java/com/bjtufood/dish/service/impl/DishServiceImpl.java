@@ -95,15 +95,14 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public List<Dish> listByStallId(Long stallId) {
-        return dishMapper.selectList(new LambdaQueryWrapper<Dish>().eq(Dish::getStallId, stallId));
+    public List<Dish> listAllForAdmin() {
+        return dishMapper.selectList(new LambdaQueryWrapper<Dish>().orderByDesc(Dish::getUpdatedAt));
     }
 
     @Override
-    public void addDish(Long stallId, DishAdminReq req) {
+    public void addDish(DishAdminReq req) {
         Dish dish = new Dish();
         applyReq(dish, req);
-        dish.setStallId(stallId);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
         dish.setCollectCount(0);
@@ -160,6 +159,7 @@ public class DishServiceImpl implements DishService {
     }
 
     private void applyReq(Dish dish, DishAdminReq req) {
+        dish.setStallId(req.getStallId());
         dish.setName(req.getName());
         dish.setPrice(req.getPrice());
         dish.setDescription(req.getDescription());

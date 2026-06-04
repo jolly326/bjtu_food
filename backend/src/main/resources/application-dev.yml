@@ -5,9 +5,9 @@
 spring:
   datasource:
     # 开发环境使用本地 MySQL
-    url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
-    username: root
-    password: root
+    url: jdbc:mysql://39.105.66.79:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
+    username: bjtu
+    password: 123456
 
 mybatis-plus:
   configuration:

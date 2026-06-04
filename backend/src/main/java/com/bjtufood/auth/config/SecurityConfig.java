@@ -44,6 +44,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             "/auth/login",
             "/auth/register",
+            "/auth/email-code",
             "/canteens/**",
             "/stalls/**",
             "/dishes",
@@ -75,7 +76,7 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/images/**").permitAll()  // 上传的静态图片资源
                         // 管理端接口需要管理员角色
-                        .requestMatchers("/admin/**").hasAnyRole("CANTEEN_ADMIN", "SYS_ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )

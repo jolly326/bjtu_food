@@ -1,513 +1,285 @@
-﻿# 椋熷湪浜ゅぇ 鈥?鍓嶇 API 鎺ュ彛鏂囨。
+﻿# 校园食堂信息系统 API 接口文档
 
-> 鍩虹鍦板潃锛歚http://localhost:8080/api`
+> 基础地址：`http://localhost:8080/api`
 >
-> 缁熶竴鍝嶅簲鏍煎紡锛?
-> ```json
-> { "code": 200, "message": "success", "data": <T> }
-> ```
+> Knife4j 地址：`http://localhost:8080/api/doc.html`
 >
-> 閴存潈鏂瑰紡锛歚Authorization: Bearer <token>`锛堢櫥褰曞悗鎵€鏈夋帴鍙ｈ嚜鍔ㄦ惡甯︼級
+> 统一响应格式：`{ "code": 200, "message": "操作成功", "data": ... }`
+>
+> 登录鉴权：需要登录的接口在 Header 中携带 `Authorization: Bearer <token>`。
 
----
+## 1. Knife4j 人工测试流程
 
-## 鐩綍
+1. 启动后端。
+2. 浏览器打开 `http://localhost:8080/api/doc.html`。
+3. 调用 `POST /auth/login`，使用示例账号 `20240001` 和密码 `123456`。
+4. 复制返回的 `data.token`。
+5. 点击 Knife4j 右上角 `Authorize`，填入 token。
+6. 测试收藏、评价、清单、个人资料、上传、后台等需要登录的接口。
 
-| 妯″潡 | 鎺ュ彛 | 鏂规硶 | 鐢ㄩ€?|
-|------|------|------|------|
-| 璁よ瘉 | `/auth/login` | POST | 鐧诲綍/娉ㄥ唽 |
-| 璁よ瘉 | `/auth/profile` | PUT | 淇敼鏄电О/澶村儚 |
-| 璁よ瘉 | `/auth/stats` | GET | 鑾峰彇鐢ㄦ埛缁熻 |
-| 鑿滃搧 | `/dishes/hot` | GET | 棣栭〉鎺ㄨ崘鑿滃搧 |
-| 鑿滃搧 | `/dishes` | GET | 鎼滅储/绛涢€夎彍鍝?|
-| 鑿滃搧 | `/dishes/:id` | GET | 鑿滃搧璇︽儏 |
-| 椋熷爞 | `/canteens/banners` | GET | 棣栭〉杞挱鍥?|
-| 椋熷爞 | `/canteens` | GET | 椋熷爞鍒楄〃 |
-| 椋熷爞 | `/canteens/images` | GET | 椋熷爞鑳屾櫙鍥剧墖 |
-| 椋熷爞 | `/canteens/stallDetail` | GET | 妗ｅ彛璇︽儏 |
-| 璇勪环 | `/dishes/:id/reviews` | GET | 鑿滃搧璇勪环鍒楄〃 |
-| 璇勪环 | `/reviews` | POST | 鎻愪氦璇勪环 |
-| 鏀惰棌 | `/favorites` | GET | 鏀惰棌鍒楄〃 |
-| 鏀惰棌 | `/favorites/toggle` | POST | 鍒囨崲鏀惰棌锛堟坊鍔?鍙栨秷锛?|
-| 涓婁紶 | `/upload/image` | POST | 涓婁紶鍥剧墖 |
+如果后端不在本机，把基础地址中的 `localhost` 替换为后端设备 IP，例如：
 
----
-
-## 1. 璁よ瘉妯″潡
-
-### 1.1 鐧诲綍 / 鑷姩娉ㄥ唽
-
-```
-POST /auth/login
+```text
+http://192.168.1.23:8080/api
 ```
 
-**Request Body:**
+## 2. 当前接口实现状态总览
+
+| 模块 | 接口 | 方法 | 是否需要登录 | 当前状态 | 用途 |
+|---|---|---|---|---|---|
+| 认证 | `/auth/email-code` | POST | 否 | 已实现 | 获取邮箱验证码 |
+| 认证 | `/auth/login` | POST | 否 | 已实现 | 密码登录/邮箱验证码登录 |
+| 认证 | `/auth/register` | POST | 否 | 已实现 | 邮箱验证并注册用户 |
+| 认证 | `/auth/profile` | GET | 是 | 已实现 | 获取当前用户资料 |
+| 认证 | `/auth/profile` | PUT | 是 | 已实现 | 修改昵称/头像 |
+| 认证 | `/auth/stats` | GET | 是 | 已实现 | 获取收藏数、评价数 |
+| 食堂 | `/canteens/banners` | GET | 否 | 已实现 | 首页轮播图 |
+| 食堂 | `/canteens` | GET | 否 | 已实现 | 食堂列表 |
+| 食堂 | `/canteens/images` | GET | 否 | 已实现 | 食堂名到图片列表映射 |
+| 食堂 | `/canteens/stallDetail` | GET | 否 | 已实现 | 档口详情 |
+| 食堂 | `/canteens/all` | GET | 否 | 已实现 | 食堂列表，包含下属档口 |
+| 食堂 | `/stalls` | GET | 否 | 已实现 | 按食堂 ID 查询档口 |
+| 菜品 | `/dishes/hot` | GET | 否 | 已实现 | 热门菜品 |
+| 菜品 | `/dishes` | GET | 否 | 已实现 | 菜品分页/搜索/筛选 |
+| 菜品 | `/dishes/{id}` | GET | 否 | 已实现 | 菜品详情 |
+| 菜品 | `/dishes/{id}/view` | POST | 是 | 已实现 | 增加浏览量 |
+| 收藏 | `/favorites` | GET | 是 | 已实现 | 我的收藏列表 |
+| 收藏 | `/favorites/toggle` | POST | 是 | 已实现 | 收藏/取消收藏 |
+| 收藏 | `/favorites/batch` | POST | 是 | 已实现 | 批量收藏 |
+| 评价 | `/dishes/{dishId}/reviews` | GET | 否 | 已实现 | 菜品评价列表 |
+| 评价 | `/reviews` | POST | 是 | 已实现 | 提交评价 |
+| 评价 | `/reviews/{id}` | PUT | 是 | 已实现 | 修改自己的评价 |
+| 评价 | `/reviews/{id}` | DELETE | 是 | 已实现 | 删除自己的评价 |
+| 清单 | `/lists` | POST | 是 | 已实现 | 创建美食清单 |
+| 清单 | `/lists` | GET | 是 | 已实现 | 我的清单列表 |
+| 清单 | `/lists/{id}` | GET | 是 | 已实现 | 清单详情 |
+| 清单 | `/lists/{id}` | DELETE | 是 | 已实现 | 删除清单 |
+| 清单 | `/lists/share/{token}` | GET | 否 | 已实现 | 通过分享 token 查看清单 |
+| 清单 | `/lists/{id}/collect-all` | POST | 是 | 已实现 | 清单一键收藏 |
+| 上传 | `/upload/image` | POST | 是 | 已实现 | 上传图片 |
+| 后台食堂 | `/admin/canteens` | POST | 管理员 | 已实现 | 新增食堂 |
+| 后台食堂 | `/admin/canteens/{id}` | PUT | 管理员 | 已实现 | 编辑食堂 |
+| 后台食堂 | `/admin/canteens/{id}` | DELETE | 管理员 | 已实现 | 删除食堂 |
+| 后台档口 | `/admin/stalls` | POST | 管理员 | 已实现 | 新增档口 |
+| 后台档口 | `/admin/stalls/{id}` | PUT | 管理员 | 已实现 | 编辑档口 |
+| 后台档口 | `/admin/stalls/{id}` | DELETE | 管理员 | 已实现 | 删除档口 |
+| 后台用户 | `/admin/users` | GET | 管理员 | 已实现 | 用户列表 |
+| 后台用户 | `/admin/users/{id}/status` | PUT | 管理员 | 已实现 | 启用/禁用用户 |
+| 后台用户 | `/admin/users/{id}/role` | PUT | 管理员 | 已实现 | 修改角色 |
+| 后台评价 | `/admin/reviews` | GET | 管理员 | 已实现 | 全部评价列表 |
+| 后台评价 | `/admin/reviews/{id}/hide` | PUT | 管理员 | 已实现 | 隐藏/显示评价 |
+| 后台评价 | `/admin/reviews/{id}` | DELETE | 管理员 | 已实现 | 管理员删除评价 |
+| 后台菜品 | `/admin/dishes` | GET | 管理员 | 已实现 | 后台全部菜品 |
+| 后台菜品 | `/admin/dishes` | POST | 管理员 | 已实现 | 新增菜品 |
+| 后台菜品 | `/admin/dishes/{id}` | PUT | 管理员 | 已实现 | 编辑菜品 |
+| 后台菜品 | `/admin/dishes/{id}` | DELETE | 管理员 | 已实现 | 删除菜品 |
+| 后台统计 | `/admin/stats/overview` | GET | 管理员 | 待完善 | 当前仍为占位返回 |
+| 后台统计 | `/admin/stats/trend` | GET | 管理员 | 待完善 | 当前仍为占位返回 |
+| 后台统计 | `/admin/stats/rank` | GET | 管理员 | 待完善 | 当前仍为占位返回 |
+
+## 3. 认证与用户接口
+
+### POST `/auth/email-code`
+
+用途：获取邮箱验证码。开发联调阶段接口会直接返回验证码；真实业务环境应改为发送邮件且不返回验证码。
+
+请求体：
 
 ```json
 {
-  "username": "20240001",
+  "email": "20240001@bjtu.edu.cn",
+  "purpose": "login"
+}
+```
+
+响应重点：
+
+```json
+{
+  "code": "123456"
+}
+```
+
+### POST `/auth/login`
+
+用途：登录并获取 JWT Token。支持两种方式：密码登录、邮箱验证码登录。用户必须已经注册。
+
+密码登录请求体：
+
+```json
+{
+  "account": "20240001",
   "password": "123456"
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `username` | string | 鏄?| 瀛﹀彿 |
-| `password` | string | 鏄?| 楠岃瘉鐮侊紙棣栨鐧诲綍鑷姩鍒涘缓璐﹀彿锛?|
+`account` 可以填写用户名、学号、工号或邮箱。
 
-**Response `data`:**
+验证码登录请求体：
 
 ```json
 {
-  "token": "jwt_token_string",
+  "email": "20240001@bjtu.edu.cn",
+  "code": "123456"
+}
+```
+
+响应重点：
+
+```json
+{
+  "token": "jwt-token",
   "userId": 1,
-  "nickname": "浜ゅぇ瀛﹀瓙",
-  "avatar": "http://.../avatar.jpg",
-  "role": "student"
+  "username": "20240001",
+  "email": "20240001@bjtu.edu.cn",
+  "nickname": "交大学子",
+  "avatar": "http://localhost:8080/api/images/seed/dishes/tomato-egg.jpg",
+  "role": "user"
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `token` | string | JWT token锛屽悗缁帴鍙ｉ€氳繃 `Authorization: Bearer <token>` 浼犻€?|
-| `userId` | number | 鐢ㄦ埛 ID |
-| `nickname` | string | 鏄电О |
-| `avatar` | string | 澶村儚 URL锛堝彲鑳戒负绌猴級 |
-| `role` | `"student" \| "visitor"` | 瑙掕壊 |
+### POST `/auth/register`
 
----
-
-### 1.2 淇敼璧勬枡
-
-```
-PUT /auth/profile
-```
-
-**Request Body**锛堜袱涓瓧娈佃嚦灏戜紶涓€涓級锛?
+用途：使用校园邮箱验证码注册普通用户，并设置登录密码。注册前先调用 `/auth/email-code`，`purpose` 填 `register`。
 
 ```json
 {
-  "nickname": "鏂版樀绉?,
-  "avatar": "http://.../new_avatar.jpg"
+  "username": "20240002",
+  "email": "20240002@bjtu.edu.cn",
+  "code": "123456",
+  "password": "123456",
+  "nickname": "交大学子"
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `nickname` | string | 鍚?| 鏂版樀绉帮紝鏈€澶?20 瀛?|
-| `avatar` | string | 鍚?| 澶村儚鍥剧墖 URL锛?*蹇呴』鍏堥€氳繃涓婁紶鎺ュ彛鑾峰彇 URL**锛屼笉鍙洿鎺ヤ紶鏈湴涓存椂璺緞锛?|
+### GET `/auth/profile`
 
-> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堣幏鍙?URL锛夆啋 `PUT /auth/profile`锛堜紶鍏?URL锛?
+用途：获取当前登录用户资料。需要 token。
 
-**Response `data`:** 鏇存柊鍚庣殑 `UserInfo` 瀵硅薄
+### PUT `/auth/profile`
+
+用途：修改昵称或头像。需要 token。
 
 ```json
 {
-  "id": 1,
-  "nickname": "鏂版樀绉?,
-  "avatar": "http://.../new_avatar.jpg",
-  "role": "student"
+  "nickname": "新的昵称",
+  "avatar": "/images/seed/dishes/tomato-egg.jpg"
 }
 ```
 
-**鍓嶇绫诲瀷 `UserInfo`锛?*
+### GET `/auth/stats`
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `id` | number | 鐢ㄦ埛 ID |
-| `nickname` | string | 鏄电О |
-| `avatar` | string | 澶村儚 URL |
-| `role` | `"student" \| "visitor"` | 瑙掕壊 |
+用途：个人中心统计。
 
----
-
-### 1.3 鑾峰彇鐢ㄦ埛缁熻
-
-```
-GET /auth/stats
-```
-
-**Response `data`:**
+响应：
 
 ```json
 {
-  "favoriteCount": 12,
-  "reviewCount": 8
+  "favoriteCount": 6,
+  "reviewCount": 3
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `favoriteCount` | number | 鏀惰棌鏁?|
-| `reviewCount` | number | 璇勪环鏁?|
+## 4. 食堂与档口接口
 
-**鍓嶇绫诲瀷 `UserStats`锛?*
+### GET `/canteens/banners`
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `favoriteCount` | number | 鏀惰棌鏁?|
-| `reviewCount` | number | 璇勪环鏁?|
+用途：首页轮播图。
 
----
+### GET `/canteens`
 
-## 2. 鑿滃搧妯″潡
+用途：食堂列表。
 
-### 2.1 棣栭〉鎺ㄨ崘鑿滃搧
+### GET `/canteens/images`
 
-```
-GET /dishes/hot
-```
+用途：返回食堂名到图片 URL 列表的映射。
 
-鏃犲弬鏁般€?
+### GET `/canteens/stallDetail`
 
-**Response `data`:** `Dish[]`
+用途：查询档口详情。
 
-```json
-[
-  {
-    "id": 1,
-    "name": "绾㈢儳鐗涜倝闈?,
-    "price": 1500,
-    "images": ["http://.../dish1.jpg"],
-    "avgRating": 4.8,
-    "ratingCount": 256,
-    "tags": ["recommended", "signature"],
-    "description": "娴撴堡鎱㈢倴锛岀墰鑲夐叆鐑?,
-    "canteenName": "绗竴椋熷爞",
-    "stallName": "闈㈤潰淇卞埌"
-  }
-]
+测试示例：
+
+```text
+/canteens/stallDetail?canteenName=明湖餐厅&stallName=明湖一层基本伙食窗口
 ```
 
----
+兼容参数：`canteen` 与 `canteenName` 都可以传食堂名，推荐使用 `canteenName`。
 
-### 2.2 鎼滅储 / 绛涢€夎彍鍝?
+### GET `/canteens/all`
 
-```
-GET /dishes
-```
+用途：返回食堂和下属档口，适合前端一次性渲染食堂结构。
 
-**Query Parameters:**
+### GET `/stalls`
 
-| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `keyword` | string | 鍚?| 鍏抽敭璇嶆悳绱紙鍖归厤鑿滃搧鍚嶃€佹。鍙ｅ悕锛?|
-| `minPrice` | number | 鍚?| 鏈€浣庝环鏍硷紙**鍒?*锛?|
-| `maxPrice` | number | 鍚?| 鏈€楂樹环鏍硷紙**鍒?*锛?|
-| `sortBy` | `"rating" \| "price"` | 鍚?| 鎺掑簭鏂瑰紡 |
-| `page` | number | 鍚?| 鍒嗛〉椤电爜锛岄粯璁?1 |
-| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?20 |
+用途：按食堂 ID 查询档口。
 
-> 鍓嶇褰撳墠鐗堟湰鏆傛湭浼?`page` / `pageSize`锛屽悗绔彲鍏堥粯璁よ繑鍥炴墍鏈夊尮閰嶇粨鏋滄垨鍒嗛〉銆?
-
-**Response `data`:** 鍒嗛〉鎴栨暟缁?
-
-鍒嗛〉鏍煎紡锛堣嫢鏀寔鍒嗛〉锛夛細
-
-```json
-{
-  "records": [ ...Dish[] ],
-  "total": 100,
-  "page": 1,
-  "pageSize": 20
-}
+```text
+/stalls?canteenId=1
 ```
 
-鑻ヤ笉鍒嗛〉鍒欑洿鎺ヨ繑鍥?`Dish[]`銆?
+## 5. 菜品接口
 
----
+### GET `/dishes/hot`
 
-### 2.3 鑿滃搧璇︽儏
+用途：首页热门菜品推荐。
 
-```
-GET /dishes/:id
-```
+### GET `/dishes`
 
-**Response `data`:**
+用途：菜品列表、搜索、筛选、排序。
 
-```json
-{
-  "id": 1,
-  "name": "绾㈢儳鐗涜倝闈?,
-  "price": 1500,
-  "images": ["http://.../img1.jpg", "http://.../img2.jpg"],
-  "avgRating": 4.8,
-  "ratingCount": 256,
-  "collectCount": 120,
-  "tags": ["recommended", "signature"],
-  "description": "娴撴堡鎱㈢倴锛岀墰鑲夐叆鐑?,
-  "canteenName": "绗竴椋熷爞",
-  "stallName": "闈㈤潰淇卞埌",
-  "ratingDistribution": [
-    { "star": 5, "count": 156 },
-    { "star": 4, "count": 68 },
-    { "star": 3, "count": 22 },
-    { "star": 2, "count": 8 },
-    { "star": 1, "count": 2 }
-  ]
-}
+测试示例：
+
+```text
+/dishes?page=1&pageSize=10&keyword=牛肉
+/dishes?canteenId=1&sortBy=rating&sortOrder=desc
+/dishes?minPrice=1000&maxPrice=2000&tag=recommended
 ```
 
-**鍓嶇绫诲瀷 `Dish`锛?*
+常用参数：
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `id` | number | 鑿滃搧 ID |
-| `name` | string | 鑿滃搧鍚?|
-| `price` | number | **鍗曚綅锛氬垎**锛屽墠绔樉绀烘椂 /100 杞负鍏?|
-| `images` | string[] | 图片 URL 列表；单图时仅包含 1 个 URL |
-| `avgRating` / `rating` | number | 璇勫垎锛堝墠绔紭鍏堝彇 `avgRating`锛?|
-| `ratingCount` | number | 璇勪环鏁?|
-| `collectCount` / `favoriteCount` | number | 鏀惰棌鏁?|
-| `tags` | string[] | 鏍囩鏁扮粍锛屽悗绔紶鑻辨枃 key锛堣涓嬫柟鏄犲皠琛級 |
-| `description` | string | 鎻忚堪 |
-| `canteenName` / `canteen` | string | 鎵€灞為鍫?|
-| `stallName` | string | 鎵€灞炴。鍙?|
+| 参数 | 说明 |
+|---|---|
+| `page` | 页码，默认 1 |
+| `pageSize` | 每页条数，默认 10 |
+| `keyword` | 关键词，匹配菜品名或档口名 |
+| `canteenId` | 食堂 ID |
+| `stallId` | 档口 ID |
+| `tag` | 标签，如 recommended、signature、halal |
+| `minPrice` | 最低价格，单位分 |
+| `maxPrice` | 最高价格，单位分 |
+| `sortBy` | rating、collects、price、created_at |
+| `sortOrder` | asc、desc |
 
-**鏍囩鏄犲皠琛紙鍚庣 鈫?鍓嶇鏄剧ず锛夛細**
+### GET `/dishes/{id}`
 
-| 鍚庣鍊?| 鍓嶇鏄剧ず |
-|--------|----------|
-| `recommended` | 蹇呭悆鎺ㄨ崘 |
-| `signature` | 鎷涚墝鑿?|
+用途：菜品详情。未登录可访问；登录后会额外返回 `isFavorited`、`hasReviewed`。
 
-**璇︽儏棰濆瀛楁 `DishDetail`锛?*
-
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `ratingDistribution` | `{ star: number, count: number }[]` | 鍚勬槦绾т汉鏁帮紙1-5 鏄熷悇涓€涓級 |
-
----
-
-## 3. 椋熷爞妯″潡
-
-### 3.1 棣栭〉杞挱鍥?
-
-```
-GET /canteens/banners
+```text
+/dishes/1
 ```
 
-**Response `data`:** `BannerItem[]`
+### POST `/dishes/{id}/view`
 
-```json
-[
-  {
-    "title": "馃崪 浜ゅぇ缇庨瀛?,
-    "subtitle": "鍙戠幇鏍″洯閲岀殑姣忎竴閬撶編鍛?,
-    "images": ["http://.../banner1.jpg"]
-  }
-]
+用途：进入详情页时增加浏览量。需要 token。
+
+```text
+/dishes/1/view
 ```
 
-**鍓嶇绫诲瀷 `BannerItem`锛?*
+## 6. 收藏接口
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `title` | string | 鏍囬 |
-| `subtitle` | string | 鍓爣棰?|
-| `images` | string[] | 图片 URL 列表；单图时仅包含 1 个 URL |
+### GET `/favorites`
 
----
+用途：查看我的收藏菜品。需要 token。
 
-### 3.2 椋熷爞鍒楄〃
-
-```
-GET /canteens
+```text
+/favorites?page=1&pageSize=50
 ```
 
-**Response `data`:** `CanteenInfo[]`
+### POST `/favorites/toggle`
 
-```json
-[
-  {
-    "name": "绗竴椋熷爞",
-    "description": "涓€椋熷爞涓€灞?,
-    "images": ["http://.../canteen_icon.svg"]
-  }
-]
-```
-
-**鍓嶇绫诲瀷 `CanteenInfo`锛?*
-
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `name` | string | 椋熷爞鍚嶇О |
-| `location` / `description` | string | 浣嶇疆鎻忚堪 |
-| `images` | string[] | 食堂图片 URL 列表；单图时仅包含 1 个 URL |
-
-> 鍓嶇浼樺厛鍙?`description`锛屽彇涓嶅埌鍒欏彇 `location`銆?
-
----
-
-### 3.3 椋熷爞鑳屾櫙鍥剧墖
-
-```
-GET /canteens/images
-```
-
-**Response `data`:** `Record<string, string[]>` - key 为食堂名，value 为图片 URL 数组
-
-```json
-{
-  "绗竴椋熷爞": ["http://.../canteen1_bg.jpg"],
-  "绗簩椋熷爞": ["http://.../canteen2_bg.jpg"]
-}
-```
-
-> 鍓嶇鐢ㄦ鎺ュ彛鑾峰彇椋熷爞椤电殑鑳屾櫙鍥剧墖锛岃嫢鏃犺繑鍥炲垯浣跨敤榛樿鍗犱綅銆?
-
----
-
-### 3.4 妗ｅ彛璇︽儏
-
-```
-GET /canteens/stallDetail
-```
-
-**Query Parameters:**
-
-| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `canteen` | string | 鏄?| 椋熷爞鍚嶇О |
-| `stallName` | string | 鏄?| 妗ｅ彛鍚嶇О |
-
-**Response `data`:** `StallDetail`
-
-```json
-{
-  "name": "闈㈤潰淇卞埌",
-  "images": ["http://.../stall1.jpg", "http://.../stall2.jpg"],
-  "location": "绗竴椋熷爞",
-  "description": "绗竴椋熷爞路闈㈤潰淇卞埌锛屼负鎮ㄦ彁渚涚編鍛崇殑鏍″洯椁愰ギ浣撻獙銆?
-}
-```
-
-**鍓嶇绫诲瀷 `StallDetail`锛?*
-
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `name` | string | 妗ｅ彛鍚嶇О |
-| `images` | string[] | 妗ｅ彛灞曠ず鍥剧墖锛堟敮鎸佸寮狅級 |
-| `location` | string | 浣嶇疆 |
-| `description` | string | 鎻忚堪鏂囨 |
-
----
-
-## 4. 璇勪环妯″潡
-
-### 4.1 鑾峰彇鑿滃搧璇勪环鍒楄〃
-
-```
-GET /dishes/:dishId/reviews
-```
-
-**Query Parameters:**
-
-| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `page` | number | 鍚?| 椤电爜锛岄粯璁?1 |
-| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?20 |
-
-**Response `data`:**
-
-鍒嗛〉鏍煎紡锛?
-
-```json
-{
-  "records": [ ...Review[] ],
-  "total": 10,
-  "page": 1,
-  "pageSize": 20
-}
-```
-
-鎴栦笉鍒嗛〉鐩存帴杩斿洖 `Review[]`銆?
-
-**鍓嶇绫诲瀷 `Review`锛?*
-
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `id` | number | 璇勪环 ID |
-| `userId` | number | 鐢ㄦ埛 ID |
-| `userNickname` | string | 鐢ㄦ埛鏄电О锛堝墠绔?fallback 涓?鍖垮悕鐢ㄦ埛"锛?|
-| `userAvatar` | string | 鐢ㄦ埛澶村儚 URL锛堝彲涓虹┖锛?|
-| `dishId` | number | 鍏宠仈鑿滃搧 ID |
-| `rating` | number | 璇勫垎锛?-5锛?|
-| `content` | string | 璇勪环鍐呭 |
-| `images` | string[] | 璇勪环鍥剧墖 URL 鍒楄〃 |
-| `createdAt` | string | 鍒涘缓鏃堕棿锛圛SO 8601 鏍煎紡锛?|
-
----
-
-### 4.2 鎻愪氦璇勪环
-
-```
-POST /reviews
-```
-
-**Request Body:**
-
-```json
-{
-  "dishId": 1,
-  "rating": 5,
-  "content": "瓒呯骇濂藉悆锛?,
-  "images": ["http://.../review_img1.jpg"]
-}
-```
-
-| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `dishId` | number | 鏄?| 鑿滃搧 ID |
-| `rating` | number | 鏄?| 璇勫垎锛?-5锛?|
-| `content` | string | 鏄?| 姝ｆ枃锛屾渶闀?500 瀛?|
-| `images` | string[] | 鍚?| 鍥剧墖 URL 鍒楄〃锛堟渶澶?3 寮狅級 |
-
-**Response `data`:** 鏃?`data`锛屼粎杩斿洖 `{ code: 200, message: "success" }`銆?
-
-> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堥€愪竴涓婁紶鑾峰彇 URL锛夆啋 `POST /reviews`锛堜紶鍏?URL 鏁扮粍锛?
-
-
----
-
-## 5. 鏀惰棌妯″潡
-
-### 5.1 鑾峰彇鏀惰棌鍒楄〃
-
-```
-GET /favorites
-```
-
-**Query Parameters:**
-
-| 鍙傛暟 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `page` | number | 鍚?| 椤电爜锛岄粯璁?1 |
-| `pageSize` | number | 鍚?| 姣忛〉鏉℃暟锛岄粯璁?50 |
-
-**Response `data`:** `Dish[]`锛堜笌鑿滃搧妯″潡鐨?`Dish` 绫诲瀷涓€鑷达級
-
-```json
-[
-  {
-    "id": 1,
-    "name": "绾㈢儳鐗涜倝闈?,
-    "price": 1500,
-    "images": ["http://.../dish1.jpg"],
-    ...
-  }
-]
-```
-
----
-
-### 5.2 鍒囨崲鏀惰棌
-
-```
-POST /favorites/toggle
-```
-
-**Request Body:**
+用途：收藏/取消收藏。需要 token。
 
 ```json
 {
@@ -515,75 +287,263 @@ POST /favorites/toggle
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `dishId` | number | 鏄?| 鑿滃搧 ID |
-
-**琛屼负璇存槑锛?* 鏈嶅姟绔仛 toggle锛堣嫢宸叉敹钘忓垯鍙栨秷锛屾湭鏀惰棌鍒欐坊鍔狅級銆傚墠绔皟鐢ㄥ悗閲嶆柊鎷夊彇鏀惰棌鍒楄〃銆?
-
-**Response `data`:** 鏃?`data`锛屼粎杩斿洖 `{ code: 200, message: "success" }`銆?
-
-> 鈿狅笍 **鍓嶇璋冪敤椤哄簭**锛歚uni.chooseImage` 鈫?`POST /upload/image`锛堥€愪竴涓婁紶鑾峰彇 URL锛夆啋 `POST /reviews`锛堜紶鍏?URL 鏁扮粍锛?
-
-
----
-
-## 6. 涓婁紶妯″潡
-
-### 6.1 涓婁紶鍥剧墖
-
-```
-POST /upload/image
-Content-Type: multipart/form-data
-```
-
-**Form Data:**
-
-| 瀛楁 | 绫诲瀷 | 蹇呭～ | 璇存槑 |
-|------|------|------|------|
-| `file` | file | 鏄?| 鍥剧墖鏂囦欢 |
-
-**Response `data`:**
+响应：
 
 ```json
 {
-  "url": "http://.../uploads/2024/01/xxx.jpg"
+  "favorited": true
 }
 ```
 
-| 瀛楁 | 绫诲瀷 | 璇存槑 |
-|------|------|------|
-| `url` | string | 涓婁紶鍚庡彲璁块棶鐨勫畬鏁村浘鐗?URL |
+### POST `/favorites/batch`
 
----
+用途：批量收藏，主要给清单“一键收藏”使用。需要 token。
 
-## 闄勫綍
+```json
+{
+  "dishIds": [1, 2, 3]
+}
+```
 
-### A. 浠锋牸鍗曚綅绾﹀畾
+## 7. 评价接口
 
-鎵€鏈夋帴鍙ｄ腑浠锋牸瀛楁 **浠ャ€屽垎銆嶄负鍗曚綅**锛屽墠绔湪鏄剧ず鏃?`/100` 杞崲涓恒€屽厓銆嶃€?
+### GET `/dishes/{dishId}/reviews`
 
-| 鎺ュ彛瀛楁 | 鍗曚綅 | 绀轰緥鍊?| 鍓嶇鏄剧ず |
-|---------|------|--------|---------|
-| `Dish.price` | 鍒?| 1500 | 楼15 |
-| 鎼滅储鍙傛暟 `minPrice` / `maxPrice` | 鍒?| 1000 | 鍓嶇鍏堣浆涓哄垎鍐嶄紶鍙?|
+用途：查看菜品评价。
 
-### B. 閫氱敤鍝嶅簲閿欒鐮?
+```text
+/dishes/1/reviews?page=1&pageSize=20
+```
 
-| `code` | 璇存槑 |
-|--------|------|
-| 200 | 鎴愬姛 |
-| 400 | 璇锋眰鍙傛暟閿欒 |
-| 401 | 鏈櫥褰?/ token 杩囨湡 |
-| 403 | 鏃犳潈闄?|
-| 404 | 璧勬簮涓嶅瓨鍦?|
-| 500 | 鏈嶅姟绔唴閮ㄩ敊璇?|
+### POST `/reviews`
 
-### C. 鏍囩鏋氫妇
+用途：提交评价。需要 token。同一用户对同一菜品只能评价一次。
 
-璇峰悗绔寜浠ヤ笅鏋氫妇鍊艰繑鍥?`tags` 瀛楁锛?
+```json
+{
+  "dishId": 1,
+  "rating": 5,
+  "content": "味道不错，分量也足。",
+  "images": ["/images/seed/dishes/tomato-egg.jpg"]
+}
+```
 
-| 鍊?| 鍚箟 |
-|----|------|
-| `recommended` | 蹇呭悆鎺ㄨ崘 |
-| `signature` | 鎷涚墝鑿?|
+### PUT `/reviews/{id}`
+
+用途：修改自己的评价。需要 token。
+
+```json
+{
+  "dishId": 1,
+  "rating": 4,
+  "content": "重新评价：整体不错。",
+  "images": []
+}
+```
+
+### DELETE `/reviews/{id}`
+
+用途：删除自己的评价。需要 token。
+
+## 8. 美食清单接口
+
+### POST `/lists`
+
+用途：创建美食清单。需要 token。
+
+```json
+{
+  "name": "明湖餐厅必吃",
+  "description": "适合第一次来明湖餐厅的同学",
+  "dishIds": [1, 2, 6]
+}
+```
+
+### GET `/lists`
+
+用途：查看我的清单。需要 token。
+
+### GET `/lists/{id}`
+
+用途：查看清单详情。需要 token。
+
+### DELETE `/lists/{id}`
+
+用途：删除自己的清单。需要 token。
+
+### GET `/lists/share/{token}`
+
+用途：通过分享 token 查看清单。无需登录。
+
+### POST `/lists/{id}/collect-all`
+
+用途：将清单内全部菜品加入我的收藏。需要 token。
+
+## 9. 图片上传接口
+
+### POST `/upload/image`
+
+用途：上传头像、评价图、菜品图。需要 token。
+
+请求类型：`multipart/form-data`
+
+字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `file` | file | 图片文件，支持 jpg/jpeg/png/webp |
+
+响应：
+
+```json
+{
+  "url": "/images/2026/06/uuid.jpg"
+}
+```
+
+返回的 `url` 可作为 `avatar` 或 `images` 字段保存。
+
+## 10. 后台管理接口
+
+后台接口需要管理员 token。当前 Security 对 `/admin/**` 要求角色为 `admin`。
+
+### 食堂/档口管理
+
+新增食堂：`POST /admin/canteens`
+
+```json
+{
+  "name": "测试食堂",
+  "images": "[\"/images/seed/canteens/canteen-dining-hall.jpg\"]",
+  "location": "主校区",
+  "description": "Knife4j 测试新增食堂",
+  "sortOrder": 99,
+  "status": "open"
+}
+```
+
+新增档口：`POST /admin/stalls`
+
+```json
+{
+  "canteenId": 1,
+  "name": "测试档口",
+  "images": "[\"/images/seed/canteens/canteen-food-counter.jpg\"]",
+  "location": "一层",
+  "description": "Knife4j 测试新增档口",
+  "avgRating": 0,
+  "sortOrder": 99,
+  "status": "open"
+}
+```
+
+### 用户管理
+
+用户列表：
+
+```text
+/admin/users?page=1&pageSize=10&role=user&status=active
+```
+
+禁用用户：
+
+```json
+{
+  "status": "disabled"
+}
+```
+
+修改角色：
+
+```json
+{
+  "role": "admin"
+}
+```
+
+### 菜品管理
+
+新增菜品：`POST /admin/dishes`
+
+```json
+{
+  "stallId": 1,
+  "name": "测试菜品",
+  "price": 1200,
+  "description": "Knife4j 测试新增菜品",
+  "images": ["/images/seed/dishes/tomato-egg.jpg"],
+  "tags": "daily,recommended",
+  "status": "on"
+}
+```
+
+注意：当前编辑/删除菜品尚未严格校验“菜品是否属于当前管理员绑定档口”，后续应补权限边界。
+
+### 评价审核
+
+全部评价：
+
+```text
+/admin/reviews?page=1&pageSize=10&isHidden=0
+```
+
+隐藏/显示评价：
+
+```text
+PUT /admin/reviews/{id}/hide
+```
+
+删除评价：
+
+```text
+DELETE /admin/reviews/{id}
+```
+
+### 统计接口
+
+以下接口当前仍为占位返回，后续需要接入真实统计 Service：
+
+```text
+GET /admin/stats/overview
+GET /admin/stats/trend?days=7
+GET /admin/stats/rank
+```
+
+## 11. 图片与价格约定
+
+图片：
+
+```text
+数据库 images 字段保存 JSON 字符串，例如 ["/images/seed/dishes/tomato-egg.jpg"]。
+后端响应时通过 ImageUrlUtil 拼接完整 URL。
+```
+
+价格：
+
+```text
+所有 price 均以“分”为单位。1200 表示 12 元。
+```
+
+## 12. 常见测试问题
+
+### 401 / 403
+
+说明接口需要 token 或角色权限不够。先登录，再在 Knife4j Authorize 中填入 token。
+
+### 图片还是相对路径
+
+检查 `app.public-base-url` 是否配置正确，例如：
+
+```yaml
+app:
+  public-base-url: http://localhost:8080/api
+```
+
+### PowerShell 不能用 `<` 导入 SQL
+
+进入 mysql 后使用：
+
+```sql
+source D:/Github/bjtu_food/bjtu_food/docs/bjtu_food_base.sql;
+source D:/Github/bjtu_food/bjtu_food/docs/bjtu-food-seed.sql;
+```

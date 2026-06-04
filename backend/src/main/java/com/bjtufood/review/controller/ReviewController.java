@@ -5,18 +5,16 @@ import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 评价控制器
- * <p>
- * 学生用户对菜品进行评价、编辑、删除。
- * 提交评价后发布事件，触发评分重算。
- */
-@Tag(name = "评价管理", description = "提交评价、修改评价、删除评价、查看评价列表")
+@Tag(name = "05. 评价", description = "菜品评价列表、提交评价、修改评价、删除评价。提交/修改/删除需要登录。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -24,16 +22,29 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "获取菜品评价列表", description = "查看菜品的用户评价，按时间倒序（不含已删除/已隐藏）")
+    @Operation(summary = "菜品评价列表", description = "用途：菜品详情页展示评价。只返回未隐藏评价。测试示例：/dishes/1/reviews?page=1&pageSize=20")
     @GetMapping("/dishes/{dishId}/reviews")
     public Result<?> listReviews(
+            @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long dishId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         return Result.success(reviewService.listByDishId(dishId, page, pageSize));
     }
 
-    @Operation(summary = "提交评价", description = "对菜品进行评分和图文评价（每人每菜只能评价一次）")
+    @Operation(
+            summary = "提交评价",
+            description = "用途：用户对菜品评分和评论。每个用户对同一菜品只能评价一次，提交后重算菜品评分。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "dishId": 1,
+                      "rating": 5,
+                      "content": "味道不错，分量也足。",
+                      "images": ["/images/seed/dishes/tomato-egg.jpg"]
+                    }
+                    """)))
+    )
     @PostMapping("/reviews")
     public Result<Void> submitReview(@Valid @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -41,9 +52,22 @@ public class ReviewController {
         return Result.success();
     }
 
-    @Operation(summary = "修改评价", description = "修改自己的评价内容（仅可修改评分和文字，不可修改图片）")
+    @Operation(
+            summary = "修改自己的评价",
+            description = "用途：修改当前用户自己的评价评分和文字内容。当前实现不修改图片。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "dishId": 1,
+                      "rating": 4,
+                      "content": "重新评价：整体不错。",
+                      "images": []
+                    }
+                    """)))
+    )
     @PutMapping("/reviews/{id}")
     public Result<Void> updateReview(
+            @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id,
             @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -51,9 +75,11 @@ public class ReviewController {
         return Result.success();
     }
 
-    @Operation(summary = "删除评价", description = "删除自己的评价（软删除）")
+    @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/reviews/{id}")
-    public Result<Void> deleteReview(@PathVariable Long id) {
+    public Result<Void> deleteReview(
+            @Parameter(description = "评价ID", example = "1")
+            @PathVariable Long id) {
         Long userId = SecurityUtil.getCurrentUserId();
         reviewService.deleteReview(id, userId);
         return Result.success();

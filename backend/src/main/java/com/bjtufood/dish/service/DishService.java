@@ -63,25 +63,21 @@ public interface DishService {
      */
     void addViewCount(Long dishId, Long userId);
 
-    // ==================== 管理端接口（食堂管理员） ====================
+    // ==================== 管理端接口（管理员） ====================
 
     /**
-     * 查询管理员所属档口的菜品列表
-     * <p>
-     * 食堂管理员只能看到自己档口的菜品
+     * 查询全部菜品列表（含已下架）
      *
-     * @param stallId 管理员绑定的档口ID
      * @return 菜品列表（含已下架）
      */
-    List<Dish> listByStallId(Long stallId);
+    List<Dish> listAllForAdmin();
 
     /**
      * 新增菜品
      *
-     * @param stallId 所属档口ID
      * @param req     菜品信息
      */
-    void addDish(Long stallId, DishAdminReq req);
+    void addDish(DishAdminReq req);
 
     /**
      * 编辑菜品

@@ -14,7 +14,7 @@ spring:
 
   # ---------- 数据源配置 ----------
   datasource:
-    url: jdbc:mysql://10.61.62.91:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://39.105.66.79:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: bjtu
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver

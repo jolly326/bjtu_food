@@ -9,6 +9,9 @@ import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-/**
- * 认证控制器
- * <p>
- * 处理用户登录、注册等无需认证的接口。
- * 登录成功后返回 JWT Token，前端需在后续请求中携带。
- */
-@Tag(name = "认证管理", description = "登录、注册、获取用户信息")
+@Tag(name = "01. 认证与用户", description = "登录、注册、个人资料、用户统计。登录成功后将 data.token 填入 Knife4j Authorize。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -30,35 +27,92 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "用户登录/自动注册", description = "使用学号和密码登录，用户不存在则自动注册，返回 JWT Token 和用户基本信息")
+    @Operation(
+            summary = "获取邮箱验证码",
+            description = "用途：开发联调阶段生成邮箱验证码。真实上线时应改为发送邮件且不返回验证码。",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "email": "20240001@bjtu.edu.cn",
+                      "purpose": "login"
+                    }
+                    """)))
+    )
+    @PostMapping("/auth/email-code")
+    public Result<Map<String, String>> createEmailCode(@RequestBody Map<String, String> body) {
+        String code = authService.createEmailCode(body.get("email"), body.get("purpose"));
+        return Result.success(Map.of("code", code));
+    }
+
+    @Operation(
+            summary = "用户登录",
+            description = """
+                    用途：登录并获取 JWT Token。
+                    规则：支持密码登录，也支持邮箱验证码登录。验证码通过 /auth/email-code 生成。
+                    Knife4j 测试：密码登录可使用 20240001 / 123456；验证码登录需先获取 purpose=login 的验证码。
+                    """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "account": "20240001",
+                      "password": "123456"
+                    }
+                    """)))
+    )
     @PostMapping("/auth/login")
     public Result<LoginResp> login(@Valid @RequestBody LoginReq req) {
-        LoginResp resp = authService.login(req);
-        return Result.success(resp);
+        return Result.success(authService.login(req));
     }
 
-    @Operation(summary = "用户注册", description = "注册新用户（默认学生角色），注册成功后自动登录返回 Token")
+    @Operation(
+            summary = "用户注册",
+            description = "用途：通过校园邮箱验证码创建普通用户，并设置登录密码。注册成功后直接返回 token 和用户信息。",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "username": "20240002",
+                      "email": "20240002@bjtu.edu.cn",
+                      "code": "123456",
+                      "password": "123456",
+                      "nickname": "交大学子"
+                    }
+                    """)))
+    )
     @PostMapping("/auth/register")
     public Result<LoginResp> register(@Valid @RequestBody RegisterReq req) {
-        LoginResp resp = authService.register(req);
-        return Result.success(resp);
+        return Result.success(authService.register(req));
     }
 
-    @Operation(summary = "获取当前用户信息", description = "根据 JWT Token 获取当前登录用户的基本信息")
+    @Operation(
+            summary = "获取当前用户资料",
+            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、角色。",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     @GetMapping("/auth/profile")
     public Result<Map<String, Object>> profile() {
         Long userId = SecurityUtil.getCurrentUserId();
         return Result.success(authService.getProfile(userId));
     }
 
-    @Operation(summary = "修改个人信息", description = "修改昵称和头像（两个字段至少传一个）")
+    @Operation(
+            summary = "修改当前用户资料",
+            description = "用途：修改昵称或头像。头像应先通过 /upload/image 获取 URL，再作为 avatar 保存。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "nickname": "新的昵称",
+                      "avatar": "/images/seed/dishes/tomato-egg.jpg"
+                    }
+                    """)))
+    )
     @PutMapping("/auth/profile")
     public Result<Map<String, Object>> updateProfile(@Valid @RequestBody ProfileUpdateReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
         return Result.success(authService.updateProfile(userId, req));
     }
 
-    @Operation(summary = "获取用户统计", description = "获取当前用户的收藏数和评价数")
+    @Operation(
+            summary = "获取当前用户统计",
+            description = "用途：个人中心展示我的收藏数、我的评价数。",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     @GetMapping("/auth/stats")
     public Result<UserStatsVO> stats() {
         Long userId = SecurityUtil.getCurrentUserId();
