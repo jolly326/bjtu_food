@@ -1,0 +1,14 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{java,kt,xml,yml,yaml,properties,md,sql,json,js,ts,tsx,vue,html,css,scss}]
+charset = utf-8
+
+[*.{png,jpg,jpeg,gif,webp,ico,pdf,docx,xlsx,pptx}]
+insert_final_newline = false
+trim_trailing_whitespace = false

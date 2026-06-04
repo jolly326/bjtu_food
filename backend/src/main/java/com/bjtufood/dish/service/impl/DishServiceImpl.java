@@ -3,6 +3,7 @@ package com.bjtufood.dish.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
@@ -31,6 +32,7 @@ import java.util.List;
 public class DishServiceImpl implements DishService {
 
     private final DishMapper dishMapper;
+    private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
     private final FavoriteMapper favoriteMapper;
     private final ImageUrlUtil imageUrlUtil;
@@ -95,15 +97,18 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public List<Dish> listByStallId(Long stallId) {
-        return dishMapper.selectList(new LambdaQueryWrapper<Dish>().eq(Dish::getStallId, stallId));
+    public List<Dish> listAllForAdmin() {
+        return dishMapper.selectList(new LambdaQueryWrapper<Dish>().orderByDesc(Dish::getUpdatedAt));
     }
 
     @Override
-    public void addDish(Long stallId, DishAdminReq req) {
+    public void addDish(DishAdminReq req) {
+        // 校验 stallId 对应的档口是否存在
+        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
+            throw new BusinessException("档口不存在");
+        }
         Dish dish = new Dish();
         applyReq(dish, req);
-        dish.setStallId(stallId);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
         dish.setCollectCount(0);
@@ -160,6 +165,7 @@ public class DishServiceImpl implements DishService {
     }
 
     private void applyReq(Dish dish, DishAdminReq req) {
+        dish.setStallId(req.getStallId());
         dish.setName(req.getName());
         dish.setPrice(req.getPrice());
         dish.setDescription(req.getDescription());

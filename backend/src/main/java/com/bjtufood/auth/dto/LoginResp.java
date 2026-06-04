@@ -20,15 +20,18 @@ public class LoginResp {
     @Schema(description = "用户ID", example = "1")
     private Long userId;
 
+    @Schema(description = "学号/工号", example = "20240001")
+    private String username;
+
+    @Schema(description = "校园邮箱", example = "20240001@bjtu.edu.cn")
+    private String email;
+
     @Schema(description = "昵称", example = "张三")
     private String nickname;
 
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "角色", example = "student")
+    @Schema(description = "角色", example = "user")
     private String role;
-
-    @Schema(description = "绑定的档口ID（仅食堂管理员有值）")
-    private Long stallId;
 }

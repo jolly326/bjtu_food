@@ -20,13 +20,16 @@ public class UserVO {
     @Schema(description = "学号/工号", example = "stu001")
     private String username;
 
+    @Schema(description = "校园邮箱", example = "20240001@bjtu.edu.cn")
+    private String email;
+
     @Schema(description = "昵称", example = "张三")
     private String nickname;
 
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "角色", example = "student")
+    @Schema(description = "角色", example = "user")
     private String role;
 
     @Schema(description = "状态", example = "active")

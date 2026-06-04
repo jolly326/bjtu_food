@@ -7,6 +7,7 @@ import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getByEmail(String email) {
+        return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getEmail, email));
+    }
+
+    @Override
     public void updateStatus(Long id, String status) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -45,13 +51,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateRole(Long id, String role, Long stallId) {
+    public void updateRole(Long id, String role) {
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new BusinessException("User not found");
         }
+        if (!RoleConst.USER.equals(role) && !RoleConst.ADMIN.equals(role)) {
+            throw new BusinessException("角色只能设置为 user 或 admin");
+        }
         user.setRole(role);
-        user.setStallId(stallId);
         userMapper.updateById(user);
     }
 
@@ -59,6 +67,7 @@ public class UserServiceImpl implements UserService {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
+        vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setRole(user.getRole());

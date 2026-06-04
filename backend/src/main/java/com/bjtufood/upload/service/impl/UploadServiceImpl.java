@@ -1,7 +1,9 @@
 package com.bjtufood.upload.service.impl;
 
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.upload.service.UploadService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -13,14 +15,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class UploadServiceImpl implements UploadService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+
+    private final ImageUrlUtil imageUrlUtil;
 
     @Value("${upload.path:./uploads/images}")
     private String uploadPath;
@@ -29,7 +36,7 @@ public class UploadServiceImpl implements UploadService {
     private String urlPrefix;
 
     @Override
-    public String uploadImage(MultipartFile file) {
+    public Map<String, String> uploadImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("文件不能为空");
         }
@@ -51,7 +58,13 @@ public class UploadServiceImpl implements UploadService {
             throw new BusinessException("图片上传失败");
         }
 
-        return trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
+        String relativeUrl = trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
+        String absoluteUrl = imageUrlUtil.toAbsoluteUrl(relativeUrl);
+
+        Map<String, String> result = new HashMap<>();
+        result.put("url", absoluteUrl);
+        result.put("relativeUrl", relativeUrl);
+        return result;
     }
 
     private String trimEnd(String value, String suffix) {

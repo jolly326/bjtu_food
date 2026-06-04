@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 用户实体类
  * <p>
  * 对应数据库表：user
- * 包含四种角色：student（学生）、canteen_admin（食堂管理员）、sys_admin（系统管理员）
+ * 包含两种角色：user（普通用户）、admin（管理员）
  */
 @Data
 @TableName("user")
@@ -25,8 +25,12 @@ public class User {
     @Schema(description = "学号/工号", example = "stu001")
     private String username;
 
-    /** bcrypt 加密后的密码 */
-    @Schema(description = "密码（bcrypt加密）")
+    /** 校园邮箱，注册和验证码登录使用 */
+    @Schema(description = "校园邮箱", example = "20240001@bjtu.edu.cn")
+    private String email;
+
+    /** 兼容字段：验证码登录模式下可为空 */
+    @Schema(description = "密码哈希（验证码登录模式下可为空）")
     private String password;
 
     /** 昵称 */
@@ -37,13 +41,9 @@ public class User {
     @Schema(description = "头像URL")
     private String avatar;
 
-    /** 角色：student / canteen_admin / sys_admin */
-    @Schema(description = "角色", example = "student")
+    /** 角色：user / admin */
+    @Schema(description = "角色", example = "user")
     private String role;
-
-    /** 食堂管理员绑定的档口ID（非管理员为 null） */
-    @Schema(description = "绑定的档口ID（食堂管理员专用）")
-    private Long stallId;
 
     /** 状态：active（正常）/ disabled（禁用） */
     @Schema(description = "状态", example = "active")
@@ -58,4 +58,8 @@ public class User {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
+
+    /** 最近登录时间 */
+    @Schema(description = "最近登录时间")
+    private LocalDateTime lastLoginAt;
 }

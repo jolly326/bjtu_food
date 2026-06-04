@@ -4,51 +4,68 @@ import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 菜品管理控制器（食堂管理员专用）
- * <p>
- * 食堂管理员对自己档口的菜品进行增删改和管理。
- * 通过当前登录用户的 stallId 确定管辖范围。
- */
-@Tag(name = "菜品管理（食堂管理员）", description = "菜品的新增、编辑、上下架、删除")
+@Tag(name = "11. 后台菜品管理", description = "管理员维护全部档口的菜品。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/dishes")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class DishAdminController {
 
     private final DishService dishService;
 
-    @Operation(summary = "我的菜品列表", description = "查询当前管理员所属档口的菜品列表（含已下架）")
+    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品。")
     @GetMapping
     public Result<?> listMyDishes() {
-        // TODO: 从 SecurityContext 获取当前用户的 stallId
-        // 调用 DishService.listByStallId(stallId)
-        return Result.success("菜品列表");
+        return Result.success(dishService.listAllForAdmin());
     }
 
-    @Operation(summary = "新增菜品", description = "在当前档口下创建新菜品")
+    @Operation(
+            summary = "新增菜品",
+            description = "用途：管理员指定 stallId 创建菜品。",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "stallId": 1,
+                      "name": "测试菜品",
+                      "price": 1200,
+                      "description": "Knife4j 测试新增菜品",
+                      "images": ["/images/seed/dishes/tomato-egg.jpg"],
+                      "tags": "recommended",
+                      "status": "on"
+                    }
+                    """)))
+    )
     @PostMapping
     public Result<Void> addDish(@Valid @RequestBody DishAdminReq req) {
-        // TODO: 获取当前用户的 stallId，调用 DishService.addDish(stallId, req)
+        dishService.addDish(req);
         return Result.success();
     }
 
-    @Operation(summary = "编辑菜品", description = "修改菜品信息（名称、价格、描述、图片、标签等）")
+    @Operation(summary = "编辑菜品", description = "用途：修改菜品信息。当前实现未校验菜品是否属于当前管理员档口，后续需要补权限边界。")
     @PutMapping("/{id}")
-    public Result<Void> updateDish(@PathVariable Long id, @Valid @RequestBody DishAdminReq req) {
-        // TODO: 调用 DishService.updateDish(id, req)
+    public Result<Void> updateDish(
+            @Parameter(description = "菜品ID", example = "1")
+            @PathVariable Long id,
+            @Valid @RequestBody DishAdminReq req) {
+        dishService.updateDish(id, req);
         return Result.success();
     }
 
-    @Operation(summary = "删除菜品", description = "逻辑删除菜品（软删除）")
+    @Operation(summary = "删除菜品", description = "用途：删除菜品。当前 Service 为物理删除，后续建议改为 status=off 软删除。")
     @DeleteMapping("/{id}")
-    public Result<Void> deleteDish(@PathVariable Long id) {
-        // TODO: 调用 DishService.deleteDish(id)
+    public Result<Void> deleteDish(
+            @Parameter(description = "菜品ID", example = "1")
+            @PathVariable Long id) {
+        dishService.deleteDish(id);
         return Result.success();
     }
+
 }

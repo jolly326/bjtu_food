@@ -3,32 +3,34 @@ package com.bjtufood.upload.controller;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.upload.service.UploadService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Map;
-
-/**
- * 文件上传控制器
- * <p>
- * 所有已登录用户均可上传图片。
- * 学生上传评价图片，管理员上传菜品图片。
- * 支持格式：jpg/png/jpeg，单文件 ≤5MB。
- */
-@Tag(name = "文件上传", description = "上传图片（菜品图/评价图），返回相对图片路径")
+@Tag(name = "07. 图片上传", description = "上传菜品图、评价图、头像图。需要登录，返回可保存到数据库的图片路径。")
 @RestController
 @RequestMapping("/upload")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class UploadController {
 
     private final UploadService uploadService;
 
-    @Operation(summary = "上传图片", description = "上传图片文件，返回相对图片路径，如 /images/2026/05/xxx.jpg")
+    @Operation(
+            summary = "上传图片",
+            description = """
+                    用途：上传头像、菜品图或评价图。
+                    测试：Knife4j 中选择 multipart/form-data，字段名必须为 file。
+                    返回：data.url（完整可访问 URL），data.relativeUrl（用于数据库保存的相对路径）。
+                    """
+    )
     @PostMapping("/image")
-    public Result<?> uploadImage(@RequestParam("file") MultipartFile file) {
-        String url = uploadService.uploadImage(file);
-        return Result.success(Map.of("url", url));
+    public Result<?> uploadImage(
+            @Parameter(description = "图片文件，支持 jpg/jpeg/png/webp")
+            @RequestParam("file") MultipartFile file) {
+        return Result.success(uploadService.uploadImage(file));
     }
 }

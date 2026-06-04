@@ -34,6 +34,14 @@ public interface UserService {
     User getByUsername(String username);
 
     /**
+     * 根据邮箱查询用户。
+     *
+     * @param email 邮箱
+     * @return 用户实体，不存在返回 null
+     */
+    User getByEmail(String email);
+
+    /**
      * 启用/禁用用户账号
      * <p>
      * disabled 状态的用户无法登录
@@ -45,14 +53,11 @@ public interface UserService {
     void updateStatus(Long id, String status);
 
     /**
-     * 修改用户角色和绑定的档口
-     * <p>
-     * 当设置为 canteen_admin 时，stallId 不能为空
+     * 修改用户角色。
      *
-     * @param id      用户ID
-     * @param role    新角色
-     * @param stallId 绑定的档口ID（可为空）
+     * @param id   用户ID
+     * @param role 新角色：user/admin
      * @throws com.bjtufood.common.exception.BusinessException 参数不合法
      */
-    void updateRole(Long id, String role, Long stallId);
+    void updateRole(Long id, String role);
 }
