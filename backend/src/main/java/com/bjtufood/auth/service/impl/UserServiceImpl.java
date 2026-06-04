@@ -8,6 +8,7 @@ import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,6 +18,7 @@ import org.springframework.util.StringUtils;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public IPage<UserVO> listUsers(int page, int pageSize, String role, String status) {
@@ -58,7 +60,7 @@ public class UserServiceImpl implements UserService {
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setNickname(user.getNickname());
-        vo.setAvatar(user.getAvatar());
+        vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setCreatedAt(user.getCreatedAt());

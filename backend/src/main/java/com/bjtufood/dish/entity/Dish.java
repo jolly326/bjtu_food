@@ -38,9 +38,9 @@ public class Dish {
     @Schema(description = "菜品描述")
     private String description;
 
-    /** 菜品图片 URL */
-    @Schema(description = "菜品图片URL")
-    private String image;
+    /** 菜品多图，JSON 字符串 */
+    @Schema(description = "菜品多图JSON")
+    private String images;
 
     /** 标签，逗号分隔（recommended=必吃, signature=招牌） */
     @Schema(description = "标签", example = "recommended,signature")

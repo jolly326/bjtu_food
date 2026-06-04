@@ -4,9 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
+import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
@@ -19,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -28,31 +33,46 @@ public class DishServiceImpl implements DishService {
     private final DishMapper dishMapper;
     private final ReviewMapper reviewMapper;
     private final FavoriteMapper favoriteMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public IPage<DishVO> listDishes(DishQueryReq req) {
-        LambdaQueryWrapper<Dish> wrapper = buildPublicWrapper(req);
-        return dishMapper.selectPage(new Page<>(req.getPage(), req.getPageSize()), wrapper).convert(this::toVO);
+        if (req == null) {
+            req = new DishQueryReq();
+        }
+        if (req.getPage() == null || req.getPage() < 1) {
+            req.setPage(1);
+        }
+        if (req.getPageSize() == null || req.getPageSize() < 1) {
+            req.setPageSize(10);
+        }
+        return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
+                .convert(this::enrichImages);
     }
 
     @Override
     public List<DishVO> getHotDishes() {
-        return dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .eq(Dish::getStatus, "on")
-                        .orderByDesc(Dish::getCollectCount)
-                        .last("LIMIT 10"))
+        return dishMapper.selectHotDishes()
                 .stream()
-                .map(this::toVO)
+                .map(this::enrichImages)
                 .toList();
     }
 
     @Override
     public DishVO getDishDetail(Long id, Long userId) {
-        Dish dish = dishMapper.selectById(id);
-        if (dish == null) {
-            throw new BusinessException("Dish not found");
+        DishDetailVO vo = dishMapper.selectDishDetail(id);
+        if (vo == null) {
+            throw new BusinessException("菜品不存在");
         }
-        DishVO vo = toVO(dish);
+
+        // 从 images_json 解析 images（避免二次查数据库）
+        enrichImages(vo);
+
+        // 查询评分分布
+        List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
+        vo.setRatingDistribution(fillRatingDistribution(distribution));
+
+        // 当前用户状态
         if (userId != null) {
             vo.setIsFavorited(favoriteMapper.selectCount(new LambdaQueryWrapper<com.bjtufood.favorite.entity.Favorite>()
                     .eq(com.bjtufood.favorite.entity.Favorite::getUserId, userId)
@@ -68,7 +88,7 @@ public class DishServiceImpl implements DishService {
     public void addViewCount(Long dishId, Long userId) {
         Dish dish = dishMapper.selectById(dishId);
         if (dish == null) {
-            throw new BusinessException("Dish not found");
+            throw new BusinessException("菜品不存在");
         }
         dish.setViewCount((dish.getViewCount() == null ? 0 : dish.getViewCount()) + 1);
         dishMapper.updateById(dish);
@@ -98,7 +118,7 @@ public class DishServiceImpl implements DishService {
     public void updateDish(Long id, DishAdminReq req) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
-            throw new BusinessException("Dish not found");
+            throw new BusinessException("菜品不存在");
         }
         applyReq(dish, req);
         dishMapper.updateById(dish);
@@ -139,52 +159,41 @@ public class DishServiceImpl implements DishService {
         dishMapper.updateById(dish);
     }
 
-    private LambdaQueryWrapper<Dish> buildPublicWrapper(DishQueryReq req) {
-        LambdaQueryWrapper<Dish> wrapper = new LambdaQueryWrapper<Dish>()
-                .eq(Dish::getStatus, "on")
-                .eq(req.getStallId() != null, Dish::getStallId, req.getStallId())
-                .like(StringUtils.hasText(req.getKeyword()), Dish::getName, req.getKeyword())
-                .like(StringUtils.hasText(req.getTag()), Dish::getTags, req.getTag())
-                .ge(req.getMinPrice() != null, Dish::getPrice, req.getMinPrice())
-                .le(req.getMaxPrice() != null, Dish::getPrice, req.getMaxPrice());
-        String sortBy = req.getSortBy();
-        boolean asc = "asc".equalsIgnoreCase(req.getSortOrder());
-        if ("price".equals(sortBy)) {
-            wrapper.orderBy(true, asc, Dish::getPrice);
-        } else if ("collects".equals(sortBy)) {
-            wrapper.orderBy(true, asc, Dish::getCollectCount);
-        } else if ("created_at".equals(sortBy)) {
-            wrapper.orderBy(true, asc, Dish::getCreatedAt);
-        } else {
-            wrapper.orderBy(true, asc, Dish::getAvgRating);
-        }
-        return wrapper;
-    }
-
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setName(req.getName());
         dish.setPrice(req.getPrice());
         dish.setDescription(req.getDescription());
-        dish.setImage(req.getImage());
+        dish.setImages(JsonListUtil.toJson(req.getImages()));
         dish.setTags(req.getTags());
         dish.setStatus(req.getStatus());
     }
 
-    private DishVO toVO(Dish dish) {
-        DishVO vo = new DishVO();
-        vo.setId(dish.getId());
-        vo.setName(dish.getName());
-        vo.setPrice(dish.getPrice());
-        vo.setDescription(dish.getDescription());
-        vo.setImage(dish.getImage());
-        vo.setTags(dish.getTags());
-        vo.setStallId(dish.getStallId());
-        vo.setAvgRating(dish.getAvgRating());
-        vo.setRatingCount(dish.getRatingCount());
-        vo.setCollectCount(dish.getCollectCount());
-        vo.setViewCount(dish.getViewCount());
-        vo.setStatus(dish.getStatus());
-        vo.setCreatedAt(dish.getCreatedAt());
+    /**
+     * 将数据库原始的 imagesJson 解析为 List{@literal <String>} 并回填到 images
+     */
+    private DishVO enrichImages(DishVO vo) {
+        if (vo == null) {
+            return null;
+        }
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
         return vo;
+    }
+
+    /**
+     * 补齐 1-5 星评分分布，缺失的星级补 0
+     */
+    private List<RatingDistributionVO> fillRatingDistribution(List<RatingDistributionVO> distribution) {
+        List<RatingDistributionVO> result = new ArrayList<>();
+        for (int star = 5; star >= 1; star--) {
+            long count = 0;
+            for (RatingDistributionVO rd : distribution) {
+                if (rd.getStar() == star) {
+                    count = rd.getCount();
+                    break;
+                }
+            }
+            result.add(new RatingDistributionVO(star, count));
+        }
+        return result;
     }
 }

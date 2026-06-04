@@ -25,9 +25,21 @@ public class Canteen {
     @Schema(description = "食堂名称", example = "第一食堂")
     private String name;
 
+    /** 食堂图片 URL 列表，JSON 字符串 */
+    @Schema(description = "食堂图片URL列表JSON")
+    private String images;
+
+    /** 食堂位置 */
+    @Schema(description = "食堂位置")
+    private String location;
+
     /** 食堂描述 */
     @Schema(description = "食堂描述")
     private String description;
+
+    /** 状态：open / closed */
+    @Schema(description = "状态", example = "open")
+    private String status;
 
     /** 排序权重（数字越小越靠前） */
     @Schema(description = "排序权重")

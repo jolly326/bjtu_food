@@ -48,7 +48,14 @@ jwt:
   # Token 过期时间：7天（单位：毫秒）
   expiration: 604800000
 
+# ---------- 应用公共基础 URL ----------
+app:
+  # 供上传模块拼接完整图片 URL（局域网调试改为本机 IP）
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080/api}
+
 # ---------- 文件上传存储路径 ----------
 upload:
   # 上传文件存储的相对路径（相对于项目根目录）
-  path: ./uploads
+  path: ${UPLOAD_PATH:./uploads/images}
+  # 上传文件 URL 访问前缀
+  url-prefix: ${UPLOAD_URL_PREFIX:/images}

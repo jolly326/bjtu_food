@@ -1,6 +1,7 @@
 package com.bjtufood.favorite.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.favorite.entity.Favorite;
 
 import java.util.List;
@@ -27,16 +28,14 @@ public interface FavoriteService {
     boolean toggle(Long userId, Long dishId);
 
     /**
-     * 查询用户收藏列表（分页）
-     * <p>
-     * 返回收藏的菜品信息（含菜品名、价格、评分等）
+     * 查询用户收藏的菜品列表（分页，返回完整菜品信息）
      *
      * @param userId   用户ID
      * @param page     页码
      * @param pageSize 每页条数
-     * @return 分页收藏列表（含菜品信息）
+     * @return 分页收藏菜品列表
      */
-    IPage<Map<String, Object>> listByUserId(Long userId, int page, int pageSize);
+    IPage<DishVO> listFavoriteDishes(Long userId, int page, int pageSize);
 
     /**
      * 批量收藏菜品

@@ -1,5 +1,6 @@
 package com.bjtufood.review.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -21,6 +22,9 @@ public class ReviewVO {
     @Schema(description = "评价者用户ID")
     private Long userId;
 
+    @Schema(description = "关联菜品ID")
+    private Long dishId;
+
     @Schema(description = "评价者昵称", example = "张三")
     private String userNickname;
 
@@ -35,6 +39,10 @@ public class ReviewVO {
 
     @Schema(description = "评价图片URL列表")
     private List<String> images;
+
+    @JsonIgnore
+    @Schema(hidden = true)
+    private String imagesJson;
 
     @Schema(description = "评价时间")
     private LocalDateTime createdAt;

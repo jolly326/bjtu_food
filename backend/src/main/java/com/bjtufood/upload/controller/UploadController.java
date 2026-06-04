@@ -17,7 +17,7 @@ import java.util.Map;
  * 学生上传评价图片，管理员上传菜品图片。
  * 支持格式：jpg/png/jpeg，单文件 ≤5MB。
  */
-@Tag(name = "文件上传", description = "上传图片（菜品图/评价图），返回可访问的 URL")
+@Tag(name = "文件上传", description = "上传图片（菜品图/评价图），返回相对图片路径")
 @RestController
 @RequestMapping("/upload")
 @RequiredArgsConstructor
@@ -25,11 +25,10 @@ public class UploadController {
 
     private final UploadService uploadService;
 
-    @Operation(summary = "上传图片", description = "上传图片文件，返回可直接访问的 URL 路径")
+    @Operation(summary = "上传图片", description = "上传图片文件，返回相对图片路径，如 /images/2026/05/xxx.jpg")
     @PostMapping("/image")
     public Result<?> uploadImage(@RequestParam("file") MultipartFile file) {
-        // TODO: 调用 UploadService.uploadImage(file)
-        // 返回：{ "url": "/uploads/2024/01/abc123.jpg" }
-        return Result.success("图片上传成功");
+        String url = uploadService.uploadImage(file);
+        return Result.success(Map.of("url", url));
     }
 }

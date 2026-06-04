@@ -50,8 +50,8 @@ public class ListDetailVO {
         @Schema(description = "价格（分）", example = "1200")
         private Integer price;
 
-        @Schema(description = "菜品图片URL")
-        private String image;
+        @Schema(description = "菜品图片URL列表")
+        private List<String> images;
 
         @Schema(description = "平均评分", example = "4.5")
         private BigDecimal avgRating;

@@ -1,8 +1,13 @@
 package com.bjtufood.canteen.service;
 
+import com.bjtufood.canteen.dto.BannerVO;
+import com.bjtufood.canteen.dto.CanteenInfoVO;
+import com.bjtufood.canteen.dto.CanteenWithStallsVO;
+import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Canteen;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 食堂服务接口
@@ -10,6 +15,44 @@ import java.util.List;
  * 食堂和档口的查询与管理，食堂管理员只能查看，系统管理员可增删改。
  */
 public interface CanteenService {
+
+    /**
+     * 获取首页轮播图列表
+     * <p>
+     * 查询状态为 enabled 的轮播图，按 sort_order 排序
+     *
+     * @return 轮播图列表
+     */
+    List<BannerVO> listBanners();
+
+    /**
+     * 获取食堂列表（首页用于展示）
+     * <p>
+     * 查询状态为 open 的食堂，按 sort_order 排序
+     *
+     * @return 食堂展示列表
+     */
+    List<CanteenInfoVO> listCanteens();
+
+    /**
+     * 获取食堂背景图片映射
+     * <p>
+     * key = 食堂名称, value = 食堂图片 URL
+     *
+     * @return 食堂名称到图片的映射
+     */
+    Map<String, List<String>> listCanteenImages();
+
+    /**
+     * 获取档口详情
+     * <p>
+     * 根据食堂名称和档口名称联表查询
+     *
+     * @param canteen  食堂名称
+     * @param stallName 档口名称
+     * @return 档口详情
+     */
+    StallDetailVO getStallDetail(String canteen, String stallName);
 
     /**
      * 获取所有食堂列表（含下属档口信息）
@@ -22,7 +65,7 @@ public interface CanteenService {
      *
      * @return 食堂列表（含档口）
      */
-    List<Canteen> listWithStalls();
+    List<CanteenWithStallsVO> listWithStalls();
 
     /**
      * 新增食堂

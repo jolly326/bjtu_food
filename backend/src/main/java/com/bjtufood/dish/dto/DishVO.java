@@ -1,10 +1,12 @@
 package com.bjtufood.dish.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 菜品视图对象（VO）
@@ -29,8 +31,13 @@ public class DishVO {
     @Schema(description = "菜品描述")
     private String description;
 
-    @Schema(description = "菜品图片URL")
-    private String image;
+    /** 数据库原始 images JSON 字符串，由 Service 层解析为 List */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private String imagesJson;
+
+    @Schema(description = "菜品多图URL列表")
+    private List<String> images;
 
     @Schema(description = "标签", example = "recommended")
     private String tags;

@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 菜品管理请求 DTO
  * <p>
@@ -25,8 +27,8 @@ public class DishAdminReq {
     @Schema(description = "菜品描述", example = "手工拉面配红烧牛肉")
     private String description;
 
-    @Schema(description = "菜品图片URL")
-    private String image;
+    @Schema(description = "菜品图片URL列表，单图时仅存1个URL")
+    private List<String> images;
 
     @Schema(description = "标签", example = "recommended")
     private String tags;

@@ -16,4 +16,22 @@
     ============================================================
     -->
 
+    <select id="selectReviewPageByDishId" resultType="com.bjtufood.review.dto.ReviewVO">
+        SELECT
+            r.id,
+            r.user_id,
+            r.dish_id,
+            u.nickname AS user_nickname,
+            u.avatar AS user_avatar,
+            r.rating,
+            r.content,
+            r.images AS images_json,
+            r.created_at
+        FROM review r
+                 JOIN user u ON r.user_id = u.id
+        WHERE r.dish_id = #{dishId}
+          AND r.is_hidden = 0
+        ORDER BY r.created_at DESC
+    </select>
+
 </mapper>
