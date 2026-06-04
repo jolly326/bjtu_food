@@ -1,30 +1,32 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
 
 const router = useRouter()
+const userStore = useUserStore()
 const username = ref('')
 const password = ref('')
 const error = ref('')
 
-function handleLogin() {
+async function handleLogin() {
   error.value = ''
   if (!username.value || !password.value) {
     error.value = '请输入用户名和密码'
     return
   }
-  localStorage.setItem('token', 'logged_in')
-  localStorage.setItem('username', username.value)
-  router.push('/dashboard')
+  const result = await userStore.login(username.value, password.value)
+  if (result.success) {
+    router.push('/dashboard')
+  } else {
+    error.value = result.error || '登录失败'
+  }
 }
 </script>
 
 <template>
   <div class="login-page">
     <div class="login-card">
-      <div class="login-logo">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      </div>
       <h2>食在交大管理系统</h2>
       <p class="login-desc">请输入管理员账号和密码登录</p>
       <input v-model="username" placeholder="用户名" type="text" @input="error=''" />
@@ -53,17 +55,6 @@ function handleLogin() {
   flex-direction: column;
   gap: 14px;
   align-items: center;
-}
-.login-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
 }
 .login-card h2 {
   text-align: center;

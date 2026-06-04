@@ -1,8 +1,6 @@
 import type { Dish } from '@/types'
-
-let _id = 1000
-function nextId(): bigint { return ++_id as unknown as bigint }
-function findIdx(arr: Dish[], id: number) { return arr.findIndex(d => Number(d.id) === id) }
+import { nextId, findIdx } from './common'
+import { get, post, put, del } from './http'
 
 const mockData: Dish[] = [
   { id: 1 as unknown as bigint, stall_id: 1 as unknown as bigint, name: '微辣香锅', image: '', price: 28, tags: '["招牌菜"]', description: '微辣口味，配料丰富', avg_rating: 4.5, rating_count: 30, favorite_count: 15, view_count: 200, status: 'active', created_at: new Date('2024-01-10'), updated_at: new Date('2024-01-10') },
@@ -17,16 +15,19 @@ const mockData: Dish[] = [
   { id: 10 as unknown as bigint, stall_id: 6 as unknown as bigint, name: '豚骨拉面', image: '', price: 25, tags: '["必吃推荐"]', description: '日式豚骨拉面，汤底浓郁', avg_rating: 4.7, rating_count: 40, favorite_count: 30, view_count: 350, status: 'active', created_at: new Date('2024-02-20'), updated_at: new Date('2024-02-20') },
 ]
 
-export function getAll() { return mockData }
-export function create(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) {
-  const item = { ...data, id: nextId(), created_at: new Date(), updated_at: new Date() } as Dish
-  mockData.push(item); return item
+export async function getAll(): Promise<Dish[]> {
+  try { return await get<Dish[]>('/dishes') }
+  catch { console.log('[dish] 降级到 Mock'); return [...mockData] }
 }
-export function updateById(id: number, data: Partial<Dish>) {
-  const idx = findIdx(mockData, id)
-  if (idx !== -1) Object.assign(mockData[idx]!, data, { updated_at: new Date() })
+export async function create(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) {
+  try { return await post<Dish>('/dishes', data) }
+  catch { console.log('[dish] create 降级到 Mock'); const item = { ...data, id: nextId(), created_at: new Date(), updated_at: new Date() } as Dish; mockData.push(item); return item }
 }
-export function deleteById(id: number) {
-  const idx = findIdx(mockData, id)
-  if (idx !== -1) mockData.splice(idx, 1)
+export async function updateById(id: number, data: Partial<Dish>) {
+  try { return await put<Dish>(`/dishes/${id}`, data) }
+  catch { console.log('[dish] update 降级到 Mock'); const idx = findIdx(mockData, id); if (idx !== -1) Object.assign(mockData[idx]!, data, { updated_at: new Date() }) }
+}
+export async function deleteById(id: number) {
+  try { return await del(`/dishes/${id}`) }
+  catch { console.log('[dish] delete 降级到 Mock'); const idx = findIdx(mockData, id); if (idx !== -1) mockData.splice(idx, 1) }
 }

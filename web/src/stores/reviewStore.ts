@@ -6,9 +6,11 @@ import { reviewApi } from '@/api'
 export const useReviewStore = defineStore('review', () => {
   const list = ref<Review[]>([])
 
-  function loadAll() { list.value = [...reviewApi.getAll()] }
-  function remove(id: number) { reviewApi.deleteById(id); loadAll() }
+  async function loadAll() { list.value = await reviewApi.getAll() }
+  async function add(data: Omit<Review, 'id' | 'created_at' | 'updated_at'>) { await reviewApi.create(data); await loadAll() }
+  async function update(id: number, data: Partial<Review>) { await reviewApi.updateById(id, data); await loadAll() }
+  async function remove(id: number) { await reviewApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, remove }
+  return { list, add, update, remove }
 })

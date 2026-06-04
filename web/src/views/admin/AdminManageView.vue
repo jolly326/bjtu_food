@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { usePageStore } from '@/stores/pageStore'
 import Modal from '@/components/Modal.vue'
 
-const router = useRouter()
 const store = useAdminStore()
 const toast = useToastStore()
 const page = usePageStore()
@@ -17,25 +15,90 @@ const currentUser = computed(() => {
   return store.users.find(u => u.username === name) || store.users.find(u => u.role === 'super_admin' || u.role === 'admin')!
 })
 
-const editingNickname = ref(false)
-const nicknameForm = ref('')
+// ============ 编辑模式 ============
+const editing = ref(false)
+const form = ref({ nickname: '', username: '' })
+const formErrors = ref<Record<string, string>>({})
 
-function startEditNick() {
-  nicknameForm.value = currentUser.value?.nickname || ''
-  editingNickname.value = true
+function toggleEdit() {
+  if (!currentUser.value) return
+  editing.value = true
+  form.value = { nickname: currentUser.value.nickname || '', username: currentUser.value.username }
+  formErrors.value = {}
 }
-function saveNickname() {
-  const val = nicknameForm.value.trim()
-  if (!val) { toast.error('昵称不能为空'); return }
-  store.updateUserProfile(Number(currentUser.value!.id), { nickname: val })
-  toast.success('昵称已更新')
-  editingNickname.value = false
-}
-function cancelEditNick() { editingNickname.value = false }
 
+function confirmEdit() {
+  const errs: Record<string, string> = {}
+  if (!form.value.nickname.trim()) errs.nickname = '昵称不能为空'
+  if (!form.value.username.trim()) errs.username = '用户名不能为空'
+  else if (store.users.some(u => u.username === form.value.username.trim() && Number(u.id) !== Number(currentUser.value!.id))) {
+    errs.username = '用户名已被占用'
+  }
+  formErrors.value = errs
+  if (Object.keys(errs).length) return
+
+  const id = Number(currentUser.value!.id)
+  if (form.value.nickname !== (currentUser.value!.nickname || '')) {
+    store.updateUserProfile(id, { nickname: form.value.nickname.trim() })
+  }
+  if (form.value.username !== currentUser.value!.username) {
+    store.updateUserProfile(id, { username: form.value.username.trim() })
+    localStorage.setItem('username', form.value.username.trim())
+  }
+  toast.success('账号信息已更新')
+  formErrors.value = {}
+  editing.value = false
+}
+
+function cancelEdit() {
+  formErrors.value = {}
+  editing.value = false
+}
+
+// ============ 头像 ============
+const fileInput = ref<HTMLInputElement>()
+function triggerAvatarUpload() { fileInput.value?.click() }
+function onAvatarChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
+  if (file.size > 2 * 1024 * 1024) { toast.error('图片大小不能超过 2MB'); return }
+  const reader = new FileReader()
+  reader.onload = () => {
+    store.updateUserProfile(Number(currentUser.value!.id), { avatar: reader.result as string })
+    toast.success('头像已更新')
+  }
+  reader.readAsDataURL(file)
+}
+
+// ============ 修改密码 ============
 const showPwdModal = ref(false)
 const pwdForm = ref({ oldPwd: '', newPwd: '', confirmPwd: '' })
 const pwdError = ref('')
+
+const pwdStrength = computed(() => {
+  const pwd = pwdForm.value.newPwd
+  if (!pwd) return { level: 0, label: '', color: '', percent: 0 }
+  let score = 0
+  if (pwd.length >= 6) score++
+  if (pwd.length >= 10) score++
+  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++
+  if (/\d/.test(pwd)) score++
+  if (/[^a-zA-Z0-9]/.test(pwd)) score++
+  const map = [
+    { level: 1, label: '弱', color: 'var(--color-error)' },
+    { level: 2, label: '中', color: 'var(--color-warning)' },
+    { level: 3, label: '强', color: '#4CAF50' },
+    { level: 4, label: '非常强', color: 'var(--color-success)' },
+  ]
+  const idx = Math.min(Math.max(score - 1, 0), 3)
+  return { ...map[idx]!, percent: (score / 5) * 100 }
+})
+
+const pwdMatch = computed(() => {
+  if (!pwdForm.value.confirmPwd) return null
+  return pwdForm.value.newPwd === pwdForm.value.confirmPwd
+})
 
 function openPwdModal() {
   pwdForm.value = { oldPwd: '', newPwd: '', confirmPwd: '' }
@@ -52,61 +115,110 @@ function changePassword() {
   showPwdModal.value = false
 }
 
-function logout() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  router.push('/login')
-}
+// ============ 计算属性 ============
+const avatarLetter = computed(() =>
+  (currentUser.value?.nickname || currentUser.value?.username || 'A').charAt(0).toUpperCase()
+)
+const roleLabel = computed(() =>
+  currentUser.value?.role === 'super_admin' ? '超级管理员' : '管理员'
+)
 </script>
 
 <template>
   <div class="page" v-if="currentUser">
-    <div class="info-section">
-      <div class="section-header">
-        <h3>账号信息</h3>
-        <div class="header-actions">
-          <button class="btn-primary btn-sm" @click="openPwdModal">修改密码</button>
-          <button class="btn-danger-outline btn-sm" @click="logout">退出登录</button>
+    <!-- 账号信息 -->
+    <div class="card">
+      <div class="card-hd">
+        <h4 class="panel-title">账号信息</h4>
+        <div class="panel-actions">
+          <template v-if="!editing">
+            <button class="btn-primary btn-sm" @click="toggleEdit">编辑</button>
+          </template>
+          <template v-else>
+            <button class="btn-cancel btn-sm" @click="cancelEdit">取消</button>
+            <button class="btn-primary btn-sm" @click="confirmEdit">保存</button>
+          </template>
         </div>
       </div>
-
-      <div class="info-main">
-        <div class="profile-avatar">{{ (currentUser.nickname || currentUser.username).charAt(0).toUpperCase() }}</div>
-        <div class="info-fields">
-          <div class="field-row">
-            <span class="field-label">昵称</span>
-            <div class="field-control">
-              <div v-if="!editingNickname" class="inline-group">
-                <span class="field-value">{{ currentUser.nickname || currentUser.username }}</span>
-                <button class="link" @click="startEditNick">修改</button>
-              </div>
-              <div v-else class="inline-group">
-                <input v-model="nicknameForm" class="inline-input" placeholder="输入昵称" maxlength="20" @keyup.enter="saveNickname" />
-                <button class="btn-primary btn-sm" @click="saveNickname">保存</button>
-                <button class="btn-cancel btn-sm" @click="cancelEditNick">取消</button>
-              </div>
+      <div class="detail-body">
+        <div class="avatar-wrap" @click="triggerAvatarUpload" title="点击更换头像">
+          <div v-if="currentUser.avatar" class="avatar-img">
+            <img :src="currentUser.avatar" alt="" />
+          </div>
+          <div v-else class="avatar-letter">{{ avatarLetter }}</div>
+          <div class="avatar-overlay">更换</div>
+        </div>
+        <input ref="fileInput" type="file" accept="image/*" hidden @change="onAvatarChange" />
+        <div class="detail-fields">
+          <div class="detail-row">
+            <span class="detail-label">昵称</span>
+            <div class="detail-control">
+              <span v-if="!editing" class="detail-value">{{ currentUser.nickname || currentUser.username }}</span>
+              <input v-else v-model="form.nickname" class="form-input" :class="{ 'input-error': formErrors.nickname }" placeholder="昵称" maxlength="20" />
+              <p v-if="editing && formErrors.nickname" class="field-error">{{ formErrors.nickname }}</p>
             </div>
           </div>
-          <div class="field-row">
-            <span class="field-label">用户名</span>
-            <div class="field-control"><span class="field-value">{{ currentUser.username }}</span></div>
+          <div class="detail-row">
+            <span class="detail-label">用户名</span>
+            <div class="detail-control">
+              <span v-if="!editing" class="detail-value">{{ currentUser.username }}</span>
+              <input v-else v-model="form.username" class="form-input" :class="{ 'input-error': formErrors.username }" placeholder="用户名" maxlength="20" />
+              <p v-if="editing && formErrors.username" class="field-error">{{ formErrors.username }}</p>
+            </div>
           </div>
-          <div class="field-row">
-            <span class="field-label">角色</span>
-            <div class="field-control"><span class="field-value">{{ currentUser.role === 'super_admin' ? '超级管理员' : '管理员' }}</span></div>
-          </div>
-          <div class="field-row">
-            <span class="field-label">注册时间</span>
-            <div class="field-control"><span class="field-value">{{ currentUser.created_at.toLocaleDateString('zh-CN') }}</span></div>
+          <div class="detail-row">
+            <span class="detail-label">角色</span>
+            <div class="detail-control">
+              <span class="role-tag">{{ roleLabel }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- 安全设置 -->
+    <div class="card">
+      <div class="card-hd">
+        <h4 class="panel-title">安全设置</h4>
+        <div class="panel-actions">
+          <button class="btn-primary btn-sm" @click="openPwdModal">修改密码</button>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-fields" style="padding-left:0">
+          <div class="detail-row">
+            <span class="detail-label">密码</span>
+            <div class="detail-control">
+              <span class="detail-value pwd-dots">●●●●●●●●</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 修改密码弹窗 -->
     <Modal :show="showPwdModal" title="修改密码" :width="420" @close="showPwdModal = false">
-      <div class="field"><label>当前密码</label><input v-model="pwdForm.oldPwd" type="password" placeholder="输入当前密码" @keyup.enter="changePassword" /></div>
-      <div class="field"><label>新密码</label><input v-model="pwdForm.newPwd" type="password" placeholder="至少 6 位" @keyup.enter="changePassword" /></div>
-      <div class="field"><label>确认新密码</label><input v-model="pwdForm.confirmPwd" type="password" placeholder="再次输入新密码" @keyup.enter="changePassword" /></div>
+      <div class="pwd-field">
+        <label>当前密码</label>
+        <input v-model="pwdForm.oldPwd" type="password" placeholder="输入当前密码" @keyup.enter="changePassword" />
+      </div>
+      <div class="pwd-field">
+        <label>新密码</label>
+        <input v-model="pwdForm.newPwd" type="password" placeholder="至少 6 位" @keyup.enter="changePassword" />
+        <div v-if="pwdForm.newPwd" class="pwd-strength">
+          <div class="strength-bar">
+            <div class="strength-fill" :style="{ width: pwdStrength.percent + '%', background: pwdStrength.color }"></div>
+          </div>
+          <span class="strength-label" :style="{ color: pwdStrength.color }">{{ pwdStrength.label }}</span>
+        </div>
+      </div>
+      <div class="pwd-field">
+        <label>确认新密码</label>
+        <input v-model="pwdForm.confirmPwd" type="password" placeholder="再次输入新密码" @keyup.enter="changePassword" />
+        <span v-if="pwdMatch !== null" class="pwd-match-hint" :class="{ ok: pwdMatch, err: !pwdMatch }">
+          {{ pwdMatch ? '✓ 密码一致' : '✗ 密码不一致' }}
+        </span>
+      </div>
       <p v-if="pwdError" class="field-error">{{ pwdError }}</p>
       <div class="modal-actions">
         <button class="btn-cancel" @click="showPwdModal = false">取消</button>
@@ -117,103 +229,240 @@ function logout() {
 </template>
 
 <style scoped>
-.info-section {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  margin-bottom: 24px;
-  overflow: hidden;
+.page {
+  max-width: 1400px;
 }
-.info-section .section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border-color);
-}
-.section-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); font-weight: 600; }
-.header-actions { display: flex; gap: 8px; align-items: center; }
 
-.info-main {
+/* ===== Panel Section（同食堂详情页） ===== */
+.panel-title {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ===== 详情体（同食堂详情页） ===== */
+.detail-body {
   display: flex;
   gap: 24px;
-  padding: 24px;
+  align-items: flex-start;
+  padding: 24px 20px;
 }
-.profile-avatar {
-  width: 60px;
-  height: 60px;
+.card { margin-bottom: 20px; }
+.detail-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.detail-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  width: 48px;
+  flex-shrink: 0;
+  line-height: 28px;
+}
+.detail-control {
+  flex: 1;
+  min-width: 0;
+}
+.detail-value {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 28px;
+}
+.pwd-dots {
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+.form-input {
+  padding: 5px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color .2s;
+  background: #fff;
+  width: 100%;
+  max-width: 300px;
+  box-sizing: border-box;
+}
+.form-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(139,58,43,.15);
+}
+.input-error {
+  border-color: var(--color-error) !important;
+}
+.field-error {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+/* ===== 头像 ===== */
+.avatar-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.avatar-letter {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: var(--color-primary);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
-  flex-shrink: 0;
 }
-.info-fields {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
 }
-.field-row {
+.avatar-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,.45);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity .2s;
 }
-.field-label {
+.avatar-wrap:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.role-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  line-height: 20px;
+}
+
+/* ===== 密码弹窗 ===== */
+.pwd-field {
+  margin-bottom: 18px;
+}
+.pwd-field label {
+  display: block;
+  margin-bottom: 6px;
   font-size: 13px;
-  color: var(--text-muted);
-  width: 64px;
-  flex-shrink: 0;
-}
-.field-control { flex: 1; min-width: 0; }
-.field-value {
-  font-size: 15px;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   font-weight: 500;
 }
-.inline-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.inline-input {
-  padding: 5px 10px;
-  border: 1px solid var(--border);
+.pwd-field input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius);
   font-size: 14px;
   outline: none;
-  width: 180px;
   box-sizing: border-box;
+  transition: border-color .2s;
 }
-.inline-input:focus {
+.pwd-field input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(139,58,43,.15);
+  box-shadow: 0 0 0 2px rgba(139,58,43,.12);
 }
-.link {
-  background: none;
-  border: none;
-  color: var(--primary, #1890ff);
-  cursor: pointer;
-  font-size: 13px;
-  padding: 2px 0;
+
+.pwd-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
 }
-.link:hover { opacity: .8; }
-.btn-danger-outline {
-  padding: 4px 14px;
-  border: 1px solid var(--color-error);
-  border-radius: 6px;
+.strength-bar {
+  flex: 1;
+  height: 4px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.strength-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .3s, background .3s;
+}
+.strength-label {
+  font-size: 12px;
+  font-weight: 500;
+  width: 40px;
+  text-align: right;
+}
+.pwd-match-hint {
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+.pwd-match-hint.ok { color: var(--color-success); }
+.pwd-match-hint.err { color: var(--color-error); }
+
+/* ===== 全局按钮覆盖 ===== */
+.btn-cancel {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: var(--radius);
   background: #fff;
-  color: var(--color-error);
+  color: var(--text-primary);
   font-size: 13px;
   cursor: pointer;
+  transition: all .2s;
 }
-.btn-danger-outline:hover {
-  background: var(--color-error);
+.btn-cancel:hover {
+  border-color: var(--color-primary);
+}
+.btn-primary {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-primary);
   color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.btn-primary:hover {
+  background: var(--color-primary-light);
+}
+.btn-sm {
+  padding: 4px 14px;
+  font-size: 13px;
 }
 </style>

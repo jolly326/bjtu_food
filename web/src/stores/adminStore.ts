@@ -1,3 +1,4 @@
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useCanteenStore } from './canteenStore'
 import { useStallStore } from './stallStore'
@@ -14,15 +15,27 @@ export const useAdminStore = defineStore('admin', () => {
   const user = useUserStore()
   const banner = useBannerStore()
 
+  const canteens = computed(() => canteen.list)
+  const activeCanteens = computed(() => canteen.activeList)
+  const stalls = computed(() => stall.list)
+  const activeStalls = computed(() => stall.activeList)
+  const dishes = computed(() => dish.list)
+  const activeDishes = computed(() => dish.activeList)
+  const reviews = computed(() => review.list)
+  const users = computed(() => user.list)
+  const banners = computed(() => banner.sortedList)
+  const activeBanners = computed(() => banner.activeList)
+  const maxBannerSortOrder = computed(() => banner.maxSortOrder)
+
   return {
-    canteens: canteen.list,
-    stalls: stall.list,
-    dishes: dish.list,
-    reviews: review.list,
-    users: user.list,
-    activeCanteens: canteen.activeList,
-    activeStalls: stall.activeList,
-    activeDishes: dish.activeList,
+    canteens,
+    stalls,
+    dishes,
+    reviews,
+    users,
+    activeCanteens,
+    activeStalls,
+    activeDishes,
     addCanteen: canteen.add,
     updateCanteen: canteen.update,
     deleteCanteen: canteen.remove,
@@ -32,12 +45,16 @@ export const useAdminStore = defineStore('admin', () => {
     addDish: dish.add,
     updateDish: dish.update,
     deleteDish: dish.remove,
+    addReview: review.add,
+    updateReview: review.update,
     deleteReview: review.remove,
+    addUser: user.add,
+    deleteUser: user.remove,
     toggleUserStatus: user.toggleUserStatus,
     updateUserProfile: user.updateProfile,
-    banners: banner.sortedList,
-    activeBanners: banner.activeList,
-    maxBannerSortOrder: banner.maxSortOrder,
+    banners,
+    activeBanners,
+    maxBannerSortOrder,
     addBanner: banner.add,
     updateBanner: banner.update,
     deleteBanner: banner.remove,

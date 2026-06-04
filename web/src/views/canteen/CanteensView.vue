@@ -49,12 +49,8 @@ function handleFileChange(e: Event) {
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  const reader = new FileReader()
-  reader.onload = () => {
-    imagePreviews.value.push(reader.result as string)
-    form.value.image = imagePreviews.value.join('|||')
-  }
-  reader.readAsDataURL(file)
+  imagePreviews.value.push(URL.createObjectURL(file))
+  form.value.image = imagePreviews.value.join('|||')
   input.value = ''
 }
 
@@ -90,31 +86,7 @@ function enterCanteen(id: number) { router.push(`/dashboard/canteens/${id}`) }
 
 <template>
   <div class="page">
-    <div class="info-section">
-      <div class="section-header">
-        <div>
-          <h3>食堂概况</h3>
-        </div>
-      </div>
-      <div class="stats-overview">
-        <div class="stat-item stat-primary">
-          <span class="stat-num">{{ canteenStats.total }}</span>
-          <span class="stat-label">食堂总数</span>
-        </div>
-        <div class="stats-divider"></div>
-        <div class="stat-item">
-          <span class="stat-num stat-sub">{{ canteenStats.totalStalls }}</span>
-          <span class="stat-label">档口</span>
-        </div>
-        <div class="stats-divider"></div>
-        <div class="stat-item">
-          <span class="stat-num stat-sub">{{ canteenStats.totalDishes }}</span>
-          <span class="stat-label">菜品</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-header">
+    <div class="card-hd">
       <h3>食堂列表（{{ canteenStats.total }}）</h3>
       <button class="btn-primary" @click="openAdd">+ 新增食堂</button>
     </div>
@@ -168,16 +140,7 @@ function enterCanteen(id: number) { router.push(`/dashboard/canteens/${id}`) }
 </template>
 
 <style scoped>
-.info-section { background: #fff; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); margin-bottom: 24px; overflow: hidden; }
-.info-section .section-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border-color); }
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
-.section-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); font-weight: 600; }
-.stats-overview { display: flex; align-items: center; justify-content: center; padding: 28px 24px; gap: 32px; }
-.stat-item { display: flex; flex-direction: column; align-items: center; min-width: 80px; }
-.stat-num { font-size: 36px; font-weight: 700; line-height: 1.1; color: var(--color-primary); }
-.stat-sub { font-size: 24px; color: var(--text-primary); }
-.stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
-.stats-divider { width: 1px; height: 40px; background: var(--border-color); flex-shrink: 0; }
+
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .pk-card { position: relative; background: #fff; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card); cursor: pointer; transition: all .2s; border: 1px solid var(--border-color); }

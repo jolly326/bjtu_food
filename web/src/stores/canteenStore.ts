@@ -1,16 +1,20 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Canteen } from '@/types'
 import { canteenApi } from '@/api'
 
 export const useCanteenStore = defineStore('canteen', () => {
   const list = ref<Canteen[]>([])
-  const activeList = computed(() => list.value.filter(c => c.status === 'active'))
+  const activeList = ref<Canteen[]>([])
 
-  function loadAll() { list.value = [...canteenApi.getAll()] }
-  function add(data: Omit<Canteen, 'id' | 'created_at' | 'updated_at'>) { canteenApi.create(data); loadAll() }
-  function update(id: number, data: Partial<Canteen>) { canteenApi.updateById(id, data); loadAll() }
-  function remove(id: number) { canteenApi.deleteById(id); loadAll() }
+  async function loadAll() {
+    const data = await canteenApi.getAll()
+    list.value = data
+    activeList.value = data.filter(c => c.status === 'active')
+  }
+  async function add(data: Omit<Canteen, 'id' | 'created_at' | 'updated_at'>) { await canteenApi.create(data); await loadAll() }
+  async function update(id: number, data: Partial<Canteen>) { await canteenApi.updateById(id, data); await loadAll() }
+  async function remove(id: number) { await canteenApi.deleteById(id); await loadAll() }
 
   loadAll()
   return { list, activeList, add, update, remove }

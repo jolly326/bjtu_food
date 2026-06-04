@@ -7,7 +7,7 @@ import { usePageStore } from '@/stores/pageStore'
 import Modal from '@/components/Modal.vue'
 import EntityImage from '@/components/EntityImage.vue'
 import guanbi from '@/static/icon/guanbi.svg'
-import shop from '@/static/icon/shop.svg'
+import canteenIcon from '@/static/icon/canteen.svg'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,6 +17,8 @@ const page = usePageStore()
 
 const canteenId = computed(() => Number(route.params.canteenId))
 const canteen = computed(() => store.canteens.find(c => Number(c.id) === canteenId.value))
+
+const activeTab = ref(0)
 
 const editing = ref(false)
 const canteenForm = ref({ name: '', location: '', description: '', image: '' })
@@ -51,9 +53,7 @@ function modalHandleFile(e: Event) {
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  const reader = new FileReader()
-  reader.onload = () => { modalImages.value.push(reader.result as string) }
-  reader.readAsDataURL(file)
+  modalImages.value.push(URL.createObjectURL(file))
   input.value = ''
 }
 function modalRemoveImage(idx: number) { modalImages.value.splice(idx, 1) }
@@ -85,6 +85,7 @@ watch(canteen, (c) => {
 
 function toggleEdit() {
   editing.value = true
+  activeTab.value = 0
   if (canteen.value) {
     canteenForm.value = { name: canteen.value.name, location: canteen.value.location || '', description: canteen.value.description || '', image: canteen.value.image || '' }
     canteenFormErrors.value = {}
@@ -139,12 +140,8 @@ function handleFileChange(e: Event) {
   const file = input.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  const reader = new FileReader()
-  reader.onload = () => {
-    imagePreviews.value.push(reader.result as string)
-    form.value.image = imagePreviews.value.join('|||')
-  }
-  reader.readAsDataURL(file)
+  imagePreviews.value.push(URL.createObjectURL(file))
+  form.value.image = imagePreviews.value.join('|||')
   input.value = ''
 }
 function removeImage(idx: number) {
@@ -171,82 +168,112 @@ function enterStall(id: number) { router.push(`/dashboard/canteens/${canteenId.v
 
 <template>
   <div class="page">
-    <div class="info-section">
-      <div class="section-header">
-        <h3>食堂信息</h3>
-        <div class="header-actions">
-          <template v-if="!editing">
-            <button class="btn-primary btn-sm" @click="toggleEdit">编辑</button>
-            <button class="btn-danger btn-sm" @click="deleteCanteen">删除食堂</button>
-          </template>
-          <template v-else>
-            <button class="btn-cancel btn-sm" @click="cancelEdit">取消</button>
-            <button class="btn-primary btn-sm" @click="confirmEdit">保存</button>
-          </template>
+    <!-- 合并头栏 + Tab -->
+    <div class="headerbar">
+      <div class="headerbar-top">
+        <div class="headerbar-thumb" @click="openImageModal">
+          <img v-if="firstImage" :src="firstImage" alt="" />
+          <img v-else :src="canteenIcon" class="thumb-ph" alt="" />
+        </div>
+        <div class="headerbar-body">
+          <div class="headerbar-title-row">
+            <h2 class="headerbar-name">{{ canteen?.name || '加载中' }}</h2>
+            <span class="headerbar-sub">{{ canteen?.location || canteen?.description || '' }}</span>
+          </div>
         </div>
       </div>
+      <div class="headerbar-tabs">
+        <div class="tab-item" :class="{ active: activeTab === 0 }" @click="activeTab = 0">详情概览</div>
+        <div class="tab-count-item" :class="{ active: activeTab === 1 }" @click="activeTab = 1">
+          档口管理
+        </div>
+      </div>
+    </div>
 
-      <div class="info-main">
-        <div class="info-left">
+    <!-- Tab 1: 详情概览 -->
+    <div v-show="activeTab === 0" class="tab-panel">
+      <div class="panel-section">
+        <div class="panel-header">
+          <h4 class="panel-title">基本信息</h4>
+          <div class="panel-actions">
+            <template v-if="!editing">
+              <button class="btn-primary btn-sm" @click="toggleEdit">编辑</button>
+              <button class="btn-danger btn-sm" @click="deleteCanteen">删除</button>
+            </template>
+            <template v-else>
+              <button class="btn-cancel btn-sm" @click="cancelEdit">取消</button>
+              <button class="btn-primary btn-sm" @click="confirmEdit">保存</button>
+            </template>
+          </div>
+        </div>
+        <div class="detail-body">
           <EntityImage :image-url="firstImage" :image-count="imageCount" placeholder-emoji="🏪" @click="openImageModal" />
-          <div class="info-fields">
-            <div class="field-row">
-              <span class="field-label">名称</span>
-              <div class="field-control">
-                <span v-if="!editing" class="field-value">{{ canteenForm.name }}</span>
-                <input v-else v-model="canteenForm.name" class="inline-input" :class="{ 'input-error': canteenFormErrors.name }" placeholder="食堂名称" />
+          <div class="detail-fields">
+            <div class="detail-row">
+              <span class="detail-label">名称</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">{{ canteenForm.name }}</span>
+                <input v-else v-model="canteenForm.name" class="form-input" :class="{ 'input-error': canteenFormErrors.name }" placeholder="食堂名称" />
                 <p v-if="editing && canteenFormErrors.name" class="field-error">{{ canteenFormErrors.name }}</p>
               </div>
             </div>
-            <div class="field-row">
-              <span class="field-label">位置</span>
-              <div class="field-control">
-                <span v-if="!editing" class="field-value">{{ canteenForm.location }}</span>
-                <input v-else v-model="canteenForm.location" class="inline-input" :class="{ 'input-error': canteenFormErrors.location }" placeholder="食堂位置" />
+            <div class="detail-row">
+              <span class="detail-label">位置</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">{{ canteenForm.location }}</span>
+                <input v-else v-model="canteenForm.location" class="form-input" :class="{ 'input-error': canteenFormErrors.location }" placeholder="食堂位置" />
                 <p v-if="editing && canteenFormErrors.location" class="field-error">{{ canteenFormErrors.location }}</p>
               </div>
             </div>
-            <div class="field-row field-row-desc">
-              <span class="field-label">描述</span>
-              <div class="field-control">
-                <span v-if="!editing" class="field-value text-desc">{{ canteenForm.description || '-' }}</span>
-                <textarea v-else v-model="canteenForm.description" class="inline-textarea" rows="2" placeholder="食堂描述"></textarea>
+            <div class="detail-row detail-row-desc">
+              <span class="detail-label">描述</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value text-desc">{{ canteenForm.description || '-' }}</span>
+                <textarea v-else v-model="canteenForm.description" class="form-textarea" rows="2" placeholder="食堂描述"></textarea>
               </div>
             </div>
           </div>
         </div>
-        <div class="info-stats-side">
-          <div class="side-stat">
-            <span class="side-stat-num">{{ stalls.length }}</span>
-            <span class="side-stat-unit">个档口</span>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header">
+          <h4 class="panel-title">数据统计</h4>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card">
+            <span class="stat-num">{{ stalls.length }}</span>
+            <span class="stat-unit">个档口</span>
           </div>
-          <div class="side-stat-divider"></div>
-          <div class="side-stat">
-            <span class="side-stat-num">{{ dishCount }}</span>
-            <span class="side-stat-unit">道菜品</span>
+          <div class="stat-card">
+            <span class="stat-num">{{ dishCount }}</span>
+            <span class="stat-unit">道菜品</span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="section-header">
-      <h3>档口列表（{{ stalls.length }}）</h3>
-      <button class="btn-primary" @click="openAdd">+ 新增档口</button>
-    </div>
-    <div class="card-grid">
-      <div v-for="s in filtered" :key="Number(s.id)" class="pk-card" @click="enterStall(Number(s.id))">
-        <div class="pk-img-wrap">
-          <img v-if="s.image" :src="s.image" :alt="s.name" />
-          <div v-else class="pk-emoji"><img :src="shop" class="pk-emoji-img" alt="" /></div>
-          <span class="pk-status" :class="s.status === 'active' ? 'status-on' : 'status-off'">{{ s.status === 'active' ? '营业中' : '已关闭' }}</span>
-        </div>
-        <div class="pk-body">
-          <h4 class="pk-title">{{ s.name }}</h4>
-          <p class="pk-desc">{{ s.description }}</p>
-          <div class="pk-stats">菜品 {{ store.dishes.filter(d => Number(d.stall_id) === Number(s.id)).length }} 道</div>
-        </div>
+    <!-- Tab 2: 档口管理 -->
+    <div v-show="activeTab === 1" class="tab-panel">
+      <div class="list-bar">
+        <h3>档口列表（{{ stalls.length }}）</h3>
+        <button class="btn-primary" @click="openAdd">+ 新增档口</button>
       </div>
-      <div v-if="!filtered.length" class="empty-card">暂无档口</div>
+      <div class="card-grid">
+        <div v-for="s in filtered" :key="Number(s.id)" class="pk-card" @click="enterStall(Number(s.id))">
+          <div class="pk-img-wrap">
+            <img v-if="s.image" :src="s.image" :alt="s.name" />
+            <div v-else class="pk-emoji"><img :src="canteenIcon" alt="" /></div>
+            <span class="pk-status" :class="s.status === 'active' ? 'status-on' : 'status-off'">{{ s.status === 'active' ? '营业中' : '已关闭' }}</span>
+          </div>
+          <div class="pk-body">
+            <h4 class="pk-title">{{ s.name }}</h4>
+            <p class="pk-desc">{{ s.description }}</p>
+            <div class="pk-stats">菜品 {{ store.dishes.filter(d => Number(d.stall_id) === Number(s.id)).length }} 道</div>
+          </div>
+        </div>
+        <div v-if="!filtered.length" class="empty-card">暂无档口</div>
+      </div>
     </div>
 
     <Modal :show="showImageModal" title="图片管理" :width="480" @close="closeImageModal">
@@ -293,55 +320,80 @@ function enterStall(id: number) { router.push(`/dashboard/canteens/${canteenId.v
 </template>
 
 <style scoped>
-.info-section { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 24px; overflow: hidden; }
-.info-section .section-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #f0f0f0; }
-.section-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
-.section-header h3 { margin: 0; font-size: 16px; color: #333; font-weight: 600; }
-.header-actions { display: flex; gap: 8px; align-items: center; }
-.info-main { display: flex; gap: 0; padding: 0 24px 24px 24px; }
-.info-left { display: flex; gap: 24px; flex: 1; min-width: 0; }
-.info-stats-side { width: 140px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; border-left: 1px solid var(--border-light); margin-left: 24px; padding-left: 24px; }
-.side-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.side-stat-num { font-size: 24px; font-weight: 700; color: var(--color-primary); line-height: 1.2; }
-.side-stat-unit { font-size: 12px; color: var(--text-muted); }
-.side-stat-divider { width: 32px; height: 1px; background: var(--border-light); }
-.info-fields { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-.field-row { display: flex; align-items: center; gap: 12px; }
-.field-row-desc { align-items: flex-start; }
-.field-label { font-size: 13px; color: #999; width: 48px; flex-shrink: 0; line-height: 28px; }
-.field-control { flex: 1; min-width: 0; }
-.field-value { font-size: 15px; color: #333; font-weight: 500; line-height: 28px; }
-.field-value.text-desc { font-weight: 400; color: #555; line-height: 1.6; }
-.field-error { margin: 2px 0 0; font-size: 12px; color: #ff4d4f; }
-.inline-input { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; font-weight: 500; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; }
-.inline-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
-.inline-textarea { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; font-weight: 400; }
-.inline-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
-.input-error { border-color: #ff4d4f !important; }
-.btn-cancel { padding: 6px 16px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #333; font-size: 13px; cursor: pointer; transition: all .2s; }
-.btn-cancel:hover { border-color: var(--color-primary); }
-.btn-primary { padding: 6px 16px; border: none; border-radius: 6px; background: var(--color-primary); color: #fff; font-size: 13px; cursor: pointer; transition: background .2s; }
-.btn-primary:hover { background: var(--color-primary-light); }
-.btn-danger { padding: 4px 14px; border: 1px solid var(--color-error); border-radius: 6px; background: #fff; color: var(--color-error); font-size: 13px; cursor: pointer; transition: all .2s; }
-.btn-danger:hover { background: var(--color-error); color: #fff; }
-.required { color: #ff4d4f; }
+/* ===== 合并头栏 + Tab ===== */
+.headerbar {
+  display: flex; flex-direction: column; background: #fff; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 12px 24px; margin-bottom: 20px;
+}
+.headerbar-top { display: flex; gap: 14px; align-items: flex-start; }
+.headerbar-thumb {
+  display: flex; width: 60px; height: 60px; border-radius: 8px; overflow: hidden;
+  align-items: center; justify-content: center; background: #fafafa;
+  border: 1px solid #f0f0f0; flex-shrink: 0; cursor: pointer;
+}
+.headerbar-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.headerbar-thumb .thumb-ph { width: 20px; height: 20px; object-fit: contain; display: block; margin: 10px; opacity: .35; }
+.headerbar-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.headerbar-title-row { display: flex; gap: 10px; flex-wrap: wrap;flex-direction: column; align-items: baseline; }
+.headerbar-name { margin: 0; font-size: 18px; color: #1a1a1a; font-weight: 700; line-height: 1.3; }
+.headerbar-sub { font-size: 13px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.headerbar-tabs { display: flex; gap: 0; margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 6px; }
+.headerbar-tabs .tab-item,
+.headerbar-tabs .tab-count-item {
+  padding: 4px 16px 6px; font-size: 13px; color: #666; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all .2s; user-select: none;
+  display: flex; align-items: center; gap: 4px;
+}
+.headerbar-tabs .tab-item:hover,
+.headerbar-tabs .tab-count-item:hover { color: var(--color-primary); }
+.headerbar-tabs .tab-item.active,
+.headerbar-tabs .tab-count-item.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 
-/* 弹窗图片管理 */
-.modal-img-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.modal-img-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #f0f0f0; flex-shrink: 0; }
-.modal-img-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.modal-img-cover { position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-primary); color: #fff; font-size: 11px; text-align: center; padding: 2px 0; opacity: .85; }
-.modal-img-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s; }
-.modal-img-remove:hover { background: rgba(0,0,0,.7); }
-.modal-img-remove .icon-x { width: 12px; height: 12px; display: block; filter: brightness(10); }
-.modal-img-add { width: 100px; height: 100px; border: 1px dashed #d9d9d9; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: border-color .2s, background .2s; background: #fafafa; flex-shrink: 0; }
-.modal-img-add:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
-.modal-img-add .add-icon { font-size: 28px; color: #bbb; line-height: 1; }
-.modal-img-add .add-tip { font-size: 12px; color: #bbb; }
-.file-hidden { display: none; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid #f0f0f0; }
 
-/* Poke 卡片 */
+/* ===== Tab 面板 ===== */
+.tab-panel {
+  background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  padding: 24px; margin-bottom: 20px;
+}
+.panel-section { margin-bottom: 28px; }
+.panel-section:last-child { margin-bottom: 0; }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0;
+}
+.panel-title { margin: 0; font-size: 15px; color: #333; font-weight: 600; }
+.panel-actions { display: flex; gap: 8px; }
+
+/* ===== 基本信息 ===== */
+.detail-body { display: flex; gap: 24px; align-items: flex-start; }
+.detail-fields { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.detail-row { display: flex; align-items: center; gap: 12px; }
+.detail-row-desc { align-items: flex-start; }
+.detail-label { font-size: 13px; color: #999; width: 48px; flex-shrink: 0; line-height: 28px; }
+.detail-control { flex: 1; min-width: 0; }
+.detail-value { font-size: 15px; color: #333; font-weight: 500; line-height: 28px; }
+.detail-value.text-desc { font-weight: 400; color: #555; line-height: 1.6; }
+.form-input { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; font-weight: 500; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; }
+.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
+.form-textarea { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
+.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
+
+/* ===== 统计卡片 ===== */
+.stats-row { display: flex; gap: 16px; }
+.stat-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 20px; background: #fafafa; border-radius: 10px; border: 1px solid #f0f0f0;
+}
+.stat-num { font-size: 28px; font-weight: 700; color: var(--color-primary); line-height: 1.2; }
+.stat-unit { font-size: 13px; color: #999; }
+
+/* ===== 列表头 ===== */
+.list-bar {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.list-bar h3 { margin: 0; font-size: 16px; color: #333; font-weight: 600; }
+
+/* ===== 卡片网格 ===== */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .pk-card { position: relative; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.06); cursor: pointer; transition: all .2s; border: 1px solid #f0f0f0; }
 .pk-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
@@ -357,7 +409,20 @@ function enterStall(id: number) { router.push(`/dashboard/canteens/${canteenId.v
 .pk-stats { font-size: 12px; color: #bbb; }
 .empty-card { grid-column: 1 / -1; text-align: center; color: #ccc; padding: 60px 0; }
 
-/* 新增档口弹窗图片上传 */
+/* ===== Modal 图片管理 ===== */
+.modal-img-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.modal-img-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #f0f0f0; flex-shrink: 0; }
+.modal-img-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.modal-img-cover { position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-primary); color: #fff; font-size: 11px; text-align: center; padding: 2px 0; opacity: .85; }
+.modal-img-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s; }
+.modal-img-remove:hover { background: rgba(0,0,0,.7); }
+.modal-img-remove .icon-x { width: 12px; height: 12px; display: block; filter: brightness(10); }
+.modal-img-add { width: 100px; height: 100px; border: 1px dashed #d9d9d9; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: border-color .2s, background .2s; background: #fafafa; flex-shrink: 0; }
+.modal-img-add:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
+.modal-img-add .add-icon { font-size: 28px; color: #bbb; line-height: 1; }
+.modal-img-add .add-tip { font-size: 12px; color: #bbb; }
+.file-hidden { display: none; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid #f0f0f0; }
 .modal-form { display: flex; flex-direction: column; gap: 12px; }
 .image-list { display: flex; gap: 10px; flex-wrap: wrap; }
 .image-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #f0f0f0; flex-shrink: 0; }
@@ -369,4 +434,16 @@ function enterStall(id: number) { router.push(`/dashboard/canteens/${canteenId.v
 .image-add:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
 .add-icon { font-size: 28px; color: #bbb; line-height: 1; }
 .add-text { font-size: 12px; color: #bbb; }
+
+/* ===== 全局覆盖 ===== */
+.btn-cancel { padding: 6px 16px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #333; font-size: 13px; cursor: pointer; transition: all .2s; }
+.btn-cancel:hover { border-color: var(--color-primary); }
+.btn-primary { padding: 6px 16px; border: none; border-radius: 6px; background: var(--color-primary); color: #fff; font-size: 13px; cursor: pointer; transition: background .2s; }
+.btn-primary:hover { background: var(--color-primary-light); }
+.btn-danger { padding: 4px 14px; border: 1px solid var(--color-error); border-radius: 6px; background: #fff; color: var(--color-error); font-size: 13px; cursor: pointer; transition: all .2s; }
+.btn-danger:hover { background: var(--color-error); color: #fff; }
+.btn-sm { padding: 4px 14px; font-size: 13px; }
+.input-error { border-color: #ff4d4f !important; }
+.field-error { margin: 2px 0 0; font-size: 12px; color: #ff4d4f; }
+.required { color: #ff4d4f; }
 </style>

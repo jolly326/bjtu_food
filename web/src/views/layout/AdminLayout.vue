@@ -2,12 +2,16 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { usePageStore } from '@/stores/pageStore'
+import { useConfirmStore } from '@/stores/confirmStore'
 import Toast from '@/components/Toast.vue'
 import SearchInput from '@/components/SearchInput.vue'
+
+const confirm = useConfirmStore()
 import canteenIcon from '@/static/icon/canteen.svg'
 import chartBarIcon from '@/static/icon/chart-bar.svg'
 import groupIcon from '@/static/icon/group.svg'
 import tagIcon from '@/static/icon/tag.svg'
+import accountIcon from '@/static/icon/account.svg'
 
 
 const router = useRouter()
@@ -25,6 +29,18 @@ function goBreadcrumb(item: { label: string; path?: string }) {
 <template>
   <div class="admin-layout">
     <Toast />
+    <!-- 全局确认弹窗 -->
+    <Teleport to="body">
+      <div v-if="confirm.visible" class="confirm-overlay" @click.self="confirm.cancel()">
+        <div class="confirm-box">
+          <p class="confirm-msg">{{ confirm.message }}</p>
+          <div class="confirm-actions">
+            <button class="btn-cancel" @click="confirm.cancel()">取消</button>
+            <button class="btn-primary" @click="confirm.ok()">确定</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
         <span class="logo-text">食在交大管理系统</span>
@@ -36,16 +52,16 @@ function goBreadcrumb(item: { label: string; path?: string }) {
         <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/canteens') }" @click="router.push('/dashboard/canteens')">
           <img :src="canteenIcon" class="nav-icon-img" alt="" /><span class="nav-label">食堂管理</span>
         </div>
-        <div class="nav-item" :class="{ active: activePath === '/dashboard/users' }" @click="router.push('/dashboard/users')">
-          <img :src="groupIcon" class="nav-icon-img" alt="" /><span class="nav-label">用户管理</span>
-        </div>
         <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/banners') }" @click="router.push('/dashboard/banners')">
           <img :src="tagIcon" class="nav-icon-img" alt="" /><span class="nav-label">轮播管理</span>
+        </div>
+        <div class="nav-item" :class="{ active: activePath === '/dashboard/users' }" @click="router.push('/dashboard/users')">
+          <img :src="groupIcon" class="nav-icon-img" alt="" /><span class="nav-label">用户管理</span>
         </div>
       </nav>
       <div class="sidebar-footer">
         <div class="nav-item" :class="{ active: activePath === '/dashboard/admins' }" @click="router.push('/dashboard/admins')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <img :src="accountIcon" class="nav-icon-img" alt="" />
           <span class="nav-label">账号设置</span>
         </div>
       </div>
@@ -217,4 +233,17 @@ function goBreadcrumb(item: { label: string; path?: string }) {
   padding: 24px;
   overflow-y: auto;
 }
+
+/* ===== 全局确认弹窗 ===== */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 2000;
+}
+.confirm-box {
+  background: #fff; border-radius: var(--radius-lg, 12px);
+  padding: 28px 32px 20px; width: 400px; max-width: 90vw;
+  box-shadow: 0 8px 30px rgba(0,0,0,.15);
+}
+.confirm-msg { margin: 0 0 24px; font-size: 15px; color: var(--text-primary); line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 12px; }
 </style>
