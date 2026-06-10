@@ -3,6 +3,7 @@ package com.bjtufood.auth.service;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.PasswordUpdateReq;
+import com.bjtufood.auth.dto.PasswordResetReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
 import com.bjtufood.auth.dto.UserStatsVO;
@@ -95,4 +96,11 @@ public interface AuthService {
      * @throws com.bjtufood.common.exception.BusinessException 旧密码错误/用户不存在
      */
     void updatePassword(Long userId, PasswordUpdateReq req);
+
+    /**
+     * 通过校园邮箱验证码重置密码，无需登录。
+     *
+     * @param req 校园邮箱、验证码、新密码
+     */
+    void resetPassword(PasswordResetReq req);
 }

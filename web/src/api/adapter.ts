@@ -1,10 +1,10 @@
 import type { Canteen, Dish, Review, Stall, User } from '@/types'
 import { API_BASE_URL } from './config'
 
-type PageLike<T> = T[] | { records?: T[] }
+type PageLike<T> = T[] | { records?: T[]; list?: T[] }
 
 export function pageRecords<T>(data: PageLike<T>): T[] {
-  return Array.isArray(data) ? data : data.records || []
+  return Array.isArray(data) ? data : data.records || data.list || []
 }
 
 export function imagesToLegacy(images: unknown): string {
@@ -27,6 +27,10 @@ export function legacyToJsonImages(image?: string): string {
 
 export function legacyToImageList(image?: string): string[] {
   return (image || '').split('|||').map(item => item.trim()).filter(Boolean).map(stripImageBaseUrl)
+}
+
+function compactPayload<T extends Record<string, unknown>>(payload: T): Partial<T> {
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Partial<T>
 }
 
 function toAbsoluteImageUrl(url: string): string {
@@ -53,14 +57,14 @@ export function canteenToLegacy(raw: any): Canteen {
 }
 
 export function canteenToApi(data: Partial<Canteen>) {
-  return {
+  return compactPayload({
     name: data.name,
-    images: legacyToJsonImages(data.image),
+    images: data.image === undefined ? undefined : legacyToJsonImages(data.image),
     location: data.location,
     description: data.description,
     sortOrder: data.sort_order,
-    status: data.status === 'inactive' ? 'closed' : 'open',
-  }
+    status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
+  })
 }
 
 export function stallToLegacy(raw: any): Stall {
@@ -80,16 +84,16 @@ export function stallToLegacy(raw: any): Stall {
 }
 
 export function stallToApi(data: Partial<Stall>) {
-  return {
+  return compactPayload({
     canteenId: data.canteen_id,
     name: data.name,
-    images: legacyToJsonImages(data.image),
+    images: data.image === undefined ? undefined : legacyToJsonImages(data.image),
     location: data.location,
     description: data.description,
     avgRating: data.avg_rating,
     sortOrder: data.sort_order,
-    status: data.status === 'inactive' ? 'closed' : 'open',
-  }
+    status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
+  })
 }
 
 export function dishToLegacy(raw: any): Dish {
@@ -113,15 +117,15 @@ export function dishToLegacy(raw: any): Dish {
 }
 
 export function dishToApi(data: Partial<Dish>) {
-  return {
+  return compactPayload({
     stallId: data.stall_id,
     name: data.name,
     price: data.price === undefined ? undefined : Math.round(Number(data.price) * 100),
     description: data.description,
-    images: legacyToImageList(data.image),
+    images: data.image === undefined ? undefined : legacyToImageList(data.image),
     tags: data.tags,
-    status: data.status === 'inactive' ? 'off' : 'on',
-  }
+    status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
+  })
 }
 
 export function reviewToLegacy(raw: any): Review {

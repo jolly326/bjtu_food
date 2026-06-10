@@ -84,9 +84,13 @@ function handleSubmit() {
   showModal.value = false
 }
 
-function handleDelete(id: number) {
-  store.deleteBanner(id)
-  toast.success('Banner已删除')
+async function handleDelete(id: number) {
+  try {
+    await store.deleteBanner(id)
+    toast.success('Banner已删除')
+  } catch (err: any) {
+    toast.error(err.message || 'Banner删除失败')
+  }
 }
 </script>
 

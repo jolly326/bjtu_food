@@ -61,7 +61,11 @@ public class EmailCodeServiceImpl implements EmailCodeService {
             throw new BusinessException("SMTP 发件邮箱未配置，请设置 MAIL_USERNAME");
         }
 
-        String subject = "register".equals(purpose) ? "注册验证码" : "登录验证码";
+        String subject = switch (purpose) {
+            case "register" -> "注册验证码";
+            case "reset" -> "重置密码验证码";
+            default -> "登录验证码";
+        };
         String text = String.format("""
                 您的%s为：%s
 
@@ -111,7 +115,13 @@ public class EmailCodeServiceImpl implements EmailCodeService {
     }
 
     private String normalizePurpose(String purpose) {
-        return "register".equalsIgnoreCase(purpose) ? "register" : "login";
+        if ("register".equalsIgnoreCase(purpose)) {
+            return "register";
+        }
+        if ("reset".equalsIgnoreCase(purpose)) {
+            return "reset";
+        }
+        return "login";
     }
 
     private void validateCampusEmail(String email) {

@@ -53,6 +53,7 @@ public class SecurityConfig {
             "/auth/login",
             "/auth/register",
             "/auth/email-code",
+            "/auth/password/reset",
             "/canteens/**",
             "/stalls/**",
             "/dishes",

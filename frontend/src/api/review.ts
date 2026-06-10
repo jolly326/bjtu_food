@@ -1,36 +1,45 @@
 import type { Review, ReviewSubmit } from '@/types/review'
 import { get, post } from './http'
 
-const MOCK_REVIEWS: Review[] = [
-  { id: 1, userId: 1, userName: '交大干饭人', userAvatar: '', dishId: 0, rating: 5, content: '超级好吃！每次必点！', images: [], createTime: '2024-12-20' },
-  { id: 2, userId: 2, userName: '美食猎人', userAvatar: '', dishId: 0, rating: 4, content: '味道不错，分量也足', images: [], createTime: '2024-12-18' },
-]
+type PageLike<T> = T[] | { records?: T[]; list?: T[] }
+
+function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
+  if (!value) return []
+  if (Array.isArray(value)) return value
+  return value.records || value.list || []
+}
+
+function normalizeImages(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+  if (typeof value !== 'string' || !value.trim()) return []
+  const text = value.trim()
+  try {
+    const parsed = JSON.parse(text)
+    return Array.isArray(parsed) ? normalizeImages(parsed) : [text]
+  } catch {
+    return text.split('|||').map(item => item.trim()).filter(Boolean)
+  }
+}
 
 function toReview(raw: any): Review {
   return {
-    id: raw.id, userId: raw.userId, userName: raw.userNickname || '匿名用户',
-    userAvatar: raw.userAvatar || '', dishId: raw.dishId || 0,
-    rating: raw.rating, content: raw.content || '',
-    images: raw.images || [], createTime: raw.createdAt || '',
+    id: Number(raw.id),
+    userId: Number(raw.userId ?? raw.user_id ?? 0),
+    userName: raw.userNickname || raw.userName || raw.nickname || '匿名用户',
+    userAvatar: raw.userAvatar || raw.avatar || '',
+    dishId: Number(raw.dishId ?? raw.dish_id ?? 0),
+    rating: Number(raw.rating || 0),
+    content: raw.content || '',
+    images: normalizeImages(raw.images),
+    createTime: raw.createdAt || raw.created_at || '',
   }
 }
 
 export async function getReviewsByDish(dishId: number): Promise<Review[]> {
-  try {
-    const res: any = await get(`/dishes/${dishId}/reviews`, { page: 1, pageSize: 20 })
-    const list = res.records || res || []
-    return list.map(toReview)
-  } catch {
-    console.log('[review] getReviewsByDish 失败，使用 mock')
-    return MOCK_REVIEWS.map(r => ({ ...r, dishId }))
-  }
+  const res = await get<any>(`/dishes/${dishId}/reviews`, { page: 1, pageSize: 20 })
+  return recordsOf<any>(res).map(toReview)
 }
 
 export async function submitReview(data: ReviewSubmit): Promise<void> {
-  try {
-    await post('/reviews', { dishId: data.dishId, rating: data.rating, content: data.content, images: data.images })
-  } catch {
-    console.log('[review] submitReview 失败')
-    throw new Error('提交评价失败')
-  }
+  await post('/reviews', { dishId: data.dishId, rating: data.rating, content: data.content, images: data.images || [] })
 }

@@ -61,11 +61,17 @@ async function modalHandleFile(e: Event) {
   }
 }
 function modalRemoveImage(idx: number) { modalImages.value.splice(idx, 1) }
-function saveImageModal() {
+async function saveImageModal() {
   stallForm.value.image = modalImages.value.join('|||')
   if (stall.value) {
-    store.updateStall(Number(stall.value.id), { image: stallForm.value.image })
-    toast.success('图片已更新')
+    try {
+      await store.updateStall(Number(stall.value.id), { image: stallForm.value.image })
+      toast.success('图片已更新')
+      showImageModal.value = false
+    } catch (err: any) {
+      toast.error(err.message || '图片保存失败')
+    }
+    return
   }
   showImageModal.value = false
 }
@@ -96,14 +102,21 @@ function toggleEdit() {
     stallFormErrors.value = {}
   }
 }
-function confirmEdit() {
+async function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!stallForm.value.name.trim()) errs.name = '档口名称不能为空'
   stallFormErrors.value = errs
   if (Object.keys(errs).length) return
   if (stall.value) {
-    store.updateStall(Number(stall.value.id), { ...stallForm.value })
-    toast.success('档口信息已更新')
+    try {
+      await store.updateStall(Number(stall.value.id), { ...stallForm.value })
+      toast.success('档口信息已更新')
+      stallFormErrors.value = {}
+      editing.value = false
+    } catch (err: any) {
+      toast.error(err.message || '档口信息更新失败')
+    }
+    return
   }
   stallFormErrors.value = {}
   editing.value = false
@@ -119,11 +132,15 @@ function cancelEdit() {
   stallFormErrors.value = {}
   editing.value = false
 }
-function deleteStall() {
+async function deleteStall() {
   if (!stall.value || !canteen.value) return
-  toast.success('档口已删除')
-  store.deleteStall(Number(stall.value.id))
-  router.push(`/dashboard/canteens/${canteenId.value}`)
+  try {
+    await store.deleteStall(Number(stall.value.id))
+    toast.success('档口已删除')
+    router.push(`/dashboard/canteens/${canteenId.value}`)
+  } catch (err: any) {
+    toast.error(err.message || '档口删除失败')
+  }
 }
 
 function parseTags(tags: string): string[] {

@@ -15,13 +15,17 @@ function loadUserInfo(): UserInfo | null {
   }
 }
 
+function saveAuth(tokenValue: string, info: UserInfo) {
+  uni.setStorageSync(STORAGE_KEY_TOKEN, tokenValue)
+  uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
+}
+
 export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
   const userStats = ref<UserStats>({ favoriteCount: 0, reviewCount: 0 })
   const loading = ref(false)
 
-  /** 从缓存恢复登录态（App 启动时调用） */
   function restoreFromCache(): boolean {
     const saved = uni.getStorageSync(STORAGE_KEY_TOKEN)
     if (saved) {
@@ -32,16 +36,36 @@ export const useUserStore = defineStore('user', () => {
     return false
   }
 
-  async function login(code: string, studentId: string) {
+  async function loginByPassword(account: string, password: string) {
     loading.value = true
     try {
-      const res = await userApi.login(code, studentId)
+      const res = await userApi.loginByPassword(account, password)
       token.value = res.token
       userInfo.value = res.userInfo
-      uni.setStorageSync(STORAGE_KEY_TOKEN, res.token)
-      uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(res.userInfo))
-    } catch (e: any) {
-      throw new Error(e.message || '登录失败')
+      saveAuth(res.token, res.userInfo)
+      await fetchStats()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loginByEmailCode(email: string, code: string) {
+    loading.value = true
+    try {
+      const res = await userApi.loginByEmailCode(email, code)
+      token.value = res.token
+      userInfo.value = res.userInfo
+      saveAuth(res.token, res.userInfo)
+      await fetchStats()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function register(data: { username: string; email: string; code: string; password: string; nickname: string }) {
+    loading.value = true
+    try {
+      return await userApi.register(data)
     } finally {
       loading.value = false
     }
@@ -57,6 +81,7 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = ''
     userInfo.value = null
+    userStats.value = { favoriteCount: 0, reviewCount: 0 }
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
   }
@@ -66,6 +91,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function fetchStats() {
+    if (!isLoggedIn()) return
     try {
       userStats.value = await userApi.getUserStats()
     } catch {
@@ -81,5 +107,19 @@ export const useUserStore = defineStore('user', () => {
     return true
   }
 
-  return { userInfo, userStats, token, loading, restoreFromCache, login, updateProfile, fetchStats, logout, isLoggedIn, requireAuth }
+  return {
+    userInfo,
+    userStats,
+    token,
+    loading,
+    restoreFromCache,
+    loginByPassword,
+    loginByEmailCode,
+    register,
+    updateProfile,
+    fetchStats,
+    logout,
+    isLoggedIn,
+    requireAuth,
+  }
 })

@@ -1,48 +1,72 @@
 import type { UserInfo, UserStats } from '@/types/user'
-import { post, put, get } from './http'
+import { get, post, put } from './http'
 
-const MOCK_USER: UserInfo = { id: 1, nickname: '交大学子', avatar: '', role: 'student' }
-const MOCK_STATS: UserStats = { favoriteCount: 12, reviewCount: 8 }
+function toFrontendRole(_role?: string): UserInfo['role'] {
+  return 'student'
+}
 
-export async function login(code: string, studentId: string): Promise<{ token: string; userInfo: UserInfo }> {
-  try {
-    const resp: any = await post('/auth/login', { account: studentId, password: code })
-    return {
-      token: resp.token,
-      userInfo: {
-        id: resp.userId,
-        nickname: resp.nickname,
-        avatar: resp.avatar || '',
-        role: (resp.role as UserInfo['role']) || 'student',
-      },
-    }
-  } catch {
-    console.log('[user] login 失败，使用 mock')
-    const fallback = { token: 'mock_token_' + Date.now(), userInfo: { ...MOCK_USER, id: Number(studentId) || 1, nickname: studentId + '同学' } }
-    return fallback
+function toUserInfo(resp: any, fallbackId = 1): UserInfo {
+  const user = resp?.userInfo || resp?.user || resp || {}
+  return {
+    id: Number(user.id ?? resp?.userId ?? fallbackId),
+    nickname: user.nickname || resp?.nickname || user.username || '交大学子',
+    avatar: user.avatar || resp?.avatar || '',
+    role: toFrontendRole(user.role || resp?.role),
   }
+}
+
+export interface AuthResult {
+  token: string
+  userInfo: UserInfo
+}
+
+export async function sendEmailCode(email: string, purpose: 'login' | 'register' | 'reset'): Promise<void> {
+  await post('/auth/email-code', { email, purpose })
+}
+
+export async function loginByPassword(account: string, password: string): Promise<AuthResult> {
+  const resp = await post<any>('/auth/login', { account, password })
+  return {
+    token: resp.token,
+    userInfo: toUserInfo(resp),
+  }
+}
+
+export async function loginByEmailCode(email: string, code: string): Promise<AuthResult> {
+  const resp = await post<any>('/auth/login', { email, code })
+  return {
+    token: resp.token,
+    userInfo: toUserInfo(resp),
+  }
+}
+
+export async function register(data: {
+  username: string
+  email: string
+  code: string
+  password: string
+  nickname: string
+}): Promise<AuthResult> {
+  const resp = await post<any>('/auth/register', data)
+  return {
+    token: resp.token,
+    userInfo: toUserInfo(resp),
+  }
+}
+
+export async function resetPassword(data: {
+  email: string
+  code: string
+  newPassword: string
+}): Promise<void> {
+  await put('/auth/password/reset', data)
 }
 
 export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
-  try {
-    const resp: any = await put('/auth/profile', data)
-    return {
-      id: resp?.id || 1,
-      nickname: resp?.nickname || '交大学子',
-      avatar: resp?.avatar || '',
-      role: (resp?.role as UserInfo['role']) || 'student',
-    }
-  } catch {
-    console.log('[user] updateProfile 失败，使用 mock')
-    return { id: 1, nickname: data.nickname || '交大学子', avatar: data.avatar || '', role: 'student' }
-  }
+  const resp = await put<any>('/auth/profile', data)
+  return toUserInfo(resp)
 }
 
 export async function getUserStats(): Promise<UserStats> {
-  try {
-    return await get('/auth/stats')
-  } catch {
-    console.log('[user] getUserStats 失败，使用 mock')
-    return MOCK_STATS
-  }
+  return await get('/auth/stats')
 }

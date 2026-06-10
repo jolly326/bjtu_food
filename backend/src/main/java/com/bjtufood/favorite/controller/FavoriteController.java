@@ -2,16 +2,18 @@ package com.bjtufood.favorite.controller;
 
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.favorite.dto.FavoriteBatchReq;
+import com.bjtufood.favorite.dto.FavoriteToggleReq;
 import com.bjtufood.favorite.service.FavoriteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @Tag(name = "04. 收藏", description = "我的收藏、切换收藏状态、批量收藏。全部接口需要登录。")
@@ -33,13 +35,9 @@ public class FavoriteController {
                     """)))
     )
     @PostMapping("/toggle")
-    public Result<?> toggle(@RequestBody Map<String, Long> body) {
+    public Result<?> toggle(@Valid @RequestBody FavoriteToggleReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
-        Long dishId = body.get("dishId");
-        if (dishId == null) {
-            return Result.badRequest("dishId 不能为空");
-        }
-        boolean favorited = favoriteService.toggle(userId, dishId);
+        boolean favorited = favoriteService.toggle(userId, req.getDishId());
         return Result.success(Map.of("favorited", favorited));
     }
 
@@ -62,14 +60,8 @@ public class FavoriteController {
                     """)))
     )
     @PostMapping("/batch")
-    public Result<?> batchCollect(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Integer> rawIds = (List<Integer>) body.get("dishIds");
-        if (rawIds == null || rawIds.isEmpty()) {
-            return Result.badRequest("dishIds 不能为空");
-        }
+    public Result<?> batchCollect(@Valid @RequestBody FavoriteBatchReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
-        List<Long> dishIds = rawIds.stream().map(Long::valueOf).toList();
-        return Result.success(favoriteService.batchCollect(userId, dishIds));
+        return Result.success(favoriteService.batchCollect(userId, req.getDishIds()));
     }
 }

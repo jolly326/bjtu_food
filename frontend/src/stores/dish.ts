@@ -16,7 +16,6 @@ export const useDishStore = defineStore('dish', () => {
   const homeBanners = ref<BannerItem[]>([])
   const canteenImageMap = ref<Record<string, string>>({})
   const loading = ref(false)
-  // 跨页面传参，导航前设置
   const navParams = { stallName: '', canteen: '' }
   const canteenList = ref<CanteenInfo[]>([])
 
@@ -25,6 +24,7 @@ export const useDishStore = defineStore('dish', () => {
       canteenList.value = await canteenApi.getCanteenList()
     } catch (e: any) {
       console.error('加载食堂列表失败', e)
+      canteenList.value = []
     }
   }
 
@@ -33,6 +33,7 @@ export const useDishStore = defineStore('dish', () => {
       homeBanners.value = await canteenApi.getHomeBanners()
     } catch (e: any) {
       console.error('加载轮播图失败', e)
+      homeBanners.value = []
     }
   }
 
@@ -41,6 +42,7 @@ export const useDishStore = defineStore('dish', () => {
       canteenImageMap.value = await canteenApi.getCanteenImages()
     } catch (e: any) {
       console.error('加载食堂背景图失败', e)
+      canteenImageMap.value = {}
     }
   }
 
@@ -49,7 +51,8 @@ export const useDishStore = defineStore('dish', () => {
     try {
       recommendList.value = await dishApi.getRecommendList()
     } catch (e: any) {
-      console.error('[store] fetchRecommend失败', e)
+      console.error('[store] fetchRecommend failed', e)
+      recommendList.value = []
     } finally {
       loading.value = false
     }
@@ -61,6 +64,7 @@ export const useDishStore = defineStore('dish', () => {
       dishList.value = await dishApi.searchDishes(query)
     } catch (e: any) {
       console.error('搜索失败', e)
+      dishList.value = []
     } finally {
       loading.value = false
     }
@@ -84,6 +88,7 @@ export const useDishStore = defineStore('dish', () => {
       reviewList.value = await reviewApi.getReviewsByDish(dishId)
     } catch (e: any) {
       console.error('加载评价失败', e)
+      reviewList.value = []
     } finally {
       loading.value = false
     }
@@ -99,6 +104,7 @@ export const useDishStore = defineStore('dish', () => {
       stallDishes.value = await dishApi.getStallDishes(canteen, stallName)
     } catch (e: any) {
       console.error('加载档口菜品失败', e)
+      stallDishes.value = []
     } finally {
       loading.value = false
     }

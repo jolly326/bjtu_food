@@ -1,61 +1,48 @@
 import type { Banner } from '@/types'
-import { findIdx, nextId } from './common'
-import { get } from './http'
-import { imagesToLegacy } from './adapter'
+import { del, get, post, put } from './http'
+import { imagesToLegacy, legacyToJsonImages } from './adapter'
 
-let localDirty = false
-
-const mockData: Banner[] = [
-  { id: 1 as unknown as bigint, title: '开学季优惠', image: '', type: 'carousel', sort_order: 1, status: 'active', created_at: new Date('2024-09-01'), updated_at: new Date('2024-09-01') },
-]
-
-function toBanner(raw: any, index: number): Banner {
+function toBanner(raw: any, index = 0): Banner {
   return {
     id: (raw.id ?? index + 1) as unknown as bigint,
     title: raw.title || '',
     image: imagesToLegacy(raw.images ?? raw.image).split('|||')[0] || '',
-    type: raw.type || 'carousel',
+    type: raw.type || 'dish',
     target_id: raw.targetId ?? raw.target_id,
     target_type: raw.targetType ?? raw.target_type,
     canteen_id: raw.canteenId ?? raw.canteen_id,
     sort_order: raw.sortOrder ?? raw.sort_order ?? index + 1,
     status: raw.status === 'disabled' ? 'inactive' : 'active',
-    created_at: raw.createdAt || raw.created_at || new Date(),
-    updated_at: raw.updatedAt || raw.updated_at || new Date(),
+    created_at: raw.createdAt || raw.created_at ? new Date(raw.createdAt || raw.created_at) : new Date(),
+    updated_at: raw.updatedAt || raw.updated_at ? new Date(raw.updatedAt || raw.updated_at) : new Date(),
+  }
+}
+
+function toApi(data: Partial<Banner>) {
+  return {
+    title: data.title,
+    type: data.type,
+    targetId: data.target_id,
+    targetType: data.target_type,
+    canteenId: data.canteen_id,
+    sortOrder: data.sort_order,
+    status: data.status === 'inactive' ? 'disabled' : 'enabled',
+    images: legacyToJsonImages(data.image),
   }
 }
 
 export async function getAll(): Promise<Banner[]> {
-  if (localDirty) return [...mockData]
-
-  try {
-    const banners = (await get<any[]>('/canteens/banners')).map(toBanner)
-    mockData.splice(0, mockData.length, ...banners)
-    return [...mockData]
-  } catch {
-    console.log('[banner] 降级到 Mock')
-    return [...mockData]
-  }
+  return (await get<any[]>('/admin/banners')).map(toBanner)
 }
 
 export async function create(data: Omit<Banner, 'id' | 'created_at' | 'updated_at'>) {
-  console.warn('[banner] 后端暂未实现 Banner 后台新增接口，当前仅本地维护')
-  localDirty = true
-  const item = { ...data, id: nextId(), created_at: new Date(), updated_at: new Date() } as Banner
-  mockData.push(item)
-  return item
+  await post<void>('/admin/banners', toApi(data))
 }
 
 export async function updateById(id: number, data: Partial<Banner>) {
-  console.warn('[banner] 后端暂未实现 Banner 后台编辑接口，当前仅本地维护')
-  localDirty = true
-  const idx = findIdx(mockData, id)
-  if (idx !== -1) Object.assign(mockData[idx]!, data, { updated_at: new Date() })
+  await put<void>(`/admin/banners/${id}`, toApi(data))
 }
 
 export async function deleteById(id: number) {
-  console.warn('[banner] 后端暂未实现 Banner 后台删除接口，当前仅本地维护')
-  localDirty = true
-  const idx = findIdx(mockData, id)
-  if (idx !== -1) mockData.splice(idx, 1)
+  await del<void>(`/admin/banners/${id}`)
 }

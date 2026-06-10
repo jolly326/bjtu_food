@@ -132,6 +132,8 @@ function dname(id: number | bigint) {
   const d = store.dishes.find(d => Number(d.id) === Number(id))
   return d?.name || `菜品${id}`
 }
+
+const studentUsers = computed(() => store.users.filter(u => u.role !== 'admin'))
 </script>
 
 <template>
@@ -153,7 +155,7 @@ function dname(id: number | bigint) {
           <span class="tb-lbl">评论</span>
         </div>
         <div class="tb-stat">
-          <span class="tb-val">{{ store.users.filter(u => u.role === 'user' && u.status === 'active').length }}</span>
+          <span class="tb-val">{{ store.users.filter(u => u.role !== 'admin' && u.status === 'active').length }}</span>
           <span class="tb-lbl">活跃学生</span>
         </div>
       </div>
@@ -165,7 +167,7 @@ function dname(id: number | bigint) {
         { i: canteenIcon, n: store.stats.totalCanteens, l: '食堂', a: `${store.activeCanteens.length} 活跃` },
         { i: shopIcon, n: store.stats.totalStalls, l: '档口', a: `${store.activeStalls.length} 活跃` },
         { i: foodIcon, n: store.stats.totalDishes, l: '菜品', a: `${store.activeDishes.length} 上架` },
-        { i: accountIcon, n: store.stats.totalUsers - 1, l: '学生', a: `${store.users.filter(u => u.status === 'active').length} 在线` },
+        { i: accountIcon, n: studentUsers.length, l: '学生', a: `${studentUsers.filter(u => u.status === 'active').length} 在线` },
       ]" :key="k.l">
         <img :src="k.i" class="kpi-icon" />
         <div class="kpi-num">{{ k.n }}</div>

@@ -16,11 +16,15 @@ import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.favorite.entity.Favorite;
 import com.bjtufood.favorite.mapper.FavoriteMapper;
+import com.bjtufood.list.entity.ListItem;
+import com.bjtufood.list.mapper.ListItemMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -36,6 +40,7 @@ public class DishServiceImpl implements DishService {
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
     private final FavoriteMapper favoriteMapper;
+    private final ListItemMapper listItemMapper;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -134,13 +139,16 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteDish(Long id) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
-        dish.setStatus("off");
-        dishMapper.updateById(dish);
+        listItemMapper.delete(new LambdaQueryWrapper<ListItem>().eq(ListItem::getDishId, id));
+        favoriteMapper.delete(new LambdaQueryWrapper<Favorite>().eq(Favorite::getDishId, id));
+        reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
+        dishMapper.deleteById(id);
     }
 
     @Override

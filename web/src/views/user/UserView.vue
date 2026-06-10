@@ -11,7 +11,7 @@ const confirm = useConfirmStore()
 const page = usePageStore()
 page.setPage({ breadcrumbs: [{ label: '用户管理' }], showSearch: true, searchPlaceholder: '搜索学生用户名或昵称...' })
 
-const students = computed(() => store.users.filter(u => u.role === 'user'))
+const students = computed(() => store.users.filter(u => u.role !== 'admin'))
 
 const stats = computed(() => ({
   total: students.value.length,
@@ -34,8 +34,12 @@ async function handleToggle(id: number) {
   if (!u) return
   const action = u.status === 'active' ? '禁用' : '启用'
   if (!await confirm.confirm(`确定${action}学生「${u.nickname || u.username}」？`)) return
-  store.toggleUserStatus(id)
-  toast.success(`学生已${action}`)
+  try {
+    await store.toggleUserStatus(id)
+    toast.success(`学生已${action}`)
+  } catch (e: any) {
+    toast.error(e.message || `${action}失败`)
+  }
 }
 </script>
 

@@ -89,9 +89,9 @@ public interface DishService {
     void updateDish(Long id, DishAdminReq req);
 
     /**
-     * 删除/下架菜品
+     * 删除菜品
      * <p>
-     * 将菜品 status 设为 off（下架），避免物理删除导致评价、收藏数据断裂。
+     * 物理删除菜品，并清理评价、收藏、清单项等关联数据。
      *
      * @param id 菜品ID
      */

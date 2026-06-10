@@ -123,11 +123,15 @@ function cancelEdit() {
   editing.value = false
 }
 
-function deleteCanteen() {
+async function deleteCanteen() {
   if (!canteen.value) return
-  toast.success('食堂已删除')
-  store.deleteCanteen(Number(canteen.value.id))
-  router.push('/dashboard/canteens')
+  try {
+    await store.deleteCanteen(Number(canteen.value.id))
+    toast.success('食堂已删除')
+    router.push('/dashboard/canteens')
+  } catch (err: any) {
+    toast.error(err.message || '食堂删除失败')
+  }
 }
 
 const showModal = ref(false)

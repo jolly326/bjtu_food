@@ -15,54 +15,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import StallCard from '@/components/StallCard.vue'
 import type { StallInfo, DishPreview } from '@/components/StallCard.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
-import type { CanteenInfo } from '@/types/canteen'
+import { getCanteensWithStalls } from '@/api/canteen'
+import { getStallDishes } from '@/api/dish'
 
 const dishStore = useDishStore()
 const canteenName = ref('')
+const stallList = ref<StallInfo[]>([])
 
-const stallList = computed(() => {
-  const all = dishStore.recommendList as unknown as Dish[]
-  const filtered = all.filter(d => d.canteen === canteenName.value)
+function firstImage(value: unknown): string {
+  return Array.isArray(value) ? (value.find(item => typeof item === 'string') || '') : ''
+}
 
-  const stallMap = new Map<string, Dish[]>()
-  for (const dish of filtered) {
-    if (!stallMap.has(dish.stallName)) {
-      stallMap.set(dish.stallName, [])
+async function loadStalls() {
+  if (!canteenName.value) return
+  const canteens = await getCanteensWithStalls()
+  const current = canteens.find((item: any) => item.name === canteenName.value)
+  const stalls = current?.stalls || []
+  stallList.value = await Promise.all(stalls.map(async (stall: any) => {
+    let dishes: Dish[] = []
+    try {
+      dishes = await getStallDishes(canteenName.value, stall.name)
+    } catch {
+      dishes = []
     }
-    stallMap.get(dish.stallName)!.push(dish)
-  }
-
-  const result: StallInfo[] = []
-  for (const [name, stallDishes] of stallMap) {
-    const canteenInfo = (dishStore.canteenList as unknown as CanteenInfo[]).find(c => c.name === canteenName.value)
-    const totalRating = stallDishes.reduce((sum, d) => sum + (d.rating || 0), 0)
-    const totalCount = stallDishes.reduce((sum, d) => sum + (d.ratingCount || 0), 0)
-    const avgRating = totalCount > 0 ? totalRating / stallDishes.length : 0
-    result.push({
-      id: stallDishes[0]?.id ?? 0,
-      name,
-      location: canteenInfo?.location || canteenName.value,
-      dishCount: stallDishes.length,
-      image: '',
-      rating: avgRating,
-      ratingCount: totalCount,
-      dishes: stallDishes.map(d => ({
+    return {
+      id: Number(stall.id || 0),
+      name: stall.name || '',
+      location: stall.location || current?.location || canteenName.value,
+      dishCount: dishes.length,
+      image: firstImage(stall.images),
+      rating: stall.avgRating ?? stall.rating ?? 0,
+      ratingCount: dishes.reduce((sum, d) => sum + (d.ratingCount || 0), 0),
+      dishes: dishes.slice(0, 10).map(d => ({
         id: d.id,
         name: d.name,
         price: d.price,
         image: d.image,
       })),
-    })
-  }
-  return result
-})
+    }
+  }))
+}
 
 function goToStall(stall: StallInfo) {
   dishStore.navParams.stallName = stall.name
@@ -78,12 +77,7 @@ onLoad(async (query) => {
   if (query?.canteen) {
     canteenName.value = decodeURIComponent(query.canteen as string)
   }
-  if ((dishStore.recommendList as unknown as Dish[]).length === 0) {
-    await dishStore.fetchRecommend()
-  }
-  if ((dishStore.canteenList as unknown as CanteenInfo[]).length === 0) {
-    await dishStore.fetchCanteens()
-  }
+  await loadStalls()
 })
 </script>
 

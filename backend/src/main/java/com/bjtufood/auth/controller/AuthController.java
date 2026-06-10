@@ -3,6 +3,7 @@ package com.bjtufood.auth.controller;
 import com.bjtufood.auth.dto.EmailCodeReq;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordResetReq;
 import com.bjtufood.auth.dto.PasswordUpdateReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
@@ -140,6 +141,23 @@ public class AuthController {
     public Result<Void> updatePassword(@Valid @RequestBody PasswordUpdateReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
         authService.updatePassword(userId, req);
+        return Result.success();
+    }
+
+    @Operation(
+            summary = "邮箱验证码重置密码",
+            description = "用途：忘记密码时，通过校园邮箱验证码重新设置登录密码。验证码请先通过 /auth/email-code 获取，purpose=reset。",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "email": "20240001@bjtu.edu.cn",
+                      "code": "123456",
+                      "newPassword": "654321"
+                    }
+                    """)))
+    )
+    @PutMapping("/auth/password/reset")
+    public Result<Void> resetPassword(@Valid @RequestBody PasswordResetReq req) {
+        authService.resetPassword(req);
         return Result.success();
     }
 }

@@ -21,10 +21,15 @@
         <swiper class="canteen-swiper" circular :current="currentSwiperIndex"
           previous-margin="150rpx" next-margin="150rpx" @change="onSwiperChange">
           <swiper-item v-for="(item, idx) in canteens" :key="item.name">
-            <view class="canteen-card" :class="{ active: currentSwiperIndex === idx }" @tap="goToCanteen(item.name)">
+            <view
+              class="canteen-card"
+              :class="{ active: currentSwiperIndex === idx }"
+              :style="{ backgroundImage: item.image ? `url(${item.image})` : '' }"
+              @tap="goToCanteen(item.name)"
+            >
               <view class="canteen-overlay" />
               <text class="canteen-name">{{ item.name }}</text>
-              <text class="canteen-count">{{ item.count }}个档口</text>
+              <text class="canteen-count">{{ item.count }}道热门菜</text>
             </view>
           </swiper-item>
         </swiper>
@@ -65,8 +70,10 @@ const canteens = computed(() => {
   for (const dish of dishStore.recommendList) {
     map.set(dish.canteen, (map.get(dish.canteen) || 0) + 1)
   }
-  return Array.from(map).map(([name, count]) => ({
-    name, image: dishStore.canteenImageMap[name] || '', count,
+  return dishStore.canteenList.map(item => ({
+    name: item.name,
+    image: dishStore.canteenImageMap[item.name] || item.icon || '',
+    count: map.get(item.name) || 0,
   }))
 })
 
@@ -78,6 +85,7 @@ async function loadData() {
   console.log('[home] loadData开始')
   await Promise.all([
     dishStore.fetchHomeBanners(),
+    dishStore.fetchCanteens(),
     dishStore.fetchCanteenImages(),
     dishStore.fetchRecommend(),
   ])

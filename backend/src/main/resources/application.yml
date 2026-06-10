@@ -18,6 +18,11 @@ spring:
     username: bjtu
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # datasource:
+  #   url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+  #   username: root
+  #   password: 123456
+  #   driver-class-name: com.mysql.cj.jdbc.Driver
 
   # ---------- 文件上传配置 ----------
   servlet:

@@ -149,15 +149,23 @@ function cancelEdit() {
 async function deleteDish() {
   if (!dish.value) return
   if (!await confirm.confirm('确定删除该菜品？')) return
-  store.deleteDish(Number(dish.value.id))
-  toast.success('菜品已删除')
-  router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}`)
+  try {
+    await store.deleteDish(Number(dish.value.id))
+    toast.success('菜品已删除')
+    router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}`)
+  } catch (err: any) {
+    toast.error(err.message || '菜品删除失败')
+  }
 }
 
 async function handleDeleteReview(id: number) {
   if (!await confirm.confirm('确定删除该评论？')) return
-  store.deleteReview(id)
-  toast.success('评论已删除')
+  try {
+    await store.deleteReview(id)
+    toast.success('评论已删除')
+  } catch (err: any) {
+    toast.error(err.message || '评论删除失败')
+  }
 }
 </script>
 

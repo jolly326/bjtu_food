@@ -4,6 +4,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,7 @@ public class Knife4jConfig {
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
                                 .description("登录后填写 JWT Token。Knife4j 中通常只需要粘贴 token 本身，不需要手动加 Bearer 前缀。")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .info(new Info()
                         .title("校园食堂信息系统 API 文档")
                         .version("1.0.0")

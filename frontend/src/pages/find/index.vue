@@ -12,6 +12,11 @@
             </template>
           </WaterfallList>
         </view>
+        <view v-else class="empty-state">
+          <image class="empty-icon" src="/static/icons/search.svg" />
+          <text class="empty-title">{{ dishStore.loading ? '正在加载...' : '暂无菜品' }}</text>
+          <text class="empty-desc">{{ keyword ? '换个关键词试试' : '下拉刷新或稍后再试' }}</text>
+        </view>
       </view>
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
@@ -20,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Header from '@/components/header.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import DishCard from '@/components/DishCard.vue'
@@ -35,7 +40,7 @@ const dishList = computed(() => dishStore.dishList)
 
 function handleSearch(value: string) {
   keyword.value = value
-  dishStore.search({ keyword: value })
+  dishStore.search({ keyword: value.trim() || undefined })
 }
 
 function goToDetail(dish: Dish) {
@@ -43,16 +48,26 @@ function goToDetail(dish: Dish) {
 }
 
 function onRefresh(e: any) {
-  if (keyword.value) {
-    dishStore.search({ keyword: keyword.value }).finally(() => { e.detail.complete() })
-  } else {
-    e.detail.complete()
-  }
+  dishStore.search({ keyword: keyword.value.trim() || undefined }).finally(() => { e.detail.complete() })
 }
+
+watch(keyword, (value) => {
+  if (!value.trim()) {
+    dishStore.search({})
+  }
+})
+
+onMounted(() => {
+  dishStore.search({})
+})
 </script>
 
 <style scoped>
 .search-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
 .result-section { padding: 0 var(--spacing-lg); }
+.empty-state { min-height: 520rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80rpx 30rpx; box-sizing: border-box; }
+.empty-icon { width: 88rpx; height: 88rpx; opacity: .28; margin-bottom: 24rpx; }
+.empty-title { font-size: 30rpx; font-weight: 650; color: var(--text-secondary); }
+.empty-desc { margin-top: 10rpx; font-size: 24rpx; color: var(--text-tertiary); }
 </style>

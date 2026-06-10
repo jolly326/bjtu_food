@@ -59,7 +59,7 @@ public class DishAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除/下架菜品", description = "用途：下架菜品（status 设为 off）。不物理删除，保留评价和收藏数据。")
+    @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价、收藏和清单项。")
     @DeleteMapping("/{id}")
     public Result<Void> deleteDish(
             @Parameter(description = "菜品ID", example = "1")

@@ -3,6 +3,7 @@ package com.bjtufood.auth.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.auth.dto.LoginReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordResetReq;
 import com.bjtufood.auth.dto.PasswordUpdateReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.RegisterReq;
@@ -147,6 +148,23 @@ public class AuthServiceImpl implements AuthService {
         userMapper.updateById(user);
     }
 
+    @Override
+    public void resetPassword(PasswordResetReq req) {
+        String email = normalizeEmail(req.getEmail());
+        validateCampusEmail(email);
+        verifyEmailCode(email, req.getCode(), "reset");
+
+        User user = userService.getByEmail(email);
+        if (user == null) {
+            throw new BusinessException("该邮箱尚未注册");
+        }
+        if ("disabled".equals(user.getStatus())) {
+            throw new BusinessException("账号已被禁用");
+        }
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userMapper.updateById(user);
+    }
+
     private LoginResp toLoginResp(User user) {
         String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername());
         return new LoginResp(
@@ -231,7 +249,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private String normalizePurpose(String purpose) {
-        return "register".equalsIgnoreCase(purpose) ? "register" : "login";
+        if ("register".equalsIgnoreCase(purpose)) {
+            return "register";
+        }
+        if ("reset".equalsIgnoreCase(purpose)) {
+            return "reset";
+        }
+        return "login";
     }
 
     private void validateCampusEmail(String email) {

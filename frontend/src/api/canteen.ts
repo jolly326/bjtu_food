@@ -1,71 +1,64 @@
 import type { BannerItem, CanteenInfo, StallDetail } from '@/types/canteen'
+import { API_BASE_URL } from './config'
 import { get } from './http'
-const MOCK_BANNERS: BannerItem[] = [
-  { title: '🍜 交大美食季', subtitle: '发现校园里的每一道美味', image: '' },
-  { title: '🔥 新菜品上架', subtitle: '一食堂二层新窗口开业', image: '' },
-]
 
-const MOCK_CANTEENS: CanteenInfo[] = [
-  { name: '第一食堂', location: '一食堂一层', icon: '' },
-  { name: '第二食堂', location: '二食堂一层', icon: '' },
-  { name: '第三食堂', location: '三食堂一层', icon: '' },
-]
+function normalizeImages(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(toAbsoluteImageUrl)
+  if (typeof value !== 'string' || !value.trim()) return []
+  const text = value.trim()
+  try {
+    const parsed = JSON.parse(text)
+    return Array.isArray(parsed) ? normalizeImages(parsed) : [toAbsoluteImageUrl(text)]
+  } catch {
+    return text.split('|||').map(item => item.trim()).filter(Boolean).map(toAbsoluteImageUrl)
+  }
+}
+
+function toAbsoluteImageUrl(url: string): string {
+  if (!url || /^(https?:|data:|blob:)/i.test(url) || url.startsWith('/static/')) return url
+  if (url.startsWith('/images/') || url.startsWith('/uploads/')) return `${API_BASE_URL}${url}`
+  return url
+}
+
+function firstImage(raw: any): string {
+  return normalizeImages(raw?.images ?? raw?.image ?? raw?.icon)[0] || ''
+}
 
 export async function getHomeBanners(): Promise<BannerItem[]> {
-  try {
-    const raw: any[] = await get('/canteens/banners')
-    return raw.map((b: any) => ({
-      title: b.title,
-      subtitle: b.subtitle || '',
-      image: b.image || '',
-    }))
-  } catch {
-    console.log('[canteen] getHomeBanners 失败，使用 mock')
-    return MOCK_BANNERS
-  }
+  const raw = await get<any[]>('/canteens/banners')
+  return raw.map((b: any) => ({
+    title: b.title || '',
+    subtitle: b.subtitle || '',
+    image: firstImage(b),
+  }))
 }
 
 export async function getCanteenList(): Promise<CanteenInfo[]> {
-  try {
-    const rawList: any[] = await get('/canteens')
-    return rawList.map((c: any) => ({
-      name: c.name,
-      location: c.description || c.location || '',
-      icon: c.icon || '',
-    }))
-  } catch {
-    console.log('[canteen] getCanteenList 失败，使用 mock')
-    return MOCK_CANTEENS
-  }
+  const rawList = await get<any[]>('/canteens')
+  return rawList.map((c: any) => ({
+    name: c.name || '',
+    location: c.location || c.description || '',
+    icon: firstImage(c),
+  }))
 }
 
 export async function getCanteenImages(): Promise<Record<string, string>> {
-  try {
-    const rawMap: Record<string, string> = await get('/canteens/images')
-    return Object.keys(rawMap).length > 0 ? rawMap : {}
-  } catch {
-    console.log('[canteen] getCanteenImages 失败，使用 mock')
-    return {}
-  }
+  const rawMap = await get<Record<string, unknown>>('/canteens/images')
+  return Object.fromEntries(
+    Object.entries(rawMap || {}).map(([name, value]) => [name, normalizeImages(value)[0] || '']),
+  )
 }
 
 export async function getStallDetail(canteen: string, stallName: string): Promise<StallDetail> {
-  const fallback = {
-    name: stallName,
-    images: ['', '', ''],
-    location: canteen,
-    description: `${canteen}·${stallName}，为您提供美味的校园餐饮体验。精选新鲜食材，用心烹制每一道菜品。`,
+  const raw = await get<any>('/canteens/stallDetail', { canteen, canteenName: canteen, stallName })
+  return {
+    name: raw.name || stallName,
+    images: normalizeImages(raw.images ?? raw.image),
+    location: raw.location || canteen,
+    description: raw.description || '',
   }
-  try {
-    const raw: any = await get('/canteens/stallDetail', { canteen, stallName })
-    return {
-      name: raw.name || stallName,
-      images: raw.images || fallback.images,
-      location: raw.location || canteen,
-      description: raw.description || fallback.description,
-    }
-  } catch {
-    console.log('[canteen] getStallDetail 失败，使用 mock')
-    return fallback
-  }
+}
+
+export async function getCanteensWithStalls(): Promise<any[]> {
+  return await get<any[]>('/canteens/all')
 }
