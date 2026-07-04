@@ -1,0 +1,18 @@
+{
+  "name": "bjtu-food-dev",
+  "leadAgentId": "d8a811709c2f4a7cb20d3d650afd0f17",
+  "workspacePath": "d:/Work/vsCode_Code/WeChatCode/bjtu_food",
+  "createdAt": "2026-07-04T07:23:38.546Z",
+  "options": {
+    "workspacePath": "d:/Work/vsCode_Code/WeChatCode/bjtu_food",
+    "isAutoTeam": false
+  },
+  "members": [
+    {
+      "memberId": "team-lead@bjtu-food-dev",
+      "name": "team-lead",
+      "role": "Team Lead - coordinates the team and interacts with the user"
+    }
+  ],
+  "isAutoTeam": false
+}

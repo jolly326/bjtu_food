@@ -27,7 +27,12 @@
             r.content,
             r.images AS images_json,
             r.created_at
-        FROM review r
+        FROM review r档口老板提交 → 菜品状态变为 "pending"
+    ↓
+管理员在 Web 后台审核 → 通过/驳回
+    ↓
+通过后 → 小程序端可见（打上"新"或"活动"标签）
+
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
