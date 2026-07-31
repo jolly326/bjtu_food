@@ -12,7 +12,7 @@
               <block v-if="hasPromo">
                 <text class="promo-price">¥{{ dish.promoPrice }}</text>
                 <text class="origin-price">¥{{ dish.originalPrice }}</text>
-                <text class="promo-tag">{{ EMOJI.limited }} 限时</text>
+                <text class="promo-tag"><IconSvg name="clock" :size="22" color="#E67E22" /> 限时</text>
               </block>
               <text v-else class="price-text">¥{{ dish.price }}</text>
             </view>
@@ -22,11 +22,10 @@
             <TagLabel v-for="tag in dishTagList" :key="tag" :text="tag" />
           </view>
 
-          <view class="rating-row" @tap="goToReviewList">
+          <view class="rating-row">
             <text class="star-icon-img">{{ EMOJI.starFilled }}</text>
             <text class="rating-value">{{ dish.rating }}</text>
             <text class="rating-count">{{ dish.ratingCount }}条评价</text>
-            <text class="rating-arrow">›</text>
           </view>
         </CardSection>
 
@@ -62,7 +61,7 @@
                 <text class="attr-text">{{ portionLabel }}</text>
               </view>
               <view class="attr-item" v-if="dish.limited">
-                <text class="attr-icon">{{ EMOJI.limited }}</text>
+                <IconSvg name="clock" :size="26" color="var(--text-tertiary)" class="attr-icon" />
                 <text class="attr-text">限量供应</text>
               </view>
               <view class="attr-item" v-for="p in servePeriodLabels" :key="p">
@@ -80,13 +79,12 @@
 
         <!-- ===== task-03 评价区重做 ===== -->
         <CardSection>
-          <view class="review-header-row">
-            <text class="review-title">用户评价 ({{ reviewTotal }})</text>
+          <SectionTitle title="用户评价" noMargin>
             <view class="review-sort" @tap="toggleSortSheet">
               <text class="review-sort-text">{{ sortLabel }}</text>
               <text class="review-sort-arrow">▾</text>
             </view>
-          </view>
+          </SectionTitle>
 
           <!-- 晒图过滤开关 -->
           <view class="review-filter-row">
@@ -118,7 +116,7 @@
                   <image class="review-image" :src="getImageUrl(img)" mode="aspectFill" @tap="previewImage(rv.images!, idx)" />
                 </view>
               </view>
-              <!-- 有用点赞（👍，task-03 幂等切换） -->
+              <!-- 有用点赞（task-03 幂等切换） -->
               <view class="review-actions">
                 <UsefulButton
                   :count="rv.usefulCount || 0"
@@ -211,6 +209,8 @@ import TagLabel from '@/components/TagLabel.vue'
 import UsefulButton from '@/components/UsefulButton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteDish } from '@/api/dish'
@@ -279,7 +279,7 @@ const sortLabel = computed(() => reviewSort.value === 'useful' ? '最有用' : '
 
 function starCount(rating: number): number { return Math.round(rating) }
 
-/** 评价「有用」切换（👍，幂等；未登录引导） */
+/** 评价「有用」切换（幂等；未登录引导） */
 async function handleUseful(rv: Review) {
   if (!userStore.requireAuth()) return
   const prevUseful = !!rv.useful
@@ -443,12 +443,10 @@ function onRefresh() {
 .origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; }
 .promo-tag { font-size: 20rpx; font-weight: 700; color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); }
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
-.rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-sm); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.rating-row:active { transform: scale(var(--press-scale)); }
+.rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-sm); }
 .star-icon-img { font-size: var(--icon-sm); line-height: 1; }
 .rating-value { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }
 .rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
-.rating-arrow { font-size: var(--icon-sm); color: var(--text-tertiary); margin-left: auto; }
 
 /* 位置链路 */
 .location-chain { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
@@ -509,8 +507,7 @@ function onRefresh() {
 .fav-btn.active .fav-text { color: var(--color-like); }
 .action-bar-btns { flex: 1; display: flex; justify-content: flex-end; }
 
-/* 评价区头部 */
-.review-header-row { display: flex; align-items: center; justify-content: space-between; }
+/* 评价区头部（SectionTitle + 排序 extra） */
 .review-sort { display: flex; align-items: center; gap: 4rpx; padding: 4rpx 12rpx; border-radius: var(--radius-tag); background: var(--bg-soft); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .review-sort:active { transform: scale(0.97); }
 .review-sort-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }

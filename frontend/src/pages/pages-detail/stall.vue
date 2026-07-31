@@ -2,12 +2,25 @@
   <view class="page stall-detail-page">
     <Header :title="stallDetail?.name || '档口'" showBack />
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <template v-if="stallDetail">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="stall-skeleton">
+        <view class="sk-swiper skeleton" />
+        <view class="sk-info skeleton" />
+        <view class="sk-dish" v-for="s in 3" :key="s">
+          <view class="sk-dish-img skeleton" />
+          <view class="sk-dish-body">
+            <view class="sk-line skeleton" />
+            <view class="sk-line sk-line-short skeleton" />
+          </view>
+        </view>
+      </view>
+
+      <template v-else-if="stallDetail">
         <ImageSwiper :images="stallDetail.images" />
         <view class="info-section">
           <text class="info-name">{{ stallDetail.name }}</text>
           <view class="info-location">
-            <text class="info-location-icon">{{ EMOJI.location }}</text>
+            <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
             <text class="info-location-text">{{ stallDetail.location }}</text>
           </view>
           <view class="info-desc">
@@ -34,6 +47,7 @@
               <text class="dish-row-price">¥{{ dish.price }}</text>
             </view>
           </view>
+          <EmptyState v-else text="该档口暂无菜品" />
         </view>
 
         <!-- 申请关闭/纠错：不常用，降级为底部弱化的小文字链接（点击展开 Sheet） -->
@@ -41,6 +55,9 @@
           <text class="apply-link-text">反馈 / 申请关闭纠错 ›</text>
         </view>
       </template>
+
+      <!-- 加载失败 / 无数据空态 -->
+      <EmptyState v-else text="档口信息加载失败" :retry="true" @retry="loadData" />
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
@@ -79,6 +96,7 @@ import AppButton from '@/components/AppButton.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import { getStallDetail } from '@/api/canteen'
 import { submitApply } from '@/api/apply'
 import type { StallDetail } from '@/types/canteen'
@@ -89,6 +107,7 @@ const userStore = useUserStore()
 const stallDetail = ref<StallDetail | null>(null)
 const dishList = computed(() => dishStore.stallDishes)
 const refresherTriggered = ref(false)
+const loading = ref(true)
 
 function goToDetail(dish: Dish) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
@@ -132,12 +151,22 @@ async function submitStallApply() {
 
 async function loadData() {
   const { stallName, canteen } = dishStore.navParams
-  if (stallName && canteen) {
+  if (!stallName || !canteen) {
+    loading.value = false
+    return
+  }
+  loading.value = true
+  try {
     const [detail] = await Promise.all([
       getStallDetail(canteen, stallName),
       dishStore.fetchStallDishes(canteen, stallName),
     ])
     stallDetail.value = detail
+  } catch (e) {
+    stallDetail.value = null
+    console.error('[stall] 档口详情加载失败', e)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -165,7 +194,8 @@ function onRefresh() {
 .dish-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-sm); border-bottom: 2rpx solid var(--bg-page); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .dish-row:active { transform: scale(var(--press-scale)); }
 .dish-row:last-child { border-bottom: none; }
-.dish-row-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-tag); overflow: hidden; flex-shrink: 0; background: var(--bg-page); }
+/* 菜品图片：圆角正方形（task-13 §2.3，非圆形） */
+.dish-row-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-card); overflow: hidden; flex-shrink: 0; background: var(--bg-page); }
 .dish-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .dish-row-name { font-size: var(--font-caption); font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dish-row-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
@@ -194,4 +224,16 @@ function onRefresh() {
 @media (prefers-reduced-motion: reduce) {
   .apply-sheet { transition: opacity 0.2s ease; }
 }
+
+/* 加载骨架屏（task-13 §2.3 三态补齐） */
+.stall-skeleton { padding: var(--spacing-md); }
+.sk-swiper { width: 100%; height: 360rpx; border-radius: var(--radius-card); }
+.sk-info { width: 100%; height: 160rpx; border-radius: var(--radius-card); margin-top: var(--spacing-md); }
+.sk-dish { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) 0; border-bottom: 2rpx solid var(--bg-page); }
+.sk-dish-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-card); flex-shrink: 0; }
+.sk-dish-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-sm); }
+.sk-line { width: 60%; height: 28rpx; border-radius: 6rpx; }
+.sk-line-short { width: 40%; height: 24rpx; }
+.skeleton { background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

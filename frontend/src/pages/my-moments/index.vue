@@ -24,7 +24,7 @@
       <EmptyState
         v-else-if="moments.length === 0"
         :text="emptyText"
-        icon="💬"
+        icon="comment"
         @retry="loadData"
       />
 
@@ -49,7 +49,6 @@ import { ref, computed, onMounted } from 'vue'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { EMOJI } from '@/utils/emoji'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'

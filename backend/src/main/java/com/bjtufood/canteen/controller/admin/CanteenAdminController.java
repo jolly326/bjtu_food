@@ -39,7 +39,7 @@ public class CanteenAdminController {
                       "name": "测试食堂",
                       "images": "[\\"/images/seed/canteens/canteen-dining-hall.jpg\\"]",
                       "location": "主校区",
-                      "description": "Knife4j 测试新增食堂",
+                      "description": "Swagger UI 测试新增食堂",
                       "sortOrder": 99,
                       "status": "open"
                     }
@@ -80,7 +80,7 @@ public class CanteenAdminController {
                       "name": "测试档口",
                       "images": "[\\"/images/seed/canteens/canteen-food-counter.jpg\\"]",
                       "location": "一层",
-                      "description": "Knife4j 测试新增档口",
+                      "description": "Swagger UI 测试新增档口",
                       "avgRating": 0,
                       "sortOrder": 99,
                       "status": "open"

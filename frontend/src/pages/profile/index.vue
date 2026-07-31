@@ -157,26 +157,25 @@
           </view>
         </view>
 
-        <view class="stats-row enter-up" :style="{ '--enter-i': 1 }">
-          <view class="stat-item">
-            <text class="stat-value">{{ userStore.userStats.reviewCount }}</text>
-            <text class="stat-label">评价</text>
+        <!-- 快捷区：评价数统计 + 我要贡献入口，紧凑同宽内联小卡片（task-13 §1.4，不再各自独占整屏宽度） -->
+        <view class="quick-row enter-up" :style="{ '--enter-i': 1 }">
+          <view class="quick-card stat-card" @tap="goToReviews">
+            <text class="quick-value">{{ userStore.userStats.reviewCount }}</text>
+            <text class="quick-label">我的评价</text>
           </view>
-        </view>
-
-        <!-- 我要贡献（task-12.1 统一入口） -->
-        <view class="contribute-card enter-up" :style="{ '--enter-i': 2 }" @tap="goContribute">
-          <view class="contribute-icon">{{ EMOJI.plus }}</view>
-          <view class="contribute-body">
-            <text class="contribute-title">我要贡献</text>
-            <text class="contribute-sub">发布菜品 / 提交档口 / 申请下架纠错</text>
+          <view class="quick-card contribute-card" @tap="goContribute">
+            <IconSvg name="plus" :size="40" color="var(--color-primary)" class="contribute-icon" />
+            <view class="contribute-body">
+              <text class="contribute-title">我要贡献</text>
+              <text class="contribute-sub">发布 / 提交 / 纠错</text>
+            </view>
+            <text class="contribute-arrow">{{ EMOJI.arrowRight }}</text>
           </view>
-          <text class="contribute-arrow">{{ EMOJI.arrowRight }}</text>
         </view>
 
         <view class="menu-section">
           <view class="menu-group">
-            <text class="menu-group-title">我的内容</text>
+            <SectionTitle title="我的内容" noMargin />
             <view class="menu-card">
               <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToMySubmissions">
                 <text class="menu-icon">{{ EMOJI.list }}</text>
@@ -184,7 +183,7 @@
                 <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
               </view>
               <view class="menu-item enter-up" :style="{ '--enter-i': 4 }" @tap="goToMyMoments">
-                <text class="menu-icon">{{ EMOJI.review }}</text>
+                <IconSvg name="comment" :size="36" color="var(--text-secondary)" class="menu-icon" />
                 <text class="menu-label">我的动态</text>
                 <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
               </view>
@@ -203,7 +202,7 @@
           </view>
 
           <view class="menu-group">
-            <text class="menu-group-title">消息与服务</text>
+            <SectionTitle title="消息与服务" noMargin />
             <view class="menu-card">
               <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToNotify">
                 <text class="menu-icon">{{ EMOJI.bell }}</text>
@@ -266,7 +265,7 @@
         <text class="sheet-option-arrow">{{ EMOJI.arrowRight }}</text>
       </view>
       <view class="sheet-option" @tap="goSubmitStall">
-        <text class="sheet-option-icon">{{ EMOJI.location }}</text>
+        <IconSvg name="location" :size="36" color="var(--text-secondary)" class="sheet-option-icon" />
         <view class="sheet-option-body">
           <text class="sheet-option-title">提交档口</text>
           <text class="sheet-option-sub">新增你常去的档口</text>
@@ -333,10 +332,12 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getImageUrl } from '@/utils/image'
 import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import { uploadImage } from '@/api/upload'
 import { resetPassword, sendEmailCode } from '@/api/user'
 import { submitApply } from '@/api/apply'
@@ -732,14 +733,16 @@ onUnmounted(() => {
 .nickname-row { margin-bottom: var(--spacing-xs); }
 .nickname { font-size: var(--font-subtitle); font-weight: 600; color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
-.stats-row { display: flex; align-items: center; background: var(--bg-card); margin: var(--spacing-sm) var(--spacing-md) 0; padding: var(--spacing-md) 0; border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
-.stat-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs); }
-.stat-value { font-size: var(--font-h2); font-weight: 700; color: var(--text-primary); }
-.stat-label { font-size: var(--font-aux); color: var(--text-tertiary); }
-.stat-divider { width: 2rpx; height: 40rpx; background: var(--border-color); }
+/* 快捷区：评价数 + 我要贡献，紧凑同宽并排小卡片（task-13 §1.4） */
+.quick-row { display: flex; gap: var(--spacing-sm); margin: var(--spacing-sm) var(--spacing-md) 0; }
+.quick-card { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); box-sizing: border-box; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.quick-card:active { transform: scale(var(--press-scale)); }
+.stat-card { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-xs); padding: var(--spacing-md) 0; }
+.quick-value { font-size: var(--font-h2); font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+.quick-label { font-size: var(--font-aux); color: var(--text-tertiary); }
+.contribute-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); }
 .menu-section { margin: var(--spacing-sm) var(--spacing-md); }
 .menu-group { margin-bottom: var(--spacing-lg); }
-.menu-group-title { display: block; padding: 0 var(--spacing-sm) var(--spacing-xs); font-size: var(--font-aux); font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.02em; }
 .menu-card { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
 .menu-item { display: flex; align-items: center; padding: var(--spacing-md) var(--spacing-lg); gap: var(--spacing-sm); border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .menu-item:active { transform: scale(var(--press-scale)); }

@@ -162,6 +162,7 @@ export async function getHotSearch(): Promise<HotSearch[]> {
   return (raw || []).map((item: any) => ({
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),
+    relatedCount: Number(item.relatedCount ?? 0) || undefined,
   }))
 }
 

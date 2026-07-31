@@ -21,7 +21,7 @@ export interface Moment {
   auditStatus?: AuditStatus
   /** 退回原因（仅作者/管理员可见） */
   rejectReason?: string | null
-  /** 「有用」计数（👍） */
+  /** 「有用」计数 */
   usefulCount: number
   /** 评论数 */
   commentCount: number
@@ -42,9 +42,9 @@ export interface MomentComment {
   /** 父评论昵称（回复 @昵称 展示） */
   replyToNickname?: string | null
   content: string
-  /** 👍 有用计数（task-12.4） */
+  /** 有用计数（task-12.4） */
   usefulCount?: number
-  /** 当前用户是否已点过 👍（task-12.4） */
+  /** 当前用户是否已点过「有用」（task-12.4） */
   useful?: boolean
   createdAt?: string
 }
@@ -63,7 +63,7 @@ export interface MomentCommentPublish {
   parentId?: number | null
 }
 
-/** 👍 有用切换结果 */
+/** 有用切换结果 */
 export interface MomentUsefulResult {
   useful: boolean
   usefulCount: number

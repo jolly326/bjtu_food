@@ -1,13 +1,13 @@
 <template>
   <view class="useful-btn" :class="{ active }" @tap="$emit('click')">
-    <!-- 评价点赞（有用）：EMOJI.useful 占位（红线 §4.9③，区别于详情页底栏 EMOJI.like 喜欢） -->
-    <text class="label">{{ EMOJI.useful }}</text>
+    <!-- 评价点赞（有用）：统一矢量图标 thumb（语义唯一：有用≠喜欢） -->
+    <IconSvg class="label" name="thumb" :size="28" :color="active ? 'var(--color-like)' : 'var(--text-secondary)'" />
     <text class="count">{{ count > 0 ? count : '' }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 
 defineProps<{
   count: number

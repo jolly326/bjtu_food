@@ -26,7 +26,7 @@ public class UploadController {
             summary = "上传图片",
             description = """
                     用途：上传头像、菜品图或评价图。
-                    测试：Knife4j 中选择 multipart/form-data，字段名必须为 file。
+                    测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
                     返回：data.url（完整可访问 URL），data.relativeUrl（用于数据库保存的相对路径）。
                     """
     )

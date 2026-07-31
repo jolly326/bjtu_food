@@ -35,7 +35,7 @@
       <EmptyState
         v-else-if="moments.length === 0"
         text="还没有动态，快去发布第一条吧"
-        icon="💬"
+        icon="comment"
         :retry="loadFailed"
         @retry="loadData(true)"
       />
@@ -61,9 +61,9 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 悬浮发布 ➕ -->
+    <!-- 悬浮发布 -->
     <view class="fab" :class="{ pressed: fabPressed }" @touchstart="fabPressed = true" @touchend="fabPressed = false" @touchcancel="fabPressed = false" @mousedown="fabPressed = true" @mouseup="fabPressed = false" @mouseleave="fabPressed = false" @tap="goPublish">
-      <text class="fab-icon">{{ EMOJI.plus }}</text>
+      <IconSvg name="plus" :size="48" color="var(--text-white)" />
     </view>
 
     <CustomTabBar current="/pages/community/index" />
@@ -76,7 +76,7 @@ import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 
@@ -188,7 +188,6 @@ onMounted(() => { loadData(true) })
   -webkit-tap-highlight-color: transparent;
 }
 .fab.pressed { transform: scale(0.94); }
-.fab-icon { font-size: 52rpx; line-height: 1; color: var(--text-white); }
 
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation-duration: 1.4s; }

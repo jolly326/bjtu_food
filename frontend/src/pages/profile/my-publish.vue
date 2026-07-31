@@ -39,7 +39,7 @@
             </view>
             <view class="item-info">
               <text class="item-name">{{ item.type === 'canteen' ? '食堂：' : '档口：' }}{{ item.name }}</text>
-              <text v-if="item.location" class="item-meta">{{ EMOJI.location }} {{ item.location }}</text>
+              <text v-if="item.location" class="item-meta"><IconSvg name="location" :size="22" color="var(--text-tertiary)" /> {{ item.location }}</text>
               <text v-if="item.auditStatus === 'rejected' && item.rejectReason" class="item-reason">退回原因：{{ item.rejectReason }}</text>
             </view>
             <StatusBadge :status="(item.auditStatus as any) || 'pending'" />
@@ -66,6 +66,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
 import { getImageUrl } from '@/utils/image'
+import IconSvg from '@/components/IconSvg.vue'
 import { EMOJI } from '@/utils/emoji'
 import { getMyDishes } from '@/api/publish'
 import { getMyStalls } from '@/api/stall'

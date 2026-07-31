@@ -80,7 +80,8 @@ function handleClick() {
 .card-image {
   position: relative;
   width: 100%;
-  height: 200rpx;
+  /* 高度由瀑布流注入的 --card-img-h 驱动（实现错落），默认 200rpx 兼容非瀑布流场景 */
+  height: var(--card-img-h, 200rpx);
   background: var(--bg-page);
 }
 .card-img {

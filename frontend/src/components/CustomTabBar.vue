@@ -7,26 +7,25 @@
       :class="{ active: current === item.page }"
       @tap="switchTab(item.page)"
     >
-      <text class="tab-icon">{{ item.icon }}</text>
+      <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
       <text class="tab-text">{{ item.text }}</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 
 const props = defineProps<{
   current: string
 }>()
 
-// 红线 §4.9③：MVP 统一用 emoji 占位，不引入 iconfont SVG
-// task-06：二期扩展为 4 Tab（首页/发现/动态/我的）
+// 4 Tab（首页/发现/动态/我的），统一矢量图标（task-15）
 const tabs = [
-  { text: '首页', page: '/pages/home/index', icon: EMOJI.home },
-  { text: '发现', page: '/pages/find/index', icon: EMOJI.search },
-  { text: '动态', page: '/pages/community/index', icon: EMOJI.review },
-  { text: '我的', page: '/pages/profile/index', icon: EMOJI.profile },
+  { text: '首页', page: '/pages/home/index', icon: 'home' },
+  { text: '发现', page: '/pages/find/index', icon: 'search' },
+  { text: '动态', page: '/pages/community/index', icon: 'comment' },
+  { text: '我的', page: '/pages/profile/index', icon: 'profile' },
 ]
 
 function switchTab(page: string) {
@@ -70,7 +69,6 @@ function switchTab(page: string) {
   transform: scale(var(--press-scale));
 }
 .tab-icon {
-  font-size: 40rpx;
   line-height: 1;
   opacity: 0.55;
   transition: opacity 0.2s var(--ease-out), transform 0.12s var(--ease-out);

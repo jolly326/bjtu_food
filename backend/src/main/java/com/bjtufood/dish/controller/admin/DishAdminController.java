@@ -38,7 +38,7 @@ public class DishAdminController {
                       "stallId": 1,
                       "name": "测试菜品",
                       "price": 1200,
-                      "description": "Knife4j 测试新增菜品",
+                      "description": "Swagger UI 测试新增菜品",
                       "images": ["/images/seed/dishes/tomato-egg.jpg"],
                       "tags": "recommended",
                       "status": "on"

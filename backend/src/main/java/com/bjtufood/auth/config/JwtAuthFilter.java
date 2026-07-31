@@ -49,7 +49,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     /** 请求头名称 */
     private static final String HEADER_NAME = "Authorization";
 
-    private static final String KNIFE4J_HEADER_NAME = "bearerAuth";
+    private static final String SWAGGER_UI_HEADER_NAME = "bearerAuth";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -58,7 +58,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 1. 从请求头获取 Token
         String authHeader = request.getHeader(HEADER_NAME);
         if (!StringUtils.hasText(authHeader)) {
-            authHeader = request.getHeader(KNIFE4J_HEADER_NAME);
+            authHeader = request.getHeader(SWAGGER_UI_HEADER_NAME);
         }
 
         String token = extractToken(authHeader);

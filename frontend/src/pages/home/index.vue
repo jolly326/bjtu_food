@@ -42,8 +42,8 @@
           </swiper>
         </view>
 
-        <!-- 广播通知条：细长横向 ticker，左侧喇叭图标 + 一行省略文案 + 右侧查看全部，点击进社区 -->
-      <view class="section enter-up broadcast-section" v-if="true" :style="{ '--enter-i': 1 }">
+        <!-- 广播通知条：细长 ticker，仅通知图标 + 文本内容，内容每秒上下滚动轮换（task-13 §1.1，去除「查看全部」，按广播类型分发跳转） -->
+      <view class="section enter-up broadcast-section" v-if="broadcastList.length > 0" :style="{ '--enter-i': 1 }">
         <view
           class="broadcast-bar"
           :class="{ pressed: momentPressed }"
@@ -53,20 +53,29 @@
           @mousedown="momentPressed = true"
           @mouseup="momentPressed = false"
           @mouseleave="momentPressed = false"
-          @tap="goToCommunity"
+          @tap="goBroadcast(broadcastIndex)"
         >
           <text class="broadcast-icon">{{ EMOJI.bell }}</text>
-          <text class="broadcast-text">{{ EMOJI.fire }} 同学们都在吃什么 · 最新动态</text>
-          <text class="broadcast-more">查看全部 ›</text>
+          <view class="broadcast-ticker">
+            <view
+              class="broadcast-track"
+              :style="{ transform: `translateY(-${broadcastIndex * 100}%)` }"
+            >
+              <view
+                v-for="(b, bi) in broadcastList"
+                :key="bi"
+                class="broadcast-line"
+              >
+                <text class="broadcast-text">{{ b.text }}</text>
+              </view>
+            </view>
+          </view>
         </view>
       </view>
 
       <!-- 食堂入口（横滑卡片）：图 + 名称 + 营业状态徽标；点击进食堂详情（游客可进） -->
         <view class="section enter-up" v-if="canteens.length > 0" :style="{ '--enter-i': 1 }">
-          <view class="section-head">
-            <view class="section-bar" />
-            <text class="section-title">食堂入口</text>
-          </view>
+          <SectionTitle title="食堂入口" />
           <scroll-view class="horiz-scroll" scroll-x show-scrollbar="false">
             <view class="horiz-track">
               <view
@@ -87,10 +96,6 @@
                   <text class="canteen-illu">{{ EMOJI.canteenDish }}</text>
                 </view>
                 <view class="canteen-overlay" />
-                <view class="status-badge" :class="item.open ? 'open' : 'closed'">
-                  <text class="status-emoji">{{ item.open ? EMOJI.lockOpen : EMOJI.lock }}</text>
-                  <text class="status-text">{{ item.open ? '营业中' : '休息中' }}</text>
-                </view>
                 <text class="canteen-name">{{ item.name }}</text>
               </view>
             </view>
@@ -99,16 +104,8 @@
 
         <!-- 热门菜品（双列瀑布流 + 无限加载） -->
         <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 2 }">
-          <view class="section-head">
-            <view class="section-bar" />
-            <text class="section-title">热门菜品</text>
-            <text class="section-sub">· 上拉加载更多</text>
-          </view>
-          <WaterfallList :list="dishStore.homeHotList">
-            <template #card="{ item: dish }">
-              <DishCard :dish="dish" @click="goToDetail" />
-            </template>
-          </WaterfallList>
+          <SectionTitle title="热门菜品" />
+          <WaterfallList :list="dishStore.homeHotList" @card-click="goToDetail" />
 
           <!-- 触底加载状态 -->
           <view v-if="dishStore.homeHotLoadingMore" class="list-footer loading">
@@ -133,8 +130,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import { EMOJI } from '@/utils/emoji'
 import Header from '@/components/header.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
-import DishCard from '@/components/DishCard.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
 import type { BannerItem } from '@/types/banner'
@@ -147,14 +144,72 @@ const momentPressed = ref(false)
 const loading = ref(true)
 const refresherTriggered = ref(false)
 
-interface CanteenEntry { name: string; image: string; open: boolean }
+/** 广播通知：仅通知图标 + 文本内容，内容每秒上下滚动轮换（task-13 §1.1）。
+ *  预留多种广播类型，按 type 分发跳转（不写死社区）。
+ *  优先用后端公告（接口位）；未接入时回落本地默认公告，保证 UI 可演示。 */
+interface BroadcastItem {
+  text: string
+  type: 'dish' | 'community' | 'url' | 'canteen' | 'stall'
+  targetId?: number
+  targetUrl?: string
+}
+const broadcastList = ref<BroadcastItem[]>([])
+const broadcastIndex = ref(0)
+let broadcastTimer: ReturnType<typeof setInterval> | null = null
+
+function startBroadcastRotation() {
+  if (broadcastTimer) clearInterval(broadcastTimer)
+  if (broadcastList.value.length <= 1) return
+  broadcastTimer = setInterval(() => {
+    broadcastIndex.value = (broadcastIndex.value + 1) % broadcastList.value.length
+  }, 1000)
+}
+
+function goBroadcast(index: number) {
+  const b = broadcastList.value[index]
+  if (!b) return
+  switch (b.type) {
+    case 'dish':
+      if (b.targetId) uni.navigateTo({ url: `/pages/pages-detail/dish?id=${b.targetId}` })
+      break
+    case 'canteen':
+      uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(b.text)}` })
+      break
+    case 'stall':
+      uni.navigateTo({ url: '/pages/pages-detail/stall' })
+      break
+    case 'url':
+      if (b.targetUrl) uni.navigateTo({ url: `/pages/webview/index?src=${encodeURIComponent(b.targetUrl)}` })
+      break
+    case 'community':
+    default:
+      uni.switchTab({ url: '/pages/community/index' })
+      break
+  }
+}
+
+function loadBroadcast() {
+  // 接口位：若有后端公告接口，在此 fetch 并赋值 broadcastList。
+  // 当前回落本地默认公告（多类型，演示轮换与分发）。
+  broadcastList.value = [
+    { text: '欢迎来到食在交大，发现校园美食', type: 'community' },
+    { text: '同学们都在吃什么 · 最新动态等你来逛', type: 'community' },
+    { text: '发布菜品可获「平鉴官」认证，快来贡献', type: 'community' },
+  ]
+  broadcastIndex.value = 0
+  startBroadcastRotation()
+}
+
+function goToCommunity() {
+  uni.switchTab({ url: '/pages/community/index' })
+}
+
+interface CanteenEntry { name: string; image: string }
 
 const canteens = computed<CanteenEntry[]>(() =>
   dishStore.canteenList.map(item => ({
     name: item.name,
     image: dishStore.canteenImageMap[item.name] || item.icon || '',
-    // 食堂营业状态：一期无 canteen 级 business_hours，默认 open 展示（stub，等待后端补全）
-    open: true,
   }))
 )
 
@@ -178,6 +233,7 @@ async function loadData() {
     if (canteens.value.length > 0) {
       currentCanteen.value = canteens.value[0].name
     }
+    loadBroadcast()
   } catch (e) {
     console.error('[home] 首页数据加载失败', e)
   } finally {
@@ -186,6 +242,10 @@ async function loadData() {
 }
 
 onLoad(() => { loadData() })
+
+onUnmounted(() => {
+  if (broadcastTimer) clearInterval(broadcastTimer)
+})
 
 function onRefresh() {
   if (refresherTriggered.value) return
@@ -233,7 +293,7 @@ function handleBannerTap(banner: BannerItem) {
 
 <style scoped>
 .home-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
+.scroll-wrap { flex: 1; overflow-y: auto; width: 100%; }
 .swiper-section { padding: var(--spacing-sm) var(--spacing-md) 0; margin-bottom: var(--spacing-lg); }
 .home-swiper { height: 320rpx; border-radius: var(--radius-card); overflow: hidden; }
 .swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-gradient); }
@@ -241,7 +301,7 @@ function handleBannerTap(banner: BannerItem) {
 .swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
 .swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: -0.01em; color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }
 .swiper-subtitle { font-size: var(--font-body); color: var(--text-white-secondary); z-index: 1; }
-.section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); }
+.section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); width: 100%; box-sizing: border-box; }
 
 /* ===== 首页广播通知条（细长 ticker，像系统通知而非内容卡） ===== */
 .broadcast-section { margin-bottom: var(--spacing-md); }
@@ -263,6 +323,25 @@ function handleBannerTap(banner: BannerItem) {
   flex-shrink: 0;
   opacity: 0.7;
 }
+/* 垂直滚动 ticker：每条占满一行高度，整体按索引 translateY 切换 */
+.broadcast-ticker {
+  flex: 1;
+  min-width: 0;
+  height: 40rpx;
+  overflow: hidden;
+}
+.broadcast-track {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.45s var(--ease-out);
+  will-change: transform;
+}
+.broadcast-line {
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
 .broadcast-text {
   flex: 1;
   min-width: 0;
@@ -273,15 +352,7 @@ function handleBannerTap(banner: BannerItem) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.broadcast-more {
-  flex-shrink: 0;
-  font-size: var(--font-aux);
-  color: var(--color-primary);
-  font-weight: 600;
-}
 .section-head { display: flex; align-items: center; margin-bottom: var(--spacing-sm); }
-.section-bar { width: 8rpx; height: 32rpx; border-radius: 999rpx; background: var(--color-primary); margin-right: var(--spacing-xs); flex-shrink: 0; }
-.section-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
 .section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
 
 /* ===== 食堂入口横滑卡片 ===== */
@@ -307,13 +378,6 @@ function handleBannerTap(banner: BannerItem) {
 .canteen-illu { font-size: 80rpx; line-height: 1; opacity: 0.3; }
 .canteen-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-deep) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
 .canteen-name { position: absolute; left: var(--spacing-md); bottom: var(--spacing-md); right: var(--spacing-md); font-size: var(--font-caption); font-weight: 700; color: var(--text-white); z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status-badge { position: absolute; top: var(--spacing-sm); left: var(--spacing-sm); z-index: 2; display: inline-flex; align-items: center; gap: 4rpx; padding: 4rpx 12rpx; border-radius: var(--radius-tag); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.status-badge.open { background: var(--color-success-soft); }
-.status-badge.closed { background: var(--bg-card); }
-.status-emoji { font-size: 20rpx; line-height: 1; }
-.status-text { font-size: 20rpx; font-weight: 700; }
-.status-badge.open .status-text { color: var(--color-success); }
-.status-badge.closed .status-text { color: var(--text-tertiary); }
 
 /* ===== 列表底部状态 ===== */
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }

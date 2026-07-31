@@ -10,7 +10,7 @@ export interface Dish {
   images?: string[]
   rating: number
   ratingCount: number
-  /** 喜欢数（👍，后端统一以 likeCount 为准） */
+  /** 喜欢数（后端统一以 likeCount 为准） */
   likeCount: number
   tags: string[]
   description: string
@@ -91,7 +91,10 @@ export interface Suggestion {
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */
 export interface HotSearch {
   keyword: string
+  /** 热度值 */
   heat: number
+  /** 关联数（菜品/档口关联数量，后端可选返回，缺省则不展示） */
+  relatedCount?: number
 }
 
 /** 「我的发布」菜品（含审核态与退回原因，供审核状态页展示） */

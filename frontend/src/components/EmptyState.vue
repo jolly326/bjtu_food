@@ -1,6 +1,6 @@
 <template>
   <view class="empty-state">
-    <text v-if="icon" class="empty-icon">{{ icon }}</text>
+    <IconSvg v-if="icon" :name="icon" :size="120" color="var(--text-tertiary)" class="empty-icon" />
     <text v-else class="empty-icon">{{ EMOJI.empty }}</text>
     <text class="empty-text">{{ text }}</text>
     <view v-if="retry" class="retry-btn" @tap="$emit('retry')">
@@ -11,8 +11,10 @@
 
 <script setup lang="ts">
 import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 
 defineProps<{
+  /** 图标名（IconSvg 的 name，如 'comment'）；不传则用默认 emoji 占位 */
   text?: string
   icon?: string
   retry?: boolean

@@ -75,7 +75,7 @@ export async function getMyMoments(auditStatus?: string): Promise<Moment[]> {
   return (res || []).map(toMoment)
 }
 
-/** 👍 有用切换（STU，幂等） */
+/** 有用切换（STU，幂等） */
 export async function toggleUseful(id: number): Promise<MomentUsefulResult> {
   return post<MomentUsefulResult>(`/moments/${id}/useful`)
 }
@@ -97,7 +97,7 @@ export async function deleteMomentComment(momentId: number, commentId: number): 
   await del<void>(`/my/moments/${momentId}/comments/${commentId}`)
 }
 
-/** 评论「有用」👍 幂等切换（STU，task-12.4） */
+/** 评论「有用」幂等切换（STU，task-12.4） */
 export async function toggleCommentUseful(momentId: number, commentId: number): Promise<MomentUsefulResult> {
   return post<MomentUsefulResult>(`/moments/${momentId}/comments/${commentId}/useful`)
 }

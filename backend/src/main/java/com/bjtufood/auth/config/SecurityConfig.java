@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
  * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
  * - GET /lists/share/{token}（分享查看）
- * - Knife4j 相关路径
+ * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
 @EnableWebSecurity
@@ -56,12 +56,10 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/email-code",
             "/auth/password/reset",
-            // Knife4j / Swagger 文档
-            "/doc.html",
+            // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",
-            "/webjars/**",
-            "/swagger-resources/**"
+            "/webjars/**"
     };
 
     /**

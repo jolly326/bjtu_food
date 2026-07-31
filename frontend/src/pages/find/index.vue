@@ -2,20 +2,15 @@
   <view class="page find-page">
     <Header title="发现" />
 
-    <!-- 搜索框（联想，debounce 300ms） -->
-    <view class="search-wrap" :style="{ margin: 'var(--spacing-sm) var(--spacing-lg)' }">
-      <view class="search-bar-inline">
-        <text class="search-icon-img">{{ EMOJI.search }}</text>
-        <input
-          class="search-input"
-          v-model="keyword"
-          placeholder="搜索菜品、档口或食堂"
-          confirm-type="search"
-          @input="onKeywordInput"
-          @confirm="onSearchConfirm"
-        />
-        <text v-if="keyword" class="clear-btn" @tap="clearKeyword">✕</text>
-      </view>
+    <!-- 搜索框（SearchBar 组件，输入模式 + 联想 debounce 300ms）；宽度放宽至接近内容区满宽，左右留白与首页一致 -->
+    <view class="search-wrap" :style="{ margin: 'var(--spacing-sm) var(--spacing-md)' }">
+      <SearchBar
+        v-model="keyword"
+        input-mode
+        placeholder="搜索菜品、档口或食堂"
+        @search="onSearchConfirm"
+        @update:model-value="onKeywordInput"
+      />
 
       <!-- 搜索联想下拉 -->
       <view v-if="showSuggest && suggestions.length > 0" class="suggest-panel">
@@ -32,7 +27,10 @@
           @mouseleave="pressedKey = ''"
           @tap="goSuggestion(s)"
         >
-          <text class="suggest-icon">{{ suggestIcon(s.type) }}</text>
+          <view class="suggest-icon">
+            <image v-if="s.image" :src="s.image" mode="aspectFill" class="suggest-thumb" />
+            <IconSvg v-else :name="suggestIcon(s.type)" :size="32" color="var(--text-tertiary)" />
+          </view>
           <text class="suggest-name">{{ s.name }}</text>
           <text class="suggest-type">{{ suggestTypeLabel(s.type) }}</text>
         </view>
@@ -51,13 +49,9 @@
       <view v-if="!inFilter" class="discover-home">
         <!-- 历史搜索：标签 chip 行，可单个删除 / 一键清空 -->
         <view class="block" v-if="historyList.length > 0">
-          <view class="block-head history-head">
-            <view class="history-title-row">
-              <text class="section-bar" />
-              <text class="section-title">历史搜索</text>
-            </view>
-            <text class="history-clear" @tap="clearHistory">清空</text>
-          </view>
+          <SectionTitle title="历史搜索">
+            <text class="section-extra history-clear" @tap="clearHistory">清空</text>
+          </SectionTitle>
           <view class="history-chips">
             <view
               v-for="(kw, i) in historyList"
@@ -73,18 +67,15 @@
               @tap="goKeyword(kw)"
             >
               <text class="history-chip-text">{{ kw }}</text>
-              <text class="history-chip-del" @tap.stop="removeHistory(i)">✕</text>
+              <view class="history-chip-del" @tap.stop="removeHistory(i)">
+                <IconSvg name="close" :size="24" color="var(--text-tertiary)" />
+              </view>
             </view>
           </view>
         </view>
 
-        <!-- 发现：分类入口（食堂入口仅保留在首页，避免与首页重复） -->
-        <view class="block" v-if="categories.length > 0">
-          <view class="block-head">
-            <view class="section-bar" />
-            <text class="section-title">发现</text>
-          </view>
-          <!-- 分类入口宫格 -->
+        <!-- 分类入口宫格：直接置于搜索框下方（去掉「分类」标题文字，task-13 §1.2） -->
+        <view class="block category-block" v-if="categories.length > 0">
           <view class="category-grid">
             <view
               v-for="cat in categories"
@@ -99,18 +90,17 @@
               @mouseleave="pressedKey = ''"
               @tap="goCategory(cat)"
             >
-              <text class="category-icon">{{ cat.icon }}</text>
+              <view class="category-icon">
+                <IconSvg :name="categoryIcon(cat.key)" :size="52" color="var(--color-primary)" />
+              </view>
               <text class="category-label">{{ cat.label }}</text>
             </view>
           </view>
         </view>
 
-        <!-- 热搜榜单：排名 + 词 + 热度 -->
+        <!-- 热搜榜单：排名 + 左侧圆角方配图 + 词 + 热度值/关联数 -->
         <view class="block" v-if="dishStore.hotSearchList.length > 0">
-          <view class="block-head">
-            <text class="section-bar" />
-            <text class="section-title">{{ EMOJI.fire }} 本周热搜</text>
-          </view>
+          <SectionTitle title="本周热搜" />
           <view class="hotsearch-list">
             <view
               v-for="(h, idx) in dishStore.hotSearchList"
@@ -126,8 +116,17 @@
               @tap="goKeyword(h.keyword)"
             >
               <text class="hotsearch-rank" :class="{ top: idx < 3 }">{{ idx + 1 }}</text>
-              <text class="hotsearch-keyword">{{ h.keyword }}</text>
-              <text class="hotsearch-heat">{{ EMOJI.fire }} {{ h.heat }}</text>
+              <view class="hotsearch-thumb">
+                <image v-if="hotImage(h)" :src="hotImage(h)" mode="aspectFill" class="hotsearch-thumb-img" />
+                <IconSvg v-else name="fire" :size="32" color="var(--color-price)" />
+              </view>
+              <view class="hotsearch-body">
+                <text class="hotsearch-keyword">{{ h.keyword }}</text>
+                <text class="hotsearch-meta">
+                  <text class="hotsearch-heat">{{ h.heat }} 热度</text>
+                  <text v-if="h.relatedCount" class="hotsearch-related">· {{ h.relatedCount }} 个关联</text>
+                </text>
+              </view>
             </view>
           </view>
         </view>
@@ -140,19 +139,19 @@
             class="filter-sort"
             :class="{ active: activeSort === 'heat' }"
             @tap="switchSort('heat')"
-          >{{ EMOJI.hot }} 热度</view>
+          ><IconSvg name="fire" :size="26" :color="activeSort === 'heat' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 热度</view>
           <view
             class="filter-sort"
             :class="{ active: activeSort === 'rating' }"
             @tap="switchSort('rating')"
-          >{{ EMOJI.starFilled }} 评分</view>
+          ><IconSvg name="star" :size="26" :color="activeSort === 'rating' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 评分</view>
           <view
             class="filter-sort"
             :class="{ active: activeSort === 'price' }"
             @tap="switchSort('price')"
-          >{{ EMOJI.price }} 价格</view>
-          <view class="filter-sort filter-trigger" @tap="openFilterSheet">{{ EMOJI.filter }} 筛选</view>
-          <text class="filter-back" @tap="exitFilter">{{ EMOJI.back }} 返回</text>
+          ><IconSvg name="price" :size="26" :color="activeSort === 'price' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 价格</view>
+          <view class="filter-sort filter-trigger" @tap="openFilterSheet"><IconSvg name="filter" :size="26" color="var(--text-secondary)" /> 筛选</view>
+          <text class="filter-back" @tap="exitFilter"><IconSvg name="back" :size="26" color="var(--color-primary)" /> 返回</text>
         </view>
 
         <view class="filter-summary" v-if="activeFilterSummary">
@@ -160,11 +159,7 @@
           <text class="filter-clear" @tap="clearFilter">清除筛选</text>
         </view>
 
-        <WaterfallList v-if="dishStore.dishList.length > 0" :list="dishStore.dishList">
-          <template #card="{ item: dish }">
-            <DishCard :dish="dish" @click="goToDetail" />
-          </template>
-        </WaterfallList>
+        <WaterfallList v-if="dishStore.dishList.length > 0" :list="dishStore.dishList" @card-click="goToDetail" />
         <EmptyState
           v-else-if="!dishStore.loading"
           :text="keyword ? '没有找到相关菜品' : '没有符合条件的菜品'"
@@ -189,7 +184,7 @@
     <view class="filter-sheet" :class="{ open: filterSheetOpen }">
       <view class="sheet-head">
         <text class="sheet-title">筛选</text>
-        <text class="sheet-close" @tap="closeFilterSheet">✕</text>
+        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="closeFilterSheet" />
       </view>
 
       <scroll-view class="sheet-body" scroll-y>
@@ -244,13 +239,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { EMOJI } from '@/utils/emoji'
 import Header from '@/components/header.vue'
 import SearchBar from '@/components/SearchBar.vue'
-import DishCard from '@/components/DishCard.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish, DishSortBy, Suggestion } from '@/types/dish'
 import { DISH_CATEGORIES } from '@/constants/categories'
@@ -329,14 +324,35 @@ const activeFilterSummary = computed(() => {
 })
 
 function suggestIcon(type: Suggestion['type']): string {
-  if (type === 'dish') return EMOJI.dishPlaceholder
-  if (type === 'stall') return EMOJI.canteenDish
-  return EMOJI.home
+  if (type === 'dish') return 'dish'
+  if (type === 'stall') return 'dish'
+  return 'home'
 }
 function suggestTypeLabel(type: Suggestion['type']): string {
   if (type === 'dish') return '菜品'
   if (type === 'stall') return '档口'
   return '食堂'
+}
+
+/** 分类图标名（映射 DISH_CATEGORIES.key → 矢量图标） */
+function categoryIcon(key: string): string {
+  const map: Record<string, string> = {
+    noodle: 'dish',
+    rice: 'dish',
+    malatang: 'fire',
+    breakfast: 'dish',
+    midnight: 'clock',
+    fastfood: 'dish',
+    snack: 'dish',
+    drink: 'dish',
+  }
+  return map[key] || 'dish'
+}
+
+/** 热搜左侧配图：若联想数据中存在同名菜品图则展示，否则回落矢量图标（由模板处理） */
+function hotImage(h: { keyword: string }): string {
+  const match = suggestions.value.find(s => s.type === 'dish' && s.name === h.keyword)
+  return match?.image || ''
 }
 
 let suggestTimer: ReturnType<typeof setTimeout> | null = null
@@ -517,18 +533,6 @@ watch(keyword, (value) => {
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
 .search-wrap { position: relative; z-index: 20; }
-.search-bar-inline {
-  display: flex;
-  align-items: center;
-  background: var(--bg-card);
-  border-radius: var(--radius-btn);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  box-shadow: 0 2rpx 8rpx var(--overlay-dark-faint);
-  border: 2rpx solid var(--border-color);
-}
-.search-icon-img { font-size: 30rpx; line-height: 1; margin-right: var(--spacing-sm); }
-.search-input { flex: 1; font-size: var(--font-body); color: var(--text-primary); background: transparent; border: none; outline: none; }
-.clear-btn { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); flex-shrink: 0; }
 
 /* 联想下拉 */
 .suggest-panel {
@@ -553,19 +557,16 @@ watch(keyword, (value) => {
 }
 .suggest-item:last-child { border-bottom: none; }
 .suggest-item.pressed { transform: scale(0.97); background: var(--bg-soft); }
-.suggest-icon { font-size: 32rpx; line-height: 1; }
+.suggest-icon { width: 56rpx; height: 56rpx; border-radius: var(--radius-tag); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
+.suggest-thumb { width: 100%; height: 100%; }
 .suggest-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-type { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
 
 /* 区块通用 */
 .block { margin-bottom: var(--spacing-lg); padding: 0 var(--spacing-md); }
-.block-head { display: flex; align-items: center; margin-bottom: var(--spacing-sm); }
-.section-bar { width: 8rpx; height: 32rpx; border-radius: 999rpx; background: var(--color-primary); margin-right: var(--spacing-xs); flex-shrink: 0; }
-.section-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+.section-extra { flex-shrink: 0; }
 
 /* 历史搜索 */
-.history-head { justify-content: space-between; }
-.history-title-row { display: flex; align-items: center; }
 .history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 500; padding: var(--spacing-xs); }
 .history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .history-chip {
@@ -606,18 +607,24 @@ watch(keyword, (value) => {
   -webkit-tap-highlight-color: transparent;
 }
 .category-cell.pressed { transform: scale(0.97); }
-.category-icon { font-size: 52rpx; line-height: 1; }
+.category-icon { width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; }
 .category-label { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
 
 /* 热搜 */
 .hotsearch-list { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
-.hotsearch-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease, background 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.hotsearch-item { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease, background 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .hotsearch-item:last-child { border-bottom: none; }
 .hotsearch-item.pressed { transform: scale(0.97); background: var(--bg-soft); }
-.hotsearch-rank { width: 40rpx; text-align: center; font-size: var(--font-body); font-weight: 800; color: var(--text-tertiary); }
+.hotsearch-rank { width: 44rpx; text-align: center; font-size: var(--font-body); font-weight: 800; color: var(--text-tertiary); flex-shrink: 0; }
 .hotsearch-rank.top { color: var(--color-price); }
-.hotsearch-keyword { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hotsearch-heat { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
+/* 左侧配图：圆角正方形（task-13 §1.2） */
+.hotsearch-thumb { width: 72rpx; height: 72rpx; border-radius: var(--radius-card); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
+.hotsearch-thumb-img { width: 100%; height: 100%; }
+.hotsearch-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.hotsearch-keyword { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hotsearch-meta { display: flex; align-items: center; gap: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
+.hotsearch-heat { color: var(--color-price); font-weight: 600; }
+.hotsearch-related { color: var(--text-tertiary); }
 
 /* 横滑 */
 .horiz-scroll { overflow-x: auto; white-space: nowrap; }
@@ -627,7 +634,7 @@ watch(keyword, (value) => {
 
 /* 筛选结果页 */
 .filter-bar { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); flex-wrap: wrap; }
-.filter-sort { padding: var(--spacing-xs) var(--spacing-md); border-radius: 28rpx; font-size: 26rpx; font-weight: 600; background: var(--bg-placeholder); color: var(--text-secondary); transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.12s var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.filter-sort { display: inline-flex; align-items: center; gap: 6rpx; padding: var(--spacing-xs) var(--spacing-md); border-radius: 28rpx; font-size: 26rpx; font-weight: 600; background: var(--bg-placeholder); color: var(--text-secondary); transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.12s var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .filter-sort.active { background: var(--color-primary); color: var(--text-white); }
 .filter-sort:active { transform: scale(0.97); }
 .filter-trigger { margin-left: auto; }

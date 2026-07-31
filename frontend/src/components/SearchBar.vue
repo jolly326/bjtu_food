@@ -3,17 +3,13 @@
 
     <!-- 点击模式（首页：点击跳转搜索页） -->
     <template v-if="!inputMode">
-      <view class="search-icon">
-        <text class="icon-img">{{ EMOJI.search }}</text>
-      </view>
+      <IconSvg name="search" :size="32" color="var(--text-tertiary)" />
       <text class="search-placeholder" @tap="handleTap">{{ placeholder }}</text>
     </template>
 
     <!-- 输入模式（发现页：就地搜索） -->
     <template v-else>
-      <view class="search-icon">
-        <text class="icon-img">{{ EMOJI.search }}</text>
-      </view>
+      <IconSvg name="search" :size="32" color="var(--text-tertiary)" />
       <input
         :value="modelValue"
         class="search-input"
@@ -22,7 +18,14 @@
         @input="handleInput"
         @confirm="handleConfirm"
       />
-      <text v-if="modelValue" class="clear-btn" @tap="handleClear">✕</text>
+      <IconSvg
+        v-if="modelValue"
+        class="clear-btn"
+        name="close"
+        :size="28"
+        color="var(--text-tertiary)"
+        @click="handleClear"
+      />
     </template>
 
   </view>
@@ -30,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   placeholder?: string
@@ -85,10 +88,6 @@ function handleClear() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-}
-.icon-img {
-  font-size: 30rpx;
-  line-height: 1;
   margin-right: var(--spacing-sm);
 }
 .search-placeholder {
@@ -105,9 +104,10 @@ function handleClear() {
   outline: none;
 }
 .clear-btn {
-  font-size: var(--font-body);
-  color: var(--text-tertiary);
-  padding: 0 var(--spacing-xs);
   flex-shrink: 0;
+  padding: 0 var(--spacing-xs);
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
 }
+.clear-btn:active { transform: scale(0.9); }
 </style>

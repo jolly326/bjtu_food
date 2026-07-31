@@ -33,7 +33,7 @@ function toReview(raw: any): Review {
     content: raw.content || '',
     images: normalizeImages(raw.images),
     createTime: raw.createTime || '',
-    // 语义统一：后端 ReviewVO.usefulCount（👍 有用计数）
+    // 语义统一：后端 ReviewVO.usefulCount（有用计数）
     usefulCount: Number(raw.usefulCount ?? raw.useful_count ?? 0),
     // 当前登录用户是否已标记有用（仅登录态返回）
     useful: !!raw.useful,

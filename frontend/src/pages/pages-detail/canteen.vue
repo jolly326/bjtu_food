@@ -1,50 +1,51 @@
 <template>
   <view class="page stall-page">
-    <Header :title="canteenName" showBack />
-    <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 档口筛选 tab bar：带档口图片预览 + 档口信息（评分/菜品数），点选按档口筛选菜品，长按进档口详情 -->
-      <view class="stall-filter" v-if="stallList.length > 0">
-        <scroll-view class="stall-filter-scroll" scroll-x show-scrollbar="false">
-          <view
-            class="stall-tab"
-            :class="{ on: activeStall === '' }"
-            @tap="activeStall = ''"
-          >
-            <view class="stall-tab-thumb stall-tab-thumb-all">{{ EMOJI.canteenDish }}</view>
-            <text class="stall-tab-name">全部</text>
+    <Header :title="canteenName || '食堂详情'" showBack />
+    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+      <!-- ① 食堂介绍与信息区块（图 + 名称 + 简介 + 基础信息，task-13 §2.2 内容更详细） -->
+      <view class="canteen-hero" v-if="canteenInfo">
+        <view class="canteen-hero-img">
+          <image v-if="canteenInfo.image" :src="canteenInfo.image" mode="aspectFill" class="canteen-hero-img-el" />
+          <view v-else class="canteen-hero-ph">
+            <IconSvg name="dish" :size="96" color="var(--text-tertiary)" />
           </view>
-          <view
-            v-for="stall in stallList"
-            :key="stall.id"
-            class="stall-tab"
-            :class="{ on: activeStall === stall.name }"
-            @tap="activeStall = stall.name"
-            @longpress="goToStall(stall)"
-          >
-            <image v-if="stall.image" class="stall-tab-thumb" :src="getImageUrl(stall.image)" mode="aspectFill" />
-            <view v-else class="stall-tab-thumb stall-tab-thumb-ph">{{ EMOJI.dishPlaceholder }}</view>
-            <text class="stall-tab-name">{{ stall.name }}</text>
-            <view class="stall-tab-meta">
-              <text class="stall-tab-rating">{{ EMOJI.starFilled }} {{ formatRating(stall.rating) }}</text>
-              <text class="stall-tab-count">{{ stall.dishCount }}道</text>
-            </view>
+        </view>
+        <view class="canteen-hero-info">
+          <text class="canteen-hero-name">{{ canteenInfo.name }}</text>
+          <view class="canteen-hero-stats">
+            <text v-if="canteenInfo.avgRating > 0" class="canteen-hero-stat">
+              <IconSvg name="star" :size="22" color="#FFD166" /> {{ canteenInfo.avgRating.toFixed(1) }}
+            </text>
+            <text class="canteen-hero-stat">{{ canteenInfo.stallCount }} 个档口</text>
           </view>
-        </scroll-view>
-        <!-- 选中档口下展开一行简介预览（档口位置/简介） -->
-        <view class="stall-intro" v-if="activeStallInfo">
-          <text class="stall-intro-text">{{ activeStallInfo.location }}</text>
+          <text v-if="canteenInfo.location" class="canteen-hero-loc">
+            <IconSvg name="location" :size="24" color="var(--text-tertiary)" /> {{ canteenInfo.location }}
+          </text>
+          <text v-if="canteenInfo.businessHours" class="canteen-hero-loc">
+            <IconSvg name="clock" :size="24" color="var(--text-tertiary)" /> 营业 {{ canteenInfo.businessHours }}
+          </text>
+          <text v-if="canteenInfo.description" class="canteen-hero-desc">{{ canteenInfo.description }}</text>
+        </view>
+      </view>
+      <view v-else-if="loading" class="canteen-hero canteen-hero-skeleton">
+        <view class="canteen-hero-img skeleton-block" />
+        <view class="canteen-hero-info">
+          <view class="skeleton-line skeleton-name" />
+          <view class="skeleton-line skeleton-loc" />
         </view>
       </view>
 
-      <!-- 同一菜品瀑布流：按档口筛选，统一浏览，不再与档口列表分开 -->
-      <view class="dish-section" v-if="filteredDishes.length > 0">
-        <WaterfallList :list="filteredDishes">
-          <template #card="{ item: dish }">
-            <DishCard :dish="dish" @click="goToDetail" />
-          </template>
-        </WaterfallList>
+      <!-- ② 各档口单列卡片流（不直接显示菜品，与档口详情同构） -->
+      <SectionTitle v-if="stallList.length > 0" title="档口" />
+      <view class="stall-stream" v-if="stallList.length > 0">
+        <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
       </view>
-      <EmptyState v-else text="该食堂暂无菜品" />
+      <EmptyState
+        v-else-if="!loading"
+        text="该食堂暂无档口"
+        :retry="true"
+        @retry="loadStalls"
+      />
 
       <!-- 申请调整/下架：不常用，降级为底部弱化的小文字链接，不再横卡置顶 -->
       <view class="apply-link" @tap="openApply">
@@ -58,7 +59,7 @@
     <view class="apply-sheet" :class="{ open: applyOpen }">
       <view class="sheet-head">
         <text class="sheet-title">申请调整 / 下架</text>
-        <text class="sheet-close" @tap="applyOpen = false">✕</text>
+        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="applyOpen = false" />
       </view>
       <view class="form-block">
         <text class="form-label">申请动作</text>
@@ -79,100 +80,101 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
-import DishCard from '@/components/DishCard.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
+import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
-import type { StallInfo, DishPreview } from '@/components/StallCard.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
-import type { Dish } from '@/types/dish'
-import { getCanteensWithStalls } from '@/api/canteen'
-import { getStallDishes, searchDishes } from '@/api/dish'
+import { getCanteensWithStalls, getCanteenImages } from '@/api/canteen'
 import { submitApply } from '@/api/apply'
 import { getImageUrl } from '@/utils/image'
-import { EMOJI } from '@/utils/emoji'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
 const canteenName = ref('')
 const canteenId = ref(0)
-const stallList = ref<StallInfo[]>([])
-const canteenDishes = ref<Dish[]>([])
-/** 档口筛选：'' = 全部；其余为 stall.name */
-const activeStall = ref('')
+/** 重构后的单列档口卡数据（StallCardItem[]） */
+const stallList = ref<StallCardItem[]>([])
+const loading = ref(false)
+const refreshing = ref(false)
 
-/** 按档口筛选后的菜品（合并浏览流，档口与菜品不再分两个区块） */
-const filteredDishes = computed(() => {
-  if (!activeStall.value) return canteenDishes.value
-  return canteenDishes.value.filter((d) => d.stallName === activeStall.value)
-})
-
-/** 档口评分格式化：保留 1 位小数，未评分显示「新」 */
-function formatRating(rating?: number): string {
-  if (rating == null || rating === 0) return '新'
-  return rating.toFixed(1)
-}
-
-/** 当前选中档口的完整信息（用于 tab 下方简介预览） */
-const activeStallInfo = computed<StallInfo | undefined>(() => {
-  if (!activeStall.value) return undefined
-  return stallList.value.find((s) => s.name === activeStall.value)
-})
+/** 食堂介绍区块信息（task-13 §2.2 补充营业时间/地址/档口数/综合评分等） */
+const canteenInfo = ref<{
+  name: string
+  image: string
+  location: string
+  description: string
+  /** 营业时间（后端可选返回，缺省则不展示） */
+  businessHours: string
+  /** 档口数 */
+  stallCount: number
+  /** 综合评分（档口均分派生，后端返整体评分优先） */
+  avgRating: number
+} | null>(null)
 
 function firstImage(value: unknown): string {
-  return Array.isArray(value) ? (value.find(item => typeof item === 'string') || '') : ''
+  if (Array.isArray(value)) return (value.find(item => typeof item === 'string') || '') as string
+  if (typeof value === 'string') return value
+  return ''
 }
 
 async function loadStalls() {
   if (!canteenName.value) return
-  const canteens = await getCanteensWithStalls()
-  const current = canteens.find((item: any) => item.name === canteenName.value)
-  canteenId.value = Number(current?.id || 0)
-  const stalls = current?.stalls || []
-  stallList.value = await Promise.all(stalls.map(async (stall: any) => {
-    let dishes: Dish[] = []
-    try {
-      dishes = await getStallDishes(canteenName.value, stall.name)
-    } catch {
-      dishes = []
+  loading.value = true
+  try {
+    const [canteens, imgMap] = await Promise.all([
+      getCanteensWithStalls(),
+      getCanteenImages().catch(() => ({} as Record<string, string>)),
+    ])
+    const current = (canteens as any[]).find((item: any) => item.name === canteenName.value)
+    canteenId.value = Number(current?.id || 0)
+    const stalls = (current?.stalls || []) as any[]
+    // 综合评分：优先后端整体评分，否则由各档口评分均值派生
+    const ratedStalls = stalls.filter((s: any) => (s.avgRating ?? s.rating))
+    const avgRating = Number(current?.avgRating ?? 0) ||
+      (ratedStalls.length
+        ? ratedStalls.reduce((sum: number, s: any) => sum + Number(s.avgRating ?? s.rating ?? 0), 0) / ratedStalls.length
+        : 0)
+    // 食堂介绍区块（task-13 §2.2：补充营业时间/地址/档口数/综合评分等）
+    canteenInfo.value = {
+      name: current?.name || canteenName.value,
+      image: (imgMap as Record<string, string>)[canteenName.value] || firstImage(current?.images),
+      location: current?.location || '',
+      description: current?.description || '',
+      businessHours: current?.businessHours || '',
+      stallCount: stalls.length,
+      avgRating,
     }
-    return {
+    // 单列档口卡：图 + 名 + 简介 + 评分/菜品数/人均/标签（task-13 §2.2，卡片尺寸不变）
+    stallList.value = stalls.map((stall: any) => ({
       id: Number(stall.id || 0),
       name: stall.name || '',
-      location: stall.location || current?.location || canteenName.value,
-      dishCount: dishes.length,
       image: firstImage(stall.images),
+      description: stall.description || '',
       rating: stall.avgRating ?? stall.rating ?? 0,
-      ratingCount: dishes.reduce((sum, d) => sum + (d.ratingCount || 0), 0),
-      dishes: dishes.slice(0, 10).map(d => ({
-        id: d.id,
-        name: d.name,
-        price: d.price,
-        image: d.image,
-      })),
-    }
-  }))
-  // 食堂全部菜品（按食堂名搜索）
-  try {
-    canteenDishes.value = await searchDishes({ canteen: canteenName.value })
+      dishCount: Number(stall.dishCount ?? 0),
+      perCapita: stall.perCapita != null ? Number(stall.perCapita) : undefined,
+      location: stall.location || current?.location || '',
+      tags: Array.isArray(stall.tags) ? stall.tags : (String(stall.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)),
+    }))
   } catch {
-    canteenDishes.value = []
+    stallList.value = []
+    canteenInfo.value = { name: canteenName.value, image: '', location: '', description: '' }
+  } finally {
+    loading.value = false
   }
 }
 
-function goToStall(stall: StallInfo) {
+function goToStall(stall: StallCardItem) {
   dishStore.navParams.stallName = stall.name
   dishStore.navParams.canteen = canteenName.value
   uni.navigateTo({ url: '/pages/pages-detail/stall' })
-}
-
-function goToDetail(dish: DishPreview) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
 }
 
 /** 快捷申请调整/下架（task-12.1，POST /my/apply，CLOSE/CHANGE + entityId=当前食堂） */
@@ -211,6 +213,12 @@ async function submitCanteenApply() {
   }
 }
 
+function onRefresh() {
+  if (refreshing.value) return
+  refreshing.value = true
+  loadStalls().finally(() => { refreshing.value = false })
+}
+
 onLoad(async (query) => {
   if (query?.canteen) {
     canteenName.value = decodeURIComponent(query.canteen as string)
@@ -231,105 +239,44 @@ onLoad(async (query) => {
   overflow-y: auto;
 }
 
-/* 菜品区：补齐横向 padding，避免左列贴屏幕边 */
-.dish-section {
-  padding: 0 var(--spacing-md);
+/* ① 食堂介绍与信息区块 */
+.canteen-hero {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  margin: var(--spacing-md);
+  box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
-
-/* 关联动态 */
-.moment-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.moment-item { padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.moment-item.pressed { transform: scale(0.985); }
-.moment-text { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.5; }
-.moment-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6rpx; }
-.moment-author { font-size: var(--font-aux); color: var(--text-tertiary); }
-.moment-count { font-size: var(--font-aux); color: var(--text-tertiary); }
-
-/* 档口筛选 tab bar：带图片缩略图，点选筛选菜品（档口与菜品合并浏览） */
-.stall-filter { padding: var(--spacing-md) var(--spacing-md) 0; box-sizing: border-box; }
-.stall-filter-scroll { white-space: nowrap; }
-.stall-tab {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-right: var(--spacing-md);
-  vertical-align: top;
-  transition: transform 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.stall-tab:active { transform: scale(0.97); }
-.stall-tab-thumb {
-  width: 104rpx;
-  height: 104rpx;
+.canteen-hero-img {
+  width: 200rpx;
+  height: 200rpx;
   border-radius: var(--radius-card);
   background: var(--bg-page);
-  box-shadow: var(--shadow-card);
-  border: 4rpx solid transparent;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48rpx;
-  line-height: 1;
-}
-.stall-tab.on .stall-tab-thumb { border-color: var(--color-primary); }
-.stall-tab-thumb-all { color: var(--color-primary); }
-.stall-tab-thumb-ph { color: var(--text-tertiary); opacity: 0.5; }
-.stall-tab-name {
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  font-weight: 600;
-  max-width: 120rpx;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.stall-tab.on .stall-tab-name { color: var(--color-primary); }
-
-/* 档口信息：评分 + 菜品数（缩略图下方一行） */
-.stall-tab-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  max-width: 120rpx;
-  overflow: hidden;
-}
-.stall-tab-rating {
-  display: inline-flex;
-  align-items: center;
-  gap: 2rpx;
-  font-size: 20rpx;
-  font-weight: 700;
-  color: var(--color-star);
   flex-shrink: 0;
 }
-.stall-tab-count {
-  font-size: 20rpx;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.canteen-hero-img-el { width: 100%; height: 100%; }
+.canteen-hero-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.canteen-hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.canteen-hero-name { font-size: var(--font-h3); font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
+.canteen-hero-loc { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-secondary); }
+.canteen-hero-desc { font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.canteen-hero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
+.canteen-hero-stat { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 
-/* 选中档口下展开的简介预览（位置/简介） */
-.stall-intro {
-  margin: var(--spacing-sm) var(--spacing-sm) 0;
-  padding: var(--spacing-xs) var(--spacing-md);
-  background: var(--bg-soft);
-  border-radius: var(--radius-tag);
-  display: flex;
-  align-items: center;
-}
-.stall-intro-text {
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* ② 档口单列流 */
+.stall-stream { padding: 0 var(--spacing-md); box-sizing: border-box; }
+
+/* hero 骨架屏 */
+.canteen-hero-skeleton { }
+.skeleton-block { background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+.skeleton-line { border-radius: 6rpx; background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+.skeleton-name { width: 55%; height: 36rpx; }
+.skeleton-loc { width: 60%; height: 24rpx; margin-top: var(--spacing-sm); }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* 申请入口：不常用，降级为底部弱化的小文字链接（不再横卡置顶） */
 .apply-link {

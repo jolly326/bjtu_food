@@ -14,6 +14,7 @@
     </view>
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
+      <SectionTitle :title="dishId ? `全部评价 (${list.length})` : `我的评价 (${list.length})`" />
       <view class="review-list" v-if="list.length > 0">
         <view v-for="rv in list" :key="rv.id" class="review-item" @longpress="onReviewLongPress(rv)">
           <view class="review-header">
@@ -54,6 +55,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import UsefulButton from '@/components/UsefulButton.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import { getImageUrl } from '@/utils/image'
 import { EMOJI } from '@/utils/emoji'
 import { getReviewsByDish, getMyReviews, toggleUseful, deleteReview } from '@/api/review'

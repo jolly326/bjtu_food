@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * 校园食堂信息系统 - 后端启动类
  * <p>
- * 技术栈：Spring Boot 3.2 + Java 21 + MyBatis-Plus + MySQL + JWT + Knife4j
+ * 技术栈：Spring Boot 3.2 + Java 21 + MyBatis-Plus + MySQL + JWT + SpringDoc OpenAPI (Swagger UI)
  * 模块说明：
  * - common：公共模块（配置、异常、工具类）
  * - auth：认证模块（登录注册、JWT校验、用户管理）

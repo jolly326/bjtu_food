@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@Tag(name = "01. 认证与用户", description = "登录、注册、个人资料、用户统计。登录成功后将 data.token 填入 Knife4j Authorize。")
+@Tag(name = "01. 认证与用户", description = "登录、注册、个人资料、用户统计。登录成功后将 data.token 填入 Swagger UI Authorize。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -55,7 +55,7 @@ public class AuthController {
             description = """
                     用途：登录并获取 JWT Token。
                     规则：支持密码登录，也支持邮箱验证码登录。验证码通过 /auth/email-code 生成。
-                    Knife4j 测试：密码登录可使用 20240001 / 123456；验证码登录需先获取 purpose=login 的验证码。
+                    Swagger UI 测试：密码登录可使用 20240001 / 123456；验证码登录需先获取 purpose=login 的验证码。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {

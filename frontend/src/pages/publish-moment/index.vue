@@ -20,15 +20,7 @@
           <text class="section-title">图片</text>
           <text class="section-sub">最多 9 张</text>
         </view>
-        <view class="img-grid">
-          <view v-for="(img, idx) in images" :key="idx" class="img-cell">
-            <image class="img-thumb" :src="img" mode="aspectFill" />
-            <view class="img-remove" @tap="removeImage(idx)"><text class="img-remove-text">✕</text></view>
-          </view>
-          <view v-if="images.length < 9" class="img-cell img-add" @tap="chooseImage">
-            <text class="img-add-icon">{{ EMOJI.plus }}</text>
-          </view>
-        </view>
+        <ImageUploader v-model="images" :max="9" />
       </view>
 
       <!-- 关联对象（可选） -->
@@ -37,9 +29,9 @@
           <text class="section-title">关联对象</text>
           <text class="section-sub">选填</text>
         </view>
-        <view class="related-picker" @tap="openRelatedSheet">
+        <view class="related-picker" @tap="relatedSheetOpen = true">
           <text class="related-label">{{ relatedLabel }}</text>
-          <text class="related-arrow">{{ EMOJI.arrowRight }}</text>
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
         </view>
       </view>
 
@@ -51,42 +43,14 @@
       <AppButton :text="isEdit ? '保存并重新提交' : '发布'" :loading="submitting" @click="submit" />
     </view>
 
-    <!-- 关联对象选择 Sheet -->
-    <view v-if="relatedSheetOpen" class="sheet-mask" @tap="relatedSheetOpen = false" />
-    <view class="related-sheet" :class="{ open: relatedSheetOpen }">
-      <view class="sheet-head">
-        <text class="sheet-title">选择关联对象</text>
-        <text class="sheet-close" @tap="relatedSheetOpen = false">✕</text>
-      </view>
-      <view class="sheet-tabs">
-        <view class="sheet-tab" :class="{ active: relatedTab === 'dish' }" @tap="relatedTab = 'dish'">菜品</view>
-        <view class="sheet-tab" :class="{ active: relatedTab === 'stall' }" @tap="relatedTab = 'stall'">档口</view>
-      </view>
-      <view class="sheet-search">
-        <text class="sheet-search-icon">{{ EMOJI.search }}</text>
-        <input class="sheet-search-input" v-model="relatedKeyword" :placeholder="relatedTab === 'dish' ? '搜索菜品' : '搜索档口'" @input="onRelatedKeyword" />
-      </view>
-      <scroll-view class="sheet-list" scroll-y>
-        <view v-if="relatedCandidates.length === 0" class="sheet-empty">
-          <text class="sheet-empty-text">{{ relatedKeyword ? '没有找到相关结果' : '输入关键词搜索' }}</text>
-        </view>
-        <view
-          v-for="item in relatedCandidates"
-          :key="item.id"
-          class="sheet-item"
-          @tap="selectRelated(item)"
-        >
-          <image v-if="item.image" class="sheet-item-img" :src="item.image" mode="aspectFill" />
-          <view v-else class="sheet-item-img sheet-item-img-empty"><text class="sheet-item-fallback">{{ EMOJI.dishPlaceholder }}</text></view>
-          <text class="sheet-item-name">{{ item.name }}</text>
-          <text class="sheet-item-check" v-if="selectedRelated && selectedRelated.id === item.id && selectedRelated.type === relatedTab">✓</text>
-        </view>
-      </scroll-view>
-      <view class="sheet-footer">
-        <view class="sheet-clear" @tap="clearRelated">不关联</view>
-        <view class="sheet-confirm" @tap="relatedSheetOpen = false">确定</view>
-      </view>
-    </view>
+    <!-- 关联对象选择 Sheet（W5：走正式 API，返回真实 stallId） -->
+    <RelatedPickerSheet
+      :open="relatedSheetOpen"
+      :selected="selectedRelated"
+      @close="relatedSheetOpen = false"
+      @clear="clearRelated"
+      @select="onRelatedSelect"
+    />
   </view>
 </template>
 
@@ -95,12 +59,11 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
-import { EMOJI } from '@/utils/emoji'
-import { uploadImage } from '@/api/upload'
-import { getImageUrl, toAbsoluteImageUrl } from '@/utils/image'
+import ImageUploader from '@/components/ImageUploader.vue'
+import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
+import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import * as dishApi from '@/api/dish'
 import type { Moment } from '@/types/moment'
 
 const userStore = useUserStore()
@@ -110,12 +73,9 @@ const submitting = ref(false)
 const editId = ref<number | null>(null)
 const isEdit = computed(() => editId.value != null)
 
-// 关联对象
+// 关联对象（由 RelatedPickerSheet 走正式 API 返回真实 id）
 const relatedSheetOpen = ref(false)
-const relatedTab = ref<'dish' | 'stall'>('dish')
-const relatedKeyword = ref('')
-const relatedCandidates = ref<{ id: number; name: string; image: string; type: 'dish' | 'stall' }[]>([])
-const selectedRelated = ref<{ id: number; name: string; type: 'dish' | 'stall' } | null>(null)
+const selectedRelated = ref<RelatedItem | null>(null)
 
 const relatedLabel = computed(() => {
   if (!selectedRelated.value) return '不关联（自由动态）'
@@ -123,77 +83,18 @@ const relatedLabel = computed(() => {
   return `${prefix}·${selectedRelated.value.name}`
 })
 
-let relatedTimer: ReturnType<typeof setTimeout> | null = null
-
-function onRelatedKeyword() {
-  if (relatedTimer) clearTimeout(relatedTimer)
-  relatedTimer = setTimeout(async () => {
-    await searchRelated()
-  }, 300)
-}
-
-async function searchRelated() {
-  relatedCandidates.value = []
-  const kw = relatedKeyword.value.trim()
-  try {
-    if (relatedTab.value === 'dish') {
-      const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
-      relatedCandidates.value = res.list.map(d => ({ id: d.id, name: d.name, image: getImageUrl(d.image), type: 'dish' as const }))
-    } else {
-      const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
-      // 档口名联想：以 keyword 搜档口（后端 /dishes 按 keyword 模糊匹配 name/stall）
-      const stallNames = new Set<string>()
-      const stalls = res.list
-        .filter(d => d.stallName && !stallNames.has(d.stallName))
-        .map(d => { stallNames.add(d.stallName); return { id: Number(d.id), name: d.stallName!, image: getImageUrl(d.image), type: 'stall' as const } })
-      relatedCandidates.value = stalls
-    }
-  } catch {
-    relatedCandidates.value = []
-  }
-}
-
-function openRelatedSheet() {
-  relatedSheetOpen.value = true
-  searchRelated()
-}
-
-function selectRelated(item: { id: number; name: string; image: string; type: 'dish' | 'stall' }) {
+function onRelatedSelect(item: RelatedItem) {
+  // 二次点击同一项取消关联（toggle）
   if (selectedRelated.value && selectedRelated.value.id === item.id && selectedRelated.value.type === item.type) {
     selectedRelated.value = null
   } else {
-    selectedRelated.value = { id: item.id, name: item.name, type: item.type }
+    selectedRelated.value = item
   }
 }
 
 function clearRelated() {
   selectedRelated.value = null
   relatedSheetOpen.value = false
-}
-
-function chooseImage() {
-  const remain = 9 - images.value.length
-  if (remain <= 0) return
-  uni.chooseMedia({
-    count: remain,
-    mediaType: ['image'],
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      for (const f of res.tempFiles) {
-        try {
-          const url = await uploadImage(f.tempFilePath)
-          images.value.push(url)
-        } catch {
-          uni.showToast({ title: '图片上传失败', icon: 'none' })
-        }
-      }
-    },
-  })
-}
-
-function removeImage(idx: number) {
-  images.value.splice(idx, 1)
 }
 
 async function submit() {
@@ -239,8 +140,7 @@ onLoad(async (query) => {
       content.value = m.content
       images.value = [...m.images]
       if (m.relatedType && m.relatedType !== 'none' && m.relatedId) {
-        selectedRelated.value = { id: m.relatedId, name: m.relatedName || '', type: m.relatedType as 'dish' | 'stall' }
-        relatedTab.value = m.relatedType as 'dish' | 'stall'
+        selectedRelated.value = { id: m.relatedId, name: m.relatedName || '', image: '', type: m.relatedType as 'dish' | 'stall' }
       }
     } catch {
       uni.showToast({ title: '加载动态失败', icon: 'none' })

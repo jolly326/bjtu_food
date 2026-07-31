@@ -1,44 +1,12 @@
 /**
- * EMOJI 图标映射常量（小程序 MVP 占位策略）
+ * EMOJI 常量（仅保留非图标语义 / 装饰性占位）
  * ------------------------------------------------------------
- * 依据 project_spec.md §0.6 一致性红线第 3 条 + §4.2 / §4.9②：
- *  - MVP 阶段统一使用 emoji 作为图标占位，禁止 iconfont SVG。
- *  - 语义唯一约束：『喜欢/收藏』只保留一个爱心语义（❤️）；
- *    『有用/点赞』用 👍 区分，二者不可混用。
- *  - 所有 emoji 字面量集中在此文件登记，组件内禁止散落硬编码。
- *
- * 命名采用 camelCase，key 即语义，便于全局检索与复用。
+ * 注意：功能 / 情感图标（搜索 / 位置 / 喜欢 / 有用 / 热门 / 限时 /
+ * 猜你喜欢 / 分享 / 评价 / 发布 / 举报 等）已全部迁移为 SVG 矢量图标，
+ * 统一经 `components/IconSvg.vue` 引用（见 task-15 / project_spec §4.2 / §4.9）。
+ * 本文件仅保留少量非图标语义的 emoji 占位（如空状态、菜品占位、星级、
+ * 标签属性等），新增图标语义须登记到 IconSvg 而非此处。
  */
-
-/** 喜欢 / 收藏（唯一爱心语义，禁止承载「点赞/有用」） */
-export const LIKE = '❤️'
-
-/** 有用 / 点赞（与 ❤️ 不可混用） */
-export const USEFUL = '👍'
-
-/** 热门 */
-export const HOT = '🔥'
-
-/** 火热（热搜/黑马强度） */
-export const FIRE = '🔥'
-
-/** 限时 */
-export const LIMITED = '⏰'
-
-/** 猜你喜欢 */
-export const GUESS = '💡'
-
-/** 搜索 */
-export const SEARCH = '🔍'
-
-/** 位置 */
-export const LOCATION = '📍'
-
-/** 评价 */
-export const REVIEW = '💬'
-
-/** 分享 */
-export const SHARE = '📤'
 
 /** 空状态 */
 export const EMPTY = '🍽'
@@ -88,9 +56,6 @@ export const EMAIL = '📧'
 /** 提交成功 */
 export const SUCCESS = '✅'
 
-/** 加号 / 发布入口（task-06 悬浮 ➕） */
-export const PLUS = '➕'
-
 /** 消息 / 通知中心（task-09） */
 export const BELL = '🔔'
 
@@ -102,9 +67,6 @@ export const LIST = '📑'
 
 /** 删除 / 垃圾桶 */
 export const DELETE = '🗑️'
-
-/** 举报 / 警示（社区举报入口，task-12.7） */
-export const REPORT = '⚠️'
 
 /** 足迹 / 历史 */
 export const HISTORY = '🕘'
@@ -136,18 +98,8 @@ export const FILTER = '⚙️'
 /** 食堂菜品分区标题 */
 export const CANTEEN_DISH = '🍽'
 
-/** 集中导出：组件 / 页面统一使用 EMOJI.xxx 访问 */
+/** 集中导出：组件 / 页面统一使用 EMOJI.xxx 访问（仅非图标语义占位） */
 export const EMOJI = {
-  like: LIKE,
-  useful: USEFUL,
-  hot: HOT,
-  fire: FIRE,
-  limited: LIMITED,
-  guess: GUESS,
-  search: SEARCH,
-  location: LOCATION,
-  review: REVIEW,
-  share: SHARE,
   empty: EMPTY,
   starFilled: STAR_FILLED,
   starEmpty: STAR_EMPTY,
@@ -165,13 +117,11 @@ export const EMOJI = {
   email: EMAIL,
   success: SUCCESS,
   lock: LOCK,
-  plus: PLUS,
   bell: BELL,
   settings: SETTINGS,
   list: LIST,
   history: HISTORY,
   delete: DELETE,
-  report: REPORT,
   lockOpen: LOCK_OPEN,
   chili: CHILI,
   portion: PORTION,

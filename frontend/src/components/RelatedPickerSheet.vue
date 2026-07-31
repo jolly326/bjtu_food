@@ -1,0 +1,203 @@
+<template>
+  <view v-if="open" class="sheet-mask" @tap="$emit('close')" />
+  <view class="related-sheet" :class="{ open }">
+    <view class="sheet-head">
+      <text class="sheet-title">选择关联对象</text>
+      <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="$emit('close')" />
+    </view>
+
+    <view class="sheet-tabs">
+      <view class="sheet-tab" :class="{ active: tab === 'dish' }" @tap="tab = 'dish'">菜品</view>
+      <view class="sheet-tab" :class="{ active: tab === 'stall' }" @tap="tab = 'stall'">档口</view>
+    </view>
+
+    <view class="sheet-search">
+      <SearchBar
+        v-model="keyword"
+        input-mode
+        :placeholder="tab === 'dish' ? '搜索菜品' : '搜索档口'"
+        :margin="'0'"
+        @update:model-value="onKeyword"
+      />
+    </view>
+
+    <scroll-view class="sheet-list" scroll-y>
+      <view v-if="loading" class="sheet-empty">
+        <view class="footer-spinner" />
+      </view>
+      <view v-else-if="candidates.length === 0" class="sheet-empty">
+        <text class="sheet-empty-text">{{ keyword ? '没有找到相关结果' : '输入关键词搜索' }}</text>
+      </view>
+      <view
+        v-for="item in candidates"
+        :key="`${item.type}-${item.id}`"
+        class="sheet-item"
+        :class="{ on: isSelected(item) }"
+        @tap="select(item)"
+      >
+        <image v-if="item.image" class="sheet-item-img" :src="item.image" mode="aspectFill" />
+        <view v-else class="sheet-item-img sheet-item-img-empty">
+          <IconSvg name="dish" :size="36" color="var(--text-tertiary)" />
+        </view>
+        <text class="sheet-item-name">{{ item.name }}</text>
+        <IconSvg v-if="isSelected(item)" name="check" :size="32" color="var(--color-primary)" />
+      </view>
+    </scroll-view>
+
+    <view class="sheet-footer">
+      <view class="sheet-clear" @tap="$emit('clear')">不关联</view>
+      <view class="sheet-confirm" @tap="$emit('close')">确定</view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import IconSvg from './IconSvg.vue'
+import SearchBar from './SearchBar.vue'
+import * as dishApi from '@/api/dish'
+import { getImageUrl } from '@/utils/image'
+import { getCanteensWithStalls } from '@/api/canteen'
+
+/**
+ * RelatedPickerSheet —— 关联对象选择弹层（task-14 W2/W5 / task-13 T20）
+ * 修复 V3：档口联想走正式 API（getCanteensWithStalls 全量档口，含真实 id），
+ * 返回真实 stallId，禁止伪造 id。菜品走 searchDishesPage 正式接口。
+ */
+export interface RelatedItem {
+  id: number
+  name: string
+  image: string
+  type: 'dish' | 'stall'
+}
+
+const props = defineProps<{
+  open: boolean
+  /** 当前已选（用于高亮） */
+  selected?: RelatedItem | null
+}>()
+
+const emit = defineEmits<{
+  close: []
+  clear: []
+  select: [item: RelatedItem]
+}>()
+
+const tab = ref<'dish' | 'stall'>('dish')
+const keyword = ref('')
+const loading = ref(false)
+const candidates = ref<RelatedItem[]>([])
+
+let timer: ReturnType<typeof setTimeout> | null = null
+
+function isSelected(item: RelatedItem): boolean {
+  return !!props.selected && props.selected.id === item.id && props.selected.type === item.type
+}
+
+async function loadCandidates() {
+  const kw = keyword.value.trim()
+  loading.value = true
+  candidates.value = []
+  try {
+    if (tab.value === 'dish') {
+      const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
+      candidates.value = res.list.map(d => ({
+        id: d.id,
+        name: d.name,
+        image: getImageUrl(d.image),
+        type: 'dish' as const,
+      }))
+    } else {
+      // 正式档口列表：全量档口（后端返回真实 id），前端按关键词过滤
+      const canteens: any[] = await getCanteensWithStalls()
+      const stalls: { id: number; name: string; images?: any }[] = []
+      const seen = new Set<number>()
+      for (const c of canteens) {
+        for (const s of (c.stalls || []) as any[]) {
+          const id = Number(s.id || 0)
+          if (id && !seen.has(id)) {
+            seen.add(id)
+            stalls.push({ id, name: s.name || '', images: s.images })
+          }
+        }
+      }
+      const filtered = kw
+        ? stalls.filter(s => s.name.includes(kw))
+        : stalls
+      candidates.value = filtered.slice(0, 20).map(s => ({
+        id: s.id,
+        name: s.name,
+        image: Array.isArray(s.images) ? getImageUrl(s.images[0] || '') : getImageUrl((s.images as any) || ''),
+        type: 'stall' as const,
+      }))
+    }
+  } catch {
+    candidates.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function onKeyword() {
+  if (timer) clearTimeout(timer)
+  timer = setTimeout(() => { loadCandidates() }, 300)
+}
+
+function select(item: RelatedItem) {
+  emit('select', item)
+}
+
+// 打开时或切换 tab 时重置并加载
+watch(() => props.open, (v) => {
+  if (v) {
+    keyword.value = ''
+    loadCandidates()
+  }
+})
+watch(tab, () => {
+  keyword.value = ''
+  loadCandidates()
+})
+</script>
+
+<style scoped>
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
+.related-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--bg-card);
+  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
+  box-shadow: var(--shadow-modal);
+  z-index: 100;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex; flex-direction: column;
+  max-height: 80vh;
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+}
+.related-sheet.open { transform: translateY(0); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
+.sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
+.sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
+.sheet-tabs { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-md) 0; }
+.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
+.sheet-tab.active { background: var(--color-primary-soft); color: var(--color-primary); }
+.sheet-search { padding: var(--spacing-md); }
+.sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
+.sheet-empty { padding: var(--spacing-xl) 0; text-align: center; }
+.sheet-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.sheet-item.on { background: var(--bg-soft); }
+.sheet-item-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
+.sheet-item-img-empty { display: flex; align-items: center; justify-content: center; }
+.sheet-item-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
+.sheet-clear { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: 600; -webkit-tap-highlight-color: transparent; }
+.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--text-white); font-weight: 700; -webkit-tap-highlight-color: transparent; }
+
+.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .related-sheet { transition: opacity 0.2s ease; }
+}
+</style>

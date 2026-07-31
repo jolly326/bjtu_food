@@ -44,7 +44,7 @@
 
     <!-- 关联对象 chip -->
     <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
-      <text class="m-related-icon">{{ EMOJI.location }}</text>
+      <IconSvg name="location" :size="24" color="var(--color-primary)" class="m-related-icon" />
       <text class="m-related-text">{{ relatedLabel }}</text>
     </view>
 
@@ -56,15 +56,15 @@
     <!-- 互动栏 -->
     <view class="m-actions">
       <view class="m-action" :class="{ active: usefulActive }" @tap.stop="onUseful">
-        <text class="m-action-icon">{{ EMOJI.useful }}</text>
+        <IconSvg name="thumb" :size="30" class="m-action-icon" :color="usefulActive ? 'var(--color-like)' : 'var(--text-secondary)'" />
         <text class="m-action-count">{{ moment.usefulCount > 0 ? moment.usefulCount : 0 }}</text>
       </view>
       <view class="m-action" @tap.stop="goDetail">
-        <text class="m-action-icon">{{ EMOJI.review }}</text>
+        <IconSvg name="comment" :size="30" color="var(--text-secondary)" class="m-action-icon" />
         <text class="m-action-count">{{ moment.commentCount > 0 ? moment.commentCount : 0 }}</text>
       </view>
       <view class="m-action m-action-share" @tap.stop="onShare">
-        <text class="m-action-icon">{{ EMOJI.share }}</text>
+        <IconSvg name="share" :size="30" color="var(--text-secondary)" class="m-action-icon" />
         <text class="m-action-count">分享</text>
       </view>
     </view>
@@ -74,6 +74,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 import { relativeTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
@@ -113,7 +114,7 @@ const auditLabel = computed(() => {
 })
 const auditClass = computed(() => `audit-${props.moment.auditStatus}`)
 
-// 👍 有用 toggle 本地状态（详情页传入有用态；此处仅做乐观 UI）
+// 有用 toggle 本地状态（详情页传入有用态；此处仅做乐观 UI）
 const usefulActive = ref(false)
 
 function goDetail() {
@@ -188,7 +189,6 @@ async function onUseful() {
 .m-image-wrap:active .m-image { transform: scale(1.04); }
 .m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); align-self: flex-start; transition: opacity 0.12s ease; }
 .m-related:active { opacity: 0.7; }
-.m-related-icon { font-size: 24rpx; line-height: 1; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }

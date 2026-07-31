@@ -6,7 +6,14 @@
         <view class="sk-block skeleton" v-for="s in 3" :key="s" />
       </view>
 
-      <template v-else-if="moment">
+      <EmptyState
+        v-else-if="!moment"
+        text="动态加载失败或不存在"
+        :retry="true"
+        @retry="loadData"
+      />
+
+      <template v-else>
         <!-- 发布者 -->
         <view class="m-head">
           <image v-if="moment.userAvatar" class="m-avatar" :src="moment.userAvatar" mode="aspectFill" />
@@ -33,12 +40,12 @@
 
         <!-- 关联对象卡 -->
         <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="related-card" @tap="goRelated">
-          <text class="related-icon">{{ EMOJI.location }}</text>
+          <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="related-icon" />
           <view class="related-body">
             <text class="related-type">{{ relatedTypeLabel }}</text>
             <text class="related-name">{{ moment.relatedName }}</text>
           </view>
-          <text class="related-arrow">{{ EMOJI.arrowRight }}</text>
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-arrow" />
         </view>
 
         <!-- 退回原因 + 编辑重提 -->
@@ -51,15 +58,15 @@
         <!-- 互动区 -->
         <view class="interact-bar">
           <view class="interact-btn" :class="{ active: usefulActive }" @tap="onUseful">
-            <text class="interact-icon">{{ EMOJI.useful }}</text>
+            <IconSvg name="thumb" :size="32" class="interact-icon" :color="usefulActive ? 'var(--color-like)' : 'var(--text-secondary)'" />
             <text class="interact-count">{{ moment.usefulCount > 0 ? moment.usefulCount : '有用' }}</text>
           </view>
           <view class="interact-btn" @tap="focusComment">
-            <text class="interact-icon">{{ EMOJI.review }}</text>
+            <IconSvg name="comment" :size="32" color="var(--text-secondary)" class="interact-icon" />
             <text class="interact-count">{{ moment.commentCount > 0 ? moment.commentCount : '评论' }}</text>
           </view>
           <view class="interact-btn report" @tap="openReport">
-            <text class="interact-icon">{{ EMOJI.report }}</text>
+            <IconSvg name="report" :size="32" color="var(--text-secondary)" class="interact-icon" />
             <text class="interact-count">举报</text>
           </view>
         </view>
@@ -67,7 +74,7 @@
         <!-- 评论区 -->
         <view class="comment-section">
           <text class="comment-title">评论 ({{ moment.commentCount }})</text>
-          <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="💬" />
+          <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="comment" />
           <view v-else class="comment-list">
             <view
               v-for="c in visibleComments"
@@ -97,13 +104,13 @@
                 <view class="c-footer">
                   <text class="c-time">{{ relativeTime(c.createdAt) }}</text>
                   <view class="c-actions">
-                    <text class="c-reply-btn" @tap.stop="replyTo(c)">{{ EMOJI.review }} 回复</text>
+                    <text class="c-reply-btn" @tap.stop="replyTo(c)"><IconSvg name="comment" :size="26" color="var(--text-tertiary)" /> 回复</text>
                     <view
                       class="c-useful"
                       :class="{ active: c.useful }"
                       @tap.stop="toggleCommentUseful(c)"
                     >
-                      <text class="c-useful-icon">{{ EMOJI.useful }}</text>
+                      <IconSvg name="thumb" :size="26" class="c-useful-icon" :color="c.useful ? 'var(--color-like)' : 'var(--text-tertiary)'" />
                       <text class="c-useful-count">{{ c.usefulCount && c.usefulCount > 0 ? c.usefulCount : '有用' }}</text>
                     </view>
                   </view>
@@ -131,7 +138,7 @@
         @confirm="submitComment"
       />
       <view class="comment-send" @tap="submitComment">
-        <text class="comment-send-text">{{ EMOJI.review }}</text>
+        <IconSvg name="comment" :size="32" color="var(--text-tertiary)" class="comment-send-text" />
       </view>
     </view>
 
@@ -155,6 +162,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { EMOJI } from '@/utils/emoji'
 import { relativeTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
@@ -298,7 +306,7 @@ function replyToNamed(nickname: string) {
   replyTarget.value = target || null
 }
 
-/** 评论 👍 有用幂等切换（task-12.4，emoji 语义唯一：👍=有用，不混 ❤️） */
+/** 评论有用幂等切换（task-12.4，语义唯一：有用≠喜欢） */
 async function toggleCommentUseful(c: MomentComment) {
   if (!userStore.requireAuth()) return
   const prev = !!c.useful
@@ -377,7 +385,7 @@ onLoad((query) => {
 .skeleton { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-block { width: 100%; height: 160rpx; }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); }
-.m-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--bg-page); flex-shrink: 0; }
+.m-avatar { width: 72rpx; height: 72rpx; border-radius: var(--radius-card); background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: 36rpx; line-height: 1; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -419,7 +427,7 @@ onLoad((query) => {
 .comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .comment-item.pressed { transform: scale(0.985); }
 .comment-item:last-child { border-bottom: none; }
-.c-avatar { width: 60rpx; height: 60rpx; border-radius: 50%; background: var(--bg-page); flex-shrink: 0; }
+.c-avatar { width: 60rpx; height: 60rpx; border-radius: var(--radius-card); background: var(--bg-page); flex-shrink: 0; }
 .c-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .c-avatar-fallback { font-size: 30rpx; line-height: 1; }
 .c-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }

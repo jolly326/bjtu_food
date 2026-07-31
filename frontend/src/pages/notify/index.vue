@@ -15,7 +15,7 @@
       <EmptyState
         v-else-if="notifications.length === 0"
         text="暂无消息"
-        icon="🔔"
+        icon="broadcast"
         :retry="loadFailed"
         @retry="loadData(true)"
       />
@@ -29,7 +29,7 @@
           @tap="onTap(n)"
         >
           <view class="notify-badge" :class="`type-${n.type}`">
-            <text class="notify-badge-icon">{{ typeIcon(n.type) }}</text>
+            <IconSvg :name="typeIcon(n.type)" :size="36" class="notify-badge-icon" />
           </view>
           <view class="notify-body">
             <view class="notify-head-row">
@@ -59,7 +59,7 @@
 import { ref, onMounted } from 'vue'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import { relativeTime } from '@/utils/time'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
@@ -80,11 +80,11 @@ const pageSize = 20
 
 function typeIcon(type: NotificationType): string {
   switch (type) {
-    case 'moment_audit': return EMOJI.review
-    case 'dish_audit': return EMOJI.dishPlaceholder
-    case 'comment': return EMOJI.review
-    case 'useful': return EMOJI.useful
-    default: return EMOJI.bell
+    case 'moment_audit': return 'comment'
+    case 'dish_audit': return 'dish'
+    case 'comment': return 'comment'
+    case 'useful': return 'thumb'
+    default: return 'broadcast'
   }
 }
 

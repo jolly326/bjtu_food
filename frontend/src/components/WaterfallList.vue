@@ -1,102 +1,152 @@
 <template>
-  <view class="waterfall-grid">
+  <view class="waterfall-grid" :class="{ single }">
     <!--
-      双列瀑布流：在组件内直接两列 v-for 渲染，避免「自定义组件(WaterfallItem)
-      嵌套 wx:for + 跨组件 scoped slot」在微信小程序编译器下的塌列坑（右列 slot
-      内容丢失、整列空白）。同组件内 v-for + 父级 #card 插槽在 mp-weixin 下稳定。
+      瀑布流 / 单列列表（方案 F，2026-07-31 重写；2026 增强支持档口单列）
+      ------------------------------------------------------------
+      红线 §4.9（小程序 slot 坑）：禁止在父组件用 <template #card> 向本组件
+      具名 slot 分发——uni-app 编译 mp-weixin 后，父组件 N 个同名 slot 片段
+      无法正确映射，子组件不消费该 slot 时整块空白不渲染（V1/V2 阻断级 bug）。
+      因此本组件**内部直接渲染**卡片，父级仅通过事件上抛：
+        <WaterfallList :list @card-click="goToDetail" />          // 双列菜品
+        <WaterfallList :list single type="stall" @stall-click />  // 单列档口
+      禁止任何具名 slot 分发。
     -->
-    <view class="waterfall-col">
+    <template v-if="single">
+      <!-- 单列模式：档口卡流（canteen 详情页重构，task-14 W4） -->
       <view
-        v-for="(entry, i) in splitList.left"
-        :key="entry.key"
-        class="waterfall-item enter-up"
+        v-for="(item, i) in list"
+        :key="stallKey(item, i)"
+        class="waterfall-item-single enter-up"
         :style="{ '--enter-i': i }"
       >
-        <slot name="card" :item="entry.item" />
+        <StallCardSingle :stall="toStallItem(item)" @click="onStallClick" />
       </view>
-    </view>
-    <view class="waterfall-col">
-      <view
-        v-for="(entry, i) in splitList.right"
-        :key="entry.key"
-        class="waterfall-item enter-up"
-        :style="{ '--enter-i': i }"
-      >
-        <slot name="card" :item="entry.item" />
+    </template>
+
+    <!-- 双列瀑布流：奇偶分列（右列绝不空） -->
+    <template v-else>
+      <view class="waterfall-col waterfall-col-left">
+        <view
+          v-for="(entry, i) in splitList.left"
+          :key="entry.key"
+          class="waterfall-item enter-up"
+          :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
+        >
+          <DishCard :dish="entry.item" @click="onCardClick" />
+        </view>
       </view>
-    </view>
+      <view class="waterfall-col waterfall-col-right">
+        <view
+          v-for="(entry, i) in splitList.right"
+          :key="entry.key"
+          class="waterfall-item enter-up"
+          :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
+        >
+          <DishCard :dish="entry.item" @click="onCardClick" />
+        </view>
+      </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import DishCard from './DishCard.vue'
+import StallCardSingle from './StallCardSingle.vue'
+import type { Dish } from '@/types/dish'
+import type { StallCardItem } from './StallCardSingle.vue'
 
 const props = withDefaults(defineProps<{
-  list: any[]
+  list: (Dish | any)[]
   itemKey?: string
+  /** 单列模式（档口卡流）；默认 false = 双列菜品瀑布流 */
+  single?: boolean
+  /** 单列模式下卡片类型，当前仅支持 'stall' */
+  type?: 'stall'
 }>(), {
   list: () => [],
   itemKey: 'id',
+  single: false,
+  type: 'stall',
 })
 
-/**
- * 瀑布流分列：按奇偶索引切成左右两列，每列各自 v-for 渲染。
- *
- * 微信小程序塌列根因修复（方案 B）：
- * 1. :key 使用「itemKey + 全局索引」生成全局唯一键。原 genKey 兜底键左右列
- *    会撞成 wf-0/wf-2...，导致 setData 后整列塌空。idx 是 list 全局索引，
- *    左右列 idx 必然不同（左 0,2,4… / 右 1,3,5…），key 全局唯一。
- * 2. 列宽固定 calc(50% - 12rpx)，不再依赖 var(--spacing-md)。原列宽在 scoped
- *    样式下 CSS 变量解析失败会算出 NaN 宽度，从而塌成单列（右列 0 宽）。
- * 3. splitList 为 computed，list 变化（含分页追加）即重算，无需 watch。
- */
+const emit = defineEmits<{
+  cardClick: [dish: Dish]
+  stallClick: [stall: StallCardItem]
+}>()
+
+/** 图片区统一高度（rpx） */
+const IMG_HEIGHT = 200
+
 const splitList = computed(() => {
-  const left: { item: any; key: string }[] = []
-  const right: { item: any; key: string }[] = []
+  const left: { item: Dish; key: string; imgH: number }[] = []
+  const right: { item: Dish; key: string; imgH: number }[] = []
   props.list.forEach((item, idx) => {
-    const rawKey = item?.[props.itemKey]
+    const rawKey = (item as Record<string, any>)?.[props.itemKey]
     const key = (rawKey !== undefined && rawKey !== null && rawKey !== '')
       ? `wf-${rawKey}-${idx}`
       : `wf-idx-${idx}`
-    const entry = { item, key }
+    const entry = { item: item as Dish, key, imgH: IMG_HEIGHT }
     if (idx % 2 === 0) left.push(entry)
     else right.push(entry)
   })
   return { left, right }
 })
+
+function stallKey(item: any, idx: number): string {
+  const raw = item?.[props.itemKey]
+  return (raw !== undefined && raw !== null && raw !== '') ? `st-${raw}` : `st-idx-${idx}`
+}
+
+/** 把任意档口对象归一为 StallCardItem（允许携带 image/description/rating/meta） */
+function toStallItem(item: any): StallCardItem {
+  return {
+    id: Number(item?.id || 0),
+    name: item?.name || '',
+    image: item?.image || item?.images?.[0] || '',
+    description: item?.description || '',
+    rating: item?.rating ?? item?.avgRating ?? 0,
+    meta: item?.meta || '',
+    tags: item?.tags || [],
+  }
+}
+
+function onCardClick(dish: Dish) {
+  emit('cardClick', dish)
+}
+
+function onStallClick(stall: StallCardItem) {
+  emit('stallClick', stall)
+}
 </script>
 
-<style scoped>
+<style>
 .waterfall-grid {
-  display: flex;
-  /* 关键：不给 flex-wrap，强制两列横向排列，父级必须是 100% 可解析宽度 */
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  /* 列间距用固定 rpx（不依赖 CSS 变量，规避 scoped 解析失败） */
-  gap: 24rpx;
   width: 100%;
-  min-width: 0;
   box-sizing: border-box;
   padding-bottom: 40rpx;
+  zoom: 1;
+}
+.waterfall-grid::after {
+  content: '';
+  display: table;
+  clear: both;
 }
 .waterfall-col {
-  /* 微信真机最稳的等分双列写法：
-     用 flex:1 1 0 + width:0 强制两列均分父级宽度，父级宽度由 .waterfall-grid
-     的 width:100% 决定（scroll-view 内部 block 默认 750rpx 视口宽）。
-     width:0 让 flex-basis:0 主导、shrink/grow 均摊；配合 min-width:0 +
-     overflow:hidden 兜住卡片内不可收缩内容，避免被撑破挤出右列。
-     额外加 max-width:50% 兜底，杜绝任何环境下右列被压成 0 宽而塌列。 */
-  flex: 1 1 0;
-  width: 0;
-  max-width: 50%;
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
+  width: 50%;
+  box-sizing: border-box;
 }
+.waterfall-col-left { float: left; padding-right: 12rpx; }
+.waterfall-col-right { float: right; padding-left: 12rpx; }
 .waterfall-item {
   width: 100%;
   box-sizing: border-box;
+  margin-bottom: 24rpx;
+}
+/* 单列模式：档口卡依次纵向堆叠，span 整宽 */
+.waterfall-grid.single .waterfall-item-single {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24rpx;
 }
 </style>
