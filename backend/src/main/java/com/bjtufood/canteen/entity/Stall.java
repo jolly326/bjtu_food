@@ -38,6 +38,18 @@ public class Stall {
     @Schema(description = "档口位置")
     private String location;
 
+    /** 楼层（如 1F/2F） */
+    @Schema(description = "楼层（如 1F/2F）", example = "1F")
+    private String floor;
+
+    /** 窗口号 */
+    @Schema(description = "窗口号", example = "3号窗口")
+    private String windowNo;
+
+    /** 营业时间，如 10:00-20:00 */
+    @Schema(description = "营业时间，如 10:00-20:00", example = "10:00-20:00")
+    private String businessHours;
+
     /** 档口描述 */
     @Schema(description = "档口描述")
     private String description;
@@ -53,6 +65,21 @@ public class Stall {
     /** 状态：open / closed */
     @Schema(description = "状态", example = "open")
     private String status;
+
+    /**
+     * 审核状态（与启停 status 解耦）：pending（待审核）/ approved（已通过）/ rejected（已退回）
+     * 后台录入默认 approved；学生 UGC 提交写入 pending。
+     */
+    @Schema(description = "审核状态：pending/approved/rejected", example = "approved")
+    private String auditStatus;
+
+    /** 退回原因（仅 audit_status=rejected 时由后台填写，可空） */
+    @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
+    private String rejectReason;
+
+    /** 提交人用户ID（UGC 由当前登录用户写入，禁止前端传入） */
+    @Schema(description = "提交人用户ID")
+    private Long createdBy;
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

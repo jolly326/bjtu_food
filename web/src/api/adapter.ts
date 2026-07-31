@@ -1,4 +1,4 @@
-import type { Canteen, Dish, Review, Stall, User } from '@/types'
+import type { Canteen, Dish, Review, Stall, User, AuditVO, AdminUser } from '@/types'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[]; list?: T[] }
@@ -78,6 +78,9 @@ export function stallToLegacy(raw: any): Stall {
     avg_rating: raw.avgRating ?? raw.avg_rating ?? 0,
     sort_order: raw.sortOrder ?? raw.sort_order ?? 0,
     status: raw.status === 'open' ? 'active' : 'inactive',
+    floor: raw.floor || '',
+    windowNo: raw.windowNo || '',
+    businessHours: raw.businessHours || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
@@ -93,6 +96,9 @@ export function stallToApi(data: Partial<Stall>) {
     avgRating: data.avg_rating,
     sortOrder: data.sort_order,
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
+    floor: data.floor,
+    windowNo: data.windowNo,
+    businessHours: data.businessHours,
   })
 }
 
@@ -108,9 +114,17 @@ export function dishToLegacy(raw: any): Dish {
     description: raw.description || '',
     avg_rating: raw.avgRating ?? raw.avg_rating ?? 0,
     rating_count: raw.ratingCount ?? raw.rating_count ?? 0,
-    favorite_count: raw.collectCount ?? raw.favoriteCount ?? raw.favorite_count ?? 0,
+    favoriteCount: raw.favoriteCount ?? 0,
     view_count: raw.viewCount ?? raw.view_count ?? 0,
     status: raw.status === 'on' ? 'active' : 'inactive',
+    spiceLevel: raw.spiceLevel ?? 0,
+    portion: raw.portion ?? 0,
+    servePeriod: raw.servePeriod || '',
+    limited: raw.limited ?? 0,
+    audit_status: raw.auditStatus ?? raw.audit_status,
+    reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
+    originalPrice: raw.originalPrice ?? raw.original_price,
+    promoPrice: raw.promoPrice ?? raw.promo_price ?? null,
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
@@ -125,6 +139,13 @@ export function dishToApi(data: Partial<Dish>) {
     images: data.image === undefined ? undefined : legacyToImageList(data.image),
     tags: data.tags,
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
+    auditStatus: data.audit_status,
+    spiceLevel: data.spiceLevel,
+    portion: data.portion,
+    servePeriod: data.servePeriod,
+    limited: data.limited,
+    originalPrice: data.originalPrice === undefined ? undefined : Math.round(Number(data.originalPrice) * 100),
+    promoPrice: data.promoPrice === undefined || data.promoPrice === null ? null : Math.round(Number(data.promoPrice) * 100),
   })
 }
 
@@ -149,9 +170,38 @@ export function userToLegacy(raw: any): User {
     password: '',
     nickname: raw.nickname || '',
     avatar: raw.avatar || '',
-    stall_id: raw.stallId ?? raw.stall_id,
     role: raw.role,
     status: raw.status,
+    created_at: toDate(raw.createdAt || raw.created_at),
+    updated_at: toDate(raw.updatedAt || raw.updated_at),
+  }
+}
+
+export function auditToLegacy(raw: any): AuditVO {
+  return {
+    id: raw.id,
+    type: raw.type,
+    name: raw.name || '',
+    price: raw.price !== undefined && raw.price !== null ? Math.round(raw.price) / 100 : undefined,
+    images: imagesToLegacy(raw.images ?? raw.image),
+    description: raw.description || raw.location || '',
+    location: raw.location || '',
+    submitterId: raw.submitterId ?? raw.submitter_id ?? raw.createdBy ?? raw.created_by,
+    submitterName: (raw.submitterName ?? raw.submitter_name) || '',
+    audit_status: (raw.auditStatus ?? raw.audit_status) || 'pending',
+    reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
+    created_at: toDate(raw.createdAt || raw.created_at),
+    updated_at: toDate(raw.updatedAt || raw.updated_at),
+  }
+}
+
+export function adminUserToLegacy(raw: any): AdminUser {
+  return {
+    id: raw.id,
+    username: raw.username,
+    nickname: raw.nickname || '',
+    role: raw.role || 'admin',
+    status: raw.status || 'active',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 用户实体类
  * <p>
  * 对应数据库表：user
- * 包含两种角色：user（普通用户）、admin（管理员）
+ * 包含两种角色：student（学生）、admin（管理员）
  */
 @Data
 @TableName("user")
@@ -41,8 +41,8 @@ public class User {
     @Schema(description = "头像URL")
     private String avatar;
 
-    /** 角色：user / admin */
-    @Schema(description = "角色", example = "user")
+    /** 角色：student / admin */
+    @Schema(description = "角色", example = "student")
     private String role;
 
     /** 状态：active（正常）/ disabled（禁用） */

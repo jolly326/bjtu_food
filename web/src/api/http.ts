@@ -6,6 +6,18 @@ export interface ApiResponse<T = any> {
   data: T
 }
 
+/** 401 未登录事件（对齐小程序 uni.$emit('auth:unauthorized')） */
+export const AUTH_UNAUTHORIZED = 'auth:unauthorized'
+const listeners: Array<() => void> = []
+export function onUnauthorized(fn: () => void) {
+  listeners.push(fn)
+}
+function emitUnauthorized() {
+  localStorage.removeItem('token')
+  listeners.forEach((fn) => fn())
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_UNAUTHORIZED))
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
@@ -36,10 +48,24 @@ async function request<T>(
     })
 
     clearTimeout(timeout)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    if (!res.ok) {
+      // 401 统一处理：清 token + 跳转登录/emit 事件（对齐小程序 §5.x 错误码）
+      if (res.status === 401) {
+        emitUnauthorized()
+        throw new Error('登录已失效，请重新登录')
+      }
+      throw new Error(`HTTP ${res.status}`)
+    }
 
     const body: ApiResponse<T> = await res.json()
-    if (body.code !== 200) throw new Error(body.message || '请求失败')
+    if (body.code !== 200) {
+      // 业务层 401（code===401）同样按未登录处理
+      if (body.code === 401) {
+        emitUnauthorized()
+        throw new Error('登录已失效，请重新登录')
+      }
+      throw new Error(body.message || '请求失败')
+    }
     return body.data
   } catch (e: any) {
     clearTimeout(timeout)

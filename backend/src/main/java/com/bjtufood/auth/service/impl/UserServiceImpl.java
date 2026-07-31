@@ -56,8 +56,8 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException("User not found");
         }
-        if (!RoleConst.USER.equals(role) && !RoleConst.ADMIN.equals(role)) {
-            throw new BusinessException("角色只能设置为 user 或 admin");
+        if (!RoleConst.STUDENT.equals(role) && !RoleConst.ADMIN.equals(role)) {
+            throw new BusinessException("角色只能设置为 student 或 admin");
         }
         user.setRole(role);
         userMapper.updateById(user);

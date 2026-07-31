@@ -1,5 +1,7 @@
 package com.bjtufood.dish.controller.admin;
 
+import com.bjtufood.common.annotation.AuditLog;
+import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.service.DishService;
@@ -60,6 +62,7 @@ public class DishAdminController {
     }
 
     @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价、收藏和清单项。")
+    @AuditLog(action = OperationLogConst.ACTION_DISH_DELETE, targetType = "dish", targetId = "#id")
     @DeleteMapping("/{id}")
     public Result<Void> deleteDish(
             @Parameter(description = "菜品ID", example = "1")

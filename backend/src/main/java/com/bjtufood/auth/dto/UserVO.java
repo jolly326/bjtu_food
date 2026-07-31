@@ -29,7 +29,7 @@ public class UserVO {
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "角色", example = "user")
+    @Schema(description = "角色", example = "student")
     private String role;
 
     @Schema(description = "状态", example = "active")

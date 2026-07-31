@@ -1,4 +1,5 @@
-export type UserRole = 'visitor' | 'student'
+/** 角色仅 STUDENT / ADMIN（对齐 project_spec.md §0.2） */
+export type UserRole = 'student' | 'admin'
 
 export interface UserInfo {
   id: number
@@ -8,6 +9,6 @@ export interface UserInfo {
 }
 
 export interface UserStats {
-  favoriteCount: number
+  likeCount: number
   reviewCount: number
 }

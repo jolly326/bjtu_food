@@ -12,7 +12,7 @@
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" />
       <view v-else class="image-swiper-placeholder">
-        <image class="placeholder-icon" src="/static/icons/food.svg" />
+        <text class="placeholder-icon">{{ EMOJI.dishPlaceholder }}</text>
       </view>
     </swiper-item>
   </swiper>
@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
+import { EMOJI } from '@/utils/emoji'
 
 const props = withDefaults(defineProps<{
   images: string[]
@@ -33,7 +34,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   height: '400rpx',
   indicatorDots: true,
-  indicatorActiveColor: '#FFFFFF',
+  indicatorActiveColor: '#ffffff',
   autoplay: true,
   interval: 4000,
   circular: true,
@@ -66,7 +67,7 @@ const showIndicator = computed(() => props.indicatorDots && displayImages.value.
   background: var(--bg-page);
 }
 .placeholder-icon {
-  width: 80rpx;
-  height: 80rpx;
+  font-size: 80rpx;
+  line-height: 1;
 }
 </style>

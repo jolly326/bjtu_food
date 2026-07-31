@@ -12,7 +12,7 @@ import java.util.Map;
  * <p>
  * 美食清单的创建、查看、删除和分享功能。
  * 创建时自动生成 shareToken，分享时无需登录即可查看。
- * 一键收藏功能通过注入 FavoriteService 接口调用批量收藏方法。
+ * 一键收藏功能原调用收藏服务实现，task-12.12 已移除收藏模块，收藏（👍 like 体系）存储待架构师重设计。
  */
 public interface ListService {
 
@@ -75,7 +75,7 @@ public interface ListService {
     /**
      * 清单一键收藏
      * <p>
-     * 调用 FavoriteService.batchCollect() 实现
+     * 原调用收藏服务批量收藏；task-12.12 移除收藏模块后保留接口契约，返回空结果。
      *
      * @param listId 清单ID
      * @param userId 当前用户ID

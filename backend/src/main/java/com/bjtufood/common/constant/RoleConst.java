@@ -5,18 +5,18 @@ package com.bjtufood.common.constant;
  * <p>
  * 对应 user 表的 role 字段。
  * Spring Security 中角色需加 ROLE_ 前缀，
- * 数据库存储时去掉前缀，仅存 user/admin。
+ * 数据库存储时去掉前缀，仅存 student/admin。
  */
 public interface RoleConst {
 
-    /** 普通用户（小程序端使用） */
-    String USER = "user";
+    /** 学生（小程序端使用） */
+    String STUDENT = "student";
 
     /** 管理员（浏览器管理端使用） */
     String ADMIN = "admin";
 
     // ==================== Spring Security 角色名（带前缀） ====================
 
-    String ROLE_USER = "ROLE_USER";
+    String ROLE_STUDENT = "ROLE_STUDENT";
     String ROLE_ADMIN = "ROLE_ADMIN";
 }

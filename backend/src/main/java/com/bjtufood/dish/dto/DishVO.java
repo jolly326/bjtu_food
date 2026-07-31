@@ -28,6 +28,14 @@ public class DishVO {
     @Schema(description = "价格（分）", example = "1200")
     private Integer price;
 
+    /** 原价（分，折扣前）；promoPrice 非空视为有折扣 */
+    @Schema(description = "原价（分，折扣前）", example = "1500")
+    private Integer originalPrice;
+
+    /** 促销价（分，可空）；非空视为有折扣 */
+    @Schema(description = "促销价（分，可空；非空视为有折扣）", example = "1200")
+    private Integer promoPrice;
+
     @Schema(description = "菜品描述")
     private String description;
 
@@ -54,17 +62,32 @@ public class DishVO {
     @Schema(description = "食堂名称", example = "第一食堂")
     private String canteenName;
 
+    /** 档口楼层（如 1F/2F），来自 stall 联表 */
+    @Schema(description = "档口楼层（如 1F/2F）", example = "1F")
+    private String floor;
+
+    /** 档口窗口号，来自 stall 联表 */
+    @Schema(description = "档口窗口号", example = "3号窗口")
+    private String windowNo;
+
+    /** 档口营业时间，来自 stall 联表 */
+    @Schema(description = "档口营业时间，如 10:00-20:00", example = "10:00-20:00")
+    private String businessHours;
+
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;
 
     @Schema(description = "评价数", example = "20")
     private Integer ratingCount;
 
-    @Schema(description = "收藏量", example = "15")
-    private Integer collectCount;
+    @Schema(description = "收藏量（喜欢总数）", example = "15")
+    private Integer favoriteCount;
 
     @Schema(description = "浏览量", example = "200")
     private Integer viewCount;
+
+    @Schema(description = "是否为新品")
+    private Boolean isNew;
 
     @Schema(description = "状态（on/off）", example = "on")
     private String status;
@@ -79,4 +102,22 @@ public class DishVO {
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
+
+    // ==================== 一期新增菜品属性标签字段 ====================
+
+    /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
+    @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
+    private Integer spiceLevel;
+
+    /** 分量枚举：0=小 1=中 2=大 */
+    @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
+    private Integer portion;
+
+    /** 供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight */
+    @Schema(description = "供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight", example = "lunch,dinner")
+    private String servePeriod;
+
+    /** 是否限量 */
+    @Schema(description = "是否限量", example = "false")
+    private Boolean limited;
 }

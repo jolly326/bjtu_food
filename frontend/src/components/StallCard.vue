@@ -50,7 +50,7 @@ export interface StallInfo {
           class="stall-icon-img"
         />
         <view v-else class="stall-icon-placeholder">
-          <image class="stall-icon-fallback" src="/static/icons/food.svg" />
+          <text class="stall-icon-fallback">{{ EMOJI.dishPlaceholder }}</text>
         </view>
       </view>
 
@@ -60,13 +60,13 @@ export interface StallInfo {
         <view class="stall-row-top">
           <text class="stall-name">{{ stall.name }}</text>
           <view v-if="stall.rating" class="stall-rating">
-            <image class="stall-rating-star" src="/static/icons/star-yellow.svg" />
+            <text class="stall-rating-star">{{ EMOJI.starFilled }}</text>
             <text class="stall-rating-value">{{ stall.rating.toFixed(1) }}</text>
           </view>
         </view>
         <!-- 第二行：位置 + 菜品数量 -->
         <view class="stall-row-bottom">
-          <image class="stall-location-icon" src="/static/icons/location.svg" />
+          <text class="stall-location-icon">{{ EMOJI.location }}</text>
           <text class="stall-location-text">{{ stall.location }}</text>
           <text class="stall-dish-dot">·</text>
           <text class="stall-dish-count">{{ stall.dishCount }}道菜</text>
@@ -94,9 +94,9 @@ export interface StallInfo {
               mode="aspectFill"
               class="dish-mini-img"
             />
-            <view v-else class="dish-mini-img-placeholder">
-              <image class="dish-mini-fallback" src="/static/icons/food.svg" />
-            </view>
+          <view v-else class="dish-mini-img-placeholder">
+              <text class="dish-mini-fallback">{{ EMOJI.dishPlaceholder }}</text>
+          </view>
             <view class="dish-mini-info">
               <text class="dish-mini-name">{{ dish.name }}</text>
               <text class="dish-mini-price">￥{{ dish.price }}</text>
@@ -118,6 +118,7 @@ export interface StallInfo {
 <script setup lang="ts">
 // StallInfo 已在上方 <script lang="ts"> 中导出，无需重复导入
 import { getImageUrl } from '@/utils/image'
+import { EMOJI } from '@/utils/emoji'
 
 const _props = defineProps<{
   stall: StallInfo
@@ -143,10 +144,13 @@ function goToDish(dish: DishPreview) {
 .stall-card {
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  padding: 20rpx var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
 }
+.stall-card:active { transform: scale(var(--press-scale)); }
 
 /* ==================== 上半部分：档口信息行 ==================== */
 .stall-header {
@@ -181,8 +185,8 @@ function goToDish(dish: DishPreview) {
 }
 
 .stall-icon-fallback {
-  width: 48rpx !important;
-  height: 48rpx !important;
+  font-size: 48rpx !important;
+  line-height: 1 !important;
 }
 
 /* 中间：档口详细信息 */
@@ -192,7 +196,7 @@ function goToDish(dish: DishPreview) {
   margin-left: var(--spacing-sm);
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+  gap: var(--spacing-sm);
 }
 
 /* 第一行：档口名 + 评分 */
@@ -221,10 +225,10 @@ function goToDish(dish: DishPreview) {
 }
 
 .stall-rating-star {
-  height: 32rpx;
-  width: 32rpx;
+  font-size: 28rpx;
+  line-height: 1;
   flex-shrink: 0;
-  margin-right: 4rpx;
+  margin-right: var(--spacing-xs);
 }
 
 .stall-rating-value {
@@ -237,12 +241,12 @@ function goToDish(dish: DishPreview) {
 .stall-row-bottom {
   display: flex;
   align-items: center;
-  gap: 6rpx;
+  gap: var(--spacing-xs);
 }
 
 .stall-location-icon {
-  width: var(--icon-sm);
-  height: var(--icon-sm);
+  font-size: 24rpx;
+  line-height: 1;
   flex-shrink: 0;
 }
 
@@ -257,7 +261,7 @@ function goToDish(dish: DishPreview) {
 .stall-dish-dot {
   font-size: var(--font-body);
   color: var(--border-bold);
-  margin: 0 4rpx;
+  margin: 0 var(--spacing-xs);
 }
 
 .stall-dish-count {
@@ -268,7 +272,7 @@ function goToDish(dish: DishPreview) {
 
 /* ==================== 下半部分：菜品预览区 ==================== */
 .stall-dishes-preview {
-  margin-top: 20rpx;
+  margin-top: var(--spacing-sm);
 }
 
 .dish-scroll {
@@ -285,8 +289,13 @@ function goToDish(dish: DishPreview) {
   border-radius: var(--radius-icon);
   background: var(--bg-page);
   overflow: hidden;
-  margin-right: 20rpx;
+  margin-right: var(--spacing-sm);
   vertical-align: top;
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.dish-mini-card:active {
+  transform: scale(var(--press-scale));
 }
 
 .dish-mini-card:last-child {
@@ -310,16 +319,16 @@ function goToDish(dish: DishPreview) {
   flex-shrink: 0;
 }
 .dish-mini-fallback {
-  width: 64rpx;
-  height: 64rpx;
+  font-size: 64rpx;
+  line-height: 1;
 }
 
 .dish-mini-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10rpx var(--spacing-sm);
-  gap: 6rpx;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
 .dish-mini-name {
@@ -342,7 +351,7 @@ function goToDish(dish: DishPreview) {
 /* ==================== 无菜品状态 ==================== */
 .stall-empty-dishes {
   margin-top: var(--spacing-sm);
-  padding: 20rpx 0;
+  padding: var(--spacing-md) 0;
   text-align: center;
 }
 
@@ -360,7 +369,7 @@ function goToDish(dish: DishPreview) {
   width: 120rpx;
   height: 120rpx;
   border-radius: var(--radius-card);
-  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   flex-shrink: 0;
@@ -372,12 +381,12 @@ function goToDish(dish: DishPreview) {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10rpx;
+  gap: var(--spacing-sm);
 }
 
 .skeleton-line {
   border-radius: 6rpx;
-  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -390,7 +399,7 @@ function goToDish(dish: DishPreview) {
 .skeleton-location {
   width: 60%;
   height: 24rpx;
-  margin-top: 10rpx;
+  margin-top: var(--spacing-sm);
 }
 
 .skeleton-dish-item {
@@ -406,7 +415,7 @@ function goToDish(dish: DishPreview) {
   width: 150rpx;
   height: 150rpx;
   border-radius: var(--radius-icon);
-  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -415,8 +424,8 @@ function goToDish(dish: DishPreview) {
   width: 70%;
   height: 24rpx;
   border-radius: 6rpx;
-  margin: 12rpx auto 0;
-  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  margin: var(--spacing-sm) auto 0;
+  background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -425,8 +434,8 @@ function goToDish(dish: DishPreview) {
   width: 40%;
   height: 22rpx;
   border-radius: 6rpx;
-  margin: 6rpx auto 0;
-  background: linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%);
+  margin: var(--spacing-xs) auto 0;
+  background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

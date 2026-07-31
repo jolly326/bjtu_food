@@ -1,6 +1,7 @@
-import type { BannerItem, CanteenInfo, StallDetail } from '@/types/canteen'
-import { API_BASE_URL } from './config'
+import type { CanteenInfo, StallDetail } from '@/types/canteen'
+import type { BannerItem } from '@/types/banner'
 import { get } from './http'
+import { toAbsoluteImageUrl } from '@/utils/image'
 
 function normalizeImages(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(toAbsoluteImageUrl)
@@ -14,12 +15,6 @@ function normalizeImages(value: unknown): string[] {
   }
 }
 
-function toAbsoluteImageUrl(url: string): string {
-  if (!url || /^(https?:|data:|blob:)/i.test(url) || url.startsWith('/static/')) return url
-  if (url.startsWith('/images/') || url.startsWith('/uploads/')) return `${API_BASE_URL}${url}`
-  return url
-}
-
 function firstImage(raw: any): string {
   return normalizeImages(raw?.images ?? raw?.image ?? raw?.icon)[0] || ''
 }
@@ -27,9 +22,13 @@ function firstImage(raw: any): string {
 export async function getHomeBanners(): Promise<BannerItem[]> {
   const raw = await get<any[]>('/canteens/banners')
   return raw.map((b: any) => ({
+    id: Number(b.id),
     title: b.title || '',
     subtitle: b.subtitle || '',
     image: firstImage(b),
+    targetType: (b.targetType || b.target_type || 'NONE') as BannerItem['targetType'],
+    targetId: b.targetId != null ? Number(b.targetId) : (b.target_id != null ? Number(b.target_id) : undefined),
+    targetUrl: b.targetUrl || b.target_url || '',
   }))
 }
 
@@ -52,6 +51,7 @@ export async function getCanteenImages(): Promise<Record<string, string>> {
 export async function getStallDetail(canteen: string, stallName: string): Promise<StallDetail> {
   const raw = await get<any>('/canteens/stallDetail', { canteen, canteenName: canteen, stallName })
   return {
+    id: raw.id != null ? Number(raw.id) : undefined,
     name: raw.name || stallName,
     images: normalizeImages(raw.images ?? raw.image),
     location: raw.location || canteen,

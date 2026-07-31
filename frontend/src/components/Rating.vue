@@ -7,16 +7,15 @@
       :class="{ active: star <= modelValue }"
       @tap="readonly ? null : $emit('update:modelValue', star)"
     >
-      <image
-        :src="star <= modelValue ? '/static/icons/star-yellow.svg' : '/static/icons/star.svg'"
-        class="star-icon-img"
-      />
+      <text class="star-icon-img">{{ star <= modelValue ? EMOJI.starFilled : EMOJI.starEmpty }}</text>
     </view>
     <text v-if="showText && modelValue" class="rating-text">{{ modelValue }}分</text>
   </view>
 </template>
 
 <script setup lang="ts">
+import { EMOJI } from '@/utils/emoji'
+
 withDefaults(defineProps<{
   modelValue: number
   showText?: boolean
@@ -39,12 +38,17 @@ defineEmits<{
   gap: var(--spacing-sm);
 }
 .star-icon-img {
-  width: 72rpx;
-  height: 72rpx;
+  font-size: 56rpx;
+  line-height: 1;
   display: block;
 }
 .interactive .star {
   padding: var(--spacing-sm);
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.interactive .star:active {
+  transform: scale(var(--press-scale));
 }
 .rating-text {
   font-size: var(--font-h2);

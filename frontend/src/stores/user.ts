@@ -23,7 +23,7 @@ function saveAuth(tokenValue: string, info: UserInfo) {
 export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
-  const userStats = ref<UserStats>({ favoriteCount: 0, reviewCount: 0 })
+  const userStats = ref<UserStats>({ likeCount: 0, reviewCount: 0 })
   const loading = ref(false)
 
   function restoreFromCache(): boolean {
@@ -81,7 +81,7 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = ''
     userInfo.value = null
-    userStats.value = { favoriteCount: 0, reviewCount: 0 }
+    userStats.value = { likeCount: 0, reviewCount: 0 }
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
   }

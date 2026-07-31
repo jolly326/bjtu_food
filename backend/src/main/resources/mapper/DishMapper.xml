@@ -22,6 +22,15 @@
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
         <result property="canteenId" column="canteen_id"/>
+        <!-- 档口位置链路字段（来自 stall 联表） -->
+        <result property="floor" column="floor"/>
+        <result property="windowNo" column="window_no"/>
+        <result property="businessHours" column="business_hours"/>
+        <!-- 菜品属性标签字段 -->
+        <result property="spiceLevel" column="spice_level"/>
+        <result property="portion" column="portion"/>
+        <result property="servePeriod" column="serve_period"/>
+        <result property="limited" column="limited"/>
     </resultMap>
 
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"
@@ -33,17 +42,26 @@
             d.id,
             d.name,
             d.price,
+            d.original_price,
+            d.promo_price,
             d.images  AS images_json,
             d.tags,
             d.description,
             d.avg_rating,
             d.rating_count,
-            d.favorite_count AS collect_count,
+            d.favorite_count AS favorite_count,
             d.view_count,
             d.status,
             d.created_at,
+            d.spice_level,
+            d.portion,
+            d.serve_period,
+            d.limited,
             s.id   AS stall_id,
             s.name AS stall_name,
+            s.floor,
+            s.window_no,
+            s.business_hours,
             c.id   AS canteen_id,
             c.name AS canteen_name
         FROM dish d
@@ -57,6 +75,7 @@
         WHERE d.status = 'on'
           AND s.status = 'open'
           AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         <if test="req.keyword != null and req.keyword != ''">
             AND (d.name LIKE CONCAT('%', #{req.keyword}, '%')
             OR s.name LIKE CONCAT('%', #{req.keyword}, '%')
@@ -79,6 +98,9 @@
             AND d.price &lt;= #{req.maxPrice}
         </if>
         <choose>
+            <when test="req.sortBy == 'heat'">
+                ORDER BY (d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20) DESC
+            </when>
             <when test="req.sortBy == 'rating'">
                 ORDER BY d.avg_rating
                 <choose>
@@ -114,12 +136,36 @@
         </choose>
     </select>
 
+    <!-- 今日上新菜品 TOP8 -->
+    <select id="selectNewDishes" resultMap="dishVOMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        ORDER BY d.created_at DESC
+        LIMIT 8
+    </select>
+
+    <!-- 限时活动菜品 TOP4 -->
+    <select id="selectPromotionDishes" resultMap="dishVOMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+          AND d.tags LIKE CONCAT('%', 'promotion', '%')
+        ORDER BY d.created_at DESC
+        LIMIT 4
+    </select>
+
     <!-- 热门菜品 TOP10 -->
     <select id="selectHotDishes" resultMap="dishVOMap">
         <include refid="joinDishSql"/>
         WHERE d.status = 'on'
           AND s.status = 'open'
           AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         ORDER BY d.favorite_count DESC, d.avg_rating DESC
         LIMIT 10
     </select>
@@ -131,6 +177,7 @@
           AND d.status = 'on'
           AND s.status = 'open'
           AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         LIMIT 1
     </select>
 
@@ -138,12 +185,48 @@
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
+        <result property="originalPrice" column="original_price"/>
+        <result property="promoPrice" column="promo_price"/>
+        <result property="spiceLevel" column="spice_level"/>
+        <result property="portion" column="portion"/>
+        <result property="servePeriod" column="serve_period"/>
+        <result property="limited" column="limited"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称） -->
     <select id="selectAllForAdmin" resultMap="dishAdminVOMap">
         <include refid="joinDishSql"/>
         ORDER BY d.updated_at DESC
+    </select>
+
+    <!-- 我的发布 结果映射 -->
+    <resultMap id="myDishVOMap" type="com.bjtufood.dish.dto.MyDishVO">
+        <id property="id" column="id"/>
+        <result property="stallId" column="stall_id"/>
+        <result property="imagesJson" column="images"/>
+        <result property="auditStatus" column="audit_status"/>
+        <result property="rejectReason" column="reject_reason"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 我的发布菜品列表（created_by = #{userId}，可按 audit_status 过滤） -->
+    <select id="selectMyDishes" resultMap="myDishVOMap">
+        SELECT
+            d.id,
+            d.name,
+            d.price,
+            d.images,
+            d.tags,
+            d.description,
+            d.audit_status,
+            d.reject_reason,
+            d.created_at
+        FROM dish d
+        WHERE d.created_by = #{userId}
+        <if test="auditStatus != null and auditStatus != ''">
+            AND d.audit_status = #{auditStatus}
+        </if>
+        ORDER BY d.created_at DESC
     </select>
 
     <!-- 评分分布 -->
@@ -153,6 +236,55 @@
         WHERE dish_id = #{dishId}
           AND is_hidden = 0
         GROUP BY rating
+    </select>
+
+    <!-- 搜索联想：菜品 / 档口 / 食堂 名混合（各取 TOP5） -->
+    <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
+        (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
+                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image
+         FROM dish d
+         WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
+           AND d.status = 'on'
+           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+         LIMIT 5)
+        UNION ALL
+        (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
+                JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image
+         FROM stall s
+         WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
+           AND s.status = 'open'
+           AND (s.audit_status = 'approved' OR s.audit_status IS NULL)
+         LIMIT 5)
+        UNION ALL
+        (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
+                JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image
+         FROM canteen c
+         WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
+           AND c.status = 'open'
+         LIMIT 5)
+    </select>
+
+    <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->
+    <select id="selectHotSearch" resultType="com.bjtufood.dish.dto.HotSearchVO">
+        SELECT d.name AS keyword,
+               CAST((d.view_count * 1 + d.rating_count * 5 * 20 + COALESCE(d.avg_rating, 0) * 20) AS SIGNED) AS heat
+        FROM dish d
+        WHERE d.status = 'on'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        ORDER BY heat DESC
+        LIMIT 10
+    </select>
+
+    <!-- 新晋黑马 TOP10（近 14 天新上架且热度增速高的菜品） -->
+    <select id="selectRising" resultMap="dishVOMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+          AND d.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY (d.rating_count * 20 + d.view_count) DESC
+        LIMIT 10
     </select>
 
 </mapper>

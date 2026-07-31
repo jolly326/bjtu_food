@@ -41,6 +41,21 @@ public class Canteen {
     @Schema(description = "状态", example = "open")
     private String status;
 
+    /**
+     * 审核状态（与启停 status 解耦）：pending（待审核）/ approved（已通过）/ rejected（已退回）
+     * 后台录入默认 approved；学生 UGC 提交写入 pending。
+     */
+    @Schema(description = "审核状态：pending/approved/rejected", example = "approved")
+    private String auditStatus;
+
+    /** 退回原因（仅 audit_status=rejected 时由后台填写，可空） */
+    @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
+    private String rejectReason;
+
+    /** 提交人用户ID（UGC 由当前登录用户写入，禁止前端传入） */
+    @Schema(description = "提交人用户ID")
+    private Long createdBy;
+
     /** 排序权重（数字越小越靠前） */
     @Schema(description = "排序权重")
     private Integer sortOrder;

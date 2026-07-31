@@ -14,5 +14,7 @@ import org.apache.ibatis.annotations.Param;
  */
 public interface ReviewMapper extends BaseMapper<Review> {
 
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort);
+
+    IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 }

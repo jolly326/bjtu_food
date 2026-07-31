@@ -26,6 +26,15 @@ public class StallDetailVO {
     @Schema(description = "档口位置", example = "第一食堂")
     private String location;
 
+    @Schema(description = "楼层（如 1F/2F）", example = "1F")
+    private String floor;
+
+    @Schema(description = "窗口号", example = "3号窗口")
+    private String windowNo;
+
+    @Schema(description = "营业时间，如 10:00-20:00", example = "10:00-20:00")
+    private String businessHours;
+
     @Schema(description = "档口描述", example = "第一食堂·面面俱到，为您提供美味的校园餐饮体验。")
     private String description;
 }

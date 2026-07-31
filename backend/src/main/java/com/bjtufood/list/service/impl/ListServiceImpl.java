@@ -5,7 +5,6 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
-import com.bjtufood.favorite.service.FavoriteService;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.list.dto.ListCreateReq;
@@ -29,7 +28,6 @@ public class ListServiceImpl implements ListService {
 
     private final ItemListMapper itemListMapper;
     private final ListItemMapper listItemMapper;
-    private final FavoriteService favoriteService;
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ImageUrlUtil imageUrlUtil;
@@ -91,11 +89,9 @@ public class ListServiceImpl implements ListService {
 
     @Override
     public Map<String, Integer> collectAll(Long listId, Long userId) {
-        List<Long> dishIds = listItemMapper.selectList(new LambdaQueryWrapper<ListItem>().eq(ListItem::getListId, listId))
-                .stream()
-                .map(ListItem::getDishId)
-                .toList();
-        return favoriteService.batchCollect(userId, dishIds);
+        // favorite 模块已在 task-12.12 移除，收藏（👍 like 体系）存储待架构师重设计。
+        // 此处保留接口契约，返回空结果，不再维护收藏数，避免悬空依赖。
+        return Map.of("succeeded", 0, "skipped", 0);
     }
 
     private ListVO toVO(ItemList list) {

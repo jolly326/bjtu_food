@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { debounce } from '@/utils/debounce'
-import searchIcon from '@/static/icon/search.svg'
+import { Search } from '@element-plus/icons-vue'
 
 const props = defineProps<{ placeholder?: string }>()
 const emit = defineEmits<{ change: [value: string] }>()
@@ -13,7 +13,7 @@ watch(raw, debounce((v: string) => emit('change', v), 300))
 
 <template>
   <div class="search-wrap">
-    <img :src="searchIcon" class="search-icon" alt="" />
+    <el-icon class="search-icon"><Search /></el-icon>
     <input v-model="raw" :placeholder="props.placeholder || '搜索...'" class="search-input" />
   </div>
 </template>
@@ -26,9 +26,10 @@ watch(raw, debounce((v: string) => emit('change', v), 300))
 }
 .search-icon {
   position: absolute;
-  left: 12px;
+  left: var(--space-3);
   width: 16px;
   height: 16px;
+  display: inline-flex;
   pointer-events: none;
   opacity: .5;
 }
@@ -36,15 +37,16 @@ watch(raw, debounce((v: string) => emit('change', v), 300))
   flex: 1;
   width: 320px;
   max-width: 400px;
-  padding: 10px 16px 10px 36px;
-  border: 1px solid var(--border, #d9d9d9);
-  border-radius: var(--radius-md, 8px);
-  font-size: 14px;
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-10);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-base);
   outline: none;
-  transition: border-color .2s;
+  background: var(--bg-card);
+  transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out);
 }
 .search-input:focus {
-  border-color: var(--primary, #1890ff);
-  box-shadow: 0 0 0 2px rgba(24,144,255,.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 </style>

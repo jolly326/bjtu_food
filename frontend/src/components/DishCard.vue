@@ -1,21 +1,31 @@
 <template>
-  <view class="dish-card" @tap="handleClick">
+  <view
+    class="dish-card"
+    :class="{ pressed }"
+    @touchstart="pressed = true"
+    @touchend="pressed = false"
+    @touchcancel="pressed = false"
+    @mousedown="pressed = true"
+    @mouseup="pressed = false"
+    @mouseleave="pressed = false"
+    @tap="handleClick"
+  >
     <view class="card-image">
-      <image v-if="imgSrc" :src="imgSrc" mode="aspectFill" />
+      <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="card-img" @error="imgOk = false" />
       <view v-else class="image-placeholder">
-        <image class="placeholder-icon" src="/static/icons/food.svg" />
+        <text class="placeholder-icon">{{ EMOJI.dishPlaceholder }}</text>
       </view>
       <view class="card-rating-badge">
-        <image class="star-icon" src="/static/icons/star-yellow.svg" />
+        <text class="star-icon">{{ EMOJI.starFilled }}</text>
         <text class="rating-text">{{ dish.rating }}</text>
-      </view>  
+      </view>
     </view>
     <view class="card-info">
-      <view class="name-row">
-        <text class="card-name">{{ dish.name }}</text>
+      <text class="card-name">{{ dish.name }}</text>
+      <view class="meta-row">
+        <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
         <text class="card-price">¥{{ dish.price }}</text>
       </view>
-      <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
       <view class="card-tags" v-if="dish.tags.length > 0">
         <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
       </view>
@@ -24,9 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl } from '@/utils/image'
+import { EMOJI } from '@/utils/emoji'
 import TagLabel from './TagLabel.vue'
 
 const props = defineProps<{
@@ -37,8 +48,14 @@ const emit = defineEmits<{
   click: [dish: Dish]
 }>()
 
+/** 按压反馈：按下时整体缩放到 0.97（跨端兼容，替代小程序不支持的 v-press 指令） */
+const pressed = ref(false)
+
 /** 图片 URL：通过 getImageUrl 处理（兼容相对路径与完整 URL） */
 const imgSrc = computed(() => getImageUrl(props.dish.image))
+
+/** 图片加载状态：加载失败则回退到占位，禁止裂图 */
+const imgOk = ref(true)
 
 function handleClick() {
   emit('click', props.dish)
@@ -51,7 +68,12 @@ function handleClick() {
   border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: var(--shadow-card);
-  border: 2rpx solid var(--border-color);
+  /* 进场仅极轻量淡入 + 按压缩放（红线 §4.9②：位移 ≤0，仅 transform/opacity） */
+  transition: transform 0.12s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.dish-card.pressed {
+  transform: scale(0.97);
 }
 .card-image {
   position: relative;
@@ -59,7 +81,7 @@ function handleClick() {
   height: 200rpx;
   background: var(--bg-page);
 }
-.card-image image {
+.card-img {
   width: 100%;
   height: 100%;
 }
@@ -70,44 +92,56 @@ function handleClick() {
   align-items: center;
   justify-content: center;
 }
-image.placeholder-icon {
-  width: 100rpx;
-  height: 100rpx;
+.placeholder-icon {
+  font-size: 64rpx;
+  line-height: 1;
 }
 .card-rating-badge {
   position: absolute;
   top: 10rpx;
   right: 10rpx;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-dark-strong);
   border-radius: var(--radius-card);
   padding: var(--spacing-xs) var(--spacing-sm);
   display: flex;
   align-items: center;
-  gap: 4rpx;
+  gap: var(--spacing-xs);
 }
-image.star-icon {
-  width: 24rpx;
-  height: 24rpx;
+.star-icon {
+  font-size: 22rpx;
+  line-height: 1;
   flex-shrink: 0;
 }
 .rating-text {
   color: var(--text-white);
   font-size: var(--font-tiny);
-  font-weight: bold;
+  font-weight: 700;
 }
 .card-info {
-  padding: 20rpx var(--spacing-md);
-}
-.name-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+  min-width: 0;
 }
 .card-name {
+  display: block;
   font-size: var(--font-body);
-  font-weight: 500;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+.card-stall {
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -117,19 +151,13 @@ image.star-icon {
 .card-price {
   font-size: var(--font-caption);
   color: var(--color-price);
-  font-weight: bold;
+  font-weight: 700;
   flex-shrink: 0;
-}
-.card-stall {
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  margin-top: var(--spacing-xs);
-  display: block;
 }
 .card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6rpx;
-  margin-top: var(--spacing-xs);
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
 }
 </style>

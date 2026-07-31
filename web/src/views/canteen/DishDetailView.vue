@@ -5,14 +5,16 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { usePageStore } from '@/stores/pageStore'
-import Modal from '@/components/Modal.vue'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
+import PageSection from '@/components/layout/PageSection.vue'
+import StatCard from '@/components/common/StatCard.vue'
+import FilterSelect from '@/components/layout/FilterSelect.vue'
+import FormDialog from '@/components/FormDialog.vue'
 import EntityImage from '@/components/EntityImage.vue'
-import guanbi from '@/static/icon/guanbi.svg'
-import Trophy from '@/static/icon/Trophy.svg'
-import yellowStar from '@/static/icon/yellow-star.svg'
-import comment from '@/static/icon/comment.svg'
-import Food from '@/static/icon/Food.svg'
-import { uploadImage } from '@/api/upload'
+import ImageUpload from '@/components/ImageUpload.vue'
+import DataTable from '@/components/DataTable.vue'
+import { Trophy, Star, Food } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -20,6 +22,15 @@ const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const page = usePageStore()
+
+function goBack() {
+  router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}`)
+}
+
+const statusOptions = [
+  { label: '在售', value: 'active' },
+  { label: '已下架', value: 'inactive' },
+]
 
 const canteenId = computed(() => Number(route.params.canteenId))
 const stallId = computed(() => Number(route.params.stallId))
@@ -40,13 +51,44 @@ function parseTags(tags: string): string[] {
   try { return JSON.parse(tags || '[]') } catch { return [] }
 }
 
+// 菜品属性枚举（与后端 DishAttrConst 对齐）
+const SPICE_OPTIONS = [
+  { value: 0, label: '不辣' },
+  { value: 1, label: '微辣' },
+  { value: 2, label: '中辣' },
+  { value: 3, label: '重辣' },
+]
+const PORTION_OPTIONS = [
+  { value: 0, label: '小份' },
+  { value: 1, label: '中份' },
+  { value: 2, label: '大份' },
+]
+const SERVE_PERIOD_OPTIONS = [
+  { value: 'breakfast', label: '早餐' },
+  { value: 'lunch', label: '午餐' },
+  { value: 'dinner', label: '晚餐' },
+  { value: 'midnight', label: '夜宵' },
+]
+
+function parseServePeriod(sp: string): string[] {
+  if (!sp) return []
+  return sp.split(',').map(s => s.trim()).filter(Boolean)
+}
+function servePeriodLabel(key: string): string {
+  return SERVE_PERIOD_OPTIONS.find(o => o.value === key)?.label || key
+}
+function spiceLabel(v?: number): string {
+  return SPICE_OPTIONS.find(o => o.value === v)?.label || '不辣'
+}
+function portionLabel(v?: number): string {
+  return PORTION_OPTIONS.find(o => o.value === v)?.label || '小份'
+}
+
 const editing = ref(false)
-const editForm = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '' })
+const editForm = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '', spiceLevel: 0, portion: 0, servePeriod: '', limited: 0, originalPrice: 0, promoPrice: 0 })
 const editErrors = ref<Record<string, string>>({})
 
 const showImageModal = ref(false)
-const modalImages = ref<string[]>([])
-const modalFileInput = ref<HTMLInputElement | null>(null)
 
 function parseImages(imgStr: string): string[] { return (imgStr || '').split('|||').filter(Boolean) }
 const imageList = computed(() => parseImages(editForm.value.image))
@@ -54,28 +96,9 @@ const firstImage = computed(() => imageList.value[0] || '')
 const imageCount = computed(() => imageList.value.length)
 
 function openImageModal() {
-  modalImages.value = [...imageList.value]
   showImageModal.value = true
 }
-function modalAddImage() { modalFileInput.value?.click() }
-async function modalHandleFile(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  try {
-    const result = await uploadImage(file)
-    modalImages.value.push(result.relativeUrl)
-    toast.success('图片上传成功')
-  } catch (err: any) {
-    toast.error(err.message || '图片上传失败')
-  } finally {
-    input.value = ''
-  }
-}
-function modalRemoveImage(idx: number) { modalImages.value.splice(idx, 1) }
 function saveImageModal() {
-  editForm.value.image = modalImages.value.join('|||')
   if (dish.value) {
     store.updateDish(Number(dish.value.id), { image: editForm.value.image })
     toast.success('图片已更新')
@@ -97,6 +120,10 @@ watch([canteen, stall, dish], ([c, s, d]) => {
     editForm.value = {
       name: d.name, price: d.price, description: d.description || '',
       image: d.image || '', tags: d.tags || '', status: d.status,
+      spiceLevel: d.spiceLevel ?? 0, portion: d.portion ?? 0,
+      servePeriod: d.servePeriod || '', limited: d.limited ?? 0,
+      originalPrice: d.originalPrice ? d.originalPrice / 100 : 0,
+      promoPrice: d.promoPrice ? d.promoPrice / 100 : 0,
     }
   }
 }, { immediate: true })
@@ -108,6 +135,10 @@ function toggleEdit() {
     editForm.value = {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
+      spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
+      servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
+      originalPrice: dish.value.originalPrice ? dish.value.originalPrice / 100 : 0,
+      promoPrice: dish.value.promoPrice ? dish.value.promoPrice / 100 : 0,
     }
     editErrors.value = {}
   }
@@ -125,10 +156,20 @@ function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!editForm.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!editForm.value.price || editForm.value.price <= 0) errs.price = '价格必须大于 0'
+  // 折扣价校验：促销价必须低于原价（无原价时低于常规价），且不为负
+  const basePrice = editForm.value.originalPrice > 0 ? editForm.value.originalPrice : editForm.value.price
+  if (editForm.value.originalPrice < 0) errs.originalPrice = '原价不能为负'
+  if (editForm.value.promoPrice < 0) errs.promoPrice = '促销价不能为负'
+  if (editForm.value.promoPrice > 0 && editForm.value.promoPrice >= basePrice) {
+    errs.promoPrice = '促销价须低于原价/常规价'
+  }
   editErrors.value = errs
   if (Object.keys(errs).length) return
   if (dish.value) {
-    store.updateDish(Number(dish.value.id), { ...editForm.value })
+    const payload: any = { ...editForm.value }
+    // promoPrice 为空（0）时置 null，表示无折扣
+    if (!payload.promoPrice) payload.promoPrice = null
+    store.updateDish(Number(dish.value.id), payload)
     toast.success('菜品已更新')
   }
   editErrors.value = {}
@@ -140,10 +181,23 @@ function cancelEdit() {
     editForm.value = {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
+      spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
+      servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
+      originalPrice: dish.value.originalPrice ? dish.value.originalPrice / 100 : 0,
+      promoPrice: dish.value.promoPrice ? dish.value.promoPrice / 100 : 0,
     }
   }
   editErrors.value = {}
   editing.value = false
+}
+
+// 供应时段多选切换（逗号分隔存储）
+function toggleServePeriod(key: string) {
+  const arr = parseServePeriod(editForm.value.servePeriod)
+  const i = arr.indexOf(key)
+  if (i === -1) arr.push(key)
+  else arr.splice(i, 1)
+  editForm.value.servePeriod = arr.join(',')
 }
 
 async function deleteDish() {
@@ -170,47 +224,45 @@ async function handleDeleteReview(id: number) {
 </script>
 
 <template>
-  <div class="page" v-if="dish">
-    <!-- 合并头栏 + Tab -->
-    <div class="headerbar">
-      <div class="headerbar-top">
-        <div class="headerbar-thumb" @click="openImageModal">
+  <PageContainer v-if="dish">
+    <PageHeader
+      :back="true"
+      :title="dish?.name || '加载中'"
+      :subtitle="(canteen?.name || '') + ' · ' + (stall?.name || '')"
+      @back="goBack"
+    >
+      <template #extra>
+        <div class="header-thumb" @click="openImageModal">
           <img v-if="firstImage" :src="firstImage" alt="" />
-          <img v-else :src="Food" class="thumb-ph" alt="" />
+          <el-icon v-else :size="20" class="thumb-ph"><Food /></el-icon>
         </div>
-        <div class="headerbar-body">
-          <div class="headerbar-title-row">
-            <h2 class="headerbar-name">{{ dish?.name || '加载中' }}</h2>
-            <span class="headerbar-sub">{{ canteen?.name }} · {{ stall?.name }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="headerbar-tabs">
-        <div class="tab-item" :class="{ active: activeTab === 0 }" @click="activeTab = 0">详情概览</div>
-        <div class="tab-count-item" :class="{ active: activeTab === 1 }" @click="activeTab = 1">
-          评论管理
-        </div>
+      </template>
+    </PageHeader>
+
+    <div class="detail-tabs">
+      <div class="tab-item" :class="{ active: activeTab === 0 }" @click="activeTab = 0">详情概览</div>
+      <div class="tab-count-item" :class="{ active: activeTab === 1 }" @click="activeTab = 1">
+        评论管理
       </div>
     </div>
 
     <!-- Tab 1: 详情概览 -->
-    <div v-show="activeTab === 0" class="tab-panel">
-      <div class="panel-section">
-        <div class="panel-header">
-          <h4 class="panel-title">基本信息</h4>
+    <template v-if="activeTab === 0">
+      <PageSection title="基本信息">
+        <template #header-extra>
           <div class="panel-actions">
             <template v-if="!editing">
-              <button class="btn-primary btn-sm" @click="toggleEdit">编辑</button>
-              <button class="btn-danger btn-sm" @click="deleteDish">删除</button>
+              <button class="btn-primary btn-sm" v-press @click="toggleEdit">编辑</button>
+              <button class="btn-danger btn-sm" v-press @click="deleteDish">删除</button>
             </template>
             <template v-else>
-              <button class="btn-cancel btn-sm" @click="cancelEdit">取消</button>
-              <button class="btn-primary btn-sm" @click="confirmEdit">保存</button>
+              <button class="btn-cancel btn-sm" v-press @click="cancelEdit">取消</button>
+              <button class="btn-primary btn-sm" v-press @click="confirmEdit">保存</button>
             </template>
           </div>
-        </div>
+        </template>
         <div class="detail-body">
-          <EntityImage :image-url="firstImage" :image-count="imageCount" placeholder-emoji="🥘" @click="openImageModal" />
+          <EntityImage :image-url="firstImage" :image-count="imageCount" @click="openImageModal" />
           <div class="detail-fields">
             <div class="detail-row">
               <span class="detail-label">名称</span>
@@ -224,8 +276,29 @@ async function handleDeleteReview(id: number) {
               <span class="detail-label">价格</span>
               <div class="detail-control">
                 <span v-if="!editing" class="detail-value price">¥{{ editForm.price }}</span>
-                <input v-else v-model.number="editForm.price" type="number" min="0" step="0.5" class="form-input" style="width:120px" :class="{ 'input-error': editErrors.price }" placeholder="价格" />
+                <input v-else v-model.number="editForm.price" type="number" min="0" step="0.5" class="form-input price-input" :class="{ 'input-error': editErrors.price }" placeholder="价格" />
                 <p v-if="editing && editErrors.price" class="field-error">{{ editErrors.price }}</p>
+              </div>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">折扣价</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">
+                  <template v-if="editForm.promoPrice > 0">
+                    <span class="price">¥{{ editForm.promoPrice }}</span>
+                    <span class="origin-price" v-if="editForm.originalPrice > 0">¥{{ editForm.originalPrice }}</span>
+                    <span class="promo-badge" v-else>促销</span>
+                  </template>
+                  <span v-else class="text-muted">无折扣</span>
+                </span>
+                <div v-else class="discount-edit">
+                  <label class="mini-label">原价（元）</label>
+                  <input v-model.number="editForm.originalPrice" type="number" min="0" step="0.5" class="form-input price-input" :class="{ 'input-error': editErrors.originalPrice }" placeholder="选填" />
+                  <label class="mini-label">促销价（元）</label>
+                  <input v-model.number="editForm.promoPrice" type="number" min="0" step="0.5" class="form-input price-input" :class="{ 'input-error': editErrors.promoPrice }" placeholder="选填，留空=无折扣" />
+                  <p v-if="editErrors.originalPrice" class="field-error">{{ editErrors.originalPrice }}</p>
+                  <p v-if="editErrors.promoPrice" class="field-error">{{ editErrors.promoPrice }}</p>
+                </div>
               </div>
             </div>
             <div class="detail-row">
@@ -238,25 +311,73 @@ async function handleDeleteReview(id: number) {
                 <span v-if="!editing" class="detail-value">
                   <span v-if="parseTags(editForm.tags || '').length" class="tag-group">
                     <span v-for="tag in parseTags(editForm.tags || '')" :key="tag" class="dish-tag" :class="tag === '招牌菜' ? 'tag-hot' : 'tag-rec'">
-                      <img :src="tag === '招牌菜' ? Trophy : yellowStar" class="tag-icon" alt="" /> {{ tag }}
+                      <el-icon class="tag-icon"><component :is="tag === '招牌菜' ? Trophy : Star" /></el-icon> {{ tag }}
                     </span>
                   </span>
                   <span v-else class="text-muted">无</span>
                 </span>
                 <div v-else class="tag-selector">
-                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('招牌菜') }" @click="toggleFormTag('招牌菜')"><img :src="Trophy" class="tag-icon" alt="" /> 招牌菜</span>
-                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('必吃推荐') }" @click="toggleFormTag('必吃推荐')"><img :src="yellowStar" class="tag-icon" alt="" /> 必吃推荐</span>
+                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('招牌菜') }" @click="toggleFormTag('招牌菜')"><el-icon class="tag-icon"><Trophy /></el-icon> 招牌菜</span>
+                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('必吃推荐') }" @click="toggleFormTag('必吃推荐')"><el-icon class="tag-icon"><Star /></el-icon> 必吃推荐</span>
                 </div>
+              </div>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">辣度</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">{{ spiceLabel(editForm.spiceLevel) }}</span>
+                <el-select v-else v-model="editForm.spiceLevel" class="form-select-el" placeholder="选择辣度">
+                  <el-option v-for="opt in SPICE_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </div>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">分量</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">{{ portionLabel(editForm.portion) }}</span>
+                <el-select v-else v-model="editForm.portion" class="form-select-el" placeholder="选择分量">
+                  <el-option v-for="opt in PORTION_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </div>
+            </div>
+            <div class="detail-row detail-row-desc">
+              <span class="detail-label">供应时段</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">
+                  <span v-if="parseServePeriod(editForm.servePeriod).length" class="tag-group">
+                    <span v-for="p in parseServePeriod(editForm.servePeriod)" :key="p" class="dish-tag tag-rec">{{ servePeriodLabel(p) }}</span>
+                  </span>
+                  <span v-else class="text-muted">无</span>
+                </span>
+                <div v-else class="tag-selector">
+                  <span
+                    v-for="opt in SERVE_PERIOD_OPTIONS"
+                    :key="opt.value"
+                    class="tag-option"
+                    :class="{ active: parseServePeriod(editForm.servePeriod).includes(opt.value) }"
+                    @click="toggleServePeriod(opt.value)"
+                  >{{ opt.label }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">是否限量</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value">{{ editForm.limited ? '限量供应' : '不限量' }}</span>
+                <el-switch v-else v-model="editForm.limited" :active-value="1" :inactive-value="0" active-text="限量" inactive-text="不限" />
               </div>
             </div>
             <div class="detail-row">
               <span class="detail-label">状态</span>
               <div class="detail-control">
                 <span v-if="!editing" class="tag" :class="editForm.status === 'active' ? 'tag-green' : 'tag-red'">{{ editForm.status === 'active' ? '在售' : '已下架' }}</span>
-                <select v-else v-model="editForm.status" class="form-select">
-                  <option value="active">在售</option>
-                  <option value="inactive">已下架</option>
-                </select>
+                <FilterSelect
+                  v-else
+                  v-model="editForm.status"
+                  :options="statusOptions"
+                  :clearable="false"
+                  width="160"
+                />
               </div>
             </div>
             <div class="detail-row detail-row-desc">
@@ -268,200 +389,141 @@ async function handleDeleteReview(id: number) {
             </div>
           </div>
         </div>
-      </div>
+      </PageSection>
 
-      <div class="panel-section">
-        <div class="panel-header">
-          <h4 class="panel-title">数据统计</h4>
-        </div>
+      <PageSection title="数据统计">
         <div class="stats-row">
-          <div class="stat-card">
-            <span class="stat-num" style="color:#F5A623">{{ dish?.avg_rating ?? 0 }}</span>
-            <span class="stat-unit">评分</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-num">{{ dish?.rating_count ?? 0 }}</span>
-            <span class="stat-unit">人评分</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-num">{{ dish?.favorite_count ?? 0 }}</span>
-            <span class="stat-unit">人收藏</span>
-          </div>
+          <StatCard label="评分" :value="dish?.avg_rating ?? 0" tone="star" />
+          <StatCard label="人评分" :value="dish?.rating_count ?? 0" />
+          <StatCard label="人收藏" :value="dish?.favoriteCount ?? 0" />
         </div>
-      </div>
-    </div>
+      </PageSection>
+    </template>
 
     <!-- Tab 2: 评论管理 -->
-    <div v-show="activeTab === 1" class="tab-panel">
-      <div class="list-bar">
-        <h3><img :src="comment" class="icon-inline" alt="" /> 评论管理 <span class="count-tag">共 {{ reviews.length }} 条</span></h3>
-      </div>
-      <div class="table-wrap" v-if="reviews.length">
-        <table class="table">
-          <thead><tr><th>ID</th><th>用户</th><th>评分</th><th>内容</th><th>时间</th><th>操作</th></tr></thead>
-          <tbody>
-            <tr v-for="r in reviews" :key="Number(r.id)">
-              <td>{{ r.id }}</td><td>{{ getUserName(r.user_id) }}</td>
-              <td class="stars">
-                <img v-for="n in r.rating" :key="n" :src="yellowStar" class="star-icon" alt="" />
-              </td>
-              <td class="ellipsis" :title="r.content">{{ r.content }}</td>
-              <td>{{ r.created_at.toLocaleDateString('zh-CN') }}</td>
-              <td class="actions"><button class="link danger" @click="handleDeleteReview(Number(r.id))">删除</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div v-else class="empty-state">暂无评论</div>
-    </div>
+    <template v-if="activeTab === 1">
+      <PageSection>
+        <template #header-extra>
+          <span class="count-tag">共 {{ reviews.length }} 条</span>
+        </template>
+        <DataTable
+          :columns="[
+            { prop: 'id', label: 'ID', width: '80px' },
+            { prop: 'user', label: '用户' },
+            { prop: 'rating', label: '评分', width: '140px' },
+            { prop: 'content', label: '内容' },
+            { prop: 'time', label: '时间', width: '140px' },
+            { prop: 'actions', label: '操作', width: '120px', align: 'center' },
+          ]"
+          :rows="reviews"
+          empty-text="暂无评论"
+        >
+          <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
+          <template #cell-rating="{ row }">
+            <span class="stars"><el-icon v-for="n in row.rating" :key="n" class="star-icon"><Star /></el-icon></span>
+          </template>
+          <template #cell-content="{ row }">
+            <span class="ellipsis" :title="row.content">{{ row.content }}</span>
+          </template>
+          <template #cell-time="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
+          <template #actions="{ row }">
+            <button class="link danger" v-press @click="handleDeleteReview(Number(row.id))">删除</button>
+          </template>
+        </DataTable>
+      </PageSection>
+    </template>
 
-    <Modal :show="showImageModal" title="图片管理" :width="480" @close="closeImageModal">
-      <div class="modal-img-grid">
-        <div v-for="(img, idx) in modalImages" :key="idx" class="modal-img-item">
-          <img :src="img" alt="" /><span v-if="idx === 0" class="modal-img-cover">封面</span>
-          <span class="modal-img-remove" @click="modalRemoveImage(idx)"><img :src="guanbi" class="icon-x" alt="" /></span>
-        </div>
-        <div class="modal-img-add" @click="modalAddImage"><span class="add-icon">+</span><span class="add-tip">添加图片</span></div>
-      </div>
-      <input ref="modalFileInput" type="file" accept="image/*" class="file-hidden" @change="modalHandleFile" />
-      <div class="modal-actions"><button class="btn-cancel" @click="closeImageModal">取消</button><button class="btn-primary" @click="saveImageModal">保存</button></div>
-    </Modal>
-  </div>
-  <div class="page" v-else><div class="empty-state big">菜品不存在</div></div>
+    <FormDialog :show="showImageModal" title="图片管理" :width="480" confirm-text="保存" @close="closeImageModal" @confirm="saveImageModal">
+      <ImageUpload v-model="editForm.image" :max="3" />
+    </FormDialog>
+  </PageContainer>
+  <div v-else class="empty-state big">菜品不存在</div>
 </template>
 
 <style scoped>
-/* ===== 合并头栏 + Tab ===== */
-.headerbar {
-  display: flex; flex-direction: column; background: #fff; border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 12px 24px; margin-bottom: 20px;
+/* ===== 头部缩略图 ===== */
+.header-thumb {
+  display: flex; width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden;
+  align-items: center; justify-content: center; background: var(--bg-soft);
+  border: 1px solid var(--border-light); flex-shrink: 0; cursor: pointer;
+  transition: transform 160ms var(--ease-out);
 }
-.headerbar-top { display: flex; gap: 14px; align-items: flex-start; }
-.headerbar-thumb {
-  display: flex; width: 60px; height: 60px; border-radius: 8px; overflow: hidden;
-  align-items: center; justify-content: center; background: #fafafa;
-  border: 1px solid #f0f0f0; flex-shrink: 0; cursor: pointer;
-}
-.headerbar-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.headerbar-thumb .thumb-ph { width: 20px; height: 20px; object-fit: contain; display: block; margin: 10px; opacity: .35; }
-.headerbar-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.headerbar-title-row { display: flex; gap: 10px; flex-wrap: wrap; flex-direction: column; align-items: baseline; }
-.headerbar-name { margin: 0; font-size: 18px; color: #1a1a1a; font-weight: 700; line-height: 1.3; }
-.headerbar-sub { font-size: 13px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.headerbar-tabs { display: flex; gap: 0; margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 6px; }
-.headerbar-tabs .tab-item,
-.headerbar-tabs .tab-count-item {
-  padding: 4px 16px 6px; font-size: 13px; color: #666; cursor: pointer;
-  border-bottom: 2px solid transparent; transition: all .2s; user-select: none;
-  display: flex; align-items: center; gap: 4px;
-}
-.headerbar-tabs .tab-item:hover,
-.headerbar-tabs .tab-count-item:hover { color: var(--color-primary); }
-.headerbar-tabs .tab-item.active,
-.headerbar-tabs .tab-count-item.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.header-thumb:hover { transform: scale(1.03); }
+.header-thumb:active { transform: scale(var(--press-scale)); }
+.header-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.header-thumb .thumb-ph { width: 20px; height: 20px; object-fit: contain; display: block; margin: var(--space-3); opacity: .35; }
 
+/* ===== 详情 Tab 切换条 ===== */
+.detail-tabs { display: flex; gap: 0; margin-bottom: var(--space-5); border-bottom: 1px solid var(--border-light); }
+.detail-tabs .tab-item,
+.detail-tabs .tab-count-item {
+  padding: var(--space-2) var(--space-5); font-size: var(--font-sm); color: var(--text-secondary); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out); user-select: none;
+  display: flex; align-items: center; gap: var(--space-1); margin-bottom: -1px;
+}
+.detail-tabs .tab-item:hover,
+.detail-tabs .tab-count-item:hover { color: var(--color-primary); }
+.detail-tabs .tab-item.active,
+.detail-tabs .tab-count-item.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: var(--weight-semibold); }
 
-/* ===== Tab 面板 ===== */
-.tab-panel {
-  background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
-  padding: 24px; margin-bottom: 20px;
-}
-.panel-section { margin-bottom: 28px; }
-.panel-section:last-child { margin-bottom: 0; }
-.panel-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0;
-}
-.panel-title { margin: 0; font-size: 15px; color: #333; font-weight: 600; }
-.panel-actions { display: flex; gap: 8px; }
+.panel-actions { display: flex; gap: var(--space-2); }
 
 /* ===== 基本信息 ===== */
-.detail-body { display: flex; gap: 24px; align-items: flex-start; }
-.detail-fields { flex: 1; display: flex; flex-direction: column; gap: 12px; }
-.detail-row { display: flex; align-items: center; gap: 12px; }
+.detail-body { display: flex; gap: var(--space-6); align-items: flex-start; }
+.detail-fields { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
+.detail-row { display: flex; align-items: center; gap: var(--space-3); }
 .detail-row-desc { align-items: flex-start; }
-.detail-label { font-size: 13px; color: #999; width: 48px; flex-shrink: 0; line-height: 28px; }
+.detail-label { font-size: var(--font-sm); color: var(--text-muted); width: 48px; flex-shrink: 0; line-height: 28px; }
 .detail-control { flex: 1; min-width: 0; }
-.detail-value { font-size: 15px; color: #333; font-weight: 500; line-height: 28px; }
-.detail-value.price { color: #ff4d4f; font-weight: 700; font-size: 17px; }
-.detail-value.text-desc { font-weight: 400; color: #555; line-height: 1.6; }
-.detail-value.text-muted { font-weight: 400; color: #888; }
-.form-input { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; font-weight: 500; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
-.form-textarea { padding: 6px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; color: #333; outline: none; transition: border-color .2s; background: #fff; width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
-.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(139,58,43,.15); }
-.form-select { padding: 5px 10px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; outline: none; background: #fff; cursor: pointer; }
+.detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
+.detail-value.price { color: var(--color-price); font-weight: var(--weight-bold); font-size: var(--font-lg); }
+.detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
+.detail-value.text-muted { font-weight: var(--weight-regular); color: var(--text-light); }
+.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; }
+.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
+.form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
+.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
-/* ===== 统计卡片 ===== */
-.stats-row { display: flex; gap: 16px; }
-.stat-card {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 20px; background: #fafafa; border-radius: 10px; border: 1px solid #f0f0f0;
-}
-.stat-num { font-size: 28px; font-weight: 700; color: var(--color-primary); line-height: 1.2; }
-.stat-unit { font-size: 13px; color: #999; }
+/* ===== 统计卡片（统一 StatCard） ===== */
+.stats-row { display: flex; gap: var(--space-4); }
 
 /* ===== 列表头 ===== */
 .list-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);
 }
-.list-bar h3 { margin: 0; font-size: 16px; color: #333; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.list-bar h3 { margin: 0; font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); display: flex; align-items: center; gap: var(--space-2); }
 .icon-inline { width: 1em; height: 1em; vertical-align: -0.125em; display: inline; }
-.count-tag { font-size: 13px; font-weight: 400; color: #999; margin-left: 4px; }
+.count-tag { font-size: var(--font-sm); font-weight: var(--weight-regular); color: var(--text-muted); margin-left: var(--space-1); }
 
 /* ===== 评论列表 ===== */
-.table-wrap { overflow-x: auto; }
-.table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.table th, .table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
-.table th { background: #fafafa; color: #666; font-weight: 500; white-space: nowrap; }
-.table td { color: #333; }
-.table tbody tr:hover { background: #fafafa; }
 .table .ellipsis { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table .actions { white-space: nowrap; }
-.stars { display: flex; gap: 2px; }
+.stars { display: flex; gap: var(--space-1); }
 .star-icon { width: 14px; height: 14px; display: inline; }
-.link { background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: 13px; padding: 2px 0; }
-.link:hover { opacity: .8; }
-.danger { color: var(--color-error) !important; }
-.empty-state { text-align: center; color: #ccc; padding: 40px 0; font-size: 14px; }
-.empty-state.big { font-size: 16px; padding: 100px 0; }
+.empty-state { text-align: center; color: var(--text-light); padding: var(--space-5) 0; font-size: var(--font-base); }
+.empty-state.big { font-size: var(--font-lg); padding: var(--space-10) 0; }
 
 /* ===== 标签样式 ===== */
-.tag-group { display: flex; gap: 4px; flex-wrap: wrap; }
-.dish-tag { font-size: 12px; padding: 2px 10px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 3px; }
-.tag-hot { background: #fff7e6; color: #fa8c16; }
-.tag-rec { background: #f6ffed; color: #52c41a; }
+.tag-group { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.dish-tag { font-size: var(--font-xs); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
+.tag-hot { background: var(--color-warning-soft); color: var(--color-warning); }
+.tag-rec { background: var(--color-price-soft); color: var(--color-price); }
 .tag-icon { width: 12px; height: 12px; display: inline; }
-.tag-selector { display: flex; gap: 8px; flex-wrap: wrap; }
-.tag-option { padding: 6px 14px; border: 1px solid #d9d9d9; border-radius: 16px; font-size: 13px; cursor: pointer; transition: all .2s; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
+.tag-selector { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tag-option { padding: var(--space-2) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-pill); font-size: var(--font-sm); cursor: pointer; transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out); user-select: none; display: inline-flex; align-items: center; gap: var(--space-1); }
 .tag-option:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.tag-option.active { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: 500; }
-.text-muted { color: #bbb; font-weight: 400; }
+.tag-option:active { transform: scale(var(--press-scale)); }
+.tag-option.active { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
+.text-muted { color: var(--text-light); font-weight: var(--weight-regular); }
 
-/* ===== Modal 图片管理 ===== */
-.modal-img-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.modal-img-item { position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #f0f0f0; flex-shrink: 0; }
-.modal-img-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.modal-img-cover { position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-primary); color: #fff; font-size: 11px; text-align: center; padding: 2px 0; opacity: .85; }
-.modal-img-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s; }
-.modal-img-remove:hover { background: rgba(0,0,0,.7); }
-.modal-img-remove .icon-x { width: 12px; height: 12px; display: block; filter: brightness(10); }
-.modal-img-add { width: 100px; height: 100px; border: 1px dashed #d9d9d9; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: border-color .2s, background .2s; background: #fafafa; flex-shrink: 0; }
-.modal-img-add:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
-.modal-img-add .add-icon { font-size: 28px; color: #bbb; line-height: 1; }
-.modal-img-add .add-tip { font-size: 12px; color: #bbb; }
-.file-hidden { display: none; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid #f0f0f0; }
-
-/* ===== 全局覆盖 ===== */
-.btn-cancel { padding: 6px 16px; border: 1px solid #d9d9d9; border-radius: 6px; background: #fff; color: #333; font-size: 13px; cursor: pointer; transition: all .2s; }
-.btn-cancel:hover { border-color: var(--color-primary); }
-.btn-primary { padding: 6px 16px; border: none; border-radius: 6px; background: var(--color-primary); color: #fff; font-size: 13px; cursor: pointer; transition: background .2s; }
-.btn-primary:hover { background: var(--color-primary-light); }
-.btn-danger { padding: 4px 14px; border: 1px solid var(--color-error); border-radius: 6px; background: #fff; color: var(--color-error); font-size: 13px; cursor: pointer; transition: all .2s; }
-.btn-danger:hover { background: var(--color-error); color: #fff; }
-.btn-sm { padding: 4px 14px; font-size: 13px; }
-.input-error { border-color: #ff4d4f !important; }
-.field-error { margin: 2px 0 0; font-size: 12px; color: #ff4d4f; }
-.required { color: #ff4d4f; }
+/* ===== 全局覆盖（仅保留页面特有细微项，按钮/表单继承全局基线） ===== */
+.price-input { width: 120px !important; }
+.origin-price { margin-left: var(--space-2); color: var(--text-light); text-decoration: line-through; font-weight: var(--weight-regular); font-size: var(--font-sm); }
+.promo-badge { margin-left: var(--space-2); font-size: var(--font-xs); color: var(--color-error); background: var(--color-error-bg); padding: 1px var(--space-2); border-radius: var(--radius-sm); }
+.discount-edit { display: flex; flex-direction: column; gap: var(--space-1); }
+.mini-label { font-size: var(--font-xs); color: var(--text-muted); }
+.input-error { border-color: var(--color-error) !important; }
+.field-error { margin: var(--space-1) 0 0; font-size: var(--font-sm); color: var(--color-error); }
+.required { color: var(--color-error); }
+.form-select-el { width: 100%; }
 </style>

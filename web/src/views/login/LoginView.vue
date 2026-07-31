@@ -17,7 +17,7 @@ async function handleLogin() {
   }
   const result = await userStore.login(username.value, password.value)
   if (result.success) {
-    router.push('/dashboard')
+    router.push('/dashboard/feedbacks')
   } else {
     error.value = result.error || '登录失败'
   }
@@ -32,7 +32,7 @@ async function handleLogin() {
       <input v-model="username" placeholder="用户名" type="text" @input="error=''" />
       <input v-model="password" placeholder="密码" type="password" @keyup.enter="handleLogin" @input="error=''" />
       <p v-if="error" class="login-error">{{ error }}</p>
-      <button @click="handleLogin">登 录</button>
+      <button v-press @click="handleLogin">登 录</button>
     </div>
   </div>
 </template>
@@ -46,37 +46,38 @@ async function handleLogin() {
   background: var(--color-primary);
 }
 .login-card {
-  background: #fff;
-  padding: 40px 36px 32px;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  background: var(--bg-card);
+  padding: var(--space-10) var(--space-8) var(--space-8);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
   width: 380px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
   align-items: center;
 }
 .login-card h2 {
   text-align: center;
   margin: 0;
   color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--font-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
 }
 .login-desc {
   color: var(--text-muted);
-  font-size: 13px;
-  margin: 0 0 2px;
+  font-size: var(--font-sm);
+  margin: 0 0 var(--space-1);
 }
 .login-card input {
   width: 100%;
-  padding: 11px 14px;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: var(--font-base);
   outline: none;
   box-sizing: border-box;
-  transition: border-color .2s;
+  transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out);
 }
 .login-card input:focus {
   border-color: var(--color-primary);
@@ -84,22 +85,25 @@ async function handleLogin() {
 }
 .login-error {
   color: var(--color-error);
-  font-size: 13px;
-  margin: -4px 0;
+  font-size: var(--font-sm);
+  margin: calc(-1 * var(--space-2)) 0;
 }
 .login-card button {
   width: 100%;
-  padding: 11px;
+  padding: var(--space-3);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--text-white);
   border: none;
   border-radius: var(--radius);
-  font-size: 15px;
+  font-size: var(--font-md);
   cursor: pointer;
-  font-weight: 500;
-  transition: background .2s;
+  font-weight: var(--weight-medium);
+  transition: background .2s var(--ease-out), transform 160ms var(--ease-out);
 }
 .login-card button:hover {
   background: var(--color-primary-light);
+}
+.login-card button:active {
+  transform: scale(var(--press-scale));
 }
 </style>

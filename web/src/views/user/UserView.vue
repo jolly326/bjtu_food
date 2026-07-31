@@ -4,6 +4,13 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { usePageStore } from '@/stores/pageStore'
+import DataTable from '@/components/DataTable.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
+import FilterSelect from '@/components/layout/FilterSelect.vue'
+import StatCard from '@/components/common/StatCard.vue'
 
 const store = useAdminStore()
 const toast = useToastStore()
@@ -19,11 +26,20 @@ const stats = computed(() => ({
   disabled: students.value.filter(u => u.status === 'disabled').length,
 }))
 
+const statusFilter = ref<string>('')
+const statusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '正常', value: 'active' },
+  { label: '已禁用', value: 'disabled' },
+]
+
 const searchQuery = computed(() => page.searchQuery.trim().toLowerCase())
 const filteredStudents = computed(() => {
+  let list = students.value
+  if (statusFilter.value) list = list.filter(u => u.status === statusFilter.value)
   const q = searchQuery.value
-  if (!q) return students.value
-  return students.value.filter(u =>
+  if (!q) return list
+  return list.filter(u =>
     u.username.toLowerCase().includes(q) ||
     (u.nickname || '').toLowerCase().includes(q)
   )
@@ -44,213 +60,116 @@ async function handleToggle(id: number) {
 </script>
 
 <template>
-  <div class="page">
-    <!-- 数据概览 -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <span class="stat-num">{{ stats.total }}</span>
-        <span class="stat-label">学生总数</span>
-      </div>
-      <div class="stat-card stat-active">
-        <span class="stat-num">{{ stats.active }}</span>
-        <span class="stat-label">正常</span>
-      </div>
-      <div class="stat-card stat-disabled">
-        <span class="stat-num">{{ stats.disabled }}</span>
-        <span class="stat-label">已禁用</span>
-      </div>
-    </div>
+  <PageContainer>
+    <PageHeader title="用户管理" :count="filteredStudents.length">
+      <template #extra>
+        <div class="stats-row">
+          <StatCard label="学生总数" :value="stats.total" tone="default" :delay="0" />
+          <StatCard label="正常" :value="stats.active" tone="success" :delay="40" />
+          <StatCard label="已禁用" :value="stats.disabled" tone="danger" :delay="80" />
+        </div>
+      </template>
+    </PageHeader>
 
-    <!-- 学生列表 -->
-    <div class="card">
-      <div class="card-hd">
-        <h3>学生列表</h3>
-        <span class="section-count">{{ filteredStudents.length }} 人</span>
-      </div>
-      <table class="table" v-if="filteredStudents.length">
-        <thead>
-          <tr>
-            <th style="width:44px">头像</th>
-            <th>用户信息</th>
-            <th style="width:120px">状态</th>
-            <th style="width:120px">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="u in filteredStudents" :key="Number(u.id)">
-            <td>
-              <span class="avatar-circle">{{ (u.nickname || u.username)[0] }}</span>
-            </td>
-            <td class="cell-userinfo">
-              <div class="user-name">{{ u.nickname || u.username }}</div>
-              <div class="user-meta">
-                <span class="user-username">@{{ u.username }}</span>
-                <span class="user-sep">·</span>
-                <span class="user-date">{{ u.created_at.toLocaleDateString('zh-CN') }} 注册</span>
-              </div>
-            </td>
-            <td>
-              <span class="tag" :class="u.status === 'active' ? 'tag-green' : 'tag-red'">
-                {{ u.status === 'active' ? '正常' : '已禁用' }}
-              </span>
-            </td>
-            <td>
-              <button
-                class="action-btn"
-                :class="u.status === 'active' ? 'action-disable' : 'action-enable'"
-                @click="handleToggle(Number(u.id))"
-              >
-                {{ u.status === 'active' ? '禁用' : '启用' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-else class="empty-state">
-        {{ searchQuery ? '没有匹配的学生' : '暂无学生用户' }}
-      </div>
-    </div>
-  </div>
+    <FilterBar>
+      <template #default>
+        <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
+      </template>
+    </FilterBar>
+
+    <DataTable
+      :columns="[
+        { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
+        { prop: 'userInfo', label: '用户信息' },
+        { prop: 'status', label: '状态', width: '120px', align: 'center' },
+        { prop: 'actions', label: '操作', width: '120px', align: 'center' },
+      ]"
+      :rows="filteredStudents"
+      :empty-text="searchQuery ? '没有匹配的学生' : '暂无学生用户'"
+    >
+      <template #cell-avatar="{ row }">
+        <span class="avatar-circle">{{ (row.nickname || row.username)[0] }}</span>
+      </template>
+      <template #cell-userInfo="{ row }">
+        <div class="user-name">{{ row.nickname || row.username }}</div>
+        <div class="user-meta">
+          <span class="user-username">@{{ row.username }}</span>
+          <span class="user-sep">·</span>
+          <span class="user-date">{{ row.created_at.toLocaleDateString('zh-CN') }} 注册</span>
+        </div>
+      </template>
+      <template #cell-status="{ row }">
+        <StatusTag :type="row.status === 'active' ? 'success' : 'danger'" :text="row.status === 'active' ? '正常' : '已禁用'" />
+      </template>
+      <template #actions="{ row }">
+        <button
+          class="action-btn"
+          :class="row.status === 'active' ? 'action-disable' : 'action-enable'"
+          v-press
+          @click="handleToggle(Number(row.id))"
+        >
+          {{ row.status === 'active' ? '禁用' : '启用' }}
+        </button>
+      </template>
+    </DataTable>
+  </PageContainer>
 </template>
 
 <style scoped>
 /* ===== 数据概览 ===== */
 .stats-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
 }
-.stat-card {
-  flex: 1;
-  background: #fff;
-  border-radius: 10px;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+@media (max-width: 767px) {
+  .stats-row { flex-wrap: wrap; }
 }
-.stat-num {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--text-primary);
-}
-.stat-label {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.stat-active .stat-num { color: var(--color-success); }
-.stat-disabled .stat-num { color: var(--color-error); }
-
-/* ===== 学生列表卡片 ===== */
-.section-card-header h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.section-count {
-  font-size: 12px;
-  color: var(--text-muted);
-  background: #f5f5f5;
-  padding: 2px 10px;
-  border-radius: 10px;
-}
-
-/* ===== 表格 ===== */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th {
-  text-align: center;
-  padding: 10px 24px;
-  background: #fafafa;
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 13px;
-  white-space: nowrap;
-}
-.table th:first-child,
-.table th:nth-child(2) { text-align: left; }
-.table th:nth-child(2) { padding-left: 16px; }
-.table td {
-  text-align: center;
-  padding: 12px 24px;
-  border-bottom: 1px solid #f5f5f5;
-  color: var(--text-primary);
-  vertical-align: middle;
-}
-.table tbody tr:hover { background: #fafbff; }
 
 .avatar-circle {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  color: var(--text-white);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   flex-shrink: 0;
 }
 
 /* ===== 用户信息列 ===== */
-.cell-userinfo {
-  text-align: left !important;
-  padding: 12px 12px !important;
-}
 .user-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--font-md);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   line-height: 1.4;
 }
 .user-meta {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  font-size: 12px;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--font-xs);
   color: var(--text-muted);
 }
 .user-username { color: var(--text-muted); }
-.user-sep { color: #ddd; }
+.user-sep { color: var(--border-soft); }
 .user-date { color: var(--text-light); }
 
-.tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.tag-green { background: var(--color-success-bg); color: var(--color-success); }
-.tag-red { background: var(--color-error-bg); color: var(--color-error); }
-
 .action-btn {
-  padding: 4px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all .2s;
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), transform 160ms var(--ease-out);
   border: 1px solid;
 }
-.action-disable { border-color: var(--color-warning); color: var(--color-warning); background: #fff; }
+.action-btn:active { transform: scale(var(--press-scale)); }
+.action-disable { border-color: var(--color-warning); color: var(--color-warning); background: var(--bg-card); }
 .action-disable:hover { background: var(--color-warning-bg); }
-.action-enable { border-color: var(--color-success); color: var(--color-success); background: #fff; }
+.action-enable { border-color: var(--color-success); color: var(--color-success); background: var(--bg-card); }
 .action-enable:hover { background: var(--color-success-bg); }
-
-.empty-state {
-  text-align: center;
-  color: var(--text-light);
-  padding: 60px 0;
-  font-size: 14px;
-}
 </style>

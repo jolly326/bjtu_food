@@ -1,5 +1,6 @@
 package com.bjtufood.canteen.service;
 
+import com.bjtufood.canteen.dto.MyPublishStallVO;
 import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Stall;
@@ -61,4 +62,25 @@ public interface StallService {
      * @throws com.bjtufood.common.exception.BusinessException 档口不存在
      */
     Stall getById(Long id);
+
+    /**
+     * 学生 UGC 提交档口/食堂
+     * <p>
+     * 写入 audit_status=pending、created_by=当前登录用户，等待后台审核。
+     *
+     * @param req 提交内容（含 type=stall|canteen 及名称/描述/关联食堂等）
+     * @return 提交的实体ID
+     * @throws com.bjtufood.common.exception.BusinessException 参数非法或关联食堂不存在
+     */
+    Long submitUgc(com.bjtufood.canteen.dto.StallUgcSubmitReq req);
+
+    /**
+     * 学生"我的发布"：查询当前登录学生提交的档口/食堂列表
+     * <p>
+     * 分别查 stall 表与 canteen 表（where created_by=当前用户），合并为统一列表。
+     * 顺序：先食堂(canteen)后档口(stall)，各自按创建时间倒序；同一表内按创建时间倒序。
+     *
+     * @return 当前学生提交的档口/食堂 VO 列表（含 auditStatus / rejectReason）
+     */
+    List<MyPublishStallVO> listMySubmissions();
 }

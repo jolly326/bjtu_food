@@ -1,5 +1,10 @@
-import type { Dish, DishDetail, DishQuery } from '@/types/dish'
-import { get } from './http'
+import type {
+  Dish, DishDetail, DishQuery, DishSortBy,
+  Suggestion, HotSearch,
+} from '@/types/dish'
+import { get, del } from './http'
+import { fenToYuan, yuanToFen } from '@/utils/money'
+import { toAbsoluteImageUrl } from '@/utils/image'
 
 const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
@@ -12,7 +17,7 @@ const TAG_MAP: Record<string, string> = {
   western: '西餐',
 }
 
-type PageLike<T> = T[] | { records?: T[]; list?: T[] }
+type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
 
 function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   if (!value) return []
@@ -20,15 +25,25 @@ function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   return value.records || value.list || []
 }
 
+function totalOf(value: PageLike<any> | undefined | null): number {
+  if (!value) return 0
+  if (Array.isArray(value)) return value.length
+  return typeof value.total === 'number' ? value.total : recordsOf(value).length
+}
+
+function normalizeBoolean(value: unknown): boolean {
+  return value === true || value === 1 || value === '1'
+}
+
 function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(toAbsoluteImageUrl)
   if (typeof value !== 'string' || !value.trim()) return []
   const text = value.trim()
   try {
     const parsed = JSON.parse(text)
-    return Array.isArray(parsed) ? normalizeImages(parsed) : [text]
+    return Array.isArray(parsed) ? normalizeImages(parsed) : [toAbsoluteImageUrl(text)]
   } catch {
-    return text.split('|||').map(item => item.trim()).filter(Boolean)
+    return text.split('|||').map(item => item.trim()).filter(Boolean).map(toAbsoluteImageUrl)
   }
 }
 
@@ -41,16 +56,33 @@ export function toDish(raw: any): Dish {
   return {
     id: Number(raw.id),
     name: raw.name || '',
-    price: raw.price ? Math.round(Number(raw.price) / 100) : 0,
+    price: fenToYuan(raw.price),
     image: images[0] || '',
     images,
     rating: raw.avgRating ?? raw.rating ?? 0,
     ratingCount: raw.ratingCount ?? raw.rating_count ?? 0,
-    favoriteCount: raw.collectCount ?? raw.favoriteCount ?? raw.favorite_count ?? 0,
+    likeCount: Number(raw.likeCount ?? raw.favoriteCount ?? 0),
     tags: tags.map((t: string) => TAG_MAP[t] || t),
     description: raw.description || '',
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
+    isNew: !!raw.isNew,
+    isLiked: !!(raw.isLiked ?? raw.isFavorited),
+    hasReviewed: !!raw.hasReviewed,
+    auditStatus: raw.auditStatus ?? raw.audit_status,
+    // ===== task-03 位置链路（来自 stall 联表） =====
+    floor: raw.floor || '',
+    windowNo: raw.windowNo || '',
+    businessHours: raw.businessHours || '',
+    // ===== task-03 属性标签（来自 dish） =====
+    spiceLevel: raw.spiceLevel ?? raw.spice_level,
+    portion: raw.portion,
+    servePeriod: raw.servePeriod || raw.serve_period || '',
+    limited: normalizeBoolean(raw.limited ?? raw.is_limited),
+    // 折扣价（分→元，仅展示层转换；task-12.9）
+    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
+    promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
+    createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
   }
 }
 
@@ -70,20 +102,90 @@ export async function getStallDishes(_canteen: string, stallName: string): Promi
   return recordsOf<any>(res).map(toDish)
 }
 
-export async function searchDishes(query: DishQuery): Promise<Dish[]> {
-  const params: Record<string, any> = { page: 1, pageSize: 50 }
+/**
+ * 通用菜品检索（task-02 多维筛选结果页 + task-01 首页无限加载）
+ * 复用 GET /dishes，支持 keyword / canteenId / tag / minPrice / maxPrice / sortBy / sortOrder / page / pageSize。
+ * 金额 minPrice/maxPrice 由前端「元」在 API 层转「分」提交（§3.x 金额红线）。
+ * sortBy 取值（ARCH §3.1）：heat / rating / price / created_at / likeCount。
+ * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
+ */
+export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
+  const params: Record<string, any> = {
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? 20,
+  }
   if (query.keyword) params.keyword = query.keyword
-  if (query.minPrice !== undefined) params.minPrice = Math.round(query.minPrice * 100)
-  if (query.maxPrice !== undefined) params.maxPrice = Math.round(query.maxPrice * 100)
-  if (query.sortBy === 'rating') params.sortBy = 'rating'
-  if (query.sortBy === 'favoriteCount') params.sortBy = 'favoriteCount'
-  if (query.sortBy === 'price') params.sortBy = 'price'
+  if (query.canteenId != null) params.canteenId = query.canteenId
+  if (query.canteen) params.canteen = query.canteen
+  if (query.tag) params.tag = query.tag
+  if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)
+  if (query.maxPrice != null) params.maxPrice = yuanToFen(query.maxPrice)
+  if (query.sortBy) params.sortBy = query.sortBy
+  if (query.sortOrder) params.sortOrder = query.sortOrder
 
   const res = await get<any>('/dishes', params)
-  return recordsOf<any>(res).map(toDish)
+  const list = recordsOf<any>(res).map(toDish)
+  return { list, total: totalOf(res) }
+}
+
+/** 兼容旧调用：返回平铺 Dish[]（find 页历史用法保留） */
+export async function searchDishes(query: DishQuery): Promise<Dish[]> {
+  return (await searchDishesPage(query)).list
 }
 
 export async function getDishDetail(id: number): Promise<DishDetail> {
   const raw = await get<any>(`/dishes/${id}`)
   return toDishDetail(raw)
 }
+
+/** 删除本人发布的菜品（STU 仅 created_by 本人，task-12.5） */
+export async function deleteDish(id: number): Promise<void> {
+  await del<void>(`/dishes/${id}`)
+}
+
+export async function getNewDishes(): Promise<Dish[]> {
+  return recordsOf<any>(await get('/dishes/new')).map(toDish)
+}
+
+export async function getPromotionDishes(): Promise<Dish[]> {
+  return recordsOf<any>(await get('/dishes/promotions')).map(toDish)
+}
+
+/** 新晋黑马（task-02：GET /dishes/rising，近 14 天热度增速 TOP10） */
+export async function getRisingDishes(): Promise<Dish[]> {
+  return recordsOf<any>(await get('/dishes/rising')).map(toDish)
+}
+
+/** 热搜 TOP10（task-02：GET /dishes/hot-search，一期为菜品热度派生的热门词条） */
+export async function getHotSearch(): Promise<HotSearch[]> {
+  const raw = await get<any[]>('/dishes/hot-search')
+  return (raw || []).map((item: any) => ({
+    keyword: item.keyword || '',
+    heat: Number(item.heat ?? 0),
+  }))
+}
+
+/** 搜索联想（task-02：GET /dishes/suggest，混合菜品/档口/食堂） */
+export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
+  if (!keyword || !keyword.trim()) return []
+  const raw = await get<any[]>('/dishes/suggest', { keyword: keyword.trim() })
+  return (raw || []).map((item: any) => ({
+    type: (item.type || 'dish') as Suggestion['type'],
+    id: Number(item.id ?? 0),
+    name: item.name || '',
+    image: toAbsoluteImageUrl(item.image || ''),
+  }))
+}
+
+/** 首页热门瀑布流首屏：复用 /dishes/hot（公开 TOP 列表） */
+export async function getHomeHotDishes(limit = 20): Promise<Dish[]> {
+  const res = await get<any>('/dishes/hot', { limit })
+  return recordsOf<any>(res).map(toDish)
+}
+
+/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc */
+export async function getHotDishesPage(page: number, pageSize = 20): Promise<{ list: Dish[]; total: number }> {
+  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize })
+}
+
+export type { DishSortBy }

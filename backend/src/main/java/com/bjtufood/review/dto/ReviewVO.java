@@ -47,11 +47,11 @@ public class ReviewVO {
     @Schema(description = "评价时间")
     private LocalDateTime createdAt;
 
-    // ==================== 以下字段仅管理端返回 ====================
+    /** 「有用」标记总数（冗余计数） */
+    @Schema(description = "「有用」标记总数", example = "3")
+    private Integer usefulCount;
 
-    @Schema(description = "是否包含敏感词（管理端标记用）")
-    private Boolean hasSensitive;
-
-    @Schema(description = "是否被隐藏（管理端用）")
-    private Integer isHidden;
+    /** 当前登录用户是否已标记「有用」（仅登录态返回；公开列表可为 null，以免泄露） */
+    @Schema(description = "当前用户是否已标记「有用」（仅登录态返回）")
+    private Boolean useful;
 }

@@ -33,11 +33,15 @@ public class Banner {
     @Schema(description = "背景图片URL列表JSON")
     private String images;
 
-    /** 跳转类型：dish / url */
-    @Schema(description = "跳转类型", example = "dish")
+    /** 跳转类型（历史字段）：dish / url */
+    @Schema(description = "跳转类型（历史字段）", example = "dish")
     private String type;
 
-    /** 跳转目标ID（type=dish时使用） */
+    /** 跳转类型枚举：DISH/URL/NONE（ACTIVITY 已废弃，活动统一经 URL 外链承载，见 task-12.10） */
+    @Schema(description = "跳转类型枚举：DISH/URL/NONE", example = "DISH")
+    private String targetType;
+
+    /** 跳转目标ID（target_type=DISH/ACTIVITY时使用） */
     @Schema(description = "跳转目标ID")
     private Long targetId;
 

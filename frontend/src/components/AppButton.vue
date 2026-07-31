@@ -1,12 +1,23 @@
 <template>
-  <view class="app-btn" :class="[btnType, { disabled, loading }]" :style="{ width, margin }" @tap="handleTap">
-    <image v-if="icon" :src="icon" class="btn-icon" />
+  <view
+    class="app-btn"
+    :class="[btnType, { disabled, loading }]"
+    :style="btnStyle"
+    @touchstart="pressed = true"
+    @touchend="pressed = false"
+    @touchcancel="pressed = false"
+    @mousedown="pressed = true"
+    @mouseup="pressed = false"
+    @mouseleave="pressed = false"
+    @tap="handleTap"
+  >
+    <text v-if="icon" class="btn-icon-text">{{ icon }}</text>
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = withDefaults(defineProps<{
   text: string
@@ -29,7 +40,16 @@ const emit = defineEmits<{
   click: []
 }>()
 
+// 红线 §4.9③：MVP 统一用 emoji 占位，不引入 SVG/iconfont。icon 一律作为 emoji 文本渲染。
 const btnType = computed(() => `btn-${props.type}`)
+
+const pressed = ref(false)
+const btnStyle = computed(() => ({
+  width: props.width,
+  margin: props.margin,
+  transform: pressed.value ? 'scale(0.97)' : 'scale(1)',
+  transition: 'transform 0.12s ease',
+}))
 
 function handleTap() {
   if (props.disabled || props.loading) return
@@ -47,10 +67,10 @@ function handleTap() {
   box-sizing: border-box;
   gap: var(--spacing-xs);
 }
-.btn-icon {
-  width: 32rpx;
-  height: 32rpx;
-  margin-right: 8rpx;
+.btn-icon-text {
+  font-size: 30rpx;
+  line-height: 1;
+  margin-right: var(--spacing-xs);
 }
 .app-btn.disabled {
   opacity: 0.4;

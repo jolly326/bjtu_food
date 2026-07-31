@@ -1,0 +1,84 @@
+/* ==========================================================================
+ * 食在交大 · 全局设计 Token（Apple Design 风格，对齐 project_spec.md §4.2）
+ * uni-app 自动将此文件注入每个组件的 style 作用域，可直接用 var(--xxx) 引用。
+ * 语义化命名，避免硬编码色值 / 尺寸。
+ * ========================================================================== */
+
+page {
+  /* ---------- 主色系（砖红品牌色） ---------- */
+  --color-primary: #8B3A2B;
+  --color-primary-light: #A0522D;
+  --color-primary-dark: #6B1010;        /* 管理端侧边栏深红 §4.2 */
+  --color-primary-bg: #FEF0EF;
+  --color-gradient: linear-gradient(135deg, #8B3A2B, #A0522D);
+
+  /* ---------- 辅助 / 强调色 ---------- */
+  --color-accent: #E67E22;
+  --color-star: #F5A623;
+  --color-price: #E67E22;                /* 价格高亮 */
+
+  /* ---------- 状态色 ---------- */
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-error: #E74C3C;
+
+  /* ---------- 文字色 ---------- */
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-white: #FFFFFF;
+  --text-white-secondary: rgba(255, 255, 255, 0.85);
+
+  /* ---------- 背景色 ---------- */
+  --bg-page: #F8F8F8;
+  --bg-card: #FFFFFF;
+  /* 半透明材质底色（backdrop-filter 真机不支持时降级为纯色半透 + 阴影，见 §4.5/§4.7） */
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-glass-dark: rgba(40, 20, 16, 0.55);
+
+  /* ---------- 边框色 ---------- */
+  --border-color: #EEEEEE;
+  --border-bold: #E0E0E0;
+
+  /* ---------- 间距（8 基准） ---------- */
+  --spacing-xs: 8rpx;
+  --spacing-sm: 16rpx;
+  --spacing-md: 24rpx;
+  --spacing-lg: 32rpx;
+  --spacing-xl: 48rpx;
+
+  /* ---------- 圆角（§4.2） ---------- */
+  --radius-card: 16rpx;                   /* 卡片 */
+  --radius-sheet: 20rpx;                 /* 底部弹层 20px 20px 0 0 */
+  --radius-modal: 24rpx;
+  --radius-btn: 48rpx;                   /* 按钮胶囊 */
+  --radius-tag: 12rpx;
+  --radius-icon: 8rpx;
+
+  /* ---------- 阴影（§4.2） ---------- */
+  --shadow-card: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 8rpx 24rpx rgba(0, 0, 0, 0.1);
+  --shadow-sheet: 0 -8rpx 30rpx rgba(0, 0, 0, 0.12);   /* 弹层阴影 */
+
+  /* ---------- 材质模糊（§4.5） ---------- */
+  --blur-material: blur(20px) saturate(180%);
+
+  /* ---------- 字体大小 ---------- */
+  --font-h1: 44rpx;
+  --font-h2: 36rpx;
+  --font-subtitle: 34rpx;
+  --font-card: 32rpx;
+  --font-caption: 30rpx;
+  --font-body: 28rpx;
+  --font-small: 26rpx;
+  --font-aux: 24rpx;
+  --font-tiny: 22rpx;
+
+  /* ---------- 图标尺寸 ---------- */
+  --icon-sm: 32rpx;
+  --icon-md: 40rpx;
+  --icon-lg: 48rpx;
+
+  /* ---------- 底部导航栏高度 ---------- */
+  --tabbar-height: 100rpx;
+}

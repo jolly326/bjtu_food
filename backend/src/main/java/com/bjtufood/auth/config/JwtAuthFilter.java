@@ -2,6 +2,7 @@ package com.bjtufood.auth.config;
 
 import com.bjtufood.common.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,6 +41,7 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenBlacklist tokenBlacklist;
 
     /** 请求头中 Token 的前缀 */
     private static final String TOKEN_PREFIX = "Bearer ";
@@ -62,6 +64,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = extractToken(authHeader);
 
         if (StringUtils.hasText(token)) {
+            // 注销黑名单校验：已注销账号的 token 立即失效（task-12.8）
+            if (tokenBlacklist.isRevoked(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                try {
+                    response.getWriter().write("{\"code\":401,\"message\":\"账号已注销，请重新登录\",\"data\":null}");
+                } catch (Exception ignored) {
+                }
+                return;
+            }
             // 2. 校验 Token
             if (jwtUtil.validateToken(token)) {
                 // 3. 解析用户信息

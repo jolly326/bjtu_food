@@ -19,7 +19,7 @@ withDefaults(defineProps<{
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 30rpx;
+  padding: var(--spacing-xl) var(--spacing-md);
 }
 .loading-spinner {
   width: 60rpx;
@@ -28,7 +28,7 @@ withDefaults(defineProps<{
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-bottom: 20rpx;
+  margin-bottom: var(--spacing-sm);
 }
 .loading-text {
   font-size: var(--font-body);

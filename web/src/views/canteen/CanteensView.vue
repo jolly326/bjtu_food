@@ -4,11 +4,14 @@ import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { usePageStore } from '@/stores/pageStore'
-import Modal from '@/components/Modal.vue'
-import guanbi from '@/static/icon/guanbi.svg'
-import location from '@/static/icon/location.svg'
-import canteen from '@/static/icon/canteen.svg'
-import { uploadImage } from '@/api/upload'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
+import FilterSelect from '@/components/layout/FilterSelect.vue'
+import FormDialog from '@/components/FormDialog.vue'
+import ImageUpload from '@/components/ImageUpload.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import { Location, Food, Plus } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const store = useAdminStore()
@@ -18,6 +21,7 @@ const page = usePageStore()
 page.setPage({ breadcrumbs: [{ label: '食堂管理' }], showSearch: true, searchPlaceholder: '搜索食堂名称或位置...' })
 
 const showModal = ref(false)
+const statusFilter = ref<string>('')
 
 const canteenStats = computed(() => ({
   total: store.canteens.length,
@@ -26,47 +30,24 @@ const canteenStats = computed(() => ({
 }))
 
 const filtered = computed(() => {
+  let list = store.canteens
+  if (statusFilter.value) list = list.filter(c => (c.status || 'active') === statusFilter.value)
   const q = page.searchQuery.trim().toLowerCase()
-  if (!q) return store.canteens
-  return store.canteens.filter(c => c.name.toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q))
+  if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q))
+  return list
 })
+
+const statusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '营业中', value: 'active' },
+  { label: '已关闭', value: 'inactive' },
+]
 
 const form = ref({ name: '', location: '', description: '', image: '', sort_order: 0, status: 'active' as 'active' | 'inactive' })
 const formErrors = ref<Record<string, string>>({})
-const imagePreviews = ref<string[]>([])
-const fileInput = ref<HTMLInputElement | null>(null)
 
 function getFirstImage(img: string): string {
   return img.split('|||')[0] || img
-}
-
-function handleAddImage() {
-  if (imagePreviews.value.length >= 3) return
-  fileInput.value?.click()
-}
-
-async function handleFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) { toast.error('请选择图片文件'); return }
-  try {
-    const result = await uploadImage(file)
-    imagePreviews.value.push(result.url)
-    const saved = form.value.image ? form.value.image.split('|||').filter(Boolean) : []
-    saved.push(result.relativeUrl)
-    form.value.image = saved.join('|||')
-    toast.success('图片上传成功')
-  } catch (err: any) {
-    toast.error(err.message || '图片上传失败')
-  } finally {
-    input.value = ''
-  }
-}
-
-function removeImage(idx: number) {
-  imagePreviews.value.splice(idx, 1)
-  form.value.image = imagePreviews.value.join('|||')
 }
 
 function validate() {
@@ -79,7 +60,6 @@ function validate() {
 
 function openAdd() {
   form.value = { name: '', location: '', description: '', image: '', sort_order: 0, status: 'active' }
-  imagePreviews.value = []
   formErrors.value = {}
   showModal.value = true
 }
@@ -95,20 +75,33 @@ function enterCanteen(id: number) { router.push(`/dashboard/canteens/${id}`) }
 </script>
 
 <template>
-  <div class="page">
-    <div class="card-hd">
-      <h3>食堂列表（{{ canteenStats.total }}）</h3>
-      <button class="btn-primary" @click="openAdd">+ 新增食堂</button>
-    </div>
-    <div class="card-grid">
-      <div v-for="c in filtered" :key="Number(c.id)" class="pk-card" @click="enterCanteen(Number(c.id))">
+  <PageContainer>
+    <PageHeader title="食堂管理" :count="filtered.length">
+      <template #actions>
+        <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增食堂</button>
+      </template>
+    </PageHeader>
+
+    <FilterBar>
+      <template #default>
+        <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
+      </template>
+    </FilterBar>
+
+    <div v-if="!filtered.length" class="empty-card">暂无匹配的食堂</div>
+
+    <div v-else class="card-grid">
+      <div v-for="(c, i) in filtered" :key="Number(c.id)" class="pk-card" :style="{ animationDelay: (i % 12) * 30 + 'ms' }" v-press @click="enterCanteen(Number(c.id))">
         <div class="pk-img-wrap">
           <img v-if="c.image" :src="getFirstImage(c.image)" :alt="c.name" />
-          <div v-else class="pk-emoji"><img :src="canteen" class="pk-emoji-img" alt="" /></div>
+          <div v-else class="pk-emoji"><el-icon :size="40" class="pk-emoji-img"><Food /></el-icon></div>
         </div>
         <div class="pk-body">
-          <h3 class="pk-title">{{ c.name }}</h3>
-          <p class="pk-loc"><img :src="location" class="icon-inline" alt="" /> {{ c.location }}</p>
+          <div class="pk-title-row">
+            <h3 class="pk-title">{{ c.name }}</h3>
+            <StatusTag :type="(c.status || 'active') === 'active' ? 'success' : 'gray'" :text="(c.status || 'active') === 'active' ? '营业中' : '已关闭'" />
+          </div>
+          <p class="pk-loc"><el-icon class="icon-inline"><Location /></el-icon> {{ c.location }}</p>
           <p class="pk-desc">{{ c.description }}</p>
           <div class="pk-stats">
             <span>档口 {{ store.stalls.filter(s => Number(s.canteen_id) === Number(c.id)).length }} 个</span>
@@ -116,10 +109,9 @@ function enterCanteen(id: number) { router.push(`/dashboard/canteens/${id}`) }
           </div>
         </div>
       </div>
-      <div v-if="!filtered.length" class="empty-card">暂无匹配的食堂</div>
     </div>
 
-    <Modal :show="showModal" title="新增食堂" :width="580" @close="showModal = false">
+    <FormDialog :show="showModal" title="新增食堂" :width="580" confirm-text="保存" @close="showModal = false" @confirm="handleSubmit">
       <div class="modal-form">
         <div class="modal-row">
           <div class="field flex-1"><label>食堂名称 <span class="required">*</span></label><input v-model="form.name" placeholder="输入食堂名称" /><p v-if="formErrors.name" class="field-error">{{ formErrors.name }}</p></div>
@@ -128,57 +120,41 @@ function enterCanteen(id: number) { router.push(`/dashboard/canteens/${id}`) }
         <div class="field"><label>描述</label><textarea v-model="form.description" rows="2" placeholder="输入食堂描述"></textarea></div>
         <div class="field">
           <label>图片 <span class="text-muted">（至多 3 张）</span></label>
-          <div class="image-list">
-            <div v-for="(preview, idx) in imagePreviews" :key="idx" class="image-item">
-              <img :src="preview" alt="预览" />
-              <span class="image-remove" @click="removeImage(idx)"><img :src="guanbi" class="icon-x" alt="" /></span>
-            </div>
-            <div v-if="imagePreviews.length < 3" class="image-add" @click="handleAddImage">
-              <span class="add-icon">+</span>
-              <span class="add-text">添加图片</span>
-            </div>
-          </div>
-          <input ref="fileInput" type="file" accept="image/*" class="file-hidden" @change="handleFileChange" />
+          <ImageUpload v-model="form.image" :max="3" />
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn-cancel" @click="showModal = false">取消</button>
-        <button class="btn-primary" @click="handleSubmit">保存</button>
-      </div>
-    </Modal>
-  </div>
+    </FormDialog>
+  </PageContainer>
 </template>
 
 <style scoped>
 
 
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.pk-card { position: relative; background: #fff; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card); cursor: pointer; transition: all .2s; border: 1px solid var(--border-color); }
-.pk-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
-.pk-img-wrap { width: 100%; height: 180px; overflow: hidden; background: #fafafa; display: flex; align-items: center; justify-content: center; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+.pk-card { position: relative; background: var(--bg-card); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); cursor: pointer; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), border-color .2s var(--ease-out); border: 1px solid var(--border-color); animation: card-enter 0.3s var(--ease-out) both; }
+@media (hover: hover) {
+  .pk-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
+}
+.pk-img-wrap { width: 100%; height: 180px; overflow: hidden; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; }
 .pk-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pk-emoji { width: 50px; height: 50px; opacity: .35; }
-.pk-body { padding: 16px; }
-.pk-title { margin: 0 0 4px; font-size: 17px; color: var(--text-primary); font-weight: 600; }
-.pk-loc { margin: 0 0 6px; font-size: 13px; color: var(--text-secondary); }
-.pk-desc { margin: 0 0 10px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.pk-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-light); }
-.empty-card { grid-column: 1 / -1; text-align: center; color: var(--text-light); font-size: 14px; padding: 60px 0; }
+.pk-emoji { width: 50px; height: 50px; opacity: .35; font-size: 40px; }
+.pk-body { padding: var(--space-4); }
+.pk-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pk-title { margin: 0; font-size: var(--font-xl); color: var(--text-primary); font-weight: var(--weight-semibold); }
+.pk-loc { margin: var(--space-1) 0 var(--space-2); font-size: var(--font-sm); color: var(--text-secondary); }
+.pk-desc { margin: 0 0 var(--space-3); font-size: var(--font-sm); color: var(--text-secondary); line-height: var(--leading-base); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pk-stats { display: flex; gap: var(--space-3); font-size: var(--font-xs); color: var(--text-light); }
+.empty-card { grid-column: 1 / -1; text-align: center; color: var(--text-light); font-size: var(--font-base); padding: var(--space-10) 0; }
 
-.modal-form { display: flex; flex-direction: column; gap: 12px; }
-.modal-row { display: flex; gap: 12px; }
+.modal-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.modal-row { display: flex; gap: var(--space-3); }
 .flex-1 { flex: 1; }
-.text-muted { color: var(--text-light); font-size: 12px; font-weight: 400; }
-.image-list { display: flex; gap: 10px; flex-wrap: wrap; }
-.image-item { position: relative; width: 100px; height: 100px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color); flex-shrink: 0; }
-.image-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.image-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s; }
-.image-remove:hover { background: rgba(0,0,0,.7); }
-.image-remove .icon-x { width: 12px; height: 12px; display: block; filter: brightness(10); }
-.image-add { width: 100px; height: 100px; border: 1px dashed #d9d9d9; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: border-color .2s, background .2s; background: #fafafa; flex-shrink: 0; }
-.image-add:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
-.add-icon { font-size: 28px; color: var(--text-light); line-height: 1; }
-.add-text { font-size: 12px; color: var(--text-light); }
-.file-hidden { display: none; }
+.text-muted { color: var(--text-light); font-size: var(--font-xs); font-weight: var(--weight-regular); }
 .icon-inline { width: 1em; height: 1em; vertical-align: -0.125em; display: inline; }
+.btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
+
+@keyframes card-enter { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .pk-card { animation: none; }
+}
 </style>

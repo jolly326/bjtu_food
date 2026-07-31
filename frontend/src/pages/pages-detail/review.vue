@@ -106,7 +106,9 @@ async function handleSubmit() {
     uni.showToast({ title: '评价成功', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+    // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）
+    const msg = e?.message || '提交失败'
+    uni.showToast({ title: msg, icon: 'none' })
   } finally {
     uploading.value = false
   }
@@ -176,8 +178,8 @@ onLoad((query) => {
   right: 4rpx;
   width: 36rpx;
   height: 36rpx;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  background: var(--badge-dark-bg);
+  color: var(--badge-dark-text);
   border-radius: 50%;
   display: flex;
   align-items: center;

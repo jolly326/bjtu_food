@@ -15,16 +15,86 @@
 			}
 		},
 		{
-			"path": "pages/favorite/index",
+			"path": "pages/profile/index",
 			"style": {
-				"navigationBarTitleText": "收藏",
+				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path": "pages/profile/index",
+			"path": "pages/community/index",
 			"style": {
-				"navigationBarTitleText": "我的",
+				"navigationBarTitleText": "动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/publish-moment/index",
+			"style": {
+				"navigationBarTitleText": "发布动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/my-moments/index",
+			"style": {
+				"navigationBarTitleText": "我的动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/notify/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/settings/index",
+			"style": {
+				"navigationBarTitleText": "设置",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/feedback/index",
+			"style": {
+				"navigationBarTitleText": "意见反馈",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/webview/index",
+			"style": {
+				"navigationBarTitleText": "外部链接",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/publish-dish",
+			"style": {
+				"navigationBarTitleText": "发布菜品",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/my-publish",
+			"style": {
+				"navigationBarTitleText": "我的发布",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/my-submissions",
+			"style": {
+				"navigationBarTitleText": "我的提交",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/submit-stall",
+			"style": {
+				"navigationBarTitleText": "提交档口",
 				"navigationStyle": "custom"
 			}
 		}
@@ -48,6 +118,13 @@
 					}
 				},
 				{
+					"path": "moment",
+					"style": {
+						"navigationBarTitleText": "动态详情",
+						"navigationStyle": "custom"
+					}
+				},
+				{
 					"path": "review",
 					"style": {
 						"navigationBarTitleText": "发表评价",
@@ -55,9 +132,23 @@
 					}
 				},
 				{
+					"path": "review-list",
+					"style": {
+						"navigationBarTitleText": "全部评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
 					"path": "stall",
 					"style": {
 						"navigationBarTitleText": "档口详情",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "contact",
+					"style": {
+						"navigationBarTitleText": "联系开发者",
 						"navigationStyle": "custom"
 					}
 				}

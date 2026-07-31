@@ -1,5 +1,7 @@
 package com.bjtufood.review.controller.admin;
 
+import com.bjtufood.common.annotation.AuditLog;
+import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,7 @@ public class ReviewAdminController {
     }
 
     @Operation(summary = "切换隐藏/显示评价", description = "用途：隐藏违规评价；再次调用可恢复显示。隐藏后公开评价列表不再展示。")
+    @AuditLog(action = OperationLogConst.ACTION_REVIEW_HIDE, targetType = "review", targetId = "#id")
     @PutMapping("/{id}/hide")
     public Result<Void> toggleHide(
             @Parameter(description = "评价ID", example = "1")
@@ -38,6 +41,7 @@ public class ReviewAdminController {
     }
 
     @Operation(summary = "管理员删除评价", description = "用途：管理员删除评价。当前实现为物理删除，并触发菜品评分重算。")
+    @AuditLog(action = OperationLogConst.ACTION_REVIEW_DELETE, targetType = "review", targetId = "#id")
     @DeleteMapping("/{id}")
     public Result<Void> deleteReview(
             @Parameter(description = "评价ID", example = "1")

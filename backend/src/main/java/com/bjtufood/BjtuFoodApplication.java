@@ -15,7 +15,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * - canteen：食堂档口模块（食堂/档口 CRUD）
  * - dish：菜品模块（菜品展示、搜索、管理、统计）
  * - review：评价模块（评价提交、审核）
- * - favorite：收藏模块（收藏/取消收藏）
  * - list：清单模块（创建清单、分享）
  * - upload：文件上传模块（图片上传）
  */

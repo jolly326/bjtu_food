@@ -19,8 +19,6 @@ import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
-import com.bjtufood.favorite.entity.Favorite;
-import com.bjtufood.favorite.mapper.FavoriteMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +41,6 @@ public class AuthServiceImpl implements AuthService {
     private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final FavoriteMapper favoriteMapper;
     private final ReviewMapper reviewMapper;
     private final ImageUrlUtil imageUrlUtil;
 
@@ -89,7 +86,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setNickname(req.getNickname());
-        user.setRole(RoleConst.USER);
+        user.setRole(RoleConst.STUDENT);
         user.setStatus("active");
         user.setLastLoginAt(LocalDateTime.now());
         userMapper.insert(user);
@@ -126,8 +123,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserStatsVO getUserStats(Long userId) {
-        long favoriteCount = favoriteMapper.selectCount(
-                new LambdaQueryWrapper<Favorite>().eq(Favorite::getUserId, userId));
+        // favorite 模块本期整体移除（task-12.12），收藏数不再统计；喜欢方案待架构师评估。
+        long favoriteCount = 0L;
         long reviewCount = reviewMapper.selectCount(
                 new LambdaQueryWrapper<Review>()
                         .eq(Review::getUserId, userId)

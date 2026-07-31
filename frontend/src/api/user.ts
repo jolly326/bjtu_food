@@ -1,8 +1,10 @@
 import type { UserInfo, UserStats } from '@/types/user'
-import { get, post, put } from './http'
+import { get, post, put, del } from './http'
 
-function toFrontendRole(_role?: string): UserInfo['role'] {
-  return 'student'
+function toFrontendRole(role?: string): UserInfo['role'] {
+  // 后端现已直接存储 student / admin（§0.2 仅两种角色），无需再做 USER→STUDENT 映射。
+  // 直接透传并收敛类型：显式识别 admin，其余（含缺省/未知）归一为 student。
+  return (role === 'admin' ? 'admin' : 'student') as UserInfo['role']
 }
 
 function toUserInfo(resp: any, fallbackId = 1): UserInfo {
@@ -69,4 +71,9 @@ export async function updateProfile(data: { nickname?: string; avatar?: string }
 
 export async function getUserStats(): Promise<UserStats> {
   return await get('/auth/stats')
+}
+
+/** 账号注销（STU，DELETE /my/account，逻辑删除 + 失效 token，task-12.8） */
+export async function deleteAccount(): Promise<void> {
+  await del<void>('/my/account')
 }

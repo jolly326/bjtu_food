@@ -22,7 +22,7 @@ public class UserAdminController {
 
     private final UserService userService;
 
-    @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 role/status 筛选。测试示例：/admin/users?page=1&pageSize=10&role=user&status=active")
+    @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 role/status 筛选。测试示例：/admin/users?page=1&pageSize=10&role=student&status=active")
     @GetMapping
     public Result<?> listUsers(
             @RequestParam(defaultValue = "1") int page,
@@ -52,7 +52,7 @@ public class UserAdminController {
 
     @Operation(
             summary = "修改用户角色",
-            description = "用途：设置 user / admin。",
+            description = "用途：设置 student / admin。",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
                       "role": "admin"

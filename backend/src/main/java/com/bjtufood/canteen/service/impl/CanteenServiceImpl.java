@@ -15,6 +15,7 @@ import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -44,6 +45,9 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setTitle(banner.getTitle());
                     vo.setSubtitle(banner.getSubtitle());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(banner.getImages()));
+                    vo.setTargetType(banner.getTargetType());
+                    vo.setTargetId(banner.getTargetId());
+                    vo.setTargetUrl(banner.getTargetUrl());
                     return vo;
                 })
                 .collect(Collectors.toList());
@@ -146,6 +150,9 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public void add(Canteen canteen) {
+        // 创建者：后台录入时记为当前登录用户（学生 UGC 入口接入时同理由前端不可用、后端强制写入）
+        canteen.setCreatedBy(SecurityUtil.getCurrentUserId());
+        // audit_status 沿用表默认 approved（后台录入默认通过，见 schema.sql 注释）
         canteenMapper.insert(canteen);
     }
 
@@ -184,6 +191,9 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         vo.setSortOrder(canteen.getSortOrder());
         vo.setStatus(canteen.getStatus());
+        vo.setAuditStatus(canteen.getAuditStatus());
+        vo.setRejectReason(canteen.getRejectReason());
+        vo.setCreatedBy(canteen.getCreatedBy());
         vo.setCreatedAt(canteen.getCreatedAt());
         vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;
