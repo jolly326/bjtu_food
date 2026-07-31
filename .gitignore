@@ -56,6 +56,7 @@ desktop.ini
 
 # CodeBuddy local agent/skills/teams runtime & config (not project source)
 .codebuddy/
+.agents/
 .playwright-mcp/
 
 # Editor directories and files
