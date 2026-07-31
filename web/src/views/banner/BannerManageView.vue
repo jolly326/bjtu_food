@@ -19,7 +19,7 @@ const admin = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: 'Banner 管理' }], showSearch: true, searchPlaceholder: '搜索 Banner 标题...' })
+page.setPage({ breadcrumbs: [{ label: 'Banner 管理' }], searchPlaceholder: '搜索 Banner 标题...' })
 
 const showModal = ref(false)
 const editingId = ref<number | null>(null)

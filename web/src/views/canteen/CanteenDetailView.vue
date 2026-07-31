@@ -70,7 +70,6 @@ watch(canteen, (c) => {
       { label: '食堂管理', path: '/dashboard/canteens' },
       { label: c?.name || '加载中' },
     ],
-    showSearch: true,
     searchPlaceholder: '搜索档口名称...',
   })
   if (c) {

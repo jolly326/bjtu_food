@@ -16,7 +16,7 @@ const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '用户管理' }], showSearch: true, searchPlaceholder: '搜索学生用户名或昵称...' })
+page.setPage({ breadcrumbs: [{ label: '用户管理' }], searchPlaceholder: '搜索学生用户名或昵称...' })
 
 const students = computed(() => store.users.filter(u => u.role !== 'admin'))
 

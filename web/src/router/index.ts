@@ -12,7 +12,7 @@ const router = createRouter({
       path: '/dashboard',
       component: AdminLayout,
       children: [
-        { path: '', redirect: { name: 'feedback' } },
+        { path: '', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
         { path: 'canteens', name: 'canteens', component: () => import('@/views/canteen/CanteensView.vue') },
         { path: 'dishes', name: 'dishManage', component: () => import('@/views/canteen/DishManageView.vue') },
         { path: 'canteens/:canteenId', name: 'canteenDetail', component: () => import('@/views/canteen/CanteenDetailView.vue') },
@@ -43,7 +43,7 @@ router.beforeEach(async (to) => {
     if (token) {
       try {
         const me = await userApi.getProfile()
-        if (me?.role === 'admin') return '/dashboard/feedbacks'
+        if (me?.role === 'admin') return '/dashboard'
       } catch { /* ignore */ }
     }
     return true

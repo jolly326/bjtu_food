@@ -72,7 +72,7 @@ function closeImageModal() { showImageModal.value = false }
 watch([canteen, stall], ([c, s]) => {
   page.setPage({
     breadcrumbs: [{ label: '食堂管理', path: '/dashboard/canteens' }, { label: c?.name || '加载中', path: c ? `/dashboard/canteens/${canteenId.value}` : '' }, { label: s?.name || '加载中' }],
-    showSearch: true, searchPlaceholder: '搜索菜品名称...',
+    searchPlaceholder: '搜索菜品名称...',
   })
   if (s) {
     stallForm.value = {

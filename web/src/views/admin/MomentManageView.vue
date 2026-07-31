@@ -18,7 +18,6 @@ const confirm = useConfirmStore()
 const page = usePageStore()
 page.setPage({
   breadcrumbs: [{ label: '社区动态' }, { label: '动态管理' }],
-  showSearch: true,
   searchPlaceholder: '搜索内容/作者...',
 })
 

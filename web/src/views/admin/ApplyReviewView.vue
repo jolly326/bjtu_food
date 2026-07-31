@@ -34,7 +34,6 @@ const entityType = ref<EntityTab>('dish')
 watch(entityType, (t) => {
   page.setPage({
     breadcrumbs: [{ label: '审核中心' }, { label: `${entityLabel[t]}审核` }],
-    showSearch: true,
     searchPlaceholder: t === 'review' ? '搜索评价内容...' : '搜索名称/提交人...',
   })
 }, { immediate: true })

@@ -12,7 +12,6 @@ import type { OperationLogVO } from '@/api/operationLog'
 const page = usePageStore()
 page.setPage({
   breadcrumbs: [{ label: '系统审计' }, { label: '操作日志' }],
-  showSearch: true,
   searchPlaceholder: '搜索操作人/动作/IP...',
 })
 

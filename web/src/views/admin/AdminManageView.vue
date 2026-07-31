@@ -15,7 +15,7 @@ const store = useAdminUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '管理员管理' }], showSearch: true, searchPlaceholder: '搜索管理员用户名/昵称...' })
+page.setPage({ breadcrumbs: [{ label: '管理员管理' }], searchPlaceholder: '搜索管理员用户名/昵称...' })
 
 const filtered = computed(() => {
   const q = page.searchQuery.trim().toLowerCase()

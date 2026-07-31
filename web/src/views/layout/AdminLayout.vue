@@ -5,10 +5,9 @@ import { usePageStore } from '@/stores/pageStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { useAdminUserStore } from '@/stores/adminUserStore'
 import Toast from '@/components/Toast.vue'
-import SearchInput from '@/components/SearchInput.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import {
-  House, PriceTag, ChatDotRound, Picture, User, UserFilled, SwitchButton, Menu,
+  House, PriceTag, ChatDotRound, Picture, User, UserFilled, Menu,
   Document, ChatLineSquare, Fold, ArrowLeft,
 } from '@element-plus/icons-vue'
 
@@ -46,10 +45,6 @@ function toggleOverlay() {
 function goBreadcrumb(item: { label: string; path?: string }) {
   if (item.path) router.push(item.path)
 }
-function logout() {
-  localStorage.removeItem('token')
-  router.push('/login')
-}
 </script>
 
 <template>
@@ -71,23 +66,31 @@ function logout() {
         </button>
       </div>
       <nav class="sidebar-nav">
-        <!-- ① 内容管理 -->
+        <!-- ① 概览 -->
         <div class="nav-group">
-          <div class="nav-group-title">内容管理</div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/canteens') }" v-press @click="navTo('/dashboard/canteens')">
-            <el-icon class="nav-icon-img"><House /></el-icon><span class="nav-label">食堂（含档口）</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/dishes') }" v-press @click="navTo('/dashboard/dishes')">
-            <el-icon class="nav-icon-img"><PriceTag /></el-icon><span class="nav-label">菜品（含折扣价）</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/banners') }" v-press @click="navTo('/dashboard/banners')">
-            <el-icon class="nav-icon-img"><Picture /></el-icon><span class="nav-label">轮播（Banner）</span>
+          <div class="nav-group-title">概览</div>
+          <div class="nav-item" :class="{ active: activePath === '/dashboard' }" v-press @click="navTo('/dashboard')">
+            <el-icon class="nav-icon-img"><House /></el-icon><span class="nav-label">仪表盘</span>
           </div>
         </div>
 
-        <!-- ② 审核与社区（反馈并入本组） -->
+        <!-- ② 内容 -->
         <div class="nav-group">
-          <div class="nav-group-title">审核与社区</div>
+          <div class="nav-group-title">内容</div>
+          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/canteens') }" v-press @click="navTo('/dashboard/canteens')">
+            <el-icon class="nav-icon-img"><House /></el-icon><span class="nav-label">食堂</span>
+          </div>
+          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/dishes') }" v-press @click="navTo('/dashboard/dishes')">
+            <el-icon class="nav-icon-img"><PriceTag /></el-icon><span class="nav-label">菜品</span>
+          </div>
+          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/banners') }" v-press @click="navTo('/dashboard/banners')">
+            <el-icon class="nav-icon-img"><Picture /></el-icon><span class="nav-label">轮播</span>
+          </div>
+        </div>
+
+        <!-- ③ 运营 -->
+        <div class="nav-group">
+          <div class="nav-group-title">运营</div>
           <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/reviews') }" v-press @click="navTo('/dashboard/reviews')">
             <el-icon class="nav-icon-img"><Document /></el-icon><span class="nav-label">审核中心</span>
           </div>
@@ -95,40 +98,24 @@ function logout() {
             <el-icon class="nav-icon-img"><ChatDotRound /></el-icon><span class="nav-label">动态管理</span>
           </div>
           <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/feedbacks') }" v-press @click="navTo('/dashboard/feedbacks')">
-            <el-icon class="nav-icon-img"><ChatLineSquare /></el-icon><span class="nav-label">反馈与举报处理</span>
+            <el-icon class="nav-icon-img"><ChatLineSquare /></el-icon><span class="nav-label">反馈举报</span>
           </div>
-        </div>
-
-        <!-- ③ 用户与权限 -->
-        <div class="nav-group">
-          <div class="nav-group-title">用户与权限</div>
           <div class="nav-item" :class="{ active: activePath === '/dashboard/users' }" v-press @click="navTo('/dashboard/users')">
-            <el-icon class="nav-icon-img"><User /></el-icon><span class="nav-label">用户管理</span>
+            <el-icon class="nav-icon-img"><User /></el-icon><span class="nav-label">用户</span>
           </div>
           <div v-if="canManageAdmins" class="nav-item" :class="{ active: activePath === '/dashboard/admins' }" v-press @click="navTo('/dashboard/admins')">
             <el-icon class="nav-icon-img"><UserFilled /></el-icon>
-            <span class="nav-label">管理员管理</span>
+            <span class="nav-label">管理员</span>
           </div>
           <div class="nav-item" :class="{ active: activePath === '/dashboard/operation-logs' }" v-press @click="navTo('/dashboard/operation-logs')">
             <el-icon class="nav-icon-img"><Document /></el-icon><span class="nav-label">操作日志</span>
           </div>
-        </div>
-
-        <!-- ④ 个人中心 -->
-        <div class="nav-group">
-          <div class="nav-group-title">个人中心</div>
           <div class="nav-item" :class="{ active: activePath === '/dashboard/account' }" v-press @click="navTo('/dashboard/account')">
             <el-icon class="nav-icon-img"><UserFilled /></el-icon>
             <span class="nav-label">账号设置</span>
           </div>
         </div>
       </nav>
-      <div class="sidebar-footer">
-        <div class="nav-item" v-press @click="logout">
-          <el-icon class="nav-icon-img"><SwitchButton /></el-icon>
-          <span class="nav-label">退出登录</span>
-        </div>
-      </div>
     </aside>
 
     <div class="main-area">
@@ -142,9 +129,6 @@ function logout() {
             <span class="bc-label">{{ item.label }}</span>
           </span>
           <span v-if="!page.breadcrumbs.length" class="bc-placeholder">交大美食管理系统</span>
-        </div>
-        <div class="topbar-search" v-if="page.showSearch">
-          <SearchInput :placeholder="page.searchPlaceholder" @change="page.searchQuery = $event" />
         </div>
       </header>
       <main class="content"><router-view /></main>
@@ -251,10 +235,6 @@ function logout() {
   color: inherit;
 }
 .nav-label { font-size: var(--font-base); flex: 1; }
-.sidebar-footer {
-  border-top: 1px solid color-mix(in srgb, var(--text-white) 10%, transparent);
-  padding: var(--space-1) 0;
-}
 
 /* ===== 主区 ===== */
 .main-area {
@@ -307,7 +287,6 @@ function logout() {
 .bc-sep { color: var(--text-light); font-size: var(--font-sm); padding: 0 var(--space-1); }
 .bc-label { font-size: var(--font-base); color: var(--text-secondary); transition: color .15s var(--ease-out); }
 .bc-placeholder { color: var(--text-primary); font-weight: var(--weight-medium); font-size: var(--font-md); }
-.topbar-search { display: flex; width: 320px; margin-left: auto; }
 
 .content { flex: 1; padding: 0; overflow-y: auto; overflow-x: hidden; }
 
@@ -327,13 +306,5 @@ function logout() {
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar { transition: none; }
-}
-
-/* 三档响应式 */
-@media (max-width: 959px) {
-  .topbar-search { width: 180px; }
-}
-@media (max-width: 767px) {
-  .topbar-search { display: none; }
 }
 </style>

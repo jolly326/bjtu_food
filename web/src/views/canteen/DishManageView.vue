@@ -14,7 +14,7 @@ import { Food, Plus, Star } from '@element-plus/icons-vue'
 const router = useRouter()
 const store = useAdminStore()
 const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '菜品管理' }], showSearch: true, searchPlaceholder: '搜索菜品名称...' })
+page.setPage({ breadcrumbs: [{ label: '菜品管理' }], searchPlaceholder: '搜索菜品名称...' })
 
 const loading = ref(false)
 const error = ref('')

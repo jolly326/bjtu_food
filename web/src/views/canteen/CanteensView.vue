@@ -18,7 +18,7 @@ const store = useAdminStore()
 const toast = useToastStore()
 const page = usePageStore()
 
-page.setPage({ breadcrumbs: [{ label: '食堂管理' }], showSearch: true, searchPlaceholder: '搜索食堂名称或位置...' })
+page.setPage({ breadcrumbs: [{ label: '食堂管理' }], searchPlaceholder: '搜索食堂名称或位置...' })
 
 const showModal = ref(false)
 const statusFilter = ref<string>('')

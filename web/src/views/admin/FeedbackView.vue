@@ -15,7 +15,6 @@ const toast = useToastStore()
 const page = usePageStore()
 page.setPage({
   breadcrumbs: [{ label: '消息反馈' }, { label: '反馈处理' }],
-  showSearch: true,
   searchPlaceholder: '搜索内容/联系方式/提交人...',
 })
 
