@@ -9,7 +9,7 @@
 
 ### 0.1 三层架构
 - **微信小程序（学生端）**：uni-app + Vue3 + TS + Pinia，提供浏览 / 发布 / 评价 / 分享。页面设计见各 task 文件（task-02~task-10）。
-- **Web 管理后台（后勤 / 管理员端）**：Vue3 + Vite + TS + Element Plus + ECharts，提供审核 / 发活动 / 看板 / CRUD。页面设计见 task-09。
+- **Web 管理后台（后勤 / 管理员端）**：Vue3 + Vite + TS + Element Plus + ECharts，提供审核 / 看板（轻量 DashboardView）/ CRUD。页面设计见 task-09 / task-12。
 - **后端 API**：Spring Boot 3.2 + Java 21 + MyBatis-Plus + MySQL 8.0，JWT 鉴权，金额以「分」存储。前后端共用，按角色授权。
 
 ### 0.2 角色模型（仅两种）
@@ -61,18 +61,18 @@
 
 #### 0.3.3 Web 后台模块
 
-> 用户拍板 Web 管理端本期范围与菜单分组如下；**活动管理 / 数据看板 / 报表导出 本期不做**（活动管理 descoped 且后端 `activity` 模块/路由/表本期整体移除，统一经 Banner 触达；`dashboard`/`report` 后端接口保留但后台不暴露入口）。
+> 用户拍板 Web 管理端本期范围与菜单分组如下；**活动管理 / 报表导出 本期不做**（活动管理 descoped 且后端 `activity` 模块/路由/表本期整体移除，统一经 Banner 触达；`report` 后端接口保留但后台不暴露入口）。**数据看板轻量版已落地**（登录首屏 `/dashboard`：指标卡 + 快捷入口，见下方「本期做」），但 ECharts 运营驾驶舱 / 报表导出本期仍不做。
 
-**本期做（菜单分组，4 个顶层分组）**
-- **内容管理**：食堂（含档口）/ 菜品（含折扣价字段编辑，列表页用卡片网格呈现）/ 轮播 Banner（承载活动/运营外链跳转）。
-- **审核与社区**：审核中心（菜品/档口/食堂/评价四类切换 + 状态分段的合并审核页）/ 动态管理（审核 + 运营删合并）/ **反馈与举报处理**（从原独立顶层组并入本组，处理他人举报与反馈，属审核域）。
-- **用户与权限**：用户管理（含注销状态展示）/ 管理员管理（仅 super_admin 可见）/ 操作日志。
-- **个人中心**（新增独立分组，操作对象为管理员本人）：账号设置（个人资料 / 修改密码）。
-- **登录默认落地**：反馈与举报处理页（路径 `/dashboard/feedbacks`，属「审核与社区」组）。
+**本期做（菜单分组，3 个顶层分组，导航仅留名词）**
+- **概览**：仪表盘（路径 `/dashboard`，轻量 DashboardView：指标卡 + 快捷入口，登录默认落地）。
+- **内容**：食堂（含档口）/ 菜品（含折扣价字段编辑，列表页用卡片网格呈现）/ 轮播 Banner（承载活动/运营外链跳转）。
+- **运营**：审核中心（菜品/档口/食堂/评价四类切换 + 状态分段的合并审核页）/ 动态管理（审核 + 运营删合并）/ 反馈与举报处理 / 用户管理（含注销状态展示）/ 管理员管理（仅 super_admin 可见）/ 操作日志 / 账号设置（个人资料 / 修改密码，操作对象为管理员本人）。
+- **菜单可见范围**：普通运营与超管菜单不区分（按用户拍板）；仅「管理员管理」因业务约束仅 super_admin 可见，其余菜单所有 ADMIN 均可见。
+- **登录默认落地**：仪表盘（路径 `/dashboard`，轻量 DashboardView：指标卡 + 快捷入口，属「概览」组）。
 
 **本期不做(descoped)**
 - **活动管理**：并入 Banner，后台不单独做活动管理模块。
-- **数据看板**：本期不做（无 ECharts 看板）。
+- **ECharts 运营驾驶舱（趋势图 / 排行图）**：本期不做（轻量 DashboardView 仅含指标卡 + 快捷入口，无 ECharts 图表）。
 - **报表导出**：本期不做（CSV 导出入口不暴露）。
 
 ### 0.4 核心实体
@@ -240,13 +240,13 @@
 | notification | GET/PUT | `/notifications`…`/notifications/read` | STU | — | **【本期做】** 消息中心列表/已读（异步落库，见 §5.z D-A；非微信真推送） |
 | feedback | POST | `/feedback` | STU | type,content,contact?,**relatedType?**,**relatedId?** | void（type=report 时 relatedType=relatedId 必填，关联被举报动态；复用 user_feedback 表，不新建举报表） |
 | list | CRUD | `/lists`…`/lists/share/{token}` | STU/PUB | name,dishIds,shareToken | **【本期不做(descoped)】** 美食清单接口已登记但小程序端本期不交付，相关页面/入口由开发移除或隐藏（用户拍板，见 §0.3.1） |
-| dashboard(admin) | GET | `/admin/dashboard` | ADM | range | **【本期不做(descoped)】** Web 数据看板本期不做，后台不暴露入口（后端接口保留） |
+| dashboard(admin) | GET | `/admin/dashboard` | ADM | range | **【本期做】** 轻量数据看板（指标卡 + 快捷入口）已落地为登录首屏 `/dashboard`；后端 `/admin/dashboard` 已暴露。ECharts 运营驾驶舱 / 报表导出仍 descoped（见 §0.3.3）。 |
 | report(admin) | GET | `/admin/reports/dishes\|reviews\|users\|moments/export` | ADM | startAt?,endAt? | **【本期不做(descoped)】** 报表导出本期不做（CSV 接口保留但后台不暴露） |
 | report(admin) | GET | `/admin/reports/summary/export` | ADM | startAt?,endAt? | **【本期不做(descoped)】** 汇总报表本期不做 |
 
 > 说明：`content`（UGC 审核）后端包已存在；`activity` 后端包本期整体移除（模块/路由/表一并清理，活动统一经 Banner 触达）。`dish(publish)` 学生发布/重提接口已由 `/dishes` 学生端接口承载（`POST /dishes`、`PUT /dishes/{id}`、`GET /my/dishes`），stall-owner 残留已在 task-01 清理删除（见 §5 红线与影响面清单）。
 > **实体贡献（定稿 §0.3.1 第 4 项）契约归属**：「我要贡献」统一入口与详情页快捷申请中，**新增实体（菜品/档口/食堂首次提交）复用既有 UGC 审核闭环接口**（`POST /dishes` 系列、`POST /my/stalls`、以及 `/admin/audit` 审核），不新增端点；**下架/变更类申请则走新建独立 `apply` 表**（见 §0.4 / §3.x.1，不复用实体 `audit_status` 审核闭环，对应端点 `/my/apply`、`/admin/apply` 已登记于 §3.x.5）。「我的提交」聚合页（实体/动态双标签，含已下架）由前端聚合 `GET /my/dishes`、`GET /my/stalls`、`GET /my/moments`、`GET /my/apply` 等「我的」接口实现，无需新接口。「喜欢 ❤️」替代收藏，底层 `/favorites` 已彻底删除（见 §3.x.6.7），移除独立收藏页。
-> **Web 后台菜单与登录落地（定稿 §0.3.3）**：后台菜单为 4 个顶层分组——「内容管理（食堂含档口/菜品含折扣价/Banner）/ 审核与社区（审核中心合并页/动态管理/反馈与举报处理）/ 用户与权限（用户管理/管理员管理/操作日志）/ 个人中心（账号设置，操作对象为管理员本人）」。反馈与举报处理从原独立顶层组并入「审核与社区」（属处理他人提交/举报的审核域）；账号设置从「用户与权限」拆出至独立「个人中心」组（与"管理他人"语义分离）。登录默认落地「反馈与举报处理」（`/dashboard/feedbacks`）。菜品列表页本期用卡片网格呈现（与食堂/Banner 统一）。活动管理/数据看板/报表导出本期不暴露入口（descoped）。Web 前端路由前缀维持 `/dashboard/**`（本期不与后端 `/admin/**` 对齐，留作后续）。操作日志 `operation_log` 表 + AOP 记录关键操作（增删改/审核/上下架/注销处理），见 §5.z Q4 与 ARCH_DECISIONS_PHASE2 §0。
+> **Web 后台菜单与登录落地（定稿 §0.3.3，已落地）**：后台菜单为 3 个顶层分组——「概览（仪表盘 `/dashboard`，登录默认落地）/ 内容（食堂含档口/菜品含折扣价/Banner）/ 运营（审核中心合并页/动态管理/反馈与举报处理/用户管理/管理员管理[仅 super_admin]/操作日志/账号设置）」。导航仅留名词分组，反馈与举报处理、账号设置均并入「运营」组（属处理他人提交/举报与本人设置的运维域）。登录默认落地「仪表盘」（`/dashboard`，轻量 DashboardView：指标卡 + 快捷入口）。菜品列表页本期用卡片网格呈现（与食堂/Banner 统一）。活动管理/报表导出本期不暴露入口（descoped）；数据看板轻量版已落地为登录首屏（无 ECharts 图表）。Web 前端路由前缀维持 `/dashboard/**`（本期不与后端 `/admin/**` 对齐，留作后续）。操作日志 `operation_log` 表 + AOP 记录关键操作（增删改/审核/上下架/注销处理），见 §5.z Q4 与 ARCH_DECISIONS_PHASE2 §0。
 
 ### 3.x.6 三端一致性裁决（权威补充，2025-10 审计结论）
 
@@ -475,4 +475,4 @@
 - P2-W3：`banner.ts` `toBanner` 将 `type` 字段标记 `@deprecated`，视图层仅用 `targetType`；`toApi` 继续输出 `targetType`（已正确）。
 - P2-W4：`adapter.ts` `activityToLegacy` 随 Activity 模块整体移除一并删除（见 §3.x.6.5）；`dishToLegacy` 去 `raw.favorite_count` 兼容（B1 后仅 `favoriteCount`）。
 - P3-W5：`review.ts` 的 `create` 调用 `POST /reviews`（非 admin 路径）属误用，确认是否删除（评价由学生端提交，后台仅审核 hide/delete）。
-- **P3-W6（本期定样，实施另排期）**：Web 页面布局与信息组织对齐 §4.11 + 侧边栏 4 分组对齐 §0.3.3——① 侧边栏改为 4 组（反馈与举报处理并入审核与社区、账号设置拆出至个人中心）；② 各页面按 T1/T2/T3 模板重构，引入 `PageContainer/PageSection/PageHeader/FilterBar/StatCard/FormField`；③ 菜品列表改卡片网格；④ 删除遗留未挂载的 `views/dashboard/DashboardView.vue` 与空 `views/activity/` 目录（descoped）。路由前缀维持 `/dashboard/**` 本期不变。纯前端重构，不碰后端/字段名/错误码。
+- **P3-W6（已实施）**：Web 页面布局与信息组织对齐 §4.11 + 侧边栏分组对齐 §0.3.3——① 侧边栏改为 3 组「概览/内容/运营」（导航仅留名词，反馈与举报处理、账号设置并入「运营」组）；② 各页面按 T1/T2/T3 模板重构，引入 `PageContainer/PageSection/PageHeader/FilterBar/StatCard/FormField`；③ 菜品列表改卡片网格；④ 轻量 DashboardView（`/dashboard` 登录首屏：指标卡 + 快捷入口）已落地（注：原"删除未挂载 DashboardView(descoped)"已作废，实际已挂载为登录首屏）；空 `views/activity/` 目录已清理。路由前缀维持 `/dashboard/**` 本期不变。纯前端重构，不碰后端/字段名/错误码。
