@@ -42,15 +42,22 @@
           </swiper>
         </view>
 
-        <!-- 动态轻入口卡（task-06：首页 Banner 下方插入，点击进社区广场） -->
-      <view class="section enter-up" v-if="true" :style="{ '--enter-i': 1 }">
-        <view class="moment-entry" :class="{ pressed: momentPressed }" @touchstart="momentPressed = true" @touchend="momentPressed = false" @touchcancel="momentPressed = false" @mousedown="momentPressed = true" @mouseup="momentPressed = false" @mouseleave="momentPressed = false" @tap="goToCommunity">
-          <view class="moment-entry-icon">{{ EMOJI.review }}</view>
-          <view class="moment-entry-body">
-            <text class="moment-entry-title">{{ EMOJI.fire }} 社区动态</text>
-            <text class="moment-entry-sub">看看同学们都在吃什么</text>
-          </view>
-          <text class="moment-entry-arrow">{{ EMOJI.arrowRight }}</text>
+        <!-- 广播通知条：细长横向 ticker，左侧喇叭图标 + 一行省略文案 + 右侧查看全部，点击进社区 -->
+      <view class="section enter-up broadcast-section" v-if="true" :style="{ '--enter-i': 1 }">
+        <view
+          class="broadcast-bar"
+          :class="{ pressed: momentPressed }"
+          @touchstart="momentPressed = true"
+          @touchend="momentPressed = false"
+          @touchcancel="momentPressed = false"
+          @mousedown="momentPressed = true"
+          @mouseup="momentPressed = false"
+          @mouseleave="momentPressed = false"
+          @tap="goToCommunity"
+        >
+          <text class="broadcast-icon">{{ EMOJI.bell }}</text>
+          <text class="broadcast-text">{{ EMOJI.fire }} 同学们都在吃什么 · 最新动态</text>
+          <text class="broadcast-more">查看全部 ›</text>
         </view>
       </view>
 
@@ -235,6 +242,43 @@ function handleBannerTap(banner: BannerItem) {
 .swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: -0.01em; color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }
 .swiper-subtitle { font-size: var(--font-body); color: var(--text-white-secondary); z-index: 1; }
 .section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); }
+
+/* ===== 首页广播通知条（细长 ticker，像系统通知而非内容卡） ===== */
+.broadcast-section { margin-bottom: var(--spacing-md); }
+.broadcast-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  height: 72rpx;
+  padding: 0 var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.12s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.broadcast-icon {
+  font-size: 30rpx;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.broadcast-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.broadcast-more {
+  flex-shrink: 0;
+  font-size: var(--font-aux);
+  color: var(--color-primary);
+  font-weight: 600;
+}
 .section-head { display: flex; align-items: center; margin-bottom: var(--spacing-sm); }
 .section-bar { width: 8rpx; height: 32rpx; border-radius: 999rpx; background: var(--color-primary); margin-right: var(--spacing-xs); flex-shrink: 0; }
 .section-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
@@ -257,7 +301,7 @@ function handleBannerTap(banner: BannerItem) {
   -webkit-tap-highlight-color: transparent;
 }
 .canteen-card.pressed { transform: scale(0.97); }
-.moment-entry.pressed { transform: scale(0.97); }
+.broadcast-bar.pressed { transform: scale(0.985); }
 .canteen-img { width: 100%; height: 100%; }
 .canteen-img-placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .canteen-illu { font-size: 80rpx; line-height: 1; opacity: 0.3; }

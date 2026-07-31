@@ -30,60 +30,52 @@
           </view>
         </CardSection>
 
-        <!-- ===== task-12.1 快捷申请下架/纠错入口 ===== -->
-        <CardSection>
-          <view class="apply-row" @tap="openApply">
-            <text class="apply-icon">{{ EMOJI.edit }}</text>
-            <view class="apply-body">
-              <text class="apply-title">申请下架 / 纠错</text>
-              <text class="apply-sub">信息有误或需下架？向管理员发起申请</text>
+        <!-- ===== task-03 合并卡片：位置与营业 / 菜品属性 / 菜品介绍，单卡内分区 ===== -->
+        <CardSection title="菜品信息">
+          <!-- 分区一：位置与营业 -->
+          <view class="info-block">
+            <view class="location-chain" @tap="goToCanteen">
+              <text class="chain-node">{{ dish.canteen || '未知食堂' }}</text>
+              <text class="chain-sep">›</text>
+              <text class="chain-node" v-if="dish.floor">{{ dish.floor }}</text>
+              <text class="chain-sep" v-if="dish.floor">›</text>
+              <text class="chain-node">{{ dish.stallName || '档口' }}</text>
+              <text class="chain-sep" v-if="dish.windowNo">›</text>
+              <text class="chain-node chain-window" v-if="dish.windowNo">窗口 {{ dish.windowNo }}</text>
             </view>
-            <text class="apply-arrow">{{ EMOJI.arrowRight }}</text>
+            <view class="biz-hours" v-if="dish.businessHours" @tap="goToStall">
+              <text class="biz-icon">{{ EMOJI.clock }}</text>
+              <text class="biz-text">营业时间：{{ dish.businessHours }}</text>
+              <text class="biz-arrow">›</text>
+            </view>
           </view>
-        </CardSection>
 
-        <!-- ===== task-03 位置链路（食堂→楼层→档口→窗口号 + 营业时间） ===== -->
-        <CardSection title="位置与营业">
-          <view class="location-chain" @tap="goToCanteen">
-            <text class="chain-node">{{ dish.canteen || '未知食堂' }}</text>
-            <text class="chain-sep">›</text>
-            <text class="chain-node" v-if="dish.floor">{{ dish.floor }}</text>
-            <text class="chain-sep" v-if="dish.floor">›</text>
-            <text class="chain-node">{{ dish.stallName || '档口' }}</text>
-            <text class="chain-sep" v-if="dish.windowNo">›</text>
-            <text class="chain-node chain-window" v-if="dish.windowNo">窗口 {{ dish.windowNo }}</text>
+          <!-- 分区二：菜品属性（有则展示，用分隔线与上区隔开） -->
+          <view class="info-block info-block-divider" v-if="attrTags.length > 0">
+            <view class="attr-row">
+              <view class="attr-item" v-if="spiceLabel">
+                <text class="attr-icon">{{ EMOJI.chili }}</text>
+                <text class="attr-text">{{ spiceLabel }}</text>
+              </view>
+              <view class="attr-item" v-if="portionLabel">
+                <text class="attr-icon">{{ EMOJI.portion }}</text>
+                <text class="attr-text">{{ portionLabel }}</text>
+              </view>
+              <view class="attr-item" v-if="dish.limited">
+                <text class="attr-icon">{{ EMOJI.limited }}</text>
+                <text class="attr-text">限量供应</text>
+              </view>
+              <view class="attr-item" v-for="p in servePeriodLabels" :key="p">
+                <text class="attr-icon">{{ EMOJI.clock }}</text>
+                <text class="attr-text">{{ p }}</text>
+              </view>
+            </view>
           </view>
-          <view class="biz-hours" v-if="dish.businessHours" @tap="goToStall">
-            <text class="biz-icon">{{ EMOJI.clock }}</text>
-            <text class="biz-text">营业时间：{{ dish.businessHours }}</text>
-            <text class="biz-arrow">›</text>
-          </view>
-        </CardSection>
 
-        <!-- ===== task-03 属性标签（辣度/分量/供应时段/限量） ===== -->
-        <CardSection title="菜品属性" v-if="attrTags.length > 0">
-          <view class="attr-row">
-            <view class="attr-item" v-if="spiceLabel">
-              <text class="attr-icon">{{ EMOJI.chili }}</text>
-              <text class="attr-text">{{ spiceLabel }}</text>
-            </view>
-            <view class="attr-item" v-if="portionLabel">
-              <text class="attr-icon">{{ EMOJI.portion }}</text>
-              <text class="attr-text">{{ portionLabel }}</text>
-            </view>
-            <view class="attr-item" v-if="dish.limited">
-              <text class="attr-icon">{{ EMOJI.limited }}</text>
-              <text class="attr-text">限量供应</text>
-            </view>
-            <view class="attr-item" v-for="p in servePeriodLabels" :key="p">
-              <text class="attr-icon">{{ EMOJI.clock }}</text>
-              <text class="attr-text">{{ p }}</text>
-            </view>
+          <!-- 分区三：菜品介绍（有则展示） -->
+          <view class="info-block info-block-divider" v-if="dish.description">
+            <text class="desc-content">{{ dish.description }}</text>
           </view>
-        </CardSection>
-
-        <CardSection title="菜品介绍">
-          <text class="desc-content">{{ dish.description }}</text>
         </CardSection>
 
         <!-- ===== task-03 评价区重做 ===== -->
@@ -143,31 +135,10 @@
           </view>
         </CardSection>
 
-        <!-- ===== task-12.6 关联动态聚合（GET /moments?dishId=） ===== -->
-        <CardSection title="关联动态">
-          <EmptyState v-if="relatedMoments.length === 0" text="暂无关联动态" icon="💬" />
-          <view v-else class="moment-list">
-            <view
-              v-for="m in relatedMoments"
-              :key="m.id"
-              class="moment-item"
-              :class="{ pressed: momentPressedId === m.id }"
-              @touchstart="momentPressedId = m.id"
-              @touchend="momentPressedId = 0"
-              @touchcancel="momentPressedId = 0"
-              @mousedown="momentPressedId = m.id"
-              @mouseup="momentPressedId = 0"
-              @mouseleave="momentPressedId = 0"
-              @tap="goMoment(m.id)"
-            >
-              <text class="moment-text">{{ m.content }}</text>
-              <view class="moment-meta">
-                <text class="moment-author">{{ m.userNickname }}</text>
-                <text class="moment-count">{{ EMOJI.useful }} {{ m.usefulCount }} · 💬 {{ m.commentCount }}</text>
-              </view>
-            </view>
-          </view>
-        </CardSection>
+        <!-- 申请下架/纠错：不常用，降级为底部弱化的小文字链接，点击展开 Sheet -->
+        <view class="apply-link" @tap="openApply">
+          <text class="apply-link-text">反馈 / 申请下架 ›</text>
+        </view>
 
       </template>
       <view style="height: var(--spacing-lg)"></view>
@@ -259,8 +230,6 @@ const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const reviewSort = computed(() => dishStore.reviewSort)
 const reviewOnlyImage = computed(() => dishStore.reviewOnlyImage)
-const relatedMoments = computed(() => dishStore.relatedMoments)
-const momentPressedId = ref(0)
 const dishId = computed(() => dish.value?.id ?? 0)
 
 /** 折扣价展示：promoPrice 非空即视为有促销（task-12.9） */
@@ -407,10 +376,6 @@ function goToReviewList() {
   uni.navigateTo({ url: `/pages/pages-detail/review-list?dishId=${dishId.value}` })
 }
 
-function goMoment(id: number) {
-  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
-}
-
 function goToStall() {
   if (dish.value) {
     dishStore.navParams.stallName = dish.value.stallName
@@ -448,7 +413,6 @@ async function loadDishData() {
   await Promise.all([
     dishStore.fetchDetail(currentDishId),
     dishStore.fetchReviews(currentDishId, { sort: 'latest', isWithImage: false }),
-    dishStore.fetchRelatedMoments(currentDishId),
   ])
 }
 
@@ -470,7 +434,7 @@ function onRefresh() {
 
 <style scoped>
 .detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: var(--spacing-xl); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(140rpx + env(safe-area-inset-bottom)); }
 .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
 .dish-name { font-size: var(--font-h1); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
 .price-text { font-size: var(--font-h2); font-weight: 700; color: var(--color-price); flex-shrink: 0; }
@@ -505,6 +469,10 @@ function onRefresh() {
 .attr-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
 
 .desc-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; display: block; }
+
+/* 合并卡片内分区（位置/属性/介绍）：用分隔线区分，不拆多卡 */
+.info-block { padding: 0; }
+.info-block-divider { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .review-title { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }
 .review-more { font-size: var(--font-aux); color: var(--color-primary); }
 .review-list { margin-top: var(--spacing-sm); }
@@ -556,15 +524,6 @@ function onRefresh() {
 .review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 
-/* 关联动态 */
-.moment-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.moment-item { padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.moment-item.pressed { transform: scale(0.985); }
-.moment-text { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.5; }
-.moment-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 6rpx; }
-.moment-author { font-size: var(--font-aux); color: var(--text-tertiary); }
-.moment-count { font-size: var(--font-aux); color: var(--text-tertiary); }
-
 /* 排序 Sheet（spring 0.8/0.3） */
 .sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
 .sort-sheet {
@@ -588,14 +547,10 @@ function onRefresh() {
 .sort-option-text { font-size: var(--font-body); color: var(--text-primary); font-weight: 600; }
 .sort-option-check { font-size: var(--font-body); color: var(--color-primary); font-weight: 800; }
 
-/* 申请入口行 + Sheet（task-12.1） */
-.apply-row { display: flex; align-items: center; gap: var(--spacing-sm); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.apply-row:active { transform: scale(var(--press-scale)); }
-.apply-icon { font-size: 36rpx; line-height: 1; opacity: 0.6; flex-shrink: 0; }
-.apply-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.apply-title { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }
-.apply-sub { font-size: var(--font-aux); color: var(--text-tertiary); }
-.apply-arrow { font-size: 28rpx; color: var(--text-tertiary); flex-shrink: 0; }
+/* 申请入口：不常用，降级为底部弱化的小文字链接（点击展开 Sheet） */
+.apply-link { display: flex; justify-content: center; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
+.apply-link:active { opacity: 0.6; }
+.apply-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .apply-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; box-shadow: var(--shadow-modal); z-index: 100; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .apply-sheet.open { transform: translateY(0); }
 .form-block { padding: var(--spacing-md) var(--spacing-lg); border-bottom: 2rpx solid var(--border-color); }

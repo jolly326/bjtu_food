@@ -64,6 +64,8 @@ function handleClick() {
 
 <style scoped>
 .dish-card {
+  width: 100%;
+  min-width: 0;
   background: var(--bg-card);
   border-radius: var(--radius-card);
   overflow: hidden;

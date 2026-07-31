@@ -47,14 +47,44 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <!-- ============ 发现主页（榜单/宫格） ============ -->
+      <!-- ============ 发现主页（搜索区重做：历史/发现/热搜） ============ -->
       <view v-if="!inFilter" class="discover-home">
-        <!-- 分类宫格 -->
+        <!-- 历史搜索：标签 chip 行，可单个删除 / 一键清空 -->
+        <view class="block" v-if="historyList.length > 0">
+          <view class="block-head history-head">
+            <view class="history-title-row">
+              <text class="section-bar" />
+              <text class="section-title">历史搜索</text>
+            </view>
+            <text class="history-clear" @tap="clearHistory">清空</text>
+          </view>
+          <view class="history-chips">
+            <view
+              v-for="(kw, i) in historyList"
+              :key="kw"
+              class="history-chip"
+              :class="{ pressed: pressedKey === `h-${kw}` }"
+              @touchstart="pressedKey = `h-${kw}`"
+              @touchend="pressedKey = ''"
+              @touchcancel="pressedKey = ''"
+              @mousedown="pressedKey = `h-${kw}`"
+              @mouseup="pressedKey = ''"
+              @mouseleave="pressedKey = ''"
+              @tap="goKeyword(kw)"
+            >
+              <text class="history-chip-text">{{ kw }}</text>
+              <text class="history-chip-del" @tap.stop="removeHistory(i)">✕</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 发现：分类入口（食堂入口仅保留在首页，避免与首页重复） -->
         <view class="block" v-if="categories.length > 0">
           <view class="block-head">
             <view class="section-bar" />
-            <text class="section-title">菜品分类</text>
+            <text class="section-title">发现</text>
           </view>
+          <!-- 分类入口宫格 -->
           <view class="category-grid">
             <view
               v-for="cat in categories"
@@ -75,7 +105,7 @@
           </view>
         </view>
 
-        <!-- 热搜 TOP10 -->
+        <!-- 热搜榜单：排名 + 词 + 热度 -->
         <view class="block" v-if="dishStore.hotSearchList.length > 0">
           <view class="block-head">
             <text class="section-bar" />
@@ -101,43 +131,10 @@
             </view>
           </view>
         </view>
-
-        <!-- 新晋黑马 -->
-        <view class="block" v-if="dishStore.risingDishes.length > 0">
-          <view class="block-head">
-            <view class="section-bar" />
-            <text class="section-title">{{ EMOJI.new }} 新晋黑马</text>
-          </view>
-          <scroll-view class="horiz-scroll" scroll-x show-scrollbar="false">
-            <view class="horiz-track">
-              <DishCard
-                v-for="dish in dishStore.risingDishes"
-                :key="dish.id"
-                class="rising-card"
-                :dish="dish"
-                @click="goToDetail"
-              />
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 新上架 -->
-        <view class="block" v-if="dishStore.newDishes.length > 0">
-          <view class="block-head">
-            <view class="section-bar" />
-            <text class="section-title">{{ EMOJI.calendar }} 新上架</text>
-          </view>
-          <WaterfallList :list="dishStore.newDishes">
-            <template #card="{ item: dish }">
-              <DishCard :dish="dish" @click="goToDetail" />
-            </template>
-          </WaterfallList>
-        </view>
-        <EmptyState v-else-if="discoverLoaded" text="暂无新上架菜品" />
       </view>
 
       <!-- ============ 多维筛选结果页 ============ -->
-      <view v-else class="filter-result">
+      <view v-else class="filter-result" :style="{ padding: '0 var(--spacing-md)' }">
         <view class="filter-bar">
           <view
             class="filter-sort"
@@ -269,6 +266,35 @@ const discoverLoaded = ref(false)
 // 分类宫格
 const categories = DISH_CATEGORIES
 
+// ===== 搜索历史（本地缓存，预留接口位） =====
+const HISTORY_KEY = 'find_search_history'
+const HISTORY_MAX = 12
+const historyList = ref<string[]>([])
+
+function loadHistory() {
+  try {
+    const raw = uni.getStorageSync(HISTORY_KEY)
+    if (Array.isArray(raw)) historyList.value = raw.slice(0, HISTORY_MAX)
+  } catch { historyList.value = [] }
+}
+function saveHistory() {
+  try { uni.setStorageSync(HISTORY_KEY, historyList.value) } catch { /* ignore */ }
+}
+function pushHistory(kw: string) {
+  const k = kw.trim()
+  if (!k) return
+  historyList.value = [k, ...historyList.value.filter(x => x !== k)].slice(0, HISTORY_MAX)
+  saveHistory()
+}
+function removeHistory(i: number) {
+  historyList.value.splice(i, 1)
+  saveHistory()
+}
+function clearHistory() {
+  historyList.value = []
+  saveHistory()
+}
+
 // 筛选模式
 const inFilter = ref(false)
 const activeSort = ref<DishSortBy>('heat')
@@ -334,6 +360,7 @@ function onSearchConfirm() {
   const kw = keyword.value.trim()
   showSuggest.value = false
   suggestions.value = []
+  if (kw) pushHistory(kw)
   if (kw) {
     enterFilter({ keyword: kw, sortBy: 'heat' })
   } else {
@@ -363,6 +390,7 @@ function goSuggestion(s: Suggestion) {
 
 function goKeyword(kw: string) {
   keyword.value = kw
+  pushHistory(kw)
   enterFilter({ keyword: kw, sortBy: 'heat' })
 }
 
@@ -466,8 +494,6 @@ async function loadDiscover() {
   try {
     await Promise.all([
       dishStore.fetchHotSearch(),
-      dishStore.fetchRising(),
-      dishStore.fetchNewDishes(),
       dishStore.fetchCanteens(),
     ])
   } catch (e) {
@@ -478,6 +504,7 @@ async function loadDiscover() {
 }
 
 onMounted(() => {
+  loadHistory()
   loadDiscover()
 })
 
@@ -536,8 +563,36 @@ watch(keyword, (value) => {
 .section-bar { width: 8rpx; height: 32rpx; border-radius: 999rpx; background: var(--color-primary); margin-right: var(--spacing-xs); flex-shrink: 0; }
 .section-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
 
+/* 历史搜索 */
+.history-head { justify-content: space-between; }
+.history-title-row { display: flex; align-items: center; }
+.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 500; padding: var(--spacing-xs); }
+.history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  max-width: 320rpx;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-soft);
+  border-radius: 999rpx;
+  transition: transform 0.12s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.history-chip.pressed { transform: scale(0.97); background: var(--color-primary-soft); }
+.history-chip-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-chip-del { font-size: 20rpx; color: var(--text-tertiary); flex-shrink: 0; line-height: 1; }
+
+/* 发现食堂入口（横滑） */
+.discover-canteen { width: 200rpx; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.discover-canteen.pressed { transform: scale(0.97); }
+.discover-canteen-img { width: 160rpx; height: 160rpx; border-radius: var(--radius-card); background: var(--bg-page); box-shadow: var(--shadow-card); }
+.discover-canteen-placeholder { display: flex; align-items: center; justify-content: center; }
+.discover-canteen-illu { font-size: 72rpx; line-height: 1; opacity: 0.3; }
+.discover-canteen-name { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; max-width: 200rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 分类宫格 */
-.category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); }
+.category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); margin-top: var(--spacing-md); }
 .category-cell {
   display: flex;
   flex-direction: column;

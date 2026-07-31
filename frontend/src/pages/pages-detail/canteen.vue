@@ -2,50 +2,38 @@
   <view class="page stall-page">
     <Header :title="canteenName" showBack />
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 关联动态上移：作为食堂社交氛围入口，紧跟 Header，不再沉底 -->
-      <CardSection title="关联动态">
-        <EmptyState v-if="relatedMoments.length === 0" text="暂无关联动态" icon="💬" />
-        <view v-else class="moment-list">
-          <view
-            v-for="m in relatedMoments.slice(0, 3)"
-            :key="m.id"
-            class="moment-item"
-            :class="{ pressed: momentPressedId === m.id }"
-            @touchstart="momentPressedId = m.id"
-            @touchend="momentPressedId = 0"
-            @touchcancel="momentPressedId = 0"
-            @mousedown="momentPressedId = m.id"
-            @mouseup="momentPressedId = 0"
-            @mouseleave="momentPressedId = 0"
-            @tap="goMoment(m.id)"
-          >
-            <text class="moment-text">{{ m.content }}</text>
-            <view class="moment-meta">
-              <text class="moment-author">{{ m.userNickname }}</text>
-              <text class="moment-count">{{ EMOJI.useful }} {{ m.usefulCount }} · 💬 {{ m.commentCount }}</text>
-            </view>
-          </view>
-          <view v-if="relatedMoments.length > 3" class="moment-more" @tap="goCommunity">查看全部关联动态 ›</view>
-        </view>
-      </CardSection>
-
-      <!-- 档口筛选条：点选档口筛选菜品，不点则展示全部；档口与菜品合并为单流 -->
+      <!-- 档口筛选 tab bar：带档口图片预览 + 档口信息（评分/菜品数），点选按档口筛选菜品，长按进档口详情 -->
       <view class="stall-filter" v-if="stallList.length > 0">
-        <scroll-view class="stall-filter-scroll" scroll-x>
+        <scroll-view class="stall-filter-scroll" scroll-x show-scrollbar="false">
           <view
-            class="stall-chip"
+            class="stall-tab"
             :class="{ on: activeStall === '' }"
             @tap="activeStall = ''"
-          >全部</view>
+          >
+            <view class="stall-tab-thumb stall-tab-thumb-all">{{ EMOJI.canteenDish }}</view>
+            <text class="stall-tab-name">全部</text>
+          </view>
           <view
             v-for="stall in stallList"
             :key="stall.id"
-            class="stall-chip"
+            class="stall-tab"
             :class="{ on: activeStall === stall.name }"
             @tap="activeStall = stall.name"
             @longpress="goToStall(stall)"
-          >{{ stall.name }}</view>
+          >
+            <image v-if="stall.image" class="stall-tab-thumb" :src="getImageUrl(stall.image)" mode="aspectFill" />
+            <view v-else class="stall-tab-thumb stall-tab-thumb-ph">{{ EMOJI.dishPlaceholder }}</view>
+            <text class="stall-tab-name">{{ stall.name }}</text>
+            <view class="stall-tab-meta">
+              <text class="stall-tab-rating">{{ EMOJI.starFilled }} {{ formatRating(stall.rating) }}</text>
+              <text class="stall-tab-count">{{ stall.dishCount }}道</text>
+            </view>
+          </view>
         </scroll-view>
+        <!-- 选中档口下展开一行简介预览（档口位置/简介） -->
+        <view class="stall-intro" v-if="activeStallInfo">
+          <text class="stall-intro-text">{{ activeStallInfo.location }}</text>
+        </view>
       </view>
 
       <!-- 同一菜品瀑布流：按档口筛选，统一浏览，不再与档口列表分开 -->
@@ -106,8 +94,7 @@ import type { Dish } from '@/types/dish'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { getStallDishes, searchDishes } from '@/api/dish'
 import { submitApply } from '@/api/apply'
-import * as momentApi from '@/api/moment'
-import type { Moment } from '@/types/moment'
+import { getImageUrl } from '@/utils/image'
 import { EMOJI } from '@/utils/emoji'
 
 const dishStore = useDishStore()
@@ -116,8 +103,6 @@ const canteenName = ref('')
 const canteenId = ref(0)
 const stallList = ref<StallInfo[]>([])
 const canteenDishes = ref<Dish[]>([])
-const relatedMoments = ref<Moment[]>([])
-const momentPressedId = ref(0)
 /** 档口筛选：'' = 全部；其余为 stall.name */
 const activeStall = ref('')
 
@@ -127,24 +112,17 @@ const filteredDishes = computed(() => {
   return canteenDishes.value.filter((d) => d.stallName === activeStall.value)
 })
 
-function goMoment(id: number) {
-  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
+/** 档口评分格式化：保留 1 位小数，未评分显示「新」 */
+function formatRating(rating?: number): string {
+  if (rating == null || rating === 0) return '新'
+  return rating.toFixed(1)
 }
 
-function goCommunity() {
-  uni.navigateTo({ url: '/pages/community/index' })
-}
-
-/** 关联动态（task-12.6，GET /moments?canteenId= 聚合） */
-async function loadRelatedMoments() {
-  if (!canteenId.value) { relatedMoments.value = []; return }
-  try {
-    const res = await momentApi.getMoments({ canteenId: canteenId.value, pageSize: 10 })
-    relatedMoments.value = res.list
-  } catch {
-    relatedMoments.value = []
-  }
-}
+/** 当前选中档口的完整信息（用于 tab 下方简介预览） */
+const activeStallInfo = computed<StallInfo | undefined>(() => {
+  if (!activeStall.value) return undefined
+  return stallList.value.find((s) => s.name === activeStall.value)
+})
 
 function firstImage(value: unknown): string {
   return Array.isArray(value) ? (value.find(item => typeof item === 'string') || '') : ''
@@ -185,7 +163,6 @@ async function loadStalls() {
   } catch {
     canteenDishes.value = []
   }
-  await loadRelatedMoments()
 }
 
 function goToStall(stall: StallInfo) {
@@ -269,31 +246,89 @@ onLoad(async (query) => {
 .moment-author { font-size: var(--font-aux); color: var(--text-tertiary); }
 .moment-count { font-size: var(--font-aux); color: var(--text-tertiary); }
 
-/* 档口筛选条：横向滚动胶囊，点选筛选菜品（档口与菜品合并浏览） */
-.stall-filter { padding: var(--spacing-sm) var(--spacing-md) 0; box-sizing: border-box; }
+/* 档口筛选 tab bar：带图片缩略图，点选筛选菜品（档口与菜品合并浏览） */
+.stall-filter { padding: var(--spacing-md) var(--spacing-md) 0; box-sizing: border-box; }
 .stall-filter-scroll { white-space: nowrap; }
-.stall-chip {
-  display: inline-block;
-  padding: var(--spacing-xs) var(--spacing-lg);
-  margin-right: var(--spacing-sm);
-  border-radius: var(--radius-tag);
-  background: var(--bg-soft);
+.stall-tab {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-right: var(--spacing-md);
+  vertical-align: top;
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.stall-tab:active { transform: scale(0.97); }
+.stall-tab-thumb {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  box-shadow: var(--shadow-card);
+  border: 4rpx solid transparent;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  line-height: 1;
+}
+.stall-tab.on .stall-tab-thumb { border-color: var(--color-primary); }
+.stall-tab-thumb-all { color: var(--color-primary); }
+.stall-tab-thumb-ph { color: var(--text-tertiary); opacity: 0.5; }
+.stall-tab-name {
   font-size: var(--font-aux);
   color: var(--text-secondary);
   font-weight: 600;
-  transition: background 0.15s, transform 0.12s, color 0.15s;
-  -webkit-tap-highlight-color: transparent;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.stall-chip:active { transform: scale(0.97); }
-.stall-chip.on { background: var(--color-primary); color: var(--text-white); }
+.stall-tab.on .stall-tab-name { color: var(--color-primary); }
 
-/* 关联动态 - 查看全部 */
-.moment-more {
-  margin-top: var(--spacing-xs);
-  text-align: right;
-  font-size: var(--font-aux);
-  color: var(--color-primary);
+/* 档口信息：评分 + 菜品数（缩略图下方一行） */
+.stall-tab-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  max-width: 120rpx;
+  overflow: hidden;
+}
+.stall-tab-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--color-star);
+  flex-shrink: 0;
+}
+.stall-tab-count {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 选中档口下展开的简介预览（位置/简介） */
+.stall-intro {
+  margin: var(--spacing-sm) var(--spacing-sm) 0;
   padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-soft);
+  border-radius: var(--radius-tag);
+  display: flex;
+  align-items: center;
+}
+.stall-intro-text {
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 申请入口：不常用，降级为底部弱化的小文字链接（不再横卡置顶） */

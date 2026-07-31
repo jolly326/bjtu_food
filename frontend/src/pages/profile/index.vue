@@ -14,33 +14,39 @@
           </view>
 
           <view class="auth-panel">
+            <view v-if="formError" class="form-error" @tap="clearError">
+              <text class="form-error-icon">{{ EMOJI.warning }}</text>
+              <text class="form-error-text">{{ formError }}</text>
+            </view>
             <template v-if="mode === 'login'">
               <view class="form-head">
                 <text class="form-title">欢迎回来</text>
                 <text class="form-note">使用账号密码登录，发现和评价校园美食</text>
               </view>
 
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.profile }}</text>
-                <input v-model="loginForm.account" class="input-control" placeholder="账号 / 学号 / 校园邮箱" />
-              </view>
-
-              <view v-if="loginType === 'password'" class="input-field">
-                <text class="input-icon">{{ EMOJI.lock }}</text>
-                <input v-model="loginForm.password" class="input-control" placeholder="密码" password />
-              </view>
-
-              <template v-else>
+              <view class="group-card">
                 <view class="input-field">
                   <text class="input-icon">{{ EMOJI.profile }}</text>
-                  <input v-model="loginCodeForm.email" class="input-control" placeholder="校园邮箱" />
+                  <input v-model="loginForm.account" class="input-control" placeholder="账号 / 学号 / 校园邮箱" @input="clearError" />
                 </view>
-                <view class="input-field code-field">
+
+                <view v-if="loginType === 'password'" class="input-field">
                   <text class="input-icon">{{ EMOJI.lock }}</text>
-                  <input v-model="loginCodeForm.code" class="input-control" placeholder="邮箱验证码" />
-                  <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('login')">{{ codeButtonText }}</text>
+                  <input v-model="loginForm.password" class="input-control" placeholder="密码" password @input="clearError" />
                 </view>
-              </template>
+
+                <template v-else>
+                  <view class="input-field">
+                    <text class="input-icon">{{ EMOJI.profile }}</text>
+                    <input v-model="loginCodeForm.email" class="input-control" placeholder="校园邮箱" @input="clearError" />
+                  </view>
+                  <view class="input-field code-field">
+                    <text class="input-icon">{{ EMOJI.lock }}</text>
+                    <input v-model="loginCodeForm.code" class="input-control" placeholder="邮箱验证码" @input="clearError" />
+                    <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('login')">{{ codeButtonText }}</text>
+                  </view>
+                </template>
+              </view>
 
               <view class="row-actions">
                 <text class="link-text" @tap="toggleLoginType">{{ loginType === 'password' ? '验证码登录' : '密码登录' }}</text>
@@ -63,26 +69,28 @@
                 <text class="form-note">首次注册需要绑定校园邮箱，并设置之后登录使用的账号密码</text>
               </view>
 
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.profile }}</text>
-                <input v-model="registerForm.username" class="input-control" placeholder="账号 / 学号" />
-              </view>
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.profile }}</text>
-                <input v-model="registerForm.email" class="input-control" placeholder="校园邮箱，如 20240002@bjtu.edu.cn" />
-              </view>
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.dishPlaceholder }}</text>
-                <input v-model="registerForm.nickname" class="input-control" placeholder="昵称" />
-              </view>
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.lock }}</text>
-                <input v-model="registerForm.password" class="input-control" placeholder="设置密码，至少 6 位" password />
-              </view>
-              <view class="input-field code-field">
-                <text class="input-icon">{{ EMOJI.lock }}</text>
-                <input v-model="registerForm.code" class="input-control" placeholder="邮箱验证码" />
-                <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('register')">{{ codeButtonText }}</text>
+              <view class="group-card">
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.profile }}</text>
+                  <input v-model="registerForm.username" class="input-control" placeholder="账号 / 学号" @input="clearError" />
+                </view>
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.profile }}</text>
+                  <input v-model="registerForm.email" class="input-control" placeholder="校园邮箱，如 20240002@bjtu.edu.cn" @input="clearError" />
+                </view>
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.dishPlaceholder }}</text>
+                  <input v-model="registerForm.nickname" class="input-control" placeholder="昵称" @input="clearError" />
+                </view>
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.lock }}</text>
+                  <input v-model="registerForm.password" class="input-control" placeholder="设置密码，至少 6 位" password @input="clearError" />
+                </view>
+                <view class="input-field code-field">
+                  <text class="input-icon">{{ EMOJI.lock }}</text>
+                  <input v-model="registerForm.code" class="input-control" placeholder="邮箱验证码" @input="clearError" />
+                  <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('register')">{{ codeButtonText }}</text>
+                </view>
               </view>
 
               <view class="primary-action" :class="{ disabled: isBusy }" @tap="handleRegister">
@@ -101,19 +109,22 @@
                 <text class="form-note">通过已绑定的校园邮箱验证码重新设置密码</text>
               </view>
 
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.profile }}</text>
-                <input v-model="resetForm.email" class="input-control" placeholder="已绑定的校园邮箱" />
+              <view class="group-card">
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.profile }}</text>
+                  <input v-model="resetForm.email" class="input-control" placeholder="已绑定的校园邮箱" @input="clearError" />
+                </view>
+                <view class="input-field">
+                  <text class="input-icon">{{ EMOJI.lock }}</text>
+                  <input v-model="resetForm.newPassword" class="input-control" placeholder="新密码，至少 6 位" password @input="clearError" />
+                </view>
+                <view class="input-field code-field">
+                  <text class="input-icon">{{ EMOJI.lock }}</text>
+                  <input v-model="resetForm.code" class="input-control" placeholder="邮箱验证码" @input="clearError" />
+                  <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('reset')">{{ codeButtonText }}</text>
+                </view>
               </view>
-              <view class="input-field">
-                <text class="input-icon">{{ EMOJI.lock }}</text>
-                <input v-model="resetForm.newPassword" class="input-control" placeholder="新密码，至少 6 位" password />
-              </view>
-              <view class="input-field code-field">
-                <text class="input-icon">{{ EMOJI.lock }}</text>
-                <input v-model="resetForm.code" class="input-control" placeholder="邮箱验证码" />
-                <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('reset')">{{ codeButtonText }}</text>
-              </view>
+
 
               <view class="primary-action" :class="{ disabled: isBusy }" @tap="handleResetPassword">
                 <text class="primary-action-text">{{ isBusy ? '正在重置...' : '重置密码' }}</text>
@@ -164,43 +175,54 @@
         </view>
 
         <view class="menu-section">
-          <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToMySubmissions">
-            <text class="menu-icon">{{ EMOJI.list }}</text>
-            <text class="menu-label">我的提交</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+          <view class="menu-group">
+            <text class="menu-group-title">我的内容</text>
+            <view class="menu-card">
+              <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToMySubmissions">
+                <text class="menu-icon">{{ EMOJI.list }}</text>
+                <text class="menu-label">我的提交</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+              <view class="menu-item enter-up" :style="{ '--enter-i': 4 }" @tap="goToMyMoments">
+                <text class="menu-icon">{{ EMOJI.review }}</text>
+                <text class="menu-label">我的动态</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+              <view class="menu-item enter-up" :style="{ '--enter-i': 6 }" @tap="goToReviews">
+                <text class="menu-icon">{{ EMOJI.starFilled }}</text>
+                <text class="menu-label">我的评价</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+              <view class="menu-item enter-up" :style="{ '--enter-i': 7 }" @tap="goToMyPublish">
+                <text class="menu-icon">{{ EMOJI.edit }}</text>
+                <text class="menu-label">我的发布</text>
+                <text class="menu-hint">菜品/档口·审核状态</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+            </view>
           </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 4 }" @tap="goToMyMoments">
-            <text class="menu-icon">{{ EMOJI.review }}</text>
-            <text class="menu-label">我的动态</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
-          </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToNotify">
-            <text class="menu-icon">{{ EMOJI.bell }}</text>
-            <text class="menu-label">消息中心</text>
-            <view v-if="notifyStore.unreadCount > 0" class="menu-badge" />
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
-          </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 6 }" @tap="goToReviews">
-            <text class="menu-icon">{{ EMOJI.starFilled }}</text>
-            <text class="menu-label">我的评价</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
-          </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 7 }" @tap="goToMyPublish">
-            <text class="menu-icon">{{ EMOJI.edit }}</text>
-            <text class="menu-label">我的发布</text>
-            <text class="menu-hint">菜品/档口·审核状态</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
-          </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 8 }" @tap="goToFeedback">
-            <text class="menu-icon">{{ EMOJI.contact }}</text>
-            <text class="menu-label">意见反馈</text>
-            <text class="menu-hint">建议/Bug反馈</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
-          </view>
-          <view class="menu-item enter-up" :style="{ '--enter-i': 9 }" @tap="goToSettings">
-            <text class="menu-icon">{{ EMOJI.settings }}</text>
-            <text class="menu-label">设置</text>
-            <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+
+          <view class="menu-group">
+            <text class="menu-group-title">消息与服务</text>
+            <view class="menu-card">
+              <view class="menu-item enter-up" :style="{ '--enter-i': 3 }" @tap="goToNotify">
+                <text class="menu-icon">{{ EMOJI.bell }}</text>
+                <text class="menu-label">消息中心</text>
+                <view v-if="notifyStore.unreadCount > 0" class="menu-badge" />
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+              <view class="menu-item enter-up" :style="{ '--enter-i': 8 }" @tap="goToFeedback">
+                <text class="menu-icon">{{ EMOJI.contact }}</text>
+                <text class="menu-label">意见反馈</text>
+                <text class="menu-hint">建议/Bug反馈</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+              <view class="menu-item enter-up" :style="{ '--enter-i': 9 }" @tap="goToSettings">
+                <text class="menu-icon">{{ EMOJI.settings }}</text>
+                <text class="menu-label">设置</text>
+                <text class="menu-arrow">{{ EMOJI.arrowRight }}</text>
+              </view>
+            </view>
           </view>
         </view>
 
@@ -334,6 +356,15 @@ const loginType = ref<LoginType>('password')
 const codeCountdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
+/** 内联错误提示（Apple §16：错误在校验处附近内联展示，不弹裸 alert） */
+const formError = ref('')
+function setError(msg: string) {
+  formError.value = msg
+}
+function clearError() {
+  formError.value = ''
+}
+
 const loginForm = reactive({ account: '', password: '' })
 const loginCodeForm = reactive({ email: '', code: '' })
 const registerForm = reactive({ username: '', email: '', nickname: '', password: '', code: '' })
@@ -392,15 +423,16 @@ async function sendCode(purpose: CodePurpose) {
   if (codeCountdown.value > 0) return
   const email = getEmailForPurpose(purpose)
   if (!isCampusEmail(email)) {
-    uni.showToast({ title: '请填写 @bjtu.edu.cn 校园邮箱', icon: 'none' })
+    setError('请填写 @bjtu.edu.cn 校园邮箱')
     return
   }
+  clearError()
   try {
     await sendEmailCode(email, purpose)
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     startCountdown()
   } catch (e: any) {
-    uni.showToast({ title: e.message || '验证码发送失败', icon: 'none' })
+    setError(e.message || '验证码发送失败')
   }
 }
 
@@ -408,45 +440,48 @@ async function handlePasswordLogin() {
   console.log('[profile] password login tapped')
   if (isBusy.value) return
   if (!loginForm.account.trim() || !loginForm.password) {
-    uni.showToast({ title: '请填写账号和密码', icon: 'none' })
+    setError('请填写账号和密码')
     return
   }
+  clearError()
   try {
     await userStore.loginByPassword(loginForm.account.trim(), loginForm.password)
     uni.showToast({ title: '登录成功', icon: 'success' })
   } catch (e: any) {
-    uni.showToast({ title: e.message || '登录失败', icon: 'none' })
+    setError(e.message || '登录失败')
   }
 }
 
 async function handleEmailLogin() {
   if (isBusy.value) return
   if (!isCampusEmail(loginCodeForm.email) || !loginCodeForm.code.trim()) {
-    uni.showToast({ title: '请填写校园邮箱和验证码', icon: 'none' })
+    setError('请填写校园邮箱和验证码')
     return
   }
+  clearError()
   try {
     await userStore.loginByEmailCode(loginCodeForm.email.trim(), loginCodeForm.code.trim())
     uni.showToast({ title: '登录成功', icon: 'success' })
   } catch (e: any) {
-    uni.showToast({ title: e.message || '登录失败', icon: 'none' })
+    setError(e.message || '登录失败')
   }
 }
 
 async function handleRegister() {
   if (isBusy.value) return
   if (!registerForm.username.trim() || !registerForm.nickname.trim() || !registerForm.password || !registerForm.code.trim()) {
-    uni.showToast({ title: '请完整填写注册信息', icon: 'none' })
+    setError('请完整填写注册信息')
     return
   }
   if (!isCampusEmail(registerForm.email)) {
-    uni.showToast({ title: '请填写 @bjtu.edu.cn 校园邮箱', icon: 'none' })
+    setError('请填写 @bjtu.edu.cn 校园邮箱')
     return
   }
   if (registerForm.password.length < 6) {
-    uni.showToast({ title: '密码至少 6 位', icon: 'none' })
+    setError('密码至少 6 位')
     return
   }
+  clearError()
   try {
     await userStore.register({
       username: registerForm.username.trim(),
@@ -460,20 +495,21 @@ async function handleRegister() {
     setMode('login')
     loginType.value = 'password'
   } catch (e: any) {
-    uni.showToast({ title: e.message || '注册失败', icon: 'none' })
+    setError(e.message || '注册失败')
   }
 }
 
 async function handleResetPassword() {
   if (isBusy.value) return
   if (!isCampusEmail(resetForm.email) || !resetForm.code.trim() || !resetForm.newPassword) {
-    uni.showToast({ title: '请完整填写找回密码信息', icon: 'none' })
+    setError('请完整填写找回密码信息')
     return
   }
   if (resetForm.newPassword.length < 6) {
-    uni.showToast({ title: '新密码至少 6 位', icon: 'none' })
+    setError('新密码至少 6 位')
     return
   }
+  clearError()
   try {
     await resetPassword({
       email: resetForm.email.trim(),
@@ -485,7 +521,7 @@ async function handleResetPassword() {
     setMode('login')
     loginType.value = 'password'
   } catch (e: any) {
-    uni.showToast({ title: e.message || '重置失败', icon: 'none' })
+    setError(e.message || '重置失败')
   }
 }
 
@@ -657,13 +693,20 @@ onUnmounted(() => {
 .auth-hero { min-height: 330rpx; padding: var(--spacing-lg) var(--spacing-lg) calc(var(--spacing-xl) + var(--spacing-xl) + var(--spacing-md) + var(--spacing-xs)); border-radius: var(--radius-modal); background: var(--color-gradient); box-sizing: border-box; color: var(--text-white); }
 .hero-badge { width: 96rpx; height: 96rpx; border-radius: var(--radius-modal); background: var(--text-white-faint); display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-sm); border: 1rpx solid var(--text-white-edge); }
 .hero-logo { font-size: 58rpx; line-height: 1; }
-.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-white); letter-spacing: 0; }
+.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-white); letter-spacing: -0.02em; }
 .hero-subtitle { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-white-soft); }
 .auth-panel { position: relative; margin: calc(-1 * (var(--spacing-lg) + var(--spacing-lg) + var(--spacing-md))) var(--spacing-sm) 0; padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-modal); box-sizing: border-box; }
 .form-head { margin-bottom: var(--spacing-md); }
 .form-title { display: block; font-size: var(--font-h2); line-height: 1.25; font-weight: 760; color: var(--text-primary); }
 .form-note { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-secondary); }
-.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-soft); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-sizing: border-box; }
+/* 内联错误提示（Apple §16：校验处附近内联，不弹裸 alert） */
+.form-error { display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); -webkit-tap-highlight-color: transparent; }
+.form-error-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
+.form-error-text { flex: 1; font-size: var(--font-aux); color: var(--color-error); font-weight: 600; }
+/* 输入框分组卡片（Apple 风 inset group：浅底圆角，行间分隔线） */
+.group-card { background: var(--bg-soft); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); }
+.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-md); padding: 0 var(--spacing-md); background: transparent; border-bottom: 2rpx solid var(--border-color); box-sizing: border-box; }
+.input-field:last-child { border-bottom: none; }
 .input-icon { font-size: 32rpx; line-height: 1; opacity: .52; flex-shrink: 0; }
 .input-control { flex: 1; height: 90rpx; font-size: 28rpx; color: var(--text-primary); min-width: 0; }
 .code-field { padding-right: 0; }
@@ -694,7 +737,10 @@ onUnmounted(() => {
 .stat-value { font-size: var(--font-h2); font-weight: 700; color: var(--text-primary); }
 .stat-label { font-size: var(--font-aux); color: var(--text-tertiary); }
 .stat-divider { width: 2rpx; height: 40rpx; background: var(--border-color); }
-.menu-section { background: var(--bg-card); margin: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
+.menu-section { margin: var(--spacing-sm) var(--spacing-md); }
+.menu-group { margin-bottom: var(--spacing-lg); }
+.menu-group-title { display: block; padding: 0 var(--spacing-sm) var(--spacing-xs); font-size: var(--font-aux); font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.02em; }
+.menu-card { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
 .menu-item { display: flex; align-items: center; padding: var(--spacing-md) var(--spacing-lg); gap: var(--spacing-sm); border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .menu-item:active { transform: scale(var(--press-scale)); }
 .menu-item:last-child { border-bottom: none; }
