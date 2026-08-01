@@ -123,3 +123,49 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **MINOR（NEW-2）/ MINOR·P3（NEW-4）**：随迭代整改，不阻断交付验收，但 NEW-2 属首轮 M1 遗漏点建议优先收口。
 - **文档同步**：本轮新增 2 条 BLOCKER 红线（颜色全走语义 token、底部 Sheet 统一下拉关闭手势）已写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，本文件仅作派工留档。
 - **红线回退核查**：整改后须复验颜色全走 token（裸 hex 仅 `uni.scss` 登记例外）、所有底部 Sheet 均支持下拉关闭手势 + reduced-motion 降级、首轮 8 条红线未回退。
+
+---
+
+## UI 第三轮迭代复审修复计划（2026-08-02）
+
+> 第三轮复审（2026-08-02）在前两轮（全量审计 8 条 + 第二轮再审 2 条 BLOCKER 红线已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，新发现 12 项问题，其中 **R1–R6 为红线级（按压反馈 + `@tap` 事件绑定，违反即阻断）**，已在 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 同步登记为新增 BLOCKER 红线。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码问题已在 commit `3d851ce28b19c49a0fbab1106d4f7ceaeb13ce70` 全部修复，经复验：全仓 CSS 裸 `scale(...)` 为 0 处、所有红线保持未回退。
+>
+> 级别：RED（红线级，BLOCKER）/ MINOR（次要）/ POLISH（打磨）。每条含 `file:line` 与对应红线。
+>
+> 代码修复 commit 哈希：`3d851ce28b19c49a0fbab1106d4f7ceaeb13ce70`
+
+### 一、RED（6 项 · 红线级：按压反馈 + @tap）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 | 修复指引 |
+|---|---|---|---|---|---|
+| R1 | RED | `pages/home/index.vue`（`.broadcast-bar.pressed` 等按压反馈） | 按压反馈写裸 `scale(0.985)` 散落值，未统一 `var(--press-scale)`（0.97）。 | 按压缩放统一 `var(--press-scale)`（禁裸 scale，grep-zero） | 裸 `scale(...)` → `scale(var(--press-scale))`；全仓 grep 应 0 处裸 scale（`profile/index.vue` 注释除外）。 |
+| R2 | RED | `pages/pages-detail/dish.vue`（`.action-bar` action icon 按压） | action icon 按压缩放裸 `scale(0.97)` 未引用 token。 | 按压缩放统一 `var(--press-scale)` | `scale(0.97)` → `scale(var(--press-scale))`。 |
+| R3 | RED | `components/ContributeSheet.vue:156`（`.sheet-option.pressed`） | `.sheet-option` 按下裸 `scale(0.99)`，与全局 0.97 不一致。 | 按压缩放统一 `var(--press-scale)` | `scale(0.99)` → `scale(var(--press-scale))`。 |
+| R4 | RED | `components/CommentItem.vue:115`（`.c-useful:active`） | `:active` 裸 `scale(0.95)`，未引用 token。 | 按压缩放统一 `var(--press-scale)` | `scale(0.95)` → `scale(var(--press-scale))`。 |
+| R5 | RED | `pages/settings/index.vue:134`（`.cell:active`） | `.cell` `:active` 裸 `scale(0.99)`，不一致。 | 按压缩放统一 `var(--press-scale)` | `scale(0.99)` → `scale(var(--press-scale))`。 |
+| R6 | RED | `pages/pages-detail/review.vue` / `pages/feedback/index.vue`（提交/卡片等可点元素） | 可点元素混用 `@click` 与 `@tap`，uni-app mp-weixin 下命中区/手势不一致。 | 事件绑定统一 `@tap` | 全量 `@click` → `@tap`（按钮/卡片/列表项/提交入口统一）。 |
+
+### 二、MINOR（4 项 · 次要）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 | 修复指引 |
+|---|---|---|---|---|---|
+| M1 | MINOR | `pages/profile/index.vue`（右箭头图标处） | 箭头图标用 `ic-arrow-left` 旋转 180° 模拟，应统一 `ic-arrow`。 | 图标统一 `IconSvg` | `name="arrow-left"` → `name="arrow"`，移除 `rotate(180deg)`。 |
+| M2 | MINOR | `components/AppButton.vue:43`（旧注释） | 旧注释「MVP 统一用 emoji 占位」与全量禁 emoji 现状不符。 | 图标统一 `IconSvg` | 注释更新为「icon 为 IconSvg 矢量图标名，全量禁 emoji」。 |
+| M3 | MINOR | `stores/user.ts:26,84`（`userStats` 默认值） | `logout()` 缺 `favoriteCount`/`publishedCount`/`pendingCount`，默认值不统一。 | （规范一致性） | `logout()` 与初始默认统一为 `{ reviewCount:0, publishedCount:0, pendingCount:0, favoriteCount:0 }`。 |
+| M4 | MINOR | `frontend/src/uni.scss`（`<swiper indicator-active-color>` 裸 hex 处） + `pages/home/index.vue` swiper 配置 | swiper 指示点裸 hex 未在 `uni.scss` 注释登记，且页面内联引用未走注册常量。 | 原生 API 颜色例外集中 `uni.scss` 登记 + 注册常量路由（禁页面内联裸 hex） | 在 `uni.scss` 注释登记该裸 hex 用途；页面统一经注册常量 `SWIPER_INDICATOR_ACTIVE_COLOR` 引用，禁内联裸 hex。 |
+
+### 三、POLISH（3 项 · 打磨）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 | 修复指引 |
+|---|---|---|---|---|---|
+| P1 | POLISH | `pages/find/index.vue:513-514`（share-sheet 手势区） | 分享面板手势区左右间距 `lg` 过宽，与整体 `md` 边界不一致。 | （对齐边界规范） | suggest / 手势区 left/right `lg` → `md`。 |
+| P2 | POLISH（架构 · 已 DEFER 暂缓） | `pages/messages/index.vue` + `pages/services/index.vue`（双入口） | 消息中心与服务入口在 TabBar 之外存在「双入口」语义重叠，需明确两者分工与路由归属，属架构决策，非纯 UI 打磨。 | （架构决策，待用户拍板） | **DEFERRED**：等待用户架构决策（消息中心 vs 服务入口的边界与落点）后再落地，本轮不改动。 |
+| P3 | POLISH | `components/StatsRow.vue`（padding/字号） + `pages/profile/index.vue`（统计行内边距） | 统计行 padding/字号未完全走 token（`spacing-sm`/`font-h3`）。 | （Token 一致性） | padding→`spacing-sm`、字号→`font-h3`。 |
+
+### 四、落实分工与关联
+
+- **RED（R1~R6）**：红线级，已随 commit `3d851ce28b19c49a0fbab1106d4f7ceaeb13ce70` 修复；本轮同步将「按压缩放 grep-zero」与「原生 API 颜色例外集中 `uni.scss` 登记 + 注册常量路由（禁页面内联裸 hex）」两条细化红线写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3。
+- **MINOR（M1~M4）**：已随同 commit 整改，不阻断交付验收。
+- **POLISH（P1/P3）**：随迭代整改；**P2（messages-services 双入口）DEFERRED**——属架构决策，等待用户拍板后再落地，本轮不改动代码/路由。
+- **文档同步**：本轮新增 2 条细化 BLOCKER 红线（按压缩放 grep-zero 全覆盖、原生 API 颜色例外登记 + 注册常量路由）已写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，本文件仅作派工留档。
+- **红线回退核查**：整改后（commit `3d851ce28b19c49a0fbab1106d4f7ceaeb13ce70`）复验通过——全仓 CSS 裸 `scale(...)` 为 0 处（仅 `profile/index.vue` 注释说明）、所有 `@tap` 绑定统一、首轮 8 条 + 第二轮 2 条红线均未回退。
