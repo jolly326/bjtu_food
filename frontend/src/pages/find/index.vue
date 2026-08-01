@@ -517,7 +517,7 @@ watch(keyword, (value) => {
 
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .search-wrap { position: sticky; top: 0; z-index: 20; background: var(--bg-page); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); }
 
 /* 联想下拉 */

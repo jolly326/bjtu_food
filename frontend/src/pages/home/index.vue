@@ -300,7 +300,7 @@ function handleBannerTap(banner: BannerItem) {
 
 <style scoped>
 .home-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; width: 100%; }
+.scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: calc(var(--tabbar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .swiper-section { padding: var(--spacing-sm) var(--spacing-md) 0; margin-bottom: var(--spacing-lg); }
 .home-swiper { height: 320rpx; border-radius: var(--radius-card); overflow: hidden; }
 .swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary); }

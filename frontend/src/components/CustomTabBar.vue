@@ -38,12 +38,13 @@ function switchTab(page: string) {
 
 <style scoped>
 .custom-tab-bar {
-  /* 作为 .page flex 列的底部子项自然贴底，不依赖 position:fixed
-     （避免祖先 enter-up 的 transform 使 fixed 失效而“浮起”） */
-  flex-shrink: 0;
-  width: 100%;
-  /* 外层仅负责底部安全区内边距（透明，不铺白） */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 仅负责底部安全区内边距（透明，不铺白）；bar 高度由内层决定 */
   padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
 }
 /* 白色卡片背景层：固定内容高度，承载图标并居中，安全区在其下方透出页面 */
 .tab-bar-inner {
