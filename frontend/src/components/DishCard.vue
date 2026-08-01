@@ -25,11 +25,11 @@
         <text class="card-name">{{ dish.name }}</text>
         <text class="card-price">¥{{ dish.price }}</text>
       </view>
-      <view class="meta-row">
-        <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
-      </view>
       <view class="card-tags" v-if="dish.tags.length > 0">
         <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
+      </view>
+      <view class="meta-row">
+        <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
       </view>
     </view>
   </view>
@@ -150,11 +150,11 @@ function handleClick() {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
 }
 .card-stall {
   font-size: var(--font-aux);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
