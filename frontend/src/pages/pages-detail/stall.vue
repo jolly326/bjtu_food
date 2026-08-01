@@ -26,16 +26,16 @@
             </template>
           </SectionTitle>
           <view class="info-body">
-            <text class="info-name">{{ stallDetail.name }}</text>
-            <view class="info-meta">
+            <view class="info-head">
+              <text class="info-name">{{ stallDetail.name }}</text>
               <view class="info-location">
                 <IconSvg name="location" :size="26" color="var(--color-primary)" class="info-location-icon" />
                 <text class="info-location-text">{{ stallDetail.location }}</text>
               </view>
-              <view class="info-rating" v-if="stallDetail.avgRating != null && stallDetail.avgRating > 0">
-                <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="info-rating-icon" />
-                <text class="info-rating-text">{{ stallDetail.avgRating.toFixed(1) }}</text>
-              </view>
+            </view>
+            <view class="info-rating" v-if="stallDetail.avgRating != null && stallDetail.avgRating > 0">
+              <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="info-rating-icon" />
+              <text class="info-rating-text">{{ stallDetail.avgRating.toFixed(1) }}</text>
             </view>
             <view class="info-desc" v-if="stallDetail.description">
               <text class="info-desc-text">{{ stallDetail.description }}</text>
@@ -199,15 +199,30 @@ function onRefresh() {
 /* CardSection 自带 margin: var(--spacing-sm) var(--spacing-md) 提供左右 24rpx 内边距，
    不在此处重置（避免依赖 scroll-wrap 内边距，微信下更可靠），卡片不溢出 */
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
-.info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-.info-meta {
+.info-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: row;
+  align-items: baseline;
   gap: var(--spacing-sm);
 }
+.info-name {
+  font-size: var(--font-h3);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.info-location {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+.info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
 .info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
