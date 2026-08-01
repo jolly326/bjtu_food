@@ -222,3 +222,33 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `69afd86c5718ec4cb5a549ca0898e2c156ae538d`）复验——前四轮（全量审计 8 条 + 第二轮 2 条 + 第三轮 2 条 + 第四轮 ImageUploader 例外登记）均保持未回退，无新增裸 hex / 内联逻辑破坏已登记例外清单。
 
 > 注：上方 `69afd86c5718ec4cb5a549ca0898e2c156ae538d` 为本次第五轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第六轮迭代复审修复计划（2026-08-02）
+
+> 第六轮复审（2026-08-02）在前五轮（全量审计 8 条 + 第二轮再审 2 条 + 第三轮复审 2 条 + 第四轮 P2 ImageUploader 例外 + 第五轮 3 项打磨，均已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，本轮聚焦 **reduced-motion 彻底关停、按压缩放 token 细分、swiper 指示点非激活态例外登记** 共 5 项，均为体验一致性的精细点，不阻断交付验收、亦不新增红线（仅对既有红线的细化口径做校准）。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `64d396dd9aeee7384b692b770944456add0de604` 全部落地。
+>
+> 级别：MAJOR（主要，红线细化口径）/ MINOR（次要）/ POLISH（打磨）。每条含 `file:line` 与对应红线/规范。
+>
+> 代码修复 commit 哈希：`64d396dd9aeee7384b692b770944456add0de604`
+
+### 一、本轮发现（5 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| F1 | MAJOR | `pages/home/index.vue`（`.footer-spinner` reduced-motion 块）；`pages/find/index.vue`（`.footer-spinner` reduced-motion 块）；`pages/community/index.vue`（`.footer-spinner` reduced-motion 块） | 三页 loading spinner 的 reduced-motion 仅将 `animation-duration` 延长（降速），未彻底关停 spin 动画，与「reduced-motion 须彻底关停持续动画（含 spinner spin）」红线不一致（notify / RelatedPickerSheet 已对齐为 `animation: none`）。 | reduced-motion 彻底关停持续动画（含 spinner） | `prefers-reduced-motion: reduce` 下 `.footer-spinner` 直接 `animation: none`（非 `animation-duration`），与 notify / RelatedPickerSheet 对齐。 |
+| F2 | MINOR | `components/MomentCard.vue`（按压反馈分支） | `MomentCard` 按压缩放未完全引用 `var(--press-scale)`，存在裸 `scale(...)` 散落，与「按压缩放统一 `var(--press-scale)`（grep-zero）」红线不一致。 | 按压缩放统一 `var(--press-scale)`（禁裸 scale，grep-zero） | 裸 `scale(...)` → `scale(var(--press-scale))`，纳入 grep-zero 复验。 |
+| F3 | MINOR | `components/CustomTabBar.vue`（tab 选中态） | `CustomTabBar` 选中态非按压强调缩放仍裸写 `scale(1.05)`，未量化为 token，与「非按压强调 scale 须 token 化并在 uni.scss 登记」细化口径不一致（属 grep-zero 红线须区分的非按压强调场景，须补 token）。 | 非按压强调 scale 须量化 token（如 `--tab-active-scale`）并登记 | 裸 `scale(1.05)` → `scale(var(--tab-active-scale))`；在 `frontend/src/uni.scss` 登记 `--tab-active-scale: 1.05`。 |
+| F4 | POLISH | 全局（`frontend/src/uni.scss` 字距 typo-scale tokens） | 字距 typo-scale tokens 命名/取值存在 typo（如 `--tracking-*` 取值或命名与 §4.6 / §0.3 不一致），需校准以与排版红线对齐。 | 字体排版（§4.6 tracking 随字号） | 校准 `uni.scss` 字距 typo-scale tokens 命名与取值，对齐 `--tracking-title: -0.02em` / `--tracking-body: 0` 等 §0.3 清单。 |
+| F5 | MINOR | `frontend/src/uni.scss`（`<swiper indicator-color>` 非激活态赋值处） | `<swiper indicator-color>`（非激活指示点）裸 hex 未在 `uni.scss` 登记，与既有 `indicator-active-color` 例外登记口径不统一，审计易误报。 | 原生 API 颜色例外集中 `uni.scss` 登记 | 在 `uni.scss` 登记 `<swiper indicator-color>` 非激活态裸 hex 用途（与已登记的 `indicator-active-color` 例外并列），不作为红线违规。 |
+
+### 二、落实分工与关联
+
+- **F1（MAJOR）**：三页 `.footer-spinner` reduced-motion 须彻底 `animation: none`，与 notify / RelatedPickerSheet 对齐；代码已在 commit `64d396dd9aeee7384b692b770944456add0de604` 修复。
+- **F2 / F3 / F5（MINOR）**：随迭代整改，不阻断交付验收；F3 须在 `uni.scss` 登记 `--tab-active-scale`、F5 须在 `uni.scss` 登记非激活 `indicator-color` 例外，均已完成。
+- **F4（POLISH）**：字距 typo-scale tokens 校准，已完成。
+- **文档同步**：本轮为红线细化口径校准（reduced-motion 彻底关停 spinner、非按压强调 scale token 化、swiper 非激活 indicator-color 例外登记），未新增红线；§4.9 / §0.3 既有红线与已登记例外保持不变（细节在 commit `64d396dd9aeee7384b692b770944456add0de604` 落实）。
+- **红线回退核查**：整改后（commit `64d396dd9aeee7384b692b770944456add0de604`）复验——全仓 `.footer-spinner` reduced-motion 块均为 `animation: none`、按压缩放仅 `--press-scale` 与已登记 `--tab-active-scale`、swiper 指示点双色均登记于 `uni.scss`、前五轮红线未回退。
+
+> 注：上方 `64d396dd9aeee7384b692b770944456add0de604` 为本次第六轮复审代码修复 commit 哈希。
