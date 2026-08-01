@@ -123,6 +123,13 @@ page {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* 选中态图标放大（量化 CustomTabBar 强调缩放，避免裸 scale） */
+  --tab-active-scale: 1.05;
+  /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
+  --tracking-h1: -0.02em;
+  --tracking-h2: -0.02em;
+  --tracking-h3: -0.01em;
+  --tracking-body: 0;
   /* 布局 */
   --tabbar-height: 100rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
@@ -221,6 +228,13 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* 选中态图标放大（量化 CustomTabBar 强调缩放，避免裸 scale） */
+  --tab-active-scale: 1.05;
+  /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
+  --tracking-h1: -0.02em;
+  --tracking-h2: -0.02em;
+  --tracking-h3: -0.01em;
+  --tracking-body: 0;
   --tabbar-height: 100rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;

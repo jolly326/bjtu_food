@@ -185,7 +185,7 @@ async function onUseful() {
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); }
 .m-image { width: 100%; height: 100%; transition: transform 0.25s ease; }
-.m-image-wrap:active .m-image { transform: scale(1.04); }
+.m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
 .m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); align-self: flex-start; transition: opacity 0.12s ease; }
 .m-related:active { opacity: 0.7; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }

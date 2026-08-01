@@ -164,6 +164,6 @@ onMounted(() => { loadData(true) })
 .fab.pressed { transform: scale(var(--press-scale)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .footer-spinner { animation-duration: 1.4s; }
+  .footer-spinner { animation: none; }
 }
 </style>

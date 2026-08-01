@@ -307,7 +307,7 @@ function handleBannerTap(banner: BannerItem) {
 .swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary); }
 .swiper-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
-.swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: -0.01em; color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }
+.swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: var(--tracking-h2); color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }
 .swiper-subtitle { font-size: var(--font-body); color: var(--text-white-secondary); z-index: 1; }
 .section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); width: 100%; box-sizing: border-box; }
 
@@ -420,6 +420,6 @@ function handleBannerTap(banner: BannerItem) {
 .empty-sub { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {
-  .footer-spinner { animation-duration: 1.4s; }
+  .footer-spinner { animation: none; }
 }
 </style>

@@ -411,7 +411,7 @@ function onRefresh() {
 .detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
-.dish-name { font-size: var(--font-h1); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
+.dish-name { font-size: var(--font-h1); font-weight: 700; letter-spacing: var(--tracking-h3); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
 .price-text { font-size: var(--font-h2); font-weight: 700; color: var(--color-price); flex-shrink: 0; }
 .price-box { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 .promo-price { font-size: var(--font-h2); font-weight: 800; color: var(--color-error); }

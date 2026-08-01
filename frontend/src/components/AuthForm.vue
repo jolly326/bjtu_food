@@ -278,13 +278,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style scoped>
-.auth-shell { min-height: 100vh; display: flex; flex-direction: column; padding: calc(var(--spacing-lg) + env(safe-area-inset-top)) var(--spacing-lg) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.auth-shell { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: var(--spacing-lg) var(--spacing-lg); box-sizing: border-box; }
 
 /* 顶部品牌区：轻量居中，不再用大色块堆叠 */
 .auth-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--spacing-lg) 0 var(--spacing-md); }
 .hero-badge { width: 104rpx; height: 104rpx; border-radius: 30rpx; background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-md); }
 .hero-logo { color: var(--color-primary); }
-.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-primary); letter-spacing: var(--tracking-h1); }
 .hero-subtitle { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); max-width: 520rpx; }
 
 /* 表单面板：紧跟品牌区，间距紧凑，无需滚动即可看到输入框 */

@@ -677,6 +677,6 @@ watch(keyword, (value) => {
 .sk-line { height: 110rpx; border-radius: var(--radius-card); flex: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .footer-spinner { animation-duration: 1.4s; }
+  .footer-spinner { animation: none; }
 }
 </style>

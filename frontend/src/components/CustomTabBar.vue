@@ -85,7 +85,7 @@ function switchTab(page: string) {
 }
 .tab-item.active .tab-icon {
   opacity: 1;
-  transform: scale(1.05);
+  transform: scale(var(--tab-active-scale));
 }
 .tab-text {
   font-size: var(--font-aux);
