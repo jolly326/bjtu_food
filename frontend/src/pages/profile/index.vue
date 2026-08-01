@@ -234,7 +234,7 @@ onMounted(() => {
 
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user；内部竖向排列，统计与入口融合） */
 .user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }

@@ -53,6 +53,7 @@ function switchTab(page: string) {
 }
 .tab-bar-inner {
   display: flex;
+  align-items: center;
   /* 仅内容区承载图标，垂直居中，避开底部安全区 */
   height: var(--tabbar-height);
 }
@@ -69,7 +70,7 @@ function switchTab(page: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: 4rpx;
   transition: transform var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
