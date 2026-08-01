@@ -14,7 +14,7 @@
       />
 
       <!-- 搜索联想下拉 -->
-      <view v-if="showSuggest && suggestions.length > 0" class="suggest-panel">
+      <view v-if="showSuggest && suggestions.length > 0" class="suggest-panel" :style="{ top: suggestPanelTop + 'px' }">
         <view
           v-for="s in suggestions"
           :key="`${s.type}-${s.id}-${s.name}`"
@@ -212,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import Header from '@/components/header.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -235,6 +235,10 @@ const showSuggest = ref(false)
 const pressedKey = ref('')
 const refresherTriggered = ref(false)
 const discoverLoading = ref(true)
+
+// 搜索联想面板的运行时测量 top（px）。Header 高度含状态栏(px)，无法用固定 rpx 对齐，
+// 必须在布局完成后用 selectorQuery 实测 Header 底 + searchWrap 高度（refs BLOCKER N1）
+const suggestPanelTop = ref(200)
 
 // 分类宫格
 const categories = DISH_CATEGORIES
@@ -512,9 +516,39 @@ async function loadDiscover() {
   }
 }
 
+/** 实测 Header(.header-wrap) 底边 + search-wrap 高度，得到联想面板的 top(px)。
+ * 失败时回退 200px，确保面板不会落在 0 处与 Header 重叠。 */
+function measureSuggestTop() {
+  try {
+    uni.createSelectorQuery()
+      .select('.header-wrap')
+      .boundingClientRect((headerRes) => {
+        const headerRect = headerRes as UniApp.NodeInfo
+        uni.createSelectorQuery()
+          .select('.search-wrap')
+          .boundingClientRect((searchRes) => {
+            const searchRect = searchRes as UniApp.NodeInfo
+            const headerBottom = headerRect?.bottom ?? 0
+            const searchHeight = searchRect?.height ?? 0
+            if (headerBottom > 0 && searchHeight >= 0) {
+              suggestPanelTop.value = headerBottom + searchHeight
+            } else {
+              suggestPanelTop.value = 200
+            }
+          })
+          .exec()
+      })
+      .exec()
+  } catch {
+    suggestPanelTop.value = 200
+  }
+}
+
 onMounted(() => {
   loadHistory()
   loadDiscover()
+  // 布局就绪后再测量，避免拿到 0 高度（onReady/nextTick 双保险）
+  nextTick(() => measureSuggestTop())
 })
 
 watch(keyword, (value) => {
@@ -532,8 +566,8 @@ watch(keyword, (value) => {
   position: fixed;
   left: var(--spacing-md);
   right: var(--spacing-md);
-  /* 顶部 = Header(80rpx) + search-wrap 上下 padding + SearchBar 高度，避开 CustomTabBar */
-  top: calc(80rpx + var(--spacing-md) + 88rpx + var(--spacing-sm));
+  /* top 由运行时实测（.header-wrap 底边 + .search-wrap 高度，px）写入 :style，
+     不再硬编码 rpx，解决刘海屏状态栏 px 导致的错位（refs BLOCKER N1） */
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-modal);
