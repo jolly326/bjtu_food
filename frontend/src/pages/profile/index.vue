@@ -172,6 +172,7 @@ function goToReviews() {
   uni.navigateTo({ url: '/pages/pages-detail/review-list' })
 }
 function onStatsTap(key: 'review' | 'published' | 'pending') {
+  if (key === 'pending' && (userStore.userStats.pendingCount ?? 0) === 0) return
   if (key === 'review') goToReviews()
   else if (key === 'published') goToMessagesServices()
   else if (key === 'pending') goToMessagesServices()
