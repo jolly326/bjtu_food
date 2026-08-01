@@ -115,8 +115,6 @@
       @update:open="reportOpen = $event"
       @submit="submitReport"
     />
-
-    <CustomTabBar v-if="false" />
   </view>
 </template>
 

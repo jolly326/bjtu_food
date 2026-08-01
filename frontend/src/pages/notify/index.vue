@@ -170,7 +170,7 @@ onMounted(() => { loadData(true) })
 .read-all { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 .notify-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .notify-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.notify-item.unread { background: var(--color-primary-soft2); }
+.notify-item.unread { background: var(--color-primary-soft2); border-left: 6rpx solid var(--color-primary); }
 .notify-item:active { transform: scale(var(--press-scale)); }
 .notify-badge { width: 72rpx; height: 72rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .notify-badge-icon { font-size: 36rpx; line-height: 1; }
