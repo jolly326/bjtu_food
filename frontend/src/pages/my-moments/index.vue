@@ -127,8 +127,8 @@ onMounted(() => { loadData() })
 
 <style scoped>
 .my-moments-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
-.segment-wrap { padding: var(--spacing-sm) var(--spacing-lg); background: var(--bg-page); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
+.segment-wrap { padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-page); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }

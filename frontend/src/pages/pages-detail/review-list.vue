@@ -11,7 +11,6 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onLoadMore"
     >
-      <SectionTitle :title="dishId ? '全部评价' : '我的评价'" />
       <view class="review-list" v-if="list.length > 0">
         <ReviewItem
           v-for="rv in list"
@@ -36,7 +35,6 @@ import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import { getReviewsByDish, getMyReviews, deleteReview } from '@/api/review'
 import { useUserStore } from '@/stores/user'

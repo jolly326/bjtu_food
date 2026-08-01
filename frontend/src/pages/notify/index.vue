@@ -165,8 +165,8 @@ onMounted(() => { loadData(true) })
 
 <style scoped>
 .notify-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
-.action-row { display: flex; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-lg); background: var(--bg-card); border-bottom: 2rpx solid var(--border-color); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
+.action-row { display: flex; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-card); border-bottom: 2rpx solid var(--border-color); }
 .read-all { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 .notify-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .notify-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
