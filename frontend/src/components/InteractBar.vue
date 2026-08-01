@@ -38,7 +38,7 @@ function onReport() { emit('report') }
 <style scoped>
 .interact-bar { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); }
 .interact-btn { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-light); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.interact-btn:active { transform: scale(0.97); }
+.interact-btn:active { transform: scale(var(--press-scale)); }
 .interact-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .interact-icon { font-size: 30rpx; line-height: 1; color: var(--text-secondary); }
 .interact-btn.active .interact-icon { color: var(--color-like); }

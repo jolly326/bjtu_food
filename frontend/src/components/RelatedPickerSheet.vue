@@ -1,6 +1,15 @@
 <template>
   <view v-if="open" class="sheet-mask" @tap="$emit('close')" />
-  <view class="related-sheet" :class="{ open }">
+  <view
+    class="related-sheet"
+    :class="{ open }"
+    :style="sheetStyle"
+    @touchstart="onTouchStart"
+    @touchmove="onTouchMove"
+    @touchend="onTouchEnd"
+    @touchcancel="onTouchEnd"
+  >
+    <view class="sheet-grabber" />
     <view class="sheet-head">
       <text class="sheet-title">选择关联对象</text>
       <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="$emit('close')" />
@@ -52,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
@@ -83,6 +92,35 @@ const emit = defineEmits<{
   select: [item: RelatedItem]
   confirm: [item: RelatedItem | null]
 }>()
+
+// 下拉关闭手势（与 ApplySheet / ContributeSheet 等底部弹层保持一致）
+const dragOffset = ref(0)
+const dragging = ref(false)
+
+const sheetStyle = computed(() => ({
+  transform: `translateY(calc(${props.open ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
+  transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+}))
+
+let startY = 0
+function onTouchStart(e: any) {
+  startY = e.touches?.[0]?.clientY ?? 0
+  dragging.value = true
+}
+function onTouchMove(e: any) {
+  if (!dragging.value) return
+  const y = e.touches?.[0]?.clientY ?? 0
+  const delta = y - startY
+  // 仅允许向下拖拽
+  dragOffset.value = delta > 0 ? delta : 0
+}
+function onTouchEnd() {
+  if (!dragging.value) return
+  dragging.value = false
+  // 超过 120rpx（约 60px）阈值则关闭，否则回弹
+  if (dragOffset.value > 120) emit('close')
+  dragOffset.value = 0
+}
 
 const tab = ref<'dish' | 'stall'>('dish')
 const keyword = ref('')
@@ -181,6 +219,7 @@ watch(tab, () => {
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
 }
 .related-sheet.open { transform: translateY(0); }
+.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--border-color); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
 .sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
 .sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
@@ -204,6 +243,6 @@ watch(tab, () => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .related-sheet { transition: opacity 0.2s ease; }
+  .related-sheet { transition: opacity 0.2s ease; transform: none !important; }
 }
 </style>

@@ -383,7 +383,7 @@ function handleBannerTap(banner: BannerItem) {
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.canteen-card.pressed { transform: scale(0.97); }
+.canteen-card.pressed { transform: scale(var(--press-scale)); }
 .broadcast-bar.pressed { transform: scale(var(--press-scale)); }
 .canteen-img { width: 100%; height: 100%; }
 .canteen-img-placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }

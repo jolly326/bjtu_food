@@ -161,7 +161,7 @@ onMounted(() => { loadData(true) })
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.fab.pressed { transform: scale(0.97); }
+.fab.pressed { transform: scale(var(--press-scale)); }
 
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation-duration: 1.4s; }

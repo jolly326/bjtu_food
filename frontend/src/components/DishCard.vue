@@ -77,7 +77,7 @@ function handleClick() {
   -webkit-tap-highlight-color: transparent;
 }
 .dish-card.pressed {
-  transform: scale(0.97);
+  transform: scale(var(--press-scale));
 }
 .card-image {
   position: relative;

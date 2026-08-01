@@ -165,7 +165,7 @@ async function onUseful() {
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.moment-card.pressed { transform: scale(0.97); }
+.moment-card.pressed { transform: scale(var(--press-scale)); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
 .m-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }

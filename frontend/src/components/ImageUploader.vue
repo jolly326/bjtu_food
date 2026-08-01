@@ -117,6 +117,6 @@ function chooseImage() {
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.img-add:active { transform: scale(0.97); }
+.img-add:active { transform: scale(var(--press-scale)); }
 .img-counter { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

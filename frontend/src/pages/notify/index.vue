@@ -171,7 +171,7 @@ onMounted(() => { loadData(true) })
 .notify-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .notify-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .notify-item.unread { background: var(--color-primary-soft2); }
-.notify-item:active { transform: scale(0.97); }
+.notify-item:active { transform: scale(var(--press-scale)); }
 .notify-badge { width: 72rpx; height: 72rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .notify-badge-icon { font-size: 36rpx; line-height: 1; }
 .notify-badge.type-moment_audit,

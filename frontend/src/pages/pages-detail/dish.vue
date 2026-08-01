@@ -43,7 +43,7 @@
               <block v-if="hasPromo">
                 <text class="promo-price">¥{{ dish.promoPrice }}</text>
                 <text class="origin-price">¥{{ dish.originalPrice }}</text>
-                <text class="promo-tag"><IconSvg name="clock" :size="22" color="#E67E22" /> 限时</text>
+                <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-hot)" /> 限时</text>
               </block>
               <text v-else class="price-text">¥{{ dish.price }}</text>
             </view>
@@ -417,7 +417,7 @@ function onRefresh() {
 .sheet-close { padding: 0 var(--spacing-xs); }
 .share-body { padding: var(--spacing-md) var(--spacing-lg); }
 .share-option { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.share-option:active { transform: scale(0.97); }
+.share-option:active { transform: scale(var(--press-scale)); }
 .share-option-text { font-size: var(--font-body); color: var(--text-primary); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {

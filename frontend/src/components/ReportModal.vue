@@ -59,7 +59,7 @@ function submit() {
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
 .report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: 600; transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.report-btn:active { transform: scale(0.97); }
+.report-btn:active { transform: scale(var(--press-scale)); }
 .report-cancel { background: var(--bg-page); color: var(--text-secondary); }
 .report-confirm { background: var(--color-error); color: var(--text-white); }
 .report-confirm.disabled { opacity: 0.58; }

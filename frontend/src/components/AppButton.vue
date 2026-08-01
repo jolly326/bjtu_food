@@ -47,8 +47,8 @@ const pressed = ref(false)
 const btnStyle = computed(() => ({
   width: props.width,
   margin: props.margin,
-  transform: pressed.value ? 'scale(0.97)' : 'scale(1)',
-  transition: 'transform 0.12s ease',
+  transform: pressed.value ? 'scale(var(--press-scale))' : 'scale(1)',
+  transition: 'var(--press-transition)',
 }))
 
 function handleTap() {

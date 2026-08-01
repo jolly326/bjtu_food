@@ -135,7 +135,7 @@ function onLongPress() {
 .review-image { width: 100%; height: 100%; display: block; }
 .review-actions { margin-top: var(--spacing-xs); display: flex; justify-content: flex-end; }
 .like-btn { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-light); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.like-btn:active { transform: scale(0.97); }
+.like-btn:active { transform: scale(var(--press-scale)); }
 .like-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .like-icon { line-height: 1; }
 .like-count { font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }

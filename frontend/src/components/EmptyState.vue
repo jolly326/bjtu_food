@@ -80,6 +80,6 @@ const pressed = ref(false)
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.action-btn.pressed { transform: scale(0.97); }
+.action-btn.pressed { transform: scale(var(--press-scale)); }
 .action-text { font-size: 26rpx; color: var(--text-white); font-weight: 600; line-height: 1; }
 </style>

@@ -182,7 +182,7 @@ function onTouchEnd() {
   transition: transform 0.12s ease, background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.sheet-btn.pressed { transform: scale(0.97); }
+.sheet-btn.pressed { transform: scale(var(--press-scale)); }
 .sheet-btn-cancel { background: var(--bg-soft); }
 .sheet-btn-confirm { background: var(--color-primary); }
 .sheet-btn-text { font-size: var(--font-body); font-weight: 600; }

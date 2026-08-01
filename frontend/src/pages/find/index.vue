@@ -581,7 +581,7 @@ watch(keyword, (value) => {
   -webkit-tap-highlight-color: transparent;
 }
 .suggest-item:last-child { border-bottom: none; }
-.suggest-item.pressed { transform: scale(0.97); background: var(--bg-soft); }
+.suggest-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
 .suggest-icon { width: 56rpx; height: 56rpx; border-radius: var(--radius-tag); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
 .suggest-thumb { width: 100%; height: 100%; }
 .suggest-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -604,7 +604,7 @@ watch(keyword, (value) => {
   transition: transform 0.12s ease, background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.history-chip.pressed { transform: scale(0.97); background: var(--color-primary-soft); }
+.history-chip.pressed { transform: scale(var(--press-scale)); background: var(--color-primary-soft); }
 .history-chip-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-chip-del { font-size: 20rpx; color: var(--text-tertiary); flex-shrink: 0; line-height: 1; }
 
@@ -622,7 +622,7 @@ watch(keyword, (value) => {
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.category-cell.pressed { transform: scale(0.97); }
+.category-cell.pressed { transform: scale(var(--press-scale)); }
 .category-icon { width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; }
 .category-label { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
 
@@ -630,7 +630,7 @@ watch(keyword, (value) => {
 .hotsearch-list { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
 .hotsearch-item { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease, background 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .hotsearch-item:last-child { border-bottom: none; }
-.hotsearch-item.pressed { transform: scale(0.97); background: var(--bg-soft); }
+.hotsearch-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
 .hotsearch-rank { width: 44rpx; text-align: center; font-size: var(--font-body); font-weight: 800; color: var(--text-secondary); flex-shrink: 0; }
 .hotsearch-rank.top { color: var(--color-price); }
 /* 左侧配图：圆角正方形（task-13 §1.2） */
@@ -656,7 +656,7 @@ watch(keyword, (value) => {
   font-size: 26rpx; font-weight: 600; background: var(--bg-card); color: var(--text-secondary);
   box-shadow: var(--shadow-card); flex-shrink: 0; -webkit-tap-highlight-color: transparent;
 }
-.filter-trigger:active { transform: scale(0.97); }
+.filter-trigger:active { transform: scale(var(--press-scale)); }
 .filter-trigger-text { line-height: 1; }
 .filter-back { display: inline-flex; align-items: center; gap: 6rpx; font-size: 26rpx; color: var(--color-primary); font-weight: 600; flex-shrink: 0; }
 .filter-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: 0 0 var(--spacing-sm); margin-top: var(--spacing-sm); }
