@@ -2,7 +2,7 @@
   <view class="auth-shell">
     <view class="auth-hero">
       <view class="hero-badge">
-        <IconSvg name="logo" :size="56" color="var(--text-white)" class="hero-logo" />
+        <IconSvg name="logo" :size="56" color="var(--color-primary)" class="hero-logo" />
       </view>
       <text class="hero-title">{{ authTitle }}</text>
       <text class="hero-subtitle">{{ authSubtitle }}</text>
@@ -278,22 +278,27 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style scoped>
-.auth-shell { min-height: calc(100vh - var(--tabbar-height)); padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xl); box-sizing: border-box; }
-.auth-hero { min-height: 330rpx; padding: var(--spacing-lg) var(--spacing-lg) calc(var(--spacing-xl) + var(--spacing-xl) + var(--spacing-md) + var(--spacing-xs)); border-radius: var(--radius-modal); background: var(--color-primary); box-sizing: border-box; color: var(--text-white); }
-.hero-badge { width: 96rpx; height: 96rpx; border-radius: var(--radius-modal); background: var(--text-white-faint); display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-sm); border: 1rpx solid var(--text-white-edge); }
-.hero-logo { opacity: 0.95; }
-.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-white); letter-spacing: -0.02em; }
-.hero-subtitle { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-white-soft); }
-.auth-panel { position: relative; margin: calc(-1 * (var(--spacing-lg) + var(--spacing-lg) + var(--spacing-md))) var(--spacing-sm) 0; padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-modal); box-sizing: border-box; }
-.form-head { margin-bottom: var(--spacing-md); }
+.auth-shell { min-height: 100vh; display: flex; flex-direction: column; padding: calc(var(--spacing-lg) + env(safe-area-inset-top)) var(--spacing-lg) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+
+/* 顶部品牌区：轻量居中，不再用大色块堆叠 */
+.auth-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--spacing-lg) 0 var(--spacing-md); }
+.hero-badge { width: 104rpx; height: 104rpx; border-radius: 30rpx; background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-md); }
+.hero-logo { color: var(--color-primary); }
+.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+.hero-subtitle { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); max-width: 520rpx; }
+
+/* 表单面板：紧跟品牌区，间距紧凑，无需滚动即可看到输入框 */
+.auth-panel { margin-top: var(--spacing-md); padding: var(--spacing-lg); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card); box-sizing: border-box; }
+.form-head { margin-bottom: var(--spacing-lg); }
 .form-title { display: block; font-size: var(--font-h2); line-height: 1.25; font-weight: 760; color: var(--text-primary); }
 .form-note { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-secondary); }
 .form-error { display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); -webkit-tap-highlight-color: transparent; }
 .form-error-icon { flex-shrink: 0; }
 .form-error-text { flex: 1; font-size: var(--font-aux); color: var(--color-error); font-weight: 600; }
-.group-card { background: var(--bg-soft); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); }
-.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-md); padding: 0 var(--spacing-md); background: transparent; border-bottom: 2rpx solid var(--border-color); box-sizing: border-box; }
-.input-field:last-child { border-bottom: none; }
+
+/* 输入项：独立 pill 字段，相互留间距，比连续内嵌边框更清爽 */
+.group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-md); padding: 0 var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-icon { flex-shrink: 0; opacity: 0.6; }
 .input-control { flex: 1; height: 90rpx; font-size: 28rpx; color: var(--text-primary); min-width: 0; }
 .code-field { padding-right: 0; }

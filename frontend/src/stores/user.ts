@@ -25,6 +25,7 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<UserInfo | null>(loadUserInfo())
   const userStats = ref<UserStats>({ reviewCount: 0 })
   const loading = ref(false)
+  const statsLoading = ref(false)
 
   function restoreFromCache(): boolean {
     const saved = uni.getStorageSync(STORAGE_KEY_TOKEN)
@@ -92,10 +93,13 @@ export const useUserStore = defineStore('user', () => {
 
   async function fetchStats() {
     if (!isLoggedIn()) return
+    statsLoading.value = true
     try {
       userStats.value = await userApi.getUserStats()
     } catch {
       console.error('获取用户统计失败')
+    } finally {
+      statsLoading.value = false
     }
   }
 
@@ -112,6 +116,7 @@ export const useUserStore = defineStore('user', () => {
     userStats,
     token,
     loading,
+    statsLoading,
     restoreFromCache,
     loginByPassword,
     loginByEmailCode,

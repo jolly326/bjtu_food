@@ -10,43 +10,35 @@
     @mouseleave="pressed = false"
     @tap="handleClick"
   >
-    <!-- 档口图（圆角方图，task-13 §2.2） -->
+    <!-- 档口图（圆角方图，与 StallDishRow 同尺寸 140rpx，task-13 §2.2） -->
     <view class="stall-thumb">
-      <image v-if="stall.image" :src="stall.image" mode="aspectFill" class="stall-thumb-img" />
-      <view v-else class="stall-thumb-ph">
-        <IconSvg name="dish" :size="56" color="var(--text-tertiary)" />
-      </view>
-      <view v-if="displayRating != null && displayRating > 0" class="stall-rating-badge">
-        <IconSvg name="star-filled" :size="20" color="var(--color-star)" />
-        <text class="stall-rating-value">{{ formatRating(displayRating) }}</text>
-      </view>
+      <ImageFallback :src="stall.image" />
     </view>
 
-    <!-- 信息区：名称 + 简介 + 评分/菜品数/人均 + 标签 -->
+    <!-- 信息区：名称 → 简介 → 标签 → 元信息 → 评分（顺序与 StallDishRow 对齐） -->
     <view class="stall-info">
       <text class="stall-name">{{ stall.name }}</text>
       <text v-if="stall.description" class="stall-desc">{{ stall.description }}</text>
-      <view v-if="metaText" class="stall-meta">
-        <text class="stall-meta-text">{{ metaText }}</text>
-      </view>
       <view v-if="stall.tags && stall.tags.length" class="stall-tags">
         <text v-for="t in stall.tags" :key="t" class="stall-tag">{{ t }}</text>
       </view>
-    </view>
-
-    <view class="stall-go">
-      <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
+      <text v-if="metaText" class="stall-meta-text">{{ metaText }}</text>
+      <view v-if="displayRating != null && displayRating > 0" class="star-num">
+        <IconSvg name="star-filled" :size="22" color="var(--color-star)" />
+        <text class="star-num-text">{{ formatRating(displayRating) }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import ImageFallback from './ImageFallback.vue'
 import IconSvg from './IconSvg.vue'
 
 /**
  * StallCard 单列版（task-14 W2/W4 / task-13 §2.2）
- * 用于食堂详情页的单列档口流：档口图 + 名称 + 简介 + 评分/标签，
+ * 食堂详情页单列档口流，视觉语言对齐 StallDishRow（list-row，无卡片背景/圆角/阴影）。
  * 不直接显示菜品（菜品详情在档口详情页 stall.vue）。
  */
 export interface StallCardItem {
@@ -106,24 +98,23 @@ function handleClick() {
 </script>
 
 <style scoped>
+/* list-row 风格：与 StallDishRow 对齐，无卡片背景/圆角/阴影，底部 2rpx 分隔线 */
 .stall-card-single {
   display: flex;
-  align-items: stretch;
-  gap: var(--spacing-md);
+  align-items: flex-start;
+  gap: var(--spacing-sm);
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  padding: var(--spacing-sm) var(--spacing-md);
-  box-shadow: var(--shadow-card);
-  transition: transform 0.12s ease;
+  padding: var(--spacing-md) var(--spacing-sm);
+  border-bottom: 2rpx solid var(--bg-page);
+  transition: transform 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.stall-card-single.pressed { transform: scale(0.97); }
+.stall-card-single.pressed { transform: scale(var(--press-scale)); }
+.stall-card-single:last-child { border-bottom: none; }
 
 .stall-thumb {
-  position: relative;
   width: 140rpx;
   height: 140rpx;
   border-radius: var(--radius-card);
@@ -131,56 +122,29 @@ function handleClick() {
   overflow: hidden;
   flex-shrink: 0;
 }
-.stall-thumb-img { width: 100%; height: 100%; }
-.stall-thumb-ph {
-  width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-}
-.stall-rating-badge {
-  position: absolute;
-  top: 8rpx; right: 8rpx;
-  display: inline-flex; align-items: center; gap: 4rpx;
-  background: var(--overlay-dark-strong);
-  border: 1rpx solid rgba(255,255,255,0.25);
-  border-radius: var(--radius-card);
-  padding: 2rpx 8rpx;
-}
-.stall-rating-value {
-  color: var(--text-white);
-  font-size: 20rpx;
-  font-weight: 700;
-  line-height: 1;
-}
 
 .stall-info {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  align-items: flex-start;
   gap: var(--spacing-xs);
 }
 .stall-name {
-  font-size: var(--font-subtitle);
-  font-weight: 700;
+  font-size: var(--font-caption);
+  font-weight: 500;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .stall-desc {
   font-size: var(--font-aux);
-  color: var(--text-secondary);
-  line-height: 1.5;
+  color: var(--text-tertiary);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   overflow: hidden;
-}
-.stall-meta { display: flex; align-items: center; }
-.stall-meta-text {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .stall-tags { display: flex; flex-wrap: wrap; gap: 8rpx; }
 .stall-tag {
@@ -192,9 +156,13 @@ function handleClick() {
   font-weight: 600;
   flex-shrink: 0;
 }
-
-.stall-go {
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
+.stall-meta-text {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* 评分内联（与 StallDishRow .star-num 对齐） */
+.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
+.star-num-text { font-size: 24rpx; color: var(--text-secondary); font-weight: 600; }
 </style>

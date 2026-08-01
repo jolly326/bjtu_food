@@ -10,7 +10,7 @@
 
       <!-- 已登录态：用户信息卡 + 统计 + 菜单（主页不渲染 Tab） -->
       <template v-else>
-        <!-- 用户卡（含头像 + 昵称 + 统计三宫格 + 我要贡献低调入口） -->
+        <!-- 用户卡（含头像 + 昵称 + 统计三宫格 + 我要贡献主操作入口） -->
         <view class="user-card enter-up" :style="{ '--enter-i': 0 }">
           <view class="user-card-head">
             <view class="avatar-wrap" @tap="handleEditAvatar">
@@ -30,38 +30,38 @@
 
           <!-- 统计三宫格（评价 / 已发布 / 待审核），融合进 user-card -->
           <StatsRow
+            v-if="!userStore.statsLoading"
             class="user-stats"
             :review-count="userStore.userStats.reviewCount ?? 0"
             :published-count="userStore.userStats.publishedCount ?? 0"
             :pending-count="userStore.userStats.pendingCount ?? 0"
             @tap="onStatsTap"
           />
+          <view v-else class="stats-skeleton">
+            <view v-for="n in 3" :key="n" class="sk-cell">
+              <view class="sk-value" />
+              <view class="sk-label" />
+            </view>
+          </view>
+
+          <!-- 我要贡献（卡片主操作，spring + scale(0.97) 由 AppButton 处理） -->
+          <AppButton text="+ 我要贡献" type="primary" class="contribute-cta" @click="contributeOpen = true" />
         </view>
 
         <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
-        <SettingGroup title="我的内容" class="enter-up" :style="{ '--enter-i': 1 }">
+        <SettingGroup title="我的" class="enter-up" :style="{ '--enter-i': 1 }">
           <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
-          <SettingCell icon="star" label="我的评价" @tap="goToReviews" />
+          <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
         </SettingGroup>
 
-        <SettingGroup title="消息与服务" class="enter-up" :style="{ '--enter-i': 2 }">
-          <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
-          <SettingCell icon="folder" label="消息与服务" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
+        <SettingGroup title="通用" class="enter-up" :style="{ '--enter-i': 2 }">
+          <SettingCell icon="folder" label="发布与贡献" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
         </SettingGroup>
 
         <view class="version-row">
           <text class="version-text">食在交大 v1.0.0</text>
-          <text class="version-sub">校园美食分享评价与社交内容平台</text>
-        </view>
-
-        <!-- 退出（主入口）+ 账号注销（次级弱化文字入口） -->
-        <view class="logout-wrap">
-          <AppButton text="退出登录" type="outline" @click="handleLogout" />
-        </view>
-        <view class="cancel-account" @tap="goCancelAccount">
-          <text class="cancel-account-text">注销账号（不可恢复）</text>
         </view>
       </template>
     </scroll-view>
@@ -105,7 +105,6 @@ import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getImageUrl } from '@/utils/image'
 import { uploadImage } from '@/api/upload'
-import { deleteAccount } from '@/api/user'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -193,41 +192,6 @@ function goToSettings() {
   uni.navigateTo({ url: '/pages/settings/index' })
 }
 
-function handleLogout() {
-  uni.showModal({
-    title: '退出登录',
-    content: '确定要退出当前账号吗？',
-    success: (res) => {
-      if (res.confirm) userStore.logout()
-    },
-  })
-}
-
-/** 账号注销（≠退出，二次确认 + 不可恢复警示） */
-function goCancelAccount() {
-  uni.showModal({
-    title: '账号注销',
-    content: '注销后你的菜品、动态、评价等数据将被永久删除且不可恢复，确定要继续吗？',
-    confirmText: '确认注销',
-    confirmColor: '#e54d42',
-    success: (res) => {
-      if (res.confirm) doDeleteAccount()
-    },
-  })
-}
-
-async function doDeleteAccount() {
-  try {
-    await deleteAccount()
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
-    uni.showToast({ title: '账号已注销', icon: 'none' })
-    setTimeout(() => { uni.reLaunch({ url: '/pages/profile/index' }) }, 600)
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '注销失败', icon: 'none' })
-  }
-}
-
 onMounted(() => {
   if (userStore.isLoggedIn()) {
     userStore.fetchStats()
@@ -251,18 +215,24 @@ onMounted(() => {
 .nickname { font-size: var(--font-subtitle); font-weight: 700; color: var(--text-primary); }
 .nickname-edit { flex-shrink: 0; }
 
+/* 我要贡献（卡片主操作入口，落在统计三宫格下方） */
+.contribute-cta { margin-top: var(--spacing-md); }
+
 /* 统计三宫格（融合进 user-card，扁平化：去掉内层卡片阴影/背景，与卡片等宽） */
 .user-stats { width: 100%; margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .user-card :deep(.stat-cell) { background: transparent; box-shadow: none; }
 .user-card :deep(.stats-row) { gap: 0; }
 
-.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-xl) 0 var(--spacing-md); }
-.version-text { display: block; font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }
-.version-sub { display: block; font-size: 20rpx; color: var(--text-tertiary); margin-top: var(--spacing-xs); }
-.logout-wrap { padding: var(--spacing-md) var(--spacing-md) 0; }
-.cancel-account { display: flex; justify-content: center; padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
-.cancel-account:active { opacity: 0.6; }
-.cancel-account-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
+.version-text { display: block; font-size: 22rpx; font-weight: 500; color: var(--text-tertiary); opacity: 0.7; }
+
+/* 统计骨架（加载态占位，避免数字跳动） */
+.stats-skeleton { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
+.sk-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: var(--spacing-xs) 0; }
+.sk-value { width: 56rpx; height: 34rpx; border-radius: 8rpx; background: var(--bg-soft); }
+.sk-label { width: 72rpx; height: 22rpx; border-radius: 6rpx; background: var(--bg-soft); }
+.sk-value, .sk-label { animation: sk-pulse 1.2s ease-in-out infinite; }
+@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 .modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal-content { width: 560rpx; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); }
