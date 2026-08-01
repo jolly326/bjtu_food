@@ -1,14 +1,16 @@
 <template>
   <view class="custom-tab-bar">
-    <view
-      v-for="(item, index) in tabs"
-      :key="index"
-      class="tab-item"
-      :class="{ active: current === item.page }"
-      @tap="switchTab(item.page)"
-    >
-      <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
-      <text class="tab-text">{{ item.text }}</text>
+    <view class="tab-bar-inner">
+      <view
+        v-for="(item, index) in tabs"
+        :key="index"
+        class="tab-item"
+        :class="{ active: current === item.page }"
+        @tap="switchTab(item.page)"
+      >
+        <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+        <text class="tab-text">{{ item.text }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -40,30 +42,20 @@ function switchTab(page: string) {
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  height: var(--tabbar-height);
+  /* 外层仅负责定位 + 底部安全区内边距（透明，不铺白） */
   padding-bottom: env(safe-area-inset-bottom);
-  background: transparent;
-  border-top: none;
-  box-shadow: none;
   z-index: 100;
 }
-/* 白色卡片背景层：仅覆盖内容区高度（不含 safe-area 底部内边距），
-   与图标行垂直居中对齐，避免白卡比图标低 */
-.custom-tab-bar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
+/* 白色卡片背景层：固定内容高度，承载图标并居中，安全区在其下方透出页面 */
+.tab-bar-inner {
+  display: flex;
   height: var(--tabbar-height);
   background: var(--blur-bg-solid);
   border-top: 1rpx solid var(--glass-highlight);
   box-shadow: var(--shadow-bar);
-  z-index: -1;
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .custom-tab-bar::before {
+  .tab-bar-inner {
     background: var(--blur-bg);
     backdrop-filter: blur(var(--blur-radius)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
