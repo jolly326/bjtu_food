@@ -39,7 +39,10 @@
             </view>
             <view class="item-info">
               <text class="item-name">{{ item.type === 'canteen' ? '食堂：' : '档口：' }}{{ item.name }}</text>
-              <text v-if="item.location" class="item-meta"><IconSvg name="location" :size="22" color="var(--text-tertiary)" /> {{ item.location }}</text>
+              <view v-if="item.location" class="item-meta item-meta-row">
+                <IconSvg name="location" :size="22" color="var(--text-tertiary)" class="item-meta-icon" />
+                <text class="item-meta-text">{{ item.location }}</text>
+              </view>
               <text v-if="item.auditStatus === 'rejected' && item.rejectReason" class="item-reason">退回原因：{{ item.rejectReason }}</text>
             </view>
             <StatusBadge :status="(item.auditStatus as any) || 'pending'" />
@@ -146,6 +149,9 @@ function onRefresh() {
 .item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .item-name { font-size: var(--font-caption); font-weight: 600; color: var(--text-primary); }
 .item-meta { font-size: var(--font-aux); color: var(--text-secondary); }
+.item-meta-row { display: flex; align-items: center; gap: var(--spacing-xs); }
+.item-meta-icon { flex-shrink: 0; }
+.item-meta-text { flex: 1; min-width: 0; }
 .item-reason { font-size: var(--font-tiny); color: var(--color-error); line-height: 1.4; }
 .publish-actions { margin-top: var(--spacing-lg); }
 </style>
