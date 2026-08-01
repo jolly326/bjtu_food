@@ -51,11 +51,11 @@
         <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
         <SettingGroup title="我的" class="enter-up" :style="{ '--enter-i': 1 }">
           <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
-          <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
+          <SettingCell icon="bell" label="消息中心" :badge-count="notifyStore.unreadCount" @tap="goToNotify" />
         </SettingGroup>
 
         <SettingGroup title="通用" class="enter-up" :style="{ '--enter-i': 2 }">
-          <SettingCell icon="folder" label="发布与贡献" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
+          <SettingCell icon="folder" label="我的发布" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
         </SettingGroup>
@@ -74,17 +74,8 @@
     <!-- 申请下架/纠错 Sheet（ApplySheet 跨页共用，profile 自由申请） -->
     <ApplySheet :open="applyOpen" @update:open="applyOpen = $event" @submitted="onApplySubmitted" />
 
-    <!-- 昵称编辑 Modal -->
-    <view v-if="showNicknameEditor" class="modal-mask" @tap="showNicknameEditor = false">
-      <view class="modal-content" @tap.stop>
-        <text class="modal-title">修改昵称</text>
-        <input v-model="editingNickname" class="modal-input" placeholder="输入新昵称" maxlength="20" confirm-type="done" @confirm="confirmEditNickname" />
-        <view class="modal-actions">
-          <text class="modal-btn modal-btn-cancel" @tap="showNicknameEditor = false">取消</text>
-          <text class="modal-btn modal-btn-confirm" @tap="confirmEditNickname">确认</text>
-        </view>
-      </view>
-    </view>
+    <!-- 昵称编辑 Sheet（NicknameSheet，复用 ContributeSheet 视觉语言 + spring 0.3 进场） -->
+    <NicknameSheet :open="nicknameOpen" :value="userInfo?.nickname" @update:open="nicknameOpen = $event" @confirm="confirmEditNickname" />
   </view>
 </template>
 
@@ -98,6 +89,7 @@ import AuthForm from '@/components/AuthForm.vue'
 import StatsRow from '@/components/StatsRow.vue'
 import ContributeSheet from '@/components/ContributeSheet.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
+import NicknameSheet from '@/components/NicknameSheet.vue'
 import SettingGroup from '@/components/SettingGroup.vue'
 import SettingCell from '@/components/SettingCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -113,6 +105,7 @@ const isLoggedIn = computed(() => userStore.isLoggedIn())
 
 const contributeOpen = ref(false)
 const applyOpen = ref(false)
+const nicknameOpen = ref(false)
 
 function onContributePick(key: string) {
   contributeOpen.value = false
@@ -125,9 +118,6 @@ function onContributePick(key: string) {
 function onApplySubmitted() {
   setTimeout(() => uni.navigateTo({ url: '/pages/profile/messages-services/index' }), 400)
 }
-
-const showNicknameEditor = ref(false)
-const editingNickname = ref('')
 
 function handleEditAvatar() {
   uni.chooseImage({
@@ -148,19 +138,18 @@ function handleEditAvatar() {
 }
 
 function handleEditNickname() {
-  editingNickname.value = userInfo.value?.nickname || ''
-  showNicknameEditor.value = true
+  nicknameOpen.value = true
 }
 
-async function confirmEditNickname() {
-  const name = editingNickname.value.trim()
-  if (!name) {
+async function confirmEditNickname(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed) {
     uni.showToast({ title: '昵称不能为空', icon: 'none' })
     return
   }
   try {
-    await userStore.updateProfile({ nickname: name })
-    showNicknameEditor.value = false
+    await userStore.updateProfile({ nickname: trimmed })
+    nicknameOpen.value = false
     uni.showToast({ title: '昵称已更新', icon: 'success' })
   } catch {
     uni.showToast({ title: '更新失败', icon: 'none' })
@@ -171,10 +160,9 @@ function goToReviews() {
   uni.navigateTo({ url: '/pages/pages-detail/review-list' })
 }
 function onStatsTap(key: 'review' | 'published' | 'pending') {
-  if (key === 'pending' && (userStore.userStats.pendingCount ?? 0) === 0) return
   if (key === 'review') goToReviews()
-  else if (key === 'published') goToMessagesServices()
-  else if (key === 'pending') goToMessagesServices()
+  else if (key === 'published') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=published' })
+  else if (key === 'pending') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=pending' })
 }
 function goToMyMoments() {
   uni.navigateTo({ url: '/pages/my-moments/index' })
@@ -233,13 +221,4 @@ onMounted(() => {
 .sk-label { width: 72rpx; height: 22rpx; border-radius: 6rpx; background: var(--bg-soft); }
 .sk-value, .sk-label { animation: sk-pulse 1.2s ease-in-out infinite; }
 @keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-
-.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { width: 560rpx; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); }
-.modal-title { display: block; font-size: var(--font-card); font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
-.modal-input { width: 100%; height: 80rpx; border: 2rpx solid var(--border-color); border-radius: var(--radius-card); padding: 0 var(--spacing-md); font-size: var(--font-body); box-sizing: border-box; }
-.modal-actions { display: flex; justify-content: space-between; margin-top: var(--spacing-lg); gap: var(--spacing-sm); }
-.modal-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-card); font-size: var(--font-body); font-weight: 500; }
-.modal-btn-cancel { background: var(--bg-page); color: var(--text-secondary); }
-.modal-btn-confirm { background: var(--color-primary); color: var(--text-white); }
 </style>

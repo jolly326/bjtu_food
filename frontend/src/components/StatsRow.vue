@@ -4,7 +4,7 @@
       v-for="item in cells"
       :key="item.key"
       class="stat-cell"
-      :class="{ pressed: pressedKey === item.key, disabled: item.key === 'pending' && (item.value ?? 0) === 0 }"
+      :class="{ pressed: pressedKey === item.key }"
       @touchstart="pressedKey = item.key"
       @touchend="pressedKey = ''"
       @touchcancel="pressedKey = ''"
@@ -35,7 +35,6 @@ const emit = defineEmits<{ (e: 'tap', key: StatsCellKey): void }>()
 const pressedKey = ref('')
 
 function onCellTap(key: StatsCellKey) {
-  if (key === 'pending' && (props.pendingCount ?? 0) === 0) return
   emit('tap', key)
 }
 
@@ -65,8 +64,6 @@ const cells = computed(() => [
   transition: transform 120ms var(--ease-out);
 }
 .stat-cell.pressed { transform: scale(var(--press-scale)); }
-.stat-cell.disabled { opacity: 0.4; color: var(--text-tertiary); }
-.stat-cell.disabled.pressed { transform: none; }
 .stat-value { font-size: var(--font-card); font-weight: 700; color: var(--text-primary); line-height: 1.1; }
 .stat-label { font-size: var(--font-tiny); color: var(--text-tertiary); }
 </style>

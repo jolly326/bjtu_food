@@ -14,7 +14,8 @@
     <text v-else class="menu-icon-placeholder" />
     <text class="menu-label">{{ label }}</text>
     <text v-if="hint" class="menu-hint">{{ hint }}</text>
-    <view v-if="badge" class="menu-badge" />
+    <view v-if="badgeCount && badgeCount > 0" class="menu-badge-count">{{ badgeCount > 99 ? '99+' : badgeCount }}</view>
+    <view v-else-if="badge" class="menu-badge" />
     <IconSvg name="arrow-left" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
   </view>
 </template>
@@ -28,6 +29,8 @@ defineProps<{
   icon?: string
   hint?: string
   badge?: boolean
+  /** 数值型未读角标；传入 >0 时显示数字（上限 99+），优先级高于 badge 红点 */
+  badgeCount?: number
 }>()
 
 defineEmits<{ (e: 'tap'): void }>()
@@ -55,4 +58,18 @@ const pressed = ref(false)
 .menu-hint { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
 .menu-arrow { flex-shrink: 0; transform: rotate(180deg); }
 .menu-badge { width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--color-error); flex-shrink: 0; margin-right: calc(-1 * var(--spacing-xs)); }
+.menu-badge-count {
+  flex-shrink: 0;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: var(--color-error);
+  color: var(--text-white);
+  font-size: var(--font-aux);
+  font-weight: 600;
+  line-height: 32rpx;
+  text-align: center;
+  margin-right: calc(-1 * var(--spacing-xs));
+}
 </style>
