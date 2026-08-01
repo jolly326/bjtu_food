@@ -74,9 +74,7 @@ async function request<T>(
 }
 
 export async function get<T>(url: string, data?: any): Promise<T> {
-  console.log('[http] GET', url)
   const result = await request<T>('GET', url, data)
-  console.log('[http] GET success', url)
   return result
 }
 

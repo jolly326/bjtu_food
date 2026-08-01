@@ -277,7 +277,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   100% { background-position: 150% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-soft) 25%, #ece6e0 37%, var(--bg-soft) 63%);
+  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
   border-radius: var(--radius-card);

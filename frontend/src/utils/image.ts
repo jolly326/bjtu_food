@@ -8,6 +8,4 @@ export function getImageUrl(path?: string | null): string {
   return path
 }
 
-/** 与 getImageUrl 等价，语义化别名，供 API 层集中补全图片绝对地址 */
-export const toAbsoluteImageUrl = getImageUrl
 

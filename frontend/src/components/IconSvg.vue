@@ -51,7 +51,6 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   share: { path: ['M18 5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M18 19m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'm8.6 13.5 6.8 4', 'M15.4 6.5l-6.8 4'] },
   lightbulb: { path: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
-  empty: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
   image: { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'm21 15-5-5L5 21'] },
   // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
   // 返回（左箭头，区别于 back 的右箭头）
@@ -110,19 +109,19 @@ const COLOR_VARS: Record<string, string> = {
   '--color-error': '#E54D42',
   '--color-success': '#10B981',
   '--text-tertiary': '#A89E96',
-  '--text-primary': '#2B2118',
-  '--text-secondary': '#6B5D52',
+  '--text-primary': '#1C1917',
+  '--text-secondary': '#6B625B',
   '--text-white': '#FFFFFF',
   '--badge-dark-text': '#FFFFFF',
   '--white': '#FFFFFF',
-  'currentColor': '#2B2118',
+  'currentColor': '#1C1917',
 }
 
 function resolveColor(c: string): string {
-  if (!c) return '#2B2118'
+  if (!c) return '#1C1917'
   if (c.startsWith('var(')) {
     const name = c.slice(4, -1).trim()
-    return COLOR_VARS[name] || '#2B2118'
+    return COLOR_VARS[name] || '#1C1917'
   }
   return c
 }
@@ -142,7 +141,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ (e: 'click'): void }>()
 
 const viewBox = 24
-const icon = computed(() => ICONS[props.name] || ICONS.empty)
+const icon = computed(() => ICONS[props.name] || ICONS.dish)
 const stroke = computed(() => resolveColor(props.color))
 
 // 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染

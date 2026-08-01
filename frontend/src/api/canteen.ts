@@ -1,17 +1,17 @@
 import type { CanteenInfo, StallDetail } from '@/types/canteen'
 import type { BannerItem } from '@/types/banner'
 import { get } from './http'
-import { toAbsoluteImageUrl } from '@/utils/image'
+import { getImageUrl } from '@/utils/image'
 
 function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(toAbsoluteImageUrl)
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
   if (typeof value !== 'string' || !value.trim()) return []
   const text = value.trim()
   try {
     const parsed = JSON.parse(text)
-    return Array.isArray(parsed) ? normalizeImages(parsed) : [toAbsoluteImageUrl(text)]
+    return Array.isArray(parsed) ? normalizeImages(parsed) : [getImageUrl(text)]
   } catch {
-    return text.split('|||').map(item => item.trim()).filter(Boolean).map(toAbsoluteImageUrl)
+    return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
   }
 }
 

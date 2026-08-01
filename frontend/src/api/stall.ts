@@ -3,20 +3,20 @@
  */
 import { get } from './http'
 import type { StallInfo, MyPublishStall } from '@/types/canteen'
-import { toAbsoluteImageUrl } from '@/utils/image'
+import { getImageUrl } from '@/utils/image'
 
 export async function getStallsByCanteen(canteenId: number): Promise<StallInfo[]> {
   return get<StallInfo[]>('/stalls', { canteenId })
 }
 
 function parseImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && !!v).map(toAbsoluteImageUrl)
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && !!v).map(getImageUrl)
   if (typeof value !== 'string' || !value.trim()) return []
   try {
     const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parseImages(parsed) : [toAbsoluteImageUrl(value)]
+    return Array.isArray(parsed) ? parseImages(parsed) : [getImageUrl(value)]
   } catch {
-    return value.split('|||').map(v => v.trim()).filter(Boolean).map(toAbsoluteImageUrl)
+    return value.split('|||').map(v => v.trim()).filter(Boolean).map(getImageUrl)
   }
 }
 
