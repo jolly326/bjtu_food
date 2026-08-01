@@ -61,7 +61,10 @@ function handleBack() {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
 }
+.back-area:active { transform: scale(var(--press-scale)); }
 .back-arrow {
   font-size: 44rpx;
   line-height: 1;

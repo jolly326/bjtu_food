@@ -184,7 +184,12 @@ function onClick() {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  transition: var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
 }
+/* 按压反馈：仅作视觉 scale，对装饰性图标无害；
+   作为按钮使用的实例（返回/编辑箭头等）由父级 @tap 触发交互。 */
+.icon-svg:active { transform: scale(var(--press-scale)); }
 .icon-svg-el {
   width: 100%;
   height: 100%;

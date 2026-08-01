@@ -195,11 +195,13 @@ onMounted(() => {
 /* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user；内部竖向排列，统计与入口融合） */
 .user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; }
+.avatar-wrap { flex-shrink: 0; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.avatar-wrap:active { transform: scale(var(--press-scale)); }
 .avatar { width: 96rpx; height: 96rpx; border-radius: var(--radius-card); background: var(--bg-page); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.nickname-row { display: flex; align-items: center; gap: var(--spacing-xs); }
+.nickname-row { display: flex; align-items: center; gap: var(--spacing-xs); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.nickname-row:active { transform: scale(var(--press-scale)); }
 .nickname { font-size: var(--font-subtitle); font-weight: 700; color: var(--text-primary); }
 .nickname-edit { flex-shrink: 0; }
 

@@ -192,6 +192,6 @@ onMounted(() => { loadData(true) })
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .footer-spinner { animation-duration: 1.4s; }
+  .footer-spinner { animation: none; }
 }
 </style>

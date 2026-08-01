@@ -44,14 +44,8 @@
       </CardSection>
 
       <CardSection title="菜品图片（≤9 张）">
-        <view class="image-grid">
-          <view v-for="(img, idx) in form.images" :key="idx" class="image-cell">
-            <image class="image-thumb" :src="getImageUrl(img)" mode="aspectFill" />
-            <view class="image-remove" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
-          </view>
-          <view v-if="form.images.length < 9" class="image-cell image-add" @tap="selectImage">
-            <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
-          </view>
+        <view class="dish-image-uploader">
+          <ImageUploader v-model="form.images" :max="9" />
         </view>
       </CardSection>
 
@@ -74,9 +68,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
-import { getImageUrl } from '@/utils/image'
-import IconSvg from '@/components/IconSvg.vue'
-import { uploadImage } from '@/api/upload'
+import ImageUploader from '@/components/ImageUploader.vue'
 import { publishDish, updateMyDish } from '@/api/publish'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { useUserStore } from '@/stores/user'
@@ -126,26 +118,6 @@ function toggleTag(tag: string) {
   const i = form.tags.indexOf(tag)
   if (i >= 0) form.tags.splice(i, 1)
   else form.tags.push(tag)
-}
-
-function removeImage(idx: number) {
-  form.images.splice(idx, 1)
-}
-
-function selectImage() {
-  uni.chooseImage({
-    count: 9 - form.images.length,
-    success: async (res) => {
-      for (const p of res.tempFilePaths.slice(0, 9 - form.images.length)) {
-        try {
-          const url = await uploadImage(p)
-          form.images.push(url)
-        } catch {
-          uni.showToast({ title: '图片上传失败', icon: 'none' })
-        }
-      }
-    },
-  })
 }
 
 async function handleSubmit() {
@@ -208,12 +180,10 @@ onLoad((query: any) => {
 .tag-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-xs) 0; }
 .tag-chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-page); font-size: var(--font-aux); color: var(--text-secondary); border: 2rpx solid var(--border-color); }
 .tag-chip.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
-.image-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
-.image-cell { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); overflow: hidden; position: relative; background: var(--bg-page); }
-.image-thumb { width: 100%; height: 100%; }
-.image-remove { position: absolute; top: 4rpx; right: 4rpx; width: 36rpx; height: 36rpx; background: var(--badge-dark-bg); color: var(--badge-dark-text); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-tiny); }
-.image-add { border: 4rpx dashed var(--border-color); display: flex; align-items: center; justify-content: center; background: var(--bg-page); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.image-add:active { transform: scale(var(--press-scale)); }
+/* 复用 ImageUploader：保持与历史设计一致的 180rpx 单元格尺寸 */
+.dish-image-uploader { width: 100%; }
+.dish-image-uploader :deep(.img-cell) { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); }
+.dish-image-uploader :deep(.img-remove) { width: 36rpx; height: 36rpx; }
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); padding: var(--spacing-sm); border: 2rpx solid var(--border-color); border-radius: var(--radius-icon); box-sizing: border-box; }
 .char-count { display: block; text-align: right; font-size: var(--font-tiny); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
 .submit-wrap { padding: var(--spacing-md); }
