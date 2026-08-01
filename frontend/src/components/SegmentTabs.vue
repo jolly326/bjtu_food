@@ -100,6 +100,6 @@ function select(key: string) {
 .seg-light .seg-thumb { background: var(--color-primary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .seg-thumb { transition: opacity 0.2s ease; transform: none !important; }
+  .seg-thumb { transition: none !important; }
 }
 </style>

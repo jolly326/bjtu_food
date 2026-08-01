@@ -256,6 +256,7 @@ watch(tab, () => {
 
 @media (prefers-reduced-motion: reduce) {
   .related-sheet { transition: opacity 0.2s ease; transform: none !important; }
+  .sheet-mask { transition: none !important; }
   .footer-spinner { animation: none; }
 }
 </style>

@@ -2,7 +2,7 @@
   <view class="image-fallback">
     <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
       <view v-else class="placeholder">
-        <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
+        <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
   </view>
 </template>

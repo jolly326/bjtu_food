@@ -143,7 +143,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ (e: 'click'): void }>()
 
 const viewBox = 24
-// 开发期告警：未知图标名会静默回退到 dish（碗）图标，难以及时发现。
+// 开发期告警：未知图标名会静默回退到 empty（空盒）图标，难以及时发现。
 // 仅开发环境告警，生产环境保持静默回退，渲染不中断。
 if (props.name && !ICONS[props.name]) {
   // uni-app 支持 import.meta.env.DEV；?. 容错避免非 Vite 环境报错
@@ -151,7 +151,7 @@ if (props.name && !ICONS[props.name]) {
     console.warn('[IconSvg] unknown icon name:', props.name)
   }
 }
-const icon = computed(() => ICONS[props.name] || ICONS.dish)
+const icon = computed(() => ICONS[props.name] || ICONS.empty)
 const stroke = computed(() => resolveColor(props.color))
 
 // 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染

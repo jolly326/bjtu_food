@@ -307,7 +307,7 @@ function handleBannerTap(banner: BannerItem) {
 .home-swiper { height: 320rpx; border-radius: var(--radius-card); overflow: hidden; }
 .swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary); }
 .swiper-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
+.swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, transparent 100%); }
 .swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: var(--tracking-h2); color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }
 .swiper-subtitle { font-size: var(--font-body); color: var(--text-white-secondary); z-index: 1; }
 .section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); width: 100%; box-sizing: border-box; }
@@ -344,7 +344,7 @@ function handleBannerTap(banner: BannerItem) {
   overflow: hidden;
 }
 .broadcast-line-enter {
-  animation: broadcast-up 0.45s var(--ease-out);
+  animation: broadcast-up 0.3s var(--ease-out);
 }
 @keyframes broadcast-up {
   from { transform: translateY(100%); opacity: 0; }
@@ -392,7 +392,7 @@ function handleBannerTap(banner: BannerItem) {
 .canteen-illu { opacity: 0.3; }
 .swiper-placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .swiper-ph-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.canteen-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-deep) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
+.canteen-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-deep) 0%, var(--overlay-dark-soft) 50%, transparent 100%); }
 .canteen-name { position: absolute; left: var(--spacing-md); bottom: var(--spacing-md); right: var(--spacing-md); font-size: var(--font-caption); font-weight: 700; color: var(--text-white); z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ===== 列表底部状态 ===== */
