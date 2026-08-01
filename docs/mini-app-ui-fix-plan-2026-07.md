@@ -48,7 +48,7 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 >
 > 级别：BLOCKER（阻断级，须立即修）/ MAJOR（主要）/ MINOR（次要）/ POLISH（打磨）。每条含 `file:line` 与对应新增红线。
 >
-> 代码修复 commit 哈希待补：`[code fix commit: TBD]`
+> 代码修复 commit 哈希待补：`[code fix commit: 4347f72d4a1fe730889929da9ceaa02c48f00cc5]`
 
 ### 一、BLOCKER（4 项 · 阻断级）
 
@@ -92,7 +92,7 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 
 ### 五、落实分工与关联
 
-- **BLOCKER（B1~B4）**：须即刻派 `miniapp-dev` 改代码，`[code fix commit: TBD]`。
+- **BLOCKER（B1~B4）**：须即刻派 `miniapp-dev` 改代码，`[code fix commit: 4347f72d4a1fe730889929da9ceaa02c48f00cc5]`。
 - **MAJOR（M1~M5）**：随 BLOCKER 同期整改，不晚于下一交付验收。
 - **MINOR（N1~N7）/ POLISH（P1~P4）**：由开发按本清单随迭代修，不阻断交付验收。
 - **文档同步**：本次审计新增的 8 条红线已写入 `project_spec.md` §4.9（UI 全量审计红线）与 `docs/mini-app-ui.md` §0.3（一致性红线摘要），本文件仅作派工留档。
