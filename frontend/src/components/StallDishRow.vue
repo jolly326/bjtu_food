@@ -48,7 +48,7 @@ function onClick() {
 </script>
 
 <style scoped>
-.dish-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-sm); border-bottom: 2rpx solid var(--bg-page); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.dish-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-sm); border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .dish-row.pressed { transform: scale(var(--press-scale)); }
 .dish-row:last-child { border-bottom: none; }
 .dish-row-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-card); overflow: hidden; flex-shrink: 0; background: var(--bg-page); }

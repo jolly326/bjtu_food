@@ -107,7 +107,7 @@ function handleClick() {
   min-width: 0;
   box-sizing: border-box;
   padding: var(--spacing-md) var(--spacing-sm);
-  border-bottom: 2rpx solid var(--bg-page);
+  border-bottom: 2rpx solid var(--border-color);
   transition: transform 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
