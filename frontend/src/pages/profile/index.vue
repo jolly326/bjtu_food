@@ -55,7 +55,7 @@
         </SettingGroup>
 
         <SettingGroup title="通用" class="enter-up" :style="{ '--enter-i': 2 }">
-          <SettingCell icon="folder" label="我的发布" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
+          <SettingCell icon="list" label="我的发布" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
         </SettingGroup>

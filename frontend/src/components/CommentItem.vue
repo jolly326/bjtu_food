@@ -114,8 +114,8 @@ function onLongPress() {
 .c-useful { display: inline-flex; align-items: center; gap: 4rpx; padding: 2rpx 10rpx; border-radius: var(--radius-tag); border: 2rpx solid var(--border-light); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .c-useful:active { transform: scale(var(--press-scale)); }
 .c-useful.active { border-color: var(--color-like); background: var(--color-like-soft); }
-.c-useful-icon { font-size: 26rpx; line-height: 1; color: var(--text-secondary); }
+.c-useful-icon { font-size: var(--font-aux); line-height: 1; color: var(--text-secondary); }
 .c-useful.active .c-useful-icon { color: var(--color-like); }
-.c-useful-count { font-size: 20rpx; font-weight: 600; color: var(--text-secondary); }
+.c-useful-count { font-size: var(--font-tiny); font-weight: 600; color: var(--text-secondary); }
 .c-useful.active .c-useful-count { color: var(--color-like); }
 </style>
