@@ -44,7 +44,7 @@
         <!-- 全部菜品 -->
         <CardSection>
           <SectionTitle :title="`全部菜品（${dishList.length}）`" noMargin />
-          <view v-if="dishList.length > 0" class="dish-list">
+          <view v-if="dishList.length > 0" class="dish-list" :class="{ 'dish-list--collapsed': dishList.length > 6 && !dishesExpanded }">
             <StallDishRow
               v-for="dish in dishList"
               :key="dish.id"
@@ -53,6 +53,9 @@
             />
           </view>
           <EmptyState v-else text="该档口暂无菜品" />
+          <view v-if="dishList.length > 6" class="dish-expand" @tap="dishesExpanded = !dishesExpanded">
+            <text class="dish-expand-text">{{ dishesExpanded ? '收起' : `查看全部菜品（${dishList.length}） ›` }}</text>
+          </view>
         </CardSection>
 
         <!-- 用户评价（仅展示前 3 条，点击查看全部） -->
@@ -116,6 +119,9 @@ const stallDetail = ref<StallDetail | null>(null)
 const dishList = computed(() => dishStore.stallDishes)
 const refresherTriggered = ref(false)
 const loading = ref(true)
+
+/** 全部菜品折叠开关：菜品 > 6 时默认折叠，点击「查看全部菜品」展开 */
+const dishesExpanded = ref(false)
 
 /** 用户评价区（前 3 条预览 + 总数，点击进全部） */
 const reviewList = ref<Review[]>([])
@@ -200,6 +206,22 @@ function onRefresh() {
 .info-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: 600; }
 .info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; }
 .dish-list { margin-top: var(--spacing-sm); }
+.dish-list--collapsed {
+  max-height: 480rpx;        /* ~ enough for ~3-4 rows */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+}
+.dish-expand {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  justify-content: center;
+}
+.dish-expand-text {
+  font-size: var(--font-aux);
+  color: var(--color-primary);
+  font-weight: 600;
+}
 .review-list { margin-top: var(--spacing-sm); }
 .review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
