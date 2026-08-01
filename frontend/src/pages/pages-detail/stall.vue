@@ -27,13 +27,15 @@
           </SectionTitle>
           <view class="info-body">
             <text class="info-name">{{ stallDetail.name }}</text>
-            <view class="info-location">
-              <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
-              <text class="info-location-text">{{ stallDetail.location }}</text>
-            </view>
-            <view class="info-rating" v-if="stallDetail.avgRating != null && stallDetail.avgRating > 0">
-              <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="info-rating-icon" />
-              <text class="info-rating-text">{{ stallDetail.avgRating.toFixed(1) }}</text>
+            <view class="info-meta">
+              <view class="info-location">
+                <IconSvg name="location" :size="26" color="var(--color-primary)" class="info-location-icon" />
+                <text class="info-location-text">{{ stallDetail.location }}</text>
+              </view>
+              <view class="info-rating" v-if="stallDetail.avgRating != null && stallDetail.avgRating > 0">
+                <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="info-rating-icon" />
+                <text class="info-rating-text">{{ stallDetail.avgRating.toFixed(1) }}</text>
+              </view>
             </view>
             <view class="info-desc" v-if="stallDetail.description">
               <text class="info-desc-text">{{ stallDetail.description }}</text>
@@ -200,11 +202,17 @@ function onRefresh() {
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-.info-location-text { font-size: var(--font-caption); color: var(--text-secondary); font-weight: 500; }
+.info-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+.info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
 .info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
-.info-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: 600; }
-.info-desc-text { font-size: var(--font-caption); color: var(--text-secondary); line-height: 1.4; display: block; }
+.info-rating-text { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
+.info-desc-text { font-size: var(--font-caption); font-weight: 400; color: var(--text-secondary); line-height: 1.5; display: block; }
 .dish-list { margin-top: var(--spacing-sm); }
 .dish-list--collapsed {
   max-height: 480rpx;        /* ~ enough for ~3-4 rows */
