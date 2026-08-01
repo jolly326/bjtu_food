@@ -20,7 +20,7 @@
 
         <!-- 食堂信息（合并卡片，含位置与简介，无评分） -->
         <CardSection>
-          <SectionTitle :title="canteenInfo?.name || '食堂'" noMargin>
+          <SectionTitle title="食堂信息" noMargin>
             <template #extra>
               <text class="feedback-link" @tap="openApply">反馈信息有误</text>
             </template>
