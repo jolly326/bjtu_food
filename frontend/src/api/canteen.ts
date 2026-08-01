@@ -3,7 +3,7 @@ import type { BannerItem } from '@/types/banner'
 import { get } from './http'
 import { getImageUrl } from '@/utils/image'
 
-function normalizeImages(value: unknown): string[] {
+export function normalizeImages(value: unknown): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
   if (typeof value !== 'string' || !value.trim()) return []
   const text = value.trim()
