@@ -255,7 +255,16 @@ onLoad(async (query) => {
 }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
-.info-desc-text { font-size: var(--font-caption); font-weight: 400; color: var(--text-secondary); line-height: 1.5; display: block; }
+.info-desc-text {
+  font-size: var(--font-caption);
+  font-weight: 400;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 
 /* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
 .stall-waterfall { margin-top: var(--spacing-sm); }
