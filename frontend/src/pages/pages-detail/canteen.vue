@@ -26,8 +26,8 @@
             </template>
           </SectionTitle>
           <view class="info-body">
-            <text class="info-name">{{ canteenInfo.name }}</text>
-            <view class="info-meta">
+            <view class="info-head">
+              <text class="info-name">{{ canteenInfo.name }}</text>
               <view class="info-location">
                 <IconSvg name="location" :size="26" color="var(--color-primary)" class="info-location-icon" />
                 <text class="info-location-text">{{ canteenInfo.location }}</text>
@@ -230,15 +230,30 @@ onLoad(async (query) => {
 
 /* 食堂信息卡片（合并卡片，含位置与简介，无评分） */
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
-.info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-.info-meta {
+.info-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: row;
+  align-items: baseline;
   gap: var(--spacing-sm);
 }
+.info-name {
+  font-size: var(--font-h3);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.info-location {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+.info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
 .info-desc-text { font-size: var(--font-caption); font-weight: 400; color: var(--text-secondary); line-height: 1.5; display: block; }
 
