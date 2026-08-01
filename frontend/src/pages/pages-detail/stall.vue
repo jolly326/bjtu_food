@@ -200,11 +200,11 @@ function onRefresh() {
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-.info-location-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.info-location-text { font-size: var(--font-caption); color: var(--text-secondary); font-weight: 500; }
 .info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .info-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: 600; }
-.info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; }
+.info-desc-text { font-size: var(--font-caption); color: var(--text-secondary); line-height: 1.4; display: block; }
 .dish-list { margin-top: var(--spacing-sm); }
 .dish-list--collapsed {
   max-height: 480rpx;        /* ~ enough for ~3-4 rows */
