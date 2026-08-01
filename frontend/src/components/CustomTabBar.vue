@@ -44,6 +44,9 @@ function switchTab(page: string) {
   height: var(--tabbar-height);
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--blur-bg-solid);
+  /* 仅内容区绘制背景：safe-area 底部内边距区域不铺白，使白色卡片与图标垂直居中一致 */
+  background-clip: content-box;
+  -webkit-background-clip: content-box;
   border-top: 1rpx solid var(--glass-highlight);
   box-shadow: var(--shadow-bar);
   z-index: 100;

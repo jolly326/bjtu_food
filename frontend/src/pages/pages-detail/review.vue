@@ -7,7 +7,7 @@
       <CardSection>
         <text class="section-label">评分</text>
         <view class="rating-panel">
-          <Rating v-model="form.rating" :readonly="false" :show-text="true" />
+          <Rating v-model="form.rating" :readonly="false" :show-text="true" :star-size="48" />
         </view>
       </CardSection>
 

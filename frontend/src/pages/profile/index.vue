@@ -36,23 +36,17 @@
             :pending-count="userStore.userStats.pendingCount ?? 0"
             @tap="onStatsTap"
           />
-
-          <!-- 我要贡献：低调一行小文字链接，不突出 -->
-          <view class="contribute-link" @tap="contributeOpen = true">
-            <text class="contribute-link-text">我要贡献 ›</text>
-          </view>
         </view>
 
         <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
         <SettingGroup title="我的内容" class="enter-up" :style="{ '--enter-i': 1 }">
-          <SettingCell icon="list" label="我的提交" hint="申请记录" @tap="goToMySubmissions" />
           <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
           <SettingCell icon="star" label="我的评价" @tap="goToReviews" />
-          <SettingCell icon="edit" label="我的发布" hint="菜品/档口·审核态" @tap="goToMyPublish" />
         </SettingGroup>
 
         <SettingGroup title="消息与服务" class="enter-up" :style="{ '--enter-i': 2 }">
           <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
+          <SettingCell icon="edit" label="我的发布" hint="发布菜品/档口/纠错" @tap="contributeOpen = true" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
         </SettingGroup>
@@ -182,14 +176,8 @@ function onStatsTap(key: 'review' | 'published' | 'pending') {
   else if (key === 'published') uni.navigateTo({ url: '/pages/profile/my-publish' })
   else if (key === 'pending') uni.navigateTo({ url: '/pages/profile/my-submissions' })
 }
-function goToMyPublish() {
-  uni.navigateTo({ url: '/pages/profile/my-publish' })
-}
 function goToMyMoments() {
   uni.navigateTo({ url: '/pages/my-moments/index' })
-}
-function goToMySubmissions() {
-  uni.navigateTo({ url: '/pages/profile/my-submissions' })
 }
 function goToNotify() {
   uni.navigateTo({ url: '/pages/notify/index' })
@@ -263,11 +251,6 @@ onMounted(() => {
 .user-stats { width: 100%; margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .user-card :deep(.stat-cell) { background: transparent; box-shadow: none; }
 .user-card :deep(.stats-row) { gap: 0; }
-
-/* 我要贡献：低调一行小文字链接（去高亮卡片） */
-.contribute-link { margin-top: var(--spacing-sm); display: flex; justify-content: center; -webkit-tap-highlight-color: transparent; }
-.contribute-link:active { opacity: 0.6; }
-.contribute-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 .version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-xl) 0 var(--spacing-md); }
 .version-text { display: block; font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }
