@@ -43,16 +43,27 @@ function switchTab(page: string) {
   display: flex;
   height: var(--tabbar-height);
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--blur-bg-solid);
-  /* 仅内容区绘制背景：safe-area 底部内边距区域不铺白，使白色卡片与图标垂直居中一致 */
-  background-clip: content-box;
-  -webkit-background-clip: content-box;
-  border-top: 1rpx solid var(--glass-highlight);
-  box-shadow: var(--shadow-bar);
+  background: transparent;
+  border-top: none;
+  box-shadow: none;
   z-index: 100;
 }
+/* 白色卡片背景层：仅覆盖内容区高度（不含 safe-area 底部内边距），
+   与图标行垂直居中对齐，避免白卡比图标低 */
+.custom-tab-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--tabbar-height);
+  background: var(--blur-bg-solid);
+  border-top: 1rpx solid var(--glass-highlight);
+  box-shadow: var(--shadow-bar);
+  z-index: -1;
+}
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .custom-tab-bar {
+  .custom-tab-bar::before {
     background: var(--blur-bg);
     backdrop-filter: blur(var(--blur-radius)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
