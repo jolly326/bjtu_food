@@ -26,6 +26,7 @@
             </template>
           </SectionTitle>
           <view class="info-body">
+            <text class="info-name">{{ stallDetail.name }}</text>
             <view class="info-location">
               <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
               <text class="info-location-text">{{ stallDetail.location }}</text>
@@ -192,7 +193,8 @@ function onRefresh() {
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-location-text { font-size: var(--font-small); color: var(--text-secondary); }
+.info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+.info-location-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .info-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: 600; }
