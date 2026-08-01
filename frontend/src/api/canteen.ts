@@ -56,6 +56,7 @@ export async function getStallDetail(canteen: string, stallName: string): Promis
     images: normalizeImages(raw.images ?? raw.image),
     location: raw.location || canteen,
     description: raw.description || '',
+    avgRating: raw.avgRating != null ? Number(raw.avgRating) : undefined,
   }
 }
 

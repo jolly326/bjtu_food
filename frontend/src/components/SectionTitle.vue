@@ -1,5 +1,5 @@
 <template>
-  <view class="section-title" :class="{ 'no-margin': noMargin }">
+  <view class="section-title" :class="{ 'no-margin': noMargin }" @tap="$emit('tap')">
     <view class="section-bar" />
     <text class="section-text">{{ title }}</text>
     <slot name="extra" />
@@ -21,6 +21,11 @@ withDefaults(defineProps<{
 }>(), {
   noMargin: false,
 })
+
+defineEmits<{
+  /** 点击标题时触发（用于跳转到列表详情等） */
+  (e: 'tap'): void
+}>()
 </script>
 
 <style scoped>

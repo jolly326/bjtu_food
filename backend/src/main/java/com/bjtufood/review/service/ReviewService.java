@@ -2,6 +2,8 @@ package com.bjtufood.review.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.review.dto.ReviewReq;
+
+import java.math.BigDecimal;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.dto.UsefulResult;
@@ -30,6 +32,44 @@ public interface ReviewService {
      * @return 分页评价列表
      */
     IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
+
+    /**
+     * 获取档口评价列表
+     * <p>
+     * review 表仅关联 dish_id，档口维度评价通过 review → dish(stall_id) 推导。
+     * 只返回 is_hidden=0 的评价；支持按最新（created_at）/「有用」数（useful_count）排序。
+     *
+     * @param stallId  档口ID
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @param sort     排序：latest（默认）/ useful
+     * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
+     * @return 分页评价列表
+     */
+    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId);
+
+    /**
+     * 获取食堂评价列表
+     * <p>
+     * 通过 review → dish(stall_id) → stall(canteen_id) 推导。
+     * 只返回 is_hidden=0 的评价；支持按最新/「有用」排序。
+     *
+     * @param canteenId 食堂ID
+     * @param page      页码
+     * @param pageSize  每页条数
+     * @param sort      排序：latest（默认）/ useful
+     * @param userId    当前登录用户ID（可空，用于回写 useful 标记）
+     * @return 分页评价列表
+     */
+    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
+
+    /**
+     * 计算某档口的平均评分（星级 1-5，取该档口下所有菜品评价的平均值）
+     *
+     * @param stallId 档口ID
+     * @return 平均分（BigDecimal，保留两位），无评价返回 0.00
+     */
+    BigDecimal getAvgRatingByStallId(Long stallId);
 
     /**
      * 获取当前登录用户自己的评价列表

@@ -15,6 +15,7 @@
     </view>
     <view class="dish-row-info">
       <text class="dish-row-name">{{ dish.name }}</text>
+      <text v-if="dish.description" class="dish-row-desc">{{ dish.description }}</text>
       <view v-if="dish.tags?.length" class="dish-row-tags">
         <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
       </view>
@@ -53,6 +54,7 @@ function onClick() {
 .dish-row-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-card); overflow: hidden; flex-shrink: 0; background: var(--bg-page); }
 .dish-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .dish-row-name { font-size: var(--font-caption); font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dish-row-desc { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 .dish-row-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
 .dish-row-meta { display: flex; align-items: center; gap: var(--spacing-xs); }
 .star-num { display: inline-flex; align-items: center; gap: 4rpx; }

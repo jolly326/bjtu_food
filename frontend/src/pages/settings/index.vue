@@ -128,7 +128,7 @@ async function doDeleteAccount() {
 
 <style scoped>
 .settings-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 0; }
 .cell { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); box-sizing: border-box; transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .cell:last-child { border-bottom: none; }
 .cell:active { transform: scale(0.99); }

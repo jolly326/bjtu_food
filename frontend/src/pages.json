@@ -97,6 +97,13 @@
 				"navigationBarTitleText": "提交档口",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/profile/messages-services/index",
+			"style": {
+				"navigationBarTitleText": "消息与服务",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"subPackages": [

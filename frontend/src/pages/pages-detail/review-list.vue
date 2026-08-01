@@ -1,6 +1,6 @@
 <template>
   <view class="page review-list-page">
-    <Header :title="dishId ? '全部评价' : '我的评价'" showBack />
+    <Header :title="headerTitle" showBack />
 
     <scroll-view
       class="scroll-wrap"
@@ -31,17 +31,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
-import { getReviewsByDish, getMyReviews, deleteReview } from '@/api/review'
+import { getReviewsByDish, getReviewsByStall, getReviewsByCanteen, getMyReviews, deleteReview } from '@/api/review'
 import { useUserStore } from '@/stores/user'
 import type { Review } from '@/types/review'
 
 const userStore = useUserStore()
 const dishId = ref(0)
+const stallId = ref(0)
+const canteenId = ref(0)
 const list = ref<Review[]>([])
 const total = ref(0)
 const loading = ref(false)
@@ -49,6 +51,15 @@ const finished = ref(false)
 const page = ref(1)
 const pageSize = 20
 const refresherTriggered = ref(false)
+
+/** 标题：有 dish/stall/canteen 任一 id 即视为「全部评价」，否则「我的评价」 */
+const headerTitle = computed(() => {
+  if (dishId.value || stallId.value || canteenId.value) return '全部评价'
+  return '我的评价'
+})
+
+/** 三态判断：是否有实体（菜品/档口/食堂）筛选 */
+const hasEntity = computed(() => !!(dishId.value || stallId.value || canteenId.value))
 
 async function loadReviews(reset = false) {
   if (reset) {
@@ -58,12 +69,26 @@ async function loadReviews(reset = false) {
   loading.value = true
   try {
     let res: { list: Review[]; total: number }
-    if (!dishId.value) {
+    if (!hasEntity.value) {
       if (!userStore.requireAuth()) return
       const data = await getMyReviews({ page: page.value, pageSize })
       res = { list: data, total: data.length }
-    } else {
+    } else if (dishId.value) {
       res = await getReviewsByDish(dishId.value, {
+        sort: 'latest',
+        isWithImage: false,
+        page: page.value,
+        pageSize,
+      })
+    } else if (stallId.value) {
+      res = await getReviewsByStall(stallId.value, {
+        sort: 'latest',
+        isWithImage: false,
+        page: page.value,
+        pageSize,
+      })
+    } else {
+      res = await getReviewsByCanteen(canteenId.value, {
         sort: 'latest',
         isWithImage: false,
         page: page.value,
@@ -111,6 +136,8 @@ function onReviewLongPress(rv: Review) {
 
 onLoad((query) => {
   if (query?.dishId) dishId.value = Number(query.dishId)
+  if (query?.stallId) stallId.value = Number(query.stallId)
+  if (query?.canteenId) canteenId.value = Number(query.canteenId)
 })
 onMounted(() => loadReviews(true))
 

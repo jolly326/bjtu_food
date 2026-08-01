@@ -16,10 +16,12 @@ import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class CanteenServiceImpl implements CanteenService {
     private final StallMapper stallMapper;
     private final BannerMapper bannerMapper;
     private final ImageUrlUtil imageUrlUtil;
+    private final ReviewMapper reviewMapper;
 
     @Override
     public List<BannerVO> listBanners() {
@@ -179,6 +182,8 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
+        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
+        vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         return vo;
     }
 

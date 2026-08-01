@@ -14,9 +14,11 @@ import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -27,6 +29,7 @@ public class StallServiceImpl implements StallService {
     private final CanteenMapper canteenMapper;
     private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
+    private final ReviewMapper reviewMapper;
 
     @Override
     public List<StallDetailVO> listByCanteenId(Long canteenId) {
@@ -155,6 +158,8 @@ public class StallServiceImpl implements StallService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
+        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
+        vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         return vo;
     }
 

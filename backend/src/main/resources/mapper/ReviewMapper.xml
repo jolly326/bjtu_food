@@ -60,4 +60,68 @@
         </choose>
     </select>
 
+    <!--
+        按档口查询评价：review 表无 stall_id，通过 review → dish(stall_id) 推导。
+        只返回 is_hidden=0 的评价。
+    -->
+    <select id="selectReviewPageByStallId" resultType="com.bjtufood.review.dto.ReviewVO">
+        SELECT
+            r.id,
+            r.user_id,
+            r.dish_id,
+            u.nickname AS user_nickname,
+            u.avatar AS user_avatar,
+            r.rating,
+            r.content,
+            r.images AS images_json,
+            r.created_at,
+            r.useful_count AS useful_count
+        FROM review r
+                 JOIN user u ON r.user_id = u.id
+                 JOIN dish d ON r.dish_id = d.id
+        WHERE d.stall_id = #{stallId}
+          AND r.is_hidden = 0
+        <choose>
+            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
+            <otherwise>ORDER BY r.created_at DESC</otherwise>
+        </choose>
+    </select>
+
+    <!--
+        按食堂查询评价：通过 review → dish(stall_id) → stall(canteen_id) 推导。
+        只返回 is_hidden=0 的评价。
+    -->
+    <select id="selectReviewPageByCanteenId" resultType="com.bjtufood.review.dto.ReviewVO">
+        SELECT
+            r.id,
+            r.user_id,
+            r.dish_id,
+            u.nickname AS user_nickname,
+            u.avatar AS user_avatar,
+            r.rating,
+            r.content,
+            r.images AS images_json,
+            r.created_at,
+            r.useful_count AS useful_count
+        FROM review r
+                 JOIN user u ON r.user_id = u.id
+                 JOIN dish d ON r.dish_id = d.id
+                 JOIN stall s ON d.stall_id = s.id
+        WHERE s.canteen_id = #{canteenId}
+          AND r.is_hidden = 0
+        <choose>
+            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
+            <otherwise>ORDER BY r.created_at DESC</otherwise>
+        </choose>
+    </select>
+
+    <!-- 某档口下所有菜品评价的平均分（无评价返回 NULL） -->
+    <select id="selectAvgRatingByStallId" resultType="java.math.BigDecimal">
+        SELECT AVG(r.rating)
+        FROM review r
+                 JOIN dish d ON r.dish_id = d.id
+        WHERE d.stall_id = #{stallId}
+          AND r.is_hidden = 0
+    </select>
+
 </mapper>

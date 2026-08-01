@@ -3,6 +3,7 @@ package com.bjtufood.canteen.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -37,4 +38,7 @@ public class StallDetailVO {
 
     @Schema(description = "档口描述", example = "第一食堂·面面俱到，为您提供美味的校园餐饮体验。")
     private String description;
+
+    @Schema(description = "档口平均评分（取该档口下所有菜品评价的平均值，1-5星，无评价为 0.00）", example = "4.50")
+    private BigDecimal avgRating;
 }

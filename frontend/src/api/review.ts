@@ -63,6 +63,44 @@ export async function getReviewsByDish(
   return { list, total }
 }
 
+/** 获取档口评价（后端 GET /reviews?stallId=，IPage<ReviewVO>，与菜品评价同形） */
+export async function getReviewsByStall(
+  stallId: number,
+  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
+): Promise<{ list: Review[]; total: number }> {
+  const params: Record<string, any> = {
+    page: options?.page ?? 1,
+    pageSize: options?.pageSize ?? 50,
+  }
+  if (options?.sort) {
+    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
+  }
+  if (options?.isWithImage) params.isWithImage = true
+  const res = await get<any>(`/reviews`, { stallId, ...params })
+  const list = recordsOf<any>(res).map(toReview)
+  const total = typeof res?.total === 'number' ? res.total : list.length
+  return { list, total }
+}
+
+/** 获取食堂评价（后端 GET /reviews?canteenId=，IPage<ReviewVO>，与菜品评价同形） */
+export async function getReviewsByCanteen(
+  canteenId: number,
+  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
+): Promise<{ list: Review[]; total: number }> {
+  const params: Record<string, any> = {
+    page: options?.page ?? 1,
+    pageSize: options?.pageSize ?? 50,
+  }
+  if (options?.sort) {
+    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
+  }
+  if (options?.isWithImage) params.isWithImage = true
+  const res = await get<any>(`/reviews`, { canteenId, ...params })
+  const list = recordsOf<any>(res).map(toReview)
+  const total = typeof res?.total === 'number' ? res.total : list.length
+  return { list, total }
+}
+
 export async function submitReview(data: ReviewSubmit): Promise<void> {
   await post('/reviews', { dishId: data.dishId, rating: data.rating, content: data.content, images: data.images || [] })
 }

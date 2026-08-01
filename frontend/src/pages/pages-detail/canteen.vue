@@ -12,24 +12,13 @@
         </view>
         <view class="canteen-hero-info">
           <text class="canteen-hero-name">{{ canteenInfo.name }}</text>
-          <view class="canteen-hero-stats">
-            <text v-if="canteenInfo.avgRating > 0" class="canteen-hero-stat">
-              <IconSvg name="star-filled" :size="22" color="var(--color-star)" /> {{ canteenInfo.avgRating.toFixed(1) }}
-            </text>
-            <text class="canteen-hero-stat">{{ canteenInfo.stallCount }} 个档口</text>
-          </view>
 
-          <!-- 有序信息区：图标 + 标签 + 值 -->
+          <!-- 有序信息区：仅位置 + 介绍（评分/档口数/营业时段已移出 Hero，档口数见列表标题） -->
           <view class="canteen-info">
             <view class="canteen-info-row" v-if="canteenInfo.location">
               <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="canteen-info-icon" />
               <text class="canteen-info-label">位置</text>
               <text class="canteen-info-value">{{ canteenInfo.location }}</text>
-            </view>
-            <view class="canteen-info-row" v-if="canteenInfo.businessHours">
-              <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="canteen-info-icon" />
-              <text class="canteen-info-label">营业时段</text>
-              <text class="canteen-info-value">营业 {{ canteenInfo.businessHours }}</text>
             </view>
             <text v-if="canteenInfo.description" class="canteen-info-desc">{{ canteenInfo.description }}</text>
           </view>
@@ -45,7 +34,7 @@
 
       <!-- ② 各档口单列卡片流（不直接显示菜品，与档口详情同构） -->
       <view class="stall-section" v-if="stallList.length > 0">
-        <SectionTitle title="档口列表" />
+        <SectionTitle :title="`档口列表（${stallList.length}）`" />
         <view class="stall-stream">
           <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
         </view>
@@ -56,6 +45,28 @@
         :retry="true"
         @retry="loadStalls"
       />
+
+      <!-- 用户评价（仅展示前 3 条，点击查看全部） -->
+      <view class="review-section" v-if="reviewTotal > 0 || reviewList.length > 0">
+        <CardSection>
+          <SectionTitle
+            :title="`用户评价 (${reviewTotal})`"
+            noMargin
+            @tap="goToReviewList"
+          />
+          <view class="review-list" v-if="reviewList.length > 0">
+            <ReviewItem
+              v-for="rv in reviewList.slice(0, 3)"
+              :key="rv.id"
+              :review="rv"
+            />
+          </view>
+          <EmptyState v-else text="暂无评价，来写第一条吧" />
+          <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
+            <text class="review-more-text">查看全部评价 ›</text>
+          </view>
+        </CardSection>
+      </view>
 
       <!-- 申请调整/下架：不常用，降级为底部弱化的小文字链接，不再横卡置顶 -->
       <view class="apply-link" @tap="openApply">
@@ -82,11 +93,15 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import CardSection from '@/components/CardSection.vue'
+import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getCanteensWithStalls, getCanteenImages } from '@/api/canteen'
+import { getReviewsByCanteen } from '@/api/review'
+import type { Review } from '@/types/review'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -97,19 +112,33 @@ const stallList = ref<StallCardItem[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
 
-/** 食堂介绍区块信息（task-13 §2.2 补充营业时间/地址/档口数/综合评分等） */
+/** 食堂介绍区块信息（Hero 仅含名称 + 位置 + 介绍 + 缩略图，评分/档口数/营业时段已移出） */
 const canteenInfo = ref<{
   name: string
   image: string
   location: string
   description: string
-  /** 营业时间（后端可选返回，缺省则不展示） */
-  businessHours: string
-  /** 档口数 */
-  stallCount: number
-  /** 综合评分（档口均分派生，后端返整体评分优先） */
-  avgRating: number
 } | null>(null)
+
+/** 用户评价区（前 3 条预览 + 总数，点击进全部） */
+const reviewList = ref<Review[]>([])
+const reviewTotal = ref(0)
+
+async function loadReviews() {
+  if (!canteenId.value) return
+  try {
+    const res = await getReviewsByCanteen(canteenId.value, { sort: 'latest', isWithImage: false })
+    reviewList.value = res.list
+    reviewTotal.value = res.total
+  } catch {
+    reviewList.value = []
+    reviewTotal.value = 0
+  }
+}
+
+function goToReviewList() {
+  uni.navigateTo({ url: `/pages/pages-detail/review-list?canteenId=${canteenId.value}` })
+}
 
 function firstImage(value: unknown): string {
   if (Array.isArray(value)) return (value.find(item => typeof item === 'string') || '') as string
@@ -128,37 +157,32 @@ async function loadStalls() {
     const current = (canteens as any[]).find((item: any) => item.name === canteenName.value)
     canteenId.value = Number(current?.id || 0)
     const stalls = (current?.stalls || []) as any[]
-    // 综合评分：优先后端整体评分，否则由各档口评分均值派生
-    const ratedStalls = stalls.filter((s: any) => (s.avgRating ?? s.rating))
-    const avgRating = Number(current?.avgRating ?? 0) ||
-      (ratedStalls.length
-        ? ratedStalls.reduce((sum: number, s: any) => sum + Number(s.avgRating ?? s.rating ?? 0), 0) / ratedStalls.length
-        : 0)
-    // 食堂介绍区块（task-13 §2.2：补充营业时间/地址/档口数/综合评分等）
+    // 食堂介绍区块（仅名称 + 位置 + 介绍；评分/档口数见列表标题，已移除冗余字段）
     canteenInfo.value = {
       name: current?.name || canteenName.value,
       image: (imgMap as Record<string, string>)[canteenName.value] || firstImage(current?.images),
       location: current?.location || '',
       description: current?.description || '',
-      businessHours: current?.businessHours || '',
-      stallCount: stalls.length,
-      avgRating,
     }
-    // 单列档口卡：图 + 名 + 简介 + 评分/菜品数/人均/标签（task-13 §2.2，卡片尺寸不变）
+    // 单列档口卡：图 + 名 + 简介 + 评分(avgRating)/菜品数/人均/标签
     stallList.value = stalls.map((stall: any) => ({
       id: Number(stall.id || 0),
       name: stall.name || '',
       image: firstImage(stall.images),
       description: stall.description || '',
       rating: stall.avgRating ?? stall.rating ?? 0,
+      avgRating: stall.avgRating != null ? Number(stall.avgRating) : (stall.rating != null ? Number(stall.rating) : undefined),
       dishCount: Number(stall.dishCount ?? 0),
       perCapita: stall.perCapita != null ? Number(stall.perCapita) : undefined,
       location: stall.location || current?.location || '',
       tags: Array.isArray(stall.tags) ? stall.tags : (String(stall.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)),
     }))
+    await loadReviews()
   } catch {
     stallList.value = []
-    canteenInfo.value = { name: canteenName.value, image: '', location: '', description: '', businessHours: '', stallCount: 0, avgRating: 0 }
+    reviewList.value = []
+    reviewTotal.value = 0
+    canteenInfo.value = { name: canteenName.value, image: '', location: '', description: '' }
   } finally {
     loading.value = false
   }
@@ -241,8 +265,6 @@ onLoad(async (query) => {
 .canteen-info-label { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 .canteen-info-value { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .canteen-info-desc { font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.canteen-hero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
-.canteen-hero-stat { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 
 /* ② 档口单列流：左右 24rpx 内边距由 .stall-section 提供，确保卡片不溢出屏幕右侧 */
 .stall-section {
@@ -251,6 +273,10 @@ onLoad(async (query) => {
   width: 100%;
 }
 .stall-stream { margin: 0; box-sizing: border-box; width: 100%; }
+.review-section { padding: 0; box-sizing: border-box; width: 100%; }
+.review-list { margin-top: var(--spacing-sm); }
+.review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
+.review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 
 /* hero 骨架屏 */
 .canteen-hero-skeleton { }

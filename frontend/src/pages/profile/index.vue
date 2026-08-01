@@ -16,13 +16,13 @@
             <view class="avatar-wrap" @tap="handleEditAvatar">
             <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
             <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="56" color="var(--text-tertiary)" />
+              <IconSvg name="user" :size="48" color="var(--text-tertiary)" />
             </view>
           </view>
           <view class="user-meta">
             <view class="nickname-row" @tap="handleEditNickname">
               <text class="nickname">{{ userInfo?.nickname || '未知用户' }}</text>
-              <IconSvg name="edit" :size="28" color="var(--text-tertiary)" class="nickname-edit" />
+              <IconSvg name="edit" :size="24" color="var(--text-tertiary)" class="nickname-edit" />
             </view>
             <StatusBadge v-if="userInfo?.role" :role="userInfo.role === 'admin' ? 'admin' : 'student'" />
           </view>
@@ -46,7 +46,7 @@
 
         <SettingGroup title="消息与服务" class="enter-up" :style="{ '--enter-i': 2 }">
           <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
-          <SettingCell icon="edit" label="我的发布" hint="发布菜品/档口/纠错" @tap="contributeOpen = true" />
+          <SettingCell icon="folder" label="消息与服务" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
         </SettingGroup>
@@ -124,7 +124,7 @@ function onContributePick(key: string) {
 }
 
 function onApplySubmitted() {
-  setTimeout(() => uni.navigateTo({ url: '/pages/profile/my-submissions' }), 400)
+  setTimeout(() => uni.navigateTo({ url: '/pages/profile/messages-services/index' }), 400)
 }
 
 const showNicknameEditor = ref(false)
@@ -173,14 +173,17 @@ function goToReviews() {
 }
 function onStatsTap(key: 'review' | 'published' | 'pending') {
   if (key === 'review') goToReviews()
-  else if (key === 'published') uni.navigateTo({ url: '/pages/profile/my-publish' })
-  else if (key === 'pending') uni.navigateTo({ url: '/pages/profile/my-submissions' })
+  else if (key === 'published') goToMessagesServices()
+  else if (key === 'pending') goToMessagesServices()
 }
 function goToMyMoments() {
   uni.navigateTo({ url: '/pages/my-moments/index' })
 }
 function goToNotify() {
   uni.navigateTo({ url: '/pages/notify/index' })
+}
+function goToMessagesServices() {
+  uni.navigateTo({ url: '/pages/profile/messages-services/index' })
 }
 function goToFeedback() {
   uni.navigateTo({ url: '/pages/feedback/index' })
@@ -237,10 +240,10 @@ onMounted(() => {
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user；内部竖向排列，统计与入口融合） */
-.user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; }
-.avatar { width: 112rpx; height: 112rpx; border-radius: var(--radius-card); background: var(--bg-page); }
+.avatar { width: 96rpx; height: 96rpx; border-radius: var(--radius-card); background: var(--bg-page); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .nickname-row { display: flex; align-items: center; gap: var(--spacing-xs); }

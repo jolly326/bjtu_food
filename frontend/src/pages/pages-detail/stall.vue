@@ -18,12 +18,16 @@
       <template v-else-if="stallDetail">
         <ImageSwiper :images="stallDetail.images" />
 
-        <!-- 档口信息（合并卡片，含位置与简介） -->
+        <!-- 档口信息（合并卡片，含位置、星级与简介） -->
         <CardSection title="档口信息">
           <view class="info-body">
             <view class="info-location">
               <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
               <text class="info-location-text">{{ stallDetail.location }}</text>
+            </view>
+            <view class="info-rating" v-if="stallDetail.avgRating != null && stallDetail.avgRating > 0">
+              <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="info-rating-icon" />
+              <text class="info-rating-text">{{ stallDetail.avgRating.toFixed(1) }}</text>
             </view>
             <view class="info-desc" v-if="stallDetail.description">
               <text class="info-desc-text">{{ stallDetail.description }}</text>
@@ -43,6 +47,26 @@
             />
           </view>
           <EmptyState v-else text="该档口暂无菜品" />
+        </CardSection>
+
+        <!-- 用户评价（仅展示前 3 条，点击查看全部） -->
+        <CardSection>
+          <SectionTitle
+            :title="`用户评价 (${reviewTotal})`"
+            noMargin
+            @tap="goToReviewList"
+          />
+          <view class="review-list" v-if="reviewList.length > 0">
+            <ReviewItem
+              v-for="rv in reviewList.slice(0, 3)"
+              :key="rv.id"
+              :review="rv"
+            />
+          </view>
+          <EmptyState v-else text="暂无评价，来写第一条吧" />
+          <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
+            <text class="review-more-text">查看全部评价 ›</text>
+          </view>
         </CardSection>
 
         <!-- 申请关闭/纠错：不常用，降级为底部弱化的小文字链接（点击展开 Sheet） -->
@@ -75,12 +99,15 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
+import ReviewItem from '@/components/ReviewItem.vue'
 import StallDishRow from '@/components/StallDishRow.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getStallDetail } from '@/api/canteen'
+import { getReviewsByStall } from '@/api/review'
 import type { StallDetail } from '@/types/canteen'
 import type { Dish } from '@/types/dish'
+import type { Review } from '@/types/review'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -88,6 +115,27 @@ const stallDetail = ref<StallDetail | null>(null)
 const dishList = computed(() => dishStore.stallDishes)
 const refresherTriggered = ref(false)
 const loading = ref(true)
+
+/** 用户评价区（前 3 条预览 + 总数，点击进全部） */
+const reviewList = ref<Review[]>([])
+const reviewTotal = ref(0)
+const currentStallId = ref(0)
+
+async function loadReviews() {
+  if (!currentStallId.value) return
+  try {
+    const res = await getReviewsByStall(currentStallId.value, { sort: 'latest', isWithImage: false })
+    reviewList.value = res.list
+    reviewTotal.value = res.total
+  } catch {
+    reviewList.value = []
+    reviewTotal.value = 0
+  }
+}
+
+function goToReviewList() {
+  uni.navigateTo({ url: `/pages/pages-detail/review-list?stallId=${currentStallId.value}` })
+}
 
 function goToDetail(dish: Dish) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
@@ -117,6 +165,8 @@ async function loadData() {
       dishStore.fetchStallDishes(canteen, stallName),
     ])
     stallDetail.value = detail
+    currentStallId.value = detail.id ?? 0
+    await loadReviews()
   } catch (e) {
     stallDetail.value = null
     console.error('[stall] 档口详情加载失败', e)
@@ -143,8 +193,14 @@ function onRefresh() {
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-small); color: var(--text-secondary); }
+.info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
+.info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
+.info-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: 600; }
 .info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; }
 .dish-list { margin-top: var(--spacing-sm); }
+.review-list { margin-top: var(--spacing-sm); }
+.review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
+.review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 
 /* 申请入口：不常用，降级为底部弱化的小文字链接（点击展开 Sheet） */
 .apply-link { display: flex; justify-content: center; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }

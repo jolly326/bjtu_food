@@ -16,9 +16,9 @@
       <view v-else class="stall-thumb-ph">
         <IconSvg name="dish" :size="56" color="var(--text-tertiary)" />
       </view>
-      <view v-if="stall.rating != null && stall.rating > 0" class="stall-rating-badge">
+      <view v-if="displayRating != null && displayRating > 0" class="stall-rating-badge">
         <IconSvg name="star-filled" :size="20" color="var(--color-star)" />
-        <text class="stall-rating-value">{{ formatRating(stall.rating) }}</text>
+        <text class="stall-rating-value">{{ formatRating(displayRating) }}</text>
       </view>
     </view>
 
@@ -56,6 +56,8 @@ export interface StallCardItem {
   description?: string
   /** 评分 */
   rating?: number
+  /** 平均星级（后端 avgRating，与 rating 同源；组件优先展示 rating，缺省回落 avgRating） */
+  avgRating?: number
   /** 菜品数 */
   dishCount?: number
   /** 人均（元，展示用，已为元） */
@@ -78,6 +80,12 @@ const emit = defineEmits<{
 }>()
 
 const pressed = ref(false)
+
+/** 评分展示来源：优先 rating，缺省回落 avgRating */
+const displayRating = computed(() => {
+  const r = props.stall.rating ?? props.stall.avgRating
+  return r != null ? Number(r) : undefined
+})
 
 const metaText = computed(() => {
   if (props.stall.meta) return props.stall.meta

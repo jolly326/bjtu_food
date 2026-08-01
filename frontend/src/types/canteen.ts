@@ -12,6 +12,8 @@ export interface StallDetail {
   images: string[]
   location: string
   description: string
+  /** 平均星级（后端 StallDetailVO.avgRating，BigDecimal，无则 0.00） */
+  avgRating?: number
 }
 
 /** 档口简讯（GET /stalls 列表项） */

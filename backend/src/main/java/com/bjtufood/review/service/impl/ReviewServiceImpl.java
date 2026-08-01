@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,6 +43,32 @@ public class ReviewServiceImpl implements ReviewService {
             markUseful(pageResult.getRecords(), userId);
         }
         return pageResult;
+    }
+
+    @Override
+    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort)
+                .convert(this::enrichImages);
+        if (userId != null) {
+            markUseful(pageResult.getRecords(), userId);
+        }
+        return pageResult;
+    }
+
+    @Override
+    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort)
+                .convert(this::enrichImages);
+        if (userId != null) {
+            markUseful(pageResult.getRecords(), userId);
+        }
+        return pageResult;
+    }
+
+    @Override
+    public BigDecimal getAvgRatingByStallId(Long stallId) {
+        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stallId);
+        return avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2);
     }
 
     @Override
