@@ -19,7 +19,12 @@
         <ImageSwiper :images="canteenInfo.images" />
 
         <!-- 食堂信息（合并卡片，含位置与简介，无评分） -->
-        <CardSection title="食堂信息">
+        <CardSection>
+          <SectionTitle title="食堂信息" noMargin>
+            <template #extra>
+              <text class="feedback-link" @tap="openApply">反馈信息有误</text>
+            </template>
+          </SectionTitle>
           <view class="info-body">
             <view class="info-location" v-if="canteenInfo.location">
               <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
@@ -62,12 +67,6 @@
             <text class="review-more-text">查看全部评价 ›</text>
           </view>
         </CardSection>
-
-        <!-- 申请调整/下架：不常用，降级为底部弱化的小文字链接，不再横卡置顶 -->
-        <view class="apply-link" @tap="openApply">
-          <text class="apply-link-text">食堂信息有误？申请调整 / 下架 ›</text>
-        </view>
-        <view style="height: var(--spacing-lg)" />
       </template>
 
       <!-- 加载失败 / 无数据空态 -->
@@ -238,15 +237,12 @@ onLoad(async (query) => {
 .review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 
-/* 申请入口：不常用，降级为底部弱化的小文字链接（不再横卡置顶） */
-.apply-link {
-  display: flex;
-  justify-content: center;
-  padding: var(--spacing-md) 0 var(--spacing-sm);
-  -webkit-tap-highlight-color: transparent;
+/* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
+.feedback-link {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
 }
-.apply-link:active { opacity: 0.6; }
-.apply-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 /* 加载骨架屏 */
 .canteen-skeleton { padding: var(--spacing-md); }
