@@ -114,7 +114,7 @@ function onRefresh() {
 
 <style scoped>
 .my-submissions-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.tabs { display: flex; padding: var(--spacing-md) var(--spacing-md) 0; gap: var(--spacing-lg); }
+.tabs { display: flex; padding: var(--spacing-md) var(--spacing-md) 0; gap: var(--spacing-md); }
 .tab { font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; padding: var(--spacing-xs) 0; position: relative; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .tab.active { color: var(--color-primary); font-weight: 700; }
 .tab:active { transform: scale(var(--press-scale)); }
@@ -127,6 +127,6 @@ function onRefresh() {
 .item-title { font-size: var(--font-caption); font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-meta { font-size: var(--font-aux); color: var(--text-tertiary); }
 .item-right { display: flex; align-items: center; gap: var(--spacing-xs); flex-shrink: 0; }
-.off-tag { font-size: 20rpx; color: var(--text-tertiary); }
-.item-arrow { font-size: 28rpx; color: var(--text-tertiary); }
+.off-tag { font-size: var(--font-tiny); color: var(--text-tertiary); }
+.item-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
 </style>

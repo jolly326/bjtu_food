@@ -130,7 +130,7 @@ function onRefresh() {
 
 <style scoped>
 .my-publish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.tabs { display: flex; padding: var(--spacing-md) var(--spacing-md) 0; gap: var(--spacing-lg); }
+.tabs { display: flex; padding: var(--spacing-md) var(--spacing-md) 0; gap: var(--spacing-md); }
 .tab { font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; padding: var(--spacing-xs) 0; position: relative; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .tab.active { color: var(--color-primary); font-weight: 700; }
 .tab:active { transform: scale(var(--press-scale)); }

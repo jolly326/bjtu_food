@@ -140,5 +140,5 @@ async function doDeleteAccount() {
 .switch-knob { position: absolute; top: 4rpx; left: 4rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--text-white); transition: transform 0.2s ease; }
 .switch.on .switch-knob { transform: translateX(40rpx); }
 .version-row { text-align: center; padding: var(--spacing-xl) 0 var(--spacing-md); }
-.version-text { font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }
+.version-text { font-size: var(--font-aux); font-weight: 600; color: var(--text-tertiary); }
 </style>

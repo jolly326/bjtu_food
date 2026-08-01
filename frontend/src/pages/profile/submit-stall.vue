@@ -144,7 +144,7 @@ onLoad(() => { loadCanteens() })
 .submit-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md); }
 .type-switch { display: flex; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-xs); margin-bottom: var(--spacing-md); }
-.type-btn { flex: 1; text-align: center; padding: var(--spacing-sm) 0; border-radius: var(--radius-icon); font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.type-btn { flex: 1; text-align: center; padding: var(--spacing-sm) 0; border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .type-btn:active { transform: scale(var(--press-scale)); }
 .type-btn.active { background: var(--color-primary); color: var(--text-white); font-weight: 600; }
 .field { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }

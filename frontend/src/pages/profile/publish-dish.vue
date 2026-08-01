@@ -206,7 +206,7 @@ onLoad((query: any) => {
 .picker-value { flex: 1; font-size: var(--font-body); color: var(--text-secondary); }
 .picker-arrow { font-size: 28rpx; line-height: 1; opacity: 0.3; flex-shrink: 0; }
 .tag-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-xs) 0; }
-.tag-chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: 28rpx; background: var(--bg-page); font-size: var(--font-aux); color: var(--text-secondary); border: 2rpx solid var(--border-color); }
+.tag-chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-page); font-size: var(--font-aux); color: var(--text-secondary); border: 2rpx solid var(--border-color); }
 .tag-chip.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
 .image-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
 .image-cell { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); overflow: hidden; position: relative; background: var(--bg-page); }

@@ -789,6 +789,134 @@ AppButton / CardSection / CustomTabBar / DishCard / EmptyState / header / IconSv
 
 ---
 
+## 10. 全局风格统一 + 评价页/子页面边距
+
+> 范围：本次专项治理「全局观感一致性」+「评价页竖向 accent 条去除」+「9 个详情/子页面边距溢出与侧边距错误」。
+> 唯一 Token 真相源：`frontend/src/App.vue`（`page` 与 `:root` 两条独立规则，小程序以 `page` 为准）。
+> 本次**只做设计决策与规范审查，不改业务代码**；改动清单（§10.B）交给小程序开发工程师落地，不重新拍板。
+>
+> ⚠️ 路径校准（用户原始清单路径有偏差，以代码库真实路径为准）：
+> - 正确：`pages-detail/review-list.vue`、`profile/my-submissions.vue`、`profile/my-publish.vue`、`profile/publish-dish.vue`、`profile/submit-stall.vue`
+> - 正确（**不在 profile/ 下**）：`my-moments/index.vue`、`settings/index.vue`、`feedback/index.vue`、`notify/index.vue`（位于 `pages/` 一级目录）
+> - 用户写的 `my-moments/notify/settings/feedback` 在 `profile/` 下均不存在，已按一级目录真实文件落档。
+
+### 10.1 现状审计（不一致点清单）
+
+| 维度 | 现状（不一致） | 期望（统一） |
+|------|----------------|--------------|
+| 横向边距（tabs / 顶部分段 / 顶部 action-row） | `my-submissions.vue:117`、`my-publish.vue:133` 的 `.tabs` 用 `padding: var(--spacing-md) var(--spacing-lg) 0`（左右 32rpx）；`my-moments/index.vue:131` 的 `.segment-wrap` 用 `padding: ... var(--spacing-lg)`；`settings/index.vue:132` 的 `.cell` 用 `padding: var(--spacing-md) var(--spacing-lg)`；`notify/index.vue:169` 的 `.action-row` 用 `padding: ... var(--spacing-lg)` | 所有顶栏 Tab/分段/顶部操作行的**横向边距统一 `var(--spacing-md)`（24rpx）**，与 `.scroll-wrap`、各卡片容器对齐，禁止 `spacing-lg` 作横向边距 |
+| 顶层内容块左右边距 | `settings/index.vue` 的 `.cell`/`.version-row`、`notify/index.vue` 的 `.action-row` 本身靠 `scroll-wrap` 无 padding，但 `.cell` 自带 `var(--spacing-lg)` 左右内边距，造成「标题区域 24rpx、单元格文字却 32rpx」的内凹错位 | 单元格/列表项**不单独再用 `spacing-lg` 横向 padding**；容器级 `scroll-wrap` 用 `spacing-md`，内部项仅用 `spacing-md` 纵向 padding |
+| 竖向 accent 条（SectionTitle） | `review-list.vue:14` 用 `<SectionTitle :title="..." />`（带 `│` 竖向 accent 条，`SectionTitle.vue:2` 的 `.section-bar`） | 评价页标题改为**纯文字标题（无 accent 条）** |
+| border-radius | `publish-dish.vue:209` 的 `.tag-chip` 用 `border-radius: 28rpx`；`submit-stall.vue` 图片移除圆角用 `var(--radius-icon)` OK；`find/index.vue:630` 的 `.filter-trigger` 用 `border-radius: 28rpx`；`feedback/index.vue:99` 的 `.type-chip` 用 `var(--radius-tag)`（OK） | 卡片/图片统一 `var(--radius-card)`(16px) 或 `var(--radius-icon)`(12px)；**胶囊类（chip/标签/按钮药丸）统一 `var(--radius-tag)`(999rpx)**；删除散落的裸 `28rpx`，改用 `radius-tag`（chip）或 `radius-btn` |
+| IconSvg 尺寸 | 列表/菜单图标混用 `36`（SettingCell `:size="36"`、`settings/index.vue:9` bell、`notify/index.vue:32` 徽标）、`28`（arrow 行内）、`22`（off 标/star 行内）、`24`（close 删除）、`56`（空态兜底）、`52`（find 分类）、`40`（dish share）、`120`（home 空态 illu）；无统一语义 | 建立图标尺寸阶梯 token：`--icon-xs`(22rpx 行内小图标) / `--icon-sm`(28rpx arrow·行内) / `--icon-md`(36rpx 列表·菜单·徽标) / `--icon-lg`(48rpx，已有) / `--icon-xl`(56rpx 空态兜底·大图标)。**新增 `--icon-xs: 22rpx`** |
+| 字体尺寸裸字面量 | `dish.vue:373/407`、多处用裸 `20rpx`/裸 `30rpx`；`find/index.vue:631/636` 用裸 `26rpx`；`my-submissions.vue:130` 用裸 `20rpx`；`settings/index.vue` 用 `font-size: 24rpx`（应为 `--font-small`）；`profile/index.vue:273` 用裸 `24rpx` | 全部改用 Token：`--font-tiny`(20rpx) / `--font-aux`(22rpx) / `--font-small`(24rpx) / `--font-body`(28rpx) / `--font-caption`(30rpx) / `--font-subtitle`(32rpx) / `--font-h3`(36rpx)。**裸 `26rpx`→`--font-body`(28rpx)**（find 筛选触发/返回）；裸 `30rpx`→`--font-caption` |
+| 字体字重/行高 | 标题 `font-weight:700/800` 混用；小字 `line-height:1` 裸写 | 标题统一 `700`（H2/H3/大标题），不跨页跳 `800`；`line-height` 仅在特殊行内图标场景裸写，常规用 token 字体自带行高 |
+
+### 10.2 统一规范（设计 Token 落地）
+
+#### 10.2.1 侧边距规则（红线）
+- **每个顶层内容块（卡片、列表容器、SectionTitle 区块）**与 **`.scroll-wrap`** 横向一律 `var(--spacing-md)`（24rpx）。
+- **Tab 行 / 分段 / 顶部操作行（segment-wrap / tabs / action-row）横向也用 `var(--spacing-md)`**。
+- **绝对禁止** 在横向使用 `var(--spacing-lg)`（32rpx）——它只用于纵向区块间距（`margin-bottom`/`gap`），不用于左右边距。
+- 全屏卡片（`.sub-item`/`.publish-item`/`.notify-item` 等）靠 `scroll-wrap` 的 `padding: var(--spacing-md)` 留白，自身**不再**加左右 margin，避免 double-padding 或内凹。
+
+#### 10.2.2 圆角规则
+- 卡片：`var(--radius-card)`（16px）。
+- 图片 / 小图 / 输入框 / 头像方：`var(--radius-icon)`（12px）。
+- 弹窗：`var(--radius-modal)`（24px）；按钮：`var(--radius-btn)`（16px）。
+- **胶囊（chip / 标签 / 药丸按钮 / 历史 chip / 筛选触发 / 类型 chip）：统一 `var(--radius-tag)`（999rpx）**——原散落裸 `28rpx`（publish-dish `.tag-chip`、find `.filter-trigger`）改 `radius-tag`。
+- **仅小号圆形删除徽标（图片移除 ×）用 `border-radius: 50%`**；其余一律不用裸 `50%`。
+
+#### 10.2.3 图标尺寸阶梯（新增 `--icon-xs`）
+Token 现状：`--icon-sm:28rpx`、`--icon-lg:48rpx`（仅两个）。
+本次**新增** `--icon-xs: 22rpx` 到 `App.vue` 的 `page` + `:root` 两处（与既有两处同步，避免小程序 WXSS 空变量）。
+统一语义分配：
+- `--icon-xs`（22rpx）：行内极小图标——`off` 标 lock、行内 star、行内 location/clock（dish 详情信息行）。
+- `--icon-sm`（28rpx）：arrow 行内箭头、行内小箭头（SettingCell arrow、picker arrow）。
+- `--icon-md`（36rpx，**新增语义绑定现有 36 用法**）：列表/菜单/通知徽标主图标（SettingCell icon、settings bell、notify 类型徽标）。
+- `--icon-lg`（48rpx）：大区隔图标。
+- `--icon-xl`（56rpx，**新增语义绑定现有 56 用法**）：空态兜底大图标、头像空态、find 分类大图标。
+> 实现：各页 `IconSvg :size="22|28|36|48|56"` 维持数值即可（与 token 对齐），但**语义上**不得再出现 `:size="26"`、`30`、`32`（除 find 热搜/联想已用 32 待后续统一，本轮先不动 discover 主页以免范围蔓延，仅治理目标 9 页 + review-list）。
+
+#### 10.2.4 字体梯度（全部走 Token，禁裸字面量）
+| 用途 | Token | rpx |
+|------|-------|-----|
+| 超大标题（H1） | `--font-h1` | 48 |
+| 大标题（H2/品类头） | `--font-h2` | 40 |
+| 标题（H3/SectionTitle） | `--font-h3` | 36 |
+| 卡片主标题 / 弹窗标题 | `--font-card` | 32（=subtitle） |
+| 副标题 / 昵称 | `--font-subtitle` | 32 |
+| 说明/正文大 | `--font-caption` | 30 |
+| 正文 / 列表主文字 / 菜单 | `--font-body` | 28 |
+| 辅助 / 元信息 | `--font-aux` | 22 |
+| 小字 / 计数 / 角标 | `--font-tiny` | 20 |
+| 极小（占位） | `--font-small` | 24 |
+- 字重：标题 `700`，正文/菜单 `500~600`，强强调（品类头/排名 Top）`800` 仅限 find 已定样语义，不在目标 9 页引入新 `800`。
+- 治理：目标页内裸 `20rpx`→`--font-tiny`；裸 `24rpx`→`--font-small`；裸 `26rpx`→`--font-body`；裸 `30rpx`→`--font-caption`。
+
+#### 10.2.5 评价页标题（去 accent 条）
+- `review-list.vue:14` 移除 `<SectionTitle :title="..."/>`，改为**纯文字标题**：`<text class="review-title">{{ dishId ? '全部评价' : '我的评价' }}</text>`，样式 `font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); padding: var(--spacing-sm) var(--spacing-md) 0;`（与 `scroll-wrap` 同横向边距 `spacing-md`）。
+- 不改动 `SectionTitle` 组件本身（首页/发现/详情等仍依赖其 accent 条，不在此轮去条）。
+
+### 10.3 逐页修复清单（开发工程师直接落地，无需再决策）
+
+> 所有改动均在 `<style scoped>` 内；模板改动仅在 review-list（标题替换）。Token 新增仅改 `App.vue` 两处。
+> 约定：`scroll-wrap` 现状已多为 `padding: var(--spacing-md)`（OK），凡标注「改为 spacing-md」指把 `spacing-lg` 横向去掉。
+
+1. **`frontend/src/App.vue`**（Token 真相源，两处同步）
+   - 在 `page` 块（约 line 87 `--icon-lg` 后）与 `:root` 块（约 line 192 后）各新增：
+     - `--icon-xs: 22rpx;`（行内极小图标）
+   - 说明：仅新增 `--icon-xs`，其余沿用；不改动既有 `--icon-sm/--icon-lg`。
+
+2. **`pages-detail/review-list.vue`**
+   - 模板 line 14：`<SectionTitle .../>` → 纯文字标题（见 §10.2.5）。
+   - 删除 `import SectionTitle`（line 39）。
+   - 样式新增 `.review-title`（§10.2.5）；`.scroll-wrap` 已 `padding: 0 var(--spacing-md)`（OK）。
+
+3. **`profile/my-submissions.vue`**
+   - line 117 `.tabs`：`padding: var(--spacing-md) var(--spacing-lg) 0` → `padding: 0 var(--spacing-md)`（去掉左右 `spacing-lg`；原顶部无 padding，与 my-publish 对齐）。
+   - line 130 `.off-tag`：`font-size: 20rpx` → `font-size: var(--font-tiny)`。
+
+4. **`profile/my-publish.vue`**
+   - line 133 `.tabs`：`padding: var(--spacing-md) var(--spacing-lg) 0` → `padding: 0 var(--spacing-md)`。
+   - line 17/38 兜底 `IconSvg :size="56"` 维持（= `--icon-xl` 语义），无需改数值。
+
+5. **`profile/publish-dish.vue`**
+   - line 209 `.tag-chip`：`border-radius: 28rpx` → `border-radius: var(--radius-tag)`（胶囊统一 pill）。
+   - line 22/29 `IconSvg :size="28"`（arrow，=`--icon-sm` OK）；line 50 `:size="24"`（close，维持）；其余 `var(--spacing-*)` 已合规。
+
+6. **`profile/submit-stall.vue`**
+   - 横向边距已合规（`scroll-wrap padding: var(--spacing-md)`）。
+   - 仅复查：`.type-switch` 圆角 `var(--radius-card)` OK；图片移除 `border-radius: 50%` 属允许例外（删除徽标）OK。无需改。
+
+7. **`my-moments/index.vue`**
+   - line 131 `.segment-wrap`：`padding: var(--spacing-sm) var(--spacing-lg)` → `padding: var(--spacing-sm) var(--spacing-md)`（左右改 `spacing-md`）。
+   - `.moment-list`/`.skeleton-list` 已 `padding: var(--spacing-md)`（OK）。
+
+8. **`settings/index.vue`**
+   - line 132 `.cell`：`padding: var(--spacing-md) var(--spacing-lg)` → `padding: var(--spacing-md)`（去左右 `spacing-lg`，与 SettingCell 内部 `spacing-md` 一致；外层 `scroll-wrap` 无 padding 故单元格自身需左右 `spacing-md` 留白，即改为 `var(--spacing-md)` 单向）。
+   - line 9 `IconSvg :size="36"`（= `--icon-md` 语义）OK；若顺手可挂 `--icon-md` 注释，数值不变。
+   - line 143 `.version-text`：`font-size: 24rpx` → `font-size: var(--font-small)`。
+
+9. **`feedback/index.vue`**
+   - 横向：`.block` 已 `padding: var(--spacing-md)`（OK）；`.submit-bar` 已 `padding: var(--spacing-md)`（OK）。
+   - line 99 `.type-chip`：`border-radius: var(--radius-tag)` 已合规（OK）。
+   - 无需改（本轮已达标，仅记录为「参考达标页」）。
+
+10. **`notify/index.vue`**
+    - line 169 `.action-row`：`padding: var(--spacing-sm) var(--spacing-lg)` → `padding: var(--spacing-sm) var(--spacing-md)`（左右改 `spacing-md`）。
+    - line 32 `IconSvg :size="36"`（= `--icon-md` 语义）OK；`.notify-list` 已 `padding: var(--spacing-md)`（OK）。
+
+### 10.4 验收门禁（QA / 设计评审）
+- [ ] 全部目标页 `.tabs`/`.segment-wrap`/`.action-row`/`.cell` 横向不再出现 `var(--spacing-lg)`（grep `spacing-lg` 仅剩纵向 `margin-bottom`/`gap`/底部占位）。
+- [ ] `review-list.vue` 不再 import/使用 `SectionTitle`，标题为纯文字且无 accent 条；横向边距 `spacing-md`。
+- [ ] grep 目标 9 页 + review-list 内 `border-radius: 28rpx` / 裸 `28rpx` 圆角 → 0（已统一 radius-tag/card）。
+- [ ] grep 目标页内裸 `font-size: 2[0-9]rpx`（20/24/26/30）除 `--icon` 语义外 → 0（全走 token）。
+- [ ] `App.vue` 两处均含 `--icon-xs: 22rpx`。
+- [ ] 真机预览：9 页 + review-list 内容与屏幕左右边距视觉一致（无内凹、无溢出、无全屏贴边）。
+
+---
+
 ## 状态注记
 
 **全部页面设计已定稿，待小程序开发工程师按本文件实现。**
