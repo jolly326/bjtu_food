@@ -37,6 +37,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   back: { path: ['m15 18-6-6 6-6'] },
   location: { path: ['M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z', 'M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0'] },
   star: { path: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'] },
+  // 实心星星（填充黄，E16）：与 star 同形，fill 实心渲染（展示用评分星）
+  'star-filled': { path: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'], fill: true },
   broadcast: { path: ['M4 11a9 9 0 0 1 9 9', 'M4 4a16 16 0 0 1 16 16'], circle: [{ cx: 5, cy: 19, r: 1.5, fill: 'currentColor' }] },
   home: { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'] },
   profile: { path: ['M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M4 21a8 8 0 0 1 16 0'] },

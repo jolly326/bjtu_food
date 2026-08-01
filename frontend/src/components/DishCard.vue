@@ -16,7 +16,7 @@
         <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
       <view class="card-rating-badge">
-        <IconSvg name="star" :size="22" color="var(--color-star)" class="star-icon" />
+        <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="star-icon" />
         <text class="rating-text">{{ dish.rating }}</text>
       </view>
     </view>

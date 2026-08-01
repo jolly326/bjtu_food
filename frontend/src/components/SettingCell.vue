@@ -48,9 +48,10 @@ const pressed = ref(false)
 }
 .menu-item:last-child { border-bottom: none; }
 .menu-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
-.menu-icon { flex-shrink: 0; }
-.menu-icon-placeholder { width: 36rpx; flex-shrink: 0; }
-.menu-label { flex: 1; font-size: var(--font-body); color: var(--text-primary); }
+/* 图标与文本严格中线对齐：图标 block + line-height:1，避免图标因 image 默认行高偏上 */
+.menu-icon { flex-shrink: 0; display: block; line-height: 1; align-self: center; }
+.menu-icon-placeholder { width: 36rpx; flex-shrink: 0; display: block; line-height: 1; }
+.menu-label { flex: 1; font-size: var(--font-body); color: var(--text-primary); line-height: 1; align-self: center; }
 .menu-hint { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
 .menu-arrow { flex-shrink: 0; transform: rotate(180deg); }
 .menu-badge { width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--color-error); flex-shrink: 0; margin-right: calc(-1 * var(--spacing-xs)); }

@@ -20,7 +20,7 @@
       </view>
       <view class="dish-row-meta">
         <view class="star-num">
-          <IconSvg name="star" :size="22" color="var(--color-star)" />
+          <IconSvg name="star-filled" :size="22" color="var(--color-star)" />
           <text class="star-num-text">{{ dish.rating }}</text>
         </view>
       </view>

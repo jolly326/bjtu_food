@@ -56,21 +56,11 @@
           @mousedown="momentPressed = true"
           @mouseup="momentPressed = false"
           @mouseleave="momentPressed = false"
-          @tap="goBroadcast(broadcastIndex)"
         >
           <IconSvg name="broadcast" :size="30" color="var(--text-secondary)" class="broadcast-icon" />
           <view v-if="visibleBroadcasts.length > 0" class="broadcast-ticker">
-            <view
-              class="broadcast-track"
-              :style="{ transform: `translateY(-${broadcastIndex * 100}%)` }"
-            >
-              <view
-                v-for="(b, bi) in visibleBroadcasts"
-                :key="bi"
-                class="broadcast-line"
-              >
-                <text class="broadcast-text">{{ b.text }}</text>
-              </view>
+            <view :key="broadcastIndex" class="broadcast-line broadcast-line-enter" @tap="goBroadcast(broadcastIndex)">
+              <text class="broadcast-text">{{ visibleBroadcasts[broadcastIndex]?.text }}</text>
             </view>
           </view>
           <text v-else class="broadcast-text broadcast-single">暂无广播通知</text>
@@ -338,24 +328,25 @@ function handleBannerTap(banner: BannerItem) {
   flex-shrink: 0;
   opacity: 0.7;
 }
-/* 垂直滚动 ticker：每条占满一行高度，整体按索引 translateY 切换 */
+/* 垂直滚动 ticker：单条当前项 + 上滑入场，绝不空白、不一次滚多条 */
 .broadcast-ticker {
   flex: 1;
   min-width: 0;
   height: 40rpx;
   overflow: hidden;
 }
-.broadcast-track {
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.45s var(--ease-out);
-  will-change: transform;
-}
 .broadcast-line {
   height: 40rpx;
   display: flex;
   align-items: center;
   overflow: hidden;
+}
+.broadcast-line-enter {
+  animation: broadcast-up 0.45s var(--ease-out);
+}
+@keyframes broadcast-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 .broadcast-text {
   flex: 1;

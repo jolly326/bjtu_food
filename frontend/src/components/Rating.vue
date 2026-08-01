@@ -7,7 +7,7 @@
       :class="{ active: star <= modelValue }"
       @tap="readonly ? null : $emit('update:modelValue', star)"
     >
-      <IconSvg name="star" :size="starSize" :color="star <= modelValue ? activeColor : emptyColor" class="star-icon" />
+      <IconSvg :name="star <= modelValue ? 'star-filled' : 'star'" :size="starSize" :color="star <= modelValue ? activeColor : emptyColor" class="star-icon" />
     </view>
     <text v-if="showText && modelValue" class="rating-text">{{ modelValue }}分</text>
   </view>

@@ -22,7 +22,7 @@
           <text class="review-time">{{ relativeTime(review.createTime) }}</text>
         </view>
         <view class="star-num">
-          <IconSvg name="star" :size="24" color="var(--color-star)" />
+          <IconSvg name="star-filled" :size="24" color="var(--color-star)" />
           <text class="star-num-text">{{ review.rating }}</text>
         </view>
       </view>

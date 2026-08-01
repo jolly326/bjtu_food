@@ -17,7 +17,7 @@
         <IconSvg name="dish" :size="56" color="var(--text-tertiary)" />
       </view>
       <view v-if="stall.rating != null && stall.rating > 0" class="stall-rating-badge">
-        <IconSvg name="star" :size="20" color="var(--color-star)" />
+        <IconSvg name="star-filled" :size="20" color="var(--color-star)" />
         <text class="stall-rating-value">{{ formatRating(stall.rating) }}</text>
       </view>
     </view>

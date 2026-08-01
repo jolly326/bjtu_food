@@ -55,7 +55,7 @@
 
           <view class="rating-row">
             <view class="star-num">
-              <IconSvg name="star" :size="28" color="var(--color-star)" />
+              <IconSvg name="star-filled" :size="28" color="var(--color-star)" />
               <text class="star-num-text">{{ dish.rating }}</text>
             </view>
           </view>

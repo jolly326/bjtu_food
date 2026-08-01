@@ -136,9 +136,9 @@ function onRefresh() {
 
 <style scoped>
 .stall-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) 0; }
-/* CardSection 自带 margin: var(--spacing-sm) var(--spacing-md)，scroll-wrap 已提供左右 padding，去掉横向外边距避免叠加成 48rpx */
-.scroll-wrap :deep(.card-section) { margin-left: 0; margin-right: 0; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 0; }
+/* CardSection 自带 margin: var(--spacing-sm) var(--spacing-md) 提供左右 24rpx 内边距，
+   不在此处重置（避免依赖 scroll-wrap 内边距，微信下更可靠），卡片不溢出 */
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }

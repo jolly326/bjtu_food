@@ -14,7 +14,7 @@
           <text class="canteen-hero-name">{{ canteenInfo.name }}</text>
           <view class="canteen-hero-stats">
             <text v-if="canteenInfo.avgRating > 0" class="canteen-hero-stat">
-              <IconSvg name="star" :size="22" color="var(--color-star)" /> {{ canteenInfo.avgRating.toFixed(1) }}
+              <IconSvg name="star-filled" :size="22" color="var(--color-star)" /> {{ canteenInfo.avgRating.toFixed(1) }}
             </text>
             <text class="canteen-hero-stat">{{ canteenInfo.stallCount }} 个档口</text>
           </view>
@@ -44,9 +44,11 @@
       </view>
 
       <!-- ② 各档口单列卡片流（不直接显示菜品，与档口详情同构） -->
-      <SectionTitle v-if="stallList.length > 0" title="档口列表" />
-      <view class="stall-stream" v-if="stallList.length > 0">
-        <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
+      <view class="stall-section" v-if="stallList.length > 0">
+        <SectionTitle title="档口列表" />
+        <view class="stall-stream">
+          <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
+        </view>
       </view>
       <EmptyState
         v-else-if="!loading"
@@ -204,7 +206,8 @@ onLoad(async (query) => {
 .scroll-wrap {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-md) var(--spacing-md) 0;
+  /* 仅保留顶部内边距，左右内边距下放到各区块，避免微信 scroll-view 内边距不稳导致卡片溢出 */
+  padding: var(--spacing-md) 0 0;
 }
 
 /* ① 食堂介绍与信息区块 */
@@ -214,9 +217,10 @@ onLoad(async (query) => {
   padding: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  margin: 0;
+  margin: 0 var(--spacing-md);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
+  width: auto;
 }
 .canteen-hero-img {
   width: 200rpx;
@@ -240,8 +244,13 @@ onLoad(async (query) => {
 .canteen-hero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
 .canteen-hero-stat { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 
-/* ② 档口单列流（scroll-wrap 已提供左右 padding，左沿与上方食堂卡一致） */
-.stall-stream { margin: 0; box-sizing: border-box; }
+/* ② 档口单列流：左右 24rpx 内边距由 .stall-section 提供，确保卡片不溢出屏幕右侧 */
+.stall-section {
+  padding: 0 var(--spacing-md);
+  box-sizing: border-box;
+  width: 100%;
+}
+.stall-stream { margin: 0; box-sizing: border-box; width: 100%; }
 
 /* hero 骨架屏 */
 .canteen-hero-skeleton { }
