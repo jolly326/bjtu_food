@@ -342,3 +342,37 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `03bbfd7cd3c9e74b1284490f089939f4e044e8de`）复验——破图 / 空态全部中性 `empty`（IconSvg 回退 + ImageFallback 同源，不再出现碗）、`SegmentTabs` reduced-motion 保留指示条最终位置、`RelatedPickerSheet` 遮罩 reduced-motion 已覆盖、home 广播条走 token + 翻滚 0.3s；前八轮红线未回退。
 
 > 注：上方 `03bbfd7cd3c9e74b1284490f089939f4e044e8de` 为本次第九轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第十轮（收官）迭代复审修复计划（2026-08-02）
+
+> 第十轮（收官）复审（2026-08-02）在前九轮全部整改落地之后追加，聚焦 **IconSvg 中性占位边界收口 + 价格/计数 tabular-nums + 评价列表骨架/重试** 共 7 项。本轮为收官轮，均为打磨级（POLISH/MINOR），不阻断交付验收、亦不新增红线（仅对既有「中性占位必须为 `empty`」红线做边界口径细化校准，并补齐价格/计数的数字等宽渲染规范）。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `7a003a0` 全部落地。
+>
+> 级别：MINOR（次要）/ POLISH（打磨）。每条含 `file:line` 与对应红线/规范。
+>
+> 代码修复 commit 哈希：`7a003a0`
+
+### 一、本轮发现（7 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| N1 | MINOR | `pages/home/index.vue`（食堂卡图片占位） | home 食堂卡图片占位仍用 `name="dish"` 作破图/空态占位，食堂卡语义≠菜品，属中性场景，违背「中性占位必须为 `empty`（非 `dish`）」边界口径（第九轮细化口径收口遗漏点）。 | 中性占位必须为 `empty`（非 `dish`）；仅 DishCard 等明确菜品语义组件可用 `dish` | home 食堂卡图片占位 `name="dish"` → `name="empty"`（与 ImageFallback 同源，食堂卡属中性容器语义）。 |
+| N2 | MINOR | `pages/find/index.vue`（搜索建议 suggestIcon） | find 页搜索建议 `suggestIcon` 用 `name="stall"` 占位，但 stalls 建议项语义为档口关联/通用入口，非菜品，中性场景应走 `empty`；`name="stall"` 作为破图/空态占位属语义误用。 | 中性占位必须为 `empty`（非 `dish`/`stall` 等语义图标） | find 建议 `suggestIcon` `name="stall"` → `name="empty"`，档口关联/通用入口属中性场景。 |
+| N3 | POLISH | `components/RelatedPickerSheet.vue`（类型感知占位） | `RelatedPickerSheet` 关联对象选择项图标占位未做类型感知——无论关联的是菜品/档口/食堂，破图/空态一律硬编码同一占位，中性场景缺 `empty` 兜底分支。 | 中性占位必须为 `empty`；占位须按关联对象类型感知 | `RelatedPickerSheet` 占位按关联类型感知：仅当关联对象类型确为「菜品」时用 `dish`，其余（档口/食堂/通用）一律 `empty`。 |
+| N4 | MINOR | `pages/settings/index.vue`（关于页 icon） | settings「关于」页图标用 `name="dish"` 占位，关于页为通用/中性场景，非菜品语义，违背中性占位边界口径。 | 中性占位必须为 `empty`（非 `dish`） | settings 关于页 `name="dish"` → `name="logo"`（`logo` 已注册，语义匹配「关于/品牌」）；中性场景不得用 `dish`。 |
+| N5 | POLISH | 全局（价格 / 计数展示处） | 价格（`¥xx.xx`）与计数（收藏数/评价数等）数字未启用等宽数字渲染，字体数字宽度抖动，与 Apple 数字排版（tabular-nums）规范略有出入。 | （字体排版 / 数字等宽，Apple 规范） | 价格、计数等数字展示处统一加 `font-variant-numeric: tabular-nums`（或等价 token），对齐 Apple 等宽数字排版，去数字宽度抖动。 |
+| N6 | POLISH | `components/review-list`（骨架 + retry） | 评价列表加载态仅单一 spinner，缺骨架屏占位；加载失败无重试入口，与全端「列表三态（Loading 骨架/EmptyState/正常）+ 失败重试」一致口径不一致。 | 列表三态齐备（骨架 Loading + EmptyState + 正常；失败须 retry） | review-list 加载态补骨架屏占位（与全局内联骨架同源）；加载失败补「重试」入口，对齐全端列表三态一致口径。 |
+| N7 | POLISH | `components/ImageSwiper.vue`（图片占位） | `ImageSwiper` 轮播破图占位写死 `name="dish"`，通用轮播为中性容器语义（非菜品），违背中性占位边界口径。 | 中性占位必须为 `empty`（非 `dish`） | `ImageSwiper` 破图占位 `name="dish"` → `name="empty"`，通用轮播属中性场景。 |
+
+### 二、落实分工与关联
+
+- **N1 / N2 / N3 / N4 / N7（中性占位边界收口）**：home 食堂卡、find suggestIcon、RelatedPickerSheet 类型感知、settings 关于页、ImageSwiper 五处中性占位统一落 `empty`（仅 DishCard 类明确菜品语义组件保留 `dish`，settings 关于页用 `logo`）；代码已在 commit `7a003a0` 修复。本轮并将「**中性占位边界细化**」写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 的 IconSvg 红线细化口径——**仅当组件语义明确为「菜品」时（如 DishCard）才可用 `dish` 作图片占位；食堂卡 / 档口关联 / 关于页 / 通用轮播等容器语义≠菜品的中性场景一律用 `empty`**。
+- **N5（tabular-nums）**：价格 / 计数数字展示统一 `font-variant-numeric: tabular-nums`；代码已在 commit `7a003a0` 修复。
+- **N6（骨架 + retry）**：review-list 补骨架屏 + 失败重试；代码已在 commit `7a003a0` 修复。
+- **文档同步**：本轮为收官轮，将「中性占位边界细化（仅菜品语义组件可用 `dish`，其余中性场景一律 `empty`）」补强进 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3；价格/计数 tabular-nums 与 review-list 骨架/retry 为打磨级、不新增红线。
+- **红线回退核查（收官复验）**：整改后（commit `7a003a0`）复验——全仓中性占位语境（食堂卡/find 建议/RelatedPickerSheet/settings 关于/ImageSwiper 等）均为 `empty`（`dish` 仅存于 DishCard 类菜品语义组件）、价格/计数走 tabular-nums、review-list 三态齐备（骨架+EmptyState+重试）、前九轮红线未回退。
+
+> **十轮审计总收官**：自 2026-07 首份微信直报（18 条）至本轮第十轮（收官），累计约 71 项缺陷在 10 轮迭代中全部闭环；`project_spec.md` §4.9 所有 UI 红线（含本轮补强的「中性占位边界细化」）现已全数保持、无回退；小程序 UI 已达生产级稳定状态。
+
+> 注：上方 `7a003a0` 为本次第十轮（收官）复审代码修复 commit 哈希。
