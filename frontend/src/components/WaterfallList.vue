@@ -149,4 +149,7 @@ function onStallClick(stall: StallCardItem) {
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
+.waterfall-grid.single .waterfall-item-single:last-child {
+  margin-bottom: 0;
+}
 </style>
