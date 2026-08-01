@@ -123,8 +123,8 @@ function onRefresh() {
 
 <style scoped>
 .review-list-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
-.review-list { margin-top: var(--spacing-sm); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
+.review-list { margin-top: var(--spacing-sm); padding: 0 var(--spacing-md); }
 .list-end { text-align: center; padding: var(--spacing-lg) 0; }
 .list-end-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

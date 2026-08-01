@@ -129,6 +129,9 @@ page {
   --action-bar-height: 120rpx;
 }
 
+/* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
+page, view, scroll-view, text, image { box-sizing: border-box; }
+
 /* H5 端根变量（微信小程序以 page 为准，此处仅供 H5/Webview 兜底） */
 :root {
   /* 品牌主色（交大红系） */

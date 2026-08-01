@@ -142,8 +142,8 @@ onLoad(() => { loadCanteens() })
 
 <style scoped>
 .submit-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md); }
-.type-switch { display: flex; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-xs); margin-bottom: var(--spacing-md); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0; }
+.type-switch { display: flex; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-xs); margin: 0 var(--spacing-md) var(--spacing-md); }
 .type-btn { flex: 1; text-align: center; padding: var(--spacing-sm) 0; border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .type-btn:active { transform: scale(var(--press-scale)); }
 .type-btn.active { background: var(--color-primary); color: var(--text-white); font-weight: 600; }
@@ -160,5 +160,5 @@ onLoad(() => { loadCanteens() })
 .image-add { border: 4rpx dashed var(--border-color); display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
 .image-add-icon { font-size: var(--font-h1); color: var(--text-tertiary); }
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); padding: var(--spacing-sm); border: 2rpx solid var(--border-color); border-radius: var(--radius-icon); box-sizing: border-box; }
-.submit-wrap { padding: var(--spacing-md) 0; }
+.submit-wrap { padding: var(--spacing-md); }
 </style>

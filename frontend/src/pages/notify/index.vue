@@ -165,7 +165,7 @@ onMounted(() => { loadData(true) })
 
 <style scoped>
 .notify-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
 .action-row { display: flex; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-card); border-bottom: 2rpx solid var(--border-color); }
 .read-all { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 .notify-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }

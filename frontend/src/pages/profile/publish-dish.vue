@@ -194,7 +194,7 @@ onLoad((query: any) => {
 
 <style scoped>
 .publish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0; }
 .field { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }
 .field:last-child { border-bottom: none; }
 .field-label { font-size: var(--font-body); color: var(--text-primary); font-weight: 500; width: 160rpx; flex-shrink: 0; }
@@ -216,5 +216,5 @@ onLoad((query: any) => {
 .image-add-icon { font-size: var(--font-h1); color: var(--text-tertiary); }
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); padding: var(--spacing-sm); border: 2rpx solid var(--border-color); border-radius: var(--radius-icon); box-sizing: border-box; }
 .char-count { display: block; text-align: right; font-size: var(--font-tiny); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
-.submit-wrap { padding: var(--spacing-md) 0; }
+.submit-wrap { padding: var(--spacing-md); }
 </style>

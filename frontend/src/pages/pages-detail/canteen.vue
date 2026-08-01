@@ -217,7 +217,7 @@ onLoad(async (query) => {
   padding: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  margin: 0 var(--spacing-md);
+  margin: 0 var(--spacing-md) var(--spacing-md);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
   width: auto;
@@ -246,7 +246,7 @@ onLoad(async (query) => {
 
 /* ② 档口单列流：左右 24rpx 内边距由 .stall-section 提供，确保卡片不溢出屏幕右侧 */
 .stall-section {
-  padding: 0 var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-md) 0;
   box-sizing: border-box;
   width: 100%;
 }
