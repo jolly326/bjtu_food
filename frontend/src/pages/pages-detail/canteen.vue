@@ -283,7 +283,7 @@ onLoad(async (query) => {
 .canteen-skeleton { padding: var(--spacing-md); }
 .sk-swiper { width: 100%; height: 400rpx; border-radius: var(--radius-card); }
 .sk-info { width: 100%; height: 160rpx; border-radius: var(--radius-card); margin-top: var(--spacing-md); }
-.sk-stall { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) 0; border-bottom: 2rpx solid var(--bg-page); }
+.sk-stall { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) 0; border-bottom: 2rpx solid var(--border-color); }
 .sk-stall-img { width: 140rpx; height: 140rpx; border-radius: var(--radius-card); flex-shrink: 0; }
 .sk-stall-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-sm); }
 .sk-line { width: 60%; height: 28rpx; border-radius: 6rpx; }

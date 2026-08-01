@@ -527,17 +527,18 @@ watch(keyword, (value) => {
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 .search-wrap { position: sticky; top: 0; z-index: 20; background: var(--bg-page); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); }
 
-/* 联想下拉 */
+/* 联想下拉：fixed 定位，脱离 scroll-view 避免 z-index 被裁剪（真机红线） */
 .suggest-panel {
-  position: absolute;
+  position: fixed;
   left: var(--spacing-md);
   right: var(--spacing-md);
-  top: calc(100% + 8rpx);
+  /* 顶部 = Header(80rpx) + search-wrap 上下 padding + SearchBar 高度，避开 CustomTabBar */
+  top: calc(80rpx + var(--spacing-md) + 88rpx + var(--spacing-sm));
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-modal);
   overflow: hidden;
-  z-index: 30;
+  z-index: 100;
 }
 .suggest-item {
   display: flex;
@@ -599,7 +600,7 @@ watch(keyword, (value) => {
 .hotsearch-item { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease, background 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .hotsearch-item:last-child { border-bottom: none; }
 .hotsearch-item.pressed { transform: scale(0.97); background: var(--bg-soft); }
-.hotsearch-rank { width: 44rpx; text-align: center; font-size: var(--font-body); font-weight: 800; color: var(--text-tertiary); flex-shrink: 0; }
+.hotsearch-rank { width: 44rpx; text-align: center; font-size: var(--font-body); font-weight: 800; color: var(--text-secondary); flex-shrink: 0; }
 .hotsearch-rank.top { color: var(--color-price); }
 /* 左侧配图：圆角正方形（task-13 §1.2） */
 .hotsearch-thumb { width: 72rpx; height: 72rpx; border-radius: var(--radius-card); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }

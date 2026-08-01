@@ -241,8 +241,8 @@ function onRefresh() {
 .dish-list--collapsed {
   max-height: 480rpx;        /* ~ enough for ~3-4 rows */
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
 }
 .dish-expand {
   margin-top: var(--spacing-sm);

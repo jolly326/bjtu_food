@@ -212,7 +212,7 @@ onMounted(() => {
 .user-card :deep(.stats-row) { gap: 0; }
 
 .version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
-.version-text { display: block; font-size: 22rpx; font-weight: 500; color: var(--text-tertiary); opacity: 0.7; }
+.version-text { display: block; font-size: 22rpx; font-weight: 500; color: var(--text-tertiary); }
 
 /* 统计骨架（加载态占位，避免数字跳动） */
 .stats-skeleton { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }

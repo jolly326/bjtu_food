@@ -125,24 +125,22 @@ function onStallClick(stall: StallCardItem) {
   width: 100%;
   box-sizing: border-box;
   padding-bottom: 40rpx;
-  zoom: 1;
-}
-.waterfall-grid::after {
-  content: '';
-  display: table;
-  clear: both;
+  display: flex;
+  gap: var(--spacing-sm);
 }
 .waterfall-col {
-  width: 50%;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
   box-sizing: border-box;
 }
-.waterfall-col-left { float: left; padding-right: 12rpx; }
-.waterfall-col-right { float: right; padding-left: 12rpx; }
 .waterfall-item {
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   margin-bottom: 24rpx;
 }
+.waterfall-item:last-child { margin-bottom: 0; }
 /* 单列模式：档口卡依次纵向堆叠，span 整宽 */
 .waterfall-grid.single .waterfall-item-single {
   width: 100%;
