@@ -92,7 +92,7 @@ const metaText = computed(() => {
   const parts: string[] = []
   if (props.stall.location) parts.push(props.stall.location)
   if (props.stall.dishCount != null) parts.push(`${props.stall.dishCount}道菜`)
-  if (props.stall.perCapita != null) parts.push(`人均¥${props.stall.perCapita}`)
+  if (props.stall.perCapita != null) parts.push(`¥${props.stall.perCapita}/人`)
   return parts.join(' · ')
 })
 
@@ -108,7 +108,7 @@ function handleClick() {
 <style scoped>
 .stall-card-single {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--spacing-md);
   width: 100%;
   min-width: 0;
@@ -138,9 +138,10 @@ function handleClick() {
 }
 .stall-rating-badge {
   position: absolute;
-  left: 8rpx; bottom: 8rpx;
+  top: 8rpx; right: 8rpx;
   display: inline-flex; align-items: center; gap: 4rpx;
   background: var(--overlay-dark-strong);
+  border: 1rpx solid rgba(255,255,255,0.25);
   border-radius: var(--radius-card);
   padding: 2rpx 8rpx;
 }
@@ -156,6 +157,7 @@ function handleClick() {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   gap: var(--spacing-xs);
 }
 .stall-name {
@@ -168,7 +170,7 @@ function handleClick() {
 .stall-desc {
   font-size: var(--font-aux);
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;

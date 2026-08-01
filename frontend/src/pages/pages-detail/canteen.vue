@@ -229,8 +229,8 @@ onLoad(async (query) => {
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-location-text { font-size: var(--font-small); color: var(--text-secondary); }
-.info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; }
+.info-location-text { font-size: var(--font-small); color: var(--text-primary); font-weight: 600; }
+.info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; border-top: 2rpx solid var(--border-color); margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); }
 
 /* ② 档口单列流：左右内边距由 CardSection 提供，卡片不溢出屏幕右侧 */
 .review-list { margin-top: var(--spacing-sm); }
