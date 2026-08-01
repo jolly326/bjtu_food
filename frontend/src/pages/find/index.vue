@@ -59,7 +59,7 @@
         <!-- 历史搜索：标签 chip 行，可单个删除 / 一键清空 -->
         <CardSection v-if="historyList.length > 0">
           <SectionTitle title="历史搜索">
-            <text class="section-extra history-clear" @tap="clearHistory">清空</text>
+            <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
           </SectionTitle>
           <view class="history-chips">
             <view
@@ -144,7 +144,7 @@
       </view>
 
       <!-- ============ 多维筛选结果页 ============ -->
-      <view v-else class="filter-result" :style="{ padding: '0 var(--spacing-md)' }">
+      <view v-else class="filter-result">
         <!-- 筛选控制条：第一行 = 返回 + 品类标题；第二行 = 排序 + 筛选 -->
         <view class="filter-bar">
           <view class="filter-bar-top">
@@ -167,7 +167,7 @@
 
         <CardSection>
           <SectionTitle :title="categoryLabel">
-            <text v-if="filterTag" class="section-extra category-count">共 {{ dishStore.dishList.length }} 个菜品</text>
+            <text v-if="filterTag" slot="extra" class="section-extra category-count">共 {{ dishStore.dishList.length }} 个菜品</text>
           </SectionTitle>
 
           <view class="filter-summary" v-if="activeFilterSummary">
