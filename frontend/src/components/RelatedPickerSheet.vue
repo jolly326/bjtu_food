@@ -46,7 +46,7 @@
       >
         <image v-if="item.image" class="sheet-item-img" :src="item.image" mode="aspectFill" />
         <view v-else class="sheet-item-img sheet-item-img-empty">
-          <IconSvg name="dish" :size="36" color="var(--text-tertiary)" />
+          <IconSvg :name="item.type === 'stall' ? 'list' : 'dish'" :size="36" color="var(--text-tertiary)" />
         </view>
         <text class="sheet-item-name">{{ item.name }}</text>
         <IconSvg v-if="isSelected(item)" name="check" :size="32" color="var(--color-primary)" />

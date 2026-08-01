@@ -326,7 +326,7 @@ const activeFilterSummary = computed(() => {  const parts: string[] = []
 
 function suggestIcon(type: Suggestion['type']): string {
   if (type === 'dish') return 'dish'
-  if (type === 'stall') return 'dish'
+  if (type === 'stall') return 'stall'
   return 'home'
 }
 function suggestTypeLabel(type: Suggestion['type']): string {

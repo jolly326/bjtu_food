@@ -125,7 +125,7 @@ function onLongPress() {
 .review-avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .review-header-right { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 64rpx; }
 .star-num { display: inline-flex; align-items: center; gap: 4rpx; }
-.star-num-text { font-size: 26rpx; color: var(--text-secondary); font-weight: 600; }
+.star-num-text { font-size: 26rpx; color: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .review-header-top { display: flex; align-items: center; justify-content: space-between; }
 .review-name { font-size: var(--font-headline); font-weight: 500; color: var(--text-primary); }
 .review-time { font-size: var(--font-aux); color: var(--text-tertiary); }
@@ -138,6 +138,6 @@ function onLongPress() {
 .like-btn:active { transform: scale(var(--press-scale)); }
 .like-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .like-icon { line-height: 1; }
-.like-count { font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }
+.like-count { font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .like-count.active { color: var(--color-like); }
 </style>

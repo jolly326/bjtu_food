@@ -11,7 +11,11 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onLoadMore"
     >
-      <view class="review-list" v-if="list.length > 0">
+      <view v-if="loading && list.length === 0" class="skeleton-list">
+        <view v-for="s in 3" :key="s" class="sk-card skeleton" />
+      </view>
+
+      <view class="review-list" v-else-if="list.length > 0">
         <ReviewItem
           v-for="rv in list"
           :key="rv.id"
@@ -20,8 +24,12 @@
           @delete="onReviewLongPress"
         />
       </view>
-      <EmptyState v-else-if="!loading" text="暂无评价" />
-      <EmptyState v-else text="加载中…" />
+      <EmptyState
+        v-else
+        :text="loadFailed ? '评价加载失败' : '暂无评价'"
+        :retry="loadFailed"
+        @retry="loadReviews(true)"
+      />
       <view v-if="list.length > 0 && finished" class="list-end">
         <text class="list-end-text">没有更多了</text>
       </view>
@@ -47,6 +55,7 @@ const canteenId = ref(0)
 const list = ref<Review[]>([])
 const total = ref(0)
 const loading = ref(false)
+const loadFailed = ref(false)
 const finished = ref(false)
 const page = ref(1)
 const pageSize = 20
@@ -67,6 +76,7 @@ async function loadReviews(reset = false) {
     finished.value = false
   }
   loading.value = true
+  loadFailed.value = false
   try {
     let res: { list: Review[]; total: number }
     if (!hasEntity.value) {
@@ -102,6 +112,7 @@ async function loadReviews(reset = false) {
   } catch {
     if (reset) list.value = []
     finished.value = true
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -152,6 +163,8 @@ function onRefresh() {
 .review-list-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
 .review-list { margin-top: var(--spacing-sm); padding: 0 var(--spacing-md); }
+.skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.sk-card { width: 100%; height: 180rpx; }
 .list-end { text-align: center; padding: var(--spacing-lg) 0; }
 .list-end-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

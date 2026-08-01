@@ -198,6 +198,6 @@ async function onUseful() {
 .m-action.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .m-action-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
 .m-action.active .m-action-icon { color: var(--color-like); }
-.m-action-count { font-size: 24rpx; font-weight: 600; color: var(--text-secondary); }
+.m-action-count { font-size: 24rpx; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-like); }
 </style>

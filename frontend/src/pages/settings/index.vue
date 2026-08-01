@@ -16,7 +16,7 @@
 
       <!-- 通用 -->
       <SettingGroup title="通用">
-        <SettingCell label="关于食在交大" icon="dish" @tap="goAbout" />
+        <SettingCell label="关于食在交大" icon="logo" @tap="goAbout" />
         <SettingCell label="隐私政策" icon="lock" @tap="goPrivacy" />
         <SettingCell label="清除缓存" icon="delete" @tap="clearCache" />
       </SettingGroup>

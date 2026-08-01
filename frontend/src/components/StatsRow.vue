@@ -64,6 +64,6 @@ const cells = computed(() => [
   transition: transform 120ms var(--ease-out);
 }
 .stat-cell.pressed { transform: scale(var(--press-scale)); }
-.stat-value { font-size: var(--font-card); font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+.stat-value { font-size: var(--font-card); font-weight: 700; color: var(--text-primary); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .stat-label { font-size: var(--font-tiny); color: var(--text-tertiary); }
 </style>

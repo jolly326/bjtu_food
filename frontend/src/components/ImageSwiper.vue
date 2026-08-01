@@ -12,7 +12,7 @@
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" />
       <view v-else class="image-swiper-placeholder">
-        <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
+        <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
     </swiper-item>
   </swiper>

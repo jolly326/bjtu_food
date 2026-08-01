@@ -166,6 +166,7 @@ function handleClick() {
   color: var(--color-price);
   font-weight: 700;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 .card-tags {
   display: flex;

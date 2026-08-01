@@ -59,5 +59,5 @@ function onClick() {
 .dish-row-meta { display: flex; align-items: center; gap: var(--spacing-xs); }
 .star-num { display: inline-flex; align-items: center; gap: 4rpx; }
 .star-num-text { font-size: 24rpx; color: var(--text-secondary); font-weight: 600; }
-.dish-row-price { font-size: var(--font-card); font-weight: 700; color: var(--color-price); flex-shrink: 0; margin-left: var(--spacing-xs); }
+.dish-row-price { font-size: var(--font-card); font-weight: 700; color: var(--color-price); flex-shrink: 0; margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 </style>

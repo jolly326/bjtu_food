@@ -88,7 +88,7 @@
               >
                 <image v-if="item.image" class="canteen-img" :src="item.image" mode="aspectFill" />
                 <view v-else class="canteen-img canteen-img-placeholder">
-                  <IconSvg name="dish" :size="80" color="var(--text-tertiary)" class="canteen-illu" />
+                  <IconSvg name="home" :size="80" color="var(--text-tertiary)" class="canteen-illu" />
                 </view>
                 <view class="canteen-overlay" />
                 <text class="canteen-name">{{ item.name }}</text>
