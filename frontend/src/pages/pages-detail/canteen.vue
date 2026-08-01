@@ -231,8 +231,8 @@ onLoad(async (query) => {
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
-.info-location-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.info-desc-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.4; display: block; }
+.info-location-text { font-size: var(--font-caption); color: var(--text-secondary); font-weight: 500; }
+.info-desc-text { font-size: var(--font-caption); color: var(--text-secondary); line-height: 1.4; display: block; }
 
 /* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
 .stall-waterfall { margin-top: var(--spacing-sm); }
