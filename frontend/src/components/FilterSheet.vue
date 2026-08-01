@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch, computed, nextTick } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 export interface FilterSheetState {
@@ -164,7 +164,7 @@ watch(() => props.open, (v) => {
     inner.priceMin = props.modelValue.priceMin
     inner.priceMax = props.modelValue.priceMax
     inner.spiceLevel = props.modelValue.spiceLevel
-    requestAnimationFrame(() => {
+    nextTick(() => {
       maskShow.value = true
       sheetOpen.value = true
     })
