@@ -227,7 +227,16 @@ function onRefresh() {
 .info-rating { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-rating-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .info-rating-text { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
-.info-desc-text { font-size: var(--font-caption); font-weight: 400; color: var(--text-secondary); line-height: 1.5; display: block; }
+.info-desc-text {
+  font-size: var(--font-caption);
+  font-weight: 400;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .dish-list { margin-top: var(--spacing-sm); }
 .dish-list--collapsed {
   max-height: 480rpx;        /* ~ enough for ~3-4 rows */
