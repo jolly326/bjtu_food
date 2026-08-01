@@ -283,3 +283,31 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `d8b62873945a585f5e72b38fcf9479b050a31c9b`）复验——空状态不再静默渲染菜品碗（`empty` 中性占位生效、缺失键 dev 告警）、文本箭头统一 `IconSvg`、相关 Sheet/feedback chips 带 `--press-scale` 按压、AuthForm 字号走 token、swiper 指示点经注册常量 + `uni.scss` 登记、messages/services 内联样式已抽 class；前六轮红线未回退。
 
 > 注：上方 `d8b62873945a585f5e72b38fcf9479b050a31c9b` 为本次第七轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第八轮迭代复审修复计划（2026-08-02）
+
+> 第八轮复审（2026-08-02）在前七轮（全量审计 8 条 + 第二轮 2 条 + 第三轮 2 条 + 第四轮 P2 ImageUploader 例外 + 第五轮 3 项打磨 + 第六轮 5 项细化 + 第七轮 IconSvg empty 占位 MAJOR + 6 项 POLISH，均已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，本轮聚焦 **IconSvg 静默回退语义 bug 收口（D1 MAJOR）+ notify 模块 3 项打磨**，其中 **D1 为 MAJOR（红线细化口径收口，违反即阻断）**，须同步登记。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `9ab603e821914ae097a0a2f33c393d16b9e8f253` 全部落地。
+>
+> 级别：MAJOR（主要，红线细化口径收口）/ P1（次要）/ P2（次要）。每条含 `file:line` 与对应红线/规范。
+>
+> 代码修复 commit 哈希：`9ab603e821914ae097a0a2f33c393d16b9e8f253`
+
+### 一、本轮发现（4 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| D1 | MAJOR | `pages/profile/index.vue:58`（`SettingCell` 图标传参处） | `profile/index.vue:58` 的 `SettingCell` 传入 `icon="folder"`，但 `folder` 未在 `ICONS` 注册；因 `IconSvg` 在 dev 环境仅 `console.warn` 仍回退 `dish`，第八轮实测 `folder` 未命中键**静默渲染成菜品碗**——与第七轮「缺失键禁静默回退语义图标、须注册 `empty` 中性占位」红线细化口径冲突，属静默语义 bug。 | 图标统一走 `IconSvg`（细化为：缺失键禁静默回退语义图标、须注册中性 `empty` 占位；dev 告警已落地） | `icon="folder"` → `icon="list"`（`list` 已在 `ICONS` 注册，语义匹配「我的设置/列表」入口）；移除拼写/未注册键的隐式静默回退。 |
+| P1 | P1 | `pages/notify/CommentItem.vue`（字号魔法数值） | notify 模块 `CommentItem` 仍用魔法 rpx 数值写死字号，未引用 `--font-*` token，与「字体排版走 token（禁裸数值）」规范略有出入。 | （Token 一致性 / 字体排版） | `CommentItem` 字号统一引用 `--font-*` token，去除裸 rpx 字号数值。 |
+| P2 | P2 | `pages/notify/index.vue`（徽标图标色） | notify 徽标图标颜色直接写 `var(--text-secondary)`，未与全局徽标/未读态图标色口径对齐，存在语义一致性偏差。 | （Token 一致性 / 视觉对比） | notify 徽标图标色统一引用全局徽标语义色（与未读态 accent 口径一致），去除散落的 `var(--text-secondary)` 局部写法。 |
+| Insight | — | `components/IconSvg.vue`（dev 环境告警） | 复盘印证：第七轮登记的「dev 环境对未命中键 console.warn」已落地——`IconSvg` 在 dev 环境（`import.meta.env?.DEV`）对未知 `name` 触发 `console.warn`，但仍会回退 `dish`；本轮以 `profile/index.vue:58` 的 `folder` 漏网为例，暴露「dev.warn 未阻断 + 审计未 diff 字符串字面量 icon 与 ICONS keys」的盲区，须将「审计须 diff `SettingCell`/`CustomTabBar`/`ContributeSheet` 等字符串字面量 icon 与 ICONS keys」补入红线核查口径。 | 图标统一走 `IconSvg`（审计核查口径补强） | 审计流程新增：对 `SettingCell` / `CustomTabBar` / `ContributeSheet` 等组件以**字符串字面量**传入的 `icon`/`name` 属性，与 `ICONS` 注册键做 diff，防 `folder` 类未注册键漏网静默成碗。 |
+
+### 二、落实分工与关联
+
+- **D1（MAJOR）**：`profile/index.vue:58` `icon="folder"` → `icon="list"`；代码已在 commit `9ab603e821914ae097a0a2f33c393d16b9e8f253` 修复。本轮并将「审计须 diff 字符串字面量 icon 与 ICONS keys（防 `folder` 类漏网）」补强进 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 的 IconSvg 红线细化口径。
+- **P1 / P2（打磨）**：随迭代整改，不阻断交付验收；代码已在 commit `9ab603e821914ae097a0a2f33c393d16b9e8f253` 修复。
+- **文档同步**：本轮将 IconSvg 红线审计核查口径（dev warn 已落地 + 字符串字面量 icon 与 ICONS keys diff）写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，D1 为 MAJOR 收口、P1/P2 为打磨级不新增红线。
+- **红线回退核查**：整改后（commit `9ab603e821914ae097a0a2f33c393d16b9e8f253`）复验——`profile/index.vue:58` 不再因 `folder` 未注册静默成碗（`list` 生效）、notify 模块 `CommentItem` 字号走 token、notify 徽标图标色对齐全局口径；前七轮红线未回退。
+
+> 注：上方 `9ab603e821914ae097a0a2f33c393d16b9e8f253` 为本次第八轮复审代码修复 commit 哈希。
