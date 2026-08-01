@@ -1,6 +1,6 @@
 <template>
   <view class="page find-page">
-    <Header title="发现" />
+    <Header :title="inFilter ? categoryLabel : '发现'" />
 
     <!-- 搜索框（SearchBar 组件，输入模式 + 联想 debounce 300ms）；左右留白与下方卡片一致（24rpx） -->
     <view class="search-wrap">
@@ -57,7 +57,7 @@
 
         <template v-else>
         <!-- 历史搜索：标签 chip 行，可单个删除 / 一键清空 -->
-        <view class="block" v-if="historyList.length > 0">
+        <CardSection v-if="historyList.length > 0">
           <SectionTitle title="历史搜索">
             <text class="section-extra history-clear" @tap="clearHistory">清空</text>
           </SectionTitle>
@@ -81,10 +81,11 @@
               </view>
             </view>
           </view>
-        </view>
+        </CardSection>
 
-        <!-- 分类入口宫格：直接置于搜索框下方（去掉「分类」标题文字，task-13 §1.2） -->
-        <view class="block category-block" v-if="categories.length > 0">
+        <!-- 分类入口宫格：合并为单个 CardSection（含 SectionTitle） -->
+        <CardSection v-if="categories.length > 0">
+          <SectionTitle title="分类" />
           <view class="category-grid">
             <view
               v-for="cat in categories"
@@ -105,10 +106,10 @@
               <text class="category-label">{{ cat.label }}</text>
             </view>
           </view>
-        </view>
+        </CardSection>
 
         <!-- 热搜榜单：排名 + 左侧圆角方配图 + 词 + 热度值/关联数 -->
-        <view class="block" v-if="dishStore.hotSearchList.length > 0">
+        <CardSection v-if="dishStore.hotSearchList.length > 0">
           <SectionTitle title="本周热搜" />
           <view class="hotsearch-list">
             <view
@@ -138,53 +139,58 @@
               </view>
             </view>
           </view>
-        </view>
+        </CardSection>
         </template>
       </view>
 
       <!-- ============ 多维筛选结果页 ============ -->
       <view v-else class="filter-result" :style="{ padding: '0 var(--spacing-md)' }">
-        <!-- 品类浏览标题头：由分类进入时显示大标题 + 数量，让用户一眼知道在浏览什么 -->
-        <view v-if="filterTag" class="category-header">
-          <text class="category-title">{{ categoryLabel }}</text>
-          <text class="category-count">共 {{ dishStore.dishList.length }} 个菜品</text>
-        </view>
-
+        <!-- 筛选控制条：第一行 = 返回 + 品类标题；第二行 = 排序 + 筛选 -->
         <view class="filter-bar">
-          <SegmentTabs
-            class="sort-tabs"
-            :tabs="sortTabs"
-            :model-value="activeSort"
-            light
-            @update:model-value="onSortChange"
-          />
-          <view class="filter-trigger" @tap="openFilterSheet">
-            <IconSvg name="filter" :size="26" color="var(--text-secondary)" />
-            <text class="filter-trigger-text">筛选</text>
+          <view class="filter-bar-top">
+            <text class="filter-back" @tap="exitFilter"><IconSvg name="arrow-left" :size="26" color="var(--color-primary)" /> 返回</text>
           </view>
-          <text class="filter-back" @tap="exitFilter"><IconSvg name="arrow-left" :size="26" color="var(--color-primary)" /> 返回</text>
+          <view class="filter-bar-bottom">
+            <SegmentTabs
+              class="sort-tabs"
+              :tabs="sortTabs"
+              :model-value="activeSort"
+              light
+              @update:model-value="onSortChange"
+            />
+            <view class="filter-trigger" @tap="openFilterSheet">
+              <IconSvg name="filter" :size="26" color="var(--text-secondary)" />
+              <text class="filter-trigger-text">筛选</text>
+            </view>
+          </view>
         </view>
 
-        <view class="filter-summary" v-if="activeFilterSummary">
-          <text class="filter-summary-text">{{ activeFilterSummary }}</text>
-          <text class="filter-clear" @tap="clearFilter">清除筛选</text>
-        </view>
+        <CardSection>
+          <SectionTitle :title="categoryLabel">
+            <text v-if="filterTag" class="section-extra category-count">共 {{ dishStore.dishList.length }} 个菜品</text>
+          </SectionTitle>
 
-        <WaterfallList v-if="dishStore.dishList.length > 0" :list="dishStore.dishList" @card-click="goToDetail" />
-        <EmptyState
-          v-else-if="!dishStore.loading"
-          :text="keyword ? '没有找到相关菜品' : '没有符合条件的菜品'"
-          :retry="true"
-          @retry="reloadFilter"
-        />
+          <view class="filter-summary" v-if="activeFilterSummary">
+            <text class="filter-summary-text">{{ activeFilterSummary }}</text>
+            <text class="filter-clear" @tap="clearFilter">清除筛选</text>
+          </view>
 
-        <view v-if="dishStore.loading && filterLoadingMore" class="list-footer">
-          <view class="footer-spinner" />
-          <text class="footer-text">加载中…</text>
-        </view>
-        <view v-else-if="filterFinished" class="list-footer">
-          <text class="footer-text">— 已经到底啦 —</text>
-        </view>
+          <WaterfallList v-if="dishStore.dishList.length > 0" :list="dishStore.dishList" @card-click="goToDetail" />
+          <EmptyState
+            v-else-if="!dishStore.loading"
+            :text="keyword ? '没有找到相关菜品' : '没有符合条件的菜品'"
+            :retry="true"
+            @retry="reloadFilter"
+          />
+
+          <view v-if="dishStore.loading && filterLoadingMore" class="list-footer">
+            <view class="footer-spinner" />
+            <text class="footer-text">加载中…</text>
+          </view>
+          <view v-else-if="filterFinished" class="list-footer">
+            <text class="footer-text">— 已经到底啦 —</text>
+          </view>
+        </CardSection>
       </view>
 
       <view style="height: var(--spacing-lg)" />
@@ -214,6 +220,7 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import CardSection from '@/components/CardSection.vue'
 import SegmentTabs from '@/components/SegmentTabs.vue'
 import FilterSheet from '@/components/FilterSheet.vue'
 import type { FilterSheetState } from '@/components/FilterSheet.vue'
@@ -549,7 +556,6 @@ watch(keyword, (value) => {
 .suggest-type { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
 
 /* 区块通用 */
-.block { margin-bottom: var(--spacing-lg); padding: 0 var(--spacing-md); }
 .section-extra { flex-shrink: 0; }
 
 /* 历史搜索 */
@@ -569,14 +575,6 @@ watch(keyword, (value) => {
 .history-chip.pressed { transform: scale(0.97); background: var(--color-primary-soft); }
 .history-chip-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-chip-del { font-size: 20rpx; color: var(--text-tertiary); flex-shrink: 0; line-height: 1; }
-
-/* 发现食堂入口（横滑） */
-.discover-canteen { width: 200rpx; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.discover-canteen.pressed { transform: scale(0.97); }
-.discover-canteen-img { width: 160rpx; height: 160rpx; border-radius: var(--radius-card); background: var(--bg-page); box-shadow: var(--shadow-card); }
-.discover-canteen-placeholder { display: flex; align-items: center; justify-content: center; }
-.discover-canteen-illu { font-size: 72rpx; line-height: 1; opacity: 0.3; }
-.discover-canteen-name { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; max-width: 200rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 分类宫格 */
 .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-md); margin-top: var(--spacing-md); }
@@ -612,18 +610,13 @@ watch(keyword, (value) => {
 .hotsearch-heat { color: var(--color-price); font-weight: 600; }
 .hotsearch-related { color: var(--text-tertiary); }
 
-/* 横滑 */
-.horiz-scroll { overflow-x: auto; white-space: nowrap; }
-.horiz-scroll::-webkit-scrollbar { display: none; }
-.horiz-track { display: inline-flex; gap: var(--spacing-md); padding-bottom: 4rpx; }
-.rising-card { width: 320rpx; display: inline-block; }
-
 /* 筛选结果页 */
-/* 品类浏览标题头（由分类进入时显示，显著大标题 + 数量，呈现「结果列表页」而非「筛选面板」） */
-.category-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); padding: var(--spacing-md) 0 var(--spacing-sm); }
-.category-title { font-size: var(--font-h2); font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
-.category-count { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 500; }
-.filter-bar { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); flex-wrap: nowrap; }
+/* 品类数量（SectionTitle #extra 中展示） */
+.category-count { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 500; }
+/* 筛选控制条：两行 —— 上行：返回；下行：排序 + 筛选 */
+.filter-bar { display: flex; flex-direction: column; gap: var(--spacing-xs); padding: var(--spacing-sm) 0 var(--spacing-xs); }
+.filter-bar-top { display: flex; align-items: center; }
+.filter-bar-bottom { display: flex; align-items: center; gap: var(--spacing-xs); flex-wrap: nowrap; }
 .sort-tabs { flex: 1; min-width: 0; }
 .filter-trigger {
   display: inline-flex; align-items: center; gap: 6rpx;
@@ -634,7 +627,7 @@ watch(keyword, (value) => {
 .filter-trigger:active { transform: scale(0.97); }
 .filter-trigger-text { line-height: 1; }
 .filter-back { display: inline-flex; align-items: center; gap: 6rpx; font-size: 26rpx; color: var(--color-primary); font-weight: 600; flex-shrink: 0; }
-.filter-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: 0 var(--spacing-md) var(--spacing-sm); }
+.filter-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: 0 0 var(--spacing-sm); margin-top: var(--spacing-sm); }
 .filter-summary-text { flex: 1; font-size: var(--font-aux); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-clear { font-size: var(--font-aux); color: var(--color-error); flex-shrink: 0; }
 
