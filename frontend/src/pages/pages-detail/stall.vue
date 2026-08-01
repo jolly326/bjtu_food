@@ -20,7 +20,7 @@
 
         <!-- 档口信息（合并卡片，含位置、星级与简介） -->
         <CardSection>
-          <SectionTitle title="档口信息" noMargin>
+          <SectionTitle :title="stallDetail?.name || '档口'" noMargin>
             <template #extra>
               <text class="feedback-link" @tap="openApply">反馈信息有误</text>
             </template>
