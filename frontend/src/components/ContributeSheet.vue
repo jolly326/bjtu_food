@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 export type ContributeOption = 'publishDish' | 'submitStall' | 'submitCanteen' | 'apply'
@@ -82,7 +82,7 @@ const sheetStyle = computed(() => ({
 
 watch(() => props.open, (v) => {
   if (v) {
-    requestAnimationFrame(() => {
+    nextTick(() => {
       maskShow.value = true
       sheetOpen.value = true
     })
