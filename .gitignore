@@ -67,3 +67,10 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# build/log artifacts
+*.err
+dbcheck_out*.txt
+dep_swagger.txt
+ec_schema.txt
+mvnrun.log.err

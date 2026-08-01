@@ -1,6 +1,5 @@
 package com.bjtufood.auth.config;
 
-import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.result.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;

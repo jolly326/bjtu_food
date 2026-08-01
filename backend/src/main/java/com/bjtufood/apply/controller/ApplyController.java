@@ -5,7 +5,6 @@ import com.bjtufood.apply.dto.ApplyVO;
 import com.bjtufood.apply.dto.SubmissionVO;
 import com.bjtufood.apply.service.ApplyService;
 import com.bjtufood.common.result.Result;
-import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.utils.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

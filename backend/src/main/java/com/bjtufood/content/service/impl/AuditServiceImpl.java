@@ -11,7 +11,6 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.content.dto.AuditVO;
 import com.bjtufood.content.service.AuditService;
 import com.bjtufood.dish.entity.Dish;
@@ -28,8 +27,6 @@ import org.springframework.util.StringUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * UGC 审核服务实现

@@ -1,6 +1,5 @@
 package com.bjtufood.common.aspect;
 
-import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.entity.OperationLog;

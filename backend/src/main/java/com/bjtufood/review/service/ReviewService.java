@@ -5,7 +5,6 @@ import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.dto.UsefulResult;
-import com.bjtufood.review.entity.Review;
 
 /**
  * 评价服务接口
