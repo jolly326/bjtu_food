@@ -28,11 +28,10 @@ withDefaults(defineProps<{
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  padding: 0 var(--spacing-md);
+  padding: 0;
   margin-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
-.section-title.no-margin { padding: 0; }
 /* 竖向 accent 条：4rpx × 28rpx 品牌色（§0.3） */
 .section-bar {
   width: 8rpx;
