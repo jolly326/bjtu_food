@@ -91,6 +91,9 @@
         <if test="req.tag != null and req.tag != ''">
             AND d.tags LIKE CONCAT('%', #{req.tag}, '%')
         </if>
+        <if test="req.spiceLevel != null">
+            AND d.spice_level = #{req.spiceLevel}
+        </if>
         <if test="req.minPrice != null">
             AND d.price &gt;= #{req.minPrice}
         </if>

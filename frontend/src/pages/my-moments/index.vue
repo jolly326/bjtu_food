@@ -3,17 +3,12 @@
     <Header title="我的动态" showBack />
 
     <!-- 分段：全部 / 审核中 / 已退回 -->
-    <view class="segment">
-      <view
-        v-for="seg in segments"
-        :key="seg.key"
-        class="seg-item"
-        :class="{ active: activeSeg === seg.key }"
-        @tap="switchSeg(seg.key)"
-      >
-        <text class="seg-text">{{ seg.label }}</text>
-        <text v-if="seg.count > 0" class="seg-count">{{ seg.count }}</text>
-      </view>
+    <view class="segment-wrap">
+      <SegmentTabs
+        :tabs="segmentTabs"
+        :model-value="activeSeg"
+        @update:model-value="onSegChange"
+      />
     </view>
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
@@ -49,6 +44,7 @@ import { ref, computed, onMounted } from 'vue'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SegmentTabs from '@/components/SegmentTabs.vue'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
@@ -56,11 +52,13 @@ import type { Moment } from '@/types/moment'
 type SegKey = 'all' | 'pending' | 'rejected'
 
 const userStore = useUserStore()
-const segments: { key: SegKey; label: string; count: number }[] = [
-  { key: 'all', label: '全部', count: 0 },
-  { key: 'pending', label: '审核中', count: 0 },
-  { key: 'rejected', label: '已退回', count: 0 },
+const segmentTabs = [
+  { key: 'all', label: '全部' },
+  { key: 'pending', label: '审核中' },
+  { key: 'rejected', label: '已退回' },
 ]
+const pendingCount = ref(0)
+const rejectedCount = ref(0)
 const activeSeg = ref<SegKey>('all')
 const moments = ref<Moment[]>([])
 const loading = ref(false)
@@ -84,9 +82,8 @@ async function loadData() {
         momentApi.getMyMoments('pending'),
         momentApi.getMyMoments('rejected'),
       ])
-      segments[1].count = pending.length
-      segments[2].count = rejected.length
-      segments[0].count = moments.value.length
+      pendingCount.value = pending.length
+      rejectedCount.value = rejected.length
     }
   } catch (e: any) {
     uni.showToast({ title: e.message || '加载失败', icon: 'none' })
@@ -96,9 +93,9 @@ async function loadData() {
   }
 }
 
-function switchSeg(seg: SegKey) {
-  if (activeSeg.value === seg) return
-  activeSeg.value = seg
+function onSegChange(key: string) {
+  if (activeSeg.value === key) return
+  activeSeg.value = key as SegKey
   loadData()
 }
 
@@ -131,12 +128,7 @@ onMounted(() => { loadData() })
 <style scoped>
 .my-moments-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.segment { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-lg); background: var(--bg-card); border-bottom: 2rpx solid var(--border-color); }
-.seg-item { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-soft); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
-.seg-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: 600; }
-.seg-count { font-size: 20rpx; color: var(--text-tertiary); background: var(--bg-card); border-radius: 999rpx; padding: 0 var(--spacing-xs); min-width: 28rpx; text-align: center; }
-.seg-item.active { background: var(--color-primary-soft); }
-.seg-item.active .seg-text { color: var(--color-primary); }
+.segment-wrap { padding: var(--spacing-sm) var(--spacing-lg); background: var(--bg-page); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }

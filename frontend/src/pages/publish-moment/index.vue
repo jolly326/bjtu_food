@@ -152,18 +152,10 @@ onLoad(async (query) => {
 <style scoped>
 .publish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.block { background: var(--bg-card); padding: var(--spacing-md); margin-bottom: var(--spacing-md); box-shadow: var(--shadow-card); border-radius: var(--radius-card); }
+.block { background: var(--bg-card); padding: var(--spacing-md); margin: 0 var(--spacing-md) var(--spacing-md); box-shadow: var(--shadow-card); border-radius: var(--radius-card); }
 .content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
 .section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
-.img-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.img-cell { width: 200rpx; height: 200rpx; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); position: relative; flex-shrink: 0; }
-.img-thumb { width: 100%; height: 100%; }
-.img-remove { position: absolute; top: 4rpx; right: 4rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--badge-dark-bg); display: flex; align-items: center; justify-content: center; }
-.img-remove-text { font-size: 24rpx; line-height: 1; color: var(--badge-dark-text); }
-.img-add { display: flex; align-items: center; justify-content: center; border: 2rpx dashed var(--border-bold); background: var(--bg-soft); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.img-add:active { transform: scale(0.97); }
-.img-add-icon { font-size: 60rpx; line-height: 1; color: var(--text-tertiary); }
 .related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .related-picker:active { transform: scale(0.97); }
 .related-label { font-size: var(--font-body); color: var(--text-secondary); }

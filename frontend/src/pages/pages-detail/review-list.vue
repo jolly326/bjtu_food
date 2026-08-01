@@ -4,8 +4,8 @@
 
     <view class="filter-bar">
       <view class="filter-tabs">
-        <view class="filter-tab" :class="{ active: sort === 'time' }" @tap="changeSort('time')">最新</view>
-        <view class="filter-tab" :class="{ active: sort === 'rating' }" @tap="changeSort('rating')">评分</view>
+        <view class="filter-tab" :class="{ active: sort === 'latest' }" @tap="changeSort('latest')">最新</view>
+        <view class="filter-tab" :class="{ active: sort === 'useful' }" @tap="changeSort('useful')">最有用</view>
       </view>
       <view class="with-image-switch" :class="{ on: onlyImage }" @tap="toggleOnlyImage">
         <view class="switch-dot" />
@@ -13,37 +13,30 @@
       </view>
     </view>
 
-    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <SectionTitle :title="dishId ? `全部评价 (${list.length})` : `我的评价 (${list.length})`" />
+    <scroll-view
+      class="scroll-wrap"
+      scroll-y
+      refresher-enabled
+      :refresher-triggered="refresherTriggered"
+      :lower-threshold="80"
+      @refresherrefresh="onRefresh"
+      @scrolltolower="onLoadMore"
+    >
+      <SectionTitle :title="dishId ? `全部评价 (${total})` : `我的评价 (${total})`" />
       <view class="review-list" v-if="list.length > 0">
-        <view v-for="rv in list" :key="rv.id" class="review-item" @longpress="onReviewLongPress(rv)">
-          <view class="review-header">
-            <image v-if="rv.userAvatar" class="review-avatar" :src="getImageUrl(rv.userAvatar)" mode="aspectFill" />
-            <view v-else class="review-avatar review-avatar-empty">
-              <text class="review-avatar-fallback">{{ EMOJI.dishPlaceholder }}</text>
-            </view>
-            <view class="review-header-right">
-              <view class="review-header-top">
-                <text class="review-name">{{ rv.userNickname }}</text>
-                <text class="review-time">{{ relativeTime(rv.createTime) }}</text>
-              </view>
-              <view class="review-stars">
-                <text v-for="i in starCount(rv.rating)" :key="i" class="review-star">{{ EMOJI.starFilled }}</text>
-              </view>
-            </view>
-          </view>
-          <text class="review-content">{{ rv.content }}</text>
-          <view v-if="rv.images && rv.images.length" class="review-images">
-            <view v-for="(img, idx) in rv.images" :key="idx" class="review-image-wrapper">
-              <image class="review-image" :src="getImageUrl(img)" mode="aspectFill" @tap="previewImage(rv.images!, idx)" />
-            </view>
-          </view>
-          <view class="review-actions">
-            <UsefulButton :count="rv.usefulCount || 0" :active="!!rv.useful" @click="handleUseful(rv)" />
-          </view>
-        </view>
+        <ReviewItem
+          v-for="rv in list"
+          :key="rv.id"
+          :review="rv"
+          :deletable="dishId === 0"
+          @delete="onReviewLongPress"
+        />
       </view>
-      <EmptyState v-else text="暂无评价" />
+      <EmptyState v-else-if="!loading" text="暂无评价" />
+      <EmptyState v-else text="加载中…" />
+      <view v-if="list.length > 0 && finished" class="list-end">
+        <text class="list-end-text">没有更多了</text>
+      </view>
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
   </view>
@@ -53,89 +46,75 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
-import UsefulButton from '@/components/UsefulButton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import { getImageUrl } from '@/utils/image'
-import { EMOJI } from '@/utils/emoji'
-import { getReviewsByDish, getMyReviews, toggleUseful, deleteReview } from '@/api/review'
+import ReviewItem from '@/components/ReviewItem.vue'
+import { getReviewsByDish, getMyReviews, deleteReview } from '@/api/review'
 import { useUserStore } from '@/stores/user'
-import type { Review } from '@/types/review'
+import type { Review, ReviewSort } from '@/types/review'
 
 const userStore = useUserStore()
 const dishId = ref(0)
-const sort = ref<'time' | 'rating'>('time')
+const sort = ref<ReviewSort>('latest')
 const onlyImage = ref(false)
 const list = ref<Review[]>([])
+const total = ref(0)
 const loading = ref(false)
+const finished = ref(false)
+const page = ref(1)
+const pageSize = 20
 const refresherTriggered = ref(false)
 
-function starCount(rating: number): number { return Math.round(rating) }
-
-async function loadReviews() {
-  if (!dishId.value) {
-    // 我的评价模式：当前登录用户的评价列表（后端 GET /my/reviews）
-    if (!userStore.requireAuth()) return
-    loading.value = true
-    try {
-      list.value = await getMyReviews({ page: 1, pageSize: 50 })
-    } catch {
-      list.value = []
-    } finally {
-      loading.value = false
-    }
-    return
+async function loadReviews(reset = false) {
+  if (reset) {
+    page.value = 1
+    finished.value = false
   }
   loading.value = true
   try {
-    list.value = await getReviewsByDish(dishId.value, {
-      sort: sort.value,
-      isWithImage: onlyImage.value,
-    })
+    let res: { list: Review[]; total: number }
+    if (!dishId.value) {
+      if (!userStore.requireAuth()) return
+      const data = await getMyReviews({ page: page.value, pageSize })
+      res = { list: data, total: data.length }
+    } else {
+      res = await getReviewsByDish(dishId.value, {
+        sort: sort.value,
+        isWithImage: onlyImage.value,
+        page: page.value,
+        pageSize,
+      })
+    }
+    total.value = res.total
+    if (reset) list.value = res.list
+    else list.value = [...list.value, ...res.list]
+    finished.value = list.value.length >= res.total
   } catch {
-    list.value = []
+    if (reset) list.value = []
+    finished.value = true
   } finally {
     loading.value = false
   }
 }
 
-function changeSort(next: 'time' | 'rating') {
+function changeSort(next: ReviewSort) {
   if (sort.value === next) return
   sort.value = next
-  loadReviews()
+  loadReviews(true)
 }
 
 function toggleOnlyImage() {
   onlyImage.value = !onlyImage.value
-  loadReviews()
+  loadReviews(true)
 }
 
-async function handleUseful(rv: Review) {
-  if (!userStore.requireAuth()) return
-  const prevUseful = !!rv.useful
-  const prevCount = rv.usefulCount || 0
-  // 乐观更新（幂等切换：再点取消）
-  rv.useful = !prevUseful
-  rv.usefulCount = prevUseful ? Math.max(0, prevCount - 1) : prevCount + 1
-  try {
-    const res = await toggleUseful(rv.id)
-    rv.useful = res.useful
-    rv.usefulCount = res.usefulCount
-  } catch {
-    rv.useful = prevUseful
-    rv.usefulCount = prevCount
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
+function onLoadMore() {
+  if (finished.value || loading.value) return
+  page.value += 1
+  loadReviews(false)
 }
 
-function previewImage(images: string[], current: number) {
-  uni.previewImage({
-    urls: images.map(getImageUrl),
-    current: getImageUrl(images[current]),
-  })
-}
-
-/** 删除本人评价（task-12.5，归属校验严格：仅本人 userId） */
+/** 删除本人评价（归属校验：仅本人 userId） */
 function onReviewLongPress(rv: Review) {
   if (!userStore.userInfo || rv.userId !== userStore.userInfo.id) return
   uni.showModal({
@@ -146,6 +125,7 @@ function onReviewLongPress(rv: Review) {
         try {
           await deleteReview(rv.id)
           list.value = list.value.filter(item => item.id !== rv.id)
+          total.value = Math.max(0, total.value - 1)
           uni.showToast({ title: '已删除', icon: 'none' })
         } catch (e: any) {
           uni.showToast({ title: e.message || '删除失败', icon: 'none' })
@@ -155,27 +135,15 @@ function onReviewLongPress(rv: Review) {
   })
 }
 
-function relativeTime(dateStr: string): string {
-  if (!dateStr) return ''
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = Math.floor((now - then) / 1000)
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}天前`
-  return dateStr
-}
-
 onLoad((query) => {
   if (query?.dishId) dishId.value = Number(query.dishId)
 })
-onMounted(() => loadReviews())
+onMounted(() => loadReviews(true))
 
 function onRefresh() {
   if (refresherTriggered.value) return
   refresherTriggered.value = true
-  loadReviews().finally(() => { refresherTriggered.value = false })
+  loadReviews(true).finally(() => { refresherTriggered.value = false })
 }
 </script>
 
@@ -195,20 +163,6 @@ function onRefresh() {
 .switch-text { font-size: var(--font-aux); color: var(--text-secondary); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
 .review-list { margin-top: var(--spacing-sm); }
-.review-item { background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); margin-bottom: var(--spacing-sm); }
-.review-header { display: flex; gap: var(--spacing-sm); align-items: stretch; margin-bottom: var(--spacing-xs); }
-.review-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; flex-shrink: 0; background: var(--bg-page); }
-.review-avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--border-color); }
-.review-avatar-fallback { font-size: 32rpx; line-height: 1; }
-.review-header-right { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 64rpx; }
-.review-header-top { display: flex; align-items: center; justify-content: space-between; }
-.review-name { font-size: var(--font-headline); font-weight: 500; color: var(--text-primary); }
-.review-time { font-size: var(--font-aux); color: var(--text-tertiary); }
-.review-stars { display: flex; align-items: center; gap: var(--spacing-xs); }
-.review-star { font-size: var(--font-tiny); line-height: 1; }
-.review-content { margin: var(--spacing-sm) 0; font-size: var(--font-body); color: var(--text-secondary); line-height: 1.4; display: block; }
-.review-images { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.review-image-wrapper { width: 200rpx; height: 200rpx; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); flex-shrink: 0; }
-.review-image { width: 100%; height: 100%; display: block; }
-.review-actions { margin-top: var(--spacing-xs); display: flex; justify-content: flex-end; }
+.list-end { text-align: center; padding: var(--spacing-lg) 0; }
+.list-end-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

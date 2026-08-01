@@ -31,6 +31,8 @@ page {
   --color-warning: #F5A623;
   --color-price: #C0392B;
   --color-star: #FFB400;
+  /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
+  --color-star-empty: #E8E0D8;
   /* 语义状态色（浅底 + 对应前景，供 badge/tag 使用） */
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
@@ -141,6 +143,8 @@ page {
   --color-warning: #F5A623;
   --color-price: #C0392B;
   --color-star: #FFB400;
+  /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
+  --color-star-empty: #E8E0D8;
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
   --color-warning-soft: #fff8e1;

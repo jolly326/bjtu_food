@@ -2,16 +2,19 @@
   <view class="header-wrap glass" :style="{ paddingTop: statusBarHeight + 'px' }">
     <view class="header">
       <view class="back-area" v-if="showBack" @tap="handleBack">
-        <text class="back-arrow">{{ EMOJI.back }}</text>
+        <IconSvg name="arrow-left" :size="44" color="var(--text-white)" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
+      <view class="action-area" v-if="$slots.action">
+        <slot name="action" />
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 const statusBarHeight = ref(0)
 
 onMounted(() => {
@@ -62,6 +65,13 @@ function handleBack() {
 .back-arrow {
   font-size: 44rpx;
   line-height: 1;
+}
+.action-area {
+  position: absolute;
+  right: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .title {

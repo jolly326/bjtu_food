@@ -2,7 +2,7 @@
   <view class="img-uploader">
     <view class="img-grid">
       <view
-        v-for="(img, idx) in model"
+        v-for="(img, idx) in props.modelValue"
         :key="`${img}-${idx}`"
         class="img-cell"
       >
@@ -12,14 +12,14 @@
         </view>
       </view>
       <view
-        v-if="model.length < max"
+        v-if="props.modelValue.length < max"
         class="img-cell img-add"
         @tap="chooseImage"
       >
         <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
       </view>
     </view>
-    <text v-if="showCounter" class="img-counter">{{ model.length }}/{{ max }}</text>
+    <text v-if="showCounter" class="img-counter">{{ props.modelValue.length }}/{{ max }}</text>
   </view>
 </template>
 
@@ -95,7 +95,7 @@ function chooseImage() {
 .img-cell {
   width: 200rpx;
   height: 200rpx;
-  border-radius: var(--radius-tag);
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: var(--bg-page);
   position: relative;

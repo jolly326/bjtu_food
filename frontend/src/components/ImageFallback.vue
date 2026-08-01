@@ -2,15 +2,15 @@
   <view class="image-fallback">
     <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
       <view v-else class="placeholder">
-        <text class="placeholder-icon">{{ EMOJI.dishPlaceholder }}</text>
+        <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   src?: string

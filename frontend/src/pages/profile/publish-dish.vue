@@ -19,14 +19,14 @@
           <view class="picker-row">
             <text class="picker-label">食堂</text>
             <text class="picker-value">{{ form.canteen || '请选择食堂' }}</text>
-            <text class="picker-arrow">{{ EMOJI.arrowRight }}</text>
+            <text class="picker-arrow"><IconSvg name="arrow" :size="28" color="var(--text-tertiary)" /></text>
           </view>
         </picker>
         <picker :range="stallNames" :disabled="!form.canteen" @change="onStallChange">
           <view class="picker-row">
             <text class="picker-label">档口</text>
             <text class="picker-value">{{ form.stallName || '请选择档口' }}</text>
-            <text class="picker-arrow">{{ EMOJI.arrowRight }}</text>
+            <text class="picker-arrow"><IconSvg name="arrow" :size="28" color="var(--text-tertiary)" /></text>
           </view>
         </picker>
       </CardSection>
@@ -47,7 +47,7 @@
         <view class="image-grid">
           <view v-for="(img, idx) in form.images" :key="idx" class="image-cell">
             <image class="image-thumb" :src="getImageUrl(img)" mode="aspectFill" />
-            <text class="image-remove" @tap="removeImage(idx)">✕</text>
+            <view class="image-remove" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
           </view>
           <view v-if="form.images.length < 9" class="image-cell image-add" @tap="selectImage">
             <text class="image-add-icon">+</text>
@@ -75,7 +75,7 @@ import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import { getImageUrl } from '@/utils/image'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import { uploadImage } from '@/api/upload'
 import { publishDish, updateMyDish } from '@/api/publish'
 import { getCanteensWithStalls } from '@/api/canteen'

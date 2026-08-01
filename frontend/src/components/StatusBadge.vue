@@ -1,6 +1,6 @@
 <template>
-  <view class="status-badge" :class="status">
-    <text>{{ statusText }}</text>
+  <view class="status-badge" :class="badgeClass">
+    <text>{{ badgeText }}</text>
   </view>
 </template>
 
@@ -8,16 +8,31 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  status: 'pending' | 'approved' | 'rejected'
+  /** 审核状态模式（默认） */
+  status?: 'pending' | 'approved' | 'rejected'
+  /** 角色模式：与学生端角色徽标（STUDENT/ADMIN）二选一 */
+  role?: 'student' | 'admin'
 }>()
 
-const statusText = computed(() => {
+const badgeClass = computed(() => {
+  if (props.role) return `role ${props.role}`
+  return props.status || 'pending'
+})
+
+const badgeText = computed(() => {
+  if (props.role) {
+    const map: Record<string, string> = {
+      student: '学生',
+      admin: '管理员',
+    }
+    return map[props.role] || props.role
+  }
   const map: Record<string, string> = {
     pending: '审核中',
     approved: '已通过',
     rejected: '已拒绝',
   }
-  return map[props.status] || props.status
+  return map[props.status || 'pending'] || props.status
 })
 </script>
 
@@ -42,4 +57,7 @@ const statusText = computed(() => {
   background: var(--color-error-soft);
   color: var(--color-error);
 }
+/* 角色徽标（学生端角色） */
+.status-badge.role { background: var(--color-primary-soft); color: var(--color-primary); }
+.status-badge.role.admin { background: var(--color-warning-soft); color: var(--color-warning); }
 </style>

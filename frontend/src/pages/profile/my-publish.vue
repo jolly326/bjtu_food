@@ -14,7 +14,7 @@
           <view v-for="item in dishes" :key="item.id" class="publish-item" @tap="goEditDish(item)">
             <image v-if="item.image" class="item-img" :src="getImageUrl(item.image)" mode="aspectFill" />
             <view v-else class="item-img item-img-empty">
-              <text class="item-img-fallback">{{ EMOJI.dishPlaceholder }}</text>
+              <IconSvg name="dish" :size="56" color="var(--text-tertiary)" class="item-img-fallback" />
             </view>
             <view class="item-info">
               <text class="item-name">{{ item.name }}</text>
@@ -35,7 +35,7 @@
               <image class="item-img-el" :src="getImageUrl(item.images[0])" mode="aspectFill" />
             </view>
             <view v-else class="item-img item-img-empty">
-              <text class="item-img-fallback">{{ item.type === 'canteen' ? EMOJI.home : EMOJI.dishPlaceholder }}</text>
+              <IconSvg :name="item.type === 'canteen' ? 'home' : 'dish'" :size="56" color="var(--text-tertiary)" class="item-img-fallback" />
             </view>
             <view class="item-info">
               <text class="item-name">{{ item.type === 'canteen' ? '食堂：' : '档口：' }}{{ item.name }}</text>
@@ -67,7 +67,6 @@ import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
-import { EMOJI } from '@/utils/emoji'
 import { getMyDishes } from '@/api/publish'
 import { getMyStalls } from '@/api/stall'
 import type { MyPublishDish } from '@/types/dish'

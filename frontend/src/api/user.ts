@@ -73,7 +73,8 @@ export async function getUserStats(): Promise<UserStats> {
   return await get('/auth/stats')
 }
 
-/** 账号注销（STU，DELETE /my/account，逻辑删除 + 失效 token，task-12.8） */
+/** 账号注销（STU，DELETE /my/account，逻辑删除 + 失效 token，task-12.8）
+ *  需 body { confirm: true } 二次确认（后端契约 A.17）；成功即 token 失效，前端清 token 跳登录。 */
 export async function deleteAccount(): Promise<void> {
-  await del<void>('/my/account')
+  await del<void>('/my/account', { confirm: true })
 }

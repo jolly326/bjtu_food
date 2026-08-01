@@ -59,13 +59,13 @@
           @tap="goBroadcast(broadcastIndex)"
         >
           <IconSvg name="broadcast" :size="30" color="var(--text-secondary)" class="broadcast-icon" />
-          <view v-if="broadcastList.length > 0" class="broadcast-ticker">
+          <view v-if="visibleBroadcasts.length > 0" class="broadcast-ticker">
             <view
               class="broadcast-track"
               :style="{ transform: `translateY(-${broadcastIndex * 100}%)` }"
             >
               <view
-                v-for="(b, bi) in broadcastList.filter(item => item.text && item.text.trim())"
+                v-for="(b, bi) in visibleBroadcasts"
                 :key="bi"
                 class="broadcast-line"
               >
@@ -162,6 +162,8 @@ interface BroadcastItem {
 const broadcastList = ref<BroadcastItem[]>([])
 const broadcastIndex = ref(0)
 let broadcastTimer: ReturnType<typeof setInterval> | null = null
+/** 仅保留非空文本广播，供 ticker 渲染与点击跳转（与索引严格对应） */
+const visibleBroadcasts = computed(() => broadcastList.value.filter(b => b && b.text && b.text.trim()))
 
 function startBroadcastRotation() {
   if (broadcastTimer) clearInterval(broadcastTimer)
@@ -172,7 +174,7 @@ function startBroadcastRotation() {
 }
 
 function goBroadcast(index: number) {
-  const b = broadcastList.value[index]
+  const b = visibleBroadcasts.value[index]
   if (!b) return
   switch (b.type) {
     case 'dish':
@@ -206,6 +208,8 @@ async function loadBroadcast() {
       { text: '发布菜品可获「平鉴官」认证，快来贡献', type: 'community' },
     ]
   }
+  // 清洗空文本项，避免轮换中出现空行
+  broadcastList.value = broadcastList.value.filter(b => b && b.text && b.text.trim())
   broadcastIndex.value = 0
   startBroadcastRotation()
 }

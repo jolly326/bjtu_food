@@ -2,43 +2,47 @@
   <view class="page review-page">
     <Header title="发表评价" showBack />
 
-    <!-- 评分 -->
-    <CardSection>
-      <text class="section-label">评分</text>
-      <view class="rating-panel">
-        <Rating v-model="form.rating" :readonly="false" :show-text="true" />
-      </view>
-    </CardSection>
-
-    <!-- 评论 -->
-    <CardSection>
-      <text class="section-label">评价内容</text>
-      <textarea
-        v-model="form.content"
-        class="content-input"
-        placeholder="分享你的用餐体验..."
-        :maxlength="MAX_CONTENT_LENGTH"
-      />
-      <text class="char-count">{{ form.content.length }}/{{ MAX_CONTENT_LENGTH }}</text>
-    </CardSection>
-
-    <!-- 图片上传 -->
-    <CardSection>
-      <text class="section-label">图片（最多3张）</text>
-      <view class="image-list">
-        <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
-          <image :src="img" mode="aspectFill" class="preview-img" />
-          <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
+    <scroll-view class="scroll-wrap" scroll-y>
+      <!-- 评分 -->
+      <CardSection>
+        <text class="section-label">评分</text>
+        <view class="rating-panel">
+          <Rating v-model="form.rating" :readonly="false" :show-text="true" />
         </view>
-        <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
-          <text class="upload-icon">+</text>
-        </view>
-      </view>
-    </CardSection>
+      </CardSection>
 
-    <!-- 提交按钮 -->
-    <view style="padding: var(--spacing-lg);">
-      <AppButton text="提交评价" type="primary" :disabled="!canSubmit" @click="handleSubmit" />
+      <!-- 评论 -->
+      <CardSection>
+        <text class="section-label">评价内容</text>
+        <textarea
+          v-model="form.content"
+          class="content-input"
+          placeholder="分享你的用餐体验..."
+          :maxlength="MAX_CONTENT_LENGTH"
+        />
+        <text class="char-count">{{ form.content.length }}/{{ MAX_CONTENT_LENGTH }}</text>
+      </CardSection>
+
+      <!-- 图片上传 -->
+      <CardSection>
+        <text class="section-label">图片（最多3张）</text>
+        <view class="image-list">
+          <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
+            <image :src="img" mode="aspectFill" class="preview-img" />
+            <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
+          </view>
+          <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
+            <text class="upload-icon">+</text>
+          </view>
+        </view>
+      </CardSection>
+
+      <view style="height: var(--spacing-lg)" />
+    </scroll-view>
+
+    <!-- 提交按钮（吸底） -->
+    <view class="submit-bar">
+      <AppButton text="提交评价" type="primary" :disabled="!canSubmit" :loading="uploading" @click="handleSubmit" />
     </view>
   </view>
 </template>
@@ -122,10 +126,13 @@ onLoad((query) => {
 
 <style scoped>
 .review-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background: var(--bg-page);
-  padding-bottom: var(--spacing-xl);
 }
+.scroll-wrap { flex: 1; overflow-y: auto; }
+.submit-bar { padding: var(--spacing-md); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 .section-label {
   font-size: var(--font-body);
   color: var(--text-primary);

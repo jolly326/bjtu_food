@@ -19,6 +19,8 @@ import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
+import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final ReviewMapper reviewMapper;
+    private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -123,13 +126,22 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserStatsVO getUserStats(Long userId) {
-        // favorite 模块本期整体移除（task-12.12），收藏数不再统计；喜欢方案待架构师评估。
+        // 发布数：本人提交的菜品总数（含全部审核态）
+        long publishedCount = dishMapper.selectCount(
+                new LambdaQueryWrapper<Dish>().eq(Dish::getCreatedBy, userId));
+        // 待审数：本人提交且 audit_status=pending 的菜品数
+        long pendingCount = dishMapper.selectCount(
+                new LambdaQueryWrapper<Dish>()
+                        .eq(Dish::getCreatedBy, userId)
+                        .eq(Dish::getAuditStatus, "pending"));
+        // 收藏数：favorite 模块本期整体移除（task-12.12），"我的喜欢"计数存储方案待架构师裁定，暂为 0
         long favoriteCount = 0L;
+        // 评价数：本人已发布且未被隐藏的评价数
         long reviewCount = reviewMapper.selectCount(
                 new LambdaQueryWrapper<Review>()
                         .eq(Review::getUserId, userId)
                         .eq(Review::getIsHidden, 0));
-        return new UserStatsVO(favoriteCount, reviewCount);
+        return new UserStatsVO(publishedCount, pendingCount, favoriteCount, reviewCount);
     }
 
     @Override

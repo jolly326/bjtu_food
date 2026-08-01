@@ -6,7 +6,7 @@
  */
 import { post, put, get } from './http'
 import type { MyPublishDish } from '@/types/dish'
-import { yuanToFen } from '@/utils/money'
+import { fenToYuan, yuanToFen } from '@/utils/money'
 
 export interface DishPublishPayload {
   stallId: number
@@ -38,5 +38,10 @@ export async function updateMyDish(id: number, payload: DishPublishPayload): Pro
 export async function getMyDishes(auditStatus?: 'pending' | 'approved' | 'rejected'): Promise<MyPublishDish[]> {
   const params: Record<string, any> = {}
   if (auditStatus) params.auditStatus = auditStatus
-  return get<MyPublishDish[]>('/my/dishes', params)
+  const list = await get<MyPublishDish[]>('/my/dishes', params)
+  // 后端 price 为分，统一在 API 层转元（与 api/dish.ts toDish 一致；§金额红线）
+  return (list || []).map((raw: any) => ({
+    ...raw,
+    price: fenToYuan(raw.price),
+  }))
 }

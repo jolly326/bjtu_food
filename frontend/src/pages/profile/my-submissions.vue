@@ -19,7 +19,7 @@
             <view class="item-right">
               <StatusBadge v-if="item.status === 'approved' && item.off" status="approved" />
               <StatusBadge v-else :status="(item.status as any)" />
-              <text v-if="item.status === 'approved' && item.off" class="off-tag">{{ EMOJI.lock }} 已下架</text>
+              <text v-if="item.status === 'approved' && item.off" class="off-tag"><IconSvg name="lock" :size="22" color="var(--text-tertiary)" /> 已下架</text>
             </view>
           </view>
         </view>
@@ -36,7 +36,7 @@
             </view>
             <view class="item-right">
               <StatusBadge :status="(item.status as any)" />
-              <text class="item-arrow">{{ EMOJI.arrowRight }}</text>
+              <text class="item-arrow"><IconSvg name="arrow" :size="28" color="var(--text-tertiary)" /></text>
             </view>
           </view>
         </view>
@@ -54,7 +54,7 @@ import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
 import { useUserStore } from '@/stores/user'
 import { getMySubmissions } from '@/api/apply'
 import type { SubmissionVO, ApplyEntityType, ApplyType } from '@/api/apply'

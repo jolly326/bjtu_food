@@ -3,46 +3,29 @@
     <Header title="设置" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 通知开关（前端占位，本地存储） -->
-      <view class="group">
-        <text class="group-title">通知</text>
-        <view class="cell">
+      <!-- 通知（前端占位，本地存储） -->
+      <SettingGroup title="通知">
+        <view class="cell" @tap="toggleNotify">
+          <IconSvg name="bell" :size="36" color="var(--text-secondary)" class="cell-icon" />
           <text class="cell-label">动态与消息通知</text>
-          <view class="switch" :class="{ on: notifyOn }" @tap="toggleNotify">
+          <view class="switch" :class="{ on: notifyOn }">
             <view class="switch-knob" />
           </view>
         </view>
-      </view>
+      </SettingGroup>
 
       <!-- 通用 -->
-      <view class="group">
-        <text class="group-title">通用</text>
-        <view class="cell" @tap="goAbout">
-          <text class="cell-label">{{ EMOJI.dishPlaceholder }} 关于食在交大</text>
-          <text class="cell-arrow">{{ EMOJI.arrowRight }}</text>
-        </view>
-        <view class="cell" @tap="goPrivacy">
-          <text class="cell-label">{{ EMOJI.lock }} 隐私政策</text>
-          <text class="cell-arrow">{{ EMOJI.arrowRight }}</text>
-        </view>
-        <view class="cell" @tap="clearCache">
-          <text class="cell-label">{{ EMOJI.delete }} 清除缓存</text>
-          <text class="cell-arrow">{{ EMOJI.arrowRight }}</text>
-        </view>
-      </view>
+      <SettingGroup title="通用">
+        <SettingCell label="关于食在交大" icon="dish" @tap="goAbout" />
+        <SettingCell label="隐私政策" icon="lock" @tap="goPrivacy" />
+        <SettingCell label="清除缓存" icon="delete" @tap="clearCache" />
+      </SettingGroup>
 
       <!-- 账号 -->
-      <view class="group">
-        <text class="group-title">账号</text>
-        <view class="cell" @tap="goLogoutConfirm">
-          <text class="cell-label">{{ EMOJI.profile }} 退出登录</text>
-          <text class="cell-arrow">{{ EMOJI.arrowRight }}</text>
-        </view>
-        <view class="cell" @tap="goCancelAccount">
-          <text class="cell-label cell-danger">{{ EMOJI.delete }} 账号注销</text>
-          <text class="cell-arrow">{{ EMOJI.arrowRight }}</text>
-        </view>
-      </view>
+      <SettingGroup title="账号">
+        <SettingCell label="退出登录" icon="profile" @tap="goLogoutConfirm" />
+        <SettingCell label="账号注销" icon="delete" danger @tap="goCancelAccount" />
+      </SettingGroup>
 
       <view class="version-row">
         <text class="version-text">食在交大 v1.0.0</text>
@@ -55,7 +38,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Header from '@/components/header.vue'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from '@/components/IconSvg.vue'
+import SettingGroup from '@/components/SettingGroup.vue'
+import SettingCell from '@/components/SettingCell.vue'
 import { useUserStore } from '@/stores/user'
 import { deleteAccount } from '@/api/user'
 
@@ -144,16 +129,13 @@ async function doDeleteAccount() {
 <style scoped>
 .settings-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.group { margin: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
-.group-title { display: block; padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
-.cell { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.cell { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-lg); border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .cell:last-child { border-bottom: none; }
 .cell:active { transform: scale(0.99); }
-.cell-label { font-size: var(--font-body); color: var(--text-primary); }
-.cell-danger { color: var(--color-error); }
-.cell-arrow { font-size: 28rpx; color: var(--text-tertiary); }
+.cell-icon { flex-shrink: 0; }
+.cell-label { flex: 1; font-size: var(--font-body); color: var(--text-primary); }
 /* 开关 */
-.switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: var(--border-bold); position: relative; transition: background 0.2s ease; }
+.switch { width: 88rpx; height: 48rpx; border-radius: 999rpx; background: var(--border-bold); position: relative; transition: background 0.2s ease; flex-shrink: 0; }
 .switch.on { background: var(--color-primary); }
 .switch-knob { position: absolute; top: 4rpx; left: 4rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--text-white); transition: transform 0.2s ease; }
 .switch.on .switch-knob { transform: translateX(40rpx); }

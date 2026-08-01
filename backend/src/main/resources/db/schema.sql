@@ -143,6 +143,24 @@ CREATE TABLE IF NOT EXISTS `review_useful`
 -- -------------------- 收藏（本期整体移除，见 task-12.12） --------------------
 -- /favorites 端点与 favorite 表本期彻底删除；喜欢(❤️)语义保留，存储方案待架构师评估。
 
+-- -------------------- 消息通知（账号注销级联清理依赖，A.15） --------------------
+CREATE TABLE IF NOT EXISTS `notification`
+(
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
+    `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：moment_audit/dish_audit/comment/useful/activity',
+    `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
+    `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
+    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（动态/菜品/活动ID，按 type 解释）',
+    `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_notification_user` (`user_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='消息通知';
+
 -- -------------------- 轮播图 --------------------
 CREATE TABLE IF NOT EXISTS `banner`
 (
@@ -163,6 +181,40 @@ CREATE TABLE IF NOT EXISTS `banner`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='轮播图';
+
+-- -------------------- 菜品分类（find 宫格，A.17） --------------------
+CREATE TABLE IF NOT EXISTS `category`
+(
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+    `name`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '分类名称（如 早餐/午餐/晚餐/夜宵/面食/米饭/麻辣/清淡）',
+    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前，对应 find 宫格顺序）',
+    `status`     VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_category_status_sort` (`status`, `sort_order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品分类（find 宫格）';
+
+-- -------------------- 首页广播通知条（A.14） --------------------
+CREATE TABLE IF NOT EXISTS `broadcast`
+(
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '广播ID',
+    `title`          VARCHAR(128) NOT NULL DEFAULT '' COMMENT '广播标题',
+    `content`        VARCHAR(512) NOT NULL DEFAULT '' COMMENT '广播正文（首页 ticker 展示文本）',
+    `broadcast_type` VARCHAR(32)  NOT NULL DEFAULT 'NOTICE' COMMENT '广播类型：NOTICE/ACTIVITY/DISH/URL/NONE（首页按类型分发跳转）',
+    `target_id`      BIGINT       NULL     DEFAULT NULL COMMENT '跳转目标ID（broadcast_type=DISH 时填菜品ID）',
+    `target_url`     VARCHAR(512) NULL     DEFAULT NULL COMMENT '跳转目标URL（broadcast_type=URL 时填外链）',
+    `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
+    `status`         VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
+    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_broadcast_status_sort` (`status`, `sort_order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='首页广播通知条';
 
 -- -------------------- 美食清单 --------------------
 CREATE TABLE IF NOT EXISTS `item_list`

@@ -118,6 +118,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   if (query.canteenId != null) params.canteenId = query.canteenId
   if (query.canteen) params.canteen = query.canteen
   if (query.tag) params.tag = query.tag
+  if (query.spiceLevel != null) params.spiceLevel = query.spiceLevel
   if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)
   if (query.maxPrice != null) params.maxPrice = yuanToFen(query.maxPrice)
   if (query.sortBy) params.sortBy = query.sortBy

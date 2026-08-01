@@ -14,7 +14,7 @@
     <view class="m-head">
       <image v-if="moment.userAvatar" class="m-avatar" :src="moment.userAvatar" mode="aspectFill" />
       <view v-else class="m-avatar m-avatar-empty">
-        <text class="m-avatar-fallback">{{ EMOJI.dishPlaceholder }}</text>
+        <IconSvg name="user" :size="40" color="var(--text-tertiary)" class="m-avatar-fallback" />
       </view>
       <view class="m-head-right">
         <text class="m-nickname">@{{ moment.userNickname || '匿名用户' }}</text>
@@ -73,7 +73,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { EMOJI } from '@/utils/emoji'
 import IconSvg from './IconSvg.vue'
 import { relativeTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'

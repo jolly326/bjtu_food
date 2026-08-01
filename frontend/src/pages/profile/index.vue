@@ -29,7 +29,7 @@
 
         <!-- 统计行（StatsRow 三宫格：评价 / 已发布 / 待审核） -->
         <StatsRow
-          class="enter-up"
+          class="enter-up stats-row-wrap"
           :style="{ '--enter-i': 1 }"
           :review-count="userStore.userStats.reviewCount ?? 0"
           :published-count="userStore.userStats.publishedCount ?? 0"
@@ -263,9 +263,10 @@ onMounted(() => {
 .nickname-edit { flex-shrink: 0; }
 
 /* 我要贡献入口卡（§1.4，与统计同宽） */
-.contribute-card { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-sm) var(--spacing-md) 0; padding: var(--spacing-sm); background: var(--color-primary-soft); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.stats-row-wrap { margin: 0 var(--spacing-md); }
+.contribute-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-xs) var(--spacing-md) 0; padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-primary-soft); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .contribute-card:active { transform: scale(var(--press-scale)); }
-.contribute-icon { width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.contribute-icon { width: 56rpx; height: 56rpx; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .contribute-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
 .contribute-title { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
 .contribute-sub { font-size: var(--font-aux); color: var(--text-secondary); }

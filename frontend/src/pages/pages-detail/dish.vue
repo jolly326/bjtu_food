@@ -55,7 +55,6 @@
 
           <view class="rating-row">
             <Rating :model-value="dish.rating" readonly :star-size="28" />
-            <text class="rating-value">{{ dish.rating }}</text>
           </view>
         </CardSection>
 
@@ -356,8 +355,6 @@ function onRefresh() {
 .promo-tag { font-size: 20rpx; font-weight: 700; color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: 4rpx; }
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 .rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.rating-value { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }
-.rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 /* 位置链路 */
 .location-chain { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
@@ -394,10 +391,10 @@ function onRefresh() {
 
 /* 底部操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); z-index: 50; }
-.fav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.fav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx; min-width: 96rpx; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .fav-btn:active { transform: scale(var(--press-scale)); }
-.fav-icon { line-height: 1; }
-.fav-text { font-size: 20rpx; color: var(--text-primary); }
+.fav-icon { width: 40rpx; height: 40rpx; line-height: 1; flex-shrink: 0; }
+.fav-text { font-size: 20rpx; color: var(--text-primary); white-space: nowrap; line-height: 1.2; }
 .fav-btn.active .fav-text { color: var(--color-like); }
 .action-bar-btns { flex: 1; display: flex; justify-content: flex-end; }
 

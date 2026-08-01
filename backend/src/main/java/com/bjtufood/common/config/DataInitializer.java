@@ -8,6 +8,10 @@ import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.constant.RoleConst;
+import com.bjtufood.content.broadcast.entity.Broadcast;
+import com.bjtufood.content.broadcast.mapper.BroadcastMapper;
+import com.bjtufood.content.category.entity.Category;
+import com.bjtufood.content.category.mapper.CategoryMapper;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +35,8 @@ public class DataInitializer implements CommandLineRunner {
     private final CanteenMapper canteenMapper;
     private final StallMapper stallMapper;
     private final DishMapper dishMapper;
+    private final BroadcastMapper broadcastMapper;
+    private final CategoryMapper categoryMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -79,5 +85,40 @@ public class DataInitializer implements CommandLineRunner {
             dishMapper.insert(dish);
         }
         log.info(">>> [MVP] 已初始化示例 食堂/档口/菜品 数据");
+
+        // 首页广播通知条示例（enabled，按 sort_order 升序）
+        Object[][] broadcasts = {
+                {"食堂开放通知", "学一食堂二层已恢复营业，欢迎前往品尝", "NOTICE", 1},
+                {"招牌推荐", "川湘风味窗口「麻婆豆腐」今日特惠", "DISH", 2},
+                {"活动公告", "食在交大美食季正在进行中", "URL", 3}
+        };
+        for (Object[] b : broadcasts) {
+            Broadcast bc = new Broadcast();
+            bc.setTitle((String) b[0]);
+            bc.setContent((String) b[1]);
+            bc.setBroadcastType((String) b[2]);
+            bc.setSortOrder((Integer) b[3]);
+            bc.setStatus("enabled");
+            if ("DISH".equals(b[2])) {
+                bc.setTargetId(dishMapper.selectOne(new LambdaQueryWrapper<com.bjtufood.dish.entity.Dish>()
+                        .eq(com.bjtufood.dish.entity.Dish::getName, "麻婆豆腐")).getId());
+            }
+            if ("URL".equals(b[2])) {
+                bc.setTargetUrl("https://mp.weixin.qq.com");
+            }
+            broadcastMapper.insert(bc);
+        }
+        log.info(">>> [MVP] 已初始化示例 首页广播通知 数据");
+
+        // 菜品分类示例（find 宫格，按 sort_order 升序）
+        String[] categories = {"早餐", "午餐", "晚餐", "夜宵", "面食", "米饭", "麻辣", "清淡"};
+        for (int i = 0; i < categories.length; i++) {
+            Category cat = new Category();
+            cat.setName(categories[i]);
+            cat.setSortOrder(i + 1);
+            cat.setStatus("enabled");
+            categoryMapper.insert(cat);
+        }
+        log.info(">>> [MVP] 已初始化示例 菜品分类 数据");
     }
 }

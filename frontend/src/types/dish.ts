@@ -69,6 +69,8 @@ export interface DishQuery {
   canteen?: string
   /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
   tag?: string
+  /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */
+  spiceLevel?: number
   /** 价格区间（前端「元」，API 层转分提交） */
   minPrice?: number
   maxPrice?: number
@@ -101,7 +103,7 @@ export interface HotSearch {
 export interface MyPublishDish {
   id: number
   name: string
-  /** 展示用「元」 */
+  /** 单位：元（已在 api 层由分转元，勿在页面再算） */
   price: number
   image?: string
   images?: string[]

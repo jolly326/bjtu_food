@@ -2,11 +2,12 @@
   <view class="page find-page">
     <Header title="发现" />
 
-    <!-- 搜索框（SearchBar 组件，输入模式 + 联想 debounce 300ms）；宽度放宽至接近内容区满宽，左右留白与首页一致 -->
-    <view class="search-wrap" :style="{ margin: 'var(--spacing-sm) var(--spacing-md)' }">
+    <!-- 搜索框（SearchBar 组件，输入模式 + 联想 debounce 300ms）；左右留白与下方卡片一致（24rpx） -->
+    <view class="search-wrap">
       <SearchBar
         v-model="keyword"
         input-mode
+        :margin="'0'"
         placeholder="搜索菜品、档口或食堂"
         @search="onSearchConfirm"
         @update:model-value="onKeywordInput"
@@ -505,7 +506,7 @@ watch(keyword, (value) => {
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.search-wrap { position: sticky; top: 0; z-index: 20; background: var(--bg-page); }
+.search-wrap { position: sticky; top: 0; z-index: 20; background: var(--bg-page); padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm); }
 
 /* 联想下拉 */
 .suggest-panel {

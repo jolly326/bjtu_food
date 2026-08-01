@@ -15,19 +15,20 @@ export interface CategoryItem {
   key: string
   /** 展示名 */
   label: string
-  /** emoji 图标（§0.6 红线 3：MVP 统一 emoji，禁止 iconfont） */
-  icon: string
 }
 
+// 注：分类图标不再内联 emoji，统一由 find 页 categoryIcon(key) 映射到矢量 IconSvg
+// （ic-noodle / ic-rice / ic-malatang 等，见 §0.5 图标表）。原 §0.6「MVP 统一 emoji」
+// 红线已被「全面替换掉 emoji」决策推翻，且分类宫格实际已采用矢量图标渲染。
 export const DISH_CATEGORIES: CategoryItem[] = [
-  { key: 'noodle', label: '面食', icon: '🍜' },
-  { key: 'rice', label: '盖饭', icon: '🍚' },
-  { key: 'malatang', label: '麻辣烫', icon: '🌶️' },
-  { key: 'breakfast', label: '早餐', icon: '🥐' },
-  { key: 'midnight', label: '夜宵', icon: '🌙' },
-  { key: 'fastfood', label: '快餐', icon: '🍔' },
-  { key: 'snack', label: '小吃', icon: '🍡' },
-  { key: 'drink', label: '饮品', icon: '🥤' },
+  { key: 'noodle', label: '面食' },
+  { key: 'rice', label: '盖饭' },
+  { key: 'malatang', label: '麻辣烫' },
+  { key: 'breakfast', label: '早餐' },
+  { key: 'midnight', label: '夜宵' },
+  { key: 'fastfood', label: '快餐' },
+  { key: 'snack', label: '小吃' },
+  { key: 'drink', label: '饮品' },
 ]
 
 /** 辣度枚举（Dish.spiceLevel：0=不辣 1=微辣 2=中辣 3=重辣），task-03 */

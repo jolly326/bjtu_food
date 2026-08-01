@@ -23,7 +23,7 @@ function saveAuth(tokenValue: string, info: UserInfo) {
 export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
-  const userStats = ref<UserStats>({ likeCount: 0, reviewCount: 0 })
+  const userStats = ref<UserStats>({ reviewCount: 0 })
   const loading = ref(false)
 
   function restoreFromCache(): boolean {

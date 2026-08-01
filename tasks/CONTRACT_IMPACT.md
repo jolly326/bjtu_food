@@ -127,6 +127,34 @@
 
 ---
 
+### A.14 首页广播通知条（broadcastList）
+- **现状**：无 `broadcast` 表 / 实体 / VO / 接口；首页广播条（§七 #6）数据来源缺失。
+- **定稿要求**：首页广播通知条按广播类型分发跳转（预留多种类型，不写死社区），竖直翻滚。
+- **缺口（⚠️ 缺失，本期新增）**：
+  1. 后端新建 `broadcast` 表：`id`/`title`/`content`/`broadcast_type`(枚举：NOTICE/ACTIVITY/DISH/URL/NONE)/`target_id`/`target_url`/`sort_order`/`status`(enabled/disabled)/`created_at`/`updated_at`；仅 `enabled` 对外。
+  2. 实体 `Broadcast` + `BroadcastVO`（`broadcastType`/`targetId`/`targetUrl` 对外 camelCase，对齐 Banner 契约）。
+  3. 新增 `GET /broadcasts`（**公开 GET**，无需登录）返回 enabled 广播，按 `sort_order` 升序 + `created_at` 降序；首页竖直 ticker 按 `broadcastType` 分发跳转。
+- **结论**：**缺失，需后端新建表+接口**（本期，W6 依赖）。不污染 Banner 语义；Broadcast 为轻量运营通知条，独立于 activity（已移除）。
+
+### A.15 账号注销级联清理缺口（notification 表缺失）
+- **现状**：`AccountController`(`DELETE /my/account`) 已实现（task-12.8），其级联清理引用 `Notification`/`NotificationMapper`，但 `notification` 表**未写入 schema.sql**（实体与 Mapper 存在，DB 无表 → 运行期级联清理报 SQL 错误）。CONTRACT_IMPACT A.5 原登记"清理 notification"但未落表。
+- **缺口（🔴 阻断-缺表）**：`schema.sql` 补建 `notification` 表（`user_id`/`type`/`title`/`content`/`related_id`/`is_read`/`created_at`/`updated_at`），使 `DELETE /my/account` 可运行；同时 `DataInitializer` 仅初始化 admin 与示例数据，不依赖此表。
+- **结论**：**阻断缺口，需补表**（本期必修，否则注销接口运行崩溃）。端点路径/逻辑已具备，仅补表。
+
+### A.16 个人中心统计 VO（StatsRow 三宫格）
+- **现状**：`UserStatsVO` 仅含 `favoriteCount`(=0，favorite 模块已移除 task-12.12) + `reviewCount`；`GET /auth/stats` 已具备。§七 #3 要求三宫格 = 发布数 / 待审数 / 收藏数，且"当前仅 reviewCount 先保留，不臆测字段"。
+- **缺口（⚠️ 部分）**：
+  1. 发布数 = 本人 `dish.created_by` 计数（含全部审核态）；待审数 = 本人 `dish.audit_status='pending'` 计数。两者可由 `GET /auth/stats` 后端聚合（无需新表）。
+  2. **收藏数**：favorite 模块已整体移除（task-12.12），当前无"收藏"数据源；"我的喜欢(❤️)"语义按 spec §5.x 保留但计数存储方案"待架构师评估"。**本期暂以 0 占位**，待技术负责人裁定喜欢计数落库口径后再回填（不臆测字段，符合 §七 #3 标注）。
+- **结论**：**部分具备，本期调整 VO 字段为 publishedDishCount/pendingDishCount/favoriteCount(占位0)+reviewCount**，收藏数待裁定。前端 StatsRow 三宫格按此 VO 落地，收藏数先展示 0。
+
+### A.17 find 分类列表 + 口味筛选
+- **现状**：`GET /dishes` 支持 keyword/canteenId/stallId/tag/minPrice/maxPrice/sortBy/sortOrder（✅ 价格/评分筛选已具备）；但**无分类列表端点**（find 宫格 8 分类数据来源缺失），且**无口味(spiceLevel)筛选**（`DishQueryReq` 与 `selectDishPage` 均未含 `spice_level` 过滤）。
+- **缺口（⚠️ 缺失）**：
+  1. 新增 `GET /categories`（**公开 GET**）返回分类列表（id/name/排序），供 find 宫格渲染（图标由前端按 §0.5 映射表落 SVG，后端不出图标二进制）。
+  2. `DishQueryReq` 增加 `spiceLevel`(Integer，0-3 辣度枚举) + `DishMapper.xml selectDishPage` 增加 `spice_level` 等值过滤条件，供 find 口味 Sheet 使用。
+- **结论**：**缺失，需后端补分类端点 + 口味筛选**（本期，W6/W2 依赖）。分类为运营配置实体，口味复用 dish 已有 `spice_level` 列（不新建口味表，符合"口味标签体系若缺表则补"的最小化原则——辣度已存于 dish 列，无需独立口味表）。
+
 ## B. 更优技术方案 / 契约建议（避免冗余）
 
 1. **活动模块清理力度**：建议**整体移除** `activity` 模块（后端包 + 前端页 + Web 模块 + 路由），而非仅"隐藏入口"。理由：定稿明确定义"活动（独立模块移除并入 Banner）"，Banner 的 `ACTIVITY` target_type 亦应一并移除（Banner 仅承载 URL 外链/H5，不再跳活动详情）。若保留 activity 表仅作历史数据，则 `Banner.targetType` 枚举去掉 `ACTIVITY`。→ **✅ 已拍板：整体移除**（见 task-12.10）。

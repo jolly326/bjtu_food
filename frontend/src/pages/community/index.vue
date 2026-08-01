@@ -2,24 +2,6 @@
   <view class="page community-page">
     <Header title="动态" />
 
-    <!-- 推荐 / 最新 两 Tab -->
-    <view class="tab-bar">
-      <view
-        class="tab-item"
-        :class="{ active: activeTab === 'latest' }"
-        @tap="switchTab('latest')"
-      >
-        <text class="tab-text">最新</text>
-      </view>
-      <view
-        class="tab-item"
-        :class="{ active: activeTab === 'recommend' }"
-        @tap="switchTab('recommend')"
-      >
-        <text class="tab-text">推荐</text>
-      </view>
-    </view>
-
     <scroll-view
       class="scroll-wrap"
       scroll-y
@@ -37,7 +19,10 @@
         text="还没有动态，快去发布第一条吧"
         icon="comment"
         :retry="loadFailed"
+        :action-text="!loadFailed ? '发布第一条动态' : ''"
+        action-icon="plus"
         @retry="loadData(true)"
+        @action="goPublish"
       />
 
       <view v-else class="moment-list">
@@ -80,7 +65,6 @@ import IconSvg from '@/components/IconSvg.vue'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 
-const activeTab = ref<'latest' | 'recommend'>('latest')
 const moments = ref<Moment[]>([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -101,7 +85,8 @@ async function loadData(reset = false) {
   loading.value = true
   loadFailed.value = false
   try {
-    const res = await momentApi.getMoments({ tab: activeTab.value, page, pageSize })
+    // 单流：始终按「最新」倒序拉取（task-14 §1.3 已决议去除推荐 Tab）
+    const res = await momentApi.getMoments({ tab: 'latest', page, pageSize })
     moments.value = page === 1 ? res.list : [...moments.value, ...res.list]
     if (moments.value.length >= res.total) finished.value = true
     page += 1
@@ -120,12 +105,6 @@ async function onScrollToLower() {
   } finally {
     loadingMore.value = false
   }
-}
-
-function switchTab(tab: 'latest' | 'recommend') {
-  if (activeTab.value === tab) return
-  activeTab.value = tab
-  loadData(true)
 }
 
 function onRefresh() {
@@ -157,11 +136,6 @@ onMounted(() => { loadData(true) })
 <style scoped>
 .community-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.tab-bar { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-lg); background: var(--bg-card); border-bottom: 2rpx solid var(--border-color); }
-.tab-item { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
-.tab-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: 600; }
-.tab-item.active { background: var(--color-primary-soft); }
-.tab-item.active .tab-text { color: var(--color-primary); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }
@@ -187,7 +161,7 @@ onMounted(() => { loadData(true) })
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.fab.pressed { transform: scale(0.94); }
+.fab.pressed { transform: scale(0.97); }
 
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation-duration: 1.4s; }

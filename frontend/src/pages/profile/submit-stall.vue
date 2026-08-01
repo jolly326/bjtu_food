@@ -33,7 +33,7 @@
         <view class="image-grid">
           <view v-for="(img, idx) in form.images" :key="idx" class="image-cell">
             <image class="image-thumb" :src="getImageUrl(img)" mode="aspectFill" />
-            <text class="image-remove" @tap="removeImage(idx)">✕</text>
+            <view class="image-remove" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
           </view>
           <view v-if="form.images.length < 9" class="image-cell image-add" @tap="selectImage">
             <text class="image-add-icon">+</text>
