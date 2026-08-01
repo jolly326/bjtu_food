@@ -132,7 +132,7 @@ onLoad((query) => {
   background: var(--bg-page);
 }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.submit-bar { padding: var(--spacing-md); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
+.submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 .section-label {
   font-size: var(--font-body);
   color: var(--text-primary);

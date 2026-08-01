@@ -160,7 +160,7 @@ onLoad(async (query) => {
 .related-picker:active { transform: scale(0.97); }
 .related-label { font-size: var(--font-body); color: var(--text-secondary); }
 .related-arrow { font-size: 28rpx; color: var(--text-tertiary); }
-.submit-bar { padding: var(--spacing-md); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
+.submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 
 /* 关联 Sheet */
 .sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
