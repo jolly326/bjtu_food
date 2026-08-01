@@ -109,5 +109,5 @@ function handleClear() {
   transition: transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.clear-btn:active { transform: scale(0.9); }
+.clear-btn:active { transform: scale(var(--press-scale)); }
 </style>

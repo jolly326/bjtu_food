@@ -193,7 +193,7 @@ async function onUseful() {
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 .m-actions { display: flex; align-items: center; justify-content: flex-start; gap: var(--spacing-md); margin-top: var(--spacing-md); padding-top: var(--spacing-sm); border-top: 2rpx solid var(--border-color); }
 .m-action { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.m-action:active { transform: scale(0.9); }
+.m-action:active { transform: scale(var(--press-scale)); }
 .m-action.m-action-share:active { background: var(--color-primary-soft); }
 .m-action.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .m-action-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }

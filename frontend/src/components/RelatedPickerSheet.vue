@@ -1,5 +1,5 @@
 <template>
-  <view v-if="open" class="sheet-mask" @tap="$emit('close')" />
+  <view v-if="open" class="sheet-mask" :class="{ show: maskShow }" @tap="$emit('close')" />
   <view
     class="related-sheet"
     :class="{ open }"
@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
@@ -92,6 +92,16 @@ const emit = defineEmits<{
   select: [item: RelatedItem]
   confirm: [item: RelatedItem | null]
 }>()
+
+// 遮罩淡入（与兄弟弹层一致）
+const maskShow = ref(false)
+watch(() => props.open, (v) => {
+  if (v) {
+    nextTick(() => { maskShow.value = true })
+  } else {
+    maskShow.value = false
+  }
+})
 
 // 下拉关闭手势（与 ApplySheet / ContributeSheet 等底部弹层保持一致）
 const dragOffset = ref(0)
@@ -205,7 +215,8 @@ watch(tab, () => {
 </script>
 
 <style scoped>
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity 0.3s ease; }
+.sheet-mask.show { opacity: 1; }
 .related-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg-card);
@@ -244,5 +255,6 @@ watch(tab, () => {
 
 @media (prefers-reduced-motion: reduce) {
   .related-sheet { transition: opacity 0.2s ease; transform: none !important; }
+  .footer-spinner { animation: none; }
 }
 </style>

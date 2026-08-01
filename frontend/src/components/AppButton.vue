@@ -11,13 +11,14 @@
     @mouseleave="pressed = false"
     @tap="handleTap"
   >
-    <text v-if="icon" class="btn-icon-text">{{ icon }}</text>
+    <IconSvg v-if="icon" :name="icon" :size="30" color="var(--text-white)" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   text: string
@@ -67,9 +68,8 @@ function handleTap() {
   box-sizing: border-box;
   gap: var(--spacing-xs);
 }
-.btn-icon-text {
-  font-size: 30rpx;
-  line-height: 1;
+.btn-icon {
+  flex-shrink: 0;
   margin-right: var(--spacing-xs);
 }
 .app-btn.disabled {

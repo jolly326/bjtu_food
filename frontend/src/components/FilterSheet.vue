@@ -20,7 +20,7 @@
       <view class="sheet-grabber" />
       <view class="sheet-head">
         <text class="sheet-title">筛选</text>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="requestClose" />
+        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="requestClose" />
       </view>
 
       <scroll-view class="sheet-body" scroll-y>

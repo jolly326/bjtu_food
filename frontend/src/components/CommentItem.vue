@@ -96,7 +96,7 @@ function onLongPress() {
 
 <style scoped>
 .comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.comment-item.pressed { transform: scale(0.985); }
+.comment-item.pressed { transform: scale(var(--press-scale)); }
 .comment-item:last-child { border-bottom: none; }
 .c-avatar { width: 60rpx; height: 60rpx; border-radius: var(--radius-card); background: var(--bg-page); flex-shrink: 0; }
 .c-avatar-empty { display: flex; align-items: center; justify-content: center; }

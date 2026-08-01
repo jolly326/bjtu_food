@@ -131,7 +131,7 @@ async function doDeleteAccount() {
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 0; }
 .cell { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); box-sizing: border-box; transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .cell:last-child { border-bottom: none; }
-.cell:active { transform: scale(0.99); }
+.cell:active { transform: scale(var(--press-scale)); }
 .cell-icon { flex-shrink: 0; }
 .cell-label { flex: 1; font-size: var(--font-body); color: var(--text-primary); }
 /* 开关 */

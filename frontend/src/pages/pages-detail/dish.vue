@@ -162,8 +162,17 @@
     />
 
     <!-- 分享面板（简化：复制链接） -->
-    <view v-if="shareOpen" class="sheet-mask" @tap="shareOpen = false"></view>
-    <view class="share-sheet" :class="{ open: shareOpen }">
+    <view v-if="shareOpen" class="sheet-mask" :class="{ show: shareMaskShow }" @tap="shareOpen = false"></view>
+    <view
+      v-if="shareOpen"
+      class="share-sheet"
+      :class="{ open: shareOpen }"
+      :style="shareSheetStyle"
+      @touchstart="onShareTouchStart"
+      @touchmove="onShareTouchMove"
+      @touchend="onShareTouchEnd"
+      @touchcancel="onShareTouchEnd"
+    >
       <view class="sheet-head">
         <text class="sheet-title">分享菜品</text>
         <IconSvg name="close" :size="36" color="var(--text-tertiary)" class="sheet-close" @tap="shareOpen = false" />
@@ -179,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -273,8 +282,18 @@ async function toggleLike() {
 
 /** 分享（简化） */
 const shareOpen = ref(false)
+const shareMaskShow = ref(false)
+const shareDragging = ref(false)
+const shareDragOffset = ref(0)
+
 function onShare() {
   shareOpen.value = true
+  nextTick(() => { shareMaskShow.value = true })
+}
+function closeShare() {
+  shareOpen.value = false
+  shareMaskShow.value = false
+  shareDragOffset.value = 0
 }
 function copyShareLink() {
   const url = `/pages/pages-detail/dish?id=${dishId.value}`
@@ -282,8 +301,35 @@ function copyShareLink() {
     data: url,
     success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
   })
-  shareOpen.value = false
+  closeShare()
 }
+
+// ── 分享面板下拉关闭手势（与兄弟弹层一致：仅向下、阈值 ~120px、越阈值关闭否则回弹）──
+let shareStartY = 0
+function onShareTouchStart(e: any) {
+  shareStartY = e.touches?.[0]?.clientY ?? 0
+  shareDragging.value = true
+}
+function onShareTouchMove(e: any) {
+  if (!shareDragging.value) return
+  const y = e.touches?.[0]?.clientY ?? 0
+  const delta = y - shareStartY
+  shareDragOffset.value = delta > 0 ? delta : 0
+}
+function onShareTouchEnd() {
+  if (!shareDragging.value) return
+  shareDragging.value = false
+  if (shareDragOffset.value > 120) {
+    closeShare()
+  }
+  shareDragOffset.value = 0
+}
+
+const shareSheetStyle = computed(() => ({
+  transform: `translateY(calc(${shareDragging.value ? shareDragOffset.value : 0}px))`,
+  // 拖拽中无过渡（跟随手指）；释放后回弹/关闭用抽屉缓动
+  transition: shareDragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+}))
 
 /** 申请下架/纠错 Sheet */
 const applyOpen = ref(false)
@@ -409,7 +455,8 @@ function onRefresh() {
 .action-bar-btns { flex: 1; display: flex; justify-content: flex-end; }
 
 /* 分享 Sheet */
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity 0.3s ease; }
+.sheet-mask.show { opacity: 1; }
 .share-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; box-shadow: var(--shadow-modal); z-index: 100; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .share-sheet.open { transform: translateY(0); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
@@ -421,7 +468,8 @@ function onRefresh() {
 .share-option-text { font-size: var(--font-body); color: var(--text-primary); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
-  .share-sheet { transition: opacity 0.2s ease; }
+  .share-sheet { transition: opacity 0.2s ease; transform: none !important; }
+  .sheet-mask { transition: opacity 0.2s ease; }
 }
 
 /* 加载骨架（与 stall/canteen 风格一致，统一材质与呼吸动效） */

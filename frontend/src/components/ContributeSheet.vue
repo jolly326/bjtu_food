@@ -153,7 +153,7 @@ function onTouchEnd() {
   transition: background 0.15s ease, transform 0.12s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.sheet-option.pressed { background: var(--bg-soft); transform: scale(0.99); }
+.sheet-option.pressed { background: var(--bg-soft); transform: scale(var(--press-scale)); }
 .sheet-option-icon { flex-shrink: 0; }
 .sheet-option-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
 .sheet-option-title { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }

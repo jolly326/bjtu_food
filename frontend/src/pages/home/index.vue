@@ -30,7 +30,7 @@
         <!-- Banner 轮播（按 target_type 跳转）；无数据时限轻量占位，不整块消失 -->
         <view class="swiper-section enter-up" :style="{ '--enter-i': 0 }">
           <swiper v-if="dishStore.homeBanners.length > 0" class="home-swiper" indicator-dots indicator-color="rgba(255,255,255,0.4)"
-            indicator-active-color="#FFFFFF" autoplay interval="3000" circular>
+            :indicator-active-color="SWIPER_INDICATOR_ACTIVE_COLOR" autoplay interval="3000" circular>
             <swiper-item v-for="(item, idx) in dishStore.homeBanners" :key="idx">
               <view class="swiper-slide" @tap="handleBannerTap(item)">
                 <image v-if="item.image" class="swiper-img" :src="item.image" mode="aspectFill" @error="item.image = ''" />
@@ -128,6 +128,7 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { useDishStore } from '@/stores/dish'
 import { getBroadcasts } from '@/api/broadcast'
+import { SWIPER_INDICATOR_ACTIVE_COLOR } from '@/constants/ui'
 import type { Dish } from '@/types/dish'
 import type { BannerItem } from '@/types/banner'
 

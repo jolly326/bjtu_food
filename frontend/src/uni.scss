@@ -54,3 +54,8 @@ $uni-border-radius-circle: 50%;
    微信小程序原生 <swiper> 的 indicator-active-color / indicator-color 不接受 CSS var()，
    因此组件内用真实颜色常量（见 src/constants/ui.ts 的 SWIPER_INDICATOR_ACTIVE_COLOR）。
    这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */
+
+/* Native uni.showModal confirmColor exception — var() unsupported by confirmColor attribute.
+   微信小程序原生 uni.showModal 的 confirmColor 不接受 CSS var()，因此 settings/index.vue
+   直接传入真实色值 #e54d42（交大红系错误色，见 uni.scss $uni-color-error）。
+   这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */
