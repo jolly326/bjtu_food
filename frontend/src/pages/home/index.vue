@@ -21,15 +21,15 @@
 
       <!-- 空状态：全部板块无数据（后端未起 / 无数据 / 网络异常）时友好提示，可下拉重试 -->
       <view v-else-if="isAllEmpty" class="home-empty">
-        <text class="empty-illu">{{ EMOJI.dishPlaceholder }}</text>
-        <text class="empty-tip">暂时没有内容</text>
-        <text class="empty-sub">下拉刷新，或确认后端已启动、网络可访问后重试</text>
+        <IconSvg name="empty" :size="120" color="var(--text-tertiary)" />
+        <text class="empty-tip">{{ loadFailed ? '加载失败' : '暂时没有内容' }}</text>
+        <text class="empty-sub">{{ loadFailed ? '网络异常或后端未启动，下拉刷新后重试' : '下拉刷新，或确认后端已启动、网络可访问后重试' }}</text>
       </view>
 
       <block v-else>
-        <!-- Banner 轮播（按 target_type 跳转）；无数据时整块隐藏，不留空白区 -->
-        <view class="swiper-section enter-up" v-if="dishStore.homeBanners.length > 0" :style="{ '--enter-i': 0 }">
-          <swiper class="home-swiper" indicator-dots indicator-color="rgba(255,255,255,0.4)"
+        <!-- Banner 轮播（按 target_type 跳转）；无数据时限轻量占位，不整块消失 -->
+        <view class="swiper-section enter-up" :style="{ '--enter-i': 0 }">
+          <swiper v-if="dishStore.homeBanners.length > 0" class="home-swiper" indicator-dots indicator-color="rgba(255,255,255,0.4)"
             indicator-active-color="#FFFFFF" autoplay interval="3000" circular>
             <swiper-item v-for="(item, idx) in dishStore.homeBanners" :key="idx">
               <view class="swiper-slide" @tap="handleBannerTap(item)">
@@ -40,10 +40,13 @@
               </view>
             </swiper-item>
           </swiper>
+          <view v-else class="home-swiper swiper-placeholder">
+            <text class="swiper-ph-text">暂无推荐</text>
+          </view>
         </view>
 
         <!-- 广播通知条：细长 ticker，仅通知图标 + 文本内容，内容每秒上下滚动轮换（task-13 §1.1，去除「查看全部」，按广播类型分发跳转） -->
-      <view class="section enter-up broadcast-section" v-if="broadcastList.length > 0" :style="{ '--enter-i': 1 }">
+      <view class="section enter-up broadcast-section" :style="{ '--enter-i': 1 }">
         <view
           class="broadcast-bar"
           :class="{ pressed: momentPressed }"
@@ -55,8 +58,8 @@
           @mouseleave="momentPressed = false"
           @tap="goBroadcast(broadcastIndex)"
         >
-          <text class="broadcast-icon">{{ EMOJI.bell }}</text>
-          <view class="broadcast-ticker">
+          <IconSvg name="broadcast" :size="30" color="var(--text-secondary)" class="broadcast-icon" />
+          <view v-if="broadcastList.length > 0" class="broadcast-ticker">
             <view
               class="broadcast-track"
               :style="{ transform: `translateY(-${broadcastIndex * 100}%)` }"
@@ -70,10 +73,11 @@
               </view>
             </view>
           </view>
+          <text v-else class="broadcast-text broadcast-single">暂无广播通知</text>
         </view>
       </view>
 
-      <!-- 食堂入口（横滑卡片）：图 + 名称 + 营业状态徽标；点击进食堂详情（游客可进） -->
+      <!-- 食堂入口（横滑卡片）：图 + 名称；点击进食堂详情（游客可进） -->
         <view class="section enter-up" v-if="canteens.length > 0" :style="{ '--enter-i': 1 }">
           <SectionTitle title="食堂入口" />
           <scroll-view class="horiz-scroll" scroll-x show-scrollbar="false">
@@ -93,7 +97,7 @@
               >
                 <image v-if="item.image" class="canteen-img" :src="item.image" mode="aspectFill" />
                 <view v-else class="canteen-img canteen-img-placeholder">
-                  <text class="canteen-illu">{{ EMOJI.canteenDish }}</text>
+                  <IconSvg name="dish" :size="80" color="var(--text-tertiary)" class="canteen-illu" />
                 </view>
                 <view class="canteen-overlay" />
                 <text class="canteen-name">{{ item.name }}</text>
@@ -125,14 +129,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { EMOJI } from '@/utils/emoji'
 import Header from '@/components/header.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { useDishStore } from '@/stores/dish'
+import { getBroadcasts } from '@/api/broadcast'
 import type { Dish } from '@/types/dish'
 import type { BannerItem } from '@/types/banner'
 
@@ -142,6 +147,7 @@ const currentCanteen = ref('')
 const pressed = ref(false)
 const momentPressed = ref(false)
 const loading = ref(true)
+const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
 /** 广播通知：仅通知图标 + 文本内容，内容每秒上下滚动轮换（task-13 §1.1）。
@@ -188,14 +194,18 @@ function goBroadcast(index: number) {
   }
 }
 
-function loadBroadcast() {
-  // 接口位：若有后端公告接口，在此 fetch 并赋值 broadcastList。
-  // 当前回落本地默认公告（多类型，演示轮换与分发）。
-  broadcastList.value = [
-    { text: '欢迎来到食在交大，发现校园美食', type: 'community' },
-    { text: '同学们都在吃什么 · 最新动态等你来逛', type: 'community' },
-    { text: '发布菜品可获「平鉴官」认证，快来贡献', type: 'community' },
-  ]
+async function loadBroadcast() {
+  // 后端契约 A.14：GET /broadcasts（公开）。失败回落本地演示公告，保证 UI 可演示。
+  try {
+    const list = await getBroadcasts()
+    broadcastList.value = list
+  } catch {
+    broadcastList.value = [
+      { text: '欢迎来到食在交大，发现校园美食', type: 'community' },
+      { text: '同学们都在吃什么 · 最新动态等你来逛', type: 'community' },
+      { text: '发布菜品可获「平鉴官」认证，快来贡献', type: 'community' },
+    ]
+  }
   broadcastIndex.value = 0
   startBroadcastRotation()
 }
@@ -223,6 +233,7 @@ const isAllEmpty = computed(() =>
 
 async function loadData() {
   loading.value = true
+  loadFailed.value = false
   try {
     await Promise.all([
       dishStore.fetchHomeBanners(),
@@ -236,6 +247,7 @@ async function loadData() {
     loadBroadcast()
   } catch (e) {
     console.error('[home] 首页数据加载失败', e)
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -275,11 +287,12 @@ function handleBannerTap(banner: BannerItem) {
       break
     case 'URL':
       if (banner.targetUrl) {
+        const url = banner.targetUrl
         // 公众号文章 / H5：尝试 web-view 打开，未配置业务域名时回落复制链接
         uni.navigateTo({
-          url: `/pages/webview/index?src=${encodeURIComponent(banner.targetUrl)}`,
+          url: `/pages/webview/index?src=${encodeURIComponent(url)}`,
           fail: () => {
-            uni.setClipboardData({ data: banner.targetUrl, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+            uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
           },
         })
       }
@@ -318,8 +331,6 @@ function handleBannerTap(banner: BannerItem) {
   -webkit-tap-highlight-color: transparent;
 }
 .broadcast-icon {
-  font-size: 30rpx;
-  line-height: 1;
   flex-shrink: 0;
   opacity: 0.7;
 }
@@ -352,8 +363,7 @@ function handleBannerTap(banner: BannerItem) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.section-head { display: flex; align-items: center; margin-bottom: var(--spacing-sm); }
-.section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
+.broadcast-single { opacity: 0.6; }
 
 /* ===== 食堂入口横滑卡片 ===== */
 .horiz-scroll { overflow-x: auto; white-space: nowrap; }
@@ -372,10 +382,12 @@ function handleBannerTap(banner: BannerItem) {
   -webkit-tap-highlight-color: transparent;
 }
 .canteen-card.pressed { transform: scale(0.97); }
-.broadcast-bar.pressed { transform: scale(0.985); }
+.broadcast-bar.pressed { transform: scale(var(--press-scale)); }
 .canteen-img { width: 100%; height: 100%; }
 .canteen-img-placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
-.canteen-illu { font-size: 80rpx; line-height: 1; opacity: 0.3; }
+.canteen-illu { opacity: 0.3; }
+.swiper-placeholder { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
+.swiper-ph-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .canteen-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-deep) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
 .canteen-name { position: absolute; left: var(--spacing-md); bottom: var(--spacing-md); right: var(--spacing-md); font-size: var(--font-caption); font-weight: 700; color: var(--text-white); z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

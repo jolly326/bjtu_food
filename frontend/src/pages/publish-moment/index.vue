@@ -16,19 +16,17 @@
 
       <!-- 图片上传 -->
       <view class="block">
-        <view class="section-head">
-          <text class="section-title">图片</text>
-          <text class="section-sub">最多 9 张</text>
-        </view>
+        <SectionTitle title="图片">
+          <template #extra><text class="section-sub">最多 9 张</text></template>
+        </SectionTitle>
         <ImageUploader v-model="images" :max="9" />
       </view>
 
       <!-- 关联对象（可选） -->
       <view class="block">
-        <view class="section-head">
-          <text class="section-title">关联对象</text>
-          <text class="section-sub">选填</text>
-        </view>
+        <SectionTitle title="关联对象">
+          <template #extra><text class="section-sub">选填</text></template>
+        </SectionTitle>
         <view class="related-picker" @tap="relatedSheetOpen = true">
           <text class="related-label">{{ relatedLabel }}</text>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
@@ -61,10 +59,11 @@ import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import type { Moment } from '@/types/moment'
+import type { Moment, RelatedType } from '@/types/moment'
 
 const userStore = useUserStore()
 const content = ref('')
@@ -109,10 +108,11 @@ async function submit() {
     return
   }
   submitting.value = true
+  const relatedType: RelatedType = selectedRelated.value ? selectedRelated.value.type : 'none'
   const payload = {
     content: text,
     images: images.value,
-    relatedType: selectedRelated.value ? selectedRelated.value.type : 'none',
+    relatedType,
     relatedId: selectedRelated.value ? selectedRelated.value.id : null,
   }
   try {
@@ -156,8 +156,7 @@ onLoad(async (query) => {
 .content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
-.section-title { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
-.section-sub { font-size: var(--font-aux); color: var(--text-tertiary); }
+.section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
 .img-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .img-cell { width: 200rpx; height: 200rpx; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); position: relative; flex-shrink: 0; }
 .img-thumb { width: 100%; height: 100%; }

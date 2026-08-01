@@ -5,7 +5,7 @@
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 类型 -->
       <view class="block">
-        <text class="section-title">反馈类型</text>
+        <SectionTitle title="反馈类型" />
         <view class="type-row">
           <view
             v-for="t in types"
@@ -21,7 +21,7 @@
 
       <!-- 内容 -->
       <view class="block">
-        <text class="section-title">反馈内容</text>
+        <SectionTitle title="反馈内容" />
         <textarea
           class="content-input"
           v-model="content"
@@ -34,7 +34,7 @@
 
       <!-- 联系方式 -->
       <view class="block">
-        <text class="section-title">联系方式（选填）</text>
+        <SectionTitle title="联系方式（选填）" />
         <input class="contact-input" v-model="contact" placeholder="邮箱 / 微信，方便我们回复你" />
       </view>
 
@@ -51,6 +51,7 @@
 import { ref } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import { useUserStore } from '@/stores/user'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
@@ -94,7 +95,6 @@ async function submit() {
 .feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
 .block { background: var(--bg-card); padding: var(--spacing-md); margin-bottom: var(--spacing-md); }
-.section-title { display: block; font-size: var(--font-body); font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-sm); }
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
 .type-chip.active { background: var(--color-primary-soft); }
