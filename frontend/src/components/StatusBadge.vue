@@ -40,6 +40,7 @@ const badgeText = computed(() => {
 .status-badge {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-icon);
   font-size: 22rpx;

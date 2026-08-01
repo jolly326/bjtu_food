@@ -39,7 +39,7 @@ const pressed = ref(false)
 .menu-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-md);
   gap: var(--spacing-sm);
   border-bottom: 2rpx solid var(--border-color);
   box-sizing: border-box;

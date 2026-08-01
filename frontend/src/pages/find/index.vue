@@ -562,7 +562,7 @@ watch(keyword, (value) => {
   max-width: 320rpx;
   padding: var(--spacing-xs) var(--spacing-md);
   background: var(--bg-soft);
-  border-radius: 999rpx;
+  border-radius: var(--radius-tag);
   transition: transform 0.12s ease, background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -647,7 +647,7 @@ watch(keyword, (value) => {
 /* 发现主页首屏骨架 */
 .discover-skeleton { padding: 0 var(--spacing-md); }
 .sk-row { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
-.sk-chip { height: 64rpx; border-radius: 999rpx; flex: 0 0 160rpx; }
+.sk-chip { height: 64rpx; border-radius: var(--radius-tag); flex: 0 0 160rpx; }
 .sk-cat { width: 120rpx; height: 150rpx; border-radius: var(--radius-card); flex: 0 0 auto; }
 .sk-line { height: 110rpx; border-radius: var(--radius-card); flex: 1; }
 

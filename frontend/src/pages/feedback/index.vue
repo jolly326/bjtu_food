@@ -93,8 +93,8 @@ async function submit() {
 
 <style scoped>
 .feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
-.block { background: var(--bg-card); padding: var(--spacing-md); margin: 0 var(--spacing-md) var(--spacing-md); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); }
+.block { background: var(--bg-card); padding: var(--spacing-md); margin: 0 var(--spacing-md) var(--spacing-md); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
 .type-chip.active { background: var(--color-primary-soft); }
