@@ -97,3 +97,29 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **MINOR（N1~N7）/ POLISH（P1~P4）**：由开发按本清单随迭代修，不阻断交付验收。
 - **文档同步**：本次审计新增的 8 条红线已写入 `project_spec.md` §4.9（UI 全量审计红线）与 `docs/mini-app-ui.md` §0.3（一致性红线摘要），本文件仅作派工留档。
 - **红线回退核查**：整改后须复验 emoji 全清、金额仅 api 层、`WaterfallList` 禁具名 slot、三态齐备、Sheet 规范不变、新增 8 条红线未回退。
+
+---
+
+## UI 迭代再审修复计划（2026-08-02 第二轮）
+
+> 第二轮再审（2026-08-02）在首轮全量审计（8 条红线已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，新发现 4 项问题，其中 **NEW-1、NEW-3 为红线级（违反即阻断）**，须在 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 同步登记为新增 BLOCKER 红线。本文件仅作派工留档，**不修改任何 .vue / .ts 业务代码**；代码修复由 `miniapp-dev` 落地。
+>
+> 级别：MAJOR（主要，红线级）/ MINOR（次要）/ POLISH（打磨，P3）。
+>
+> 代码修复 commit 哈希：`d3e5e811c30691003acc5a9444bc9eedb754f05a`
+
+### 一、再审发现（4 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应新增红线 | 修复指引 |
+|---|---|---|---|---|---|
+| NEW-1 | MAJOR（红线级） | `pages/pages-detail/dish.vue`（限时 / 促销标签底色、热门标签底色） | 限时 / 促销 / 热门等运营标签直接写裸 hex 背景色（如 `#FF6B6B` / `#FFB400`），未走语义 token（如 `var(--color-hot)` / `var(--color-promo)`），与全局「颜色全走语义 token」红线冲突。 | 颜色全走语义 token（禁裸 hex） | 标签底色 / `IconSvg` 的 `color` 属性统一引用语义 token；原生 API 不接受 `var()` 的例外（`indicator-active-color` / `confirmColor` 等）在 `frontend/src/uni.scss` 注释登记。 |
+| NEW-2 | MINOR | `components/AppButton.vue`（按压缩放分支） | 按压缩放未完全引用 `var(--press-scale)`，存在裸 `scale(0.97)` 散落，与「按压缩放统一 `var(--press-scale)`」红线不一致（首轮 M1 整改遗漏点）。 | 按压缩放统一 `var(--press-scale)` | 裸 `scale(0.97)` → `scale(var(--press-scale))`。 |
+| NEW-3 | MINOR（红线级手势） | `components/RelatedPickerSheet.vue`（底部 Sheet） | `RelatedPickerSheet` 仅支持 mask 点击关闭，**缺失下拉关闭手势**（仅向下、阈值约 120px、超阈值 `emit('close')` 否则回弹）与 `prefers-reduced-motion` 降级，与其余 Sheet（`ApplySheet` / `ContributeSheet` / `FilterSheet` / `NicknameSheet`）不一致，违反「底部 Sheet 统一下拉关闭手势」红线。 | 底部 Sheet 统一下拉关闭手势 + reduced-motion 降级 | 补齐下拉关闭手势（仅向下、阈值 ~120px、超阈值 `emit('close')` 否则回弹）+ `prefers-reduced-motion: reduce` 交叉淡入降级，与其余 Sheet 实现同源。 |
+| NEW-4 | MINOR / P3 | 全局（`frontend/src` 多处页面 / 组件） | 全局仍存在散落的裸 `scale(0.97)` 未按压缩放 token 治理（首轮 M1 批量整改遗漏项），应随迭代批量替换。 | 按压缩放统一 `var(--press-scale)` | 全量检索裸 `scale(0.97)`/`scale(0.95)`/`scale(0.99)` 等 → `scale(var(--press-scale))`，纳入常规迭代批量修，不阻断交付验收。 |
+
+### 二、落实分工与关联
+
+- **红线级（NEW-1、NEW-3）**：须在 `project_spec.md` §4.9（UI 全量审计红线 2026-08-02 补充）与 `docs/mini-app-ui.md` §0.3（一致性红线摘要）同步登记为新增 BLOCKER 红线，并即刻派 `miniapp-dev` 改代码（commit `d3e5e811c30691003acc5a9444bc9eedb754f05a`）。
+- **MINOR（NEW-2）/ MINOR·P3（NEW-4）**：随迭代整改，不阻断交付验收，但 NEW-2 属首轮 M1 遗漏点建议优先收口。
+- **文档同步**：本轮新增 2 条 BLOCKER 红线（颜色全走语义 token、底部 Sheet 统一下拉关闭手势）已写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，本文件仅作派工留档。
+- **红线回退核查**：整改后须复验颜色全走 token（裸 hex 仅 `uni.scss` 登记例外）、所有底部 Sheet 均支持下拉关闭手势 + reduced-motion 降级、首轮 8 条红线未回退。
