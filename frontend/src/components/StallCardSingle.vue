@@ -106,7 +106,7 @@ function handleClick() {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-sm);
   border-bottom: 2rpx solid var(--border-color);
   transition: transform 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -129,7 +129,7 @@ function handleClick() {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--spacing-xs);
+  gap: 6rpx;
 }
 .stall-name {
   font-size: var(--font-caption);
@@ -146,7 +146,7 @@ function handleClick() {
   -webkit-line-clamp: 1;
   overflow: hidden;
 }
-.stall-tags { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.stall-tags { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 8rpx; max-height: 36rpx; }
 .stall-tag {
   font-size: 20rpx;
   color: var(--color-primary);
