@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { submitApply } from '@/api/apply'
 
@@ -130,7 +130,7 @@ watch(() => props.open, (v) => {
     if (props.entityId) innerEntityId.value = String(props.entityId)
     innerAction.value = 'CLOSE'
     innerReason.value = ''
-    requestAnimationFrame(() => {
+    nextTick(() => {
       maskShow.value = true
       sheetOpen.value = true
     })
