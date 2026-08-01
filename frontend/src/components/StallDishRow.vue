@@ -19,8 +19,10 @@
         <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
       </view>
       <view class="dish-row-meta">
-        <Rating :model-value="dish.rating" readonly :star-size="22" />
-        <text class="dish-row-rating">{{ dish.rating }}</text>
+        <view class="star-num">
+          <IconSvg name="star" :size="22" color="var(--color-star)" />
+          <text class="star-num-text">{{ dish.rating }}</text>
+        </view>
       </view>
     </view>
     <text class="dish-row-price">¥{{ dish.price }}</text>
@@ -31,7 +33,7 @@
 import { ref } from 'vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TagLabel from '@/components/TagLabel.vue'
-import Rating from '@/components/Rating.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import type { Dish } from '@/types/dish'
 
 const props = defineProps<{ dish: Dish }>()
@@ -53,6 +55,7 @@ function onClick() {
 .dish-row-name { font-size: var(--font-caption); font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dish-row-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
 .dish-row-meta { display: flex; align-items: center; gap: var(--spacing-xs); }
-.dish-row-rating { font-size: var(--font-card); color: var(--color-star); }
+.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
+.star-num-text { font-size: 24rpx; color: var(--text-secondary); font-weight: 600; }
 .dish-row-price { font-size: var(--font-card); font-weight: 700; color: var(--color-price); flex-shrink: 0; margin-left: var(--spacing-xs); }
 </style>

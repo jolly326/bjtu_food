@@ -144,6 +144,12 @@
 
       <!-- ============ 多维筛选结果页 ============ -->
       <view v-else class="filter-result" :style="{ padding: '0 var(--spacing-md)' }">
+        <!-- 品类浏览标题头：由分类进入时显示大标题 + 数量，让用户一眼知道在浏览什么 -->
+        <view v-if="filterTag" class="category-header">
+          <text class="category-title">{{ categoryLabel }}</text>
+          <text class="category-count">共 {{ dishStore.dishList.length }} 个菜品</text>
+        </view>
+
         <view class="filter-bar">
           <SegmentTabs
             class="sort-tabs"
@@ -284,8 +290,14 @@ const filterCanteenId = computed(() => {
   return undefined
 })
 
-const activeFilterSummary = computed(() => {
-  const parts: string[] = []
+// 由分类进入时，展示的品类名（大标题头）
+const categoryLabel = computed(() => {
+  if (!filterTag.value) return ''
+  const cat = categories.find(c => c.key === filterTag.value)
+  return cat?.label || filterTag.value
+})
+
+const activeFilterSummary = computed(() => {  const parts: string[] = []
   if (filterState.value.canteen) parts.push(`食堂：${filterState.value.canteen}`)
   if (filterState.value.tag) {
     const cat = categories.find(c => c.key === filterState.value.tag)
@@ -607,6 +619,10 @@ watch(keyword, (value) => {
 .rising-card { width: 320rpx; display: inline-block; }
 
 /* 筛选结果页 */
+/* 品类浏览标题头（由分类进入时显示，显著大标题 + 数量，呈现「结果列表页」而非「筛选面板」） */
+.category-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); padding: var(--spacing-md) 0 var(--spacing-sm); }
+.category-title { font-size: var(--font-h2); font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
+.category-count { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 500; }
 .filter-bar { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); flex-wrap: nowrap; }
 .sort-tabs { flex: 1; min-width: 0; }
 .filter-trigger {

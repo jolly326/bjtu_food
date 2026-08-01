@@ -16,6 +16,6 @@ defineProps<{
 </script>
 
 <style scoped>
-.menu-group { margin-bottom: var(--spacing-lg); }
+.menu-group { margin: 0 var(--spacing-md) var(--spacing-lg); }
 .menu-card { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
 </style>

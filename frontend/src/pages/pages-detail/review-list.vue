@@ -11,7 +11,7 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onLoadMore"
     >
-      <SectionTitle :title="dishId ? `全部评价 (${total})` : `我的评价 (${total})`" />
+      <SectionTitle :title="dishId ? '全部评价' : '我的评价'" />
       <view class="review-list" v-if="list.length > 0">
         <ReviewItem
           v-for="rv in list"

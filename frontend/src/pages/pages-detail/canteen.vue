@@ -204,7 +204,7 @@ onLoad(async (query) => {
 .scroll-wrap {
   flex: 1;
   overflow-y: auto;
-  padding: 0 var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-md) 0;
 }
 
 /* ① 食堂介绍与信息区块 */

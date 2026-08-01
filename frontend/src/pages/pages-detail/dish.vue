@@ -54,7 +54,10 @@
           </view>
 
           <view class="rating-row">
-            <Rating :model-value="dish.rating" readonly :star-size="28" />
+            <view class="star-num">
+              <IconSvg name="star" :size="28" color="var(--color-star)" />
+              <text class="star-num-text">{{ dish.rating }}</text>
+            </view>
           </view>
         </CardSection>
 
@@ -186,7 +189,6 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import Rating from '@/components/Rating.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import { useDishStore } from '@/stores/dish'
@@ -371,6 +373,8 @@ function onRefresh() {
 .promo-tag { font-size: 20rpx; font-weight: 700; color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: 4rpx; }
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 .rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
+.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
+.star-num-text { font-size: 30rpx; color: var(--text-secondary); font-weight: 600; }
 
 /* 统一属性行：图标 + 标签 + 值（右对齐） */
 .info-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-xs) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }

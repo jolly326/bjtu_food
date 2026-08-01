@@ -21,7 +21,10 @@
           <text class="review-name">{{ review.userNickname || '匿名用户' }}</text>
           <text class="review-time">{{ relativeTime(review.createTime) }}</text>
         </view>
-        <Rating :model-value="review.rating" readonly :star-size="24" />
+        <view class="star-num">
+          <IconSvg name="star" :size="24" color="var(--color-star)" />
+          <text class="star-num-text">{{ review.rating }}</text>
+        </view>
       </view>
     </view>
 
@@ -52,7 +55,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
-import Rating from '@/components/Rating.vue'
 import { getImageUrl } from '@/utils/image'
 import { toggleUseful } from '@/api/review'
 import { useUserStore } from '@/stores/user'
@@ -122,6 +124,8 @@ function onLongPress() {
 .review-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-card); flex-shrink: 0; background: var(--bg-page); }
 .review-avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .review-header-right { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 64rpx; }
+.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
+.star-num-text { font-size: 26rpx; color: var(--text-secondary); font-weight: 600; }
 .review-header-top { display: flex; align-items: center; justify-content: space-between; }
 .review-name { font-size: var(--font-headline); font-weight: 500; color: var(--text-primary); }
 .review-time { font-size: var(--font-aux); color: var(--text-tertiary); }

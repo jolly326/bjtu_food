@@ -136,7 +136,7 @@ function onRefresh() {
 
 <style scoped>
 .stall-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) 0; }
 /* CardSection 自带 margin: var(--spacing-sm) var(--spacing-md)，scroll-wrap 已提供左右 padding，去掉横向外边距避免叠加成 48rpx */
 .scroll-wrap :deep(.card-section) { margin-left: 0; margin-right: 0; }
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
