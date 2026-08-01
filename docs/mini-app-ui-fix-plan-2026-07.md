@@ -169,3 +169,31 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **POLISH（P1/P3）**：随迭代整改；**P2（messages-services 双入口）DEFERRED**——属架构决策，等待用户拍板后再落地，本轮不改动代码/路由。
 - **文档同步**：本轮新增 2 条细化 BLOCKER 红线（按压缩放 grep-zero 全覆盖、原生 API 颜色例外登记 + 注册常量路由）已写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，本文件仅作派工留档。
 - **红线回退核查**：整改后（commit `3d851ce28b19c49a0fbab1106d4f7ceaeb13ce70`）复验通过——全仓 CSS 裸 `scale(...)` 为 0 处（仅 `profile/index.vue` 注释说明）、所有 `@tap` 绑定统一、首轮 8 条 + 第二轮 2 条红线均未回退。
+
+---
+
+## UI 第四轮迭代复审修复计划（2026-08-02）
+
+> 第四轮复审（2026-08-02）在前三轮（全量审计 8 条 + 第二轮再审 2 条 + 第三轮复审 2 条细化 BLOCKER 红线已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，本轮聚焦 **POLISH（打磨）级** 共 6 项，均为体验一致性的精细点，不阻断交付验收。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `2467193` 全部落地。
+>
+> 级别：POLISH（打磨）。每条含 `file:line` 与对应红线/规范。
+
+### 一、POLISH（6 项 · 打磨）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| P1 | POLISH | `pages/pages-detail/moment.vue`（相关按压反馈处） | `moment.vue` 内硬编码 `120rpx` 数值（固定底栏 safe-area 的 padding-bottom），未引用 `--action-bar-height` token，与「固定底栏避让须引用 token」红线不一致（第三轮 R1–R6 已推广、但本页遗漏）。 | 固定底栏避让引用 `--action-bar-height`（禁硬编码 120rpx） | 硬编码 `120rpx` → `calc(var(--action-bar-height) + env(safe-area-inset-bottom))`，统一走 token。 |
+| P2 | POLISH（4 处统一） | `pages/publish-dish/index.vue`、`pages/submit-stall/index.vue`（完整替换）；`pages/pages-detail/review.vue`、`pages/profile/index.vue`（头像，DEFERRED 合法例外） | 图片新增入口统一 `ImageUploader`：publish-dish / submit-stall 两页为完整多图流、已整体替换为 `ImageUploader`；review（评价单图）与 profile（头像单图）因「单图场景 + 受 `canSubmit` 门控的延迟上传流程（先存临时路径、提交时才逐个上传）」，内联 `uni.chooseImage` 属**已记录合法例外**，本轮不强制替换（见 §4.9 / §0.3 例外说明）。 | 图片添加统一 `ImageUploader` / `IconSvg name="plus"`（含合法例外：单图头像 / 延迟上传门控流） | publish-dish / submit-stall 完整替换为 `ImageUploader`；review / avatar 两处保留内联 `uni.chooseImage`，标记为文档化例外，非违规。 |
+| P3 | POLISH | `components/IconSvg.vue`（按压反馈分支） | `IconSvg` 作为功能图标渲染时，自身未带 `:active` 按压反馈（scale 收缩），与全局「可点击图标实例应带按压反馈」不一致。 | 按压反馈统一 `var(--press-scale)`（覆盖可点图标） | `IconSvg` 在可点击语境下补 `:active { transform: scale(var(--press-scale)) }`，与全局按压语言一致。 |
+| P4 | POLISH | `components/header.vue`（back-area 返回区） | header 返回区（back-area）可点但无按压反馈。 | 按压反馈统一 `var(--press-scale)` | back-area 补 `:active { transform: scale(var(--press-scale)) }`。 |
+| P5 | POLISH | `pages/profile/index.vue`（头像 / 昵称区） | profile 头像、昵称区可点但无按压反馈，与全局按压语言不一致。 | 按压反馈统一 `var(--press-scale)` | 头像 / 昵称区补 `:active { transform: scale(var(--press-scale)) }`。 |
+| P6 | POLISH | `pages/notify/index.vue`（loading spinner） | notify 页 loading spinner 的 reduced-motion 仅延长 duration，未彻底静态，与「reduced-motion 须彻底关停持续动画（含 spinner spin）」红线不一致。 | reduced-motion 彻底关停持续动画（含 spinner） | `prefers-reduced-motion: reduce` 下 spinner 直接静态（去 spin 动画），非仅延时。 |
+
+### 二、落实分工与关联
+
+- **POLISH（P1~P6）**：随迭代整改，不阻断交付验收；代码已在 commit `2467193` 修复。
+- **P2 例外说明（重要）**：review 单图、profile 头像两处保留内联 `uni.chooseImage`，**属文档化合法例外、非红线违规**——理由：(1) 单图头像上传场景；(2) 受 `canSubmit` 门控的「延迟上传」流程（先存临时路径、提交时才逐个上传），内联调用可避免破坏提交校验时序。`ImageUploader` 统一要求对「完整多图流」页面（publish-dish / submit-stall）强制，对上两类例外豁免。此例外已在 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 同步登记。
+- **文档同步**：本轮将 P2 的 ImageUploader 例外（单图头像 / 延迟上传门控流）写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，其余 P1/P3/P4/P5/P6 为打磨级、不新增红线。
+- **红线回退核查**：整改后（commit `2467193`）复验——固定底栏均引用 `--action-bar-height` token（无 `120rpx` 硬编码遗漏）、可点图标/返回区/头像昵称区均带 `--press-scale` 按压反馈、notify spinner reduced-motion 彻底静态、前两轮红线未回退。
+
+> 注：下方 `2467193` 为本次第四轮复审代码修复 commit 哈希。
