@@ -32,12 +32,10 @@
         </CardSection>
 
         <!-- ② 各档口单列卡片流（不直接显示菜品，与档口详情同构） -->
-        <view class="stall-section" v-if="stallList.length > 0">
-          <SectionTitle :title="`档口列表（${stallList.length}）`" />
-          <view class="stall-stream">
-            <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
-          </view>
-        </view>
+        <CardSection v-if="stallList.length > 0">
+          <SectionTitle :title="`档口列表（${stallList.length}）`" noMargin />
+          <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
+        </CardSection>
         <EmptyState
           v-else
           text="该食堂暂无档口"
@@ -234,13 +232,7 @@ onLoad(async (query) => {
 .info-location-text { font-size: var(--font-small); color: var(--text-secondary); }
 .info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; }
 
-/* ② 档口单列流：左右 24rpx 内边距由 .stall-section 提供，确保卡片不溢出屏幕右侧 */
-.stall-section {
-  padding: var(--spacing-md) var(--spacing-md) 0;
-  box-sizing: border-box;
-  width: 100%;
-}
-.stall-stream { margin: 0; box-sizing: border-box; width: 100%; }
+/* ② 档口单列流：左右内边距由 CardSection 提供，卡片不溢出屏幕右侧 */
 .review-list { margin-top: var(--spacing-sm); }
 .review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
