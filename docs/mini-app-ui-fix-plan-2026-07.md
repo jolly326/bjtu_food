@@ -197,3 +197,28 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `2467193`）复验——固定底栏均引用 `--action-bar-height` token（无 `120rpx` 硬编码遗漏）、可点图标/返回区/头像昵称区均带 `--press-scale` 按压反馈、notify spinner reduced-motion 彻底静态、前两轮红线未回退。
 
 > 注：下方 `2467193` 为本次第四轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第五轮迭代复审修复计划（2026-08-02）
+
+> 第五轮复审（2026-08-02）在前四轮（全量审计 8 条 + 第二轮再审 2 条 + 第三轮复审 2 条 + 第四轮复审 P2 ImageUploader 例外，均已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加，本轮聚焦 **POLISH（打磨）级** 共 3 项，均为体验一致性的精细点，不阻断交付验收、亦不新增红线。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `69afd86c5718ec4cb5a549ca0898e2c156ae538d` 全部落地。
+>
+> 级别：POLISH（打磨）。每条含 `file:line` 与对应红线/规范。
+
+### 一、POLISH（3 项 · 打磨）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| P1 | POLISH | `pages/pages-detail/moment.vue:119` | `<CustomTabBar v-if="false">` 为死代码（TabBar 实际由 `CustomTabBar` 全局组件统一挂载，`moment.vue` 内该分支恒不渲染），残留无意义、易误导后续维护。 | （死代码清理） | 删除 `moment.vue:119` 的 `<CustomTabBar v-if="false">` 整行（含其包裹结构），不引入替代。 |
+| P2 | POLISH（架构抽取 · 已 DEFER 暂缓 · 低 ROI） | 全局列表去重（多处页面 / 组件复用「按 id 去重」逻辑） | 列表数据按 `id` 去重的轻量逻辑散落于多处，可考虑抽取为通用 `dedupeById()` 工具函数统一复用。经评估：当前散落点均为单行 `Array.from(new Map(...).values())` 级别，抽取为共享函数的 ROI 低、且跨页面抽公共工具易引入不必要的耦合，**本轮 DEFERRED**，不强制落地。 | （架构抽取，待评估） | **DEFERRED**：列表去重组件/工具抽取暂缓，待后续有更明确的复用收益时再评估，本轮不改代码、不新增工具函数。 |
+| P3 | POLISH | `pages/notify/index.vue:172`（未读态标记） | 通知未读态仅靠文字/背景区分，对比度不足，与全局「状态须有清晰视觉区分」原则略有差距，未读项缺少一条左侧 accent 条强化辨识。 | （视觉对比 / Token 一致性） | 未读态（`isUnread`）左侧加 `6rpx` 宽 accent 条（品牌色 `var(--color-primary)` 或语义未读色），提升未读/已读对比，其余样式走既有 token。 |
+
+### 二、落实分工与关联
+
+- **POLISH（P1/P3）**：随迭代整改，不阻断交付验收；代码已在 commit `69afd86c5718ec4cb5a549ca0898e2c156ae538d` 修复。
+- **P2 DEFERRED（重要）**：列表去重组件抽取属低 ROI 架构项，本轮**暂缓（DEFERRED）**，不抽公共工具、不改动相关散落点，待后续复用收益明确再评估。
+- **文档同步**：本轮为打磨级（3 项 POLISH），未新增红线；§4.9 / §0.3 既有红线与已登记例外保持不变。
+- **红线回退核查**：整改后（commit `69afd86c5718ec4cb5a549ca0898e2c156ae538d`）复验——前四轮（全量审计 8 条 + 第二轮 2 条 + 第三轮 2 条 + 第四轮 ImageUploader 例外登记）均保持未回退，无新增裸 hex / 内联逻辑破坏已登记例外清单。
+
+> 注：上方 `69afd86c5718ec4cb5a549ca0898e2c156ae538d` 为本次第五轮复审代码修复 commit 哈希。
