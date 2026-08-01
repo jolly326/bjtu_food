@@ -42,20 +42,22 @@ function switchTab(page: string) {
   left: 0;
   right: 0;
   bottom: 0;
-  /* 仅负责底部安全区内边距（透明，不铺白）；bar 高度由内层决定 */
+  /* 整条高度 = 内容高 + 底部安全区，白色背景铺满到屏幕底端（iPhone 小横条区域也铺白，不留缝隙） */
+  height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  z-index: 100;
-}
-/* 白色卡片背景层：固定内容高度，承载图标并居中，安全区在其下方透出页面 */
-.tab-bar-inner {
-  display: flex;
-  height: var(--tabbar-height);
+  box-sizing: border-box;
   background: var(--blur-bg-solid);
   border-top: 1rpx solid var(--glass-highlight);
   box-shadow: var(--shadow-bar);
+  z-index: 100;
+}
+.tab-bar-inner {
+  display: flex;
+  /* 仅内容区承载图标，垂直居中，避开底部安全区 */
+  height: var(--tabbar-height);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .tab-bar-inner {
+  .custom-tab-bar {
     background: var(--blur-bg);
     backdrop-filter: blur(var(--blur-radius)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
