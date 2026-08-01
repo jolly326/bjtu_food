@@ -20,7 +20,7 @@
 
         <!-- 食堂信息（合并卡片，含位置与简介，无评分） -->
         <CardSection>
-          <SectionTitle title="食堂信息" noMargin>
+          <SectionTitle :title="canteenInfo?.name || '食堂'" noMargin>
             <template #extra>
               <text class="feedback-link" @tap="openApply">反馈信息有误</text>
             </template>
@@ -72,6 +72,7 @@
 
       <!-- 加载失败 / 无数据空态 -->
       <EmptyState v-else text="食堂信息加载失败" :retry="true" @retry="loadStalls" />
+      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 申请调整/下架 Sheet（共享组件） -->
