@@ -26,6 +26,7 @@
             </template>
           </SectionTitle>
           <view class="info-body">
+            <text class="info-name">{{ canteenInfo.name }}</text>
             <view class="info-location" v-if="canteenInfo.location">
               <IconSvg name="location" :size="26" color="var(--text-tertiary)" class="info-location-icon" />
               <text class="info-location-text">{{ canteenInfo.location }}</text>
@@ -228,8 +229,9 @@ onLoad(async (query) => {
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .info-location { display: flex; align-items: center; gap: var(--spacing-xs); }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-location-text { font-size: var(--font-small); color: var(--text-primary); font-weight: 600; }
-.info-desc-text { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.6; display: block; border-top: 2rpx solid var(--border-color); margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); }
+.info-name { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+.info-location-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.info-desc-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.4; display: block; }
 
 /* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
 .stall-waterfall { margin-top: var(--spacing-sm); }
