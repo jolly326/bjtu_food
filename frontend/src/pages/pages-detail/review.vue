@@ -28,7 +28,7 @@
       <view class="image-list">
         <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
           <image :src="img" mode="aspectFill" class="preview-img" />
-          <text class="remove-btn" @tap="removeImage(idx)">✕</text>
+          <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
         </view>
         <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
           <text class="upload-icon">+</text>
@@ -38,7 +38,7 @@
 
     <!-- 提交按钮 -->
     <view style="padding: var(--spacing-lg);">
-      <AppButton text="提交评价" type="gradient" :disabled="!canSubmit" @click="handleSubmit" />
+      <AppButton text="提交评价" type="primary" :disabled="!canSubmit" @click="handleSubmit" />
     </view>
   </view>
 </template>
@@ -53,6 +53,7 @@ import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { useDishStore } from '@/stores/dish'
 import { uploadImage as uploadImageApi } from '@/api/upload'
 

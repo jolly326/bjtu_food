@@ -30,7 +30,7 @@ page {
   --color-success: #10B981;
   --color-warning: #F5A623;
   --color-price: #C0392B;
-  --color-star: #F5A623;
+  --color-star: #FFB400;
   /* 语义状态色（浅底 + 对应前景，供 badge/tag 使用） */
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
@@ -123,6 +123,8 @@ page {
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* 布局 */
   --tabbar-height: 100rpx;
+  /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
+  --action-bar-height: 120rpx;
 }
 
 /* H5 端根变量（微信小程序以 page 为准，此处仅供 H5/Webview 兜底） */
@@ -138,7 +140,7 @@ page {
   --color-success: #10B981;
   --color-warning: #F5A623;
   --color-price: #C0392B;
-  --color-star: #F5A623;
+  --color-star: #FFB400;
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
   --color-warning-soft: #fff8e1;
@@ -213,6 +215,8 @@ page {
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --tabbar-height: 100rpx;
+  /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
+  --action-bar-height: 120rpx;
 }
 
 /* ========== 页面基础壳 ========== */

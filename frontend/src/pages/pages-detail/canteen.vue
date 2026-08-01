@@ -14,7 +14,7 @@
           <text class="canteen-hero-name">{{ canteenInfo.name }}</text>
           <view class="canteen-hero-stats">
             <text v-if="canteenInfo.avgRating > 0" class="canteen-hero-stat">
-              <IconSvg name="star" :size="22" color="#FFD166" /> {{ canteenInfo.avgRating.toFixed(1) }}
+              <IconSvg name="star" :size="22" color="var(--color-star)" /> {{ canteenInfo.avgRating.toFixed(1) }}
             </text>
             <text class="canteen-hero-stat">{{ canteenInfo.stallCount }} 个档口</text>
           </view>
@@ -36,7 +36,7 @@
       </view>
 
       <!-- ② 各档口单列卡片流（不直接显示菜品，与档口详情同构） -->
-      <SectionTitle v-if="stallList.length > 0" title="档口" />
+      <SectionTitle v-if="stallList.length > 0" title="档口列表" />
       <view class="stall-stream" v-if="stallList.length > 0">
         <WaterfallList :list="stallList" single type="stall" @stall-click="goToStall" />
       </view>
@@ -54,28 +54,13 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 申请调整/下架 Sheet（task-12.1） -->
-    <view v-if="applyOpen" class="sheet-mask" @tap="applyOpen = false" />
-    <view class="apply-sheet" :class="{ open: applyOpen }">
-      <view class="sheet-head">
-        <text class="sheet-title">申请调整 / 下架</text>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="applyOpen = false" />
-      </view>
-      <view class="form-block">
-        <text class="form-label">申请动作</text>
-        <view class="seg-row">
-          <view class="seg" :class="{ on: applyAction === 'CHANGE' }" @tap="applyAction = 'CHANGE'">调整 / 变更</view>
-          <view class="seg" :class="{ on: applyAction === 'CLOSE' }" @tap="applyAction = 'CLOSE'">下架</view>
-        </view>
-      </view>
-      <view class="form-block">
-        <text class="form-label">说明（选填）</text>
-        <textarea class="form-textarea" v-model="applyReason" placeholder="请描述调整/下架原因…" maxlength="500" :auto-height="true" />
-      </view>
-      <view class="sheet-submit">
-        <AppButton text="提交申请" :loading="applySubmitting" @click="submitCanteenApply" />
-      </view>
-    </view>
+    <!-- 申请调整/下架 Sheet（共享组件） -->
+    <ApplySheet
+      :open="applyOpen"
+      entity-type="CANTEEN"
+      :entity-id="canteenId"
+      @update:open="applyOpen = $event"
+    />
   </view>
 </template>
 
@@ -86,14 +71,12 @@ import Header from '@/components/header.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import AppButton from '@/components/AppButton.vue'
+import ApplySheet from '@/components/ApplySheet.vue'
+import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getCanteensWithStalls, getCanteenImages } from '@/api/canteen'
-import { submitApply } from '@/api/apply'
-import { getImageUrl } from '@/utils/image'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -165,7 +148,7 @@ async function loadStalls() {
     }))
   } catch {
     stallList.value = []
-    canteenInfo.value = { name: canteenName.value, image: '', location: '', description: '' }
+    canteenInfo.value = { name: canteenName.value, image: '', location: '', description: '', businessHours: '', stallCount: 0, avgRating: 0 }
   } finally {
     loading.value = false
   }
@@ -177,11 +160,8 @@ function goToStall(stall: StallCardItem) {
   uni.navigateTo({ url: '/pages/pages-detail/stall' })
 }
 
-/** 快捷申请调整/下架（task-12.1，POST /my/apply，CLOSE/CHANGE + entityId=当前食堂） */
+/** 快捷申请调整/下架（共享 ApplySheet 处理 CLOSE/CHANGE + entityId=当前食堂） */
 const applyOpen = ref(false)
-const applyAction = ref<'CLOSE' | 'CHANGE'>('CHANGE')
-const applyReason = ref('')
-const applySubmitting = ref(false)
 
 function openApply() {
   if (!userStore.requireAuth()) return
@@ -189,28 +169,7 @@ function openApply() {
     uni.showToast({ title: '食堂信息缺失，无法申请', icon: 'none' })
     return
   }
-  applyAction.value = 'CHANGE'
-  applyReason.value = ''
   applyOpen.value = true
-}
-
-async function submitCanteenApply() {
-  if (!canteenId.value) return
-  applySubmitting.value = true
-  try {
-    await submitApply({
-      entityType: 'CANTEEN',
-      applyType: applyAction.value,
-      entityId: canteenId.value,
-      payload: { reason: applyReason.value.trim() },
-    })
-    uni.showToast({ title: '申请已提交', icon: 'success' })
-    applyOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    applySubmitting.value = false
-  }
 }
 
 function onRefresh() {
@@ -267,8 +226,8 @@ onLoad(async (query) => {
 .canteen-hero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
 .canteen-hero-stat { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 
-/* ② 档口单列流 */
-.stall-stream { padding: 0 var(--spacing-md); box-sizing: border-box; }
+/* ② 档口单列流（与上方食堂卡同用 margin 外边距，左沿统一落在 24rpx） */
+.stall-stream { margin: 0 var(--spacing-md); box-sizing: border-box; }
 
 /* hero 骨架屏 */
 .canteen-hero-skeleton { }
@@ -287,21 +246,5 @@ onLoad(async (query) => {
 }
 .apply-link:active { opacity: 0.6; }
 .apply-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-
-/* 申请 Sheet（task-12.1，保留底部弹层表单） */
-.apply-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; box-shadow: var(--shadow-modal); z-index: 100; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-.apply-sheet.open { transform: translateY(0); }
-.form-block { padding: var(--spacing-md) var(--spacing-lg); border-bottom: 2rpx solid var(--border-color); }
-.form-label { display: block; font-size: var(--font-aux); font-weight: 700; color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
-.seg-row { display: flex; gap: var(--spacing-sm); }
-.seg { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; transition: background 0.15s, transform 0.12s; -webkit-tap-highlight-color: transparent; }
-.seg:active { transform: scale(0.97); }
-.seg.on { background: var(--color-primary); color: var(--text-white); }
-.form-textarea { width: 100%; min-height: 160rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
-.sheet-submit { padding: var(--spacing-md) var(--spacing-lg); }
-
-@media (prefers-reduced-motion: reduce) {
-  .apply-sheet { transition: opacity 0.2s ease; }
-}
 
 </style>

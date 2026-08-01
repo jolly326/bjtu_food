@@ -80,7 +80,7 @@ function handleClear() {
   align-items: center;
   background: var(--bg-card);
   border-radius: var(--radius-btn);
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: 12rpx var(--spacing-lg);
   box-shadow: 0 2rpx 8rpx var(--overlay-dark-faint);
   border: 2rpx solid var(--border-color);
 }

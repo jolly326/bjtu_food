@@ -65,7 +65,7 @@
               :style="{ transform: `translateY(-${broadcastIndex * 100}%)` }"
             >
               <view
-                v-for="(b, bi) in broadcastList"
+                v-for="(b, bi) in broadcastList.filter(item => item.text && item.text.trim())"
                 :key="bi"
                 class="broadcast-line"
               >
@@ -168,7 +168,7 @@ function startBroadcastRotation() {
   if (broadcastList.value.length <= 1) return
   broadcastTimer = setInterval(() => {
     broadcastIndex.value = (broadcastIndex.value + 1) % broadcastList.value.length
-  }, 1000)
+  }, 3000)
 }
 
 function goBroadcast(index: number) {
@@ -309,7 +309,7 @@ function handleBannerTap(banner: BannerItem) {
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; }
 .swiper-section { padding: var(--spacing-sm) var(--spacing-md) 0; margin-bottom: var(--spacing-lg); }
 .home-swiper { height: 320rpx; border-radius: var(--radius-card); overflow: hidden; }
-.swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-gradient); }
+.swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary); }
 .swiper-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, rgba(0,0,0,0) 100%); }
 .swiper-title { font-size: var(--font-h2); font-weight: 700; letter-spacing: -0.01em; color: var(--text-white); margin-bottom: 10rpx; z-index: 1; }

@@ -13,10 +13,10 @@
     <view class="card-image">
       <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="card-img" @error="imgOk = false" />
       <view v-else class="image-placeholder">
-        <text class="placeholder-icon">{{ EMOJI.dishPlaceholder }}</text>
+        <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
       <view class="card-rating-badge">
-        <text class="star-icon">{{ EMOJI.starFilled }}</text>
+        <IconSvg name="star" :size="22" color="var(--color-star)" class="star-icon" />
         <text class="rating-text">{{ dish.rating }}</text>
       </view>
     </view>
@@ -37,7 +37,7 @@
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl } from '@/utils/image'
-import { EMOJI } from '@/utils/emoji'
+import IconSvg from './IconSvg.vue'
 import TagLabel from './TagLabel.vue'
 
 const props = defineProps<{

@@ -22,7 +22,7 @@ import { ref, computed } from 'vue'
 const props = withDefaults(defineProps<{
   text: string
   icon?: string
-  type?: 'primary' | 'danger' | 'gradient' | 'outline'
+  type?: 'primary' | 'danger' | 'outline'
   disabled?: boolean
   loading?: boolean
   width?: string
@@ -40,7 +40,7 @@ const emit = defineEmits<{
   click: []
 }>()
 
-// 红线 §4.9③：MVP 统一用 emoji 占位，不引入 SVG/iconfont。icon 一律作为 emoji 文本渲染。
+// icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
 const btnType = computed(() => `btn-${props.type}`)
 
 const pressed = ref(false)
@@ -85,9 +85,6 @@ function handleTap() {
 }
 .btn-danger {
   background: var(--color-error);
-}
-.btn-gradient {
-  background: var(--color-gradient);
 }
 .btn-outline {
   background: transparent;

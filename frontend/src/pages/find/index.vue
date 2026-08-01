@@ -47,6 +47,14 @@
     >
       <!-- ============ 发现主页（搜索区重做：历史/发现/热搜） ============ -->
       <view v-if="!inFilter" class="discover-home">
+        <!-- 首屏骨架：发现主页三块（历史/分类/热搜）加载中占位 -->
+        <view v-if="discoverLoading" class="discover-skeleton">
+          <view class="sk-row"><view v-for="s in 6" :key="s" class="sk-chip skeleton" /></view>
+          <view class="sk-row"><view v-for="s in 8" :key="s" class="sk-cat skeleton" /></view>
+          <view class="sk-row"><view v-for="s in 5" :key="s" class="sk-line skeleton" /></view>
+        </view>
+
+        <template v-else>
         <!-- 历史搜索：标签 chip 行，可单个删除 / 一键清空 -->
         <view class="block" v-if="historyList.length > 0">
           <SectionTitle title="历史搜索">
@@ -130,28 +138,24 @@
             </view>
           </view>
         </view>
+        </template>
       </view>
 
       <!-- ============ 多维筛选结果页 ============ -->
       <view v-else class="filter-result" :style="{ padding: '0 var(--spacing-md)' }">
         <view class="filter-bar">
-          <view
-            class="filter-sort"
-            :class="{ active: activeSort === 'heat' }"
-            @tap="switchSort('heat')"
-          ><IconSvg name="fire" :size="26" :color="activeSort === 'heat' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 热度</view>
-          <view
-            class="filter-sort"
-            :class="{ active: activeSort === 'rating' }"
-            @tap="switchSort('rating')"
-          ><IconSvg name="star" :size="26" :color="activeSort === 'rating' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 评分</view>
-          <view
-            class="filter-sort"
-            :class="{ active: activeSort === 'price' }"
-            @tap="switchSort('price')"
-          ><IconSvg name="price" :size="26" :color="activeSort === 'price' ? 'var(--text-white)' : 'var(--text-secondary)'" /> 价格</view>
-          <view class="filter-sort filter-trigger" @tap="openFilterSheet"><IconSvg name="filter" :size="26" color="var(--text-secondary)" /> 筛选</view>
-          <text class="filter-back" @tap="exitFilter"><IconSvg name="back" :size="26" color="var(--color-primary)" /> 返回</text>
+          <SegmentTabs
+            class="sort-tabs"
+            :tabs="sortTabs"
+            :model-value="activeSort"
+            light
+            @update:model-value="onSortChange"
+          />
+          <view class="filter-trigger" @tap="openFilterSheet">
+            <IconSvg name="filter" :size="26" color="var(--text-secondary)" />
+            <text class="filter-trigger-text">筛选</text>
+          </view>
+          <text class="filter-back" @tap="exitFilter"><IconSvg name="arrow-left" :size="26" color="var(--color-primary)" /> 返回</text>
         </view>
 
         <view class="filter-summary" v-if="activeFilterSummary">
@@ -179,59 +183,16 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 筛选抽屉（spring 0.8/0.3 + 点击遮罩关闭） -->
-    <view v-if="filterSheetOpen" class="sheet-mask" @tap="closeFilterSheet" />
-    <view class="filter-sheet" :class="{ open: filterSheetOpen }">
-      <view class="sheet-head">
-        <text class="sheet-title">筛选</text>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="closeFilterSheet" />
-      </view>
-
-      <scroll-view class="sheet-body" scroll-y>
-        <!-- 食堂 -->
-        <view class="sheet-section">
-          <text class="sheet-label">食堂</text>
-          <view class="chip-wrap">
-            <view
-              v-for="c in dishStore.canteenList"
-              :key="c.name"
-              class="chip"
-              :class="{ active: filterCanteen === c.name }"
-              @tap="filterCanteen = filterCanteen === c.name ? '' : c.name"
-            >{{ c.name }}</view>
-          </view>
-        </view>
-
-        <!-- 价格区间 -->
-        <view class="sheet-section">
-          <text class="sheet-label">价格区间（元）</text>
-          <view class="price-row">
-            <input class="price-input" type="digit" v-model="priceMin" placeholder="最低" />
-            <text class="price-dash">—</text>
-            <input class="price-input" type="digit" v-model="priceMax" placeholder="最高" />
-          </view>
-        </view>
-
-        <!-- 口味标签 -->
-        <view class="sheet-section">
-          <text class="sheet-label">口味 / 品类</text>
-          <view class="chip-wrap">
-            <view
-              v-for="cat in categories"
-              :key="cat.key"
-              class="chip"
-              :class="{ active: filterTag === cat.key }"
-              @tap="filterTag = filterTag === cat.key ? '' : cat.key"
-            >{{ cat.label }}</view>
-          </view>
-        </view>
-      </scroll-view>
-
-      <view class="sheet-footer">
-        <view class="sheet-reset" @tap="resetSheetFilter">重置</view>
-        <view class="sheet-apply" @tap="applySheetFilter">查看结果</view>
-      </view>
-    </view>
+    <!-- 通用筛选抽屉（canteen/price/taste；spring 0.8/0.3 + 手势中断 + 遮罩关闭） -->
+    <FilterSheet
+      :open="filterSheetOpen"
+      :canteen-list="canteenNames"
+      :category-list="categories"
+      :model-value="filterState"
+      @update:open="(v: boolean) => (filterSheetOpen = v)"
+      @apply="onFilterSheetApply"
+      @reset="resetSheetFilter"
+    />
 
     <CustomTabBar current="/pages/find/index" />
   </view>
@@ -246,6 +207,9 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import SegmentTabs from '@/components/SegmentTabs.vue'
+import FilterSheet from '@/components/FilterSheet.vue'
+import type { FilterSheetState } from '@/components/FilterSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish, DishSortBy, Suggestion } from '@/types/dish'
 import { DISH_CATEGORIES } from '@/constants/categories'
@@ -256,10 +220,20 @@ const suggestions = ref<Suggestion[]>([])
 const showSuggest = ref(false)
 const pressedKey = ref('')
 const refresherTriggered = ref(false)
-const discoverLoaded = ref(false)
+const discoverLoading = ref(true)
 
 // 分类宫格
 const categories = DISH_CATEGORIES
+
+// 排序滑块（SegmentTabs）
+const sortTabs = [
+  { key: 'heat', label: '热度', icon: 'fire' },
+  { key: 'rating', label: '评分', icon: 'star' },
+  { key: 'price', label: '价格', icon: 'price' },
+]
+
+// 食堂名列表（供 FilterSheet 渲染）
+const canteenNames = computed(() => dishStore.canteenList.map(c => c.name))
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
@@ -293,10 +267,9 @@ function clearHistory() {
 // 筛选模式
 const inFilter = ref(false)
 const activeSort = ref<DishSortBy>('heat')
-const filterCanteen = ref('')
+// FilterSheet 双向草稿（canteen/price/taste/spiceLevel）
+const filterState = ref<FilterSheetState>({ canteen: '', tag: '', priceMin: '', priceMax: '', spiceLevel: -1 })
 const filterTag = ref('')
-const priceMin = ref('')
-const priceMax = ref('')
 const filterSheetOpen = ref(false)
 const filterPage = ref(1)
 const filterPageSize = 20
@@ -305,20 +278,24 @@ const filterLoadingMore = ref(false)
 const filterFinished = ref(false)
 
 const filterCanteenId = computed(() => {
-  if (!filterCanteen.value) return undefined
+  if (!filterState.value.canteen) return undefined
   // 一期无 canteenId 直连，按名称走 canteen 参数兼容
   return undefined
 })
 
 const activeFilterSummary = computed(() => {
   const parts: string[] = []
-  if (filterCanteen.value) parts.push(`食堂：${filterCanteen.value}`)
-  if (filterTag.value) {
-    const cat = categories.find(c => c.key === filterTag.value)
-    parts.push(`品类：${cat?.label || filterTag.value}`)
+  if (filterState.value.canteen) parts.push(`食堂：${filterState.value.canteen}`)
+  if (filterState.value.tag) {
+    const cat = categories.find(c => c.key === filterState.value.tag)
+    parts.push(`品类：${cat?.label || filterState.value.tag}`)
   }
-  if (priceMin.value || priceMax.value) {
-    parts.push(`价格：${priceMin.value || '0'}~${priceMax.value || '∞'}元`)
+  if (filterState.value.priceMin || filterState.value.priceMax) {
+    parts.push(`价格：${filterState.value.priceMin || '0'}~${filterState.value.priceMax || '∞'}元`)
+  }
+  if (filterState.value.spiceLevel >= 0) {
+    const spiceMap: Record<number, string> = { 0: '不辣', 1: '微辣', 2: '中辣', 3: '重辣' }
+    parts.push(`辣度：${spiceMap[filterState.value.spiceLevel] || '不限'}`)
   }
   return parts.join('  ·  ')
 })
@@ -334,17 +311,17 @@ function suggestTypeLabel(type: Suggestion['type']): string {
   return '食堂'
 }
 
-/** 分类图标名（映射 DISH_CATEGORIES.key → 矢量图标） */
+/** 分类图标名（映射 DISH_CATEGORIES.key → 独立矢量图标，禁止回退 dish，task-14 §0.5） */
 function categoryIcon(key: string): string {
   const map: Record<string, string> = {
-    noodle: 'dish',
-    rice: 'dish',
-    malatang: 'fire',
-    breakfast: 'dish',
-    midnight: 'clock',
-    fastfood: 'dish',
-    snack: 'dish',
-    drink: 'dish',
+    noodle: 'noodle',
+    rice: 'rice',
+    malatang: 'malatang',
+    breakfast: 'breakfast',
+    midnight: 'midnight',
+    fastfood: 'fastfood',
+    snack: 'snack',
+    drink: 'drink',
   }
   return map[key] || 'dish'
 }
@@ -423,11 +400,12 @@ function goToDetail(dish: Dish) {
 function buildFilterQuery(page = 1) {
   return {
     keyword: keyword.value.trim() || undefined,
-    canteen: filterCanteen.value || undefined,
+    canteen: filterState.value.canteen || undefined,
     canteenId: filterCanteenId.value,
-    tag: filterTag.value || undefined,
-    minPrice: priceMin.value ? Number(priceMin.value) : undefined,
-    maxPrice: priceMax.value ? Number(priceMax.value) : undefined,
+    tag: filterState.value.tag || undefined,
+    minPrice: filterState.value.priceMin ? Number(filterState.value.priceMin) : undefined,
+    maxPrice: filterState.value.priceMax ? Number(filterState.value.priceMax) : undefined,
+    spiceLevel: filterState.value.spiceLevel >= 0 ? filterState.value.spiceLevel : undefined,
     sortBy: activeSort.value,
     sortOrder: 'desc' as const,
     page,
@@ -449,9 +427,9 @@ async function reloadFilter() {
   filterTotal.value = dishStore.dishList.length
 }
 
-function switchSort(sort: DishSortBy) {
+function onSortChange(sort: string) {
   if (activeSort.value === sort) return
-  activeSort.value = sort
+  activeSort.value = sort as DishSortBy
   reloadFilter()
 }
 
@@ -475,17 +453,11 @@ async function onScrollToLower() {
 function openFilterSheet() {
   filterSheetOpen.value = true
 }
-function closeFilterSheet() {
-  filterSheetOpen.value = false
-}
 function resetSheetFilter() {
-  filterCanteen.value = ''
-  filterTag.value = ''
-  priceMin.value = ''
-  priceMax.value = ''
+  filterState.value = { canteen: '', tag: '', priceMin: '', priceMax: '', spiceLevel: -1 }
 }
-function applySheetFilter() {
-  filterSheetOpen.value = false
+function onFilterSheetApply(state: FilterSheetState) {
+  filterState.value = { ...state }
   reloadFilter()
 }
 function clearFilter() {
@@ -507,6 +479,7 @@ function onRefresh() {
 }
 
 async function loadDiscover() {
+  discoverLoading.value = true
   try {
     await Promise.all([
       dishStore.fetchHotSearch(),
@@ -515,7 +488,7 @@ async function loadDiscover() {
   } catch (e) {
     console.error('[find] 发现页加载失败', e)
   } finally {
-    discoverLoaded.value = true
+    discoverLoading.value = false
   }
 }
 
@@ -532,13 +505,13 @@ watch(keyword, (value) => {
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; }
-.search-wrap { position: relative; z-index: 20; }
+.search-wrap { position: sticky; top: 0; z-index: 20; background: var(--bg-page); }
 
 /* 联想下拉 */
 .suggest-panel {
   position: absolute;
-  left: var(--spacing-lg);
-  right: var(--spacing-lg);
+  left: var(--spacing-md);
+  right: var(--spacing-md);
   top: calc(100% + 8rpx);
   background: var(--bg-card);
   border-radius: var(--radius-card);
@@ -633,12 +606,17 @@ watch(keyword, (value) => {
 .rising-card { width: 320rpx; display: inline-block; }
 
 /* 筛选结果页 */
-.filter-bar { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); flex-wrap: wrap; }
-.filter-sort { display: inline-flex; align-items: center; gap: 6rpx; padding: var(--spacing-xs) var(--spacing-md); border-radius: 28rpx; font-size: 26rpx; font-weight: 600; background: var(--bg-placeholder); color: var(--text-secondary); transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 0.12s var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.filter-sort.active { background: var(--color-primary); color: var(--text-white); }
-.filter-sort:active { transform: scale(0.97); }
-.filter-trigger { margin-left: auto; }
-.filter-back { font-size: 26rpx; color: var(--color-primary); font-weight: 600; }
+.filter-bar { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); flex-wrap: nowrap; }
+.sort-tabs { flex: 1; min-width: 0; }
+.filter-trigger {
+  display: inline-flex; align-items: center; gap: 6rpx;
+  padding: var(--spacing-xs) var(--spacing-md); border-radius: 28rpx;
+  font-size: 26rpx; font-weight: 600; background: var(--bg-card); color: var(--text-secondary);
+  box-shadow: var(--shadow-card); flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+}
+.filter-trigger:active { transform: scale(0.97); }
+.filter-trigger-text { line-height: 1; }
+.filter-back { display: inline-flex; align-items: center; gap: 6rpx; font-size: 26rpx; color: var(--color-primary); font-weight: 600; flex-shrink: 0; }
 .filter-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: 0 var(--spacing-md) var(--spacing-sm); }
 .filter-summary-text { flex: 1; font-size: var(--font-aux); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-clear { font-size: var(--font-aux); color: var(--color-error); flex-shrink: 0; }
@@ -649,41 +627,14 @@ watch(keyword, (value) => {
 .footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 筛选抽屉 */
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; }
-.filter-sheet {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
-  box-shadow: var(--shadow-modal);
-  z-index: 100;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-  display: flex;
-  flex-direction: column;
-  max-height: 80vh;
-  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
-}
-.filter-sheet.open { transform: translateY(0); }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
-.sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
-.sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
-.sheet-body { flex: 1; overflow-y: auto; padding: var(--spacing-md); }
-.sheet-section { margin-bottom: var(--spacing-lg); }
-.sheet-label { display: block; font-size: var(--font-body); font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-sm); }
-.chip-wrap { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); font-size: var(--font-aux); background: var(--bg-placeholder); color: var(--text-secondary); transition: background 0.15s, color 0.15s; -webkit-tap-highlight-color: transparent; }
-.chip.active { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
-.price-row { display: flex; align-items: center; gap: var(--spacing-sm); }
-.price-input { flex: 1; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); text-align: center; }
-.price-dash { color: var(--text-tertiary); }
-.sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.sheet-reset { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: 600; -webkit-tap-highlight-color: transparent; }
-.sheet-apply { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--text-white); font-weight: 700; -webkit-tap-highlight-color: transparent; }
+/* 发现主页首屏骨架 */
+.discover-skeleton { padding: 0 var(--spacing-md); }
+.sk-row { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
+.sk-chip { height: 64rpx; border-radius: 999rpx; flex: 0 0 160rpx; }
+.sk-cat { width: 120rpx; height: 150rpx; border-radius: var(--radius-card); flex: 0 0 auto; }
+.sk-line { height: 110rpx; border-radius: var(--radius-card); flex: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation-duration: 1.4s; }
-  .filter-sheet { transition: opacity 0.2s ease; }
 }
 </style>

@@ -51,7 +51,7 @@ const cells = computed(() => [
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-sm) 0;
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -60,6 +60,6 @@ const cells = computed(() => [
   transition: transform 120ms var(--ease-out);
 }
 .stat-cell.pressed { transform: scale(var(--press-scale)); }
-.stat-value { font-size: var(--font-h2); font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+.stat-value { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); line-height: 1.1; }
 .stat-label { font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

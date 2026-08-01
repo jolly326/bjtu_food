@@ -263,19 +263,19 @@ onMounted(() => {
 .nickname-edit { flex-shrink: 0; }
 
 /* 我要贡献入口卡（§1.4，与统计同宽） */
-.contribute-card { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-sm) var(--spacing-md) 0; padding: var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.contribute-card { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-sm) var(--spacing-md) 0; padding: var(--spacing-sm); background: var(--color-primary-soft); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .contribute-card:active { transform: scale(var(--press-scale)); }
-.contribute-icon { width: 80rpx; height: 80rpx; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.contribute-icon { width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .contribute-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
 .contribute-title { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
 .contribute-sub { font-size: var(--font-aux); color: var(--text-secondary); }
 .contribute-arrow { flex-shrink: 0; transform: rotate(180deg); }
 
-.version-row { text-align: center; padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-md); }
+.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-xl) 0 var(--spacing-md); }
 .version-text { display: block; font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }
 .version-sub { display: block; font-size: 20rpx; color: var(--text-tertiary); margin-top: var(--spacing-xs); }
 .logout-wrap { padding: var(--spacing-md) var(--spacing-md) 0; }
-.cancel-account { display: flex; justify-content: center; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
+.cancel-account { display: flex; justify-content: center; padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
 .cancel-account:active { opacity: 0.6; }
 .cancel-account-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 

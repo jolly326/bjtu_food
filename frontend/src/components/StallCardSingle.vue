@@ -16,8 +16,8 @@
       <view v-else class="stall-thumb-ph">
         <IconSvg name="dish" :size="56" color="var(--text-tertiary)" />
       </view>
-      <view v-if="stall.rating != null" class="stall-rating-badge">
-        <IconSvg name="star" :size="20" color="#FFD166" />
+      <view v-if="stall.rating != null && stall.rating > 0" class="stall-rating-badge">
+        <IconSvg name="star" :size="20" color="var(--color-star)" />
         <text class="stall-rating-value">{{ formatRating(stall.rating) }}</text>
       </view>
     </view>
@@ -54,7 +54,7 @@ export interface StallCardItem {
   name: string
   image?: string
   description?: string
-  /** 评分（0 视为新，展示「新」） */
+  /** 评分 */
   rating?: number
   /** 菜品数 */
   dishCount?: number
@@ -89,8 +89,7 @@ const metaText = computed(() => {
 })
 
 function formatRating(rating?: number): string {
-  if (rating == null || rating === 0) return '新'
-  return rating.toFixed(1)
+  return rating != null ? rating.toFixed(1) : '0.0'
 }
 
 function handleClick() {
