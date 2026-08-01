@@ -3,7 +3,7 @@
   <view class="related-sheet" :class="{ open }">
     <view class="sheet-head">
       <text class="sheet-title">选择关联对象</text>
-      <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @click="$emit('close')" />
+      <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="$emit('close')" />
     </view>
 
     <view class="sheet-tabs">
@@ -46,7 +46,7 @@
 
     <view class="sheet-footer">
       <view class="sheet-clear" @tap="$emit('clear')">不关联</view>
-      <view class="sheet-confirm" @tap="$emit('close')">确定</view>
+      <view class="sheet-confirm" @tap="confirm">确定</view>
     </view>
   </view>
 </template>
@@ -81,6 +81,7 @@ const emit = defineEmits<{
   close: []
   clear: []
   select: [item: RelatedItem]
+  confirm: [item: RelatedItem | null]
 }>()
 
 const tab = ref<'dish' | 'stall'>('dish')
@@ -145,6 +146,11 @@ function onKeyword() {
 
 function select(item: RelatedItem) {
   emit('select', item)
+}
+
+/** 确定：回传当前选中项（props.selected），由页面统一关闭弹层 */
+function confirm() {
+  emit('confirm', props.selected ?? null)
 }
 
 // 打开时或切换 tab 时重置并加载

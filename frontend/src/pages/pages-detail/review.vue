@@ -32,7 +32,7 @@
             <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
           </view>
           <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
-            <text class="upload-icon">+</text>
+            <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
           </view>
         </view>
       </CardSection>
@@ -131,7 +131,7 @@ onLoad((query) => {
   height: 100vh;
   background: var(--bg-page);
 }
-.scroll-wrap { flex: 1; overflow-y: auto; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 .section-label {
   font-size: var(--font-body);
@@ -203,10 +203,6 @@ onLoad((query) => {
   align-items: center;
   justify-content: center;
   background: var(--bg-page);
-}
-.upload-icon {
-  font-size: var(--font-h1);
-  color: var(--text-tertiary);
 }
 
 </style>

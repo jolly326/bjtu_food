@@ -1,11 +1,11 @@
 <template>
-  <view class="rating" :class="{ interactive: !readonly }">
+  <view class="rating" :class="{ interactive: !readonly, readonly: readonly }">
     <view
       v-for="star in 5"
       :key="star"
       class="star"
       :class="{ active: star <= modelValue }"
-      @tap="readonly ? null : $emit('update:modelValue', star)"
+      @tap="onSelect(star)"
     >
       <IconSvg :name="star <= modelValue ? 'star-filled' : 'star'" :size="starSize" :color="star <= modelValue ? activeColor : emptyColor" class="star-icon" />
     </view>
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import IconSvg from '@/components/IconSvg.vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: number
   showText?: boolean
   readonly?: boolean
@@ -35,9 +35,14 @@ withDefaults(defineProps<{
   starSize: 32,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   'update:modelValue': [value: number]
 }>()
+
+function onSelect(star: number) {
+  if (props.readonly) return
+  emit('update:modelValue', star)
+}
 </script>
 
 <style scoped>
@@ -45,6 +50,9 @@ defineEmits<{
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+}
+.rating.readonly {
+  opacity: 0.92;
 }
 .star {
   line-height: 1;
@@ -60,6 +68,9 @@ defineEmits<{
 }
 .interactive .star:active {
   transform: scale(var(--press-scale));
+}
+.readonly .star {
+  cursor: default;
 }
 .rating-text {
   font-size: var(--font-h2);

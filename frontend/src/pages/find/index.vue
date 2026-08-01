@@ -522,23 +522,20 @@ function measureSuggestTop() {
   try {
     uni.createSelectorQuery()
       .select('.header-wrap')
-      .boundingClientRect((headerRes) => {
-        const headerRect = headerRes as UniApp.NodeInfo
-        uni.createSelectorQuery()
-          .select('.search-wrap')
-          .boundingClientRect((searchRes) => {
-            const searchRect = searchRes as UniApp.NodeInfo
-            const headerBottom = headerRect?.bottom ?? 0
-            const searchHeight = searchRect?.height ?? 0
-            if (headerBottom > 0 && searchHeight >= 0) {
-              suggestPanelTop.value = headerBottom + searchHeight
-            } else {
-              suggestPanelTop.value = 200
-            }
-          })
-          .exec()
+      .boundingClientRect()
+      .select('.search-wrap')
+      .boundingClientRect()
+      .exec((res) => {
+        const headerRect = res[0] as UniApp.NodeInfo
+        const searchRect = res[1] as UniApp.NodeInfo
+        const headerBottom = headerRect?.bottom ?? 0
+        const searchHeight = searchRect?.height ?? 0
+        if (headerBottom > 0 && searchHeight >= 0) {
+          suggestPanelTop.value = headerBottom + searchHeight
+        } else {
+          suggestPanelTop.value = 200
+        }
       })
-      .exec()
   } catch {
     suggestPanelTop.value = 200
   }

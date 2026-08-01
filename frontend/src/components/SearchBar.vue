@@ -24,7 +24,7 @@
         name="close"
         :size="28"
         color="var(--text-tertiary)"
-        @click="handleClear"
+        @tap="handleClear"
       />
     </template>
 

@@ -348,6 +348,13 @@ function handleBannerTap(banner: BannerItem) {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .broadcast-line-enter { animation: broadcast-fade 0.2s ease both; }
+  @keyframes broadcast-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
 .broadcast-text {
   flex: 1;
   min-width: 0;

@@ -1,11 +1,13 @@
 <template>
   <view class="card-section">
-    <text class="section-title" v-if="title">{{ title }}</text>
+    <SectionTitle v-if="title" :title="title" noMargin />
     <slot />
   </view>
 </template>
 
 <script setup lang="ts">
+import SectionTitle from './SectionTitle.vue'
+
 withDefaults(defineProps<{
   title?: string
 }>(), {
@@ -23,14 +25,5 @@ withDefaults(defineProps<{
 }
 .card-section:first-of-type {
   margin-top: var(--spacing-md);
-}
-.section-title {
-  display: block;
-  font-size: var(--font-body);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 2rpx solid var(--border-color);
 }
 </style>

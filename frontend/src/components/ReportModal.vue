@@ -1,6 +1,6 @@
 <template>
-  <view v-if="open" class="modal-mask" @tap="requestClose">
-    <view class="report-modal" @tap.stop>
+  <view v-if="open" class="modal-mask" :class="{ show: maskShow }" @tap="requestClose">
+    <view class="report-modal" :class="{ open: modalShow }" @tap.stop>
       <text class="report-title">{{ title }}</text>
       <textarea class="report-input" v-model="reason" :placeholder="placeholder" maxlength="500" :auto-height="true" />
       <view class="report-actions">
@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 const props = defineProps<{
   open: boolean
@@ -28,7 +28,20 @@ const emit = defineEmits<{
 }>()
 
 const reason = ref('')
-watch(() => props.open, (v) => { if (v) reason.value = '' })
+const maskShow = ref(false)
+const modalShow = ref(false)
+watch(() => props.open, (v) => {
+  if (v) {
+    reason.value = ''
+    nextTick(() => {
+      maskShow.value = true
+      modalShow.value = true
+    })
+  } else {
+    maskShow.value = false
+    modalShow.value = false
+  }
+})
 
 function requestClose() { emit('update:open', false) }
 
@@ -38,8 +51,10 @@ function submit() {
 </script>
 
 <style scoped>
-.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.report-modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); box-shadow: var(--shadow-modal); z-index: 101; }
+.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; transition: opacity 0.3s ease; }
+.modal-mask.show { opacity: 1; }
+.report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: 101; transform: translate(-50%, -50%) scale(0.96); opacity: 0; transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s cubic-bezier(0.32, 0.72, 0, 1); will-change: transform, opacity; }
+.report-modal.open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 .report-title { display: block; font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
@@ -48,4 +63,9 @@ function submit() {
 .report-cancel { background: var(--bg-page); color: var(--text-secondary); }
 .report-confirm { background: var(--color-error); color: var(--text-white); }
 .report-confirm.disabled { opacity: 0.58; }
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-mask { transition: opacity 0.2s ease; }
+  .report-modal { transition: opacity 0.2s ease; transform: translate(-50%, -50%) !important; }
+}
 </style>

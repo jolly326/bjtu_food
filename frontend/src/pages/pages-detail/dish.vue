@@ -166,7 +166,7 @@
     <view class="share-sheet" :class="{ open: shareOpen }">
       <view class="sheet-head">
         <text class="sheet-title">分享菜品</text>
-        <IconSvg name="close" :size="36" color="var(--text-tertiary)" class="sheet-close" @click="shareOpen = false" />
+        <IconSvg name="close" :size="36" color="var(--text-tertiary)" class="sheet-close" @tap="shareOpen = false" />
       </view>
       <view class="share-body">
         <view class="share-option" @tap="copyShareLink">

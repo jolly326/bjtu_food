@@ -36,7 +36,7 @@
             <view class="image-remove" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
           </view>
           <view v-if="form.images.length < 9" class="image-cell image-add" @tap="selectImage">
-            <text class="image-add-icon">+</text>
+            <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
           </view>
         </view>
       </CardSection>
@@ -63,6 +63,7 @@ import { getImageUrl } from '@/utils/image'
 import { uploadImage } from '@/api/upload'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { post } from '@/api/http'
+import IconSvg from '@/components/IconSvg.vue'
 
 const type = ref<'stall' | 'canteen'>('stall')
 const submitting = ref(false)
@@ -157,8 +158,8 @@ onLoad(() => { loadCanteens() })
 .image-cell { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); overflow: hidden; position: relative; background: var(--bg-page); }
 .image-thumb { width: 100%; height: 100%; }
 .image-remove { position: absolute; top: 4rpx; right: 4rpx; width: 36rpx; height: 36rpx; background: var(--badge-dark-bg); color: var(--badge-dark-text); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-tiny); }
-.image-add { border: 4rpx dashed var(--border-color); display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
-.image-add-icon { font-size: var(--font-h1); color: var(--text-tertiary); }
+.image-add { border: 4rpx dashed var(--border-color); display: flex; align-items: center; justify-content: center; background: var(--bg-page); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.image-add:active { transform: scale(var(--press-scale)); }
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); padding: var(--spacing-sm); border: 2rpx solid var(--border-color); border-radius: var(--radius-icon); box-sizing: border-box; }
 .submit-wrap { padding: var(--spacing-md); }
 </style>

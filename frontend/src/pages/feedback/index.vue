@@ -4,8 +4,7 @@
 
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 类型 -->
-      <view class="block">
-        <SectionTitle title="反馈类型" />
+      <CardSection title="反馈类型">
         <view class="type-row">
           <view
             v-for="t in types"
@@ -17,11 +16,10 @@
             <text class="type-text">{{ t.label }}</text>
           </view>
         </view>
-      </view>
+      </CardSection>
 
       <!-- 内容 -->
-      <view class="block">
-        <SectionTitle title="反馈内容" />
+      <CardSection title="反馈内容">
         <textarea
           class="content-input"
           v-model="content"
@@ -30,13 +28,12 @@
           :auto-height="true"
         />
         <text class="counter">{{ content.length }}/1000</text>
-      </view>
+      </CardSection>
 
       <!-- 联系方式 -->
-      <view class="block">
-        <SectionTitle title="联系方式（选填）" />
+      <CardSection title="联系方式（选填）">
         <input class="contact-input" v-model="contact" placeholder="邮箱 / 微信，方便我们回复你" />
-      </view>
+      </CardSection>
 
       <view style="height: var(--spacing-xl)" />
     </scroll-view>
@@ -51,7 +48,7 @@
 import { ref } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
+import CardSection from '@/components/CardSection.vue'
 import { useUserStore } from '@/stores/user'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
@@ -93,8 +90,7 @@ async function submit() {
 
 <style scoped>
 .feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); }
-.block { background: var(--bg-card); padding: var(--spacing-md); margin: 0 var(--spacing-md) var(--spacing-md); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
 .type-chip.active { background: var(--color-primary-soft); }
