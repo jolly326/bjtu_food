@@ -311,3 +311,34 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `9ab603e821914ae097a0a2f33c393d16b9e8f253`）复验——`profile/index.vue:58` 不再因 `folder` 未注册静默成碗（`list` 生效）、notify 模块 `CommentItem` 字号走 token、notify 徽标图标色对齐全局口径；前七轮红线未回退。
 
 > 注：上方 `9ab603e821914ae097a0a2f33c393d16b9e8f253` 为本次第八轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第九轮迭代复审修复计划（2026-08-02）
+
+> 第九轮复审（2026-08-02）在前八轮（全量审计 8 条 + 第二轮 2 条 + 第三轮 2 条 + 第四轮 P2 ImageUploader 例外 + 第五轮 3 项打磨 + 第六轮 5 项细化 + 第七轮 IconSvg empty 占位 MAJOR + 6 项 POLISH + 第八轮 D1 MAJOR + notify 2 项打磨，均已写入 `project_spec.md` §4.9 / `docs/mini-app-ui.md` §0.3）之后追加。本轮聚焦 **全局兜底组件（IconSvg 回退 / ImageFallback 破图占位）语义图标冒充中性占位的高危盲区**，新发现 **P0 MAJOR×2（红线级，违反即阻断）** + **MINOR-MAJOR（reduced-motion 误关停位置指示）** + **3 项 MINOR（打磨）**，其中 P0 两条须同步登记进 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 的 IconSvg 红线细化口径。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `03bbfd7cd3c9e74b1284490f089939f4e044e8de` 全部落地。
+>
+> 级别：MAJOR（主要，红线级）/ MINOR-MAJOR（次要中偏主要，红线细化口径）/ MINOR（次要）。每条含 `file:line` 与对应红线/规范。
+>
+> 代码修复 commit 哈希：`03bbfd7cd3c9e74b1284490f089939f4e044e8de`
+
+### 一、本轮发现（6 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| P0-1 | MAJOR（红线级） | `components/IconSvg.vue`（ICONS 取值分支 / 回退目标） | `IconSvg` 回退目标（含 dev 告警后的兜底）仍指向语义图标 `dish`（碗），缺失键 / 空状态仍静默渲染成菜品碗——与第八轮「缺失键禁静默回退语义图标、须注册 `empty` 中性占位」红线细化口径冲突，且**破图 / 空态语境出现语义图标属静默语义 bug**。 | 图标统一走 `IconSvg`（细化为：中性占位必须为 `empty`，禁 `dish`） | `IconSvg` 回退目标（含 dev 兜底落点）统一改为 `empty` 中性占位键，彻底移除 `dish` 语义图标在中性占位语境的残留。 |
+| P0-2 | MAJOR（红线级） | `components/ImageFallback.vue:5`（破图占位模板） | `ImageFallback` 作为全局图片裂图兜底组件，模板写死 `name="dish"`，头像 / 档口 / 评价图加载失败时**全部显示成碗**；该写法不触发任何未注册告警，前八轮审计全漏检，是全局兜底组件语义图标回退高危盲区。 | 图标统一走 `IconSvg`（细化为：硬编码 ImageFallback / 破图占位须用 `empty` 中性图标，禁 `dish`） | `ImageFallback.vue:5` 破图占位 `name="dish"` → `name="empty"`，与 IconSvg 回退目标同源保持「破图 / 空态一律中性 `empty`」。 |
+| P0-3 | MINOR-MAJOR | `components/SegmentTabs.vue:103`（reduced-motion `@media` 块） | `SegmentTabs` 的 `@media (prefers-reduced-motion: reduce)` 块对 `.seg-thumb` 写 `transform:none !important`，把活动指示条强制归位 index 0——开启减弱动效时指示位置与选中态脱节（功能回归）；应改用 `transition:none` 保留最终位置而非清掉 transform。 | reduced-motion 须保留位置指示最终态（transform:none→transition:none） | `.seg-thumb` reduced-motion 块改 `transition:none !important`（保留 `transform` 最终位置），不做 `transform:none` 归位。 |
+| P0-4 | MINOR | `components/RelatedPickerSheet.vue:257-260`（reduced-motion `@media` 块） | `RelatedPickerSheet` reduced-motion 块漏列 `.sheet-mask`（同级有 `transition:opacity` 但块内未覆盖），开启减弱动效后遮罩仍淡入，与「每个 reduced-motion 块须覆盖该组件所有会动子元素」核查口径不一致。 | reduced-motion 须覆盖组件所有会动子元素 | reduced-motion 块补 `.sheet-mask { transition: none }`，与同级过渡选择器对齐。 |
+| P0-5 | MINOR | `pages/home/index.vue`（广播条背景 rgba） | home 广播条背景用 `rgba(...)` 裸写法，未引用半透材质 token，与「半透材质走 token / 禁裸 rgba 散落」规范略有出入。 | （Token 一致性 / 半透材质） | 广播条背景改引用半透材质语义 token（如 `var(--overlay-bg)` 类），去除裸 `rgba(...)`。 |
+| P0-6 | MINOR | `pages/home/index.vue`（broadcast-up 翻滚动画时长） | home 广播条竖直翻滚 `broadcast-up` 动画时长 `0.45s` 偏慢，与全局动效节奏（常规 UI 0.3–0.4s）略有出入。 | （动效节奏一致性） | `broadcast-up` 时长 `0.45s` → `0.3s`，对齐常规 UI 动效区间。 |
+
+### 二、落实分工与关联
+
+- **P0-1 / P0-2（MAJOR，红线级）**：`IconSvg` 回退目标改 `empty` + `ImageFallback.vue:5` 破图占位 `name="dish"` → `name="empty"`；代码已在 commit `03bbfd7cd3c9e74b1284490f089939f4e044e8de` 修复。本轮并将「**中性占位必须为 `empty`（非 `dish`），同时约束 IconSvg 回退目标与 ImageFallback / 破图占位等硬编码兜底位置；审计须 grep 模板 `name="dish"`/`name="empty"` 逐文件确认中性语境**」补强进 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3 的 IconSvg 红线细化口径。
+- **P0-3（MINOR-MAJOR）**：`SegmentTabs.vue:103` reduced-motion 块 `transform:none` → `transition:none`，已在 commit 修复。
+- **P0-4 / P0-5 / P0-6（MINOR）**：随迭代整改，不阻断交付验收；代码已在 commit `03bbfd7cd3c9e74b1284490f089939f4e044e8de` 修复。
+- **文档同步**：本轮将 IconSvg 红线细化口径（中性占位强制 `empty`、覆盖 IconSvg 回退 + ImageFallback 硬编码、grep 模板 `name="dish"`/`name="empty"` 核对中性语境）写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，P0-3 为 reduced-motion 细化口径校准、P0-4/5/6 为打磨级、不新增红线。
+- **红线回退核查**：整改后（commit `03bbfd7cd3c9e74b1284490f089939f4e044e8de`）复验——破图 / 空态全部中性 `empty`（IconSvg 回退 + ImageFallback 同源，不再出现碗）、`SegmentTabs` reduced-motion 保留指示条最终位置、`RelatedPickerSheet` 遮罩 reduced-motion 已覆盖、home 广播条走 token + 翻滚 0.3s；前八轮红线未回退。
+
+> 注：上方 `03bbfd7cd3c9e74b1284490f089939f4e044e8de` 为本次第九轮复审代码修复 commit 哈希。
