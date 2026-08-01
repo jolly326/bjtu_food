@@ -50,10 +50,10 @@ $uni-border-radius-base: 12rpx;
 $uni-border-radius-lg: 16rpx;
 $uni-border-radius-circle: 50%;
 
-/* Native swiper indicator color exception — var() unsupported by <swiper> indicator-active-color.
-   微信小程序原生 <swiper> 的 indicator-active-color / indicator-color 不接受 CSS var()，
-   因此组件内用真实颜色常量（见 src/constants/ui.ts 的 SWIPER_INDICATOR_ACTIVE_COLOR）。
-   <swiper indicator-color>（非激活小圆点）同样不接受 var()，故组件内用裸 rgba(255,255,255,0.4)，
+/* Native swiper indicator color exception — var() unsupported by <swiper> indicator-active-color / indicator-color.
+   微信小程序原生 <swiper> 的 indicator-active-color / indicator-color 均不接受 CSS var()，
+   因此组件内用真实颜色常量（见 src/constants/ui.ts 的 SWIPER_INDICATOR_ACTIVE_COLOR / SWIPER_INDICATOR_COLOR）。
+   <swiper indicator-color>（非激活小圆点）同样不接受 var()，组件内改用常量 SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'，
    与 indicator-active-color 同属原生属性限制例外，不属于「禁止裸色值」违规。
    这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */
 

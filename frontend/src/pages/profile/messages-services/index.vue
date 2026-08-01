@@ -109,7 +109,7 @@
         </view>
       </view>
 
-      <view style="height: var(--spacing-lg)" />
+      <view class="spacer-lg" />
     </scroll-view>
   </view>
 </template>
@@ -248,4 +248,5 @@ function onRefresh() {
 .item-right { display: flex; align-items: center; gap: var(--spacing-xs); flex-shrink: 0; }
 .off-tag { font-size: var(--font-tiny); color: var(--text-tertiary); }
 .item-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
+.spacer-lg { height: var(--spacing-lg); }
 </style>

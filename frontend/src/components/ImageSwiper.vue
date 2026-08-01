@@ -3,7 +3,7 @@
     class="image-swiper"
     :style="{ height }"
     :indicator-dots="showIndicator"
-    indicator-color="rgba(255,255,255,0.4)"
+    :indicator-color="SWIPER_INDICATOR_COLOR"
     :indicator-active-color="indicatorActiveColor"
     :autoplay="autoplay"
     :interval="interval"
@@ -22,8 +22,8 @@
 import { computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
-// 微信原生 <swiper> 的 indicator-active-color 不接受 var()，此处为已知的原生属性限制例外（见 constants/ui.ts 注释），必须用真实色值
-import { SWIPER_INDICATOR_ACTIVE_COLOR } from '@/constants/ui'
+// 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 constants/ui.ts 注释），必须用真实色值
+import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/constants/ui'
 
 const props = withDefaults(defineProps<{
   images: string[]

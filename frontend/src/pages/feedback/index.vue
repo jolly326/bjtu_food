@@ -92,7 +92,8 @@ async function submit() {
 .feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
+.type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.type-chip:active { transform: scale(var(--press-scale)); }
 .type-chip.active { background: var(--color-primary-soft); }
 .type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
 .type-chip.active .type-text { color: var(--color-primary); }

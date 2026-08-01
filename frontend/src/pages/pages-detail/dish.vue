@@ -69,13 +69,13 @@
               <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
               <text class="info-row-label">所在位置</text>
               <text class="info-row-value">{{ locationText }}</text>
-              <text class="info-row-arrow">›</text>
+              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="info-row-arrow" />
             </view>
             <view class="info-row info-row-tap" v-if="dish.businessHours" @tap="goToStall">
               <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
               <text class="info-row-label">营业时段</text>
               <text class="info-row-value">{{ dish.businessHours }}</text>
-              <text class="info-row-arrow">›</text>
+              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="info-row-arrow" />
             </view>
           </view>
 
@@ -127,13 +127,15 @@
           <EmptyState v-else text="暂无评价，来写第一条吧" />
 
           <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
-            <text class="review-more-text">查看全部评价 ›</text>
+            <text class="review-more-text">查看全部评价</text>
+            <IconSvg name="arrow" :size="28" color="var(--color-primary)" class="review-more-arrow" />
           </view>
         </CardSection>
 
         <!-- 申请下架/纠错：不常用，降级为底部弱化的小文字链接，点击展开 Sheet -->
         <view class="apply-link" @tap="openApply">
-          <text class="apply-link-text">反馈 / 申请下架 ›</text>
+          <text class="apply-link-text">反馈 / 申请下架</text>
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="apply-link-arrow" />
         </view>
 
       </template>
@@ -437,13 +439,15 @@ function onRefresh() {
 .info-block-divider { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 
 .review-list { margin-top: var(--spacing-sm); }
-.review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
+.review-more-btn { margin-top: var(--spacing-sm); display: flex; align-items: center; justify-content: center; gap: 4rpx; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
+.review-more-arrow { flex-shrink: 0; }
 
 /* 申请入口：不常用，降级为底部弱化的小文字链接 */
-.apply-link { display: flex; justify-content: center; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
+.apply-link { display: flex; align-items: center; justify-content: center; gap: 4rpx; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
 .apply-link:active { opacity: 0.6; }
 .apply-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.apply-link-arrow { flex-shrink: 0; }
 
 /* 底部操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); z-index: 50; }

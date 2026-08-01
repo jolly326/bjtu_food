@@ -300,7 +300,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-md); padding: 0 var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-icon { flex-shrink: 0; opacity: 0.6; }
-.input-control { flex: 1; height: 90rpx; font-size: 28rpx; color: var(--text-primary); min-width: 0; }
+.input-control { flex: 1; height: 90rpx; font-size: var(--font-small); color: var(--text-primary); min-width: 0; }
 .code-field { padding-right: 0; }
 .code-action { min-width: 154rpx; height: 90rpx; padding: 0 var(--spacing-sm); display: flex; align-items: center; justify-content: center; border-left: 2rpx solid var(--border-color); color: var(--color-primary); font-size: 24rpx; font-weight: 650; white-space: nowrap; }
 .code-action.disabled { color: var(--text-quaternary); }

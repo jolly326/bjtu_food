@@ -29,7 +29,8 @@
       <block v-else>
         <!-- Banner 轮播（按 target_type 跳转）；无数据时限轻量占位，不整块消失 -->
         <view class="swiper-section enter-up" :style="{ '--enter-i': 0 }">
-          <swiper v-if="dishStore.homeBanners.length > 0" class="home-swiper" indicator-dots indicator-color="rgba(255,255,255,0.4)"
+          <swiper v-if="dishStore.homeBanners.length > 0" class="home-swiper" indicator-dots
+            :indicator-color="SWIPER_INDICATOR_COLOR"
             :indicator-active-color="SWIPER_INDICATOR_ACTIVE_COLOR" autoplay interval="3000" circular>
             <swiper-item v-for="(item, idx) in dishStore.homeBanners" :key="idx">
               <view class="swiper-slide" @tap="handleBannerTap(item)">
@@ -128,7 +129,7 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { useDishStore } from '@/stores/dish'
 import { getBroadcasts } from '@/api/broadcast'
-import { SWIPER_INDICATOR_ACTIVE_COLOR } from '@/constants/ui'
+import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/constants/ui'
 import type { Dish } from '@/types/dish'
 import type { BannerItem } from '@/types/banner'
 
@@ -415,7 +416,6 @@ function handleBannerTap(banner: BannerItem) {
   justify-content: center;
   padding: var(--spacing-xl) var(--spacing-lg);
 }
-.empty-illu { font-size: 140rpx; line-height: 1; opacity: 0.32; margin-bottom: var(--spacing-md); }
 .empty-tip { font-size: var(--font-card); font-weight: 600; color: var(--text-secondary); }
 .empty-sub { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
 

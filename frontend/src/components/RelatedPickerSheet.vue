@@ -235,7 +235,8 @@ watch(tab, () => {
 .sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
 .sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
 .sheet-tabs { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-md) 0; }
-.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
+.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.sheet-tab:active { transform: scale(var(--press-scale)); }
 .sheet-tab.active { background: var(--color-primary-soft); color: var(--color-primary); }
 .sheet-search { padding: var(--spacing-md); }
 .sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }

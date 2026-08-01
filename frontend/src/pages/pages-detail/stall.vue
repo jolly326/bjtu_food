@@ -56,7 +56,8 @@
           </view>
           <EmptyState v-else text="该档口暂无菜品" />
           <view v-if="dishList.length > 6" class="dish-expand" @tap="dishesExpanded = !dishesExpanded">
-            <text class="dish-expand-text">{{ dishesExpanded ? '收起' : `查看全部菜品（${dishList.length}） ›` }}</text>
+            <text class="dish-expand-text">{{ dishesExpanded ? '收起' : `查看全部菜品（${dishList.length}）` }}</text>
+            <IconSvg v-if="!dishesExpanded" name="arrow" :size="28" color="var(--color-primary)" class="dish-expand-arrow" />
           </view>
         </CardSection>
 
@@ -76,7 +77,8 @@
           </view>
           <EmptyState v-else text="暂无评价，来写第一条吧" />
           <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
-            <text class="review-more-text">查看全部评价 ›</text>
+            <text class="review-more-text">查看全部评价</text>
+            <IconSvg name="arrow" :size="28" color="var(--color-primary)" class="review-more-arrow" />
           </view>
         </CardSection>
       </template>
@@ -247,16 +249,20 @@ function onRefresh() {
 .dish-expand {
   margin-top: var(--spacing-sm);
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 4rpx;
 }
 .dish-expand-text {
   font-size: var(--font-aux);
   color: var(--color-primary);
   font-weight: 600;
 }
+.dish-expand-arrow { flex-shrink: 0; }
 .review-list { margin-top: var(--spacing-sm); }
-.review-more-btn { margin-top: var(--spacing-sm); display: flex; justify-content: center; }
+.review-more-btn { margin-top: var(--spacing-sm); display: flex; align-items: center; justify-content: center; gap: 4rpx; }
 .review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
+.review-more-arrow { flex-shrink: 0; }
 
 /* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
 .feedback-link {

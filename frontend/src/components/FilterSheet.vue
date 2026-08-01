@@ -279,8 +279,10 @@ function onTouchEnd() {
   font-size: var(--font-aux);
   background: var(--bg-placeholder);
   color: var(--text-secondary);
+  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
+.chip:active { transform: scale(var(--press-scale)); }
 .chip.active { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
 .price-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .price-input {
@@ -295,8 +297,10 @@ function onTouchEnd() {
   font-size: var(--font-aux);
   background: var(--bg-placeholder);
   color: var(--text-secondary);
+  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
+.seg-item:active { transform: scale(var(--press-scale)); }
 .seg-item.active { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
 .sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .sheet-reset {
