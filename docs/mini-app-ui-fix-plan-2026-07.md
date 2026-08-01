@@ -252,3 +252,34 @@ emoji 全 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐
 - **红线回退核查**：整改后（commit `64d396dd9aeee7384b692b770944456add0de604`）复验——全仓 `.footer-spinner` reduced-motion 块均为 `animation: none`、按压缩放仅 `--press-scale` 与已登记 `--tab-active-scale`、swiper 指示点双色均登记于 `uni.scss`、前五轮红线未回退。
 
 > 注：上方 `64d396dd9aeee7384b692b770944456add0de604` 为本次第六轮复审代码修复 commit 哈希。
+
+---
+
+## UI 第七轮迭代复审修复计划（2026-08-02）
+
+> 第七轮复审（2026-08-02）在前六轮（全量审计 8 条 + 第二轮再审 2 条 + 第三轮复审 2 条 + 第四轮 P2 ImageUploader 例外 + 第五轮 3 项打磨 + 第六轮 5 项细化）之后追加，本轮聚焦 **IconSvg 空状态静默回退语义 bug（MAJOR）+ 6 项 POLISH（打磨）**，均为体验一致性 / 静默缺陷精细点，不阻断交付验收、亦不新增红线（仅对既有「图标统一走 IconSvg」红线做细化口径校准）。本轮**仅改文档、未动任何 .vue / .ts 业务代码**；代码修复已在 commit `d8b62873945a585f5e72b38fcf9479b050a31c9b` 全部落地。
+>
+> 级别：MAJOR（主要，红线细化口径）/ POLISH（打磨）。每条含 `file:line` 与对应红线/规范。
+>
+> 代码修复 commit 哈希：`d8b62873945a585f5e72b38fcf9479b050a31c9b`
+
+### 一、本轮发现（7 项）
+
+| # | 级别 | 位置（file:line） | 问题 | 对应红线 / 规范 | 修复指引 |
+|---|---|---|---|---|---|
+| 7-1 | MAJOR | `components/IconSvg.vue`（ICONS 取值分支） | `IconSvg` 默认回退写法 `ICONS[name] \|\| ICONS.dish` 会让拼写错误/未注册键（如 `name="empty"`）无声渲染成菜品碗，造成「空状态显示菜品碗」这类静默语义 bug，违背「图标统一走 IconSvg，语义唯一」红线。 | 图标统一走 `IconSvg`（细化为：中性占位 + 缺失键告警，禁静默落到语义图标） | 注册专用 `empty` 中性占位键（不可见/中性占位 SVG）；移除 `\|\| ICONS.dish` 静默回退到语义图标；在 dev 环境对未命中键 `console.warn`，避免静默语义错误。 |
+| 7-2 | POLISH | `pages/home/index.vue`（死 CSS 类） | home 页存在未被模板引用的死样式类（如 `.empty-illu` 同级残留的死 CSS），残留无意义、易误导后续维护。 | （死代码清理） | 删除 home 页未被引用的死 CSS 类，保持样式文件整洁。 |
+| 7-3 | POLISH | 全局多处（文本箭头 `›`） | 多处用文本字符 `›` 充当右箭头，未统一 `IconSvg name="arrow"` 矢量图标，与「图标统一走 IconSvg」红线不一致。 | 图标统一走 `IconSvg` | 文本箭头 `›` → `<IconSvg name="arrow" />`，统一矢量渲染。 |
+| 7-4 | POLISH | `components/RelatedPickerSheet.vue` / `components/FilterSheet.vue` / feedback 相关 chips（按压反馈分支） | 上述 Sheet 选项与 feedback chips 可点但缺按压反馈，与全局「可点元素带 `scale(var(--press-scale))` 按压语言」不一致。 | 按压缩放统一 `var(--press-scale)` | 相关 Sheet 选项 / feedback chips 补 `:active { transform: scale(var(--press-scale)) }`。 |
+| 7-5 | POLISH | `components/AuthForm.vue`（字号） | AuthForm 内部分字号未完全走 `font` token，与「字体排版走 token」规范略有出入。 | （Token 一致性 / 字体排版） | AuthForm 字号统一引用 `--font-*` token，去除裸字号数值。 |
+| 7-6 | POLISH | `pages/home/index.vue`（swiper 指示点 `indicator-active-color` 赋值处） | swiper 指示点激活色裸 hex 未使用已注册的 `SWIPER_INDICATOR_ACTIVE_COLOR` 常量，且常量未在 `frontend/src/uni.scss` 登记，与「原生 API 颜色例外集中 `uni.scss` 登记 + 注册常量路由」红线细化口径不一致。 | 原生 API 颜色例外集中 `uni.scss` 登记 + 注册常量路由 | 页面统一经注册常量 `SWIPER_INDICATOR_ACTIVE_COLOR` 引用，禁内联裸 hex；在 `frontend/src/uni.scss` 注释登记该裸 hex 用途。 |
+| 7-7 | POLISH | `pages/messages/index.vue` + `pages/services/index.vue`（inline 样式） | messages / services 页存在内联 style 写法（如 `style="…"`），未抽为 class，与「样式走 class 而非内联」规范不一致。 | （样式走 class，禁内联） | 内联样式抽为语义 class，统一在 `<style>` 块维护。 |
+
+### 二、落实分工与关联
+
+- **7-1（MAJOR）**：`IconSvg` 注册 `empty` 中性占位键、移除静默回退到 `dish` 语义图标、dev 环境未命中键 `console.warn`；代码已在 commit `d8b62873945a585f5e72b38fcf9479b050a31c9b` 修复。本轮并将「图标统一走 IconSvg」红线细化——须注册中性 `empty` 占位键、缺失/未注册键**禁止静默回退到语义图标**、dev 告警，写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3。
+- **7-2 ~ 7-7（POLISH）**：随迭代整改，不阻断交付验收；代码已在 commit `d8b62873945a585f5e72b38fcf9479b050a31c9b` 修复。
+- **文档同步**：本轮将「IconSvg 须注册中性 `empty` 占位键、缺失键禁静默回退语义图标、dev 告警」细化口径写入 `project_spec.md` §4.9 与 `docs/mini-app-ui.md` §0.3，其余 6 项 POLISH 为打磨级、不新增红线。
+- **红线回退核查**：整改后（commit `d8b62873945a585f5e72b38fcf9479b050a31c9b`）复验——空状态不再静默渲染菜品碗（`empty` 中性占位生效、缺失键 dev 告警）、文本箭头统一 `IconSvg`、相关 Sheet/feedback chips 带 `--press-scale` 按压、AuthForm 字号走 token、swiper 指示点经注册常量 + `uni.scss` 登记、messages/services 内联样式已抽 class；前六轮红线未回退。
+
+> 注：上方 `d8b62873945a585f5e72b38fcf9479b050a31c9b` 为本次第七轮复审代码修复 commit 哈希。
