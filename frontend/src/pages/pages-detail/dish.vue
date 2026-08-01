@@ -58,49 +58,49 @@
           </view>
         </CardSection>
 
-        <!-- ===== 合并卡片：位置与营业 / 菜品属性 / 菜品介绍，单卡内分区 ===== -->
+        <!-- ===== 合并卡片：位置与营业 / 菜品属性 / 菜品介绍，单卡内有序分区 ===== -->
         <CardSection title="菜品信息">
-          <!-- 分区一：位置与营业 -->
+          <!-- 分区一：位置与营业（统一属性行：图标 + 标签 + 值） -->
           <view class="info-block">
-            <view class="location-chain" @tap="goToCanteen">
-              <text class="chain-node">{{ dish.canteen || '未知食堂' }}</text>
-              <text class="chain-sep">›</text>
-              <text class="chain-node" v-if="dish.floor">{{ dish.floor }}</text>
-              <text class="chain-sep" v-if="dish.floor">›</text>
-              <text class="chain-node">{{ dish.stallName || '档口' }}</text>
-              <text class="chain-sep" v-if="dish.windowNo">›</text>
-              <text class="chain-node chain-window" v-if="dish.windowNo">窗口 {{ dish.windowNo }}</text>
+            <view class="info-row info-row-tap" @tap="goToCanteen">
+              <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">所在位置</text>
+              <text class="info-row-value">{{ locationText }}</text>
+              <text class="info-row-arrow">›</text>
             </view>
-            <view class="biz-hours" v-if="dish.businessHours" @tap="goToStall">
-              <IconSvg name="clock" :size="26" color="var(--text-tertiary)" class="biz-icon" />
-              <text class="biz-text">营业时间：{{ dish.businessHours }}</text>
-              <text class="biz-arrow">›</text>
+            <view class="info-row info-row-tap" v-if="dish.businessHours" @tap="goToStall">
+              <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">营业时段</text>
+              <text class="info-row-value">{{ dish.businessHours }}</text>
+              <text class="info-row-arrow">›</text>
             </view>
           </view>
 
-          <!-- 分区二：菜品属性（有则展示，用分隔线与上区隔开） -->
+          <!-- 分区二：菜品属性（辣度 / 分量 / 限量 / 供应时段，统一属性行） -->
           <view class="info-block info-block-divider" v-if="attrTags.length > 0">
-            <view class="attr-row">
-              <view class="attr-item" v-if="spiceLabel">
-                <IconSvg name="chili" :size="26" color="var(--text-tertiary)" class="attr-icon" />
-                <text class="attr-text">{{ spiceLabel }}</text>
-              </view>
-              <view class="attr-item" v-if="portionLabel">
-                <IconSvg name="portion" :size="26" color="var(--text-tertiary)" class="attr-icon" />
-                <text class="attr-text">{{ portionLabel }}</text>
-              </view>
-              <view class="attr-item" v-if="dish.limited">
-                <IconSvg name="clock" :size="26" color="var(--text-tertiary)" class="attr-icon" />
-                <text class="attr-text">限量供应</text>
-              </view>
-              <view class="attr-item" v-for="p in servePeriodLabels" :key="p">
-                <IconSvg name="clock" :size="26" color="var(--text-tertiary)" class="attr-icon" />
-                <text class="attr-text">{{ p }}</text>
-              </view>
+            <view class="info-row" v-if="spiceLabel">
+              <IconSvg name="chili" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">辣度</text>
+              <text class="info-row-value">{{ spiceLevelText }}</text>
+            </view>
+            <view class="info-row" v-if="portionLabel">
+              <IconSvg name="portion" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">分量</text>
+              <text class="info-row-value">{{ portionLevelText }}</text>
+            </view>
+            <view class="info-row" v-if="dish.limited">
+              <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">供应</text>
+              <text class="info-row-value">限量供应</text>
+            </view>
+            <view class="info-row" v-for="p in servePeriodLabels" :key="p">
+              <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
+              <text class="info-row-label">供应时段</text>
+              <text class="info-row-value">{{ p }}</text>
             </view>
           </view>
 
-          <!-- 分区三：菜品介绍（有则展示） -->
+          <!-- 分区三：菜品介绍（有则展示，单独成段并限制行高） -->
           <view class="info-block info-block-divider" v-if="dish.description">
             <text class="desc-content">{{ dish.description }}</text>
           </view>
@@ -247,6 +247,22 @@ const attrTags = computed(() => [
   ...servePeriodLabels.value,
 ].filter(Boolean))
 
+/** 位置链文本（食堂 › 楼层 › 档口 › 窗口，缺省回落占位） */
+const locationText = computed(() => {
+  const d = dish.value
+  if (!d) return ''
+  const nodes: string[] = []
+  if (d.canteen) nodes.push(d.canteen)
+  if (d.floor) nodes.push(String(d.floor))
+  if (d.stallName) nodes.push(d.stallName)
+  if (d.windowNo) nodes.push(`窗口 ${d.windowNo}`)
+  return nodes.join(' › ') || '未知位置'
+})
+/** 辣度纯文本（去掉「辣度·」前缀，作属性行值） */
+const spiceLevelText = computed(() => spiceLabel.value.replace(/^辣度·/, ''))
+/** 分量纯文本（去掉「分量·」前缀） */
+const portionLevelText = computed(() => portionLabel.value.replace(/^分量·/, ''))
+
 /** 整页喜欢态（乐观切换；未登录引导） */
 async function toggleLike() {
   if (!userStore.requireAuth()) return
@@ -356,25 +372,15 @@ function onRefresh() {
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 .rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 
-/* 位置链路 */
-.location-chain { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.location-chain:active { transform: scale(var(--press-scale)); }
-.chain-node { font-size: var(--font-body); font-weight: 600; color: var(--text-primary); }
-.chain-window { color: var(--color-primary); }
-.chain-sep { font-size: var(--font-body); color: var(--text-tertiary); }
-.biz-hours { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.biz-hours:active { transform: scale(var(--press-scale)); }
-.biz-icon { line-height: 1; }
-.biz-text { font-size: var(--font-aux); color: var(--text-secondary); flex: 1; min-width: 0; }
-.biz-arrow { font-size: var(--icon-sm); color: var(--text-tertiary); }
+/* 统一属性行：图标 + 标签 + 值（右对齐） */
+.info-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-xs) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.info-row-tap:active { transform: scale(var(--press-scale)); }
+.info-row-icon { width: 28rpx; height: 28rpx; line-height: 1; flex-shrink: 0; }
+.info-row-label { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
+.info-row-value { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-row-arrow { font-size: var(--icon-sm); color: var(--text-tertiary); flex-shrink: 0; }
 
-/* 属性标签 */
-.attr-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.attr-item { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); }
-.attr-icon { line-height: 1; }
-.attr-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
-
-.desc-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; display: block; }
+.desc-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 
 /* 合并卡片内分区 */
 .info-block { padding: 0; }

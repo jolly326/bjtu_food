@@ -18,13 +18,21 @@
             </text>
             <text class="canteen-hero-stat">{{ canteenInfo.stallCount }} 个档口</text>
           </view>
-          <text v-if="canteenInfo.location" class="canteen-hero-loc">
-            <IconSvg name="location" :size="24" color="var(--text-tertiary)" /> {{ canteenInfo.location }}
-          </text>
-          <text v-if="canteenInfo.businessHours" class="canteen-hero-loc">
-            <IconSvg name="clock" :size="24" color="var(--text-tertiary)" /> 营业 {{ canteenInfo.businessHours }}
-          </text>
-          <text v-if="canteenInfo.description" class="canteen-hero-desc">{{ canteenInfo.description }}</text>
+
+          <!-- 有序信息区：图标 + 标签 + 值 -->
+          <view class="canteen-info">
+            <view class="canteen-info-row" v-if="canteenInfo.location">
+              <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="canteen-info-icon" />
+              <text class="canteen-info-label">位置</text>
+              <text class="canteen-info-value">{{ canteenInfo.location }}</text>
+            </view>
+            <view class="canteen-info-row" v-if="canteenInfo.businessHours">
+              <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="canteen-info-icon" />
+              <text class="canteen-info-label">营业时段</text>
+              <text class="canteen-info-value">营业 {{ canteenInfo.businessHours }}</text>
+            </view>
+            <text v-if="canteenInfo.description" class="canteen-info-desc">{{ canteenInfo.description }}</text>
+          </view>
         </view>
       </view>
       <view v-else-if="loading" class="canteen-hero canteen-hero-skeleton">
@@ -196,6 +204,7 @@ onLoad(async (query) => {
 .scroll-wrap {
   flex: 1;
   overflow-y: auto;
+  padding: 0 var(--spacing-md);
 }
 
 /* ① 食堂介绍与信息区块 */
@@ -205,7 +214,7 @@ onLoad(async (query) => {
   padding: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  margin: var(--spacing-md);
+  margin: 0;
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
@@ -221,13 +230,18 @@ onLoad(async (query) => {
 .canteen-hero-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .canteen-hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .canteen-hero-name { font-size: var(--font-h3); font-weight: 800; color: var(--text-primary); letter-spacing: -0.01em; }
-.canteen-hero-loc { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-secondary); }
-.canteen-hero-desc { font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+/* 有序信息区：图标 + 标签 + 值行 */
+.canteen-info { display: flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-xs); padding-top: var(--spacing-xs); border-top: 2rpx solid var(--border-color); }
+.canteen-info-row { display: flex; align-items: center; gap: var(--spacing-sm); }
+.canteen-info-icon { width: 28rpx; height: 28rpx; line-height: 1; flex-shrink: 0; }
+.canteen-info-label { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
+.canteen-info-value { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canteen-info-desc { font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .canteen-hero-stats { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
 .canteen-hero-stat { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
 
-/* ② 档口单列流（与上方食堂卡同用 margin 外边距，左沿统一落在 24rpx） */
-.stall-stream { margin: 0 var(--spacing-md); box-sizing: border-box; }
+/* ② 档口单列流（scroll-wrap 已提供左右 padding，左沿与上方食堂卡一致） */
+.stall-stream { margin: 0; box-sizing: border-box; }
 
 /* hero 骨架屏 */
 .canteen-hero-skeleton { }

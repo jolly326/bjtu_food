@@ -10,9 +10,10 @@
 
       <!-- 已登录态：用户信息卡 + 统计 + 菜单（主页不渲染 Tab） -->
       <template v-else>
-        <!-- 用户卡（加载中内联骨架） -->
+        <!-- 用户卡（含头像 + 昵称 + 统计三宫格 + 我要贡献低调入口） -->
         <view class="user-card enter-up" :style="{ '--enter-i': 0 }">
-          <view class="avatar-wrap" @tap="handleEditAvatar">
+          <view class="user-card-head">
+            <view class="avatar-wrap" @tap="handleEditAvatar">
             <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
             <view v-else class="avatar avatar-empty">
               <IconSvg name="user" :size="56" color="var(--text-tertiary)" />
@@ -25,37 +26,32 @@
             </view>
             <StatusBadge v-if="userInfo?.role" :role="userInfo.role === 'admin' ? 'admin' : 'student'" />
           </view>
-        </view>
-
-        <!-- 统计行（StatsRow 三宫格：评价 / 已发布 / 待审核） -->
-        <StatsRow
-          class="enter-up stats-row-wrap"
-          :style="{ '--enter-i': 1 }"
-          :review-count="userStore.userStats.reviewCount ?? 0"
-          :published-count="userStore.userStats.publishedCount ?? 0"
-          :pending-count="userStore.userStats.pendingCount ?? 0"
-          @tap="onStatsTap"
-        />
-
-        <!-- 我要贡献入口（与统计同宽，点击弹 ContributeSheet） -->
-        <view class="contribute-card enter-up" :style="{ '--enter-i': 2 }" @tap="contributeOpen = true">
-          <IconSvg name="plus" :size="40" color="var(--color-primary)" class="contribute-icon" />
-          <view class="contribute-body">
-            <text class="contribute-title">我要贡献</text>
-            <text class="contribute-sub">发布 / 提交 / 纠错</text>
           </view>
-          <IconSvg name="arrow-left" :size="28" color="var(--text-tertiary)" class="contribute-arrow" />
+
+          <!-- 统计三宫格（评价 / 已发布 / 待审核），融合进 user-card -->
+          <StatsRow
+            class="user-stats"
+            :review-count="userStore.userStats.reviewCount ?? 0"
+            :published-count="userStore.userStats.publishedCount ?? 0"
+            :pending-count="userStore.userStats.pendingCount ?? 0"
+            @tap="onStatsTap"
+          />
+
+          <!-- 我要贡献：低调一行小文字链接，不突出 -->
+          <view class="contribute-link" @tap="contributeOpen = true">
+            <text class="contribute-link-text">我要贡献 ›</text>
+          </view>
         </view>
 
         <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
-        <SettingGroup title="我的内容" class="enter-up" :style="{ '--enter-i': 3 }">
+        <SettingGroup title="我的内容" class="enter-up" :style="{ '--enter-i': 1 }">
           <SettingCell icon="list" label="我的提交" hint="申请记录" @tap="goToMySubmissions" />
           <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
           <SettingCell icon="star" label="我的评价" @tap="goToReviews" />
           <SettingCell icon="edit" label="我的发布" hint="菜品/档口·审核态" @tap="goToMyPublish" />
         </SettingGroup>
 
-        <SettingGroup title="消息与服务" class="enter-up" :style="{ '--enter-i': 4 }">
+        <SettingGroup title="消息与服务" class="enter-up" :style="{ '--enter-i': 2 }">
           <SettingCell icon="bell" label="消息中心" :badge="notifyStore.unreadCount > 0" @tap="goToNotify" />
           <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
           <SettingCell icon="settings" label="设置" @tap="goToSettings" />
@@ -252,8 +248,9 @@ onMounted(() => {
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
-/* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user） */
-.user-card { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+/* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user；内部竖向排列，统计与入口融合） */
+.user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; }
 .avatar { width: 112rpx; height: 112rpx; border-radius: var(--radius-card); background: var(--bg-page); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
@@ -262,15 +259,15 @@ onMounted(() => {
 .nickname { font-size: var(--font-subtitle); font-weight: 700; color: var(--text-primary); }
 .nickname-edit { flex-shrink: 0; }
 
-/* 我要贡献入口卡（§1.4，与统计同宽） */
-.stats-row-wrap { margin: 0 var(--spacing-md); }
-.contribute-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-xs) var(--spacing-md) 0; padding: var(--spacing-xs) var(--spacing-sm); background: var(--color-primary-soft); border-radius: var(--radius-card); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.contribute-card:active { transform: scale(var(--press-scale)); }
-.contribute-icon { width: 56rpx; height: 56rpx; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.contribute-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.contribute-title { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); }
-.contribute-sub { font-size: var(--font-aux); color: var(--text-secondary); }
-.contribute-arrow { flex-shrink: 0; transform: rotate(180deg); }
+/* 统计三宫格（融合进 user-card，扁平化：去掉内层卡片阴影/背景，与卡片等宽） */
+.user-stats { width: 100%; margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
+.user-card :deep(.stat-cell) { background: transparent; box-shadow: none; }
+.user-card :deep(.stats-row) { gap: 0; }
+
+/* 我要贡献：低调一行小文字链接（去高亮卡片） */
+.contribute-link { margin-top: var(--spacing-sm); display: flex; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.contribute-link:active { opacity: 0.6; }
+.contribute-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 .version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-xl) 0 var(--spacing-md); }
 .version-text { display: block; font-size: 24rpx; font-weight: 600; color: var(--text-tertiary); }

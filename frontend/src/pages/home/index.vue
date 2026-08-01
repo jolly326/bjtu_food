@@ -167,9 +167,9 @@ const visibleBroadcasts = computed(() => broadcastList.value.filter(b => b && b.
 
 function startBroadcastRotation() {
   if (broadcastTimer) clearInterval(broadcastTimer)
-  if (broadcastList.value.length <= 1) return
+  if (visibleBroadcasts.value.length <= 1) return
   broadcastTimer = setInterval(() => {
-    broadcastIndex.value = (broadcastIndex.value + 1) % broadcastList.value.length
+    broadcastIndex.value = (broadcastIndex.value + 1) % visibleBroadcasts.value.length
   }, 3000)
 }
 

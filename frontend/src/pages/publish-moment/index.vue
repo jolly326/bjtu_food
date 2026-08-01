@@ -14,14 +14,6 @@
         <text class="counter">{{ content.length }}/500</text>
       </view>
 
-      <!-- 图片上传 -->
-      <view class="block">
-        <SectionTitle title="图片">
-          <template #extra><text class="section-sub">最多 9 张</text></template>
-        </SectionTitle>
-        <ImageUploader v-model="images" :max="9" />
-      </view>
-
       <!-- 关联对象（可选） -->
       <view class="block">
         <SectionTitle title="关联对象">
@@ -31,6 +23,14 @@
           <text class="related-label">{{ relatedLabel }}</text>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
         </view>
+      </view>
+
+      <!-- 图片上传 -->
+      <view class="block">
+        <SectionTitle title="图片">
+          <template #extra><text class="section-sub">最多 9 张</text></template>
+        </SectionTitle>
+        <ImageUploader v-model="images" :max="9" />
       </view>
 
       <view style="height: var(--spacing-xl)" />
@@ -151,7 +151,7 @@ onLoad(async (query) => {
 
 <style scoped>
 .publish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); }
 .block { background: var(--bg-card); padding: var(--spacing-md); margin: 0 var(--spacing-md) var(--spacing-md); box-shadow: var(--shadow-card); border-radius: var(--radius-card); }
 .content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
