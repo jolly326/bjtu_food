@@ -595,6 +595,7 @@ AppButton / CardSection / CustomTabBar / DishCard / EmptyState / header / IconSv
 
 > 来源：用户经微信发来的一批具体 UI 问题，要求逐项修复并定稿。本文档为「设计侧定稿 + 派工依据」，只改本文档，不改业务代码（除文档外）。所有 file:line 均基于 `frontend/src` 当前真实现状。
 > 一致性红线（不可违反）：emoji 全用 IconSvg；金额仅 api 层；WaterfallList 禁具名 slot；三态齐备；Sheet 弹簧+ic-close+reduced-motion。
+> **【2026-08-02 全量审计补充红线 · 与 project_spec §4.9 同源于审计，BLOCKER 级】** 固定底栏页 `.scroll-wrap` 须加 `padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom))` 防遮挡；事件绑定统一 `@tap`、禁混用 `@click`；按压缩放统一 `scale(var(--press-scale))`（0.97）、禁裸 `scale(0.97)`；图标统一 `IconSvg`、禁手写 `<text>+</text>` 等文本图标；底部抽屉/弹窗须含 `env(safe-area-inset-bottom)` + 进出场 `cubic-bezier(0.32,0.72,0,1)` + `prefers-reduced-motion` 交叉淡入降级；`<swiper indicator-active-color>` 裸 hex 为例外、须在 `uni.scss` 注释登记；图片添加统一走 `ImageUploader`/`IconSvg name="plus"`、禁页面内联复制；复用全局 `SectionTitle`，`CardSection` 不另起标题语言。
 > 标记说明：**【需确认】**= 设计决策须用户拍板；**【直接修复】**= 按本细则直接改，无需再问。
 
 ---
