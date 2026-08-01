@@ -21,10 +21,12 @@
       </view>
     </view>
     <view class="card-info">
-      <text class="card-name">{{ dish.name }}</text>
+      <view class="title-row">
+        <text class="card-name">{{ dish.name }}</text>
+        <text class="card-price">¥{{ dish.price }}</text>
+      </view>
       <view class="meta-row">
         <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
-        <text class="card-price">¥{{ dish.price }}</text>
       </view>
       <view class="card-tags" v-if="dish.tags.length > 0">
         <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
@@ -134,6 +136,14 @@ function handleClick() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
 }
 .meta-row {
   display: flex;
