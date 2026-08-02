@@ -141,4 +141,10 @@ async function doDeleteAccount() {
 .switch.on .switch-knob { transform: translateX(40rpx); }
 .version-row { text-align: center; padding: var(--spacing-xl) 0 var(--spacing-md); }
 .version-text { font-size: var(--font-aux); font-weight: 600; color: var(--text-tertiary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cell, .switch, .switch-knob { transition: none; }
+  .cell:active { transform: none; }
+  .switch.on .switch-knob { transform: none; left: 44rpx; }
+}
 </style>

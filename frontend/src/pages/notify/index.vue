@@ -183,7 +183,7 @@ onMounted(() => { loadData(true) })
 .notify-title { font-size: var(--font-body); font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .unread-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--color-error); flex-shrink: 0; }
 .notify-content { font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.5; margin-top: var(--spacing-xs); }
-.notify-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
+.notify-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .sk-card { width: 100%; height: 140rpx; }
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }

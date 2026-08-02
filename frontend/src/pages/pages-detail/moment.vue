@@ -326,7 +326,7 @@ onLoad((query) => {
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .m-nickname { font-size: var(--font-caption); font-weight: 600; color: var(--text-primary); }
-.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 2rpx; }
+.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 2rpx; font-variant-numeric: tabular-nums; }
 .m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); }
 .m-audit-text { font-size: 20rpx; font-weight: 700; }
 .audit-pending { background: var(--color-warning-soft); }
@@ -352,7 +352,7 @@ onLoad((query) => {
 .comment-expand { padding: var(--spacing-sm) 0; text-align: center; }
 .comment-expand-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
-.comment-input { flex: 1; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); }
+.comment-input { flex: 1; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: 32rpx; color: var(--text-primary); }
 .comment-send { width: 88rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); }
 .comment-send-text { font-size: 32rpx; line-height: 1; color: var(--text-white); }
 </style>

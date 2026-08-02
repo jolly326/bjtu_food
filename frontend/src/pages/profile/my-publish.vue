@@ -148,10 +148,16 @@ function onRefresh() {
 .item-img-fallback { font-size: 56rpx; line-height: 1; }
 .item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .item-name { font-size: var(--font-caption); font-weight: 600; color: var(--text-primary); }
-.item-meta { font-size: var(--font-aux); color: var(--text-secondary); }
+.item-meta { font-size: var(--font-aux); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .item-meta-row { display: flex; align-items: center; gap: var(--spacing-xs); }
 .item-meta-icon { flex-shrink: 0; }
 .item-meta-text { flex: 1; min-width: 0; }
 .item-reason { font-size: var(--font-tiny); color: var(--color-error); line-height: 1.4; }
 .publish-actions { margin-top: var(--spacing-lg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab, .publish-item { transition: none; }
+  .tab:active, .publish-item:active { transform: none; }
+  .tab.active::after { transition: none; }
+}
 </style>

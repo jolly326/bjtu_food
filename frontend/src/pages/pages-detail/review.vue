@@ -148,7 +148,7 @@ onLoad((query) => {
 .content-input {
   width: 100%;
   height: 200rpx;
-  font-size: var(--font-body);
+  font-size: 32rpx;
   line-height: 1.6;
   border: none;
   outline: none;
@@ -163,6 +163,7 @@ onLoad((query) => {
   font-size: var(--font-tiny);
   color: var(--text-tertiary);
   margin-top: var(--spacing-xs);
+  font-variant-numeric: tabular-nums;
 }
 .image-list {
   display: flex;

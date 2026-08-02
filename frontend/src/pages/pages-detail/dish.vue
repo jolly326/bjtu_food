@@ -414,15 +414,15 @@ function onRefresh() {
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
 .dish-name { font-size: var(--font-h1); font-weight: 700; letter-spacing: var(--tracking-h3); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
-.price-text { font-size: var(--font-h2); font-weight: 700; color: var(--color-price); flex-shrink: 0; }
+.price-text { font-size: var(--font-h2); font-weight: 700; color: var(--color-price); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .price-box { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-.promo-price { font-size: var(--font-h2); font-weight: 800; color: var(--color-error); }
-.origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; }
+.promo-price { font-size: var(--font-h2); font-weight: 800; color: var(--color-error); font-variant-numeric: tabular-nums; }
+.origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 .promo-tag { font-size: 20rpx; font-weight: 700; color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: 4rpx; }
 .tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 .rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .star-num { display: inline-flex; align-items: center; gap: 4rpx; }
-.star-num-text { font-size: 30rpx; color: var(--text-secondary); font-weight: 600; }
+.star-num-text { font-size: 30rpx; color: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* 统一属性行：图标 + 标签 + 值（右对齐） */
 .info-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-xs) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }

@@ -97,8 +97,8 @@ async function submit() {
 .type-chip.active { background: var(--color-primary-soft); }
 .type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
 .type-chip.active .type-text { color: var(--color-primary); }
-.content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
-.counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
-.contact-input { width: 100%; height: 88rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
+.content-input { width: 100%; min-height: 220rpx; font-size: 32rpx; color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
+.counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
+.contact-input { width: 100%; height: 88rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: 32rpx; color: var(--text-primary); box-sizing: border-box; }
 .submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 </style>
