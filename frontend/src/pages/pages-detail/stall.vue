@@ -144,6 +144,13 @@
       :entity-id="stallDetail?.id || 0"
       @update:open="applyOpen = $event"
     />
+
+    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
+    <DishDetailSheet
+      :open="dishSheetOpen"
+      :dish-id="sheetDishId"
+      @update:open="dishSheetOpen = $event"
+    />
   </view>
 </template>
 
@@ -158,6 +165,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
+import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getStallDetail } from '@/api/canteen'
@@ -171,6 +179,14 @@ type StallTab = 'dishes' | 'reviews' | 'intro'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
+/** 菜品详情底部弹层（task-10：独立页 → sheet） */
+const dishSheetOpen = ref(false)
+const sheetDishId = ref(0)
+function openDishSheet(id: number) {
+  if (!id) return
+  sheetDishId.value = id
+  dishSheetOpen.value = true
+}
 const stallDetail = ref<StallDetail | null>(null)
 const dishList = computed(() => dishStore.stallDishes)
 const refresherTriggered = ref(false)
@@ -225,7 +241,7 @@ async function loadReviews() {
 }
 
 function goToDetail(dish: Dish) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
+  openDishSheet(dish.id)
 }
 
 /** 快捷申请关闭/纠错 Sheet */

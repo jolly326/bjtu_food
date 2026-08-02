@@ -36,6 +36,13 @@
 
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
+
+    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
+    <DishDetailSheet
+      :open="dishSheetOpen"
+      :dish-id="sheetDishId"
+      @update:open="dishSheetOpen = $event"
+    />
   </view>
 </template>
 
@@ -45,6 +52,7 @@ import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SegmentTabs from '@/components/SegmentTabs.vue'
+import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
@@ -61,6 +69,14 @@ const pendingCount = ref(0)
 const rejectedCount = ref(0)
 const activeSeg = ref<SegKey>('all')
 const moments = ref<Moment[]>([])
+/** 菜品详情底部弹层（task-10：独立页 → sheet） */
+const dishSheetOpen = ref(false)
+const sheetDishId = ref(0)
+function openDishSheet(id: number) {
+  if (!id) return
+  sheetDishId.value = id
+  dishSheetOpen.value = true
+}
 const loading = ref(false)
 const refresherTriggered = ref(false)
 
@@ -110,7 +126,7 @@ function goDetail(m: Moment) {
 
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
-    uni.navigateTo({ url: `/pages/pages-detail/dish?id=${m.relatedId}` })
+    openDishSheet(m.relatedId)
   } else if (m.relatedType === 'stall' && m.relatedId) {
     uni.navigateTo({ url: `/pages/pages-detail/stall?id=${m.relatedId}` })
   }

@@ -116,6 +116,11 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
     <CustomTabBar current="/pages/home/index" />
+    <DishDetailSheet
+      :open="dishSheetOpen"
+      :dish-id="sheetDishId"
+      @update:open="dishSheetOpen = $event"
+    />
   </view>
 </template>
 
@@ -127,6 +132,7 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { getBroadcasts } from '@/api/broadcast'
 import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/constants/ui'
@@ -134,6 +140,15 @@ import type { Dish } from '@/types/dish'
 import type { BannerItem } from '@/types/banner'
 
 const dishStore = useDishStore()
+
+/** 菜品详情底部弹层（task-10：独立页 → sheet） */
+const dishSheetOpen = ref(false)
+const sheetDishId = ref(0)
+function openDishSheet(id: number) {
+  if (!id) return
+  sheetDishId.value = id
+  dishSheetOpen.value = true
+}
 
 const currentCanteen = ref('')
 const pressed = ref(false)
@@ -170,7 +185,7 @@ function goBroadcast(index: number) {
   if (!b) return
   switch (b.type) {
     case 'dish':
-      if (b.targetId) uni.navigateTo({ url: `/pages/pages-detail/dish?id=${b.targetId}` })
+      if (b.targetId) openDishSheet(b.targetId)
       break
     case 'canteen':
       uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(b.text)}` })
@@ -274,14 +289,14 @@ function goToCanteen(name: string) {
 }
 
 function goToDetail(dish: Dish) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
+  openDishSheet(dish.id)
 }
 
 /** Banner 按 target_type 跳转（project_spec §3.x.2，task-12.9 去除 ACTIVITY，URL 走 web-view/复制链接） */
 function handleBannerTap(banner: BannerItem) {
   switch (banner.targetType) {
     case 'DISH':
-      if (banner.targetId) uni.navigateTo({ url: `/pages/pages-detail/dish?id=${banner.targetId}` })
+      if (banner.targetId) openDishSheet(banner.targetId)
       break
     case 'URL':
       if (banner.targetUrl) {

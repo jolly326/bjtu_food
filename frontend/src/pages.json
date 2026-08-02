@@ -62,13 +62,6 @@
 					}
 				},
 				{
-					"path": "dish",
-					"style": {
-						"navigationBarTitleText": "菜品详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "moment",
 					"style": {
 						"navigationBarTitleText": "动态详情",

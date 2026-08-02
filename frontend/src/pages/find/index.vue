@@ -208,6 +208,11 @@
     />
 
     <CustomTabBar current="/pages/find/index" />
+    <DishDetailSheet
+      :open="dishSheetOpen"
+      :dish-id="sheetDishId"
+      @update:open="dishSheetOpen = $event"
+    />
   </view>
 </template>
 
@@ -223,12 +228,21 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import SegmentTabs from '@/components/SegmentTabs.vue'
 import FilterSheet from '@/components/FilterSheet.vue'
+import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import type { FilterSheetState } from '@/components/FilterSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish, DishSortBy, Suggestion } from '@/types/dish'
 import { DISH_CATEGORIES } from '@/constants/categories'
 
 const dishStore = useDishStore()
+/** 菜品详情底部弹层（task-10：独立页 → sheet） */
+const dishSheetOpen = ref(false)
+const sheetDishId = ref(0)
+function openDishSheet(id: number) {
+  if (!id) return
+  sheetDishId.value = id
+  dishSheetOpen.value = true
+}
 const keyword = ref('')
 const suggestions = ref<Suggestion[]>([])
 const showSuggest = ref(false)
@@ -396,7 +410,7 @@ function goSuggestion(s: Suggestion) {
   suggestions.value = []
   keyword.value = s.name
   if (s.type === 'dish' && s.id) {
-    uni.navigateTo({ url: `/pages/pages-detail/dish?id=${s.id}` })
+    openDishSheet(s.id)
   } else if (s.type === 'canteen' && s.name) {
     uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(s.name)}` })
   } else if (s.type === 'stall' && s.name) {
@@ -417,7 +431,7 @@ function goCategory(cat: { key: string; label: string }) {
 }
 
 function goToDetail(dish: Dish) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
+  openDishSheet(dish.id)
 }
 
 // ===== 筛选逻辑 =====

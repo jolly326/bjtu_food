@@ -115,6 +115,13 @@
       @update:open="reportOpen = $event"
       @submit="submitReport"
     />
+
+    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
+    <DishDetailSheet
+      :open="dishSheetOpen"
+      :dish-id="sheetDishId"
+      @update:open="dishSheetOpen = $event"
+    />
   </view>
 </template>
 
@@ -128,6 +135,7 @@ import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import InteractBar from '@/components/InteractBar.vue'
 import CommentItem from '@/components/CommentItem.vue'
 import ReportModal from '@/components/ReportModal.vue'
+import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { relativeTime } from '@/utils/time'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
@@ -136,6 +144,14 @@ import type { Moment, MomentComment } from '@/types/moment'
 
 const userStore = useUserStore()
 const moment = ref<Moment | null>(null)
+/** 菜品详情底部弹层（task-10：独立页 → sheet） */
+const dishSheetOpen = ref(false)
+const sheetDishId = ref(0)
+function openDishSheet(id: number) {
+  if (!id) return
+  sheetDishId.value = id
+  dishSheetOpen.value = true
+}
 const comments = ref<MomentComment[]>([])
 const loading = ref(false)
 const refresherTriggered = ref(false)
@@ -187,7 +203,7 @@ async function loadData() {
 function goRelated() {
   if (!moment.value) return
   if (moment.value.relatedType === 'dish' && moment.value.relatedId) {
-    uni.navigateTo({ url: `/pages/pages-detail/dish?id=${moment.value.relatedId}` })
+    openDishSheet(moment.value.relatedId)
   } else if (moment.value.relatedType === 'stall' && moment.value.relatedId) {
     uni.navigateTo({ url: `/pages/pages-detail/stall?id=${moment.value.relatedId}` })
   }
