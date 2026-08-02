@@ -74,12 +74,22 @@ public class MomentServiceImpl implements MomentService {
     @Override
     public MomentVO detail(Long id, Long currentUserId) {
         Moment m = momentMapper.selectById(id);
+        // 不存在或已下架（管理员强制下架 status=1）均按「不可见」处理，返回 404 业务码，避免暴露数据/状态
         if (m == null) {
-            throw new BusinessException("动态不存在");
+            throw new BusinessException(404, "动态不存在或已下架");
+        }
+        int status = m.getStatus() == null ? -1 : m.getStatus();
+        if (status != MomentConst.STATUS_NORMAL) {
+            throw new BusinessException(404, "动态不存在或已下架");
+        }
+        // 作者本人可见（含 pending/rejected），非作者仅可看 approved 动态
+        boolean isAuthor = currentUserId != null && currentUserId.equals(m.getUserId());
+        if (!isAuthor && !MomentConst.AUDIT_APPROVED.equals(m.getAuditStatus())) {
+            throw new BusinessException(404, "动态不存在或已下架");
         }
         MomentVO vo = toVO(m);
         // 作者本人可见 rejectReason
-        if (currentUserId != null && currentUserId.equals(m.getUserId())) {
+        if (isAuthor) {
             vo.setRejectReason(m.getRejectReason());
         } else {
             vo.setRejectReason(null);
