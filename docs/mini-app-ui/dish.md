@@ -1,11 +1,14 @@
 # 菜品详情 (dish)
-- 路由: /pages/pages-detail/dish
-- 分包: pages-detail 分包（实际 src 路径 pages/pages-detail/dish.vue）
-- 源文件: src/pages/pages-detail/dish.vue
+
+> ⚠️ **菜品详情已改为底部弹层 `DishDetailSheet`（task-10，commit 9537969），不再独立页面**。原 `pages-detail/dish` 独立路由已从 `pages.json` 移除，菜品详情现经各入口（`DishCard`/`WaterfallList`/`find`/`home`/`stall`/`community`/`moment` 等）以底部 sheet 组件方式打开（入参 `query`→`prop`、`onLoad`→`watch`，复用 `ApplySheet` 抽屉范式）。本页的图集/信息卡/评价/申请下架/分享/爱心喜欢等设计内容仍有效，由 `DishDetailSheet` 组件承载。
+
+- 路由: ~~/pages/pages-detail/dish~~（已移除，改组件）
+- 分包: ~~pages-detail 分包~~（不再占独立路由）
+- 源文件: ~~src/pages/pages-detail/dish.vue~~ → `DishDetailSheet` 组件
 - 最后依据 skills 校对: 2026-08-02
 
 ## 1. 页面定位
-菜品详情：图集 + 名称/价格（限时促销）/标签/评分 + 「菜品信息」合并卡（位置与营业 / 菜品属性 / 菜品介绍 三分区同卡）+ 用户评价预览 + 弱化反馈入口；底部固定操作栏（喜欢/写评价/去档口）；分享面板。
+菜品详情（现为底部弹层 `DishDetailSheet`）：图集 + 名称/价格（限时促销）/标签/评分 + 「菜品信息」合并卡（位置与营业 / 菜品属性 / 菜品介绍 三分区同卡）+ 用户评价预览 + 弱化反馈入口；底部固定操作栏（喜欢/写评价/去档口）；分享面板。
 
 ## 2. 布局结构
 - 顶部：`Header title="菜品详情" showBack`，action 槽放 `share-btn`(share 图标，≥44pt 命中区)。

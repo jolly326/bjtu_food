@@ -39,16 +39,18 @@
 - 小程序 `frontend/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 4 页：home / find / moment / profile**；收藏、消息中心、我要贡献进 `profile`，不占 TabBar）、`components/`。
 
 ### 2.1 小程序页面架构（最终清单，已拍板，2026-08-02）
-> 与 `frontend/src/pages.json`（commit fa37ab5）严格一致。**共 17 个页面**：主包 8 + `pages-detail` 分包 5 + `pages-user` 分包 4。
+> 与 `frontend/src/pages.json` 严格一致。**共 15 个页面**：主包 7 + `pages-detail` 分包 4 + `pages-user` 分包 4。
 
-- **主包（8）**：`home` 首页 / `find` 发现 / `profile` 我的 / `community` 动态 / `webview` 外部链接 / `settings` 设置 / `feedback` 意见反馈 / `messages-services` 我的发布与贡献（路径 `pages/profile/messages-services/index`）。
-- **分包 `pages-detail`（5）**：`canteen` 食堂详情 / `dish` 菜品详情 / `moment` 动态详情 / `stall` 档口详情 / `review` 发表评价。
+- **主包（7）**：`home` 首页 / `find` 发现 / `profile` 我的 / `community` 动态 / `settings` 设置 / `feedback` 意见反馈 / `messages-services` 我的发布与贡献（路径 `pages/profile/messages-services/index`）。**`webview` 外部链接页已移除（task-07，commit 7dcba46）**：Banner/广播外链改「复制链接 + toast」，不再跳独立 web-view 容器页。
+- **分包 `pages-detail`（4）**：`canteen` 食堂详情 / `moment` 动态详情 / `stall` 档口详情 / `review` 发表评价。**`dish` 菜品详情已不再独立页（task-10，commit 9537969）**：菜品详情已改为底部弹层组件 `DishDetailSheet`，从各入口经组件打开，不占独立路由。
 - **分包 `pages-user`（4）**：`publish-moment` 发布动态（发动态主入口）/ `my-moments` 我的动态 / `publish-dish` 发布菜品 / `submit-stall` 提交档口·食堂。
 
 **被砍/取消页（已从 pages.json 移除，仅作历史保留，doc 见 `docs/mini-app-ui/`）**：
 - `my-publish`（我的发布）、`my-submissions`（我的提交）→ **合并进 `messages-services`**（该页为「我的发布与贡献」唯一聚合页，吸收两者内容与入口）。
 - `notify`（消息中心）→ **消息并入「我的」(profile) 区块**，不再独立路由。
-- `review-list`（全部评价）→ **取消独立跳转**，评价改为详情页（dish/stall/canteen）内联展示。
+- `review-list`（全部评价）→ **取消独立跳转**，评价改为详情页（stall/canteen）内联展示。
+- `webview`（外部链接）→ **已移除（task-07）**，Banner/广播外链改复制链接 + toast，相关设计文档已随页面一并删除。
+- `dish`（菜品详情独立页）→ **已改为底部弹层 `DishDetailSheet`（task-10）**，不再独立路由，doc 见 `docs/mini-app-ui/dish.md`（已标注弹层化）。
 
 **发布类入口方案 Y（已拍板）**：`publish-moment` 为发动态主入口；发菜品（`publish-dish`）/ 提交档口（`submit-stall`）经「我要贡献」弹层（`ContributeSheet`）进入，跳现有独立表单——**入口收敛但不混合表单**（弹层只做分流，不内联表单字段）。
 

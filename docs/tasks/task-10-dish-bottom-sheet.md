@@ -1,7 +1,7 @@
 # task-10 · dish 菜品详情改底部弹层（页面清单评议 → 决议：独立页 → 底部 sheet）
 
-> 文档性质：技术负责人派工任务（新，待办）。
-> 权威顺序：`docs/project_spec.md` §4 / §4.9（Sheet 规范、底部避让、动效、Token）> `docs/mini-app-ui/dish.md`（当前实现）> 本任务 > 代码现状。
+> 文档性质：技术负责人派工任务（**✅ 已完成，commit 9537969**）。
+> 权威顺序：`docs/project_spec.md` §4 / §4.9（Sheet 规范、底部避让、动效、Token）> `docs/mini-app-ui/dish.md`（已标注弹层化）> 本任务 > 代码现状。
 > 关联：原 task-14 W9 的演化（评价入口/爱心喜欢已落地，本任务改交互载体为底部弹层）。
 
 ## 背景 / 决议

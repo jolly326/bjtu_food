@@ -57,7 +57,7 @@
 **归属**：后端（折扣价字段）+ 小程序 + Web。
 - `dish` 表 ALTER 加 `original_price`(INT,分)/`promo_price`(INT,分,可空)；`Dish`/`DishVO`/`DishAdminVO`/`DishAdminReq` 加 `originalPrice`/`promoPrice`；`promoPrice` 非空视为有折扣。
 - 小程序菜品详情展示折扣价（划线原价 + 促销价 + 限时标识，task-05 已落地）；Web 菜品表单可编辑折扣价（展示元、提交分）。
-- Banner 点击：`URL`→webview/复制链接（**注意 task-07 将移除 webview，URL 跳转改复制链接**）、`DISH`→菜品详情、`NONE`→无响应。
+- Banner 点击：`URL`→**复制链接 + toast**（webview 页已移除，见 task-07，commit 7dcba46）、`DISH`→菜品详情（经 `DishDetailSheet` 弹层）、`NONE`→无响应。
 - 金额分/元转换仅前端展示层（§3 红线）。
 
 ## §8 活动模块整体移除（原 task-12.10）【✅ 已拍板：整体移除】

@@ -26,7 +26,7 @@
 - W13 review（Rating + ImageUploader + scroll-view）：已落地。✅
 - W14 publish-dish / submit-stall（表单 + TagSelector + ImageUploader + scroll-view）：已落地。✅
 - W15 my-moments（MomentCard + SegmentTabs）：已落地。✅（my-publish/my-submissions 已并入 messages-services）
-- W16 settings/feedback/contact/webview：settings/feedback 已落地；contact 已并入 feedback；**webview 页待移除（见 task-07）**。
+- W16 settings/feedback/contact/webview：settings/feedback 已落地；contact 已并入 feedback；**webview 页已移除（task-07，commit 7dcba46）**。
 
 ## §剩余待办（当前未完成项）
 | 项 | 归属新任务 | 说明 |

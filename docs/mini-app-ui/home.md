@@ -38,7 +38,7 @@
 
 ## 5. 交互与动效
 - 卡片按下：touchstart/mousedown 置 `pressed` → `.pressed { transform: scale(var(--press-scale)) }`（canteen-card、broadcast-bar），press 反馈即时、`transition: var(--press-transition)` ≈120ms ease，不位移布局。
-- Banner 点击 `handleBannerTap` 按 `targetType`（DISH→dish 详情；URL→webview，失败回落复制链接；其他→canteen/stall/community 分发）。
+- Banner 点击 `handleBannerTap` 按 `targetType`（DISH→dish 详情（经 `DishDetailSheet` 弹层）；URL→**复制链接 + toast**（webview 页已移除，见 task-07）；其他→canteen/stall/community 分发）。
 - 广播条：每 3s 轮换一条，`broadcast-up` 上滑入场；`prefers-reduced-motion` 降级为 `broadcast-fade` 纯淡入（保留 opacity 去 transform）。
 - 下拉刷新、热门列表触底无限加载（footer spinner 转圈 + 「已经到底啦」）；`prefers-reduced-motion` 下 footer-spinner 关动画。
 - 进场：区块经 `enter-up` 错峰交叉淡入，仅 transform+opacity，无 `scale(0)`、无 `transition:all`。

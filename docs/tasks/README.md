@@ -14,10 +14,10 @@
 | [task-04](task-04-miniapp-emoji-to-icon.md) | 图标 emoji→SVG 迁移 | ✅ 已完成 | 46 SVG + IconSvg，零 emoji 图标残留（吸收原 task-15） |
 | [task-05](task-05-miniapp-ui-rework.md) | 小程序 UI 整改 | 🔄 进行中 | 吸收原 task-14 W1~W16；多数已落地，剩余项转 task-07/08/09/10 |
 | [task-06](task-06-contract-gaps.md) | 契约缺口补齐 | 🔄 待办/部分已拍板 | 吸收原 task-12.1~12.13 + CONTRACT_IMPACT 缺口（apply_action/评论点赞/注销/favorites 删除等） |
-| [task-07](task-07-remove-webview.md) | 移除 webview 页 | ⏳ 待办 | 业务只跳公众号文章，砍 webview，URL 跳转改复制链接 |
+| [task-07](task-07-remove-webview.md) | 移除 webview 页 | ✅ 已完成（7dcba46） | 业务只跳公众号文章，砍 webview，URL 跳转改复制链接 |
 | [task-08](task-08-moment-detail-investigation.md) | moment 详情后端排查 | ⏳ 待办 | GET /moments/{id} 非 200/404/401，后端确认数据/审核可见性 |
-| [task-09](task-09-stall-three-tab-rework.md) | stall 档口三 tab 重构 | ⏳ 待办 | 横幅 + hero + 底部 tabBar（菜品/评价/介绍），美团外卖式 |
-| [task-10](task-10-dish-bottom-sheet.md) | dish 改底部弹层 | ⏳ 待办 | 独立页 → 底部 sheet，query→prop、onLoad→watch，复用 ApplySheet 范式 |
+| [task-09](task-09-stall-three-tab-rework.md) | stall 档口三 tab 重构 | ✅ 已完成（f0b62ff） | 横幅 + hero + 底部 tabBar（菜品/评价/介绍），美团外卖式 |
+| [task-10](task-10-dish-bottom-sheet.md) | dish 改底部弹层 | ✅ 已完成（9537969） | 独立页 → 底部 sheet，query→prop、onLoad→watch，复用 ApplySheet 范式 |
 | [task-11](task-11-page-review-decisions.md) | 页面清单评议决议记录 | ✅ 已完成 | 4 个独立决议 + 被砍页决定的汇总索引 |
 
 ## 页面总数演算
