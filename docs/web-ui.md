@@ -2,7 +2,7 @@
 
 Web 管理后台（`web/`，Vue3 + Vite + TS + Element Plus + ECharts，无 Pinia）全部页面的 UI 设计方案。本文件已与 UI-UX 设计师**逐页讨论定样**，作为 Web 端整改依据。
 
-- 配套小程序端定稿：`docs/mini-app-ui.md`
+- 配套小程序端定稿：`docs/mini-app-ui/README.md`（逐页设计见 `docs/mini-app-ui/` 目录）
 - 执行依据（定样收口后建）：`tasks/task-1x-web-ui-design.md`（逐页整改清单 + 验收门禁）
 - 最高红线：`project_spec.md` §4；Web 端额外遵循本文件 §0 规范。
 - 视觉规范依据：Apple Design（克制 / 材质层级 / 即时反馈 / 弹簧动效）+ ui-ux-pro-max（优先级 4「SVG icons (no emoji)」、优先级 1「对比度 4.5:1 / 键盘可达 / aria」、优先级 2「44×44 触控 / 加载反馈」、优先级 5「响应式无横向滚动」、优先级 7「动效 150–300ms + reduced-motion」、优先级 10「图表须有图例/提示」）。

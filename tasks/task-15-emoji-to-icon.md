@@ -1,7 +1,7 @@
 # Task-15 小程序图标 emoji→SVG 矢量图标落地
 
 ## 背景 / 需求来源
-- `docs/mini-app-ui.md` 已定稿，§0.5 明确「禁止 emoji 字符当图标」，统一使用 SVG 矢量图标（本地 Assets 优先 + Iconfont 兜底）。
+- `docs/mini-app-ui/icons.md` 已定稿（图标映射权威源，原 `mini-app-ui.md` §0.5 已迁移），明确「禁止 emoji 字符当图标」，统一使用 SVG 矢量图标（本地 Assets 优先 + Iconfont 兜底）。
 - `project_spec.md` §4.2 / §4.9 已同步更新为 SVG 图标红线（原「emoji 占位」已废除），语义唯一：ic-heart=喜欢、ic-thumb=有用/点赞。
 - 资源层：`frontend/src/assets/icons` 现 26 个 SVG，其中 `ic-lightbulb.svg` 为本次经 Iconfont MCP 新增（替换 💡 猜你喜欢）；其余均已存在。
 
@@ -9,7 +9,7 @@
 将小程序前端（`frontend/`，uni-app 学生端）所有以 emoji 字符充当图标/语义的实现，替换为 `assets/icons` 下的 SVG 矢量图标引用，确保零 emoji 图标残留、风格一致。
 
 ## 范围
-- 涉及语义与图标（权威映射见 `docs/mini-app-ui.md` §0.5）：
+- 涉及语义与图标（权威映射见 `docs/mini-app-ui/icons.md`）：
 
   | 语义 | 图标文件 | 原 emoji |
   |---|---|---|
@@ -31,7 +31,7 @@
 - 统一经「统一图标组件/字体类」引用 SVG，不得散落内联 `<image>` 或裸 emoji 字符。
 - 图标文件统一 `fill:currentColor`，支持主题色/状态色（如喜欢态高亮）。
 - 命名 `ic-<语义>.svg`，单色、2px 描边、24px 网格、圆角端点一致。
-- 新增语义图标须先登记到 `mini-app-ui.md` §0.5 映射表并下载至 `assets/icons`，禁止 emoji 字符当图标，禁止私自引未登记图标。
+- 新增语义图标须先登记到 `docs/mini-app-ui/icons.md` 映射表并下载至 `assets/icons`，禁止 emoji 字符当图标，禁止私自引未登记图标。
 - 语义唯一：ic-heart=喜欢（不与点赞混用）、ic-thumb=有用/点赞。
 - 遵循 uni-app 小程序端限制（见 `project_spec.md` §4 红线，如不支持自定义指令）。
 

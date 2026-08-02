@@ -58,9 +58,9 @@
 ### 4.2 视觉 Token（基线）
 - 主色：管理端侧栏深红 `#6B1010`；小程序按钮统一 `AppButton`（primary/outline/text）。
 - 圆角：卡片 `16px`；底部弹层 `20px 20px 0 0`。材质模糊 `blur(20px) saturate(180%)`；按下缩放 `0.97`；弹层阴影 `0 -8px 30px rgba(0,0,0,0.12)`。
-- 小程序自研组件（新页面必须复用）：`ImageSwiper/DishCard/WaterfallList/Rating/TagLabel/CardSection/EmptyState/AppButton/CustomTabBar/MomentCard/SearchBar/StatusBadge/UsefulButton/ImageFallback/SectionTitle/StallCardSingle/ImageUploader/RelatedPickerSheet`；**`CategoryTabs`、`Loading` 组件已于清理提交 f9560c6 删除**——加载态改内联骨架屏（不再依赖 Loading 组件），分类切换由 `SegmentTabs`/筛选条替代，文档 `docs/mini-app-ui.md` §0.2 已校准。
+- 小程序自研组件（新页面必须复用）：`ImageSwiper/DishCard/WaterfallList/Rating/TagLabel/CardSection/EmptyState/AppButton/CustomTabBar/MomentCard/SearchBar/StatusBadge/UsefulButton/ImageFallback/SectionTitle/StallCardSingle/ImageUploader/RelatedPickerSheet`；**`CategoryTabs`、`Loading` 组件已于清理提交 f9560c6 删除**——加载态改内联骨架屏（不再依赖 Loading 组件），分类切换由 `SegmentTabs`/筛选条替代，文档 `docs/mini-app-ui/README.md` 已校准。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`，文档 `docs/web-ui.md` §七已校准。
-- **小程序图标统一使用 SVG 矢量图标**（本地 `frontend/src/assets/icons` 优先，缺失从阿里云矢量库 Iconfont 经 MCP 拉取）：搜索=ic-search、位置=ic-location、喜欢/收藏=ic-heart、有用/点赞=ic-thumb、热门=ic-fire、限时=ic-clock、猜你喜欢=ic-lightbulb、分享=ic-share、评价=ic-comment、发布=ic-plus、举报=ic-report（完整映射见 `docs/mini-app-ui.md` §0.5 图标映射表）。语义唯一：ic-heart=喜欢（不与点赞混用）、ic-thumb=有用/点赞。**禁止 emoji 字符充当图标**。
+- **小程序图标统一使用 SVG 矢量图标**（本地 `frontend/src/assets/icons` 优先，缺失从阿里云矢量库 Iconfont 经 MCP 拉取）：搜索=ic-search、位置=ic-location、喜欢/收藏=ic-heart、有用/点赞=ic-thumb、热门=ic-fire、限时=ic-clock、猜你喜欢=ic-lightbulb、分享=ic-share、评价=ic-comment、发布=ic-plus、举报=ic-report（完整映射见 `docs/mini-app-ui/icons.md` 图标映射表）。语义唯一：ic-heart=喜欢（不与点赞混用）、ic-thumb=有用/点赞。**禁止 emoji 字符充当图标**。
 
 ### 4.3 动效系统（Motion）
 | 交互 | Damping | Response |
