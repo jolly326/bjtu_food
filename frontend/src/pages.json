@@ -146,13 +146,12 @@
 					}
 				},
 				{
-					"pa			{
-				"path": "stall",
-				"style": {
-					"navigationBarTitleText": "档口详情",
-					"navigationStyle": "custom"
+					"path": "stall",
+					"style": {
+						"navigationBarTitleText": "档口详情",
+						"navigationStyle": "custom"
+					}
 				}
-			}
 		]
 		}
 	],
