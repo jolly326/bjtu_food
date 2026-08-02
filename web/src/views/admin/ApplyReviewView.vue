@@ -11,7 +11,7 @@ import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import { useAdminStore } from '@/stores/adminStore'
 import {
-  Food, House, Shop, ChatDotRound, Document,
+  Food, House, Shop, ChatDotRound,
 } from '@element-plus/icons-vue'
 import type { ApplyActionVO, ApplyEntityType, ApplyStatus, ApplyType } from '@/api/apply'
 

@@ -8,6 +8,7 @@ import FormDialog from '@/components/FormDialog.vue'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
+import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { ChatDotRound, EditPen, CircleCheck } from '@element-plus/icons-vue'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
@@ -26,6 +27,16 @@ const statusText: Record<string, string> = { pending: '待处理', handled: '已
 type FbStatus = 'all' | 'pending' | 'handled'
 const statusTab: Record<FbStatus, string> = { all: '全部', pending: '待处理', handled: '已处理' }
 const activeStatus = ref<FbStatus>('all')
+
+// 类型筛选（§5 举报处理：可筛 type=report 等）
+const typeOptions = [
+  { value: '', label: '全部类型' },
+  { value: 'suggestion', label: '功能建议' },
+  { value: 'error', label: '内容纠错' },
+  { value: 'report', label: '举报' },
+  { value: 'other', label: '其他' },
+]
+const activeType = ref('')
 
 const loading = ref(false)
 const error = ref('')
@@ -48,7 +59,7 @@ async function loadList() {
   try {
     const { feedbackApi } = await import('@/api')
     const status = activeStatus.value === 'all' ? undefined : activeStatus.value
-    const res = await feedbackApi.listFeedbacks({ status, pageSize: 200 })
+    const res = await feedbackApi.listFeedbacks({ status, type: activeType.value || undefined, pageSize: 200 })
     rows.value = res.list
   } catch (e: any) {
     error.value = e.message || '加载反馈列表失败'
@@ -62,6 +73,9 @@ onMounted(loadList)
 
 async function onStatusChange(s: FbStatus) {
   activeStatus.value = s
+  await loadList()
+}
+async function onTypeChange() {
   await loadList()
 }
 
@@ -135,6 +149,9 @@ async function copyMomentLink(momentId?: number) {
           class="tab status-tab" :class="{ 'tab-on': activeStatus === s }" v-press @click="onStatusChange(s)">
           {{ statusTab[s] }}
         </button>
+      </template>
+      <template #default>
+        <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
     </FilterBar>
 

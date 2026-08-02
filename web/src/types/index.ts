@@ -120,14 +120,6 @@ export interface Review {
   updated_at: Date;
 }
 
-// favorite 收藏表
-export interface Favorite {
-  id: bigint;
-  user_id: bigint;
-  dish_id: bigint;
-  created_at: Date;
-}
-
 // banner 轮播/公告表
 export interface Banner {
   id: bigint;
