@@ -55,6 +55,29 @@
           :retry="true"
           @retry="loadStalls"
         />
+
+        <!-- 关联动态（低优先级，置底轻量区块；task-12.6 canteen 聚合跳动态详情） -->
+        <CardSection v-if="relatedMoments.length > 0" title="">
+          <SectionTitle title="关联动态" noMargin />
+          <view class="related-moment-list">
+            <view
+              v-for="m in relatedMoments"
+              :key="m.id"
+              class="related-moment-item"
+              :class="{ pressed: pressedRelatedKey === m.id }"
+              @touchstart="pressedRelatedKey = m.id"
+              @touchend="pressedRelatedKey = ''"
+              @touchcancel="pressedRelatedKey = ''"
+              @mousedown="pressedRelatedKey = m.id"
+              @mouseup="pressedRelatedKey = ''"
+              @mouseleave="pressedRelatedKey = ''"
+              @tap="goRelatedMoment(m.id)"
+            >
+              <text class="related-moment-text">{{ m.content }}</text>
+              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-moment-arrow" />
+            </view>
+          </view>
+        </CardSection>
       </template>
 
       <!-- 加载失败 / 无数据空态 -->
@@ -87,6 +110,8 @@ import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getCanteensWithStalls, normalizeImages } from '@/api/canteen'
+import { getMoments } from '@/api/moment'
+import type { Moment } from '@/types/moment'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -96,6 +121,24 @@ const canteenId = ref(0)
 const stallList = ref<StallCardItem[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
+
+/** ===== 关联动态（task-12.6：GET /moments?canteenId=，canteen 下全档口聚合） ===== */
+const relatedMoments = ref<Moment[]>([])
+const pressedRelatedKey = ref<number | ''>('')
+
+async function loadRelatedMoments() {
+  if (!canteenId.value) return
+  try {
+    const { list } = await getMoments({ canteenId: canteenId.value, pageSize: 5 })
+    relatedMoments.value = list
+  } catch {
+    relatedMoments.value = []
+  }
+}
+
+function goRelatedMoment(id: number) {
+  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
+}
 
 /** 食堂介绍区块信息（images + 位置 + 介绍；无评分） */
 const canteenInfo = ref<{
@@ -133,6 +176,7 @@ async function loadStalls() {
       location: stall.location || current?.location || '',
       tags: Array.isArray(stall.tags) ? stall.tags : (String(stall.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)),
     }))
+    await loadRelatedMoments()
   } catch {
     stallList.value = []
     canteenInfo.value = { name: canteenName.value, images: [], location: '', description: '' }
@@ -254,6 +298,30 @@ onLoad(async (query) => {
 
 /* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
 .stall-waterfall { margin-top: var(--spacing-sm); }
+
+/* ===== 关联动态（低优先级置底区块，task-12.6） ===== */
+.related-moment-list { margin-top: var(--spacing-sm); }
+.related-moment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 2rpx solid var(--border-color);
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.related-moment-item:last-child { border-bottom: none; }
+.related-moment-item.pressed { transform: scale(var(--press-scale)); }
+.related-moment-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.related-moment-arrow { flex-shrink: 0; }
 
 /* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
 .feedback-link {

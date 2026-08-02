@@ -77,6 +77,8 @@
               v-for="rv in reviewList"
               :key="rv.id"
               :review="rv"
+              :deletable="rv.userId === currentUserId"
+              @delete="onDeleteReview"
             />
           </view>
           <EmptyState v-else text="暂无评价，来写第一条吧" />
@@ -103,6 +105,29 @@
           <view class="intro-desc" v-if="stallDetail.description">
             <text class="intro-desc-label">档口简介</text>
             <text class="intro-desc-text">{{ stallDetail.description }}</text>
+          </view>
+        </CardSection>
+
+        <!-- ===== 关联动态（低优先级，置底轻量区块；task-12.6 跳动态详情） ===== -->
+        <CardSection v-if="relatedMoments.length > 0" title="">
+          <SectionTitle title="关联动态" noMargin />
+          <view class="related-moment-list">
+            <view
+              v-for="m in relatedMoments"
+              :key="m.id"
+              class="related-moment-item"
+              :class="{ pressed: pressedRelatedKey === m.id }"
+              @touchstart="pressedRelatedKey = m.id"
+              @touchend="pressedRelatedKey = ''"
+              @touchcancel="pressedRelatedKey = ''"
+              @mousedown="pressedRelatedKey = m.id"
+              @mouseup="pressedRelatedKey = ''"
+              @mouseleave="pressedRelatedKey = ''"
+              @tap="goRelatedMoment(m.id)"
+            >
+              <text class="related-moment-text">{{ m.content }}</text>
+              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-moment-arrow" />
+            </view>
           </view>
         </CardSection>
       </template>
@@ -169,8 +194,10 @@ import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getStallDetail } from '@/api/canteen'
-import { getReviewsByStall } from '@/api/review'
+import { getReviewsByStall, deleteReview } from '@/api/review'
+import { getMoments } from '@/api/moment'
 import { DISH_CATEGORIES } from '@/constants/categories'
+import type { Moment } from '@/types/moment'
 import type { StallDetail } from '@/types/canteen'
 import type { Dish } from '@/types/dish'
 import type { Review } from '@/types/review'
@@ -196,6 +223,48 @@ const loading = ref(true)
 const reviewList = ref<Review[]>([])
 const reviewTotal = ref(0)
 const currentStallId = ref(0)
+const currentUserId = computed(() => userStore.userInfo?.id)
+
+/** 删除本人评价（仅本人 userId；task-12.5 DELETE /my/reviews/{id}） */
+function onDeleteReview(rv: Review) {
+  if (!userStore.requireAuth()) return
+  if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
+  uni.showModal({
+    title: '删除评价',
+    content: '确定删除这条评价吗？删除后不可恢复。',
+    confirmText: '删除',
+    confirmColor: '#e54d42',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await deleteReview(rv.id)
+        uni.showToast({ title: '评价已删除', icon: 'none' })
+        reviewList.value = reviewList.value.filter(x => x.id !== rv.id)
+        reviewTotal.value = Math.max(0, reviewTotal.value - 1)
+      } catch (e: any) {
+        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+/** ===== 关联动态（task-12.6：GET /moments?stallId=，跳动态详情） ===== */
+const relatedMoments = ref<Moment[]>([])
+const pressedRelatedKey = ref<number | ''>('')
+
+async function loadRelatedMoments() {
+  if (!currentStallId.value) return
+  try {
+    const { list } = await getMoments({ stallId: currentStallId.value, pageSize: 5 })
+    relatedMoments.value = list
+  } catch {
+    relatedMoments.value = []
+  }
+}
+
+function goRelatedMoment(id: number) {
+  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
+}
 
 /** 三段 tab 切换状态（菜品 / 评价 / 档口介绍） */
 const activeTab = ref<StallTab>('dishes')
@@ -270,6 +339,7 @@ async function loadData() {
     stallDetail.value = detail
     currentStallId.value = detail.id ?? 0
     await loadReviews()
+    await loadRelatedMoments()
   } catch (e) {
     stallDetail.value = null
     console.error('[stall] 档口详情加载失败', e)
@@ -384,6 +454,30 @@ function onRefresh() {
 .intro-desc-text { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; }
 
 .review-list { margin-top: var(--spacing-sm); }
+
+/* ===== 关联动态（低优先级置底区块，task-12.6） ===== */
+.related-moment-list { margin-top: var(--spacing-sm); }
+.related-moment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 2rpx solid var(--border-color);
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.related-moment-item:last-child { border-bottom: none; }
+.related-moment-item.pressed { transform: scale(var(--press-scale)); }
+.related-moment-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.related-moment-arrow { flex-shrink: 0; }
 
 /* ===== 底部固定 3 tab menubar（复用 .detail-tabs 样式，扩到 3 个 tab） ===== */
 .detail-tabs { display: flex; background: var(--bg-card); position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; height: var(--action-bar-height); padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); }

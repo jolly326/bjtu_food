@@ -137,6 +137,8 @@
                 v-for="rv in reviewList.slice(0, 3)"
                 :key="rv.id"
                 :review="rv"
+                :deletable="rv.userId === currentUserId"
+                @delete="onDeleteReview"
               />
             </view>
             <EmptyState v-else text="暂无评价，来写第一条吧" />
@@ -147,6 +149,29 @@
             <text class="apply-link-text">反馈 / 申请下架</text>
             <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="apply-link-arrow" />
           </view>
+
+          <!-- 关联动态（低优先级，置底轻量区块；task-12.6 跳动态详情） -->
+          <CardSection v-if="relatedMoments.length > 0" title="">
+            <SectionTitle title="关联动态" noMargin />
+            <view class="related-moment-list">
+              <view
+                v-for="m in relatedMoments"
+                :key="m.id"
+                class="related-moment-item"
+                :class="{ pressed: pressedRelatedKey === m.id }"
+                @touchstart="pressedRelatedKey = m.id"
+                @touchend="pressedRelatedKey = ''"
+                @touchcancel="pressedRelatedKey = ''"
+                @mousedown="pressedRelatedKey = m.id"
+                @mouseup="pressedRelatedKey = ''"
+                @mouseleave="pressedRelatedKey = ''"
+                @tap="goRelatedMoment(m.id)"
+              >
+                <text class="related-moment-text">{{ m.content }}</text>
+                <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-moment-arrow" />
+              </view>
+            </view>
+          </CardSection>
         </template>
 
         <EmptyState v-else text="菜品不存在或已下架" />
@@ -214,8 +239,11 @@ import ApplySheet from '@/components/ApplySheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteDish } from '@/api/dish'
+import { deleteReview } from '@/api/review'
+import * as momentApi from '@/api/moment'
 import { SPICE_LEVELS, PORTION_LEVELS, SERVE_PERIOD_MAP } from '@/constants/categories'
 import type { Review } from '@/types/review'
+import type { Moment } from '@/types/moment'
 
 const props = defineProps<{
   /** 是否展示弹层 */
@@ -235,7 +263,28 @@ const dish = computed(() => dishStore.currentDish)
 const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => props.dishId)
+const currentUserId = computed(() => userStore.userInfo?.id)
 const liked = ref(false)
+
+/** ===== 关联动态（task-12.6：GET /moments?dishId=，跳动态详情） ===== */
+const relatedMoments = ref<Moment[]>([])
+const pressedRelatedKey = ref<number | ''>('')
+
+async function loadRelatedMoments() {
+  const id = loadedDishId || currentDishId.value
+  if (!id) return
+  try {
+    const { list } = await momentApi.getMoments({ dishId: id, pageSize: 5 })
+    relatedMoments.value = list
+  } catch {
+    relatedMoments.value = []
+  }
+}
+
+function goRelatedMoment(id: number) {
+  emit('update:open', false)
+  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
+}
 
 /** reduced-motion 降级 */
 const reduceMotion = ref(false)
@@ -330,9 +379,11 @@ watch(() => props.dishId, (id) => {
 
 async function loadDishData() {
   if (!loadedDishId) return
+  relatedMoments.value = []
   await Promise.all([
     dishStore.fetchDetail(loadedDishId),
     dishStore.fetchReviews(loadedDishId, { sort: 'latest', isWithImage: false }),
+    loadRelatedMoments(),
   ])
 }
 
@@ -421,7 +472,7 @@ function openApply() {
   applyOpen.value = true
 }
 
-/** 删除本人发布的菜品（仅 created_by 本人；删除后关闭弹层） */
+/** 删除本人菜品 */
 function onDishLongPress() {
   const d = dish.value
   if (!d) return
@@ -438,6 +489,30 @@ function onDishLongPress() {
         } catch (e: any) {
           uni.showToast({ title: e.message || '删除失败', icon: 'none' })
         }
+      }
+    },
+  })
+}
+
+/** 删除本人评价（仅本人 userId；task-12.5 DELETE /my/reviews/{id}） */
+function onDeleteReview(rv: Review) {
+  if (!userStore.requireAuth()) return
+  if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
+  uni.showModal({
+    title: '删除评价',
+    content: '确定删除这条评价吗？删除后不可恢复。',
+    confirmText: '删除',
+    confirmColor: '#e54d42',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await deleteReview(rv.id)
+        uni.showToast({ title: '评价已删除', icon: 'none' })
+        // 通过 store 状态（reviewList 为 store ref）移除并校正计数
+        dishStore.reviewList = dishStore.reviewList.filter(x => x.id !== rv.id)
+        dishStore.reviewTotal = Math.max(0, dishStore.reviewTotal - 1)
+      } catch (e: any) {
+        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
       }
     },
   })
@@ -526,6 +601,30 @@ function goToCanteen() {
 .info-block-divider { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 
 .review-list { margin-top: var(--spacing-sm); }
+
+/* ===== 关联动态（低优先级置底区块，task-12.6） ===== */
+.related-moment-list { margin-top: var(--spacing-sm); }
+.related-moment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 2rpx solid var(--border-color);
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.related-moment-item:last-child { border-bottom: none; }
+.related-moment-item.pressed { transform: scale(var(--press-scale)); }
+.related-moment-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.related-moment-arrow { flex-shrink: 0; }
 
 .apply-link { display: flex; align-items: center; justify-content: center; gap: 4rpx; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
 .apply-link:active { opacity: 0.6; }
