@@ -195,7 +195,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/publish-moment/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: `/pages/pages-user/publish-moment?id=${moment.value.id}` })
 }
 
 async function onUseful() {

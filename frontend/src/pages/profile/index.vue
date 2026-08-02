@@ -51,7 +51,13 @@
         <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
         <SettingGroup title="我的" class="enter-up" :style="{ '--enter-i': 1 }">
           <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
-          <SettingCell icon="bell" label="消息中心" :badge-count="notifyStore.unreadCount" @tap="goToNotify" />
+          <SettingCell
+            icon="bell"
+            :label="recentNotify ? recentNotify.title : '消息中心'"
+            :hint="recentNotify ? recentNotify.content : (notifyStore.unreadCount ? `${notifyStore.unreadCount} 条未读` : '暂无新消息')"
+            :badge-count="notifyStore.unreadCount"
+            @tap="goToNotify"
+          />
         </SettingGroup>
 
         <SettingGroup title="通用" class="enter-up" :style="{ '--enter-i': 2 }">
@@ -97,11 +103,23 @@ import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getImageUrl } from '@/utils/image'
 import { uploadImage } from '@/api/upload'
+import { getNotifications, type Notification } from '@/api/notify'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
+
+// 轻量消息区块（task：消息并入「我的」，不重复造消息中心，仅展示最近 1 条 + 未读）
+const recentNotify = ref<Notification | null>(null)
+async function fetchRecentNotify() {
+  try {
+    const { list } = await getNotifications({ page: 1, pageSize: 1 })
+    recentNotify.value = list[0] ?? null
+  } catch {
+    recentNotify.value = null
+  }
+}
 
 const contributeOpen = ref(false)
 const applyOpen = ref(false)
@@ -109,9 +127,9 @@ const nicknameOpen = ref(false)
 
 function onContributePick(key: string) {
   contributeOpen.value = false
-  if (key === 'publishDish') uni.navigateTo({ url: '/pages/profile/publish-dish' })
-  else if (key === 'submitStall') uni.navigateTo({ url: '/pages/profile/submit-stall' })
-  else if (key === 'submitCanteen') uni.navigateTo({ url: '/pages/profile/submit-stall?type=canteen' })
+  if (key === 'publishDish') uni.navigateTo({ url: '/pages/pages-user/publish-dish' })
+  else if (key === 'submitStall') uni.navigateTo({ url: '/pages/pages-user/submit-stall' })
+  else if (key === 'submitCanteen') uni.navigateTo({ url: '/pages/pages-user/submit-stall?type=canteen' })
   else if (key === 'apply') applyOpen.value = true
 }
 
@@ -156,19 +174,16 @@ async function confirmEditNickname(name: string) {
   }
 }
 
-function goToReviews() {
-  uni.navigateTo({ url: '/pages/pages-detail/review-list' })
-}
 function onStatsTap(key: 'review' | 'published' | 'pending') {
-  if (key === 'review') goToReviews()
+  if (key === 'review') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=contribution' })
   else if (key === 'published') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=published' })
   else if (key === 'pending') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=pending' })
 }
 function goToMyMoments() {
-  uni.navigateTo({ url: '/pages/my-moments/index' })
+  uni.navigateTo({ url: '/pages/pages-user/my-moments' })
 }
 function goToNotify() {
-  uni.navigateTo({ url: '/pages/notify/index' })
+  uni.navigateTo({ url: '/pages/profile/messages-services/index' })
 }
 function goToMessagesServices() {
   uni.navigateTo({ url: '/pages/profile/messages-services/index' })
@@ -184,6 +199,7 @@ onMounted(() => {
   if (userStore.isLoggedIn()) {
     userStore.fetchStats()
     notifyStore.fetchUnread()
+    fetchRecentNotify()
   }
 })
 </script>

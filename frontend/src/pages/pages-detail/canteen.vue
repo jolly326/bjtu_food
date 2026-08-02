@@ -56,12 +56,11 @@
           @retry="loadStalls"
         />
 
-        <!-- 用户评价（仅展示前 3 条，点击查看全部） -->
+        <!-- 用户评价（仅内联展示前 3 条，不再跳转独立列表页） -->
         <CardSection v-if="reviewTotal > 0 || reviewList.length > 0">
           <SectionTitle
             :title="`用户评价 (${reviewTotal})`"
             noMargin
-            @tap="goToReviewList"
           />
           <view class="review-list" v-if="reviewList.length > 0">
             <ReviewItem
@@ -71,10 +70,6 @@
             />
           </view>
           <EmptyState v-else text="暂无评价，来写第一条吧" />
-          <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
-            <text class="review-more-text">查看全部评价</text>
-            <IconSvg name="arrow" :size="28" color="var(--color-primary)" class="review-more-arrow" />
-          </view>
         </CardSection>
       </template>
 
@@ -143,10 +138,6 @@ async function loadReviews() {
     reviewList.value = []
     reviewTotal.value = 0
   }
-}
-
-function goToReviewList() {
-  uni.navigateTo({ url: `/pages/pages-detail/review-list?canteenId=${canteenId.value}` })
 }
 
 async function loadStalls() {

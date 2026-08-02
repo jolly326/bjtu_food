@@ -109,12 +109,11 @@
           </view>
         </CardSection>
 
-        <!-- ===== 评价区 ===== -->
+        <!-- ===== 评价区（内联展示前 3 条，详情页内不跳独立列表页） ===== -->
         <CardSection>
           <SectionTitle
             :title="`用户评价 (${reviewTotal})`"
             noMargin
-            @tap="goToReviewList"
           />
 
           <view class="review-list" v-if="reviewList.length > 0">
@@ -125,11 +124,6 @@
             />
           </view>
           <EmptyState v-else text="暂无评价，来写第一条吧" />
-
-          <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
-            <text class="review-more-text">查看全部评价</text>
-            <IconSvg name="arrow" :size="28" color="var(--color-primary)" class="review-more-arrow" />
-          </view>
         </CardSection>
 
         <!-- 申请下架/纠错：不常用，降级为底部弱化的小文字链接，点击展开 Sheet -->
@@ -365,10 +359,6 @@ function onDishLongPress() {
 function goToReview() {
   if (!userStore.requireAuth()) return
   uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${dishId.value}` })
-}
-
-function goToReviewList() {
-  uni.navigateTo({ url: `/pages/pages-detail/review-list?dishId=${dishId.value}` })
 }
 
 function goToStall() {

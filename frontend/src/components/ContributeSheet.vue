@@ -64,9 +64,7 @@ const emit = defineEmits<{
 
 const options: { key: ContributeOption; icon: string; title: string; sub: string }[] = [
   { key: 'publishDish', icon: 'dish', title: '发布菜品', sub: '新增一道菜品供大家发现' },
-  { key: 'submitStall', icon: 'location', title: '提交档口', sub: '新增你常去的档口' },
-  { key: 'submitCanteen', icon: 'home', title: '提交食堂', sub: '新增一个食堂（如新校区）' },
-  { key: 'apply', icon: 'edit', title: '申请下架 / 纠错', sub: '对已存在菜品·档口·食堂发起申请' },
+  { key: 'submitStall', icon: 'location', title: '提交档口·食堂', sub: '新增你常去的档口或食堂' },
 ]
 
 const sheetOpen = ref(false)

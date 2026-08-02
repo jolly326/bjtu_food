@@ -102,7 +102,7 @@ function onSegChange(key: string) {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/publish-moment/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/pages-user/publish-moment?id=${m.id}` })
   } else {
     uni.navigateTo({ url: `/pages/pages-detail/moment?id=${m.id}` })
   }

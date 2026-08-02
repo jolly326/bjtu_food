@@ -116,7 +116,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -195,17 +195,27 @@ function actionLabel(a?: ApplyType): string {
 }
 
 function goEditDish(item: MyPublishDish) {
-  uni.navigateTo({ url: `/pages/profile/publish-dish?id=${item.id}` })
+  uni.navigateTo({ url: `/pages/pages-user/publish-dish?id=${item.id}` })
 }
 function goPublishDish() {
-  uni.navigateTo({ url: '/pages/profile/publish-dish' })
+  uni.navigateTo({ url: '/pages/pages-user/publish-dish' })
 }
 function goSubmitStall() {
-  uni.navigateTo({ url: '/pages/profile/submit-stall' })
+  uni.navigateTo({ url: '/pages/pages-user/submit-stall' })
 }
 function goMoment(id: number) {
   uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
 }
+
+onLoad((query: any) => {
+  // 支持来自「我的」页统计三宫格的直达（?tab=published|pending|contribution）
+  const tab = query?.tab
+  if (tab === 'published' || tab === 'pending') {
+    activeGroup.value = 'publish'
+  } else if (tab === 'contribution') {
+    activeGroup.value = 'contribution'
+  }
+})
 
 onShow(() => { loadGroup(activeGroup.value) })
 
