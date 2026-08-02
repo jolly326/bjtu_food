@@ -1,7 +1,7 @@
 # 我的动态 (my-moments)
-- 路由: /pages/my-moments/index
-- 分包: 主包
-- 源文件: src/pages/my-moments/index.vue
+- 路由: pages/pages-user/my-moments/index
+- 分包: pages-user
+- 源文件: src/pages/pages-user/my-moments/index.vue
 - 最后依据 skills 校对: 2026-08-02
 
 ## 1. 页面定位
