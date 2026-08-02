@@ -42,5 +42,5 @@ onLoad((query) => {
 .webview-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .webview-wrap { flex: 1; overflow: hidden; }
 .webview-fallback { flex: 1; display: flex; align-items: center; justify-content: center; }
-.fallback-text { font-size: var(--font-body); color: var(--text-tertiary); }
+.fallback-text { font-size: var(--font-body); color: var(--text-secondary); }
 </style>

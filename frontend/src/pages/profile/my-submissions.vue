@@ -115,13 +115,13 @@ function onRefresh() {
 <style scoped>
 .my-submissions-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .tabs { display: flex; padding: var(--spacing-md) var(--spacing-md) 0; gap: var(--spacing-md); }
-.tab { font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; padding: var(--spacing-xs) 0; position: relative; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.tab { font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; padding: var(--spacing-xs) 0; position: relative; transition: transform 160ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .tab.active { color: var(--color-primary); font-weight: 700; }
 .tab:active { transform: scale(var(--press-scale)); }
 .tab.active::after { content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 40rpx; height: 6rpx; border-radius: 6rpx; background: var(--color-primary); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0; }
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: 0 var(--spacing-md); }
-.sub-item { display: flex; align-items: center; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); box-shadow: var(--shadow-card); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.sub-item { display: flex; align-items: center; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); box-shadow: var(--shadow-card); transition: transform 160ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .sub-item:active { transform: scale(var(--press-scale)); }
 .item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .item-title { font-size: var(--font-caption); font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -129,4 +129,9 @@ function onRefresh() {
 .item-right { display: flex; align-items: center; gap: var(--spacing-xs); flex-shrink: 0; }
 .off-tag { font-size: var(--font-tiny); color: var(--text-tertiary); }
 .item-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab, .sub-item { transition: none; }
+  .tab:active, .sub-item:active { transform: none; }
+}
 </style>

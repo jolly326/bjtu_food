@@ -203,6 +203,9 @@ onLoad((query) => {
   align-items: center;
   justify-content: center;
   background: var(--bg-page);
+  transition: var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
 }
+.image-upload:active { transform: scale(var(--press-scale)); }
 
 </style>
