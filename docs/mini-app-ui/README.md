@@ -6,7 +6,7 @@
 - **协作方式**：产品/设计可编辑任意文档，提出或记录 UI 改动意向；开发者据此实现或对齐。文档内容基于 `frontend/src` 下各 `.vue` 当前代码，非凭空臆测。
 - **配套规范源**：图标映射表见 `docs/mini-app-ui/icons.md`（权威 `ic-*` 注册表，原 `mini-app-ui.md` §0.5 已迁移）；各页面设计见本目录对应 `<pagekey>.md`；设计 Token / 一致性红线（rpx Token 清单、按压 scale、禁 emoji 等）见 `docs/project_spec.md` §4 与 §4.9。
 
-## 目录（22 页）
+## 目录（21 页）
 
 | 文件 | 页面 | 一句话用途 |
 |---|---|---|
@@ -31,7 +31,6 @@
 | [review.md](review.md) | 发表评价 | 评分 + 内容 + 图片，吸底提交 |
 | [review-list.md](review-list.md) | 全部评价 | 评价列表 + 触底加载 + 删除 |
 | [stall.md](stall.md) | 档口详情 | 图集 + 档口信息 + 全部菜品 + 评价 |
-| [contact.md](contact.md) | 联系开发者 | 复用 FeedbackForm 的反馈表单页 |
 
 > 注：分包页面实际路径为 `src/pages/pages-detail/`（pages.json 中 `subPackages.root = "pages/pages-detail/"`），本目录文档按 `pagekey` 命名，便于检索。
 

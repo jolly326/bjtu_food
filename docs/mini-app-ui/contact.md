@@ -1,5 +1,8 @@
 # 联系开发者 (contact)
-- 路由: /pages/pages-detail/contact
+
+> ⚠️ 此页路由 pages-detail/contact 已在代码合并中删除（contact 仅复用 FeedbackForm，无独立内容），本文件为遗留文档。实际反馈入口为 feedback 页。
+
+- 路由: /pages/pages-detail/contact（已删除）
 - 分包: pages-detail 分包（实际 src 路径 pages/pages-detail/contact.vue）
 - 源文件: src/pages/pages-detail/contact.vue
 - 最后依据 skills 校对: 2026-08-02
