@@ -3,90 +3,90 @@
 - 分包: pages-detail 分包（实际 src 路径 pages/pages-detail/stall.vue）
 - 源文件: src/pages/pages-detail/stall.vue
 - 最后依据 skills 校对: 2026-08-02
+- ⚠️ 本次重写（产品新要求）：tab 栏改为**不沉底**、置于档口信息卡下方；菜品 tab = **左侧竖排分类栏 + 右侧瀑布流**（美团外卖式）；**默认停在「菜品」tab**。详见 §2 与 §7。
 
 ## 1. 页面定位
-档口详情：图集 + 档口信息（位置/星级/简介）合并卡 + 全部菜品（>6 折叠展开）+ 用户评价预览（前 3 条）；弱化「反馈信息有误」入口（ApplySheet）。由 dishStore.navParams(stallName/canteen) 定位。
+档口详情：图集横幅 + 档口信息卡（hero，含名字/位置/简介/评分）+ **信息卡下方的三段 tab 栏（不沉底）** + 随 tab 切换的内容区。
+- **tab1 菜品**：左侧竖排分类栏（全部/面食/米饭/小吃/…）+ 右侧菜品瀑布流（美团外卖式分类索引联动）。
+- **tab2 评价**：内联评价列表（含本人可删）。
+- **tab3 档口介绍**：档口完整介绍（位置/评分/营业时间/简介分区）。
+
+由 dishStore.navParams(stallName/canteen) 定位。弱化「反馈信息有误」入口（ApplySheet）。默认选中「菜品」tab。
 
 ## 2. 布局结构
-- 顶部：`Header :title="stallDetail?.name||档口" showBack`（含状态栏占位）。
-- 滚动区 `scroll-view`（refresher）。
-- 三态：
-  1. 加载中：`.stall-skeleton`（swiper/info/3×dish 骨架，shimmer）。
-  2. 正常：`ImageSwiper` → `CardSection` 档口信息(SectionTitle+位置+星级+简介，extra 弱化反馈链接) → `CardSection` 全部菜品(SectionTitle(数量) + `StallDishRow` 列表，>6 折叠遮罩+展开) / `EmptyState` → `CardSection` 用户评价(SectionTitle(总数)+前 3 ReviewItem+查看全部)。
-  3. 失败：`EmptyState text="档口信息加载失败" :retry`。
-- 弱化「反馈信息有误」入口：`apply-link`（底部小文字链接，opacity 弱化）。
-- `ApplySheet`（entity-type STALL）。
+页面纵向结构（自上而下，关键设计变更点）：
+
+```
+Header :title="stallDetail?.name || '档口'" showBack
+scroll-view（refresher）
+ ├─ 加载骨架 .stall-skeleton（swiper/info/3×dish 骨架，shimmer）
+ └─ 正常态（stallDetail）：
+     ├─ ImageSwiper                     ← 横幅：档口图集
+     ├─ CardSection 档口信息卡（hero）  ← 名字/位置/简介/评分 + 弱化反馈链接
+     ├─ tab 栏（三段）【变更①：不沉底】← 紧跟信息卡下方，菜品(6)/评价(0)/档口介绍
+     └─ 内容区（随 tab 切换，v-show 互斥）：
+         ├─ 菜品 tab：左竖排分类栏(cat-sidebar) + 右 WaterfallList 瀑布流【变更②】
+         ├─ 评价 tab：CardSection 内联 ReviewItem 列表 / EmptyState
+         └─ 档口介绍 tab：CardSection 单卡内有序分区（位置/评分/营业时间/简介）
+     └─ CardSection 关联动态（低优先级，置底轻量区块；task-12.6）
+ └─ 失败态 EmptyState text="档口信息加载失败" :retry
+```
+
+三态（加载骨架 / 正常 / 失败）齐备。
+
+### 关键设计变更点（产品新要求）
+1. **【变更① · tab 栏不沉底】**：原实现为 `position: fixed; bottom: 0` 的底部固定 tabBar（`.detail-tabs`）；本次改为**普通文档流内块级 tab 栏**，位于 `ImageSwiper` + 档口信息卡**之后**、内容区**之前**。不再占用底部安全区、不遮挡滚动内容、不随内容滚动（随外层 scroll-view 自然滚动，贴信息卡下缘）。
+2. **【变更② · 菜品 tab = 左侧竖排分类栏 + 右侧瀑布流】**：保留/沿用美团外卖式左侧竖向分类侧栏（`cat-sidebar`，纵向一列「全部/面食/米饭/小吃/…」），右侧 `WaterfallList` 瀑布流随分类点选联动过滤。**不是**横向标签条，也**不是**沉底 tab。
+3. **【变更③ · 默认停在「菜品」tab】**：进入页默认 `activeTab = 'dishes'`，无需用户手动切 tab 即可看到菜品分类索引 + 瀑布流。
+
+> 代码现状说明：变更②（左侧分类栏）与变更③（默认菜品）当前代码已落地（`stall.vue` 中 `cat-sidebar`/`activeCategory`/`activeTab='dishes'`）；变更①（tab 不沉底）为本次设计目标，当前代码仍是底部固定 `detail-tabs`，需按 §7 调整。
 
 ## 3. 核心组件与用法
-- `ImageSwiper`：档口图集（图破兜底，中性语境建议 `empty`，见 §8④）。
-- `StallDishRow`：菜品行（点击 → dish 详情，按压 `--press-scale`）。
-- `ReviewItem`：评价项（前 3）。
-- `SectionTitle` / `CardSection`：分区标题与卡片（accent 条）。
-- `EmptyState`：无菜品 / 失败重试。
-- `ApplySheet`：反馈/申请关闭弹层（spring 0.8/0.3 + ic-close + reduced-motion）。
-- `IconSvg`：`location`(位置)、`star-filled`(评分)、`arrow`(查看全部/反馈链接)——均注册 key。
+- `ImageSwiper`：档口图集横幅（图破兜底，中性语境建议 `empty`）。
+- `CardSection` / `SectionTitle`：档口信息 hero 卡、评价/介绍内容卡的分区标题（accent 条；卡片内 `noMargin`）。
+- **tab 栏**：三段式（菜品/评价/档口介绍），置于信息卡下方；选中项 `--color-primary` 高亮 + 底部 accent 条 + 数字 `tabular-nums`。
+- **左侧分类栏组件**（菜品 tab）：竖向 `cat-sidebar` 一列，项含「全部」+ 该档口实际命中品类（派生自 `DISH_CATEGORIES` ∩ 菜品 tags）；选中态主色底、非选中 `--bg-soft`；按压 `--press-scale`。
+- `WaterfallList`：菜品瀑布流（双列，禁用具名 slot，父级只 `@card-click` 上抛）；空态用 `EmptyState text="该分类暂无菜品"`。
+- `ReviewItem`：评价项（本人 `userId` 可删）。
+- `EmptyState`：无菜品 / 无评价 / 失败重试。
+- `ApplySheet`（entity-type STALL）：反馈/申请关闭弹层（spring 0.8/0.3 + ic-close + reduced-motion）。
+- `DishDetailSheet`：菜品详情底部弹层（task-10：独立页 → sheet）。
+- `IconSvg`：`location`(位置)、`star-filled`(评分)、`clock`(营业时间)、`arrow`(查看全部/反馈链接/关联动态)——均注册 key。
 
 ## 4. 设计 Token 使用
-- 背景/文字：`--bg-page`、`--bg-card`、`--text-primary/secondary/tertiary`。
-- 强调：`--color-primary`(位置图标/查看全部链接/展开)、`--color-star`(评分星)、`--text-tertiary`(弱化反馈链接)。
-- 圆角/阴影：`--radius-card`、`--shadow-card`。
-- 间距：`--spacing-md/sm`（4/8pt 节奏）。
-- 字号：`--font-h3`(档口名)、`--font-caption`(位置/简介/星级)、`--font-aux`(反馈链接/查看全部)、`--font-body`(评分值)。
-- 动效：菜品行按下 `StallDishRow` 内部 `--press-scale`；骨架 shimmer；折叠遮罩 `-webkit-mask-image` 渐隐（opacity 渐变，非 layout 动画）。
-- 布局：scroll-wrap `padding: var(--spacing-md) 0 0`（CardSection 自带左右 margin，避免 scroll-view 内边距不稳溢出）。
+- 背景/文字：`--bg-page`、`--bg-card`、`--bg-soft`、`--text-primary/secondary/tertiary`。
+- 强调：`--color-primary`(位置图标/查看全部链接/tab 选中/分类选中)、`--color-star`(评分星)、`--text-tertiary`(弱化反馈链接)。
+- 圆角/阴影：`--radius-card`、`--radius-tag`(分类项胶囊)、`--shadow-card`。
+- 间距：`--spacing-xs/sm/md`（4/8pt 节奏）；tab 栏与信息卡间距 `--spacing-md`。
+- 字号：`--font-h3`(档口名)、`--font-caption`(位置/简介)、`--font-body`(评分值/tab 文字)、`--font-aux`(分类标签/反馈链接/查看全部)。
+- 动效：分类项/tab 按下 `--press-scale` + `--press-transition`；骨架 shimmer；瀑布流卡片入场沿用 WaterfallList 内部。
+- 布局：scroll-wrap `padding: var(--spacing-md) 0 0`（CardSection 自带左右 margin）；**底部不再需要 `--action-bar-height` + 安全区避让**（因 tab 已不沉底）。
 
 ## 5. 交互与动效
-- 全部菜品 >6 默认折叠（`max-height` 截断 + 渐隐遮罩），点击「查看全部菜品（N）」展开。
-- 评价「查看全部」→ review-list?stallId。
-- 弱化反馈链接 `openApply`(requireAuth) → ApplySheet。
+- **tab 切换**：点 tab 切换三段内容（`v-show` 互斥）；选中项高亮 + accent 条 + `tabular-nums` 计数；切换微交互 <300ms。
+- **分类点选联动**：点左侧分类项 → 右侧瀑布流联动过滤为该类菜品（美团外卖式索引）；`activeCategory` 高亮；无命中分类显示 `EmptyState`。
+- **按压反馈**：分类项、tab、菜品卡、关联动态均 `scale(var(--press-scale))`；反馈链接用 opacity 弱化（合规）。
+- 评价「查看全部」不再跳转（改内联三段切换）；本人评价可删（`uni.showModal` 二次确认）。
 - 下拉刷新；骨架 shimmer（reduced-motion 关动画）。
-- ApplySheet：spring 0.8/0.3 + ic-close + 下拉关闭手势 + reduced-motion 交叉淡入。
+- ApplySheet / DishDetailSheet：spring 0.8/0.3 + ic-close + 下拉关闭手势 + reduced-motion 交叉淡入。
 
 ## 6. 一致性红线自检（project_spec §4.9）
-- ①图标 IconSvg：⚠️ location/star-filled/arrow 合规；ImageSwiper 内部图破兜底（中性语境应 `empty`，以组件实现为准，建议整改见 §8④）；无 emoji。
-- ②金额 api 层：✅ 菜品行价格由 StallDishRow 展示已转元，页面无 `/100`。
-- ③WaterfallList 禁 slot：➖ 用 StallDishRow 列表（非瀑布流），不适用。
-- ④三态齐备：✅ 骨架 / EmptyState(retry, 含无菜品) / 正常态。
-- ⑤Sheet 规范：✅ ApplySheet 套通用弹层（spring 0.8/0.3 + ic-close + 下拉关闭 + reduced-motion）。
-- ⑥按压 0.97：✅ 菜品行内部 `scale(var(--press-scale))`；反馈链接用 opacity 弱化（合规）。
+- ①图标 IconSvg：⚠️ location/star-filled/clock/arrow 合规；ImageSwiper 图破兜底（中性语境应 `empty`，建议整改见 §7）；无 emoji。
+- ②金额 api 层：✅ 菜品价格由 DishCard 展示已转元，页面无 `/100`。
+- ③WaterfallList 禁 slot：✅ 只经 `@card-click` 上抛，不传具名 slot。
+- ④三态齐备：✅ 骨架 / EmptyState(retry) / 正常态；菜品空态有 EmptyState。
+- ⑤Sheet 规范：✅ ApplySheet/DishDetailSheet 套通用弹层（spring 0.8/0.3 + ic-close + 下拉关闭 + reduced-motion）。
+- ⑥按压 0.97：✅ 分类项/tab/菜品卡/关联动态 `scale(var(--press-scale))`；反馈链接 opacity 弱化（合规）。
 - ⑦颜色 token：✅ 无裸 hex。
-- ⑧SectionTitle：✅ 档口信息/全部菜品/用户评价均 SectionTitle（noMargin 适配卡片内边距）。
-- ⑨底部避让：➖ 无底部固定操作栏，scroll-wrap 无 tabbar 需求，合规。
+- ⑧SectionTitle：✅ 档口信息/用户评价/档口介绍均 SectionTitle（`noMargin` 适配卡片内边距）。
+- ⑨底部避让：⚠️ **变更①后 tab 不沉底，不再需要底部固定栏**。当前代码仍有 `position: fixed` 的 `detail-tabs` 需改为文档流内块级（见 §7）；`scroll-wrap` 底部 `--action-bar-height` 避让在 tab 上移后应移除/核减。
 
 ## 7. 待定 / 可编辑的设计方案
-> 以下区块由产品或设计在此直接编辑，用于和开发者同步 UI 变更意向。
-- 待讨论项：全部菜品折叠阈值（当前>6 折叠）是否合适
-- 计划调整：我认为可以采用美团那种，评论和菜品分成两个水平方向的menubar进行切换，这样也可以少一个全部评价的页面跳转
+> 以下区块由产品或设计在此直接编辑，用于和开发者同步 UI 变更意向。⚠️ 本节为**当前与代码的差异清单**，开发者据此调整实现。
 
-## 8. Skill 合规自检（UI 设计 skills）
-| # | 检查项 | 结论 | 说明 |
-|---|---|---|---|
-| 1 | 触控目标 ≥44×44pt，间距≥8px | 合规 | 菜品行/查看全部/反馈链接/展开 ≥44pt；间距 ≥8pt |
-| 2 | 按压反馈 100ms 内 scale(0.97) | 合规 | 菜品行内部 `scale(var(--press-scale))` + `--press-transition` |
-| 3 | 固定栏/导航预留安全区 | 合规 | 无固定底栏；Header 含状态栏 |
-| 4 | 禁用 emoji，统一 SVG 矢量图标 | 待整改 | ImageSwiper 图破兜底按一致性规则①应 `empty`（组件层，页级建议标注）；location/star-filled/arrow 合规 |
-| 5 | 仅用语义 token，禁裸 hex | 合规 | 全 `var(--…)` |
-| 6 | 正文对比度 ≥4.5:1，亮暗双测 | 部分 | token 满足；弱化反馈链接 `--text-tertiary` 对比建议验证（见 §8⑯） |
-| 7 | 不靠颜色 alone 传意 | 合规 | 菜品行/链接有图标+文字；评分 star 图标+数字 |
-| 8 | prefers-reduced-motion 处理 | 合规 | ApplySheet 降级交叉淡入；骨架 shimmer 关动画 |
-| 9 | hover 门控 @media(hover:hover) | 合规 | 触控 `:active`/touch |
-| 10 | 微交互<300ms，exit 短于 enter | 合规 | Sheet enter~300ms、exit 短；press 120ms |
-| 11 | 自定义缓动，禁 ease-in | 合规 | Sheet `--ease-drawer`/`--ease-out`；无 ease-in |
-| 12 | 进场禁 scale(0)，popover 从触发点 | 合规 | Sheet 自底部；无 scale(0) |
-| 13 | 仅 transform/opacity，禁 transition:all | 合规 | 骨架 shimmer/遮罩 opacity；无 `transition:all` |
-| 14 | 可中断动效 | 合规 | ApplySheet 手势可中断 |
-| 15 | 数字 tabular-nums | 部分 | 评分值/菜品价格/评价数建议 `tabular-nums` |
-| 16 | 正文≥16px(32rpx)，行高1.5–1.75，4/8pt 节奏 | 部分 | 弱化链接 `--font-aux`(22rpx) 仅辅助文字；主文 ≥32rpx；4/8pt 间距 |
-| 17 | 每屏一个主 CTA，破坏性弱化隔离 | 合规 | 反馈入口弱化为小文字链接（非大板块，符合信息架构） |
-| 18 | loading/empty/error 三态 | 合规 | 骨架 / EmptyState(retry) / 正常态；菜品区空有 EmptyState |
-| 19 | 表单无障碍（label/必填/校验/键盘） | ➖ | 无表单 |
-| 20 | 导航一致：底部≤5 项 icon+label | ➖ | 非 tab 页；返回由 Header |
-| 21 | 一致性打磨 | 合规 | 信息架构合并卡；按压统一 0.97；Sheet 规范同源；折叠遮罩用 mask 渐隐（非 layout 动画） |
-
-## 9. 交付前验证（Pre-delivery）
-- [ ] 375px：图集/菜品行不溢出；折叠遮罩完整。
-- [ ] reduced-motion：ApplySheet 交叉淡入；骨架 shimmer 停。
-- [ ] 动态字号：档口名/简介/菜品名不截断。
-- [ ] 暗色对比：弱化反馈链接 `--text-tertiary` 对比（建议改 `--text-secondary`）；菜品行文字达标。
-- [ ] 44pt：菜品行/查看全部/反馈链接 ≥44pt。
-- [ ] 安全区：Header 不被刘海遮挡。
+- **【变更① · tab 不沉底（待代码调整）】**：将底部固定 `detail-tabs`（`position:fixed;bottom:0`）改为**信息卡下方、内容区之前的文档流内块级 tab 栏**。同步：`scroll-wrap` 去掉底部 `--action-bar-height` + 安全区避让（或核减），`--shadow-bar-soft`/`border-top` 可移作分隔线。默认仍 `activeTab='dishes'`（变更③）。
+- **【变更② · 左侧竖排分类栏（已落地）】**：保留美团外卖式 `cat-sidebar`（竖向一列「全部/面食/米饭/小吃/…」）+ 右侧 `WaterfallList` 联动；非横向标签条、非沉底 tab。
+- **【变更③ · 默认「菜品」tab（已落地）】**：`activeTab = ref('dishes')`，进入即菜品分类索引 + 瀑布流。
+- 待讨论项：菜品分类项是否需随右侧瀑布流滚动自动高亮（目前为点选联动，如需「滚到哪类高亮哪类」可加双向联动）。
+- 待讨论项：全部菜品折叠阈值（旧版 >6 折叠）在「全部」分类下是否还需保留折叠遮罩（瀑布流双列场景折叠遮罩适用性需复核）。
+- 待整改项：ImageSwiper 图破兜底按一致性规则①应为中性占位 `empty`（组件层，页级建议标注）。
