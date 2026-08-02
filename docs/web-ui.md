@@ -317,7 +317,7 @@ Web 管理后台（`web/`，Vue3 + Vite + TS + Element Plus + ECharts，无 Pini
 
 1. **图标修正已核实落地（非待定）**：§2.1 重复图标修正（`House→OfficeBuilding` 食堂、`Document→Tickets` 操作日志、`UserFilled→Setting` 账号设置）所用三个 Element Plus 图标**均已在 `node_modules/@element-plus/icons-vue` 核实真实存在**，无需 Iconfont 兜底，Web 开发工程师直接替换即可（见 §2.1 注）。
 2. **暗色主题 / 多页签工作区**：本期不做，后续若做需补 `theme` token 与 `el-tabs` 工作区改造。
-3. **后端接口缺口**：若某管理页（如操作日志、动态管理）后端尚未提供契约，须在 `tasks/CONTRACT_IMPACT.md` 登记后再实现。
+3. **后端接口缺口**：若某管理页（如操作日志、动态管理）后端尚未提供契约，须在 `tasks/task-06-contract-gaps.md` 登记后再实现。
 4. **Dashboard 数据口径**：KPI/趋势图取数口径以 §2.2 为准，若后端口径调整须回同步本文件。
 5. **「通知开关」等通用设置后端能力**：§6.1「通用」卡片中若通知订阅等暂无后端能力，须标「（即将推出）」或隐藏，禁止虚假控制；具体哪些开关已接后端待技术负责人确认。
 6. **最小可用宽度断点**：§0.4 响应式建议内容区 `1280px` 不挤压，确切断点与侧栏浮层阈值（当前 `<960px`）是否需细分待技术负责人裁定。
