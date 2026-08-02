@@ -43,8 +43,26 @@
           </view>
         </CardSection>
 
+        <!-- 菜品 / 评论 水平 menubar 切换（美团式） -->
+        <view class="detail-tabs">
+          <view
+            class="tab"
+            :class="{ active: activeTab === 'dishes' }"
+            @tap="activeTab = 'dishes'"
+          >
+            <text>菜品（{{ dishList.length }}）</text>
+          </view>
+          <view
+            class="tab"
+            :class="{ active: activeTab === 'reviews' }"
+            @tap="activeTab = 'reviews'"
+          >
+            <text>评论（{{ reviewTotal }}）</text>
+          </view>
+        </view>
+
         <!-- 全部菜品 -->
-        <CardSection>
+        <CardSection v-show="activeTab === 'dishes'">
           <SectionTitle :title="`全部菜品（${dishList.length}）`" noMargin />
           <view v-if="dishList.length > 0" class="dish-list" :class="{ 'dish-list--collapsed': dishList.length > 6 && !dishesExpanded }">
             <StallDishRow
@@ -61,25 +79,17 @@
           </view>
         </CardSection>
 
-        <!-- 用户评价（仅展示前 3 条，点击查看全部） -->
-        <CardSection>
-          <SectionTitle
-            :title="`用户评价 (${reviewTotal})`"
-            noMargin
-            @tap="goToReviewList"
-          />
+        <!-- 用户评价（内联展示全部，不再跳转全部评价页） -->
+        <CardSection v-show="activeTab === 'reviews'">
+          <SectionTitle :title="`用户评价 (${reviewTotal})`" noMargin />
           <view class="review-list" v-if="reviewList.length > 0">
             <ReviewItem
-              v-for="rv in reviewList.slice(0, 3)"
+              v-for="rv in reviewList"
               :key="rv.id"
               :review="rv"
             />
           </view>
           <EmptyState v-else text="暂无评价，来写第一条吧" />
-          <view class="review-more-btn" v-if="reviewList.length > 0" @tap="goToReviewList">
-            <text class="review-more-text">查看全部评价</text>
-            <IconSvg name="arrow" :size="28" color="var(--color-primary)" class="review-more-arrow" />
-          </view>
         </CardSection>
       </template>
 
@@ -132,6 +142,9 @@ const reviewList = ref<Review[]>([])
 const reviewTotal = ref(0)
 const currentStallId = ref(0)
 
+/** 菜品 / 评论 水平 menubar 切换状态 */
+const activeTab = ref<'dishes' | 'reviews'>('dishes')
+
 async function loadReviews() {
   if (!currentStallId.value) return
   try {
@@ -142,10 +155,6 @@ async function loadReviews() {
     reviewList.value = []
     reviewTotal.value = 0
   }
-}
-
-function goToReviewList() {
-  uni.navigateTo({ url: `/pages/pages-detail/review-list?stallId=${currentStallId.value}` })
 }
 
 function goToDetail(dish: Dish) {
@@ -260,9 +269,13 @@ function onRefresh() {
 }
 .dish-expand-arrow { flex-shrink: 0; }
 .review-list { margin-top: var(--spacing-sm); }
-.review-more-btn { margin-top: var(--spacing-sm); display: flex; align-items: center; justify-content: center; gap: 4rpx; }
-.review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
-.review-more-arrow { flex-shrink: 0; }
+
+/* 菜品 / 评论 水平 menubar（美团式切换） */
+.detail-tabs { display: flex; background: var(--bg-card); position: sticky; top: 0; z-index: 10; margin-bottom: var(--spacing-sm); }
+.detail-tabs .tab { flex: 1; text-align: center; padding: var(--spacing-md) 0; font-size: var(--font-body); color: var(--text-secondary); transition: var(--press-transition); }
+.detail-tabs .tab.active { color: var(--color-primary); font-weight: 700; }
+.detail-tabs .tab.active::after { content: ''; display: block; width: 48rpx; height: 4rpx; background: var(--color-primary); margin: 8rpx auto 0; border-radius: 2rpx; }
+.detail-tabs .tab:active { transform: scale(var(--press-scale)); }
 
 /* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
 .feedback-link {

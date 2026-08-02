@@ -101,7 +101,7 @@
 		{
 			"path": "pages/profile/messages-services/index",
 			"style": {
-				"navigationBarTitleText": "消息与服务",
+				"navigationBarTitleText": "我的发布与贡献",
 				"navigationStyle": "custom"
 			}
 		}
@@ -146,20 +146,14 @@
 					}
 				},
 				{
-					"path": "stall",
-					"style": {
-						"navigationBarTitleText": "档口详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "contact",
-					"style": {
-						"navigationBarTitleText": "联系开发者",
-						"navigationStyle": "custom"
-					}
+					"pa			{
+				"path": "stall",
+				"style": {
+					"navigationBarTitleText": "档口详情",
+					"navigationStyle": "custom"
 				}
-			]
+			}
+		]
 		}
 	],
 	"globalStyle": {

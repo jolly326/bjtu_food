@@ -1,6 +1,6 @@
 <template>
   <view class="page messages-services-page">
-    <Header title="消息与服务" showBack />
+    <Header title="我的发布与贡献" showBack />
 
     <SegmentTabs
       class="seg-wrap"

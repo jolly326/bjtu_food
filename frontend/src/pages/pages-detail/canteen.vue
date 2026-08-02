@@ -33,6 +33,11 @@
                 <text class="info-location-text">{{ canteenInfo.location }}</text>
               </view>
             </view>
+            <!-- 评分/人均：前端由档口聚合占位，待后端字段 -->
+            <view class="info-stats">
+              <text class="info-stat">评分 <text class="info-stat-num">{{ canteenRating || '—' }}</text> · 人均 ¥<text class="info-stat-num">{{ canteenPerCapita || '—' }}</text></text>
+              <text class="info-stat-note">（来自档口聚合，待后端字段）</text>
+            </view>
             <view class="info-desc" v-if="canteenInfo.description">
               <text class="info-desc-text">{{ canteenInfo.description }}</text>
             </view>
@@ -89,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -189,6 +194,28 @@ function goToStall(stall: StallCardItem) {
   uni.navigateTo({ url: '/pages/pages-detail/stall' })
 }
 
+/**
+ * 食堂级 评分/人均 占位（前端聚合，待后端字段）。
+ * 用户已批准在食堂详情页展示，但 API 暂无 canteen-level avgRating/perCapita，
+ * 故先由各档口的 avgRating/perCapita 取均值占位。
+ */
+const canteenRating = computed(() => {
+  const ratings = stallList.value
+    .map((s) => s.avgRating)
+    .filter((r): r is number => typeof r === 'number')
+  if (ratings.length === 0) return 0
+  const mean = ratings.reduce((a, b) => a + b, 0) / ratings.length
+  return Math.round(mean * 10) / 10
+})
+const canteenPerCapita = computed(() => {
+  const caps = stallList.value
+    .map((s) => s.perCapita)
+    .filter((p): p is number => typeof p === 'number')
+  if (caps.length === 0) return 0
+  const mean = caps.reduce((a, b) => a + b, 0) / caps.length
+  return Math.round(mean)
+})
+
 /** 快捷申请调整/下架（共享 ApplySheet 处理 CLOSE/CHANGE + entityId=当前食堂） */
 const applyOpen = ref(false)
 
@@ -256,6 +283,11 @@ onLoad(async (query) => {
 }
 .info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
+/* 评分/人均占位行（前端聚合，待后端字段） */
+.info-stats { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8rpx; }
+.info-stat { font-size: var(--font-aux); color: var(--text-secondary); }
+.info-stat-num { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-primary); }
+.info-stat-note { font-size: var(--font-tiny); color: var(--text-tertiary); }
 .info-desc-text {
   font-size: var(--font-caption);
   font-weight: 400;

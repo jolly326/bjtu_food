@@ -4,8 +4,14 @@
 
     <scroll-view class="scroll-wrap" scroll-y>
       <view class="type-switch">
-        <view class="type-btn" :class="{ active: type === 'stall' }" @tap="type = 'stall'">提交档口</view>
-        <view class="type-btn" :class="{ active: type === 'canteen' }" @tap="type = 'canteen'">补充食堂</view>
+        <view class="type-btn" :class="{ active: type === 'stall' }" @tap="type = 'stall'">
+          <IconSvg name="stall" :size="28" class="type-btn-icon" />
+          <text class="type-btn-text">提交档口</text>
+        </view>
+        <view class="type-btn" :class="{ active: type === 'canteen' }" @tap="type = 'canteen'">
+          <IconSvg name="canteen" :size="28" class="type-btn-icon" />
+          <text class="type-btn-text">补充食堂</text>
+        </view>
       </view>
 
       <CardSection title="基础信息">
@@ -53,6 +59,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { post } from '@/api/http'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -117,9 +124,11 @@ onLoad(() => { loadCanteens() })
 .submit-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0; }
 .type-switch { display: flex; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-xs); margin: 0 var(--spacing-md) var(--spacing-md); }
-.type-btn { flex: 1; text-align: center; padding: var(--spacing-sm) 0; border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.type-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); padding: var(--spacing-sm) 0; border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-secondary); font-weight: 500; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .type-btn:active { transform: scale(var(--press-scale)); }
 .type-btn.active { background: var(--color-primary); color: var(--text-white); font-weight: 600; }
+.type-btn-icon { flex-shrink: 0; }
+.type-btn-text { line-height: 1; }
 .field { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }
 .field:last-child { border-bottom: none; }
 .field-label { font-size: var(--font-body); color: var(--text-primary); font-weight: 500; width: 160rpx; flex-shrink: 0; }
