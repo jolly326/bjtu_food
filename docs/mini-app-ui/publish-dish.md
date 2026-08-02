@@ -1,11 +1,13 @@
 # 发布菜品 (publish-dish)
-- 路由: /pages/profile/publish-dish
-- 分包: 主包（profile 子目录）
-- 源文件: src/pages/profile/publish-dish.vue
+- 路由: /pages/pages-user/publish-dish（实际 src 路径 pages/pages-user/publish-dish.vue）
+- 分包: pages-user 分包
+- 源文件: src/pages/pages-user/publish-dish.vue
 - 最后依据 skills 校对: 2026-08-02
 
 ## 1. 页面定位
 学生发布/编辑菜品：基本信息（名称/价格·元）、所属食堂+档口（picker）、口味标签、图片（≤9）、描述，提交后 status=pending 待审核。编辑态 `?id` 预填。
+
+> **发布入口方案 Y（已拍板）**：本页为独立菜品表单页（位于 `pages-user` 分包），**不内联于其他发布页**。入口由「我的」→「我要贡献」弹层（`ContributeSheet`）经「发布菜品」选项跳转至此，与发动态（`publish-moment`）主入口分流（入口收敛但不混合表单）。详见 `docs/project_spec.md` §2.1。
 
 ## 2. 布局结构
 - 顶部：`Header :title="编辑菜品/发布菜品" showBack`（含状态栏占位）。

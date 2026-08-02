@@ -1,11 +1,13 @@
 # 提交档口·食堂 (submit-stall)
-- 路由: /pages/profile/submit-stall
-- 分包: 主包（profile 子目录）
-- 源文件: src/pages/profile/submit-stall.vue
+- 路由: /pages/pages-user/submit-stall（实际 src 路径 pages/pages-user/submit-stall.vue）
+- 分包: pages-user 分包
+- 源文件: src/pages/pages-user/submit-stall.vue
 - 最后依据 skills 校对: 2026-08-02
 
 ## 1. 页面定位
 学生提交档口或补充食堂信息：类型切换（提交档口/补充食堂）+ 基础信息（名称/所属食堂/位置/营业时间）+ 图片（≤9）+ 描述，提交 status=pending 待审核。支持 `?type=canteen` 预选。
+
+> **发布入口方案 Y（已拍板）**：本页为独立档口/食堂表单页（位于 `pages-user` 分包），**不内联于其他发布页**。入口由「我的」→「我要贡献」弹层（`ContributeSheet`）经「提交档口·食堂」选项跳转至此，与发动态（`publish-moment`）主入口分流（入口收敛但不混合表单）。详见 `docs/project_spec.md` §2.1。
 
 ## 2. 布局结构
 - 顶部：`Header title="提交档口·食堂" showBack`（含状态栏占位）。

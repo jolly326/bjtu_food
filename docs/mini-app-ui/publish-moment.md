@@ -1,11 +1,13 @@
 # 发布动态 (publish-moment)
-- 路由: /pages/publish-moment/index
-- 分包: 主包
-- 源文件: src/pages/publish-moment/index.vue
+- 路由: /pages/pages-user/publish-moment（实际 src 路径 pages/pages-user/publish-moment.vue）
+- 分包: pages-user 分包
+- 源文件: src/pages/pages-user/publish-moment.vue
 - 最后依据 skills 校对: 2026-08-02
 
 ## 1. 页面定位
 发布/编辑美食动态：正文 + 关联对象（选填）+ 图片（≤9），底部提交栏；编辑态由 `?id` 预填并重提审核。
+
+> **发布入口方案 Y（已拍板）**：本页为「发动态」唯一主入口（位于 `pages-user` 分包）。发菜品（`publish-dish`）/ 提交档口（`submit-stall`）不在此页内联，而是经「我的」→「我要贡献」弹层（`ContributeSheet`）分流跳转至各自独立表单页（入口收敛但不混合表单）。详见 `docs/project_spec.md` §2.1。
 
 ## 2. 布局结构
 - 顶部：`Header :title="编辑动态/发布动态" showBack`（含状态栏占位）。

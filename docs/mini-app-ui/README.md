@@ -6,33 +6,41 @@
 - **协作方式**：产品/设计可编辑任意文档，提出或记录 UI 改动意向；开发者据此实现或对齐。文档内容基于 `frontend/src` 下各 `.vue` 当前代码，非凭空臆测。
 - **配套规范源**：图标映射表见 `docs/mini-app-ui/icons.md`（权威 `ic-*` 注册表，原 `mini-app-ui.md` §0.5 已迁移）；各页面设计见本目录对应 `<pagekey>.md`；设计 Token / 一致性红线（rpx Token 清单、按压 scale、禁 emoji 等）见 `docs/project_spec.md` §4 与 §4.9。
 
-## 目录（21 页）
+## 目录（17 页）
 
+> 与 `frontend/src/pages.json`（commit fa37ab5）严格一致。**主包 8 + 分包 `pages-detail` 5 + 分包 `pages-user` 4 = 17 页**。
+> 被移除页面（历史遗留 doc，不再有路由）：`contact`（已并入 feedback）、`notify`（消息并入「我的」）、`my-publish` / `my-submissions`（合并进 `messages-services`）、`review-list`（评价改详情内联）。
+
+### 主包（8）
 | 文件 | 页面 | 一句话用途 |
 |---|---|---|
 | [home.md](home.md) | 首页 | 轮播 + 广播条 + 食堂入口 + 热门菜品瀑布流 |
 | [find.md](find.md) | 发现 | 搜索/历史/分类/热搜 + 多维筛选结果页 |
-| [profile.md](profile.md) | 我的 | 未登录态登录注册 / 已登录态用户卡 + 菜单 |
+| [profile.md](profile.md) | 我的 | 未登录态登录注册 / 已登录态用户卡 + 菜单（含消息区块） |
 | [community.md](community.md) | 动态 | 最新动态单流 + 悬浮发布 FAB |
-| [publish-moment.md](publish-moment.md) | 发布动态 | 正文 + 关联对象 + 图片，底部提交栏 |
-| [my-moments.md](my-moments.md) | 我的动态 | 全部/审核中/已退回 分段 + 列表 |
-| [notify.md](notify.md) | 消息中心 | 通知列表 + 未读态 + 标已读 |
 | [settings.md](settings.md) | 设置 | 通知/通用/账号 分组设置 |
 | [feedback.md](feedback.md) | 意见反馈 | 类型 + 内容 + 联系方式，底部提交 |
 | [webview.md](webview.md) | 外部链接 | 承载 H5/公众号文章的 web-view 容器 |
-| [publish-dish.md](publish-dish.md) | 发布菜品 | 基本/食堂档口/标签/图片/描述 表单 |
-| [my-publish.md](my-publish.md) | 我的发布 | 菜品 / 档口·食堂 两个发布列表 |
-| [my-submissions.md](my-submissions.md) | 我的提交 | 实体申请 / 动态 提交记录 |
-| [submit-stall.md](submit-stall.md) | 提交档口·食堂 | 档口或食堂信息提交表单 |
-| [messages-services.md](messages-services.md) | 消息与服务 | 我的发布 + 我的贡献 汇总页 |
-| [canteen.md](canteen.md) | 食堂详情 | 图集 + 食堂信息 + 档口列表 + 评价 |
-| [dish.md](dish.md) | 菜品详情 | 图集 + 信息合并卡 + 评价 + 底部操作栏 |
-| [moment.md](moment.md) | 动态详情 | 正文/九宫格/评论/举报 + 评论输入栏 |
-| [review.md](review.md) | 发表评价 | 评分 + 内容 + 图片，吸底提交 |
-| [review-list.md](review-list.md) | 全部评价 | 评价列表 + 触底加载 + 删除 |
-| [stall.md](stall.md) | 档口详情 | 图集 + 档口信息 + 全部菜品 + 评价 |
+| [messages-services.md](messages-services.md) | 我的发布与贡献 | 「我的发布」+「我的贡献」唯一聚合页（吸收 my-publish / my-submissions） |
 
-> 注：分包页面实际路径为 `src/pages/pages-detail/`（pages.json 中 `subPackages.root = "pages/pages-detail/"`），本目录文档按 `pagekey` 命名，便于检索。
+### 分包 pages-detail（5）
+| 文件 | 页面 | 一句话用途 |
+|---|---|---|
+| [canteen.md](canteen.md) | 食堂详情 | 图集 + 食堂信息 + 档口列表 + 评价 |
+| [dish.md](dish.md) | 菜品详情 | 图集 + 信息合并卡 + 评价（内联）+ 底部操作栏 |
+| [moment.md](moment.md) | 动态详情 | 正文/九宫格/评论/举报 + 评论输入栏 |
+| [stall.md](stall.md) | 档口详情 | 图集 + 档口信息 + 全部菜品 + 评价 |
+| [review.md](review.md) | 发表评价 | 评分 + 内容 + 图片，吸底提交 |
+
+### 分包 pages-user（4）
+| 文件 | 页面 | 一句话用途 |
+|---|---|---|
+| [publish-moment.md](publish-moment.md) | 发布动态 | 发动态主入口：正文 + 关联对象 + 图片，底部提交栏 |
+| [my-moments.md](my-moments.md) | 我的动态 | 全部/审核中/已退回 分段 + 列表 |
+| [publish-dish.md](publish-dish.md) | 发布菜品 | 基本/食堂档口/标签/图片/描述 表单（经「我要贡献」弹层进入） |
+| [submit-stall.md](submit-stall.md) | 提交档口·食堂 | 档口或食堂信息提交表单（经「我要贡献」弹层进入） |
+
+> 注：分包页面实际路径为 `src/pages/pages-detail/`（root = `"pages/pages-detail/"`）与 `src/pages/pages-user/`（root = `"pages/pages-user/"`），本目录文档按 `pagekey` 命名，便于检索。
 
 ## 依据的设计 Skills
 

@@ -1,6 +1,9 @@
 # 全部评价 (review-list)
-- 路由: /pages/pages-detail/review-list
-- 分包: pages-detail 分包（实际 src 路径 pages/pages-detail/review-list.vue）
+
+> ⚠️ 此页路由已在页面清单评议中移除（my-publish/my-submissions 并入 messages-services；notify 消息并入「我的」；review-list 取消独立跳转，评价内联于详情）。本文件为遗留设计文档。
+
+- 路由: /pages/pages-detail/review-list（已移除）
+- 分包: pages-detail 分包（已移除）（实际 src 路径 pages/pages-detail/review-list.vue）
 - 源文件: src/pages/pages-detail/review-list.vue
 - 最后依据 skills 校对: 2026-08-02
 
