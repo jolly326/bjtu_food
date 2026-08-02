@@ -166,6 +166,9 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(403, "只能删除自己的评价");
         }
         reviewMapper.deleteById(id);
+        // task-06 §3：级联清理该评价的「有用」关联（uk_useful_user_review），避免孤儿记录
+        reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
+                .eq(ReviewUseful::getReviewId, id));
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }
 
