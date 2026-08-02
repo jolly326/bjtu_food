@@ -179,7 +179,9 @@ function goBroadcast(index: number) {
       uni.navigateTo({ url: '/pages/pages-detail/stall' })
       break
     case 'url':
-      if (b.targetUrl) uni.navigateTo({ url: `/pages/webview/index?src=${encodeURIComponent(b.targetUrl)}` })
+      if (b.targetUrl) {
+        uni.setClipboardData({ data: b.targetUrl, success: () => uni.showToast({ title: '已复制链接，请到浏览器打开', icon: 'none' }) })
+      }
       break
     case 'community':
     default:
@@ -284,13 +286,8 @@ function handleBannerTap(banner: BannerItem) {
     case 'URL':
       if (banner.targetUrl) {
         const url = banner.targetUrl
-        // 公众号文章 / H5：尝试 web-view 打开，未配置业务域名时回落复制链接
-        uni.navigateTo({
-          url: `/pages/webview/index?src=${encodeURIComponent(url)}`,
-          fail: () => {
-            uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
-          },
-        })
+        // 公众号文章 / H5 外链：不跳独立 webview 页（task-07 移除），复制链接由用户在浏览器打开
+        uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '已复制链接，请到浏览器打开', icon: 'none' }) })
       }
       break
     case 'NONE':

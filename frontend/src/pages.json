@@ -29,13 +29,6 @@
 			}
 		},
 		{
-			"path": "pages/webview/index",
-			"style": {
-				"navigationBarTitleText": "外部链接",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/settings/index",
 			"style": {
 				"navigationBarTitleText": "设置",
