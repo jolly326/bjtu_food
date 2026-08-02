@@ -55,22 +55,6 @@
           :retry="true"
           @retry="loadStalls"
         />
-
-        <!-- 用户评价（仅内联展示前 3 条，不再跳转独立列表页） -->
-        <CardSection v-if="reviewTotal > 0 || reviewList.length > 0">
-          <SectionTitle
-            :title="`用户评价 (${reviewTotal})`"
-            noMargin
-          />
-          <view class="review-list" v-if="reviewList.length > 0">
-            <ReviewItem
-              v-for="rv in reviewList.slice(0, 3)"
-              :key="rv.id"
-              :review="rv"
-            />
-          </view>
-          <EmptyState v-else text="暂无评价，来写第一条吧" />
-        </CardSection>
       </template>
 
       <!-- 加载失败 / 无数据空态 -->
@@ -98,14 +82,11 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getCanteensWithStalls, normalizeImages } from '@/api/canteen'
-import { getReviewsByCanteen } from '@/api/review'
-import type { Review } from '@/types/review'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -123,22 +104,6 @@ const canteenInfo = ref<{
   location: string
   description: string
 } | null>(null)
-
-/** 用户评价区（前 3 条预览 + 总数，点击进全部） */
-const reviewList = ref<Review[]>([])
-const reviewTotal = ref(0)
-
-async function loadReviews() {
-  if (!canteenId.value) return
-  try {
-    const res = await getReviewsByCanteen(canteenId.value, { sort: 'latest', isWithImage: false })
-    reviewList.value = res.list
-    reviewTotal.value = res.total
-  } catch {
-    reviewList.value = []
-    reviewTotal.value = 0
-  }
-}
 
 async function loadStalls() {
   if (!canteenName.value) return
@@ -168,11 +133,8 @@ async function loadStalls() {
       location: stall.location || current?.location || '',
       tags: Array.isArray(stall.tags) ? stall.tags : (String(stall.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)),
     }))
-    await loadReviews()
   } catch {
     stallList.value = []
-    reviewList.value = []
-    reviewTotal.value = 0
     canteenInfo.value = { name: canteenName.value, images: [], location: '', description: '' }
   } finally {
     loading.value = false
@@ -292,10 +254,6 @@ onLoad(async (query) => {
 
 /* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
 .stall-waterfall { margin-top: var(--spacing-sm); }
-.review-list { margin-top: var(--spacing-sm); }
-.review-more-btn { margin-top: var(--spacing-sm); display: flex; align-items: center; justify-content: center; gap: 4rpx; }
-.review-more-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: 600; }
-.review-more-arrow { flex-shrink: 0; }
 
 /* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
 .feedback-link {
