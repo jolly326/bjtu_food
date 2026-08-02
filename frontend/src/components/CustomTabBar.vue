@@ -2,8 +2,8 @@
   <view class="custom-tab-bar">
     <view class="tab-bar-inner">
       <view
-        v-for="(item, index) in tabs"
-        :key="index"
+        v-for="item in tabs"
+        :key="item.page"
         class="tab-item"
         :class="{ active: current === item.page }"
         @tap="switchTab(item.page)"

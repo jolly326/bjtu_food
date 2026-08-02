@@ -19,7 +19,10 @@
 
         <!-- 菜品 -->
         <view v-if="publishTab === 'dish'">
-          <view v-if="dishes.length > 0" class="list">
+          <view v-if="loading && dishes.length === 0" class="skeleton-list">
+            <view v-for="s in 3" :key="s" class="sk-item skeleton" />
+          </view>
+          <view v-else-if="dishes.length > 0" class="list">
             <view v-for="item in dishes" :key="'d'+item.id" class="publish-item" @tap="goEditDish(item)">
               <image v-if="item.image" class="item-img" :src="getImageUrl(item.image)" mode="aspectFill" />
               <view v-else class="item-img item-img-empty">
@@ -38,7 +41,10 @@
 
         <!-- 档口·食堂 -->
         <view v-else>
-          <view v-if="stalls.length > 0" class="list">
+          <view v-if="loading && stalls.length === 0" class="skeleton-list">
+            <view v-for="s in 3" :key="s" class="sk-item skeleton" />
+          </view>
+          <view v-else-if="stalls.length > 0" class="list">
             <view v-for="item in stalls" :key="'s'+item.id" class="publish-item">
               <view v-if="item.images && item.images.length" class="item-img">
                 <image class="item-img-el" :src="getImageUrl(item.images[0])" mode="aspectFill" />
@@ -75,7 +81,10 @@
 
         <!-- 实体申请 -->
         <view v-if="contributionTab === 'apply'">
-          <view v-if="applyList.length > 0" class="list">
+          <view v-if="loading && all.length === 0" class="skeleton-list">
+            <view v-for="s in 3" :key="s" class="sk-item skeleton" />
+          </view>
+          <view v-else-if="applyList.length > 0" class="list">
             <view v-for="item in applyList" :key="'a'+item.id" class="sub-item">
               <view class="item-main">
                 <text class="item-title">{{ item.title }}</text>
@@ -93,7 +102,10 @@
 
         <!-- 动态 -->
         <view v-else>
-          <view v-if="momentList.length > 0" class="list">
+          <view v-if="loading && all.length === 0" class="skeleton-list">
+            <view v-for="s in 3" :key="s" class="sk-item skeleton" />
+          </view>
+          <view v-else-if="momentList.length > 0" class="list">
             <view v-for="item in momentList" :key="'m'+item.id" class="sub-item" @tap="goMoment(item.id)">
               <view class="item-main">
                 <text class="item-title">{{ item.title }}</text>
@@ -144,6 +156,7 @@ const contributionTab = ref<'apply' | 'moment'>('apply')
 const dishes = ref<MyPublishDish[]>([])
 const stalls = ref<MyPublishStall[]>([])
 const all = ref<SubmissionVO[]>([])
+const loading = ref(false)
 const refresherTriggered = ref(false)
 
 const applyList = computed(() => all.value.filter(s => s.type === 'apply'))
@@ -160,10 +173,15 @@ async function loadAll() {
 }
 
 async function loadGroup(group: GroupKey) {
-  if (group === 'publish') {
-    await (publishTab.value === 'dish' ? loadDishes() : loadStalls())
-  } else {
-    await loadAll()
+  loading.value = true
+  try {
+    if (group === 'publish') {
+      await (publishTab.value === 'dish' ? loadDishes() : loadStalls())
+    } else {
+      await loadAll()
+    }
+  } finally {
+    loading.value = false
   }
 }
 
@@ -259,4 +277,8 @@ function onRefresh() {
 .off-tag { font-size: var(--font-tiny); color: var(--text-tertiary); }
 .item-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
 .spacer-lg { height: var(--spacing-lg); }
+
+/* 列表加载骨架：复用全局 .skeleton shimmer，占位高度与 .publish-item/.sub-item 一致 */
+.skeleton-list { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-md) 0; }
+.sk-item { height: 160rpx; background: var(--bg-card); }
 </style>
