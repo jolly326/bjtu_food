@@ -3,7 +3,7 @@
 > 本文件定义多 agent（及用户）如何协作。三份"权威 / 执行"文档各司其职，互不越权。
 >
 > - **基础规范基线**：`project_spec.md`（最高权威，**仅技术负责人可改**）
-> - **执行单元**：`tasks/task-XX.md`（验收标准 + 接口契约 + 依赖）
+> - **执行单元**：`docs/tasks/task-XX.md`（验收标准 + 接口契约 + 依赖）
 > - **角色权限**：`.codebuddy/agents/*.md`（各 agent 能改 / 不能改）
 > - **经验回流**：`.codebuddy/memory/`（踩坑记录，定期提炼进 spec 红线）
 
@@ -15,7 +15,7 @@
 
 1. `project_spec.md` —— 先懂**不可违背的红线**与跨端边界（最薄、最高权威）
 2. `.codebuddy/agents/` 中**自己的角色**文件 —— 懂权限边界（什么能改、什么不能碰）
-3. `tasks/` 中认领的 `task-XX.md` —— 懂验收标准与接口契约
+3. `docs/tasks/` 中认领的 `task-XX.md` —— 懂验收标准与接口契约
 4. 本文件 `docs/WORKFLOW.md` —— 懂流程与角色交接
 
 ---
@@ -32,7 +32,7 @@
   │      顺序：先于 task 生成，设计未定稿不派活；产出页面心智模型/交互决策/视觉规范
   │      边界：不修改业务代码；视觉规范变更经技术负责人落 spec §4
   │
-  ├─③ 技术负责人：依据定稿的 docs/mini-app-ui/ 写 tasks/task-XX.md
+  ├─③ 技术负责人：依据定稿的 docs/mini-app-ui/ 写 docs/tasks/task-XX.md
   │      要求：带【验收标准】【接口契约】【依赖】，且必须引用 spec §条款与 UI 文档对应页
   │
   ├─④ 开发工程师（后端 / 小程序 / Web）：按 task 写码

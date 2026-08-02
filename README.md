@@ -129,7 +129,7 @@ cd frontend && npm install && npm run dev:mp-weixin
 |------|------|
 | [project_spec.md](project_spec.md) | **基础规范基线（最高权威）**：技术栈 / 目录 / 跨端边界 / **不可违背的红线** / 协作纪律。所有 agent 必须服从；仅技术负责人可修改 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | **多 agent 协作流程**：需求 → 定样 → 拆 task → 开发 → 质量门禁 → 踩坑回流；含各角色交接物与阅读顺序 |
-| [tasks/](tasks/) | 开发执行单元（task-XX）：验收标准 + 接口契约 + 依赖，每个 task 必须引用 spec 条款 |
+| [docs/tasks/](docs/tasks/) | 开发执行单元（task-XX）：验收标准 + 接口契约 + 依赖，每个 task 必须引用 spec 条款 |
 | [.codebuddy/agents/](.codebuddy/agents/) | 各角色权限文件（能改 / 不能改） |
 | backend/、frontend/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |
 
@@ -139,5 +139,5 @@ cd frontend && npm install && npm run dev:mp-weixin
 
 1. `project_spec.md`（基础规范基线，先懂红线）
 2. `.codebuddy/agents/` 中**自己的角色**文件（懂权限边界）
-3. `tasks/` 中认领的 `task-XX`（懂验收与契约）
+3. `docs/tasks/` 中认领的 `task-XX`（懂验收与契约）
 4. `docs/WORKFLOW.md`（懂流程与交接）

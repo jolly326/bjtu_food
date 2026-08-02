@@ -1,7 +1,7 @@
 # 食在交大 · 项目规格说明（project_spec.md）
 
 > **基础规范基线（最高权威）**。所有 agent 与协作者必须服从本文件；冲突时以本文件为准。
-> 本文件只规定「不会轻易变、且所有端必须遵守」的基础规范。**功能 / 接口契约 / 页面设计细节见 `tasks/`**；**多 agent 协作流程见 `docs/WORKFLOW.md`**。
+> 本文件只规定「不会轻易变、且所有端必须遵守」的基础规范。**功能 / 接口契约 / 页面设计细节见 `docs/tasks/`**；**多 agent 协作流程见 `docs/WORKFLOW.md`**。
 > **唯一可修改者：技术负责人**（需求梳理师 + 架构师合并角色）。其余角色不得改动本文件，发现冲突须提技术负责人，不得自行绕过。
 
 ---
@@ -63,7 +63,7 @@
 - 分页：`PageResult<T>{ records, total, page, pageSize }`，用 MP 分页插件；单页非分页接口返回 `List<T>`。
 - 金额：存储与传输一律「分」（int/Long）；分↔元转换必须在 api 层统一（`utils/money` 的 `fenToYuan`/`yuanToFen`），**禁止页面/组件层裸算**；前端统一展示已为元的 `price`（不得再在模板 `/100`）。
 - 数据隔离：`dish.created_by=当前用户`，学生仅读写自己提交；从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId。
-- **接口契约 / 状态机 / 字段命名裁决（UGC 审核、Banner、Dish、Review、User、喜欢语义、学生 UGC 路径等）见 `tasks/task-06-contract-gaps.md`，新增接口须先在其登记再实现。**
+- **接口契约 / 状态机 / 字段命名裁决（UGC 审核、Banner、Dish、Review、User、喜欢语义、学生 UGC 路径等）见 `docs/tasks/task-06-contract-gaps.md`，新增接口须先在其登记再实现。**
 
 ## 4. UI 设计规范（Apple Design 风格）
 
@@ -111,7 +111,7 @@
 - **动效（从简）**：仅 uni-app `<transition>`（位移 ≤8rpx）与简单 CSS `transition`（opacity/transform 轻量）；禁止 `@keyframes` 长动画、大位移、`scale>1` 入场；手势 Sheet / 抽屉仍走 §4.4，入场不做复杂 keyframe。
 - **图标（SVG 矢量）**：按 §4.2 映射（本地 `assets/icons` 优先 + Iconfont 兜底）；新增语义须登记图标名并将 SVG 下载至 `frontend/src/assets/icons`，禁止 emoji 字符当图标，不得私自引入未登记图标。语义唯一：ic-heart=喜欢、ic-thumb=有用/点赞，互不混用。
 - **组件渲染（禁止 wx:for 内具名 slot 分发）**：小程序多列 / 瀑布流组件**禁止**在父组件用 `<template #x>` 向子组件同名 `<slot name="x">` 分发——uni-app 编译 mp-weixin 后父组件 N 个同名 slot 片段无法正确映射，子组件不消费该 slot 时整块**空白不渲染**（实测 `WaterfallList`：find/canteen 残留 `#card` 调用导致菜品区整块空白，阻断级 bug，2026-07-31）。`WaterfallList` 已内部 `import DishCard` 直接渲染，**禁止再向其传具名 slot**，统一 `<WaterfallList :list @card-click="goToDetail"/>` 经事件上抛父级。
-- **小程序页面级 / 组件级 UI 设计细则（三态强制、AppButton 类型白名单、表单页 scroll-view 强制、emoji 登记前置、未生效设置禁虚假控制、金额 api 层统一、关联对象走正式 API、负向操作弱化、Sheet/SegmentTabs/ReviewItem/FeedbackForm 等组件抽取契约等 28 条）见 `tasks/task-05-miniapp-ui-rework.md`，由小程序开发工程师按优先级落地；本文件仅定最高红线。**
+- **小程序页面级 / 组件级 UI 设计细则（三态强制、AppButton 类型白名单、表单页 scroll-view 强制、emoji 登记前置、未生效设置禁虚假控制、金额 api 层统一、关联对象走正式 API、负向操作弱化、Sheet/SegmentTabs/ReviewItem/FeedbackForm 等组件抽取契约等 28 条）见 `docs/tasks/task-05-miniapp-ui-rework.md`，由小程序开发工程师按优先级落地；本文件仅定最高红线。**
 - **UI 全量审计红线（2026-08-02 补充，BLOCKER 级，违反即阻断）**：以下规则自 2026-08-02 全量审计结果提炼，**与上方四条红线同属强制，新增/整改页面不得回退**：
   - **固定底栏避让**：任何含固定底栏（`submit-bar` / `comment-bar` / `action-bar`）的页面，其 `.scroll-wrap` 必须加 `padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom))`，**禁止**内容被底栏遮挡（BLOCKER 级）。
   - **事件绑定统一 `@tap`**：小程序内所有可点元素事件绑定统一用 `@tap`，**禁止**混用 `@click`（uni-app 编译 mp-weixin 时 `@click` 行为与 `@tap` 不一致，易致命中区/手势异常）。
@@ -154,9 +154,9 @@
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
 - **学生 UGC 路径**：提交档口 / 食堂仅 `POST /my/stalls`（STUDENT），发布菜品仅 `POST /dishes` 系列；严禁 `/stall-owner/**`。
 - **分页结构**：列表接口统一 `PageResult<T>{ records, total, page, pageSize }`；单页非分页返回 `List<T>`。
-- **整改影响面清单（谁改什么）见 `tasks/task-06-contract-gaps.md`，本文件不再重复。**
+- **整改影响面清单（谁改什么）见 `docs/tasks/task-06-contract-gaps.md`，本文件不再重复。**
 
 ## 6. 协作纪律
-- 本文件为**唯一权威基础规范**；功能 / 接口 / 页面设计细节以 `tasks/` 为准；多 agent 协作流程与交接物见 `docs/WORKFLOW.md`。
-- **仅技术负责人可修改本文件**；其余角色（后端 / 小程序 / Web / 质量把控工程师）发现与 `tasks/` 或代码冲突时，须提技术负责人裁定，不得自行绕过或改本文件。
+- 本文件为**唯一权威基础规范**；功能 / 接口 / 页面设计细节以 `docs/tasks/` 为准；多 agent 协作流程与交接物见 `docs/WORKFLOW.md`。
+- **仅技术负责人可修改本文件**；其余角色（后端 / 小程序 / Web / 质量把控工程师）发现与 `docs/tasks/` 或代码冲突时，须提技术负责人裁定，不得自行绕过或改本文件。
 - 踩坑经验回流：实测证伪的方案（如 §4.9 组件渲染红线）由技术负责人提炼进本文件红线。
