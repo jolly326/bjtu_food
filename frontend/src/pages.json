@@ -102,14 +102,14 @@
 			"root": "pages/pages-user/",
 			"pages": [
 				{
-					"path": "publish-moment",
+					"path": "publish-moment/index",
 					"style": {
 						"navigationBarTitleText": "发布动态",
 						"navigationStyle": "custom"
 					}
 				},
 				{
-					"path": "my-moments",
+					"path": "my-moments/index",
 					"style": {
 						"navigationBarTitleText": "我的动态",
 						"navigationStyle": "custom"
