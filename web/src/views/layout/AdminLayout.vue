@@ -1,310 +1,263 @@
 <script setup lang="ts">
+/**
+ * AdminLayout：现代控制台外壳（无侧边栏）。
+ * 顶部一级导航（Logo + 4 个功能入口 + 用户菜单），内容区全宽。
+ */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { usePageStore } from '@/stores/pageStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { useAdminUserStore } from '@/stores/adminUserStore'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import {
-  House, PriceTag, ChatDotRound, Picture, User, UserFilled, Menu,
-  Document, ChatLineSquare, Fold, ArrowLeft,
-} from '@element-plus/icons-vue'
+import { House, PriceTag, Document, User, UserFilled, ArrowDown } from '@element-plus/icons-vue'
 
 const confirm = useConfirmStore()
 
 const router = useRouter()
 const route = useRoute()
-const page = usePageStore()
 const adminUser = useAdminUserStore()
 
 const activePath = computed(() => route.path)
-// 管理员管理入口仅超级管理员可见
-const canManageAdmins = computed(() => adminUser.myRole === 'super_admin' || adminUser.myRole === 'superadmin')
 
-// 浮层抽屉：<960 默认折叠为 overlay + scrim；>=960 常驻
-const isMobile = ref(false)
-const overlayOpen = ref(false)
-function checkViewport() {
-  isMobile.value = window.innerWidth < 960
-  if (!isMobile.value) overlayOpen.value = false
+// ===== 顶部一级导航 =====
+const navItems = computed(() => [
+  { key: 'dashboard', label: '工作台', path: '/dashboard', icon: House },
+  { key: 'content', label: '信息管理', path: '/dashboard/content', icon: PriceTag },
+  { key: 'audit', label: '内容审核', path: '/dashboard/audit', icon: Document },
+  { key: 'system', label: '用户与系统', path: '/dashboard/system', icon: User },
+])
+
+/**
+ * 导航激活判断：聚合页内的详情/子路由归属对应一级入口。
+ * - 食堂详情(/dashboard/canteens/…) 归属「信息管理」
+ * - 账号设置(/dashboard/account) 归属「用户与系统」
+ */
+function isNavActive(path: string) {
+  if (path === '/dashboard') return activePath.value === '/dashboard'
+  if (path === '/dashboard/content') {
+    return activePath.value === '/dashboard/content' || activePath.value.startsWith('/dashboard/canteens')
+  }
+  if (path === '/dashboard/audit') return activePath.value.startsWith('/dashboard/audit')
+  if (path === '/dashboard/system') {
+    return activePath.value === '/dashboard/system' || activePath.value === '/dashboard/account'
+  }
+  return false
 }
-onMounted(() => {
-  checkViewport()
-  window.addEventListener('resize', checkViewport)
-})
-onUnmounted(() => window.removeEventListener('resize', checkViewport))
 
 function navTo(path: string) {
   router.push(path)
-  if (isMobile.value) overlayOpen.value = false
 }
-function toggleOverlay() {
-  overlayOpen.value = !overlayOpen.value
-}
-function goBreadcrumb(item: { label: string; path?: string }) {
-  if (item.path) router.push(item.path)
+
+// ===== 用户菜单（账号设置 / 退出登录） =====
+const userMenuOpen = ref(false)
+function goAccount() { userMenuOpen.value = false; router.push('/dashboard/account') }
+function logout() {
+  localStorage.removeItem('token')
+  localStorage.removeItem('rememberedUsername')
+  router.replace('/login')
 }
 </script>
 
 <template>
-  <div class="admin-layout">
+  <div class="admin-shell">
     <Toast />
     <ConfirmDialog />
 
-    <!-- 浮层 scrim（仅移动态显示） -->
-    <div v-if="isMobile && overlayOpen" class="scrim" @click="overlayOpen = false" />
-
-    <aside
-      class="sidebar"
-      :class="{ collapsed: isMobile && !overlayOpen, overlay: isMobile && overlayOpen }"
-    >
-      <div class="sidebar-header">
-        <span class="logo-text">食在交大管理系统</span>
-        <button v-if="isMobile" class="side-close" v-press type="button" aria-label="关闭菜单" @click="overlayOpen = false">
-          <el-icon><ArrowLeft /></el-icon>
-        </button>
+    <!-- ===== 顶部导航 ===== -->
+    <header class="topnav">
+      <div class="topnav-brand" v-press @click="navTo('/dashboard')">
+        <span class="brand-text">食在交大</span>
       </div>
-      <nav class="sidebar-nav">
-        <!-- ① 概览 -->
-        <div class="nav-group">
-          <div class="nav-group-title">概览</div>
-          <div class="nav-item" :class="{ active: activePath === '/dashboard' }" v-press @click="navTo('/dashboard')">
-            <el-icon class="nav-icon-img"><House /></el-icon><span class="nav-label">仪表盘</span>
-          </div>
-        </div>
 
-        <!-- ② 内容 -->
-        <div class="nav-group">
-          <div class="nav-group-title">内容</div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/canteens') }" v-press @click="navTo('/dashboard/canteens')">
-            <el-icon class="nav-icon-img"><House /></el-icon><span class="nav-label">食堂</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/dishes') }" v-press @click="navTo('/dashboard/dishes')">
-            <el-icon class="nav-icon-img"><PriceTag /></el-icon><span class="nav-label">菜品</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/banners') }" v-press @click="navTo('/dashboard/banners')">
-            <el-icon class="nav-icon-img"><Picture /></el-icon><span class="nav-label">轮播</span>
-          </div>
-        </div>
-
-        <!-- ③ 运营 -->
-        <div class="nav-group">
-          <div class="nav-group-title">运营</div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/reviews') }" v-press @click="navTo('/dashboard/reviews')">
-            <el-icon class="nav-icon-img"><Document /></el-icon><span class="nav-label">审核中心</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/moments') }" v-press @click="navTo('/dashboard/moments')">
-            <el-icon class="nav-icon-img"><ChatDotRound /></el-icon><span class="nav-label">动态管理</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath.startsWith('/dashboard/feedbacks') }" v-press @click="navTo('/dashboard/feedbacks')">
-            <el-icon class="nav-icon-img"><ChatLineSquare /></el-icon><span class="nav-label">反馈举报</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath === '/dashboard/users' }" v-press @click="navTo('/dashboard/users')">
-            <el-icon class="nav-icon-img"><User /></el-icon><span class="nav-label">用户</span>
-          </div>
-          <div v-if="canManageAdmins" class="nav-item" :class="{ active: activePath === '/dashboard/admins' }" v-press @click="navTo('/dashboard/admins')">
-            <el-icon class="nav-icon-img"><UserFilled /></el-icon>
-            <span class="nav-label">管理员</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath === '/dashboard/operation-logs' }" v-press @click="navTo('/dashboard/operation-logs')">
-            <el-icon class="nav-icon-img"><Document /></el-icon><span class="nav-label">操作日志</span>
-          </div>
-          <div class="nav-item" :class="{ active: activePath === '/dashboard/account' }" v-press @click="navTo('/dashboard/account')">
-            <el-icon class="nav-icon-img"><UserFilled /></el-icon>
-            <span class="nav-label">账号设置</span>
-          </div>
-        </div>
-      </nav>
-    </aside>
-
-    <div class="main-area">
-      <header class="topbar">
-        <button class="toggle-btn" v-press type="button" :aria-label="isMobile ? '打开菜单' : '折叠菜单'" @click="toggleOverlay">
-          <el-icon><Menu v-if="!isMobile || !overlayOpen" /><Fold v-else /></el-icon>
+      <nav class="topnav-nav">
+        <button
+          v-for="n in navItems"
+          :key="n.key"
+          class="topnav-item"
+          :class="{ on: isNavActive(n.path) }"
+          v-press
+          type="button"
+          @click="navTo(n.path)"
+        >
+          <span>{{ n.label }}</span>
         </button>
-        <div class="breadcrumb-bar">
-          <span v-for="(item, i) in page.breadcrumbs" :key="i" class="bc-item" :class="{ clickable: !!item.path, last: i === page.breadcrumbs.length - 1 }" @click="goBreadcrumb(item)">
-            <span class="bc-sep" v-if="i > 0">&gt;</span>
-            <span class="bc-label">{{ item.label }}</span>
-          </span>
-          <span v-if="!page.breadcrumbs.length" class="bc-placeholder">交大美食管理系统</span>
+      </nav>
+
+      <div class="topnav-right">
+        <div class="topbar-user" @click="userMenuOpen = !userMenuOpen">
+          <el-icon class="tu-ico"><UserFilled /></el-icon>
+          <span class="tu-name">{{ adminUser.myRole === 'super_admin' ? '超级管理员' : '管理员' }}</span>
+          <el-icon class="tu-caret" :class="{ open: userMenuOpen }"><ArrowDown /></el-icon>
+          <div v-if="userMenuOpen" class="user-menu" @click.stop>
+            <button class="um-item" v-press @click="goAccount">账号设置</button>
+            <button class="um-item danger" v-press @click="logout">退出登录</button>
+          </div>
+          <div v-if="userMenuOpen" class="user-menu-mask" @click="userMenuOpen = false"></div>
         </div>
-      </header>
-      <main class="content"><router-view /></main>
-    </div>
+      </div>
+    </header>
+
+    <!-- ===== 内容区（全宽） ===== -->
+    <main class="shell-content">
+      <router-view />
+    </main>
   </div>
 </template>
 
 <style scoped>
-.admin-layout {
+.admin-shell {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   background: var(--bg-page);
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
-/* ===== 侧边栏（220px 深红底，材质比顶栏更"厚"） ===== */
-.sidebar {
-  width: 220px;
+/* ===== 顶部导航：白底毛玻璃（沉稳，单一砖红点缀） ===== */
+.topnav {
+  height: var(--nav-height);
   flex-shrink: 0;
-  background: var(--color-primary-dark);
-  color: var(--text-white);
   display: flex;
-  flex-direction: column;
-  transition: transform 0.3s var(--ease-drawer), width 0.3s var(--ease-out);
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-6);
+  background: var(--nav-bg);
+  backdrop-filter: var(--nav-blur);
+  -webkit-backdrop-filter: var(--nav-blur);
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent);
+  position: sticky;
+  top: 0;
   z-index: 30;
 }
-.sidebar.collapsed {
-  /* 移动态：移出视口（非 width:0 硬切） */
-  transform: translateX(-100%);
-  width: 220px;
+@media (prefers-reduced-transparency: reduce) {
+  .topnav { background: var(--bg-card); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
-.sidebar.overlay {
-  position: fixed;
-  inset: 0 auto 0 0;
-  box-shadow: var(--shadow-pop);
-}
-.sidebar-header {
-  height: 60px;
+.topnav-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-5);
-  border-bottom: 1px solid color-mix(in srgb, var(--text-white) 10%, transparent);
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  transition: background 0.2s var(--ease-out);
 }
-.logo-text {
-  font-size: var(--font-xl);
-  font-weight: var(--weight-semibold);
+.topnav-brand:hover { background: var(--bg-soft); }
+.brand-text {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.side-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px; height: 32px;
-  border: none; background: none; color: var(--text-white);
-  cursor: pointer; border-radius: var(--radius-sm);
-}
-.side-close:active { transform: scale(var(--press-scale)); }
-.sidebar-nav { flex: 1; padding: var(--space-2) 0; overflow-y: auto; }
-.nav-group { padding: var(--space-2) 0; }
-.nav-group-title {
-  padding: var(--space-2) var(--space-5);
-  font-size: var(--font-xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-white) 45%, transparent);
-  user-select: none;
-}
-.nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: var(--space-3) var(--space-5);
-  cursor: pointer;
-  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
-  color: color-mix(in srgb, var(--text-white) 80%, transparent);
-  white-space: nowrap;
-  user-select: none;
-}
-@media (hover: hover) {
-  .nav-item:hover {
-    color: var(--text-white);
-    background: color-mix(in srgb, var(--text-white) 8%, transparent);
-  }
-}
-/* 激活项：轻亮背景 + 左侧 3px 主色竖条 */
-.nav-item.active {
-  color: var(--text-white);
-  background: color-mix(in srgb, var(--text-white) 14%, transparent);
-}
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--text-white);
-  border-radius: 0 2px 2px 0;
-}
-.nav-icon-img {
-  width: 18px;
-  height: 18px;
-  margin-right: var(--space-3);
-  flex-shrink: 0;
-  color: inherit;
-}
-.nav-label { font-size: var(--font-base); flex: 1; }
-
-/* ===== 主区 ===== */
-.main-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.topbar {
-  height: 60px;
-  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
-  backdrop-filter: var(--blur-material);
-  -webkit-backdrop-filter: var(--blur-material);
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-5);
-  box-shadow: var(--shadow-card);
-  gap: var(--space-3);
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border-light);
-}
-.toggle-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  transition: background 0.2s var(--ease-out), transform 160ms var(--ease-out);
-}
-@media (hover: hover) {
-  .toggle-btn:hover { background: var(--bg-hover); }
-}
-.toggle-btn:active { transform: scale(var(--press-scale)); }
-.breadcrumb-bar {
+.topnav-nav {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
 }
-.bc-item { display: flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
-.bc-item.clickable { cursor: pointer; }
-@media (hover: hover) {
-  .bc-item.clickable:hover .bc-label { color: var(--color-primary); text-decoration: underline; }
+.topnav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
-.bc-item.last .bc-label { color: var(--text-primary); font-weight: var(--weight-medium); font-size: var(--font-md); }
-.bc-sep { color: var(--text-light); font-size: var(--font-sm); padding: 0 var(--space-1); }
-.bc-label { font-size: var(--font-base); color: var(--text-secondary); transition: color .15s var(--ease-out); }
-.bc-placeholder { color: var(--text-primary); font-weight: var(--weight-medium); font-size: var(--font-md); }
+.topnav-item:hover { background: var(--bg-soft); color: var(--text-primary); }
+.topnav-item:active { transform: scale(var(--press-scale)); }
+.topnav-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.topnav-item.on { background: var(--nav-item-active-bg); color: var(--nav-item-active-color); font-weight: var(--weight-semibold); }
 
-.content { flex: 1; padding: 0; overflow-y: auto; overflow-x: hidden; }
-
-/* ===== 浮层 scrim（移动态） ===== */
-.scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 25;
-  backdrop-filter: var(--blur-material);
-  -webkit-backdrop-filter: var(--blur-material);
+.topnav-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .topbar, .scrim { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg-card); }
-  .scrim { background: rgba(0, 0, 0, 0.55); }
+/* ===== 用户菜单 ===== */
+.topbar-user {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-secondary);
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+}
+.topbar-user:hover { background: var(--bg-hover); color: var(--text-primary); }
+.topbar-user:active { transform: scale(var(--press-scale)); }
+.tu-ico { width: 18px; height: 18px; }
+.tu-name { font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); }
+.tu-caret { width: 14px; height: 14px; color: var(--text-light); transition: transform 0.2s var(--ease-out); }
+.tu-caret.open { transform: rotate(180deg); }
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  padding: var(--space-1);
+  z-index: 60;
+  animation: user-menu-in 0.16s var(--ease-out) both;
+  transform-origin: top right;
+}
+@keyframes user-menu-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sidebar { transition: none; }
+  .user-menu { animation: none; }
+}
+.um-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: none;
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
+}
+.um-item:hover { background: var(--bg-soft); }
+.um-item.danger { color: var(--color-error); }
+.um-item.danger:hover { background: var(--color-error-bg); }
+.user-menu-mask { position: fixed; inset: 0; z-index: 55; }
+
+/* ===== 内容区 ===== */
+.shell-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* 页面留白统一由 PageContainer 控制，避免双 padding */
+}
+@media (max-width: 767px) {
+  .topnav { padding: 0 var(--space-3); gap: var(--space-2); }
+  /* 窄屏：导航只显示图标，节省横向空间 */
+  .topnav-item span { display: none; }
+  .topnav-item { padding: var(--space-2); }
+  .brand-text { display: none; }
+  .tu-name { display: none; }
 }
 </style>

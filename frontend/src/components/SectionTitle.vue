@@ -46,10 +46,11 @@ defineEmits<{
   flex-shrink: 0;
 }
 .section-text {
-  font-size: var(--font-h3);
-  font-weight: 700;
+  /* Apple Design Typography：分区标题加大（h2 级）并加重（800），强化信息层级 */
+  font-size: var(--font-h2);
+  font-weight: var(--weight-heavy);
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-h2);
   flex: 1;
   min-width: 0;
 }

@@ -1,42 +1,27 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
 import FormDialog from '@/components/FormDialog.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import { useAdminStore } from '@/stores/adminStore'
-import {
-  Food, House, Shop, ChatDotRound,
-} from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 import type { ApplyActionVO, ApplyEntityType, ApplyStatus, ApplyType } from '@/api/apply'
 
 type EntityTab = ApplyEntityType | 'review'
 
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
 const store = useAdminStore()
 
 const entityLabel: Record<EntityTab, string> = { dish: '菜品', stall: '档口', canteen: '食堂', review: '评价' }
-const entityIcon: Record<EntityTab, any> = { dish: Food, stall: Shop, canteen: House, review: ChatDotRound }
-const entityTabs: EntityTab[] = ['dish', 'stall', 'canteen', 'review']
 const applyTypeLabel: Record<ApplyType, string> = { NEW: '新增', CLOSE: '下架/关闭', CHANGE: '变更' }
 
-// 当前选中的审核类型（默认菜品）
-const entityType = ref<EntityTab>('dish')
-
-// 面包屑随 tab 更新
-watch(entityType, (t) => {
-  page.setPage({
-    breadcrumbs: [{ label: '审核中心' }, { label: `${entityLabel[t]}审核` }],
-    searchPlaceholder: t === 'review' ? '搜索评价内容...' : '搜索名称/提交人...',
-  })
-}, { immediate: true })
+// 由聚合页传入审核类型（dish=申请审核，review=评价审核）
+const props = withDefaults(defineProps<{ initialEntity?: string }>(), { initialEntity: 'dish' })
+const entityType = ref<EntityTab>(props.initialEntity as EntityTab)
 
 type AuditStatus = 'pending' | 'approved' | 'rejected'
 const statusLabel: Record<AuditStatus, string> = { pending: '待审核', approved: '已通过', rejected: '已退回' }
@@ -45,8 +30,8 @@ const statusTagType: Record<AuditStatus, 'warning' | 'success' | 'danger'> = {
   approved: 'success',
   rejected: 'danger',
 }
+// 申请审核默认只展示「待审核」（待办优先，无状态 tab）；评价展示全部（显隐状态标签列）
 
-const activeStatus = ref<AuditStatus>('pending')
 const loading = ref(false)
 const error = ref('')
 const rows = ref<ApplyActionVO[]>([])
@@ -55,8 +40,9 @@ const reviews = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 
 const isReview = computed(() => entityType.value === 'review')
+const isPending = true
 
-const searchQuery = computed(() => page.searchQuery.trim().toLowerCase())
+const searchQuery = ref('')
 const filtered = computed(() => {
   const q = searchQuery.value
   if (!q) return isReview.value ? reviews.value : rows.value
@@ -76,12 +62,13 @@ async function loadList() {
   try {
     if (isReview.value) {
       const { auditApi } = await import('@/api')
-      // 评价三态映射：待审核/已通过 → 显示中(未隐藏)；已退回 → 已隐藏
-      const isHidden = activeStatus.value === 'rejected' ? true : false
-      reviews.value = await auditApi.listReviews(isHidden)
+      // 查全部评价（显示中/已隐藏），显隐状态由列表标签列展示
+      reviews.value = await auditApi.listReviews()
     } else {
       const { listApply } = await import('@/api/apply')
-      rows.value = await listApply({ entityType: entityType.value as ApplyEntityType, status: activeStatus.value })
+      // 全部实体（菜品/档口/食堂）的待审核申请
+      const res = await listApply({ status: 'pending' })
+      rows.value = res.list
     }
   } catch (e: any) {
     error.value = e.message || '加载审核列表失败'
@@ -93,16 +80,6 @@ async function loadList() {
 }
 
 onMounted(loadList)
-
-async function onEntityChange(t: EntityTab) {
-  entityType.value = t
-  activeStatus.value = 'pending'
-  await loadList()
-}
-async function onStatusChange(s: AuditStatus) {
-  activeStatus.value = s
-  await loadList()
-}
 
 // ===== payload 预览标题（新增/变更类无实体名时，用 payload 预览） =====
 function previewTitle(r: ApplyActionVO): string {
@@ -135,8 +112,6 @@ function openReviewDetail(r: any) {
   detailReview.value = r
 }
 function closeDetail() { detail.value = null; detailReview.value = null }
-
-const isPending = computed(() => activeStatus.value === 'pending')
 
 async function approve(row: ApplyActionVO) {
   processingId.value = Number(row.id)
@@ -189,6 +164,35 @@ async function setHidden(r: any, hidden: boolean) {
     processingId.value = null
   }
 }
+// 行内快捷隐藏/显示（Switch 直切，无需确认）
+async function toggleHidden(r: any, hidden: boolean) {
+  await setHidden(r, hidden)
+}
+
+// ===== 评价批量操作（隐藏/显示/删除） =====
+async function batchReviews(hidden: boolean | null) {
+  if (!selectedIds.value.length) return
+  if (hidden === null) {
+    if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 条评价？此操作不可恢复。`)) return
+  } else {
+    if (!await confirm.confirm(`确定批量${hidden ? '隐藏' : '显示'} ${selectedIds.value.length} 条评价？`)) return
+  }
+  processingId.value = -1
+  try {
+    const { auditApi } = await import('@/api')
+    for (const id of selectedIds.value) {
+      if (hidden === null) await auditApi.deleteReview(id)
+      else await auditApi.setReviewHidden(id, hidden)
+    }
+    toast.success(hidden === null ? `已删除 ${selectedIds.value.length} 条评价` : `已批量${hidden ? '隐藏' : '显示'} ${selectedIds.value.length} 条评价`)
+    selectedIds.value = []
+    await loadList()
+  } catch (e: any) {
+    toast.error(e.message || '批量操作失败')
+  } finally {
+    processingId.value = null
+  }
+}
 async function removeReview(r: any) {
   if (!await confirm.confirm('确定删除该评价？此操作不可恢复。')) return
   processingId.value = Number(r.id)
@@ -233,38 +237,30 @@ function applicantName(r: ApplyActionVO): string {
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="审核中心" :count="filtered.length" />
-
-    <!-- 审核类型切换 tab bar（菜品 / 档口 / 食堂 / 评价） -->
-    <FilterBar>
-      <template #tabs>
-        <button v-for="t in entityTabs" :key="t"
-          class="tab entity-tab" :class="{ 'tab-on': entityType === t }" v-press @click="onEntityChange(t)">
-          <el-icon class="entity-ico"><component :is="entityIcon[t]" /></el-icon>{{ entityLabel[t] }}
-        </button>
+    <!-- 无 tab：申请固定待审核列表，评价全量列表（显隐状态列标签） -->
+    <FilterBar v-model="searchQuery">
+      <template #actions>
+        <template v-if="isReview && selectedIds.length">
+          <button class="btn-secondary" v-press type="button" @click="batchReviews(true)">批量隐藏（{{ selectedIds.length }}）</button>
+          <button class="btn-secondary" v-press type="button" @click="batchReviews(false)">批量显示</button>
+          <button class="btn-danger" v-press type="button" @click="batchReviews(null)">批量删除</button>
+        </template>
       </template>
     </FilterBar>
-
-    <!-- 审核状态分段（三态切换） -->
-    <div class="tabs status-tabs">
-      <button v-for="s in (['pending','approved','rejected'] as AuditStatus[])" :key="s"
-        class="tab status-tab" :class="{ 'tab-on': activeStatus === s }" @click="onStatusChange(s)">
-        {{ statusLabel[s] }}
-      </button>
-      <span class="tab-count">{{ statusLabel[activeStatus] }} {{ filtered.length }} 条</span>
-    </div>
 
     <!-- 评价审核表 -->
     <DataTable
       v-if="isReview"
+      selectable
+      v-model:selectedIds="selectedIds"
       :columns="[
         { prop: 'user', label: '用户' },
-        { prop: 'rating', label: '评分', width: '120px' },
-        { prop: 'content', label: '内容' },
+        { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
+        { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'dish', label: '菜品' },
-        { prop: 'status', label: '状态', width: '120px', align: 'center' },
-        { prop: 'actions', label: '操作', width: '200px', align: 'center' },
+        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
+        { prop: 'status', label: '状态', width: '110px', align: 'center' },
+
       ]"
       :rows="filtered"
       :loading="loading"
@@ -279,13 +275,22 @@ function applicantName(r: ApplyActionVO): string {
         <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
       </template>
       <template #cell-dish="{ row }">{{ getDishName(row.dish_id) }}</template>
+      <template #cell-time="{ row }">{{ row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '—' }}</template>
       <template #cell-status="{ row }">
-        <StatusTag :type="row.is_hidden ? 'danger' : 'success'" :text="row.is_hidden ? '已隐藏' : '显示中'" />
+        <div class="status-cell">
+          <el-switch
+            :model-value="!row.is_hidden"
+            :loading="processingId === Number(row.id)"
+            :disabled="processingId === Number(row.id)"
+            @change="(v: any) => toggleHidden(row, !v)"
+          />
+          <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
+        </div>
       </template>
       <template #actions="{ row }">
-        <button v-if="!row.is_hidden" class="link danger" :disabled="processingId === Number(row.id)" v-press @click="setHidden(row, true)">隐藏</button>
-        <button v-else class="link primary-text" :disabled="processingId === Number(row.id)" v-press @click="setHidden(row, false)">显示</button>
-        <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="removeReview(row)">删除</button>
+        <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="removeReview(row)">
+          <el-icon class="act-ico"><Delete /></el-icon>删除
+        </button>
       </template>
     </DataTable>
 
@@ -293,18 +298,21 @@ function applicantName(r: ApplyActionVO): string {
     <DataTable
       v-else
       :columns="[
+        { prop: 'type', label: '类型', width: '90px', align: 'center' },
         { prop: 'title', label: '名称 / 预览' },
-        { prop: 'applyType', label: '申请类型', width: '140px', align: 'center' },
-        { prop: 'applicant', label: '提交人', width: '160px' },
-        { prop: 'status', label: '状态', width: '110px', align: 'center' },
-        { prop: 'time', label: '提交时间', width: '160px' },
-        { prop: 'actions', label: '操作', width: '160px', align: 'center' },
+        { prop: 'applyType', label: '申请类型', width: '130px', align: 'center' },
+        { prop: 'applicant', label: '提交人', width: '150px' },
+        { prop: 'time', label: '提交时间', width: '160px', sortable: true, sortValue: (row) => row.createdAt },
+
       ]"
       :rows="filtered"
       :loading="loading"
       :error="error"
-      :empty-text="`暂无${statusLabel[activeStatus]}的${entityLabel[entityType]}申请`"
+      empty-text="暂无待审核的申请"
     >
+      <template #cell-type="{ row }">
+        <StatusTag :type="row.entityType === 'canteen' ? 'warning' : 'info'" :text="entityLabel[row.entityType as EntityTab]" />
+      </template>
       <template #cell-title="{ row }">
         <button class="link" v-press @click="openDetail(row)">{{ previewTitle(row) }}</button>
       </template>
@@ -319,14 +327,11 @@ function applicantName(r: ApplyActionVO): string {
         <StatusTag :type="statusTagType[row.status as AuditStatus]" :text="statusLabel[row.status as AuditStatus]" />
       </template>
       <template #cell-time="{ row }">
-        {{ row.createdAt ? new Date(row.createdAt).toLocaleDateString('zh-CN') : '—' }}
+        {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '—' }}
       </template>
       <template #actions="{ row }">
-        <template v-if="isPending">
-          <button class="link primary-text" :disabled="processingId === Number(row.id)" v-press @click="approve(row)">通过</button>
-          <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="openDetail(row)">退回</button>
-        </template>
-        <button v-else class="link" v-press @click="openDetail(row)">查看</button>
+        <button class="link primary-text" :disabled="processingId === Number(row.id)" v-press @click="approve(row)">通过</button>
+        <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="openDetail(row)">退回</button>
       </template>
     </DataTable>
 
@@ -386,7 +391,6 @@ function applicantName(r: ApplyActionVO): string {
         <button class="btn-danger" :disabled="processingId === Number(detailReview.id)" v-press @click="removeReview(detailReview)">删除</button>
       </div>
     </FormDialog>
-  </PageContainer>
 </template>
 
 <style scoped>
@@ -404,6 +408,12 @@ function applicantName(r: ApplyActionVO): string {
 
 .stars { color: var(--color-star); letter-spacing: 1px; }
 .star-off { color: var(--border-strong); }
+/* 行内状态开关 */
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--color-error); }
+.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
 .detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
 .detail-img { width: 100px; height: 100px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
 

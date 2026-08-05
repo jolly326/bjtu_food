@@ -11,7 +11,7 @@
     @tap="handleClick"
   >
     <view class="card-image">
-      <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="card-img" @error="imgOk = false" />
+      <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="card-img" lazy-load @error="imgOk = false" />
       <view v-else class="image-placeholder">
         <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
@@ -46,8 +46,10 @@ const props = defineProps<{
   dish: Dish
 }>()
 
+// 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
+// 父组件 @click 编译为原生 bindclick，emit 参数丢失（同 MomentCard 坑）。
 const emit = defineEmits<{
-  click: [dish: Dish]
+  select: [dish: Dish]
 }>()
 
 /** 按压反馈：按下时整体缩放到 0.97（跨端兼容，替代小程序不支持的 v-press 指令） */
@@ -60,7 +62,7 @@ const imgSrc = computed(() => getImageUrl(props.dish.image))
 const imgOk = ref(true)
 
 function handleClick() {
-  emit('click', props.dish)
+  emit('select', props.dish)
 }
 </script>
 
@@ -120,7 +122,7 @@ function handleClick() {
 .rating-text {
   color: var(--text-white);
   font-size: var(--font-tiny);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .card-info {
   padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
@@ -129,7 +131,7 @@ function handleClick() {
 .card-name {
   display: block;
   font-size: var(--font-body);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--text-primary);
@@ -164,7 +166,7 @@ function handleClick() {
 .card-price {
   font-size: var(--font-caption);
   color: var(--color-price);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }

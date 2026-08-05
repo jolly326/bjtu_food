@@ -138,14 +138,20 @@ public interface ReviewService {
      * @param isDeleted 兼容旧接口参数，现有数据库未使用
      * @return 分页评价列表
      */
-    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted);
+    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId);
 
     /**
      * 切换隐藏/显示评价
      *
      * @param id 评价ID
      */
-    void toggleHide(Long id);
+    /**
+     * 设置评价隐藏状态（显式，非 toggle）
+     *
+     * @param id     评价ID
+     * @param hidden true=隐藏 false=显示
+     */
+    void setHidden(Long id, boolean hidden);
 
     /**
      * 管理员删除评价（软删除）

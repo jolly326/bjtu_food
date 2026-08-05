@@ -96,7 +96,7 @@ public class SecurityConfig {
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES).permitAll()
                         // 管理端接口需要管理员角色
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )

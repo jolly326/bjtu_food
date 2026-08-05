@@ -15,8 +15,12 @@ public interface RoleConst {
     /** 管理员（浏览器管理端使用） */
     String ADMIN = "admin";
 
+    /** 超级管理员（可管理 ADMIN 账号，仅此角色可访问 /admin/admins/**） */
+    String SUPER_ADMIN = "super_admin";
+
     // ==================== Spring Security 角色名（带前缀） ====================
 
     String ROLE_STUDENT = "ROLE_STUDENT";
     String ROLE_ADMIN = "ROLE_ADMIN";
+    String ROLE_SUPER_ADMIN = "ROLE_SUPER_ADMIN";
 }

@@ -3,7 +3,6 @@ package com.bjtufood.canteen.controller;
 import com.bjtufood.canteen.dto.MyPublishStallVO;
 import com.bjtufood.canteen.dto.StallUgcSubmitReq;
 import com.bjtufood.canteen.service.StallService;
-import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -45,7 +44,7 @@ public class MyStallController {
                     + "前端依据 canteenId 是否为 null 推断 type=stall/canteen。"
     )
     @GetMapping
-    @PreAuthorize("hasRole('" + RoleConst.STUDENT + "')")
+    @PreAuthorize("hasRole('STUDENT')")
     public Result<List<MyPublishStallVO>> listMySubmissions() {
         return Result.success(stallService.listMySubmissions());
     }

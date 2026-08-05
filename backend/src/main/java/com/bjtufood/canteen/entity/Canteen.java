@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -32,6 +33,14 @@ public class Canteen {
     /** 食堂位置 */
     @Schema(description = "食堂位置")
     private String location;
+
+    /** 纬度（GCJ-02，距离排序用） */
+    @Schema(description = "纬度（GCJ-02）")
+    private BigDecimal latitude;
+
+    /** 经度（GCJ-02，距离排序用） */
+    @Schema(description = "经度（GCJ-02）")
+    private BigDecimal longitude;
 
     /** 食堂描述 */
     @Schema(description = "食堂描述")

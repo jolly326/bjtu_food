@@ -46,6 +46,9 @@ public class MomentVO {
     @Schema(description = "关联对象名称（菜品名/档口名，可选）")
     private String relatedName;
 
+    @Schema(description = "关联档口所属食堂名（仅 relatedType=stall 返回，供前端跳档口详情携带 navParams.canteen）")
+    private String relatedCanteen;
+
     @Schema(description = "审核状态：pending/approved/rejected")
     private String auditStatus;
 

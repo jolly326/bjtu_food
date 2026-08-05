@@ -54,11 +54,13 @@
         <text class="char-count">{{ form.description.length }}/500</text>
       </CardSection>
 
-      <view class="submit-wrap">
-        <AppButton :text="isEdit ? '保存并重新提交' : '发布菜品'" :loading="submitting" @click="handleSubmit" />
-      </view>
-      <view style="height: var(--spacing-lg)" />
+      <view style="height: var(--spacing-xl)" />
     </scroll-view>
+
+    <!-- 底部提交（固定吸底，与 publish-moment/profile-edit 同款 submit-bar） -->
+    <view class="submit-bar">
+      <AppButton :text="isEdit ? '保存并重新提交' : '发布菜品'" :loading="submitting" @click="handleSubmit" />
+    </view>
   </view>
 </template>
 
@@ -169,24 +171,27 @@ onLoad((query: any) => {
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0; }
 .field { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }
 .field:last-child { border-bottom: none; }
-.field-label { font-size: var(--font-body); color: var(--text-primary); font-weight: 500; width: 160rpx; flex-shrink: 0; }
+.field-label { font-size: var(--font-body); color: var(--text-primary); font-weight: var(--weight-medium); width: 160rpx; flex-shrink: 0; }
 .req { color: var(--color-error); margin-left: 4rpx; }
-.field-input { flex: 1; font-size: 32rpx; color: var(--text-primary); min-width: 0; }
-.picker-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md) 0; border-bottom: 2rpx solid var(--border-color); }
+.field-input { flex: 1; font-size: var(--font-body); color: var(--text-primary); min-width: 0; }
+.picker-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md) 0; border-bottom: 2rpx solid var(--border-color); transition: background-color 120ms var(--ease-out); border-radius: var(--radius-sm); margin: 0 calc(var(--spacing-sm) * -1); padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
 .picker-row:last-child { border-bottom: none; }
-.picker-label { font-size: var(--font-body); color: var(--text-primary); font-weight: 500; width: 160rpx; flex-shrink: 0; }
+.picker-row:active { background-color: var(--bg-soft); }
+.picker-label { font-size: var(--font-body); color: var(--text-primary); font-weight: var(--weight-medium); width: 160rpx; flex-shrink: 0; }
 .picker-value { flex: 1; font-size: var(--font-body); color: var(--text-secondary); }
 .picker-arrow { font-size: 28rpx; line-height: 1; opacity: 0.3; flex-shrink: 0; }
 .tag-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-xs) 0; }
 .tag-chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-page); font-size: var(--font-aux); color: var(--text-secondary); border: 2rpx solid var(--border-color); }
-.tag-chip.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
+.tag-chip.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: var(--weight-semibold); }
 .tag-chip { transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .tag-chip:active { transform: scale(var(--press-scale)); }
 /* 复用 ImageUploader：保持与历史设计一致的 180rpx 单元格尺寸 */
 .dish-image-uploader { width: 100%; }
 .dish-image-uploader :deep(.img-cell) { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); }
 .dish-image-uploader :deep(.img-remove) { width: 36rpx; height: 36rpx; }
-.desc-input { width: 100%; min-height: 160rpx; font-size: 32rpx; color: var(--text-primary); padding: var(--spacing-sm); border: 2rpx solid var(--border-color); border-radius: var(--radius-icon); box-sizing: border-box; }
+/* 描述框：与写评价/反馈弹窗 textarea 同款（bg-page 浅底 + radius-card + 无边框） */
+.desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); border: none; box-sizing: border-box; }
 .char-count { display: block; text-align: right; font-size: var(--font-tiny); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-.submit-wrap { padding: var(--spacing-md); }
+/* 底部提交栏：吸底（页面 flex 纵向，scroll-wrap flex:1），与 publish-moment/profile-edit 同款 */
+.submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 </style>

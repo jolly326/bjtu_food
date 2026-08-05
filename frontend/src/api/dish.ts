@@ -61,13 +61,14 @@ export function toDish(raw: any): Dish {
     images,
     rating: raw.avgRating ?? raw.rating ?? 0,
     ratingCount: raw.ratingCount ?? raw.rating_count ?? 0,
-    likeCount: Number(raw.likeCount ?? raw.favoriteCount ?? 0),
+    favoriteCount: Number(raw.favoriteCount ?? 0),
     tags: tags.map((t: string) => TAG_MAP[t] || t),
     description: raw.description || '',
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
+    stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
     isNew: !!raw.isNew,
-    isLiked: !!(raw.isLiked ?? raw.isFavorited),
+    isFavorited: !!raw.isFavorited,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
     // ===== task-03 位置链路（来自 stall 联表） =====
@@ -97,8 +98,10 @@ export async function getRecommendList(): Promise<Dish[]> {
   return recordsOf<any>(await get('/dishes/hot')).map(toDish)
 }
 
-export async function getStallDishes(_canteen: string, stallName: string): Promise<Dish[]> {
-  const res = await get<any>('/dishes', { keyword: stallName, page: 1, pageSize: 50 })
+/** 档口菜品：按 stallId 精确过滤（后端 GET /dishes 已支持 stallId，避免 keyword 模糊搜索召回同名菜品） */
+export async function getStallDishes(stallId: number): Promise<Dish[]> {
+  if (!stallId) return []
+  const res = await get<any>('/dishes', { stallId, page: 1, pageSize: 50 })
   return recordsOf<any>(res).map(toDish)
 }
 
@@ -106,7 +109,7 @@ export async function getStallDishes(_canteen: string, stallName: string): Promi
  * 通用菜品检索（task-02 多维筛选结果页 + task-01 首页无限加载）
  * 复用 GET /dishes，支持 keyword / canteenId / tag / minPrice / maxPrice / sortBy / sortOrder / page / pageSize。
  * 金额 minPrice/maxPrice 由前端「元」在 API 层转「分」提交（§3.x 金额红线）。
- * sortBy 取值（ARCH §3.1）：heat / rating / price / created_at / likeCount。
+ * sortBy 取值（ARCH §3.1）：heat / rating / price / created_at / collects。
  * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
@@ -116,7 +119,6 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.canteenId != null) params.canteenId = query.canteenId
-  if (query.canteen) params.canteen = query.canteen
   if (query.tag) params.tag = query.tag
   if (query.spiceLevel != null) params.spiceLevel = query.spiceLevel
   if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)
@@ -176,12 +178,19 @@ export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
     id: Number(item.id ?? 0),
     name: item.name || '',
     image: getImageUrl(item.image || ''),
+    // 档口需携带所属食堂名（后端 suggest 已联表返回 canteen），跳档口详情要 navParams.canteen
+    canteen: item.canteen || undefined,
   }))
 }
 
-/** 首页热门瀑布流首屏：复用 /dishes/hot（公开 TOP 列表） */
-export async function getHomeHotDishes(limit = 20): Promise<Dish[]> {
-  const res = await get<any>('/dishes/hot', { limit })
+/** 首页热门瀑布流首屏：复用 /dishes/hot（公开 TOP 列表；可选 lat/lng 按距离加权排序） */
+export async function getHomeHotDishes(limit = 20, lat?: number | null, lng?: number | null): Promise<Dish[]> {
+  const params: Record<string, unknown> = { limit }
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    params.lat = lat
+    params.lng = lng
+  }
+  const res = await get<any>('/dishes/hot', params)
   return recordsOf<any>(res).map(toDish)
 }
 

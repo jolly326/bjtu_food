@@ -22,10 +22,9 @@ const props = defineProps<{
   current: string
 }>()
 
-// 4 Tab（首页/发现/动态/我的），统一矢量图标（task-15）
+// 3 Tab（首页/动态/我的，2026-08-03 去掉"发现"——搜索改为首页顶部入口跳转二级页）
 const tabs = [
   { text: '首页', page: '/pages/home/index', icon: 'home' },
-  { text: '发现', page: '/pages/find/index', icon: 'search' },
   { text: '动态', page: '/pages/community/index', icon: 'comment' },
   { text: '我的', page: '/pages/profile/index', icon: 'profile' },
 ]
@@ -94,6 +93,6 @@ function switchTab(page: string) {
 }
 .tab-item.active .tab-text {
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 </style>

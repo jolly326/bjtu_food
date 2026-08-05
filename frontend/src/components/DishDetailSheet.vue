@@ -1,11 +1,12 @@
 <template>
   <view class="dish-sheet-root">
-    <!-- 半透明遮罩（点击关闭） -->
+    <!-- 半透明遮罩（点击关闭；touchmove.stop 防背景滚动穿透，小程序 catchtouchmove） -->
     <view
       v-if="open"
       class="sheet-mask"
       :class="{ show: maskShow }"
       @tap="requestClose"
+      @touchmove.stop.prevent="noop"
     />
 
     <!-- 底部弹层：复用 ApplySheet 抽屉动画范式（spring 0.8/0.3、仅向下下拉、reduced-motion 交叉淡入） -->
@@ -19,12 +20,16 @@
       @touchcancel="onSheetTouchEnd"
     >
       <view class="sheet-grabber" />
+      <!-- 头部按钮：覆盖在图片上方（圆形半透明底），返回箭头向下（提示下拉关闭）。
+           用 arrow-down 图标直接指下，不依赖 transform 旋转（微信小程序方向不可靠） -->
       <view class="sheet-head">
-        <text class="sheet-title">菜品详情</text>
-        <view class="sheet-head-actions">
-          <IconSvg name="share" :size="36" color="var(--text-tertiary)" class="sheet-head-action" @tap="onShare" />
-          <IconSvg name="close" :size="36" color="var(--text-tertiary)" class="sheet-head-action" @tap="requestClose" />
+        <view class="sheet-round-btn" @tap="requestClose">
+          <IconSvg name="arrow-down" :size="34" color="var(--text-white)" />
         </view>
+        <!-- 分享：微信原生组件（open-type=share → 页面 onShareAppMessage，task todo#5） -->
+        <button class="sheet-round-btn sheet-round-btn-share" open-type="share" @tap="onShareTap">
+          <IconSvg name="share" :size="30" color="var(--text-white)" />
+        </button>
       </view>
 
       <!-- 滚动内容区 -->
@@ -56,82 +61,43 @@
         <template v-else-if="dish">
           <ImageSwiper :images="dish.images || [dish.image]" />
 
+          <!-- hero 卡（2026-08-03 精简）：名称 +「信息有误？」/ 价格 / 标徽 / 评分 / 一句话简介；无"菜品信息"卡片 -->
           <CardSection>
-            <view class="title-row" @longpress="onDishLongPress">
-              <text class="dish-name">{{ dish.name }}</text>
-              <view class="price-box">
-                <block v-if="hasPromo">
-                  <text class="promo-price">¥{{ dish.promoPrice }}</text>
-                  <text class="origin-price">¥{{ dish.originalPrice }}</text>
-                  <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-hot)" /> 限时</text>
-                </block>
-                <text v-else class="price-text">¥{{ dish.price }}</text>
-              </view>
+            <view class="title-row">
+              <text class="dish-name" @longpress="onDishLongPress">{{ dish.name }}</text>
+              <text class="feedback-link" @tap="openApply">信息有误？</text>
             </view>
-
+            <view class="price-row">
+              <block v-if="hasPromo">
+                <text class="promo-price">¥{{ dish.promoPrice }}</text>
+                <text class="origin-price">¥{{ dish.originalPrice }}</text>
+                <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-hot)" /> 限时</text>
+              </block>
+              <text v-else class="price-text">¥{{ dish.price }}</text>
+            </view>
             <view class="tag-row" v-if="dishTagList.length > 0">
               <TagLabel v-for="tag in dishTagList" :key="tag" :text="tag" />
             </view>
-
-            <view class="rating-row">
+            <view class="rating-row" v-if="dish.rating > 0">
               <view class="star-num">
                 <IconSvg name="star-filled" :size="28" color="var(--color-star)" />
                 <text class="star-num-text">{{ dish.rating }}</text>
               </view>
             </view>
-          </CardSection>
-
-          <!-- ===== 合并卡片：位置与营业 / 菜品属性 / 菜品介绍，单卡内有序分区 ===== -->
-          <CardSection title="菜品信息">
-            <!-- 分区一：位置与营业 -->
-            <view class="info-block">
-              <view class="info-row info-row-tap" @tap="goToCanteen">
-                <IconSvg name="location" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">所在位置</text>
-                <text class="info-row-value">{{ locationText }}</text>
-                <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="info-row-arrow" />
-              </view>
-              <view class="info-row info-row-tap" v-if="dish.businessHours" @tap="goToStall">
-                <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">营业时段</text>
-                <text class="info-row-value">{{ dish.businessHours }}</text>
-                <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="info-row-arrow" />
-              </view>
+            <!-- 位置（2026-08-03 恢复）：食堂 › 楼层 › 档口 › 窗口；从档口详情页打开时（hideLocation）仅展示不可跳转，避免循环 -->
+            <view class="loc-row" :class="{ 'loc-row-static': hideLocation }" @tap="!hideLocation && goToStall()">
+              <IconSvg name="location" :size="24" color="var(--color-primary)" class="loc-icon" />
+              <text class="loc-text">{{ locationText }}</text>
+              <IconSvg v-if="!hideLocation" name="arrow" :size="24" color="var(--text-tertiary)" class="loc-arrow" />
             </view>
-
-            <!-- 分区二：菜品属性 -->
-            <view class="info-block info-block-divider" v-if="attrTags.length > 0">
-              <view class="info-row" v-if="spiceLabel">
-                <IconSvg name="chili" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">辣度</text>
-                <text class="info-row-value">{{ spiceLevelText }}</text>
-              </view>
-              <view class="info-row" v-if="portionLabel">
-                <IconSvg name="portion" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">分量</text>
-                <text class="info-row-value">{{ portionLevelText }}</text>
-              </view>
-              <view class="info-row" v-if="dish.limited">
-                <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">供应</text>
-                <text class="info-row-value">限量供应</text>
-              </view>
-              <view class="info-row" v-for="p in servePeriodLabels" :key="p">
-                <IconSvg name="clock" :size="28" color="var(--text-tertiary)" class="info-row-icon" />
-                <text class="info-row-label">供应时段</text>
-                <text class="info-row-value">{{ p }}</text>
-              </view>
-            </view>
-
-            <!-- 分区三：菜品介绍 -->
-            <view class="info-block info-block-divider" v-if="dish.description">
+            <view class="desc-row" v-if="dish.description">
               <text class="desc-content">{{ dish.description }}</text>
             </view>
           </CardSection>
 
-          <!-- ===== 评价区（内联前 3 条） ===== -->
-          <CardSection>
-            <SectionTitle :title="`用户评价 (${reviewTotal})`" noMargin />
+          <!-- ===== 评价区：与动态详情评论区同款结构（comment-section + comment-title），三处评论区域视觉完全一致 ===== -->
+          <view class="comment-section">
+            <text class="comment-title">评价 ({{ reviewTotal }})</text>
             <view class="review-list" v-if="reviewList.length > 0">
               <ReviewItem
                 v-for="rv in reviewList.slice(0, 3)"
@@ -141,37 +107,8 @@
                 @delete="onDeleteReview"
               />
             </view>
-            <EmptyState v-else text="暂无评价，来写第一条吧" />
-          </CardSection>
-
-          <!-- 申请下架/纠错：不常用，降级为底部弱化小文字链接 -->
-          <view class="apply-link" @tap="openApply">
-            <text class="apply-link-text">反馈 / 申请下架</text>
-            <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="apply-link-arrow" />
+            <EmptyState v-else text="暂无评价，来写第一条吧" icon="comment" />
           </view>
-
-          <!-- 关联动态（低优先级，置底轻量区块；task-12.6 跳动态详情） -->
-          <CardSection v-if="relatedMoments.length > 0" title="">
-            <SectionTitle title="关联动态" noMargin />
-            <view class="related-moment-list">
-              <view
-                v-for="m in relatedMoments"
-                :key="m.id"
-                class="related-moment-item"
-                :class="{ pressed: pressedRelatedKey === m.id }"
-                @touchstart="pressedRelatedKey = m.id"
-                @touchend="pressedRelatedKey = ''"
-                @touchcancel="pressedRelatedKey = ''"
-                @mousedown="pressedRelatedKey = m.id"
-                @mouseup="pressedRelatedKey = ''"
-                @mouseleave="pressedRelatedKey = ''"
-                @tap="goRelatedMoment(m.id)"
-              >
-                <text class="related-moment-text">{{ m.content }}</text>
-                <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-moment-arrow" />
-              </view>
-            </view>
-          </CardSection>
         </template>
 
         <EmptyState v-else text="菜品不存在或已下架" />
@@ -198,29 +135,6 @@
         @update:open="applyOpen = $event"
       />
 
-      <!-- 分享面板（简化：复制分享文案） -->
-      <view v-if="shareOpen" class="share-mask" :class="{ show: shareMaskShow }" @tap="shareOpen = false"></view>
-      <view
-        v-if="shareOpen"
-        class="share-sheet"
-        :class="{ open: shareOpen }"
-        :style="shareSheetStyle"
-        @touchstart="onShareTouchStart"
-        @touchmove="onShareTouchMove"
-        @touchend="onShareTouchEnd"
-        @touchcancel="onShareTouchEnd"
-      >
-        <view class="share-sheet-head">
-          <text class="share-sheet-title">分享菜品</text>
-          <IconSvg name="close" :size="36" color="var(--text-tertiary)" class="share-sheet-close" @tap="shareOpen = false" />
-        </view>
-        <view class="share-body">
-          <view class="share-option" @tap="copyShareText">
-            <IconSvg name="share" :size="40" color="var(--color-primary)" />
-            <text class="share-option-text">复制分享文案</text>
-          </view>
-        </view>
-      </view>
     </view>
   </view>
 </template>
@@ -230,7 +144,6 @@ import { ref, computed, watch, nextTick } from 'vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -240,16 +153,18 @@ import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
-import * as momentApi from '@/api/moment'
-import { SPICE_LEVELS, PORTION_LEVELS, SERVE_PERIOD_MAP } from '@/constants/categories'
 import type { Review } from '@/types/review'
-import type { Moment } from '@/types/moment'
+import { sharedDish } from '@/utils/shareState'
 
 const props = defineProps<{
   /** 是否展示弹层 */
   open: boolean
   /** 菜品 ID，watch 驱动加载 */
   dishId: number
+  /** 顶部边界偏移（弹层顶部不越过页面 Header 底部；如档口页传 176rpx） */
+  topOffset?: string
+  /** 隐藏位置跳档口（从档口详情页打开时传 true，避免 菜品→档口→菜品 循环跳转） */
+  hideLocation?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -265,26 +180,6 @@ const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => props.dishId)
 const currentUserId = computed(() => userStore.userInfo?.id)
 const liked = ref(false)
-
-/** ===== 关联动态（task-12.6：GET /moments?dishId=，跳动态详情） ===== */
-const relatedMoments = ref<Moment[]>([])
-const pressedRelatedKey = ref<number | ''>('')
-
-async function loadRelatedMoments() {
-  const id = loadedDishId || currentDishId.value
-  if (!id) return
-  try {
-    const { list } = await momentApi.getMoments({ dishId: id, pageSize: 5 })
-    relatedMoments.value = list
-  } catch {
-    relatedMoments.value = []
-  }
-}
-
-function goRelatedMoment(id: number) {
-  emit('update:open', false)
-  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
-}
 
 /** reduced-motion 降级 */
 const reduceMotion = ref(false)
@@ -307,28 +202,7 @@ const dishTagList = computed(() => {
   return list
 })
 
-const spiceLabel = computed(() => {
-  const lv = dish.value?.spiceLevel
-  if (lv == null) return ''
-  return `辣度·${SPICE_LEVELS[lv] ?? '未知'}`
-})
-const portionLabel = computed(() => {
-  const lv = dish.value?.portion
-  if (lv == null) return ''
-  return `分量·${PORTION_LEVELS[lv] ?? '未知'}`
-})
-const servePeriodLabels = computed(() => {
-  const raw = dish.value?.servePeriod || ''
-  if (!raw) return []
-  return raw.split(',').map(s => s.trim()).filter(Boolean).map(key => SERVE_PERIOD_MAP[key] || key)
-})
-const attrTags = computed(() => [
-  spiceLabel.value,
-  portionLabel.value,
-  dish.value?.limited ? 'limited' : '',
-  ...servePeriodLabels.value,
-].filter(Boolean))
-
+/** 位置文案：食堂 › 楼层 › 档口 › 窗口（2026-08-03 恢复，hero 卡展示；点击跳档口详情） */
 const locationText = computed(() => {
   const d = dish.value
   if (!d) return ''
@@ -339,8 +213,8 @@ const locationText = computed(() => {
   if (d.windowNo) nodes.push(`窗口 ${d.windowNo}`)
   return nodes.join(' › ') || '未知位置'
 })
-const spiceLevelText = computed(() => spiceLabel.value.replace(/^辣度·/, ''))
-const portionLevelText = computed(() => portionLabel.value.replace(/^分量·/, ''))
+
+
 
 /** ===== 弹层开关动画（ApplySheet 抽屉范式） ===== */
 const sheetOpen = ref(false)
@@ -348,7 +222,11 @@ const maskShow = ref(false)
 const dragOffset = ref(0)
 const dragging = ref(false)
 
+/** 空处理器：mask touchmove.stop 防背景滚动穿透（小程序 catchtouchmove） */
+function noop() {}
+
 const sheetStyle = computed(() => ({
+  '--sheet-top-offset': props.topOffset || '0rpx',
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
   transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
 }))
@@ -364,7 +242,6 @@ watch(() => props.open, (v) => {
     maskShow.value = false
     sheetOpen.value = false
     dragOffset.value = 0
-    shareOpen.value = false
   }
 })
 
@@ -379,11 +256,9 @@ watch(() => props.dishId, (id) => {
 
 async function loadDishData() {
   if (!loadedDishId) return
-  relatedMoments.value = []
   await Promise.all([
     dishStore.fetchDetail(loadedDishId),
     dishStore.fetchReviews(loadedDishId, { sort: 'latest', isWithImage: false }),
-    loadRelatedMoments(),
   ])
 }
 
@@ -392,20 +267,34 @@ function requestClose() {
 }
 
 let startY = 0
+let lastY = 0
+let lastTime = 0
+let velocity = 0
 function onSheetTouchStart(e: any) {
   startY = e.touches?.[0]?.clientY ?? 0
+  lastY = startY
+  lastTime = Date.now()
+  velocity = 0
   dragging.value = true
 }
 function onSheetTouchMove(e: any) {
   if (!dragging.value) return
   const y = e.touches?.[0]?.clientY ?? 0
-  const delta = y - startY
-  dragOffset.value = delta > 0 ? delta : 0
+  const now = Date.now()
+  // 1:1 跟随手指 + 记录瞬时速度（apple-design §5 velocity handoff）
+  const dt = Math.max(now - lastTime, 1)
+  velocity = ((y - lastY) / dt) * 1000 // px/s
+  lastY = y
+  lastTime = now
+  dragOffset.value = Math.max(y - startY, 0)
 }
 function onSheetTouchEnd() {
   if (!dragging.value) return
   dragging.value = false
-  if (dragOffset.value > 120) requestClose()
+  // 松手速度 > 480px/s 视为向下甩动，直接关闭（momentum projection，apple §5/§6）
+  if (velocity > 480 || dragOffset.value > 120) {
+    requestClose()
+  }
   dragOffset.value = 0
 }
 
@@ -416,54 +305,19 @@ async function toggleLike() {
 }
 
 /** ===== 分享面板（简化：复制分享文案） ===== */
-const shareOpen = ref(false)
-const shareMaskShow = ref(false)
-const shareDragging = ref(false)
-const shareDragOffset = ref(0)
-
-function onShare() {
-  shareOpen.value = true
-  nextTick(() => { shareMaskShow.value = true })
-}
-function closeShare() {
-  shareOpen.value = false
-  shareMaskShow.value = false
-  shareDragOffset.value = 0
-}
-function copyShareText() {
+/** 分享菜品（微信原生分享：记录待分享菜品，页面 onShareAppMessage 读取生成卡片） */
+function onShareTap() {
   const d = dish.value
   if (!d) return
-  // 独立菜品页已移除（task-10 sheet 化），复制人类可读的分享文案而非失效链接
-  const text = `推荐一道好菜「${d.name}」¥${d.price}，在${d.canteen || ''} · ${d.stallName || ''}，来自食在交大`
-  uni.setClipboardData({
-    data: text,
-    success: () => uni.showToast({ title: '分享文案已复制', icon: 'none' }),
-  })
-  closeShare()
+  sharedDish.value = {
+    id: d.id,
+    name: d.name,
+    price: d.price,
+    stallId: d.stallId,
+    canteen: d.canteen,
+    stallName: d.stallName,
+  }
 }
-
-let shareStartY = 0
-function onShareTouchStart(e: any) {
-  shareStartY = e.touches?.[0]?.clientY ?? 0
-  shareDragging.value = true
-}
-function onShareTouchMove(e: any) {
-  if (!shareDragging.value) return
-  const y = e.touches?.[0]?.clientY ?? 0
-  const delta = y - shareStartY
-  shareDragOffset.value = delta > 0 ? delta : 0
-}
-function onShareTouchEnd() {
-  if (!shareDragging.value) return
-  shareDragging.value = false
-  if (shareDragOffset.value > 120) closeShare()
-  shareDragOffset.value = 0
-}
-
-const shareSheetStyle = computed(() => ({
-  transform: `translateY(calc(${shareDragging.value ? shareDragOffset.value : 0}px))`,
-  transition: shareDragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-}))
 
 /** 申请下架/纠错 Sheet */
 const applyOpen = ref(false)
@@ -533,12 +387,7 @@ function goToStall() {
   }
 }
 
-function goToCanteen() {
-  if (dish.value?.canteen) {
-    requestClose()
-    uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(dish.value.canteen)}` })
-  }
-}
+
 </script>
 
 <style scoped>
@@ -553,6 +402,7 @@ function goToCanteen() {
 
 /* 底部弹层 */
 .bottom-sheet {
+  /* 顶部边界：不超过页面 Header（sticky 固定组件）底部，避免遮挡页面顶栏 */
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg-card);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
@@ -561,120 +411,100 @@ function goToCanteen() {
   transform: translateY(100%);
   display: flex;
   flex-direction: column;
-  max-height: 92vh;
-  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  max-height: calc(100vh - var(--sheet-top-offset, 176rpx));
+  /* 圆角裁剪内容（图片贴顶时被弹层圆角裁掉直角，图片与上边沿无间隙） */
+  overflow: hidden;
+  /* 注意：不再在此加 padding-bottom——操作栏 .action-bar 自带安全区，避免双重叠加导致按钮离底过远 */
   will-change: transform;
 }
 .bottom-sheet.open { transform: translateY(0); }
 
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--border-color); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
-.sheet-head-actions { display: flex; align-items: center; gap: var(--spacing-xs); }
-.sheet-head-action { padding: 0 var(--spacing-xs); }
-
-.sheet-body { flex: 1; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) 0; box-sizing: border-box; }
-
-/* ===== 内容样式（迁移自原 dish 页） ===== */
-.title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
-.dish-name { font-size: var(--font-h1); font-weight: 700; letter-spacing: var(--tracking-h3); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
-.price-text { font-size: var(--font-h2); font-weight: 700; color: var(--color-price); flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.price-box { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-.promo-price { font-size: var(--font-h2); font-weight: 800; color: var(--color-error); font-variant-numeric: tabular-nums; }
-.origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
-.promo-tag { font-size: 20rpx; font-weight: 700; color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: 4rpx; }
-.tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
-.rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
-.star-num-text { font-size: 30rpx; color: var(--text-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
-
-.info-row { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-xs) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.info-row-tap:active { transform: scale(var(--press-scale)); }
-.info-row-icon { width: 28rpx; height: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-row-label { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: 600; }
-.info-row-value { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); font-weight: 500; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.info-row-arrow { font-size: var(--icon-sm); color: var(--text-tertiary); flex-shrink: 0; }
-
-.desc-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
-
-.info-block { padding: 0; }
-.info-block-divider { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-
-.review-list { margin-top: var(--spacing-sm); }
-
-/* ===== 关联动态（低优先级置底区块，task-12.6） ===== */
-.related-moment-list { margin-top: var(--spacing-sm); }
-.related-moment-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 2rpx solid var(--border-color);
+/* 下拉条：绝对定位覆盖在图片上方（不占位，保证图片贴弹层顶沿、无间隙）；
+   will-change 预提示合成层，避免拖动跟手时抖动（apple-design §11） */
+.sheet-grabber { position: absolute; top: var(--spacing-sm); left: 50%; transform: translateX(-50%); will-change: transform; z-index: 31; width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); }
+/* 头部按钮：绝对定位覆盖在图片上方，圆形半透明深底 + 白图标 */
+.sheet-head { position: absolute; top: var(--spacing-sm); left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--spacing-md); z-index: 30; pointer-events: none; }
+.sheet-round-btn {
+  pointer-events: auto;
+  width: 72rpx; height: 72rpx; border-radius: 50%;
+  background: var(--overlay-dark-soft);
+  display: flex; align-items: center; justify-content: center;
   transition: transform 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.related-moment-item:last-child { border-bottom: none; }
-.related-moment-item.pressed { transform: scale(var(--press-scale)); }
-.related-moment-text {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.sheet-round-btn:active { transform: scale(var(--press-scale)); }
+/* button 重置（分享按钮是原生 button，需去掉默认 padding/边框，保证圆形且位置正确） */
+.sheet-round-btn.sheet-round-btn-share { margin: 0; padding: 0; border: none; line-height: 1; }
+.sheet-round-btn.sheet-round-btn-share::after { border: none; }
+
+/* 滚动内容：图片贴屏幕左右边缘（顶部 padding 为 0，卡片自带左右 margin）；
+   底部留白接管安全区兜底（操作栏存在时由 .action-bar 自带安全区） */
+.sheet-body { flex: 1; overflow-y: auto; padding: 0 0 calc(var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+
+/* ===== 内容样式（2026-08-03 精简：hero 卡 = 名称+信息有误/价格/标徽/评分/一句话简介） ===== */
+.title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
+.dish-name { font-size: var(--font-h1); font-weight: var(--weight-heavy); letter-spacing: var(--tracking-h3); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
+/* 「信息有误？」：名称行最右弱链接（2026-08-03 起，原底部 apply-link 移除）。
+   按压反馈：加内边距扩大命中区（Apple：44×44 最小触摸目标）+ opacity 反馈 */
+.feedback-link { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease, background-color 120ms ease; -webkit-tap-highlight-color: transparent; }
+.feedback-link:active { opacity: 0.55; background-color: var(--bg-soft); }
+.price-row { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-wrap: wrap; margin-top: var(--spacing-xs); }
+.price-text { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+.promo-price { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--color-error); font-variant-numeric: tabular-nums; }
+.origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.promo-tag { font-size: var(--font-tiny); font-weight: var(--weight-bold); color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.tag-row { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
+.rating-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
+.star-num { display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.star-num-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+/* 位置行（2026-08-03 恢复）：location 图标 + 文本 + arrow，可点击跳档口 */
+.loc-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-xs) 0; border-radius: var(--radius-tag); transition: background-color 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.loc-row:active { background-color: var(--bg-soft); }
+/* 静态位置行（从档口详情页打开）：仅展示、无按压反馈、不可跳转 */
+.loc-row-static { -webkit-tap-highlight-color: transparent; }
+.loc-row-static:active { background-color: transparent; }
+.loc-icon { width: 24rpx; height: 24rpx; line-height: 1; flex-shrink: 0; }
+.loc-text { flex: 1; min-width: 0; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc-arrow { width: 24rpx; height: 24rpx; line-height: 1; flex-shrink: 0; }
+.desc-row { margin-top: var(--spacing-sm); }
+.desc-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+
+/* 菜品评价卡：与动态详情评论区 comment-section 完全同款（结构、类名、样式值一致），
+   卡片圆角 24px + 标题 34rpx / weight 800 / letter-spacing -0.02em（Apple Design Typography：大字负 tracking），
+   背景用 var(--bg-card)（= #FFFFFF）与阴影与 moment.vue 评论区一致，token 化避免裸 hex */
+.comment-section { margin: 0 var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
+.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--spacing-md); }
+.review-list { margin-top: var(--spacing-xs); }
+
+/* 底部操作栏（sheet 内吸底）。Apple 材质：半透明白 + backdrop-filter 毛玻璃，
+   内容滚动在下方透出（§12 Materials）；不支持 backdrop-filter 的环境回退实色 bg-card */
+.action-bar { flex-shrink: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .action-bar { background: var(--bg-card); }
 }
-.related-moment-arrow { flex-shrink: 0; }
-
-.apply-link { display: flex; align-items: center; justify-content: center; gap: 4rpx; padding: var(--spacing-md) 0 var(--spacing-sm); -webkit-tap-highlight-color: transparent; }
-.apply-link:active { opacity: 0.6; }
-.apply-link-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.apply-link-arrow { flex-shrink: 0; }
-
-/* 底部操作栏（sheet 内吸底） */
-.action-bar { flex-shrink: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); }
 .fav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx; min-width: 96rpx; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .fav-btn:active { transform: scale(var(--press-scale)); }
 .fav-icon { width: 40rpx; height: 40rpx; line-height: 1; flex-shrink: 0; }
-.fav-text { font-size: 20rpx; color: var(--text-primary); white-space: nowrap; line-height: 1.2; }
+.fav-text { font-size: var(--font-tiny); color: var(--text-primary); white-space: nowrap; line-height: 1.2; }
 .fav-btn.active .fav-text { color: var(--color-like); }
 .action-bar-btns { flex: 1; display: flex; justify-content: flex-end; }
 
-/* 分享面板 */
-.share-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 300; opacity: 0; transition: opacity 0.3s ease; }
-.share-mask.show { opacity: 1; }
-.share-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; box-shadow: var(--shadow-modal); z-index: 310; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-.share-sheet.open { transform: translateY(0); }
-.share-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
-.share-sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
-.share-sheet-close { padding: 0 var(--spacing-xs); }
-.share-body { padding: var(--spacing-md) var(--spacing-lg); }
-.share-option { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) 0; transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.share-option:active { transform: scale(var(--press-scale)); }
-.share-option-text { font-size: var(--font-body); color: var(--text-primary); font-weight: 600; }
-
-/* 加载骨架 */
+/* 加载骨架：复用全局 shimmer（App.vue 1.4s）流光，与全站加载节奏统一（原 skeleton-pulse 脉冲已弃） */
 .dish-skeleton { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.skeleton-swiper { width: 100%; height: 460rpx; border-radius: var(--radius-card); background: var(--bg-soft); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+.skeleton-swiper { width: 100%; height: 460rpx; border-radius: var(--radius-card); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 .skeleton-card { background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.skeleton-line { height: 28rpx; border-radius: var(--radius-tag); background: var(--bg-soft); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+.skeleton-line { height: 28rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 .skeleton-title { width: 60%; height: 40rpx; }
 .skeleton-price { width: 36%; }
 .skeleton-rating { width: 44%; }
 .skeleton-block { height: 24rpx; }
 .skeleton-block.short { width: 70%; }
 .skeleton-tags { display: flex; gap: var(--spacing-xs); }
-.skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: var(--bg-soft); animation: skeleton-pulse 1.2s ease-in-out infinite; }
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
+.skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   .sheet-mask { transition: opacity 0.2s ease; }
   .bottom-sheet { transition: opacity 0.2s ease; transform: none !important; }
-  .share-sheet { transition: opacity 0.2s ease; transform: none !important; }
-  .share-mask { transition: opacity 0.2s ease; }
   .skeleton-swiper, .skeleton-line, .skeleton-tag { animation: none; }
 }
 </style>

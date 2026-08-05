@@ -41,10 +41,11 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
   }
 }
 
-/** 反馈列表（分页，按 status / type 过滤） */
+/** 反馈列表（分页，按 status / type / userId 过滤） */
 export async function listFeedbacks(params: {
   status?: string
   type?: string
+  userId?: number
   page?: number
   pageSize?: number
 }): Promise<{ list: FeedbackAdminVO[]; total: number }> {
@@ -54,6 +55,7 @@ export async function listFeedbacks(params: {
   }
   if (params.status) query.status = params.status
   if (params.type) query.type = params.type
+  if (params.userId != null) query.userId = params.userId
   const data: any = await get('/admin/feedbacks', query)
   return {
     list: pageRecords(data).map(feedbackToLegacy),

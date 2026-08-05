@@ -3,44 +3,47 @@
 - 分包: 主包
 - 源文件: src/pages/profile/index.vue
 - 最后依据 skills 校对: 2026-08-02
+- 重构记录: 2026-08-03 信息架构重组（用户确认）：Hero 卡改「头像+昵称+ID+认证标识+>`、网格 4 项（动态/反馈中心/消息/评价）、设置内嵌页面底部、新增个人信息详情页与我的评价页；反馈中心重定位为「反馈问题 + 查看反馈进度」（去发布/贡献 tab）、消息中心改独立页（`pages/profile/messages/index`）、我的动态去分类 tab 直列。
 
 ## 1. 页面定位
-个人中心。未登录态内嵌登录/注册/找回表单（`AuthForm`）；已登录态展示用户卡（头像·昵称·统计三宫格·我要贡献）+ 菜单组（我的动态/消息中心/我的发布/意见反馈/设置）。
+个人中心。未登录态内嵌登录/注册/找回表单（`AuthForm`）；已登录态 = Hero 用户卡（头像·昵称·ID·认证）+ 4 项功能网格（我的动态/反馈中心/消息中心/我的评价）+ 内嵌设置分组（通知/通用/账号）。入口语义：动态→`my-moments/index`、反馈中心→`messages-services`（发布+贡献+意见反馈）、消息→`MessageSheet` 弹层、评价→`my-reviews/index`、Hero 卡→`profile-edit/index`（个人信息详情）。
 
 ## 2. 布局结构
 - 顶部：`Header title="我的"`（含状态栏占位）。
 - 滚动区 `scroll-view`。
 - **未登录**：`<AuthForm />`（居中卡片式，登录/注册/找回同卡，含可见 label/邮箱/验证码输入）。
 - **已登录**：
-  1. 用户卡 `.user-card`（enter-up，`--enter-i:0`）：头像+昵称+`StatusBadge` 角色 + `StatsRow`（评价/已发布/待审核，骨架占位）+ `AppButton`「+ 我要贡献」。
-  2. `SettingGroup title="我的"`：`SettingCell` 我的动态(comment)/消息中心(bell，带 `badge-count`)。
-  3. `SettingGroup title="通用"`：我的发布(list)/意见反馈(contact)/设置(settings)。
+  1. Hero 用户卡 `.user-card`（enter-up，`--enter-i:0`）：**纯白卡**（`--bg-card`，无渐变）+ 头像（**无编辑角标**）+ 昵称(`--font-h3`) + 元信息行（**用户 ID** + **认证标识** `verify-tag`：admin=已认证/student=未认证，role 派生）+ 右侧 **`>` 箭头**；**整卡点击**跳个人信息详情页。
+  2. 4 项网格 `.grid-menu`（enter-up，`--enter-i:1`，4 列，统一主色软底大图标）：我的动态(comment)/反馈中心(contact)/消息中心(bell，未读胶囊)/我的评价(star)。
+  3. 设置内嵌：主列表（`--enter-i:2`）：动态与消息通知开关 + 关于食在交大/隐私政策/清除缓存；**账号注销单独卡片**（`--enter-i:3`，危险操作隔离，danger 标红）。**无退出登录、图标纯主题色无背景块、配色仅主题色+白色**。
   4. 版本行「食在交大 v1.0.0」。
 - 底部：`CustomTabBar`。
-- 三个 Sheet：`ContributeSheet`（我要贡献）、`ApplySheet`（申请下架/纠错）、`NicknameSheet`（昵称编辑）。
+- 无 Sheet（`ContributeSheet`/`ApplySheet`/`NicknameSheet`/`MessageSheet` 均已移除：反馈中心接管贡献、资料页接管编辑、消息中心为独立页）。
+- 子页：`profile-edit/index`（个人信息：改头像/昵称、展示 ID 与认证、保存吸底）、`my-reviews/index`（我的评价：列表+删除）、`messages/index`（消息中心独立页：列表+单条已读+跳转）、`messages-services/index`（反馈中心：反馈入口 + 实体申请进度 + 反馈回复）。
+- 子页跳转：我的动态→`my-moments/index`（一列直列，无分类 tab）；反馈中心→`messages-services/index`；消息→`messages/index`；评价→`my-reviews/index`。
 
 ## 3. 核心组件与用法
 - `AuthForm`：未登录态登录/注册/找回（含 logo/mail/lock 等 SVG，均 IconSvg 已注册 key；可见 label）。
-- `StatsRow`：统计三宫格（融合进用户卡，去内层阴影）。
-- `StatusBadge`：`role` → admin/student 角色徽标（图标+文字，非纯色）。
-- `SettingGroup` / `SettingCell`：菜单组与项（icon 走 IconSvg）。
-- `AppButton`：`+ 我要贡献` 主操作（单主 CTA）。
-- `ContributeSheet` / `ApplySheet` / `NicknameSheet`：底部弹层（spring 0.8/0.3 + ic-close + reduced-motion）。
-- `IconSvg`：`user`(头像兜底)、`edit`(昵称编辑)、`comment`/`bell`/`list`/`contact`/`settings`（菜单，均注册 key）。
+- 认证标识 `.verify-tag`：页内实现（非组件），`isVerified = role === 'admin'` 派生（无独立认证字段）；仅「已认证/未认证」两种文案（admin 已认证主色软底 / student 未认证中性）。
+- 功能网格 `.grid-menu`：页内实现（非组件），4 列；`gridItems` 数据驱动（icon/label/action），图标统一 `--color-primary` + `--color-primary-soft` 软底（单色克制），消息项未读胶囊实时绑定 `notifyStore.unreadCount`。
+- `SettingGroup` / `SettingCell`：内嵌设置列表；图标**纯主题色**（`--color-primary`）无背景块；`danger` 危险操作标红；`badge-count` 未读角标。
+- `MessageSheet`：消息中心弹层（spec「消息并入我的区块」；复用 sheet 视觉，列表 ≤50 条倒序，未读红点 + 类型标签 + 时间；点击标记已读并跳转：`dish_audit` 仅已读（无独立菜品页），其余→动态详情；「全部已读」置灰角标）。
+- `IconSvg`：`user`(头像兜底)、`edit`(昵称编辑+头像角标)、`comment`/`list`/`bell`/`plus`/`contact`/`settings`（菜单，均注册 key）。
 
 ## 4. 设计 Token 使用
 - 背景/文字：`--bg-page`、`--bg-card`、`--bg-soft`、`--text-primary/secondary/tertiary`。
-- 强调/状态：`--color-primary`(主操作/选中)、`--color-primary-soft`(历史 chip 按下等)、`--color-primary-soft2`(未用)、`--color-error`(未用)。
-- 圆角/阴影：`--radius-card`、`--shadow-card`、`--radius-tag`。
+- 强调/状态：`--color-primary`(头像编辑角标/网格图标)、`--color-primary-soft`(网格图标软底)、`--color-error`(未读胶囊/列表角标)。
+- 圆角/阴影：`--radius-card`、`--shadow-card`、网格图标块圆角 24rpx。
 - 间距：`--spacing-xs/md/sm/lg`（4/8pt 节奏）。
-- 字号：`--font-subtitle`(昵称)、`--font-aux`(版本)、`--font-body`。
+- 字号：`--font-h3`(昵称)、`--font-aux`(版本)、`--font-body`。
 - 动效：`--press-scale`(`.avatar-wrap:active`/`.nickname-row:active` 均 scale 0.97)、`--press-transition`。
 - 布局：`--tabbar-height` + `env(safe-area-inset-bottom)`。
 
 ## 5. 交互与动效
-- 头像点击 `chooseImage` 上传更新（`uploadImage`）；昵称点击开 `NicknameSheet`；统计三宫格点击进评价/发布/待审核。
+- 头像点击 `chooseImage` 上传更新（`uploadImage`，右下角编辑角标提示）；昵称点击开 `NicknameSheet`；统计三宫格点击进评价/发布/待审核。
 - 我要贡献 `ContributeSheet` 选 publishDish/submitStall/submitCanteen/apply；apply 落地 `ApplySheet`。
-- 菜单项逐项 `navigateTo`；消息中心 badge 取 `notifyStore.unreadCount`。
+- 消息中心卡点击进消息中心（摘要 = 最近 1 条 `content`，未读胶囊 = `notifyStore.unreadCount`）。
+- 菜单项逐项 `navigateTo`。
 - 各 Sheet 统一 spring 0.8/0.3 + 下拉关闭手势 + reduced-motion 降级（由组件实现，从底部进入、exit 短于 enter）。
 - 未登录 `AuthForm`：表单内联校验（blur/提交），键盘类型对应（email/number 验证码），错误文案在字段下。
 
@@ -57,7 +60,7 @@
 
 ## 7. 待定 / 可编辑的设计方案
 > 以下区块由产品或设计在此直接编辑，用于和开发者同步 UI 变更意向。
-- 待讨论项：暗色模式对比度待实测(角色徽标/状态色)(§8⑥)；统计三宫格数字建议 tabular-nums(§8⑮)；统计区 skeleton 加载态已具备(§8⑱)
+- 待讨论项：暗色模式对比度待实测(角色徽标/状态色)(§8⑥)；**统计三宫格数字 tabular-nums 已落地**（StatsRow.vue `.stat-value`，见 §8⑮）；统计区 skeleton 加载态已具备(§8⑱)
 - 计划调整：采纳你的建议
 
 ## 8. Skill 合规自检（UI 设计 skills）
@@ -77,7 +80,7 @@
 | 12 | 进场禁 scale(0)，popover 从触发点 | 合规 | 用户卡 enter-up 用 translateY+opacity；无 scale(0) |
 | 13 | 仅 transform/opacity，禁 transition:all | 合规 | 无 `transition:all` |
 | 14 | 可中断动效 | 合规 | Sheet 手势可中断；transition 可重定向 |
-| 15 | 数字 tabular-nums | 部分 | 统计三宫格为数字，建议 `tabular-nums` 防位移 |
+| 15 | 数字 tabular-nums | 合规 | 统计三宫格 `.stat-value` 已 `font-variant-numeric: tabular-nums`（StatsRow.vue `.stat-value`） |
 | 16 | 正文≥16px(32rpx)，行高1.5–1.75，4/8pt 节奏 | 合规 | 字号 token；4/8pt 间距 |
 | 17 | 每屏一个主 CTA，破坏性弱化隔离 | 合规 | 唯一主 CTA「我要贡献」；无破坏性操作在主屏 |
 | 18 | loading/empty/error 三态 | 部分 | 统计区 skeleton 加载态；已登录无空态（合理）；AuthForm 有内联校验错误 |

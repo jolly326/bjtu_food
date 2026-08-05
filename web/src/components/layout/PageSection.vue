@@ -56,12 +56,25 @@ function toggle() {
 }
 .ps-head.clickable { cursor: pointer; user-select: none; }
 .ps-head-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+/* 菜单牌标记：分区标题朱砂红短竖条 */
 .ps-title {
   margin: 0;
   font-size: var(--font-xl);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   line-height: var(--leading-snug);
+  padding-left: var(--space-3);
+  position: relative;
+}
+.ps-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-primary);
 }
 .ps-chevron {
   width: 18px;

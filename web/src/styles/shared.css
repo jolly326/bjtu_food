@@ -10,6 +10,23 @@ body {
   color: var(--text-primary);
 }
 
+/* ===== 默认隐藏滚动条（保留滚动功能），视觉更干净 ===== */
+html, body {
+  scrollbar-width: none;               /* Firefox */
+  -ms-overflow-style: none;            /* IE/Edge 旧 */
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar,
+.shell-content::-webkit-scrollbar,
+.content::-webkit-scrollbar,
+.table-wrap::-webkit-scrollbar,
+.agg-tabs::-webkit-scrollbar,
+.topnav-nav::-webkit-scrollbar,
+.detail-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* ============================================================
  * 按压即时反馈 scale(0.97)（§4.4）
  * 覆盖全站所有可点击元素：按钮、链接、标签、导航、卡片等。
@@ -104,7 +121,7 @@ button:active:not(:disabled), a:active {
   color: var(--text-secondary);
   user-select: none;
 }
-.tab-on { background: var(--color-primary); color: var(--text-white); border-color: var(--color-primary); }
+.tab-on { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
 .tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
 
 /* 批量操作条：统一毛玻璃感卡片 */
@@ -145,7 +162,7 @@ button:active:not(:disabled), a:active {
   border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
 }
-.table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-primary); }
+.table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .table tbody tr { transition: background 0.15s ease; }
 .table tbody tr:hover { background: var(--bg-hover); }
 .ellipsis { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -162,18 +179,67 @@ button:active:not(:disabled), a:active {
 
 /* 通用按钮（自封装；按压 + hover 走 Token） */
 .btn-primary {
-  padding: var(--space-2) var(--space-5); background: var(--color-primary); color: var(--text-white);
+  padding: var(--space-2) var(--space-5); background: var(--color-primary); color: var(--color-on-primary);
   border: none; border-radius: var(--radius); font-size: var(--font-base);
   cursor: pointer; white-space: nowrap; font-weight: var(--weight-medium);
 }
 .btn-primary:hover { background: var(--color-primary-light); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+/* 次级按钮（全站统一：取消/刷新/批量/行内操作等次级动作都用它） */
+.btn-secondary,
 .btn-cancel {
-  padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary);
-  border: 1px solid var(--border-color); border-radius: var(--radius);
-  font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-5); background: var(--btn-secondary-bg); color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border); border-radius: var(--radius);
+  font-size: var(--font-base); cursor: pointer; white-space: nowrap; font-weight: var(--weight-medium);
+  transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
-.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.btn-secondary:hover,
+.btn-cancel:hover { color: var(--btn-secondary-hover-text); border-color: var(--btn-secondary-hover-border); }
+.btn-secondary:active,
+.btn-cancel:active { transform: scale(var(--press-scale)); }
+.btn-secondary:focus-visible,
+.btn-cancel:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ===== 聚合页分类卡（三个聚合页共用：紧凑、等高、数量徽标，大小 UI 一致） ===== */
+.sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-5); }
+.sec-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.sec-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: 40px;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+}
+.sec-card:hover { border-color: var(--border-strong); }
+.sec-card:active { transform: scale(var(--press-scale)); }
+.sec-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.sec-card.on { border-color: var(--color-primary); background: var(--color-primary-bg); }
+.sec-ico { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; }
+.sec-card.done .sec-ico { color: var(--color-success); }
+.sec-label { flex: 1; min-width: 0; font-size: var(--font-sm); font-weight: var(--weight-medium); color: var(--text-primary); }
+.sec-badge {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.sec-card.on .sec-badge { background: var(--color-primary); color: var(--color-on-primary); }
+.sec-card.done .sec-badge { background: var(--color-success-bg); color: var(--color-success); }
+@media (max-width: 767px) {
+  .sec-grid, .sec-grid.cols-2 { grid-template-columns: 1fr; }
+}
 .btn-danger {
   padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius);
   background: var(--bg-card); color: var(--color-error); font-size: var(--font-base);
@@ -189,7 +255,7 @@ button:active:not(:disabled), a:active {
 .link.primary-text, .primary-text { color: var(--color-success) !important; }
 .link.warn, .warn { color: var(--color-warning) !important; }
 
-.field { margin-bottom: var(--space-4); }
+.field { margin-bottom: 0; }
 .field label { display: block; margin-bottom: var(--space-1); font-size: var(--font-sm); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .field input, .field textarea, .field select {
   width: 100%; padding: var(--space-2) var(--space-3);
@@ -278,3 +344,16 @@ button:active:not(:disabled), a:active {
   backdrop-filter: var(--blur-material);
   -webkit-backdrop-filter: var(--blur-material);
 }
+/* ============================================================
+ * el-switch 深色主题（行内快捷状态切换）
+ * 激活走主色/成功色，关闭态用边框灰，与深色卡片融为一体
+ * ============================================================ */
+.el-switch {
+  --el-switch-on-color: var(--color-primary);
+  --el-switch-off-color: var(--border-strong);
+  --el-switch-border-color: var(--border-strong);
+}
+.el-switch .el-switch__core {
+  border-radius: var(--radius-pill);
+}
+.el-switch.is-disabled .el-switch__core { opacity: .55; }

@@ -1,24 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useAdminUserStore } from '@/stores/adminUserStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
 import FormDialog from '@/components/FormDialog.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
-import { Plus } from '@element-plus/icons-vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
+import { Plus, Delete } from '@element-plus/icons-vue'
 
 const store = useAdminUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '管理员管理' }], searchPlaceholder: '搜索管理员用户名/昵称...' })
+
+const searchQuery = ref('')
 
 const filtered = computed(() => {
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = searchQuery.value.trim().toLowerCase()
   if (!q) return store.list
   return store.list.filter(a => a.username.toLowerCase().includes(q) || (a.nickname || '').toLowerCase().includes(q))
 })
@@ -82,16 +80,18 @@ async function handleSubmit() {
   }
 }
 
-async function handleToggle(id: number) {
-  const a = store.list.find(x => Number(x.id) === id)
-  if (!a) return
-  const action = a.status === 'active' ? '禁用' : '启用'
-  if (!await confirm.confirm(`确定${action}管理员「${a.nickname || a.username}」？`)) return
+// ===== 行内状态快捷切换（正常/禁用） =====
+const switchId = ref<number | null>(null)
+async function toggleStatus(row: any, active: boolean) {
+  if (row.status === (active ? 'active' : 'disabled')) return
+  switchId.value = Number(row.id)
   try {
-    await store.setStatus(id, a.status === 'active' ? 'disabled' : 'active')
-    toast.success(`管理员已${action}`)
+    await store.setStatus(Number(row.id), active ? 'active' : 'disabled')
+    toast.success(`管理员「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
   } catch (e: any) {
-    toast.error(e.message || `${action}失败`)
+    toast.error(e.message || '状态更新失败')
+  } finally {
+    switchId.value = null
   }
 }
 
@@ -107,25 +107,23 @@ async function handleDelete(id: number) {
     toast.error(e.message || '删除失败')
   }
 }
-
-onMounted(() => {})
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="管理员管理" :count="filtered.length">
+    <FilterBar v-model="searchQuery">
       <template #actions>
         <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增管理员</button>
       </template>
-    </PageHeader>
+    </FilterBar>
 
     <DataTable
       :columns="[
-        { prop: 'username', label: '用户名' },
+        { prop: 'username', label: '用户名', sortable: true },
         { prop: 'nickname', label: '昵称' },
-        { prop: 'status', label: '状态', width: '120px', align: 'center' },
-        { prop: 'createdAt', label: '创建时间', width: '160px' },
-        { prop: 'actions', label: '操作', width: '200px', align: 'center' },
+        { prop: 'role', label: '角色', width: '120px', align: 'center' },
+        { prop: 'status', label: '状态', width: '110px', align: 'center' },
+        { prop: 'createdAt', label: '创建时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
+
       ]"
       :rows="filtered"
       :empty-text="filtered.length ? '没有匹配的管理员' : '暂无管理员账号'"
@@ -135,20 +133,30 @@ onMounted(() => {})
         <span v-if="myId === Number(row.id)" class="me-tag">我</span>
       </template>
       <template #cell-nickname="{ row }">{{ row.nickname || '-' }}</template>
-      <template #cell-status="{ row }">
-        <StatusTag :type="row.status === 'active' ? 'success' : 'gray'" :text="row.status === 'active' ? '正常' : '已禁用'" />
+      <template #cell-role="{ row }">
+        <StatusTag :type="row.role === 'super_admin' ? 'warning' : 'info'" :text="row.role === 'super_admin' ? '超级管理员' : '管理员'" />
       </template>
-      <template #cell-createdAt="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
+      <template #cell-status="{ row }">
+        <div class="status-cell">
+          <el-switch
+            :model-value="row.status === 'active'"
+            :loading="switchId === Number(row.id)"
+            :disabled="switchId === Number(row.id) || myId === Number(row.id)"
+            @change="(v: any) => toggleStatus(row, !!v)"
+          />
+          <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '正常' : '已禁用' }}</span>
+        </div>
+      </template>
+      <template #cell-createdAt="{ row }">{{ row.created_at.toLocaleString('zh-CN') }}</template>
       <template #actions="{ row }">
         <button class="link" v-press @click="openEdit(Number(row.id))">编辑</button>
-        <button class="link" :class="row.status === 'active' ? 'warn' : 'primary-text'" v-press @click="handleToggle(Number(row.id))">
-          {{ row.status === 'active' ? '禁用' : '启用' }}
+        <button class="link danger" :disabled="myId === Number(row.id)" v-press @click="handleDelete(Number(row.id))">
+          <el-icon class="act-ico"><Delete /></el-icon>删除
         </button>
-        <button class="link danger" :disabled="myId === Number(row.id)" v-press @click="handleDelete(Number(row.id))">删除</button>
       </template>
     </DataTable>
 
-    <FormDialog :show="showModal" :title="editingId !== null ? '编辑管理员' : '新增管理员'" :width="480" confirm-text="保存" @close="showModal = false" @confirm="handleSubmit">
+    <FormDialog :show="showModal" :title="editingId !== null ? '编辑管理员' : '新增管理员'" :width="480" confirm-text="保存" @close="showModal = false" :on-confirm="handleSubmit">
       <div class="modal-form">
         <div class="field"><label>用户名 <span class="required">*</span></label>
           <input v-model="form.username" :disabled="editingId !== null" placeholder="登录用户名" />
@@ -165,13 +173,18 @@ onMounted(() => {})
         </div>
       </div>
     </FormDialog>
-  </PageContainer>
 </template>
 
 <style scoped>
 .me-tag { display: inline-block; margin-left: var(--space-1); padding: 0 var(--space-1); font-size: var(--font-xs); background: var(--color-primary-bg); color: var(--color-primary); border-radius: var(--radius-sm); }
 .link.danger:disabled { color: var(--text-light); cursor: not-allowed; }
+/* 行内状态开关 */
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--text-light); }
 
 .modal-form { display: flex; flex-direction: column; gap: var(--space-3); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
+.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
 </style>

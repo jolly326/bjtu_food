@@ -1,33 +1,31 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
-import { usePageStore } from '@/stores/pageStore'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
+import { useToastStore } from '@/stores/toastStore'
+import { useConfirmStore } from '@/stores/confirmStore'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
-import StatusTag from '@/components/StatusTag.vue'
-import EntityImage from '@/components/EntityImage.vue'
-import { Food, Plus, Star } from '@element-plus/icons-vue'
+import DataTable from '@/components/DataTable.vue'
+import DishFormDialog from '@/components/DishFormDialog.vue'
+import { Plus, Star, Delete } from '@element-plus/icons-vue'
 
-const router = useRouter()
 const store = useAdminStore()
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '菜品管理' }], searchPlaceholder: '搜索菜品名称...' })
+const toast = useToastStore()
+const confirm = useConfirmStore()
+
+const searchQuery = ref('')
 
 const loading = ref(false)
 const error = ref('')
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
 
-const allRows = computed(() => store.dishes)
 const rows = computed(() => {
-  let list = allRows.value
+  let list = store.dishes
   if (statusFilter.value) list = list.filter(r => r.status === statusFilter.value)
   if (typeFilter.value === 'discount') list = list.filter(r => !!r.promoPrice)
   else if (typeFilter.value === 'normal') list = list.filter(r => !r.promoPrice)
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = searchQuery.value.trim().toLowerCase()
   if (q) list = list.filter(r => (r.name || '').toLowerCase().includes(q))
   return list
 })
@@ -50,102 +48,187 @@ function stallName(stallId: number | bigint): string {
   const s = store.stalls.find(s => Number(s.id) === Number(stallId))
   return s?.name || `档口${stallId}`
 }
-function goEdit(row: any) {
-  const s = store.stalls.find(s => Number(s.id) === Number(row.stall_id))
-  const canteenId = s ? Number(s.canteen_id) : undefined
-  if (canteenId === undefined) return
-  router.push({ name: 'dishDetail', params: { canteenId, stallId: Number(row.stall_id), dishId: Number(row.id) } })
+// ===== 菜品新增/编辑（弹窗直达，不再跳档口详情） =====
+const dishModal = ref(false)
+const editingDishId = ref<number | null>(null)
+
+const dishStallOptions = computed(() => {
+  return store.stalls.map(s => {
+    const c = store.canteens.find(c => Number(c.id) === Number(s.canteen_id))
+    return { label: c ? `${s.name}（${c.name}）` : s.name, value: Number(s.id) }
+  })
+})
+
+function openAddDish() {
+  editingDishId.value = null
+  dishModal.value = true
+}
+function openEditDish(row: any) {
+  editingDishId.value = Number(row.id)
+  dishModal.value = true
+}
+function onDishSaved() {
+  editingDishId.value = null
 }
 
-onMounted(() => {})
+async function handleDelete(row: any) {
+  if (!await confirm.confirm(`确定删除菜品「${row.name}」？删除后不可恢复。`)) return
+  try {
+    await store.deleteDish(Number(row.id))
+    toast.success('菜品已删除')
+  } catch (e: any) {
+    toast.error(e.message || '删除失败')
+  }
+}
+
+function formatPrice(row: any): string {
+  if (row.promoPrice) return `¥${row.promoPrice.toFixed(2)}`
+  return `¥${row.price}`
+}
+
+// ===== 行内状态快捷切换（上架/下架，无需进弹窗） =====
+const switchId = ref<number | null>(null)
+async function toggleStatus(row: any, active: boolean) {
+  const next = active ? 'active' : 'inactive'
+  switchId.value = Number(row.id)
+  try {
+    await store.updateDish(Number(row.id), { status: next })
+    toast.success(`「${row.name}」已${active ? '上架' : '下架'}`)
+  } catch (e: any) {
+    toast.error(e.message || '状态更新失败')
+  } finally {
+    switchId.value = null
+  }
+}
+
+// ===== 批量上架/下架/删除 =====
+const selectedIds = ref<number[]>([])
+
+async function batchSetStatus(status: 'active' | 'inactive') {
+  if (!selectedIds.value.length) return
+  const label = status === 'active' ? '上架' : '下架'
+  if (!await confirm.confirm(`确定批量${label} ${selectedIds.value.length} 个菜品？`)) return
+  try {
+    for (const id of selectedIds.value) await store.updateDish(id, { status })
+    toast.success(`已批量${label} ${selectedIds.value.length} 个菜品`)
+    selectedIds.value = []
+  } catch (e: any) {
+    toast.error(e.message || `批量${label}失败`)
+  }
+}
+
+async function batchDelete() {
+  if (!selectedIds.value.length) return
+  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。`)) return
+  try {
+    for (const id of selectedIds.value) await store.deleteDish(id)
+    toast.success(`已删除 ${selectedIds.value.length} 个菜品`)
+    selectedIds.value = []
+  } catch (e: any) {
+    toast.error(e.message || '批量删除失败')
+  }
+}
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="菜品管理" :count="rows.length">
-      <template #actions>
-        <button class="btn-primary" v-press @click="router.push('/dashboard/canteens')">
-          <el-icon class="btn-plus-icon"><Plus /></el-icon>去档口添加
-        </button>
-      </template>
-    </PageHeader>
-
-    <FilterBar>
+    <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
         <FilterSelect v-model="typeFilter" label="类型" :options="typeOptions" :width="150" />
       </template>
+      <template #actions>
+        <template v-if="selectedIds.length">
+          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('active')">批量上架</button>
+          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
+          <button class="btn-danger" v-press type="button" @click="batchDelete">批量删除</button>
+        </template>
+        <button class="btn-primary" v-press @click="openAddDish">
+          <el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品
+        </button>
+      </template>
     </FilterBar>
 
-    <!-- 三态 -->
-    <div v-if="loading" class="state-box"><span class="spin" />加载中…</div>
-    <div v-else-if="error" class="state-box state-err">{{ error }}</div>
-    <div v-else-if="!rows.length" class="state-box">暂无菜品</div>
+    <DataTable
+      selectable
+      v-model:selectedIds="selectedIds"
+      :columns="[
+        { prop: 'image', label: '图片', width: '72px' },
+        { prop: 'name', label: '菜品名称', sortable: true },
+        { prop: 'stall', label: '所属档口' },
+        { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
+        { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
+        { prop: 'status', label: '状态', width: '110px', align: 'center' },
 
-    <div v-else class="card-grid">
-      <div v-for="(row, i) in rows" :key="Number(row.id)" class="dish-card" :style="{ animationDelay: (i % 12) * 30 + 'ms' }" v-press @click="goEdit(row)">
-        <div class="dish-img-wrap">
-          <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" />
-          <div v-else class="dish-img-placeholder"><el-icon class="ph-svg"><Food /></el-icon></div>
-          <span v-if="row.promoPrice" class="promo-flag">折扣</span>
+      ]"
+      :rows="rows"
+      :loading="loading"
+      :error="error"
+      empty-text="暂无菜品">
+      <template #cell-image="{ row }">
+        <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" />
+        <span v-else class="cell-thumb cell-thumb-empty">图</span>
+      </template>
+      <template #cell-name="{ row }">
+        <span class="cell-title" :title="row.name">{{ row.name }}</span>
+        <span v-if="row.promoPrice" class="promo-flag">折扣</span>
+      </template>
+      <template #cell-stall="{ row }">
+        <span class="cell-sub" :title="stallName(row.stall_id)">{{ stallName(row.stall_id) }}</span>
+      </template>
+      <template #cell-price="{ row }">
+        <span class="price-cell" :class="{ promo: !!row.promoPrice }">{{ formatPrice(row) }}</span>
+        <span v-if="row.promoPrice && row.originalPrice" class="origin">¥{{ row.originalPrice.toFixed(2) }}</span>
+      </template>
+      <template #cell-rating="{ row }">
+        <span v-if="row.avg_rating" class="rating"><el-icon class="star"><Star /></el-icon>{{ Number(row.avg_rating).toFixed(1) }}</span>
+        <span v-else class="text-muted">—</span>
+      </template>
+      <template #cell-status="{ row }">
+        <div class="status-cell">
+          <el-switch
+            :model-value="row.status === 'active'"
+            :loading="switchId === Number(row.id)"
+            :disabled="switchId === Number(row.id)"
+            @change="(v: any) => toggleStatus(row, !!v)"
+          />
+          <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '在售' : '已下架' }}</span>
         </div>
-        <div class="dish-body">
-          <h4 class="dish-title">{{ row.name }}</h4>
-          <p class="dish-belong">{{ stallName(row.stall_id) }}</p>
-          <div class="dish-price-row">
-            <span v-if="row.promoPrice" class="promo">
-              ¥{{ (row.promoPrice / 100).toFixed(2) }}
-              <span v-if="row.originalPrice" class="origin">¥{{ (row.originalPrice / 100).toFixed(2) }}</span>
-            </span>
-            <span v-else class="price">¥{{ row.price }}</span>
-          </div>
-          <div class="dish-foot">
-            <StatusTag :type="row.status === 'active' ? 'success' : 'danger'" :text="row.status === 'active' ? '在售' : '已下架'" />
-            <span v-if="row.avg_rating" class="rating"><el-icon class="star"><Star /></el-icon>{{ Number(row.avg_rating).toFixed(1) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </PageContainer>
+      </template>
+      <template #actions="{ row }">
+        <button class="link" v-press @click="openEditDish(row)">编辑</button>
+        <button class="link danger" v-press @click="handleDelete(row)">
+          <el-icon class="act-ico"><Delete /></el-icon>删除
+        </button>
+      </template>
+    </DataTable>
+
+    <DishFormDialog
+      :show="dishModal"
+      :editing-id="editingDishId"
+      :default-stall-id="null"
+      :stall-options="dishStallOptions"
+      @close="dishModal = false"
+      @saved="onDishSaved"
+    />
 </template>
 
 <style scoped>
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
-.dish-card {
-  background: var(--bg-card); border-radius: var(--radius-card); overflow: hidden;
-  box-shadow: var(--shadow-card); border: 1px solid var(--border-light);
-  cursor: pointer;
-  transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), border-color .2s var(--ease-out);
-  animation: card-enter 0.3s var(--ease-out) both;
-}
-@media (hover: hover) {
-  .dish-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
-}
-.dish-img-wrap { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; }
-.dish-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dish-img-placeholder { opacity: .35; }
-.ph-svg { width: 40px; height: 40px; }
-.promo-flag { position: absolute; top: var(--space-2); left: var(--space-2); background: var(--color-error); color: var(--text-white); font-size: var(--font-xs); padding: 1px var(--space-2); border-radius: var(--radius-sm); }
-.dish-body { padding: var(--space-4); }
-.dish-title { margin: 0 0 var(--space-1); font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); }
-.dish-belong { margin: 0 0 var(--space-2); font-size: var(--font-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dish-price-row { margin-bottom: var(--space-3); }
-.price { color: var(--color-price); font-weight: var(--weight-bold); }
-.promo { color: var(--color-error); font-weight: var(--weight-bold); }
+.cell-thumb { width: 52px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; display: inline-block; vertical-align: middle; background: var(--bg-soft); }
+.cell-thumb-empty { display: inline-flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--text-light); }
+.cell-title { font-weight: var(--weight-semibold); color: var(--text-primary); }
+.cell-sub { font-size: var(--font-sm); color: var(--text-secondary); }
+.promo-flag { margin-left: var(--space-2); background: var(--color-error); color: var(--text-white); font-size: var(--font-xs); padding: 0 var(--space-2); border-radius: var(--radius-sm); vertical-align: 1px; }
+.price-cell { color: var(--color-price); font-weight: var(--weight-bold); }
+.price-cell.promo { color: var(--color-error); }
 .origin { color: var(--text-light); text-decoration: line-through; font-size: var(--font-xs); margin-left: var(--space-1); }
-.dish-foot { display: flex; align-items: center; justify-content: space-between; }
 .rating { display: inline-flex; align-items: center; gap: 2px; font-size: var(--font-sm); color: var(--color-star); font-weight: var(--weight-medium); }
-.star { width: 14px; height: 14px; }
+.star { width: 13px; height: 13px; }
+.text-muted { color: var(--text-light); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
-
-.state-box { text-align: center; color: var(--text-light); padding: var(--space-10) var(--space-4); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
-.state-err { color: var(--color-error); }
-.spin { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .7s linear infinite; }
-
-@keyframes card-enter { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .dish-card { animation: none; }
-  .spin { animation-duration: 1.4s; }
-}
+/* 行内状态开关 */
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--text-light); }
+.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
 </style>

@@ -50,14 +50,14 @@ withDefaults(
 .page-container.mw-1280 { max-width: 1280px; }
 .page-container.mw-none { max-width: none; }
 .page-container:not(.no-pad) {
-  padding: var(--space-6) var(--space-8);
+  padding: var(--space-4) var(--space-5);
 }
 .pc-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 .pc-head-main { min-width: 0; }
 .pc-titles { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -66,7 +66,7 @@ withDefaults(
 .pc-crumb-sep { margin: 0 var(--space-2); color: var(--text-light); }
 .pc-title {
   margin: 0;
-  font-size: var(--font-3xl);
+  font-size: var(--font-2xl);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-tight);

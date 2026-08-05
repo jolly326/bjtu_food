@@ -38,6 +38,15 @@ public interface AdminManagerService {
     void updateStatus(Long id, String status);
 
     /**
+     * 更新管理员基础信息（昵称 / 密码；密码为空则不修改）
+     *
+     * @param id       管理员ID
+     * @param nickname 新昵称（可为空=不改）
+     * @param password 新密码（可为空=不改）
+     */
+    void update(Long id, String nickname, String password);
+
+    /**
      * 删除管理员账号
      *
      * @param id 管理员ID

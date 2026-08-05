@@ -63,8 +63,16 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public List<DishVO> getHotDishes() {
-        return dishMapper.selectHotDishes()
-                .stream()
+        return getHotDishes(null, null);
+    }
+
+    @Override
+    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng) {
+        boolean byDistance = lat != null && lng != null;
+        List<com.bjtufood.dish.dto.DishVO> list = byDistance
+                ? dishMapper.selectHotDishesByDistance(lat, lng)
+                : dishMapper.selectHotDishes();
+        return list.stream()
                 .map(this::enrichImages)
                 .toList();
     }

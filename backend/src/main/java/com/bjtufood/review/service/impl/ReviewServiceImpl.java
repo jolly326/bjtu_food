@@ -13,6 +13,7 @@ import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
+import com.bjtufood.moment.service.MomentService;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
@@ -20,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +36,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
+    private final MomentService momentService;
 
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
@@ -126,6 +129,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long submitReview(Long userId, ReviewReq req) {
         if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
@@ -140,6 +144,12 @@ public class ReviewServiceImpl implements ReviewService {
         review.setImages(JsonListUtil.toJson(req.getImages()));
         review.setIsHidden(0);
         reviewMapper.insert(review);
+        // 评价与动态打通：勾选"同步到动态"且评价有正文时，生成 approved 动态直接上广场（评价可见即动态可见）
+        boolean shareToMoment = Boolean.TRUE.equals(req.getShareToMoment());
+        if (shareToMoment && StringUtils.hasText(req.getContent())) {
+            List<String> images = req.getImages() == null ? List.of() : req.getImages();
+            momentService.publishFromReview(userId, req.getContent(), images, req.getDishId());
+        }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();
     }
@@ -165,15 +175,15 @@ public class ReviewServiceImpl implements ReviewService {
         if (!review.getUserId().equals(userId)) {
             throw new BusinessException(403, "只能删除自己的评价");
         }
+        // 物理删除：级联清理该评价的「有用」关联 + 重算菜品评分
         reviewMapper.deleteById(id);
-        // task-06 §3：级联清理该评价的「有用」关联（uk_useful_user_review），避免孤儿记录
         reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getReviewId, id));
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }
 
     @Override
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted) {
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId) {
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
         // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
@@ -182,17 +192,18 @@ public class ReviewServiceImpl implements ReviewService {
                                 Review::getContent, Review::getImages, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
+                        .eq(userId != null, Review::getUserId, userId)
                         .orderByDesc(Review::getCreatedAt))
                 .convert(this::toAdminVO);
     }
 
     @Override
-    public void toggleHide(Long id) {
+    public void setHidden(Long id, boolean hidden) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
             throw new BusinessException("Review not found");
         }
-        review.setIsHidden(review.getIsHidden() != null && review.getIsHidden() == 1 ? 0 : 1);
+        review.setIsHidden(hidden ? 1 : 0);
         reviewMapper.updateById(review);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }

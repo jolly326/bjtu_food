@@ -29,7 +29,12 @@ const avatarLetter = computed(() =>
   (currentUser.value?.nickname || currentUser.value?.username || 'A').charAt(0).toUpperCase()
 )
 
-const roleLabel = computed(() => currentUser.value?.role === 'admin' ? '管理员' : '普通用户')
+const roleLabel = computed(() => {
+  const r = currentUser.value?.role
+  if (r === 'super_admin') return '超级管理员'
+  if (r === 'admin') return '管理员'
+  return '普通用户'
+})
 
 const pwdStrength = computed(() => {
   const pwd = pwdForm.value.newPwd
@@ -283,10 +288,10 @@ onMounted(loadProfile)
 .avatar-wrap { position: relative; width: 80px; height: 80px; border-radius: 50%; cursor: pointer; overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-card); transition: transform 160ms var(--ease-out); }
 .avatar-wrap:hover { transform: scale(1.02); }
 .avatar-wrap:active { transform: scale(var(--press-scale)); }
-.avatar-letter { width: 100%; height: 100%; border-radius: 50%; background: var(--color-primary); color: var(--text-white); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: var(--weight-bold); }
+.avatar-letter { width: 100%; height: 100%; border-radius: 50%; background: var(--color-primary); color: var(--color-on-primary); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: var(--weight-bold); }
 .avatar-img { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
 .avatar-img img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-overlay { position: absolute; inset: 0; border-radius: 50%; background: color-mix(in srgb, var(--text-primary) 45%, transparent); color: var(--text-white); display: flex; align-items: center; justify-content: center; font-size: var(--font-sm); font-weight: var(--weight-medium); opacity: 0; transition: opacity .2s var(--ease-out); }
+.avatar-overlay { position: absolute; inset: 0; border-radius: 50%; background: color-mix(in srgb, var(--text-primary) 45%, transparent); color: var(--color-on-primary); display: flex; align-items: center; justify-content: center; font-size: var(--font-sm); font-weight: var(--weight-medium); opacity: 0; transition: opacity .2s var(--ease-out); }
 .avatar-wrap:hover .avatar-overlay { opacity: 1; }
 .role-tag { display: inline-block; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); font-size: var(--font-xs); font-weight: var(--weight-medium); background: var(--color-primary-bg); color: var(--color-primary); line-height: 20px; }
 .pwd-field { margin-bottom: var(--space-5); }

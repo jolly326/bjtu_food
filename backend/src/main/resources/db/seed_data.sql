@@ -10,14 +10,40 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- -------------------- 用户（动态/评价/通知等均依赖；密码统一为 123456，BCrypt 哈希） --------------------
+-- BCrypt('123456') = $2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa
+INSERT INTO `user` (username, email, password, nickname, avatar, role, status, last_login_at) VALUES
+('2024001',  '2024001@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '交大干饭王',  NULL, 'student', 'active', NOW()),
+('2024002',  '2024002@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '食堂常客',    NULL, 'student', 'active', NOW()),
+('2024003',  '2024003@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '深夜放毒',    NULL, 'student', 'active', NOW()),
+('2024004',  '2024004@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '奶茶三分甜',  NULL, 'student', 'active', NOW()),
+('admin',    'admin@bjtu.edu.cn',   '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '管理员',      NULL, 'super_admin', 'active', NOW());
+
+-- -------------------- 菜品分类（find 宫格展示） --------------------
+INSERT INTO category (name, sort_order, status) VALUES
+('早餐',    1, 'enabled'),
+('午餐',    2, 'enabled'),
+('晚餐',    3, 'enabled'),
+('夜宵',    4, 'enabled'),
+('面食',    5, 'enabled'),
+('米饭',    6, 'enabled'),
+('麻辣',    7, 'enabled'),
+('清淡',    8, 'enabled');
+
+-- -------------------- 首页广播条（status=enabled 才展示） --------------------
+INSERT INTO broadcast (title, content, broadcast_type, target_id, target_url, sort_order, status) VALUES
+('开餐提醒',   '学苑区各食堂午间 11:00-13:30 供餐，错峰就餐更舒适', 'NOTICE', NULL, NULL, 1, 'enabled'),
+('今日特惠',   '明湖烧烤 烤五花肉 限时 8 折',                     'DISH',   18,  NULL, 2, 'enabled'),
+('新生指引',   '扫码进入小程序，探索交大各食堂招牌菜',           'NONE',   NULL, NULL, 3, 'enabled');
+
 -- -------------------- 食堂（在原有「学一食堂」id=1 基础上补充） --------------------
-INSERT INTO canteen (name, location, description, status, sort_order, audit_status) VALUES
-('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 'open', 2, 'approved'),
-('学三食堂', '学苑区二栋', '品类丰富，平价美味', 'open', 3, 'approved'),
-('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 'open', 4, 'approved'),
-('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     'open', 5, 'approved'),
-('清真食堂', '学苑区',     '清真风味，干净卫生', 'open', 6, 'approved'),
-('留园餐厅', '留园区',     '精致小炒与面点',     'open', 7, 'approved');
+INSERT INTO canteen (name, location, description, status, sort_order, audit_status, latitude, longitude) VALUES
+('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 'open', 2, 'approved', 39.954200, 116.335800),
+('学三食堂', '学苑区二栋', '品类丰富，平价美味', 'open', 3, 'approved', 39.954600, 116.336200),
+('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 'open', 4, 'approved', 39.955800, 116.331500),
+('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     'open', 5, 'approved', 39.953000, 116.339000),
+('清真食堂', '学苑区',     '清真风味，干净卫生', 'open', 6, 'approved', 39.954800, 116.335000),
+('留园餐厅', '留园区',     '精致小炒与面点',     'open', 7, 'approved', 39.957000, 116.338000);
 
 -- -------------------- 档口（canteen_id 对应上面的食堂） --------------------
 INSERT INTO stall (canteen_id, name, location, description, status, sort_order, audit_status) VALUES
@@ -77,20 +103,81 @@ INSERT INTO banner (title, subtitle, images, target_type, target_id, status, sor
 ('限时特惠',   '活动菜品低至8折',    NULL, 'ACTIVITY', 1,    'enabled', 3),
 ('食堂探店',   '发现身边的好味道',   NULL, 'NONE',     NULL, 'enabled', 4);
 
--- -------------------- 活动（status=enabled 才会被「限时活动」展示） --------------------
-INSERT INTO activity (title, description, cover_image, dish_id, activity_price, origin_price, official_account_url, start_time, end_time, status, sort_order) VALUES
-('烤肉狂欢节',   '明湖烧烤 烤五花肉 限时8折',     NULL, 18, 2000, 2500, NULL, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'enabled', 1),
-('奶茶买一送一', '嘉园奶茶 珍珠奶茶 第二杯0元',   NULL, 22, 1000, 2000, NULL, NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY), 'enabled', 2),
-('清真拉面特惠', '兰州牛肉面 立减3元',           NULL, 24, 1200, 1500, NULL, NOW(), DATE_ADD(NOW(), INTERVAL 20 DAY), 'enabled', 3);
+-- -------------------- 社区动态 moment（user_id 1~4 为注册学生；related_type: dish/stall/none） --------------------
+INSERT INTO moment (user_id, content, images, related_type, related_id, audit_status, useful_count, comment_count, status, created_at) VALUES
+(1, '今天在学一面点坊吃到了现做的鲜肉小笼，皮薄汁多，一口下去太满足了！推荐大家来试试～', NULL, 'dish',  4, 'approved', 12, 3, 0, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(2, '学三麻辣烫自选食材真的yyds，骨汤底绝了，人均 20 吃到撑，晚自习前干饭首选！',        NULL, 'dish',  6, 'approved', 8,  2, 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(3, '明湖餐厅的烤五花肉滋滋冒油，配上一瓶冰可乐，考试周解压神器。',                     NULL, 'dish',  9, 'approved', 15, 4, 0, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(4, '嘉园奶茶的珍珠奶茶 Q 弹顺滑，下午茶标配，甜度刚刚好。',                             NULL, 'dish', 11, 'approved', 6,  1, 0, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(1, '早八人福音！学三粥铺的皮蛋瘦肉粥绵密温润，配根油条开启元气满满的一天。',           NULL, 'dish',  7, 'approved', 9,  2, 0, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(2, '这家档口师傅手艺是真的好，兰州牛肉面一清二白汤鲜面劲，每次来都排长队，值得等待！', NULL, 'stall', 12, 'approved', 11, 3, 0, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(3, '新发现的宝藏档口，清真烤串孜然飘香，晚上下课来两串太治愈了。',                     NULL, 'stall', 13, 'approved', 7,  1, 0, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(4, '食堂新装修后环境好了很多，吃饭心情都变好了，随手记录一下～',                       NULL, 'none',  NULL, 'approved', 3,  0, 0, DATE_SUB(NOW(), INTERVAL 3 DAY));
 
--- -------------------- 评价（为部分菜品填充评价，丰富详情页） --------------------
+-- -------------------- 动态评论 moment_comment（parent_id NULL=顶级，非 NULL=楼中楼回复） --------------------
+INSERT INTO moment_comment (moment_id, user_id, parent_id, content, created_at) VALUES
+(1, 2, NULL, '小笼包确实好吃！我也常去', DATE_SUB(NOW(), INTERVAL 100 MINUTE)),
+(1, 3, NULL, '求问是学一食堂哪一层呀',      DATE_SUB(NOW(), INTERVAL 80 MINUTE)),
+(1, 1, 2,    '一楼最里面那家，去晚就卖完了', DATE_SUB(NOW(), INTERVAL 70 MINUTE)),
+(2, 4, NULL, '骨汤底yyds！已安利室友',      DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(2, 1, NULL, '人均20？这么实惠的吗',        DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(3, 1, NULL, '考试周就该吃点好的！',        DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+(3, 4, NULL, '下次一起冲',                  DATE_SUB(NOW(), INTERVAL 18 HOUR)),
+(4, 2, NULL, '三分糖党报到',               DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+(5, 3, NULL, '早八人+1，粥铺yyds',         DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(6, 4, NULL, '这家拉面真的每次都要排队',   DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(6, 1, 4,    '避开饭点去会好很多',         DATE_SUB(NOW(), INTERVAL 23 HOUR)),
+(7, 2, NULL, '烤串一绝，推荐羊肉串',       DATE_SUB(NOW(), INTERVAL 2 DAY));
+
+-- -------------------- 动态「有用 👍」标记（moment_useful，一人一票） --------------------
+INSERT INTO moment_useful (user_id, moment_id, created_at) VALUES
+(2, 1, DATE_SUB(NOW(), INTERVAL 90 MINUTE)),
+(3, 1, DATE_SUB(NOW(), INTERVAL 60 MINUTE)),
+(4, 1, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+(1, 2, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(3, 2, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(1, 3, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+(2, 3, DATE_SUB(NOW(), INTERVAL 19 HOUR)),
+(4, 3, DATE_SUB(NOW(), INTERVAL 16 HOUR)),
+(1, 4, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+(1, 5, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2, 5, DATE_SUB(NOW(), INTERVAL 23 HOUR)),
+(2, 6, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(3, 6, DATE_SUB(NOW(), INTERVAL 23 HOUR)),
+(4, 6, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
+(1, 7, DATE_SUB(NOW(), INTERVAL 2 DAY));
+
+-- -------------------- 评价（为部分菜品填充评价，丰富详情页；与 dish.avg_rating/rating_count 大致对应） --------------------
 INSERT INTO review (user_id, dish_id, rating, content, images, is_hidden) VALUES
 (1, 1,  5, '宫保鸡丁真的绝，下饭神器！',               NULL, 0),
 (1, 2,  5, '水煮牛肉麻辣鲜香，分量很足',               NULL, 0),
 (1, 6,  4, '牛肉拉面汤头浓郁，就是稍微有点咸',         NULL, 0),
 (1, 18, 5, '烤五花肉滋滋冒油，太香了',                 NULL, 0),
 (1, 22, 5, '珍珠奶茶奶香十足，珍珠很Q',                NULL, 0),
-(1, 24, 5, '兰州牛肉面一清二白，地道！',               NULL, 0);
+(1, 24, 5, '兰州牛肉面一清二白，地道！',               NULL, 0),
+(2, 1,  4, '分量足，性价比高',                         NULL, 0),
+(2, 3,  5, '回锅肉肥而不腻，川味正',                   NULL, 0),
+(2, 12, 5, '骨汤麻辣烫自选很爽，汤底好喝',             NULL, 0),
+(2, 16, 5, '干锅花菜锅气十足，下饭',                   NULL, 0),
+(2, 26, 5, '羊肉串外焦里嫩，孜然味足',                 NULL, 0),
+(3, 4,  5, '番茄炒蛋家常味，酸甜可口',                 NULL, 0),
+(3, 7,  5, '皮蛋瘦肉粥绵密温润，暖胃',                 NULL, 0),
+(3, 8,  5, '干锅花菜朋友都夸',                         NULL, 0),
+(3, 14, 5, '皮蛋瘦肉粥配油条绝配',                     NULL, 0),
+(3, 29, 5, '鲜虾烧卖皮薄馅大，好吃',                   NULL, 0),
+(4, 9,  5, '香辣虾弹牙爽口，够味',                     NULL, 0),
+(4, 19, 4, '炒粉镬气足，宵夜首选',                     NULL, 0),
+(4, 23, 5, '杨枝甘露清甜解腻',                         NULL, 0),
+(4, 30, 5, '叉烧包松软甜香，广式经典',                 NULL, 0);
+
+-- -------------------- 评价「有用」标记（review_useful，一人一票） --------------------
+INSERT INTO review_useful (user_id, review_id, created_at) VALUES
+(2, 1, NOW()), (3, 1, NOW()), (4, 1, NOW()),
+(1, 2, NOW()), (3, 2, NOW()),
+(2, 3, NOW()), (4, 3, NOW()),
+(1, 4, NOW()), (3, 4, NOW()),
+(2, 5, NOW()), (4, 5, NOW()),
+(1, 6, NOW()), (3, 6, NOW());
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）

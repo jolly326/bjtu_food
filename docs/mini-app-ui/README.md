@@ -8,39 +8,43 @@
 
 ## 目录（15 页）
 
-> 与 `frontend/src/pages.json` 严格一致。**主包 7 + 分包 `pages-detail` 4 + 分包 `pages-user` 4 = 15 页**。
-> 被移除页面（历史遗留 doc，不再有路由）：`contact`（已并入 feedback）、`notify`（消息并入「我的」）、`my-publish` / `my-submissions`（合并进 `messages-services`）、`review-list`（评价改详情内联）、`webview`（已移除，外链改复制链接，见 task-07）、`dish` 独立页（已改为底部弹层 `DishDetailSheet`，见 task-10）。
+> 与 `frontend/src/pages.json` 严格一致。**主包 7 + 分包 `pages-detail` 4 + 分包 `pages-user` 6 = 17 页**。
+> 被移除页面（历史遗留 doc，不再有路由）：`contact`（已并入 feedback）、`settings`（已移除，设置项内嵌 profile）、`notify`（旧消息中心，当前消息中心为独立路由 `pages/profile/messages/index`）、`my-publish` / `my-submissions`（合并进 `messages-services`）、`review-list`（评价改详情内联）、`webview`（已移除，外链改复制链接，见 task-07）、`dish` 独立页（已改为底部弹层 `DishDetailSheet`，见 task-10）。
+>
+> **文档组织（2026-08-02 起，方案 A 页组合并）**：复杂/高价值页各保留独立文档；**表单 5 页合并为 [forms.md](forms.md)**（publish-dish / publish-moment / submit-stall / review / feedback，共用表单模式）；**列表 6 页合并为 [lists.md](lists.md)**（community / my-moments / moment / messages-services / my-reviews / settings，共用列表模式；settings 为已移除路由的遗留设计参考，其设置项现内嵌 profile）。被合并页的原独立文档已删除，检索时查对应合集。
 
 ### 主包（7）
-| 文件 | 页面 | 一句话用途 |
+| 文档 | 页面 | 一句话用途 |
 |---|---|---|
 | [home.md](home.md) | 首页 | 轮播 + 广播条 + 食堂入口 + 热门菜品瀑布流 |
 | [find.md](find.md) | 发现 | 搜索/历史/分类/热搜 + 多维筛选结果页 |
-| [profile.md](profile.md) | 我的 | 未登录态登录注册 / 已登录态用户卡 + 菜单（含消息区块） |
-| [community.md](community.md) | 动态 | 最新动态单流 + 悬浮发布 FAB |
-| [settings.md](settings.md) | 设置 | 通知/通用/账号 分组设置 |
-| [feedback.md](feedback.md) | 意见反馈 | 类型 + 内容 + 联系方式，底部提交 |
-| [messages-services.md](messages-services.md) | 我的发布与贡献 | 「我的发布」+「我的贡献」唯一聚合页（吸收 my-publish / my-submissions） |
+| [profile.md](profile.md) | 我的 | 未登录态登录注册 / 已登录态用户卡 + 菜单（含消息区块；设置项已内嵌于此，原 settings 页移除） |
+| [lists.md](lists.md) §5 | 消息中心 | 系统/回复/点赞 消息列表（独立路由 `pages/profile/messages/index`） |
+| [forms.md](forms.md) §5 | 意见反馈 | 类型 + 内容 + 联系方式，底部提交 |
+| [lists.md](lists.md) §4 | 我的发布与贡献 | 「我的发布」+「我的贡献」唯一聚合页（吸收 my-publish / my-submissions） |
+| [lists.md](lists.md) §1 | 动态 | 最新动态单流 + 悬浮发布 FAB |
 
 > 注：`webview`（外部链接）页已移除（task-07），Banner/广播外链改「复制链接 + toast」，不再有独立 web-view 容器页（相关设计文档已随页面一并删除）。
 
 ### 分包 pages-detail（4）
-| 文件 | 页面 | 一句话用途 |
+| 文档 | 页面 | 一句话用途 |
 |---|---|---|
-| [canteen.md](canteen.md) | 食堂详情 | 图集 + 食堂信息 + 档口列表 + 评价 |
-| [moment.md](moment.md) | 动态详情 | 正文/九宫格/评论/举报 + 评论输入栏 |
+| [canteen.md](canteen.md) | 食堂详情 | 图集 + 食堂信息 + 档口列表 + 关联动态 |
+| [lists.md](lists.md) §3 | 动态详情 | 正文/九宫格/评论/举报 + 评论输入栏 |
 | [stall.md](stall.md) | 档口详情 | 图集 + 档口信息 + 全部菜品 + 评价 |
-| [review.md](review.md) | 发表评价 | 评分 + 内容 + 图片，吸底提交 |
+| [forms.md](forms.md) §4 | 发表评价 | 评分 + 内容 + 图片，吸底提交 |
 
 > 注：`dish` 菜品详情已不再独立页（task-10），改为底部弹层组件 `DishDetailSheet`（经各入口组件打开），不占独立路由。设计内容见 [dish.md](dish.md)（顶部已标注 ⚠️ 已弹层化）。
 
-### 分包 pages-user（4）
-| 文件 | 页面 | 一句话用途 |
+### 分包 pages-user（6）
+| 文档 | 页面 | 一句话用途 |
 |---|---|---|
-| [publish-moment.md](publish-moment.md) | 发布动态 | 发动态主入口：正文 + 关联对象 + 图片，底部提交栏 |
-| [my-moments.md](my-moments.md) | 我的动态 | 全部/审核中/已退回 分段 + 列表 |
-| [publish-dish.md](publish-dish.md) | 发布菜品 | 基本/食堂档口/标签/图片/描述 表单（经「我要贡献」弹层进入） |
-| [submit-stall.md](submit-stall.md) | 提交档口·食堂 | 档口或食堂信息提交表单（经「我要贡献」弹层进入） |
+| [forms.md](forms.md) §2 | 发布动态 | 发动态主入口：正文 + 关联对象 + 图片，底部提交栏 |
+| [lists.md](lists.md) §2 | 我的动态 | 全部/审核中/已退回 分段 + 列表 |
+| [forms.md](forms.md) §1 | 发布菜品 | 基本/食堂档口/标签/图片/描述 表单（经「我要贡献」弹层进入） |
+| [forms.md](forms.md) §3 | 提交档口·食堂 | 档口或食堂信息提交表单（经「我要贡献」弹层进入） |
+| [lists.md](lists.md) §6 | 我的评价 | 我的历史评价列表（含删除入口，路径 `pages/pages-user/my-reviews/index`） |
+| [forms.md](forms.md) §6 | 个人信息 | 昵称/头像等个人信息编辑（路径 `pages/pages-user/profile-edit/index`） |
 
 > 注：分包页面实际路径为 `src/pages/pages-detail/`（root = `"pages/pages-detail/"`）与 `src/pages/pages-user/`（root = `"pages/pages-user/"`），本目录文档按 `pagekey` 命名，便于检索。
 

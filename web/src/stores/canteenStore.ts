@@ -17,5 +17,5 @@ export const useCanteenStore = defineStore('canteen', () => {
   async function remove(id: number) { await canteenApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, activeList, add, update, remove }
+  return { list, loadAll, activeList, add, update, remove }
 })

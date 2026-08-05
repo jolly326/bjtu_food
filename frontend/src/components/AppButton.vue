@@ -77,7 +77,7 @@ function handleTap() {
 }
 .btn-text {
   font-size: var(--font-card);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--text-white);
 }
 .btn-primary {

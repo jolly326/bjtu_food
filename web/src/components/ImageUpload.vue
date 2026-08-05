@@ -152,7 +152,7 @@ watch(() => props.modelValue, () => {})
   left: 0;
   right: 0;
   background: var(--color-primary);
-  color: var(--text-white);
+  color: var(--color-on-primary);
   font-size: var(--font-xs);
   text-align: center;
   padding: var(--space-1) 0;

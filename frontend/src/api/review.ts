@@ -102,7 +102,13 @@ export async function getReviewsByCanteen(
 }
 
 export async function submitReview(data: ReviewSubmit): Promise<void> {
-  await post('/reviews', { dishId: data.dishId, rating: data.rating, content: data.content, images: data.images || [] })
+  await post('/reviews', {
+    dishId: data.dishId,
+    rating: data.rating,
+    content: data.content,
+    images: data.images || [],
+    shareToMoment: !!data.shareToMoment,
+  })
 }
 
 /**

@@ -1,5 +1,5 @@
 <template>
-  <view v-if="open" class="sheet-mask" :class="{ show: maskShow }" @tap="$emit('close')" />
+  <view v-if="open" class="sheet-mask" :class="{ show: maskShow }" @tap="$emit('close')" @touchmove.stop.prevent="noop" />
   <view
     class="related-sheet"
     :class="{ open }"
@@ -107,19 +107,34 @@ watch(() => props.open, (v) => {
 const dragOffset = ref(0)
 const dragging = ref(false)
 
+/** 空处理器：mask touchmove.stop 防背景滚动穿透（小程序 catchtouchmove） */
+function noop() {}
+
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${props.open ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
   transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
 }))
 
 let startY = 0
+let lastY = 0
+let lastTime = 0
+let velocity = 0
 function onTouchStart(e: any) {
   startY = e.touches?.[0]?.clientY ?? 0
+  lastY = startY
+  lastTime = Date.now()
+  velocity = 0
   dragging.value = true
 }
 function onTouchMove(e: any) {
   if (!dragging.value) return
   const y = e.touches?.[0]?.clientY ?? 0
+  const now = Date.now()
+  // 记录瞬时速度（与 DishDetailSheet 一致，apple-design §5 velocity handoff）
+  const dt = Math.max(now - lastTime, 1)
+  velocity = ((y - lastY) / dt) * 1000 // px/s
+  lastY = y
+  lastTime = now
   const delta = y - startY
   // 仅允许向下拖拽
   dragOffset.value = delta > 0 ? delta : 0
@@ -127,8 +142,8 @@ function onTouchMove(e: any) {
 function onTouchEnd() {
   if (!dragging.value) return
   dragging.value = false
-  // 超过 120rpx（约 60px）阈值则关闭，否则回弹
-  if (dragOffset.value > 120) emit('close')
+  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（与 DishDetailSheet 手感一致），否则回弹
+  if (velocity > 480 || dragOffset.value > 120) emit('close')
   dragOffset.value = 0
 }
 
@@ -230,12 +245,12 @@ watch(tab, () => {
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
 }
 .related-sheet.open { transform: translateY(0); }
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--border-color); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
+.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
-.sheet-title { font-size: var(--font-h3); font-weight: 700; color: var(--text-primary); }
+.sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
 .sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
 .sheet-tabs { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-md) 0; }
-.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .sheet-tab:active { transform: scale(var(--press-scale)); }
 .sheet-tab.active { background: var(--color-primary-soft); color: var(--color-primary); }
 .sheet-search { padding: var(--spacing-md); }
@@ -248,8 +263,8 @@ watch(tab, () => {
 .sheet-item-img-empty { display: flex; align-items: center; justify-content: center; }
 .sheet-item-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.sheet-clear { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: 600; -webkit-tap-highlight-color: transparent; }
-.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--text-white); font-weight: 700; -webkit-tap-highlight-color: transparent; }
+.sheet-clear { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: var(--weight-semibold); -webkit-tap-highlight-color: transparent; }
+.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--text-white); font-weight: var(--weight-bold); -webkit-tap-highlight-color: transparent; }
 
 .footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

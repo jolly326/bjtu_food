@@ -18,8 +18,20 @@
 2. **贡献（平鉴官）**：提交 → `audit_status=pending` → 后台审核 → `approved` / `rejected`（回写 `reject_reason`，学生**复用原记录**重提回 `pending`）。
 3. **运营（后勤）**：后台审 UGC / CRUD / 配 Banner → 小程序即时体现；活动不独立成模块，统一经 Banner 触达。
 
+### 0.4 三端定位与数据链路（2026-08-05 拍板，强制）
+- **小程序（`frontend/`）= 服务端 / 用户端**：学生使用，是**业务数据的唯一产生源头**（浏览、UGC 提交、评价、动态、反馈）。
+- **后端（`backend/`）= 数据服务**：唯一数据存储与业务规则所在；小程序与 Web **共用同一套 API 契约**（`/admin/**` 供 Web，`/` 用户接口供小程序）。
+- **Web 管理端（`web/`）= 辅助后端管理数据的 UI 工具（非用户端）**：职责 = 对小程序产生的数据做**管理（CRUD / 上下架 / 排序 / 配置）与审阅（UGC 审核 / 内容治理 / 操作日志 / 数据总览）**；Web 不产生业务数据，只消费与管理后端数据。
+- **数据链路**：小程序产生数据 → 后端落库（MySQL）→ Web 经 `/admin/**` 读取与管理 → 小程序即时反映。
+- **Web 端管理能力全景（与 `docs/tasks/todo.md` 对齐）**：
+  - 信息管理：食堂 / 档口 / 菜品（业务信息）+ 轮播 / 广播（首页配置）
+  - 内容审核：评价 / 动态 / 反馈（含 UGC 申请）
+  - 用户与权限：学生账号 / 管理员账号（超管分层）
+  - 系统：操作日志 / 工作台（待办 + 数据总览）
+- 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务。
+
 ### 0.3 一致性红线（全局，强制）
-- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由；`/admin/**` 仅 `ADMIN`。
+- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN` 分层，见 §5.x）。
 - 菜品 / 档口 / 食堂均含独立 `audit_status`(pending/approved/rejected) + `reject_reason`（与上下架 `status` 解耦）。
 - Banner 跳转用 `target_type` 枚举（DISH/URL/NONE；`ACTIVITY` 已移除，活动统一经 Banner URL 外链）。
 - 实体贡献「下架 / 变更」申请落**独立 `apply` 表**（不复用实体 `audit_status`）。
@@ -30,24 +42,25 @@
 ## 1. 技术栈
 - 后端：Spring Boot 3.2 + Java 21，ORM MyBatis-Plus 3.5.5（BaseMapper + XML，`resources/mapper/*.xml`）；API 文档 **SpringDoc OpenAPI（`/swagger-ui.html` + `/v3/api-docs`），不使用 Knife4j**。
 - 小程序端：uni-app + Vue 3 (`<script setup>`) + TypeScript + Pinia，目录 `frontend/`。
-- Web 管理端：Vue 3 + Vite + TypeScript + Element Plus + ECharts，目录 `web/`，无 Pinia。
+- Web 管理端：Vue 3 + Vite + TypeScript + Element Plus，目录 `web/`，无 Pinia。**定位：辅助后端管理数据的 UI 工具（非用户端）**——只经 `/admin/**` 接口消费与管理小程序产生的数据，见 §0.4。
 - 数据库：MySQL 8.0，库 `bjtu_food`，utf8mb4；**建表脚本唯一权威：`backend/src/main/resources/db/schema.sql`**（`user.role` 默认 `'student'`）。
 - 认证：JWT（7 天），`Authorization: Bearer {token}`；密码 BCrypt。
 
 ## 2. 目录结构
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
-- 小程序 `frontend/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 4 页：home / find / moment / profile**；收藏、消息中心、我要贡献进 `profile`，不占 TabBar）、`components/`。
+- 小程序 `frontend/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 3 页：home / moment / profile，2026-08-03 移除 find**——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；收藏、消息中心、我要贡献进 `profile`，不占 TabBar）、`components/`。
 
 ### 2.1 小程序页面架构（最终清单，已拍板，2026-08-02）
-> 与 `frontend/src/pages.json` 严格一致。**共 15 个页面**：主包 7 + `pages-detail` 分包 4 + `pages-user` 分包 4。
+> 与 `frontend/src/pages.json` 严格一致。**共 17 个页面**：主包 7 + `pages-detail` 分包 4 + `pages-user` 分包 6。
 
-- **主包（7）**：`home` 首页 / `find` 发现 / `profile` 我的 / `community` 动态 / `settings` 设置 / `feedback` 意见反馈 / `messages-services` 我的发布与贡献（路径 `pages/profile/messages-services/index`）。**`webview` 外部链接页已移除（task-07，commit 7dcba46）**：Banner/广播外链改「复制链接 + toast」，不再跳独立 web-view 容器页。
+- **主包（7）**：`home` 首页（顶部含定位 + 搜索框入口。**定位（方案 C，2026-08-04）**：左上角定位条显示当前校区，点击触发 `uni.getLocation`（GCJ-02）重新定位，授权失败降级默认「北京交通大学」；定位结果缓存（`utils/location.ts`），有坐标时首页食堂 coverflow 与热门菜品首屏经 `/canteens?lat=&lng=`、`/dishes/hot?lat=&lng=` 按距离排序（近食堂优先，haversine，食堂坐标存 `canteen.latitude/longitude`，种子已预置））/ `find` 搜索（**2026-08-03 改为二级搜索页**：非 tab，经首页搜索框 `navigateTo` 进入；含搜索记录 + 高频搜索；筛选结果页）/ `profile` 我的 / `community` 动态 / `feedback` 意见反馈 / `messages-services` 我的发布与贡献（路径 `pages/profile/messages-services/index`）/ `messages` 消息中心（路径 `pages/profile/messages/index`）。**`settings` 设置已移除（2026-08-03）**：设置项（消息/通用/账号分组）已内嵌 `profile`，不再独立路由（见下方被砍列表）。**`webview` 外部链接页已移除（task-07，commit 7dcba46）**：Banner/广播外链改「复制链接 + toast」，不再跳独立 web-view 容器页。
 - **分包 `pages-detail`（4）**：`canteen` 食堂详情 / `moment` 动态详情 / `stall` 档口详情 / `review` 发表评价。**`dish` 菜品详情已不再独立页（task-10，commit 9537969）**：菜品详情已改为底部弹层组件 `DishDetailSheet`，从各入口经组件打开，不占独立路由。
-- **分包 `pages-user`（4）**：`publish-moment` 发布动态（发动态主入口）/ `my-moments` 我的动态 / `publish-dish` 发布菜品 / `submit-stall` 提交档口·食堂。
+- **分包 `pages-user`（6）**：`publish-moment` 发布动态（发动态主入口）/ `my-moments` 我的动态 / `publish-dish` 发布菜品 / `submit-stall` 提交档口·食堂 / `my-reviews` 我的评价（路径 `pages/pages-user/my-reviews/index`）/ `profile-edit` 个人信息（路径 `pages/pages-user/profile-edit/index`）。
 
 **被砍/取消页（已从 pages.json 移除，仅作历史保留，doc 见 `docs/mini-app-ui/`）**：
+- `settings`（设置）→ **已移除（2026-08-03）**，设置项（消息/通用/账号分组）已内嵌 `profile`（设置区块），不再独立路由。
 - `my-publish`（我的发布）、`my-submissions`（我的提交）→ **合并进 `messages-services`**（该页为「我的发布与贡献」唯一聚合页，吸收两者内容与入口）。
-- `notify`（消息中心）→ **消息并入「我的」(profile) 区块**，不再独立路由。
+- `notify`（旧消息中心，并入 profile 时代的独立路由）→ **已移除**；**当前消息中心为独立路由 `pages/profile/messages/index`**（主包 `messages`），未并入 profile。
 - `review-list`（全部评价）→ **取消独立跳转**，评价改为详情页（stall/canteen）内联展示。
 - `webview`（外部链接）→ **已移除（task-07）**，Banner/广播外链改复制链接 + toast，相关设计文档已随页面一并删除。
 - `dish`（菜品详情独立页）→ **已改为底部弹层 `DishDetailSheet`（task-10）**，不再独立路由，doc 见 `docs/mini-app-ui/dish.md`（已标注弹层化）。

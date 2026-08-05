@@ -48,7 +48,10 @@ const emit = defineEmits<{ back: [] }>()
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  /* 紧凑：标题区占用更少，主要信息上移 */
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
 }
 .ph-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .ph-back {
@@ -69,11 +72,29 @@ const emit = defineEmits<{ back: [] }>()
   .ph-back:hover { color: var(--color-primary); border-color: var(--color-primary); }
 }
 .ph-back:active { transform: scale(var(--press-scale)); }
-.ph-titles { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+/* 菜单牌标记：标题左侧朱砂红竖条 */
+.ph-titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-left: var(--space-3);
+  position: relative;
+}
+.ph-titles::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
 .ph-title-row { display: flex; align-items: baseline; gap: var(--space-3); }
 .ph-title {
   margin: 0;
-  font-size: var(--font-3xl);
+  font-size: var(--font-lg);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-tight);

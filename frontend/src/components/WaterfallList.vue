@@ -19,7 +19,7 @@
         class="waterfall-item-single enter-up"
         :style="{ '--enter-i': i }"
       >
-        <StallCardSingle :stall="toStallItem(item)" @click="onStallClick" />
+        <StallCardSingle :stall="toStallItem(item)" @select="onStallClick" />
       </view>
     </template>
 
@@ -32,7 +32,7 @@
           class="waterfall-item enter-up"
           :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
         >
-          <DishCard :dish="entry.item" @click="onCardClick" />
+          <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
       </view>
       <view class="waterfall-col waterfall-col-right">
@@ -42,7 +42,7 @@
           class="waterfall-item enter-up"
           :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
         >
-          <DishCard :dish="entry.item" @click="onCardClick" />
+          <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
       </view>
     </template>
@@ -98,7 +98,7 @@ function stallKey(item: any, idx: number): string {
   return (raw !== undefined && raw !== null && raw !== '') ? `st-${raw}` : `st-idx-${idx}`
 }
 
-/** 把任意档口对象归一为 StallCardItem（允许携带 image/description/rating/meta） */
+/** 把任意档口对象归一为 StallCardItem（透传位置/菜品数/人均/招牌菜，todo：档口卡位置缺失） */
 function toStallItem(item: any): StallCardItem {
   return {
     id: Number(item?.id || 0),
@@ -106,8 +106,13 @@ function toStallItem(item: any): StallCardItem {
     image: item?.image || item?.images?.[0] || '',
     description: item?.description || '',
     rating: item?.rating ?? item?.avgRating ?? 0,
+    avgRating: item?.avgRating != null ? Number(item.avgRating) : undefined,
+    dishCount: item?.dishCount != null ? Number(item.dishCount) : undefined,
+    perCapita: item?.perCapita != null ? Number(item.perCapita) : undefined,
+    location: item?.location || '',
     meta: item?.meta || '',
     tags: item?.tags || [],
+    topDishes: Array.isArray(item?.topDishes) ? item.topDishes : [],
   }
 }
 
@@ -124,9 +129,9 @@ function onStallClick(stall: StallCardItem) {
 .waterfall-grid {
   width: 100%;
   box-sizing: border-box;
-  padding-bottom: 40rpx;
+  padding-bottom: var(--spacing-lg);
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
 }
 .waterfall-col {
   flex: 1 1 0;
@@ -138,16 +143,20 @@ function onStallClick(stall: StallCardItem) {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  margin-bottom: 24rpx;
+  margin-bottom: var(--spacing-md);
 }
 .waterfall-item:last-child { margin-bottom: 0; }
-/* 单列模式：档口卡依次纵向堆叠，span 整宽 */
+/* 单列模式：档口卡依次纵向堆叠，span 整宽（覆盖 .waterfall-grid 的 flex 行布局为纵向列）。
+   卡间间距用 gap=md（与社区列表一致），容器 padding 提供左右边距（卡片居中不溢出）。
+   注意：不能给 item 同时设 width:100% 和左右 margin，否则横向溢出导致左右不对称。 */
+.waterfall-grid.single {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
 .waterfall-grid.single .waterfall-item-single {
   width: 100%;
   box-sizing: border-box;
-  margin-bottom: 24rpx;
-}
-.waterfall-grid.single .waterfall-item-single:last-child {
-  margin-bottom: 0;
 }
 </style>

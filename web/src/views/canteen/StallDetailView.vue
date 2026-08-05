@@ -305,7 +305,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
       <ImageUpload v-model="stallForm.image" :max="3" />
     </FormDialog>
 
-    <FormDialog :show="showModal" title="新增菜品" confirm-text="保存" @close="showModal = false" @confirm="handleSubmit">
+    <FormDialog :show="showModal" title="新增菜品" confirm-text="保存" @close="showModal = false" :on-confirm="handleSubmit">
       <div class="modal-form">
         <div class="field"><label>名称 <span class="required">*</span></label><input v-model="form.name" /><p v-if="formErrors.name" class="field-error">{{ formErrors.name }}</p></div>
         <div class="field"><label>价格 (元) <span class="required">*</span></label><input v-model.number="form.price" type="number" min="0" step="0.5" /><p v-if="formErrors.price" class="field-error">{{ formErrors.price }}</p></div>
@@ -357,13 +357,14 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
 .detail-control { flex: 1; min-width: 0; }
 .detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; }
+.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; max-width: 320px; box-sizing: border-box; }
 .form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 .form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
 .form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
+.stats-row :deep(.stat-card) { flex: 1; min-width: 0; }
 
 /* ===== 列表头 ===== */
 .list-bar {
@@ -374,7 +375,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
 /* ===== 卡片网格 ===== */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4); }
 .pk-card { position: relative; background: var(--bg-card); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); border: 1px solid var(--border-light); cursor: pointer; transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), border-color .2s var(--ease-out); }
-.pk-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
+.pk-card:hover { box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
 .pk-img-wrap { position: relative; width: 100%; height: 150px; overflow: hidden; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; }
 .pk-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pk-emoji { width: 48px; height: 48px; opacity: .35; font-size: 40px; }

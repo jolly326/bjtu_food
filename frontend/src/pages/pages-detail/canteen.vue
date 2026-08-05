@@ -18,25 +18,16 @@
       <template v-else-if="canteenInfo">
         <ImageSwiper :images="canteenInfo.images" />
 
-        <!-- 食堂信息（合并卡片，含位置与简介，无评分） -->
+        <!-- 食堂信息 hero（无"食堂信息"大标题：直接名称 + 位置 + 介绍 + "信息有误？"弱入口） -->
         <CardSection>
-          <SectionTitle title="食堂信息" noMargin>
-            <template #extra>
-              <text class="feedback-link" @tap="openApply">反馈信息有误</text>
-            </template>
-          </SectionTitle>
           <view class="info-body">
             <view class="info-head">
               <text class="info-name">{{ canteenInfo.name }}</text>
-              <view class="info-location">
-                <IconSvg name="location" :size="26" color="var(--color-primary)" class="info-location-icon" />
-                <text class="info-location-text">{{ canteenInfo.location }}</text>
-              </view>
+              <text class="feedback-link" @tap="openApply">信息有误？</text>
             </view>
-            <!-- 评分/人均：前端由档口聚合占位，待后端字段 -->
-            <view class="info-stats">
-              <text class="info-stat">评分 <text class="info-stat-num">{{ canteenRating || '—' }}</text> · 人均 ¥<text class="info-stat-num">{{ canteenPerCapita || '—' }}</text></text>
-              <text class="info-stat-note">（来自档口聚合，待后端字段）</text>
+            <view class="info-location">
+              <IconSvg name="location" :size="24" color="var(--color-primary)" class="info-location-icon" />
+              <text class="info-location-text">{{ canteenInfo.location }}</text>
             </view>
             <view class="info-desc" v-if="canteenInfo.description">
               <text class="info-desc-text">{{ canteenInfo.description }}</text>
@@ -44,11 +35,8 @@
           </view>
         </CardSection>
 
-        <!-- ② 各档口单列卡片流（标题 + 卡片整体包在一张卡片里） -->
-        <CardSection v-if="stallList.length > 0">
-          <SectionTitle :title="`档口列表（${stallList.length}）`" noMargin />
-          <WaterfallList class="stall-waterfall" :list="stallList" single type="stall" @stall-click="goToStall" />
-        </CardSection>
+        <!-- ② 各档口单列卡片流（无"档口列表"标题，直接一列独立卡片：左图右信息） -->
+        <WaterfallList v-if="stallList.length > 0" class="stall-waterfall" :list="stallList" single type="stall" @stall-click="goToStall" />
         <EmptyState
           v-else
           text="该食堂暂无档口"
@@ -56,28 +44,6 @@
           @retry="loadStalls"
         />
 
-        <!-- 关联动态（低优先级，置底轻量区块；task-12.6 canteen 聚合跳动态详情） -->
-        <CardSection v-if="relatedMoments.length > 0" title="">
-          <SectionTitle title="关联动态" noMargin />
-          <view class="related-moment-list">
-            <view
-              v-for="m in relatedMoments"
-              :key="m.id"
-              class="related-moment-item"
-              :class="{ pressed: pressedRelatedKey === m.id }"
-              @touchstart="pressedRelatedKey = m.id"
-              @touchend="pressedRelatedKey = ''"
-              @touchcancel="pressedRelatedKey = ''"
-              @mousedown="pressedRelatedKey = m.id"
-              @mouseup="pressedRelatedKey = ''"
-              @mouseleave="pressedRelatedKey = ''"
-              @tap="goRelatedMoment(m.id)"
-            >
-              <text class="related-moment-text">{{ m.content }}</text>
-              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-moment-arrow" />
-            </view>
-          </view>
-        </CardSection>
       </template>
 
       <!-- 加载失败 / 无数据空态 -->
@@ -96,22 +62,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import WaterfallList from '@/components/WaterfallList.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { getCanteensWithStalls, normalizeImages } from '@/api/canteen'
-import { getMoments } from '@/api/moment'
-import type { Moment } from '@/types/moment'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -121,24 +84,6 @@ const canteenId = ref(0)
 const stallList = ref<StallCardItem[]>([])
 const loading = ref(true)
 const refreshing = ref(false)
-
-/** ===== 关联动态（task-12.6：GET /moments?canteenId=，canteen 下全档口聚合） ===== */
-const relatedMoments = ref<Moment[]>([])
-const pressedRelatedKey = ref<number | ''>('')
-
-async function loadRelatedMoments() {
-  if (!canteenId.value) return
-  try {
-    const { list } = await getMoments({ canteenId: canteenId.value, pageSize: 5 })
-    relatedMoments.value = list
-  } catch {
-    relatedMoments.value = []
-  }
-}
-
-function goRelatedMoment(id: number) {
-  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
-}
 
 /** 食堂介绍区块信息（images + 位置 + 介绍；无评分） */
 const canteenInfo = ref<{
@@ -175,8 +120,8 @@ async function loadStalls() {
       perCapita: stall.perCapita != null ? Number(stall.perCapita) : undefined,
       location: stall.location || current?.location || '',
       tags: Array.isArray(stall.tags) ? stall.tags : (String(stall.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)),
+      topDishes: Array.isArray(stall.topDishes) ? stall.topDishes : [],
     }))
-    await loadRelatedMoments()
   } catch {
     stallList.value = []
     canteenInfo.value = { name: canteenName.value, images: [], location: '', description: '' }
@@ -190,28 +135,6 @@ function goToStall(stall: StallCardItem) {
   dishStore.navParams.canteen = canteenName.value
   uni.navigateTo({ url: '/pages/pages-detail/stall' })
 }
-
-/**
- * 食堂级 评分/人均 占位（前端聚合，待后端字段）。
- * 用户已批准在食堂详情页展示，但 API 暂无 canteen-level avgRating/perCapita，
- * 故先由各档口的 avgRating/perCapita 取均值占位。
- */
-const canteenRating = computed(() => {
-  const ratings = stallList.value
-    .map((s) => s.avgRating)
-    .filter((r): r is number => typeof r === 'number')
-  if (ratings.length === 0) return 0
-  const mean = ratings.reduce((a, b) => a + b, 0) / ratings.length
-  return Math.round(mean * 10) / 10
-})
-const canteenPerCapita = computed(() => {
-  const caps = stallList.value
-    .map((s) => s.perCapita)
-    .filter((p): p is number => typeof p === 'number')
-  if (caps.length === 0) return 0
-  const mean = caps.reduce((a, b) => a + b, 0) / caps.length
-  return Math.round(mean)
-})
 
 /** 快捷申请调整/下架（共享 ApplySheet 处理 CLOSE/CHANGE + entityId=当前食堂） */
 const applyOpen = ref(false)
@@ -253,7 +176,7 @@ onLoad(async (query) => {
   padding: var(--spacing-md) 0 0;
 }
 
-/* 食堂信息卡片（合并卡片，含位置与简介，无评分） */
+/* 食堂信息 hero（无分区大标题：名称 + 位置 + 介绍 + "信息有误？"弱入口） */
 .info-body { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .info-head {
   display: flex;
@@ -262,9 +185,10 @@ onLoad(async (query) => {
   gap: var(--spacing-sm);
 }
 .info-name {
-  font-size: var(--font-h3);
-  font-weight: 700;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-heavy);
   color: var(--text-primary);
+  letter-spacing: var(--tracking-h2);
   line-height: 1.3;
   flex: 1;
   min-width: 0;
@@ -272,63 +196,40 @@ onLoad(async (query) => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 位置：图标 + 文本独立一行（与名称不同行） */
 .info-location {
   display: flex;
   align-items: center;
   gap: 4rpx;
-  flex-shrink: 0;
 }
-.info-location-icon { font-size: 28rpx; line-height: 1; flex-shrink: 0; }
-.info-location-text { font-size: var(--font-caption); font-weight: 600; color: var(--text-secondary); }
-/* 评分/人均占位行（前端聚合，待后端字段） */
-.info-stats { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8rpx; }
-.info-stat { font-size: var(--font-aux); color: var(--text-secondary); }
-.info-stat-num { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-primary); }
-.info-stat-note { font-size: var(--font-tiny); color: var(--text-tertiary); }
+.info-location-icon { font-size: 24rpx; line-height: 1; flex-shrink: 0; }
+.info-location-text { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); }
 .info-desc-text {
-  font-size: var(--font-caption);
-  font-weight: 400;
+  font-size: var(--font-body);
+  font-weight: var(--weight-regular);
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
 
-/* ② 档口单列流：标题 + 卡片整体包在 CardSection 内，间距由卡片自身提供 */
-.stall-waterfall { margin-top: var(--spacing-sm); }
-
-/* ===== 关联动态（低优先级置底区块，task-12.6） ===== */
-.related-moment-list { margin-top: var(--spacing-sm); }
-.related-moment-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 2rpx solid var(--border-color);
-  transition: transform 120ms var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.related-moment-item:last-child { border-bottom: none; }
-.related-moment-item.pressed { transform: scale(var(--press-scale)); }
-.related-moment-text {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.related-moment-arrow { flex-shrink: 0; }
+/* ② 档口单列流：每张独立卡片（间距由 WaterfallList item margin 提供，与 CardSection 一致） */
 
 /* 反馈入口：不常用，弱化在标题行右侧的小文字链接（点击展开 Sheet） */
 .feedback-link {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   flex-shrink: 0;
+  /* 扩大命中区（负 margin 保持视觉位置），按压反馈对齐档口详情页 */
+  padding: var(--spacing-sm);
+  margin: calc(var(--spacing-sm) * -1);
+  border-radius: var(--radius-tag);
+  transition: opacity 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
 }
+.feedback-link:active { opacity: 0.55; }
 
 /* 加载骨架屏 */
 .canteen-skeleton { padding: var(--spacing-md); }
@@ -339,6 +240,6 @@ onLoad(async (query) => {
 .sk-stall-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-sm); }
 .sk-line { width: 60%; height: 28rpx; border-radius: 6rpx; }
 .sk-line-short { width: 40%; height: 24rpx; }
-.skeleton { background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* 骨架屏：复用全局 shimmer（App.vue 1.4s），统一全站加载节奏 */
+.skeleton { background: linear-gradient(90deg, var(--bg-placeholder) 25%, var(--border-color) 50%, var(--bg-placeholder) 75%); background-size: 200% 100%; animation: shimmer 1.4s ease infinite; }
 </style>

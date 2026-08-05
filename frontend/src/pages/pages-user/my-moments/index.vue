@@ -2,34 +2,32 @@
   <view class="page my-moments-page">
     <Header title="我的动态" showBack />
 
-    <!-- 分段：全部 / 审核中 / 已退回 -->
-    <view class="segment-wrap">
-      <SegmentTabs
-        :tabs="segmentTabs"
-        :model-value="activeSeg"
-        @update:model-value="onSegChange"
-      />
-    </view>
-
+    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过消息中心提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && moments.length === 0" class="skeleton-list">
         <view v-for="s in 3" :key="s" class="sk-card skeleton" />
       </view>
 
+      <!-- 加载失败：与空数据语义区分，提供重试 -->
+      <EmptyState v-else-if="loadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="loadData" />
+
       <EmptyState
         v-else-if="moments.length === 0"
-        :text="emptyText"
+        text="你还没有发布动态"
         icon="comment"
         @retry="loadData"
       />
 
       <view v-else class="moment-list">
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade 0.2s + 40ms 间隔） -->
         <MomentCard
-          v-for="m in moments"
+          v-for="(m, i) in moments"
           :key="m.id"
+          class="enter-up"
+          :style="{ '--enter-i': Math.min(i, 8) }"
           :moment="m"
           :show-audit="true"
-          @tap="goDetail"
+          @select="goDetail"
           @go-related="goRelated"
         />
       </view>
@@ -41,33 +39,27 @@
     <DishDetailSheet
       :open="dishSheetOpen"
       :dish-id="sheetDishId"
+      top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { onShareAppMessage } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import SegmentTabs from '@/components/SegmentTabs.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useUserStore } from '@/stores/user'
+import { useDishStore } from '@/stores/dish'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
-
-type SegKey = 'all' | 'pending' | 'rejected'
+import { buildSharePayload } from '@/utils/shareState'
 
 const userStore = useUserStore()
-const segmentTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'pending', label: '审核中' },
-  { key: 'rejected', label: '已退回' },
-]
-const pendingCount = ref(0)
-const rejectedCount = ref(0)
-const activeSeg = ref<SegKey>('all')
+const dishStore = useDishStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情底部弹层（task-10：独立页 → sheet） */
 const dishSheetOpen = ref(false)
@@ -78,30 +70,17 @@ function openDishSheet(id: number) {
   dishSheetOpen.value = true
 }
 const loading = ref(false)
+const loadFailed = ref(false)
 const refresherTriggered = ref(false)
-
-const emptyText = computed(() => {
-  if (activeSeg.value === 'pending') return '暂无审核中的动态'
-  if (activeSeg.value === 'rejected') return '暂无被退回的动态'
-  return '你还没有发布动态'
-})
 
 async function loadData() {
   if (!userStore.requireAuth()) return
   loading.value = true
+  loadFailed.value = false
   try {
-    const auditStatus = activeSeg.value === 'all' ? undefined : activeSeg.value
-    moments.value = await momentApi.getMyMoments(auditStatus)
-    // 统计（全量拉取一次用于徽标）
-    if (activeSeg.value === 'all') {
-      const [pending, rejected] = await Promise.all([
-        momentApi.getMyMoments('pending'),
-        momentApi.getMyMoments('rejected'),
-      ])
-      pendingCount.value = pending.length
-      rejectedCount.value = rejected.length
-    }
+    moments.value = await momentApi.getMyMoments()
   } catch (e: any) {
+    loadFailed.value = true
     uni.showToast({ title: e.message || '加载失败', icon: 'none' })
     moments.value = []
   } finally {
@@ -109,16 +88,10 @@ async function loadData() {
   }
 }
 
-function onSegChange(key: string) {
-  if (activeSeg.value === key) return
-  activeSeg.value = key as SegKey
-  loadData()
-}
-
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/pages-user/publish-moment?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/pages-user/publish-moment/index?id=${m.id}` })
   } else {
     uni.navigateTo({ url: `/pages/pages-detail/moment?id=${m.id}` })
   }
@@ -127,8 +100,10 @@ function goDetail(m: Moment) {
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
     openDishSheet(m.relatedId)
-  } else if (m.relatedType === 'stall' && m.relatedId) {
-    uni.navigateTo({ url: `/pages/pages-detail/stall?id=${m.relatedId}` })
+  } else if (m.relatedType === 'stall' && m.relatedName && m.relatedCanteen) {
+    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
+    dishStore.navParams = { stallName: m.relatedName, canteen: m.relatedCanteen }
+    uni.navigateTo({ url: '/pages/pages-detail/stall' })
   }
 }
 
@@ -139,12 +114,12 @@ function onRefresh() {
 }
 
 onMounted(() => { loadData() })
+onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>
 .my-moments-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
-.segment-wrap { padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-page); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }

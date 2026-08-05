@@ -44,7 +44,7 @@ const badgeText = computed(() => {
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-icon);
   font-size: 22rpx;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 .status-badge.pending {
   background: var(--color-warning-soft);

@@ -2,7 +2,7 @@
 -- 食在交大 数据库建表脚本（MySQL 8）
 -- =============================================================
 -- 说明：
---   1. 角色仅两种：student（学生）/ admin（管理员）。user.role 默认值 'student'。
+--   1. 角色三种：student（学生）/ admin（普通管理员）/ super_admin（超级管理员，可管理管理员账号）。user.role 默认值 'student'。
 --   2. 金额类字段（dish.price）以「分」为单位存储（如 12.00 元 = 1200）。
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `user`
     `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '密码哈希（验证码登录可为空）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
-    `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin',
+    `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin / super_admin',
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS `canteen`
     `images`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '食堂图片URL列表JSON',
     `location`      VARCHAR(128) NULL    DEFAULT NULL COMMENT '食堂位置',
     `description`   VARCHAR(512) NULL    DEFAULT NULL COMMENT '食堂描述',
+    `latitude`      DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）',
+    `longitude`     DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）',
     `status`        VARCHAR(32)  NOT NULL DEFAULT 'open' COMMENT '状态：open / closed',
     `sort_order`    INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
     `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'approved' COMMENT '审核状态：pending/approved/rejected',
@@ -294,10 +296,6 @@ ALTER TABLE `dish`
 ALTER TABLE `review`
     ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '「有用」标记数（一人一票，uk_useful_user_review）';
 
--- 动态评论：👍 有用计数（task-12.4）
-ALTER TABLE `moment_comment`
-    ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '👍 有用计数（一人一票，uk_useful_user_comment）';
-
 -- 动态评论「有用」关系表（task-12.4）
 CREATE TABLE IF NOT EXISTS `moment_comment_useful`
 (
@@ -341,5 +339,112 @@ CREATE TABLE IF NOT EXISTS `apply_action`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='实体贡献统一申请';
+
+-- -------------------- 社区动态（task-12.x 社区广场） --------------------
+CREATE TABLE IF NOT EXISTS `moment`
+(
+    `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '动态ID',
+    `user_id`        BIGINT       NOT NULL DEFAULT 0 COMMENT '发布者用户ID',
+    `content`        VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '动态正文',
+    `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '动态图片URL列表（逗号分隔，≤9张）',
+    `related_type`   VARCHAR(32)  NOT NULL DEFAULT 'none' COMMENT '关联对象类型：dish / stall / none',
+    `related_id`     BIGINT       NULL    DEFAULT NULL COMMENT '关联对象ID（related_type=none 时为 NULL）',
+    `audit_status`   VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
+    `reject_reason`  VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
+    `useful_count`   INT          NOT NULL DEFAULT 0 COMMENT '「有用👍」标记数（一人一票）',
+    `comment_count`  INT          NOT NULL DEFAULT 0 COMMENT '评论数（冗余计数）',
+    `status`         TINYINT      NOT NULL DEFAULT 0 COMMENT '下架状态：0=正常 1=管理员强制下架',
+    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_moment_user` (`user_id`),
+    KEY `idx_moment_related` (`related_type`, `related_id`),
+    KEY `idx_moment_audit` (`audit_status`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='社区动态';
+
+-- 动态「有用👍」标记（一人一票）
+CREATE TABLE IF NOT EXISTS `moment_useful`
+(
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
+    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
+    `moment_id`  BIGINT   NOT NULL DEFAULT 0 COMMENT '动态ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_useful_user_moment` (`user_id`, `moment_id`),
+    KEY `idx_useful_moment` (`moment_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='动态有用标记';
+
+-- 动态评论（含一层回复）
+CREATE TABLE IF NOT EXISTS `moment_comment`
+(
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+    `moment_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '所属动态ID',
+    `user_id`      BIGINT       NOT NULL DEFAULT 0 COMMENT '评论者用户ID',
+    `parent_id`    BIGINT       NULL    DEFAULT NULL COMMENT '父评论ID（一层回复：NULL=顶级评论）',
+    `content`      VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '评论正文',
+    `useful_count` INT          NOT NULL DEFAULT 0 COMMENT '「有用👍」计数（一人一票）',
+    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_mc_moment` (`moment_id`),
+    KEY `idx_mc_user` (`user_id`),
+    KEY `idx_mc_parent` (`parent_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='动态评论';
+
+-- 邮箱验证码（邮箱登录/注册/重置密码；code_hash 存哈希，过期/使用后标记）
+CREATE TABLE IF NOT EXISTS `email_verification_code`
+(
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+    `email`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '邮箱地址',
+    `code_hash`  VARCHAR(128) NOT NULL DEFAULT '' COMMENT '验证码哈希（BCrypt）',
+    `purpose`    VARCHAR(32)  NOT NULL DEFAULT 'login' COMMENT '用途：login/register',
+    `expires_at` DATETIME     NULL DEFAULT NULL COMMENT '过期时间',
+    `used_at`    DATETIME     NULL DEFAULT NULL COMMENT '使用时间（已用则非空）',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_evc_email` (`email`, `purpose`),
+    KEY `idx_evc_expires` (`expires_at`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='邮箱验证码记录';
+
+-- 浏览足迹 view_log（同时供猜你喜欢个性化读取）
+CREATE TABLE IF NOT EXISTS `view_log`
+(
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '足迹ID',
+    `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览者用户ID',
+    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '浏览对象类型：dish / stall / canteen / moment',
+    `target_id`   BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览对象ID',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '浏览时间',
+    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_view_user_time` (`user_id`, `created_at`),
+    KEY `idx_view_target` (`target_type`, `target_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（唯一存储，供猜你喜欢个性化读取）';
+
+-- 操作日志 operation_log（AOP 埋点，Web 管理端只读查询）
+CREATE TABLE IF NOT EXISTS `operation_log`
+(
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+    `admin_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '操作管理员ID',
+    `action`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '动作标识：audit_approve / audit_reject / moment_hide / moment_delete / feedback_handle / ...',
+    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '操作对象类型：moment / dish / stall / canteen / feedback / review',
+    `target_id`   BIGINT       NULL    DEFAULT NULL COMMENT '操作对象ID',
+    `ip`          VARCHAR(64)  NULL    DEFAULT NULL COMMENT '操作来源IP',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_op_admin_time` (`admin_id`, `created_at`),
+    KEY `idx_op_target` (`target_type`, `target_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='操作日志（AOP 埋点，Web 只读查询）';
 
 SET FOREIGN_KEY_CHECKS = 1;

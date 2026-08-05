@@ -17,6 +17,8 @@ export interface Moment {
   relatedId?: number | null
   /** 关联对象名称（菜品名/档口名） */
   relatedName?: string | null
+  /** 关联档口所属食堂名（仅 relatedType=stall 返回，跳档口详情需携带 navParams.canteen） */
+  relatedCanteen?: string | null
   /** 审核状态（公开列表仅 approved） */
   auditStatus?: AuditStatus
   /** 退回原因（仅作者/管理员可见） */

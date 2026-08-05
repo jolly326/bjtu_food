@@ -92,13 +92,15 @@ async function submit() {
 .feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.type-chip { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+/* 命中区 ≥44px：上下 padding sm（16rpx）保证可点高度 */
+.type-chip { padding: var(--spacing-sm) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .type-chip:active { transform: scale(var(--press-scale)); }
 .type-chip.active { background: var(--color-primary-soft); }
-.type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: 600; }
+.type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 .type-chip.active .type-text { color: var(--color-primary); }
-.content-input { width: 100%; min-height: 220rpx; font-size: 32rpx; color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
+/* 内容输入：与发布菜品/评价 textarea 同款（bg-page 浅底 + radius-card），避免白卡上无区分 */
+.content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-.contact-input { width: 100%; height: 88rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: 32rpx; color: var(--text-primary); box-sizing: border-box; }
+.contact-input { width: 100%; height: 88rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
 .submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 </style>

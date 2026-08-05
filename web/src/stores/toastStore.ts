@@ -20,7 +20,7 @@ export const useToastStore = defineStore('toast', () => {
   }
 
   function success(msg: string) { add('success', msg) }
-  function error(msg: string) { add('error', msg) }
+  function error(msg: string) { add('error', msg, 4000) }  // 错误信息停留更久，方便阅读
   function info(msg: string) { add('info', msg) }
 
   return { messages, success, error, info }

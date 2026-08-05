@@ -37,6 +37,19 @@
         </view>
       </CardSection>
 
+      <!-- 同步到社区动态（评价与动态打通：评价可见即动态可见，直接上广场） -->
+      <CardSection>
+        <view class="share-row" @tap="toggleShare">
+          <view class="share-info">
+            <text class="share-title">同步到社区动态</text>
+            <text class="share-desc">同步后自动生成一条关联本菜品的动态，直接上社区广场</text>
+          </view>
+          <view class="toggle" :class="{ on: form.shareToMoment }" @tap.stop="toggleShare">
+            <view class="toggle-knob" />
+          </view>
+        </view>
+      </CardSection>
+
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
@@ -68,7 +81,13 @@ const form = reactive({
   rating: 5,
   content: '',
   images: [] as string[],
+  // 双向联通：评价默认同步到动态（开关默认打开，用户可手动关）
+  shareToMoment: true,
 })
+
+function toggleShare() {
+  form.shareToMoment = !form.shareToMoment
+}
 
 const canSubmit = computed(() => form.rating > 0 && form.content.trim().length > 0)
 
@@ -107,9 +126,11 @@ async function handleSubmit() {
       rating: form.rating,
       content: form.content,
       images: uploadedUrls,
+      shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 1500)
+    // 发表评价默认进入动态广场（task todo#5）
+    setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
   } catch (e: any) {
     // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）
     const msg = e?.message || '提交失败'
@@ -138,7 +159,7 @@ onLoad((query) => {
   color: var(--text-primary);
   display: block;
   margin-bottom: var(--spacing-sm);
-  font-weight: bold;
+  font-weight: var(--weight-bold);
 }
 .rating-panel {
   display: flex;
@@ -148,12 +169,12 @@ onLoad((query) => {
 .content-input {
   width: 100%;
   height: 200rpx;
-  font-size: 32rpx;
+  font-size: var(--font-body);
   line-height: 1.6;
   border: none;
   outline: none;
   background: var(--bg-page);
-  border-radius: var(--radius-icon);
+  border-radius: var(--radius-card);
   padding: var(--spacing-sm);
   box-sizing: border-box;
 }
@@ -208,5 +229,40 @@ onLoad((query) => {
   -webkit-tap-highlight-color: transparent;
 }
 .image-upload:active { transform: scale(var(--press-scale)); }
+
+/* 同步到社区动态（自绘 Apple 风格开关，走 token） */
+.share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  -webkit-tap-highlight-color: transparent;
+}
+.share-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.share-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.share-desc { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.5; }
+.toggle {
+  flex-shrink: 0;
+  width: 88rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  background: var(--border-color);
+  position: relative;
+  transition: background 0.2s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.toggle.on { background: var(--color-primary); }
+.toggle-knob {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--text-white);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s var(--ease-out);
+}
+.toggle.on .toggle-knob { transform: translateX(36rpx); }
 
 </style>

@@ -29,13 +29,6 @@
 			}
 		},
 		{
-			"path": "pages/settings/index",
-			"style": {
-				"navigationBarTitleText": "设置",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/feedback/index",
 			"style": {
 				"navigationBarTitleText": "意见反馈",
@@ -43,9 +36,23 @@
 			}
 		},
 		{
+			"path": "pages/webview/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/profile/messages-services/index",
 			"style": {
-				"navigationBarTitleText": "我的发布与贡献",
+				"navigationBarTitleText": "反馈中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/messages/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
 				"navigationStyle": "custom"
 			}
 		}
@@ -114,6 +121,20 @@
 						"navigationBarTitleText": "提交档口",
 						"navigationStyle": "custom"
 					}
+				},
+				{
+					"path": "my-reviews/index",
+					"style": {
+						"navigationBarTitleText": "我的评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "profile-edit/index",
+					"style": {
+						"navigationBarTitleText": "个人信息",
+						"navigationStyle": "custom"
+					}
 				}
 			]
 		}
@@ -122,6 +143,6 @@
 		"navigationBarTextStyle": "white",
 		"navigationBarTitleText": "食在交大",
 		"navigationBarBackgroundColor": "#8B3A2B",
-		"backgroundColor": "#F8F8F8"
+		"backgroundColor": "#F6F4EF"
 	}
 }

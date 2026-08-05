@@ -1,25 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useBannerStore } from '@/stores/bannerStore'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import StatusTag from '@/components/StatusTag.vue'
-import { Plus, Picture, CaretTop, CaretBottom } from '@element-plus/icons-vue'
+import { Plus, CaretTop, CaretBottom, Delete } from '@element-plus/icons-vue'
 
 const store = useBannerStore()
 const admin = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: 'Banner 管理' }], searchPlaceholder: '搜索 Banner 标题...' })
+const searchQuery = ref('')
 
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
@@ -48,7 +43,7 @@ const statusOptions = [
 const filtered = computed(() => {
   let list = store.sortedList
   if (statusFilter.value) list = list.filter(b => (b.status || 'active') === statusFilter.value)
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = searchQuery.value.trim().toLowerCase()
   if (q) list = list.filter(b => b.title.toLowerCase().includes(q))
   return list
 })
@@ -86,7 +81,7 @@ function openEdit(id: number) {
   form.value = {
     title: b.title, image: b.image || '',
     target_type: (b.target_type as any) || 'NONE',
-    target_id: String(b.target_id ?? ''), target_url: (b as any).target_url || '',
+    target_id: String(b.target_id ?? ''), target_url: b.target_url || '',
     sort_order: b.sort_order, status: b.status as 'active' | 'inactive',
   }
   formErrors.value = {}
@@ -144,53 +139,73 @@ function targetText(b: any): string {
   }
 }
 
-onMounted(() => {})
+// ===== 行内状态快捷切换（轮播/停用） =====
+const switchId = ref<number | null>(null)
+async function toggleStatusRow(b: any, active: boolean) {
+  const next = active ? 'active' : 'inactive'
+  switchId.value = Number(b.id)
+  try {
+    await store.update(Number(b.id), { status: next } as any)
+    toast.success(`Banner「${b.title}」已${active ? '启用' : '停用'}`)
+  } catch (e: any) {
+    toast.error(e.message || '状态更新失败')
+  } finally {
+    switchId.value = null
+  }
+}
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="轮播（Banner）" :count="filtered.length">
-      <template #actions>
-        <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增 Banner</button>
-      </template>
-    </PageHeader>
-
-    <FilterBar>
+    <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
       </template>
+      <template #actions>
+        <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增 Banner</button>
+      </template>
     </FilterBar>
 
-    <div v-if="!filtered.length" class="empty-state">暂无 Banner，点击上方按钮添加</div>
+    <DataTable
+      :columns="[
+        { prop: 'image', label: '图片', width: '120px' },
+        { prop: 'title', label: '标题', sortable: true },
+        { prop: 'target', label: '跳转', ellipsis: true },
+        { prop: 'sort', label: '排序', width: '80px', align: 'center', sortable: true, sortValue: (row: any) => row.sort_order },
+        { prop: 'status', label: '状态', width: '110px', align: 'center' },
 
-    <div class="card-grid" v-else>
-      <div v-for="(b, i) in filtered" :key="Number(b.id)" class="banner-card" :style="{ animationDelay: (i % 12) * 30 + 'ms' }">
-        <div class="banner-img-wrap">
-          <img v-if="b.image" :src="b.image" :alt="b.title" />
-          <div v-else class="banner-img-placeholder">
-            <el-icon class="placeholder-svg"><Picture /></el-icon>
-          </div>
-          <span class="sort-badge">排序 {{ b.sort_order }}</span>
+      ]"
+      :rows="filtered"
+      empty-text="暂无 Banner，点击上方按钮添加">
+      <template #cell-image="{ row }">
+        <img v-if="row.image" :src="row.image" :alt="row.title" class="cell-banner" />
+        <span v-else class="cell-banner cell-banner-empty">图</span>
+      </template>
+      <template #cell-title="{ row }">
+        <span class="cell-title">{{ row.title }}</span>
+        <span class="tt-tag">{{ (TARGET_TYPES.find(t => t.value === row.target_type) || {}).label || row.target_type }}</span>
+      </template>
+      <template #cell-target="{ row }"><span class="cell-sub" :title="row.target_url || ''">{{ targetText(row) }}</span></template>
+      <template #cell-sort="{ row }">{{ row.sort_order }}</template>
+      <template #cell-status="{ row }">
+        <div class="status-cell">
+          <el-switch
+            :model-value="(row.status || 'active') === 'active'"
+            :loading="switchId === Number(row.id)"
+            :disabled="switchId === Number(row.id)"
+            @change="(v: any) => toggleStatusRow(row, !!v)"
+          />
+          <span class="status-text" :class="(row.status || 'active') === 'active' ? 'on' : 'off'">{{ (row.status || 'active') === 'active' ? '轮播中' : '已停用' }}</span>
         </div>
-        <div class="banner-body">
-          <h4 class="banner-title">{{ b.title }}</h4>
-          <p class="banner-target">跳转：{{ targetText(b) }} · <span class="tt-tag">{{ (TARGET_TYPES.find(t => t.value === b.target_type) || {}).label || b.target_type }}</span></p>
-          <div class="banner-footer">
-            <StatusTag :type="(b.status || 'active') === 'active' ? 'success' : 'gray'" :text="(b.status || 'active') === 'active' ? '轮播中' : '已停用'" />
-            <div class="banner-actions">
-              <button class="link btn-sm" v-press aria-label="上移" @click="moveOrder(Number(b.id), -1)">
-                <el-icon class="sort-svg"><CaretTop /></el-icon>
-              </button>
-              <button class="link btn-sm" v-press aria-label="下移" @click="moveOrder(Number(b.id), 1)">
-                <el-icon class="sort-svg"><CaretBottom /></el-icon>
-              </button>
-              <button class="link btn-sm" v-press @click.stop="openEdit(Number(b.id))">编辑</button>
-              <button class="link danger btn-sm" v-press @click.stop="handleDelete(Number(b.id))">删除</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      </template>
+      <template #actions="{ row }">
+        <button class="link" v-press @click="moveOrder(Number(row.id), -1)"><el-icon class="sort-svg"><CaretTop /></el-icon>上移</button>
+        <button class="link" v-press @click="moveOrder(Number(row.id), 1)"><el-icon class="sort-svg"><CaretBottom /></el-icon>下移</button>
+        <button class="link" v-press @click="openEdit(Number(row.id))">编辑</button>
+        <button class="link danger" v-press @click="handleDelete(Number(row.id))">
+          <el-icon class="act-ico"><Delete /></el-icon>删除
+        </button>
+      </template>
+    </DataTable>
 
     <FormDialog
       :show="showModal"
@@ -198,7 +213,7 @@ onMounted(() => {})
       :width="520"
       confirm-text="保存"
       @close="showModal = false"
-      @confirm="handleSubmit"
+      :on-confirm="handleSubmit"
     >
       <div class="modal-form">
         <div class="field"><label>标题 <span class="required">*</span></label>
@@ -236,30 +251,21 @@ onMounted(() => {})
         </div>
       </div>
     </FormDialog>
-  </PageContainer>
 </template>
 
 <style scoped>
-.empty-state { text-align: center; color: var(--text-light); font-size: var(--font-base); padding: var(--space-10) 0; background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
-
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
-.banner-card { background: var(--bg-card); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); border: 1px solid var(--border-light); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), border-color .2s var(--ease-out); animation: card-enter 0.3s var(--ease-out) both; }
-@media (hover: hover) {
-  .banner-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--color-primary); }
-}
-.banner-img-wrap { position: relative; width: 100%; height: 160px; overflow: hidden; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; }
-.banner-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.banner-img-placeholder { width: 48px; height: 48px; opacity: .4; display: flex; align-items: center; justify-content: center; }
-.placeholder-svg { width: 36px; height: 36px; display: inline-flex; }
-.sort-badge { position: absolute; top: var(--space-2); left: var(--space-2); background: color-mix(in srgb, #000 55%, transparent); color: var(--text-white); font-size: var(--font-xs); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
-.banner-body { padding: var(--space-4) var(--space-4); }
-.banner-title { margin: 0 0 var(--space-1); font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); }
-.banner-target { margin: 0 0 var(--space-2); font-size: var(--font-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tt-tag { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--bg-gray); color: var(--text-secondary); }
-.banner-footer { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-3); border-top: 1px solid var(--border-color); }
-.banner-actions { display: flex; gap: var(--space-2); align-items: center; }
-.btn-sm { padding: var(--space-1) var(--space-2); font-size: var(--font-sm); }
-.sort-svg { width: 16px; height: 16px; display: inline-flex; }
+.cell-banner { width: 96px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; display: inline-block; vertical-align: middle; background: var(--bg-soft); }
+.cell-banner-empty { display: inline-flex; align-items: center; justify-content: center; font-size: var(--font-xs); color: var(--text-light); }
+.cell-title { font-weight: var(--weight-semibold); color: var(--text-primary); margin-right: var(--space-2); }
+.cell-sub { font-size: var(--font-sm); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; display: inline-block; vertical-align: middle; }
+.tt-tag { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--bg-gray); color: var(--text-secondary); font-size: var(--font-xs); }
+.sort-svg { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; }
+.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* 行内状态开关 */
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--text-light); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
 
 .modal-form { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -272,7 +278,6 @@ onMounted(() => {})
 .type-opt:active { transform: scale(var(--press-scale)); }
 .type-hint { font-size: var(--font-xs); color: var(--text-light); margin: var(--space-2) 0 0; }
 
-@keyframes card-enter { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   .banner-card { animation: none; }
 }

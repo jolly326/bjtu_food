@@ -61,7 +61,9 @@ async function request<T>(
   }
 
   const body = res.data as ApiResponse<T>
-  if (body.code === 401) {
+  if (body.code === 401 || body.code === 403) {
+    // 401 登录失效；403 通常是 token 失效/权限不足（方法级 @PreAuthorize 对失效 token 返回 403），
+    // 均按登录失效处理：清本地登录态并触发全局引导重新登录，避免反复报错
     handleUnauthorized()
     throw new Error(body.message || '请先登录')
   }

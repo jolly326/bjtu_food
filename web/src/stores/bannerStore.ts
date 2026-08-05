@@ -17,5 +17,5 @@ export const useBannerStore = defineStore('banner', () => {
   async function remove(id: number) { await bannerApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, activeList, sortedList, maxSortOrder, add, update, remove }
+  return { list, loadAll, activeList, sortedList, maxSortOrder, add, update, remove }
 })

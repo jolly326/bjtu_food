@@ -60,12 +60,14 @@ function momentToLegacy(raw: any): MomentManageVO {
 export async function listMoments(params: {
   status?: number
   auditStatus?: string
+  userId?: number
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: MomentManageVO[]; total: number }> {
   const query: Record<string, unknown> = {
     status: params.status,
     auditStatus: params.auditStatus,
+    userId: params.userId,
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 50,
   }
@@ -84,4 +86,29 @@ export async function hideMoment(id: number) {
 /** 物理删除（连带 moment_comment / notification），破坏性操作由调用方二次确认 */
 export async function deleteMoment(id: number) {
   await del<void>(`/admin/moments/${id}`)
+}
+
+// ===== 动态评论治理（Web 可查看 / 删除单条评论） =====
+
+export interface MomentComment {
+  id: number
+  momentId: number
+  userId: number
+  parentId: number | null
+  content: string
+  usefulCount?: number
+  createdAt?: string
+}
+
+/** 评论列表（可按动态 / 用户过滤） */
+export async function listComments(params: { momentId?: number; userId?: number } = {}): Promise<MomentComment[]> {
+  const q: Record<string, unknown> = {}
+  if (params.momentId != null) q.momentId = params.momentId
+  if (params.userId != null) q.userId = params.userId
+  return (await get<any>('/admin/moments/comments', q)) as MomentComment[]
+}
+
+/** 删除评论（级联子回复与「有用」标记） */
+export async function deleteComment(id: number) {
+  await del<void>(`/admin/moments/comments/${id}`)
 }

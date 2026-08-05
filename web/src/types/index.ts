@@ -71,9 +71,9 @@ export interface Dish {
   audit_status?: string;
   /** 退回原因（audit_status=rejected 时由后台填写，回显学生端） */
   reject_reason?: string;
-  /** 原价（分），用于折扣价展示；promoPrice 非空时为折扣价 */
+  /** 原价（元），用于折扣价展示；promoPrice 非空时为折扣价 */
   originalPrice?: number;
-  /** 促销价（分，可空）；非空时视为有折扣 */
+  /** 促销价（元，可空）；非空时视为有折扣 */
   promoPrice?: number;
   created_at: Date;
   updated_at: Date;
@@ -129,6 +129,8 @@ export interface Banner {
   type: string;
   target_id?: bigint;
   target_type?: string;
+  /** 跳转目标 URL（target_type=URL 时使用） */
+  target_url?: string;
   canteen_id?: bigint;
   sort_order: number;
   status: string;

@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
+import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
+import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -58,6 +60,7 @@ public class MomentServiceImpl implements MomentService {
     private final UserMapper userMapper;
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
+    private final CanteenMapper canteenMapper;
     private final NotificationService notificationService;
     private final ImageUrlUtil imageUrlUtil;
 
@@ -105,6 +108,28 @@ public class MomentServiceImpl implements MomentService {
         applyReq(m, req);
         m.setUserId(userId);
         m.setAuditStatus(MomentConst.AUDIT_PENDING);
+        m.setRejectReason(null);
+        m.setUsefulCount(0);
+        m.setCommentCount(0);
+        m.setStatus(MomentConst.STATUS_NORMAL);
+        momentMapper.insert(m);
+        return m.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long publishFromReview(Long userId, String content, List<String> images, Long dishId) {
+        // 评价与动态打通：评价可见即动态可见（approved 直接上广场，无需后台审核）
+        if (dishId == null) {
+            throw new BusinessException("评价同步动态需要关联菜品");
+        }
+        Moment m = new Moment();
+        m.setUserId(userId);
+        m.setContent(content);
+        m.setImages(JsonListUtil.toJson(images));
+        m.setRelatedType(MomentConst.RELATED_DISH);
+        m.setRelatedId(dishId);
+        m.setAuditStatus(MomentConst.AUDIT_APPROVED);
         m.setRejectReason(null);
         m.setUsefulCount(0);
         m.setCommentCount(0);
@@ -235,15 +260,17 @@ public class MomentServiceImpl implements MomentService {
         Map<Long, User> parentMap = loadUsers(parentIds);
 
         // 当前用户对评论的 👍 标记状态（task-12.4）
-        final Set<Long> markedCommentIds;
+        // 注意：动态无评论时 commentIds 为空集合，直接 .in(空) 会生成非法 SQL "IN ()" 触发 500
+        // （项目已知坑，同 AuditServiceImpl），故需先做空集合防护。
+        final Set<Long> markedCommentIds = new HashSet<>();
         if (currentUserId != null) {
-            markedCommentIds = momentCommentUsefulMapper.selectList(new LambdaQueryWrapper<MomentCommentUseful>()
-                            .eq(MomentCommentUseful::getUserId, currentUserId)
-                            .in(MomentCommentUseful::getCommentId,
-                                    p.getRecords().stream().map(MomentComment::getId).toList()))
-                    .stream().map(MomentCommentUseful::getCommentId).collect(Collectors.toSet());
-        } else {
-            markedCommentIds = new HashSet<>();
+            List<Long> commentIds = p.getRecords().stream().map(MomentComment::getId).toList();
+            if (!commentIds.isEmpty()) {
+                markedCommentIds.addAll(momentCommentUsefulMapper.selectList(new LambdaQueryWrapper<MomentCommentUseful>()
+                                .eq(MomentCommentUseful::getUserId, currentUserId)
+                                .in(MomentCommentUseful::getCommentId, commentIds))
+                        .stream().map(MomentCommentUseful::getCommentId).collect(Collectors.toSet()));
+            }
         }
 
         IPage<MomentCommentVO> result = new Page<>(page, pageSize, p.getTotal());
@@ -355,7 +382,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
-    public IPage<MomentVO> adminList(Integer status, String auditStatus, int page, int pageSize) {
+    public IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, int page, int pageSize) {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
         LambdaQueryWrapper<Moment> w = new LambdaQueryWrapper<Moment>()
@@ -367,6 +394,10 @@ public class MomentServiceImpl implements MomentService {
         // 审核状态过滤（pending/approved/rejected），仅当显式传入时生效
         if (StringUtils.hasText(auditStatus)) {
             w.eq(Moment::getAuditStatus, auditStatus);
+        }
+        // 发布用户过滤（用户行为聚合），仅当显式传入时生效
+        if (userId != null) {
+            w.eq(Moment::getUserId, userId);
         }
         IPage<Moment> p = momentMapper.selectPage(new Page<>(page, pageSize), w);
         IPage<MomentVO> result = new Page<>(page, pageSize, p.getTotal());
@@ -456,6 +487,10 @@ public class MomentServiceImpl implements MomentService {
             } else if (MomentConst.RELATED_STALL.equals(vo.getRelatedType())) {
                 Stall s = stallMapper.selectById(vo.getRelatedId());
                 vo.setRelatedName(s != null ? s.getName() : null);
+                if (s != null && s.getCanteenId() != null) {
+                    Canteen c = canteenMapper.selectById(s.getCanteenId());
+                    vo.setRelatedCanteen(c != null ? c.getName() : null);
+                }
             }
         }
         return vo;

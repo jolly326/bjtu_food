@@ -122,8 +122,8 @@ watch([canteen, stall, dish], ([c, s, d]) => {
       image: d.image || '', tags: d.tags || '', status: d.status,
       spiceLevel: d.spiceLevel ?? 0, portion: d.portion ?? 0,
       servePeriod: d.servePeriod || '', limited: d.limited ?? 0,
-      originalPrice: d.originalPrice ? d.originalPrice / 100 : 0,
-      promoPrice: d.promoPrice ? d.promoPrice / 100 : 0,
+      originalPrice: d.originalPrice ? d.originalPrice : 0,
+      promoPrice: d.promoPrice ? d.promoPrice : 0,
     }
   }
 }, { immediate: true })
@@ -137,8 +137,8 @@ function toggleEdit() {
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
       spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
       servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
-      originalPrice: dish.value.originalPrice ? dish.value.originalPrice / 100 : 0,
-      promoPrice: dish.value.promoPrice ? dish.value.promoPrice / 100 : 0,
+      originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
+      promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
     }
     editErrors.value = {}
   }
@@ -183,8 +183,8 @@ function cancelEdit() {
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
       spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
       servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
-      originalPrice: dish.value.originalPrice ? dish.value.originalPrice / 100 : 0,
-      promoPrice: dish.value.promoPrice ? dish.value.promoPrice / 100 : 0,
+      originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
+      promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
     }
   }
   editErrors.value = {}
@@ -411,7 +411,7 @@ async function handleDeleteReview(id: number) {
             { prop: 'id', label: 'ID', width: '80px' },
             { prop: 'user', label: '用户' },
             { prop: 'rating', label: '评分', width: '140px' },
-            { prop: 'content', label: '内容' },
+            { prop: 'content', label: '内容', ellipsis: true },
             { prop: 'time', label: '时间', width: '140px' },
             { prop: 'actions', label: '操作', width: '120px', align: 'center' },
           ]"
@@ -425,7 +425,7 @@ async function handleDeleteReview(id: number) {
           <template #cell-content="{ row }">
             <span class="ellipsis" :title="row.content">{{ row.content }}</span>
           </template>
-          <template #cell-time="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
+          <template #cell-time="{ row }">{{ row.created_at.toLocaleString('zh-CN') }}</template>
           <template #actions="{ row }">
             <button class="link danger" v-press @click="handleDeleteReview(Number(row.id))">删除</button>
           </template>
@@ -479,13 +479,14 @@ async function handleDeleteReview(id: number) {
 .detail-value.price { color: var(--color-price); font-weight: var(--weight-bold); font-size: var(--font-lg); }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .detail-value.text-muted { font-weight: var(--weight-regular); color: var(--text-light); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; }
+.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; max-width: 320px; box-sizing: border-box; }
 .form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 .form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
 .form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
+.stats-row :deep(.stat-card) { flex: 1; min-width: 0; }
 
 /* ===== 列表头 ===== */
 .list-bar {

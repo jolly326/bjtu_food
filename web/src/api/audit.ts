@@ -2,8 +2,8 @@ import type { AuditVO, Review } from '@/types'
 import { del, get, post, put } from './http'
 import { pageRecords, auditToLegacy, reviewToLegacy } from './adapter'
 
-/** 审核类型：菜品 / 档口 / 食堂 / 社区动态 */
-export type AuditType = 'dish' | 'stall' | 'canteen' | 'moment'
+/** 审核类型：菜品 / 档口 / 食堂（社区动态审核走 /admin/moments，不在此列） */
+export type AuditType = 'dish' | 'stall' | 'canteen'
 
 /** 待审核 / 指定状态列表（分页） */
 export async function listAudit(type: AuditType, status: string, page = 1, pageSize = 20): Promise<AuditVO[]> {
@@ -29,7 +29,7 @@ export async function listReviews(isHidden?: boolean, page = 1, pageSize = 200):
   return pageRecords(await get<any>('/admin/reviews', params)).map(reviewToLegacy)
 }
 
-/** 隐藏 / 显示评价（is_hidden 控制可见性） */
+/** 设置评价隐藏 / 显示（is_hidden 控制可见性，显式语义） */
 export async function setReviewHidden(id: number, hidden: boolean) {
   await put<void>(`/admin/reviews/${id}/hide`, { hidden })
 }

@@ -3,7 +3,7 @@
  * ConfirmDialog：二次确认弹窗（§4.2 自封装组件，破坏性操作必用）。
  * 复用全局 confirmStore，承载按钮即时反馈与弹层 spring 动效。
  */
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useConfirmStore } from '@/stores/confirmStore'
 
 const confirm = useConfirmStore()
@@ -11,6 +11,14 @@ const overlay = ref<HTMLElement | null>(null)
 const box = ref<HTMLElement | null>(null)
 const show = ref(false)
 const visibleState = ref(false)
+// 破坏性确认弹窗：默认聚焦「取消」按钮，避免键盘误确认
+const cancelBtn = ref<HTMLElement | null>(null)
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && confirm.visible) confirm.cancel()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 watch(
   () => confirm.visible,
@@ -21,6 +29,7 @@ watch(
         visibleState.value = true
         enterAnim()
       })
+      nextTick(() => cancelBtn.value?.focus())
     } else {
       visibleState.value = false
       // 退场后卸载
@@ -57,7 +66,7 @@ function onOk() {
       >
         <p class="confirm-msg">{{ confirm.message }}</p>
         <div class="confirm-actions">
-          <button class="btn-cancel" v-press @click="onCancel">取消</button>
+          <button ref="cancelBtn" class="btn-cancel" v-press @click="onCancel">取消</button>
           <button class="btn-danger" v-press @click="onOk">确定</button>
         </div>
       </div>
@@ -95,6 +104,18 @@ function onOk() {
   transition:
     opacity 0.22s var(--ease-out),
     transform 0.22s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+/* 品牌条：与 Modal 弹窗一致的顶部主色细条 */
+.confirm-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-primary);
 }
 .confirm-box.show {
   opacity: 1;

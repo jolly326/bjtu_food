@@ -2,6 +2,7 @@ package com.bjtufood.auth.controller;
 
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.feedback.dto.FeedbackMyVO;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,9 +11,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 用户反馈接口（task-09 升级：路径不变，DTO 规范化）
@@ -31,5 +35,13 @@ public class FeedbackController {
         Long userId = SecurityUtil.getCurrentUserId();
         feedbackService.submit(userId, req);
         return Result.success();
+    }
+
+    @Operation(summary = "我的反馈列表", description = "STU。反馈中心查看反馈进度（含管理员回复）。", security = @SecurityRequirement(name = "bearerAuth"))
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/feedback/my")
+    public Result<List<FeedbackMyVO>> listMyFeedback() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        return Result.success(feedbackService.listMy(userId));
     }
 }

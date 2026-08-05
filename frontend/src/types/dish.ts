@@ -10,21 +10,23 @@ export interface Dish {
   images?: string[]
   rating: number
   ratingCount: number
-  /** 喜欢数（后端统一以 likeCount 为准） */
-  likeCount: number
+  /** 喜欢数（后端统一字段 favoriteCount） */
+  favoriteCount: number
   tags: string[]
   description: string
   canteen: string
   stallName: string
   isNew?: boolean
-  /** 当前用户是否已喜欢（一人一票） */
-  isLiked?: boolean
+  /** 当前用户是否已喜欢（一人一票；后端统一字段 isFavorited） */
+  isFavorited?: boolean
   /** 当前用户是否已评价 */
   hasReviewed?: boolean
   /** 审核状态（公开接口仅返回 approved 记录） */
   auditStatus?: AuditStatus
 
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
+  /** 所属档口 ID（分享深链到档口详情用） */
+  stallId?: number
   /** 档口所属楼层（如 1F/2F） */
   floor?: string
   /** 窗口号 */
@@ -59,14 +61,12 @@ export interface DishDetail extends Dish {
   ratingDistribution: RatingDistribution[]
 }
 
-export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at' | 'likeCount'
+export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at' | 'collects'
 
 export interface DishQuery {
   keyword?: string
   /** 食堂 ID（task-02 多维筛选） */
   canteenId?: number
-  /** 食堂名（兼容现有搜索） */
-  canteen?: string
   /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
   tag?: string
   /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */
@@ -74,7 +74,7 @@ export interface DishQuery {
   /** 价格区间（前端「元」，API 层转分提交） */
   minPrice?: number
   maxPrice?: number
-  /** 排序维度（ARCH §3.1：heat/rating/price/created_at/likeCount） */
+  /** 排序维度（ARCH §3.1：heat/rating/price/created_at/collects） */
   sortBy?: DishSortBy
   sortOrder?: 'asc' | 'desc'
   page?: number
@@ -88,6 +88,8 @@ export interface Suggestion {
   id: number
   name: string
   image: string
+  /** 所属食堂名（仅 stall 类型返回，跳档口详情需携带 navParams.canteen） */
+  canteen?: string
 }
 
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */

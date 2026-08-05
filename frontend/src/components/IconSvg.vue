@@ -55,6 +55,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
   // 返回（左箭头，区别于 back 的右箭头）
   'arrow-left': { path: ['m15 18-6-6 6-6'] },
+  // 向下箭头（下拉关闭提示：不依赖 rotate，微信小程序 transform 方向不可靠）
+  'arrow-down': { path: ['m6 9 6 6 6-6'] },
   // 用户（人形，语义：账号/我的）
   user: { path: ['M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M4 21a8 8 0 0 1 16 0'] },
   // 品牌标识（碗 + 热气，食在交大 logo）

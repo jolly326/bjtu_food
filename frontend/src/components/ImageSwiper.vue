@@ -10,7 +10,8 @@
     :circular="circular"
   >
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
-      <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" />
+      <!-- onload 淡入：图片加载完成前保持占位底色，加载后 0.3s 淡入（Apple §12 materialize） -->
+      <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
       <view v-else class="image-swiper-placeholder">
         <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
@@ -19,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 constants/ui.ts 注释），必须用真实色值
@@ -49,6 +50,14 @@ const displayImages = computed(() => {
 
 /** 单张图时不显示指示器 */
 const showIndicator = computed(() => props.indicatorDots && displayImages.value.length > 1)
+
+/** 已加载图片集合：onload 后标记，驱动 0.3s 淡入（Apple §12 materialize） */
+const loadedSet = ref<Set<number>>(new Set())
+function onImgLoad(idx: number) {
+  if (!loadedSet.value.has(idx)) {
+    loadedSet.value = new Set(loadedSet.value).add(idx)
+  }
+}
 </script>
 
 <style scoped>
@@ -59,6 +68,13 @@ const showIndicator = computed(() => props.indicatorDots && displayImages.value.
   width: 100%;
   height: 100%;
   background: var(--bg-page);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+/* 加载完成淡入；reduced-motion 下直接显示 */
+.image-swiper-img.img-loaded { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .image-swiper-img { opacity: 1; transition: none; }
 }
 .image-swiper-placeholder {
   width: 100%;

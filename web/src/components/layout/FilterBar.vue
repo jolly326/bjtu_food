@@ -3,9 +3,14 @@
  * FilterBar：筛选条（T-1）。
  * - v-model 绑定关键词（与 SearchInput 解耦，结构化筛选下沉此处）。
  * - 插槽：#tabs（分段切换）、#default（放 FilterSelect）、#actions（右侧操作）。
+ * - 搜索框：有输入时显示清除按钮。
  * - 响应式：窄屏自动换行（gap + flex-wrap）。
  */
+import { Close } from '@element-plus/icons-vue'
 const model = defineModel<string>({ default: '' })
+function clear() {
+  model.value = ''
+}
 </script>
 
 <template>
@@ -19,13 +24,18 @@ const model = defineModel<string>({ default: '' })
       </div>
     </div>
     <div class="fb-right">
-      <input
-        v-model="model"
-        class="fb-search"
-        type="text"
-        placeholder="关键词搜索"
-        aria-label="关键词搜索"
-      />
+      <div class="fb-search-wrap">
+        <input
+          v-model="model"
+          class="fb-search"
+          type="text"
+          placeholder="关键词搜索"
+          aria-label="关键词搜索"
+        />
+        <button v-if="model" type="button" class="fb-clear" aria-label="清除搜索" @click="clear">
+          <el-icon><Close /></el-icon>
+        </button>
+      </div>
       <div v-if="$slots.actions" class="fb-actions">
         <slot name="actions" />
       </div>
@@ -51,10 +61,12 @@ const model = defineModel<string>({ default: '' })
 .fb-tabs { display: flex; align-items: center; gap: var(--space-2); }
 .fb-filters { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .fb-right { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+.fb-search-wrap { position: relative; display: inline-flex; align-items: center; }
 .fb-search {
   width: 200px;
   max-width: 100%;
   padding: var(--space-2) var(--space-3);
+  padding-right: var(--space-8);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   font-size: var(--font-base);
@@ -67,6 +79,26 @@ const model = defineModel<string>({ default: '' })
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
+.fb-clear {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: var(--border-strong);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+}
+.fb-clear:hover { background: var(--text-light); color: var(--bg-card); }
+.fb-clear .el-icon { width: 11px; height: 11px; }
 .fb-actions { display: flex; align-items: center; gap: var(--space-2); }
 
 @media (max-width: 959px) {

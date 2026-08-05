@@ -54,6 +54,9 @@ async function request<T>(
         emitUnauthorized()
         throw new Error('登录已失效，请重新登录')
       }
+      if (res.status === 403) {
+        throw new Error('无权限执行此操作')
+      }
       throw new Error(`HTTP ${res.status}`)
     }
 

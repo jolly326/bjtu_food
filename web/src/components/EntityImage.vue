@@ -55,7 +55,7 @@ const emit = defineEmits<{ click: [] }>()
   bottom: var(--space-2);
   right: var(--space-2);
   background: color-mix(in srgb, var(--text-primary) 60%, transparent);
-  color: var(--text-white);
+  color: var(--color-on-primary);
   font-size: var(--font-xs);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);

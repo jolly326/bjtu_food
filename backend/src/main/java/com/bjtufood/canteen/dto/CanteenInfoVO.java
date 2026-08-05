@@ -28,4 +28,8 @@ public class CanteenInfoVO {
 
     @Schema(description = "食堂图片URL列表")
     private List<String> images;
+
+    /** 与用户位置的距离（米，haversine 直线距离）；未传定位或无坐标时为 null */
+    @Schema(description = "与用户位置的距离（米，按定位排序时返回）")
+    private Integer distance;
 }

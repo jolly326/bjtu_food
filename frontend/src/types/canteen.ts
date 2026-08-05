@@ -3,6 +3,8 @@ export interface CanteenInfo {
   name: string
   location: string
   icon: string
+  /** 与用户位置的距离（米，按定位排序时后端返回）；未定位为 undefined */
+  distance?: number
 }
 
 /** 档口详情 */
@@ -14,6 +16,8 @@ export interface StallDetail {
   description: string
   /** 平均星级（后端 StallDetailVO.avgRating，BigDecimal，无则 0.00） */
   avgRating?: number
+  /** 标徽/标签（如 招牌/清真；后端暂未返回，前端可从菜品 tags 派生，见 stall.vue stallTags） */
+  tags?: string[]
 }
 
 /** 档口简讯（GET /stalls 列表项） */

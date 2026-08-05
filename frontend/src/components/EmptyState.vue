@@ -53,7 +53,7 @@ const pressed = ref(false)
 .empty-text {
   font-size: 28rpx;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   text-align: center;
   line-height: 1.6;
 }
@@ -66,7 +66,7 @@ const pressed = ref(false)
 .retry-text {
   font-size: 26rpx;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 .action-btn {
   margin-top: var(--spacing-md);
@@ -81,5 +81,5 @@ const pressed = ref(false)
   -webkit-tap-highlight-color: transparent;
 }
 .action-btn.pressed { transform: scale(var(--press-scale)); }
-.action-text { font-size: 26rpx; color: var(--text-white); font-weight: 600; line-height: 1; }
+.action-text { font-size: 26rpx; color: var(--text-white); font-weight: var(--weight-semibold); line-height: 1; }
 </style>

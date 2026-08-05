@@ -2,13 +2,13 @@
 - 路由: /pages/home/index
 - 分包: 主包
 - 源文件: src/pages/home/index.vue
-- 最后依据 skills 校对: 2026-08-02
+- 最后依据 skills 校对: 2026-08-03
 
 ## 1. 页面定位
-小程序入口首页，聚合 Banner 推荐、滚动广播通知、食堂横滑入口与热门菜品瀑布流，面向游客/学生打开即看、快速分流到详情。
+小程序入口首页，聚合**顶部定位 + 搜索框入口**、Banner 推荐、滚动广播通知、食堂横滑入口与热门菜品瀑布流，面向游客/学生打开即看、快速分流到详情。
 
 ## 2. 布局结构
-- 顶部：`Header title="食在交大"`（自定义导航，高度含状态栏占位）。
+- 顶部（2026-08-03 改版）：**无 Header 标题**——`.home-top` 自定义顶部 = **定位条**（location 图标 + `currentLocation`，静态占位"北京交通大学"，后续可接 `wx.getLocation`）+ **假搜索框**（`.home-search`，圆角灰条 + 放大镜占位"搜索菜品 / 食堂…"，点击 `navigateTo` 跳搜索页 `/pages/find/index`）。高度 `env(safe-area-inset-top)` + 间距，`--color-primary-glass` 主色材质。
 - 主滚动区 `scroll-view`（scroll-y + 下拉刷新 `refresher-enabled` + 触底 `@scrolltolower`）。
 - 区块顺序（均 `enter-up` 错峰淡入，配合 `--enter-i` 实现 30–80ms 错峰）：
   1. Banner 轮播 `swiper`（无数据轻量占位「暂无推荐」）。
@@ -19,7 +19,8 @@
 - 底部：`CustomTabBar current="/pages/home/index"`（固定 100rpx + 安全区）。
 
 ## 3. 核心组件与用法
-- `Header`：页面标题栏。
+- ~~`Header`~~（2026-08-03 移除，顶部改自绘 `.home-top`：定位 + 搜索框）。
+- 搜索框入口：`.home-search`（假搜索框，`@tap=goToSearch` → `navigateTo /pages/find/index`；非输入，仅入口）。
 - `WaterfallList :list @card-click="goToDetail"`：双列瀑布流，禁具名 slot，事件上抛。
 - `CustomTabBar`：主包 tab 栏（icon+label ≤5 项，当前项高亮）。
 - `SectionTitle title="食堂入口" / "热门菜品"`：分区标题（带 accent 条）。
@@ -44,7 +45,7 @@
 - 进场：区块经 `enter-up` 错峰交叉淡入，仅 transform+opacity，无 `scale(0)`、无 `transition:all`。
 
 ## 6. 一致性红线自检（project_spec §4.9）
-- ①图标 IconSvg：⚠️ `empty`/`broadcast` 合规；`home` 用于食堂无图占位，按一致性规则①中性占位应为 `empty`（DishCard 之外禁止用 `home`/`dish` 冒充中性占位），建议改为 `empty`。
+- ①图标 IconSvg：✅ `empty`/`broadcast` 合规；食堂卡无图占位已用 `empty`（`home/index.vue` `.canteen-img-placeholder` `<IconSvg name="empty">`，见 §8④）；无 emoji。
 - ②金额 api 层：✅ 首页无金额裸算（热门菜品价格由 WaterfallList 内部已转元展示）。
 - ③WaterfallList 禁 slot：✅ 仅 `:list` + `@card-click`，未传 slot。
 - ④三态齐备：✅ 骨架 / EmptyState / 正常态均覆盖；banner 无数据有轻量占位。
@@ -76,7 +77,7 @@
 | 12 | 进场禁 scale(0)，popover 从触发点 | 合规 | `enter-up` 用 translateY+opacity（非 scale(0)）；无 popover |
 | 13 | 仅 transform/opacity，禁 transition:all | 合规 | 动效均 transform/opacity；无 `transition:all` |
 | 14 | 可中断动效 | 合规 | 进场/反馈用 transition 可中断；无 keyframes 重播风险 |
-| 15 | 数字 tabular-nums | 部分 | 价格由 WaterfallList 内部展示，本页无独立计数；若价格/计数建议 `tabular-nums` 防位移（组件层落实） |
+| 15 | 数字 tabular-nums | 合规 | 热门菜品价格由 `DishCard.vue` 渲染，已 `font-variant-numeric: tabular-nums`（组件层落实）；本页无独立计数 |
 | 16 | 正文≥16px(32rpx)，行高1.5–1.75，4/8pt 节奏 | 合规 | 字号走 `--font-body`(28rpx) 起；间距 4/8pt 栅格；无横向滚动 |
 | 17 | 每屏一个主 CTA，破坏性弱化隔离 | 合规 | 首页以浏览分流为主，无破坏性操作；Banner 点击为信息入口 |
 | 18 | loading/empty/error 三态 | 合规 | 骨架/EmptyState/正常态 + banner 轻量占位 + 下拉重试 |

@@ -13,7 +13,7 @@
       @mouseleave="pressedIdx = -1"
       @tap="previewImage(idx)"
     >
-      <image class="m-image" :src="img" mode="aspectFill" />
+      <image class="m-image" :src="img" mode="aspectFill" lazy-load />
     </view>
   </view>
 </template>

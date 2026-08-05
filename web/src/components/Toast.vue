@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { useToastStore } from '@/stores/toastStore'
+import { SuccessFilled, CircleCloseFilled, InfoFilled } from '@element-plus/icons-vue'
 
 const toast = useToastStore()
 
-//全局消息提示组件，使用全局状态管理控制显示和内容，支持成功、错误和信息三种类型
-const icons: Record<string, string> = {
-  success: '✓',
-  error: '✕',
-  info: 'ℹ',
+// 全局消息提示组件：SVG 图标（与全站图标语言一致，对齐稳定）
+const icons: Record<string, any> = {
+  success: SuccessFilled,
+  error: CircleCloseFilled,
+  info: InfoFilled,
 }
 </script>
 
@@ -15,7 +16,7 @@ const icons: Record<string, string> = {
   <div class="toast-container">
     <TransitionGroup name="toast">
       <div v-for="m in toast.messages" :key="m.id" :class="['toast', m.type]">
-        <span class="toast-icon">{{ icons[m.type] }}</span>
+        <span class="toast-icon"><el-icon><component :is="icons[m.type]" /></el-icon></span>
         <span class="toast-text">{{ m.message }}</span>
       </div>
     </TransitionGroup>
@@ -61,10 +62,8 @@ const icons: Record<string, string> = {
   color: var(--color-primary);
   border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
-.toast-icon {
-  font-size: var(--font-xl);
-  font-weight: var(--weight-bold);
-}
+.toast-icon { display: inline-flex; align-items: center; flex-shrink: 0; }
+.toast-icon .el-icon { width: 18px; height: 18px; }
 .toast-text {
   flex: 1;
 }

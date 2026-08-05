@@ -3,20 +3,19 @@ import { ref, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
 import DataTable from '@/components/DataTable.vue'
-import StatusTag from '@/components/StatusTag.vue'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
-import StatCard from '@/components/common/StatCard.vue'
+import UserActivityModal from '@/components/UserActivityModal.vue'
+import { Pointer } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '用户管理' }], searchPlaceholder: '搜索学生用户名或昵称...' })
+
+const searchQuery = ref('')
+// 用户行为聚合弹窗
+const activityUser = ref<any>(null)
 
 const students = computed(() => store.users.filter(u => u.role !== 'admin'))
 
@@ -33,7 +32,6 @@ const statusOptions = [
   { label: '已禁用', value: 'disabled' },
 ]
 
-const searchQuery = computed(() => page.searchQuery.trim().toLowerCase())
 const filteredStudents = computed(() => {
   let list = students.value
   if (statusFilter.value) list = list.filter(u => u.status === statusFilter.value)
@@ -45,44 +43,62 @@ const filteredStudents = computed(() => {
   )
 })
 
-async function handleToggle(id: number) {
-  const u = store.users.find(u => Number(u.id) === id)
-  if (!u) return
-  const action = u.status === 'active' ? '禁用' : '启用'
-  if (!await confirm.confirm(`确定${action}学生「${u.nickname || u.username}」？`)) return
+// ===== 行内状态快捷切换（正常/禁用） =====
+const switchId = ref<number | null>(null)
+async function toggleStatus(row: any, active: boolean) {
+  if (row.status === (active ? 'active' : 'disabled')) return
+  switchId.value = Number(row.id)
   try {
-    await store.toggleUserStatus(id)
-    toast.success(`学生已${action}`)
+    await store.toggleUserStatus(Number(row.id))
+    toast.success(`学生「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
   } catch (e: any) {
-    toast.error(e.message || `${action}失败`)
+    toast.error(e.message || '状态更新失败')
+  } finally {
+    switchId.value = null
+  }
+}
+
+// ===== 批量启用/禁用 =====
+const selectedIds = ref<number[]>([])
+async function batchSetStatus(status: 'active' | 'disabled') {
+  if (!selectedIds.value.length) return
+  const action = status === 'active' ? '启用' : '禁用'
+  if (!await confirm.confirm(`确定批量${action} ${selectedIds.value.length} 名学生？`)) return
+  try {
+    const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
+    for (const u of targets) await store.toggleUserStatus(Number(u.id))
+    toast.success(`已批量${action} ${targets.length} 名学生`)
+    selectedIds.value = []
+  } catch (e: any) {
+    toast.error(e.message || `批量${action}失败`)
   }
 }
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="用户管理" :count="filteredStudents.length">
-      <template #extra>
-        <div class="stats-row">
-          <StatCard label="学生总数" :value="stats.total" tone="default" :delay="0" />
-          <StatCard label="正常" :value="stats.active" tone="success" :delay="40" />
-          <StatCard label="已禁用" :value="stats.disabled" tone="danger" :delay="80" />
-        </div>
-      </template>
-    </PageHeader>
-
-    <FilterBar>
+    <!-- 统计与筛选合并为一行，不再单独占卡片空间 -->
+    <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
+      </template>
+      <template #actions>
+        <template v-if="selectedIds.length">
+          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('active')">批量启用</button>
+          <button class="btn-danger" v-press type="button" @click="batchSetStatus('disabled')">批量禁用（{{ selectedIds.length }}）</button>
+        </template>
+        <span class="stat-inline">共 {{ stats.total }} · 正常 {{ stats.active }} · 禁用 {{ stats.disabled }}</span>
       </template>
     </FilterBar>
 
     <DataTable
+      selectable
+      v-model:selectedIds="selectedIds"
       :columns="[
         { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
         { prop: 'userInfo', label: '用户信息' },
-        { prop: 'status', label: '状态', width: '120px', align: 'center' },
-        { prop: 'actions', label: '操作', width: '120px', align: 'center' },
+        { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
+        { prop: 'status', label: '状态', width: '110px', align: 'center' },
+
       ]"
       :rows="filteredStudents"
       :empty-text="searchQuery ? '没有匹配的学生' : '暂无学生用户'"
@@ -98,31 +114,38 @@ async function handleToggle(id: number) {
           <span class="user-date">{{ row.created_at.toLocaleDateString('zh-CN') }} 注册</span>
         </div>
       </template>
+      <template #cell-created="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
       <template #cell-status="{ row }">
-        <StatusTag :type="row.status === 'active' ? 'success' : 'danger'" :text="row.status === 'active' ? '正常' : '已禁用'" />
+        <div class="status-cell">
+          <el-switch
+            :model-value="row.status === 'active'"
+            :loading="switchId === Number(row.id)"
+            :disabled="switchId === Number(row.id)"
+            @change="(v: any) => toggleStatus(row, !!v)"
+          />
+          <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '正常' : '已禁用' }}</span>
+        </div>
       </template>
       <template #actions="{ row }">
-        <button
-          class="action-btn"
-          :class="row.status === 'active' ? 'action-disable' : 'action-enable'"
-          v-press
-          @click="handleToggle(Number(row.id))"
-        >
-          {{ row.status === 'active' ? '禁用' : '启用' }}
+        <button class="btn-secondary" v-press @click="activityUser = row">
+          <el-icon class="act-ico"><Pointer /></el-icon>行为
         </button>
       </template>
     </DataTable>
-  </PageContainer>
+
+    <UserActivityModal :show="!!activityUser" :user="activityUser" @close="activityUser = null" />
 </template>
 
 <style scoped>
-/* ===== 数据概览 ===== */
-.stats-row {
-  display: flex;
-  gap: var(--space-3);
-}
-@media (max-width: 767px) {
-  .stats-row { flex-wrap: wrap; }
+/* 统计信息并入筛选条（合并为一，节省空间） */
+.stat-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .avatar-circle {
@@ -130,7 +153,7 @@ async function handleToggle(id: number) {
   height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
-  color: var(--text-white);
+  color: var(--color-on-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -158,18 +181,10 @@ async function handleToggle(id: number) {
 .user-sep { color: var(--border-soft); }
 .user-date { color: var(--text-light); }
 
-.action-btn {
-  padding: var(--space-1) var(--space-4);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-xs);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), transform 160ms var(--ease-out);
-  border: 1px solid;
-}
-.action-btn:active { transform: scale(var(--press-scale)); }
-.action-disable { border-color: var(--color-warning); color: var(--color-warning); background: var(--bg-card); }
-.action-disable:hover { background: var(--color-warning-bg); }
-.action-enable { border-color: var(--color-success); color: var(--color-success); background: var(--bg-card); }
-.action-enable:hover { background: var(--color-success-bg); }
+.act-ico { width: 13px; height: 13px; margin-right: var(--space-1); vertical-align: -2px; }
+/* 行内状态开关 */
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--color-error); }
 </style>

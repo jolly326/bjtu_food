@@ -17,5 +17,5 @@ export const useDishStore = defineStore('dish', () => {
   async function remove(id: number) { await dishApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, activeList, add, update, remove }
+  return { list, loadAll, activeList, add, update, remove }
 })

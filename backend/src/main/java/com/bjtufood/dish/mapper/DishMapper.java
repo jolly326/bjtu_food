@@ -39,6 +39,17 @@ public interface DishMapper extends BaseMapper<Dish> {
     List<DishVO> selectHotDishes();
 
     /**
+     * 查询热门菜品 TOP10（按用户位置距离加权排序）
+     * <p>
+     * 有坐标时：先按食堂距离升序（近的食堂菜品优先），热度（收藏/评分）作次级排序。
+     * 无坐标食堂的菜品排最后。
+     *
+     * @param lat 用户纬度（GCJ-02，可为 null）
+     * @param lng 用户经度（GCJ-02，可为 null）
+     */
+    List<DishVO> selectHotDishesByDistance(@Param("lat") java.math.BigDecimal lat, @Param("lng") java.math.BigDecimal lng);
+
+    /**
      * 查询今日上新菜品 TOP8
      * <p>
      * 按创建时间降序，取前 8 条

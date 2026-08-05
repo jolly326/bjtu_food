@@ -29,4 +29,7 @@ public class SuggestionVO {
 
     @Schema(description = "封面 / 主图 URL", example = "/images/seed/dishes/beef-noodle.jpg")
     private String image;
+
+    @Schema(description = "所属食堂名（仅 stall 类型返回，供跳档口详情携带 navParams.canteen）", example = "一食堂")
+    private String canteen;
 }

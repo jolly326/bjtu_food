@@ -32,12 +32,18 @@ export async function getHomeBanners(): Promise<BannerItem[]> {
   }))
 }
 
-export async function getCanteenList(): Promise<CanteenInfo[]> {
-  const rawList = await get<any[]>('/canteens')
+export async function getCanteenList(lat?: number | null, lng?: number | null): Promise<CanteenInfo[]> {
+  const params: Record<string, unknown> = {}
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    params.lat = lat
+    params.lng = lng
+  }
+  const rawList = await get<any[]>('/canteens', params)
   return rawList.map((c: any) => ({
     name: c.name || '',
     location: c.location || c.description || '',
     icon: firstImage(c),
+    distance: c.distance != null ? Number(c.distance) : undefined,
   }))
 }
 
@@ -57,6 +63,7 @@ export async function getStallDetail(canteen: string, stallName: string): Promis
     location: raw.location || canteen,
     description: raw.description || '',
     avgRating: raw.avgRating != null ? Number(raw.avgRating) : undefined,
+    tags: Array.isArray(raw.tags) ? raw.tags.filter((t: any): t is string => typeof t === 'string') : undefined,
   }
 }
 

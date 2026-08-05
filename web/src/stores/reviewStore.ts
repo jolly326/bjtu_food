@@ -12,5 +12,5 @@ export const useReviewStore = defineStore('review', () => {
   async function remove(id: number) { await reviewApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, update, remove }
+  return { list, loadAll, update, remove }
 })

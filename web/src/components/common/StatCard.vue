@@ -56,6 +56,8 @@ const props = withDefaults(
   color: var(--text-primary);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
+  /* 等宽数字：统计数字对齐（菜单价格牌感） */
+  font-variant-numeric: tabular-nums;
 }
 .sc-sub { font-size: var(--font-sm); color: var(--text-secondary); }
 

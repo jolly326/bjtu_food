@@ -30,7 +30,20 @@ export const useAdminStore = defineStore('admin', () => {
   const activeBanners = computed<Banner[]>(() => banner.activeList)
   const maxBannerSortOrder = computed<number>(() => banner.maxSortOrder)
 
+  // 统一重新加载全部业务数据（进入聚合页时调用，确保最新且覆盖登录前实例化的空态）
+  async function loadAll() {
+    await Promise.all([
+      canteen.loadAll(),
+      stall.loadAll(),
+      dish.loadAll(),
+      banner.loadAll(),
+      review.loadAll(),
+      user.loadAll(),
+    ])
+  }
+
   return {
+    loadAll,
     canteens,
     stalls,
     dishes,
@@ -50,10 +63,7 @@ export const useAdminStore = defineStore('admin', () => {
     deleteDish: dish.remove,
     updateReview: review.update,
     deleteReview: review.remove,
-    addUser: user.add,
-    deleteUser: user.remove,
     toggleUserStatus: user.toggleUserStatus,
-    updateUserProfile: user.updateProfile,
     banners,
     activeBanners,
     maxBannerSortOrder,

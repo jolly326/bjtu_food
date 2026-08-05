@@ -44,9 +44,9 @@ export const useDishStore = defineStore('dish', () => {
   /** task-03 关联动态（二期占位，一期为空） */
   const relatedMoments = ref<any[]>([])
 
-  async function fetchCanteens() {
+  async function fetchCanteens(lat?: number | null, lng?: number | null) {
     try {
-      canteenList.value = await canteenApi.getCanteenList()
+      canteenList.value = await canteenApi.getCanteenList(lat, lng)
     } catch (e: any) {
       console.error('加载食堂列表失败', e)
       canteenList.value = []
@@ -231,16 +231,24 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  /** task-01 首页热门瀑布流：首屏 + 重置分页 */
-  async function fetchHomeHot() {
+  /** task-01 首页热门瀑布流：首屏 + 重置分页（定位联动：有坐标走 /dishes/hot 距离加权） */
+  async function fetchHomeHot(lat?: number | null, lng?: number | null) {
     homeHotPage.value = 1
     homeHotFinished.value = false
     homeHotLoadingMore.value = false
     try {
-      const res = await dishApi.getHotDishesPage(1)
-      homeHotList.value = res.list
-      homeHotTotal.value = res.total
-      if (homeHotList.value.length >= homeHotTotal.value) homeHotFinished.value = true
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        // 定位后：距离加权 TOP（近食堂菜品优先），无分页 total → 首屏即视为完整（补页按热度继续）
+        const list = await dishApi.getHomeHotDishes(20, lat, lng)
+        homeHotList.value = list
+        homeHotTotal.value = list.length
+        if (list.length > 0) homeHotFinished.value = true
+      } else {
+        const res = await dishApi.getHotDishesPage(1)
+        homeHotList.value = res.list
+        homeHotTotal.value = res.total
+        if (homeHotList.value.length >= homeHotTotal.value) homeHotFinished.value = true
+      }
     } catch (e: any) {
       console.error('加载首页热门失败', e)
       homeHotList.value = []
@@ -281,10 +289,10 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  async function fetchStallDishes(canteen: string, stallName: string) {
+  async function fetchStallDishes(stallId: number) {
     loading.value = true
     try {
-      stallDishes.value = await dishApi.getStallDishes(canteen, stallName)
+      stallDishes.value = await dishApi.getStallDishes(stallId)
     } catch (e: any) {
       console.error('加载档口菜品失败', e)
       stallDishes.value = []

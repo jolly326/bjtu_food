@@ -123,8 +123,12 @@ export function dishToLegacy(raw: any): Dish {
     limited: raw.limited ?? 0,
     audit_status: raw.auditStatus ?? raw.audit_status,
     reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
-    originalPrice: raw.originalPrice ?? raw.original_price,
-    promoPrice: raw.promoPrice ?? raw.promo_price ?? null,
+    originalPrice: raw.originalPrice == null && raw.original_price == null
+      ? undefined
+      : Math.round((raw.originalPrice ?? raw.original_price)) / 100,
+    promoPrice: raw.promoPrice == null && raw.promo_price == null
+      ? undefined
+      : Math.round((raw.promoPrice ?? raw.promo_price)) / 100,
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }

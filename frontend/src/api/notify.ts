@@ -84,3 +84,52 @@ export async function readNotification(id: number): Promise<void> {
 export async function readAllNotifications(): Promise<void> {
   await put<void>('/my/notifications/read-all')
 }
+
+// ─────────────────────────────────────────────────────────────
+// 首页广播条（原 api/broadcast.ts 并入本模块：规避「新增顶层模块文件
+// 未被微信开发者工具注册」问题，产物不再生成 api/broadcast.js）
+// ─────────────────────────────────────────────────────────────
+
+/** 广播类型（后端契约 A.14：BroadcastVO.broadcastType） */
+export type BroadcastType = 'NOTICE' | 'ACTIVITY' | 'DISH' | 'URL' | 'NONE'
+
+export interface BroadcastVO {
+  id: number
+  title: string
+  content: string
+  broadcastType: BroadcastType
+  targetId?: number
+  targetUrl?: string
+  createdAt?: string
+}
+
+/** 首页广播条分发类型（前端 UI 语义，对应 home BroadcastItem.type） */
+export type BroadcastDispatch = 'dish' | 'community' | 'url' | 'canteen' | 'stall'
+
+export interface BroadcastItem {
+  text: string
+  type: BroadcastDispatch
+  targetId?: number
+  targetUrl?: string
+}
+
+function mapBroadcastType(t: BroadcastType): BroadcastDispatch {
+  switch (t) {
+    case 'DISH': return 'dish'
+    case 'URL': return 'url'
+    // NOTICE / ACTIVITY / NONE 及未知类型：回落社区流（与历史默认公告行为一致）
+    default: return 'community'
+  }
+}
+
+/** GET /broadcasts（公开）→ 首页广播条数据源；无数据返回空数组，UI 保留轻量占位不隐藏 */
+export async function getBroadcasts(): Promise<BroadcastItem[]> {
+  const list = await get<BroadcastVO[]>('/broadcasts')
+  if (!Array.isArray(list)) return []
+  return list.map(b => ({
+    text: b.title || b.content || '',
+    type: mapBroadcastType(b.broadcastType),
+    targetId: b.targetId,
+    targetUrl: b.targetUrl,
+  }))
+}

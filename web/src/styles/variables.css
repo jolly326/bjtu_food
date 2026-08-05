@@ -1,85 +1,102 @@
 :root {
-  /* ===== 主色系 — 深红（§4.2 / §4.10 管理端主色 #6B1010） ===== */
-  --color-primary: #6B1010;
-  --color-primary-light: #8B2018;
-  --color-primary-dark: #4A0A0A;
-  --color-primary-bg: #fbeeee;
-  --color-accent: #E67E22;
-  --color-star: #F5A623;
-  --color-price: #E67E22;
+  /* ============================================================
+   * 设计方向：深色沉稳控制台（灰色 + 黑色为主色系）
+   * 背景 = 近黑 / 深灰；文字 = 浅色灰阶；
+   * 主操作 = 近白"inverse"按钮（--color-primary + --color-on-primary）。
+   * 状态色（成功/警告/错误）与星级金为功能语义色，深色下提亮保对比。
+   * ============================================================ */
 
-  /* ===== 状态色 ===== */
-  --color-success: #27AE60;
-  --color-success-bg: #e8f5e9;
-  --color-warning: #F39C12;
-  --color-warning-bg: #fff8e1;
-  --color-error: #E74C3C;
-  --color-error-bg: #fdecea;
+  /* ===== 主色系 — 近白（深底主操作，inverse） ===== */
+  --color-primary: #E8E8E8;
+  --color-primary-light: #FFFFFF;
+  --color-primary-dark: #C4C4C4;
+  --color-primary-bg: rgba(232, 232, 232, 0.12);
+  --color-on-primary: #141414;           /* 主色上的文字（深黑） */
+  --color-accent: #9A9A9A;               /* 中灰（次要强调） */
+  --color-star: #FBBF24;                 /* 星级（语义色） */
 
-  /* ===== 文字色 ===== */
-  --text-primary: #1A1A1A;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --text-light: #bbbbbb;
+  /* ===== 状态色（功能语义，深色下提亮） ===== */
+  --color-success: #4ADE80;
+  --color-success-bg: rgba(74, 222, 128, 0.12);
+  --color-warning: #FBBF24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-error: #F87171;
+  --color-error-bg: rgba(248, 113, 113, 0.12);
+
+  /* ===== 文字色（浅色灰阶，深底对比 >4.5:1） ===== */
+  --text-primary: #F0F0F0;
+  --text-secondary: #B5B5B5;
+  --text-muted: #959595;
+  --text-light: #8A8A8A;
   --text-white: #FFFFFF;
   --text-white-secondary: rgba(255,255,255,0.85);
 
-  /* ===== 背景 ===== */
-  --bg-page: #F8F8F8;
-  --bg-card: #FFFFFF;
+  /* ===== 背景（近黑 / 深灰） ===== */
+  --bg-page: #141414;
+  --bg-card: #1F1F1F;
+  --bg-soft: #2B2B2B;
+  --bg-hover: #262626;
+  --bg-gray: #333333;
 
-  /* ===== 边框 / 分隔线（统一，禁止页面散落 #d9d9d9/#f0f0f0/#f5f5f5/#fafafa） ===== */
-  --border-color: #ECECEC;
-  --border-light: #F2F2F2;
-  --border-strong: #E0E0E0;          /* 输入框等较强边框 */
-  --border-soft: #F5F5F5;            /* 浅分隔线 */
-  --bg-soft: #FAFAFA;                /* 图区/输入框底/统计卡底（替代 #fafafa） */
-  --bg-hover: #F6F6F6;               /* 中性 hover 底（替代偏蓝 #fafbff） */
-  --bg-gray: #F2F2F2;                /* 灰标签底（替代 #f5f5f5） */
+  /* ===== 边框 / 分隔线（深灰，提亮保证可见） ===== */
+  --border-color: #3A3A3A;
+  --border-light: #303030;
+  --border-strong: #4A4A4A;
+  --border-soft: #2C2C2C;
 
-  /* ===== 圆角（§4.2：卡片 16px / 底部弹层 20px 20px 0 0） ===== */
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;                 /* 保留别名兼容 */
-  --radius-card: 16px;               /* 卡片圆角（§4.2 统一 16px） */
-  --radius-pill: 999px;              /* 胶囊 / 标签 */
-  --radius-sheet: 20px 20px 0 0;      /* 底部弹层 */
+  /* ===== 圆角（适中，沉稳） ===== */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-card: 12px;
+  --radius-modal: 12px;
+  --radius-pill: 999px;
+  --radius-sheet: 12px 12px 0 0;
 
-  /* ===== 价格色（统一为主色派生，禁止散落 #ff4d4f/#E67E22 割裂） ===== */
-  --color-price: #B04134;            /* 主色加深，用于价格/强调数值 */
-  --color-price-soft: #FFF3F0;       /* 价格标签底（替代 #fff7e6/#f6ffed） */
-  --color-warning-soft: #FEF4E6;     /* 警告标签底（替代 #fff8e1 增强对比） */
+  /* ===== 价格色（归中性，浅色） ===== */
+  --color-price: #F0F0F0;
+  --color-price-soft: #2A2A2A;
+  --color-warning-soft: rgba(251, 191, 36, 0.10);
 
-  /* ===== 阴影 ===== */
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-hover: 0 8px 24px rgba(0,0,0,0.1);
-  --shadow-sheet: 0 -8px 30px rgba(0,0,0,0.12);   /* §4.2 弹层阴影 */
-  --shadow-pop: 0 12px 40px rgba(0,0,0,0.16);
+  /* ===== 阴影（深色下加深） ===== */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.40);
+  --shadow-hover: 0 6px 16px rgba(0,0,0,0.50);
+  --shadow-sheet: 0 -8px 30px rgba(0,0,0,0.60);
+  --shadow-pop: 0 12px 32px rgba(0,0,0,0.60);
 
-  /* ===== 材质（§4.5） ===== */
+  /* ===== 材质 ===== */
   --blur-material: blur(20px) saturate(180%);
 
-  /* ===== 动效（§4.3/§4.4 默认 damping 1.0 / response 0.3） ===== */
+  /* ===== 动效（damping 1.0 / response 0.3） ===== */
   --spring-damping: 1;
   --spring-response: 0.3s;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-drawer: 400ms;
 
-  /* ===== 缓动曲线（emil-design-eng 强制，禁止 ease-in） =====
-   * --ease-out: 强 ease-out（入场/UI 反馈，即时响应）
-   * --ease-in-out: 屏幕内位移 / 自然加减速
-   * --ease-drawer: iOS 抽屉曲线（弹层 / 抽屉）
-   * --press-scale: 按压缩放（仅 transform，≤160ms），替代 scale(0)
-   * --press-transition: 按压过渡（具体属性，禁止 transition:all）
-   */
+  /* ===== 缓动曲线（禁止 ease-in） ===== */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --press-scale: 0.97;
+
+  /* ===== 焦点环（全站统一） ===== */
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  --focus-offset: 2px;
+
+  /* ===== 次级按钮（全站统一） ===== */
+  --btn-secondary-bg: var(--bg-card);
+  --btn-secondary-border: var(--border-color);
+  --btn-secondary-text: var(--text-secondary);
+  --btn-secondary-hover-border: var(--border-strong);
+  --btn-secondary-hover-text: var(--text-primary);
   --press-transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out),
     box-shadow 160ms var(--ease-out), background 200ms var(--ease-out),
     border-color 200ms var(--ease-out), color 200ms var(--ease-out);
 
-  /* ===== 间距（4pt 栅格，Apple Design §4.6） ===== */
+  /* ===== 间距（4pt 栅格） ===== */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -89,7 +106,7 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* ===== 字号 / 字重 / 行高层级（§4.6 optical sizing） ===== */
+  /* ===== 字号 / 字重 / 行高 / 字距 ===== */
   --font-xs: 12px;
   --font-sm: 13px;
   --font-base: 14px;
@@ -98,6 +115,7 @@
   --font-xl: 18px;
   --font-2xl: 20px;
   --font-3xl: 28px;
+  --font-4xl: 32px;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -106,11 +124,19 @@
   --leading-snug: 1.3;
   --leading-base: 1.5;
   --leading-loose: 1.6;
-  /* 大标题轻微负 tracking，正文近 0（§4.6） */
   --tracking-tight: -0.02em;
+  /* 数据 / 数字等宽（对齐沉稳） */
+  --font-numeric: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
 
-  /* ===== danger / warning 派生（统一 Ant 蓝绿红 → 主色体系） ===== */
-  --color-danger-soft: #FCEDEC;      /* 危险标签底（替代 #fdecea 增强对比） */
+  /* ===== danger 派生 ===== */
+  --color-danger-soft: rgba(248, 113, 113, 0.12);
+
+  /* ===== 导航（深色毛玻璃顶栏） ===== */
+  --nav-bg: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  --nav-blur: blur(20px) saturate(180%);
+  --nav-height: 56px;
+  --nav-item-active-bg: rgba(232, 232, 232, 0.12);
+  --nav-item-active-color: #E8E8E8;
 
   /* 别名 — 兼容旧引用 */
   --primary: var(--color-primary);
@@ -122,4 +148,19 @@
   --danger-bg: var(--color-error-bg);
   --border: var(--border-color);
   --shadow: var(--shadow-card);
+
+  /* ===== Component 层 token ===== */
+  /* 数据表格：表头略亮区分 + 行分隔线可见 */
+  --table-header-bg: #2A2A2A;
+  --table-row-hover: #2A2A2A;   /* 深色下需明显亮于卡片 #1F1F1F */
+  --table-row-active: rgba(232, 232, 232, 0.08);
+  --table-border: #2E2E2E;
+  --table-th-padding: var(--space-3) var(--space-4);
+  --table-td-padding: var(--space-3) var(--space-4);
+  /* 聚合 tab */
+  --agg-tabs-bg: rgba(255, 255, 255, 0.06);
+  --agg-tab-active-bg: #2E2E2E;
+  --agg-tab-active-shadow: 0 1px 2px rgba(0,0,0,0.40);
+  /* 卡片 hover 抬升 */
+  --card-hover-shadow: var(--shadow-hover);
 }

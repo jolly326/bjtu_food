@@ -8,8 +8,59 @@
  * 对齐一期 http 封装：请求成功返回 body.data（Result.success(data)）。
  */
 import { get, post, put, del } from './http'
-import { toMoment, toMomentComment } from './momentMapper'
-import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult } from '@/types/moment'
+import { getImageUrl } from '@/utils/image'
+import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
+
+/**
+ * 动态 / 评论 VO → 前端类型归一化（camelCase 对齐，图片绝对地址补全）。
+ * 注意：原 api/momentMapper.ts 并入本模块——新增顶层模块文件在微信开发者工具
+ * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
+ */
+function normalizeImages(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
+  if (typeof value === 'string' && value.trim()) return value.split(',').map(s => s.trim()).filter(Boolean).map(getImageUrl)
+  return []
+}
+
+export function toMoment(raw: any): Moment {
+  if (!raw) return raw
+  return {
+    id: Number(raw.id),
+    userId: Number(raw.userId ?? 0),
+    userNickname: raw.userNickname || '',
+    userAvatar: getImageUrl(raw.userAvatar),
+    content: raw.content || '',
+    images: normalizeImages(raw.images),
+    relatedType: (raw.relatedType as RelatedType) || 'none',
+    relatedId: raw.relatedId ?? null,
+    relatedName: raw.relatedName ?? null,
+    // 关联档口所属食堂名（后端 MomentVO.relatedCanteen），跳档口详情需携带 navParams.canteen
+    relatedCanteen: raw.relatedCanteen ?? null,
+    auditStatus: raw.auditStatus,
+    rejectReason: raw.rejectReason ?? null,
+    usefulCount: Number(raw.usefulCount ?? 0),
+    commentCount: Number(raw.commentCount ?? 0),
+    status: raw.status ?? 0,
+    createdAt: raw.createdAt,
+  }
+}
+
+export function toMomentComment(raw: any): MomentComment {
+  if (!raw) return raw
+  return {
+    id: Number(raw.id),
+    momentId: Number(raw.momentId ?? 0),
+    userId: Number(raw.userId ?? 0),
+    userNickname: raw.userNickname || '',
+    userAvatar: getImageUrl(raw.userAvatar),
+    parentId: raw.parentId ?? null,
+    replyToNickname: raw.replyToNickname ?? null,
+    content: raw.content || '',
+    usefulCount: Number(raw.usefulCount ?? 0),
+    useful: !!raw.useful,
+    createdAt: raw.createdAt,
+  }
+}
 
 interface PageResult<T> {
   list?: T[]

@@ -19,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Tag(name = "03. 菜品浏览", description = "公开菜品查询、热门菜品、菜品详情、浏览量记录。")
@@ -30,10 +31,14 @@ public class DishController {
 
     private final DishService dishService;
 
-    @Operation(summary = "热门菜品 TOP10", description = "用途：首页热门推荐。按收藏数、评分等规则返回热门菜品。测试：直接调用即可。")
+    @Operation(summary = "热门菜品 TOP10", description = "用途：首页热门推荐。按收藏数、评分等规则返回热门菜品；可选传 lat/lng 按用户位置距离加权（近食堂菜品优先，首页推荐联动定位）。")
     @GetMapping("/dishes/hot")
-    public Result<List<DishVO>> getHotDishes() {
-        return Result.success(dishService.getHotDishes());
+    public Result<List<DishVO>> getHotDishes(
+            @Parameter(description = "用户纬度（GCJ-02，可选）", example = "39.9538")
+            @RequestParam(required = false) BigDecimal lat,
+            @Parameter(description = "用户经度（GCJ-02，可选）", example = "116.3354")
+            @RequestParam(required = false) BigDecimal lng) {
+        return Result.success(dishService.getHotDishes(lat, lng));
     }
 
     @Operation(summary = "今日上新菜品", description = "用途：首页今日上新板块。按创建时间降序返回最新菜品。")

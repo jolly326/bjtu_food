@@ -28,6 +28,12 @@ public interface MomentService {
     Long publish(Long userId, MomentPublishReq req);
 
     /**
+     * 评价同步发布的动态（评价与动态打通 task：评价可见即动态可见）
+     * 直接 approved + status=0，关联 dish；评价无正文时由调用方跳过。
+     */
+    Long publishFromReview(Long userId, String content, java.util.List<String> images, Long dishId);
+
+    /**
      * 我的动态列表（按当前用户 + 可选审核态过滤）
      */
     java.util.List<MomentVO> myMoments(Long userId, String auditStatus);
@@ -82,7 +88,7 @@ public interface MomentService {
     /**
      * 后台动态管理列表（含全部状态：approved+status=0、已下架 status=1、pending 等），支持 status/auditStatus 过滤
      */
-    IPage<MomentVO> adminList(Integer status, String auditStatus, int page, int pageSize);
+    IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, int page, int pageSize);
 
     /**
      * 强制下架（status=1）

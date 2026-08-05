@@ -1,7 +1,7 @@
 <template>
   <view class="header-wrap glass" :style="{ paddingTop: statusBarHeight + 'px' }">
     <view class="header">
-      <view class="back-area" v-if="showBack" @tap="handleBack">
+      <view class="back-area" v-if="showBack" @tap="handleBack" :class="{ 'back-area-custom': customBack }">
         <IconSvg name="arrow-left" :size="44" color="var(--text-white)" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
@@ -24,16 +24,25 @@ onMounted(() => {
   statusBarHeight.value = (win && win.statusBarHeight) || 20
 })
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   title?: string
   showBack?: boolean
+  /** 自定义返回：为 true 时不调用 uni.navigateBack，仅 emit('back') 由页面自行处理（如退出筛选态） */
+  customBack?: boolean
 }>(), {
   title: '食在交大',
   showBack: false,
+  customBack: false,
 })
 
+const emit = defineEmits<{ (e: 'back'): void }>()
+
 function handleBack() {
-  uni.navigateBack()
+  if (props.customBack) {
+    emit('back')
+  } else {
+    uni.navigateBack()
+  }
 }
 </script>
 
@@ -79,7 +88,7 @@ function handleBack() {
 
 .title {
   font-size: var(--font-h2);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--text-white);
   display: block;
 }

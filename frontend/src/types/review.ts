@@ -25,6 +25,8 @@ export interface ReviewSubmit {
   rating: number
   content: string
   images: string[]
+  /** 是否同步为社区动态（评价与动态打通：同步的动态直接可见，无需审核） */
+  shareToMoment?: boolean
 }
 
 /** 评价排序方式：最新 / 最有用 */

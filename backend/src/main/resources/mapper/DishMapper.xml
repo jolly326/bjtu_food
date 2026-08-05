@@ -173,6 +173,29 @@
         LIMIT 10
     </select>
 
+    <!-- 热门菜品 TOP10（按用户位置距离加权：近食堂菜品优先，热度次级排序）。
+         有坐标食堂按 haversine 距离升序；无坐标食堂的菜品排最后（距离=极大值）。
+         lat/lng 均为 GCJ-02。 -->
+    <select id="selectHotDishesByDistance" resultMap="dishVOMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        ORDER BY
+          CASE
+            WHEN c.latitude IS NOT NULL AND c.longitude IS NOT NULL
+              THEN 6371000 * 2 * ASIN(SQRT(
+                    POWER(SIN(RADIANS(c.latitude - #{lat}) / 2), 2)
+                  + COS(RADIANS(#{lat})) * COS(RADIANS(c.latitude))
+                  * POWER(SIN(RADIANS(c.longitude - #{lng}) / 2), 2)
+              ))
+            ELSE 99999999
+          END ASC,
+          d.favorite_count DESC, d.avg_rating DESC
+        LIMIT 10
+    </select>
+
     <!-- 菜品详情 -->
     <select id="selectDishDetail" resultMap="dishDetailMap">
         <include refid="joinDishSql"/>
@@ -244,7 +267,8 @@
     <!-- 搜索联想：菜品 / 档口 / 食堂 名混合（各取 TOP5） -->
     <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
         (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image
+                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
+                NULL AS canteen
          FROM dish d
          WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
            AND d.status = 'on'
@@ -252,15 +276,19 @@
          LIMIT 5)
         UNION ALL
         (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image
+                JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image,
+                c.name AS canteen
          FROM stall s
+                  JOIN canteen c ON s.canteen_id = c.id
          WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
            AND s.status = 'open'
+           AND c.status = 'open'
            AND (s.audit_status = 'approved' OR s.audit_status IS NULL)
          LIMIT 5)
         UNION ALL
         (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image
+                JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image,
+                NULL AS canteen
          FROM canteen c
          WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
            AND c.status = 'open'

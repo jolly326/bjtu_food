@@ -93,6 +93,25 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         userMapper.deleteById(id);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(Long id, String nickname, String password) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException("管理员不存在");
+        }
+        if (!RoleConst.ADMIN.equals(user.getRole())) {
+            throw new BusinessException("该账号不是管理员");
+        }
+        if (StringUtils.hasText(nickname)) {
+            user.setNickname(nickname);
+        }
+        if (StringUtils.hasText(password)) {
+            user.setPassword(passwordEncoder.encode(password));
+        }
+        userMapper.updateById(user);
+    }
+
     private UserVO toVO(User user) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());

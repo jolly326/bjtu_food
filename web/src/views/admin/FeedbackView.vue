@@ -1,32 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
-import { usePageStore } from '@/stores/pageStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import FormDialog from '@/components/FormDialog.vue'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { ChatDotRound, EditPen, CircleCheck } from '@element-plus/icons-vue'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
-const page = usePageStore()
-page.setPage({
-  breadcrumbs: [{ label: '消息反馈' }, { label: '反馈处理' }],
-  searchPlaceholder: '搜索内容/联系方式/提交人...',
-})
+
+const searchQuery = ref('')
 
 const typeLabel: Record<string, string> = { suggestion: '功能建议', error: '内容纠错', report: '举报', other: '其他' }
 const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
 const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
 
-// 状态筛选
-type FbStatus = 'all' | 'pending' | 'handled'
-const statusTab: Record<FbStatus, string> = { all: '全部', pending: '待处理', handled: '已处理' }
-const activeStatus = ref<FbStatus>('all')
+// 反馈列表默认只显示「待处理」（管理员的处理待办），无状态 tab 切换
 
 // 类型筛选（§5 举报处理：可筛 type=report 等）
 const typeOptions = [
@@ -42,7 +33,6 @@ const loading = ref(false)
 const error = ref('')
 const rows = ref<FeedbackAdminVO[]>([])
 
-const searchQuery = computed(() => page.searchQuery.trim().toLowerCase())
 const filtered = computed(() => {
   const q = searchQuery.value
   if (!q) return rows.value
@@ -58,8 +48,7 @@ async function loadList() {
   error.value = ''
   try {
     const { feedbackApi } = await import('@/api')
-    const status = activeStatus.value === 'all' ? undefined : activeStatus.value
-    const res = await feedbackApi.listFeedbacks({ status, type: activeType.value || undefined, pageSize: 200 })
+    const res = await feedbackApi.listFeedbacks({ status: 'pending', type: activeType.value || undefined, pageSize: 200 })
     rows.value = res.list
   } catch (e: any) {
     error.value = e.message || '加载反馈列表失败'
@@ -70,11 +59,6 @@ async function loadList() {
 }
 
 onMounted(loadList)
-
-async function onStatusChange(s: FbStatus) {
-  activeStatus.value = s
-  await loadList()
-}
 async function onTypeChange() {
   await loadList()
 }
@@ -140,16 +124,7 @@ async function copyMomentLink(momentId?: number) {
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="反馈与举报处理" :count="rows.length" />
-
-    <FilterBar>
-      <template #tabs>
-        <button v-for="s in (['all','pending','handled'] as FbStatus[])" :key="s"
-          class="tab status-tab" :class="{ 'tab-on': activeStatus === s }" v-press @click="onStatusChange(s)">
-          {{ statusTab[s] }}
-        </button>
-      </template>
+    <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
@@ -159,12 +134,12 @@ async function copyMomentLink(momentId?: number) {
       :columns="[
         { prop: 'type', label: '类型', width: '120px', align: 'center' },
         { prop: 'related', label: '关联动态', width: '140px', align: 'center' },
-        { prop: 'content', label: '内容' },
+        { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
-        { prop: 'time', label: '提交时间', width: '170px' },
+        { prop: 'time', label: '提交时间', width: '170px', sortable: true, sortValue: (row) => row.createdAt },
         { prop: 'status', label: '状态', width: '100px', align: 'center' },
-        { prop: 'actions', label: '操作', width: '120px', align: 'center' },
+
       ]"
       :rows="filtered"
       :loading="loading"
@@ -235,7 +210,6 @@ async function copyMomentLink(momentId?: number) {
         <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
       </template>
     </FormDialog>
-  </PageContainer>
 </template>
 
 <style scoped>

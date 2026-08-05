@@ -16,4 +16,10 @@ public interface OperationLogConst {
     String ACTION_APPLY_APPROVE = "apply_approve";
     String ACTION_APPLY_REJECT = "apply_reject";
     String ACTION_ACCOUNT_DELETE = "account_delete";
+    String ACTION_CATEGORY_CREATE = "category_create";
+    String ACTION_CATEGORY_UPDATE = "category_update";
+    String ACTION_CATEGORY_TOGGLE = "category_toggle";
+    String ACTION_CATEGORY_DELETE = "category_delete";
+    String ACTION_MOMENT_COMMENT_HIDE = "moment_comment_hide";
+    String ACTION_MOMENT_COMMENT_DELETE = "moment_comment_delete";
 }

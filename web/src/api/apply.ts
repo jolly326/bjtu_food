@@ -51,20 +51,25 @@ function applyToLegacy(raw: any): ApplyActionVO {
 }
 
 export async function listApply(params: {
-  entityType: ApplyEntityType
+  /** 实体类型；不传则查询全部实体（菜品/档口/食堂） */
+  entityType?: ApplyEntityType
   status?: ApplyStatus
   action?: ApplyType
   page?: number
   pageSize?: number
-}): Promise<ApplyActionVO[]> {
+}): Promise<{ list: ApplyActionVO[]; total: number }> {
   const query: Record<string, unknown> = {
-    entityType: params.entityType,
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
   }
+  if (params.entityType) query.entityType = params.entityType
   if (params.status) query.status = params.status
   if (params.action) query.action = params.action
-  return pageRecords(await get<any>('/admin/apply', query)).map(applyToLegacy)
+  const data: any = await get('/admin/apply', query)
+  return {
+    list: pageRecords(data).map(applyToLegacy),
+    total: (data as any)?.total ?? pageRecords(data).length,
+  }
 }
 
 export async function approveApply(id: number) {

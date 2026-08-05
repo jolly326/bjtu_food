@@ -16,7 +16,7 @@
 
       <EmptyState
         v-else-if="moments.length === 0"
-        text="还没有动态，快去发布第一条吧"
+        :text="loadFailed ? '动态加载失败，请重试' : '还没有动态，快去发布第一条吧'"
         icon="comment"
         :retry="loadFailed"
         :action-text="!loadFailed ? '发布第一条动态' : ''"
@@ -26,11 +26,14 @@
       />
 
       <view v-else class="moment-list">
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade 0.2s + 40ms 间隔） -->
         <MomentCard
-          v-for="m in moments"
+          v-for="(m, i) in moments"
           :key="m.id"
+          class="enter-up"
+          :style="{ '--enter-i': Math.min(i, 8) }"
           :moment="m"
-          @tap="goDetail"
+          @select="goDetail"
           @go-related="goRelated"
         />
         <!-- 触底状态 -->
@@ -57,6 +60,7 @@
     <DishDetailSheet
       :open="dishSheetOpen"
       :dish-id="sheetDishId"
+      top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
   </view>
@@ -64,15 +68,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onShareAppMessage } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
+import { useDishStore } from '@/stores/dish'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
+import { buildSharePayload } from '@/utils/shareState'
 
+const dishStore = useDishStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情底部弹层（task-10：独立页 → sheet） */
 const dishSheetOpen = ref(false)
@@ -136,17 +144,19 @@ function goDetail(m: Moment) {
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
     openDishSheet(m.relatedId)
-  } else if (m.relatedType === 'stall' && m.relatedId) {
-    // 档口详情通过 name 进入；这里用 id 兜底走 stall（若后端支持），否则提示
-    uni.navigateTo({ url: `/pages/pages-detail/stall?id=${m.relatedId}` })
+  } else if (m.relatedType === 'stall' && m.relatedName && m.relatedCanteen) {
+    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
+    dishStore.navParams = { stallName: m.relatedName, canteen: m.relatedCanteen }
+    uni.navigateTo({ url: '/pages/pages-detail/stall' })
   }
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/pages-user/publish-moment' })
+  uni.navigateTo({ url: '/pages/pages-user/publish-moment/index' })
 }
 
 onMounted(() => { loadData(true) })
+onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>

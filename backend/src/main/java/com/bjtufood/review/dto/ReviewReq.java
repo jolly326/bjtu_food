@@ -27,4 +27,7 @@ public class ReviewReq {
 
     @Schema(description = "评价图片 URL 列表，建议先调用 /upload/image 获取 URL", example = "[\"/images/seed/dishes/tomato-egg.jpg\"]")
     private List<String> images;
+
+    @Schema(description = "是否同步为社区动态（评价可见即动态可见：同步生成的动态直接通过审核，无需后台审核；评价无内容时不生成）", example = "false")
+    private Boolean shareToMoment;
 }

@@ -16,6 +16,8 @@ import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class CanteenServiceImpl implements CanteenService {
     private final BannerMapper bannerMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final ReviewMapper reviewMapper;
+    private final DishMapper dishMapper;
 
     @Override
     public List<BannerVO> listBanners() {
@@ -58,10 +61,16 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public List<CanteenInfoVO> listCanteens() {
-        return canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                        .eq(Canteen::getStatus, "open")
-                        .orderByAsc(Canteen::getSortOrder))
-                .stream()
+        return listCanteens(null, null);
+    }
+
+    @Override
+    public List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng) {
+        boolean byDistance = lat != null && lng != null;
+        List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getStatus, "open")
+                .orderByAsc(Canteen::getSortOrder));
+        return canteens.stream()
                 .map(canteen -> {
                     CanteenInfoVO vo = new CanteenInfoVO();
                     vo.setId(canteen.getId());
@@ -69,9 +78,30 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setLocation(canteen.getLocation());
                     vo.setDescription(canteen.getDescription());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
+                    // 距离（米）：用户位置到食堂坐标的 haversine 直线距离；无坐标食堂置 null 排最后
+                    if (byDistance && canteen.getLatitude() != null && canteen.getLongitude() != null) {
+                        vo.setDistance(distanceMeters(lat, lng, canteen.getLatitude(), canteen.getLongitude()));
+                    }
                     return vo;
                 })
+                .sorted(byDistance
+                        ? java.util.Comparator.comparing(
+                                (CanteenInfoVO v) -> v.getDistance(),
+                                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        : java.util.Comparator.comparingLong(v -> (v.getId() == null ? 0L : v.getId())))
                 .collect(Collectors.toList());
+    }
+
+    /** haversine 距离（米）：两经纬度点的球面直线距离 */
+    private Integer distanceMeters(BigDecimal lat1, BigDecimal lng1, BigDecimal lat2, BigDecimal lng2) {
+        double R = 6371000;
+        double dLat = Math.toRadians(lat2.doubleValue() - lat1.doubleValue());
+        double dLng = Math.toRadians(lng2.doubleValue() - lng1.doubleValue());
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1.doubleValue())) * Math.cos(Math.toRadians(lat2.doubleValue()))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return (int) Math.round(R * c);
     }
 
     @Override
@@ -184,7 +214,40 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(stall.getDescription());
         BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
+        // 主要菜品（评分前3）与菜品数（task todo#3：档口卡展示）；dish.status 用 'on' 表示在售
+        List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getStallId, stall.getId())
+                .eq(Dish::getStatus, "on")
+                .orderByDesc(Dish::getAvgRating)
+                .orderByDesc(Dish::getUpdatedAt));
+        vo.setDishCount(dishes.size());
+        vo.setTopDishes(dishes.stream().limit(3).map(Dish::getName).toList());
+        // 人均消费（元，展示用）：在售菜品成交价（分：有促销价取 promoPrice，否则取 price）中位数 → /100 转元取整
+        vo.setPerCapita(derivePerCapita(dishes));
         return vo;
+    }
+
+    /**
+     * 派生档口人均消费（元，展示用，返回整元）。
+     * 取该档口在售菜品成交价（分）的中位数，转元取整；无在售菜品时返回 null。
+     */
+    private Integer derivePerCapita(List<Dish> dishes) {
+        if (dishes == null || dishes.isEmpty()) {
+            return null;
+        }
+        List<Integer> prices = dishes.stream()
+                .map(d -> d.getPromoPrice() != null ? d.getPromoPrice() : d.getPrice())
+                .filter(p -> p != null && p > 0)
+                .sorted()
+                .toList();
+        if (prices.isEmpty()) {
+            return null;
+        }
+        int mid = prices.size() / 2;
+        int medianFen = (prices.size() % 2 == 1)
+                ? prices.get(mid)
+                : (prices.get(mid - 1) + prices.get(mid)) / 2;
+        return medianFen / 100;
     }
 
     private CanteenAdminVO toAdminVO(Canteen canteen) {

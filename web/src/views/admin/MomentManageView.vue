@@ -2,24 +2,18 @@
 import { ref, computed, onMounted } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import PageContainer from '@/components/layout/PageContainer.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import {
   ChatDotRound, Pointer, Hide, Delete, Picture, Food, Shop, User,
 } from '@element-plus/icons-vue'
-import type { MomentManageVO } from '@/api/moment'
+import type { MomentManageVO, MomentComment } from '@/api/moment'
 
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
-page.setPage({
-  breadcrumbs: [{ label: '社区动态' }, { label: '动态管理' }],
-  searchPlaceholder: '搜索内容/作者...',
-})
+
+const searchQuery = ref('')
 
 // 管理台分段：全部 / 已下架 / 审核中 / 已退回
 // - status(0/1)：下架态（0=正常 1=已下架）
@@ -28,7 +22,8 @@ type Segment = 'all' | 'hidden' | 'pending' | 'rejected'
 const segmentLabel: Record<Segment, string> = {
   all: '全部', hidden: '已下架', pending: '审核中', rejected: '已退回',
 }
-const activeSegment = ref<Segment>('all')
+// 默认定位「待审核」（待办优先），管理员进来直接看到要处理的
+const activeSegment = ref<Segment>('pending')
 
 // 当前分段对应的服务端过滤参数（undefined 表示不限制）
 const segmentFilter = computed(() => {
@@ -43,8 +38,9 @@ const segmentFilter = computed(() => {
 const loading = ref(false)
 const error = ref('')
 const rows = ref<MomentManageVO[]>([])
+// 多选（批量操作）
+const selectedIds = ref<number[]>([])
 
-const searchQuery = computed(() => page.searchQuery.trim().toLowerCase())
 const filtered = computed(() => {
   // 状态过滤已由服务端按分段透传，此处仅做关键词（内容 / 作者）本地检索
   const q = searchQuery.value
@@ -59,7 +55,7 @@ async function loadList() {
   error.value = ''
   try {
     const { momentApi } = await import('@/api')
-    const res = await momentApi.listMoments({ pageSize: 50, ...segmentFilter.value })
+    const res = await momentApi.listMoments({ pageSize: 500, ...segmentFilter.value })
     rows.value = res.list
   } catch (e: any) {
     error.value = e.message || '加载动态列表失败'
@@ -116,6 +112,45 @@ async function deleteMoment(row: MomentManageVO) {
   }
 }
 
+// ===== 批量操作 =====
+async function batchHide() {
+  const targets = rows.value.filter(r => selectedIds.value.includes(Number(r.id)) && r.status !== 1)
+  if (!targets.length) {
+    toast.success('所选动态均无需下架')
+    return
+  }
+  if (!await confirm.confirm(`确定批量下架 ${targets.length} 条动态？将对学生不可见（数据保留）。`)) return
+  processingId.value = -1
+  try {
+    const { momentApi } = await import('@/api')
+    for (const t of targets) await momentApi.hideMoment(Number(t.id))
+    toast.success(`已批量下架 ${targets.length} 条动态`)
+    selectedIds.value = []
+    await loadList()
+  } catch (e: any) {
+    toast.error(e.message || '批量下架失败')
+  } finally {
+    processingId.value = null
+  }
+}
+
+async function batchDelete() {
+  if (!selectedIds.value.length) return
+  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 条动态？此操作将物理删除动态及其评论，不可恢复。`)) return
+  processingId.value = -1
+  try {
+    const { momentApi } = await import('@/api')
+    for (const id of selectedIds.value) await momentApi.deleteMoment(id)
+    toast.success(`已删除 ${selectedIds.value.length} 条动态`)
+    selectedIds.value = []
+    await loadList()
+  } catch (e: any) {
+    toast.error(e.message || '批量删除失败')
+  } finally {
+    processingId.value = null
+  }
+}
+
 // 状态标签映射
 const auditStatusTag: Record<string, 'warning' | 'success' | 'danger'> = {
   pending: 'warning', approved: 'success', rejected: 'danger',
@@ -130,30 +165,64 @@ function fmtTime(v: string): string {
   const d = new Date(v)
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
 }
+
+// ===== 评论治理（查看单条评论 / 删除） =====
+const commentModal = ref(false)
+const comments = ref<MomentComment[]>([])
+const commentLoading = ref(false)
+
+async function openComments(row: any) {
+  const { listComments } = await import('@/api/moment')
+  commentModal.value = true
+  commentLoading.value = true
+  try {
+    comments.value = await listComments({ momentId: Number(row.id) })
+  } catch {
+    comments.value = []
+  } finally {
+    commentLoading.value = false
+  }
+}
+async function handleDeleteComment(c: MomentComment) {
+  if (!await confirm.confirm('确定删除这条评论？其回复与「有用」标记将一并删除。')) return
+  try {
+    const { deleteComment } = await import('@/api/moment')
+    await deleteComment(c.id)
+    toast.success('评论已删除')
+    comments.value = comments.value.filter(x => x.id !== c.id)
+  } catch (e: any) {
+    toast.error(e.message || '删除失败')
+  }
+}
 </script>
 
 <template>
-  <PageContainer>
-    <PageHeader title="动态管理" :count="filtered.length" />
-
-    <FilterBar>
+    <FilterBar v-model="searchQuery">
       <template #tabs>
         <button v-for="s in (['all','hidden','pending','rejected'] as Segment[])" :key="s"
           class="tab status-tab" :class="{ 'tab-on': activeSegment === s }" v-press @click="onSegmentChange(s)">
           {{ segmentLabel[s] }}
         </button>
       </template>
+      <template #actions>
+        <template v-if="selectedIds.length">
+          <button class="btn-secondary" :disabled="processingId === -1" v-press type="button" @click="batchHide">批量下架（{{ selectedIds.length }}）</button>
+          <button class="btn-danger" :disabled="processingId === -1" v-press type="button" @click="batchDelete">批量删除</button>
+        </template>
+      </template>
     </FilterBar>
 
     <DataTable
+      selectable
+      v-model:selectedIds="selectedIds"
       :columns="[
         { prop: 'author', label: '作者', width: '160px' },
-        { prop: 'content', label: '内容摘要' },
+        { prop: 'content', label: '内容摘要', ellipsis: true },
         { prop: 'related', label: '关联对象', width: '140px' },
         { prop: 'auditStatus', label: '审核状态', width: '110px', align: 'center' },
         { prop: 'downStatus', label: '下架状态', width: '110px', align: 'center' },
-        { prop: 'time', label: '发布时间', width: '160px' },
-        { prop: 'actions', label: '操作', width: '200px', align: 'center' },
+        { prop: 'time', label: '发布时间', width: '160px', sortable: true, sortValue: (row) => row.createdAt },
+
       ]"
       :rows="filtered"
       :loading="loading"
@@ -184,6 +253,9 @@ function fmtTime(v: string): string {
       </template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
       <template #actions="{ row }">
+        <button class="link" v-press @click="openComments(row)">
+          <el-icon class="act-ico"><ChatDotRound /></el-icon>评论
+        </button>
         <button v-if="row.status !== 1" class="link danger" :disabled="processingId === Number(row.id)" v-press @click="hideMoment(row)">
           <el-icon class="act-ico"><Hide /></el-icon>下架
         </button>
@@ -193,6 +265,25 @@ function fmtTime(v: string): string {
         </button>
       </template>
     </DataTable>
+
+    <!-- 评论治理弹窗 -->
+    <FormDialog :show="commentModal" title="动态评论" :width="560" :footer="false" @close="commentModal = false">
+      <div v-if="commentLoading" class="state-box">加载中…</div>
+      <div v-else-if="!comments.length" class="state-box">该动态暂无评论</div>
+      <div v-else class="cmt-list">
+        <div v-for="c in comments" :key="c.id" class="cmt-item">
+          <div class="cmt-main">
+            <span class="cmt-user">用户#{{ c.userId }}</span>
+            <span v-if="c.parentId" class="cmt-reply">回复</span>
+            <span class="cmt-content">{{ c.content }}</span>
+          </div>
+          <div class="cmt-meta">
+            <span class="cmt-time">{{ fmtTime(c.createdAt || '') }}</span>
+            <button class="link danger" v-press @click="handleDeleteComment(c)">删除</button>
+          </div>
+        </div>
+      </div>
+    </FormDialog>
 
     <!-- 详情抽屉：图 + 文 + 关联对象预览卡 -->
     <FormDialog :show="!!detail" title="动态详情" :width="560" :footer="false" @close="closeDetail">
@@ -242,7 +333,6 @@ function fmtTime(v: string): string {
         </div>
       </div>
     </FormDialog>
-  </PageContainer>
 </template>
 
 <style scoped>
@@ -254,6 +344,17 @@ function fmtTime(v: string): string {
 .rel-ico { width: 14px; height: 14px; vertical-align: -2px; opacity: .6; }
 .rel-name { font-size: var(--font-xs); color: var(--text-muted); }
 .act-ico { width: 13px; height: 13px; vertical-align: -2px; }
+
+/* 评论治理弹窗 */
+.cmt-list { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }
+.cmt-item { padding: var(--space-3) var(--space-1); border-bottom: 1px solid var(--border-soft); }
+.cmt-item:last-child { border-bottom: none; }
+.cmt-main { display: flex; align-items: baseline; gap: var(--space-2); }
+.cmt-user { font-size: var(--font-xs); font-weight: var(--weight-medium); color: var(--text-muted); flex-shrink: 0; }
+.cmt-reply { font-size: var(--font-xs); color: var(--text-light); flex-shrink: 0; }
+.cmt-content { font-size: var(--font-base); color: var(--text-primary); line-height: 1.5; }
+.cmt-meta { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-1); }
+.cmt-time { font-size: var(--font-xs); color: var(--text-light); }
 .muted { color: var(--text-light); }
 
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -275,4 +376,6 @@ function fmtTime(v: string): string {
 .btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
 .btn-danger:hover { background: var(--color-error); color: var(--text-white); }
+
+/* 批量操作按钮 */
 </style>

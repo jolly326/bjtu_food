@@ -1,9 +1,6 @@
 <template>
   <view class="auth-shell">
     <view class="auth-hero">
-      <view class="hero-badge">
-        <IconSvg name="logo" :size="56" color="var(--color-primary)" class="hero-logo" />
-      </view>
       <text class="hero-title">{{ authTitle }}</text>
       <text class="hero-subtitle">{{ authSubtitle }}</text>
     </view>
@@ -278,13 +275,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style scoped>
-.auth-shell { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: var(--spacing-lg) var(--spacing-lg); box-sizing: border-box; }
+.auth-shell { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding: var(--spacing-md) var(--spacing-lg); box-sizing: border-box; }
 
-/* 顶部品牌区：轻量居中，不再用大色块堆叠 */
-.auth-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--spacing-lg) 0 var(--spacing-md); }
-.hero-badge { width: 104rpx; height: 104rpx; border-radius: 30rpx; background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-md); }
-.hero-logo { color: var(--color-primary); }
-.hero-title { display: block; font-size: var(--font-h1); line-height: 1.15; font-weight: 800; color: var(--text-primary); letter-spacing: var(--tracking-h1); }
+/* 顶部品牌区：仅标题 + 副标题，无 icon（2026-08-04 用户裁定）。
+   标题靠上布局，表单（auth-panel）随之竖直居中（shell 已 justify-content:center） */
+.auth-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--spacing-md) 0 var(--spacing-md); }
+.hero-title { display: block; font-size: var(--font-h2); line-height: 1.2; font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h2); }
 .hero-subtitle { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); max-width: 520rpx; }
 
 /* 表单面板：紧跟品牌区，间距紧凑，无需滚动即可看到输入框 */
@@ -294,7 +290,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .form-note { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-secondary); }
 .form-error { display: flex; align-items: center; gap: var(--spacing-xs); margin-bottom: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); -webkit-tap-highlight-color: transparent; }
 .form-error-icon { flex-shrink: 0; }
-.form-error-text { flex: 1; font-size: var(--font-aux); color: var(--color-error); font-weight: 600; }
+.form-error-text { flex: 1; font-size: var(--font-aux); color: var(--color-error); font-weight: var(--weight-semibold); }
 
 /* 输入项：独立 pill 字段，相互留间距，比连续内嵌边框更清爽 */
 .group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }

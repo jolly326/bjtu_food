@@ -13,37 +13,28 @@ const router = createRouter({
       component: AdminLayout,
       children: [
         { path: '', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
-        { path: 'canteens', name: 'canteens', component: () => import('@/views/canteen/CanteensView.vue') },
-        { path: 'dishes', name: 'dishManage', component: () => import('@/views/canteen/DishManageView.vue') },
+        { path: 'content', name: 'contentManage', component: () => import('@/views/content/ContentManageView.vue') },
+        { path: 'audit', name: 'auditManage', component: () => import('@/views/audit/AuditManageView.vue') },
+        { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue') },
         { path: 'canteens/:canteenId', name: 'canteenDetail', component: () => import('@/views/canteen/CanteenDetailView.vue') },
         { path: 'canteens/:canteenId/stalls/:stallId', name: 'stallDetail', component: () => import('@/views/canteen/StallDetailView.vue') },
-        { path: 'canteens/:canteenId/stalls/:stallId/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
-        { path: 'reviews', name: 'reviews', component: () => import('@/views/admin/ApplyReviewView.vue') },
-        { path: 'dish-review', redirect: '/dashboard/reviews' },
-        { path: 'stall-review', redirect: '/dashboard/reviews' },
-        { path: 'canteen-review', redirect: '/dashboard/reviews' },
-        { path: 'review-review', redirect: '/dashboard/reviews' },
-        { path: 'users', name: 'users', component: () => import('@/views/user/UserView.vue') },
-        { path: 'admins', name: 'admins', component: () => import('@/views/admin/AdminManageView.vue') },
         { path: 'account', name: 'account', component: () => import('@/views/admin/AccountSettingsView.vue') },
-        { path: 'banners', name: 'banners', component: () => import('@/views/banner/BannerManageView.vue') },
-        { path: 'moments', name: 'momentManage', component: () => import('@/views/admin/MomentManageView.vue') },
-        { path: 'feedbacks', name: 'feedback', component: () => import('@/views/admin/FeedbackView.vue') },
-        { path: 'operation-logs', name: 'operationLog', component: () => import('@/views/admin/OperationLogView.vue') },
       ],
     },
   ],
 })
 
-// 全局前置守卫：401 引导登录；非 ADMIN 禁入后台
+// 全局前置守卫：401 引导登录；仅 ADMIN / SUPER_ADMIN 可进后台（super_admin 也能进，且可管理管理员）
+const isBackendRole = (role?: string) => role === 'admin' || role === 'super_admin'
+
 router.beforeEach(async (to) => {
   const token = localStorage.getItem('token')
   if (to.path === '/login') {
-    // 已登录且为 ADMIN 时，访问登录页直接进后台
+    // 已登录且为后台角色时，访问登录页直接进后台
     if (token) {
       try {
         const me = await userApi.getProfile()
-        if (me?.role === 'admin') return '/dashboard'
+        if (isBackendRole(me?.role)) return '/dashboard'
       } catch { /* ignore */ }
     }
     return true
@@ -53,8 +44,8 @@ router.beforeEach(async (to) => {
 
   try {
     const me = await userApi.getProfile()
-    if (me?.role !== 'admin') {
-      // 非 ADMIN 角色禁止进入后台
+    if (!isBackendRole(me?.role)) {
+      // 非后台角色禁止进入
       return { path: '/login' }
     }
     return true

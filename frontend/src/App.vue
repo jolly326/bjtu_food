@@ -24,8 +24,8 @@ page {
   --color-primary-dark: #6B1010;
   --color-primary-soft: #FEF0EF;
   --color-primary-bg: #FBEDEB;
-  --color-accent: #2F7D72;
-  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #2F7D72 100%);
+  --color-accent: #E67E22;
+  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #E67E22 100%);
   --color-error: #E54D42;
   --color-success: #10B981;
   --color-warning: #F5A623;
@@ -37,7 +37,7 @@ page {
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
   --color-warning-soft: #fff8e1;
-  --color-accent-soft: #e8f8f0;
+  --color-accent-soft: #fff3e0;
   --color-primary-soft2: #fde8e8;
   --color-hot-soft: #fef3e0;
   --color-hot: #E67E22;
@@ -88,6 +88,7 @@ page {
   --icon-lg: 48rpx;
   /* 阴影（材质 / 深度） */
   --shadow-card: 0 4rpx 16rpx rgba(56, 42, 34, 0.08);
+  --shadow-card-soft: 0 8rpx 32rpx rgba(56, 42, 34, 0.08);
   --shadow-modal: 0 18rpx 54rpx rgba(56, 42, 34, 0.18);
   /* 半透材质（小程序真机 backdrop-filter 降级） */
   --blur-radius: 20px;
@@ -120,6 +121,11 @@ page {
   /* 动效：按压 + 缓动曲线（emil-design-eng / Apple §1/§4） */
   --press-scale: 0.97;
   --press-transition: transform 0.12s ease;
+  /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-drawer: 400ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -130,6 +136,12 @@ page {
   --tracking-h2: -0.02em;
   --tracking-h3: -0.01em;
   --tracking-body: 0;
+  /* 字重梯度（统一，收敛裸 font-weight） */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-heavy: 800;
   /* 布局 */
   --tabbar-height: 100rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
@@ -146,8 +158,8 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --color-primary-dark: #6B1010;
   --color-primary-soft: #FEF0EF;
   --color-primary-bg: #FBEDEB;
-  --color-accent: #2F7D72;
-  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #2F7D72 100%);
+  --color-accent: #E67E22;
+  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #E67E22 100%);
   --color-error: #E54D42;
   --color-success: #10B981;
   --color-warning: #F5A623;
@@ -158,7 +170,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --color-success-soft: #ecfdf5;
   --color-error-soft: #fef2f2;
   --color-warning-soft: #fff8e1;
-  --color-accent-soft: #e8f8f0;
+  --color-accent-soft: #fff3e0;
   --color-primary-soft2: #fde8e8;
   --color-hot-soft: #fef3e0;
   --color-hot: #E67E22;
@@ -201,6 +213,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --icon-sm: 28rpx;
   --icon-lg: 48rpx;
   --shadow-card: 0 4rpx 16rpx rgba(56, 42, 34, 0.08);
+  --shadow-card-soft: 0 8rpx 32rpx rgba(56, 42, 34, 0.08);
   --shadow-modal: 0 18rpx 54rpx rgba(56, 42, 34, 0.18);
   --blur-radius: 20px;
   --blur-bg: rgba(255, 255, 255, 0.72);
@@ -225,6 +238,11 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --text-white-edge: rgba(255, 255, 255, 0.24);
   --press-scale: 0.97;
   --press-transition: transform 0.12s ease;
+  /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-drawer: 400ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -304,13 +322,20 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .tab-item,
   .swiper-slide,
   .enter-up,
-  .press {
+  .press,
+  .pressed,
+  .filter-enter,
+  .m-action,
+  .fab {
     transition: opacity 0.2s ease !important;
     animation: none !important;
   }
   .dish-card,
   .app-btn,
-  .press {
+  .press,
+  .pressed,
+  .m-action,
+  .fab {
     transform: none !important;
   }
   @keyframes tabIn { from, to { transform: none; opacity: 1; } }

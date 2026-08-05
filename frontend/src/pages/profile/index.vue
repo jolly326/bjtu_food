@@ -8,62 +8,65 @@
         <AuthForm />
       </template>
 
-      <!-- 已登录态：用户信息卡 + 统计 + 菜单（主页不渲染 Tab） -->
+      <!-- 已登录态：Hero 用户卡 + 4 项功能网格 + 内嵌设置分组 -->
       <template v-else>
-        <!-- 用户卡（含头像 + 昵称 + 统计三宫格 + 我要贡献主操作入口） -->
-        <view class="user-card enter-up" :style="{ '--enter-i': 0 }">
+        <!-- Hero 用户卡：头像 + 昵称 + ID/认证 + 右侧 >，点击跳个人信息详情页 -->
+        <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="goProfileEdit">
           <view class="user-card-head">
-            <view class="avatar-wrap" @tap="handleEditAvatar">
-            <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
-            <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="48" color="var(--text-tertiary)" />
+            <view class="avatar-wrap">
+              <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
+              <view v-else class="avatar avatar-empty">
+                <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
+              </view>
             </view>
-          </view>
-          <view class="user-meta">
-            <view class="nickname-row" @tap="handleEditNickname">
+            <view class="user-meta">
               <text class="nickname">{{ userInfo?.nickname || '未知用户' }}</text>
-              <IconSvg name="edit" :size="24" color="var(--text-tertiary)" class="nickname-edit" />
+              <view class="meta-line">
+                <text class="user-id">ID {{ userInfo?.id ?? '--' }}</text>
+                <view class="verify-tag" :class="{ ok: isVerified }">
+                  <text class="verify-text">{{ isVerified ? '已认证' : '未认证' }}</text>
+                </view>
+              </view>
             </view>
-            <StatusBadge v-if="userInfo?.role" :role="userInfo.role === 'admin' ? 'admin' : 'student'" />
+            <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
           </view>
-          </view>
-
-          <!-- 统计三宫格（评价 / 已发布 / 待审核），融合进 user-card -->
-          <StatsRow
-            v-if="!userStore.statsLoading"
-            class="user-stats"
-            :review-count="userStore.userStats.reviewCount ?? 0"
-            :published-count="userStore.userStats.publishedCount ?? 0"
-            :pending-count="userStore.userStats.pendingCount ?? 0"
-            @tap="onStatsTap"
-          />
-          <view v-else class="stats-skeleton">
-            <view v-for="n in 3" :key="n" class="sk-cell">
-              <view class="sk-value" />
-              <view class="sk-label" />
-            </view>
-          </view>
-
-          <!-- 我要贡献（卡片主操作，spring + scale(0.97) 由 AppButton 处理） -->
-          <AppButton text="+ 我要贡献" type="primary" class="contribute-cta" @click="contributeOpen = true" />
         </view>
 
-        <!-- 菜单组（SettingGroup + SettingCell，图标走 IconSvg） -->
-        <SettingGroup title="我的" class="enter-up" :style="{ '--enter-i': 1 }">
-          <SettingCell icon="comment" label="我的动态" @tap="goToMyMoments" />
-          <SettingCell
-            icon="bell"
-            :label="recentNotify ? recentNotify.title : '消息中心'"
-            :hint="recentNotify ? recentNotify.content : (notifyStore.unreadCount ? `${notifyStore.unreadCount} 条未读` : '暂无新消息')"
-            :badge-count="notifyStore.unreadCount"
-            @tap="goToNotify"
-          />
+        <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价） -->
+        <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
+          <view
+            v-for="g in gridItems"
+            :key="g.key"
+            class="grid-item"
+            :class="{ pressed: pressedKey === g.key }"
+            @touchstart="pressedKey = g.key"
+            @touchend="pressedKey = ''"
+            @touchcancel="pressedKey = ''"
+            @mousedown="pressedKey = g.key"
+            @mouseup="pressedKey = ''"
+            @mouseleave="pressedKey = ''"
+            @tap="g.action"
+          >
+            <view class="grid-icon">
+              <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
+              <view v-if="g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
+                {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
+              </view>
+            </view>
+            <text class="grid-label">{{ g.label }}</text>
+          </view>
+        </view>
+
+        <!-- 设置（单列表：关于/隐私/缓存；图标纯主题色无背景） -->
+        <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
+          <SettingCell label="关于食在交大" icon="logo" @select="goAbout" />
+          <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
+          <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
         </SettingGroup>
 
-        <SettingGroup title="通用" class="enter-up" :style="{ '--enter-i': 2 }">
-          <SettingCell icon="list" label="我的发布" hint="我的发布 / 我的贡献" @tap="goToMessagesServices" />
-          <SettingCell icon="contact" label="意见反馈" hint="建议/Bug反馈" @tap="goToFeedback" />
-          <SettingCell icon="settings" label="设置" @tap="goToSettings" />
+        <!-- 账号注销（危险操作，单独卡片隔离） -->
+        <SettingGroup :style="{ '--enter-i': 3 }">
+          <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
         </SettingGroup>
 
         <view class="version-row">
@@ -73,133 +76,112 @@
     </scroll-view>
 
     <CustomTabBar current="/pages/profile/index" />
-
-    <!-- 我要贡献 Sheet（ContributeSheet，spring 0.8/0.3 + ic-close） -->
-    <ContributeSheet :open="contributeOpen" @update:open="contributeOpen = $event" @pick="onContributePick" />
-
-    <!-- 申请下架/纠错 Sheet（ApplySheet 跨页共用，profile 自由申请） -->
-    <ApplySheet :open="applyOpen" @update:open="applyOpen = $event" @submitted="onApplySubmitted" />
-
-    <!-- 昵称编辑 Sheet（NicknameSheet，复用 ContributeSheet 视觉语言 + spring 0.3 进场） -->
-    <NicknameSheet :open="nicknameOpen" :value="userInfo?.nickname" @update:open="nicknameOpen = $event" @confirm="confirmEditNickname" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
-import AppButton from '@/components/AppButton.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthForm from '@/components/AuthForm.vue'
-import StatsRow from '@/components/StatsRow.vue'
-import ContributeSheet from '@/components/ContributeSheet.vue'
-import ApplySheet from '@/components/ApplySheet.vue'
-import NicknameSheet from '@/components/NicknameSheet.vue'
 import SettingGroup from '@/components/SettingGroup.vue'
 import SettingCell from '@/components/SettingCell.vue'
-import StatusBadge from '@/components/StatusBadge.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getImageUrl } from '@/utils/image'
-import { uploadImage } from '@/api/upload'
-import { getNotifications, type Notification } from '@/api/notify'
+import { deleteAccount } from '@/api/user'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
+/** 认证标识（无独立认证字段，由 role 派生：admin=官方认证 / student=未认证） */
+const isVerified = computed(() => userInfo.value.role === 'admin')
 
-// 轻量消息区块（task：消息并入「我的」，不重复造消息中心，仅展示最近 1 条 + 未读）
-const recentNotify = ref<Notification | null>(null)
-async function fetchRecentNotify() {
-  try {
-    const { list } = await getNotifications({ page: 1, pageSize: 1 })
-    recentNotify.value = list[0] ?? null
-  } catch {
-    recentNotify.value = null
-  }
+const pressedKey = ref('')
+
+function openMessage() {
+  uni.navigateTo({ url: '/pages/profile/messages/index' })
 }
 
-const contributeOpen = ref(false)
-const applyOpen = ref(false)
-const nicknameOpen = ref(false)
+/** 4 项功能网格（统一主色软底大图标，克制） */
+const gridItems = [
+  { key: 'moments', icon: 'comment', label: '我的动态', action: () => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' }) },
+  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: '/pages/profile/messages-services/index' }) },
+  { key: 'notify', icon: 'bell', label: '消息中心', action: openMessage },
+  { key: 'reviews', icon: 'star', label: '我的评价', action: () => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' }) },
+]
 
-function onContributePick(key: string) {
-  contributeOpen.value = false
-  if (key === 'publishDish') uni.navigateTo({ url: '/pages/pages-user/publish-dish' })
-  else if (key === 'submitStall') uni.navigateTo({ url: '/pages/pages-user/submit-stall' })
-  else if (key === 'submitCanteen') uni.navigateTo({ url: '/pages/pages-user/submit-stall?type=canteen' })
-  else if (key === 'apply') applyOpen.value = true
+function goProfileEdit() {
+  uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-function onApplySubmitted() {
-  setTimeout(() => uni.navigateTo({ url: '/pages/profile/messages-services/index' }), 400)
+// ── 设置（内嵌分组）──
+function goAbout() {
+  uni.showModal({
+    title: '关于食在交大',
+    content: '食在交大是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
+    showCancel: false,
+  })
 }
 
-function handleEditAvatar() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      const tempPath = res.tempFilePaths[0]
-      try {
-        const url = await uploadImage(tempPath)
-        await userStore.updateProfile({ avatar: url })
-        uni.showToast({ title: '头像已更新', icon: 'success' })
-      } catch {
-        uni.showToast({ title: '更新失败', icon: 'none' })
+function goPrivacy() {
+  uni.showModal({
+    title: '隐私政策',
+    content: '我们仅收集必要的账号与登录信息用于提供服务。您的浏览足迹、动态与收藏仅用于优化你的个性化体验，不会向第三方泄露。',
+    showCancel: false,
+  })
+}
+
+function clearCache() {
+  uni.showModal({
+    title: '清除缓存',
+    content: '确定清除本地缓存吗？不会删除你的账号数据。',
+    success: (res) => {
+      if (res.confirm) {
+        uni.clearStorageSync()
+        userStore.restoreFromCache()
+        uni.showToast({ title: '缓存已清除', icon: 'none' })
       }
     },
   })
 }
 
-function handleEditNickname() {
-  nicknameOpen.value = true
+function goCancelAccount() {
+  uni.showModal({
+    title: '账号注销',
+    content: '注销后你的菜品、动态、评价等数据将被删除且不可恢复，确定要继续吗？',
+    confirmText: '确认注销',
+    confirmColor: '#e54d42',
+    success: (res) => {
+      if (res.confirm) doDeleteAccount()
+    },
+  })
 }
 
-async function confirmEditNickname(name: string) {
-  const trimmed = name.trim()
-  if (!trimmed) {
-    uni.showToast({ title: '昵称不能为空', icon: 'none' })
-    return
-  }
+async function doDeleteAccount() {
   try {
-    await userStore.updateProfile({ nickname: trimmed })
-    nicknameOpen.value = false
-    uni.showToast({ title: '昵称已更新', icon: 'success' })
-  } catch {
-    uni.showToast({ title: '更新失败', icon: 'none' })
+    await deleteAccount()
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+    uni.showToast({ title: '账号已注销', icon: 'none' })
+    setTimeout(() => { uni.reLaunch({ url: '/pages/profile/index' }) }, 600)
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '注销失败', icon: 'none' })
   }
-}
-
-function onStatsTap(key: 'review' | 'published' | 'pending') {
-  if (key === 'review') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=contribution' })
-  else if (key === 'published') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=published' })
-  else if (key === 'pending') uni.navigateTo({ url: '/pages/profile/messages-services/index?tab=pending' })
-}
-function goToMyMoments() {
-  uni.navigateTo({ url: '/pages/pages-user/my-moments' })
-}
-function goToNotify() {
-  uni.navigateTo({ url: '/pages/profile/messages-services/index' })
-}
-function goToMessagesServices() {
-  uni.navigateTo({ url: '/pages/profile/messages-services/index' })
-}
-function goToFeedback() {
-  uni.navigateTo({ url: '/pages/feedback/index' })
-}
-function goToSettings() {
-  uni.navigateTo({ url: '/pages/settings/index' })
 }
 
 onMounted(() => {
   if (userStore.isLoggedIn()) {
-    userStore.fetchStats()
     notifyStore.fetchUnread()
-    fetchRecentNotify()
+  }
+})
+// 从消息中心页返回时刷新未读角标
+onShow(() => {
+  if (userStore.isLoggedIn()) {
+    notifyStore.fetchUnread()
   }
 })
 </script>
@@ -208,35 +190,77 @@ onMounted(() => {
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
-/* 用户卡（§1.4：头像圆角正方形 16rpx，无头像兜底 ic-user；内部竖向排列，统计与入口融合） */
-.user-card { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+/* Hero 用户卡（纯白卡 + 主题色点缀；头像 + 昵称 + ID/认证 + 右侧 >，整卡点击进个人信息页；无渐变） */
+.user-card {
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  /* Apple highlight 按压：背景微变而非缩放（列表行卡规范） */
+  transition: background-color 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
-.avatar-wrap:active { transform: scale(var(--press-scale)); }
-.avatar { width: 96rpx; height: 96rpx; border-radius: var(--radius-card); background: var(--bg-page); }
+.avatar-wrap { flex-shrink: 0; }
+.avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; background: var(--bg-page); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
-.user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.nickname-row { display: flex; align-items: center; gap: var(--spacing-xs); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
-.nickname-row:active { transform: scale(var(--press-scale)); }
-.nickname { font-size: var(--font-subtitle); font-weight: 700; color: var(--text-primary); }
-.nickname-edit { flex-shrink: 0; }
+.user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* Apple Design Typography：昵称加大（title 级 800 + 负 tracking），强化身份层级 */
+.nickname { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h2); }
+.meta-line { display: flex; align-items: center; gap: var(--spacing-sm); }
+.user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
+.verify-tag {
+  display: flex; align-items: center;
+  padding: 2rpx 14rpx; border-radius: var(--radius-tag);
+  background: var(--bg-soft);
+}
+.verify-tag.ok { background: var(--color-primary-soft); }
+.verify-text { font-size: var(--font-tiny); font-weight: var(--weight-semibold); color: var(--text-tertiary); }
+.verify-tag.ok .verify-text { color: var(--color-primary); }
+.card-arrow { flex-shrink: 0; }
 
-/* 我要贡献（卡片主操作入口，落在统计三宫格下方） */
-.contribute-cta { margin-top: var(--spacing-md); }
-
-/* 统计三宫格（融合进 user-card，扁平化：去掉内层卡片阴影/背景，与卡片等宽） */
-.user-stats { width: 100%; margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.user-card :deep(.stat-cell) { background: transparent; box-shadow: none; }
-.user-card :deep(.stats-row) { gap: 0; }
+/* 4 项功能网格（4 列：纯主题色图标 + 文字，无背景块；卡片间距统一 --spacing-sm） */
+.grid-menu {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-sm);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.grid-item.pressed { transform: scale(var(--press-scale)); }
+.grid-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.grid-label { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.2; }
+.grid-badge {
+  position: absolute; top: -10rpx; right: -16rpx;
+  min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx;
+  background: var(--color-error); color: var(--text-white);
+  font-size: 18rpx; font-weight: var(--weight-semibold); line-height: 32rpx; text-align: center;
+  box-sizing: border-box;
+}
 
 .version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
-.version-text { display: block; font-size: 22rpx; font-weight: 500; color: var(--text-tertiary); }
+.version-text { display: block; font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-tertiary); }
 
-/* 统计骨架（加载态占位，避免数字跳动） */
-.stats-skeleton { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.sk-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: var(--spacing-xs) 0; }
-.sk-value { width: 56rpx; height: 34rpx; border-radius: 8rpx; background: var(--bg-soft); }
-.sk-label { width: 72rpx; height: 22rpx; border-radius: 6rpx; background: var(--bg-soft); }
-.sk-value, .sk-label { animation: sk-pulse 1.2s ease-in-out infinite; }
-@keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+  .user-card, .grid-item { transition: none; }
+}
 </style>
