@@ -5,6 +5,8 @@
       :key="star"
       class="star"
       :class="{ active: star <= modelValue }"
+      hover-class="pressed"
+      hover-stay-time="80"
       @tap="onSelect(star)"
     >
       <IconSvg :name="star <= modelValue ? 'star-filled' : 'star'" :size="starSize" :color="star <= modelValue ? activeColor : emptyColor" class="star-icon" />

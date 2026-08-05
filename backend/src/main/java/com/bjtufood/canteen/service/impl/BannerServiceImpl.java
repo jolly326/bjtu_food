@@ -69,8 +69,6 @@ public class BannerServiceImpl implements BannerService {
                     throw new com.bjtufood.common.exception.BusinessException(targetType + " 类型必须填写 targetId");
                 }
                 banner.setTargetUrl(null);
-                // 同步历史 type 字段，保持兼容
-                banner.setType("dish");
             }
             case "ACTIVITY" -> throw new com.bjtufood.common.exception.BusinessException(
                     "ACTIVITY 类型已废弃，活动统一经 Banner 的 URL 外链承载（task-12.10）");
@@ -79,12 +77,10 @@ public class BannerServiceImpl implements BannerService {
                     throw new com.bjtufood.common.exception.BusinessException("URL 类型必须填写 targetUrl");
                 }
                 banner.setTargetId(null);
-                banner.setType("url");
             }
             case "NONE" -> {
                 banner.setTargetId(null);
                 banner.setTargetUrl(null);
-                banner.setType("url");
             }
             default -> throw new com.bjtufood.common.exception.BusinessException("非法的 target_type：" + targetType);
         }
@@ -96,7 +92,6 @@ public class BannerServiceImpl implements BannerService {
         vo.setTitle(banner.getTitle());
         vo.setSubtitle(banner.getSubtitle());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(banner.getImages()));
-        vo.setType(banner.getType());
         vo.setTargetType(banner.getTargetType());
         vo.setTargetId(banner.getTargetId());
         vo.setTargetUrl(banner.getTargetUrl());

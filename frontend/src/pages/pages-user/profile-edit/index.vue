@@ -1,5 +1,5 @@
 <template>
-  <view class="page profile-edit-page">
+  <view class="page profile-edit-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="个人信息" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -22,18 +22,22 @@
           <input v-model="nickname" class="nickname-input" placeholder="请输入昵称" maxlength="16" placeholder-class="input-placeholder" />
         </view>
 
-        <!-- 用户 ID -->
+        <!-- 学号（校园身份，只读） -->
         <view class="info-row">
-          <text class="info-label">用户 ID</text>
-          <text class="info-value">ID {{ userInfo.id }}</text>
+          <text class="info-label">学号</text>
+          <text class="info-value">{{ userInfo.username || '--' }}</text>
         </view>
 
-        <!-- 认证状态（无独立认证字段，由 role 派生：admin=官方认证 / student=未认证） -->
+        <!-- 校园邮箱（只读） -->
         <view class="info-row">
-          <text class="info-label">认证状态</text>
-          <view class="verify-tag" :class="{ ok: isVerified }">
-            <text class="verify-text">{{ isVerified ? '已认证' : '未认证' }}</text>
-          </view>
+          <text class="info-label">校园邮箱</text>
+          <text class="info-value info-value-email">{{ userInfo.email || '--' }}</text>
+        </view>
+
+        <!-- 身份（角色，只读） -->
+        <view class="info-row">
+          <text class="info-label">身份</text>
+          <text class="info-value">{{ roleLabel }}</text>
         </view>
       </view>
       <view style="height: var(--spacing-lg)" />
@@ -47,6 +51,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
@@ -61,10 +67,10 @@ const userInfo = computed(() => userStore.userInfo)
 const avatar = ref(userInfo.value.avatar || '')
 const nickname = ref(userInfo.value.nickname || '')
 const saving = ref(false)
+/** 身份标签：student=交大学生 / admin=管理员（对齐 §0.2 仅两种角色） */
+const roleLabel = userInfo.value.role === 'admin' ? '管理员' : '交大学生'
 /** 头像上传中：禁用重复选择 + 头像半透明反馈 */
 const avatarUploading = ref(false)
-
-const isVerified = computed(() => userInfo.value.role === 'admin')
 
 function changeAvatar() {
   if (avatarUploading.value) return
@@ -140,15 +146,8 @@ async function save() {
 .nickname-input { flex: 1; min-width: 0; text-align: right; padding-right: var(--spacing-xs); font-size: var(--font-body); color: var(--text-primary); }
 .input-placeholder { color: var(--text-tertiary); }
 .info-value { font-size: var(--font-body); color: var(--text-secondary); }
-.verify-tag {
-  display: flex; align-items: center;
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-tag);
-  background: var(--bg-soft);
-}
-.verify-tag.ok { background: var(--color-primary-soft); }
-.verify-text { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-tertiary); }
-.verify-tag.ok .verify-text { color: var(--color-primary); }
+/* 邮箱较长：允许右对齐但自动换行不溢出 */
+.info-value-email { max-width: 62%; text-align: right; word-break: break-all; }
 /* 保存按钮：固定底部（与其他表单页一致） */
 .submit-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;

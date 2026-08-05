@@ -94,7 +94,7 @@ function enterAnim() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--el-mask-color, rgba(0, 0, 0, 0.45));
   display: flex;
   align-items: center;
   justify-content: center;

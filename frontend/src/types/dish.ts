@@ -10,15 +10,11 @@ export interface Dish {
   images?: string[]
   rating: number
   ratingCount: number
-  /** 喜欢数（后端统一字段 favoriteCount） */
-  favoriteCount: number
   tags: string[]
   description: string
   canteen: string
   stallName: string
   isNew?: boolean
-  /** 当前用户是否已喜欢（一人一票；后端统一字段 isFavorited） */
-  isFavorited?: boolean
   /** 当前用户是否已评价 */
   hasReviewed?: boolean
   /** 审核状态（公开接口仅返回 approved 记录） */
@@ -61,7 +57,7 @@ export interface DishDetail extends Dish {
   ratingDistribution: RatingDistribution[]
 }
 
-export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at' | 'collects'
+export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at'
 
 export interface DishQuery {
   keyword?: string
@@ -90,6 +86,12 @@ export interface Suggestion {
   image: string
   /** 所属食堂名（仅 stall 类型返回，跳档口详情需携带 navParams.canteen） */
   canteen?: string
+  /** 价格（单位：分；仅 dish 类型，展示前需转元） */
+  price?: number
+  /** 平均评分（仅 dish 类型） */
+  rating?: number
+  /** 评价数（仅 dish 类型） */
+  ratingCount?: number
 }
 
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */

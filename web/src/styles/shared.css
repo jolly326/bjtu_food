@@ -28,6 +28,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
 }
 
 /* ============================================================
+ * 操作列图标公共类（8 个视图重复，统一在此，消除散落 margin-right）
+ * ============================================================ */
+.act-ico {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  margin-right: var(--space-1);
+}
+
+/* ============================================================
  * 按压即时反馈 scale(0.97)（§4.4）
  * 覆盖全站所有可点击元素：按钮、链接、标签、导航、卡片等。
  * 过渡 0.12s ease（Apple Design 即时响应）。
@@ -60,6 +70,15 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
 .type-opt:active, .action-btn:active, .toggle-btn:active,
 button:active:not(:disabled), a:active {
   transform: scale(0.97);
+}
+/* 键盘焦点环：所有可交互元素统一 focus-ring（--focus-ring 为 box-shadow 定义，对比 .btn-secondary 已有，补核心按钮/链接/表格排序/清除） */
+.btn-primary:focus-visible, .btn-cancel:focus-visible, .btn-danger:focus-visible,
+.link:focus-visible, .tab:focus-visible, .nav-item:focus-visible,
+.tag-option:focus-visible, .type-opt:focus-visible,
+.action-btn:focus-visible, .toggle-btn:focus-visible,
+button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* ============================================================

@@ -31,14 +31,16 @@ public class DishController {
 
     private final DishService dishService;
 
-    @Operation(summary = "热门菜品 TOP10", description = "用途：首页热门推荐。按收藏数、评分等规则返回热门菜品；可选传 lat/lng 按用户位置距离加权（近食堂菜品优先，首页推荐联动定位）。")
+    @Operation(summary = "热门菜品 TOP", description = "用途：首页热门推荐。按收藏数、评分等规则返回热门菜品；可选传 lat/lng 按用户位置距离加权（近食堂菜品优先，首页推荐联动定位）；可选传 limit 控制返回条数。")
     @GetMapping("/dishes/hot")
     public Result<List<DishVO>> getHotDishes(
             @Parameter(description = "用户纬度（GCJ-02，可选）", example = "39.9538")
             @RequestParam(required = false) BigDecimal lat,
             @Parameter(description = "用户经度（GCJ-02，可选）", example = "116.3354")
-            @RequestParam(required = false) BigDecimal lng) {
-        return Result.success(dishService.getHotDishes(lat, lng));
+            @RequestParam(required = false) BigDecimal lng,
+            @Parameter(description = "返回条数（可选，默认 10，前端首页热门列表可控制数量）", example = "10")
+            @RequestParam(required = false) Integer limit) {
+        return Result.success(dishService.getHotDishes(lat, lng, limit));
     }
 
     @Operation(summary = "今日上新菜品", description = "用途：首页今日上新板块。按创建时间降序返回最新菜品。")

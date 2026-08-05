@@ -152,7 +152,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  background: var(--color-primary);
   color: var(--color-on-primary);
   display: inline-flex;
   align-items: center;
@@ -181,7 +181,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 .user-sep { color: var(--border-soft); }
 .user-date { color: var(--text-light); }
 
-.act-ico { width: 13px; height: 13px; margin-right: var(--space-1); vertical-align: -2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

@@ -104,24 +104,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
-const COLOR_VARS: Record<string, string> = {
-  '--color-primary': '#8B3A2B',
-  '--color-primary-dark': '#6B1010',
-  '--color-like': '#ff6b6b',
-  '--color-like-soft': '#fff5f5',
-  '--color-star': '#FFB400',
-  '--color-star-empty': '#E8E0D8',
-  '--color-price': '#C0392B',
-  '--color-error': '#E54D42',
-  '--color-success': '#10B981',
-  '--text-tertiary': '#A89E96',
-  '--text-primary': '#1C1917',
-  '--text-secondary': '#6B625B',
-  '--text-white': '#FFFFFF',
-  '--badge-dark-text': '#FFFFFF',
-  '--white': '#FFFFFF',
-  'currentColor': '#1C1917',
-}
+// 单一事实源：色值统一维护在 src/theme/tokens.ts（改主色只改一处，图标全同步）
+import { ICON_COLOR_VARS as COLOR_VARS } from '@/theme/tokens'
 
 function resolveColor(c: string): string {
   if (!c) return '#1C1917'

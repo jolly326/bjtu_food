@@ -6,9 +6,11 @@
         :key="item.page"
         class="tab-item"
         :class="{ active: current === item.page }"
+        hover-class="pressed"
+        hover-stay-time="80"
         @tap="switchTab(item.page)"
       >
-        <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+        <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-on-tab)' : 'var(--text-tertiary)'" />
         <text class="tab-text">{{ item.text }}</text>
       </view>
     </view>
@@ -69,7 +71,7 @@ function switchTab(page: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
   transition: transform var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }

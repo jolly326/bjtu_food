@@ -186,5 +186,5 @@ async function handleDelete(id: number) {
 
 .modal-form { display: flex; flex-direction: column; gap: var(--space-3); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 </style>

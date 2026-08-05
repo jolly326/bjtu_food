@@ -74,3 +74,10 @@ dbcheck_out*.txt
 dep_swagger.txt
 ec_schema.txt
 mvnrun.log.err
+
+# temp build/verify outputs
+**/build_mp*.txt
+**/build_r*.txt
+**/r*_mp.txt
+**/r*_web.txt
+**/r*_tsc.txt

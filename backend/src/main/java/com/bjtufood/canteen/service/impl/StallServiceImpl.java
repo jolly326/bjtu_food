@@ -199,7 +199,9 @@ public class StallServiceImpl implements StallService {
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
-        vo.setAvgRating(stall.getAvgRating());
+        // 档口评分统一实时聚合（BCNF：stall.avg_rating 孤岛字段已删，与 toVO 同口径，避免两端不一致）
+        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
+        vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         vo.setSortOrder(stall.getSortOrder());
         vo.setStatus(stall.getStatus());
         vo.setAuditStatus(stall.getAuditStatus());

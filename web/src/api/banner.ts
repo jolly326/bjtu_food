@@ -7,8 +7,6 @@ function toBanner(raw: any, index = 0): Banner {
     id: (raw.id ?? index + 1) as unknown as bigint,
     title: raw.title || '',
     image: imagesToLegacy(raw.images ?? raw.image).split('|||')[0] || '',
-    /** @deprecated 历史字段，视图层仅用 target_type；保留仅作后端兼容兜底 */
-    type: raw.targetType ?? raw.target_type ?? (raw.type || 'DISH'),
     target_id: raw.targetId ?? raw.target_id,
     target_type: raw.targetType ?? raw.target_type,
     target_url: raw.targetUrl ?? raw.target_url ?? '',
@@ -23,7 +21,6 @@ function toBanner(raw: any, index = 0): Banner {
 function toApi(data: Partial<Banner>) {
   return {
     title: data.title,
-    type: data.type,
     targetId: data.target_id,
     targetType: data.target_type,
     targetUrl: data.target_url,

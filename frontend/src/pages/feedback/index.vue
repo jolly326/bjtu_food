@@ -1,5 +1,5 @@
 <template>
-  <view class="page feedback-page">
+  <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="意见反馈" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -45,6 +45,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'

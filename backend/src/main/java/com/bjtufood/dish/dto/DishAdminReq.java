@@ -1,8 +1,6 @@
 package com.bjtufood.dish.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -11,16 +9,18 @@ import java.util.List;
 @Schema(description = "后台菜品新增/编辑请求参数")
 public class DishAdminReq {
 
-    @NotNull(message = "档口ID不能为空")
-    @Schema(description = "所属档口ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+    /**
+     * 所属档口ID。
+     * 注意：DTO 层不做 @NotNull 校验——PUT /admin/dishes/{id} 支持「部分更新」，
+     * 前端行内状态 Switch（仅传 status）依赖此能力；新增（POST）时的必填校验在 Service 层完成。
+     */
+    @Schema(description = "所属档口ID", example = "1")
     private Long stallId;
 
-    @NotBlank(message = "菜品名称不能为空")
-    @Schema(description = "菜品名称", example = "番茄炒蛋盖饭", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "菜品名称", example = "番茄炒蛋盖饭")
     private String name;
 
-    @NotNull(message = "价格不能为空")
-    @Schema(description = "价格，单位：分。1200 表示 12 元。", example = "1200", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "价格，单位：分。1200 表示 12 元。", example = "1200")
     private Integer price;
 
     @Schema(description = "原价（分，折扣前）。1500 表示 15 元。", example = "1500")

@@ -32,6 +32,9 @@
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
+        <if test="withImage">
+            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
+        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -81,6 +84,9 @@
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
+        <if test="withImage">
+            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
+        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -109,6 +115,9 @@
                  JOIN stall s ON d.stall_id = s.id
         WHERE s.canteen_id = #{canteenId}
           AND r.is_hidden = 0
+        <if test="withImage">
+            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
+        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>

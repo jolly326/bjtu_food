@@ -1,5 +1,5 @@
 <template>
-  <view class="page submit-page">
+  <view class="page submit-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="提交档口·食堂" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -58,6 +58,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
@@ -137,7 +139,7 @@ onLoad(() => { loadCanteens() })
 .type-switch { display: flex; gap: var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-xs); margin: 0 var(--spacing-md) var(--spacing-md); }
 .type-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); padding: var(--spacing-sm) 0; border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .type-btn:active { transform: scale(var(--press-scale)); }
-.type-btn.active { background: var(--color-primary); color: var(--text-white); font-weight: var(--weight-semibold); }
+.type-btn.active { background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
 .type-btn-icon { flex-shrink: 0; }
 .type-btn-text { line-height: 1; }
 .field { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }
@@ -152,7 +154,7 @@ onLoad(() => { loadCanteens() })
 /* 复用 ImageUploader：保持与历史设计一致的 180rpx 单元格尺寸 */
 .stall-image-uploader { width: 100%; }
 .stall-image-uploader :deep(.img-cell) { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); }
-.stall-image-uploader :deep(.img-remove) { width: 36rpx; height: 36rpx; }
+/* 删除角标继承 ImageUploader 基础 48rpx 命中区，不再缩小 */
 /* 描述框：与写评价/反馈弹窗 textarea 同款（bg-page 浅底 + radius-card + 无边框） */
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); border: none; box-sizing: border-box; }
 /* 底部提交栏：吸底（页面 flex 纵向，scroll-wrap flex:1），与 publish-moment/publish-dish 同款 */

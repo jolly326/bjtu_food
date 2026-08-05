@@ -29,7 +29,7 @@ public class ApplyAdminController {
 
     private final ApplyService applyService;
 
-    @Operation(summary = "申请审核列表", description = "ADM。按 status/entityType/applyType 过滤。")
+    @Operation(summary = "申请审核列表", description = "ADM。按 status/entityType/applyType 过滤（action 为前端兼容别名）。")
     @GetMapping
     public Result<PageResult<ApplyVO>> list(
             @Parameter(description = "审核状态：pending/approved/rejected")
@@ -38,9 +38,12 @@ public class ApplyAdminController {
             @RequestParam(required = false) String entityType,
             @Parameter(description = "申请类型：NEW/CLOSE/CHANGE")
             @RequestParam(required = false) String applyType,
+            @Parameter(description = "申请类型（前端兼容别名，同 applyType）")
+            @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<ApplyVO> result = applyService.adminList(status, entityType, applyType, page, pageSize);
+        String resolvedApplyType = applyType != null ? applyType : action;
+        IPage<ApplyVO> result = applyService.adminList(status, entityType, resolvedApplyType, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 

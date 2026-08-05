@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfo, UserStats } from '@/types/user'
 import * as userApi from '@/api/user'
+import { useAuthSheetStore } from '@/stores/authSheet'
 
 const STORAGE_KEY_TOKEN = 'token'
 const STORAGE_KEY_USER = 'userInfo'
@@ -50,10 +51,10 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function loginByEmailCode(email: string, code: string) {
+  async function loginByEmailCode(account: string, code: string) {
     loading.value = true
     try {
-      const res = await userApi.loginByEmailCode(email, code)
+      const res = await userApi.loginByEmailCode(account, code)
       token.value = res.token
       userInfo.value = res.userInfo
       saveAuth(res.token, res.userInfo)
@@ -63,7 +64,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function register(data: { username: string; email: string; code: string; password: string; nickname: string }) {
+  async function register(data: { username: string; code: string; password: string; nickname: string }) {
     loading.value = true
     try {
       return await userApi.register(data)
@@ -103,9 +104,10 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  /** 需认证入口守卫：未登录时弹出认证弹层（AuthSheet）并返回 false，已登录返回 true */
   function requireAuth(): boolean {
     if (!isLoggedIn()) {
-      uni.showToast({ title: '请先登录', icon: 'none' })
+      useAuthSheetStore().show()
       return false
     }
     return true

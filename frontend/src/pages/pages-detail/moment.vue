@@ -1,5 +1,5 @@
 <template>
-  <view class="page moment-detail-page">
+  <view class="page moment-detail-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="动态详情" showBack />
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && !moment" class="skeleton">
@@ -139,6 +139,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed, onMounted } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
@@ -416,7 +418,7 @@ onLoad((query) => {
 .comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
 /* 用户评价区（并入关联+互动卡，上分隔线） */
 .review-section { margin: var(--spacing-sm) 0 0; padding: var(--spacing-sm) 0 0; border-top: 2rpx solid var(--border-color); }
-.comment-title { font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--spacing-md); }
+.comment-title { font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
 .comment-list { display: flex; flex-direction: column; }
 .comment-expand { padding: var(--spacing-sm) 0; text-align: center; }
 .comment-expand-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }

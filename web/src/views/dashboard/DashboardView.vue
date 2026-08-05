@@ -214,6 +214,10 @@ onMounted(loadData)
 .metric-label { margin-top: 2px; font-size: var(--font-xs); color: var(--text-muted); }
 
 /* ===== 响应式 ===== */
+/* 1280–960px：8 指标卡 4→3 列平滑过渡，避免 4 列偏挤 */
+@media (max-width: 1279px) {
+  .metric-grid { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 959px) {
   .todo-grid { grid-template-columns: 1fr; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }

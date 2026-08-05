@@ -65,7 +65,7 @@ function logout() {
 
     <!-- ===== 顶部导航 ===== -->
     <header class="topnav">
-      <div class="topnav-brand" v-press @click="navTo('/dashboard')">
+      <div class="topnav-brand" v-press role="button" tabindex="0" aria-label="回到工作台" @click="navTo('/dashboard')" @keydown.enter.prevent="navTo('/dashboard')" @keydown.space.prevent="navTo('/dashboard')">
         <span class="brand-text">食在交大</span>
       </div>
 
@@ -84,7 +84,7 @@ function logout() {
       </nav>
 
       <div class="topnav-right">
-        <div class="topbar-user" @click="userMenuOpen = !userMenuOpen">
+        <div class="topbar-user" role="button" tabindex="0" :aria-expanded="userMenuOpen" aria-haspopup="menu" @click="userMenuOpen = !userMenuOpen" @keydown.enter.prevent="userMenuOpen = !userMenuOpen" @keydown.space.prevent="userMenuOpen = !userMenuOpen">
           <el-icon class="tu-ico"><UserFilled /></el-icon>
           <span class="tu-name">{{ adminUser.myRole === 'super_admin' ? '超级管理员' : '管理员' }}</span>
           <el-icon class="tu-caret" :class="{ open: userMenuOpen }"><ArrowDown /></el-icon>
@@ -145,6 +145,7 @@ function logout() {
   transition: background 0.2s var(--ease-out);
 }
 .topnav-brand:hover { background: var(--bg-soft); }
+.topnav-brand:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .brand-text {
   font-size: var(--font-lg);
   font-weight: var(--weight-bold);
@@ -200,6 +201,7 @@ function logout() {
 }
 .topbar-user:hover { background: var(--bg-hover); color: var(--text-primary); }
 .topbar-user:active { transform: scale(var(--press-scale)); }
+.topbar-user:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .tu-ico { width: 18px; height: 18px; }
 .tu-name { font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); }
 .tu-caret { width: 14px; height: 14px; color: var(--text-light); transition: transform 0.2s var(--ease-out); }

@@ -113,6 +113,7 @@ public class AuditServiceImpl implements AuditService {
             e.setAuditStatus("approved");
             e.setRejectReason(null);
             dishMapper.updateById(e);
+            sendDishAuditNotification(e, true, null);
         } else if ("stall".equals(type)) {
             Stall e = stallMapper.selectById(id);
             if (e == null) throw new BusinessException("档口不存在");
@@ -149,6 +150,7 @@ public class AuditServiceImpl implements AuditService {
             e.setAuditStatus("rejected");
             e.setRejectReason(rejectReason);
             dishMapper.updateById(e);
+            sendDishAuditNotification(e, false, rejectReason);
         } else if ("stall".equals(type)) {
             Stall e = stallMapper.selectById(id);
             if (e == null) throw new BusinessException("档口不存在");
@@ -267,6 +269,23 @@ public class AuditServiceImpl implements AuditService {
         } else {
             n.setTitle("动态审核未通过");
             n.setContent("您的动态未通过审核：" + (rejectReason == null ? "" : rejectReason));
+        }
+        notificationService.notify(n);
+    }
+
+    private void sendDishAuditNotification(Dish d, boolean approved, String rejectReason) {
+        if (d.getCreatedBy() == null) return;
+        Notification n = new Notification();
+        n.setUserId(d.getCreatedBy());
+        n.setType(NotificationConst.TYPE_DISH_AUDIT);
+        n.setRelatedId(d.getId());
+        n.setIsRead(0);
+        if (approved) {
+            n.setTitle("菜品审核通过");
+            n.setContent("您提交的菜品「" + d.getName() + "」已通过审核，现在对外可见啦~");
+        } else {
+            n.setTitle("菜品审核未通过");
+            n.setContent("您提交的菜品「" + d.getName() + "」未通过审核：" + (rejectReason == null ? "" : rejectReason));
         }
         notificationService.notify(n);
     }

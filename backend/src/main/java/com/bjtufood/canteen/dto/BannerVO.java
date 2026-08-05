@@ -14,6 +14,9 @@ import java.util.List;
 @Schema(description = "轮播图展示信息")
 public class BannerVO {
 
+    @Schema(description = "轮播图ID（前端事件埋点/定位用）", example = "1")
+    private Long id;
+
     @Schema(description = "标题", example = "交大美食季")
     private String title;
 

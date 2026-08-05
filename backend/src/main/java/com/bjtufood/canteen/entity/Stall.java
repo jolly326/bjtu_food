@@ -54,10 +54,6 @@ public class Stall {
     @Schema(description = "档口描述")
     private String description;
 
-    /** 平均评分 */
-    @Schema(description = "平均评分", example = "4.5")
-    private BigDecimal avgRating;
-
     /** 排序权重 */
     @Schema(description = "排序权重")
     private Integer sortOrder;

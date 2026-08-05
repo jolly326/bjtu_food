@@ -1,5 +1,5 @@
 <template>
-  <view class="page publish-page">
+  <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
     <Header :title="isEdit ? '编辑菜品' : '发布菜品'" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -65,6 +65,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
@@ -188,7 +190,7 @@ onLoad((query: any) => {
 /* 复用 ImageUploader：保持与历史设计一致的 180rpx 单元格尺寸 */
 .dish-image-uploader { width: 100%; }
 .dish-image-uploader :deep(.img-cell) { width: 180rpx; height: 180rpx; border-radius: var(--radius-icon); }
-.dish-image-uploader :deep(.img-remove) { width: 36rpx; height: 36rpx; }
+/* 删除角标继承 ImageUploader 基础 48rpx 命中区，不再缩小 */
 /* 描述框：与写评价/反馈弹窗 textarea 同款（bg-page 浅底 + radius-card + 无边框） */
 .desc-input { width: 100%; min-height: 160rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); border: none; box-sizing: border-box; }
 .char-count { display: block; text-align: right; font-size: var(--font-tiny); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }

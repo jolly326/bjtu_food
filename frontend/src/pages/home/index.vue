@@ -1,12 +1,12 @@
 <template>
-  <view class="page home-page">
+  <view class="page home-page" :class="{ 'theme-dark': theme.isDark }">
     <!-- 顶部：定位 + 搜索框（2026-08-03 修复：动态避让状态栏 + 微信右上角胶囊按钮，不再用 env(safe-area-inset-top)） -->
     <view class="home-top" :style="{ paddingTop: statusBarHeight + 'px' }">
       <!-- 定位条：点击重新定位（方案 C；授权成功后首页推荐按距离排序） -->
       <view class="loc-bar" :style="{ paddingRight: menuButtonRight + 'px' }" @tap="onLocTap">
         <IconSvg name="location" :size="30" color="var(--text-white)" class="loc-icon" />
         <text class="loc-text">{{ currentLocation }}</text>
-        <IconSvg name="arrow-down" :size="22" color="rgba(255,255,255,0.7)" class="loc-arrow" />
+        <IconSvg name="arrow-down" :size="22" color="var(--text-white-soft)" class="loc-arrow" />
       </view>
       <view class="home-search" @tap="goToSearch">
         <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="home-search-icon" />
@@ -126,6 +126,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import WaterfallList from '@/components/WaterfallList.vue'

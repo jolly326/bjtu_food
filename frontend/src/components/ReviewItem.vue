@@ -30,7 +30,7 @@
           @tap="previewImage(idx)"
         />
       </view>
-      <view class="review-actions">
+      <view class="review-actions" v-if="!hideUseful">
         <view class="review-like" :class="{ active: usefulActive }" @tap.stop="$emit('like', review)">
           <IconSvg
             :name="usefulActive ? 'heart-filled' : 'heart'"
@@ -53,6 +53,8 @@ const props = defineProps<{
   review: Review
   /** 当前用户是否已点赞（控制胶囊按钮填充态） */
   usefulActive?: boolean
+  /** 隐藏点赞（喜欢）操作：档口详情页评价区按产品决策不设点赞 */
+  hideUseful?: boolean
 }>()
 
 defineEmits<{
@@ -134,7 +136,7 @@ function relativeTime(t?: string) {
   font-size: var(--font-card);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-h3);
   flex-shrink: 0;
 }
 .review-rating { display: inline-flex; align-items: center; gap: 2rpx; }

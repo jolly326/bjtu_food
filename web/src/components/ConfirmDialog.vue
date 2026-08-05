@@ -140,6 +140,14 @@ function onOk() {
   border-radius: var(--radius);
   font-size: var(--font-base);
   cursor: pointer;
+  transition: transform 160ms var(--ease-out), background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out);
+}
+.btn-cancel:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+}
+.btn-cancel:focus-visible, .btn-danger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .btn-danger {
   padding: var(--space-2) var(--space-5);

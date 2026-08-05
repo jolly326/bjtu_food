@@ -1,6 +1,6 @@
 <template>
   <view class="section-title" :class="{ 'no-margin': noMargin }" @tap="$emit('tap')">
-    <view class="section-bar" />
+    <view v-if="bar" class="section-bar" />
     <text class="section-text">{{ title }}</text>
     <slot name="extra" />
   </view>
@@ -9,17 +9,19 @@
 <script setup lang="ts">
 /**
  * 分区标题（全局统一组件，task-13 §0.3/§0.4）
- * 列表 / 分区标题统一左侧竖向 accent 条（品牌色），全端一致。
- * 首页食堂入口 / 热门菜品已有同款竖线，其余页面（find/community/profile/
- * canteen/stall/dish/review-list 等）的分区标题统一通过本组件补齐。
+ * 列表 / 分区标题默认左侧竖向 accent 条（品牌色），全端一致。
+ * 部分场景（如 find 页搜索记录/高频搜索）不需要装饰竖条时传 bar=false。
  */
 withDefaults(defineProps<{
   /** 标题文案 */
   title: string
   /** 是否去掉左右外边距（用于已自带 padding 的容器内部） */
   noMargin?: boolean
+  /** 是否显示左侧竖向 accent 条（默认显示；简洁场景可关闭） */
+  bar?: boolean
 }>(), {
   noMargin: false,
+  bar: true,
 })
 
 defineEmits<{
@@ -37,7 +39,7 @@ defineEmits<{
   margin-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
-/* 竖向 accent 条：4rpx × 28rpx 品牌色（§0.3） */
+/* 竖向 accent 条：8rpx × 32rpx 品牌色（§0.3；bar=false 时隐藏） */
 .section-bar {
   width: 8rpx;
   height: 32rpx;

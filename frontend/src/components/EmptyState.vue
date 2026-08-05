@@ -6,7 +6,7 @@
       <text class="retry-text">重新加载</text>
     </view>
     <view v-else-if="actionText" class="action-btn" :class="{ pressed }" @touchstart="pressed = true" @touchend="pressed = false" @touchcancel="pressed = false" @mousedown="pressed = true" @mouseup="pressed = false" @mouseleave="pressed = false" @tap="$emit('action')">
-      <IconSvg v-if="actionIcon" :name="actionIcon" :size="28" color="var(--text-white)" />
+      <IconSvg v-if="actionIcon" :name="actionIcon" :size="28" color="var(--color-on-primary)" />
       <text class="action-text">{{ actionText }}</text>
     </view>
     <slot name="action" />
@@ -81,5 +81,5 @@ const pressed = ref(false)
   -webkit-tap-highlight-color: transparent;
 }
 .action-btn.pressed { transform: scale(var(--press-scale)); }
-.action-text { font-size: 26rpx; color: var(--text-white); font-weight: var(--weight-semibold); line-height: 1; }
+.action-text { font-size: 26rpx; color: var(--color-on-primary); font-weight: var(--weight-semibold); line-height: 1; }
 </style>

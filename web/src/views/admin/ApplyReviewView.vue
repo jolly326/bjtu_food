@@ -413,7 +413,7 @@ function applicantName(r: ApplyActionVO): string {
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--color-error); }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 .detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
 .detail-img { width: 100px; height: 100px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
 

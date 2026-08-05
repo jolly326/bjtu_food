@@ -70,7 +70,6 @@ public class SecurityConfig {
             "/canteens/**",
             "/stalls/**",
             "/reviews",
-            "/activities/**",
             "/lists/share/**",
             "/images/**",
             // 二期新增：社区动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）

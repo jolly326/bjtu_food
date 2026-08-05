@@ -1,5 +1,5 @@
 <template>
-  <view class="page publish-page">
+  <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
     <Header :title="isEdit ? '编辑动态' : '发布动态'" showBack />
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 正文 -->
@@ -54,6 +54,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'

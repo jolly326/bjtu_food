@@ -175,7 +175,7 @@ async function onUseful() {
 .m-avatar-fallback { font-size: 32rpx; line-height: 1; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 /* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
-.m-nickname { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: -0.01em; }
+.m-nickname { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
 .m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
 .m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); flex-shrink: 0; }
 .m-audit-text { font-size: 20rpx; font-weight: var(--weight-bold); }

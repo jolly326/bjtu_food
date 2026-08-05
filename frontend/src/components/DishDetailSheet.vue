@@ -319,10 +319,9 @@ function onShareTap() {
   }
 }
 
-/** 申请下架/纠错 Sheet */
+/** 申请下架/纠错 Sheet（与反馈中心一致：游客可直接打开填写，提交时再由后端/API 引导登录） */
 const applyOpen = ref(false)
 function openApply() {
-  if (!userStore.requireAuth()) return
   applyOpen.value = true
 }
 
@@ -443,7 +442,7 @@ function goToStall() {
 
 /* ===== 内容样式（2026-08-03 精简：hero 卡 = 名称+信息有误/价格/标徽/评分/一句话简介） ===== */
 .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
-.dish-name { font-size: var(--font-h1); font-weight: var(--weight-heavy); letter-spacing: var(--tracking-h3); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
+.dish-name { font-size: var(--font-h1); font-weight: var(--weight-heavy); letter-spacing: var(--tracking-h1); line-height: 1.2; color: var(--text-primary); flex: 1; min-width: 0; }
 /* 「信息有误？」：名称行最右弱链接（2026-08-03 起，原底部 apply-link 移除）。
    按压反馈：加内边距扩大命中区（Apple：44×44 最小触摸目标）+ opacity 反馈 */
 .feedback-link { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease, background-color 120ms ease; -webkit-tap-highlight-color: transparent; }
@@ -473,14 +472,14 @@ function goToStall() {
    卡片圆角 24px + 标题 34rpx / weight 800 / letter-spacing -0.02em（Apple Design Typography：大字负 tracking），
    背景用 var(--bg-card)（= #FFFFFF）与阴影与 moment.vue 评论区一致，token 化避免裸 hex */
 .comment-section { margin: 0 var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--spacing-md); }
+.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
 .review-list { margin-top: var(--spacing-xs); }
 
 /* 底部操作栏（sheet 内吸底）。Apple 材质：半透明白 + backdrop-filter 毛玻璃，
    内容滚动在下方透出（§12 Materials）；不支持 backdrop-filter 的环境回退实色 bg-card */
-.action-bar { flex-shrink: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); }
+.action-bar { flex-shrink: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--blur-bg); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--glass-highlight-soft); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .action-bar { background: var(--bg-card); }
+  .action-bar { background: var(--blur-bg-solid); }
 }
 .fav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx; min-width: 96rpx; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .fav-btn:active { transform: scale(var(--press-scale)); }

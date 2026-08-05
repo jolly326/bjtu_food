@@ -220,7 +220,7 @@ async function copyMomentLink(momentId?: number) {
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); }
 .related { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-error-bg); color: var(--color-error); font-size: var(--font-xs); font-weight: var(--weight-medium); }
 .type-ico { width: 13px; height: 13px; }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 .muted { color: var(--text-light); }
 
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }

@@ -34,7 +34,7 @@ public class DishQueryReq {
     @Schema(description = "最高价格，单位：分", example = "2000")
     private Integer maxPrice;
 
-    @Schema(description = "排序字段：heat（热度）、rating、collects、price、created_at", example = "heat")
+    @Schema(description = "排序字段：heat（热度）、rating、price、created_at（collects 已随收藏模块移除）", example = "heat")
     private String sortBy;
 
     @Schema(description = "排序方向：asc、desc", example = "desc")

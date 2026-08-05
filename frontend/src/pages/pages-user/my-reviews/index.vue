@@ -1,5 +1,5 @@
 <template>
-  <view class="page my-reviews-page">
+  <view class="page my-reviews-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="我的评价" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -18,22 +18,31 @@
       <EmptyState v-else text="还没有发表过评价" />
       <view style="height: var(--spacing-xl)" />
     </scroll-view>
+
+    <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
+    <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import Header from '@/components/header.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
+import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 import { getMyReviews, deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 
+const userStore = useUserStore()
+const theme = useThemeStore()
 const list = ref<Review[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
 
 async function load() {
+  if (!userStore.requireAuth()) return
   loading.value = true
   loadFailed.value = false
   try {
@@ -65,7 +74,12 @@ function onDelete(review: Review) {
   })
 }
 
-onMounted(load)
+// 游客直访时弹认证；认证成功后自动加载
+watch(
+  () => userStore.isLoggedIn(),
+  (v) => { if (v) load() },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -73,7 +87,7 @@ onMounted(load)
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 0; }
 /* 评价白卡：与菜品/档口详情评价区同款（radius-modal 圆角 + 大字负 tracking 标题），token 化 */
 .comment-section { margin: 0 var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--spacing-md); }
+.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
 .list { margin-top: var(--spacing-xs); }
 .skeleton-list { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md); }
 .sk-item { height: 220rpx; border-radius: var(--radius-card); }

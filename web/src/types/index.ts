@@ -56,7 +56,6 @@ export interface Dish {
   description?: string;
   avg_rating: number;
   rating_count: number;
-  favoriteCount: number;
   view_count: number;
   status: string;
   /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
@@ -125,8 +124,6 @@ export interface Banner {
   id: bigint;
   title: string;
   image?: string;
-  /** @deprecated 历史字段，视图层仅用 target_type */
-  type: string;
   target_id?: bigint;
   target_type?: string;
   /** 跳转目标 URL（target_type=URL 时使用） */

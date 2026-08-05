@@ -23,11 +23,13 @@ public interface AuthService {
      * <p>
      * 向指定校园邮箱发送 6 位验证码，验证码 BCrypt 加密存入数据库。
      * 同一邮箱同一用途 60 秒内不能重复发送。
+     * 校园邮箱由学号推导：{学号}@bjtu.edu.cn，email 与 username 二选一。
      *
-     * @param email   校园邮箱（需 @bjtu.edu.cn）
-     * @param purpose 用途：login/register
+     * @param username 学号/账号（可选）；未传 email 时推导收件邮箱
+     * @param email    校园邮箱（需 @bjtu.edu.cn，可选）
+     * @param purpose  用途：login/register/reset
      */
-    void createEmailCode(String email, String purpose);
+    void createEmailCode(String username, String email, String purpose);
 
     /**
      * 用户登录（首次登录自动注册）

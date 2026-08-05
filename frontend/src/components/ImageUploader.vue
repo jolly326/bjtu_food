@@ -104,12 +104,14 @@ function chooseImage() {
 .img-thumb { width: 100%; height: 100%; }
 .img-remove {
   position: absolute;
-  top: 4rpx; right: 4rpx;
-  width: 40rpx; height: 40rpx;
+  top: 0; right: 0;
+  width: 48rpx; height: 48rpx;
   border-radius: 50%;
   background: var(--badge-dark-bg);
   display: flex; align-items: center; justify-content: center;
+  transition: transform 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
 }
+.img-remove:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 .img-add {
   display: flex; align-items: center; justify-content: center;
   border: 2rpx dashed var(--border-bold);

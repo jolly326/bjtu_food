@@ -11,7 +11,7 @@
     @mouseleave="pressed = false"
     @tap="handleTap"
   >
-    <IconSvg v-if="icon" :name="icon" :size="30" color="var(--text-white)" class="btn-icon" />
+    <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
@@ -78,7 +78,7 @@ function handleTap() {
 .btn-text {
   font-size: var(--font-card);
   font-weight: var(--weight-medium);
-  color: var(--text-white);
+  color: var(--color-on-primary);
 }
 .btn-primary {
   background: var(--color-primary);

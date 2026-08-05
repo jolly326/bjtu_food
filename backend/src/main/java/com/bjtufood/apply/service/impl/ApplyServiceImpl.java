@@ -71,7 +71,7 @@ public class ApplyServiceImpl implements ApplyService {
         apply.setEntityType(entityType);
         apply.setEntityId(req.getEntityId());
         apply.setApplyType(applyType);
-        apply.setPayload(req.getPayload());
+        apply.setPayload(payloadToJson(req.getPayload()));
         apply.setStatus(ApplyConst.STATUS_PENDING);
         applyActionMapper.insert(apply);
         return apply.getId();
@@ -233,7 +233,6 @@ public class ApplyServiceImpl implements ApplyService {
             dish.setCreatedBy(apply.getApplicantId());
             dish.setAvgRating(java.math.BigDecimal.ZERO);
             dish.setRatingCount(0);
-            dish.setFavoriteCount(0);
             dish.setViewCount(0);
             dishMapper.insert(dish);
             apply.setEntityId(dish.getId());
@@ -349,6 +348,22 @@ public class ApplyServiceImpl implements ApplyService {
             return objectMapper.readTree(payload);
         } catch (Exception e) {
             return objectMapper.createObjectNode();
+        }
+    }
+
+    /**
+     * 申请快照统一序列化为 JSON 字符串落库：
+     * - null → null
+     * - String → 原样（老契约：前端传 JSON 字符串）
+     * - 其他（Map/List/对象）→ objectMapper 序列化（新契约：小程序直传对象）
+     */
+    private String payloadToJson(Object payload) {
+        if (payload == null) return null;
+        if (payload instanceof String s) return StringUtils.hasText(s) ? s : null;
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            return null;
         }
     }
 

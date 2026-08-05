@@ -44,13 +44,14 @@ public interface DishService {
     List<DishVO> getHotDishes();
 
     /**
-     * 获取热门菜品 TOP10（支持按用户位置距离加权排序，首页推荐联动定位）
+     * 获取热门菜品（支持按用户位置距离加权排序，首页推荐联动定位；可控制返回条数）
      *
-     * @param lat 用户纬度（GCJ-02，可为 null）
-     * @param lng 用户经度（GCJ-02，可为 null）
+     * @param lat   用户纬度（GCJ-02，可为 null）
+     * @param lng   用户经度（GCJ-02，可为 null）
+     * @param limit 返回条数（可为 null，默认 TOP10）
      * @return 热门菜品列表（近食堂菜品优先）
      */
-    List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng);
+    List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit);
 
     /**
      * 获取今日上新菜品

@@ -19,7 +19,11 @@
     <text v-if="hint" class="menu-hint">{{ hint }}</text>
     <view v-if="badgeCount && badgeCount > 0" class="menu-badge-count">{{ badgeCount > 99 ? '99+' : badgeCount }}</view>
     <view v-else-if="badge" class="menu-badge" />
-    <IconSvg name="arrow-left" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
+    <!-- 开关型设置项（如深色模式）：点击整行仍走 select 事件切换 -->
+    <view v-if="switchMode" class="menu-switch" :class="{ on: switchValue }" @tap.stop="$emit('select')">
+      <view class="menu-switch-knob" />
+    </view>
+    <IconSvg v-else name="arrow-left" :size="28" color="var(--text-tertiary)" class="menu-arrow" />
   </view>
 </template>
 
@@ -27,7 +31,7 @@
 import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   label: string
   icon?: string
   hint?: string
@@ -38,7 +42,16 @@ const props = defineProps<{
   iconBg?: boolean
   /** 危险操作（如账号注销）：label 标红 */
   danger?: boolean
-}>()
+  /** 开关型设置项（如深色模式）：显示 switch，on 状态由 switchValue 控制；点击整行仍 emit select */
+  switch?: boolean
+  /** switch 的开启状态（配合 switch 使用） */
+  switchValue?: boolean
+}>(), {
+  switch: false,
+  switchValue: false,
+})
+
+const switchMode = props.switch
 
 // 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
 // 父组件 @tap 编译为原生 bindtap + emit 同名事件双触发，handler 会被调用两次
@@ -111,4 +124,25 @@ const pressed = ref(false)
   text-align: center;
   margin-right: calc(-1 * var(--spacing-xs));
 }
+/* 开关（深色模式等）：44×28 圆角 track + 白色 knob，on 时主色底 + knob 右移 */
+.menu-switch {
+  flex-shrink: 0;
+  width: 88rpx;
+  height: 56rpx;
+  border-radius: 999rpx;
+  background: var(--border-bold);
+  padding: 4rpx;
+  box-sizing: border-box;
+  transition: background 0.18s var(--ease-out);
+}
+.menu-switch.on { background: var(--color-primary); }
+.menu-switch-knob {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: var(--text-white);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.18s var(--ease-out);
+}
+.menu-switch.on .menu-switch-knob { transform: translateX(32rpx); }
 </style>

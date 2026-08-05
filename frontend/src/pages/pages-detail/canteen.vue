@@ -1,5 +1,5 @@
 <template>
-  <view class="page stall-page">
+  <view class="page stall-page" :class="{ 'theme-dark': theme.isDark }">
     <Header :title="canteenName || '食堂详情'" showBack />
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
       <!-- 加载骨架 -->
@@ -62,6 +62,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
@@ -188,7 +190,7 @@ onLoad(async (query) => {
   font-size: var(--font-h1);
   font-weight: var(--weight-heavy);
   color: var(--text-primary);
-  letter-spacing: var(--tracking-h2);
+  letter-spacing: var(--tracking-h1);
   line-height: 1.3;
   flex: 1;
   min-width: 0;
@@ -200,7 +202,7 @@ onLoad(async (query) => {
 .info-location {
   display: flex;
   align-items: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
 }
 .info-location-icon { font-size: 24rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); }

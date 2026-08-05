@@ -34,7 +34,6 @@ async function handleLogin() {
 <template>
   <div class="login-page">
     <div class="login-brand">
-      <span class="brand-mark">食</span>
       <h1 class="brand-name">食在交大</h1>
       <p class="brand-slogan">校园美食信息管理后台</p>
     </div>
@@ -56,6 +55,9 @@ async function handleLogin() {
       <button class="login-btn" v-press :disabled="submitting" type="button" @click="handleLogin">
         {{ submitting ? '登录中…' : '登 录' }}
       </button>
+      <p class="login-hint">
+        默认管理员：<code>admin</code> / <code>123456</code>（首次登录后请修改）
+      </p>
     </div>
   </div>
 </template>
@@ -70,29 +72,14 @@ async function handleLogin() {
   gap: var(--space-8);
   padding: var(--space-6);
   box-sizing: border-box;
-  background:
-    radial-gradient(1200px 500px at 15% -10%, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent 60%),
-    radial-gradient(1000px 600px at 110% 110%, color-mix(in srgb, var(--color-primary-light) 40%, transparent), transparent 55%),
-    linear-gradient(150deg, #111111 0%, var(--color-primary-dark) 55%, #2E2E2E 100%);
+  /* 白灰黑：纯背景，无渐变 */
+  background: var(--bg-page);
 }
 
-/* 品牌区 */
+/* 品牌区：纯文字品牌，无图标、无渐变 */
 .login-brand { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-  color: var(--color-on-primary);
-  font-size: 28px;
-  font-weight: var(--weight-bold);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 45%, transparent);
-}
-.brand-name { margin: 0; color: #fff; font-size: 26px; font-weight: var(--weight-bold); letter-spacing: 0.06em; }
-.brand-slogan { margin: 0; color: color-mix(in srgb, #fff 72%, transparent); font-size: var(--font-base); letter-spacing: 0.08em; }
+.brand-name { margin: 0; color: var(--text-primary); font-size: 26px; font-weight: var(--weight-bold); letter-spacing: 0.06em; }
+.brand-slogan { margin: 0; color: var(--text-secondary); font-size: var(--font-base); letter-spacing: 0.08em; }
 
 /* 登录卡片 */
 .login-card {
@@ -101,7 +88,8 @@ async function handleLogin() {
   background: var(--bg-card);
   padding: var(--space-8);
   border-radius: var(--radius-modal);
-  box-shadow: 0 24px 60px color-mix(in srgb, #1a0a06 45%, transparent);
+  box-shadow: 0 24px 60px color-mix(in srgb, #000 18%, transparent);
+  border: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -138,6 +126,21 @@ async function handleLogin() {
   color: var(--color-error);
   font-size: var(--font-sm);
   margin: 0;
+}
+.login-hint {
+  margin: var(--space-2) 0 0;
+  text-align: center;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.login-hint code {
+  padding: 0 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
 }
 .login-btn {
   width: 100%;

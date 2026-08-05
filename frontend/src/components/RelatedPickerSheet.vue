@@ -264,7 +264,7 @@ watch(tab, () => {
 .sheet-item-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
 .sheet-clear { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: var(--weight-semibold); -webkit-tap-highlight-color: transparent; }
-.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--text-white); font-weight: var(--weight-bold); -webkit-tap-highlight-color: transparent; }
+.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); -webkit-tap-highlight-color: transparent; }
 
 .footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

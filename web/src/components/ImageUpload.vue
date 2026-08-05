@@ -78,7 +78,7 @@ watch(() => props.modelValue, () => {})
   <div class="image-upload">
     <div v-for="(img, idx) in images" :key="idx" class="image-item">
       <img :src="img" alt="预览" />
-      <span class="image-remove" v-press @click="removeImage(idx)">
+      <span class="image-remove" v-press role="button" tabindex="0" :aria-label="`删除图片 ${idx + 1}`" @click="removeImage(idx)" @keydown.enter.prevent="removeImage(idx)" @keydown.space.prevent="removeImage(idx)">
         <img :src="icon.close" class="icon-x" alt="" />
       </span>
       <span v-if="idx === 0" class="cover-badge">封面</span>
@@ -88,7 +88,12 @@ watch(() => props.modelValue, () => {})
       class="image-add"
       :class="{ disabled: uploading }"
       v-press
+      role="button"
+      tabindex="0"
+      aria-label="添加图片"
       @click="handleAdd"
+      @keydown.enter.prevent="handleAdd"
+      @keydown.space.prevent="handleAdd"
     >
       <span class="add-icon">
         <img v-if="!uploading" :src="icon.plus" class="add-svg" alt="" />
@@ -139,6 +144,11 @@ watch(() => props.modelValue, () => {})
 }
 .image-remove:active {
   transform: scale(var(--press-scale));
+}
+.image-remove:focus-visible,
+.image-add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .image-remove .icon-x {
   width: 12px;

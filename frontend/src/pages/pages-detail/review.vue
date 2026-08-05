@@ -1,5 +1,5 @@
 <template>
-  <view class="page review-page">
+  <view class="page review-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="发表评价" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -61,6 +61,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 const MAX_CONTENT_LENGTH = 500
 const MAX_IMAGES = 3
 
@@ -204,10 +206,10 @@ onLoad((query) => {
 }
 .remove-btn {
   position: absolute;
-  top: 4rpx;
-  right: 4rpx;
-  width: 36rpx;
-  height: 36rpx;
+  top: 0;
+  right: 0;
+  width: 48rpx;
+  height: 48rpx;
   background: var(--badge-dark-bg);
   color: var(--badge-dark-text);
   border-radius: 50%;
@@ -215,7 +217,9 @@ onLoad((query) => {
   align-items: center;
   justify-content: center;
   font-size: var(--font-tiny);
+  transition: transform 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
 }
+.remove-btn:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 .image-upload {
   width: 180rpx;
   height: 180rpx;
@@ -238,7 +242,7 @@ onLoad((query) => {
   gap: var(--spacing-md);
   -webkit-tap-highlight-color: transparent;
 }
-.share-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.share-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 .share-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
 .share-desc { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.5; }
 .toggle {

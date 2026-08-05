@@ -8,18 +8,28 @@ import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.apply.entity.ApplyAction;
+import com.bjtufood.apply.mapper.ApplyActionMapper;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.history.entity.ViewLog;
+import com.bjtufood.history.mapper.ViewLogMapper;
 import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.entity.MomentComment;
+import com.bjtufood.moment.entity.MomentCommentUseful;
+import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
+import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.mapper.MomentMapper;
+import com.bjtufood.moment.mapper.MomentUsefulMapper;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;
 import com.bjtufood.review.entity.Review;
+import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;
+import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -53,6 +63,11 @@ public class AccountController {
     private final ReviewMapper reviewMapper;
     private final NotificationMapper notificationMapper;
     private final FeedbackMapper feedbackMapper;
+    private final ApplyActionMapper applyActionMapper;
+    private final ReviewUsefulMapper reviewUsefulMapper;
+    private final MomentUsefulMapper momentUsefulMapper;
+    private final MomentCommentUsefulMapper momentCommentUsefulMapper;
+    private final ViewLogMapper viewLogMapper;
     private final TokenBlacklist tokenBlacklist;
 
     @Data
@@ -102,21 +117,40 @@ public class AccountController {
     }
 
     /**
-     * 级联清理本人数据（task-12.8）：dish / moment(+comment) / review / notification / user_feedback。
+     * 级联清理本人数据（task-12.8）：dish / moment(+comment+useful) / review(+useful) /
+     * notification / user_feedback / apply_action / view_log。
      * favorite 模块已整体移除（task-12.12），无需清理。
      */
     private void cascadeClean(Long userId) {
-        // 动态：先清评论再清动态
+        // 动态：先清本人动态的评论及其 useful、动态 useful，再清动态
         List<Moment> moments = momentMapper.selectList(
                 new LambdaQueryWrapper<Moment>().eq(Moment::getUserId, userId));
-        for (Moment m : moments) {
-            momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>().eq(MomentComment::getMomentId, m.getId()));
+        List<Long> momentIds = moments.stream().map(Moment::getId).toList();
+        if (!momentIds.isEmpty()) {
+            momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>().in(MomentComment::getMomentId, momentIds));
+            momentUsefulMapper.delete(new LambdaQueryWrapper<MomentUseful>().in(MomentUseful::getMomentId, momentIds));
         }
         momentMapper.delete(new LambdaQueryWrapper<Moment>().eq(Moment::getUserId, userId));
+
+        // 本人评论的 useful 标记
+        List<Review> reviews = reviewMapper.selectList(
+                new LambdaQueryWrapper<Review>().eq(Review::getUserId, userId));
+        List<Long> reviewIds = reviews.stream().map(Review::getId).toList();
+        if (!reviewIds.isEmpty()) {
+            reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>().in(ReviewUseful::getReviewId, reviewIds));
+        }
+        // 本人发出的 useful 标记（对他人内容的点赞/有用）
+        reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>().eq(ReviewUseful::getUserId, userId));
+        momentUsefulMapper.delete(new LambdaQueryWrapper<MomentUseful>().eq(MomentUseful::getUserId, userId));
+        momentCommentUsefulMapper.delete(new LambdaQueryWrapper<MomentCommentUseful>().eq(MomentCommentUseful::getUserId, userId));
 
         dishMapper.delete(new LambdaQueryWrapper<Dish>().eq(Dish::getCreatedBy, userId));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getUserId, userId));
         notificationMapper.delete(new LambdaQueryWrapper<Notification>().eq(Notification::getUserId, userId));
         feedbackMapper.delete(new LambdaQueryWrapper<Feedback>().eq(Feedback::getUserId, userId));
+        // 本人提交的实体申请（新增/下架/变更）
+        applyActionMapper.delete(new LambdaQueryWrapper<ApplyAction>().eq(ApplyAction::getApplicantId, userId));
+        // 本人浏览足迹
+        viewLogMapper.delete(new LambdaQueryWrapper<ViewLog>().eq(ViewLog::getUserId, userId));
     }
 }

@@ -163,7 +163,7 @@ async function handleDelete(c: CategoryItem) {
 <style scoped>
 .cell-title { font-weight: var(--weight-semibold); color: var(--text-primary); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

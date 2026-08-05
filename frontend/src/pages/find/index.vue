@@ -1,5 +1,5 @@
 <template>
-  <view class="page find-page">
+  <view class="page find-page" :class="{ 'theme-dark': theme.isDark }">
     <!-- 顶部固定区（2026-08-03：返回键 + 搜索框 + 结果 tab，均不随滚动；避让状态栏+胶囊） -->
     <view class="search-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="search-nav-row">
@@ -90,7 +90,7 @@
         <template v-else>
         <!-- 搜索记录（2026-08-03：首位） -->
         <CardSection v-if="historyList.length > 0">
-          <SectionTitle title="搜索记录">
+          <SectionTitle title="搜索记录" :bar="false">
             <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
           </SectionTitle>
           <view class="history-chips">
@@ -120,7 +120,7 @@
 
         <!-- 高频搜索（2026-08-03：静态推荐词，替代热搜；点击直接搜索；不带序号徽标） -->
         <CardSection v-if="hotKeywords.length > 0">
-          <SectionTitle title="高频搜索" />
+          <SectionTitle title="高频搜索" :bar="false" />
           <view class="history-chips">
             <view
               v-for="(kw) in hotKeywords"
@@ -162,7 +162,7 @@
             <view class="mixed-thumb">
               <image v-if="item.image" :src="item.image" mode="aspectFill" class="mixed-thumb-img" />
               <view v-else class="mixed-thumb-ph">
-                <IconSvg :name="mixedIcon(item.type)" :size="40" color="var(--text-tertiary)" />
+                <IconSvg :name="mixedIcon(item.type)" :size="48" color="var(--text-tertiary)" />
               </view>
             </view>
             <view class="mixed-info">
@@ -170,7 +170,17 @@
                 <text class="mixed-name">{{ item.name }}</text>
                 <text class="mixed-type" :class="`t-${item.type}`">{{ mixedTypeText(item.type) }}</text>
               </view>
-              <text class="mixed-sub" v-if="item.sub">{{ item.sub }}</text>
+              <!-- 菜品：展示价格 + 评分 + 评价数，信息更充实 -->
+              <view v-if="item.type === 'dish'" class="mixed-meta">
+                <text class="mixed-price" v-if="item.price != null">¥{{ item.price.toFixed(2) }}</text>
+                <view v-if="item.rating != null" class="mixed-rating">
+                  <IconSvg name="star" :size="24" color="var(--color-star)" />
+                  <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
+                  <text v-if="item.ratingCount != null" class="mixed-rating-count">({{ item.ratingCount }})</text>
+                </view>
+              </view>
+              <!-- 档口/食堂：展示副信息（食堂名/位置） -->
+              <text class="mixed-sub" v-else-if="item.sub">{{ item.sub }}</text>
             </view>
             <IconSvg name="arrow" :size="24" color="var(--text-tertiary)" class="mixed-arrow" />
           </view>
@@ -196,6 +206,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
 import IconSvg from '@/components/IconSvg.vue'
@@ -644,16 +656,29 @@ watch(keyword, (value) => {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xs);
-  max-width: 320rpx;
-  padding: var(--spacing-xs) var(--spacing-md);
+  max-width: 360rpx;
+  /* 放大命中区：上下 sm(32rpx)、左右 lg(48rpx)，字号升至 body，不再是细小胶囊 */
+  padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
-  border-radius: var(--radius-tag);
+  border-radius: var(--radius-pill);
   transition: transform 0.12s ease, background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip.pressed { transform: scale(var(--press-scale)); background: var(--color-primary-soft); }
-.history-chip-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-chip-del { font-size: var(--font-tiny); color: var(--text-tertiary); flex-shrink: 0; line-height: 1; }
+.history-chip-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-chip-del {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  line-height: 1;
+  /* 扩大命中区：padding 撑大可点目标，避免仅图标 12px 难点 */
+  padding: var(--spacing-xs);
+  margin: calc(-1 * var(--spacing-xs));
+  border-radius: 50%;
+  transition: opacity 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.history-chip-del:active { opacity: 0.5; }
 /* 历史折叠按钮（2026-08-03：展开/收起） */
 .history-toggle { display: flex; align-items: center; justify-content: center; padding: var(--spacing-sm) 0 0; }
 .history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
@@ -672,7 +697,7 @@ watch(keyword, (value) => {
 .mixed-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   padding: var(--spacing-md);
@@ -684,10 +709,10 @@ watch(keyword, (value) => {
 .mixed-item + .mixed-item { margin-top: var(--spacing-sm); }
 .mixed-item.pressed { background-color: var(--bg-soft); }
 .mixed-thumb {
-  width: 120rpx;
-  height: 120rpx;
+  width: 160rpx;
+  height: 160rpx;
   flex-shrink: 0;
-  border-radius: 16rpx;
+  border-radius: 20rpx;
   overflow: hidden;
   background: var(--bg-page);
 }
@@ -698,15 +723,21 @@ watch(keyword, (value) => {
 .mixed-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-body);
+  font-size: var(--font-card);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-h3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 菜品结果 meta：价格 + 评分 + 评价数 一行 */
+.mixed-meta { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-xs); }
+.mixed-price { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.mixed-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+.mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
+.mixed-rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
 /* 类型标识徽标：菜品主色 / 档口热色 / 食堂中性（Apple 精致：小胶囊 + 细边框） */
 .mixed-type {
   flex-shrink: 0;

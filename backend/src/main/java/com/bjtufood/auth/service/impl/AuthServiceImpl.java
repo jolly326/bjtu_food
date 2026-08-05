@@ -48,8 +48,8 @@ public class AuthServiceImpl implements AuthService {
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
-    public void createEmailCode(String email, String purpose) {
-        emailCodeService.sendCode(email, purpose);
+    public void createEmailCode(String username, String email, String purpose) {
+        emailCodeService.sendCode(username, email, purpose);
     }
 
     @Override
@@ -77,7 +77,8 @@ public class AuthServiceImpl implements AuthService {
         if (userService.getByUsername(req.getUsername()) != null) {
             throw new BusinessException("用户名已存在");
         }
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：{学号}@bjtu.edu.cn，无需用户手动输入
+        String email = normalizeEmail(resolveEmail(req.getUsername(), req.getEmail()));
         validateCampusEmail(email);
         if (userService.getByEmail(email) != null) {
             throw new BusinessException("邮箱已注册");
@@ -159,7 +160,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void resetPassword(PasswordResetReq req) {
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：{学号}@bjtu.edu.cn
+        String email = normalizeEmail(resolveEmail(req.getUsername(), req.getEmail()));
         validateCampusEmail(email);
         verifyEmailCode(email, req.getCode(), "reset");
 
@@ -213,7 +215,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User loginByEmailCode(LoginReq req) {
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：验证码登录可传 account(学号) 或 email
+        String email = normalizeEmail(resolveEmail(req.getAccount(), req.getEmail()));
         validateCampusEmail(email);
         verifyEmailCode(email, req.getCode(), "login");
 
@@ -271,5 +274,19 @@ public class AuthServiceImpl implements AuthService {
         if (!email.endsWith("@bjtu.edu.cn")) {
             throw new BusinessException("请使用北京交通大学校园邮箱");
         }
+    }
+
+    /**
+     * 校园邮箱规则：邮箱 = {学号}@bjtu.edu.cn。
+     * email 显式传入则优先使用；否则由 username（学号）推导。
+     */
+    private String resolveEmail(String username, String email) {
+        if (StringUtils.hasText(email)) {
+            return email;
+        }
+        if (StringUtils.hasText(username)) {
+            return username.trim().toLowerCase(Locale.ROOT) + "@bjtu.edu.cn";
+        }
+        throw new BusinessException("请填写学号或校园邮箱");
     }
 }

@@ -80,9 +80,6 @@ public class DishVO {
     @Schema(description = "评价数", example = "20")
     private Integer ratingCount;
 
-    @Schema(description = "收藏量（喜欢总数）", example = "15")
-    private Integer favoriteCount;
-
     @Schema(description = "浏览量", example = "200")
     private Integer viewCount;
 
@@ -93,9 +90,6 @@ public class DishVO {
     private String status;
 
     // ==================== 以下字段仅详情页接口返回 ====================
-
-    @Schema(description = "当前用户是否已收藏（仅登录用户）")
-    private Boolean isFavorited;
 
     @Schema(description = "当前用户是否已评价（仅登录用户）")
     private Boolean hasReviewed;

@@ -48,6 +48,7 @@ public class CanteenServiceImpl implements CanteenService {
                 .stream()
                 .map(banner -> {
                     BannerVO vo = new BannerVO();
+                    vo.setId(banner.getId());
                     vo.setTitle(banner.getTitle());
                     vo.setSubtitle(banner.getSubtitle());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(banner.getImages()));

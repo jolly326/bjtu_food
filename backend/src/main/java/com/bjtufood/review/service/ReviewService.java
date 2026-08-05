@@ -31,7 +31,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage);
 
     /**
      * 获取档口评价列表
@@ -46,7 +46,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId);
+    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage);
 
     /**
      * 获取食堂评价列表
@@ -61,7 +61,7 @@ public interface ReviewService {
      * @param userId    当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
+    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage);
 
     /**
      * 计算某档口的平均评分（星级 1-5，取该档口下所有菜品评价的平均值）

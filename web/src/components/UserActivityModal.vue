@@ -159,7 +159,7 @@ function countOf(key: string): number {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  background: var(--color-primary);
   color: var(--color-on-primary);
   display: inline-flex;
   align-items: center;

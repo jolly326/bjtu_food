@@ -1,14 +1,14 @@
 <template>
   <view class="interact-bar">
-    <view class="interact-btn" :class="{ active: usefulActive }" @tap="onUseful">
+    <view class="interact-btn" :class="{ active: usefulActive }" hover-class="pressed" hover-stay-time="80" @tap="onUseful">
       <IconSvg name="thumb" :size="32" class="interact-icon" :color="usefulActive ? 'var(--color-like)' : 'var(--text-secondary)'" />
       <text class="interact-count">{{ usefulCount > 0 ? usefulCount : '有用' }}</text>
     </view>
-    <view class="interact-btn" @tap="onComment">
+    <view class="interact-btn" hover-class="pressed" hover-stay-time="80" @tap="onComment">
       <IconSvg name="comment" :size="32" color="var(--text-secondary)" class="interact-icon" />
       <text class="interact-count">{{ commentCount > 0 ? commentCount : '评论' }}</text>
     </view>
-    <view class="interact-btn report" @tap="onReport">
+    <view class="interact-btn report" hover-class="pressed" hover-stay-time="80" @tap="onReport">
       <IconSvg name="report" :size="32" color="var(--text-secondary)" class="interact-icon" />
       <text class="interact-count">举报</text>
     </view>

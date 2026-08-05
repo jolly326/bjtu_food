@@ -63,18 +63,27 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public List<DishVO> getHotDishes() {
-        return getHotDishes(null, null);
+        return getHotDishes(null, null, null);
+    }
+
+    /** 便捷重载（内部调用），默认 TOP10 */
+    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng) {
+        return getHotDishes(lat, lng, null);
     }
 
     @Override
-    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng) {
+    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit) {
         boolean byDistance = lat != null && lng != null;
         List<com.bjtufood.dish.dto.DishVO> list = byDistance
                 ? dishMapper.selectHotDishesByDistance(lat, lng)
                 : dishMapper.selectHotDishes();
-        return list.stream()
+        List<DishVO> result = list.stream()
                 .map(this::enrichImages)
                 .toList();
+        if (limit != null && limit > 0 && result.size() > limit) {
+            result = result.subList(0, limit);
+        }
+        return result;
     }
 
     @Override
@@ -91,9 +100,8 @@ public class DishServiceImpl implements DishService {
         List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
         vo.setRatingDistribution(fillRatingDistribution(distribution));
 
-        // 当前用户状态（收藏/favorite 模块本期整体移除，见 task-12.12；喜欢方案待架构师评估）
+        // 当前用户状态（收藏/favorite 模块已整体移除；仅保留是否已评价）
         if (userId != null) {
-            vo.setIsFavorited(false);
             vo.setHasReviewed(reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                     .eq(Review::getUserId, userId)
                     .eq(Review::getDishId, id)) > 0);
@@ -246,6 +254,13 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void addDish(DishAdminReq req) {
+        // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
+        if (!StringUtils.hasText(req.getName())) {
+            throw new BusinessException("菜品名称不能为空");
+        }
+        if (req.getPrice() == null) {
+            throw new BusinessException("价格不能为空");
+        }
         // 校验 stallId 对应的档口是否存在
         if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
             throw new BusinessException("档口不存在");
@@ -254,7 +269,6 @@ public class DishServiceImpl implements DishService {
         applyReq(dish, req);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
-        dish.setFavoriteCount(0);
         dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus("on");
@@ -301,7 +315,6 @@ public class DishServiceImpl implements DishService {
         dish.setStatus("on");
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
-        dish.setFavoriteCount(0);
         dish.setViewCount(0);
         dishMapper.insert(dish);
         return dish.getId();

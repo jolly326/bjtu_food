@@ -1,5 +1,5 @@
 <template>
-  <view class="page community-page">
+  <view class="page community-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="动态" />
 
     <scroll-view
@@ -67,6 +67,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, onMounted } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'

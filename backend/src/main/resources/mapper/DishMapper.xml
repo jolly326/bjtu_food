@@ -49,7 +49,6 @@
             d.description,
             d.avg_rating,
             d.rating_count,
-            d.favorite_count AS favorite_count,
             d.view_count,
             d.status,
             d.created_at,
@@ -118,14 +117,7 @@
                     <otherwise>ASC</otherwise>
                 </choose>
             </when>
-            <when test="req.sortBy == 'collects'">
-                ORDER BY d.favorite_count
-                <choose>
-                    <when test="req.sortOrder == 'asc'">ASC</when>
-                    <otherwise>DESC</otherwise>
-                </choose>
-                , d.avg_rating DESC
-            </when>
+            <!-- collects（收藏）排序已随收藏模块移除（BCNF 清理：favorite_count 删除），改用 rating_count 作为热度次级键 -->
             <when test="req.sortBy == 'created_at'">
                 ORDER BY d.created_at
                 <choose>
@@ -134,7 +126,7 @@
                 </choose>
             </when>
             <otherwise>
-                ORDER BY d.favorite_count DESC, d.avg_rating DESC
+                ORDER BY d.rating_count DESC, d.avg_rating DESC
             </otherwise>
         </choose>
     </select>
@@ -169,7 +161,7 @@
           AND s.status = 'open'
           AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-        ORDER BY d.favorite_count DESC, d.avg_rating DESC
+        ORDER BY d.rating_count DESC, d.avg_rating DESC
         LIMIT 10
     </select>
 
@@ -192,7 +184,7 @@
               ))
             ELSE 99999999
           END ASC,
-          d.favorite_count DESC, d.avg_rating DESC
+          d.rating_count DESC, d.avg_rating DESC
         LIMIT 10
     </select>
 
@@ -268,7 +260,8 @@
     <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
         (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                NULL AS canteen
+                NULL AS canteen,
+                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount
          FROM dish d
          WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
            AND d.status = 'on'
@@ -277,7 +270,8 @@
         UNION ALL
         (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image,
-                c.name AS canteen
+                c.name AS canteen,
+                NULL AS price, NULL AS rating, NULL AS ratingCount
          FROM stall s
                   JOIN canteen c ON s.canteen_id = c.id
          WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
@@ -288,7 +282,8 @@
         UNION ALL
         (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image,
-                NULL AS canteen
+                NULL AS canteen,
+                NULL AS price, NULL AS rating, NULL AS ratingCount
          FROM canteen c
          WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
            AND c.status = 'open'

@@ -230,5 +230,5 @@ async function batchDelete() {
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--text-light); }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 </style>

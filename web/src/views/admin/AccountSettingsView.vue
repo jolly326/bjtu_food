@@ -277,7 +277,7 @@ onMounted(loadProfile)
 .detail-fields { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
 .detail-fields.no-indent { padding-left: 0; }
 .detail-row { display: flex; align-items: center; gap: var(--space-3); }
-.detail-label { font-size: var(--font-sm); color: var(--text-muted); width: 56px; flex-shrink: 0; line-height: 28px; }
+.detail-label { font-size: var(--font-sm); color: var(--text-muted); width: 48px; flex-shrink: 0; line-height: 28px; }
 .detail-control { flex: 1; min-width: 0; }
 .detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
 .pwd-dots { font-size: 18px; letter-spacing: var(--space-1); }

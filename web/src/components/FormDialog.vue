@@ -105,4 +105,8 @@ async function handleConfirm() {
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
+.btn-primary:focus-visible, .btn-cancel:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 </style>

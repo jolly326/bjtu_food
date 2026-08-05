@@ -395,7 +395,6 @@ async function handleDeleteReview(id: number) {
         <div class="stats-row">
           <StatCard label="评分" :value="dish?.avg_rating ?? 0" tone="star" />
           <StatCard label="人评分" :value="dish?.rating_count ?? 0" />
-          <StatCard label="人收藏" :value="dish?.favoriteCount ?? 0" />
         </div>
       </PageSection>
     </template>

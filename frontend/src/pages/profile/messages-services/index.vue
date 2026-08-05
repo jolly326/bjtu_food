@@ -1,5 +1,5 @@
 <template>
-  <view class="page messages-services-page">
+  <view class="page messages-services-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="反馈中心" showBack />
 
     <!-- 反馈记录列表（进入即展示） -->
@@ -31,6 +31,9 @@
     <view class="submit-bar">
       <AppButton text="写反馈" @click="openFeedback" />
     </view>
+
+    <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
+    <AuthSheet />
 
     <!-- 反馈表单弹层：多级联分类（信息类型→实体类型→操作类型）+ 下拉拖动关闭 + 接近全屏高度 -->
     <view v-if="feedbackOpen" class="fb-mask" :class="{ show: maskShow }" @tap="closeFeedback" @touchmove.stop.prevent="noop" />
@@ -120,14 +123,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AppButton from '@/components/AppButton.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
+import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 import { getMyFeedback, submitFeedback, type FeedbackMyItem } from '@/api/feedback'
+
+const userStore = useUserStore()
+const theme = useThemeStore()
 
 /** 一级：信息类型（与「信息有误」弹窗统一） */
 const typeOptions = [
@@ -194,6 +203,7 @@ const feedbackOpen = ref(false)
 const maskShow = ref(false)
 const sheetOpen = ref(false)
 function openFeedback() {
+  if (!userStore.requireAuth()) return
   feedbackOpen.value = true
   nextTick(() => {
     maskShow.value = true
@@ -260,6 +270,7 @@ function viewDetail(f: FeedbackMyItem) {
 }
 
 async function loadData(silent = false) {
+  if (!userStore.requireAuth()) return
   if (!silent) loading.value = true
   loadFailed.value = false
   try {
@@ -285,7 +296,18 @@ function formatTime(iso?: string): string {
 }
 
 let initialized = false
+// 游客直访时弹认证；认证成功后自动加载
+watch(
+  () => userStore.isLoggedIn(),
+  (v) => {
+    if (v) {
+      loadData(initialized)
+      initialized = true
+    }
+  },
+)
 onShow(() => {
+  if (!userStore.requireAuth()) return
   loadData(initialized)
   initialized = true
 })
@@ -362,7 +384,7 @@ function onRefresh() {
 .fb-submit-btn { height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .fb-submit-btn:active { transform: scale(var(--press-scale)); }
 .fb-submit-btn.disabled { opacity: 0.58; }
-.fb-submit-text { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-white); }
+.fb-submit-text { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-on-primary); }
 
 /* 减少动态效果（Apple §14 / 与其他弹层一致）：交叉淡入替代抽屉滑动 */
 @media (prefers-reduced-motion: reduce) {

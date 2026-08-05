@@ -10,7 +10,7 @@ const emit = defineEmits<{ click: [] }>()
 </script>
 
 <template>
-  <div class="entity-image" v-press @click="emit('click')">
+  <div class="entity-image" v-press role="button" tabindex="0" aria-label="查看/选择图片" @click="emit('click')" @keydown.enter.prevent="emit('click')" @keydown.space.prevent="emit('click')">
     <div v-if="imageUrl" class="image-view">
       <img :src="imageUrl" alt="" />
       <span v-if="imageCount > 1" class="image-badge">+{{ imageCount - 1 }}</span>
@@ -38,6 +38,10 @@ const emit = defineEmits<{ click: [] }>()
 }
 .entity-image:active {
   transform: scale(var(--press-scale));
+}
+.entity-image:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .image-view {
   position: relative;

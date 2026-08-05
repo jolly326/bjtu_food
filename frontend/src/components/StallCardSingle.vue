@@ -177,6 +177,6 @@ function handleClick() {
 .no-rating { font-size: var(--font-tiny); color: var(--text-tertiary); }
 
 /* 评分内联（与 StallDishRow .star-num 对齐） */
-.star-num { display: inline-flex; align-items: center; gap: 4rpx; }
+.star-num { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
 .star-num-text { font-size: 24rpx; color: var(--text-secondary); font-weight: var(--weight-semibold); }
 </style>

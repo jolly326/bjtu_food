@@ -1,79 +1,73 @@
 <template>
-  <view class="page profile-page">
+  <view class="page profile-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="我的" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 未登录态：居中卡片式 AuthForm（§1.4，登录/注册/找回同卡 + 账号密码/邮箱验证码双路） -->
-      <template v-if="!isLoggedIn">
-        <AuthForm />
-      </template>
-
-      <!-- 已登录态：Hero 用户卡 + 4 项功能网格 + 内嵌设置分组 -->
-      <template v-else>
-        <!-- Hero 用户卡：头像 + 昵称 + ID/认证 + 右侧 >，点击跳个人信息详情页 -->
-        <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="goProfileEdit">
-          <view class="user-card-head">
-            <view class="avatar-wrap">
-              <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
-              <view v-else class="avatar avatar-empty">
-                <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
-              </view>
+      <!-- 用户卡：未登录显示游客态（点击弹出认证）；已登录显示完整信息（点击进个人信息页） -->
+      <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="onUserCardTap">
+        <view class="user-card-head">
+          <view class="avatar-wrap">
+            <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
+            <view v-else class="avatar avatar-empty">
+              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
-            <view class="user-meta">
-              <text class="nickname">{{ userInfo?.nickname || '未知用户' }}</text>
-              <view class="meta-line">
-                <text class="user-id">ID {{ userInfo?.id ?? '--' }}</text>
-                <view class="verify-tag" :class="{ ok: isVerified }">
-                  <text class="verify-text">{{ isVerified ? '已认证' : '未认证' }}</text>
-                </view>
-              </view>
-            </view>
-            <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
           </view>
-        </view>
-
-        <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价） -->
-        <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
-          <view
-            v-for="g in gridItems"
-            :key="g.key"
-            class="grid-item"
-            :class="{ pressed: pressedKey === g.key }"
-            @touchstart="pressedKey = g.key"
-            @touchend="pressedKey = ''"
-            @touchcancel="pressedKey = ''"
-            @mousedown="pressedKey = g.key"
-            @mouseup="pressedKey = ''"
-            @mouseleave="pressedKey = ''"
-            @tap="g.action"
-          >
-            <view class="grid-icon">
-              <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
-              <view v-if="g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
-                {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
-              </view>
+          <view class="user-meta">
+            <text class="nickname">{{ isLoggedIn ? (userInfo?.nickname || '未知用户') : '未登录' }}</text>
+            <view class="meta-line">
+              <text v-if="isLoggedIn" class="user-id">{{ userInfo?.email || '游客模式' }}</text>
+              <text v-else class="user-id">游客模式 · 登录解锁完整功能</text>
             </view>
-            <text class="grid-label">{{ g.label }}</text>
           </view>
+          <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
         </view>
+      </view>
 
-        <!-- 设置（单列表：关于/隐私/缓存；图标纯主题色无背景） -->
-        <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
-          <SettingCell label="关于食在交大" icon="logo" @select="goAbout" />
-          <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
-          <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
-        </SettingGroup>
-
-        <!-- 账号注销（危险操作，单独卡片隔离） -->
-        <SettingGroup :style="{ '--enter-i': 3 }">
-          <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
-        </SettingGroup>
-
-        <view class="version-row">
-          <text class="version-text">食在交大 v1.0.0</text>
+      <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价；未登录点击时引导认证） -->
+      <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
+        <view
+          v-for="g in gridItems"
+          :key="g.key"
+          class="grid-item"
+          :class="{ pressed: pressedKey === g.key }"
+          @touchstart="pressedKey = g.key"
+          @touchend="pressedKey = ''"
+          @touchcancel="pressedKey = ''"
+          @mousedown="pressedKey = g.key"
+          @mouseup="pressedKey = ''"
+          @mouseleave="pressedKey = ''"
+          @tap="g.action"
+        >
+          <view class="grid-icon">
+            <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
+            <view v-if="isLoggedIn && g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
+              {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
+            </view>
+          </view>
+          <text class="grid-label">{{ g.label }}</text>
         </view>
-      </template>
+      </view>
+
+      <!-- 设置（单列表：深色模式/关于/隐私/缓存；游客也可用，无需认证） -->
+      <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
+        <SettingCell label="深色模式" icon="settings" :switch="true" :switch-value="theme.isDark" @select="theme.toggle()" />
+        <SettingCell label="关于食在交大" icon="logo" @select="goAbout" />
+        <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
+        <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
+      </SettingGroup>
+
+      <!-- 账号注销（危险操作，仅登录后可见） -->
+      <SettingGroup v-if="isLoggedIn" :style="{ '--enter-i': 3 }">
+        <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
+      </SettingGroup>
+
+      <view class="version-row">
+        <text class="version-text">食在交大 v1.0.0</text>
+      </view>
     </scroll-view>
+
+    <!-- 认证弹层：游客点击需认证功能时弹出 -->
+    <AuthSheet />
 
     <CustomTabBar current="/pages/profile/index" />
   </view>
@@ -85,33 +79,52 @@ import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import AuthForm from '@/components/AuthForm.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import SettingGroup from '@/components/SettingGroup.vue'
 import SettingCell from '@/components/SettingCell.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
+import { useAuthSheetStore } from '@/stores/authSheet'
+import { useThemeStore } from '@/stores/theme'
 import { getImageUrl } from '@/utils/image'
 import { deleteAccount } from '@/api/user'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
+const authSheetStore = useAuthSheetStore()
+const theme = useThemeStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
-/** 认证标识（无独立认证字段，由 role 派生：admin=官方认证 / student=未认证） */
-const isVerified = computed(() => userInfo.value.role === 'admin')
-
 const pressedKey = ref('')
 
 function openMessage() {
   uni.navigateTo({ url: '/pages/profile/messages/index' })
 }
 
-/** 4 项功能网格（统一主色软底大图标，克制） */
+/** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
+function requireAuth(action: () => void) {
+  if (userStore.isLoggedIn()) {
+    action()
+    return
+  }
+  authSheetStore.requireAuth(action)
+}
+
+/** 用户卡：未登录点击弹认证；已登录点击进个人信息页 */
+function onUserCardTap() {
+  if (!userStore.isLoggedIn()) {
+    authSheetStore.requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' }))
+    return
+  }
+  goProfileEdit()
+}
+
+/** 4 项功能网格（统一主色软底大图标，克制；未登录点击时引导认证） */
 const gridItems = [
-  { key: 'moments', icon: 'comment', label: '我的动态', action: () => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' }) },
-  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: '/pages/profile/messages-services/index' }) },
-  { key: 'notify', icon: 'bell', label: '消息中心', action: openMessage },
-  { key: 'reviews', icon: 'star', label: '我的评价', action: () => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' }) },
+  { key: 'moments', icon: 'comment', label: '我的动态', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
+  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/messages-services/index' })) },
+  { key: 'notify', icon: 'bell', label: '消息中心', action: () => requireAuth(openMessage) },
+  { key: 'reviews', icon: 'star', label: '我的评价', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' })) },
 ]
 
 function goProfileEdit() {
@@ -212,14 +225,6 @@ onShow(() => {
 .nickname { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h2); }
 .meta-line { display: flex; align-items: center; gap: var(--spacing-sm); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
-.verify-tag {
-  display: flex; align-items: center;
-  padding: 2rpx 14rpx; border-radius: var(--radius-tag);
-  background: var(--bg-soft);
-}
-.verify-tag.ok { background: var(--color-primary-soft); }
-.verify-text { font-size: var(--font-tiny); font-weight: var(--weight-semibold); color: var(--text-tertiary); }
-.verify-tag.ok .verify-text { color: var(--color-primary); }
 .card-arrow { flex-shrink: 0; }
 
 /* 4 项功能网格（4 列：纯主题色图标 + 文字，无背景块；卡片间距统一 --spacing-sm） */

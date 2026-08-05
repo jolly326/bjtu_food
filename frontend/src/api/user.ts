@@ -9,8 +9,13 @@ function toFrontendRole(role?: string): UserInfo['role'] {
 
 function toUserInfo(resp: any, fallbackId = 1): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
+  // 后端 LoginResp 透传 userId/username/email/nickname/avatar/role（见 auth/dto/LoginResp）
+  const username = String(user.username || resp?.username || '')
   return {
     id: Number(user.id ?? resp?.userId ?? fallbackId),
+    username,
+    // 校园邮箱 = {学号}@bjtu.edu.cn，后端无 email 时前端推导，保证字段恒有值
+    email: user.email || resp?.email || deriveCampusEmail(username),
     nickname: user.nickname || resp?.nickname || user.username || '交大学子',
     avatar: user.avatar || resp?.avatar || '',
     role: toFrontendRole(user.role || resp?.role),
@@ -22,8 +27,13 @@ export interface AuthResult {
   userInfo: UserInfo
 }
 
-export async function sendEmailCode(email: string, purpose: 'login' | 'register' | 'reset'): Promise<void> {
-  await post('/auth/email-code', { email, purpose })
+/** 校园邮箱 = {学号}@bjtu.edu.cn，前端仅需学号，无需用户手动输入邮箱 */
+export function deriveCampusEmail(username: string): string {
+  return `${username.trim().toLowerCase()}@bjtu.edu.cn`
+}
+
+export async function sendEmailCode(username: string, purpose: 'login' | 'register' | 'reset'): Promise<void> {
+  await post('/auth/email-code', { username, purpose })
 }
 
 export async function loginByPassword(account: string, password: string): Promise<AuthResult> {
@@ -34,8 +44,8 @@ export async function loginByPassword(account: string, password: string): Promis
   }
 }
 
-export async function loginByEmailCode(email: string, code: string): Promise<AuthResult> {
-  const resp = await post<any>('/auth/login', { email, code })
+export async function loginByEmailCode(account: string, code: string): Promise<AuthResult> {
+  const resp = await post<any>('/auth/login', { account, code })
   return {
     token: resp.token,
     userInfo: toUserInfo(resp),
@@ -44,7 +54,6 @@ export async function loginByEmailCode(email: string, code: string): Promise<Aut
 
 export async function register(data: {
   username: string
-  email: string
   code: string
   password: string
   nickname: string
@@ -57,7 +66,7 @@ export async function register(data: {
 }
 
 export async function resetPassword(data: {
-  email: string
+  username: string
   code: string
   newPassword: string
 }): Promise<void> {

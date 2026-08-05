@@ -93,11 +93,6 @@ public class Dish {
     @Schema(description = "浏览量")
     private Integer viewCount;
 
-    /** 收藏量（喜欢总数），DB 列 favorite_count */
-    @Schema(description = "收藏量（喜欢总数）")
-    @TableField("favorite_count")
-    private Integer favoriteCount;
-
     /** 平均评分 */
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;

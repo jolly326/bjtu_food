@@ -1,5 +1,5 @@
 <template>
-  <view class="page my-moments-page">
+  <view class="page my-moments-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="我的动态" showBack />
 
     <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过消息中心提醒） -->
@@ -42,24 +42,30 @@
       top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
+    <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useDishStore } from '@/stores/dish'
+import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { buildSharePayload } from '@/utils/shareState'
 
 const userStore = useUserStore()
 const dishStore = useDishStore()
+const theme = useThemeStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情底部弹层（task-10：独立页 → sheet） */
 const dishSheetOpen = ref(false)
@@ -113,7 +119,12 @@ function onRefresh() {
   loadData().finally(() => { refresherTriggered.value = false })
 }
 
-onMounted(() => { loadData() })
+// 游客直访时弹认证；认证成功后自动加载
+watch(
+  () => userStore.isLoggedIn(),
+  (v) => { if (v) loadData() },
+  { immediate: true },
+)
 onShareAppMessage(() => buildSharePayload())
 </script>
 

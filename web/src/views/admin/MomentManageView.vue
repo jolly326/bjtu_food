@@ -343,7 +343,7 @@ async function handleDeleteComment(c: MomentComment) {
 .img-badge .el-icon { width: 13px; height: 13px; }
 .rel-ico { width: 14px; height: 14px; vertical-align: -2px; opacity: .6; }
 .rel-name { font-size: var(--font-xs); color: var(--text-muted); }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 
 /* 评论治理弹窗 */
 .cmt-list { display: flex; flex-direction: column; max-height: 60vh; overflow-y: auto; }

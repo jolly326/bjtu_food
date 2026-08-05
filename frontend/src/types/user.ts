@@ -3,6 +3,10 @@ export type UserRole = 'student' | 'admin'
 
 export interface UserInfo {
   id: number
+  /** 学号/工号（校园身份，等于邮箱前缀） */
+  username: string
+  /** 校园邮箱（{学号}@bjtu.edu.cn） */
+  email: string
   nickname: string
   avatar: string
   role: UserRole

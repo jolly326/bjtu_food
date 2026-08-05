@@ -260,7 +260,7 @@ async function toggleStatusRow(b: any, active: boolean) {
 .cell-sub { font-size: var(--font-sm); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; display: inline-block; vertical-align: middle; }
 .tt-tag { display: inline-block; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--bg-gray); color: var(--text-secondary); font-size: var(--font-xs); }
 .sort-svg { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; }
-.act-ico { width: 13px; height: 13px; vertical-align: -2px; margin-right: 2px; }
+/* .act-ico 已收敛至 shared.css 公共类 */
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

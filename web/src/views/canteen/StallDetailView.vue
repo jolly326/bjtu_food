@@ -156,7 +156,7 @@ const formErrors = ref<Record<string, string>>({})
 function validate() { const errs: Record<string, string> = {}; if (!form.value.name.trim()) errs.name = '菜品名称不能为空'; if (!form.value.price || form.value.price <= 0) errs.price = '价格必须大于 0'; formErrors.value = errs; return Object.keys(errs).length === 0 }
 function toggleTag(tag: string) { const arr: string[] = []; try { arr.push(...JSON.parse(form.value.tags || '[]')) } catch {}; const i = arr.indexOf(tag); i === -1 ? arr.push(tag) : arr.splice(i, 1); form.value.tags = JSON.stringify(arr) }
 function openAdd() { form.value = { name: '', price: 0, description: '', image: '', tags: '', status: 'active' }; formErrors.value = {}; showModal.value = true }
-function handleSubmit() { if (!validate()) return; store.addDish({ stall_id: stallId.value as unknown as bigint, ...form.value, avg_rating: 0, rating_count: 0, favoriteCount: 0, view_count: 0 }); toast.success('菜品已添加'); showModal.value = false }
+function handleSubmit() { if (!validate()) return; store.addDish({ stall_id: stallId.value as unknown as bigint, ...form.value, avg_rating: 0, rating_count: 0, view_count: 0 }); toast.success('菜品已添加'); showModal.value = false }
 function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}/dishes/${id}`) }
 </script>
 

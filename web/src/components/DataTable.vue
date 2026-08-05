@@ -190,8 +190,12 @@ watch(
             v-for="row in displayRows.rows"
             :key="rowKeyValue(row)"
             :class="{ 'row-sel': selectable && isSelected(row) }"
+            :role="rowClickable ? 'button' : undefined"
+            :tabindex="rowClickable ? 0 : undefined"
             :style="rowClickable ? { cursor: 'pointer' } : undefined"
             @click="onRowClick(row)"
+            @keydown.enter.prevent="onRowClick(row)"
+            @keydown.space.prevent="onRowClick(row)"
           >
             <td v-if="selectable" class="col-select" @click.stop>
               <input type="checkbox" :checked="isSelected(row)" @change="toggleSelect(row)" />
@@ -290,7 +294,8 @@ watch(
   white-space: nowrap;
   transition: color 0.15s var(--ease-out);
 }
-.th-sort:hover { color: var(--color-primary); }
+.th-sort:hover { color: var(--color-primary); background: var(--table-row-hover); }
+.th-sort:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .sort-arrow {
   font-size: 10px;
   color: var(--text-light);

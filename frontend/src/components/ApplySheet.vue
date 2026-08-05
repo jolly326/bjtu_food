@@ -261,7 +261,7 @@ function onTouchEnd() {
 .sheet-submit-btn { height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .sheet-submit-btn:active { transform: scale(var(--press-scale)); }
 .sheet-submit-btn.disabled { opacity: 0.58; }
-.sheet-submit-text { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-white); }
+.sheet-submit-text { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .sheet-mask { transition: opacity 0.2s ease; }

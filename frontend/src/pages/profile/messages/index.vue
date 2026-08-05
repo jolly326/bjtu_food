@@ -1,5 +1,5 @@
 <template>
-  <view class="page messages-page">
+  <view class="page messages-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="消息中心" showBack />
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
@@ -38,18 +38,26 @@
       <EmptyState v-else text="暂无消息" />
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
+
+    <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
+    <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
+import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
+import { useThemeStore } from '@/stores/theme'
 import { getNotifications, readNotification, readAllNotifications, type Notification, type NotificationType } from '@/api/notify'
 
+const userStore = useUserStore()
 const notifyStore = useNotifyStore()
+const theme = useThemeStore()
 const list = ref<Notification[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
@@ -57,6 +65,7 @@ const pressedId = ref(0)
 const refresherTriggered = ref(false)
 
 async function load(silent = false) {
+  if (!userStore.requireAuth()) return
   if (!silent) loading.value = true
   loadFailed.value = false
   try {
@@ -115,7 +124,18 @@ function onRefresh() {
   load(true).finally(() => { refresherTriggered.value = false })
 }
 
+// 游客直访时弹认证；认证成功后自动加载
+watch(
+  () => userStore.isLoggedIn(),
+  (v) => {
+    if (v) {
+      load()
+      notifyStore.fetchUnread()
+    }
+  },
+)
 onShow(() => {
+  if (!userStore.requireAuth()) return
   load()
   notifyStore.fetchUnread()
 })
@@ -143,7 +163,7 @@ onShow(() => {
   margin-top: 12rpx;
 }
 .msg-dot.read { background: var(--border-color); }
-.msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 .msg-title-row { display: flex; align-items: center; gap: var(--spacing-xs); }
 .msg-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
 /* 未读强调（Apple Mail 式）：未读标题加粗，已读降级为常规 */

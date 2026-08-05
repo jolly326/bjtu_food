@@ -1,5 +1,5 @@
 <template>
-  <view class="page stall-detail-page">
+  <view class="page stall-detail-page" :class="{ 'theme-dark': theme.isDark }">
     <Header :title="stallDetail?.name || '档口'" showBack />
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" :scroll-top="scrollTop" @scroll="onScroll" @refresherrefresh="onRefresh">
       <!-- 加载骨架 -->
@@ -116,6 +116,7 @@
                 v-for="rv in reviewList"
                 :key="rv.id"
                 :review="rv"
+                hide-useful
                 :deletable="rv.userId === currentUserId"
                 @delete="onDeleteReview"
               />
@@ -176,6 +177,8 @@
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 import { ref, computed, nextTick, onMounted } from 'vue'
 import Header from '@/components/header.vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -436,7 +439,7 @@ function onRefresh() {
   font-size: var(--font-h1);
   font-weight: var(--weight-heavy);
   color: var(--text-primary);
-  letter-spacing: var(--tracking-h3);
+  letter-spacing: var(--tracking-h1);
   line-height: 1.2;
   flex: 1;
   min-width: 0;
@@ -447,7 +450,7 @@ function onRefresh() {
 .info-location {
   display: flex;
   align-items: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
 }
 .info-location-icon { font-size: 24rpx; line-height: 1; flex-shrink: 0; }
 .info-location-text { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); }
@@ -493,20 +496,19 @@ function onRefresh() {
   min-height: 40vh;
 }
 /* scroll-view 必须固定 height 才能正常滚动与锚点定位（微信要求）；
-   背景必须硬编码 #F6F4EF（= --bg-page 取值）：scroll-view 默认白底，CSS 变量在小程序内可能解析失效导致露出白线，
-   故此二处 scroll-view 保留裸色值作兜底，其余普通容器已改 var(--bg-page) */
+   背景走 var(--bg-page)（随深色模式切换，历史 #F6F4EF 硬编码已废弃） */
 .cat-sidebar {
   width: 152rpx;
   flex-shrink: 0;
   height: 65vh;
-  background: #F6F4EF;
+  background: var(--bg-page);
 }
-/* 右侧分组滚动容器：与左栏等高，内部按分组滚动（同左栏，scroll-view 背景硬编码 #F6F4EF 兜底白线） */
+/* 右侧分组滚动容器：与左栏等高，内部按分组滚动（同左栏，背景随深色模式切换） */
 .dish-group-scroll {
   flex: 1;
   min-width: 0;
   height: 65vh;
-  background: #F6F4EF;
+  background: var(--bg-page);
 }
 /* 评价 / 档口 tab：去内层 scroll-view，直接在外层 scroll-wrap 内渲染（双层 scroll-view 嵌套致 CSS 变量 var(--bg-card) 继承断裂，白底卡片不显示）。
    内容自然撑开，外层 scroll-wrap scroll-y 自然滚动；切 tab 不回弹由 switchTab 的 scrollTop 恢复处理。 */
@@ -584,7 +586,7 @@ function onRefresh() {
    卡片圆角 24px + 标题 34rpx / weight 800 / letter-spacing -0.02em（Apple Design 16 Typography：大字负 tracking），
    背景用 var(--bg-card)（= #FFFFFF）与阴影与 moment.vue 评论区一致，token 化避免裸 hex */
 .comment-section { margin: 0 var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: var(--spacing-md); }
+.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
 .review-list { margin-top: var(--spacing-xs); }
 
 /* ===== 3 tab menubar：紧跟 hero 卡片下方（文档流，不沉底） ===== */

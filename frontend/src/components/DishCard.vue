@@ -133,7 +133,7 @@ function handleClick() {
   font-size: var(--font-body);
   font-weight: var(--weight-bold);
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-h3);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;

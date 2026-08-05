@@ -39,8 +39,8 @@ public class ReviewServiceImpl implements ReviewService {
     private final MomentService momentService;
 
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort)
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -49,8 +49,8 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort)
+    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -59,8 +59,8 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort)
+    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);

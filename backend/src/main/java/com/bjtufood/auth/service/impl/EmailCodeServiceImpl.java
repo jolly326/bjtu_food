@@ -36,8 +36,8 @@ public class EmailCodeServiceImpl implements EmailCodeService {
     private String mailFrom;
 
     @Override
-    public void sendCode(String email, String purpose) {
-        String normalizedEmail = normalizeEmail(email);
+    public void sendCode(String username, String email, String purpose) {
+        String normalizedEmail = resolveEmail(username, email);
         validateCampusEmail(normalizedEmail);
         String normalizedPurpose = normalizePurpose(purpose);
 
@@ -54,6 +54,20 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         emailVerificationCodeMapper.insert(record);
 
         log.info("Email verification code sent to {}, purpose={}", normalizedEmail, normalizedPurpose);
+    }
+
+    /**
+     * 校园邮箱规则：邮箱 = {学号}@bjtu.edu.cn。
+     * email 显式传入则优先使用（仍校验 @bjtu.edu.cn 后缀）；否则由学号推导。
+     */
+    private String resolveEmail(String username, String email) {
+        if (StringUtils.hasText(email)) {
+            return normalizeEmail(email);
+        }
+        if (StringUtils.hasText(username)) {
+            return username.trim().toLowerCase(Locale.ROOT) + "@bjtu.edu.cn";
+        }
+        throw new BusinessException("请填写学号或校园邮箱");
     }
 
     private void sendEmail(String to, String code, String purpose) {

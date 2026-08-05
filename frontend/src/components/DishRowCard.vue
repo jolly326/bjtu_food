@@ -101,7 +101,7 @@ const imgOk = ref(true)
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-h3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -116,7 +116,7 @@ const imgOk = ref(true)
   border-radius: var(--radius-tag);
   font-weight: var(--weight-semibold);
 }
-.dish-row-rating-line { display: flex; align-items: center; gap: 4rpx; margin-top: 8rpx; }
+.dish-row-rating-line { display: flex; align-items: center; gap: var(--spacing-2xs); margin-top: var(--spacing-xs); }
 .dish-row-star { font-size: 20rpx; line-height: 1; flex-shrink: 0; }
 .dish-row-rating-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
 </style>

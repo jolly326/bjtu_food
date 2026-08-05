@@ -25,7 +25,7 @@ function toggle() {
 
 <template>
   <section class="page-section" :class="{ collapsed: collapsible && !open }">
-    <div class="ps-head" :class="{ clickable: collapsible }" @click="toggle">
+    <div class="ps-head" :class="{ clickable: collapsible }" role="button" :tabindex="collapsible ? 0 : undefined" :aria-expanded="open" @click="toggle" @keydown.enter.prevent="toggle" @keydown.space.prevent="toggle">
       <div class="ps-head-left">
         <h2 v-if="title" class="ps-title">{{ title }}</h2>
         <slot name="header-extra" />
@@ -54,7 +54,8 @@ function toggle() {
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
-.ps-head.clickable { cursor: pointer; user-select: none; }
+.ps-head.clickable { cursor: pointer; user-select: none; border-radius: var(--radius); }
+.ps-head.clickable:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .ps-head-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 /* 菜单牌标记：分区标题朱砂红短竖条 */
 .ps-title {

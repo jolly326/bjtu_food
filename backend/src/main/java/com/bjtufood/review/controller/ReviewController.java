@@ -33,10 +33,10 @@ public class ReviewController {
             @Parameter(description = "排序：latest（最新，默认）/ useful（最有用的）", example = "latest")
             @RequestParam(defaultValue = "latest") String sort) {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        return Result.success(reviewService.listByDishId(dishId, page, pageSize, sort, userId));
+        return Result.success(reviewService.listByDishId(dishId, page, pageSize, sort, userId, false));
     }
 
-    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。支持按维度查询评价：dishId（菜品）、stallId（档口）、canteenId（食堂），三者至多传其一，都不传默认按 dishId 维度但 dishId 必填。只返回未隐藏评价。支持 sort=latest/useful。测试示例：/reviews?stallId=1&page=1&pageSize=20&sort=useful")
+    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。支持按维度查询评价：dishId（菜品）、stallId（档口）、canteenId（食堂），三者至多传其一，都不传默认按 dishId 维度但 dishId 必填。只返回未隐藏评价。支持 sort=latest/useful、isWithImage 只返回带图评价。测试示例：/reviews?stallId=1&page=1&pageSize=20&sort=useful")
     @GetMapping("/reviews")
     public Result<?> listReviews(
             @Parameter(description = "菜品ID（与 stallId / canteenId 至多传其一）", example = "1")
@@ -48,18 +48,21 @@ public class ReviewController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "排序：latest（最新，默认）/ useful（最有用的）", example = "latest")
-            @RequestParam(defaultValue = "latest") String sort) {
+            @RequestParam(defaultValue = "latest") String sort,
+            @Parameter(description = "是否只返回带图评价：true 时过滤无图评价（images 非空且非空数组）", example = "true")
+            @RequestParam(required = false) Boolean isWithImage) {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
+        boolean withImage = Boolean.TRUE.equals(isWithImage);
         if (stallId != null) {
-            return Result.success(reviewService.listByStallId(stallId, page, pageSize, sort, userId));
+            return Result.success(reviewService.listByStallId(stallId, page, pageSize, sort, userId, withImage));
         }
         if (canteenId != null) {
-            return Result.success(reviewService.listByCanteenId(canteenId, page, pageSize, sort, userId));
+            return Result.success(reviewService.listByCanteenId(canteenId, page, pageSize, sort, userId, withImage));
         }
         if (dishId == null) {
             throw new com.bjtufood.common.exception.BusinessException("dishId、stallId、canteenId 至少传入其一");
         }
-        return Result.success(reviewService.listByDishId(dishId, page, pageSize, sort, userId));
+        return Result.success(reviewService.listByDishId(dishId, page, pageSize, sort, userId, withImage));
     }
 
     @Operation(

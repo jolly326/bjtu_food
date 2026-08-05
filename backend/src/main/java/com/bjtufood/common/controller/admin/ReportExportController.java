@@ -54,11 +54,11 @@ public class ReportExportController {
                              @Parameter(description = "起始时间 yyyy-MM-dd HH:mm:ss") @RequestParam(required = false) String startAt,
                              @Parameter(description = "结束时间 yyyy-MM-dd HH:mm:ss") @RequestParam(required = false) String endAt) throws IOException {
         var list = dishMapper.selectList(range(Dish::getCreatedAt, startAt, endAt));
-        String[] header = {"id", "name", "price(分)", "stallId", "auditStatus", "status", "viewCount", "favoriteCount", "avgRating", "ratingCount", "createdAt"};
+        String[] header = {"id", "name", "price(分)", "stallId", "auditStatus", "status", "viewCount", "avgRating", "ratingCount", "createdAt"};
         writeCsv(response, "dishes", header, list, d -> new String[]{
                 str(d.getId()), esc(d.getName()), str(d.getPrice()), str(d.getStallId()),
                 nz(d.getAuditStatus()), nz(d.getStatus()), str(d.getViewCount()),
-                str(d.getFavoriteCount()), str(d.getAvgRating()), str(d.getRatingCount()), fmt(d.getCreatedAt())
+                str(d.getAvgRating()), str(d.getRatingCount()), fmt(d.getCreatedAt())
         });
     }
 

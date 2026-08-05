@@ -61,14 +61,12 @@ export function toDish(raw: any): Dish {
     images,
     rating: raw.avgRating ?? raw.rating ?? 0,
     ratingCount: raw.ratingCount ?? raw.rating_count ?? 0,
-    favoriteCount: Number(raw.favoriteCount ?? 0),
     tags: tags.map((t: string) => TAG_MAP[t] || t),
     description: raw.description || '',
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
     isNew: !!raw.isNew,
-    isFavorited: !!raw.isFavorited,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
     // ===== task-03 位置链路（来自 stall 联表） =====
@@ -180,6 +178,10 @@ export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
     image: getImageUrl(item.image || ''),
     // 档口需携带所属食堂名（后端 suggest 已联表返回 canteen），跳档口详情要 navParams.canteen
     canteen: item.canteen || undefined,
+    // 价格：分 → 元（§3.x 金额红线：转换必须在 api 层统一，页面模板禁裸 /100）
+    price: item.price != null ? fenToYuan(item.price) : undefined,
+    rating: item.rating != null ? Number(item.rating) : undefined,
+    ratingCount: item.ratingCount != null ? Number(item.ratingCount) : undefined,
   }))
 }
 

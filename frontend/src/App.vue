@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onLaunch } from "@dcloudio/uni-app";
+import { useThemeStore } from "@/stores/theme";
 onLaunch(() => {
-  // 预留：登录态恢复等全局初始化
+  // 恢复深色模式偏好（本地持久化）
+  useThemeStore().init();
 });
 </script>
 <style>
@@ -19,13 +21,17 @@ onLaunch(() => {
    拆成两条独立规则后：微信以 page 为准，H5 以 :root 为准，互不牵连。
    ========================================================================= */
 page {
-  /* 品牌主色（交大红系） */
-  --color-primary: #8B3A2B;
-  --color-primary-dark: #6B1010;
-  --color-primary-soft: #FEF0EF;
-  --color-primary-bg: #FBEDEB;
+  /* 品牌主色（陶土砖红 terracotta；hue≈10°，主色值见 src/theme/tokens.ts 单一事实源） */
+  --color-primary: #C1442E;
+  --color-primary-dark: #9C2F1F;
+  /* 主色上的文字（按钮/强调）：浅色主色较深 → 白字 AA 达标 */
+  --color-on-primary: #FFFFFF;
+  /* 导航激活态（TabBar 图标+文字统一）：浅色=浅色主色 */
+  --color-on-tab: #C1442E;
+  --color-primary-soft: #FDE9E3;
+  --color-primary-bg: #FBE6DF;
   --color-accent: #E67E22;
-  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #E67E22 100%);
+  --color-gradient: linear-gradient(135deg, #C1442E 0%, #D0643F 58%, #E67E22 100%);
   --color-error: #E54D42;
   --color-success: #10B981;
   --color-warning: #F5A623;
@@ -65,7 +71,8 @@ page {
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
-  /* 间距（4pt 基准栅格） */
+  /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
+  --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
   --spacing-md: 24rpx;
@@ -107,10 +114,10 @@ page {
   /* 卡片/底栏阴影（替代裸 shadow rgba） */
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(139, 58, 43, 0.22);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(193, 68, 46, 0.22);
   /* 主色半透（header 材质 / hero 阴影，避免裸 rgba） */
-  --color-primary-glass: rgba(139, 58, 43, 0.82);
-  --color-primary-alpha: rgba(139, 58, 43, 0.22);
+  --color-primary-glass: rgba(193, 68, 46, 0.82);
+  --color-primary-alpha: rgba(193, 68, 46, 0.22);
   /* 长条删除按钮（图片移除）暗底白字 */
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
@@ -148,18 +155,78 @@ page {
   --action-bar-height: 120rpx;
 }
 
+/* ========== 深色模式（手动开关） ==========
+   原理：页面根节点挂 .theme-dark class → 命中此选择器的深色 token 覆盖，
+   CSS 变量沿后代继承，全站即时切换，无需逐组件改动。
+   值参考 Apple 深色材质（灰黑底 + 提亮主色 + 低饱和文字）。 */
+.theme-dark {
+  --color-primary: #E08A6A;
+  --color-primary-dark: #B0553A;
+  /* 主色上的文字（按钮/强调）：深色主色较浅 → 深字（白字对比不足 3:1，禁用） */
+  --color-on-primary: #141414;
+  /* 导航激活态（TabBar 图标+文字统一）：深色=深色主色 */
+  --color-on-tab: #E08A6A;
+  --color-primary-soft: #3D2A24;
+  --color-primary-bg: #35241F;
+  --color-accent: #E8965C;
+  --color-error: #E5655A;
+  --color-success: #34D399;
+  --color-warning: #F5B83D;
+  --color-price: #E5655A;
+  --color-star: #FFC24B;
+  --color-star-empty: #3A3632;
+  --color-success-soft: #16302A;
+  --color-error-soft: #3A2321;
+  --color-warning-soft: #382D1B;
+  --color-accent-soft: #3A2A1C;
+  --color-primary-soft2: #3A2521;
+  --color-hot-soft: #3A2A1C;
+  --color-hot: #E8965C;
+  --color-like: #FF7B7B;
+  --color-like-soft: #3A2424;
+  --border-light: #2A2624;
+  --text-white: #FFFFFF;
+  --text-white-secondary: rgba(255, 255, 255, 0.85);
+  --text-primary: #F2EFEC;
+  --text-secondary: #B5ADA6;
+  --text-tertiary: #7F7871;
+  --text-quaternary: #6B6560;
+  --bg-page: #141414;
+  --bg-card: #1F1F1F;
+  --bg-soft: #2A2A2A;
+  --bg-placeholder: #262626;
+  --border-color: #2E2A27;
+  --border-bold: #3D3935;
+  --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.4);
+  --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.6);
+  --blur-bg: rgba(28, 28, 28, 0.72);
+  --blur-bg-solid: rgba(31, 31, 31, 0.92);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.05);
+  --shadow-bar: 0 -4rpx 20rpx rgba(0, 0, 0, 0.4);
+  --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.4);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(0, 0, 0, 0.5);
+  --color-primary-glass: rgba(224, 138, 106, 0.85);
+  --color-primary-alpha: rgba(224, 138, 106, 0.22);
+}
+
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* H5 端根变量（微信小程序以 page 为准，此处仅供 H5/Webview 兜底） */
 :root {
-  /* 品牌主色（交大红系） */
-  --color-primary: #8B3A2B;
-  --color-primary-dark: #6B1010;
-  --color-primary-soft: #FEF0EF;
-  --color-primary-bg: #FBEDEB;
+  /* 品牌主色（陶土砖红 terracotta；主色值见 src/theme/tokens.ts 单一事实源） */
+  --color-primary: #C1442E;
+  --color-primary-dark: #9C2F1F;
+  /* 主色上的文字（按钮/强调）：浅色主色较深 → 白字 AA 达标 */
+  --color-on-primary: #FFFFFF;
+  /* 导航激活态（TabBar 图标+文字统一）：浅色=浅色主色 */
+  --color-on-tab: #C1442E;
+  --color-primary-soft: #FDE9E3;
+  --color-primary-bg: #FBE6DF;
   --color-accent: #E67E22;
-  --color-gradient: linear-gradient(135deg, #8B3A2B 0%, #C95C3F 58%, #E67E22 100%);
+  --color-gradient: linear-gradient(135deg, #C1442E 0%, #D0643F 58%, #E67E22 100%);
   --color-error: #E54D42;
   --color-success: #10B981;
   --color-warning: #F5A623;
@@ -194,6 +261,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
+  --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
   --spacing-md: 24rpx;
@@ -228,9 +296,9 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(139, 58, 43, 0.22);
-  --color-primary-glass: rgba(139, 58, 43, 0.82);
-  --color-primary-alpha: rgba(139, 58, 43, 0.22);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(193, 68, 46, 0.22);
+  --color-primary-glass: rgba(193, 68, 46, 0.82);
+  --color-primary-alpha: rgba(193, 68, 46, 0.22);
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
   --text-white-soft: rgba(255, 255, 255, 0.84);
@@ -290,6 +358,13 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 }
 .press:active {
   transform: scale(var(--press-scale));
+}
+/* ========== 真机按压反馈（微信 hover-class 用，WXSS 下 :active 无效） ==========
+   微信小程序 view 不支持 :active 伪类，真机按压缩放需用 hover-class="pressed"。
+   此全局类供各可点击 view 的 hover-class 复用（含 CustomTabBar/InteractBar/Rating 等）。 */
+.pressed {
+  transform: scale(var(--press-scale)) !important;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 
 /* ========== 进场动画（红线 §4.9②：MVP 真机仅简单 CSS 过渡，位移 ≤0） ==========
