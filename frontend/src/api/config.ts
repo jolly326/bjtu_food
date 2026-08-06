@@ -15,3 +15,15 @@ const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api'
 
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+
+/**
+ * 微信云托管环境 ID（小程序端 wx.cloud.callContainer 使用）
+ * 对应：微信云托管环境 prod-d7g2z0sge0919e273
+ */
+export const WX_CLOUD_ENV = 'prod-d7g2z0sge0919e273'
+
+/**
+ * 微信云托管服务名（callContainer 请求头 X-WX-SERVICE）
+ * 对应：云托管服务 bjtu-food
+ */
+export const WX_SERVICE = 'bjtu-food'

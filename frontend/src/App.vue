@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { onLaunch } from "@dcloudio/uni-app";
 import { useThemeStore } from "@/stores/theme";
+import { WX_CLOUD_ENV } from "@/api/config";
 onLaunch(() => {
   // 恢复深色模式偏好（本地持久化）
   useThemeStore().init();
+  // 初始化微信云开发/云托管环境（小程序端 callContainer 调用依赖；H5 等平台跳过）
+  // #ifdef MP-WEIXIN
+  const wxApi: any = (globalThis as any).wx;
+  if (wxApi && wxApi.cloud) {
+    wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
+  }
+  // #endif
 });
 </script>
 <style>
