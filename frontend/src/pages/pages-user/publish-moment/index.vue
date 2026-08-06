@@ -50,6 +50,9 @@
       @select="onRelatedSelect"
       @confirm="onRelatedConfirm"
     />
+
+    <!-- 认证弹层（未登录发布 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -63,6 +66,7 @@ import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'

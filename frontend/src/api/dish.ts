@@ -2,7 +2,7 @@ import type {
   Dish, DishDetail, DishQuery, DishSortBy,
   Suggestion, HotSearch,
 } from '@/types/dish'
-import { get, del } from './http'
+import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
 import { getImageUrl } from '@/utils/image'
 
@@ -137,6 +137,19 @@ export async function searchDishes(query: DishQuery): Promise<Dish[]> {
 export async function getDishDetail(id: number): Promise<DishDetail> {
   const raw = await get<any>(`/dishes/${id}`)
   return toDishDetail(raw)
+}
+
+/**
+ * 上报菜品浏览（POST /dishes/{id}/view，供 view_count / 热度排序 / 猜你喜欢使用）。
+ * 后端 addView 通过 token 取当前用户（SecurityUtil.getCurrentUserId），无需 body；
+ * 需登录态（/dishes/** 仅 GET 公开）。浏览埋点属非关键链路，失败静默。
+ */
+export async function addView(id: number): Promise<void> {
+  try {
+    await post<void>(`/dishes/${id}/view`)
+  } catch {
+    /* 静默失败：浏览统计不应阻塞详情展示 */
+  }
 }
 
 /** 删除本人发布的菜品（STU 仅 created_by 本人，task-12.5） */

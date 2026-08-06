@@ -191,23 +191,25 @@ public class MomentServiceImpl implements MomentService {
         MomentUsefulResult result = new MomentUsefulResult();
         if (exist != null) {
             momentUsefulMapper.deleteById(exist.getId());
-            int count = (m.getUsefulCount() == null ? 0 : m.getUsefulCount()) - 1;
-            m.setUsefulCount(Math.max(count, 0));
+            // 计数原子 -1（并发安全）
+            momentMapper.changeUsefulCount(momentId, -1);
             result.setUseful(false);
         } else {
             MomentUseful useful = new MomentUseful();
             useful.setUserId(userId);
             useful.setMomentId(momentId);
             momentUsefulMapper.insert(useful);
-            m.setUsefulCount((m.getUsefulCount() == null ? 0 : m.getUsefulCount()) + 1);
+            // 计数原子 +1（并发安全）
+            momentMapper.changeUsefulCount(momentId, 1);
             result.setUseful(true);
             // 被赞通知（作者本人被赞才通知，避免自赞）
             if (!userId.equals(m.getUserId())) {
                 sendUsefulNotification(m);
             }
         }
-        momentMapper.updateById(m);
-        result.setUsefulCount(m.getUsefulCount());
+        // 原子增减后回读最新计数
+        Moment latest = momentMapper.selectById(momentId);
+        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
         return result;
     }
 
@@ -225,9 +227,8 @@ public class MomentServiceImpl implements MomentService {
         c.setContent(req.getContent());
         momentCommentMapper.insert(c);
 
-        // 评论计数 +1
-        m.setCommentCount((m.getCommentCount() == null ? 0 : m.getCommentCount()) + 1);
-        momentMapper.updateById(m);
+        // 评论计数原子 +1（并发安全）
+        momentMapper.changeCommentCount(momentId, 1);
 
         // 回复他人 → 给被回复者发 comment 通知（不通知自己，且被回复者应是动态作者或评论者）
         if (req.getParentId() != null) {
@@ -310,23 +311,25 @@ public class MomentServiceImpl implements MomentService {
         MomentUsefulResult result = new MomentUsefulResult();
         if (exist != null) {
             momentCommentUsefulMapper.deleteById(exist.getId());
-            int count = (c.getUsefulCount() == null ? 0 : c.getUsefulCount()) - 1;
-            c.setUsefulCount(Math.max(count, 0));
+            // 计数原子 -1（并发安全）
+            momentCommentMapper.changeUsefulCount(commentId, -1);
             result.setUseful(false);
         } else {
             MomentCommentUseful useful = new MomentCommentUseful();
             useful.setUserId(userId);
             useful.setCommentId(commentId);
             momentCommentUsefulMapper.insert(useful);
-            c.setUsefulCount((c.getUsefulCount() == null ? 0 : c.getUsefulCount()) + 1);
+            // 计数原子 +1（并发安全）
+            momentCommentMapper.changeUsefulCount(commentId, 1);
             result.setUseful(true);
             // 被赞通知（非自赞）
             if (!userId.equals(c.getUserId())) {
                 sendCommentUsefulNotification(c);
             }
         }
-        momentCommentMapper.updateById(c);
-        result.setUsefulCount(c.getUsefulCount());
+        // 原子增减后回读最新计数
+        MomentComment latest = momentCommentMapper.selectById(commentId);
+        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
         return result;
     }
 
@@ -348,12 +351,8 @@ public class MomentServiceImpl implements MomentService {
                 .and(w -> w.eq(MomentComment::getId, commentId)
                         .or().eq(MomentComment::getParentId, commentId)));
 
-        Moment m = momentMapper.selectById(momentId);
-        if (m != null) {
-            int count = (m.getCommentCount() == null ? 0 : m.getCommentCount()) - removed;
-            m.setCommentCount(Math.max(count, 0));
-            momentMapper.updateById(m);
-        }
+        // 评论数原子批量减少（并发安全）
+        momentMapper.changeCommentCount(momentId, -removed);
     }
 
     @Override

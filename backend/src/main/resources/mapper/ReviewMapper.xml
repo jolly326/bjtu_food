@@ -133,4 +133,11 @@
           AND r.is_hidden = 0
     </select>
 
+    <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->
+    <update id="changeUsefulCount">
+        UPDATE review
+        SET useful_count = GREATEST(useful_count + #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
 </mapper>

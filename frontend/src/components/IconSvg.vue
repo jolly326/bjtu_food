@@ -105,13 +105,18 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
 // 单一事实源：色值统一维护在 src/theme/tokens.ts（改主色只改一处，图标全同步）
-import { ICON_COLOR_VARS as COLOR_VARS } from '@/theme/tokens'
+// 深浅双模式：图标色随主题切换，深色模式不再沿用浅色真值导致脱色
+import { ICON_COLOR_VARS as COLOR_VARS_TABLE } from '@/theme/tokens'
+import { useThemeStore } from '@/stores/theme'
+
+const themeStore = useThemeStore()
+const COLOR_VARS = computed(() => COLOR_VARS_TABLE[themeStore.isDark ? 'dark' : 'light'])
 
 function resolveColor(c: string): string {
-  if (!c) return '#1C1917'
+  if (!c) return COLOR_VARS.value.currentColor || '#1C1917'
   if (c.startsWith('var(')) {
     const name = c.slice(4, -1).trim()
-    return COLOR_VARS[name] || '#1C1917'
+    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1917'
   }
   return c
 }

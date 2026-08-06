@@ -184,7 +184,7 @@ onLoad((query: any) => {
 .picker-arrow { font-size: 28rpx; line-height: 1; opacity: 0.3; flex-shrink: 0; }
 .tag-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-xs) 0; }
 .tag-chip { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-page); font-size: var(--font-aux); color: var(--text-secondary); border: 2rpx solid var(--border-color); }
-.tag-chip.active { background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary); font-weight: var(--weight-semibold); }
+.tag-chip.active { background: var(--color-primary-soft); color: var(--color-primary); border-color: var(--color-primary); font-weight: var(--weight-semibold); }
 .tag-chip { transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .tag-chip:active { transform: scale(var(--press-scale)); }
 /* 复用 ImageUploader：保持与历史设计一致的 180rpx 单元格尺寸 */

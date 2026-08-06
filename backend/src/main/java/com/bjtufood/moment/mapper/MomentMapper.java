@@ -27,4 +27,17 @@ public interface MomentMapper extends BaseMapper<Moment> {
      */
     List<MomentVO> selectMyMoments(@Param("userId") Long userId,
                                    @Param("auditStatus") String auditStatus);
+
+    /**
+     * 「有用」计数原子增减（并发安全：SET useful_count = useful_count ± delta，最小值 0）
+     */
+    int changeUsefulCount(@Param("id") Long id, @Param("delta") int delta);
+
+    /**
+     * 评论数原子增减（并发安全：SET comment_count = comment_count + delta，最小值 0）
+     *
+     * @param id    动态ID
+     * @param delta +1 新增评论 / -1 删除评论（可为负数批量）
+     */
+    int changeCommentCount(@Param("id") Long id, @Param("delta") int delta);
 }

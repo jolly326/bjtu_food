@@ -71,7 +71,7 @@ function replyToNamed(nickname: string) { emit('reply-named', nickname) }
 
 /** 评论有用幂等切换（语义唯一：有用≠喜欢） */
 async function toggleCommentUseful(c: MomentComment) {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => toggleCommentUseful(c))) return
   const prev = !!c.useful
   const prevCount = c.usefulCount || 0
   c.useful = !prev
@@ -111,7 +111,7 @@ function onLongPress() {
 .c-actions { display: inline-flex; align-items: center; gap: var(--spacing-md); }
 .c-reply-btn { font-size: var(--font-aux); color: var(--color-primary); align-self: center; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); margin-left: -var(--spacing-sm); transition: opacity 0.12s; -webkit-tap-highlight-color: transparent; }
 .c-reply-btn:active { opacity: 0.6; }
-.c-useful { display: inline-flex; align-items: center; gap: var(--spacing-2xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-light); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.c-useful { display: inline-flex; align-items: center; gap: var(--spacing-2xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-color); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .c-useful:active { transform: scale(var(--press-scale)); }
 .c-useful.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .c-useful-icon { font-size: var(--font-aux); line-height: 1; color: var(--text-secondary); }

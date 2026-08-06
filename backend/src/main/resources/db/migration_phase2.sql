@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `moment`
     `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '动态ID',
     `user_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '发布者用户ID',
     `content`       VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '动态正文（上限建议 500 字，DB 留余量）',
-    `images`        VARCHAR(2048) NULL    DEFAULT NULL COMMENT '动态图片URL列表，逗号分隔（≤9张）',
+    `images`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '动态图片URL列表，逗号分隔（≤9张）',
     `related_type`  VARCHAR(32)  NOT NULL DEFAULT 'none' COMMENT '关联对象类型：dish / stall / none',
     `related_id`    BIGINT       NULL    DEFAULT NULL COMMENT '关联对象ID（dish_id 或 stall_id），related_type=none 时为NULL',
     `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected（复用 §3.x.1）',
@@ -49,20 +49,35 @@ CREATE TABLE IF NOT EXISTS `moment_useful`
 -- -------------------- 动态评论 moment_comment --------------------
 CREATE TABLE IF NOT EXISTS `moment_comment`
 (
-    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评论ID',
-    `moment_id`  BIGINT       NOT NULL DEFAULT 0 COMMENT '所属动态ID',
-    `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '评论者用户ID',
-    `parent_id`  BIGINT       NULL    DEFAULT NULL COMMENT '父评论ID（一层回复：NULL=顶级评论，非NULL=对某评论的回复）',
-    `content`    VARCHAR(500) NOT NULL DEFAULT '' COMMENT '评论正文',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+    `moment_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '所属动态ID',
+    `user_id`      BIGINT       NOT NULL DEFAULT 0 COMMENT '评论者用户ID',
+    `parent_id`    BIGINT       NULL    DEFAULT NULL COMMENT '父评论ID（一层回复：NULL=顶级评论，非NULL=对某评论的回复）',
+    `content`      VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '评论正文',
+    `useful_count` INT          NOT NULL DEFAULT 0 COMMENT '「有用 👍」计数（一人一票，task-12.4）',
+    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_comment_moment` (`moment_id`),
-    KEY `idx_comment_parent` (`parent_id`),
-    KEY `idx_comment_user` (`user_id`)
+    KEY `idx_mc_moment` (`moment_id`),
+    KEY `idx_mc_parent` (`parent_id`),
+    KEY `idx_mc_user` (`user_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='动态评论（含一层回复）';
+
+-- 动态评论「有用 👍」标记（一人一票，task-12.4；与 schema.sql 对齐）
+CREATE TABLE IF NOT EXISTS `moment_comment_useful`
+(
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
+    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
+    `comment_id` BIGINT   NOT NULL DEFAULT 0 COMMENT '评论ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_useful_user_comment` (`user_id`, `comment_id`),
+    KEY `idx_useful_comment` (`comment_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='动态评论有用标记';
 
 -- -------------------- 浏览足迹 view_log --------------------
 CREATE TABLE IF NOT EXISTS `view_log`

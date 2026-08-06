@@ -4,9 +4,9 @@
     <view class="home-top" :style="{ paddingTop: statusBarHeight + 'px' }">
       <!-- 定位条：点击重新定位（方案 C；授权成功后首页推荐按距离排序） -->
       <view class="loc-bar" :style="{ paddingRight: menuButtonRight + 'px' }" @tap="onLocTap">
-        <IconSvg name="location" :size="30" color="var(--text-white)" class="loc-icon" />
+        <IconSvg name="location" :size="30" color="var(--color-on-primary-surface)" class="loc-icon" />
         <text class="loc-text">{{ currentLocation }}</text>
-        <IconSvg name="arrow-down" :size="22" color="var(--text-white-soft)" class="loc-arrow" />
+        <IconSvg name="arrow-down" :size="22" color="var(--color-on-primary-surface)" class="loc-arrow" />
       </view>
       <view class="home-search" @tap="goToSearch">
         <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="home-search-icon" />
@@ -122,6 +122,9 @@
       top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -135,6 +138,7 @@ import CustomTabBar from '@/components/CustomTabBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { getBroadcasts } from '@/api/notify'
 import { buildSharePayload } from '@/utils/shareState'
@@ -254,16 +258,12 @@ function goBroadcast(index: number) {
 }
 
 async function loadBroadcast() {
-  // 后端契约 A.14：GET /broadcasts（公开）。失败回落本地演示公告，保证 UI 可演示。
+  // 后端契约 A.14：GET /broadcasts（公开）。失败置空（不回落假文案，数据一律来自后端）。
   try {
     const list = await getBroadcasts()
     broadcastList.value = list
   } catch {
-    broadcastList.value = [
-      { text: '欢迎来到食在交大，发现校园美食', type: 'community' },
-      { text: '同学们都在吃什么 · 最新动态等你来逛', type: 'community' },
-      { text: '发布菜品可获「平鉴官」认证，快来贡献', type: 'community' },
-    ]
+    broadcastList.value = []
   }
   // 清洗空文本项，避免轮换中出现空行
   broadcastList.value = broadcastList.value.filter(b => b && b.text && b.text.trim())
@@ -375,7 +375,8 @@ function openWebView(targetUrl: string) {
   padding-left: var(--spacing-lg);
   padding-right: var(--spacing-lg);
   padding-bottom: var(--spacing-md);
-  background: var(--color-primary-glass);
+  /* 主色表面（大面积）：浅色=品牌红，深色=暗陶土红（见 --color-primary-surface） */
+  background: var(--color-primary-surface);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
@@ -397,7 +398,7 @@ function openWebView(targetUrl: string) {
 }
 .loc-bar:active { opacity: 0.75; }
 .loc-icon { flex-shrink: 0; line-height: 1; }
-.loc-text { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc-text { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-on-primary-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loc-arrow { flex-shrink: 0; line-height: 1; }
 .home-search {
   display: flex;
@@ -417,7 +418,7 @@ function openWebView(targetUrl: string) {
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 .swiper-section { padding: var(--spacing-sm) var(--spacing-md) 0; margin-bottom: var(--spacing-lg); }
 .home-swiper { height: 320rpx; border-radius: var(--radius-card); overflow: hidden; }
-.swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.swiper-slide { height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: var(--color-primary-surface); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
 .swiper-slide:active { opacity: 0.85; }
 .swiper-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .swiper-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--overlay-dark-strong) 0%, var(--overlay-dark-soft) 50%, transparent 100%); }

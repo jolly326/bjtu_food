@@ -81,3 +81,5 @@ mvnrun.log.err
 **/r*_mp.txt
 **/r*_web.txt
 **/r*_tsc.txt
+**/mp_build_check.txt
+**/tsc_check.txt

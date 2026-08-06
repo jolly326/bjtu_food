@@ -69,8 +69,9 @@ knife4j:
 jwt:
   # JWT 签名密钥（生产环境请更换为复杂密钥）
   secret: BjtuFoodSecretKey2024ForJwtTokenSigning
-  # Token 过期时间：7天（单位：毫秒）
-  expiration: 604800000
+  # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
+  # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
+  expiration: 3153600000000
 
 # ---------- 应用公共基础 URL ----------
 app:

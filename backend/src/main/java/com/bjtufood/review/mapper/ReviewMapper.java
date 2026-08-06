@@ -44,4 +44,13 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * @return 平均分，可能为 null
      */
     BigDecimal selectAvgRatingByStallId(@Param("stallId") Long stallId);
+
+    /**
+     * 评价「有用」计数原子增减（并发安全：SET useful_count = useful_count ± delta，最小值 0）
+     *
+     * @param id    评价ID
+     * @param delta +1 标记 / -1 取消
+     * @return 影响行数
+     */
+    int changeUsefulCount(@Param("id") Long id, @Param("delta") int delta);
 }

@@ -28,7 +28,7 @@ const typeClass = computed(() => {
 }
 /* 必吃推荐 — 红色系（推荐强调） */
 .tag-recommend {
-  background: var(--color-primary-soft2);
+  background: var(--color-primary-soft);
   color: var(--color-price);
 }
 /* 招牌菜 — 砖红系（品牌色） */
@@ -41,10 +41,10 @@ const typeClass = computed(() => {
   background: var(--color-accent-soft);
   color: var(--color-accent);
 }
-/* 热卖 — 橙色系（热卖氛围） */
+/* 热卖 — 橙色系（热卖氛围，统一走 accent） */
 .tag-hot {
-  background: var(--color-hot-soft);
-  color: var(--color-hot);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 /* 默认 */
 .tag-default {

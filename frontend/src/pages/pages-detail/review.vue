@@ -57,6 +57,9 @@
     <view class="submit-bar">
       <AppButton text="提交评价" type="primary" :disabled="!canSubmit" :loading="uploading" @click="handleSubmit" />
     </view>
+
+    <!-- 认证弹层（未登录提交评价 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -73,10 +76,13 @@ import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import { useDishStore } from '@/stores/dish'
+import { useUserStore } from '@/stores/user'
 import { uploadImage as uploadImageApi } from '@/api/upload'
 
 const dishStore = useDishStore()
+const userStore = useUserStore()
 const dishId = ref(0)
 const uploading = ref(false)
 const form = reactive({
@@ -107,6 +113,7 @@ function selectImage() {
 }
 
 async function handleSubmit() {
+  if (!userStore.requireAuth(() => handleSubmit())) return
   if (!canSubmit.value || uploading.value) return
   uploading.value = true
 
@@ -263,7 +270,7 @@ onLoad((query) => {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
-  background: var(--text-white);
+  background: var(--color-on-primary);
   box-shadow: var(--shadow-card);
   transition: transform 0.2s var(--ease-out);
 }

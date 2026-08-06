@@ -118,24 +118,24 @@
           </view>
         </CardSection>
 
-        <!-- 高频搜索（2026-08-03：静态推荐词，替代热搜；点击直接搜索；不带序号徽标） -->
-        <CardSection v-if="hotKeywords.length > 0">
-          <SectionTitle title="高频搜索" :bar="false" />
+        <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
+        <CardSection v-if="hotSearchList.length > 0">
+          <SectionTitle title="热搜" :bar="false" />
           <view class="history-chips">
             <view
-              v-for="(kw) in hotKeywords"
-              :key="kw"
+              v-for="(kw) in hotSearchList"
+              :key="kw.keyword"
               class="history-chip history-chip-hot"
-              :class="{ pressed: pressedKey === `hot-${kw}` }"
-              @touchstart="pressedKey = `hot-${kw}`"
+              :class="{ pressed: pressedKey === `hot-${kw.keyword}` }"
+              @touchstart="pressedKey = `hot-${kw.keyword}`"
               @touchend="pressedKey = ''"
               @touchcancel="pressedKey = ''"
-              @mousedown="pressedKey = `hot-${kw}`"
+              @mousedown="pressedKey = `hot-${kw.keyword}`"
               @mouseup="pressedKey = ''"
               @mouseleave="pressedKey = ''"
-              @tap="goKeyword(kw)"
+              @tap="goKeyword(kw.keyword)"
             >
-              <text class="history-chip-text">{{ kw }}</text>
+              <text class="history-chip-text">{{ kw.keyword }}</text>
             </view>
           </view>
         </CardSection>
@@ -202,6 +202,9 @@
       top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -216,6 +219,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Suggestion } from '@/types/dish'
 
@@ -275,10 +279,8 @@ const historyList = ref<string[]>([])
 /** 历史搜索展开/收起（2026-08-03：默认折叠仅显示 3 条，弱化次级入口） */
 const historyExpanded = ref(false)
 
-/** 高频搜索推荐词（2026-08-03：静态词表替代热搜；按校园食堂高频搜索习惯整理） */
-const hotKeywords = [
-  '快餐', '麻辣烫', '牛肉面', '盖饭', '奶茶', '烧烤', '甜品', '早餐',
-]
+/** 热搜词列表（来源：后端 GET /dishes/hot-search，由 loadDiscover → fetchHotSearch 拉取，无前端 mock） */
+const hotSearchList = computed(() => dishStore.hotSearchList)
 
 function loadHistory() {
   try {
@@ -749,7 +751,7 @@ watch(keyword, (value) => {
   border: 1rpx solid transparent;
 }
 .mixed-type.t-dish { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-primary); }
-.mixed-type.t-stall { color: var(--color-hot); background: var(--color-hot-soft); border-color: var(--color-hot); }
+.mixed-type.t-stall { color: var(--color-accent); background: var(--color-accent-soft); border-color: var(--color-accent); }
 .mixed-type.t-canteen { color: var(--text-secondary); background: var(--bg-soft); border-color: var(--border-color); }
 .mixed-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mixed-arrow { flex-shrink: 0; }
@@ -777,7 +779,7 @@ watch(keyword, (value) => {
   border-radius: var(--radius-btn);
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
-  color: var(--text-white);
+  color: var(--color-on-primary);
   transition: opacity 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }

@@ -71,7 +71,7 @@
               <block v-if="hasPromo">
                 <text class="promo-price">¥{{ dish.promoPrice }}</text>
                 <text class="origin-price">¥{{ dish.originalPrice }}</text>
-                <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-hot)" /> 限时</text>
+                <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-accent)" /> 限时</text>
               </block>
               <text v-else class="price-text">¥{{ dish.price }}</text>
             </view>
@@ -103,6 +103,7 @@
                 v-for="rv in reviewList.slice(0, 3)"
                 :key="rv.id"
                 :review="rv"
+                hide-useful
                 :deletable="rv.userId === currentUserId"
                 @delete="onDeleteReview"
               />
@@ -115,12 +116,8 @@
         <view style="height: var(--spacing-lg)"></view>
       </scroll-view>
 
-      <!-- 底部操作栏（sheet 内吸底，安全区避让） -->
+      <!-- 底部操作栏（sheet 内吸底，安全区避让；已移除「喜欢」——favorite 模块无数据源，仅本地切换无意义） -->
       <view class="action-bar" v-if="dish">
-        <view class="fav-btn" :class="{ active: liked }" @tap="toggleLike">
-          <IconSvg :name="liked ? 'heart-filled' : 'heart'" :size="40" :color="liked ? 'var(--color-like)' : 'var(--text-primary)'" class="fav-icon" />
-          <text class="fav-text">{{ liked ? '已喜欢' : '喜欢' }}</text>
-        </view>
         <view class="action-bar-btns">
           <AppButton text="写评价" type="outline" width="220rpx" margin="0 16rpx 0 0" @click="goToReview" />
           <AppButton text="去档口" width="240rpx" margin="0" @click="goToStall" />
@@ -151,7 +148,7 @@ import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
-import { deleteDish } from '@/api/dish'
+import { deleteDish, addView } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { sharedDish } from '@/utils/shareState'
@@ -179,7 +176,6 @@ const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => props.dishId)
 const currentUserId = computed(() => userStore.userInfo?.id)
-const liked = ref(false)
 
 /** reduced-motion 降级 */
 const reduceMotion = ref(false)
@@ -250,12 +246,13 @@ let loadedDishId = 0
 watch(() => props.dishId, (id) => {
   if (!id) return
   loadedDishId = id
-  liked.value = false
   loadDishData()
 })
 
 async function loadDishData() {
   if (!loadedDishId) return
+  // 浏览埋点（POST /dishes/{id}/view）：供热度排序/猜你喜欢；失败静默
+  addView(loadedDishId)
   await Promise.all([
     dishStore.fetchDetail(loadedDishId),
     dishStore.fetchReviews(loadedDishId, { sort: 'latest', isWithImage: false }),
@@ -296,12 +293,6 @@ function onSheetTouchEnd() {
     requestClose()
   }
   dragOffset.value = 0
-}
-
-/** 整页喜欢态（乐观切换；未登录引导） */
-async function toggleLike() {
-  if (!userStore.requireAuth()) return
-  liked.value = !liked.value
 }
 
 /** ===== 分享面板（简化：复制分享文案） ===== */
@@ -349,7 +340,7 @@ function onDishLongPress() {
 
 /** 删除本人评价（仅本人 userId；task-12.5 DELETE /my/reviews/{id}） */
 function onDeleteReview(rv: Review) {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => onDeleteReview(rv))) return
   if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
   uni.showModal({
     title: '删除评价',
@@ -372,7 +363,7 @@ function onDeleteReview(rv: Review) {
 }
 
 function goToReview() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => goToReview())) return
   requestClose()
   uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}` })
 }
@@ -481,11 +472,6 @@ function goToStall() {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .action-bar { background: var(--blur-bg-solid); }
 }
-.fav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 96rpx; min-width: 96rpx; gap: var(--spacing-xs); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.fav-btn:active { transform: scale(var(--press-scale)); }
-.fav-icon { width: 40rpx; height: 40rpx; line-height: 1; flex-shrink: 0; }
-.fav-text { font-size: var(--font-tiny); color: var(--text-primary); white-space: nowrap; line-height: 1.2; }
-.fav-btn.active .fav-text { color: var(--color-like); }
 .action-bar-btns { flex: 1; display: flex; justify-content: flex-end; }
 
 /* 加载骨架：复用全局 shimmer（App.vue 1.4s）流光，与全站加载节奏统一（原 skeleton-pulse 脉冲已弃） */

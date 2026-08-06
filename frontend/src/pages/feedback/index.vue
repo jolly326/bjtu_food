@@ -51,11 +51,9 @@ import { ref } from 'vue'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import CardSection from '@/components/CardSection.vue'
-import { useUserStore } from '@/stores/user'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
 
-const userStore = useUserStore()
 const types: { value: FeedbackSubmit['type']; label: string }[] = [
   { value: 'suggestion', label: '功能建议' },
   { value: 'error', label: '内容纠错' },
@@ -67,7 +65,7 @@ const contact = ref('')
 const submitting = ref(false)
 
 async function submit() {
-  if (!userStore.requireAuth()) return
+  // 反馈不登录也可用（后端 POST /feedback 公开，游客 userId=null）；仅做内容校验
   const text = content.value.trim()
   if (!text) {
     uni.showToast({ title: '请填写反馈内容', icon: 'none' })

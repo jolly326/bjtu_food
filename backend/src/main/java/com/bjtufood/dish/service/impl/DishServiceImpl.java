@@ -236,12 +236,11 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void addViewCount(Long dishId, Long userId) {
-        Dish dish = dishMapper.selectById(dishId);
-        if (dish == null) {
+        // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
+        int affected = dishMapper.increaseViewCount(dishId);
+        if (affected == 0) {
             throw new BusinessException("菜品不存在");
         }
-        dish.setViewCount((dish.getViewCount() == null ? 0 : dish.getViewCount()) + 1);
-        dishMapper.updateById(dish);
     }
 
     @Override
@@ -398,20 +397,8 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void recalcAvgRating(Long dishId) {
-        List<Review> reviews = reviewMapper.selectList(new LambdaQueryWrapper<Review>()
-                .eq(Review::getDishId, dishId)
-                .eq(Review::getIsHidden, 0));
-        Dish dish = dishMapper.selectById(dishId);
-        if (dish == null) {
-            return;
-        }
-        dish.setRatingCount(reviews.size());
-        BigDecimal avg = reviews.isEmpty()
-                ? BigDecimal.ZERO
-                : BigDecimal.valueOf(reviews.stream().mapToInt(Review::getRating).average().orElse(0))
-                .setScale(1, RoundingMode.HALF_UP);
-        dish.setAvgRating(avg);
-        dishMapper.updateById(dish);
+        // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
+        dishMapper.recalcRatingBySubquery(dishId);
     }
 
     // syncCollectCount 已随 favorite 模块移除（task-12.12）；喜欢计数存储方案待架构师评估。

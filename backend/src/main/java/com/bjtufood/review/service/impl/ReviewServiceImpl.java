@@ -92,22 +92,22 @@ public class ReviewServiceImpl implements ReviewService {
                 .eq(ReviewUseful::getReviewId, reviewId));
         UsefulResult result = new UsefulResult();
         if (exist != null) {
-            // 已标记 → 取消：删除记录并计数 -1
+            // 已标记 → 取消：删除记录 + 计数原子 -1
             reviewUsefulMapper.deleteById(exist.getId());
-            int count = (review.getUsefulCount() == null ? 0 : review.getUsefulCount()) - 1;
-            review.setUsefulCount(Math.max(count, 0));
+            reviewMapper.changeUsefulCount(reviewId, -1);
             result.setUseful(false);
         } else {
-            // 未标记 → 标记：插入记录并计数 +1
+            // 未标记 → 标记：插入记录 + 计数原子 +1（uk_user_review 唯一键防并发重复）
             ReviewUseful useful = new ReviewUseful();
             useful.setUserId(userId);
             useful.setReviewId(reviewId);
             reviewUsefulMapper.insert(useful);
-            review.setUsefulCount((review.getUsefulCount() == null ? 0 : review.getUsefulCount()) + 1);
+            reviewMapper.changeUsefulCount(reviewId, 1);
             result.setUseful(true);
         }
-        reviewMapper.updateById(review);
-        result.setUsefulCount(review.getUsefulCount());
+        // 原子增减后回读最新计数（避免返回过期的读-改-写值）
+        Review latest = reviewMapper.selectById(reviewId);
+        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
         return result;
     }
 

@@ -140,7 +140,7 @@ const pressed = ref(false)
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
-  background: var(--text-white);
+  background: var(--color-on-primary);
   box-shadow: var(--shadow-card);
   transition: transform 0.18s var(--ease-out);
 }

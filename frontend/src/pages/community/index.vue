@@ -51,7 +51,7 @@
 
     <!-- 悬浮发布 -->
     <view class="fab" :class="{ pressed: fabPressed }" @touchstart="fabPressed = true" @touchend="fabPressed = false" @touchcancel="fabPressed = false" @mousedown="fabPressed = true" @mouseup="fabPressed = false" @mouseleave="fabPressed = false" @tap="goPublish">
-      <IconSvg name="plus" :size="48" color="var(--text-white)" />
+      <IconSvg name="plus" :size="48" color="var(--color-on-primary)" />
     </view>
 
     <CustomTabBar current="/pages/community/index" />
@@ -63,6 +63,9 @@
       top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -76,6 +79,7 @@ import MomentCard from '@/components/MomentCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { useDishStore } from '@/stores/dish'
 import * as momentApi from '@/api/moment'

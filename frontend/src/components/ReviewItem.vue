@@ -179,7 +179,7 @@ function relativeTime(t?: string) {
   gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-md);
   border-radius: var(--radius-tag);
-  border: 1rpx solid var(--border-light);
+  border: 1rpx solid var(--border-color);
   background: var(--bg-card);
   transition: transform 120ms var(--ease-out), background-color 120ms ease, border-color 120ms ease;
 }

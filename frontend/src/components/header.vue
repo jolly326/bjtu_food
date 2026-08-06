@@ -1,8 +1,8 @@
 <template>
-  <view class="header-wrap glass" :style="{ paddingTop: statusBarHeight + 'px' }">
+  <view class="header-wrap" :style="{ paddingTop: statusBarHeight + 'px' }">
     <view class="header">
       <view class="back-area" v-if="showBack" @tap="handleBack" :class="{ 'back-area-custom': customBack }">
-        <IconSvg name="arrow-left" :size="44" color="var(--text-white)" class="back-arrow" />
+        <IconSvg name="arrow-left" :size="44" color="var(--color-on-primary-surface)" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
       <view class="action-area" v-if="$slots.action">
@@ -51,8 +51,8 @@ function handleBack() {
   position: sticky;
   top: 0;
   z-index: 100;
-  /* 半透主色材质（.glass 提供 blur + 真机降级），顶部高光边模拟光线 */
-  background: var(--color-primary-glass);
+  /* 主色表面（大面积）：浅色=品牌红，深色=暗陶土红（见 --color-primary-surface） */
+  background: var(--color-primary-surface);
   border-bottom: 1rpx solid var(--glass-highlight-soft);
 }
 .header {
@@ -89,7 +89,7 @@ function handleBack() {
 .title {
   font-size: var(--font-h2);
   font-weight: var(--weight-medium);
-  color: var(--text-white);
+  color: var(--color-on-primary-surface);
   display: block;
 }
 </style>

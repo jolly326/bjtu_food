@@ -7,11 +7,12 @@ function toFrontendRole(role?: string): UserInfo['role'] {
   return (role === 'admin' ? 'admin' : 'student') as UserInfo['role']
 }
 
-function toUserInfo(resp: any, fallbackId = 1): UserInfo {
+function toUserInfo(resp: any, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
   // 后端 LoginResp 透传 userId/username/email/nickname/avatar/role（见 auth/dto/LoginResp）
   const username = String(user.username || resp?.username || '')
   return {
+    // 后端恒返回 userId；0 仅作防御性兜底（不伪造有效用户 ID）
     id: Number(user.id ?? resp?.userId ?? fallbackId),
     username,
     // 校园邮箱 = {学号}@bjtu.edu.cn，后端无 email 时前端推导，保证字段恒有值

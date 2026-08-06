@@ -62,7 +62,7 @@
           <!-- 用户评价（关联菜品时展示前 2 条，上分隔线） -->
           <view v-if="moment.relatedType === 'dish' && dishReviews.length > 0" class="review-section">
             <text class="comment-title">用户评价</text>
-            <ReviewItem v-for="rv in dishReviews.slice(0, 2)" :key="rv.id" :review="rv" />
+            <ReviewItem v-for="rv in dishReviews.slice(0, 2)" :key="rv.id" :review="rv" hide-useful />
           </view>
         </view>
 
@@ -92,7 +92,7 @@
           <text class="reject-title">已退回</text>
           <text class="reject-reason">{{ moment.rejectReason }}</text>
           <view class="reject-edit" @tap="goEdit">
-            <IconSvg name="edit" :size="26" color="var(--text-white)" />
+            <IconSvg name="edit" :size="26" color="var(--color-on-primary)" />
             <text class="reject-edit-text">编辑重提</text>
           </view>
         </view>
@@ -113,7 +113,7 @@
         @blur="commentFocus = false"
       />
       <view class="comment-send" @tap="submitComment">
-        <IconSvg name="comment" :size="32" color="var(--text-white)" class="comment-send-text" />
+        <IconSvg name="comment" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
       </view>
     </view>
 
@@ -135,6 +135,9 @@
       top-offset="176rpx"
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层（未登录点赞/评论/举报 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -151,6 +154,7 @@ import InteractBar from '@/components/InteractBar.vue'
 import CommentItem from '@/components/CommentItem.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ReportModal from '@/components/ReportModal.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import { relativeTime } from '@/utils/time'
 import { useUserStore } from '@/stores/user'
@@ -254,7 +258,7 @@ function goEdit() {
 }
 
 async function onUseful() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => onUseful())) return
   if (!moment.value) return
   const prev = usefulActive.value
   const prevCount = moment.value.usefulCount || 0
@@ -284,7 +288,7 @@ const reportSubmitting = ref(false)
 const commentSubmitting = ref(false)
 
 function openReport() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => openReport())) return
   reportOpen.value = true
 }
 
@@ -322,7 +326,7 @@ function replyToNamed(nickname: string) {
 }
 
 async function submitComment() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => submitComment())) return
   if (!moment.value) return
   const content = commentText.value.trim()
   if (!content) {
@@ -412,7 +416,7 @@ onLoad((query) => {
 .reject-title { display: block; font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-error); margin-bottom: var(--spacing-xs); }
 .reject-reason { display: block; font-size: var(--font-body); color: var(--color-error); line-height: 1.5; }
 .reject-edit { margin-top: var(--spacing-sm); display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary); border-radius: var(--radius-tag); }
-.reject-edit-text { font-size: var(--font-aux); color: var(--text-white); font-weight: var(--weight-semibold); }
+.reject-edit-text { font-size: var(--font-aux); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
 /* 评论卡（Apple Design Typography：大字负 tracking + 设计系统 card 规范）。
    与菜品详情评价区、档口详情评价 tab 的 comment-section 完全同款（升级版：圆角 24px、标题 34rpx weight 800、阴影更深更柔） */
 .comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
@@ -426,5 +430,5 @@ onLoad((query) => {
 .comment-input { flex: 1; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: 32rpx; color: var(--text-primary); }
 .comment-send { width: 88rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
-.comment-send-text { font-size: 32rpx; line-height: 1; color: var(--text-white); }
+.comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }
 </style>

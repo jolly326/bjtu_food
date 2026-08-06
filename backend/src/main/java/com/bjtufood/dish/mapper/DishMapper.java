@@ -108,4 +108,22 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return 菜品列表（DishVO）
      */
     List<DishVO> selectRising();
+
+    /**
+     * 浏览量原子自增（并发安全：UPDATE ... SET view_count = view_count + 1）
+     *
+     * @param id 菜品ID
+     * @return 影响行数（0=菜品不存在）
+     */
+    int increaseViewCount(@Param("id") Long id);
+
+    /**
+     * 评分聚合原子重算（并发安全：子查询 AVG/COUNT 后整体写回）
+     * <p>
+     * 仅统计未隐藏评价；avg_rating 保留 1 位小数。
+     *
+     * @param dishId 菜品ID
+     * @return 影响行数
+     */
+    int recalcRatingBySubquery(@Param("dishId") Long dishId);
 }

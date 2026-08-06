@@ -13,15 +13,17 @@
  */
 
 /* ============ 保留 uni 默认语义变量（兼容三方/内部回退引用） ============ */
-$uni-color-primary: #8B3A2B;
+/* 主色与 App.vue 浅色 token 对齐（全站统一砖红 #7A241A，见 src/theme/tokens.ts） */
+$uni-color-primary: #7A241A;
 $uni-color-success: #10B981;
 $uni-color-warning: #F5A623;
 $uni-color-error: #E54D42;
 
 $uni-text-color: #1C1917;
 $uni-text-color-inverse: #FFFFFF;
-$uni-text-color-grey: #A89E96;
-$uni-text-color-placeholder: #A89E96;
+/* tertiary 提对比后与 token 对齐 */
+$uni-text-color-grey: #8C837B;
+$uni-text-color-placeholder: #8C837B;
 $uni-text-color-disable: #C9BFB6;
 
 $uni-bg-color: #FFFFFF;

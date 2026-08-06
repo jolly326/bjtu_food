@@ -58,6 +58,9 @@
       :entity-id="canteenId"
       @update:open="applyOpen = $event"
     />
+
+    <!-- 认证弹层（未登录申请/纠错等 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -73,6 +76,7 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import type { StallCardItem } from '@/components/StallCardSingle.vue'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
@@ -142,7 +146,7 @@ function goToStall(stall: StallCardItem) {
 const applyOpen = ref(false)
 
 function openApply() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => openApply())) return
   if (!canteenId.value) {
     uni.showToast({ title: '食堂信息缺失，无法申请', icon: 'none' })
     return

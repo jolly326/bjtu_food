@@ -61,4 +61,18 @@
         ORDER BY m.created_at DESC
     </select>
 
+    <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->
+    <update id="changeUsefulCount">
+        UPDATE moment
+        SET useful_count = GREATEST(useful_count + #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
+    <!-- 评论数原子增减（并发安全；GREATEST 保证不为负） -->
+    <update id="changeCommentCount">
+        UPDATE moment
+        SET comment_count = GREATEST(comment_count + #{delta}, 0)
+        WHERE id = #{id}
+    </update>
+
 </mapper>

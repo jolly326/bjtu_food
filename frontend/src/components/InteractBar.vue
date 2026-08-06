@@ -40,7 +40,7 @@ function onReport() { emit('report') }
    注意：mp-weixin 组件样式隔离，父级 :deep() 无法命中本组件根节点，
    顶部留白必须写在本组件内，避免点赞栏与上方分隔线贴合） */
 .interact-bar { display: flex; align-items: center; gap: var(--spacing-md); margin: 0; padding: var(--spacing-md) 0 0; }
-.interact-btn { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-light); background: var(--bg-soft); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.interact-btn { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid var(--border-color); background: var(--bg-soft); transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .interact-btn:active { transform: scale(var(--press-scale)); }
 .interact-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .interact-icon { font-size: 30rpx; line-height: 1; color: var(--text-secondary); }

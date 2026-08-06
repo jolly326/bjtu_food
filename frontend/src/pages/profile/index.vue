@@ -122,7 +122,8 @@ function onUserCardTap() {
 /** 4 项功能网格（统一主色软底大图标，克制；未登录点击时引导认证） */
 const gridItems = [
   { key: 'moments', icon: 'comment', label: '我的动态', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
-  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/messages-services/index' })) },
+  // 反馈不登录也可用：游客直接进提交页；登录用户进完整反馈中心（含我的反馈记录）
+  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: userStore.isLoggedIn() ? '/pages/profile/messages-services/index' : '/pages/feedback/index' }) },
   { key: 'notify', icon: 'bell', label: '消息中心', action: () => requireAuth(openMessage) },
   { key: 'reviews', icon: 'star', label: '我的评价', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' })) },
 ]

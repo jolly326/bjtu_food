@@ -55,6 +55,8 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/email-code",
             "/auth/password/reset",
+            // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
+            "/feedback",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",

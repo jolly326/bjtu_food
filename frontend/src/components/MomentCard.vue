@@ -139,7 +139,7 @@ function previewImage(idx: number) {
 }
 
 async function onUseful() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => onUseful())) return
   const prevActive = usefulActive.value
   const prevCount = props.moment.usefulCount || 0
   usefulActive.value = !prevActive

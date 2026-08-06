@@ -173,6 +173,9 @@
       hide-location
       @update:open="dishSheetOpen = $event"
     />
+
+    <!-- 认证弹层（未登录写评价/点赞等 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -187,6 +190,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import DishRowCard from '@/components/DishRowCard.vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
@@ -226,7 +230,7 @@ const currentUserId = computed(() => userStore.userInfo?.id)
 
 /** 删除本人评价（仅本人 userId；task-12.5 DELETE /my/reviews/{id}） */
 function onDeleteReview(rv: Review) {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => onDeleteReview(rv))) return
   if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
   uni.showModal({
     title: '删除评价',
@@ -359,7 +363,7 @@ function goToDetail(dish: Dish) {
 /** 快捷申请关闭/纠错 Sheet */
 const applyOpen = ref(false)
 function openApply() {
-  if (!userStore.requireAuth()) return
+  if (!userStore.requireAuth(() => openApply())) return
   if (!stallDetail.value?.id) {
     uni.showToast({ title: '档口信息缺失，无法申请', icon: 'none' })
     return
@@ -562,7 +566,7 @@ function onRefresh() {
   background: var(--color-primary);
   transform: translateY(-50%);
 }
-.cat-item.active .cat-dot { background: var(--text-white); }
+.cat-item.active .cat-dot { background: var(--color-on-primary); }
 
 /* ===== 档口介绍 tab：单卡内有序分区 ===== */
 .intro-row {

@@ -28,8 +28,11 @@ public class FeedbackController {
 
     private final FeedbackService feedbackService;
 
-    @Operation(summary = "提交反馈", description = "STU。写入 user_feedback（升级表），status=pending。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    /**
+     * 提交反馈（PUB：游客与登录用户均可使用，产品决策「反馈不登录也能用」）。
+     * 登录用户带 userId；游客 userId 为 null（管理员端可见，昵称显示为空）。
+     */
+    @Operation(summary = "提交反馈", description = "PUB。游客与登录用户均可提交；写入 user_feedback，status=pending。")
     @PostMapping("/feedback")
     public Result<Void> submitFeedback(@Valid @RequestBody FeedbackReq req) {
         Long userId = SecurityUtil.getCurrentUserId();

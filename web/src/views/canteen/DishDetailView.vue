@@ -217,8 +217,24 @@ async function handleDeleteReview(id: number) {
   try {
     await store.deleteReview(id)
     toast.success('评论已删除')
+    if (reviewDetail.value && Number(reviewDetail.value.id) === Number(id)) reviewDetail.value = null
   } catch (err: any) {
     toast.error(err.message || '评论删除失败')
+  }
+}
+function parseReviewImages(img?: string): string[] {
+  return (img || '').split('|||').map(s => s.trim()).filter(Boolean)
+}
+const reviewDetail = ref<any | null>(null)
+function openReviewDetail(r: any) { reviewDetail.value = r }
+function closeReviewDetail() { reviewDetail.value = null }
+async function toggleReviewHidden(r: any, hidden: boolean) {
+  try {
+    await store.updateReview(Number(r.id), { is_hidden: hidden })
+    toast.success(hidden ? '评价已隐藏' : '评价已显示')
+    if (reviewDetail.value && Number(reviewDetail.value.id) === Number(r.id)) reviewDetail.value = null
+  } catch (err: any) {
+    toast.error(err.message || '操作失败')
   }
 }
 </script>
@@ -399,7 +415,7 @@ async function handleDeleteReview(id: number) {
       </PageSection>
     </template>
 
-    <!-- Tab 2: 评论管理 -->
+    <!-- Tab 2: 评论管理（直观展示评分/内容/图片/用户，可查看详情/删除） -->
     <template v-if="activeTab === 1">
       <PageSection>
         <template #header-extra>
@@ -407,30 +423,61 @@ async function handleDeleteReview(id: number) {
         </template>
         <DataTable
           :columns="[
-            { prop: 'id', label: 'ID', width: '80px' },
-            { prop: 'user', label: '用户' },
-            { prop: 'rating', label: '评分', width: '140px' },
+            { prop: 'user', label: '用户', width: '150px' },
+            { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
             { prop: 'content', label: '内容', ellipsis: true },
-            { prop: 'time', label: '时间', width: '140px' },
-            { prop: 'actions', label: '操作', width: '120px', align: 'center' },
+            { prop: 'status', label: '状态', width: '110px', align: 'center' },
+            { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
           ]"
           :rows="reviews"
           empty-text="暂无评论"
         >
           <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
           <template #cell-rating="{ row }">
-            <span class="stars"><el-icon v-for="n in row.rating" :key="n" class="star-icon"><Star /></el-icon></span>
+            <span class="stars">{{ '★'.repeat(row.rating) }}<span class="star-off">{{ '★'.repeat(5 - row.rating) }}</span></span>
           </template>
           <template #cell-content="{ row }">
-            <span class="ellipsis" :title="row.content">{{ row.content }}</span>
+            <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
           </template>
-          <template #cell-time="{ row }">{{ row.created_at.toLocaleString('zh-CN') }}</template>
+          <template #cell-status="{ row }">
+            <div class="status-cell">
+              <el-switch
+                :model-value="!row.is_hidden"
+                @change="(v: any) => toggleReviewHidden(row, !v)"
+              />
+              <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
+            </div>
+          </template>
+          <template #cell-time="{ row }">{{ row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '—' }}</template>
           <template #actions="{ row }">
+            <button class="link" v-press @click="openReviewDetail(row)">查看</button>
             <button class="link danger" v-press @click="handleDeleteReview(Number(row.id))">删除</button>
           </template>
         </DataTable>
       </PageSection>
     </template>
+
+    <!-- 评价详情抽屉（图 + 文 + 评分 + 用户） -->
+    <FormDialog :show="!!reviewDetail" title="评价详情" :width="520" :footer="false" @close="closeReviewDetail">
+      <div v-if="reviewDetail" class="detail">
+        <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(reviewDetail.user_id) }}</span></div>
+        <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(reviewDetail.rating) }}<span class="star-off">{{ '★'.repeat(5 - reviewDetail.rating) }}</span></span></div>
+        <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ reviewDetail.content || '（无文字内容）' }}</span></div>
+        <div class="detail-row detail-row-desc" v-if="parseReviewImages(reviewDetail.images).length">
+          <span class="dl">图片</span>
+          <span class="dv detail-imgs">
+            <img v-for="(img, i) in parseReviewImages(reviewDetail.images)" :key="i" :src="img" class="detail-img" />
+          </span>
+        </div>
+        <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ reviewDetail.created_at ? new Date(reviewDetail.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
+      </div>
+      <div class="modal-actions" v-if="reviewDetail">
+        <button class="btn-cancel" v-press @click="closeReviewDetail">关闭</button>
+        <button v-if="!reviewDetail.is_hidden" class="btn-danger" v-press @click="toggleReviewHidden(reviewDetail, true)">隐藏</button>
+        <button v-else class="btn-primary" v-press @click="toggleReviewHidden(reviewDetail, false)">显示</button>
+        <button class="btn-danger" v-press @click="handleDeleteReview(Number(reviewDetail.id))">删除</button>
+      </div>
+    </FormDialog>
 
     <FormDialog :show="showImageModal" title="图片管理" :width="480" confirm-text="保存" @close="closeImageModal" @confirm="saveImageModal">
       <ImageUpload v-model="editForm.image" :max="3" />
@@ -526,4 +573,27 @@ async function handleDeleteReview(id: number) {
 .field-error { margin: var(--space-1) 0 0; font-size: var(--font-sm); color: var(--color-error); }
 .required { color: var(--color-error); }
 .form-select-el { width: 100%; }
+
+/* ===== 评价管理 ===== */
+.stars { color: var(--color-star); letter-spacing: 1px; }
+.star-off { color: var(--border-strong); }
+.status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
+.status-text.on { color: var(--color-success); }
+.status-text.off { color: var(--color-error); }
+.detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.detail-img { width: 96px; height: 96px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
+.detail { display: flex; flex-direction: column; gap: var(--space-3); }
+.detail-row { display: flex; gap: var(--space-3); font-size: var(--font-base); }
+.detail-row-desc { align-items: flex-start; }
+.dl { width: 64px; flex-shrink: 0; color: var(--text-muted); }
+.dv { color: var(--text-primary); flex: 1; }
+.dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
+.modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
+.btn-cancel { padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
+.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.btn-primary { padding: var(--space-2) var(--space-5); border: none; border-radius: var(--radius); background: var(--color-primary); color: var(--text-white); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
+.btn-primary:hover { opacity: .9; }
+.btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
+.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
 </style>

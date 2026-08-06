@@ -313,4 +313,27 @@
         LIMIT 10
     </select>
 
+    <!-- 浏览量原子自增（并发安全：读-改-写 → SET view_count = view_count + 1） -->
+    <update id="increaseViewCount">
+        UPDATE dish
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 评分聚合原子重算（并发安全：子查询 AVG/COUNT 整体写回，仅统计未隐藏评价） -->
+    <update id="recalcRatingBySubquery">
+        UPDATE dish d
+        SET d.avg_rating = IFNULL(
+                (SELECT ROUND(AVG(r.rating), 1)
+                 FROM review r
+                 WHERE r.dish_id = d.id
+                   AND r.is_hidden = 0),
+                0),
+            d.rating_count = (SELECT COUNT(*)
+                              FROM review r
+                              WHERE r.dish_id = d.id
+                                AND r.is_hidden = 0)
+        WHERE d.id = #{dishId}
+    </update>
+
 </mapper>

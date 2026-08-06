@@ -104,10 +104,18 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  /** 需认证入口守卫：未登录时弹出认证弹层（AuthSheet）并返回 false，已登录返回 true */
-  function requireAuth(): boolean {
+  /**
+   * 需认证入口守卫：未登录时弹出认证弹层（AuthSheet）并返回 false，已登录返回 true。
+   * 传入 action 时：登录成功后由 AuthSheet 自动执行该动作（游客操作 → 登录 → 自动继续），
+   * 未传则仅弹层（调用方返回 false 后自行终止）。
+   */
+  function requireAuth(action?: () => void): boolean {
     if (!isLoggedIn()) {
-      useAuthSheetStore().show()
+      if (action) {
+        useAuthSheetStore().requireAuth(action)
+      } else {
+        useAuthSheetStore().show()
+      }
       return false
     }
     return true
