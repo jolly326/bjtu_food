@@ -1,17 +1,29 @@
 <template>
-  <view class="app-btn" :class="[btnType, { disabled, loading }]" :style="{ width, margin }" @tap="handleTap">
-    <image v-if="icon" :src="icon" class="btn-icon" />
+  <view
+    class="app-btn"
+    :class="[btnType, { disabled, loading }]"
+    :style="btnStyle"
+    @touchstart="pressed = true"
+    @touchend="pressed = false"
+    @touchcancel="pressed = false"
+    @mousedown="pressed = true"
+    @mouseup="pressed = false"
+    @mouseleave="pressed = false"
+    @tap="handleTap"
+  >
+    <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   text: string
   icon?: string
-  type?: 'primary' | 'danger' | 'gradient' | 'outline'
+  type?: 'primary' | 'danger' | 'outline'
   disabled?: boolean
   loading?: boolean
   width?: string
@@ -29,7 +41,16 @@ const emit = defineEmits<{
   click: []
 }>()
 
+// icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
 const btnType = computed(() => `btn-${props.type}`)
+
+const pressed = ref(false)
+const btnStyle = computed(() => ({
+  width: props.width,
+  margin: props.margin,
+  transform: pressed.value ? 'scale(var(--press-scale))' : 'scale(1)',
+  transition: 'var(--press-transition)',
+}))
 
 function handleTap() {
   if (props.disabled || props.loading) return
@@ -48,26 +69,22 @@ function handleTap() {
   gap: var(--spacing-xs);
 }
 .btn-icon {
-  width: 32rpx;
-  height: 32rpx;
-  margin-right: 8rpx;
+  flex-shrink: 0;
+  margin-right: var(--spacing-xs);
 }
 .app-btn.disabled {
   opacity: 0.4;
 }
 .btn-text {
   font-size: var(--font-card);
-  font-weight: 500;
-  color: var(--text-white);
+  font-weight: var(--weight-medium);
+  color: var(--color-on-primary);
 }
 .btn-primary {
   background: var(--color-primary);
 }
 .btn-danger {
   background: var(--color-error);
-}
-.btn-gradient {
-  background: var(--color-gradient);
 }
 .btn-outline {
   background: transparent;

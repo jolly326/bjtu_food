@@ -15,16 +15,44 @@
 			}
 		},
 		{
-			"path": "pages/favorite/index",
+			"path": "pages/profile/index",
 			"style": {
-				"navigationBarTitleText": "收藏",
+				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
 			}
 		},
 		{
-			"path": "pages/profile/index",
+			"path": "pages/community/index",
 			"style": {
-				"navigationBarTitleText": "我的",
+				"navigationBarTitleText": "动态",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/feedback/index",
+			"style": {
+				"navigationBarTitleText": "意见反馈",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/webview/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/messages-services/index",
+			"style": {
+				"navigationBarTitleText": "反馈中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/profile/messages/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
 				"navigationStyle": "custom"
 			}
 		}
@@ -41,9 +69,9 @@
 					}
 				},
 				{
-					"path": "dish",
+					"path": "moment",
 					"style": {
-						"navigationBarTitleText": "菜品详情",
+						"navigationBarTitleText": "动态详情",
 						"navigationStyle": "custom"
 					}
 				},
@@ -62,12 +90,59 @@
 					}
 				}
 			]
+		},
+		{
+			"root": "pages/pages-user/",
+			"pages": [
+				{
+					"path": "publish-moment/index",
+					"style": {
+						"navigationBarTitleText": "发布动态",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "my-moments/index",
+					"style": {
+						"navigationBarTitleText": "我的动态",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "publish-dish",
+					"style": {
+						"navigationBarTitleText": "发布菜品",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "submit-stall",
+					"style": {
+						"navigationBarTitleText": "提交档口",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "my-reviews/index",
+					"style": {
+						"navigationBarTitleText": "我的评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "profile-edit/index",
+					"style": {
+						"navigationBarTitleText": "个人信息",
+						"navigationStyle": "custom"
+					}
+				}
+			]
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "white",
 		"navigationBarTitleText": "食在交大",
 		"navigationBarBackgroundColor": "#8B3A2B",
-		"backgroundColor": "#F8F8F8"
+		"backgroundColor": "#F6F4EF"
 	}
 }

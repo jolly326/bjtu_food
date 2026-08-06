@@ -1,502 +1,272 @@
 <template>
-  <view class="page profile-page">
+  <view class="page profile-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="我的" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <template v-if="!isLoggedIn">
-        <view class="auth-shell">
-          <view class="auth-hero">
-            <view class="hero-badge">
-              <image class="hero-logo" src="/static/icons/food.svg" />
-            </view>
-            <text class="hero-title">{{ authTitle }}</text>
-            <text class="hero-subtitle">{{ authSubtitle }}</text>
-          </view>
-
-          <view class="auth-panel">
-            <template v-if="mode === 'login'">
-              <view class="form-head">
-                <text class="form-title">欢迎回来</text>
-                <text class="form-note">使用账号密码登录，继续收藏和评价校园美食</text>
-              </view>
-
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/user.svg" />
-                <input v-model="loginForm.account" class="input-control" placeholder="账号 / 学号 / 校园邮箱" />
-              </view>
-
-              <view v-if="loginType === 'password'" class="input-field">
-                <image class="input-icon" src="/static/icons/lock.svg" />
-                <input v-model="loginForm.password" class="input-control" placeholder="密码" password />
-              </view>
-
-              <template v-else>
-                <view class="input-field">
-                  <image class="input-icon" src="/static/icons/user.svg" />
-                  <input v-model="loginCodeForm.email" class="input-control" placeholder="校园邮箱" />
-                </view>
-                <view class="input-field code-field">
-                  <image class="input-icon" src="/static/icons/lock.svg" />
-                  <input v-model="loginCodeForm.code" class="input-control" placeholder="邮箱验证码" />
-                  <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('login')">{{ codeButtonText }}</text>
-                </view>
-              </template>
-
-              <view class="row-actions">
-                <text class="link-text" @tap="toggleLoginType">{{ loginType === 'password' ? '验证码登录' : '密码登录' }}</text>
-                <text class="link-text" @tap="setMode('reset')">忘记密码</text>
-              </view>
-
-              <view class="primary-action" :class="{ disabled: isBusy }" @tap="loginType === 'password' ? handlePasswordLogin() : handleEmailLogin()">
-                <text class="primary-action-text">{{ isBusy ? '正在登录...' : '登录' }}</text>
-              </view>
-
-              <view class="bottom-prompt">
-                <text class="prompt-muted">还没有账号？</text>
-                <text class="prompt-link" @tap="setMode('register')">使用校园邮箱注册</text>
-              </view>
-            </template>
-
-            <template v-else-if="mode === 'register'">
-              <view class="form-head">
-                <text class="form-title">创建账号</text>
-                <text class="form-note">首次注册需要绑定校园邮箱，并设置之后登录使用的账号密码</text>
-              </view>
-
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/user.svg" />
-                <input v-model="registerForm.username" class="input-control" placeholder="账号 / 学号" />
-              </view>
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/user.svg" />
-                <input v-model="registerForm.email" class="input-control" placeholder="校园邮箱，如 20240002@bjtu.edu.cn" />
-              </view>
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/food.svg" />
-                <input v-model="registerForm.nickname" class="input-control" placeholder="昵称" />
-              </view>
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/lock.svg" />
-                <input v-model="registerForm.password" class="input-control" placeholder="设置密码，至少 6 位" password />
-              </view>
-              <view class="input-field code-field">
-                <image class="input-icon" src="/static/icons/lock.svg" />
-                <input v-model="registerForm.code" class="input-control" placeholder="邮箱验证码" />
-                <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('register')">{{ codeButtonText }}</text>
-              </view>
-
-              <view class="primary-action" :class="{ disabled: isBusy }" @tap="handleRegister">
-                <text class="primary-action-text">{{ isBusy ? '正在注册...' : '注册' }}</text>
-              </view>
-
-              <view class="bottom-prompt">
-                <text class="prompt-muted">已有账号？</text>
-                <text class="prompt-link" @tap="setMode('login')">返回登录</text>
-              </view>
-            </template>
-
-            <template v-else>
-              <view class="form-head">
-                <text class="form-title">找回密码</text>
-                <text class="form-note">通过已绑定的校园邮箱验证码重新设置密码</text>
-              </view>
-
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/user.svg" />
-                <input v-model="resetForm.email" class="input-control" placeholder="已绑定的校园邮箱" />
-              </view>
-              <view class="input-field">
-                <image class="input-icon" src="/static/icons/lock.svg" />
-                <input v-model="resetForm.newPassword" class="input-control" placeholder="新密码，至少 6 位" password />
-              </view>
-              <view class="input-field code-field">
-                <image class="input-icon" src="/static/icons/lock.svg" />
-                <input v-model="resetForm.code" class="input-control" placeholder="邮箱验证码" />
-                <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode('reset')">{{ codeButtonText }}</text>
-              </view>
-
-              <view class="primary-action" :class="{ disabled: isBusy }" @tap="handleResetPassword">
-                <text class="primary-action-text">{{ isBusy ? '正在重置...' : '重置密码' }}</text>
-              </view>
-
-              <view class="bottom-prompt">
-                <text class="prompt-muted">想起来了？</text>
-                <text class="prompt-link" @tap="setMode('login')">返回登录</text>
-              </view>
-            </template>
-          </view>
-        </view>
-      </template>
-
-      <template v-else>
-        <view class="user-header">
-          <view class="user-info-row">
-            <view class="avatar-wrap" @tap="handleEditAvatar">
-              <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
-              <view v-else class="avatar avatar-empty">
-                <image class="avatar-fallback" src="/static/icons/food.svg" />
-              </view>
-            </view>
-            <view class="user-meta">
-              <view class="nickname-row" @tap="handleEditNickname">
-                <text class="nickname">{{ userInfo?.nickname || '未知用户' }}</text>
-              </view>
-              <text class="user-id">用户 ID {{ userInfo?.id }}</text>
+      <!-- 用户卡：未登录显示游客态（点击弹出认证）；已登录显示完整信息（点击进个人信息页） -->
+      <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="onUserCardTap">
+        <view class="user-card-head">
+          <view class="avatar-wrap">
+            <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
+            <view v-else class="avatar avatar-empty">
+              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
           </view>
-        </view>
-
-        <view class="stats-row">
-          <view class="stat-item">
-            <text class="stat-value">{{ userStore.userStats.favoriteCount }}</text>
-            <text class="stat-label">收藏</text>
+          <view class="user-meta">
+            <text class="nickname">{{ isLoggedIn ? (userInfo?.nickname || '未知用户') : '未登录' }}</text>
+            <view class="meta-line">
+              <text v-if="isLoggedIn" class="user-id">{{ userInfo?.email || '游客模式' }}</text>
+              <text v-else class="user-id">游客模式 · 登录解锁完整功能</text>
+            </view>
           </view>
-          <view class="stat-divider" />
-          <view class="stat-item">
-            <text class="stat-value">{{ userStore.userStats.reviewCount }}</text>
-            <text class="stat-label">评价</text>
-          </view>
-        </view>
-
-        <view class="menu-section">
-          <view class="menu-item" @tap="goToReviews">
-            <image class="menu-icon" src="/static/icons/star.svg" />
-            <text class="menu-label">我的评价</text>
-            <image class="menu-arrow" src="/static/icons/right.svg" />
-          </view>
-          <view class="menu-item" @tap="goToAbout">
-            <image class="menu-icon" src="/static/icons/location.svg" />
-            <text class="menu-label">关于食在交大</text>
-            <image class="menu-arrow" src="/static/icons/right.svg" />
-          </view>
-        </view>
-
-        <view class="logout-wrap">
-          <AppButton text="退出登录" type="outline" @click="handleLogout" />
-        </view>
-      </template>
-
-      <view v-if="showNicknameEditor" class="modal-mask" @tap="showNicknameEditor = false">
-        <view class="modal-content" @tap.stop>
-          <text class="modal-title">修改昵称</text>
-          <input v-model="editingNickname" class="modal-input" placeholder="输入新昵称" maxlength="20" confirm-type="done" @confirm="confirmEditNickname" />
-          <view class="modal-actions">
-            <text class="modal-btn modal-btn-cancel" @tap="showNicknameEditor = false">取消</text>
-            <text class="modal-btn modal-btn-confirm" @tap="confirmEditNickname">确认</text>
-          </view>
+          <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
         </view>
       </view>
+
+      <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价；未登录点击时引导认证） -->
+      <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
+        <view
+          v-for="g in gridItems"
+          :key="g.key"
+          class="grid-item"
+          :class="{ pressed: pressedKey === g.key }"
+          @touchstart="pressedKey = g.key"
+          @touchend="pressedKey = ''"
+          @touchcancel="pressedKey = ''"
+          @mousedown="pressedKey = g.key"
+          @mouseup="pressedKey = ''"
+          @mouseleave="pressedKey = ''"
+          @tap="g.action"
+        >
+          <view class="grid-icon">
+            <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
+            <view v-if="isLoggedIn && g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
+              {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
+            </view>
+          </view>
+          <text class="grid-label">{{ g.label }}</text>
+        </view>
+      </view>
+
+      <!-- 设置（单列表：深色模式/关于/隐私/缓存；游客也可用，无需认证） -->
+      <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
+        <SettingCell label="深色模式" icon="settings" :switch="true" :switch-value="theme.isDark" @select="theme.toggle()" />
+        <SettingCell label="关于食在交大" icon="logo" @select="goAbout" />
+        <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
+        <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
+      </SettingGroup>
+
+      <!-- 账号注销（危险操作，仅登录后可见） -->
+      <SettingGroup v-if="isLoggedIn" :style="{ '--enter-i': 3 }">
+        <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
+      </SettingGroup>
+
+      <view class="version-row">
+        <text class="version-text">食在交大 v1.0.0</text>
+      </view>
     </scroll-view>
+
+    <!-- 认证弹层：游客点击需认证功能时弹出 -->
+    <AuthSheet />
 
     <CustomTabBar current="/pages/profile/index" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
-import AppButton from '@/components/AppButton.vue'
 import CustomTabBar from '@/components/CustomTabBar.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
+import SettingGroup from '@/components/SettingGroup.vue'
+import SettingCell from '@/components/SettingCell.vue'
 import { useUserStore } from '@/stores/user'
+import { useNotifyStore } from '@/stores/notify'
+import { useAuthSheetStore } from '@/stores/authSheet'
+import { useThemeStore } from '@/stores/theme'
 import { getImageUrl } from '@/utils/image'
-import { uploadImage } from '@/api/upload'
-import { resetPassword, sendEmailCode } from '@/api/user'
-
-type Mode = 'login' | 'register' | 'reset'
-type LoginType = 'password' | 'email'
-type CodePurpose = 'login' | 'register' | 'reset'
+import { deleteAccount } from '@/api/user'
 
 const userStore = useUserStore()
+const notifyStore = useNotifyStore()
+const authSheetStore = useAuthSheetStore()
+const theme = useThemeStore()
 const userInfo = computed(() => userStore.userInfo)
-const isLoggedIn = computed(() => !!userStore.token && !!userStore.userInfo)
-const isBusy = computed(() => userStore.loading)
+const isLoggedIn = computed(() => userStore.isLoggedIn())
+const pressedKey = ref('')
 
-const mode = ref<Mode>('login')
-const loginType = ref<LoginType>('password')
-const codeCountdown = ref(0)
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-
-const loginForm = reactive({ account: '', password: '' })
-const loginCodeForm = reactive({ email: '', code: '' })
-const registerForm = reactive({ username: '', email: '', nickname: '', password: '', code: '' })
-const resetForm = reactive({ email: '', newPassword: '', code: '' })
-
-const authTitle = computed(() => {
-  if (mode.value === 'register') return '加入食在交大'
-  if (mode.value === 'reset') return '重设你的密码'
-  return '食在交大'
-})
-
-const authSubtitle = computed(() => {
-  if (mode.value === 'register') return '校园邮箱认证，只为校内用户开放'
-  if (mode.value === 'reset') return '验证码确认身份后即可设置新密码'
-  return '发现食堂窗口、收藏好菜、记录评价'
-})
-
-const codeButtonText = computed(() => codeCountdown.value > 0 ? `${codeCountdown.value}s` : '获取验证码')
-
-function setMode(next: Mode) {
-  mode.value = next
-  codeCountdown.value = 0
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
-    countdownTimer = null
-  }
+function openMessage() {
+  uni.navigateTo({ url: '/pages/profile/messages/index' })
 }
 
-function toggleLoginType() {
-  loginType.value = loginType.value === 'password' ? 'email' : 'password'
-}
-
-function startCountdown() {
-  codeCountdown.value = 60
-  if (countdownTimer) clearInterval(countdownTimer)
-  countdownTimer = setInterval(() => {
-    codeCountdown.value -= 1
-    if (codeCountdown.value <= 0 && countdownTimer) {
-      clearInterval(countdownTimer)
-      countdownTimer = null
-    }
-  }, 1000)
-}
-
-function getEmailForPurpose(purpose: CodePurpose) {
-  if (purpose === 'register') return registerForm.email.trim()
-  if (purpose === 'reset') return resetForm.email.trim()
-  return loginCodeForm.email.trim()
-}
-
-function isCampusEmail(email: string) {
-  return /^[^\s@]+@bjtu\.edu\.cn$/i.test(email)
-}
-
-async function sendCode(purpose: CodePurpose) {
-  if (codeCountdown.value > 0) return
-  const email = getEmailForPurpose(purpose)
-  if (!isCampusEmail(email)) {
-    uni.showToast({ title: '请填写 @bjtu.edu.cn 校园邮箱', icon: 'none' })
+/** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
+function requireAuth(action: () => void) {
+  if (userStore.isLoggedIn()) {
+    action()
     return
   }
-  try {
-    await sendEmailCode(email, purpose)
-    uni.showToast({ title: '验证码已发送', icon: 'success' })
-    startCountdown()
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '验证码发送失败', icon: 'none' })
-  }
+  authSheetStore.requireAuth(action)
 }
 
-async function handlePasswordLogin() {
-  console.log('[profile] password login tapped')
-  if (isBusy.value) return
-  if (!loginForm.account.trim() || !loginForm.password) {
-    uni.showToast({ title: '请填写账号和密码', icon: 'none' })
+/** 用户卡：未登录点击弹认证；已登录点击进个人信息页 */
+function onUserCardTap() {
+  if (!userStore.isLoggedIn()) {
+    authSheetStore.requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' }))
     return
   }
-  try {
-    await userStore.loginByPassword(loginForm.account.trim(), loginForm.password)
-    uni.showToast({ title: '登录成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '登录失败', icon: 'none' })
-  }
+  goProfileEdit()
 }
 
-async function handleEmailLogin() {
-  if (isBusy.value) return
-  if (!isCampusEmail(loginCodeForm.email) || !loginCodeForm.code.trim()) {
-    uni.showToast({ title: '请填写校园邮箱和验证码', icon: 'none' })
-    return
-  }
-  try {
-    await userStore.loginByEmailCode(loginCodeForm.email.trim(), loginCodeForm.code.trim())
-    uni.showToast({ title: '登录成功', icon: 'success' })
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '登录失败', icon: 'none' })
-  }
+/** 4 项功能网格（统一主色软底大图标，克制；未登录点击时引导认证） */
+const gridItems = [
+  { key: 'moments', icon: 'comment', label: '我的动态', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
+  // 反馈不登录也可用：游客直接进提交页；登录用户进完整反馈中心（含我的反馈记录）
+  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: userStore.isLoggedIn() ? '/pages/profile/messages-services/index' : '/pages/feedback/index' }) },
+  { key: 'notify', icon: 'bell', label: '消息中心', action: () => requireAuth(openMessage) },
+  { key: 'reviews', icon: 'star', label: '我的评价', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' })) },
+]
+
+function goProfileEdit() {
+  uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-async function handleRegister() {
-  if (isBusy.value) return
-  if (!registerForm.username.trim() || !registerForm.nickname.trim() || !registerForm.password || !registerForm.code.trim()) {
-    uni.showToast({ title: '请完整填写注册信息', icon: 'none' })
-    return
-  }
-  if (!isCampusEmail(registerForm.email)) {
-    uni.showToast({ title: '请填写 @bjtu.edu.cn 校园邮箱', icon: 'none' })
-    return
-  }
-  if (registerForm.password.length < 6) {
-    uni.showToast({ title: '密码至少 6 位', icon: 'none' })
-    return
-  }
-  try {
-    await userStore.register({
-      username: registerForm.username.trim(),
-      email: registerForm.email.trim(),
-      nickname: registerForm.nickname.trim(),
-      password: registerForm.password,
-      code: registerForm.code.trim(),
-    })
-    uni.showToast({ title: '注册成功，请登录', icon: 'success' })
-    loginForm.account = registerForm.username.trim()
-    setMode('login')
-    loginType.value = 'password'
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '注册失败', icon: 'none' })
-  }
+// ── 设置（内嵌分组）──
+function goAbout() {
+  uni.showModal({
+    title: '关于食在交大',
+    content: '食在交大是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
+    showCancel: false,
+  })
 }
 
-async function handleResetPassword() {
-  if (isBusy.value) return
-  if (!isCampusEmail(resetForm.email) || !resetForm.code.trim() || !resetForm.newPassword) {
-    uni.showToast({ title: '请完整填写找回密码信息', icon: 'none' })
-    return
-  }
-  if (resetForm.newPassword.length < 6) {
-    uni.showToast({ title: '新密码至少 6 位', icon: 'none' })
-    return
-  }
-  try {
-    await resetPassword({
-      email: resetForm.email.trim(),
-      code: resetForm.code.trim(),
-      newPassword: resetForm.newPassword,
-    })
-    uni.showToast({ title: '密码已重置，请登录', icon: 'success' })
-    loginForm.account = resetForm.email.trim()
-    setMode('login')
-    loginType.value = 'password'
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '重置失败', icon: 'none' })
-  }
+function goPrivacy() {
+  uni.showModal({
+    title: '隐私政策',
+    content: '我们仅收集必要的账号与登录信息用于提供服务。您的浏览足迹、动态与收藏仅用于优化你的个性化体验，不会向第三方泄露。',
+    showCancel: false,
+  })
 }
 
-const showNicknameEditor = ref(false)
-const editingNickname = ref('')
-
-function handleEditAvatar() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      const tempPath = res.tempFilePaths[0]
-      try {
-        const url = await uploadImage(tempPath)
-        await userStore.updateProfile({ avatar: url })
-        uni.showToast({ title: '头像已更新', icon: 'success' })
-      } catch {
-        uni.showToast({ title: '更新失败', icon: 'none' })
+function clearCache() {
+  uni.showModal({
+    title: '清除缓存',
+    content: '确定清除本地缓存吗？不会删除你的账号数据。',
+    success: (res) => {
+      if (res.confirm) {
+        uni.clearStorageSync()
+        userStore.restoreFromCache()
+        uni.showToast({ title: '缓存已清除', icon: 'none' })
       }
     },
   })
 }
 
-function handleEditNickname() {
-  editingNickname.value = userInfo.value?.nickname || ''
-  showNicknameEditor.value = true
-}
-
-async function confirmEditNickname() {
-  const name = editingNickname.value.trim()
-  if (!name) {
-    uni.showToast({ title: '昵称不能为空', icon: 'none' })
-    return
-  }
-  try {
-    await userStore.updateProfile({ nickname: name })
-    showNicknameEditor.value = false
-    uni.showToast({ title: '昵称已更新', icon: 'success' })
-  } catch {
-    uni.showToast({ title: '更新失败', icon: 'none' })
-  }
-}
-
-function goToReviews() {
-  uni.showToast({ title: '功能开发中', icon: 'none' })
-}
-
-function goToAbout() {
-  uni.showToast({ title: '食在交大 v1.0', icon: 'none' })
-}
-
-function handleLogout() {
+function goCancelAccount() {
   uni.showModal({
-    title: '退出登录',
-    content: '确定要退出当前账号吗？',
+    title: '账号注销',
+    content: '注销后你的菜品、动态、评价等数据将被删除且不可恢复，确定要继续吗？',
+    confirmText: '确认注销',
+    confirmColor: '#e54d42',
     success: (res) => {
-      if (res.confirm) userStore.logout()
+      if (res.confirm) doDeleteAccount()
     },
   })
 }
 
+async function doDeleteAccount() {
+  try {
+    await deleteAccount()
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+    uni.showToast({ title: '账号已注销', icon: 'none' })
+    setTimeout(() => { uni.reLaunch({ url: '/pages/profile/index' }) }, 600)
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '注销失败', icon: 'none' })
+  }
+}
+
 onMounted(() => {
   if (userStore.isLoggedIn()) {
-    userStore.fetchStats()
+    notifyStore.fetchUnread()
   }
 })
-
-onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer)
+// 从消息中心页返回时刷新未读角标
+onShow(() => {
+  if (userStore.isLoggedIn()) {
+    notifyStore.fetchUnread()
+  }
 })
 </script>
 
 <style scoped>
-.profile-page { display: flex; flex-direction: column; height: 100vh; background: #f6f4ef; }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + 30rpx + env(safe-area-inset-bottom)); }
-.auth-shell { min-height: calc(100vh - var(--tabbar-height)); padding: 24rpx 30rpx 56rpx; box-sizing: border-box; }
-.auth-hero { min-height: 330rpx; padding: 42rpx 36rpx 126rpx; border-radius: 28rpx; background: linear-gradient(135deg, #8b3a2b 0%, #c95c3f 58%, #2f7d72 100%); box-sizing: border-box; color: #fff; }
-.hero-badge { width: 96rpx; height: 96rpx; border-radius: 28rpx; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; margin-bottom: 26rpx; border: 1rpx solid rgba(255,255,255,.24); }
-.hero-logo { width: 58rpx; height: 58rpx; filter: brightness(10); }
-.hero-title { display: block; font-size: 48rpx; line-height: 1.15; font-weight: 800; color: #fff; letter-spacing: 0; }
-.hero-subtitle { display: block; margin-top: 14rpx; font-size: 26rpx; line-height: 1.5; color: rgba(255,255,255,.84); }
-.auth-panel { position: relative; margin: -88rpx 12rpx 0; padding: 36rpx 30rpx 32rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 18rpx 54rpx rgba(56, 42, 34, .14); box-sizing: border-box; }
-.form-head { margin-bottom: 26rpx; }
-.form-title { display: block; font-size: 36rpx; line-height: 1.25; font-weight: 760; color: #2d2521; }
-.form-note { display: block; margin-top: 10rpx; font-size: 24rpx; line-height: 1.5; color: #8c817a; }
-.input-field { min-height: 92rpx; display: flex; align-items: center; gap: 18rpx; margin-top: 18rpx; padding: 0 22rpx; background: #f8f6f2; border: 2rpx solid #ebe4dd; border-radius: 16rpx; box-sizing: border-box; }
-.input-icon { width: 36rpx; height: 36rpx; opacity: .52; flex-shrink: 0; }
-.input-control { flex: 1; height: 90rpx; font-size: 28rpx; color: #2d2521; min-width: 0; }
-.code-field { padding-right: 0; }
-.code-action { min-width: 154rpx; height: 90rpx; padding: 0 22rpx; display: flex; align-items: center; justify-content: center; border-left: 2rpx solid #ebe4dd; color: #8b3a2b; font-size: 24rpx; font-weight: 650; white-space: nowrap; }
-.code-action.disabled { color: #aaa19a; }
-.row-actions { display: flex; align-items: center; justify-content: space-between; margin: 22rpx 2rpx 0; }
-.link-text { font-size: 25rpx; color: #7a6f68; }
-.primary-action { height: 92rpx; margin-top: 32rpx; border-radius: 18rpx; background: #8b3a2b; display: flex; align-items: center; justify-content: center; box-shadow: 0 12rpx 28rpx rgba(139,58,43,.22); }
-.primary-action:active { transform: scale(.99); opacity: .92; }
-.primary-action.disabled { opacity: .58; }
-.primary-action-text { color: #fff; font-size: 30rpx; font-weight: 720; }
-.bottom-prompt { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 28rpx; }
-.prompt-muted { font-size: 25rpx; color: #9a918b; }
-.prompt-link { font-size: 25rpx; color: #2f7d72; font-weight: 680; }
-.user-header { margin: var(--spacing-md) var(--spacing-md) 0; }
-.user-info-row { display: flex; align-items: center; padding: var(--spacing-md); gap: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+
+/* Hero 用户卡（纯白卡 + 主题色点缀；头像 + 昵称 + ID/认证 + 右侧 >，整卡点击进个人信息页；无渐变） */
+.user-card {
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  /* Apple highlight 按压：背景微变而非缩放（列表行卡规范） */
+  transition: background-color 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.user-card:active { background-color: var(--bg-soft); }
+.user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; }
-.avatar { width: 100rpx; height: 100rpx; border-radius: 50%; background: var(--bg-page); }
-.avatar-empty { display: flex; align-items: center; justify-content: center; }
-.avatar-fallback { width: 50rpx; height: 50rpx; }
-.user-meta { flex: 1; min-width: 0; }
-.nickname-row { margin-bottom: 4rpx; }
-.nickname { font-size: var(--font-subtitle); font-weight: 600; color: var(--text-primary); }
+.avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; background: var(--bg-page); }
+.avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
+.user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* Apple Design Typography：昵称加大（title 级 800 + 负 tracking），强化身份层级 */
+.nickname { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h2); }
+.meta-line { display: flex; align-items: center; gap: var(--spacing-sm); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
-.stats-row { display: flex; align-items: center; background: var(--bg-card); margin: var(--spacing-sm) var(--spacing-md) 0; padding: var(--spacing-md) 0; border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
-.stat-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
-.stat-value { font-size: var(--font-h2); font-weight: 700; color: var(--text-primary); }
-.stat-label { font-size: var(--font-aux); color: var(--text-tertiary); }
-.stat-divider { width: 2rpx; height: 40rpx; background: var(--border-color); }
-.menu-section { background: var(--bg-card); margin: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden; }
-.menu-item { display: flex; align-items: center; padding: var(--spacing-md) var(--spacing-lg); gap: var(--spacing-sm); border-bottom: 2rpx solid var(--border-color); }
-.menu-item:last-child { border-bottom: none; }
-.menu-icon { width: 40rpx; height: 40rpx; flex-shrink: 0; opacity: 0.6; }
-.menu-label { flex: 1; font-size: var(--font-body); color: var(--text-primary); }
-.menu-arrow { width: 28rpx; height: 28rpx; opacity: 0.3; flex-shrink: 0; }
-.logout-wrap { padding: var(--spacing-md); }
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal-content { width: 560rpx; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); }
-.modal-title { display: block; font-size: var(--font-card); font-weight: 600; color: var(--text-primary); text-align: center; margin-bottom: 32rpx; }
-.modal-input { width: 100%; height: 80rpx; border: 2rpx solid var(--border-color); border-radius: var(--radius-card); padding: 0 var(--spacing-md); font-size: var(--font-body); box-sizing: border-box; }
-.modal-actions { display: flex; justify-content: space-between; margin-top: var(--spacing-lg); gap: var(--spacing-sm); }
-.modal-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-card); font-size: var(--font-body); font-weight: 500; }
-.modal-btn-cancel { background: var(--bg-page); color: var(--text-secondary); }
-.modal-btn-confirm { background: var(--color-primary); color: var(--text-white); }
+.card-arrow { flex-shrink: 0; }
+
+/* 4 项功能网格（4 列：纯主题色图标 + 文字，无背景块；卡片间距统一 --spacing-sm） */
+.grid-menu {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-sm);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+  transition: transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.grid-item.pressed { transform: scale(var(--press-scale)); }
+.grid-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.grid-label { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.2; }
+.grid-badge {
+  position: absolute; top: -10rpx; right: -16rpx;
+  min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx;
+  background: var(--color-error); color: var(--text-white);
+  font-size: 18rpx; font-weight: var(--weight-semibold); line-height: 32rpx; text-align: center;
+  box-sizing: border-box;
+}
+
+.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
+.version-text { display: block; font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-tertiary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .user-card, .grid-item { transition: none; }
+}
 </style>

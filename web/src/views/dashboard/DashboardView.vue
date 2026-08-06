@@ -1,461 +1,225 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import * as echarts from 'echarts'
-import { useAdminStore } from '@/stores/adminStore'
+/**
+ * DashboardView：工作台（运营全貌 + 待办处理）。
+ * 一次请求 /admin/dashboard 返回：待办数、待办明细（申请/动态/反馈各 5 条）、
+ * 8 项规模指标、近期操作（日志 10 条）。点击直达对应管理 tab。
+ */
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePageStore } from '@/stores/pageStore'
-import starIcon from '@/static/icon/yellow-star.svg'
-import canteenIcon from '@/static/icon/canteen.svg'
-import shopIcon from '@/static/icon/shop.svg'
-import foodIcon from '@/static/icon/Food.svg'
-import accountIcon from '@/static/icon/account.svg'
-import chartBarIcon from '@/static/icon/chart-bar.svg'
-import commentIcon from '@/static/icon/comment.svg'
+import { getDashboard, type DashboardData } from '@/api/dashboard'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import {
+  PriceTag, ChatDotRound, ChatLineSquare, House, Food, User, Document,
+  Refresh, ArrowRight, Check,
+} from '@element-plus/icons-vue'
 
-const store = useAdminStore()
+const router = useRouter()
 const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '数据概览' }] })
+page.setPage({ breadcrumbs: [{ label: '工作台' }] })
 
-const trendRef = ref<HTMLDivElement | null>(null)
-let trendChart: echarts.ECharts | null = null
-const tabActive = ref<'canteen' | 'dish'>('canteen')
-const trendMode = ref<'day' | 'week' | 'month'>('month')
+const loading = ref(true)
+const failed = ref(false)
+const data = ref<DashboardData | null>(null)
 
-function fmtDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-function getWeekKey(d: Date) {
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  const m = new Date(d)
-  m.setDate(diff)
-  return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`
-}
-
-const trendData = computed(() => {
-  const map = new Map<string, number>()
-  for (const r of store.reviews as any[]) {
-    const d = r.created_at as Date
-    const k = trendMode.value === 'day' ? fmtDate(d)
-            : trendMode.value === 'week' ? getWeekKey(d)
-            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    map.set(k, (map.get(k) || 0) + 1)
-  }
-  const entries = Array.from(map).sort((a, b) => a[0].localeCompare(b[0]))
-  return {
-    labels: entries.map(e => {
-      const s = e[0].slice(5)
-      return trendMode.value === 'week' ? s.slice(0, 2) + '-' + s.slice(3) : s
-    }),
-    counts: entries.map(e => e[1]),
-  }
-})
-
-const canteenRank = computed(() => {
-  return store.canteens
-    .map(c => {
-      const stalls = store.stalls.filter(s => Number(s.canteen_id) === Number(c.id))
-      const dishes = store.dishes.filter(d => stalls.some(s => Number(s.id) === Number(d.stall_id)))
-      const rs = store.reviews.filter(r => dishes.some(d => Number(d.id) === Number(r.dish_id)))
-      const avg = rs.length ? Math.round((rs.reduce((s, r) => s + r.rating, 0) / rs.length) * 10) / 10 : 0
-      return { name: c.name, avg, stallCount: stalls.length, activeStalls: stalls.filter(s => s.status === 'active').length, status: c.status }
-    })
-    .sort((a, b) => b.avg - a.avg || b.stallCount - a.stallCount)
-})
-
-const topDishes = computed(() => {
-  return store.dishes
-    .map(d => {
-      const stall = store.stalls.find(s => Number(s.id) === Number(d.stall_id))
-      const canteen = stall ? store.canteens.find(c => Number(c.id) === Number(stall.canteen_id)) : null
-      const rc = store.reviews.filter(r => Number(r.dish_id) === Number(d.id)).length
-      return { name: d.name, rc, avg: d.avg_rating, loc: canteen?.name || '' }
-    })
-    .sort((a, b) => b.rc - a.rc || b.avg - a.avg)
-    .slice(0, 3)
-})
-
-function getTrendOpt() {
-  const max = Math.max(...trendData.value.counts, 1)
-  return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 44, right: 16, top: 6, bottom: 14 },
-    xAxis: {
-      type: 'category', data: trendData.value.labels,
-      axisLine: { show: false }, axisTick: { show: false },
-      axisLabel: { color: '#999', fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value', splitLine: { lineStyle: { color: '#f0f0f0' } },
-      axisLabel: { color: '#999', fontSize: 11 },
-      min: 0, max: max + 1,
-    },
-    series: [{
-      type: 'bar', data: trendData.value.counts, barWidth: '50%',
-      itemStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#e74c1f' }, { offset: 1, color: '#ffb088' },
-        ]),
-        borderRadius: [4, 4, 0, 0],
-      },
-    }],
+async function loadData() {
+  loading.value = true
+  failed.value = false
+  try {
+    data.value = await getDashboard('week')
+  } catch {
+    failed.value = true
+  } finally {
+    loading.value = false
   }
 }
 
-function initTrend() {
-  if (!trendRef.value || !trendData.value.labels.length) return
-  trendChart = echarts.init(trendRef.value!)
-  trendChart.setOption(getTrendOpt())
-}
+function navTo(path: string) { router.push(path) }
 
-function resize() { trendChart?.resize() }
-function cleanup() { trendChart?.dispose(); trendChart = null }
+// ===== 待办卡（点击直达对应 tab） =====
+const todoCards = computed(() => [
+  { key: 'apply', label: '待审核申请', count: data.value?.pendingApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
+  { key: 'moment', label: '待审核动态', count: data.value?.pendingMomentCount ?? 0, icon: ChatDotRound, to: '/dashboard/audit?tab=moment' },
+  { key: 'feedback', label: '待处理反馈', count: data.value?.pendingFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
+])
 
-watch(trendMode, () => {
-  if (trendChart) {
-    trendChart.setOption(getTrendOpt(), true)
-  } else {
-    nextTick(() => initTrend())
-  }
-})
+// ===== 8 项规模指标 =====
+const metrics = computed(() => [
+  { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
+  { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=stall' },
+  { key: 'dish', label: '菜品', value: data.value?.totalDishCount ?? 0, icon: PriceTag, to: '/dashboard/content?tab=dish' },
+  { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=user' },
+  { key: 'moment', label: '动态', value: data.value?.totalMomentCount ?? 0, icon: ChatDotRound, to: '/dashboard/audit?tab=moment' },
+  { key: 'review', label: '评价', value: data.value?.totalReviewCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=review' },
+  { key: 'apply', label: '申请', value: data.value?.totalApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
+  { key: 'feedback', label: '反馈', value: data.value?.totalFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
+])
 
-onMounted(async () => {
-  await nextTick()
-  setTimeout(() => { initTrend(); window.addEventListener('resize', resize) }, 80)
-})
-onUnmounted(() => { window.removeEventListener('resize', resize); cleanup() })
-
-function uname(id: number | bigint) {
-  const u = store.users.find(u => Number(u.id) === Number(id))
-  return u?.nickname || u?.username || `用户${id}`
-}
-function dname(id: number | bigint) {
-  const d = store.dishes.find(d => Number(d.id) === Number(id))
-  return d?.name || `菜品${id}`
-}
-
-const studentUsers = computed(() => store.users.filter(u => u.role !== 'admin'))
+onMounted(loadData)
 </script>
 
 <template>
-  <div class="dash">
-
-    <!-- 顶栏 -->
-    <div class="topbar">
-      <div class="topbar-l">
-        <div class="topbar-title">数据概览</div>
-        <div class="topbar-meta">{{ store.stats.totalCanteens }} 个食堂 · {{ store.stats.totalStalls }} 个档口 · {{ store.stats.totalDishes }} 道菜品</div>
-      </div>
-      <div class="topbar-r">
-        <div class="tb-stat">
-          <span class="tb-val">{{ store.reviews.length ? (store.reviews.reduce((s, r) => s + r.rating, 0) / store.reviews.length).toFixed(1) : '0.0' }}</span>
-          <span class="tb-lbl">综合评分</span>
-        </div>
-        <div class="tb-stat">
-          <span class="tb-val">{{ store.stats.totalReviews }}</span>
-          <span class="tb-lbl">评论</span>
-        </div>
-        <div class="tb-stat">
-          <span class="tb-val">{{ store.users.filter(u => u.role !== 'admin' && u.status === 'active').length }}</span>
-          <span class="tb-lbl">活跃学生</span>
-        </div>
-      </div>
+  <PageContainer>
+    <div v-if="loading" class="state-box"><span class="spin" />加载中…</div>
+    <div v-else-if="failed || !data" class="state-box state-err">工作台加载失败
+      <button class="btn-secondary inline" v-press type="button" @click="loadData">重试</button>
     </div>
 
-    <!-- 指标行 -->
-    <div class="kpis">
-      <div class="kpi" v-for="k in [
-        { i: canteenIcon, n: store.stats.totalCanteens, l: '食堂', a: `${store.activeCanteens.length} 活跃` },
-        { i: shopIcon, n: store.stats.totalStalls, l: '档口', a: `${store.activeStalls.length} 活跃` },
-        { i: foodIcon, n: store.stats.totalDishes, l: '菜品', a: `${store.activeDishes.length} 上架` },
-        { i: accountIcon, n: studentUsers.length, l: '学生', a: `${studentUsers.filter(u => u.status === 'active').length} 在线` },
-      ]" :key="k.l">
-        <img :src="k.i" class="kpi-icon" />
-        <div class="kpi-num">{{ k.n }}</div>
-        <div class="kpi-info">
-          <div class="kpi-lbl">{{ k.l }}</div>
-          <div class="kpi-sub">{{ k.a }}</div>
+    <template v-else>
+      <!-- ===== 待办处理 ===== -->
+      <section class="block-section">
+        <div class="section-head">
+          <h3 class="section-title">待办处理</h3>
+          <button class="btn-secondary" v-press type="button" @click="loadData">
+            <el-icon class="ref-ico"><Refresh /></el-icon>刷新
+          </button>
         </div>
-      </div>
-    </div>
-
-    <!-- 主区域 -->
-    <div class="main">
-      <!-- 评论趋势 -->
-      <div class="card">
-        <div class="card-hd">
-          <span class="card-tt">
-            <img :src="chartBarIcon" class="h-icon" />
-            评论趋势
-          </span>
-          <div class="tabs">
-            <button class="tab" :class="{ 'tab-on': trendMode === 'day' }" @click="trendMode = 'day'">按天</button>
-            <button class="tab" :class="{ 'tab-on': trendMode === 'week' }" @click="trendMode = 'week'">按周</button>
-            <button class="tab" :class="{ 'tab-on': trendMode === 'month' }" @click="trendMode = 'month'">按月</button>
-          </div>
-        </div>
-        <div ref="trendRef" class="card-body card-body-chart">
-          <div v-if="!trendData.labels.length" class="empty-msg">暂无数据</div>
-        </div>
-      </div>
-
-      <!-- 右侧 Tab -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="tabs">
-            <button class="tab" :class="{ 'tab-on': tabActive === 'canteen' }" @click="tabActive = 'canteen'">食堂排行</button>
-            <button class="tab" :class="{ 'tab-on': tabActive === 'dish' }" @click="tabActive = 'dish'">热门菜品</button>
-          </div>
-        </div>
-        <div class="card-body card-body-list">
-          <div v-if="tabActive === 'canteen'">
-            <div v-if="canteenRank.length" class="clist">
-              <div v-for="(c, i) in canteenRank" :key="c.name" class="citem">
-                <span class="cnum" :class="'cnum-' + (i + 1)">{{ i + 1 }}</span>
-                <div class="cinfo">
-                  <span class="cinfo-n">{{ c.name }}</span>
-                  <span class="cinfo-s">{{ c.activeStalls }}/{{ c.stallCount }} 档口</span>
-                </div>
-                <div class="cright">
-                  <span class="cstar" v-if="c.avg">
-                    <img :src="starIcon" class="star-svg" />{{ c.avg }}
-                  </span>
-                  <span class="cstar cstar-na" v-else>—</span>
-                </div>
-              </div>
+        <div class="todo-grid">
+          <article
+            v-for="t in todoCards"
+            :key="t.key"
+            class="todo-card"
+            :class="{ done: t.count === 0 }"
+            v-press
+            role="button"
+            tabindex="0"
+            @click="navTo(t.to)"
+            @keyup.enter="navTo(t.to)"
+          >
+            <div class="todo-icon"><el-icon><component :is="t.icon" /></el-icon></div>
+            <div class="todo-body">
+              <div class="todo-value">{{ t.count }}</div>
+              <div class="todo-label">{{ t.label }}</div>
             </div>
-            <div v-else class="empty-msg" style="position:static;padding:16px">暂无食堂</div>
-          </div>
-          <div v-if="tabActive === 'dish'">
-            <div v-if="topDishes.length" class="dlist">
-              <div v-for="(d, i) in topDishes" :key="d.name" class="ditem">
-                <span class="dbadge" :class="'dbadge-' + (i + 1)">{{ i + 1 }}</span>
-                <div class="dinfo">
-                  <span class="dinfo-n">{{ d.name }}</span>
-                  <span class="dinfo-l">{{ d.loc }}</span>
-                </div>
-                <div class="dmeta">
-                  <span class="dstar">
-                    <img :src="starIcon" class="star-svg" />{{ d.avg }}
-                  </span>
-                  <span class="dcnt">{{ d.rc }} 评</span>
-                </div>
-              </div>
+            <div class="todo-action">
+              <template v-if="t.count > 0">去处理<el-icon class="todo-arrow"><ArrowRight /></el-icon></template>
+              <span v-else class="todo-clear"><el-icon class="todo-arrow"><Check /></el-icon>已清空</span>
             </div>
-            <div v-else class="empty-msg" style="position:static;padding:16px">暂无菜品</div>
-          </div>
+          </article>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <!-- 最新反馈 -->
-    <div class="card">
-      <div class="card-hd">
-        <span class="card-tt">
-          <img :src="commentIcon" class="h-icon" />
-          最新反馈
-        </span>
-        <span class="card-tag">{{ store.reviews.length }} 条</span>
-      </div>
-      <div class="card-body" style="padding:4px 20px 8px">
-        <div v-if="store.reviews.length" class="rlist">
-          <div v-for="r in store.reviews.slice(-3).reverse()" :key="Number(r.id)" class="ritem">
-            <span class="rav">{{ uname(r.user_id)[0] }}</span>
-            <div class="rbody">
-              <div class="rhead">
-                <span class="rname">{{ uname(r.user_id) }}</span>
-                <span class="rstars">
-                  <span v-for="s in 5" :key="s" class="rstar" :class="{ 'rstar-on': s <= r.rating }"></span>
-                </span>
-              </div>
-              <p class="rtext">{{ r.content }}</p>
-              <div class="rmeta">
-                <span>{{ dname(r.dish_id) }}</span>
-                <span class="rdot">·</span>
-                <span>{{ r.created_at.toLocaleDateString('zh-CN') }}</span>
-              </div>
+      <!-- ===== 数据总览 ===== -->
+      <section class="block-section">
+        <h3 class="section-title">数据总览</h3>
+        <div class="metric-grid">
+          <article
+            v-for="m in metrics"
+            :key="m.key"
+            class="metric-card"
+            v-press
+            role="button"
+            tabindex="0"
+            @click="navTo(m.to)"
+            @keyup.enter="navTo(m.to)"
+          >
+            <div class="metric-icon"><el-icon><component :is="m.icon" /></el-icon></div>
+            <div class="metric-body">
+              <div class="metric-value">{{ m.value }}</div>
+              <div class="metric-label">{{ m.label }}</div>
             </div>
-          </div>
+          </article>
         </div>
-        <div v-else class="empty-msg" style="position:static;padding:16px">暂无评论</div>
-      </div>
-    </div>
-
-  </div>
+      </section>
+    </template>
+  </PageContainer>
 </template>
 
 <style scoped>
-.dash {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-
-/* ===== 顶栏 ===== */
-.topbar {
+.block-section { margin-bottom: var(--space-8); }
+.section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
+  margin-bottom: var(--space-3);
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-size: var(--font-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  /* 与全站分区卡标题一致的品牌竖条 */
+  padding-left: var(--space-3);
+  position: relative;
+}
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
   background: var(--color-primary);
-  border-radius: 10px;
-  margin-bottom: 16px;
 }
-.topbar-title { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: .5px; }
-.topbar-meta { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 3px; }
-.topbar-r { display: flex; gap: 28px; }
-.tb-stat { text-align: center; }
-.tb-val { display: block; font-size: 22px; font-weight: 700; color: #fff; line-height: 1.2; }
-.tb-lbl { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+.btn-secondary.inline { margin-left: var(--space-3); }
+.ref-ico { width: 14px; height: 14px; }
 
-/* ===== 指标行 ===== */
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.kpi {
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 18px;
+.state-box { text-align: center; color: var(--text-light); padding: var(--space-10) var(--space-4); display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.state-err { color: var(--color-error); }
+.spin { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 1.4s; } }
+
+/* ===== 待办卡 ===== */
+.todo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+.todo-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.03);
-}
-.kpi-icon { width: 22px; height: 22px; opacity: .5; flex-shrink: 0; }
-.kpi-num { font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1; min-width: 30px; }
-.kpi-lbl { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.kpi-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
-
-/* ===== 主布局 ===== */
-.main {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-/* ===== 卡片 ===== */
-.card {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.card-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid #f0f0f0;
-  flex-shrink: 0;
-}
-.card-tt { font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
-.h-icon { width: 16px; height: 16px;flex-shrink: 0; filter: brightness(0); }
-.card-tag { font-size: 11px; color: var(--text-light); background: #f5f5f5; padding: 2px 10px; border-radius: 8px; }
-.card-body { padding: 6px; }
-.card-body-chart { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px 0; position: relative; min-height: 140px; }
-.card-body-list { padding: 4px 16px 8px; }
-
-/* ===== 趋势图 ===== */
-.empty-msg {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-light); font-size: 13px;
-  background: rgba(255,255,255,.7);
-  pointer-events: none;
-}
-
-/* ===== Tab ===== */
-.tabs { display: flex; }
-.tab {
-  padding: 5px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid #e8e8e8;
-  background: #fafafa;
-  color: var(--text-muted);
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
   cursor: pointer;
-  transition: all .15s;
-  line-height: 1.4;
+  user-select: none;
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
 }
-.tab:first-child { border-radius: 6px 0 0 6px; }
-.tab:last-child { border-radius: 0 6px 6px 0; }
-.tab + .tab { border-left: none; }
-.tab-on {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
-}
+@media (hover: hover) { .todo-card:hover { box-shadow: var(--card-hover-shadow); border-color: var(--border-strong); } }
+.todo-card:active { transform: scale(var(--press-scale)); }
+.todo-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.todo-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-md); flex-shrink: 0; color: var(--color-primary); background: var(--color-primary-bg); }
+.todo-icon .el-icon { font-size: 24px; }
+.todo-card.done .todo-icon { color: var(--color-success); background: var(--color-success-bg); }
+.todo-body { flex: 1; min-width: 0; }
+.todo-value { font-size: var(--font-4xl); font-weight: var(--weight-bold); line-height: 1.1; color: var(--text-primary); letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
+.todo-label { margin-top: var(--space-1); font-size: var(--font-md); font-weight: var(--weight-medium); color: var(--text-secondary); }
+.todo-action { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-sm); color: var(--color-primary); font-weight: var(--weight-medium); flex-shrink: 0; }
+.todo-arrow { width: 14px; height: 14px; }
+.todo-clear { display: inline-flex; align-items: center; gap: 2px; color: var(--color-success); }
 
-/* ===== 食堂排行 ===== */
-.clist { display: flex; flex-direction: column; }
-.citem {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 0; border-bottom: 1px solid #f5f5f5;
+/* ===== 指标卡 ===== */
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
 }
-.citem:last-child { border-bottom: none; }
-.cnum {
-  width: 22px; height: 22px; border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; flex-shrink: 0;
-  background: #f5f5f5; color: var(--text-muted);
-}
-.cnum-1 { background: linear-gradient(135deg, #ffd700, #ffb300); color: #fff; }
-.cnum-2 { background: linear-gradient(135deg, #e8e8e8, #d4d4d4); color: #666; }
-.cnum-3 { background: #e8a87c; color: #fff; }
-.cinfo { flex: 1; margin-left: 10px; min-width: 0; }
-.cinfo-n { font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; }
-.cinfo-s { font-size: 11px; color: var(--text-light); margin-top: 1px; }
-.cright { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.star-svg { width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 2px; }
-.cstar { font-size: 13px; font-weight: 700; color: var(--color-star); display: inline-flex; align-items: center; }
-.cstar-na { color: var(--text-light); }
-/* ===== 热门菜品 ===== */
-.dlist { display: flex; flex-direction: column; }
-.ditem {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 0; border-bottom: 1px solid #f5f5f5;
-}
-.ditem:last-child { border-bottom: none; }
-.dbadge {
-  width: 22px; height: 22px; border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; flex-shrink: 0;
-  background: #f5f5f5; color: var(--text-muted);
-}
-.dbadge-1 { background: linear-gradient(135deg, #ffd700, #ffb300); color: #fff; }
-.dbadge-2 { background: linear-gradient(135deg, #e8e8e8, #d4d4d4); color: #666; }
-.dbadge-3 { background: #f5f5f5; color: var(--text-muted); }
-.dinfo { flex: 1; min-width: 0; }
-.dinfo-n { font-size: 14px; font-weight: 600; color: var(--text-primary); display: block; }
-.dinfo-l { font-size: 11px; color: var(--text-light); margin-top: 1px; }
-.dmeta { text-align: right; flex-shrink: 0; }
-.dstar { font-size: 13px; font-weight: 700; color: var(--color-star); display: inline-flex; align-items: center; }
-.dcnt { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block; text-align: right; }
+@media (hover: hover) { .metric-card:hover { box-shadow: var(--card-hover-shadow); border-color: var(--border-strong); } }
+.metric-card:active { transform: scale(var(--press-scale)); }
+.metric-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.metric-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-md); flex-shrink: 0; color: var(--color-primary); background: var(--color-primary-bg); }
+.metric-icon .el-icon { font-size: 20px; }
+.metric-body { min-width: 0; }
+.metric-value { font-size: var(--font-2xl); font-weight: var(--weight-bold); line-height: 1.1; color: var(--text-primary); letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
+.metric-label { margin-top: 2px; font-size: var(--font-xs); color: var(--text-muted); }
 
-/* ===== 反馈列表 ===== */
-.rlist { display: flex; flex-direction: column; }
-.ritem {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 9px 0; border-bottom: 1px solid #f5f5f5;
+/* ===== 响应式 ===== */
+/* 1280–960px：8 指标卡 4→3 列平滑过渡，避免 4 列偏挤 */
+@media (max-width: 1279px) {
+  .metric-grid { grid-template-columns: repeat(3, 1fr); }
 }
-.ritem:last-child { border-bottom: none; }
-.rav {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+@media (max-width: 959px) {
+  .todo-grid { grid-template-columns: 1fr; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
 }
-.rbody { flex: 1; min-width: 0; }
-.rhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
-.rname { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.rstars { display: flex; gap: 2px; }
-.rstar {
-  width: 12px; height: 12px; background: #e8e8e8;
-  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-}
-.rstar-on { background: var(--color-star); }
-.rtext { margin: 3px 0 4px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
-.rmeta { font-size: 11px; color: var(--text-light); display: flex; align-items: center; gap: 4px; }
-.rdot { color: #ddd; }
 </style>

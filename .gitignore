@@ -27,6 +27,7 @@ uploads/
 !backend/uploads/images/seed/**
 application-local.yml
 application-*.local.yml
+application-secret.yml
 
 # Node / uni-app / Vite
 node_modules/
@@ -53,6 +54,11 @@ project.private.config.json
 Thumbs.db
 desktop.ini
 
+# CodeBuddy local agent/skills/teams runtime & config (not project source)
+.codebuddy/
+.agents/
+.playwright-mcp/
+
 # Editor directories and files
 .idea/
 .vscode/
@@ -61,3 +67,19 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# build/log artifacts
+*.err
+dbcheck_out*.txt
+dep_swagger.txt
+ec_schema.txt
+mvnrun.log.err
+
+# temp build/verify outputs
+**/build_mp*.txt
+**/build_r*.txt
+**/r*_mp.txt
+**/r*_web.txt
+**/r*_tsc.txt
+**/mp_build_check.txt
+**/tsc_check.txt

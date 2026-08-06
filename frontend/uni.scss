@@ -1,0 +1,92 @@
+/* ==========================================================================
+ * 食在交大 · 全局设计 Token（Apple Design 风格，对齐 project_spec.md §4.2）
+ * uni-app 自动将此文件注入每个组件的 style 作用域，可直接用 var(--xxx) 引用。
+ *
+ * 重要：设计 Token 的唯一事实源为 src/App.vue 的全局 <style>（page / :root /
+ * .theme-dark 三处），色值由 src/theme/tokens.ts 收敛。本文件仅保留 uni 注入
+ * 所需的浅色 token 快照（与 App.vue 浅色块对齐），深色模式由 .theme-dark 覆盖，
+ * 新增/修改一律改 App.vue + tokens.ts，勿在本文件单独改色。
+ * ========================================================================== */
+
+page {
+  /* ---------- 品牌主色（terracotta 陶土红，hue≈10°） ---------- */
+  --color-primary: #7A241A;
+  --color-primary-dark: #5E1A10;
+  --color-on-primary: #FFFFFF;
+  --color-primary-soft: #FBE8E2;
+
+  /* ---------- 辅助 / 强调色 ---------- */
+  --color-accent: #E67E22;
+  --color-star: #FFB400;
+  --color-price: #B0351F;                /* 价格高亮（区别于 primary） */
+
+  /* ---------- 状态色 ---------- */
+  --color-success: #10B981;
+  --color-warning: #F5A623;
+  --color-error: #E54D42;
+
+  /* ---------- 文字色（四档层级） ---------- */
+  --text-primary: #1C1917;
+  --text-secondary: #6B625B;
+  --text-tertiary: #8C837B;
+  --text-quaternary: #A8A09A;
+  --text-white: #FFFFFF;
+  --text-white-secondary: rgba(255, 255, 255, 0.85);
+
+  /* ---------- 背景色 ---------- */
+  --bg-page: #F6F4EF;
+  --bg-card: #FFFFFF;
+  --bg-soft: #F1ECE6;
+  /* 半透明材质底色（backdrop-filter 真机不支持时降级为纯色半透 + 阴影，见 §4.5/§4.7） */
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-glass-dark: rgba(40, 20, 16, 0.55);
+
+  /* ---------- 边框色 ---------- */
+  --border-color: #ECE6E0;
+  --border-bold: #C9BFB6;
+
+  /* ---------- 间距（4pt 基准栅格） ---------- */
+  --spacing-2xs: 4rpx;
+  --spacing-xs: 8rpx;
+  --spacing-sm: 16rpx;
+  --spacing-md: 24rpx;
+  --spacing-lg: 32rpx;
+  --spacing-xl: 48rpx;
+
+  /* ---------- 圆角（§4.2） ---------- */
+  --radius-tag: 999rpx;
+  --radius-card: 16px;
+  --radius-sheet: 20rpx;                 /* 底部弹层 20px 20px 0 0 */
+  --radius-modal: 24px;
+  --radius-btn: 16px;
+  --radius-icon: 12px;
+
+  /* ---------- 阴影（材质 / 深度） ---------- */
+  --shadow-card: 0 4rpx 16rpx rgba(56, 42, 34, 0.08);
+  --shadow-card-soft: 0 8rpx 32rpx rgba(56, 42, 34, 0.08);
+  --shadow-modal: 0 18rpx 54rpx rgba(56, 42, 34, 0.18);
+
+  /* ---------- 材质模糊（§4.5） ---------- */
+  --blur-radius: 20px;
+  --blur-material: blur(20px) saturate(180%);
+
+  /* ---------- 字体大小 ---------- */
+  --font-tiny: 20rpx;
+  --font-aux: 22rpx;
+  --font-small: 24rpx;
+  --font-body: 28rpx;
+  --font-caption: 30rpx;
+  --font-subtitle: 32rpx;
+  --font-card: 32rpx;
+  --font-headline: 44rpx;
+  --font-h3: 36rpx;
+  --font-h2: 40rpx;
+  --font-h1: 48rpx;
+
+  /* ---------- 图标尺寸 ---------- */
+  --icon-sm: 28rpx;
+  --icon-lg: 48rpx;
+
+  /* ---------- 底部导航栏高度 ---------- */
+  --tabbar-height: 100rpx;
+}

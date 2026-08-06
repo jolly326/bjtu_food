@@ -12,17 +12,18 @@ spring:
   application:
     name: bjtu-food
 
+  # ---------- 敏感配置引入 ----------
+  # 引入 application-secret.yml（含 SMTP 发件邮箱/授权码，已加入 .gitignore，不随仓库提交）。
+  # optional：文件缺失时不报错（如生产环境用环境变量注入），存在则默认加载。
+  config:
+    import: optional:classpath:application-secret.yml
+
   # ---------- 数据源配置 ----------
   datasource:
-    url: jdbc:mysql://39.105.66.79:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: bjtu
-    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
-  # datasource:
-  #   url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-  #   username: root
-  #   password: 123456
-  #   driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: oi
+    password: "060326"
 
   # ---------- 文件上传配置 ----------
   servlet:
@@ -31,14 +32,11 @@ spring:
       max-request-size: 20MB    # 单次请求最大 20MB
 
   # ---------- SMTP 邮件配置 ----------
-  # 发送邮箱验证码必须配置环境变量：
-  # MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD
-  # 未配置时 /auth/email-code 会发送失败。
+  # 发件邮箱与授权码由 application-secret.yml 提供（spring.mail.username / spring.mail.password），
+  # 经上方 spring.config.import 自动加载；也可用环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 覆盖。
   mail:
     host: smtp.qq.com
     port: 465
-    username: 3269728411@qq.com
-    password: bnwxvookwzzhdbbc
     protocol: smtp
     default-encoding: UTF-8
     properties:
@@ -71,8 +69,9 @@ knife4j:
 jwt:
   # JWT 签名密钥（生产环境请更换为复杂密钥）
   secret: BjtuFoodSecretKey2024ForJwtTokenSigning
-  # Token 过期时间：7天（单位：毫秒）
-  expiration: 604800000
+  # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
+  # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
+  expiration: 3153600000000
 
 # ---------- 应用公共基础 URL ----------
 app:

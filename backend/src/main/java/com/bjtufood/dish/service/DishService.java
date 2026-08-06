@@ -3,8 +3,12 @@ package com.bjtufood.dish.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
+import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
+import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.MyDishVO;
+import com.bjtufood.dish.dto.SuggestionVO;
 
 import java.util.List;
 
@@ -40,6 +44,34 @@ public interface DishService {
     List<DishVO> getHotDishes();
 
     /**
+     * 获取热门菜品（支持按用户位置距离加权排序，首页推荐联动定位；可控制返回条数）
+     *
+     * @param lat   用户纬度（GCJ-02，可为 null）
+     * @param lng   用户经度（GCJ-02，可为 null）
+     * @param limit 返回条数（可为 null，默认 TOP10）
+     * @return 热门菜品列表（近食堂菜品优先）
+     */
+    List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit);
+
+    /**
+     * 获取今日上新菜品
+     * <p>
+     * 按创建时间降序排列，取前8条（status=on）
+     *
+     * @return 上新菜品列表
+     */
+    List<DishVO> getNewDishes();
+
+    /**
+     * 获取限时活动菜品
+     * <p>
+     * 返回有活动特价的菜品，带活动价和截止时间
+     *
+     * @return 活动菜品列表
+     */
+    List<DishVO> getPromotionDishes();
+
+    /**
      * 获取菜品详情
      * <p>
      * 如果请求已登录，会在响应中附加：
@@ -54,6 +86,20 @@ public interface DishService {
     DishVO getDishDetail(Long id, Long userId);
 
     /**
+     * 「猜你喜欢」推荐菜品（公开，无需登录；登录态个性化更强）
+     * <p>
+     * 仅对 audit_status=approved 且上架菜品生效，按热度分降序分页；
+     * 支持 excludeIds 排除前端已展示项；未登录/无浏览历史时按纯热度（等同于热门弱化版）。
+     *
+     * @param page       页码
+     * @param pageSize   每页条数
+     * @param excludeIds 排除的菜品ID（逗号分隔，可选）
+     * @param userId     当前登录用户ID（可选，用于个性化加权）
+     * @return 分页推荐菜品
+     */
+    IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId);
+
+    /**
      * 增加菜品浏览量
      * <p>
      * 防刷机制：同一用户同一菜品 5 分钟内只计 1 次
@@ -62,6 +108,38 @@ public interface DishService {
      * @param userId 当前用户ID
      */
     void addViewCount(Long dishId, Long userId);
+
+    // ==================== 一期新增：搜索 / 发现页公开接口 ====================
+
+    /**
+     * 搜索联想（菜品 / 档口 / 食堂名混合）
+     * <p>
+     * 一期限定：无搜索词埋点表，按 keyword LIKE 匹配 name 派生联想建议；
+     * 各类型取 TOP5 合并，前端按 type 跳转对应详情页。
+     *
+     * @param keyword 搜索关键词（可空，空串返回空列表）
+     * @return 联想建议列表
+     */
+    List<SuggestionVO> suggest(String keyword);
+
+    /**
+     * 热搜词条 TOP10
+     * <p>
+     * 一期限定：无真实搜索词埋点，基于菜品综合热度派生热门词条；
+     * heat 为该词条的热度分（view_count*1 + rating_count*5*20 + avg_rating*20）。
+     *
+     * @return 热搜词条列表（keyword=菜品名, heat=热度分）
+     */
+    List<HotSearchVO> hotSearch();
+
+    /**
+     * 新晋黑马 TOP10
+     * <p>
+     * 取近 14 天新上架且热度增速高的菜品，按 (rating_count*20 + view_count) 降序。
+     *
+     * @return 菜品列表
+     */
+    List<DishVO> rising();
 
     // ==================== 管理端接口（管理员） ====================
 
@@ -97,7 +175,53 @@ public interface DishService {
      */
     void deleteDish(Long id);
 
-    // ==================== 评分/收藏量更新（事件驱动） ====================
+    // ==================== 学生端发布接口（STUDENT） ====================
+
+    /**
+     * 学生发布菜品
+     * <p>
+     * 后端强制写入 created_by=当前用户、audit_status=pending，与上下架 status 解耦。
+     *
+     * @param req    发布参数（不含上下架状态）
+     * @param userId 当前登录学生用户ID
+     * @return 新菜品ID
+     */
+    Long createStudentDish(DishPublishReq req, Long userId);
+
+    /**
+     * 学生编辑 / 重新提交菜品
+     * <p>
+     * 仅本人 created_by 的菜品可编辑；编辑后复用原记录，audit_status 重置为 pending、reject_reason 置空。
+     *
+     * @param id     菜品ID
+     * @param req    发布参数
+     * @param userId 当前登录学生用户ID
+     */
+    void updateStudentDish(Long id, DishPublishReq req, Long userId);
+
+    /**
+     * 查询「我的发布」菜品列表
+     * <p>
+     * 仅返回 created_by=当前用户的菜品，可按 audit_status 过滤；含审核态与退回原因。
+     *
+     * @param userId      当前登录学生用户ID
+     * @param auditStatus 审核状态过滤（pending/approved/rejected，可空）
+     * @return 我的发布菜品列表
+     */
+    List<MyDishVO> listMyDishes(Long userId, String auditStatus);
+
+    /**
+     * 学生删除本人发布的菜品
+     * <p>
+     * 仅 created_by 本人可删；不存在抛 404，非本人抛 403；
+     * 通过校验后物理删除并级联清理评价/清单项（favorite 模块已移除，不处理）。
+     *
+     * @param id     菜品ID
+     * @param userId 当前登录学生用户ID
+     */
+    void deleteMyDish(Long id, Long userId);
+
+    // ==================== 评分更新（事件驱动） ====================
 
     /**
      * 重新计算菜品平均评分
@@ -107,13 +231,4 @@ public interface DishService {
      * @param dishId 菜品ID
      */
     void recalcAvgRating(Long dishId);
-
-    /**
-     * 同步菜品收藏量
-     * <p>
-     * 由 CollectCountListener 在收藏事件后调用
-     *
-     * @param dishId 菜品ID
-     */
-    void syncCollectCount(Long dishId);
 }

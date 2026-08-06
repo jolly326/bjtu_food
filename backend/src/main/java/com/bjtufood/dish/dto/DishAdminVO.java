@@ -24,6 +24,12 @@ public class DishAdminVO {
     @Schema(description = "价格（分）", example = "1200")
     private Integer price;
 
+    @Schema(description = "原价（分，折扣前）", example = "1500")
+    private Integer originalPrice;
+
+    @Schema(description = "促销价（分，可空；非空视为有折扣）", example = "1200")
+    private Integer promoPrice;
+
     @Schema(description = "菜品描述")
     private String description;
 
@@ -43,8 +49,8 @@ public class DishAdminVO {
     @Schema(description = "浏览量")
     private Integer viewCount;
 
-    @Schema(description = "收藏量")
-    private Integer collectCount;
+    @Schema(description = "收藏量（喜欢总数）")
+    private Integer favoriteCount;
 
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;
@@ -63,4 +69,16 @@ public class DishAdminVO {
 
     @Schema(description = "所属食堂名称", example = "第一食堂")
     private String canteenName;
+
+    @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
+    private Integer spiceLevel;
+
+    @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
+    private Integer portion;
+
+    @Schema(description = "供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight", example = "lunch,dinner")
+    private String servePeriod;
+
+    @Schema(description = "是否限量：0=否 1=是", example = "0")
+    private Integer limited;
 }

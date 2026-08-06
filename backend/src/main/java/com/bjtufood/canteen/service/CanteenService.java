@@ -7,6 +7,7 @@ import com.bjtufood.canteen.dto.CanteenWithStallsVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
 import com.bjtufood.canteen.entity.Canteen;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -34,6 +35,18 @@ public interface CanteenService {
      * @return 食堂展示列表
      */
     List<CanteenInfoVO> listCanteens();
+
+    /**
+     * 获取食堂列表（首页推荐，支持按距离排序）
+     * <p>
+     * 传 lat/lng 时按用户位置到食堂的直线距离（haversine，单位米）升序排序；
+     * 不传时保持 sort_order 排序。
+     *
+     * @param lat 用户纬度（GCJ-02，可选）
+     * @param lng 用户经度（GCJ-02，可选）
+     * @return 食堂展示列表（含 distance 字段，米）
+     */
+    List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng);
 
     /**
      * 获取食堂背景图片映射

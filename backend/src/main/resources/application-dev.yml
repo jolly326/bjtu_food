@@ -1,23 +1,6 @@
-# ============================================================
-# 开发环境配置 - 覆盖 application.yml 中的同名配置
-# ============================================================
-
-spring:
-  datasource:
-    # 开发环境使用本地 MySQL
-    url: jdbc:mysql://39.105.66.79:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
-    username: bjtu
-    password: 123456
+# 开发环境配置（覆盖 application.yml）
+# 密码由 application-secret.yml 提供（已加入 .gitignore）
 
 mybatis-plus:
   configuration:
-    # 开发环境打印完整 SQL 日志
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-
-jwt:
-  # 开发环境使用固定密钥，方便调试
-  secret: dev-secret-key-bjtu-food-2024
-  expiration: 604800000
-
-upload:
-  path: ./uploads/images

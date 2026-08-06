@@ -32,6 +32,6 @@ public class LoginResp {
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "角色", example = "user")
+    @Schema(description = "角色", example = "student")
     private String role;
 }

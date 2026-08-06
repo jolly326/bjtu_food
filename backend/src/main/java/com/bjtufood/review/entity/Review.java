@@ -45,6 +45,11 @@ public class Review {
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")
     private Integer isHidden;
 
+    /** 「有用」标记数（一人一票，由 review_useful 聚合维护的冗余计数） */
+    @Schema(description = "「有用」标记数（一人一票）")
+    @TableField("useful_count")
+    private Integer usefulCount;
+
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

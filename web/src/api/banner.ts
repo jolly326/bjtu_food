@@ -7,9 +7,9 @@ function toBanner(raw: any, index = 0): Banner {
     id: (raw.id ?? index + 1) as unknown as bigint,
     title: raw.title || '',
     image: imagesToLegacy(raw.images ?? raw.image).split('|||')[0] || '',
-    type: raw.type || 'dish',
     target_id: raw.targetId ?? raw.target_id,
     target_type: raw.targetType ?? raw.target_type,
+    target_url: raw.targetUrl ?? raw.target_url ?? '',
     canteen_id: raw.canteenId ?? raw.canteen_id,
     sort_order: raw.sortOrder ?? raw.sort_order ?? index + 1,
     status: raw.status === 'disabled' ? 'inactive' : 'active',
@@ -21,9 +21,9 @@ function toBanner(raw: any, index = 0): Banner {
 function toApi(data: Partial<Banner>) {
   return {
     title: data.title,
-    type: data.type,
     targetId: data.target_id,
     targetType: data.target_type,
+    targetUrl: data.target_url,
     canteenId: data.canteen_id,
     sortOrder: data.sort_order,
     status: data.status === 'inactive' ? 'disabled' : 'enabled',

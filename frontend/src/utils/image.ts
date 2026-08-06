@@ -7,3 +7,5 @@ export function getImageUrl(path?: string | null): string {
   if (path.startsWith('/images/') || path.startsWith('/uploads/')) return `${API_BASE_URL}${path}`
   return path
 }
+
+

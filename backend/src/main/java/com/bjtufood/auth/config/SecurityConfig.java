@@ -1,6 +1,5 @@
 package com.bjtufood.auth.config;
 
-import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.result.Result;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,7 +36,7 @@ import java.nio.charset.StandardCharsets;
  * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
  * - GET /lists/share/{token}（分享查看）
- * - Knife4j 相关路径
+ * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
 @EnableWebSecurity
@@ -48,25 +47,37 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    /** 公开接口路径（无需登录） */
-    private static final String[] PUBLIC_URLS = {
+    /**
+     * 任意方法放行的公开接口（鉴权/文档类，无敏感写操作）
+     */
+    private static final String[] PUBLIC_ANY_METHOD = {
             "/auth/login",
             "/auth/register",
             "/auth/email-code",
             "/auth/password/reset",
-            "/canteens/**",
-            "/stalls/**",
-            "/dishes",
-            "/dishes/hot",
-            "/dishes/{id:[0-9]+}",
-            "/dishes/{dishId:[0-9]+}/reviews",
-            "/lists/share/**",
-            // Knife4j / Swagger 文档
-            "/doc.html",
+            // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
+            "/feedback",
+            // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",
-            "/webjars/**",
-            "/swagger-resources/**"
+            "/webjars/**"
+    };
+
+    /**
+     * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen/stall/review 只读路径，
+     * 使用 method-scoped 匹配，避免误放行 POST /dishes、PUT /dishes/{id}、POST /reviews 等写操作）。
+     */
+    private static final String[] PUBLIC_GET_PREFIXES = {
+            "/dishes/**",
+            "/canteens/**",
+            "/stalls/**",
+            "/reviews",
+            "/lists/share/**",
+            "/images/**",
+            // 二期新增：社区动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）
+            "/moments/**",
+            "/broadcasts",
+            "/categories"
     };
 
     @Bean
@@ -81,11 +92,12 @@ public class SecurityConfig {
 
                 // 3. 请求权限配置
                 .authorizeHttpRequests(auth -> auth
-                        // 公开接口
-                        .requestMatchers(PUBLIC_URLS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/images/**").permitAll()  // 上传的静态图片资源
+                        // 任意方法放行的公开接口（鉴权/文档）
+                        .requestMatchers(PUBLIC_ANY_METHOD).permitAll()
+                        // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES).permitAll()
                         // 管理端接口需要管理员角色
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )

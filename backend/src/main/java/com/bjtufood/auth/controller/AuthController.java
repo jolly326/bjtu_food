@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@Tag(name = "01. 认证与用户", description = "登录、注册、个人资料、用户统计。登录成功后将 data.token 填入 Knife4j Authorize。")
+@Tag(name = "01. 认证与用户", description = "登录、注册、个人资料、用户统计。登录成功后将 data.token 填入 Swagger UI Authorize。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -33,20 +33,20 @@ public class AuthController {
     @Operation(
             summary = "获取邮箱验证码",
             description = """
-                    用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码。
+                    用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码（校园邮箱 = {学号}@bjtu.edu.cn）。
                     规则：同一邮箱同一用途 60 秒内不能重复发送，验证码 10 分钟有效。
-                    注意：验证码通过邮件发送，不会在响应中返回。
+                    注意：验证码通过邮件发送，不会在响应中返回。传 username（学号）即可自动推导邮箱，无需填 email。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
-                      "email": "20240001@bjtu.edu.cn",
+                      "username": "20240001",
                       "purpose": "login"
                     }
                     """)))
     )
     @PostMapping("/auth/email-code")
     public Result<Map<String, String>> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
-        authService.createEmailCode(req.getEmail(), req.getPurpose());
+        authService.createEmailCode(req.getUsername(), req.getEmail(), req.getPurpose());
         return Result.success(Map.of("message", "验证码已发送"));
     }
 
@@ -55,7 +55,7 @@ public class AuthController {
             description = """
                     用途：登录并获取 JWT Token。
                     规则：支持密码登录，也支持邮箱验证码登录。验证码通过 /auth/email-code 生成。
-                    Knife4j 测试：密码登录可使用 20240001 / 123456；验证码登录需先获取 purpose=login 的验证码。
+                    Swagger UI 测试：密码登录可使用 20240001 / 123456；验证码登录需先获取 purpose=login 的验证码。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -71,11 +71,10 @@ public class AuthController {
 
     @Operation(
             summary = "用户注册",
-            description = "用途：通过校园邮箱验证码创建普通用户，并设置登录密码。注册成功后直接返回 token 和用户信息。",
+            description = "用途：通过校园邮箱验证码创建普通用户（邮箱由学号推导为 {学号}@bjtu.edu.cn，无需填写）。注册成功后直接返回 token 和用户信息。",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
                       "username": "20240002",
-                      "email": "20240002@bjtu.edu.cn",
                       "code": "123456",
                       "password": "123456",
                       "nickname": "交大学子"
@@ -146,10 +145,10 @@ public class AuthController {
 
     @Operation(
             summary = "邮箱验证码重置密码",
-            description = "用途：忘记密码时，通过校园邮箱验证码重新设置登录密码。验证码请先通过 /auth/email-code 获取，purpose=reset。",
+            description = "用途：忘记密码时，通过校园邮箱验证码重新设置登录密码（邮箱由学号推导，无需填写）。验证码请先通过 /auth/email-code 获取，purpose=reset。",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
-                      "email": "20240001@bjtu.edu.cn",
+                      "username": "20240001",
                       "code": "123456",
                       "newPassword": "654321"
                     }

@@ -1,28 +1,34 @@
 <template>
   <view class="custom-tab-bar">
-    <view
-      v-for="(item, index) in tabs"
-      :key="index"
-      class="tab-item"
-      :class="{ active: current === item.page }"
-      @tap="switchTab(item.page)"
-    >
-      <image class="tab-icon" :src="current === item.page ? item.activeIcon : item.icon" />
-      <text class="tab-text">{{ item.text }}</text>
+    <view class="tab-bar-inner">
+      <view
+        v-for="item in tabs"
+        :key="item.page"
+        class="tab-item"
+        :class="{ active: current === item.page }"
+        hover-class="pressed"
+        hover-stay-time="80"
+        @tap="switchTab(item.page)"
+      >
+        <IconSvg class="tab-icon" :name="item.icon" :size="44" :color="current === item.page ? 'var(--color-on-tab)' : 'var(--text-tertiary)'" />
+        <text class="tab-text">{{ item.text }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import IconSvg from './IconSvg.vue'
+
 const props = defineProps<{
   current: string
 }>()
 
+// 3 Tab（首页/动态/我的，2026-08-03 去掉"发现"——搜索改为首页顶部入口跳转二级页）
 const tabs = [
-  { text: '首页', page: '/pages/home/index', icon: '/static/icons/Homepage.svg', activeIcon: '/static/icons/Homepage-active.svg' },
-  { text: '发现', page: '/pages/find/index', icon: '/static/icons/search.svg', activeIcon: '/static/icons/search-active.svg' },
-  { text: '收藏', page: '/pages/favorite/index', icon: '/static/icons/star.svg', activeIcon: '/static/icons/star-active.svg' },
-  { text: '我的', page: '/pages/profile/index', icon: '/static/icons/user.svg', activeIcon: '/static/icons/user-active.svg' },
+  { text: '首页', page: '/pages/home/index', icon: 'home' },
+  { text: '动态', page: '/pages/community/index', icon: 'comment' },
+  { text: '我的', page: '/pages/profile/index', icon: 'profile' },
 ]
 
 function switchTab(page: string) {
@@ -34,15 +40,30 @@ function switchTab(page: string) {
 <style scoped>
 .custom-tab-bar {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  background: var(--bg-card);
-  box-shadow: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  padding:10rpx 0 env(safe-area-inset-bottom);
+  bottom: 0;
+  /* 整条高度 = 内容高 + 底部安全区，白色背景铺满到屏幕底端（iPhone 小横条区域也铺白，不留缝隙） */
+  height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+  background: var(--blur-bg-solid);
+  border-top: 1rpx solid var(--glass-highlight);
+  box-shadow: var(--shadow-bar);
   z-index: 100;
-  height: 100rpx;
+}
+.tab-bar-inner {
+  display: flex;
+  align-items: center;
+  /* 仅内容区承载图标，垂直居中，避开底部安全区 */
+  height: var(--tabbar-height);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .custom-tab-bar {
+    background: var(--blur-bg);
+    backdrop-filter: blur(var(--blur-radius)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
+  }
 }
 .tab-item {
   flex: 1;
@@ -50,17 +71,30 @@ function switchTab(page: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
+  transition: transform var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-item:active {
+  transform: scale(var(--press-scale));
 }
 .tab-icon {
-  width: 48rpx;
-  height: 48rpx;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity 0.2s var(--ease-out), transform 0.12s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-item.active .tab-icon {
+  opacity: 1;
+  transform: scale(var(--tab-active-scale));
 }
 .tab-text {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
+  transition: color 0.2s var(--ease-out);
 }
 .tab-item.active .tab-text {
   color: var(--color-primary);
+  font-weight: var(--weight-semibold);
 }
 </style>

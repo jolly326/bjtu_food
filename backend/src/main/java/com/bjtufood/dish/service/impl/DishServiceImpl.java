@@ -10,14 +10,17 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
+import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
+import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
+import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
-import com.bjtufood.favorite.entity.Favorite;
-import com.bjtufood.favorite.mapper.FavoriteMapper;
+import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.list.entity.ListItem;
 import com.bjtufood.list.mapper.ListItemMapper;
 import com.bjtufood.review.entity.Review;
@@ -39,8 +42,8 @@ public class DishServiceImpl implements DishService {
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
-    private final FavoriteMapper favoriteMapper;
     private final ListItemMapper listItemMapper;
+    private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -60,10 +63,27 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public List<DishVO> getHotDishes() {
-        return dishMapper.selectHotDishes()
-                .stream()
+        return getHotDishes(null, null, null);
+    }
+
+    /** 便捷重载（内部调用），默认 TOP10 */
+    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng) {
+        return getHotDishes(lat, lng, null);
+    }
+
+    @Override
+    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit) {
+        boolean byDistance = lat != null && lng != null;
+        List<com.bjtufood.dish.dto.DishVO> list = byDistance
+                ? dishMapper.selectHotDishesByDistance(lat, lng)
+                : dishMapper.selectHotDishes();
+        List<DishVO> result = list.stream()
                 .map(this::enrichImages)
                 .toList();
+        if (limit != null && limit > 0 && result.size() > limit) {
+            result = result.subList(0, limit);
+        }
+        return result;
     }
 
     @Override
@@ -80,11 +100,8 @@ public class DishServiceImpl implements DishService {
         List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
         vo.setRatingDistribution(fillRatingDistribution(distribution));
 
-        // 当前用户状态
+        // 当前用户状态（收藏/favorite 模块已整体移除；仅保留是否已评价）
         if (userId != null) {
-            vo.setIsFavorited(favoriteMapper.selectCount(new LambdaQueryWrapper<com.bjtufood.favorite.entity.Favorite>()
-                    .eq(com.bjtufood.favorite.entity.Favorite::getUserId, userId)
-                    .eq(com.bjtufood.favorite.entity.Favorite::getDishId, id)) > 0);
             vo.setHasReviewed(reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                     .eq(Review::getUserId, userId)
                     .eq(Review::getDishId, id)) > 0);
@@ -93,13 +110,137 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    public List<DishVO> getNewDishes() {
+        return dishMapper.selectNewDishes()
+                .stream()
+                .map(this::enrichImages)
+                .toList();
+    }
+
+    @Override
+    public IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId) {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+        // 仅 approved 且上架菜品参与推荐
+        List<Dish> candidates = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getAuditStatus, "approved")
+                .eq(Dish::getStatus, "on"));
+        // 排除前端已展示项
+        if (StringUtils.hasText(excludeIds)) {
+            List<Long> exclude = java.util.Arrays.stream(excludeIds.split(","))
+                    .map(String::trim)
+                    .filter(s -> s.matches("\\d+"))
+                    .map(Long::valueOf)
+                    .toList();
+            if (!exclude.isEmpty()) {
+                candidates = candidates.stream()
+                        .filter(d -> !exclude.contains(d.getId()))
+                        .toList();
+            }
+        }
+        // 热度分：w1*viewCount + w2*ratingCount*scale + w3*avgRating*scale
+        // 权重常量：w1=1, w2=5, w3=20（见 spec §3.x.4）。MVP 无浏览历史表，个性化降级为纯热度。
+        final int w1 = 1, w2 = 5, w3 = 20;
+
+        // 个性化加权：有浏览历史的登录用户，对命中其足迹同类（同 stall / 同 tags）的菜品加权 bonus
+        double bonus = 0.0;
+        java.util.Set<Long> recentStallIds = new java.util.HashSet<>();
+        java.util.Set<String> recentTags = new java.util.HashSet<>();
+        if (userId != null) {
+            List<Long> recentDishIds = historyService.recentViewedDishIds(userId, 20);
+            if (!recentDishIds.isEmpty()) {
+                List<Dish> recent = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                        .in(Dish::getId, recentDishIds));
+                recent.forEach(r -> {
+                    if (r.getStallId() != null) recentStallIds.add(r.getStallId());
+                    if (StringUtils.hasText(r.getTags())) {
+                        java.util.Arrays.stream(r.getTags().split(","))
+                                .map(String::trim).filter(t -> !t.isEmpty())
+                                .forEach(recentTags::add);
+                    }
+                });
+                bonus = recentDishIds.isEmpty() ? 0.0 : 500.0; // 命中加权基数
+            }
+        }
+
+        final double fBonus = bonus;
+        candidates.sort((a, b) -> Double.compare(
+                personalizedHeat(b, w1, w2, w3, fBonus, recentStallIds, recentTags),
+                personalizedHeat(a, w1, w2, w3, fBonus, recentStallIds, recentTags)));
+
+        long total = candidates.size();
+        int from = Math.min((page - 1) * pageSize, candidates.size());
+        int to = Math.min(from + pageSize, candidates.size());
+        List<DishVO> records = candidates.subList(from, to).stream()
+                .map(d -> {
+                    DishDetailVO vo = dishMapper.selectDishDetail(d.getId());
+                    return vo != null ? enrichImages(vo) : null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        IPage<DishVO> result = new Page<>(page, pageSize, total);
+        result.setRecords(records);
+        return result;
+    }
+
+    private double personalizedHeat(Dish d, int w1, int w2, int w3, double bonus,
+                                    java.util.Set<Long> stallIds, java.util.Set<String> tags) {
+        double h = heat(d, w1, w2, w3);
+        if (bonus <= 0) return h;
+        double extra = 0;
+        if (d.getStallId() != null && stallIds.contains(d.getStallId())) extra += bonus;
+        if (StringUtils.hasText(d.getTags())) {
+            long hit = java.util.Arrays.stream(d.getTags().split(","))
+                    .map(String::trim).filter(tags::contains).count();
+            extra += hit * bonus * 0.5;
+        }
+        return h + extra;
+    }
+
+    private double heat(Dish d, int w1, int w2, int w3) {
+        int view = d.getViewCount() == null ? 0 : d.getViewCount();
+        int ratingCount = d.getRatingCount() == null ? 0 : d.getRatingCount();
+        double avg = d.getAvgRating() == null ? 0 : d.getAvgRating().doubleValue();
+        return w1 * view + w2 * ratingCount * 20 + w3 * avg;
+    }
+
+    @Override
+    public List<DishVO> getPromotionDishes() {
+        return dishMapper.selectPromotionDishes()
+                .stream()
+                .map(this::enrichImages)
+                .toList();
+    }
+
+    @Override
+    public List<SuggestionVO> suggest(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        return dishMapper.selectSuggestions(keyword.trim()).stream()
+                .peek(vo -> vo.setImage(imageUrlUtil.toAbsoluteUrl(vo.getImage())))
+                .toList();
+    }
+
+    @Override
+    public List<HotSearchVO> hotSearch() {
+        return dishMapper.selectHotSearch();
+    }
+
+    @Override
+    public List<DishVO> rising() {
+        return dishMapper.selectRising().stream()
+                .map(this::enrichImages)
+                .toList();
+    }
+
+    @Override
     public void addViewCount(Long dishId, Long userId) {
-        Dish dish = dishMapper.selectById(dishId);
-        if (dish == null) {
+        // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
+        int affected = dishMapper.increaseViewCount(dishId);
+        if (affected == 0) {
             throw new BusinessException("菜品不存在");
         }
-        dish.setViewCount((dish.getViewCount() == null ? 0 : dish.getViewCount()) + 1);
-        dishMapper.updateById(dish);
     }
 
     @Override
@@ -112,6 +253,13 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void addDish(DishAdminReq req) {
+        // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
+        if (!StringUtils.hasText(req.getName())) {
+            throw new BusinessException("菜品名称不能为空");
+        }
+        if (req.getPrice() == null) {
+            throw new BusinessException("价格不能为空");
+        }
         // 校验 stallId 对应的档口是否存在
         if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
             throw new BusinessException("档口不存在");
@@ -120,7 +268,6 @@ public class DishServiceImpl implements DishService {
         applyReq(dish, req);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
-        dish.setCollectCount(0);
         dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus("on");
@@ -146,45 +293,122 @@ public class DishServiceImpl implements DishService {
             throw new BusinessException("菜品不存在");
         }
         listItemMapper.delete(new LambdaQueryWrapper<ListItem>().eq(ListItem::getDishId, id));
-        favoriteMapper.delete(new LambdaQueryWrapper<Favorite>().eq(Favorite::getDishId, id));
+        reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
+        dishMapper.deleteById(id);
+    }
+
+    // ==================== 学生端发布接口实现 ====================
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createStudentDish(DishPublishReq req, Long userId) {
+        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
+            throw new BusinessException("档口不存在");
+        }
+        Dish dish = new Dish();
+        applyPublishReq(dish, req);
+        dish.setCreatedBy(userId);
+        // 审核状态机：学生提交即 pending；状态与审核解耦，默认上架待审核通过后展示
+        dish.setAuditStatus("pending");
+        dish.setRejectReason(null);
+        dish.setStatus("on");
+        dish.setAvgRating(BigDecimal.ZERO);
+        dish.setRatingCount(0);
+        dish.setViewCount(0);
+        dishMapper.insert(dish);
+        return dish.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStudentDish(Long id, DishPublishReq req, Long userId) {
+        Dish existing = dishMapper.selectById(id);
+        if (existing == null) {
+            throw new BusinessException("菜品不存在");
+        }
+        if (!userId.equals(existing.getCreatedBy())) {
+            throw new BusinessException("只能编辑自己发布的菜品");
+        }
+        applyPublishReq(existing, req);
+        // 编辑重提：复用原记录，审核状态回到 pending，退回原因清空
+        existing.setAuditStatus("pending");
+        existing.setRejectReason(null);
+        dishMapper.updateById(existing);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteMyDish(Long id, Long userId) {
+        Dish existing = dishMapper.selectById(id);
+        if (existing == null) {
+            throw new BusinessException("菜品不存在");
+        }
+        if (!userId.equals(existing.getCreatedBy())) {
+            throw new BusinessException(403, "只能删除自己发布的菜品");
+        }
+        // 复用现有管理员删除的级联清理逻辑（评价 + 清单项；favorite 模块已移除）
+        listItemMapper.delete(new LambdaQueryWrapper<ListItem>().eq(ListItem::getDishId, id));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
         dishMapper.deleteById(id);
     }
 
     @Override
-    public void recalcAvgRating(Long dishId) {
-        List<Review> reviews = reviewMapper.selectList(new LambdaQueryWrapper<Review>()
-                .eq(Review::getDishId, dishId)
-                .eq(Review::getIsHidden, 0));
-        Dish dish = dishMapper.selectById(dishId);
-        if (dish == null) {
-            return;
+    public List<MyDishVO> listMyDishes(Long userId, String auditStatus) {
+        LambdaQueryWrapper<Dish> wrapper = new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getCreatedBy, userId);
+        if (StringUtils.hasText(auditStatus)) {
+            wrapper.eq(Dish::getAuditStatus, auditStatus);
         }
-        dish.setRatingCount(reviews.size());
-        BigDecimal avg = reviews.isEmpty()
-                ? BigDecimal.ZERO
-                : BigDecimal.valueOf(reviews.stream().mapToInt(Review::getRating).average().orElse(0))
-                .setScale(1, RoundingMode.HALF_UP);
-        dish.setAvgRating(avg);
-        dishMapper.updateById(dish);
+        wrapper.orderByDesc(Dish::getCreatedAt);
+        return dishMapper.selectList(wrapper).stream().map(dish -> {
+            MyDishVO vo = new MyDishVO();
+            vo.setId(dish.getId());
+            vo.setName(dish.getName());
+            vo.setPrice(dish.getPrice());
+            vo.setDescription(dish.getDescription());
+            vo.setImagesJson(dish.getImages());
+            vo.setTags(dish.getTags());
+            vo.setAuditStatus(dish.getAuditStatus());
+            vo.setRejectReason(dish.getRejectReason());
+            vo.setCreatedAt(dish.getCreatedAt());
+            return enrichMyDishImages(vo);
+        }).toList();
+    }
+
+    private void applyPublishReq(Dish dish, DishPublishReq req) {
+        dish.setStallId(req.getStallId());
+        dish.setName(req.getName());
+        dish.setPrice(req.getPrice());
+        dish.setDescription(req.getDescription());
+        dish.setImages(JsonListUtil.toJson(req.getImages()));
+        dish.setTags(req.getTags());
+    }
+
+    /**
+     * 对「我的发布」VO 的 imagesJson 字段进行 URL 转换
+     */
+    private MyDishVO enrichMyDishImages(MyDishVO vo) {
+        if (vo == null) {
+            return null;
+        }
+        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
+        return vo;
     }
 
     @Override
-    public void syncCollectCount(Long dishId) {
-        Dish dish = dishMapper.selectById(dishId);
-        if (dish == null) {
-            return;
-        }
-        Long count = favoriteMapper.selectCount(new LambdaQueryWrapper<com.bjtufood.favorite.entity.Favorite>()
-                .eq(com.bjtufood.favorite.entity.Favorite::getDishId, dishId));
-        dish.setCollectCount(count.intValue());
-        dishMapper.updateById(dish);
+    public void recalcAvgRating(Long dishId) {
+        // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
+        dishMapper.recalcRatingBySubquery(dishId);
     }
+
+    // syncCollectCount 已随 favorite 模块移除（task-12.12）；喜欢计数存储方案待架构师评估。
 
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
         dish.setName(req.getName());
         dish.setPrice(req.getPrice());
+        dish.setOriginalPrice(req.getOriginalPrice());
+        dish.setPromoPrice(req.getPromoPrice());
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
         dish.setTags(req.getTags());

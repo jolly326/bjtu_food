@@ -19,8 +19,8 @@ import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
-import com.bjtufood.favorite.entity.Favorite;
-import com.bjtufood.favorite.mapper.FavoriteMapper;
+import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +43,13 @@ public class AuthServiceImpl implements AuthService {
     private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final FavoriteMapper favoriteMapper;
     private final ReviewMapper reviewMapper;
+    private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
-    public void createEmailCode(String email, String purpose) {
-        emailCodeService.sendCode(email, purpose);
+    public void createEmailCode(String username, String email, String purpose) {
+        emailCodeService.sendCode(username, email, purpose);
     }
 
     @Override
@@ -77,7 +77,8 @@ public class AuthServiceImpl implements AuthService {
         if (userService.getByUsername(req.getUsername()) != null) {
             throw new BusinessException("用户名已存在");
         }
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：{学号}@bjtu.edu.cn，无需用户手动输入
+        String email = normalizeEmail(resolveEmail(req.getUsername(), req.getEmail()));
         validateCampusEmail(email);
         if (userService.getByEmail(email) != null) {
             throw new BusinessException("邮箱已注册");
@@ -89,7 +90,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         user.setNickname(req.getNickname());
-        user.setRole(RoleConst.USER);
+        user.setRole(RoleConst.STUDENT);
         user.setStatus("active");
         user.setLastLoginAt(LocalDateTime.now());
         userMapper.insert(user);
@@ -126,13 +127,22 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserStatsVO getUserStats(Long userId) {
-        long favoriteCount = favoriteMapper.selectCount(
-                new LambdaQueryWrapper<Favorite>().eq(Favorite::getUserId, userId));
+        // 发布数：本人提交的菜品总数（含全部审核态）
+        long publishedCount = dishMapper.selectCount(
+                new LambdaQueryWrapper<Dish>().eq(Dish::getCreatedBy, userId));
+        // 待审数：本人提交且 audit_status=pending 的菜品数
+        long pendingCount = dishMapper.selectCount(
+                new LambdaQueryWrapper<Dish>()
+                        .eq(Dish::getCreatedBy, userId)
+                        .eq(Dish::getAuditStatus, "pending"));
+        // 收藏数：favorite 模块本期整体移除（task-12.12），"我的喜欢"计数存储方案待架构师裁定，暂为 0
+        long favoriteCount = 0L;
+        // 评价数：本人已发布且未被隐藏的评价数
         long reviewCount = reviewMapper.selectCount(
                 new LambdaQueryWrapper<Review>()
                         .eq(Review::getUserId, userId)
                         .eq(Review::getIsHidden, 0));
-        return new UserStatsVO(favoriteCount, reviewCount);
+        return new UserStatsVO(publishedCount, pendingCount, favoriteCount, reviewCount);
     }
 
     @Override
@@ -150,7 +160,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void resetPassword(PasswordResetReq req) {
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：{学号}@bjtu.edu.cn
+        String email = normalizeEmail(resolveEmail(req.getUsername(), req.getEmail()));
         validateCampusEmail(email);
         verifyEmailCode(email, req.getCode(), "reset");
 
@@ -204,7 +215,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User loginByEmailCode(LoginReq req) {
-        String email = normalizeEmail(req.getEmail());
+        // 校园邮箱由学号推导：验证码登录可传 account(学号) 或 email
+        String email = normalizeEmail(resolveEmail(req.getAccount(), req.getEmail()));
         validateCampusEmail(email);
         verifyEmailCode(email, req.getCode(), "login");
 
@@ -262,5 +274,19 @@ public class AuthServiceImpl implements AuthService {
         if (!email.endsWith("@bjtu.edu.cn")) {
             throw new BusinessException("请使用北京交通大学校园邮箱");
         }
+    }
+
+    /**
+     * 校园邮箱规则：邮箱 = {学号}@bjtu.edu.cn。
+     * email 显式传入则优先使用；否则由 username（学号）推导。
+     */
+    private String resolveEmail(String username, String email) {
+        if (StringUtils.hasText(email)) {
+            return email;
+        }
+        if (StringUtils.hasText(username)) {
+            return username.trim().toLowerCase(Locale.ROOT) + "@bjtu.edu.cn";
+        }
+        throw new BusinessException("请填写学号或校园邮箱");
     }
 }

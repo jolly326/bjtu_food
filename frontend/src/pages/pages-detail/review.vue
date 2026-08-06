@@ -1,49 +1,71 @@
 <template>
-  <view class="page review-page">
+  <view class="page review-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="发表评价" showBack />
 
-    <!-- 评分 -->
-    <CardSection>
-      <text class="section-label">评分</text>
-      <view class="rating-panel">
-        <Rating v-model="form.rating" :readonly="false" :show-text="true" />
-      </view>
-    </CardSection>
-
-    <!-- 评论 -->
-    <CardSection>
-      <text class="section-label">评价内容</text>
-      <textarea
-        v-model="form.content"
-        class="content-input"
-        placeholder="分享你的用餐体验..."
-        :maxlength="MAX_CONTENT_LENGTH"
-      />
-      <text class="char-count">{{ form.content.length }}/{{ MAX_CONTENT_LENGTH }}</text>
-    </CardSection>
-
-    <!-- 图片上传 -->
-    <CardSection>
-      <text class="section-label">图片（最多3张）</text>
-      <view class="image-list">
-        <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
-          <image :src="img" mode="aspectFill" class="preview-img" />
-          <text class="remove-btn" @tap="removeImage(idx)">✕</text>
+    <scroll-view class="scroll-wrap" scroll-y>
+      <!-- 评分 -->
+      <CardSection>
+        <text class="section-label">评分</text>
+        <view class="rating-panel">
+          <Rating v-model="form.rating" :readonly="false" :show-text="true" :star-size="48" />
         </view>
-        <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
-          <text class="upload-icon">+</text>
-        </view>
-      </view>
-    </CardSection>
+      </CardSection>
 
-    <!-- 提交按钮 -->
-    <view style="padding: var(--spacing-lg);">
-      <AppButton text="提交评价" type="gradient" :disabled="!canSubmit" @click="handleSubmit" />
+      <!-- 评论 -->
+      <CardSection>
+        <text class="section-label">评价内容</text>
+        <textarea
+          v-model="form.content"
+          class="content-input"
+          placeholder="分享你的用餐体验..."
+          :maxlength="MAX_CONTENT_LENGTH"
+        />
+        <text class="char-count">{{ form.content.length }}/{{ MAX_CONTENT_LENGTH }}</text>
+      </CardSection>
+
+      <!-- 图片上传 -->
+      <CardSection>
+        <text class="section-label">图片（最多3张）</text>
+        <view class="image-list">
+          <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
+            <image :src="img" mode="aspectFill" class="preview-img" />
+            <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
+          </view>
+          <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
+            <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
+          </view>
+        </view>
+      </CardSection>
+
+      <!-- 同步到社区动态（评价与动态打通：评价可见即动态可见，直接上广场） -->
+      <CardSection>
+        <view class="share-row" @tap="toggleShare">
+          <view class="share-info">
+            <text class="share-title">同步到社区动态</text>
+            <text class="share-desc">同步后自动生成一条关联本菜品的动态，直接上社区广场</text>
+          </view>
+          <view class="toggle" :class="{ on: form.shareToMoment }" @tap.stop="toggleShare">
+            <view class="toggle-knob" />
+          </view>
+        </view>
+      </CardSection>
+
+      <view style="height: var(--spacing-lg)" />
+    </scroll-view>
+
+    <!-- 提交按钮（吸底） -->
+    <view class="submit-bar">
+      <AppButton text="提交评价" type="primary" :disabled="!canSubmit" :loading="uploading" @click="handleSubmit" />
     </view>
+
+    <!-- 认证弹层（未登录提交评价 requireAuth 统一在此弹出） -->
+    <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
+import { useThemeStore } from '@/stores/theme'
+const theme = useThemeStore()
 const MAX_CONTENT_LENGTH = 500
 const MAX_IMAGES = 3
 
@@ -53,17 +75,27 @@ import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import { useDishStore } from '@/stores/dish'
+import { useUserStore } from '@/stores/user'
 import { uploadImage as uploadImageApi } from '@/api/upload'
 
 const dishStore = useDishStore()
+const userStore = useUserStore()
 const dishId = ref(0)
 const uploading = ref(false)
 const form = reactive({
   rating: 5,
   content: '',
   images: [] as string[],
+  // 双向联通：评价默认同步到动态（开关默认打开，用户可手动关）
+  shareToMoment: true,
 })
+
+function toggleShare() {
+  form.shareToMoment = !form.shareToMoment
+}
 
 const canSubmit = computed(() => form.rating > 0 && form.content.trim().length > 0)
 
@@ -81,6 +113,7 @@ function selectImage() {
 }
 
 async function handleSubmit() {
+  if (!userStore.requireAuth(() => handleSubmit())) return
   if (!canSubmit.value || uploading.value) return
   uploading.value = true
 
@@ -102,11 +135,15 @@ async function handleSubmit() {
       rating: form.rating,
       content: form.content,
       images: uploadedUrls,
+      shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 1500)
+    // 发表评价默认进入动态广场（task todo#5）
+    setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
   } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+    // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）
+    const msg = e?.message || '提交失败'
+    uni.showToast({ title: msg, icon: 'none' })
   } finally {
     uploading.value = false
   }
@@ -119,16 +156,19 @@ onLoad((query) => {
 
 <style scoped>
 .review-page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background: var(--bg-page);
-  padding-bottom: var(--spacing-xl);
 }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+.submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 .section-label {
   font-size: var(--font-body);
   color: var(--text-primary);
   display: block;
   margin-bottom: var(--spacing-sm);
-  font-weight: bold;
+  font-weight: var(--weight-bold);
 }
 .rating-panel {
   display: flex;
@@ -143,7 +183,7 @@ onLoad((query) => {
   border: none;
   outline: none;
   background: var(--bg-page);
-  border-radius: var(--radius-icon);
+  border-radius: var(--radius-card);
   padding: var(--spacing-sm);
   box-sizing: border-box;
 }
@@ -153,6 +193,7 @@ onLoad((query) => {
   font-size: var(--font-tiny);
   color: var(--text-tertiary);
   margin-top: var(--spacing-xs);
+  font-variant-numeric: tabular-nums;
 }
 .image-list {
   display: flex;
@@ -172,18 +213,20 @@ onLoad((query) => {
 }
 .remove-btn {
   position: absolute;
-  top: 4rpx;
-  right: 4rpx;
-  width: 36rpx;
-  height: 36rpx;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  top: 0;
+  right: 0;
+  width: 48rpx;
+  height: 48rpx;
+  background: var(--badge-dark-bg);
+  color: var(--badge-dark-text);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--font-tiny);
+  transition: transform 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
 }
+.remove-btn:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 .image-upload {
   width: 180rpx;
   height: 180rpx;
@@ -193,10 +236,44 @@ onLoad((query) => {
   align-items: center;
   justify-content: center;
   background: var(--bg-page);
+  transition: var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
 }
-.upload-icon {
-  font-size: var(--font-h1);
-  color: var(--text-tertiary);
+.image-upload:active { transform: scale(var(--press-scale)); }
+
+/* 同步到社区动态（自绘 Apple 风格开关，走 token） */
+.share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  -webkit-tap-highlight-color: transparent;
 }
+.share-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+.share-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.share-desc { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.5; }
+.toggle {
+  flex-shrink: 0;
+  width: 88rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  background: var(--border-color);
+  position: relative;
+  transition: background 0.2s var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.toggle.on { background: var(--color-primary); }
+.toggle-knob {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--color-on-primary);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s var(--ease-out);
+}
+.toggle.on .toggle-knob { transform: translateX(36rpx); }
 
 </style>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfo, UserStats } from '@/types/user'
 import * as userApi from '@/api/user'
+import { useAuthSheetStore } from '@/stores/authSheet'
 
 const STORAGE_KEY_TOKEN = 'token'
 const STORAGE_KEY_USER = 'userInfo'
@@ -23,8 +24,9 @@ function saveAuth(tokenValue: string, info: UserInfo) {
 export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
-  const userStats = ref<UserStats>({ favoriteCount: 0, reviewCount: 0 })
+  const userStats = ref<UserStats>({ reviewCount: 0 })
   const loading = ref(false)
+  const statsLoading = ref(false)
 
   function restoreFromCache(): boolean {
     const saved = uni.getStorageSync(STORAGE_KEY_TOKEN)
@@ -49,10 +51,10 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function loginByEmailCode(email: string, code: string) {
+  async function loginByEmailCode(account: string, code: string) {
     loading.value = true
     try {
-      const res = await userApi.loginByEmailCode(email, code)
+      const res = await userApi.loginByEmailCode(account, code)
       token.value = res.token
       userInfo.value = res.userInfo
       saveAuth(res.token, res.userInfo)
@@ -62,7 +64,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function register(data: { username: string; email: string; code: string; password: string; nickname: string }) {
+  async function register(data: { username: string; code: string; password: string; nickname: string }) {
     loading.value = true
     try {
       return await userApi.register(data)
@@ -81,7 +83,7 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = ''
     userInfo.value = null
-    userStats.value = { favoriteCount: 0, reviewCount: 0 }
+    userStats.value = { likeCount: 0, reviewCount: 0 }
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
   }
@@ -92,16 +94,28 @@ export const useUserStore = defineStore('user', () => {
 
   async function fetchStats() {
     if (!isLoggedIn()) return
+    statsLoading.value = true
     try {
       userStats.value = await userApi.getUserStats()
     } catch {
       console.error('获取用户统计失败')
+    } finally {
+      statsLoading.value = false
     }
   }
 
-  function requireAuth(): boolean {
+  /**
+   * 需认证入口守卫：未登录时弹出认证弹层（AuthSheet）并返回 false，已登录返回 true。
+   * 传入 action 时：登录成功后由 AuthSheet 自动执行该动作（游客操作 → 登录 → 自动继续），
+   * 未传则仅弹层（调用方返回 false 后自行终止）。
+   */
+  function requireAuth(action?: () => void): boolean {
     if (!isLoggedIn()) {
-      uni.showToast({ title: '请先登录', icon: 'none' })
+      if (action) {
+        useAuthSheetStore().requireAuth(action)
+      } else {
+        useAuthSheetStore().show()
+      }
       return false
     }
     return true
@@ -112,6 +126,7 @@ export const useUserStore = defineStore('user', () => {
     userStats,
     token,
     loading,
+    statsLoading,
     restoreFromCache,
     loginByPassword,
     loginByEmailCode,

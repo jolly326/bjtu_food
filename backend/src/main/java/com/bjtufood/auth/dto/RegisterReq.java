@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-@Schema(description = "注册请求参数")
+@Schema(description = "注册请求参数（邮箱由学号推导，无需填写）")
 public class RegisterReq {
 
     @NotBlank(message = "用户名不能为空")
@@ -15,14 +15,13 @@ public class RegisterReq {
     @Schema(description = "学号/工号/用户名", example = "20240002", requiredMode = Schema.RequiredMode.REQUIRED)
     private String username;
 
-    @NotBlank(message = "邮箱不能为空")
     @Email(message = "邮箱格式不正确")
-    @Schema(description = "校园邮箱", example = "20240002@bjtu.edu.cn", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "校园邮箱（可选）。不传时自动推导为 {username}@bjtu.edu.cn", example = "20240002@bjtu.edu.cn")
     private String email;
 
     @NotBlank(message = "验证码不能为空")
     @Size(min = 4, max = 10, message = "验证码长度应在4-10字符之间")
-    @Schema(description = "邮箱验证码", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "邮箱验证码（发送至 {username}@bjtu.edu.cn）", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
     private String code;
 
     @NotBlank(message = "密码不能为空")

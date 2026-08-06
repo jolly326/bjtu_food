@@ -1,15 +1,16 @@
 <template>
   <view class="image-fallback">
-    <image v-if="imgSrc" :src="imgSrc" mode="aspectFill" />
-    <view v-else class="placeholder">
-      <image class="placeholder-icon" src="/static/icons/food.svg" />
-    </view>
+    <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
+      <view v-else class="placeholder">
+        <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
+      </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
+import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   src?: string
@@ -18,6 +19,9 @@ const props = withDefaults(defineProps<{
 })
 
 const imgSrc = computed(() => getImageUrl(props.src))
+
+/** 图片加载状态：失败回退占位，禁止裂图 */
+const imgOk = ref(true)
 </script>
 
 <style scoped>
@@ -26,7 +30,7 @@ const imgSrc = computed(() => getImageUrl(props.src))
   height: 100%;
   overflow: hidden;
 }
-.image-fallback image {
+.fb-img {
   width: 100%;
   height: 100%;
 }
@@ -39,7 +43,7 @@ const imgSrc = computed(() => getImageUrl(props.src))
   background: var(--bg-page);
 }
 .placeholder-icon {
-  width: 64rpx !important;
-  height: 64rpx !important;
+  font-size: 64rpx !important;
+  line-height: 1 !important;
 }
 </style>

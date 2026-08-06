@@ -50,11 +50,18 @@
     "quickapp" : {},
     /* 小程序特有相关 */
     "mp-weixin" : {
-        "appid" : "",
+        "appid" : "wx2bd6e4b461467b74",
         "setting" : {
             "urlCheck" : false
         },
-        "usingComponents" : true
+        "usingComponents" : true,
+        /* 定位权限：uni.getLocation 授权弹窗文案（首页左上角定位 + 推荐按距离排序） */
+        "permission" : {
+            "scope.userLocation" : {
+                "desc" : "你的位置信息将用于首页食堂/菜品推荐按距离排序"
+            }
+        },
+        "requiredPrivateInfos" : [ "getLocation" ]
     },
     "mp-alipay" : {
         "usingComponents" : true

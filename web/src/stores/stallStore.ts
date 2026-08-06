@@ -17,5 +17,5 @@ export const useStallStore = defineStore('stall', () => {
   async function remove(id: number) { await stallApi.deleteById(id); await loadAll() }
 
   loadAll()
-  return { list, activeList, add, update, remove }
+  return { list, loadAll, activeList, add, update, remove }
 })

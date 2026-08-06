@@ -25,13 +25,16 @@ public class DishQueryReq {
     @Schema(description = "标签筛选，例如 recommended、signature、halal、western", example = "recommended")
     private String tag;
 
+    @Schema(description = "口味（辣度）筛选枚举：0=不辣 1=微辣 2=中辣 3=重辣（find 口味 Sheet 使用）", example = "2")
+    private Integer spiceLevel;
+
     @Schema(description = "最低价格，单位：分", example = "1000")
     private Integer minPrice;
 
     @Schema(description = "最高价格，单位：分", example = "2000")
     private Integer maxPrice;
 
-    @Schema(description = "排序字段：rating、collects、price、created_at", example = "rating")
+    @Schema(description = "排序字段：heat（热度）、rating、price、created_at（collects 已随收藏模块移除）", example = "heat")
     private String sortBy;
 
     @Schema(description = "排序方向：asc、desc", example = "desc")

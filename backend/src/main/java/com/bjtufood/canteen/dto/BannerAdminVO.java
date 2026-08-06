@@ -22,13 +22,13 @@ public class BannerAdminVO {
     @Schema(description = "背景图片URL列表")
     private List<String> images;
 
-    @Schema(description = "跳转类型（dish/url）")
-    private String type;
+    @Schema(description = "跳转类型枚举：DISH/URL/NONE（ACTIVITY 已废弃）")
+    private String targetType;
 
-    @Schema(description = "跳转目标ID（type=dish时使用）")
+    @Schema(description = "跳转目标ID（target_type=DISH 时使用）")
     private Long targetId;
 
-    @Schema(description = "跳转目标URL（type=url时使用）")
+    @Schema(description = "跳转目标URL（target_type=URL 时使用）")
     private String targetUrl;
 
     @Schema(description = "关联食堂ID（可选）")

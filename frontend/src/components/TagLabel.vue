@@ -28,27 +28,27 @@ const typeClass = computed(() => {
 }
 /* 必吃推荐 — 红色系（推荐强调） */
 .tag-recommend {
-  background: #FDE8E8;
-  color: #C0392B;
+  background: var(--color-primary-soft);
+  color: var(--color-price);
 }
 /* 招牌菜 — 砖红系（品牌色） */
 .tag-featured {
-  background: #FEF0EF;
-  color: #8B3A2B;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 /* 新品 — 绿色系（新鲜感） */
 .tag-new {
-  background: #E8F8F0;
-  color: #27AE60;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
-/* 热卖 — 橙色系（热卖氛围） */
+/* 热卖 — 橙色系（热卖氛围，统一走 accent） */
 .tag-hot {
-  background: #FEF3E0;
-  color: #E67E22;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 /* 默认 */
 .tag-default {
-  background: #F0F0F0;
-  color: #666666;
+  background: var(--bg-placeholder);
+  color: var(--text-secondary);
 }
 </style>
