@@ -97,11 +97,11 @@ npm install && npm run dev   # 打开 http://localhost:5173，admin/123456 登�
 ### 1.5 小程序构建
 
 ```powershell
-cd d:\workspace\code\project\bjtu_food\frontend
+cd d:\workspace\code\project\bjtu_food\client
 $env:VITE_API_BASE_URL="https://api.你的域名.com/api"
 npm run build:mp-weixin
 ```
-产物 `frontend/dist/build/mp-weixin/` → 微信开发者工具上传 → 提审 → 发布。
+产物 `client/dist/build/mp-weixin/` → 微信开发者工具上传 → 提审 → 发布。
 
 ### 1.6 主路线成本
 
@@ -130,7 +130,7 @@ npm run build:mp-weixin
 
 ### 2.2 若云托管可用（组合拳备选）
 
-- 后端用 `backend/Dockerfile` 打镜像上传（文档附录 A）
+- 后端用 `server/Dockerfile` 打镜像上传（文档附录 A）
 - 环境变量：`SPRING_DATASOURCE_URL`（云托管 MySQL）、`APP_PUBLIC_BASE_URL`（云托管域名）、`SPRING_MAIL_*`
 - ⚠️ **图片不能存容器本地**（容器重建会丢），需改上传模块接 COS，或验证云托管持久化挂载
 - ⚠️ 免费额度仅首个环境、3 个月；到期自动按量计费，**第 3 个月末必须迁完并关停**
@@ -184,7 +184,7 @@ npm run build:mp-weixin
 
 ---
 
-## 附录 A：backend/Dockerfile（云托管备选用）
+## 附录 A：server/Dockerfile（云托管备选用）
 
 ```dockerfile
 # ===== 构建阶段 =====

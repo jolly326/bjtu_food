@@ -11,6 +11,6 @@
     <name>bjtu-food-root</name>
 
     <modules>
-        <module>backend</module>
+        <module>server</module>
     </modules>
 </project>

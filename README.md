@@ -36,7 +36,7 @@
 
 ```
 bjtu_food/
-├── backend/                   # Spring Boot 后端
+├── server/                   # Spring Boot 后端
 │   ├── src/main/java/com/bjtufood/
 │   │   ├── common/            # 公共模块（配置/异常/响应/工具）
 │   │   ├── auth/              # 认证模块（JWT + Spring Security）
@@ -49,7 +49,7 @@ bjtu_food/
 │   │   └── upload/            # 文件上传模块
 │   ├── uploads/               # 上传图片存储
 │   └── sensitive_words.txt    # 敏感词库
-├── frontend/                  # 微信小程序端（uni-app）
+├── client/                  # 微信小程序端（uni-app）
 └── web/                       # 管理后台端（Vue 3 + Element Plus）
 ```
 
@@ -102,7 +102,7 @@ JDK 21+、Maven 3.8+、MySQL 8.0+、Node.js 18+、pnpm、微信开发者工具
 
 ```bash
 # 1. 启动后端
-cd backend && mvn spring-boot:run
+cd server && mvn spring-boot:run
 # → 访问 http://localhost:8080/api/doc.html
 
 # 2. 启动管理后台
@@ -110,8 +110,8 @@ cd web && pnpm install && pnpm dev
 # → 访问 http://localhost:5173
 
 # 3. 启动小程序
-cd frontend && npm install && npm run dev:mp-weixin
-# → 微信开发者工具导入 frontend/dist/dev/mp-weixin
+cd client && npm install && npm run dev:mp-weixin
+# → 微信开发者工具导入 client/dist/dev/mp-weixin
 ```
 
 ### 测试账号
@@ -131,7 +131,7 @@ cd frontend && npm install && npm run dev:mp-weixin
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | **多 agent 协作流程**：需求 → 定样 → 拆 task → 开发 → 质量门禁 → 踩坑回流；含各角色交接物与阅读顺序 |
 | [docs/tasks/](docs/tasks/) | 开发执行单元（task-XX）：验收标准 + 接口契约 + 依赖，每个 task 必须引用 spec 条款 |
 | [.codebuddy/agents/](.codebuddy/agents/) | 各角色权限文件（能改 / 不能改） |
-| backend/、frontend/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |
+| server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |
 
 ### 多 Agent 协作阅读顺序
 

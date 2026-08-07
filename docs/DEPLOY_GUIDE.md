@@ -142,10 +142,10 @@ mysql -u bjtu -p -e "USE bjtu_food; SHOW TABLES;"   # 应看到全部表
 ### 5.1 在你电脑上打包
 打开 PowerShell，进入项目目录：
 ```powershell
-cd d:\workspace\code\project\bjtu_food\backend
+cd d:\workspace\code\project\bjtu_food\server
 mvn clean package -DskipTests
 ```
-产物：`backend/target/*.jar`（比如 `backend-1.0.0.jar`）
+产物：`server/target/*.jar`（比如 `server-1.0.0.jar`）
 
 ### 5.2 上传 jar 到服务器
 用 MobaXterm/WinSCP 把 jar 传到 `/root/app/`（先建目录：`mkdir -p /root/app`）
@@ -208,7 +208,7 @@ After=network.target mysql.service
 Type=simple
 User=root
 WorkingDirectory=/root/app
-ExecStart=/usr/bin/java -jar -Dspring.profiles.active=prod /root/app/backend-1.0.0.jar
+ExecStart=/usr/bin/java -jar -Dspring.profiles.active=prod /root/app/server-1.0.0.jar
 Restart=always
 RestartSec=5
 
@@ -297,11 +297,11 @@ mkdir -p /root/app/uploads && chmod -R 777 /root/app/uploads
 
 ### 7.1 小程序（在你自己电脑上）
 ```powershell
-cd d:\workspace\code\project\bjtu_food\frontend
+cd d:\workspace\code\project\bjtu_food\client
 $env:VITE_API_BASE_URL="https://api.example.com/api"   # 改你的域名
 npm run build:mp-weixin
 ```
-产物在 `frontend/dist/build/mp-weixin/`，之后用微信开发者工具打开这个目录上传。
+产物在 `client/dist/build/mp-weixin/`，之后用微信开发者工具打开这个目录上传。
 
 ### 7.2 Web 管理端（可选，先上线小程序可跳过）
 ```powershell
@@ -335,7 +335,7 @@ npm run build
 
 ## ⑨ 上传 → 提交审核 → 发布
 
-1. 打开**微信开发者工具** → 导入 `frontend/dist/build/mp-weixin`
+1. 打开**微信开发者工具** → 导入 `client/dist/build/mp-weixin`
 2. AppID 填项目已有的 `wx2bd6e4b461467b74`
 3. 点右上角「上传」→ 填版本号（如 1.0.0）和备注
 4. 微信公众平台 → 版本管理 → 开发版本 → 提交审核
