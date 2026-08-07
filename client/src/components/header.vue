@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<{
   /** 自定义返回：为 true 时不调用 uni.navigateBack，仅 emit('back') 由页面自行处理（如退出筛选态） */
   customBack?: boolean
 }>(), {
-  title: '食在交大',
+  title: '知行食记',
   showBack: false,
   customBack: false,
 })

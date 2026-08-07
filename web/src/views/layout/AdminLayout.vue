@@ -66,7 +66,7 @@ function logout() {
     <!-- ===== 顶部导航 ===== -->
     <header class="topnav">
       <div class="topnav-brand" v-press role="button" tabindex="0" aria-label="回到工作台" @click="navTo('/dashboard')" @keydown.enter.prevent="navTo('/dashboard')" @keydown.space.prevent="navTo('/dashboard')">
-        <span class="brand-text">食在交大</span>
+        <span class="brand-text">知行食记</span>
       </div>
 
       <nav class="topnav-nav">

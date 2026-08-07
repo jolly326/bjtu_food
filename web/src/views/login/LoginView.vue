@@ -34,7 +34,7 @@ async function handleLogin() {
 <template>
   <div class="login-page">
     <div class="login-brand">
-      <h1 class="brand-name">食在交大</h1>
+      <h1 class="brand-name">知行食记</h1>
       <p class="brand-slogan">校园美食信息管理后台</p>
     </div>
 
