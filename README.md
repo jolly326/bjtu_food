@@ -1,5 +1,13 @@
 # 知行食记
 
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
+![uni-app](https://img.shields.io/badge/uni-app-Vue3-4FC08D)
+![Vue3](https://img.shields.io/badge/Vue-3-42b883)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
 **校园美食发现与分享社区** — 帮助交大学生解决"每天不知道吃什么"的难题。
 
 学生（平鉴官）发布 / 更新菜品与档口信息 → 管理员审核 → 学生浏览、评价、分享，形成"**发现 → 决策 → 分享**"闭环。优惠活动由后勤在 Web 后台统一发放。
@@ -121,6 +129,8 @@ cd client && npm install && npm run dev:mp-weixin
 | 学生 | `20240001` | `123456` |
 | 管理员 | `admin001` | `123456` |
 
+> ⚠️ 测试账号仅限本地开发环境；生产环境部署后请立即改密。
+
 ---
 
 ## 文档
@@ -129,7 +139,6 @@ cd client && npm install && npm run dev:mp-weixin
 |------|------|
 | [project_spec.md](project_spec.md) | **基础规范基线（最高权威）**：技术栈 / 目录 / 跨端边界 / **不可违背的红线** / 协作纪律。所有 agent 必须服从；仅技术负责人可修改 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | **多 agent 协作流程**：需求 → 定样 → 拆 task → 开发 → 质量门禁 → 踩坑回流；含各角色交接物与阅读顺序 |
-| [docs/tasks/](docs/tasks/) | 开发执行单元（task-XX）：验收标准 + 接口契约 + 依赖，每个 task 必须引用 spec 条款 |
 | [.codebuddy/agents/](.codebuddy/agents/) | 各角色权限文件（能改 / 不能改） |
 | server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |
 
@@ -139,5 +148,4 @@ cd client && npm install && npm run dev:mp-weixin
 
 1. `project_spec.md`（基础规范基线，先懂红线）
 2. `.codebuddy/agents/` 中**自己的角色**文件（懂权限边界）
-3. `docs/tasks/` 中认领的 `task-XX`（懂验收与契约）
-4. `docs/WORKFLOW.md`（懂流程与交接）
+3. `docs/WORKFLOW.md`（懂流程与交接）
