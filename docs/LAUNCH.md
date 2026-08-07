@@ -14,7 +14,7 @@
 | D-2 | SMTP 密钥 | 生产环境 `SPRING_MAIL_USERNAME` / `SPRING_MAIL_PASSWORD` 环境变量注入（邮箱验证码依赖，不可缺） | ⬜ |
 | D-3 | JWT 密钥更换 | 默认 `BjtuFoodSecretKey2024ForJwtTokenSigning` 仅限开发；生产必须更换（`jwt.secret` 或环境变量） | ⬜ |
 | D-4 | 数据库初始化 | 生产库执行 `schema.sql`（全表）+ `seed_data.sql`（基础数据）+ `migration_phase6.sql`/`phase7.sql`（若从旧库升级） | ⬜ |
-| D-5 | 打包构建 | `mvn clean package -DskipTests` → 产物 `backend/target/*.jar` | ⬜ |
+| D-5 | 打包构建 | `mvn clean package -DskipTests` → 产物 `server/target/*.jar` | ⬜ |
 | D-6 | 部署运行 | `java -jar --spring.profiles.active=prod`；建议 systemd / Docker；端口 8080 | ⬜ |
 | D-7 | 图片目录 | 确保 `upload.path` 目录可写、生产有持久化卷（不随容器销毁） | ⬜ |
 | D-8 | 反向代理 + HTTPS | Nginx/Caddy 转发 `/api` 到后端 8080；小程序正式版要求**合法域名 + HTTPS**。**注意：本项目为自建 Spring Boot 后端，不适用云开发/云托管免域名方案** | ⬜ |
@@ -43,7 +43,7 @@
 
 | # | 事项 | 说明 | 状态 |
 |---|------|------|------|
-| F-1 | API 基地址 | 构建时注入 `VITE_API_BASE_URL=https://你的域名/api`（`frontend/src/api/config.ts` 读取环境变量，当前默认 localhost） | ⬜ |
+| F-1 | API 基地址 | 构建时注入 `VITE_API_BASE_URL=https://你的域名/api`（`client/src/api/config.ts` 读取环境变量，当前默认 localhost） | ⬜ |
 | F-2 | 上传域名 | 图片上传接口域名加入微信后台「服务器域名」白名单（request/uploadFile） | ⬜ |
 | F-3 | 隐私协议 | 微信后台填写隐私保护指引：声明收集**学号/校园邮箱/位置/相册**用途（登录、评价、发布依赖） | ⬜ |
 | F-4 | 用户协议 | 小程序内「我的 → 设置」提供用户协议/隐私政策链接（可先放静态页） | ⬜ |

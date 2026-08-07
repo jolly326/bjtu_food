@@ -51,7 +51,7 @@
       <!-- 设置（单列表：深色模式/关于/隐私/缓存；游客也可用，无需认证） -->
       <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
         <SettingCell label="深色模式" icon="settings" :switch="true" :switch-value="theme.isDark" @select="theme.toggle()" />
-        <SettingCell label="关于食在交大" icon="logo" @select="goAbout" />
+        <SettingCell label="关于知行食记" icon="logo" @select="goAbout" />
         <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
         <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
       </SettingGroup>
@@ -62,7 +62,7 @@
       </SettingGroup>
 
       <view class="version-row">
-        <text class="version-text">食在交大 v1.0.0</text>
+        <text class="version-text">知行食记 v1.0.0</text>
       </view>
     </scroll-view>
 
@@ -135,8 +135,8 @@ function goProfileEdit() {
 // ── 设置（内嵌分组）──
 function goAbout() {
   uni.showModal({
-    title: '关于食在交大',
-    content: '食在交大是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
+    title: '关于知行食记',
+    content: '知行食记是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
     showCancel: false,
   })
 }

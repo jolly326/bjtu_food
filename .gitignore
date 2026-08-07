@@ -20,11 +20,11 @@ target/
 # Spring / local runtime
 uploads/
 **/uploads/
-!backend/uploads/.gitkeep
-!backend/uploads/
-!backend/uploads/images/
-!backend/uploads/images/seed/
-!backend/uploads/images/seed/**
+!server/uploads/.gitkeep
+!server/uploads/
+!server/uploads/images/
+!server/uploads/images/seed/
+!server/uploads/images/seed/**
 application-local.yml
 application-*.local.yml
 application-secret.yml
