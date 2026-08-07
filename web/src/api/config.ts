@@ -1,6 +1,17 @@
+/// <reference types="vite/client" />
+
 /**
  * 后端 API 基础路径
- * - 云托管线上环境（当前）：https://bjtu-food-292909-9-1408890131.sh.run.tcloudbase.com/api
- * - 本地联调后端：改回 http://localhost:8080/api
+ *
+ * 读取优先级（从高到低）：
+ * 1. 环境变量 VITE_API_BASE_URL（可在 .env.development / .env.production 或命令行注入）
+ * 2. 下方 DEFAULT_API_BASE_URL（本地联调默认 127.0.0.1:8080）
+ *
+ * 用法示例：
+ * - 本地联调后端：VITE_API_BASE_URL=http://127.0.0.1:8080/api
+ * - 部署上线：VITE_API_BASE_URL=https://<你的域名>/api
  */
-export const API_BASE_URL = 'https://bjtu-food-292909-9-1408890131.sh.run.tcloudbase.com/api'
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api'
+
+export const API_BASE_URL: string =
+  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
