@@ -13,25 +13,25 @@
  */
 
 /* ============ 保留 uni 默认语义变量（兼容三方/内部回退引用） ============ */
-/* 主色与 App.vue 浅色 token 对齐（全站统一砖红 #7A241A，见 src/theme/tokens.ts） */
-$uni-color-primary: #7A241A;
+/* 主色与 App.vue 浅色 token 对齐（2026-08-12 拍板：全站统一暖杏 #D4884C，见 src/theme/tokens.ts） */
+$uni-color-primary: #D4884C;
 $uni-color-success: #10B981;
 $uni-color-warning: #F5A623;
-$uni-color-error: #E54D42;
+$uni-color-error: #FF3B30;
 
-$uni-text-color: #1C1917;
+$uni-text-color: #1C1C1E;
 $uni-text-color-inverse: #FFFFFF;
 /* tertiary 提对比后与 token 对齐 */
-$uni-text-color-grey: #8C837B;
-$uni-text-color-placeholder: #8C837B;
-$uni-text-color-disable: #C9BFB6;
+$uni-text-color-grey: #8E8E93;
+$uni-text-color-placeholder: #8E8E93;
+$uni-text-color-disable: #C9C9CE;
 
 $uni-bg-color: #FFFFFF;
-$uni-bg-color-grey: #F6F4EF;
-$uni-bg-color-hover: #F1ECE6;
+$uni-bg-color-grey: #F5F5F7;
+$uni-bg-color-hover: #EDEDF0;
 $uni-bg-color-mask: rgba(0, 0, 0, 0.4);
 
-$uni-border-color: #ECE6E0;
+$uni-border-color: #E5E5EA;
 
 $uni-font-size-sm: 20rpx;
 $uni-font-size-base: 28rpx;
@@ -52,9 +52,9 @@ $uni-border-radius-base: 12rpx;
 $uni-border-radius-lg: 16rpx;
 $uni-border-radius-circle: 50%;
 
-/* Bare hex #F6F4EF (= --bg-page) exception — scroll-view background fallback.
+/* Bare hex #F5F5F7 (= --bg-page) exception — scroll-view background fallback.
    微信小程序 scroll-view 默认白底，部分环境 CSS 变量 var(--bg-page) 在 scroll-view 上解析失效会露白线，
-   故 stall.vue 的 .cat-sidebar / .dish-group-scroll 两处 scroll-view 背景硬编码 #F6F4EF 作兜底（代码内有注释说明）。
+   故个别 scroll-view 背景硬编码 #F5F5F7 作兜底（代码内有注释说明）。
    这是已知原生 scroll-view 背景解析例外，不属于「禁止裸色值」违规。 */
 
 /* Native swiper indicator color exception — var() unsupported by <swiper> indicator-active-color / indicator-color.
@@ -66,8 +66,7 @@ $uni-border-radius-circle: 50%;
 
 /* Native uni.showModal confirmColor exception — var() unsupported by confirmColor attribute.
    微信小程序原生 uni.showModal 的 confirmColor 不接受 CSS var()，因此以下文件
-   直接传入真实色值 #e54d42（交大红系错误色，见 uni.scss $uni-color-error）：
-   - components/DishDetailSheet.vue（删除菜品/删除评价确认）
+   直接传入真实色值 #FF3B30（暖杏系错误色，见 uni.scss $uni-color-error）：
    - pages/pages-detail/stall.vue（删除确认）
    - pages/profile/index.vue（注销账号确认）
    这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */

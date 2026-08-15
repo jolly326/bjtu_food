@@ -196,33 +196,25 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
-    />
-
     <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
     <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
-import IconSvg from '@/components/IconSvg.vue'
+import { useThemeStore } from '@/stores/theme'
+import { useDishStore } from '@/stores/dish'
 import { buildSharePayload } from '@/utils/shareState'
+import type { Suggestion } from '@/types/dish'
+import IconSvg from '@/components/IconSvg.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import { useDishStore } from '@/stores/dish'
-import type { Suggestion } from '@/types/dish'
 
+const theme = useThemeStore()
 const dishStore = useDishStore()
 
 /** 搜索页为非 tab 二级页：返回回首页（2026-08-03 修复：用 navigateBack 带返回动画；无上一页时兜底 reLaunch） */
@@ -253,13 +245,10 @@ function measureTopBar() {
   }
 }
 
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+/** 菜品详情：跳转独立页（pages-detail/dish） */
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const keyword = ref('')
 const suggestions = ref<Suggestion[]>([])
@@ -317,6 +306,12 @@ interface MixedResult {
   image?: string
   /** 副信息：档口→食堂名；食堂→位置；菜品→空（由联想数据结构派生） */
   sub?: string
+  /** 菜品专属：价格（分） */
+  price?: number
+  /** 菜品专属：平均评分 */
+  rating?: number
+  /** 菜品专属：评价数 */
+  ratingCount?: number
 }
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
@@ -394,12 +389,13 @@ function goSuggestion(s: Suggestion) {
   suggestions.value = []
   keyword.value = s.name
   if (s.type === 'dish' && s.id) {
-    openDishSheet(s.id)
+    openDishDetail(s.id)
   } else if (s.type === 'canteen' && s.name) {
-    uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(s.name)}` })
+    // 食堂详情页已下线：仅作关键词搜索，不跳详情
+    doMixedSearch(s.name)
   } else if (s.type === 'stall' && s.name && s.canteen) {
-    dishStore.navParams = { stallName: s.name, canteen: s.canteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    // 档口详情页已下线：仅作关键词搜索，不跳详情
+    doMixedSearch(s.name)
   }
 }
 
@@ -410,7 +406,8 @@ function goKeyword(kw: string) {
 }
 
 // ===== 复合型混合搜索（2026-08-03：复用 suggest 接口，美团式混合结果） =====
-async function doMixedSearch(kw: string) {
+async function doMixedSearch(kw?: string) {
+  if (!kw) return
   inFilter.value = true
   activeResultTab.value = 'all'
   mixedLoading.value = true
@@ -424,6 +421,10 @@ async function doMixedSearch(kw: string) {
         image: s.image,
         // 档口副信息 = 所属食堂名（后端 suggest 已联表返回 canteen，供跳档口详情携带 navParams.canteen）
         sub: s.type === 'stall' ? s.canteen || '校园档口' : s.type === 'canteen' ? '校园食堂' : '',
+        // 菜品专属字段透传（价格/评分/评价数），保证搜索结果展示完整
+        price: s.price,
+        rating: s.rating,
+        ratingCount: s.ratingCount,
       }))
       .filter(r => r.name)
   } catch {
@@ -444,16 +445,12 @@ function mixedTypeText(type: Suggestion['type']): string {
   return '食堂'
 }
 
-/** 混合结果点击：菜品弹详情，档口/食堂跳对应详情页 */
+/** 混合结果点击：菜品跳详情页，档口/食堂降级为关键词搜索（详情页已下线） */
 function goToMixed(item: MixedResult) {
   if (item.type === 'dish' && item.id) {
-    openDishSheet(item.id)
-  } else if (item.type === 'canteen' && item.name) {
-    uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(item.name)}` })
-  } else if (item.type === 'stall' && item.name && item.sub) {
-    // sub 承载 suggest 返回的 canteen 名称（doMixedSearch 已写入），档口详情需 navParams.canteen
-    dishStore.navParams = { stallName: item.name, canteen: item.sub }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    openDishDetail(item.id)
+  } else if (item.name) {
+    doMixedSearch(item.name)
   }
 }
 

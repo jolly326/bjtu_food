@@ -113,10 +113,10 @@ const themeStore = useThemeStore()
 const COLOR_VARS = computed(() => COLOR_VARS_TABLE[themeStore.isDark ? 'dark' : 'light'])
 
 function resolveColor(c: string): string {
-  if (!c) return COLOR_VARS.value.currentColor || '#1C1917'
+  if (!c) return COLOR_VARS.value.currentColor || '#1C1C1E'
   if (c.startsWith('var(')) {
     const name = c.slice(4, -1).trim()
-    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1917'
+    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1C1E'
   }
   return c
 }

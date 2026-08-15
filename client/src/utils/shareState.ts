@@ -6,7 +6,7 @@
 import { ref } from 'vue'
 import type { Moment } from '@/types/moment'
 
-/** 待分享的菜品（DishDetailSheet 分享用） */
+/** 待分享的菜品（分享路径见 buildSharePayload） */
 export interface ShareDish {
   id: number
   name: string
@@ -26,7 +26,7 @@ export function buildSharePayload(dish?: ShareDish | null, moment?: Moment | nul
   if (d) {
     return {
       title: `推荐「${d.name}」¥${d.price}${d.stallName ? ' · ' + d.stallName : ''}，来自食在交大`,
-      path: d.stallId ? `/pages/pages-detail/stall?id=${d.stallId}` : '/pages/home/index',
+      path: `/pages/pages-detail/dish?id=${d.id}`,
     }
   }
   if (m) {

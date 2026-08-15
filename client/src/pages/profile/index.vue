@@ -1,7 +1,6 @@
 <template>
   <view class="page profile-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的" />
-
+    <Header title="我的" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 用户卡：未登录显示游客态（点击弹出认证）；已登录显示完整信息（点击进个人信息页） -->
       <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="onUserCardTap">
@@ -23,83 +22,67 @@
         </view>
       </view>
 
-      <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价；未登录点击时引导认证） -->
-      <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
+      <!-- 我的入口：我发布的 / 我的评价 / 活动报名 / 意见反馈 / 关于我们（白卡 + 右箭头） -->
+      <view class="entry-group enter-up" :style="{ '--enter-i': 1 }">
         <view
-          v-for="g in gridItems"
-          :key="g.key"
-          class="grid-item"
-          :class="{ pressed: pressedKey === g.key }"
-          @touchstart="pressedKey = g.key"
+          v-for="e in entryItems"
+          :key="e.key"
+          class="entry-row"
+          :class="{ pressed: pressedKey === e.key }"
+          @touchstart="pressedKey = e.key"
           @touchend="pressedKey = ''"
           @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = g.key"
+          @mousedown="pressedKey = e.key"
           @mouseup="pressedKey = ''"
           @mouseleave="pressedKey = ''"
-          @tap="g.action"
+          @tap="e.action"
         >
-          <view class="grid-icon">
-            <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
-            <view v-if="isLoggedIn && g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
-              {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
-            </view>
-          </view>
-          <text class="grid-label">{{ g.label }}</text>
+          <IconSvg :name="e.icon" :size="36" color="var(--text-secondary)" class="entry-icon" />
+          <text class="entry-label">{{ e.label }}</text>
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
         </view>
       </view>
 
-      <!-- 设置（单列表：深色模式/关于/隐私/缓存；游客也可用，无需认证） -->
-      <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
-        <SettingCell label="深色模式" icon="settings" :switch="true" :switch-value="theme.isDark" @select="theme.toggle()" />
-        <SettingCell label="关于知行食记" icon="logo" @select="goAbout" />
-        <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
-        <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
-      </SettingGroup>
-
-      <!-- 账号注销（危险操作，仅登录后可见） -->
-      <SettingGroup v-if="isLoggedIn" :style="{ '--enter-i': 3 }">
-        <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
-      </SettingGroup>
-
-      <view class="version-row">
-        <text class="version-text">知行食记 v1.0.0</text>
+      <!-- 退出登录（警示红，未登录置灰） -->
+      <view class="entry-group logout-group enter-up" :style="{ '--enter-i': 2 }">
+        <view
+          class="entry-row logout-row"
+          :class="{ pressed: logoutPressed, disabled: !isLoggedIn }"
+          @touchstart="logoutPressed = true"
+          @touchend="logoutPressed = false"
+          @touchcancel="logoutPressed = false"
+          @mousedown="logoutPressed = true"
+          @mouseup="logoutPressed = false"
+          @mouseleave="logoutPressed = false"
+          @tap="onLogout"
+        >
+          <text class="logout-label">{{ isLoggedIn ? '退出登录' : '未登录' }}</text>
+        </view>
       </view>
     </scroll-view>
 
     <!-- 认证弹层：游客点击需认证功能时弹出 -->
     <AuthSheet />
-
-    <CustomTabBar current="/pages/profile/index" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
 import Header from '@/components/header.vue'
-import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import SettingGroup from '@/components/SettingGroup.vue'
-import SettingCell from '@/components/SettingCell.vue'
 import { useUserStore } from '@/stores/user'
-import { useNotifyStore } from '@/stores/notify'
-import { useAuthSheetStore } from '@/stores/authSheet'
 import { useThemeStore } from '@/stores/theme'
+import { useAuthSheetStore } from '@/stores/authSheet'
 import { getImageUrl } from '@/utils/image'
-import { deleteAccount } from '@/api/user'
+import { backToHome } from '@/utils/nav'
 
-const userStore = useUserStore()
-const notifyStore = useNotifyStore()
-const authSheetStore = useAuthSheetStore()
 const theme = useThemeStore()
+const userStore = useUserStore()
+const authSheetStore = useAuthSheetStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
 const pressedKey = ref('')
-
-function openMessage() {
-  uni.navigateTo({ url: '/pages/profile/messages/index' })
-}
 
 /** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
 function requireAuth(action: () => void) {
@@ -119,90 +102,42 @@ function onUserCardTap() {
   goProfileEdit()
 }
 
-/** 4 项功能网格（统一主色软底大图标，克制；未登录点击时引导认证） */
-const gridItems = [
-  { key: 'moments', icon: 'comment', label: '我的动态', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
-  // 反馈不登录也可用：游客直接进提交页；登录用户进完整反馈中心（含我的反馈记录）
-  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: userStore.isLoggedIn() ? '/pages/profile/messages-services/index' : '/pages/feedback/index' }) },
-  { key: 'notify', icon: 'bell', label: '消息中心', action: () => requireAuth(openMessage) },
+/** 我的入口：我发布的 / 我的评价 / 活动报名 / 意见反馈 / 关于我们 */
+const entryItems = [
+  { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
   { key: 'reviews', icon: 'star', label: '我的评价', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' })) },
+  { key: 'activity', icon: 'broadcast', label: '活动报名', action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
+  { key: 'about', icon: 'bell', label: '关于我们', action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
-function goProfileEdit() {
-  uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
-}
-
-// ── 设置（内嵌分组）──
-function goAbout() {
+/** 退出登录：二次确认（红色警示），未登录置灰不可点 */
+const logoutPressed = ref(false)
+function onLogout() {
+  if (!userStore.isLoggedIn()) return
   uni.showModal({
-    title: '关于知行食记',
-    content: '知行食记是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
-    showCancel: false,
-  })
-}
-
-function goPrivacy() {
-  uni.showModal({
-    title: '隐私政策',
-    content: '我们仅收集必要的账号与登录信息用于提供服务。您的浏览足迹、动态与收藏仅用于优化你的个性化体验，不会向第三方泄露。',
-    showCancel: false,
-  })
-}
-
-function clearCache() {
-  uni.showModal({
-    title: '清除缓存',
-    content: '确定清除本地缓存吗？不会删除你的账号数据。',
+    title: '退出登录',
+    content: '确定要退出当前账号吗？',
+    confirmText: '退出',
+    cancelText: '取消',
+    confirmColor: '#FF3B30',
     success: (res) => {
       if (res.confirm) {
-        uni.clearStorageSync()
-        userStore.restoreFromCache()
-        uni.showToast({ title: '缓存已清除', icon: 'none' })
+        userStore.logout()
+        uni.showToast({ title: '已退出登录', icon: 'none' })
       }
     },
   })
 }
 
-function goCancelAccount() {
-  uni.showModal({
-    title: '账号注销',
-    content: '注销后你的菜品、动态、评价等数据将被删除且不可恢复，确定要继续吗？',
-    confirmText: '确认注销',
-    confirmColor: '#e54d42',
-    success: (res) => {
-      if (res.confirm) doDeleteAccount()
-    },
-  })
+function goProfileEdit() {
+  uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
-
-async function doDeleteAccount() {
-  try {
-    await deleteAccount()
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
-    uni.showToast({ title: '账号已注销', icon: 'none' })
-    setTimeout(() => { uni.reLaunch({ url: '/pages/profile/index' }) }, 600)
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '注销失败', icon: 'none' })
-  }
-}
-
-onMounted(() => {
-  if (userStore.isLoggedIn()) {
-    notifyStore.fetchUnread()
-  }
-})
-// 从消息中心页返回时刷新未读角标
-onShow(() => {
-  if (userStore.isLoggedIn()) {
-    notifyStore.fetchUnread()
-  }
-})
 </script>
 
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
 
 /* Hero 用户卡（纯白卡 + 主题色点缀；头像 + 昵称 + ID/认证 + 右侧 >，整卡点击进个人信息页；无渐变） */
 .user-card {
@@ -228,45 +163,45 @@ onShow(() => {
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
 .card-arrow { flex-shrink: 0; }
 
-/* 4 项功能网格（4 列：纯主题色图标 + 文字，无背景块；卡片间距统一 --spacing-sm） */
-.grid-menu {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
-  padding: var(--spacing-lg) var(--spacing-sm);
+/* 我的入口（白卡 + 行布局 + 右箭头；按压背景微变） */
+.entry-group {
+  margin: 0 var(--spacing-md) var(--spacing-sm);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
-.grid-item {
+.entry-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) 0;
-  transition: transform 120ms var(--ease-out);
+  gap: var(--spacing-md);
+  height: 104rpx;
+  padding: 0 var(--spacing-lg);
+  transition: background-color 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.grid-item.pressed { transform: scale(var(--press-scale)); }
-.grid-icon {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.grid-label { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.2; }
-.grid-badge {
-  position: absolute; top: -10rpx; right: -16rpx;
-  min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx;
-  background: var(--color-error); color: var(--text-white);
-  font-size: 18rpx; font-weight: var(--weight-semibold); line-height: 32rpx; text-align: center;
-  box-sizing: border-box;
-}
+.entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
+.entry-row.pressed { background-color: var(--bg-soft); }
+.entry-icon { flex-shrink: 0; }
+.entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.entry-arrow { flex-shrink: 0; }
 
-.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
-.version-text { display: block; font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-tertiary); }
+/* 退出登录（警示红，独立分组 + 上间距；未登录置灰） */
+.logout-group { margin-top: var(--spacing-md); }
+.logout-row {
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.logout-label {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--color-error);
+}
+.logout-row.pressed { background-color: var(--bg-soft); }
+.logout-row.disabled { opacity: 0.4; }
+.logout-row.disabled .logout-label { color: var(--text-tertiary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .grid-item { transition: none; }
+  .user-card, .entry-row { transition: none; }
 }
 </style>

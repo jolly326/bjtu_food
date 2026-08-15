@@ -36,6 +36,22 @@
 			}
 		},
 		{
+			"path": "pages/activity/index",
+			"style": {
+				"navigationBarTitleText": "最新活动",
+				"navigationBarBackgroundColor": "#F5F5F7",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/about/index",
+			"style": {
+				"navigationBarTitleText": "关于我们",
+				"navigationBarBackgroundColor": "#F5F5F7",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/webview/index",
 			"style": {
 				"navigationBarTitleText": "",
@@ -62,13 +78,6 @@
 			"root": "pages/pages-detail/",
 			"pages": [
 				{
-					"path": "canteen",
-					"style": {
-						"navigationBarTitleText": "食堂详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "moment",
 					"style": {
 						"navigationBarTitleText": "动态详情",
@@ -83,10 +92,19 @@
 					}
 				},
 				{
-					"path": "stall",
+					"path": "dish",
 					"style": {
-						"navigationBarTitleText": "档口详情",
-						"navigationStyle": "custom"
+						"navigationBarTitleText": "菜品详情",
+						"navigationBarBackgroundColor": "#F5F5F7",
+						"navigationBarTextStyle": "black"
+					}
+				},
+				{
+					"path": "review-list",
+					"style": {
+						"navigationBarTitleText": "全部评价",
+						"navigationBarBackgroundColor": "#F5F5F7",
+						"navigationBarTextStyle": "black"
 					}
 				}
 			]
@@ -140,9 +158,9 @@
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "white",
+		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "知行食记",
-		"navigationBarBackgroundColor": "#8B3A2B",
-		"backgroundColor": "#F6F4EF"
+		"navigationBarBackgroundColor": "#F5F5F7",
+		"backgroundColor": "#F5F5F7"
 	}
 }

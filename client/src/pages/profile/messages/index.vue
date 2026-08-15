@@ -1,6 +1,6 @@
 <template>
   <view class="page messages-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="消息中心" showBack />
+    <Header title="消息中心" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && list.length === 0" class="skeleton-list">
@@ -54,6 +54,7 @@ import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useThemeStore } from '@/stores/theme'
 import { getNotifications, readNotification, readAllNotifications, type Notification, type NotificationType } from '@/api/notify'
+import { backToHome } from '@/utils/nav'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -160,7 +161,7 @@ onShow(() => {
 .msg-dot {
   flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: 50%;
   background: var(--color-primary);
-  margin-top: 12rpx;
+  margin-top: var(--spacing-sm);
 }
 .msg-dot.read { background: var(--border-color); }
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }

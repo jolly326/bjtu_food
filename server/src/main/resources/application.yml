@@ -19,11 +19,12 @@ spring:
     import: optional:classpath:application-secret.yml
 
   # ---------- 数据源配置 ----------
+  # 凭据一律从环境变量注入（本地开发在启动前设置，或复制 .env.example 为 server/.env 加载），禁止在仓库写入明文。
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-    username: oi
-    password: "060326"
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
   # ---------- 文件上传配置 ----------
   servlet:
@@ -31,11 +32,12 @@ spring:
       max-file-size: 5MB        # 单文件最大 5MB
       max-request-size: 20MB    # 单次请求最大 20MB
 
-  # ---------- SMTP 邮件配置 ----------
+  # ---------- SMTP 邮件配置（网易 163） ----------
   # 发件邮箱与授权码由 application-secret.yml 提供（spring.mail.username / spring.mail.password），
   # 经上方 spring.config.import 自动加载；也可用环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 覆盖。
+  # 网易 SMTP：host=smtp.163.com，端口 465（SSL）/ 994（SSL）。授权码在网易邮箱网页版「设置→POP3/SMTP/IMAP」开启后生成。
   mail:
-    host: smtp.qq.com
+    host: smtp.163.com
     port: 465
     protocol: smtp
     default-encoding: UTF-8
@@ -61,14 +63,12 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     # 数据库字段下划线命名 <-> Java 实体类驼峰命名自动映射
     map-underscore-to-camel-case: true
-# ---------- Knife4j API 文档配置 ----------
-knife4j:
-  enable: true
 
 # ---------- JWT 配置 ----------
 jwt:
-  # JWT 签名密钥（生产环境请更换为复杂密钥）
-  secret: BjtuFoodSecretKey2024ForJwtTokenSigning
+  # JWT 签名密钥：生产/云端必须从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库。
+  # 本地开发默认值仅供调试，切勿直接用于生产。
+  secret: ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}
   # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
   # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
   expiration: 3153600000000

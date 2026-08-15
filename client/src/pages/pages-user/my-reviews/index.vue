@@ -1,6 +1,6 @@
 <template>
   <view class="page my-reviews-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的评价" showBack />
+    <Header title="我的评价" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
       <view v-if="loading && list.length === 0" class="skeleton-list">
@@ -26,14 +26,15 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import Header from '@/components/header.vue'
-import ReviewItem from '@/components/ReviewItem.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getMyReviews, deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
+import { backToHome } from '@/utils/nav'
+import Header from '@/components/header.vue'
+import ReviewItem from '@/components/ReviewItem.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
 const theme = useThemeStore()
@@ -60,7 +61,7 @@ function onDelete(review: Review) {
     title: '删除评价',
     content: '确定删除这条评价吗？',
     confirmText: '删除',
-    confirmColor: '#e54d42',
+    confirmColor: '#FF3B30',
     success: async (res) => {
       if (!res.confirm) return
       try {

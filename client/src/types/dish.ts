@@ -46,6 +46,8 @@ export interface Dish {
   promoPrice?: number
   /** 发布者用户 ID（task-12.5：仅本人可删除自己发布的菜品） */
   createdBy?: number
+  /** 距当前用户距离（米），由后端按定位计算；缺省则来源区不展示该行 */
+  distance?: number
 }
 
 export interface RatingDistribution {

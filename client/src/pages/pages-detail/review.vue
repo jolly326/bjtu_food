@@ -1,8 +1,47 @@
 <template>
   <view class="page review-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="发表评价" showBack />
+    <Header title="发表评价" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
+      <!-- 菜品选择（必选；从动态页进入需搜索菜名） -->
+      <CardSection>
+        <text class="section-label">菜品</text>
+        <view v-if="selectedDishName" class="dish-selected" @tap="clearDish">
+          <IconSvg name="dish" :size="32" color="var(--color-primary)" />
+          <text class="dish-selected-name">{{ selectedDishName }}</text>
+          <text class="dish-selected-hint">点击重选</text>
+        </view>
+        <block v-else>
+          <input
+            class="dish-input"
+            :value="dishKeyword"
+            placeholder="搜索并选择菜品"
+            placeholder-class="dish-input-ph"
+            @input="(e: any) => searchDishList(e.detail.value)"
+          />
+          <view v-if="searching" class="dish-hint">搜索中…</view>
+          <view v-else-if="dishCandidates.length > 0" class="dish-candidates">
+            <view
+              v-for="c in dishCandidates"
+              :key="c.id"
+              class="dish-candidate"
+              :class="{ pressed: dishPressed === c.id }"
+              @touchstart="dishPressed = c.id"
+              @touchend="dishPressed = null"
+              @touchcancel="dishPressed = null"
+              @mousedown="dishPressed = c.id"
+              @mouseup="dishPressed = null"
+              @mouseleave="dishPressed = null"
+              @tap="pickDish(c.id, c.name)"
+            >
+              <text class="dish-candidate-name">{{ c.name }}</text>
+              <text v-if="c.canteen" class="dish-candidate-canteen">{{ c.canteen }}</text>
+            </view>
+          </view>
+          <view v-else-if="dishKeyword" class="dish-hint">无匹配菜品，换个关键词试试</view>
+        </block>
+      </CardSection>
+
       <!-- 评分 -->
       <CardSection>
         <text class="section-label">评分</text>
@@ -64,25 +103,26 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
-const MAX_CONTENT_LENGTH = 500
-const MAX_IMAGES = 3
-
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+import { useDishStore } from '@/stores/dish'
+import { useUserStore } from '@/stores/user'
+import { searchDishes } from '@/api/dish'
+import { uploadImage as uploadImageApi } from '@/api/upload'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import { useDishStore } from '@/stores/dish'
-import { useUserStore } from '@/stores/user'
-import { uploadImage as uploadImageApi } from '@/api/upload'
 
+const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
+const MAX_CONTENT_LENGTH = 200
+const MAX_IMAGES = 3
 const dishId = ref(0)
 const uploading = ref(false)
 const form = reactive({
@@ -93,11 +133,52 @@ const form = reactive({
   shareToMoment: true,
 })
 
+// 菜品选择（发布动态.md：必选菜品；从动态页进入需搜索菜名）
+const selectedDishName = ref('')
+const dishKeyword = ref('')
+const dishCandidates = ref<{ id: number; name: string; canteen?: string }[]>([])
+const searching = ref(false)
+const dishPressed = ref<number | null>(null)
+
+async function searchDishList(kw: string) {
+  dishKeyword.value = kw
+  if (!kw.trim()) {
+    dishCandidates.value = []
+    return
+  }
+  searching.value = true
+  try {
+    const list = await searchDishes({ keyword: kw.trim(), page: 1, pageSize: 10 })
+    dishCandidates.value = list.map((d) => ({ id: d.id, name: d.name, canteen: d.canteen }))
+  } catch (e) {
+    console.error('[review] 菜品搜索失败', e)
+    dishCandidates.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+function pickDish(id: number, name: string) {
+  dishId.value = id
+  selectedDishName.value = name
+  dishKeyword.value = ''
+  dishCandidates.value = []
+}
+
+function clearDish() {
+  dishId.value = 0
+  selectedDishName.value = ''
+  dishKeyword.value = ''
+  dishCandidates.value = []
+}
+
 function toggleShare() {
   form.shareToMoment = !form.shareToMoment
 }
 
-const canSubmit = computed(() => form.rating > 0 && form.content.trim().length > 0)
+const canSubmit = computed(
+  () => dishId.value > 0 && form.rating > 0 && form.content.trim().length > 0
+)
 
 function removeImage(idx: number) {
   form.images.splice(idx, 1)
@@ -149,8 +230,17 @@ async function handleSubmit() {
   }
 }
 
-onLoad((query) => {
-  if (query?.dishId) dishId.value = Number(query.dishId)
+onLoad(async (query) => {
+  if (query?.dishId) {
+    dishId.value = Number(query.dishId)
+    // 取菜名展示（详情页带入，展示只读菜名）
+    try {
+      await dishStore.fetchDetail(dishId.value)
+      selectedDishName.value = dishStore.currentDish?.name || ''
+    } catch (e) {
+      console.error('[review] 菜名加载失败', e)
+    }
+  }
 })
 </script>
 
@@ -174,6 +264,77 @@ onLoad((query) => {
   display: flex;
   justify-content: center;
   padding: var(--spacing-md) 0;
+}
+/* 菜品选择 */
+.dish-selected {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
+  -webkit-tap-highlight-color: transparent;
+}
+.dish-selected-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dish-selected-hint {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.dish-input {
+  width: 100%;
+  height: 72rpx;
+  padding: 0 var(--spacing-md);
+  font-size: var(--font-body);
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.dish-input-ph { color: var(--text-tertiary); }
+.dish-hint {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+}
+.dish-candidates {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+  background: var(--bg-page);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.dish-candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+  padding: var(--spacing-sm) var(--spacing-md);
+  transition: background-color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.dish-candidate.pressed { background-color: var(--bg-soft); }
+.dish-candidate-name {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dish-candidate-canteen {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
 }
 .content-input {
   width: 100%;

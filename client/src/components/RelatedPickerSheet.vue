@@ -130,7 +130,7 @@ function onTouchMove(e: any) {
   if (!dragging.value) return
   const y = e.touches?.[0]?.clientY ?? 0
   const now = Date.now()
-  // 记录瞬时速度（与 DishDetailSheet 一致，apple-design §5 velocity handoff）
+  // 记录瞬时速度（apple-design §5 velocity handoff）
   const dt = Math.max(now - lastTime, 1)
   velocity = ((y - lastY) / dt) * 1000 // px/s
   lastY = y
@@ -142,7 +142,7 @@ function onTouchMove(e: any) {
 function onTouchEnd() {
   if (!dragging.value) return
   dragging.value = false
-  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（与 DishDetailSheet 手感一致），否则回弹
+  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（apple-design §5 手势阈值），否则回弹
   if (velocity > 480 || dragOffset.value > 120) emit('close')
   dragOffset.value = 0
 }

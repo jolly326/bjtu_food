@@ -13,7 +13,6 @@
 学生（平鉴官）发布 / 更新菜品与档口信息 → 管理员审核 → 学生浏览、评价、分享，形成"**发现 → 决策 → 分享**"闭环。优惠活动由后勤在 Web 后台统一发放。
 
 > 定位为内容信息公示与美食点评社区，不涉及点单、支付、配送等外卖功能。
-> DBMS 数据库管理系统课程设计，404 小组开发。
 
 ---
 
@@ -111,7 +110,7 @@ JDK 21+、Maven 3.8+、MySQL 8.0+、Node.js 18+、pnpm、微信开发者工具
 ```bash
 # 1. 启动后端
 cd server && mvn spring-boot:run
-# → 访问 http://localhost:8080/api/doc.html
+# → 访问 http://localhost:8080/api/swagger-ui/index.html（接口文档）
 
 # 2. 启动管理后台
 cd web && pnpm install && pnpm dev
@@ -137,15 +136,6 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |------|------|
-| [project_spec.md](project_spec.md) | **基础规范基线（最高权威）**：技术栈 / 目录 / 跨端边界 / **不可违背的红线** / 协作纪律。所有 agent 必须服从；仅技术负责人可修改 |
-| [docs/WORKFLOW.md](docs/WORKFLOW.md) | **多 agent 协作流程**：需求 → 定样 → 拆 task → 开发 → 质量门禁 → 踩坑回流；含各角色交接物与阅读顺序 |
-| [.codebuddy/agents/](.codebuddy/agents/) | 各角色权限文件（能改 / 不能改） |
+| [project_spec.md](project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | 开发协作流程：需求 → 定样 → 拆任务 → 开发 → 质量门禁 → 经验回流 |
 | server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |
-
-### 多 Agent 协作阅读顺序
-
-新 agent / 协作者进入项目，按此顺序阅读，避免漏看红线、各读各的：
-
-1. `project_spec.md`（基础规范基线，先懂红线）
-2. `.codebuddy/agents/` 中**自己的角色**文件（懂权限边界）
-3. `docs/WORKFLOW.md`（懂流程与交接）

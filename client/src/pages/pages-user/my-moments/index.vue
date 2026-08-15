@@ -1,6 +1,6 @@
 <template>
   <view class="page my-moments-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的动态" showBack />
+    <Header title="我的动态" @back="backToHome" />
 
     <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过消息中心提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
@@ -35,14 +35,6 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
-    />
-
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
     <AuthSheet />
   </view>
@@ -51,29 +43,23 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
-import Header from '@/components/header.vue'
-import MomentCard from '@/components/MomentCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
-import { useDishStore } from '@/stores/dish'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { buildSharePayload } from '@/utils/shareState'
+import { backToHome } from '@/utils/nav'
+import Header from '@/components/header.vue'
+import MomentCard from '@/components/MomentCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
-const dishStore = useDishStore()
 const theme = useThemeStore()
 const moments = ref<Moment[]>([])
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const loading = ref(false)
 const loadFailed = ref(false)
@@ -105,12 +91,9 @@ function goDetail(m: Moment) {
 
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
-    openDishSheet(m.relatedId)
-  } else if (m.relatedType === 'stall' && m.relatedName && m.relatedCanteen) {
-    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
-    dishStore.navParams = { stallName: m.relatedName, canteen: m.relatedCanteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    openDishDetail(m.relatedId)
   }
+  // 档口详情页已下线（2026-08-09）：相关档口不再展示跳转入口
 }
 
 function onRefresh() {

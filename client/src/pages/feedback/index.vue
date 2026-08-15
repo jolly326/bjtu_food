@@ -1,6 +1,6 @@
 <template>
   <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="意见反馈" showBack />
+    <Header title="意见反馈" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 类型 -->
@@ -45,21 +45,22 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
 import { ref } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+import { submitFeedback } from '@/api/feedback'
+import type { FeedbackSubmit } from '@/types/feedback'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import CardSection from '@/components/CardSection.vue'
-import { submitFeedback } from '@/api/feedback'
-import type { FeedbackSubmit } from '@/types/feedback'
 
+const theme = useThemeStore()
 const types: { value: FeedbackSubmit['type']; label: string }[] = [
+  { value: 'error', label: '问题报告' },
   { value: 'suggestion', label: '功能建议' },
-  { value: 'error', label: '内容纠错' },
   { value: 'other', label: '其他' },
 ]
-const type = ref<FeedbackSubmit['type']>('suggestion')
+const type = ref<FeedbackSubmit['type']>('error')
 const content = ref('')
 const contact = ref('')
 const submitting = ref(false)

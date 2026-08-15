@@ -1,6 +1,6 @@
 <template>
   <view class="page messages-services-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="反馈中心" showBack />
+    <Header title="反馈中心" @back="backToHome" />
 
     <!-- 反馈记录列表（进入即展示） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
@@ -134,6 +134,7 @@ import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { getMyFeedback, submitFeedback, type FeedbackMyItem } from '@/api/feedback'
+import { backToHome } from '@/utils/nav'
 
 const userStore = useUserStore()
 const theme = useThemeStore()
@@ -165,7 +166,7 @@ const selectedAction = ref('other')
 const content = ref('')
 const submitting = ref(false)
 
-// 下拉拖动关闭（参照 ApplySheet / DishDetailSheet 手势）
+// 下拉拖动关闭（apple-design §5 手势阈值，与 ApplySheet 一致）
 /** 空处理器：mask touchmove.stop 防背景滚动穿透（小程序 catchtouchmove） */
 function noop() {}
 const startY = ref(0)

@@ -9,6 +9,7 @@
  */
 import { get, post, put, del } from './http'
 import { getImageUrl } from '@/utils/image'
+import { normalizeImages } from './_shared'
 import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
 
 /**
@@ -16,11 +17,6 @@ import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, Moment
  * 注意：原 api/momentMapper.ts 并入本模块——新增顶层模块文件在微信开发者工具
  * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
  */
-function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
-  if (typeof value === 'string' && value.trim()) return value.split(',').map(s => s.trim()).filter(Boolean).map(getImageUrl)
-  return []
-}
 
 export function toMoment(raw: any): Moment {
   if (!raw) return raw

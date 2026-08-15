@@ -5,6 +5,7 @@ import type {
 import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
 import { getImageUrl } from '@/utils/image'
+import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
 
 const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
@@ -15,36 +16,6 @@ const TAG_MAP: Record<string, string> = {
   spicy: '辣味',
   vegetarian: '素食',
   western: '西餐',
-}
-
-type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
-
-function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  return value.records || value.list || []
-}
-
-function totalOf(value: PageLike<any> | undefined | null): number {
-  if (!value) return 0
-  if (Array.isArray(value)) return value.length
-  return typeof value.total === 'number' ? value.total : recordsOf(value).length
-}
-
-function normalizeBoolean(value: unknown): boolean {
-  return value === true || value === 1 || value === '1'
-}
-
-function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
-  if (typeof value !== 'string' || !value.trim()) return []
-  const text = value.trim()
-  try {
-    const parsed = JSON.parse(text)
-    return Array.isArray(parsed) ? normalizeImages(parsed) : [getImageUrl(text)]
-  } catch {
-    return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
-  }
 }
 
 export function toDish(raw: any): Dish {
@@ -82,6 +53,7 @@ export function toDish(raw: any): Dish {
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
     createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
+    distance: raw.distance != null ? Number(raw.distance) : undefined,
   }
 }
 

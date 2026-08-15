@@ -1,6 +1,6 @@
 <template>
   <view class="page submit-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="提交档口·食堂" showBack />
+    <Header title="提交档口·食堂" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
       <view class="type-switch">
@@ -58,18 +58,19 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+import { getCanteensWithStalls } from '@/api/canteen'
+import { post } from '@/api/http'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import { getCanteensWithStalls } from '@/api/canteen'
-import { post } from '@/api/http'
 import ImageUploader from '@/components/ImageUploader.vue'
 
+const theme = useThemeStore()
 const type = ref<'stall' | 'canteen'>('stall')
 const submitting = ref(false)
 const canteenTree = ref<any[]>([])

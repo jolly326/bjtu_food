@@ -1,6 +1,6 @@
 <template>
   <view class="page moment-detail-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="动态详情" showBack />
+    <Header title="动态详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && !moment" class="skeleton">
         <view class="sk-block skeleton" v-for="s in 3" :key="s" />
@@ -128,24 +128,24 @@
       @submit="submitReport"
     />
 
-    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
-    />
-
     <!-- 认证弹层（未登录点赞/评论/举报 requireAuth 统一在此弹出） -->
     <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+import { useUserStore } from '@/stores/user'
+import * as momentApi from '@/api/moment'
+import { getReviewsByDish } from '@/api/review'
+import { submitFeedback } from '@/api/feedback'
+import { relativeTime } from '@/utils/time'
+import type { Moment, MomentComment } from '@/types/moment'
+import type { Review } from '@/types/review'
+import { buildSharePayload } from '@/utils/shareState'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -155,29 +155,14 @@ import CommentItem from '@/components/CommentItem.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
-import { relativeTime } from '@/utils/time'
-import { useUserStore } from '@/stores/user'
-import { useDishStore } from '@/stores/dish'
-import * as momentApi from '@/api/moment'
-import { getReviewsByDish } from '@/api/review'
-import { submitFeedback } from '@/api/feedback'
-import type { Moment, MomentComment } from '@/types/moment'
-import type { Review } from '@/types/review'
-import { buildSharePayload } from '@/utils/shareState'
 
+const theme = useThemeStore()
 const userStore = useUserStore()
-const dishStore = useDishStore()
 const moment = ref<Moment | null>(null)
-// 微信原生分享：优先菜品（DishDetailSheet 分享按钮），其次当前动态，默认首页
 onShareAppMessage(() => buildSharePayload(undefined, moment.value))
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
 /** 关联菜品的用户评价（task todo#9：并入关联+互动卡） */
@@ -226,7 +211,7 @@ async function loadData() {
     // 关联菜品时加载该菜品的用户评价（task todo#9）
     if (m.relatedType === 'dish' && m.relatedId) {
       try {
-        dishReviews.value = await getReviewsByDish(m.relatedId)
+        dishReviews.value = (await getReviewsByDish(m.relatedId)).list
       } catch {
         dishReviews.value = []
       }
@@ -244,12 +229,9 @@ async function loadData() {
 function goRelated() {
   if (!moment.value) return
   if (moment.value.relatedType === 'dish' && moment.value.relatedId) {
-    openDishSheet(moment.value.relatedId)
-  } else if (moment.value.relatedType === 'stall' && moment.value.relatedName && moment.value.relatedCanteen) {
-    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
-    dishStore.navParams = { stallName: moment.value.relatedName, canteen: moment.value.relatedCanteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    openDishDetail(moment.value.relatedId)
   }
+  // 档口详情页已下线（2026-08-09）：相关档口不再展示跳转入口
 }
 
 function goEdit() {

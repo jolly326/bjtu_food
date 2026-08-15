@@ -10,7 +10,7 @@
     @mouseleave="pressed = false"
     @longpress="onLongPress"
   >
-    <image v-if="comment.userAvatar" class="c-avatar" :src="comment.userAvatar" mode="aspectFill" />
+    <image v-if="avatarOk && comment.userAvatar" class="c-avatar" :src="comment.userAvatar" mode="aspectFill" @error="avatarOk = false" />
     <view v-else class="c-avatar c-avatar-empty">
       <IconSvg name="user" :size="30" color="var(--text-tertiary)" />
     </view>
@@ -65,6 +65,7 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const pressed = ref(false)
+const avatarOk = ref(true)
 
 function replyTo(c: MomentComment) { emit('reply', c) }
 function replyToNamed(nickname: string) { emit('reply-named', nickname) }

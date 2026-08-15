@@ -17,8 +17,6 @@ export interface UserStats {
   publishedCount?: number
   /** 待审数 */
   pendingCount?: number
-  /** 收藏数：favorite 模块已移除、喜欢计数落库方案待评估，后端暂以 0 占位，前端不臆测语义 */
-  favoriteCount?: number
   /** 评价数（后端 /auth/stats 权威来源） */
   reviewCount: number
   /** 历史兼容字段（旧契约），新逻辑以 reviewCount 为准 */

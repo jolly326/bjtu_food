@@ -1,6 +1,6 @@
 <template>
   <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header :title="isEdit ? '编辑菜品' : '发布菜品'" showBack />
+    <Header :title="isEdit ? '编辑菜品' : '发布菜品'" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
       <CardSection title="基本信息">
@@ -69,13 +69,14 @@ import { useThemeStore } from '@/stores/theme'
 const theme = useThemeStore()
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useUserStore } from '@/stores/user'
+import { publishDish, updateMyDish } from '@/api/publish'
+import { getCanteensWithStalls } from '@/api/canteen'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import { publishDish, updateMyDish } from '@/api/publish'
-import { getCanteensWithStalls } from '@/api/canteen'
-import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const editId = ref<number | null>(null)

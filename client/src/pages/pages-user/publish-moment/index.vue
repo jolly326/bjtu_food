@@ -1,6 +1,6 @@
 <template>
   <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header :title="isEdit ? '编辑动态' : '发布动态'" showBack />
+    <Header :title="isEdit ? '编辑动态' : '发布动态'" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 正文 -->
       <view class="block">
@@ -57,10 +57,13 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+import { useUserStore } from '@/stores/user'
+import * as momentApi from '@/api/moment'
+import type { Moment, RelatedType } from '@/types/moment'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -68,10 +71,8 @@ import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
-import { useUserStore } from '@/stores/user'
-import * as momentApi from '@/api/moment'
-import type { Moment, RelatedType } from '@/types/moment'
 
+const theme = useThemeStore()
 const userStore = useUserStore()
 const content = ref('')
 const images = ref<string[]>([])

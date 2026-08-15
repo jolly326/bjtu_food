@@ -1,6 +1,6 @@
 <template>
   <view class="review-item" :class="{ pressed: pressedKey === review.id }">
-    <image v-if="review.userAvatar" class="review-avatar" :src="review.userAvatar" mode="aspectFill" />
+    <image v-if="avatarOk && review.userAvatar" class="review-avatar" :src="review.userAvatar" mode="aspectFill" @error="avatarOk = false" />
     <view v-else class="review-avatar review-avatar-empty">
       <IconSvg name="user" :size="36" color="var(--text-tertiary)" />
     </view>
@@ -17,7 +17,7 @@
             class="review-star"
           />
         </view>
-        <text class="review-time">{{ relativeTime(review.createdAt) }}</text>
+        <text class="review-time">{{ relativeTime(review.createTime) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
       <view class="review-foot" v-if="review.images && review.images.length">
@@ -62,6 +62,7 @@ defineEmits<{
 }>()
 
 const pressedKey = ref<number | ''>('')
+const avatarOk = ref(true)
 
 const likeLabel = computed(() => {
   const n = (props.review.usefulCount || 0) + (props.usefulActive ? 1 : 0)

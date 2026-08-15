@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Dish, DishDetail, DishQuery } from '@/types/dish'
+import type { Dish, DishDetail, DishQuery, HotSearch } from '@/types/dish'
 import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
 import type { BannerItem } from '@/types/banner'
 import type { CanteenInfo } from '@/types/canteen'
@@ -33,7 +33,7 @@ export const useDishStore = defineStore('dish', () => {
   const homeHotFinished = ref(false)
 
   /** task-02 榜单数据 */
-  const hotSearchList = ref<ReturnType<typeof Array> extends never ? never : any[]>([])
+  const hotSearchList = ref<HotSearch[]>([])
   const risingDishes = ref<Dish[]>([])
 
   /** task-03 评价分页 */

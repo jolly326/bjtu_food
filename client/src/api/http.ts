@@ -81,8 +81,8 @@ async function request<T>(
           'X-WX-SERVICE': WX_SERVICE,
           ...header,
         },
-        success: r => done(() => resolve(r)),
-        fail: err => done(() => reject(new Error(err.errMsg || '网络请求失败'))),
+        success: (r: any) => done(() => resolve(r)),
+        fail: (err: any) => done(() => reject(new Error(err.errMsg || '网络请求失败'))),
       })
       setTimeout(() => done(() => reject(new Error('请求超时'))), 8000)
     })
