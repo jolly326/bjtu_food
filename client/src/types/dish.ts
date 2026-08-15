@@ -50,7 +50,7 @@ export interface Dish {
   distance?: number
 }
 
-export interface RatingDistribution {
+interface RatingDistribution {
   star: number
   count: number
 }

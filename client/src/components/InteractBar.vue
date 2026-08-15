@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import IconSvg from '@/components/IconSvg.vue'
 
-const props = defineProps<{
+defineProps<{
   usefulActive: boolean
   usefulCount: number
   commentCount: number

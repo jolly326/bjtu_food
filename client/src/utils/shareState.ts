@@ -7,7 +7,7 @@ import { ref } from 'vue'
 import type { Moment } from '@/types/moment'
 
 /** 待分享的菜品（分享路径见 buildSharePayload） */
-export interface ShareDish {
+interface ShareDish {
   id: number
   name: string
   price: number

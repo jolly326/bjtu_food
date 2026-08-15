@@ -30,23 +30,23 @@ onLaunch(() => {
    ========================================================================= */
 page {
   /* ========== 浅色模式（值见 src/theme/tokens.ts 单一事实源） ==========
-     2026-08-12 拍板：品牌主色由砖红 #7A241A → 暖杏色 #D4884C（呼应食堂暖色场景） */
-  /* 品牌主色（暖杏色 apricot；全站统一暖杏色系，浅色=#D4884C） */
-  --color-primary: #D4884C;
-  --color-primary-dark: #B8773F;
-  /* 主色上的文字（按钮/强调）：暖杏底配白字（#D4884C 与白字对比 ~3:1，按钮用白字） */
+     2026-08-12 拍板：品牌主色由珊瑚橙 #7A241A → 珊瑚橙色 #F26B4E（呼应食堂暖色场景） */
+  /* 品牌主色（珊瑚橙色 apricot；全站统一珊瑚橙色系，浅色=#F26B4E） */
+  --color-primary: #F26B4E;
+  --color-primary-dark: #D9543A;
+  /* 主色上的文字（按钮/强调）：珊瑚橙底配白字（#F26B4E 与白字对比 ~3:1，按钮用白字） */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（强调色点缀）：浅色=暖杏 */
-  --color-on-tab: #D4884C;
+  /* 导航激活态（强调色点缀）：浅色=珊瑚橙 */
+  --color-on-tab: #F26B4E;
   /* 主色浅底（图标软底/选中标签底），已收敛 primary-bg/primary-soft2 */
-  --color-primary-soft: #E8C9A3;
-  /* 主色表面（header/home-top 大面积品牌色块，暖杏统一） */
-  --color-primary-surface: #D4884C;
+  --color-primary-soft: #FCE4DD;
+  /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
+  --color-primary-surface: #F26B4E;
   --color-on-primary-surface: #FFFFFF;
   /* 强调色（热卖/热搜/新品统一走 accent，已收敛 color-hot） */
-  --color-accent: #E8965C;
-  --color-accent-soft: #FBEEDD;
-  --color-gradient: linear-gradient(135deg, #D4884C 0%, #E0A268 58%, #E8C9A3 100%);
+  --color-accent: #F5856A;
+  --color-accent-soft: #FCEAE3;
+  --color-gradient: linear-gradient(135deg, #F26B4E 0%, #FF8A6B 58%, #FCE4DD 100%);
   /* 语义色（error/success/warning/price/star/like 深浅对称） */
   --color-error: #FF3B30;
   --color-error-soft: #FFECEB;
@@ -54,7 +54,7 @@ page {
   --color-success-soft: #ECFDF5;
   --color-warning: #F5A623;
   --color-warning-soft: #FFF8E1;
-  /* 价格红：暖杏加深（区别于 primary 与 error） */
+  /* 价格红：珊瑚橙加深（区别于 primary 与 error） */
   --color-price: #C2410C;
   --color-star: #F5A623;
   /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
@@ -64,19 +64,19 @@ page {
   /* 文字（四档层级，tertiary 提对比至 ~3:1） */
   --text-white: #FFFFFF;
   --text-white-secondary: rgba(255, 255, 255, 0.85);
-  --text-primary: #1C1C1E;
-  --text-secondary: #6C6C70;
-  --text-tertiary: #8E8E93;
-  --text-quaternary: #A8A09A;
+  --text-primary: #1D1A18;
+  --text-secondary: #6E6964;
+  --text-tertiary: #8F8A84;
+  --text-quaternary: #ABA59E;
   /* 背景 */
-  --bg-page: #F5F5F7;
+  --bg-page: #F7F5F2;
   --bg-card: #FFFFFF;
-  --bg-input: #F5F5F7;
-  --bg-soft: #EDEDF0;
-  --bg-placeholder: #F0F0F0;
+  --bg-input: #F7F5F2;
+  --bg-soft: #EDE9E5;
+  --bg-placeholder: #F0ECE8;
   /* 边框（已收敛 border-light → border-color） */
-  --border-color: #E5E5EA;
-  --border-bold: #C9C9CE;
+  --border-color: #E8E3DE;
+  --border-bold: #CBC5BE;
   /* 圆角 */
   --radius-tag: 999rpx;
   --radius-card: 16px;
@@ -126,7 +126,7 @@ page {
   /* 卡片/底栏阴影（替代裸 shadow rgba） */
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(212, 136, 76, 0.22);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(242, 107, 78, 0.28);
   /* 长条删除按钮（图片移除）暗底白字 */
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
@@ -170,22 +170,22 @@ page {
    值参考 Apple 深色材质（灰黑底 + 提亮主色 + 低饱和文字）。 */
 .theme-dark {
   /* ========== 深色模式（值见 src/theme/tokens.ts 单一事实源） ==========
-     2026-08-12 拍板：主色随浅色由砖红 → 暖杏，深色提亮暖杏 #E8A870 深底醒目 */
-  /* 品牌主色：暖杏色相提亮（全站统一暖杏系；#E8A870 深底醒目，白字 AA） */
-  --color-primary: #E8A870;
-  --color-primary-dark: #C98F55;
-  /* 主色上的文字（按钮/强调）：暖杏底配白字 */
+     2026-08-12 拍板：主色随浅色由珊瑚橙 → 珊瑚橙，深色提亮珊瑚橙 #FF8A6B 深底醒目 */
+  /* 品牌主色：珊瑚橙色相提亮（全站统一珊瑚橙系；#FF8A6B 深底醒目，白字 AA） */
+  --color-primary: #FF8A6B;
+  --color-primary-dark: #E86347;
+  /* 主色上的文字（按钮/强调）：珊瑚橙底配白字 */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（TabBar 图标+文字统一）：深色=暖杏提亮 */
-  --color-on-tab: #E8A870;
+  /* 导航激活态（TabBar 图标+文字统一）：深色=珊瑚橙提亮 */
+  --color-on-tab: #FF8A6B;
   /* 主色浅底（深色=低明度暖褐，已收敛 primary-bg/primary-soft2） */
-  --color-primary-soft: #3D2E20;
-  /* 主色表面（header/home-top 大面积：深浅统一暖杏提亮，产品决策） */
-  --color-primary-surface: #C98F55;
+  --color-primary-soft: #3A241F;
+  /* 主色表面（header/home-top 大面积：深浅统一珊瑚橙提亮，产品决策） */
+  --color-primary-surface: #E86347;
   --color-on-primary-surface: #F5EFEC;
   /* 强调色（已收敛 color-hot） */
-  --color-accent: #E8A870;
-  --color-accent-soft: #3A2A1C;
+  --color-accent: #FF8A6B;
+  --color-accent-soft: #3A2A26;
   /* 语义色（error/success/warning/price/star/like 深浅对称） */
   --color-error: #FF6B61;
   --color-error-soft: #3A2321;
@@ -202,21 +202,21 @@ page {
   /* 文字（四档层级，tertiary 提亮至 ~3:1） */
   --text-white: #FFFFFF;
   --text-white-secondary: rgba(255, 255, 255, 0.85);
-  --text-primary: #F2EFEC;
-  --text-secondary: #B5ADA6;
-  --text-tertiary: #8A837C;
-  --text-quaternary: #6B6560;
+  --text-primary: #F4F0EC;
+  --text-secondary: #B8B0A8;
+  --text-tertiary: #8E887F;
+  --text-quaternary: #6F6960;
   /* 背景（灰黑底，apple-design §12 深色材质） */
-  --bg-page: #141414;
-  --bg-card: #1F1F1F;
-  --bg-input: #2A2A2A;
-  --bg-soft: #2A2A2A;
-  --bg-placeholder: #262626;
+  --bg-page: #161310;
+  --bg-card: #201D1A;
+  --bg-input: #2C2823;
+  --bg-soft: #2C2823;
+  --bg-placeholder: #28231E;
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #2E2A27;
   --border-bold: #3D3935;
-  /* 深色渐变（砖红系，与浅色一致） */
-  --color-gradient: linear-gradient(135deg, #C98F55 0%, #E8A870 58%, #F2C79B 100%);
+  /* 深色渐变（珊瑚橙系，与浅色一致） */
+  --color-gradient: linear-gradient(135deg, #E86347 0%, #FF8A6B 58%, #FFB098 100%);
   --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.4);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.6);
@@ -235,23 +235,23 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* H5 端根变量（微信小程序以 page 为准，此处仅供 H5/Webview 兜底） */
 :root {
   /* ========== 浅色模式（H5 回退，值见 src/theme/tokens.ts 单一事实源） ==========
-     2026-08-12 拍板：品牌主色由砖红 #7A241A → 暖杏色 #D4884C */
-  /* 品牌主色（暖杏色 apricot；全站统一暖杏色系，浅色=#D4884C） */
-  --color-primary: #D4884C;
-  --color-primary-dark: #B8773F;
-  /* 主色上的文字（按钮/强调）：暖杏底配白字 */
+     2026-08-12 拍板：品牌主色由珊瑚橙 #7A241A → 珊瑚橙色 #F26B4E */
+  /* 品牌主色（珊瑚橙色 apricot；全站统一珊瑚橙色系，浅色=#F26B4E） */
+  --color-primary: #F26B4E;
+  --color-primary-dark: #D9543A;
+  /* 主色上的文字（按钮/强调）：珊瑚橙底配白字 */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（强调色点缀）：浅色=暖杏 */
-  --color-on-tab: #D4884C;
+  /* 导航激活态（强调色点缀）：浅色=珊瑚橙 */
+  --color-on-tab: #F26B4E;
   /* 主色浅底（已收敛 primary-bg/primary-soft2） */
-  --color-primary-soft: #E8C9A3;
-  /* 主色表面（header/home-top 大面积品牌色块，暖杏统一） */
-  --color-primary-surface: #D4884C;
+  --color-primary-soft: #FCE4DD;
+  /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
+  --color-primary-surface: #F26B4E;
   --color-on-primary-surface: #FFFFFF;
   /* 强调色（已收敛 color-hot） */
-  --color-accent: #E8965C;
-  --color-accent-soft: #FBEEDD;
-  --color-gradient: linear-gradient(135deg, #D4884C 0%, #E0A268 58%, #E8C9A3 100%);
+  --color-accent: #F5856A;
+  --color-accent-soft: #FCEAE3;
+  --color-gradient: linear-gradient(135deg, #F26B4E 0%, #FF8A6B 58%, #FCE4DD 100%);
   /* 语义色（error/success/warning/price/star/like 深浅对称） */
   --color-error: #FF3B30;
   --color-error-soft: #FFECEB;
@@ -259,7 +259,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --color-success-soft: #ECFDF5;
   --color-warning: #F5A623;
   --color-warning-soft: #FFF8E1;
-  /* 价格红：暖杏加深（区别于 primary 与 error） */
+  /* 价格红：珊瑚橙加深（区别于 primary 与 error） */
   --color-price: #C2410C;
   --color-star: #F5A623;
   /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
@@ -269,19 +269,19 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   /* 文字（四档层级） */
   --text-white: #FFFFFF;
   --text-white-secondary: rgba(255, 255, 255, 0.85);
-  --text-primary: #1C1C1E;
-  --text-secondary: #6C6C70;
-  --text-tertiary: #8E8E93;
-  --text-quaternary: #A8A09A;
+  --text-primary: #1D1A18;
+  --text-secondary: #6E6964;
+  --text-tertiary: #8F8A84;
+  --text-quaternary: #ABA59E;
   /* 背景 */
-  --bg-page: #F5F5F7;
+  --bg-page: #F7F5F2;
   --bg-card: #FFFFFF;
-  --bg-input: #F5F5F7;
-  --bg-soft: #EDEDF0;
-  --bg-placeholder: #F0F0F0;
+  --bg-input: #F7F5F2;
+  --bg-soft: #EDE9E5;
+  --bg-placeholder: #F0ECE8;
   /* 边框（已收敛 border-light → border-color） */
-  --border-color: #E5E5EA;
-  --border-bold: #C9C9CE;
+  --border-color: #E8E3DE;
+  --border-bold: #CBC5BE;
   --radius-tag: 999rpx;
   --radius-card: 16px;
   --radius-modal: 24px;
@@ -322,7 +322,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(212, 136, 76, 0.22);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(242, 107, 78, 0.28);
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
   --text-white-soft: rgba(255, 255, 255, 0.84);

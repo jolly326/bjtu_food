@@ -89,7 +89,7 @@ onUnmounted(stop)
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin: var(--spacing-md) var(--spacing-md) 0;
+  margin: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);

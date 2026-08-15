@@ -1,5 +1,5 @@
 import type { UserInfo, UserStats } from '@/types/user'
-import { get, post, put, del } from './http'
+import { get, post, put } from './http'
 
 function toFrontendRole(role?: string): UserInfo['role'] {
   // 后端现已直接存储 student / admin（§0.2 仅两种角色），无需再做 USER→STUDENT 映射。
@@ -23,7 +23,7 @@ function toUserInfo(resp: any, fallbackId = 0): UserInfo {
   }
 }
 
-export interface AuthResult {
+interface AuthResult {
   token: string
   userInfo: UserInfo
 }
@@ -83,8 +83,4 @@ export async function getUserStats(): Promise<UserStats> {
   return await get('/auth/stats')
 }
 
-/** 账号注销（STU，DELETE /my/account，逻辑删除 + 失效 token，task-12.8）
- *  需 body { confirm: true } 二次确认（后端契约 A.17）；成功即 token 失效，前端清 token 跳登录。 */
-export async function deleteAccount(): Promise<void> {
-  await del<void>('/my/account', { confirm: true })
-}
+

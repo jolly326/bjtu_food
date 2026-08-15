@@ -18,7 +18,7 @@ import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, Moment
  * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
  */
 
-export function toMoment(raw: any): Moment {
+function toMoment(raw: any): Moment {
   if (!raw) return raw
   return {
     id: Number(raw.id),
@@ -41,7 +41,7 @@ export function toMoment(raw: any): Moment {
   }
 }
 
-export function toMomentComment(raw: any): MomentComment {
+function toMomentComment(raw: any): MomentComment {
   if (!raw) return raw
   return {
     id: Number(raw.id),
@@ -107,11 +107,6 @@ export async function publishMoment(payload: MomentPublish): Promise<{ id: numbe
 /** 编辑重提（STU 仅作者，复用原记录） */
 export async function updateMoment(id: number, payload: MomentPublish): Promise<void> {
   await put<void>(`/my/moments/${id}`, payload)
-}
-
-/** 删除自己动态（STU 仅作者） */
-export async function deleteMoment(id: number): Promise<void> {
-  await del<void>(`/my/moments/${id}`)
 }
 
 /** 我的动态列表（STU，补齐契约缺口） */

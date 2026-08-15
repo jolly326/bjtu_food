@@ -2,7 +2,7 @@
   <view class="wv-page">
     <!-- 自定义返回条：web-view 为原生组件会覆盖整页，故用 webview-styles 把网页内容下移，
          返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
-    <view class="wv-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="wv-bar" :style="{ height: (statusBarHeight + navBarHeight) + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
         <IconSvg name="arrow-left" :size="44" color="var(--text-primary)" />
       </view>

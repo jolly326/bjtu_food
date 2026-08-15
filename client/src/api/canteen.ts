@@ -1,4 +1,4 @@
-import type { CanteenInfo, StallDetail } from '@/types/canteen'
+import type { CanteenInfo } from '@/types/canteen'
 import type { BannerItem } from '@/types/banner'
 import { get } from './http'
 import { normalizeImages } from './_shared'
@@ -40,19 +40,6 @@ export async function getCanteenImages(): Promise<Record<string, string>> {
   return Object.fromEntries(
     Object.entries(rawMap || {}).map(([name, value]) => [name, normalizeImages(value)[0] || '']),
   )
-}
-
-export async function getStallDetail(canteen: string, stallName: string): Promise<StallDetail> {
-  const raw = await get<any>('/canteens/stallDetail', { canteen, canteenName: canteen, stallName })
-  return {
-    id: raw.id != null ? Number(raw.id) : undefined,
-    name: raw.name || stallName,
-    images: normalizeImages(raw.images ?? raw.image),
-    location: raw.location || canteen,
-    description: raw.description || '',
-    avgRating: raw.avgRating != null ? Number(raw.avgRating) : undefined,
-    tags: Array.isArray(raw.tags) ? raw.tags.filter((t: any): t is string => typeof t === 'string') : undefined,
-  }
 }
 
 export async function getCanteensWithStalls(): Promise<any[]> {

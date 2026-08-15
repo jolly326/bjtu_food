@@ -45,7 +45,7 @@ import SectionTitle from './SectionTitle.vue'
 import { relativeTime } from '@/utils/time'
 import type { ActivityItem } from '@/api/activity'
 
-const props = defineProps<{
+defineProps<{
   items: ActivityItem[]
 }>()
 

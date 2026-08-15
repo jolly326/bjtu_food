@@ -54,18 +54,19 @@
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
 - 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 3 页：home / moment / profile，2026-08-03 移除 find**——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；消息中心、我要贡献进 `profile`，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
 
-### 2.1 小程序页面架构（最终清单，已拍板，2026-08-02）
-> 与 `client/src/pages.json` 严格一致。**共 17 个页面**：主包 7 + `pages-detail` 分包 4 + `pages-user` 分包 6。
+### 2.1 小程序页面架构（最终清单，2026-08-15 复核清理）
+> 与 `client/src/pages.json` 严格一致。**共 16 个页面**：主包 8 + `pages-detail` 分包 4 + `pages-user` 分包 4。
 
-- **主包（7）**：`home` 首页（顶部含定位 + 搜索框入口。**定位（方案 C，2026-08-04）**：左上角定位条显示当前校区，点击触发 `uni.getLocation`（GCJ-02）重新定位，授权失败降级默认「北京交通大学」；定位结果缓存（`utils/location.ts`），有坐标时首页食堂 coverflow 与热门菜品首屏经 `/canteens?lat=&lng=`、`/dishes/hot?lat=&lng=` 按距离排序（近食堂优先，haversine，食堂坐标存 `canteen.latitude/longitude`，种子已预置））。首页三段式信息架构：**（1）广播栏**（搜索框下方，极小高度，滚动播放运营广播 `getBroadcasts`——纯文本「标题 + 内容」逐条 ticker，点击无跳转/可暂停，遵循 `docs/pages/首页.md`）/ **（2）万能区域**（广播栏下方，仅「🎉 最新活动」板块，展示最近一条活动预览——标题 + 发布时间，底部「查看全部 →」进入活动列表页）/ **（3）瀑布流**（主体，菜品发现，经 `WaterfallList` 组件展播）。`find` 搜索（**2026-08-03 改为二级搜索页**：非 tab，经首页搜索框 `navigateTo` 进入；含搜索记录 + 高频搜索；筛选结果页）/ `profile` 我的 / `community` 动态 / `activity` **活动列表页（2026-08-12 新增）**：独立二级页，从首页万能区域「查看全部」进入，顶部返回键 + 标题「最新活动」，按发布时间倒序展示全部活动卡片（标题 + 发布时间 + 描述），点击具体活动经微信 `web-view` 跳转公众号文章 / `feedback` 意见反馈 / `messages-services` 我的发布与贡献（路径 `pages/profile/messages-services/index`）/ `messages` 消息中心（路径 `pages/profile/messages/index`）。**`settings` 设置已移除（2026-08-03）**：设置项（消息/通用/账号分组）已内嵌 `profile`，不再独立路由（见下方被砍列表）。**`webview` 外部链接页（2026-08-12 拍板恢复，仅活动使用）**：活动列表页点击具体活动经 `web-view` 组件打开公众号文章链接（活动为 web-view 唯一合法使用场景）；Banner/广播外链仍保持「复制链接 + toast」（task-07 决策对 Banner/广播继续有效，仅活动例外）。
-- **分包 `pages-detail`（4）**：`canteen` 食堂详情 / `moment` 动态详情 / `stall` 档口详情 / `review` 发表评价 / `dish` 菜品详情（**独立二级页，2026-08-12 复核恢复**：遵循 `docs/pages/菜品详情.md`，顶部大图轮播、评价摘要分布条、评价列表、底部固定操作栏「写评价」，经各入口 `navigateTo` 打开独立路由；底部弹层 `DishDetailSheet` 已弃用，调用点清理改走独立路由）。
-- **分包 `pages-user`（6）**：`publish-moment` 发布动态（发动态主入口）/ `my-moments` 我的动态 / `publish-dish` 发布菜品 / `submit-stall` 提交档口·食堂 / `my-reviews` 我的评价（路径 `pages/pages-user/my-reviews/index`）/ `profile-edit` 个人信息（路径 `pages/pages-user/profile-edit/index`）。
+- **主包（6）**：`home` 首页（顶部含定位 + 搜索框入口。**定位（方案 C，2026-08-04）**：左上角定位条显示当前校区，点击触发 `uni.getLocation`（GCJ-02）重新定位，授权失败降级默认「北京交通大学」；定位结果缓存（`utils/location.ts`），有坐标时首页食堂 coverflow 与热门菜品首屏经 `/canteens?lat=&lng=`、`/dishes/hot?lat=&lng=` 按距离排序（近食堂优先，haversine，食堂坐标存 `canteen.latitude/longitude`，种子已预置））。首页三段式信息架构：**（1）广播栏**（搜索框下方，极小高度，滚动播放运营广播 `getBroadcasts`——纯文本「标题 + 内容」逐条 ticker，点击跳转动态列表页/可暂停，遵循 `docs/pages/首页.md`）/ **（2）万能区域**（广播栏下方，仅「🎉 最新活动」板块，展示最近一条活动预览——标题 + 发布时间，底部「查看全部 →」进入活动列表页）/ **（3）瀑布流**（主体，菜品发现，经 `WaterfallList` 组件展播）。`find` 搜索（**2026-08-03 改为二级搜索页**：非 tab，经首页搜索框 `navigateTo` 进入；含搜索记录 + 高频搜索；筛选结果页）/ `profile` 我的 / `community` 动态 / `activity` **活动列表页（2026-08-12 新增）**：独立二级页，从首页万能区域「查看全部」进入，顶部返回键 + 标题「最新活动」，按发布时间倒序展示全部活动卡片（标题 + 发布时间 + 描述），点击具体活动经微信 `web-view` 跳转公众号文章 / `feedback` **意见反馈（2026-08-15 合并反馈中心）**：提交表单 + 我的反馈记录同页展示（路径 `pages/feedback/index`），含反馈类型/对象/内容/联系方式提交与记录列表、状态徽标、详情弹窗；未登录可提交、登录后见记录（遵循 `docs/pages/意见反馈.md`）。**`settings` 设置已移除（2026-08-03）**：设置项（消息/通用/账号分组）已内嵌 `profile`，不再独立路由（见下方被砍列表）。**`webview` 外部链接页（2026-08-12 拍板恢复，仅活动使用）**：活动列表页点击具体活动经 `web-view` 组件打开公众号文章链接（活动为 web-view 唯一合法使用场景）；Banner/广播外链仍保持「复制链接 + toast」（task-07 决策对 Banner/广播继续有效，仅活动例外）。
+- **分包 `pages-detail`（4）**：`moment` 动态详情 / `review` 发表评价 / `dish` 菜品详情 / `review-list` 全部评价。**食堂与档口不作为独立详情页（2026-08-15 拍板）**：学生决策主体是菜品，食堂/档口降级为菜品属性（`dish.canteen` / `dish.stall`），仅在菜品详情页「来源信息区」展示（遵循 `docs/pages/菜品详情.md` §四），不单独建 `canteen`/`stall` 路由。
+- **分包 `pages-user`（4）**：`publish-moment` 发布动态（发动态主入口，复用统一 `PublishReview` 组件）/ `my-moments` 我的动态 / `my-reviews` 我的评价（路径 `pages/pages-user/my-reviews/index`）/ `profile-edit` 个人信息（路径 `pages/pages-user/profile-edit/index`）。
 
 **被砍/取消页（已从 pages.json 移除，仅作历史保留，doc 见 `docs/mini-app-ui/`）**：
 - `settings`（设置）→ **已移除（2026-08-03）**，设置项（消息/通用/账号分组）已内嵌 `profile`（设置区块），不再独立路由。
-- `my-publish`（我的发布）、`my-submissions`（我的提交）→ **合并进 `messages-services`**（该页为「我的发布与贡献」唯一聚合页，吸收两者内容与入口）。
-- `notify`（旧消息中心，并入 profile 时代的独立路由）→ **已移除**；**当前消息中心为独立路由 `pages/profile/messages/index`**（主包 `messages`），未并入 profile。
-- `review-list`（全部评价）→ **取消独立跳转**，评价改为详情页（stall/canteen）内联展示。
+- `publish-dish` 发布菜品 / `submit-stall` 提交档口 → **已移除（2026-08-15 清理）**：原经 `ContributeSheet`「我要贡献」弹层进入，该弹层未实现、无入口，已从 `pages.json` 删除（目录保留未注册，待清理）。
+- `my-publish`（我的发布）、`my-submissions`（我的提交）→ **由 `my-moments`/`my-reviews` 取代（2026-08-15 重定）**：「我的发布与贡献」不再设单一聚合页；动态/评价分别由独立页 `my-moments`/`my-reviews` 承载。
+- `notify`（旧消息中心，并入 profile 时代的独立路由）→ **已移除**；`messages` 消息中心（路径 `pages/profile/messages/index`）→ **已移除（2026-08-15 清理）**：原独立路由无入口，已从 `pages.json` 删除，反馈相关由 `feedback` 意见反馈页承担。
+- `review-list`（全部评价，**仅指档口/食堂维度的聚合评价列表**）→ **取消独立跳转**，档口/食堂详情页的评价改为内联展示。**例外**：菜品维度的「全部评价」为独立二级页（见 `docs/pages/全部评价页.md`），从菜品详情页「查看全部评价」进入，不受本项取消影响。
 - `webview`（外部链接）→ **2026-08-12 拍板恢复，仅限活动使用**：活动列表页点击具体活动经 `web-view` 打开公众号文章；Banner/广播外链仍走「复制链接 + toast」（task-07 对 Banner/广播继续有效）。
 - `activity-detail`（活动详情独立页）→ **已取消（2026-08-12 拍板）**：不再设独立活动详情页；活动以列表页卡片直接经 web-view 跳转公众号文章，无中间详情页。
 - `dish`（菜品详情独立页）→ **2026-08-12 复核恢复为独立二级页**（遵循 `docs/pages/菜品详情.md`），原底部弹层 `DishDetailSheet` 已弃用、调用点清理改走独立路由；旧 `docs/mini-app-ui/dish.md` 弹层化标注作废。

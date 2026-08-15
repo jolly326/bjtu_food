@@ -1,6 +1,6 @@
 <template>
   <!-- 首页：两行头部（头像行 + 整行搜索框），无返回键，右上角留空避让胶囊 -->
-  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: statusBarHeight + 'px' }">
+  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
     <view class="home-row home-top-row">
       <view
         class="user-chip"
@@ -16,21 +16,21 @@
       </view>
     </view>
     <view class="home-row home-search-row" @tap="$emit('search')">
-      <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="home-search-icon" />
+      <IconSvg name="search" :size="30" color="var(--color-primary)" class="home-search-icon" />
       <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
     </view>
   </view>
 
   <!-- 通用/二级页：返回箭头 + 居中标题 + 右上角留空 -->
-  <view v-else class="header-wrap" :class="{ dark: dark }">
-    <view class="nav" :style="{ height: navBarHeight + 'px', paddingTop: statusBarHeight + 'px' }">
+  <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
+    <view class="nav" :style="{ height: navBarHeight + 'px' }">
       <view
         class="back-area"
         @tap="handleBack"
         role="button"
         aria-label="返回"
       >
-        <IconSvg name="arrow-left" :size="44" color="var(--text-primary)" class="back-arrow" />
+        <IconSvg name="arrow-left" :size="44" color="var(--color-primary)" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
     </view>

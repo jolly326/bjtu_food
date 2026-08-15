@@ -1,7 +1,7 @@
 <template>
   <view class="page find-page" :class="{ 'theme-dark': theme.isDark }">
     <!-- 顶部固定区（2026-08-03：返回键 + 搜索框 + 结果 tab，均不随滚动；避让状态栏+胶囊） -->
-    <view class="search-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
       <view class="search-nav-row">
         <view class="search-back" @tap="inFilter ? exitFilter() : goBackHome()" :class="{ pressed: pressedKey === 'back' }" @touchstart="pressedKey = 'back'" @touchend="pressedKey = ''" @touchcancel="pressedKey = ''">
           <IconSvg name="arrow-left" :size="40" color="var(--text-primary)" class="search-back-icon" />
@@ -529,7 +529,7 @@ watch(keyword, (value) => {
 
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* ===== 顶部固定区（2026-08-03：返回 + 搜索框 + 结果 tab，位于滚动区外，天然不随滚动） ===== */
 .search-nav {

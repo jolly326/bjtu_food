@@ -36,7 +36,7 @@ function listOf<T>(res: PageResult<T> | undefined): T[] {
   return res.list || res.records || []
 }
 
-export function toNotification(raw: any): Notification {
+function toNotification(raw: any): Notification {
   if (!raw) return raw
   return {
     id: Number(raw.id),
@@ -91,9 +91,9 @@ export async function readAllNotifications(): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 
 /** 广播类型（后端契约 A.14：BroadcastVO.broadcastType） */
-export type BroadcastType = 'NOTICE' | 'ACTIVITY' | 'DISH' | 'URL' | 'NONE'
+type BroadcastType = 'NOTICE' | 'ACTIVITY' | 'DISH' | 'URL' | 'NONE'
 
-export interface BroadcastVO {
+interface BroadcastVO {
   id: number
   title: string
   content: string
@@ -104,7 +104,7 @@ export interface BroadcastVO {
 }
 
 /** 首页广播条分发类型（前端 UI 语义，对应 home BroadcastItem.type） */
-export type BroadcastDispatch = 'dish' | 'community' | 'url' | 'canteen' | 'stall'
+type BroadcastDispatch = 'dish' | 'community' | 'url' | 'canteen' | 'stall'
 
 export interface BroadcastItem {
   text: string

@@ -53,7 +53,7 @@ import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useThemeStore } from '@/stores/theme'
-import { getNotifications, readNotification, readAllNotifications, type Notification, type NotificationType } from '@/api/notify'
+import { getNotifications, readNotification, type Notification, type NotificationType } from '@/api/notify'
 import { backToHome } from '@/utils/nav'
 
 const userStore = useUserStore()

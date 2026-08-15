@@ -139,7 +139,7 @@ onShareAppMessage(() => buildSharePayload())
 
 <style scoped>
 .community-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }

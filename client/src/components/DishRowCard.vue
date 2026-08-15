@@ -46,7 +46,7 @@ import IconSvg from './IconSvg.vue'
 import { getImageUrl } from '@/utils/image'
 import type { Dish } from '@/types/dish'
 
-const props = defineProps<{
+defineProps<{
   /** 菜品 */
   dish: Dish
 }>()

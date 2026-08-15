@@ -36,19 +36,24 @@
 			}
 		},
 		{
+			"path": "pages/profile/messages/index",
+			"style": {
+				"navigationBarTitleText": "消息中心",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/activity/index",
 			"style": {
 				"navigationBarTitleText": "最新活动",
-				"navigationBarBackgroundColor": "#F5F5F7",
-				"navigationBarTextStyle": "black"
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/about/index",
 			"style": {
 				"navigationBarTitleText": "关于我们",
-				"navigationBarBackgroundColor": "#F5F5F7",
-				"navigationBarTextStyle": "black"
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -58,20 +63,6 @@
 				"navigationStyle": "custom"
 			}
 		},
-		{
-			"path": "pages/profile/messages-services/index",
-			"style": {
-				"navigationBarTitleText": "反馈中心",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/profile/messages/index",
-			"style": {
-				"navigationBarTitleText": "消息中心",
-				"navigationStyle": "custom"
-			}
-		}
 	],
 	"subPackages": [
 		{
@@ -95,16 +86,14 @@
 					"path": "dish",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
-						"navigationBarBackgroundColor": "#F5F5F7",
-						"navigationBarTextStyle": "black"
+						"navigationStyle": "custom"
 					}
 				},
 				{
 					"path": "review-list",
 					"style": {
 						"navigationBarTitleText": "全部评价",
-						"navigationBarBackgroundColor": "#F5F5F7",
-						"navigationBarTextStyle": "black"
+						"navigationStyle": "custom"
 					}
 				}
 			]

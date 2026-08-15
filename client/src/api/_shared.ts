@@ -6,7 +6,7 @@
 import { getImageUrl } from '@/utils/image'
 
 /** 后端分页返回形态：可能是平铺数组，或 { records | list, total } */
-export type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
+type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
 
 /** 从分页响应提取列表（任意形态均安全降级为空数组） */
 export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {

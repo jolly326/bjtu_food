@@ -31,7 +31,7 @@ function toReview(raw: any): Review {
  * 支持 sort=latest|useful（useful 按 usefulCount DESC）、isWithImage 过滤有图。
  * 返回分页结果（list + total），供详情页评价区无限/分页展示。
  */
-export async function getReviews(
+async function getReviews(
   target: ReviewTarget,
   options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
@@ -57,22 +57,6 @@ export async function getReviewsByDish(
   return getReviews({ type: 'dish', id: dishId }, options)
 }
 
-/** @deprecated 语义化别名，保持向后兼容。新代码请用 getReviews({ type: 'stall', id }) */
-export async function getReviewsByStall(
-  stallId: number,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
-): Promise<{ list: Review[]; total: number }> {
-  return getReviews({ type: 'stall', id: stallId }, options)
-}
-
-/** @deprecated 语义化别名，保持向后兼容。新代码请用 getReviews({ type: 'canteen', id }) */
-export async function getReviewsByCanteen(
-  canteenId: number,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
-): Promise<{ list: Review[]; total: number }> {
-  return getReviews({ type: 'canteen', id: canteenId }, options)
-}
-
 export async function submitReview(data: ReviewSubmit): Promise<void> {
   await post('/reviews', {
     dishId: data.dishId,
@@ -95,11 +79,6 @@ export async function toggleUseful(reviewId: number): Promise<{ useful: boolean;
     useful: !!(data?.useful ?? false),
     usefulCount: Number(data?.usefulCount ?? 0),
   }
-}
-
-/** @deprecated 旧非幂等点赞接口已废弃，请使用 toggleUseful（/reviews/{id}/useful）。保留仅为兼容引用。 */
-export async function likeReview(reviewId: number): Promise<void> {
-  await toggleUseful(reviewId)
 }
 
 export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<Review[]> {

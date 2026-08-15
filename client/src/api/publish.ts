@@ -4,11 +4,10 @@
  *
  * 金额：提交时由元转分（yuanToFen）；后端返回分，列表由 dish.ts 统一转元。
  */
-import { post, put, get } from './http'
-import type { MyPublishDish } from '@/types/dish'
-import { fenToYuan, yuanToFen } from '@/utils/money'
+import { post, put } from './http'
+import { yuanToFen } from '@/utils/money'
 
-export interface DishPublishPayload {
+interface DishPublishPayload {
   stallId: number
   name: string
   /** 前端填写「元」，提交前转分 */
@@ -34,14 +33,4 @@ export async function updateMyDish(id: number, payload: DishPublishPayload): Pro
   })
 }
 
-/** 我的发布列表（含审核态与退回原因），可按 audit_status 过滤 */
-export async function getMyDishes(auditStatus?: 'pending' | 'approved' | 'rejected'): Promise<MyPublishDish[]> {
-  const params: Record<string, any> = {}
-  if (auditStatus) params.auditStatus = auditStatus
-  const list = await get<MyPublishDish[]>('/my/dishes', params)
-  // 后端 price 为分，统一在 API 层转元（与 api/dish.ts toDish 一致；§金额红线）
-  return (list || []).map((raw: any) => ({
-    ...raw,
-    price: fenToYuan(raw.price),
-  }))
-}
+

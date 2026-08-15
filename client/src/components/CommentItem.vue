@@ -50,7 +50,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { relativeTime } from '@/utils/time'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import type { Moment, MomentComment } from '@/types/moment'
+import type { MomentComment } from '@/types/moment'
 
 const props = defineProps<{
   comment: MomentComment

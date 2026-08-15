@@ -137,7 +137,7 @@ function goProfileEdit() {
 
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); }
 
 /* Hero 用户卡（纯白卡 + 主题色点缀；头像 + 昵称 + ID/认证 + 右侧 >，整卡点击进个人信息页；无渐变） */
 .user-card {

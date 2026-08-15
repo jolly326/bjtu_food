@@ -69,7 +69,6 @@ import { useThemeStore } from '@/stores/theme'
 const theme = useThemeStore()
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { useUserStore } from '@/stores/user'
 import { publishDish, updateMyDish } from '@/api/publish'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { backToHome } from '@/utils/nav'
@@ -78,7 +77,6 @@ import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 
-const userStore = useUserStore()
 const editId = ref<number | null>(null)
 const isEdit = computed(() => editId.value != null)
 const submitting = ref(false)
