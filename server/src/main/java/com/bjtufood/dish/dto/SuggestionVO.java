@@ -1,6 +1,7 @@
 package com.bjtufood.dish.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -43,4 +44,11 @@ public class SuggestionVO {
 
     @Schema(description = "评价数（仅 dish 类型）", example = "58")
     private Integer ratingCount;
+
+    /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不计算距离 */
+    @Schema(description = "食堂纬度（GCJ-02），仅 dish/stall/canteen 类型返回", example = "39.90")
+    private BigDecimal latitude;
+
+    @Schema(description = "食堂经度（GCJ-02），仅 dish/stall/canteen 类型返回", example = "116.40")
+    private BigDecimal longitude;
 }

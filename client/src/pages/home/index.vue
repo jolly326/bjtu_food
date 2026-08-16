@@ -1,6 +1,6 @@
 <template>
   <view class="page home-page" :class="{ 'theme-dark': theme.isDark }">
-    <!-- 首页头部：两行（头像行 + 整行搜索框），无返回键，右上角留空避让胶囊 -->
+    <!-- 首页头部：单行星胶囊（头像 + 搜索框），朱砂红底，右上角留空避让胶囊 -->
     <Header
       variant="home"
       :avatar="isLoggedIn && userInfo?.avatar ? getImageUrl(userInfo.avatar) : ''"
@@ -69,6 +69,8 @@ import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
+import { useLocationStore } from '@/stores/location'
+import { getUserLocation } from '@/utils/location'
 import { getBroadcasts, type BroadcastItem } from '@/api/notify'
 import { getActivities, type ActivityItem } from '@/api/activity'
 import { getImageUrl } from '@/utils/image'
@@ -84,6 +86,7 @@ import AuthSheet from '@/components/AuthSheet.vue'
 const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
+const locationStore = useLocationStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
 
@@ -124,6 +127,8 @@ async function loadData() {
   loadingHot.value = true
   loadFailed.value = false
   try {
+    // 先取定位（会话级缓存），首页热门「距你」才能本地算距离
+    await ensureLocation()
     const [_, bcRes, actRes] = await Promise.all([
       dishStore.fetchHomeHot(),
       getBroadcasts(),
@@ -136,6 +141,17 @@ async function loadData() {
     loadFailed.value = true
   } finally {
     loadingHot.value = false
+  }
+}
+
+/** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级 */
+async function ensureLocation() {
+  if (locationStore.location) return
+  try {
+    const loc = await getUserLocation()
+    if (loc) locationStore.setLocation(loc)
+  } catch (e) {
+    // 用户拒绝授权 / 定位不可用：静默，距离降级
   }
 }
 

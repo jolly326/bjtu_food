@@ -51,10 +51,7 @@
 
           <!-- 互动区（点赞 / 评论 / 举报） -->
           <InteractBar
-            :useful-active="usefulActive"
-            :useful-count="moment.usefulCount"
             :comment-count="moment.commentCount"
-            @useful="onUseful"
             @comment="focusComment"
             @report="openReport"
           />
@@ -79,6 +76,7 @@
               @reply="replyTo"
               @reply-named="replyToNamed"
               @delete="onCommentLongPress"
+              @report="onCommentReport"
             />
 
             <view v-if="comments.length > collapseThreshold" class="comment-expand" @tap="commentExpanded = !commentExpanded">
@@ -103,24 +101,42 @@
 
     <!-- 底部评论输入栏 -->
     <view class="comment-bar" v-if="moment">
-      <input
-        class="comment-input"
-        v-model="commentText"
-        :focus="commentFocus"
-        :placeholder="replyTarget ? `回复 @${replyTarget.userNickname}` : '说点什么…'"
-        confirm-type="send"
-        @confirm="submitComment"
-        @blur="commentFocus = false"
-      />
-      <view class="comment-send" @tap="submitComment">
-        <IconSvg name="comment" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
+      <view v-if="mentionOpen" class="mention-pop">
+        <view
+          v-for="name in filteredMentions"
+          :key="name"
+          class="mention-item"
+          @tap="selectMention(name)"
+        >
+          <text class="mention-at">@</text>
+          <text class="mention-name">{{ name }}</text>
+        </view>
+        <view v-if="!filteredMentions.length" class="mention-empty">暂无匹配评论者</view>
+      </view>
+      <view class="comment-input-row">
+        <ImageUploader v-model="commentImages" :max="3" compact class="comment-uploader" />
+        <view class="comment-input-box">
+          <input
+            class="comment-input"
+            v-model="commentText"
+            :focus="commentFocus"
+            placeholder="说点什么…"
+            confirm-type="send"
+            aria-label="评论输入框"
+            @confirm="submitComment"
+            @blur="onCommentBlur"
+          />
+        </view>
+        <view class="comment-send" aria-label="发送评论" @tap="submitComment">
+          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
+        </view>
       </view>
     </view>
 
     <!-- 举报弹窗（共享组件） -->
     <ReportModal
       :open="reportOpen"
-      title="举报动态"
+      :title="reportTarget && reportTarget.type === 'moment_comment' ? '举报评论' : '举报动态'"
       placeholder="请描述举报原因…"
       confirm-text="提交举报"
       :submitting="reportSubmitting"
@@ -134,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
@@ -152,6 +168,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import InteractBar from '@/components/InteractBar.vue'
 import CommentItem from '@/components/CommentItem.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -170,11 +187,15 @@ const dishReviews = ref<Review[]>([])
 const loading = ref(false)
 const refresherTriggered = ref(false)
 const commentText = ref('')
-const replyTarget = ref<MomentComment | null>(null)
+/** 评论图片（最多 3 张，复用 Moment 图床） */
+const commentImages = ref<string[]>([])
 /** 评论输入自动聚焦（点 InteractBar「评论」/ 楼中楼回复时触发，2026-08-03 打磨） */
 const commentFocus = ref(false)
-const usefulActive = ref(false)
 const commentExpanded = ref(false)
+/** @提及弹层状态（手动输入 @ 唤起选人，微信式回复，2026-08-16） */
+const mentionOpen = ref(false)
+const mentionQuery = ref('')
+const atPos = ref(-1)
 const collapseThreshold = 5
 
 /** 楼中楼「共 N 条」展开/收起 */
@@ -207,7 +228,6 @@ async function loadData() {
     ])
     moment.value = m
     comments.value = c.list
-    usefulActive.value = false
     // 关联菜品时加载该菜品的用户评价（task todo#9）
     if (m.relatedType === 'dish' && m.relatedId) {
       try {
@@ -239,43 +259,33 @@ function goEdit() {
   uni.navigateTo({ url: `/pages/pages-user/publish-moment/index?id=${moment.value.id}` })
 }
 
-async function onUseful() {
-  if (!userStore.requireAuth(() => onUseful())) return
-  if (!moment.value) return
-  const prev = usefulActive.value
-  const prevCount = moment.value.usefulCount || 0
-  usefulActive.value = !prev
-  moment.value.usefulCount = prev ? Math.max(0, prevCount - 1) : prevCount + 1
-  try {
-    const res = await momentApi.toggleUseful(moment.value.id)
-    usefulActive.value = res.useful
-    moment.value.usefulCount = res.usefulCount
-  } catch {
-    usefulActive.value = prev
-    moment.value.usefulCount = prevCount
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
-}
-
 function focusComment() {
   // 先让底部输入栏进入视口（滚动到底部），再触发聚焦弹键盘
   uni.pageScrollTo({ scrollTop: 99999, duration: 200 })
   commentFocus.value = true
 }
 
-/** 举报动态 */
+/** 举报（动态 or 评论，共享 ReportModal，2026-08-16 扩展评论举报） */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
 /** 评论提交中：防连点 */
 const commentSubmitting = ref(false)
+const reportTarget = ref<{ type: string; id: number } | null>(null)
 
 function openReport() {
   if (!userStore.requireAuth(() => openReport())) return
+  reportTarget.value = moment.value ? { type: 'moment', id: moment.value.id } : null
+  reportOpen.value = true
+}
+
+function onCommentReport(c: MomentComment) {
+  if (!userStore.requireAuth(() => onCommentReport(c))) return
+  reportTarget.value = { type: 'moment_comment', id: c.id }
   reportOpen.value = true
 }
 
 async function submitReport(text: string) {
-  if (!moment.value) return
+  if (!reportTarget.value) return
   if (!text) {
     uni.showToast({ title: '请填写举报原因', icon: 'none' })
     return
@@ -285,8 +295,8 @@ async function submitReport(text: string) {
     await submitFeedback({
       type: 'report',
       content: text,
-      relatedType: 'moment',
-      relatedId: moment.value.id,
+      relatedType: reportTarget.value.type,
+      relatedId: reportTarget.value.id,
     })
     uni.showToast({ title: '举报已提交', icon: 'success' })
     reportOpen.value = false
@@ -297,31 +307,90 @@ async function submitReport(text: string) {
   }
 }
 
+/** 点击「回复 @昵称」：等价于在输入框写入 @昵称 （微信式提及回复，2026-08-16） */
 function replyTo(c: MomentComment) {
-  replyTarget.value = c
+  commentText.value = '@' + c.userNickname + ' '
+  commentFocus.value = true
+  mentionOpen.value = false
 }
 
 /** 点击「回复 @昵称」直接以该昵称为回复目标 */
 function replyToNamed(nickname: string) {
   const target = comments.value.find(c => c.userNickname === nickname)
-  replyTarget.value = target || null
+  if (target) replyTo(target)
+}
+
+/** 候选评论者昵称（动态作者 + 已有评论者，去重） */
+const mentionList = computed(() => {
+  const set = new Set<string>()
+  if (moment.value?.userNickname) set.add(moment.value.userNickname)
+  comments.value.forEach(c => { if (c.userNickname) set.add(c.userNickname) })
+  return [...set]
+})
+
+/** 按已输入的 @ 查询词过滤 */
+const filteredMentions = computed(() => {
+  const q = mentionQuery.value.trim().toLowerCase()
+  if (!q) return mentionList.value
+  return mentionList.value.filter(n => n.toLowerCase().includes(q))
+})
+
+/** 监听输入框：检测手动输入 @ 唤起选人；@ 被删则关闭弹层 */
+watch(commentText, (val, old) => {
+  if (mentionOpen.value) {
+    if (val[atPos.value] !== '@') {
+      mentionOpen.value = false
+      return
+    }
+    mentionQuery.value = val.slice(atPos.value + 1)
+    return
+  }
+  if (val.length === old.length + 1 && val.endsWith('@')) {
+    atPos.value = val.length - 1
+    mentionQuery.value = ''
+    mentionOpen.value = true
+  }
+})
+
+/** 选中提及：在 @ 位置插入 @昵称 ，并定位回复目标 */
+function selectMention(name: string) {
+  const before = commentText.value.slice(0, atPos.value + 1) // 含 @
+  const after = commentText.value.slice(atPos.value + 1 + mentionQuery.value.length)
+  commentText.value = before + name + ' ' + after
+  mentionOpen.value = false
+  commentFocus.value = true
+}
+
+/** 输入框失焦：收起提及弹层（延迟以允许点击选项先触发） */
+function onCommentBlur() {
+  commentFocus.value = false
+  setTimeout(() => { mentionOpen.value = false }, 150)
 }
 
 async function submitComment() {
   if (!userStore.requireAuth(() => submitComment())) return
   if (!moment.value) return
   const content = commentText.value.trim()
-  if (!content) {
-    uni.showToast({ title: '评论内容不能为空', icon: 'none' })
+  const hasImages = commentImages.value.length > 0
+  if (!content && !hasImages) {
+    uni.showToast({ title: '说点什么或加张图吧', icon: 'none' })
     return
   }
   if (commentSubmitting.value) return
-  const parentId = replyTarget.value && replyTarget.value.parentId ? replyTarget.value.parentId : (replyTarget.value ? replyTarget.value.id : null)
+  // 以开头的 @昵称 识别回复目标（微信式），@提及本身保留在内容中
+  let parentId: number | null = null
+  const m = content.match(/^@(\S+)\s/)
+  if (m) {
+    const target = comments.value.find(c => c.userNickname === m[1])
+    if (target) parentId = target.parentId ? target.parentId : target.id
+  }
+  const images = commentImages.value.length ? [...commentImages.value] : null
   commentSubmitting.value = true
   try {
-    await momentApi.commentMoment(moment.value.id, { content, parentId })
+    await momentApi.commentMoment(moment.value.id, { content, parentId, images })
     commentText.value = ''
-    replyTarget.value = null
+    commentImages.value = []
+    mentionOpen.value = false
     await loadData()
     uni.showToast({ title: '评论成功', icon: 'success' })
   } catch (e: any) {
@@ -408,9 +477,18 @@ onLoad((query) => {
 .comment-list { display: flex; flex-direction: column; }
 .comment-expand { padding: var(--spacing-sm) 0; text-align: center; }
 .comment-expand-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
-.comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
-.comment-input { flex: 1; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: 32rpx; color: var(--text-primary); }
-.comment-send { width: 88rpx; height: 72rpx; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out); }
+.comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
+.comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
+.comment-uploader { flex-shrink: 0; }
+.comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); }
+.comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: 32rpx; color: var(--text-primary); }
+.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
 .comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }
+.mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% - 4rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
+.mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
+.mention-item:active { background: var(--bg-soft); }
+.mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: 30rpx; }
+.mention-name { font-size: 30rpx; color: var(--text-primary); }
+.mention-empty { padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

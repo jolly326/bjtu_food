@@ -86,3 +86,431 @@ DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be
 
 More info: https://sass-lang.com/d/legacy-js-api
 
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/find/index.vue:1:0[39m

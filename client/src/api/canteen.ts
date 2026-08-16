@@ -20,17 +20,14 @@ export async function getHomeBanners(): Promise<BannerItem[]> {
   }))
 }
 
-export async function getCanteenList(lat?: number | null, lng?: number | null): Promise<CanteenInfo[]> {
-  const params: Record<string, unknown> = {}
-  if (typeof lat === 'number' && typeof lng === 'number') {
-    params.lat = lat
-    params.lng = lng
-  }
-  const rawList = await get<any[]>('/canteens', params)
+export async function getCanteenList(): Promise<CanteenInfo[]> {
+  const rawList = await get<any[]>('/canteens')
   return rawList.map((c: any) => ({
     name: c.name || '',
     location: c.location || c.description || '',
     icon: firstImage(c),
+    latitude: c.latitude != null ? Number(c.latitude) : undefined,
+    longitude: c.longitude != null ? Number(c.longitude) : undefined,
     distance: c.distance != null ? Number(c.distance) : undefined,
   }))
 }

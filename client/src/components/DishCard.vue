@@ -30,6 +30,7 @@
       </view>
       <view class="meta-row">
         <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
+        <text v-if="dish.distance != null" class="card-distance">距你 {{ fmtDistance(dish.distance) }}</text>
       </view>
     </view>
   </view>
@@ -60,6 +61,11 @@ const imgSrc = computed(() => getImageUrl(props.dish.image))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
+
+/** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
+function fmtDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
+}
 
 function handleClick() {
   emit('select', props.dish)
@@ -162,6 +168,14 @@ function handleClick() {
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+.card-distance {
+  flex-shrink: 0;
+  margin-left: var(--spacing-xs);
+  font-size: var(--font-aux);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
 }
 .card-price {
   font-size: var(--font-caption);

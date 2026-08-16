@@ -1,7 +1,7 @@
 <template>
-  <!-- 首页：两行头部（头像行 + 整行搜索框），无返回键，右上角留空避让胶囊 -->
+  <!-- 首页：单行星胶囊头部（头像 + 整行搜索框），朱砂红底，右上角留空避让胶囊 -->
   <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
-    <view class="home-row home-top-row">
+    <view class="home-row">
       <view
         class="user-chip"
         @tap="$emit('avatar')"
@@ -10,14 +10,13 @@
       >
         <image v-if="avatarOk && avatar" :src="avatar" class="user-chip-avatar" @error="avatarOk = false" />
         <view v-else class="user-chip-avatar user-chip-avatar-empty">
-          <IconSvg name="user" :size="34" color="var(--text-secondary)" />
+          <IconSvg name="user" :size="34" color="#FFFFFF" />
         </view>
-        <text class="user-chip-name">{{ nickname }}</text>
       </view>
-    </view>
-    <view class="home-row home-search-row" @tap="$emit('search')">
-      <IconSvg name="search" :size="30" color="var(--color-primary)" class="home-search-icon" />
-      <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
+      <view class="home-search" @tap="$emit('search')">
+        <IconSvg name="search" :size="30" color="#FFFFFF" class="home-search-icon" />
+        <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
+      </view>
     </view>
   </view>
 
@@ -146,42 +145,43 @@ function handleBack() {
   white-space: nowrap;
 }
 
-/* ===== 首页两行头部 ===== */
-.header-wrap.home { border-bottom: none; }
+/* ===== 首页单行星胶囊头部（头像 + 搜索框，朱砂红底） ===== */
+.header-wrap.home {
+  background: var(--color-primary);
+  border-bottom: none;
+}
 .home-row {
   display: flex;
   align-items: center;
-  padding: 0 var(--spacing-lg);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  /* 右上角避让微信原生胶囊（约 180rpx）；H5 端仅多留白，不影响布局 */
+  padding-right: calc(env(safe-area-inset-right, 0px) + 180rpx);
   box-sizing: border-box;
 }
-.home-top-row { padding-top: var(--spacing-sm); padding-bottom: var(--spacing-xs); justify-content: flex-start; }
-.home-search-row {
-  margin: 0 var(--spacing-lg) var(--spacing-md);
-  padding: 0 var(--spacing-md);
-  height: 80rpx;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  justify-content: flex-start;
-  gap: var(--spacing-xs);
-  -webkit-tap-highlight-color: transparent;
-}
-.home-search-icon { flex-shrink: 0; line-height: 1; }
-.home-search-placeholder { font-size: var(--font-body); color: var(--text-tertiary); }
 .user-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-tag);
+  flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
 .user-chip-avatar {
   width: 64rpx;
   height: 64rpx;
-  border-radius: var(--radius-card);
-  background: var(--bg-soft);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
-.user-chip-name { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); max-width: 280rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  height: 72rpx;
+  padding: 0 var(--spacing-md);
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 36rpx;
+  -webkit-tap-highlight-color: transparent;
+}
+.home-search-icon { flex-shrink: 0; line-height: 1; }
+.home-search-placeholder { font-size: var(--font-body); color: rgba(255, 255, 255, 0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

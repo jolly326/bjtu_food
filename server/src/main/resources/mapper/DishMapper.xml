@@ -285,9 +285,12 @@
     <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
         (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                NULL AS canteen,
-                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount
+                c.name AS canteen,
+                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
+                c.latitude AS latitude, c.longitude AS longitude
          FROM dish d
+                  LEFT JOIN stall s ON d.stall_id = s.id
+                  LEFT JOIN canteen c ON s.canteen_id = c.id
          WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
            AND d.status = 'on'
            AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
@@ -296,7 +299,8 @@
         (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image,
                 c.name AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount
+                NULL AS price, NULL AS rating, NULL AS ratingCount,
+                c.latitude AS latitude, c.longitude AS longitude
          FROM stall s
                   JOIN canteen c ON s.canteen_id = c.id
          WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
@@ -308,7 +312,8 @@
         (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image,
                 NULL AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount
+                NULL AS price, NULL AS rating, NULL AS ratingCount,
+                c.latitude AS latitude, c.longitude AS longitude
          FROM canteen c
          WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
            AND c.status = 'open'

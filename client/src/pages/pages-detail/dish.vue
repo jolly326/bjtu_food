@@ -72,8 +72,8 @@
           <view class="metric-strip">
             <view class="metric-col metric-col--lead">
               <view class="metric-inner">
-                <IconSvg v-if="dish.distance != null" name="location" :size="22" color="var(--color-primary)" class="metric-icon" />
-                <text class="metric-value metric-value--lead">{{ dish.distance != null ? distText : '-' }}</text>
+                <IconSvg v-if="dishDistance != null" name="location" :size="22" color="var(--color-primary)" class="metric-icon" />
+                <text class="metric-value metric-value--lead">{{ dishDistance != null ? distText : '-' }}</text>
                 <text class="metric-label">距你</text>
               </view>
             </view>
@@ -182,6 +182,8 @@ import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
+import { useLocationStore } from '@/stores/location'
+import { haversineMeters, getUserLocation } from '@/utils/location'
 import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
@@ -199,6 +201,7 @@ import ApplySheet from '@/components/ApplySheet.vue'
 const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
+const locationStore = useLocationStore()
 
 const dishId = ref(0)
 const dish = computed(() => dishStore.currentDish)
@@ -273,9 +276,18 @@ const spiceText = computed(() => {
   return lv != null && map[lv] ? map[lv] : '-'
 })
 
+/** 距你距离（米）：前端基于 locationStore 用户坐标 + Haversine 本地计算；服务器不算距离 */
+const dishDistance = computed(() => {
+  const d = dish.value
+  if (!d) return null
+  const loc = locationStore.location
+  if (!loc || typeof d.latitude !== 'number' || typeof d.longitude !== 'number') return null
+  return haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
+})
+
 /** 距你文案：米/公里自适应 */
 const distText = computed(() => {
-  const m = dish.value?.distance
+  const m = dishDistance.value
   if (m == null) return '-'
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`
 })
@@ -291,8 +303,21 @@ onLoad((query) => {
   dishStore.currentDish = null
   dishStore.reviewList = []
   dishStore.reviewTotal = 0
+  // 取定位：确保用户坐标（会话级缓存），详情页「距你」才能本地算距离
+  ensureLocation()
   loadDishData()
 })
+
+/** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级（距你显 -） */
+async function ensureLocation() {
+  if (locationStore.location) return
+  try {
+    const loc = await getUserLocation()
+    if (loc) locationStore.setLocation(loc)
+  } catch (e) {
+    // 用户拒绝授权 / 定位不可用：静默，距离降级为 -
+  }
+}
 
 /** 进入页面加载详情（addView 埋点失败静默） */
 async function loadDishData() {
@@ -413,7 +438,7 @@ function goReviewList() {
 .metric-scroll { margin-top: var(--spacing-md); width: 100%; -webkit-overflow-scrolling: touch; }
 .metric-strip { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; padding: 0 var(--spacing-md); }
 .metric-col { flex: 0 0 25%; width: 25%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
-.metric-col--lead { flex: 0 0 22%; width: 22%; justify-content: flex-start; }
+.metric-col--lead { justify-content: flex-start; }
 .metric-inner { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
 .metric-col--lead .metric-inner { align-items: flex-start; }
 .metric-icon { width: 22rpx; height: 22rpx; line-height: 1; margin-bottom: 6rpx; }

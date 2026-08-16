@@ -53,6 +53,8 @@ export function toDish(raw: any): Dish {
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
     createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
+    latitude: raw.latitude != null ? Number(raw.latitude) : undefined,
+    longitude: raw.longitude != null ? Number(raw.longitude) : undefined,
     distance: raw.distance != null ? Number(raw.distance) : undefined,
     region: raw.region || raw.region_name || '',
   }
@@ -168,6 +170,8 @@ export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
     price: item.price != null ? fenToYuan(item.price) : undefined,
     rating: item.rating != null ? Number(item.rating) : undefined,
     ratingCount: item.ratingCount != null ? Number(item.ratingCount) : undefined,
+    latitude: item.latitude != null ? Number(item.latitude) : undefined,
+    longitude: item.longitude != null ? Number(item.longitude) : undefined,
   }))
 }
 

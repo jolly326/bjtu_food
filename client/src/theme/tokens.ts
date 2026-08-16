@@ -8,7 +8,7 @@
  *
  * 命名规范（design-system 三层 token）：
  *   primitive → semantic → component
- *   - 品牌色（hue≈15° 柔和珊瑚橙 soft coral）：primary / on-primary / primary-soft
+ *   - 品牌色（hue≈15° 朱砂红 vermilion）：primary / on-primary / primary-soft
  *   - 辅助/语义色：accent（强调橙）、success / error / warning / price / star / like
  *   - 中性色：text-*（四档层级）
  *   - 每个 token 均有 浅色 / 深色 两值，结构对称，禁止浅深缺位。
@@ -17,18 +17,18 @@
 
 /* ================= 品牌主色（Primitive） ================= */
 /**
- * 产品决策（2026-08-15 拍板）：全站主题色由鲜橙 #FF7A33 调整为「柔和珊瑚橙」，
- * 并进一步收深、降低亮度（呼应食堂暖色场景，避免过亮刺眼）。
- *  - 浅色模式主色 = 柔和珊瑚橙（收深）#F26B4E（白字按钮可见，对比与旧 #FF7A33 持平）
- *  - 深色模式主色 = 同色相提亮珊瑚橙 #FF8A6B（深底醒目、白字 AA 达标）
+ * 产品决策（2026-08-16 拍板）：全站主题色由鲜橙调整为「朱砂红」，
+ * 并收深、降低亮度（呼应食堂暖色场景，避免过亮刺眼）。
+ *  - 浅色模式主色 = 朱砂红（收深）#9B2A1D（白字按钮可见，对比达标）
+ *  - 深色模式主色 = 同色相提亮朱砂红 #C45A3C（深底醒目、白字 AA 达标）
  */
-export const COLOR_PRIMARY_LIGHT = '#F26B4E'
+export const COLOR_PRIMARY_LIGHT = '#9B2A1D'
 /** 浅色主色暗阶（hover / 深按） */
-export const COLOR_PRIMARY_DARK_LIGHT = '#D9543A'
+export const COLOR_PRIMARY_DARK_LIGHT = '#7A1F14'
 /** 深色模式主色（珊瑚橙色相提亮，深底醒目；白字 AA 达标） */
-export const COLOR_PRIMARY_DARK = '#FF8A6B'
+export const COLOR_PRIMARY_DARK = '#C45A3C'
 /** 深色主色暗阶 */
-export const COLOR_PRIMARY_DARK_DARK = '#E86347'
+export const COLOR_PRIMARY_DARK_DARK = '#A8482E'
 /** 主色上的文字：深浅均为白/暖白 */
 export const COLOR_ON_PRIMARY_LIGHT = '#FFFFFF'
 export const COLOR_ON_PRIMARY_DARK = '#FFFFFF'
@@ -39,20 +39,20 @@ export const COLOR_ON_PRIMARY_SURFACE_DARK = '#F5EFEC'
 
 /* ================= 辅助/语义色（Semantic） ================= */
 /** 品牌强调色（热卖/热搜/新品统一走 accent，禁止另设 hot 重复定义） */
-export const COLOR_ACCENT_LIGHT = '#F5856A'
-export const COLOR_ACCENT_DARK = '#FF8A6B'
+export const COLOR_ACCENT_LIGHT = '#C45A3C'
+export const COLOR_ACCENT_DARK = '#C45A3C'
 
 /** 价格红：暖珊瑚加深（浅色），深色提亮暖橙（与 error 区分） */
-export const COLOR_PRICE_LIGHT = '#C2410C'
-export const COLOR_PRICE_DARK = '#FFB088'
+export const COLOR_PRICE_LIGHT = '#C45A3C'
+export const COLOR_PRICE_DARK = '#E8A07E'
 
 /** 错误 / 成功 / 喜欢（浅色基准 + 深色提亮） */
 export const COLOR_ERROR_LIGHT = '#FF3B30'
 export const COLOR_ERROR_DARK = '#FF6B61'
 export const COLOR_SUCCESS_LIGHT = '#10B981'
 export const COLOR_SUCCESS_DARK = '#34D399'
-export const COLOR_LIKE_LIGHT = '#FF6B6B'
-export const COLOR_LIKE_DARK = '#FF7B7B'
+export const COLOR_LIKE_LIGHT = '#B53B2C'
+export const COLOR_LIKE_DARK = '#D9695A'
 /** 评分星：浅色金黄 / 深色提亮 */
 export const COLOR_STAR_LIGHT = '#F5A623'
 export const COLOR_STAR_DARK = '#FFC24B'
@@ -63,7 +63,7 @@ export const COLOR_STAR_EMPTY_DARK = '#3A3632'
 /* ================= 中性色（Neutral） ================= */
 /**
  * 文字四档层级（对比度：primary ≥7:1 / secondary ≥4.5:1 / tertiary ≥3:1）。
- * 2026-08-15 微调：中性灰统一带极轻暖调，与珊瑚橙主色更协调（非冷灰）。
+ * 2026-08-15 微调：中性灰统一带极轻暖调，与朱砂红主色更协调（非冷灰）。
  */
 export const COLOR_TEXT_PRIMARY_LIGHT = '#1D1A18'
 export const COLOR_TEXT_PRIMARY_DARK = '#F4F0EC'

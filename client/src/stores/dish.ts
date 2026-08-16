@@ -9,6 +9,8 @@ import * as reviewApi from '@/api/review'
 import * as canteenApi from '@/api/canteen'
 import * as momentApi from '@/api/moment'
 import { getRecommendDishes } from '@/api/recommend'
+import { useLocationStore } from '@/stores/location'
+import { haversineMeters } from '@/utils/location'
 
 export const useDishStore = defineStore('dish', () => {
   const dishList = ref<Dish[]>([])
@@ -44,9 +46,9 @@ export const useDishStore = defineStore('dish', () => {
   /** task-03 关联动态（二期占位，一期为空） */
   const relatedMoments = ref<any[]>([])
 
-  async function fetchCanteens(lat?: number | null, lng?: number | null) {
+  async function fetchCanteens() {
     try {
-      canteenList.value = await canteenApi.getCanteenList(lat, lng)
+      canteenList.value = await canteenApi.getCanteenList()
     } catch (e: any) {
       console.error('加载食堂列表失败', e)
       canteenList.value = []
@@ -231,29 +233,38 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  /** task-01 首页热门瀑布流：首屏 + 重置分页（定位联动：有坐标走 /dishes/hot 距离加权） */
-  async function fetchHomeHot(lat?: number | null, lng?: number | null) {
+  /** task-01 首页热门瀑布流：首屏 + 重置分页。
+   *  距离（米）由前端基于 locationStore 用户坐标 + Haversine 本地计算写回 dish.distance，
+   *  并按距离升序排序（仅在有定位时）；用户位置不出本机，服务器不再算距离。 */
+  async function fetchHomeHot() {
     homeHotPage.value = 1
     homeHotFinished.value = false
     homeHotLoadingMore.value = false
     try {
-      if (typeof lat === 'number' && typeof lng === 'number') {
-        // 定位后：距离加权 TOP（近食堂菜品优先），无分页 total → 首屏即视为完整（补页按热度继续）
-        const list = await dishApi.getHomeHotDishes(20, lat, lng)
-        homeHotList.value = list
-        homeHotTotal.value = list.length
-        if (list.length > 0) homeHotFinished.value = true
-      } else {
-        const res = await dishApi.getHotDishesPage(1)
-        homeHotList.value = res.list
-        homeHotTotal.value = res.total
-        if (homeHotList.value.length >= homeHotTotal.value) homeHotFinished.value = true
-      }
+      const res = await dishApi.getHotDishesPage(1)
+      homeHotList.value = withLocalDistance(res.list)
+      homeHotTotal.value = res.total
+      if (homeHotList.value.length >= homeHotTotal.value) homeHotFinished.value = true
     } catch (e: any) {
       console.error('加载首页热门失败', e)
       homeHotList.value = []
       homeHotTotal.value = 0
     }
+  }
+
+  /** 基于 locationStore 用户坐标 + Haversine 本地写回每个菜品 distance（米），并按距离升序排序（有定位时） */
+  function withLocalDistance(list: Dish[]): Dish[] {
+    const loc = useLocationStore().location
+    const decorated = list.map((d) => {
+      if (loc && typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+        d.distance = haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
+      }
+      return d
+    })
+    if (loc) {
+      decorated.sort((a, b) => (a.distance ?? Number.MAX_SAFE_INTEGER) - (b.distance ?? Number.MAX_SAFE_INTEGER))
+    }
+    return decorated
   }
 
   /** task-01 首页热门瀑布流：触底追加（去重） */
@@ -264,7 +275,7 @@ export const useDishStore = defineStore('dish', () => {
     try {
       const res = await dishApi.getHotDishesPage(nextPage)
       const existIds = new Set(homeHotList.value.map(d => d.id))
-      const added = res.list.filter(d => !existIds.has(d.id))
+      const added = withLocalDistance(res.list.filter(d => !existIds.has(d.id)))
       homeHotList.value = [...homeHotList.value, ...added]
       homeHotPage.value = nextPage
       homeHotTotal.value = res.total

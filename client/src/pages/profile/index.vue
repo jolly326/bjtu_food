@@ -79,7 +79,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onLoad } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'

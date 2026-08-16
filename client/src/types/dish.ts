@@ -46,10 +46,14 @@ export interface Dish {
   promoPrice?: number
   /** 发布者用户 ID（task-12.5：仅本人可删除自己发布的菜品） */
   createdBy?: number
-  /** 距当前用户距离（米），由后端按定位计算；缺省则来源区不展示该行 */
+  /** 距当前用户距离（米）：由前端基于 locationStore 用户坐标 + Haversine 本地计算写回，未定位/无坐标时为 undefined */
   distance?: number
   /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
   region?: string
+  /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
+  latitude?: number
+  /** 食堂经度（GCJ-02），来自 canteen 联表 */
+  longitude?: number
 }
 
 interface RatingDistribution {
@@ -96,6 +100,10 @@ export interface Suggestion {
   rating?: number
   /** 评价数（仅 dish 类型） */
   ratingCount?: number
+  /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用 */
+  latitude?: number
+  /** 食堂经度（GCJ-02），来自 canteen 联表 */
+  longitude?: number
 }
 
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */

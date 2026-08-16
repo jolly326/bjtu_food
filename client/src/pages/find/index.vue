@@ -120,12 +120,12 @@
 
         <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
         <CardSection v-if="hotSearchList.length > 0">
-          <SectionTitle title="热搜" :bar="false" />
+          <SectionTitle title="猜你想搜" :bar="false" />
           <view class="history-chips">
             <view
               v-for="(kw) in hotSearchList"
               :key="kw.keyword"
-              class="history-chip history-chip-hot"
+              class="history-chip"
               :class="{ pressed: pressedKey === `hot-${kw.keyword}` }"
               @touchstart="pressedKey = `hot-${kw.keyword}`"
               @touchend="pressedKey = ''"
@@ -181,6 +181,7 @@
               </view>
               <!-- 档口/食堂：展示副信息（食堂名/位置） -->
               <text class="mixed-sub" v-else-if="item.sub">{{ item.sub }}</text>
+              <text v-if="item.distance != null" class="mixed-distance">距你 {{ fmtMixedDistance(item.distance) }}</text>
             </view>
             <IconSvg name="arrow" :size="24" color="var(--text-tertiary)" class="mixed-arrow" />
           </view>
@@ -208,6 +209,8 @@ import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload } from '@/utils/shareState'
 import type { Suggestion } from '@/types/dish'
+import { useLocationStore } from '@/stores/location'
+import { haversineMeters, getUserLocation } from '@/utils/location'
 import IconSvg from '@/components/IconSvg.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
@@ -216,6 +219,7 @@ import AuthSheet from '@/components/AuthSheet.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
+const locationStore = useLocationStore()
 
 /** 搜索页为非 tab 二级页：返回回首页（2026-08-03 修复：用 navigateBack 带返回动画；无上一页时兜底 reLaunch） */
 function goBackHome() {
@@ -312,6 +316,11 @@ interface MixedResult {
   rating?: number
   /** 菜品专属：评价数 */
   ratingCount?: number
+  /** 食堂坐标（GCJ-02），来自 suggest 联表，前端本地 Haversine 算「距你 Xm」 */
+  lat?: number
+  lng?: number
+  /** 距用户距离（米）：前端基于定位本地算，未定位/无坐标为 undefined */
+  distance?: number
 }
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
@@ -326,11 +335,27 @@ const resultTabs = [
 type ResultTabKey = (typeof resultTabs)[number]['key']
 const activeResultTab = ref<ResultTabKey>('all')
 
+/** 混合结果本地算距离（米）：基于 locationStore 用户坐标 + Haversine；用户位置不出本机 */
+const mixedWithDistance = computed<MixedResult[]>(() => {
+  const loc = locationStore.location
+  return mixedResults.value.map((r) => {
+    if (loc && typeof r.lat === 'number' && typeof r.lng === 'number') {
+      return { ...r, distance: haversineMeters(loc, { lat: r.lat, lng: r.lng }) }
+    }
+    return r
+  })
+})
+
 /** 按 tab 过滤后的混合结果 */
 const filteredMixed = computed(() => {
-  if (activeResultTab.value === 'all') return mixedResults.value
-  return mixedResults.value.filter(r => r.type === activeResultTab.value)
+  if (activeResultTab.value === 'all') return mixedWithDistance.value
+  return mixedWithDistance.value.filter(r => r.type === activeResultTab.value)
 })
+
+/** 距你文案：米/公里自适应 */
+function fmtMixedDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
+}
 function resultTabCount(key: ResultTabKey): number {
   if (key === 'all') return mixedResults.value.length
   return mixedResults.value.filter(r => r.type === key).length
@@ -425,6 +450,8 @@ async function doMixedSearch(kw?: string) {
         price: s.price,
         rating: s.rating,
         ratingCount: s.ratingCount,
+        lat: s.latitude != null ? Number(s.latitude) : undefined,
+        lng: s.longitude != null ? Number(s.longitude) : undefined,
       }))
       .filter(r => r.name)
   } catch {
@@ -510,10 +537,22 @@ function measureSuggestTop() {
 onMounted(() => {
   measureTopBar()
   loadHistory()
+  ensureLocation()
   loadDiscover()
   // 布局就绪后再测量，避免拿到 0 高度（onReady/nextTick 双保险）
   nextTick(() => measureSuggestTop())
 })
+
+/** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级（距你显 -） */
+async function ensureLocation() {
+  if (locationStore.location) return
+  try {
+    const loc = await getUserLocation()
+    if (loc) locationStore.setLocation(loc)
+  } catch (e) {
+    // 用户拒绝授权 / 定位不可用：静默，距离降级
+  }
+}
 onShareAppMessage(() => buildSharePayload())
 
 // 进入结果态（出现 tab）后重新测量联想面板 top（顶部固定区高度变化）
@@ -751,6 +790,14 @@ watch(keyword, (value) => {
 .mixed-type.t-stall { color: var(--color-accent); background: var(--color-accent-soft); border-color: var(--color-accent); }
 .mixed-type.t-canteen { color: var(--text-secondary); background: var(--bg-soft); border-color: var(--border-color); }
 .mixed-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mixed-distance {
+  align-self: flex-start;
+  margin-top: 2rpx;
+  font-size: var(--font-aux);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
 .mixed-arrow { flex-shrink: 0; }
 
 /* 发现主页首屏骨架（2026-08-03：分类宫格已删，仅保留热搜列表占位） */
