@@ -1,6 +1,6 @@
 # 小程序页面设计文档索引
 
-> 本目录为小程序端（`client/`）页面级设计文档，遵循 [`docs/mini-app-ui/README.md`](../../docs/mini-app-ui/README.md) 模式库（P1–P10）。
+> 本目录为小程序端（`client/`）页面级设计文档，**统一遵循 [`TEMPLATE.md`](./TEMPLATE.md) 结构规范**；复用组件见 `docs/project_spec.md` §4.2，设计 token 见 `client/src/uni.scss` / `client/src/theme/tokens.ts`。
 > 路由以 `client/src/pages.json` 为权威；本索引与其保持同步。
 > **2026-08-15 更新**：原「反馈中心」(`messages-services`) 已合并入「意见反馈」(`feedback`)，本目录不再有独立反馈中心文档。
 
@@ -14,7 +14,7 @@
 | 主包 | `pages/feedback/index` | 意见反馈 | [意见反馈.md](./意见反馈.md) | 「我的」菜单 / 底部 Tab 入口 |
 | 主包 | `pages/profile/index` | 我的 | [我的.md](./我的.md) | TabBar |
 | 主包 | `pages/profile/messages/index` | 消息中心 | — | 「我的」菜单（路由已注册，文档待补） |
-| 主包 | `pages/activity/index` | 最新活动 | [最新活动.md](./最新活动.md) | 首页万能区域「查看全部」 |
+| 主包 | `pages/activity/index` | 最新活动 | [最新活动.md](./最新活动.md) | 首页万能区域（最新活动单元格点击） |
 | 主包 | `pages/about/index` | 关于我们 | [关于我们.md](./关于我们.md) | 「我的」菜单 |
 | 主包 | `pages/webview/index` | 外部链接 | — | 活动详情 `web-view`（仅活动使用） |
 | 详情分包 | `pages/pages-detail/moment` | 动态详情 | [动态详情.md](./动态详情.md) | 动态/评价卡片点击 |
@@ -40,8 +40,10 @@
 
 ## 三、文档覆盖
 
-已撰写（14 篇）：
-首页、搜索页、动态页、意见反馈、我的、动态详情、发布动态、菜品详情、全部评价页、最新活动、关于我们、个人信息、我发布的、动态详情。
+已撰写（13 篇）：
+首页、搜索页、动态页、意见反馈、我的、菜品详情、动态详情、发布动态、全部评价页、最新活动、关于我们、个人信息、我发布的。
+
+> 说明：**搜索页**文档包含「搜索前 / 搜索后」两个页面（共用顶部）；**发布动态**文档统一承载「发表评价」(`pages/pages-detail/review`) 与「发布动态」(`pages/pages-user/publish-moment/index`) 两种入口（同一 `PublishReview` 组件）；**我发布的**文档合并原 `my-moments` + `my-reviews` 两条路由。
 
 待补/无文档：
 - `pages/profile/messages`（消息中心）——路由已注册，无设计文档。
@@ -50,8 +52,8 @@
 
 ## 四、设计原则与模式
 
-见 [`docs/mini-app-ui/README.md`](../../docs/mini-app-ui/README.md)：
-- 二级页统一 `Header` + 底部固定操作栏（P1 / P3）。
-- 列表页用卡片列表 + 骨架/空状态/分页（P2 / P4 / P5）。
-- 评价即动态（单一内容模型），发布走统一 `PublishReview` 组件。
-- 食堂/档口降级为菜品属性，无独立详情页。
+- 统一模板见 [`TEMPLATE.md`](./TEMPLATE.md)：每篇含固定 Meta 块 + 页面结构总览 + `## 一/二/…` 区块 + 状态与交互细节 + 细节设计（尺寸与样式规范，置最后）+ 交互路径。
+- 二级页统一 `Header` + 底部固定操作栏；列表页用卡片列表 + 骨架/空状态/分页。
+- 评价即动态（单一内容模型），发布走统一 `PublishReview` 组件（见 `发布动态.md`）。
+- 食堂/档口降级为菜品属性，无独立详情页（见 `project_spec.md` §2.1.4）。
+- 颜色 / 尺寸一律用 token，禁止硬编码 hex；图标统一 `IconSvg`（见 spec §4.2）。

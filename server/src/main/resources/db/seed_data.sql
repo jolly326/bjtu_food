@@ -1,8 +1,12 @@
 -- =============================================================
--- 食在交大 演示数据种子（一次性执行，非自动加载）
--- 说明：项目仅提供 schema.sql，运行期数据需手动写入。
+-- 食在交大 种子数据脚本（重置服务器数据库用，一次性执行，非自动加载）
+-- =============================================================
+-- 用途：重置服务器数据库时灌入演示/基础数据（用户、分类、广播、食堂、档口、
+--       菜品、轮播、动态、评论、评价、反馈、申请等），使三端有完整联调数据。
+-- 执行前提：已按 schema.sql 建库（含全部表与最终字段）。
 -- 执行：mysql -u <user> -p <pwd> -h localhost bjtu_food < seed_data.sql
--- 注意：重复执行会重复插入，请勿多次运行。
+-- 注意：本脚本部分段落（user_feedback / apply_action）采用先清后插，可重复执行；
+--       其余段落（user / dish 等）重复执行会重复插入，重置时请先清库再运行。
 -- 金额字段单位：分（如 1600 = 16.00 元）
 -- images 置 NULL，由前端占位图（emoji）优雅降级，避免小程序外链域名限制。
 -- =============================================================
@@ -180,6 +184,22 @@ INSERT INTO review_useful (user_id, review_id, created_at) VALUES
 (2, 5, NOW()), (4, 5, NOW()),
 (1, 6, NOW()), (3, 6, NOW());
 
+-- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
+DELETE FROM user_feedback;
+INSERT INTO user_feedback (user_id, type, content, contact, status, related_type, related_id, created_at) VALUES
+(1, 'suggestion', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', '2024001@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+(2, 'error',     '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(3, 'report',    '有动态内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'moment', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- -------------------- 实体贡献申请（UGC，测试申请审核流；无唯一键，先清后插保证可重复执行） --------------------
+DELETE FROM apply_action;
+INSERT INTO apply_action (applicant_id, entity_type, entity_id, apply_type, status, payload, created_at) VALUES
+(1, 'DISH',   NULL, 'NEW',    'pending', '{"name":"香煎鸡排饭","price":1800,"description":"外酥里嫩，配时蔬","stall_id":1,"tags":"recommended"}',     DATE_SUB(NOW(), INTERVAL 40 MINUTE)),
+(2, 'STALL',  NULL, 'NEW',    'pending', '{"name":"学二奶茶铺","location":"学二食堂一层","description":"鲜制果茶与奶茶","canteen_id":2}',            DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(3, 'CANTEEN', 2,  'CHANGE', 'pending', '{"name":"学二食堂","location":"学苑区一栋东侧","description":"新增夜宵窗口"}',                          DATE_SUB(NOW(), INTERVAL 6 HOUR)),
+(4, 'STALL',  14, 'CLOSE',   'pending', '{"name":"留园包点","reason":"档口歇业，申请关闭"}',                                                   DATE_SUB(NOW(), INTERVAL 1 DAY));
+
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）
 -- 来源：tasks/ARCH_DECISIONS_PHASE1.md §1.2
@@ -224,5 +244,13 @@ UPDATE dish SET spice_level=1, portion=1, serve_period='lunch,dinner' WHERE id=2
 UPDATE dish SET spice_level=2, portion=1, serve_period='dinner,midnight' WHERE id=26; -- 羊肉串
 UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=29; -- 鲜虾烧卖
 UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=30; -- 叉烧包
+
+-- 地域（美食来源地，与食堂位置无关）：按菜品特征推断
+UPDATE dish SET region='川湘'   WHERE id IN (1,2,3);      -- 宫保鸡丁/水煮牛肉/回锅肉
+UPDATE dish SET region='清真'   WHERE id IN (6,24,26);    -- 牛肉拉面/兰州牛肉面/羊肉串
+UPDATE dish SET region='粤式'   WHERE id IN (15,22,29,30);-- 广式肠粉/珍珠奶茶/鲜虾烧卖/叉烧包
+UPDATE dish SET region='东北'   WHERE id IN (19,20);      -- 炒粉/烤冷面
+UPDATE dish SET region='西北'   WHERE id=12;              -- 骨汤麻辣烫
+UPDATE dish SET region='川湘'   WHERE id IN (9,13);       -- 香辣虾/冒脑花
 
 SET FOREIGN_KEY_CHECKS = 1;

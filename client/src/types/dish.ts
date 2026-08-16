@@ -48,6 +48,8 @@ export interface Dish {
   createdBy?: number
   /** 距当前用户距离（米），由后端按定位计算；缺省则来源区不展示该行 */
   distance?: number
+  /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
+  region?: string
 }
 
 interface RatingDistribution {

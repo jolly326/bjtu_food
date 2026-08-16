@@ -26,11 +26,17 @@
         <result property="floor" column="floor"/>
         <result property="windowNo" column="window_no"/>
         <result property="businessHours" column="business_hours"/>
+        <!-- 食堂坐标（GCJ-02）：前端本地算距离用，服务器不再计算 distance -->
+        <result property="latitude" column="c_lat"/>
+        <result property="longitude" column="c_lng"/>
         <!-- 菜品属性标签字段 -->
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
         <result property="servePeriod" column="serve_period"/>
         <result property="limited" column="limited"/>
+        <result property="region" column="region"/>
+        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
+        <result property="distance" column="distance"/>
     </resultMap>
 
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"
@@ -56,13 +62,16 @@
             d.portion,
             d.serve_period,
             d.limited,
+            d.region,
             s.id   AS stall_id,
             s.name AS stall_name,
             s.floor,
             s.window_no,
             s.business_hours,
             c.id   AS canteen_id,
-            c.name AS canteen_name
+            c.name AS canteen_name,
+            c.latitude  AS c_lat,
+            c.longitude AS c_lng
         FROM dish d
                  JOIN stall s ON d.stall_id = s.id
                  JOIN canteen c ON s.canteen_id = c.id
@@ -167,24 +176,38 @@
 
     <!-- 热门菜品 TOP10（按用户位置距离加权：近食堂菜品优先，热度次级排序）。
          有坐标食堂按 haversine 距离升序；无坐标食堂的菜品排最后（距离=极大值）。
+         计算出的距离（米）同时作为 distance 列返回前端用于「距你 Xm」展示。
          lat/lng 均为 GCJ-02。 -->
     <select id="selectHotDishesByDistance" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        SELECT
+            sub.*,
+            CASE
+                WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
+                  THEN ROUND(6371000 * 2 * ASIN(SQRT(
+                        POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
+                      + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
+                      * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
+                  )))
+                ELSE NULL
+            END AS distance
+        FROM (
+            <include refid="joinDishSql"/>
+            WHERE d.status = 'on'
+              AND s.status = 'open'
+              AND c.status = 'open'
+              AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        ) sub
         ORDER BY
           CASE
-            WHEN c.latitude IS NOT NULL AND c.longitude IS NOT NULL
+            WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
               THEN 6371000 * 2 * ASIN(SQRT(
-                    POWER(SIN(RADIANS(c.latitude - #{lat}) / 2), 2)
-                  + COS(RADIANS(#{lat})) * COS(RADIANS(c.latitude))
-                  * POWER(SIN(RADIANS(c.longitude - #{lng}) / 2), 2)
+                    POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
+                  + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
+                  * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
               ))
             ELSE 99999999
           END ASC,
-          d.rating_count DESC, d.avg_rating DESC
+          sub.rating_count DESC, sub.avg_rating DESC
         LIMIT 10
     </select>
 
@@ -209,6 +232,8 @@
         <result property="portion" column="portion"/>
         <result property="servePeriod" column="serve_period"/>
         <result property="limited" column="limited"/>
+        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
+        <result property="distance" column="distance"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称） -->

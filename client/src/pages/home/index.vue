@@ -37,8 +37,8 @@
       </view>
 
       <block v-else>
-        <!-- 万能区域：最新活动预览（最近活动 + 查看全部） -->
-        <ActivityPreview :items="activities" />
+        <!-- 两列万能区：最新活动 / 全部菜品（干净版，不再堆标题与角标） -->
+        <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-find="goToSearch" />
 
         <!-- 热门菜品（双列瀑布流 + 无限加载） -->
         <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 1 }">
@@ -78,7 +78,7 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
-import ActivityPreview from '@/components/ActivityPreview.vue'
+import UniversalGrid from '@/components/UniversalGrid.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const theme = useThemeStore()
@@ -87,9 +87,9 @@ const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
 
-/** 首页头像 → 个人页 */
+/** 首页头像 → 个人页（带 from=home，使「我的」页显示返回箭头） */
 function goProfile() {
-  uni.navigateTo({ url: '/pages/profile/index' })
+  uni.navigateTo({ url: '/pages/profile/index?from=home' })
 }
 /** 首页搜索图标 → 搜索页 */
 function goToSearch() {
@@ -99,6 +99,11 @@ function goToSearch() {
 /** 菜品卡片点击 → 独立详情页（pages-detail/dish） */
 function goToDetail(dish: Dish) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
+}
+
+/** 两列万能区：最新活动 → 活动页 */
+function goToActivity() {
+  uni.navigateTo({ url: '/pages/activity/index' })
 }
 
 const loadingHot = ref(true)
@@ -120,7 +125,7 @@ async function loadData() {
   loadFailed.value = false
   try {
     const [_, bcRes, actRes] = await Promise.all([
-      dishStore.fetchHomeHot(null, null),
+      dishStore.fetchHomeHot(),
       getBroadcasts(),
       getActivities({ page: 1, pageSize: 2 }),
     ])

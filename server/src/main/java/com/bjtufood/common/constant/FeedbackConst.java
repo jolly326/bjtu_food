@@ -13,6 +13,7 @@ public interface FeedbackConst {
 
     /** 举报关联类型 */
     String RELATED_MOMENT = "moment";
+    String RELATED_MOMENT_COMMENT = "moment_comment";
 
     /** 处理状态：待处理 / 已处理 */
     String STATUS_PENDING = "pending";

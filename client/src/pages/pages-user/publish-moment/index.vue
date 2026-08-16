@@ -28,9 +28,9 @@
       <!-- 图片上传 -->
       <view class="block">
         <SectionTitle title="图片">
-          <template #extra><text class="section-sub">最多 9 张</text></template>
+          <template #extra><text class="section-sub">最多 3 张</text></template>
         </SectionTitle>
-        <ImageUploader v-model="images" :max="9" />
+        <ImageUploader v-model="images" :max="3" />
       </view>
 
       <view style="height: var(--spacing-xl)" />

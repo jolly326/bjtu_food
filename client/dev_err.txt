@@ -1,0 +1,88 @@
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+

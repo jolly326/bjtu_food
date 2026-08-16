@@ -21,9 +21,9 @@ import com.bjtufood.moment.dto.MomentPublishReq;
 import com.bjtufood.moment.dto.MomentUsefulResult;
 import com.bjtufood.moment.dto.MomentVO;
 import com.bjtufood.moment.entity.Moment;
+import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.entity.MomentComment;
 import com.bjtufood.moment.entity.MomentCommentUseful;
-import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
 import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.mapper.MomentMapper;
@@ -96,6 +96,13 @@ public class MomentServiceImpl implements MomentService {
             vo.setRejectReason(m.getRejectReason());
         } else {
             vo.setRejectReason(null);
+        }
+        // 当前用户是否已点「有用」：发评论/刷新重载时用于回写高亮态，避免被归零
+        if (currentUserId != null) {
+            long usefulHit = momentUsefulMapper.selectCount(new LambdaQueryWrapper<MomentUseful>()
+                .eq(MomentUseful::getUserId, currentUserId)
+                .eq(MomentUseful::getMomentId, id));
+            vo.setUseful(usefulHit > 0);
         }
         return enrich(vo);
     }
@@ -220,11 +227,23 @@ public class MomentServiceImpl implements MomentService {
         if (m == null) {
             throw new BusinessException("动态不存在");
         }
+        // content/images 至少一项（支持纯图评论）
+        boolean hasContent = req.getContent() != null && !req.getContent().trim().isEmpty();
+        List<String> reqImages = req.getImages();
+        boolean hasImages = reqImages != null && !reqImages.isEmpty();
+        if (!hasContent && !hasImages) {
+            throw new BusinessException("评论内容或图片至少填写一项");
+        }
         MomentComment c = new MomentComment();
         c.setMomentId(momentId);
         c.setUserId(userId);
         c.setParentId(req.getParentId());
         c.setContent(req.getContent());
+        // 评论图片：最多 3 张，按 JSON 数组字符串存储（与 Dish.images 一致）
+        if (reqImages != null && !reqImages.isEmpty()) {
+            List<String> safe = reqImages.stream().limit(3).collect(Collectors.toList());
+            c.setImages(JsonListUtil.toJson(safe));
+        }
         momentCommentMapper.insert(c);
 
         // 评论计数原子 +1（并发安全）
@@ -289,6 +308,8 @@ public class MomentServiceImpl implements MomentService {
                 vo.setReplyToNickname(pu != null ? pu.getNickname() : null);
             }
             vo.setContent(c.getContent());
+            // 评论图片：JSON 数组字符串 → 绝对 URL 列表（最多 3 张）
+            vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(c.getImages()));
             vo.setUsefulCount(c.getUsefulCount() == null ? 0 : c.getUsefulCount());
             vo.setUseful(markedCommentIds.contains(c.getId()));
             vo.setCreatedAt(c.getCreatedAt());
@@ -483,6 +504,8 @@ public class MomentServiceImpl implements MomentService {
             if (MomentConst.RELATED_DISH.equals(vo.getRelatedType())) {
                 Dish d = dishMapper.selectById(vo.getRelatedId());
                 vo.setRelatedName(d != null ? d.getName() : null);
+                List<String> dishImgs = d != null ? imageUrlUtil.parseAndToAbsoluteUrls(d.getImages()) : null;
+                vo.setRelatedImage(dishImgs != null && !dishImgs.isEmpty() ? dishImgs.get(0) : null);
             } else if (MomentConst.RELATED_STALL.equals(vo.getRelatedType())) {
                 Stall s = stallMapper.selectById(vo.getRelatedId());
                 vo.setRelatedName(s != null ? s.getName() : null);

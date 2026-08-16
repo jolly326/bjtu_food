@@ -78,7 +78,7 @@ page {
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
   /* 圆角 */
-  --radius-tag: 999rpx;
+  --radius-tag: 16px;
   --radius-card: 16px;
   --radius-modal: 24px;
   --radius-btn: 16px;
@@ -282,7 +282,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
-  --radius-tag: 999rpx;
+  --radius-tag: 16px;
   --radius-card: 16px;
   --radius-modal: 24px;
   --radius-btn: 16px;

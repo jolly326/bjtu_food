@@ -67,7 +67,7 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng) {
-        boolean byDistance = lat != null && lng != null;
+        // 注：lat/lng 不再用于服务端距离计算——坐标随食堂返回，距离由前端本地 Haversine 算（用户位置不出本机）
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
                 .eq(Canteen::getStatus, "open")
                 .orderByAsc(Canteen::getSortOrder));
@@ -79,30 +79,12 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setLocation(canteen.getLocation());
                     vo.setDescription(canteen.getDescription());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-                    // 距离（米）：用户位置到食堂坐标的 haversine 直线距离；无坐标食堂置 null 排最后
-                    if (byDistance && canteen.getLatitude() != null && canteen.getLongitude() != null) {
-                        vo.setDistance(distanceMeters(lat, lng, canteen.getLatitude(), canteen.getLongitude()));
-                    }
+                    // 仅暴露坐标，距离交给前端本地算
+                    vo.setLatitude(canteen.getLatitude());
+                    vo.setLongitude(canteen.getLongitude());
                     return vo;
                 })
-                .sorted(byDistance
-                        ? java.util.Comparator.comparing(
-                                (CanteenInfoVO v) -> v.getDistance(),
-                                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
-                        : java.util.Comparator.comparingLong(v -> (v.getId() == null ? 0L : v.getId())))
                 .collect(Collectors.toList());
-    }
-
-    /** haversine 距离（米）：两经纬度点的球面直线距离 */
-    private Integer distanceMeters(BigDecimal lat1, BigDecimal lng1, BigDecimal lat2, BigDecimal lng2) {
-        double R = 6371000;
-        double dLat = Math.toRadians(lat2.doubleValue() - lat1.doubleValue());
-        double dLng = Math.toRadians(lng2.doubleValue() - lng1.doubleValue());
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1.doubleValue())) * Math.cos(Math.toRadians(lat2.doubleValue()))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return (int) Math.round(R * c);
     }
 
     @Override

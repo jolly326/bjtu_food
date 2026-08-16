@@ -1,16 +1,17 @@
 -- =============================================================
--- 食在交大 数据库建表脚本（MySQL 8）
+-- 食在交大 建立数据库（建表）脚本（MySQL 8）
 -- =============================================================
+-- 用途：从零创建数据库与全部表结构、最终字段（含 region 列、折扣价等扩展字段）。
+-- 执行前提：已先 CREATE DATABASE bjtu_food 并 USE bjtu_food。
+-- 重置服务器：先 DROP DATABASE bjtu_food 再重建库，随后执行本文件即可还原表结构。
+-- 配合 seed_data.sql 使用：本文件只建表不插数据。
+--
 -- 说明：
 --   1. 角色三种：student（学生）/ admin（普通管理员）/ super_admin（超级管理员，可管理管理员账号）。user.role 默认值 'student'。
 --   2. 金额类字段（dish.price）以「分」为单位存储（如 12.00 元 = 1200）。
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
 --      用于 UGC 内容（dish / stall / canteen）的审核流；后台录入默认 approved。
---
--- 可选迁移（仅当从旧库升级、已存在 user 表且 role 存 'user' 时执行；
--- 本次为干净重做，主路径是新建库，无需执行此句）：
---   UPDATE user SET role='student' WHERE role='user';
 -- =============================================================
 
 SET NAMES utf8mb4;
@@ -296,7 +297,8 @@ ALTER TABLE `dish`
     ADD COLUMN `spice_level` TINYINT NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     ADD COLUMN `portion`     TINYINT NOT NULL DEFAULT 0 COMMENT '分量枚举：0=小 1=中 2=大',
     ADD COLUMN `serve_period` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight',
-    ADD COLUMN `limited`     TINYINT NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）';
+    ADD COLUMN `limited`     TINYINT NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）',
+    ADD COLUMN `region`      VARCHAR(32) NULL     DEFAULT NULL COMMENT '地域（美食来源地），如 清真/川湘/西北/粤式/东北';
 
 -- 评价：有用计数（冗余列，由 review_useful 聚合维护）
 ALTER TABLE `review`
@@ -402,6 +404,26 @@ CREATE TABLE IF NOT EXISTS `moment_comment`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='动态评论';
+
+-- 动态评论图片（task-13：评论支持至多 3 张图，JSON 数组字符串存储）
+-- MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程做幂等防护
+DROP PROCEDURE IF EXISTS `add_moment_comment_images`;
+DELIMITER $$
+CREATE PROCEDURE `add_moment_comment_images`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'moment_comment'
+          AND COLUMN_NAME = 'images'
+    ) THEN
+        ALTER TABLE `moment_comment`
+            ADD COLUMN `images` VARCHAR(2000) NULL DEFAULT NULL COMMENT '评论图片（JSON 数组字符串，最多 3 张）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_moment_comment_images`();
+DROP PROCEDURE IF EXISTS `add_moment_comment_images`;
 
 -- 邮箱验证码（邮箱登录/注册/重置密码；code_hash 存哈希，过期/使用后标记）
 CREATE TABLE IF NOT EXISTS `email_verification_code`

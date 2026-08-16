@@ -23,8 +23,9 @@
 
   <!-- 通用/二级页：返回箭头 + 居中标题 + 右上角留空 -->
   <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
-    <view class="nav" :style="{ height: navBarHeight + 'px' }">
+    <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
       <view
+        v-if="showBack"
         class="back-area"
         @tap="handleBack"
         role="button"
@@ -53,6 +54,8 @@ const props = withDefaults(defineProps<{
   searchPlaceholder?: string
   /** 深色模式（仅影响无背景变量时的兜底） */
   dark?: boolean
+  /** 是否显示返回箭头；从首页头像 navigateTo 进入二级页时传 true，TabBar 直入时传 false */
+  showBack?: boolean
 }>(), {
   variant: 'default',
   title: '',
@@ -60,6 +63,7 @@ const props = withDefaults(defineProps<{
   nickname: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
   dark: false,
+  showBack: true,
 })
 
 const emit = defineEmits<{
@@ -114,6 +118,10 @@ function handleBack() {
   position: relative;
   box-sizing: border-box;
 }
+/* 有返回箭头时：左侧留白补偿，使标题在「返回区 + 标题 + 右侧留白」间视觉居中 */
+.nav--with-back {
+  padding-left: calc(80rpx + var(--spacing-sm));
+}
 .back-area {
   position: absolute;
   left: var(--spacing-sm);
@@ -152,7 +160,7 @@ function handleBack() {
   padding: 0 var(--spacing-md);
   height: 80rpx;
   background: var(--bg-card);
-  border-radius: var(--radius-pill, 999rpx);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   justify-content: flex-start;
   gap: var(--spacing-xs);
@@ -171,7 +179,7 @@ function handleBack() {
 .user-chip-avatar {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-card);
   background: var(--bg-soft);
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }

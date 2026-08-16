@@ -43,6 +43,8 @@ export interface MomentComment {
   parentId?: number | null
   /** 父评论昵称（回复 @昵称 展示） */
   replyToNickname?: string | null
+  /** 评论图片（最多 3 张，复用 Moment 图床） */
+  images?: string[] | null
   content: string
   /** 有用计数（task-12.4） */
   usefulCount?: number
@@ -63,6 +65,7 @@ export interface MomentPublish {
 export interface MomentCommentPublish {
   content: string
   parentId?: number | null
+  images?: string[] | null
 }
 
 /** 有用切换结果 */

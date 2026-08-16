@@ -14,6 +14,13 @@
           </view>
           <view class="skeleton-line skeleton-rating"></view>
         </view>
+        <view class="skeleton-metric">
+          <view class="skeleton-metric-col"></view>
+          <view class="skeleton-metric-col"></view>
+          <view class="skeleton-metric-col"></view>
+          <view class="skeleton-metric-col"></view>
+          <view class="skeleton-metric-col"></view>
+        </view>
         <view class="skeleton-card">
           <view class="skeleton-line skeleton-block"></view>
           <view class="skeleton-line skeleton-block"></view>
@@ -60,28 +67,73 @@
           </view>
         </CardSection>
 
-        <!-- 4. 来源信息区 -->
+        <!-- 4. 指标信息条：横向滑动，距你(首项) / 评分 / 评价 / 口味 / 地域 -->
+        <scroll-view class="metric-scroll" scroll-x :enable-flex="true" :scroll-with-animation="!reduceMotion" :enhanced="true" :show-scrollbar="false" aria-label="菜品关键指标">
+          <view class="metric-strip">
+            <view class="metric-col metric-col--lead">
+              <view class="metric-inner">
+                <IconSvg v-if="dish.distance != null" name="location" :size="22" color="var(--color-primary)" class="metric-icon" />
+                <text class="metric-value metric-value--lead">{{ dish.distance != null ? distText : '-' }}</text>
+                <text class="metric-label">距你</text>
+              </view>
+            </view>
+            <view class="metric-divider" />
+            <view class="metric-col">
+              <view class="metric-inner">
+                <text class="metric-value">{{ dish.rating > 0 ? dish.rating.toFixed(1) : '-' }}</text>
+                <text class="metric-label">评分</text>
+              </view>
+            </view>
+            <view class="metric-divider" />
+            <view class="metric-col">
+              <view class="metric-inner">
+                <text class="metric-value">{{ dish.ratingCount > 0 ? dish.ratingCount : '-' }}</text>
+                <text class="metric-label">评价</text>
+              </view>
+            </view>
+            <view class="metric-divider" />
+            <view class="metric-col">
+              <view class="metric-inner">
+                <text class="metric-value">{{ spiceText }}</text>
+                <text class="metric-label">口味</text>
+              </view>
+            </view>
+            <view class="metric-divider" />
+            <view class="metric-col">
+              <view class="metric-inner">
+                <text class="metric-value">{{ regionText }}</text>
+                <text class="metric-label">地域</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- 5. 来源信息区（位置链路，不含距离，距离已上提到指标条） -->
         <CardSection>
           <view class="loc-row" aria-label="所在位置">
             <IconSvg name="location" :size="26" color="var(--color-primary)" class="loc-icon" />
             <text class="loc-text">{{ locationText }}</text>
           </view>
-          <view class="dist-row" v-if="dish.distance != null">
-            <IconSvg name="navigation" :size="24" color="var(--text-tertiary)" class="dist-icon" />
-            <text class="dist-text">距你约 {{ dish.distance }} 米</text>
-          </view>
         </CardSection>
 
-        <!-- 5. 评价摘要区：5→1 星占比进度条 -->
+        <!-- 6. 综合评分卡：小标题 → 超大评分 → 5→1 星占比进度条 -->
         <CardSection v-if="dish.ratingCount > 0">
-          <text class="sec-title">评分分布</text>
-          <view class="rate-dist">
-            <view class="dist-item" v-for="item in ratingDistribution" :key="item.star">
-              <text class="dist-star">{{ item.star }}星</text>
-              <view class="dist-bar">
-                <view class="dist-fill" :style="{ width: distPct(item.count) }" />
+          <view class="summary-header">
+            <text class="summary-title">综合评分</text>
+          </view>
+          <view class="summary-body">
+            <view class="summary-left">
+              <text class="summary-score">{{ dish.rating > 0 ? dish.rating.toFixed(1) : '-' }}</text>
+              <text class="summary-base">满分 5.0</text>
+            </view>
+            <view class="summary-right">
+              <view class="dist-item" v-for="item in ratingDistribution" :key="item.star">
+                <text class="dist-star">{{ item.star }}星</text>
+                <view class="dist-bar">
+                  <view class="dist-fill" :style="{ width: distPct(item.count) }" />
+                </view>
+                <text class="dist-count">{{ item.count }}</text>
               </view>
-              <text class="dist-count">{{ item.count }}</text>
             </view>
           </view>
         </CardSection>
@@ -114,11 +166,9 @@
       <EmptyState v-else text="菜品不存在或已下架" icon="empty" />
     </scroll-view>
 
-    <!-- 7. 底部固定操作栏：仅写评价（品牌色，全宽） -->
+    <!-- 7. 底部固定操作栏：分享占满 -->
     <view class="action-bar" v-if="dish">
-      <view class="write-btn">
-        <AppButton text="写评价" type="primary" @click="goToReview" />
-      </view>
+      <button class="share-btn-native" open-type="share">分享给同学</button>
     </view>
 
     <!-- 申请下架/纠错 Sheet（共享组件） -->
@@ -141,7 +191,6 @@ import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import AppButton from '@/components/AppButton.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
@@ -208,6 +257,27 @@ const locationText = computed(() => {
   if (d.stallName) nodes.push(d.stallName)
   if (d.windowNo) nodes.push(`窗口 ${d.windowNo}`)
   return nodes.join(' › ') || '未知位置'
+})
+
+/** 地域（美食来源地）：后端联表回填，缺省显 - */
+const regionText = computed(() => {
+  const d = dish.value
+  if (!d) return '-'
+  return (d.region && d.region.trim()) || '-'
+})
+
+/** 口味文案：辣度枚举 0-3 → 不辣/微辣/中辣/重辣 */
+const spiceText = computed(() => {
+  const map: Record<number, string> = { 0: '不辣', 1: '微辣', 2: '中辣', 3: '重辣' }
+  const lv = dish.value?.spiceLevel
+  return lv != null && map[lv] ? map[lv] : '-'
+})
+
+/** 距你文案：米/公里自适应 */
+const distText = computed(() => {
+  const m = dish.value?.distance
+  if (m == null) return '-'
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`
 })
 
 onLoad((query) => {
@@ -302,12 +372,6 @@ function onDeleteReview(rv: Review) {
   })
 }
 
-/** 写评价（需登录；提交成功后会 reLaunch 到社区广场，不返回本页） */
-function goToReview() {
-  if (!userStore.requireAuth(() => goToReview())) return
-  uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}` })
-}
-
 /** 查看全部评价 → 独立评价列表页 */
 function goReviewList() {
   uni.navigateTo({ url: `/pages/pages-detail/review-list?dishId=${currentDishId.value}` })
@@ -344,12 +408,28 @@ function goReviewList() {
 .loc-row { display: flex; align-items: center; gap: var(--spacing-xs); }
 .loc-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .loc-text { flex: 1; min-width: 0; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dist-row { display: flex; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-xs); }
-.dist-icon { width: 24rpx; height: 24rpx; line-height: 1; flex-shrink: 0; }
-.dist-text { font-size: var(--font-small); color: var(--text-tertiary); }
 
-/* 5. 评分分布进度条 */
-.sec-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
+/* 指标信息条：横向滑动，竖线分隔，首项为距你 */
+.metric-scroll { margin-top: var(--spacing-md); width: 100%; -webkit-overflow-scrolling: touch; }
+.metric-strip { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; padding: 0 var(--spacing-md); }
+.metric-col { flex: 0 0 25%; width: 25%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.metric-col--lead { flex: 0 0 22%; width: 22%; justify-content: flex-start; }
+.metric-inner { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.metric-col--lead .metric-inner { align-items: flex-start; }
+.metric-icon { width: 22rpx; height: 22rpx; line-height: 1; margin-bottom: 6rpx; }
+.metric-value { font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.metric-value--lead { color: var(--color-primary); }
+.metric-label { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 4rpx; }
+.metric-divider { width: 2rpx; align-self: stretch; background: var(--border-color); flex: 0 0 auto; }
+
+/* 5. 综合评分卡：小标题 → 超大评分 → 5→1 星占比进度条 */
+.summary-header { display: flex; align-items: center; margin-bottom: var(--spacing-sm); }
+.summary-title { font-size: var(--font-small); font-weight: var(--weight-bold); color: var(--text-secondary); letter-spacing: var(--tracking-h3); }
+.summary-body { display: flex; align-items: center; gap: var(--spacing-md); }
+.summary-left { flex: 0 0 160rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.summary-score { font-size: var(--font-display, 64rpx); font-weight: var(--weight-heavy); color: var(--color-star); line-height: 1; font-variant-numeric: tabular-nums; }
+.summary-base { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 6rpx; }
+.summary-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .rate-dist { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .dist-item { display: flex; align-items: center; gap: var(--spacing-sm); }
 .dist-star { width: 64rpx; flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); text-align: right; }
@@ -367,7 +447,8 @@ function goReviewList() {
 
 /* 7. 底部固定操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
-.write-btn { flex: 1; min-width: 0; }
+.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-card); font-weight: var(--weight-medium); border: none; padding: 0; }
+.share-btn-native::after { border: none; }
 
 /* 加载骨架 */
 .dish-skeleton { display: flex; flex-direction: column; gap: var(--spacing-md); }
@@ -380,6 +461,8 @@ function goReviewList() {
 .skeleton-block { height: 24rpx; }
 .skeleton-block.short { width: 70%; }
 .skeleton-tags { display: flex; gap: var(--spacing-xs); }
+.skeleton-metric { display: flex; gap: var(--spacing-sm); margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); }
+.skeleton-metric-col { flex: 1; height: 64rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 .skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
 
 @media (prefers-reduced-motion: reduce) {

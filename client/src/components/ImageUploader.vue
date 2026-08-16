@@ -1,5 +1,5 @@
 <template>
-  <view class="img-uploader">
+  <view class="img-uploader" :class="{ compact: compact }">
     <view class="img-grid">
       <view
         v-for="(img, idx) in props.modelValue"
@@ -16,32 +16,37 @@
         class="img-cell img-add"
         @tap="chooseImage"
       >
-        <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
+        <IconSvg name="plus" :size="addIconSize" color="var(--text-tertiary)" />
       </view>
     </view>
-    <text v-if="showCounter" class="img-counter">{{ props.modelValue.length }}/{{ max }}</text>
+    <text v-if="showCounter && !compact" class="img-counter">{{ props.modelValue.length }}/{{ max }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { uploadImage } from '@/api/upload'
 
 /**
  * ImageUploader —— 图片上传网格（task-14 W2/W5 / task-13 T11）
- * 复用：publish-dish / submit-stall / review / publish-moment
+ * 复用：publish-dish / submit-stall / review / publish-moment / 评论栏（compact）
  * 受控：v-model 绑定 string[]（已上传的相对/绝对路径）。
  */
 const props = withDefaults(defineProps<{
   modelValue: string[]
   max?: number
   showCounter?: boolean
+  /** compact：单元格与输入框同高、横向单行，用于评论栏同行左侧（2026-08-16） */
+  compact?: boolean
 }>(), {
   modelValue: () => [],
   max: 9,
   showCounter: true,
+  compact: false,
 })
+
+const addIconSize = computed(() => (props.compact ? 36 : 60))
 
 const emit = defineEmits<{
   'update:modelValue': [value: string[]]
@@ -121,4 +126,10 @@ function chooseImage() {
 }
 .img-add:active { transform: scale(var(--press-scale)); }
 .img-counter { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
+/* compact：单元格与输入框同高（72rpx）、横向单行，置于评论栏同行左侧 */
+.img-uploader.compact { width: auto; flex-shrink: 0; }
+.img-uploader.compact .img-grid { flex-wrap: nowrap; gap: var(--spacing-xs); }
+.img-uploader.compact .img-cell { width: 72rpx; height: 72rpx; }
+.img-uploader.compact .img-remove { width: 32rpx; height: 32rpx; border-radius: 50%; }
+.img-uploader.compact .img-remove :deep(svg) { width: 18rpx; height: 18rpx; }
 </style>

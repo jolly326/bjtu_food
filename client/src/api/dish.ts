@@ -54,6 +54,7 @@ export function toDish(raw: any): Dish {
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
     createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
     distance: raw.distance != null ? Number(raw.distance) : undefined,
+    region: raw.region || raw.region_name || '',
   }
 }
 

@@ -37,9 +37,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
         if (FeedbackConst.TYPE_REPORT.equals(req.getType())) {
-            // 举报必须关联被举报动态（复用 user_feedback，不新建举报表）
-            if (!FeedbackConst.RELATED_MOMENT.equals(req.getRelatedType()) || req.getRelatedId() == null) {
-                throw new BusinessException("举报必须指定关联动态（relatedType=moment 且 relatedId 必填）");
+            // 举报必须关联被举报对象（动态或动态评论，复用 user_feedback 表）
+            if (req.getRelatedId() == null
+                    || (!FeedbackConst.RELATED_MOMENT.equals(req.getRelatedType())
+                        && !FeedbackConst.RELATED_MOMENT_COMMENT.equals(req.getRelatedType()))) {
+                throw new BusinessException("举报必须指定关联对象（relatedType=moment 或 moment_comment 且 relatedId 必填）");
             }
         }
         Feedback feedback = new Feedback();

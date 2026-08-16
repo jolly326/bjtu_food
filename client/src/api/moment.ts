@@ -52,6 +52,7 @@ function toMomentComment(raw: any): MomentComment {
     parentId: raw.parentId ?? null,
     replyToNickname: raw.replyToNickname ?? null,
     content: raw.content || '',
+    images: normalizeImages(raw.images),
     usefulCount: Number(raw.usefulCount ?? 0),
     useful: !!raw.useful,
     createdAt: raw.createdAt,
@@ -131,7 +132,12 @@ export async function getMomentComments(id: number, page = 1, pageSize = 20): Pr
 
 /** 发评论（STU，支持 parentId 一层回复） */
 export async function commentMoment(id: number, payload: MomentCommentPublish): Promise<{ id: number }> {
-  return post<{ id: number }>(`/moments/${id}/comments`, payload)
+  const body: Record<string, unknown> = {
+    content: payload.content,
+    parentId: payload.parentId ?? null,
+  }
+  if (payload.images && payload.images.length) body.images = payload.images
+  return post<{ id: number }>(`/moments/${id}/comments`, body)
 }
 
 /** 删除自己评论（STU 仅作者） */
