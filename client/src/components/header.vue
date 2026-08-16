@@ -1,7 +1,7 @@
 <template>
   <!-- 首页：单行星胶囊头部（头像 + 整行搜索框），朱砂红底，右上角留空避让胶囊 -->
   <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
-    <view class="home-row">
+    <view class="home-row" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
       <view
         class="user-chip"
         @tap="$emit('avatar')"
@@ -13,8 +13,8 @@
           <IconSvg name="user" :size="34" color="#FFFFFF" />
         </view>
       </view>
-      <view class="home-search" @tap="$emit('search')">
-        <IconSvg name="search" :size="30" color="#FFFFFF" class="home-search-icon" />
+      <view class="home-search" @tap="$emit('search')" role="search" :aria-label="searchPlaceholder">
+        <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="home-search-icon" />
         <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
       </view>
     </view>
@@ -30,7 +30,7 @@
         role="button"
         aria-label="返回"
       >
-        <IconSvg name="arrow-left" :size="44" color="var(--color-primary)" class="back-arrow" />
+        <IconSvg name="arrow-left" :size="44" color="#FFFFFF" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
     </view>
@@ -74,6 +74,9 @@ const emit = defineEmits<{
 const statusBarHeight = ref(20)
 const navBarHeight = ref(44)
 const avatarOk = ref(true)
+// 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
+const isWeChat = ref(false)
+const rightPad = ref('180rpx')
 // 头像地址变化（如切换账号）时重置失效标记，避免沿用上一张的 error 状态
 watch(() => props.avatar, () => { avatarOk.value = true })
 
@@ -86,6 +89,9 @@ onMounted(() => {
     : null
   const sb = (win && win.statusBarHeight) || 20
   statusBarHeight.value = sb
+  // 仅在微信小程序环境避让右上角胶囊；H5/其余端收窄右侧留白，避免搜索框右侧大片空白
+  isWeChat.value = typeof wx !== 'undefined'
+  rightPad.value = isWeChat.value ? '180rpx' : '0rpx'
   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐返回行高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
@@ -102,8 +108,8 @@ function handleBack() {
 .header-wrap {
   width: 100%;
   box-sizing: border-box;
-  background: var(--bg-page);
-  border-bottom: 1rpx solid var(--border-color);
+  background: var(--color-primary);
+  border-bottom: none;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -138,7 +144,7 @@ function handleBack() {
 .title {
   font-size: var(--font-h2);
   font-weight: var(--weight-bold);
-  color: var(--text-primary);
+  color: #FFFFFF;
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,9 +160,7 @@ function handleBack() {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  /* 右上角避让微信原生胶囊（约 180rpx）；H5 端仅多留白，不影响布局 */
-  padding-right: calc(env(safe-area-inset-right, 0px) + 180rpx);
+  padding: 0 var(--spacing-lg);
   box-sizing: border-box;
 }
 .user-chip {
@@ -166,7 +170,7 @@ function handleBack() {
 .user-chip-avatar {
   width: 64rpx;
   height: 64rpx;
-  border-radius: 50%;
+  border-radius: 16rpx;
   background: rgba(255, 255, 255, 0.25);
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
@@ -178,10 +182,11 @@ function handleBack() {
   gap: var(--spacing-xs);
   height: 72rpx;
   padding: 0 var(--spacing-md);
-  background: rgba(255, 255, 255, 0.18);
+  /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
+  background: var(--bg-card);
   border-radius: 36rpx;
   -webkit-tap-highlight-color: transparent;
 }
 .home-search-icon { flex-shrink: 0; line-height: 1; }
-.home-search-placeholder { font-size: var(--font-body); color: rgba(255, 255, 255, 0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-search-placeholder { font-size: var(--font-body); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

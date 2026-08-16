@@ -514,3 +514,13 @@ at [36mpages/profile/index.vue:6:24[39m
   8: import IconSvg from '@/components/IconSvg.vue'[39m
 [35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
 at [36mpages/find/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mElement is missing end tag.[39m
+at [36mpages/pages-detail/moment.vue:104:7[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/find/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m

@@ -281,9 +281,11 @@
         GROUP BY rating
     </select>
 
-    <!-- 搜索联想：菜品 / 档口 / 食堂 名混合（各取 TOP5） -->
+    <!-- 搜索联想：只返回「菜品」（规范：搜索只针对菜品，食堂/档口已降级为菜品属性）。
+         两类来源 UNION：① 菜名命中；② 食堂/档口名命中 → 返回该食堂/档口的菜品。
+         后端统一在菜品索引中匹配，前端无需按类型分结果/详情。 -->
     <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
-        (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
+        (SELECT 'dish' AS type, d.id AS id, d.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
                 c.name AS canteen,
                 d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
@@ -294,30 +296,21 @@
          WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
            AND d.status = 'on'
            AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-         LIMIT 5)
+         LIMIT 8)
         UNION ALL
-        (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image,
+        (SELECT 'dish' AS type, d.id AS id, d.name AS name,
+                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
                 c.name AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount,
+                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
                 c.latitude AS latitude, c.longitude AS longitude
-         FROM stall s
+         FROM dish d
+                  JOIN stall s ON d.stall_id = s.id
                   JOIN canteen c ON s.canteen_id = c.id
-         WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
-           AND s.status = 'open'
-           AND c.status = 'open'
-           AND (s.audit_status = 'approved' OR s.audit_status IS NULL)
-         LIMIT 5)
-        UNION ALL
-        (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image,
-                NULL AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount,
-                c.latitude AS latitude, c.longitude AS longitude
-         FROM canteen c
-         WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
-           AND c.status = 'open'
-         LIMIT 5)
+         WHERE (s.name LIKE CONCAT('%', #{keyword}, '%') OR c.name LIKE CONCAT('%', #{keyword}, '%'))
+           AND d.status = 'on'
+           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+         LIMIT 8)
+        LIMIT 8
     </select>
 
     <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->

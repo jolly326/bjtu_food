@@ -101,6 +101,7 @@
 
     <!-- 底部评论输入栏 -->
     <view class="comment-bar" v-if="moment">
+      <transition name="mention">
       <view v-if="mentionOpen" class="mention-pop">
         <view
           v-for="name in filteredMentions"
@@ -113,9 +114,10 @@
         </view>
         <view v-if="!filteredMentions.length" class="mention-empty">暂无匹配评论者</view>
       </view>
+      </transition>
       <view class="comment-input-row">
         <ImageUploader v-model="commentImages" :max="3" compact class="comment-uploader" />
-        <view class="comment-input-box">
+        <view class="comment-input-box" :class="{ focused: commentFocus }">
           <input
             class="comment-input"
             v-model="commentText"
@@ -127,8 +129,8 @@
             @blur="onCommentBlur"
           />
         </view>
-        <view class="comment-send" aria-label="发送评论" @tap="submitComment">
-          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
+        <view class="comment-send" :class="{ disabled: commentSubmitting }" role="button" aria-label="发送评论" @tap="submitComment">
+          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" :class="{ spin: commentSubmitting }" />
         </view>
       </view>
     </view>
@@ -480,15 +482,22 @@ onLoad((query) => {
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
-.comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); }
+.comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid transparent; transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
+.comment-input-box.focused { border-color: var(--color-primary); background: var(--bg-card); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: 32rpx; color: var(--text-primary); }
-.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out); }
+.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out), background 120ms var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
+.comment-send.disabled { opacity: 0.5; pointer-events: none; }
 .comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }
+.comment-send-text.spin { animation: comment-spin 0.8s linear infinite; }
+@keyframes comment-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% - 4rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
 .mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
 .mention-item:active { background: var(--bg-soft); }
 .mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: 30rpx; }
 .mention-name { font-size: 30rpx; color: var(--text-primary); }
 .mention-empty { padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); }
+.mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-drawer); }
+.mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(0.96); }
+.mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(1); }
 </style>

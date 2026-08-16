@@ -83,6 +83,7 @@ page {
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
+  --radius-pill: 36rpx;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
@@ -102,6 +103,7 @@ page {
   --font-h3: 36rpx;
   --font-h2: 40rpx;
   --font-h1: 48rpx;
+  --font-display: 72rpx;
   /* 图标尺寸 */
   --icon-sm: 28rpx;
   --icon-lg: 48rpx;
@@ -287,6 +289,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
+  --radius-pill: 36rpx;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
@@ -304,6 +307,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --font-h3: 36rpx;
   --font-h2: 40rpx;
   --font-h1: 48rpx;
+  --font-display: 72rpx;
   --icon-sm: 28rpx;
   --icon-lg: 48rpx;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);

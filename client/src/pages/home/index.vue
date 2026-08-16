@@ -11,7 +11,7 @@
     />
 
     <!-- 首页广播栏（运营广播 ticker） -->
-    <BroadcastBar :items="broadcasts" />
+    <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
 
     <scroll-view
       class="scroll-wrap"
@@ -21,11 +21,20 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 加载骨架屏 -->
+      <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 两卡万能区 + 双列瀑布流，避免加载完成跳变） -->
       <view v-if="loadingHot" class="home-skeleton">
-        <view class="sk-moment skeleton" />
-        <view class="sk-grid">
-          <view v-for="s in 4" :key="s" class="sk-card skeleton" />
+        <view class="sk-broadcast skeleton" />
+        <view class="sk-universal">
+          <view class="sk-ucard skeleton" />
+          <view class="sk-ucard skeleton" />
+        </view>
+        <view class="sk-waterfall">
+          <view class="sk-col">
+            <view v-for="s in 3" :key="'l' + s" class="sk-wcard skeleton" />
+          </view>
+          <view class="sk-col">
+            <view v-for="s in 3" :key="'r' + s" class="sk-wcard skeleton" />
+          </view>
         </view>
       </view>
 
@@ -37,8 +46,14 @@
       </view>
 
       <block v-else>
-        <!-- 两列万能区：最新活动 / 全部菜品（干净版，不再堆标题与角标） -->
-        <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-find="goToSearch" />
+        <!-- 两列万能区：最新活动 / 反馈菜品 -->
+        <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+
+        <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
+        <view v-if="showLocHint" class="loc-hint" @tap="enableLocation">
+          <text class="loc-hint-text">开启定位，查看菜品距你多远</text>
+          <text class="loc-hint-arrow">›</text>
+        </view>
 
         <!-- 热门菜品（双列瀑布流 + 无限加载） -->
         <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 1 }">
@@ -107,6 +122,48 @@ function goToDetail(dish: Dish) {
 /** 两列万能区：最新活动 → 活动页 */
 function goToActivity() {
   uni.navigateTo({ url: '/pages/activity/index' })
+}
+/** 两列万能区：反馈菜品 → 反馈页 */
+function goToFeedback() {
+  uni.navigateTo({ url: '/pages/feedback/index' })
+}
+
+/** 未授权定位时展示轻提示（首页瀑布流「距你」才有数据） */
+const showLocHint = computed(() =>
+  !loadingHot.value &&
+  !locationStore.location &&
+  dishStore.homeHotList.length > 0
+)
+/** 点击提示开启定位，成功后重拉首页热门以本地重算距离 */
+async function enableLocation() {
+  try {
+    const loc = await getUserLocation()
+    if (loc) {
+      locationStore.setLocation(loc)
+      await dishStore.fetchHomeHot()
+    }
+  } catch (e) {
+    uni.showToast({ title: '定位未开启', icon: 'none' })
+  }
+}
+
+/** 首页广播条点击 → 按 type/targetId 跳转（动态详情 / 活动页 / 动态流） */
+function onBroadcastTap(item: BroadcastItem) {
+  if (!item) return
+  switch (item.type) {
+    case 'MOMENT':
+      if (item.targetId) {
+        uni.navigateTo({ url: `/pages/pages-detail/moment?id=${item.targetId}` })
+        return
+      }
+      uni.navigateTo({ url: '/pages/community/index' })
+      break
+    case 'ACTIVITY':
+      uni.navigateTo({ url: '/pages/activity/index' })
+      break
+    default:
+      uni.navigateTo({ url: '/pages/community/index' })
+  }
 }
 
 const loadingHot = ref(true)
@@ -178,19 +235,36 @@ function onScrollToLower() {
 
 /* ===== 顶部 Header（组件内渲染头像行与整行搜索框，首页不再额外定义） ===== */
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
-.section { padding: 0 var(--spacing-md); margin-bottom: var(--spacing-lg); width: 100%; box-sizing: border-box; }
+.section { padding: 0 var(--spacing-md); margin: var(--spacing-md) 0 var(--spacing-lg); width: 100%; box-sizing: border-box; }
 
 /* ===== 列表底部状态 ===== */
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
+
+/* 未授权定位轻提示条 */
+.loc-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) var(--spacing-md) 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-card);
+  -webkit-tap-highlight-color: transparent;
+}
+.loc-hint-text { flex: 1; min-width: 0; font-size: var(--font-aux); color: var(--color-accent); }
+.loc-hint-arrow { flex-shrink: 0; font-size: 36rpx; line-height: 1; color: var(--color-accent); }
 .footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ========== 骨架屏 ========== */
-.home-skeleton { padding: 0 var(--spacing-md); }
-.sk-moment { width: 100%; height: 180rpx; margin: var(--spacing-lg) var(--spacing-md) var(--spacing-md); border-radius: var(--radius-card); }
-.sk-grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); }
-.sk-card { width: calc((100% - var(--spacing-md)) / 2); height: 300rpx; }
+/* ========== 骨架屏（贴合真实首屏结构） ========== */
+.home-skeleton { padding: var(--spacing-md) 0; }
+.sk-broadcast { width: calc(100% - var(--spacing-md) * 2); height: 64rpx; margin: 0 var(--spacing-md) var(--spacing-md); border-radius: var(--radius-card); box-sizing: border-box; }
+.sk-universal { display: flex; gap: var(--spacing-md); padding: 0 var(--spacing-md); box-sizing: border-box; }
+.sk-ucard { flex: 1; height: 72rpx; border-radius: var(--radius-card); }
+.sk-waterfall { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); box-sizing: border-box; }
+.sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-md); }
+.sk-wcard { width: 100%; height: 300rpx; border-radius: var(--radius-card); }
 
 /* ========== 空状态 ========== */
 .home-empty {

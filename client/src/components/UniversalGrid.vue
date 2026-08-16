@@ -2,13 +2,13 @@
   <view class="universal-grid">
     <!-- 最新活动 -->
     <view
-      class="u-card"
+      class="u-card u-card--activity"
       role="button"
       aria-label="最新活动"
       @tap="$emit('open-activity')"
     >
       <view class="u-icon u-icon--activity">
-        <IconSvg name="fire" :size="40" color="var(--color-primary)" />
+        <IconSvg name="fire" :size="30" color="#FFFFFF" />
       </view>
       <view class="u-body">
         <text class="u-title">最新活动</text>
@@ -17,19 +17,19 @@
       <text class="u-more">›</text>
     </view>
 
-    <!-- 全部菜品 -->
+    <!-- 反馈菜品 -->
     <view
-      class="u-card"
+      class="u-card u-card--feedback"
       role="button"
-      aria-label="全部菜品"
-      @tap="$emit('open-find')"
+      aria-label="反馈菜品"
+      @tap="$emit('open-feedback')"
     >
-      <view class="u-icon u-icon--find">
-        <IconSvg name="dish" :size="40" color="var(--color-primary)" />
+      <view class="u-icon u-icon--feedback">
+        <IconSvg name="edit" :size="30" color="#FFFFFF" />
       </view>
       <view class="u-body">
-        <text class="u-title">全部菜品</text>
-        <text class="u-sub">分类 · 榜单 · 发现更多</text>
+        <text class="u-title">反馈菜品</text>
+        <text class="u-sub">纠错 · 建议 · 帮助我们更好</text>
       </view>
       <text class="u-more">›</text>
     </view>
@@ -46,7 +46,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'open-activity'): void
-  (e: 'open-find'): void
+  (e: 'open-feedback'): void
 }>()
 </script>
 
@@ -54,15 +54,15 @@ defineEmits<{
 .universal-grid {
   display: flex;
   gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-md) 0;
+  padding: 0 var(--spacing-md);
   box-sizing: border-box;
 }
 .u-card {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
+  gap: var(--spacing-xs);
+  padding: 10rpx var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -73,14 +73,28 @@ defineEmits<{
 .u-card:active { transform: scale(var(--press-scale)); }
 .u-icon {
   flex-shrink: 0;
-  width: 80rpx;
-  height: 80rpx;
+  width: 48rpx;
+  height: 48rpx;
   border-radius: var(--radius-card);
   background: var(--bg-soft);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+/* 两卡独立配色：刻意避开主题红，采用蓝 / 粉，色相不相近、辨识度高 */
+.u-card--activity { background: #E8F1FB; }
+.u-card--activity .u-title { color: #2F6FED; }
+.u-card--activity .u-more { color: #2F6FED; }
+.u-card--activity .u-icon { background: #2F6FED; }
+
+.u-card--feedback { background: #FCE8F1; }
+.u-card--feedback .u-title { color: #E85D9C; }
+.u-card--feedback .u-more { color: #E85D9C; }
+.u-card--feedback .u-icon { background: #E85D9C; }
+
+/* 深色模式：同色系深色底，保持可读 */
+.theme-dark .u-card--activity { background: #1B2A40; }
+.theme-dark .u-card--feedback { background: #3A2233; }
 .u-body {
   flex: 1;
   min-width: 0;

@@ -167,7 +167,7 @@ function onLogout() {
 .user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 112rpx; height: 112rpx; }
-.avatar { width: 112rpx; height: 112rpx; border-radius: 50%; overflow: hidden; background: var(--bg-soft); }
+.avatar { width: 112rpx; height: 112rpx; border-radius: 16rpx; overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .nickname { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

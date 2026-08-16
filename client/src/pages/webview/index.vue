@@ -4,7 +4,7 @@
          返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
     <view class="wv-bar" :style="{ height: (statusBarHeight + navBarHeight) + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
-        <IconSvg name="arrow-left" :size="44" color="var(--text-primary)" />
+        <IconSvg name="arrow-left" :size="44" color="#FFFFFF" />
       </view>
       <text class="wv-title">网页</text>
     </view>
@@ -94,8 +94,8 @@ function onMessage(e: any) {
   align-items: center;
   height: 88rpx;
   box-sizing: border-box;
-  background: var(--bg-card);
-  border-bottom: 1rpx solid var(--border-color);
+  background: var(--color-primary);
+  border-bottom: none;
 }
 .wv-back {
   width: 80rpx;
@@ -108,7 +108,7 @@ function onMessage(e: any) {
 .wv-title {
   font-size: var(--font-h3);
   font-weight: var(--weight-bold);
-  color: var(--text-primary);
+  color: #FFFFFF;
 }
 .wv-empty {
   display: flex;

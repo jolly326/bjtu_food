@@ -1,5 +1,5 @@
 <template>
-  <view v-if="images.length > 0" class="m-images">
+  <view v-if="images.length > 0" class="m-images" :class="{ compact: compact }">
     <view
       v-for="(img, idx) in images"
       :key="idx"
@@ -22,17 +22,20 @@
 import { ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
 
-const props = defineProps<{ images: string[] }>()
+const props = withDefaults(defineProps<{ images: string[]; compact?: boolean }>(), { compact: false })
 const pressedIdx = ref(-1)
 
 function previewImage(idx: number) {
-  uni.previewImage({ urls: props.images.map(getImageUrl), current: props.images.map(getImageUrl)[idx] })
+  const urls = props.images.map(getImageUrl)
+  uni.previewImage({ urls, current: urls[idx] })
 }
 </script>
 
 <style scoped>
 .m-images { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); padding: var(--spacing-md); background: var(--bg-card); margin-top: 2rpx; }
+.m-images.compact { padding: 0; background: transparent; margin-top: var(--spacing-xs); gap: 8rpx; }
 .m-image-wrap { width: 220rpx; height: 220rpx; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); flex-shrink: 0; transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-images.compact .m-image-wrap { width: 132rpx; height: 132rpx; }
 .m-image-wrap.pressed { transform: scale(var(--press-scale)); }
 .m-image { width: 100%; height: 100%; }
 </style>

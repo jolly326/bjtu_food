@@ -30,7 +30,10 @@
       </view>
       <view class="meta-row">
         <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
-        <text v-if="dish.distance != null" class="card-distance">距你 {{ fmtDistance(dish.distance) }}</text>
+        <view v-if="dish.distance != null" class="card-distance">
+          <IconSvg name="location" :size="20" color="var(--color-primary)" class="distance-icon" />
+          <text>距你 {{ fmtDistance(dish.distance) }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -119,6 +122,9 @@ function handleClick() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  /* 浅色图上也能与文字拉开层次：加深投影 + 浅描边，避免白底图糊字 */
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+  border: 1rpx solid rgba(255, 255, 255, 0.28);
 }
 .star-icon {
   font-size: 22rpx;
@@ -172,11 +178,15 @@ function handleClick() {
 .card-distance {
   flex-shrink: 0;
   margin-left: var(--spacing-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 2rpx;
   font-size: var(--font-aux);
   font-weight: var(--weight-semibold);
   color: var(--color-primary);
   font-variant-numeric: tabular-nums;
 }
+.distance-icon { flex-shrink: 0; }
 .card-price {
   font-size: var(--font-caption);
   color: var(--color-price);

@@ -24,17 +24,17 @@
         >@{{ comment.replyToNickname }}</text>
       </view>
       <text class="c-content">{{ comment.content }}</text>
-      <MomentImageGrid v-if="comment.images && comment.images.length" :images="comment.images" class="c-images" />
+      <MomentImageGrid v-if="comment.images && comment.images.length" :images="comment.images" compact class="c-images" />
       <view class="c-footer">
         <text class="c-time">{{ relativeTime(comment.createdAt) }}</text>
         <view class="c-actions">
-          <text class="c-reply-btn" @tap.stop="replyTo(comment)">
+          <text class="c-reply-btn" role="button" aria-label="回复评论" @tap.stop="replyTo(comment)">
             <IconSvg name="comment" :size="26" color="var(--text-tertiary)" /> 回复
           </text>
-          <text v-if="comment.usefulCount && comment.usefulCount > 0" class="c-useful-count">
+          <text v-if="comment.usefulCount && comment.usefulCount > 0" class="c-useful-count" aria-label="有用数量">
             <IconSvg name="thumb" :size="26" color="var(--text-tertiary)" class="c-useful-icon" /> {{ comment.usefulCount }}
           </text>
-          <text class="c-report-btn" @tap.stop="onReport(comment)">举报</text>
+          <text class="c-report-btn" role="button" aria-label="举报评论" @tap.stop="onReport(comment)">举报</text>
         </view>
       </view>
     </view>

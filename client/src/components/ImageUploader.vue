@@ -68,8 +68,7 @@ function removeImage(idx: number) {
 
 function chooseImage() {
   if (uploading.value) return
-  const remain = props.max - props.modelValue.length
-  if (remain <= 0) return
+  if (props.modelValue.length >= props.max) return
   uni.chooseMedia({
     count: remain,
     mediaType: ['image'],
@@ -130,6 +129,9 @@ function chooseImage() {
 .img-uploader.compact { width: auto; flex-shrink: 0; }
 .img-uploader.compact .img-grid { flex-wrap: nowrap; gap: var(--spacing-xs); }
 .img-uploader.compact .img-cell { width: 72rpx; height: 72rpx; }
-.img-uploader.compact .img-remove { width: 32rpx; height: 32rpx; border-radius: 50%; }
+.img-uploader.compact .img-add { width: 72rpx; height: 72rpx; }
+.img-uploader.compact .img-add:active { transform: scale(var(--press-scale)); background: var(--bg-soft); transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
+.img-uploader.compact .img-remove { width: 36rpx; height: 36rpx; border-radius: 50%; }
+.img-uploader.compact .img-remove::after { content: ''; position: absolute; inset: -14rpx; }
 .img-uploader.compact .img-remove :deep(svg) { width: 18rpx; height: 18rpx; }
 </style>

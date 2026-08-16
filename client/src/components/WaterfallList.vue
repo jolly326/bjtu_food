@@ -75,8 +75,11 @@ const emit = defineEmits<{
   stallClick: [stall: StallCardItem]
 }>()
 
-/** 图片区统一高度（rpx） */
-const IMG_HEIGHT = 200
+/** 图片区高度候选（rpx）：后端暂无图比例，按序号稳定分配，制造错落瀑布流观感 */
+const IMG_HEIGHTS = [200, 250, 300, 230]
+function imgHeightOf(idx: number): number {
+  return IMG_HEIGHTS[idx % IMG_HEIGHTS.length]
+}
 
 const splitList = computed(() => {
   const left: { item: Dish; key: string; imgH: number }[] = []
@@ -86,7 +89,7 @@ const splitList = computed(() => {
     const key = (rawKey !== undefined && rawKey !== null && rawKey !== '')
       ? `wf-${rawKey}-${idx}`
       : `wf-idx-${idx}`
-    const entry = { item: item as Dish, key, imgH: IMG_HEIGHT }
+    const entry = { item: item as Dish, key, imgH: imgHeightOf(idx) }
     if (idx % 2 === 0) left.push(entry)
     else right.push(entry)
   })

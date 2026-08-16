@@ -69,12 +69,14 @@ function onImgLoad(idx: number) {
   height: 100%;
   background: var(--bg-page);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  filter: blur(12px);
+  transform: scale(1.04);
+  transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease;
 }
-/* 加载完成淡入；reduced-motion 下直接显示 */
-.image-swiper-img.img-loaded { opacity: 1; }
+/* 加载完成：由模糊放大淡入至清晰；reduced-motion 下直接显示 */
+.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); transform: scale(1); }
 @media (prefers-reduced-motion: reduce) {
-  .image-swiper-img { opacity: 1; transition: none; }
+  .image-swiper-img { opacity: 1; filter: none; transform: none; transition: none; }
 }
 .image-swiper-placeholder {
   width: 100%;
