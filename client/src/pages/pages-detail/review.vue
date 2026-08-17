@@ -124,6 +124,7 @@ const userStore = useUserStore()
 const MAX_CONTENT_LENGTH = 200
 const MAX_IMAGES = 3
 const dishId = ref(0)
+const from = ref('')
 const uploading = ref(false)
 const form = reactive({
   rating: 5,
@@ -219,8 +220,12 @@ async function handleSubmit() {
       shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
-    // 发表评价默认进入动态广场
-    setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
+    // 从菜品详情页进入：返回详情并刷新评价列表；其余默认进入动态广场
+    if (from.value === 'dish') {
+      setTimeout(() => uni.navigateBack(), 1500)
+    } else {
+      setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
+    }
   } catch (e: any) {
     // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）
     const msg = e?.message || '提交失败'
@@ -231,6 +236,7 @@ async function handleSubmit() {
 }
 
 onLoad(async (query) => {
+  if (query?.from) from.value = String(query.from)
   if (query?.dishId) {
     dishId.value = Number(query.dishId)
     // 取菜名展示（详情页带入，展示只读菜名）

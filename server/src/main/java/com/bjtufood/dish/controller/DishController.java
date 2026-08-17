@@ -7,7 +7,6 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.dto.MyDishVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,17 +52,6 @@ public class DishController {
     @GetMapping("/dishes/promotions")
     public Result<List<DishVO>> getPromotionDishes() {
         return Result.success(dishService.getPromotionDishes());
-    }
-
-    @Operation(
-            summary = "搜索联想",
-            description = "用途：搜索框实时联想（菜品/档口/食堂名混合）。公开接口。返回各类型 TOP5，前端按 type 跳转。"
-    )
-    @GetMapping("/dishes/suggest")
-    public Result<List<SuggestionVO>> suggest(
-            @Parameter(description = "搜索关键词", example = "牛肉")
-            @RequestParam String keyword) {
-        return Result.success(dishService.suggest(keyword));
     }
 
     @Operation(

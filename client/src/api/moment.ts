@@ -18,8 +18,8 @@ import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, Moment
  * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
  */
 
-function toMoment(raw: any): Moment {
-  if (!raw) return raw
+function toMoment(raw: any): Moment | null {
+  if (!raw) return null
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
@@ -41,8 +41,8 @@ function toMoment(raw: any): Moment {
   }
 }
 
-function toMomentComment(raw: any): MomentComment {
-  if (!raw) return raw
+function toMomentComment(raw: any): MomentComment | null {
+  if (!raw) return null
   return {
     id: Number(raw.id),
     momentId: Number(raw.momentId ?? 0),
@@ -90,12 +90,12 @@ export async function getMoments(params: {
   if (params.stallId != null) query.stallId = params.stallId
   if (params.canteenId != null) query.canteenId = params.canteenId
   const res = await get<PageResult<any>>('/moments', query)
-  const raw = listOf(res).map(toMoment)
+  const raw = listOf(res).map(toMoment).filter(Boolean) as Moment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 
 /** 动态详情（PUB，作者本人可见 rejectReason） */
-export async function getMomentDetail(id: number): Promise<Moment> {
+export async function getMomentDetail(id: number): Promise<Moment | null> {
   const res = await get<any>(`/moments/${id}`)
   return toMoment(res)
 }
@@ -115,7 +115,7 @@ export async function getMyMoments(auditStatus?: string): Promise<Moment[]> {
   const query: Record<string, any> = {}
   if (auditStatus) query.auditStatus = auditStatus
   const res = await get<any[]>('/my/moments', query)
-  return (res || []).map(toMoment)
+  return (res || []).map(toMoment).filter(Boolean) as Moment[]
 }
 
 /** 有用切换（STU，幂等） */
@@ -126,7 +126,7 @@ export async function toggleUseful(id: number): Promise<MomentUsefulResult> {
 /** 评论列表（PUB，created_at asc 扁平化） */
 export async function getMomentComments(id: number, page = 1, pageSize = 20): Promise<{ list: MomentComment[]; total: number }> {
   const res = await get<PageResult<any>>(`/moments/${id}/comments`, { page, pageSize })
-  const raw = listOf(res).map((item: any) => toMomentComment(item))
+  const raw = listOf(res).map((item: any) => toMomentComment(item)).filter(Boolean) as MomentComment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 

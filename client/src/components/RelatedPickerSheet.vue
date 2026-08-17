@@ -73,12 +73,7 @@ import { getCanteensWithStalls } from '@/api/canteen'
  * 修复 V3：档口联想走正式 API（getCanteensWithStalls 全量档口，含真实 id），
  * 返回真实 stallId，禁止伪造 id。菜品走 searchDishesPage 正式接口。
  */
-export interface RelatedItem {
-  id: number
-  name: string
-  image: string
-  type: 'dish' | 'stall'
-}
+import type { RelatedItem } from './related-item'
 
 const props = defineProps<{
   open: boolean

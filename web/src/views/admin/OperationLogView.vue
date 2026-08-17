@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
@@ -16,6 +16,19 @@ const searchQuery = ref('')
 const loading = ref(false)
 const error = ref('')
 const rows = ref<OperationLogVO[]>([])
+
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+function reloadFromFirstPage() {
+  page.value = 1
+  loadList()
+}
+function onPageChange() {
+  loadList()
+}
 
 // 动作筛选预设（对齐 ARCH OperationLogConst.ACTION_*）
 const actionOptions = [
@@ -63,12 +76,15 @@ async function loadList() {
     const res = await operationLogApi.listOperationLogs({
       action: activeAction.value || undefined,
       targetType: activeTarget.value || undefined,
-      pageSize: 200,
+      page: page.value,
+      pageSize: pageSize.value,
     })
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
     error.value = e.message || '加载操作日志失败'
     rows.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -76,10 +92,11 @@ async function loadList() {
 
 onMounted(loadList)
 
-async function onActionChange() { await loadList() }
-async function onTargetChange() { await loadList() }
+async function onActionChange() { reloadFromFirstPage() }
+async function onTargetChange() { reloadFromFirstPage() }
 
-// SearchInput 本地模糊过滤（操作人/动作/IP）
+// SearchInput 本地模糊过滤（操作人/动作/IP）：仅当前页内辅助预览，
+// 翻页/改筛选会重新请求后端对应页，不再假设单页能拿到全量。
 const filtered = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return rows.value
@@ -89,6 +106,9 @@ const filtered = computed(() => {
       || (r.ip || '').toLowerCase().includes(q),
   )
 })
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页）
+watch(searchQuery, () => { reloadFromFirstPage() })
 
 function fmtTime(v: string): string {
   if (!v) return '—'
@@ -106,6 +126,11 @@ function fmtTime(v: string): string {
     </FilterBar>
 
     <DataTable
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'admin', label: '操作人', width: '140px' },
         { prop: 'action', label: '动作', width: '120px' },

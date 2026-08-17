@@ -10,7 +10,6 @@ import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.entity.Dish;
 import org.apache.ibatis.annotations.Param;
 
@@ -84,16 +83,6 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 查询「我的发布」菜品列表（created_by = userId，可按审核状态过滤）
      */
     List<MyDishVO> selectMyDishes(@Param("userId") Long userId, @Param("auditStatus") String auditStatus);
-
-    /**
-     * 搜索联想（菜品 / 档口 / 食堂名混合，各取 TOP5）
-     * <p>
-     * 一期限定：无搜索词埋点表，按 keyword LIKE 匹配 name 派生联想建议。
-     *
-     * @param keyword 搜索关键词
-     * @return 联想建议列表（SuggestionVO{type,id,name,image}）
-     */
-    List<SuggestionVO> selectSuggestions(@Param("keyword") String keyword);
 
     /**
      * 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点）

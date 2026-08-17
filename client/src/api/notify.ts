@@ -36,8 +36,8 @@ function listOf<T>(res: PageResult<T> | undefined): T[] {
   return res.list || res.records || []
 }
 
-function toNotification(raw: any): Notification {
-  if (!raw) return raw
+function toNotification(raw: any): Notification | null {
+  if (!raw) return null
   return {
     id: Number(raw.id),
     type: (raw.type as NotificationType) || 'moment_audit',
@@ -61,7 +61,7 @@ export async function getNotifications(params: {
   }
   if (params.isRead != null) query.isRead = params.isRead
   const res = await get<PageResult<any>>('/my/notifications', query)
-  const raw = listOf(res).map(toNotification)
+  const raw = listOf(res).map(toNotification).filter(Boolean) as Notification[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 

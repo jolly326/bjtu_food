@@ -23,6 +23,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public IPage<UserVO> listUsers(int page, int pageSize, String role, String status) {
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(StringUtils.hasText(role), User::getRole, role)
                 .eq(StringUtils.hasText(status), User::getStatus, status)

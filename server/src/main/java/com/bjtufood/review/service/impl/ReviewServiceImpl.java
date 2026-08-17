@@ -40,6 +40,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
@@ -50,6 +52,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
@@ -60,6 +64,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, withImage)
                 .convert(this::enrichImages);
         if (userId != null) {
@@ -76,6 +82,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
         return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, null)
                 .convert(this::enrichImages);
     }
@@ -131,6 +139,10 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long submitReview(Long userId, ReviewReq req) {
+        // 防御性拦截：评论内容为空或超长（@Valid 已做基础校验，此处兜底防止绕过）
+        if (req.getContent() != null && req.getContent().length() > 500) {
+            throw new BusinessException("评论内容不能超过500字");
+        }
         if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
                 .eq(Review::getDishId, req.getDishId())) > 0) {
@@ -184,6 +196,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId) {
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
         // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。

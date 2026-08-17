@@ -95,7 +95,10 @@
           <text v-else class="contact-tip">选填；若填写请确保格式正确，方便我们回复你</text>
         </CardSection>
 
-        <view style="height: var(--spacing-xl)" />
+        <!-- 提交按钮：内容内嵌（随表单流动，避免固定底栏误触/遮挡/切Tab跳变） -->
+        <view class="submit-inline">
+          <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @click="submit" />
+        </view>
       </view>
     </scroll-view>
 
@@ -163,11 +166,7 @@
       </view>
     </scroll-view>
 
-    <!-- 底部提交栏：仅写反馈视图渲染，根治常驻遮挡 -->
-    <view v-if="activeTab === 'write'" class="submit-bar">
-      <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @click="submit" />
-    </view>
-
+    <!-- 认证弹层（未登录提交反馈 requireAuth 统一在此弹出） -->
     <AuthSheet />
 
     <!-- 反馈详情 BottomSheet（替换原生 showModal） -->
@@ -283,9 +282,10 @@ function statusCount(key: 'all' | 'pending' | 'handled'): number {
 }
 
 // ---- 提交表单 ----
+// 类型与后端契约枚举对齐（error 语义为「内容纠错」，与首页「反馈菜品」入口副文案一致）
 const types: { value: FeedbackSubmit['type']; label: string }[] = [
   { value: 'suggestion', label: '功能建议' },
-  { value: 'error', label: '问题报告' },
+  { value: 'error', label: '内容纠错' },
   { value: 'other', label: '其他' },
 ]
 const type = ref<FeedbackSubmit['type']>('suggestion')
@@ -310,6 +310,8 @@ onLoad((opts?: Record<string, string>) => {
   if (obj && entityOptions.some((e) => e.key === obj)) {
     selectedEntity.value = obj
   }
+  // 「反馈菜品」入口（object=dish）或带菜品名/ID 进入：默认预选「内容纠错」，与入口副文案「纠错·建议」心智一致
+  if (obj === 'dish' || opts?.name || opts?.id) type.value = 'error'
   // 带入菜品名与关联 ID，提交时一并上报
   if (opts?.name) presetDishName.value = opts.name
   if (opts?.id) {
@@ -324,11 +326,11 @@ function clearPreset() {
   if (selectedEntity.value === 'dish') selectedEntity.value = 'none'
 }
 
-const contentPlaceholder = computed(() =>
-  selectedEntity.value === 'dish'
-    ? '请描述你想上传的菜品：名称、所在档口、特色等…'
-    : '请描述你遇到的问题或建议…'
-)
+const contentPlaceholder = computed(() => {
+  if (type.value === 'error') return '请描述需要纠错的内容：名称、价格、档口信息等…'
+  if (selectedEntity.value === 'dish') return '请描述你想上传的菜品：名称、所在档口、特色等…'
+  return '请描述你遇到的问题或建议…'
+})
 
 async function submit() {
   // 反馈不登录也可用（后端 POST /feedback 公开，游客 userId=null）；仅做内容校验
@@ -487,7 +489,7 @@ function onTouchEnd() {
 }
 
 function feedbackTypeLabel(t: string): string {
-  const map: Record<string, string> = { error: '问题报告', suggestion: '功能建议', other: '其他', report: '举报', wrong: '信息有误' }
+  const map: Record<string, string> = { error: '内容纠错', suggestion: '功能建议', other: '其他', report: '举报', wrong: '信息有误' }
   return map[t] ?? '反馈'
 }
 function formatTime(iso?: string): string {
@@ -522,11 +524,17 @@ onShow(() => {
 
 /* scroll-view 作为 flex 子项只需 min-height:0 允许收缩；不能再设 height:0（微信小程序下
    scroll-view 高度会被锁死不参与 flex 拉伸，导致内容区下部分被裁剪、底栏错位） */
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: var(--spacing-md); }
-/* 写反馈视图底部需给固定提交栏留白（审计红线），我的反馈视图无底栏仅留安全白 */
-.write-scroll { padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: var(--spacing-xs); }
+/* 提交按钮已内嵌内容区（无固定底栏）：两视图统一仅留安全白，不再预留 action-bar 避让 */
+.write-scroll { padding-bottom: env(safe-area-inset-bottom); }
 .mine-scroll { padding-bottom: env(safe-area-inset-bottom); }
-.tab-pane { display: flex; flex-direction: column; gap: var(--spacing-md); }
+/* 卡片纵向节奏：不用 flex gap（会与 CardSection 自带 margin 叠加成 56rpx 大缝），
+   改由下方 .card-section 的 margin 单源控制，卡距收敛到 8pt（16rpx） */
+.tab-pane { display: flex; flex-direction: column; }
+.tab-pane .card-section { margin: 0 var(--spacing-md) var(--spacing-sm); }
+.tab-pane .card-section:first-child { margin-top: 0; }
+/* 我的反馈：筛选条/登录引导与列表间补回 8pt 间距（gap 已移除） */
+.filter-tabs, .login-hint { margin-bottom: var(--spacing-sm); }
 
 /* 顶部双 Tab 分段（参考 ApplySheet .seg 范式；白卡内含两个等宽分段）。
    上下 margin 收窄到 8rpx，避免与 Header 底边、内容区顶部间距累加把内容往下挤 */
@@ -627,8 +635,8 @@ onShow(() => {
 .type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 .type-chip.active .type-text { color: var(--color-primary); }
 
-/* 内容输入：与发布菜品/评价 textarea 同款 */
-.content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-md); background: var(--bg-input); border-radius: var(--radius-card); box-sizing: border-box; }
+/* 内容输入：与发布菜品/评价 textarea 同款；min-height 240rpx 让核心字段视觉权重最高 */
+.content-input { width: 100%; min-height: 240rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-md); background: var(--bg-input); border-radius: var(--radius-card); box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 /* 字数接近上限转警示色（≥900/1000） */
 .counter.warn { color: var(--color-warning); }
@@ -638,25 +646,10 @@ onShow(() => {
 
 /* 提交栏：半透玻璃材质 + 圆角顶边；padding 撑高（88rpx 按钮 + 上下 16rpx = 120rpx，对齐 --action-bar-height），
    safe-area 并入底部 padding，避免固定 height 挤压按钮；背景须半透，否则 backdrop-filter 无毛玻璃效果 */
-/* 提交栏：position:fixed 吸底（用户预期的"底部 fix 提交按钮"语义）。
-   不做 display:flex 包裹，按钮借 AppButton 默认 width:100% 全宽居中（避免内联
-   width:100% 与 flex:1 冲突被压缩到左侧）；scroll-view 全高、.write-scroll 用
-   --action-bar-height 精确避让，内容可完整滚到栏上方、互不遮挡。
-   z-index 需低于 sheet-mask(90)/bottom-sheet(100)，保证详情弹层盖在其上 */
-.submit-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 80;
-  padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom));
-  background: var(--blur-bg-solid);
-  backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-  box-shadow: var(--shadow-bar-soft);
-  border-top: 2rpx solid var(--border-color);
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-  box-sizing: border-box;
+/* 提交按钮：内容内嵌（随表单流动，避免固定底栏的误触风险/内容遮挡/切Tab布局跳变）。
+   水平 margin 与卡片对齐（24rpx），底部留白含安全区；按钮走 AppButton 默认 width:100% 全宽 */
+.submit-inline {
+  margin: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-lg) + env(safe-area-inset-bottom));
 }
 
 /* 详情 BottomSheet（复用 ApplySheet/RelatedPickerSheet 范式） */

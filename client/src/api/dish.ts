@@ -1,10 +1,9 @@
 import type {
   Dish, DishDetail, DishQuery, DishSortBy,
-  Suggestion, HotSearch,
+  HotSearch,
 } from '@/types/dish'
 import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { getImageUrl } from '@/utils/image'
 import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
 
 export const TAG_MAP: Record<string, string> = {
@@ -153,31 +152,6 @@ export async function getHotSearch(): Promise<HotSearch[]> {
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),
     relatedCount: Number(item.relatedCount ?? 0) || undefined,
-  }))
-}
-
-/** 搜索联想（task-02：GET /dishes/suggest，混合菜品/档口/食堂） */
-export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
-  if (!keyword || !keyword.trim()) return []
-  const raw = await get<any[]>('/dishes/suggest', { keyword: keyword.trim() })
-  return (raw || []).map((item: any) => ({
-    type: (item.type || 'dish') as Suggestion['type'],
-    id: Number(item.id ?? 0),
-    name: item.name || '',
-    image: getImageUrl(item.image || ''),
-    // 档口需携带所属食堂名（后端 suggest 已联表返回 canteen），跳档口详情要 navParams.canteen
-    canteen: item.canteen || undefined,
-    // 价格：分 → 元（§3.x 金额红线：转换必须在 api 层统一，页面模板禁裸 /100）
-    price: item.price != null ? fenToYuan(item.price) : undefined,
-    rating: item.rating != null ? Number(item.rating) : undefined,
-    ratingCount: item.ratingCount != null ? Number(item.ratingCount) : undefined,
-    // 档口名 / 原始标签串透传（页面再映射），促销价/原价分 → 元（金额红线：转换仅在 api 层）
-    stall: item.stall || undefined,
-    tags: item.tags || undefined,
-    promoPrice: item.promoPrice != null ? fenToYuan(item.promoPrice) : undefined,
-    originalPrice: item.originalPrice != null ? fenToYuan(item.originalPrice) : undefined,
-    latitude: item.latitude != null ? Number(item.latitude) : undefined,
-    longitude: item.longitude != null ? Number(item.longitude) : undefined,
   }))
 }
 

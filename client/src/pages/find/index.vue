@@ -25,39 +25,6 @@
           </view>
         </view>
       </view>
-
-      <!-- 搜索联想下拉 -->
-      <view v-if="showSuggest && suggestions.length > 0" class="suggest-panel" :style="{ top: suggestPanelTop + 'px' }">
-        <view
-          v-for="s in suggestions"
-          :key="`${s.type}-${s.id}-${s.name}`"
-          class="suggest-item"
-          :class="{ pressed: pressedKey === `s-${s.id}` }"
-          @touchstart="pressedKey = `s-${s.id}`"
-          @touchend="pressedKey = ''"
-          @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = `s-${s.id}`"
-          @mouseup="pressedKey = ''"
-          @mouseleave="pressedKey = ''"
-          @tap="goSuggestion(s)"
-        >
-          <view class="suggest-icon">
-            <image v-if="s.image" :src="s.image" mode="aspectFill" class="suggest-thumb" />
-            <IconSvg v-else name="dish" :size="32" color="var(--text-tertiary)" />
-          </view>
-          <view class="suggest-text">
-            <text class="suggest-name">{{ s.name }}</text>
-            <text v-if="s.canteen" class="suggest-sub">{{ s.canteen }}</text>
-          </view>
-          <view class="suggest-meta" v-if="s.price != null || s.rating != null">
-            <text v-if="s.price != null" class="suggest-price">¥{{ s.price.toFixed(2) }}</text>
-            <view v-if="s.rating != null" class="suggest-rating">
-              <IconSvg name="star" :size="20" color="var(--color-star)" />
-              <text class="suggest-rating-num">{{ Number(s.rating).toFixed(1) }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
     </view>
 
     <scroll-view
@@ -238,13 +205,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload } from '@/utils/shareState'
-import type { Suggestion } from '@/types/dish'
-import { TAG_MAP } from '@/api/dish'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
 import IconSvg from '@/components/IconSvg.vue'
@@ -294,15 +259,9 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const keyword = ref('')
-const suggestions = ref<Suggestion[]>([])
-const showSuggest = ref(false)
 const pressedKey = ref('')
 const refresherTriggered = ref(false)
 const discoverLoading = ref(true)
-
-// 搜索联想面板的运行时测量 top（px）。Header 高度含状态栏(px)，无法用固定 rpx 对齐，
-// 必须在布局完成后用 selectorQuery 实测 Header 底 + searchWrap 高度（refs BLOCKER N1）
-const suggestPanelTop = ref(200)
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
@@ -341,9 +300,9 @@ function clearHistory() {
 // 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
 const inFilter = ref(false)
 
-/** 混合搜索结果：菜品 / 档口 / 食堂 复合流（复用 suggest 接口返回 Suggestion[]） */
+/** 混合搜索结果：复用菜品检索接口返回 Dish[]（搜索仅针对菜品） */
 interface MixedResult {
-  type: Suggestion['type']
+  type: 'dish'
   id?: number
   name: string
   image?: string
@@ -414,32 +373,15 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
 }
 /** C12 图片淡入：图片 load 后由 CSS transition 控制 opacity（此处仅占位，透明度用 :class 触发也可，简单用事件无副作用） */
 function onThumbLoad() { /* 已移除：淡入由 @load 直接置 item.loaded 驱动 */ }
-/** 输入框失焦：收起联想面板 */
-function onSearchBlur() {
-  setTimeout(() => { showSuggest.value = false }, 150)
-}
+/** 输入框失焦：无额外处理（直接搜索，无联想面板） */
+function onSearchBlur() { /* no-op */ }
 
-let suggestTimer: ReturnType<typeof setTimeout> | null = null
 function onKeywordInput() {
-  showSuggest.value = true
-  if (suggestTimer) clearTimeout(suggestTimer)
-  suggestTimer = setTimeout(async () => {
-    if (!keyword.value.trim()) {
-      suggestions.value = []
-      return
-    }
-      try {
-      suggestions.value = await dishStore.fetchSuggestions(keyword.value)
-    } catch {
-      suggestions.value = []
-    }
-  }, 300)
+  // 仅维护 keyword 输入态，确认/回车才触发搜索
 }
 
 function onSearchConfirm() {
   const kw = keyword.value.trim()
-  showSuggest.value = false
-  suggestions.value = []
   if (!kw) return
   pushHistory(kw)
   doMixedSearch(kw)
@@ -447,20 +389,6 @@ function onSearchConfirm() {
 
 function clearKeyword() {
   keyword.value = ''
-  suggestions.value = []
-  showSuggest.value = false
-}
-
-function goSuggestion(s: Suggestion) {
-  showSuggest.value = false
-  suggestions.value = []
-  keyword.value = s.name
-  // 联想只返回菜品（规范：搜索只针对菜品），直接进详情；兜底仍走关键词搜索
-  if (s.type === 'dish' && s.id) {
-    openDishDetail(s.id)
-  } else if (s.name) {
-    doMixedSearch(s.name)
-  }
 }
 
 function goKeyword(kw: string) {
@@ -469,39 +397,36 @@ function goKeyword(kw: string) {
   doMixedSearch(kw)
 }
 
-// ===== 复合型混合搜索（2026-08-03：复用 suggest 接口，美团式混合结果） =====
+// ===== 复合型搜索（2026-08-03 重构：直接复用菜品检索接口） =====
 async function doMixedSearch(kw?: string) {
   if (!kw) return
   inFilter.value = true
   mixedLoading.value = true
   try {
-    const list = await dishStore.fetchSuggestions(kw)
+    // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
+    const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50 })
     mixedResults.value = list
-      .map(s => {
-        // B8 副信息：档口名 + 食堂名（后端 suggest 已联表返回 stall/canteen）
-        const sub = [s.stall, s.canteen].filter(Boolean).join(' · ')
-        // B9 标签映射：原始逗号串 → 中文标签（最多取前 2 个）
-        const tagLabels = (s.tags || '')
-          .split(',')
-          .map(t => TAG_MAP[t.trim()])
-          .filter(Boolean)
-          .slice(0, 2)
+      .map(d => {
+        // B8 副信息：档口名 + 食堂名
+        const sub = [d.stallName, d.canteen].filter(Boolean).join(' · ')
+        // B9 标签（Dish.tags 已是中文数组，最多取前 2 个）
+        const tagLabels = (d.tags || []).slice(0, 2)
         return {
           type: 'dish' as const,
-          id: s.id,
-          name: s.name,
-          image: s.image,
+          id: d.id,
+          name: d.name,
+          image: d.image,
           sub,
-          price: s.price,
-          rating: s.rating,
-          ratingCount: s.ratingCount,
-          stall: s.stall,
-          tags: s.tags,
+          price: d.price,
+          rating: d.rating,
+          ratingCount: d.ratingCount,
+          stall: d.stallName,
+          tags: (d.tags || []).join(','),
           tagLabels,
-          promoPrice: s.promoPrice,
-          originalPrice: s.originalPrice,
-          lat: s.latitude != null ? Number(s.latitude) : undefined,
-          lng: s.longitude != null ? Number(s.longitude) : undefined,
+          promoPrice: d.promoPrice,
+          originalPrice: d.originalPrice,
+          lat: d.latitude != null ? Number(d.latitude) : undefined,
+          lng: d.longitude != null ? Number(d.longitude) : undefined,
         }
       })
       .filter(r => r.name)
@@ -550,34 +475,11 @@ async function loadDiscover() {
   }
 }
 
-/** 实测顶部固定区（.search-nav）高度，得到联想面板的 top(px)。
- * 顶部 = 状态栏 + 返回行 + 结果 tab（结果态有 tab 更高）。失败时回退。 */
-function measureSuggestTop() {
-  try {
-    uni.createSelectorQuery()
-      .select('.search-nav')
-      .boundingClientRect()
-      .exec((res) => {
-        const navRect = res[0] as UniApp.NodeInfo
-        const navBottom = navRect?.bottom ?? 0
-        if (navBottom > 0) {
-          suggestPanelTop.value = navBottom + 4
-        } else {
-          suggestPanelTop.value = 200
-        }
-      })
-  } catch {
-    suggestPanelTop.value = 200
-  }
-}
-
 onMounted(() => {
   measureTopBar()
   loadHistory()
   ensureLocation()
   loadDiscover()
-  // 布局就绪后再测量，避免拿到 0 高度（onReady/nextTick 双保险）
-  nextTick(() => measureSuggestTop())
 })
 
 /** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级（距你显 -） */
@@ -592,13 +494,8 @@ async function ensureLocation() {
 }
 onShareAppMessage(() => buildSharePayload())
 
-// 进入结果态（出现 tab）后重新测量联想面板 top（顶部固定区高度变化）
-watch(inFilter, () => {
-  nextTick(() => measureSuggestTop())
-})
-
-watch(keyword, (value) => {
-  if (!value.trim()) showSuggest.value = false
+watch(keyword, () => {
+  // 关键词变化仅维护输入态，确认/回车才触发搜索
 })
 </script>
 
@@ -649,42 +546,6 @@ watch(keyword, (value) => {
 .search-box-ph { color: var(--text-tertiary); }
 .search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
 .search-box-clear:active { opacity: 0.55; }
-
-/* 联想下拉：fixed 定位（top 由运行时实测 .search-nav 底边写入 :style）。
-   规范：不透明实底（--bg-page）直接覆盖发现主页，不启用毛玻璃（小程序端 backdrop-filter 支持不稳且费性能） */
-.suggest-panel {
-  position: fixed;
-  left: var(--spacing-md);
-  right: var(--spacing-md);
-  background: var(--bg-page);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-modal);
-  overflow: hidden;
-  z-index: 100;
-}
-.suggest-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  /* 联想行卡白底浮于不透明面板之上（规范） */
-  background: var(--bg-card);
-  /* hairline 分隔（Apple 精致细节） */
-  border-bottom: 1rpx solid var(--border-color);
-  transition: transform 0.12s ease, background 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.suggest-item:last-child { border-bottom: none; }
-.suggest-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
-.suggest-icon { width: 56rpx; height: 56rpx; border-radius: 16rpx; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
-.suggest-thumb { width: 100%; height: 100%; }
-.suggest-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.suggest-name { font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-meta { flex-shrink: 0; display: flex; align-items: baseline; gap: var(--spacing-xs); }
-.suggest-price { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
-.suggest-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-.suggest-rating-num { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }

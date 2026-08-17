@@ -81,9 +81,7 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { submitApply } from '@/api/apply'
-
-export type ApplyEntityType = 'DISH' | 'STALL' | 'CANTEEN'
-export type ApplyAction = 'NEW' | 'CLOSE' | 'CHANGE'
+import type { ApplyEntityType, ApplyAction } from '@/api/apply'
 
 const props = defineProps<{
   open: boolean

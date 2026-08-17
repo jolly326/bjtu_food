@@ -41,6 +41,8 @@ async function request<T>(
       method,
       headers: {
         'Content-Type': 'application/json',
+        // 已知折中（M12）：token 存于 localStorage（非 httpOnly Cookie），存在 XSS 窃取风险，
+        // 但可免跨端改动；敏感操作统一在此携带 Bearer token，由后端校验。已确认无 v-html 渲染用户输入。
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
       },
       body: method !== 'GET' && data ? JSON.stringify(data) : undefined,

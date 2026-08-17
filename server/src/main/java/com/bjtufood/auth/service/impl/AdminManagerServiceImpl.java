@@ -28,8 +28,8 @@ public class AdminManagerServiceImpl implements AdminManagerService {
 
     @Override
     public IPage<UserVO> listAdmins(int page, int pageSize, String status) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(User::getRole, RoleConst.ADMIN)
                 .orderByDesc(User::getCreatedAt);

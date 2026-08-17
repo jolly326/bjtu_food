@@ -47,8 +47,8 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public IPage<AuditVO> listAudit(String type, String status, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         Page<Object> pageObj = new Page<>(page, pageSize);
         List<AuditVO> records;
         long total;

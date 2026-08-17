@@ -6,9 +6,17 @@
         <view class="sk-block skeleton" v-for="s in 3" :key="s" />
       </view>
 
+      <!-- 动态已删除/审核下架：接口返回空，显示兜底提示而非空白 -->
+      <EmptyState
+        v-else-if="!moment && deleted"
+        text="该动态不存在或已删除"
+        :retry="true"
+        @retry="loadData"
+      />
+
       <EmptyState
         v-else-if="!moment"
-        text="动态加载失败或不存在"
+        text="动态加载失败，请稍后重试"
         :retry="true"
         @retry="loadData"
       />
@@ -187,6 +195,7 @@ const comments = ref<MomentComment[]>([])
 /** 关联菜品的用户评价（并入关联+互动卡） */
 const dishReviews = ref<Review[]>([])
 const loading = ref(false)
+const deleted = ref(false)
 const refresherTriggered = ref(false)
 const commentText = ref('')
 /** 评论图片（最多 3 张，复用 Moment 图床） */
@@ -223,11 +232,18 @@ const auditClass = computed(() => `audit-${moment.value?.auditStatus}`)
 async function loadData() {
   if (!currentId) return
   loading.value = true
+  deleted.value = false
   try {
     const [m, c] = await Promise.all([
       momentApi.getMomentDetail(currentId),
       momentApi.getMomentComments(currentId, 1, 50),
     ])
+    // 接口返回空：动态已删除 / 审核下架 / 不存在
+    if (!m) {
+      deleted.value = true
+      moment.value = null
+      return
+    }
     moment.value = m
     comments.value = c.list
     // 关联菜品时加载该菜品的用户评价

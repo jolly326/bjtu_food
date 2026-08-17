@@ -70,7 +70,7 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
+import type { RelatedItem } from '@/components/related-item'
 
 const theme = useThemeStore()
 const userStore = useUserStore()

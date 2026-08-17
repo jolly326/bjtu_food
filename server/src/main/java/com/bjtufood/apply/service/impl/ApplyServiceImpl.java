@@ -129,8 +129,8 @@ public class ApplyServiceImpl implements ApplyService {
 
     @Override
     public IPage<ApplyVO> adminList(String status, String entityType, String applyType, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<ApplyAction> w = new LambdaQueryWrapper<ApplyAction>()
                 .orderByDesc(ApplyAction::getCreatedAt);
         if (StringUtils.hasText(status)) w.eq(ApplyAction::getStatus, status);

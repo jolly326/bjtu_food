@@ -41,8 +41,8 @@ public class NotificationController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         Long userId = SecurityUtil.getCurrentUserId();
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 20;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Notification> w =
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Notification>()
                         .eq(Notification::getUserId, userId)

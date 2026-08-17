@@ -1,7 +1,8 @@
 <template>
   <view class="universal-grid">
-    <!-- 最新活动 -->
+    <!-- 最新活动（后端活动模块暂未提供，无活动数据时隐藏入口，避免空洞可点项） -->
     <view
+      v-if="activityTitle"
       class="u-card u-card--activity"
       role="button"
       aria-label="最新活动"
@@ -14,7 +15,7 @@
       </view>
       <view class="u-body">
         <text class="u-title">最新活动</text>
-        <text class="u-sub">{{ activityTitle || '敬请期待' }}</text>
+        <text class="u-sub">{{ activityTitle }}</text>
       </view>
     </view>
 

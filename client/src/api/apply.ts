@@ -10,12 +10,12 @@ import { post } from './http'
 export type ApplyEntityType = 'DISH' | 'STALL' | 'CANTEEN'
 
 /** 申请动作类型（对齐 spec applyType） */
-type ApplyType = 'NEW' | 'CLOSE' | 'CHANGE'
+export type ApplyAction = 'NEW' | 'CLOSE' | 'CHANGE'
 
 /** 提交申请请求体 */
 interface ApplySubmit {
   entityType: ApplyEntityType
-  applyType: ApplyType
+  applyType: ApplyAction
   /** 下架/变更类必填；新增类可空 */
   entityId?: number | null
   /** 新增/变更字段快照（JSON 字符串或对象） */

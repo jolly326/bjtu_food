@@ -281,40 +281,6 @@
         GROUP BY rating
     </select>
 
-    <!-- 搜索联想：只返回「菜品」（规范：搜索只针对菜品，食堂/档口已降级为菜品属性）。
-         两类来源 UNION：① 菜名命中；② 食堂/档口名命中 → 返回该食堂/档口的菜品。
-         后端统一在菜品索引中匹配，前端无需按类型分结果/详情。 -->
-    <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
-        (SELECT 'dish' AS type, d.id AS id, d.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                c.name AS canteen, s.name AS stall,
-                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
-                d.tags AS tags, d.promo_price AS promoPrice, d.original_price AS originalPrice,
-                c.latitude AS latitude, c.longitude AS longitude
-         FROM dish d
-                  LEFT JOIN stall s ON d.stall_id = s.id
-                  LEFT JOIN canteen c ON s.canteen_id = c.id
-         WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
-           AND d.status = 'on'
-           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-         LIMIT 8)
-        UNION ALL
-        (SELECT 'dish' AS type, d.id AS id, d.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                c.name AS canteen, s.name AS stall,
-                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
-                d.tags AS tags, d.promo_price AS promoPrice, d.original_price AS originalPrice,
-                c.latitude AS latitude, c.longitude AS longitude
-         FROM dish d
-                  JOIN stall s ON d.stall_id = s.id
-                  JOIN canteen c ON s.canteen_id = c.id
-         WHERE (s.name LIKE CONCAT('%', #{keyword}, '%') OR c.name LIKE CONCAT('%', #{keyword}, '%'))
-           AND d.status = 'on'
-           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-         LIMIT 8)
-        LIMIT 8
-    </select>
-
     <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->
     <select id="selectHotSearch" resultType="com.bjtufood.dish.dto.HotSearchVO">
         SELECT d.name AS keyword,

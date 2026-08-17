@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -33,8 +33,23 @@ const loading = ref(false)
 const error = ref('')
 const rows = ref<FeedbackAdminVO[]>([])
 
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+function reloadFromFirstPage() {
+  page.value = 1
+  loadList()
+}
+function onPageChange() {
+  loadList()
+}
+
+// 关键词（内容 / 联系方式 / 提交人）本地模糊过滤：仅当前页内辅助预览，
+// 翻页/改类型会重新请求后端对应页，不再假设单页能拿到全量。
 const filtered = computed(() => {
-  const q = searchQuery.value
+  const q = searchQuery.value.trim().toLowerCase()
   if (!q) return rows.value
   return rows.value.filter(
     r => (r.content || '').toLowerCase().includes(q)
@@ -48,11 +63,18 @@ async function loadList() {
   error.value = ''
   try {
     const { feedbackApi } = await import('@/api')
-    const res = await feedbackApi.listFeedbacks({ status: 'pending', type: activeType.value || undefined, pageSize: 200 })
+    const res = await feedbackApi.listFeedbacks({
+      status: 'pending',
+      type: activeType.value || undefined,
+      page: page.value,
+      pageSize: pageSize.value,
+    })
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
     error.value = e.message || '加载反馈列表失败'
     rows.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -60,8 +82,11 @@ async function loadList() {
 
 onMounted(loadList)
 async function onTypeChange() {
-  await loadList()
+  reloadFromFirstPage()
 }
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
+watch(searchQuery, () => { reloadFromFirstPage() })
 
 // ===== 详情 + 处理抽屉 =====
 const detail = ref<FeedbackAdminVO | null>(null)
@@ -131,6 +156,11 @@ async function copyMomentLink(momentId?: number) {
     </FilterBar>
 
     <DataTable
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'type', label: '类型', width: '120px', align: 'center' },
         { prop: 'related', label: '关联动态', width: '140px', align: 'center' },

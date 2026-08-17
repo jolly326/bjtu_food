@@ -3,6 +3,8 @@ import { get } from './http'
 /**
  * 数据看板（task-12 W2）。
  * GET /admin/dashboard?range=week|month|all
+ *   - week / month：近 7 天 / 近 30 天（按后端 StatsController 口径）
+ *   - all：后端映射为「近 30 天」（与 week/month 的 month 同口径，非全量历史）
  * 后端出参 camelCase：DashboardVO{ range, newDishCount, newReviewCount, totalDishCount,
  * totalReviewCount, hotCanteens[{id,name,score}], hotDishes[{id,name,score}],
  * viewTrend{dates[],values[]}, reviewTrend{dates[],values[]} }。

@@ -16,7 +16,6 @@ import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
@@ -60,6 +59,8 @@ public class DishServiceImpl implements DishService {
         }
         if (req.getPageSize() == null || req.getPageSize() < 1) {
             req.setPageSize(DEFAULT_PAGE_SIZE);
+        } else if (req.getPageSize() > 100) {
+            req.setPageSize(100);
         }
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
                 .convert(this::enrichImages);
@@ -125,6 +126,7 @@ public class DishServiceImpl implements DishService {
     public IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId) {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
         // 仅 approved 且上架菜品参与推荐
         List<Dish> candidates = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
                 .eq(Dish::getAuditStatus, "approved")
@@ -213,16 +215,6 @@ public class DishServiceImpl implements DishService {
         return dishMapper.selectPromotionDishes()
                 .stream()
                 .map(this::enrichImages)
-                .toList();
-    }
-
-    @Override
-    public List<SuggestionVO> suggest(String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return List.of();
-        }
-        return dishMapper.selectSuggestions(keyword.trim()).stream()
-                .peek(vo -> vo.setImage(imageUrlUtil.toAbsoluteUrl(vo.getImage())))
                 .toList();
     }
 
@@ -400,6 +392,7 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
         dishMapper.recalcRatingBySubquery(dishId);

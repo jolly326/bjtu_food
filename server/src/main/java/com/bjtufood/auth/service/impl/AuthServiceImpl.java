@@ -244,8 +244,13 @@ public class AuthServiceImpl implements AuthService {
         if (record.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException("验证码已过期");
         }
-        boolean matched = passwordEncoder.matches(code, record.getCodeHash())
-                || code.equals(record.getCodeHash());
+        boolean matched;
+        try {
+            matched = passwordEncoder.matches(code, record.getCodeHash());
+        } catch (IllegalArgumentException e) {
+            // codeHash 非合法 BCrypt 哈希（如历史明文残留）时，matches 会抛异常，安全降级为不匹配
+            matched = false;
+        }
         if (!matched) {
             throw new BusinessException("验证码错误");
         }

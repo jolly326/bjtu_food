@@ -8,7 +8,6 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.dto.MyDishVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 
 import java.util.List;
 
@@ -110,17 +109,6 @@ public interface DishService {
     void addViewCount(Long dishId, Long userId);
 
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
-
-    /**
-     * 搜索联想（菜品 / 档口 / 食堂名混合）
-     * <p>
-     * 一期限定：无搜索词埋点表，按 keyword LIKE 匹配 name 派生联想建议；
-     * 各类型取 TOP5 合并，前端按 type 跳转对应详情页。
-     *
-     * @param keyword 搜索关键词（可空，空串返回空列表）
-     * @return 联想建议列表
-     */
-    List<SuggestionVO> suggest(String keyword);
 
     /**
      * 热搜词条 TOP10

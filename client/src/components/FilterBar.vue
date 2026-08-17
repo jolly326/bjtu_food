@@ -33,13 +33,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { TAG_MAP } from '@/api/dish'
-
-export interface FilterTab {
-  key: string
-  label: string
-  type: 'recommend' | 'tag'
-  payload?: string
-}
+import type { FilterTab } from './filter-tab'
 
 const emit = defineEmits<{
   (e: 'change', tab: FilterTab): void

@@ -85,35 +85,6 @@ export interface DishQuery {
   pageSize?: number
 }
 
-/** 搜索联想项（GET /dishes/suggest，task-02；混合菜品/档口/食堂） */
-export interface Suggestion {
-  /** dish / stall / canteen */
-  type: 'dish' | 'stall' | 'canteen'
-  id: number
-  name: string
-  image: string
-  /** 所属食堂名（仅 stall 类型返回，跳档口详情需携带 navParams.canteen） */
-  canteen?: string
-  /** 价格（单位：分；仅 dish 类型，展示前需转元） */
-  price?: number
-  /** 平均评分（仅 dish 类型） */
-  rating?: number
-  /** 评价数（仅 dish 类型） */
-  ratingCount?: number
-  /** 所属档口名（仅 dish 类型；副信息展示「档口 · 食堂」） */
-  stall?: string
-  /** 属性标签原始逗号串（仅 dish 类型；如 'signature,spicy'，页面按 TAG_MAP 映射中文） */
-  tags?: string
-  /** 促销价（单位：元；仅 dish 类型，api 层转元；非空时展示促销角标） */
-  promoPrice?: number
-  /** 原价（单位：元；仅 dish 类型，api 层转元；promoPrice 非空时划线展示） */
-  originalPrice?: number
-  /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用 */
-  latitude?: number
-  /** 食堂经度（GCJ-02），来自 canteen 联表 */
-  longitude?: number
-}
-
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */
 export interface HotSearch {
   keyword: string

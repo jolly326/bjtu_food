@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -22,6 +23,7 @@ public class ReviewReq {
     @Schema(description = "评分，1-5星", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer rating;
 
+    @Size(max = 500, message = "评论内容不能超过500字")
     @Schema(description = "文字评价", example = "味道不错，分量也足。")
     private String content;
 

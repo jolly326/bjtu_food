@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import DataTable from '@/components/DataTable.vue'
@@ -41,36 +41,63 @@ const rows = ref<MomentManageVO[]>([])
 // 多选（批量操作）
 const selectedIds = ref<number[]>([])
 
-const filtered = computed(() => {
-  // 状态过滤已由服务端按分段透传，此处仅做关键词（内容 / 作者）本地检索
-  const q = searchQuery.value
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.content || '').toLowerCase().includes(q) || (r.userNickname || '').toLowerCase().includes(q),
-  )
-})
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 async function loadList() {
   loading.value = true
   error.value = ''
   try {
     const { momentApi } = await import('@/api')
-    const res = await momentApi.listMoments({ pageSize: 500, ...segmentFilter.value })
+    const res = await momentApi.listMoments({
+      page: page.value,
+      pageSize: pageSize.value,
+      ...segmentFilter.value,
+    })
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
     error.value = e.message || '加载动态列表失败'
     rows.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
+
+// 关键词/分段变化时回到第 1 页并重新请求（受控分页：翻页即重新拉取对应页）
+function reloadFromFirstPage() {
+  page.value = 1
+  selectedIds.value = []
+  loadList()
+}
+function onPageChange() {
+  // 翻页时清空跨页多选，避免选中不可见行
+  selectedIds.value = []
+  loadList()
+}
+
+// 关键词（内容 / 作者）本地检索：仅在当前页内过滤，作为分页加载的辅助预览。
+// 注：受控分页下不再假设单页能拿全量；若后端支持 keyword 参数应改为服务端过滤并翻页重查。
+const filtered = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return rows.value
+  return rows.value.filter(
+    r => (r.content || '').toLowerCase().includes(q) || (r.userNickname || '').toLowerCase().includes(q),
+  )
+})
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
+watch(searchQuery, () => { reloadFromFirstPage() })
 
 onMounted(loadList)
 
 async function onSegmentChange(s: Segment) {
   if (activeSegment.value === s) return
   activeSegment.value = s
-  await loadList()
+  reloadFromFirstPage()
 }
 
 // ===== 详情抽屉 =====
@@ -215,6 +242,11 @@ async function handleDeleteComment(c: MomentComment) {
     <DataTable
       selectable
       v-model:selectedIds="selectedIds"
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'author', label: '作者', width: '160px' },
         { prop: 'content', label: '内容摘要', ellipsis: true },

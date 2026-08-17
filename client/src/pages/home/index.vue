@@ -10,12 +10,6 @@
       @search="goToSearch"
     />
 
-    <!-- 筛选 Bar（单级横滑，选中居中；推荐/美食类型，切换即换瀑布流） -->
-    <FilterBar @change="onFilterChange" />
-
-    <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播） -->
-    <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
-
     <scroll-view
       ref="scrollView"
       class="scroll-wrap"
@@ -28,10 +22,14 @@
       @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 加载骨架屏（结构贴合真实首屏：筛选条 + 广播条 + 两卡万能区 + 双列瀑布流，避免加载完成跳变） -->
+      <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 两卡万能区 + 筛选条 + 双列瀑布流，避免加载完成跳变） -->
       <view v-if="loadingHot" class="home-skeleton">
-        <view class="sk-filter skeleton" />
         <view class="sk-broadcast skeleton" />
+        <view class="sk-universal">
+          <view class="sk-ucard skeleton" />
+          <view class="sk-ucard skeleton" />
+        </view>
+        <view class="sk-filter skeleton" />
         <view class="sk-universal">
           <view class="sk-ucard skeleton" />
           <view class="sk-ucard skeleton" />
@@ -54,10 +52,16 @@
       </view>
 
       <block v-else>
-        <!-- 两列万能区：最新活动 / 反馈菜品 -->
+        <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
+        <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
+
+        <!-- 两列万能区：最新活动 / 反馈菜品（活动后端暂不补，无活动时不渲染活动入口，避免空洞可点项） -->
         <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
-          <UniversalGrid :activity-title="activities[0]?.title || ''" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+          <UniversalGrid @open-activity="goToActivity" @open-feedback="goToFeedback" />
         </view>
+
+        <!-- 筛选 Bar（单级横滑，选中居中；推荐/美食类型，仅控制下方瀑布流内容区） -->
+        <FilterBar @change="onFilterChange" />
 
         <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
         <view v-if="showLocHint" class="loc-hint" @tap="enableLocation">
@@ -109,7 +113,6 @@ import { useLocationStore } from '@/stores/location'
 import { getUserLocation } from '@/utils/location'
 import type { BroadcastItem } from '@/api/notify'
 import { getMoments } from '@/api/moment'
-import { getActivities, type ActivityItem } from '@/api/activity'
 import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
 import { buildSharePayload } from '@/utils/shareState'
@@ -119,7 +122,7 @@ import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
 import FilterBar from '@/components/FilterBar.vue'
-import type { FilterTab } from '@/components/FilterBar.vue'
+import type { FilterTab } from '@/components/filter-tab'
 import UniversalGrid from '@/components/UniversalGrid.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
@@ -148,9 +151,9 @@ function goToDetail(dish: Dish) {
 function goToActivity() {
   uni.navigateTo({ url: '/pages/activity/index' })
 }
-/** 两列万能区：反馈菜品 → 反馈页 */
+/** 两列万能区：反馈菜品 → 反馈页（带 object=dish，进入后预选「内容纠错」类型） */
 function goToFeedback() {
-  uni.navigateTo({ url: '/pages/feedback/index' })
+  uni.navigateTo({ url: '/pages/feedback/index?object=dish' })
 }
 
 /** 未授权定位时展示轻提示（首页瀑布流「距你」才有数据） */
@@ -172,9 +175,16 @@ async function enableLocation() {
   }
 }
 
-/** 筛选 Bar 选中变化：重置分页并切换瀑布流数据源，回到顶部 */
+/** 筛选 Bar 选中变化：重置分页并切换瀑布流数据源，滚动到筛选条顶部 */
 function onFilterChange(tab: FilterTab) {
-  scrollTop.value = 0
+  // 滚动到筛选条锚点（不跳到页面最顶，避免越过广播/万能区）
+  uni
+    .createSelectorQuery()
+    .select('.filter-bar-anchor')
+    .boundingClientRect((rect: any) => {
+      if (rect) scrollTop.value = rect.top + scrollTop.value - 8
+    })
+    .exec()
   dishStore.fetchFilterDishes(tab, true)
 }
 
@@ -192,9 +202,8 @@ const loadingHot = ref(true)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
-// 广播栏（最新动态摘录）+ 万能区域（最新活动）
+// 广播栏（最新动态摘录）
 const broadcasts = ref<BroadcastItem[]>([])
-const activities = ref<ActivityItem[]>([])
 
 /** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口） */
 function toBroadcastItem(moment: Moment): BroadcastItem {
@@ -217,15 +226,11 @@ async function loadData() {
   try {
     // 先取定位（会话级缓存），首页推荐「距你」才能本地算距离
     await ensureLocation()
-    const [momentRes, actRes] = await Promise.all([
-      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
-      getActivities({ page: 1, pageSize: 2 }),
-    ])
+    const momentRes = await getMoments({ tab: 'latest', page: 1, pageSize: 5 })
     // 首页推荐流（默认「推荐」维度，前期个性化未实现，回落热度+距离兜底）
     await dishStore.fetchFilterDishes({ key: 'recommend', label: '推荐', type: 'recommend' }, true)
     // 广播只广播动态（最新动态摘录，作为动态入口）
     broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
-    activities.value = (actRes || []).slice(0, 2)
   } catch (e) {
     console.error('[home] 首页数据加载失败', e)
     loadFailed.value = true

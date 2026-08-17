@@ -7,6 +7,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { useAdminUserStore } from '@/stores/adminUserStore'
+import { useUserStore } from '@/stores/userStore'
+import { useToastStore } from '@/stores/toastStore'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { House, PriceTag, Document, User, UserFilled, ArrowDown } from '@element-plus/icons-vue'
@@ -16,6 +18,8 @@ const confirm = useConfirmStore()
 const router = useRouter()
 const route = useRoute()
 const adminUser = useAdminUserStore()
+const userStore = useUserStore()
+const toast = useToastStore()
 
 const activePath = computed(() => route.path)
 
@@ -52,8 +56,9 @@ function navTo(path: string) {
 const userMenuOpen = ref(false)
 function goAccount() { userMenuOpen.value = false; router.push('/dashboard/account') }
 function logout() {
-  localStorage.removeItem('token')
-  localStorage.removeItem('rememberedUsername')
+  // 统一清理：token/username/adminId 及 store 状态，避免残留上一账号信息（M09）
+  userStore.clearAuth()
+  toast.clear() // 清理残留 toast（L02）
   router.replace('/login')
 }
 </script>

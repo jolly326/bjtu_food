@@ -67,8 +67,8 @@ public class MomentServiceImpl implements MomentService {
 
     @Override
     public IPage<MomentVO> publicList(String tab, Long dishId, Long stallId, Long canteenId, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         // recommend 暂等价 latest（三期关注流预留参数位），均按 created_at desc
         IPage<MomentVO> result = momentMapper.selectPublicPage(new Page<>(page, pageSize), dishId, stallId, canteenId);
         result.setRecords(result.getRecords().stream().map(this::enrich).toList());
@@ -262,8 +262,8 @@ public class MomentServiceImpl implements MomentService {
 
     @Override
     public IPage<MomentCommentVO> commentList(Long momentId, Long currentUserId, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 20;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         IPage<MomentComment> p = momentCommentMapper.selectPage(new Page<>(page, pageSize),
                 new LambdaQueryWrapper<MomentComment>()
                         .eq(MomentComment::getMomentId, momentId)
@@ -404,8 +404,8 @@ public class MomentServiceImpl implements MomentService {
 
     @Override
     public IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<Moment> w = new LambdaQueryWrapper<Moment>()
                 .orderByDesc(Moment::getCreatedAt);
         // 下架状态过滤（0=正常 1=下架），仅当显式传入时生效
