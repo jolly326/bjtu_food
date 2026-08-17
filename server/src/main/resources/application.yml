@@ -12,14 +12,9 @@ spring:
   application:
     name: bjtu-food
 
-  # ---------- 敏感配置引入 ----------
-  # 引入 application-secret.yml（含 SMTP 发件邮箱/授权码，已加入 .gitignore，不随仓库提交）。
-  # optional：文件缺失时不报错（如生产环境用环境变量注入），存在则默认加载。
-  config:
-    import: optional:classpath:application-secret.yml
-
   # ---------- 数据源配置 ----------
   # 凭据一律从环境变量注入（本地开发在启动前设置，或复制 .env.example 为 server/.env 加载），禁止在仓库写入明文。
+  # 注意：原 application-secret.yml（曾含 SMTP 明文）已移除并加入 .gitignore，敏感配置全部改由环境变量注入，仓库不再保留任何明文凭据。
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
@@ -33,14 +28,16 @@ spring:
       max-request-size: 20MB    # 单次请求最大 20MB
 
   # ---------- SMTP 邮件配置（网易 163） ----------
-  # 发件邮箱与授权码由 application-secret.yml 提供（spring.mail.username / spring.mail.password），
-  # 经上方 spring.config.import 自动加载；也可用环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 覆盖。
+  # 发件邮箱与授权码一律从环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 注入，禁止在仓库写入明文。
+  # 本地开发：复制 .env.example 为 server/.env 并填入真实授权码，由 Spring Boot 自动加载。
   # 网易 SMTP：host=smtp.163.com，端口 465（SSL）/ 994（SSL）。授权码在网易邮箱网页版「设置→POP3/SMTP/IMAP」开启后生成。
   mail:
     host: smtp.163.com
     port: 465
     protocol: smtp
     default-encoding: UTF-8
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -72,6 +69,12 @@ jwt:
   # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
   # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
   expiration: 3153600000000
+
+# ---------- CORS 受信任前端源 ----------
+# 仅放行白名单内的浏览器源（逗号分隔）；微信小程序 wx.request 不带 Origin 头，不受影响。
+# 未配置时拒绝一切带 Origin 的浏览器跨域请求（仅小程序/服务端可达）。
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 
 # ---------- 应用公共基础 URL ----------
 app:

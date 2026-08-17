@@ -125,6 +125,25 @@ public interface ReviewService {
      */
     void deleteReview(Long id, Long userId);
 
+    /**
+     * 回复某条评价（楼中楼一层回复）
+     * <p>
+     * 处理流程：
+     * 1. 校验父评价（parentId）存在且未被隐藏
+     * 2. 取父评价者昵称作为 replyToNickname（冗余存储，便于前端直接展示「@昵称」）
+     * 3. 插入带 parent_id / reply_to_nickname 的评价记录（rating 置 0，回复不计分）
+     * 4. 回复不触发评分重算、不同步动态（与提交评价区分）
+     * <p>
+     * 注意：回复不受「一人一菜只能评价一次」限制；同一用户可对同一条评价多次回复。
+     *
+     * @param userId    当前用户ID
+     * @param parentId  被回复的评价ID（父评价，必须为顶层或任意评价）
+     * @param content   回复内容
+     * @return 新回复的评价ID
+     * @throws com.bjtufood.common.exception.BusinessException 父评价不存在/已隐藏/内容为空
+     */
+    Long replyReview(Long userId, Long parentId, String content);
+
     // ==================== 管理端接口（系统管理员） ====================
 
     /**

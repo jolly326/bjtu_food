@@ -61,6 +61,7 @@ export async function listMoments(params: {
   status?: number
   auditStatus?: string
   userId?: number
+  keyword?: string
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: MomentManageVO[]; total: number }> {
@@ -71,6 +72,7 @@ export async function listMoments(params: {
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 50,
   }
+  if (params.keyword) query.keyword = params.keyword
   const data: any = await get('/admin/moments', query)
   return {
     list: pageRecords(data).map(momentToLegacy),

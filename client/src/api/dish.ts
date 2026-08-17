@@ -37,6 +37,7 @@ export function toDish(raw: any): Dish {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
+    categoryId: raw.categoryId != null ? Number(raw.categoryId) : undefined,
     isNew: !!raw.isNew,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
@@ -92,6 +93,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.canteenId != null) params.canteenId = query.canteenId
+  if (query.categoryId != null) params.categoryId = query.categoryId
   if (query.tag) params.tag = query.tag
   if (query.spiceLevel != null) params.spiceLevel = query.spiceLevel
   if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)

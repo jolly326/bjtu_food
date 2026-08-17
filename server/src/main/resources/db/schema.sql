@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS `dish`
 (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '菜品ID',
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
+    `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id，首页品类滚轮筛选用；可空=未分类）',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（折扣前，单位：分）；promo_price 非空视为有折扣',
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_dish_stall` (`stall_id`),
+    KEY `idx_dish_category` (`category_id`),
     KEY `idx_dish_audit` (`audit_status`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -127,14 +129,25 @@ CREATE TABLE IF NOT EXISTS `review`
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价图片URL数组JSON',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
+    `parent_id`  BIGINT       NULL     DEFAULT NULL COMMENT '父评价ID（NULL=顶层评价，非NULL=楼中楼回复）',
+    `reply_to_nickname` VARCHAR(64) NULL DEFAULT NULL COMMENT '被回复者昵称（仅回复记录有值，展示用）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_review_dish` (`dish_id`),
-    KEY `idx_review_user` (`user_id`)
+    KEY `idx_review_user` (`user_id`),
+    KEY `idx_review_parent` (`parent_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='评价';
+
+-- 兼容已存在的旧库：增量补列（幂等，列已存在时跳过）
+SET @exist_parent := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'parent_id');
+SET @exist_reply := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'reply_to_nickname');
+SET @sql_parent := IF(@exist_parent = 0, 'ALTER TABLE review ADD COLUMN parent_id BIGINT NULL DEFAULT NULL COMMENT ''父评价ID'' AFTER is_hidden', 'SELECT 1');
+SET @sql_reply := IF(@exist_reply = 0, 'ALTER TABLE review ADD COLUMN reply_to_nickname VARCHAR(64) NULL DEFAULT NULL COMMENT ''被回复者昵称'' AFTER parent_id', 'SELECT 1');
+PREPARE stmt FROM @sql_parent; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM @sql_reply; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- -------------------- 评价「有用」 --------------------
 CREATE TABLE IF NOT EXISTS `review_useful`
@@ -195,16 +208,18 @@ CREATE TABLE IF NOT EXISTS `banner`
 CREATE TABLE IF NOT EXISTS `category`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '分类ID',
-    `name`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '分类名称（如 早餐/午餐/晚餐/夜宵/面食/米饭/麻辣/清淡）',
-    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前，对应 find 宫格顺序）',
+    `code`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal；前端滚轮 key 与筛选用）',
+    `name`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '分类名称（如 麻辣烫/面食/盖饭套餐/家常小炒/烧烤炸物/汤粥/饮品甜点/清真）',
+    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前，对应首页品类滚轮顺序）',
     `status`     VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_category_code` (`code`),
     KEY `idx_category_status_sort` (`status`, `sort_order`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='菜品分类（find 宫格）';
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（首页品类滚轮）';
 
 -- -------------------- 首页广播通知条（A.14） --------------------
 CREATE TABLE IF NOT EXISTS `broadcast`
@@ -260,7 +275,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 (
     `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '反馈ID',
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/other/report',
+    `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/bug/other/report',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',

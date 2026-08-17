@@ -112,6 +112,8 @@ public class AccountController {
         if (authHeader != null && authHeader.toLowerCase().startsWith("bearer ")) {
             tokenBlacklist.revoke(authHeader.substring(7).trim());
         }
+        // 同时按用户维度拉黑：本人在其他设备上已签发的 token 一并失效
+        tokenBlacklist.revokeUser(userId);
 
         return Result.success();
     }

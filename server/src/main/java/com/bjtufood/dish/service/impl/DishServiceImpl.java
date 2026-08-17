@@ -161,7 +161,8 @@ public class DishServiceImpl implements DishService {
                                 .forEach(recentTags::add);
                     }
                 });
-                bonus = recentDishIds.isEmpty() ? 0.0 : 500.0; // 命中加权基数
+                // 平滑个性化加权：命中足迹越多权重越大，但设上限避免个例压倒热度分（原魔数 500.0 会让单条足迹直接封顶）
+                bonus = Math.min(recentDishIds.size() * 50.0, 300.0);
             }
         }
 
@@ -398,6 +399,7 @@ public class DishServiceImpl implements DishService {
 
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
+        dish.setCategoryId(req.getCategoryId());
         dish.setName(req.getName());
         dish.setPrice(req.getPrice());
         dish.setOriginalPrice(req.getOriginalPrice());

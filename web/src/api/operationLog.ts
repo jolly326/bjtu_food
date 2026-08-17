@@ -36,6 +36,7 @@ export async function listOperationLogs(params: {
   adminId?: number
   action?: string
   targetType?: string
+  keyword?: string
   startAt?: string
   endAt?: string
   page?: number
@@ -48,6 +49,7 @@ export async function listOperationLogs(params: {
   if (params.adminId) query.adminId = params.adminId
   if (params.action) query.action = params.action
   if (params.targetType) query.targetType = params.targetType
+  if (params.keyword) query.keyword = params.keyword
   if (params.startAt) query.startAt = params.startAt
   if (params.endAt) query.endAt = params.endAt
   const data: any = await get('/admin/operation-logs', query)

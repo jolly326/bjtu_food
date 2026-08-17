@@ -18,6 +18,14 @@ export interface Review {
   usefulCount?: number
   /** 当前登录用户是否已标记「有用」（仅登录态返回，可选） */
   useful?: boolean
+  /** 父评价ID（NULL=顶层评价，非NULL=楼中楼回复） */
+  parentId?: number | null
+  /** 被回复者昵称（仅回复记录有值，用于展示「@昵称」） */
+  replyToNickname?: string | null
+  /** 楼中楼子回复（顶层评价附带，按创建时间升序） */
+  replies?: Review[]
+  /** 该节点是否有更多子回复（后端窗口限制后仍有更多，前端展示「查看全部」占位） */
+  repliesHasMore?: boolean
 }
 
 export interface ReviewSubmit {

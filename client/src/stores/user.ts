@@ -80,12 +80,17 @@ export const useUserStore = defineStore('user', () => {
     return res
   }
 
-  function logout() {
+  /** 统一登出：清内存态 + 清 storage；被 logout() 与 http 层 401/403 事件复用，避免登录态分裂 */
+  function forceLogout() {
     token.value = ''
     userInfo.value = null
     userStats.value = { likeCount: 0, reviewCount: 0 }
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
+  }
+
+  function logout() {
+    forceLogout()
   }
 
   function isLoggedIn(): boolean {
@@ -134,6 +139,7 @@ export const useUserStore = defineStore('user', () => {
     updateProfile,
     fetchStats,
     logout,
+    forceLogout,
     isLoggedIn,
     requireAuth,
   }

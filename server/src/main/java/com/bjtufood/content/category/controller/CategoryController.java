@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 菜品分类（task-14 W6/W2，CONTRACT_IMPACT A.17）
+ * 菜品品类（task-14 W6/W2，CONTRACT_IMPACT A.17；2026-08-17 重构：真实食堂品类体系）
  * <p>
- * 公开接口，无需登录；find 页分类宫格数据来源。
+ * 公开接口，无需登录；首页品类滚轮数据来源（前端 FilterBar 按 code 组装滚轮项，选中后以 categoryId 拉菜品）。
  */
-@Tag(name = "19. 菜品分类", description = "find 页分类宫格数据，公开接口。")
+@Tag(name = "19. 菜品品类", description = "首页品类滚轮数据，公开接口。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -28,10 +28,10 @@ public class CategoryController {
     private final CategoryMapper categoryMapper;
 
     @Operation(
-            summary = "菜品分类列表",
+            summary = "菜品品类列表",
             description = """
-                    用途：find 页分类宫格（8 个网格）数据来源。
-                    返回 enabled 分类，按 sort_order 升序；前端按 §0.5 映射表匹配矢量图标。
+                    用途：首页品类滚轮数据来源。
+                    返回 enabled 品类，按 sort_order 升序；每项含 code（机器标识）与 name（展示名）。
                     无数据时返回空数组。
                     """
     )
@@ -47,6 +47,7 @@ public class CategoryController {
     private CategoryVO toVO(Category c) {
         CategoryVO vo = new CategoryVO();
         vo.setId(c.getId());
+        vo.setCode(c.getCode());
         vo.setName(c.getName());
         vo.setSortOrder(c.getSortOrder());
         vo.setCreatedAt(c.getCreatedAt());

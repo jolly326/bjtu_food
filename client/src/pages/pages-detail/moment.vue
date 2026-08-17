@@ -67,7 +67,16 @@
           <!-- 用户评价（关联菜品时展示前 2 条，上分隔线） -->
           <view v-if="moment.relatedType === 'dish' && dishReviews.length > 0" class="review-section">
             <text class="comment-title">用户评价</text>
-            <ReviewItem v-for="rv in dishReviews.slice(0, 2)" :key="rv.id" :review="rv" hide-useful />
+            <ReviewItem
+              v-for="rv in dishReviews.slice(0, 2)"
+              :key="rv.id"
+              :review="rv"
+              hide-useful
+              :current-user-id="userStore.userInfo?.id"
+              @reply="onDishReviewReply"
+              @report="onDishReviewReport"
+              @delete="onDishReviewDelete"
+            />
           </view>
         </view>
 
@@ -143,6 +152,42 @@
       </view>
     </view>
 
+    <!-- 菜品评价回复输入弹层（关联动态详情时评价区楼中楼回复） -->
+    <view v-if="dishReplyOpen" class="reply-mask" @tap="closeDishReply">
+      <view
+        class="reply-sheet"
+        :style="{ transform: `translateY(${dishReplySheetDy}px)` }"
+        @tap.stop
+        @touchstart="onDishReplySheetTouchStart"
+        @touchmove="onDishReplySheetTouchMove"
+        @touchend="onDishReplySheetTouchEnd"
+      >
+        <view class="reply-drag" />
+        <view class="reply-sheet-head">
+          <text class="reply-sheet-title">回复{{ dishReplyToNickname ? ' @' + dishReplyToNickname : '' }}</text>
+          <text class="reply-sheet-close" @tap="closeDishReply" role="button" aria-label="关闭">✕</text>
+        </view>
+        <textarea
+          class="reply-input"
+          v-model="dishReplyText"
+          :placeholder="dishReplyPlaceholder"
+          :focus="dishReplyFocus"
+          maxlength="500"
+          auto-height
+        />
+        <view class="reply-sheet-actions">
+          <text class="reply-cancel" @tap="closeDishReply" role="button">取消</text>
+          <text
+            class="reply-send"
+            :class="{ disabled: !dishReplyText.trim() || dishReplySubmitting }"
+            @tap="submitDishReply"
+            role="button"
+            aria-label="发送回复"
+          >{{ dishReplySubmitting ? '发送中…' : '发送' }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 举报弹窗（共享组件） -->
     <ReportModal
       :open="reportOpen"
@@ -165,7 +210,7 @@ import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import { getReviewsByDish } from '@/api/review'
+import { getReviewsByDish, replyReview, deleteReview } from '@/api/review'
 import { submitFeedback } from '@/api/feedback'
 import { relativeTime } from '@/utils/time'
 import type { Moment, MomentComment } from '@/types/moment'
@@ -323,6 +368,125 @@ async function submitReport(text: string) {
   } finally {
     reportSubmitting.value = false
   }
+}
+
+/* ===== 菜品评价回复 / 举报（关联动态详情时，评价区复用 ReviewItem，楼中楼打通） ===== */
+const dishReplyOpen = ref(false)
+const dishReplyFocus = ref(false)
+const dishReplySubmitting = ref(false)
+const dishReplyText = ref('')
+const dishReplyParentId = ref<number | null>(null)
+const dishReplyToNickname = ref('')
+const dishReplyPlaceholder = ref('回复评价…')
+
+function onDishReviewReply(rv: Review) {
+  if (!userStore.requireAuth(() => onDishReviewReply(rv))) return
+  dishReplyParentId.value = rv.id
+  dishReplyToNickname.value = rv.userNickname || ''
+  dishReplyPlaceholder.value = `回复 ${rv.userNickname || '匿名用户'}：`
+  dishReplyText.value = ''
+  dishReplyOpen.value = true
+  dishReplyFocus.value = true
+}
+
+function closeDishReply() {
+  dishReplyOpen.value = false
+  dishReplyText.value = ''
+  dishReplyParentId.value = null
+  dishReplyToNickname.value = ''
+}
+
+/* ===== 回复弹层下拉关闭（#12 轻量 touch 模拟，不引第三方库） ===== */
+const dishReplySheetStartY = ref(0)
+const dishReplySheetDy = ref(0)
+function onDishReplySheetTouchStart(e: any) {
+  dishReplySheetStartY.value = e.touches?.[0]?.clientY ?? 0
+  dishReplySheetDy.value = 0
+}
+function onDishReplySheetTouchMove(e: any) {
+  const y = e.touches?.[0]?.clientY ?? 0
+  const dy = y - dishReplySheetStartY.value
+  dishReplySheetDy.value = Math.max(0, dy)
+}
+function onDishReplySheetTouchEnd() {
+  if (dishReplySheetDy.value > 80) {
+    closeDishReply()
+  }
+  dishReplySheetDy.value = 0
+}
+
+/** 在楼中楼树中按 id 定位节点 */
+function findReviewNode(nodes: Review[], id: number): Review | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    if (n.replies && n.replies.length) {
+      const found = findReviewNode(n.replies, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+async function submitDishReply() {
+  if (!dishReplyParentId.value || !dishReplyText.value.trim() || dishReplySubmitting.value) return
+  dishReplySubmitting.value = true
+  try {
+    await replyReview(dishReplyParentId.value, dishReplyText.value.trim())
+    uni.showToast({ title: '回复成功', icon: 'success' })
+    // 本地插入楼中楼（#7），不整页重拉
+    const parent = findReviewNode(dishReviews.value, dishReplyParentId.value)
+    if (parent) {
+      if (!parent.replies) parent.replies = []
+      parent.replies.push({
+        id: -Date.now(),
+        userId: userStore.userInfo?.id ?? 0,
+        userNickname: userStore.userInfo?.nickname || '我',
+        userAvatar: userStore.userInfo?.avatar || '',
+        dishId: parent.dishId,
+        rating: 0,
+        content: dishReplyText.value.trim(),
+        images: [],
+        createTime: new Date().toISOString(),
+        parentId: dishReplyParentId.value,
+        replyToNickname: dishReplyToNickname.value || parent.userNickname || '',
+      })
+    }
+    closeDishReply()
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '回复失败', icon: 'none' })
+  } finally {
+    dishReplySubmitting.value = false
+  }
+}
+
+function onDishReviewReport(rv: Review) {
+  if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
+  reportTarget.value = { type: 'review', id: rv.id }
+  reportOpen.value = true
+}
+
+function onDishReviewDelete(rv: Review) {
+  if (!userStore.requireAuth(() => onDishReviewDelete(rv))) return
+  if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
+  uni.showModal({
+    title: '删除评价',
+    content: '确定删除这条评价吗？删除后不可恢复。',
+    confirmText: '删除',
+    confirmColor: '#FF3B30',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await deleteReview(rv.id)
+        uni.showToast({ title: '评价已删除', icon: 'none' })
+        // 删除后重拉关联菜品评价，保证计数/楼中楼准确（#2）
+        if (moment.value?.relatedType === 'dish' && moment.value.relatedId) {
+          dishReviews.value = (await getReviewsByDish(moment.value.relatedId, { sort: 'latest', isWithImage: false, page: 1, pageSize: 2 })).list
+        }
+      } catch (e: any) {
+        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+      }
+    },
+  })
 }
 
 /** 点击「回复 @昵称」：等价于在输入框写入 @昵称 （微信式提及回复，2026-08-16） */
@@ -516,4 +680,17 @@ onLoad((query) => {
 .mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-drawer); }
 .mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(0.96); }
 .mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(1); }
+
+/* 菜品评价回复输入弹层（复用 dish 同名 class 设计；drag indicator + 下拉关闭） */
+.reply-mask { position: fixed; inset: 0; z-index: 100; background: var(--overlay-scrim); display: flex; align-items: flex-end; -webkit-tap-highlight-color: transparent; }
+.reply-sheet { width: 100%; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-card); transition: transform 160ms var(--ease-out); }
+.reply-drag { width: 48rpx; height: 6rpx; border-radius: var(--radius-pill, 999rpx); background: var(--overlay-dark-soft); margin: 0 auto var(--spacing-sm); flex-shrink: 0; }
+.reply-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
+.reply-sheet-title { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); }
+.reply-sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: var(--spacing-2xs) var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
+.reply-input { width: 100%; min-height: 120rpx; max-height: 360rpx; background: var(--bg-soft); border-radius: var(--radius-card); padding: var(--spacing-sm); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; box-sizing: border-box; }
+.reply-sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-lg); margin-top: var(--spacing-sm); }
+.reply-cancel { font-size: var(--font-card); color: var(--text-tertiary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; }
+.reply-send { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-primary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; transition: opacity 120ms ease; }
+.reply-send.disabled { opacity: 0.4; }
 </style>

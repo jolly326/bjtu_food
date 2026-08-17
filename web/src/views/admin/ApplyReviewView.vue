@@ -47,7 +47,8 @@ const filtered = computed(() => {
   const q = searchQuery.value
   if (!q) return isReview.value ? reviews.value : rows.value
   if (isReview.value) {
-    return reviews.value.filter(r => (r.content || '').toLowerCase().includes(q))
+    // 评价分支关键词已改为服务端 keyword 过滤（loadList 透传），此处不再本地截断
+    return reviews.value
   }
   return rows.value.filter(r =>
     (previewTitle(r) || '').toLowerCase().includes(q) ||
@@ -62,8 +63,9 @@ async function loadList() {
   try {
     if (isReview.value) {
       const { auditApi } = await import('@/api')
-      // 查全部评价（显示中/已隐藏），显隐状态由列表标签列展示
-      reviews.value = await auditApi.listReviews()
+      // 查全部评价（显示中/已隐藏），显隐状态由列表标签列展示；
+      // 关键词已改为服务端 keyword 过滤，避免当前页子集截断导致漏搜
+      reviews.value = await auditApi.listReviews({ keyword: searchQuery.value.trim() || undefined })
     } else {
       const { listApply } = await import('@/api/apply')
       // 全部实体（菜品/档口/食堂）的待审核申请

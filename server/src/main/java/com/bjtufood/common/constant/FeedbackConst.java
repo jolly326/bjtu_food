@@ -5,9 +5,11 @@ package com.bjtufood.common.constant;
  */
 public interface FeedbackConst {
 
-    /** 反馈类型：功能建议 / 内容纠错 / 其他 / 举报 */
+    /** 反馈类型：功能建议 / 内容纠错 / 系统问题 / 其他 / 举报 */
     String TYPE_SUGGESTION = "suggestion";
     String TYPE_ERROR = "error";
+    /** 系统问题（bug：加载失败/闪退/数据异常等，与功能建议分开，便于 admin 筛选与优先级处理） */
+    String TYPE_BUG = "bug";
     String TYPE_OTHER = "other";
     String TYPE_REPORT = "report";
 

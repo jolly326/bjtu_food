@@ -23,16 +23,16 @@ INSERT INTO `user` (username, email, password, nickname, avatar, role, status, l
 ('2024004',  '2024004@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '奶茶三分甜',  NULL, 'student', 'active', NOW()),
 ('admin',    'admin@bjtu.edu.cn',   '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '管理员',      NULL, 'super_admin', 'active', NOW());
 
--- -------------------- 菜品分类（find 宫格展示） --------------------
-INSERT INTO category (name, sort_order, status) VALUES
-('早餐',    1, 'enabled'),
-('午餐',    2, 'enabled'),
-('晚餐',    3, 'enabled'),
-('夜宵',    4, 'enabled'),
-('面食',    5, 'enabled'),
-('米饭',    6, 'enabled'),
-('麻辣',    7, 'enabled'),
-('清淡',    8, 'enabled');
+-- -------------------- 菜品品类（首页品类滚轮：贴合大学食堂档口业态的真实品类） --------------------
+INSERT INTO category (code, name, sort_order, status) VALUES
+('malatang', '麻辣烫',   1, 'enabled'),
+('noodle',   '面食',     2, 'enabled'),
+('rice',     '盖饭套餐', 3, 'enabled'),
+('home',     '家常小炒', 4, 'enabled'),
+('bbq',      '烧烤炸物', 5, 'enabled'),
+('porridge', '汤粥',     6, 'enabled'),
+('drink',    '饮品甜点', 7, 'enabled'),
+('halal',    '清真',     8, 'enabled');
 
 -- -------------------- 首页广播条（status=enabled 才展示） --------------------
 INSERT INTO broadcast (title, content, broadcast_type, target_id, target_url, sort_order, status) VALUES
@@ -67,39 +67,39 @@ INSERT INTO stall (canteen_id, name, location, description, status, sort_order, 
 (7, '留园小炒',     '留园餐厅',     '精致小炒',         'open', 1, 'approved'),
 (7, '留园包点',     '留园餐厅',     '广式包点',         'open', 2, 'approved');
 
--- -------------------- 菜品（stall_id 对应上面档口；价格单位：分） --------------------
-INSERT INTO dish (stall_id, name, price, description, images, tags, status, audit_status, view_count, avg_rating, rating_count) VALUES
-(1,  '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'recommended,signature', 'on', 'approved', 560, 4.7, 120),
-(1,  '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'signature',            'on', 'approved', 720, 4.8,  98),
-(1,  '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'recommended',          'on', 'approved', 430, 4.6,  76),
-(2,  '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'recommended',          'on', 'approved', 610, 4.5, 150),
-(2,  '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, '',                    'on', 'approved', 380, 4.4,  64),
-(3,  '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'signature',            'on', 'approved', 880, 4.7, 200),
-(3,  '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'recommended',          'on', 'approved', 760, 4.8, 180),
-(4,  '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'recommended',          'on', 'approved', 690, 4.6, 140),
-(4,  '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'signature',            'on', 'approved', 320, 4.5,  55),
-(5,  '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'recommended',          'on', 'approved', 700, 4.7, 130),
-(5,  '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, '',                    'on', 'approved', 410, 4.4,  88),
-(6,  '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'recommended',          'on', 'approved', 820, 4.6, 160),
-(6,  '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'signature',            'on', 'approved', 260, 4.3,  42),
-(7,  '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'recommended',          'on', 'approved', 520, 4.5, 110),
-(7,  '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, '',                    'on', 'approved', 470, 4.6,  95),
-(8,  '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'recommended',          'on', 'approved', 390, 4.5,  70),
-(8,  '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'signature',            'on', 'approved', 640, 4.7, 120),
-(9,  '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'recommended',          'on', 'approved', 780, 4.8, 140),
-(9,  '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, '',                    'on', 'approved', 300, 4.4,  60),
-(10, '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'recommended',          'on', 'approved', 700, 4.6, 150),
-(10, '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'signature',            'on', 'approved', 560, 4.5, 130),
-(11, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'recommended',          'on', 'approved', 980, 4.7, 220),
-(11, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'signature',            'on', 'approved', 840, 4.8, 190),
-(12, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'signature',            'on', 'approved', 900, 4.8, 210),
-(12, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'recommended',          'on', 'approved', 460, 4.6,  80),
-(13, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'recommended',          'on', 'approved', 720, 4.7, 160),
-(13, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, '',                    'on', 'approved', 320, 4.5,  70),
-(14, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'recommended',          'on', 'approved', 500, 4.5,  90),
-(14, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'signature',            'on', 'approved', 360, 4.6,  60),
-(14, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'recommended',          'on', 'approved', 580, 4.7, 110),
-(14, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 'approved', 520, 4.6, 100);
+-- -------------------- 菜品（stall_id 对应上面档口；category_id 对应上面品类 1=麻辣烫 2=面食 3=盖饭套餐 4=家常小炒 5=烧烤炸物 6=汤粥 7=饮品甜点 8=清真；价格单位：分） --------------------
+INSERT INTO dish (stall_id, category_id, name, price, description, images, tags, status, audit_status, view_count, avg_rating, rating_count) VALUES
+(1,  4, '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'recommended,signature', 'on', 'approved', 560, 4.7, 120),
+(1,  4, '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'signature',            'on', 'approved', 720, 4.8,  98),
+(1,  4, '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'recommended',          'on', 'approved', 430, 4.6,  76),
+(2,  4, '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'recommended',          'on', 'approved', 610, 4.5, 150),
+(2,  4, '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, '',                    'on', 'approved', 380, 4.4,  64),
+(3,  2, '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'signature',            'on', 'approved', 880, 4.7, 200),
+(3,  2, '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'recommended',          'on', 'approved', 760, 4.8, 180),
+(4,  3, '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'recommended',          'on', 'approved', 690, 4.6, 140),
+(4,  4, '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'signature',            'on', 'approved', 320, 4.5,  55),
+(5,  3, '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'recommended',          'on', 'approved', 700, 4.7, 130),
+(5,  3, '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, '',                    'on', 'approved', 410, 4.4,  88),
+(6,  1, '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'recommended',          'on', 'approved', 820, 4.6, 160),
+(6,  1, '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'signature',            'on', 'approved', 260, 4.3,  42),
+(7,  6, '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'recommended',          'on', 'approved', 520, 4.5, 110),
+(7,  2, '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, '',                    'on', 'approved', 470, 4.6,  95),
+(8,  4, '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'recommended',          'on', 'approved', 390, 4.5,  70),
+(8,  4, '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'signature',            'on', 'approved', 640, 4.7, 120),
+(9,  5, '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'recommended',          'on', 'approved', 780, 4.8, 140),
+(9,  5, '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, '',                    'on', 'approved', 300, 4.4,  60),
+(10, 2, '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'recommended',          'on', 'approved', 700, 4.6, 150),
+(10, 5, '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'signature',            'on', 'approved', 560, 4.5, 130),
+(11, 7, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'recommended',          'on', 'approved', 980, 4.7, 220),
+(11, 7, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'signature',            'on', 'approved', 840, 4.8, 190),
+(12, 8, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'signature',            'on', 'approved', 900, 4.8, 210),
+(12, 8, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'recommended',          'on', 'approved', 460, 4.6,  80),
+(13, 8, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'recommended',          'on', 'approved', 720, 4.7, 160),
+(13, 8, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, '',                    'on', 'approved', 320, 4.5,  70),
+(14, 4, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'recommended',          'on', 'approved', 500, 4.5,  90),
+(14, 4, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'signature',            'on', 'approved', 360, 4.6,  60),
+(14, 2, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'recommended',          'on', 'approved', 580, 4.7, 110),
+(14, 2, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 'approved', 520, 4.6, 100);
 
 -- -------------------- 轮播图（status=enabled 才会被首页展示） --------------------
 INSERT INTO banner (title, subtitle, images, target_type, target_id, status, sort_order) VALUES
@@ -190,7 +190,8 @@ INSERT INTO user_feedback (user_id, type, content, contact, status, related_type
 (1, 'suggestion', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', '2024001@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
 (2, 'error',     '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
 (3, 'report',    '有动态内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'moment', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY));
+(4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2, 'bug',       '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR));
 
 -- -------------------- 实体贡献申请（UGC，测试申请审核流；无唯一键，先清后插保证可重复执行） --------------------
 DELETE FROM apply_action;

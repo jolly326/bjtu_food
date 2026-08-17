@@ -61,7 +61,11 @@ export async function updatePassword(data: { oldPassword: string; newPassword: s
   await put<void>('/auth/password', data)
 }
 
-export async function toggleUserStatusById(id: number) {
-  const user = (await getAll()).find(item => Number(item.id) === id)
-  await put<void>(`/admin/users/${id}/status`, { status: user?.status === 'active' ? 'disabled' : 'active' })
+/**
+ * 切换用户状态：直接向后端传目标状态，不再前端 getAll() 全量拉取再反查（P-2 性能）。
+ * 调用方（AdminManageView）已知当前行 status，计算目标状态后传入：
+ *   target = currentStatus === 'active' ? 'disabled' : 'active'
+ */
+export async function toggleUserStatusById(id: number, targetStatus: 'active' | 'disabled') {
+  await put<void>(`/admin/users/${id}/status`, { status: targetStatus })
 }

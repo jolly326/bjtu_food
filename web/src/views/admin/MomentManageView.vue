@@ -53,6 +53,7 @@ async function loadList() {
     const { momentApi } = await import('@/api')
     const res = await momentApi.listMoments({
       page: page.value,
+      keyword: searchQuery.value.trim() || undefined,
       pageSize: pageSize.value,
       ...segmentFilter.value,
     })
@@ -79,15 +80,9 @@ function onPageChange() {
   loadList()
 }
 
-// 关键词（内容 / 作者）本地检索：仅在当前页内过滤，作为分页加载的辅助预览。
-// 注：受控分页下不再假设单页能拿全量；若后端支持 keyword 参数应改为服务端过滤并翻页重查。
-const filtered = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.content || '').toLowerCase().includes(q) || (r.userNickname || '').toLowerCase().includes(q),
-  )
-})
+// 关键词检索已改为服务端 keyword 过滤（后端按 content/userNickname 模糊），
+// 翻页/清空关键词会重新拉取对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
 
 // 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
 watch(searchQuery, () => { reloadFromFirstPage() })

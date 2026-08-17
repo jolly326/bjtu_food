@@ -10,7 +10,7 @@
     @mouseleave="pressed = false"
     @longpress="onLongPress"
   >
-    <image v-if="avatarOk && comment.userAvatar" class="c-avatar" :src="comment.userAvatar" mode="aspectFill" @error="avatarOk = false" />
+    <image v-if="avatarOk && comment.userAvatar" class="c-avatar" :src="getImageUrl(comment.userAvatar)" mode="aspectFill" @error="avatarOk = false" />
     <view v-else class="c-avatar c-avatar-empty">
       <IconSvg name="user" :size="30" color="var(--text-tertiary)" />
     </view>
@@ -46,6 +46,7 @@ import { ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import { relativeTime } from '@/utils/time'
+import { getImageUrl } from '@/utils/image'
 import { useUserStore } from '@/stores/user'
 import type { MomentComment } from '@/types/moment'
 

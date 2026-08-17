@@ -23,6 +23,8 @@ export interface Dish {
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
   /** 所属档口 ID（分享深链到档口详情用） */
   stallId?: number
+  /** 所属品类 ID（category.id，首页品类滚轮选中态映射用） */
+  categoryId?: number
   /** 档口所属楼层（如 1F/2F） */
   floor?: string
   /** 窗口号 */
@@ -71,6 +73,8 @@ export interface DishQuery {
   keyword?: string
   /** 食堂 ID（task-02 多维筛选） */
   canteenId?: number
+  /** 品类 ID（category.id，首页品类滚轮筛选） */
+  categoryId?: number
   /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
   tag?: string
   /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */

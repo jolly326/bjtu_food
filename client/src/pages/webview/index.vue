@@ -40,7 +40,7 @@ import IconSvg from '@/components/IconSvg.vue'
 
 const url = ref('')
 const statusBarHeight = ref(20)
-const navBarHeight = ref(48)
+const navBarHeight = ref(56)
 
 // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync
 function getStatusBarHeight(): number {
@@ -57,7 +57,7 @@ onLoad((options) => {
   statusBarHeight.value = sb
   // @ts-ignore - 微信胶囊按钮位置，用于对齐返回条高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 46)
+  if (mb && mb.height) navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 54)
   webviewStyles.value = {
     top: `${sb + navBarHeight.value}px`,
     progressbar: { color: '#C7392F' },

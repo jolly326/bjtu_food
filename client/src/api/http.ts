@@ -17,15 +17,21 @@ export interface ApiResponse<T = any> {
 
 /**
  * 统一未登录/登录失效处理：
- * 清空本地 token，并抛出业务异常（页面层再决定如何提示），
- * 同时通过全局事件通知应用层跳转到登录，避免在各处裸弹「401」错误。
+ * 动态调用 user store 的 forceLogout 清内存态 + storage，避免登录态分裂
+ * （登录失效后页面仍显示已登录、持续发请求而循环失败）。
+ * 用动态 import 避免 user store ↔ http 的循环依赖；forceLogout 幂等，可安全延迟执行。
+ * 不再使用全局 uni.$on/$emit 事件总线，规避 HMR/模块重复加载导致的重复订阅泄漏。
  */
-function handleUnauthorized(): void {
-  uni.removeStorageSync('token')
-  uni.removeStorageSync('userInfo')
-  // 供 task-02 登录页 / 路由守卫统一拦截跳转
-  uni.$emit('auth:unauthorized')
+async function handleUnauthorized(): Promise<void> {
   uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+  try {
+    const { useUserStore } = await import('@/stores/user')
+    useUserStore().forceLogout()
+  } catch {
+    // 兜底：极端情况下动态 import 失败，直接清 storage
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+  }
 }
 
 function getToken(): string {
@@ -125,7 +131,7 @@ async function request<T>(
   if (body.code === 401 || body.code === 403) {
     // 401 登录失效；403 通常是 token 失效/权限不足（方法级 @PreAuthorize 对失效 token 返回 403），
     // 均按登录失效处理：清本地登录态并触发全局引导重新登录，避免反复报错
-    handleUnauthorized()
+    void handleUnauthorized()
     throw new Error(body.message || '请先登录')
   }
   if (body.code !== 200) {

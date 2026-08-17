@@ -27,7 +27,6 @@
         <view class="sk-broadcast skeleton" />
         <view class="sk-universal">
           <view class="sk-ucard skeleton" />
-          <view class="sk-ucard skeleton" />
         </view>
         <view class="sk-filter skeleton" />
         <view class="sk-waterfall">
@@ -45,7 +44,7 @@
         <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
         <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
 
-        <!-- 两列万能区：最新活动 / 反馈菜品（活动后端暂不补，无活动时不渲染活动入口，避免空洞可点项） -->
+        <!-- 两列万能区：最新活动 / 反馈菜品（活动入口常驻，点击进活动列表页；无活动数据时兜底文案） -->
         <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
           <UniversalGrid @open-activity="goToActivity" @open-feedback="goToFeedback" />
         </view>
@@ -169,22 +168,29 @@ function toBroadcastItem(moment: Moment): BroadcastItem {
   }
 }
 
+let loadSeq = 0
 async function loadData() {
+  const seq = ++loadSeq
   loadingHot.value = true
   loadFailed.value = false
   try {
-    // 先取定位（会话级缓存），首页推荐「距你」才能本地算距离
-    await ensureLocation()
-    const momentRes = await getMoments({ tab: 'latest', page: 1, pageSize: 5 })
-    // 首页筛选流（默认「面食」维度，扁平平铺美食类型，无综合头条）
-    await dishStore.fetchFilterDishes({ key: 'noodle', label: '面食', type: 'tag', payload: 'noodle' }, true)
+    // 定位（会话级缓存）与动态摘录并行：首次授权弹窗不再阻塞首屏
+    const [momentRes] = await Promise.all([
+      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
+      ensureLocation(),
+    ])
+    // 竞态守卫：仅最新一次请求（onLoad/onRefresh 快速连续触发）的结果写回，旧请求作废
+    if (seq !== loadSeq) return
+    // 首页筛选流首拉由 HomeFeed 挂载后自动触发（先拉后端品类，默认选中第一品类）
     // 广播只广播动态（最新动态摘录，作为动态入口）
     broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
   } catch (e) {
+    if (seq !== loadSeq) return
     console.error('[home] 首页数据加载失败', e)
     loadFailed.value = true
   } finally {
-    loadingHot.value = false
+    // 只有最新请求负责收尾 loading，旧请求的 finally 不再覆盖新请求状态
+    if (seq === loadSeq) loadingHot.value = false
   }
 }
 

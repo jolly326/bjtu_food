@@ -148,21 +148,26 @@ onUnload(() => {
   navTimer = null
 })
 
+// 请求序号守卫：快速输入时丢弃过期响应，避免旧请求后返回覆盖最新候选（竞态）
+let searchSeq = 0
 async function searchDishList(kw: string) {
   dishKeyword.value = kw
   if (!kw.trim()) {
     dishCandidates.value = []
     return
   }
+  const seq = ++searchSeq
   searching.value = true
   try {
     const list = await searchDishes({ keyword: kw.trim(), page: 1, pageSize: 10 })
+    if (seq !== searchSeq) return // 已有更新的请求发出，丢弃本次过期结果
     dishCandidates.value = list.map((d) => ({ id: d.id, name: d.name, canteen: d.canteen }))
   } catch (e) {
+    if (seq !== searchSeq) return
     console.error('[review] 菜品搜索失败', e)
     dishCandidates.value = []
   } finally {
-    searching.value = false
+    if (seq === searchSeq) searching.value = false
   }
 }
 
@@ -227,6 +232,8 @@ async function handleSubmit() {
       shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
+    // 置脏标记：返回菜品详情页 onShow 时据此刷新评价列表与综合评分卡（#3/#11/#18）
+    dishStore.reviewsDirty = true
     // 从菜品详情页进入：返回详情并刷新评价列表；其余默认进入动态广场
     if (navTimer) clearTimeout(navTimer)
     if (from.value === 'dish') {

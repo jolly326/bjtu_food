@@ -75,9 +75,15 @@ router.beforeEach(async (to) => {
     }
     return true
   } catch (e: any) {
-    // 401 / 其他错误：清除登录态并跳登录
-    useUserStore().clearAuth()
-    return { path: '/login' }
+    // 401（token 失效）时 http 拦截层已清除 token，无需重复清除；
+    // 网络抖动等非 401 错误不清除登录态，避免「登录成功却被踢回登录」的死循环（S-7）。
+    // 仅当 token 已不存在时才跳登录，否则原地刷新重试由用户触发。
+    if (!localStorage.getItem('token')) {
+      useUserStore().clearAuth()
+      return { path: '/login' }
+    }
+    ElMessage.warning('网络异常，请稍后重试')
+    return false
   }
 })
 

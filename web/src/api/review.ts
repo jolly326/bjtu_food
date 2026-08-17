@@ -8,6 +8,7 @@ import { pageRecords, reviewToLegacy } from './adapter'
  */
 export async function listReviews(params: {
   userId?: number
+  keyword?: string
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: Review[]; total: number }> {
@@ -16,6 +17,7 @@ export async function listReviews(params: {
     pageSize: params.pageSize ?? 20,
   }
   if (params.userId != null) query.userId = params.userId
+  if (params.keyword) query.keyword = params.keyword
   const data: any = await get<any>('/admin/reviews', query)
   return {
     list: pageRecords(data).map(reviewToLegacy),

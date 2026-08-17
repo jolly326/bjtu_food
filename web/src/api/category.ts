@@ -2,23 +2,25 @@ import { del, get, post, put } from './http'
 
 export interface CategoryItem {
   id: number
+  /** 品类机器标识（唯一，前端滚轮 key 与筛选用，如 noodle/rice/home/malatang/bbq/porridge/drink） */
+  code: string
   name: string
   sortOrder: number
   status: string
 }
 
-/** 分类列表（全部，按 sortOrder 升序） */
+/** 品类列表（全部，按 sortOrder 升序） */
 export async function getAll(): Promise<CategoryItem[]> {
   return (await get<any>('/admin/categories')) as CategoryItem[]
 }
 
-/** 新增分类 */
-export async function create(data: { name: string; sortOrder: number; status?: string }) {
+/** 新增品类 */
+export async function create(data: { code: string; name: string; sortOrder: number; status?: string }) {
   await post<void>('/admin/categories', data)
 }
 
-/** 编辑分类（名称 / 排序） */
-export async function update(id: number, data: Partial<{ name: string; sortOrder: number }>) {
+/** 编辑品类（名称 / code / 排序） */
+export async function update(id: number, data: Partial<{ code: string; name: string; sortOrder: number }>) {
   await put<void>(`/admin/categories/${id}`, data)
 }
 

@@ -77,15 +77,17 @@ page {
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
-  /* 万能卡片语义色（首页两列：最新活动=冷蓝、反馈菜品=青绿，深浅两套对称） */
-  --bg-cell-activity: #E8F1FB;
-  --color-cell-activity: #2F6FED;
-  --bg-cell-feedback: #E7F7F2;
-  --color-cell-feedback: #12B886;
+  /* 万能卡片语义色（首页两列：最新活动=冷蓝、反馈菜品=青绿，深浅两套对称）。
+     2026-08-17 加深浅色底：原 #E8F1FB/#E7F7F2 在白页上接近白色卡片，无法与广播条等白色组件区分；
+     加深到中低明度冷色底，保证一眼可辨的彩色卡片，同时保持图标/文字对比 ≥4.5:1。 */
+  --bg-cell-activity: #CFE3FA;
+  --color-cell-activity: #1E5FCE;
+  --bg-cell-feedback: #C4ECDD;
+  --color-cell-feedback: #0E9E6E;
   /* 卡片描边（万能两卡与通用卡片边界，低对比强化边界；语义卡用各自色淡描边） */
   --border-card: rgba(0, 0, 0, 0.06);
-  --border-cell-activity: rgba(47, 111, 237, 0.18);
-  --border-cell-feedback: rgba(18, 184, 134, 0.18);
+  --border-cell-activity: rgba(30, 95, 206, 0.28);
+  --border-cell-feedback: rgba(14, 158, 110, 0.28);
   /* 圆角 */
   --radius-tag: 16px;
   --radius-card: 16px;
@@ -304,6 +306,13 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
+  /* 万能卡片语义色（H5 兜底：与 page 块一致，活动=冷蓝、反馈=青绿） */
+  --bg-cell-activity: #CFE3FA;
+  --color-cell-activity: #1E5FCE;
+  --bg-cell-feedback: #C4ECDD;
+  --color-cell-feedback: #0E9E6E;
+  --border-cell-activity: rgba(30, 95, 206, 0.22);
+  --border-cell-feedback: rgba(14, 158, 110, 0.22);
   --radius-tag: 16px;
   --radius-card: 16px;
   --radius-modal: 24px;

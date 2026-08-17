@@ -21,6 +21,7 @@
     <resultMap id="dishVOMap" type="com.bjtufood.dish.dto.DishVO">
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="canteenId" column="canteen_id"/>
         <!-- 档口位置链路字段（来自 stall 联表） -->
         <result property="floor" column="floor"/>
@@ -63,6 +64,7 @@
             d.serve_period,
             d.limited,
             d.region,
+            d.category_id,
             s.id   AS stall_id,
             s.name AS stall_name,
             s.floor,
@@ -95,6 +97,9 @@
         </if>
         <if test="req.stallId != null">
             AND s.id = #{req.stallId}
+        </if>
+        <if test="req.categoryId != null">
+            AND d.category_id = #{req.categoryId}
         </if>
         <if test="req.tag != null and req.tag != ''">
             AND d.tags LIKE CONCAT('%', #{req.tag}, '%')
@@ -226,6 +231,7 @@
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="originalPrice" column="original_price"/>
         <result property="promoPrice" column="promo_price"/>
         <result property="spiceLevel" column="spice_level"/>

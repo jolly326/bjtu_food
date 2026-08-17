@@ -46,17 +46,9 @@ function onPageChange() {
   loadList()
 }
 
-// 关键词（内容 / 联系方式 / 提交人）本地模糊过滤：仅当前页内辅助预览，
-// 翻页/改类型会重新请求后端对应页，不再假设单页能拿到全量。
-const filtered = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.content || '').toLowerCase().includes(q)
-      || (r.contact || '').toLowerCase().includes(q)
-      || (r.userNickname || '').toLowerCase().includes(q),
-  )
-})
+// 关键词检索已改为服务端 keyword 过滤（后端按 content/contact/userNickname 模糊），
+// 翻页/改类型会重新请求后端对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
 
 async function loadList() {
   loading.value = true
@@ -65,6 +57,7 @@ async function loadList() {
     const { feedbackApi } = await import('@/api')
     const res = await feedbackApi.listFeedbacks({
       status: 'pending',
+      keyword: searchQuery.value.trim() || undefined,
       type: activeType.value || undefined,
       page: page.value,
       pageSize: pageSize.value,

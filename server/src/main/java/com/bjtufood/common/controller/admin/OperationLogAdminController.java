@@ -37,9 +37,11 @@ public class OperationLogAdminController {
             @RequestParam(required = false) String startAt,
             @Parameter(description = "结束时间 yyyy-MM-dd HH:mm:ss")
             @RequestParam(required = false) String endAt,
+            @Parameter(description = "关键词（可选，对 action / targetType 模糊匹配）")
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<OperationLogVO> result = operationLogService.listLogs(adminId, action, targetType, startAt, endAt, page, pageSize);
+        IPage<OperationLogVO> result = operationLogService.listLogs(adminId, action, targetType, startAt, endAt, keyword, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 }

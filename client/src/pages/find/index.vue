@@ -87,7 +87,7 @@
             <view
               v-for="(kw) in hotSearchList"
               :key="kw.keyword"
-              class="history-chip"
+              class="history-chip history-chip-hot"
               :class="{ pressed: pressedKey === `hot-${kw.keyword}` }"
               @touchstart="pressedKey = `hot-${kw.keyword}`"
               @touchend="pressedKey = ''"
@@ -236,7 +236,7 @@ function goBackHome() {
  * 搜索框右侧 margin-right = 胶囊按钮左侧到屏幕右缘的距离，避免搜索框被微信胶囊遮挡。 */
 const statusBarHeight = ref(20)
 const capsuleRightOffset = ref(0)
-const navBarHeight = ref(48)
+const navBarHeight = ref(56)
 function measureTopBar() {
   // @ts-ignore
   const win = (typeof wx !== 'undefined' && wx.getWindowInfo) ? wx.getWindowInfo() : null
@@ -246,8 +246,8 @@ function measureTopBar() {
   if (menu && win) {
     // 搜索框右侧须在胶囊左侧之前结束：margin-right = 屏幕宽 - 胶囊.left + 余量
     capsuleRightOffset.value = win.windowWidth - menu.left + 8
-    // 返回行高度对齐系统导航栏（与全站 header 同高）
-    if (menu.height) navBarHeight.value = Math.max((menu.top - statusBarHeight.value) * 2 + menu.height, 46)
+    // 返回行高度对齐系统导航栏（与全站 header 同高：下限 54 同 header.vue）
+    if (menu.height) navBarHeight.value = Math.max((menu.top - statusBarHeight.value) * 2 + menu.height, 54)
   } else {
     capsuleRightOffset.value = 0
   }
@@ -509,25 +509,26 @@ watch(keyword, () => {
   z-index: 30;
   /* 朱砂红品牌色块（与首页 header 一致）；白底搜索框浮于其上 */
   background: var(--color-primary);
-  padding-left: var(--spacing-md);
-  padding-right: var(--spacing-md);
+  padding-left: var(--spacing-lg);
+  padding-right: var(--spacing-lg);
   padding-bottom: 0;
   box-sizing: border-box;
 }
 .search-nav-row { display: flex; align-items: center; gap: var(--spacing-sm); height: var(--nav-h); }
+/* 返回键尺寸对齐首页头像：calc(var(--nav-h) - 14px) 圆形命中区 */
 .search-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: calc(var(--nav-h) - 14px);
+  height: calc(var(--nav-h) - 14px);
   flex-shrink: 0;
   transition: transform 0.12s var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .search-back.pressed { transform: scale(var(--press-scale)); }
 .search-back-icon { flex-shrink: 0; line-height: 1; }
-/* 搜索框：圆角灰条 + 放大镜 + 清空（与首页同款视觉） */
+/* 搜索框：圆角白条 + 放大镜 + 清空（与首页 home-search 同款：同高、同圆角、同底、无阴影） */
 .search-box {
   flex: 1;
   min-width: 0;
@@ -537,7 +538,6 @@ watch(keyword, () => {
   height: calc(var(--nav-h) - 12px);
   padding: 0 var(--spacing-md);
   background: var(--bg-card);
-  box-shadow: var(--shadow-card);
   border-radius: var(--radius-pill);
   box-sizing: border-box;
 }
@@ -743,6 +743,9 @@ watch(keyword, () => {
 /* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
 .history-chip-hot { background: var(--color-primary-soft); }
 .history-chip-hot .history-chip-text { color: var(--color-primary); }
+/* 推荐词按下反馈：底色转实心主色，文字反白，与中性 chip 的按压态拉开差异 */
+.history-chip-hot.pressed { background: var(--color-primary); }
+.history-chip-hot.pressed .history-chip-text { color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .filter-enter { animation: none; }

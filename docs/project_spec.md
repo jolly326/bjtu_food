@@ -99,6 +99,7 @@
 - **搜索（2026-08-03）**：二级搜索页 `find`，非 tab。
 - **活动为独立模块（2026-08-12）**：列表页 `activity` 展示运营活动，点击经 `web-view` 跳公众号文章；活动不复用 Banner `target_type`。`web-view` 仅活动使用；Banner/广播外链仍「复制链接 + toast」。
 - **反馈合并（2026-08-15）**：原「反馈中心」(`messages-services`) 已并入 `feedback` 意见反馈页（提交表单 + 我的反馈记录同页）；早期「联系/contact」表单亦并入。无独立反馈中心/contact 路由。
+- **反馈重设计（2026-08-17 拍板）**：`feedback` 页收敛为**轻量单视图写反馈**——移除双 Tab 与「我的反馈」列表（进度追踪后续另做，`GET /feedback/my` 接口保留）；**不设登录守卫，任何人可反馈**（`POST /feedback` 维持公开 PUB）；类型收敛为 3 类（suggestion/error/bug，移除 other 提交入口）；纠错二级细分（新增菜品/信息有误）保留以承载 UGC；举报继续走内容页弹窗不进本页。
 - **食堂与档口降级为菜品属性（2026-08-15）**：学生决策主体是菜品，食堂/档口为 `dish.canteen` / `dish.stall`，仅在菜品详情「来源信息区」展示；无 `canteen`/`stall` 独立路由。
 - **收藏功能已全量移除（2026-08-12 复核）**：无收藏入口。
 - **发布统一组件**：`publish-moment`（发动态）与 `review`（发评价）复用统一 `PublishReview` 组件；`publish-dish`/`submit-stall` 为待清理孤儿（见 §2.1.3）。

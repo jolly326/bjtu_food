@@ -3,7 +3,7 @@
  * AdminLayout：现代控制台外壳（无侧边栏）。
  * 顶部一级导航（Logo + 4 个功能入口 + 用户菜单），内容区全宽。
  */
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { useAdminUserStore } from '@/stores/adminUserStore'

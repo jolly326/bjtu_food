@@ -125,15 +125,21 @@ public class CanteenServiceImpl implements CanteenService {
             throw new BusinessException("档口不存在");
         }
 
-        return toStallVO(stall);
+        return toStallVO(stall, batchAvgRating(List.of(stall)));
     }
 
     @Override
     public List<CanteenWithStallsVO> listWithStalls() {
-        return canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                        .eq(Canteen::getStatus, "open")
-                        .orderByAsc(Canteen::getSortOrder))
-                .stream()
+        List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getStatus, "open")
+                .orderByAsc(Canteen::getSortOrder));
+        // 收集所有档口 ID，批量查询平均分一次，消除逐档口 N+1 查询
+        List<Stall> allStalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                .in(Stall::getCanteenId, canteens.stream().map(Canteen::getId).toList())
+                .eq(Stall::getStatus, "open")
+                .orderByAsc(Stall::getSortOrder));
+        Map<Long, BigDecimal> avgRatingMap = batchAvgRating(allStalls);
+        return canteens.stream()
                 .map(canteen -> {
                     CanteenWithStallsVO vo = new CanteenWithStallsVO();
                     vo.setId(canteen.getId());
@@ -141,12 +147,9 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setLocation(canteen.getLocation());
                     vo.setDescription(canteen.getDescription());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-                    List<StallDetailVO> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                                    .eq(Stall::getCanteenId, canteen.getId())
-                                    .eq(Stall::getStatus, "open")
-                                    .orderByAsc(Stall::getSortOrder))
-                            .stream()
-                            .map(this::toStallVO)
+                    List<StallDetailVO> stalls = allStalls.stream()
+                            .filter(s -> s.getCanteenId().equals(canteen.getId()))
+                            .map(s -> toStallVO(s, avgRatingMap))
                             .collect(Collectors.toList());
                     vo.setStalls(stalls);
                     return vo;
@@ -188,14 +191,14 @@ public class CanteenServiceImpl implements CanteenService {
         canteenMapper.deleteById(id);
     }
 
-    private StallDetailVO toStallVO(Stall stall) {
+    private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap) {
         StallDetailVO vo = new StallDetailVO();
         vo.setId(stall.getId());
         vo.setName(stall.getName());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
-        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
+        BigDecimal avg = avgRatingMap.get(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         // 主要菜品（评分前3）与菜品数（task todo#3：档口卡展示）；dish.status 用 'on' 表示在售
         List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
@@ -208,6 +211,24 @@ public class CanteenServiceImpl implements CanteenService {
         // 人均消费（元，展示用）：在售菜品成交价（分：有促销价取 promoPrice，否则取 price）中位数 → /100 转元取整
         vo.setPerCapita(derivePerCapita(dishes));
         return vo;
+    }
+
+    /**
+     * 批量查询档口平均分，构建 stallId → avgRating 的映射（消除逐档口 N+1 查询）。
+     * <p>
+     * 复杂度：原 O(N) 次 DB 调用降为 1 次 IN 查询；空档口集合返回空 Map。
+     */
+    private Map<Long, BigDecimal> batchAvgRating(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
+        List<com.bjtufood.review.dto.StallAvgRatingDTO> ratings = reviewMapper.selectAvgRatingByStallIds(ids);
+        Map<Long, BigDecimal> map = new HashMap<>(ratings.size());
+        for (com.bjtufood.review.dto.StallAvgRatingDTO r : ratings) {
+            map.put(r.getStallId(), r.getAvgRating());
+        }
+        return map;
     }
 
     /**

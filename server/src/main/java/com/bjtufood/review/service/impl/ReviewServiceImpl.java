@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
+import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
+import com.bjtufood.review.dto.ReplyTotalVO;
 import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
@@ -19,12 +21,16 @@ import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +43,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
     private final MomentService momentService;
+    private final SensitiveFilter sensitiveFilter;
 
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage) {
@@ -44,6 +51,8 @@ public class ReviewServiceImpl implements ReviewService {
         page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, withImage)
                 .convert(this::enrichImages);
+        // 楼中楼：将子回复（parent_id 非 NULL）归组到对应顶层评价的 replies，仅保留顶层评价分页
+        assembleReplies(pageResult);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
@@ -56,6 +65,7 @@ public class ReviewServiceImpl implements ReviewService {
         page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, withImage)
                 .convert(this::enrichImages);
+        assembleReplies(pageResult);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
@@ -68,6 +78,7 @@ public class ReviewServiceImpl implements ReviewService {
         page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, withImage)
                 .convert(this::enrichImages);
+        assembleReplies(pageResult);
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
@@ -105,11 +116,16 @@ public class ReviewServiceImpl implements ReviewService {
             reviewMapper.changeUsefulCount(reviewId, -1);
             result.setUseful(false);
         } else {
-            // 未标记 → 标记：插入记录 + 计数原子 +1（uk_user_review 唯一键防并发重复）
+            // 未标记 → 标记：插入记录 + 计数原子 +1（uk_useful_user_review 唯一键防并发重复）
             ReviewUseful useful = new ReviewUseful();
             useful.setUserId(userId);
             useful.setReviewId(reviewId);
-            reviewUsefulMapper.insert(useful);
+            try {
+                reviewUsefulMapper.insert(useful);
+            } catch (DuplicateKeyException e) {
+                // 并发下同一用户重复提交：唯一键已拦截，视为「已标记」幂等返回，不再重复加计数
+                throw new BusinessException("你已经标记过这条评价");
+            }
             reviewMapper.changeUsefulCount(reviewId, 1);
             result.setUseful(true);
         }
@@ -136,6 +152,71 @@ public class ReviewServiceImpl implements ReviewService {
         records.forEach(r -> r.setUseful(markedIds.contains(r.getId())));
     }
 
+    /**
+     * 楼中楼归组：将平铺结果中的子回复（parent_id 非 NULL）拼回对应父评价的 replies，
+     * 并移除分页记录中的子回复行，仅保留顶层评价（replies 内含子回复）。
+     * <p>
+     * 子回复按 created_at 升序，保证楼中楼阅读顺序正确。
+     */
+    /** 楼中楼嵌套最大深度（顶层=0，往下递归 3 层封顶，防数据失控） */
+    private static final int REPLY_MAX_DEPTH = 3;
+    /** 每个父节点窗口返回的子回复条数（首屏只加载最近 N 条，更多由 repliesHasMore 提示） */
+    private static final int REPLY_WINDOW_LIMIT = 5;
+
+    /**
+     * 楼中楼归组：列表查询已仅返回顶层评价（parent_id IS NULL），
+     * 此处以顶层评价为种子做多轮 BFS，逐层批量查子回复并构建完整嵌套树（封顶 3 层）。
+     * 每层一次 IN 批量查询，避免 N+1；窗口函数限制每父最近 REPLY_WINDOW_LIMIT 条，
+     * 并结合总数统计写入 repliesHasMore（供前端「查看全部」占位）。
+     */
+    private void assembleReplies(IPage<ReviewVO> pageResult) {
+        List<ReviewVO> topLevel = pageResult.getRecords();
+        if (topLevel.isEmpty()) {
+            return;
+        }
+        // id → VO 索引，用于挂载子回复（含顶层与各层子回复节点）
+        Map<Long, ReviewVO> index = new HashMap<>();
+        for (ReviewVO top : topLevel) {
+            index.put(top.getId(), top);
+        }
+        // 当前层待查父节点 id
+        List<Long> currentLevelIds = topLevel.stream().map(ReviewVO::getId).toList();
+        for (int depth = 0; depth < REPLY_MAX_DEPTH && !currentLevelIds.isEmpty(); depth++) {
+            // 批量查当前层各父节点的最近子回复
+            List<ReviewVO> children = reviewMapper.selectRepliesByParentIds(currentLevelIds, REPLY_WINDOW_LIMIT);
+            if (children.isEmpty()) {
+                break;
+            }
+            // 按 parentId 归组（SQL 已按 created_at ASC 排序，直接追加即顺序正确）
+            Map<Long, List<ReviewVO>> childrenMap = new HashMap<>();
+            for (ReviewVO child : children) {
+                childrenMap.computeIfAbsent(child.getParentId(), k -> new ArrayList<>()).add(child);
+            }
+            // 批量统计各父真实子回复总数，用于判定 repliesHasMore
+            Map<Long, Long> totalMap = new HashMap<>();
+            for (ReplyTotalVO t : reviewMapper.selectReplyTotalByParentIds(currentLevelIds)) {
+                totalMap.put(t.getParentId(), t.getTotal());
+            }
+            // 挂载到父节点并收集下一层父 id
+            List<Long> nextLevelIds = new ArrayList<>();
+            for (Map.Entry<Long, List<ReviewVO>> e : childrenMap.entrySet()) {
+                ReviewVO parent = index.get(e.getKey());
+                if (parent == null) {
+                    continue;
+                }
+                List<ReviewVO> subs = e.getValue();
+                parent.setReplies(subs);
+                Long total = totalMap.get(e.getKey());
+                parent.setRepliesHasMore(total != null && total > subs.size());
+                for (ReviewVO child : subs) {
+                    index.put(child.getId(), child);
+                    nextLevelIds.add(child.getId());
+                }
+            }
+            currentLevelIds = nextLevelIds;
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long submitReview(Long userId, ReviewReq req) {
@@ -152,15 +233,16 @@ public class ReviewServiceImpl implements ReviewService {
         review.setUserId(userId);
         review.setDishId(req.getDishId());
         review.setRating(req.getRating());
-        review.setContent(req.getContent());
+        String filteredContent = sensitiveFilter.filter(req.getContent());
+        review.setContent(filteredContent);
         review.setImages(JsonListUtil.toJson(req.getImages()));
         review.setIsHidden(0);
         reviewMapper.insert(review);
         // 评价与动态打通：勾选"同步到动态"且评价有正文时，生成 approved 动态直接上广场（评价可见即动态可见）
         boolean shareToMoment = Boolean.TRUE.equals(req.getShareToMoment());
-        if (shareToMoment && StringUtils.hasText(req.getContent())) {
+        if (shareToMoment && StringUtils.hasText(filteredContent)) {
             List<String> images = req.getImages() == null ? List.of() : req.getImages();
-            momentService.publishFromReview(userId, req.getContent(), images, req.getDishId());
+            momentService.publishFromReview(userId, filteredContent, images, req.getDishId());
         }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();
@@ -174,9 +256,42 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException("Review not found");
         }
         review.setRating(rating);
-        review.setContent(content);
+        review.setContent(sensitiveFilter.filter(content));
         reviewMapper.updateById(review);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), rating));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long replyReview(Long userId, Long parentId, String content) {
+        if (parentId == null) {
+            throw new BusinessException("回复目标评价ID不能为空");
+        }
+        if (content == null || !StringUtils.hasText(content.trim())) {
+            throw new BusinessException("回复内容不能为空");
+        }
+        if (content.length() > 500) {
+            throw new BusinessException("回复内容不能超过500字");
+        }
+        Review parent = reviewMapper.selectById(parentId);
+        if (parent == null || parent.getIsHidden() != null && parent.getIsHidden() == 1) {
+            throw new BusinessException("被回复的评价不存在或已被隐藏");
+        }
+        // 取父评价者昵称作为被回复者（冗余存储，前端直接展示「@昵称」）
+        String parentNickname = parent.getUserId() != null
+                ? reviewMapper.selectNicknameByUserId(parent.getUserId())
+                : null;
+        Review reply = new Review();
+        reply.setUserId(userId);
+        reply.setDishId(parent.getDishId());
+        reply.setRating(0); // 回复不计分
+        reply.setContent(sensitiveFilter.filter(content.trim()));
+        reply.setImages(null);
+        reply.setIsHidden(0);
+        reply.setParentId(parentId);
+        reply.setReplyToNickname(parentNickname);
+        reviewMapper.insert(reply);
+        return reply.getId();
     }
 
     @Override
@@ -189,10 +304,21 @@ public class ReviewServiceImpl implements ReviewService {
         if (!review.getUserId().equals(userId)) {
             throw new BusinessException(403, "只能删除自己的评价");
         }
-        // 物理删除：级联清理该评价的「有用」关联 + 重算菜品评分
-        reviewMapper.deleteById(id);
+        // BFS 收集该评价的全部后代（含多层楼中楼子回复），避免删顶层后子回复成孤儿数据
+        List<Long> allIds = new ArrayList<>();
+        allIds.add(id);
+        List<Long> currentIds = new ArrayList<>();
+        currentIds.add(id);
+        for (int depth = 0; depth < REPLY_MAX_DEPTH && !currentIds.isEmpty(); depth++) {
+            List<Long> children = reviewMapper.selectReplyIdsByParentIds(currentIds);
+            allIds.addAll(children);
+            currentIds = children;
+        }
+        // 物理删除：自身 + 全部后代（review 表 parent_id 无外键级联，须显式清理）
+        reviewMapper.deleteBatchIds(allIds);
+        // 批量清理这些评价的「有用」关联 + 重算菜品评分
         reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
-                .eq(ReviewUseful::getReviewId, id));
+                .in(ReviewUseful::getReviewId, allIds));
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }
 
@@ -239,7 +365,12 @@ public class ReviewServiceImpl implements ReviewService {
         ReviewUseful useful = new ReviewUseful();
         useful.setUserId(userId);
         useful.setReviewId(reviewId);
-        reviewUsefulMapper.insert(useful);
+        try {
+            reviewUsefulMapper.insert(useful);
+        } catch (DuplicateKeyException e) {
+            // 并发下先查后插存在竞态，唯一键兜底：统一转为业务提示，避免 500
+            throw new BusinessException("你已经喜欢过这条评价");
+        }
     }
 
     @Override

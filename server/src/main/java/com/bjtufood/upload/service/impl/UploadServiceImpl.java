@@ -54,6 +54,17 @@ public class UploadServiceImpl implements UploadService {
             throw new BusinessException("仅支持 jpg、jpeg、png、webp 图片");
         }
 
+        // 文件头 magic number 校验：防止扩展名伪造的恶意文件（如将 .exe 改名为 .png）
+        try (java.io.InputStream is = file.getInputStream()) {
+            byte[] header = new byte[12];
+            int read = is.read(header);
+            if (!isImageMagic(header, read)) {
+                throw new BusinessException("文件内容不是合法的图片");
+            }
+        } catch (IOException e) {
+            throw new BusinessException("文件读取失败");
+        }
+
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
         String filename = UUID.randomUUID() + "." + extension.toLowerCase(Locale.ROOT);
         Path dir = Paths.get(uploadPath, datePath).toAbsolutePath().normalize();
@@ -87,5 +98,34 @@ public class UploadServiceImpl implements UploadService {
             value = value.substring(0, value.length() - suffix.length());
         }
         return value;
+    }
+
+    /**
+     * 校验文件头 magic number 是否为常见图片格式（防扩展名伪造）。
+     * JPG: FF D8 FF；PNG: 89 50 4E 47 0D 0A 1A 0A；WEBP: RIFF....WEBP（52 49 46 46 ?? ?? ?? ?? 57 45 42 50）
+     */
+    private boolean isImageMagic(byte[] header, int len) {
+        if (len < 3) return false;
+        // JPEG: FF D8 FF
+        if ((header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8 && (header[2] & 0xFF) == 0xFF) {
+            return true;
+        }
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (len >= 8
+                && (header[0] & 0xFF) == 0x89 && (header[1] & 0xFF) == 0x50
+                && (header[2] & 0xFF) == 0x4E && (header[3] & 0xFF) == 0x47
+                && (header[4] & 0xFF) == 0x0D && (header[5] & 0xFF) == 0x0A
+                && (header[6] & 0xFF) == 0x1A && (header[7] & 0xFF) == 0x0A) {
+            return true;
+        }
+        // WEBP: 52 49 46 46 ?? ?? ?? ?? 57 45 42 50
+        if (len >= 12
+                && (header[0] & 0xFF) == 0x52 && (header[1] & 0xFF) == 0x49
+                && (header[2] & 0xFF) == 0x46 && (header[3] & 0xFF) == 0x46
+                && (header[8] & 0xFF) == 0x57 && (header[9] & 0xFF) == 0x45
+                && (header[10] & 0xFF) == 0x42 && (header[11] & 0xFF) == 0x50) {
+            return true;
+        }
+        return false;
     }
 }

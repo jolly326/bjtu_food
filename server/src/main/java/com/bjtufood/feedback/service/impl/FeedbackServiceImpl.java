@@ -7,6 +7,7 @@ import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackMyVO;
 import com.bjtufood.feedback.dto.FeedbackReq;
@@ -32,6 +33,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
+    private final SensitiveFilter sensitiveFilter;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -47,7 +49,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(req.getType());
-        feedback.setContent(req.getContent());
+        feedback.setContent(sensitiveFilter.filter(req.getContent()));
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());

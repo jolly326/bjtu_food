@@ -46,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final ReviewMapper reviewMapper;
     private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
+    private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
     public void createEmailCode(String username, String email, String purpose) {
@@ -66,8 +67,14 @@ public class AuthServiceImpl implements AuthService {
         if ("disabled".equals(user.getStatus())) {
             throw new BusinessException("账号已被禁用");
         }
+        if ("deleted".equals(user.getStatus())) {
+            // 已注销账号为逻辑删除，不允许再登录（与 S-03「注销后 token 立即失效」同源约束）
+            throw new BusinessException("账号已注销");
+        }
         user.setLastLoginAt(LocalDateTime.now());
         userMapper.updateById(user);
+        // 登录成功说明账号当前可用：解除用户维度拉黑，避免曾被禁用又恢复的账号被残留窗口拦住
+        tokenBlacklist.restoreUser(user.getId());
 
         return toLoginResp(user);
     }

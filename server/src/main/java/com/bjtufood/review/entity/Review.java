@@ -50,6 +50,16 @@ public class Review {
     @TableField("useful_count")
     private Integer usefulCount;
 
+    /** 父评价ID：NULL=顶层评价；非NULL=对某评价的回复（楼中楼） */
+    @Schema(description = "父评价ID（NULL=顶层评价，非NULL=回复该评价）")
+    @TableField("parent_id")
+    private Long parentId;
+
+    /** 被回复者昵称（冗余存储，便于前端直接展示「@昵称」；仅回复记录有值） */
+    @Schema(description = "被回复者昵称（仅回复记录有值）")
+    @TableField("reply_to_nickname")
+    private String replyToNickname;
+
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

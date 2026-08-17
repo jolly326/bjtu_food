@@ -18,6 +18,9 @@ public class DishAdminVO {
     @Schema(description = "所属档口ID")
     private Long stallId;
 
+    @Schema(description = "所属品类ID（category.id，可空）", example = "1")
+    private Long categoryId;
+
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 

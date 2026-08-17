@@ -49,7 +49,7 @@ async function toggleStatus(row: any, active: boolean) {
   if (row.status === (active ? 'active' : 'disabled')) return
   switchId.value = Number(row.id)
   try {
-    await store.toggleUserStatus(Number(row.id))
+    await store.toggleUserStatus(Number(row.id), active ? 'active' : 'disabled')
     toast.success(`学生「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
   } catch (e: any) {
     toast.error(e.message || '状态更新失败')
@@ -66,7 +66,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
   if (!await confirm.confirm(`确定批量${action} ${selectedIds.value.length} 名学生？`)) return
   try {
     const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
-    for (const u of targets) await store.toggleUserStatus(Number(u.id))
+    for (const u of targets) await store.toggleUserStatus(Number(u.id), status)
     toast.success(`已批量${action} ${targets.length} 名学生`)
     selectedIds.value = []
   } catch (e: any) {

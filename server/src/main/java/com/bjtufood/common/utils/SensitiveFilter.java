@@ -87,27 +87,67 @@ public class SensitiveFilter {
      * @return true=包含敏感词
      */
     public boolean containsSensitive(String text) {
-        // TODO: 使用 DFA 算法遍历 text，检测是否命中敏感词
-        // 实现思路：
-        // 1. 双重循环遍历 text 的每个字符
-        // 2. 对每个起始位置，在字典树中逐字符匹配
-        // 3. 如果匹配到 isEnd=true 的节点，返回 true
-        // 4. 匹配失败则从下一个起始字符重新匹配
-        return false; // placeholder
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        int n = text.length();
+        for (int i = 0; i < n; i++) {
+            TrieNode node = root;
+            int j = i;
+            while (j < n) {
+                node = node.children.get(text.charAt(j));
+                if (node == null) {
+                    break;
+                }
+                if (node.isEnd) {
+                    return true;
+                }
+                j++;
+            }
+        }
+        return false;
     }
 
     /**
-     * 过滤敏感词，将敏感词替换为 *
+     * 过滤敏感词，将命中的敏感词（连续字符）替换为 *
      *
      * @param text 原始文本
-     * @return 替换后的文本
+     * @return 替换后的文本；null/空串原样返回
      */
     public String filter(String text) {
-        // TODO: 使用 DFA 算法遍历 text
-        // 1. 检测所有敏感词位置
-        // 2. 将命中位置替换为 REPLACE_CHAR
-        // 3. 返回处理后的文本
-        return text; // placeholder
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        int n = text.length();
+        StringBuilder sb = new StringBuilder(n);
+        int i = 0;
+        while (i < n) {
+            // 从当前位置尝试在字典树中匹配最长敏感词
+            TrieNode node = root;
+            int matchEnd = -1; // 命中的末尾索引（不含）
+            int j = i;
+            while (j < n) {
+                node = node.children.get(text.charAt(j));
+                if (node == null) {
+                    break;
+                }
+                if (node.isEnd) {
+                    matchEnd = j + 1;
+                }
+                j++;
+            }
+            if (matchEnd != -1) {
+                // 命中：将 [i, matchEnd) 连续字符替换为 *
+                for (int k = i; k < matchEnd; k++) {
+                    sb.append(REPLACE_CHAR);
+                }
+                i = matchEnd;
+            } else {
+                sb.append(text.charAt(i));
+                i++;
+            }
+        }
+        return sb.toString();
     }
 
     // ==================== DFA 字典树节点 ====================

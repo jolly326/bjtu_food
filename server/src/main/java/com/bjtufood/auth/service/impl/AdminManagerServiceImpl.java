@@ -25,6 +25,7 @@ public class AdminManagerServiceImpl implements AdminManagerService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
     public IPage<UserVO> listAdmins(int page, int pageSize, String status) {
@@ -78,6 +79,12 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         }
         user.setStatus(status);
         userMapper.updateById(user);
+        // 被禁用的管理员其已签发 token 必须立即失效；恢复 active 时解除拉黑
+        if ("disabled".equals(status)) {
+            tokenBlacklist.revokeUser(id);
+        } else {
+            tokenBlacklist.restoreUser(id);
+        }
     }
 
     @Override
@@ -91,6 +98,8 @@ public class AdminManagerServiceImpl implements AdminManagerService {
             throw new BusinessException("该账号不是管理员");
         }
         userMapper.deleteById(id);
+        // 账号已删除，其已签发 token 必须立即失效
+        tokenBlacklist.revokeUser(id);
     }
 
     @Override

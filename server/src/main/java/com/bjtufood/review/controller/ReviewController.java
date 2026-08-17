@@ -3,6 +3,7 @@ package com.bjtufood.review.controller;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
+import com.bjtufood.review.dto.ReviewReplyReq;
 import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -152,5 +153,25 @@ public class ReviewController {
             @PathVariable Long id) {
         Long userId = SecurityUtil.getCurrentUserId();
         return Result.success(reviewService.toggleUseful(userId, id));
+    }
+
+    @Operation(
+            summary = "回复某条评价（楼中楼）",
+            description = "用途：对一条评价发表回复，形成楼中楼。回复不计分、不同步动态、不受「一人一菜」限制。需登录。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "content": "同意，我也觉得不错！"
+                    }
+                    """)))
+    )
+    @PostMapping("/reviews/{id}/reply")
+    public Result<Void> replyReview(
+            @Parameter(description = "被回复的评价ID（父评价）", example = "1")
+            @PathVariable Long id,
+            @RequestBody ReviewReplyReq req) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        reviewService.replyReview(userId, id, req.getContent());
+        return Result.success();
     }
 }

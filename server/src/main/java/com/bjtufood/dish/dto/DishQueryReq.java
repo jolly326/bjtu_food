@@ -22,6 +22,9 @@ public class DishQueryReq {
     @Schema(description = "档口ID筛选", example = "1")
     private Long stallId;
 
+    @Schema(description = "品类ID筛选（category.id，首页品类滚轮使用）", example = "1")
+    private Long categoryId;
+
     @Schema(description = "标签筛选，例如 recommended、signature、halal、western", example = "recommended")
     private String tag;
 

@@ -15,8 +15,8 @@ export const useUserStore = defineStore('user', () => {
     list.value = await userApi.getAll()
   }
 
-  async function toggleUserStatus(id: number) {
-    await userApi.toggleUserStatusById(id)
+  async function toggleUserStatus(id: number, targetStatus: 'active' | 'disabled') {
+    await userApi.toggleUserStatusById(id, targetStatus)
     await loadAll()
   }
 
@@ -59,6 +59,7 @@ export const useUserStore = defineStore('user', () => {
     role.value = ''
   }
 
-  loadAll()
+  // 注意：不再在 setup 顶层自动调用 loadAll()，避免未登录（无 token）时触发 getAll() 请求
+  // 导致 http 拦截层 401 清 token 跳登录的副作用。list 由实际需要的页面显式调用 loadAll() 加载。
   return { list, adminId, role, loadAll, loadProfile, toggleUserStatus, login, clearAuth }
 })

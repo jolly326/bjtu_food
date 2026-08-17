@@ -75,6 +75,7 @@ async function loadList() {
     const { operationLogApi } = await import('@/api')
     const res = await operationLogApi.listOperationLogs({
       action: activeAction.value || undefined,
+      keyword: searchQuery.value.trim() || undefined,
       targetType: activeTarget.value || undefined,
       page: page.value,
       pageSize: pageSize.value,
@@ -95,17 +96,9 @@ onMounted(loadList)
 async function onActionChange() { reloadFromFirstPage() }
 async function onTargetChange() { reloadFromFirstPage() }
 
-// SearchInput 本地模糊过滤（操作人/动作/IP）：仅当前页内辅助预览，
-// 翻页/改筛选会重新请求后端对应页，不再假设单页能拿到全量。
-const filtered = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.adminNickname || '').toLowerCase().includes(q)
-      || (r.action || '').toLowerCase().includes(q)
-      || (r.ip || '').toLowerCase().includes(q),
-  )
-})
+// 关键词检索已改为服务端 keyword 过滤（后端按 action/targetType 模糊），
+// 翻页/改筛选会重新请求后端对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
 
 // 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页）
 watch(searchQuery, () => { reloadFromFirstPage() })

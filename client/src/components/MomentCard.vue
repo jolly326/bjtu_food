@@ -12,7 +12,7 @@
   >
     <!-- 发布者 -->
     <view class="m-head">
-      <image v-if="moment.userAvatar" class="m-avatar" :src="moment.userAvatar" mode="aspectFill" lazy-load />
+      <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" lazy-load />
       <view v-else class="m-avatar m-avatar-empty">
         <IconSvg name="user" :size="40" color="var(--text-tertiary)" class="m-avatar-fallback" />
       </view>
@@ -41,7 +41,7 @@
         <image
           class="m-image"
           :class="{ loaded: loadedSet.has(idx) }"
-          :src="img"
+          :src="getImageUrl(img)"
           mode="aspectFill"
           lazy-load
           @load="loadedSet.add(idx)"
@@ -83,7 +83,7 @@
 import { ref, computed, reactive } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { relativeTime } from '@/utils/time'
-import { previewImages } from '@/utils/image'
+import { previewImages, getImageUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'

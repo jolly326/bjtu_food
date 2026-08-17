@@ -26,6 +26,10 @@ public class Dish {
     @Schema(description = "所属档口ID")
     private Long stallId;
 
+    /** 所属品类ID（category.id；首页品类滚轮筛选，可空=未分类） */
+    @Schema(description = "所属品类ID（category.id，可空）", example = "1")
+    private Long categoryId;
+
     /** 菜品名称 */
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;

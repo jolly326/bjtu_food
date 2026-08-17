@@ -22,6 +22,10 @@ function toReview(raw: any): Review {
     usefulCount: Number(raw.usefulCount ?? raw.useful_count ?? 0),
     // 当前登录用户是否已标记有用（仅登录态返回）
     useful: !!raw.useful,
+    // 楼中楼：父评价ID / 被回复者昵称 / 子回复列表
+    parentId: raw.parentId != null ? Number(raw.parentId) : null,
+    replyToNickname: raw.replyToNickname || null,
+    replies: Array.isArray(raw.replies) ? raw.replies.map((c: any) => toReview(c)) : undefined,
   }
 }
 
@@ -90,4 +94,13 @@ export async function getMyReviews(options?: { page?: number; pageSize?: number 
 /** 删除本人评价（STU 仅本人，task-12.5；后端 DELETE /reviews/{id}） */
 export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
+}
+
+/**
+ * 回复某条评价（楼中楼一层回复）
+ * POST /reviews/{parentId}/reply，body { content }
+ * 回复不计分、不同步动态，不受「一人一菜」限制；需登录。
+ */
+export async function replyReview(parentId: number, content: string): Promise<void> {
+  await post<void>(`/reviews/${parentId}/reply`, { content })
 }
