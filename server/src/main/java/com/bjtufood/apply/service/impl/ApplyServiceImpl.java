@@ -1,6 +1,7 @@
 package com.bjtufood.apply.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.apply.constant.ApplyConst;
@@ -147,13 +148,21 @@ public class ApplyServiceImpl implements ApplyService {
     public void approve(Long id, Long adminId) {
         ApplyAction apply = applyActionMapper.selectById(id);
         if (apply == null) throw new BusinessException("申请不存在");
-        if (!ApplyConst.STATUS_PENDING.equals(apply.getStatus())) {
+        // 自审拦截：申请人不能审核自己的申请
+        if (apply.getApplicantId() != null && apply.getApplicantId().equals(adminId)) {
+            throw new BusinessException(400, "不能审核自己提交的申请");
+        }
+        // 状态机闭合 + 乐观锁：仅当仍为 PENDING 才允许更新，影响行数=0 表示已被并发处理
+        int rows = applyActionMapper.update(null, new LambdaUpdateWrapper<ApplyAction>()
+                .eq(ApplyAction::getId, id)
+                .eq(ApplyAction::getStatus, ApplyConst.STATUS_PENDING)
+                .set(ApplyAction::getStatus, ApplyConst.STATUS_APPROVED)
+                .set(ApplyAction::getHandledBy, adminId)
+                .set(ApplyAction::getHandledAt, LocalDateTime.now())
+                .set(ApplyAction::getRejectReason, (String) null));
+        if (rows == 0) {
             throw new BusinessException("该申请已处理");
         }
-        apply.setStatus(ApplyConst.STATUS_APPROVED);
-        apply.setHandledBy(adminId);
-        apply.setHandledAt(LocalDateTime.now());
-        applyActionMapper.updateById(apply);
 
         // 触发副作用
         applySideEffect(apply);
@@ -167,14 +176,21 @@ public class ApplyServiceImpl implements ApplyService {
         }
         ApplyAction apply = applyActionMapper.selectById(id);
         if (apply == null) throw new BusinessException("申请不存在");
-        if (!ApplyConst.STATUS_PENDING.equals(apply.getStatus())) {
+        // 自审拦截：申请人不能审核自己的申请
+        if (apply.getApplicantId() != null && apply.getApplicantId().equals(adminId)) {
+            throw new BusinessException(400, "不能审核自己提交的申请");
+        }
+        // 状态机闭合 + 乐观锁：仅当仍为 PENDING 才允许更新，影响行数=0 表示已被并发处理
+        int rows = applyActionMapper.update(null, new LambdaUpdateWrapper<ApplyAction>()
+                .eq(ApplyAction::getId, id)
+                .eq(ApplyAction::getStatus, ApplyConst.STATUS_PENDING)
+                .set(ApplyAction::getStatus, ApplyConst.STATUS_REJECTED)
+                .set(ApplyAction::getRejectReason, req.getRejectReason())
+                .set(ApplyAction::getHandledBy, adminId)
+                .set(ApplyAction::getHandledAt, LocalDateTime.now()));
+        if (rows == 0) {
             throw new BusinessException("该申请已处理");
         }
-        apply.setStatus(ApplyConst.STATUS_REJECTED);
-        apply.setRejectReason(req.getRejectReason());
-        apply.setHandledBy(adminId);
-        apply.setHandledAt(LocalDateTime.now());
-        applyActionMapper.updateById(apply);
     }
 
     // ==================== 内部辅助 ====================

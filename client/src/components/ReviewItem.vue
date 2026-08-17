@@ -42,9 +42,10 @@
           v-for="(img, idx) in review.images.slice(0, 3)"
           :key="idx"
           class="review-thumb"
-          :src="getImageUrl(img)"
+          :src="thumbSrc(img, idx)"
           mode="aspectFill"
           lazy-load
+          @error="onThumbError(idx)"
           @tap="previewImage(idx)"
         />
       </view>
@@ -82,7 +83,14 @@
           @report="$emit('report', $event)"
           @delete="$emit('delete', $event)"
         />
-        <text v-if="review.repliesHasMore" class="review-replies-more">共 {{ (review.replies || []).length }}+ 条回复</text>
+        <text
+          v-if="review.repliesHasMore && !repliesLoading"
+          class="review-replies-more"
+          role="button"
+          :aria-label="repliesExpanded ? '加载更多回复' : '查看全部回复'"
+          @tap.stop="onLoadMoreReplies"
+        >{{ repliesExpanded ? '加载更多' : `查看全部 ${(review.replies || []).length}+ 条回复` }}</text>
+        <text v-else-if="repliesLoading" class="review-replies-more loading">加载中…</text>
       </view>
     </view>
   </view>
@@ -91,8 +99,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
-import { getImageUrl, previewImages } from '@/utils/image'
+import { getImageUrl, getThumbUrl, previewImages } from '@/utils/image'
 import { relativeTime } from '@/utils/time'
+import { getParentReplies } from '@/api/review'
 import type { Review } from '@/types/review'
 // 递归自引用：uni-app 跨端（尤其微信小程序）必须显式 import 自身，
 // 否则编译期无法解析模板中的 <ReviewItem>，仅 defineOptions name 不足。
@@ -124,10 +133,9 @@ const emit = defineEmits<{
 const pressed = ref(false)
 const avatarOk = ref(true)
 
-const likeCount = computed(() => {
-  const n = (props.review.usefulCount || 0) + (props.usefulActive ? 1 : 0)
-  return n
-})
+// 有用计数直接用后端 usefulCount（语义已含当前用户：toggleUseful 切换 ±1 均反映在计数中），
+// 若再加 usefulActive 会重复 +1。usefulActive 仅控制填充态显示。
+const likeCount = computed(() => props.review.usefulCount || 0)
 
 // 本人评价（任意层级，子回复也可删）：当前登录用户 ID 命中即本人
 const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
@@ -145,6 +153,48 @@ function onReport(r: Review) { emit('report', r) }
 
 function previewImage(idx: number) {
   previewImages(props.review.images, idx)
+}
+
+/* ===== 评价图缩略图（#5）：优先缩略图减流量，加载失败回退原图 ===== */
+const thumbFailed = ref<boolean[]>([])
+function thumbSrc(img: string, idx: number): string {
+  // 该图缩略图加载失败过 → 回退原图
+  if (thumbFailed.value[idx]) return getImageUrl(img)
+  return getImageUrl(getThumbUrl(img))
+}
+function onThumbError(idx: number) {
+  if (!thumbFailed.value[idx]) {
+    thumbFailed.value[idx] = true
+  }
+}
+
+/* ===== 楼中楼「查看全部回复」展开（#4）：分页拉取后续 push 进 review.replies ===== */
+const REPLY_PAGE_SIZE = 20
+const repliesPage = ref(1)
+const repliesLoading = ref(false)
+/** 是否已点过「查看全部」（控制按钮文案：查看全部 / 加载更多） */
+const repliesExpanded = ref(false)
+
+async function onLoadMoreReplies() {
+  if (repliesLoading.value || !props.review.id) return
+  repliesLoading.value = true
+  try {
+    const { list } = await getParentReplies(props.review.id, {
+      page: repliesPage.value,
+      pageSize: REPLY_PAGE_SIZE,
+    })
+    // 与已有 replies 按 id 去重合并（首屏窗口 5 条可能被重复返回）
+    const existing = new Set((props.review.replies || []).map((r) => r.id))
+    const fresh = list.filter((r) => !existing.has(r.id))
+    if (!props.review.replies) props.review.replies = []
+    props.review.replies.push(...fresh)
+    // 返回条数不足一页说明已到底，隐藏按钮
+    props.review.repliesHasMore = list.length >= REPLY_PAGE_SIZE
+    repliesPage.value += 1
+    repliesExpanded.value = true
+  } finally {
+    repliesLoading.value = false
+  }
 }
 </script>
 
@@ -267,14 +317,17 @@ function previewImage(idx: number) {
   display: flex;
   flex-direction: column;
 }
-/* 子回复超出窗口：纯展示占位（无展开交互，次级灰字，不设主色链接感与 active，避免误导可点击） */
+/* 子回复「查看全部/加载更多」：可点击主色链接，loading 态降为灰字 */
 .review-replies-more {
   align-self: flex-start;
   margin-top: var(--spacing-xs);
   padding: var(--spacing-2xs) var(--spacing-xs);
   font-size: var(--font-aux);
-  font-weight: var(--weight-medium);
-  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
   -webkit-tap-highlight-color: transparent;
+  transition: opacity 120ms var(--ease-out);
 }
+.review-replies-more:active { opacity: 0.6; }
+.review-replies-more.loading { color: var(--text-tertiary); font-weight: var(--weight-medium); }
 </style>

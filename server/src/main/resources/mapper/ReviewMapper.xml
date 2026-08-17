@@ -215,6 +215,28 @@
         <foreach collection="parentIds" item="pid" open="(" separator="," close=")">#{pid}</foreach>
     </select>
 
+    <!-- 分页查某父评价的直接子回复（「查看全部回复」展开用；普通分页、created_at 升序） -->
+    <select id="selectRepliesPageByParentId" resultType="com.bjtufood.review.dto.ReviewVO">
+        SELECT
+            r.id,
+            r.user_id,
+            r.dish_id,
+            u.nickname AS user_nickname,
+            u.avatar AS user_avatar,
+            r.rating,
+            r.content,
+            r.images AS images_json,
+            r.created_at,
+            r.useful_count AS useful_count,
+            r.parent_id,
+            r.reply_to_nickname
+        FROM review r
+                 JOIN user u ON r.user_id = u.id
+        WHERE r.parent_id = #{parentId}
+          AND r.is_hidden = 0
+        ORDER BY r.created_at ASC
+    </select>
+
     <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->
     <update id="changeUsefulCount">
         UPDATE review

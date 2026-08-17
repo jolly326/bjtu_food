@@ -26,6 +26,9 @@ public class ReviewAdminVO {
     @Schema(description = "关联菜品ID")
     private Long dishId;
 
+    @Schema(description = "关联菜品名称")
+    private String dishName;
+
     @Schema(description = "评价者昵称", example = "张三")
     private String userNickname;
 

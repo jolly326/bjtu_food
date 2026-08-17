@@ -179,7 +179,7 @@ async function batchSetStatus(status: 'active' | 'inactive') {
         <button class="btn-primary" v-press type="button" @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增食堂</button>
       </template>
       <template #cell-image="{ row }">
-        <img v-if="getFirstImage(row.image)" :src="getFirstImage(row.image)" :alt="row.name" class="cell-thumb" />
+        <img v-if="getFirstImage(row.image)" :src="getFirstImage(row.image)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
         <span v-else class="cell-thumb cell-thumb-empty">图</span>
       </template>
       <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>

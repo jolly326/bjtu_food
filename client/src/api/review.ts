@@ -104,3 +104,22 @@ export async function deleteReview(reviewId: number): Promise<void> {
 export async function replyReview(parentId: number, content: string): Promise<void> {
   await post<void>(`/reviews/${parentId}/reply`, { content })
 }
+
+/**
+ * 分页拉取某父评价的全部子回复（楼中楼「查看全部回复」展开用）
+ * GET /reviews/{parentId}/replies?page=&pageSize=
+ * 返回分页子回复列表，每个子回复附带自身楼中楼窗口。
+ */
+export async function getParentReplies(
+  parentId: number,
+  options?: { page?: number; pageSize?: number },
+): Promise<{ list: Review[]; total: number }> {
+  const params: Record<string, any> = {
+    page: options?.page ?? 1,
+    pageSize: options?.pageSize ?? 20,
+  }
+  const res = await get<any>(`/reviews/${parentId}/replies`, params)
+  const list = recordsOf<any>(res).map(toReview)
+  const total = typeof res?.total === 'number' ? res.total : list.length
+  return { list, total }
+}

@@ -174,7 +174,7 @@ async function batchSetStatus(status: 'active' | 'inactive') {
     empty-text="暂无档口"
   >
     <template #cell-image="{ row }">
-      <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" />
+      <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
       <span v-else class="cell-thumb cell-thumb-empty">图</span>
     </template>
     <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>

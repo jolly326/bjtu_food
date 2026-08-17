@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
+import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import DataTable from '@/components/DataTable.vue'
@@ -10,6 +11,7 @@ import UserActivityModal from '@/components/UserActivityModal.vue'
 import { Pointer } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
+const userStore = useUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -47,6 +49,11 @@ const filteredStudents = computed(() => {
 const switchId = ref<number | null>(null)
 async function toggleStatus(row: any, active: boolean) {
   if (row.status === (active ? 'active' : 'disabled')) return
+  // 禁止管理员操作自己（禁用/启用自身会导致无法登录）
+  if (userStore.adminId != null && Number(row.id) === userStore.adminId) {
+    toast.error('不能操作当前登录的账号')
+    return
+  }
   switchId.value = Number(row.id)
   try {
     await store.toggleUserStatus(Number(row.id), active ? 'active' : 'disabled')
@@ -63,9 +70,15 @@ const selectedIds = ref<number[]>([])
 async function batchSetStatus(status: 'active' | 'disabled') {
   if (!selectedIds.value.length) return
   const action = status === 'active' ? '启用' : '禁用'
-  if (!await confirm.confirm(`确定批量${action} ${selectedIds.value.length} 名学生？`)) return
+  // 过滤掉当前登录管理员自身，避免批量封禁把自己踢下线
+  const selfId = userStore.adminId
+  const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status && (selfId == null || Number(u.id) !== selfId))
+  if (!targets.length) {
+    toast.error('所选用户中无可操作的账号')
+    return
+  }
+  if (!await confirm.confirm(`确定批量${action} ${targets.length} 名学生？`)) return
   try {
-    const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
     for (const u of targets) await store.toggleUserStatus(Number(u.id), status)
     toast.success(`已批量${action} ${targets.length} 名学生`)
     selectedIds.value = []

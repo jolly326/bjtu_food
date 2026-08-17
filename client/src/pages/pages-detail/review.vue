@@ -198,10 +198,14 @@ function removeImage(idx: number) {
 }
 
 function selectImage() {
-  uni.chooseImage({
+  // chooseImage 已废弃：改 chooseMedia（与全站 ImageUploader 一致）
+  uni.chooseMedia({
     count: 3 - form.images.length,
+    mediaType: ['image'],
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
     success: (res) => {
-      form.images.push(...res.tempFilePaths.slice(0, 3 - form.images.length))
+      form.images.push(...res.tempFiles.map((f) => f.tempFilePath).slice(0, 3 - form.images.length))
     },
   })
 }

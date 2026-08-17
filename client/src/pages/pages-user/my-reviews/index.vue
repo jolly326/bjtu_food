@@ -12,7 +12,8 @@
       <view v-else-if="list.length > 0" class="comment-section">
         <text class="comment-title">我的评价 ({{ list.length }})</text>
         <view class="list">
-          <ReviewItem v-for="r in list" :key="r.id" :review="r" deletable @delete="onDelete(r)" />
+          <!-- hide-useful：本页为个人评价管理页，与其他评价区一致不设「有用」操作 -->
+          <ReviewItem v-for="r in list" :key="r.id" :review="r" hide-useful deletable @delete="onDelete(r)" />
         </view>
       </view>
       <EmptyState v-else text="还没有发表过评价" />

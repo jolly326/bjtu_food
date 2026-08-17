@@ -165,7 +165,7 @@ async function batchDelete() {
       :error="error"
       empty-text="暂无菜品">
       <template #cell-image="{ row }">
-        <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" />
+        <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
         <span v-else class="cell-thumb cell-thumb-empty">图</span>
       </template>
       <template #cell-name="{ row }">

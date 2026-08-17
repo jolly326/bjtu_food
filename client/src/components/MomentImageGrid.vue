@@ -16,7 +16,7 @@
       <image
         class="m-image"
         :class="{ loaded: loadedSet.has(idx) }"
-        :src="getImageUrl(img)"
+        :src="getImageUrl(getThumbUrl(img))"
         mode="aspectFill"
         lazy-load
         @load="loadedSet.add(idx)"
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { previewImages, getImageUrl } from '@/utils/image'
+import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 
 const props = withDefaults(defineProps<{ images: string[]; compact?: boolean }>(), { compact: false })
 const pressedIdx = ref(-1)

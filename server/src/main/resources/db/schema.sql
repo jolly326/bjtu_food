@@ -275,9 +275,10 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 (
     `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '反馈ID',
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/bug/other/report',
+    `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
+    `images`       VARCHAR(2048) NULL    DEFAULT NULL COMMENT '附图（JSON 数组字符串，绝对URL；截图/作证照片/菜品图）',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
     `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型（举报场景）：moment；其他为 null（task-12.7）',

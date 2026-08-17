@@ -10,9 +10,6 @@
       hover-stay-time="80"
       @tap="$emit('open-activity')"
     >
-      <view class="u-icon">
-        <IconSvg name="fire" :size="30" color="var(--color-cell-activity)" />
-      </view>
       <view class="u-body">
         <text class="u-title">最新活动</text>
         <text class="u-sub">{{ activityTitle || '看看最近有哪些活动' }}</text>
@@ -27,9 +24,6 @@
       hover-stay-time="80"
       @tap="$emit('open-feedback')"
     >
-      <view class="u-icon">
-        <IconSvg name="edit" :size="30" color="var(--color-cell-feedback)" />
-      </view>
       <view class="u-body">
         <text class="u-title">反馈菜品</text>
         <text class="u-sub">信息有误？帮我们纠错</text>
@@ -39,8 +33,6 @@
 </template>
 
 <script setup lang="ts">
-import IconSvg from './IconSvg.vue'
-
 defineProps<{
   /** 最新活动标题（已有活动时展示活动+反馈双卡；无活动仅反馈整行入口） */
   activityTitle?: string
@@ -62,10 +54,10 @@ defineEmits<{
 .u-card {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 100rpx;
+  min-height: 104rpx;
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  justify-content: center;
   padding: var(--spacing-sm);
   border-radius: var(--radius-card);
   border: 1rpx solid var(--border-card);
@@ -82,31 +74,16 @@ defineEmits<{
   background: var(--bg-cell-feedback);
   border-color: var(--border-cell-feedback);
 }
-.u-icon {
-  flex-shrink: 0;
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: var(--radius-icon);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* 语义色图标软底（深浅模式通用：淡语义色底衬托深色图标，不引入白色块） */
-.u-card-activity .u-icon {
-  background: rgba(30, 95, 206, 0.1);
-}
-.u-card-feedback .u-icon {
-  background: rgba(14, 158, 110, 0.1);
-}
 .u-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4rpx;
 }
 .u-title {
-  font-size: var(--font-subtitle);
+  font-size: var(--font-card);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
@@ -116,5 +93,6 @@ defineEmits<{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 </style>

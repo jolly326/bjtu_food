@@ -164,3 +164,56 @@
   /* 卡片 hover 抬升 */
   --card-hover-shadow: var(--shadow-hover);
 }
+
+/* ============================================================
+ * 跟随系统浅色模式：当用户系统主题为浅色（prefers-color-scheme: light）时，
+ * 覆盖语义 token 为浅色沉稳观感（近白背景 + 深灰文字），对比度 >4.5:1。
+ * 深色（默认/暗系统）沿用 :root 既有深色 token，保持控制台沉稳调性。
+ * ============================================================ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-primary: #2B2B2B;
+    --color-primary-light: #141414;
+    --color-primary-dark: #444444;
+    --color-primary-bg: rgba(43, 43, 43, 0.10);
+    --color-on-primary: #FFFFFF;
+    --color-accent: #6B6B6B;
+
+    --text-primary: #1F1F1F;
+    --text-secondary: #4A4A4A;
+    --text-muted: #6E6E6E;
+    --text-light: #8A8A8A;
+    --text-white: #1F1F1F;
+    --text-white-secondary: rgba(0, 0, 0, 0.85);
+
+    --bg-page: #F5F5F5;
+    --bg-card: #FFFFFF;
+    --bg-soft: #F0F0F0;
+    --bg-hover: #ECECEC;
+    --bg-gray: #E0E0E0;
+
+    --border-color: #DADADA;
+    --border-light: #E6E6E6;
+    --border-strong: #C4C4C4;
+    --border-soft: #EDEDED;
+
+    --color-price: #1F1F1F;
+    --color-price-soft: #F0F0F0;
+
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.10);
+    --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
+    --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.16);
+    --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+    --table-header-bg: #F0F0F0;
+    --table-row-hover: #F5F5F5;
+    --table-row-active: rgba(43, 43, 43, 0.08);
+    --table-border: #E6E6E6;
+
+    --agg-tabs-bg: rgba(0, 0, 0, 0.05);
+    --agg-tab-active-bg: #FFFFFF;
+    --nav-bg: color-mix(in srgb, #FFFFFF 82%, transparent);
+    --nav-item-active-bg: rgba(43, 43, 43, 0.10);
+    --nav-item-active-color: #2B2B2B;
+  }
+}

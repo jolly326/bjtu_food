@@ -191,7 +191,8 @@ INSERT INTO user_feedback (user_id, type, content, contact, status, related_type
 (2, 'error',     '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
 (3, 'report',    '有动态内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'moment', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
 (4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, 'bug',       '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR));
+(2, 'bug',       '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(1, 'add',       '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', NULL, 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
 
 -- -------------------- 实体贡献申请（UGC，测试申请审核流；无唯一键，先清后插保证可重复执行） --------------------
 DELETE FROM apply_action;

@@ -22,6 +22,8 @@ export interface FeedbackAdminVO {
   handledAt: string
   relatedType?: string
   relatedId?: number
+  /** 附图（绝对URL数组，2026-08-17 新增） */
+  images?: string[]
 }
 
 function feedbackToLegacy(raw: any): FeedbackAdminVO {
@@ -38,6 +40,7 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     handledAt: raw.handledAt ?? raw.handled_at ?? '',
     relatedType: raw.relatedType ?? raw.related_type ?? undefined,
     relatedId: raw.relatedId ?? raw.related_id ?? undefined,
+    images: Array.isArray(raw.images) ? raw.images : (typeof raw.images === 'string' ? JSON.parse(raw.images || '[]') : undefined),
   }
 }
 

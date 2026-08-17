@@ -14,6 +14,8 @@ import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
     private final SensitiveFilter sensitiveFilter;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -53,8 +56,30 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
+        feedback.setImages(serializeImages(req.getImages()));
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
         feedbackMapper.insert(feedback);
+    }
+
+    /** 附图数组 → JSON 字符串（空/非法安全降级 null） */
+    private String serializeImages(List<String> images) {
+        if (images == null || images.isEmpty()) return null;
+        try {
+            return OBJECT_MAPPER.writeValueAsString(images);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** JSON 字符串 → 附图数组（空/非法安全降级 null） */
+    private List<String> deserializeImages(String json) {
+        if (!StringUtils.hasText(json)) return null;
+        try {
+            List<String> list = OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
+            return (list == null || list.isEmpty()) ? null : list;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -68,6 +93,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                     vo.setId(f.getId());
                     vo.setType(f.getType());
                     vo.setContent(f.getContent());
+                    vo.setImages(deserializeImages(f.getImages()));
                     vo.setStatus(f.getStatus());
                     vo.setReply(f.getReply());
                     vo.setCreatedAt(f.getCreatedAt());
@@ -115,6 +141,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             vo.setUserNickname(userMap.get(f.getUserId()));
             vo.setType(f.getType());
             vo.setContent(f.getContent());
+            vo.setImages(deserializeImages(f.getImages()));
             vo.setContact(f.getContact());
             vo.setRelatedType(f.getRelatedType());
             vo.setRelatedId(f.getRelatedId());

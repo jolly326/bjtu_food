@@ -35,6 +35,8 @@ function toMoment(raw: any): Moment | null {
     auditStatus: raw.auditStatus,
     rejectReason: raw.rejectReason ?? null,
     usefulCount: Number(raw.usefulCount ?? 0),
+    /** 当前用户是否已点「有用」（仅登录态返回；列表/详情均可用，供卡片回显） */
+    useful: !!raw.useful,
     commentCount: Number(raw.commentCount ?? 0),
     status: raw.status ?? 0,
     createdAt: raw.createdAt,

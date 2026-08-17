@@ -61,10 +61,16 @@ function sync(list: string[]) {
 }
 
 function removeImage(idx: number) {
+  const target = props.modelValue[idx]
+  // 记录被删 URL：若等待期上传完成前用户删除了已上传项，合并时排除，避免被还原
+  if (target) removedDuringUpload.add(target)
   const next = props.modelValue.slice()
   next.splice(idx, 1)
   sync(next)
 }
+
+/** 本次选择会话中已被用户删除的 URL（等待期删除兜底，防止上传完成被还原） */
+const removedDuringUpload = new Set<string>()
 
 function chooseImage() {
   if (uploading.value) return
@@ -77,17 +83,21 @@ function chooseImage() {
     sourceType: ['album', 'camera'],
     success: async (res) => {
       uploading.value = true
-      const next = props.modelValue.slice()
+      const uploaded: string[] = []
       try {
         for (const f of res.tempFiles) {
           const url = await uploadImage(f.tempFilePath)
-          next.push(url)
-          sync(next)
+          uploaded.push(url)
         }
+        // 基于最新 modelValue 合并（保留等待期用户的增删），已删除 URL 不再还原
+        const next = props.modelValue.filter((u) => !removedDuringUpload.has(u))
+        next.push(...uploaded.filter((u) => !removedDuringUpload.has(u)))
+        sync(next)
       } catch {
         uni.showToast({ title: '图片上传失败', icon: 'none' })
       } finally {
         uploading.value = false
+        removedDuringUpload.clear()
       }
     },
   })

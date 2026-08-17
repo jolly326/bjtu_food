@@ -153,9 +153,10 @@
     </view>
 
     <!-- 菜品评价回复输入弹层（关联动态详情时评价区楼中楼回复） -->
-    <view v-if="dishReplyOpen" class="reply-mask" @tap="closeDishReply">
+    <view v-if="dishReplyOpen" class="reply-mask" :class="{ leaving: dishReplyClosing }" @tap="closeDishReply">
       <view
         class="reply-sheet"
+        :class="{ leaving: dishReplyClosing }"
         :style="{ transform: `translateY(${dishReplySheetDy}px)` }"
         @tap.stop
         @touchstart="onDishReplySheetTouchStart"
@@ -274,8 +275,11 @@ const relatedIconName = computed(() => {
 const auditLabel = computed(() => moment.value?.auditStatus === 'pending' ? '审核中' : '已退回')
 const auditClass = computed(() => `audit-${moment.value?.auditStatus}`)
 
+/** 加载序号：onLoad/onRefresh 快速连续触发时，旧请求结果不得覆盖新请求（竞态守卫） */
+let loadSeq = 0
 async function loadData() {
   if (!currentId) return
+  const seq = ++loadSeq
   loading.value = true
   deleted.value = false
   try {
@@ -283,6 +287,7 @@ async function loadData() {
       momentApi.getMomentDetail(currentId),
       momentApi.getMomentComments(currentId, 1, 50),
     ])
+    if (seq !== loadSeq) return
     // 接口返回空：动态已删除 / 审核下架 / 不存在
     if (!m) {
       deleted.value = true
@@ -302,10 +307,11 @@ async function loadData() {
       dishReviews.value = []
     }
   } catch (e: any) {
+    if (seq !== loadSeq) return
     uni.showToast({ title: e.message || '加载失败', icon: 'none' })
     moment.value = null
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -373,6 +379,7 @@ async function submitReport(text: string) {
 /* ===== 菜品评价回复 / 举报（关联动态详情时，评价区复用 ReviewItem，楼中楼打通） ===== */
 const dishReplyOpen = ref(false)
 const dishReplyFocus = ref(false)
+const dishReplyClosing = ref(false)
 const dishReplySubmitting = ref(false)
 const dishReplyText = ref('')
 const dishReplyParentId = ref<number | null>(null)
@@ -386,24 +393,34 @@ function onDishReviewReply(rv: Review) {
   dishReplyPlaceholder.value = `回复 ${rv.userNickname || '匿名用户'}：`
   dishReplyText.value = ''
   dishReplyOpen.value = true
+  dishReplyClosing.value = false
   dishReplyFocus.value = true
 }
 
+/** 退场动画：置 closing 触发 CSS 淡出，160ms 后真正卸载；同时复位 focus（#3） */
 function closeDishReply() {
-  dishReplyOpen.value = false
-  dishReplyText.value = ''
-  dishReplyParentId.value = null
-  dishReplyToNickname.value = ''
+  if (!dishReplyOpen.value || dishReplyClosing.value) return
+  dishReplyClosing.value = true
+  dishReplyFocus.value = false
+  setTimeout(() => {
+    dishReplyOpen.value = false
+    dishReplyClosing.value = false
+    dishReplyText.value = ''
+    dishReplyParentId.value = null
+    dishReplyToNickname.value = ''
+  }, 160)
 }
 
 /* ===== 回复弹层下拉关闭（#12 轻量 touch 模拟，不引第三方库） ===== */
+/** touch 事件统一类型（uni 全局 TouchEvent，touches 为 TouchList，三处弹层一致） */
+type SheetTouchEvent = TouchEvent
 const dishReplySheetStartY = ref(0)
 const dishReplySheetDy = ref(0)
-function onDishReplySheetTouchStart(e: any) {
+function onDishReplySheetTouchStart(e: SheetTouchEvent) {
   dishReplySheetStartY.value = e.touches?.[0]?.clientY ?? 0
   dishReplySheetDy.value = 0
 }
-function onDishReplySheetTouchMove(e: any) {
+function onDishReplySheetTouchMove(e: SheetTouchEvent) {
   const y = e.touches?.[0]?.clientY ?? 0
   const dy = y - dishReplySheetStartY.value
   dishReplySheetDy.value = Math.max(0, dy)
@@ -570,10 +587,25 @@ async function submitComment() {
   commentSubmitting.value = true
   try {
     await momentApi.commentMoment(moment.value.id, { content, parentId, images })
+    // 本地插入评论（避免整页 loadData 重拉，评论列表为扁平按时间升序，新评论追加末尾）
+    const me = userStore.userInfo
+    comments.value.push({
+      id: -Date.now(),
+      momentId: moment.value.id,
+      userId: me?.id ?? 0,
+      userNickname: me?.nickname || '我',
+      userAvatar: me?.avatar || '',
+      parentId: parentId ?? null,
+      content,
+      images: images || null,
+      usefulCount: 0,
+      useful: false,
+      createdAt: new Date().toISOString(),
+    })
+    moment.value.commentCount += 1
     commentText.value = ''
     commentImages.value = []
     mentionOpen.value = false
-    await loadData()
     uni.showToast({ title: '评论成功', icon: 'success' })
   } catch (e: any) {
     uni.showToast({ title: e.message || '评论失败', icon: 'none' })
@@ -592,7 +624,9 @@ async function onCommentLongPress(c: MomentComment) {
       if (res.confirm && moment.value) {
         try {
           await momentApi.deleteMomentComment(moment.value.id, c.id)
-          await loadData()
+          // 本地过滤删除（避免整页 loadData 重拉）
+          comments.value = comments.value.filter((x) => x.id !== c.id)
+          moment.value.commentCount = Math.max(0, moment.value.commentCount - 1)
           uni.showToast({ title: '已删除', icon: 'none' })
         } catch (e: any) {
           uni.showToast({ title: e.message || '删除失败', icon: 'none' })
@@ -681,9 +715,12 @@ onLoad((query) => {
 .mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(0.96); }
 .mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(1); }
 
-/* 菜品评价回复输入弹层（复用 dish 同名 class 设计；drag indicator + 下拉关闭） */
-.reply-mask { position: fixed; inset: 0; z-index: 100; background: var(--overlay-scrim); display: flex; align-items: flex-end; -webkit-tap-highlight-color: transparent; }
-.reply-sheet { width: 100%; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-card); transition: transform 160ms var(--ease-out); }
+/* 菜品评价回复输入弹层（复用 dish 同名 class 设计；drag indicator + 下拉关闭 + 退场淡出） */
+.reply-mask { position: fixed; inset: 0; z-index: 100; background: var(--overlay-scrim); display: flex; align-items: flex-end; -webkit-tap-highlight-color: transparent; opacity: 1; transition: opacity 160ms var(--ease-out); }
+.reply-mask.leaving { opacity: 0; }
+.reply-sheet { width: 100%; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-card); opacity: 1; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+/* 退场淡出用 opacity，避免与拖拽的内联 transform 位移冲突 */
+.reply-sheet.leaving { opacity: 0; }
 .reply-drag { width: 48rpx; height: 6rpx; border-radius: var(--radius-pill, 999rpx); background: var(--overlay-dark-soft); margin: 0 auto var(--spacing-sm); flex-shrink: 0; }
 .reply-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
 .reply-sheet-title { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); }

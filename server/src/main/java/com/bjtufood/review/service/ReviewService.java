@@ -84,6 +84,20 @@ public interface ReviewService {
      */
     IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize);
 
+    /**
+     * 分页查某父评价的直接子回复（「查看全部回复」展开用）
+     * <p>
+     * 只返回 is_hidden=0、parent_id=parentId 的直接子回复，按 created_at 升序；
+     * 每个直接子回复会附带各自的楼中楼孙回复窗口（复用 assembleReplies）。
+     *
+     * @param parentId 父评价ID
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
+     * @return 分页子回复列表
+     */
+    IPage<ReviewVO> listRepliesByParentId(Long parentId, int page, int pageSize, Long userId);
+
     // ==================== 需登录接口（学生） ====================
 
     /**

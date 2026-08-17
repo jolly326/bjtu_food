@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,7 +70,8 @@ public class UploadServiceImpl implements UploadService {
         }
 
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        String filename = UUID.randomUUID() + "." + extension.toLowerCase(Locale.ROOT);
+        String normalizedExt = extension.toLowerCase(Locale.ROOT);
+        String filename = UUID.randomUUID() + "." + normalizedExt;
         Path dir = Paths.get(uploadPath, datePath).toAbsolutePath().normalize();
 
         Path target = dir.resolve(filename);
@@ -84,13 +89,61 @@ public class UploadServiceImpl implements UploadService {
             throw new BusinessException("图片上传失败");
         }
 
+        // 生成缩略图（仅 jpg/jpeg/png，ImageIO 原生支持；webp 降级不生成）。失败静默，不阻塞上传主流程。
+        String thumbRelativeUrl = generateThumbnail(target, normalizedExt, datePath);
+
         String relativeUrl = trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
         String absoluteUrl = imageUrlUtil.toAbsoluteUrl(relativeUrl);
 
         Map<String, String> result = new HashMap<>();
         result.put("url", absoluteUrl);
         result.put("relativeUrl", relativeUrl);
+        if (thumbRelativeUrl != null) {
+            result.put("thumbUrl", imageUrlUtil.toAbsoluteUrl(thumbRelativeUrl));
+            result.put("thumbRelativeUrl", thumbRelativeUrl);
+        }
         return result;
+    }
+
+    /**
+     * 用 ImageIO 为原图生成宽 400px 的等比缩略图，命名 {base}_thumb.{ext} 同目录落盘。
+     * 仅 jpg/jpeg/png 生成；webp 或生成失败时返回 null（降级，不抛异常、不影响上传主流程）。
+     *
+     * @return 缩略图相对 URL（/images/yyyy/MM/xxx_thumb.ext），失败返回 null
+     */
+    private String generateThumbnail(Path target, String ext, String datePath) {
+        if (!Set.of("jpg", "jpeg", "png").contains(ext)) {
+            return null;
+        }
+        String thumbFilename = target.getFileName().toString().replaceFirst("\\.([^.]+)$", "_thumb.$1");
+        Path thumb = target.getParent().resolve(thumbFilename);
+        try {
+            BufferedImage original = ImageIO.read(target.toFile());
+            if (original == null) {
+                return null;
+            }
+            int thumbWidth = 400;
+            int thumbHeight = Math.max(1, (int) Math.round(original.getHeight() * (thumbWidth / (double) original.getWidth())));
+            BufferedImage scaled = new BufferedImage(thumbWidth, thumbHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(original, 0, 0, thumbWidth, thumbHeight, null);
+            g.dispose();
+            // 统一按 jpg 输出缩略图（体积小、兼容性最好），降低失败面；透明度统一铺白底
+            if (!ImageIO.write(scaled, "jpg", thumb.toFile())) {
+                return null;
+            }
+        } catch (IOException | RuntimeException e) {
+            // 生成失败静默降级：清理半成品缩略图，不影响上传主流程
+            try {
+                Files.deleteIfExists(thumb);
+            } catch (IOException ignored) {
+                // 忽略清理失败
+            }
+            return null;
+        }
+        return trimEnd(urlPrefix, "/") + "/" + datePath + "/" + thumbFilename;
     }
 
     private String trimEnd(String value, String suffix) {

@@ -355,6 +355,26 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   --el-fill-color-lighter: var(--bg-soft);
   --el-mask-color: rgba(0, 0, 0, 0.45);
 }
+
+/* 跟随系统浅色模式：覆盖 Element Plus 主色与填充色为浅色观感 */
+@media (prefers-color-scheme: light) {
+  :root {
+    --el-color-primary: var(--color-primary);
+    --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, #fff);
+    --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, #fff);
+    --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, #fff);
+    --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, #fff);
+    --el-color-primary-light-9: color-mix(in srgb, var(--color-primary) 10%, #fff);
+    --el-color-primary-dark-2: var(--color-primary-dark);
+    --el-fill-color-blank: var(--bg-card);
+    --el-bg-color: var(--bg-card);
+    --el-bg-color-overlay: var(--bg-card);
+    --el-border-color: var(--border-color);
+    --el-border-color-light: var(--border-light);
+    --el-border-color-lighter: var(--border-light);
+    --el-mask-color: rgba(0, 0, 0, 0.35);
+  }
+}
 /* EP 弹层/下拉也走半透毛玻璃（§4.5） */
 .el-overlay,
 .el-popper.is-light,

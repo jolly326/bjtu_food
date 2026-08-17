@@ -25,6 +25,8 @@ export interface Moment {
   rejectReason?: string | null
   /** 「有用」计数 */
   usefulCount: number
+  /** 当前用户是否已点「有用」（仅登录态返回；驱动卡片填充态） */
+  useful?: boolean
   /** 评论数 */
   commentCount: number
   /** 下架状态：0=正常 1=下架 */

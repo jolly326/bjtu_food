@@ -100,4 +100,13 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * @return 该层子回复 id 列表
      */
     List<Long> selectReplyIdsByParentIds(@Param("parentIds") Collection<Long> parentIds);
+
+    /**
+     * 分页查某父评价的直接子回复（「查看全部回复」展开用，普通分页、按 created_at 升序）
+     *
+     * @param page     分页对象（MyBatis-Plus 分页插件）
+     * @param parentId 父评价ID
+     * @return 分页子回复列表
+     */
+    IPage<ReviewVO> selectRepliesPageByParentId(Page<ReviewVO> page, @Param("parentId") Long parentId);
 }

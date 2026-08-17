@@ -13,17 +13,26 @@ const toast = useToastStore()
 
 const searchQuery = ref('')
 
-const typeLabel: Record<string, string> = { suggestion: '功能建议', error: '内容纠错', report: '举报', other: '其他' }
+const typeLabel: Record<string, string> = {
+  suggestion: '功能建议',
+  error: '内容纠错',
+  add: '新增菜品',
+  bug: '系统问题',
+  report: '举报',
+  other: '其他',
+}
 const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
 const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
 
 // 反馈列表默认只显示「待处理」（管理员的处理待办），无状态 tab 切换
 
-// 类型筛选（§5 举报处理：可筛 type=report 等）
+// 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
 const typeOptions = [
   { value: '', label: '全部类型' },
   { value: 'suggestion', label: '功能建议' },
+  { value: 'add', label: '新增菜品' },
   { value: 'error', label: '内容纠错' },
+  { value: 'bug', label: '系统问题' },
   { value: 'report', label: '举报' },
   { value: 'other', label: '其他' },
 ]
@@ -118,6 +127,11 @@ function fmtTime(v: string): string {
   if (!v) return '—'
   const d = new Date(v)
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
+}
+
+/** 附图预览（点击放大，新窗口打开原图） */
+function previewImg(images: string[], idx: number) {
+  window.open(images[idx], '_blank')
 }
 
 async function copyMomentLink(momentId?: number) {
@@ -219,6 +233,14 @@ async function copyMomentLink(momentId?: number) {
           </span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
+        <div class="detail-row detail-row-desc" v-if="detail.images && detail.images.length">
+          <span class="dl">附图</span>
+          <span class="dv">
+            <div class="img-list">
+              <img v-for="(img, i) in detail.images" :key="img" :src="img" class="img-thumb" @click="previewImg(detail.images, i)" />
+            </div>
+          </span>
+        </div>
         <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
@@ -252,6 +274,9 @@ async function copyMomentLink(momentId?: number) {
 .dl { width: 64px; flex-shrink: 0; color: var(--text-muted); }
 .dv { color: var(--text-primary); flex: 1; }
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); white-space: pre-wrap; }
+/* 反馈附图缩略图：横向排列、可点击放大 */
+.img-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.img-thumb { width: 72px; height: 72px; border-radius: var(--radius); object-fit: cover; cursor: zoom-in; border: 1px solid var(--border-light); }
 .reply-area { margin-top: var(--space-4); border-top: 1px solid var(--border-light); padding-top: var(--space-4); }
 .reply-area label { display: block; font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
 .reply-area textarea {

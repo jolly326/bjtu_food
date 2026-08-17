@@ -40,7 +40,8 @@ const reviews = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 
 const isReview = computed(() => entityType.value === 'review')
-const isPending = true
+// 仅当申请仍为待审核时，详情抽屉才展示通过/退回操作（修复常量 isPending 导致已审申请仍显示按钮）
+const isPending = computed(() => detail.value?.status === 'pending')
 
 const searchQuery = ref('')
 const filtered = computed(() => {
@@ -64,8 +65,8 @@ async function loadList() {
     if (isReview.value) {
       const { auditApi } = await import('@/api')
       // 查全部评价（显示中/已隐藏），显隐状态由列表标签列展示；
-      // 关键词已改为服务端 keyword 过滤，避免当前页子集截断导致漏搜
-      reviews.value = await auditApi.listReviews({ keyword: searchQuery.value.trim() || undefined })
+      // 关键词服务端过滤 + 前端翻页聚合全部页，避免分页硬上限导致漏搜漏审
+      reviews.value = await auditApi.listAllReviews(undefined, searchQuery.value.trim() || undefined)
     } else {
       const { listApply } = await import('@/api/apply')
       // 全部实体（菜品/档口/食堂）的待审核申请

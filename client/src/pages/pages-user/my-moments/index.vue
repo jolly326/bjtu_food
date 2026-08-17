@@ -42,12 +42,12 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
@@ -72,8 +72,8 @@ async function loadData() {
   try {
     moments.value = await momentApi.getMyMoments()
   } catch (e: any) {
+    // 网络/业务错误 http 层已统一 toast，页面仅置失败态（空态展示重试），避免重复提示
     loadFailed.value = true
-    uni.showToast({ title: e.message || '加载失败', icon: 'none' })
     moments.value = []
   } finally {
     loading.value = false
@@ -108,6 +108,7 @@ watch(
   (v) => { if (v) loadData() },
   { immediate: true },
 )
+onShow(() => clearShareState())
 onShareAppMessage(() => buildSharePayload())
 </script>
 

@@ -8,12 +8,14 @@ export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
 }
 
-/** 我的反馈项（反馈中心进度列表）
- * type 契约整改后只含枚举 suggestion/error/other/report；保留 string 兜底以兼容历史复合串记录 */
+/** 我的反馈项（反馈中心进度列表，进度追踪后续另做，接口保留）
+ * type 契约整改后只含枚举 suggestion/error/add/bug/other/report；保留 string 兜底以兼容历史复合串记录 */
 export interface FeedbackMyItem {
   id: number
   type: string
   content: string
+  /** 附图（绝对URL数组，2026-08-17 新增） */
+  images?: string[]
   /** pending / handled */
   status: string
   reply?: string

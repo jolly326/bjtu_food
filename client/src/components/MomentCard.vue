@@ -41,7 +41,7 @@
         <image
           class="m-image"
           :class="{ loaded: loadedSet.has(idx) }"
-          :src="getImageUrl(img)"
+          :src="getImageUrl(getThumbUrl(img))"
           mode="aspectFill"
           lazy-load
           @load="loadedSet.add(idx)"
@@ -80,10 +80,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { relativeTime } from '@/utils/time'
-import { previewImages, getImageUrl } from '@/utils/image'
+import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
@@ -127,8 +127,12 @@ const auditLabel = computed(() => {
 })
 const auditClass = computed(() => `audit-${props.moment.auditStatus}`)
 
-// 有用 toggle 本地状态（详情页传入有用态；此处仅做乐观 UI）
-const usefulActive = ref(false)
+// 有用 toggle 本地状态（乐观 UI）：初始与回显均取 moment.useful（api 层已归一当前用户点赞态）
+const usefulActive = ref(!!props.moment.useful)
+// 列表刷新/详情返回后 moment 对象更新时，同步点赞态回显（避免跨页状态丢失）
+watch(() => props.moment.useful, (v) => {
+  usefulActive.value = !!v
+})
 
 function goDetail() {
   emit('select', props.moment)
@@ -157,6 +161,7 @@ async function onUseful() {
     const res = await momentApi.toggleUseful(props.moment.id)
     usefulActive.value = res.useful
     props.moment.usefulCount = res.usefulCount
+    props.moment.useful = res.useful
     emit('useful', props.moment)
   } catch {
     usefulActive.value = prevActive
@@ -209,7 +214,7 @@ async function onUseful() {
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
 .m-actions { display: flex; align-items: center; gap: var(--spacing-xs); margin-left: auto; flex-shrink: 0; }
-.m-action { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-action { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); min-height: 44px; border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .m-action:active { transform: scale(var(--press-scale)); }
 .m-action.m-action-share:active { background: var(--color-primary-soft); }
 /* button 重置（微信原生分享按钮） */

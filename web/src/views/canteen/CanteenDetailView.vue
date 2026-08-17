@@ -57,6 +57,15 @@ const dishCount = computed(() => {
   const ids = stalls.value.map(s => Number(s.id))
   return store.dishes.filter(d => ids.includes(Number(d.stall_id))).length
 })
+// 档口 -> 菜品数映射，避免表格行内 O(n×m) 过滤（W-06）
+const stallDishCountMap = computed<Record<number, number>>(() => {
+  const map: Record<number, number> = {}
+  for (const d of store.dishes) {
+    const sid = Number(d.stall_id)
+    if (!Number.isNaN(sid)) map[sid] = (map[sid] || 0) + 1
+  }
+  return map
+})
 
 function openImageModal() {
   showImageModal.value = true
@@ -325,12 +334,12 @@ function stallNameOf(stallId: number | bigint): string {
           :rows="filtered"
           empty-text="暂无档口">
           <template #cell-image="{ row }">
-            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" />
+            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
             <span v-else class="cell-thumb cell-thumb-empty">图</span>
           </template>
           <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
           <template #cell-desc="{ row }"><span class="cell-sub">{{ row.description || '—' }}</span></template>
-          <template #cell-stats="{ row }">{{ store.dishes.filter(d => Number(d.stall_id) === Number(row.id)).length }}</template>
+          <template #cell-stats="{ row }">{{ stallDishCountMap[Number(row.id)] || 0 }}</template>
           <template #cell-status="{ row }">
             <StatusTag :type="(row.status || 'active') === 'active' ? 'success' : 'gray'" :text="(row.status || 'active') === 'active' ? '营业中' : '已关闭'" />
           </template>
@@ -370,7 +379,7 @@ function stallNameOf(stallId: number | bigint): string {
           :rows="canteenDishes"
           empty-text="暂无菜品">
           <template #cell-image="{ row }">
-            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" />
+            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
             <span v-else class="cell-thumb cell-thumb-empty">图</span>
           </template>
           <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>

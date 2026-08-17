@@ -48,6 +48,11 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
+    <!-- 常驻发布按钮（FAB）：列表/加载态均可直接发布动态，避免仅空态可发布 -->
+    <view class="fab fab-publish" role="button" aria-label="发布动态" @tap="goPublish">
+      <IconSvg name="plus" :size="48" color="var(--color-on-primary)" />
+    </view>
+
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
     <AuthSheet />
   </view>
@@ -55,16 +60,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import MomentCard from '@/components/MomentCard.vue'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
 const moments = ref<Moment[]>([])
@@ -135,6 +141,8 @@ function goPublish() {
 }
 
 onMounted(() => { loadData(true) })
+// 从动态详情返回社区时：清掉详情页的分享残留，避免右上角分享菜单沿用上一条动态
+onShow(() => clearShareState())
 onShareAppMessage(() => buildSharePayload())
 </script>
 
@@ -152,4 +160,23 @@ onShareAppMessage(() => buildSharePayload())
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation: none; }
 }
+
+/* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充 */
+.fab-publish {
+  position: fixed;
+  right: var(--spacing-lg);
+  bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab-publish:active { transform: scale(0.92); opacity: 0.85; }
 </style>

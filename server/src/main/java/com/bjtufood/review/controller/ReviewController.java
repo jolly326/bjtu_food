@@ -174,4 +174,18 @@ public class ReviewController {
         reviewService.replyReview(userId, id, req.getContent());
         return Result.success();
     }
+
+    @Operation(
+            summary = "某评价的全部子回复（分页，楼中楼展开）",
+            description = "用途：评价楼中楼「查看全部回复」展开时，分页拉取某父评价的直接子回复，按时间升序。每个子回复附带自身楼中楼窗口。测试示例：/reviews/1/replies?page=1&pageSize=20"
+    )
+    @GetMapping("/reviews/{parentId}/replies")
+    public Result<?> listParentReplies(
+            @Parameter(description = "父评价ID", example = "1")
+            @PathVariable Long parentId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        Long userId = SecurityUtil.getCurrentUserIdOrNull();
+        return Result.success(reviewService.listRepliesByParentId(parentId, page, pageSize, userId));
+    }
 }

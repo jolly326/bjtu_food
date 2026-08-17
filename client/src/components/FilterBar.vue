@@ -8,12 +8,13 @@
       class="wheel"
       :style="{
         transform: `translateX(${visualOffset}px)`,
+        paddingLeft: `calc(50% - ${itemW / 2}px)`,
         transition: animating ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
       }"
-      @touchstart="onTouchStart"
+      @touchstart.stop="onTouchStart"
       @touchmove="onTouchMove"
-      @touchend="onTouchEnd"
-      @touchcancel="onTouchEnd"
+      @touchend.stop="onTouchEnd"
+      @touchcancel.stop="onTouchEnd"
     >
       <view
         v-for="(tab, i) in loopTabs"
@@ -30,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, getCurrentInstance } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { FilterTab } from './filter-tab'
 
 const props = defineProps<{
@@ -52,7 +53,6 @@ const itemW = 84
 const n = computed(() => props.tabs.length || 1)
 const loopTabs = computed(() => [...props.tabs, ...props.tabs, ...props.tabs])
 
-const wrapW = ref(360)
 const animating = ref(false)
 
 /** 连续视觉索引（可为浮点）：中心刻度始终对齐 viewIndex 对应 item；循环无缝的关键 */
@@ -78,11 +78,13 @@ let startViewIndex = 0
 let moved = false
 let justDragged = false
 
-/** 视觉偏移（px）：中心刻度对齐选中项中心 */
-const visualOffset = computed(() => {
-  const base = wrapW.value / 2 - itemW / 2
-  return base - viewIndex.value * itemW
-})
+/**
+ * 视觉偏移（px）：仅做步进平移。
+ * 居中由 .wheel 的 padding-left: calc(50% - itemW/2) 保证（CSS 相对容器宽度，天然精确），
+ * translateX 只需把目标 item 移到 padding 起点（= 容器中心左侧 itemW/2 处）。
+ * 不再依赖 JS 测量容器宽度，彻底消除「测量不准 → 选中项偏左/偏右」。
+ */
+const visualOffset = computed(() => -viewIndex.value * itemW)
 
 /** 归一化到中间份 [n, 2n)：保证 loopTabs 中间一份可见且内容正确 */
 function normalizeMiddle(raw: number): number {
@@ -131,51 +133,43 @@ function onTouchEnd() {
   justDragged = true
   // 吸附最近项（归一化到中间份；越界时无动画回绕，视觉无缝）
   snapTo(viewIndex.value, true)
-  setTimeout(() => {
+  if (justDraggedTimer) clearTimeout(justDraggedTimer)
+  justDraggedTimer = setTimeout(() => {
     justDragged = false
   }, 0)
 }
+
+// C-07 修复：缓存 justDragged 复位定时器句柄，组件卸载时清理，避免卸载后回调访问已释放状态
+let justDraggedTimer: ReturnType<typeof setTimeout> | null = null
+onUnmounted(() => {
+  if (justDraggedTimer) clearTimeout(justDraggedTimer)
+})
 
 function onTapItem(i: number) {
   if (justDragged || dragging) return
   snapTo(i, true)
 }
 
+/** 外部步进切换（内容区横滑手势驱动）：dir=1 下一项，dir=-1 上一项；越界无缝回绕 */
+function step(dir: number) {
+  if (n.value <= 1) return
+  snapTo(viewIndex.value + dir, true)
+}
+
+defineExpose({ step })
+
 function syncFromModelValue() {
   // modelValue 无效（初始空串/未命中）时默认第一项，确保 viewIndex 落在中间份 [n, 2n)，
   // 屏幕中心项与高亮项（n + logicalIndex）始终一致。
   const idx = props.tabs.findIndex((t) => t.key === props.modelValue)
   const target = idx >= 0 ? idx : 0
-  viewIndex.value = n.value + target
-  animating.value = false
-}
-
-/** 兜底容器宽：屏幕宽 - 两侧水平 padding（.feed-wrap padding 0 var(--spacing-md)，各 24rpx） */
-function fallbackWrapW() {
-  try {
-    const info = uni.getSystemInfoSync()
-    wrapW.value = info.windowWidth - uni.upx2px(48)
-  } catch (e) {
-    // 保持默认，下次测量再校正
+  const middle = n.value + target
+  // 仅在确实不一致时重置：step()/点击后 emit 会回写 modelValue，
+  // 若此时 viewIndex 已对准目标，跳过重置可保留进行中的滚轮动画不被中断。
+  if (Math.round(viewIndex.value) !== middle) {
+    viewIndex.value = middle
+    animating.value = false
   }
-}
-
-function measure() {
-  // 延迟到布局稳定后再测：v-if 刚渲染 / H5 首帧时 nextTick 可能取不到宽度，
-  // wrapW 停留默认 360px 会导致 visualOffset 基准错误、选中项整体偏左。
-  setTimeout(() => {
-    const instance = getCurrentInstance()
-    // .in() 兼容：vue3 script setup 下 proxy 与 instance 均可用，取其一
-    const inst = instance?.proxy ?? instance
-    const query = uni.createSelectorQuery().in(inst as any)
-    query
-      .select('.filter-wheel')
-      .boundingClientRect((el: any) => {
-        if (el?.width) wrapW.value = el.width
-        else fallbackWrapW()
-      })
-      .exec()
-  }, 30)
 }
 
 watch(
@@ -189,12 +183,9 @@ watch(
   () => props.tabs,
   () => {
     syncFromModelValue()
-    measure()
   },
   { immediate: true },
 )
-
-onMounted(measure)
 </script>
 
 <style scoped lang="scss">
@@ -205,7 +196,8 @@ onMounted(measure)
   overflow: hidden;
   user-select: none;
   touch-action: pan-y;
-  background: transparent;
+  /* 固定于滚动区外：不透明白底承载滚轮，滚动内容上移穿过时不会透过边缘淡化露出下层 */
+  background: var(--bg-page);
 }
 
 /* 左右边缘淡化 */

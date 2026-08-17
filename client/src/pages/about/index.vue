@@ -58,12 +58,17 @@ if (typeof window !== 'undefined') {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
   background: var(--bg-page);
 }
 .scroll-wrap {
-  height: calc(100vh - var(--header-h, 88rpx));
-  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .hero {
   display: flex;

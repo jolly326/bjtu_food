@@ -26,7 +26,7 @@
       </view>
       <view class="card-rating-badge">
         <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="star-icon" />
-        <text class="rating-text">{{ dish.rating }}</text>
+        <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
       </view>
     </view>
     <view class="card-info">
@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
-import { getImageUrl } from '@/utils/image'
+import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
 import TagLabel from './TagLabel.vue'
 
@@ -70,7 +70,8 @@ const emit = defineEmits<{
 const pressed = ref(false)
 
 /** 图片 URL：通过 getImageUrl 处理（兼容相对路径与完整 URL） */
-const imgSrc = computed(() => getImageUrl(props.dish.image))
+// C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降
+const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.image)))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
@@ -83,6 +84,11 @@ const displayTags = computed(() => props.dish.tags.slice(0, 2))
 /** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
 function fmtDistance(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
+}
+
+/** 评分统一保留一位小数（与详情页 toFixed(1) 一致，避免 4 / 4.5 显示不一致） */
+function fmtRating(r: number): string {
+  return Number(r || 0).toFixed(1)
 }
 
 function handleClick() {

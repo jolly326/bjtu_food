@@ -288,8 +288,12 @@ export const useDishStore = defineStore('dish', () => {
     })
   }
 
+  /** 筛选请求序号：快速切换品类时丢弃过期响应，避免旧请求晚到覆盖新品类（P0 竞态修复） */
+  let filterFetchSeq = 0
+
   /** 首页筛选：按选中品类/标签拉取菜品列表（真实品类 categoryId 优先；tag 兼容旧用法），复用现有分页 */
   async function fetchFilterDishes(tab: FilterTab, reset = false) {
+    const seq = ++filterFetchSeq
     if (reset) {
       filterList.value = []
       filterPage.value = 1
@@ -315,6 +319,8 @@ export const useDishStore = defineStore('dish', () => {
         rows = withLocalDistance(res.list)
         filterTotal.value = res.total
       }
+      // 过期响应（期间又切换了品类）直接丢弃，不覆盖新品类列表
+      if (seq !== filterFetchSeq) return
       if (reset) {
         filterList.value = rows
       } else {
@@ -323,6 +329,8 @@ export const useDishStore = defineStore('dish', () => {
       // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
       if (rows.length < pageSize) filterFinished.value = true
     } catch (e: any) {
+      // 过期请求失败不再置失败态（新请求状态为准）
+      if (seq !== filterFetchSeq) return
       console.error('加载筛选菜品失败', e)
       filterLoadFailed.value = true
     }

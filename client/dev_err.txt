@@ -1275,3 +1275,5 @@ DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be
 
 More info: https://sass-lang.com/d/legacy-js-api
 
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/review-list.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/review-list.vue:1:0[39m

@@ -40,7 +40,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue'
-import { onHide } from '@dcloudio/uni-app'
 import IconSvg from './IconSvg.vue'
 import type { BroadcastItem } from '@/api/notify'
 
@@ -53,7 +52,11 @@ const emit = defineEmits<{
 }>()
 
 function onTap() {
-  if (props.items[index.value]) emit('select', props.items[index.value])
+  // 末尾克隆项（index === items.length）视觉显示的是 items[0] 的内容，
+  // 点击应映射回首项——否则克隆位点击时 props.items[index] 为 undefined，静默无响应。
+  const i = index.value >= props.items.length ? 0 : index.value
+  const item = props.items[i]
+  if (item) emit('select', item)
 }
 
 // item 高度（与 .broadcast-viewport 的 88rpx 对齐，单位 rpx）
@@ -115,8 +118,10 @@ watch(
 )
 
 onUnmounted(stop)
-// N03 修复：页面隐藏时停止轮播（含复位定时器），恢复可见时由 resume 重新启动
-onHide(stop)
+
+// 页面可见性由宿主页面生命周期控制（onShow/onHide 在组件中不生效）：
+// 页面隐藏时 stop() 暂停轮播（切后台/进详情页不再白耗 setData），重新可见时 start() 恢复。
+defineExpose({ start, stop })
 </script>
 
 <style scoped>

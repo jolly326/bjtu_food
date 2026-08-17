@@ -33,6 +33,10 @@ public class Feedback {
     @Schema(description = "联系方式")
     private String contact;
 
+    /** 附图（JSON 数组字符串，如 ["/uploads/xx.jpg"]；截图/作证照片/菜品图，2026-08-17 新增） */
+    @Schema(description = "附图（JSON 数组字符串，存绝对URL）")
+    private String images;
+
     /** 关联类型（社区举报场景）：moment（关联被举报动态）；其他反馈为 null */
     @Schema(description = "关联类型（举报场景）：moment；其他为 null")
     private String relatedType;

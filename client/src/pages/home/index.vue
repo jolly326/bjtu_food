@@ -21,8 +21,11 @@
       @refresherrefresh="onRefresh"
       @scroll="onScroll"
       @scrolltolower="onScrollToLower"
+      @touchstart="onSwipeStart"
+      @touchend="onSwipeEnd"
+      @touchcancel="onSwipeEnd"
     >
-      <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 两卡万能区 + 筛选条 + 双列瀑布流，避免加载完成跳变） -->
+      <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 万能区 + 筛选条 + 双列瀑布流，避免加载完成跳变） -->
       <view v-if="loadingHot" class="home-skeleton">
         <view class="sk-broadcast skeleton" />
         <view class="sk-universal">
@@ -42,11 +45,22 @@
       <!-- 真实内容（首屏加载完成后始终渲染：广播/万能区独立于筛选切换，切换 tab 只刷新下方瀑布流） -->
       <view v-if="!loadingHot" class="home-content">
         <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
-        <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
+        <BroadcastBar ref="broadcastBarRef" :items="broadcasts" @select="onBroadcastTap" />
 
         <!-- 两列万能区：最新活动 / 反馈菜品（活动入口常驻，点击进活动列表页；无活动数据时兜底文案） -->
         <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
           <UniversalGrid @open-activity="goToActivity" @open-feedback="goToFeedback" />
+        </view>
+
+        <!-- 品类筛选滚轮：位于万能区下方（内容流内），随内容上滑自然离开屏幕；
+             内容区左右滑动（横滑手势）同样可驱动切换 -->
+        <view class="filter-slot">
+          <FilterBar
+            ref="filterBarRef"
+            :tabs="filterTabs"
+            v-model="selectedKey"
+            @change="onFilterChange"
+          />
         </view>
 
         <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
@@ -55,8 +69,8 @@
           <text class="loc-hint-arrow">›</text>
         </view>
 
-        <!-- 筛选 Tab + 瀑布流（合并为单一组件：切换 tab 只刷新下方内容区，不影响上方广播/万能区） -->
-        <HomeFeed :load-failed="loadFailed" />
+        <!-- 瀑布流（切换 tab 或横滑内容区均只刷新此区；筛选滚轮随内容上滑离开屏幕） -->
+        <HomeFeed :load-failed="loadFailed" @retry="retryWaterfall" />
       </view>
 
       <view style="height: var(--spacing-lg)" />
@@ -79,8 +93,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
+// 注意：uni-app 运行时未导出 onHide（类型声明有但运行时缺失），请勿 import onHide，否则 setup 抛错导致页面无法渲染。
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
@@ -90,20 +105,107 @@ import type { BroadcastItem } from '@/api/notify'
 import { getMoments } from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
 import HomeFeed from '@/components/HomeFeed.vue'
 import UniversalGrid from '@/components/UniversalGrid.vue'
+import FilterBar from '@/components/FilterBar.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import type { FilterTab } from '@/components/filter-tab'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
 const locationStore = useLocationStore()
+/** 广播轮播条引用：页面 onShow 时启动轮播（组件内部 onUnmounted 停止） */
+const broadcastBarRef = ref<{ start: () => void; stop: () => void }>()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
+
+/** ===== 品类筛选（原 HomeFeed 内部逻辑提升至首页，筛选滚轮位于万能区下方内容流内） ===== */
+const filterBarRef = ref<{ step: (dir: number) => void }>()
+
+/** 品类滚轮 tabs：直接来自后端 category 表（enabled 品类，按 sortOrder 升序），type=category + categoryId 真筛 */
+const filterTabs = computed<FilterTab[]>(() =>
+  dishStore.categories.map((c) => ({
+    key: c.code,
+    label: c.name,
+    type: 'category',
+    categoryId: c.id,
+  })),
+)
+
+/** 当前选中品类 code，默认首项（后端 sortOrder 最小的品类） */
+const selectedKey = ref('')
+
+/** 首拉是否已完成（仅品类就绪后自动触发一次，避免 onLoad/下拉重复） */
+let bootstrapped = false
+
+async function ensureBoot() {
+  const list = filterTabs.value
+  if (list.length === 0) return
+  if (!selectedKey.value) selectedKey.value = list[0].key
+  if (bootstrapped) return
+  bootstrapped = true
+  await dishStore.fetchFilterDishes(list[0], true)
+}
+
+watch(
+  () => filterTabs.value.length,
+  () => ensureBoot(),
+  { immediate: true },
+)
+
+/** FilterBar 切换（点击/横滑 step 均触发 change）→ 拉取新品类瀑布流 */
+function onFilterChange(tab: FilterTab) {
+  dishStore.fetchFilterDishes(tab, true)
+}
+
+/** 失败态重试：重新拉当前选中品类（避开 ensureBoot 的 bootstrapped 单次守卫，确保可反复重试） */
+async function retryWaterfall() {
+  // 品类表可能也失败（filterTabs 为空），先补拉品类再触发瀑布流，否则重试永远无效
+  if (dishStore.categories.length === 0) {
+    await dishStore.fetchCategories()
+    if (dishStore.categories.length === 0) {
+      uni.showToast({ title: '品类加载失败，请稍后重试', icon: 'none' })
+      return
+    }
+  }
+  const list = filterTabs.value
+  const tab = list.find((t) => t.key === selectedKey.value) || list[0]
+  if (tab) {
+    if (!selectedKey.value) selectedKey.value = tab.key
+    dishStore.fetchFilterDishes(tab, true)
+  }
+}
+
+/** ===== 内容区横滑切换（左滑下一类、右滑上一类）：纵向滚动不误触，仅横向位移显著时触发 ===== */
+let swipeStartX = 0
+let swipeStartY = 0
+let swipeTracking = false
+
+function onSwipeStart(e: any) {
+  const t = e.touches?.[0] ?? e.changedTouches?.[0]
+  if (!t) return
+  swipeStartX = t.clientX
+  swipeStartY = t.clientY
+  swipeTracking = true
+}
+
+function onSwipeEnd(e: any) {
+  if (!swipeTracking) return
+  swipeTracking = false
+  const t = e.changedTouches?.[0]
+  if (!t) return
+  const dx = t.clientX - swipeStartX
+  const dy = t.clientY - swipeStartY
+  // 仅横向位移显著（≥60px 且远超纵向位移 1.5 倍）才切换，避免下拉刷新/纵向滚动误触
+  if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    filterBarRef.value?.step(dx < 0 ? 1 : -1)
+  }
+}
 
 /** 首页头像 → 个人页（带 from=home，使「我的」页显示返回箭头） */
 function goProfile() {
@@ -142,14 +244,18 @@ async function enableLocation() {
   }
 }
 
-/** 首页广播条点击 → 动态入口：有 targetId 跳该条动态详情，否则回落动态列表 */
+/** 首页广播条点击 → 一律进入对应动态详情（用户明确要求，不做「回落动态列表」降级）。
+ *  广播数据源为最新动态摘录（getMoments），每条必带 id；targetId 缺失说明数据异常，
+ *  此时提示而非跳列表，避免掩盖根因。 */
 function onBroadcastTap(item: BroadcastItem) {
   if (!item) return
-  if (item.targetId) {
-    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${item.targetId}` })
-  } else {
-    uni.navigateTo({ url: '/pages/community/index' })
+  const id = item.targetId ?? (item as any).id
+  if (id) {
+    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
+    return
   }
+  console.warn('[home] 广播条动态缺少 targetId：', item)
+  uni.showToast({ title: '该动态暂不可查看', icon: 'none' })
 }
 
 const loadingHot = ref(true)
@@ -159,12 +265,13 @@ const refresherTriggered = ref(false)
 // 广播栏（最新动态摘录）
 const broadcasts = ref<BroadcastItem[]>([])
 
-/** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口） */
+/** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口）。
+ *  targetId 强制取有效数字：moment.id 已由 api 层 Number() 归一，此处兜底避免 0/NaN。 */
 function toBroadcastItem(moment: Moment): BroadcastItem {
   return {
     text: moment.content || '',
     type: 'community',
-    targetId: moment.id,
+    targetId: moment.id || 0,
   }
 }
 
@@ -205,15 +312,46 @@ async function ensureLocation() {
   }
 }
 
-onLoad(() => { loadData() })
+onLoad(() => {
+  loadData()
+  // 品类引导：若尚未拉取（首进首页），先拉品类表再触发首品类瀑布流
+  if (dishStore.categories.length === 0) {
+    dishStore.fetchCategories().then(() => ensureBoot())
+  }
+})
+// 页面可见：启动广播轮播 + 清掉详情页分享残留（避免分享菜单带上一条内容）。
+// 注：不用 onHide 暂停轮播——uni-app 运行时未导出 onHide，import 会导致 setup 崩溃；
+// 广播条在页面卸载时由 BroadcastBar 内部 onUnmounted 停止，隐藏期间轮播保留（性能影响可忽略）。
+onShow(() => {
+  broadcastBarRef.value?.start()
+  clearShareState()
+})
 onShareAppMessage(() => buildSharePayload())
 
-function onRefresh() {
+/** 下拉刷新序号：独立于 loadData 的 loadSeq——若复用 loadSeq 递增，会令进行中的首屏 loadData
+ *  在 finally 中因 seq !== loadSeq 而跳过 loadingHot=false 收尾，导致页面卡在骨架屏 */
+let refreshSeq = 0
+async function onRefresh() {
   if (refresherTriggered.value) return
   refresherTriggered.value = true
-  loadData().finally(() => {
-    refresherTriggered.value = false
-  })
+  const seq = ++refreshSeq
+  try {
+    // 同时刷新广播/定位与当前品类瀑布流：仅广播刷新会让用户以为下拉无效。
+    // 下拉刷新保留真实内容（不置 loadingHot），避免整页切骨架屏闪烁。
+    const [momentRes] = await Promise.all([
+      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
+      ensureLocation(),
+      filterTabs.value.length > 0
+        ? dishStore.fetchFilterDishes(filterTabs.value.find((t) => t.key === selectedKey.value) || filterTabs.value[0], true)
+        : dishStore.fetchCategories().then(() => ensureBoot()),
+    ])
+    if (seq !== refreshSeq) return
+    broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
+  } catch (e) {
+    if (seq === refreshSeq) console.error('[home] 下拉刷新失败', e)
+  } finally {
+    if (seq === refreshSeq) refresherTriggered.value = false
+  }
 }
 
 /** 触底加载更多（筛选瀑布流无限加载） */
@@ -229,6 +367,7 @@ const showBackTop = ref(false)
 // 非响应式记录滚动位置，避免每次滚动都 setData（微信小程序受控 scroll-top 每帧回写会严重掉帧）
 let scrollPos = 0
 let backTopVisible = false
+
 function onScroll(e: any) {
   scrollPos = e.detail.scrollTop
   const now = scrollPos > 600
@@ -240,20 +379,31 @@ function onScroll(e: any) {
 }
 function scrollToTop() {
   // 受控 scroll-top 双写 trick：先偏离再归零，确保触发滚动
+  // 微信小程序无 window.requestAnimationFrame（仅部分环境存在），用 setTimeout 兜底
   scrollTop.value = scrollPos > 0 ? scrollPos - 1 : 1
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     scrollTop.value = 0
-  })
+  }, 16)
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .home-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 
 /* ===== 顶部 Header（组件内渲染头像行与整行搜索框，首页不再额外定义） ===== */
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
 /* 区块纵向节奏统一 24rpx 基准（广播→万能→标题→瀑布流衔接紧凑，消灭异常 72rpx）；左右留白统一单层 24rpx */
 .section { padding: 0 var(--spacing-md); margin: var(--spacing-md) 0; width: 100%; box-sizing: border-box; }
+
+/* ===== 品类筛选栏：位于万能区下方（内容流内），随内容上滑自然离开屏幕 ===== */
+.filter-slot {
+  position: relative;
+  z-index: 30;
+  height: 88rpx;
+  /* 与上下组件（广播/万能/瀑布流）一致的左右留白，滚动时选中项与内容视觉对齐 */
+  padding: 0 var(--spacing-md);
+  box-sizing: border-box;
+}
 
 /* ===== 列表底部状态 ===== */
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }

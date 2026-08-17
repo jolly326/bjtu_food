@@ -19,6 +19,10 @@ import com.bjtufood.moment.service.MomentService;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
+import com.bjtufood.user.mapper.UserMapper;
+import com.bjtufood.user.entity.User;
+import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.entity.Dish;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
@@ -40,6 +44,8 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
+    private final UserMapper userMapper;
+    private final DishMapper dishMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
     private final MomentService momentService;
@@ -97,6 +103,23 @@ public class ReviewServiceImpl implements ReviewService {
         page = p[0]; pageSize = p[1];
         return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, null)
                 .convert(this::enrichImages);
+    }
+
+    @Override
+    public IPage<ReviewVO> listRepliesByParentId(Long parentId, int page, int pageSize, Long userId) {
+        if (parentId == null) {
+            throw new BusinessException("父评价ID不能为空");
+        }
+        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = p[0]; pageSize = p[1];
+        IPage<ReviewVO> result = reviewMapper.selectRepliesPageByParentId(new Page<>(page, pageSize), parentId)
+                .convert(this::enrichImages);
+        // 每个直接子回复再带出各自的楼中楼孙回复窗口（复用 assembleReplies）
+        assembleReplies(result);
+        if (userId != null) {
+            markUseful(result.getRecords(), userId);
+        }
+        return result;
     }
 
     @Override
@@ -329,7 +352,7 @@ public class ReviewServiceImpl implements ReviewService {
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
         // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
-        return reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
+        IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
                         .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                                 Review::getContent, Review::getImages, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
@@ -337,8 +360,39 @@ public class ReviewServiceImpl implements ReviewService {
                         .eq(userId != null, Review::getUserId, userId)
                         // 关键词模糊匹配评价正文，仅当显式传入时生效
                         .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
-                        .orderByDesc(Review::getCreatedAt))
-                .convert(this::toAdminVO);
+                        .orderByDesc(Review::getCreatedAt));
+        List<ReviewAdminVO> vos = enrichAdminBatch(pageResult.getRecords());
+        IPage<ReviewAdminVO> result = new Page<>(pageResult.getCurrent(), pageResult.getSize(), pageResult.getTotal());
+        result.setRecords(vos);
+        return result;
+    }
+
+    /**
+     * 管理端评价列表批量 enrich：补齐评价者昵称/头像、菜品名，避免前端本地 find 退化。
+     */
+    private List<ReviewAdminVO> enrichAdminBatch(List<Review> records) {
+        if (records == null || records.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<Long> userIds = records.stream().map(Review::getUserId).filter(id -> id != null).collect(Collectors.toSet());
+        Set<Long> dishIds = records.stream().map(Review::getDishId).filter(id -> id != null).collect(Collectors.toSet());
+        Map<Long, User> userMap = userIds.isEmpty() ? new HashMap<>()
+                : userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds)).stream()
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        Map<Long, Dish> dishMap = dishIds.isEmpty() ? new HashMap<>()
+                : dishMapper.selectList(new LambdaQueryWrapper<Dish>().in(Dish::getId, dishIds)).stream()
+                .collect(Collectors.toMap(Dish::getId, d -> d, (a, b) -> a));
+        List<ReviewAdminVO> vos = new ArrayList<>(records.size());
+        for (Review r : records) {
+            ReviewAdminVO vo = toAdminVO(r);
+            User u = r.getUserId() == null ? null : userMap.get(r.getUserId());
+            vo.setUserNickname(u != null ? u.getNickname() : null);
+            vo.setUserAvatar(u != null ? imageUrlUtil.toAbsoluteUrl(u.getAvatar()) : null);
+            Dish d = r.getDishId() == null ? null : dishMap.get(r.getDishId());
+            vo.setDishName(d != null ? d.getName() : null);
+            vos.add(vo);
+        }
+        return vos;
     }
 
     @Override

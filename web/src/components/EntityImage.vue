@@ -12,7 +12,7 @@ const emit = defineEmits<{ click: [] }>()
 <template>
   <div class="entity-image" v-press role="button" tabindex="0" aria-label="查看/选择图片" @click="emit('click')" @keydown.enter.prevent="emit('click')" @keydown.space.prevent="emit('click')">
     <div v-if="imageUrl" class="image-view">
-      <img :src="imageUrl" alt="" />
+      <img :src="imageUrl" alt="" loading="lazy" decoding="async" />
       <span v-if="imageCount > 1" class="image-badge">+{{ imageCount - 1 }}</span>
     </div>
     <div v-else class="image-empty">
