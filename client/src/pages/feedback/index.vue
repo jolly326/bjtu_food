@@ -1,6 +1,6 @@
 <template>
   <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="意见反馈" @back="backToHome" />
+    <Header title="意见反馈" @back="goBack" />
 
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 我的反馈记录（登录后展示；未登录引导登录） -->
@@ -94,13 +94,15 @@
           :placeholder="contentPlaceholder"
           maxlength="1000"
           :auto-height="true"
+          :cursor-spacing="20"
+          :adjust-position="true"
         />
         <text class="counter" :class="{ warn: content.length >= 900 }">{{ content.length }}/1000</text>
       </CardSection>
 
       <!-- 联系方式 -->
       <CardSection title="联系方式（选填）">
-        <input class="contact-input" v-model="contact" placeholder="邮箱 / 微信，方便我们回复你" />
+        <input class="contact-input" v-model="contact" :cursor-spacing="20" :adjust-position="true" placeholder="邮箱 / 微信，方便我们回复你" />
       </CardSection>
 
       <view style="height: var(--spacing-xl)" />
@@ -178,6 +180,12 @@ import AuthSheet from '@/components/AuthSheet.vue'
 const theme = useThemeStore()
 const userStore = useUserStore()
 const loggedIn = computed(() => userStore.isLoggedIn())
+
+// 返回：有返回栈时 navigateBack（从「我的」进入回「我的」）；无返回栈（redirectTo 直达）才 reLaunch 首页
+function goBack() {
+  if (getCurrentPages().length > 1) uni.navigateBack()
+  else backToHome()
+}
 
 // ---- 提交表单 ----
 const types: { value: FeedbackSubmit['type']; label: string }[] = [
@@ -384,7 +392,9 @@ onShow(() => {
 
 <style scoped>
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+/* scroll-view 作为 flex 子项必须 min-height:0，否则内容超高时按 min-height:auto 撑开父容器，
+   导致页面超出 100vh、底部提交栏被挤出视口（微信小程序 flex 经典坑） */
+.scroll-wrap { flex: 1; min-height: 0; height: 0; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 
 /* 登录引导（文档：bg-soft 圆角卡 + arrow 图标） */
 .login-hint { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
@@ -431,8 +441,23 @@ onShow(() => {
 .counter.warn { color: var(--color-warning); }
 .contact-input { width: 100%; height: 88rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
 
-/* 提交栏：半透材质 + 圆角顶边 + 固定底栏高度（文档 §细节设计） */
-.submit-bar { height: var(--action-bar-height); padding: 0 var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); background: var(--bg-card); backdrop-filter: blur(var(--blur-radius)) saturate(180%); -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; display: flex; align-items: center; box-sizing: border-box; }
+/* 提交栏：半透玻璃材质 + 圆角顶边；padding 撑高（88rpx 按钮 + 上下 16rpx = 120rpx，对齐 --action-bar-height），
+   safe-area 并入底部 padding，避免固定 height 挤压按钮；背景须半透，否则 backdrop-filter 无毛玻璃效果 */
+.submit-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+  background: var(--blur-bg-solid);
+  backdrop-filter: blur(var(--blur-radius)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
+  box-shadow: var(--shadow-bar-soft);
+  border-top: 2rpx solid var(--border-color);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-sizing: border-box;
+}
+/* 按钮占满底栏剩余宽度，避免被压缩到左下角 */
+.submit-bar :deep(.app-btn) { flex: 1; width: auto; }
 
 /* 详情 BottomSheet（复用 ApplySheet/RelatedPickerSheet 范式） */
 .sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); opacity: 0; transition: opacity 0.3s ease; z-index: 90; }
