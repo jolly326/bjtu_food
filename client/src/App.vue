@@ -83,7 +83,9 @@ page {
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
-  --radius-pill: 36rpx;
+  --radius-pill: 16px;
+  /* 底部弹层/提交栏圆角顶边（与 --radius-modal 同值，意见反馈页提交栏等引用） */
+  --radius-sheet: 24px;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
@@ -289,7 +291,8 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --radius-modal: 24px;
   --radius-btn: 16px;
   --radius-icon: 12px;
-  --radius-pill: 36rpx;
+  --radius-pill: 16px;
+  --radius-sheet: 24px;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;

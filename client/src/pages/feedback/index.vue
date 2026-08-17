@@ -5,7 +5,7 @@
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 我的反馈记录（登录后展示；未登录引导登录） -->
       <CardSection title="我的反馈">
-        <view v-if="!loggedIn" class="login-hint" role="button" :aria-label="`登录后可查看你的反馈记录，点击去登录`" @tap="goLogin">
+        <view v-if="!loggedIn" class="login-hint" hover-class="pressed" hover-stay-time="80" role="button" :aria-label="`登录后可查看你的反馈记录，点击去登录`" @tap="goLogin">
           <text class="login-hint-text">登录后可查看你的反馈记录</text>
           <view class="login-hint-action">
             <text class="login-hint-action-text">去登录</text>
@@ -22,6 +22,8 @@
             v-for="f in records"
             :key="f.id"
             class="rec-item"
+            hover-class="pressed"
+            hover-stay-time="80"
             role="button"
             :aria-label="`反馈详情：${feedbackTypeLabel(f.type)}，${f.status === 'handled' ? '已处理' : '待处理'}`"
             @tap="viewDetail(f)"
@@ -47,6 +49,8 @@
             :key="t.value"
             class="type-chip"
             :class="{ active: type === t.value }"
+            hover-class="pressed"
+            hover-stay-time="80"
             role="button"
             :aria-label="`反馈类型：${t.label}`"
             @tap="type = t.value"
@@ -61,8 +65,8 @@
         <view v-if="presetDishName" class="preset-tip">
           <IconSvg name="dish" :size="28" color="var(--color-primary)" />
           <text class="preset-tip-text">已关联：{{ presetDishName }}</text>
-          <view class="preset-tip-clear" role="button" aria-label="清除关联菜品" @tap="clearPreset">
-            <text class="preset-tip-clear-text">更改</text>
+          <view class="preset-tip-clear" hover-class="pressed" hover-stay-time="80" role="button" aria-label="移除关联菜品" @tap="clearPreset">
+            <text class="preset-tip-clear-text">移除</text>
           </view>
         </view>
         <view class="type-row">
@@ -71,6 +75,8 @@
             :key="e.key"
             class="type-chip"
             :class="{ active: selectedEntity === e.key }"
+            hover-class="pressed"
+            hover-stay-time="80"
             role="button"
             :aria-label="`反馈对象：${e.label}`"
             @tap="selectedEntity = e.key"
@@ -89,7 +95,7 @@
           maxlength="1000"
           :auto-height="true"
         />
-        <text class="counter">{{ content.length }}/1000</text>
+        <text class="counter" :class="{ warn: content.length >= 900 }">{{ content.length }}/1000</text>
       </CardSection>
 
       <!-- 联系方式 -->
@@ -249,7 +255,11 @@ async function submit() {
     selectedEntity.value = 'none'
     type.value = 'suggestion'
     clearPreset()
-    setTimeout(() => { uni.navigateBack() }, 600)
+    // 无返回栈（如首页 redirectTo 进入）时兜底回首页，避免静默停留当前页
+    setTimeout(() => {
+      if (getCurrentPages().length > 1) uni.navigateBack()
+      else uni.reLaunch({ url: '/pages/home/index' })
+    }, 600)
   } catch (e: any) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
@@ -373,7 +383,7 @@ onShow(() => {
 </script>
 
 <style scoped>
-.feedback-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+.feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
 
 /* 登录引导（文档：bg-soft 圆角卡 + arrow 图标） */
@@ -391,6 +401,8 @@ onShow(() => {
 .rec-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .rec-item { background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: var(--spacing-md); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .rec-item:active { transform: scale(var(--press-scale)); background: var(--bg-soft); }
+/* 真机按压（微信 hover-class；背景转 bg-soft 与设计文档 §按压态 一致） */
+.rec-item.pressed { background: var(--bg-soft); }
 .rec-top { display: flex; align-items: center; gap: var(--spacing-sm); }
 .rec-type-tag { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); background: var(--bg-soft); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); }
 .rec-arrow { flex-shrink: 0; margin-left: auto; }
@@ -406,19 +418,21 @@ onShow(() => {
 
 /* 类型选择（选中态：主色描边 + 软底 + 主色字，与 ApplySheet .seg.on 一致） */
 .type-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.type-chip { padding: var(--spacing-sm) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); border: 2rpx solid transparent; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.type-chip { padding: var(--spacing-sm) var(--spacing-lg); border-radius: var(--radius-pill); background: var(--bg-soft); border: 2rpx solid transparent; transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .type-chip:active { transform: scale(var(--press-scale)); }
 .type-chip.active { background: var(--color-primary-soft); border-color: var(--color-primary); }
 .type-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 .type-chip.active .type-text { color: var(--color-primary); }
 
 /* 内容输入：与发布菜品/评价 textarea 同款 */
-.content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
+.content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-md); background: var(--bg-input); border-radius: var(--radius-card); box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-.contact-input { width: 100%; height: 88rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
+/* 字数接近上限转警示色（≥900/1000） */
+.counter.warn { color: var(--color-warning); }
+.contact-input { width: 100%; height: 88rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
 
 /* 提交栏：半透材质 + 圆角顶边 + 固定底栏高度（文档 §细节设计） */
-.submit-bar { height: var(--action-bar-height); padding: 0 var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); background: var(--bg-card); backdrop-filter: blur(20rpx); -webkit-backdrop-filter: blur(20rpx); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; display: flex; align-items: center; box-sizing: border-box; }
+.submit-bar { height: var(--action-bar-height); padding: 0 var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); background: var(--bg-card); backdrop-filter: blur(var(--blur-radius)) saturate(180%); -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; display: flex; align-items: center; box-sizing: border-box; }
 
 /* 详情 BottomSheet（复用 ApplySheet/RelatedPickerSheet 范式） */
 .sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); opacity: 0; transition: opacity 0.3s ease; z-index: 90; }
@@ -433,6 +447,7 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   max-height: 80vh;
+  max-height: calc(100dvh - var(--spacing-lg));
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
   will-change: transform;
 }
@@ -450,7 +465,7 @@ onShow(() => {
 .detail-reply { color: var(--text-secondary); }
 
 /* 轻量状态徽标（待处理/已处理，避免污染全局 StatusBadge 文案） */
-.fb-status { display: inline-flex; align-items: center; flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-icon); font-size: 22rpx; font-weight: var(--weight-bold); }
+.fb-status { display: inline-flex; align-items: center; flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); font-size: var(--font-aux); font-weight: var(--weight-bold); }
 .fb-status.pending { background: var(--color-warning-soft); color: var(--color-warning); }
 .fb-status.handled { background: var(--color-success-soft); color: var(--color-success); }
 
