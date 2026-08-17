@@ -34,10 +34,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
+
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_PAGE_SIZE = 10;
 
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
@@ -52,10 +56,10 @@ public class DishServiceImpl implements DishService {
             req = new DishQueryReq();
         }
         if (req.getPage() == null || req.getPage() < 1) {
-            req.setPage(1);
+            req.setPage(DEFAULT_PAGE);
         }
         if (req.getPageSize() == null || req.getPageSize() < 1) {
-            req.setPageSize(10);
+            req.setPageSize(DEFAULT_PAGE_SIZE);
         }
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
                 .convert(this::enrichImages);
@@ -176,7 +180,7 @@ public class DishServiceImpl implements DishService {
                     DishDetailVO vo = dishMapper.selectDishDetail(d.getId());
                     return vo != null ? enrichImages(vo) : null;
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .toList();
         IPage<DishVO> result = new Page<>(page, pageSize, total);
         result.setRecords(records);

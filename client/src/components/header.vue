@@ -1,6 +1,6 @@
 <template>
   <!-- 首页：单行星胶囊头部（头像 + 整行搜索框），朱砂红底，右上角留空避让胶囊 -->
-  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
+  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
     <view class="home-row" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
       <view
         class="user-chip"
@@ -10,18 +10,18 @@
       >
         <image v-if="avatarOk && avatar" :src="avatar" class="user-chip-avatar" @error="avatarOk = false" />
         <view v-else class="user-chip-avatar user-chip-avatar-empty">
-          <IconSvg name="user" :size="34" color="#FFFFFF" />
+          <IconSvg name="user" :size="'22px'" color="#B8B0A8" />
         </view>
       </view>
       <view class="home-search" @tap="$emit('search')" role="search" :aria-label="searchPlaceholder">
-        <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="home-search-icon" />
+        <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="home-search-icon" />
         <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
       </view>
     </view>
   </view>
 
   <!-- 通用/二级页：返回箭头 + 居中标题 + 右上角留空 -->
-  <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
+  <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
       <view
         v-if="showBack"
@@ -30,7 +30,7 @@
         role="button"
         aria-label="返回"
       >
-        <IconSvg name="arrow-left" :size="44" color="#FFFFFF" class="back-arrow" />
+        <IconSvg name="arrow-left" :size="'22px'" color="#FFFFFF" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
     </view>
@@ -47,8 +47,6 @@ const props = withDefaults(defineProps<{
   title?: string
   /** 首页头像（可选） */
   avatar?: string
-  /** 首页昵称 */
-  nickname?: string
   /** 首页搜索框占位 */
   searchPlaceholder?: string
   /** 深色模式（仅影响无背景变量时的兜底） */
@@ -59,7 +57,6 @@ const props = withDefaults(defineProps<{
   variant: 'default',
   title: '',
   avatar: '',
-  nickname: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
   dark: false,
   showBack: true,
@@ -72,7 +69,7 @@ const emit = defineEmits<{
 }>()
 
 const statusBarHeight = ref(20)
-const navBarHeight = ref(44)
+const navBarHeight = ref(48)
 const avatarOk = ref(true)
 // 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
 const isWeChat = ref(false)
@@ -95,7 +92,7 @@ onMounted(() => {
   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐返回行高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
-    navBarHeight.value = (mb.top - sb) * 2 + mb.height
+    navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 46)
   }
 })
 
@@ -119,20 +116,15 @@ function handleBack() {
 .nav {
   display: flex;
   align-items: center;
-  justify-content: center;
   position: relative;
   box-sizing: border-box;
-}
-/* 有返回箭头时：左侧留白补偿，使标题在「返回区 + 标题 + 右侧留白」间视觉居中 */
-.nav--with-back {
-  padding-left: calc(80rpx + var(--spacing-sm));
 }
 .back-area {
   position: absolute;
   left: var(--spacing-sm);
   top: 0;
   bottom: 0;
-  width: 80rpx;
+  width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,8 +132,13 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .back-area:active { transform: scale(var(--press-scale)); }
-.back-arrow { font-size: 44rpx; line-height: 1; }
+.back-arrow { line-height: 1; }
+/* 标题绝对居中：无论有无返回箭头，始终相对导航行真正水平居中（不再因左侧补偿而偏右） */
 .title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
   font-size: var(--font-h2);
   font-weight: var(--weight-bold);
   color: #FFFFFF;
@@ -168,10 +165,10 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .user-chip-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: calc(var(--nav-h) - 14px);
+  height: calc(var(--nav-h) - 14px);
   border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.25);
+  background: #FFFFFF;
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .home-search {
@@ -180,7 +177,7 @@ function handleBack() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: 72rpx;
+  height: calc(var(--nav-h) - 12px);
   padding: 0 var(--spacing-md);
   /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
   background: var(--bg-card);

@@ -287,8 +287,9 @@
     <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
         (SELECT 'dish' AS type, d.id AS id, d.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                c.name AS canteen,
+                c.name AS canteen, s.name AS stall,
                 d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
+                d.tags AS tags, d.promo_price AS promoPrice, d.original_price AS originalPrice,
                 c.latitude AS latitude, c.longitude AS longitude
          FROM dish d
                   LEFT JOIN stall s ON d.stall_id = s.id
@@ -300,8 +301,9 @@
         UNION ALL
         (SELECT 'dish' AS type, d.id AS id, d.name AS name,
                 JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                c.name AS canteen,
+                c.name AS canteen, s.name AS stall,
                 d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount,
+                d.tags AS tags, d.promo_price AS promoPrice, d.original_price AS originalPrice,
                 c.latitude AS latitude, c.longitude AS longitude
          FROM dish d
                   JOIN stall s ON d.stall_id = s.id

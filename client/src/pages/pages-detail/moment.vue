@@ -63,7 +63,7 @@
           </view>
         </view>
 
-        <!-- 评论单独卡片（task todo#9） -->
+        <!-- 评论单独卡片 -->
         <view class="comment-section">
           <text class="comment-title">评论 ({{ moment.commentCount }})</text>
           <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="comment" />
@@ -184,7 +184,7 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
-/** 关联菜品的用户评价（task todo#9：并入关联+互动卡） */
+/** 关联菜品的用户评价（并入关联+互动卡） */
 const dishReviews = ref<Review[]>([])
 const loading = ref(false)
 const refresherTriggered = ref(false)
@@ -230,7 +230,7 @@ async function loadData() {
     ])
     moment.value = m
     comments.value = c.list
-    // 关联菜品时加载该菜品的用户评价（task todo#9）
+    // 关联菜品时加载该菜品的用户评价
     if (m.relatedType === 'dish' && m.relatedId) {
       try {
         dishReviews.value = (await getReviewsByDish(m.relatedId)).list

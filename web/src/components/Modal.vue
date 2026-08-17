@@ -23,6 +23,7 @@ const overlay = ref<HTMLElement | null>(null)
 const box = ref<HTMLElement | null>(null)
 const mounted = ref(false)
 const visible = ref(false)
+let hideTimer: number | undefined
 
 // ESC 关闭（键盘可达性）
 function onKeydown(e: KeyboardEvent) {
@@ -43,12 +44,15 @@ watch(
       visible.value = false
       window.removeEventListener('keydown', onKeydown)
       // 退场（220ms 与 CSS transition 一致）后卸载 DOM
-      window.setTimeout(() => (mounted.value = false), 220)
+      hideTimer = window.setTimeout(() => (mounted.value = false), 220)
     }
   },
 )
 
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  if (hideTimer) window.clearTimeout(hideTimer)
+})
 
 // 入场：blur + scale 同动（§4.5 实体化）
 function enterAnim() {

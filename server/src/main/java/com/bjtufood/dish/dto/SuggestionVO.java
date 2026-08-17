@@ -45,6 +45,18 @@ public class SuggestionVO {
     @Schema(description = "评价数（仅 dish 类型）", example = "58")
     private Integer ratingCount;
 
+    @Schema(description = "所属档口名（仅 dish 类型；副信息展示「档口 · 食堂」）", example = "兰州拉面档")
+    private String stall;
+
+    @Schema(description = "属性标签原始逗号串（仅 dish 类型；如 'signature,spicy'，前端按 TAG_MAP 映射中文）", example = "signature,spicy")
+    private String tags;
+
+    @Schema(description = "促销价（单位：分，仅 dish 类型；非空时展示促销角标，前端 api 层转元）", example = "990")
+    private Long promoPrice;
+
+    @Schema(description = "原价（单位：分，仅 dish 类型；promoPrice 非空时划线展示，前端 api 层转元）", example = "1200")
+    private Long originalPrice;
+
     /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不计算距离 */
     @Schema(description = "食堂纬度（GCJ-02），仅 dish/stall/canteen 类型返回", example = "39.90")
     private BigDecimal latitude;

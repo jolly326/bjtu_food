@@ -12,6 +12,13 @@ export interface UserLocation {
   lng: number
 }
 
+/**
+ * 校区中心兜底坐标（GCJ-02，北京交通大学海淀校区近似）。
+ * 当用户未授权 / 无法获取定位（如 H5 预览）时，用此坐标计算「距你」距离，
+ * 保证菜品卡距离字段始终有值；用户授权后自动切换为真实坐标。
+ */
+export const CAMPUS_CENTER: UserLocation = { lat: 39.9538, lng: 116.3354 }
+
 /** 解析用户坐标；任意异常（无 API / 未授权 / 超时）均返回 null，由调用方决定降级行为 */
 export function getUserLocation(): Promise<UserLocation | null> {
   return new Promise((resolve) => {

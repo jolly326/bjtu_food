@@ -38,7 +38,14 @@
         class="m-image-wrap"
         @tap.stop="previewImage(idx)"
       >
-        <image class="m-image" :src="img" mode="aspectFill" lazy-load />
+        <image
+          class="m-image"
+          :class="{ loaded: loadedSet.has(idx) }"
+          :src="img"
+          mode="aspectFill"
+          lazy-load
+          @load="loadedSet.add(idx)"
+        />
       </view>
     </view>
 
@@ -73,10 +80,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { relativeTime } from '@/utils/time'
-import { getImageUrl } from '@/utils/image'
+import { previewImages } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
@@ -101,6 +108,8 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const pressed = ref(false)
+/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡（B.5） */
+const loadedSet = reactive(new Set<number>())
 
 // 正文展开态（点1：超长折叠，粗判长度显示展开入口）
 const expanded = ref(false)
@@ -135,7 +144,7 @@ function onShareTap() {
 }
 
 function previewImage(idx: number) {
-  uni.previewImage({ urls: props.moment.images.map(getImageUrl), current: props.moment.images.map(getImageUrl)[idx] })
+  previewImages(props.moment.images, idx)
 }
 
 async function onUseful() {
@@ -189,7 +198,8 @@ async function onUseful() {
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: 16rpx; overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; transition: transform 0.25s ease; }
+.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s ease, transform 0.25s ease; }
+.m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
 .m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity 0.12s ease; }
 .m-related:active { opacity: 0.7; }

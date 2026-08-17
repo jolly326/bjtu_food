@@ -219,7 +219,7 @@ async function handleSubmit() {
       shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
-    // 发表评价默认进入动态广场（task todo#5）
+    // 发表评价默认进入动态广场
     setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
   } catch (e: any) {
     // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）

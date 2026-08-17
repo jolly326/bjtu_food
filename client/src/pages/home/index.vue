@@ -14,11 +14,15 @@
     <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
 
     <scroll-view
+      ref="scrollView"
       class="scroll-wrap"
       scroll-y
+      :scroll-top="scrollTop"
+      :scroll-with-animation="false"
       refresher-enabled
       :refresher-triggered="refresherTriggered"
       @refresherrefresh="onRefresh"
+      @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
       <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 两卡万能区 + 双列瀑布流，避免加载完成跳变） -->
@@ -47,7 +51,9 @@
 
       <block v-else>
         <!-- 两列万能区：最新活动 / 反馈菜品 -->
-        <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+        <view class="section enter-up" :style="{ '--enter-i': 0 }">
+          <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+        </view>
 
         <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
         <view v-if="showLocHint" class="loc-hint" @tap="enableLocation">
@@ -55,8 +61,20 @@
           <text class="loc-hint-arrow">›</text>
         </view>
 
+        <!-- 区块标题（B.7）：朱砂红竖条 + 大字，强化层级 -->
+        <view class="section block-title enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 1 }">
+          <view class="block-title-left">
+            <text class="block-title-bar" />
+            <text class="block-title-text">热门菜品</text>
+          </view>
+          <view class="block-title-more" @tap="goToFind">
+            <text>查看全部</text>
+            <text class="block-title-arrow">›</text>
+          </view>
+        </view>
+
         <!-- 热门菜品（双列瀑布流 + 无限加载） -->
-        <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 1 }">
+        <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 2 }">
           <WaterfallList :list="dishStore.homeHotList" @card-click="goToDetail" />
 
           <!-- 触底加载状态 -->
@@ -72,6 +90,17 @@
 
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
+
+    <!-- 回到顶部悬浮按钮（A.4）：右下角，长瀑布流体感 -->
+    <view
+      v-if="showBackTop"
+      class="fab fab-backtop"
+      :class="{ 'fab-show': showBackTop }"
+      @tap="scrollToTop"
+      aria-label="回到顶部"
+    >
+      <IconSvg name="up" :size="44" color="var(--color-primary)" />
+    </view>
 
     <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
     <AuthSheet />
@@ -111,6 +140,10 @@ function goProfile() {
 }
 /** 首页搜索图标 → 搜索页 */
 function goToSearch() {
+  uni.navigateTo({ url: '/pages/find/index' })
+}
+/** 区块标题「查看全部」→ 发现页（复用 find 列表） */
+function goToFind() {
   uni.navigateTo({ url: '/pages/find/index' })
 }
 
@@ -228,6 +261,18 @@ function onScrollToLower() {
   if (dishStore.homeHotFinished || dishStore.homeHotLoadingMore) return
   dishStore.loadMoreHomeHot()
 }
+
+/** 回到顶部（A.4）：受控 scroll-view 滚动到顶 */
+const scrollView = ref()
+const scrollTop = ref(0)
+const showBackTop = ref(false)
+function onScroll(e: any) {
+  scrollTop.value = e.detail.scrollTop
+  showBackTop.value = scrollTop.value > 600
+}
+function scrollToTop() {
+  scrollTop.value = 0
+}
 </script>
 
 <style scoped>
@@ -235,7 +280,8 @@ function onScrollToLower() {
 
 /* ===== 顶部 Header（组件内渲染头像行与整行搜索框，首页不再额外定义） ===== */
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
-.section { padding: 0 var(--spacing-md); margin: var(--spacing-md) 0 var(--spacing-lg); width: 100%; box-sizing: border-box; }
+/* A.2 区块间距放大到 48rpx 量级，首屏更透气（替代原 spacing-md/lg 拥挤间距） */
+.section { padding: 0 var(--spacing-md); margin: var(--spacing-xl) 0; width: 100%; box-sizing: border-box; }
 
 /* ===== 列表底部状态 ===== */
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
@@ -265,6 +311,41 @@ function onScrollToLower() {
 .sk-waterfall { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); box-sizing: border-box; }
 .sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-wcard { width: 100%; height: 300rpx; border-radius: var(--radius-card); }
+
+/* ===== 区块标题（B.7）：朱砂红竖条 + 大字，强化视觉层级 ===== */
+.block-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; }
+.block-title-left { display: flex; align-items: center; gap: var(--spacing-sm); }
+.block-title-bar { width: 8rpx; height: 32rpx; border-radius: 4rpx; background: var(--color-primary); flex-shrink: 0; }
+.block-title-text { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
+.block-title-more { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); min-height: 44px; border-radius: var(--radius-tag); -webkit-tap-highlight-color: transparent; }
+.block-title-more:active { background: var(--bg-soft); }
+.block-title-more text { font-size: var(--font-aux); color: var(--text-secondary); }
+.block-title-arrow { font-size: 32rpx; line-height: 1; color: var(--text-tertiary); }
+
+/* ===== 回到顶部悬浮按钮（A.4 / C.10：命中区 ≥44px） ===== */
+.fab-backtop {
+  position: fixed;
+  right: var(--spacing-lg);
+  bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  width: 84rpx;
+  height: 84rpx;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 2rpx solid var(--color-primary);
+  border-radius: 50%;
+  box-shadow: var(--shadow-card);
+  z-index: 50;
+  opacity: 0;
+  transform: translateY(16rpx) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.fab-backtop.fab-show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.fab-backtop:active { transform: scale(var(--press-scale)); }
 
 /* ========== 空状态 ========== */
 .home-empty {

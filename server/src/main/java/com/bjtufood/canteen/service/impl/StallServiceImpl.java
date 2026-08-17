@@ -101,6 +101,9 @@ public class StallServiceImpl implements StallService {
             if (canteenMapper.selectById(req.getCanteenId()) == null) {
                 throw new BusinessException("Canteen not found");
             }
+            if (req.getName() == null || req.getName().isBlank()) {
+                throw new BusinessException("档口名称不能为空");
+            }
             Stall stall = new Stall();
             stall.setCanteenId(req.getCanteenId());
             stall.setName(req.getName().trim());
@@ -112,6 +115,9 @@ public class StallServiceImpl implements StallService {
             stallMapper.insert(stall);
             return stall.getId();
         } else if ("canteen".equals(type)) {
+            if (req.getName() == null || req.getName().isBlank()) {
+                throw new BusinessException("食堂名称不能为空");
+            }
             Canteen canteen = new Canteen();
             canteen.setName(req.getName().trim());
             canteen.setDescription(req.getDescription());

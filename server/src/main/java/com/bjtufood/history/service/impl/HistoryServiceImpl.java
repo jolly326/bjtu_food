@@ -9,6 +9,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.history.dto.ViewLogVO;
@@ -133,18 +134,7 @@ public class HistoryServiceImpl implements HistoryService {
     }
 
     private String firstImage(String imagesJson) {
-        if (imagesJson == null || imagesJson.isBlank()) return null;
-        String s = imagesJson.trim();
-        if (s.startsWith("[")) {
-            try {
-                List<String> list = new com.fasterxml.jackson.databind.ObjectMapper()
-                        .readValue(s, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
-                return list.isEmpty() ? null : list.get(0);
-            } catch (Exception ignored) {
-            }
-        }
-        // 逗号分隔兜底
-        String[] arr = s.split(",");
-        return arr.length > 0 ? arr[0].trim() : null;
+        List<String> list = JsonListUtil.parseStringList(imagesJson);
+        return list.isEmpty() ? null : list.get(0);
     }
 }

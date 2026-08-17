@@ -7,7 +7,7 @@ import { fenToYuan, yuanToFen } from '@/utils/money'
 import { getImageUrl } from '@/utils/image'
 import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
 
-const TAG_MAP: Record<string, string> = {
+export const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
   daily: '日常',
@@ -170,6 +170,11 @@ export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
     price: item.price != null ? fenToYuan(item.price) : undefined,
     rating: item.rating != null ? Number(item.rating) : undefined,
     ratingCount: item.ratingCount != null ? Number(item.ratingCount) : undefined,
+    // 档口名 / 原始标签串透传（页面再映射），促销价/原价分 → 元（金额红线：转换仅在 api 层）
+    stall: item.stall || undefined,
+    tags: item.tags || undefined,
+    promoPrice: item.promoPrice != null ? fenToYuan(item.promoPrice) : undefined,
+    originalPrice: item.originalPrice != null ? fenToYuan(item.originalPrice) : undefined,
     latitude: item.latitude != null ? Number(item.latitude) : undefined,
     longitude: item.longitude != null ? Number(item.longitude) : undefined,
   }))

@@ -8,7 +8,7 @@
       @tap="$emit('open-activity')"
     >
       <view class="u-icon u-icon--activity">
-        <IconSvg name="fire" :size="30" color="#FFFFFF" />
+        <IconSvg name="fire" :size="30" color="#2F6FED" />
       </view>
       <view class="u-body">
         <text class="u-title">最新活动</text>
@@ -25,7 +25,7 @@
       @tap="$emit('open-feedback')"
     >
       <view class="u-icon u-icon--feedback">
-        <IconSvg name="edit" :size="30" color="#FFFFFF" />
+        <IconSvg name="edit" :size="30" color="#12B886" />
       </view>
       <view class="u-body">
         <text class="u-title">反馈菜品</text>
@@ -58,7 +58,8 @@ defineEmits<{
   box-sizing: border-box;
 }
 .u-card {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
@@ -76,25 +77,23 @@ defineEmits<{
   width: 48rpx;
   height: 48rpx;
   border-radius: var(--radius-card);
-  background: var(--bg-soft);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-/* 两卡独立配色：刻意避开主题红，采用蓝 / 粉，色相不相近、辨识度高 */
+/* 两卡配色：原理品牌色（朱砂红），采用冷调蓝 / 青绿与品牌红形成 Hue 对比，提升页面活跃度 */
 .u-card--activity { background: #E8F1FB; }
 .u-card--activity .u-title { color: #2F6FED; }
 .u-card--activity .u-more { color: #2F6FED; }
-.u-card--activity .u-icon { background: #2F6FED; }
 
-.u-card--feedback { background: #FCE8F1; }
-.u-card--feedback .u-title { color: #E85D9C; }
-.u-card--feedback .u-more { color: #E85D9C; }
-.u-card--feedback .u-icon { background: #E85D9C; }
+.u-card--feedback { background: #E7F7F2; }
+.u-card--feedback .u-title { color: #12B886; }
+.u-card--feedback .u-more { color: #12B886; }
 
-/* 深色模式：同色系深色底，保持可读 */
-.theme-dark .u-card--activity { background: #1B2A40; }
-.theme-dark .u-card--feedback { background: #3A2233; }
+/* 深色模式：对应冷色深底，保证文字对比 ≥4.5:1 */
+.theme-dark .u-card--activity { background: #16263A; }
+.theme-dark .u-card--feedback { background: #0F2E26; }
 .u-body {
   flex: 1;
   min-width: 0;

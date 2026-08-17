@@ -4,7 +4,7 @@
          返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
     <view class="wv-bar" :style="{ height: (statusBarHeight + navBarHeight) + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
-        <IconSvg name="arrow-left" :size="44" color="#FFFFFF" />
+        <IconSvg name="arrow-left" :size="'22px'" color="#FFFFFF" />
       </view>
       <text class="wv-title">网页</text>
     </view>
@@ -40,7 +40,7 @@ import IconSvg from '@/components/IconSvg.vue'
 
 const url = ref('')
 const statusBarHeight = ref(20)
-const navBarHeight = ref(44)
+const navBarHeight = ref(48)
 
 // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync
 function getStatusBarHeight(): number {
@@ -57,7 +57,7 @@ onLoad((options) => {
   statusBarHeight.value = sb
   // @ts-ignore - 微信胶囊按钮位置，用于对齐返回条高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) navBarHeight.value = (mb.top - sb) * 2 + mb.height
+  if (mb && mb.height) navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 46)
   webviewStyles.value = {
     top: `${sb + navBarHeight.value}px`,
     progressbar: { color: '#C7392F' },
@@ -79,8 +79,6 @@ function back() {
 
 function onMessage(e: any) {
   // 网页可通过 wx.miniProgram.postMessage 回传，预留
-  // eslint-disable-next-line no-console
-  console.log('web-view message', e?.detail?.data)
 }
 </script>
 
@@ -92,13 +90,12 @@ function onMessage(e: any) {
   z-index: 999;
   display: flex;
   align-items: center;
-  height: 88rpx;
   box-sizing: border-box;
   background: var(--color-primary);
   border-bottom: none;
 }
 .wv-back {
-  width: 80rpx;
+  width: 44px;
   height: 100%;
   display: flex;
   align-items: center;

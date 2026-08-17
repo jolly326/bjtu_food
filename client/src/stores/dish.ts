@@ -10,7 +10,7 @@ import * as canteenApi from '@/api/canteen'
 import * as momentApi from '@/api/moment'
 import { getRecommendDishes } from '@/api/recommend'
 import { useLocationStore } from '@/stores/location'
-import { haversineMeters } from '@/utils/location'
+import { haversineMeters, CAMPUS_CENTER } from '@/utils/location'
 
 export const useDishStore = defineStore('dish', () => {
   const dishList = ref<Dish[]>([])
@@ -252,16 +252,23 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  /** 基于 locationStore 用户坐标 + Haversine 本地写回每个菜品 distance（米），并按距离升序排序（有定位时） */
+  /**
+   * 基于坐标 + Haversine 本地写回每个菜品 distance（米）：
+   * - 用户已授权定位：用真实坐标算距离，并按距离升序排序；
+   * - 未授权 / 无法获取（如 H5 预览）：回退到 CAMPUS_CENTER，距离字段始终有值（排序仍按后端热度）。
+   * 用户位置不出本机，服务器不算距离。
+   */
   function withLocalDistance(list: Dish[]): Dish[] {
-    const loc = useLocationStore().location
+    const locStore = useLocationStore()
+    const realLoc = locStore.location
+    const loc = realLoc || CAMPUS_CENTER
     const decorated = list.map((d) => {
-      if (loc && typeof d.latitude === 'number' && typeof d.longitude === 'number') {
+      if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
         d.distance = haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
       }
       return d
     })
-    if (loc) {
+    if (realLoc) {
       decorated.sort((a, b) => (a.distance ?? Number.MAX_SAFE_INTEGER) - (b.distance ?? Number.MAX_SAFE_INTEGER))
     }
     return decorated

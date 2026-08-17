@@ -11,7 +11,16 @@
     @tap="handleClick"
   >
     <view class="card-image">
-      <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="card-img" lazy-load @error="imgOk = false" />
+      <image
+        v-if="imgSrc && imgOk"
+        :src="imgSrc"
+        mode="widthFix"
+        class="card-img"
+        :class="{ loaded: imgLoaded }"
+        lazy-load
+        @load="imgLoaded = true"
+        @error="imgOk = false"
+      />
       <view v-else class="image-placeholder">
         <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
@@ -25,8 +34,9 @@
         <text class="card-name">{{ dish.name }}</text>
         <text class="card-price">¥{{ dish.price }}</text>
       </view>
-      <view class="card-tags" v-if="dish.tags.length > 0">
-        <TagLabel v-for="tag in dish.tags" :key="tag" :text="tag" />
+      <view class="card-tags" v-if="displayTags.length > 0">
+        <TagLabel v-for="tag in displayTags" :key="tag" :text="tag" />
+        <text v-if="dish.tags.length > 2" class="tag-plus">+{{ dish.tags.length - 2 }}</text>
       </view>
       <view class="meta-row">
         <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
@@ -64,6 +74,11 @@ const imgSrc = computed(() => getImageUrl(props.dish.image))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
+/** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
+const imgLoaded = ref(false)
+
+/** 标签展示：最多 2 个 +「+N」（B.6 卡片信息区规整） */
+const displayTags = computed(() => props.dish.tags.slice(0, 2))
 
 /** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
 function fmtDistance(m: number): string {
@@ -93,17 +108,22 @@ function handleClick() {
 .card-image {
   position: relative;
   width: 100%;
-  /* 高度由瀑布流注入的 --card-img-h 驱动（实现错落），默认 200rpx 兼容非瀑布流场景 */
-  height: var(--card-img-h, 200rpx);
+  /* 高度跟随图片原始比例（mode=widthFix），未加载时由占位区 4:3 兜底，避免瀑布流跳变 */
   background: var(--bg-page);
+  overflow: hidden;
 }
 .card-img {
   width: 100%;
-  height: 100%;
+  height: auto;
+  display: block;
+  /* B.5 图片加载淡入：默认透明，load 完成后淡入，避免硬切/跳变（CLS<0.1） */
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
+.card-img.loaded { opacity: 1; }
 .image-placeholder {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 4 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,27 +161,27 @@ function handleClick() {
   min-width: 0;
 }
 .card-name {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: var(--font-body);
   font-weight: var(--weight-bold);
   line-height: 1.3;
   letter-spacing: var(--tracking-h3);
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   flex: 1;
   min-width: 0;
 }
 .title-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--spacing-sm);
 }
 .meta-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
@@ -197,7 +217,18 @@ function handleClick() {
 .card-tags {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-xs);
   margin-top: var(--spacing-sm);
+}
+/* 标签超出 2 个时的「+N」徽标 */
+.tag-plus {
+  font-size: var(--font-tiny);
+  line-height: 1.4;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-icon);
+  background: var(--bg-placeholder);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
 }
 </style>

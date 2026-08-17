@@ -13,21 +13,29 @@
       @mouseleave="pressedIdx = -1"
       @tap="previewImage(idx)"
     >
-      <image class="m-image" :src="img" mode="aspectFill" lazy-load />
+      <image
+        class="m-image"
+        :class="{ loaded: loadedSet.has(idx) }"
+        :src="img"
+        mode="aspectFill"
+        lazy-load
+        @load="loadedSet.add(idx)"
+      />
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { getImageUrl } from '@/utils/image'
+import { ref, reactive } from 'vue'
+import { previewImages } from '@/utils/image'
 
 const props = withDefaults(defineProps<{ images: string[]; compact?: boolean }>(), { compact: false })
 const pressedIdx = ref(-1)
+/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡（B.5） */
+const loadedSet = reactive(new Set<number>())
 
 function previewImage(idx: number) {
-  const urls = props.images.map(getImageUrl)
-  uni.previewImage({ urls, current: urls[idx] })
+  previewImages(props.images, idx)
 }
 </script>
 
@@ -37,5 +45,6 @@ function previewImage(idx: number) {
 .m-image-wrap { width: 220rpx; height: 220rpx; border-radius: var(--radius-tag); overflow: hidden; background: var(--bg-page); flex-shrink: 0; transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .m-images.compact .m-image-wrap { width: 132rpx; height: 132rpx; }
 .m-image-wrap.pressed { transform: scale(var(--press-scale)); }
-.m-image { width: 100%; height: 100%; }
+.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s ease; }
+.m-image.loaded { opacity: 1; }
 </style>

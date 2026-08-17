@@ -39,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +156,7 @@ public class MomentServiceImpl implements MomentService {
     @Transactional(rollbackFor = Exception.class)
     public void updateMoment(Long id, Long userId, MomentPublishReq req) {
         Moment m = momentMapper.selectById(id);
-        if (m == null || !m.getUserId().equals(userId)) {
+        if (m == null || !Objects.equals(m.getUserId(), userId)) {
             throw new BusinessException("动态不存在");
         }
         validateRelated(req);
@@ -170,7 +171,7 @@ public class MomentServiceImpl implements MomentService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteMoment(Long id, Long userId) {
         Moment m = momentMapper.selectById(id);
-        if (m == null || !m.getUserId().equals(userId)) {
+        if (m == null || !Objects.equals(m.getUserId(), userId)) {
             throw new BusinessException("动态不存在");
         }
         // 连带评论、通知清理

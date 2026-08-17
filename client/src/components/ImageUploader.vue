@@ -69,6 +69,7 @@ function removeImage(idx: number) {
 function chooseImage() {
   if (uploading.value) return
   if (props.modelValue.length >= props.max) return
+  const remain = Math.max(0, props.max - props.modelValue.length)
   uni.chooseMedia({
     count: remain,
     mediaType: ['image'],
