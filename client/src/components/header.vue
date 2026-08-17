@@ -69,7 +69,7 @@ const emit = defineEmits<{
 }>()
 
 const statusBarHeight = ref(20)
-const navBarHeight = ref(48)
+const navBarHeight = ref(56)
 const avatarOk = ref(true)
 // 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
 const isWeChat = ref(false)
@@ -93,7 +93,7 @@ onMounted(() => {
   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐返回行高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
-    navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 46)
+    navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 54)
   }
 })
 

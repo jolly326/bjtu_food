@@ -34,6 +34,22 @@ export const useDishStore = defineStore('dish', () => {
   const homeHotLoadingMore = ref(false)
   const homeHotFinished = ref(false)
 
+  /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  export type FilterTabType = 'recommend' | 'tag'
+  export interface FilterTab {
+    key: string
+    label: string
+    type: FilterTabType
+    /** type==='tag' 时携带 TAG_MAP 键（如 noodle/rice/spicy） */
+    payload?: string
+  }
+  const filterTab = ref<FilterTab | null>(null)
+  const filterList = ref<Dish[]>([])
+  const filterTotal = ref(0)
+  const filterPage = ref(1)
+  const filterLoadingMore = ref(false)
+  const filterFinished = ref(false)
+
   /** task-02 榜单数据 */
   const hotSearchList = ref<HotSearch[]>([])
   const risingDishes = ref<Dish[]>([])
@@ -319,15 +335,77 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
+  /** 首页筛选 Bar：按选中 tab 拉取菜品列表（推荐/美食类型），复用现有分页与距离排序 */
+  async function fetchFilterDishes(tab: FilterTab, reset = false) {
+    if (reset) {
+      filterList.value = []
+      filterPage.value = 1
+      filterFinished.value = false
+    }
+    filterTab.value = tab
+    try {
+      let rows: Dish[] = []
+      if (tab.type === 'tag' && tab.payload) {
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, size: 10 })
+        rows = res.list
+        filterTotal.value = res.total
+      } else {
+        // recommend：热度分页 + 本地距离升序（前期个性化未实现，回落距离/热度兜底）
+        const res = await dishApi.getHotDishesPage({ page: filterPage.value, size: 10 })
+        rows = withLocalDistance(res.list)
+        filterTotal.value = res.total
+      }
+      if (reset) {
+        filterList.value = rows
+      } else {
+        filterList.value = filterList.value.concat(rows)
+      }
+      if (filterList.value.length >= filterTotal.value) filterFinished.value = true
+    } catch (e: any) {
+      console.error('加载筛选菜品失败', e)
+    }
+  }
+
+  /** 首页筛选 Bar 触底加载更多 */
+  async function loadMoreFilterDishes(): Promise<boolean> {
+    const tab = filterTab.value
+    if (!tab || filterLoadingMore.value || filterFinished.value) return false
+    filterLoadingMore.value = true
+    filterPage.value += 1
+    try {
+      let rows: Dish[] = []
+      if (tab.type === 'tag' && tab.payload) {
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, size: 10 })
+        rows = res.list
+        filterTotal.value = res.total
+      } else {
+        const res = await dishApi.getHotDishesPage({ page: filterPage.value, size: 10 })
+        rows = withLocalDistance(res.list)
+        filterTotal.value = res.total
+      }
+      filterList.value = filterList.value.concat(rows)
+      if (filterList.value.length >= filterTotal.value) filterFinished.value = true
+      return rows.length > 0
+    } catch (e: any) {
+      console.error('加载更多筛选菜品失败', e)
+      filterPage.value -= 1
+      return false
+    } finally {
+      filterLoadingMore.value = false
+    }
+  }
+
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
     homeBanners, canteenImageMap, canteenList, newDishes, promotionDishes,
     homeHotList, homeHotTotal, homeHotPage, homeHotLoadingMore, homeHotFinished,
     hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments,
     loading, navParams,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished,
     fetchRecommend, fetchGuess, fetchHomeBanners, fetchCanteenImages,
     fetchCanteens, search, searchPage, fetchDetail, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising, fetchSuggestions,
     fetchHomeHot, loadMoreHomeHot, fetchRelatedMoments,
+    fetchFilterDishes, loadMoreFilterDishes,
   }
 })

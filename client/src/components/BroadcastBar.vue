@@ -14,14 +14,25 @@
     </view>
     <view class="broadcast-viewport">
       <view
-        v-if="current"
-        class="broadcast-item"
-        :class="{ 'is-enter': entering }"
+        class="broadcast-track"
+        :class="{ 'is-animating': animating }"
+        :style="{ transform: `translateY(${-index * itemHeight}px)` }"
       >
-        <text class="broadcast-text">{{ current.text }}</text>
-      </view>
-      <view v-else class="broadcast-item">
-        <text class="broadcast-text broadcast-placeholder">暂无广播</text>
+        <view
+          v-for="(item, i) in items"
+          :key="i"
+          class="broadcast-item"
+          :style="{ height: itemHeight + 'px' }"
+        >
+          <text class="broadcast-text">{{ item.text }}</text>
+        </view>
+        <view
+          v-if="items.length"
+          class="broadcast-item"
+          :style="{ height: itemHeight + 'px' }"
+        >
+          <text class="broadcast-text">{{ items[0].text }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -41,23 +52,25 @@ const emit = defineEmits<{
 }>()
 
 function onTap() {
-  if (current.value) emit('select', current.value)
+  if (props.items[index.value]) emit('select', props.items[index.value])
 }
 
+const itemHeight = 44 * 2
 const index = ref(0)
-const entering = ref(false)
+const animating = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
-
-const current = computed(() => props.items[index.value] || null)
 
 function tick() {
   if (props.items.length <= 1) return
-  entering.value = true // 当前条淡出
-  // 淡出过渡结束后，再切换内容并淡入（220ms > opacity 过渡 200ms，避免半透明残留）
-  setTimeout(() => {
-    index.value = (index.value + 1) % props.items.length
-    entering.value = false // 新条淡入
-  }, 220)
+  animating.value = true
+  index.value = (index.value + 1) % (props.items.length + 1)
+  // 滚到末尾的克隆项后，无动画复位到首项
+  if (index.value === props.items.length) {
+    setTimeout(() => {
+      animating.value = false
+      index.value = 0
+    }, 300)
+  }
 }
 
 function start() {
@@ -85,6 +98,7 @@ watch(
   () => props.items,
   (list) => {
     index.value = 0
+    animating.value = false
     if (list.length > 1) start()
     else stop()
   },
@@ -115,34 +129,32 @@ onUnmounted(stop)
 .broadcast-viewport {
   flex: 1;
   min-width: 0;
-  min-height: 100rpx;
-  display: flex;
-  align-items: center;
+  height: 88rpx;
   overflow: hidden;
+}
+.broadcast-track {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+.broadcast-track.is-animating {
+  transition: transform 300ms ease;
 }
 .broadcast-item {
+  display: flex;
+  align-items: center;
   width: 100%;
-  opacity: 1;
-  transition: opacity 200ms ease;
 }
-.broadcast-item.is-enter {
-  opacity: 0;
-}
-/* 最多 2 行截断，超长省略，不强制单行 */
 .broadcast-text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--font-body);
   color: var(--text-secondary);
-  line-height: 1.5;
-}
-.broadcast-placeholder {
-  color: var(--text-tertiary);
+  line-height: 44px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .broadcast-item { transition: none; }
+  .broadcast-track.is-animating { transition: none; }
 }
 </style>

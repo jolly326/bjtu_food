@@ -10,7 +10,10 @@
       @search="goToSearch"
     />
 
-    <!-- 首页广播栏（运营广播 ticker） -->
+    <!-- 筛选 Bar（单级横滑，选中居中；推荐/美食类型，切换即换瀑布流） -->
+    <FilterBar @change="onFilterChange" />
+
+    <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播） -->
     <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
 
     <scroll-view
@@ -25,8 +28,9 @@
       @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 加载骨架屏（结构贴合真实首屏：广播条 + 两卡万能区 + 双列瀑布流，避免加载完成跳变） -->
+      <!-- 加载骨架屏（结构贴合真实首屏：筛选条 + 广播条 + 两卡万能区 + 双列瀑布流，避免加载完成跳变） -->
       <view v-if="loadingHot" class="home-skeleton">
+        <view class="sk-filter skeleton" />
         <view class="sk-broadcast skeleton" />
         <view class="sk-universal">
           <view class="sk-ucard skeleton" />
@@ -61,28 +65,16 @@
           <text class="loc-hint-arrow">›</text>
         </view>
 
-        <!-- 区块标题（B.7）：朱砂红竖条 + 大字，强化层级 -->
-        <view class="section block-title enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 1 }">
-          <view class="block-title-left">
-            <text class="block-title-bar" />
-            <text class="block-title-text">热门菜品</text>
-          </view>
-          <view class="block-title-more" @tap="goToFind">
-            <text>查看全部</text>
-            <text class="block-title-arrow">›</text>
-          </view>
-        </view>
-
-        <!-- 热门菜品（双列瀑布流 + 无限加载） -->
-        <view class="section enter-up" v-if="dishStore.homeHotList.length > 0" :style="{ '--enter-i': 2 }">
-          <WaterfallList :list="dishStore.homeHotList" @card-click="goToDetail" />
+        <!-- 推荐菜品（双列瀑布流 + 无限加载，直接承接筛选结果） -->
+        <view class="section enter-up" v-if="dishStore.filterList.length > 0" :style="{ '--enter-i': 1 }">
+          <WaterfallList :list="dishStore.filterList" @card-click="goToDetail" />
 
           <!-- 触底加载状态 -->
-          <view v-if="dishStore.homeHotLoadingMore" class="list-footer loading">
+          <view v-if="dishStore.filterLoadingMore" class="list-footer loading">
             <view class="footer-spinner" />
             <text class="footer-text">加载中…</text>
           </view>
-          <view v-else-if="dishStore.homeHotFinished" class="list-footer finished">
+          <view v-else-if="dishStore.filterFinished" class="list-footer finished">
             <text class="footer-text">— 已经到底啦 —</text>
           </view>
         </view>
@@ -115,8 +107,10 @@ import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
 import { getUserLocation } from '@/utils/location'
-import { getBroadcasts, type BroadcastItem } from '@/api/notify'
+import type { BroadcastItem } from '@/api/notify'
+import { getMoments } from '@/api/moment'
 import { getActivities, type ActivityItem } from '@/api/activity'
+import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
 import { buildSharePayload } from '@/utils/shareState'
 import type { Dish } from '@/types/dish'
@@ -124,6 +118,8 @@ import WaterfallList from '@/components/WaterfallList.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
+import FilterBar from '@/components/FilterBar.vue'
+import type { FilterTab } from '@/components/FilterBar.vue'
 import UniversalGrid from '@/components/UniversalGrid.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
@@ -140,10 +136,6 @@ function goProfile() {
 }
 /** 首页搜索图标 → 搜索页 */
 function goToSearch() {
-  uni.navigateTo({ url: '/pages/find/index' })
-}
-/** 区块标题「查看全部」→ 发现页（复用 find 列表） */
-function goToFind() {
   uni.navigateTo({ url: '/pages/find/index' })
 }
 
@@ -165,43 +157,34 @@ function goToFeedback() {
 const showLocHint = computed(() =>
   !loadingHot.value &&
   !locationStore.location &&
-  dishStore.homeHotList.length > 0
+  dishStore.filterList.length > 0
 )
-/** 点击提示开启定位，成功后重拉首页热门以本地重算距离 */
+/** 点击提示开启定位，成功后重拉当前筛选以本地重算距离 */
 async function enableLocation() {
   try {
     const loc = await getUserLocation()
     if (loc) {
       locationStore.setLocation(loc)
-      await dishStore.fetchHomeHot()
+      if (dishStore.filterTab) await dishStore.fetchFilterDishes(dishStore.filterTab, true)
     }
   } catch (e) {
     uni.showToast({ title: '定位未开启', icon: 'none' })
   }
 }
 
-/** 首页广播条点击 → 按 type 分发（与 BroadcastItem.type 对齐：dish→菜品详情 / url→复制链接 / 其余→动态流） */
+/** 筛选 Bar 选中变化：重置分页并切换瀑布流数据源，回到顶部 */
+function onFilterChange(tab: FilterTab) {
+  scrollTop.value = 0
+  dishStore.fetchFilterDishes(tab, true)
+}
+
+/** 首页广播条点击 → 动态入口：有 targetId 跳该条动态详情，否则回落动态列表 */
 function onBroadcastTap(item: BroadcastItem) {
   if (!item) return
-  switch (item.type) {
-    case 'dish':
-      if (item.targetId) {
-        uni.navigateTo({ url: `/pages/pages-detail/dish?id=${item.targetId}` })
-        return
-      }
-      uni.navigateTo({ url: '/pages/community/index' })
-      break
-    case 'url':
-      if (item.targetUrl) {
-        // 外链：小程序无法直接打开任意 web-view，采用复制链接 + 轻提示
-        uni.setClipboardData({ data: item.targetUrl })
-      } else {
-        uni.navigateTo({ url: '/pages/community/index' })
-      }
-      break
-    default:
-      // community / canteen / stall 及未知类型：统一回落动态列表页
-      uni.navigateTo({ url: '/pages/community/index' })
+  if (item.targetId) {
+    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${item.targetId}` })
+  } else {
+    uni.navigateTo({ url: '/pages/community/index' })
   }
 }
 
@@ -209,28 +192,39 @@ const loadingHot = ref(true)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
-// 广播栏（运营广播）+ 万能区域（最新活动）
+// 广播栏（最新动态摘录）+ 万能区域（最新活动）
 const broadcasts = ref<BroadcastItem[]>([])
 const activities = ref<ActivityItem[]>([])
+
+/** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口） */
+function toBroadcastItem(moment: Moment): BroadcastItem {
+  return {
+    text: moment.content || '',
+    type: 'community',
+    targetId: moment.id,
+  }
+}
 
 /** 全板块无数据：用于展示友好空状态 */
 const isAllEmpty = computed(() =>
   !loadingHot.value &&
-  dishStore.homeHotList.length === 0
+  dishStore.filterList.length === 0
 )
 
 async function loadData() {
   loadingHot.value = true
   loadFailed.value = false
   try {
-    // 先取定位（会话级缓存），首页热门「距你」才能本地算距离
+    // 先取定位（会话级缓存），首页推荐「距你」才能本地算距离
     await ensureLocation()
-    const [_, bcRes, actRes] = await Promise.all([
-      dishStore.fetchHomeHot(),
-      getBroadcasts(),
+    const [momentRes, actRes] = await Promise.all([
+      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
       getActivities({ page: 1, pageSize: 2 }),
     ])
-    broadcasts.value = bcRes || []
+    // 首页推荐流（默认「推荐」维度，前期个性化未实现，回落热度+距离兜底）
+    await dishStore.fetchFilterDishes({ key: 'recommend', label: '推荐', type: 'recommend' }, true)
+    // 广播只广播动态（最新动态摘录，作为动态入口）
+    broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
     activities.value = (actRes || []).slice(0, 2)
   } catch (e) {
     console.error('[home] 首页数据加载失败', e)
@@ -262,10 +256,10 @@ function onRefresh() {
   })
 }
 
-/** 触底加载更多（热门瀑布流无限加载） */
+/** 触底加载更多（筛选瀑布流无限加载） */
 function onScrollToLower() {
-  if (dishStore.homeHotFinished || dishStore.homeHotLoadingMore) return
-  dishStore.loadMoreHomeHot()
+  if (dishStore.filterFinished || dishStore.filterLoadingMore) return
+  dishStore.loadMoreFilterDishes()
 }
 
 /** 回到顶部（A.4）：受控 scroll-view 滚动到顶 */
@@ -311,22 +305,13 @@ function scrollToTop() {
 
 /* ========== 骨架屏（贴合真实首屏结构） ========== */
 .home-skeleton { padding: var(--spacing-md) 0; }
-.sk-broadcast { width: calc(100% - var(--spacing-md) * 2); height: 100rpx; margin: var(--spacing-md) var(--spacing-md) 0; border-radius: var(--radius-card); box-sizing: border-box; }
+.sk-filter { width: calc(100% - var(--spacing-md) * 2); height: 88rpx; margin: var(--spacing-md) var(--spacing-md) 0; border-radius: var(--radius-card); box-sizing: border-box; }
+.sk-broadcast { width: calc(100% - var(--spacing-md) * 2); height: 88rpx; margin: var(--spacing-md) var(--spacing-md) 0; border-radius: var(--radius-card); box-sizing: border-box; }
 .sk-universal { display: flex; gap: var(--spacing-md); padding: 0 var(--spacing-md); margin-top: var(--spacing-md); box-sizing: border-box; }
 .sk-ucard { flex: 1; height: 100rpx; border-radius: var(--radius-card); }
 .sk-waterfall { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); box-sizing: border-box; }
 .sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-wcard { width: 100%; height: 300rpx; border-radius: var(--radius-card); }
-
-/* ===== 区块标题（B.7）：朱砂红竖条 + 大字，强化视觉层级 ===== */
-.block-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; }
-.block-title-left { display: flex; align-items: center; gap: var(--spacing-sm); }
-.block-title-bar { width: 8rpx; height: 32rpx; border-radius: 4rpx; background: var(--color-primary); flex-shrink: 0; }
-.block-title-text { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
-.block-title-more { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); min-height: 44px; border-radius: var(--radius-tag); -webkit-tap-highlight-color: transparent; }
-.block-title-more:active { background: var(--bg-soft); }
-.block-title-more text { font-size: var(--font-aux); color: var(--text-secondary); }
-.block-title-arrow { font-size: 32rpx; line-height: 1; color: var(--text-tertiary); }
 
 /* ===== 回到顶部悬浮按钮（A.4 / C.10：命中区 ≥44px） ===== */
 .fab-backtop {

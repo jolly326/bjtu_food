@@ -13,6 +13,7 @@ export const TAG_MAP: Record<string, string> = {
   daily: '日常',
   halal: '清真',
   noodle: '面食',
+  rice: '米饭',
   spicy: '辣味',
   vegetarian: '素食',
   western: '西餐',

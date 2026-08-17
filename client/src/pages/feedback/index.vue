@@ -2,9 +2,107 @@
   <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="意见反馈" @back="goBack" />
 
-    <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 我的反馈记录（登录后展示；未登录引导登录） -->
-      <CardSection title="我的反馈">
+    <!-- 双 Tab 分段控制器（自绘，参考 ApplySheet .seg 范式） -->
+    <view class="seg-tabs" role="tablist" aria-label="反馈页视图切换">
+      <view
+        v-for="t in tabs"
+        :key="t.key"
+        class="seg"
+        :class="{ on: activeTab === t.key }"
+        hover-class="pressed"
+        hover-stay-time="60"
+        role="tab"
+        :aria-selected="activeTab === t.key"
+        :aria-label="t.label"
+        @tap="activeTab = t.key"
+      >
+        <text class="seg-text">{{ t.label }}</text>
+      </view>
+    </view>
+
+    <!-- 写反馈视图 -->
+    <scroll-view v-if="activeTab === 'write'" class="scroll-wrap write-scroll" scroll-y>
+      <view class="tab-pane">
+        <!-- 反馈类型 -->
+        <CardSection title="反馈类型">
+          <view class="type-row">
+            <view
+              v-for="t in types"
+              :key="t.value"
+              class="type-chip"
+              :class="{ active: type === t.value }"
+              hover-class="pressed"
+              hover-stay-time="80"
+              role="button"
+              :aria-label="`反馈类型：${t.label}`"
+              @tap="type = t.value"
+            >
+              <text class="type-text">{{ t.label }}</text>
+            </view>
+          </view>
+        </CardSection>
+
+        <!-- 反馈对象（选填） -->
+        <CardSection title="反馈对象（选填）">
+          <view v-if="presetDishName" class="preset-tip">
+            <IconSvg name="dish" :size="28" color="var(--color-primary)" />
+            <text class="preset-tip-text">已关联：{{ presetDishName }}</text>
+            <view class="preset-tip-clear" hover-class="pressed" hover-stay-time="80" role="button" aria-label="移除关联菜品" @tap="clearPreset">
+              <text class="preset-tip-clear-text">移除</text>
+            </view>
+          </view>
+          <view class="type-row">
+            <view
+              v-for="e in entityOptions"
+              :key="e.key"
+              class="type-chip"
+              :class="{ active: selectedEntity === e.key }"
+              hover-class="pressed"
+              hover-stay-time="80"
+              role="button"
+              :aria-label="`反馈对象：${e.label}`"
+              @tap="selectedEntity = e.key"
+            >
+              <text class="type-text">{{ e.label }}</text>
+            </view>
+          </view>
+        </CardSection>
+
+        <!-- 内容 -->
+        <CardSection title="反馈内容">
+          <textarea
+            class="content-input"
+            v-model="content"
+            :placeholder="contentPlaceholder"
+            maxlength="1000"
+            :auto-height="true"
+            :cursor-spacing="20"
+            :adjust-position="true"
+          />
+          <text class="counter" :class="{ warn: content.length >= 900 }">{{ content.length }}/1000</text>
+        </CardSection>
+
+        <!-- 联系方式 -->
+        <CardSection title="联系方式（选填）">
+          <input
+            class="contact-input"
+            v-model="contact"
+            :cursor-spacing="20"
+            :adjust-position="true"
+            placeholder="邮箱 / 微信，方便我们回复你"
+          />
+          <text v-if="contactError" class="contact-tip error">{{ contactError }}</text>
+          <text v-else class="contact-tip">选填；若填写请确保格式正确，方便我们回复你</text>
+        </CardSection>
+
+        <view style="height: var(--spacing-xl)" />
+      </view>
+    </scroll-view>
+
+    <!-- 我的反馈视图 -->
+    <scroll-view v-else class="scroll-wrap mine-scroll" scroll-y>
+      <view class="tab-pane">
+        <!-- 未登录：引导登录 -->
         <view v-if="!loggedIn" class="login-hint" hover-class="pressed" hover-stay-time="80" role="button" :aria-label="`登录后可查看你的反馈记录，点击去登录`" @tap="goLogin">
           <text class="login-hint-text">登录后可查看你的反馈记录</text>
           <view class="login-hint-action">
@@ -12,103 +110,61 @@
             <IconSvg name="arrow" :size="28" color="var(--color-primary)" />
           </view>
         </view>
-        <template v-else-if="recordsLoading && records.length === 0">
-          <view class="sk-list">
+
+        <!-- 状态筛选 -->
+        <view v-else class="filter-tabs" role="tablist" aria-label="反馈状态筛选">
+          <view
+            v-for="f in filterOptions"
+            :key="f.key"
+            class="filter-chip"
+            :class="{ on: filterStatus === f.key }"
+            hover-class="pressed"
+            hover-stay-time="60"
+            role="tab"
+            :aria-selected="filterStatus === f.key"
+            :aria-label="`${f.label}（${statusCount(f.key)}）`"
+            @tap="filterStatus = f.key"
+          >
+            <text class="filter-text">{{ f.label }}</text>
+            <text class="filter-count">{{ statusCount(f.key) }}</text>
+          </view>
+        </view>
+
+        <!-- 记录列表 -->
+        <template v-if="loggedIn">
+          <view v-if="recordsLoading && records.length === 0" class="sk-list">
             <view v-for="s in 3" :key="s" class="sk-item" />
           </view>
-        </template>
-        <view v-else-if="records.length > 0" class="rec-list">
-          <view
-            v-for="f in records"
-            :key="f.id"
-            class="rec-item"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="`反馈详情：${feedbackTypeLabel(f.type)}，${f.status === 'handled' ? '已处理' : '待处理'}`"
-            @tap="viewDetail(f)"
-          >
-            <view class="rec-top">
-              <text class="rec-type-tag">{{ feedbackTypeLabel(f.type) }}</text>
-              <text class="fb-status" :class="f.status === 'handled' ? 'handled' : 'pending'">{{ f.status === 'handled' ? '已处理' : '待处理' }}</text>
-              <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="rec-arrow" />
+          <view v-else-if="filteredRecords.length > 0" class="rec-list">
+            <view
+              v-for="f in filteredRecords"
+              :key="f.id"
+              class="rec-item"
+              hover-class="pressed"
+              hover-stay-time="80"
+              role="button"
+              :aria-label="`反馈详情：${feedbackTypeLabel(f.type)}，${f.status === 'handled' ? '已处理' : '待处理'}`"
+              @tap="viewDetail(f)"
+            >
+              <view class="rec-top">
+                <text class="rec-type-tag">{{ feedbackTypeLabel(f.type) }}</text>
+                <text class="fb-status" :class="f.status === 'handled' ? 'handled' : 'pending'">{{ f.status === 'handled' ? '已处理' : '待处理' }}</text>
+                <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="rec-arrow" />
+              </view>
+              <text class="rec-content">{{ f.content }}</text>
+              <text class="rec-time">{{ formatTime(f.createdAt) }}</text>
             </view>
-            <text class="rec-content">{{ f.content }}</text>
-            <text class="rec-time">{{ formatTime(f.createdAt) }}</text>
           </view>
-        </view>
-        <EmptyState v-else-if="recordsLoadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="loadRecords" />
-        <EmptyState v-else text="还没有反馈记录" icon="report" />
-      </CardSection>
+          <EmptyState v-else-if="recordsLoadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="loadRecords" />
+          <EmptyState v-else text="还没有反馈记录" icon="report" />
+        </template>
 
-      <!-- 反馈类型 -->
-      <CardSection title="反馈类型">
-        <view class="type-row">
-          <view
-            v-for="t in types"
-            :key="t.value"
-            class="type-chip"
-            :class="{ active: type === t.value }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="`反馈类型：${t.label}`"
-            @tap="type = t.value"
-          >
-            <text class="type-text">{{ t.label }}</text>
-          </view>
-        </view>
-      </CardSection>
-
-      <!-- 反馈对象（选填） -->
-      <CardSection title="反馈对象（选填）">
-        <view v-if="presetDishName" class="preset-tip">
-          <IconSvg name="dish" :size="28" color="var(--color-primary)" />
-          <text class="preset-tip-text">已关联：{{ presetDishName }}</text>
-          <view class="preset-tip-clear" hover-class="pressed" hover-stay-time="80" role="button" aria-label="移除关联菜品" @tap="clearPreset">
-            <text class="preset-tip-clear-text">移除</text>
-          </view>
-        </view>
-        <view class="type-row">
-          <view
-            v-for="e in entityOptions"
-            :key="e.key"
-            class="type-chip"
-            :class="{ active: selectedEntity === e.key }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="`反馈对象：${e.label}`"
-            @tap="selectedEntity = e.key"
-          >
-            <text class="type-text">{{ e.label }}</text>
-          </view>
-        </view>
-      </CardSection>
-
-      <!-- 内容 -->
-      <CardSection title="反馈内容">
-        <textarea
-          class="content-input"
-          v-model="content"
-          :placeholder="contentPlaceholder"
-          maxlength="1000"
-          :auto-height="true"
-          :cursor-spacing="20"
-          :adjust-position="true"
-        />
-        <text class="counter" :class="{ warn: content.length >= 900 }">{{ content.length }}/1000</text>
-      </CardSection>
-
-      <!-- 联系方式 -->
-      <CardSection title="联系方式（选填）">
-        <input class="contact-input" v-model="contact" :cursor-spacing="20" :adjust-position="true" placeholder="邮箱 / 微信，方便我们回复你" />
-      </CardSection>
-
-      <view style="height: var(--spacing-xl)" />
+        <view style="height: var(--spacing-xl)" />
+      </view>
     </scroll-view>
 
-    <view class="submit-bar">
+    <!-- 底部提交栏：仅写反馈视图渲染，根治常驻遮挡 -->
+    <view v-if="activeTab === 'write'" class="submit-bar">
       <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @click="submit" />
     </view>
 
@@ -158,6 +214,17 @@
           <text class="detail-value">{{ formatTime(detailData.createdAt) }}</text>
         </view>
       </scroll-view>
+      <!-- 底部操作行：复制内容 / 再反馈一次 -->
+      <view class="sheet-actions">
+        <view class="sheet-action" hover-class="pressed" hover-stay-time="80" role="button" aria-label="复制反馈内容" @tap="copyContent">
+          <IconSvg name="copy" :size="32" color="var(--text-secondary)" />
+          <text class="sheet-action-text">复制内容</text>
+        </view>
+        <view class="sheet-action primary" hover-class="pressed" hover-stay-time="80" role="button" aria-label="再反馈一次" @tap="reFeedback">
+          <IconSvg name="edit" :size="32" color="var(--color-primary)" />
+          <text class="sheet-action-text primary">再反馈一次</text>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -187,6 +254,34 @@ function goBack() {
   else backToHome()
 }
 
+// ---- 视图与筛选 ----
+const tabs = [
+  { key: 'write' as const, label: '写反馈' },
+  { key: 'mine' as const, label: '我的反馈' },
+]
+const activeTab = ref<'write' | 'mine'>('write')
+const filterOptions = [
+  { key: 'all' as const, label: '全部' },
+  { key: 'pending' as const, label: '待处理' },
+  { key: 'handled' as const, label: '已处理' },
+]
+const filterStatus = ref<'all' | 'pending' | 'handled'>('all')
+
+// 切到「我的反馈」时首次加载记录（仅登录用户）
+watch(activeTab, (t) => {
+  if (t === 'mine' && loggedIn.value && records.value.length === 0) loadRecords(true)
+})
+
+const filteredRecords = computed(() =>
+  filterStatus.value === 'all'
+    ? records.value
+    : records.value.filter((r) => r.status === filterStatus.value)
+)
+function statusCount(key: 'all' | 'pending' | 'handled'): number {
+  if (key === 'all') return records.value.length
+  return records.value.filter((r) => r.status === key).length
+}
+
 // ---- 提交表单 ----
 const types: { value: FeedbackSubmit['type']; label: string }[] = [
   { value: 'suggestion', label: '功能建议' },
@@ -203,6 +298,7 @@ const entityOptions = [
 const selectedEntity = ref('none')
 const content = ref('')
 const contact = ref('')
+const contactError = ref('')
 const submitting = ref(false)
 
 // 预选菜品（首页「上传菜品」入口带 object/name/id）
@@ -245,6 +341,12 @@ async function submit() {
     uni.showToast({ title: '内容不能超过1000字', icon: 'none' })
     return
   }
+  // 联系方式轻校验：可空；填写了则校验邮箱/微信格式，不阻断提交仅提示
+  contactError.value = ''
+  if (contact.value.trim() && !validateContact(contact.value.trim())) {
+    contactError.value = '联系方式格式不太对（邮箱或微信号），可留空'
+    uni.showToast({ title: '联系方式格式有误', icon: 'none' })
+  }
   submitting.value = true
   try {
     // 预选菜品时无论用户是否改为「其他」都上报相关对象/ID（优先以预选为准）
@@ -260,19 +362,24 @@ async function submit() {
     uni.showToast({ title: '提交成功，感谢反馈', icon: 'success' })
     content.value = ''
     contact.value = ''
+    contactError.value = ''
     selectedEntity.value = 'none'
     type.value = 'suggestion'
     clearPreset()
-    // 无返回栈（如首页 redirectTo 进入）时兜底回首页，避免静默停留当前页
-    setTimeout(() => {
-      if (getCurrentPages().length > 1) uni.navigateBack()
-      else uni.reLaunch({ url: '/pages/home/index' })
-    }, 600)
+    // 提交成功即时刷新记录并切到「我的反馈」Tab，新反馈置顶（后端倒序）
+    if (loggedIn.value) await loadRecords(true)
+    filterStatus.value = 'all'
+    activeTab.value = 'mine'
   } catch (e: any) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
+}
+
+// 联系方式轻校验：邮箱或微信号（5-20 位字母数字下划线连字符）
+function validateContact(v: string): boolean {
+  return /^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(v) || /^[\w-]{5,20}$/.test(v)
 }
 
 // ---- 我的反馈记录（登录后加载） ----
@@ -330,6 +437,26 @@ function closeDetail() {
   detailSheetOpen.value = false
   detailDragOffset.value = 0
   setTimeout(() => { detailOpen.value = false }, 300)
+}
+
+// 复制反馈内容到剪贴板
+function copyContent() {
+  if (!detailData.value?.content) return
+  uni.setClipboardData({
+    data: detailData.value.content,
+    success: () => uni.showToast({ title: '已复制内容', icon: 'none' }),
+  })
+}
+
+// 再反馈一次：关闭详情、切到写反馈并预填内容
+function reFeedback() {
+  const src = detailData.value
+  closeDetail()
+  activeTab.value = 'write'
+  if (src) {
+    type.value = src.type as FeedbackSubmit['type']
+    content.value = src.content
+  }
 }
 
 function noop() {}
@@ -392,13 +519,79 @@ onShow(() => {
 
 <style scoped>
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
-/* scroll-view 作为 flex 子项必须 min-height:0，否则内容超高时按 min-height:auto 撑开父容器，
-   导致页面超出 100vh、底部提交栏被挤出视口（微信小程序 flex 经典坑） */
-.scroll-wrap { flex: 1; min-height: 0; height: 0; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+
+/* scroll-view 作为 flex 子项只需 min-height:0 允许收缩；不能再设 height:0（微信小程序下
+   scroll-view 高度会被锁死不参与 flex 拉伸，导致内容区下部分被裁剪、底栏错位） */
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: var(--spacing-md); }
+/* 写反馈视图底部需给固定提交栏留白（审计红线），我的反馈视图无底栏仅留安全白 */
+.write-scroll { padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+.mine-scroll { padding-bottom: env(safe-area-inset-bottom); }
+.tab-pane { display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+/* 顶部双 Tab 分段（参考 ApplySheet .seg 范式；白卡内含两个等宽分段）。
+   上下 margin 收窄到 8rpx，避免与 Header 底边、内容区顶部间距累加把内容往下挤 */
+.seg-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-xs) var(--spacing-md);
+  padding: var(--spacing-2xs);
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
+}
+.seg {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transition: var(--press-transition), background 0.25s ease, color 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.seg:active { transform: scale(var(--press-scale)); }
+.seg.pressed { background: var(--bg-card); }
+.seg.on { background: var(--bg-card); box-shadow: var(--shadow-card); }
+.seg-text { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); }
+.seg.on .seg-text { color: var(--color-primary); }
+
+/* 我的反馈：状态筛选条 */
+.filter-tabs { flex-shrink: 0; display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  border: 2rpx solid transparent;
+  transition: var(--press-transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-chip:active { transform: scale(var(--press-scale)); }
+.filter-chip.pressed { background: var(--bg-card); }
+.filter-chip.on { background: var(--color-primary-soft); border-color: var(--color-primary); }
+.filter-text { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); }
+.filter-chip.on .filter-text { color: var(--color-primary); }
+.filter-count {
+  font-size: var(--font-aux);
+  font-weight: var(--weight-bold);
+  color: var(--text-tertiary);
+  background: var(--bg-card);
+  min-width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  padding: 0 var(--spacing-2xs);
+}
+.filter-chip.on .filter-count { color: var(--color-primary); background: var(--bg-card); }
 
 /* 登录引导（文档：bg-soft 圆角卡 + arrow 图标） */
 .login-hint { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-card); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .login-hint:active { transform: scale(var(--press-scale)); }
+.login-hint.pressed { background: var(--bg-card); }
 .login-hint-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .login-hint-action { display: flex; align-items: center; gap: var(--spacing-xs); flex-shrink: 0; }
 .login-hint-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
@@ -419,8 +612,8 @@ onShow(() => {
 .rec-content { margin-top: var(--spacing-sm); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .rec-time { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
 
-/* 预选菜品提示 */
-.preset-tip { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-card); margin-bottom: var(--spacing-sm); }
+/* 预选菜品提示：紧贴卡片内顶部，与下方 chips 间距收窄到 8rpx（避免内容区被过度下推） */
+.preset-tip { display: flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-card); margin-bottom: var(--spacing-xs); }
 .preset-tip-text { flex: 1; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
 .preset-tip-clear { flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-tag); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
 .preset-tip-clear:active { transform: scale(var(--press-scale)); }
@@ -440,13 +633,22 @@ onShow(() => {
 /* 字数接近上限转警示色（≥900/1000） */
 .counter.warn { color: var(--color-warning); }
 .contact-input { width: 100%; height: 88rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
+.contact-tip { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
+.contact-tip.error { color: var(--color-warning); }
 
 /* 提交栏：半透玻璃材质 + 圆角顶边；padding 撑高（88rpx 按钮 + 上下 16rpx = 120rpx，对齐 --action-bar-height），
    safe-area 并入底部 padding，避免固定 height 挤压按钮；背景须半透，否则 backdrop-filter 无毛玻璃效果 */
+/* 提交栏：position:fixed 吸底（用户预期的"底部 fix 提交按钮"语义）。
+   不做 display:flex 包裹，按钮借 AppButton 默认 width:100% 全宽居中（避免内联
+   width:100% 与 flex:1 冲突被压缩到左侧）；scroll-view 全高、.write-scroll 用
+   --action-bar-height 精确避让，内容可完整滚到栏上方、互不遮挡。
+   z-index 需低于 sheet-mask(90)/bottom-sheet(100)，保证详情弹层盖在其上 */
 .submit-bar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
   padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom));
   background: var(--blur-bg-solid);
   backdrop-filter: blur(var(--blur-radius)) saturate(180%);
@@ -456,8 +658,6 @@ onShow(() => {
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   box-sizing: border-box;
 }
-/* 按钮占满底栏剩余宽度，避免被压缩到左下角 */
-.submit-bar :deep(.app-btn) { flex: 1; width: auto; }
 
 /* 详情 BottomSheet（复用 ApplySheet/RelatedPickerSheet 范式） */
 .sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); opacity: 0; transition: opacity 0.3s ease; z-index: 90; }
@@ -486,8 +686,17 @@ onShow(() => {
 .detail-block:last-child { border-bottom: none; }
 .detail-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-bold); color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
 .detail-value { font-size: var(--font-body); color: var(--text-primary); }
-.detail-content { font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; }
+.detail-content { font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; overflow-wrap: break-word; word-break: break-word; }
 .detail-reply { color: var(--text-secondary); }
+
+/* 详情底部操作行：复制内容 / 再反馈一次 */
+.sheet-actions { flex-shrink: 0; display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-lg) 0; border-top: 2rpx solid var(--border-color); }
+.sheet-action { flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 88rpx; border-radius: var(--radius-btn); background: var(--bg-soft); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
+.sheet-action:active { transform: scale(var(--press-scale)); }
+.sheet-action.pressed { background: var(--bg-card); }
+.sheet-action.primary { background: var(--color-primary-soft); }
+.sheet-action-text { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); }
+.sheet-action-text.primary { color: var(--color-primary); }
 
 /* 轻量状态徽标（待处理/已处理，避免污染全局 StatusBadge 文案） */
 .fb-status { display: inline-flex; align-items: center; flex-shrink: 0; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); font-size: var(--font-aux); font-weight: var(--weight-bold); }
@@ -495,9 +704,10 @@ onShow(() => {
 .fb-status.handled { background: var(--color-success-soft); color: var(--color-success); }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-hint, .rec-item, .type-chip, .preset-tip-clear { transition: none !important; }
-  .login-hint:active, .rec-item:active, .type-chip:active, .preset-tip-clear:active { transform: none !important; }
+  .login-hint, .rec-item, .type-chip, .preset-tip-clear, .seg, .filter-chip, .sheet-action { transition: none !important; }
+  .login-hint:active, .rec-item:active, .type-chip:active, .preset-tip-clear:active, .seg:active, .filter-chip:active, .sheet-action:active { transform: none !important; }
   .sheet-mask { transition: opacity 0.2s ease; }
-  .bottom-sheet { transition: opacity 0.2s ease; transform: none !important; }
+  /* 仅去掉开合过渡动画，transform 是弹层显隐的载体，不能禁（否则详情常驻遮挡内容） */
+  .bottom-sheet { transition: none !important; }
 }
 </style>
