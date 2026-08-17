@@ -115,7 +115,7 @@ const pressed = ref(false)
   min-width: 32rpx;
   height: 32rpx;
   padding: 0 10rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--color-error);
   color: var(--text-white);
   font-size: var(--font-aux);
@@ -129,7 +129,7 @@ const pressed = ref(false)
   flex-shrink: 0;
   width: 88rpx;
   height: 56rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--border-bold);
   padding: 4rpx;
   box-sizing: border-box;

@@ -96,6 +96,7 @@ function handleClick() {
   min-width: 0;
   background: var(--bg-card);
   border-radius: var(--radius-card);
+  border: 1rpx solid var(--border-color);
   overflow: hidden;
   box-shadow: var(--shadow-card);
   /* 进场仅极轻量淡入 + 按压缩放（红线 §4.9②：位移 ≤0，仅 transform/opacity） */
@@ -137,7 +138,7 @@ function handleClick() {
   top: 10rpx;
   right: 10rpx;
   background: var(--overlay-dark-strong);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-icon);
   padding: var(--spacing-xs) var(--spacing-sm);
   display: flex;
   align-items: center;

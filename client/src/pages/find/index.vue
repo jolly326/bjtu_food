@@ -175,7 +175,7 @@
           >
             <!-- C12 图片淡入：缩略图加载完成 opacity 过渡 -->
             <view class="mixed-thumb">
-              <image v-if="item.image" :src="item.image" mode="aspectFill" class="mixed-thumb-img" lazy-load @load="onThumbLoad" />
+              <image v-if="item.image" :src="item.image" mode="aspectFill" class="mixed-thumb-img" :class="{ loaded: item.loaded }" lazy-load @load="item.loaded = true" />
               <view v-else class="mixed-thumb-ph">
                 <IconSvg name="dish" :size="48" color="var(--text-tertiary)" />
               </view>
@@ -191,15 +191,17 @@
                   >{{ seg.text }}</text>
                 </text>
               </view>
-              <!-- B8 档口名 + A4 距离并入副信息行；无定位时不显示距离段 -->
-              <text class="mixed-sub">
-                <text
-                  v-for="(seg, si) in splitHighlight(item.sub || '')"
-                  :key="si"
-                  :class="{ hl: seg.hit }"
-                >{{ seg.text }}</text>
-                <text v-if="item.distance != null" class="mixed-dist-seg"> · 距你 {{ fmtMixedDistance(item.distance) }}</text>
-              </text>
+              <!-- B8 档口名 + A4 距离并入副信息行；左段可省略、右段距你固定不截断 -->
+              <view class="mixed-sub">
+                <text class="mixed-sub-text">
+                  <text
+                    v-for="(seg, si) in splitHighlight(item.sub || '')"
+                    :key="si"
+                    :class="{ hl: seg.hit }"
+                  >{{ seg.text }}</text>
+                </text>
+                <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ fmtMixedDistance(item.distance) }}</text>
+              </view>
               <!-- B9 属性标签 chips（复用 TAG_MAP 中文映射，最多 2 个） -->
               <view v-if="item.tagLabels && item.tagLabels.length" class="mixed-tags">
                 <text v-for="t in item.tagLabels" :key="t" class="mixed-tag">{{ t }}</text>
@@ -207,8 +209,8 @@
               <!-- 菜品：价格（A6 强化）+ 评分 + 评价数 + B10 促销角标 -->
               <view v-if="item.price != null || item.rating != null" class="mixed-meta">
                 <view v-if="item.promoPrice != null" class="mixed-promo-badge">促销</view>
-                <text class="mixed-price" v-if="item.promoPrice != null">¥{{ item.promoPrice.toFixed(2) }}</text>
-                <text class="mixed-price" v-else-if="item.price != null">¥{{ item.price.toFixed(2) }}</text>
+                <text class="mixed-price" v-if="item.promoPrice != null"><text class="mixed-price-sym">¥</text>{{ item.promoPrice.toFixed(2) }}</text>
+                <text class="mixed-price" v-else-if="item.price != null"><text class="mixed-price-sym">¥</text>{{ item.price.toFixed(2) }}</text>
                 <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ item.originalPrice.toFixed(2) }}</text>
                 <view v-if="item.rating != null" class="mixed-rating">
                   <IconSvg name="star" :size="24" color="var(--color-star)" />
@@ -368,6 +370,8 @@ interface MixedResult {
   lng?: number
   /** 距用户距离（米）：前端基于定位本地算，未定位/无坐标为 undefined */
   distance?: number
+  /** 缩略图是否已加载完成（驱动淡入，纯前端渲染态） */
+  loaded?: boolean
 }
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
@@ -409,7 +413,7 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   return segs
 }
 /** C12 图片淡入：图片 load 后由 CSS transition 控制 opacity（此处仅占位，透明度用 :class 触发也可，简单用事件无副作用） */
-function onThumbLoad() { /* 淡入由 CSS .mixed-thumb-img transition 处理，无需逻辑 */ }
+function onThumbLoad() { /* 已移除：淡入由 @load 直接置 item.loaded 驱动 */ }
 /** 输入框失焦：收起联想面板 */
 function onSearchBlur() {
   setTimeout(() => { showSuggest.value = false }, 150)
@@ -510,6 +514,7 @@ async function doMixedSearch(kw?: string) {
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
 function goToMixed(item: MixedResult) {
+  try { uni.vibrateShort({ type: 'light' }) } catch { /* 部分平台无震动 API，忽略 */ }
   if (item.id) openDishDetail(item.id)
 }
 
@@ -677,7 +682,7 @@ watch(keyword, (value) => {
 .suggest-name { font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .suggest-meta { flex-shrink: 0; display: flex; align-items: baseline; gap: var(--spacing-xs); }
-.suggest-price { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.suggest-price { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .suggest-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
 .suggest-rating-num { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
 
@@ -763,9 +768,9 @@ watch(keyword, (value) => {
   overflow: hidden;
   background: var(--bg-page);
 }
-/* C12 图片淡入：初始透明，加载后由 transition 淡入 */
+/* C12 图片淡入：初始透明，loaded 后置 1 由 transition 淡入 */
 .mixed-thumb-img { width: 100%; height: 100%; opacity: 0; transition: opacity 0.32s var(--ease-out); }
-.mixed-thumb-img { opacity: 1; }
+.mixed-thumb-img.loaded { opacity: 1; }
 .mixed-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .mixed-title-row { display: flex; align-items: center; gap: var(--spacing-xs); }
@@ -785,21 +790,10 @@ watch(keyword, (value) => {
 }
 /* A1 关键词高亮：命中段朱砂红 */
 .mixed-name .hl, .mixed-sub .hl { color: var(--color-primary); font-weight: var(--weight-bold); }
-/* 菜品结果 meta：价格 + 评分 + 评价数 一行 */
-.mixed-meta { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-xs); }
-/* A6 价格视觉强化：¥ 符号缩小、数字放大 */
-.mixed-price { font-size: var(--font-title); font-weight: var(--weight-bold); color: var(--color-primary); font-variant-numeric: tabular-nums; }
-.mixed-price::first-letter { font-size: var(--font-body); font-weight: var(--weight-medium); }
-.mixed-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-.mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
-.mixed-rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
-.mixed-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* A4 距离并入副信息行：仅「距你 Xm」段主色强调，无定位时不显示 */
-.mixed-dist-seg { color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 /* B9 属性标签 chips */
 .mixed-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2xs); margin-top: 2rpx; }
 .mixed-tag {
-  font-size: 20rpx;
+  font-size: var(--font-tiny);
   line-height: 1.4;
   padding: 2rpx 12rpx;
   border-radius: var(--radius-tag);
@@ -809,7 +803,7 @@ watch(keyword, (value) => {
 }
 /* B10 促销角标 + 原价划线 */
 .mixed-promo-badge {
-  font-size: 20rpx;
+  font-size: var(--font-tiny);
   line-height: 1.4;
   padding: 2rpx 12rpx;
   border-radius: var(--radius-tag);
@@ -818,6 +812,19 @@ watch(keyword, (value) => {
   font-weight: var(--weight-bold);
 }
 .mixed-original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+/* 菜品结果 meta：价格 + 评分 + 评价数；允许换行避免窄屏溢出（A6 价色已收口） */
+.mixed-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm); }
+/* A6 价格视觉强化：¥ 符号缩小、数字放大，统一用专用价色 --color-price */
+.mixed-price { font-size: var(--font-title); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+.mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
+.mixed-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+.mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
+.mixed-rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
+/* 副信息行：左段档口·食堂可省略、右段「距你 Xm」固定不截断，两端对齐 */
+.mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); font-size: var(--font-aux); color: var(--text-tertiary); }
+.mixed-sub-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A4 距离段：主色强调，无定位时不显示 */
+.mixed-dist-seg { flex-shrink: 0; color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 
 /* 发现主页首屏骨架（2026-08-03：分类宫格已删，仅保留热搜列表占位） */
 .discover-skeleton { padding: 0 var(--spacing-md); }

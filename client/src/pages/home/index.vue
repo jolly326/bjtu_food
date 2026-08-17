@@ -51,8 +51,8 @@
 
       <block v-else>
         <!-- 两列万能区：最新活动 / 反馈菜品 -->
-        <view class="section enter-up" :style="{ '--enter-i': 0 }">
-          <UniversalGrid :has-activity="activities.length > 0" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+        <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
+          <UniversalGrid :activity-title="activities[0]?.title || ''" @open-activity="goToActivity" @open-feedback="goToFeedback" />
         </view>
 
         <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
@@ -180,21 +180,27 @@ async function enableLocation() {
   }
 }
 
-/** 首页广播条点击 → 按 type/targetId 跳转（动态详情 / 活动页 / 动态流） */
+/** 首页广播条点击 → 按 type 分发（与 BroadcastItem.type 对齐：dish→菜品详情 / url→复制链接 / 其余→动态流） */
 function onBroadcastTap(item: BroadcastItem) {
   if (!item) return
   switch (item.type) {
-    case 'MOMENT':
+    case 'dish':
       if (item.targetId) {
-        uni.navigateTo({ url: `/pages/pages-detail/moment?id=${item.targetId}` })
+        uni.navigateTo({ url: `/pages/pages-detail/dish?id=${item.targetId}` })
         return
       }
       uni.navigateTo({ url: '/pages/community/index' })
       break
-    case 'ACTIVITY':
-      uni.navigateTo({ url: '/pages/activity/index' })
+    case 'url':
+      if (item.targetUrl) {
+        // 外链：小程序无法直接打开任意 web-view，采用复制链接 + 轻提示
+        uni.setClipboardData({ data: item.targetUrl })
+      } else {
+        uni.navigateTo({ url: '/pages/community/index' })
+      }
       break
     default:
+      // community / canteen / stall 及未知类型：统一回落动态列表页
       uni.navigateTo({ url: '/pages/community/index' })
   }
 }
@@ -280,8 +286,8 @@ function scrollToTop() {
 
 /* ===== 顶部 Header（组件内渲染头像行与整行搜索框，首页不再额外定义） ===== */
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
-/* A.2 区块间距放大到 48rpx 量级，首屏更透气（替代原 spacing-md/lg 拥挤间距） */
-.section { padding: 0 var(--spacing-md); margin: var(--spacing-xl) 0; width: 100%; box-sizing: border-box; }
+/* 区块纵向节奏统一 24rpx 基准（广播→万能→标题→瀑布流衔接紧凑，消灭异常 72rpx）；左右留白统一单层 24rpx */
+.section { padding: 0 var(--spacing-md); margin: var(--spacing-md) 0; width: 100%; box-sizing: border-box; }
 
 /* ===== 列表底部状态 ===== */
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
@@ -305,9 +311,9 @@ function scrollToTop() {
 
 /* ========== 骨架屏（贴合真实首屏结构） ========== */
 .home-skeleton { padding: var(--spacing-md) 0; }
-.sk-broadcast { width: calc(100% - var(--spacing-md) * 2); height: 64rpx; margin: 0 var(--spacing-md) var(--spacing-md); border-radius: var(--radius-card); box-sizing: border-box; }
-.sk-universal { display: flex; gap: var(--spacing-md); padding: 0 var(--spacing-md); box-sizing: border-box; }
-.sk-ucard { flex: 1; height: 72rpx; border-radius: var(--radius-card); }
+.sk-broadcast { width: calc(100% - var(--spacing-md) * 2); height: 100rpx; margin: var(--spacing-md) var(--spacing-md) 0; border-radius: var(--radius-card); box-sizing: border-box; }
+.sk-universal { display: flex; gap: var(--spacing-md); padding: 0 var(--spacing-md); margin-top: var(--spacing-md); box-sizing: border-box; }
+.sk-ucard { flex: 1; height: 100rpx; border-radius: var(--radius-card); }
 .sk-waterfall { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); box-sizing: border-box; }
 .sk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-wcard { width: 100%; height: 300rpx; border-radius: var(--radius-card); }

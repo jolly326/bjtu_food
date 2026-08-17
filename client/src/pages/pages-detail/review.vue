@@ -417,7 +417,7 @@ onLoad(async (query) => {
   flex-shrink: 0;
   width: 88rpx;
   height: 52rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--border-color);
   position: relative;
   transition: background 0.2s var(--ease-out);

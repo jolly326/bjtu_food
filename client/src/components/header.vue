@@ -87,6 +87,7 @@ onMounted(() => {
   const sb = (win && win.statusBarHeight) || 20
   statusBarHeight.value = sb
   // 仅在微信小程序环境避让右上角胶囊；H5/其余端收窄右侧留白，避免搜索框右侧大片空白
+  // @ts-ignore - 跨端兼容（H5 无 wx）
   isWeChat.value = typeof wx !== 'undefined'
   rightPad.value = isWeChat.value ? '180rpx' : '0rpx'
   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐返回行高度
@@ -162,12 +163,14 @@ function handleBack() {
 }
 .user-chip {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
   -webkit-tap-highlight-color: transparent;
 }
 .user-chip-avatar {
   width: calc(var(--nav-h) - 14px);
   height: calc(var(--nav-h) - 14px);
-  border-radius: 16rpx;
+  border-radius: 50%;
   background: #FFFFFF;
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
@@ -181,7 +184,7 @@ function handleBack() {
   padding: 0 var(--spacing-md);
   /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
   background: var(--bg-card);
-  border-radius: 36rpx;
+  border-radius: var(--radius-pill);
   -webkit-tap-highlight-color: transparent;
 }
 .home-search-icon { flex-shrink: 0; line-height: 1; }

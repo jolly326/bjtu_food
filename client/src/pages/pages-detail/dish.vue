@@ -12,6 +12,7 @@
             <view class="skeleton-tag"></view>
             <view class="skeleton-tag"></view>
           </view>
+          <view class="skeleton-line skeleton-loc"></view>
           <view class="skeleton-line skeleton-rating"></view>
         </view>
         <view class="skeleton-metric">
@@ -28,7 +29,7 @@
       </view>
 
       <template v-else-if="dish">
-        <!-- 2. 菜品大图：横向撑满，高约屏宽 80%，圆角 -->
+        <!-- 2. 菜品大图：横向撑满，高约屏宽 56%，圆角 -->
         <view class="hero-img">
           <ImageSwiper :images="heroImages" height="56vw" :indicator-dots="true" />
         </view>
@@ -59,7 +60,7 @@
               <IconSvg name="location" :size="26" color="var(--color-primary)" class="loc-icon" />
               <text class="loc-text">{{ locationText }}</text>
             </view>
-            <view class="loc-dist" :class="dishDistance != null ? 'loc-dist--lead' : 'loc-dist--muted'">
+            <view class="loc-dist" :class="dishDistance != null ? 'loc-dist--lead' : 'loc-dist--muted'" @tap="onDistTap" role="button" :aria-label="dishDistance != null ? '距你距离' : '开启定位查看距你多远'">
               <IconSvg v-if="dishDistance != null" name="location" :size="22" color="var(--color-primary)" class="loc-dist-icon" />
               <text class="loc-dist-text">{{ distText }}</text>
             </view>
@@ -353,6 +354,18 @@ function openApply() {
   applyOpen.value = true
 }
 
+/** 距你未定位时点击：主动引导开启定位，成功后自动重算距离 */
+async function onDistTap() {
+  if (dishDistance.value != null) return
+  const before = locationStore.location
+  await ensureLocation()
+  if (!before && locationStore.location) {
+    uni.showToast({ title: '已开启定位', icon: 'none' })
+  } else if (!locationStore.location) {
+    uni.showToast({ title: '定位未开启', icon: 'none' })
+  }
+}
+
 /** 删除本人菜品（长按菜名触发） */
 function onDishLongPress() {
   const d = dish.value
@@ -425,7 +438,7 @@ function goReviewList() {
 .promo-tag { font-size: var(--font-tiny); font-weight: var(--weight-bold); color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: var(--spacing-xs); }
 .desc-row { margin-top: var(--spacing-xs); }
 .desc-content { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
-.desc-content--collapsed { -webkit-line-clamp: 3; }
+.desc-content--collapsed { -webkit-line-clamp: 2; }
 .desc-toggle { display: inline-block; margin-top: var(--spacing-xs); padding: var(--spacing-2xs) var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); -webkit-tap-highlight-color: transparent; }
 
 /* 第二行：位置 + 距你 */
@@ -460,7 +473,7 @@ function goReviewList() {
 .summary-outof { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .summary-count { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 2rpx; }
 .summary-divider { width: 2rpx; align-self: stretch; background: var(--border-color); flex: 0 0 auto; }
-.summary-right { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
+.summary-right { flex: 1; min-width: 280rpx; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
 .summary-empty { padding: var(--spacing-md) 0; }
 .summary-empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
 .dist-item { display: flex; align-items: center; gap: var(--spacing-sm); }

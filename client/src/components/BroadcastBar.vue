@@ -10,7 +10,7 @@
     @tap="onTap"
   >
     <view class="broadcast-icon">
-      <IconSvg name="broadcast" :size="28" color="var(--color-primary)" />
+      <IconSvg name="broadcast" :size="36" color="var(--color-primary)" />
     </view>
     <view class="broadcast-viewport">
       <view
@@ -18,10 +18,7 @@
         class="broadcast-item"
         :class="{ 'is-enter': entering }"
       >
-        <text
-          class="broadcast-text"
-          :class="{ 'is-scroll': needScroll, 'is-paused': paused }"
-        >{{ current.text }}</text>
+        <text class="broadcast-text">{{ current.text }}</text>
       </view>
       <view v-else class="broadcast-item">
         <text class="broadcast-text broadcast-placeholder">暂无广播</text>
@@ -31,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, watch, nextTick, getCurrentInstance } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
 import type { BroadcastItem } from '@/api/notify'
 
@@ -49,37 +46,17 @@ function onTap() {
 
 const index = ref(0)
 const entering = ref(false)
-const needScroll = ref(false)
-const paused = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
-const instance = getCurrentInstance()
 
 const current = computed(() => props.items[index.value] || null)
 
-/** 测量文字宽度是否超出视口：超出则跑马灯滚动（跨端用 selectorQuery 拿真实宽度，兼容小程序无 DOM） */
-function measure() {
-  if (!current.value) {
-    needScroll.value = false
-    return
-  }
-  uni.createSelectorQuery().in(instance!)
-    .select('.broadcast-viewport').boundingClientRect()
-    .select('.broadcast-text').boundingClientRect()
-    .exec((res: any) => {
-      const vp = res?.[0]
-      const tx = res?.[1]
-      needScroll.value = !!(vp && tx && tx.width > vp.width)
-    })
-}
-
 function tick() {
   if (props.items.length <= 1) return
-  entering.value = true        // 当前条淡出
+  entering.value = true // 当前条淡出
   // 淡出过渡结束后，再切换内容并淡入（220ms > opacity 过渡 200ms，避免半透明残留）
   setTimeout(() => {
     index.value = (index.value + 1) % props.items.length
-    entering.value = false      // 新条淡入
-    nextTick(measure)
+    entering.value = false // 新条淡入
   }, 220)
 }
 
@@ -96,13 +73,11 @@ function stop() {
   }
 }
 
-/** 触摸时：暂停轮播计时 + 暂停跑马灯；松手恢复 */
+/** 触摸时暂停轮播计时，松手恢复 */
 function pause() {
-  paused.value = true
   stop()
 }
 function resume() {
-  paused.value = false
   start()
 }
 
@@ -112,13 +87,9 @@ watch(
     index.value = 0
     if (list.length > 1) start()
     else stop()
-    nextTick(measure)
   },
   { immediate: true }
 )
-
-// 文案切换后重新测量是否需滚动（长文案才跑马灯）
-watch(() => current.value?.text, () => nextTick(measure))
 
 onUnmounted(stop)
 </script>
@@ -129,7 +100,7 @@ onUnmounted(stop)
   align-items: center;
   gap: var(--spacing-sm);
   margin: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 0 var(--spacing-sm);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -144,10 +115,10 @@ onUnmounted(stop)
 .broadcast-viewport {
   flex: 1;
   min-width: 0;
-  height: 40rpx;
-  overflow: hidden;
+  min-height: 100rpx;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 .broadcast-item {
   width: 100%;
@@ -157,31 +128,21 @@ onUnmounted(stop)
 .broadcast-item.is-enter {
   opacity: 0;
 }
-/* 文字默认 inline-block（自适应内容宽），不截断；超出视口才滚动 */
+/* 最多 2 行截断，超长省略，不强制单行 */
 .broadcast-text {
-  display: inline-block;
-  white-space: nowrap;
-  font-size: var(--font-aux);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--font-body);
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 .broadcast-placeholder {
   color: var(--text-tertiary);
 }
-/* 超长文案：跑马灯滚动（触摸暂停由 .is-paused 控制） */
-.broadcast-text.is-scroll {
-  padding-right: 40rpx;
-  animation: bc-marquee 8s linear infinite;
-}
-.broadcast-text.is-paused {
-  animation-play-state: paused;
-}
-@keyframes bc-marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(calc(-100% - 40rpx)); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .broadcast-item { transition: none; }
-  .broadcast-text.is-scroll { animation: none; }
 }
 </style>

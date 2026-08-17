@@ -77,6 +77,11 @@ page {
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
+  /* 万能卡片语义色（首页两列：最新活动=冷蓝、反馈菜品=青绿，深浅两套对称） */
+  --bg-cell-activity: #E8F1FB;
+  --color-cell-activity: #2F6FED;
+  --bg-cell-feedback: #E7F7F2;
+  --color-cell-feedback: #12B886;
   /* 圆角 */
   --radius-tag: 16px;
   --radius-card: 16px;
@@ -219,6 +224,11 @@ page {
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #2E2A27;
   --border-bold: #3D3935;
+  /* 万能卡片语义色（深色：低明度冷蓝/青绿底 + 提亮文字，对比 ≥4.5:1） */
+  --bg-cell-activity: #16263A;
+  --color-cell-activity: #7FA8E8;
+  --bg-cell-feedback: #0F2E26;
+  --color-cell-feedback: #4CCF9A;
   /* 深色渐变（珊瑚橙系，与浅色一致） */
   --color-gradient: linear-gradient(135deg, #A8482E 0%, #C45A3C 58%, #E8D0C4 100%);
   --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.4);
