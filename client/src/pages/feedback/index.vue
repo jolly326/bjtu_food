@@ -2,26 +2,25 @@
   <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="意见反馈" @back="goBack" />
 
-    <!-- 双 Tab 分段控制器（自绘，参考 ApplySheet .seg 范式） -->
-    <view class="seg-tabs" role="tablist" aria-label="反馈页视图切换">
-      <view
-        v-for="t in tabs"
-        :key="t.key"
-        class="seg"
-        :class="{ on: activeTab === t.key }"
-        hover-class="pressed"
-        hover-stay-time="60"
-        role="tab"
-        :aria-selected="activeTab === t.key"
-        :aria-label="t.label"
-        @tap="activeTab = t.key"
-      >
-        <text class="seg-text">{{ t.label }}</text>
-      </view>
-    </view>
-
     <!-- 写反馈视图 -->
     <scroll-view v-if="activeTab === 'write'" class="scroll-wrap write-scroll" scroll-y>
+      <!-- 双 Tab 分段控制器（随内容滚动，不固定视口；滚回顶部即可切换视图） -->
+      <view class="seg-tabs" role="tablist" aria-label="反馈页视图切换">
+        <view
+          v-for="t in tabs"
+          :key="t.key"
+          class="seg"
+          :class="{ on: activeTab === t.key }"
+          hover-class="pressed"
+          hover-stay-time="60"
+          role="tab"
+          :aria-selected="activeTab === t.key"
+          :aria-label="t.label"
+          @tap="activeTab = t.key"
+        >
+          <text class="seg-text">{{ t.label }}</text>
+        </view>
+      </view>
       <view class="tab-pane">
         <!-- 反馈类型 -->
         <CardSection title="反馈类型">
@@ -104,6 +103,23 @@
 
     <!-- 我的反馈视图 -->
     <scroll-view v-else class="scroll-wrap mine-scroll" scroll-y>
+      <!-- 双 Tab 分段控制器（随内容滚动，不固定视口） -->
+      <view class="seg-tabs" role="tablist" aria-label="反馈页视图切换">
+        <view
+          v-for="t in tabs"
+          :key="t.key"
+          class="seg"
+          :class="{ on: activeTab === t.key }"
+          hover-class="pressed"
+          hover-stay-time="60"
+          role="tab"
+          :aria-selected="activeTab === t.key"
+          :aria-label="t.label"
+          @tap="activeTab = t.key"
+        >
+          <text class="seg-text">{{ t.label }}</text>
+        </view>
+      </view>
       <view class="tab-pane">
         <!-- 未登录：引导登录 -->
         <view v-if="!loggedIn" class="login-hint" hover-class="pressed" hover-stay-time="80" role="button" :aria-label="`登录后可查看你的反馈记录，点击去登录`" @tap="goLogin">
@@ -230,7 +246,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { onShow, onLoad } from '@dcloudio/uni-app'
+import { onShow, onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import { submitFeedback, getMyFeedback, type FeedbackMyItem } from '@/api/feedback'
@@ -419,6 +435,8 @@ let startY = 0
 let lastY = 0
 let lastTime = 0
 let velocity = 0
+// N06 修复：详情关闭延迟定时器句柄，避免快速开关误关 / 卸载后误清理
+let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 const detailSheetStyle = computed(() => ({
   transform: `translateY(calc(${detailSheetOpen.value ? 0 : 100}% + ${detailDragging.value ? detailDragOffset.value : 0}px))`,
@@ -438,7 +456,8 @@ function closeDetail() {
   detailMaskShow.value = false
   detailSheetOpen.value = false
   detailDragOffset.value = 0
-  setTimeout(() => { detailOpen.value = false }, 300)
+  if (closeTimer) clearTimeout(closeTimer)
+  closeTimer = setTimeout(() => { detailOpen.value = false }, 300)
 }
 
 // 复制反馈内容到剪贴板
@@ -517,14 +536,21 @@ onShow(() => {
     initialized = true
   }
 })
+
+// N06 修复：页面卸载时清理详情关闭延迟定时器，避免卸载后才误置 detailOpen
+onUnload(() => {
+  if (closeTimer) clearTimeout(closeTimer)
+  closeTimer = null
+})
 </script>
 
 <style scoped>
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
 
 /* scroll-view 作为 flex 子项只需 min-height:0 允许收缩；不能再设 height:0（微信小程序下
-   scroll-view 高度会被锁死不参与 flex 拉伸，导致内容区下部分被裁剪、底栏错位） */
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: var(--spacing-xs); }
+   scroll-view 高度会被锁死不参与 flex 拉伸，导致内容区下部分被裁剪、底栏错位）。
+   顶部间距由内容首元素 .seg-tabs 的 margin 提供，scroll-wrap 不再设 padding-top 避免叠加 */
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; }
 /* 提交按钮已内嵌内容区（无固定底栏）：两视图统一仅留安全白，不再预留 action-bar 避让 */
 .write-scroll { padding-bottom: env(safe-area-inset-bottom); }
 .mine-scroll { padding-bottom: env(safe-area-inset-bottom); }

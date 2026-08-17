@@ -94,7 +94,8 @@ async function loadData(reset = false) {
     // 单流：始终按「最新」倒序拉取（task-14 §1.3 已决议去除推荐 Tab）
     const res = await momentApi.getMoments({ tab: 'latest', page, pageSize })
     moments.value = page === 1 ? res.list : [...moments.value, ...res.list]
-    if (moments.value.length >= res.total) finished.value = true
+    // M02 修复：基于本页实际返回量判据（本地 sort 不干扰），不足一页即到底
+    if (res.list.length < pageSize) finished.value = true
     page += 1
   } catch {
     loadFailed.value = true

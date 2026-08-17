@@ -58,8 +58,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, reactive, computed, onUnmounted } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { post } from '@/api/http'
@@ -85,6 +85,13 @@ const form = reactive({
   openTime: '',
   images: [] as string[],
   description: '',
+})
+
+// N07 修复：提交后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
 })
 
 async function loadCanteens() {
@@ -123,7 +130,8 @@ async function handleSubmit() {
   try {
     await post('/my/stalls', payload)
     uni.showToast({ title: '提交成功，待审核', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 1200)
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => uni.navigateBack(), 1200)
   } catch (e: any) {
     uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
   } finally {

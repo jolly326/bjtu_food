@@ -48,6 +48,14 @@ public class ReportExportController {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * 单次导出条数上限。
+     * <p>
+     * 导出原为全表 selectList，数据量增长后会一次性把全表加载进内存造成 OOM 风险。
+     * 此处按「最近 N 条」截断（range() 已按创建时间倒序），需要更早数据时请通过 startAt/endAt 缩小时间范围分批导出。
+     */
+    private static final int MAX_EXPORT_ROWS = 10_000;
+
     @Operation(summary = "菜品报表导出", description = "ADM。CSV 文件流，支持时间范围。")
     @GetMapping("/dishes/export")
     public void exportDishes(HttpServletResponse response,
@@ -107,6 +115,8 @@ public class ReportExportController {
         if (startAt != null && !startAt.isBlank()) w.ge(getter, startAt);
         if (endAt != null && !endAt.isBlank()) w.le(getter, endAt);
         w.orderByDesc(getter);
+        // 数量上限兜底，防止全表加载导致 OOM（倒序取最近 MAX_EXPORT_ROWS 条）
+        w.last("LIMIT " + MAX_EXPORT_ROWS);
         return w;
     }
 

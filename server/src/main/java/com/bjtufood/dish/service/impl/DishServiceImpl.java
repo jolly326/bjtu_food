@@ -39,9 +39,6 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
 
-    private static final int DEFAULT_PAGE = 1;
-    private static final int DEFAULT_PAGE_SIZE = 10;
-
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
@@ -54,14 +51,12 @@ public class DishServiceImpl implements DishService {
         if (req == null) {
             req = new DishQueryReq();
         }
-        if (req.getPage() == null || req.getPage() < 1) {
-            req.setPage(DEFAULT_PAGE);
-        }
-        if (req.getPageSize() == null || req.getPageSize() < 1) {
-            req.setPageSize(DEFAULT_PAGE_SIZE);
-        } else if (req.getPageSize() > 100) {
-            req.setPageSize(100);
-        }
+        // 统一走 PageUtil.normalize（null 先兜底为 0 交由工具类归一化），与其他分页入口保持一致
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(
+                req.getPage() == null ? 0 : req.getPage(),
+                req.getPageSize() == null ? 0 : req.getPageSize());
+        req.setPage(norm[0]);
+        req.setPageSize(norm[1]);
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
                 .convert(this::enrichImages);
     }
@@ -124,9 +119,10 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
-        if (pageSize > 100) pageSize = 100;
+        // 统一走 PageUtil.normalize（page<1→1，pageSize<1→10，pageSize>100→100），与其他分页入口保持一致
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0];
+        pageSize = norm[1];
         // 仅 approved 且上架菜品参与推荐
         List<Dish> candidates = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
                 .eq(Dish::getAuditStatus, "approved")

@@ -103,8 +103,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, reactive, computed, onUnmounted } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
@@ -140,6 +140,13 @@ const dishKeyword = ref('')
 const dishCandidates = ref<{ id: number; name: string; canteen?: string }[]>([])
 const searching = ref(false)
 const dishPressed = ref<number | null>(null)
+
+// N07 修复：提交后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
+})
 
 async function searchDishList(kw: string) {
   dishKeyword.value = kw
@@ -221,10 +228,11 @@ async function handleSubmit() {
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
     // 从菜品详情页进入：返回详情并刷新评价列表；其余默认进入动态广场
+    if (navTimer) clearTimeout(navTimer)
     if (from.value === 'dish') {
-      setTimeout(() => uni.navigateBack(), 1500)
+      navTimer = setTimeout(() => uni.navigateBack(), 1500)
     } else {
-      setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
+      navTimer = setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
     }
   } catch (e: any) {
     // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）

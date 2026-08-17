@@ -51,7 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
+import { onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
@@ -73,6 +74,13 @@ const saving = ref(false)
 const roleLabel = u?.role === 'admin' ? '管理员' : '交大学生'
 /** 头像上传中：禁用重复选择 + 头像半透明反馈 */
 const avatarUploading = ref(false)
+
+// N07 修复：保存后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
+})
 
 function changeAvatar() {
   if (avatarUploading.value) return
@@ -105,7 +113,8 @@ async function save() {
   try {
     await userStore.updateProfile({ nickname: name, avatar: avatar.value })
     uni.showToast({ title: '已保存', icon: 'success' })
-    setTimeout(() => uni.navigateBack(), 400)
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => uni.navigateBack(), 400)
   } catch {
     uni.showToast({ title: '保存失败', icon: 'none' })
   } finally {

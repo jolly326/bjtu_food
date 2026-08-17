@@ -167,6 +167,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateReview(Long id, Long userId, Integer rating, String content) {
         Review review = reviewMapper.selectById(id);
         if (review == null || !review.getUserId().equals(userId)) {
@@ -179,6 +180,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteReview(Long id, Long userId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
@@ -195,7 +197,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId) {
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
@@ -207,11 +209,14 @@ public class ReviewServiceImpl implements ReviewService {
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
                         .eq(userId != null, Review::getUserId, userId)
+                        // 关键词模糊匹配评价正文，仅当显式传入时生效
+                        .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
                         .orderByDesc(Review::getCreatedAt))
                 .convert(this::toAdminVO);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void setHidden(Long id, boolean hidden) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
@@ -238,6 +243,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteByAdmin(Long id) {
         Review review = reviewMapper.selectById(id);
         if (review != null) {

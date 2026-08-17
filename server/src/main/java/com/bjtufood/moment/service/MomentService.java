@@ -86,9 +86,11 @@ public interface MomentService {
     void reject(Long id, String rejectReason);
 
     /**
-     * 后台动态管理列表（含全部状态：approved+status=0、已下架 status=1、pending 等），支持 status/auditStatus 过滤
+     * 后台动态管理列表（含全部状态：approved+status=0、已下架 status=1、pending 等），支持 status/auditStatus/userId 过滤
+     *
+     * @param keyword 内容关键词（可选，对 content 做模糊匹配）
      */
-    IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, int page, int pageSize);
+    IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, String keyword, int page, int pageSize);
 
     /**
      * 强制下架（status=1）

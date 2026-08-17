@@ -1,5 +1,6 @@
 <template>
-  <view v-if="visible" class="auth-root">
+  <!-- N08 修复：v-show 保持 AuthSheet 常驻挂载，关闭弹层不再卸载 AuthForm，发码倒计时不被清空（前端不辅助绕过 60s 冷却） -->
+  <view v-show="visible" class="auth-root">
     <!-- 半透明遮罩（点击关闭；touchmove.stop 防背景滚动穿透，与 ApplySheet 一致） -->
     <view
       class="sheet-mask"
@@ -27,7 +28,7 @@
       </view>
 
       <scroll-view class="sheet-body" scroll-y>
-        <AuthForm />
+        <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
       </scroll-view>
     </view>
   </view>
@@ -48,6 +49,13 @@ const userStore = useUserStore()
 const { visible } = storeToRefs(authSheetStore)
 
 function noop() {}
+
+// N08 修复：在 AuthSheet 层持有发码冷却状态（与 AuthForm 同步）。
+// 弹层用 v-if 关闭会卸载 AuthForm，故把冷却值提升到本层，重开时回填，前端不辅助绕过 60s 冷却。
+const codeCooldown = ref(0)
+function onCooldownChange(v: number) {
+  codeCooldown.value = v
+}
 
 /** 抽屉开合状态（遮罩淡入 + sheet 上滑，与 ApplySheet 动画范式一致） */
 const sheetOpen = ref(false)

@@ -150,12 +150,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onUnmounted } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, resetPassword, deriveCampusEmail } from '@/api/user'
 
 type Mode = 'login' | 'register' | 'reset'
 type LoginType = 'password' | 'code'
+
+const props = defineProps<{
+  /** N08：由 AuthSheet 持有的发码冷却值（关闭弹层卸载时仍可续接，前端不辅助绕过冷却） */
+  codeCountdown?: number
+}>()
+const emit = defineEmits<{
+  (e: 'cooldown-change', v: number): void
+}>()
 
 const userStore = useUserStore()
 
@@ -164,6 +172,18 @@ const loginType = ref<LoginType>('password')
 const codeCountdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const primaryPressed = ref(false)
+
+// N08 修复：外部（AuthSheet）传入的冷却值变化时回填到本地，重开弹层后倒计时继续
+watch(
+  () => props.codeCountdown,
+  (v) => {
+    if (v && v > 0 && codeCountdown.value <= 0) {
+      codeCountdown.value = v
+      startCountdown()
+    }
+  },
+)
+
 
 const formError = ref('')
 function setError(msg: string) { formError.value = msg }
@@ -184,6 +204,7 @@ const codeButtonText = computed(() => codeCountdown.value > 0 ? `${codeCountdown
 function setMode(next: Mode) {
   mode.value = next
   codeCountdown.value = 0
+  emit('cooldown-change', 0)
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
 }
 function toggleLoginType() {
@@ -191,10 +212,13 @@ function toggleLoginType() {
 }
 
 function startCountdown() {
-  codeCountdown.value = 60
+  // N08：若已由外部回填（重开弹层续接），不重置为 60，沿用当前剩余值
+  if (codeCountdown.value <= 0) codeCountdown.value = 60
+  emit('cooldown-change', codeCountdown.value)
   if (countdownTimer) clearInterval(countdownTimer)
   countdownTimer = setInterval(() => {
     codeCountdown.value -= 1
+    emit('cooldown-change', codeCountdown.value)
     if (codeCountdown.value <= 0 && countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
   }, 1000)
 }

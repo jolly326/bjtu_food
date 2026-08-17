@@ -14,7 +14,7 @@
       <image
         v-if="imgSrc && imgOk"
         :src="imgSrc"
-        mode="widthFix"
+        mode="aspectFill"
         class="card-img"
         :class="{ loaded: imgLoaded }"
         lazy-load
@@ -109,13 +109,14 @@ function handleClick() {
 .card-image {
   position: relative;
   width: 100%;
-  /* 高度跟随图片原始比例（mode=widthFix），未加载时由占位区 4:3 兜底，避免瀑布流跳变 */
+  /* 固定 4:3 比例容器：未加载（占位）与加载后（图片）高度一致，消除瀑布流滚动重排卡顿（CLS=0） */
+  aspect-ratio: 4 / 3;
   background: var(--bg-page);
   overflow: hidden;
 }
 .card-img {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
   /* B.5 图片加载淡入：默认透明，load 完成后淡入，避免硬切/跳变（CLS<0.1） */
   opacity: 0;

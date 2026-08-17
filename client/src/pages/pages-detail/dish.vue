@@ -36,14 +36,9 @@
 
         <!-- 3. 基本信息区：名称/标徽/价格 → 位置 → 简介 → 指标条 -->
         <CardSection>
-          <!-- 第一行：名称 + 标徽/标签 + 价格 -->
+          <!-- 第一行：名称 + 价格（标徽独立成行） -->
           <view class="title-row" @longpress="onDishLongPress">
-            <view class="name-badge">
-              <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
-              <view class="tag-row" v-if="dishTagList.length > 0">
-                <TagLabel v-for="tag in dishTagList" :key="tag" :text="tag" />
-              </view>
-            </view>
+            <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
             <view class="price-row">
               <block v-if="hasPromo">
                 <text class="promo-price">¥{{ dish.promoPrice }}</text>
@@ -52,6 +47,11 @@
               </block>
               <text v-else class="price-text">¥{{ dish.price }}</text>
             </view>
+          </view>
+
+          <!-- 第二行：标徽（独立成行） -->
+          <view class="tag-row tag-row--standalone" v-if="dishTagList.length > 0">
+            <TagLabel v-for="tag in dishTagList" :key="tag" :text="tag" />
           </view>
 
           <!-- 第二行：位置 + 右侧距你 -->
@@ -66,56 +66,51 @@
             </view>
           </view>
 
-          <!-- 第三行：简介 -->
+          <!-- 第三行：简介（展开按钮同行右侧，默认两行） -->
           <view class="desc-row" v-if="dish.description">
-            <text class="desc-content" :class="{ 'desc-content--collapsed': !descExpanded }">{{ dish.description }}</text>
+            <view class="desc-content-wrap">
+              <text class="desc-content" :class="{ 'desc-content--collapsed': !descExpanded }">{{ dish.description }}</text>
+            </view>
             <text class="desc-toggle" @tap="descExpanded = !descExpanded" role="button" aria-label="展开或收起简介">
               {{ descExpanded ? '收起' : '展开' }}
             </text>
           </view>
 
-          <!-- 第四行：关键属性 chips（口味/地域/辣度），评分内联在标题区 -->
-          <view class="attr-chips" v-if="spiceText || regionText || dish.rating > 0">
-            <view v-if="dish.rating > 0" class="attr-chip attr-chip--rating" @tap="scrollToReviews" role="button" aria-label="查看评分">
-              <IconSvg name="star" :size="22" color="var(--color-primary)" />
-              <text class="attr-chip-val">{{ dish.rating.toFixed(1) }}</text>
-              <text class="attr-chip-sub">{{ formatCount(dish.ratingCount) }} 评价</text>
+          <!-- 第四行：关键指标条（评分/评价/口味/地域，固定四列，缺省 - 占位） -->
+          <view class="metric-panel" v-if="hasMetrics">
+            <view class="metric-col">
+              <text class="metric-val">{{ dish.rating > 0 ? dish.rating.toFixed(1) : '-' }}<text class="metric-unit">★</text></text>
+              <text class="metric-label">评分</text>
             </view>
-            <view v-if="spiceText" class="attr-chip">
-              <text class="attr-chip-key">口味</text>
-              <text class="attr-chip-val">{{ spiceText }}</text>
+            <view class="metric-col">
+              <text class="metric-val">{{ dish.ratingCount > 0 ? formatCount(dish.ratingCount) : '-' }}</text>
+              <text class="metric-label">评价</text>
             </view>
-            <view v-if="regionText" class="attr-chip">
-              <text class="attr-chip-key">地域</text>
-              <text class="attr-chip-val">{{ regionText }}</text>
+            <view class="metric-col">
+              <text class="metric-val metric-val--text">{{ spiceText }}</text>
+              <text class="metric-label">口味</text>
+            </view>
+            <view class="metric-col">
+              <text class="metric-val metric-val--text">{{ regionText }}</text>
+              <text class="metric-label">地域</text>
             </view>
           </view>
         </CardSection>
 
-        <!-- 5. 综合评分卡：左大分数 + 满分/人数，右星占比条，两栏竖分割线 -->
+        <!-- 5. 综合评分卡：左大分数 + 人数，右星占比条（参考应用商店评分卡） -->
         <CardSection>
           <view class="summary-head">
             <text class="summary-head-title">综合评分</text>
-            <view class="summary-head-actions">
-              <text class="feedback-entry" @tap="goWriteReview" role="button" aria-label="写评价">
-                <IconSvg name="edit" :size="22" color="var(--color-primary)" class="feedback-icon" />
-                <text class="feedback-text">写评价</text>
-              </text>
-              <text class="feedback-entry" @tap="openApply" role="button" aria-label="反馈菜品信息有误">
-                <IconSvg name="edit" :size="22" color="var(--color-primary)" class="feedback-icon" />
-                <text class="feedback-text">反馈</text>
-              </text>
-            </view>
+            <text class="write-review-entry" @tap="goWriteReview" role="button" aria-label="写评价">
+              <IconSvg name="edit" :size="22" color="var(--color-primary)" />
+              <text class="write-review-text">写评价</text>
+            </text>
           </view>
           <view v-if="dish.ratingCount > 0" class="summary-body">
             <view class="summary-left">
-              <view class="summary-score-row">
-                <text class="summary-score">{{ dish.rating > 0 ? dish.rating.toFixed(1) : '-' }}</text>
-                <text class="summary-outof">/ 5.0</text>
-              </view>
+              <text class="summary-score">{{ dish.rating > 0 ? dish.rating.toFixed(1) : '-' }}</text>
               <text class="summary-count">{{ dish.ratingCount }} 人评分</text>
             </view>
-            <view class="summary-divider" />
             <view class="summary-right">
               <view class="dist-item" v-for="item in ratingDistribution" :key="item.star">
                 <text class="dist-star">{{ item.star }}星</text>
@@ -127,7 +122,7 @@
             </view>
           </view>
           <view v-else class="summary-empty" @tap="goWriteReview" role="button" aria-label="写第一个评价">
-            <text class="summary-empty-text">暂无评分，来做第一个评价的人吧</text>
+            <text class="summary-empty-text">还没有评分</text>
           </view>
         </CardSection>
 
@@ -177,8 +172,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onShow, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
@@ -208,6 +203,13 @@ const dish = computed(() => dishStore.currentDish)
 const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => dishId.value)
+
+// N07 修复：删除后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
+})
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 /** reduced-motion 降级 */
@@ -393,7 +395,8 @@ function onDishLongPress() {
         try {
           await deleteDish(d.id)
           uni.showToast({ title: '已删除', icon: 'none' })
-          setTimeout(() => uni.navigateBack(), 600)
+          if (navTimer) clearTimeout(navTimer)
+          navTimer = setTimeout(() => uni.navigateBack(), 600)
         } catch (e: any) {
           uni.showToast({ title: e.message || '删除失败', icon: 'none' })
         }
@@ -436,10 +439,12 @@ function goWriteReview() {
   uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}&from=dish` })
 }
 
-/** 点击标题区评分小标：引导写评价（评分卡已在首屏可见，此处强化写评价入口） */
-function scrollToReviews() {
-  goWriteReview()
-}
+/** 指标条是否需要展示：菜品存在且至少有一项有效指标即显示 */
+const hasMetrics = computed(() => {
+  const d = dish.value
+  if (!d) return false
+  return d.rating > 0 || d.ratingCount > 0 || spiceText.value !== '-' || regionText.value !== '-'
+})
 </script>
 
 <style scoped>
@@ -453,20 +458,20 @@ function scrollToReviews() {
 
 /* 3. 基本信息 */
 .title-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-xs); }
-.name-badge { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-xs); flex: 1 1 auto; min-width: 0; }
-.dish-name { font-size: var(--font-h1); font-weight: var(--weight-heavy); letter-spacing: var(--tracking-h1); line-height: 1.2; color: var(--text-primary); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dish-name { font-size: var(--font-headline); font-weight: var(--weight-bold); letter-spacing: var(--tracking-h2); line-height: 1.2; color: var(--text-primary); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag-row { display: flex; flex-wrap: nowrap; gap: var(--spacing-xs); flex: 0 0 auto; align-items: center; }
 .price-row { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-wrap: wrap; flex: 0 0 auto; margin-left: auto; }
 .price-text { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .promo-price { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--color-error); font-variant-numeric: tabular-nums; }
 .origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 .promo-tag { font-size: var(--font-tiny); font-weight: var(--weight-bold); color: var(--text-white); background: var(--color-error); padding: 0 var(--spacing-xs); border-radius: var(--radius-icon); display: inline-flex; align-items: center; gap: var(--spacing-xs); }
-.desc-row { margin-top: var(--spacing-xs); }
-.desc-content { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.desc-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.desc-content-wrap { flex: 1 1 auto; min-width: 0; }
+.desc-content { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 .desc-content--collapsed { -webkit-line-clamp: 2; }
-.desc-toggle { display: inline-block; margin-top: var(--spacing-xs); padding: var(--spacing-2xs) var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); -webkit-tap-highlight-color: transparent; }
+.desc-toggle { flex: 0 0 auto; align-self: flex-start; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); padding: 2rpx var(--spacing-xs); line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 
-/* 第二行：位置 + 距你 */
+/* 第三行：位置 + 距你 */
 .loc-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-md); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); }
 .loc-left { display: flex; align-items: center; gap: var(--spacing-xs); min-width: 0; flex: 1 1 auto; }
 .loc-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
@@ -477,32 +482,28 @@ function scrollToReviews() {
 .loc-dist--lead { color: var(--color-primary); }
 .loc-dist--muted { color: var(--text-tertiary); }
 
-/* 第四行：关键属性 chips（口味/地域/辣度），评分内联在标题区 */
-.attr-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); }
-.attr-chip { display: inline-flex; align-items: center; gap: 6rpx; padding: 6rpx var(--spacing-sm); background: var(--bg-soft); border-radius: var(--radius-tag); font-size: var(--font-aux); color: var(--text-secondary); line-height: 1.2; }
-.attr-chip-key { color: var(--text-tertiary); }
-.attr-chip-val { font-weight: var(--weight-medium); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.attr-chip--rating { color: var(--color-primary); }
-.attr-chip--rating .attr-chip-val { color: var(--color-primary); font-weight: var(--weight-heavy); }
-.attr-chip-sub { color: var(--text-tertiary); font-size: var(--font-aux); }
+/* 第二行：标徽独立成行时与位置行拉开间距 */
+.tag-row--standalone { margin-top: var(--spacing-md); }
 
-/* 5. 综合评分卡：左大分数 + 满分/人数，右星占比条，两栏竖分割线 */
+/* 第五行：关键指标条（评分/评价/口味/地域，无背景色，仅灰色竖线分隔） */
+.metric-panel { display: flex; align-items: stretch; margin-top: var(--spacing-md); padding: var(--spacing-sm) 0; }
+.metric-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; padding: 0 var(--spacing-sm); position: relative; }
+.metric-col + .metric-col::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2rpx; background: var(--border-color); }
+.metric-val { font-size: 32rpx; font-weight: var(--weight-bold); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 4rpx; }
+.metric-unit { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-star); }
+.metric-val--text { font-size: var(--font-card); font-weight: var(--weight-medium); color: var(--text-secondary); }
+.metric-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
+
+/* 5. 综合评分卡：左大分数 + 人数，右星占比条（参考应用商店评分卡） */
 .summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
 .summary-head-title { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-.feedback-entry { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); padding: var(--spacing-2xs) var(--spacing-sm); background: var(--bg-soft); border-radius: var(--radius-tag); transition: opacity 120ms ease, background-color 120ms ease; -webkit-tap-highlight-color: transparent; }
-.feedback-entry:active { opacity: 0.55; background-color: var(--border-color); }
-.feedback-icon { width: 22rpx; height: 22rpx; line-height: 1; }
-.feedback-text { line-height: 1; }
-.summary-head-actions { display: flex; align-items: center; gap: var(--spacing-xs); }
-.summary-body { display: flex; align-items: stretch; gap: var(--spacing-md); }
-.summary-left { flex: 0 0 168rpx; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4rpx; }
-.summary-score-row { display: flex; align-items: baseline; gap: 4rpx; line-height: 1; }
-.summary-score { font-size: var(--font-display); font-weight: var(--weight-heavy); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.summary-outof { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.summary-count { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 2rpx; }
-.summary-divider { width: 2rpx; align-self: stretch; background: var(--border-color); flex: 0 0 auto; }
-.summary-right { flex: 1; min-width: 280rpx; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
-.summary-empty { padding: var(--spacing-md) 0; }
+.summary-body { display: flex; align-items: stretch; gap: var(--spacing-lg); }
+.summary-left { flex: 0 0 168rpx; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--spacing-xs); }
+/* 页面最强数字锚点：刻意高于 token 梯度（44/48rpx），与指标条数值拉开差距，不随缩放 */
+.summary-score { font-size: 56rpx; font-weight: var(--weight-heavy); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+.summary-count { font-size: var(--font-aux); color: var(--text-tertiary); }
+.summary-right { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
+.summary-empty { padding: var(--spacing-md) 0; text-align: center; }
 .summary-empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
 .dist-item { display: flex; align-items: center; gap: var(--spacing-sm); }
 .dist-star { width: 64rpx; flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); text-align: right; }
@@ -511,8 +512,10 @@ function scrollToReviews() {
 .dist-count { width: 56rpx; flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); text-align: left; font-variant-numeric: tabular-nums; }
 
 /* 6. 评价列表 */
-.review-section { margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
+.review-section { margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .review-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-xs); }
+/* 区块标题（评价列表）：30rpx 标题级，与卡内小标题（综合评分 24rpx）区分层级 */
+.sec-title { font-size: var(--font-caption); font-weight: var(--weight-semibold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
 .write-review-entry { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); padding: var(--spacing-2xs) var(--spacing-sm); background: var(--bg-soft); border-radius: var(--radius-tag); transition: opacity 120ms ease, background-color 120ms ease; -webkit-tap-highlight-color: transparent; }
 .write-review-entry:active { opacity: 0.55; background-color: var(--border-color); }
 .write-review-text { line-height: 1; }

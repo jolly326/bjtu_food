@@ -16,20 +16,20 @@
       <view
         class="broadcast-track"
         :class="{ 'is-animating': animating }"
-        :style="{ transform: `translateY(${-index * itemHeight}px)` }"
+        :style="{ transform: `translateY(${-index * itemHeight}rpx)` }"
       >
         <view
           v-for="(item, i) in items"
           :key="i"
           class="broadcast-item"
-          :style="{ height: itemHeight + 'px' }"
+          :style="{ height: itemHeight + 'rpx' }"
         >
           <text class="broadcast-text">{{ item.text }}</text>
         </view>
         <view
           v-if="items.length"
           class="broadcast-item"
-          :style="{ height: itemHeight + 'px' }"
+          :style="{ height: itemHeight + 'rpx' }"
         >
           <text class="broadcast-text">{{ items[0].text }}</text>
         </view>
@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue'
+import { onHide } from '@dcloudio/uni-app'
 import IconSvg from './IconSvg.vue'
 import type { BroadcastItem } from '@/api/notify'
 
@@ -55,10 +56,13 @@ function onTap() {
   if (props.items[index.value]) emit('select', props.items[index.value])
 }
 
-const itemHeight = 44 * 2
+// item 高度（与 .broadcast-viewport 的 88rpx 对齐，单位 rpx）
+const itemHeight = 88
 const index = ref(0)
 const animating = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
+// N03 修复：复位 setTimeout 句柄，离开页面时清理，避免切后台仍跑叠加
+let resetTimer: ReturnType<typeof setTimeout> | null = null
 
 function tick() {
   if (props.items.length <= 1) return
@@ -66,7 +70,8 @@ function tick() {
   index.value = (index.value + 1) % (props.items.length + 1)
   // 滚到末尾的克隆项后，无动画复位到首项
   if (index.value === props.items.length) {
-    setTimeout(() => {
+    if (resetTimer) clearTimeout(resetTimer)
+    resetTimer = setTimeout(() => {
       animating.value = false
       index.value = 0
     }, 300)
@@ -83,6 +88,10 @@ function stop() {
   if (timer) {
     clearInterval(timer)
     timer = null
+  }
+  if (resetTimer) {
+    clearTimeout(resetTimer)
+    resetTimer = null
   }
 }
 
@@ -106,6 +115,8 @@ watch(
 )
 
 onUnmounted(stop)
+// N03 修复：页面隐藏时停止轮播（含复位定时器），恢复可见时由 resume 重新启动
+onHide(stop)
 </script>
 
 <style scoped>
@@ -143,6 +154,7 @@ onUnmounted(stop)
 .broadcast-item {
   display: flex;
   align-items: center;
+  height: 88rpx;
   width: 100%;
 }
 .broadcast-text {
@@ -151,7 +163,7 @@ onUnmounted(stop)
   text-overflow: ellipsis;
   font-size: var(--font-body);
   color: var(--text-secondary);
-  line-height: 44px;
+  line-height: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -403,7 +403,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
-    public IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, int page, int pageSize) {
+    public IPage<MomentVO> adminList(Integer status, String auditStatus, Long userId, String keyword, int page, int pageSize) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<Moment> w = new LambdaQueryWrapper<Moment>()
@@ -419,6 +419,10 @@ public class MomentServiceImpl implements MomentService {
         // 发布用户过滤（用户行为聚合），仅当显式传入时生效
         if (userId != null) {
             w.eq(Moment::getUserId, userId);
+        }
+        // 关键词模糊匹配动态正文，仅当显式传入时生效
+        if (StringUtils.hasText(keyword)) {
+            w.like(Moment::getContent, keyword.trim());
         }
         IPage<Moment> p = momentMapper.selectPage(new Page<>(page, pageSize), w);
         IPage<MomentVO> result = new Page<>(page, pageSize, p.getTotal());

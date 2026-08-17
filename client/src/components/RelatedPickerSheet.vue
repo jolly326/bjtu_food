@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, onUnmounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
@@ -221,6 +221,12 @@ watch(() => props.open, (v) => {
 watch(tab, () => {
   keyword.value = ''
   loadCandidates()
+})
+
+// N05 修复：卸载时清理防抖定时器，避免组件销毁后回调仍触发
+onUnmounted(() => {
+  if (timer) clearTimeout(timer)
+  timer = null
 })
 </script>
 

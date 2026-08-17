@@ -82,6 +82,10 @@ page {
   --color-cell-activity: #2F6FED;
   --bg-cell-feedback: #E7F7F2;
   --color-cell-feedback: #12B886;
+  /* 卡片描边（万能两卡与通用卡片边界，低对比强化边界；语义卡用各自色淡描边） */
+  --border-card: rgba(0, 0, 0, 0.06);
+  --border-cell-activity: rgba(47, 111, 237, 0.18);
+  --border-cell-feedback: rgba(18, 184, 134, 0.18);
   /* 圆角 */
   --radius-tag: 16px;
   --radius-card: 16px;
@@ -229,6 +233,10 @@ page {
   --color-cell-activity: #7FA8E8;
   --bg-cell-feedback: #0F2E26;
   --color-cell-feedback: #4CCF9A;
+  /* 卡片描边（深色：低对比强化边界；语义卡用各自色淡描边） */
+  --border-card: rgba(255, 255, 255, 0.08);
+  --border-cell-activity: rgba(127, 168, 232, 0.28);
+  --border-cell-feedback: rgba(76, 207, 154, 0.28);
   /* 深色渐变（珊瑚橙系，与浅色一致） */
   --color-gradient: linear-gradient(135deg, #A8482E 0%, #C45A3C 58%, #E8D0C4 100%);
   --shadow-card: 0 4rpx 16rpx rgba(0, 0, 0, 0.4);

@@ -84,11 +84,13 @@ public class MomentAdminController {
             @RequestParam(required = false) String auditStatus,
             @Parameter(description = "发布用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,
+            @Parameter(description = "内容关键词（可选，对动态正文模糊匹配）")
+            @RequestParam(required = false) String keyword,
             @Parameter(description = "页码", example = "1")
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数", example = "10")
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<MomentVO> result = momentService.adminList(status, auditStatus, userId, page, pageSize);
+        IPage<MomentVO> result = momentService.adminList(status, auditStatus, userId, keyword, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 

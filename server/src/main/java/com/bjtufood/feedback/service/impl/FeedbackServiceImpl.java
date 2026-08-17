@@ -75,15 +75,22 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
-    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, int page, int pageSize) {
+    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
                 .eq(StringUtils.hasText(status), Feedback::getStatus, status)
                 .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(userId != null, Feedback::getUserId, userId)
-                .orderByDesc(Feedback::getCreatedAt);
+                .eq(userId != null, Feedback::getUserId, userId);
+
+        // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
+        // 必须在 orderByDesc 之前追加，否则条件片段会拼到 ORDER BY 之后生成非法 SQL。
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(Feedback::getContent, kw).or().like(Feedback::getReply, kw));
+        }
+        wrapper.orderByDesc(Feedback::getCreatedAt);
 
         IPage<Feedback> p = feedbackMapper.selectPage(new Page<>(page, pageSize), wrapper);
 

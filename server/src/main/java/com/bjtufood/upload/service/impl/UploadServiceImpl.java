@@ -27,6 +27,9 @@ public class UploadServiceImpl implements UploadService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
+    /** 单图大小上限 5MB（与 spring.servlet.multipart.max-file-size 一致，服务层再兜底一次） */
+    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
+
     private final ImageUrlUtil imageUrlUtil;
 
     @Value("${upload.path:./uploads/images}")
@@ -41,6 +44,10 @@ public class UploadServiceImpl implements UploadService {
             throw new BusinessException("文件不能为空");
         }
 
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new BusinessException("图片大小不能超过 5MB");
+        }
+
         String originalFilename = file.getOriginalFilename();
         String extension = StringUtils.getFilenameExtension(originalFilename);
         if (extension == null || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase(Locale.ROOT))) {
@@ -51,10 +58,18 @@ public class UploadServiceImpl implements UploadService {
         String filename = UUID.randomUUID() + "." + extension.toLowerCase(Locale.ROOT);
         Path dir = Paths.get(uploadPath, datePath).toAbsolutePath().normalize();
 
+        Path target = dir.resolve(filename);
         try {
             Files.createDirectories(dir);
-            file.transferTo(dir.resolve(filename));
-        } catch (IOException e) {
+            // transferTo 内部由 Spring 负责流的开启与关闭（try-with-resources 语义），此处不手工持有流
+            file.transferTo(target);
+        } catch (IOException | RuntimeException e) {
+            // 落盘中途失败可能留下半成品文件，主动清理避免磁盘垃圾
+            try {
+                Files.deleteIfExists(target);
+            } catch (IOException ignored) {
+                // 清理失败不影响主流程错误返回
+            }
             throw new BusinessException("图片上传失败");
         }
 

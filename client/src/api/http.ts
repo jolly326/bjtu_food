@@ -72,6 +72,11 @@ async function request<T>(
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
         return
       }
+      // N04 修复：超时定时器保存句柄，settle 后清理
+      const timeoutTimer = setTimeout(() => {
+        done(() => reject(new Error('请求超时')))
+      }, 8000)
+      const clearTimer = () => { clearTimeout(timeoutTimer) }
       wxApi.cloud.callContainer({
         config: { env: WX_CLOUD_ENV },
         path: url.startsWith('/api') ? url : `/api${url}`,
@@ -81,10 +86,9 @@ async function request<T>(
           'X-WX-SERVICE': WX_SERVICE,
           ...header,
         },
-        success: (r: any) => done(() => resolve(r)),
-        fail: (err: any) => done(() => reject(new Error(err.errMsg || '网络请求失败'))),
+        success: (r: any) => { clearTimer(); done(() => resolve(r)) },
+        fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
       })
-      setTimeout(() => done(() => reject(new Error('请求超时'))), 8000)
     })
     // #endif
 
@@ -96,13 +100,19 @@ async function request<T>(
         method,
         data,
         header,
-        success: resolve,
-        fail: err => reject(new Error(err.errMsg || '网络请求失败')),
+        success: (r: any) => { clearTimer(); resolve(r) },
+        fail: err => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
       })
-      setTimeout(() => {
-        task.abort()
+      let finished = false
+      const timeoutTimer = setTimeout(() => {
+        finished = true
+        // N04 修复：仅对尚未完成的 task abort，避免对已完成任务重复 abort
+        if (task && typeof task.abort === 'function') task.abort()
         reject(new Error('请求超时'))
       }, 8000)
+      const clearTimer = () => {
+        if (!finished) clearTimeout(timeoutTimer)
+      }
     })
     // #endif
   } catch (e: any) {

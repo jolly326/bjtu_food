@@ -68,13 +68,21 @@ defineEmits<{
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
   border-radius: var(--radius-card);
+  border: 1rpx solid var(--border-card);
+  box-shadow: var(--shadow-card);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 /* 两卡独立浅底区分模块（蓝/绿），配色走 token，深色模式由 .theme-dark 覆盖 */
-.u-card--activity { background: var(--bg-cell-activity); }
+.u-card--activity {
+  background: var(--bg-cell-activity);
+  border-color: var(--border-cell-activity);
+}
 .u-card--activity .u-title { color: var(--color-cell-activity); }
-.u-card--feedback { background: var(--bg-cell-feedback); }
+.u-card--feedback {
+  background: var(--bg-cell-feedback);
+  border-color: var(--border-cell-feedback);
+}
 .u-card--feedback .u-title { color: var(--color-cell-feedback); }
 
 .u-icon {

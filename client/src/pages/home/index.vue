@@ -30,10 +30,6 @@
           <view class="sk-ucard skeleton" />
         </view>
         <view class="sk-filter skeleton" />
-        <view class="sk-universal">
-          <view class="sk-ucard skeleton" />
-          <view class="sk-ucard skeleton" />
-        </view>
         <view class="sk-waterfall">
           <view class="sk-col">
             <view v-for="s in 3" :key="'l' + s" class="sk-wcard skeleton" />
@@ -44,14 +40,8 @@
         </view>
       </view>
 
-      <!-- 空状态 -->
-      <view v-else-if="isAllEmpty" class="home-empty">
-        <IconSvg name="empty" :size="120" color="var(--text-tertiary)" />
-        <text class="empty-tip">{{ loadFailed ? '加载失败' : '暂时没有内容' }}</text>
-        <text class="empty-sub">{{ loadFailed ? '网络异常或后端未启动，下拉刷新后重试' : '下拉刷新，或确认后端已启动、网络可访问后重试' }}</text>
-      </view>
-
-      <block v-else>
+      <!-- 真实内容（首屏加载完成后始终渲染：广播/万能区独立于筛选切换，切换 tab 只刷新下方瀑布流） -->
+      <view v-if="!loadingHot" class="home-content">
         <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
         <BroadcastBar :items="broadcasts" @select="onBroadcastTap" />
 
@@ -60,29 +50,15 @@
           <UniversalGrid @open-activity="goToActivity" @open-feedback="goToFeedback" />
         </view>
 
-        <!-- 筛选 Bar（单级横滑，选中居中；推荐/美食类型，仅控制下方瀑布流内容区） -->
-        <FilterBar @change="onFilterChange" />
-
         <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
         <view v-if="showLocHint" class="loc-hint" @tap="enableLocation">
           <text class="loc-hint-text">开启定位，查看菜品距你多远</text>
           <text class="loc-hint-arrow">›</text>
         </view>
 
-        <!-- 推荐菜品（双列瀑布流 + 无限加载，直接承接筛选结果） -->
-        <view class="section enter-up" v-if="dishStore.filterList.length > 0" :style="{ '--enter-i': 1 }">
-          <WaterfallList :list="dishStore.filterList" @card-click="goToDetail" />
-
-          <!-- 触底加载状态 -->
-          <view v-if="dishStore.filterLoadingMore" class="list-footer loading">
-            <view class="footer-spinner" />
-            <text class="footer-text">加载中…</text>
-          </view>
-          <view v-else-if="dishStore.filterFinished" class="list-footer finished">
-            <text class="footer-text">— 已经到底啦 —</text>
-          </view>
-        </view>
-      </block>
+        <!-- 筛选 Tab + 瀑布流（合并为单一组件：切换 tab 只刷新下方内容区，不影响上方广播/万能区） -->
+        <HomeFeed :load-failed="loadFailed" />
+      </view>
 
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
@@ -116,13 +92,10 @@ import { getMoments } from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
 import { buildSharePayload } from '@/utils/shareState'
-import type { Dish } from '@/types/dish'
-import WaterfallList from '@/components/WaterfallList.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
-import FilterBar from '@/components/FilterBar.vue'
-import type { FilterTab } from '@/components/filter-tab'
+import HomeFeed from '@/components/HomeFeed.vue'
 import UniversalGrid from '@/components/UniversalGrid.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
@@ -140,11 +113,6 @@ function goProfile() {
 /** 首页搜索图标 → 搜索页 */
 function goToSearch() {
   uni.navigateTo({ url: '/pages/find/index' })
-}
-
-/** 菜品卡片点击 → 独立详情页（pages-detail/dish） */
-function goToDetail(dish: Dish) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
 }
 
 /** 两列万能区：最新活动 → 活动页 */
@@ -175,19 +143,6 @@ async function enableLocation() {
   }
 }
 
-/** 筛选 Bar 选中变化：重置分页并切换瀑布流数据源，滚动到筛选条顶部 */
-function onFilterChange(tab: FilterTab) {
-  // 滚动到筛选条锚点（不跳到页面最顶，避免越过广播/万能区）
-  uni
-    .createSelectorQuery()
-    .select('.filter-bar-anchor')
-    .boundingClientRect((rect: any) => {
-      if (rect) scrollTop.value = rect.top + scrollTop.value - 8
-    })
-    .exec()
-  dishStore.fetchFilterDishes(tab, true)
-}
-
 /** 首页广播条点击 → 动态入口：有 targetId 跳该条动态详情，否则回落动态列表 */
 function onBroadcastTap(item: BroadcastItem) {
   if (!item) return
@@ -214,12 +169,6 @@ function toBroadcastItem(moment: Moment): BroadcastItem {
   }
 }
 
-/** 全板块无数据：用于展示友好空状态 */
-const isAllEmpty = computed(() =>
-  !loadingHot.value &&
-  dishStore.filterList.length === 0
-)
-
 async function loadData() {
   loadingHot.value = true
   loadFailed.value = false
@@ -227,8 +176,8 @@ async function loadData() {
     // 先取定位（会话级缓存），首页推荐「距你」才能本地算距离
     await ensureLocation()
     const momentRes = await getMoments({ tab: 'latest', page: 1, pageSize: 5 })
-    // 首页推荐流（默认「推荐」维度，前期个性化未实现，回落热度+距离兜底）
-    await dishStore.fetchFilterDishes({ key: 'recommend', label: '推荐', type: 'recommend' }, true)
+    // 首页筛选流（默认「面食」维度，扁平平铺美食类型，无综合头条）
+    await dishStore.fetchFilterDishes({ key: 'noodle', label: '面食', type: 'tag', payload: 'noodle' }, true)
     // 广播只广播动态（最新动态摘录，作为动态入口）
     broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
   } catch (e) {
@@ -271,12 +220,24 @@ function onScrollToLower() {
 const scrollView = ref()
 const scrollTop = ref(0)
 const showBackTop = ref(false)
+// 非响应式记录滚动位置，避免每次滚动都 setData（微信小程序受控 scroll-top 每帧回写会严重掉帧）
+let scrollPos = 0
+let backTopVisible = false
 function onScroll(e: any) {
-  scrollTop.value = e.detail.scrollTop
-  showBackTop.value = scrollTop.value > 600
+  scrollPos = e.detail.scrollTop
+  const now = scrollPos > 600
+  // 仅在跨越阈值时翻转，避免每帧 setData
+  if (now !== backTopVisible) {
+    backTopVisible = now
+    showBackTop.value = now
+  }
 }
 function scrollToTop() {
-  scrollTop.value = 0
+  // 受控 scroll-top 双写 trick：先偏离再归零，确保触发滚动
+  scrollTop.value = scrollPos > 0 ? scrollPos - 1 : 1
+  requestAnimationFrame(() => {
+    scrollTop.value = 0
+  })
 }
 </script>
 

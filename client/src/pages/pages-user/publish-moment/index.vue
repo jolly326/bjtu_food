@@ -57,8 +57,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
@@ -88,6 +88,13 @@ const relatedLabel = computed(() => {
   if (!selectedRelated.value) return '不关联（自由动态）'
   const prefix = selectedRelated.value.type === 'dish' ? '菜品' : '档口'
   return `${prefix}·${selectedRelated.value.name}`
+})
+
+// N07 修复：提交后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
 })
 
 function onRelatedSelect(item: RelatedItem) {
@@ -136,7 +143,8 @@ async function submit() {
       await momentApi.publishMoment(payload)
     }
     uni.showToast({ title: isEdit.value ? '已重新提交审核' : '发布成功，审核中', icon: 'success' })
-    setTimeout(() => {
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => {
       uni.navigateBack()
     }, 600)
   } catch (e: any) {
@@ -150,7 +158,12 @@ onLoad(async (query) => {
   if (query?.id) {
     editId.value = Number(query.id)
     try {
-      const m: Moment = await momentApi.getMomentDetail(Number(query.id))
+      const m = await momentApi.getMomentDetail(Number(query.id))
+      // M03 修复：getMomentDetail 现返回 Moment | null，需空值兜底
+      if (!m) {
+        uni.showToast({ title: '动态不存在或已删除', icon: 'none' })
+        return
+      }
       content.value = m.content
       images.value = [...m.images]
       if (m.relatedType && m.relatedType !== 'none' && m.relatedId) {

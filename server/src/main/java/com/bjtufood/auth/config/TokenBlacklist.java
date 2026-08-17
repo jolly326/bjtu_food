@@ -1,7 +1,5 @@
 package com.bjtufood.auth.config;
 
-import com.bjtufood.common.utils.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,28 +13,30 @@ import java.util.concurrent.ConcurrentHashMap;
  * 内存存储，按 token 过期时间自动清理，重启后清空（可接受：注销后用户需重新登录）。
  */
 @Component
-@RequiredArgsConstructor
 public class TokenBlacklist {
-
-    private final JwtUtil jwtUtil;
 
     private final Map<String, Long> blacklist = new ConcurrentHashMap<>();
 
+    /** 黑名单项存活窗口：固定 7 天 */
+    private static final long REVOKE_TTL_MS = 7L * 24 * 60 * 60 * 1000;
+
+    /** 内存兜底容量上限，超过时先做一次清理，避免异常场景下无限增长 */
+    private static final int MAX_ENTRIES = 100_000;
+
     /**
-     * 将 token 加入黑名单，过期时间取该 token 自身的剩余有效期。
+     * 将 token 加入黑名单。
+     * <p>
+     * 存活期使用固定短窗口（7 天）而非 token 自身的 exp：JWT 有效期为产品决策的超长时长（100 年），
+     * 若按 token exp 清理会让黑名单项常驻内存造成泄漏。7 天窗口足以覆盖「注销/禁用后旧 token 立即失效」的诉求，
+     * 因为被注销/禁用的账号无法再次登录换取新 token，且服务重启后黑名单清空同样要求重新登录。
      */
     public void revoke(String token) {
         if (token == null || token.isBlank()) return;
-        long exp = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000; // 默认 7 天兜底
-        try {
-            var claims = jwtUtil.parseToken(token);
-            if (claims != null && claims.getExpiration() != null) {
-                exp = claims.getExpiration().getTime();
-            }
-        } catch (Exception ignored) {
-            // 解析失败则用兜底过期时间
+        // 容量兜底：先清理已过期项，避免异常流量下无限增长
+        if (blacklist.size() > MAX_ENTRIES) {
+            cleanup();
         }
-        blacklist.put(token, exp);
+        blacklist.put(token, System.currentTimeMillis() + REVOKE_TTL_MS);
     }
 
     public boolean isRevoked(String token) {
