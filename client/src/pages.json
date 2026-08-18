@@ -57,6 +57,13 @@
 			}
 		},
 		{
+			"path": "pages/profile/verify/index",
+			"style": {
+				"navigationBarTitleText": "学号邮箱认证",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/webview/index",
 			"style": {
 				"navigationBarTitleText": "",
@@ -112,27 +119,6 @@
 					"path": "my-moments/index",
 					"style": {
 						"navigationBarTitleText": "我的动态",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "publish-dish",
-					"style": {
-						"navigationBarTitleText": "发布菜品",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "submit-stall",
-					"style": {
-						"navigationBarTitleText": "提交档口",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "my-reviews/index",
-					"style": {
-						"navigationBarTitleText": "我的评价",
 						"navigationStyle": "custom"
 					}
 				},

@@ -138,7 +138,7 @@ async function save() {
   display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md);
   padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1rpx solid var(--border-color);
-  transition: background-color 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .info-row:last-child { border-bottom: none; }
@@ -148,7 +148,7 @@ async function save() {
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像（112rpx/24rpx）一致。
    可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
-.avatar { width: 104rpx; height: 104rpx; border-radius: 24rpx; background: var(--bg-page); transition: transform 120ms var(--ease-out), opacity 120ms var(--ease-out); transform-origin: top left; }
+.avatar { width: 104rpx; height: 104rpx; border-radius: 24rpx; background: var(--bg-page); transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
 .avatar.uploading { opacity: 0.55; }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .info-row.info-tappable:active .avatar { transform: scale(var(--press-scale)); }

@@ -118,7 +118,8 @@ function onRelatedConfirm(item: RelatedItem | null) {
 }
 
 async function submit() {
-  if (!userStore.requireAuth()) return
+  // 游客点发布：登录成功后由 AuthSheet 自动继续提交（与写评价 requireAuth(action) 行为一致）
+  if (!userStore.requireAuth(submit)) return
   const text = content.value.trim()
   if (!text) {
     uni.showToast({ title: '请填写动态内容', icon: 'none' })
@@ -184,7 +185,7 @@ onLoad(async (query) => {
 .content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); border: none; box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
-.related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-picker:active { transform: scale(var(--press-scale)); }
 .related-label { font-size: var(--font-body); color: var(--text-secondary); }
 .related-arrow { font-size: 28rpx; color: var(--text-tertiary); }

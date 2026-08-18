@@ -3,40 +3,64 @@
     <Header title="我的" :showBack="showBack" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 用户卡：未登录显示「点击登录」；已登录显示头像+昵称 -->
+      <!-- 用户卡：游客（未认证）显示食客短 ID；已认证显示昵称 + 绑定邮箱 -->
       <view
         class="user-card"
         role="button"
-        :aria-label="isLoggedIn ? '查看或编辑个人资料' : '点击登录'"
+        :aria-label="isVerified ? '查看或编辑个人资料' : '游客身份'"
         @tap="onUserCardTap"
       >
         <view class="user-card-head">
           <view class="avatar-wrap">
-            <ImageFallback v-if="isLoggedIn && userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
+            <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
             <view v-else class="avatar avatar-empty">
               <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
           </view>
           <view class="user-meta">
-            <text class="nickname" :class="{ 'nickname--guest': !isLoggedIn }">
-              {{ isLoggedIn ? (userInfo?.nickname || '未知用户') : '点击登录' }}
+            <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
+              {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
             </text>
-            <text v-if="isLoggedIn && (userInfo?.email || userInfo?.username)" class="user-id">
-              {{ userInfo?.email || userInfo?.username }}
+            <text v-if="isVerified && (bindEmail || userInfo?.email)" class="user-id">
+              {{ bindEmail || userInfo?.email }}
             </text>
-            <text v-else-if="!isLoggedIn" class="user-id">登录后解锁完整功能</text>
+            <text v-else-if="!isVerified" class="user-id">游客 {{ guestShortId }}</text>
+          </view>
+          <view v-if="!isVerified" class="verify-badge">
+            <IconSvg name="lock" :size="24" color="var(--color-primary)" />
+            <text class="verify-badge-text">未认证</text>
           </view>
           <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
         </view>
       </view>
 
-      <!-- 我的入口：我发布的 / 最新活动 / 意见反馈 / 关于我们（图标 40rpx 主色，右箭头，移除"我的评价"） -->
+      <!-- 认证引导卡片：游客（未认证）点击弹认证引导（§5.y 入口不置灰） -->
+      <view
+        v-if="!isVerified"
+        class="auth-guide"
+        role="button"
+        :aria-label="'认证解锁社区功能'"
+        hover-class="pressed"
+        hover-stay-time="80"
+        @tap="onAuthGuideTap"
+      >
+        <view class="auth-guide-icon">
+          <IconSvg name="lock" :size="36" color="var(--color-primary)" />
+        </view>
+        <view class="auth-guide-copy">
+          <text class="auth-guide-title">认证解锁社区</text>
+          <text class="auth-guide-desc">完成学号邮箱认证，解锁发布 / 评价 / 点赞 / 动态</text>
+        </view>
+        <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="auth-guide-arrow" />
+      </view>
+
+      <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导） -->
       <view class="entry-group">
         <view
           v-for="e in entryItems"
           :key="e.key"
           class="entry-row"
-          :class="{ pressed: pressedKey === e.key, disabled: e.authLocked && !isLoggedIn }"
+          :class="{ pressed: pressedKey === e.key }"
           role="button"
           :aria-label="e.label"
           @touchstart="pressedKey = e.key"
@@ -49,6 +73,8 @@
         >
           <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
           <text class="entry-label">{{ e.label }}</text>
+          <!-- 需认证入口的未认证提示（不置灰，仅弱化标识） -->
+          <text v-if="e.authLocked && !isVerified" class="entry-lock">认证</text>
           <!-- 系统通知未读红点角标 -->
           <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
             <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
@@ -57,13 +83,13 @@
         </view>
       </view>
 
-      <!-- 退出登录（警示红，未登录置灰） -->
+      <!-- 清除本地登录态（微信重新打开仍静默登录，语义见 §5.y） -->
       <view class="entry-group logout-group">
         <view
           class="entry-row logout-row"
-          :class="{ pressed: logoutPressed, disabled: !isLoggedIn }"
+          :class="{ pressed: logoutPressed }"
           role="button"
-          :aria-label="isLoggedIn ? '退出登录' : '未登录'"
+          aria-label="清除本地登录态"
           @touchstart="logoutPressed = true"
           @touchend="logoutPressed = false"
           @touchcancel="logoutPressed = false"
@@ -72,7 +98,7 @@
           @mouseleave="logoutPressed = false"
           @tap="onLogout"
         >
-          <text class="logout-label">{{ isLoggedIn ? '退出登录' : '未登录' }}</text>
+          <text class="logout-label">清除本地登录态</text>
         </view>
       </view>
     </scroll-view>
@@ -94,42 +120,54 @@ import { useThemeStore } from '@/stores/theme'
 import { useAuthSheetStore } from '@/stores/authSheet'
 import { useNotifyStore } from '@/stores/notify'
 import { backToHome } from '@/utils/nav'
+import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
 
 const theme = useThemeStore()
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-const isLoggedIn = computed(() => userStore.isLoggedIn())
+/** 已认证（verified=true）——微信静默登录后恒有登录态，游客/认证用 verified 区分（§5.y） */
+const isVerified = computed(() => userStore.isVerified())
+const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
+/** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
+const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
 const pressedKey = ref('')
 
 // 是否从首页头像 navigateTo 进入（带 ?from=home），是则显示返回箭头
 const showBack = ref(false)
 onLoad((q) => {
   showBack.value = q?.from === 'home'
+  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
+  userStore.silentLogin()
 })
 
-// 每次进入「我的」刷新未读通知数（红点角标）
+// 每次进入「我的」刷新未读通知数（红点角标；游客亦可有通知）
 onShow(() => {
   if (userStore.isLoggedIn()) notifyStore.fetchUnread()
 })
 
-/** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
+/** 需认证入口统一拦截：未认证（verified=false）弹认证引导，认证成功后自动继续原动作（§5.y 入口不置灰） */
 function requireAuth(action: () => void) {
-  if (userStore.isLoggedIn()) {
+  if (userStore.isVerified()) {
     action()
     return
   }
   authSheetStore.requireAuth(action)
 }
 
-/** 用户卡：未登录点击弹认证；已登录点击进个人信息页 */
+/** 用户卡：已认证点击进个人信息页；游客点击进认证页（完整页形态） */
 function onUserCardTap() {
-  if (!userStore.isLoggedIn()) {
-    authSheetStore.requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' }))
+  if (!userStore.isVerified()) {
+    uni.navigateTo({ url: '/pages/profile/verify/index' })
     return
   }
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
+}
+
+/** 认证引导卡片：点击进独立认证页（完整页形态，§2.4） */
+function onAuthGuideTap() {
+  uni.navigateTo({ url: '/pages/profile/verify/index' })
 }
 
 /** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们 */
@@ -141,21 +179,20 @@ const entryItems = [
   { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
-/** 退出登录：二次确认（红色警示），未登录置灰 */
+/** 清除本地登录态（微信重新打开仍静默登录） */
 const logoutPressed = ref(false)
 function onLogout() {
-  if (!userStore.isLoggedIn()) return
   uni.showModal({
-    title: '退出登录',
-    content: '确定要退出当前账号吗？',
-    confirmText: '退出',
+    title: '清除本地登录态',
+    content: '将清除当前登录信息，重新打开小程序仍会自动登录。确定清除吗？',
+    confirmText: '清除',
     cancelText: '取消',
     confirmColor: '#FF3B30',
     success: (res) => {
       if (res.confirm) {
         userStore.logout()
         notifyStore.reset()
-        uni.showToast({ title: '已退出登录', icon: 'none' })
+        uni.showToast({ title: '已清除本地登录态', icon: 'none' })
       }
     },
   })
@@ -174,7 +211,7 @@ function onLogout() {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: background-color 120ms var(--ease-out), transform 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
@@ -184,9 +221,28 @@ function onLogout() {
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .nickname { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nickname--guest { color: var(--text-tertiary); }
+.nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 未认证角标：锁图标 + 「未认证」小字 */
+.verify-badge { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: var(--radius-pill); background: var(--color-primary-soft); }
+.verify-badge-text { font-size: 20rpx; color: var(--color-primary); font-weight: var(--weight-semibold); }
 .card-arrow { flex-shrink: 0; }
+
+/* 认证引导卡片（游客态，§5.y 入口不置灰）：主色浅底 + 锁图标 + 说明 + 右箭头 */
+.auth-guide {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-card);
+  transition: transform var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.auth-guide-icon { flex-shrink: 0; width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--bg-card); display: flex; align-items: center; justify-content: center; }
+.auth-guide-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+.auth-guide-title { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); }
+.auth-guide-desc { font-size: var(--font-aux); line-height: 1.4; color: var(--text-secondary); }
+.auth-guide-arrow { flex-shrink: 0; }
 
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
 .entry-group {
@@ -202,15 +258,16 @@ function onLogout() {
   gap: var(--spacing-md);
   height: 104rpx;
   padding: 0 var(--spacing-lg);
-  transition: background-color 120ms var(--ease-out), transform 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
 .entry-row.pressed { background-color: var(--bg-soft); }
 .entry-row.pressed:active { transform: scale(var(--press-scale)); }
-.entry-row.disabled { opacity: 0.4; }
 .entry-icon { flex-shrink: 0; }
 .entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 需认证入口的未认证弱标识（不置灰） */
+.entry-lock { flex-shrink: 0; font-size: 20rpx; color: var(--text-tertiary); font-weight: var(--weight-semibold); }
 .entry-arrow { flex-shrink: 0; }
 
 /* 系统通知未读红点角标 */
@@ -228,14 +285,13 @@ function onLogout() {
 }
 .entry-badge-text { font-size: 20rpx; color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
 
-/* 退出登录（警示红，独立分组 + 上间距；未登录置灰） */
+/* 清除本地登录态（警示红，独立分组 + 上间距） */
 .logout-group { margin-top: var(--spacing-md); }
 .logout-row { justify-content: center; -webkit-tap-highlight-color: transparent; }
 .logout-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-error); }
-.logout-row.disabled .logout-label { color: var(--text-tertiary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .entry-row { transition: none; }
+  .user-card, .entry-row, .auth-guide { transition: none; }
   .user-card:active, .entry-row.pressed:active { transform: none; }
 }
 </style>

@@ -236,6 +236,12 @@ public class MomentServiceImpl implements MomentService {
         if (m == null) {
             throw new BusinessException("动态不存在");
         }
+        // 仅对外可见（approved + 正常）的动态允许评论，对齐 toggleUseful 口径；
+        // pending/rejected 或已下架动态不可评论
+        if (!MomentConst.AUDIT_APPROVED.equals(m.getAuditStatus())
+                || m.getStatus() == null || m.getStatus() != MomentConst.STATUS_NORMAL) {
+            throw new BusinessException("该动态暂不可评论");
+        }
         // content/images 至少一项（支持纯图评论）
         boolean hasContent = req.getContent() != null && !req.getContent().trim().isEmpty();
         List<String> reqImages = req.getImages();

@@ -77,7 +77,7 @@ const pressed = ref(false)
   border-radius: 32rpx;
   background: var(--color-primary);
   box-shadow: var(--shadow-card);
-  transition: transform 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .action-btn.pressed { transform: scale(var(--press-scale)); }

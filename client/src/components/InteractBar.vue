@@ -68,7 +68,7 @@ function onUseful() {
 .interact-bar { display: flex; align-items: center; gap: var(--spacing-md); margin: 0; padding: var(--spacing-md) 0 0; }
 /* 互动按钮：高度/字号与列表 MomentCard 的 m-action 完全一致（64rpx + 28rpx 图标 + 24rpx 文字），
    透明边框占位保证激活时变边框不跳高；「有用」激活态统一用点赞色 --color-like（与列表/评论语义一致） */
-.interact-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); box-sizing: border-box; transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.interact-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); box-sizing: border-box; transition: transform var(--duration-fast) ease, background var(--duration-fast) ease, border-color var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .interact-btn:active { transform: scale(var(--press-scale)); }
 .interact-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
 /* 有用在途指示（受控锁视觉，用 --color-like 与激活态一致） */

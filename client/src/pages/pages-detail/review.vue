@@ -218,14 +218,19 @@ async function handleSubmit() {
   try {
     // 将本地图片上传到服务器，获取可访问的 URL
     const uploadedUrls: string[] = []
+    let uploadFailed = 0
     for (const localPath of form.images) {
       try {
         const url = await uploadImageApi(localPath)
         uploadedUrls.push(url)
       } catch {
-        // 单张上传失败不影响整体提交
+        // 单张上传失败不影响整体提交，但需提示用户避免"以为传了其实没传"
+        uploadFailed += 1
         console.warn('图片上传失败，跳过:', localPath)
       }
+    }
+    if (uploadFailed > 0) {
+      uni.showToast({ title: `${uploadFailed} 张图片上传失败，已跳过`, icon: 'none' })
     }
 
     await dishStore.submitReview({
@@ -346,7 +351,7 @@ onLoad(async (query) => {
   flex-direction: column;
   gap: 2rpx;
   padding: var(--spacing-sm) var(--spacing-md);
-  transition: background-color 120ms ease;
+  transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .dish-candidate.pressed { background-color: var(--bg-soft); }
@@ -410,7 +415,7 @@ onLoad(async (query) => {
   align-items: center;
   justify-content: center;
   font-size: var(--font-tiny);
-  transition: transform 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
 }
 .remove-btn:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 .image-upload {
@@ -445,7 +450,7 @@ onLoad(async (query) => {
   border-radius: 16px;
   background: var(--border-color);
   position: relative;
-  transition: background 0.2s var(--ease-out);
+  transition: background var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .toggle.on { background: var(--color-primary); }
@@ -458,7 +463,7 @@ onLoad(async (query) => {
   border-radius: 50%;
   background: var(--color-on-primary);
   box-shadow: var(--shadow-card);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform var(--duration-base) var(--ease-out);
 }
 .toggle.on .toggle-knob { transform: translateX(36rpx); }
 

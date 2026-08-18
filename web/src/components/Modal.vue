@@ -25,6 +25,12 @@ const mounted = ref(false)
 const visible = ref(false)
 let hideTimer: number | undefined
 
+/**
+ * 退场卸载延时（ms）。必须与下方 .modal-box / .modal-overlay 的 CSS transition 时长一致
+ * （0.22s = 220ms），否则会在退场动画结束前提前卸载 DOM，造成弹层闪烁。
+ */
+const EXIT_DURATION_MS = 220
+
 // ESC 关闭（键盘可达性）
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && props.show) emit('close')
@@ -43,8 +49,8 @@ watch(
     } else {
       visible.value = false
       window.removeEventListener('keydown', onKeydown)
-      // 退场（220ms 与 CSS transition 一致）后卸载 DOM
-      hideTimer = window.setTimeout(() => (mounted.value = false), 220)
+      // 退场（EXIT_DURATION_MS 与 CSS transition 一致）后卸载 DOM
+      hideTimer = window.setTimeout(() => (mounted.value = false), EXIT_DURATION_MS)
     }
   },
 )

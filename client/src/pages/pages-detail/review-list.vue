@@ -7,19 +7,6 @@
       :scroll-with-animation="!reduceMotion"
       @scrolltolower="loadMore"
     >
-      <!-- 排序 Tab（#17）：最新 / 最有用，切换即重拉 -->
-      <view class="sort-tabs">
-        <text
-          v-for="s in sortTabs"
-          :key="s.value"
-          class="sort-tab"
-          :class="{ active: sortValue === s.value }"
-          role="button"
-          :aria-label="s.label"
-          @tap="onSortChange(s.value)"
-        >{{ s.label }}</text>
-      </view>
-
       <view class="review-list" v-if="reviewList.length > 0">
         <ReviewItem
           v-for="rv in reviewList"
@@ -76,23 +63,9 @@ const page = ref(1)
 const pageSize = 10
 const loading = ref(false)
 const finished = ref(false)
-/** 排序 Tab（#17）：最新 / 最有用 */
-const sortValue = ref<'latest' | 'useful'>('latest')
-const sortTabs = [
-  { value: 'latest' as const, label: '最新' },
-  { value: 'useful' as const, label: '最有用' },
-]
 
 const reviewList = computed(() => dishStore.reviewList)
 const currentUserId = computed(() => userStore.userInfo?.id)
-
-/** 切换排序：重置分页并重新拉取（置脏标记供返回刷新） */
-function onSortChange(v: 'latest' | 'useful') {
-  if (sortValue.value === v) return
-  sortValue.value = v
-  dishStore.reviewsDirty = true
-  loadPage(1)
-}
 
 const reduceMotion = ref(false)
 if (typeof window !== 'undefined') {
@@ -114,7 +87,6 @@ async function loadPage(p: number) {
   loading.value = true
   try {
     const res = await dishStore.fetchReviews(dishId.value, {
-      sort: sortValue.value,
       isWithImage: false,
       page: p,
       pageSize,
@@ -188,9 +160,5 @@ async function submitReviewReport(text: string) {
 .review-list { display: flex; flex-direction: column; gap: var(--spacing-sm); margin: 0 var(--spacing-md) var(--spacing-md); }
 .loading-more { text-align: center; font-size: var(--font-aux); color: var(--text-tertiary); padding: var(--spacing-md); }
 
-/* 排序 Tab（#17）：轻量文字链，选中主色下划线 */
-.sort-tabs { display: flex; align-items: center; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm); padding: 0 var(--spacing-xs); }
-.sort-tab { position: relative; font-size: var(--font-card); font-weight: var(--weight-medium); color: var(--text-tertiary); padding: var(--spacing-2xs) var(--spacing-xs); -webkit-tap-highlight-color: transparent; transition: color 120ms var(--ease-out); }
-.sort-tab.active { color: var(--text-primary); font-weight: var(--weight-bold); }
-.sort-tab.active::after { content: ''; position: absolute; left: var(--spacing-xs); right: var(--spacing-xs); bottom: 0; height: 4rpx; border-radius: var(--radius-pill, 999rpx); background: var(--color-primary); transition: width 120ms var(--ease-out); }
+
 </style>

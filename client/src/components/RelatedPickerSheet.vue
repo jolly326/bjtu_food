@@ -107,7 +107,7 @@ function noop() {}
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${props.open ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
 let startY = 0
@@ -237,7 +237,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity 0.3s ease; }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
 .sheet-mask.show { opacity: 1; }
 .related-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -246,7 +246,7 @@ onUnmounted(() => {
   box-shadow: var(--shadow-modal);
   z-index: 100;
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex; flex-direction: column;
   max-height: 80vh;
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
@@ -264,7 +264,7 @@ onUnmounted(() => {
 .sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
 .sheet-empty { padding: var(--spacing-xl) 0; text-align: center; }
 .sheet-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .sheet-item.on { background: var(--bg-soft); }
 .sheet-item-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
 .sheet-item-img-empty { display: flex; align-items: center; justify-content: center; }

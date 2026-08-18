@@ -101,8 +101,8 @@ public class DataInitializer implements CommandLineRunner {
             dish.setName(names[i]);
             dish.setPrice(prices[i]);
             dish.setTags("signature");
-            dish.setStatus("on");
-            dish.setAuditStatus("approved");
+            dish.setStatus(com.bjtufood.dish.constant.DishConst.STATUS_ON);
+            dish.setAuditStatus(com.bjtufood.dish.constant.DishConst.AUDIT_APPROVED);
             // 示例菜品归属「家常菜」（code=home）品类
             dish.setCategoryId(categoryMapper.selectOne(
                     new LambdaQueryWrapper<Category>().eq(Category::getCode, "home")).getId());

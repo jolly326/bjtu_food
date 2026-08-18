@@ -59,16 +59,9 @@
       <text class="m-reject-text">已退回：{{ moment.rejectReason }}</text>
     </view>
 
-    <!-- 关联菜品星级（口碑展示：与菜品详情评价同源评分，评价/动态打通） -->
+    <!-- 关联菜品评分（1 星 + 数字，与评价卡统一单星形态） -->
     <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating">
-      <IconSvg
-        v-for="i in 5"
-        :key="i"
-        name="star-filled"
-        :size="20"
-        :color="i <= Math.round(moment.relatedRating || 0) ? 'var(--color-star)' : 'var(--border-color)'"
-        class="m-star"
-      />
+      <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="m-star" />
       <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
     </view>
 
@@ -192,7 +185,7 @@ async function onUseful() {
   box-shadow: var(--shadow-card);
   padding: var(--spacing-md);
   /* Apple highlight 按压：背景微变而非整卡缩放（与 find 混合卡一致） */
-  transition: background-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .moment-card.pressed { background-color: var(--bg-soft); }
@@ -205,8 +198,8 @@ async function onUseful() {
 /* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
 .m-nickname { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
 .m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
-.m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); flex-shrink: 0; }
-.m-audit-text { font-size: 20rpx; font-weight: var(--weight-bold); }
+.m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; }
+.m-audit-text { font-size: 22rpx; font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
 .audit-rejected { background: var(--color-error-soft); }
@@ -217,12 +210,12 @@ async function onUseful() {
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: 16rpx; overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s ease, transform 0.25s ease; }
+.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-base) var(--ease-out); }
 .m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
 /* 关联 chip：胶囊背景（primary-soft + 主色文字）—— 用户明确认可关联菜品保留胶囊形态，
    与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
 .m-related-icon { flex-shrink: 0; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
@@ -238,8 +231,8 @@ async function onUseful() {
 /* 互动按钮：icon + 数字纯文字链，去胶囊背景（原 bg-soft 胶囊与关联 chip 叠加视觉过重）。
    统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
    与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
-.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.m-action:active { opacity: 0.55; }
+.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.m-action:active { opacity: 0.55; transform: scale(var(--press-scale)); }
 /* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
 .m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
 .m-action.m-action-share::after { border: none; }
@@ -249,6 +242,6 @@ async function onUseful() {
 .m-action.active .m-action-count { color: var(--color-like); }
 /* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
    仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */
-.m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-more:active { opacity: 0.5; }
 </style>

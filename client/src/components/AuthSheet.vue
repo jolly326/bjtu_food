@@ -9,7 +9,7 @@
       @touchmove.stop.prevent="noop"
     />
 
-    <!-- 底部弹层：复用 ApplySheet 抽屉范式（圆角/grabber/遮罩/下拉关闭/spring 0.3s） -->
+    <!-- 底部弹层：复用 ApplySheet 抽屉范式（圆角/grabber/遮罩/下拉关闭/spring --duration-slow） -->
     <view
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
@@ -21,7 +21,7 @@
     >
       <view class="sheet-grabber" />
       <view class="sheet-head">
-        <text class="sheet-title">登录认证</text>
+        <text class="sheet-title">学号邮箱认证</text>
         <view class="sheet-close" @tap="hide" aria-label="关闭">
           <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
         </view>
@@ -65,16 +65,16 @@ const dragging = ref(false)
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
 function hide() {
   authSheetStore.hide()
 }
 
-// 认证成功（登录态建立）后关闭弹层并执行认证前记录的待办（跳转到目标功能）
+// 认证成功（verified=true）后关闭弹层并执行认证前记录的待办（跳转到目标功能，§5.y）
 watch(
-  () => userStore.isLoggedIn(),
+  () => userStore.isVerified(),
   (v) => {
     if (v) authSheetStore.runPending()
   },
@@ -129,7 +129,7 @@ function onTouchEnd() {
 /* 遮罩：与 ApplySheet 一致（--overlay-scrim 半透明，opacity 过渡） */
 .sheet-mask {
   position: fixed; inset: 0; background: var(--overlay-scrim);
-  opacity: 0; transition: opacity 0.3s ease; z-index: 290;
+  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: 290;
 }
 .sheet-mask.show { opacity: 1; }
 

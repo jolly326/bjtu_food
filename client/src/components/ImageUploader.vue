@@ -30,7 +30,7 @@ import { uploadImage } from '@/api/upload'
 
 /**
  * ImageUploader —— 图片上传网格（task-14 W2/W5 / task-13 T11）
- * 复用：publish-dish / submit-stall / review / publish-moment / 评论栏（compact）
+ * 复用：review / publish-moment / 评论栏（compact）
  * 受控：v-model 绑定 string[]（已上传的相对/绝对路径）。
  */
 const props = withDefaults(defineProps<{
@@ -124,14 +124,14 @@ function chooseImage() {
   border-radius: 50%;
   background: var(--badge-dark-bg);
   display: flex; align-items: center; justify-content: center;
-  transition: transform 0.12s var(--ease-out), opacity 0.12s var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
 }
 .img-remove:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 .img-add {
   display: flex; align-items: center; justify-content: center;
   border: 2rpx dashed var(--border-bold);
   background: var(--bg-soft);
-  transition: transform 0.12s ease;
+  transition: transform var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .img-add:active { transform: scale(var(--press-scale)); }

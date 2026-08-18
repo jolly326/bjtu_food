@@ -42,6 +42,22 @@ public interface UserService {
     User getByEmail(String email);
 
     /**
+     * 根据微信 openid 查询用户（微信静默登录取号）。
+     *
+     * @param openid 微信 openid
+     * @return 用户实体，不存在返回 null
+     */
+    User getByOpenid(String openid);
+
+    /**
+     * 根据已认证绑定邮箱查询用户（bind_email 唯一认证绑定）。
+     *
+     * @param bindEmail 认证绑定邮箱
+     * @return 用户实体，不存在返回 null
+     */
+    User getByBindEmail(String bindEmail);
+
+    /**
      * 启用/禁用用户账号
      * <p>
      * disabled 状态的用户无法登录

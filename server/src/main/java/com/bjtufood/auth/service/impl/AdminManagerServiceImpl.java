@@ -130,7 +130,18 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         vo.setAvatar(user.getAvatar());
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
+        vo.setVerified(user.getVerified());
+        vo.setOpenid(user.getOpenid());
+        vo.setBindEmail(user.getBindEmail());
+        vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());
         return vo;
+    }
+
+    /** 游客短标识：食客 + ID 尾 4 位 */
+    private String buildGuestShortId(Long userId) {
+        String id = String.valueOf(userId);
+        String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
+        return "食客" + tail;
     }
 }

@@ -309,6 +309,13 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   .sec-card:active, .card:active, .pk-card:active, .banner-card:active,
   .stat-card:active, .kpi:active,
   button:active, a:active { transform: none !important; }
+  /* 表格行 hover 去过渡（§4.7 减弱动效：去掉背景渐变动画） */
+  .table tbody tr { transition: none !important; }
+  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放） */
+  .modal-box, .modal-overlay, .toast, .confirm-box, .topbar, .sidebar, .headerbar {
+    transform: none !important;
+    transition: opacity 0.18s ease !important;
+  }
 }
 
 /* ============================================================

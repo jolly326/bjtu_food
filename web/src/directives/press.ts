@@ -10,11 +10,29 @@ const reduceMotion =
   window.matchMedia &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-const SCALE = 0.97
+// 统一读取设计 Token（variables.css §4）：缓动曲线与按压缩放都走 Token，
+// 与 CSS 基线一致，避免硬编码 easing/scale 造成两端观感割裂。读不到时回退默认值。
+const FALLBACK_EASE = 'cubic-bezier(0.23, 1, 0.32, 1)' // --ease-out
+const DEFAULT_SCALE = 0.97 // --press-scale
+
+function designToken(el: HTMLElement, name: string): string {
+  if (typeof window !== 'undefined' && el && window.getComputedStyle) {
+    const value = window.getComputedStyle(el).getPropertyValue(name).trim()
+    if (value) return value
+  }
+  return ''
+}
 
 function apply(el: HTMLElement, binding: DirectiveBinding) {
-  const scale = typeof binding.value === 'number' ? binding.value : SCALE
-  el.style.transition = 'transform 140ms cubic-bezier(0.33, 1, 0.68, 1)'
+  const tokenScale = parseFloat(designToken(el, '--press-scale'))
+  const scale =
+    typeof binding.value === 'number'
+      ? binding.value
+      : Number.isFinite(tokenScale) && tokenScale > 0
+        ? tokenScale
+        : DEFAULT_SCALE
+  const easeOut = designToken(el, '--ease-out') || FALLBACK_EASE
+  el.style.transition = `transform 140ms ${easeOut}`
   el.style.willChange = 'transform'
   el.style.transform = `scale(${scale})`
 }

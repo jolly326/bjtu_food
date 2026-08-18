@@ -163,6 +163,13 @@ export const useDishStore = defineStore('dish', () => {
     })
   }
 
+  /** 进入新菜品前清空旧详情与评价态，避免闪现上一道菜（store 全局状态残留）。统一走 action 而非外部直接写 ref。 */
+  function resetDishDetail() {
+    currentDish.value = null
+    reviewList.value = []
+    reviewTotal.value = 0
+  }
+
   /**
    * task-03 评价区重做：分页 + 排序 + 晒图过滤。
    * sort: latest|useful；isWithImage 晒图过滤。返回结果写入 reviewList/reviewTotal。
@@ -249,6 +256,8 @@ export const useDishStore = defineStore('dish', () => {
    * 基于坐标 + Haversine 本地写回每个菜品 distance（米）：
    * - 用户已授权定位：用真实坐标算距离；默认按距离升序排序；
    * - 未授权 / 无法获取（如 H5 预览）：回退到 CAMPUS_CENTER，距离字段始终有值（不排序，保持后端热度）。
+   * - 菜品坐标缺失（旧库 canteen 无坐标 / 后端返回 null）：回退 CAMPUS_CENTER 兜底计算，
+   *   保证「距你 Xm」恒有值（语义：距校区中心），避免卡片整行不显示（P0 UI 缺漏）。
    * - sort 为 false 时仅写回距离不排序（品类/tag 流保持后端热度序，卡片仍显示「距你」）。
    * 用户位置不出本机，服务器不算距离。
    */
@@ -257,9 +266,11 @@ export const useDishStore = defineStore('dish', () => {
     const realLoc = locStore.location
     const loc = realLoc || CAMPUS_CENTER
     const decorated = list.map((d) => {
-      if (typeof d.latitude === 'number' && typeof d.longitude === 'number') {
-        d.distance = haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
-      }
+      const dishLoc =
+        typeof d.latitude === 'number' && typeof d.longitude === 'number'
+          ? { lat: d.latitude, lng: d.longitude }
+          : CAMPUS_CENTER // 菜品坐标缺失兜底：距校区中心
+      d.distance = haversineMeters(loc, dishLoc)
       return d
     })
     if (realLoc && sort) {
@@ -379,9 +390,10 @@ export const useDishStore = defineStore('dish', () => {
     categories,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed,
     fetchRecommend, fetchGuess, fetchHomeBanners, fetchCanteenImages,
-    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, fetchReviews, submitReview, fetchStallDishes,
+    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,
     fetchFilterDishes, loadMoreFilterDishes,
+    withLocalDistance,
   }
 })

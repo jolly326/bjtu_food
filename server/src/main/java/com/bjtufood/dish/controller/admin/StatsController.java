@@ -12,6 +12,7 @@ import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.entity.OperationLog;
 import com.bjtufood.common.mapper.OperationLogMapper;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DashboardVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
@@ -74,17 +75,17 @@ public class StatsController {
             // 本周/期内上新菜品数（created_at >= since 且 approved）
             vo.setNewDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                     .ge(Dish::getCreatedAt, since)
-                    .eq(Dish::getAuditStatus, "approved")));
+                    .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
             // 期内新增评价数
             vo.setNewReviewCount(reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                     .ge(Review::getCreatedAt, since)));
             vo.setTotalDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                    .eq(Dish::getAuditStatus, "approved")));
+                    .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
             vo.setTotalReviewCount(reviewMapper.selectCount(new LambdaQueryWrapper<>()));
 
             // 最热门菜品（按浏览量降序 top5）
             vo.setHotDishes(dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                            .eq(Dish::getAuditStatus, "approved")
+                            .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)
                             .orderByDesc(Dish::getViewCount))
                     .stream().limit(5)
                     .map(d -> {
@@ -220,7 +221,7 @@ public class StatsController {
         Map<Long, String> stallNameMap = stalls.stream()
                 .collect(Collectors.toMap(Stall::getId, Stall::getName, (a, b) -> a));
         Map<Long, Long> canteenView = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .eq(Dish::getAuditStatus, "approved"))
+                        .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED))
                 .stream()
                 .collect(Collectors.groupingBy(Dish::getStallId,
                         Collectors.summingLong(d -> d.getViewCount() == null ? 0L : d.getViewCount().longValue())));
@@ -255,7 +256,7 @@ public class StatsController {
                 count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                         .ge(Dish::getCreatedAt, dayStart)
                         .lt(Dish::getCreatedAt, dayEnd)
-                        .eq(Dish::getAuditStatus, "approved"));
+                        .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED));
             } else {
                 count = reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                         .ge(Review::getCreatedAt, dayStart)

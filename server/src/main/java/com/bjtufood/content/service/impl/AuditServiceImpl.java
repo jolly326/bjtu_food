@@ -11,6 +11,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.content.constant.AuditConst;
 import com.bjtufood.content.dto.AuditVO;
 import com.bjtufood.content.service.AuditService;
 import com.bjtufood.dish.entity.Dish;
@@ -53,25 +54,32 @@ public class AuditServiceImpl implements AuditService {
         List<AuditVO> records;
         long total;
 
-        if ("dish".equals(type)) {
+        if (AuditConst.TYPE_DISH.equals(type)) {
             LambdaQueryWrapper<Dish> w = new LambdaQueryWrapper<Dish>().orderByDesc(Dish::getCreatedAt);
             if (StringUtils.hasText(status)) w.eq(Dish::getAuditStatus, status);
             IPage<Dish> p = dishMapper.selectPage(new Page<>(page, pageSize), w);
             total = p.getTotal();
-            records = p.getRecords().stream().map(this::toDishVO).toList();
-        } else if ("stall".equals(type)) {
+            // 消除每行二次查档口的 N+1：先收集整页 stallIds 批量查一次建 Map，再组装 VO
+            List<Long> stallIds = p.getRecords().stream()
+                    .map(Dish::getStallId)
+                    .filter(id -> id != null)
+                    .distinct()
+                    .toList();
+            Map<Long, Long> stallCanteenMap = loadStallCanteenMap(stallIds);
+            records = p.getRecords().stream().map(d -> toDishVO(d, stallCanteenMap)).toList();
+        } else if (AuditConst.TYPE_STALL.equals(type)) {
             LambdaQueryWrapper<Stall> w = new LambdaQueryWrapper<Stall>().orderByDesc(Stall::getCreatedAt);
             if (StringUtils.hasText(status)) w.eq(Stall::getAuditStatus, status);
             IPage<Stall> p = stallMapper.selectPage(new Page<>(page, pageSize), w);
             total = p.getTotal();
             records = p.getRecords().stream().map(this::toStallVO).toList();
-        } else if ("canteen".equals(type)) {
+        } else if (AuditConst.TYPE_CANTEEN.equals(type)) {
             LambdaQueryWrapper<Canteen> w = new LambdaQueryWrapper<Canteen>().orderByDesc(Canteen::getCreatedAt);
             if (StringUtils.hasText(status)) w.eq(Canteen::getAuditStatus, status);
             IPage<Canteen> p = canteenMapper.selectPage(new Page<>(page, pageSize), w);
             total = p.getTotal();
             records = p.getRecords().stream().map(this::toCanteenVO).toList();
-        } else if ("moment".equals(type)) {
+        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
             LambdaQueryWrapper<Moment> w = new LambdaQueryWrapper<Moment>().orderByDesc(Moment::getCreatedAt);
             if (StringUtils.hasText(status)) w.eq(Moment::getAuditStatus, status);
             IPage<Moment> p = momentMapper.selectPage(new Page<>(page, pageSize), w);
@@ -107,29 +115,29 @@ public class AuditServiceImpl implements AuditService {
     @Override
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void approve(String type, Long id) {
-        if ("dish".equals(type)) {
+        if (AuditConst.TYPE_DISH.equals(type)) {
             Dish e = dishMapper.selectById(id);
             if (e == null) throw new BusinessException("菜品不存在");
-            e.setAuditStatus("approved");
+            e.setAuditStatus(AuditConst.STATUS_APPROVED);
             e.setRejectReason(null);
             dishMapper.updateById(e);
             sendDishAuditNotification(e, true, null);
-        } else if ("stall".equals(type)) {
+        } else if (AuditConst.TYPE_STALL.equals(type)) {
             Stall e = stallMapper.selectById(id);
             if (e == null) throw new BusinessException("档口不存在");
-            e.setAuditStatus("approved");
+            e.setAuditStatus(AuditConst.STATUS_APPROVED);
             e.setRejectReason(null);
             stallMapper.updateById(e);
-        } else if ("canteen".equals(type)) {
+        } else if (AuditConst.TYPE_CANTEEN.equals(type)) {
             Canteen e = canteenMapper.selectById(id);
             if (e == null) throw new BusinessException("食堂不存在");
-            e.setAuditStatus("approved");
+            e.setAuditStatus(AuditConst.STATUS_APPROVED);
             e.setRejectReason(null);
             canteenMapper.updateById(e);
-        } else if ("moment".equals(type)) {
+        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
             Moment e = momentMapper.selectById(id);
             if (e == null) throw new BusinessException("动态不存在");
-            e.setAuditStatus("approved");
+            e.setAuditStatus(AuditConst.STATUS_APPROVED);
             e.setRejectReason(null);
             momentMapper.updateById(e);
             sendMomentAuditNotification(e, true, null);
@@ -144,29 +152,29 @@ public class AuditServiceImpl implements AuditService {
         if (!StringUtils.hasText(rejectReason)) {
             throw new BusinessException("退回原因不能为空");
         }
-        if ("dish".equals(type)) {
+        if (AuditConst.TYPE_DISH.equals(type)) {
             Dish e = dishMapper.selectById(id);
             if (e == null) throw new BusinessException("菜品不存在");
-            e.setAuditStatus("rejected");
+            e.setAuditStatus(AuditConst.STATUS_REJECTED);
             e.setRejectReason(rejectReason);
             dishMapper.updateById(e);
             sendDishAuditNotification(e, false, rejectReason);
-        } else if ("stall".equals(type)) {
+        } else if (AuditConst.TYPE_STALL.equals(type)) {
             Stall e = stallMapper.selectById(id);
             if (e == null) throw new BusinessException("档口不存在");
-            e.setAuditStatus("rejected");
+            e.setAuditStatus(AuditConst.STATUS_REJECTED);
             e.setRejectReason(rejectReason);
             stallMapper.updateById(e);
-        } else if ("canteen".equals(type)) {
+        } else if (AuditConst.TYPE_CANTEEN.equals(type)) {
             Canteen e = canteenMapper.selectById(id);
             if (e == null) throw new BusinessException("食堂不存在");
-            e.setAuditStatus("rejected");
+            e.setAuditStatus(AuditConst.STATUS_REJECTED);
             e.setRejectReason(rejectReason);
             canteenMapper.updateById(e);
-        } else if ("moment".equals(type)) {
+        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
             Moment e = momentMapper.selectById(id);
             if (e == null) throw new BusinessException("动态不存在");
-            e.setAuditStatus("rejected");
+            e.setAuditStatus(AuditConst.STATUS_REJECTED);
             e.setRejectReason(rejectReason);
             momentMapper.updateById(e);
             sendMomentAuditNotification(e, false, rejectReason);
@@ -190,21 +198,39 @@ public class AuditServiceImpl implements AuditService {
         if (ids != null) ids.forEach(id -> reject(type, id, rejectReason));
     }
 
-    private AuditVO toDishVO(Dish d) {
+    private AuditVO toDishVO(Dish d, Map<Long, Long> stallCanteenMap) {
         AuditVO v = new AuditVO();
         v.setId(d.getId());
-        v.setType("dish");
+        v.setType(AuditConst.TYPE_DISH);
         v.setName(d.getName());
         v.setPrice(d.getPrice());
         v.setDescription(d.getDescription());
         v.setImages(imageUrlUtil.parseAndToAbsoluteUrls(d.getImages()));
-        v.setCanteenId(resolveCanteenIdByStall(d.getStallId()));
+        v.setCanteenId(d.getStallId() == null ? null : stallCanteenMap.get(d.getStallId()));
         v.setStallId(d.getStallId());
         v.setAuditStatus(d.getAuditStatus());
         v.setRejectReason(d.getRejectReason());
         v.setCreatedBy(d.getCreatedBy());
         v.setCreatedAt(d.getCreatedAt());
         return v;
+    }
+
+    /**
+     * 批量查询档口 → 食堂 的映射（stallId → canteenId），用于消除逐行二次查库的 N+1。
+     * 空集合防护：避免生成非法 SQL "IN ()"。
+     */
+    private Map<Long, Long> loadStallCanteenMap(List<Long> stallIds) {
+        Map<Long, Long> map = new HashMap<>();
+        if (stallIds.isEmpty()) {
+            return map;
+        }
+        stallMapper.selectList(new LambdaQueryWrapper<Stall>().in(Stall::getId, stallIds))
+                .forEach(s -> {
+                    if (s.getId() != null) {
+                        map.put(s.getId(), s.getCanteenId());
+                    }
+                });
+        return map;
     }
 
     private AuditVO toStallVO(Stall s) {
@@ -290,9 +316,4 @@ public class AuditServiceImpl implements AuditService {
         notificationService.notify(n);
     }
 
-    private Long resolveCanteenIdByStall(Long stallId) {
-        if (stallId == null) return null;
-        Stall s = stallMapper.selectById(stallId);
-        return s != null ? s.getCanteenId() : null;
-    }
 }

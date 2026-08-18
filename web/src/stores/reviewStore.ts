@@ -11,6 +11,10 @@ export const useReviewStore = defineStore('review', () => {
   async function update(id: number, data: Partial<Review>) { await reviewApi.updateById(id, data); await loadAll() }
   async function remove(id: number) { await reviewApi.deleteById(id); await loadAll() }
 
-  loadAll()
+  // 顶层不再裸发请求（对齐 userStore）：未登录（无 token）时跳过，
+  // 避免 http 拦截层 401 清 token 跳登录的副作用；有 token 时兜底加载并吞掉拒绝。
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('token')) {
+    loadAll().catch(() => {})
+  }
   return { list, loadAll, update, remove }
 })

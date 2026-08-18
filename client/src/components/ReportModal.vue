@@ -61,7 +61,7 @@ function submit() {
 .report-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
-.report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: var(--weight-semibold); transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: var(--weight-semibold); transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .report-btn:active { transform: scale(var(--press-scale)); }
 .report-cancel { background: var(--bg-page); color: var(--text-secondary); }
 .report-confirm { background: var(--color-error); color: var(--text-white); }

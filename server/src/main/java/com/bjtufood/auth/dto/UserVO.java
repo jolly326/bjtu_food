@@ -35,6 +35,18 @@ public class UserVO {
     @Schema(description = "状态", example = "active")
     private String status;
 
+    @Schema(description = "认证状态：0=游客未认证 / 1=已邮箱认证", example = "0")
+    private Integer verified;
+
+    @Schema(description = "微信 openid")
+    private String openid;
+
+    @Schema(description = "已认证绑定邮箱（可空）", example = "20240001@bjtu.edu.cn")
+    private String bindEmail;
+
+    @Schema(description = "游客短标识（=「食客+ID 尾 4 位」）", example = "食客0001")
+    private String guestShortId;
+
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 }

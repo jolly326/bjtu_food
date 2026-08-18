@@ -70,11 +70,16 @@ const stallDishCountMap = computed<Record<number, number>>(() => {
 function openImageModal() {
   showImageModal.value = true
 }
-function saveImageModal() {
+async function saveImageModal() {
   if (canteen.value) {
-    store.updateCanteen(Number(canteen.value.id), { image: canteenForm.value.image })
-    toast.success('图片已更新')
-    originalCanteen.value.image = canteenForm.value.image
+    try {
+      await store.updateCanteen(Number(canteen.value.id), { image: canteenForm.value.image })
+      toast.success('图片已更新')
+      originalCanteen.value.image = canteenForm.value.image
+    } catch (err: any) {
+      toast.error(err.message || '图片保存失败')
+      return
+    }
   }
   showImageModal.value = false
 }
@@ -103,16 +108,21 @@ function toggleEdit() {
   }
 }
 
-function confirmEdit() {
+async function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!canteenForm.value.name.trim()) errs.name = '食堂名称不能为空'
   if (!canteenForm.value.location.trim()) errs.location = '位置不能为空'
   canteenFormErrors.value = errs
   if (Object.keys(errs).length) return
   if (canteen.value) {
-    store.updateCanteen(Number(canteen.value.id), { ...canteenForm.value })
-    toast.success('食堂信息已更新')
-    originalCanteen.value = { ...canteenForm.value }
+    try {
+      await store.updateCanteen(Number(canteen.value.id), { ...canteenForm.value })
+      toast.success('食堂信息已更新')
+      originalCanteen.value = { ...canteenForm.value }
+    } catch (err: any) {
+      toast.error(err.message || '食堂信息更新失败')
+      return
+    }
   }
   canteenFormErrors.value = {}
   editing.value = false
@@ -168,14 +178,14 @@ function openEditStall(id: number) {
   showModal.value = true
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!validate()) return
   try {
     if (editingStallId.value !== null) {
-      store.updateStall(editingStallId.value, { ...form.value })
+      await store.updateStall(editingStallId.value, { ...form.value })
       toast.success('档口已更新')
     } else {
-      store.addStall({ canteen_id: canteenId.value as unknown as bigint, ...form.value, sort_order: 0, avg_rating: 0 })
+      await store.addStall({ canteen_id: canteenId.value as unknown as bigint, ...form.value, sort_order: 0, avg_rating: 0 })
       toast.success('档口已添加')
     }
     showModal.value = false

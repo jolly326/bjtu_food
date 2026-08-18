@@ -15,6 +15,6 @@ public class EmailCodeReq {
     @Schema(description = "校园邮箱（可选）。不传时由 username 推导为 {username}@bjtu.edu.cn", example = "20240001@bjtu.edu.cn")
     private String email;
 
-    @Schema(description = "验证码用途：login=登录，register=注册，reset=重置密码。为空时默认为 login", example = "login")
+    @Schema(description = "验证码用途：仅支持 verify（学号邮箱认证，spec §5.y）。为空时默认为 verify", example = "verify")
     private String purpose;
 }

@@ -65,7 +65,7 @@ function onSelect(star: number) {
 }
 .interactive .star {
   padding: var(--spacing-xs);
-  transition: transform 120ms var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .interactive .star:active {

@@ -18,22 +18,33 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- -------------------- 用户 --------------------
+-- 认证模型（2026-08 微信登录体系，spec §5.y）：
+--   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
+--   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁社区写操作。
+--   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
+--   · email 列保留作为历史迁移凭证；password 列仅管理员（后台）保留使用，学生侧不再校验。
 CREATE TABLE IF NOT EXISTS `user`
 (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-    `username`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '学号/工号（登录用，唯一）',
-    `email`        VARCHAR(128) NOT NULL DEFAULT '' COMMENT '校园邮箱',
-    `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '密码哈希（验证码登录可为空）',
+    `username`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '学号/工号（游客建号为 wx_+openid 尾 16 位，唯一）',
+    `email`        VARCHAR(128) NOT NULL DEFAULT '' COMMENT '校园邮箱（历史迁移凭证；新微信用户可为空）',
+    `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '密码哈希（仅管理员后台用，学生侧不校验）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
     `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin / super_admin',
-    `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled',
+    `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
+    `openid`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信 openid（静默登录取号依据，唯一）',
+    `unionid`      VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）',
+    `verified`     TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）',
+    `bind_email`   VARCHAR(128) NULL     DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）',
+    `verified_at`  DATETIME     NULL     DEFAULT NULL COMMENT '认证时间',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `last_login_at` DATETIME     NULL     DEFAULT NULL COMMENT '最近登录时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
-    UNIQUE KEY `uk_user_email` (`email`)
+    UNIQUE KEY `uk_user_email` (`email`),
+    UNIQUE KEY `uk_user_openid` (`openid`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户';
@@ -114,7 +125,10 @@ CREATE TABLE IF NOT EXISTS `dish`
     PRIMARY KEY (`id`),
     KEY `idx_dish_stall` (`stall_id`),
     KEY `idx_dish_category` (`category_id`),
-    KEY `idx_dish_audit` (`audit_status`)
+    KEY `idx_dish_audit` (`audit_status`),
+    -- 热度/推荐排序（view_count/rating_count/avg_rating 无索引）：组合索引同时覆盖过滤列与排序列，
+    -- 支持推荐、榜单、列表 heat 排序走索引扫描（表达式排序本身无法索引，该索引覆盖常用过滤+排序列）
+    KEY `idx_dish_heat` (`status`, `audit_status`, `view_count`, `rating_count`, `avg_rating`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品';
@@ -486,13 +500,13 @@ DELIMITER ;
 CALL `add_moment_comment_images`();
 DROP PROCEDURE IF EXISTS `add_moment_comment_images`;
 
--- 邮箱验证码（邮箱登录/注册/重置密码；code_hash 存哈希，过期/使用后标记）
+-- 邮箱验证码（认证用途 verify；code_hash 存哈希，过期/使用后标记）
 CREATE TABLE IF NOT EXISTS `email_verification_code`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '记录ID',
     `email`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '邮箱地址',
     `code_hash`  VARCHAR(128) NOT NULL DEFAULT '' COMMENT '验证码哈希（BCrypt）',
-    `purpose`    VARCHAR(32)  NOT NULL DEFAULT 'login' COMMENT '用途：login/register',
+    `purpose`    VARCHAR(32)  NOT NULL DEFAULT 'verify' COMMENT '用途：verify（学号邮箱认证，替代旧 login/register/reset）',
     `expires_at` DATETIME     NULL DEFAULT NULL COMMENT '过期时间',
     `used_at`    DATETIME     NULL DEFAULT NULL COMMENT '使用时间（已用则非空）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -535,5 +549,82 @@ CREATE TABLE IF NOT EXISTS `operation_log`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='操作日志（AOP 埋点，Web 只读查询）';
+
+-- 菜品热度/推荐排序索引 idx_dish_heat（M3）：CREATE TABLE 已含该 KEY；
+-- 旧库幂等补建（MySQL 8 不支持 CREATE INDEX IF NOT EXISTS，用存储过程防护，与上方迁移惯例一致）
+DROP PROCEDURE IF EXISTS `add_dish_heat_index`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_heat_index`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'dish'
+          AND INDEX_NAME = 'idx_dish_heat'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD INDEX `idx_dish_heat` (`status`, `audit_status`, `view_count`, `rating_count`, `avg_rating`);
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_heat_index`();
+DROP PROCEDURE IF EXISTS `add_dish_heat_index`;
+
+-- 微信登录体系 user 表新列幂等迁移（task-01，spec §5.y.2）：
+-- 旧库（尚无 openid/unionid/verified/bind_email/verified_at）补齐列与唯一索引，不破坏既有数据。
+DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
+DELIMITER $$
+CREATE PROCEDURE `add_user_wechat_auth`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'openid'
+    ) THEN
+        ALTER TABLE `user`
+            ADD COLUMN `openid`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信 openid（静默登录取号依据，唯一）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'unionid'
+    ) THEN
+        ALTER TABLE `user`
+            ADD COLUMN `unionid`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified'
+    ) THEN
+        ALTER TABLE `user`
+            ADD COLUMN `verified`   TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'bind_email'
+    ) THEN
+        ALTER TABLE `user`
+            ADD COLUMN `bind_email` VARCHAR(128) NULL DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified_at'
+    ) THEN
+        ALTER TABLE `user`
+            ADD COLUMN `verified_at` DATETIME    NULL DEFAULT NULL COMMENT '认证时间';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND INDEX_NAME = 'uk_user_openid'
+    ) THEN
+        ALTER TABLE `user` ADD UNIQUE KEY `uk_user_openid` (`openid`);
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_user_wechat_auth`();
+DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
 
 SET FOREIGN_KEY_CHECKS = 1;

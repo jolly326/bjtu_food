@@ -31,7 +31,8 @@ import java.nio.charset.StandardCharsets;
  * 5. 启用 @PreAuthorize 注解（方法级别权限控制）
  * <p>
  * 公开接口白名单（无需登录）：
- * - GET /auth/login, POST /auth/register（登录注册）
+ * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
+ * - POST /auth/admin/login（管理后台登录，方案 C）
  * - GET /canteens, GET /stalls（食堂档口查询）
  * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
@@ -51,10 +52,12 @@ public class SecurityConfig {
      * 任意方法放行的公开接口（鉴权/文档类，无敏感写操作）
      */
     private static final String[] PUBLIC_ANY_METHOD = {
-            "/auth/login",
-            "/auth/register",
+            // 认证类公开接口（微信静默登录、学号邮箱认证、验证码）
+            "/auth/wechat-login",
             "/auth/email-code",
-            "/auth/password/reset",
+            "/auth/verify-email",
+            // 管理后台登录（方案 C：管理员账号密码）
+            "/auth/admin/login",
             // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
             "/feedback",
             // SpringDoc Swagger UI 文档

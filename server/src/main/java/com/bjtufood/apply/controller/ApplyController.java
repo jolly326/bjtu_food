@@ -4,6 +4,7 @@ import com.bjtufood.apply.dto.ApplyReq;
 import com.bjtufood.apply.dto.ApplyVO;
 import com.bjtufood.apply.dto.SubmissionVO;
 import com.bjtufood.apply.service.ApplyService;
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,8 +30,8 @@ public class ApplyController {
 
     private final ApplyService applyService;
 
-    @Operation(summary = "提交贡献申请", description = "STU。统一收口新增/下架/变更申请。同(entityType,entityId,applyType)已 pending 返 409。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "提交贡献申请", description = "STU（需邮箱认证）。统一收口新增/下架/变更申请。同(entityType,entityId,applyType)已 pending 返 409。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/my/apply")
     public Result<Map<String, Long>> submit(@Valid @RequestBody ApplyReq req) {
         Long applicantId = SecurityUtil.getCurrentUserId();

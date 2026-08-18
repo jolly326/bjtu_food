@@ -535,7 +535,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
@@ -665,6 +665,16 @@ const dishCandidates = ref<Dish[]>([])
 const dishLoading = ref(false)
 const dishSearched = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+/** 成功态自动返回定时器（⑨ scheduleAutoBack） */
+let backTimer: ReturnType<typeof setTimeout> | null = null
+/** 页面级一次性定时器注册表（markErrors 的 scrollIntoView 定位延迟）：onUnload 统一清理（P0 防越界访问） */
+let pageTimers: ReturnType<typeof setTimeout>[] = []
+onUnload(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+  if (backTimer) clearTimeout(backTimer)
+  pageTimers.forEach((t) => clearTimeout(t))
+  pageTimers = []
+})
 
 function openDishSheet() {
   dishSheetDrag.reset()
@@ -688,6 +698,8 @@ function onDishInput() {
   searchTimer = setTimeout(onDishSearch, 300)
 }
 
+/** 搜索请求序号：快速输入/防抖连续触发时，丢弃过期响应，避免旧请求晚到覆盖新候选（竞态守卫，对齐 review.vue） */
+let searchSeq = 0
 async function onDishSearch() {
   const kw = dishKeyword.value.trim()
   if (!kw) {
@@ -695,14 +707,18 @@ async function onDishSearch() {
     dishSearched.value = false
     return
   }
+  const seq = ++searchSeq
   dishLoading.value = true
   dishSearched.value = true
   try {
-    dishCandidates.value = await searchDishes({ keyword: kw, page: 1, pageSize: 6 })
+    const list = await searchDishes({ keyword: kw, page: 1, pageSize: 6 })
+    if (seq !== searchSeq) return // 已有更新的搜索发出，丢弃本次过期结果
+    dishCandidates.value = list
   } catch {
+    if (seq !== searchSeq) return
     dishCandidates.value = []
   } finally {
-    dishLoading.value = false
+    if (seq === searchSeq) dishLoading.value = false
   }
 }
 
@@ -909,7 +925,8 @@ function markErrors(errs: Record<string, string>) {
   }
   const target = idMap[first] || (first.startsWith('error.correct.') ? 'f-point' : '')
   scrollIntoView.value = ''
-  setTimeout(() => { scrollIntoView.value = target }, 50)
+  const t = setTimeout(() => { scrollIntoView.value = target }, 50)
+  pageTimers.push(t)
 }
 
 // ---- ⑧ 提交组装 ----
@@ -1043,8 +1060,6 @@ async function submit() {
 }
 
 // ---- ⑨ 成功态自动返回（用户 2 秒内无输入则 navigateBack） ----
-let backTimer: ReturnType<typeof setTimeout> | null = null
-
 function scheduleAutoBack() {
   if (backTimer) clearTimeout(backTimer)
   backTimer = setTimeout(() => {
@@ -1330,7 +1345,7 @@ onLoad(async (opts?: Record<string, string>) => {
   box-shadow: var(--shadow-modal);
   z-index: 100;
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex;
   flex-direction: column;
   height: 60vh;

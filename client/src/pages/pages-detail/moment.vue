@@ -54,7 +54,7 @@
         <!-- 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡 -->
         <view class="m-card">
           <view class="m-head">
-            <image v-if="moment.userAvatar" class="m-avatar" :src="moment.userAvatar" mode="aspectFill" />
+            <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" />
             <view v-else class="m-avatar m-avatar-empty">
               <IconSvg name="user" :size="36" color="var(--text-tertiary)" />
             </view>
@@ -83,15 +83,9 @@
               <text class="related-type">{{ relatedTypeLabel }}</text>
               <view class="related-name-row">
                 <text class="related-name">{{ moment.relatedName }}</text>
-                <!-- 关联菜品星级（与动态卡片一致：口碑同源） -->
+                <!-- 关联菜品评分（1 星 + 数字，与评价卡统一单星形态） -->
                 <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="related-rating">
-                  <IconSvg
-                    v-for="i in 5"
-                    :key="i"
-                    name="star-filled"
-                    :size="20"
-                    :color="i <= Math.round(moment.relatedRating || 0) ? 'var(--color-star)' : 'var(--border-color)'"
-                  />
+                  <IconSvg name="star-filled" :size="22" color="var(--color-star)" />
                   <text class="related-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
                 </view>
               </view>
@@ -201,12 +195,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import { submitFeedback } from '@/api/feedback'
 import { formatDateTime } from '@/utils/time'
+import { getImageUrl } from '@/utils/image'
 import type { Moment, MomentComment } from '@/types/moment'
 import { buildSharePayload } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
@@ -252,6 +247,13 @@ const visibleComments = computed(() => {
 })
 
 let currentId = 0
+
+/** 页面级定时器注册表：onUnload 统一清理，避免页面销毁后 setTimeout 仍触发（P0 防多退一层/越界访问） */
+let pageTimers: ReturnType<typeof setTimeout>[] = []
+onUnload(() => {
+  pageTimers.forEach((t) => clearTimeout(t))
+  pageTimers = []
+})
 
 const isAuthor = computed(() => !!moment.value && !!userStore.userInfo && moment.value.userId === userStore.userInfo.id)
 const relatedTypeLabel = computed(() => {
@@ -313,10 +315,11 @@ const commentIntoView = ref('')
 function focusComment() {
   // 先清空再延迟设置目标值，保证重复点击每次都能触发 scroll-into-view 定位
   commentIntoView.value = ''
-  setTimeout(() => {
+  const t = setTimeout(() => {
     commentIntoView.value = 'comment-section'
     commentFocus.value = true
   }, 30)
+  pageTimers.push(t)
 }
 
 /** 动态「有用」乐观更新：与 MomentCard / CommentItem 同模式（后端计数已含当前用户），失败回滚。
@@ -447,7 +450,8 @@ function selectMention(name: string) {
 /** 输入框失焦：收起提及弹层（延迟以允许点击选项先触发） */
 function onCommentBlur() {
   commentFocus.value = false
-  setTimeout(() => { mentionOpen.value = false }, 150)
+  const t = setTimeout(() => { mentionOpen.value = false }, 150)
+  pageTimers.push(t)
 }
 
 async function submitComment() {
@@ -574,7 +578,7 @@ onLoad((query) => {
 .audit-rejected .m-audit-text { color: var(--color-error); }
 .m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
 .m-images { margin-top: var(--spacing-sm); }
-.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: 0; box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: 0; box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-card:active { transform: scale(var(--press-scale)); }
 /* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
 .related-icon { font-size: 32rpx; line-height: 1; }
@@ -607,7 +611,7 @@ onLoad((query) => {
    底部栏白底融为一体，视觉层次丢失（Apple 输入框聚焦保持背景一致） */
 .comment-input-box.focused { border-color: var(--color-primary); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: 32rpx; color: var(--text-primary); }
-.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out), background 120ms var(--ease-out); }
+.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }
 .comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }

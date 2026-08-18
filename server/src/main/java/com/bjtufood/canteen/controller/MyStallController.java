@@ -3,6 +3,7 @@ package com.bjtufood.canteen.controller;
 import com.bjtufood.canteen.dto.MyPublishStallVO;
 import com.bjtufood.canteen.dto.StallUgcSubmitReq;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,8 +31,9 @@ public class MyStallController {
     @Operation(
             summary = "提交档口/食堂",
             description = "用途：学生提交新档口或新食堂。type=stall 需传 canteenId；type=canteen 无需关联。"
-                    + "提交后状态为待审核（pending），由后台审核通过后展示。"
+                    + "提交后状态为待审核（pending），由后台审核通过后展示。需已完成学号邮箱认证。"
     )
+    @RequireVerified
     @PostMapping
     public Result<Long> submit(@Valid @RequestBody StallUgcSubmitReq req) {
         return Result.success(stallService.submitUgc(req));

@@ -96,7 +96,7 @@ function handleClick() {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: transform 120ms var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .stall-card-single.pressed { transform: scale(var(--press-scale)); }

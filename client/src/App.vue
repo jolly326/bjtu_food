@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onLaunch } from "@dcloudio/uni-app";
 import { useThemeStore } from "@/stores/theme";
+import { useUserStore } from "@/stores/user";
 import { WX_CLOUD_ENV } from "@/api/config";
 onLaunch(() => {
   // 恢复深色模式偏好（本地持久化）
@@ -12,6 +13,8 @@ onLaunch(() => {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
   // #endif
+  // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（verified=false）；有 token 则刷新资料
+  useUserStore().silentLogin();
 });
 </script>
 <style>
@@ -432,7 +435,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   to { opacity: 1; }
 }
 .enter-up {
-  animation: enterFade 0.2s ease both;
+  animation: enterFade var(--duration-base) ease both;
   animation-delay: calc(var(--enter-i, 0) * 40ms);
 }
 
@@ -487,6 +490,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .interact-btn,
   .stall-card-single,
   .comment-item,
+  .c-useful-count,
   .review-item,
   .moment-card,
   .sheet-tab,

@@ -106,7 +106,7 @@ function handleClear() {
 .clear-btn {
   flex-shrink: 0;
   padding: 0 var(--spacing-xs);
-  transition: transform 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .clear-btn:active { transform: scale(var(--press-scale)); }

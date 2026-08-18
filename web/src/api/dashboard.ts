@@ -1,13 +1,12 @@
 import { get } from './http'
 
 /**
- * 数据看板（task-12 W2）。
- * GET /admin/dashboard?range=week|month|all
- *   - week / month：近 7 天 / 近 30 天（按后端 StatsController 口径）
- *   - all：后端映射为「近 30 天」（与 week/month 的 month 同口径，非全量历史）
- * 后端出参 camelCase：DashboardVO{ range, newDishCount, newReviewCount, totalDishCount,
- * totalReviewCount, hotCanteens[{id,name,score}], hotDishes[{id,name,score}],
- * viewTrend{dates[],values[]}, reviewTrend{dates[],values[]} }。
+ * 工作台（DashboardView 数据源，契约见 docs/project_spec.md §0.4.1）。
+ * GET /admin/dashboard?range=week
+ *   - 后端一次返回：待办 count + 待办明细（申请/动态/反馈各 5 条）、8 项规模指标、近期操作（日志 10 条）。
+ *   - 出参 camelCase，与后端 DashboardVO 一一对应；range 当前固定 week（DashboardView 未使用 range 分档）。
+ *   - 注：后端 DashboardVO 另含 newDishCount/newReviewCount/hotCanteens/hotDishes/viewTrend/reviewTrend
+ *     （供后续图表看板复用），但 DashboardView 当前不消费这些图表字段。
  */
 
 export interface DashboardRankItem {

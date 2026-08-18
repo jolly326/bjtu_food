@@ -98,18 +98,4 @@ export interface HotSearch {
   relatedCount?: number
 }
 
-/** 「我的发布」菜品（含审核态与退回原因，供审核状态页展示） */
-export interface MyPublishDish {
-  id: number
-  name: string
-  /** 单位：元（已在 api 层由分转元，勿在页面再算） */
-  price: number
-  image?: string
-  images?: string[]
-  description?: string
-  tags?: string
-  auditStatus?: AuditStatus
-  /** audit_status=rejected 时由后台填写 */
-  rejectReason?: string
-  createTime?: string
-}
+

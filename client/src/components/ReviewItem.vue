@@ -1,7 +1,7 @@
 <template>
   <view
     class="review-item"
-    :class="{ 'review-item-pressed': pressed }"
+    :class="{ 'review-item-pressed': pressed, 'review-item--flat': flat }"
     @touchstart="pressed = true"
     @touchend="pressed = false"
     @touchcancel="pressed = false"
@@ -15,19 +15,20 @@
     </view>
     <view class="review-body">
       <view class="review-head">
-        <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
-        <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
+        <view class="review-head-left">
+          <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
+          <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
+        </view>
+        <!-- 右上角操作：举报（他人）/ 删除（本人），从 footer 上移 -->
+        <view class="review-head-ops">
+          <text v-if="!isOwn && !hideReport" class="review-op review-op--report" role="button" aria-label="举报评价" @tap.stop="onReport(review)">举报</text>
+          <text v-if="canDelete" class="review-op review-op--delete" role="button" aria-label="删除评价" @tap.stop="onDelete">删除</text>
+        </view>
       </view>
-      <!-- 星级：仅顶层评价（有评分）展示，展示可信口碑 -->
+      <!-- 评分：1 颗星 + 数字（与动态卡关联菜品星级统一为单星形态） -->
       <view class="review-rating" v-if="(review.rating || 0) > 0">
-        <IconSvg
-          v-for="i in 5"
-          :key="i"
-          name="star-filled"
-          :size="20"
-          :color="i <= (review.rating || 0) ? 'var(--color-star)' : 'var(--border-color)'"
-          class="review-star"
-        />
+        <IconSvg name="star-filled" :size="24" color="var(--color-star)" class="review-star" />
+        <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
       <view class="review-foot" v-if="review.images && review.images.length">
@@ -42,8 +43,7 @@
           @tap="previewImage(idx)"
         />
       </view>
-      <!-- footer 操作组：有用（可选）/ 举报 / 删除（本人）。
-           评价扁平化后不再提供楼中楼回复（讨论沉淀到动态评论区），见 project_spec 决策 -->
+      <!-- footer 操作组：仅有用（举报/删除已上移右上角） -->
       <view class="review-footer">
         <view class="review-ops">
           <text v-if="!hideUseful" class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
@@ -54,8 +54,6 @@
             />
             <text v-if="likeCount > 0" class="review-op-count">{{ likeCount }}</text>
           </text>
-          <text v-if="!isOwn" class="review-op review-op--report" role="button" aria-label="举报评价" @tap.stop="onReport(review)">举报</text>
-          <text v-if="canDelete" class="review-op review-op--delete" role="button" aria-label="删除评价" @tap.stop="onDelete">删除</text>
         </view>
       </view>
     </view>
@@ -79,10 +77,14 @@ const props = defineProps<{
   usefulActive?: boolean
   /** 隐藏点赞（有用）操作：个人管理页按产品决策不设点赞 */
   hideUseful?: boolean
+  /** 隐藏举报（右上角）：我的评价页无需举报自己的评价 */
+  hideReport?: boolean
   /** 当前登录用户 ID：用于判定本人评价（本人可删、隐藏举报） */
   currentUserId?: number
   /** 显式允许删除（个人管理页独立开关，不依赖 currentUserId） */
   deletable?: boolean
+  /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
+  flat?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -175,16 +177,26 @@ function onThumbError(idx: number) {
   box-shadow: var(--shadow-card);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition: opacity 120ms var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
+/* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，保留条目结构 + 分隔线 */
+.review-item--flat {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--spacing-md) 0;
+  border-bottom: 2rpx solid var(--border-color);
+}
+.review-item--flat:last-child { border-bottom: none; }
+.review-item--flat.review-item-pressed { opacity: 0.5; }
 /* 轻反馈：整卡由 scale 改为 opacity，避免整块塌陷感。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：与动态卡片统一 64rpx 圆角正方形 */
+/* 头像：与动态卡（moment.vue m-head）统一 72rpx 圆角正方形 */
 .review-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 16rpx;
   background: var(--bg-page);
   flex-shrink: 0;
@@ -200,30 +212,41 @@ function onThumbError(idx: number) {
   gap: var(--spacing-xs);
 }
 
-/* 头部：昵称 + 时间（时间置右灰字） */
+/* 头部：左列昵称+时间垂直堆叠，右上角操作（举报/删除） */
 .review-head {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+.review-head-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
 }
 .review-nickname {
-  font-size: var(--font-card);
+  font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-h3);
-  flex-shrink: 0;
 }
 .review-time {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
-  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.review-head-ops {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
-/* 星级：小星、与头部拉开 */
+/* 星级 + 分值：与动态卡片 m-rating 一致（--color-star 金黄 + 灰字分值） */
 .review-rating { display: inline-flex; align-items: center; gap: 2rpx; }
 .review-star { display: inline-block; }
+.review-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 
 /* 正文：转主色（提升阅读重心），与昵称拉开层级 */
 .review-content {
@@ -241,7 +264,7 @@ function onThumbError(idx: number) {
   height: 144rpx;
   border-radius: var(--radius-card);
   background: var(--bg-page);
-  transition: transform 120ms var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 .review-thumb:active { transform: scale(var(--press-scale)); }
 
@@ -257,7 +280,7 @@ function onThumbError(idx: number) {
   font-weight: var(--weight-medium);
   padding: var(--spacing-2xs) var(--spacing-xs);
   border-radius: var(--radius-card);
-  transition: opacity 120ms ease;
+  transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .review-op:active { opacity: 0.6; }

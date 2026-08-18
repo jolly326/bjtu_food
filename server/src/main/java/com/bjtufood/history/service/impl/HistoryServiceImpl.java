@@ -3,14 +3,11 @@ package com.bjtufood.history.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bjtufood.canteen.entity.Canteen;
-import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
-import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.history.dto.ViewLogVO;
 import com.bjtufood.history.entity.ViewLog;
@@ -21,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,27 +57,34 @@ public class HistoryServiceImpl implements HistoryService {
 
         IPage<ViewLog> p = viewLogMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
-        // 批量补齐名称与图片
+        // 批量补齐名称与图片：按 targetType 分组收集 id，一次 IN 查询回填（消除逐条 selectById 的 N+1）
         List<ViewLog> records = p.getRecords();
+        Map<String, List<Long>> idsByType = new HashMap<>();
+        for (ViewLog log : records) {
+            idsByType.computeIfAbsent(log.getTargetType(), k -> new ArrayList<>()).add(log.getTargetId());
+        }
         Map<Long, String> dishNameMap = new HashMap<>();
         Map<Long, String> dishImgMap = new HashMap<>();
         Map<Long, String> stallNameMap = new HashMap<>();
         Map<Long, String> canteenNameMap = new HashMap<>();
 
-        for (ViewLog log : records) {
-            String tt = log.getTargetType();
-            Long tid = log.getTargetId();
-            if ("dish".equals(tt) && !dishNameMap.containsKey(tid)) {
-                Dish d = dishMapper.selectById(tid);
-                dishNameMap.put(tid, d != null ? d.getName() : "");
-                dishImgMap.put(tid, d != null ? d.getImages() : null);
-            } else if ("stall".equals(tt) && !stallNameMap.containsKey(tid)) {
-                Stall s = stallMapper.selectById(tid);
-                stallNameMap.put(tid, s != null ? s.getName() : "");
-            } else if ("canteen".equals(tt) && !canteenNameMap.containsKey(tid)) {
-                Canteen c = canteenMapper.selectById(tid);
-                canteenNameMap.put(tid, c != null ? c.getName() : "");
-            }
+        List<Long> dishIds = idsByType.getOrDefault("dish", List.of());
+        if (!dishIds.isEmpty()) {
+            dishMapper.selectBatchIds(dishIds)
+                    .forEach(d -> {
+                        dishNameMap.put(d.getId(), d.getName());
+                        dishImgMap.put(d.getId(), d.getImages());
+                    });
+        }
+        List<Long> stallIds = idsByType.getOrDefault("stall", List.of());
+        if (!stallIds.isEmpty()) {
+            stallMapper.selectBatchIds(stallIds)
+                    .forEach(s -> stallNameMap.put(s.getId(), s.getName()));
+        }
+        List<Long> canteenIds = idsByType.getOrDefault("canteen", List.of());
+        if (!canteenIds.isEmpty()) {
+            canteenMapper.selectBatchIds(canteenIds)
+                    .forEach(c -> canteenNameMap.put(c.getId(), c.getName()));
         }
 
         IPage<ViewLogVO> result = new Page<>(page, pageSize, p.getTotal());

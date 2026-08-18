@@ -87,3 +87,11 @@ upload:
   path: ${UPLOAD_PATH:./uploads/images}
   # 上传文件 URL 访问前缀
   url-prefix: ${UPLOAD_URL_PREFIX:/images}
+
+# ---------- 微信小程序（code2Session，spec §5.y） ----------
+# appid / secret 一律从环境变量注入，禁止在仓库写入明文。
+wechat:
+  appid: ${WECHAT_APPID:}
+  secret: ${WECHAT_SECRET:}
+  # 小程序登录凭证校验（code2Session）接口地址（GET）
+  code2session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}

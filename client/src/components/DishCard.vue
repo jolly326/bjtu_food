@@ -106,7 +106,7 @@ function handleClick() {
   overflow: hidden;
   box-shadow: var(--shadow-card);
   /* 进场仅极轻量淡入 + 按压缩放（红线 §4.9②：位移 ≤0，仅 transform/opacity） */
-  transition: transform 0.12s ease, opacity 0.2s ease;
+  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .dish-card.pressed {
@@ -126,7 +126,7 @@ function handleClick() {
   display: block;
   /* B.5 图片加载淡入：默认透明，load 完成后淡入，避免硬切/跳变（CLS<0.1） */
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--duration-slow) var(--ease-out);
 }
 .card-img.loaded { opacity: 1; }
 .image-placeholder {

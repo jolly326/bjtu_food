@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -100,6 +100,8 @@ watch(searchQuery, () => {
   clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
 })
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
 // ===== 详情 + 处理抽屉 =====
 const detail = ref<FeedbackAdminVO | null>(null)

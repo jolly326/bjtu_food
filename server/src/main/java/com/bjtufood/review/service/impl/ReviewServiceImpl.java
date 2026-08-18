@@ -18,8 +18,8 @@ import com.bjtufood.moment.service.MomentService;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
-import com.bjtufood.user.mapper.UserMapper;
-import com.bjtufood.user.entity.User;
+import com.bjtufood.auth.mapper.UserMapper;
+import com.bjtufood.auth.entity.User;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.entity.Dish;
 import lombok.RequiredArgsConstructor;
@@ -285,6 +285,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void likeReview(Long userId, Long reviewId) {
         ReviewUseful exist = reviewUsefulMapper.selectOne(
                 new LambdaQueryWrapper<ReviewUseful>()

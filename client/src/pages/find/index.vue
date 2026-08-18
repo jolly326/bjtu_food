@@ -45,7 +45,7 @@
         <view v-else-if="discoverFailed" class="discover-empty">
           <IconSvg name="empty" :size="96" color="var(--text-tertiary)" />
           <text class="discover-empty-tip">加载失败</text>
-          <text class="discover-empty-sub">网络异常或后端未启动，下拉或点击重试</text>
+          <text class="discover-empty-sub">网络异常，下拉或点击重试</text>
           <view class="discover-retry" @tap="loadDiscover">重新加载</view>
         </view>
 
@@ -213,7 +213,7 @@ import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { useLocationStore } from '@/stores/location'
-import { haversineMeters, getUserLocation } from '@/utils/location'
+import { getUserLocation } from '@/utils/location'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -340,7 +340,7 @@ interface MixedResult {
   /** 食堂坐标（GCJ-02），来自 suggest 联表，前端本地 Haversine 算「距你 Xm」 */
   lat?: number
   lng?: number
-  /** 距用户距离（米）：前端基于定位本地算，未定位/无坐标为 undefined */
+  /** 距用户距离（米）：前端基于定位本地算；未定位/坐标缺失回退校区中心，恒有值 */
   distance?: number
   /** 缩略图是否已加载完成（驱动淡入，纯前端渲染态） */
   loaded?: boolean
@@ -348,19 +348,8 @@ interface MixedResult {
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
 
-/** 混合结果本地算距离（米）：基于 locationStore 用户坐标 + Haversine；用户位置不出本机 */
-const mixedWithDistance = computed<MixedResult[]>(() => {
-  const loc = locationStore.location
-  return mixedResults.value.map((r) => {
-    if (loc && typeof r.lat === 'number' && typeof r.lng === 'number') {
-      return { ...r, distance: haversineMeters(loc, { lat: r.lat, lng: r.lng }) }
-    }
-    return r
-  })
-})
-
-/** 搜索结果（仅菜品单列；本地算距离就近排序） */
-const filteredMixed = computed(() => mixedWithDistance.value)
+/** 搜索结果（仅菜品单列；距离已在 doMixedSearch 经 withLocalDistance 写回，未定位回退校区中心，恒有值） */
+const filteredMixed = computed(() => mixedResults.value)
 
 /** 距你文案：米/公里自适应 */
 function fmtMixedDistance(m: number): string {
@@ -384,8 +373,6 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   if (start < text.length) segs.push({ text: text.slice(start), hit: false })
   return segs
 }
-/** C12 图片淡入：图片 load 后由 CSS transition 控制 opacity（此处仅占位，透明度用 :class 触发也可，简单用事件无副作用） */
-function onThumbLoad() { /* 已移除：淡入由 @load 直接置 item.loaded 驱动 */ }
 /** 输入框失焦：无额外处理（直接搜索，无联想面板） */
 function onSearchBlur() { /* no-op */ }
 
@@ -425,7 +412,9 @@ async function doMixedSearch(kw?: string) {
     const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50 })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
-    mixedResults.value = list
+    // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）
+    const decorated = dishStore.withLocalDistance(list, false)
+    mixedResults.value = decorated
       .map(d => {
         // B8 副信息：档口名 + 食堂名
         const sub = [d.stallName, d.canteen].filter(Boolean).join(' · ')
@@ -447,6 +436,7 @@ async function doMixedSearch(kw?: string) {
           originalPrice: d.originalPrice,
           lat: d.latitude != null ? Number(d.latitude) : undefined,
           lng: d.longitude != null ? Number(d.longitude) : undefined,
+          distance: d.distance,
         }
       })
       .filter(r => r.name)
@@ -545,7 +535,7 @@ watch(keyword, () => {
   width: calc(var(--nav-h) - 14px);
   height: calc(var(--nav-h) - 14px);
   flex-shrink: 0;
-  transition: transform 0.12s var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .search-back.pressed { transform: scale(var(--press-scale)); }
@@ -566,14 +556,14 @@ watch(keyword, () => {
 .search-box-icon { flex-shrink: 0; line-height: 1; }
 .search-box-input { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); }
 .search-box-ph { color: var(--text-tertiary); }
-.search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .search-box-clear:active { opacity: 0.55; }
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }
 
 /* 历史搜索 */
-.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-clear:active { opacity: 0.55; }
 .history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .history-chip {
@@ -585,7 +575,7 @@ watch(keyword, () => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
   border-radius: var(--radius-pill);
-  transition: transform 0.12s ease, background 0.15s ease;
+  transition: transform var(--duration-fast) ease, background var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip.pressed { transform: scale(var(--press-scale)); background: var(--color-primary-soft); }
@@ -599,13 +589,13 @@ watch(keyword, () => {
   padding: var(--spacing-xs);
   margin: calc(-1 * var(--spacing-xs));
   border-radius: 50%;
-  transition: opacity 120ms ease;
+  transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
 /* 历史折叠按钮（2026-08-03：展开/收起） */
 .history-toggle { display: flex; align-items: center; justify-content: center; padding: var(--spacing-sm) 0 0; }
-.history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-toggle-text:active { opacity: 0.55; }
 
 /* 搜索混合结果页（2026-08-03：无排序/筛选） */
@@ -626,7 +616,7 @@ watch(keyword, () => {
   border-radius: var(--radius-card);
   padding: var(--spacing-md);
   box-shadow: var(--shadow-card);
-  transition: background-color 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   /* A7 逐行淡入（配合 :style animationDelay stagger） */
@@ -708,7 +698,7 @@ watch(keyword, () => {
 .mixed-rating-group { display: inline-flex; align-items: center; gap: var(--spacing-2xs); flex-shrink: 0; }
 .mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
 /* 第三行位置：左段档口·食堂可省略、右段「距你 Xm」固定不截断，两端对齐，与标徽行分隔 */
-.mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
+.mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-secondary); }
 .mixed-sub-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A4 距离段：主色强调，无定位时不显示 */
 .mixed-dist-seg { flex-shrink: 0; color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
@@ -762,7 +752,7 @@ watch(keyword, () => {
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
   color: var(--color-on-primary);
-  transition: opacity 120ms var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .discover-retry:active { opacity: 0.8; }

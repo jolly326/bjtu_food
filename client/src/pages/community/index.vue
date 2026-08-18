@@ -25,7 +25,7 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade 0.2s + 40ms 间隔） -->
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔） -->
         <MomentCard
           v-for="(m, i) in moments"
           :key="m.id"
@@ -243,7 +243,7 @@ onShareAppMessage(() => buildSharePayload())
   align-items: center;
   justify-content: center;
   z-index: 60;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .fab-publish:active { transform: scale(0.92); opacity: 0.85; }

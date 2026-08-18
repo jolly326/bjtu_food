@@ -88,7 +88,7 @@ function openEdit(id: number) {
   showModal.value = true
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!validate()) return
   const payload: any = {
     title: form.value.title.trim(),
@@ -103,8 +103,8 @@ function handleSubmit() {
     payload.target_url = form.value.target_url.trim()
   }
   try {
-    if (editingId.value !== null) store.update(editingId.value, payload)
-    else store.add(payload)
+    if (editingId.value !== null) await store.update(editingId.value, payload)
+    else await store.add(payload)
     toast.success(editingId.value !== null ? 'Banner 已更新' : 'Banner 已添加')
     showModal.value = false
   } catch (e: any) {

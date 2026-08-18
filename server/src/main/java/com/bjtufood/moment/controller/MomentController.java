@@ -1,6 +1,7 @@
 package com.bjtufood.moment.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.utils.SecurityUtil;
@@ -62,8 +63,8 @@ public class MomentController {
         return Result.success(momentService.detail(id, userId));
     }
 
-    @Operation(summary = "发布动态", description = "STU。audit_status=pending。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "发布动态", description = "STU（需邮箱认证）。audit_status=pending。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/moments")
     public Result<Map<String, Long>> publish(@Valid @RequestBody MomentPublishReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -71,8 +72,8 @@ public class MomentController {
         return Result.success(Map.of("id", id));
     }
 
-    @Operation(summary = "编辑重提动态", description = "STU 仅作者。复用原记录，audit_status→pending，reject_reason 清空。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "编辑重提动态", description = "STU（需邮箱认证）仅作者。复用原记录，audit_status→pending，reject_reason 清空。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PutMapping("/my/moments/{id}")
     public Result<Void> updateMine(
             @Parameter(description = "动态ID", example = "1")
@@ -83,8 +84,8 @@ public class MomentController {
         return Result.success();
     }
 
-    @Operation(summary = "删除自己动态", description = "STU 仅作者。物理删除，连带评论/通知。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "删除自己动态", description = "STU（需邮箱认证）仅作者。物理删除，连带评论/通知。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @DeleteMapping("/my/moments/{id}")
     public Result<Void> deleteMine(
             @Parameter(description = "动态ID", example = "1")
@@ -104,8 +105,8 @@ public class MomentController {
         return Result.success(momentService.myMoments(userId, auditStatus));
     }
 
-    @Operation(summary = "👍 有用切换（幂等）", description = "STU。一人一票，未标记→true+1，已标记→false-1。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "👍 有用切换（幂等）", description = "STU（需邮箱认证）。一人一票，未标记→true+1，已标记→false-1。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/moments/{id}/useful")
     public Result<MomentUsefulResult> toggleUseful(
             @Parameter(description = "动态ID", example = "1")
@@ -114,8 +115,8 @@ public class MomentController {
         return Result.success(momentService.toggleUseful(id, userId));
     }
 
-    @Operation(summary = "发评论", description = "STU。支持 parentId 一层回复。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "发评论", description = "STU（需邮箱认证）。支持 parentId 一层回复。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/moments/{id}/comments")
     public Result<Map<String, Long>> comment(
             @Parameter(description = "动态ID", example = "1")
@@ -138,8 +139,8 @@ public class MomentController {
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
-    @Operation(summary = "评论 👍 有用切换（幂等）", description = "STU。一人一票，未标记→true+1，已标记→false-1。返回 {useful,usefulCount}。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "评论 👍 有用切换（幂等）", description = "STU（需邮箱认证）。一人一票，未标记→true+1，已标记→false-1。返回 {useful,usefulCount}。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/moments/{id}/comments/{cid}/useful")
     public Result<MomentUsefulResult> toggleCommentUseful(
             @Parameter(description = "动态ID", example = "1")
@@ -150,8 +151,8 @@ public class MomentController {
         return Result.success(momentService.toggleCommentUseful(id, cid, userId));
     }
 
-    @Operation(summary = "删除自己评论", description = "STU 仅作者。连带子回复删除，commentCount-1。", security = @SecurityRequirement(name = "bearerAuth"))
-    @PreAuthorize("hasRole('STUDENT')")
+    @Operation(summary = "删除自己评论", description = "STU（需邮箱认证）仅作者。连带子回复删除，commentCount-1。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @DeleteMapping("/my/moments/{id}/comments/{cid}")
     public Result<Void> deleteComment(
             @Parameter(description = "动态ID", example = "1")

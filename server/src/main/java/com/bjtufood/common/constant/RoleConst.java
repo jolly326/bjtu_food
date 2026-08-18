@@ -23,4 +23,9 @@ public interface RoleConst {
     String ROLE_STUDENT = "ROLE_STUDENT";
     String ROLE_ADMIN = "ROLE_ADMIN";
     String ROLE_SUPER_ADMIN = "ROLE_SUPER_ADMIN";
+
+    /** 是否为管理端角色（admin / super_admin） */
+    static boolean isAdmin(String role) {
+        return ADMIN.equals(role) || SUPER_ADMIN.equals(role);
+    }
 }

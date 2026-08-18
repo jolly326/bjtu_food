@@ -68,6 +68,16 @@ public interface DishMapper extends BaseMapper<Dish> {
     DishDetailVO selectDishDetail(@Param("id") Long id);
 
     /**
+     * 批量查询菜品详情（联表），按 id 集合一次 IN 查询。
+     * <p>
+     * 用于消除推荐/分页等场景逐条 selectDishDetail 的 N+1。
+     *
+     * @param ids 菜品ID集合
+     * @return 仅包含存在且可见的菜品
+     */
+    List<DishDetailVO> selectDishDetailsByIds(@Param("ids") java.util.Collection<Long> ids);
+
+    /**
      * 查询菜品评分分布
      * <p>
      * 按星级分组，统计各星级人数

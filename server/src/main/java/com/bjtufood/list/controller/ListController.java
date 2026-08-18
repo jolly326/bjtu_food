@@ -50,12 +50,13 @@ public class ListController {
         return Result.success(listService.listByUserId(userId));
     }
 
-    @Operation(summary = "清单详情", description = "用途：查看清单及其中菜品。当前接口需要登录，但尚未校验清单归属。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "清单详情", description = "用途：查看清单及其中菜品。需要登录，且仅清单归属人可查看（越权返回 403）。", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/lists/{id}")
     public Result<?> getListDetail(
             @Parameter(description = "清单ID", example = "1")
             @PathVariable Long id) {
-        return Result.success(listService.getDetail(id));
+        Long userId = SecurityUtil.getCurrentUserId();
+        return Result.success(listService.getDetail(id, userId));
     }
 
     @Operation(summary = "删除清单", description = "用途：删除自己创建的清单。", security = @SecurityRequirement(name = "bearerAuth"))

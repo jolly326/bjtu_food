@@ -82,14 +82,14 @@ function openEdit(id: number) {
   showModal.value = true
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!validate()) return
   try {
     if (editingId.value !== null) {
-      store.updateCanteen(editingId.value, { ...form.value })
+      await store.updateCanteen(editingId.value, { ...form.value })
       toast.success('食堂已更新')
     } else {
-      store.addCanteen({ ...form.value })
+      await store.addCanteen({ ...form.value })
       toast.success('食堂已添加')
     }
     showModal.value = false

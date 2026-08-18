@@ -3,7 +3,8 @@ import { get, post, put } from './http'
 import { pageRecords, userToLegacy } from './adapter'
 
 export async function login(username: string, password: string): Promise<{ token: string; username: string }> {
-  return await post('/auth/login', { account: username, password })
+  // 方案 C：管理后台专用登录端点（账号密码 + BCrypt + JWT），与小程序微信登录体系解耦（§5.y.5）
+  return await post('/auth/admin/login', { account: username, password })
 }
 
 /**

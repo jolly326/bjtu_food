@@ -5,6 +5,7 @@ import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DateTimeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,14 +45,22 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         checkRateLimit(normalizedEmail, normalizedPurpose);
 
         String code = String.format("%06d", secureRandom.nextInt(1_000_000));
-        sendEmail(normalizedEmail, code, normalizedPurpose);
 
+        // 先落库、后发邮件：即便发邮件失败，也不产生「已发送但无记录」的脏数据。
         EmailVerificationCode record = new EmailVerificationCode();
         record.setEmail(normalizedEmail);
         record.setCodeHash(passwordEncoder.encode(code));
         record.setPurpose(normalizedPurpose);
-        record.setExpiresAt(LocalDateTime.now().plusMinutes(CODE_EXPIRE_MINUTES));
+        record.setExpiresAt(DateTimeUtil.now().plusMinutes(CODE_EXPIRE_MINUTES));
         emailVerificationCodeMapper.insert(record);
+
+        try {
+            sendEmail(normalizedEmail, code, normalizedPurpose);
+        } catch (Exception e) {
+            // 发邮件失败 → 回滚已落库记录，避免留下孤儿验证码（用户不可用但占用限流窗口）
+            emailVerificationCodeMapper.deleteById(record.getId());
+            throw e;
+        }
 
         log.info("Email verification code sent to {}, purpose={}", normalizedEmail, normalizedPurpose);
     }
@@ -75,18 +84,17 @@ public class EmailCodeServiceImpl implements EmailCodeService {
             throw new BusinessException("SMTP 发件邮箱未配置，请设置 MAIL_USERNAME");
         }
 
-        String subject = switch (purpose) {
-            case "register" -> "注册验证码";
-            case "reset" -> "重置密码验证码";
-            default -> "登录验证码";
-        };
+        // 认证用途 verify（替代旧 login/register/reset）
+        String subject = "学号邮箱认证验证码";
         String text = String.format("""
-                您的%s为：%s
+                您正在进行学号邮箱认证。
+
+                您的验证码为：%s
 
                 验证码 %d 分钟内有效，请勿泄露给他人。
 
                 -- 食在交大 校园食堂信息系统
-                """, subject, code, CODE_EXPIRE_MINUTES);
+                """, code, CODE_EXPIRE_MINUTES);
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailFrom);
@@ -115,8 +123,8 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         }
 
         LocalDateTime nextAllowedAt = lastRecord.getCreatedAt().plusSeconds(SEND_INTERVAL_SECONDS);
-        if (nextAllowedAt.isAfter(LocalDateTime.now())) {
-            long remainingSeconds = Duration.between(LocalDateTime.now(), nextAllowedAt).getSeconds();
+        if (nextAllowedAt.isAfter(DateTimeUtil.now())) {
+            long remainingSeconds = Duration.between(DateTimeUtil.now(), nextAllowedAt).getSeconds();
             throw new BusinessException("发送太频繁，请 " + Math.max(1, remainingSeconds) + " 秒后重试");
         }
     }
@@ -129,13 +137,8 @@ public class EmailCodeServiceImpl implements EmailCodeService {
     }
 
     private String normalizePurpose(String purpose) {
-        if ("register".equalsIgnoreCase(purpose)) {
-            return "register";
-        }
-        if ("reset".equalsIgnoreCase(purpose)) {
-            return "reset";
-        }
-        return "login";
+        // purpose 收窄为 verify（spec §5.y.5）：旧 login/register/reset 一律归一为 verify
+        return "verify";
     }
 
     private void validateCampusEmail(String email) {

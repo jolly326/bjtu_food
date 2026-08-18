@@ -4,7 +4,7 @@
     <Header
       variant="home"
       :avatar="isLoggedIn && userInfo?.avatar ? getImageUrl(userInfo.avatar) : ''"
-      :nickname="isLoggedIn ? (userInfo?.nickname || '未命名') : '未登录'"
+      :nickname="isLoggedIn ? (userInfo?.nickname || '食客') : '游客'"
       search-placeholder="搜索你想吃的..."
       @avatar="goProfile"
       @search="goToSearch"
@@ -445,7 +445,7 @@ function scrollToTop() {
   opacity: 0;
   transform: translateY(16rpx) scale(0.9);
   pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
 }
 .fab-backtop.fab-show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 .fab-backtop:active { transform: scale(var(--press-scale)); }

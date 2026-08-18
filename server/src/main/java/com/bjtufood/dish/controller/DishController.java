@@ -1,5 +1,6 @@
 package com.bjtufood.dish.controller;
 
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.dto.DishPublishReq;
@@ -139,10 +140,10 @@ public class DishController {
 
     @Operation(
             summary = "学生发布菜品",
-            description = "学生提交新菜品。后端强制写入 created_by=当前用户、audit_status=pending，等待后台审核。",
+            description = "学生提交新菜品。后端强制写入 created_by=当前用户、audit_status=pending，等待后台审核。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PostMapping("/dishes")
     public Result<Long> createDish(@Valid @RequestBody DishPublishReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -151,10 +152,10 @@ public class DishController {
 
     @Operation(
             summary = "学生编辑 / 重新提交菜品",
-            description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。",
+            description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PutMapping("/dishes/{id}")
     public Result<Void> updateDish(
             @Parameter(description = "菜品ID", example = "1")
@@ -181,10 +182,10 @@ public class DishController {
 
     @Operation(
             summary = "学生删除本人菜品",
-            description = "仅 created_by 本人可删，返回 200/403/404。级联清理评价与清单项（favorite 模块已移除，不处理）。",
+            description = "仅 created_by 本人可删，返回 200/403/404。级联清理评价与清单项（favorite 模块已移除，不处理）。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @DeleteMapping("/dishes/{id}")
     public Result<Void> deleteMyDish(
             @Parameter(description = "菜品ID", example = "1")

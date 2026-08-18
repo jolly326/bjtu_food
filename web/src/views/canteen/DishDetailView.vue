@@ -98,10 +98,15 @@ const imageCount = computed(() => imageList.value.length)
 function openImageModal() {
   showImageModal.value = true
 }
-function saveImageModal() {
+async function saveImageModal() {
   if (dish.value) {
-    store.updateDish(Number(dish.value.id), { image: editForm.value.image })
-    toast.success('图片已更新')
+    try {
+      await store.updateDish(Number(dish.value.id), { image: editForm.value.image })
+      toast.success('图片已更新')
+    } catch (err: any) {
+      toast.error(err.message || '图片保存失败')
+      return
+    }
   }
   showImageModal.value = false
 }
@@ -152,7 +157,7 @@ function toggleFormTag(tag: string) {
   editForm.value.tags = JSON.stringify(arr)
 }
 
-function confirmEdit() {
+async function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!editForm.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!editForm.value.price || editForm.value.price <= 0) errs.price = '价格必须大于 0'
@@ -169,8 +174,13 @@ function confirmEdit() {
     const payload: any = { ...editForm.value }
     // promoPrice 为空（0）时置 null，表示无折扣
     if (!payload.promoPrice) payload.promoPrice = null
-    store.updateDish(Number(dish.value.id), payload)
-    toast.success('菜品已更新')
+    try {
+      await store.updateDish(Number(dish.value.id), payload)
+      toast.success('菜品已更新')
+    } catch (err: any) {
+      toast.error(err.message || '菜品更新失败')
+      return
+    }
   }
   editErrors.value = {}
   editing.value = false

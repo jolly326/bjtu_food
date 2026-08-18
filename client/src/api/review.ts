@@ -82,12 +82,6 @@ export async function toggleUseful(reviewId: number): Promise<{ useful: boolean;
   }
 }
 
-export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<Review[]> {
-  const params: Record<string, any> = { page: options?.page ?? 1, pageSize: options?.pageSize ?? 50 }
-  const res = await get<any>(`/my/reviews`, params)
-  return recordsOf<any>(res).map(toReview)
-}
-
 /** 删除本人评价（STU 仅本人，task-12.5；后端 DELETE /reviews/{id}） */
 export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)

@@ -17,6 +17,7 @@ import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
@@ -25,11 +26,11 @@ import com.bjtufood.moment.service.MomentService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -74,7 +75,13 @@ public class ApplyServiceImpl implements ApplyService {
         apply.setApplyType(applyType);
         apply.setPayload(payloadToJson(req.getPayload()));
         apply.setStatus(ApplyConst.STATUS_PENDING);
-        applyActionMapper.insert(apply);
+        try {
+            applyActionMapper.insert(apply);
+        } catch (DuplicateKeyException e) {
+            // 并发下前置 selectCount 通过但插入瞬间已被他人抢先落库，唯一键兜底：
+            // 统一转为业务提示，避免 500
+            throw new BusinessException("您已报名");
+        }
         return apply.getId();
     }
 
@@ -158,7 +165,7 @@ public class ApplyServiceImpl implements ApplyService {
                 .eq(ApplyAction::getStatus, ApplyConst.STATUS_PENDING)
                 .set(ApplyAction::getStatus, ApplyConst.STATUS_APPROVED)
                 .set(ApplyAction::getHandledBy, adminId)
-                .set(ApplyAction::getHandledAt, LocalDateTime.now())
+                .set(ApplyAction::getHandledAt, DateTimeUtil.now())
                 .set(ApplyAction::getRejectReason, (String) null));
         if (rows == 0) {
             throw new BusinessException("该申请已处理");
@@ -187,7 +194,7 @@ public class ApplyServiceImpl implements ApplyService {
                 .set(ApplyAction::getStatus, ApplyConst.STATUS_REJECTED)
                 .set(ApplyAction::getRejectReason, req.getRejectReason())
                 .set(ApplyAction::getHandledBy, adminId)
-                .set(ApplyAction::getHandledAt, LocalDateTime.now()));
+                .set(ApplyAction::getHandledAt, DateTimeUtil.now()));
         if (rows == 0) {
             throw new BusinessException("该申请已处理");
         }
@@ -243,8 +250,8 @@ public class ApplyServiceImpl implements ApplyService {
             dish.setPortion(getInt(payload, "portion"));
             dish.setServePeriod(getText(payload, "servePeriod"));
             dish.setLimited(getInt(payload, "limited"));
-            dish.setStatus("on");
-            dish.setAuditStatus("pending");
+            dish.setStatus(com.bjtufood.dish.constant.DishConst.STATUS_ON);
+            dish.setAuditStatus(com.bjtufood.dish.constant.DishConst.AUDIT_PENDING);
             dish.setRejectReason(null);
             dish.setCreatedBy(apply.getApplicantId());
             dish.setAvgRating(java.math.BigDecimal.ZERO);

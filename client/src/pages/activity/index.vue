@@ -142,7 +142,7 @@ onLoad(() => {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: background-color 120ms ease, transform 0.12s ease;
+  transition: background-color var(--duration-fast) ease, transform var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .activity-card.pressed {

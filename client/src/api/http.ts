@@ -16,21 +16,37 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * 统一未登录/登录失效处理：
- * 动态调用 user store 的 forceLogout 清内存态 + storage，避免登录态分裂
- * （登录失效后页面仍显示已登录、持续发请求而循环失败）。
+ * 统一未登录/登录失效处理（§5.x 401 处理）：
+ * 清本地登录态 + Toast + 重新触发微信静默登录（wechat-login）。
  * 用动态 import 避免 user store ↔ http 的循环依赖；forceLogout 幂等，可安全延迟执行。
  * 不再使用全局 uni.$on/$emit 事件总线，规避 HMR/模块重复加载导致的重复订阅泄漏。
  */
 async function handleUnauthorized(): Promise<void> {
-  uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
   try {
     const { useUserStore } = await import('@/stores/user')
     useUserStore().forceLogout()
+    uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    // 401 → 重新静默登录（游客态自动恢复）
+    useUserStore().silentLogin()
   } catch {
     // 兜底：极端情况下动态 import 失败，直接清 storage
     uni.removeStorageSync('token')
     uni.removeStorageSync('userInfo')
+  }
+}
+
+/**
+ * 统一无权限/未认证处理（§5.y / §5.x 403）：
+ * 社区写操作需 verified=true，游客触发时后端返回 403 →
+ * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
+ */
+async function handleForbidden(): Promise<void> {
+  uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
+  try {
+    const { useAuthSheetStore } = await import('@/stores/authSheet')
+    useAuthSheetStore().show()
+  } catch {
+    // 兜底：极端情况忽略，仅提示
   }
 }
 
@@ -128,11 +144,15 @@ async function request<T>(
   }
 
   const body = parseBody<T>(res.data)
-  if (body.code === 401 || body.code === 403) {
-    // 401 登录失效；403 通常是 token 失效/权限不足（方法级 @PreAuthorize 对失效 token 返回 403），
-    // 均按登录失效处理：清本地登录态并触发全局引导重新登录，避免反复报错
+  if (body.code === 401) {
+    // 401 登录失效：清登录态 + 重新静默登录（§5.x）
     void handleUnauthorized()
     throw new Error(body.message || '请先登录')
+  }
+  if (body.code === 403) {
+    // 403 无权限：游客访问需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）
+    void handleForbidden()
+    throw new Error(body.message || '请先完成学号邮箱认证')
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message

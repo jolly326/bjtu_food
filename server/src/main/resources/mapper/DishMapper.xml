@@ -72,8 +72,9 @@
             s.business_hours,
             c.id   AS canteen_id,
             c.name AS canteen_name,
-            c.latitude  AS c_lat,
-            c.longitude AS c_lng
+            -- 坐标缺失兜底（旧库 canteen 未填坐标）：回退校区中心默认值，保证前端「距你 Xm」恒有值
+            COALESCE(c.latitude,  39.953800) AS c_lat,
+            COALESCE(c.longitude, 116.335400) AS c_lng
         FROM dish d
                  JOIN stall s ON d.stall_id = s.id
                  JOIN canteen c ON s.canteen_id = c.id
@@ -112,6 +113,10 @@
         </if>
         <if test="req.maxPrice != null">
             AND d.price &lt;= #{req.maxPrice}
+        </if>
+        <if test="req.excludeIds != null and req.excludeIds.size() > 0">
+            AND d.id NOT IN
+            <foreach collection="req.excludeIds" item="id" open="(" separator="," close=")">#{id}</foreach>
         </if>
         <choose>
             <when test="req.sortBy == 'heat'">
@@ -225,6 +230,19 @@
           AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         LIMIT 1
+    </select>
+
+    <!-- 批量菜品详情（消除推荐/分页逐条详情的 N+1） -->
+    <select id="selectDishDetailsByIds" resultMap="dishDetailMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+          AND d.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </select>
 
     <!-- DishAdminVO 结果映射（后台全部菜品） -->

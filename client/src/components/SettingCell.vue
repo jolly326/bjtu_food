@@ -86,7 +86,7 @@ const pressed = ref(false)
   border-bottom: 2rpx solid var(--border-color);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 120ms var(--ease-out), background 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .menu-item:last-child { border-bottom: none; }
 .menu-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }

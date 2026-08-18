@@ -125,7 +125,8 @@ public class CanteenServiceImpl implements CanteenService {
             throw new BusinessException("档口不存在");
         }
 
-        return toStallVO(stall, batchAvgRating(List.of(stall)));
+        Map<Long, List<Dish>> dishesByStall = batchOnSaleDishesByStall(List.of(stall));
+        return toStallVO(stall, batchAvgRating(List.of(stall)), dishesByStall.getOrDefault(stall.getId(), List.of()));
     }
 
     @Override
@@ -139,6 +140,8 @@ public class CanteenServiceImpl implements CanteenService {
                 .eq(Stall::getStatus, "open")
                 .orderByAsc(Stall::getSortOrder));
         Map<Long, BigDecimal> avgRatingMap = batchAvgRating(allStalls);
+        // 批量查询全部档口在售菜品（一次 IN 查询按 stallId 分组），消除逐档口 N+1
+        Map<Long, List<Dish>> dishesByStall = batchOnSaleDishesByStall(allStalls);
         return canteens.stream()
                 .map(canteen -> {
                     CanteenWithStallsVO vo = new CanteenWithStallsVO();
@@ -149,7 +152,7 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
                     List<StallDetailVO> stalls = allStalls.stream()
                             .filter(s -> s.getCanteenId().equals(canteen.getId()))
-                            .map(s -> toStallVO(s, avgRatingMap))
+                            .map(s -> toStallVO(s, avgRatingMap, dishesByStall.getOrDefault(s.getId(), List.of())))
                             .collect(Collectors.toList());
                     vo.setStalls(stalls);
                     return vo;
@@ -191,7 +194,7 @@ public class CanteenServiceImpl implements CanteenService {
         canteenMapper.deleteById(id);
     }
 
-    private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap) {
+    private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap, List<Dish> onSaleDishes) {
         StallDetailVO vo = new StallDetailVO();
         vo.setId(stall.getId());
         vo.setName(stall.getName());
@@ -200,17 +203,30 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(stall.getDescription());
         BigDecimal avg = avgRatingMap.get(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
-        // 主要菜品（评分前3）与菜品数（task todo#3：档口卡展示）；dish.status 用 'on' 表示在售
-        List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                .eq(Dish::getStallId, stall.getId())
-                .eq(Dish::getStatus, "on")
-                .orderByDesc(Dish::getAvgRating)
-                .orderByDesc(Dish::getUpdatedAt));
-        vo.setDishCount(dishes.size());
-        vo.setTopDishes(dishes.stream().limit(3).map(Dish::getName).toList());
+        // 主要菜品（评分前3）与菜品数（task todo#3：档口卡展示）；onSaleDishes 已按 avg_rating/updated_at 降序
+        vo.setDishCount(onSaleDishes.size());
+        vo.setTopDishes(onSaleDishes.stream().limit(3).map(Dish::getName).toList());
         // 人均消费（元，展示用）：在售菜品成交价（分：有促销价取 promoPrice，否则取 price）中位数 → /100 转元取整
-        vo.setPerCapita(derivePerCapita(dishes));
+        vo.setPerCapita(derivePerCapita(onSaleDishes));
         return vo;
+    }
+
+    /**
+     * 批量查询档口在售菜品，构建 stallId → 在售菜品列表（已按评分/更新时间降序）的映射
+     * （消除逐档口 N+1；空档口集合返回空 Map）。
+     */
+    private Map<Long, List<Dish>> batchOnSaleDishesByStall(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
+        return dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                        .in(Dish::getStallId, ids)
+                        .eq(Dish::getStatus, com.bjtufood.dish.constant.DishConst.STATUS_ON)
+                        .orderByDesc(Dish::getAvgRating)
+                        .orderByDesc(Dish::getUpdatedAt))
+                .stream()
+                .collect(Collectors.groupingBy(Dish::getStallId));
     }
 
     /**

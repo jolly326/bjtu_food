@@ -15,7 +15,7 @@
     <view v-else class="home-empty">
       <IconSvg name="empty" :size="120" color="var(--text-tertiary)" />
       <text class="empty-tip">{{ waterfallFailed ? '加载失败' : '暂时没有内容' }}</text>
-      <text class="empty-sub">{{ waterfallFailed ? '网络异常或后端未启动' : '下拉刷新，或确认后端已启动、网络可访问后重试' }}</text>
+      <text class="empty-sub">{{ waterfallFailed ? '网络异常，请稍后重试' : '下拉刷新，或检查网络后重试' }}</text>
       <view v-if="waterfallFailed" class="home-retry" hover-class="pressed" hover-stay-time="80" @tap="emit('retry')">
         <text class="home-retry-text">重新加载</text>
       </view>

@@ -154,7 +154,7 @@ defineExpose({ start, stop })
   will-change: transform;
 }
 .broadcast-track.is-animating {
-  transition: transform 300ms ease;
+  transition: transform var(--duration-slow) var(--ease-out);
 }
 .broadcast-item {
   display: flex;

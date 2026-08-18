@@ -135,26 +135,39 @@
           </view>
         </CardSection>
 
-        <!-- 6. 评价列表：默认最近三条 -->
+        <!-- 6. 评价卡片：整卡一张（卡头标题 + 卡内评价条目 + footer），与动态卡片形态趋同 -->
         <view class="review-section" id="review-section">
-          <SectionTitle :title="`评价 (${reviewTotal})`" />
-          <view class="review-list" v-if="reviewList.length > 0">
-            <ReviewItem
-              v-for="rv in reviewList.slice(0, 3)"
-              :key="rv.id"
-              :review="rv"
-              :current-user-id="currentUserId"
-              @delete="onDeleteReview"
-              @report="onReviewReport"
-            />
-          </view>
-          <view v-else class="review-empty">
-            <EmptyState text="还没有人评价过这道菜，来做第一个吧" icon="comment" />
-            <text class="review-empty-cta" @tap="goWriteReview" role="button" aria-label="写第一个评价">写评价</text>
-          </view>
-          <view class="view-all" v-if="reviewList.length > 0" @tap="goReviewList" role="button" aria-label="查看全部评价">
-            <text class="view-all-text">查看全部评价</text>
-            <IconSvg name="arrow" :size="26" color="var(--text-secondary)" />
+          <view class="review-card">
+            <!-- 卡头：标题（无竖条）+ 写评价入口 -->
+            <view class="review-card-head">
+              <text class="review-card-title">评价 ({{ reviewTotal }})</text>
+              <view class="review-write" role="button" aria-label="写评价" @tap="goWriteReview">
+                <IconSvg name="edit" :size="26" color="var(--color-primary)" />
+                <text class="review-write-text">写评价</text>
+              </view>
+            </view>
+
+            <!-- 卡内条目（flat 扁平，不重复卡片） -->
+            <view class="review-list" v-if="reviewList.length > 0">
+              <ReviewItem
+                v-for="rv in reviewList.slice(0, 3)"
+                :key="rv.id"
+                :review="rv"
+                :current-user-id="currentUserId"
+                flat
+                @delete="onDeleteReview"
+                @report="onReviewReport"
+              />
+            </view>
+            <view v-else class="review-empty">
+              <EmptyState text="还没有人评价过这道菜，来做第一个吧" icon="comment" />
+            </view>
+
+            <!-- 卡尾：查看全部 -->
+            <view class="view-all" v-if="reviewList.length > 0" @tap="goReviewList" role="button" aria-label="查看全部评价">
+              <text class="view-all-text">查看全部评价</text>
+              <IconSvg name="arrow" :size="26" color="var(--text-secondary)" />
+            </view>
           </view>
         </view>
 
@@ -206,7 +219,6 @@ import EmptyState from '@/components/EmptyState.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
 
@@ -328,9 +340,7 @@ onLoad((query) => {
   }
   dishId.value = id
   // 进入新菜品前清空旧详情，避免闪现上一道菜（store 全局状态残留）
-  dishStore.currentDish = null
-  dishStore.reviewList = []
-  dishStore.reviewTotal = 0
+  dishStore.resetDishDetail()
   // 取定位：确保用户坐标（会话级缓存），详情页「距你」才能本地算距离
   ensureLocation()
   loadDishData()
@@ -552,7 +562,7 @@ const hasMetrics = computed(() => {
 .summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
 .summary-head-title { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); }
 /* 写评价：纯文字链接，无胶囊背景、无圆角、无 padding，仅主色 + 图标 + semibold */
-.write-review-link { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); line-height: 1; -webkit-tap-highlight-color: transparent; transition: opacity 120ms ease; }
+.write-review-link { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); line-height: 1; -webkit-tap-highlight-color: transparent; transition: opacity var(--duration-fast) ease; }
 .write-review-link:active { opacity: 0.55; }
 .write-review-text { line-height: 1; }
 .summary-body { display: flex; align-items: center; gap: var(--spacing-lg); }
@@ -568,17 +578,57 @@ const hasMetrics = computed(() => {
 .dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 .dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill, 999rpx); background: var(--color-star-empty); overflow: hidden; }
-.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star); transition: width 400ms var(--ease-out); }
+.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star); transition: width var(--duration-slow) var(--ease-out); }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 
-/* 6. 评价列表：ReviewItem 已卡片化（与动态卡片统一），SectionTitle 下直接堆叠卡片，
-   去外层白卡避免双重卡片（title 保持在页面层级） */
+/* 6. 评价卡片：整卡一张（卡头 + flat 条目 + footer），与动态卡片形态趋同、无竖条装饰 */
 .review-section { margin: var(--spacing-md) var(--spacing-md) 0; }
-.review-list { display: flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-sm); }
-.review-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md) 0; }
-.review-empty-cta { display: inline-flex; align-items: center; justify-content: center; font-size: var(--font-body); font-weight: var(--weight-medium); color: var(--color-on-primary); background: var(--color-primary); padding: var(--spacing-sm) var(--spacing-xl); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
-.review-empty-cta:active { opacity: 0.6; }
-.view-all { display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding: var(--spacing-sm); border-radius: var(--radius-tag); background: var(--bg-soft); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.review-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+.review-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0 var(--spacing-sm);
+}
+/* 卡头标题：与分区标题同视觉（h2 加重），无竖条 */
+.review-card-title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-heavy);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-h2);
+  flex: 1;
+  min-width: 0;
+}
+.review-write {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  flex-shrink: 0;
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  border-radius: var(--radius-tag);
+  transition: opacity var(--duration-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.review-write:active { opacity: 0.6; }
+.review-write-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+.review-list { display: flex; flex-direction: column; }
+.review-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-lg) 0; }
+.view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-sm) 0 var(--spacing-2xs);
+  transition: opacity var(--duration-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
 .view-all:active { opacity: 0.6; }
 .view-all-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 

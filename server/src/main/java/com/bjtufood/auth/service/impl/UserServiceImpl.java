@@ -45,6 +45,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getByOpenid(String openid) {
+        return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getOpenid, openid));
+    }
+
+    @Override
+    public User getByBindEmail(String bindEmail) {
+        return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getBindEmail, bindEmail));
+    }
+
+    @Override
     public void updateStatus(Long id, String status) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -119,7 +129,18 @@ public class UserServiceImpl implements UserService {
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
+        vo.setVerified(user.getVerified());
+        vo.setOpenid(user.getOpenid());
+        vo.setBindEmail(user.getBindEmail());
+        vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());
         return vo;
+    }
+
+    /** 游客短标识：食客 + ID 尾 4 位 */
+    private String buildGuestShortId(Long userId) {
+        String id = String.valueOf(userId);
+        String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
+        return "食客" + tail;
     }
 }

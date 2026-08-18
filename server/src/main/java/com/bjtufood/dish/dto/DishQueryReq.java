@@ -3,6 +3,8 @@ package com.bjtufood.dish.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Schema(description = "菜品列表查询参数")
 public class DishQueryReq {
@@ -42,4 +44,7 @@ public class DishQueryReq {
 
     @Schema(description = "排序方向：asc、desc", example = "desc")
     private String sortOrder;
+
+    @Schema(description = "排除的菜品ID集合（推荐接口去重前端已展示项，DB 侧下推）", example = "[1,2]")
+    private List<Long> excludeIds;
 }

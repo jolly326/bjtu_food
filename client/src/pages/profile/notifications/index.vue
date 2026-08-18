@@ -144,7 +144,7 @@ onShow(() => {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: background-color 120ms var(--ease-out), transform 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .msg-item.pressed { background-color: var(--bg-soft); }

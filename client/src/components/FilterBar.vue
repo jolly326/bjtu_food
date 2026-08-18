@@ -9,7 +9,7 @@
       :style="{
         transform: `translateX(${visualOffset}px)`,
         paddingLeft: `calc(50% - ${itemW / 2}px)`,
-        transition: animating ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+        transition: animating ? 'transform 0.32s var(--ease-out)' : 'none',
       }"
       @touchstart.stop="onTouchStart"
       @touchmove="onTouchMove"
@@ -243,7 +243,7 @@ watch(
     color: var(--text-tertiary);
     font-weight: 500;
     white-space: nowrap;
-    transition: color 0.2s ease, font-size 0.2s ease, transform 0.2s ease;
+    transition: color var(--duration-base) var(--ease-out), font-size var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
   }
 
   &.active {

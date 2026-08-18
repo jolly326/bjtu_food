@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
@@ -113,6 +113,8 @@ watch(searchQuery, () => {
   clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
 })
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
 function fmtTime(v: string): string {
   if (!v) return '—'

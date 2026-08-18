@@ -43,12 +43,15 @@ public interface ListService {
 
     /**
      * 查询清单详情（含完整菜品信息）
+     * <p>
+     * 校验当前登录用户为清单归属人，防止越权查看他人清单。
      *
-     * @param id 清单ID
+     * @param id     清单ID
+     * @param userId 当前登录用户ID
      * @return 清单详情（含菜品列表）
-     * @throws com.bjtufood.common.exception.BusinessException 清单不存在
+     * @throws com.bjtufood.common.exception.BusinessException 清单不存在/无权限
      */
-    ListDetailVO getDetail(Long id);
+    ListDetailVO getDetail(Long id, Long userId);
 
     /**
      * 通过分享 token 查询清单详情
@@ -80,6 +83,8 @@ public interface ListService {
      * @param listId 清单ID
      * @param userId 当前用户ID
      * @return 收藏结果 { succeeded, skipped }
+     * @deprecated 收藏（👍 like 体系）存储待架构师重设计，当前恒返回空结果，勿新增依赖。
      */
+    @Deprecated
     Map<String, Integer> collectAll(Long listId, Long userId);
 }

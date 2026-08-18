@@ -15,11 +15,14 @@ import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
+import com.bjtufood.review.dto.StallAvgRatingDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,13 +36,32 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public List<StallDetailVO> listByCanteenId(Long canteenId) {
-        return stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+        List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, canteenId)
                 .eq(Stall::getStatus, "open")
-                .orderByAsc(Stall::getSortOrder))
-                .stream()
-                .map(this::toVO)
+                .orderByAsc(Stall::getSortOrder));
+        // 消除逐档口 N+1：批量查询一次全部档口平均分，Map 组装
+        Map<Long, BigDecimal> ratingMap = batchAvgRating(stalls);
+        return stalls.stream()
+                .map(s -> toVO(s, ratingMap.get(s.getId())))
                 .toList();
+    }
+
+    /**
+     * 批量查询档口平均评分，返回 stallId → avgRating 的 Map（无评价的档口不包含，调用方兜底为 0）。
+     */
+    private Map<Long, BigDecimal> batchAvgRating(List<Stall> stalls) {
+        if (stalls == null || stalls.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
+        Map<Long, BigDecimal> map = new HashMap<>();
+        for (StallAvgRatingDTO r : reviewMapper.selectAvgRatingByStallIds(ids)) {
+            if (r.getStallId() != null) {
+                map.put(r.getStallId(), r.getAvgRating());
+            }
+        }
+        return map;
     }
 
     @Override
@@ -157,15 +179,15 @@ public class StallServiceImpl implements StallService {
         return result;
     }
 
-    private StallDetailVO toVO(Stall stall) {
+    private StallDetailVO toVO(Stall stall, BigDecimal avgRating) {
         StallDetailVO vo = new StallDetailVO();
         vo.setId(stall.getId());
         vo.setName(stall.getName());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
         vo.setDescription(stall.getDescription());
-        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
-        vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
+        // avgRating 由调用方批量查询传入，避免逐档口 N+1
+        vo.setAvgRating(avgRating != null ? avgRating.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         return vo;
     }
 

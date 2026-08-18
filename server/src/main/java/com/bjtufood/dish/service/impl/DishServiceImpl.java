@@ -12,6 +12,7 @@ import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
+import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.dto.MyDishVO;
@@ -33,6 +34,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -64,11 +66,6 @@ public class DishServiceImpl implements DishService {
     @Override
     public List<DishVO> getHotDishes() {
         return getHotDishes(null, null, null);
-    }
-
-    /** 便捷重载（内部调用），默认 TOP10 */
-    public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng) {
-        return getHotDishes(lat, lng, null);
     }
 
     @Override
@@ -123,60 +120,94 @@ public class DishServiceImpl implements DishService {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
-        // 仅 approved 且上架菜品参与推荐
-        List<Dish> candidates = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                .eq(Dish::getAuditStatus, "approved")
-                .eq(Dish::getStatus, "on"));
-        // 排除前端已展示项
-        if (StringUtils.hasText(excludeIds)) {
-            List<Long> exclude = java.util.Arrays.stream(excludeIds.split(","))
-                    .map(String::trim)
-                    .filter(s -> s.matches("\\d+"))
-                    .map(Long::valueOf)
-                    .toList();
-            if (!exclude.isEmpty()) {
-                candidates = candidates.stream()
-                        .filter(d -> !exclude.contains(d.getId()))
-                        .toList();
-            }
-        }
-        // 热度分：w1*viewCount + w2*ratingCount*scale + w3*avgRating*scale
-        // 权重常量：w1=1, w2=5, w3=20（见 spec §3.x.4）。MVP 无浏览历史表，个性化降级为纯热度。
-        final int w1 = 1, w2 = 5, w3 = 20;
+        List<Long> exclude = parseExcludeIds(excludeIds);
 
-        // 个性化加权：有浏览历史的登录用户，对命中其足迹同类（同 stall / 同 tags）的菜品加权 bonus
-        double bonus = 0.0;
-        java.util.Set<Long> recentStallIds = new java.util.HashSet<>();
-        java.util.Set<String> recentTags = new java.util.HashSet<>();
+        // 个性化路径：有浏览足迹的登录用户，对其足迹同类（同 stall / 同 tags）菜品加权。
+        // 无足迹/未登录直接走 DB 侧分页 + 热度排序（excludeIds 下推），避免全表 selectList 后内存排序（M2 优化）。
         if (userId != null) {
             List<Long> recentDishIds = historyService.recentViewedDishIds(userId, 20);
             if (!recentDishIds.isEmpty()) {
-                List<Dish> recent = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .in(Dish::getId, recentDishIds));
-                recent.forEach(r -> {
-                    if (r.getStallId() != null) recentStallIds.add(r.getStallId());
-                    if (StringUtils.hasText(r.getTags())) {
-                        java.util.Arrays.stream(r.getTags().split(","))
-                                .map(String::trim).filter(t -> !t.isEmpty())
-                                .forEach(recentTags::add);
-                    }
-                });
-                // 平滑个性化加权：命中足迹越多权重越大，但设上限避免个例压倒热度分（原魔数 500.0 会让单条足迹直接封顶）
-                bonus = Math.min(recentDishIds.size() * 50.0, 300.0);
+                java.util.Set<Long> recentStallIds = new java.util.HashSet<>();
+                java.util.Set<String> recentTags = new java.util.HashSet<>();
+                dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                                .in(Dish::getId, recentDishIds))
+                        .forEach(r -> {
+                            if (r.getStallId() != null) recentStallIds.add(r.getStallId());
+                            if (StringUtils.hasText(r.getTags())) {
+                                java.util.Arrays.stream(r.getTags().split(","))
+                                        .map(String::trim).filter(t -> !t.isEmpty())
+                                        .forEach(recentTags::add);
+                            }
+                        });
+                if (!recentStallIds.isEmpty() || !recentTags.isEmpty()) {
+                    return recommendWithPersonalization(page, pageSize, exclude,
+                            recentDishIds.size(), recentStallIds, recentTags);
+                }
             }
         }
 
-        final double fBonus = bonus;
+        // 常规路径：DB 侧分页 + 热度排序（未登录/无足迹，推荐降级纯热度）
+        DishQueryReq req = new DishQueryReq();
+        req.setExcludeIds(exclude);
+        req.setSortBy("heat");
+        req.setSortOrder("desc");
+        return dishMapper.selectDishPage(new Page<>(page, pageSize), req)
+                .convert(this::enrichImages);
+    }
+
+    /**
+     * 解析推荐接口 excludeIds（逗号分隔数字串）为 id 集合，空串返回空集合。
+     */
+    private List<Long> parseExcludeIds(String excludeIds) {
+        if (!StringUtils.hasText(excludeIds)) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(excludeIds.split(","))
+                .map(String::trim)
+                .filter(s -> s.matches("\\d+"))
+                .map(Long::valueOf)
+                .distinct()
+                .toList();
+    }
+
+    /**
+     * 个性化推荐路径：基于浏览足迹对同档口/同标签菜品加权，内存排序后分页。
+     * 仅命中足迹的登录用户触发（候选集通常远小于全表，且此类用户占比低，全量加载可接受）。
+     */
+    private IPage<DishVO> recommendWithPersonalization(int page, int pageSize, List<Long> exclude,
+                                                       int recentCount,
+                                                       java.util.Set<Long> recentStallIds,
+                                                       java.util.Set<String> recentTags) {
+        // 仅 approved 且上架菜品参与推荐
+        List<Dish> candidates = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)
+                .eq(Dish::getStatus, DishConst.STATUS_ON));
+        // 排除前端已展示项
+        if (!exclude.isEmpty()) {
+            candidates = candidates.stream()
+                    .filter(d -> !exclude.contains(d.getId()))
+                    .toList();
+        }
+        // 热度分：w1*viewCount + w2*ratingCount*scale + w3*avgRating*scale
+        // 权重常量：w1=1, w2=5, w3=20（见 spec §3.x.4）
+        final int w1 = 1, w2 = 5, w3 = 20;
+        // 平滑个性化加权：命中足迹越多权重越大，但设上限避免个例压倒热度分（原魔数 500.0 会让单条足迹直接封顶）
+        final double bonus = Math.min(recentCount * 50.0, 300.0);
+
         candidates.sort((a, b) -> Double.compare(
-                personalizedHeat(b, w1, w2, w3, fBonus, recentStallIds, recentTags),
-                personalizedHeat(a, w1, w2, w3, fBonus, recentStallIds, recentTags)));
+                personalizedHeat(b, w1, w2, w3, bonus, recentStallIds, recentTags),
+                personalizedHeat(a, w1, w2, w3, bonus, recentStallIds, recentTags)));
 
         long total = candidates.size();
         int from = Math.min((page - 1) * pageSize, candidates.size());
         int to = Math.min(from + pageSize, candidates.size());
-        List<DishVO> records = candidates.subList(from, to).stream()
+        List<Dish> pageSlice = candidates.subList(from, to);
+        // 消除逐条 selectDishDetail 的 N+1：整页 id 批量 IN 查一次，再按 id 组装
+        Map<Long, DishDetailVO> detailMap = loadDishDetailsByIds(
+                pageSlice.stream().map(Dish::getId).distinct().toList());
+        List<DishVO> records = pageSlice.stream()
                 .map(d -> {
-                    DishDetailVO vo = dishMapper.selectDishDetail(d.getId());
+                    DishDetailVO vo = detailMap.get(d.getId());
                     return vo != null ? enrichImages(vo) : null;
                 })
                 .filter(Objects::nonNull)
@@ -184,6 +215,20 @@ public class DishServiceImpl implements DishService {
         IPage<DishVO> result = new Page<>(page, pageSize, total);
         result.setRecords(records);
         return result;
+    }
+
+    /**
+     * 批量查询菜品详情（IN 查询建 Map），消除推荐列表逐条详情的 N+1。
+     * 空集合防护：避免生成非法 SQL "IN ()"。
+     */
+    private Map<Long, DishDetailVO> loadDishDetailsByIds(List<Long> ids) {
+        Map<Long, DishDetailVO> map = new java.util.HashMap<>();
+        if (ids.isEmpty()) {
+            return map;
+        }
+        dishMapper.selectDishDetailsByIds(ids)
+                .forEach(vo -> map.put(vo.getId(), vo));
+        return map;
     }
 
     private double personalizedHeat(Dish d, int w1, int w2, int w3, double bonus,
@@ -263,7 +308,7 @@ public class DishServiceImpl implements DishService {
         dish.setRatingCount(0);
         dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
-            dish.setStatus("on");
+            dish.setStatus(DishConst.STATUS_ON);
         }
         dishMapper.insert(dish);
     }
@@ -302,9 +347,9 @@ public class DishServiceImpl implements DishService {
         applyPublishReq(dish, req);
         dish.setCreatedBy(userId);
         // 审核状态机：学生提交即 pending；状态与审核解耦，默认上架待审核通过后展示
-        dish.setAuditStatus("pending");
+        dish.setAuditStatus(DishConst.AUDIT_PENDING);
         dish.setRejectReason(null);
-        dish.setStatus("on");
+        dish.setStatus(DishConst.STATUS_ON);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
         dish.setViewCount(0);
@@ -324,7 +369,7 @@ public class DishServiceImpl implements DishService {
         }
         applyPublishReq(existing, req);
         // 编辑重提：复用原记录，审核状态回到 pending，退回原因清空
-        existing.setAuditStatus("pending");
+        existing.setAuditStatus(DishConst.AUDIT_PENDING);
         existing.setRejectReason(null);
         dishMapper.updateById(existing);
     }
