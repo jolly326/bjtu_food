@@ -200,23 +200,24 @@ watch(
   background: var(--bg-page);
 }
 
-/* 左右边缘淡化 */
+/* 左右边缘淡化：从 24% 收敛到 18%，减少对相邻品类文字的遮挡，
+   提升滚轮"还有更多品类"的可发现性（原 24% 会遮掉下一个品类大半） */
 .wheel-fade {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 24%;
+  width: 18%;
   pointer-events: none;
   z-index: 2;
 
   &.left {
     left: 0;
-    background: linear-gradient(to right, var(--bg-page) 30%, transparent);
+    background: linear-gradient(to right, var(--bg-page) 20%, transparent);
   }
 
   &.right {
     right: 0;
-    background: linear-gradient(to left, var(--bg-page) 30%, transparent);
+    background: linear-gradient(to left, var(--bg-page) 20%, transparent);
   }
 }
 
@@ -239,7 +240,7 @@ watch(
 
   .wheel-label {
     font-size: 28rpx;
-    color: #8a8278;
+    color: var(--text-tertiary);
     font-weight: 500;
     white-space: nowrap;
     transition: color 0.2s ease, font-size 0.2s ease, transform 0.2s ease;
@@ -249,11 +250,23 @@ watch(
     border-bottom-color: var(--color-primary);
   }
 
+  /* 选中态降噪：原 40rpx（vs 28rpx 差 12rpx）跳动感强，收敛到 32rpx（差 4rpx）；
+     主色 + 700 字重 + 红线已足够标识选中，字号不再过度放大 */
   &.active .wheel-label {
     color: var(--color-primary);
     font-weight: 700;
-    font-size: 40rpx;
+    font-size: 32rpx;
     transform: scale(1);
+  }
+}
+
+/* reduced-motion 降级：关闭字号/颜色/位移过渡，选中态直接切换 */
+@media (prefers-reduced-motion: reduce) {
+  .wheel-item .wheel-label {
+    transition: none;
+  }
+  .wheel {
+    transition: none !important;
   }
 }
 </style>

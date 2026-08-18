@@ -3,7 +3,6 @@ package com.bjtufood.review.controller;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
-import com.bjtufood.review.dto.ReviewReplyReq;
 import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -155,37 +154,4 @@ public class ReviewController {
         return Result.success(reviewService.toggleUseful(userId, id));
     }
 
-    @Operation(
-            summary = "回复某条评价（楼中楼）",
-            description = "用途：对一条评价发表回复，形成楼中楼。回复不计分、不同步动态、不受「一人一菜」限制。需登录。",
-            security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "content": "同意，我也觉得不错！"
-                    }
-                    """)))
-    )
-    @PostMapping("/reviews/{id}/reply")
-    public Result<Void> replyReview(
-            @Parameter(description = "被回复的评价ID（父评价）", example = "1")
-            @PathVariable Long id,
-            @RequestBody ReviewReplyReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        reviewService.replyReview(userId, id, req.getContent());
-        return Result.success();
-    }
-
-    @Operation(
-            summary = "某评价的全部子回复（分页，楼中楼展开）",
-            description = "用途：评价楼中楼「查看全部回复」展开时，分页拉取某父评价的直接子回复，按时间升序。每个子回复附带自身楼中楼窗口。测试示例：/reviews/1/replies?page=1&pageSize=20"
-    )
-    @GetMapping("/reviews/{parentId}/replies")
-    public Result<?> listParentReplies(
-            @Parameter(description = "父评价ID", example = "1")
-            @PathVariable Long parentId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        return Result.success(reviewService.listRepliesByParentId(parentId, page, pageSize, userId));
-    }
 }

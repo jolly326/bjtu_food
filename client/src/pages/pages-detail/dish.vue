@@ -137,18 +137,14 @@
 
         <!-- 6. 评价列表：默认最近三条 -->
         <view class="review-section" id="review-section">
-          <view class="review-head-row">
-            <text class="sec-title">评价 ({{ reviewTotal }})</text>
-          </view>
+          <SectionTitle :title="`评价 (${reviewTotal})`" />
           <view class="review-list" v-if="reviewList.length > 0">
             <ReviewItem
               v-for="rv in reviewList.slice(0, 3)"
               :key="rv.id"
               :review="rv"
-              hide-useful
               :current-user-id="currentUserId"
               @delete="onDeleteReview"
-              @reply="onReply"
               @report="onReviewReport"
             />
           </view>
@@ -176,43 +172,6 @@
     <!-- 申请下架/纠错 Sheet（共享组件） -->
     <ApplySheet :open="applyOpen" entity-type="DISH" :entity-id="currentDishId" @update:open="applyOpen = $event" />
 
-    <!-- 回复评价输入弹层 -->
-    <view v-if="replyOpen" class="reply-mask" :class="{ leaving: replyClosing }" @tap="closeReply">
-      <view
-        class="reply-sheet"
-        :class="{ leaving: replyClosing }"
-        :style="{ transform: `translateY(${replySheetDy}px)` }"
-        @tap.stop
-        @touchstart="onReplySheetTouchStart"
-        @touchmove="onReplySheetTouchMove"
-        @touchend="onReplySheetTouchEnd"
-      >
-        <view class="reply-drag" />
-        <view class="reply-sheet-head">
-          <text class="reply-sheet-title">回复{{ replyToNickname ? ' @' + replyToNickname : '' }}</text>
-          <text class="reply-sheet-close" @tap="closeReply" role="button" aria-label="关闭">✕</text>
-        </view>
-        <textarea
-          class="reply-input"
-          v-model="replyText"
-          :placeholder="replyPlaceholder"
-          :focus="replyFocus"
-          maxlength="500"
-          auto-height
-        />
-        <view class="reply-sheet-actions">
-          <text class="reply-cancel" @tap="closeReply" role="button">取消</text>
-          <text
-            class="reply-send"
-            :class="{ disabled: !replyText.trim() || replySubmitting }"
-            @tap="submitReply"
-            role="button"
-            aria-label="发送回复"
-          >{{ replySubmitting ? '发送中…' : '发送' }}</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 举报弹窗（共享组件） -->
     <ReportModal
       :open="reportOpen"
@@ -235,7 +194,7 @@ import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
 import { addView, deleteDish } from '@/api/dish'
-import { deleteReview, replyReview } from '@/api/review'
+import { deleteReview } from '@/api/review'
 import { submitFeedback } from '@/api/feedback'
 import type { Review } from '@/types/review'
 import { sharedDish } from '@/utils/shareState'
@@ -247,6 +206,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
 
@@ -503,83 +463,6 @@ function goWriteReview() {
   uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}&from=dish` })
 }
 
-/* ===== 评价回复（楼中楼，打通菜品评价与动态评论能力） ===== */
-const replyOpen = ref(false)
-const replyFocus = ref(false)
-const replyClosing = ref(false)
-const replySubmitting = ref(false)
-const replyText = ref('')
-const replyParentId = ref<number | null>(null)
-const replyToNickname = ref('')
-const replyPlaceholder = ref('回复评价…')
-
-/** touch 事件统一类型（uni 全局 TouchEvent，touches 为 TouchList，三处弹层一致） */
-type SheetTouchEvent = TouchEvent
-
-function onReply(rv: Review) {
-  if (!userStore.requireAuth(() => onReply(rv))) return
-  replyParentId.value = rv.id
-  replyToNickname.value = rv.userNickname || ''
-  replyPlaceholder.value = `回复 ${rv.userNickname || '匿名用户'}：`
-  replyText.value = ''
-  replyOpen.value = true
-  replyClosing.value = false
-  replyFocus.value = true
-}
-
-/** 退场动画：置 closing 触发 CSS 淡出，160ms 后真正卸载；同时复位 focus（#3） */
-function closeReply() {
-  if (!replyOpen.value || replyClosing.value) return
-  replyClosing.value = true
-  replyFocus.value = false
-  setTimeout(() => {
-    replyOpen.value = false
-    replyClosing.value = false
-    replyText.value = ''
-    replyParentId.value = null
-    replyToNickname.value = ''
-  }, 160)
-}
-
-/* ===== 回复弹层下拉关闭（#12 轻量 touch 模拟，不引第三方库） ===== */
-const replySheetStartY = ref(0)
-const replySheetDy = ref(0)
-function onReplySheetTouchStart(e: SheetTouchEvent) {
-  replySheetStartY.value = e.touches?.[0]?.clientY ?? 0
-  replySheetDy.value = 0
-}
-function onReplySheetTouchMove(e: SheetTouchEvent) {
-  const y = e.touches?.[0]?.clientY ?? 0
-  const dy = y - replySheetStartY.value
-  // 仅向下拖拽生效，超阈值视觉下拉
-  replySheetDy.value = Math.max(0, dy)
-}
-function onReplySheetTouchEnd() {
-  // 下拉超过 80px 即关闭，否则回弹（重置位移）
-  if (replySheetDy.value > 80) {
-    closeReply()
-  }
-  replySheetDy.value = 0
-}
-
-async function submitReply() {
-  if (!replyParentId.value || !replyText.value.trim() || replySubmitting.value) return
-  replySubmitting.value = true
-  try {
-    await replyReview(replyParentId.value, replyText.value.trim())
-    uni.showToast({ title: '回复成功', icon: 'success' })
-    closeReply()
-    dishStore.reviewsDirty = true
-    // 重拉评价列表刷新楼中楼 + 刷新综合评分卡
-    await dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 3 })
-    dishStore.fetchDetail(dishId.value)
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '回复失败', icon: 'none' })
-  } finally {
-    replySubmitting.value = false
-  }
-}
-
 /* ===== 评价举报（复用共享 ReportModal） ===== */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
@@ -688,35 +571,16 @@ const hasMetrics = computed(() => {
 .dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star); transition: width 400ms var(--ease-out); }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 
-/* 6. 评价列表 */
-.review-section { margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
-.review-head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-xs); }
-/* 区块标题（评价列表）：30rpx 标题级，与卡内小标题（综合评分 24rpx）区分层级 */
-.sec-title { font-size: var(--font-caption); font-weight: var(--weight-semibold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
-.review-list { margin-top: var(--spacing-xs); }
+/* 6. 评价列表：ReviewItem 已卡片化（与动态卡片统一），SectionTitle 下直接堆叠卡片，
+   去外层白卡避免双重卡片（title 保持在页面层级） */
+.review-section { margin: var(--spacing-md) var(--spacing-md) 0; }
+.review-list { display: flex; flex-direction: column; gap: var(--spacing-sm); margin-top: var(--spacing-sm); }
 .review-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md) 0; }
 .review-empty-cta { display: inline-flex; align-items: center; justify-content: center; font-size: var(--font-body); font-weight: var(--weight-medium); color: var(--color-on-primary); background: var(--color-primary); padding: var(--spacing-sm) var(--spacing-xl); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
 .review-empty-cta:active { opacity: 0.6; }
 .view-all { display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); padding: var(--spacing-sm); border-radius: var(--radius-tag); background: var(--bg-soft); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
 .view-all:active { opacity: 0.6; }
 .view-all-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-semibold); }
-
-/* 7.5 回复评价输入弹层（底部 sheet，Apple 风格克制；drag indicator + 下拉关闭 + 退场淡出） */
-.reply-mask { position: fixed; inset: 0; z-index: 100; background: var(--overlay-scrim); display: flex; align-items: flex-end; -webkit-tap-highlight-color: transparent; opacity: 1; transition: opacity 160ms var(--ease-out); }
-.reply-mask.leaving { opacity: 0; }
-.reply-sheet { width: 100%; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-card); opacity: 1; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
-/* 退场淡出用 opacity，避免与拖拽的内联 transform 位移冲突 */
-.reply-sheet.leaving { opacity: 0; }
-/* 顶部拖拽条：Apple sheet 惯用 drag indicator（与兄弟弹层 grabber 统一用 --overlay-dark-soft） */
-.reply-drag { width: 48rpx; height: 6rpx; border-radius: var(--radius-pill, 999rpx); background: var(--overlay-dark-soft); margin: 0 auto var(--spacing-sm); flex-shrink: 0; }
-.reply-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
-.reply-sheet-title { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); }
-.reply-sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: var(--spacing-2xs) var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
-.reply-input { width: 100%; min-height: 120rpx; max-height: 360rpx; background: var(--bg-soft); border-radius: var(--radius-card); padding: var(--spacing-sm); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; box-sizing: border-box; }
-.reply-sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-lg); margin-top: var(--spacing-sm); }
-.reply-cancel { font-size: var(--font-card); color: var(--text-tertiary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; }
-.reply-send { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-primary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; transition: opacity 120ms ease; }
-.reply-send.disabled { opacity: 0.4; }
 
 /* 7. 底部固定操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }

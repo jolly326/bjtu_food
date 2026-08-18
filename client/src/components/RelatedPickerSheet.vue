@@ -153,7 +153,10 @@ function isSelected(item: RelatedItem): boolean {
   return !!props.selected && props.selected.id === item.id && props.selected.type === item.type
 }
 
+/** 请求序号守卫：open/tab/keyword 频繁变化时的多次 loadCandidates，丢弃过期响应，避免重复渲染/竞态（P1 筛选去重） */
+let candidateSeq = 0
 async function loadCandidates() {
+  const seq = ++candidateSeq
   const kw = keyword.value.trim()
   loading.value = true
   candidates.value = []
@@ -190,10 +193,13 @@ async function loadCandidates() {
         type: 'stall' as const,
       }))
     }
+    // 过期响应（期间又切换了 tab/打开状态/关键词）直接丢弃，不覆盖最新结果
+    if (seq !== candidateSeq) return
   } catch {
+    if (seq !== candidateSeq) return
     candidates.value = []
   } finally {
-    loading.value = false
+    if (seq === candidateSeq) loading.value = false
   }
 }
 

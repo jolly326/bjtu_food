@@ -1,9 +1,38 @@
 <template>
   <view class="page moment-detail-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="动态详情" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <view v-if="loading && !moment" class="skeleton">
-        <view class="sk-block skeleton" v-for="s in 3" :key="s" />
+    <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
+      <!-- 骨架屏：贴合真实首屏（主卡：发布者行 + 正文 + 三图 + 互动按钮；评论卡：标题 + 两条评论），
+           子元素统一挂全局 .skeleton 闪烁类，避免加载完成跳变 -->
+      <view v-if="loading && !moment" class="detail-skeleton">
+        <view class="sk-card">
+          <view class="sk-head">
+            <view class="sk-avatar skeleton" />
+            <view class="sk-lines">
+              <view class="sk-line w-40 skeleton" />
+              <view class="sk-line w-25 skeleton" />
+            </view>
+          </view>
+          <view class="sk-line w-90 skeleton" />
+          <view class="sk-line w-75 skeleton" />
+          <view class="sk-grid">
+            <view v-for="i in 3" :key="'g' + i" class="sk-img skeleton" />
+          </view>
+          <view class="sk-actions">
+            <view class="sk-action skeleton" />
+            <view class="sk-action skeleton" />
+          </view>
+        </view>
+        <view class="sk-card">
+          <view class="sk-line w-30 skeleton" />
+          <view v-for="i in 2" :key="'c' + i" class="sk-comment">
+            <view class="sk-avatar skeleton" />
+            <view class="sk-lines">
+              <view class="sk-line w-55 skeleton" />
+              <view class="sk-line w-85 skeleton" />
+            </view>
+          </view>
+        </view>
       </view>
 
       <!-- 动态已删除/审核下架：接口返回空，显示兜底提示而非空白 -->
@@ -31,7 +60,7 @@
             </view>
             <view class="m-head-right">
               <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-              <text class="m-time">{{ relativeTime(moment.createdAt) }}</text>
+              <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
             </view>
             <!-- 审核态（作者本人可见） -->
             <view v-if="isAuthor && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
@@ -52,37 +81,39 @@
             <IconSvg :name="relatedIconName" :size="28" color="var(--text-tertiary)" class="related-icon" />
             <view class="related-body">
               <text class="related-type">{{ relatedTypeLabel }}</text>
-              <text class="related-name">{{ moment.relatedName }}</text>
+              <view class="related-name-row">
+                <text class="related-name">{{ moment.relatedName }}</text>
+                <!-- 关联菜品星级（与动态卡片一致：口碑同源） -->
+                <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="related-rating">
+                  <IconSvg
+                    v-for="i in 5"
+                    :key="i"
+                    name="star-filled"
+                    :size="20"
+                    :color="i <= Math.round(moment.relatedRating || 0) ? 'var(--color-star)' : 'var(--border-color)'"
+                  />
+                  <text class="related-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
+                </view>
+              </view>
             </view>
             <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-arrow" />
           </view>
 
-          <!-- 互动区（点赞 / 评论 / 举报） -->
+          <!-- 互动区（有用 / 评论 / 举报） -->
           <InteractBar
             :comment-count="moment.commentCount"
+            :useful-count="moment.usefulCount"
+            :useful-active="!!moment.useful"
+            :useful-pending="pendingUseful"
+            @useful="onUseful"
             @comment="focusComment"
             @report="openReport"
           />
-
-          <!-- 用户评价（关联菜品时展示前 2 条，上分隔线） -->
-          <view v-if="moment.relatedType === 'dish' && dishReviews.length > 0" class="review-section">
-            <text class="comment-title">用户评价</text>
-            <ReviewItem
-              v-for="rv in dishReviews.slice(0, 2)"
-              :key="rv.id"
-              :review="rv"
-              hide-useful
-              :current-user-id="userStore.userInfo?.id"
-              @reply="onDishReviewReply"
-              @report="onDishReviewReport"
-              @delete="onDishReviewDelete"
-            />
-          </view>
         </view>
 
-        <!-- 评论单独卡片 -->
-        <view class="comment-section">
-          <text class="comment-title">评论 ({{ moment.commentCount }})</text>
+        <!-- 评论单独卡片（id 供「评论」按钮 scroll-into-view 定位） -->
+        <view id="comment-section" class="comment-section">
+          <SectionTitle :title="`评论 (${moment.commentCount})`" />
           <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="comment" />
           <view v-else class="comment-list">
             <CommentItem
@@ -152,43 +183,6 @@
       </view>
     </view>
 
-    <!-- 菜品评价回复输入弹层（关联动态详情时评价区楼中楼回复） -->
-    <view v-if="dishReplyOpen" class="reply-mask" :class="{ leaving: dishReplyClosing }" @tap="closeDishReply">
-      <view
-        class="reply-sheet"
-        :class="{ leaving: dishReplyClosing }"
-        :style="{ transform: `translateY(${dishReplySheetDy}px)` }"
-        @tap.stop
-        @touchstart="onDishReplySheetTouchStart"
-        @touchmove="onDishReplySheetTouchMove"
-        @touchend="onDishReplySheetTouchEnd"
-      >
-        <view class="reply-drag" />
-        <view class="reply-sheet-head">
-          <text class="reply-sheet-title">回复{{ dishReplyToNickname ? ' @' + dishReplyToNickname : '' }}</text>
-          <text class="reply-sheet-close" @tap="closeDishReply" role="button" aria-label="关闭">✕</text>
-        </view>
-        <textarea
-          class="reply-input"
-          v-model="dishReplyText"
-          :placeholder="dishReplyPlaceholder"
-          :focus="dishReplyFocus"
-          maxlength="500"
-          auto-height
-        />
-        <view class="reply-sheet-actions">
-          <text class="reply-cancel" @tap="closeDishReply" role="button">取消</text>
-          <text
-            class="reply-send"
-            :class="{ disabled: !dishReplyText.trim() || dishReplySubmitting }"
-            @tap="submitDishReply"
-            role="button"
-            aria-label="发送回复"
-          >{{ dishReplySubmitting ? '发送中…' : '发送' }}</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 举报弹窗（共享组件） -->
     <ReportModal
       :open="reportOpen"
@@ -211,21 +205,19 @@ import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import { getReviewsByDish, replyReview, deleteReview } from '@/api/review'
 import { submitFeedback } from '@/api/feedback'
-import { relativeTime } from '@/utils/time'
+import { formatDateTime } from '@/utils/time'
 import type { Moment, MomentComment } from '@/types/moment'
-import type { Review } from '@/types/review'
 import { buildSharePayload } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import InteractBar from '@/components/InteractBar.vue'
 import CommentItem from '@/components/CommentItem.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import ReviewItem from '@/components/ReviewItem.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
@@ -238,8 +230,6 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
-/** 关联菜品的用户评价（并入关联+互动卡） */
-const dishReviews = ref<Review[]>([])
 const loading = ref(false)
 const deleted = ref(false)
 const refresherTriggered = ref(false)
@@ -296,16 +286,6 @@ async function loadData() {
     }
     moment.value = m
     comments.value = c.list
-    // 关联菜品时加载该菜品的用户评价
-    if (m.relatedType === 'dish' && m.relatedId) {
-      try {
-        dishReviews.value = (await getReviewsByDish(m.relatedId)).list
-      } catch {
-        dishReviews.value = []
-      }
-    } else {
-      dishReviews.value = []
-    }
   } catch (e: any) {
     if (seq !== loadSeq) return
     uni.showToast({ title: e.message || '加载失败', icon: 'none' })
@@ -328,10 +308,44 @@ function goEdit() {
   uni.navigateTo({ url: `/pages/pages-user/publish-moment/index?id=${moment.value.id}` })
 }
 
+/** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */
+const commentIntoView = ref('')
 function focusComment() {
-  // 先让底部输入栏进入视口（滚动到底部），再触发聚焦弹键盘
-  uni.pageScrollTo({ scrollTop: 99999, duration: 200 })
-  commentFocus.value = true
+  // 先清空再延迟设置目标值，保证重复点击每次都能触发 scroll-into-view 定位
+  commentIntoView.value = ''
+  setTimeout(() => {
+    commentIntoView.value = 'comment-section'
+    commentFocus.value = true
+  }, 30)
+}
+
+/** 动态「有用」乐观更新：与 MomentCard / CommentItem 同模式（后端计数已含当前用户），失败回滚。
+ *  pendingUseful 锁防连点（P0 防重复请求 / 计数漂移）。 */
+const pendingUseful = ref(false)
+function onUseful() {
+  const m = moment.value
+  if (!m) return
+  if (!userStore.requireAuth(() => onUseful())) return
+  if (pendingUseful.value) return
+  pendingUseful.value = true
+  const prevActive = !!m.useful
+  const prevCount = m.usefulCount || 0
+  m.useful = !prevActive
+  m.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
+  momentApi
+    .toggleUseful(m.id)
+    .then((res) => {
+      m.useful = res.useful
+      m.usefulCount = res.usefulCount
+    })
+    .catch(() => {
+      m.useful = prevActive
+      m.usefulCount = prevCount
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    })
+    .finally(() => {
+      pendingUseful.value = false
+    })
 }
 
 /** 举报（动态 or 评论，共享 ReportModal，2026-08-16 扩展评论举报） */
@@ -374,136 +388,6 @@ async function submitReport(text: string) {
   } finally {
     reportSubmitting.value = false
   }
-}
-
-/* ===== 菜品评价回复 / 举报（关联动态详情时，评价区复用 ReviewItem，楼中楼打通） ===== */
-const dishReplyOpen = ref(false)
-const dishReplyFocus = ref(false)
-const dishReplyClosing = ref(false)
-const dishReplySubmitting = ref(false)
-const dishReplyText = ref('')
-const dishReplyParentId = ref<number | null>(null)
-const dishReplyToNickname = ref('')
-const dishReplyPlaceholder = ref('回复评价…')
-
-function onDishReviewReply(rv: Review) {
-  if (!userStore.requireAuth(() => onDishReviewReply(rv))) return
-  dishReplyParentId.value = rv.id
-  dishReplyToNickname.value = rv.userNickname || ''
-  dishReplyPlaceholder.value = `回复 ${rv.userNickname || '匿名用户'}：`
-  dishReplyText.value = ''
-  dishReplyOpen.value = true
-  dishReplyClosing.value = false
-  dishReplyFocus.value = true
-}
-
-/** 退场动画：置 closing 触发 CSS 淡出，160ms 后真正卸载；同时复位 focus（#3） */
-function closeDishReply() {
-  if (!dishReplyOpen.value || dishReplyClosing.value) return
-  dishReplyClosing.value = true
-  dishReplyFocus.value = false
-  setTimeout(() => {
-    dishReplyOpen.value = false
-    dishReplyClosing.value = false
-    dishReplyText.value = ''
-    dishReplyParentId.value = null
-    dishReplyToNickname.value = ''
-  }, 160)
-}
-
-/* ===== 回复弹层下拉关闭（#12 轻量 touch 模拟，不引第三方库） ===== */
-/** touch 事件统一类型（uni 全局 TouchEvent，touches 为 TouchList，三处弹层一致） */
-type SheetTouchEvent = TouchEvent
-const dishReplySheetStartY = ref(0)
-const dishReplySheetDy = ref(0)
-function onDishReplySheetTouchStart(e: SheetTouchEvent) {
-  dishReplySheetStartY.value = e.touches?.[0]?.clientY ?? 0
-  dishReplySheetDy.value = 0
-}
-function onDishReplySheetTouchMove(e: SheetTouchEvent) {
-  const y = e.touches?.[0]?.clientY ?? 0
-  const dy = y - dishReplySheetStartY.value
-  dishReplySheetDy.value = Math.max(0, dy)
-}
-function onDishReplySheetTouchEnd() {
-  if (dishReplySheetDy.value > 80) {
-    closeDishReply()
-  }
-  dishReplySheetDy.value = 0
-}
-
-/** 在楼中楼树中按 id 定位节点 */
-function findReviewNode(nodes: Review[], id: number): Review | null {
-  for (const n of nodes) {
-    if (n.id === id) return n
-    if (n.replies && n.replies.length) {
-      const found = findReviewNode(n.replies, id)
-      if (found) return found
-    }
-  }
-  return null
-}
-
-async function submitDishReply() {
-  if (!dishReplyParentId.value || !dishReplyText.value.trim() || dishReplySubmitting.value) return
-  dishReplySubmitting.value = true
-  try {
-    await replyReview(dishReplyParentId.value, dishReplyText.value.trim())
-    uni.showToast({ title: '回复成功', icon: 'success' })
-    // 本地插入楼中楼（#7），不整页重拉
-    const parent = findReviewNode(dishReviews.value, dishReplyParentId.value)
-    if (parent) {
-      if (!parent.replies) parent.replies = []
-      parent.replies.push({
-        id: -Date.now(),
-        userId: userStore.userInfo?.id ?? 0,
-        userNickname: userStore.userInfo?.nickname || '我',
-        userAvatar: userStore.userInfo?.avatar || '',
-        dishId: parent.dishId,
-        rating: 0,
-        content: dishReplyText.value.trim(),
-        images: [],
-        createTime: new Date().toISOString(),
-        parentId: dishReplyParentId.value,
-        replyToNickname: dishReplyToNickname.value || parent.userNickname || '',
-      })
-    }
-    closeDishReply()
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '回复失败', icon: 'none' })
-  } finally {
-    dishReplySubmitting.value = false
-  }
-}
-
-function onDishReviewReport(rv: Review) {
-  if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
-  reportTarget.value = { type: 'review', id: rv.id }
-  reportOpen.value = true
-}
-
-function onDishReviewDelete(rv: Review) {
-  if (!userStore.requireAuth(() => onDishReviewDelete(rv))) return
-  if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
-  uni.showModal({
-    title: '删除评价',
-    content: '确定删除这条评价吗？删除后不可恢复。',
-    confirmText: '删除',
-    confirmColor: '#FF3B30',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        await deleteReview(rv.id)
-        uni.showToast({ title: '评价已删除', icon: 'none' })
-        // 删除后重拉关联菜品评价，保证计数/楼中楼准确（#2）
-        if (moment.value?.relatedType === 'dish' && moment.value.relatedId) {
-          dishReviews.value = (await getReviewsByDish(moment.value.relatedId, { sort: 'latest', isWithImage: false, page: 1, pageSize: 2 })).list
-        }
-      } catch (e: any) {
-        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
-      }
-    },
-  })
 }
 
 /** 点击「回复 @昵称」：等价于在输入框写入 @昵称 （微信式提及回复，2026-08-16） */
@@ -653,31 +537,54 @@ onLoad((query) => {
 <style scoped>
 .moment-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
-.skeleton { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.sk-block { width: 100%; height: 160rpx; }
+/* 骨架屏（贴合真实首屏：主卡 + 评论卡；子元素挂全局 .skeleton 闪烁类） */
+.detail-skeleton { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
+.sk-card { padding: var(--spacing-md); border-radius: var(--radius-modal); background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.sk-head { display: flex; align-items: center; gap: var(--spacing-sm); }
+.sk-avatar { width: 72rpx; height: 72rpx; border-radius: 16rpx; flex-shrink: 0; }
+.sk-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.sk-line { height: 28rpx; border-radius: var(--radius-tag); }
+.w-90 { width: 90%; }
+.w-85 { width: 85%; }
+.w-75 { width: 75%; }
+.w-55 { width: 55%; }
+.w-40 { width: 40%; }
+.w-30 { width: 30%; }
+.w-25 { width: 25%; }
+.sk-grid { display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs); }
+.sk-img { width: 220rpx; height: 220rpx; border-radius: var(--radius-tag); }
+.sk-actions { display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
+.sk-action { width: 120rpx; height: 56rpx; border-radius: var(--radius-tag); }
+.sk-comment { display: flex; align-items: center; gap: var(--spacing-sm); }
+.sk-comment .sk-avatar { width: 60rpx; height: 60rpx; }
 /* 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡；评论区单独一张卡 */
 .m-card { margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
 .m-avatar { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.m-nickname { font-size: var(--font-caption); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: 2rpx; font-variant-numeric: tabular-nums; }
+/* 作者行：详情页字号略大于列表卡（caption 30rpx），字重与列表统一 bold，突出作者层级 */
+.m-nickname { font-size: var(--font-caption); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
+.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); }
 .m-audit-text { font-size: 20rpx; font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
 .audit-rejected { background: var(--color-error-soft); }
 .audit-rejected .m-audit-text { color: var(--color-error); }
-.m-content { display: block; margin-top: var(--spacing-sm); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
+.m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
 .m-images { margin-top: var(--spacing-sm); }
-.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-sm) 0 0; padding: var(--spacing-sm) 0 var(--spacing-md); background: transparent; border-radius: 0; box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: 0; box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform 120ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-card:active { transform: scale(var(--press-scale)); }
 /* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
 .related-icon { font-size: 32rpx; line-height: 1; }
 .related-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .related-type { font-size: var(--font-aux); color: var(--text-tertiary); }
+.related-name-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
 .related-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 关联菜品星级：与动态卡片一致（--color-star 金黄） */
+.related-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.related-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .related-arrow { font-size: 28rpx; color: var(--text-tertiary); }
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .reject-title { display: block; font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-error); margin-bottom: var(--spacing-xs); }
@@ -685,11 +592,9 @@ onLoad((query) => {
 .reject-edit { margin-top: var(--spacing-sm); display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary); border-radius: var(--radius-tag); }
 .reject-edit-text { font-size: var(--font-aux); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
 /* 评论卡（Apple Design Typography：大字负 tracking + 设计系统 card 规范）。
-   与菜品详情评价区、档口详情评价 tab 的 comment-section 完全同款（升级版：圆角 24px、标题 34rpx weight 800、阴影更深更柔） */
+   与菜品详情评价区、档口详情评价 tab 的 comment-section 完全同款（升级版：圆角 24px、标题 34rpx weight 800、阴影更深更柔）。
+   分区标题统一 SectionTitle（§4.9 红线） */
 .comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-/* 用户评价区（并入关联+互动卡，上分隔线） */
-.review-section { margin: var(--spacing-sm) 0 0; padding: var(--spacing-sm) 0 0; border-top: 2rpx solid var(--border-color); }
-.comment-title { font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
 .comment-list { display: flex; flex-direction: column; }
 .comment-expand { padding: var(--spacing-sm) 0; text-align: center; }
 .comment-expand-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
@@ -697,7 +602,10 @@ onLoad((query) => {
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
 .comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid transparent; transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
-.comment-input-box.focused { border-color: var(--color-primary); background: var(--bg-card); }
+/* 聚焦态：仅强调主色边框，背景保持 --bg-soft 灰底不变白。
+   原实现把背景换成 --bg-card（白）——输入 @ 触发聚焦后输入框瞬间变白，且与上方 mention-pop 白卡片、
+   底部栏白底融为一体，视觉层次丢失（Apple 输入框聚焦保持背景一致） */
+.comment-input-box.focused { border-color: var(--color-primary); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: 32rpx; color: var(--text-primary); }
 .comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out), background 120ms var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
@@ -705,7 +613,7 @@ onLoad((query) => {
 .comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }
 .comment-send-text.spin { animation: comment-spin 0.8s linear infinite; }
 @keyframes comment-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% - 4rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
+.mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% + 8rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
 .mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
 .mention-item:active { background: var(--bg-soft); }
 .mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: 30rpx; }
@@ -715,19 +623,9 @@ onLoad((query) => {
 .mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(0.96); }
 .mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(1); }
 
-/* 菜品评价回复输入弹层（复用 dish 同名 class 设计；drag indicator + 下拉关闭 + 退场淡出） */
-.reply-mask { position: fixed; inset: 0; z-index: 100; background: var(--overlay-scrim); display: flex; align-items: flex-end; -webkit-tap-highlight-color: transparent; opacity: 1; transition: opacity 160ms var(--ease-out); }
-.reply-mask.leaving { opacity: 0; }
-.reply-sheet { width: 100%; background: var(--bg-card); border-radius: var(--radius-modal) var(--radius-modal) 0 0; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-card); opacity: 1; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
-/* 退场淡出用 opacity，避免与拖拽的内联 transform 位移冲突 */
-.reply-sheet.leaving { opacity: 0; }
-.reply-drag { width: 48rpx; height: 6rpx; border-radius: var(--radius-pill, 999rpx); background: var(--overlay-dark-soft); margin: 0 auto var(--spacing-sm); flex-shrink: 0; }
-.reply-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
-.reply-sheet-title { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); }
-.reply-sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: var(--spacing-2xs) var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
-.reply-input { width: 100%; min-height: 120rpx; max-height: 360rpx; background: var(--bg-soft); border-radius: var(--radius-card); padding: var(--spacing-sm); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; box-sizing: border-box; }
-.reply-sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-lg); margin-top: var(--spacing-sm); }
-.reply-cancel { font-size: var(--font-card); color: var(--text-tertiary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; }
-.reply-send { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-primary); padding: var(--spacing-xs) var(--spacing-md); -webkit-tap-highlight-color: transparent; transition: opacity 120ms ease; }
-.reply-send.disabled { opacity: 0.4; }
+/* reduced-motion 降级：去位移/弹性过冲，保留透明度交叉淡入 */
+@media (prefers-reduced-motion: reduce) {
+  .mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) ease; }
+  .mention-enter-from, .mention-leave-to { transform: none; }
+}
 </style>

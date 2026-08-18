@@ -32,6 +32,9 @@ function toMoment(raw: any): Moment | null {
     relatedName: raw.relatedName ?? null,
     // 关联档口所属食堂名（后端 MomentVO.relatedCanteen），跳档口详情需携带 navParams.canteen
     relatedCanteen: raw.relatedCanteen ?? null,
+    // 关联菜品评分（后端 MomentVO.relatedRating/relatedRatingCount，动态卡片星级展示）
+    relatedRating: raw.relatedRating ?? null,
+    relatedRatingCount: raw.relatedRatingCount ?? null,
     auditStatus: raw.auditStatus,
     rejectReason: raw.rejectReason ?? null,
     usefulCount: Number(raw.usefulCount ?? 0),

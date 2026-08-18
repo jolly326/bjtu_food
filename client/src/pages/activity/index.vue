@@ -49,7 +49,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { getActivities, type ActivityItem } from '@/api/activity'
-import { relativeTime } from '@/utils/time'
+import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -70,7 +70,7 @@ if (typeof window !== 'undefined') {
 }
 
 function formatTime(t: string) {
-  return relativeTime(t)
+  return formatDateTime(t)
 }
 
 async function fetchPage(reset: boolean) {

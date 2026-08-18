@@ -27,14 +27,11 @@
             r.content,
             r.images AS images_json,
             r.created_at,
-            r.useful_count AS useful_count,
-            r.parent_id,
-            r.reply_to_nickname
+            r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
-          AND r.parent_id IS NULL
         <if test="withImage">
             AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
         </if>
@@ -55,14 +52,11 @@
             r.content,
             r.images AS images_json,
             r.created_at,
-            r.useful_count AS useful_count,
-            r.parent_id,
-            r.reply_to_nickname
+            r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.user_id = #{userId}
           AND r.is_hidden = 0
-          AND r.parent_id IS NULL
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -84,15 +78,12 @@
             r.content,
             r.images AS images_json,
             r.created_at,
-            r.useful_count AS useful_count,
-            r.parent_id,
-            r.reply_to_nickname
+            r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
-          AND r.parent_id IS NULL
         <if test="withImage">
             AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
         </if>
@@ -117,16 +108,13 @@
             r.content,
             r.images AS images_json,
             r.created_at,
-            r.useful_count AS useful_count,
-            r.parent_id,
-            r.reply_to_nickname
+            r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
                  JOIN dish d ON r.dish_id = d.id
                  JOIN stall s ON d.stall_id = s.id
         WHERE s.canteen_id = #{canteenId}
           AND r.is_hidden = 0
-          AND r.parent_id IS NULL
         <if test="withImage">
             AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
         </if>
@@ -157,84 +145,6 @@
         </foreach>
           AND r.is_hidden = 0
         GROUP BY d.stall_id
-    </select>
-
-    <!-- 根据用户ID查昵称（回复冗余存储被回复者昵称） -->
-    <select id="selectNicknameByUserId" resultType="java.lang.String">
-        SELECT nickname FROM user WHERE id = #{userId}
-    </select>
-
-    <!--
-        批量查楼中楼子回复：按父评价ID IN，每个父只取最近 N 条（ROW_NUMBER 窗口函数），按 created_at 升序。
-        窗口限制避免单条顶层评价回复爆炸导致首屏 JSON 过大；是否有更多由 selectReplyTotalByParentIds 判定。
-    -->
-    <select id="selectRepliesByParentIds" resultType="com.bjtufood.review.dto.ReviewVO">
-        SELECT
-            id, user_id, dish_id, user_nickname, user_avatar, rating, content,
-            images_json, created_at, useful_count, parent_id, reply_to_nickname
-        FROM (
-            SELECT
-                r.id,
-                r.user_id,
-                r.dish_id,
-                u.nickname AS user_nickname,
-                u.avatar AS user_avatar,
-                r.rating,
-                r.content,
-                r.images AS images_json,
-                r.created_at,
-                r.useful_count AS useful_count,
-                r.parent_id,
-                r.reply_to_nickname,
-                ROW_NUMBER() OVER (PARTITION BY r.parent_id ORDER BY r.created_at DESC) AS rn
-            FROM review r
-                     JOIN user u ON r.user_id = u.id
-            WHERE r.parent_id IN
-            <foreach collection="parentIds" item="pid" open="(" separator="," close=")">#{pid}</foreach>
-              AND r.is_hidden = 0
-        ) t
-        WHERE t.rn &lt;= #{limit}
-        ORDER BY t.parent_id, t.created_at ASC
-    </select>
-
-    <!-- 批量统计各父评价的子回复总数（判断窗口限制后是否还有更多，供前端「查看全部」占位） -->
-    <select id="selectReplyTotalByParentIds" resultType="com.bjtufood.review.dto.ReplyTotalVO">
-        SELECT r.parent_id AS parentId, COUNT(*) AS total
-        FROM review r
-        WHERE r.parent_id IN
-        <foreach collection="parentIds" item="pid" open="(" separator="," close=")">#{pid}</foreach>
-          AND r.is_hidden = 0
-        GROUP BY r.parent_id
-    </select>
-
-    <!-- 批量查某层子回复的 id（仅 id，供删除时 BFS 收集后代；含 is_hidden 但删除时一并物理清除） -->
-    <select id="selectReplyIdsByParentIds" resultType="java.lang.Long">
-        SELECT r.id
-        FROM review r
-        WHERE r.parent_id IN
-        <foreach collection="parentIds" item="pid" open="(" separator="," close=")">#{pid}</foreach>
-    </select>
-
-    <!-- 分页查某父评价的直接子回复（「查看全部回复」展开用；普通分页、created_at 升序） -->
-    <select id="selectRepliesPageByParentId" resultType="com.bjtufood.review.dto.ReviewVO">
-        SELECT
-            r.id,
-            r.user_id,
-            r.dish_id,
-            u.nickname AS user_nickname,
-            u.avatar AS user_avatar,
-            r.rating,
-            r.content,
-            r.images AS images_json,
-            r.created_at,
-            r.useful_count AS useful_count,
-            r.parent_id,
-            r.reply_to_nickname
-        FROM review r
-                 JOIN user u ON r.user_id = u.id
-        WHERE r.parent_id = #{parentId}
-          AND r.is_hidden = 0
-        ORDER BY r.created_at ASC
     </select>
 
     <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->

@@ -230,7 +230,7 @@ function openReviewDetail(r: any) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
 async function toggleReviewHidden(r: any, hidden: boolean) {
   try {
-    await store.updateReview(Number(r.id), { is_hidden: hidden })
+    await store.updateReview(Number(r.id), { is_hidden: hidden ? 1 : 0 })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
     if (reviewDetail.value && Number(reviewDetail.value.id) === Number(r.id)) reviewDetail.value = null
   } catch (err: any) {

@@ -16,16 +16,9 @@
     <view class="review-body">
       <view class="review-head">
         <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
-        <text
-          v-if="review.replyToNickname"
-          class="review-reply-to"
-          role="button"
-          aria-label="回复对象"
-          @tap.stop="replyToNamed(review.replyToNickname!)"
-        >@{{ review.replyToNickname }}</text>
-        <text class="review-time">{{ relativeTime(review.createTime) }}</text>
+        <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
       </view>
-      <!-- 星级降权：仅顶层评价（有评分）展示，回复不计分不展示 -->
+      <!-- 星级：仅顶层评价（有评分）展示，展示可信口碑 -->
       <view class="review-rating" v-if="(review.rating || 0) > 0">
         <IconSvg
           v-for="i in 5"
@@ -49,48 +42,21 @@
           @tap="previewImage(idx)"
         />
       </view>
-      <!-- footer 两栏：左时间已上移到头部，右操作组（回复 / 有用 / 举报） -->
+      <!-- footer 操作组：有用（可选）/ 举报 / 删除（本人）。
+           评价扁平化后不再提供楼中楼回复（讨论沉淀到动态评论区），见 project_spec 决策 -->
       <view class="review-footer">
         <view class="review-ops">
-          <text class="review-op" role="button" aria-label="回复评价" @tap.stop="replyTo(review)">
-            <IconSvg name="comment" :size="26" color="var(--text-tertiary)" /> 回复
-          </text>
-          <text v-if="!hideUseful" class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="$emit('like', review)">
+          <text v-if="!hideUseful" class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
             <IconSvg
               name="thumb"
               :size="26"
-              :color="usefulActive ? 'var(--color-primary)' : 'var(--text-tertiary)'"
+              :color="usefulActive ? 'var(--color-like)' : 'var(--text-tertiary)'"
             />
             <text v-if="likeCount > 0" class="review-op-count">{{ likeCount }}</text>
           </text>
           <text v-if="!isOwn" class="review-op review-op--report" role="button" aria-label="举报评价" @tap.stop="onReport(review)">举报</text>
           <text v-if="canDelete" class="review-op review-op--delete" role="button" aria-label="删除评价" @tap.stop="onDelete">删除</text>
         </view>
-      </view>
-      <!-- 楼中楼子回复：缩进轻量渲染，复用同一组件；depth 封顶 3 层防失控 -->
-      <view class="review-replies" v-if="review.replies && review.replies.length && (depth ?? 0) < 3">
-        <ReviewItem
-          v-for="child in review.replies"
-          :key="child.id"
-          :review="child"
-          :useful-active="child.useful"
-          :hide-useful="hideUseful"
-          :current-user-id="currentUserId"
-          :depth="(depth ?? 0) + 1"
-          @like="$emit('like', $event)"
-          @reply="$emit('reply', $event)"
-          @reply-named="$emit('reply-named', $event)"
-          @report="$emit('report', $event)"
-          @delete="$emit('delete', $event)"
-        />
-        <text
-          v-if="review.repliesHasMore && !repliesLoading"
-          class="review-replies-more"
-          role="button"
-          :aria-label="repliesExpanded ? '加载更多回复' : '查看全部回复'"
-          @tap.stop="onLoadMoreReplies"
-        >{{ repliesExpanded ? '加载更多' : `查看全部 ${(review.replies || []).length}+ 条回复` }}</text>
-        <text v-else-if="repliesLoading" class="review-replies-more loading">加载中…</text>
       </view>
     </view>
   </view>
@@ -100,55 +66,80 @@
 import { computed, ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { getImageUrl, getThumbUrl, previewImages } from '@/utils/image'
-import { relativeTime } from '@/utils/time'
-import { getParentReplies } from '@/api/review'
+import { formatDateTime } from '@/utils/time'
+import { toggleUseful } from '@/api/review'
+import { useUserStore } from '@/stores/user'
 import type { Review } from '@/types/review'
-// 递归自引用：uni-app 跨端（尤其微信小程序）必须显式 import 自身，
-// 否则编译期无法解析模板中的 <ReviewItem>，仅 defineOptions name 不足。
-import ReviewItem from '@/components/ReviewItem.vue'
 
-// 递归组件需 name（H5 端递归解析用）
 defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
   review: Review
   /** 当前用户是否已点赞（控制填充态） */
   usefulActive?: boolean
-  /** 隐藏点赞（喜欢）操作：档口详情页评价区按产品决策不设点赞 */
+  /** 隐藏点赞（有用）操作：个人管理页按产品决策不设点赞 */
   hideUseful?: boolean
-  /** 当前登录用户 ID：用于判定本人评价（本人可删、隐藏举报），任意层级均生效 */
+  /** 当前登录用户 ID：用于判定本人评价（本人可删、隐藏举报） */
   currentUserId?: number
-  /** 嵌套层级（楼中楼缩进控制，顶层=0） */
-  depth?: number
+  /** 显式允许删除（个人管理页独立开关，不依赖 currentUserId） */
+  deletable?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'like', review: Review): void
-  (e: 'reply', review: Review): void
-  (e: 'reply-named', nickname: string): void
   (e: 'report', review: Review): void
   (e: 'delete', review: Review): void
 }>()
 
 const pressed = ref(false)
 const avatarOk = ref(true)
+const userStore = useUserStore()
 
 // 有用计数直接用后端 usefulCount（语义已含当前用户：toggleUseful 切换 ±1 均反映在计数中），
 // 若再加 usefulActive 会重复 +1。usefulActive 仅控制填充态显示。
 const likeCount = computed(() => props.review.usefulCount || 0)
+// 本地「有用」激活态（初始取后端 useful；切换后以后端返回为准）
+const usefulActive = ref(!!props.review.useful)
+// pending 锁防连点（P0 防重复请求 / 计数漂移）
+const pendingUseful = ref(false)
 
-// 本人评价（任意层级，子回复也可删）：当前登录用户 ID 命中即本人
+/** 评价「有用」：组件内乐观更新 + 失败回滚 + 连点锁（与 CommentItem / MomentCard 同模式） */
+function onLike() {
+  if (props.hideUseful) return
+  if (!userStore.requireAuth(() => onLike())) return
+  if (pendingUseful.value) return
+  pendingUseful.value = true
+  const prevActive = usefulActive.value
+  const prevCount = likeCount.value
+  // 乐观更新
+  usefulActive.value = !prevActive
+  props.review.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
+  toggleUseful(props.review.id)
+    .then((res) => {
+      usefulActive.value = res.useful
+      props.review.usefulCount = res.usefulCount
+      props.review.useful = res.useful
+    })
+    .catch(() => {
+      // 回滚
+      usefulActive.value = prevActive
+      props.review.usefulCount = prevCount
+      uni.showToast({ title: '操作失败', icon: 'none' })
+    })
+    .finally(() => {
+      pendingUseful.value = false
+    })
+}
+
+// 本人评价：当前登录用户 ID 命中即本人
 const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
-// 本人评价可删除（子回复开放删除入口）
-const canDelete = computed(() => isOwn.value)
+// 可删除：显式 deletable（个人管理页）或本人评价（详情页）
+const canDelete = computed(() => !!props.deletable || isOwn.value)
 
 function onDelete() {
   if (!canDelete.value) return
   emit('delete', props.review)
 }
-function replyTo(r: Review) { emit('reply', r) }
-/** 点 @昵称 直接开启回复弹层并指向该评价（含子回复，parentId=当前 review.id），无需先点「回复」 */
-function replyToNamed(nickname: string) { emit('reply', props.review) }
 function onReport(r: Review) { emit('report', r) }
 
 function previewImage(idx: number) {
@@ -167,60 +158,33 @@ function onThumbError(idx: number) {
     thumbFailed.value[idx] = true
   }
 }
-
-/* ===== 楼中楼「查看全部回复」展开（#4）：分页拉取后续 push 进 review.replies ===== */
-const REPLY_PAGE_SIZE = 20
-const repliesPage = ref(1)
-const repliesLoading = ref(false)
-/** 是否已点过「查看全部」（控制按钮文案：查看全部 / 加载更多） */
-const repliesExpanded = ref(false)
-
-async function onLoadMoreReplies() {
-  if (repliesLoading.value || !props.review.id) return
-  repliesLoading.value = true
-  try {
-    const { list } = await getParentReplies(props.review.id, {
-      page: repliesPage.value,
-      pageSize: REPLY_PAGE_SIZE,
-    })
-    // 与已有 replies 按 id 去重合并（首屏窗口 5 条可能被重复返回）
-    const existing = new Set((props.review.replies || []).map((r) => r.id))
-    const fresh = list.filter((r) => !existing.has(r.id))
-    if (!props.review.replies) props.review.replies = []
-    props.review.replies.push(...fresh)
-    // 返回条数不足一页说明已到底，隐藏按钮
-    props.review.repliesHasMore = list.length >= REPLY_PAGE_SIZE
-    repliesPage.value += 1
-    repliesExpanded.value = true
-  } finally {
-    repliesLoading.value = false
-  }
-}
 </script>
 
 <style scoped>
-/* ===== 评价项（对标动态评论卡片 CommentItem + Apple HIG 克制风格）。
-   三处评论区共用（动态详情 / 菜品详情 / 档口详情），打磨一处即统一全部。
-   设计要点：hairline 分隔、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级降权、楼中楼缩进 */
+/* ===== 评价项（口碑卡片，与 MomentCard 动态卡片统一视觉：独立卡片 + 圆角 + 阴影）。
+   三处评价区共用（菜品详情 / 全部评价 / 我的评价），打磨一处即统一全部。
+   与动态卡片的差异仅：无评论/回复入口（口碑层扁平，讨论沉淀到动态评论区）。
+   设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
 .review-item {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) 0;
-  border-bottom: 1rpx solid var(--border-color);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: opacity 120ms var(--ease-out);
 }
-.review-item:last-child { border-bottom: none; }
-/* 轻反馈：整卡由 scale 改为 opacity，避免整块（含楼中楼）塌陷感。
+/* 轻反馈：整卡由 scale 改为 opacity，避免整块塌陷感。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：与 CommentItem 对齐，统一 60rpx 圆角正方形 */
+/* 头像：与动态卡片统一 64rpx 圆角正方形 */
 .review-avatar {
-  width: 60rpx;
-  height: 60rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 16rpx;
   background: var(--bg-page);
   flex-shrink: 0;
@@ -236,7 +200,7 @@ async function onLoadMoreReplies() {
   gap: var(--spacing-xs);
 }
 
-/* 头部：昵称 + @被回复人 + 时间（时间置右灰字） */
+/* 头部：昵称 + 时间（时间置右灰字） */
 .review-head {
   display: flex;
   align-items: baseline;
@@ -250,14 +214,6 @@ async function onLoadMoreReplies() {
   letter-spacing: var(--tracking-h3);
   flex-shrink: 0;
 }
-.review-reply-to {
-  font-size: var(--font-aux);
-  font-weight: var(--weight-semibold);
-  color: var(--color-primary);
-  transition: opacity 120ms ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.review-reply-to:active { opacity: 0.6; }
 .review-time {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
@@ -265,7 +221,7 @@ async function onLoadMoreReplies() {
   flex-shrink: 0;
 }
 
-/* 星级降权：小星、与头部拉开，仅顶层评价展示 */
+/* 星级：小星、与头部拉开 */
 .review-rating { display: inline-flex; align-items: center; gap: 2rpx; }
 .review-star { display: inline-block; }
 
@@ -289,7 +245,7 @@ async function onLoadMoreReplies() {
 }
 .review-thumb:active { transform: scale(var(--press-scale)); }
 
-/* footer 两栏：左留空（时间上移头部）/ 右操作组（回复·有用·举报，纯文字链无背景） */
+/* footer：操作组（有用·举报·删除，纯文字链无背景） */
 .review-footer { margin-top: var(--spacing-xs); }
 .review-ops { display: inline-flex; align-items: center; gap: var(--spacing-lg); }
 .review-op {
@@ -305,29 +261,7 @@ async function onLoadMoreReplies() {
   -webkit-tap-highlight-color: transparent;
 }
 .review-op:active { opacity: 0.6; }
-.review-op.active { color: var(--color-primary); }
+.review-op.active { color: var(--color-like); }
 .review-op--report { color: var(--text-tertiary); }
 .review-op--delete { color: var(--color-error); }
-
-/* 楼中楼子回复：左侧细线缩进，轻量层级 */
-.review-replies {
-  margin-top: var(--spacing-sm);
-  padding-left: var(--spacing-md);
-  border-left: 2rpx solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-}
-/* 子回复「查看全部/加载更多」：可点击主色链接，loading 态降为灰字 */
-.review-replies-more {
-  align-self: flex-start;
-  margin-top: var(--spacing-xs);
-  padding: var(--spacing-2xs) var(--spacing-xs);
-  font-size: var(--font-aux);
-  font-weight: var(--weight-semibold);
-  color: var(--color-primary);
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity 120ms var(--ease-out);
-}
-.review-replies-more:active { opacity: 0.6; }
-.review-replies-more.loading { color: var(--text-tertiary); font-weight: var(--weight-medium); }
 </style>

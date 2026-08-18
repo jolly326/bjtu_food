@@ -32,7 +32,4 @@ public class ReviewReq {
 
     @Schema(description = "是否同步为社区动态（评价可见即动态可见：同步生成的动态直接通过审核，无需后台审核；评价无内容时不生成）", example = "false")
     private Boolean shareToMoment;
-
-    @Schema(description = "父评价ID：回复某条评价时必传；不传或传 null 表示发表顶层评价（每人每菜仅一次）。回复不受「一人一菜」限制。", example = "1")
-    private Long parentId;
 }

@@ -244,18 +244,10 @@ async function enableLocation() {
   }
 }
 
-/** 首页广播条点击 → 一律进入对应动态详情（用户明确要求，不做「回落动态列表」降级）。
- *  广播数据源为最新动态摘录（getMoments），每条必带 id；targetId 缺失说明数据异常，
- *  此时提示而非跳列表，避免掩盖根因。 */
-function onBroadcastTap(item: BroadcastItem) {
-  if (!item) return
-  const id = item.targetId ?? (item as any).id
-  if (id) {
-    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${id}` })
-    return
-  }
-  console.warn('[home] 广播条动态缺少 targetId：', item)
-  uni.showToast({ title: '该动态暂不可查看', icon: 'none' })
+/** 首页广播条点击 → 进入动态列表页（社区，展示全部最新动态）。
+ *  广播条本质是「最新动态入口」，点击进列表让用户浏览更多，而非直跳某条详情。 */
+function onBroadcastTap() {
+  uni.navigateTo({ url: '/pages/community/index' })
 }
 
 const loadingHot = ref(true)
@@ -265,13 +257,11 @@ const refresherTriggered = ref(false)
 // 广播栏（最新动态摘录）
 const broadcasts = ref<BroadcastItem[]>([])
 
-/** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口）。
- *  targetId 强制取有效数字：moment.id 已由 api 层 Number() 归一，此处兜底避免 0/NaN。 */
+/** 动态 → 广播项：只取动态内容文字，统一类型为 community（动态入口，点击进动态列表） */
 function toBroadcastItem(moment: Moment): BroadcastItem {
   return {
     text: moment.content || '',
     type: 'community',
-    targetId: moment.id || 0,
   }
 }
 

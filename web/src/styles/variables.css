@@ -14,6 +14,8 @@
   --color-on-primary: #141414;           /* 主色上的文字（深黑） */
   --color-accent: #9A9A9A;               /* 中灰（次要强调） */
   --color-star: #FBBF24;                 /* 星级（语义色） */
+  --color-like: #D9695A;                 /* 点赞/喜欢（语义色，与小程序端对齐） */
+  --color-like-soft: rgba(217, 105, 90, 0.12);
 
   /* ===== 状态色（功能语义，深色下提亮） ===== */
   --color-success: #4ADE80;
@@ -176,6 +178,8 @@
     --color-primary-light: #141414;
     --color-primary-dark: #444444;
     --color-primary-bg: rgba(43, 43, 43, 0.10);
+    --color-like: #B53B2C;               /* 点赞/喜欢（与小程序端浅色对齐） */
+    --color-like-soft: rgba(181, 59, 44, 0.10);
     --color-on-primary: #FFFFFF;
     --color-accent: #6B6B6B;
 

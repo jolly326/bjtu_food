@@ -36,9 +36,9 @@
 			}
 		},
 		{
-			"path": "pages/profile/messages/index",
+			"path": "pages/profile/notifications/index",
 			"style": {
-				"navigationBarTitleText": "消息中心",
+				"navigationBarTitleText": "系统通知",
 				"navigationStyle": "custom"
 			}
 		},

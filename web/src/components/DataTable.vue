@@ -69,6 +69,10 @@ import { ArrowRight } from '@element-plus/icons-vue'
 const emit = defineEmits<{
   'row-click': [row: any]
   'update:selectedIds': [ids: number[]]
+  /** serverMode 下当前页码双向同步（v-model:serverPage） */
+  'update:serverPage': [page: number]
+  /** serverMode 下每页条数双向同步（v-model:serverPageSize） */
+  'update:serverPageSize': [pageSize: number]
   /** serverMode 下翻页/改每页条数时触发，父组件据此重新请求对应页 */
   'page-change': [page: number, pageSize: number]
 }>()

@@ -129,25 +129,15 @@ CREATE TABLE IF NOT EXISTS `review`
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价图片URL数组JSON',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
-    `parent_id`  BIGINT       NULL     DEFAULT NULL COMMENT '父评价ID（NULL=顶层评价，非NULL=楼中楼回复）',
-    `reply_to_nickname` VARCHAR(64) NULL DEFAULT NULL COMMENT '被回复者昵称（仅回复记录有值，展示用）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_review_dish` (`dish_id`),
     KEY `idx_review_user` (`user_id`),
-    KEY `idx_review_parent` (`parent_id`)
+    UNIQUE KEY `uk_review_user_dish` (`user_id`, `dish_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='评价';
-
--- 兼容已存在的旧库：增量补列（幂等，列已存在时跳过）
-SET @exist_parent := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'parent_id');
-SET @exist_reply := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'reply_to_nickname');
-SET @sql_parent := IF(@exist_parent = 0, 'ALTER TABLE review ADD COLUMN parent_id BIGINT NULL DEFAULT NULL COMMENT ''父评价ID'' AFTER is_hidden', 'SELECT 1');
-SET @sql_reply := IF(@exist_reply = 0, 'ALTER TABLE review ADD COLUMN reply_to_nickname VARCHAR(64) NULL DEFAULT NULL COMMENT ''被回复者昵称'' AFTER parent_id', 'SELECT 1');
-PREPARE stmt FROM @sql_parent; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-PREPARE stmt FROM @sql_reply; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- -------------------- 评价「有用」 --------------------
 CREATE TABLE IF NOT EXISTS `review_useful`
@@ -319,6 +309,61 @@ ALTER TABLE `dish`
 -- 评价：有用计数（冗余列，由 review_useful 聚合维护）
 ALTER TABLE `review`
     ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '「有用」标记数（一人一票，uk_useful_user_review）';
+
+-- 食堂坐标（GCJ-02）：首页瀑布流「距你 Xm」依赖 canteen.latitude/longitude（前端 Haversine 本地计算）。
+-- 新库：CREATE TABLE 已含该列；旧库：幂等迁移补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护）。
+-- 坐标兜底：旧库可能已有 canteen 行但坐标 NULL，按食堂名回填 seed 默认坐标，保证「距你」始终可算。
+DROP PROCEDURE IF EXISTS `add_canteen_location`;
+DELIMITER $$
+CREATE PROCEDURE `add_canteen_location`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'canteen'
+          AND COLUMN_NAME = 'latitude'
+    ) THEN
+        ALTER TABLE `canteen`
+            ADD COLUMN `latitude`  DECIMAL(10,6) NULL DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'canteen'
+          AND COLUMN_NAME = 'longitude'
+    ) THEN
+        ALTER TABLE `canteen`
+            ADD COLUMN `longitude` DECIMAL(10,6) NULL DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）';
+    END IF;
+
+    -- 旧库坐标 NULL 兜底回填（仅当列已存在且行为 NULL 时执行；新库 seed 已带值，不受影响）
+    UPDATE `canteen`
+    SET `latitude` = CASE `name`
+                         WHEN '学一食堂' THEN 39.953800
+                         WHEN '学二食堂' THEN 39.954200
+                         WHEN '学三食堂' THEN 39.954600
+                         WHEN '明湖餐厅' THEN 39.955800
+                         WHEN '嘉园餐厅' THEN 39.953000
+                         WHEN '清真食堂' THEN 39.954800
+                         WHEN '留园餐厅' THEN 39.957000
+                         ELSE `latitude`
+        END,
+        `longitude` = CASE `name`
+                          WHEN '学一食堂' THEN 116.335400
+                          WHEN '学二食堂' THEN 116.335800
+                          WHEN '学三食堂' THEN 116.336200
+                          WHEN '明湖餐厅' THEN 116.331500
+                          WHEN '嘉园餐厅' THEN 116.339000
+                          WHEN '清真食堂' THEN 116.335000
+                          WHEN '留园餐厅' THEN 116.338000
+                          ELSE `longitude`
+        END
+    WHERE `latitude` IS NULL OR `longitude` IS NULL;
+END$$
+DELIMITER ;
+CALL `add_canteen_location`();
+DROP PROCEDURE IF EXISTS `add_canteen_location`;
 
 -- 动态评论「有用」关系表（task-12.4）
 CREATE TABLE IF NOT EXISTS `moment_comment_useful`

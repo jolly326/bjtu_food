@@ -47,9 +47,12 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
-function reloadFromFirstPage() {
+// 请求竞态守卫：仅接受最新一次请求结果，丢弃过期响应（防连续输入数据错乱）
+let reqToken = 0
+
+async function reloadFromFirstPage() {
   page.value = 1
-  loadList()
+  await loadList()
 }
 function onPageChange() {
   loadList()
@@ -62,6 +65,7 @@ const filtered = computed(() => rows.value)
 async function loadList() {
   loading.value = true
   error.value = ''
+  const token = ++reqToken
   try {
     const { feedbackApi } = await import('@/api')
     const res = await feedbackApi.listFeedbacks({
@@ -71,24 +75,31 @@ async function loadList() {
       page: page.value,
       pageSize: pageSize.value,
     })
+    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
     total.value = res.total
   } catch (e: any) {
+    if (token !== reqToken) return
     error.value = e.message || '加载反馈列表失败'
     rows.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (token === reqToken) loading.value = false
   }
 }
 
 onMounted(loadList)
 async function onTypeChange() {
-  reloadFromFirstPage()
+  await reloadFromFirstPage()
 }
 
 // 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
-watch(searchQuery, () => { reloadFromFirstPage() })
+// 加 300ms 防抖，避免连续输入每个 keystroke 都发请求（去重），并 await 确保完成。
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
+})
 
 // ===== 详情 + 处理抽屉 =====
 const detail = ref<FeedbackAdminVO | null>(null)

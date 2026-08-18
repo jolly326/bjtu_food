@@ -46,9 +46,13 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
+// 请求竞态守卫：仅接受最新一次请求结果，丢弃过期响应（防连续输入数据错乱）
+let reqToken = 0
+
 async function loadList() {
   loading.value = true
   error.value = ''
+  const token = ++reqToken
   try {
     const { momentApi } = await import('@/api')
     const res = await momentApi.listMoments({
@@ -57,22 +61,24 @@ async function loadList() {
       pageSize: pageSize.value,
       ...segmentFilter.value,
     })
+    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
     total.value = res.total
   } catch (e: any) {
+    if (token !== reqToken) return
     error.value = e.message || '加载动态列表失败'
     rows.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (token === reqToken) loading.value = false
   }
 }
 
 // 关键词/分段变化时回到第 1 页并重新请求（受控分页：翻页即重新拉取对应页）
-function reloadFromFirstPage() {
+async function reloadFromFirstPage() {
   page.value = 1
   selectedIds.value = []
-  loadList()
+  await loadList()
 }
 function onPageChange() {
   // 翻页时清空跨页多选，避免选中不可见行
@@ -85,14 +91,19 @@ function onPageChange() {
 const filtered = computed(() => rows.value)
 
 // 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
-watch(searchQuery, () => { reloadFromFirstPage() })
+// 加 300ms 防抖，避免连续输入每个 keystroke 都发请求（去重），并 await 确保完成。
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
+})
 
 onMounted(loadList)
 
 async function onSegmentChange(s: Segment) {
   if (activeSegment.value === s) return
   activeSegment.value = s
-  reloadFromFirstPage()
+  await reloadFromFirstPage()
 }
 
 // ===== 详情抽屉 =====

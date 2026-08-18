@@ -18,11 +18,16 @@
       </view>
       <view class="m-head-right">
         <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-        <text class="m-time">{{ relativeTime(moment.createdAt) }}</text>
+        <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
       </view>
       <!-- 审核态徽标（仅作者本人可见，我的动态页） -->
       <view v-if="showAudit && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
         <text class="m-audit-text">{{ auditLabel }}</text>
+      </view>
+      <!-- 右上角三点菜单：分享 / 举报 收进页面级 ActionSheet（去胶囊化，图标按钮；
+           仅触发 emit，弹层由父页面在 scroll-view 外渲染，避免 fixed 遮罩层级被压扁） -->
+      <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
+        <IconSvg name="more" :size="36" color="var(--text-tertiary)" />
       </view>
     </view>
 
@@ -54,6 +59,19 @@
       <text class="m-reject-text">已退回：{{ moment.rejectReason }}</text>
     </view>
 
+    <!-- 关联菜品星级（口碑展示：与菜品详情评价同源评分，评价/动态打通） -->
+    <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating">
+      <IconSvg
+        v-for="i in 5"
+        :key="i"
+        name="star-filled"
+        :size="20"
+        :color="i <= Math.round(moment.relatedRating || 0) ? 'var(--color-star)' : 'var(--border-color)'"
+        class="m-star"
+      />
+      <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
+    </view>
+
     <!-- 关联对象 chip + 互动栏（同一行，互动靠右） -->
     <view class="m-foot">
       <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
@@ -69,11 +87,6 @@
           <IconSvg name="comment" :size="30" color="var(--text-secondary)" class="m-action-icon" />
           <text class="m-action-count">{{ moment.commentCount > 0 ? moment.commentCount : 0 }}</text>
         </view>
-        <!-- 分享：微信原生分享组件（open-type=share → 页面 onShareAppMessage） -->
-        <button class="m-action m-action-share" open-type="share" @tap="onShareTap">
-          <IconSvg name="share" :size="30" color="var(--text-secondary)" class="m-action-icon" />
-          <text class="m-action-count">分享</text>
-        </button>
       </view>
     </view>
   </view>
@@ -82,12 +95,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
-import { relativeTime } from '@/utils/time'
+import { formatDateTime } from '@/utils/time'
 import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import { sharedMoment } from '@/utils/shareState'
 
 const props = withDefaults(defineProps<{
   moment: Moment
@@ -104,6 +116,7 @@ const emit = defineEmits<{
   (e: 'useful', moment: Moment): void
   (e: 'select', moment: Moment): void
   (e: 'go-related', moment: Moment): void
+  (e: 'more', moment: Moment): void
 }>()
 
 const userStore = useUserStore()
@@ -142,17 +155,16 @@ function goRelated() {
   emit('go-related', props.moment)
 }
 
-function onShareTap() {
-  // 记录待分享动态，页面 onShareAppMessage 据此生成分享卡片（微信原生分享）
-  sharedMoment.value = props.moment
-}
-
 function previewImage(idx: number) {
   previewImages(props.moment.images, idx)
 }
 
+/** pending 锁防连点（P0 防重复请求 / 计数漂移） */
+const pendingUseful = ref(false)
 async function onUseful() {
   if (!userStore.requireAuth(() => onUseful())) return
+  if (pendingUseful.value) return
+  pendingUseful.value = true
   const prevActive = usefulActive.value
   const prevCount = props.moment.usefulCount || 0
   usefulActive.value = !prevActive
@@ -167,6 +179,8 @@ async function onUseful() {
     usefulActive.value = prevActive
     props.moment.usefulCount = prevCount
     uni.showToast({ title: '操作失败', icon: 'none' })
+  } finally {
+    pendingUseful.value = false
   }
 }
 </script>
@@ -206,23 +220,35 @@ async function onUseful() {
 .m-image { width: 100%; height: 100%; opacity: 0; transition: opacity 0.3s ease, transform 0.25s ease; }
 .m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity 0.12s ease; }
+/* 关联 chip：胶囊背景（primary-soft + 主色文字）—— 用户明确认可关联菜品保留胶囊形态，
+   与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
+.m-related-icon { flex-shrink: 0; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+/* 关联菜品星级：小星 + 分值，与评价卡星级风格统一（--color-star 金黄） */
+.m-rating { display: inline-flex; align-items: center; gap: 2rpx; margin-top: var(--spacing-sm); }
+.m-star { display: inline-block; }
+.m-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
 .m-actions { display: flex; align-items: center; gap: var(--spacing-xs); margin-left: auto; flex-shrink: 0; }
-.m-action { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-sm) var(--spacing-md); min-height: 44px; border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.m-action:active { transform: scale(var(--press-scale)); }
-.m-action.m-action-share:active { background: var(--color-primary-soft); }
-/* button 重置（微信原生分享按钮） */
-.m-action.m-action-share { margin: 0; padding: var(--spacing-xs) var(--spacing-sm); line-height: 1.2; font-size: 24rpx; font-weight: var(--weight-semibold); box-sizing: border-box; }
+/* 互动按钮：icon + 数字纯文字链，去胶囊背景（原 bg-soft 胶囊与关联 chip 叠加视觉过重）。
+   统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
+   与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
+.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-action:active { opacity: 0.55; }
+/* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
+.m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
 .m-action.m-action-share::after { border: none; }
-.m-action.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .m-action-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
 .m-action.active .m-action-icon { color: var(--color-like); }
-.m-action-count { font-size: 24rpx; font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.m-action-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-like); }
+/* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
+   仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */
+.m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.m-more:active { opacity: 0.5; }
 </style>

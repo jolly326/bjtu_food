@@ -306,6 +306,8 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   .btn-primary:active, .btn-cancel:active, .btn-danger:active,
   .link:active, .tab:active, .nav-item:active, .tag-option:active,
   .type-opt:active, .action-btn:active, .toggle-btn:active,
+  .sec-card:active, .card:active, .pk-card:active, .banner-card:active,
+  .stat-card:active, .kpi:active,
   button:active, a:active { transform: none !important; }
 }
 

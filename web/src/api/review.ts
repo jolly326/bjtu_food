@@ -45,8 +45,14 @@ export async function getAll(userId?: number): Promise<Review[]> {
 }
 
 // 注意：评价由学生端提交（POST /reviews），后台仅审核 hide / delete，不提供 create。
-export async function updateById(id: number, _data: Partial<Review>) {
-  await put<void>(`/admin/reviews/${id}/hide`)
+// 后台隐藏/显示走 PUT /admin/reviews/{id}/hide，body 需带 hidden 字段；
+// 否则后端 setHidden 因 body 为 null 默认 hidden=false，导致「隐藏」永远被还原为「显示」。
+// 这里把 Review 的 is_hidden 透传为 hidden，修复评价显隐失效（web-review-restore P0）。
+// is_hidden 允许 number | boolean，兼容详情页 store.updateReview(id, { is_hidden: boolean })。
+export async function updateById(id: number, data: Partial<Review> & { is_hidden?: number | boolean }) {
+  const raw = data.is_hidden as number | boolean | undefined
+  const hidden = raw === 1 || raw === true
+  await put<void>(`/admin/reviews/${id}/hide`, { hidden })
 }
 
 export async function deleteById(id: number) {

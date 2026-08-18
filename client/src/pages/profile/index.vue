@@ -49,6 +49,10 @@
         >
           <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
           <text class="entry-label">{{ e.label }}</text>
+          <!-- 系统通知未读红点角标 -->
+          <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
+            <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
+          </view>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
         </view>
       </view>
@@ -80,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
@@ -88,11 +92,13 @@ import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthSheetStore } from '@/stores/authSheet'
+import { useNotifyStore } from '@/stores/notify'
 import { backToHome } from '@/utils/nav'
 
 const theme = useThemeStore()
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
+const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
 const pressedKey = ref('')
@@ -101,6 +107,11 @@ const pressedKey = ref('')
 const showBack = ref(false)
 onLoad((q) => {
   showBack.value = q?.from === 'home'
+})
+
+// 每次进入「我的」刷新未读通知数（红点角标）
+onShow(() => {
+  if (userStore.isLoggedIn()) notifyStore.fetchUnread()
 })
 
 /** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
@@ -121,12 +132,13 @@ function onUserCardTap() {
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-/** 我的入口：我发布的 / 最新活动 / 意见反馈 / 关于我们（移除"我的评价"） */
+/** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们 */
 const entryItems = [
+  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
   { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
   { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
   { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
-  { key: 'about', icon: 'bell', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
+  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
 /** 退出登录：二次确认（红色警示），未登录置灰 */
@@ -142,6 +154,7 @@ function onLogout() {
     success: (res) => {
       if (res.confirm) {
         userStore.logout()
+        notifyStore.reset()
         uni.showToast({ title: '已退出登录', icon: 'none' })
       }
     },
@@ -199,6 +212,21 @@ function onLogout() {
 .entry-icon { flex-shrink: 0; }
 .entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-arrow { flex-shrink: 0; }
+
+/* 系统通知未读红点角标 */
+.entry-badge {
+  flex-shrink: 0;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--color-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.entry-badge-text { font-size: 20rpx; color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
 
 /* 退出登录（警示红，独立分组 + 上间距；未登录置灰） */
 .logout-group { margin-top: var(--spacing-md); }

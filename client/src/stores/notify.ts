@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getUnreadCount } from '@/api/notify'
 
-/** 消息中心未读计数（驱动首页/我的页红点，task-09） */
+/** 系统通知未读计数（驱动首页/我的页红点，task-09） */
 export const useNotifyStore = defineStore('notify', () => {
   const unreadCount = ref(0)
 

@@ -2,7 +2,7 @@
   <view class="page my-moments-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="我的动态" @back="backToHome" />
 
-    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过消息中心提醒） -->
+    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && moments.length === 0" class="skeleton-list">
         <view v-for="s in 3" :key="s" class="sk-card skeleton" />
@@ -29,11 +29,31 @@
           :show-audit="true"
           @select="goDetail"
           @go-related="goRelated"
+          @more="openMore"
         />
       </view>
 
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
+
+    <!-- 举报弹窗（共享组件） -->
+    <ReportModal
+      :open="reportOpen"
+      title="举报动态"
+      placeholder="请描述举报原因…"
+      confirm-text="提交举报"
+      :submitting="reportSubmitting"
+      @update:open="reportOpen = $event"
+      @submit="submitReport"
+    />
+
+    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
+    <MomentActionSheet
+      :open="moreOpen"
+      :moment="moreMoment"
+      @update:open="moreOpen = $event"
+      @report="openReport"
+    />
 
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
     <AuthSheet />
@@ -46,12 +66,15 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
+import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import MomentCard from '@/components/MomentCard.vue'
+import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
@@ -60,6 +83,49 @@ const moments = ref<Moment[]>([])
 function openDishDetail(id: number) {
   if (!id) return
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+}
+
+/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
+const moreOpen = ref(false)
+const moreMoment = ref<Moment | null>(null)
+
+function openMore(m: Moment) {
+  moreMoment.value = m
+  moreOpen.value = true
+}
+
+/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
+const reportOpen = ref(false)
+const reportSubmitting = ref(false)
+const reportTarget = ref<Moment | null>(null)
+
+function openReport(m: Moment) {
+  if (!userStore.requireAuth(() => openReport(m))) return
+  reportTarget.value = m
+  reportOpen.value = true
+}
+
+async function submitReport(text: string) {
+  if (!reportTarget.value) return
+  if (!text) {
+    uni.showToast({ title: '请填写举报原因', icon: 'none' })
+    return
+  }
+  reportSubmitting.value = true
+  try {
+    await submitFeedback({
+      type: 'report',
+      content: text,
+      relatedType: 'moment',
+      relatedId: reportTarget.value.id,
+    })
+    uni.showToast({ title: '举报已提交', icon: 'success' })
+    reportOpen.value = false
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 const loading = ref(false)
 const loadFailed = ref(false)

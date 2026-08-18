@@ -88,9 +88,10 @@ watch(
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 0; }
 /* 评价白卡：与菜品/档口详情评价区同款（radius-modal 圆角 + 大字负 tracking 标题），token 化 */
-.comment-section { margin: 0 var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-md); }
-.list { margin-top: var(--spacing-xs); }
+/* 我的评价：ReviewItem 已卡片化（与动态卡片统一），title 下直接堆叠卡片，去外层白卡避免双重卡片 */
+.comment-section { margin: 0 var(--spacing-md); }
+.comment-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h3); margin-bottom: var(--spacing-sm); }
+.list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .skeleton-list { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md); }
 .sk-item { height: 220rpx; border-radius: var(--radius-card); }
 </style>

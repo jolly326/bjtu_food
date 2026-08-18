@@ -93,6 +93,7 @@ async function handleSubmit() {
         description: form.value.description.trim(),
         image: form.value.image,
         status: form.value.status,
+        avg_rating: 0,
         sort_order: 0,
       })
       toast.success('档口已添加')

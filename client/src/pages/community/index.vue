@@ -34,6 +34,7 @@
           :moment="m"
           @select="goDetail"
           @go-related="goRelated"
+          @more="openMore"
         />
         <!-- 触底状态 -->
         <view v-if="loadingMore" class="list-footer loading">
@@ -53,6 +54,25 @@
       <IconSvg name="plus" :size="48" color="var(--color-on-primary)" />
     </view>
 
+    <!-- 举报弹窗（共享组件） -->
+    <ReportModal
+      :open="reportOpen"
+      title="举报动态"
+      placeholder="请描述举报原因…"
+      confirm-text="提交举报"
+      :submitting="reportSubmitting"
+      @update:open="reportOpen = $event"
+      @submit="submitReport"
+    />
+
+    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
+    <MomentActionSheet
+      :open="moreOpen"
+      :moment="moreMoment"
+      @update:open="moreOpen = $event"
+      @report="openReport"
+    />
+
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
     <AuthSheet />
   </view>
@@ -62,22 +82,70 @@
 import { ref, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
+import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
+import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import MomentCard from '@/components/MomentCard.vue'
+import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
+const userStore = useUserStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages-detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
   uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+}
+
+/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
+const moreOpen = ref(false)
+const moreMoment = ref<Moment | null>(null)
+
+function openMore(m: Moment) {
+  moreMoment.value = m
+  moreOpen.value = true
+}
+
+/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
+const reportOpen = ref(false)
+const reportSubmitting = ref(false)
+const reportTarget = ref<Moment | null>(null)
+
+function openReport(m: Moment) {
+  if (!userStore.requireAuth(() => openReport(m))) return
+  reportTarget.value = m
+  reportOpen.value = true
+}
+
+async function submitReport(text: string) {
+  if (!reportTarget.value) return
+  if (!text) {
+    uni.showToast({ title: '请填写举报原因', icon: 'none' })
+    return
+  }
+  reportSubmitting.value = true
+  try {
+    await submitFeedback({
+      type: 'report',
+      content: text,
+      relatedType: 'moment',
+      relatedId: reportTarget.value.id,
+    })
+    uni.showToast({ title: '举报已提交', icon: 'success' })
+    reportOpen.value = false
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 const loading = ref(false)
 const loadingMore = ref(false)

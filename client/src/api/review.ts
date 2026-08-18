@@ -17,15 +17,12 @@ function toReview(raw: any): Review {
     rating: Number(raw.rating || 0),
     content: raw.content || '',
     images: normalizeImages(raw.images),
-    createTime: raw.createTime || '',
+    // 后端 ReviewVO 字段为 createdAt（LocalDateTime→JSON），兼容旧 createTime
+    createTime: raw.createdAt || raw.createTime || '',
     // 语义统一：后端 ReviewVO.usefulCount（有用计数）
     usefulCount: Number(raw.usefulCount ?? raw.useful_count ?? 0),
     // 当前登录用户是否已标记有用（仅登录态返回）
     useful: !!raw.useful,
-    // 楼中楼：父评价ID / 被回复者昵称 / 子回复列表
-    parentId: raw.parentId != null ? Number(raw.parentId) : null,
-    replyToNickname: raw.replyToNickname || null,
-    replies: Array.isArray(raw.replies) ? raw.replies.map((c: any) => toReview(c)) : undefined,
   }
 }
 
@@ -96,30 +93,4 @@ export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
 }
 
-/**
- * 回复某条评价（楼中楼一层回复）
- * POST /reviews/{parentId}/reply，body { content }
- * 回复不计分、不同步动态，不受「一人一菜」限制；需登录。
- */
-export async function replyReview(parentId: number, content: string): Promise<void> {
-  await post<void>(`/reviews/${parentId}/reply`, { content })
-}
 
-/**
- * 分页拉取某父评价的全部子回复（楼中楼「查看全部回复」展开用）
- * GET /reviews/{parentId}/replies?page=&pageSize=
- * 返回分页子回复列表，每个子回复附带自身楼中楼窗口。
- */
-export async function getParentReplies(
-  parentId: number,
-  options?: { page?: number; pageSize?: number },
-): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
-    page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 20,
-  }
-  const res = await get<any>(`/reviews/${parentId}/replies`, params)
-  const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
-  return { list, total }
-}

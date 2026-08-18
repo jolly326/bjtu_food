@@ -448,7 +448,10 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   border-radius: var(--radius-card);
 }
 
-/* ========== 减少动态效果（Apple §14） ========== */
+/* ========== 减少动态效果（Apple §14） ==========
+   全局降级：关闭按压 transform / 过渡 / 入场与循环动画，仅保留必要的透明度交叉淡入。
+   覆盖全站可点击元素的按压反馈（--press-scale）与各类动效，确保 reduce 偏好下无位移/弹性过冲。
+   注：.pressed 用 !important 提权，此处必须用同权 !important 覆盖。 */
 @media (prefers-reduced-motion: reduce) {
   .dish-card,
   .app-btn,
@@ -459,7 +462,19 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .pressed,
   .filter-enter,
   .m-action,
-  .fab {
+  .fab,
+  .interact-btn,
+  .stall-card-single,
+  .comment-item,
+  .review-item,
+  .review-thumb,
+  .moment-card,
+  .sheet-tab,
+  .history-chip,
+  .mixed-item,
+  .mention-item,
+  .app-btn:active,
+  .pressed {
     transition: opacity 0.2s ease !important;
     animation: none !important;
   }
@@ -468,17 +483,31 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .press,
   .pressed,
   .m-action,
-  .fab {
+  .fab,
+  .interact-btn,
+  .stall-card-single,
+  .comment-item,
+  .review-item,
+  .moment-card,
+  .sheet-tab,
+  .history-chip,
+  .mixed-item {
     transform: none !important;
   }
   @keyframes tabIn { from, to { transform: none; opacity: 1; } }
+  /* 关闭所有骨架屏 / 旋转 / 流光动画，避免视觉抖动 */
   .skeleton-icon,
   .skeleton-line,
   .skeleton-dish-img,
   .skeleton-dish-name,
   .skeleton-dish-price,
-  .skeleton {
+  .skeleton,
+  .footer-spinner,
+  .interact-spinner,
+  .mention-enter-active,
+  .mention-leave-active {
     animation: none !important;
+    transition: opacity 0.2s ease !important;
   }
 }
 
