@@ -89,6 +89,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     private String normalize(String value) {
-        return StringUtils.hasText(value) ? value : "-";
+        if (!StringUtils.hasText(value)) {
+            return "-";
+        }
+        // 脱敏：避免 queryString 中的 code/验证码/密码等敏感参数进入访问日志
+        return value.replaceAll("(?i)(code|password|token|verifyCode|emailCode)=[^&]*", "$1=***");
     }
 }

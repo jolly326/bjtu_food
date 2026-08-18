@@ -71,6 +71,7 @@ async function request<T>(
   url: string,
   data?: any,
   options?: { header?: any; hideLoading?: boolean },
+  _retried = false,
 ): Promise<T> {
   const header = {
     Authorization: `Bearer ${getToken()}`,
@@ -145,8 +146,19 @@ async function request<T>(
 
   const body = parseBody<T>(res.data)
   if (body.code === 401) {
-    // 401 登录失效：清登录态 + 重新静默登录（§5.x）
-    void handleUnauthorized()
+    // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
+    // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
+    // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报（§5.x）。
+    if (!_retried) {
+      try {
+        const { useUserStore } = await import('@/stores/user')
+        await useUserStore().silentLogin()
+        return request<T>(method, url, data, options, true)
+      } catch {
+        // 静默登录失败：降级为原处理
+      }
+    }
+    await handleUnauthorized()
     throw new Error(body.message || '请先登录')
   }
   if (body.code === 403) {

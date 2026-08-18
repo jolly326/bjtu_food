@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -23,7 +24,17 @@ public class WechatService {
 
     private static final Logger log = LoggerFactory.getLogger(WechatService.class);
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    /** 连接/读取超时（毫秒）：防止微信接口挂起时 HTTP 线程被无限期占用 */
+    private static final int WECHAT_TIMEOUT_MS = 5000;
+
+    private final RestTemplate restTemplate;
+
+    public WechatService() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(WECHAT_TIMEOUT_MS);
+        factory.setReadTimeout(WECHAT_TIMEOUT_MS);
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     @Value("${wechat.appid:}")
     private String appid;

@@ -9,6 +9,21 @@ import { pageRecords } from './adapter'
  * relatedType/relatedId 用于举报类反馈（report）关联被举报动态（moment）。
  */
 
+/** 安全解析反馈附图：兼容 JSON 数组字符串 / 逗号分隔字符串 / 数组 / 空值，解析失败兜底空数组 */
+function parseImages(images: unknown): string[] | undefined {
+  if (Array.isArray(images)) return images.filter(Boolean)
+  if (typeof images !== 'string') return undefined
+  const trimmed = images.trim()
+  if (!trimmed) return undefined
+  try {
+    const parsed = JSON.parse(trimmed)
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [trimmed]
+  } catch {
+    // 非 JSON 格式（如逗号分隔），按分隔符拆分兜底
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean)
+  }
+}
+
 export interface FeedbackAdminVO {
   id: number
   userId: number
@@ -40,7 +55,7 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     handledAt: raw.handledAt ?? raw.handled_at ?? '',
     relatedType: raw.relatedType ?? raw.related_type ?? undefined,
     relatedId: raw.relatedId ?? raw.related_id ?? undefined,
-    images: Array.isArray(raw.images) ? raw.images : (typeof raw.images === 'string' ? JSON.parse(raw.images || '[]') : undefined),
+    images: parseImages(raw.images),
   }
 }
 

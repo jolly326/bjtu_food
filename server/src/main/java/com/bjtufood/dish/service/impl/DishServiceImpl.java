@@ -444,8 +444,8 @@ public class DishServiceImpl implements DishService {
         for (int star = 5; star >= 1; star--) {
             long count = 0;
             for (RatingDistributionVO rd : distribution) {
-                if (rd.getStar() == star) {
-                    count = rd.getCount();
+                if (Objects.equals(rd.getStar(), star)) {
+                    count = rd.getCount() == null ? 0 : rd.getCount();
                     break;
                 }
             }

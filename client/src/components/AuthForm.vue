@@ -74,7 +74,7 @@ const codeCountdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const primaryPressed = ref(false)
 
-// 外部（AuthSheet / 认证页）传入的冷却值变化时回填到本地，重开弹层后倒计时继续
+// 外部（AuthSheet）传入的冷却值变化时回填到本地，重开弹层后倒计时继续
 watch(
   () => props.codeCountdown,
   (v) => {

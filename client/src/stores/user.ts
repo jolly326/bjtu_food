@@ -112,17 +112,12 @@ export const useUserStore = defineStore('user', () => {
     return res
   }
 
-  /** 统一清登录态：清内存态 + 清 storage；被 logout() 与 http 层 401/403 事件复用，避免登录态分裂 */
+  /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂 */
   function forceLogout() {
     token.value = ''
     userInfo.value = null
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
-  }
-
-  /** 退出登录：清除本地登录态（微信重新打开仍静默登录，语义见 §2.1.5/§5.y） */
-  function logout() {
-    forceLogout()
   }
 
   /** 是否有登录态（token+userInfo；微信静默登录后恒为 true，即游客态） */
@@ -159,7 +154,6 @@ export const useUserStore = defineStore('user', () => {
     silentLogin,
     verifyEmail,
     updateProfile,
-    logout,
     forceLogout,
     isLoggedIn,
     isVerified,

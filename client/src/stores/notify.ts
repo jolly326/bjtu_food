@@ -14,9 +14,5 @@ export const useNotifyStore = defineStore('notify', () => {
     }
   }
 
-  function reset() {
-    unreadCount.value = 0
-  }
-
-  return { unreadCount, fetchUnread, reset }
+  return { unreadCount, fetchUnread }
 })

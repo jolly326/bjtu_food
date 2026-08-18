@@ -34,7 +34,7 @@
 - 关键约束：**邮箱是唯一迁移 / 绑定凭证**；**不设解绑入口**（后端不提供解绑接口）；`verified` 不进 JWT。
 
 ### 1.4 鉴权改造：需登录 → 需 verified
-- 社区写操作（发布菜品 `POST /dishes` 系列、提交档口/食堂 `POST /my/stalls`、写评价 `POST /reviews`、评论、点赞、动态 `POST /moments` 等）鉴权由「需 `STUDENT` 角色 / 需登录」改为「**需 `verified=true`**」。
+- 社区写操作（发布菜品 `POST /dishes` 系列、写评价 `POST /reviews`、评论、点赞、动态 `POST /moments` 等）鉴权由「需 `STUDENT` 角色 / 需登录」改为「**需 `verified=true`**」。（注：`POST /my/stalls` 学生提交档口/食堂功能已于 2026-08-18 随代码清理移除）
 - 实现：新增注解或切面（如 `@RequireVerified`，或基于 `SecurityUtil` 校验 `user.verified`）；`verified` 不进 JWT，每次请求按 `user.verified` 实时判定。
 - 游客（`verified=false`）访问需 verified 接口 → `403`「请先完成学号邮箱认证」（错误码沿用标准，不自定义）。
 - `GET /auth/profile`、`GET /feedback/my` 等「本人数据读取」仍允许游客态读取（`verified=false` 亦可），但社区写操作必须 verified。
