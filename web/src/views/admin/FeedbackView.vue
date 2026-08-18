@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -13,17 +13,26 @@ const toast = useToastStore()
 
 const searchQuery = ref('')
 
-const typeLabel: Record<string, string> = { suggestion: '功能建议', error: '内容纠错', report: '举报', other: '其他' }
+const typeLabel: Record<string, string> = {
+  suggestion: '功能建议',
+  error: '内容纠错',
+  add: '新增菜品',
+  bug: '系统问题',
+  report: '举报',
+  other: '其他',
+}
 const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
 const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
 
 // 反馈列表默认只显示「待处理」（管理员的处理待办），无状态 tab 切换
 
-// 类型筛选（§5 举报处理：可筛 type=report 等）
+// 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
 const typeOptions = [
   { value: '', label: '全部类型' },
   { value: 'suggestion', label: '功能建议' },
+  { value: 'add', label: '新增菜品' },
   { value: 'error', label: '内容纠错' },
+  { value: 'bug', label: '系统问题' },
   { value: 'report', label: '举报' },
   { value: 'other', label: '其他' },
 ]
@@ -33,35 +42,66 @@ const loading = ref(false)
 const error = ref('')
 const rows = ref<FeedbackAdminVO[]>([])
 
-const filtered = computed(() => {
-  const q = searchQuery.value
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.content || '').toLowerCase().includes(q)
-      || (r.contact || '').toLowerCase().includes(q)
-      || (r.userNickname || '').toLowerCase().includes(q),
-  )
-})
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 请求竞态守卫：仅接受最新一次请求结果，丢弃过期响应（防连续输入数据错乱）
+let reqToken = 0
+
+async function reloadFromFirstPage() {
+  page.value = 1
+  await loadList()
+}
+function onPageChange() {
+  loadList()
+}
+
+// 关键词检索已改为服务端 keyword 过滤（后端按 content/contact/userNickname 模糊），
+// 翻页/改类型会重新请求后端对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
 
 async function loadList() {
   loading.value = true
   error.value = ''
+  const token = ++reqToken
   try {
     const { feedbackApi } = await import('@/api')
-    const res = await feedbackApi.listFeedbacks({ status: 'pending', type: activeType.value || undefined, pageSize: 200 })
+    const res = await feedbackApi.listFeedbacks({
+      status: 'pending',
+      keyword: searchQuery.value.trim() || undefined,
+      type: activeType.value || undefined,
+      page: page.value,
+      pageSize: pageSize.value,
+    })
+    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
+    if (token !== reqToken) return
     error.value = e.message || '加载反馈列表失败'
     rows.value = []
+    total.value = 0
   } finally {
-    loading.value = false
+    if (token === reqToken) loading.value = false
   }
 }
 
 onMounted(loadList)
 async function onTypeChange() {
-  await loadList()
+  await reloadFromFirstPage()
 }
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
+// 加 300ms 防抖，避免连续输入每个 keystroke 都发请求（去重），并 await 确保完成。
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
+})
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
 // ===== 详情 + 处理抽屉 =====
 const detail = ref<FeedbackAdminVO | null>(null)
@@ -102,6 +142,11 @@ function fmtTime(v: string): string {
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
 }
 
+/** 附图预览（点击放大，新窗口打开原图） */
+function previewImg(images: string[], idx: number) {
+  window.open(images[idx], '_blank')
+}
+
 async function copyMomentLink(momentId?: number) {
   if (momentId == null) return
   const link = `pages/moment/detail?id=${momentId}`
@@ -131,6 +176,11 @@ async function copyMomentLink(momentId?: number) {
     </FilterBar>
 
     <DataTable
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'type', label: '类型', width: '120px', align: 'center' },
         { prop: 'related', label: '关联动态', width: '140px', align: 'center' },
@@ -196,6 +246,14 @@ async function copyMomentLink(momentId?: number) {
           </span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
+        <div class="detail-row detail-row-desc" v-if="detail.images && detail.images.length">
+          <span class="dl">附图</span>
+          <span class="dv">
+            <div class="img-list">
+              <img v-for="(img, i) in detail.images" :key="img" :src="img" class="img-thumb" @click="previewImg(detail.images, i)" />
+            </div>
+          </span>
+        </div>
         <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
@@ -229,6 +287,9 @@ async function copyMomentLink(momentId?: number) {
 .dl { width: 64px; flex-shrink: 0; color: var(--text-muted); }
 .dv { color: var(--text-primary); flex: 1; }
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); white-space: pre-wrap; }
+/* 反馈附图缩略图：横向排列、可点击放大 */
+.img-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.img-thumb { width: 72px; height: 72px; border-radius: var(--radius); object-fit: cover; cursor: zoom-in; border: 1px solid var(--border-light); }
 .reply-area { margin-top: var(--space-4); border-top: 1px solid var(--border-light); padding-top: var(--space-4); }
 .reply-area label { display: block; font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
 .reply-area textarea {

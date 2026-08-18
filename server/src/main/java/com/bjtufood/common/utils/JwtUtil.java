@@ -3,6 +3,7 @@ package com.bjtufood.common.utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +35,23 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    /** 开发期默认弱密钥（仅用于本地调试，生产必须覆盖） */
+    private static final String DEV_DEFAULT_SECRET = "BjtuFoodDevSecretKey2024ChangeMe";
+
+    /**
+     * 启动期 fail-fast：若仍使用仓库内置的默认弱密钥，直接阻断启动，
+     * 防止误用默认密钥导致任意用户 Token 可被伪造。
+     */
+    @PostConstruct
+    public void validateSecretOnStartup() {
+        if (secret == null || secret.equals(DEV_DEFAULT_SECRET) || secret.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT 签名密钥强度不足：请通过环境变量 JWT_SECRET 注入 >=32 字节的强随机密钥，" +
+                            "禁止使用默认/弱密钥启动生产环境。"
+            );
+        }
+    }
+
     /**
      * 创建 JWT Token
      *
@@ -43,6 +61,22 @@ public class JwtUtil {
      * @return 签发的 JWT 字符串（如：eyJhbGciOiJIUzI1NiJ9.xxx）
      */
     public String createToken(Long userId, String role, String username) {
+        return createToken(userId, role, username, expiration);
+    }
+
+    /**
+     * 创建 JWT Token（指定过期时长，毫秒）
+     * <p>
+     * 用于签发与全局策略不同的短期 Token（如管理后台 12 小时），
+     * 由业务侧自行持有过期策略，避免全局统一时长一刀切。
+     *
+     * @param userId          用户 ID
+     * @param role            用户角色
+     * @param username        用户名
+     * @param expirationMillis 过期时长（毫秒）
+     * @return 签发的 JWT 字符串
+     */
+    public String createToken(Long userId, String role, String username, long expirationMillis) {
         // 设置载荷（Payload）
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -55,7 +89,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .claims(claims)                          // 设置自定义载荷
                 .issuedAt(new Date())                    // 签发时间
-                .expiration(new Date(System.currentTimeMillis() + expiration))  // 过期时间
+                .expiration(new Date(System.currentTimeMillis() + expirationMillis))  // 过期时间
                 .signWith(key)                           // 签名
                 .compact();
     }

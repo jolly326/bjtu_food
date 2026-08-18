@@ -74,7 +74,7 @@ function toggle() {
   top: 4px;
   bottom: 4px;
   width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color-primary);
 }
 .ps-chevron {

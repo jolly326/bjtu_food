@@ -19,12 +19,18 @@ export interface Moment {
   relatedName?: string | null
   /** 关联档口所属食堂名（仅 relatedType=stall 返回，跳档口详情需携带 navParams.canteen） */
   relatedCanteen?: string | null
+  /** 关联菜品平均评分（仅 relatedType=dish 返回，动态卡片星级展示） */
+  relatedRating?: number | null
+  /** 关联菜品评价数（仅 relatedType=dish 返回） */
+  relatedRatingCount?: number | null
   /** 审核状态（公开列表仅 approved） */
   auditStatus?: AuditStatus
   /** 退回原因（仅作者/管理员可见） */
   rejectReason?: string | null
   /** 「有用」计数 */
   usefulCount: number
+  /** 当前用户是否已点「有用」（仅登录态返回；驱动卡片填充态） */
+  useful?: boolean
   /** 评论数 */
   commentCount: number
   /** 下架状态：0=正常 1=下架 */
@@ -43,6 +49,8 @@ export interface MomentComment {
   parentId?: number | null
   /** 父评论昵称（回复 @昵称 展示） */
   replyToNickname?: string | null
+  /** 评论图片（最多 3 张，复用 Moment 图床） */
+  images?: string[] | null
   content: string
   /** 有用计数（task-12.4） */
   usefulCount?: number
@@ -63,6 +71,7 @@ export interface MomentPublish {
 export interface MomentCommentPublish {
   content: string
   parentId?: number | null
+  images?: string[] | null
 }
 
 /** 有用切换结果 */

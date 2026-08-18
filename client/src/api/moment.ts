@@ -9,6 +9,7 @@
  */
 import { get, post, put, del } from './http'
 import { getImageUrl } from '@/utils/image'
+import { normalizeImages } from './_shared'
 import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
 
 /**
@@ -16,14 +17,9 @@ import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, Moment
  * 注意：原 api/momentMapper.ts 并入本模块——新增顶层模块文件在微信开发者工具
  * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
  */
-function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
-  if (typeof value === 'string' && value.trim()) return value.split(',').map(s => s.trim()).filter(Boolean).map(getImageUrl)
-  return []
-}
 
-export function toMoment(raw: any): Moment {
-  if (!raw) return raw
+function toMoment(raw: any): Moment | null {
+  if (!raw) return null
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
@@ -36,17 +32,22 @@ export function toMoment(raw: any): Moment {
     relatedName: raw.relatedName ?? null,
     // 关联档口所属食堂名（后端 MomentVO.relatedCanteen），跳档口详情需携带 navParams.canteen
     relatedCanteen: raw.relatedCanteen ?? null,
+    // 关联菜品评分（后端 MomentVO.relatedRating/relatedRatingCount，动态卡片星级展示）
+    relatedRating: raw.relatedRating ?? null,
+    relatedRatingCount: raw.relatedRatingCount ?? null,
     auditStatus: raw.auditStatus,
     rejectReason: raw.rejectReason ?? null,
     usefulCount: Number(raw.usefulCount ?? 0),
+    /** 当前用户是否已点「有用」（仅登录态返回；列表/详情均可用，供卡片回显） */
+    useful: !!raw.useful,
     commentCount: Number(raw.commentCount ?? 0),
     status: raw.status ?? 0,
     createdAt: raw.createdAt,
   }
 }
 
-export function toMomentComment(raw: any): MomentComment {
-  if (!raw) return raw
+function toMomentComment(raw: any): MomentComment | null {
+  if (!raw) return null
   return {
     id: Number(raw.id),
     momentId: Number(raw.momentId ?? 0),
@@ -56,6 +57,7 @@ export function toMomentComment(raw: any): MomentComment {
     parentId: raw.parentId ?? null,
     replyToNickname: raw.replyToNickname ?? null,
     content: raw.content || '',
+    images: normalizeImages(raw.images),
     usefulCount: Number(raw.usefulCount ?? 0),
     useful: !!raw.useful,
     createdAt: raw.createdAt,
@@ -93,12 +95,12 @@ export async function getMoments(params: {
   if (params.stallId != null) query.stallId = params.stallId
   if (params.canteenId != null) query.canteenId = params.canteenId
   const res = await get<PageResult<any>>('/moments', query)
-  const raw = listOf(res).map(toMoment)
+  const raw = listOf(res).map(toMoment).filter(Boolean) as Moment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 
 /** 动态详情（PUB，作者本人可见 rejectReason） */
-export async function getMomentDetail(id: number): Promise<Moment> {
+export async function getMomentDetail(id: number): Promise<Moment | null> {
   const res = await get<any>(`/moments/${id}`)
   return toMoment(res)
 }
@@ -113,17 +115,12 @@ export async function updateMoment(id: number, payload: MomentPublish): Promise<
   await put<void>(`/my/moments/${id}`, payload)
 }
 
-/** 删除自己动态（STU 仅作者） */
-export async function deleteMoment(id: number): Promise<void> {
-  await del<void>(`/my/moments/${id}`)
-}
-
 /** 我的动态列表（STU，补齐契约缺口） */
 export async function getMyMoments(auditStatus?: string): Promise<Moment[]> {
   const query: Record<string, any> = {}
   if (auditStatus) query.auditStatus = auditStatus
   const res = await get<any[]>('/my/moments', query)
-  return (res || []).map(toMoment)
+  return (res || []).map(toMoment).filter(Boolean) as Moment[]
 }
 
 /** 有用切换（STU，幂等） */
@@ -134,21 +131,21 @@ export async function toggleUseful(id: number): Promise<MomentUsefulResult> {
 /** 评论列表（PUB，created_at asc 扁平化） */
 export async function getMomentComments(id: number, page = 1, pageSize = 20): Promise<{ list: MomentComment[]; total: number }> {
   const res = await get<PageResult<any>>(`/moments/${id}/comments`, { page, pageSize })
-  const raw = listOf(res).map((item: any) => toMomentComment(item))
+  const raw = listOf(res).map((item: any) => toMomentComment(item)).filter(Boolean) as MomentComment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 
 /** 发评论（STU，支持 parentId 一层回复） */
 export async function commentMoment(id: number, payload: MomentCommentPublish): Promise<{ id: number }> {
-  return post<{ id: number }>(`/moments/${id}/comments`, payload)
+  const body: Record<string, unknown> = {
+    content: payload.content,
+    parentId: payload.parentId ?? null,
+  }
+  if (payload.images && payload.images.length) body.images = payload.images
+  return post<{ id: number }>(`/moments/${id}/comments`, body)
 }
 
 /** 删除自己评论（STU 仅作者） */
 export async function deleteMomentComment(momentId: number, commentId: number): Promise<void> {
   await del<void>(`/my/moments/${momentId}/comments/${commentId}`)
-}
-
-/** 评论「有用」幂等切换（STU，task-12.4） */
-export async function toggleCommentUseful(momentId: number, commentId: number): Promise<MomentUsefulResult> {
-  return post<MomentUsefulResult>(`/moments/${momentId}/comments/${commentId}/useful`)
 }

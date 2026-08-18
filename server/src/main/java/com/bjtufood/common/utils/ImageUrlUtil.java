@@ -23,6 +23,10 @@ public class ImageUrlUtil {
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
             return trimmed;
         }
+        // 微信云存储文件 ID（cloud://env-id.xxx/path）：小程序端直接使用，不拼接后端地址
+        if (trimmed.startsWith("cloud://")) {
+            return trimmed;
+        }
         if (trimmed.startsWith("/")) {
             return publicBaseUrl + trimmed;
         }

@@ -1,6 +1,6 @@
 <template>
   <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header :title="isEdit ? '编辑动态' : '发布动态'" showBack />
+    <Header :title="isEdit ? '编辑动态' : '发布动态'" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 正文 -->
       <view class="block">
@@ -28,9 +28,9 @@
       <!-- 图片上传 -->
       <view class="block">
         <SectionTitle title="图片">
-          <template #extra><text class="section-sub">最多 9 张</text></template>
+          <template #extra><text class="section-sub">最多 3 张</text></template>
         </SectionTitle>
-        <ImageUploader v-model="images" :max="9" />
+        <ImageUploader v-model="images" :max="3" />
       </view>
 
       <view style="height: var(--spacing-xl)" />
@@ -57,21 +57,22 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onUnmounted } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { useUserStore } from '@/stores/user'
+import * as momentApi from '@/api/moment'
+import type { Moment, RelatedType } from '@/types/moment'
+import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import type { RelatedItem } from '@/components/RelatedPickerSheet.vue'
-import { useUserStore } from '@/stores/user'
-import * as momentApi from '@/api/moment'
-import type { Moment, RelatedType } from '@/types/moment'
+import type { RelatedItem } from '@/components/related-item'
 
+const theme = useThemeStore()
 const userStore = useUserStore()
 const content = ref('')
 const images = ref<string[]>([])
@@ -87,6 +88,13 @@ const relatedLabel = computed(() => {
   if (!selectedRelated.value) return '不关联（自由动态）'
   const prefix = selectedRelated.value.type === 'dish' ? '菜品' : '档口'
   return `${prefix}·${selectedRelated.value.name}`
+})
+
+// N07 修复：提交后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
 })
 
 function onRelatedSelect(item: RelatedItem) {
@@ -110,7 +118,8 @@ function onRelatedConfirm(item: RelatedItem | null) {
 }
 
 async function submit() {
-  if (!userStore.requireAuth()) return
+  // 游客点发布：登录成功后由 AuthSheet 自动继续提交（与写评价 requireAuth(action) 行为一致）
+  if (!userStore.requireAuth(submit)) return
   const text = content.value.trim()
   if (!text) {
     uni.showToast({ title: '请填写动态内容', icon: 'none' })
@@ -135,7 +144,8 @@ async function submit() {
       await momentApi.publishMoment(payload)
     }
     uni.showToast({ title: isEdit.value ? '已重新提交审核' : '发布成功，审核中', icon: 'success' })
-    setTimeout(() => {
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => {
       uni.navigateBack()
     }, 600)
   } catch (e: any) {
@@ -149,7 +159,12 @@ onLoad(async (query) => {
   if (query?.id) {
     editId.value = Number(query.id)
     try {
-      const m: Moment = await momentApi.getMomentDetail(Number(query.id))
+      const m = await momentApi.getMomentDetail(Number(query.id))
+      // M03 修复：getMomentDetail 现返回 Moment | null，需空值兜底
+      if (!m) {
+        uni.showToast({ title: '动态不存在或已删除', icon: 'none' })
+        return
+      }
       content.value = m.content
       images.value = [...m.images]
       if (m.relatedType && m.relatedType !== 'none' && m.relatedId) {
@@ -170,9 +185,8 @@ onLoad(async (query) => {
 .content-input { width: 100%; min-height: 220rpx; font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; padding: var(--spacing-sm); background: var(--bg-page); border-radius: var(--radius-card); border: none; box-sizing: border-box; }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .section-sub { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); }
-.related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-picker:active { transform: scale(var(--press-scale)); }
 .related-label { font-size: var(--font-body); color: var(--text-secondary); }
-.related-arrow { font-size: 28rpx; color: var(--text-tertiary); }
 .submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 </style>

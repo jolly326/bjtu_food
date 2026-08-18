@@ -26,6 +26,10 @@ public class Dish {
     @Schema(description = "所属档口ID")
     private Long stallId;
 
+    /** 所属品类ID（category.id；首页品类滚轮筛选，可空=未分类） */
+    @Schema(description = "所属品类ID（category.id，可空）", example = "1")
+    private Long categoryId;
+
     /** 菜品名称 */
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
@@ -57,6 +61,10 @@ public class Dish {
     /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
     @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
     private Integer spiceLevel;
+
+    /** 地域（美食来源地）：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
+    @Schema(description = "地域（美食来源地），如 清真/川湘/西北/粤式/东北", example = "清真")
+    private String region;
 
     /** 分量枚举：0=小 1=中 2=大 */
     @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")

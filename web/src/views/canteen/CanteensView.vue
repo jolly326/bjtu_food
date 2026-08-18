@@ -82,14 +82,14 @@ function openEdit(id: number) {
   showModal.value = true
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!validate()) return
   try {
     if (editingId.value !== null) {
-      store.updateCanteen(editingId.value, { ...form.value })
+      await store.updateCanteen(editingId.value, { ...form.value })
       toast.success('食堂已更新')
     } else {
-      store.addCanteen({ ...form.value })
+      await store.addCanteen({ ...form.value })
       toast.success('食堂已添加')
     }
     showModal.value = false
@@ -179,7 +179,7 @@ async function batchSetStatus(status: 'active' | 'inactive') {
         <button class="btn-primary" v-press type="button" @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增食堂</button>
       </template>
       <template #cell-image="{ row }">
-        <img v-if="getFirstImage(row.image)" :src="getFirstImage(row.image)" :alt="row.name" class="cell-thumb" />
+        <img v-if="getFirstImage(row.image)" :src="getFirstImage(row.image)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
         <span v-else class="cell-thumb cell-thumb-empty">图</span>
       </template>
       <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>

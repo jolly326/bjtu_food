@@ -86,7 +86,7 @@ const pressed = ref(false)
   border-bottom: 2rpx solid var(--border-color);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 120ms var(--ease-out), background 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .menu-item:last-child { border-bottom: none; }
 .menu-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
@@ -115,7 +115,7 @@ const pressed = ref(false)
   min-width: 32rpx;
   height: 32rpx;
   padding: 0 10rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--color-error);
   color: var(--text-white);
   font-size: var(--font-aux);
@@ -129,7 +129,7 @@ const pressed = ref(false)
   flex-shrink: 0;
   width: 88rpx;
   height: 56rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--border-bold);
   padding: 4rpx;
   box-sizing: border-box;

@@ -16,16 +16,38 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * 统一未登录/登录失效处理：
- * 清空本地 token，并抛出业务异常（页面层再决定如何提示），
- * 同时通过全局事件通知应用层跳转到登录，避免在各处裸弹「401」错误。
+ * 统一未登录/登录失效处理（§5.x 401 处理）：
+ * 清本地登录态 + Toast + 重新触发微信静默登录（wechat-login）。
+ * 用动态 import 避免 user store ↔ http 的循环依赖；forceLogout 幂等，可安全延迟执行。
+ * 不再使用全局 uni.$on/$emit 事件总线，规避 HMR/模块重复加载导致的重复订阅泄漏。
  */
-function handleUnauthorized(): void {
-  uni.removeStorageSync('token')
-  uni.removeStorageSync('userInfo')
-  // 供 task-02 登录页 / 路由守卫统一拦截跳转
-  uni.$emit('auth:unauthorized')
-  uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
+async function handleUnauthorized(): Promise<void> {
+  try {
+    const { useUserStore } = await import('@/stores/user')
+    useUserStore().forceLogout()
+    uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    // 401 → 重新静默登录（游客态自动恢复）
+    useUserStore().silentLogin()
+  } catch {
+    // 兜底：极端情况下动态 import 失败，直接清 storage
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+  }
+}
+
+/**
+ * 统一无权限/未认证处理（§5.y / §5.x 403）：
+ * 社区写操作需 verified=true，游客触发时后端返回 403 →
+ * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
+ */
+async function handleForbidden(): Promise<void> {
+  uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
+  try {
+    const { useAuthSheetStore } = await import('@/stores/authSheet')
+    useAuthSheetStore().show()
+  } catch {
+    // 兜底：极端情况忽略，仅提示
+  }
 }
 
 function getToken(): string {
@@ -49,6 +71,7 @@ async function request<T>(
   url: string,
   data?: any,
   options?: { header?: any; hideLoading?: boolean },
+  _retried = false,
 ): Promise<T> {
   const header = {
     Authorization: `Bearer ${getToken()}`,
@@ -72,6 +95,11 @@ async function request<T>(
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
         return
       }
+      // N04 修复：超时定时器保存句柄，settle 后清理
+      const timeoutTimer = setTimeout(() => {
+        done(() => reject(new Error('请求超时')))
+      }, 8000)
+      const clearTimer = () => { clearTimeout(timeoutTimer) }
       wxApi.cloud.callContainer({
         config: { env: WX_CLOUD_ENV },
         path: url.startsWith('/api') ? url : `/api${url}`,
@@ -81,10 +109,9 @@ async function request<T>(
           'X-WX-SERVICE': WX_SERVICE,
           ...header,
         },
-        success: r => done(() => resolve(r)),
-        fail: err => done(() => reject(new Error(err.errMsg || '网络请求失败'))),
+        success: (r: any) => { clearTimer(); done(() => resolve(r)) },
+        fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
       })
-      setTimeout(() => done(() => reject(new Error('请求超时'))), 8000)
     })
     // #endif
 
@@ -96,13 +123,19 @@ async function request<T>(
         method,
         data,
         header,
-        success: resolve,
-        fail: err => reject(new Error(err.errMsg || '网络请求失败')),
+        success: (r: any) => { clearTimer(); resolve(r) },
+        fail: err => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
       })
-      setTimeout(() => {
-        task.abort()
+      let finished = false
+      const timeoutTimer = setTimeout(() => {
+        finished = true
+        // N04 修复：仅对尚未完成的 task abort，避免对已完成任务重复 abort
+        if (task && typeof task.abort === 'function') task.abort()
         reject(new Error('请求超时'))
       }, 8000)
+      const clearTimer = () => {
+        if (!finished) clearTimeout(timeoutTimer)
+      }
     })
     // #endif
   } catch (e: any) {
@@ -112,11 +145,26 @@ async function request<T>(
   }
 
   const body = parseBody<T>(res.data)
-  if (body.code === 401 || body.code === 403) {
-    // 401 登录失效；403 通常是 token 失效/权限不足（方法级 @PreAuthorize 对失效 token 返回 403），
-    // 均按登录失效处理：清本地登录态并触发全局引导重新登录，避免反复报错
-    handleUnauthorized()
+  if (body.code === 401) {
+    // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
+    // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
+    // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报（§5.x）。
+    if (!_retried) {
+      try {
+        const { useUserStore } = await import('@/stores/user')
+        await useUserStore().silentLogin()
+        return request<T>(method, url, data, options, true)
+      } catch {
+        // 静默登录失败：降级为原处理
+      }
+    }
+    await handleUnauthorized()
     throw new Error(body.message || '请先登录')
+  }
+  if (body.code === 403) {
+    // 403 无权限：游客访问需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）
+    void handleForbidden()
+    throw new Error(body.message || '请先完成学号邮箱认证')
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message
@@ -143,15 +191,43 @@ export async function del<T>(url: string, data?: any): Promise<T> {
 }
 
 /**
- * 上传图片到后端（multipart/form-data）。
- * ⚠️ 说明：uni.uploadFile 走 uploadFile 合法域名白名单，callContainer 无法处理文件上传；
- * 当前云托管测试域名未备案，上传功能在真机/正式环境暂不可用（seed 数据无图，用 emoji 占位降级）。
- * 中期方案：改走微信云开发云存储（wx.cloud.uploadFile）+ cloud:// 文件 ID（显示也不受域名限制）。
+ * 上传图片。
+ * - 微信小程序端：走微信云存储 wx.cloud.uploadFile，返回 cloud:// 文件 ID。
+ *   cloud:// 无需 uploadFile 合法域名白名单，且 <image> 组件原生支持直接显示；
+ *   后端原样存储该 ID，展示链路经 getImageUrl 透传（见 utils/image.ts）。
+ * - 其他端（H5 等）：回退为 uni.uploadFile 上传到后端（需后端可达）。
  */
 export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   const token = getToken()
 
-  return new Promise((resolve, reject) => {
+  let result!: Promise<{ url: string }>
+
+  // ===== 微信小程序端：微信云存储 =====
+  // #ifdef MP-WEIXIN
+  result = new Promise<{ url: string }>((resolve, reject) => {
+    const wxApi: any = (globalThis as any).wx
+    if (!wxApi || !wxApi.cloud) {
+      reject(new Error('当前环境不支持 wx.cloud'))
+      return
+    }
+    // cloudPath：images/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>，避免同名覆盖
+    const ext = (tempFilePath.match(/\.\w+$/) || ['.jpg'])[0]
+    const stamp = Date.now()
+    const rand = Math.random().toString(36).slice(2, 8)
+    const cloudPath = `images/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
+    wxApi.cloud.uploadFile({
+      config: { env: WX_CLOUD_ENV },
+      cloudPath,
+      filePath: tempFilePath,
+      success: (r: any) => resolve({ url: r.fileID }),
+      fail: (err: any) => reject(new Error(err.errMsg || '上传失败，请重试')),
+    })
+  })
+  // #endif
+
+  // ===== 其他端（H5 等）：上传到后端 =====
+  // #ifndef MP-WEIXIN
+  result = new Promise<{ url: string }>((resolve, reject) => {
     uni.uploadFile({
       url: `${API_BASE_URL}/upload/image`,
       filePath: tempFilePath,
@@ -176,4 +252,7 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       },
     })
   })
+  // #endif
+
+  return result
 }

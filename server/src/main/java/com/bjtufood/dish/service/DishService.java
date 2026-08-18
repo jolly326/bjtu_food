@@ -7,8 +7,6 @@ import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 
 import java.util.List;
 
@@ -112,17 +110,6 @@ public interface DishService {
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
 
     /**
-     * 搜索联想（菜品 / 档口 / 食堂名混合）
-     * <p>
-     * 一期限定：无搜索词埋点表，按 keyword LIKE 匹配 name 派生联想建议；
-     * 各类型取 TOP5 合并，前端按 type 跳转对应详情页。
-     *
-     * @param keyword 搜索关键词（可空，空串返回空列表）
-     * @return 联想建议列表
-     */
-    List<SuggestionVO> suggest(String keyword);
-
-    /**
      * 热搜词条 TOP10
      * <p>
      * 一期限定：无真实搜索词埋点，基于菜品综合热度派生热门词条；
@@ -198,17 +185,6 @@ public interface DishService {
      * @param userId 当前登录学生用户ID
      */
     void updateStudentDish(Long id, DishPublishReq req, Long userId);
-
-    /**
-     * 查询「我的发布」菜品列表
-     * <p>
-     * 仅返回 created_by=当前用户的菜品，可按 audit_status 过滤；含审核态与退回原因。
-     *
-     * @param userId      当前登录学生用户ID
-     * @param auditStatus 审核状态过滤（pending/approved/rejected，可空）
-     * @return 我的发布菜品列表
-     */
-    List<MyDishVO> listMyDishes(Long userId, String auditStatus);
 
     /**
      * 学生删除本人发布的菜品

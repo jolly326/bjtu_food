@@ -4,10 +4,13 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.review.dto.ReviewVO;
+import com.bjtufood.review.dto.StallAvgRatingDTO;
 import com.bjtufood.review.entity.Review;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 评价 Mapper 接口
@@ -46,6 +49,16 @@ public interface ReviewMapper extends BaseMapper<Review> {
     BigDecimal selectAvgRatingByStallId(@Param("stallId") Long stallId);
 
     /**
+     * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。
+     * <p>
+     * 用于消除逐档口 N+1 查询：一次查询返回 stall_id → avg(rating) 的映射。无评价的档口不会出现在结果中。
+     *
+     * @param stallIds 档口ID集合
+     * @return 每行含 stallId、avgRating（可能为 null）
+     */
+    List<StallAvgRatingDTO> selectAvgRatingByStallIds(@Param("stallIds") Collection<Long> stallIds);
+
+    /**
      * 评价「有用」计数原子增减（并发安全：SET useful_count = useful_count ± delta，最小值 0）
      *
      * @param id    评价ID
@@ -53,4 +66,5 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * @return 影响行数
      */
     int changeUsefulCount(@Param("id") Long id, @Param("delta") int delta);
+
 }

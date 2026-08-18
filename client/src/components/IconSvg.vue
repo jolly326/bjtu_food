@@ -29,6 +29,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   thumb: { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'] },
   search: { path: ['M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
+  // 向上箭头（回到顶部按钮）
+  up: { path: ['m18 15-6-6-6 6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
   filter: { path: ['M22 3H2l8 9.46V19l4 2v-8.54L22 3z'] },
   comment: { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'] },
@@ -48,6 +50,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   edit: { path: ['M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7', 'M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z'] },
   delete: { path: ['M3 6h18', 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M10 11v6', 'M14 11v6'] },
   check: { path: ['M20 6 9 17l-5-5'] },
+  // 复制（两重叠方块，语义：复制反馈内容）
+  copy: { path: ['M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2z', 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'] },
   share: { path: ['M18 5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M18 19m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'm8.6 13.5 6.8 4', 'M15.4 6.5l-6.8 4'] },
   lightbulb: { path: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
@@ -101,6 +105,10 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   stall: { path: ['M3 9l1.5-4.5A2 2 0 0 1 6.4 3h11.2a2 2 0 0 1 1.9 1.5L21 9', 'M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M9 13h6v4'] },
   // 食堂（楼栋/餐厅）：区别于 stall 店铺、home 房屋；带入口门与二楼窗
   canteen: { path: ['M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15', 'M8 21v-5h8v5', 'M9 9h2', 'M13 9h2'] },
+  // 更多（三点横排，语义：卡片右上角更多操作 / 溢出菜单）
+  more: { circle: [{ cx: 5, cy: 12, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 12, r: 1.4, fill: 'currentColor' }, { cx: 19, cy: 12, r: 1.4, fill: 'currentColor' }] },
+  // 更多（三点竖排，语义：评价/动态右上角更多操作，与横排 more 区分）
+  'more-v': { circle: [{ cx: 12, cy: 5, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 12, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 19, r: 1.4, fill: 'currentColor' }] },
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
@@ -113,10 +121,10 @@ const themeStore = useThemeStore()
 const COLOR_VARS = computed(() => COLOR_VARS_TABLE[themeStore.isDark ? 'dark' : 'light'])
 
 function resolveColor(c: string): string {
-  if (!c) return COLOR_VARS.value.currentColor || '#1C1917'
+  if (!c) return COLOR_VARS.value.currentColor || '#1C1C1E'
   if (c.startsWith('var(')) {
     const name = c.slice(4, -1).trim()
-    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1917'
+    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1C1E'
   }
   return c
 }

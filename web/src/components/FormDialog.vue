@@ -72,41 +72,5 @@ async function handleConfirm() {
   padding-top: var(--space-4);
   border-top: 1px solid var(--border-light);
 }
-.btn-primary {
-  padding: var(--space-2) var(--space-5);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border: none;
-  border-radius: var(--radius);
-  font-size: var(--font-base);
-  cursor: pointer;
-  white-space: nowrap;
-  font-weight: var(--weight-medium);
-  transition: background 0.2s var(--ease-out), transform 160ms var(--ease-out);
-}
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary:active:not(:disabled) {
-  transform: scale(var(--press-scale));
-}
-.btn-cancel {
-  padding: var(--space-2) var(--space-5);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  font-size: var(--font-base);
-  cursor: pointer;
-  font-weight: var(--weight-medium);
-}
-.btn-cancel:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.btn-primary:focus-visible, .btn-cancel:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+/* 按钮（btn-primary/btn-cancel）走 shared.css 全局基线，此处不重复覆盖 */
 </style>

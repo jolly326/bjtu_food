@@ -75,6 +75,11 @@ dep_swagger.txt
 ec_schema.txt
 mvnrun.log.err
 
+# client uni-app build/dev logs
+**/build_log*.txt
+**/dev_log*.txt
+**/dev_err*.txt
+
 # temp build/verify outputs
 **/build_mp*.txt
 **/build_r*.txt

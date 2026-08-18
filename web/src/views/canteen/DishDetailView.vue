@@ -98,10 +98,15 @@ const imageCount = computed(() => imageList.value.length)
 function openImageModal() {
   showImageModal.value = true
 }
-function saveImageModal() {
+async function saveImageModal() {
   if (dish.value) {
-    store.updateDish(Number(dish.value.id), { image: editForm.value.image })
-    toast.success('图片已更新')
+    try {
+      await store.updateDish(Number(dish.value.id), { image: editForm.value.image })
+      toast.success('图片已更新')
+    } catch (err: any) {
+      toast.error(err.message || '图片保存失败')
+      return
+    }
   }
   showImageModal.value = false
 }
@@ -110,7 +115,7 @@ function closeImageModal() { showImageModal.value = false }
 watch([canteen, stall, dish], ([c, s, d]) => {
   page.setPage({
     breadcrumbs: [
-      { label: '食堂管理', path: '/dashboard/canteens' },
+      { label: '食堂管理', path: '/dashboard/content?tab=canteen' },
       { label: c?.name || '加载中', path: c ? `/dashboard/canteens/${canteenId.value}` : '' },
       { label: s?.name || '加载中', path: s ? `/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}` : '' },
       { label: d?.name || '加载中' },
@@ -152,7 +157,7 @@ function toggleFormTag(tag: string) {
   editForm.value.tags = JSON.stringify(arr)
 }
 
-function confirmEdit() {
+async function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!editForm.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!editForm.value.price || editForm.value.price <= 0) errs.price = '价格必须大于 0'
@@ -169,8 +174,13 @@ function confirmEdit() {
     const payload: any = { ...editForm.value }
     // promoPrice 为空（0）时置 null，表示无折扣
     if (!payload.promoPrice) payload.promoPrice = null
-    store.updateDish(Number(dish.value.id), payload)
-    toast.success('菜品已更新')
+    try {
+      await store.updateDish(Number(dish.value.id), payload)
+      toast.success('菜品已更新')
+    } catch (err: any) {
+      toast.error(err.message || '菜品更新失败')
+      return
+    }
   }
   editErrors.value = {}
   editing.value = false
@@ -230,7 +240,7 @@ function openReviewDetail(r: any) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
 async function toggleReviewHidden(r: any, hidden: boolean) {
   try {
-    await store.updateReview(Number(r.id), { is_hidden: hidden })
+    await store.updateReview(Number(r.id), { is_hidden: hidden ? 1 : 0 })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
     if (reviewDetail.value && Number(reviewDetail.value.id) === Number(r.id)) reviewDetail.value = null
   } catch (err: any) {
@@ -525,28 +535,14 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
 .detail-value.price { color: var(--color-price); font-weight: var(--weight-bold); font-size: var(--font-lg); }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .detail-value.text-muted { font-weight: var(--weight-regular); color: var(--text-light); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; max-width: 320px; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
-.form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
-.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
 .stats-row :deep(.stat-card) { flex: 1; min-width: 0; }
 
-/* ===== 列表头 ===== */
-.list-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);
-}
-.list-bar h3 { margin: 0; font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); display: flex; align-items: center; gap: var(--space-2); }
-.icon-inline { width: 1em; height: 1em; vertical-align: -0.125em; display: inline; }
 .count-tag { font-size: var(--font-sm); font-weight: var(--weight-regular); color: var(--text-muted); margin-left: var(--space-1); }
 
 /* ===== 评论列表 ===== */
-.table .ellipsis { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.table .actions { white-space: nowrap; }
-.stars { display: flex; gap: var(--space-1); }
-.star-icon { width: 14px; height: 14px; display: inline; }
 .empty-state { text-align: center; color: var(--text-light); padding: var(--space-5) 0; font-size: var(--font-base); }
 .empty-state.big { font-size: var(--font-lg); padding: var(--space-10) 0; }
 
@@ -590,10 +586,5 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
 .dv { color: var(--text-primary); flex: 1; }
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
-.btn-cancel { padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.btn-primary { padding: var(--space-2) var(--space-5); border: none; border-radius: var(--radius); background: var(--color-primary); color: var(--text-white); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-primary:hover { opacity: .9; }
-.btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
-.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
+/* 按钮（btn-primary/btn-cancel/btn-danger）走 shared.css 全局基线，此处不重复覆盖 */
 </style>

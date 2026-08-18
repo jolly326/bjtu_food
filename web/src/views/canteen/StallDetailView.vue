@@ -10,6 +10,7 @@ import PageHeader from '@/components/layout/PageHeader.vue'
 import PageSection from '@/components/layout/PageSection.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
@@ -85,7 +86,7 @@ async function deleteStallReview(r: any) {
 }
 async function toggleStallReviewHidden(r: any, hidden: boolean) {
   try {
-    await store.updateReview(Number(r.id), { is_hidden: hidden })
+    await store.updateReview(Number(r.id), { is_hidden: hidden ? 1 : 0 })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
     if (reviewDetail.value && Number(reviewDetail.value.id) === Number(r.id)) reviewDetail.value = null
   } catch (err: any) {
@@ -95,6 +96,7 @@ async function toggleStallReviewHidden(r: any, hidden: boolean) {
 
 // ===== 菜品分类筛选（按 tags 分组，美团外卖式；空/无标签归入「其他」） =====
 const dishTagFilter = ref<string>('')
+const dishSearch = ref('')
 const dishTagOptions = computed(() => {
   const set = new Set<string>()
   for (const d of dishes.value) {
@@ -114,7 +116,7 @@ const filteredDishes = computed(() => {
         : tags.includes(dishTagFilter.value)
     })
   }
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = dishSearch.value.trim().toLowerCase()
   if (q) list = list.filter(d => (d.name || '').toLowerCase().includes(q))
   return list
 })
@@ -139,8 +141,7 @@ function closeImageModal() { showImageModal.value = false }
 
 watch([canteen, stall], ([c, s]) => {
   page.setPage({
-    breadcrumbs: [{ label: '食堂管理', path: '/dashboard/canteens' }, { label: c?.name || '加载中', path: c ? `/dashboard/canteens/${canteenId.value}` : '' }, { label: s?.name || '加载中' }],
-    searchPlaceholder: '搜索菜品名称...',
+    breadcrumbs: [{ label: '食堂管理', path: '/dashboard/content?tab=canteen' }, { label: c?.name || '加载中', path: c ? `/dashboard/canteens/${canteenId.value}` : '' }, { label: s?.name || '加载中' }],
   })
   if (s) {
     stallForm.value = {
@@ -212,11 +213,6 @@ function parseTags(tags: string): string[] {
 }
 
 const showModal = ref(false)
-const filtered = computed(() => {
-  const q = page.searchQuery.trim().toLowerCase()
-  if (!q) return dishes.value
-  return dishes.value.filter(d => d.name.toLowerCase().includes(q))
-})
 
 const form = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '' })
 const formErrors = ref<Record<string, string>>({})
@@ -224,7 +220,16 @@ const formErrors = ref<Record<string, string>>({})
 function validate() { const errs: Record<string, string> = {}; if (!form.value.name.trim()) errs.name = '菜品名称不能为空'; if (!form.value.price || form.value.price <= 0) errs.price = '价格必须大于 0'; formErrors.value = errs; return Object.keys(errs).length === 0 }
 function toggleTag(tag: string) { const arr: string[] = []; try { arr.push(...JSON.parse(form.value.tags || '[]')) } catch {}; const i = arr.indexOf(tag); i === -1 ? arr.push(tag) : arr.splice(i, 1); form.value.tags = JSON.stringify(arr) }
 function openAdd() { form.value = { name: '', price: 0, description: '', image: '', tags: '', status: 'active' }; formErrors.value = {}; showModal.value = true }
-function handleSubmit() { if (!validate()) return; store.addDish({ stall_id: stallId.value as unknown as bigint, ...form.value, avg_rating: 0, rating_count: 0, view_count: 0 }); toast.success('菜品已添加'); showModal.value = false }
+async function handleSubmit() {
+  if (!validate()) return
+  try {
+    await store.addDish({ stall_id: stallId.value as unknown as bigint, ...form.value, avg_rating: 0, rating_count: 0, view_count: 0 })
+    toast.success('菜品已添加')
+    showModal.value = false
+  } catch (err: any) {
+    toast.error(err.message || '菜品添加失败')
+  }
+}
 function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}/dishes/${id}`) }
 </script>
 
@@ -356,6 +361,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
             <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品</button>
           </div>
         </template>
+        <FilterBar v-model="dishSearch" />
         <div class="card-grid">
           <div v-for="d in filteredDishes" :key="Number(d.id)" class="pk-card" @click="enterDish(Number(d.id))">
             <div class="pk-img-wrap">
@@ -504,20 +510,10 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
 .detail-control { flex: 1; min-width: 0; }
 .detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; max-width: 320px; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
-.form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
-.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
 .stats-row :deep(.stat-card) { flex: 1; min-width: 0; }
-
-/* ===== 列表头 ===== */
-.list-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);
-}
-.list-bar h3 { margin: 0; font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); }
 
 /* ===== 卡片网格 ===== */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4); }
@@ -573,10 +569,5 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
 .dv { color: var(--text-primary); flex: 1; }
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
-.btn-cancel { padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.btn-primary { padding: var(--space-2) var(--space-5); border: none; border-radius: var(--radius); background: var(--color-primary); color: var(--text-white); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-primary:hover { opacity: .9; }
-.btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
-.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
+/* 按钮（btn-primary/btn-cancel/btn-danger）走 shared.css 全局基线，此处不重复覆盖 */
 </style>

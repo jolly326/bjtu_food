@@ -12,18 +12,16 @@ spring:
   application:
     name: bjtu-food
 
-  # ---------- 敏感配置引入 ----------
-  # 引入 application-secret.yml（含 SMTP 发件邮箱/授权码，已加入 .gitignore，不随仓库提交）。
-  # optional：文件缺失时不报错（如生产环境用环境变量注入），存在则默认加载。
-  config:
-    import: optional:classpath:application-secret.yml
-
   # ---------- 数据源配置 ----------
+  # 凭据一律从环境变量注入，禁止在仓库写入明文。
+  # 本地开发：复制 .env.example 为 server/.env，由 spring-dotenv 依赖自动加载（优先级：系统环境变量 > server/.env > 此处默认值）。
+  # 云托管/生产：直接在云托管环境变量中配置同名变量（优先级最高），无需 .env 文件。
+  # 注意：原 application-secret.yml（曾含 SMTP 明文）已移除并加入 .gitignore，敏感配置全部改由环境变量注入，仓库不再保留任何明文凭据。
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-    username: oi
-    password: "060326"
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
   # ---------- 文件上传配置 ----------
   servlet:
@@ -31,14 +29,17 @@ spring:
       max-file-size: 5MB        # 单文件最大 5MB
       max-request-size: 20MB    # 单次请求最大 20MB
 
-  # ---------- SMTP 邮件配置 ----------
-  # 发件邮箱与授权码由 application-secret.yml 提供（spring.mail.username / spring.mail.password），
-  # 经上方 spring.config.import 自动加载；也可用环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 覆盖。
+  # ---------- SMTP 邮件配置（网易 163） ----------
+  # 发件邮箱与授权码一律从环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 注入，禁止在仓库写入明文。
+  # 本地开发：复制 .env.example 为 server/.env 并填入真实授权码，由 spring-dotenv 依赖自动加载。
+  # 网易 SMTP：host=smtp.163.com，端口 465（SSL）/ 994（SSL）。授权码在网易邮箱网页版「设置→POP3/SMTP/IMAP」开启后生成。
   mail:
-    host: smtp.qq.com
+    host: smtp.163.com
     port: 465
     protocol: smtp
     default-encoding: UTF-8
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -57,21 +58,25 @@ spring:
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
   configuration:
-    # 开发环境打印 SQL（方便调试），生产环境关闭
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 默认（生产）不打印 SQL；本地开发由 application-dev.yml 覆盖为 StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
     # 数据库字段下划线命名 <-> Java 实体类驼峰命名自动映射
     map-underscore-to-camel-case: true
-# ---------- Knife4j API 文档配置 ----------
-knife4j:
-  enable: true
 
 # ---------- JWT 配置 ----------
 jwt:
-  # JWT 签名密钥（生产环境请更换为复杂密钥）
-  secret: BjtuFoodSecretKey2024ForJwtTokenSigning
+  # JWT 签名密钥：生产/云端必须从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库。
+  # 本地开发默认值仅供调试，切勿直接用于生产。
+  secret: ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}
   # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
   # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
   expiration: 3153600000000
+
+# ---------- CORS 受信任前端源 ----------
+# 仅放行白名单内的浏览器源（逗号分隔）；微信小程序 wx.request 不带 Origin 头，不受影响。
+# 未配置时拒绝一切带 Origin 的浏览器跨域请求（仅小程序/服务端可达）。
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:}
 
 # ---------- 应用公共基础 URL ----------
 app:
@@ -84,3 +89,11 @@ upload:
   path: ${UPLOAD_PATH:./uploads/images}
   # 上传文件 URL 访问前缀
   url-prefix: ${UPLOAD_URL_PREFIX:/images}
+
+# ---------- 微信小程序（code2Session，spec §5.y） ----------
+# appid / secret 一律从环境变量注入，禁止在仓库写入明文。
+wechat:
+  appid: ${WECHAT_APPID:}
+  secret: ${WECHAT_SECRET:}
+  # 小程序登录凭证校验（code2Session）接口地址（GET）
+  code2session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}

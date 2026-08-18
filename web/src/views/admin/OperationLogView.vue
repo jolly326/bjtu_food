@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
@@ -16,6 +16,22 @@ const searchQuery = ref('')
 const loading = ref(false)
 const error = ref('')
 const rows = ref<OperationLogVO[]>([])
+
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 请求竞态守卫：连续输入/切筛选会并发请求，仅接受最新一次的结果，丢弃过期响应（防数据错乱）
+let reqToken = 0
+
+async function reloadFromFirstPage() {
+  page.value = 1
+  await loadList()
+}
+function onPageChange() {
+  loadList()
+}
 
 // 动作筛选预设（对齐 ARCH OperationLogConst.ACTION_*）
 const actionOptions = [
@@ -58,37 +74,47 @@ function targetText(t: string): string {
 async function loadList() {
   loading.value = true
   error.value = ''
+  const token = ++reqToken
   try {
     const { operationLogApi } = await import('@/api')
     const res = await operationLogApi.listOperationLogs({
       action: activeAction.value || undefined,
+      keyword: searchQuery.value.trim() || undefined,
       targetType: activeTarget.value || undefined,
-      pageSize: 200,
+      page: page.value,
+      pageSize: pageSize.value,
     })
+    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
+    if (token !== reqToken) return
     error.value = e.message || '加载操作日志失败'
     rows.value = []
+    total.value = 0
   } finally {
-    loading.value = false
+    if (token === reqToken) loading.value = false
   }
 }
 
 onMounted(loadList)
 
-async function onActionChange() { await loadList() }
-async function onTargetChange() { await loadList() }
+async function onActionChange() { await reloadFromFirstPage() }
+async function onTargetChange() { await reloadFromFirstPage() }
 
-// SearchInput 本地模糊过滤（操作人/动作/IP）
-const filtered = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.adminNickname || '').toLowerCase().includes(q)
-      || (r.action || '').toLowerCase().includes(q)
-      || (r.ip || '').toLowerCase().includes(q),
-  )
+// 关键词检索已改为服务端 keyword 过滤（后端按 action/targetType 模糊），
+// 翻页/改筛选会重新请求后端对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页）
+// 加 300ms 防抖，避免连续输入每个 keystroke 都发请求（去重），并 await 确保完成。
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
 })
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
 function fmtTime(v: string): string {
   if (!v) return '—'
@@ -106,6 +132,11 @@ function fmtTime(v: string): string {
     </FilterBar>
 
     <DataTable
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'admin', label: '操作人', width: '140px' },
         { prop: 'action', label: '动作', width: '120px' },
@@ -136,7 +167,7 @@ function fmtTime(v: string): string {
 
 <style scoped>
 .muted { color: var(--text-light); }
-.ip { font-family: var(--font-mono, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
+.ip { font-family: var(--font-numeric, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
 .read-only-tip {
   margin-top: var(--space-4); display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--font-sm); color: var(--text-secondary);

@@ -33,6 +33,10 @@ public class MomentComment {
     @Schema(description = "评论正文")
     private String content;
 
+    /** 评论图片（JSON 数组字符串，最多 3 张；与 Dish.images 一致存储） */
+    @Schema(description = "评论图片（JSON 数组字符串，最多 3 张）")
+    private String images;
+
     /** 👍 有用计数（task-12.4，一人一票，uk_useful_user_comment 维护） */
     @Schema(description = "👍 有用计数")
     private Integer usefulCount;

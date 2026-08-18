@@ -18,6 +18,8 @@ export interface Review {
   usefulCount?: number
   /** 当前登录用户是否已标记「有用」（仅登录态返回，可选） */
   useful?: boolean
+  /** 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
+      讨论沉淀到动态评论区，菜品评价仅保留 评分+图文+有用 的口碑形态 */
 }
 
 export interface ReviewSubmit {

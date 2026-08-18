@@ -8,9 +8,7 @@ import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.entity.Dish;
 import org.apache.ibatis.annotations.Param;
 
@@ -69,6 +67,16 @@ public interface DishMapper extends BaseMapper<Dish> {
     DishDetailVO selectDishDetail(@Param("id") Long id);
 
     /**
+     * 批量查询菜品详情（联表），按 id 集合一次 IN 查询。
+     * <p>
+     * 用于消除推荐/分页等场景逐条 selectDishDetail 的 N+1。
+     *
+     * @param ids 菜品ID集合
+     * @return 仅包含存在且可见的菜品
+     */
+    List<DishDetailVO> selectDishDetailsByIds(@Param("ids") java.util.Collection<Long> ids);
+
+    /**
      * 查询菜品评分分布
      * <p>
      * 按星级分组，统计各星级人数
@@ -79,21 +87,6 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 查询全部菜品列表（含已下架），联表档口和食堂名称
      */
     List<DishAdminVO> selectAllForAdmin();
-
-    /**
-     * 查询「我的发布」菜品列表（created_by = userId，可按审核状态过滤）
-     */
-    List<MyDishVO> selectMyDishes(@Param("userId") Long userId, @Param("auditStatus") String auditStatus);
-
-    /**
-     * 搜索联想（菜品 / 档口 / 食堂名混合，各取 TOP5）
-     * <p>
-     * 一期限定：无搜索词埋点表，按 keyword LIKE 匹配 name 派生联想建议。
-     *
-     * @param keyword 搜索关键词
-     * @return 联想建议列表（SuggestionVO{type,id,name,image}）
-     */
-    List<SuggestionVO> selectSuggestions(@Param("keyword") String keyword);
 
     /**
      * 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点）

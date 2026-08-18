@@ -45,9 +45,29 @@ public class User {
     @Schema(description = "角色", example = "student")
     private String role;
 
-    /** 状态：active（正常）/ disabled（禁用） */
+    /** 状态：active（正常）/ disabled（禁用）/ deleted（已注销） */
     @Schema(description = "状态", example = "active")
     private String status;
+
+    /** 微信 openid（静默登录取号依据，唯一） */
+    @Schema(description = "微信 openid（静默登录取号依据，唯一）", example = "oXXXXX...")
+    private String openid;
+
+    /** 微信 unionid（同主体多应用，可空） */
+    @Schema(description = "微信 unionid（可空）")
+    private String unionid;
+
+    /** 认证状态：0=游客未认证 / 1=已邮箱认证（verified 不进 JWT，后端按此实时判定） */
+    @Schema(description = "认证状态：0=游客未认证 / 1=已邮箱认证", example = "0")
+    private Integer verified;
+
+    /** 已认证绑定邮箱（仅存认证关系，可空） */
+    @Schema(description = "已认证绑定邮箱（仅存认证关系，可空）")
+    private String bindEmail;
+
+    /** 认证时间 */
+    @Schema(description = "认证时间")
+    private LocalDateTime verifiedAt;
 
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)

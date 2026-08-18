@@ -1,13 +1,12 @@
 package com.bjtufood.dish.controller;
 
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
-import com.bjtufood.dish.dto.SuggestionVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,17 +51,6 @@ public class DishController {
     @GetMapping("/dishes/promotions")
     public Result<List<DishVO>> getPromotionDishes() {
         return Result.success(dishService.getPromotionDishes());
-    }
-
-    @Operation(
-            summary = "搜索联想",
-            description = "用途：搜索框实时联想（菜品/档口/食堂名混合）。公开接口。返回各类型 TOP5，前端按 type 跳转。"
-    )
-    @GetMapping("/dishes/suggest")
-    public Result<List<SuggestionVO>> suggest(
-            @Parameter(description = "搜索关键词", example = "牛肉")
-            @RequestParam String keyword) {
-        return Result.success(dishService.suggest(keyword));
     }
 
     @Operation(
@@ -151,10 +138,10 @@ public class DishController {
 
     @Operation(
             summary = "学生发布菜品",
-            description = "学生提交新菜品。后端强制写入 created_by=当前用户、audit_status=pending，等待后台审核。",
+            description = "学生提交新菜品。后端强制写入 created_by=当前用户、audit_status=pending，等待后台审核。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PostMapping("/dishes")
     public Result<Long> createDish(@Valid @RequestBody DishPublishReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -163,10 +150,10 @@ public class DishController {
 
     @Operation(
             summary = "学生编辑 / 重新提交菜品",
-            description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。",
+            description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PutMapping("/dishes/{id}")
     public Result<Void> updateDish(
             @Parameter(description = "菜品ID", example = "1")
@@ -178,25 +165,11 @@ public class DishController {
     }
 
     @Operation(
-            summary = "我的发布列表",
-            description = "返回当前学生提交的菜品（含审核状态与退回原因），可按 audit_status 过滤。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @PreAuthorize("hasRole('STUDENT')")
-    @GetMapping("/my/dishes")
-    public Result<List<MyDishVO>> myDishes(
-            @Parameter(description = "审核状态过滤：pending/approved/rejected", example = "pending")
-            @RequestParam(required = false) String auditStatus) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(dishService.listMyDishes(userId, auditStatus));
-    }
-
-    @Operation(
             summary = "学生删除本人菜品",
-            description = "仅 created_by 本人可删，返回 200/403/404。级联清理评价与清单项（favorite 模块已移除，不处理）。",
+            description = "仅 created_by 本人可删，返回 200/403/404。级联清理评价与清单项（favorite 模块已移除，不处理）。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @DeleteMapping("/dishes/{id}")
     public Result<Void> deleteMyDish(
             @Parameter(description = "菜品ID", example = "1")

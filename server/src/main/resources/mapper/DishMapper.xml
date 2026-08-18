@@ -21,16 +21,23 @@
     <resultMap id="dishVOMap" type="com.bjtufood.dish.dto.DishVO">
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="canteenId" column="canteen_id"/>
         <!-- 档口位置链路字段（来自 stall 联表） -->
         <result property="floor" column="floor"/>
         <result property="windowNo" column="window_no"/>
         <result property="businessHours" column="business_hours"/>
+        <!-- 食堂坐标（GCJ-02）：前端本地算距离用，服务器不再计算 distance -->
+        <result property="latitude" column="c_lat"/>
+        <result property="longitude" column="c_lng"/>
         <!-- 菜品属性标签字段 -->
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
         <result property="servePeriod" column="serve_period"/>
         <result property="limited" column="limited"/>
+        <result property="region" column="region"/>
+        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
+        <result property="distance" column="distance"/>
     </resultMap>
 
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"
@@ -56,13 +63,18 @@
             d.portion,
             d.serve_period,
             d.limited,
+            d.region,
+            d.category_id,
             s.id   AS stall_id,
             s.name AS stall_name,
             s.floor,
             s.window_no,
             s.business_hours,
             c.id   AS canteen_id,
-            c.name AS canteen_name
+            c.name AS canteen_name,
+            -- 坐标缺失兜底（旧库 canteen 未填坐标）：回退校区中心默认值，保证前端「距你 Xm」恒有值
+            COALESCE(c.latitude,  39.953800) AS c_lat,
+            COALESCE(c.longitude, 116.335400) AS c_lng
         FROM dish d
                  JOIN stall s ON d.stall_id = s.id
                  JOIN canteen c ON s.canteen_id = c.id
@@ -87,6 +99,9 @@
         <if test="req.stallId != null">
             AND s.id = #{req.stallId}
         </if>
+        <if test="req.categoryId != null">
+            AND d.category_id = #{req.categoryId}
+        </if>
         <if test="req.tag != null and req.tag != ''">
             AND d.tags LIKE CONCAT('%', #{req.tag}, '%')
         </if>
@@ -98,6 +113,10 @@
         </if>
         <if test="req.maxPrice != null">
             AND d.price &lt;= #{req.maxPrice}
+        </if>
+        <if test="req.excludeIds != null and req.excludeIds.size() > 0">
+            AND d.id NOT IN
+            <foreach collection="req.excludeIds" item="id" open="(" separator="," close=")">#{id}</foreach>
         </if>
         <choose>
             <when test="req.sortBy == 'heat'">
@@ -167,24 +186,38 @@
 
     <!-- 热门菜品 TOP10（按用户位置距离加权：近食堂菜品优先，热度次级排序）。
          有坐标食堂按 haversine 距离升序；无坐标食堂的菜品排最后（距离=极大值）。
+         计算出的距离（米）同时作为 distance 列返回前端用于「距你 Xm」展示。
          lat/lng 均为 GCJ-02。 -->
     <select id="selectHotDishesByDistance" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        SELECT
+            sub.*,
+            CASE
+                WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
+                  THEN ROUND(6371000 * 2 * ASIN(SQRT(
+                        POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
+                      + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
+                      * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
+                  )))
+                ELSE NULL
+            END AS distance
+        FROM (
+            <include refid="joinDishSql"/>
+            WHERE d.status = 'on'
+              AND s.status = 'open'
+              AND c.status = 'open'
+              AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+        ) sub
         ORDER BY
           CASE
-            WHEN c.latitude IS NOT NULL AND c.longitude IS NOT NULL
+            WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
               THEN 6371000 * 2 * ASIN(SQRT(
-                    POWER(SIN(RADIANS(c.latitude - #{lat}) / 2), 2)
-                  + COS(RADIANS(#{lat})) * COS(RADIANS(c.latitude))
-                  * POWER(SIN(RADIANS(c.longitude - #{lng}) / 2), 2)
+                    POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
+                  + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
+                  * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
               ))
             ELSE 99999999
           END ASC,
-          d.rating_count DESC, d.avg_rating DESC
+          sub.rating_count DESC, sub.avg_rating DESC
         LIMIT 10
     </select>
 
@@ -199,52 +232,38 @@
         LIMIT 1
     </select>
 
+    <!-- 批量菜品详情（消除推荐/分页逐条详情的 N+1） -->
+    <select id="selectDishDetailsByIds" resultMap="dishDetailMap">
+        <include refid="joinDishSql"/>
+        WHERE d.status = 'on'
+          AND s.status = 'open'
+          AND c.status = 'open'
+          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
+          AND d.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="originalPrice" column="original_price"/>
         <result property="promoPrice" column="promo_price"/>
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
         <result property="servePeriod" column="serve_period"/>
         <result property="limited" column="limited"/>
+        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
+        <result property="distance" column="distance"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称） -->
     <select id="selectAllForAdmin" resultMap="dishAdminVOMap">
         <include refid="joinDishSql"/>
         ORDER BY d.updated_at DESC
-    </select>
-
-    <!-- 我的发布 结果映射 -->
-    <resultMap id="myDishVOMap" type="com.bjtufood.dish.dto.MyDishVO">
-        <id property="id" column="id"/>
-        <result property="stallId" column="stall_id"/>
-        <result property="imagesJson" column="images"/>
-        <result property="auditStatus" column="audit_status"/>
-        <result property="rejectReason" column="reject_reason"/>
-        <result property="createdAt" column="created_at"/>
-    </resultMap>
-
-    <!-- 我的发布菜品列表（created_by = #{userId}，可按 audit_status 过滤） -->
-    <select id="selectMyDishes" resultMap="myDishVOMap">
-        SELECT
-            d.id,
-            d.name,
-            d.price,
-            d.images,
-            d.tags,
-            d.description,
-            d.audit_status,
-            d.reject_reason,
-            d.created_at
-        FROM dish d
-        WHERE d.created_by = #{userId}
-        <if test="auditStatus != null and auditStatus != ''">
-            AND d.audit_status = #{auditStatus}
-        </if>
-        ORDER BY d.created_at DESC
     </select>
 
     <!-- 评分分布 -->
@@ -254,40 +273,6 @@
         WHERE dish_id = #{dishId}
           AND is_hidden = 0
         GROUP BY rating
-    </select>
-
-    <!-- 搜索联想：菜品 / 档口 / 食堂 名混合（各取 TOP5） -->
-    <select id="selectSuggestions" resultType="com.bjtufood.dish.dto.SuggestionVO">
-        (SELECT 'dish'    AS type, d.id AS id, d.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')) AS image,
-                NULL AS canteen,
-                d.price AS price, d.avg_rating AS rating, d.rating_count AS ratingCount
-         FROM dish d
-         WHERE d.name LIKE CONCAT('%', #{keyword}, '%')
-           AND d.status = 'on'
-           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-         LIMIT 5)
-        UNION ALL
-        (SELECT 'stall'   AS type, s.id AS id, s.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(s.images, '$[0]')) AS image,
-                c.name AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount
-         FROM stall s
-                  JOIN canteen c ON s.canteen_id = c.id
-         WHERE s.name LIKE CONCAT('%', #{keyword}, '%')
-           AND s.status = 'open'
-           AND c.status = 'open'
-           AND (s.audit_status = 'approved' OR s.audit_status IS NULL)
-         LIMIT 5)
-        UNION ALL
-        (SELECT 'canteen' AS type, c.id AS id, c.name AS name,
-                JSON_UNQUOTE(JSON_EXTRACT(c.images, '$[0]')) AS image,
-                NULL AS canteen,
-                NULL AS price, NULL AS rating, NULL AS ratingCount
-         FROM canteen c
-         WHERE c.name LIKE CONCAT('%', #{keyword}, '%')
-           AND c.status = 'open'
-         LIMIT 5)
     </select>
 
     <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->

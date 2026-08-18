@@ -53,6 +53,9 @@ public class DishVO {
     @Schema(description = "所属档口ID")
     private Long stallId;
 
+    @Schema(description = "所属品类ID（category.id，可空）", example = "1")
+    private Long categoryId;
+
     @Schema(description = "档口名称", example = "面食窗口")
     private String stallName;
 
@@ -69,6 +72,14 @@ public class DishVO {
     /** 档口窗口号，来自 stall 联表 */
     @Schema(description = "档口窗口号", example = "3号窗口")
     private String windowNo;
+
+    /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
+    @Schema(description = "食堂纬度（GCJ-02），前端本地算距离用", example = "39.90")
+    private BigDecimal latitude;
+
+    /** 食堂经度（GCJ-02），来自 canteen 联表 */
+    @Schema(description = "食堂经度（GCJ-02），前端本地算距离用", example = "116.40")
+    private BigDecimal longitude;
 
     /** 档口营业时间，来自 stall 联表 */
     @Schema(description = "档口营业时间，如 10:00-20:00", example = "10:00-20:00")
@@ -103,6 +114,10 @@ public class DishVO {
     @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
     private Integer spiceLevel;
 
+    /** 地域（美食来源地）：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
+    @Schema(description = "地域（美食来源地），如 清真/川湘/西北/粤式/东北", example = "清真")
+    private String region;
+
     /** 分量枚举：0=小 1=中 2=大 */
     @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
     private Integer portion;
@@ -114,4 +129,11 @@ public class DishVO {
     /** 是否限量 */
     @Schema(description = "是否限量", example = "false")
     private Boolean limited;
+
+    /**
+     * 距用户距离（米），仅当请求携带 lat/lng 时由后端计算返回；
+     * 无坐标食堂或请求未带坐标时为 null（前端「距你 Xm」缺省不展示）。
+     */
+    @Schema(description = "距用户距离（米），请求携带坐标时返回；否则为 null", example = "320")
+    private Integer distance;
 }

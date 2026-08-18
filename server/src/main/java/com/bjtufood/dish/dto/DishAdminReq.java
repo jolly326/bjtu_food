@@ -17,6 +17,9 @@ public class DishAdminReq {
     @Schema(description = "所属档口ID", example = "1")
     private Long stallId;
 
+    @Schema(description = "所属品类ID（category.id，可空=未分类；首页品类滚轮筛选用）", example = "1")
+    private Long categoryId;
+
     @Schema(description = "菜品名称", example = "番茄炒蛋盖饭")
     private String name;
 

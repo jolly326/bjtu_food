@@ -14,8 +14,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 /**
  * UGC 审核接口（Web 后台，仅 ADMIN）
  * <p>
@@ -63,26 +61,6 @@ public class AuditController {
             @PathVariable Long id,
             @Valid @RequestBody AuditRejectReq req) {
         auditService.reject(type, id, req.getRejectReason());
-        return Result.success();
-    }
-
-    @Operation(summary = "批量审核通过", description = "用途：多选通过后批量置 approved。")
-    @PostMapping("/{type}/batch-approve")
-    public Result<Void> batchApprove(
-            @Parameter(description = "审核对象类型：dish / stall / canteen", example = "dish")
-            @PathVariable String type,
-            @RequestBody List<Long> ids) {
-        auditService.batchApprove(type, ids);
-        return Result.success();
-    }
-
-    @Operation(summary = "批量审核退回", description = "用途：多选退回，批量置 rejected 并写原因（必填）。")
-    @PostMapping("/{type}/batch-reject")
-    public Result<Void> batchReject(
-            @Parameter(description = "审核对象类型：dish / stall / canteen", example = "dish")
-            @PathVariable String type,
-            @Valid @RequestBody AuditRejectReq req) {
-        auditService.batchReject(type, req.getIds(), req.getRejectReason());
         return Result.success();
     }
 }

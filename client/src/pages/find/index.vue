@@ -1,13 +1,13 @@
 <template>
   <view class="page find-page" :class="{ 'theme-dark': theme.isDark }">
     <!-- 顶部固定区（2026-08-03：返回键 + 搜索框 + 结果 tab，均不随滚动；避让状态栏+胶囊） -->
-    <view class="search-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="search-nav-row">
+    <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
+      <view class="search-nav-row" :style="{ height: navBarHeight + 'px' }">
         <view class="search-back" @tap="inFilter ? exitFilter() : goBackHome()" :class="{ pressed: pressedKey === 'back' }" @touchstart="pressedKey = 'back'" @touchend="pressedKey = ''" @touchcancel="pressedKey = ''">
-          <IconSvg name="arrow-left" :size="40" color="var(--text-primary)" class="search-back-icon" />
+          <IconSvg name="arrow-left" :size="'20px'" color="#FFFFFF" class="search-back-icon" />
         </view>
         <view class="search-box" :style="{ marginRight: capsuleRightOffset + 'px' }">
-          <IconSvg name="search" :size="30" color="var(--text-tertiary)" class="search-box-icon" />
+          <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="search-box-icon" />
           <input
             class="search-box-input"
             v-model="keyword"
@@ -21,46 +21,8 @@
             @blur="onSearchBlur"
           />
           <view class="search-box-clear" v-if="keyword" @tap="clearKeyword">
-            <IconSvg name="close" :size="28" color="var(--text-tertiary)" />
+            <IconSvg name="close" :size="'16px'" color="var(--text-tertiary)" />
           </view>
-        </view>
-      </view>
-
-      <!-- 结果分类 tab（仅结果态显示；固定于搜索框下，不随滚动） -->
-      <view v-if="inFilter" class="result-tabs">
-        <view
-          v-for="t in resultTabs"
-          :key="t.key"
-          class="result-tab"
-          :class="{ active: activeResultTab === t.key }"
-          @tap="activeResultTab = t.key"
-        >
-          <text class="result-tab-label">{{ t.label }}</text>
-          <text class="result-tab-count">{{ resultTabCount(t.key) }}</text>
-        </view>
-      </view>
-
-      <!-- 搜索联想下拉 -->
-      <view v-if="showSuggest && suggestions.length > 0" class="suggest-panel" :style="{ top: suggestPanelTop + 'px' }">
-        <view
-          v-for="s in suggestions"
-          :key="`${s.type}-${s.id}-${s.name}`"
-          class="suggest-item"
-          :class="{ pressed: pressedKey === `s-${s.id}` }"
-          @touchstart="pressedKey = `s-${s.id}`"
-          @touchend="pressedKey = ''"
-          @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = `s-${s.id}`"
-          @mouseup="pressedKey = ''"
-          @mouseleave="pressedKey = ''"
-          @tap="goSuggestion(s)"
-        >
-          <view class="suggest-icon">
-            <image v-if="s.image" :src="s.image" mode="aspectFill" class="suggest-thumb" />
-            <IconSvg v-else :name="suggestIcon(s.type)" :size="32" color="var(--text-tertiary)" />
-          </view>
-          <text class="suggest-name">{{ s.name }}</text>
-          <text class="suggest-type">{{ suggestTypeLabel(s.type) }}</text>
         </view>
       </view>
     </view>
@@ -83,7 +45,7 @@
         <view v-else-if="discoverFailed" class="discover-empty">
           <IconSvg name="empty" :size="96" color="var(--text-tertiary)" />
           <text class="discover-empty-tip">加载失败</text>
-          <text class="discover-empty-sub">网络异常或后端未启动，下拉或点击重试</text>
+          <text class="discover-empty-sub">网络异常，下拉或点击重试</text>
           <view class="discover-retry" @tap="loadDiscover">重新加载</view>
         </view>
 
@@ -120,7 +82,7 @@
 
         <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
         <CardSection v-if="hotSearchList.length > 0">
-          <SectionTitle title="热搜" :bar="false" />
+          <SectionTitle title="猜你想搜" :bar="false" />
           <view class="history-chips">
             <view
               v-for="(kw) in hotSearchList"
@@ -145,12 +107,31 @@
 
       <!-- ============ 搜索混合结果页（2026-08-03：无标题直接列表；tab 在顶部固定区） ============ -->
       <view v-else class="filter-result filter-enter">
-        <view class="mixed-list" v-if="filteredMixed.length > 0">
+        <!-- A2 结果数量标题：让用户知道结果规模，填补进入结果态后的空白顶部 -->
+        <view class="mixed-count" v-if="!mixedLoading && filteredMixed.length > 0">
+          <text class="mixed-count-text">找到 <text class="mixed-count-num">{{ filteredMixed.length }}</text> 个「<text class="mixed-count-kw">{{ keyword }}</text>」相关菜品</text>
+        </view>
+
+        <!-- A3 加载骨架屏：搜索请求中显示占位，避免「点了搜索没反应」的错觉 -->
+        <view class="mixed-list" v-if="mixedLoading">
+          <view v-for="s in 4" :key="`sk-${s}`" class="mixed-item mixed-item-skeleton">
+            <view class="mixed-thumb skeleton" />
+            <view class="mixed-info">
+              <view class="sk-line skeleton sk-name" />
+              <view class="sk-line skeleton sk-sub" />
+              <view class="sk-line skeleton sk-meta" />
+            </view>
+          </view>
+        </view>
+
+        <!-- A7 逐行 stagger 入场（reduced-motion 兜底见 style） -->
+        <view class="mixed-list" v-else-if="filteredMixed.length > 0">
           <view
             v-for="(item, idx) in filteredMixed"
             :key="`${item.type}-${item.id}`"
             class="mixed-item"
             :class="{ pressed: pressedKey === `m-${idx}` }"
+            :style="{ animationDelay: `${idx * 40}ms` }"
             @touchstart="pressedKey = `m-${idx}`"
             @touchend="pressedKey = ''"
             @touchcancel="pressedKey = ''"
@@ -159,30 +140,54 @@
             @mouseleave="pressedKey = ''"
             @tap="goToMixed(item)"
           >
+            <!-- C12 图片淡入：缩略图加载完成 opacity 过渡 -->
             <view class="mixed-thumb">
-              <image v-if="item.image" :src="item.image" mode="aspectFill" class="mixed-thumb-img" />
+              <image v-if="item.image" :src="getImageUrl(getThumbUrl(item.image))" mode="aspectFill" class="mixed-thumb-img" :class="{ loaded: item.loaded }" lazy-load @load="item.loaded = true" />
               <view v-else class="mixed-thumb-ph">
-                <IconSvg :name="mixedIcon(item.type)" :size="48" color="var(--text-tertiary)" />
+                <IconSvg name="dish" :size="48" color="var(--text-tertiary)" />
               </view>
             </view>
             <view class="mixed-info">
+              <!-- 第一行：菜名 + 评分（贴名小号）+ 价格 两端对齐（名称/价格为搜索核心信息） -->
               <view class="mixed-title-row">
-                <text class="mixed-name">{{ item.name }}</text>
-                <text class="mixed-type" :class="`t-${item.type}`">{{ mixedTypeText(item.type) }}</text>
-              </view>
-              <!-- 菜品：展示价格 + 评分 + 评价数，信息更充实 -->
-              <view v-if="item.type === 'dish'" class="mixed-meta">
-                <text class="mixed-price" v-if="item.price != null">¥{{ item.price.toFixed(2) }}</text>
-                <view v-if="item.rating != null" class="mixed-rating">
-                  <IconSvg name="star" :size="24" color="var(--color-star)" />
-                  <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
-                  <text v-if="item.ratingCount != null" class="mixed-rating-count">({{ item.ratingCount }})</text>
+                <view class="mixed-name-group">
+                  <text class="mixed-name">
+                    <text
+                      v-for="(seg, si) in splitHighlight(item.name)"
+                      :key="si"
+                      :class="{ hl: seg.hit }"
+                    >{{ seg.text }}</text>
+                  </text>
+                  <!-- 评分：贴近菜名右侧、小一号/两号（星 + 分数，不含评论数；星星放大与菜名字号匹配） -->
+                  <view v-if="item.rating != null" class="mixed-rating-group">
+                    <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="mixed-rating-star" />
+                    <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
+                  </view>
+                </view>
+                <!-- 价格组（促销角标 + 促销价/单价 + 原价划线），菜品才有价格 -->
+                <view v-if="item.price != null" class="mixed-price-group">
+                  <view v-if="item.promoPrice != null" class="mixed-promo-badge">促销</view>
+                  <text class="mixed-price" v-if="item.promoPrice != null"><text class="mixed-price-sym">¥</text>{{ item.promoPrice.toFixed(2) }}</text>
+                  <text class="mixed-price" v-else><text class="mixed-price-sym">¥</text>{{ item.price.toFixed(2) }}</text>
+                  <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ item.originalPrice.toFixed(2) }}</text>
                 </view>
               </view>
-              <!-- 档口/食堂：展示副信息（食堂名/位置） -->
-              <text class="mixed-sub" v-else-if="item.sub">{{ item.sub }}</text>
+              <!-- 第二行：标徽（属性标签 chips，主色软底） -->
+              <view v-if="item.tagLabels && item.tagLabels.length" class="mixed-tags">
+                <text v-for="t in item.tagLabels" :key="t" class="mixed-tag">{{ t }}</text>
+              </view>
+              <!-- 第三行：位置（档口·食堂 + 距你，两端对齐） -->
+              <view class="mixed-sub">
+                <text class="mixed-sub-text">
+                  <text
+                    v-for="(seg, si) in splitHighlight(item.sub || '')"
+                    :key="si"
+                    :class="{ hl: seg.hit }"
+                  >{{ seg.text }}</text>
+                </text>
+                <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ fmtMixedDistance(item.distance) }}</text>
+              </view>
             </view>
-            <IconSvg name="arrow" :size="24" color="var(--text-tertiary)" class="mixed-arrow" />
           </view>
         </view>
         <EmptyState
@@ -196,34 +201,29 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
-    />
-
     <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
     <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
+import { useDishStore } from '@/stores/dish'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { useLocationStore } from '@/stores/location'
+import { getUserLocation } from '@/utils/location'
+import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
-import { buildSharePayload } from '@/utils/shareState'
 import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import { useDishStore } from '@/stores/dish'
-import type { Suggestion } from '@/types/dish'
 
+const theme = useThemeStore()
 const dishStore = useDishStore()
+const locationStore = useLocationStore()
 
 /** 搜索页为非 tab 二级页：返回回首页（2026-08-03 修复：用 navigateBack 带返回动画；无上一页时兜底 reLaunch） */
 function goBackHome() {
@@ -239,6 +239,7 @@ function goBackHome() {
  * 搜索框右侧 margin-right = 胶囊按钮左侧到屏幕右缘的距离，避免搜索框被微信胶囊遮挡。 */
 const statusBarHeight = ref(20)
 const capsuleRightOffset = ref(0)
+const navBarHeight = ref(56)
 function measureTopBar() {
   // @ts-ignore
   const win = (typeof wx !== 'undefined' && wx.getWindowInfo) ? wx.getWindowInfo() : null
@@ -248,29 +249,22 @@ function measureTopBar() {
   if (menu && win) {
     // 搜索框右侧须在胶囊左侧之前结束：margin-right = 屏幕宽 - 胶囊.left + 余量
     capsuleRightOffset.value = win.windowWidth - menu.left + 8
+    // 返回行高度对齐系统导航栏（与全站 header 同高：下限 54 同 header.vue）
+    if (menu.height) navBarHeight.value = Math.max((menu.top - statusBarHeight.value) * 2 + menu.height, 54)
   } else {
     capsuleRightOffset.value = 0
   }
 }
 
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+/** 菜品详情：跳转独立页（pages-detail/dish） */
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
 }
 const keyword = ref('')
-const suggestions = ref<Suggestion[]>([])
-const showSuggest = ref(false)
 const pressedKey = ref('')
 const refresherTriggered = ref(false)
 const discoverLoading = ref(true)
-
-// 搜索联想面板的运行时测量 top（px）。Header 高度含状态栏(px)，无法用固定 rpx 对齐，
-// 必须在布局完成后用 selectorQuery 实测 Header 底 + searchWrap 高度（refs BLOCKER N1）
-const suggestPanelTop = ref(200)
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
@@ -302,82 +296,92 @@ function removeHistory(i: number) {
   saveHistory()
 }
 function clearHistory() {
-  historyList.value = []
-  saveHistory()
+  // 清空全部历史是破坏性操作，加二次确认防误触（单条删除保留即时，逐条确认会打断）
+  uni.showModal({
+    title: '清空搜索历史',
+    content: '确定要清空全部搜索历史吗？此操作不可恢复。',
+    confirmText: '清空',
+    confirmColor: '#FF3B30',
+    success: (res) => {
+      if (!res.confirm) return
+      historyList.value = []
+      saveHistory()
+    },
+  })
 }
 
 // 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
 const inFilter = ref(false)
 
-/** 混合搜索结果：菜品 / 档口 / 食堂 复合流（复用 suggest 接口返回 Suggestion[]） */
+/** 混合搜索结果：复用菜品检索接口返回 Dish[]（搜索仅针对菜品） */
 interface MixedResult {
-  type: Suggestion['type']
+  type: 'dish'
   id?: number
   name: string
   image?: string
-  /** 副信息：档口→食堂名；食堂→位置；菜品→空（由联想数据结构派生） */
+  /** 副信息：菜品→「档口 · 食堂」（B8 档口名）；档口/食堂→位置 */
   sub?: string
+  /** 菜品专属：价格（元，api 层已转） */
+  price?: number
+  /** 菜品专属：平均评分 */
+  rating?: number
+  /** 菜品专属：评价数 */
+  ratingCount?: number
+  /** 菜品专属：所属档口名（B8；副信息展示「档口 · 食堂」） */
+  stall?: string
+  /** 菜品专属：属性标签原始逗号串 */
+  tags?: string
+  /** 菜品专属：属性标签中文映射（最多取前 2 个） */
+  tagLabels?: string[]
+  /** 菜品专属：促销价（元，非空时展示促销角标） */
+  promoPrice?: number
+  /** 菜品专属：原价（元，promoPrice 非空时划线展示） */
+  originalPrice?: number
+  /** 食堂坐标（GCJ-02），来自 suggest 联表，前端本地 Haversine 算「距你 Xm」 */
+  lat?: number
+  lng?: number
+  /** 距用户距离（米）：前端基于定位本地算；未定位/坐标缺失回退校区中心，恒有值 */
+  distance?: number
+  /** 缩略图是否已加载完成（驱动淡入，纯前端渲染态） */
+  loaded?: boolean
 }
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
 
-/** 结果分类 tab（2026-08-03：全部 / 菜品 / 档口 / 食堂，固定于顶部） */
-const resultTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'dish', label: '菜品' },
-  { key: 'stall', label: '档口' },
-  { key: 'canteen', label: '食堂' },
-] as const
-type ResultTabKey = (typeof resultTabs)[number]['key']
-const activeResultTab = ref<ResultTabKey>('all')
+/** 搜索结果（仅菜品单列；距离已在 doMixedSearch 经 withLocalDistance 写回，未定位回退校区中心，恒有值） */
+const filteredMixed = computed(() => mixedResults.value)
 
-/** 按 tab 过滤后的混合结果 */
-const filteredMixed = computed(() => {
-  if (activeResultTab.value === 'all') return mixedResults.value
-  return mixedResults.value.filter(r => r.type === activeResultTab.value)
-})
-function resultTabCount(key: ResultTabKey): number {
-  if (key === 'all') return mixedResults.value.length
-  return mixedResults.value.filter(r => r.type === key).length
+/** 距你文案：米/公里自适应 */
+function fmtMixedDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
 }
+/** A1 关键词高亮：将文本按当前 keyword 拆分为 [{text, hit}] 片段，命中段由模板套 .hl（朱砂红），避免 v-html XSS */
+function splitHighlight(text: string): { text: string; hit: boolean }[] {
+  const kw = keyword.value.trim()
+  if (!text || !kw) return [{ text, hit: false }]
+  const segs: { text: string; hit: boolean }[] = []
+  const lowerText = text.toLowerCase()
+  const lowerKw = kw.toLowerCase()
+  let start = 0
+  let idx = lowerText.indexOf(lowerKw, start)
+  while (idx !== -1) {
+    if (idx > start) segs.push({ text: text.slice(start, idx), hit: false })
+    segs.push({ text: text.slice(idx, idx + kw.length), hit: true })
+    start = idx + kw.length
+    idx = lowerText.indexOf(lowerKw, start)
+  }
+  if (start < text.length) segs.push({ text: text.slice(start), hit: false })
+  return segs
+}
+/** 输入框失焦：无额外处理（直接搜索，无联想面板） */
+function onSearchBlur() { /* no-op */ }
 
-/** 输入框失焦：收起联想面板 */
-function onSearchBlur() {
-  setTimeout(() => { showSuggest.value = false }, 150)
-}
-
-function suggestIcon(type: Suggestion['type']): string {
-  if (type === 'dish') return 'dish'
-  if (type === 'stall') return 'stall'
-  return 'empty'
-}
-function suggestTypeLabel(type: Suggestion['type']): string {
-  if (type === 'dish') return '菜品'
-  if (type === 'stall') return '档口'
-  return '食堂'
-}
-
-let suggestTimer: ReturnType<typeof setTimeout> | null = null
 function onKeywordInput() {
-  showSuggest.value = true
-  if (suggestTimer) clearTimeout(suggestTimer)
-  suggestTimer = setTimeout(async () => {
-    if (!keyword.value.trim()) {
-      suggestions.value = []
-      return
-    }
-      try {
-      suggestions.value = await dishStore.fetchSuggestions(keyword.value)
-    } catch {
-      suggestions.value = []
-    }
-  }, 300)
+  // 仅维护 keyword 输入态，确认/回车才触发搜索
 }
 
 function onSearchConfirm() {
   const kw = keyword.value.trim()
-  showSuggest.value = false
-  suggestions.value = []
   if (!kw) return
   pushHistory(kw)
   doMixedSearch(kw)
@@ -385,22 +389,6 @@ function onSearchConfirm() {
 
 function clearKeyword() {
   keyword.value = ''
-  suggestions.value = []
-  showSuggest.value = false
-}
-
-function goSuggestion(s: Suggestion) {
-  showSuggest.value = false
-  suggestions.value = []
-  keyword.value = s.name
-  if (s.type === 'dish' && s.id) {
-    openDishSheet(s.id)
-  } else if (s.type === 'canteen' && s.name) {
-    uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(s.name)}` })
-  } else if (s.type === 'stall' && s.name && s.canteen) {
-    dishStore.navParams = { stallName: s.name, canteen: s.canteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
-  }
 }
 
 function goKeyword(kw: string) {
@@ -409,22 +397,48 @@ function goKeyword(kw: string) {
   doMixedSearch(kw)
 }
 
-// ===== 复合型混合搜索（2026-08-03：复用 suggest 接口，美团式混合结果） =====
-async function doMixedSearch(kw: string) {
+// ===== 复合型搜索（2026-08-03 重构：直接复用菜品检索接口） =====
+// C13 竞态守卫：慢请求结果不得覆盖后发的快请求（参照 review.vue searchSeq 模式）
+let mixedSearchSeq = 0
+async function doMixedSearch(kw?: string) {
+  if (!kw) return
+  // 竞态守卫（mixedSearchSeq）已保证后发请求覆盖先发结果；此处不设防重入锁，
+  // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
+  const seq = ++mixedSearchSeq
   inFilter.value = true
-  activeResultTab.value = 'all'
   mixedLoading.value = true
   try {
-    const list = await dishStore.fetchSuggestions(kw)
-    mixedResults.value = list
-      .map(s => ({
-        type: s.type,
-        id: s.id,
-        name: s.name,
-        image: s.image,
-        // 档口副信息 = 所属食堂名（后端 suggest 已联表返回 canteen，供跳档口详情携带 navParams.canteen）
-        sub: s.type === 'stall' ? s.canteen || '校园档口' : s.type === 'canteen' ? '校园食堂' : '',
-      }))
+    // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
+    const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50 })
+    // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
+    if (seq !== mixedSearchSeq) return
+    // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）
+    const decorated = dishStore.withLocalDistance(list, false)
+    mixedResults.value = decorated
+      .map(d => {
+        // B8 副信息：档口名 + 食堂名
+        const sub = [d.stallName, d.canteen].filter(Boolean).join(' · ')
+        // B9 标签（Dish.tags 已是中文数组，最多取前 2 个）
+        const tagLabels = (d.tags || []).slice(0, 2)
+        return {
+          type: 'dish' as const,
+          id: d.id,
+          name: d.name,
+          image: d.image,
+          sub,
+          price: d.price,
+          rating: d.rating,
+          ratingCount: d.ratingCount,
+          stall: d.stallName,
+          tags: (d.tags || []).join(','),
+          tagLabels,
+          promoPrice: d.promoPrice,
+          originalPrice: d.originalPrice,
+          lat: d.latitude != null ? Number(d.latitude) : undefined,
+          lng: d.longitude != null ? Number(d.longitude) : undefined,
+          distance: d.distance,
+        }
+      })
       .filter(r => r.name)
   } catch {
     mixedResults.value = []
@@ -433,28 +447,10 @@ async function doMixedSearch(kw: string) {
   }
 }
 
-function mixedIcon(type: Suggestion['type']): string {
-  if (type === 'dish') return 'dish'
-  if (type === 'stall') return 'stall'
-  return 'canteen'
-}
-function mixedTypeText(type: Suggestion['type']): string {
-  if (type === 'dish') return '菜品'
-  if (type === 'stall') return '档口'
-  return '食堂'
-}
-
-/** 混合结果点击：菜品弹详情，档口/食堂跳对应详情页 */
+/** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
 function goToMixed(item: MixedResult) {
-  if (item.type === 'dish' && item.id) {
-    openDishSheet(item.id)
-  } else if (item.type === 'canteen' && item.name) {
-    uni.navigateTo({ url: `/pages/pages-detail/canteen?canteen=${encodeURIComponent(item.name)}` })
-  } else if (item.type === 'stall' && item.name && item.sub) {
-    // sub 承载 suggest 返回的 canteen 名称（doMixedSearch 已写入），档口详情需 navParams.canteen
-    dishStore.navParams = { stallName: item.name, canteen: item.sub }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
-  }
+  try { uni.vibrateShort({ type: 'light' }) } catch { /* 部分平台无震动 API，忽略 */ }
+  if (item.id) openDishDetail(item.id)
 }
 
 function exitFilter() {
@@ -489,169 +485,86 @@ async function loadDiscover() {
   }
 }
 
-/** 实测顶部固定区（.search-nav）高度，得到联想面板的 top(px)。
- * 顶部 = 状态栏 + 返回行 + 结果 tab（结果态有 tab 更高）。失败时回退。 */
-function measureSuggestTop() {
-  try {
-    uni.createSelectorQuery()
-      .select('.search-nav')
-      .boundingClientRect()
-      .exec((res) => {
-        const navRect = res[0] as UniApp.NodeInfo
-        const navBottom = navRect?.bottom ?? 0
-        if (navBottom > 0) {
-          suggestPanelTop.value = navBottom + 4
-        } else {
-          suggestPanelTop.value = 200
-        }
-      })
-  } catch {
-    suggestPanelTop.value = 200
-  }
-}
-
 onMounted(() => {
   measureTopBar()
   loadHistory()
+  ensureLocation()
   loadDiscover()
-  // 布局就绪后再测量，避免拿到 0 高度（onReady/nextTick 双保险）
-  nextTick(() => measureSuggestTop())
 })
+
+/** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级（距你显 -） */
+async function ensureLocation() {
+  if (locationStore.location) return
+  try {
+    const loc = await getUserLocation()
+    if (loc) locationStore.setLocation(loc)
+  } catch (e) {
+    // 用户拒绝授权 / 定位不可用：静默，距离降级
+  }
+}
 onShareAppMessage(() => buildSharePayload())
+// 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容
+onShow(() => clearShareState())
 
-// 进入结果态（出现 tab）后重新测量联想面板 top（顶部固定区高度变化）
-watch(inFilter, (v) => {
-  nextTick(() => measureSuggestTop())
-  if (!v) activeResultTab.value = 'all'
-})
-
-watch(keyword, (value) => {
-  if (!value.trim()) showSuggest.value = false
+watch(keyword, () => {
+  // 关键词变化仅维护输入态，确认/回车才触发搜索
 })
 </script>
 
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 顶部留白由内容块自己提供（搜索 mixed-list / 发现 skeleton 均为 md，与首页广播条-卡间距一致）；scroll 不再额外叠加 */
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* ===== 顶部固定区（2026-08-03：返回 + 搜索框 + 结果 tab，位于滚动区外，天然不随滚动） ===== */
 .search-nav {
   position: relative;
   z-index: 30;
-  background: var(--bg-page);
-  padding-left: var(--spacing-md);
-  padding-right: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
+  /* 朱砂红品牌色块（与首页 header 一致）；白底搜索框浮于其上 */
+  background: var(--color-primary);
+  padding-left: var(--spacing-lg);
+  padding-right: var(--spacing-lg);
+  padding-bottom: 0;
   box-sizing: border-box;
 }
-.search-nav-row { display: flex; align-items: center; gap: var(--spacing-sm); height: 72rpx; }
+.search-nav-row { display: flex; align-items: center; gap: var(--spacing-sm); height: var(--nav-h); }
+/* 返回键尺寸对齐首页头像：calc(var(--nav-h) - 14px) 圆形命中区 */
 .search-back {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
+  width: calc(var(--nav-h) - 14px);
+  height: calc(var(--nav-h) - 14px);
   flex-shrink: 0;
-  transition: transform 0.12s var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .search-back.pressed { transform: scale(var(--press-scale)); }
 .search-back-icon { flex-shrink: 0; line-height: 1; }
-/* 搜索框：圆角灰条 + 放大镜 + 清空（与首页同款视觉） */
+/* 搜索框：圆角白条 + 放大镜 + 清空（与首页 home-search 同款：同高、同圆角、同底、无阴影） */
 .search-box {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: 72rpx;
+  height: calc(var(--nav-h) - 12px);
   padding: 0 var(--spacing-md);
-  background: var(--bg-soft);
+  background: var(--bg-card);
   border-radius: var(--radius-pill);
   box-sizing: border-box;
 }
 .search-box-icon { flex-shrink: 0; line-height: 1; }
 .search-box-input { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); }
 .search-box-ph { color: var(--text-tertiary); }
-.search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .search-box-clear:active { opacity: 0.55; }
-
-/* 结果分类 tab（2026-08-03：全部/菜品/档口/食堂，固定于搜索框下） */
-.result-tabs {
-  display: flex;
-  margin-top: var(--spacing-sm);
-  border-bottom: 2rpx solid var(--border-color);
-}
-.result-tab {
-  flex: 1;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  /* 命中区 ≥44px：上下 padding md（24rpx），tab 整行可点高度充足 */
-  padding: var(--spacing-md) 0;
-  color: var(--text-secondary);
-  -webkit-tap-highlight-color: transparent;
-  position: relative;
-  transition: color 0.12s ease;
-}
-.result-tab.active { color: var(--color-primary); font-weight: var(--weight-bold); }
-.result-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48rpx;
-  height: 4rpx;
-  border-radius: 2rpx;
-  background: var(--color-primary);
-}
-.result-tab-label { font-size: var(--font-body); line-height: 1.2; }
-.result-tab-count { font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.result-tab.active .result-tab-count { color: var(--color-primary); }
-
-/* 联想下拉：fixed 定位，脱离滚动区避免 z-index 被裁剪（真机红线）；
-   top 由运行时实测（.search-nav 底边，px）写入 :style。
-   毛玻璃材质（Apple 搜索联想面板）：半透明白 + blur + saturate 提升饱和度，
-   不支持 backdrop-filter 的环境回退实色 bg-card */
-.suggest-panel {
-  position: fixed;
-  left: var(--spacing-md);
-  right: var(--spacing-md);
-  background: var(--blur-bg);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-modal);
-  overflow: hidden;
-  z-index: 100;
-  backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .suggest-panel { background: var(--bg-card); }
-}
-.suggest-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  /* hairline 分隔（Apple 精致细节） */
-  border-bottom: 1rpx solid var(--border-color);
-  transition: transform 0.12s ease, background 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.suggest-item:last-child { border-bottom: none; }
-.suggest-item.pressed { transform: scale(var(--press-scale)); background: var(--bg-soft); }
-.suggest-icon { width: 56rpx; height: 56rpx; border-radius: 16rpx; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-page); }
-.suggest-thumb { width: 100%; height: 100%; }
-.suggest-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-type { font-size: var(--font-aux); color: var(--text-tertiary); flex-shrink: 0; }
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }
 
 /* 历史搜索 */
-.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-clear:active { opacity: 0.55; }
 .history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .history-chip {
@@ -663,7 +576,7 @@ watch(keyword, (value) => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
   border-radius: var(--radius-pill);
-  transition: transform 0.12s ease, background 0.15s ease;
+  transition: transform var(--duration-fast) ease, background var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip.pressed { transform: scale(var(--press-scale)); background: var(--color-primary-soft); }
@@ -677,13 +590,13 @@ watch(keyword, (value) => {
   padding: var(--spacing-xs);
   margin: calc(-1 * var(--spacing-xs));
   border-radius: 50%;
-  transition: opacity 120ms ease;
+  transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
 /* 历史折叠按钮（2026-08-03：展开/收起） */
 .history-toggle { display: flex; align-items: center; justify-content: center; padding: var(--spacing-sm) 0 0; }
-.history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity 120ms ease; -webkit-tap-highlight-color: transparent; }
+.history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-toggle-text:active { opacity: 0.55; }
 
 /* 搜索混合结果页（2026-08-03：无排序/筛选） */
@@ -693,9 +606,9 @@ watch(keyword, (value) => {
   from { opacity: 0; transform: translateY(16rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* 混合结果列表（菜品/档口/食堂混排，一行一个，左图右信息 + 类型标识）。
+/* 搜索结果列表（仅菜品，一行一个，左图右信息）。
    Apple Design 列表行卡：20px 大圆角 + hairline 分隔 + 按下背景高亮（Apple 偏好 highlight 而非 scale） */
-.mixed-list { margin: var(--spacing-sm) var(--spacing-md); }
+.mixed-list { margin: var(--spacing-md); }
 .mixed-item {
   display: flex;
   align-items: center;
@@ -704,12 +617,23 @@ watch(keyword, (value) => {
   border-radius: var(--radius-card);
   padding: var(--spacing-md);
   box-shadow: var(--shadow-card);
-  transition: background-color 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  /* A7 逐行淡入（配合 :style animationDelay stagger） */
+  animation: mixed-item-in 0.28s var(--ease-out) both;
+}
+@keyframes mixed-item-in {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .mixed-item + .mixed-item { margin-top: var(--spacing-sm); }
 .mixed-item.pressed { background-color: var(--bg-soft); }
+/* 搜索结果数量标题（A2） */
+.mixed-count { padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs); }
+.mixed-count-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.mixed-count-num { color: var(--text-primary); font-weight: var(--weight-bold); }
+.mixed-count-kw { color: var(--color-primary); font-weight: var(--weight-semibold); }
 .mixed-thumb {
   width: 160rpx;
   height: 160rpx;
@@ -718,48 +642,99 @@ watch(keyword, (value) => {
   overflow: hidden;
   background: var(--bg-page);
 }
-.mixed-thumb-img { width: 100%; height: 100%; }
+/* C12 图片淡入：初始透明，loaded 后置 1 由 transition 淡入 */
+.mixed-thumb-img { width: 100%; height: 100%; opacity: 0; transition: opacity 0.32s var(--ease-out); }
+.mixed-thumb-img.loaded { opacity: 1; }
 .mixed-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-.mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.mixed-title-row { display: flex; align-items: center; gap: var(--spacing-xs); }
+.mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); min-height: 160rpx; justify-content: center; }
+/* 第一行：菜名（加大）+ 评分（贴名小号）+ 价格 两端对齐（名称/价格是搜索核心，价格不换行防挤占菜名） */
+.mixed-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.mixed-name-group { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-sm); }
 .mixed-name {
-  flex: 1;
+  /* 不撑满：评分紧贴菜名右侧（而非被推到行尾贴近价格）；长菜名可收缩省略 */
+  flex: 0 1 auto;
   min-width: 0;
-  font-size: var(--font-card);
+  font-size: var(--font-title);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   line-height: 1.3;
   letter-spacing: var(--tracking-h3);
+  /* A5 菜名两行截断：长菜名不再丢信息 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-/* 菜品结果 meta：价格 + 评分 + 评价数 一行 */
-.mixed-meta { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-xs); }
-.mixed-price { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-primary); font-variant-numeric: tabular-nums; }
-.mixed-rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-.mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
-.mixed-rating-count { font-size: var(--font-aux); color: var(--text-tertiary); }
-/* 类型标识徽标：菜品主色 / 档口热色 / 食堂中性（Apple 精致：小胶囊 + 细边框） */
-.mixed-type {
-  flex-shrink: 0;
+/* A1 关键词高亮：命中段朱砂红 */
+.mixed-name .hl, .mixed-sub .hl { color: var(--color-primary); font-weight: var(--weight-bold); }
+/* B9 属性标签 chips */
+.mixed-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2xs); margin-top: 2rpx; }
+.mixed-tag {
   font-size: var(--font-tiny);
-  font-weight: var(--weight-semibold);
-  line-height: 1;
-  padding: 6rpx 12rpx;
+  line-height: 1.4;
+  padding: 2rpx 12rpx;
   border-radius: var(--radius-tag);
-  border: 1rpx solid transparent;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--weight-medium);
 }
-.mixed-type.t-dish { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-primary); }
-.mixed-type.t-stall { color: var(--color-accent); background: var(--color-accent-soft); border-color: var(--color-accent); }
-.mixed-type.t-canteen { color: var(--text-secondary); background: var(--bg-soft); border-color: var(--border-color); }
-.mixed-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mixed-arrow { flex-shrink: 0; }
+/* B10 促销角标 + 原价划线 */
+.mixed-promo-badge {
+  font-size: var(--font-tiny);
+  line-height: 1.4;
+  padding: 2rpx 12rpx;
+  border-radius: var(--radius-tag);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-bold);
+  /* 价格组 baseline 对齐下居中，避免角标因 padding 偏上 */
+  align-self: center;
+}
+.mixed-original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+/* 价格组：促销角标 + 促销价/单价 + 原价划线；flex-shrink:0 防被菜名挤压，baseline 对齐 */
+.mixed-price-group { display: flex; align-items: baseline; gap: var(--spacing-2xs); flex-shrink: 0; }
+/* A6 价格视觉强化：¥ 符号缩小、数字放大，统一用专用价色 --color-price */
+.mixed-price { font-size: var(--font-title); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+.mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
+/* 评分组：贴近菜名右侧、小一号/两号（弱化星级，避免喧宾夺主） */
+.mixed-rating-group { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.mixed-rating-star { flex-shrink: 0; }
+.mixed-rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+/* 第三行位置：左段档口·食堂可省略、右段「距你 Xm」固定不截断，两端对齐，与标徽行分隔 */
+.mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-secondary); }
+.mixed-sub-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A4 距离段：主色强调，无定位时不显示 */
+.mixed-dist-seg { flex-shrink: 0; color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 
 /* 发现主页首屏骨架（2026-08-03：分类宫格已删，仅保留热搜列表占位） */
-.discover-skeleton { padding: 0 var(--spacing-md); }
+.discover-skeleton { padding: var(--spacing-md) var(--spacing-md) 0; }
 .sk-row { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .sk-line { height: 110rpx; border-radius: var(--radius-card); flex: 1; }
+
+/* A3 搜索结果加载骨架屏（复用 .skeleton 闪烁） */
+.mixed-item-skeleton { animation: none; }
+.mixed-item-skeleton .mixed-thumb { background: var(--bg-soft); }
+.mixed-item-skeleton .mixed-info { gap: var(--spacing-sm); }
+.sk-name { height: 32rpx; width: 70%; border-radius: var(--radius-tag); }
+.sk-sub { height: 24rpx; width: 50%; border-radius: var(--radius-tag); }
+.sk-meta { height: 28rpx; width: 40%; border-radius: var(--radius-tag); }
+/* 骨架闪烁动画（全局未定义，本地补全） */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: skeleton-shine 1.2s infinite;
+}
+@keyframes skeleton-shine {
+  to { transform: translateX(100%); }
+}
 
 /* 发现主页加载失败空态 */
 .discover-empty {
@@ -780,16 +755,23 @@ watch(keyword, (value) => {
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
   color: var(--color-on-primary);
-  transition: opacity 120ms var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .discover-retry:active { opacity: 0.8; }
 /* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
 .history-chip-hot { background: var(--color-primary-soft); }
 .history-chip-hot .history-chip-text { color: var(--color-primary); }
+/* 推荐词按下反馈：底色转实心主色，文字反白，与中性 chip 的按压态拉开差异 */
+.history-chip-hot.pressed { background: var(--color-primary); }
+.history-chip-hot.pressed .history-chip-text { color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .filter-enter { animation: none; }
   .discover-retry { transition: none; }
+  /* A7/C12 动效兜底：关闭逐行入场与图片淡入 */
+  .mixed-item { animation: none; }
+  .mixed-thumb-img { opacity: 1; transition: none; }
+  .skeleton::after { animation: none; }
 }
 </style>

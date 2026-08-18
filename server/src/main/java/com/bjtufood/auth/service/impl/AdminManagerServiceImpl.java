@@ -25,11 +25,12 @@ public class AdminManagerServiceImpl implements AdminManagerService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
     public IPage<UserVO> listAdmins(int page, int pageSize, String status) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(User::getRole, RoleConst.ADMIN)
                 .orderByDesc(User::getCreatedAt);
@@ -78,6 +79,12 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         }
         user.setStatus(status);
         userMapper.updateById(user);
+        // 被禁用的管理员其已签发 token 必须立即失效；恢复 active 时解除拉黑
+        if ("disabled".equals(status)) {
+            tokenBlacklist.revokeUser(id);
+        } else {
+            tokenBlacklist.restoreUser(id);
+        }
     }
 
     @Override
@@ -91,6 +98,8 @@ public class AdminManagerServiceImpl implements AdminManagerService {
             throw new BusinessException("该账号不是管理员");
         }
         userMapper.deleteById(id);
+        // 账号已删除，其已签发 token 必须立即失效
+        tokenBlacklist.revokeUser(id);
     }
 
     @Override
@@ -121,7 +130,18 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         vo.setAvatar(user.getAvatar());
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
+        vo.setVerified(user.getVerified());
+        vo.setOpenid(user.getOpenid());
+        vo.setBindEmail(user.getBindEmail());
+        vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());
         return vo;
+    }
+
+    /** 游客短标识：食客 + ID 尾 4 位 */
+    private String buildGuestShortId(Long userId) {
+        String id = String.valueOf(userId);
+        String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
+        return "食客" + tail;
     }
 }

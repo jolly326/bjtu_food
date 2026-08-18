@@ -42,11 +42,24 @@ const props = withDefaults(
     /** 每页条数选项 */
     pageSizes?: number[]
     defaultPageSize?: number
+    /**
+     * 服务端受控分页模式：开启后组件不自行 slice，rows 即当前页数据，
+     * 分页栏的 total / 当前页 / 每页条数由外部（serverTotal / v-model:serverPage / v-model:serverPageSize）控制，
+     * 翻页触发 page-change 事件交由父组件重新请求对应页。用于后端单页上限 100 的真分页场景。
+     */
+    serverMode?: boolean
+    /** serverMode 下后端返回的总条数 */
+    serverTotal?: number
+    /** serverMode 下当前页码（v-model，1 起） */
+    serverPage?: number
+    /** serverMode 下每页条数（v-model，≤ 后端上限 100） */
+    serverPageSize?: number
   }>(),
   {
     loading: false, error: '', emptyText: '暂无数据', selectable: false, rowKey: 'id',
     selectedIds: () => [], rowClickable: false, emptyIcon: null, actionsWidth: '160px',
     pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10,
+    serverMode: false, serverTotal: 0, serverPage: 1, serverPageSize: 20,
   },
 )
 
@@ -56,6 +69,12 @@ import { ArrowRight } from '@element-plus/icons-vue'
 const emit = defineEmits<{
   'row-click': [row: any]
   'update:selectedIds': [ids: number[]]
+  /** serverMode 下当前页码双向同步（v-model:serverPage） */
+  'update:serverPage': [page: number]
+  /** serverMode 下每页条数双向同步（v-model:serverPageSize） */
+  'update:serverPageSize': [pageSize: number]
+  /** serverMode 下翻页/改每页条数时触发，父组件据此重新请求对应页 */
+  'page-change': [page: number, pageSize: number]
 }>()
 
 function rowKeyValue(row: any) {
@@ -116,7 +135,11 @@ const sortedRows = computed(() => {
     return s.order === 'asc' ? r : -r
   })
 })
+// serverMode：rows 即当前页数据，组件不 slice；total / 页码由外部控制
 const displayRows = computed(() => {
+  if (props.serverMode) {
+    return { rows: sortedRows.value, total: props.serverTotal }
+  }
   if (!props.pagination) return { rows: sortedRows.value, total: sortedRows.value.length }
   const total = sortedRows.value.length
   const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
@@ -138,6 +161,20 @@ watch(
   () => props.pagination,
   (v) => { if (!v) page.value = 1 },
 )
+// ===== serverMode 分页栏绑定（与父组件双向同步） =====
+const sPage = computed({
+  get: () => props.serverPage,
+  set: (v: number) => emit('update:serverPage', v),
+})
+const sPageSize = computed({
+  get: () => props.serverPageSize,
+  set: (v: number) => emit('update:serverPageSize', v),
+})
+function onServerPageChange(p: number, ps: number) {
+  emit('update:serverPage', p)
+  emit('update:serverPageSize', ps)
+  emit('page-change', p, ps)
+}
 </script>
 
 <template>
@@ -220,8 +257,27 @@ watch(
         </tbody>
       </table>
 
-      <!-- 分页栏：共 N 条 + 每页条数 + 页码（行数未超过 pageSize 时自动隐藏） -->
-      <div v-if="pagination && displayRows.total > pageSize" class="table-footer">
+      <!-- 分页栏：共 N 条 + 每页条数 + 页码 -->
+      <!-- serverMode：受控分页，绑定外部 sPage/sPageSize，翻页触发 page-change -->
+      <div v-if="pagination && serverMode && serverTotal > 0 && serverTotal > serverPageSize" class="table-footer">
+        <div class="tf-count">共 <b>{{ serverTotal }}</b> 条</div>
+        <div class="tf-pager">
+          <el-pagination
+            layout="sizes, prev, pager, next"
+            :total="serverTotal"
+            :page-sizes="pageSizes"
+            v-model:current-page="sPage"
+            v-model:page-size="sPageSize"
+            background
+            @change="onServerPageChange"
+          />
+        </div>
+      </div>
+      <div v-else-if="pagination && serverMode && serverTotal > 0" class="table-footer table-footer-min">
+        <div class="tf-count">共 <b>{{ serverTotal }}</b> 条</div>
+      </div>
+      <!-- 非 serverMode：本地分页（数据已全部加载） -->
+      <div v-else-if="pagination && displayRows.total > pageSize" class="table-footer">
         <div class="tf-count">共 <b>{{ displayRows.total }}</b> 条</div>
         <div class="tf-pager">
           <el-pagination
@@ -234,7 +290,7 @@ watch(
           />
         </div>
       </div>
-      <div v-else-if="pagination" class="table-footer table-footer-min">
+      <div v-else-if="pagination && !serverMode" class="table-footer table-footer-min">
         <div class="tf-count">共 <b>{{ displayRows.total }}</b> 条</div>
       </div>
     </template>

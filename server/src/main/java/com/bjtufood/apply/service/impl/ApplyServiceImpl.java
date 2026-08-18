@@ -1,6 +1,7 @@
 package com.bjtufood.apply.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.apply.constant.ApplyConst;
@@ -16,6 +17,7 @@ import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
@@ -24,11 +26,11 @@ import com.bjtufood.moment.service.MomentService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,7 +75,13 @@ public class ApplyServiceImpl implements ApplyService {
         apply.setApplyType(applyType);
         apply.setPayload(payloadToJson(req.getPayload()));
         apply.setStatus(ApplyConst.STATUS_PENDING);
-        applyActionMapper.insert(apply);
+        try {
+            applyActionMapper.insert(apply);
+        } catch (DuplicateKeyException e) {
+            // 并发下前置 selectCount 通过但插入瞬间已被他人抢先落库，唯一键兜底：
+            // 统一转为业务提示，避免 500
+            throw new BusinessException("您已报名");
+        }
         return apply.getId();
     }
 
@@ -129,8 +137,8 @@ public class ApplyServiceImpl implements ApplyService {
 
     @Override
     public IPage<ApplyVO> adminList(String status, String entityType, String applyType, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<ApplyAction> w = new LambdaQueryWrapper<ApplyAction>()
                 .orderByDesc(ApplyAction::getCreatedAt);
         if (StringUtils.hasText(status)) w.eq(ApplyAction::getStatus, status);
@@ -147,13 +155,21 @@ public class ApplyServiceImpl implements ApplyService {
     public void approve(Long id, Long adminId) {
         ApplyAction apply = applyActionMapper.selectById(id);
         if (apply == null) throw new BusinessException("申请不存在");
-        if (!ApplyConst.STATUS_PENDING.equals(apply.getStatus())) {
+        // 自审拦截：申请人不能审核自己的申请
+        if (apply.getApplicantId() != null && apply.getApplicantId().equals(adminId)) {
+            throw new BusinessException(400, "不能审核自己提交的申请");
+        }
+        // 状态机闭合 + 乐观锁：仅当仍为 PENDING 才允许更新，影响行数=0 表示已被并发处理
+        int rows = applyActionMapper.update(null, new LambdaUpdateWrapper<ApplyAction>()
+                .eq(ApplyAction::getId, id)
+                .eq(ApplyAction::getStatus, ApplyConst.STATUS_PENDING)
+                .set(ApplyAction::getStatus, ApplyConst.STATUS_APPROVED)
+                .set(ApplyAction::getHandledBy, adminId)
+                .set(ApplyAction::getHandledAt, DateTimeUtil.now())
+                .set(ApplyAction::getRejectReason, (String) null));
+        if (rows == 0) {
             throw new BusinessException("该申请已处理");
         }
-        apply.setStatus(ApplyConst.STATUS_APPROVED);
-        apply.setHandledBy(adminId);
-        apply.setHandledAt(LocalDateTime.now());
-        applyActionMapper.updateById(apply);
 
         // 触发副作用
         applySideEffect(apply);
@@ -167,14 +183,21 @@ public class ApplyServiceImpl implements ApplyService {
         }
         ApplyAction apply = applyActionMapper.selectById(id);
         if (apply == null) throw new BusinessException("申请不存在");
-        if (!ApplyConst.STATUS_PENDING.equals(apply.getStatus())) {
+        // 自审拦截：申请人不能审核自己的申请
+        if (apply.getApplicantId() != null && apply.getApplicantId().equals(adminId)) {
+            throw new BusinessException(400, "不能审核自己提交的申请");
+        }
+        // 状态机闭合 + 乐观锁：仅当仍为 PENDING 才允许更新，影响行数=0 表示已被并发处理
+        int rows = applyActionMapper.update(null, new LambdaUpdateWrapper<ApplyAction>()
+                .eq(ApplyAction::getId, id)
+                .eq(ApplyAction::getStatus, ApplyConst.STATUS_PENDING)
+                .set(ApplyAction::getStatus, ApplyConst.STATUS_REJECTED)
+                .set(ApplyAction::getRejectReason, req.getRejectReason())
+                .set(ApplyAction::getHandledBy, adminId)
+                .set(ApplyAction::getHandledAt, DateTimeUtil.now()));
+        if (rows == 0) {
             throw new BusinessException("该申请已处理");
         }
-        apply.setStatus(ApplyConst.STATUS_REJECTED);
-        apply.setRejectReason(req.getRejectReason());
-        apply.setHandledBy(adminId);
-        apply.setHandledAt(LocalDateTime.now());
-        applyActionMapper.updateById(apply);
     }
 
     // ==================== 内部辅助 ====================
@@ -227,8 +250,8 @@ public class ApplyServiceImpl implements ApplyService {
             dish.setPortion(getInt(payload, "portion"));
             dish.setServePeriod(getText(payload, "servePeriod"));
             dish.setLimited(getInt(payload, "limited"));
-            dish.setStatus("on");
-            dish.setAuditStatus("pending");
+            dish.setStatus(com.bjtufood.dish.constant.DishConst.STATUS_ON);
+            dish.setAuditStatus(com.bjtufood.dish.constant.DishConst.AUDIT_PENDING);
             dish.setRejectReason(null);
             dish.setCreatedBy(apply.getApplicantId());
             dish.setAvgRating(java.math.BigDecimal.ZERO);

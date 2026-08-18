@@ -80,7 +80,7 @@ function handleClear() {
   align-items: center;
   background: var(--bg-card);
   border-radius: var(--radius-btn);
-  padding: 12rpx var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-lg);
   box-shadow: 0 2rpx 8rpx var(--overlay-dark-faint);
   border: 2rpx solid var(--border-color);
 }
@@ -106,7 +106,7 @@ function handleClear() {
 .clear-btn {
   flex-shrink: 0;
   padding: 0 var(--spacing-xs);
-  transition: transform 0.12s ease;
+  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .clear-btn:active { transform: scale(var(--press-scale)); }

@@ -1,7 +1,6 @@
 <template>
   <view class="page community-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="动态" />
-
+    <Header title="最新动态" @back="backToHome" />
     <scroll-view
       class="scroll-wrap"
       scroll-y
@@ -26,7 +25,7 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade 0.2s + 40ms 间隔） -->
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔） -->
         <MomentCard
           v-for="(m, i) in moments"
           :key="m.id"
@@ -35,6 +34,7 @@
           :moment="m"
           @select="goDetail"
           @go-related="goRelated"
+          @more="openMore"
         />
         <!-- 触底状态 -->
         <view v-if="loadingMore" class="list-footer loading">
@@ -49,19 +49,28 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 悬浮发布 -->
-    <view class="fab" :class="{ pressed: fabPressed }" @touchstart="fabPressed = true" @touchend="fabPressed = false" @touchcancel="fabPressed = false" @mousedown="fabPressed = true" @mouseup="fabPressed = false" @mouseleave="fabPressed = false" @tap="goPublish">
+    <!-- 常驻发布按钮（FAB）：列表/加载态均可直接发布动态，避免仅空态可发布 -->
+    <view class="fab fab-publish" role="button" aria-label="发布动态" @tap="goPublish">
       <IconSvg name="plus" :size="48" color="var(--color-on-primary)" />
     </view>
 
-    <CustomTabBar current="/pages/community/index" />
+    <!-- 举报弹窗（共享组件） -->
+    <ReportModal
+      :open="reportOpen"
+      title="举报动态"
+      placeholder="请描述举报原因…"
+      confirm-text="提交举报"
+      :submitting="reportSubmitting"
+      @update:open="reportOpen = $event"
+      @submit="submitReport"
+    />
 
-    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
+    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
+    <MomentActionSheet
+      :open="moreOpen"
+      :moment="moreMoment"
+      @update:open="moreOpen = $event"
+      @report="openReport"
     />
 
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
@@ -70,38 +79,79 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
-const theme = useThemeStore()
 import { ref, onMounted } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
-import Header from '@/components/header.vue'
-import MomentCard from '@/components/MomentCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import CustomTabBar from '@/components/CustomTabBar.vue'
-import IconSvg from '@/components/IconSvg.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
-import { useDishStore } from '@/stores/dish'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
+import { useThemeStore } from '@/stores/theme'
+import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
+import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { backToHome } from '@/utils/nav'
+import MomentCard from '@/components/MomentCard.vue'
+import MomentActionSheet from '@/components/MomentActionSheet.vue'
+import Header from '@/components/header.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ReportModal from '@/components/ReportModal.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
-const dishStore = useDishStore()
+const theme = useThemeStore()
+const userStore = useUserStore()
 const moments = ref<Moment[]>([])
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+/** 菜品详情跳转独立页（pages-detail/dish） */
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+}
+
+/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
+const moreOpen = ref(false)
+const moreMoment = ref<Moment | null>(null)
+
+function openMore(m: Moment) {
+  moreMoment.value = m
+  moreOpen.value = true
+}
+
+/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
+const reportOpen = ref(false)
+const reportSubmitting = ref(false)
+const reportTarget = ref<Moment | null>(null)
+
+function openReport(m: Moment) {
+  if (!userStore.requireAuth(() => openReport(m))) return
+  reportTarget.value = m
+  reportOpen.value = true
+}
+
+async function submitReport(text: string) {
+  if (!reportTarget.value) return
+  if (!text) {
+    uni.showToast({ title: '请填写举报原因', icon: 'none' })
+    return
+  }
+  reportSubmitting.value = true
+  try {
+    await submitFeedback({
+      type: 'report',
+      content: text,
+      relatedType: 'moment',
+      relatedId: reportTarget.value.id,
+    })
+    uni.showToast({ title: '举报已提交', icon: 'success' })
+    reportOpen.value = false
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 const loading = ref(false)
 const loadingMore = ref(false)
 const finished = ref(false)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
-const fabPressed = ref(false)
 
 let page = 1
 const pageSize = 10
@@ -118,7 +168,8 @@ async function loadData(reset = false) {
     // 单流：始终按「最新」倒序拉取（task-14 §1.3 已决议去除推荐 Tab）
     const res = await momentApi.getMoments({ tab: 'latest', page, pageSize })
     moments.value = page === 1 ? res.list : [...moments.value, ...res.list]
-    if (moments.value.length >= res.total) finished.value = true
+    // M02 修复：基于本页实际返回量判据（本地 sort 不干扰），不足一页即到底
+    if (res.list.length < pageSize) finished.value = true
     page += 1
   } catch {
     loadFailed.value = true
@@ -149,11 +200,7 @@ function goDetail(m: Moment) {
 
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
-    openDishSheet(m.relatedId)
-  } else if (m.relatedType === 'stall' && m.relatedName && m.relatedCanteen) {
-    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
-    dishStore.navParams = { stallName: m.relatedName, canteen: m.relatedCanteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    openDishDetail(m.relatedId)
   }
 }
 
@@ -162,12 +209,14 @@ function goPublish() {
 }
 
 onMounted(() => { loadData(true) })
+// 从动态详情返回社区时：清掉详情页的分享残留，避免右上角分享菜单沿用上一条动态
+onShow(() => clearShareState())
 onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>
 .community-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }
@@ -176,26 +225,26 @@ onShareAppMessage(() => buildSharePayload())
 .footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 悬浮发布 */
-.fab {
-  position: fixed;
-  right: var(--spacing-lg);
-  bottom: calc(var(--tabbar-height) + var(--spacing-lg) + env(safe-area-inset-bottom));
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-bar-primary);
-  z-index: 80;
-  transition: transform 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.fab.pressed { transform: scale(var(--press-scale)); }
-
 @media (prefers-reduced-motion: reduce) {
   .footer-spinner { animation: none; }
 }
+
+/* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充 */
+.fab-publish {
+  position: fixed;
+  right: var(--spacing-lg);
+  bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab-publish:active { transform: scale(0.92); opacity: 0.85; }
 </style>

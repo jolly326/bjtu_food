@@ -43,7 +43,7 @@ defineEmits<{
 .section-bar {
   width: 8rpx;
   height: 32rpx;
-  border-radius: 999rpx;
+  border-radius: 16px;
   background: var(--color-primary);
   flex-shrink: 0;
 }

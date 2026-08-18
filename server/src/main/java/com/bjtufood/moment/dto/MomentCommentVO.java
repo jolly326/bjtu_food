@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 动态评论视图对象（一层回复扁平化返回）
@@ -36,6 +37,9 @@ public class MomentCommentVO {
 
     @Schema(description = "评论正文")
     private String content;
+
+    @Schema(description = "评论图片（绝对 URL 列表，最多 3 张）")
+    private List<String> images;
 
     @Schema(description = "👍 有用计数")
     private Integer usefulCount;

@@ -46,6 +46,14 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- spring-dotenv：本地自动加载 server/.env 环境变量（优先级低于系统环境变量/云托管环境变量），
+             保证本地无需手动 export 即可读取 WECHAT_APPID/SECRET、JWT_SECRET、SPRING_DATASOURCE_*、SPRING_MAIL_* 等 -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>

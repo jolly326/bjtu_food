@@ -36,38 +36,38 @@
 			}
 		},
 		{
+			"path": "pages/profile/notifications/index",
+			"style": {
+				"navigationBarTitleText": "系统通知",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/activity/index",
+			"style": {
+				"navigationBarTitleText": "最新活动",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/about/index",
+			"style": {
+				"navigationBarTitleText": "关于我们",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/webview/index",
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationStyle": "custom"
 			}
 		},
-		{
-			"path": "pages/profile/messages-services/index",
-			"style": {
-				"navigationBarTitleText": "反馈中心",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/profile/messages/index",
-			"style": {
-				"navigationBarTitleText": "消息中心",
-				"navigationStyle": "custom"
-			}
-		}
 	],
 	"subPackages": [
 		{
 			"root": "pages/pages-detail/",
 			"pages": [
-				{
-					"path": "canteen",
-					"style": {
-						"navigationBarTitleText": "食堂详情",
-						"navigationStyle": "custom"
-					}
-				},
 				{
 					"path": "moment",
 					"style": {
@@ -83,9 +83,16 @@
 					}
 				},
 				{
-					"path": "stall",
+					"path": "dish",
 					"style": {
-						"navigationBarTitleText": "档口详情",
+						"navigationBarTitleText": "菜品详情",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "review-list",
+					"style": {
+						"navigationBarTitleText": "全部评价",
 						"navigationStyle": "custom"
 					}
 				}
@@ -109,27 +116,6 @@
 					}
 				},
 				{
-					"path": "publish-dish",
-					"style": {
-						"navigationBarTitleText": "发布菜品",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "submit-stall",
-					"style": {
-						"navigationBarTitleText": "提交档口",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "my-reviews/index",
-					"style": {
-						"navigationBarTitleText": "我的评价",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "profile-edit/index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
@@ -140,9 +126,9 @@
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "white",
+		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "知行食记",
-		"navigationBarBackgroundColor": "#8B3A2B",
-		"backgroundColor": "#F6F4EF"
+		"navigationBarBackgroundColor": "#F5F5F7",
+		"backgroundColor": "#F5F5F7"
 	}
 }

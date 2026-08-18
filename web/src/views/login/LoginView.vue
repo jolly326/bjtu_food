@@ -56,7 +56,7 @@ async function handleLogin() {
         {{ submitting ? '登录中…' : '登 录' }}
       </button>
       <p class="login-hint">
-        默认管理员：<code>admin</code> / <code>123456</code>（首次登录后请修改）
+        默认管理员：<code>admin</code> / <code>admin123</code>（首次登录后请修改）
       </p>
     </div>
   </div>

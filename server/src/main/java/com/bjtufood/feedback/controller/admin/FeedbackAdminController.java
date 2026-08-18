@@ -38,9 +38,11 @@ public class FeedbackAdminController {
             @RequestParam(required = false) String type,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,
+            @Parameter(description = "关键词（可选，对反馈内容 / 管理员回复模糊匹配）")
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<FeedbackAdminVO> result = feedbackService.listForAdmin(status, type, userId, page, pageSize);
+        IPage<FeedbackAdminVO> result = feedbackService.listForAdmin(status, type, userId, keyword, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 

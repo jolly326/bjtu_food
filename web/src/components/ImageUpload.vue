@@ -129,8 +129,8 @@ watch(() => props.modelValue, () => {})
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
-  width: 20px;
-  height: 20px;
+  width: 28px;   /* 触控区域 ≥28px（Apple 触控规范），替代过小的 20px */
+  height: 28px;
   border-radius: 50%;
   background: var(--el-mask-color, rgba(0, 0, 0, 0.5));
   display: flex;
@@ -151,8 +151,8 @@ watch(() => props.modelValue, () => {})
   box-shadow: var(--focus-ring);
 }
 .image-remove .icon-x {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   display: block;
   filter: brightness(10);
 }

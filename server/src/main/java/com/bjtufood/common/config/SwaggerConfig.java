@@ -31,14 +31,13 @@ public class SwaggerConfig {
                         .description("""
                                 校园食堂菜品展示与互动后端接口。
 
-                                ## Swagger UI 测试步骤
-                                1. 调用 POST /auth/email-code 获取邮箱验证码，验证码发送至校园邮箱。
-                                2. 调用 POST /auth/register 注册新用户，或使用预置账号 20240001 / 123456 登录。
-                                3. 密码登录：POST /auth/login 传 `{ "account": "20240001", "password": "123456" }`。
-                                4. 验证码登录：先获取邮箱验证码，再传 `{ "email": "...@bjtu.edu.cn", "code": "123456" }`。
-                                5. 复制登录响应 data.token。
-                                6. 点击 Swagger UI 页面右上角 Authorize，填入 token。
-                                7. 再测试收藏、评价、清单、个人资料等需要登录的接口。
+                                ## Swagger UI 测试步骤（微信登录体系，spec §5.y）
+                                1. 小程序端微信静默登录：POST /auth/wechat-login 传 `{ "code": "wx.login 临时凭证" }`，自动建号返回游客态。
+                                2. 学号邮箱认证：先 POST /auth/email-code 传 `{ "username": "20240001", "purpose": "verify" }` 获取验证码（发至校园邮箱），再 POST /auth/verify-email 传 `{ "code": "123456" }` 完成认证（verified=true，解锁社区写操作）。
+                                3. 管理后台登录：POST /auth/admin/login 传 `{ "account": "admin", "password": "admin123" }`。
+                                4. 复制登录响应 data.token。
+                                5. 点击 Swagger UI 页面右上角 Authorize，填入 token。
+                                6. 再测试评价、动态、申请、个人资料等需要登录的接口。未认证用户访问写接口返回 403「请先完成学号邮箱认证」。
 
                                 ## 统一响应格式
                                 所有接口返回 `{ "code": 200, "message": "操作成功", "data": ... }`。

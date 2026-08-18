@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, onUnmounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
@@ -73,12 +73,7 @@ import { getCanteensWithStalls } from '@/api/canteen'
  * 修复 V3：档口联想走正式 API（getCanteensWithStalls 全量档口，含真实 id），
  * 返回真实 stallId，禁止伪造 id。菜品走 searchDishesPage 正式接口。
  */
-export interface RelatedItem {
-  id: number
-  name: string
-  image: string
-  type: 'dish' | 'stall'
-}
+import type { RelatedItem } from './related-item'
 
 const props = defineProps<{
   open: boolean
@@ -112,7 +107,7 @@ function noop() {}
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${props.open ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
 let startY = 0
@@ -130,7 +125,7 @@ function onTouchMove(e: any) {
   if (!dragging.value) return
   const y = e.touches?.[0]?.clientY ?? 0
   const now = Date.now()
-  // 记录瞬时速度（与 DishDetailSheet 一致，apple-design §5 velocity handoff）
+  // 记录瞬时速度（apple-design §5 velocity handoff）
   const dt = Math.max(now - lastTime, 1)
   velocity = ((y - lastY) / dt) * 1000 // px/s
   lastY = y
@@ -142,7 +137,7 @@ function onTouchMove(e: any) {
 function onTouchEnd() {
   if (!dragging.value) return
   dragging.value = false
-  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（与 DishDetailSheet 手感一致），否则回弹
+  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（apple-design §5 手势阈值），否则回弹
   if (velocity > 480 || dragOffset.value > 120) emit('close')
   dragOffset.value = 0
 }
@@ -158,7 +153,10 @@ function isSelected(item: RelatedItem): boolean {
   return !!props.selected && props.selected.id === item.id && props.selected.type === item.type
 }
 
+/** 请求序号守卫：open/tab/keyword 频繁变化时的多次 loadCandidates，丢弃过期响应，避免重复渲染/竞态（P1 筛选去重） */
+let candidateSeq = 0
 async function loadCandidates() {
+  const seq = ++candidateSeq
   const kw = keyword.value.trim()
   loading.value = true
   candidates.value = []
@@ -195,10 +193,13 @@ async function loadCandidates() {
         type: 'stall' as const,
       }))
     }
+    // 过期响应（期间又切换了 tab/打开状态/关键词）直接丢弃，不覆盖最新结果
+    if (seq !== candidateSeq) return
   } catch {
+    if (seq !== candidateSeq) return
     candidates.value = []
   } finally {
-    loading.value = false
+    if (seq === candidateSeq) loading.value = false
   }
 }
 
@@ -227,10 +228,16 @@ watch(tab, () => {
   keyword.value = ''
   loadCandidates()
 })
+
+// N05 修复：卸载时清理防抖定时器，避免组件销毁后回调仍触发
+onUnmounted(() => {
+  if (timer) clearTimeout(timer)
+  timer = null
+})
 </script>
 
 <style scoped>
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity 0.3s ease; }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
 .sheet-mask.show { opacity: 1; }
 .related-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -239,7 +246,7 @@ watch(tab, () => {
   box-shadow: var(--shadow-modal);
   z-index: 100;
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex; flex-direction: column;
   max-height: 80vh;
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
@@ -257,7 +264,7 @@ watch(tab, () => {
 .sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
 .sheet-empty { padding: var(--spacing-xl) 0; text-align: center; }
 .sheet-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .sheet-item.on { background: var(--bg-soft); }
 .sheet-item-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
 .sheet-item-img-empty { display: flex; align-items: center; justify-content: center; }

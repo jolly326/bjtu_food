@@ -41,6 +41,14 @@ export interface User {
   avatar?: string;
   role: string;
   status: string;
+  /** 是否已邮箱认证（0=游客未认证 / 1=已认证） */
+  verified?: number;
+  /** 微信 openid（管理端展示绑定关系，视图层脱敏展示尾号） */
+  openid?: string;
+  /** 绑定校园邮箱（仅认证过才有；管理端可展示，不公开给小程序） */
+  bindEmail?: string;
+  /** 游客短标识「食客+ID 尾 4 位」，昵称展示辅助 */
+  guestShortId?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -119,18 +127,3 @@ export interface Review {
   updated_at: Date;
 }
 
-// banner 轮播/公告表
-export interface Banner {
-  id: bigint;
-  title: string;
-  image?: string;
-  target_id?: bigint;
-  target_type?: string;
-  /** 跳转目标 URL（target_type=URL 时使用） */
-  target_url?: string;
-  canteen_id?: bigint;
-  sort_order: number;
-  status: string;
-  created_at: Date;
-  updated_at: Date;
-}

@@ -40,21 +40,4 @@ public interface AuditService {
      * @param rejectReason 退回原因（必填）
      */
     void reject(String type, Long id, String rejectReason);
-
-    /**
-     * 批量审核通过
-     *
-     * @param type 审核对象类型
-     * @param ids  记录ID列表
-     */
-    void batchApprove(String type, java.util.List<Long> ids);
-
-    /**
-     * 批量审核退回
-     *
-     * @param type         审核对象类型
-     * @param ids          记录ID列表
-     * @param rejectReason 退回原因（必填）
-     */
-    void batchReject(String type, java.util.List<Long> ids, String rejectReason);
 }

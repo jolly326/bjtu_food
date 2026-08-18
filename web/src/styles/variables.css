@@ -2,18 +2,20 @@
   /* ============================================================
    * 设计方向：深色沉稳控制台（灰色 + 黑色为主色系）
    * 背景 = 近黑 / 深灰；文字 = 浅色灰阶；
-   * 主操作 = 近白"inverse"按钮（--color-primary + --color-on-primary）。
+   * 品牌主色 = 小程序朱砂红（与小程序端视觉语言对齐），主操作按钮用朱砂红底 + 白字。
    * 状态色（成功/警告/错误）与星级金为功能语义色，深色下提亮保对比。
    * ============================================================ */
 
-  /* ===== 主色系 — 近白（深底主操作，inverse） ===== */
-  --color-primary: #E8E8E8;
-  --color-primary-light: #FFFFFF;
-  --color-primary-dark: #C4C4C4;
-  --color-primary-bg: rgba(232, 232, 232, 0.12);
-  --color-on-primary: #141414;           /* 主色上的文字（深黑） */
+  /* ===== 主色系 — 品牌朱砂红（与小程序端对齐） ===== */
+  --color-primary: #C45A3C;              /* 深色主题主色（朱砂红，提亮保深底对比） */
+  --color-primary-light: #D06A4A;        /* hover 提亮 */
+  --color-primary-dark: #A84A30;
+  --color-primary-bg: rgba(196, 90, 60, 0.12);
+  --color-on-primary: #FFFFFF;           /* 主色上的文字（白字，保证深朱砂红底对比） */
   --color-accent: #9A9A9A;               /* 中灰（次要强调） */
   --color-star: #FBBF24;                 /* 星级（语义色） */
+  --color-like: #D9695A;                 /* 点赞/喜欢（语义色，与小程序端对齐） */
+  --color-like-soft: rgba(217, 105, 90, 0.12);
 
   /* ===== 状态色（功能语义，深色下提亮） ===== */
   --color-success: #4ADE80;
@@ -45,6 +47,7 @@
   --border-soft: #2C2C2C;
 
   /* ===== 圆角（适中，沉稳） ===== */
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius: 8px;
   --radius-md: 8px;
@@ -163,4 +166,59 @@
   --agg-tab-active-shadow: 0 1px 2px rgba(0,0,0,0.40);
   /* 卡片 hover 抬升 */
   --card-hover-shadow: var(--shadow-hover);
+}
+
+/* ============================================================
+ * 跟随系统浅色模式：当用户系统主题为浅色（prefers-color-scheme: light）时，
+ * 覆盖语义 token 为浅色沉稳观感（近白背景 + 深灰文字），对比度 >4.5:1。
+ * 深色（默认/暗系统）沿用 :root 既有深色 token，保持控制台沉稳调性。
+ * ============================================================ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-primary: #9B2A1D;            /* 浅色主题主色（深朱砂红，浅底高对比） */
+    --color-primary-light: #86251A;      /* hover 加深 */
+    --color-primary-dark: #B03A28;
+    --color-primary-bg: rgba(155, 42, 29, 0.10);
+    --color-like: #B53B2C;               /* 点赞/喜欢（与小程序端浅色对齐） */
+    --color-like-soft: rgba(181, 59, 44, 0.10);
+    --color-on-primary: #FFFFFF;
+    --color-accent: #6B6B6B;
+
+    --text-primary: #1F1F1F;
+    --text-secondary: #4A4A4A;
+    --text-muted: #6E6E6E;
+    --text-light: #8A8A8A;
+    --text-white: #1F1F1F;
+    --text-white-secondary: rgba(0, 0, 0, 0.85);
+
+    --bg-page: #F5F5F5;
+    --bg-card: #FFFFFF;
+    --bg-soft: #F0F0F0;
+    --bg-hover: #ECECEC;
+    --bg-gray: #E0E0E0;
+
+    --border-color: #DADADA;
+    --border-light: #E6E6E6;
+    --border-strong: #C4C4C4;
+    --border-soft: #EDEDED;
+
+    --color-price: #1F1F1F;
+    --color-price-soft: #F0F0F0;
+
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.10);
+    --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
+    --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.16);
+    --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+    --table-header-bg: #F0F0F0;
+    --table-row-hover: #F5F5F5;
+    --table-row-active: rgba(43, 43, 43, 0.08);
+    --table-border: #E6E6E6;
+
+    --agg-tabs-bg: rgba(0, 0, 0, 0.05);
+    --agg-tab-active-bg: #FFFFFF;
+    --nav-bg: color-mix(in srgb, #FFFFFF 82%, transparent);
+    --nav-item-active-bg: rgba(43, 43, 43, 0.10);
+    --nav-item-active-color: #2B2B2B;
+  }
 }

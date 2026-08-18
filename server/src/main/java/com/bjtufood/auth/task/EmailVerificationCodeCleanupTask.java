@@ -27,12 +27,18 @@ public class EmailVerificationCodeCleanupTask {
      */
     @Scheduled(cron = "0 0 3 * * ?")
     public void cleanupExpiredCodes() {
-        LocalDateTime deadline = LocalDateTime.now().minusDays(1);
-        int deleted = emailVerificationCodeMapper.delete(
-                new LambdaQueryWrapper<EmailVerificationCode>()
-                        .lt(EmailVerificationCode::getExpiresAt, deadline));
-        if (deleted > 0) {
-            log.info("已清理 {} 条一天前过期的验证码记录", deleted);
+        // 异常必须内部消化：调度线程抛出异常会导致该任务后续不再被触发
+        try {
+            LocalDateTime deadline = LocalDateTime.now().minusDays(1);
+            // Wrapper 生成参数化 SQL（? 占位），无拼接注入风险
+            int deleted = emailVerificationCodeMapper.delete(
+                    new LambdaQueryWrapper<EmailVerificationCode>()
+                            .lt(EmailVerificationCode::getExpiresAt, deadline));
+            if (deleted > 0) {
+                log.info("已清理 {} 条一天前过期的验证码记录", deleted);
+            }
+        } catch (Exception e) {
+            log.error("清理过期验证码失败，本次跳过", e);
         }
     }
 }

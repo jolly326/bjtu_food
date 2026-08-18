@@ -201,6 +201,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   padding: var(--space-2) var(--space-5); background: var(--color-primary); color: var(--color-on-primary);
   border: none; border-radius: var(--radius); font-size: var(--font-base);
   cursor: pointer; white-space: nowrap; font-weight: var(--weight-medium);
+  transition: var(--press-transition);
 }
 .btn-primary:hover { background: var(--color-primary-light); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
@@ -217,7 +218,8 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .btn-secondary:active,
 .btn-cancel:active { transform: scale(var(--press-scale)); }
 .btn-secondary:focus-visible,
-.btn-cancel:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.btn-cancel:focus-visible,
+.btn-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ===== 聚合页分类卡（三个聚合页共用：紧凑、等高、数量徽标，大小 UI 一致） ===== */
@@ -291,6 +293,27 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .field select { cursor: pointer; }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
 .required { color: var(--color-error); }
+
+/* ===== 表单控件（全站统一；取代各 view 内重复定义） ===== */
+.form-input,
+.form-textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out);
+}
+.form-input { font-weight: var(--weight-medium); width: 100%; max-width: 320px; }
+.form-textarea { width: 100%; resize: vertical; min-height: 50px; }
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
 
 /* ============================================================
@@ -306,7 +329,16 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   .btn-primary:active, .btn-cancel:active, .btn-danger:active,
   .link:active, .tab:active, .nav-item:active, .tag-option:active,
   .type-opt:active, .action-btn:active, .toggle-btn:active,
+  .sec-card:active, .card:active, .pk-card:active, .banner-card:active,
+  .stat-card:active, .kpi:active,
   button:active, a:active { transform: none !important; }
+  /* 表格行 hover 去过渡（§4.7 减弱动效：去掉背景渐变动画） */
+  .table tbody tr { transition: none !important; }
+  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放） */
+  .modal-box, .modal-overlay, .toast, .confirm-box, .topbar, .sidebar, .headerbar {
+    transform: none !important;
+    transition: opacity 0.18s ease !important;
+  }
 }
 
 /* ============================================================
@@ -354,6 +386,26 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   --el-fill-color-light: var(--bg-soft);
   --el-fill-color-lighter: var(--bg-soft);
   --el-mask-color: rgba(0, 0, 0, 0.45);
+}
+
+/* 跟随系统浅色模式：覆盖 Element Plus 主色与填充色为浅色观感 */
+@media (prefers-color-scheme: light) {
+  :root {
+    --el-color-primary: var(--color-primary);
+    --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, #fff);
+    --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, #fff);
+    --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, #fff);
+    --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, #fff);
+    --el-color-primary-light-9: color-mix(in srgb, var(--color-primary) 10%, #fff);
+    --el-color-primary-dark-2: var(--color-primary-dark);
+    --el-fill-color-blank: var(--bg-card);
+    --el-bg-color: var(--bg-card);
+    --el-bg-color-overlay: var(--bg-card);
+    --el-border-color: var(--border-color);
+    --el-border-color-light: var(--border-light);
+    --el-border-color-lighter: var(--border-light);
+    --el-mask-color: rgba(0, 0, 0, 0.35);
+  }
 }
 /* EP 弹层/下拉也走半透毛玻璃（§4.5） */
 .el-overlay,

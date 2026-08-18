@@ -1,5 +1,6 @@
 <template>
-  <view v-if="visible" class="auth-root">
+  <!-- N08 修复：v-show 保持 AuthSheet 常驻挂载，关闭弹层不再卸载 AuthForm，发码倒计时不被清空（前端不辅助绕过 60s 冷却） -->
+  <view v-show="visible" class="auth-root">
     <!-- 半透明遮罩（点击关闭；touchmove.stop 防背景滚动穿透，与 ApplySheet 一致） -->
     <view
       class="sheet-mask"
@@ -8,7 +9,7 @@
       @touchmove.stop.prevent="noop"
     />
 
-    <!-- 底部弹层：复用 ApplySheet 抽屉范式（圆角/grabber/遮罩/下拉关闭/spring 0.3s） -->
+    <!-- 底部弹层：复用 ApplySheet 抽屉范式（圆角/grabber/遮罩/下拉关闭/spring --duration-slow） -->
     <view
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
@@ -19,15 +20,16 @@
       @touchcancel="onTouchEnd"
     >
       <view class="sheet-grabber" />
+      <!-- 头部仅保留关闭按钮；标题由 AuthForm 承接（「学号邮箱认证」+ 副标题，避免重复）
+           分隔线下方直接是标题 + 输入区域（§5.y 认证弹层） -->
       <view class="sheet-head">
-        <text class="sheet-title">登录认证</text>
         <view class="sheet-close" @tap="hide" aria-label="关闭">
           <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
         </view>
       </view>
 
       <scroll-view class="sheet-body" scroll-y>
-        <AuthForm />
+        <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
       </scroll-view>
     </view>
   </view>
@@ -49,6 +51,13 @@ const { visible } = storeToRefs(authSheetStore)
 
 function noop() {}
 
+// N08 修复：在 AuthSheet 层持有发码冷却状态（与 AuthForm 同步）。
+// 弹层用 v-if 关闭会卸载 AuthForm，故把冷却值提升到本层，重开时回填，前端不辅助绕过 60s 冷却。
+const codeCooldown = ref(0)
+function onCooldownChange(v: number) {
+  codeCooldown.value = v
+}
+
 /** 抽屉开合状态（遮罩淡入 + sheet 上滑，与 ApplySheet 动画范式一致） */
 const sheetOpen = ref(false)
 const maskShow = ref(false)
@@ -57,16 +66,18 @@ const dragging = ref(false)
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
+// 用户主动关闭（遮罩/关闭按钮/下拉）未完成认证：清除待办，避免过期动作在后续认证成功后误执行
 function hide() {
+  authSheetStore.clearPending()
   authSheetStore.hide()
 }
 
-// 认证成功（登录态建立）后关闭弹层并执行认证前记录的待办（跳转到目标功能）
+// 认证成功（verified=true）后关闭弹层并执行认证前记录的待办（跳转到目标功能，§5.y）
 watch(
-  () => userStore.isLoggedIn(),
+  () => userStore.isVerified(),
   (v) => {
     if (v) authSheetStore.runPending()
   },
@@ -121,7 +132,7 @@ function onTouchEnd() {
 /* 遮罩：与 ApplySheet 一致（--overlay-scrim 半透明，opacity 过渡） */
 .sheet-mask {
   position: fixed; inset: 0; background: var(--overlay-scrim);
-  opacity: 0; transition: opacity 0.3s ease; z-index: 290;
+  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: 290;
 }
 .sheet-mask.show { opacity: 1; }
 
@@ -145,9 +156,8 @@ function onTouchEnd() {
 /* 顶部小横条：与 ApplySheet 同款（72×8、999rpx、--overlay-dark-soft 半透明深色） */
 .sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 
-/* 头部：标题 + 关闭，底部分隔线（与 ApplySheet sheet-head 一致） */
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
+/* 头部：仅关闭按钮（标题由 AuthForm 承接），底部分隔线下方直接是标题+输入区 */
+.sheet-head { display: flex; align-items: center; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .sheet-close { padding: 0 var(--spacing-xs); }
 
 /* 滚动内容区：表单内部布局由 AuthForm 承担，此处只负责滚动与底部安全区 */

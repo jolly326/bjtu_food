@@ -12,17 +12,36 @@
   >
     <!-- 发布者 -->
     <view class="m-head">
-      <image v-if="moment.userAvatar" class="m-avatar" :src="moment.userAvatar" mode="aspectFill" lazy-load />
+      <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" lazy-load />
       <view v-else class="m-avatar m-avatar-empty">
         <IconSvg name="user" :size="40" color="var(--text-tertiary)" class="m-avatar-fallback" />
       </view>
       <view class="m-head-right">
         <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-        <text class="m-time">{{ relativeTime(moment.createdAt) }}</text>
+        <!-- 第二行：关联菜品星星（1-5 黄星+数字，仅关联且有评分才显示）与发布时间小间隙同行；无星星则只显时间 -->
+        <view class="m-meta">
+          <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating" role="img" :aria-label="`关联菜品评分 ${(moment.relatedRating || 0).toFixed(1)} 分`">
+            <IconSvg
+              v-for="n in Math.min(Math.max(Math.round(moment.relatedRating || 0), 1), 5)"
+              :key="n"
+              name="star-filled"
+              :size="22"
+              color="var(--color-star)"
+              class="m-star"
+            />
+            <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
+          </view>
+          <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
+        </view>
       </view>
       <!-- 审核态徽标（仅作者本人可见，我的动态页） -->
       <view v-if="showAudit && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
         <text class="m-audit-text">{{ auditLabel }}</text>
+      </view>
+      <!-- 右上角三点菜单：分享 / 举报 收进页面级 ActionSheet（去胶囊化，图标按钮；
+           仅触发 emit，弹层由父页面在 scroll-view 外渲染，避免 fixed 遮罩层级被压扁） -->
+      <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
+        <IconSvg name="more-v" :size="36" color="var(--text-tertiary)" />
       </view>
     </view>
 
@@ -38,7 +57,14 @@
         class="m-image-wrap"
         @tap.stop="previewImage(idx)"
       >
-        <image class="m-image" :src="img" mode="aspectFill" lazy-load />
+        <image
+          class="m-image"
+          :class="{ loaded: loadedSet.has(idx) }"
+          :src="getImageUrl(getThumbUrl(img))"
+          mode="aspectFill"
+          lazy-load
+          @load="loadedSet.add(idx)"
+        />
       </view>
     </view>
 
@@ -62,25 +88,19 @@
           <IconSvg name="comment" :size="30" color="var(--text-secondary)" class="m-action-icon" />
           <text class="m-action-count">{{ moment.commentCount > 0 ? moment.commentCount : 0 }}</text>
         </view>
-        <!-- 分享：微信原生分享组件（open-type=share → 页面 onShareAppMessage） -->
-        <button class="m-action m-action-share" open-type="share" @tap="onShareTap">
-          <IconSvg name="share" :size="30" color="var(--text-secondary)" class="m-action-icon" />
-          <text class="m-action-count">分享</text>
-        </button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
-import { relativeTime } from '@/utils/time'
-import { getImageUrl } from '@/utils/image'
+import { formatDateTime } from '@/utils/time'
+import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import { sharedMoment } from '@/utils/shareState'
 
 const props = withDefaults(defineProps<{
   moment: Moment
@@ -97,10 +117,13 @@ const emit = defineEmits<{
   (e: 'useful', moment: Moment): void
   (e: 'select', moment: Moment): void
   (e: 'go-related', moment: Moment): void
+  (e: 'more', moment: Moment): void
 }>()
 
 const userStore = useUserStore()
 const pressed = ref(false)
+/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡（B.5） */
+const loadedSet = reactive(new Set<number>())
 
 // 正文展开态（点1：超长折叠，粗判长度显示展开入口）
 const expanded = ref(false)
@@ -118,8 +141,12 @@ const auditLabel = computed(() => {
 })
 const auditClass = computed(() => `audit-${props.moment.auditStatus}`)
 
-// 有用 toggle 本地状态（详情页传入有用态；此处仅做乐观 UI）
-const usefulActive = ref(false)
+// 有用 toggle 本地状态（乐观 UI）：初始与回显均取 moment.useful（api 层已归一当前用户点赞态）
+const usefulActive = ref(!!props.moment.useful)
+// 列表刷新/详情返回后 moment 对象更新时，同步点赞态回显（避免跨页状态丢失）
+watch(() => props.moment.useful, (v) => {
+  usefulActive.value = !!v
+})
 
 function goDetail() {
   emit('select', props.moment)
@@ -129,17 +156,16 @@ function goRelated() {
   emit('go-related', props.moment)
 }
 
-function onShareTap() {
-  // 记录待分享动态，页面 onShareAppMessage 据此生成分享卡片（微信原生分享）
-  sharedMoment.value = props.moment
-}
-
 function previewImage(idx: number) {
-  uni.previewImage({ urls: props.moment.images.map(getImageUrl), current: props.moment.images.map(getImageUrl)[idx] })
+  previewImages(props.moment.images, idx)
 }
 
+/** pending 锁防连点（P0 防重复请求 / 计数漂移） */
+const pendingUseful = ref(false)
 async function onUseful() {
   if (!userStore.requireAuth(() => onUseful())) return
+  if (pendingUseful.value) return
+  pendingUseful.value = true
   const prevActive = usefulActive.value
   const prevCount = props.moment.usefulCount || 0
   usefulActive.value = !prevActive
@@ -148,11 +174,14 @@ async function onUseful() {
     const res = await momentApi.toggleUseful(props.moment.id)
     usefulActive.value = res.useful
     props.moment.usefulCount = res.usefulCount
+    props.moment.useful = res.useful
     emit('useful', props.moment)
   } catch {
     usefulActive.value = prevActive
     props.moment.usefulCount = prevCount
     uni.showToast({ title: '操作失败', icon: 'none' })
+  } finally {
+    pendingUseful.value = false
   }
 }
 </script>
@@ -164,7 +193,7 @@ async function onUseful() {
   box-shadow: var(--shadow-card);
   padding: var(--spacing-md);
   /* Apple highlight 按压：背景微变而非整卡缩放（与 find 混合卡一致） */
-  transition: background-color 0.12s ease;
+  transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
 .moment-card.pressed { background-color: var(--bg-soft); }
@@ -173,12 +202,23 @@ async function onUseful() {
 .m-avatar { width: 64rpx; height: 64rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: 32rpx; line-height: 1; }
-.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 /* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
-.m-nickname { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
-.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
-.m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); flex-shrink: 0; }
-.m-audit-text { font-size: 20rpx; font-weight: var(--weight-bold); }
+.m-nickname {
+  font-size: var(--font-body);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-h3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+/* 第二行：星星（左）+ 发布时间（小间隙同行，不推右；无星星时仅时间自然排列） */
+.m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
+.m-time { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; }
+.m-audit-text { font-size: 22rpx; font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
 .audit-rejected { background: var(--color-error-soft); }
@@ -189,25 +229,38 @@ async function onUseful() {
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: 16rpx; overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; transition: transform 0.25s ease; }
+.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-base) var(--ease-out); }
+.m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity 0.12s ease; }
+/* 关联 chip：胶囊背景（primary-soft + 主色文字）—— 用户明确认可关联菜品保留胶囊形态，
+   与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
+.m-related-icon { flex-shrink: 0; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+/* 关联菜品星级：黄色实星（1-5 颗）+ 分值数字（与评价卡一致） */
+.m-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.m-star { display: inline-block; }
+.m-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
 .m-actions { display: flex; align-items: center; gap: var(--spacing-xs); margin-left: auto; flex-shrink: 0; }
-.m-action { display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.12s ease, border-color 0.12s ease; -webkit-tap-highlight-color: transparent; }
-.m-action:active { transform: scale(var(--press-scale)); }
-.m-action.m-action-share:active { background: var(--color-primary-soft); }
-/* button 重置（微信原生分享按钮） */
-.m-action.m-action-share { margin: 0; padding: var(--spacing-xs) var(--spacing-sm); line-height: 1.2; font-size: 24rpx; font-weight: var(--weight-semibold); box-sizing: border-box; }
+/* 互动按钮：icon + 数字纯文字链，去胶囊背景（原 bg-soft 胶囊与关联 chip 叠加视觉过重）。
+   统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
+   与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
+.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.m-action:active { opacity: 0.55; transform: scale(var(--press-scale)); }
+/* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
+.m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
 .m-action.m-action-share::after { border: none; }
-.m-action.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .m-action-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
 .m-action.active .m-action-icon { color: var(--color-like); }
-.m-action-count { font-size: 24rpx; font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.m-action-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-like); }
+/* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
+   仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */
+.m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.m-more:active { opacity: 0.5; }
 </style>

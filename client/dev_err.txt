@@ -1,0 +1,1279 @@
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/pages/find/index.vue?vue&type=script&setup=true&lang.ts (6:35): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/find/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/find/index.vue:6:35[39m
+[33m  4: if (!Math) { (IconSvg+SectionTitle+CardSection+EmptyState+TagLabel)() }
+  5: 
+  6: import { ref, computed, onMounted, onLoad } from 'vue'
+                                        ^
+  7: import IconSvg from '@/components/IconSvg.vue'
+  8: import { getCapsuleReservePx } from '@/utils/capsule'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[31msrc/pages/profile/index.vue?vue&type=script&setup=true&lang.ts (6:24): "onLoad" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/pages/profile/index.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mpages/profile/index.vue:6:24[39m
+[33m  4: if (!Math) { (Header+ImageFallback+IconSvg+AuthSheet)() }
+  5: 
+  6: import { ref, computed, onLoad } from 'vue'
+                             ^
+  7: import Header from '@/components/header.vue'
+  8: import IconSvg from '@/components/IconSvg.vue'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/find/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mElement is missing end tag.[39m
+at [36mpages/pages-detail/moment.vue:104:7[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/find/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/find/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/find/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:38:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:38:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  36 |  
+  37 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  38 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  39 |    export interface FilterTab {
+  40 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:esbuild][39m [31mTransform failed with 1 error:
+D:/workspace/code/project/bjtu_food/client/src/stores/dish.ts:48:2: ERROR: Unexpected "export"[39m
+at [36mstores/dish.ts:48:2[39m
+[33m  
+  [33mUnexpected "export"[33m
+  46 |  
+  47 |    /** 首页筛选 Bar：单级横滑（推荐 / 美食类型），选中居中，切换即换内容 */
+  48 |    export type FilterTabType = 'recommend' | 'tag'
+     |    ^
+  49 |    export interface FilterTab {
+  50 |      key: string
+  [39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/feedback/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/feedback/index.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[35m[plugin:vite:vue][39m [31m src/pages/home/index.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/home/index.vue:1:0[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:uni:mp-using-component][39m [31mCannot find module 'D:/workspace/code/project/bjtu_food/client/src/utils/navigators' from 'D:/workspace/code/project/bjtu_food/client/src/components/HomeFeed.vue'[39m
+at [36mcomponents/HomeFeed.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[31msrc/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts (6:37): "onHide" is not exported by "node_modules/@dcloudio/uni-mp-vue/dist/vue.runtime.esm.js", imported by "src/components/BroadcastBar.vue?vue&type=script&setup=true&lang.ts".[39m
+at [36mcomponents/BroadcastBar.vue:6:37[39m
+[33m  4: if (!Math) { (IconSvg)() }
+  5: 
+  6: import { ref, computed, onUnmounted, onHide, watch } from 'vue'
+                                          ^
+  7: import IconSvg from './IconSvg.vue'
+  8: import type { BroadcastItem } from '@/api/notify'[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/review.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/review.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/review.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/review.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mnot supported: keep-alive
+
+D:/workspace/code/project/bjtu_food/client/src/components/AuthSheet.vue
+28 |  
+29 |        <scroll-view class="sheet-body" scroll-y>
+30 |          <!-- N08 修复：keep-alive 保持 AuthForm 挂载，避免关闭弹层卸载组件清掉发码倒计时（绕过冷却） -->
+   |                                                                          ^
+31 |          <keep-alive>
+   |  ^^^^^^^^^^^^^^^^^^^^
+32 |            <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |          </keep-alive>
+   |  ^^^^^^^^^^^
+[39m
+at [36mcomponents/AuthSheet.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mnot supported: keep-alive
+
+D:/workspace/code/project/bjtu_food/client/src/components/AuthSheet.vue
+28 |  
+29 |        <scroll-view class="sheet-body" scroll-y>
+30 |          <!-- N08 修复：keep-alive 保持 AuthForm 挂载，避免关闭弹层卸载组件清掉发码倒计时（绕过冷却） -->
+   |                                                                          ^
+31 |          <keep-alive>
+   |  ^^^^^^^^^^^^^^^^^^^^
+32 |            <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |          </keep-alive>
+   |  ^^^^^^^^^^^
+[39m
+at [36mcomponents/AuthSheet.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mnot supported: keep-alive
+
+D:/workspace/code/project/bjtu_food/client/src/components/AuthSheet.vue
+28 |  
+29 |        <scroll-view class="sheet-body" scroll-y>
+30 |          <!-- N08 修复：keep-alive 保持 AuthForm 挂载，避免关闭弹层卸载组件清掉发码倒计时（绕过冷却） -->
+   |                                                                          ^
+31 |          <keep-alive>
+   |  ^^^^^^^^^^^^^^^^^^^^
+32 |            <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |          </keep-alive>
+   |  ^^^^^^^^^^^
+[39m
+at [36mcomponents/AuthSheet.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mnot supported: keep-alive
+
+D:/workspace/code/project/bjtu_food/client/src/components/AuthSheet.vue
+28 |  
+29 |        <scroll-view class="sheet-body" scroll-y>
+30 |          <!-- N08 修复：keep-alive 保持 AuthForm 挂载，避免关闭弹层卸载组件清掉发码倒计时（绕过冷却） -->
+   |                                                                          ^
+31 |          <keep-alive>
+   |  ^^^^^^^^^^^^^^^^^^^^
+32 |            <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |          </keep-alive>
+   |  ^^^^^^^^^^^
+[39m
+at [36mcomponents/AuthSheet.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31mnot supported: keep-alive
+
+D:/workspace/code/project/bjtu_food/client/src/components/AuthSheet.vue
+28 |  
+29 |        <scroll-view class="sheet-body" scroll-y>
+30 |          <!-- N08 修复：keep-alive 保持 AuthForm 挂载，避免关闭弹层卸载组件清掉发码倒计时（绕过冷却） -->
+   |                                                                          ^
+31 |          <keep-alive>
+   |  ^^^^^^^^^^^^^^^^^^^^
+32 |            <AuthForm :codeCountdown="codeCooldown" @cooldown-change="onCooldownChange" />
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+33 |          </keep-alive>
+   |  ^^^^^^^^^^^
+[39m
+at [36mcomponents/AuthSheet.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/moment.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/moment.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m[vue/compiler-sfc] Identifier 'onDishReviewReport' has already been declared. (452:9)
+
+D:/workspace/code/project/bjtu_food/client/src/pages/pages-detail/moment.vue
+450|  }
+451|  
+452|  function onDishReviewReport(rv: any) {
+   |           ^
+453|    if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
+454|    reportTarget.value = { type: 'review', id: rv.id }[39m
+at [36mpages/pages-detail/moment.vue:452:9[39m
+[35m[plugin:vite:vue][39m [31m[vue/compiler-sfc] Identifier 'onDishReviewReport' has already been declared. (452:9)
+
+D:/workspace/code/project/bjtu_food/client/src/pages/pages-detail/moment.vue
+450|  }
+451|  
+452|  function onDishReviewReport(rv: any) {
+   |           ^
+453|    if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
+454|    reportTarget.value = { type: 'review', id: rv.id }[39m
+at [36mpages/pages-detail/moment.vue:452:9[39m
+[35m[plugin:vite:vue][39m [31m[vue/compiler-sfc] Identifier 'onDishReviewReport' has already been declared. (452:9)
+
+D:/workspace/code/project/bjtu_food/client/src/pages/pages-detail/moment.vue
+450|  }
+451|  
+452|  function onDishReviewReport(rv: any) {
+   |           ^
+453|    if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
+454|    reportTarget.value = { type: 'review', id: rv.id }[39m
+at [36mpages/pages-detail/moment.vue:452:9[39m
+[35m[plugin:vite:vue][39m [31m[vue/compiler-sfc] Identifier 'onDishReviewReport' has already been declared. (452:9)
+
+D:/workspace/code/project/bjtu_food/client/src/pages/pages-detail/moment.vue
+450|  }
+451|  
+452|  function onDishReviewReport(rv: any) {
+   |           ^
+453|    if (!userStore.requireAuth(() => onDishReviewReport(rv))) return
+454|    reportTarget.value = { type: 'review', id: rv.id }[39m
+at [36mpages/pages-detail/moment.vue:452:9[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/dish.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/dish.vue:1:0[39m
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/review-list.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/review-list.vue:1:0[39m
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[35m[plugin:vite:vue][39m [31m src/pages/pages-detail/review-list.vue: At least one <template> or <script> is required in a single file component.[39m
+at [36mpages/pages-detail/review-list.vue:1:0[39m

@@ -1,26 +1,11 @@
 import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
 import { get, post, del } from './http'
-import { getImageUrl } from '@/utils/image'
+import { recordsOf, normalizeImages } from './_shared'
 
-type PageLike<T> = T[] | { records?: T[]; list?: T[] }
-
-function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  return value.records || value.list || []
-}
-
-function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
-  if (typeof value !== 'string' || !value.trim()) return []
-  const text = value.trim()
-  try {
-    const parsed = JSON.parse(text)
-    return Array.isArray(parsed) ? normalizeImages(parsed) : [getImageUrl(text)]
-  } catch {
-    return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
-  }
-}
+type ReviewTarget =
+  | { type: 'dish'; id: number }
+  | { type: 'stall'; id: number }
+  | { type: 'canteen'; id: number }
 
 function toReview(raw: any): Review {
   return {
@@ -32,7 +17,8 @@ function toReview(raw: any): Review {
     rating: Number(raw.rating || 0),
     content: raw.content || '',
     images: normalizeImages(raw.images),
-    createTime: raw.createTime || '',
+    // 后端 ReviewVO 字段为 createdAt（LocalDateTime→JSON），兼容旧 createTime
+    createTime: raw.createdAt || raw.createTime || '',
     // 语义统一：后端 ReviewVO.usefulCount（有用计数）
     usefulCount: Number(raw.usefulCount ?? raw.useful_count ?? 0),
     // 当前登录用户是否已标记有用（仅登录态返回）
@@ -41,64 +27,35 @@ function toReview(raw: any): Review {
 }
 
 /**
- * 获取菜品评价（task-03 评价区重做）
+ * 获取评价（task-03 评价区重做）
+ * 统一支持 dish / stall / canteen 三类目标查询（合并原 getReviewsByDish/Stall/Canteen 三函数）。
  * 支持 sort=latest|useful（useful 按 usefulCount DESC）、isWithImage 过滤有图。
  * 返回分页结果（list + total），供详情页评价区无限/分页展示。
  */
+async function getReviews(
+  target: ReviewTarget,
+  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
+): Promise<{ list: Review[]; total: number }> {
+  const params: Record<string, any> = {
+    page: options?.page ?? 1,
+    pageSize: options?.pageSize ?? 50,
+  }
+  if (options?.sort) {
+    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
+  }
+  if (options?.isWithImage) params.isWithImage = true
+  const res = await get<any>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
+  const list = recordsOf<any>(res).map(toReview)
+  const total = typeof res?.total === 'number' ? res.total : list.length
+  return { list, total }
+}
+
+/** @deprecated 语义化别名，保持向后兼容。新代码请用 getReviews({ type: 'dish', id }) */
 export async function getReviewsByDish(
   dishId: number,
   options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
-    page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 50,
-  }
-  if (options?.sort) {
-    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
-  }
-  if (options?.isWithImage) params.isWithImage = true
-  const res = await get<any>(`/reviews`, { dishId, ...params })
-  const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
-  return { list, total }
-}
-
-/** 获取档口评价（后端 GET /reviews?stallId=，IPage<ReviewVO>，与菜品评价同形） */
-export async function getReviewsByStall(
-  stallId: number,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
-): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
-    page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 50,
-  }
-  if (options?.sort) {
-    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
-  }
-  if (options?.isWithImage) params.isWithImage = true
-  const res = await get<any>(`/reviews`, { stallId, ...params })
-  const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
-  return { list, total }
-}
-
-/** 获取食堂评价（后端 GET /reviews?canteenId=，IPage<ReviewVO>，与菜品评价同形） */
-export async function getReviewsByCanteen(
-  canteenId: number,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
-): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
-    page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 50,
-  }
-  if (options?.sort) {
-    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
-  }
-  if (options?.isWithImage) params.isWithImage = true
-  const res = await get<any>(`/reviews`, { canteenId, ...params })
-  const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
-  return { list, total }
+  return getReviews({ type: 'dish', id: dishId }, options)
 }
 
 export async function submitReview(data: ReviewSubmit): Promise<void> {
@@ -125,18 +82,9 @@ export async function toggleUseful(reviewId: number): Promise<{ useful: boolean;
   }
 }
 
-/** @deprecated 旧非幂等点赞接口已废弃，请使用 toggleUseful（/reviews/{id}/useful）。保留仅为兼容引用。 */
-export async function likeReview(reviewId: number): Promise<void> {
-  await toggleUseful(reviewId)
-}
-
-export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<Review[]> {
-  const params: Record<string, any> = { page: options?.page ?? 1, pageSize: options?.pageSize ?? 50 }
-  const res = await get<any>(`/my/reviews`, params)
-  return recordsOf<any>(res).map(toReview)
-}
-
 /** 删除本人评价（STU 仅本人，task-12.5；后端 DELETE /reviews/{id}） */
 export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
 }
+
+

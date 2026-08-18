@@ -72,6 +72,27 @@ public class DataInitializer implements CommandLineRunner {
         stall.setAuditStatus("approved");
         stallMapper.insert(stall);
 
+        // 菜品品类示例（首页品类滚轮数据源；贴合大学食堂档口业态，按 sort_order 升序）
+        Object[][] categories = {
+                {"malatang", "麻辣烫",   1},
+                {"noodle",   "面食",     2},
+                {"rice",     "盖饭套餐", 3},
+                {"home",     "家常小炒", 4},
+                {"bbq",      "烧烤炸物", 5},
+                {"porridge", "汤粥",     6},
+                {"drink",    "饮品甜点", 7},
+                {"halal",    "清真",     8}
+        };
+        for (Object[] cat : categories) {
+            Category category = new Category();
+            category.setCode((String) cat[0]);
+            category.setName((String) cat[1]);
+            category.setSortOrder((Integer) cat[2]);
+            category.setStatus("enabled");
+            categoryMapper.insert(category);
+        }
+        log.info(">>> [MVP] 已初始化示例 菜品品类 数据");
+
         String[] names = {"红烧肉", "麻婆豆腐", "鱼香肉丝"};
         int[] prices = {1800, 1200, 1500};
         for (int i = 0; i < names.length; i++) {
@@ -80,8 +101,11 @@ public class DataInitializer implements CommandLineRunner {
             dish.setName(names[i]);
             dish.setPrice(prices[i]);
             dish.setTags("signature");
-            dish.setStatus("on");
-            dish.setAuditStatus("approved");
+            dish.setStatus(com.bjtufood.dish.constant.DishConst.STATUS_ON);
+            dish.setAuditStatus(com.bjtufood.dish.constant.DishConst.AUDIT_APPROVED);
+            // 示例菜品归属「家常菜」（code=home）品类
+            dish.setCategoryId(categoryMapper.selectOne(
+                    new LambdaQueryWrapper<Category>().eq(Category::getCode, "home")).getId());
             dishMapper.insert(dish);
         }
         log.info(">>> [MVP] 已初始化示例 食堂/档口/菜品 数据");
@@ -109,16 +133,5 @@ public class DataInitializer implements CommandLineRunner {
             broadcastMapper.insert(bc);
         }
         log.info(">>> [MVP] 已初始化示例 首页广播通知 数据");
-
-        // 菜品分类示例（find 宫格，按 sort_order 升序）
-        String[] categories = {"早餐", "午餐", "晚餐", "夜宵", "面食", "米饭", "麻辣", "清淡"};
-        for (int i = 0; i < categories.length; i++) {
-            Category cat = new Category();
-            cat.setName(categories[i]);
-            cat.setSortOrder(i + 1);
-            cat.setStatus("enabled");
-            categoryMapper.insert(cat);
-        }
-        log.info(">>> [MVP] 已初始化示例 菜品分类 数据");
     }
 }

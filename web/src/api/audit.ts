@@ -29,6 +29,28 @@ export async function listReviews(isHidden?: boolean, page = 1, pageSize = 200):
   return pageRecords(await get<any>('/admin/reviews', params)).map(reviewToLegacy)
 }
 
+/**
+ * 评价全量检索：后端按 isHidden + 服务端过滤分页，前端翻页聚合全部页，
+ * 避免默认分页硬上限导致超出部分漏搜漏审（如关键词检索场景）。
+ */
+export async function listAllReviews(isHidden?: boolean, keyword?: string): Promise<Review[]> {
+  const PAGE_SIZE = 100
+  const all: Review[] = []
+  let page = 1
+  for (;;) {
+    const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
+    if (isHidden !== undefined) params.isHidden = isHidden
+    if (keyword) params.keyword = keyword.trim()
+    const data = await get<any>('/admin/reviews', params)
+    const records: Review[] = pageRecords(data).map(reviewToLegacy)
+    all.push(...records)
+    const total: number = Array.isArray(data) ? records.length : (data?.total ?? records.length)
+    if (records.length === 0 || all.length >= total) break
+    page += 1
+  }
+  return all
+}
+
 /** 设置评价隐藏 / 显示（is_hidden 控制可见性，显式语义） */
 export async function setReviewHidden(id: number, hidden: boolean) {
   await put<void>(`/admin/reviews/${id}/hide`, { hidden })

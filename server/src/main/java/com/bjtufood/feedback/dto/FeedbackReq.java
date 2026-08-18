@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 提交反馈请求（替代原 Map 裸参）
  */
@@ -26,6 +28,10 @@ public class FeedbackReq {
     @Schema(description = "联系方式（选填）")
     @Size(max = 128, message = "联系方式不能超过128字")
     private String contact;
+
+    /** 附图（选填，已上传的绝对URL数组；截图/作证照片/菜品图，2026-08-17 新增） */
+    @Schema(description = "附图（选填，绝对URL数组）")
+    private List<String> images;
 
     /** 关联类型（举报场景）：moment；其他反馈可空 */
     @Schema(description = "关联类型（举报场景）：moment；其他反馈可空")

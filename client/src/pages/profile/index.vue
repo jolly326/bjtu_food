@@ -1,210 +1,149 @@
 <template>
   <view class="page profile-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的" />
+    <Header title="我的" :showBack="showBack" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 用户卡：未登录显示游客态（点击弹出认证）；已登录显示完整信息（点击进个人信息页） -->
-      <view class="user-card enter-up" :style="{ '--enter-i': 0 }" @tap="onUserCardTap">
+      <!-- 用户卡：游客（未认证）显示食客短 ID；已认证显示昵称 + 绑定邮箱 -->
+      <view
+        class="user-card"
+        role="button"
+        :aria-label="isVerified ? '查看或编辑个人资料' : '游客身份'"
+        @tap="onUserCardTap"
+      >
         <view class="user-card-head">
           <view class="avatar-wrap">
-            <image v-if="userInfo?.avatar" :src="getImageUrl(userInfo.avatar)" class="avatar" />
+            <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
             <view v-else class="avatar avatar-empty">
               <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
           </view>
           <view class="user-meta">
-            <text class="nickname">{{ isLoggedIn ? (userInfo?.nickname || '未知用户') : '未登录' }}</text>
-            <view class="meta-line">
-              <text v-if="isLoggedIn" class="user-id">{{ userInfo?.email || '游客模式' }}</text>
-              <text v-else class="user-id">游客模式 · 登录解锁完整功能</text>
-            </view>
+            <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
+              {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
+            </text>
+            <text v-if="isVerified && (bindEmail || userInfo?.email)" class="user-id">
+              {{ bindEmail || userInfo?.email }}
+            </text>
+            <text v-else-if="!isVerified" class="user-id">游客 {{ guestShortId }}</text>
+          </view>
+          <view v-if="!isVerified" class="verify-badge">
+            <IconSvg name="lock" :size="24" color="var(--color-primary)" />
+            <text class="verify-badge-text">未认证</text>
           </view>
           <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
         </view>
       </view>
 
-      <!-- 4 项功能网格（统一主色软底大图标：动态 / 反馈中心 / 消息 / 评价；未登录点击时引导认证） -->
-      <view class="grid-menu enter-up" :style="{ '--enter-i': 1 }">
+      <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导） -->
+      <view class="entry-group">
         <view
-          v-for="g in gridItems"
-          :key="g.key"
-          class="grid-item"
-          :class="{ pressed: pressedKey === g.key }"
-          @touchstart="pressedKey = g.key"
+          v-for="e in entryItems"
+          :key="e.key"
+          class="entry-row"
+          :class="{ pressed: pressedKey === e.key }"
+          role="button"
+          :aria-label="e.label"
+          @touchstart="pressedKey = e.key"
           @touchend="pressedKey = ''"
           @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = g.key"
+          @mousedown="pressedKey = e.key"
           @mouseup="pressedKey = ''"
           @mouseleave="pressedKey = ''"
-          @tap="g.action"
+          @tap="e.action"
         >
-          <view class="grid-icon">
-            <IconSvg :name="g.icon" :size="42" color="var(--color-primary)" />
-            <view v-if="isLoggedIn && g.key === 'notify' && notifyStore.unreadCount > 0" class="grid-badge">
-              {{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}
-            </view>
+          <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
+          <text class="entry-label">{{ e.label }}</text>
+          <!-- 需认证入口的未认证提示（不置灰，仅弱化标识） -->
+          <text v-if="e.authLocked && !isVerified" class="entry-lock">认证</text>
+          <!-- 系统通知未读红点角标 -->
+          <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
+            <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
           </view>
-          <text class="grid-label">{{ g.label }}</text>
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
         </view>
-      </view>
-
-      <!-- 设置（单列表：深色模式/关于/隐私/缓存；游客也可用，无需认证） -->
-      <SettingGroup class="enter-up" :style="{ '--enter-i': 2 }">
-        <SettingCell label="深色模式" icon="settings" :switch="true" :switch-value="theme.isDark" @select="theme.toggle()" />
-        <SettingCell label="关于知行食记" icon="logo" @select="goAbout" />
-        <SettingCell label="隐私政策" icon="lock" @select="goPrivacy" />
-        <SettingCell label="清除缓存" icon="delete" @select="clearCache" />
-      </SettingGroup>
-
-      <!-- 账号注销（危险操作，仅登录后可见） -->
-      <SettingGroup v-if="isLoggedIn" :style="{ '--enter-i': 3 }">
-        <SettingCell label="账号注销" icon="delete" danger @select="goCancelAccount" />
-      </SettingGroup>
-
-      <view class="version-row">
-        <text class="version-text">知行食记 v1.0.0</text>
       </view>
     </scroll-view>
 
     <!-- 认证弹层：游客点击需认证功能时弹出 -->
     <AuthSheet />
-
-    <CustomTabBar current="/pages/profile/index" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import Header from '@/components/header.vue'
-import CustomTabBar from '@/components/CustomTabBar.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImageFallback from '@/components/ImageFallback.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import SettingGroup from '@/components/SettingGroup.vue'
-import SettingCell from '@/components/SettingCell.vue'
 import { useUserStore } from '@/stores/user'
-import { useNotifyStore } from '@/stores/notify'
-import { useAuthSheetStore } from '@/stores/authSheet'
 import { useThemeStore } from '@/stores/theme'
-import { getImageUrl } from '@/utils/image'
-import { deleteAccount } from '@/api/user'
+import { useAuthSheetStore } from '@/stores/authSheet'
+import { useNotifyStore } from '@/stores/notify'
+import { backToHome } from '@/utils/nav'
+import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
 
-const userStore = useUserStore()
-const notifyStore = useNotifyStore()
-const authSheetStore = useAuthSheetStore()
 const theme = useThemeStore()
+const userStore = useUserStore()
+const authSheetStore = useAuthSheetStore()
+const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-const isLoggedIn = computed(() => userStore.isLoggedIn())
+/** 已认证（verified=true）——微信静默登录后恒有登录态，游客/认证用 verified 区分（§5.y） */
+const isVerified = computed(() => userStore.isVerified())
+const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
+/** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
+const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
 const pressedKey = ref('')
 
-function openMessage() {
-  uni.navigateTo({ url: '/pages/profile/messages/index' })
-}
+// 是否从首页头像 navigateTo 进入（带 ?from=home），是则显示返回箭头
+const showBack = ref(false)
+onLoad((q) => {
+  showBack.value = q?.from === 'home'
+  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
+  userStore.silentLogin()
+})
 
-/** 需认证入口统一拦截：未登录弹认证弹层，认证成功后自动继续原动作 */
+// 每次进入「我的」刷新未读通知数（红点角标；通知属认证专属，仅认证用户刷新未读数）
+onShow(() => {
+  if (userStore.isVerified()) notifyStore.fetchUnread()
+})
+
+/** 需认证入口统一拦截：未认证（verified=false）弹认证引导，认证成功后自动继续原动作（§5.y 入口不置灰） */
 function requireAuth(action: () => void) {
-  if (userStore.isLoggedIn()) {
+  if (userStore.isVerified()) {
     action()
     return
   }
   authSheetStore.requireAuth(action)
 }
 
-/** 用户卡：未登录点击弹认证；已登录点击进个人信息页 */
+/** 用户卡：已认证点击进个人信息页；游客点击唤起底部认证弹窗（统一认证入口，不单独写页） */
 function onUserCardTap() {
-  if (!userStore.isLoggedIn()) {
-    authSheetStore.requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' }))
+  if (!userStore.isVerified()) {
+    authSheetStore.show()
     return
   }
-  goProfileEdit()
-}
-
-/** 4 项功能网格（统一主色软底大图标，克制；未登录点击时引导认证） */
-const gridItems = [
-  { key: 'moments', icon: 'comment', label: '我的动态', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
-  // 反馈不登录也可用：游客直接进提交页；登录用户进完整反馈中心（含我的反馈记录）
-  { key: 'feedback', icon: 'contact', label: '反馈中心', action: () => uni.navigateTo({ url: userStore.isLoggedIn() ? '/pages/profile/messages-services/index' : '/pages/feedback/index' }) },
-  { key: 'notify', icon: 'bell', label: '消息中心', action: () => requireAuth(openMessage) },
-  { key: 'reviews', icon: 'star', label: '我的评价', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-reviews/index' })) },
-]
-
-function goProfileEdit() {
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-// ── 设置（内嵌分组）──
-function goAbout() {
-  uni.showModal({
-    title: '关于知行食记',
-    content: '知行食记是面向北京交通大学学生的校园美食分享、评价与社交内容平台。发现食堂美食、分享用餐体验。',
-    showCancel: false,
-  })
-}
+/** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们 */
+const entryItems = [
+  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
+  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
+  { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
+  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
+]
 
-function goPrivacy() {
-  uni.showModal({
-    title: '隐私政策',
-    content: '我们仅收集必要的账号与登录信息用于提供服务。您的浏览足迹、动态与收藏仅用于优化你的个性化体验，不会向第三方泄露。',
-    showCancel: false,
-  })
-}
 
-function clearCache() {
-  uni.showModal({
-    title: '清除缓存',
-    content: '确定清除本地缓存吗？不会删除你的账号数据。',
-    success: (res) => {
-      if (res.confirm) {
-        uni.clearStorageSync()
-        userStore.restoreFromCache()
-        uni.showToast({ title: '缓存已清除', icon: 'none' })
-      }
-    },
-  })
-}
-
-function goCancelAccount() {
-  uni.showModal({
-    title: '账号注销',
-    content: '注销后你的菜品、动态、评价等数据将被删除且不可恢复，确定要继续吗？',
-    confirmText: '确认注销',
-    confirmColor: '#e54d42',
-    success: (res) => {
-      if (res.confirm) doDeleteAccount()
-    },
-  })
-}
-
-async function doDeleteAccount() {
-  try {
-    await deleteAccount()
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
-    uni.showToast({ title: '账号已注销', icon: 'none' })
-    setTimeout(() => { uni.reLaunch({ url: '/pages/profile/index' }) }, 600)
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '注销失败', icon: 'none' })
-  }
-}
-
-onMounted(() => {
-  if (userStore.isLoggedIn()) {
-    notifyStore.fetchUnread()
-  }
-})
-// 从消息中心页返回时刷新未读角标
-onShow(() => {
-  if (userStore.isLoggedIn()) {
-    notifyStore.fetchUnread()
-  }
-})
 </script>
 
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+/* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
 
-/* Hero 用户卡（纯白卡 + 主题色点缀；头像 + 昵称 + ID/认证 + 右侧 >，整卡点击进个人信息页；无渐变） */
+/* 用户卡（白底圆角卡 + 轻阴影；圆形头像 + 昵称 + ID；整卡可点；按压背景微变+缩放） */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
   margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
@@ -212,61 +151,66 @@ onShow(() => {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  /* Apple highlight 按压：背景微变而非缩放（列表行卡规范） */
-  transition: background-color 120ms var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.user-card:active { background-color: var(--bg-soft); }
+.user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; }
-.avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; background: var(--bg-page); }
+.avatar-wrap { flex-shrink: 0; width: 112rpx; height: 112rpx; }
+.avatar { width: 112rpx; height: 112rpx; border-radius: 16rpx; overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* Apple Design Typography：昵称加大（title 级 800 + 负 tracking），强化身份层级 */
-.nickname { font-size: var(--font-h2); font-weight: var(--weight-heavy); color: var(--text-primary); letter-spacing: var(--tracking-h2); }
-.meta-line { display: flex; align-items: center; gap: var(--spacing-sm); }
-.user-id { font-size: var(--font-aux); color: var(--text-tertiary); }
+.nickname { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nickname--guest { color: var(--text-primary); }
+.user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 未认证角标：锁图标 + 「未认证」小字 */
+.verify-badge { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: var(--radius-pill); background: var(--color-primary-soft); }
+.verify-badge-text { font-size: 20rpx; color: var(--color-primary); font-weight: var(--weight-semibold); }
 .card-arrow { flex-shrink: 0; }
 
-/* 4 项功能网格（4 列：纯主题色图标 + 文字，无背景块；卡片间距统一 --spacing-sm） */
-.grid-menu {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
-  padding: var(--spacing-lg) var(--spacing-sm);
+/* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
+.entry-group {
+  margin: 0 var(--spacing-md) var(--spacing-sm);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
-.grid-item {
+.entry-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) 0;
-  transition: transform 120ms var(--ease-out);
+  gap: var(--spacing-md);
+  height: 104rpx;
+  padding: 0 var(--spacing-lg);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.grid-item.pressed { transform: scale(var(--press-scale)); }
-.grid-icon {
-  position: relative;
+.entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
+.entry-row.pressed { background-color: var(--bg-soft); }
+.entry-row.pressed:active { transform: scale(var(--press-scale)); }
+.entry-icon { flex-shrink: 0; }
+.entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 需认证入口的未认证弱标识（不置灰） */
+.entry-lock { flex-shrink: 0; font-size: 20rpx; color: var(--text-tertiary); font-weight: var(--weight-semibold); }
+.entry-arrow { flex-shrink: 0; }
+
+/* 系统通知未读红点角标 */
+.entry-badge {
+  flex-shrink: 0;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--color-error);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.grid-label { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.2; }
-.grid-badge {
-  position: absolute; top: -10rpx; right: -16rpx;
-  min-width: 32rpx; height: 32rpx; padding: 0 8rpx; border-radius: 999rpx;
-  background: var(--color-error); color: var(--text-white);
-  font-size: 18rpx; font-weight: var(--weight-semibold); line-height: 32rpx; text-align: center;
   box-sizing: border-box;
 }
-
-.version-row { text-align: center; margin: 0 var(--spacing-md); padding: var(--spacing-lg) 0 var(--spacing-md); }
-.version-text { display: block; font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-tertiary); }
+.entry-badge-text { font-size: 20rpx; color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .grid-item { transition: none; }
+  .user-card, .entry-row { transition: none; }
+  .user-card:active, .entry-row.pressed:active { transform: none; }
 }
 </style>

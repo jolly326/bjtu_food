@@ -7,12 +7,15 @@ import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackMyVO;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,25 +35,51 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
+    private final SensitiveFilter sensitiveFilter;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
         if (FeedbackConst.TYPE_REPORT.equals(req.getType())) {
-            // 举报必须关联被举报动态（复用 user_feedback，不新建举报表）
-            if (!FeedbackConst.RELATED_MOMENT.equals(req.getRelatedType()) || req.getRelatedId() == null) {
-                throw new BusinessException("举报必须指定关联动态（relatedType=moment 且 relatedId 必填）");
+            // 举报必须关联被举报对象（动态或动态评论，复用 user_feedback 表）
+            if (req.getRelatedId() == null
+                    || (!FeedbackConst.RELATED_MOMENT.equals(req.getRelatedType())
+                        && !FeedbackConst.RELATED_MOMENT_COMMENT.equals(req.getRelatedType()))) {
+                throw new BusinessException("举报必须指定关联对象（relatedType=moment 或 moment_comment 且 relatedId 必填）");
             }
         }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(req.getType());
-        feedback.setContent(req.getContent());
+        feedback.setContent(sensitiveFilter.filter(req.getContent()));
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
+        feedback.setImages(serializeImages(req.getImages()));
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
         feedbackMapper.insert(feedback);
+    }
+
+    /** 附图数组 → JSON 字符串（空/非法安全降级 null） */
+    private String serializeImages(List<String> images) {
+        if (images == null || images.isEmpty()) return null;
+        try {
+            return OBJECT_MAPPER.writeValueAsString(images);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** JSON 字符串 → 附图数组（空/非法安全降级 null） */
+    private List<String> deserializeImages(String json) {
+        if (!StringUtils.hasText(json)) return null;
+        try {
+            List<String> list = OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
+            return (list == null || list.isEmpty()) ? null : list;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -64,6 +93,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                     vo.setId(f.getId());
                     vo.setType(f.getType());
                     vo.setContent(f.getContent());
+                    vo.setImages(deserializeImages(f.getImages()));
                     vo.setStatus(f.getStatus());
                     vo.setReply(f.getReply());
                     vo.setCreatedAt(f.getCreatedAt());
@@ -73,15 +103,22 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
-    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, int page, int pageSize) {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
+    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
 
         LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
                 .eq(StringUtils.hasText(status), Feedback::getStatus, status)
                 .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(userId != null, Feedback::getUserId, userId)
-                .orderByDesc(Feedback::getCreatedAt);
+                .eq(userId != null, Feedback::getUserId, userId);
+
+        // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
+        // 必须在 orderByDesc 之前追加，否则条件片段会拼到 ORDER BY 之后生成非法 SQL。
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(Feedback::getContent, kw).or().like(Feedback::getReply, kw));
+        }
+        wrapper.orderByDesc(Feedback::getCreatedAt);
 
         IPage<Feedback> p = feedbackMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
@@ -104,6 +141,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             vo.setUserNickname(userMap.get(f.getUserId()));
             vo.setType(f.getType());
             vo.setContent(f.getContent());
+            vo.setImages(deserializeImages(f.getImages()));
             vo.setContact(f.getContact());
             vo.setRelatedType(f.getRelatedType());
             vo.setRelatedId(f.getRelatedId());

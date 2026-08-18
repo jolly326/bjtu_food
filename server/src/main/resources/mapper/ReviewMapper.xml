@@ -133,6 +133,20 @@
           AND r.is_hidden = 0
     </select>
 
+    <!-- 批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射 -->
+    <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingDTO">
+        SELECT d.stall_id     AS stallId,
+               AVG(r.rating)  AS avgRating
+        FROM review r
+                 JOIN dish d ON r.dish_id = d.id
+        WHERE d.stall_id IN
+        <foreach collection="stallIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+          AND r.is_hidden = 0
+        GROUP BY d.stall_id
+    </select>
+
     <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->
     <update id="changeUsefulCount">
         UPDATE review

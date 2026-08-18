@@ -35,7 +35,7 @@ public class FeedbackController {
     @Operation(summary = "提交反馈", description = "PUB。游客与登录用户均可提交；写入 user_feedback，status=pending。")
     @PostMapping("/feedback")
     public Result<Void> submitFeedback(@Valid @RequestBody FeedbackReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
+        Long userId = SecurityUtil.getCurrentUserIdOrNull();
         feedbackService.submit(userId, req);
         return Result.success();
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAdminUserStore } from '@/stores/adminUserStore'
+import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import FormDialog from '@/components/FormDialog.vue'
@@ -12,6 +13,7 @@ import { Plus, Delete } from '@element-plus/icons-vue'
 const store = useAdminUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
+const userStore = useUserStore()
 
 const searchQuery = ref('')
 
@@ -21,11 +23,8 @@ const filtered = computed(() => {
   return store.list.filter(a => a.username.toLowerCase().includes(q) || (a.nickname || '').toLowerCase().includes(q))
 })
 
-// 当前登录管理员 ID（用于禁止操作自己）
-const myId = computed(() => {
-  const id = localStorage.getItem('adminId')
-  return id ? Number(id) : null
-})
+// 当前登录管理员 ID（用于禁止操作自己）；改读 store（登录后已回填 adminId，不再依赖恒为 null 的 localStorage（C02））
+const myId = computed(() => userStore.adminId)
 
 const showModal = ref(false)
 const editingId = ref<number | null>(null)

@@ -10,7 +10,7 @@
     :circular="circular"
   >
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
-      <!-- onload 淡入：图片加载完成前保持占位底色，加载后 0.3s 淡入（Apple §12 materialize） -->
+      <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
       <view v-else class="image-swiper-placeholder">
         <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
@@ -51,7 +51,7 @@ const displayImages = computed(() => {
 /** 单张图时不显示指示器 */
 const showIndicator = computed(() => props.indicatorDots && displayImages.value.length > 1)
 
-/** 已加载图片集合：onload 后标记，驱动 0.3s 淡入（Apple §12 materialize） */
+/** 已加载图片集合：onload 后标记，驱动 --duration-slow 淡入（Apple §12 materialize） */
 const loadedSet = ref<Set<number>>(new Set())
 function onImgLoad(idx: number) {
   if (!loadedSet.value.has(idx)) {
@@ -69,12 +69,14 @@ function onImgLoad(idx: number) {
   height: 100%;
   background: var(--bg-page);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  filter: blur(12px);
+  transform: scale(1.04);
+  transition: opacity var(--duration-slow) var(--ease-out), filter var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
 }
-/* 加载完成淡入；reduced-motion 下直接显示 */
-.image-swiper-img.img-loaded { opacity: 1; }
+/* 加载完成：由模糊放大淡入至清晰；reduced-motion 下直接显示 */
+.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); transform: scale(1); }
 @media (prefers-reduced-motion: reduce) {
-  .image-swiper-img { opacity: 1; transition: none; }
+  .image-swiper-img { opacity: 1; filter: none; transform: none; transition: none; }
 }
 .image-swiper-placeholder {
   width: 100%;

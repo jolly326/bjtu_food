@@ -23,7 +23,7 @@ public class EmailVerificationCode {
     @Schema(description = "验证码哈希")
     private String codeHash;
 
-    @Schema(description = "用途：login/register", example = "login")
+    @Schema(description = "用途：verify（学号邮箱认证）", example = "verify")
     private String purpose;
 
     @Schema(description = "过期时间")

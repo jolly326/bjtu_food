@@ -30,7 +30,7 @@
           v-for="(entry, i) in splitList.left"
           :key="entry.key"
           class="waterfall-item enter-up"
-          :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
+          :style="{ '--enter-i': i }"
         >
           <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
@@ -40,7 +40,7 @@
           v-for="(entry, i) in splitList.right"
           :key="entry.key"
           class="waterfall-item enter-up"
-          :style="{ '--enter-i': i, '--card-img-h': entry.imgH + 'rpx' }"
+          :style="{ '--enter-i': i }"
         >
           <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
@@ -54,7 +54,7 @@ import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import StallCardSingle from './StallCardSingle.vue'
 import type { Dish } from '@/types/dish'
-import type { StallCardItem } from './StallCardSingle.vue'
+import type { StallCardItem } from './stall-card-item'
 
 const props = withDefaults(defineProps<{
   list: (Dish | any)[]
@@ -75,18 +75,16 @@ const emit = defineEmits<{
   stallClick: [stall: StallCardItem]
 }>()
 
-/** 图片区统一高度（rpx） */
-const IMG_HEIGHT = 200
-
+/** 瀑布流按图片原始比例排列（不再为错落刻意拉伸图片高度）；列分配保持奇偶分列 */
 const splitList = computed(() => {
-  const left: { item: Dish; key: string; imgH: number }[] = []
-  const right: { item: Dish; key: string; imgH: number }[] = []
+  const left: { item: Dish; key: string }[] = []
+  const right: { item: Dish; key: string }[] = []
   props.list.forEach((item, idx) => {
     const rawKey = (item as Record<string, any>)?.[props.itemKey]
     const key = (rawKey !== undefined && rawKey !== null && rawKey !== '')
       ? `wf-${rawKey}-${idx}`
       : `wf-idx-${idx}`
-    const entry = { item: item as Dish, key, imgH: IMG_HEIGHT }
+    const entry = { item: item as Dish, key }
     if (idx % 2 === 0) left.push(entry)
     else right.push(entry)
   })

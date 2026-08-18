@@ -28,8 +28,10 @@ public class ReviewAdminController {
             @RequestParam(required = false) Integer isHidden,
             @RequestParam(required = false) Integer isDeleted,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
-            @RequestParam(required = false) Long userId) {
-        return Result.success(reviewService.listAllForAdmin(page, pageSize, isHidden, isDeleted, userId));
+            @RequestParam(required = false) Long userId,
+            @Parameter(description = "评价正文关键词（可选，模糊匹配）")
+            @RequestParam(required = false) String keyword) {
+        return Result.success(reviewService.listAllForAdmin(page, pageSize, isHidden, isDeleted, userId, keyword));
     }
 
     @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。")

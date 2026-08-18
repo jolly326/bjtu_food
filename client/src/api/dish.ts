@@ -1,50 +1,21 @@
 import type {
   Dish, DishDetail, DishQuery, DishSortBy,
-  Suggestion, HotSearch,
+  HotSearch,
 } from '@/types/dish'
 import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { getImageUrl } from '@/utils/image'
+import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
 
-const TAG_MAP: Record<string, string> = {
+export const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
   daily: '日常',
   halal: '清真',
   noodle: '面食',
+  rice: '米饭',
   spicy: '辣味',
   vegetarian: '素食',
   western: '西餐',
-}
-
-type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
-
-function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  return value.records || value.list || []
-}
-
-function totalOf(value: PageLike<any> | undefined | null): number {
-  if (!value) return 0
-  if (Array.isArray(value)) return value.length
-  return typeof value.total === 'number' ? value.total : recordsOf(value).length
-}
-
-function normalizeBoolean(value: unknown): boolean {
-  return value === true || value === 1 || value === '1'
-}
-
-function normalizeImages(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.length > 0).map(getImageUrl)
-  if (typeof value !== 'string' || !value.trim()) return []
-  const text = value.trim()
-  try {
-    const parsed = JSON.parse(text)
-    return Array.isArray(parsed) ? normalizeImages(parsed) : [getImageUrl(text)]
-  } catch {
-    return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
-  }
 }
 
 export function toDish(raw: any): Dish {
@@ -66,6 +37,7 @@ export function toDish(raw: any): Dish {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
+    categoryId: raw.categoryId != null ? Number(raw.categoryId) : undefined,
     isNew: !!raw.isNew,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
@@ -82,6 +54,10 @@ export function toDish(raw: any): Dish {
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
     createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
+    latitude: raw.latitude != null ? Number(raw.latitude) : undefined,
+    longitude: raw.longitude != null ? Number(raw.longitude) : undefined,
+    distance: raw.distance != null ? Number(raw.distance) : undefined,
+    region: raw.region || raw.region_name || '',
   }
 }
 
@@ -117,6 +93,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.canteenId != null) params.canteenId = query.canteenId
+  if (query.categoryId != null) params.categoryId = query.categoryId
   if (query.tag) params.tag = query.tag
   if (query.spiceLevel != null) params.spiceLevel = query.spiceLevel
   if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)
@@ -177,24 +154,6 @@ export async function getHotSearch(): Promise<HotSearch[]> {
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),
     relatedCount: Number(item.relatedCount ?? 0) || undefined,
-  }))
-}
-
-/** 搜索联想（task-02：GET /dishes/suggest，混合菜品/档口/食堂） */
-export async function getSuggestions(keyword: string): Promise<Suggestion[]> {
-  if (!keyword || !keyword.trim()) return []
-  const raw = await get<any[]>('/dishes/suggest', { keyword: keyword.trim() })
-  return (raw || []).map((item: any) => ({
-    type: (item.type || 'dish') as Suggestion['type'],
-    id: Number(item.id ?? 0),
-    name: item.name || '',
-    image: getImageUrl(item.image || ''),
-    // 档口需携带所属食堂名（后端 suggest 已联表返回 canteen），跳档口详情要 navParams.canteen
-    canteen: item.canteen || undefined,
-    // 价格：分 → 元（§3.x 金额红线：转换必须在 api 层统一，页面模板禁裸 /100）
-    price: item.price != null ? fenToYuan(item.price) : undefined,
-    rating: item.rating != null ? Number(item.rating) : undefined,
-    ratingCount: item.ratingCount != null ? Number(item.ratingCount) : undefined,
   }))
 }
 

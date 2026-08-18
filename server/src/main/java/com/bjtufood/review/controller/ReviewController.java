@@ -1,5 +1,6 @@
 package com.bjtufood.review.controller;
 
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
@@ -80,7 +81,7 @@ public class ReviewController {
 
     @Operation(
             summary = "提交评价",
-            description = "用途：用户对菜品评分和评论。每个用户对同一菜品只能评价一次，提交后重算菜品评分。",
+            description = "用途：用户对菜品评分和评论。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -91,6 +92,7 @@ public class ReviewController {
                     }
                     """)))
     )
+    @RequireVerified
     @PostMapping("/reviews")
     public Result<Void> submitReview(@Valid @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -100,7 +102,7 @@ public class ReviewController {
 
     @Operation(
             summary = "修改自己的评价",
-            description = "用途：修改当前用户自己的评价评分和文字内容。当前实现不修改图片。",
+            description = "用途：修改当前用户自己的评价评分和文字内容。当前实现不修改图片。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -111,6 +113,7 @@ public class ReviewController {
                     }
                     """)))
     )
+    @RequireVerified
     @PutMapping("/reviews/{id}")
     public Result<Void> updateReview(
             @Parameter(description = "评价ID", example = "1")
@@ -121,7 +124,8 @@ public class ReviewController {
         return Result.success();
     }
 
-    @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @DeleteMapping("/reviews/{id}")
     public Result<Void> deleteReview(
             @Parameter(description = "评价ID", example = "1")
@@ -131,7 +135,8 @@ public class ReviewController {
         return Result.success();
     }
 
-    @Operation(summary = "删除本人评价（契约路径）", description = "用途：task-12.5 契约路径 DELETE /my/reviews/{id}，仅删除本人 userId 的评价，级联清理 useful 关联；返回 200/403/404。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "删除本人评价（契约路径）", description = "用途：task-12.5 契约路径 DELETE /my/reviews/{id}，仅删除本人 userId 的评价，级联清理 useful 关联；返回 200/403/404。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @DeleteMapping("/my/reviews/{id}")
     public Result<Void> deleteMyReview(
             @Parameter(description = "评价ID", example = "1")
@@ -146,6 +151,7 @@ public class ReviewController {
             description = "用途：用户对评价标记/取消「有用」。未标记→标记并返回 useful=true；已标记→取消并返回 useful=false。重复点击即取消，不抛错。每人每条评价一票。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @RequireVerified
     @PostMapping("/reviews/{id}/useful")
     public Result<UsefulResult> toggleUseful(
             @Parameter(description = "评价ID", example = "1")
@@ -153,4 +159,5 @@ public class ReviewController {
         Long userId = SecurityUtil.getCurrentUserId();
         return Result.success(reviewService.toggleUseful(userId, id));
     }
+
 }

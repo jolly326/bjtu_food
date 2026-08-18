@@ -49,6 +49,18 @@ public class MomentVO {
     @Schema(description = "关联档口所属食堂名（仅 relatedType=stall 返回，供前端跳档口详情携带 navParams.canteen）")
     private String relatedCanteen;
 
+    @Schema(description = "关联对象缩略图（仅 relatedType=dish 返回，关联菜品主图，供前端卡片展示）")
+    private String relatedImage;
+
+    @Schema(description = "关联菜品平均评分（仅 relatedType=dish 返回，供动态卡片星级展示）")
+    private java.math.BigDecimal relatedRating;
+
+    @Schema(description = "关联菜品评价数（仅 relatedType=dish 返回）")
+    private Integer relatedRatingCount;
+
+    @Schema(description = "当前登录用户是否已点「有用」（未登录为 null/false）")
+    private Boolean useful;
+
     @Schema(description = "审核状态：pending/approved/rejected")
     private String auditStatus;
 

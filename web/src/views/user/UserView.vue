@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
+import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import UserActivityModal from '@/components/UserActivityModal.vue'
 import { Pointer } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
+const userStore = useUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -32,24 +35,46 @@ const statusOptions = [
   { label: '已禁用', value: 'disabled' },
 ]
 
+// 认证状态筛选（task-02：微信登录体系落地后的新字段）
+const verifiedFilter = ref<string>('')
+const verifiedOptions = [
+  { label: '全部认证', value: '' },
+  { label: '已认证', value: '1' },
+  { label: '未认证', value: '0' },
+]
+
 const filteredStudents = computed(() => {
   let list = students.value
   if (statusFilter.value) list = list.filter(u => u.status === statusFilter.value)
+  if (verifiedFilter.value !== '') list = list.filter(u => Number(u.verified ?? 0) === Number(verifiedFilter.value))
   const q = searchQuery.value
   if (!q) return list
   return list.filter(u =>
     u.username.toLowerCase().includes(q) ||
-    (u.nickname || '').toLowerCase().includes(q)
+    (u.nickname || '').toLowerCase().includes(q) ||
+    (u.guestShortId || '').toLowerCase().includes(q)
   )
 })
+
+// openid 脱敏展示：仅保留尾 4 位（管理端可见绑定关系，不外泄完整 openid）
+function maskOpenid(openid?: string): string {
+  if (!openid) return ''
+  if (openid.length <= 4) return openid
+  return `****${openid.slice(-4)}`
+}
 
 // ===== 行内状态快捷切换（正常/禁用） =====
 const switchId = ref<number | null>(null)
 async function toggleStatus(row: any, active: boolean) {
   if (row.status === (active ? 'active' : 'disabled')) return
+  // 禁止管理员操作自己（禁用/启用自身会导致无法登录）
+  if (userStore.adminId != null && Number(row.id) === userStore.adminId) {
+    toast.error('不能操作当前登录的账号')
+    return
+  }
   switchId.value = Number(row.id)
   try {
-    await store.toggleUserStatus(Number(row.id))
+    await store.toggleUserStatus(Number(row.id), active ? 'active' : 'disabled')
     toast.success(`学生「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
   } catch (e: any) {
     toast.error(e.message || '状态更新失败')
@@ -63,10 +88,16 @@ const selectedIds = ref<number[]>([])
 async function batchSetStatus(status: 'active' | 'disabled') {
   if (!selectedIds.value.length) return
   const action = status === 'active' ? '启用' : '禁用'
-  if (!await confirm.confirm(`确定批量${action} ${selectedIds.value.length} 名学生？`)) return
+  // 过滤掉当前登录管理员自身，避免批量封禁把自己踢下线
+  const selfId = userStore.adminId
+  const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status && (selfId == null || Number(u.id) !== selfId))
+  if (!targets.length) {
+    toast.error('所选用户中无可操作的账号')
+    return
+  }
+  if (!await confirm.confirm(`确定批量${action} ${targets.length} 名学生？`)) return
   try {
-    const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
-    for (const u of targets) await store.toggleUserStatus(Number(u.id))
+    for (const u of targets) await store.toggleUserStatus(Number(u.id), status)
     toast.success(`已批量${action} ${targets.length} 名学生`)
     selectedIds.value = []
   } catch (e: any) {
@@ -80,6 +111,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
+        <FilterSelect v-model="verifiedFilter" label="认证" :options="verifiedOptions" :width="150" />
       </template>
       <template #actions>
         <template v-if="selectedIds.length">
@@ -96,6 +128,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
       :columns="[
         { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
         { prop: 'userInfo', label: '用户信息' },
+        { prop: 'verified', label: '认证', width: '90px', align: 'center' },
         { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
 
@@ -107,12 +140,19 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         <span class="avatar-circle">{{ (row.nickname || row.username)[0] }}</span>
       </template>
       <template #cell-userInfo="{ row }">
-        <div class="user-name">{{ row.nickname || row.username }}</div>
+        <div class="user-name">{{ row.nickname || row.guestShortId || row.username }}</div>
         <div class="user-meta">
           <span class="user-username">@{{ row.username }}</span>
-          <span class="user-sep">·</span>
-          <span class="user-date">{{ row.created_at.toLocaleDateString('zh-CN') }} 注册</span>
         </div>
+        <!-- 微信登录体系落地后的新字段（task-02）：微信绑定 / 绑定邮箱 -->
+        <div v-if="row.openid || row.bindEmail" class="user-meta user-bind">
+          <span v-if="row.openid" class="user-wechat" title="微信绑定">微信 {{ maskOpenid(row.openid) }}</span>
+          <span v-if="row.openid && row.bindEmail" class="user-sep">·</span>
+          <span v-if="row.bindEmail" class="user-email">{{ row.bindEmail }}</span>
+        </div>
+      </template>
+      <template #cell-verified="{ row }">
+        <StatusTag :type="Number(row.verified) === 1 ? 'success' : 'gray'" :text="Number(row.verified) === 1 ? '已认证' : '未认证'" />
       </template>
       <template #cell-created="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
       <template #cell-status="{ row }">
@@ -179,7 +219,9 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 }
 .user-username { color: var(--text-muted); }
 .user-sep { color: var(--border-soft); }
-.user-date { color: var(--text-light); }
+.user-bind { margin-top: 0; }
+.user-wechat { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.user-email { color: var(--text-light); font-variant-numeric: tabular-nums; }
 
 /* .act-ico 已收敛至 shared.css 公共类 */
 /* 行内状态开关 */

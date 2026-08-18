@@ -13,6 +13,7 @@ import FormDialog from '@/components/FormDialog.vue'
 import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
+import FilterBar from '@/components/layout/FilterBar.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import DataTable from '@/components/DataTable.vue'
 import DishFormDialog from '@/components/DishFormDialog.vue'
@@ -26,7 +27,7 @@ const confirm = useConfirmStore()
 const page = usePageStore()
 
 function goBack() {
-  router.push('/dashboard/canteens')
+  router.push('/dashboard/content?tab=canteen')
 }
 
 const canteenId = computed(() => Number(route.params.canteenId))
@@ -57,15 +58,29 @@ const dishCount = computed(() => {
   const ids = stalls.value.map(s => Number(s.id))
   return store.dishes.filter(d => ids.includes(Number(d.stall_id))).length
 })
+// 档口 -> 菜品数映射，避免表格行内 O(n×m) 过滤（W-06）
+const stallDishCountMap = computed<Record<number, number>>(() => {
+  const map: Record<number, number> = {}
+  for (const d of store.dishes) {
+    const sid = Number(d.stall_id)
+    if (!Number.isNaN(sid)) map[sid] = (map[sid] || 0) + 1
+  }
+  return map
+})
 
 function openImageModal() {
   showImageModal.value = true
 }
-function saveImageModal() {
+async function saveImageModal() {
   if (canteen.value) {
-    store.updateCanteen(Number(canteen.value.id), { image: canteenForm.value.image })
-    toast.success('图片已更新')
-    originalCanteen.value.image = canteenForm.value.image
+    try {
+      await store.updateCanteen(Number(canteen.value.id), { image: canteenForm.value.image })
+      toast.success('图片已更新')
+      originalCanteen.value.image = canteenForm.value.image
+    } catch (err: any) {
+      toast.error(err.message || '图片保存失败')
+      return
+    }
   }
   showImageModal.value = false
 }
@@ -74,10 +89,9 @@ function closeImageModal() { showImageModal.value = false }
 watch(canteen, (c) => {
   page.setPage({
     breadcrumbs: [
-      { label: '食堂管理', path: '/dashboard/canteens' },
+      { label: '食堂管理', path: '/dashboard/content?tab=canteen' },
       { label: c?.name || '加载中' },
     ],
-    searchPlaceholder: '搜索档口名称...',
   })
   if (c) {
     canteenForm.value = { name: c.name, location: c.location || '', description: c.description || '', image: c.image || '' }
@@ -94,16 +108,21 @@ function toggleEdit() {
   }
 }
 
-function confirmEdit() {
+async function confirmEdit() {
   const errs: Record<string, string> = {}
   if (!canteenForm.value.name.trim()) errs.name = '食堂名称不能为空'
   if (!canteenForm.value.location.trim()) errs.location = '位置不能为空'
   canteenFormErrors.value = errs
   if (Object.keys(errs).length) return
   if (canteen.value) {
-    store.updateCanteen(Number(canteen.value.id), { ...canteenForm.value })
-    toast.success('食堂信息已更新')
-    originalCanteen.value = { ...canteenForm.value }
+    try {
+      await store.updateCanteen(Number(canteen.value.id), { ...canteenForm.value })
+      toast.success('食堂信息已更新')
+      originalCanteen.value = { ...canteenForm.value }
+    } catch (err: any) {
+      toast.error(err.message || '食堂信息更新失败')
+      return
+    }
   }
   canteenFormErrors.value = {}
   editing.value = false
@@ -123,15 +142,16 @@ async function deleteCanteen() {
   try {
     await store.deleteCanteen(Number(canteen.value.id))
     toast.success('食堂已删除')
-    router.push('/dashboard/canteens')
+    router.push('/dashboard/content?tab=canteen')
   } catch (err: any) {
     toast.error(err.message || '食堂删除失败')
   }
 }
 
 const showModal = ref(false)
+const stallSearch = ref('')
 const filtered = computed(() => {
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = stallSearch.value.trim().toLowerCase()
   if (!q) return stalls.value
   return stalls.value.filter(s => s.name.toLowerCase().includes(q) || (s.description || '').toLowerCase().includes(q))
 })
@@ -159,14 +179,14 @@ function openEditStall(id: number) {
   showModal.value = true
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!validate()) return
   try {
     if (editingStallId.value !== null) {
-      store.updateStall(editingStallId.value, { ...form.value })
+      await store.updateStall(editingStallId.value, { ...form.value })
       toast.success('档口已更新')
     } else {
-      store.addStall({ canteen_id: canteenId.value as unknown as bigint, ...form.value, sort_order: 0, avg_rating: 0 })
+      await store.addStall({ canteen_id: canteenId.value as unknown as bigint, ...form.value, sort_order: 0, avg_rating: 0 })
       toast.success('档口已添加')
     }
     showModal.value = false
@@ -194,10 +214,11 @@ const dishModal = ref(false)
 const editingDishId = ref<number | null>(null)
 
 const dishStallOptions = computed(() => stalls.value.map(s => ({ label: s.name, value: Number(s.id) })))
+const dishSearch = ref('')
 const canteenDishes = computed(() => {
   let list = store.dishes.filter(d => stalls.value.some(s => Number(s.id) === Number(d.stall_id)))
   if (dishStallFilter.value) list = list.filter(d => String(d.stall_id) === dishStallFilter.value)
-  const q = page.searchQuery.trim().toLowerCase()
+  const q = dishSearch.value.trim().toLowerCase()
   if (q) list = list.filter(d => (d.name || '').toLowerCase().includes(q))
   return list
 })
@@ -313,6 +334,7 @@ function stallNameOf(stallId: number | bigint): string {
         <template #header-extra>
           <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增档口</button>
         </template>
+        <FilterBar v-model="stallSearch" />
         <DataTable
           :columns="[
             { prop: 'image', label: '图片', width: '72px' },
@@ -325,12 +347,12 @@ function stallNameOf(stallId: number | bigint): string {
           :rows="filtered"
           empty-text="暂无档口">
           <template #cell-image="{ row }">
-            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" />
+            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
             <span v-else class="cell-thumb cell-thumb-empty">图</span>
           </template>
           <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
           <template #cell-desc="{ row }"><span class="cell-sub">{{ row.description || '—' }}</span></template>
-          <template #cell-stats="{ row }">{{ store.dishes.filter(d => Number(d.stall_id) === Number(row.id)).length }}</template>
+          <template #cell-stats="{ row }">{{ stallDishCountMap[Number(row.id)] || 0 }}</template>
           <template #cell-status="{ row }">
             <StatusTag :type="(row.status || 'active') === 'active' ? 'success' : 'gray'" :text="(row.status || 'active') === 'active' ? '营业中' : '已关闭'" />
           </template>
@@ -358,6 +380,7 @@ function stallNameOf(stallId: number | bigint): string {
             <button class="btn-primary" v-press @click="openAddDish"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品</button>
           </div>
         </template>
+        <FilterBar v-model="dishSearch" />
         <DataTable
           :columns="[
             { prop: 'image', label: '图片', width: '72px' },
@@ -370,7 +393,7 @@ function stallNameOf(stallId: number | bigint): string {
           :rows="canteenDishes"
           empty-text="暂无菜品">
           <template #cell-image="{ row }">
-            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" />
+            <img v-if="row.image" :src="row.image.split('|||')[0]" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
             <span v-else class="cell-thumb cell-thumb-empty">图</span>
           </template>
           <template #cell-name="{ row }"><span class="cell-title">{{ row.name }}</span></template>
@@ -450,20 +473,10 @@ function stallNameOf(stallId: number | bigint): string {
 .detail-control { flex: 1; min-width: 0; }
 .detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; max-width: 320px; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
-.form-textarea { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); color: var(--text-primary); outline: none; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); background: var(--bg-card); width: 100%; box-sizing: border-box; resize: vertical; min-height: 50px; }
-.form-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 
 /* ===== 统计卡片（统一 StatCard 组件） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
 .stats-row :deep(.stat-card) { flex: 1; min-width: 0; }
-
-/* ===== 列表头 ===== */
-.list-bar {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4);
-}
-.list-bar h3 { margin: 0; font-size: var(--font-lg); color: var(--text-primary); font-weight: var(--weight-semibold); }
 
 /* ===== 档口表格 ===== */
 .cell-thumb { width: 52px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; display: inline-block; vertical-align: middle; background: var(--bg-soft); }

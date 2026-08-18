@@ -1,18 +1,18 @@
 <script setup lang="ts">
 /**
- * HomeConfigView：首页配置（轮播 / 广播）。
- * 仅 2 个轻量分段，避免与顶层分类卡重复。
+ * HomeConfigView：首页配置（广播 / 分类 / 活动）。
+ * 仅几个轻量分段，避免与顶层分类卡重复。
  */
 import { ref } from 'vue'
-import BannerManageView from '@/views/banner/BannerManageView.vue'
 import BroadcastManage from '@/views/content/BroadcastManage.vue'
 import CategoryManage from '@/views/content/CategoryManage.vue'
+import ActivityManage from '@/views/content/ActivityManage.vue'
 
-const active = ref<'banner' | 'broadcast' | 'category'>('banner')
+const active = ref<'broadcast' | 'category' | 'activity'>('broadcast')
 const segments = [
-  { key: 'banner', label: '轮播' },
   { key: 'broadcast', label: '广播' },
   { key: 'category', label: '分类' },
+  { key: 'activity', label: '活动' },
 ] as const
 </script>
 
@@ -29,9 +29,9 @@ const segments = [
         @click="active = s.key"
       >{{ s.label }}</button>
     </div>
-    <BannerManageView v-if="active === 'banner'" />
-    <BroadcastManage v-else-if="active === 'broadcast'" />
-    <CategoryManage v-else />
+    <BroadcastManage v-if="active === 'broadcast'" />
+    <CategoryManage v-else-if="active === 'category'" />
+    <ActivityManage v-else />
   </div>
 </template>
 

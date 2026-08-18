@@ -12,11 +12,11 @@ package com.bjtufood.auth.service;
 public interface EmailCodeService {
 
     /**
-     * 生成并发送邮箱验证码
+     * 生成并发送邮箱验证码（认证用途 verify，spec §5.y.5）
      *
      * @param username 学号/账号（可选）；未传 email 时收件邮箱推导为 {username}@bjtu.edu.cn
      * @param email    收件邮箱（可选）；与 username 二选一
-     * @param purpose  用途（login / register / reset）
+     * @param purpose  用途：仅 verify（学号邮箱认证）；其他取值一律归一为 verify
      */
     void sendCode(String username, String email, String purpose);
 }

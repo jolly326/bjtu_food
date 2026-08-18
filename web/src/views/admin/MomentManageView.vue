@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import DataTable from '@/components/DataTable.vue'
@@ -41,36 +41,71 @@ const rows = ref<MomentManageVO[]>([])
 // 多选（批量操作）
 const selectedIds = ref<number[]>([])
 
-const filtered = computed(() => {
-  // 状态过滤已由服务端按分段透传，此处仅做关键词（内容 / 作者）本地检索
-  const q = searchQuery.value
-  if (!q) return rows.value
-  return rows.value.filter(
-    r => (r.content || '').toLowerCase().includes(q) || (r.userNickname || '').toLowerCase().includes(q),
-  )
-})
+// ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 请求竞态守卫：仅接受最新一次请求结果，丢弃过期响应（防连续输入数据错乱）
+let reqToken = 0
 
 async function loadList() {
   loading.value = true
   error.value = ''
+  const token = ++reqToken
   try {
     const { momentApi } = await import('@/api')
-    const res = await momentApi.listMoments({ pageSize: 500, ...segmentFilter.value })
+    const res = await momentApi.listMoments({
+      page: page.value,
+      keyword: searchQuery.value.trim() || undefined,
+      pageSize: pageSize.value,
+      ...segmentFilter.value,
+    })
+    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
+    total.value = res.total
   } catch (e: any) {
+    if (token !== reqToken) return
     error.value = e.message || '加载动态列表失败'
     rows.value = []
+    total.value = 0
   } finally {
-    loading.value = false
+    if (token === reqToken) loading.value = false
   }
 }
+
+// 关键词/分段变化时回到第 1 页并重新请求（受控分页：翻页即重新拉取对应页）
+async function reloadFromFirstPage() {
+  page.value = 1
+  selectedIds.value = []
+  await loadList()
+}
+function onPageChange() {
+  // 翻页时清空跨页多选，避免选中不可见行
+  selectedIds.value = []
+  loadList()
+}
+
+// 关键词检索已改为服务端 keyword 过滤（后端按 content/userNickname 模糊），
+// 翻页/清空关键词会重新拉取对应页，不再本地截断当前页子集。
+const filtered = computed(() => rows.value)
+
+// 关键词变化（输入或清空）→ 回到第 1 页重新拉取对应页（受控分页，不假设单页全量）
+// 加 300ms 防抖，避免连续输入每个 keystroke 都发请求（去重），并 await 确保完成。
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { reloadFromFirstPage() }, 300)
+})
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
 onMounted(loadList)
 
 async function onSegmentChange(s: Segment) {
   if (activeSegment.value === s) return
   activeSegment.value = s
-  await loadList()
+  await reloadFromFirstPage()
 }
 
 // ===== 详情抽屉 =====
@@ -215,6 +250,11 @@ async function handleDeleteComment(c: MomentComment) {
     <DataTable
       selectable
       v-model:selectedIds="selectedIds"
+      server-mode
+      :server-total="total"
+      v-model:server-page="page"
+      v-model:server-page-size="pageSize"
+      @page-change="onPageChange"
       :columns="[
         { prop: 'author', label: '作者', width: '160px' },
         { prop: 'content', label: '内容摘要', ellipsis: true },
@@ -372,10 +412,5 @@ async function handleDeleteComment(c: MomentComment) {
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .danger-text { color: var(--color-error) !important; }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
-.btn-cancel { padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
-.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
-
-/* 批量操作按钮 */
+/* 批量操作按钮（btn-cancel/btn-danger 走 shared.css 全局基线） */
 </style>

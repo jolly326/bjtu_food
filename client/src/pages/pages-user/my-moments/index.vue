@@ -1,8 +1,8 @@
 <template>
   <view class="page my-moments-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的动态" showBack />
+    <Header title="我的动态" @back="backToHome" />
 
-    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过消息中心提醒） -->
+    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && moments.length === 0" class="skeleton-list">
         <view v-for="s in 3" :key="s" class="sk-card skeleton" />
@@ -19,7 +19,7 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade 0.2s + 40ms 间隔） -->
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔） -->
         <MomentCard
           v-for="(m, i) in moments"
           :key="m.id"
@@ -29,18 +29,30 @@
           :show-audit="true"
           @select="goDetail"
           @go-related="goRelated"
+          @more="openMore"
         />
       </view>
 
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 菜品详情底部弹层（task-10：独立页 → sheet） -->
-    <DishDetailSheet
-      :open="dishSheetOpen"
-      :dish-id="sheetDishId"
-      top-offset="176rpx"
-      @update:open="dishSheetOpen = $event"
+    <!-- 举报弹窗（共享组件） -->
+    <ReportModal
+      :open="reportOpen"
+      title="举报动态"
+      placeholder="请描述举报原因…"
+      confirm-text="提交举报"
+      :submitting="reportSubmitting"
+      @update:open="reportOpen = $event"
+      @submit="submitReport"
+    />
+
+    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
+    <MomentActionSheet
+      :open="moreOpen"
+      :moment="moreMoment"
+      @update:open="moreOpen = $event"
+      @report="openReport"
     />
 
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
@@ -50,30 +62,70 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
-import Header from '@/components/header.vue'
-import MomentCard from '@/components/MomentCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import DishDetailSheet from '@/components/DishDetailSheet.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
-import { useDishStore } from '@/stores/dish'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
+import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { backToHome } from '@/utils/nav'
+import Header from '@/components/header.vue'
+import MomentCard from '@/components/MomentCard.vue'
+import MomentActionSheet from '@/components/MomentActionSheet.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ReportModal from '@/components/ReportModal.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
-const dishStore = useDishStore()
 const theme = useThemeStore()
 const moments = ref<Moment[]>([])
-/** 菜品详情底部弹层（task-10：独立页 → sheet） */
-const dishSheetOpen = ref(false)
-const sheetDishId = ref(0)
-function openDishSheet(id: number) {
+function openDishDetail(id: number) {
   if (!id) return
-  sheetDishId.value = id
-  dishSheetOpen.value = true
+  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+}
+
+/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
+const moreOpen = ref(false)
+const moreMoment = ref<Moment | null>(null)
+
+function openMore(m: Moment) {
+  moreMoment.value = m
+  moreOpen.value = true
+}
+
+/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
+const reportOpen = ref(false)
+const reportSubmitting = ref(false)
+const reportTarget = ref<Moment | null>(null)
+
+function openReport(m: Moment) {
+  if (!userStore.requireAuth(() => openReport(m))) return
+  reportTarget.value = m
+  reportOpen.value = true
+}
+
+async function submitReport(text: string) {
+  if (!reportTarget.value) return
+  if (!text) {
+    uni.showToast({ title: '请填写举报原因', icon: 'none' })
+    return
+  }
+  reportSubmitting.value = true
+  try {
+    await submitFeedback({
+      type: 'report',
+      content: text,
+      relatedType: 'moment',
+      relatedId: reportTarget.value.id,
+    })
+    uni.showToast({ title: '举报已提交', icon: 'success' })
+    reportOpen.value = false
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 const loading = ref(false)
 const loadFailed = ref(false)
@@ -86,8 +138,8 @@ async function loadData() {
   try {
     moments.value = await momentApi.getMyMoments()
   } catch (e: any) {
+    // 网络/业务错误 http 层已统一 toast，页面仅置失败态（空态展示重试），避免重复提示
     loadFailed.value = true
-    uni.showToast({ title: e.message || '加载失败', icon: 'none' })
     moments.value = []
   } finally {
     loading.value = false
@@ -105,12 +157,9 @@ function goDetail(m: Moment) {
 
 function goRelated(m: Moment) {
   if (m.relatedType === 'dish' && m.relatedId) {
-    openDishSheet(m.relatedId)
-  } else if (m.relatedType === 'stall' && m.relatedName && m.relatedCanteen) {
-    // 档口详情靠 navParams（stallName + canteen）加载，不能用 ?id=（stall 页不支持）
-    dishStore.navParams = { stallName: m.relatedName, canteen: m.relatedCanteen }
-    uni.navigateTo({ url: '/pages/pages-detail/stall' })
+    openDishDetail(m.relatedId)
   }
+  // 档口详情页已下线（2026-08-09）：相关档口不再展示跳转入口
 }
 
 function onRefresh() {
@@ -119,12 +168,13 @@ function onRefresh() {
   loadData().finally(() => { refresherTriggered.value = false })
 }
 
-// 游客直访时弹认证；认证成功后自动加载
+// 游客直访时弹认证（loadData 内 requireAuth）；认证成功后（isVerified 由 false→true）自动加载
 watch(
-  () => userStore.isLoggedIn(),
-  (v) => { if (v) loadData() },
+  () => userStore.isVerified(),
+  () => loadData(),
   { immediate: true },
 )
+onShow(() => clearShareState())
 onShareAppMessage(() => buildSharePayload())
 </script>
 

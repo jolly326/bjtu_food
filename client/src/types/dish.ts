@@ -23,6 +23,8 @@ export interface Dish {
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
   /** 所属档口 ID（分享深链到档口详情用） */
   stallId?: number
+  /** 所属品类 ID（category.id，首页品类滚轮选中态映射用） */
+  categoryId?: number
   /** 档口所属楼层（如 1F/2F） */
   floor?: string
   /** 窗口号 */
@@ -46,9 +48,17 @@ export interface Dish {
   promoPrice?: number
   /** 发布者用户 ID（task-12.5：仅本人可删除自己发布的菜品） */
   createdBy?: number
+  /** 距当前用户距离（米）：由前端基于 locationStore 用户坐标 + Haversine 本地计算写回，未定位/无坐标时为 undefined */
+  distance?: number
+  /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
+  region?: string
+  /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
+  latitude?: number
+  /** 食堂经度（GCJ-02），来自 canteen 联表 */
+  longitude?: number
 }
 
-export interface RatingDistribution {
+interface RatingDistribution {
   star: number
   count: number
 }
@@ -63,6 +73,8 @@ export interface DishQuery {
   keyword?: string
   /** 食堂 ID（task-02 多维筛选） */
   canteenId?: number
+  /** 品类 ID（category.id，首页品类滚轮筛选） */
+  categoryId?: number
   /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
   tag?: string
   /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */
@@ -77,23 +89,6 @@ export interface DishQuery {
   pageSize?: number
 }
 
-/** 搜索联想项（GET /dishes/suggest，task-02；混合菜品/档口/食堂） */
-export interface Suggestion {
-  /** dish / stall / canteen */
-  type: 'dish' | 'stall' | 'canteen'
-  id: number
-  name: string
-  image: string
-  /** 所属食堂名（仅 stall 类型返回，跳档口详情需携带 navParams.canteen） */
-  canteen?: string
-  /** 价格（单位：分；仅 dish 类型，展示前需转元） */
-  price?: number
-  /** 平均评分（仅 dish 类型） */
-  rating?: number
-  /** 评价数（仅 dish 类型） */
-  ratingCount?: number
-}
-
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */
 export interface HotSearch {
   keyword: string
@@ -103,18 +98,4 @@ export interface HotSearch {
   relatedCount?: number
 }
 
-/** 「我的发布」菜品（含审核态与退回原因，供审核状态页展示） */
-export interface MyPublishDish {
-  id: number
-  name: string
-  /** 单位：元（已在 api 层由分转元，勿在页面再算） */
-  price: number
-  image?: string
-  images?: string[]
-  description?: string
-  tags?: string
-  auditStatus?: AuditStatus
-  /** audit_status=rejected 时由后台填写 */
-  rejectReason?: string
-  createTime?: string
-}
+
