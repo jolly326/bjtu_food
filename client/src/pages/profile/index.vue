@@ -34,26 +34,6 @@
         </view>
       </view>
 
-      <!-- 认证引导卡片：游客（未认证）点击弹认证引导（§5.y 入口不置灰） -->
-      <view
-        v-if="!isVerified"
-        class="auth-guide"
-        role="button"
-        :aria-label="'认证解锁社区功能'"
-        hover-class="pressed"
-        hover-stay-time="80"
-        @tap="onAuthGuideTap"
-      >
-        <view class="auth-guide-icon">
-          <IconSvg name="lock" :size="36" color="var(--color-primary)" />
-        </view>
-        <view class="auth-guide-copy">
-          <text class="auth-guide-title">认证解锁社区</text>
-          <text class="auth-guide-desc">完成学号邮箱认证，解锁发布 / 评价 / 点赞 / 动态</text>
-        </view>
-        <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="auth-guide-arrow" />
-      </view>
-
       <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导） -->
       <view class="entry-group">
         <view
@@ -80,25 +60,6 @@
             <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
           </view>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
-        </view>
-      </view>
-
-      <!-- 清除本地登录态（微信重新打开仍静默登录，语义见 §5.y） -->
-      <view class="entry-group logout-group">
-        <view
-          class="entry-row logout-row"
-          :class="{ pressed: logoutPressed }"
-          role="button"
-          aria-label="清除本地登录态"
-          @touchstart="logoutPressed = true"
-          @touchend="logoutPressed = false"
-          @touchcancel="logoutPressed = false"
-          @mousedown="logoutPressed = true"
-          @mouseup="logoutPressed = false"
-          @mouseleave="logoutPressed = false"
-          @tap="onLogout"
-        >
-          <text class="logout-label">清除本地登录态</text>
         </view>
       </view>
     </scroll-view>
@@ -142,9 +103,9 @@ onLoad((q) => {
   userStore.silentLogin()
 })
 
-// 每次进入「我的」刷新未读通知数（红点角标；游客亦可有通知）
+// 每次进入「我的」刷新未读通知数（红点角标；通知属认证专属，仅认证用户刷新未读数）
 onShow(() => {
-  if (userStore.isLoggedIn()) notifyStore.fetchUnread()
+  if (userStore.isVerified()) notifyStore.fetchUnread()
 })
 
 /** 需认证入口统一拦截：未认证（verified=false）弹认证引导，认证成功后自动继续原动作（§5.y 入口不置灰） */
@@ -156,18 +117,13 @@ function requireAuth(action: () => void) {
   authSheetStore.requireAuth(action)
 }
 
-/** 用户卡：已认证点击进个人信息页；游客点击进认证页（完整页形态） */
+/** 用户卡：已认证点击进个人信息页；游客点击唤起底部认证弹窗（统一认证入口，不单独写页） */
 function onUserCardTap() {
   if (!userStore.isVerified()) {
-    uni.navigateTo({ url: '/pages/profile/verify/index' })
+    authSheetStore.show()
     return
   }
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
-}
-
-/** 认证引导卡片：点击进独立认证页（完整页形态，§2.4） */
-function onAuthGuideTap() {
-  uni.navigateTo({ url: '/pages/profile/verify/index' })
 }
 
 /** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们 */
@@ -179,29 +135,13 @@ const entryItems = [
   { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
-/** 清除本地登录态（微信重新打开仍静默登录） */
-const logoutPressed = ref(false)
-function onLogout() {
-  uni.showModal({
-    title: '清除本地登录态',
-    content: '将清除当前登录信息，重新打开小程序仍会自动登录。确定清除吗？',
-    confirmText: '清除',
-    cancelText: '取消',
-    confirmColor: '#FF3B30',
-    success: (res) => {
-      if (res.confirm) {
-        userStore.logout()
-        notifyStore.reset()
-        uni.showToast({ title: '已清除本地登录态', icon: 'none' })
-      }
-    },
-  })
-}
+
 </script>
 
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: env(safe-area-inset-bottom); }
+/* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
 
 /* 用户卡（白底圆角卡 + 轻阴影；圆形头像 + 昵称 + ID；整卡可点；按压背景微变+缩放） */
 .user-card {
@@ -227,22 +167,6 @@ function onLogout() {
 .verify-badge { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: var(--radius-pill); background: var(--color-primary-soft); }
 .verify-badge-text { font-size: 20rpx; color: var(--color-primary); font-weight: var(--weight-semibold); }
 .card-arrow { flex-shrink: 0; }
-
-/* 认证引导卡片（游客态，§5.y 入口不置灰）：主色浅底 + 锁图标 + 说明 + 右箭头 */
-.auth-guide {
-  display: flex; align-items: center; gap: var(--spacing-md);
-  margin: 0 var(--spacing-md) var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-card);
-  transition: transform var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.auth-guide-icon { flex-shrink: 0; width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--bg-card); display: flex; align-items: center; justify-content: center; }
-.auth-guide-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.auth-guide-title { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); }
-.auth-guide-desc { font-size: var(--font-aux); line-height: 1.4; color: var(--text-secondary); }
-.auth-guide-arrow { flex-shrink: 0; }
 
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
 .entry-group {
@@ -285,13 +209,8 @@ function onLogout() {
 }
 .entry-badge-text { font-size: 20rpx; color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
 
-/* 清除本地登录态（警示红，独立分组 + 上间距） */
-.logout-group { margin-top: var(--spacing-md); }
-.logout-row { justify-content: center; -webkit-tap-highlight-color: transparent; }
-.logout-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-error); }
-
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .entry-row, .auth-guide { transition: none; }
+  .user-card, .entry-row { transition: none; }
   .user-card:active, .entry-row.pressed:active { transform: none; }
 }
 </style>

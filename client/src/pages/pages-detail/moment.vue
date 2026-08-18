@@ -107,7 +107,8 @@
 
         <!-- 评论单独卡片（id 供「评论」按钮 scroll-into-view 定位） -->
         <view id="comment-section" class="comment-section">
-          <SectionTitle :title="`评论 (${moment.commentCount})`" />
+          <!-- 评论区标题：不加左侧装饰竖线（简洁分区；评论内容本身无竖线装饰） -->
+          <SectionTitle :title="`评论 (${moment.commentCount})`" :bar="false" />
           <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="comment" />
           <view v-else class="comment-list">
             <CommentItem

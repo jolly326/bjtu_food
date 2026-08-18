@@ -24,13 +24,21 @@
           @mouseleave="pressedId = null"
           @tap="openActivity(act)"
         >
+          <!-- 公众号文章卡片：来源标识 + 日期 / 标题 / 摘要 / 阅读原文 -->
           <view class="activity-card-head">
-            <text class="activity-title">{{ act.title }}</text>
+            <view class="activity-source">
+              <view class="activity-source-icon">
+                <IconSvg name="broadcast" :size="26" color="var(--color-primary)" />
+              </view>
+              <text class="activity-source-text">食堂公众号</text>
+            </view>
             <text v-if="act.publishTime" class="activity-time">{{ formatTime(act.publishTime) }}</text>
           </view>
+          <text class="activity-title">{{ act.title }}</text>
           <text v-if="act.description" class="activity-desc">{{ act.description }}</text>
           <view class="activity-card-foot">
-            <text class="activity-link">{{ act.articleUrl ? '查看活动详情 ›' : '敬请关注' }}</text>
+            <text class="activity-link" :class="{ 'activity-link--muted': !act.articleUrl }">{{ act.articleUrl ? '阅读原文' : '敬请关注' }}</text>
+            <IconSvg v-if="act.articleUrl" name="arrow" :size="24" color="var(--color-primary)" />
           </view>
         </view>
       </view>
@@ -53,6 +61,7 @@ import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
 
@@ -151,10 +160,33 @@ onLoad(() => {
 }
 .activity-card-head {
   display: flex;
-  flex-direction: column;
-  gap: 4rpx;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+/* 来源标识：公众号小图标 + 文字 */
+.activity-source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+}
+.activity-source-icon {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: var(--radius-icon);
+  background: var(--color-primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.activity-source-text {
+  font-size: var(--font-aux);
+  font-weight: var(--weight-semibold);
+  color: var(--color-primary);
 }
 .activity-title {
+  margin-top: var(--spacing-xs);
   font-size: var(--font-title);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
@@ -163,6 +195,7 @@ onLoad(() => {
 .activity-time {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 .activity-desc {
   font-size: var(--font-body);
@@ -172,11 +205,16 @@ onLoad(() => {
 .activity-card-foot {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-top: var(--spacing-xs);
 }
 .activity-link {
-  font-size: var(--font-aux);
+  font-size: var(--font-small);
   font-weight: var(--weight-semibold);
   color: var(--color-primary);
+}
+.activity-link--muted {
+  color: var(--text-tertiary);
 }
 .loading-more {
   text-align: center;

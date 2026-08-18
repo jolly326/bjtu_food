@@ -412,10 +412,5 @@ async function handleDeleteComment(c: MomentComment) {
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .danger-text { color: var(--color-error) !important; }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
-.btn-cancel { padding: var(--space-2) var(--space-5); background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); }
-.btn-cancel:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.btn-danger { padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius); background: var(--bg-card); color: var(--color-error); font-size: var(--font-base); cursor: pointer; font-weight: var(--weight-medium); display: inline-flex; align-items: center; gap: var(--space-1); }
-.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
-
-/* 批量操作按钮 */
+/* 批量操作按钮（btn-cancel/btn-danger 走 shared.css 全局基线） */
 </style>

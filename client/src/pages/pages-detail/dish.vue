@@ -97,14 +97,10 @@
           </view>
         </CardSection>
 
-        <!-- 5. 综合评分卡：左大分数居中 + 右星级分布（星图标 + 星数 + 横条 + 数量） -->
+        <!-- 5. 综合评分卡：左大分数居中 + 右星级分布（星图标 + 星数 + 横条 + 数量；右上角写评价已移除，统一走评价卡头入口） -->
         <CardSection>
           <view class="summary-head">
             <text class="summary-head-title">综合评分</text>
-            <text class="write-review-link" @tap="goWriteReview" role="button" aria-label="写评价">
-              <IconSvg name="edit" :size="22" color="var(--color-primary)" />
-              <text class="write-review-text">写评价</text>
-            </text>
           </view>
           <view v-if="dish.ratingCount > 0" class="summary-body">
             <view class="summary-left">
@@ -138,7 +134,7 @@
         <!-- 6. 评价卡片：整卡一张（卡头标题 + 卡内评价条目 + footer），与动态卡片形态趋同 -->
         <view class="review-section" id="review-section">
           <view class="review-card">
-            <!-- 卡头：标题（无竖条）+ 写评价入口 -->
+            <!-- 卡头：标题（无竖条）+ 写评价入口（唯一入口，字号加大避免过小） -->
             <view class="review-card-head">
               <text class="review-card-title">评价 ({{ reviewTotal }})</text>
               <view class="review-write" role="button" aria-label="写评价" @tap="goWriteReview">
@@ -157,6 +153,7 @@
                 flat
                 @delete="onDeleteReview"
                 @report="onReviewReport"
+                @more="onReviewMore"
               />
             </view>
             <view v-else class="review-empty">
@@ -195,6 +192,9 @@
       @update:open="reportOpen = $event"
       @submit="submitReviewReport"
     />
+
+    <!-- 认证弹层：写评价/点赞等需认证入口统一底部弹出（z-index 300 高于 action-bar 50，不会被详情内容遮挡） -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -220,6 +220,7 @@ import Header from '@/components/header.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
 
 const theme = useThemeStore()
@@ -473,6 +474,19 @@ function goWriteReview() {
   uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}&from=dish` })
 }
 
+/** 评价右上角三点菜单：本人 → 删除；他人 → 举报（与动态三点菜单交互一致） */
+function onReviewMore(rv: Review) {
+  if (!userStore.requireAuth(() => onReviewMore(rv))) return
+  const isOwn = userStore.userInfo?.id != null && rv.userId === userStore.userInfo.id
+  uni.showActionSheet({
+    itemList: isOwn ? ['删除评价'] : ['举报评价'],
+    success: (res) => {
+      if (isOwn) onDeleteReview(rv)
+      else onReviewReport(rv)
+    },
+  })
+}
+
 /* ===== 评价举报（复用共享 ReportModal） ===== */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
@@ -561,10 +575,6 @@ const hasMetrics = computed(() => {
 /* 5. 综合评分卡：左大分数居中 + 右星级分布（星图标 + 星数 + 横条 + 数量） */
 .summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
 .summary-head-title { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-/* 写评价：纯文字链接，无胶囊背景、无圆角、无 padding，仅主色 + 图标 + semibold */
-.write-review-link { display: inline-flex; align-items: center; gap: 6rpx; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); line-height: 1; -webkit-tap-highlight-color: transparent; transition: opacity var(--duration-fast) ease; }
-.write-review-link:active { opacity: 0.55; }
-.write-review-text { line-height: 1; }
 .summary-body { display: flex; align-items: center; gap: var(--spacing-lg); }
 /* 左栏：大分数 + 人数列组，垂直水平双居中 */
 .summary-left { flex: 0 0 160rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-xs); }
@@ -616,7 +626,7 @@ const hasMetrics = computed(() => {
   -webkit-tap-highlight-color: transparent;
 }
 .review-write:active { opacity: 0.6; }
-.review-write-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+.review-write-text { font-size: var(--font-card); color: var(--color-primary); font-weight: var(--weight-semibold); }
 .review-list { display: flex; flex-direction: column; }
 .review-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-lg) 0; }
 .view-all {

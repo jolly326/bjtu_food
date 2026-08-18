@@ -15,8 +15,6 @@ const confirm = useConfirmStore()
 
 const searchQuery = ref('')
 
-const loading = ref(false)
-const error = ref('')
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
 
@@ -161,8 +159,6 @@ async function batchDelete() {
 
       ]"
       :rows="rows"
-      :loading="loading"
-      :error="error"
       empty-text="暂无菜品">
       <template #cell-image="{ row }">
         <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />

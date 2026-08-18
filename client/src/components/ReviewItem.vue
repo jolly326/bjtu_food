@@ -17,18 +17,26 @@
       <view class="review-head">
         <view class="review-head-left">
           <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
-          <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
         </view>
-        <!-- 右上角操作：举报（他人）/ 删除（本人），从 footer 上移 -->
-        <view class="review-head-ops">
-          <text v-if="!isOwn && !hideReport" class="review-op review-op--report" role="button" aria-label="举报评价" @tap.stop="onReport(review)">举报</text>
-          <text v-if="canDelete" class="review-op review-op--delete" role="button" aria-label="删除评价" @tap.stop="onDelete">删除</text>
+        <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet -->
+        <view v-if="!hideReport || canDelete" class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
+          <IconSvg name="more-v" :size="36" color="var(--text-tertiary)" />
         </view>
       </view>
-      <!-- 评分：1 颗星 + 数字（与动态卡关联菜品星级统一为单星形态） -->
-      <view class="review-rating" v-if="(review.rating || 0) > 0">
-        <IconSvg name="star-filled" :size="24" color="var(--color-star)" class="review-star" />
-        <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
+      <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
+      <view class="review-meta">
+        <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${(review.rating || 0).toFixed(1)} 分`">
+          <IconSvg
+            v-for="n in Math.min(Math.max(Math.round(review.rating || 0), 1), 5)"
+            :key="n"
+            name="star-filled"
+            :size="22"
+            color="var(--color-star)"
+            class="review-star"
+          />
+          <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
+        </view>
+        <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
       <view class="review-foot" v-if="review.images && review.images.length">
@@ -91,6 +99,7 @@ const emit = defineEmits<{
   (e: 'like', review: Review): void
   (e: 'report', review: Review): void
   (e: 'delete', review: Review): void
+  (e: 'more', review: Review): void
 }>()
 
 const pressed = ref(false)
@@ -143,6 +152,10 @@ function onDelete() {
   emit('delete', props.review)
 }
 function onReport(r: Review) { emit('report', r) }
+/** 右上角三点菜单：操作由父页面以 ActionSheet 呈现（举报他人 / 删除本人） */
+function onMore() {
+  emit('more', props.review)
+}
 
 function previewImage(idx: number) {
   previewImages(props.review.images, idx)
@@ -203,50 +216,74 @@ function onThumbError(idx: number) {
 }
 .review-avatar-empty { display: flex; align-items: center; justify-content: center; }
 
-/* 右侧内容 */
+/* 右侧内容：行距与动态卡 m-head-right 一致（2xs），昵称与第二行不再因叠加间距拉开 */
 .review-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-2xs);
 }
 
-/* 头部：左列昵称+时间垂直堆叠，右上角操作（举报/删除） */
+/* 头部：昵称（左）+ 竖三点（右，绝对定位不撑高头行，保证昵称与第二行间距紧凑） */
 .review-head {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-sm);
+  align-items: center;
 }
+/* 头部第一行：昵称，右侧预留三点按钮空间 */
 .review-head-left {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2xs);
+  flex: 1;
   min-width: 0;
+  padding-right: 64rpx;
+  display: flex;
+  align-items: center;
 }
 .review-nickname {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-h3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.review-time {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-.review-head-ops {
-  flex-shrink: 0;
+/* 第二行：评分（星星+数字）与发布时间小间隙同行（不推右）；间距由 review-body gap 提供，不叠加 margin */
+.review-meta {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
 }
+.review-time {
+  flex-shrink: 0;
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
 
-/* 星级 + 分值：与动态卡片 m-rating 一致（--color-star 金黄 + 灰字分值） */
-.review-rating { display: inline-flex; align-items: center; gap: 2rpx; }
+/* 评分：黄色实星（1-5 颗，最低 1 颗）+ 右侧分值数字 */
+.review-stars { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
 .review-star { display: inline-block; }
-.review-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
+.review-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
+
+/* 右上角竖三点：绝对定位于头行右上，不参与行高（否则 64rpx 会撑开昵称与第二行的间距） */
+.review-more {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  transition: opacity var(--duration-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.review-more:active { opacity: 0.5; }
 
 /* 正文：转主色（提升阅读重心），与昵称拉开层级 */
 .review-content {

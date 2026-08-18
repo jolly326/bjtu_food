@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `user`
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
     `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin / super_admin',
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
-    `openid`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信 openid（静默登录取号依据，唯一）',
+    `openid`       VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信游客/已认证账号有值，历史学号账号为 NULL）',
     `unionid`      VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）',
     `verified`     TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）',
     `bind_email`   VARCHAR(128) NULL     DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）',
@@ -243,6 +243,24 @@ CREATE TABLE IF NOT EXISTS `broadcast`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='首页广播通知条';
+
+-- -------------------- 最新活动（公众号文章卡片） --------------------
+CREATE TABLE IF NOT EXISTS `activity`
+(
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '活动ID',
+    `title`       VARCHAR(100) NOT NULL DEFAULT '' COMMENT '活动/文章标题',
+    `description` VARCHAR(500) NULL    DEFAULT NULL COMMENT '摘要（卡片副文案）',
+    `image`       VARCHAR(500) NULL    DEFAULT NULL COMMENT '封面图 URL（公众号文章封面，可空）',
+    `article_url` VARCHAR(500) NULL    DEFAULT NULL COMMENT '公众号文章链接（小程序 web-view 打开）',
+    `status`      VARCHAR(20)  NOT NULL DEFAULT 'enabled' COMMENT '展示状态：enabled/disabled',
+    `sort_order`  INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_activity_status_sort` (`status`, `sort_order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='最新活动（公众号文章卡片）';
 
 -- -------------------- 美食清单 --------------------
 CREATE TABLE IF NOT EXISTS `item_list`
@@ -581,7 +599,7 @@ BEGIN
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'openid'
     ) THEN
         ALTER TABLE `user`
-            ADD COLUMN `openid`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '微信 openid（静默登录取号依据，唯一）';
+            ADD COLUMN `openid`     VARCHAR(64)  NULL DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信账号有值，历史学号账号为 NULL）';
     END IF;
 
     IF NOT EXISTS (

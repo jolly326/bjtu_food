@@ -20,8 +20,9 @@
       @touchcancel="onTouchEnd"
     >
       <view class="sheet-grabber" />
+      <!-- 头部仅保留关闭按钮；标题由 AuthForm 承接（「学号邮箱认证」+ 副标题，避免重复）
+           分隔线下方直接是标题 + 输入区域（§5.y 认证弹层） -->
       <view class="sheet-head">
-        <text class="sheet-title">学号邮箱认证</text>
         <view class="sheet-close" @tap="hide" aria-label="关闭">
           <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
         </view>
@@ -68,7 +69,9 @@ const sheetStyle = computed(() => ({
   transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
+// 用户主动关闭（遮罩/关闭按钮/下拉）未完成认证：清除待办，避免过期动作在后续认证成功后误执行
 function hide() {
+  authSheetStore.clearPending()
   authSheetStore.hide()
 }
 
@@ -153,9 +156,8 @@ function onTouchEnd() {
 /* 顶部小横条：与 ApplySheet 同款（72×8、999rpx、--overlay-dark-soft 半透明深色） */
 .sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 
-/* 头部：标题 + 关闭，底部分隔线（与 ApplySheet sheet-head 一致） */
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
+/* 头部：仅关闭按钮（标题由 AuthForm 承接），底部分隔线下方直接是标题+输入区 */
+.sheet-head { display: flex; align-items: center; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .sheet-close { padding: 0 var(--spacing-xs); }
 
 /* 滚动内容区：表单内部布局由 AuthForm 承担，此处只负责滚动与底部安全区 */

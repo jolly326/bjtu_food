@@ -84,7 +84,7 @@ function formatTime(iso: string) {
 }
 
 async function load() {
-  if (!userStore.isLoggedIn()) return
+  if (!userStore.isVerified()) return
   loading.value = true
   loadFailed.value = false
   try {
@@ -120,10 +120,10 @@ async function onTap(n: Notification) {
   // comment / useful 无独立目标页，仅标已读
 }
 
-// 未登录时访问弹认证；登录后加载
+// 通知属认证专属：游客访问由 profile 入口 requireAuth 弹认证；认证后加载
 watch(() => userStore.userInfo, (info) => { if (info) load() })
 onShow(() => {
-  if (userStore.isLoggedIn()) load()
+  if (userStore.isVerified()) load()
 })
 </script>
 

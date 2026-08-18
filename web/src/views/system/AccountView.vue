@@ -42,7 +42,7 @@ const isSuper = computed(() => adminUser.myRole === 'super_admin')
   top: 3px;
   bottom: 3px;
   width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color-primary);
 }
 </style>

@@ -7,6 +7,7 @@ import { ElMessage } from 'element-plus'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior: () => ({ top: 0 }),
   routes: [
     { path: '/', redirect: '/login' },
     { path: '/login', name: 'login', component: LoginView },
@@ -20,6 +21,7 @@ const router = createRouter({
         { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue'), meta: { role: 'super_admin' } },
         { path: 'canteens/:canteenId', name: 'canteenDetail', component: () => import('@/views/canteen/CanteenDetailView.vue') },
         { path: 'canteens/:canteenId/stalls/:stallId', name: 'stallDetail', component: () => import('@/views/canteen/StallDetailView.vue') },
+        { path: 'canteens/:canteenId/stalls/:stallId/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
         { path: 'account', name: 'account', component: () => import('@/views/admin/AccountSettingsView.vue') },
       ],
     },

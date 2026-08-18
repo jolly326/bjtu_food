@@ -184,6 +184,13 @@ INSERT INTO review_useful (user_id, review_id, created_at) VALUES
 (2, 5, NOW()), (4, 5, NOW()),
 (1, 6, NOW()), (3, 6, NOW());
 
+-- -------------------- 最新活动（公众号文章卡片，article_url 由小程序 web-view 打开；无唯一键，先清后插保证可重复执行） --------------------
+DELETE FROM activity;
+INSERT INTO activity (title, description, image, article_url, status, sort_order) VALUES
+('开学季食堂焕新：7 大食堂全新菜单抢先看', '学苑区与明湖餐厅全面上新，招牌菜测评合集出炉', NULL, 'https://mp.weixin.qq.com/s/example-activity-1', 'enabled', 1),
+('冬季暖胃指南：这些食堂招牌菜值得一试',     '天一冷就想吃点热乎的，收好这份暖胃清单',     NULL, 'https://mp.weixin.qq.com/s/example-activity-2', 'enabled', 2),
+('明湖夜市开业啦！夜宵党的深夜食堂',         '烤串、炒粉、烤冷面……晚自习后加餐好去处',     NULL, 'https://mp.weixin.qq.com/s/example-activity-3', 'enabled', 3);
+
 -- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
 DELETE FROM user_feedback;
 INSERT INTO user_feedback (user_id, type, content, contact, status, related_type, related_id, created_at) VALUES

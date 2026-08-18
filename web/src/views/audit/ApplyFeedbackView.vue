@@ -36,7 +36,7 @@ import FeedbackView from '@/views/admin/FeedbackView.vue'
   top: 3px;
   bottom: 3px;
   width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color-primary);
 }
 </style>

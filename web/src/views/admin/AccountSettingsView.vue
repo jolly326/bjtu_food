@@ -281,8 +281,6 @@ onMounted(loadProfile)
 .detail-control { flex: 1; min-width: 0; }
 .detail-value { font-size: var(--font-md); color: var(--text-primary); font-weight: var(--weight-medium); line-height: 28px; }
 .pwd-dots { font-size: 18px; letter-spacing: var(--space-1); }
-.form-input { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius); font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); outline: none; background: var(--bg-card); width: 100%; max-width: 300px; box-sizing: border-box; transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out); }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 .input-error { border-color: var(--color-error) !important; }
 .field-error { margin: var(--space-1) 0 0; font-size: var(--font-sm); color: var(--color-error); }
 .avatar-wrap { position: relative; width: 80px; height: 80px; border-radius: 50%; cursor: pointer; overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-card); transition: transform 160ms var(--ease-out); }

@@ -51,7 +51,8 @@ const filteredStudents = computed(() => {
   if (!q) return list
   return list.filter(u =>
     u.username.toLowerCase().includes(q) ||
-    (u.nickname || '').toLowerCase().includes(q)
+    (u.nickname || '').toLowerCase().includes(q) ||
+    (u.guestShortId || '').toLowerCase().includes(q)
   )
 })
 
@@ -142,8 +143,6 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         <div class="user-name">{{ row.nickname || row.guestShortId || row.username }}</div>
         <div class="user-meta">
           <span class="user-username">@{{ row.username }}</span>
-          <span class="user-sep">·</span>
-          <span class="user-date">{{ row.created_at.toLocaleDateString('zh-CN') }} 注册</span>
         </div>
         <!-- 微信登录体系落地后的新字段（task-02）：微信绑定 / 绑定邮箱 -->
         <div v-if="row.openid || row.bindEmail" class="user-meta user-bind">
@@ -220,9 +219,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 }
 .user-username { color: var(--text-muted); }
 .user-sep { color: var(--border-soft); }
-.user-date { color: var(--text-light); }
 .user-bind { margin-top: 0; }
-.user-wechat { color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.user-wechat { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .user-email { color: var(--text-light); font-variant-numeric: tabular-nums; }
 
 /* .act-ico 已收敛至 shared.css 公共类 */

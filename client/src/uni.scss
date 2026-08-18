@@ -67,6 +67,5 @@ $uni-border-radius-circle: 50%;
 /* Native uni.showModal confirmColor exception — var() unsupported by confirmColor attribute.
    微信小程序原生 uni.showModal 的 confirmColor 不接受 CSS var()，因此以下文件
    直接传入真实色值 #FF3B30（暖杏系错误色，见 uni.scss $uni-color-error）：
-   - pages/pages-detail/stall.vue（删除确认）
-   - pages/profile/index.vue（注销账号确认）
+   - pages/profile/index.vue（清除本地登录态确认）
    这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */

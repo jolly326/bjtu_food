@@ -15,6 +15,7 @@
           :current-user-id="currentUserId"
           @delete="onDeleteReview"
           @report="onReviewReport"
+          @more="onReviewMore"
         />
       </view>
       <EmptyState v-else-if="!loading" text="还没有人评价过这道菜" icon="comment" />
@@ -35,6 +36,9 @@
       @update:open="reportOpen = $event"
       @submit="submitReviewReport"
     />
+
+    <!-- 认证弹层：删除/举报评价需认证入口统一底部弹出 -->
+    <AuthSheet />
   </view>
 </template>
 
@@ -52,6 +56,7 @@ import Header from '@/components/header.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ReportModal from '@/components/ReportModal.vue'
+import AuthSheet from '@/components/AuthSheet.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -127,6 +132,19 @@ function onDeleteReview(rv: Review) {
   })
 }
 
+/** 评价右上角三点菜单：本人 → 删除；他人 → 举报（与动态三点菜单交互一致） */
+function onReviewMore(rv: Review) {
+  if (!userStore.requireAuth(() => onReviewMore(rv))) return
+  const isOwn = userStore.userInfo?.id != null && rv.userId === userStore.userInfo.id
+  uni.showActionSheet({
+    itemList: isOwn ? ['删除评价'] : ['举报评价'],
+    success: (res) => {
+      if (isOwn) onDeleteReview(rv)
+      else onReviewReport(rv)
+    },
+  })
+}
+
 /* ===== 评价举报 ===== */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
@@ -156,8 +174,9 @@ async function submitReviewReport(text: string) {
 <style scoped>
 .review-list-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; }
-/* 评价列表：独立卡片堆叠（ReviewItem 已卡片化，与动态卡片统一；去外层白卡避免双重卡片） */
-.review-list { display: flex; flex-direction: column; gap: var(--spacing-sm); margin: 0 var(--spacing-md) var(--spacing-md); }
+/* 评价列表：独立卡片堆叠（ReviewItem 已卡片化，与动态卡片统一；去外层白卡避免双重卡片）
+   顶部与 Header 留白：参考首页广播条与 header 间距（md），避免第一条卡片贴死头部 */
+.review-list { display: flex; flex-direction: column; gap: var(--spacing-sm); margin: var(--spacing-md) var(--spacing-md) var(--spacing-md); }
 .loading-more { text-align: center; font-size: var(--font-aux); color: var(--text-tertiary); padding: var(--spacing-md); }
 
 

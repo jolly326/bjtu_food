@@ -254,7 +254,7 @@
 
 #### 5.y.2 User 表结构变更
 > `user` 表新增（`server/src/main/resources/db/schema.sql` 为准）：
-- `openid` VARCHAR(64) NOT NULL DEFAULT ''，**唯一索引 `uk_user_openid`**（微信静默登录取号依据）。
+- `openid` VARCHAR(64) **NULL DEFAULT NULL**，**唯一索引 `uk_user_openid`**（微信静默登录取号依据）。**须可空**：微信游客/已认证建号必写 openid，而历史学号账号 openid=NULL；InnoDB 唯一键允许多个 NULL，故 seed/历史多账号不冲突（若沿用 `NOT NULL DEFAULT ''` 会与唯一键冲突，阻断建库）。
 - `unionid` VARCHAR(64) NULL（同主体多应用时用；未提供可空）。
 - `verified` TINYINT NOT NULL DEFAULT 0（0=游客未认证 / 1=已邮箱认证，`verified` 不进 JWT，后端实时判定）。
 - `bind_email` VARCHAR(128) NULL（**仅存认证关系，不公开**；与 `email` 的关系见数据迁移规则）。
@@ -264,7 +264,7 @@
 
 #### 5.y.3 数据迁移合并规则（历史邮箱账号）
 - **迁移凭证唯一 = 校园邮箱**：旧邮箱注册账号的用户，用新微信进入后，通过「学号邮箱 + 验证码」认证（`verify-email`）触发自动合并。
-- **合并动作**：认证时若该邮箱已存在历史 `user` 记录（旧账号），将旧账号的业务数据（菜品 / 评价 / 动态 / 反馈等 `created_by`）**归属转移到当前微信账号**，并清理旧微信占位/旧记录；若邮箱无历史记录，则仅绑定 + 置 `verified=1`，无需迁移。
+- **合并动作**：认证时若该邮箱已存在历史 `user` 记录（旧账号），将旧账号的业务数据（菜品 / 评价 / 动态 / 反馈 / 美食清单 `item_list.user_id` 等 `created_by`）**归属转移到当前微信账号**，并清理旧微信占位/旧记录；若邮箱无历史记录，则仅绑定 + 置 `verified=1`，无需迁移。
 - **未邮箱注册过的用户无历史数据，无需迁移**。
 - **新微信替换**：同一邮箱已被另一微信认证过 → 新微信认证时替换该邮箱绑定，旧微信账号下该邮箱的历史数据归属跟到新微信（旧微信变回游客态，其 `bind_email` 清空 / `verified` 置 0）。
 
@@ -273,7 +273,8 @@
 - **权限矩阵**：
   - 浏览全部公开数据（菜品 / 评价 / 动态 / 食堂 / 档口 / Banner / 活动）→ 游客可。
   - `POST /feedback`（基础反馈提交）→ **公开，无需认证**。
-  - 社区写操作（发布菜品 / 提交档口·食堂 / 写评价 / 发动态 / 评论 / 点赞 / 更新本人记录）→ 需 `verified=true`。
+  - 社区写操作（发布菜品 / 提交档口·食堂 / 写评价 / 发动态 / 评论 / 点赞 / 更新本人记录 / 创建·删除·一键收藏美食清单）→ 需 `verified=true`。
+  - **系统通知（`/my/notifications/*`）→ 认证专属（`verified=true`）**：通知是按 `userId` 归属的账号私有数据（`/my/` 前缀），内容为内容贡献者的行为反馈（审核结果 / 收到评论 / 点赞）。游客（`verified=false`）无任何可产生通知的社区写操作来源，通知列表恒空、未读恒为 0，故**不属公开数据、不对游客开放**。「我的」页「系统通知」入口 `authLocked=true`，游客点击弹认证引导；游客态**不拉取未读数**（红点仅在 `verified=true` 时刷新）。
   - **入口不置灰**：需认证功能入口对游客可见且可点；点击时弹**认证引导**（`AuthSheet`，触发「学号邮箱 + 验证码」认证），认证成功后自动继续原动作。
 - 昵称保持「食客+ID 尾号」；`bind_email`（学号邮箱）**仅存认证关系、不公开**，可在「我的」页展示绑定邮箱。
 
@@ -282,7 +283,7 @@
 - `POST /auth/email-code`（公开，改造）— 入参 `{ username(学号), email(可空，自动推导 {学号}@bjtu.edu.cn), purpose }`；`purpose` 改为 `verify`（认证用途，替代旧 `login`/`register`/`reset`）；60s 限频、10min 有效。
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 置 `verified=1`、写 `bind_email`/`verified_at` → 返回更新后 `LoginResp`。
 - `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像、`guestShortId`。
-- 鉴权：社区写操作改为**校验 `verified`**；`/admin/**` 仍仅 `ADMIN`。
+- 鉴权：社区写操作改为**校验 `verified`**；`/admin/**` 仍仅 `ADMIN`；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客恒空、前端不拉取）**。
 - **管理后台登录（方案 C）**：维持 `/auth/admin/login`（管理员账号密码 + BCrypt + JWT），与小程序微信登录体系解耦；`/admin/**` 校验 `ADMIN` / `SUPER_ADMIN`。
 
 ### 5.z 已拍板架构决策（强制）

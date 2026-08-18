@@ -148,15 +148,22 @@
               </view>
             </view>
             <view class="mixed-info">
-              <!-- 第一行：菜名（高亮，最多2行）+ 价格 两端对齐（名称/价格为搜索核心信息） -->
+              <!-- 第一行：菜名 + 评分（贴名小号）+ 价格 两端对齐（名称/价格为搜索核心信息） -->
               <view class="mixed-title-row">
-                <text class="mixed-name">
-                  <text
-                    v-for="(seg, si) in splitHighlight(item.name)"
-                    :key="si"
-                    :class="{ hl: seg.hit }"
-                  >{{ seg.text }}</text>
-                </text>
+                <view class="mixed-name-group">
+                  <text class="mixed-name">
+                    <text
+                      v-for="(seg, si) in splitHighlight(item.name)"
+                      :key="si"
+                      :class="{ hl: seg.hit }"
+                    >{{ seg.text }}</text>
+                  </text>
+                  <!-- 评分：贴近菜名右侧、小一号/两号（星 + 分数，不含评论数；星星放大与菜名字号匹配） -->
+                  <view v-if="item.rating != null" class="mixed-rating-group">
+                    <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="mixed-rating-star" />
+                    <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
+                  </view>
+                </view>
                 <!-- 价格组（促销角标 + 促销价/单价 + 原价划线），菜品才有价格 -->
                 <view v-if="item.price != null" class="mixed-price-group">
                   <view v-if="item.promoPrice != null" class="mixed-promo-badge">促销</view>
@@ -179,13 +186,6 @@
                   >{{ seg.text }}</text>
                 </text>
                 <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ fmtMixedDistance(item.distance) }}</text>
-              </view>
-              <!-- 底部右下：评分（星 + 分数，不含评论数） -->
-              <view v-if="item.rating != null" class="mixed-bottom">
-                <view class="mixed-rating-group">
-                  <IconSvg name="star" :size="24" color="var(--color-star)" />
-                  <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
-                </view>
               </view>
             </view>
           </view>
@@ -513,7 +513,8 @@ watch(keyword, () => {
 
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: var(--spacing-md); padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 顶部留白由内容块自己提供（搜索 mixed-list / 发现 skeleton 均为 md，与首页广播条-卡间距一致）；scroll 不再额外叠加 */
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* ===== 顶部固定区（2026-08-03：返回 + 搜索框 + 结果 tab，位于滚动区外，天然不随滚动） ===== */
 .search-nav {
@@ -607,7 +608,7 @@ watch(keyword, () => {
 }
 /* 搜索结果列表（仅菜品，一行一个，左图右信息）。
    Apple Design 列表行卡：20px 大圆角 + hairline 分隔 + 按下背景高亮（Apple 偏好 highlight 而非 scale） */
-.mixed-list { margin: var(--spacing-sm) var(--spacing-md); }
+.mixed-list { margin: var(--spacing-md); }
 .mixed-item {
   display: flex;
   align-items: center;
@@ -645,13 +646,15 @@ watch(keyword, () => {
 .mixed-thumb-img { width: 100%; height: 100%; opacity: 0; transition: opacity 0.32s var(--ease-out); }
 .mixed-thumb-img.loaded { opacity: 1; }
 .mixed-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-.mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
-/* 第一行：菜名 + 价格 两端对齐（名称/价格是搜索核心，价格不换行防挤占菜名） */
-.mixed-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
+.mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); min-height: 160rpx; justify-content: center; }
+/* 第一行：菜名（加大）+ 评分（贴名小号）+ 价格 两端对齐（名称/价格是搜索核心，价格不换行防挤占菜名） */
+.mixed-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.mixed-name-group { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-sm); }
 .mixed-name {
-  flex: 1;
+  /* 不撑满：评分紧贴菜名右侧（而非被推到行尾贴近价格）；长菜名可收缩省略 */
+  flex: 0 1 auto;
   min-width: 0;
-  font-size: var(--font-card);
+  font-size: var(--font-title);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   line-height: 1.3;
@@ -693,10 +696,10 @@ watch(keyword, () => {
 /* A6 价格视觉强化：¥ 符号缩小、数字放大，统一用专用价色 --color-price */
 .mixed-price { font-size: var(--font-title); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
-/* 底部行：评分靠右下角（star + 分数，不含评论数） */
-.mixed-bottom { display: flex; justify-content: flex-end; margin-top: var(--spacing-2xs); }
-.mixed-rating-group { display: inline-flex; align-items: center; gap: var(--spacing-2xs); flex-shrink: 0; }
-.mixed-rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--color-star); font-variant-numeric: tabular-nums; }
+/* 评分组：贴近菜名右侧、小一号/两号（弱化星级，避免喧宾夺主） */
+.mixed-rating-group { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.mixed-rating-star { flex-shrink: 0; }
+.mixed-rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 /* 第三行位置：左段档口·食堂可省略、右段「距你 Xm」固定不截断，两端对齐，与标徽行分隔 */
 .mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-secondary); }
 .mixed-sub-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -704,7 +707,7 @@ watch(keyword, () => {
 .mixed-dist-seg { flex-shrink: 0; color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 
 /* 发现主页首屏骨架（2026-08-03：分类宫格已删，仅保留热搜列表占位） */
-.discover-skeleton { padding: 0 var(--spacing-md); }
+.discover-skeleton { padding: var(--spacing-md) var(--spacing-md) 0; }
 .sk-row { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .sk-line { height: 110rpx; border-radius: var(--radius-card); flex: 1; }
 

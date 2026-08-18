@@ -168,10 +168,10 @@ function onRefresh() {
   loadData().finally(() => { refresherTriggered.value = false })
 }
 
-// 游客直访时弹认证；认证成功后自动加载
+// 游客直访时弹认证（loadData 内 requireAuth）；认证成功后（isVerified 由 false→true）自动加载
 watch(
-  () => userStore.isLoggedIn(),
-  (v) => { if (v) loadData() },
+  () => userStore.isVerified(),
+  () => loadData(),
   { immediate: true },
 )
 onShow(() => clearShareState())

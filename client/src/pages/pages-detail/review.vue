@@ -62,18 +62,10 @@
         <text class="char-count">{{ form.content.length }}/{{ MAX_CONTENT_LENGTH }}</text>
       </CardSection>
 
-      <!-- 图片上传 -->
+      <!-- 图片上传（复用 ImageUploader：选图即上传、右上角删除、n/3 计数；与发布动态一致） -->
       <CardSection>
         <text class="section-label">图片（最多3张）</text>
-        <view class="image-list">
-          <view v-for="(img, idx) in form.images" :key="idx" class="image-item">
-            <image :src="img" mode="aspectFill" class="preview-img" />
-            <view class="remove-btn" @tap="removeImage(idx)"><IconSvg name="close" :size="24" color="var(--badge-dark-text)" /></view>
-          </view>
-          <view v-if="form.images.length < MAX_IMAGES" class="image-upload" @tap="selectImage">
-            <IconSvg name="plus" :size="60" color="var(--text-tertiary)" />
-          </view>
-        </view>
+        <ImageUploader v-model="form.images" :max="MAX_IMAGES" />
       </CardSection>
 
       <!-- 同步到社区动态（评价与动态打通：评价可见即动态可见，直接上广场） -->
@@ -109,13 +101,13 @@ import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { searchDishes } from '@/api/dish'
-import { uploadImage as uploadImageApi } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppButton from '@/components/AppButton.vue'
 import Rating from '@/components/Rating.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const theme = useThemeStore()
@@ -193,51 +185,18 @@ const canSubmit = computed(
   () => dishId.value > 0 && form.rating > 0 && form.content.trim().length > 0
 )
 
-function removeImage(idx: number) {
-  form.images.splice(idx, 1)
-}
-
-function selectImage() {
-  // chooseImage 已废弃：改 chooseMedia（与全站 ImageUploader 一致）
-  uni.chooseMedia({
-    count: 3 - form.images.length,
-    mediaType: ['image'],
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: (res) => {
-      form.images.push(...res.tempFiles.map((f) => f.tempFilePath).slice(0, 3 - form.images.length))
-    },
-  })
-}
-
 async function handleSubmit() {
   if (!userStore.requireAuth(() => handleSubmit())) return
   if (!canSubmit.value || uploading.value) return
   uploading.value = true
 
   try {
-    // 将本地图片上传到服务器，获取可访问的 URL
-    const uploadedUrls: string[] = []
-    let uploadFailed = 0
-    for (const localPath of form.images) {
-      try {
-        const url = await uploadImageApi(localPath)
-        uploadedUrls.push(url)
-      } catch {
-        // 单张上传失败不影响整体提交，但需提示用户避免"以为传了其实没传"
-        uploadFailed += 1
-        console.warn('图片上传失败，跳过:', localPath)
-      }
-    }
-    if (uploadFailed > 0) {
-      uni.showToast({ title: `${uploadFailed} 张图片上传失败，已跳过`, icon: 'none' })
-    }
-
+    // 图片已在 ImageUploader 选图时上传为 URL，这里直接提交（失败图片不会出现在 form.images）
     await dishStore.submitReview({
       dishId: dishId.value,
       rating: form.rating,
       content: form.content,
-      images: uploadedUrls,
+      images: form.images,
       shareToMoment: form.shareToMoment,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
@@ -386,52 +345,6 @@ onLoad(async (query) => {
   margin-top: var(--spacing-xs);
   font-variant-numeric: tabular-nums;
 }
-.image-list {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-.image-item {
-  position: relative;
-  width: 180rpx;
-  height: 180rpx;
-  border-radius: var(--radius-icon);
-  overflow: hidden;
-}
-.preview-img {
-  width: 100%;
-  height: 100%;
-}
-.remove-btn {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 48rpx;
-  height: 48rpx;
-  background: var(--badge-dark-bg);
-  color: var(--badge-dark-text);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-tiny);
-  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
-}
-.remove-btn:active { transform: scale(var(--press-scale)); opacity: 0.85; }
-.image-upload {
-  width: 180rpx;
-  height: 180rpx;
-  border: 4rpx dashed var(--border-color);
-  border-radius: var(--radius-icon);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-page);
-  transition: var(--press-transition);
-  -webkit-tap-highlight-color: transparent;
-}
-.image-upload:active { transform: scale(var(--press-scale)); }
-
 /* 同步到社区动态（自绘 Apple 风格开关，走 token） */
 .share-row {
   display: flex;

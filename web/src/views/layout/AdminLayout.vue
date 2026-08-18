@@ -3,23 +3,16 @@
  * AdminLayout：现代控制台外壳（无侧边栏）。
  * 顶部一级导航（Logo + 4 个功能入口 + 用户菜单），内容区全宽。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useConfirmStore } from '@/stores/confirmStore'
 import { useAdminUserStore } from '@/stores/adminUserStore'
-import { useUserStore } from '@/stores/userStore'
-import { useToastStore } from '@/stores/toastStore'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { House, PriceTag, Document, User, UserFilled, ArrowDown } from '@element-plus/icons-vue'
 
-const confirm = useConfirmStore()
-
 const router = useRouter()
 const route = useRoute()
 const adminUser = useAdminUserStore()
-const userStore = useUserStore()
-const toast = useToastStore()
 
 const activePath = computed(() => route.path)
 
@@ -52,15 +45,9 @@ function navTo(path: string) {
   router.push(path)
 }
 
-// ===== 用户菜单（账号设置 / 退出登录） =====
+// ===== 用户菜单（账号设置；系统为超时自动登出，无主动退出入口） =====
 const userMenuOpen = ref(false)
 function goAccount() { userMenuOpen.value = false; router.push('/dashboard/account') }
-function logout() {
-  // 统一清理：token/username/adminId 及 store 状态，避免残留上一账号信息（M09）
-  userStore.clearAuth()
-  toast.clear() // 清理残留 toast（L02）
-  router.replace('/login')
-}
 </script>
 
 <template>
@@ -89,22 +76,23 @@ function logout() {
       </nav>
 
       <div class="topnav-right">
-        <div class="topbar-user" role="button" tabindex="0" :aria-expanded="userMenuOpen" aria-haspopup="menu" @click="userMenuOpen = !userMenuOpen" @keydown.enter.prevent="userMenuOpen = !userMenuOpen" @keydown.space.prevent="userMenuOpen = !userMenuOpen">
+        <div class="topbar-user" role="button" tabindex="0" :aria-expanded="userMenuOpen" aria-haspopup="menu" :aria-label="adminUser.myRole === 'super_admin' ? '用户菜单（超级管理员）' : '用户菜单'" @click="userMenuOpen = !userMenuOpen" @keydown.enter.prevent="userMenuOpen = !userMenuOpen" @keydown.space.prevent="userMenuOpen = !userMenuOpen" @keydown.escape="userMenuOpen = false">
           <el-icon class="tu-ico"><UserFilled /></el-icon>
           <span class="tu-name">{{ adminUser.myRole === 'super_admin' ? '超级管理员' : '管理员' }}</span>
           <el-icon class="tu-caret" :class="{ open: userMenuOpen }"><ArrowDown /></el-icon>
           <div v-if="userMenuOpen" class="user-menu" @click.stop>
             <button class="um-item" v-press @click="goAccount">账号设置</button>
-            <button class="um-item danger" v-press @click="logout">退出登录</button>
           </div>
           <div v-if="userMenuOpen" class="user-menu-mask" @click="userMenuOpen = false"></div>
         </div>
       </div>
     </header>
 
-    <!-- ===== 内容区（全宽） ===== -->
+    <!-- ===== 内容区（全宽；路由切换过渡 §4.4） ===== -->
     <main class="shell-content">
-      <router-view />
+      <Transition name="page" mode="out-in">
+        <router-view />
+      </Transition>
     </main>
   </div>
 </template>
@@ -247,8 +235,6 @@ function logout() {
   transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
 }
 .um-item:hover { background: var(--bg-soft); }
-.um-item.danger { color: var(--color-error); }
-.um-item.danger:hover { background: var(--color-error-bg); }
 .user-menu-mask { position: fixed; inset: 0; z-index: 55; }
 
 /* ===== 内容区 ===== */
@@ -258,6 +244,30 @@ function logout() {
   overflow-y: auto;
   overflow-x: hidden;
   /* 页面留白统一由 PageContainer 控制，避免双 padding */
+}
+
+/* ===== 路由切换过渡（§4.4：opacity + 8px 上移，时长走 --duration-base） ===== */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: opacity 0.18s ease;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    transform: none;
+  }
 }
 @media (max-width: 767px) {
   .topnav { padding: 0 var(--space-3); gap: var(--space-2); }

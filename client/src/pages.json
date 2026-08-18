@@ -57,13 +57,6 @@
 			}
 		},
 		{
-			"path": "pages/profile/verify/index",
-			"style": {
-				"navigationBarTitleText": "学号邮箱认证",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/webview/index",
 			"style": {
 				"navigationBarTitleText": "",

@@ -24,24 +24,28 @@
       <view v-else class="image-placeholder">
         <IconSvg name="dish" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
+      <!-- 评分徽标：图片右上角（黑底白字，浅色图上也能看清） -->
       <view class="card-rating-badge">
         <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="star-icon" />
         <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
       </view>
     </view>
     <view class="card-info">
+      <!-- 第一行：左侧名称 + 右侧价格（保持现状） -->
       <view class="title-row">
         <text class="card-name">{{ dish.name }}</text>
         <text class="card-price">¥{{ dish.price }}</text>
       </view>
-      <view class="card-tags" v-if="displayTags.length > 0">
-        <TagLabel v-for="tag in displayTags" :key="tag" :text="tag" />
-        <text v-if="dish.tags.length > 2" class="tag-plus">+{{ dish.tags.length - 2 }}</text>
-      </view>
+      <!-- 第二行：位置（提权为信息锚点） -->
+      <view class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</view>
+      <!-- 第三行：左侧标徽（标签 chips）+ 右侧距离（提权主色） -->
       <view class="meta-row">
-        <text class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</text>
+        <view class="card-tags" v-if="displayTags.length > 0">
+          <TagLabel v-for="tag in displayTags" :key="tag" :text="tag" />
+          <text v-if="(dish.tags || []).length > 2" class="tag-plus">+{{ (dish.tags || []).length - 2 }}</text>
+        </view>
         <view v-if="dish.distance != null" class="card-distance">
-          <IconSvg name="location" :size="20" color="var(--color-primary)" class="distance-icon" />
+          <IconSvg name="location" :size="22" color="var(--color-primary)" class="distance-icon" />
           <text>距你 {{ fmtDistance(dish.distance) }}</text>
         </view>
       </view>
@@ -78,8 +82,8 @@ const imgOk = ref(true)
 /** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
 const imgLoaded = ref(false)
 
-/** 标签展示：最多 2 个 +「+N」（B.6 卡片信息区规整） */
-const displayTags = computed(() => props.dish.tags.slice(0, 2))
+/** 标签展示：最多 2 个 +「+N」（B.6 卡片信息区规整）；tags 可能为 undefined（旧数据/占位），空数组兜底防 length 报错 */
+const displayTags = computed(() => (props.dish.tags || []).slice(0, 2))
 
 /** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
 function fmtDistance(m: number): string {
@@ -140,6 +144,7 @@ function handleClick() {
   font-size: 64rpx;
   line-height: 1;
 }
+/* 评分徽标：图片右上角（黑底白字；加深投影 + 浅描边，避免白底图糊字） */
 .card-rating-badge {
   position: absolute;
   top: 10rpx;
@@ -150,7 +155,6 @@ function handleClick() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  /* 浅色图上也能与文字拉开层次：加深投影 + 浅描边，避免白底图糊字 */
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
   border: 1rpx solid rgba(255, 255, 255, 0.28);
 }
@@ -194,22 +198,43 @@ function handleClick() {
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
 }
+/* 第二行位置：提权（small + medium + secondary），独立成行、超长省略 */
 .card-stall {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-small);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 第三行左侧标徽（标签 chips）：不换行、可省略，与右侧距离同行 */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
   flex: 1;
   min-width: 0;
 }
+/* 标签超出 2 个时的「+N」徽标 */
+.tag-plus {
+  font-size: var(--font-tiny);
+  line-height: 1.4;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-icon);
+  background: var(--bg-placeholder);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+/* 第三行距离：提权（small + semibold + 主色） */
 .card-distance {
   flex-shrink: 0;
   margin-left: var(--spacing-xs);
   display: inline-flex;
   align-items: center;
   gap: 2rpx;
-  font-size: var(--font-aux);
+  font-size: var(--font-small);
   font-weight: var(--weight-semibold);
   color: var(--color-primary);
   font-variant-numeric: tabular-nums;
@@ -221,22 +246,5 @@ function handleClick() {
   font-weight: var(--weight-bold);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-}
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-sm);
-}
-/* 标签超出 2 个时的「+N」徽标 */
-.tag-plus {
-  font-size: var(--font-tiny);
-  line-height: 1.4;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-icon);
-  background: var(--bg-placeholder);
-  color: var(--text-secondary);
-  font-weight: var(--weight-semibold);
 }
 </style>

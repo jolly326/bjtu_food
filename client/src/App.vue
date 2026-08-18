@@ -39,8 +39,6 @@ page {
   --color-primary-dark: #7A1F14;
   /* 主色上的文字（按钮/强调）：珊瑚橙底配白字（#9B2A1D 与白字对比 ~3:1，按钮用白字） */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（强调色点缀）：浅色=珊瑚橙 */
-  --color-on-tab: #9B2A1D;
   /* 主色浅底（图标软底/选中标签底），已收敛 primary-bg/primary-soft2 */
   --color-primary-soft: #E8D0C4;
   /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
@@ -163,8 +161,6 @@ page {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* 选中态图标放大（量化 CustomTabBar 强调缩放，避免裸 scale） */
-  --tab-active-scale: 1.05;
   /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
   --tracking-h1: -0.02em;
   --tracking-h2: -0.02em;
@@ -176,7 +172,7 @@ page {
   --weight-semibold: 600;
   --weight-bold: 700;
   --weight-heavy: 800;
-  /* 布局 */
+  /* 布局：主滚动区底部安全留白（.scroll-wrap 消费；命名沿用历史 tabbar 高度，非字面 TabBar） */
   --tabbar-height: 100rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
@@ -194,8 +190,6 @@ page {
   --color-primary-dark: #A8482E;
   /* 主色上的文字（按钮/强调）：珊瑚橙底配白字 */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（TabBar 图标+文字统一）：深色=珊瑚橙提亮 */
-  --color-on-tab: #C45A3C;
   /* 主色浅底（深色=低明度暖褐，已收敛 primary-bg/primary-soft2） */
   --color-primary-soft: #3A211C;
   /* 主色表面（header/home-top 大面积：深浅统一珊瑚橙提亮，产品决策） */
@@ -268,8 +262,6 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --color-primary-dark: #7A1F14;
   /* 主色上的文字（按钮/强调）：珊瑚橙底配白字 */
   --color-on-primary: #FFFFFF;
-  /* 导航激活态（强调色点缀）：浅色=珊瑚橙 */
-  --color-on-tab: #9B2A1D;
   /* 主色浅底（已收敛 primary-bg/primary-soft2） */
   --color-primary-soft: #E8D0C4;
   /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
@@ -375,8 +367,6 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* 选中态图标放大（量化 CustomTabBar 强调缩放，避免裸 scale） */
-  --tab-active-scale: 1.05;
   /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
   --tracking-h1: -0.02em;
   --tracking-h2: -0.02em;

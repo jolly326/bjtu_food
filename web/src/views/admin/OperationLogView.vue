@@ -167,7 +167,7 @@ function fmtTime(v: string): string {
 
 <style scoped>
 .muted { color: var(--text-light); }
-.ip { font-family: var(--font-mono, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
+.ip { font-family: var(--font-numeric, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
 .read-only-tip {
   margin-top: var(--space-4); display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--font-sm); color: var(--text-secondary);

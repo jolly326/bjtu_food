@@ -21,6 +21,8 @@ export interface ActivityItem {
   publishTime?: string
   /** 公众号文章链接（微信 web-view 跳转） */
   articleUrl?: string
+  /** 封面图 URL（公众号文章封面，后端录入；缺失时用图标占位） */
+  image?: string
 }
 
 interface PageResult<T> {
@@ -43,6 +45,7 @@ function toActivity(raw: any): ActivityItem {
     description: raw.description || '',
     publishTime: raw.publishTime || raw.createdAt || raw.publishTimeAt,
     articleUrl: raw.articleUrl || raw.url || '',
+    image: raw.image || raw.coverImage || raw.cover || '',
   }
 }
 

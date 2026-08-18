@@ -34,6 +34,8 @@ import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.history.entity.ViewLog;
 import com.bjtufood.history.mapper.ViewLogMapper;
+import com.bjtufood.list.entity.ItemList;
+import com.bjtufood.list.mapper.ItemListMapper;
 import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.entity.MomentComment;
 import com.bjtufood.moment.entity.MomentCommentUseful;
@@ -77,6 +79,7 @@ public class AuthServiceImpl implements AuthService {
     private final ApplyActionMapper applyActionMapper;
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
+    private final ItemListMapper itemListMapper;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -100,6 +103,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("账号已注销");
         }
         user.setLastLoginAt(DateTimeUtil.now());
+        // 补全 unionid：已建账号首登时微信未必返回 unionid，后续补全（幂等，不影响唯一键）
+        if (!StringUtils.hasText(user.getUnionid()) && StringUtils.hasText(session.unionid())) {
+            user.setUnionid(session.unionid());
+        }
         userMapper.updateById(user);
         return toLoginResp(user);
     }
@@ -345,10 +352,11 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 数据归属迁移（spec §5.y.3）：把旧账号 user_id/created_by 下的业务数据改挂到新账号。
      * <p>
+     * 仅在 {@link #verifyEmail}（已标注 @Transactional）内部被同实例调用，属自调用，
+     * 不单独开启事务，统一并入外层事务回滚边界。若被外部 Bean 调用需自行加事务。
      * 对带唯一键的表（review 的 user+dish、各 useful 表）先清理新账号已存在的冲突行（保留新账号记录），
-     * 再执行归属改写，避免 DuplicateKey 中断整个 @Transactional 事务。
+     * 再执行归属改写，避免 DuplicateKey 中断事务。
      */
-    @Transactional(rollbackFor = Exception.class)
     protected void migrateOwnership(Long fromUserId, Long toUserId) {
         if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
             return;
@@ -420,5 +428,9 @@ public class AuthServiceImpl implements AuthService {
         notificationMapper.update(null, new LambdaUpdateWrapper<Notification>()
                 .eq(Notification::getUserId, fromUserId)
                 .set(Notification::getUserId, toUserId));
+        // 美食清单归属（item_list 无 user_id 唯一键，直接改写）
+        itemListMapper.update(null, new LambdaUpdateWrapper<ItemList>()
+                .eq(ItemList::getUserId, fromUserId)
+                .set(ItemList::getUserId, toUserId));
     }
 }

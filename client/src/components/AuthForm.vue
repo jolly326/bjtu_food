@@ -89,6 +89,8 @@ const formError = ref('')
 function setError(msg: string) { formError.value = msg }
 function clearError() { formError.value = '' }
 
+/** 发码请求进行中（防连点重复发码） */
+const sendingCode = ref(false)
 const isBusy = computed(() => userStore.loading)
 
 const primaryText = computed(() => (isBusy.value ? '认证中...' : '认证'))
@@ -107,15 +109,16 @@ function startCountdown() {
 }
 
 async function sendCode() {
-  if (codeCountdown.value > 0) return
+  if (codeCountdown.value > 0 || sendingCode.value) return
   const username = form.value.username.trim()
   if (!username) { setError('请填写学号'); return }
   clearError()
+  sendingCode.value = true
   try {
     await sendEmailCode(username, 'verify')
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     startCountdown()
-  } catch (e: any) { setError(e.message || '验证码发送失败') }
+  } catch (e: any) { setError(e.message || '验证码发送失败') } finally { sendingCode.value = false }
 }
 
 async function submit() {

@@ -1,5 +1,6 @@
 package com.bjtufood.list.controller;
 
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.list.dto.ListCreateReq;
@@ -36,6 +37,7 @@ public class ListController {
                     }
                     """)))
     )
+    @RequireVerified
     @PostMapping("/lists")
     public Result<?> createList(@Valid @RequestBody ListCreateReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -60,6 +62,7 @@ public class ListController {
     }
 
     @Operation(summary = "删除清单", description = "用途：删除自己创建的清单。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @DeleteMapping("/lists/{id}")
     public Result<Void> deleteList(
             @Parameter(description = "清单ID", example = "1")
@@ -78,6 +81,7 @@ public class ListController {
     }
 
     @Operation(summary = "清单一键收藏", description = "用途：将清单内全部菜品加入我的收藏，已收藏的自动跳过。", security = @SecurityRequirement(name = "bearerAuth"))
+    @RequireVerified
     @PostMapping("/lists/{id}/collect-all")
     public Result<?> collectAll(
             @Parameter(description = "清单ID", example = "1")

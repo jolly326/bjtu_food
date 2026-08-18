@@ -10,7 +10,7 @@
       >
         <image v-if="avatarOk && avatar" :src="avatar" class="user-chip-avatar" @error="avatarOk = false" />
         <view v-else class="user-chip-avatar user-chip-avatar-empty">
-          <IconSvg name="user" :size="'22px'" color="#B8B0A8" />
+          <IconSvg name="user" :size="'22px'" color="var(--text-secondary)" />
         </view>
       </view>
       <view class="home-search" @tap="$emit('search')" role="search" :aria-label="searchPlaceholder">
@@ -30,7 +30,7 @@
         role="button"
         aria-label="返回"
       >
-        <IconSvg name="arrow-left" :size="'22px'" color="#FFFFFF" class="back-arrow" />
+        <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" class="back-arrow" />
       </view>
       <text class="title">{{ title }}</text>
     </view>
@@ -142,7 +142,7 @@ function handleBack() {
   text-align: center;
   font-size: var(--font-h2);
   font-weight: var(--weight-bold);
-  color: #FFFFFF;
+  color: var(--text-white);
   max-width: 60%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -171,7 +171,7 @@ function handleBack() {
   width: calc(var(--nav-h) - 14px);
   height: calc(var(--nav-h) - 14px);
   border-radius: 50%;
-  background: #FFFFFF;
+  background: var(--bg-card);
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .home-search {

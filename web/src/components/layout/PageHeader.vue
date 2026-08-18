@@ -88,7 +88,7 @@ const emit = defineEmits<{ back: [] }>()
   top: 5px;
   bottom: 5px;
   width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color-primary);
 }
 .ph-title-row { display: flex; align-items: baseline; gap: var(--space-3); }

@@ -17,14 +17,3 @@ export interface UserInfo {
   /** 游客展示短 ID（后端「食客+ID 尾 4 位」）；未提供时前端本地游客 ID 兜底 */
   guestShortId?: string
 }
-
-export interface UserStats {
-  /** 发布数（菜品/档口/食堂贡献） */
-  publishedCount?: number
-  /** 待审数 */
-  pendingCount?: number
-  /** 评价数（后端 /auth/stats 权威来源） */
-  reviewCount: number
-  /** 历史兼容字段（旧契约），新逻辑以 reviewCount 为准 */
-  likeCount?: number
-}

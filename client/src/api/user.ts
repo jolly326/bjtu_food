@@ -1,4 +1,4 @@
-import type { UserInfo, UserStats } from '@/types/user'
+import type { UserInfo } from '@/types/user'
 import { get, post, put } from './http'
 
 function toFrontendRole(role?: string): UserInfo['role'] {
@@ -23,7 +23,7 @@ function toUserInfo(resp: any, fallbackId = 0): UserInfo {
     id: Number(user.id ?? resp?.userId ?? fallbackId),
     username,
     email,
-    nickname: user.nickname || resp?.nickname || user.username || '交大学子',
+    nickname: user.nickname || resp?.nickname || '食客',
     avatar: user.avatar || resp?.avatar || '',
     role: toFrontendRole(user.role || resp?.role),
     // 微信登录体系（§5.y）：verified / bindEmail / guestShortId 由后端 wechat-login / verify-email 返回
@@ -75,8 +75,4 @@ export async function getProfile(): Promise<UserInfo> {
 export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
   const resp = await put<any>('/auth/profile', data)
   return toUserInfo(resp)
-}
-
-export async function getUserStats(): Promise<UserStats> {
-  return await get('/auth/stats')
 }

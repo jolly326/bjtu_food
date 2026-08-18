@@ -188,6 +188,5 @@ onLoad(async (query) => {
 .related-picker { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-soft); border-radius: var(--radius-tag); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-picker:active { transform: scale(var(--press-scale)); }
 .related-label { font-size: var(--font-body); color: var(--text-secondary); }
-.related-arrow { font-size: 28rpx; color: var(--text-tertiary); }
 .submit-bar { padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 </style>

@@ -25,21 +25,12 @@
       </view>
       <text class="c-content">{{ comment.content }}</text>
       <MomentImageGrid v-if="comment.images && comment.images.length" :images="comment.images" compact class="c-images" />
+      <!-- 底部：时间 + 仅「回复 / 举报」两个操作（评论点赞已移除，评论区不再支持点赞） -->
       <view class="c-footer">
         <text class="c-time">{{ formatDateTime(comment.createdAt) }}</text>
         <view class="c-actions">
           <text class="c-reply-btn" role="button" aria-label="回复评论" @tap.stop="replyTo(comment)">
             <IconSvg name="comment" :size="26" color="var(--text-tertiary)" /> 回复
-          </text>
-          <text
-            class="c-useful-count"
-            :class="{ 'useful-active': usefulActive }"
-            role="button"
-            aria-label="标记有用"
-            @tap.stop="onUseful"
-          >
-            <IconSvg name="thumb" :size="26" :color="usefulActive ? 'var(--color-like)' : 'var(--text-tertiary)'" class="c-useful-icon" />
-            {{ usefulCount }}
           </text>
           <text class="c-report-btn" role="button" aria-label="举报评论" @tap.stop="onReport(comment)">举报</text>
         </view>
@@ -55,7 +46,6 @@ import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import { useUserStore } from '@/stores/user'
-import { toggleCommentUseful } from '@/api/moment'
 import type { MomentComment } from '@/types/moment'
 
 const props = defineProps<{
@@ -77,36 +67,6 @@ const avatarOk = ref(true)
 function replyTo(c: MomentComment) { emit('reply', c) }
 function replyToNamed(nickname: string) { emit('reply-named', nickname) }
 function onReport(c: MomentComment) { emit('report', c) }
-
-/** 评论「有用」本地乐观态（task-12.4）：初始取后端 useful，切换后以后端返回为准 */
-const usefulActive = ref(!!props.comment.useful)
-/** 展示计数：后端 usefulCount（语义已含当前用户，避免重复 +1） */
-const usefulCount = computed(() => props.comment.usefulCount || 0)
-/** pending 锁防连点（P0 防重复请求 / 计数漂移） */
-const pendingUseful = ref(false)
-
-async function onUseful() {
-  if (!userStore.requireAuth(() => onUseful())) return
-  if (pendingUseful.value) return
-  pendingUseful.value = true
-  const prevActive = usefulActive.value
-  const prevCount = usefulCount.value
-  usefulActive.value = !prevActive
-  props.comment.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
-  try {
-    const res = await toggleCommentUseful(props.momentId, props.comment.id)
-    usefulActive.value = res.useful
-    props.comment.usefulCount = res.usefulCount
-    props.comment.useful = res.useful
-  } catch {
-    // 回滚乐观更新
-    usefulActive.value = prevActive
-    props.comment.usefulCount = prevCount
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  } finally {
-    pendingUseful.value = false
-  }
-}
 
 function onLongPress() {
   if (!userStore.userInfo) return
@@ -132,11 +92,6 @@ function onLongPress() {
 .c-actions { display: inline-flex; align-items: center; gap: var(--spacing-md); }
 .c-reply-btn { font-size: var(--font-aux); color: var(--color-primary); align-self: center; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
 .c-reply-btn:active { opacity: 0.6; }
-.c-useful-count { display: inline-flex; align-items: center; gap: 4rpx; font-size: var(--font-tiny); font-weight: var(--weight-semibold); color: var(--text-secondary); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-card); transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.c-useful-count:active { opacity: 0.6; transform: scale(var(--press-scale)); }
-.c-useful-count.useful-active { color: var(--color-like); }
-.c-useful-icon { font-size: var(--font-aux); line-height: 1; color: var(--text-tertiary); }
-.c-useful-count.useful-active .c-useful-icon { color: var(--color-like); }
 .c-report-btn { font-size: var(--font-aux); color: var(--text-tertiary); align-self: center; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
 .c-report-btn:active { opacity: 0.6; }
 .c-images { margin-top: var(--spacing-xs); }

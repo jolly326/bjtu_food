@@ -277,8 +277,4 @@ async function toggleStatusRow(b: any, active: boolean) {
 .type-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
 .type-opt:active { transform: scale(var(--press-scale)); }
 .type-hint { font-size: var(--font-xs); color: var(--text-light); margin: var(--space-2) 0 0; }
-
-@media (prefers-reduced-motion: reduce) {
-  .banner-card { animation: none; }
-}
 </style>

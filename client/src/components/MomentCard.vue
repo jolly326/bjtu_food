@@ -18,7 +18,21 @@
       </view>
       <view class="m-head-right">
         <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-        <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
+        <!-- 第二行：关联菜品星星（1-5 黄星+数字，仅关联且有评分才显示）与发布时间小间隙同行；无星星则只显时间 -->
+        <view class="m-meta">
+          <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating" role="img" :aria-label="`关联菜品评分 ${(moment.relatedRating || 0).toFixed(1)} 分`">
+            <IconSvg
+              v-for="n in Math.min(Math.max(Math.round(moment.relatedRating || 0), 1), 5)"
+              :key="n"
+              name="star-filled"
+              :size="22"
+              color="var(--color-star)"
+              class="m-star"
+            />
+            <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
+          </view>
+          <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
+        </view>
       </view>
       <!-- 审核态徽标（仅作者本人可见，我的动态页） -->
       <view v-if="showAudit && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
@@ -27,7 +41,7 @@
       <!-- 右上角三点菜单：分享 / 举报 收进页面级 ActionSheet（去胶囊化，图标按钮；
            仅触发 emit，弹层由父页面在 scroll-view 外渲染，避免 fixed 遮罩层级被压扁） -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
-        <IconSvg name="more" :size="36" color="var(--text-tertiary)" />
+        <IconSvg name="more-v" :size="36" color="var(--text-tertiary)" />
       </view>
     </view>
 
@@ -57,12 +71,6 @@
     <!-- 退回原因（作者本人可见） -->
     <view v-if="moment.auditStatus === 'rejected' && moment.rejectReason" class="m-reject">
       <text class="m-reject-text">已退回：{{ moment.rejectReason }}</text>
-    </view>
-
-    <!-- 关联菜品评分（1 星 + 数字，与评价卡统一单星形态） -->
-    <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating">
-      <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="m-star" />
-      <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
     </view>
 
     <!-- 关联对象 chip + 互动栏（同一行，互动靠右） -->
@@ -194,10 +202,21 @@ async function onUseful() {
 .m-avatar { width: 64rpx; height: 64rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: 32rpx; line-height: 1; }
-.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 /* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
-.m-nickname { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
-.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); }
+.m-nickname {
+  font-size: var(--font-body);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-h3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+/* 第二行：星星（左）+ 发布时间（小间隙同行，不推右；无星星时仅时间自然排列） */
+.m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
+.m-time { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; }
 .m-audit-text { font-size: 22rpx; font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
@@ -219,10 +238,10 @@ async function onUseful() {
 .m-related:active { opacity: 0.7; }
 .m-related-icon { flex-shrink: 0; }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
-/* 关联菜品星级：小星 + 分值，与评价卡星级风格统一（--color-star 金黄） */
-.m-rating { display: inline-flex; align-items: center; gap: 2rpx; margin-top: var(--spacing-sm); }
+/* 关联菜品星级：黄色实星（1-5 颗）+ 分值数字（与评价卡一致） */
+.m-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
 .m-star { display: inline-block; }
-.m-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
+.m-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */

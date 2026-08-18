@@ -181,7 +181,7 @@ async function handleDelete(c: CategoryItem) {
 
 <style scoped>
 .cell-title { font-weight: var(--weight-semibold); color: var(--text-primary); }
-.cell-code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace); font-size: var(--font-xs); color: var(--text-muted); background: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; }
+.cell-code { font-family: var(--font-numeric, ui-monospace, SFMono-Regular, Consolas, monospace); font-size: var(--font-xs); color: var(--text-muted); background: var(--bg-soft); padding: 2px 6px; border-radius: var(--radius-xs); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
 /* .act-ico 已收敛至 shared.css 公共类 */
 /* 行内状态开关 */

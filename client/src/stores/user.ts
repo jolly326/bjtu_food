@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { UserInfo, UserStats } from '@/types/user'
+import type { UserInfo } from '@/types/user'
 import * as userApi from '@/api/user'
 import { useAuthSheetStore } from '@/stores/authSheet'
 
@@ -21,37 +21,22 @@ function saveAuth(tokenValue: string, info: UserInfo) {
   uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
 }
 
-/** 静默登录中 / 静默登录失败的标志（供启动流程并发去重与防抖） */
+/** 静默登录进行中标志（供启动流程并发去重） */
 const silentLoginPending = ref(false)
 let silentLoginPromise: Promise<void> | null = null
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
-  const userStats = ref<UserStats>({ reviewCount: 0 })
   const loading = ref(false)
-  const statsLoading = ref(false)
-  /** 静默登录是否正在进行（App 启动 / 401 重登；供页面判断游客态是否已就绪） */
-  const silentLoggingIn = silentLoginPending
-
-  function restoreFromCache(): boolean {
-    const saved = uni.getStorageSync(STORAGE_KEY_TOKEN)
-    if (saved) {
-      token.value = saved
-      userInfo.value = loadUserInfo()
-      return true
-    }
-    return false
-  }
 
   /**
    * 微信静默登录（§5.y）：微信打开小程序自动登录为游客态（verified=false）。
    * - 已有 token → 刷新 /auth/profile 资料（游客态即可读），失败则重登；
    * - 无 token → wx.login 拿 code → POST /auth/wechat-login 静默建号/取号。
-   * 并发去重：同一时间仅执行一次。
+   * 并发去重：同一时间仅执行一次（App 启动 / 401 重登 / 页面 onLoad 并发安全）。
    */
   async function silentLogin(force = false): Promise<void> {
-    // 去重：已在静默登录中则复用同一 Promise（避免 App 启动与 401 重登并发互相打断）
     if (silentLoginPromise && !force) return silentLoginPromise
     if (silentLoginPending.value && !force) return
     silentLoginPending.value = true
@@ -99,6 +84,15 @@ export const useUserStore = defineStore('user', () => {
 
   /** 学号邮箱认证（§5.y）：验证码绑定当前微信 → verified=true，返回最新 userInfo */
   async function verifyEmail(code: string) {
+    // 兜底：认证需微信登录态，若静默登录未就绪（如启动极快触发认证），先补一次静默登录
+    if (!isLoggedIn()) {
+      await silentLogin()
+      // silentLogin 失败会被吞掉（仅日志），此处显式校验：
+      // 无登录态时直接报明确错误，避免无 token 调用 verify-email 得到误导性 401「请先登录或重新登录」
+      if (!isLoggedIn()) {
+        throw new Error('微信登录失败，请检查网络后重试')
+      }
+    }
     loading.value = true
     try {
       const res = await userApi.verifyEmail(code)
@@ -122,7 +116,6 @@ export const useUserStore = defineStore('user', () => {
   function forceLogout() {
     token.value = ''
     userInfo.value = null
-    userStats.value = { likeCount: 0, reviewCount: 0 }
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
   }
@@ -140,18 +133,6 @@ export const useUserStore = defineStore('user', () => {
   /** 是否已邮箱认证（§5.y）：true 解锁社区写操作；false = 游客态 */
   function isVerified(): boolean {
     return userInfo.value?.verified === true
-  }
-
-  async function fetchStats() {
-    if (!isLoggedIn()) return
-    statsLoading.value = true
-    try {
-      userStats.value = await userApi.getUserStats()
-    } catch {
-      console.error('获取用户统计失败')
-    } finally {
-      statsLoading.value = false
-    }
   }
 
   /**
@@ -173,16 +154,11 @@ export const useUserStore = defineStore('user', () => {
 
   return {
     userInfo,
-    userStats,
     token,
     loading,
-    statsLoading,
-    silentLoggingIn,
-    restoreFromCache,
     silentLogin,
     verifyEmail,
     updateProfile,
-    fetchStats,
     logout,
     forceLogout,
     isLoggedIn,

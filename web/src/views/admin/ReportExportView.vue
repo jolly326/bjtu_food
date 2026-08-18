@@ -100,7 +100,6 @@ async function handleDownload(type: ReportType) {
           </label>
         </div>
         <!-- 快捷范围：点选即视觉表达"不限"，无需文字解释 -->
-        <!-- 快捷范围：点选即视觉表达"不限"，无需文字解释 -->
         <div class="quick-chips">
           <button
             v-for="q in QUICK_RANGES"
@@ -229,12 +228,6 @@ async function handleDownload(type: ReportType) {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
-.field-tip {
-  margin: -var(--space-2) 0 0;
-  font-size: var(--font-xs);
-  color: var(--text-light);
-}
-
 .download-btn {
   display: inline-flex;
   align-items: center;

@@ -27,6 +27,11 @@ export const useAuthSheetStore = defineStore('authSheet', () => {
     show()
   }
 
+  /** 用户主动关闭弹层（未完成认证）：清除待办，避免后续认证成功后误执行过期动作（🟠 状态残留兜底） */
+  function clearPending() {
+    pendingAction.value = null
+  }
+
   /** 认证成功后调用：关闭弹层并执行待办（由 AuthSheet 监听 verified 变化触发） */
   function runPending() {
     hide()
@@ -35,5 +40,5 @@ export const useAuthSheetStore = defineStore('authSheet', () => {
     action?.()
   }
 
-  return { visible, pendingAction, show, hide, requireAuth, runPending }
+  return { visible, pendingAction, show, hide, clearPending, requireAuth, runPending }
 })
