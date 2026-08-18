@@ -22,7 +22,6 @@ import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -43,9 +42,8 @@ import java.util.stream.Collectors;
  * <p>
  * 提供总览指标、最热门食堂/菜品排行、浏览量与评价量趋势（ECharts）。
  */
-@Tag(name = "数据统计（数据看板）", description = "运营数据一览：上新/评价指标、热门排行、趋势图")
+@Tag(name = "数据统计（数据看板）", description = "运营数据一览：上新/评价指标、热门排行、趋势图。统计逻辑由 DashboardController 复用。")
 @RestController
-@RequestMapping("/admin/stats")
 @RequiredArgsConstructor
 public class StatsController {
 
@@ -62,9 +60,8 @@ public class StatsController {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MM-dd");
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    @Operation(summary = "数据看板总览", description = "用途：运营数据一览。支持 range=7/30（天），默认 7 天。返回本周上新、本周评价、热门排行与趋势。")
-    @GetMapping("/overview")
-    public Result<DashboardVO> overview(@RequestParam(defaultValue = "7") int range) {
+    /** 数据看板总览：由 DashboardController 直接调用复用，不再暴露独立 HTTP 端点 */
+    public Result<DashboardVO> overview(int range) {
         if (range != 7 && range != 30) range = 7;
         LocalDateTime since = LocalDate.now().minusDays(range).atStartOfDay();
         DashboardVO vo = new DashboardVO();

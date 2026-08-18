@@ -275,8 +275,9 @@ async function loadData() {
   loadFailed.value = false
   try {
     // 定位（会话级缓存）与动态摘录、最新活动并行：首次授权弹窗不再阻塞首屏
+    // 广播条取动态前 10 条轮播
     const [momentRes, actRes] = await Promise.all([
-      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
+      getMoments({ tab: 'latest', page: 1, pageSize: 10 }),
       getActivities(),
       ensureLocation(),
     ])
@@ -335,7 +336,7 @@ async function onRefresh() {
     // 同时刷新广播/定位与当前品类瀑布流：仅广播刷新会让用户以为下拉无效。
     // 下拉刷新保留真实内容（不置 loadingHot），避免整页切骨架屏闪烁。
     const [momentRes] = await Promise.all([
-      getMoments({ tab: 'latest', page: 1, pageSize: 5 }),
+      getMoments({ tab: 'latest', page: 1, pageSize: 10 }),
       ensureLocation(),
       filterTabs.value.length > 0
         ? dishStore.fetchFilterDishes(filterTabs.value.find((t) => t.key === selectedKey.value) || filterTabs.value[0], true)

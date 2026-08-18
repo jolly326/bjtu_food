@@ -2,8 +2,8 @@ package com.bjtufood.auth.controller;
 
 import com.bjtufood.auth.dto.EmailCodeReq;
 import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.PasswordChangeReq;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
-import com.bjtufood.auth.dto.UserStatsVO;
 import com.bjtufood.auth.dto.VerifyEmailReq;
 import com.bjtufood.auth.dto.WechatLoginReq;
 import com.bjtufood.auth.service.AuthService;
@@ -114,13 +114,20 @@ public class AuthController {
     }
 
     @Operation(
-            summary = "获取当前用户统计",
-            description = "用途：个人中心展示我的收藏数、我的评价数。",
-            security = @SecurityRequirement(name = "bearerAuth")
+            summary = "修改密码（管理后台）",
+            description = "校验当前登录用户的旧密码并更新为新密码（BCrypt 加密）。用于管理后台个人中心修改密码。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "oldPassword": "旧密码",
+                      "newPassword": "新密码（6-64 位）"
+                    }
+                    """)))
     )
-    @GetMapping("/auth/stats")
-    public Result<UserStatsVO> stats() {
+    @PutMapping("/auth/password")
+    public Result<Void> changePassword(@Valid @RequestBody PasswordChangeReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(authService.getUserStats(userId));
+        authService.changePassword(userId, req.getOldPassword(), req.getNewPassword());
+        return Result.success();
     }
 }

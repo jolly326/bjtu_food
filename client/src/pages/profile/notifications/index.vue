@@ -104,7 +104,7 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
-/** 点击通知：标记已读；审核类跳对应详情页 */
+/** 点击通知：标记已读；审核类跳对应详情页（type 编码目标类型，relatedId 为目标对象 ID） */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {
     // 乐观更新已读态
@@ -114,9 +114,11 @@ async function onTap(n: Notification) {
       await readNotification(n.id)
     } catch { /* 失败静默，下轮刷新对齐 */ }
   }
-  const params = n.relatedType && n.relatedId ? `?id=${n.relatedId}` : ''
-  if (n.type === 'moment_audit') uni.navigateTo({ url: `/pages/pages-detail/moment${params}` })
-  else if (n.type === 'dish_audit') uni.navigateTo({ url: `/pages/pages-detail/dish${params}` })
+  if (n.type === 'moment_audit' && n.relatedId) {
+    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${n.relatedId}` })
+  } else if (n.type === 'dish_audit' && n.relatedId) {
+    uni.navigateTo({ url: `/pages/pages-detail/dish?id=${n.relatedId}` })
+  }
   // comment / useful 无独立目标页，仅标已读
 }
 

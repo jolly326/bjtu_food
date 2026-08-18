@@ -63,7 +63,6 @@ public interface MomentService {
      *
      * @return 是否点过 + 当前计数
      */
-    com.bjtufood.moment.dto.MomentUsefulResult toggleCommentUseful(Long momentId, Long commentId, Long userId);
 
     /**
      * 评论列表（按 created_at asc，扁平化带 parentId/replyToNickname）

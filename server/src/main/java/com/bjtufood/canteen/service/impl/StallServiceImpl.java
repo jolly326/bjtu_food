@@ -1,10 +1,7 @@
 package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bjtufood.canteen.dto.MyPublishStallVO;
 import com.bjtufood.canteen.dto.StallAdminVO;
-import com.bjtufood.canteen.dto.StallDetailVO;
-import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
@@ -15,14 +12,11 @@ import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
-import com.bjtufood.review.dto.StallAvgRatingDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,36 +27,6 @@ public class StallServiceImpl implements StallService {
     private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final ReviewMapper reviewMapper;
-
-    @Override
-    public List<StallDetailVO> listByCanteenId(Long canteenId) {
-        List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                .eq(Stall::getCanteenId, canteenId)
-                .eq(Stall::getStatus, "open")
-                .orderByAsc(Stall::getSortOrder));
-        // 消除逐档口 N+1：批量查询一次全部档口平均分，Map 组装
-        Map<Long, BigDecimal> ratingMap = batchAvgRating(stalls);
-        return stalls.stream()
-                .map(s -> toVO(s, ratingMap.get(s.getId())))
-                .toList();
-    }
-
-    /**
-     * 批量查询档口平均评分，返回 stallId → avgRating 的 Map（无评价的档口不包含，调用方兜底为 0）。
-     */
-    private Map<Long, BigDecimal> batchAvgRating(List<Stall> stalls) {
-        if (stalls == null || stalls.isEmpty()) {
-            return new HashMap<>();
-        }
-        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
-        Map<Long, BigDecimal> map = new HashMap<>();
-        for (StallAvgRatingDTO r : reviewMapper.selectAvgRatingByStallIds(ids)) {
-            if (r.getStallId() != null) {
-                map.put(r.getStallId(), r.getAvgRating());
-            }
-        }
-        return map;
-    }
 
     @Override
     public List<StallAdminVO> listAllForAdmin() {
@@ -109,114 +73,6 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException("Stall not found");
         }
         return stall;
-    }
-
-    @Override
-    public Long submitUgc(com.bjtufood.canteen.dto.StallUgcSubmitReq req) {
-        String type = req.getType() == null ? "" : req.getType().trim().toLowerCase();
-        Long userId = SecurityUtil.getCurrentUserId();
-
-        if ("stall".equals(type)) {
-            if (req.getCanteenId() == null) {
-                throw new BusinessException("提交档口时必须关联食堂(canteenId)");
-            }
-            if (canteenMapper.selectById(req.getCanteenId()) == null) {
-                throw new BusinessException("Canteen not found");
-            }
-            if (req.getName() == null || req.getName().isBlank()) {
-                throw new BusinessException("档口名称不能为空");
-            }
-            Stall stall = new Stall();
-            stall.setCanteenId(req.getCanteenId());
-            stall.setName(req.getName().trim());
-            stall.setDescription(req.getDescription());
-            stall.setLocation(req.getLocation());
-            stall.setStatus("closed");          // UGC 未审核，不对外展示
-            stall.setAuditStatus("pending");    // 待审核
-            stall.setCreatedBy(userId);
-            stallMapper.insert(stall);
-            return stall.getId();
-        } else if ("canteen".equals(type)) {
-            if (req.getName() == null || req.getName().isBlank()) {
-                throw new BusinessException("食堂名称不能为空");
-            }
-            Canteen canteen = new Canteen();
-            canteen.setName(req.getName().trim());
-            canteen.setDescription(req.getDescription());
-            canteen.setLocation(req.getLocation());
-            canteen.setStatus("closed");        // UGC 未审核，不对外展示
-            canteen.setAuditStatus("pending");  // 待审核
-            canteen.setCreatedBy(userId);
-            canteenMapper.insert(canteen);
-            return canteen.getId();
-        } else {
-            throw new BusinessException("type 仅支持 stall 或 canteen");
-        }
-    }
-
-    @Override
-    public List<MyPublishStallVO> listMySubmissions() {
-        Long userId = SecurityUtil.getCurrentUserId();
-
-        List<MyPublishStallVO> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                        .eq(Canteen::getCreatedBy, userId)
-                        .orderByDesc(Canteen::getCreatedAt))
-                .stream()
-                .map(this::toMyPublishVO)
-                .toList();
-
-        List<MyPublishStallVO> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                        .eq(Stall::getCreatedBy, userId)
-                        .orderByDesc(Stall::getCreatedAt))
-                .stream()
-                .map(this::toMyPublishVO)
-                .toList();
-
-        // 顺序：先食堂后档口，均为创建时间倒序
-        List<MyPublishStallVO> result = new java.util.ArrayList<>(canteens.size() + stalls.size());
-        result.addAll(canteens);
-        result.addAll(stalls);
-        return result;
-    }
-
-    private StallDetailVO toVO(Stall stall, BigDecimal avgRating) {
-        StallDetailVO vo = new StallDetailVO();
-        vo.setId(stall.getId());
-        vo.setName(stall.getName());
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
-        vo.setLocation(stall.getLocation());
-        vo.setDescription(stall.getDescription());
-        // avgRating 由调用方批量查询传入，避免逐档口 N+1
-        vo.setAvgRating(avgRating != null ? avgRating.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
-        return vo;
-    }
-
-    private MyPublishStallVO toMyPublishVO(Stall stall) {
-        MyPublishStallVO vo = new MyPublishStallVO();
-        vo.setId(stall.getId());
-        vo.setCanteenId(stall.getCanteenId());
-        vo.setName(stall.getName());
-        vo.setLocation(stall.getLocation());
-        vo.setDescription(stall.getDescription());
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
-        vo.setAuditStatus(stall.getAuditStatus());
-        vo.setRejectReason(stall.getRejectReason());
-        vo.setCreatedAt(stall.getCreatedAt());
-        return vo;
-    }
-
-    private MyPublishStallVO toMyPublishVO(Canteen canteen) {
-        MyPublishStallVO vo = new MyPublishStallVO();
-        vo.setId(canteen.getId());
-        vo.setCanteenId(null);
-        vo.setName(canteen.getName());
-        vo.setLocation(canteen.getLocation());
-        vo.setDescription(canteen.getDescription());
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-        vo.setAuditStatus(canteen.getAuditStatus());
-        vo.setRejectReason(canteen.getRejectReason());
-        vo.setCreatedAt(canteen.getCreatedAt());
-        return vo;
     }
 
     private StallAdminVO toAdminVO(Stall stall) {

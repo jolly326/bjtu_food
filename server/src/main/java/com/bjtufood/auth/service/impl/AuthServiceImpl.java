@@ -7,7 +7,6 @@ import com.bjtufood.auth.dto.AdminLoginResp;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
-import com.bjtufood.auth.dto.UserStatsVO;
 import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
@@ -21,7 +20,6 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
-import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
@@ -34,14 +32,10 @@ import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.history.entity.ViewLog;
 import com.bjtufood.history.mapper.ViewLogMapper;
-import com.bjtufood.list.entity.ItemList;
-import com.bjtufood.list.mapper.ItemListMapper;
 import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.entity.MomentComment;
-import com.bjtufood.moment.entity.MomentCommentUseful;
 import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
-import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.moment.mapper.MomentUsefulMapper;
 import com.bjtufood.notify.entity.Notification;
@@ -74,12 +68,10 @@ public class AuthServiceImpl implements AuthService {
     private final MomentMapper momentMapper;
     private final MomentCommentMapper momentCommentMapper;
     private final MomentUsefulMapper momentUsefulMapper;
-    private final MomentCommentUsefulMapper momentCommentUsefulMapper;
     private final FeedbackMapper feedbackMapper;
     private final ApplyActionMapper applyActionMapper;
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
-    private final ItemListMapper itemListMapper;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -142,8 +134,9 @@ public class AuthServiceImpl implements AuthService {
             // 数据归属转移：旧账号业务数据改挂到当前微信
             migrateOwnership(legacyAccount.getId(), current.getId());
             // 旧账号清理：标记 deleted，释放其 username/email 唯一键占用
+            // email 置 NULL 而非空串：多账号统一置 '' 会撞 uk_user_email 唯一索引，NULL 不占用唯一键
             legacyAccount.setStatus("deleted");
-            legacyAccount.setEmail("");
+            legacyAccount.setEmail(null);
             userMapper.updateById(legacyAccount);
         }
 
@@ -185,23 +178,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserStatsVO getUserStats(Long userId) {
-        // 发布数：本人提交的菜品总数（含全部审核态）
-        long publishedCount = dishMapper.selectCount(
-                new LambdaQueryWrapper<Dish>().eq(Dish::getCreatedBy, userId));
-        // 待审数：本人提交且 audit_status=pending 的菜品数
-        long pendingCount = dishMapper.selectCount(
-                new LambdaQueryWrapper<Dish>()
-                        .eq(Dish::getCreatedBy, userId)
-                        .eq(Dish::getAuditStatus, DishConst.AUDIT_PENDING));
-        // 收藏数：favorite 模块本期整体移除（task-12.12），"我的喜欢"计数暂为 0
-        long favoriteCount = 0L;
-        // 评价数：本人已发布且未被隐藏的评价数
-        long reviewCount = reviewMapper.selectCount(
-                new LambdaQueryWrapper<Review>()
-                        .eq(Review::getUserId, userId)
-                        .eq(Review::getIsHidden, 0));
-        return new UserStatsVO(publishedCount, pendingCount, favoriteCount, reviewCount);
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        if (!StringUtils.hasText(user.getPassword())) {
+            throw new BusinessException("当前账号未设置密码，无法修改");
+        }
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
     }
 
     @Override
@@ -220,7 +209,8 @@ public class AuthServiceImpl implements AuthService {
         }
         user.setLastLoginAt(DateTimeUtil.now());
         userMapper.updateById(user);
-        String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername());
+        // 管理端短期 Token：12 小时过期，降低泄露风险（学生端静默登录保持长期，见 toLoginResp）
+        String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername(), ADMIN_TOKEN_EXPIRATION_MS);
         return new AdminLoginResp(token, user.getUsername(), user.getRole());
     }
 
@@ -272,6 +262,14 @@ public class AuthServiceImpl implements AuthService {
         String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
         return "食客" + tail;
     }
+
+    /**
+     * 管理后台 Token 过期时长：12 小时（毫秒）。
+     * <p>
+     * 管理端凭据泄露面小但危害大，短期过期降低风险；
+     * 学生端静默登录保持长期（见 toLoginResp），两者策略分离。
+     */
+    private static final long ADMIN_TOKEN_EXPIRATION_MS = 12 * 60 * 60 * 1000L;
 
     /**
      * 新建微信游客账号（verified=0）。
@@ -369,7 +367,7 @@ public class AuthServiceImpl implements AuthService {
                 .eq(Review::getUserId, fromUserId)
                 .set(Review::getUserId, toUserId));
 
-        // review_useful / moment_useful / moment_comment_useful：先清冲突后转移
+        // review_useful / moment_useful：先清冲突后转移（moment_comment_useful 已随评论点赞下线移除）
         reviewUsefulMapper.delete(new LambdaUpdateWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getUserId, fromUserId)
                 .inSql(ReviewUseful::getReviewId, "SELECT review_id FROM review_useful WHERE user_id = " + toUserId));
@@ -383,13 +381,6 @@ public class AuthServiceImpl implements AuthService {
         momentUsefulMapper.update(null, new LambdaUpdateWrapper<MomentUseful>()
                 .eq(MomentUseful::getUserId, fromUserId)
                 .set(MomentUseful::getUserId, toUserId));
-
-        momentCommentUsefulMapper.delete(new LambdaUpdateWrapper<MomentCommentUseful>()
-                .eq(MomentCommentUseful::getUserId, fromUserId)
-                .inSql(MomentCommentUseful::getCommentId, "SELECT comment_id FROM moment_comment_useful WHERE user_id = " + toUserId));
-        momentCommentUsefulMapper.update(null, new LambdaUpdateWrapper<MomentCommentUseful>()
-                .eq(MomentCommentUseful::getUserId, fromUserId)
-                .set(MomentCommentUseful::getUserId, toUserId));
 
         // apply_action：唯一键 (entity_type,entity_id,apply_type,status)，仅 pending 态可能冲突。
         // 先查出新账号的 pending 申请，删除旧账号同 (entity_type,entity_id,apply_type) 的 pending 申请，再整体改挂。
@@ -428,9 +419,5 @@ public class AuthServiceImpl implements AuthService {
         notificationMapper.update(null, new LambdaUpdateWrapper<Notification>()
                 .eq(Notification::getUserId, fromUserId)
                 .set(Notification::getUserId, toUserId));
-        // 美食清单归属（item_list 无 user_id 唯一键，直接改写）
-        itemListMapper.update(null, new LambdaUpdateWrapper<ItemList>()
-                .eq(ItemList::getUserId, fromUserId)
-                .set(ItemList::getUserId, toUserId));
     }
 }

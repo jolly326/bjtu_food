@@ -149,8 +149,3 @@ export async function commentMoment(id: number, payload: MomentCommentPublish): 
 export async function deleteMomentComment(momentId: number, commentId: number): Promise<void> {
   await del<void>(`/my/moments/${momentId}/comments/${commentId}`)
 }
-
-/** 评论「有用」幂等切换（STU，task-12.4） */
-export async function toggleCommentUseful(momentId: number, commentId: number): Promise<MomentUsefulResult> {
-  return post<MomentUsefulResult>(`/moments/${momentId}/comments/${commentId}/useful`)
-}

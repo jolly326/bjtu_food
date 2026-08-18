@@ -1,23 +1,9 @@
 import type { CanteenInfo } from '@/types/canteen'
-import type { BannerItem } from '@/types/banner'
 import { get } from './http'
 import { normalizeImages } from './_shared'
 
 function firstImage(raw: any): string {
   return normalizeImages(raw?.images ?? raw?.image ?? raw?.icon)[0] || ''
-}
-
-export async function getHomeBanners(): Promise<BannerItem[]> {
-  const raw = await get<any[]>('/canteens/banners')
-  return raw.map((b: any) => ({
-    id: Number(b.id),
-    title: b.title || '',
-    subtitle: b.subtitle || '',
-    image: firstImage(b),
-    targetType: (b.targetType || b.target_type || 'NONE') as BannerItem['targetType'],
-    targetId: b.targetId != null ? Number(b.targetId) : (b.target_id != null ? Number(b.target_id) : undefined),
-    targetUrl: b.targetUrl || b.target_url || '',
-  }))
 }
 
 export async function getCanteenList(): Promise<CanteenInfo[]> {

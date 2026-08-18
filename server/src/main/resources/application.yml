@@ -13,7 +13,9 @@ spring:
     name: bjtu-food
 
   # ---------- 数据源配置 ----------
-  # 凭据一律从环境变量注入（本地开发在启动前设置，或复制 .env.example 为 server/.env 加载），禁止在仓库写入明文。
+  # 凭据一律从环境变量注入，禁止在仓库写入明文。
+  # 本地开发：复制 .env.example 为 server/.env，由 spring-dotenv 依赖自动加载（优先级：系统环境变量 > server/.env > 此处默认值）。
+  # 云托管/生产：直接在云托管环境变量中配置同名变量（优先级最高），无需 .env 文件。
   # 注意：原 application-secret.yml（曾含 SMTP 明文）已移除并加入 .gitignore，敏感配置全部改由环境变量注入，仓库不再保留任何明文凭据。
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -29,7 +31,7 @@ spring:
 
   # ---------- SMTP 邮件配置（网易 163） ----------
   # 发件邮箱与授权码一律从环境变量 SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD 注入，禁止在仓库写入明文。
-  # 本地开发：复制 .env.example 为 server/.env 并填入真实授权码，由 Spring Boot 自动加载。
+  # 本地开发：复制 .env.example 为 server/.env 并填入真实授权码，由 spring-dotenv 依赖自动加载。
   # 网易 SMTP：host=smtp.163.com，端口 465（SSL）/ 994（SSL）。授权码在网易邮箱网页版「设置→POP3/SMTP/IMAP」开启后生成。
   mail:
     host: smtp.163.com
@@ -56,8 +58,8 @@ spring:
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
   configuration:
-    # 开发环境打印 SQL（方便调试），生产环境关闭
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 默认（生产）不打印 SQL；本地开发由 application-dev.yml 覆盖为 StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
     # 数据库字段下划线命名 <-> Java 实体类驼峰命名自动映射
     map-underscore-to-camel-case: true
 

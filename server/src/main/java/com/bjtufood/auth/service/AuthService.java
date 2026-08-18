@@ -4,7 +4,6 @@ import com.bjtufood.auth.dto.AdminLoginReq;
 import com.bjtufood.auth.dto.AdminLoginResp;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
-import com.bjtufood.auth.dto.UserStatsVO;
 import com.bjtufood.auth.dto.UserInfoVO;
 import com.bjtufood.auth.entity.User;
 
@@ -72,12 +71,15 @@ public interface AuthService {
     Map<String, Object> updateProfile(Long userId, ProfileUpdateReq req);
 
     /**
-     * 获取用户统计。
+     * 修改当前登录用户密码（管理后台个人中心）。
+     * <p>
+     * 校验旧密码；通过后以 BCrypt 加密更新。学生微信账号未设置密码时直接报错。
      *
-     * @param userId 用户ID
-     * @return 用户统计数据（publishedCount, pendingCount, favoriteCount, reviewCount）
+     * @param userId      当前登录用户ID
+     * @param oldPassword 旧密码
+     * @param newPassword 新密码（6-64 位）
      */
-    UserStatsVO getUserStats(Long userId);
+    void changePassword(Long userId, String oldPassword, String newPassword);
 
     /**
      * 管理后台登录（方案 C，spec §5.y.5）：管理员账号密码 + BCrypt + JWT。

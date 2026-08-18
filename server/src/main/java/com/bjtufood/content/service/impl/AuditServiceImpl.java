@@ -183,21 +183,6 @@ public class AuditServiceImpl implements AuditService {
         }
     }
 
-    @Override
-    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-    public void batchApprove(String type, List<Long> ids) {
-        if (ids != null) ids.forEach(id -> approve(type, id));
-    }
-
-    @Override
-    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-    public void batchReject(String type, List<Long> ids, String rejectReason) {
-        if (!StringUtils.hasText(rejectReason)) {
-            throw new BusinessException("退回原因不能为空");
-        }
-        if (ids != null) ids.forEach(id -> reject(type, id, rejectReason));
-    }
-
     private AuditVO toDishVO(Dish d, Map<Long, Long> stallCanteenMap) {
         AuditVO v = new AuditVO();
         v.setId(d.getId());

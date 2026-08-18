@@ -266,36 +266,6 @@
         ORDER BY d.updated_at DESC
     </select>
 
-    <!-- 我的发布 结果映射 -->
-    <resultMap id="myDishVOMap" type="com.bjtufood.dish.dto.MyDishVO">
-        <id property="id" column="id"/>
-        <result property="stallId" column="stall_id"/>
-        <result property="imagesJson" column="images"/>
-        <result property="auditStatus" column="audit_status"/>
-        <result property="rejectReason" column="reject_reason"/>
-        <result property="createdAt" column="created_at"/>
-    </resultMap>
-
-    <!-- 我的发布菜品列表（created_by = #{userId}，可按 audit_status 过滤） -->
-    <select id="selectMyDishes" resultMap="myDishVOMap">
-        SELECT
-            d.id,
-            d.name,
-            d.price,
-            d.images,
-            d.tags,
-            d.description,
-            d.audit_status,
-            d.reject_reason,
-            d.created_at
-        FROM dish d
-        WHERE d.created_by = #{userId}
-        <if test="auditStatus != null and auditStatus != ''">
-            AND d.audit_status = #{auditStatus}
-        </if>
-        ORDER BY d.created_at DESC
-    </select>
-
     <!-- 评分分布 -->
     <select id="selectRatingDistribution" resultType="com.bjtufood.dish.dto.RatingDistributionVO">
         SELECT rating AS star, COUNT(*) AS count

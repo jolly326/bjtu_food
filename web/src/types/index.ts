@@ -127,18 +127,3 @@ export interface Review {
   updated_at: Date;
 }
 
-// banner 轮播/公告表
-export interface Banner {
-  id: bigint;
-  title: string;
-  image?: string;
-  target_id?: bigint;
-  target_type?: string;
-  /** 跳转目标 URL（target_type=URL 时使用） */
-  target_url?: string;
-  canteen_id?: bigint;
-  sort_order: number;
-  status: string;
-  created_at: Date;
-  updated_at: Date;
-}

@@ -8,7 +8,6 @@ import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import org.apache.ibatis.annotations.Param;
@@ -88,11 +87,6 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 查询全部菜品列表（含已下架），联表档口和食堂名称
      */
     List<DishAdminVO> selectAllForAdmin();
-
-    /**
-     * 查询「我的发布」菜品列表（created_by = userId，可按审核状态过滤）
-     */
-    List<MyDishVO> selectMyDishes(@Param("userId") Long userId, @Param("auditStatus") String auditStatus);
 
     /**
      * 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点）

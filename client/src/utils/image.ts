@@ -15,6 +15,8 @@ import { API_BASE_URL } from '@/api/config'
  */
 export function getImageUrl(path?: string | null): string {
   if (!path) return ''
+  // 微信云存储文件 ID：<image> 组件原生支持 cloud:// 直接显示，原样返回
+  if (path.startsWith('cloud://')) return path
   // 绝对地址兜底：data:/blob:/http(s): 以及任何可解析为 URL 的绝对地址，原样返回（档口图核心路径）
   if (/^(https?:|data:|blob:)/i.test(path)) return path
   try {
@@ -47,6 +49,8 @@ export function getImageUrls(images?: (string | null)[] | null): string[] {
  */
 export function getThumbUrl(path?: string | null): string {
   if (!path) return ''
+  // 微信云存储文件 ID：无缩略图概念，原样返回
+  if (path.startsWith('cloud://')) return path
   const normalized = path.replace(/^\/api/, '')
   if (!/\.(jpg|jpeg|png)$/i.test(normalized)) return normalized
   if (/_thumb\./i.test(normalized)) return normalized

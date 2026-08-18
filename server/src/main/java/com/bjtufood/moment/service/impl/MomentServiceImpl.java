@@ -24,9 +24,7 @@ import com.bjtufood.moment.dto.MomentVO;
 import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.entity.MomentComment;
-import com.bjtufood.moment.entity.MomentCommentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
-import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.moment.mapper.MomentUsefulMapper;
 import com.bjtufood.moment.service.MomentService;
@@ -58,7 +56,6 @@ public class MomentServiceImpl implements MomentService {
     private final MomentMapper momentMapper;
     private final MomentCommentMapper momentCommentMapper;
     private final MomentUsefulMapper momentUsefulMapper;
-    private final MomentCommentUsefulMapper momentCommentUsefulMapper;
     private final NotificationMapper notificationMapper;
     private final UserMapper userMapper;
     private final DishMapper dishMapper;
@@ -294,20 +291,6 @@ public class MomentServiceImpl implements MomentService {
         Map<Long, User> userMap = loadUsers(userIds);
         Map<Long, User> parentMap = loadUsers(parentIds);
 
-        // 当前用户对评论的 👍 标记状态（task-12.4）
-        // 注意：动态无评论时 commentIds 为空集合，直接 .in(空) 会生成非法 SQL "IN ()" 触发 500
-        // （项目已知坑，同 AuditServiceImpl），故需先做空集合防护。
-        final Set<Long> markedCommentIds = new HashSet<>();
-        if (currentUserId != null) {
-            List<Long> commentIds = p.getRecords().stream().map(MomentComment::getId).toList();
-            if (!commentIds.isEmpty()) {
-                markedCommentIds.addAll(momentCommentUsefulMapper.selectList(new LambdaQueryWrapper<MomentCommentUseful>()
-                                .eq(MomentCommentUseful::getUserId, currentUserId)
-                                .in(MomentCommentUseful::getCommentId, commentIds))
-                        .stream().map(MomentCommentUseful::getCommentId).collect(Collectors.toSet()));
-            }
-        }
-
         IPage<MomentCommentVO> result = new Page<>(page, pageSize, p.getTotal());
         result.setRecords(p.getRecords().stream().map(c -> {
             MomentCommentVO vo = new MomentCommentVO();
@@ -326,51 +309,11 @@ public class MomentServiceImpl implements MomentService {
             // 评论图片：JSON 数组字符串 → 绝对 URL 列表（最多 3 张）
             vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(c.getImages()));
             vo.setUsefulCount(c.getUsefulCount() == null ? 0 : c.getUsefulCount());
-            vo.setUseful(markedCommentIds.contains(c.getId()));
+            // 评论点赞已下线（前端同步移除），标记恒为 false，保留字段兼容前端类型
+            vo.setUseful(false);
             vo.setCreatedAt(c.getCreatedAt());
             return vo;
         }).toList());
-        return result;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public MomentUsefulResult toggleCommentUseful(Long momentId, Long commentId, Long userId) {
-        MomentComment c = momentCommentMapper.selectById(commentId);
-        if (c == null || !c.getMomentId().equals(momentId)) {
-            throw new BusinessException("评论不存在");
-        }
-        LambdaQueryWrapper<MomentCommentUseful> w = new LambdaQueryWrapper<MomentCommentUseful>()
-                .eq(MomentCommentUseful::getUserId, userId)
-                .eq(MomentCommentUseful::getCommentId, commentId);
-        MomentCommentUseful exist = momentCommentUsefulMapper.selectOne(w);
-        MomentUsefulResult result = new MomentUsefulResult();
-        if (exist != null) {
-            momentCommentUsefulMapper.deleteById(exist.getId());
-            // 计数原子 -1（并发安全）
-            momentCommentMapper.changeUsefulCount(commentId, -1);
-            result.setUseful(false);
-        } else {
-            MomentCommentUseful useful = new MomentCommentUseful();
-            useful.setUserId(userId);
-            useful.setCommentId(commentId);
-            try {
-                momentCommentUsefulMapper.insert(useful);
-            } catch (org.springframework.dao.DuplicateKeyException e) {
-                // 并发下先查后插存在竞态，uk_useful_user_comment 兜底：转业务提示避免 500，且不重复加计数
-                throw new BusinessException("你已经赞过这条评论");
-            }
-            // 计数原子 +1（并发安全）
-            momentCommentMapper.changeUsefulCount(commentId, 1);
-            result.setUseful(true);
-            // 被赞通知（非自赞）
-            if (!userId.equals(c.getUserId())) {
-                sendCommentUsefulNotification(c);
-            }
-        }
-        // 原子增减后回读最新计数
-        MomentComment latest = momentCommentMapper.selectById(commentId);
-        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
         return result;
     }
 
@@ -667,14 +610,4 @@ public class MomentServiceImpl implements MomentService {
         notificationService.notify(n);
     }
 
-    private void sendCommentUsefulNotification(MomentComment c) {
-        Notification n = new Notification();
-        n.setUserId(c.getUserId());
-        n.setType(NotificationConst.TYPE_USEFUL);
-        n.setRelatedId(c.getMomentId());
-        n.setTitle("评论被赞");
-        n.setContent("有同学觉得您的评论「有用 👍」");
-        n.setIsRead(0);
-        notificationService.notify(n);
-    }
 }

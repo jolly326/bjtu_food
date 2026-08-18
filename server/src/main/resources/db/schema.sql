@@ -2,8 +2,8 @@
 -- 食在交大 建立数据库（建表）脚本（MySQL 8）
 -- =============================================================
 -- 用途：从零创建数据库与全部表结构、最终字段（含 region 列、折扣价等扩展字段）。
--- 执行前提：已先 CREATE DATABASE bjtu_food 并 USE bjtu_food。
--- 重置服务器：先 DROP DATABASE bjtu_food 再重建库，随后执行本文件即可还原表结构。
+-- 本脚本自包含：自动建库并切换 USE bjtu_food，不依赖工具/命令行预先选中库。
+-- 重置服务器：先 DROP DATABASE bjtu_food 再执行本文件即可还原表结构（或直接执行本文件覆盖）。
 -- 配合 seed_data.sql 使用：本文件只建表不插数据。
 --
 -- 说明：
@@ -13,6 +13,10 @@
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
 --      用于 UGC 内容（dish / stall / canteen）的审核流；后台录入默认 approved。
 -- =============================================================
+
+-- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
+CREATE DATABASE IF NOT EXISTS `bjtu_food` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `bjtu_food`;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -27,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `user`
 (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
     `username`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '学号/工号（游客建号为 wx_+openid 尾 16 位，唯一）',
-    `email`        VARCHAR(128) NOT NULL DEFAULT '' COMMENT '校园邮箱（历史迁移凭证；新微信用户可为空）',
+    `email`        VARCHAR(128) NULL    DEFAULT NULL COMMENT '校园邮箱（历史迁移凭证；微信游客为 NULL，多游客 NULL 不冲突唯一索引 uk_user_email）',
     `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '密码哈希（仅管理员后台用，学生侧不校验）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
@@ -188,26 +192,6 @@ CREATE TABLE IF NOT EXISTS `notification`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='消息通知';
 
--- -------------------- 轮播图 --------------------
-CREATE TABLE IF NOT EXISTS `banner`
-(
-    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '轮播图ID',
-    `title`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '标题',
-    `subtitle`   VARCHAR(128) NULL    DEFAULT NULL COMMENT '副标题',
-    `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '背景图片URL列表JSON',
-    `target_type` VARCHAR(32) NOT NULL DEFAULT 'DISH' COMMENT '跳转类型枚举：DISH/URL/NONE（ACTIVITY 已废弃，活动统一经 Banner URL 外链承载，见 task-12.10）',
-    `target_id`  BIGINT       NULL    DEFAULT NULL COMMENT '跳转目标ID（target_type=DISH/ACTIVITY）',
-    `target_url` VARCHAR(512) NULL    DEFAULT NULL COMMENT '跳转目标URL（target_type=URL）',
-    `canteen_id` BIGINT       NULL    DEFAULT NULL COMMENT '关联食堂ID',
-    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重',
-    `status`     VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='轮播图';
-
 -- -------------------- 菜品分类（find 宫格，A.17） --------------------
 CREATE TABLE IF NOT EXISTS `category`
 (
@@ -262,36 +246,6 @@ CREATE TABLE IF NOT EXISTS `activity`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='最新活动（公众号文章卡片）';
 
--- -------------------- 美食清单 --------------------
-CREATE TABLE IF NOT EXISTS `item_list`
-(
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '清单ID',
-    `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '创建者用户ID',
-    `name`        VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '清单名称',
-    `description` VARCHAR(512) NULL    DEFAULT NULL COMMENT '清单描述',
-    `share_token` VARCHAR(64)  NULL    DEFAULT NULL COMMENT '分享token',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_list_token` (`share_token`),
-    KEY `idx_list_user` (`user_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='美食清单';
-
--- -------------------- 清单项 --------------------
-CREATE TABLE IF NOT EXISTS `list_item`
-(
-    `id`      BIGINT NOT NULL AUTO_INCREMENT COMMENT '清单项ID',
-    `list_id` BIGINT NOT NULL DEFAULT 0 COMMENT '所属清单ID',
-    `dish_id` BIGINT NOT NULL DEFAULT 0 COMMENT '菜品ID',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_list_item` (`list_id`, `dish_id`),
-    KEY `idx_item_dish` (`dish_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='清单项';
-
 -- -------------------- 用户反馈 --------------------
 CREATE TABLE IF NOT EXISTS `user_feedback`
 (
@@ -315,32 +269,99 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
 
--- -------------------- 活动（本期整体移除，并入 Banner） --------------------
--- 活动模块本期整体移除（后端 activity 模块/路由/表一并清理），活动统一经 Banner 触达。
--- 详见 project_spec.md §0.3.1 / §3.x.6.5 / tasks/task-12-miniapp-web-scope.md task-12.10。
+-- -------------------- 活动说明 --------------------
+-- activity 表（见上方「最新活动」）为 task-12.10 活动模块：小程序首页「万能区」展示最新活动标题、web 后台可 CRUD、卡片经 web-view 打开公众号文章。
+-- 轮播图（banner）功能已废弃移除，活动不再关联 Banner，独立成表承载。
 
 -- =============================================================
 -- 一期扩展字段（追加，不改动既有列）
 -- 来源：tasks/ARCH_DECISIONS_PHASE1.md §1.2
 -- =============================================================
 
--- 档口：楼层 / 窗口号 / 营业时间
-ALTER TABLE `stall`
-    ADD COLUMN `floor`          VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '楼层（如 1F/2F）',
-    ADD COLUMN `window_no`      VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '窗口号',
-    ADD COLUMN `business_hours` VARCHAR(128) NOT NULL DEFAULT '' COMMENT '营业时间，如 10:00-20:00';
+-- 档口：楼层 / 窗口号 / 营业时间（CREATE TABLE 已含；旧库幂等补齐，列定义与 CREATE 保持一致）
+DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_stall_phase1_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'floor'
+    ) THEN
+        ALTER TABLE `stall` ADD COLUMN `floor` VARCHAR(16) NOT NULL DEFAULT '' COMMENT '楼层（如 1F/2F）';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'window_no'
+    ) THEN
+        ALTER TABLE `stall` ADD COLUMN `window_no` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '窗口号';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'business_hours'
+    ) THEN
+        ALTER TABLE `stall` ADD COLUMN `business_hours` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '营业时间，如 10:00-20:00';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_stall_phase1_fields`();
+DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
 
--- 菜品：辣度 / 分量 / 供应时段 / 是否限量
-ALTER TABLE `dish`
-    ADD COLUMN `spice_level` TINYINT NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
-    ADD COLUMN `portion`     TINYINT NOT NULL DEFAULT 0 COMMENT '分量枚举：0=小 1=中 2=大',
-    ADD COLUMN `serve_period` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight',
-    ADD COLUMN `limited`     TINYINT NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）',
-    ADD COLUMN `region`      VARCHAR(32) NULL     DEFAULT NULL COMMENT '地域（美食来源地），如 清真/川湘/西北/粤式/东北';
+-- 菜品：辣度 / 分量 / 供应时段 / 是否限量 / 地域（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
+DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_phase1_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'spice_level'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `spice_level` INT NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'portion'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `portion` INT NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'serve_period'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `serve_period` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'limited'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `limited` INT NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '地域（美食来源地），如 清真/川湘/西北/粤式/东北';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_phase1_fields`();
+DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
 
--- 评价：有用计数（冗余列，由 review_useful 聚合维护）
-ALTER TABLE `review`
-    ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '「有用」标记数（一人一票，uk_useful_user_review）';
+-- 评价：有用计数（冗余列，由 review_useful 聚合维护；幂等补齐）
+DROP PROCEDURE IF EXISTS `add_review_useful_count`;
+DELIMITER $$
+CREATE PROCEDURE `add_review_useful_count`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'useful_count'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '「有用」标记数（一人一票，uk_useful_user_review）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_review_useful_count`();
+DROP PROCEDURE IF EXISTS `add_review_useful_count`;
 
 -- 食堂坐标（GCJ-02）：首页瀑布流「距你 Xm」依赖 canteen.latitude/longitude（前端 Haversine 本地计算）。
 -- 新库：CREATE TABLE 已含该列；旧库：幂等迁移补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护）。
@@ -397,25 +418,31 @@ DELIMITER ;
 CALL `add_canteen_location`();
 DROP PROCEDURE IF EXISTS `add_canteen_location`;
 
--- 动态评论「有用」关系表（task-12.4）
-CREATE TABLE IF NOT EXISTS `moment_comment_useful`
-(
-    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
-    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `comment_id` BIGINT   NOT NULL DEFAULT 0 COMMENT '评论ID',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_useful_user_comment` (`user_id`, `comment_id`),
-    KEY `idx_useful_comment` (`comment_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='动态评论有用标记';
+-- 动态评论「有用」关系表已于评论点赞功能下线时移除（task-12.4 → 前端下线 + 后端清理）。
+-- 说明：moment_comment.useful_count 列保留（无写入，不影响前端展示）。
 
 
--- 菜品：折扣价（task-12.9）
-ALTER TABLE `dish`
-    ADD COLUMN `original_price` INT NOT NULL DEFAULT 0 COMMENT '原价（单位：分，折扣前）；promo_price 非空视为有折扣',
-    ADD COLUMN `promo_price`   INT NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空；非空视为有折扣）';
+-- 菜品：折扣价（task-12.9；CREATE TABLE 已含，列定义以 CREATE 为准：original_price/promo_price 均允许 NULL；旧库幂等补齐）
+DROP PROCEDURE IF EXISTS `add_dish_promo_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_promo_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'original_price'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `original_price` INT NULL DEFAULT NULL COMMENT '原价（单位：分，折扣前）；promo_price 非空视为有折扣';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'promo_price'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `promo_price` INT NULL DEFAULT NULL COMMENT '促销价（单位：分，可空；非空视为有折扣）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_promo_fields`();
+DROP PROCEDURE IF EXISTS `add_dish_promo_fields`;
 
 -- -------------------- 实体贡献统一申请（task-12.1） --------------------
 CREATE TABLE IF NOT EXISTS `apply_action`
@@ -639,6 +666,16 @@ BEGIN
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND INDEX_NAME = 'uk_user_openid'
     ) THEN
         ALTER TABLE `user` ADD UNIQUE KEY `uk_user_openid` (`openid`);
+    END IF;
+
+    -- 旧库 email 列修正：NOT NULL DEFAULT '' → 允许 NULL（微信游客 email=NULL 不冲突 uk_user_email 唯一索引；
+    -- 若仍为 NOT NULL 且默认空串，多个游客建号会撞唯一索引导致第二个游客起登录失败）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'email' AND IS_NULLABLE = 'NO'
+    ) THEN
+        ALTER TABLE `user`
+            MODIFY COLUMN `email` VARCHAR(128) NULL DEFAULT NULL COMMENT '校园邮箱（历史迁移凭证；微信游客为 NULL，多游客 NULL 不冲突唯一索引 uk_user_email）';
     END IF;
 END$$
 DELIMITER ;

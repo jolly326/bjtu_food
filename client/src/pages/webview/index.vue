@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 /**
- * WebView 通用页（Banner/广播 URL 跳转，用于打开微信公众号文章）
+ * WebView 通用页（活动/广播 URL 跳转，用于打开微信公众号文章）
  *
  * 用法：
  *   uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })

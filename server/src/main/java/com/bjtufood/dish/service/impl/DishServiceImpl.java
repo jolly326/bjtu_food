@@ -15,14 +15,11 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.history.service.HistoryService;
-import com.bjtufood.list.entity.ListItem;
-import com.bjtufood.list.mapper.ListItemMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +40,6 @@ public class DishServiceImpl implements DishService {
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
-    private final ListItemMapper listItemMapper;
     private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
 
@@ -330,7 +325,6 @@ public class DishServiceImpl implements DishService {
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
-        listItemMapper.delete(new LambdaQueryWrapper<ListItem>().eq(ListItem::getDishId, id));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
         dishMapper.deleteById(id);
     }
@@ -384,33 +378,9 @@ public class DishServiceImpl implements DishService {
         if (!userId.equals(existing.getCreatedBy())) {
             throw new BusinessException(403, "只能删除自己发布的菜品");
         }
-        // 复用现有管理员删除的级联清理逻辑（评价 + 清单项；favorite 模块已移除）
-        listItemMapper.delete(new LambdaQueryWrapper<ListItem>().eq(ListItem::getDishId, id));
+        // 复用现有管理员删除的级联清理逻辑（评价；favorite/清单 模块已移除）
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
         dishMapper.deleteById(id);
-    }
-
-    @Override
-    public List<MyDishVO> listMyDishes(Long userId, String auditStatus) {
-        LambdaQueryWrapper<Dish> wrapper = new LambdaQueryWrapper<Dish>()
-                .eq(Dish::getCreatedBy, userId);
-        if (StringUtils.hasText(auditStatus)) {
-            wrapper.eq(Dish::getAuditStatus, auditStatus);
-        }
-        wrapper.orderByDesc(Dish::getCreatedAt);
-        return dishMapper.selectList(wrapper).stream().map(dish -> {
-            MyDishVO vo = new MyDishVO();
-            vo.setId(dish.getId());
-            vo.setName(dish.getName());
-            vo.setPrice(dish.getPrice());
-            vo.setDescription(dish.getDescription());
-            vo.setImagesJson(dish.getImages());
-            vo.setTags(dish.getTags());
-            vo.setAuditStatus(dish.getAuditStatus());
-            vo.setRejectReason(dish.getRejectReason());
-            vo.setCreatedAt(dish.getCreatedAt());
-            return enrichMyDishImages(vo);
-        }).toList();
     }
 
     private void applyPublishReq(Dish dish, DishPublishReq req) {
@@ -420,17 +390,6 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
         dish.setTags(req.getTags());
-    }
-
-    /**
-     * 对「我的发布」VO 的 imagesJson 字段进行 URL 转换
-     */
-    private MyDishVO enrichMyDishImages(MyDishVO vo) {
-        if (vo == null) {
-            return null;
-        }
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
-        return vo;
     }
 
     @Override

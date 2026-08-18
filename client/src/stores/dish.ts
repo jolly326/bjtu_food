@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Dish, DishDetail, DishQuery, HotSearch } from '@/types/dish'
 import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
-import type { BannerItem } from '@/types/banner'
 import type { CanteenInfo } from '@/types/canteen'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
@@ -21,7 +20,6 @@ export const useDishStore = defineStore('dish', () => {
   const guessList = ref<Dish[]>([])
   const reviewList = ref<Review[]>([])
   const stallDishes = ref<Dish[]>([])
-  const homeBanners = ref<BannerItem[]>([])
   const canteenImageMap = ref<Record<string, string>>({})
   /**
    * 在途请求引用计数：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
@@ -88,15 +86,6 @@ export const useDishStore = defineStore('dish', () => {
     } catch (e: any) {
       console.error('加载食堂列表失败', e)
       canteenList.value = []
-    }
-  }
-
-  async function fetchHomeBanners() {
-    try {
-      homeBanners.value = await canteenApi.getHomeBanners()
-    } catch (e: any) {
-      console.error('加载轮播图失败', e)
-      homeBanners.value = []
     }
   }
 
@@ -384,12 +373,12 @@ export const useDishStore = defineStore('dish', () => {
 
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
-    homeBanners, canteenImageMap, canteenList, newDishes, promotionDishes,
+    canteenImageMap, canteenList, newDishes, promotionDishes,
     hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments, reviewsDirty,
     loading, navParams,
     categories,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed,
-    fetchRecommend, fetchGuess, fetchHomeBanners, fetchCanteenImages,
+    fetchRecommend, fetchGuess, fetchCanteenImages,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,

@@ -7,7 +7,6 @@ import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -164,20 +162,6 @@ public class DishController {
         Long userId = SecurityUtil.getCurrentUserId();
         dishService.updateStudentDish(id, req, userId);
         return Result.success();
-    }
-
-    @Operation(
-            summary = "我的发布列表",
-            description = "返回当前学生提交的菜品（含审核状态与退回原因），可按 audit_status 过滤。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @PreAuthorize("hasRole('STUDENT')")
-    @GetMapping("/my/dishes")
-    public Result<List<MyDishVO>> myDishes(
-            @Parameter(description = "审核状态过滤：pending/approved/rejected", example = "pending")
-            @RequestParam(required = false) String auditStatus) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(dishService.listMyDishes(userId, auditStatus));
     }
 
     @Operation(

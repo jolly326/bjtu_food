@@ -179,15 +179,43 @@ export async function del<T>(url: string, data?: any): Promise<T> {
 }
 
 /**
- * 上传图片到后端（multipart/form-data）。
- * ⚠️ 说明：uni.uploadFile 走 uploadFile 合法域名白名单，callContainer 无法处理文件上传；
- * 当前云托管测试域名未备案，上传功能在真机/正式环境暂不可用（seed 数据无图，用 emoji 占位降级）。
- * 中期方案：改走微信云开发云存储（wx.cloud.uploadFile）+ cloud:// 文件 ID（显示也不受域名限制）。
+ * 上传图片。
+ * - 微信小程序端：走微信云存储 wx.cloud.uploadFile，返回 cloud:// 文件 ID。
+ *   cloud:// 无需 uploadFile 合法域名白名单，且 <image> 组件原生支持直接显示；
+ *   后端原样存储该 ID，展示链路经 getImageUrl 透传（见 utils/image.ts）。
+ * - 其他端（H5 等）：回退为 uni.uploadFile 上传到后端（需后端可达）。
  */
 export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   const token = getToken()
 
-  return new Promise((resolve, reject) => {
+  let result!: Promise<{ url: string }>
+
+  // ===== 微信小程序端：微信云存储 =====
+  // #ifdef MP-WEIXIN
+  result = new Promise<{ url: string }>((resolve, reject) => {
+    const wxApi: any = (globalThis as any).wx
+    if (!wxApi || !wxApi.cloud) {
+      reject(new Error('当前环境不支持 wx.cloud'))
+      return
+    }
+    // cloudPath：images/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>，避免同名覆盖
+    const ext = (tempFilePath.match(/\.\w+$/) || ['.jpg'])[0]
+    const stamp = Date.now()
+    const rand = Math.random().toString(36).slice(2, 8)
+    const cloudPath = `images/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
+    wxApi.cloud.uploadFile({
+      config: { env: WX_CLOUD_ENV },
+      cloudPath,
+      filePath: tempFilePath,
+      success: (r: any) => resolve({ url: r.fileID }),
+      fail: (err: any) => reject(new Error(err.errMsg || '上传失败，请重试')),
+    })
+  })
+  // #endif
+
+  // ===== 其他端（H5 等）：上传到后端 =====
+  // #ifndef MP-WEIXIN
+  result = new Promise<{ url: string }>((resolve, reject) => {
     uni.uploadFile({
       url: `${API_BASE_URL}/upload/image`,
       filePath: tempFilePath,
@@ -212,4 +240,7 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       },
     })
   })
+  // #endif
+
+  return result
 }

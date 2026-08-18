@@ -26,8 +26,10 @@ public class DashboardController {
     @GetMapping
     public Result<DashboardVO> dashboard(@RequestParam(defaultValue = "week") String range) {
         // Web 后台以字符串枚举（week/month/all）传参，后端映射为天数后复用 StatsController。
+        // all=90 天：覆盖学期内主要运营周期，避免「全部」与 month 语义混同
         int days = switch (range) {
-            case "month", "all" -> 30;
+            case "month" -> 30;
+            case "all" -> 90;
             default -> 7;
         };
         return statsController.overview(days);

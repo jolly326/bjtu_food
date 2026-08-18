@@ -7,7 +7,6 @@ import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MyDishVO;
 
 import java.util.List;
 
@@ -186,17 +185,6 @@ public interface DishService {
      * @param userId 当前登录学生用户ID
      */
     void updateStudentDish(Long id, DishPublishReq req, Long userId);
-
-    /**
-     * 查询「我的发布」菜品列表
-     * <p>
-     * 仅返回 created_by=当前用户的菜品，可按 audit_status 过滤；含审核态与退回原因。
-     *
-     * @param userId      当前登录学生用户ID
-     * @param auditStatus 审核状态过滤（pending/approved/rejected，可空）
-     * @return 我的发布菜品列表
-     */
-    List<MyDishVO> listMyDishes(Long userId, String auditStatus);
 
     /**
      * 学生删除本人发布的菜品

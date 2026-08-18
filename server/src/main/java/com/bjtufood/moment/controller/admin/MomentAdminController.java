@@ -9,9 +9,7 @@ import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.moment.dto.MomentVO;
 import com.bjtufood.moment.entity.MomentComment;
-import com.bjtufood.moment.entity.MomentCommentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
-import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.service.MomentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,7 +33,6 @@ public class MomentAdminController {
 
     private final MomentService momentService;
     private final MomentCommentMapper momentCommentMapper;
-    private final MomentCommentUsefulMapper momentCommentUsefulMapper;
 
     // ===== 动态评论治理（单条评论查看 / 删除，不引入隐藏字段） =====
 
@@ -55,7 +52,7 @@ public class MomentAdminController {
         return Result.success(momentCommentMapper.selectList(w));
     }
 
-    @Operation(summary = "删除评论", description = "ADM。物理删除评论，级联删除其子回复与该评论的「有用」标记。")
+    @Operation(summary = "删除评论", description = "ADM。物理删除评论，级联删除其子回复。")
     @AuditLog(action = OperationLogConst.ACTION_MOMENT_COMMENT_DELETE, targetType = "moment_comment", targetId = "#id")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/comments/{id}")
@@ -65,11 +62,9 @@ public class MomentAdminController {
         if (momentCommentMapper.selectById(id) == null) {
             throw new BusinessException("评论不存在");
         }
-        // 级联：子回复（parent_id=id）+ 本评论的 useful 标记
+        // 级联：子回复（parent_id=id）
         momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>()
                 .eq(MomentComment::getParentId, id));
-        momentCommentUsefulMapper.delete(new LambdaQueryWrapper<MomentCommentUseful>()
-                .eq(MomentCommentUseful::getCommentId, id));
         momentCommentMapper.deleteById(id);
         return Result.success();
     }

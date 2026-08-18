@@ -1,15 +1,12 @@
 package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bjtufood.canteen.dto.BannerVO;
 import com.bjtufood.canteen.dto.CanteenAdminVO;
 import com.bjtufood.canteen.dto.CanteenInfoVO;
 import com.bjtufood.canteen.dto.CanteenWithStallsVO;
 import com.bjtufood.canteen.dto.StallDetailVO;
-import com.bjtufood.canteen.entity.Banner;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
-import com.bjtufood.canteen.mapper.BannerMapper;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
@@ -21,7 +18,6 @@ import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -35,30 +31,9 @@ public class CanteenServiceImpl implements CanteenService {
 
     private final CanteenMapper canteenMapper;
     private final StallMapper stallMapper;
-    private final BannerMapper bannerMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final ReviewMapper reviewMapper;
     private final DishMapper dishMapper;
-
-    @Override
-    public List<BannerVO> listBanners() {
-        return bannerMapper.selectList(new LambdaQueryWrapper<Banner>()
-                        .eq(Banner::getStatus, "enabled")
-                        .orderByAsc(Banner::getSortOrder))
-                .stream()
-                .map(banner -> {
-                    BannerVO vo = new BannerVO();
-                    vo.setId(banner.getId());
-                    vo.setTitle(banner.getTitle());
-                    vo.setSubtitle(banner.getSubtitle());
-                    vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(banner.getImages()));
-                    vo.setTargetType(banner.getTargetType());
-                    vo.setTargetId(banner.getTargetId());
-                    vo.setTargetUrl(banner.getTargetUrl());
-                    return vo;
-                })
-                .collect(Collectors.toList());
-    }
 
     @Override
     public List<CanteenInfoVO> listCanteens() {
@@ -96,37 +71,6 @@ public class CanteenServiceImpl implements CanteenService {
             result.put(canteen.getName(), imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         }
         return result;
-    }
-
-    @Override
-    public StallDetailVO getStallDetail(String canteen, String stallName) {
-        String canteenName = canteen == null ? "" : canteen.trim();
-        String normalizedStallName = stallName == null ? "" : stallName.trim();
-        if (!StringUtils.hasText(canteenName) || !StringUtils.hasText(normalizedStallName)) {
-            throw new BusinessException("食堂和档口名称不能为空");
-        }
-
-        // 先按名称查食堂（仅 open 状态的）
-        Canteen canteenEntity = canteenMapper.selectOne(
-                new LambdaQueryWrapper<Canteen>()
-                        .eq(Canteen::getName, canteenName)
-                        .eq(Canteen::getStatus, "open"));
-        if (canteenEntity == null) {
-            throw new BusinessException("食堂不存在");
-        }
-
-        // 按食堂ID和档口名称查档口（仅 open 状态的）
-        Stall stall = stallMapper.selectOne(
-                new LambdaQueryWrapper<Stall>()
-                        .eq(Stall::getCanteenId, canteenEntity.getId())
-                        .eq(Stall::getName, normalizedStallName)
-                        .eq(Stall::getStatus, "open"));
-        if (stall == null) {
-            throw new BusinessException("档口不存在");
-        }
-
-        Map<Long, List<Dish>> dishesByStall = batchOnSaleDishesByStall(List.of(stall));
-        return toStallVO(stall, batchAvgRating(List.of(stall)), dishesByStall.getOrDefault(stall.getId(), List.of()));
     }
 
     @Override

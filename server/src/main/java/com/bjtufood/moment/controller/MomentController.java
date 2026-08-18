@@ -139,18 +139,6 @@ public class MomentController {
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
-    @Operation(summary = "评论 👍 有用切换（幂等）", description = "STU（需邮箱认证）。一人一票，未标记→true+1，已标记→false-1。返回 {useful,usefulCount}。", security = @SecurityRequirement(name = "bearerAuth"))
-    @RequireVerified
-    @PostMapping("/moments/{id}/comments/{cid}/useful")
-    public Result<MomentUsefulResult> toggleCommentUseful(
-            @Parameter(description = "动态ID", example = "1")
-            @PathVariable Long id,
-            @Parameter(description = "评论ID", example = "1")
-            @PathVariable Long cid) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(momentService.toggleCommentUseful(id, cid, userId));
-    }
-
     @Operation(summary = "删除自己评论", description = "STU（需邮箱认证）仅作者。连带子回复删除，commentCount-1。", security = @SecurityRequirement(name = "bearerAuth"))
     @RequireVerified
     @DeleteMapping("/my/moments/{id}/comments/{cid}")

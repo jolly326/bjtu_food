@@ -23,7 +23,7 @@ onMounted(() => { adminStore.loadAll() })
 const sections = [
   { key: 'canteen', label: '食堂', badge: () => adminStore.canteens.length, icon: House },
   { key: 'dish', label: '菜品', badge: () => adminStore.dishes.length, icon: Food },
-  { key: 'home', label: '首页配置', badge: () => adminStore.banners.length, icon: Picture },
+  { key: 'home', label: '首页配置', icon: Picture },
 ]
 const KEYS = ['canteen', 'dish', 'home']
 const route = useRoute()
@@ -50,7 +50,7 @@ watch(() => route.query.tab, (t) => {
       >
         <el-icon class="sec-ico"><component :is="s.icon" /></el-icon>
         <span class="sec-label">{{ s.label }}</span>
-        <span v-if="s.badge() > 0" class="sec-badge">{{ s.badge() }}</span>
+        <span v-if="s.badge && s.badge() > 0" class="sec-badge">{{ s.badge() }}</span>
       </button>
     </div>
 
