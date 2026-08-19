@@ -1,7 +1,7 @@
 <template>
   <view class="page find-page" :class="{ 'theme-dark': theme.isDark }">
     <!-- 顶部固定区（2026-08-03：返回键 + 搜索框 + 结果 tab，均不随滚动；避让状态栏+胶囊） -->
-    <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
+    <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
       <view class="search-nav-row" :style="{ height: navBarHeight + 'px' }">
         <view class="search-back" @tap="inFilter ? exitFilter() : goBackHome()" :class="{ pressed: pressedKey === 'back' }" @touchstart="pressedKey = 'back'" @touchend="pressedKey = ''" @touchcancel="pressedKey = ''">
           <IconSvg name="arrow-left" :size="'20px'" color="#FFFFFF" class="search-back-icon" />
@@ -240,6 +240,7 @@ function goBackHome() {
 const statusBarHeight = ref(20)
 const capsuleRightOffset = ref(0)
 const navBarHeight = ref(56)
+const capsuleHeight = ref(32)
 function measureTopBar() {
   // @ts-ignore
   const win = (typeof wx !== 'undefined' && wx.getWindowInfo) ? wx.getWindowInfo() : null
@@ -249,8 +250,12 @@ function measureTopBar() {
   if (menu && win) {
     // 搜索框右侧须在胶囊左侧之前结束：margin-right = 屏幕宽 - 胶囊.left + 余量
     capsuleRightOffset.value = win.windowWidth - menu.left + 8
-    // 返回行高度对齐系统导航栏（与全站 header 同高：下限 54 同 header.vue）
-    if (menu.height) navBarHeight.value = Math.max((menu.top - statusBarHeight.value) * 2 + menu.height, 54)
+    // 返回行高度 = 系统导航栏真实高度（无下限）：只有与之相等，胶囊才会在本行内真正垂直居中；
+    // 之前 Math.max(...,54) 会让行比系统导航栏高，导致胶囊比搜索框/返回箭低 ~7px（不在同一高度）。
+    if (menu.height) {
+      navBarHeight.value = (menu.top - statusBarHeight.value) * 2 + menu.height
+      capsuleHeight.value = menu.height
+    }
   } else {
     capsuleRightOffset.value = 0
   }
@@ -533,8 +538,8 @@ watch(keyword, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--nav-h) - 14px);
-  height: calc(var(--nav-h) - 14px);
+  width: calc(var(--capsule-h, 32px) - 4px);
+  height: calc(var(--capsule-h, 32px) - 4px);
   flex-shrink: 0;
   transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -548,7 +553,7 @@ watch(keyword, () => {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: calc(var(--nav-h) - 12px);
+  height: calc(var(--capsule-h, 32px) - 4px);
   padding: 0 var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-pill);

@@ -36,18 +36,18 @@
         <text class="card-name">{{ dish.name }}</text>
         <text class="card-price">¥{{ dish.price }}</text>
       </view>
-      <!-- 第二行：位置（提权为信息锚点） -->
-      <view class="card-stall">{{ dish.canteen }} · {{ dish.stallName }}</view>
-      <!-- 第三行：左侧标徽（标签 chips）+ 右侧距离（提权主色） -->
+      <!-- 第二行：定位图标 + 食堂档口（位置信息锚点） -->
+      <view class="card-stall">
+        <IconSvg name="location" :size="22" color="var(--text-secondary)" class="stall-icon" />
+        <text class="stall-text">{{ dish.canteen }} · {{ dish.stallName }}</text>
+      </view>
+      <!-- 第三行：左侧标徽（标签 chips）+ 右侧距离（仅数字+单位） -->
       <view class="meta-row">
         <view class="card-tags" v-if="displayTags.length > 0">
           <TagLabel v-for="tag in displayTags" :key="tag" :text="tag" />
           <text v-if="(dish.tags || []).length > 2" class="tag-plus">+{{ (dish.tags || []).length - 2 }}</text>
         </view>
-        <view v-if="dish.distance != null" class="card-distance">
-          <IconSvg name="location" :size="22" color="var(--color-primary)" class="distance-icon" />
-          <text>距你 {{ fmtDistance(dish.distance) }}</text>
-        </view>
+        <text v-if="dish.distance != null" class="card-distance">{{ fmtDistance(dish.distance) }}</text>
       </view>
     </view>
   </view>
@@ -198,9 +198,12 @@ function handleClick() {
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
 }
-/* 第二行位置：提权（small + medium + secondary），独立成行、超长省略 */
+/* 第二行位置：定位图标 + 食堂档口（small + medium + secondary），超长省略 */
 .card-stall {
   margin-top: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: 2rpx;
   font-size: var(--font-small);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
@@ -208,6 +211,8 @@ function handleClick() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.stall-icon { flex-shrink: 0; }
+.stall-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 第三行左侧标徽（标签 chips）：不换行、可省略，与右侧距离同行 */
 .card-tags {
   display: flex;
@@ -227,19 +232,15 @@ function handleClick() {
   color: var(--text-secondary);
   font-weight: var(--weight-semibold);
 }
-/* 第三行距离：提权（small + semibold + 主色） */
+/* 第三行距离：仅数字+单位，次要色展示 */
 .card-distance {
   flex-shrink: 0;
   margin-left: var(--spacing-xs);
-  display: inline-flex;
-  align-items: center;
-  gap: 2rpx;
   font-size: var(--font-small);
-  font-weight: var(--weight-semibold);
-  color: var(--color-primary);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
-.distance-icon { flex-shrink: 0; }
 .card-price {
   font-size: var(--font-caption);
   color: var(--color-price);

@@ -1,6 +1,6 @@
 <template>
   <!-- 首页：单行星胶囊头部（头像 + 整行搜索框），朱砂红底，右上角留空避让胶囊 -->
-  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
+  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
     <view class="home-row" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
       <view
         class="user-chip"
@@ -70,6 +70,7 @@ const emit = defineEmits<{
 
 const statusBarHeight = ref(20)
 const navBarHeight = ref(56)
+const capsuleHeight = ref(32)
 const avatarOk = ref(true)
 // 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
 const isWeChat = ref(false)
@@ -89,11 +90,22 @@ onMounted(() => {
   // 仅在微信小程序环境避让右上角胶囊；H5/其余端收窄右侧留白，避免搜索框右侧大片空白
   // @ts-ignore - 跨端兼容（H5 无 wx）
   isWeChat.value = typeof wx !== 'undefined'
-  rightPad.value = isWeChat.value ? '180rpx' : '0rpx'
-  // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐返回行高度
+  // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐高度与右侧留白
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
-    navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 54)
+    // 1) 导航栏内容区高度 = 系统导航栏真实高度（无任何 floor）。
+    //    只有等于 (menu.top - statusBarHeight)*2 + menu.height，胶囊才会在本行内真正垂直居中；
+    //    之前加 Math.max(...,54) 下限会让行比系统导航栏高，导致胶囊中心比搜索框/头像中心低 ~7px（不在同一高度）。
+    navBarHeight.value = (mb.top - sb) * 2 + mb.height
+    // 2) 头像与搜索框高度都对齐胶囊真实高度（px）：本行 align-items:center 时，二者上沿/高度与胶囊完全一致
+    capsuleHeight.value = mb.height
+    // 3) 右侧留白 = 胶囊左边到屏幕右缘的距离（px，各机型近似恒定 ~94px），
+    //    再用 +8px 留一点间隙，使搜索框右缘停在胶囊左侧而非贴住它。
+    //    必须用 px 而非 rpx：胶囊尺寸由微信按设备写死、不随屏宽缩放，rpx 会换机型就歪。
+    const ww = (win && win.windowWidth) || 375
+    rightPad.value = isWeChat.value ? `${Math.max(ww - mb.left + 8, 0)}px` : '0px'
+  } else {
+    rightPad.value = isWeChat.value ? '180rpx' : '0rpx'
   }
 })
 
@@ -168,8 +180,8 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .user-chip-avatar {
-  width: calc(var(--nav-h) - 14px);
-  height: calc(var(--nav-h) - 14px);
+  width: calc(var(--capsule-h, 32px) - 4px);
+  height: calc(var(--capsule-h, 32px) - 4px);
   border-radius: 50%;
   background: var(--bg-card);
 }
@@ -180,7 +192,7 @@ function handleBack() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: calc(var(--nav-h) - 12px);
+  height: calc(var(--capsule-h, 32px) - 4px);
   padding: 0 var(--spacing-md);
   /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
   background: var(--bg-card);
