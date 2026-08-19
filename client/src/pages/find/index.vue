@@ -450,7 +450,9 @@ async function doMixedSearch(kw?: string) {
   } catch {
     mixedResults.value = []
   } finally {
-    mixedLoading.value = false
+    // 竞态修复：仅在 seq 匹配（本次请求仍是最新）时才关闭 loading，
+    // 避免旧慢请求返回时把新请求的 loading 提前关闭导致骨架屏闪烁
+    if (seq === mixedSearchSeq) mixedLoading.value = false
   }
 }
 
@@ -463,6 +465,8 @@ function goToMixed(item: MixedResult) {
 function exitFilter() {
   inFilter.value = false
   mixedResults.value = []
+  // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
+  mixedSearchSeq += 1
 }
 
 function onRefresh() {

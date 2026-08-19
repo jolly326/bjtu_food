@@ -329,7 +329,10 @@ public class AuthServiceImpl implements AuthService {
                         .eq(EmailVerificationCode::getPurpose, "verify")
                         .isNull(EmailVerificationCode::getUsedAt)
                         .gt(EmailVerificationCode::getExpiresAt, DateTimeUtil.now())
-                        .orderByDesc(EmailVerificationCode::getCreatedAt));
+                        .orderByDesc(EmailVerificationCode::getCreatedAt)
+                        // 性能防护：验证码 10 分钟内有效，正常活跃未用验证码极少，
+                        // 限定最近 20 条避免验证码量增长时全表 BCrypt 扫描（每条 ~100ms）
+                        .last("LIMIT 20"));
         if (records.isEmpty()) {
             throw new BusinessException("验证码不存在或已过期");
         }
@@ -341,9 +344,17 @@ public class AuthServiceImpl implements AuthService {
                 matched = false;
             }
             if (matched) {
-                record.setUsedAt(DateTimeUtil.now());
-                emailVerificationCodeMapper.updateById(record);
-                return record.getEmail();
+                // M1 修复：原子消费验证码（UPDATE ... WHERE used_at IS NULL）。
+                // 仅当影响行数=1 才视为本次成功消费，避免并发窗口内同一验证码被重复使用两次
+                // （先读未用→后置 used 的 TOCTOU）。
+                int used = emailVerificationCodeMapper.update(new LambdaUpdateWrapper<EmailVerificationCode>()
+                        .eq(EmailVerificationCode::getId, record.getId())
+                        .isNull(EmailVerificationCode::getUsedAt)
+                        .set(EmailVerificationCode::getUsedAt, DateTimeUtil.now()));
+                if (used > 0) {
+                    return record.getEmail();
+                }
+                // 已被并发消费：继续尝试下一条（实际几乎不会出现第二条匹配），全部未抢到则报错
             }
         }
         throw new BusinessException("验证码错误");

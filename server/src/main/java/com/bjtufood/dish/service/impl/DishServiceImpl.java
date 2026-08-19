@@ -158,12 +158,21 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(excludeIds)) {
             return List.of();
         }
-        return java.util.Arrays.stream(excludeIds.split(","))
-                .map(String::trim)
-                .filter(s -> s.matches("\\d+"))
-                .map(Long::valueOf)
-                .distinct()
-                .toList();
+        // M3 修复：超长纯数字串（>18 位）Long.valueOf 会抛 NumberFormatException → 500。
+        // 逐项安全解析，溢出的项直接跳过（游客可公开访问 /dishes/recommend，须防低成本 500）。
+        List<Long> result = new java.util.ArrayList<>();
+        for (String s : excludeIds.split(",")) {
+            String t = s.trim();
+            if (t.isEmpty() || t.length() > 18 || !t.matches("\\d+")) {
+                continue;
+            }
+            try {
+                result.add(Long.parseLong(t));
+            } catch (NumberFormatException ignore) {
+                // 溢出项忽略，不影响其余合法 id
+            }
+        }
+        return result.stream().distinct().toList();
     }
 
     /**
@@ -275,6 +284,8 @@ public class DishServiceImpl implements DishService {
         if (affected == 0) {
             throw new BusinessException("菜品不存在");
         }
+        // 记录浏览足迹（去重），供「猜你喜欢」个性化读取；游客不记录（recordDishView 内部判空）
+        historyService.recordDishView(userId, dishId);
     }
 
     @Override

@@ -102,6 +102,7 @@
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
 | tags | VARCHAR(128) | 可 | NULL | 逗号分隔：recommended/signature |
+| region | VARCHAR(32) | 可 | NULL | 地域（美食来源地），如 清真/川湘/西北/粤式/东北（一期扩展，schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
 | portion | INT | 否 | 1 | 分量：0小/1中/2大 |
 | serve_period | VARCHAR(64) | 可 | NULL | 供应时段：breakfast/lunch/dinner/midnight |
@@ -298,6 +299,8 @@
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_view_user_time`(`user_id`,`created_at`)；KEY `idx_view_target`(`target_type`,`target_id`)。
+
+> **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
 ### 3.18 operation_log（操作日志，AOP 埋点，Web 只读）
 | 字段 | 类型 | 可空 | 默认 | 说明 |

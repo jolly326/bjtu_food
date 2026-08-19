@@ -61,7 +61,7 @@ public class CategoryAdminController {
         Category c = new Category();
         c.setCode(code);
         c.setName(name);
-        c.setSortOrder(body.get("sortOrder") == null ? 0 : Integer.parseInt(String.valueOf(body.get("sortOrder"))));
+        c.setSortOrder(parseSortOrder(body.get("sortOrder")));
         c.setStatus(body.get("status") == null ? "enabled" : String.valueOf(body.get("status")));
         categoryMapper.insert(c);
         return Result.success(c.getId());
@@ -101,7 +101,7 @@ public class CategoryAdminController {
             c.setName(name);
         }
         if (body.containsKey("sortOrder")) {
-            c.setSortOrder(Integer.parseInt(String.valueOf(body.get("sortOrder"))));
+            c.setSortOrder(parseSortOrder(body.get("sortOrder")));
         }
         categoryMapper.updateById(c);
         return Result.success();
@@ -138,5 +138,19 @@ public class CategoryAdminController {
         }
         categoryMapper.deleteById(id);
         return Result.success();
+    }
+
+    /**
+     * 安全解析排序值：非数字输入返回 400 参数错误，而非抛 NumberFormatException 兜底成 500。
+     */
+    private int parseSortOrder(Object raw) {
+        if (raw == null || !StringUtils.hasText(String.valueOf(raw))) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException("排序值必须是整数");
+        }
     }
 }

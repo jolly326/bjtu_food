@@ -113,7 +113,9 @@ function onRefresh() {
 
 function openActivity(act: ActivityItem) {
   if (act.articleUrl) {
-    uni.navigateTo({ url: `/pages/webview?url=${encodeURIComponent(act.articleUrl)}` })
+    // 修复：跳转路径必须带 /index（pages.json 注册的是 pages/webview/index），
+    // 否则 uni.navigateTo 找不到页面导致活动文章打不开
+    uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(act.articleUrl)}` })
   }
 }
 

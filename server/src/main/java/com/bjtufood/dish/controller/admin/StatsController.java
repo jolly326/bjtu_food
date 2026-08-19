@@ -62,7 +62,8 @@ public class StatsController {
 
     /** 数据看板总览：由 DashboardController 直接调用复用，不再暴露独立 HTTP 端点 */
     public Result<DashboardVO> overview(int range) {
-        if (range != 7 && range != 30) range = 7;
+        // 支持 week(7)/month(30)/all(90)；修复此前 range=all 被吞回 7 天的问题
+        if (range != 7 && range != 30 && range != 90) range = 7;
         LocalDateTime since = LocalDate.now().minusDays(range).atStartOfDay();
         DashboardVO vo = new DashboardVO();
         vo.setRange("近" + range + "天");

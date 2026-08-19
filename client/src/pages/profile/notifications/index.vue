@@ -2,7 +2,7 @@
   <view class="page notifications-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="系统通知" @back="backToHome" />
 
-    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
+    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
       <view v-if="loading && list.length === 0" class="skeleton-list">
         <view v-for="s in 4" :key="s" class="sk-item skeleton" />
       </view>
@@ -65,6 +65,11 @@ const loading = ref(false)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 const pressedId = ref(0)
+// 分页与防重复加载：#4 触底加载下一页；#8 onShow 与 watch 双触发去重（认证瞬间不重复请求）
+let page = 1
+const pageSize = 20
+const finished = ref(false)
+let hasLoaded = false
 
 const TYPE_LABEL: Record<NotificationType, string> = {
   moment_audit: '动态审核',
@@ -89,12 +94,33 @@ async function load() {
   loading.value = true
   loadFailed.value = false
   try {
-    const res = await getNotifications({ page: 1, pageSize: 20 })
+    const res = await getNotifications({ page: 1, pageSize })
     list.value = res.list
+    page = 1
+    // 本页不足 pageSize 即到底
+    finished.value = res.list.length < pageSize
     // 刷新后重拉未读数，保持红点同步
     notifyStore.fetchUnread()
   } catch {
     loadFailed.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+/** #4 修复：触底加载下一页 */
+async function loadMore() {
+  if (finished.value || loading.value || !userStore.isVerified()) return
+  loading.value = true
+  try {
+    page += 1
+    const res = await getNotifications({ page, pageSize })
+    // 去重（极端情况下分页跳号），避免重复
+    const existIds = new Set(list.value.map(n => n.id))
+    list.value = list.value.concat(res.list.filter(n => !existIds.has(n.id)))
+    if (res.list.length < pageSize) finished.value = true
+  } catch {
+    page -= 1 // 失败回退页码
   } finally {
     loading.value = false
   }
@@ -131,7 +157,13 @@ watch(
   (ok) => { if (ok) load() },
 )
 onShow(() => {
-  if (userStore.isVerified()) load()
+  // 返回本页时刷新（从详情返回/首次进入）。认证成功瞬间与 watch 可能重叠触发一次，
+  // 属低危轻微重复请求，可接受；hasLoaded 标志防止「首次进入 + watch 认证」双触发重复首载。
+  if (!userStore.isVerified()) return
+  if (!hasLoaded) {
+    hasLoaded = true
+  }
+  load()
 })
 </script>
 

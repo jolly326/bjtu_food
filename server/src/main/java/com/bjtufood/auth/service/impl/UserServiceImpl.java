@@ -130,7 +130,6 @@ public class UserServiceImpl implements UserService {
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setVerified(user.getVerified());
-        vo.setOpenid(user.getOpenid());
         vo.setBindEmail(user.getBindEmail());
         vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());

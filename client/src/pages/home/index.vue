@@ -46,9 +46,9 @@
         <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
         <BroadcastBar ref="broadcastBarRef" :items="broadcasts" @select="onBroadcastTap" />
 
-        <!-- 万能区入口：反馈菜品（最新活动暂缓接入，已摘除活动卡） -->
+        <!-- 万能区入口：最新活动 + 反馈菜品 双卡（2026-08-19 恢复活动卡，点击进活动列表页） -->
         <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
-          <UniversalGrid @open-feedback="goToFeedback" />
+          <UniversalGrid @open-activity="goToActivity" @open-feedback="goToFeedback" />
         </view>
 
         <!-- 品类筛选滚轮：位于万能区下方（内容流内），随内容上滑自然离开屏幕；
@@ -113,7 +113,7 @@ import HomeFeed from '@/components/HomeFeed.vue'
 import UniversalGrid from '@/components/UniversalGrid.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import type { FilterTab } from '@/components/filter-tab'
+import type { FilterTab } from '@/types/filter-tab'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -214,6 +214,11 @@ function goProfile() {
 /** 首页搜索图标 → 搜索页 */
 function goToSearch() {
   uni.navigateTo({ url: '/pages/find/index' })
+}
+
+/** 万能区：最新活动（功能暂未实现，点击提示；活动列表页保留待后续开放） */
+function goToActivity() {
+  uni.showToast({ title: '功能暂未实现', icon: 'none' })
 }
 
 /** 万能区：反馈菜品 → 反馈页（带 object=dish，进入后预选「内容纠错」类型） */

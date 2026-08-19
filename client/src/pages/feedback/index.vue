@@ -1001,7 +1001,10 @@ async function submit() {
   let content = ''
   const images: string[] = []
   let relatedType: string | undefined
-  const relatedId = form.error.dish?.id
+  // #6 修复：relatedId 与 relatedType 成对赋值，仅在 error 分支设置。
+  // 原实现 unconditionally 取 form.error.dish?.id，切到 suggestion/add 类型提交时残留
+  // error 的 relatedId 而 relatedType 为 undefined，造成契约不一致。
+  let relatedId: number | undefined
 
   if (t === 'suggestion') {
     content = form.suggestion.text.trim()
@@ -1035,6 +1038,7 @@ async function submit() {
     if (form.error.evidenceText.trim()) content += `\n作证：${form.error.evidenceText.trim()}`
     images.push(...form.error.evidenceImages)
     relatedType = 'dish'
+    relatedId = form.error.dish?.id
   }
 
   if (content.length > 1000) { uni.showToast({ title: '内容不能超过1000字', icon: 'none' }); return }

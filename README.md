@@ -75,7 +75,7 @@ bjtu_food/
 | 就餐评价 | 写评价（星级+文字+图片）、列表、过滤、「有用」标记 | ✅ |
 | 社区动态 | 发布动态（可关联菜品/档口）、评论（回复/举报）、动态点赞 | ✅ |
 | 首页广播条 | 取社区动态前 10 条轮播展示 | ✅ |
-| 活动卡片 | 首页展示最新活动标题，web-view 打开公众号文章 | ✅ |
+| 活动卡片 | 首页万能区 + 「我的」页入口展示最新活动，点击提示「功能暂未实现」（列表页与 web-view 链路已就绪，待后续开放） | ⏸️ |
 | 内容审核 | 学生提交内容（菜品/档口/动态/反馈）后台审核流 | ✅ |
 | 消息通知 | 动态/菜品审核、评论、点赞通知 + 未读红点 | ✅ |
 | 管理后台 | 信息管理 / 内容审核 / 用户与系统 / 数据看板 | ✅ |
@@ -93,7 +93,7 @@ bjtu_food/
 | category | 菜品分类（find 宫格） |
 | review / review_useful | 评价 / 评价「有用」标记 |
 | moment / moment_comment / moment_useful | 社区动态 / 动态评论 / 动态点赞 |
-| broadcast | 广播条（后台维护） |
+| broadcast | 广播条（历史：运营广播方案已废弃，首页广播由社区动态驱动，表保留） |
 | activity | 最新活动（首页万能区） |
 | notification | 消息通知 |
 | user_feedback / apply_action | 用户反馈 / 学生申请 |
@@ -163,6 +163,11 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |------|------|
-| [project_spec.md](project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
+| [docs/project_spec.md](docs/project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
+| [docs/database.md](docs/database.md) | 数据库设计（18 张表 + ER 图，与 schema.sql 一致） |
+| [docs/api-design.md](docs/api-design.md) | 功能/接口设计总览：全部接口契约、认证模型、错误码、分页约定 |
+| [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
+| [docs/architecture.md](docs/architecture.md) | 架构设计 / 部署说明（微信云托管）/ 本地快速上手 / 前端状态管理 |
+| [docs/testing.md](docs/testing.md) | 接口测试文档：自动化可测项 + 需人工验证项清单与步骤 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 开发协作流程：需求 → 定样 → 拆任务 → 开发 → 质量门禁 → 经验回流 |
 | server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |

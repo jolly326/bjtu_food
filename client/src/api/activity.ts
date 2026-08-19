@@ -3,9 +3,9 @@
  *
  * GET /activities  活动列表（倒序，运营后台录入）
  *
- * 注意：活动模块暂缓接入（2026-08-19 决策）：
- * - 首页万能区活动卡、「我的」页「最新活动」入口均已摘除；
- * - pages/activity/index 独立页与 pages.json 注册保留（便于后续恢复）；
+ * 注意：活动模块接入状态（2026-08-19 复核）：
+ * - 首页万能区「最新活动」入口卡与「我的」页入口均已恢复展示，但点击提示「功能暂未实现」（不跳转活动页）；
+ * - pages/activity/index 独立页与 pages.json 注册保留（待后续开放）；
  * - 接口失败 / 空返回一律回落空数组，不阻断调用方。
  */
 import { get } from './http'
@@ -32,8 +32,15 @@ interface PageResult<T> {
   pageSize?: number
 }
 
-function listOf<T>(res: PageResult<T> | undefined): T[] {
+/**
+ * 兼容两种返回形态：
+ * - 后端 GET /activities 返回裸 List<ActivityVO>（Result.data 即数组）
+ * - 旧/他处可能返回 PageResult{list/records}
+ * 防止将数组误当 PageResult 读取导致恒返回 []。
+ */
+function listOf<T>(res: PageResult<T> | T[] | undefined): T[] {
   if (!res) return []
+  if (Array.isArray(res)) return res
   return res.list || res.records || []
 }
 
