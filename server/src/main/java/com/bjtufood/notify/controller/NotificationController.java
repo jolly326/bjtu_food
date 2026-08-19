@@ -1,6 +1,7 @@
 package com.bjtufood.notify.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.utils.SecurityUtil;
@@ -32,8 +33,9 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final NotificationMapper notificationMapper;
 
-    @Operation(summary = "我的消息列表", description = "STU。倒序，支持 isRead 过滤。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的消息列表", description = "STU（需邮箱认证）。倒序，支持 isRead 过滤。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @GetMapping("/my/notifications")
     public Result<PageResult<NotificationVO>> list(
             @Parameter(description = "已读过滤：0/1（可空=全部）")
@@ -54,8 +56,9 @@ public class NotificationController {
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
-    @Operation(summary = "未读总数", description = "STU。驱动首页红点。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "未读总数", description = "STU（需邮箱认证）。驱动首页红点。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @GetMapping("/my/notifications/unread-count")
     public Result<Map<String, Long>> unreadCount() {
         Long userId = SecurityUtil.getCurrentUserId();
@@ -67,8 +70,9 @@ public class NotificationController {
         return Result.success(data);
     }
 
-    @Operation(summary = "单条已读", description = "STU 归属校验。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "单条已读", description = "STU（需邮箱认证）归属校验。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PutMapping("/my/notifications/{id}/read")
     public Result<Void> readOne(
             @Parameter(description = "通知ID", example = "1")
@@ -83,8 +87,9 @@ public class NotificationController {
         return Result.success();
     }
 
-    @Operation(summary = "全部已读", description = "STU。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "全部已读", description = "STU（需邮箱认证）。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
     @PutMapping("/my/notifications/read-all")
     public Result<Void> readAll() {
         Long userId = SecurityUtil.getCurrentUserId();

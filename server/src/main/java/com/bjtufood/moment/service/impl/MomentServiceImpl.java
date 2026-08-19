@@ -340,10 +340,7 @@ public class MomentServiceImpl implements MomentService {
         if (!c.getUserId().equals(userId)) {
             throw new BusinessException("只能删除自己的评论");
         }
-        // 连带子回复删除
-        List<MomentComment> children = momentCommentMapper.selectList(
-                new LambdaQueryWrapper<MomentComment>().eq(MomentComment::getParentId, commentId));
-        int removed = 1 + children.size();
+        // 连带子回复删除（按实际删除行数减计数，避免并发漂移）
         int deleted = momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>()
                 .and(w -> w.eq(MomentComment::getId, commentId)
                         .or().eq(MomentComment::getParentId, commentId)));
