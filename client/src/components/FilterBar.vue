@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
-import type { FilterTab } from './filter-tab'
+import type { FilterTab } from '@/types/filter-tab'
 
 const props = defineProps<{
   /** 品类/标签等扁平平铺维度（单级滚轮，首尾相接成环） */

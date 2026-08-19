@@ -103,7 +103,8 @@
             AND d.category_id = #{req.categoryId}
         </if>
         <if test="req.tag != null and req.tag != ''">
-            AND d.tags LIKE CONCAT('%', #{req.tag}, '%')
+            -- 标签按精确成员匹配（tags 为逗号分隔 CSV），避免 LIKE 子串误匹配（如 signature 误配 signature_xxx）
+            AND FIND_IN_SET(#{req.tag}, d.tags) > 0
         </if>
         <if test="req.spiceLevel != null">
             AND d.spice_level = #{req.spiceLevel}
@@ -168,7 +169,8 @@
           AND s.status = 'open'
           AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-          AND d.tags LIKE CONCAT('%', 'promotion', '%')
+          -- 促销标签精确匹配，避免 LIKE 误命中「promotion_xxx」等包含 promotion 子串的标签
+          AND FIND_IN_SET('promotion', d.tags) > 0
         ORDER BY d.created_at DESC
         LIMIT 4
     </select>

@@ -11,7 +11,7 @@ import { getRecommendDishes } from '@/api/recommend'
 import { getCategories, type CategoryItem } from '@/api/category'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, CAMPUS_CENTER } from '@/utils/location'
-import type { FilterTab } from '@/components/filter-tab'
+import type { FilterTab } from '@/types/filter-tab'
 
 export const useDishStore = defineStore('dish', () => {
   const dishList = ref<Dish[]>([])

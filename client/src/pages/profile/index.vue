@@ -34,7 +34,7 @@
         </view>
       </view>
 
-      <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导） -->
+      <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导；最新活动暂未实现） -->
       <view class="entry-group">
         <view
           v-for="e in entryItems"
@@ -126,10 +126,12 @@ function onUserCardTap() {
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-/** 我的入口：系统通知 / 我发布的 / 意见反馈 / 关于我们（最新活动暂缓接入，入口已摘除） */
+/** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们
+ *  最新活动（2026-08-19）：恢复入口展示，功能暂未实现，点击提示 */
 const entryItems = [
   { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
   { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
+  { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
   { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
   { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]

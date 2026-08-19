@@ -148,7 +148,12 @@ watch(
   () => loadData(),
   { immediate: true },
 )
-onShow(() => clearShareState())
+onShow(() => {
+  clearShareState()
+  // #5 修复：从编辑/发布页返回时刷新列表，否则编辑内容或重新提交后的变更不展示（除非手动下拉）。
+  // 用 requireAuth 判断避免游客重复触发；loading 防重入避免与 watch 首载重叠。
+  if (userStore.isVerified() && !loading.value) loadData()
+})
 onShareAppMessage(() => buildSharePayload())
 </script>
 

@@ -52,7 +52,19 @@ function getStatusBarHeight(): number {
 }
 
 onLoad((options) => {
-  if (options?.url) url.value = decodeURIComponent(options.url)
+  // 健壮性/安全：① decodeURIComponent 对畸形 % 编码（如 %E0%A4%A）会抛 URIError 导致白屏，需 try-catch；
+  // ② 仅放行 http/https 协议，避免加载任意/危险协议（H5 端无微信业务域名兜底）。
+  if (options?.url) {
+    let decoded = ''
+    try {
+      decoded = decodeURIComponent(options.url)
+    } catch {
+      // 非法编码：置空走「链接无效」分支，而非白屏
+    }
+    if (/^https?:\/\//i.test(decoded.trim())) {
+      url.value = decoded.trim()
+    }
+  }
   const sb = getStatusBarHeight()
   statusBarHeight.value = sb
   // @ts-ignore - 微信胶囊按钮位置，用于对齐返回条高度

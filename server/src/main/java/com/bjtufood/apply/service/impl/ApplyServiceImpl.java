@@ -240,7 +240,12 @@ public class ApplyServiceImpl implements ApplyService {
                 throw new BusinessException(400, "新增菜品必须指定有效的 stallId");
             }
             dish.setName(getText(payload, "name"));
-            dish.setPrice(getInt(payload, "price"));
+            // 防数据污染：价格范围对齐菜品发布校验（0~999900 分），拒绝负数/超大值入库
+            Integer price = getInt(payload, "price");
+            if (price == null || price < 0 || price > 999900) {
+                throw new BusinessException(400, "菜品价格不合法（0~9999元）");
+            }
+            dish.setPrice(price);
             dish.setOriginalPrice(getInt(payload, "originalPrice"));
             dish.setPromoPrice(getInt(payload, "promoPrice"));
             dish.setImages(JsonListUtil.toJson(getTextList(payload, "images")));
@@ -274,7 +279,13 @@ public class ApplyServiceImpl implements ApplyService {
     private void writeBackDish(Dish dish, JsonNode payload) {
         if (payload == null) return;
         if (payload.has("name")) dish.setName(getText(payload, "name"));
-        if (payload.has("price")) dish.setPrice(getInt(payload, "price"));
+        if (payload.has("price")) {
+            Integer price = getInt(payload, "price");
+            if (price == null || price < 0 || price > 999900) {
+                throw new BusinessException(400, "菜品价格不合法（0~9999元）");
+            }
+            dish.setPrice(price);
+        }
         if (payload.has("originalPrice")) dish.setOriginalPrice(getInt(payload, "originalPrice"));
         if (payload.has("promoPrice")) dish.setPromoPrice(getInt(payload, "promoPrice"));
         if (payload.has("images")) dish.setImages(JsonListUtil.toJson(getTextList(payload, "images")));

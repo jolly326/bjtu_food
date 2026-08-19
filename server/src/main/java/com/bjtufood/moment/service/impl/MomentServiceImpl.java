@@ -198,9 +198,12 @@ public class MomentServiceImpl implements MomentService {
         MomentUseful exist = momentUsefulMapper.selectOne(w);
         MomentUsefulResult result = new MomentUsefulResult();
         if (exist != null) {
-            momentUsefulMapper.deleteById(exist.getId());
-            // 计数原子 -1（并发安全）
-            momentMapper.changeUsefulCount(momentId, -1);
+            // 并发取消赞守卫：仅当「真正删除到 1 行」才减计数，避免两请求同时读到 exist
+            // 都执行 deleteById（第二个 0 行 no-op）却各减一次计数导致 useful_count 漂移。
+            int deleted = momentUsefulMapper.deleteById(exist.getId());
+            if (deleted > 0) {
+                momentMapper.changeUsefulCount(momentId, -1);
+            }
             result.setUseful(false);
         } else {
             MomentUseful useful = new MomentUseful();
@@ -246,6 +249,16 @@ public class MomentServiceImpl implements MomentService {
         if (!hasContent && !hasImages) {
             throw new BusinessException("评论内容或图片至少填写一项");
         }
+        // M5 修复：回复他人时提前校验 parent 归属同一动态，避免「先写后回滚」与跨动态串线
+        if (req.getParentId() != null) {
+            MomentComment parent = momentCommentMapper.selectById(req.getParentId());
+            if (parent == null) {
+                throw new BusinessException("被回复的评论不存在");
+            }
+            if (!momentId.equals(parent.getMomentId())) {
+                throw new BusinessException("被回复的评论不属于该动态");
+            }
+        }
         MomentComment c = new MomentComment();
         c.setMomentId(momentId);
         c.setUserId(userId);
@@ -261,10 +274,10 @@ public class MomentServiceImpl implements MomentService {
         // 评论计数原子 +1（并发安全）
         momentMapper.changeCommentCount(momentId, 1);
 
-        // 回复他人 → 给被回复者发 comment 通知（不通知自己，且被回复者应是动态作者或评论者）
+        // 回复他人 → 给被回复者发 comment 通知（parent 归属已在上方校验；不通知自己）
         if (req.getParentId() != null) {
             MomentComment parent = momentCommentMapper.selectById(req.getParentId());
-            if (parent != null && !parent.getUserId().equals(userId)) {
+            if (!parent.getUserId().equals(userId)) {
                 sendCommentNotification(m, parent.getUserId());
             }
         }
@@ -331,12 +344,15 @@ public class MomentServiceImpl implements MomentService {
         List<MomentComment> children = momentCommentMapper.selectList(
                 new LambdaQueryWrapper<MomentComment>().eq(MomentComment::getParentId, commentId));
         int removed = 1 + children.size();
-        momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>()
+        int deleted = momentCommentMapper.delete(new LambdaQueryWrapper<MomentComment>()
                 .and(w -> w.eq(MomentComment::getId, commentId)
                         .or().eq(MomentComment::getParentId, commentId)));
 
-        // 评论数原子批量减少（并发安全）
-        momentMapper.changeCommentCount(momentId, -removed);
+        // 并发删除守卫：仅当「本次真正删到行」才按实际删除行数减计数。
+        // 若两请求同时删同一评论，第二个 DELETE 影响 0 行 → 不减计数，避免 comment_count 漂移。
+        if (deleted > 0) {
+            momentMapper.changeCommentCount(momentId, -deleted);
+        }
     }
 
     @Override

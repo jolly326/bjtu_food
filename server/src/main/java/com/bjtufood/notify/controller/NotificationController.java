@@ -88,13 +88,12 @@ public class NotificationController {
     @PutMapping("/my/notifications/read-all")
     public Result<Void> readAll() {
         Long userId = SecurityUtil.getCurrentUserId();
-        List<Notification> list = notificationMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Notification>()
+        // L3 修复：单条原子 UPDATE（is_read=0 → 1），避免「先全查再逐条 update」的 N 次往返
+        // 与非原子一致性问题（期间新增未读被覆盖/漏更）。
+        notificationMapper.update(new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Notification>()
                 .eq(Notification::getUserId, userId)
-                .eq(Notification::getIsRead, 0));
-        for (Notification n : list) {
-            n.setIsRead(1);
-            notificationMapper.updateById(n);
-        }
+                .eq(Notification::getIsRead, 0)
+                .set(Notification::getIsRead, 1));
         return Result.success();
     }
 

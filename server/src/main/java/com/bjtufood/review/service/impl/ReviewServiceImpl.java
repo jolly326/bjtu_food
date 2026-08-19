@@ -110,14 +110,22 @@ public class ReviewServiceImpl implements ReviewService {
         if (review == null) {
             throw new BusinessException("评价不存在");
         }
+        // L2 修复：对已被管理端隐藏（is_hidden=1）的评价不可再点「有用」，保持对外可见口径一致
+        if (Integer.valueOf(1).equals(review.getIsHidden())) {
+            throw new BusinessException("该评价不可标记");
+        }
         ReviewUseful exist = reviewUsefulMapper.selectOne(new LambdaQueryWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getUserId, userId)
                 .eq(ReviewUseful::getReviewId, reviewId));
         UsefulResult result = new UsefulResult();
         if (exist != null) {
-            // 已标记 → 取消：删除记录 + 计数原子 -1
-            reviewUsefulMapper.deleteById(exist.getId());
-            reviewMapper.changeUsefulCount(reviewId, -1);
+            // 已标记 → 取消：删除记录 + 计数原子 -1。
+            // 并发取消守卫：仅当真正删除到 1 行才减计数，避免两请求同时读到 exist、
+            // 都 deleteById（第二个 0 行 no-op）却各减一次计数导致 useful_count 漂移。
+            int deleted = reviewUsefulMapper.deleteById(exist.getId());
+            if (deleted > 0) {
+                reviewMapper.changeUsefulCount(reviewId, -1);
+            }
             result.setUseful(false);
         } else {
             // 未标记 → 标记：插入记录 + 计数原子 +1（uk_useful_user_review 唯一键防并发重复）
