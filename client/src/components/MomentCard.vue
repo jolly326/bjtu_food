@@ -76,7 +76,10 @@
     <!-- 关联对象 chip + 互动栏（同一行，互动靠右） -->
     <view class="m-foot">
       <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
-        <IconSvg name="location" :size="22" color="var(--color-primary)" class="m-related-icon" />
+        <image v-if="moment.relatedImage" class="m-related-thumb" :src="getImageUrl(moment.relatedImage)" mode="aspectFill" lazy-load />
+        <view v-else class="m-related-thumb m-related-thumb--empty">
+          <IconSvg name="dish" :size="26" color="var(--color-primary)" />
+        </view>
         <text class="m-related-text">{{ relatedLabel }}</text>
       </view>
       <view class="m-actions">
@@ -232,11 +235,13 @@ async function onUseful() {
 .m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-base) var(--ease-out); }
 .m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
-/* 关联 chip：胶囊背景（primary-soft + 主色文字）—— 用户明确认可关联菜品保留胶囊形态，
+/* 关联 chip：胶囊背景（primary-soft + 主色文字），左侧为圆角正方形菜品缩略图（有图显图、无图显菜品占位图标）——
    与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
-.m-related-icon { flex-shrink: 0; }
+/* 圆角正方形菜品缩略图（56rpx + 12rpx 圆角，chip 内上下各留 4rpx） */
+.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: 12rpx; background: var(--bg-page); flex-shrink: 0; }
+.m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
 /* 关联菜品星级：黄色实星（1-5 颗）+ 分值数字（与评价卡一致） */
 .m-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }

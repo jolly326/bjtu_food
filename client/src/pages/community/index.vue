@@ -205,7 +205,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/pages-user/publish-moment/index' })
+  uni.navigateTo({ url: '/pages/pages-user/publish-content/index' })
 }
 
 onMounted(() => { loadData(true) })

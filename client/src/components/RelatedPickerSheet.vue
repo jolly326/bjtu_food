@@ -10,52 +10,69 @@
     @touchcancel="onTouchEnd"
   >
     <view class="sheet-grabber" />
+    <!-- 头部：与全站底部 Sheet 统一（标题 + 右上角关闭 + 分隔线；不显示「操作」冗余标题） -->
     <view class="sheet-head">
-      <text class="sheet-title">选择关联对象</text>
-      <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="$emit('close')" />
-    </view>
-
-    <view class="sheet-tabs">
-      <view class="sheet-tab" :class="{ active: tab === 'dish' }" @tap="tab = 'dish'">菜品</view>
-      <view class="sheet-tab" :class="{ active: tab === 'stall' }" @tap="tab = 'stall'">档口</view>
+      <text class="sheet-title">选择关联菜品</text>
+      <view class="sheet-close" role="button" aria-label="关闭" @tap="$emit('close')">
+        <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
+      </view>
     </view>
 
     <view class="sheet-search">
-      <SearchBar
-        v-model="keyword"
-        input-mode
-        :placeholder="tab === 'dish' ? '搜索菜品' : '搜索档口'"
-        :margin="'0'"
-        @update:model-value="onKeyword"
-      />
+      <SearchBar v-model="keyword" input-mode placeholder="搜索菜品" :margin="'0'" @update:model-value="onKeyword" />
     </view>
 
     <scroll-view class="sheet-list" scroll-y>
+      <!-- 不关联：列表首项，语义与结果项并列（选中态高亮） -->
+      <view
+        class="sheet-item sheet-item--none"
+        :class="{ on: !selected }"
+        role="button"
+        aria-label="不关联"
+        @tap="$emit('clear')"
+      >
+        <view class="sheet-item-img sheet-item-img-empty">
+          <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
+        </view>
+        <view class="sheet-item-info">
+          <text class="sheet-item-name">不关联</text>
+          <text class="sheet-item-sub">自由动态，不带菜品标签</text>
+        </view>
+        <IconSvg v-if="!selected" name="check" :size="32" color="var(--color-primary)" />
+      </view>
+
+      <view class="sheet-divider" />
+
       <view v-if="loading" class="sheet-empty">
         <view class="footer-spinner" />
       </view>
       <view v-else-if="candidates.length === 0" class="sheet-empty">
-        <text class="sheet-empty-text">{{ keyword ? '没有找到相关结果' : '输入关键词搜索' }}</text>
+        <text class="sheet-empty-text">{{ keyword ? '没有找到相关菜品' : '输入关键词搜索菜品' }}</text>
       </view>
       <view
         v-for="item in candidates"
-        :key="`${item.type}-${item.id}`"
+        :key="item.id"
         class="sheet-item"
         :class="{ on: isSelected(item) }"
+        role="button"
+        :aria-label="`关联菜品 ${item.name}`"
         @tap="select(item)"
       >
         <image v-if="item.image" class="sheet-item-img" :src="item.image" mode="aspectFill" />
         <view v-else class="sheet-item-img sheet-item-img-empty">
-          <IconSvg :name="item.type === 'stall' ? 'list' : 'dish'" :size="36" color="var(--text-tertiary)" />
+          <IconSvg name="dish" :size="36" color="var(--text-tertiary)" />
         </view>
-        <text class="sheet-item-name">{{ item.name }}</text>
+        <view class="sheet-item-info">
+          <text class="sheet-item-name">{{ item.name }}</text>
+          <text class="sheet-item-sub">关联菜品</text>
+        </view>
         <IconSvg v-if="isSelected(item)" name="check" :size="32" color="var(--color-primary)" />
       </view>
     </scroll-view>
 
+    <!-- 底部：单一「完成」主按钮（应用当前选中并关闭，Apple 少一步操作） -->
     <view class="sheet-footer">
-      <view class="sheet-clear" @tap="$emit('clear')">不关联</view>
-      <view class="sheet-confirm" @tap="confirm">确定</view>
+      <view class="sheet-confirm" role="button" aria-label="完成" @tap="confirm">完成</view>
     </view>
   </view>
 </template>
@@ -66,15 +83,13 @@ import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
 import { getImageUrl } from '@/utils/image'
-import { getCanteensWithStalls } from '@/api/canteen'
-
-/**
- * RelatedPickerSheet —— 关联对象选择弹层（task-14 W2/W5 / task-13 T20）
- * 修复 V3：档口联想走正式 API（getCanteensWithStalls 全量档口，含真实 id），
- * 返回真实 stallId，禁止伪造 id。菜品走 searchDishesPage 正式接口。
- */
 import type { RelatedItem } from './related-item'
 
+/**
+ * RelatedPickerSheet —— 关联菜品选择弹层（task-14 W2/W5 / task-13 T20）
+ * V5 简化：发表动态仅允许关联菜品（产品决策：不支持关联档口），
+ * 保留「不关联」列表首项 + 单一「完成」按钮的 Apple 底部 Sheet 范式（与登录弹窗头部结构一致）。
+ */
 const props = defineProps<{
   open: boolean
   /** 当前已选（用于高亮） */
@@ -98,7 +113,7 @@ watch(() => props.open, (v) => {
   }
 })
 
-// 下拉关闭手势（与 ApplySheet / ContributeSheet 等底部弹层保持一致）
+// 下拉关闭手势（与 ApplySheet / AuthSheet 等底部弹层保持一致）
 const dragOffset = ref(0)
 const dragging = ref(false)
 
@@ -125,24 +140,20 @@ function onTouchMove(e: any) {
   if (!dragging.value) return
   const y = e.touches?.[0]?.clientY ?? 0
   const now = Date.now()
-  // 记录瞬时速度（apple-design §5 velocity handoff）
   const dt = Math.max(now - lastTime, 1)
-  velocity = ((y - lastY) / dt) * 1000 // px/s
+  velocity = ((y - lastY) / dt) * 1000
   lastY = y
   lastTime = now
   const delta = y - startY
-  // 仅允许向下拖拽
   dragOffset.value = delta > 0 ? delta : 0
 }
 function onTouchEnd() {
   if (!dragging.value) return
   dragging.value = false
-  // 松手速度 > 480px/s 视为向下甩动直接关闭，或位移 > 120rpx 关闭（apple-design §5 手势阈值），否则回弹
   if (velocity > 480 || dragOffset.value > 120) emit('close')
   dragOffset.value = 0
 }
 
-const tab = ref<'dish' | 'stall'>('dish')
 const keyword = ref('')
 const loading = ref(false)
 const candidates = ref<RelatedItem[]>([])
@@ -153,7 +164,7 @@ function isSelected(item: RelatedItem): boolean {
   return !!props.selected && props.selected.id === item.id && props.selected.type === item.type
 }
 
-/** 请求序号守卫：open/tab/keyword 频繁变化时的多次 loadCandidates，丢弃过期响应，避免重复渲染/竞态（P1 筛选去重） */
+/** 请求序号守卫：open/keyword 频繁变化时的多次 loadCandidates，丢弃过期响应，避免重复渲染/竞态（P1 筛选去重） */
 let candidateSeq = 0
 async function loadCandidates() {
   const seq = ++candidateSeq
@@ -161,40 +172,15 @@ async function loadCandidates() {
   loading.value = true
   candidates.value = []
   try {
-    if (tab.value === 'dish') {
-      const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
-      candidates.value = res.list.map(d => ({
-        id: d.id,
-        name: d.name,
-        image: getImageUrl(d.image),
-        type: 'dish' as const,
-      }))
-    } else {
-      // 正式档口列表：全量档口（后端返回真实 id），前端按关键词过滤
-      const canteens: any[] = await getCanteensWithStalls()
-      const stalls: { id: number; name: string; images?: any }[] = []
-      const seen = new Set<number>()
-      for (const c of canteens) {
-        for (const s of (c.stalls || []) as any[]) {
-          const id = Number(s.id || 0)
-          if (id && !seen.has(id)) {
-            seen.add(id)
-            stalls.push({ id, name: s.name || '', images: s.images })
-          }
-        }
-      }
-      const filtered = kw
-        ? stalls.filter(s => s.name.includes(kw))
-        : stalls
-      candidates.value = filtered.slice(0, 20).map(s => ({
-        id: s.id,
-        name: s.name,
-        image: Array.isArray(s.images) ? getImageUrl(s.images[0] || '') : getImageUrl((s.images as any) || ''),
-        type: 'stall' as const,
-      }))
-    }
-    // 过期响应（期间又切换了 tab/打开状态/关键词）直接丢弃，不覆盖最新结果
+    const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
+    // 过期响应（期间又切换了打开状态/关键词）直接丢弃，不覆盖最新结果
     if (seq !== candidateSeq) return
+    candidates.value = res.list.map(d => ({
+      id: d.id,
+      name: d.name,
+      image: getImageUrl(d.image),
+      type: 'dish' as const,
+    }))
   } catch {
     if (seq !== candidateSeq) return
     candidates.value = []
@@ -212,21 +198,17 @@ function select(item: RelatedItem) {
   emit('select', item)
 }
 
-/** 确定：回传当前选中项（props.selected），由页面统一关闭弹层 */
+/** 完成：回传当前选中项（props.selected），由页面统一关闭弹层 */
 function confirm() {
   emit('confirm', props.selected ?? null)
 }
 
-// 打开时或切换 tab 时重置并加载
+// 打开时重置并加载
 watch(() => props.open, (v) => {
   if (v) {
     keyword.value = ''
     loadCandidates()
   }
-})
-watch(tab, () => {
-  keyword.value = ''
-  loadCandidates()
 })
 
 // N05 修复：卸载时清理防抖定时器，避免组件销毁后回调仍触发
@@ -248,30 +230,34 @@ onUnmounted(() => {
   transform: translateY(100%);
   transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex; flex-direction: column;
-  max-height: 80vh;
+  max-height: 82vh;
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
 }
 .related-sheet.open { transform: translateY(0); }
 .sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
-.sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
-.sheet-close { font-size: var(--font-body); color: var(--text-tertiary); padding: 0 var(--spacing-xs); }
-.sheet-tabs { display: flex; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-md) 0; }
-.sheet-tab { padding: var(--spacing-xs) var(--spacing-lg); border-radius: var(--radius-tag); background: var(--bg-soft); font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
-.sheet-tab:active { transform: scale(var(--press-scale)); }
-.sheet-tab.active { background: var(--color-primary-soft); color: var(--color-primary); }
-.sheet-search { padding: var(--spacing-md); }
+/* 头部：与登录弹窗同构（标题 + 右上角关闭 + 底部分隔线） */
+.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
+.sheet-title { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
+.sheet-close { padding: var(--spacing-2xs) var(--spacing-xs); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.sheet-close:active { opacity: 0.5; }
+.sheet-search { padding: var(--spacing-md); flex-shrink: 0; }
 .sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md); }
 .sheet-empty { padding: var(--spacing-xl) 0; text-align: center; }
 .sheet-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: background var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+/* 列表项：图 + 主次两行信息 + 选中勾；选中行浅底高亮（iOS 列表选中态） */
+.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 88rpx; padding: var(--spacing-sm) var(--spacing-sm); border-radius: var(--radius-card); transition: background var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .sheet-item.on { background: var(--bg-soft); }
+.sheet-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+.sheet-item-name { font-size: var(--font-body); color: var(--text-primary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-item-sub { font-size: var(--font-aux); color: var(--text-tertiary); }
 .sheet-item-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
 .sheet-item-img-empty { display: flex; align-items: center; justify-content: center; }
-.sheet-item-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sheet-footer { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-.sheet-clear { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--bg-soft); color: var(--text-secondary); font-weight: var(--weight-semibold); -webkit-tap-highlight-color: transparent; }
-.sheet-confirm { flex: 2; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); -webkit-tap-highlight-color: transparent; }
+.sheet-item--none { margin-bottom: var(--spacing-2xs); }
+.sheet-divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-2xs) var(--spacing-sm) var(--spacing-xs); }
+/* 底部：单一主色「完成」按钮 */
+.sheet-footer { display: flex; padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); flex-shrink: 0; }
+.sheet-confirm { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); font-size: var(--font-card); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.sheet-confirm:active { opacity: 0.85; transform: scale(var(--press-scale)); }
 
 .footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

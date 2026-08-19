@@ -122,8 +122,12 @@ async function onTap(n: Notification) {
   // comment / useful 无独立目标页，仅标已读
 }
 
-// 通知属认证专属：游客访问由 profile 入口 requireAuth 弹认证；认证后加载
-watch(() => userStore.userInfo, (info) => { if (info) load() })
+// 通知属认证专属：游客访问由 profile 入口 requireAuth 弹认证；认证成功后（isVerified 由 false→true）
+// 必须显式触发 load，否则游客态 userInfo 引用不变、浅比较 watch 不会触发，导致列表永久空白。
+watch(
+  () => userStore.isVerified(),
+  (ok) => { if (ok) load() },
+)
 onShow(() => {
   if (userStore.isVerified()) load()
 })

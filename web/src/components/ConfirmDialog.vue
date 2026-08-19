@@ -13,17 +13,23 @@ const show = ref(false)
 const visibleState = ref(false)
 // 破坏性确认弹窗：默认聚焦「取消」按钮，避免键盘误确认
 const cancelBtn = ref<HTMLElement | null>(null)
+// 退场定时器句柄：组件卸载或重复关闭前必须清理，避免 setTimeout 悬挂（审计 #M4）
+let hideTimer: number | undefined
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && confirm.visible) confirm.cancel()
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  if (hideTimer) window.clearTimeout(hideTimer)
+})
 
 watch(
   () => confirm.visible,
   (v) => {
     if (v) {
+      if (hideTimer) { window.clearTimeout(hideTimer); hideTimer = undefined }
       show.value = true
       requestAnimationFrame(() => {
         visibleState.value = true
@@ -33,7 +39,7 @@ watch(
     } else {
       visibleState.value = false
       // 退场后卸载
-      window.setTimeout(() => (show.value = false), 220)
+      hideTimer = window.setTimeout(() => { show.value = false; hideTimer = undefined }, 220)
     }
   },
 )

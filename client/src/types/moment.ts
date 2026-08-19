@@ -17,6 +17,8 @@ export interface Moment {
   relatedId?: number | null
   /** 关联对象名称（菜品名/档口名） */
   relatedName?: string | null
+  /** 关联对象缩略图（仅 relatedType=dish 返回，关联菜品主图，动态卡片展示） */
+  relatedImage?: string | null
   /** 关联档口所属食堂名（仅 relatedType=stall 返回，跳档口详情需携带 navParams.canteen） */
   relatedCanteen?: string | null
   /** 关联菜品平均评分（仅 relatedType=dish 返回，动态卡片星级展示） */

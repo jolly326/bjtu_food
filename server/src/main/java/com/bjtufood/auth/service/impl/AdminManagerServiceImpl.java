@@ -131,7 +131,7 @@ public class AdminManagerServiceImpl implements AdminManagerService {
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setVerified(user.getVerified());
-        vo.setOpenid(user.getOpenid());
+        vo.setWechatBound(user.getOpenid() != null);
         vo.setBindEmail(user.getBindEmail());
         vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());

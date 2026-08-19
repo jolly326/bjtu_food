@@ -149,7 +149,7 @@ async function loadData() {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/pages-user/publish-moment/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/pages-user/publish-content/index?id=${m.id}` })
   } else {
     uni.navigateTo({ url: `/pages/pages-detail/moment?id=${m.id}` })
   }

@@ -43,8 +43,8 @@ export interface User {
   status: string;
   /** 是否已邮箱认证（0=游客未认证 / 1=已认证） */
   verified?: number;
-  /** 微信 openid（管理端展示绑定关系，视图层脱敏展示尾号） */
-  openid?: string;
+  /** 是否微信绑定（管理端展示绑定关系，不泄露 openid） */
+  wechatBound?: boolean;
   /** 绑定校园邮箱（仅认证过才有；管理端可展示，不公开给小程序） */
   bindEmail?: string;
   /** 游客短标识「食客+ID 尾 4 位」，昵称展示辅助 */

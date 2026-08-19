@@ -56,12 +56,7 @@ const filteredStudents = computed(() => {
   )
 })
 
-// openid 脱敏展示：仅保留尾 4 位（管理端可见绑定关系，不外泄完整 openid）
-function maskOpenid(openid?: string): string {
-  if (!openid) return ''
-  if (openid.length <= 4) return openid
-  return `****${openid.slice(-4)}`
-}
+// 微信绑定展示：仅用布尔标识 wechatBound，不再展示/脱敏 openid 明文（规避隐私泄露，审计 #5）
 
 // ===== 行内状态快捷切换（正常/禁用） =====
 const switchId = ref<number | null>(null)
@@ -145,9 +140,9 @@ async function batchSetStatus(status: 'active' | 'disabled') {
           <span class="user-username">@{{ row.username }}</span>
         </div>
         <!-- 微信登录体系落地后的新字段（task-02）：微信绑定 / 绑定邮箱 -->
-        <div v-if="row.openid || row.bindEmail" class="user-meta user-bind">
-          <span v-if="row.openid" class="user-wechat" title="微信绑定">微信 {{ maskOpenid(row.openid) }}</span>
-          <span v-if="row.openid && row.bindEmail" class="user-sep">·</span>
+        <div v-if="row.wechatBound || row.bindEmail" class="user-meta user-bind">
+          <span v-if="row.wechatBound" class="user-wechat" title="微信绑定">已绑定微信</span>
+          <span v-if="row.wechatBound && row.bindEmail" class="user-sep">·</span>
           <span v-if="row.bindEmail" class="user-email">{{ row.bindEmail }}</span>
         </div>
       </template>

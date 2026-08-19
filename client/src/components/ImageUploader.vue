@@ -8,7 +8,7 @@
       >
         <image class="img-thumb" :src="img" mode="aspectFill" />
         <view class="img-remove" @tap="removeImage(idx)">
-          <IconSvg name="close" :size="24" color="var(--badge-dark-text)" />
+          <IconSvg name="close" :size="compact ? 18 : 24" color="var(--badge-dark-text)" />
         </view>
       </view>
       <view
@@ -30,7 +30,7 @@ import { uploadImage } from '@/api/upload'
 
 /**
  * ImageUploader —— 图片上传网格（task-14 W2/W5 / task-13 T11）
- * 复用：review / publish-moment / 评论栏（compact）
+ * 复用：publish-content（发表内容）/ 评论栏（compact）
  * 受控：v-model 绑定 string[]（已上传的相对/绝对路径）。
  */
 const props = withDefaults(defineProps<{
@@ -54,6 +54,9 @@ const emit = defineEmits<{
 }>()
 
 const uploading = ref(false)
+/** 本次选择会话中已被用户删除的 URL（等待期删除兜底，防止上传完成被还原）。
+ *  原为模块级 Set，多实例（同页多个上传器）会串扰——改为实例级，避免状态串扰（审计 #23）。 */
+const removedDuringUpload = ref(new Set<string>())
 
 function sync(list: string[]) {
   emit('update:modelValue', list)
@@ -63,14 +66,11 @@ function sync(list: string[]) {
 function removeImage(idx: number) {
   const target = props.modelValue[idx]
   // 记录被删 URL：若等待期上传完成前用户删除了已上传项，合并时排除，避免被还原
-  if (target) removedDuringUpload.add(target)
+  if (target) removedDuringUpload.value.add(target)
   const next = props.modelValue.slice()
   next.splice(idx, 1)
   sync(next)
 }
-
-/** 本次选择会话中已被用户删除的 URL（等待期删除兜底，防止上传完成被还原） */
-const removedDuringUpload = new Set<string>()
 
 function chooseImage() {
   if (uploading.value) return
@@ -90,14 +90,14 @@ function chooseImage() {
           uploaded.push(url)
         }
         // 基于最新 modelValue 合并（保留等待期用户的增删），已删除 URL 不再还原
-        const next = props.modelValue.filter((u) => !removedDuringUpload.has(u))
-        next.push(...uploaded.filter((u) => !removedDuringUpload.has(u)))
+        const next = props.modelValue.filter((u) => !removedDuringUpload.value.has(u))
+        next.push(...uploaded.filter((u) => !removedDuringUpload.value.has(u)))
         sync(next)
       } catch {
         uni.showToast({ title: '图片上传失败', icon: 'none' })
       } finally {
         uploading.value = false
-        removedDuringUpload.clear()
+        removedDuringUpload.value.clear()
       }
     },
   })
@@ -144,5 +144,4 @@ function chooseImage() {
 .img-uploader.compact .img-add:active { transform: scale(var(--press-scale)); background: var(--bg-soft); transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .img-uploader.compact .img-remove { width: 36rpx; height: 36rpx; border-radius: 50%; }
 .img-uploader.compact .img-remove::after { content: ''; position: absolute; inset: -14rpx; }
-.img-uploader.compact .img-remove :deep(svg) { width: 18rpx; height: 18rpx; }
 </style>

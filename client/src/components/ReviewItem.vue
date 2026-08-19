@@ -51,15 +51,17 @@
           @tap="previewImage(idx)"
         />
       </view>
-      <!-- footer 操作组：仅有用（举报/删除已上移右上角） -->
-      <view class="review-footer">
+      <!-- footer 操作组：仅有用（举报/删除已上移右上角）。
+           评价卡片不展示点赞/评论类互动组件（这些仅在动态中显示），由父页面传 hideUseful 隐藏整块 footer -->
+      <view v-if="!hideUseful" class="review-footer">
         <view class="review-ops">
-          <text v-if="!hideUseful" class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
+          <text class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
             <IconSvg
               name="thumb"
               :size="26"
               :color="usefulActive ? 'var(--color-like)' : 'var(--text-tertiary)'"
             />
+            <text class="review-op-label">有用</text>
             <text v-if="likeCount > 0" class="review-op-count">{{ likeCount }}</text>
           </text>
         </view>
@@ -322,6 +324,8 @@ function onThumbError(idx: number) {
 }
 .review-op:active { opacity: 0.6; }
 .review-op.active { color: var(--color-like); }
+.review-op-label { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); }
+.review-op.active .review-op-label { color: var(--color-like); }
 .review-op--report { color: var(--text-tertiary); }
 .review-op--delete { color: var(--color-error); }
 </style>

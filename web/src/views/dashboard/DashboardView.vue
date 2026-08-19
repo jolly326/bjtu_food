@@ -46,9 +46,9 @@ const todoCards = computed(() => [
 // ===== 8 项规模指标 =====
 const metrics = computed(() => [
   { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
-  { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=stall' },
+  { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=canteen' },
   { key: 'dish', label: '菜品', value: data.value?.totalDishCount ?? 0, icon: PriceTag, to: '/dashboard/content?tab=dish' },
-  { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=user' },
+  { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=account' },
   { key: 'moment', label: '动态', value: data.value?.totalMomentCount ?? 0, icon: ChatDotRound, to: '/dashboard/audit?tab=moment' },
   { key: 'review', label: '评价', value: data.value?.totalReviewCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=review' },
   { key: 'apply', label: '申请', value: data.value?.totalApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },

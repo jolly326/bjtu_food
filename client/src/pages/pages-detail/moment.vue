@@ -76,9 +76,12 @@
             <MomentImageGrid :images="moment.images" />
           </view>
 
-          <!-- 关联对象（与下方互动栏用细线分隔） -->
+          <!-- 关联对象（与下方互动栏用细线分隔）：左侧圆角正方形菜品缩略图（有图显图、无图显占位图标） -->
           <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="related-card" @tap="goRelated">
-            <IconSvg :name="relatedIconName" :size="28" color="var(--text-tertiary)" class="related-icon" />
+            <image v-if="moment.relatedImage" class="related-thumb" :src="getImageUrl(moment.relatedImage)" mode="aspectFill" lazy-load />
+            <view v-else class="related-thumb related-thumb--empty">
+              <IconSvg :name="relatedIconName" :size="28" color="var(--text-tertiary)" class="related-icon" />
+            </view>
             <view class="related-body">
               <text class="related-type">{{ relatedTypeLabel }}</text>
               <view class="related-name-row">
@@ -308,7 +311,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/pages-user/publish-moment/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: `/pages/pages-user/publish-content/index?id=${moment.value.id}` })
 }
 
 /** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */
@@ -583,6 +586,9 @@ onLoad((query) => {
 .related-card:active { transform: scale(var(--press-scale)); }
 /* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
 .related-icon { font-size: 32rpx; line-height: 1; }
+/* 圆角正方形菜品缩略图（与动态卡片 m-related-thumb 统一） */
+.related-thumb { width: 64rpx; height: 64rpx; border-radius: 14rpx; background: var(--bg-page); flex-shrink: 0; }
+.related-thumb--empty { display: flex; align-items: center; justify-content: center; }
 .related-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .related-type { font-size: var(--font-aux); color: var(--text-tertiary); }
 .related-name-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }

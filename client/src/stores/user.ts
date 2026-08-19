@@ -84,13 +84,16 @@ export const useUserStore = defineStore('user', () => {
 
   /** 学号邮箱认证（§5.y）：验证码绑定当前微信 → verified=true，返回最新 userInfo */
   async function verifyEmail(code: string) {
-    // 兜底：认证需微信登录态，若静默登录未就绪（如启动极快触发认证），先补一次静默登录
+    // 兜底：认证需微信登录态，若静默登录未就绪（如启动竞态）或失败，先补一次。
+    // 透传真实失败原因（如「微信登录未配置」/「凭证无效」），避免误导为网络问题。
     if (!isLoggedIn()) {
-      await silentLogin()
-      // silentLogin 失败会被吞掉（仅日志），此处显式校验：
-      // 无登录态时直接报明确错误，避免无 token 调用 verify-email 得到误导性 401「请先登录或重新登录」
+      try {
+        await silentLogin()
+      } catch (e) {
+        throw new Error((e as Error)?.message || '微信登录未完成，请稍后重试')
+      }
       if (!isLoggedIn()) {
-        throw new Error('微信登录失败，请检查网络后重试')
+        throw new Error('微信登录未完成，请稍后重试')
       }
     }
     loading.value = true
