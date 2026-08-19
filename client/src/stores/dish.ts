@@ -157,6 +157,21 @@ export const useDishStore = defineStore('dish', () => {
     currentDish.value = null
     reviewList.value = []
     reviewTotal.value = 0
+    // 清理关联动态，避免切换菜品时闪现上一菜品的关联内容
+    relatedMoments.value = []
+  }
+
+  /**
+   * 登录态变更（登出/换用户）时清理「用户态个性化数据」：
+   * - guessList（猜你喜欢，依赖登录态个性化）
+   * - reviewList 中各评价的 isUseful（有用标记是当前用户维度）
+   * 防止 forceLogout 后上一用户的偏好数据残留串档（§5.x 登录态一致性）。
+   */
+  function resetUserScopedData() {
+    guessList.value = []
+    for (const r of reviewList.value) {
+      if (r.useful) r.useful = false
+    }
   }
 
   /**
@@ -340,6 +355,9 @@ export const useDishStore = defineStore('dish', () => {
   async function loadMoreFilterDishes(): Promise<boolean> {
     const tab = filterTab.value
     if (!tab || filterLoadingMore.value || filterFinished.value) return false
+    // 与 fetchFilterDishes 共用 filterFetchSeq：切换品类会使其自增，使在途的旧品类第 2 页结果失效，
+    // 避免「切品类时旧品类第 2 页晚到 concat 进新品类列表」的竞态（P0 修复）
+    const seq = ++filterFetchSeq
     filterLoadingMore.value = true
     filterPage.value += 1
     try {
@@ -357,6 +375,11 @@ export const useDishStore = defineStore('dish', () => {
         const res = await dishApi.getHotDishesPage(filterPage.value, pageSize)
         rows = withLocalDistance(res.list)
         filterTotal.value = res.total
+      }
+      // 过期响应（期间又切换了品类）丢弃，不混入新品类列表
+      if (seq !== filterFetchSeq) {
+        filterPage.value -= 1
+        return false
       }
       filterList.value = filterList.value.concat(rows)
       // 分页结束判据基于「本页返回条数 < pageSize」（见 fetchFilterDishes 说明）
@@ -379,7 +402,7 @@ export const useDishStore = defineStore('dish', () => {
     categories,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed,
     fetchRecommend, fetchGuess, fetchCanteenImages,
-    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, fetchReviews, submitReview, fetchStallDishes,
+    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,
     fetchFilterDishes, loadMoreFilterDishes,

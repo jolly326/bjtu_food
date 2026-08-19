@@ -1,5 +1,5 @@
 <template>
-  <!-- 动态卡片三点菜单：底部 ActionSheet（页面根级挂载，fixed 遮罩才能正确覆盖全屏）。
+  <!-- 评价卡三点菜单：底部 ActionSheet（页面根级挂载，fixed 遮罩才能正确覆盖全屏）。
        与 AuthSheet/ApplySheet 同一底部抽屉范式：grabber 横条 + 圆角卡片 + 阴影 + 过渡动画。
        注意：组件必须放在 scroll-view 之外（微信小程序 scroll-view 内 fixed 层级会被压扁/裁剪） -->
   <view v-if="open" class="more-mask" @tap.stop="close">
@@ -11,15 +11,20 @@
           <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
         </view>
       </view>
-      <!-- 分享：微信原生分享（open-type=share → 页面 onShareAppMessage） -->
-      <button class="more-item" open-type="share" @tap="onShareTap">
-        <IconSvg name="share" :size="34" color="var(--text-primary)" class="more-item-icon" />
-        <text class="more-item-text">分享</text>
-      </button>
-      <!-- 举报：emit 给父页面弹 ReportModal。选项不设按钮背景，与其他弹层一致 -->
-      <view class="more-item more-item--danger" role="button" aria-label="举报动态" @tap="onReport">
+      <!-- 本人：删除评价；他人：举报评价（危险操作红色高亮）。选项不设按钮背景，与其他弹层一致 -->
+      <view
+        v-if="isOwn"
+        class="more-item more-item--danger"
+        role="button"
+        aria-label="删除评价"
+        @tap="onDelete"
+      >
+        <IconSvg name="delete" :size="34" color="var(--color-error)" class="more-item-icon" />
+        <text class="more-item-text">删除评价</text>
+      </view>
+      <view v-else class="more-item more-item--danger" role="button" aria-label="举报评价" @tap="onReport">
         <IconSvg name="report" :size="34" color="var(--color-error)" class="more-item-icon" />
-        <text class="more-item-text">举报</text>
+        <text class="more-item-text">举报评价</text>
       </view>
       <view class="more-cancel" role="button" aria-label="取消" @tap.stop="close">取消</view>
     </view>
@@ -27,42 +32,33 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
 import IconSvg from './IconSvg.vue'
-import { sharedMoment } from '@/utils/shareState'
-import type { Moment } from '@/types/moment'
 
 const props = defineProps<{
   open: boolean
-  moment?: Moment | null
+  /** 当前评价是否属于本人（true 显示「删除评价」，false 显示「举报评价」） */
+  isOwn: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
-  (e: 'report', moment: Moment): void
+  (e: 'delete'): void
+  (e: 'report'): void
 }>()
 
 function close() {
   emit('update:open', false)
 }
 
-function onShareTap() {
-  // 记录待分享动态，页面 onShareAppMessage 据此生成分享卡片（微信原生分享）
-  if (props.moment) sharedMoment.value = props.moment
+function onDelete() {
   close()
+  emit('delete')
 }
 
 function onReport() {
   close()
-  if (props.moment) emit('report', props.moment)
+  emit('report')
 }
-
-// 打开时禁止页面滚动（微信原生 scroll-view 不响应 scroll-y 阻止，但遮罩全屏已拦截点击）
-watch(() => props.open, (v) => {
-  if (v) {
-    // 空操作占位：保留 watch 以便后续扩展（如页面级滚动锁定）
-  }
-})
 </script>
 
 <style scoped>
@@ -111,13 +107,7 @@ watch(() => props.open, (v) => {
   color: var(--text-primary);
   border-bottom: 2rpx solid var(--border-color);
   background: transparent;
-  /* 原生 button 默认样式重置 */
-  margin: 0;
-  padding: 0;
-  line-height: normal;
-  border-radius: 0;
 }
-.more-item::after { border: none; }
 .more-item:active { opacity: 0.7; }
 .more-item-icon { flex-shrink: 0; }
 .more-item-text { font-weight: var(--weight-medium); }

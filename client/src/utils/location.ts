@@ -45,6 +45,14 @@ export function getUserLocation(): Promise<UserLocation | null> {
 
 /** Haversine：两 GCJ-02 坐标直线距离（米），手机本地算，无需上报用户位置 */
 export function haversineMeters(a: UserLocation, b: UserLocation): number {
+  // 入参校验：任一坐标缺字段/非有限数 → 无法计算，返回 NaN，交由 fmtDistance 兜底隐藏
+  if (
+    !a || !b ||
+    !Number.isFinite(a.lat) || !Number.isFinite(a.lng) ||
+    !Number.isFinite(b.lat) || !Number.isFinite(b.lng)
+  ) {
+    return NaN
+  }
   const R = 6371000
   const toRad = (d: number) => (d * Math.PI) / 180
   const dLat = toRad(b.lat - a.lat)

@@ -260,7 +260,9 @@
         <result property="distance" column="distance"/>
     </resultMap>
 
-    <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称） -->
+    <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称）。
+         分页：避免菜品量增长后单次请求全表加载打满连接/内存。
+         排序固定按 updated_at DESC，与管理端预期一致。 -->
     <select id="selectAllForAdmin" resultMap="dishAdminVOMap">
         <include refid="joinDishSql"/>
         ORDER BY d.updated_at DESC

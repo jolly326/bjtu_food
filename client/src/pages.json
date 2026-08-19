@@ -76,13 +76,6 @@
 					}
 				},
 				{
-					"path": "review",
-					"style": {
-						"navigationBarTitleText": "发表评价",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "dish",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
@@ -102,9 +95,9 @@
 			"root": "pages/pages-user/",
 			"pages": [
 				{
-					"path": "publish-moment/index",
+					"path": "publish-content/index",
 					"style": {
-						"navigationBarTitleText": "发布动态",
+						"navigationBarTitleText": "发表内容",
 						"navigationStyle": "custom"
 					}
 				},

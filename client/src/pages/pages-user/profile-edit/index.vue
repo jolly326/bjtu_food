@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
@@ -66,12 +66,24 @@ const theme = useThemeStore()
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 
-const u = userInfo.value
-const avatar = ref(u?.avatar || '')
-const nickname = ref(u?.nickname || '')
+// N07/审计#2 修复：userInfo 在 setup 时可能仍为 null（静默登录异步回填），
+// 直接用快照会导致头像/昵称/身份永久空白且回写空值。改为响应式派生 + watch immediate 回填。
+const avatar = ref('')
+const nickname = ref('')
 const saving = ref(false)
 /** 身份标签：student=交大学生 / admin=管理员（对齐 §0.2 仅两种角色） */
-const roleLabel = u?.role === 'admin' ? '管理员' : '交大学生'
+const roleLabel = ref('交大学生')
+
+watch(
+  () => userInfo.value,
+  (u) => {
+    if (!u) return
+    if (u.avatar) avatar.value = u.avatar
+    if (u.nickname) nickname.value = u.nickname
+    roleLabel.value = u.role === 'admin' ? '管理员' : '交大学生'
+  },
+  { immediate: true },
+)
 /** 头像上传中：禁用重复选择 + 头像半透明反馈 */
 const avatarUploading = ref(false)
 

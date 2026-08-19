@@ -15,23 +15,35 @@ export interface ApiResponse<T = any> {
   data: T
 }
 
+/** 401 处理进行中标志：避免并发 401（如首页多请求同时失效）重复触发登出+重登+Toast 风暴 */
+let _authHandling = false
+
 /**
  * 统一未登录/登录失效处理（§5.x 401 处理）：
  * 清本地登录态 + Toast + 重新触发微信静默登录（wechat-login）。
  * 用动态 import 避免 user store ↔ http 的循环依赖；forceLogout 幂等，可安全延迟执行。
  * 不再使用全局 uni.$on/$emit 事件总线，规避 HMR/模块重复加载导致的重复订阅泄漏。
+ * 通过 _authHandling 去重，防止并发 401 放大为多次登录请求与叠加 Toast。
  */
 async function handleUnauthorized(): Promise<void> {
+  if (_authHandling) {
+    // 已有处理在进行：直接等待其完成，不重复登出/重登/弹窗
+    return
+  }
+  _authHandling = true
   try {
     const { useUserStore } = await import('@/stores/user')
     useUserStore().forceLogout()
     uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
     // 401 → 重新静默登录（游客态自动恢复）
-    useUserStore().silentLogin()
+    await useUserStore().silentLogin()
   } catch {
     // 兜底：极端情况下动态 import 失败，直接清 storage
     uni.removeStorageSync('token')
     uni.removeStorageSync('userInfo')
+  } finally {
+    // 延迟复位，确保后续真正失效的 401 能再次触发引导
+    setTimeout(() => { _authHandling = false }, 300)
   }
 }
 
@@ -145,6 +157,12 @@ async function request<T>(
   }
 
   const body = parseBody<T>(res.data)
+  // 空响应 / 网关错误页容错：body 可能不是规范的 ApiResponse（如 Nginx 返回 HTML 错误页、
+  // 后端宕机返回空数据），直接访问 body.code 会抛 TypeError。统一降级为可识别错误。
+  if (!body || typeof body.code !== 'number') {
+    const detail = typeof res.data === 'string' ? res.data.slice(0, 80) : ''
+    throw new Error(detail ? `服务响应异常：${detail}` : '服务响应异常，请稍后重试')
+  }
   if (body.code === 401) {
     // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
     // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
@@ -161,10 +179,16 @@ async function request<T>(
     await handleUnauthorized()
     throw new Error(body.message || '请先登录')
   }
-  if (body.code === 403) {
-    // 403 无权限：游客访问需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）
+  if (body.code === 4031) {
+    // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
+    // 游客触发需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
     void handleForbidden()
     throw new Error(body.message || '请先完成学号邮箱认证')
+  }
+  if (body.code === 403) {
+    // 403 = 普通权限拒绝（如越权访问管理接口）：不应误导用户去做邮箱认证。
+    uni.showToast({ title: '无权限访问该内容', icon: 'none' })
+    throw new Error(body.message || '无权限访问该内容')
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message

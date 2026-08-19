@@ -35,6 +35,15 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    /**
+     * 缓存的 HMAC 签名密钥。
+     * <p>
+     * 原实现每次 {@code validateToken}/{@code getUserIdFromToken}/{@code getRoleFromToken}
+     * 都各自 {@code Keys.hmacShaKeyFor} 重建 Key 并完整验签一次（每请求 3 次 HMAC 验签）。
+     * 改为启动时构建一次并复用，避免每请求重复重建与多次验签的固定开销。
+     */
+    private volatile SecretKey cachedKey;
+
     /** 开发期默认弱密钥（仅用于本地调试，生产必须覆盖） */
     private static final String DEV_DEFAULT_SECRET = "BjtuFoodDevSecretKey2024ChangeMe";
 
@@ -50,6 +59,25 @@ public class JwtUtil {
                             "禁止使用默认/弱密钥启动生产环境。"
             );
         }
+        // 启动时预构建并缓存签名密钥，供后续所有签发/验签复用
+        this.cachedKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 获取缓存的签名密钥（懒加载兜底，正常由 {@link #validateSecretOnStartup} 预热）。
+     */
+    private SecretKey getKey() {
+        SecretKey key = cachedKey;
+        if (key == null) {
+            synchronized (this) {
+                key = cachedKey;
+                if (key == null) {
+                    key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+                    cachedKey = key;
+                }
+            }
+        }
+        return key;
     }
 
     /**
@@ -83,8 +111,8 @@ public class JwtUtil {
         claims.put("role", role);
         claims.put("username", username);
 
-        // 生成签名密钥
-        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        // 生成签名密钥（复用缓存 Key）
+        SecretKey key = getKey();
 
         return Jwts.builder()
                 .claims(claims)                          // 设置自定义载荷
@@ -103,9 +131,8 @@ public class JwtUtil {
      */
     public Claims parseToken(String token) {
         try {
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
             return Jwts.parser()
-                    .verifyWith(key)
+                    .verifyWith(getKey())
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -113,6 +140,20 @@ public class JwtUtil {
             // Token 过期、签名错误、格式错误均返回 null
             return null;
         }
+    }
+
+    /**
+     * 一次性校验并解析 Token，返回 Claims。
+     * <p>
+     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次（原实现在 filter 内分别调用
+     * {@link #validateToken}、{@link #getUserIdFromToken}、{@link #getRoleFromToken}，
+     * 触发 3 次独立验签）。调用方应先判非空，再读取 userId/role，避免重复解析。
+     *
+     * @param token JWT 字符串
+     * @return 有效则返回 Claims，否则返回 null
+     */
+    public Claims parseAndValidate(String token) {
+        return parseToken(token);
     }
 
     /**

@@ -176,7 +176,7 @@ export function userToLegacy(raw: any): User {
     status: raw.status,
     // task-02 新增：微信登录体系字段（snake_case 仅在 adapter 内部兜底）
     verified: raw.verified ?? 0,
-    openid: raw.openid || '',
+    wechatBound: raw.wechatBound ?? (raw.openid ? true : false),
     bindEmail: (raw.bindEmail ?? raw.bind_email) || '',
     guestShortId: (raw.guestShortId ?? raw.guest_short_id) || '',
     created_at: toDate(raw.createdAt || raw.created_at),

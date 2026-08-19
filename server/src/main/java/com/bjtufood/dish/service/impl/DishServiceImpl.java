@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.util.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
@@ -49,7 +50,7 @@ public class DishServiceImpl implements DishService {
             req = new DishQueryReq();
         }
         // 统一走 PageUtil.normalize（null 先兜底为 0 交由工具类归一化），与其他分页入口保持一致
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(
+        int[] norm = PageUtil.normalize(
                 req.getPage() == null ? 0 : req.getPage(),
                 req.getPageSize() == null ? 0 : req.getPageSize());
         req.setPage(norm[0]);
@@ -112,7 +113,7 @@ public class DishServiceImpl implements DishService {
     @Override
     public IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId) {
         // 统一走 PageUtil.normalize（page<1→1，pageSize<1→10，pageSize>100→100），与其他分页入口保持一致
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
         List<Long> exclude = parseExcludeIds(excludeIds);
@@ -277,11 +278,16 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public List<DishAdminVO> listAllForAdmin() {
-        return dishMapper.selectAllForAdmin()
-                .stream()
+    public IPage<DishAdminVO> listAllForAdmin(int page, int pageSize) {
+        // 分页上限统一由 PageUtil 约束，避免一次性全表加载
+        int[] norm = PageUtil.normalize(page, pageSize);
+        page = norm[0];
+        pageSize = norm[1];
+        IPage<DishAdminVO> result = dishMapper.selectAllForAdmin(new Page<>(page, pageSize));
+        result.setRecords(result.getRecords().stream()
                 .map(this::enrichDishAdminImages)
-                .toList();
+                .toList());
+        return result;
     }
 
     @Override

@@ -70,7 +70,7 @@
       :open="moreOpen"
       :moment="moreMoment"
       @update:open="moreOpen = $event"
-      @report="openReport"
+      @report="openReportForMoment"
     />
 
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
@@ -82,10 +82,9 @@
 import { ref, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
-import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
-import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
+import { useReport } from '@/composables/useReport'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import MomentCard from '@/components/MomentCard.vue'
@@ -97,7 +96,6 @@ import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
-const userStore = useUserStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages-detail/dish） */
 function openDishDetail(id: number) {
@@ -114,38 +112,12 @@ function openMore(m: Moment) {
   moreOpen.value = true
 }
 
-/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
-const reportOpen = ref(false)
-const reportSubmitting = ref(false)
-const reportTarget = ref<Moment | null>(null)
+/* ===== 动态举报（ActionSheet @report → ReportModal，逻辑收敛到 useReport hook） ===== */
+const { reportOpen, reportSubmitting, openReport, submitReport } =
+  useReport({ type: 'moment', title: '举报动态', placeholder: '请描述举报原因…' })
 
-function openReport(m: Moment) {
-  if (!userStore.requireAuth(() => openReport(m))) return
-  reportTarget.value = m
-  reportOpen.value = true
-}
-
-async function submitReport(text: string) {
-  if (!reportTarget.value) return
-  if (!text) {
-    uni.showToast({ title: '请填写举报原因', icon: 'none' })
-    return
-  }
-  reportSubmitting.value = true
-  try {
-    await submitFeedback({
-      type: 'report',
-      content: text,
-      relatedType: 'moment',
-      relatedId: reportTarget.value.id,
-    })
-    uni.showToast({ title: '举报已提交', icon: 'success' })
-    reportOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    reportSubmitting.value = false
-  }
+function openReportForMoment(m: Moment) {
+  openReport(m.id)
 }
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -155,6 +127,9 @@ const refresherTriggered = ref(false)
 
 let page = 1
 const pageSize = 10
+// 请求序号：下拉刷新/切标签自增，使在途的旧请求结果失效，避免快速触底+刷新并发导致页码跳号、
+// 分页数据重复或丢失（社区列表竞态守卫，对齐 dish store 的 fetchSeq 方案）
+let fetchSeq = 0
 
 async function loadData(reset = false) {
   if (reset) {
@@ -162,11 +137,14 @@ async function loadData(reset = false) {
     finished.value = false
     moments.value = []
   }
+  const seq = ++fetchSeq
   loading.value = true
   loadFailed.value = false
   try {
     // 单流：始终按「最新」倒序拉取（task-14 §1.3 已决议去除推荐 Tab）
     const res = await momentApi.getMoments({ tab: 'latest', page, pageSize })
+    // 过期响应（期间又触发刷新/加载更多）丢弃，避免旧结果覆盖新列表
+    if (seq !== fetchSeq) return
     moments.value = page === 1 ? res.list : [...moments.value, ...res.list]
     // M02 修复：基于本页实际返回量判据（本地 sort 不干扰），不足一页即到底
     if (res.list.length < pageSize) finished.value = true
@@ -205,7 +183,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/pages-user/publish-moment/index' })
+  uni.navigateTo({ url: '/pages/pages-user/publish-content/index' })
 }
 
 onMounted(() => { loadData(true) })

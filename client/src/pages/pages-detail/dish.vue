@@ -151,6 +151,7 @@
                 :review="rv"
                 :current-user-id="currentUserId"
                 flat
+                hide-useful
                 @delete="onDeleteReview"
                 @report="onReviewReport"
                 @more="onReviewMore"
@@ -190,10 +191,20 @@
       confirm-text="提交举报"
       :submitting="reportSubmitting"
       @update:open="reportOpen = $event"
-      @submit="submitReviewReport"
+      @submit="submitReport"
     />
 
-    <!-- 认证弹层：写评价/点赞等需认证入口统一底部弹出（z-index 300 高于 action-bar 50，不会被详情内容遮挡） -->
+    <!-- 评价三点菜单：删除/举报（与动态卡一致：点击直接弹层，删除/举报动作内部再要求登录） -->
+    <ReviewActionSheet
+      :open="reviewMoreOpen"
+      :is-own="reviewMoreIsOwn"
+      @update:open="reviewMoreOpen = $event"
+      @delete="onReviewMoreDelete"
+      @report="onReviewMoreReport"
+    />
+
+    <!-- 认证弹层：点赞等需认证入口统一底部弹出（z-index 300 高于 action-bar 50，不会被详情内容遮挡）。
+         写评价入口已不在此拦截，认证在合一发布页提交时检测（publish-content submit） -->
     <AuthSheet />
   </view>
 </template>
@@ -208,8 +219,8 @@ import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
 import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
-import { submitFeedback } from '@/api/feedback'
 import type { Review } from '@/types/review'
+import { useReport } from '@/composables/useReport'
 import { sharedDish } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -222,6 +233,7 @@ import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
+import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -453,7 +465,8 @@ function onDeleteReview(rv: Review) {
       try {
         await deleteReview(rv.id)
         uni.showToast({ title: '评价已删除', icon: 'none' })
-        dishStore.reviewsDirty = true
+        // 删除后立即重拉列表 + 综合评分卡（计数准确无漂移），无需再置 reviewsDirty
+        // （避免与 onShow 的重拉逻辑叠加导致重复请求 + addView 重复埋点）
         await dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 3 })
         dishStore.fetchDetail(dishId.value)
       } catch (e: any) {
@@ -468,53 +481,39 @@ function goReviewList() {
   uni.navigateTo({ url: `/pages/pages-detail/review-list?dishId=${currentDishId.value}` })
 }
 
-/** 写评价入口：未登录弹 AuthSheet，登录后自动继续 */
+/** 写评价入口：进入合一发布页（评价态：锁定所属菜品+默认5星），直接进入不打断编辑体验，认证在提交时检测 */
 function goWriteReview() {
-  if (!userStore.requireAuth(() => goWriteReview())) return
-  uni.navigateTo({ url: `/pages/pages-detail/review?dishId=${currentDishId.value}&from=dish` })
+  uni.navigateTo({ url: `/pages/pages-user/publish-content/index?dishId=${currentDishId.value}&from=dish` })
 }
 
-/** 评价右上角三点菜单：本人 → 删除；他人 → 举报（与动态三点菜单交互一致） */
+/* ===== 评价三点菜单（ReviewItem @more → 页面级 ReviewActionSheet） ===== */
+const reviewMoreOpen = ref(false)
+const reviewMoreTarget = ref<Review | null>(null)
+const reviewMoreIsOwn = computed(() => {
+  const rv = reviewMoreTarget.value
+  return rv != null && userStore.userInfo?.id != null && rv.userId === userStore.userInfo.id
+})
+
+/** 评价右上角三点：直接弹层（不先要求登录）；删除/举报动作内部再 requireAuth，与动态三点一致 */
 function onReviewMore(rv: Review) {
-  if (!userStore.requireAuth(() => onReviewMore(rv))) return
-  const isOwn = userStore.userInfo?.id != null && rv.userId === userStore.userInfo.id
-  uni.showActionSheet({
-    itemList: isOwn ? ['删除评价'] : ['举报评价'],
-    success: (res) => {
-      if (isOwn) onDeleteReview(rv)
-      else onReviewReport(rv)
-    },
-  })
+  reviewMoreTarget.value = rv
+  reviewMoreOpen.value = true
 }
 
-/* ===== 评价举报（复用共享 ReportModal） ===== */
-const reportOpen = ref(false)
-const reportSubmitting = ref(false)
-const reportTarget = ref<{ id: number } | null>(null)
+function onReviewMoreDelete() {
+  if (reviewMoreTarget.value) onDeleteReview(reviewMoreTarget.value)
+}
+
+function onReviewMoreReport() {
+  if (reviewMoreTarget.value) onReviewReport(reviewMoreTarget.value)
+}
+
+/* ===== 评价举报（复用共享 ReportModal，收敛到 useReport hook） ===== */
+const { reportOpen, reportSubmitting, openReport, submitReport } =
+  useReport({ type: 'review', title: '举报评价', placeholder: '请描述举报原因…' })
 
 function onReviewReport(rv: Review) {
-  if (!userStore.requireAuth(() => onReviewReport(rv))) return
-  reportTarget.value = { id: rv.id }
-  reportOpen.value = true
-}
-
-async function submitReviewReport(text: string) {
-  if (!reportTarget.value) return
-  reportSubmitting.value = true
-  try {
-    await submitFeedback({
-      type: 'report',
-      content: text,
-      relatedType: 'review',
-      relatedId: reportTarget.value.id,
-    })
-    uni.showToast({ title: '举报已提交', icon: 'success' })
-    reportOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    reportSubmitting.value = false
-  }
+  openReport(rv.id)
 }
 
 /** 指标条是否需要展示：菜品存在且至少有一项有效指标即显示 */

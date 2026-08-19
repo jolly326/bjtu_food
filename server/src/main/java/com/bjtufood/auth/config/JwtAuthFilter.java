@@ -91,11 +91,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
                 return;
             }
-            // 2. 校验 Token
-            if (jwtUtil.validateToken(token)) {
-                // 3. 解析用户信息
-                Long userId = jwtUtil.getUserIdFromToken(token);
-                String role = jwtUtil.getRoleFromToken(token);
+            // 2. 校验并解析 Token（单次解析，避免重复验签）
+            Claims claims = jwtUtil.parseAndValidate(token);
+            if (claims != null) {
+                // 3. 解析用户信息（复用本次解析结果）
+                Long userId = claims.get("userId", Long.class);
+                String role = claims.get("role", String.class);
 
                 // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效
                 // （管理端拿不到对方 token，只能按 userId 拉黑，故此处补一次判定）

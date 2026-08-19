@@ -24,10 +24,11 @@ public class DishAdminController {
 
     private final DishService dishService;
 
-    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架）。images 返回可访问的完整 URL 数组。")
+    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。")
     @GetMapping
-    public Result<?> listMyDishes() {
-        return Result.success(dishService.listAllForAdmin());
+    public Result<?> listMyDishes(@RequestParam(defaultValue = "1") int page,
+                                  @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.success(dishService.listAllForAdmin(page, pageSize));
     }
 
     @Operation(

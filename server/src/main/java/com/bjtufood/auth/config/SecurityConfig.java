@@ -51,19 +51,23 @@ public class SecurityConfig {
     /**
      * 任意方法放行的公开接口（鉴权/文档类，无敏感写操作）
      */
+    // 注意：server.servlet.context-path=/api 时，Spring Security 的 requestMatchers 是否包含
+    // context-path 取决于 matcher 实现（AntPath 去前缀 / MvcRequest 含前缀）。为兼容两种行为、
+    // 避免白名单因 context-path 不命中导致游客态全 401（含 wechat-login 死循环），每条路径同时
+    // 列出「无前缀」与「/api 前缀」两种写法，二者必中其一，且不影响既有公开范围。
     private static final String[] PUBLIC_ANY_METHOD = {
             // 认证类公开接口（微信静默登录、学号邮箱认证、验证码）
-            "/auth/wechat-login",
-            "/auth/email-code",
-            "/auth/verify-email",
+            "/auth/wechat-login", "/api/auth/wechat-login",
+            "/auth/email-code", "/api/auth/email-code",
+            "/auth/verify-email", "/api/auth/verify-email",
             // 管理后台登录（方案 C：管理员账号密码）
-            "/auth/admin/login",
+            "/auth/admin/login", "/api/auth/admin/login",
             // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
-            "/feedback",
+            "/feedback", "/api/feedback",
             // SpringDoc Swagger UI 文档
-            "/swagger-ui/**",
-            "/v3/api-docs/**",
-            "/webjars/**"
+            "/swagger-ui/**", "/api/swagger-ui/**",
+            "/v3/api-docs/**", "/api/v3/api-docs/**",
+            "/webjars/**", "/api/webjars/**"
     };
 
     /**
@@ -71,16 +75,18 @@ public class SecurityConfig {
      * 使用 method-scoped 匹配，避免误放行 POST /dishes、PUT /dishes/{id}、POST /reviews 等写操作）。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
-            "/dishes/**",
-            "/canteens/**",
-            "/stalls/**",
-            "/reviews",
-            "/lists/share/**",
-            "/images/**",
+            "/dishes/**", "/api/dishes/**",
+            "/canteens/**", "/api/canteens/**",
+            "/stalls/**", "/api/stalls/**",
+            "/reviews", "/api/reviews",
+            "/lists/share/**", "/api/lists/share/**",
+            "/images/**", "/api/images/**",
             // 二期新增：社区动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）
-            "/moments/**",
-            "/broadcasts",
-            "/categories"
+            "/moments/**", "/api/moments/**",
+            "/broadcasts", "/api/broadcasts",
+            "/categories", "/api/categories",
+            // 活动列表/详情为公开浏览内容（GET），游客可看；写操作仍须登录
+            "/activities/**", "/api/activities/**"
     };
 
     @Bean

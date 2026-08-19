@@ -4,7 +4,7 @@
          返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
     <view class="wv-bar" :style="{ height: (statusBarHeight + navBarHeight) + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
-        <IconSvg name="arrow-left" :size="'22px'" color="#FFFFFF" />
+        <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" />
       </view>
       <text class="wv-title">网页</text>
     </view>
@@ -57,17 +57,17 @@ onLoad((options) => {
   statusBarHeight.value = sb
   // @ts-ignore - 微信胶囊按钮位置，用于对齐返回条高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) navBarHeight.value = Math.max((mb.top - sb) * 2 + mb.height, 54)
+  if (mb && mb.height) navBarHeight.value = (mb.top - sb) * 2 + mb.height
   webviewStyles.value = {
     top: `${sb + navBarHeight.value}px`,
-    progressbar: { color: '#C7392F' },
+    progressbar: { color: '#9B2A1D' },
   }
 })
 
 // web-view 内容顶部留出「状态栏 + 返回条」高度，避免被刘海/状态栏遮挡
 const webviewStyles = ref({
   top: '64px',
-  progressbar: { color: '#C7392F' },
+  progressbar: { color: '#9B2A1D' },
 })
 
 function back() {
@@ -105,7 +105,7 @@ function onMessage(e: any) {
 .wv-title {
   font-size: var(--font-h3);
   font-weight: var(--weight-bold);
-  color: #FFFFFF;
+  color: var(--text-white);
 }
 .wv-empty {
   display: flex;

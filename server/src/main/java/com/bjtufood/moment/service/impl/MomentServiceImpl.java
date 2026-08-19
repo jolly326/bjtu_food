@@ -531,7 +531,9 @@ public class MomentServiceImpl implements MomentService {
     private Map<Long, User> loadUsers(List<Long> ids) {
         Map<Long, User> map = new HashMap<>();
         if (ids.isEmpty()) return map;
-        userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, ids))
+        userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .select(User::getId, User::getNickname, User::getAvatar, User::getRole)
+                        .in(User::getId, ids))
                 .forEach(u -> map.put(u.getId(), u));
         return map;
     }

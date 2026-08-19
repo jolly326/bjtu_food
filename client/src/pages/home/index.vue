@@ -46,9 +46,9 @@
         <!-- 首页广播栏（运营广播 ticker，条内纵向滚动 + 自动轮播；置于滚动区内随滚轮上移） -->
         <BroadcastBar ref="broadcastBarRef" :items="broadcasts" @select="onBroadcastTap" />
 
-        <!-- 两列万能区：最新活动 / 反馈菜品（活动入口常驻，点击进活动列表页；有活动时展示最新标题，无则兜底文案） -->
+        <!-- 万能区入口：反馈菜品（最新活动暂缓接入，已摘除活动卡） -->
         <view class="section enter-up" :style="{ '--enter-i': 0, 'margin-top': '0' }">
-          <UniversalGrid :activity-title="activityTitle" @open-activity="goToActivity" @open-feedback="goToFeedback" />
+          <UniversalGrid @open-feedback="goToFeedback" />
         </view>
 
         <!-- 品类筛选滚轮：位于万能区下方（内容流内），随内容上滑自然离开屏幕；
@@ -102,7 +102,7 @@ import { useLocationStore } from '@/stores/location'
 import { getUserLocation } from '@/utils/location'
 import type { BroadcastItem } from '@/api/notify'
 import { getMoments } from '@/api/moment'
-import { getActivities } from '@/api/activity'
+
 import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
@@ -123,9 +123,6 @@ const locationStore = useLocationStore()
 const broadcastBarRef = ref<{ start: () => void; stop: () => void }>()
 const userInfo = computed(() => userStore.userInfo)
 const isLoggedIn = computed(() => userStore.isLoggedIn())
-
-/** 最新活动标题：展示在万能区活动卡（取排序最前一条；空则兜底文案） */
-const activityTitle = ref('')
 
 /** ===== 品类筛选（原 HomeFeed 内部逻辑提升至首页，筛选滚轮位于万能区下方内容流内） ===== */
 const filterBarRef = ref<{ step: (dir: number) => void }>()
@@ -219,11 +216,7 @@ function goToSearch() {
   uni.navigateTo({ url: '/pages/find/index' })
 }
 
-/** 两列万能区：最新活动 → 活动页 */
-function goToActivity() {
-  uni.navigateTo({ url: '/pages/activity/index' })
-}
-/** 两列万能区：反馈菜品 → 反馈页（带 object=dish，进入后预选「内容纠错」类型） */
+/** 万能区：反馈菜品 → 反馈页（带 object=dish，进入后预选「内容纠错」类型） */
 function goToFeedback() {
   uni.navigateTo({ url: '/pages/feedback/index?object=dish' })
 }
@@ -274,11 +267,10 @@ async function loadData() {
   loadingHot.value = true
   loadFailed.value = false
   try {
-    // 定位（会话级缓存）与动态摘录、最新活动并行：首次授权弹窗不再阻塞首屏
+    // 定位（会话级缓存）与动态摘录并行：首次授权弹窗不再阻塞首屏
     // 广播条取动态前 10 条轮播
-    const [momentRes, actRes] = await Promise.all([
+    const [momentRes] = await Promise.all([
       getMoments({ tab: 'latest', page: 1, pageSize: 10 }),
-      getActivities(),
       ensureLocation(),
     ])
     // 竞态守卫：仅最新一次请求（onLoad/onRefresh 快速连续触发）的结果写回，旧请求作废
@@ -286,8 +278,6 @@ async function loadData() {
     // 首页筛选流首拉由 HomeFeed 挂载后自动触发（先拉后端品类，默认选中第一品类）
     // 广播只广播动态（最新动态摘录，作为动态入口）
     broadcasts.value = (momentRes?.list || []).map(toBroadcastItem)
-    // 最新活动：取排序最前一条标题展示在万能区活动卡（无活动时前端兜底文案）
-    activityTitle.value = actRes?.[0]?.title ?? ''
   } catch (e) {
     if (seq !== loadSeq) return
     console.error('[home] 首页数据加载失败', e)

@@ -214,10 +214,10 @@ function onTouchEnd() {
 </script>
 
 <style scoped>
-.apply-root { z-index: 100; }
+.apply-root { z-index: var(--z-sheet); }
 .sheet-mask {
   position: fixed; inset: 0; background: var(--overlay-scrim);
-  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: 90;
+  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: var(--z-sheet-mask);
 }
 .sheet-mask.show { opacity: 1; }
 
@@ -226,7 +226,7 @@ function onTouchEnd() {
   background: var(--bg-card);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
-  z-index: 100;
+  z-index: var(--z-sheet);
   transform: translateY(100%);
   display: flex;
   flex-direction: column;

@@ -223,7 +223,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId, String keyword) {
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
@@ -254,7 +254,9 @@ public class ReviewServiceImpl implements ReviewService {
         Set<Long> userIds = records.stream().map(Review::getUserId).filter(id -> id != null).collect(Collectors.toSet());
         Set<Long> dishIds = records.stream().map(Review::getDishId).filter(id -> id != null).collect(Collectors.toSet());
         Map<Long, User> userMap = userIds.isEmpty() ? new HashMap<>()
-                : userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds)).stream()
+                : userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .select(User::getId, User::getNickname, User::getAvatar)
+                        .in(User::getId, userIds)).stream()
                 .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
         Map<Long, Dish> dishMap = dishIds.isEmpty() ? new HashMap<>()
                 : dishMapper.selectList(new LambdaQueryWrapper<Dish>().in(Dish::getId, dishIds)).stream()
@@ -311,6 +313,9 @@ public class ReviewServiceImpl implements ReviewService {
         Review review = reviewMapper.selectById(id);
         if (review != null) {
             reviewMapper.deleteById(id);
+            // 清理「有用」关联孤儿行，避免 review_useful 堆积并与 useful_count 长期不一致
+            reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
+                    .eq(ReviewUseful::getReviewId, id));
             eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         }
     }
