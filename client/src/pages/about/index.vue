@@ -20,7 +20,7 @@
         <view class="feature"><text class="dot" />菜品发现与评分分布</view>
         <view class="feature"><text class="dot" />真实评价与动态分享</view>
         <view class="feature"><text class="dot" />食堂与档口一站式检索</view>
-        <view class="feature"><text class="dot" />校园活动与运营通知</view>
+        <view class="feature"><text class="dot" />反馈直达与问题纠错</view>
       </view>
 
       <view class="card">

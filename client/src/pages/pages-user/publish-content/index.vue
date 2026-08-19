@@ -40,6 +40,7 @@
           placeholder="分享你的美食体验、探店灵感…"
           maxlength="500"
           :auto-height="true"
+          :adjust-position="true"
           :cursor-spacing="20"
         />
         <text class="counter">{{ content.length }}/500</text>
@@ -267,6 +268,8 @@ onLoad(async (query) => {
       }
       content.value = m.content
       images.value = [...m.images]
+      // 编辑态回填关联信息：动态无独立 rating 字段（评价与动态已扁平化打通），
+      // 评分仅在「评价入口」（query.dishId）下才有意义，编辑动态不涉及评分回填
       if (m.relatedType && m.relatedType !== 'none' && m.relatedId) {
         selectedRelated.value = { id: m.relatedId, name: m.relatedName || '', image: '', type: m.relatedType as 'dish' | 'stall' }
       }

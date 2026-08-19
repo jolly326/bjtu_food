@@ -8,6 +8,7 @@ import com.bjtufood.activity.entity.Activity;
 import com.bjtufood.activity.mapper.ActivityMapper;
 import com.bjtufood.activity.service.ActivityService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.util.PageUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -36,9 +37,16 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     public IPage<Activity> listForAdmin(String keyword, String status, int page, int pageSize) {
+        // 分页上限统一由 PageUtil 约束，避免 pageSize 被传入极大值导致一次性全表加载
+        int[] norm = PageUtil.normalize(page, pageSize);
+        page = norm[0]; pageSize = norm[1];
         LambdaQueryWrapper<Activity> wrapper = new LambdaQueryWrapper<Activity>()
-                .like(StringUtils.hasText(keyword), Activity::getTitle, keyword)
-                .or(StringUtils.hasText(keyword), w -> w.like(Activity::getDescription, keyword))
+                // 关键词匹配：标题 OR 描述，整体作为一个可选分组；status 过滤独立于分组之外，
+                // 避免原写法 .eq 被 OR 吞掉导致草稿/下线活动绕过 status 泄漏
+                .and(StringUtils.hasText(keyword), w -> w
+                        .like(Activity::getTitle, keyword)
+                        .or()
+                        .like(Activity::getDescription, keyword))
                 .eq(StringUtils.hasText(status), Activity::getStatus, status)
                 .orderByAsc(Activity::getSortOrder)
                 .orderByDesc(Activity::getCreatedAt);

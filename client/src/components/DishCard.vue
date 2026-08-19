@@ -87,6 +87,9 @@ const displayTags = computed(() => (props.dish.tags || []).slice(0, 2))
 
 /** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
 function fmtDistance(m: number): string {
+  // 脏数据（NaN/负数/非有限）隐藏；超大距离（>999km，应为异常坐标）截断显示
+  if (!Number.isFinite(m) || m < 0) return ''
+  if (m > 999000) return '>999km'
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
 }
 

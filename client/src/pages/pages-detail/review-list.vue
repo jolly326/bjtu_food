@@ -35,7 +35,7 @@
       confirm-text="提交举报"
       :submitting="reportSubmitting"
       @update:open="reportOpen = $event"
-      @submit="submitReviewReport"
+      @submit="submitReport"
     />
 
     <!-- 评价三点菜单：删除/举报（与动态卡一致：点击直接弹层，动作内部再要求登录） -->
@@ -59,8 +59,8 @@ import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteReview } from '@/api/review'
-import { submitFeedback } from '@/api/feedback'
 import type { Review } from '@/types/review'
+import { useReport } from '@/composables/useReport'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
@@ -165,29 +165,12 @@ function onReviewMoreReport() {
   if (reviewMoreTarget.value) onReviewReport(reviewMoreTarget.value)
 }
 
-/* ===== 评价举报 ===== */
-const reportOpen = ref(false)
-const reportSubmitting = ref(false)
-const reportTarget = ref<{ id: number } | null>(null)
+/* ===== 评价举报（收敛到 useReport hook） ===== */
+const { reportOpen, reportSubmitting, openReport, submitReport } =
+  useReport({ type: 'review', title: '举报评价', placeholder: '请描述举报原因…' })
 
 function onReviewReport(rv: Review) {
-  if (!userStore.requireAuth(() => onReviewReport(rv))) return
-  reportTarget.value = { id: rv.id }
-  reportOpen.value = true
-}
-
-async function submitReviewReport(text: string) {
-  if (!reportTarget.value) return
-  reportSubmitting.value = true
-  try {
-    await submitFeedback({ type: 'report', content: text, relatedType: 'review', relatedId: reportTarget.value.id })
-    uni.showToast({ title: '举报已提交', icon: 'success' })
-    reportOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    reportSubmitting.value = false
-  }
+  openReport(rv.id)
 }
 </script>
 

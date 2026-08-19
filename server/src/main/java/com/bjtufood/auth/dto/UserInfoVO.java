@@ -35,9 +35,6 @@ public class UserInfoVO {
     @Schema(description = "状态：active/disabled/deleted", example = "active")
     private String status;
 
-    @Schema(description = "微信 openid")
-    private String openid;
-
     @Schema(description = "认证状态：true=已邮箱认证 / false=游客态", example = "false")
     private Boolean verified;
 

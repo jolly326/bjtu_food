@@ -17,6 +17,7 @@ import com.bjtufood.dish.mapper.DishMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -25,9 +26,13 @@ import org.springframework.stereotype.Component;
  * - 库为空时插入默认管理员 admin / admin123（role=admin），便于直接登录后台预览。
  * - 附带少量示例 食堂/档口/菜品（approved + on），让首页/列表一启动即有内容可看。
  * 仅当 user 表为空时执行，已有数据则跳过，可安全重复启动。
+ * <p>
+ * ⚠️ 安全约束：仅在 dev 环境（{@code @Profile("dev")}）下启用，避免生产环境留下 admin/admin123 弱口令入口；
+ * 且绝不向日志输出明文口令，防止凭据落入日志采集系统。
  */
 @Slf4j
 @Component
+@Profile("dev")
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
@@ -53,7 +58,8 @@ public class DataInitializer implements CommandLineRunner {
         admin.setRole(RoleConst.ADMIN);
         admin.setStatus("active");
         userMapper.insert(admin);
-        log.info(">>> [MVP] 已初始化默认管理员账号: admin / admin123");
+        // 安全：仅提示账号存在，不输出明文口令，避免凭据泄露到日志
+        log.info(">>> [MVP] 已初始化默认管理员账号(admin)，请尽快在正式环境修改口令并禁用 dev profile");
 
         Canteen canteen = new Canteen();
         canteen.setName("学一食堂");

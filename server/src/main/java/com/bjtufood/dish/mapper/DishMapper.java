@@ -85,8 +85,10 @@ public interface DishMapper extends BaseMapper<Dish> {
 
     /**
      * 查询全部菜品列表（含已下架），联表档口和食堂名称
+     * <p>
+     * 分页：菜品量增长后避免单次全表加载。分页上限由调用方 {@code PageUtil.normalize} 约束。
      */
-    List<DishAdminVO> selectAllForAdmin();
+    IPage<DishAdminVO> selectAllForAdmin(Page<DishAdminVO> page);
 
     /**
      * 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点）

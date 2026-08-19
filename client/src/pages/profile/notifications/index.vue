@@ -77,7 +77,8 @@ function typeLabel(t: NotificationType) {
   return TYPE_LABEL[t] || '系统'
 }
 
-function formatTime(iso: string) {
+function formatTime(iso?: string) {
+  if (!iso) return ''
   const d = new Date(iso)
   const pad = (x: number) => String(x).padStart(2, '0')
   return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -88,7 +89,8 @@ async function load() {
   loading.value = true
   loadFailed.value = false
   try {
-    list.value = await getNotifications()
+    const res = await getNotifications({ page: 1, pageSize: 20 })
+    list.value = res.list
     // 刷新后重拉未读数，保持红点同步
     notifyStore.fetchUnread()
   } catch {

@@ -71,7 +71,7 @@ function onReport() {
   right: 0;
   bottom: 0;
   background: var(--overlay-scrim);
-  z-index: 9999;
+  z-index: var(--z-actionsheet);
   display: flex;
   align-items: flex-end;
   animation: mask-in var(--duration-slow) var(--ease-out);

@@ -31,7 +31,9 @@ public class RequireVerifiedAspect {
             throw new BusinessException(401, "请先登录");
         }
         if (!Integer.valueOf(1).equals(user.getVerified())) {
-            throw new BusinessException(403, "请先完成学号邮箱认证");
+            // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，
+            // 便于前端对「需先认证」与「无权限」给出不同引导（避免越权错误被误导向邮箱认证）。
+            throw new BusinessException(4031, "请先完成学号邮箱认证");
         }
     }
 }

@@ -126,11 +126,10 @@ function onUserCardTap() {
   uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
 }
 
-/** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们 */
+/** 我的入口：系统通知 / 我发布的 / 意见反馈 / 关于我们（最新活动暂缓接入，入口已摘除） */
 const entryItems = [
   { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
   { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
-  { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
   { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
   { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]

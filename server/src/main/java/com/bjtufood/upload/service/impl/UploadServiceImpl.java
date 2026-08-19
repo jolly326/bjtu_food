@@ -10,6 +10,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -115,7 +116,10 @@ public class UploadServiceImpl implements UploadService {
         if (!Set.of("jpg", "jpeg", "png").contains(ext)) {
             return null;
         }
-        String thumbFilename = target.getFileName().toString().replaceFirst("\\.([^.]+)$", "_thumb.$1");
+        // 缩略图统一以 JPEG 编码输出（兼容性好、体积小），因此扩展名固定为 .jpg，
+        // 避免原实现「jpg 内容写入 .png 文件名」导致扩展名与实际格式不符。
+        String baseName = target.getFileName().toString().replaceFirst("\\.[^.]+$", "");
+        String thumbFilename = baseName + "_thumb.jpg";
         Path thumb = target.getParent().resolve(thumbFilename);
         try {
             BufferedImage original = ImageIO.read(target.toFile());
@@ -126,6 +130,9 @@ public class UploadServiceImpl implements UploadService {
             int thumbHeight = Math.max(1, (int) Math.round(original.getHeight() * (thumbWidth / (double) original.getWidth())));
             BufferedImage scaled = new BufferedImage(thumbWidth, thumbHeight, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = scaled.createGraphics();
+            // 先铺白底，避免透明 PNG 缩放后底色为黑（原实现缺此步造成黑底 bug）
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, thumbWidth, thumbHeight);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             g.drawImage(original, 0, 0, thumbWidth, thumbHeight, null);

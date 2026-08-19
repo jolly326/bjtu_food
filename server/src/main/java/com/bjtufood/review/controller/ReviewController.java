@@ -118,7 +118,7 @@ public class ReviewController {
     public Result<Void> updateReview(
             @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id,
-            @RequestBody ReviewReq req) {
+            @Valid @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
         reviewService.updateReview(id, userId, req.getRating(), req.getContent());
         return Result.success();

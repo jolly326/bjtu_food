@@ -292,6 +292,9 @@ async function loadData() {
     }
     moment.value = m
     comments.value = c.list
+    // 以服务端权威值回写评论数，避免乐观插入（commentCount += 1）与刷新覆盖后不一致；
+    // 评论超 50 条时本地插入项已在刷新中丢失，此处用服务端真实总数校正展示
+    if (m) moment.value.commentCount = m.commentCount ?? comments.value.length
   } catch (e: any) {
     if (seq !== loadSeq) return
     uni.showToast({ title: e.message || '加载失败', icon: 'none' })

@@ -1,9 +1,11 @@
 import type { Dish } from '@/types'
 import { del, get, post, put } from './http'
-import { dishToApi, dishToLegacy } from './adapter'
+import { dishToApi, dishToLegacy, pageRecords } from './adapter'
 
 export async function getAll(): Promise<Dish[]> {
-  return (await get<any[]>('/admin/dishes')).map(dishToLegacy)
+  // 后端 listAllForAdmin 已改为分页 IPage（{records,total,...}），与全站其他 admin 列表一致，
+  // 用 pageRecords 兼容数组/IPage 两种返回形态，避免对 IPage 直接 .map 崩溃。
+  return pageRecords(await get<any>('/admin/dishes')).map(dishToLegacy)
 }
 
 export async function create(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) {

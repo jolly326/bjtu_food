@@ -219,14 +219,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: 90; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: var(--z-sheet-mask); opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
 .sheet-mask.show { opacity: 1; }
 .related-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
   background: var(--bg-card);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
-  z-index: 100;
+  z-index: var(--z-sheet);
   transform: translateY(100%);
   transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex; flex-direction: column;

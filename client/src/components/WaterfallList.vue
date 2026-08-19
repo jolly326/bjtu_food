@@ -81,8 +81,10 @@ const splitList = computed(() => {
   const right: { item: Dish; key: string }[] = []
   props.list.forEach((item, idx) => {
     const rawKey = (item as Record<string, any>)?.[props.itemKey]
+    // key 仅由稳定业务主键 rawKey 构成（id 唯一），不附加列内序号 idx，
+    // 避免加载更多时列内序号重排导致 key 变化、已渲染卡片整列重建（闪烁/掉帧）。
     const key = (rawKey !== undefined && rawKey !== null && rawKey !== '')
-      ? `wf-${rawKey}-${idx}`
+      ? `wf-${rawKey}`
       : `wf-idx-${idx}`
     const entry = { item: item as Dish, key }
     if (idx % 2 === 0) left.push(entry)

@@ -14,5 +14,10 @@ export const useNotifyStore = defineStore('notify', () => {
     }
   }
 
-  return { unreadCount, fetchUnread }
+  /** 登录态变更（登出/换用户）时清零未读红点，避免残留上一用户计数 */
+  function reset() {
+    unreadCount.value = 0
+  }
+
+  return { unreadCount, fetchUnread, reset }
 })

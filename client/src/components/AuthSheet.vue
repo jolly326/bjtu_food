@@ -128,11 +128,11 @@ function onTouchEnd() {
 </script>
 
 <style scoped>
-.auth-root { z-index: 300; }
+.auth-root { z-index: var(--z-auth); }
 /* 遮罩：与 ApplySheet 一致（--overlay-scrim 半透明，opacity 过渡） */
 .sheet-mask {
   position: fixed; inset: 0; background: var(--overlay-scrim);
-  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: 290;
+  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: calc(var(--z-auth) - 10);
 }
 .sheet-mask.show { opacity: 1; }
 
@@ -142,7 +142,7 @@ function onTouchEnd() {
   background: var(--bg-card);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
-  z-index: 300;
+  z-index: var(--z-auth);
   transform: translateY(100%);
   display: flex;
   flex-direction: column;

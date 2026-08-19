@@ -4,7 +4,7 @@
     <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
       <view class="search-nav-row" :style="{ height: navBarHeight + 'px' }">
         <view class="search-back" @tap="inFilter ? exitFilter() : goBackHome()" :class="{ pressed: pressedKey === 'back' }" @touchstart="pressedKey = 'back'" @touchend="pressedKey = ''" @touchcancel="pressedKey = ''">
-          <IconSvg name="arrow-left" :size="'20px'" color="#FFFFFF" class="search-back-icon" />
+          <IconSvg name="arrow-left" :size="'20px'" color="var(--text-white)" class="search-back-icon" />
         </view>
         <view class="search-box" :style="{ marginRight: capsuleRightOffset + 'px' }">
           <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="search-box-icon" />
@@ -358,6 +358,8 @@ const filteredMixed = computed(() => mixedResults.value)
 
 /** 距你文案：米/公里自适应 */
 function fmtMixedDistance(m: number): string {
+  if (!Number.isFinite(m) || m < 0) return ''
+  if (m > 999000) return '>999km'
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
 }
 /** A1 关键词高亮：将文本按当前 keyword 拆分为 [{text, hit}] 片段，命中段由模板套 .hl（朱砂红），避免 v-html XSS */
@@ -529,7 +531,8 @@ watch(keyword, () => {
   background: var(--color-primary);
   padding-left: var(--spacing-lg);
   padding-right: var(--spacing-lg);
-  padding-bottom: 0;
+  /* 底部留白：让搜索框与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+search-nav-row 精确定位） */
+  padding-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
 .search-nav-row { display: flex; align-items: center; gap: var(--spacing-sm); height: var(--nav-h); }
@@ -538,8 +541,8 @@ watch(keyword, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--capsule-h, 32px) - 4px);
-  height: calc(var(--capsule-h, 32px) - 4px);
+  width: var(--capsule-h, 32px);
+  height: var(--capsule-h, 32px);
   flex-shrink: 0;
   transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -553,7 +556,7 @@ watch(keyword, () => {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: calc(var(--capsule-h, 32px) - 4px);
+  height: var(--capsule-h, 32px);
   padding: 0 var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-pill);

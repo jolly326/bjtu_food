@@ -20,6 +20,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
+import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
@@ -73,6 +74,7 @@ public class AuthServiceImpl implements AuthService {
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
     private final ImageUrlUtil imageUrlUtil;
+    private final SensitiveFilter sensitiveFilter;
 
     @Override
     public void createEmailCode(String username, String email, String purpose) {
@@ -159,6 +161,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> updateProfile(Long userId, ProfileUpdateReq req) {
         if (!StringUtils.hasText(req.getNickname()) && !StringUtils.hasText(req.getAvatar())) {
             throw new BusinessException("昵称和头像至少填写一项");
@@ -167,14 +170,25 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
+        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 password 哈希、verified）
+        // 重新写回，导致与「修改密码」并发时产生 lost update。
+        LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
+        updater.eq(User::getId, userId);
         if (StringUtils.hasText(req.getNickname())) {
-            user.setNickname(req.getNickname());
+            if (sensitiveFilter.containsSensitive(req.getNickname())) {
+                throw new BusinessException("昵称包含敏感内容，请修改后重试");
+            }
+            updater.set(User::getNickname, req.getNickname());
         }
         if (StringUtils.hasText(req.getAvatar())) {
-            user.setAvatar(req.getAvatar());
+            if (!imageUrlUtil.isValidAvatar(req.getAvatar())) {
+                throw new BusinessException("头像地址不合法，仅支持站内资源或微信云存储");
+            }
+            updater.set(User::getAvatar, req.getAvatar());
         }
-        userMapper.updateById(user);
-        return buildProfileMap(user);
+        userMapper.update(updater);
+        User updated = userMapper.selectById(userId);
+        return buildProfileMap(updated);
     }
 
     @Override
@@ -224,7 +238,6 @@ public class AuthServiceImpl implements AuthService {
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
-        vo.setOpenid(user.getOpenid());
         vo.setVerified(Integer.valueOf(1).equals(user.getVerified()));
         vo.setBindEmail(user.getBindEmail());
         vo.setGuestShortId(buildGuestShortId(user.getId()));
@@ -247,7 +260,6 @@ public class AuthServiceImpl implements AuthService {
         map.put("avatar", imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         map.put("role", user.getRole());
         map.put("status", user.getStatus());
-        map.put("openid", user.getOpenid());
         map.put("verified", Integer.valueOf(1).equals(user.getVerified()));
         map.put("bindEmail", user.getBindEmail());
         map.put("guestShortId", buildGuestShortId(user.getId()));

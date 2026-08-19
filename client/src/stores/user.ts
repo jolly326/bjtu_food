@@ -115,12 +115,23 @@ export const useUserStore = defineStore('user', () => {
     return res
   }
 
-  /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂 */
+  /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂。
+   * 同时联动重置各业务 store 的「用户态数据」（评价列表有用标记、猜你喜欢、通知红点等），
+   * 避免换用户后残留上一用户的个性化数据导致串数据（§5.x 登录态一致性）。
+   * 用动态 import 避免 store 间的循环依赖。 */
   function forceLogout() {
     token.value = ''
     userInfo.value = null
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
+    // 联动重置：评价列表有用标记 / 猜你喜欢个性化推荐
+    void import('@/stores/dish').then(({ useDishStore }) => {
+      try { useDishStore().resetUserScopedData() } catch { /* 忽略未初始化 */ }
+    }).catch(() => {})
+    // 联动重置：通知未读数红点
+    void import('@/stores/notify').then(({ useNotifyStore }) => {
+      try { useNotifyStore().reset() } catch { /* 忽略未初始化 */ }
+    }).catch(() => {})
   }
 
   /** 是否有登录态（token+userInfo；微信静默登录后恒为 true，即游客态） */

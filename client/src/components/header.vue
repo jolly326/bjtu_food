@@ -165,6 +165,8 @@ function handleBack() {
 .header-wrap.home {
   background: var(--color-primary);
   border-bottom: none;
+  /* 底部留白：让搜索框/头像与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+home-row 精确定位） */
+  padding-bottom: var(--spacing-sm);
 }
 .home-row {
   display: flex;
@@ -180,9 +182,9 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .user-chip-avatar {
-  width: calc(var(--capsule-h, 32px) - 4px);
-  height: calc(var(--capsule-h, 32px) - 4px);
-  border-radius: 50%;
+  width: var(--capsule-h, 32px);
+  height: var(--capsule-h, 32px);
+  border-radius: var(--radius-card);
   background: var(--bg-card);
 }
 .user-chip-avatar-empty { display: flex; align-items: center; justify-content: center; }
@@ -192,7 +194,7 @@ function handleBack() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: calc(var(--capsule-h, 32px) - 4px);
+  height: var(--capsule-h, 32px);
   padding: 0 var(--spacing-md);
   /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
   background: var(--bg-card);

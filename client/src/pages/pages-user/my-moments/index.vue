@@ -52,7 +52,7 @@
       :open="moreOpen"
       :moment="moreMoment"
       @update:open="moreOpen = $event"
-      @report="openReport"
+      @report="openReportForMoment"
     />
 
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
@@ -66,8 +66,8 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
-import { submitFeedback } from '@/api/feedback'
 import type { Moment } from '@/types/moment'
+import { useReport } from '@/composables/useReport'
 import { buildSharePayload, clearShareState } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/header.vue'
@@ -94,38 +94,12 @@ function openMore(m: Moment) {
   moreOpen.value = true
 }
 
-/* ===== 动态举报（ActionSheet @report → ReportModal） ===== */
-const reportOpen = ref(false)
-const reportSubmitting = ref(false)
-const reportTarget = ref<Moment | null>(null)
+/* ===== 动态举报（ActionSheet @report → ReportModal，收敛到 useReport hook） ===== */
+const { reportOpen, reportSubmitting, openReport, submitReport } =
+  useReport({ type: 'moment', title: '举报动态', placeholder: '请描述举报原因…' })
 
-function openReport(m: Moment) {
-  if (!userStore.requireAuth(() => openReport(m))) return
-  reportTarget.value = m
-  reportOpen.value = true
-}
-
-async function submitReport(text: string) {
-  if (!reportTarget.value) return
-  if (!text) {
-    uni.showToast({ title: '请填写举报原因', icon: 'none' })
-    return
-  }
-  reportSubmitting.value = true
-  try {
-    await submitFeedback({
-      type: 'report',
-      content: text,
-      relatedType: 'moment',
-      relatedId: reportTarget.value.id,
-    })
-    uni.showToast({ title: '举报已提交', icon: 'success' })
-    reportOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    reportSubmitting.value = false
-  }
+function openReportForMoment(m: Moment) {
+  openReport(m.id)
 }
 const loading = ref(false)
 const loadFailed = ref(false)

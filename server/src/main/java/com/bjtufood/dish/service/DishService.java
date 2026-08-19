@@ -131,11 +131,13 @@ public interface DishService {
     // ==================== 管理端接口（管理员） ====================
 
     /**
-     * 查询全部菜品列表（含已下架），返回带完整图片 URL 的 VO
+     * 查询全部菜品列表（含已下架），返回带完整图片 URL 的 VO（分页）
      *
-     * @return 后台菜品 VO 列表
+     * @param page     页码（从 1 开始）
+     * @param pageSize 每页条数（上限由 PageUtil 约束）
+     * @return 分页后台菜品 VO
      */
-    List<DishAdminVO> listAllForAdmin();
+    IPage<DishAdminVO> listAllForAdmin(int page, int pageSize);
 
     /**
      * 新增菜品

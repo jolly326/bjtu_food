@@ -191,7 +191,7 @@
       confirm-text="提交举报"
       :submitting="reportSubmitting"
       @update:open="reportOpen = $event"
-      @submit="submitReviewReport"
+      @submit="submitReport"
     />
 
     <!-- 评价三点菜单：删除/举报（与动态卡一致：点击直接弹层，删除/举报动作内部再要求登录） -->
@@ -219,8 +219,8 @@ import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
 import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
-import { submitFeedback } from '@/api/feedback'
 import type { Review } from '@/types/review'
+import { useReport } from '@/composables/useReport'
 import { sharedDish } from '@/utils/shareState'
 import { backToHome } from '@/utils/nav'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -465,7 +465,8 @@ function onDeleteReview(rv: Review) {
       try {
         await deleteReview(rv.id)
         uni.showToast({ title: '评价已删除', icon: 'none' })
-        dishStore.reviewsDirty = true
+        // 删除后立即重拉列表 + 综合评分卡（计数准确无漂移），无需再置 reviewsDirty
+        // （避免与 onShow 的重拉逻辑叠加导致重复请求 + addView 重复埋点）
         await dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 3 })
         dishStore.fetchDetail(dishId.value)
       } catch (e: any) {
@@ -507,34 +508,12 @@ function onReviewMoreReport() {
   if (reviewMoreTarget.value) onReviewReport(reviewMoreTarget.value)
 }
 
-/* ===== 评价举报（复用共享 ReportModal） ===== */
-const reportOpen = ref(false)
-const reportSubmitting = ref(false)
-const reportTarget = ref<{ id: number } | null>(null)
+/* ===== 评价举报（复用共享 ReportModal，收敛到 useReport hook） ===== */
+const { reportOpen, reportSubmitting, openReport, submitReport } =
+  useReport({ type: 'review', title: '举报评价', placeholder: '请描述举报原因…' })
 
 function onReviewReport(rv: Review) {
-  if (!userStore.requireAuth(() => onReviewReport(rv))) return
-  reportTarget.value = { id: rv.id }
-  reportOpen.value = true
-}
-
-async function submitReviewReport(text: string) {
-  if (!reportTarget.value) return
-  reportSubmitting.value = true
-  try {
-    await submitFeedback({
-      type: 'report',
-      content: text,
-      relatedType: 'review',
-      relatedId: reportTarget.value.id,
-    })
-    uni.showToast({ title: '举报已提交', icon: 'success' })
-    reportOpen.value = false
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
-  } finally {
-    reportSubmitting.value = false
-  }
+  openReport(rv.id)
 }
 
 /** 指标条是否需要展示：菜品存在且至少有一项有效指标即显示 */

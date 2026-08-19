@@ -6,7 +6,10 @@
         :key="`${img}-${idx}`"
         class="img-cell"
       >
-        <image class="img-thumb" :src="img" mode="aspectFill" />
+        <image v-if="!failed.has(img)" class="img-thumb" :src="img" mode="aspectFill" @error="onImgError(img)" />
+        <view v-else class="img-thumb img-thumb-fallback">
+          <IconSvg name="image" :size="compact ? 28 : 40" color="var(--text-quaternary)" />
+        </view>
         <view class="img-remove" @tap="removeImage(idx)">
           <IconSvg name="close" :size="compact ? 18 : 24" color="var(--badge-dark-text)" />
         </view>
@@ -54,6 +57,11 @@ const emit = defineEmits<{
 }>()
 
 const uploading = ref(false)
+/** 加载失败（URL 失效/网络异常）的图片，回退占位图标而非裂图 */
+const failed = ref(new Set<string>())
+function onImgError(url: string) {
+  failed.value.add(url)
+}
 /** 本次选择会话中已被用户删除的 URL（等待期删除兜底，防止上传完成被还原）。
  *  原为模块级 Set，多实例（同页多个上传器）会串扰——改为实例级，避免状态串扰（审计 #23）。 */
 const removedDuringUpload = ref(new Set<string>())
@@ -117,6 +125,7 @@ function chooseImage() {
   flex-shrink: 0;
 }
 .img-thumb { width: 100%; height: 100%; }
+.img-thumb-fallback { display: flex; align-items: center; justify-content: center; background: var(--bg-placeholder); }
 .img-remove {
   position: absolute;
   top: 0; right: 0;

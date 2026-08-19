@@ -135,11 +135,10 @@ public interface ReviewService {
      * @param page     页码
      * @param pageSize 每页条数
      * @param isHidden 是否隐藏（可选）
-     * @param isDeleted 兼容旧接口参数，现有数据库未使用
      * @param keyword  评价正文关键词（可选，模糊匹配）
      * @return 分页评价列表
      */
-    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Integer isDeleted, Long userId, String keyword);
+    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword);
 
     /**
      * 切换隐藏/显示评价

@@ -16,6 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *       因此按 userId 记录失效时间点，使该用户所有历史 token 一并失效。</li>
  * </ul>
  * 内存存储，定时清理，重启后清空（可接受：被禁用/注销账号本就无法再登录）。
+ * <p>
+ * ⚠️ 部署局限：当前为 JVM 内存实现，<b>多实例（水平扩容）部署时各实例黑名单互不可见</b>：
+ * 用户在实例 A 注销/被禁用后，其实例 B 仍认为旧 token 有效，直至该实例重启或 7 天窗口过期。
+ * 若需严格的多实例一致性，应将黑名单下沉到共享存储（如 Redis Set + TTL），
+ * 并将 {@code isRevoked}/{@code isUserRevoked} 改为查询共享存储。
  */
 @Component
 public class TokenBlacklist {
