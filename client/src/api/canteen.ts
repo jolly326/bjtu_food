@@ -1,6 +1,6 @@
 import type { CanteenInfo } from '@/types/canteen'
 import { get } from './http'
-import { normalizeImages } from './_shared'
+import { normalizeImages } from './shared'
 
 function firstImage(raw: any): string {
   return normalizeImages(raw?.images ?? raw?.image ?? raw?.icon)[0] || ''

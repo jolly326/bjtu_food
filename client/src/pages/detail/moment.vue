@@ -207,9 +207,9 @@ import { submitFeedback } from '@/api/feedback'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import type { Moment, MomentComment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/shareState'
+import { buildSharePayload } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
@@ -226,7 +226,7 @@ const moment = ref<Moment | null>(null)
 onShareAppMessage(() => buildSharePayload(undefined, moment.value))
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
 const loading = ref(false)
@@ -314,7 +314,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/pages-user/publish-content/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: `/pages/user/publish-content/index?id=${moment.value.id}` })
 }
 
 /** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */

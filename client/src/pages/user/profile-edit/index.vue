@@ -58,7 +58,7 @@ import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
 import { uploadImage } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 

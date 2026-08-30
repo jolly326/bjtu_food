@@ -68,9 +68,9 @@ import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
-import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -82,7 +82,7 @@ const theme = useThemeStore()
 const moments = ref<Moment[]>([])
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -123,9 +123,9 @@ async function loadData() {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/pages-user/publish-content/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/user/publish-content/index?id=${m.id}` })
   } else {
-    uni.navigateTo({ url: `/pages/pages-detail/moment?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/detail/moment?id=${m.id}` })
   }
 }
 

@@ -5,7 +5,7 @@
  *
  * 注意：活动模块接入状态（2026-08-19 复核）：
  * - 首页万能区「最新活动」入口卡与「我的」页入口均已恢复展示，但点击提示「功能暂未实现」（不跳转活动页）；
- * - pages/activity/index 独立页与 pages.json 注册保留（待后续开放）；
+ * - pages/standalone/activity/index 独立页与 pages.json 注册保留（待后续开放）；
  * - 接口失败 / 空返回一律回落空数组，不阻断调用方。
  */
 import { get } from './http'

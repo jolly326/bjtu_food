@@ -4,7 +4,7 @@ import type {
 } from '@/types/dish'
 import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
+import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './shared'
 
 export const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',

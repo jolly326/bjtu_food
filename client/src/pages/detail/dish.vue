@@ -221,13 +221,13 @@ import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
-import { sharedDish } from '@/utils/shareState'
+import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ApplySheet from '@/components/ApplySheet.vue'
@@ -407,7 +407,7 @@ async function loadDishData() {
 
 onShareAppMessage(() => ({
   title: dish.value ? `${dish.value.name} ¥${dish.value.price}` : '菜品详情',
-  path: `/pages/pages-detail/dish?id=${dishId.value}`,
+  path: `/pages/detail/dish?id=${dishId.value}`,
 }))
 
 /** 申请下架/纠错 Sheet */
@@ -478,12 +478,12 @@ function onDeleteReview(rv: Review) {
 
 /** 查看全部评价 → 独立评价列表页 */
 function goReviewList() {
-  uni.navigateTo({ url: `/pages/pages-detail/review-list?dishId=${currentDishId.value}` })
+  uni.navigateTo({ url: `/pages/detail/review-list?dishId=${currentDishId.value}` })
 }
 
 /** 写评价入口：进入合一发布页（评价态：锁定所属菜品+默认5星），直接进入不打断编辑体验，认证在提交时检测 */
 function goWriteReview() {
-  uni.navigateTo({ url: `/pages/pages-user/publish-content/index?dishId=${currentDishId.value}&from=dish` })
+  uni.navigateTo({ url: `/pages/user/publish-content/index?dishId=${currentDishId.value}&from=dish` })
 }
 
 /* ===== 评价三点菜单（ReviewItem @more → 页面级 ReviewActionSheet） ===== */

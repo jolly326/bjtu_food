@@ -55,7 +55,7 @@ async function handleUnauthorized(): Promise<void> {
 async function handleForbidden(): Promise<void> {
   uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
   try {
-    const { useAuthSheetStore } = await import('@/stores/authSheet')
+    const { useAuthSheetStore } = await import('@/stores/auth-sheet')
     useAuthSheetStore().show()
   } catch {
     // 兜底：极端情况忽略，仅提示

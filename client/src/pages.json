@@ -29,44 +29,16 @@
 			}
 		},
 		{
-			"path": "pages/feedback/index",
-			"style": {
-				"navigationBarTitleText": "意见反馈",
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/profile/notifications/index",
 			"style": {
 				"navigationBarTitleText": "系统通知",
 				"navigationStyle": "custom"
 			}
-		},
-		{
-			"path": "pages/activity/index",
-			"style": {
-				"navigationBarTitleText": "最新活动",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/about/index",
-			"style": {
-				"navigationBarTitleText": "关于我们",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/webview/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationStyle": "custom"
-			}
-		},
+		}
 	],
 	"subPackages": [
 		{
-			"root": "pages/pages-detail/",
+			"root": "pages/detail/",
 			"pages": [
 				{
 					"path": "moment",
@@ -92,7 +64,7 @@
 			]
 		},
 		{
-			"root": "pages/pages-user/",
+			"root": "pages/user/",
 			"pages": [
 				{
 					"path": "publish-content/index",
@@ -116,8 +88,51 @@
 					}
 				}
 			]
+		},
+		{
+			"root": "pages/standalone/",
+			"pages": [
+				{
+					"path": "feedback/index",
+					"style": {
+						"navigationBarTitleText": "意见反馈",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "activity/index",
+					"style": {
+						"navigationBarTitleText": "最新活动",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "about/index",
+					"style": {
+						"navigationBarTitleText": "关于我们",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "webview/index",
+					"style": {
+						"navigationBarTitleText": "",
+						"navigationStyle": "custom"
+					}
+				}
+			]
 		}
 	],
+	"preloadRule": {
+		"pages/home/index": {
+			"network": "all",
+			"packages": ["pages/detail/", "pages/user/", "pages/standalone/"]
+		},
+		"pages/profile/index": {
+			"network": "all",
+			"packages": ["pages/detail/", "pages/user/", "pages/standalone/"]
+		}
+	},
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "知行食记",

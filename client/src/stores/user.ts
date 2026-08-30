@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfo } from '@/types/user'
 import * as userApi from '@/api/user'
-import { useAuthSheetStore } from '@/stores/authSheet'
+import { useAuthSheetStore } from '@/stores/auth-sheet'
 
 const STORAGE_KEY_TOKEN = 'token'
 const STORAGE_KEY_USER = 'userInfo'

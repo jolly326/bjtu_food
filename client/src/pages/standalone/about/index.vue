@@ -45,7 +45,7 @@
 import { ref } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import { backToHome } from '@/utils/nav'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()

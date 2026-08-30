@@ -72,13 +72,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
-import { useAuthSheetStore } from '@/stores/authSheet'
+import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useNotifyStore } from '@/stores/notify'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
@@ -123,17 +123,17 @@ function onUserCardTap() {
     authSheetStore.show()
     return
   }
-  uni.navigateTo({ url: '/pages/pages-user/profile-edit/index' })
+  uni.navigateTo({ url: '/pages/user/profile-edit/index' })
 }
 
 /** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们
  *  最新活动（2026-08-19）：恢复入口展示，功能暂未实现，点击提示 */
 const entryItems = [
   { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
-  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/pages-user/my-moments/index' })) },
+  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/user/my-moments/index' })) },
   { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
-  { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
-  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/standalone/feedback/index' }) },
+  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/standalone/about/index' }) },
 ]
 
 

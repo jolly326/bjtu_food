@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import IconSvg from './IconSvg.vue'
-import { sharedMoment } from '@/utils/shareState'
+import { sharedMoment } from '@/utils/share-state'
 import type { Moment } from '@/types/moment'
 
 const props = defineProps<{

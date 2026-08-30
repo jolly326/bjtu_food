@@ -9,7 +9,7 @@
  */
 import { get, post, put, del } from './http'
 import { getImageUrl } from '@/utils/image'
-import { normalizeImages } from './_shared'
+import { normalizeImages } from './shared'
 import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
 
 /**

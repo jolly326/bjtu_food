@@ -211,7 +211,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
-import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
 import { getUserLocation } from '@/utils/location'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
@@ -264,7 +264,7 @@ function measureTopBar() {
 /** 菜品详情：跳转独立页（pages-detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
 }
 const keyword = ref('')
 const pressedKey = ref('')

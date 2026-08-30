@@ -84,7 +84,7 @@ import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment, RelatedType } from '@/types/moment'
 import { backToHome } from '@/utils/nav'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
@@ -92,7 +92,7 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import Rating from '@/components/Rating.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
-import type { RelatedItem } from '@/components/related-item'
+import type { RelatedItem } from '@/types/related-item'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()

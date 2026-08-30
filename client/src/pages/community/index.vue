@@ -85,11 +85,11 @@ import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
-import { buildSharePayload, clearShareState } from '@/utils/shareState'
+import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import MomentCard from '@/components/MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
-import Header from '@/components/header.vue'
+import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -100,7 +100,7 @@ const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages-detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -173,7 +173,7 @@ function onRefresh() {
 }
 
 function goDetail(m: Moment) {
-  uni.navigateTo({ url: `/pages/pages-detail/moment?id=${m.id}` })
+  uni.navigateTo({ url: `/pages/detail/moment?id=${m.id}` })
 }
 
 function goRelated(m: Moment) {
@@ -183,7 +183,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/pages-user/publish-content/index' })
+  uni.navigateTo({ url: '/pages/user/publish-content/index' })
 }
 
 onMounted(() => { loadData(true) })

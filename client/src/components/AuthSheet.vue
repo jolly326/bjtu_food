@@ -40,7 +40,7 @@ import { ref, watch, nextTick, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthForm from '@/components/AuthForm.vue'
-import { useAuthSheetStore } from '@/stores/authSheet'
+import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useUserStore } from '@/stores/user'
 
 const authSheetStore = useAuthSheetStore()

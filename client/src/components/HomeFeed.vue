@@ -45,7 +45,7 @@ const waterfallFailed = computed(() => props.loadFailed || dishStore.filterLoadF
 
 /** 菜品卡片点击 → 独立详情页（pages-detail/dish） */
 function goToDetail(dish: { id: number }) {
-  uni.navigateTo({ url: `/pages/pages-detail/dish?id=${dish.id}` })
+  uni.navigateTo({ url: `/pages/detail/dish?id=${dish.id}` })
 }
 </script>
 

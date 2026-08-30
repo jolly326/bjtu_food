@@ -1,6 +1,6 @@
 import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
 import { get, post, del } from './http'
-import { recordsOf, normalizeImages } from './_shared'
+import { recordsOf, normalizeImages } from './shared'
 
 type ReviewTarget =
   | { type: 'dish'; id: number }

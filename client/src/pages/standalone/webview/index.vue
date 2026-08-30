@@ -25,7 +25,7 @@
  * WebView 通用页（活动/广播 URL 跳转，用于打开微信公众号文章）
  *
  * 用法：
- *   uni.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })
+ *   uni.navigateTo({ url: `/pages/standalone/webview/index?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })
  *
  * 注意（上线必读）：
  *   1. 生产环境需在微信公众平台「开发管理-开发设置-业务域名」添加并配置

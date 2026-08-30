@@ -83,7 +83,7 @@ import IconSvg from './IconSvg.vue'
 import SearchBar from './SearchBar.vue'
 import * as dishApi from '@/api/dish'
 import { getImageUrl } from '@/utils/image'
-import type { RelatedItem } from './related-item'
+import type { RelatedItem } from '@/types/related-item'
 
 /**
  * RelatedPickerSheet —— 关联菜品选择弹层（task-14 W2/W5 / task-13 T20）

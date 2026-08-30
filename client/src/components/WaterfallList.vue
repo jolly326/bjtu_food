@@ -54,7 +54,7 @@ import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import StallCardSingle from './StallCardSingle.vue'
 import type { Dish } from '@/types/dish'
-import type { StallCardItem } from './stall-card-item'
+import type { StallCardItem } from '@/types/stall-card-item'
 
 const props = withDefaults(defineProps<{
   list: (Dish | any)[]

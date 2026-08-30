@@ -43,7 +43,7 @@ import IconSvg from './IconSvg.vue'
  * 食堂详情页单列档口流，视觉语言对齐 StallDishRow（list-row，无卡片背景/圆角/阴影）。
  * 不直接显示菜品（菜品详情在档口详情页 stall.vue）。
  */
-import type { StallCardItem } from './stall-card-item'
+import type { StallCardItem } from '@/types/stall-card-item'
 
 const props = defineProps<{
   stall: StallCardItem

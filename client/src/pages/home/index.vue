@@ -105,8 +105,8 @@ import { getMoments } from '@/api/moment'
 
 import type { Moment } from '@/types/moment'
 import { getImageUrl } from '@/utils/image'
-import { buildSharePayload, clearShareState } from '@/utils/shareState'
-import Header from '@/components/header.vue'
+import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import BroadcastBar from '@/components/BroadcastBar.vue'
 import HomeFeed from '@/components/HomeFeed.vue'
@@ -223,7 +223,7 @@ function goToActivity() {
 
 /** 万能区：反馈菜品 → 反馈页（带 object=dish，进入后预选「内容纠错」类型） */
 function goToFeedback() {
-  uni.navigateTo({ url: '/pages/feedback/index?object=dish' })
+  uni.navigateTo({ url: '/pages/standalone/feedback/index?object=dish' })
 }
 
 /** 未授权定位时展示轻提示（首页瀑布流「距你」才有数据） */
