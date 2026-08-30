@@ -261,7 +261,7 @@ function measureTopBar() {
   }
 }
 
-/** 菜品详情：跳转独立页（pages-detail/dish） */
+/** 菜品详情：跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
   uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })

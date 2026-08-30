@@ -97,7 +97,7 @@ import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
 const moments = ref<Moment[]>([])
-/** 菜品详情跳转独立页（pages-detail/dish） */
+/** 菜品详情跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
   uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })

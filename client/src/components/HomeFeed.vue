@@ -43,7 +43,7 @@ const dishStore = useDishStore()
 /** 空态失败判定：广播/万能区（loadFailed）或瀑布流自身（filterLoadFailed）任一失败即展示失败态，避免「moments 成功但瀑布流失败」被误判为「没有内容」 */
 const waterfallFailed = computed(() => props.loadFailed || dishStore.filterLoadFailed)
 
-/** 菜品卡片点击 → 独立详情页（pages-detail/dish） */
+/** 菜品卡片点击 → 独立详情页（pages/detail/dish） */
 function goToDetail(dish: { id: number }) {
   uni.navigateTo({ url: `/pages/detail/dish?id=${dish.id}` })
 }

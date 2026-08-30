@@ -3,7 +3,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
-![uni-app](https://img.shields.io/badge/uni-app-Vue3-4FC08D)
+![uni-app](https://img.shields.io/badge/uni--app-Vue3-4FC08D)
 ![Vue3](https://img.shields.io/badge/Vue-3-42b883)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
