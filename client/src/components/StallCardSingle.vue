@@ -133,9 +133,9 @@ function handleClick() {
   -webkit-line-clamp: 1;
   overflow: hidden;
 }
-.stall-tags { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 8rpx; max-height: 36rpx; }
+.stall-tags { display: flex; flex-wrap: nowrap; overflow: hidden; gap: var(--spacing-xs); max-height: 36rpx; }
 .stall-tag {
-  font-size: 20rpx;
+  font-size: var(--font-tiny);
   color: var(--color-primary);
   background: var(--color-primary-soft);
   padding: 2rpx 12rpx;
@@ -157,5 +157,5 @@ function handleClick() {
 
 /* 评分内联（与 StallDishRow .star-num 对齐） */
 .star-num { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-.star-num-text { font-size: 24rpx; color: var(--text-secondary); font-weight: var(--weight-semibold); }
+.star-num-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 </style>

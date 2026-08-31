@@ -75,12 +75,12 @@ syncRoute()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
   height: var(--tabbar-height);
   -webkit-tap-highlight-color: transparent;
 }
 .tab-label {
-  font-size: 22rpx;
+  font-size: var(--font-aux);
   line-height: 1;
   color: var(--text-tertiary);
 }

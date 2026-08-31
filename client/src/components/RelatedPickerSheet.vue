@@ -234,7 +234,7 @@ onUnmounted(() => {
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
 }
 .related-sheet.open { transform: translateY(0); }
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
+.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 /* 头部：与登录弹窗同构（标题 + 右上角关闭 + 底部分隔线） */
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .sheet-title { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
@@ -256,10 +256,10 @@ onUnmounted(() => {
 .sheet-divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-2xs) var(--spacing-sm) var(--spacing-xs); }
 /* 底部：单一主色「完成」按钮 */
 .sheet-footer { display: flex; padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-confirm { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); font-size: var(--font-card); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.sheet-confirm { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); font-size: var(--font-subtitle); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .sheet-confirm:active { opacity: 0.85; transform: scale(var(--press-scale)); }
 
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite; }
+.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); margin: 0 auto; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {

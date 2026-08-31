@@ -23,8 +23,8 @@ onLaunch(() => {
    关键修复：uni.scss 的 :root 变量块在编译为小程序 WXSS 时被丢弃，
    导致全部 CSS 变量解析为空、页面裸文本。此处定义在 App 全局样式中，
    作用到小程序 page 根与 H5 :root，确保各平台 token 全部生效。
-   增量补齐组件实际引用但此前缺失的 --color-accent / --color-primary-bg /
-   --font-headline / --icon-lg / --radius-tag / --font-small 等。 */
+   增量补齐组件实际引用但此前缺失的 --color-accent / --color-primary-soft /
+   --font-title / --icon-lg / --radius-tag / --font-small 等。 */
 /* =========================================================================
    设计 Token：拆分为「page」与「:root」两条独立规则。
    原因：微信小程序 WXSS 不支持 :root 选择器，若把二者写成同一选择器组，
@@ -91,14 +91,20 @@ page {
   --border-cell-activity: rgba(30, 95, 206, 0.28);
   --border-cell-feedback: rgba(14, 158, 110, 0.28);
   /* 圆角 */
-  --radius-tag: 16px;
-  --radius-card: 16px;
-  --radius-modal: 24px;
-  --radius-btn: 16px;
-  --radius-icon: 12px;
-  --radius-pill: 16px;
+  /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
+  --radius-none: 0;
+  --radius-xs: 16rpx;
+  --radius-tag: 32rpx;
+  --radius-card: 32rpx;
+  --radius-modal: 48rpx;
+  --radius-btn: 32rpx;
+  --radius-icon: 24rpx;
+  /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签）；原 16px 名实不符，已修正为全圆角 */
+  --radius-pill: 999rpx;
+  /* 正圆（头像 / 圆点 / 指示器） */
+  --radius-circle: 50%;
   /* 底部弹层/提交栏圆角顶边（与 --radius-modal 同值，意见反馈页提交栏等引用） */
-  --radius-sheet: 24px;
+  --radius-sheet: 48rpx;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
@@ -110,20 +116,24 @@ page {
   --font-tiny: 20rpx;
   --font-aux: 22rpx;
   --font-small: 24rpx;
+  --font-label: 26rpx;
   --font-body: 28rpx;
   --font-caption: 30rpx;
-  --font-title: 44rpx;
-  --font-subheading: 32rpx;
+  /* 字号标度（单调升序、同值无别名；32rpx=--font-subtitle，44rpx=--font-title） */
   --font-subtitle: 32rpx;
-  --font-card: 32rpx;
-  --font-headline: 44rpx;
   --font-h3: 36rpx;
   --font-h2: 40rpx;
+  --font-title: 44rpx;
   --font-h1: 48rpx;
   --font-display: 72rpx;
   /* 图标尺寸 */
   --icon-sm: 28rpx;
   --icon-lg: 48rpx;
+  /* 占位/空态图标字号（.placeholder-icon / .empty-icon 的字形尺寸，非文本排版） */
+  --icon-xl: 56rpx;
+  --icon-2xl: 64rpx;
+  --icon-3xl: 80rpx;
+  --icon-4xl: 120rpx;
   /* 阴影（材质 / 深度；卡片阴影 2026-08-12 拍板：0 2px 8px rgba(0,0,0,0.04)） */
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
@@ -156,6 +166,15 @@ page {
   /* 动效：按压 + 缓动曲线（emil-design-eng / Apple §1/§4） */
   --press-scale: 0.97;
   --press-transition: transform 0.12s ease;
+  /* 非按压缩放（§4.9：须量化为独立 token 并在 uni.scss 登记，禁裸 scale()）
+     rest=静止态（与 --press-scale 配对）、modal-enter=居中弹窗入场、image-zoom=图片查看放大 */
+  --scale-rest: 1;
+  --scale-modal-enter: 0.92;
+  --scale-image-zoom: 1.04;
+  /* 入场微缩放（@提及浮层等轻量 pop-in，非按压强调，§4.9 须量化独立 token） */
+  --scale-enter-sm: 0.96;
+  /* 回到顶部 FAB 入场微缩放（home/index.vue），非按压强调 */
+  --scale-fab-enter: 0.9;
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -317,13 +336,16 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --color-cell-feedback: #0E9E6E;
   --border-cell-activity: rgba(30, 95, 206, 0.22);
   --border-cell-feedback: rgba(14, 158, 110, 0.22);
-  --radius-tag: 16px;
-  --radius-card: 16px;
-  --radius-modal: 24px;
-  --radius-btn: 16px;
-  --radius-icon: 12px;
-  --radius-pill: 16px;
-  --radius-sheet: 24px;
+  --radius-none: 0;
+  --radius-xs: 16rpx;
+  --radius-tag: 32rpx;
+  --radius-card: 32rpx;
+  --radius-modal: 48rpx;
+  --radius-btn: 32rpx;
+  --radius-icon: 24rpx;
+  --radius-pill: 999rpx;
+  --radius-circle: 50%;
+  --radius-sheet: 48rpx;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
@@ -333,19 +355,23 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --font-tiny: 20rpx;
   --font-aux: 22rpx;
   --font-small: 24rpx;
+  --font-label: 26rpx;
   --font-body: 28rpx;
   --font-caption: 30rpx;
-  --font-title: 44rpx;
-  --font-subheading: 32rpx;
+  /* 字号标度（单调升序、同值无别名；32rpx=--font-subtitle，44rpx=--font-title） */
   --font-subtitle: 32rpx;
-  --font-card: 32rpx;
-  --font-headline: 44rpx;
   --font-h3: 36rpx;
   --font-h2: 40rpx;
+  --font-title: 44rpx;
   --font-h1: 48rpx;
   --font-display: 72rpx;
   --icon-sm: 28rpx;
   --icon-lg: 48rpx;
+  /* 占位/空态图标字号（.placeholder-icon / .empty-icon 的字形尺寸，非文本排版） */
+  --icon-xl: 56rpx;
+  --icon-2xl: 64rpx;
+  --icon-3xl: 80rpx;
+  --icon-4xl: 120rpx;
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
@@ -370,6 +396,15 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --text-white-edge: rgba(255, 255, 255, 0.24);
   --press-scale: 0.97;
   --press-transition: transform 0.12s ease;
+  /* 非按压缩放（§4.9：须量化为独立 token 并在 uni.scss 登记，禁裸 scale()）
+     rest=静止态（与 --press-scale 配对）、modal-enter=居中弹窗入场、image-zoom=图片查看放大 */
+  --scale-rest: 1;
+  --scale-modal-enter: 0.92;
+  --scale-image-zoom: 1.04;
+  /* 入场微缩放（@提及浮层等轻量 pop-in，非按压强调，§4.9 须量化独立 token） */
+  --scale-enter-sm: 0.96;
+  /* 回到顶部 FAB 入场微缩放（home/index.vue），非按压强调 */
+  --scale-fab-enter: 0.9;
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -429,7 +464,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 }
 /* ========== 真机按压反馈（微信 hover-class 用，WXSS 下 :active 无效） ==========
    微信小程序 view 不支持 :active 伪类，真机按压缩放需用 hover-class="pressed"。
-   此全局类供各可点击 view 的 hover-class 复用（含 CustomTabBar/InteractBar/Rating 等）。 */
+   此全局类供各可点击 view 的 hover-class 复用（含 TabBar/InteractBar 等）。 */
 .pressed {
   transform: scale(var(--press-scale)) !important;
   transition: transform var(--duration-fast) var(--ease-out);

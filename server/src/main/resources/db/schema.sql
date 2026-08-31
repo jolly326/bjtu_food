@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS `review`
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价图片URL数组JSON',
+    `tags`       VARCHAR(255) NULL    DEFAULT NULL COMMENT '评价标签（美团式写评，逗号分隔或 JSON 数组）',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

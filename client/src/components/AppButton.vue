@@ -37,8 +37,10 @@ const props = withDefaults(defineProps<{
   icon: '',
 })
 
+// 自定义事件禁用原生事件名（tap/click）：否则 uni-app 编译 mp-weixin 时父组件
+// 监听被当作原生 bindxxx，emit 参数会丢失（同 MomentCard/DishCard 坑，见其注释）。
 const emit = defineEmits<{
-  click: []
+  press: []
 }>()
 
 // icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
@@ -48,13 +50,13 @@ const pressed = ref(false)
 const btnStyle = computed(() => ({
   width: props.width,
   margin: props.margin,
-  transform: pressed.value ? 'scale(var(--press-scale))' : 'scale(1)',
+  transform: pressed.value ? 'scale(var(--press-scale))' : 'scale(var(--scale-rest))',
   transition: 'var(--press-transition)',
 }))
 
 function handleTap() {
   if (props.disabled || props.loading) return
-  emit('click')
+  emit('press')
 }
 </script>
 
@@ -76,7 +78,7 @@ function handleTap() {
   opacity: 0.4;
 }
 .btn-text {
-  font-size: var(--font-card);
+  font-size: var(--font-subtitle);
   font-weight: var(--weight-medium);
   color: var(--color-on-primary);
 }

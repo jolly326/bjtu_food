@@ -191,7 +191,7 @@ onShow(() => {
 .msg-item.pressed:active { transform: scale(var(--press-scale)); }
 .msg-item.unread { background: var(--color-primary-soft); }
 
-.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: 50%; background: var(--color-error); margin-top: 12rpx; }
+.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-error); margin-top: 12rpx; }
 .msg-dot.read { background: transparent; }
 
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }

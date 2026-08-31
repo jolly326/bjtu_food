@@ -157,7 +157,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .primary-action { height: 92rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); display: flex; align-items: center; justify-content: center; transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); }
 .primary-action.pressed { transform: scale(var(--press-scale)); opacity: 0.92; }
 .primary-action.disabled { opacity: 0.58; }
-.primary-action-text { color: var(--color-on-primary); font-size: var(--font-card); font-weight: var(--weight-bold); }
+.primary-action-text { color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-bold); }
 
 /* 底部安全说明：锁图标 + 简短文案（认证即绑定，不公开传播） */
 .bottom-note { display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); }

@@ -64,6 +64,27 @@ $uni-border-radius-circle: 50%;
    与 indicator-active-color 同属原生属性限制例外，不属于「禁止裸色值」违规。
    这是已知原生属性限制例外，不属于「禁止裸色值」违规。 */
 
+/* Non-press scale tokens — registered per UI red line §4.9 (no bare scale(), non-press
+   emphasis must be quantified as independent tokens and registered here).
+   Values are declared in App.vue (page + :root blocks); this entry records WHY they exist
+   so a future grep for bare scale() can be reconciled against a known allowlist.
+   - --scale-rest: 1         静止态（与 --press-scale 配对，等价于"无缩放"）
+   - --scale-modal-enter: 0.92   居中弹窗（ReportModal）入场缩放，非按压强调
+   - --scale-image-zoom: 1.04    图片查看（ImageSwiper）加载淡入放大，非按压强调
+   - --scale-enter-sm: 0.96     轻量 pop-in（@提及浮层等），非按压强调
+   - --scale-fab-enter: 0.9      回到顶部 FAB 入场微缩放（home/index.vue），非按压强调
+   - scaleX(-1) 为镜像翻转（返回箭头），非缩放量级，不计入裸 scale()。 */
+
+/* Native <web-view> progressbar color exception — var() unsupported by web-view progressbar attribute.
+   The `progressbar` option of <web-view> takes a real color string and does NOT accept CSS var(),
+   so pages/standalone/webview/index.vue passes #9B2A1D (== --color-primary light, see src/theme/tokens.ts).
+   This is a known native-attribute limitation, NOT a "no bare hex" violation. */
+
+/* Native pages.json navigation bar exception — var() unsupported in pages.json.
+   navigationBarBackgroundColor / backgroundColor in pages.json are native WeChat window config
+   and do NOT accept CSS var(), so #F5F5F7 (== --bg-page light) is hardcoded there.
+   This is a known native-config limitation, NOT a "no bare hex" violation. */
+
 /* Native uni.showModal confirmColor exception — var() unsupported by confirmColor attribute.
    微信小程序原生 uni.showModal 的 confirmColor 不接受 CSS var()，因此以下文件
    直接传入真实色值 #FF3B30（暖杏系错误色，见 uni.scss $uni-color-error）：

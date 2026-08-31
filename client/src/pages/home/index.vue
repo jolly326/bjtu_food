@@ -1,13 +1,17 @@
 <template>
   <view class="page home-page" :class="{ 'theme-dark': theme.isDark }">
-    <!-- 首页头部容器：朱砂红底（筛选 chip + 搜索框）；红色食堂筛选下拉 anchor 在其正下方，视觉衔接无间隙 -->
+    <!-- 首页头部容器：朱砂红底（搜索框 + 独立筛选 chip）；红色食堂筛选下拉 anchor 在其正下方，视觉衔接无间隙 -->
     <view class="home-top">
       <Header
         variant="home"
-        :selected-canteen="selectedCanteenName"
         search-placeholder="搜索你想吃的..."
-        @filter="openFilter"
         @search="goToSearch"
+      />
+      <!-- 筛选 chip：独立组件，自管选中食堂名文案与点击；与 header 解耦 -->
+      <HomeFilterChip
+        :selected-canteen="selectedCanteenName"
+        :capsule-height="capsuleHeight"
+        @filter="openFilter"
       />
       <CanteenFilter
         v-if="showFilter"
@@ -75,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useThemeStore } from '@/stores/theme'
@@ -85,6 +89,7 @@ import { getUserLocation } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import HomeFilterChip from '@/components/HomeFilterChip.vue'
 import HomeFeed from '@/components/HomeFeed.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -101,6 +106,8 @@ const refresherTriggered = ref(false)
 
 /** 食堂筛选下拉显隐 */
 const showFilter = ref(false)
+/** 胶囊高度（px），与 AppHeader 同一取值口径，用于对齐筛选 chip 与搜索框高度 */
+const capsuleHeight = ref(32)
 /** 当前选中食堂 id（null = 全部） */
 const selectedCanteenId = ref<number | null>(null)
 const selectedCanteenName = computed(
@@ -205,6 +212,13 @@ onLoad(() => {
   loadData()
 })
 
+// 读取原生胶囊高度，使独立筛选 chip 与 header 搜索框高度对齐（与 AppHeader 同一口径）
+onMounted(() => {
+  // @ts-ignore - 跨端兼容（H5 无 wx，退化为默认 32px）
+  const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
+  if (mb && mb.height) capsuleHeight.value = mb.height
+})
+
 onShow(() => {
   // 锚定底部菜单栏：首页始终显示并高亮（页面已就绪，最可靠时机）
   showTab('home')
@@ -272,7 +286,7 @@ onShareAppMessage(() => {
   border-radius: var(--radius-card);
 }
 .loc-hint-text { font-size: var(--font-body); }
-.loc-hint-arrow { font-size: var(--font-subheading); }
+.loc-hint-arrow { font-size: var(--font-subtitle); }
 
 /* 回到顶部悬浮按钮 */
 .fab {
@@ -281,21 +295,21 @@ onShareAppMessage(() => {
   bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-lg));
   width: 88rpx;
   height: 88rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--bg-card);
   box-shadow: var(--shadow-bar);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: translateY(20rpx) scale(0.9);
+  transform: translateY(20rpx) scale(var(--scale-fab-enter));
   transition: var(--press-transition);
   z-index: 50;
   -webkit-tap-highlight-color: transparent;
 }
 .fab-show {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0) scale(var(--scale-rest));
 }
 .fab:active { transform: scale(var(--press-scale)); }
 </style>

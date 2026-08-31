@@ -144,7 +144,7 @@ function handleClick() {
   justify-content: center;
 }
 .placeholder-icon {
-  font-size: 64rpx;
+  font-size: var(--icon-2xl);
   line-height: 1;
 }
 /* 评分徽标：图片右上角（黑底白字；加深投影 + 浅描边，避免白底图糊字） */
@@ -162,7 +162,7 @@ function handleClick() {
   border: 1rpx solid rgba(255, 255, 255, 0.28);
 }
 .star-icon {
-  font-size: 22rpx;
+  font-size: var(--font-aux);
   line-height: 1;
   flex-shrink: 0;
 }

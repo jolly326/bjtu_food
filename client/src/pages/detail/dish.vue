@@ -203,8 +203,16 @@
       @report="onReviewMoreReport"
     />
 
-    <!-- 认证弹层：点赞等需认证入口统一底部弹出（z-index 300 高于 action-bar 50，不会被详情内容遮挡）。
-         写评价入口已不在此拦截，认证在合一发布页提交时检测（publish-content submit） -->
+    <!-- 美团式写评价 Sheet（动态/评价已隔离：提交不再回写动态） -->
+    <ReviewWriteSheet
+      v-if="showReviewSheet"
+      :dish-id="currentDishId"
+      :dish-name="dish?.name"
+      @submitted="onReviewSubmitted"
+      @close="showReviewSheet = false"
+    />
+
+    <!-- 认证弹层：点赞等需认证入口统一底部弹出 -->
     <AuthSheet />
   </view>
 </template>
@@ -234,6 +242,7 @@ import ApplySheet from '@/components/ApplySheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
+import ReviewWriteSheet from '@/components/ReviewWriteSheet.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -245,6 +254,8 @@ const dish = computed(() => dishStore.currentDish)
 const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => dishId.value)
+/** 美团式写评 Sheet 显隐（community-review-redesign：评价与动态隔离） */
+const showReviewSheet = ref(false)
 
 // N07 修复：删除后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
 let navTimer: ReturnType<typeof setTimeout> | null = null
@@ -481,9 +492,15 @@ function goReviewList() {
   uni.navigateTo({ url: `/pages/detail/review-list?dishId=${currentDishId.value}` })
 }
 
-/** 写评价入口：进入合一发布页（评价态：锁定所属菜品+默认5星），直接进入不打断编辑体验，认证在提交时检测 */
+/** 写评价入口：打开美团式写评 Sheet（动态/评价已隔离，提交不再回写动态；认证在 Sheet 提交时检测） */
 function goWriteReview() {
-  uni.navigateTo({ url: `/pages/user/publish-content/index?dishId=${currentDishId.value}&from=dish` })
+  showReviewSheet.value = true
+}
+
+/** 写评提交成功：刷新评价列表 */
+function onReviewSubmitted() {
+  dishStore.reviewsDirty = true
+  showReviewSheet.value = false
 }
 
 /* ===== 评价三点菜单（ReviewItem @more → 页面级 ReviewActionSheet） ===== */
@@ -535,7 +552,7 @@ const hasMetrics = computed(() => {
 
 /* 3. 基本信息 */
 .title-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-xs); }
-.dish-name { font-size: var(--font-headline); font-weight: var(--weight-bold); letter-spacing: var(--tracking-h2); line-height: 1.2; color: var(--text-primary); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dish-name { font-size: var(--font-title); font-weight: var(--weight-bold); letter-spacing: var(--tracking-h2); line-height: 1.2; color: var(--text-primary); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag-row { display: flex; flex-wrap: nowrap; gap: var(--spacing-xs); flex: 0 0 auto; align-items: center; }
 .price-row { display: flex; align-items: baseline; gap: var(--spacing-xs); flex-wrap: wrap; flex: 0 0 auto; margin-left: auto; }
 .price-text { font-size: var(--font-h2); font-weight: var(--weight-bold); color: var(--color-price); font-variant-numeric: tabular-nums; }
@@ -564,11 +581,11 @@ const hasMetrics = computed(() => {
 
 /* 第五行：关键指标条（评分/评价/口味/地域，无背景色，仅灰色竖线分隔） */
 .metric-panel { display: flex; align-items: stretch; margin-top: var(--spacing-md); padding: var(--spacing-sm) 0; }
-.metric-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; padding: 0 var(--spacing-sm); position: relative; }
+.metric-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-xs); padding: 0 var(--spacing-sm); position: relative; }
 .metric-col + .metric-col::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2rpx; background: var(--border-color); }
-.metric-val { font-size: 32rpx; font-weight: var(--weight-bold); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 4rpx; }
+.metric-val { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 4rpx; }
 /* 口味/地域文本列：与数字列统一字号(32rpx)与主色，保留常规字重；长文本单行省略避免撑破四列 */
-.metric-val--text { font-size: 32rpx; font-weight: var(--weight-medium); color: var(--text-primary); display: inline-block; line-height: 1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metric-val--text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); display: inline-block; line-height: 1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .metric-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
 
 /* 5. 综合评分卡：左大分数居中 + 右星级分布（星图标 + 星数 + 横条 + 数量） */
@@ -578,7 +595,7 @@ const hasMetrics = computed(() => {
 /* 左栏：大分数 + 人数列组，垂直水平双居中 */
 .summary-left { flex: 0 0 160rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-xs); }
 /* 页面最强数字锚点：刻意高于 token 梯度（44/48rpx），与指标条数值拉开差距，不随缩放 */
-.summary-score { font-size: 56rpx; font-weight: var(--weight-heavy); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+.summary-score { font-size: var(--icon-xl); font-weight: var(--weight-heavy); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
 .summary-count { font-size: var(--font-aux); color: var(--text-tertiary); }
 .summary-right { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
 .summary-empty { padding: var(--spacing-md) 0; text-align: center; }
@@ -625,7 +642,7 @@ const hasMetrics = computed(() => {
   -webkit-tap-highlight-color: transparent;
 }
 .review-write:active { opacity: 0.6; }
-.review-write-text { font-size: var(--font-card); color: var(--color-primary); font-weight: var(--weight-semibold); }
+.review-write-text { font-size: var(--font-subtitle); color: var(--color-primary); font-weight: var(--weight-semibold); }
 .review-list { display: flex; flex-direction: column; }
 .review-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-lg) 0; }
 .view-all {
@@ -643,7 +660,7 @@ const hasMetrics = computed(() => {
 
 /* 7. 底部固定操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
-.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-card); font-weight: var(--weight-medium); border: none; padding: 0; }
+.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-medium); border: none; padding: 0; }
 .share-btn-native::after { border: none; }
 
 /* 加载骨架 */

@@ -45,13 +45,13 @@ const pressed = ref(false)
   padding: var(--spacing-xl) var(--spacing-lg);
 }
 .empty-icon {
-  font-size: 120rpx;
+  font-size: var(--icon-4xl);
   line-height: 1;
   margin-bottom: var(--spacing-md);
   opacity: 0.4;
 }
 .empty-text {
-  font-size: 28rpx;
+  font-size: var(--font-body);
   color: var(--text-tertiary);
   font-weight: var(--weight-medium);
   text-align: center;
@@ -61,10 +61,10 @@ const pressed = ref(false)
   margin-top: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-xl);
   border: 2rpx solid var(--border-color);
-  border-radius: 32rpx;
+  border-radius: var(--radius-btn);
 }
 .retry-text {
-  font-size: 26rpx;
+  font-size: var(--font-label);
   color: var(--text-secondary);
   font-weight: var(--weight-semibold);
 }
@@ -74,12 +74,12 @@ const pressed = ref(false)
   align-items: center;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm) var(--spacing-xl);
-  border-radius: 32rpx;
+  border-radius: var(--radius-btn);
   background: var(--color-primary);
   box-shadow: var(--shadow-card);
   transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .action-btn.pressed { transform: scale(var(--press-scale)); }
-.action-text { font-size: 26rpx; color: var(--color-on-primary); font-weight: var(--weight-semibold); line-height: 1; }
+.action-text { font-size: var(--font-label); color: var(--color-on-primary); font-weight: var(--weight-semibold); line-height: 1; }
 </style>

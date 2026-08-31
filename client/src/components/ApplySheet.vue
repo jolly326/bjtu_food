@@ -237,7 +237,7 @@ function onTouchEnd() {
 .bottom-sheet.open { transform: translateY(0); }
 
 /* 半透明深色 grabber（Apple 弹层材质：与兄弟弹层统一用 --overlay-dark-soft token） */
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
+.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); }
 .sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
 .sheet-close { padding: 0 var(--spacing-xs); }
@@ -259,7 +259,7 @@ function onTouchEnd() {
 .sheet-submit-btn { height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .sheet-submit-btn:active { transform: scale(var(--press-scale)); }
 .sheet-submit-btn.disabled { opacity: 0.58; }
-.sheet-submit-text { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--color-on-primary); }
+.sheet-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .sheet-mask { transition: opacity 0.2s ease; }

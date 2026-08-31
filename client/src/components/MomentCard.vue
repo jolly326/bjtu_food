@@ -202,9 +202,9 @@ async function onUseful() {
 .moment-card.pressed { background-color: var(--bg-soft); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 圆角正方形头像：用明确 rpx（16rpx），不用 var(--radius-card)=16px（在 64rpx 头像上接近圆形） */
-.m-avatar { width: 64rpx; height: 64rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
+.m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
-.m-avatar-fallback { font-size: 32rpx; line-height: 1; }
+.m-avatar-fallback { font-size: var(--font-subtitle); line-height: 1; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 /* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
 .m-nickname {
@@ -221,7 +221,7 @@ async function onUseful() {
 .m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
 .m-time { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; }
-.m-audit-text { font-size: 22rpx; font-weight: var(--weight-bold); }
+.m-audit-text { font-size: var(--font-aux); font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
 .audit-rejected { background: var(--color-error-soft); }
@@ -231,7 +231,7 @@ async function onUseful() {
 .m-expand { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); align-self: flex-start; }
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
-.m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: 16rpx; overflow: hidden; background: var(--bg-page); }
+.m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-page); }
 .m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-base) var(--ease-out); }
 .m-image.loaded { opacity: 1; }
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
@@ -240,7 +240,7 @@ async function onUseful() {
 .m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
 /* 圆角正方形菜品缩略图（56rpx + 12rpx 圆角，chip 内上下各留 4rpx） */
-.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: 12rpx; background: var(--bg-page); flex-shrink: 0; }
+.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
 /* 关联菜品星级：黄色实星（1-5 颗）+ 分值数字（与评价卡一致） */
@@ -260,7 +260,7 @@ async function onUseful() {
 /* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
 .m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
 .m-action.m-action-share::after { border: none; }
-.m-action-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
+.m-action-icon { font-size: var(--font-body); line-height: 1; color: var(--text-secondary); }
 .m-action.active .m-action-icon { color: var(--color-like); }
 .m-action-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-like); }

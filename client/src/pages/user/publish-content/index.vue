@@ -3,32 +3,15 @@
     <Header :title="pageTitle" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 关联对象：
-           - 评价入口（菜品详情带入 dishId）：锁定所属菜品，只读不可改（必选）
-           - 动态入口：自由选择（仅关联菜品 / 不关联，产品决策：动态不支持关联档口），评分选填 -->
+      <!-- 关联对象：发动态可自由关联菜品（分享探店），不评分、不同步评价（community-review-redesign） -->
       <view class="block">
         <SectionTitle title="关联对象">
-          <template #extra><text class="section-sub">{{ lockedDish ? '必选' : '选填' }}</text></template>
+          <template #extra><text class="section-sub">选填</text></template>
         </SectionTitle>
-        <view v-if="lockedDish" class="dish-locked">
-          <IconSvg name="dish" :size="32" color="var(--color-primary)" />
-          <text class="dish-locked-name">{{ lockedDishName }}</text>
-          <text class="dish-locked-badge">已关联</text>
-        </view>
-        <view v-else class="related-picker" @tap="relatedSheetOpen = true" role="button" :aria-label="relatedLabel">
+        <view class="related-picker" @tap="relatedSheetOpen = true" role="button" :aria-label="relatedLabel">
           <IconSvg name="dish" :size="30" color="var(--color-primary)" class="related-picker-icon" />
           <text class="related-label">{{ relatedLabel }}</text>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
-        </view>
-      </view>
-
-      <!-- 评分：有菜品关联时才显示（评价入口必选默认 5 星；动态入口选填 0=未评分） -->
-      <view v-if="showRating && !isEdit" class="block">
-        <SectionTitle title="评分">
-          <template #extra><text class="section-sub">{{ lockedDish ? '必选' : '选填' }}</text></template>
-        </SectionTitle>
-        <view class="rating-panel">
-          <Rating v-model="rating" :readonly="false" :show-text="true" :star-size="48" />
         </view>
       </view>
 
@@ -56,7 +39,7 @@
 
       <!-- 提交按钮：页内流式（不吸底），随内容滚动到表单末尾 -->
       <view class="submit-area">
-        <AppButton :text="submitText" type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit" />
+        <AppButton :text="submitText" type="primary" :disabled="!canSubmit" :loading="submitting" @press="submit" />
       </view>
     </scroll-view>
 
@@ -89,7 +72,6 @@ import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import RelatedPickerSheet from '@/components/RelatedPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import Rating from '@/components/Rating.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import type { RelatedItem } from '@/types/related-item'
@@ -102,38 +84,16 @@ const content = ref('')
 const images = ref<string[]>([])
 const submitting = ref(false)
 
-// 评价入口：菜品详情带入 dishId → 锁定所属菜品（只读）
-const dishId = ref(0)
-const lockedDishName = ref('')
-const lockedDish = computed(() => dishId.value > 0 && editId.value == null)
-
-// 动态入口：自由关联（菜品 / 档口 / 不关联）
+// 动态入口：自由关联（菜品 / 档口 / 不关联）；dishId 仅表示预选关联菜品（分享探店）
 const relatedSheetOpen = ref(false)
 const selectedRelated = ref<RelatedItem | null>(null)
 
-// 评分：0 = 未评分（动态）；1-5 = 评分（有菜 + 评分 → 评价）
-const rating = ref(0)
-
-// 编辑态（仅动态可编辑，评价不可编辑）
+// 编辑态（仅动态可编辑）
 const editId = ref<number | null>(null)
 const isEdit = computed(() => editId.value != null)
 
-const pageTitle = computed(() => (isEdit.value ? '编辑动态' : lockedDish.value ? '发表评价' : '发布动态'))
-const submitText = computed(() => {
-  if (isEdit.value) return '保存并重新提交'
-  return lockedDish.value ? '提交评价' : '发布'
-})
-
-/** 当前是否已关联菜品（锁定菜品或自由选择菜品） */
-const currentDishId = computed(() => {
-  if (lockedDish.value) return dishId.value
-  return selectedRelated.value && selectedRelated.value.type === 'dish' ? selectedRelated.value.id : 0
-})
-const hasDish = computed(() => currentDishId.value > 0)
-const showRating = computed(() => hasDish.value || lockedDish.value)
-
-/** 评价态：关联菜品 + 已评分 → 提交走评价接口并自动同步动态 */
-const willBeReview = computed(() => hasDish.value && rating.value > 0)
+const pageTitle = computed(() => (isEdit.value ? '编辑动态' : '发布动态'))
+const submitText = computed(() => (isEdit.value ? '保存并重新提交' : '发布'))
 
 const relatedLabel = computed(() => {
   if (!selectedRelated.value) return '不关联（自由动态）'
@@ -141,12 +101,7 @@ const relatedLabel = computed(() => {
   return `${prefix}·${selectedRelated.value.name}`
 })
 
-const canSubmit = computed(() => {
-  if (!content.value.trim()) return false
-  // 评价入口：评分必选（锁定菜品但未评分时阻止提交）
-  if (!isEdit.value && lockedDish.value && rating.value <= 0) return false
-  return true
-})
+const canSubmit = computed(() => !!content.value.trim())
 
 // N07 修复：提交后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
 let navTimer: ReturnType<typeof setTimeout> | null = null
@@ -205,39 +160,7 @@ async function submit() {
     return
   }
 
-  // 评价态：关联菜品 + 已评分 → 评价（自动同步动态）；其余 → 发布动态
-  if (willBeReview.value) {
-    if (!canSubmit.value || submitting.value) return
-    submitting.value = true
-    try {
-      // 图片已在 ImageUploader 选图时上传为 URL，这里直接提交
-      await dishStore.submitReview({
-        dishId: currentDishId.value,
-        rating: rating.value,
-        content: text,
-        images: images.value,
-        shareToMoment: true,
-      })
-      uni.showToast({ title: '评价成功，已同步动态', icon: 'success' })
-      // 置脏标记：返回菜品详情页 onShow 时据此刷新评价列表与综合评分卡
-      dishStore.reviewsDirty = true
-      if (navTimer) clearTimeout(navTimer)
-      if (lockedDish.value) {
-        // 从菜品详情进入：返回详情并刷新评价列表
-        navTimer = setTimeout(() => uni.navigateBack(), 1500)
-      } else {
-        navTimer = setTimeout(() => uni.reLaunch({ url: '/pages/community/index' }), 1500)
-      }
-    } catch (e: any) {
-      // 同一用户对同一菜品重复评价：展示后端 400 冲突提示（uk_review_user_dish）
-      uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
-    } finally {
-      submitting.value = false
-    }
-    return
-  }
-
-  // 动态态
+  // 动态态（朋友圈式：图文/关联菜品，无评分、不同步评价）
   submitting.value = true
   try {
     await momentApi.publishMoment({
@@ -280,12 +203,11 @@ onLoad(async (query) => {
   }
 
   if (query?.dishId) {
-    // 评价入口：锁定所属菜品（只读展示），评分默认 5 星
-    dishId.value = Number(query.dishId)
-    rating.value = 5
+    // 分享菜品动态：预选关联菜品（朋友圈式，无评分、不同步评价）
+    const id = Number(query.dishId)
     try {
-      await dishStore.fetchDetail(dishId.value)
-      lockedDishName.value = dishStore.currentDish?.name || ''
+      await dishStore.fetchDetail(id)
+      selectedRelated.value = { id, name: dishStore.currentDish?.name || '', image: '', type: 'dish' }
     } catch (e) {
       console.error('[publish-content] 菜名加载失败', e)
     }

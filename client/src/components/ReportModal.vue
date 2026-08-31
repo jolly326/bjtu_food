@@ -56,8 +56,8 @@ function submit() {
 <style scoped>
 .modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 .modal-mask.show { opacity: 1; }
-.report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%) scale(0.92); transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-drawer); will-change: opacity, transform; }
-.report-modal.open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%) scale(var(--scale-modal-enter)); transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-drawer); will-change: opacity, transform; }
+.report-modal.open { transform: translate(-50%, -50%) scale(var(--scale-rest)); opacity: 1; }
 .report-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }

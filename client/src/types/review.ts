@@ -27,7 +27,9 @@ export interface ReviewSubmit {
   rating: number
   content: string
   images: string[]
-  /** 是否同步为社区动态（评价与动态打通：同步的动态直接可见，无需审核） */
+  /** 美团式写评标签（口味/分量/性价比…），可选 */
+  tags?: string[]
+  /** 是否同步为社区动态；拆改后评价不再打通动态，固定 false */
   shareToMoment?: boolean
 }
 

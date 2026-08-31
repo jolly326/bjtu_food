@@ -27,6 +27,22 @@
       </view>
     </view>
 
+    <!-- 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter，状态与首页隔离） -->
+    <view class="find-filter-row">
+      <view class="find-filter-chip" @tap="showFindFilter = !showFindFilter">
+        <IconSvg name="filter" :size="'16px'" color="var(--text-secondary)" />
+        <text class="find-filter-label">{{ findCanteenName || '全部食堂' }}</text>
+        <IconSvg name="arrow-down" :size="'16px'" color="var(--text-tertiary)" />
+      </view>
+      <CanteenFilter
+        v-if="showFindFilter"
+        :canteens="dishStore.canteenList"
+        :selected-id="findCanteenId"
+        @select="onFindCanteenSelect"
+        @close="showFindFilter = false"
+      />
+    </view>
+
     <scroll-view
       class="scroll-wrap"
       scroll-y
@@ -107,11 +123,6 @@
 
       <!-- ============ 搜索混合结果页（2026-08-03：无标题直接列表；tab 在顶部固定区） ============ -->
       <view v-else class="filter-result filter-enter">
-        <!-- A2 结果数量标题：让用户知道结果规模，填补进入结果态后的空白顶部 -->
-        <view class="mixed-count" v-if="!mixedLoading && filteredMixed.length > 0">
-          <text class="mixed-count-text">找到 <text class="mixed-count-num">{{ filteredMixed.length }}</text> 个「<text class="mixed-count-kw">{{ keyword }}</text>」相关菜品</text>
-        </view>
-
         <!-- A3 加载骨架屏：搜索请求中显示占位，避免「点了搜索没反应」的错觉 -->
         <view class="mixed-list" v-if="mixedLoading">
           <view v-for="s in 4" :key="`sk-${s}`" class="mixed-item mixed-item-skeleton">
@@ -220,6 +231,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import CanteenFilter from '@/components/CanteenFilter.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -318,6 +330,22 @@ function clearHistory() {
 // 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
 const inFilter = ref(false)
 
+// 食堂筛选（community-review-redesign：find 页独立状态，与首页 selectedCanteenId 隔离）
+const findCanteenId = ref<number | null>(null)
+const showFindFilter = ref(false)
+/** 选中食堂名（用于筛选行展示；null → 全部食堂） */
+const findCanteenName = computed(() => {
+  if (findCanteenId.value == null) return ''
+  const c = dishStore.canteenList.find(x => x.id === findCanteenId.value)
+  return c?.name || ''
+})
+function onFindCanteenSelect(id: number | null) {
+  findCanteenId.value = id && id > 0 ? id : null
+  showFindFilter.value = false
+  // 切换食堂即按当前关键词（可空）+ 食堂重新检索
+  doMixedSearch(keyword.value.trim())
+}
+
 /** 混合搜索结果：复用菜品检索接口返回 Dish[]（搜索仅针对菜品） */
 interface MixedResult {
   type: 'dish'
@@ -408,7 +436,8 @@ function goKeyword(kw: string) {
 // C13 竞态守卫：慢请求结果不得覆盖后发的快请求（参照 review.vue searchSeq 模式）
 let mixedSearchSeq = 0
 async function doMixedSearch(kw?: string) {
-  if (!kw) return
+  // 无关键词但选中了食堂时，仍按食堂浏览（searchDishesPage 支持空 keyword + canteenId）
+  if (!kw && !findCanteenId.value) return
   // 竞态守卫（mixedSearchSeq）已保证后发请求覆盖先发结果；此处不设防重入锁，
   // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
   const seq = ++mixedSearchSeq
@@ -416,7 +445,7 @@ async function doMixedSearch(kw?: string) {
   mixedLoading.value = true
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
-    const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50 })
+    const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50, canteenId: findCanteenId.value ?? undefined })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
     // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）
@@ -572,6 +601,29 @@ watch(keyword, () => {
 .search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .search-box-clear:active { opacity: 0.55; }
 
+/* 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter） */
+.find-filter-row {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--bg-card);
+  border-bottom: 2rpx solid var(--border-light);
+}
+.find-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
+  transition: transform var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.find-filter-chip:active { transform: scale(var(--press-scale)); }
+.find-filter-label { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-medium); }
+
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }
 
@@ -601,7 +653,7 @@ watch(keyword, () => {
   /* 扩大命中区：padding 撑大可点目标，避免仅图标 12px 难点 */
   padding: var(--spacing-xs);
   margin: calc(-1 * var(--spacing-xs));
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -641,16 +693,11 @@ watch(keyword, () => {
 }
 .mixed-item + .mixed-item { margin-top: var(--spacing-sm); }
 .mixed-item.pressed { background-color: var(--bg-soft); }
-/* 搜索结果数量标题（A2） */
-.mixed-count { padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs); }
-.mixed-count-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.mixed-count-num { color: var(--text-primary); font-weight: var(--weight-bold); }
-.mixed-count-kw { color: var(--color-primary); font-weight: var(--weight-semibold); }
 .mixed-thumb {
   width: 160rpx;
   height: 160rpx;
   flex-shrink: 0;
-  border-radius: 20rpx;
+  border-radius: var(--radius-icon);
   overflow: hidden;
   background: var(--bg-page);
 }
@@ -757,7 +804,7 @@ watch(keyword, () => {
   padding: var(--spacing-xl) var(--spacing-lg);
   gap: var(--spacing-sm);
 }
-.discover-empty-tip { font-size: var(--font-card); font-weight: var(--weight-semibold); color: var(--text-secondary); }
+.discover-empty-tip { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); }
 .discover-empty-sub { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
 .discover-retry {
   margin-top: var(--spacing-sm);
@@ -781,6 +828,8 @@ watch(keyword, () => {
 @media (prefers-reduced-motion: reduce) {
   .filter-enter { animation: none; }
   .discover-retry { transition: none; }
+  .find-filter-chip { transition: none; }
+  .find-filter-chip:active { transform: none; }
   /* A7/C12 动效兜底：关闭逐行入场与图片淡入 */
   .mixed-item { animation: none; }
   .mixed-thumb-img { opacity: 1; transition: none; }

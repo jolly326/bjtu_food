@@ -197,7 +197,7 @@ function onThumbError(idx: number) {
 /* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，保留条目结构 + 分隔线 */
 .review-item--flat {
   background: transparent;
-  border-radius: 0;
+  border-radius: var(--radius-none);
   box-shadow: none;
   padding: var(--spacing-md) 0;
   border-bottom: 2rpx solid var(--border-color);
@@ -212,7 +212,7 @@ function onThumbError(idx: number) {
 .review-avatar {
   width: 72rpx;
   height: 72rpx;
-  border-radius: 16rpx;
+  border-radius: var(--radius-xs);
   background: var(--bg-page);
   flex-shrink: 0;
 }
@@ -313,7 +313,7 @@ function onThumbError(idx: number) {
 .review-op {
   display: inline-flex;
   align-items: center;
-  gap: 4rpx;
+  gap: var(--spacing-2xs);
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   font-weight: var(--weight-medium);

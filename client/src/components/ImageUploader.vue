@@ -130,7 +130,7 @@ function chooseImage() {
   position: absolute;
   top: 0; right: 0;
   width: 48rpx; height: 48rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--badge-dark-bg);
   display: flex; align-items: center; justify-content: center;
   transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
@@ -151,6 +151,6 @@ function chooseImage() {
 .img-uploader.compact .img-cell { width: 72rpx; height: 72rpx; }
 .img-uploader.compact .img-add { width: 72rpx; height: 72rpx; }
 .img-uploader.compact .img-add:active { transform: scale(var(--press-scale)); background: var(--bg-soft); transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
-.img-uploader.compact .img-remove { width: 36rpx; height: 36rpx; border-radius: 50%; }
+.img-uploader.compact .img-remove { width: 36rpx; height: 36rpx; border-radius: var(--radius-circle); }
 .img-uploader.compact .img-remove::after { content: ''; position: absolute; inset: -14rpx; }
 </style>

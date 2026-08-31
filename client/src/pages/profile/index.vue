@@ -34,7 +34,32 @@
         </view>
       </view>
 
-      <!-- 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们（需认证入口不置灰，点击弹认证引导；最新活动暂未实现） -->
+      <!-- 功能方块卡：意见反馈 / 最新活动（顶部高亮，区别于下方常规入口；网格布局，与常规列表明显分层） -->
+      <view class="feature-grid">
+        <view
+          v-for="f in featuredItems"
+          :key="f.key"
+          class="feature-card"
+          :class="{ pressed: pressedKey === f.key }"
+          role="button"
+          :aria-label="f.label"
+          @touchstart="pressedKey = f.key"
+          @touchend="pressedKey = ''"
+          @touchcancel="pressedKey = ''"
+          @mousedown="pressedKey = f.key"
+          @mouseup="pressedKey = ''"
+          @mouseleave="pressedKey = ''"
+          @tap="f.action"
+        >
+          <view class="feature-card-icon">
+            <IconSvg :name="f.icon" :size="44" color="var(--color-primary)" />
+            <text v-if="f.key === 'activity'" class="feature-card-tag">新</text>
+          </view>
+          <text class="feature-card-label">{{ f.label }}</text>
+        </view>
+      </view>
+
+      <!-- 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部方块卡；需认证入口不置灰，点击弹认证引导） -->
       <view class="entry-group">
         <view
           v-for="e in entryItems"
@@ -61,6 +86,11 @@
           </view>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
         </view>
+      </view>
+
+      <!-- 版本号 footer：构建期注入（vite.config.ts 读取 manifest versionName） -->
+      <view class="app-version">
+        <text class="app-version-text">知行食记 v{{ appVersion }}</text>
       </view>
     </scroll-view>
 
@@ -99,6 +129,8 @@ const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
 /** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
 const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
 const pressedKey = ref('')
+/** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
+const appVersion = __APP_VERSION__
 
 // 是否从首页头像 navigateTo 进入（带 ?from=home），是则显示返回箭头
 const showBack = ref(false)
@@ -133,13 +165,16 @@ function onUserCardTap() {
   uni.navigateTo({ url: '/pages/user/profile-edit/index' })
 }
 
-/** 我的入口：系统通知 / 我发布的 / 最新活动 / 意见反馈 / 关于我们
- *  最新活动（2026-08-19）：恢复入口展示，功能暂未实现，点击提示 */
+/** 功能凸显区块：意见反馈 / 最新活动（community-review-redesign 抽离至顶部高亮，区别于常规入口） */
+const featuredItems = [
+  { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/standalone/feedback/index' }) },
+]
+
+/** 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部凸显区块） */
 const entryItems = [
   { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
   { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/user/my-moments/index' })) },
-  { key: 'activity', icon: 'broadcast', label: '最新活动', authLocked: false, action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
-  { key: 'feedback', icon: 'report', label: '意见反馈', authLocked: false, action: () => uni.navigateTo({ url: '/pages/standalone/feedback/index' }) },
   { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/standalone/about/index' }) },
 ]
 
@@ -165,16 +200,66 @@ const entryItems = [
 .user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 112rpx; height: 112rpx; }
-.avatar { width: 112rpx; height: 112rpx; border-radius: 16rpx; overflow: hidden; background: var(--bg-soft); }
+.avatar { width: 112rpx; height: 112rpx; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.nickname { font-size: var(--font-card); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nickname { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 未认证角标：锁图标 + 「未认证」小字 */
 .verify-badge { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: var(--radius-pill); background: var(--color-primary-soft); }
-.verify-badge-text { font-size: 20rpx; color: var(--color-primary); font-weight: var(--weight-semibold); }
+.verify-badge-text { font-size: var(--font-tiny); color: var(--color-primary); font-weight: var(--weight-semibold); }
 .card-arrow { flex-shrink: 0; }
+
+/* 功能方块卡（网格 2 列，区别于下方常规列表，视觉分层） */
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
+}
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.feature-card.pressed { background-color: var(--bg-soft); }
+.feature-card.pressed:active { transform: scale(var(--press-scale)); }
+.feature-card-icon {
+  position: relative;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.feature-card-tag {
+  position: absolute;
+  top: -10rpx;
+  right: -10rpx;
+  font-size: var(--font-tiny);
+  color: var(--bg-card);
+  background: var(--color-error);
+  border-radius: var(--radius-pill);
+  padding: 2rpx 10rpx;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+.feature-card-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+
+/* 版本号 footer */
+.app-version { display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg) 0 calc(var(--spacing-xl) + env(safe-area-inset-bottom)); }
+.app-version-text { font-size: var(--font-tiny); color: var(--text-tertiary); }
 
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
 .entry-group {
@@ -199,7 +284,7 @@ const entryItems = [
 .entry-icon { flex-shrink: 0; }
 .entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 需认证入口的未认证弱标识（不置灰） */
-.entry-lock { flex-shrink: 0; font-size: 20rpx; color: var(--text-tertiary); font-weight: var(--weight-semibold); }
+.entry-lock { flex-shrink: 0; font-size: var(--font-tiny); color: var(--text-tertiary); font-weight: var(--weight-semibold); }
 .entry-arrow { flex-shrink: 0; }
 
 /* 系统通知未读红点角标 */
@@ -208,17 +293,17 @@ const entryItems = [
   min-width: 32rpx;
   height: 32rpx;
   padding: 0 8rpx;
-  border-radius: 16rpx;
+  border-radius: var(--radius-xs);
   background: var(--color-error);
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
 }
-.entry-badge-text { font-size: 20rpx; color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
+.entry-badge-text { font-size: var(--font-tiny); color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .entry-row { transition: none; }
-  .user-card:active, .entry-row.pressed:active { transform: none; }
+  .user-card, .entry-row, .feature-card { transition: none; }
+  .user-card:active, .entry-row.pressed:active, .feature-card.pressed:active { transform: none; }
 }
 </style>

@@ -304,7 +304,7 @@
 
       <!-- 提交反馈（表单最下方，随内容滚动） -->
       <view class="submit-area">
-        <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @click="submit" />
+        <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @press="submit" />
       </view>
     </scroll-view>
 
@@ -1357,7 +1357,7 @@ onLoad(async (opts?: Record<string, string>) => {
   box-sizing: border-box;
 }
 .loc-sheet.open { transform: translateY(0); }
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
+.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .sheet-head-left { display: flex; align-items: center; gap: var(--spacing-xs); }
 .sheet-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
@@ -1409,7 +1409,7 @@ onLoad(async (opts?: Record<string, string>) => {
 }
 .sheet-goto-add:active { transform: scale(var(--press-scale)); }
 .sheet-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== 哪里不对：每项一行（左侧选项 + 右侧编辑区，不嵌套） ===== */

@@ -70,11 +70,11 @@ function onImgLoad(idx: number) {
   background: var(--bg-page);
   opacity: 0;
   filter: blur(12px);
-  transform: scale(1.04);
+  transform: scale(var(--scale-image-zoom));
   transition: opacity var(--duration-slow) var(--ease-out), filter var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
 }
 /* 加载完成：由模糊放大淡入至清晰；reduced-motion 下直接显示 */
-.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); transform: scale(1); }
+.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); transform: scale(var(--scale-rest)); }
 @media (prefers-reduced-motion: reduce) {
   .image-swiper-img { opacity: 1; filter: none; transform: none; transition: none; }
 }
@@ -87,7 +87,7 @@ function onImgLoad(idx: number) {
   background: var(--bg-page);
 }
 .placeholder-icon {
-  font-size: 80rpx;
+  font-size: var(--icon-3xl);
   line-height: 1;
 }
 </style>

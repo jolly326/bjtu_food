@@ -70,9 +70,9 @@ function onUseful() {
    透明边框占位保证激活时变边框不跳高；「有用」激活态统一用点赞色 --color-like（与列表/评论语义一致） */
 .interact-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); box-sizing: border-box; transition: transform var(--duration-fast) ease, background var(--duration-fast) ease, border-color var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .interact-btn:active { transform: scale(var(--press-scale)); }
-.interact-icon { font-size: 28rpx; line-height: 1; color: var(--text-secondary); }
+.interact-icon { font-size: var(--font-body); line-height: 1; color: var(--text-secondary); }
 /* 有用在途指示（受控锁视觉，用 --color-like 与激活态一致） */
-.interact-spinner { width: 22rpx; height: 22rpx; border: 3rpx solid var(--color-like-soft); border-top-color: var(--color-like); border-radius: 50%; animation: interact-spin 0.7s linear infinite; }
+.interact-spinner { width: 22rpx; height: 22rpx; border: 3rpx solid var(--color-like-soft); border-top-color: var(--color-like); border-radius: var(--radius-circle); animation: interact-spin 0.7s linear infinite; }
 @keyframes interact-spin { to { transform: rotate(360deg); } }
 .interact-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); }
 .interact-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }

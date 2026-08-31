@@ -77,9 +77,11 @@ function listOf<T>(res: PageResult<T> | undefined): T[] {
   return res.list || res.records || []
 }
 
-/** 社区广场列表 / 关联过滤（PUB） */
+/** 社区广场列表 / 关联过滤（PUB）
+ * tab：'latest' 最新（默认） / 'hot' 最热（community-discovery 新增，确定性计数排序）。
+ * 'recommend' 为历史值，后端暂等价 latest，保留以兼容旧调用。 */
 export async function getMoments(params: {
-  tab?: 'latest' | 'recommend'
+  tab?: 'latest' | 'hot' | 'recommend'
   dishId?: number
   stallId?: number
   canteenId?: number

@@ -67,7 +67,7 @@ function goToDetail(dish: { id: number }) {
     height: 28rpx;
     border: 3rpx solid var(--border-color);
     border-top-color: var(--color-primary);
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     animation: spin 0.8s linear infinite;
   }
 
@@ -91,7 +91,7 @@ function goToDetail(dish: { id: number }) {
 
   .empty-tip {
     margin-top: var(--spacing-sm);
-    font-size: var(--font-subheading);
+    font-size: var(--font-subtitle);
     color: var(--text-primary);
   }
 

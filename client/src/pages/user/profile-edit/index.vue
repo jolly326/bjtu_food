@@ -45,7 +45,7 @@
 
     <!-- 保存（固定底部，与其他表单页一致） -->
     <view class="submit-bar">
-      <AppButton text="保存" type="primary" :loading="saving" @click="save" />
+      <AppButton text="保存" type="primary" :loading="saving" @press="save" />
     </view>
   </view>
 </template>
@@ -160,7 +160,7 @@ async function save() {
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像（112rpx/24rpx）一致。
    可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
-.avatar { width: 104rpx; height: 104rpx; border-radius: 24rpx; background: var(--bg-page); transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
+.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
 .avatar.uploading { opacity: 0.55; }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .info-row.info-tappable:active .avatar { transform: scale(var(--press-scale)); }

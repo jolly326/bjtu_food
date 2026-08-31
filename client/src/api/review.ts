@@ -64,7 +64,9 @@ export async function submitReview(data: ReviewSubmit): Promise<void> {
     rating: data.rating,
     content: data.content,
     images: data.images || [],
-    shareToMoment: !!data.shareToMoment,
+    // 拆改后评价不再同步为动态（home-ui 之后 community-review-redesign 要求动态/评价隔离）
+    tags: data.tags || [],
+    shareToMoment: false,
   })
 }
 

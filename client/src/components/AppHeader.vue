@@ -1,16 +1,7 @@
 <template>
-  <!-- 首页：筛选 chip（替代头像框）+ 整行搜索框，朱砂红底，右上角留空避让胶囊 -->
+  <!-- 首页头部：仅含搜索框（全宽，避让胶囊）。筛选 chip 已拆为独立 HomeFilterChip 组件，由父级在 header 之下渲染 -->
   <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
-    <view class="home-row" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
-      <view
-        class="filter-chip"
-        @tap="$emit('filter')"
-        role="button"
-        :aria-label="filterLabel"
-      >
-        <IconSvg name="filter" :size="'18px'" color="var(--color-on-primary)" />
-        <text class="filter-chip-text">{{ filterLabel }}</text>
-      </view>
+    <view class="home-nav" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
       <view class="home-search" @tap="$emit('search')" role="search" :aria-label="searchPlaceholder">
         <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="home-search-icon" />
         <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
@@ -40,13 +31,11 @@ import { ref, computed, watch, onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
-  /** home=首页两行头部；默认=二级页返回箭头+标题 */
+  /** home=首页头部（仅搜索框）；默认=二级页返回箭头+标题 */
   variant?: 'home' | 'default'
   title?: string
   /** 首页头像（可选） */
   avatar?: string
-  /** 首页筛选 chip：当前选中食堂名（空 = 全部），超长以 ... 省略 */
-  selectedCanteen?: string
   /** 首页搜索框占位 */
   searchPlaceholder?: string
   /** 深色模式（仅影响无背景变量时的兜底） */
@@ -57,7 +46,6 @@ const props = withDefaults(defineProps<{
   variant: 'default',
   title: '',
   avatar: '',
-  selectedCanteen: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
   dark: false,
   showBack: true,
@@ -67,11 +55,7 @@ const emit = defineEmits<{
   (e: 'back'): void
   (e: 'avatar'): void
   (e: 'search'): void
-  (e: 'filter'): void
 }>()
-
-/** 筛选 chip 文案：选中食堂显示「筛选 · 食堂名」，未选仅「筛选」 */
-const filterLabel = computed(() => (props.selectedCanteen ? `筛选 · ${props.selectedCanteen}` : '筛选'))
 
 const statusBarHeight = ref(20)
 const navBarHeight = ref(56)
@@ -166,43 +150,18 @@ function handleBack() {
   white-space: nowrap;
 }
 
-/* ===== 首页单行星胶囊头部（头像 + 搜索框，朱砂红底） ===== */
+/* ===== 首页两行头部（朱砂红底）：行1 搜索 / 行2 筛选 ===== */
 .header-wrap.home {
   background: var(--color-primary);
   border-bottom: none;
-  /* 底部留白：让搜索框/头像与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+home-row 精确定位） */
   padding-bottom: var(--spacing-sm);
 }
-.home-row {
+/* 行1：导航行，高度对齐系统导航栏，右侧避让原生气囊 */
+.home-nav {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
   padding: 0 var(--spacing-lg);
   box-sizing: border-box;
-}
-.filter-chip {
-  flex-shrink: 0;
-  /* 限定最大宽度，保证右侧搜索框尺寸一致、不被挤压；超长食堂名以 ... 省略 */
-  max-width: 46%;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: var(--capsule-h, 32px);
-  padding: 0 var(--spacing-md);
-  /* 红色头部上的半透明白底胶囊，保证可见性（避免裸 hex，使用 rgba 叠白） */
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-pill);
-  -webkit-tap-highlight-color: transparent;
-  transition: var(--press-transition);
-}
-.filter-chip:active { transform: scale(var(--press-scale)); }
-.filter-chip-text {
-  font-size: var(--font-body);
-  color: var(--color-on-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
 .home-search {
   flex: 1;

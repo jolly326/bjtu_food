@@ -208,7 +208,7 @@ onShareAppMessage(() => buildSharePayload())
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); animation: spin 0.8s linear infinite; }
 .footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -216,14 +216,15 @@ onShareAppMessage(() => buildSharePayload())
   .footer-spinner { animation: none; }
 }
 
-/* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充 */
+/* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充。
+   bottom 须叠加 --tabbar-height，否则被常驻 TabBar 盖住下半截（红线 §4.9 布局） */
 .fab-publish {
   position: fixed;
   right: var(--spacing-lg);
-  bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-lg));
   width: 112rpx;
   height: 112rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--color-primary);
   box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.22);
   display: flex;
@@ -233,5 +234,5 @@ onShareAppMessage(() => buildSharePayload())
   transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.fab-publish:active { transform: scale(0.92); opacity: 0.85; }
+.fab-publish:active { transform: scale(var(--press-scale)); opacity: 0.85; }
 </style>

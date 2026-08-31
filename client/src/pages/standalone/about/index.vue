@@ -80,7 +80,7 @@ if (typeof window !== 'undefined') {
 .logo {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 32rpx;
+  border-radius: var(--radius-card);
   background: var(--color-primary-soft);
   display: flex;
   align-items: center;
@@ -107,7 +107,7 @@ if (typeof window !== 'undefined') {
   gap: var(--spacing-sm);
 }
 .card-title {
-  font-size: var(--font-card);
+  font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
@@ -126,7 +126,7 @@ if (typeof window !== 'undefined') {
 .dot {
   width: 10rpx;
   height: 10rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--color-primary);
   flex-shrink: 0;
 }

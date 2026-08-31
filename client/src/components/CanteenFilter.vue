@@ -74,7 +74,7 @@ const theme = useThemeStore()
   to { opacity: 1; }
 }
 .cf-title {
-  font-size: var(--font-subheading);
+  font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);
   color: var(--color-on-primary-surface);
   padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-md);
@@ -95,7 +95,7 @@ const theme = useThemeStore()
   background: rgba(255, 255, 255, 0.16);
 }
 .cf-name {
-  font-size: var(--font-card);
+  font-size: var(--font-subtitle);
   color: var(--color-on-primary-surface);
   min-width: 0;
 }

@@ -79,7 +79,7 @@ function onLongPress() {
 .comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .comment-item.pressed { transform: scale(var(--press-scale)); }
 .comment-item:last-child { border-bottom: none; }
-.c-avatar { width: 60rpx; height: 60rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
+.c-avatar { width: 60rpx; height: 60rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .c-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .c-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .c-head { display: flex; align-items: baseline; flex-wrap: wrap; }

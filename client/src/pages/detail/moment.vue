@@ -552,7 +552,7 @@ onLoad((query) => {
 .detail-skeleton { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { padding: var(--spacing-md); border-radius: var(--radius-modal); background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .sk-head { display: flex; align-items: center; gap: var(--spacing-sm); }
-.sk-avatar { width: 72rpx; height: 72rpx; border-radius: 16rpx; flex-shrink: 0; }
+.sk-avatar { width: 72rpx; height: 72rpx; border-radius: var(--radius-xs); flex-shrink: 0; }
 .sk-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .sk-line { height: 28rpx; border-radius: var(--radius-tag); }
 .w-90 { width: 90%; }
@@ -571,26 +571,26 @@ onLoad((query) => {
 /* 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡；评论区单独一张卡 */
 .m-card { margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
-.m-avatar { width: 72rpx; height: 72rpx; border-radius: 16rpx; background: var(--bg-page); flex-shrink: 0; }
+.m-avatar { width: 72rpx; height: 72rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 /* 作者行：详情页字号略大于列表卡（caption 30rpx），字重与列表统一 bold，突出作者层级 */
 .m-nickname { font-size: var(--font-caption); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
 .m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); }
-.m-audit-text { font-size: 20rpx; font-weight: var(--weight-bold); }
+.m-audit-text { font-size: var(--font-tiny); font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
 .audit-rejected { background: var(--color-error-soft); }
 .audit-rejected .m-audit-text { color: var(--color-error); }
 .m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
 .m-images { margin-top: var(--spacing-sm); }
-.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: 0; box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: var(--radius-none); box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .related-card:active { transform: scale(var(--press-scale)); }
 /* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
-.related-icon { font-size: 32rpx; line-height: 1; }
+.related-icon { font-size: var(--font-subtitle); line-height: 1; }
 /* 圆角正方形菜品缩略图（与动态卡片 m-related-thumb 统一） */
-.related-thumb { width: 64rpx; height: 64rpx; border-radius: 14rpx; background: var(--bg-page); flex-shrink: 0; }
+.related-thumb { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .related-thumb--empty { display: flex; align-items: center; justify-content: center; }
 .related-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .related-type { font-size: var(--font-aux); color: var(--text-tertiary); }
@@ -599,7 +599,7 @@ onLoad((query) => {
 /* 关联菜品星级：与动态卡片一致（--color-star 金黄） */
 .related-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
 .related-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-.related-arrow { font-size: 28rpx; color: var(--text-tertiary); }
+.related-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .reject-title { display: block; font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-error); margin-bottom: var(--spacing-xs); }
 .reject-reason { display: block; font-size: var(--font-body); color: var(--color-error); line-height: 1.5; }
@@ -620,22 +620,22 @@ onLoad((query) => {
    原实现把背景换成 --bg-card（白）——输入 @ 触发聚焦后输入框瞬间变白，且与上方 mention-pop 白卡片、
    底部栏白底融为一体，视觉层次丢失（Apple 输入框聚焦保持背景一致） */
 .comment-input-box.focused { border-color: var(--color-primary); }
-.comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: 32rpx; color: var(--text-primary); }
+.comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-subtitle); color: var(--text-primary); }
 .comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }
-.comment-send-text { font-size: 32rpx; line-height: 1; color: var(--color-on-primary); }
+.comment-send-text { font-size: var(--font-subtitle); line-height: 1; color: var(--color-on-primary); }
 .comment-send-text.spin { animation: comment-spin 0.8s linear infinite; }
 @keyframes comment-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% + 8rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
 .mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
 .mention-item:active { background: var(--bg-soft); }
-.mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: 30rpx; }
-.mention-name { font-size: 30rpx; color: var(--text-primary); }
+.mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: var(--font-caption); }
+.mention-name { font-size: var(--font-caption); color: var(--text-primary); }
 .mention-empty { padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); }
 .mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-drawer); }
-.mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(0.96); }
-.mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(1); }
+.mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(var(--scale-enter-sm)); }
+.mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(var(--scale-rest)); }
 
 /* reduced-motion 降级：去位移/弹性过冲，保留透明度交叉淡入 */
 @media (prefers-reduced-motion: reduce) {
