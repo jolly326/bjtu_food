@@ -78,10 +78,10 @@ function listOf<T>(res: PageResult<T> | undefined): T[] {
 }
 
 /** 社区广场列表 / 关联过滤（PUB）
- * tab：'latest' 最新（默认） / 'hot' 最热（community-discovery 新增，确定性计数排序）。
- * 'recommend' 为历史值，后端暂等价 latest，保留以兼容旧调用。 */
+ * tab：'latest' 最新（默认） / 'hot' 最热（community-discovery，确定性计数排序）。
+ * 'recommend' 已彻底移除（R1 裁决：后端不保留、前端无入口）。 */
 export async function getMoments(params: {
-  tab?: 'latest' | 'hot' | 'recommend'
+  tab?: 'latest' | 'hot'
   dishId?: number
   stallId?: number
   canteenId?: number
@@ -99,6 +99,25 @@ export async function getMoments(params: {
   const res = await get<PageResult<any>>('/moments', query)
   const raw = listOf(res).map(toMoment).filter(Boolean) as Moment[]
   return { list: raw, total: res?.total ?? raw.length }
+}
+
+/** 热门动态排行榜（PUB，community-discovery R3）
+ * 独立端点 GET /moments/ranking，响应为裸 List<MomentVO>（非分页）。
+ * limit 默认 10（上限 50 由后端钳制，前端仅传参）；dishId/stallId/canteenId 可选关联过滤。
+ * 排序与 hot Tab 同公式（usefulCount*2 + commentCount DESC, createdAt DESC），取前 limit。 */
+export async function getMomentRanking(params?: {
+  limit?: number
+  dishId?: number
+  stallId?: number
+  canteenId?: number
+}): Promise<Moment[]> {
+  const query: Record<string, any> = {}
+  if (params?.limit != null) query.limit = params.limit
+  if (params?.dishId != null) query.dishId = params.dishId
+  if (params?.stallId != null) query.stallId = params.stallId
+  if (params?.canteenId != null) query.canteenId = params.canteenId
+  const res = await get<any[]>('/moments/ranking', query)
+  return (res || []).map(toMoment).filter(Boolean) as Moment[]
 }
 
 /** 动态详情（PUB，作者本人可见 rejectReason） */

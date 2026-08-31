@@ -15,12 +15,30 @@ import java.util.List;
 public interface MomentMapper extends BaseMapper<Moment> {
 
     /**
-     * 公开广场列表（仅 approved + status=0），支持 dishId/stallId/canteenId 关联过滤
+     * 公开广场列表（仅 approved + status=0），支持 dishId/stallId/canteenId 关联过滤，按 created_at desc
      */
     IPage<MomentVO> selectPublicPage(Page<?> page,
                                      @Param("dishId") Long dishId,
                                      @Param("stallId") Long stallId,
                                      @Param("canteenId") Long canteenId);
+
+    /**
+     * 公开广场列表「最热」排序（仅 approved + status=0），支持关联过滤。
+     * 排序 (useful_count*2 + comment_count) DESC, created_at DESC（R2）。
+     */
+    IPage<MomentVO> selectPublicPageHot(Page<?> page,
+                                        @Param("dishId") Long dishId,
+                                        @Param("stallId") Long stallId,
+                                        @Param("canteenId") Long canteenId);
+
+    /**
+     * 排行榜裸 List（R3）：仅 approved + status=0，按 R2 公式取前 limit。
+     * dishId/stallId/canteenId 关联过滤同样生效。
+     */
+    List<MomentVO> selectRanking(@Param("limit") int limit,
+                                 @Param("dishId") Long dishId,
+                                 @Param("stallId") Long stallId,
+                                 @Param("canteenId") Long canteenId);
 
     /**
      * 「我的动态」列表（按当前用户 + 可选审核态过滤）

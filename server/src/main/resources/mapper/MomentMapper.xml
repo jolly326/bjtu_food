@@ -35,6 +35,74 @@
         ORDER BY m.created_at DESC
     </select>
 
+    <!-- 公开广场列表（仅 approved + status=0）「最热」排序：
+         (useful_count*2 + comment_count) DESC 同分按 created_at DESC（R2）。
+         dishId/stallId/canteenId 关联过滤与 latest 一致生效。 -->
+    <select id="selectPublicPageHot" resultType="com.bjtufood.moment.dto.MomentVO">
+        SELECT
+            m.id,
+            m.user_id,
+            u.nickname AS user_nickname,
+            u.avatar   AS user_avatar,
+            m.content,
+            m.images   AS images_json,
+            m.related_type,
+            m.related_id,
+            m.audit_status,
+            m.useful_count,
+            m.comment_count,
+            m.status,
+            m.created_at
+        FROM moment m
+                 JOIN user u ON m.user_id = u.id
+        WHERE m.audit_status = 'approved'
+          AND m.status = 0
+        <if test="dishId != null">
+            AND m.related_type = 'dish' AND m.related_id = #{dishId}
+        </if>
+        <if test="stallId != null">
+            AND m.related_type = 'stall' AND m.related_id = #{stallId}
+        </if>
+        <if test="canteenId != null">
+            AND m.related_type = 'stall' AND m.related_id IN (SELECT id FROM stall WHERE canteen_id = #{canteenId})
+        </if>
+        ORDER BY (m.useful_count * 2 + m.comment_count) DESC, m.created_at DESC
+    </select>
+
+    <!-- 排行榜（R3）：基于 moment 既有列表达式排序取前 limit，非分页裸 List。
+         仅 approved + status=0；dishId/stallId/canteenId 关联过滤同样生效。 -->
+    <select id="selectRanking" resultType="com.bjtufood.moment.dto.MomentVO">
+        SELECT
+            m.id,
+            m.user_id,
+            u.nickname AS user_nickname,
+            u.avatar   AS user_avatar,
+            m.content,
+            m.images   AS images_json,
+            m.related_type,
+            m.related_id,
+            m.audit_status,
+            m.useful_count,
+            m.comment_count,
+            m.status,
+            m.created_at
+        FROM moment m
+                 JOIN user u ON m.user_id = u.id
+        WHERE m.audit_status = 'approved'
+          AND m.status = 0
+        <if test="dishId != null">
+            AND m.related_type = 'dish' AND m.related_id = #{dishId}
+        </if>
+        <if test="stallId != null">
+            AND m.related_type = 'stall' AND m.related_id = #{stallId}
+        </if>
+        <if test="canteenId != null">
+            AND m.related_type = 'stall' AND m.related_id IN (SELECT id FROM stall WHERE canteen_id = #{canteenId})
+        </if>
+        ORDER BY (m.useful_count * 2 + m.comment_count) DESC, m.created_at DESC
+        LIMIT #{limit}
+    </select>
+
     <!-- 我的动态列表（按用户 + 可选审核态） -->
     <select id="selectMyMoments" resultType="com.bjtufood.moment.dto.MomentVO">
         SELECT

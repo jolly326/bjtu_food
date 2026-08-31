@@ -37,10 +37,10 @@ public class MomentController {
 
     private final MomentService momentService;
 
-    @Operation(summary = "社区广场列表", description = "PUB。仅返回 approved 且 status=0。支持 dishId/stallId 关联过滤，canteenId 按食堂下全部档口聚合。tab 预留（recommend 暂等价 latest）。")
+    @Operation(summary = "社区广场列表", description = "PUB。仅返回 approved 且 status=0。支持 dishId/stallId 关联过滤，canteenId 按食堂下全部档口聚合。tab=latest（默认，按 created_at desc）/ tab=hot（按 useful_count*2+comment_count 降序）。非法 tab（含历史 recommend）回退 latest，不打错误码。")
     @GetMapping("/moments")
     public Result<PageResult<MomentVO>> list(
-            @Parameter(description = "排序：recommend/latest（默认 latest）", example = "latest")
+            @Parameter(description = "排序：latest/hot（默认 latest，非法值回退 latest）", example = "latest")
             @RequestParam(defaultValue = "latest") String tab,
             @Parameter(description = "关联菜品ID过滤", example = "1")
             @RequestParam(required = false) Long dishId,
@@ -50,8 +50,26 @@ public class MomentController {
             @RequestParam(required = false) Long canteenId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
+        // R1：tab 仅接受 latest/hot，非法值（含历史 recommend）统一回退 latest，不打错误码
+        if (!"latest".equals(tab) && !"hot".equals(tab)) {
+            tab = "latest";
+        }
         IPage<MomentVO> result = momentService.publicList(tab, dishId, stallId, canteenId, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
+    }
+
+    @Operation(summary = "热门排行榜（社区发现）", description = "PUB（独立端点）。返回 Top N 热门动态裸 List（非分页），排序同 hot：useful_count*2+comment_count 降序，取前 limit。仅 approved 且 status=0。dishId/stallId/canteenId 可选过滤。")
+    @GetMapping("/moments/ranking")
+    public Result<List<MomentVO>> ranking(
+            @Parameter(description = "返回条数（默认 10，上限 50，后端钳制）", example = "10")
+            @RequestParam(defaultValue = "10") int limit,
+            @Parameter(description = "关联菜品ID过滤", example = "1")
+            @RequestParam(required = false) Long dishId,
+            @Parameter(description = "关联档口ID过滤", example = "1")
+            @RequestParam(required = false) Long stallId,
+            @Parameter(description = "关联食堂ID过滤（按该食堂下全部档口聚合）", example = "1")
+            @RequestParam(required = false) Long canteenId) {
+        return Result.success(momentService.getRanking(limit, dishId, stallId, canteenId));
     }
 
     @Operation(summary = "动态详情", description = "PUB。作者本人可见 rejectReason。")

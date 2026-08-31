@@ -2,6 +2,8 @@ package com.bjtufood.moment.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.moment.dto.MomentCommentReq;
+
+import java.util.List;
 import com.bjtufood.moment.dto.MomentCommentVO;
 import com.bjtufood.moment.dto.MomentPublishReq;
 import com.bjtufood.moment.dto.MomentUsefulResult;
@@ -13,9 +15,18 @@ import com.bjtufood.moment.dto.MomentVO;
 public interface MomentService {
 
     /**
-     * 公开广场列表（仅 approved + status=0），支持 dishId/stallId 关联过滤，分页
+     * 公开广场列表（仅 approved + status=0），支持 dishId/stallId/canteenId 关联过滤，分页。
+     * tab 取值：latest（默认，created_at desc）/ hot（R2：(useful_count*2+comment_count) DESC, created_at DESC）。
+     * 非法 tab（含历史 recommend）由 Controller 层回退为 latest。
      */
     IPage<MomentVO> publicList(String tab, Long dishId, Long stallId, Long canteenId, int page, int pageSize);
+
+    /**
+     * 热门排行榜（R3）：PUB 端点 GET /moments/ranking。
+     * 仅 approved + status=0，按 R2 公式取前 limit，非分页裸 List。
+     * dishId/stallId/canteenId 关联过滤可选。
+     */
+    List<MomentVO> getRanking(int limit, Long dishId, Long stallId, Long canteenId);
 
     /**
      * 动态详情（作者本人可见 rejectReason）

@@ -65,14 +65,46 @@ public class MomentServiceImpl implements MomentService {
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
 
+    /**
+     * 缓存键命名（D-4 Caffeine 60s TTL + 写失效）：
+     * - publicList 按 tab 区分：latest / hot 各自独立键（被过滤参数纳入 key，避免跨过滤串味）。
+     * - ranking 独立键（按 limit + 过滤条件）。
+     */
+    private static final String CACHE_LATEST = "momentList:latest";
+    private static final String CACHE_HOT = "momentList:hot";
+    private static final String CACHE_RANKING = "momentRanking";
+
     @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = CACHE_LATEST,
+            key = "#dishId + ':' + #stallId + ':' + #canteenId + ':' + #page + ':' + #pageSize",
+            unless = "#result == null")
     public IPage<MomentVO> publicList(String tab, Long dishId, Long stallId, Long canteenId, int page, int pageSize) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
-        // recommend 暂等价 latest（三期关注流预留参数位），均按 created_at desc
-        IPage<MomentVO> result = momentMapper.selectPublicPage(new Page<>(page, pageSize), dishId, stallId, canteenId);
+        // R1：tab 仅 latest/hot，非法值（含历史 recommend）由 Controller 回退为 latest，此处只认 latest/hot
+        boolean hot = "hot".equals(tab);
+        IPage<MomentVO> result;
+        if (hot) {
+            result = momentMapper.selectPublicPageHot(new Page<>(page, pageSize), dishId, stallId, canteenId);
+        } else {
+            result = momentMapper.selectPublicPage(new Page<>(page, pageSize), dishId, stallId, canteenId);
+        }
         result.setRecords(enrichBatch(result.getRecords()));
         return result;
+    }
+
+    @Override
+    @org.springframework.cache.annotation.Cacheable(
+            cacheNames = CACHE_RANKING,
+            key = "#limit + ':' + #dishId + ':' + #stallId + ':' + #canteenId",
+            unless = "#result == null")
+    public List<MomentVO> getRanking(int limit, Long dishId, Long stallId, Long canteenId) {
+        // R3：limit 后端钳制（默认 10，上限 50），PageUtil 已对 >100 截断，此处额外收紧上限到 50
+        int[] norm = com.bjtufood.common.util.PageUtil.normalize(1, limit);
+        int safeLimit = Math.min(norm[1], 50);
+        List<MomentVO> list = momentMapper.selectRanking(safeLimit, dishId, stallId, canteenId);
+        return enrichBatch(list);
     }
 
     @Override
@@ -109,6 +141,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public Long publish(Long userId, MomentPublishReq req) {
         validateRelated(req);
@@ -125,6 +158,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public Long publishFromReview(Long userId, String content, List<String> images, Long dishId) {
         // 评价与动态打通：评价可见即动态可见（approved 直接上广场，无需后台审核）
@@ -153,6 +187,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void updateMoment(Long id, Long userId, MomentPublishReq req) {
         Moment m = momentMapper.selectById(id);
@@ -168,6 +203,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void deleteMoment(Long id, Long userId) {
         Moment m = momentMapper.selectById(id);
@@ -181,6 +217,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public MomentUsefulResult toggleUseful(Long momentId, Long userId) {
         Moment m = momentMapper.selectById(momentId);
@@ -230,6 +267,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public Long comment(Long momentId, Long userId, MomentCommentReq req) {
         Moment m = momentMapper.selectById(momentId);
@@ -331,6 +369,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void deleteComment(Long momentId, Long commentId, Long userId) {
         MomentComment c = momentCommentMapper.selectById(commentId);
@@ -353,6 +392,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long id) {
         Moment m = momentMapper.selectById(id);
@@ -364,6 +404,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, String rejectReason) {
         if (!StringUtils.hasText(rejectReason)) {
@@ -406,6 +447,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void hide(Long id) {
         Moment m = momentMapper.selectById(id);
@@ -415,6 +457,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public void adminDelete(Long id) {
         Moment m = momentMapper.selectById(id);
