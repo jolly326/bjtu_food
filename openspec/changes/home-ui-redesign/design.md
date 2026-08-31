@@ -22,7 +22,7 @@
 ## Decisions
 
 - **D1 — 自定义 TabBar + reLaunch（非原生 tabBar）**
-  采用新增 `components/TabBar.vue` 自定义组件，点击 `uni.reLaunch` 到目标主根页（重置栈、避免叠加历史），active 态由 `getCurrentPages()` 路由路径推导。
+  采用新增 `components/TabBar.vue` 自定义组件，点击 `uni.reLaunch` 到目标主根页（重置栈、避免叠加历史）。active 态与显隐由共享路由 store（`stores/route.ts` 的 `activeTab`/`tabVisible`）驱动；各主包页 `onShow` 中调用 `showTab('home'|'community'|'profile')` 锚定当前页，并在 `navigateTo`/`reLaunch` 等跳转拦截器的 `invoke` 时机按目标 URL 预置显隐，避免依赖 `getCurrentPages()` 的时序竞态（栈未就绪时会永久隐藏菜单栏）。
   *替代方案*：原生 `pages.json` tabBar。但原生 tabBar 要求 home/community/profile 为 tab 页，会破坏现有大量 `navigateTo` 调用方（详情/活动/反馈等），且受原生样式限制，与项目「无原生 tabBar」约定相悖。因此选自定义方案，非破坏性。
 
 - **D2 — 红色下拉复用 `--color-primary` token**

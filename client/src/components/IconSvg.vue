@@ -16,12 +16,12 @@ import { computed } from 'vue'
  *  - 全部图标为线性 SVG（24px 网格、2px 描边、圆角端点一致），替代 Unicode emoji。
  *  - 通过 stroke 注入颜色，支持随主题 / 语义变色（如喜欢=红）。
  *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
- *    真机零加载、可变色；源文件同时落 frontend/src/assets/icons/* 备查登记。
+ *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
  *
  * 用法：<IconSvg name="heart" :size="32" color="var(--color-like)" />
  */
 
-// 24px 网格下各图标 path（与 frontend/src/assets/icons/*.svg 内容一致）
+// 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
   heart: { path: ['M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'] },
   // 实心喜欢（填充红，E16）：与 heart 同形，fill 实心渲染

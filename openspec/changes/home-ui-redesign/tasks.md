@@ -6,7 +6,7 @@
 ## 1. 底部菜单栏 TabBar（capability: tab-bar）
 
 - [x] 1.1 新增 `client/src/components/TabBar.vue`：三项目录（首页/社区/我的），使用 `IconSvg`（home/community/profile）+ 文字标签；active 态由 `getCurrentPages()` 路由路径推导；事件用 `@tap`、按压 `scale(var(--press-scale))`、active 用语义 token、支持 `prefers-reduced-motion`。
-- [x] 1.2 在 `App.vue` 全局挂载 TabBar，按当前路由控制仅在 home/community/profile 主根页显示（二级页隐藏）。验证三主根页可见、二级页不出现。
+- [x] 1.2 在 `pages/home`、`pages/community`、`pages/profile` 三个主包页模板内各自挂载 `<TabBar/>`；显隐与高亮由 `stores/route.ts`（`tabVisible` + `showTab()`）控制，仅在 home/community/profile 主根页显示（二级页不挂载即不出现）。验证三主根页可见、二级页不出现。
 - [x] 1.3 接 tab 点击 → `uni.reLaunch` 到对应主根页（home/community/profile），验证跳转 + active 高亮正确、原栈重置。
 - [x] 1.4 回归：验证既有 `navigateTo` 二级页流程（详情/活动/反馈/编辑等）不受影响，返回后首页 TabBar 正常。
 
@@ -17,7 +17,7 @@
 
 ## 3. 红色食堂筛选下拉（capability: home-filter）
 
-- [x] 3.1 新增食堂筛选下拉组件 `components/CanteenFilter.vue`：面板背景用 `--color-primary-surface` token、与 header 同红色块且零间隙紧贴；列出 `dishStore.canteenList` 选项 + 「全部」；点击外部遮罩关闭；`prefers-reduced-motion` 降级（仅透明度淡入，无位移过冲）。验证展开/收起与视觉衔接。
+- [x] 3.1 新增食堂筛选下拉组件 `components/CanteenFilter.vue`：面板背景用 `--color-primary` token（与 spec/design D2 一致）、与 header 同红色块且零间隙紧贴；列出 `dishStore.canteenList` 选项 + 「全部」；点击外部遮罩关闭；`prefers-reduced-motion` 降级（仅透明度淡入，无位移过冲）。验证展开/收起与视觉衔接。
 - [x] 3.2 选中食堂 → 设置 `selectedCanteenId`（null=全部）并关闭下拉；内容区随之过滤。验证选中 X 仅显示 X、选「全部」恢复全部。
 
 ## 4. 内容区按食堂过滤（capability: home-filter）
