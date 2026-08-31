@@ -66,16 +66,21 @@
 
     <!-- 认证弹层：游客点击需认证功能时弹出 -->
     <AuthSheet />
+
+    <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
+    <TabBar />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
@@ -105,6 +110,8 @@ onLoad((q) => {
 
 // 每次进入「我的」刷新未读通知数（红点角标；通知属认证专属，仅认证用户刷新未读数）
 onShow(() => {
+  // 锚定底部菜单栏：我的页始终显示并高亮
+  showTab('profile')
   if (userStore.isVerified()) notifyStore.fetchUnread()
 })
 
@@ -142,7 +149,7 @@ const entryItems = [
 <style scoped>
 .profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 /* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（白底圆角卡 + 轻阴影；圆形头像 + 昵称 + ID；整卡可点；按压背景微变+缩放） */
 .user-card {

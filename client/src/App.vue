@@ -14,7 +14,8 @@ onLaunch(() => {
   }
   // #endif
   // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（verified=false）；有 token 则刷新资料
-  useUserStore().silentLogin();
+  // 失败（如后端不可达）仅打点，不阻断浏览与菜单栏渲染
+  useUserStore().silentLogin().catch(() => {})
 });
 </script>
 <style>
@@ -471,6 +472,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .pressed,
   .filter-enter,
   .m-action,
+  .cf-panel,
   .fab,
   .interact-btn,
   .stall-card-single,
@@ -491,6 +493,8 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   .app-btn,
   .press,
   .pressed,
+  .press-active,
+  .tab-item.press-active,
   .m-action,
   .fab,
   .interact-btn,

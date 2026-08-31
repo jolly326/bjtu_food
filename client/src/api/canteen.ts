@@ -9,6 +9,7 @@ function firstImage(raw: any): string {
 export async function getCanteenList(): Promise<CanteenInfo[]> {
   const rawList = await get<any[]>('/canteens')
   return rawList.map((c: any) => ({
+    id: c.id != null ? Number(c.id) : undefined,
     name: c.name || '',
     location: c.location || c.description || '',
     icon: firstImage(c),

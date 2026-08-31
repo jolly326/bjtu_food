@@ -328,6 +328,11 @@ export const useDishStore = defineStore('dish', () => {
         const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
+      } else if (tab.type === 'canteen' && tab.canteenId != null) {
+        // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，热度序
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
+        rows = withLocalDistance(res.list, false)
+        filterTotal.value = res.total
       } else {
         // recommend：热度分页 + 本地距离升序（前期个性化未实现，回落距离/热度兜底）
         const res = await dishApi.getHotDishesPage(filterPage.value, pageSize)
@@ -369,6 +374,10 @@ export const useDishStore = defineStore('dish', () => {
         filterTotal.value = res.total
       } else if (tab.type === 'tag' && tab.payload) {
         const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize })
+        rows = withLocalDistance(res.list, false)
+        filterTotal.value = res.total
+      } else if (tab.type === 'canteen' && tab.canteenId != null) {
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else {

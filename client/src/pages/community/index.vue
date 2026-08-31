@@ -75,12 +75,17 @@
 
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
     <AuthSheet />
+
+    <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
+    <TabBar />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
+import { showTab } from '@/stores/route'
+import TabBar from '@/components/TabBar.vue'
 import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
@@ -188,13 +193,17 @@ function goPublish() {
 
 onMounted(() => { loadData(true) })
 // 从动态详情返回社区时：清掉详情页的分享残留，避免右上角分享菜单沿用上一条动态
-onShow(() => clearShareState())
+onShow(() => {
+  // 锚定底部菜单栏：社区页始终显示并高亮
+  showTab('community')
+  clearShareState()
+})
 onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>
 .community-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: env(safe-area-inset-bottom); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }
