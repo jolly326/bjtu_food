@@ -27,15 +27,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   /** home=首页头部（仅搜索框）；默认=二级页返回箭头+标题 */
   variant?: 'home' | 'default'
   title?: string
-  /** 首页头像（可选） */
-  avatar?: string
   /** 首页搜索框占位 */
   searchPlaceholder?: string
   /** 深色模式（仅影响无背景变量时的兜底） */
@@ -45,7 +43,6 @@ const props = withDefaults(defineProps<{
 }>(), {
   variant: 'default',
   title: '',
-  avatar: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
   dark: false,
   showBack: true,
@@ -53,19 +50,15 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'back'): void
-  (e: 'avatar'): void
   (e: 'search'): void
 }>()
 
 const statusBarHeight = ref(20)
 const navBarHeight = ref(56)
 const capsuleHeight = ref(32)
-const avatarOk = ref(true)
 // 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
 const isWeChat = ref(false)
 const rightPad = ref('180rpx')
-// 头像地址变化（如切换账号）时重置失效标记，避免沿用上一张的 error 状态
-watch(() => props.avatar, () => { avatarOk.value = true })
 
 onMounted(() => {
   // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync（避免拿不到 statusBarHeight 导致刘海遮挡）

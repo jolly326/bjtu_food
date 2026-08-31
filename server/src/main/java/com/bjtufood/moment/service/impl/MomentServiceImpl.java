@@ -568,9 +568,6 @@ public class MomentServiceImpl implements MomentService {
                     vo.setRelatedName(d != null ? d.getName() : null);
                     List<String> dishImgs = d != null ? imageUrlUtil.parseAndToAbsoluteUrls(d.getImages()) : null;
                     vo.setRelatedImage(dishImgs != null && !dishImgs.isEmpty() ? dishImgs.get(0) : null);
-                    // 关联菜品评分：动态卡片星级展示（与菜品详情口碑同源，评价/动态打通）
-                    vo.setRelatedRating(d != null ? d.getAvgRating() : null);
-                    vo.setRelatedRatingCount(d != null ? d.getRatingCount() : null);
                 } else if (MomentConst.RELATED_STALL.equals(vo.getRelatedType())) {
                     Stall s = stallMap.get(vo.getRelatedId());
                     vo.setRelatedName(s != null ? s.getName() : null);

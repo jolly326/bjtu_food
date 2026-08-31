@@ -2,20 +2,20 @@
   <view class="empty-state">
     <IconSvg :name="icon || 'empty'" :size="120" color="var(--text-tertiary)" class="empty-icon" />
     <text class="empty-text">{{ text }}</text>
-    <view v-if="retry" class="retry-btn" @tap="$emit('retry')">
+    <Pressable v-if="retry" class="retry-btn" :aria-label="'重新加载'" @tap="$emit('retry')">
       <text class="retry-text">重新加载</text>
-    </view>
-    <view v-else-if="actionText" class="action-btn" :class="{ pressed }" @touchstart="pressed = true" @touchend="pressed = false" @touchcancel="pressed = false" @mousedown="pressed = true" @mouseup="pressed = false" @mouseleave="pressed = false" @tap="$emit('action')">
+    </Pressable>
+    <Pressable v-else-if="actionText" class="action-btn" :aria-label="actionText" @tap="$emit('action')">
       <IconSvg v-if="actionIcon" :name="actionIcon" :size="28" color="var(--color-on-primary)" />
       <text class="action-text">{{ actionText }}</text>
-    </view>
+    </Pressable>
     <slot name="action" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import IconSvg from './IconSvg.vue'
+import Pressable from './Pressable.vue'
 
 defineProps<{
   /** 图标名（IconSvg 的 name，如 'comment'）；不传则用默认占位 */
@@ -32,8 +32,6 @@ defineEmits<{
   (e: 'retry'): void
   (e: 'action'): void
 }>()
-
-const pressed = ref(false)
 </script>
 
 <style scoped>

@@ -156,6 +156,14 @@ page {
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
   --shadow-bar-primary: 0 12rpx 28rpx rgba(155, 42, 29, 0.28);
+  /* 动效：补充缓动曲线（global-ui-polish） */
+  --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* 浮起/按下阴影（global-ui-polish：替代裸 rgba 阴影） */
+  --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
+  --shadow-press: 0 1rpx 3rpx rgba(0, 0, 0, 0.12);
+  /* 非按压强调缩放（§4.9：须量化独立 token，禁裸 scale()）：如选中 Tab 指示微放大 */
+  --tab-active-scale: 1.06;
   /* 长条删除按钮（图片移除）暗底白字 */
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
@@ -276,6 +284,9 @@ page {
   --shadow-bar: 0 -4rpx 20rpx rgba(0, 0, 0, 0.4);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.4);
   --shadow-bar-primary: 0 12rpx 28rpx rgba(0, 0, 0, 0.5);
+  /* 浮起/按下阴影（global-ui-polish：深色分支，提升不透明度以适配深底） */
+  --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.5);
+  --shadow-press: 0 1rpx 3rpx rgba(0, 0, 0, 0.4);
 }
 
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
@@ -437,6 +448,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* 主滚动区底部安全留白，避免内容被固定底栏遮挡 */
 .scroll-wrap {
+  min-height: 0;
   padding-bottom: calc(var(--tabbar-height) + 24rpx + env(safe-area-inset-bottom));
 }
 

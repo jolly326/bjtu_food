@@ -1,15 +1,5 @@
 <template>
-  <view
-    class="dish-card"
-    :class="{ pressed }"
-    @touchstart="pressed = true"
-    @touchend="pressed = false"
-    @touchcancel="pressed = false"
-    @mousedown="pressed = true"
-    @mouseup="pressed = false"
-    @mouseleave="pressed = false"
-    @tap="handleClick"
-  >
+  <Pressable class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" @tap="handleClick">
     <view class="card-image">
       <image
         v-if="imgSrc && imgOk"
@@ -50,7 +40,7 @@
         <text v-if="dish.distance != null" class="card-distance">{{ fmtDistance(dish.distance) }}</text>
       </view>
     </view>
-  </view>
+  </Pressable>
 </template>
 
 <script setup lang="ts">
@@ -59,6 +49,7 @@ import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
 import TagLabel from './TagLabel.vue'
+import Pressable from './Pressable.vue'
 
 const props = defineProps<{
   dish: Dish
@@ -69,9 +60,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [dish: Dish]
 }>()
-
-/** 按压反馈：按下时整体缩放到 0.97（跨端兼容，替代小程序不支持的 v-press 指令） */
-const pressed = ref(false)
 
 /** 图片 URL：通过 getImageUrl 处理（兼容相对路径与完整 URL） */
 // C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降
@@ -158,7 +146,7 @@ function handleClick() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-float);
   border: 1rpx solid rgba(255, 255, 255, 0.28);
 }
 .star-icon {

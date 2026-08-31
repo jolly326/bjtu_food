@@ -1,24 +1,20 @@
 <template>
-  <view
+  <Pressable
     class="app-btn"
     :class="[btnType, { disabled, loading }]"
     :style="btnStyle"
-    @touchstart="pressed = true"
-    @touchend="pressed = false"
-    @touchcancel="pressed = false"
-    @mousedown="pressed = true"
-    @mouseup="pressed = false"
-    @mouseleave="pressed = false"
+    :aria-label="text"
     @tap="handleTap"
   >
     <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
-  </view>
+  </Pressable>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import IconSvg from './IconSvg.vue'
+import Pressable from './Pressable.vue'
 
 const props = withDefaults(defineProps<{
   text: string
@@ -46,12 +42,9 @@ const emit = defineEmits<{
 // icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
 const btnType = computed(() => `btn-${props.type}`)
 
-const pressed = ref(false)
 const btnStyle = computed(() => ({
   width: props.width,
   margin: props.margin,
-  transform: pressed.value ? 'scale(var(--press-scale))' : 'scale(var(--scale-rest))',
-  transition: 'var(--press-transition)',
 }))
 
 function handleTap() {

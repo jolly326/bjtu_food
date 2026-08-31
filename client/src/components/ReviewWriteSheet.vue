@@ -185,8 +185,8 @@ async function onSubmit() {
 .rw-dish { font-size: var(--font-aux); color: var(--text-tertiary); margin-bottom: var(--spacing-md); }
 .rw-body { overflow-y: auto; }
 .rw-field { margin-bottom: var(--spacing-lg); }
-.rw-label { display: block; font-size: var(--font-base); color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
-.rw-req { color: var(--color-danger); margin-left: 4rpx; }
+.rw-label { display: block; font-size: var(--font-body); color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
+.rw-req { color: var(--color-error); margin-left: 4rpx; }
 .rw-stars { display: flex; gap: var(--spacing-sm); }
 .rw-star { transition: transform var(--duration-fast) var(--ease-out); }
 .rw-star:active { transform: scale(var(--press-scale)); }
@@ -212,7 +212,7 @@ async function onSubmit() {
   background: var(--bg-soft);
   border-radius: var(--radius-card);
   padding: var(--spacing-md);
-  font-size: var(--font-base);
+  font-size: var(--font-body);
   color: var(--text-primary);
   box-sizing: border-box;
 }
@@ -224,8 +224,8 @@ async function onSubmit() {
   line-height: 88rpx;
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--on-primary);
-  font-size: var(--font-base);
+  color: var(--color-on-primary);
+  font-size: var(--font-body);
   font-weight: var(--weight-bold);
   border: none;
   transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);

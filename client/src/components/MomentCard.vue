@@ -1,15 +1,5 @@
 <template>
-  <view
-    class="moment-card"
-    :class="{ pressed }"
-    @touchstart="pressed = true"
-    @touchend="pressed = false"
-    @touchcancel="pressed = false"
-    @mousedown="pressed = true"
-    @mouseup="pressed = false"
-    @mouseleave="pressed = false"
-    @tap="goDetail"
-  >
+  <Pressable class="moment-card" :aria-label="ariaLabel" @tap="goDetail">
     <!-- 发布者 -->
     <view class="m-head">
       <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" lazy-load />
@@ -18,19 +8,8 @@
       </view>
       <view class="m-head-right">
         <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-        <!-- 第二行：关联菜品星星（1-5 黄星+数字，仅关联且有评分才显示）与发布时间小间隙同行；无星星则只显时间 -->
+        <!-- 第二行：发布时间（关联菜品评分视觉已移除，评分归菜品详情/评价区） -->
         <view class="m-meta">
-          <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="m-rating" role="img" :aria-label="`关联菜品评分 ${(moment.relatedRating || 0).toFixed(1)} 分`">
-            <IconSvg
-              v-for="n in Math.min(Math.max(Math.round(moment.relatedRating || 0), 1), 5)"
-              :key="n"
-              name="star-filled"
-              :size="22"
-              color="var(--color-star)"
-              class="m-star"
-            />
-            <text class="m-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
-          </view>
           <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
         </view>
       </view>
@@ -93,12 +72,13 @@
         </view>
       </view>
     </view>
-  </view>
+  </Pressable>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
+import Pressable from './Pressable.vue'
 import { formatDateTime } from '@/utils/time'
 import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
@@ -124,7 +104,9 @@ const emit = defineEmits<{
 }>()
 
 const userStore = useUserStore()
-const pressed = ref(false)
+
+/** 卡片无障碍语义标签（global-ui-polish / ui-press-system） */
+const ariaLabel = computed(() => `${(props.moment.userNickname || '匿名用户')}的动态`)
 /** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡（B.5） */
 const loadedSet = reactive(new Set<number>())
 
@@ -243,10 +225,6 @@ async function onUseful() {
 .m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
-/* 关联菜品星级：黄色实星（1-5 颗）+ 分值数字（与评价卡一致） */
-.m-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
-.m-star { display: inline-block; }
-.m-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */

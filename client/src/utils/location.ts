@@ -43,6 +43,32 @@ export function getUserLocation(): Promise<UserLocation | null> {
   })
 }
 
+/**
+ * 仅当用户已授权定位时静默获取坐标；未授权不弹窗、不进设置页（首页不强制定位）。
+ * 返回 null 表示未授权或不可用，调用方降级为校区中心兜底。
+ */
+export function getLocationIfAuthorized(): Promise<UserLocation | null> {
+  return new Promise((resolve) => {
+    // @ts-ignore - 跨端兼容：非微信环境无 uni.getSetting
+    if (typeof uni === 'undefined' || typeof uni.getSetting !== 'function') {
+      resolve(null)
+      return
+    }
+    // @ts-ignore - 微信小程序 getSetting 探授权状态（success 回调类型与 AuthSetting 结构不完全对齐）
+    uni.getSetting({
+      success: (res: any) => {
+        // 仅已授权才取真实坐标；未授权直接降级，避免触发定位授权弹窗（方案 C）
+        if (res.authSetting && res.authSetting['scope.userLocation']) {
+          getUserLocation().then(resolve)
+        } else {
+          resolve(null)
+        }
+      },
+      fail: () => resolve(null),
+    })
+  })
+}
+
 /** Haversine：两 GCJ-02 坐标直线距离（米），手机本地算，无需上报用户位置 */
 export function haversineMeters(a: UserLocation, b: UserLocation): number {
   // 入参校验：任一坐标缺字段/非有限数 → 无法计算，返回 NaN，交由 fmtDistance 兜底隐藏

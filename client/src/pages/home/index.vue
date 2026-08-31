@@ -1,24 +1,40 @@
 <template>
   <view class="page home-page" :class="{ 'theme-dark': theme.isDark }">
-    <!-- 首页头部容器：朱砂红底（搜索框 + 独立筛选 chip）；红色食堂筛选下拉 anchor 在其正下方，视觉衔接无间隙 -->
+    <!-- 首页头部容器：朱砂红底，仅承载搜索框（与微信导航栏同高） -->
     <view class="home-top">
       <Header
         variant="home"
         search-placeholder="搜索你想吃的..."
         @search="goToSearch"
       />
-      <!-- 筛选 chip：独立组件，自管选中食堂名文案与点击；与 header 解耦 -->
+    </view>
+
+    <!-- 白底横置筛选条（与 find 页一致）：筛选 + 排序胶囊；食堂下拉 anchor 在其正下方 -->
+    <view class="filter-bar">
       <HomeFilterChip
         :selected-canteen="selectedCanteenName"
         :capsule-height="capsuleHeight"
+        :sort-label="sortLabel"
+        :price-label="priceLabel"
+        :price-active="priceActive"
         @filter="openFilter"
+        @sort="showSort = true"
+        @price="showPrice = true"
       />
+      <text class="filter-count">共{{ dishStore.filterTotal }}道</text>
       <CanteenFilter
         v-if="showFilter"
         :canteens="dishStore.canteenList"
         :selected-id="selectedCanteenId"
         @select="onCanteenSelect"
         @close="showFilter = false"
+      />
+      <!-- 价格筛选下拉（D13：从白底筛选条向下展开，与 CanteenFilter 同款；点遮罩关闭） -->
+      <HomePriceSheet
+        :open="showPrice"
+        :current="dishStore.filterPrice"
+        @update:open="showPrice = $event"
+        @select="onPriceSelect"
       />
     </view>
 
@@ -47,12 +63,6 @@
       </view>
 
       <view v-if="!loadingHot" class="home-content">
-        <!-- 未授权定位：轻提示开启，首页瀑布流「距你」才有数据 -->
-        <view v-if="showLocHint" class="loc-hint" @tap="enableLocation">
-          <text class="loc-hint-text">开启定位，查看菜品距你多远</text>
-          <text class="loc-hint-arrow">›</text>
-        </view>
-
         <!-- 瀑布流：按所选食堂过滤；未选 = 全部 -->
         <HomeFeed :load-failed="loadFailed" @retry="retryWaterfall" />
       </view>
@@ -71,6 +81,14 @@
       <IconSvg name="up" :size="44" color="var(--color-primary)" />
     </view>
 
+    <!-- 排序面板（底部 Sheet，须在 scroll-view 外） -->
+    <HomeSortSheet
+      :open="showSort"
+      :current="dishStore.homeSortBy"
+      @update:open="showSort = $event"
+      @select="onSortSelect"
+    />
+
     <AuthSheet />
 
     <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
@@ -85,11 +103,14 @@ import { showTab } from '@/stores/route'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
-import { getUserLocation } from '@/utils/location'
+import { getLocationIfAuthorized } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import HomeFilterChip from '@/components/HomeFilterChip.vue'
+import HomeSortSheet from '@/components/HomeSortSheet.vue'
+import HomePriceSheet from '@/components/HomePriceSheet.vue'
+import type { HomeSortKey } from '@/stores/dish'
 import HomeFeed from '@/components/HomeFeed.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -108,6 +129,42 @@ const refresherTriggered = ref(false)
 const showFilter = ref(false)
 /** 胶囊高度（px），与 AppHeader 同一取值口径，用于对齐筛选 chip 与搜索框高度 */
 const capsuleHeight = ref(32)
+/** 排序面板显隐（问题一） */
+const showSort = ref(false)
+/** 价格筛选面板显隐（D13） */
+const showPrice = ref(false)
+
+/** 排序项 → 胶囊文案（「综合推荐」不保留，默认「最新」） */
+const SORT_LABELS: Record<HomeSortKey, string> = {
+  latest: '排序 · 最新',
+  distance: '排序 · 距离最近',
+  priceAsc: '排序 · 价格↑',
+  priceDesc: '排序 · 价格↓',
+  hot: '排序 · 热度最高',
+}
+const sortLabel = computed(() => SORT_LABELS[dishStore.homeSortBy] ?? SORT_LABELS.latest)
+
+/** 选择排序项：交由 store 按新排序重载当前筛选流（复用既有 sortBy 参数，无新接口） */
+async function onSortSelect(key: HomeSortKey) {
+  await dishStore.setHomeSort(key)
+}
+
+/** 价格胶囊文案：未选「价格」，已选显示区间（如「价格 · 10-20」「价格 · 20元以上」） */
+const priceLabel = computed(() => {
+  const p = dishStore.filterPrice
+  if (p.min == null && p.max == null) return '价格'
+  if (p.min != null && p.max == null) return `价格 · ${p.min}元以上`
+  if (p.min == null && p.max != null) return `价格 · ${p.max}元以下`
+  return `价格 · ${p.min}-${p.max}`
+})
+/** 价格是否已生效（控制胶囊选中态） */
+const priceActive = computed(() => dishStore.filterPrice.min != null || dishStore.filterPrice.max != null)
+
+/** 选择价格区间：写回 store 并刷新当前筛选流（后端既有 minPrice/maxPrice，无新契约） */
+async function onPriceSelect(range: { min?: number; max?: number }) {
+  await dishStore.setHomePrice(range)
+}
+
 /** 当前选中食堂 id（null = 全部） */
 const selectedCanteenId = ref<number | null>(null)
 const selectedCanteenName = computed(
@@ -191,19 +248,18 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
-const showLocHint = computed(
-  () => !locationStore.location && dishStore.filterList.length > 0,
-)
-
-async function enableLocation() {
-  const loc = await getUserLocation()
+/** 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗；拿到后刷新本地距离，使「距你」即时生效 */
+async function syncLocation() {
+  if (locationStore.location) return
+  const loc = await getLocationIfAuthorized()
   if (loc) {
     locationStore.setLocation(loc)
+    dishStore.refreshLocalDistance()
   }
 }
 
 function loadData() {
-  // 与原差异：广播条已移除，首页仅加载食品列表；定位授权留 Hint 引导
+  // 与原差异：广播条已移除，首页仅加载食品列表；定位走静默授权（onShow 拉起），不阻塞首屏
   // 确保食堂列表就绪（红色筛选下拉依赖 canteenList）
   if (dishStore.canteenList.length === 0) dishStore.fetchCanteens()
 }
@@ -226,6 +282,8 @@ onShow(() => {
   clearShareState()
   // 兜底：若首屏因遮挡/竞态未拉起，再次确保
   if (!bootstrapped) ensureBoot()
+  // 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗，避免首页强制定位打断浏览
+  void syncLocation()
 })
 
 onShareAppMessage(() => {
@@ -240,16 +298,36 @@ onShareAppMessage(() => {
   height: 100vh;
   background: var(--bg-page);
   position: relative;
+  overflow: hidden;
 }
-/* 头部容器：相对定位，使红色食堂筛选下拉 anchor 在其正下方、与 header 红色块无缝衔接 */
+/* 头部容器：仅承载朱砂红 header，相对定位供可能的下拉锚定 */
 .home-top {
   position: relative;
   z-index: 20;
+}
+/* 白底横置筛选条（与 find 页一致）：定位在红头之下、瀑布流之上，承载筛选/排序胶囊 */
+.filter-bar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--bg-card);
+  border-bottom: 2rpx solid var(--border-light);
+}
+/* 结果计数：贴右、固定不收缩，读 dishStore.filterTotal */
+.filter-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--font-aux);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .scroll-wrap {
   flex: 1;
   width: 100%;
   box-sizing: border-box;
+  min-height: 0;
   /* 预留底部菜单栏高度，避免内容被 TabBar 遮挡 */
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
 }
@@ -273,20 +351,6 @@ onShareAppMessage(() => {
   width: 100%;
   border-radius: var(--radius-card);
 }
-
-/* 定位提示条 */
-.loc-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: var(--spacing-sm) var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-primary-surface);
-  color: var(--color-on-primary-surface);
-  border-radius: var(--radius-card);
-}
-.loc-hint-text { font-size: var(--font-body); }
-.loc-hint-arrow { font-size: var(--font-subtitle); }
 
 /* 回到顶部悬浮按钮 */
 .fab {

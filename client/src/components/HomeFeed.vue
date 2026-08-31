@@ -1,6 +1,11 @@
 <template>
   <view class="feed-wrap">
-    <template v-if="dishStore.filterList.length > 0">
+    <!-- 首屏冷启动骨架屏（global-ui-polish / ui-feed-loading）：仅首次真实首拉期间展示 -->
+    <view v-if="dishStore.filterInitialLoading && dishStore.filterList.length === 0" class="feed-skeleton">
+      <DishCardSkeleton v-for="n in 6" :key="n" />
+    </view>
+
+    <template v-else-if="dishStore.filterList.length > 0">
       <WaterfallList :list="dishStore.filterList" @card-click="goToDetail" />
 
       <view v-if="dishStore.filterLoadingMore" class="list-footer loading">
@@ -12,21 +17,23 @@
       </view>
     </template>
 
-    <view v-else class="home-empty">
-      <IconSvg name="empty" :size="120" color="var(--text-tertiary)" />
-      <text class="empty-tip">{{ waterfallFailed ? '加载失败' : '暂时没有内容' }}</text>
-      <text class="empty-sub">{{ waterfallFailed ? '网络异常，请稍后重试' : '下拉刷新，或检查网络后重试' }}</text>
-      <view v-if="waterfallFailed" class="home-retry" hover-class="pressed" hover-stay-time="80" @tap="emit('retry')">
-        <text class="home-retry-text">重新加载</text>
-      </view>
-    </view>
+    <!-- 空态 / 失败态统一复用 EmptyState（global-ui-polish / ui-feed-loading） -->
+    <EmptyState
+      v-else
+      icon="empty"
+      :text="waterfallFailed ? '加载失败' : '暂时没有内容'"
+      :desc="waterfallFailed ? '网络异常，请稍后重试' : '下拉刷新，或检查网络后重试'"
+      :retry="waterfallFailed"
+      @retry="emit('retry')"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import WaterfallList from '@/components/WaterfallList.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import DishCardSkeleton from '@/components/DishCardSkeleton.vue'
 import { useDishStore } from '@/stores/dish'
 
 const props = defineProps<{
@@ -53,6 +60,12 @@ function goToDetail(dish: { id: number }) {
 .feed-wrap {
   padding: 0 var(--spacing-md);
   box-sizing: border-box;
+}
+
+.feed-skeleton {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
 }
 
 .list-footer {

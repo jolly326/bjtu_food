@@ -1171,9 +1171,6 @@ onLoad(async (opts?: Record<string, string>) => {
 .row-fields { display: flex; gap: var(--spacing-sm); }
 .row-fields .col { flex: 1; min-width: 0; }
 
-/* 「其他」自定义输入框 */
-.custom-box { margin-top: var(--spacing-sm); }
-
 .content-input {
   width: 100%;
   min-height: 220rpx;

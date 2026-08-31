@@ -21,10 +21,6 @@ export interface Moment {
   relatedImage?: string | null
   /** 关联档口所属食堂名（仅 relatedType=stall 返回，跳档口详情需携带 navParams.canteen） */
   relatedCanteen?: string | null
-  /** 关联菜品平均评分（仅 relatedType=dish 返回，动态卡片星级展示） */
-  relatedRating?: number | null
-  /** 关联菜品评价数（仅 relatedType=dish 返回） */
-  relatedRatingCount?: number | null
   /** 审核状态（公开列表仅 approved） */
   auditStatus?: AuditStatus
   /** 退回原因（仅作者/管理员可见） */

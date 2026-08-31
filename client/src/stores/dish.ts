@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Dish, DishDetail, DishQuery, HotSearch } from '@/types/dish'
+import type { Dish, DishDetail, DishQuery, DishSortBy, HotSearch } from '@/types/dish'
 import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
 import type { CanteenInfo } from '@/types/canteen'
 import * as dishApi from '@/api/dish'
@@ -12,6 +12,25 @@ import { getCategories, type CategoryItem } from '@/api/category'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, CAMPUS_CENTER } from '@/utils/location'
 import type { FilterTab } from '@/types/filter-tab'
+
+/** 首页排序面板选项（问题一：2026-08-31 拍板，默认「最新」，综合推荐不保留） */
+export type HomeSortKey = 'latest' | 'priceAsc' | 'priceDesc' | 'hot' | 'distance'
+
+/** 排序选项 → 后端 sortBy/sortOrder 映射（纯复用既有 DishSortBy 查询参数，无新接口） */
+function sortParamsFor(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc' | 'desc' } {
+  switch (key) {
+    case 'latest': return { sortBy: 'created_at', sortOrder: 'desc' }
+    case 'priceAsc': return { sortBy: 'price', sortOrder: 'asc' }
+    case 'priceDesc': return { sortBy: 'price', sortOrder: 'desc' }
+    case 'hot': return { sortBy: 'heat', sortOrder: 'desc' }
+    case 'distance': return { sortBy: 'heat', sortOrder: 'desc' } // 后端无法按客户端距离排序，加载后前端重排
+  }
+}
+
+/** 按客户端计算距离升序（未定位/无坐标置末尾） */
+function sortByDistance(rows: Dish[]): Dish[] {
+  return [...rows].sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY))
+}
 
 export const useDishStore = defineStore('dish', () => {
   const dishList = ref<Dish[]>([])
@@ -47,10 +66,19 @@ export const useDishStore = defineStore('dish', () => {
   const filterList = ref<Dish[]>([])
   const filterTotal = ref(0)
   const filterPage = ref(1)
+  /** 首页价格筛选区间（元，null/undefined 表示不限）；透传后端既有 minPrice/maxPrice */
+  const filterPrice = ref<{ min?: number; max?: number }>({})
   const filterLoadingMore = ref(false)
   const filterFinished = ref(false)
   /** 首页筛选流首拉/切换失败标记：HomeFeed 据此展示「加载失败 + 重试」，避免与广播/万能区错误态割裂 */
   const filterLoadFailed = ref(false)
+  /** 首屏冷启动骨架屏标记（global-ui-polish / ui-feed-loading）：仅首次进入首页真实首拉期间为 true */
+  const filterInitialLoading = ref(false)
+  /** 首页是否已成功加载过一次：用于区分「首屏冷启动骨架」与「切换品类保留旧列表」，避免每次切换都闪骨架 */
+  const homeHasLoadedOnce = ref(false)
+
+  /** 首页排序面板当前选中项（问题一：默认「最新」，综合推荐不保留） */
+  const homeSortBy = ref<HomeSortKey>('latest')
 
   /** 首页品类滚轮数据源（后端 category 表 enabled 品类，按 sortOrder 升序） */
   const categories = ref<CategoryItem[]>([])
@@ -306,6 +334,21 @@ export const useDishStore = defineStore('dish', () => {
   /** 筛选请求序号：快速切换品类时丢弃过期响应，避免旧请求晚到覆盖新品类（P0 竞态修复） */
   let filterFetchSeq = 0
 
+  /** 首页排序：切换排序项后按新排序重载当前筛选流（问题一；复用既有 sortBy 查询参数，无新接口） */
+  async function setHomeSort(key: HomeSortKey) {
+    if (homeSortBy.value === key) return
+    homeSortBy.value = key
+    const tab = filterTab.value
+    if (tab) await fetchFilterDishes(tab, true)
+  }
+
+  /** 首页价格筛选：写回区间并刷新当前筛选流（reset 翻页从头） */
+  async function setHomePrice(range: { min?: number; max?: number }) {
+    filterPrice.value = range
+    const tab = filterTab.value
+    if (tab) await fetchFilterDishes(tab, true)
+  }
+
   /** 首页筛选：按选中品类/标签拉取菜品列表（真实品类 categoryId 优先；tag 兼容旧用法），复用现有分页 */
   async function fetchFilterDishes(tab: FilterTab, reset = false) {
     const seq = ++filterFetchSeq
@@ -314,31 +357,37 @@ export const useDishStore = defineStore('dish', () => {
       filterPage.value = 1
       filterFinished.value = false
     }
+    // 仅首次冷启动（尚未成功加载过）显示骨架屏，品类切换复用旧列表不闪骨架
+    if (reset && !homeHasLoadedOnce.value) filterInitialLoading.value = true
     filterTab.value = tab
     filterLoadFailed.value = false
     try {
       const pageSize = 10
       let rows: Dish[] = []
+      /** 首页排序（问题一）：映射为后端既有 sortBy/sortOrder 查询参数 */
+      const s = sortParamsFor(homeSortBy.value)
       if (tab.type === 'category' && tab.categoryId != null) {
-        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
-        // 保持后端热度序，仅写回距离供卡片「距你」展示（loc-hint 提示开启定位才有意义）
+        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        // 仅写回距离供卡片「距你」展示，顺序由后端按排序项决定（loc-hint 提示开启定位才有意义）
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize })
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'canteen' && tab.canteenId != null) {
-        // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，热度序
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
+        // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序按当前排序项
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else {
-        // recommend：热度分页 + 本地距离升序（前期个性化未实现，回落距离/热度兜底）
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize)
-        rows = withLocalDistance(res.list)
+        // 默认流：按当前排序项取分页（非距离排序沿用本地距离升序的历史兜底）
+        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
+        rows = withLocalDistance(res.list, homeSortBy.value === 'distance')
         filterTotal.value = res.total
       }
+      // 距离最近：后端无法按客户端坐标排序，加载后在前端重排
+      if (homeSortBy.value === 'distance' && tab.type !== 'recommend') rows = sortByDistance(rows)
       // 过期响应（期间又切换了品类）直接丢弃，不覆盖新品类列表
       if (seq !== filterFetchSeq) return
       if (reset) {
@@ -353,6 +402,9 @@ export const useDishStore = defineStore('dish', () => {
       if (seq !== filterFetchSeq) return
       console.error('加载筛选菜品失败', e)
       filterLoadFailed.value = true
+    } finally {
+      filterInitialLoading.value = false
+      homeHasLoadedOnce.value = true
     }
   }
 
@@ -368,23 +420,27 @@ export const useDishStore = defineStore('dish', () => {
     try {
       const pageSize = 10
       let rows: Dish[] = []
+      /** 翻页沿用首页当前排序项（问题一） */
+      const s = sortParamsFor(homeSortBy.value)
       if (tab.type === 'category' && tab.categoryId != null) {
-        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
+        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize })
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'canteen' && tab.canteenId != null) {
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: 'heat', sortOrder: 'desc' })
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else {
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize)
-        rows = withLocalDistance(res.list)
+        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
+        rows = withLocalDistance(res.list, homeSortBy.value === 'distance')
         filterTotal.value = res.total
       }
+      // 距离最近：本页按客户端距离升序，保证翻页后整体仍单调
+      if (homeSortBy.value === 'distance' && tab.type !== 'recommend') rows = sortByDistance(rows)
       // 过期响应（期间又切换了品类）丢弃，不混入新品类列表
       if (seq !== filterFetchSeq) {
         filterPage.value -= 1
@@ -403,18 +459,38 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
+  /** 定位晚于首屏列表到达后，重算已加载菜品的本地距离（不重拉后端）：
+   * - 仅刷新 filterList 中每个 Dish.distance（Haversine 复用 withLocalDistance 的距离写回逻辑）；
+   * - 若当前排序为「距离最近」，则按新距离重排，使卡片顺序即时更新。 */
+  function refreshLocalDistance() {
+    if (filterList.value.length === 0) return
+    const locStore = useLocationStore()
+    const loc = locStore.location || CAMPUS_CENTER
+    for (const d of filterList.value) {
+      const dishLoc =
+        typeof d.latitude === 'number' && typeof d.longitude === 'number'
+          ? { lat: d.latitude, lng: d.longitude }
+          : CAMPUS_CENTER
+      d.distance = haversineMeters(loc, dishLoc)
+    }
+    if (homeSortBy.value === 'distance') {
+      filterList.value = sortByDistance(filterList.value)
+    }
+  }
+
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
     canteenImageMap, canteenList, newDishes, promotionDishes,
     hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments, reviewsDirty,
     loading, navParams,
     categories,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed, filterInitialLoading, filterPrice,
+    homeSortBy, setHomeSort, setHomePrice,
     fetchRecommend, fetchGuess, fetchCanteenImages,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,
-    fetchFilterDishes, loadMoreFilterDishes,
+    fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,
     withLocalDistance,
   }
 })

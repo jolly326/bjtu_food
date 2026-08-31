@@ -182,9 +182,9 @@ const entryItems = [
 </script>
 
 <style scoped>
-.profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+.profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
 /* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（白底圆角卡 + 轻阴影；圆形头像 + 昵称 + ID；整卡可点；按压背景微变+缩放） */
 .user-card {
@@ -213,8 +213,7 @@ const entryItems = [
 
 /* 功能方块卡（网格 2 列，区别于下方常规列表，视觉分层） */
 .feature-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: var(--spacing-md);
   margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
 }
@@ -224,6 +223,8 @@ const entryItems = [
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
   padding: var(--spacing-lg) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);

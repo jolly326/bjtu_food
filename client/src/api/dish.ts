@@ -168,9 +168,13 @@ export async function getHomeHotDishes(limit = 20, lat?: number | null, lng?: nu
   return recordsOf<any>(res).map(toDish)
 }
 
-/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc */
-export async function getHotDishesPage(page: number, pageSize = 20): Promise<{ list: Dish[]; total: number }> {
-  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize })
+/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；price 为可选价格区间（元），透传既有 minPrice/maxPrice */
+export async function getHotDishesPage(
+  page: number,
+  pageSize = 20,
+  price?: { min?: number; max?: number },
+): Promise<{ list: Dish[]; total: number }> {
+  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max })
 }
 
 export type { DishSortBy }

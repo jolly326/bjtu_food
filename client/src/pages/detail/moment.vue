@@ -86,11 +86,6 @@
               <text class="related-type">{{ relatedTypeLabel }}</text>
               <view class="related-name-row">
                 <text class="related-name">{{ moment.relatedName }}</text>
-                <!-- 关联菜品评分（1 星 + 数字，与评价卡统一单星形态） -->
-                <view v-if="moment.relatedType === 'dish' && (moment.relatedRating || 0) > 0" class="related-rating">
-                  <IconSvg name="star-filled" :size="22" color="var(--color-star)" />
-                  <text class="related-rating-num">{{ (moment.relatedRating || 0).toFixed(1) }}</text>
-                </view>
               </view>
             </view>
             <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-arrow" />
@@ -596,9 +591,6 @@ onLoad((query) => {
 .related-type { font-size: var(--font-aux); color: var(--text-tertiary); }
 .related-name-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
 .related-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 关联菜品星级：与动态卡片一致（--color-star 金黄） */
-.related-rating { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
-.related-rating-num { font-size: var(--font-aux); color: var(--text-tertiary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 .related-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .reject-title { display: block; font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-error); margin-bottom: var(--spacing-xs); }
