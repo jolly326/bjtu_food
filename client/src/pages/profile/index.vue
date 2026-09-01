@@ -6,6 +6,7 @@
       <!-- 用户卡：游客（未认证）显示食客短 ID；已认证显示昵称 + 绑定邮箱 -->
       <view
         class="user-card"
+        :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
         role="button"
         :aria-label="isVerified ? '查看或编辑个人资料' : '游客身份'"
         @tap="onUserCardTap"
@@ -186,16 +187,28 @@ const entryItems = [
 /* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
-/* 用户卡（白底圆角卡 + 轻阴影；圆形头像 + 昵称 + ID；整卡可点；按压背景微变+缩放） */
+/* 用户卡：默认透明（落在页面底色上）；已认证=白底一级身份卡，游客=透明弱化 */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
   margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
   padding: var(--spacing-lg);
-  background: var(--bg-card);
+  background: transparent;
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  border-top: 6rpx solid transparent;
   transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
+}
+/* 已认证：一级身份卡（白底 + 主色软条纹 + 强阴影，从页面抬起） */
+.user-card--verified {
+  background: var(--bg-card);
+  border-top-color: var(--color-primary-soft);
+  box-shadow: var(--shadow-card);
+}
+/* 游客：白底抽离落到背景（透明、无条纹、无阴影，弱化） */
+.user-card--guest {
+  background: transparent;
+  border-top-color: transparent;
+  box-shadow: none;
 }
 .user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
@@ -228,7 +241,8 @@ const entryItems = [
   padding: var(--spacing-lg) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  /* 二级功能卡：微抬阴影，弱于一级身份卡 */
+  box-shadow: var(--shadow-card-soft);
   transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
@@ -265,9 +279,10 @@ const entryItems = [
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
 .entry-group {
   margin: 0 var(--spacing-md) var(--spacing-sm);
-  background: var(--bg-card);
+  /* 三级列表：凹陷表面 + 去悬浮阴影，以发丝线分隔行，读作分组列表而非悬浮卡 */
+  background: var(--bg-soft);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   overflow: hidden;
 }
 .entry-row {

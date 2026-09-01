@@ -71,19 +71,6 @@ public interface ReviewService {
      */
     BigDecimal getAvgRatingByStallId(Long stallId);
 
-    /**
-     * 获取当前登录用户自己的评价列表
-     * <p>
-     * 按创建时间降序排列，只返回未隐藏的评价（is_hidden=0）。
-     * 用于个人中心「我的评价」页。
-     *
-     * @param userId   当前用户ID
-     * @param page     页码
-     * @param pageSize 每页条数
-     * @return 分页评价列表
-     */
-    IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize);
-
     // ==================== 需登录接口（学生） ====================
 
     /**
@@ -102,19 +89,6 @@ public interface ReviewService {
      * @throws com.bjtufood.common.exception.BusinessException 已评价/菜品不存在
      */
     Long submitReview(Long userId, ReviewReq req);
-
-    /**
-     * 修改自己的评价
-     * <p>
-     * 可修改评分和内容，不允许修改图片
-     *
-     * @param id      评价ID
-     * @param userId  当前用户ID
-     * @param rating  新评分
-     * @param content 新内容
-     * @throws com.bjtufood.common.exception.BusinessException 评价不存在/无权限
-     */
-    void updateReview(Long id, Long userId, Integer rating, String content);
 
     /**
      * 删除自己的评价（软删除）

@@ -9,19 +9,18 @@
       />
     </view>
 
-    <!-- 白底横置筛选条（与 find 页一致）：筛选 + 排序胶囊；食堂下拉 anchor 在其正下方 -->
+    <!-- 筛选行：左=食堂(切换)，右=价格(切换)，最右=筛选图标→find 详细筛选页 -->
     <view class="filter-bar">
       <HomeFilterChip
         :selected-canteen="selectedCanteenName"
-        :capsule-height="capsuleHeight"
-        :sort-label="sortLabel"
+        :capsule-height="36"
+        :filter-active="showFilter"
         :price-label="priceLabel"
         :price-active="priceActive"
-        @filter="openFilter"
-        @sort="showSort = true"
-        @price="showPrice = true"
+        @filter="toggleFilter"
+        @price="togglePrice"
+        @openFilter="goToFind"
       />
-      <text class="filter-count">共{{ dishStore.filterTotal }}道</text>
       <CanteenFilter
         v-if="showFilter"
         :canteens="dishStore.canteenList"
@@ -29,7 +28,7 @@
         @select="onCanteenSelect"
         @close="showFilter = false"
       />
-      <!-- 价格筛选下拉（D13：从白底筛选条向下展开，与 CanteenFilter 同款；点遮罩关闭） -->
+      <!-- 价格筛选下拉：从筛选条向下展开，点击遮罩或再次点击价格 chip 关闭 -->
       <HomePriceSheet
         :open="showPrice"
         :current="dishStore.filterPrice"
@@ -81,14 +80,6 @@
       <IconSvg name="up" :size="44" color="var(--color-primary)" />
     </view>
 
-    <!-- 排序面板（底部 Sheet，须在 scroll-view 外） -->
-    <HomeSortSheet
-      :open="showSort"
-      :current="dishStore.homeSortBy"
-      @update:open="showSort = $event"
-      @select="onSortSelect"
-    />
-
     <AuthSheet />
 
     <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
@@ -108,9 +99,7 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import HomeFilterChip from '@/components/HomeFilterChip.vue'
-import HomeSortSheet from '@/components/HomeSortSheet.vue'
 import HomePriceSheet from '@/components/HomePriceSheet.vue'
-import type { HomeSortKey } from '@/stores/dish'
 import HomeFeed from '@/components/HomeFeed.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -129,25 +118,8 @@ const refresherTriggered = ref(false)
 const showFilter = ref(false)
 /** 胶囊高度（px），与 AppHeader 同一取值口径，用于对齐筛选 chip 与搜索框高度 */
 const capsuleHeight = ref(32)
-/** 排序面板显隐（问题一） */
-const showSort = ref(false)
-/** 价格筛选面板显隐（D13） */
+/** 价格筛选面板显隐 */
 const showPrice = ref(false)
-
-/** 排序项 → 胶囊文案（「综合推荐」不保留，默认「最新」） */
-const SORT_LABELS: Record<HomeSortKey, string> = {
-  latest: '排序 · 最新',
-  distance: '排序 · 距离最近',
-  priceAsc: '排序 · 价格↑',
-  priceDesc: '排序 · 价格↓',
-  hot: '排序 · 热度最高',
-}
-const sortLabel = computed(() => SORT_LABELS[dishStore.homeSortBy] ?? SORT_LABELS.latest)
-
-/** 选择排序项：交由 store 按新排序重载当前筛选流（复用既有 sortBy 参数，无新接口） */
-async function onSortSelect(key: HomeSortKey) {
-  await dishStore.setHomeSort(key)
-}
 
 /** 价格胶囊文案：未选「价格」，已选显示区间（如「价格 · 10-20」「价格 · 20元以上」） */
 const priceLabel = computed(() => {
@@ -193,7 +165,8 @@ watch(
   { immediate: true },
 )
 
-function openFilter() {
+/** 食堂筛选：点击切换（展开/收起） */
+function toggleFilter() {
   showFilter.value = !showFilter.value
 }
 function onCanteenSelect(id: number | null) {
@@ -201,6 +174,16 @@ function onCanteenSelect(id: number | null) {
   showFilter.value = false
   const tab = id == null ? defaultTab() : canteenTab(id, selectedCanteenName.value || '食堂')
   dishStore.fetchFilterDishes(tab, true)
+}
+
+/** 价格筛选：点击切换（展开/收起） */
+function togglePrice() {
+  showPrice.value = !showPrice.value
+}
+
+/** 筛选图标：跳转 find 二级筛选页（详细筛选表单） */
+function goToFind() {
+  uni.navigateTo({ url: '/pages/find/index' })
 }
 
 function goToSearch() {
@@ -312,8 +295,9 @@ onShareAppMessage(() => {
   display: flex;
   align-items: center;
   padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--bg-card);
-  border-bottom: 2rpx solid var(--border-light);
+  /* 表面统一：筛选条与内容区同为凹陷面（--bg-page），消除白条割裂感；发丝线衔接 Header */
+  background: var(--bg-page);
+  border-bottom: 1rpx solid var(--border-color);
 }
 /* 结果计数：贴右、固定不收缩，读 dishStore.filterTotal */
 .filter-count {

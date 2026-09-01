@@ -71,7 +71,7 @@ page {
   --text-tertiary: #8F8A84;
   --text-quaternary: #ABA59E;
   /* 背景 */
-  --bg-page: #F7F5F2;
+  --bg-page: #F1ECE6;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
@@ -87,7 +87,7 @@ page {
   --bg-cell-feedback: #C4ECDD;
   --color-cell-feedback: #0E9E6E;
   /* 卡片描边（万能两卡与通用卡片边界，低对比强化边界；语义卡用各自色淡描边） */
-  --border-card: rgba(0, 0, 0, 0.06);
+  --border-card: rgba(0, 0, 0, 0.12);
   --border-cell-activity: rgba(30, 95, 206, 0.28);
   --border-cell-feedback: rgba(14, 158, 110, 0.28);
   /* 圆角 */
@@ -135,7 +135,7 @@ page {
   --icon-3xl: 80rpx;
   --icon-4xl: 120rpx;
   /* 阴影（材质 / 深度；卡片阴影 2026-08-12 拍板：0 2px 8px rgba(0,0,0,0.04)） */
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   /* 半透材质（小程序真机 backdrop-filter 降级） */
@@ -269,7 +269,7 @@ page {
   --bg-cell-feedback: #0F2E26;
   --color-cell-feedback: #4CCF9A;
   /* 卡片描边（深色：低对比强化边界；语义卡用各自色淡描边） */
-  --border-card: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.14);
   --border-cell-activity: rgba(127, 168, 232, 0.28);
   --border-cell-feedback: rgba(76, 207, 154, 0.28);
   /* 深色渐变（珊瑚橙系，与浅色一致） */
@@ -332,7 +332,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --text-tertiary: #8F8A84;
   --text-quaternary: #ABA59E;
   /* 背景 */
-  --bg-page: #F7F5F2;
+  --bg-page: #F1ECE6;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
@@ -383,7 +383,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --icon-2xl: 64rpx;
   --icon-3xl: 80rpx;
   --icon-4xl: 120rpx;
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   --blur-radius: 20px;

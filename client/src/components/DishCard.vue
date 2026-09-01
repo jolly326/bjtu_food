@@ -95,11 +95,12 @@ function handleClick() {
 .dish-card {
   width: 100%;
   min-width: 0;
-  background: var(--bg-card);
+  background: var(--bg-page);
   border-radius: var(--radius-card);
-  border: 1rpx solid var(--border-color);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  /* 边界：与页面同色、发丝边明确抬起（去除白底，避免白色色块） */
+  border: 1rpx solid var(--border-card);
+  box-shadow: var(--shadow-card-soft);
   /* 进场仅极轻量淡入 + 按压缩放（红线 §4.9②：位移 ≤0，仅 transform/opacity） */
   transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;

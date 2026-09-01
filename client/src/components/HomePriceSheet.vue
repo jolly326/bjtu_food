@@ -193,16 +193,16 @@ function onReset() {
   transition: opacity var(--duration-base) var(--ease-out);
 }
 .ps-mask.show { opacity: 1; }
-/* 白底面板：紧贴筛选条向下展开，与白底筛选条无缝衔接（非红底） */
+/* 米色面板：紧贴筛选条向下展开，与米色页面/筛选区无缝衔接（非红非白） */
 .ps-panel {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  background: var(--bg-card);
+  background: var(--bg-page);
   color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-bar-primary);
+  box-shadow: var(--shadow-card);
   /* opacity 交叉淡入 + ≤8px 轻位移（红线 §4.9：无弹性过冲，引用动效 token） */
   opacity: 0;
   transform: translateY(-8px);
@@ -239,7 +239,7 @@ function onReset() {
 .ps-custom {
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-light);
+  border-top: 1rpx solid var(--border-color);
 }
 .ps-custom-title {
   font-size: var(--font-body);

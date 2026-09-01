@@ -39,7 +39,6 @@ export const useDishStore = defineStore('dish', () => {
   const guessList = ref<Dish[]>([])
   const reviewList = ref<Review[]>([])
   const stallDishes = ref<Dish[]>([])
-  const canteenImageMap = ref<Record<string, string>>({})
   /**
    * 在途请求引用计数：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
    * 改用 Set 记录各业务请求 key，loading 派生为"是否有请求在飞"，互不影响。
@@ -114,15 +113,6 @@ export const useDishStore = defineStore('dish', () => {
     } catch (e: any) {
       console.error('加载食堂列表失败', e)
       canteenList.value = []
-    }
-  }
-
-  async function fetchCanteenImages() {
-    try {
-      canteenImageMap.value = await canteenApi.getCanteenImages()
-    } catch (e: any) {
-      console.error('加载食堂背景图失败', e)
-      canteenImageMap.value = {}
     }
   }
 
@@ -480,13 +470,13 @@ export const useDishStore = defineStore('dish', () => {
 
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
-    canteenImageMap, canteenList, newDishes, promotionDishes,
+    canteenList, newDishes, promotionDishes,
     hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments, reviewsDirty,
     loading, navParams,
     categories,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed, filterInitialLoading, filterPrice,
     homeSortBy, setHomeSort, setHomePrice,
-    fetchRecommend, fetchGuess, fetchCanteenImages,
+    fetchRecommend, fetchGuess,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, submitReview, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,

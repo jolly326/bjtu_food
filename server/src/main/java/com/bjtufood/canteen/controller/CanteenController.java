@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @Tag(name = "02. 食堂与档口", description = "公开查询接口，无需登录。用于首页、食堂页、档口详情页。")
 @RestController
@@ -29,12 +28,6 @@ public class CanteenController {
             @Parameter(description = "用户经度（GCJ-02，可选）", example = "116.3354")
             @RequestParam(required = false) BigDecimal lng) {
         return Result.success(canteenService.listCanteens(lat, lng));
-    }
-
-    @Operation(summary = "食堂图片映射", description = "用途：前端按食堂名获取背景图。返回结构为 { 食堂名: [图片URL] }。测试：直接调用即可。")
-    @GetMapping("/canteens/images")
-    public Result<Map<String, List<String>>> listCanteenImages() {
-        return Result.success(canteenService.listCanteenImages());
     }
 
     @Operation(summary = "食堂列表（含档口）", description = "用途：需要一次性渲染食堂和下属档口时使用。测试：直接调用即可。")

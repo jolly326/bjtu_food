@@ -28,18 +28,38 @@
     </view>
 
     <!-- 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter，状态与首页隔离） -->
-    <view class="find-filter-row">
-      <view class="find-filter-chip" @tap="showFindFilter = !showFindFilter">
-        <IconSvg name="filter" :size="'16px'" color="var(--text-secondary)" />
-        <text class="find-filter-label">{{ findCanteenName || '全部食堂' }}</text>
-        <IconSvg name="arrow-down" :size="'16px'" color="var(--text-tertiary)" />
-      </view>
+    <!-- 结果态筛选条：仅出搜索结果时渲染，与首页同款三胶囊（食堂/排序/价格），红激活态 -->
+    <view v-if="inFilter" class="find-filter-row">
+      <HomeFilterChip
+        :selected-canteen="findCanteenName"
+        :capsule-height="36"
+        :filter-active="findFilterActive"
+        :sort-label="findSortLabel"
+        :sort-active="findSortActive"
+        :price-label="findPriceLabel"
+        :price-active="findPriceActive"
+        @filter="showFindFilter = !showFindFilter"
+        @sort="findShowSort = true"
+        @price="findShowPrice = true"
+      />
       <CanteenFilter
         v-if="showFindFilter"
         :canteens="dishStore.canteenList"
         :selected-id="findCanteenId"
         @select="onFindCanteenSelect"
         @close="showFindFilter = false"
+      />
+      <HomeSortSheet
+        :open="findShowSort"
+        :current="findSortBy"
+        @select="onFindSortSelect"
+        @update:open="findShowSort = $event"
+      />
+      <HomePriceSheet
+        :open="findShowPrice"
+        :current="findPrice"
+        @select="onFindPriceSelect"
+        @update:open="findShowPrice = $event"
       />
     </view>
 
@@ -221,9 +241,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
-import { useDishStore } from '@/stores/dish'
+import { useDishStore, type HomeSortKey } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
+import type { DishSortBy } from '@/types/dish'
+import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 import { getUserLocation } from '@/utils/location'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
@@ -232,6 +254,9 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
+import HomeFilterChip from '@/components/HomeFilterChip.vue'
+import HomeSortSheet from '@/components/HomeSortSheet.vue'
+import HomePriceSheet from '@/components/HomePriceSheet.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -265,8 +290,8 @@ function measureTopBar() {
     // 返回行高度 = 系统导航栏真实高度（无下限）：只有与之相等，胶囊才会在本行内真正垂直居中；
     // 之前 Math.max(...,54) 会让行比系统导航栏高，导致胶囊比搜索框/返回箭低 ~7px（不在同一高度）。
     if (menu.height) {
-      navBarHeight.value = (menu.top - statusBarHeight.value) * 2 + menu.height
-      capsuleHeight.value = menu.height
+      navBarHeight.value = getNavBarHeight(statusBarHeight.value, menu)
+      capsuleHeight.value = getCapsuleHeight(menu)
     }
   } else {
     capsuleRightOffset.value = 0
@@ -343,6 +368,52 @@ function onFindCanteenSelect(id: number | null) {
   findCanteenId.value = id && id > 0 ? id : null
   showFindFilter.value = false
   // 切换食堂即按当前关键词（可空）+ 食堂重新检索
+  doMixedSearch(keyword.value.trim())
+}
+
+// ===== 结果态筛选（仅 inFilter 渲染，与首页同款三胶囊：食堂/排序/价格） =====
+const findSortBy = ref<HomeSortKey>('latest')
+const findShowSort = ref(false)
+const findShowPrice = ref(false)
+const findPrice = ref<{ min?: number; max?: number }>({})
+
+const FIND_SORT_LABELS: Record<HomeSortKey, string> = {
+  latest: '排序 · 最新',
+  distance: '排序 · 距离最近',
+  priceAsc: '排序 · 价格↑',
+  priceDesc: '排序 · 价格↓',
+  hot: '排序 · 热度最高',
+}
+const findFilterActive = computed(() => showFindFilter.value || !!findCanteenId.value)
+const findSortLabel = computed(() => FIND_SORT_LABELS[findSortBy.value] ?? FIND_SORT_LABELS.latest)
+const findSortActive = computed(() => findShowSort.value || findSortBy.value !== 'latest')
+const findPriceLabel = computed(() => {
+  const p = findPrice.value
+  if (p.min == null && p.max == null) return '价格'
+  if (p.min != null && p.max == null) return `价格 · ${p.min}元以上`
+  if (p.min == null && p.max != null) return `价格 · ${p.max}元以下`
+  return `价格 · ${p.min}-${p.max}`
+})
+const findPriceActive = computed(() => findPrice.value.min != null || findPrice.value.max != null)
+
+function findSortParams(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc' | 'desc' } {
+  switch (key) {
+    case 'latest': return { sortBy: 'created_at', sortOrder: 'desc' }
+    case 'priceAsc': return { sortBy: 'price', sortOrder: 'asc' }
+    case 'priceDesc': return { sortBy: 'price', sortOrder: 'desc' }
+    case 'hot': return { sortBy: 'heat', sortOrder: 'desc' }
+    case 'distance': return { sortBy: 'heat', sortOrder: 'desc' }
+  }
+}
+
+function onFindSortSelect(key: HomeSortKey) {
+  findSortBy.value = key
+  findShowSort.value = false
+  doMixedSearch(keyword.value.trim())
+}
+function onFindPriceSelect(range: { min?: number; max?: number }) {
+  findPrice.value = range
+  findShowPrice.value = false
   doMixedSearch(keyword.value.trim())
 }
 
@@ -445,7 +516,15 @@ async function doMixedSearch(kw?: string) {
   mixedLoading.value = true
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
-    const list = await dishStore.search({ keyword: kw, page: 1, pageSize: 50, canteenId: findCanteenId.value ?? undefined })
+    const list = await dishStore.search({
+      keyword: kw,
+      page: 1,
+      pageSize: 50,
+      canteenId: findCanteenId.value ?? undefined,
+      ...findSortParams(findSortBy.value),
+      minPrice: findPrice.value.min,
+      maxPrice: findPrice.value.max,
+    })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
     // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）
@@ -494,6 +573,13 @@ function goToMixed(item: MixedResult) {
 function exitFilter() {
   inFilter.value = false
   mixedResults.value = []
+  // 退出结果态：重置筛选条件，下次进入结果态从默认开始
+  findCanteenId.value = null
+  findSortBy.value = 'latest'
+  findPrice.value = {}
+  showFindFilter.value = false
+  findShowSort.value = false
+  findShowPrice.value = false
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
 }
@@ -608,21 +694,10 @@ watch(keyword, () => {
   display: flex;
   align-items: center;
   padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--bg-card);
-  border-bottom: 2rpx solid var(--border-light);
+  /* 表面统一：与首页筛选条一致，使用页面凹陷面，消除白色割裂条 */
+  background: var(--bg-page);
+  border-bottom: 1rpx solid var(--border-color);
 }
-.find-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-md);
-  background: var(--bg-soft);
-  border-radius: var(--radius-pill);
-  transition: transform var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.find-filter-chip:active { transform: scale(var(--press-scale)); }
-.find-filter-label { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-medium); }
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }

@@ -350,26 +350,6 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long createStudentDish(DishPublishReq req, Long userId) {
-        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
-            throw new BusinessException("档口不存在");
-        }
-        Dish dish = new Dish();
-        applyPublishReq(dish, req);
-        dish.setCreatedBy(userId);
-        // 审核状态机：学生提交即 pending；状态与审核解耦，默认上架待审核通过后展示
-        dish.setAuditStatus(DishConst.AUDIT_PENDING);
-        dish.setRejectReason(null);
-        dish.setStatus(DishConst.STATUS_ON);
-        dish.setAvgRating(BigDecimal.ZERO);
-        dish.setRatingCount(0);
-        dish.setViewCount(0);
-        dishMapper.insert(dish);
-        return dish.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void updateStudentDish(Long id, DishPublishReq req, Long userId) {
         Dish existing = dishMapper.selectById(id);
         if (existing == null) {

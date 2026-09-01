@@ -80,11 +80,6 @@ export async function readNotification(id: number): Promise<void> {
   await put<void>(`/my/notifications/${id}/read`)
 }
 
-/** 全部已读（STU） */
-export async function readAllNotifications(): Promise<void> {
-  await put<void>('/my/notifications/read-all')
-}
-
 // ─────────────────────────────────────────────────────────────
 // 首页广播条类型：数据源为「动态前 10 条」（见 pages/home/index.vue toBroadcastItem）。
 // 原 getBroadcasts()（broadcast 表接口）已随广播条改版下线。

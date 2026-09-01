@@ -95,19 +95,6 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
-    @org.springframework.cache.annotation.Cacheable(
-            cacheNames = CACHE_RANKING,
-            key = "#limit + ':' + #dishId + ':' + #stallId + ':' + #canteenId",
-            unless = "#result == null")
-    public List<MomentVO> getRanking(int limit, Long dishId, Long stallId, Long canteenId) {
-        // R3：limit 后端钳制（默认 10，上限 50），PageUtil 已对 >100 截断，此处额外收紧上限到 50
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(1, limit);
-        int safeLimit = Math.min(norm[1], 50);
-        List<MomentVO> list = momentMapper.selectRanking(safeLimit, dishId, stallId, canteenId);
-        return enrichBatch(list);
-    }
-
-    @Override
     public MomentVO detail(Long id, Long currentUserId) {
         Moment m = momentMapper.selectById(id);
         // 不存在或已下架（管理员强制下架 status=1）均按「不可见」处理，返回 404 业务码，避免暴露数据/状态

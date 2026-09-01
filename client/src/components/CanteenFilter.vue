@@ -11,7 +11,7 @@
           @tap="$emit('select', null)"
         >
           <text class="cf-name">全部</text>
-          <IconSvg v-if="selectedId === null" name="check" :size="32" color="var(--color-on-primary-surface)" />
+          <IconSvg v-if="selectedId === null" name="check" :size="32" color="var(--color-primary)" />
         </view>
         <view
           v-for="c in canteens"
@@ -22,7 +22,7 @@
           @tap="$emit('select', c.id ?? null)"
         >
           <text class="cf-name">{{ c.name }}</text>
-          <IconSvg v-if="selectedId === c.id" name="check" :size="32" color="var(--color-on-primary-surface)" />
+          <IconSvg v-if="selectedId === c.id" name="check" :size="32" color="var(--color-primary)" />
         </view>
       </scroll-view>
     </view>
@@ -60,12 +60,12 @@ const theme = useThemeStore()
   background: var(--overlay-scrim);
   z-index: 90;
 }
-/* 红色面板：与 header 共用 --color-primary（同源 token），紧贴 header 无间隙，亮/暗模式均无缝 */
+/* 面板：与米色筛选区/页面同色（非红非白），紧贴筛选条无间隙，亮/暗模式均无缝 */
 .cf-panel {
-  background: var(--color-primary);
-  color: var(--color-on-primary-surface);
+  background: var(--bg-page);
+  color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-bar-primary);
+  box-shadow: var(--shadow-card);
   /* 仅透明度交叉淡入，无位移过冲（红线 §4.9） */
   animation: cfIn var(--duration-base) ease both;
 }
@@ -76,7 +76,7 @@ const theme = useThemeStore()
 .cf-title {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);
-  color: var(--color-on-primary-surface);
+  color: var(--text-primary);
   padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-md);
 }
 .cf-list {
@@ -92,11 +92,11 @@ const theme = useThemeStore()
   -webkit-tap-highlight-color: transparent;
 }
 .cf-item.active {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--bg-soft);
 }
 .cf-name {
   font-size: var(--font-subtitle);
-  color: var(--color-on-primary-surface);
+  color: var(--text-primary);
   min-width: 0;
 }
 </style>

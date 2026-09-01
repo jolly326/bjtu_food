@@ -96,14 +96,6 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
-        page = p[0]; pageSize = p[1];
-        return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, null)
-                .convert(this::enrichImages);
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public UsefulResult toggleUseful(Long userId, Long reviewId) {
         Review review = reviewMapper.selectById(reviewId);
@@ -198,19 +190,6 @@ public class ReviewServiceImpl implements ReviewService {
         }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateReview(Long id, Long userId, Integer rating, String content) {
-        Review review = reviewMapper.selectById(id);
-        if (review == null || !review.getUserId().equals(userId)) {
-            throw new BusinessException("Review not found");
-        }
-        review.setRating(rating);
-        review.setContent(sensitiveFilter.filter(content));
-        reviewMapper.updateById(review);
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), rating));
     }
 
     @Override

@@ -173,10 +173,13 @@ async function onUseful() {
 
 <style scoped>
 .moment-card {
-  background: var(--bg-card);
+  background: var(--bg-page);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  /* 边界：与页面同色 + 发丝边区分；去除白底以解决左上角白色色块 bug */
+  border: 1rpx solid var(--border-card);
+  box-shadow: var(--shadow-card-soft);
   padding: var(--spacing-md);
+  overflow: hidden;
   /* Apple highlight 按压：背景微变而非整卡缩放（与 find 混合卡一致） */
   transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
@@ -184,7 +187,7 @@ async function onUseful() {
 .moment-card.pressed { background-color: var(--bg-soft); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 圆角正方形头像：用明确 rpx（16rpx），不用 var(--radius-card)=16px（在 64rpx 头像上接近圆形） */
-.m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
+.m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: var(--font-subtitle); line-height: 1; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }

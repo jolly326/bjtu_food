@@ -167,17 +167,6 @@ public interface DishService {
     // ==================== 学生端发布接口（STUDENT） ====================
 
     /**
-     * 学生发布菜品
-     * <p>
-     * 后端强制写入 created_by=当前用户、audit_status=pending，与上下架 status 解耦。
-     *
-     * @param req    发布参数（不含上下架状态）
-     * @param userId 当前登录学生用户ID
-     * @return 新菜品ID
-     */
-    Long createStudentDish(DishPublishReq req, Long userId);
-
-    /**
      * 学生编辑 / 重新提交菜品
      * <p>
      * 仅本人 created_by 的菜品可编辑；编辑后复用原记录，audit_status 重置为 pending、reject_reason 置空。

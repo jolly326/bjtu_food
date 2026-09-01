@@ -58,20 +58,6 @@ public class MomentController {
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
-    @Operation(summary = "热门排行榜（社区发现）", description = "PUB（独立端点）。返回 Top N 热门动态裸 List（非分页），排序同 hot：useful_count*2+comment_count 降序，取前 limit。仅 approved 且 status=0。dishId/stallId/canteenId 可选过滤。")
-    @GetMapping("/moments/ranking")
-    public Result<List<MomentVO>> ranking(
-            @Parameter(description = "返回条数（默认 10，上限 50，后端钳制）", example = "10")
-            @RequestParam(defaultValue = "10") int limit,
-            @Parameter(description = "关联菜品ID过滤", example = "1")
-            @RequestParam(required = false) Long dishId,
-            @Parameter(description = "关联档口ID过滤", example = "1")
-            @RequestParam(required = false) Long stallId,
-            @Parameter(description = "关联食堂ID过滤（按该食堂下全部档口聚合）", example = "1")
-            @RequestParam(required = false) Long canteenId) {
-        return Result.success(momentService.getRanking(limit, dishId, stallId, canteenId));
-    }
-
     @Operation(summary = "动态详情", description = "PUB。作者本人可见 rejectReason。")
     @GetMapping("/moments/{id}")
     public Result<MomentVO> detail(

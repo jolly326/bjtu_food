@@ -137,18 +137,6 @@ public class DishController {
     // ==================== 学生端发布接口（STUDENT） ====================
 
     @Operation(
-            summary = "学生发布菜品",
-            description = "学生提交新菜品。后端强制写入 created_by=当前用户、audit_status=pending，等待后台审核。需已完成学号邮箱认证。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @RequireVerified
-    @PostMapping("/dishes")
-    public Result<Long> createDish(@Valid @RequestBody DishPublishReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(dishService.createStudentDish(req, userId));
-    }
-
-    @Operation(
             summary = "学生编辑 / 重新提交菜品",
             description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")

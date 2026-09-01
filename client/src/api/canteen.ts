@@ -19,13 +19,6 @@ export async function getCanteenList(): Promise<CanteenInfo[]> {
   }))
 }
 
-export async function getCanteenImages(): Promise<Record<string, string>> {
-  const rawMap = await get<Record<string, unknown>>('/canteens/images')
-  return Object.fromEntries(
-    Object.entries(rawMap || {}).map(([name, value]) => [name, normalizeImages(value)[0] || '']),
-  )
-}
-
 export async function getCanteensWithStalls(): Promise<any[]> {
   return await get<any[]>('/canteens/all')
 }

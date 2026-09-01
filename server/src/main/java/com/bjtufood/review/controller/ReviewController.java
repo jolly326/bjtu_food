@@ -67,19 +67,6 @@ public class ReviewController {
     }
 
     @Operation(
-            summary = "我的评价列表",
-            description = "用途：个人中心「我的评价」。返回当前登录用户自己提交的评价（不含被隐藏项），按时间倒序。测试示例：/my/reviews?page=1&pageSize=20",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @GetMapping("/my/reviews")
-    public Result<?> listMyReviews(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(reviewService.listByUserId(userId, page, pageSize));
-    }
-
-    @Operation(
             summary = "提交评价",
             description = "用途：用户对菜品评分和评论。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth"),
@@ -100,45 +87,10 @@ public class ReviewController {
         return Result.success();
     }
 
-    @Operation(
-            summary = "修改自己的评价",
-            description = "用途：修改当前用户自己的评价评分和文字内容。当前实现不修改图片。需已完成学号邮箱认证。",
-            security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "dishId": 1,
-                      "rating": 4,
-                      "content": "重新评价：整体不错。",
-                      "images": []
-                    }
-                    """)))
-    )
-    @RequireVerified
-    @PutMapping("/reviews/{id}")
-    public Result<Void> updateReview(
-            @Parameter(description = "评价ID", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody ReviewReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        reviewService.updateReview(id, userId, req.getRating(), req.getContent());
-        return Result.success();
-    }
-
     @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))
     @RequireVerified
     @DeleteMapping("/reviews/{id}")
     public Result<Void> deleteReview(
-            @Parameter(description = "评价ID", example = "1")
-            @PathVariable Long id) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        reviewService.deleteReview(id, userId);
-        return Result.success();
-    }
-
-    @Operation(summary = "删除本人评价（契约路径）", description = "用途：task-12.5 契约路径 DELETE /my/reviews/{id}，仅删除本人 userId 的评价，级联清理 useful 关联；返回 200/403/404。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))
-    @RequireVerified
-    @DeleteMapping("/my/reviews/{id}")
-    public Result<Void> deleteMyReview(
             @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id) {
         Long userId = SecurityUtil.getCurrentUserId();

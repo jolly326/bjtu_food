@@ -22,13 +22,6 @@ public interface MomentService {
     IPage<MomentVO> publicList(String tab, Long dishId, Long stallId, Long canteenId, int page, int pageSize);
 
     /**
-     * 热门排行榜（R3）：PUB 端点 GET /moments/ranking。
-     * 仅 approved + status=0，按 R2 公式取前 limit，非分页裸 List。
-     * dishId/stallId/canteenId 关联过滤可选。
-     */
-    List<MomentVO> getRanking(int limit, Long dishId, Long stallId, Long canteenId);
-
-    /**
      * 动态详情（作者本人可见 rejectReason）
      */
     MomentVO detail(Long id, Long currentUserId);

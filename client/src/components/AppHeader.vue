@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
+import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 
 const props = withDefaults(defineProps<{
   /** home=首页头部（仅搜索框）；默认=二级页返回箭头+标题 */
@@ -75,13 +76,9 @@ onMounted(() => {
   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件），用于对齐高度与右侧留白
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
-    // 1) 导航栏内容区高度 = 系统导航栏真实高度（无任何 floor）。
-    //    只有等于 (menu.top - statusBarHeight)*2 + menu.height，胶囊才会在本行内真正垂直居中；
-    //    之前加 Math.max(...,54) 下限会让行比系统导航栏高，导致胶囊中心比搜索框/头像中心低 ~7px（不在同一高度）。
-    navBarHeight.value = (mb.top - sb) * 2 + mb.height
-    // 2) 头像与搜索框高度都对齐胶囊真实高度（px）：本行 align-items:center 时，二者上沿/高度与胶囊完全一致
-    capsuleHeight.value = mb.height
-    // 3) 右侧留白 = 胶囊左边到屏幕右缘的距离（px，各机型近似恒定 ~94px），
+    navBarHeight.value = getNavBarHeight(sb, mb)
+    capsuleHeight.value = getCapsuleHeight(mb)
+    // 右侧留白 = 胶囊左边到屏幕右缘的距离（px，各机型近似恒定 ~94px），
     //    再用 +8px 留一点间隙，使搜索框右缘停在胶囊左侧而非贴住它。
     //    必须用 px 而非 rpx：胶囊尺寸由微信按设备写死、不随屏宽缩放，rpx 会换机型就歪。
     const ww = (win && win.windowWidth) || 375

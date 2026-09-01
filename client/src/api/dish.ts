@@ -9,13 +9,6 @@ import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './shared'
 export const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
-  daily: '日常',
-  halal: '清真',
-  noodle: '面食',
-  rice: '米饭',
-  spicy: '辣味',
-  vegetarian: '素食',
-  western: '西餐',
 }
 
 export function toDish(raw: any): Dish {
@@ -155,17 +148,6 @@ export async function getHotSearch(): Promise<HotSearch[]> {
     heat: Number(item.heat ?? 0),
     relatedCount: Number(item.relatedCount ?? 0) || undefined,
   }))
-}
-
-/** 首页热门瀑布流首屏：复用 /dishes/hot（公开 TOP 列表；可选 lat/lng 按距离加权排序） */
-export async function getHomeHotDishes(limit = 20, lat?: number | null, lng?: number | null): Promise<Dish[]> {
-  const params: Record<string, unknown> = { limit }
-  if (typeof lat === 'number' && typeof lng === 'number') {
-    params.lat = lat
-    params.lng = lng
-  }
-  const res = await get<any>('/dishes/hot', params)
-  return recordsOf<any>(res).map(toDish)
 }
 
 /** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；price 为可选价格区间（元），透传既有 minPrice/maxPrice */
