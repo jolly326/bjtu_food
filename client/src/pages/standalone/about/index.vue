@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useReducedMotion } from '@/composables/useReducedMotion'
 import { useThemeStore } from '@/stores/theme'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
@@ -50,10 +50,7 @@ import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
 
-const reduceMotion = ref(false)
-if (typeof window !== 'undefined') {
-  reduceMotion.value = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-}
+const reduceMotion = useReducedMotion().reduceMotion
 </script>
 
 <style scoped>

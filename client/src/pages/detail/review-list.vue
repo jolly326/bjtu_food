@@ -3,6 +3,8 @@
     <Header :title="`${dishName} · 评价`" @back="backToHome" />
     <scroll-view
       class="scroll-wrap"
+      ref="mainRef"
+      tabindex="-1"
       scroll-y
       :scroll-with-animation="!reduceMotion"
       @scrolltolower="loadMore"
@@ -53,14 +55,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, computed, nextTick } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
+import { useReducedMotion } from '@/composables/useReducedMotion'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
@@ -83,10 +86,15 @@ const finished = ref(false)
 const reviewList = computed(() => dishStore.reviewList)
 const currentUserId = computed(() => userStore.userInfo?.id)
 
-const reduceMotion = ref(false)
-if (typeof window !== 'undefined') {
-  reduceMotion.value = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-}
+const reduceMotion = useReducedMotion().reduceMotion
+// 主内容区引用（2.4 路由切换聚焦，H5/桌面生效）
+const mainRef = ref<any>()
+
+onShow(() => {
+  // #ifdef H5
+  nextTick(() => mainRef.value?.$el?.focus?.())
+  // #endif
+})
 
 onLoad((query) => {
   dishId.value = Number(query?.dishId) || 0

@@ -1,6 +1,5 @@
 <template>
   <Pressable class="moment-card" :aria-label="ariaLabel" @tap="goDetail">
-    <!-- 发布者 -->
     <view class="m-head">
       <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" lazy-load />
       <view v-else class="m-avatar m-avatar-empty">
@@ -175,16 +174,19 @@ async function onUseful() {
 .moment-card {
   background: var(--bg-page);
   border-radius: var(--radius-card);
-  /* 边界：与页面同色 + 发丝边区分；去除白底以解决左上角白色色块 bug */
+  /* 边界：与页面同色 + 发丝边区分。
+     ⚠️ overflow:hidden 不可移除：微信 WXSS 渲染「border-radius + background」时，
+     圆角外侧会残留一圈背景色方角（四角皆有，左侧因贴齐列表边缘最明显，
+     表现为「屏幕左侧色块」）。必须由本属性裁掉，否则该渲染残留会暴露。
+     同理不投影：卡片与页面同色＝没有被抬起的面，box-shadow 只会渲染成
+     一圈无源头的暗色晕影，多卡堆叠后连成竖条色块。
+     按压反馈统一由 Pressable（整卡 scale，不换背景色）承载，
+     本卡不再挂换色型 .pressed，避免合成层下露出左上角色块。 */
   border: 1rpx solid var(--border-card);
-  box-shadow: var(--shadow-card-soft);
   padding: var(--spacing-md);
   overflow: hidden;
-  /* Apple highlight 按压：背景微变而非整卡缩放（与 find 混合卡一致） */
-  transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.moment-card.pressed { background-color: var(--bg-soft); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 圆角正方形头像：用明确 rpx（16rpx），不用 var(--radius-card)=16px（在 64rpx 头像上接近圆形） */
 .m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
@@ -205,7 +207,8 @@ async function onUseful() {
 /* 第二行：星星（左）+ 发布时间（小间隙同行，不推右；无星星时仅时间自然排列） */
 .m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
 .m-time { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; }
+/* 圆角 + 底色（由 .audit-pending/.audit-rejected 提供）：overflow:hidden 裁掉圆角外侧背景方角残留 */
+.m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; }
 .m-audit-text { font-size: var(--font-aux); font-weight: var(--weight-bold); }
 .audit-pending { background: var(--color-warning-soft); }
 .audit-pending .m-audit-text { color: var(--color-warning); }
@@ -222,13 +225,15 @@ async function onUseful() {
 .m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
 /* 关联 chip：胶囊背景（primary-soft + 主色文字），左侧为圆角正方形菜品缩略图（有图显图、无图显菜品占位图标）——
    与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* ⚠️ overflow:hidden：本 chip 位于卡片底部左侧、带主色浅底，圆角外侧的背景方角残留
+   会在列表里表现为「屏幕左侧色块」（每条动态一块），必须裁掉。 */
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
 /* 圆角正方形菜品缩略图（56rpx + 12rpx 圆角，chip 内上下各留 4rpx） */
-.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
+.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
 .m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
-.m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); }
+.m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); overflow: hidden; }
 .m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }

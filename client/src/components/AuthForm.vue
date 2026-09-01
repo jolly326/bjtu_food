@@ -6,7 +6,7 @@
       <text class="form-note">验证码发至校园邮箱，认证后解锁发布 / 评价 / 点赞 / 动态</text>
     </view>
 
-    <view v-if="formError" class="form-error" @tap="clearError">
+    <view v-if="formError" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
       <text class="form-error-text">{{ formError }}</text>
     </view>
 
@@ -17,6 +17,8 @@
           class="input-control"
           type="number"
           placeholder="学号"
+          aria-label="学号"
+          :aria-invalid="formError ? 'true' : 'false'"
           @input="clearError"
         />
       </view>
@@ -25,9 +27,18 @@
           v-model="form.code"
           class="input-control"
           placeholder="邮箱验证码"
+          aria-label="邮箱验证码"
+          :aria-invalid="formError ? 'true' : 'false'"
           @input="clearError"
         />
-        <text class="code-action" :class="{ disabled: codeCountdown > 0 }" @tap="sendCode">{{ codeButtonText }}</text>
+        <text
+          class="code-action"
+          :class="{ disabled: codeCountdown > 0 }"
+          role="button"
+          :aria-label="codeCountdown > 0 ? `${codeCountdown}s 后重发验证码` : '获取验证码'"
+          :aria-disabled="codeCountdown > 0 ? 'true' : 'false'"
+          @tap="sendCode"
+        >{{ codeButtonText }}</text>
       </view>
       <view v-if="form.username.trim()" class="email-hint">验证码将发送至 {{ deriveCampusEmail(form.username) }}</view>
     </view>
@@ -35,6 +46,10 @@
     <view
       class="primary-action"
       :class="{ pressed: primaryPressed, disabled: isBusy }"
+      role="button"
+      aria-label="认证"
+      :aria-disabled="isBusy ? 'true' : 'false'"
+      :aria-busy="isBusy ? 'true' : 'false'"
       @touchstart="primaryPressed = true"
       @touchend="primaryPressed = false"
       @touchcancel="primaryPressed = false"

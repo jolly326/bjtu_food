@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useReducedMotion } from '@/composables/useReducedMotion'
 import { onLoad } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { getActivities, type ActivityItem } from '@/api/activity'
@@ -73,10 +74,7 @@ const refreshing = ref(false)
 const list = ref<ActivityItem[]>([])
 const pressedId = ref<number | null>(null)
 
-const reduceMotion = ref(false)
-if (typeof window !== 'undefined') {
-  reduceMotion.value = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-}
+const reduceMotion = useReducedMotion().reduceMotion
 
 function formatTime(t: string) {
   return formatDateTime(t)

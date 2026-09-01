@@ -65,7 +65,8 @@ export const useDishStore = defineStore('dish', () => {
   const filterList = ref<Dish[]>([])
   const filterTotal = ref(0)
   const filterPage = ref(1)
-  /** 首页价格筛选区间（元，null/undefined 表示不限）；透传后端既有 minPrice/maxPrice */
+  /** 首页价格筛选区间（分，null/undefined 表示不限）；透传后端既有 minPrice/maxPrice。
+   *  展示层需转「元」时必须走 utils/money 的 fenToYuan，禁止裸算 /100。 */
   const filterPrice = ref<{ min?: number; max?: number }>({})
   const filterLoadingMore = ref(false)
   const filterFinished = ref(false)

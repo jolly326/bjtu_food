@@ -1,10 +1,10 @@
 <template>
-  <!-- 价格筛选下拉：白底面板，从白底筛选条向下展开、视觉衔接无间隙（与 CanteenFilter 同款）。
+  <!-- 价格筛选下拉：米色面板，从筛选条向下展开、与米色页面/筛选区无缝衔接（与 CanteenFilter 同款）。
        必须挂在 scroll-view 之外（小程序 scroll-view 内 absolute 层级会被裁剪）。 -->
   <view v-if="open" class="ps-root">
     <!-- 遮罩：自筛选条底部向下铺满，承接面板外点击关闭；下方内容轻微压暗 -->
     <view class="ps-mask" :class="{ show: maskShow }" @tap="close" />
-    <!-- 白底面板：紧贴筛选条向下展开（非红底，筛选组件已非红色背景） -->
+    <!-- 米色面板：紧贴筛选条向下展开（非红非白，与筛选区/页面统一） -->
     <view class="ps-panel" :class="{ 'theme-dark': theme.isDark, open: panelOpen }">
       <view class="ps-title">价格区间</view>
 
@@ -61,6 +61,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import IconSvg from '@/components/IconSvg.vue'
+import { fenToYuan, yuanToFen } from '@/utils/money'
 
 const props = withDefaults(defineProps<{
   /** 面板显隐（受控，由父级 v-if 承载实际挂载） */
@@ -117,12 +118,12 @@ const draftMax = ref(vModelMax())
 function vModelMin(): string {
   const m = props.current.min
   if (m === undefined) return ''
-  return m === 0 ? '0' : String(Math.round(m / 100))
+  return String(fenToYuan(m))
 }
 function vModelMax(): string {
   const m = props.current.max
   if (m === undefined) return ''
-  return String(Math.round(m / 100))
+  return String(fenToYuan(m))
 }
 
 function onMinInput(e: any) {
@@ -130,13 +131,6 @@ function onMinInput(e: any) {
 }
 function onMaxInput(e: any) {
   draftMax.value = e.detail.value
-}
-
-function yuanToFen(v: string): number | undefined {
-  if (v === '' || v === null || v === undefined) return undefined
-  const n = Number(v)
-  if (Number.isNaN(n)) return undefined
-  return Math.round(n * 100)
 }
 
 function close() {
@@ -152,9 +146,18 @@ function pickPreset(key: PresetKey) {
   emit('select', { min: opt.min, max: opt.max })
 }
 
+/** 输入串（元）→ 分：空串 / 非法值返回 undefined（表示不限）。
+ *  ×100 主体仍走 utils/money 的 yuanToFen，此处只负责「输入串 → 数字」的解析与边界兜底。 */
+function toFen(v: string): number | undefined {
+  if (v === '') return undefined
+  const n = Number(v)
+  if (!Number.isFinite(n)) return undefined
+  return yuanToFen(n)
+}
+
 function onConfirm() {
-  let min = yuanToFen(draftMin.value)
-  let max = yuanToFen(draftMax.value)
+  let min = toFen(draftMin.value)
+  let max = toFen(draftMax.value)
   // 边界：min>max 时自动纠正为区间（取较小值为下界）
   if (min !== undefined && max !== undefined && min > max) {
     const t = min

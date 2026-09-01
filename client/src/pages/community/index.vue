@@ -25,17 +25,25 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔） -->
-        <MomentCard
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔）
+             ⚠️ 动画必须挂在外层 wrapper，绝不能挂在 MomentCard 根元素上：
+             带 animation 的元素会被提升为合成层，而 WeChat 合成层上 border-radius
+             对「自身背景」的裁剪会失效 → 背景按方形绘制，左上角圆角外露出一道竖直色块。
+             overflow:hidden 只裁子元素、不裁自身背景，故加在卡片上无效。
+             对齐首页 WaterfallList 做法：.waterfall-item 挂 enter-up、DishCard 在其内部（无此问题）。 -->
+        <view
           v-for="(m, i) in moments"
           :key="m.id"
           class="enter-up"
           :style="{ '--enter-i': Math.min(i, 8) }"
-          :moment="m"
-          @select="goDetail"
-          @go-related="goRelated"
-          @more="openMore"
-        />
+        >
+          <MomentCard
+            :moment="m"
+            @select="goDetail"
+            @go-related="goRelated"
+            @more="openMore"
+          />
+        </view>
         <!-- 触底状态 -->
         <view v-if="loadingMore" class="list-footer loading">
           <view class="footer-spinner" />

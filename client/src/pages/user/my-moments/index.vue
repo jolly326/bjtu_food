@@ -19,18 +19,24 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔） -->
-        <MomentCard
+        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔）
+             ⚠️ 动画挂外层 wrapper、不挂 MomentCard 根元素（与社区页同源规则）：
+             合成层上 border-radius 对自身背景裁剪失效，会把卡片背景画成方形，
+             左上角露出竖直色块。详见 pages/community/index.vue 同位置注释。 -->
+        <view
           v-for="(m, i) in moments"
           :key="m.id"
           class="enter-up"
           :style="{ '--enter-i': Math.min(i, 8) }"
-          :moment="m"
-          :show-audit="true"
-          @select="goDetail"
-          @go-related="goRelated"
-          @more="openMore"
-        />
+        >
+          <MomentCard
+            :moment="m"
+            :show-audit="true"
+            @select="goDetail"
+            @go-related="goRelated"
+            @more="openMore"
+          />
+        </view>
       </view>
 
       <view style="height: var(--spacing-lg)" />

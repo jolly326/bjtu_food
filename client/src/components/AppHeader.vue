@@ -102,6 +102,12 @@ function handleBack() {
   position: sticky;
   top: 0;
   z-index: 100;
+  /* 底部留白：全站 header 总高以「搜索页(find)」为基准，其 .search-nav 带此留白，
+     故此处必须以同一 token（--spacing-sm）复刻，否则搜索页会比其余所有页面高 16rpx。
+     ⚠️ 改此值必须同步改 find/index.vue 的 .search-nav —— 两者共用 --spacing-sm，
+     只要都引用该 token 就不会漂移；真正要防的是其中一方整条留白被删。
+     胶囊居中只由 paddingTop + 行高(--nav-h) 决定，本留白不影响胶囊对齐。 */
+  padding-bottom: var(--spacing-sm);
 }
 
 /* ===== 通用/二级页：返回 + 居中标题 ===== */
@@ -140,12 +146,10 @@ function handleBack() {
   white-space: nowrap;
 }
 
-/* ===== 首页两行头部（朱砂红底）：行1 搜索 / 行2 筛选 ===== */
-.header-wrap.home {
-  background: var(--color-primary);
-  border-bottom: none;
-  padding-bottom: var(--spacing-sm);
-}
+/* ===== 首页头部（朱砂红底）：仅搜索行 =====
+   home variant 无需任何覆盖：红底 / 无底线 / 底部留白已全部由基类 .header-wrap 承载，
+   高度统一走「状态栏高 + --nav-h + 底部留白」公式（基准＝搜索页）。
+   筛选行是 header 之外的独立 .filter-bar，不占用 header 高度。 */
 /* 行1：导航行，高度对齐系统导航栏，右侧避让原生气囊 */
 .home-nav {
   display: flex;

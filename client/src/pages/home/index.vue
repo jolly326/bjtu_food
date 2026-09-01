@@ -9,17 +9,16 @@
       />
     </view>
 
-    <!-- 筛选行：左=食堂(切换)，右=价格(切换)，最右=筛选图标→find 详细筛选页 -->
+    <!-- 筛选行：左=全部食堂 / 全部价格（仅展开时红底），最右=筛选图标（常驻，暂不挂跳转） -->
     <view class="filter-bar">
       <HomeFilterChip
         :selected-canteen="selectedCanteenName"
         :capsule-height="36"
-        :filter-active="showFilter"
+        :filter-open="showFilter"
         :price-label="priceLabel"
-        :price-active="priceActive"
+        :price-open="showPrice"
         @filter="toggleFilter"
         @price="togglePrice"
-        @openFilter="goToFind"
       />
       <CanteenFilter
         v-if="showFilter"
@@ -96,6 +95,7 @@ import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import { fenToYuan } from '@/utils/money'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import HomeFilterChip from '@/components/HomeFilterChip.vue'
@@ -121,16 +121,16 @@ const capsuleHeight = ref(32)
 /** 价格筛选面板显隐 */
 const showPrice = ref(false)
 
-/** 价格胶囊文案：未选「价格」，已选显示区间（如「价格 · 10-20」「价格 · 20元以上」） */
+/** 价格胶囊文案：未选「全部价格」，已选回显具体区间。
+ *  store 的 filterPrice 单位为「分」，展示必须转「元」——统一走 utils/money 的 fenToYuan（红线：禁止裸算 /100）。
+ *  修复前直接把「分」当「元」显示，选中 10–20 元会显示成「1000-2000」。 */
 const priceLabel = computed(() => {
   const p = dishStore.filterPrice
-  if (p.min == null && p.max == null) return '价格'
-  if (p.min != null && p.max == null) return `价格 · ${p.min}元以上`
-  if (p.min == null && p.max != null) return `价格 · ${p.max}元以下`
-  return `价格 · ${p.min}-${p.max}`
+  if (p.min == null && p.max == null) return '全部价格'
+  if (p.min != null && p.max == null) return `${fenToYuan(p.min)} 元以上`
+  if (p.min == null && p.max != null) return `${fenToYuan(p.max)} 元以下`
+  return `${fenToYuan(p.min)}-${fenToYuan(p.max)} 元`
 })
-/** 价格是否已生效（控制胶囊选中态） */
-const priceActive = computed(() => dishStore.filterPrice.min != null || dishStore.filterPrice.max != null)
 
 /** 选择价格区间：写回 store 并刷新当前筛选流（后端既有 minPrice/maxPrice，无新契约） */
 async function onPriceSelect(range: { min?: number; max?: number }) {
@@ -179,11 +179,6 @@ function onCanteenSelect(id: number | null) {
 /** 价格筛选：点击切换（展开/收起） */
 function togglePrice() {
   showPrice.value = !showPrice.value
-}
-
-/** 筛选图标：跳转 find 二级筛选页（详细筛选表单） */
-function goToFind() {
-  uni.navigateTo({ url: '/pages/find/index' })
 }
 
 function goToSearch() {

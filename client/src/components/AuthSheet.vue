@@ -14,6 +14,7 @@
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
       :style="sheetStyle"
+      v-bind="dialogAttrs"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -42,9 +43,11 @@ import IconSvg from '@/components/IconSvg.vue'
 import AuthForm from '@/components/AuthForm.vue'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useUserStore } from '@/stores/user'
+import { useSheetFocus } from '@/composables/useSheetFocus'
 
 const authSheetStore = useAuthSheetStore()
 const userStore = useUserStore()
+const { captureTrigger, restoreFocus, dialogAttrs } = useSheetFocus()
 
 // 必须用 storeToRefs 保持响应性（直接解构会丢失更新，弹层永不显示）
 const { visible } = storeToRefs(authSheetStore)
@@ -86,6 +89,7 @@ watch(
 // 弹层显隐 → 开合动画
 watch(visible, (v) => {
   if (v) {
+    captureTrigger()
     nextTick(() => {
       maskShow.value = true
       sheetOpen.value = true
@@ -94,6 +98,7 @@ watch(visible, (v) => {
     maskShow.value = false
     sheetOpen.value = false
     dragOffset.value = 0
+    restoreFocus()
   }
 })
 

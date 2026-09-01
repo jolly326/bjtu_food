@@ -98,15 +98,14 @@ function handleClick() {
   background: var(--bg-page);
   border-radius: var(--radius-card);
   overflow: hidden;
-  /* 边界：与页面同色、发丝边明确抬起（去除白底，避免白色色块） */
+  /* 边界：与页面同色 + 发丝边区分。与 MomentCard 同规则——同色卡不投影，
+     否则阴影会渲染成无源头的暗色晕影（社区页「左侧色块」同源问题）。
+     overflow:hidden 保留：顶部图片贴齐卡片上缘，需裁进圆角。 */
   border: 1rpx solid var(--border-card);
-  box-shadow: var(--shadow-card-soft);
-  /* 进场仅极轻量淡入 + 按压缩放（红线 §4.9②：位移 ≤0，仅 transform/opacity） */
-  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out);
+  /* 进场仅极轻量淡入（红线 §4.9②：位移 ≤0，仅 transform/opacity）；
+     按压缩放统一由 Pressable（整卡 scale）承载，本卡不再挂 .pressed */
+  transition: opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
-}
-.dish-card.pressed {
-  transform: scale(var(--press-scale));
 }
 .card-image {
   position: relative;
