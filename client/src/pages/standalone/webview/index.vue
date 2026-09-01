@@ -2,7 +2,7 @@
   <view class="wv-page">
     <!-- 自定义返回条：web-view 为原生组件会覆盖整页，故用 webview-styles 把网页内容下移，
          返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
-    <view class="wv-bar" :style="{ height: (statusBarHeight + navBarHeight) + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))' }">
+    <view class="wv-bar" :style="{ height: barHeight + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', paddingBottom: padBottomPx + 'px' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
         <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" />
       </view>
@@ -37,10 +37,16 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import IconSvg from '@/components/IconSvg.vue'
+import { getNavBarHeight } from '@/utils/navMetrics'
 
 const url = ref('')
 const statusBarHeight = ref(20)
 const navBarHeight = ref(56)
+/** 返回条底部留白（px）：对齐全站 header 基准（AppHeader .header-wrap / find .search-nav 的 --spacing-sm=16rpx）。
+ *  初值按 375 屏宽换算：16 * 375 / 750 = 8px */
+const padBottomPx = ref(8)
+/** 返回条总高（px）＝ 状态栏 + 导航栏 + 底部留白；web-view 原生内容据此下移避让 */
+const barHeight = ref(84)
 
 // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync
 function getStatusBarHeight(): number {
@@ -49,6 +55,19 @@ function getStatusBarHeight(): number {
   // @ts-ignore
   const win = (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
   return (win && win.statusBarHeight) || 20
+}
+
+/** rpx → px（uni-app 换算口径：1rpx = windowWidth / 750）。
+ *  用途：把全站 header 底部留白（CSS 侧 --spacing-sm = 16rpx）换算为 px ——
+ *  web-view 是原生组件、只认 px，必须据此精确下移，否则网页内容会被返回条压住。 */
+function rpxToPx(rpx: number): number {
+  // @ts-ignore - 跨端兼容（H5 无 wx，退化为 375 基准）
+  const win = (typeof wx !== 'undefined')
+    // @ts-ignore
+    ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
+    : null
+  const ww = (win && win.windowWidth) || 375
+  return (rpx * ww) / 750
 }
 
 onLoad((options) => {
@@ -69,16 +88,22 @@ onLoad((options) => {
   statusBarHeight.value = sb
   // @ts-ignore - 微信胶囊按钮位置，用于对齐返回条高度
   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) navBarHeight.value = (mb.top - sb) * 2 + mb.height
+  // 导航栏高度统一走 utils/navMetrics（单一真源）：此前此处内联复制了同一公式，
+  // 与 AppHeader / find 页存在漂移风险，正是 navMetrics 抽离时要防的问题。
+  if (mb && mb.height) navBarHeight.value = getNavBarHeight(sb, mb)
+  // 底部留白对齐全站 header 基准（--spacing-sm = 16rpx），使本返回条与搜索页 header 等高
+  padBottomPx.value = rpxToPx(16)
+  barHeight.value = sb + navBarHeight.value + padBottomPx.value
   webviewStyles.value = {
-    top: `${sb + navBarHeight.value}px`,
+    top: `${barHeight.value}px`,
     progressbar: { color: '#9B2A1D' },
   }
 })
 
-// web-view 内容顶部留出「状态栏 + 返回条」高度，避免被刘海/状态栏遮挡
+// web-view 内容顶部留出「状态栏 + 返回条 + 底部留白」高度，避免被刘海/状态栏/返回条遮挡。
+// 初值与 barHeight 初值一致（20 + 56 + 8），onLoad 内按真机实测值覆盖。
 const webviewStyles = ref({
-  top: '64px',
+  top: '84px',
   progressbar: { color: '#9B2A1D' },
 })
 

@@ -11,6 +11,7 @@
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
       :style="sheetStyle"
+      v-bind="dialogAttrs"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -82,6 +83,7 @@ import { ref, watch, computed, nextTick } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { submitApply } from '@/api/apply'
 import type { ApplyEntityType } from '@/api/apply'
+import { useSheetFocus } from '@/composables/useSheetFocus'
 
 const props = defineProps<{
   open: boolean
@@ -95,6 +97,8 @@ const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
   (e: 'submitted'): void
 }>()
+
+const { captureTrigger, restoreFocus, dialogAttrs } = useSheetFocus()
 
 const entityTypes: { value: ApplyEntityType; label: string }[] = [
   { value: 'DISH', label: '菜品' },
@@ -129,6 +133,7 @@ const sheetStyle = computed(() => ({
 
 watch(() => props.open, (v) => {
   if (v) {
+    captureTrigger()
     // 预置实体类型 / ID（详情页锁定）
     if (props.entityType) innerEntityType.value = props.entityType
     if (props.entityId) innerEntityId.value = String(props.entityId)
@@ -142,6 +147,7 @@ watch(() => props.open, (v) => {
     maskShow.value = false
     sheetOpen.value = false
     dragOffset.value = 0
+    restoreFocus()
   }
 })
 

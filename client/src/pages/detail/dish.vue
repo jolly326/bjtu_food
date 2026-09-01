@@ -1,7 +1,7 @@
 <template>
   <view class="page dish-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="菜品详情" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="!reduceMotion">
+    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="!reduceMotion" ref="mainRef" tabindex="-1">
       <!-- 加载骨架屏 -->
       <view v-if="dishStore.loading && !dish" class="dish-skeleton">
         <view class="skeleton-swiper"></view>
@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
@@ -229,6 +229,7 @@ import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
+import { useReducedMotion } from '@/composables/useReducedMotion'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -266,12 +267,11 @@ onUnload(() => {
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 /** reduced-motion 降级 */
-const reduceMotion = ref(false)
+const reduceMotion = useReducedMotion().reduceMotion
+// 主内容区引用（2.4 路由切换聚焦，H5/桌面生效）
+const mainRef = ref<any>()
 /** 简介展开/收起 */
 const descExpanded = ref(false)
-if (typeof window !== 'undefined') {
-  reduceMotion.value = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-}
 
 /** 大图列表：优先 images，回退单图 */
 const heroImages = computed(() => {
@@ -373,6 +373,10 @@ onLoad((query) => {
 /** 从写评价页返回时：仅当脏标记置位才重拉（评价列表 + 综合评分卡），避免每次返回无效请求（#8/#3） */
 onShow(() => {
   if (!dishId.value || !dish.value) return
+  // 路由/页面显示后将焦点移到主内容区（2.4，仅 H5/桌面有 DOM 焦点意义，小程序 no-op）
+  // #ifdef H5
+  nextTick(() => mainRef.value?.$el?.focus?.())
+  // #endif
   if (dishStore.reviewsDirty) {
     dishStore.reviewsDirty = false
     dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 3 })

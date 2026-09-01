@@ -1,9 +1,11 @@
 <template>
   <Pressable
     class="app-btn"
-    :class="[btnType, { disabled, loading }]"
+    :class="[btnType, { disabled, loading, hoverable: !disabled && !loading }]"
     :style="btnStyle"
     :aria-label="text"
+    :aria-busy="loading ? 'true' : 'false'"
+    :aria-disabled="disabled ? 'true' : 'false'"
     @tap="handleTap"
   >
     <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />

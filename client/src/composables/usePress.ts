@@ -5,8 +5,9 @@ import { ref } from 'vue'
  * 覆盖 touch 与 mouse 输入及 touchcancel / mouseleave 中断态，
  * 业务组件无需再各自声明 @touchstart/@touchend/@touchcancel/@mousedown/@mouseup/@mouseleave 与 pressed ref。
  *
- * 视觉缩放由全局 `.pressed` 类承载（scale(var(--press-scale))），
- * 在 mp-weixin 真机另由 `hover-class="pressed"` 兜底（WXSS :active 失效）。
+ * 视觉缩放由 `.pressed` 类承载（scale(var(--press-scale))），由 Pressable 统一加在根元素。
+ * 注意：Pressable 不叠加 WXSS hover-class（避免两套机制在滑动划过时高频触发换色型
+ * .pressed，导致合成层 border-radius 裁剪失效露出左上角色块）；纯 JS 状态机为唯一来源。
  */
 export function usePress() {
   const pressed = ref(false)

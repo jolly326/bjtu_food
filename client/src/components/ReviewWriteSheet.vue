@@ -1,6 +1,6 @@
 <template>
   <view class="rw-mask" @tap="close">
-    <view class="rw-sheet" @tap.stop>
+  <view class="rw-sheet" v-bind="dialogAttrs" @tap.stop>
       <view class="rw-handle" />
       <view class="rw-head">
         <text class="rw-title">写评价</text>
@@ -69,12 +69,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import ImageUploader from './ImageUploader.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useDishStore } from '@/stores/dish'
+import { useSheetFocus } from '@/composables/useSheetFocus'
 
 const props = defineProps<{
   dishId: number
@@ -88,6 +89,7 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const dishStore = useDishStore()
+const { captureTrigger, dialogAttrs } = useSheetFocus()
 
 const star = ref(0)
 const content = ref('')
@@ -103,6 +105,9 @@ function toggleTag(t: string) {
   if (i >= 0) selectedTags.value.splice(i, 1)
   else selectedTags.value.push(t)
 }
+
+// 弹层挂载即记录触发焦点，卸载时由 useSheetFocus 还原（2.3）
+onMounted(captureTrigger)
 
 function close() {
   emit('close')

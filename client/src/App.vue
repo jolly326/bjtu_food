@@ -440,6 +440,13 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --z-auth: 6000;         /* 登录网关，最高层级 */
 }
 
+/* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
+   加载态遮罩底色（骨架/禁用态复用）、禁用态弱化文字色（复用四档文字末档）。
+   微信小程序以 page 为准、H5 以 :root 为准，此处三者统一声明。 */
+page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
+.theme-dark { --state-loading: rgba(255, 255, 255, 0.06); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
+:root { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
+
 /* ========== 页面基础壳 ========== */
 .page {
   min-height: 100vh;
@@ -579,5 +586,36 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
+}
+
+/* ========== 交互状态工具类（client-ui-comprehensive-upgrade 1.2/1.4/1.6/2.2/4.1） ==========
+   统一加载/禁用/错误态与键盘焦点、hover、宽屏容器，避免各组件散落重复实现。 */
+/* 加载态：叠加微光遮罩并禁交互（配合 .skeleton 或独立用于整块） */
+.is-loading { position: relative; pointer-events: none; }
+.is-loading::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: var(--state-loading);
+}
+/* 禁用态：弱化 + 禁点（语义文字色复用 --state-disabled） */
+.is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
+/* 错误态：内联校验失败提示容器（与 .has-error 文字色配对） */
+.has-error { color: var(--color-error); }
+/* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显） */
+:focus-visible {
+  outline: 3rpx solid var(--color-primary);
+  outline-offset: 2rpx;
+  border-radius: var(--radius-xs);
+}
+/* hover 态：仅在精确指针（桌面/平板鼠标）设备生效，触屏不触发误缩放 */
+@media (hover: hover) and (pointer: fine) {
+  .hoverable { transition: transform var(--duration-fast) var(--ease-out); }
+  .hoverable:hover { transform: scale(var(--scale-hover)); }
+}
+/* 宽屏容器：桌面/平板居中限宽，移动端自然铺满（4.1） */
+.app-container { width: 100%; margin: 0 auto; box-sizing: border-box; }
+@media (min-width: 768px) {
+  .app-container { max-width: 720px; }
+  /* 主滚动区在宽屏居中限宽，避免内容被无限拉伸（4.1，仅 H5/桌面生效） */
+  .scroll-wrap { max-width: 720px; margin: 0 auto; }
 }
 </style>

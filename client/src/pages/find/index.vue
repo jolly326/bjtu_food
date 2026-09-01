@@ -28,18 +28,15 @@
     </view>
 
     <!-- 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter，状态与首页隔离） -->
-    <!-- 结果态筛选条：仅出搜索结果时渲染，与首页同款三胶囊（食堂/排序/价格），红激活态 -->
+    <!-- 结果态筛选条：仅出搜索结果时渲染，与首页同款两胶囊（食堂/价格），仅展开时红底 -->
     <view v-if="inFilter" class="find-filter-row">
       <HomeFilterChip
         :selected-canteen="findCanteenName"
         :capsule-height="36"
-        :filter-active="findFilterActive"
-        :sort-label="findSortLabel"
-        :sort-active="findSortActive"
+        :filter-open="showFindFilter"
         :price-label="findPriceLabel"
-        :price-active="findPriceActive"
+        :price-open="findShowPrice"
         @filter="showFindFilter = !showFindFilter"
-        @sort="findShowSort = true"
         @price="findShowPrice = true"
       />
       <CanteenFilter
@@ -48,12 +45,6 @@
         :selected-id="findCanteenId"
         @select="onFindCanteenSelect"
         @close="showFindFilter = false"
-      />
-      <HomeSortSheet
-        :open="findShowSort"
-        :current="findSortBy"
-        @select="onFindSortSelect"
-        @update:open="findShowSort = $event"
       />
       <HomePriceSheet
         :open="findShowPrice"
@@ -243,6 +234,7 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore, type HomeSortKey } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import { fenToYuan } from '@/utils/money'
 import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
 import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
@@ -255,7 +247,6 @@ import CardSection from '@/components/CardSection.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
 import HomeFilterChip from '@/components/HomeFilterChip.vue'
-import HomeSortSheet from '@/components/HomeSortSheet.vue'
 import HomePriceSheet from '@/components/HomePriceSheet.vue'
 
 const theme = useThemeStore()
@@ -371,30 +362,23 @@ function onFindCanteenSelect(id: number | null) {
   doMixedSearch(keyword.value.trim())
 }
 
-// ===== 结果态筛选（仅 inFilter 渲染，与首页同款三胶囊：食堂/排序/价格） =====
+// ===== 结果态筛选（仅 inFilter 渲染，与首页同款两胶囊：食堂 / 价格，仅展开时红底） =====
+// 排序胶囊已从 HomeFilterChip 移除（筛选行只保留食堂+价格两个按钮），排序弹层随之无触发入口；
+// findSortBy 仍作为检索入参来源保留（doMixedSearch → findSortParams），待后续排序入口再启用。
 const findSortBy = ref<HomeSortKey>('latest')
-const findShowSort = ref(false)
 const findShowPrice = ref(false)
 const findPrice = ref<{ min?: number; max?: number }>({})
 
-const FIND_SORT_LABELS: Record<HomeSortKey, string> = {
-  latest: '排序 · 最新',
-  distance: '排序 · 距离最近',
-  priceAsc: '排序 · 价格↑',
-  priceDesc: '排序 · 价格↓',
-  hot: '排序 · 热度最高',
-}
-const findFilterActive = computed(() => showFindFilter.value || !!findCanteenId.value)
-const findSortLabel = computed(() => FIND_SORT_LABELS[findSortBy.value] ?? FIND_SORT_LABELS.latest)
-const findSortActive = computed(() => findShowSort.value || findSortBy.value !== 'latest')
+/** 价格胶囊文案：未选「全部价格」，已选回显区间。
+ *  findPrice 由 HomePriceSheet 以「分」回传（与首页口径一致），展示转「元」统一走 fenToYuan（禁止裸算 /100）。
+ *  修复前把「分」当「元」显示，选中 10–20 元会显示成「1000-2000」。 */
 const findPriceLabel = computed(() => {
   const p = findPrice.value
-  if (p.min == null && p.max == null) return '价格'
-  if (p.min != null && p.max == null) return `价格 · ${p.min}元以上`
-  if (p.min == null && p.max != null) return `价格 · ${p.max}元以下`
-  return `价格 · ${p.min}-${p.max}`
+  if (p.min == null && p.max == null) return '全部价格'
+  if (p.min != null && p.max == null) return `${fenToYuan(p.min)} 元以上`
+  if (p.min == null && p.max != null) return `${fenToYuan(p.max)} 元以下`
+  return `${fenToYuan(p.min)}-${fenToYuan(p.max)} 元`
 })
-const findPriceActive = computed(() => findPrice.value.min != null || findPrice.value.max != null)
 
 function findSortParams(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc' | 'desc' } {
   switch (key) {
@@ -406,11 +390,6 @@ function findSortParams(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc
   }
 }
 
-function onFindSortSelect(key: HomeSortKey) {
-  findSortBy.value = key
-  findShowSort.value = false
-  doMixedSearch(keyword.value.trim())
-}
 function onFindPriceSelect(range: { min?: number; max?: number }) {
   findPrice.value = range
   findShowPrice.value = false
@@ -578,7 +557,6 @@ function exitFilter() {
   findSortBy.value = 'latest'
   findPrice.value = {}
   showFindFilter.value = false
-  findShowSort.value = false
   findShowPrice.value = false
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
@@ -650,7 +628,9 @@ watch(keyword, () => {
   background: var(--color-primary);
   padding-left: var(--spacing-lg);
   padding-right: var(--spacing-lg);
-  /* 底部留白：让搜索框与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+search-nav-row 精确定位） */
+  /* 底部留白：让搜索框与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+search-nav-row 精确定位）。
+     ⚠️ 本页是全站 header 高度的基准：AppHeader(.header-wrap) 必须用同 token 复刻本留白，
+     否则搜索页会比其余页面高 16rpx。统一口径见 utils/navMetrics.ts。 */
   padding-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
