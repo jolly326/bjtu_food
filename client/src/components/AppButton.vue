@@ -1,22 +1,23 @@
 <template>
-  <Pressable
+  <view
     class="app-btn"
-    :class="[btnType, { disabled, loading, hoverable: !disabled && !loading }]"
+    :class="[btnType, { disabled, loading }]"
     :style="btnStyle"
     :aria-label="text"
     :aria-busy="loading ? 'true' : 'false'"
     :aria-disabled="disabled ? 'true' : 'false'"
+    role="button"
+    tabindex="0"
     @tap="handleTap"
   >
     <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
-  </Pressable>
+  </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import IconSvg from './IconSvg.vue'
-import Pressable from './Pressable.vue'
 
 const props = withDefaults(defineProps<{
   text: string

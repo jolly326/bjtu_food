@@ -12,14 +12,35 @@
       禁止任何具名 slot 分发。
     -->
     <template v-if="single">
-      <!-- 单列模式：档口卡流（canteen 详情页重构，task-14 W4） -->
+      <!-- 单列模式：档口卡流（canteen 详情页重构，task-14 W4）；
+           档口卡结构由 StallCardSingle 内联而来（client-component-over-split-cleanup），事件/按压态并入本组件 -->
       <view
-        v-for="(item, i) in list"
-        :key="stallKey(item, i)"
-        class="waterfall-item-single enter-up"
-        :style="{ '--enter-i': i }"
+        v-for="(stall, i) in singleStalls"
+        :key="stall.id || `st-${i}`"
+        class="waterfall-item-single"
       >
-        <StallCardSingle :stall="toStallItem(item)" @select="onStallClick" />
+        <view
+          class="stall-card-single"
+          @tap="onStallClick(stall)"
+        >
+          <view class="stall-thumb">
+            <ImageFallback :src="stall.image" />
+          </view>
+          <view class="stall-info">
+            <text class="stall-name">{{ stall.name }}</text>
+            <text v-if="stall.description" class="stall-desc">{{ stall.description }}</text>
+            <view v-if="stall.tags && stall.tags.length" class="stall-tags">
+              <text v-for="t in stall.tags" :key="t" class="stall-tag">{{ t }}</text>
+            </view>
+            <text v-if="stall.topDishes && stall.topDishes.length" class="stall-topdishes">招牌：{{ stall.topDishes.join('、') }}</text>
+            <text v-if="stallMetaText(stall)" class="stall-meta-text">{{ stallMetaText(stall) }}</text>
+            <view v-if="stallDisplayRating(stall) > 0" class="star-num">
+              <IconSvg name="star-filled" :size="22" color="var(--color-star)" />
+              <text class="star-num-text">{{ formatRating(stallDisplayRating(stall)) }}</text>
+            </view>
+            <text v-else class="no-rating">暂无评分</text>
+          </view>
+        </view>
       </view>
     </template>
 
@@ -27,20 +48,18 @@
     <template v-else>
       <view class="waterfall-col waterfall-col-left">
         <view
-          v-for="(entry, i) in splitList.left"
+          v-for="entry in splitList.left"
           :key="entry.key"
-          class="waterfall-item enter-up"
-          :style="{ '--enter-i': i }"
+          class="waterfall-item"
         >
           <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
       </view>
       <view class="waterfall-col waterfall-col-right">
         <view
-          v-for="(entry, i) in splitList.right"
+          v-for="entry in splitList.right"
           :key="entry.key"
-          class="waterfall-item enter-up"
-          :style="{ '--enter-i': i }"
+          class="waterfall-item"
         >
           <DishCard :dish="entry.item" @select="onCardClick" />
         </view>
@@ -50,9 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import DishCard from './DishCard.vue'
-import StallCardSingle from './StallCardSingle.vue'
+import ImageFallback from './ImageFallback.vue'
+import IconSvg from './IconSvg.vue'
 import type { Dish } from '@/types/dish'
 import type { StallCardItem } from '@/types/stall-card-item'
 
@@ -93,11 +113,6 @@ const splitList = computed(() => {
   return { left, right }
 })
 
-function stallKey(item: any, idx: number): string {
-  const raw = item?.[props.itemKey]
-  return (raw !== undefined && raw !== null && raw !== '') ? `st-${raw}` : `st-idx-${idx}`
-}
-
 /** 把任意档口对象归一为 StallCardItem（透传位置/菜品数/人均/招牌菜，todo：档口卡位置缺失） */
 function toStallItem(item: any): StallCardItem {
   return {
@@ -114,6 +129,28 @@ function toStallItem(item: any): StallCardItem {
     tags: item?.tags || [],
     topDishes: Array.isArray(item?.topDishes) ? item.topDishes : [],
   }
+}
+
+// 单列档口卡（由 StallCardSingle 内联而来，client-component-over-split-cleanup）
+const singleStalls = computed<StallCardItem[]>(() => props.list.map((item) => toStallItem(item)))
+
+/** 评分展示来源：优先 rating，缺省回落 avgRating（无则 0，模板内以 >0 判定） */
+function stallDisplayRating(stall: StallCardItem): number {
+  const r = stall.rating ?? stall.avgRating
+  return r != null ? Number(r) : 0
+}
+
+function stallMetaText(stall: StallCardItem): string {
+  if (stall.meta) return stall.meta
+  const parts: string[] = []
+  if (stall.location) parts.push(stall.location)
+  if (stall.dishCount != null) parts.push(`${stall.dishCount}道菜`)
+  if (stall.perCapita != null) parts.push(`¥${stall.perCapita}/人`)
+  return parts.join(' · ')
+}
+
+function formatRating(rating: number): string {
+  return rating.toFixed(1)
 }
 
 function onCardClick(dish: Dish) {
@@ -159,4 +196,79 @@ function onStallClick(stall: StallCardItem) {
   width: 100%;
   box-sizing: border-box;
 }
+</style>
+
+<!-- 档口卡样式（由 StallCardSingle 内联迁移而来，client-component-over-split-cleanup；scoped 避免全局泄漏） -->
+<style scoped>
+.stall-card-single {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stall-thumb {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: var(--radius-card);
+  background: var(--bg-page);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.stall-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6rpx;
+}
+.stall-name {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stall-desc {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+.stall-tags { display: flex; flex-wrap: nowrap; overflow: hidden; gap: var(--spacing-xs); max-height: 36rpx; }
+.stall-tag {
+  font-size: var(--font-tiny);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  padding: 2rpx 12rpx;
+  border-radius: var(--radius-tag);
+  font-weight: var(--weight-semibold);
+  flex-shrink: 0;
+}
+.stall-meta-text {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stall-topdishes {
+  font-size: var(--font-aux);
+  color: var(--color-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.no-rating { font-size: var(--font-tiny); color: var(--text-tertiary); }
+
+/* 评分内联（与 StallDishRow .star-num 对齐） */
+.star-num { display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+.star-num-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-semibold); }
 </style>

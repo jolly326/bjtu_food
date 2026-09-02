@@ -206,12 +206,11 @@ function onReset() {
   color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
   box-shadow: var(--shadow-card);
-  /* opacity 交叉淡入 + ≤8px 轻位移（红线 §4.9：无弹性过冲，引用动效 token） */
+  /* opacity 淡入（无位移/缩放，MVP 静态） */
   opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out-soft);
+  transition: opacity var(--duration-base) var(--ease-out);
 }
-.ps-panel.open { opacity: 1; transform: translateY(0); }
+.ps-panel.open { opacity: 1; }
 .ps-title {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);

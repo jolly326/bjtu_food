@@ -1,7 +1,7 @@
 <template>
   <view class="page dish-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="菜品详情" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="!reduceMotion" ref="mainRef" tabindex="-1">
+    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false" ref="mainRef" tabindex="-1">
       <!-- 加载骨架屏 -->
       <view v-if="dishStore.loading && !dish" class="dish-skeleton">
         <view class="skeleton-swiper"></view>
@@ -229,7 +229,6 @@ import { addView, deleteDish } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
-import { useReducedMotion } from '@/composables/useReducedMotion'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import ImageSwiper from '@/components/ImageSwiper.vue'
@@ -267,7 +266,7 @@ onUnload(() => {
 const currentUserId = computed(() => userStore.userInfo?.id)
 
 /** reduced-motion 降级 */
-const reduceMotion = useReducedMotion().reduceMotion
+
 // 主内容区引用（2.4 路由切换聚焦，H5/桌面生效）
 const mainRef = ref<any>()
 /** 简介展开/收起 */
@@ -608,7 +607,7 @@ const hasMetrics = computed(() => {
 .dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 .dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill, 999rpx); background: var(--color-star-empty); overflow: hidden; }
-.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star); transition: width var(--duration-slow) var(--ease-out); }
+.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star) }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 
 /* 6. 评价卡片：整卡一张（卡头 + flat 条目 + footer），与动态卡片形态趋同、无竖条装饰 */
@@ -669,9 +668,9 @@ const hasMetrics = computed(() => {
 
 /* 加载骨架 */
 .dish-skeleton { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.skeleton-swiper { width: 100%; height: 460rpx; border-radius: var(--radius-card); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+.skeleton-swiper { width: 100%; height: 460rpx; border-radius: var(--radius-card); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
 .skeleton-card { background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); margin: 0 var(--spacing-md); }
-.skeleton-line { height: 28rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+.skeleton-line { height: 28rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
 .skeleton-title { width: 60%; height: 40rpx; }
 .skeleton-price { width: 36%; }
 .skeleton-rating { width: 44%; }
@@ -679,11 +678,8 @@ const hasMetrics = computed(() => {
 .skeleton-block.short { width: 70%; }
 .skeleton-tags { display: flex; gap: var(--spacing-xs); }
 .skeleton-metric { display: flex; gap: 0; margin: 0 var(--spacing-md); padding: var(--spacing-md) 0; background: var(--bg-card); border-radius: var(--radius-card); }
-.skeleton-metric-col { flex: 0 0 25%; height: 64rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
-.skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+.skeleton-metric-col { flex: 0 0 25%; height: 64rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
+.skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
 
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-swiper, .skeleton-line, .skeleton-tag { animation: none; }
-  .dist-fill { transition: none; }
-}
+
 </style>

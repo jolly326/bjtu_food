@@ -1,7 +1,7 @@
 <template>
   <view class="page about-page" :class="{ 'theme-dark': theme.isDark }">
     <Header title="关于我们" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="!reduceMotion">
+    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false">
       <view class="hero">
         <view class="logo">
           <IconSvg name="comment" :size="64" color="var(--color-primary)" />
@@ -42,7 +42,6 @@
 </template>
 
 <script setup lang="ts">
-import { useReducedMotion } from '@/composables/useReducedMotion'
 import { useThemeStore } from '@/stores/theme'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
@@ -50,7 +49,6 @@ import IconSvg from '@/components/IconSvg.vue'
 
 const theme = useThemeStore()
 
-const reduceMotion = useReducedMotion().reduceMotion
 </script>
 
 <style scoped>

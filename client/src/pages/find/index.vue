@@ -1,31 +1,14 @@
 <template>
   <view class="page find-page" :class="{ 'theme-dark': theme.isDark }">
-    <!-- 顶部固定区（2026-08-03：返回键 + 搜索框 + 结果 tab，均不随滚动；避让状态栏+胶囊） -->
-    <view class="search-nav" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
-      <view class="search-nav-row" :style="{ height: navBarHeight + 'px' }">
-        <view class="search-back" @tap="inFilter ? exitFilter() : goBackHome()" :class="{ pressed: pressedKey === 'back' }" @touchstart="pressedKey = 'back'" @touchend="pressedKey = ''" @touchcancel="pressedKey = ''">
-          <IconSvg name="arrow-left" :size="'20px'" color="var(--text-white)" class="search-back-icon" />
-        </view>
-        <view class="search-box" :style="{ marginRight: capsuleRightOffset + 'px' }">
-          <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="search-box-icon" />
-          <input
-            class="search-box-input"
-            v-model="keyword"
-            type="text"
-            confirm-type="search"
-            placeholder="搜索菜品、档口或食堂"
-            placeholder-class="search-box-ph"
-            :adjust-position="true"
-            @input="onKeywordInput"
-            @confirm="onSearchConfirm"
-            @blur="onSearchBlur"
-          />
-          <view class="search-box-clear" v-if="keyword" @tap="clearKeyword">
-            <IconSvg name="close" :size="'16px'" color="var(--text-tertiary)" />
-          </view>
-        </view>
-      </view>
-    </view>
+    <!-- 顶部固定搜索头：复用 AppHeader search variant（client-page-structure-header-consolidation：消除自绘 header 漂移） -->
+    <AppHeader
+      variant="search"
+      v-model="keyword"
+      :show-back="true"
+      @back="inFilter ? exitFilter() : goBackHome()"
+      @search="onSearchConfirm"
+      @clear="clearKeyword"
+    />
 
     <!-- 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter，状态与首页隔离） -->
     <!-- 结果态筛选条：仅出搜索结果时渲染，与首页同款两胶囊（食堂/价格），仅展开时红底 -->
@@ -87,13 +70,6 @@
               v-for="(kw, i) in historyExpanded ? historyList : historyList.slice(0, 3)"
               :key="kw"
               class="history-chip"
-              :class="{ pressed: pressedKey === `h-${kw}` }"
-              @touchstart="pressedKey = `h-${kw}`"
-              @touchend="pressedKey = ''"
-              @touchcancel="pressedKey = ''"
-              @mousedown="pressedKey = `h-${kw}`"
-              @mouseup="pressedKey = ''"
-              @mouseleave="pressedKey = ''"
               @tap="goKeyword(kw)"
             >
               <text class="history-chip-text">{{ kw }}</text>
@@ -115,13 +91,6 @@
               v-for="(kw) in hotSearchList"
               :key="kw.keyword"
               class="history-chip history-chip-hot"
-              :class="{ pressed: pressedKey === `hot-${kw.keyword}` }"
-              @touchstart="pressedKey = `hot-${kw.keyword}`"
-              @touchend="pressedKey = ''"
-              @touchcancel="pressedKey = ''"
-              @mousedown="pressedKey = `hot-${kw.keyword}`"
-              @mouseup="pressedKey = ''"
-              @mouseleave="pressedKey = ''"
               @tap="goKeyword(kw.keyword)"
             >
               <text class="history-chip-text">{{ kw.keyword }}</text>
@@ -133,7 +102,7 @@
       </view>
 
       <!-- ============ 搜索混合结果页（2026-08-03：无标题直接列表；tab 在顶部固定区） ============ -->
-      <view v-else class="filter-result filter-enter">
+      <view v-else class="filter-result">
         <!-- A3 加载骨架屏：搜索请求中显示占位，避免「点了搜索没反应」的错觉 -->
         <view class="mixed-list" v-if="mixedLoading">
           <view v-for="s in 4" :key="`sk-${s}`" class="mixed-item mixed-item-skeleton">
@@ -152,14 +121,6 @@
             v-for="(item, idx) in filteredMixed"
             :key="`${item.type}-${item.id}`"
             class="mixed-item"
-            :class="{ pressed: pressedKey === `m-${idx}` }"
-            :style="{ animationDelay: `${idx * 40}ms` }"
-            @touchstart="pressedKey = `m-${idx}`"
-            @touchend="pressedKey = ''"
-            @touchcancel="pressedKey = ''"
-            @mousedown="pressedKey = `m-${idx}`"
-            @mouseup="pressedKey = ''"
-            @mouseleave="pressedKey = ''"
             @tap="goToMixed(item)"
           >
             <!-- C12 图片淡入：缩略图加载完成 opacity 过渡 -->
@@ -229,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { useDishStore, type HomeSortKey } from '@/stores/dish'
@@ -237,7 +198,6 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { fenToYuan } from '@/utils/money'
 import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
-import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 import { getUserLocation } from '@/utils/location'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
@@ -248,6 +208,7 @@ import AuthSheet from '@/components/AuthSheet.vue'
 import CanteenFilter from '@/components/CanteenFilter.vue'
 import HomeFilterChip from '@/components/HomeFilterChip.vue'
 import HomePriceSheet from '@/components/HomePriceSheet.vue'
+import AppHeader from '@/components/AppHeader.vue'
 
 const theme = useThemeStore()
 const dishStore = useDishStore()
@@ -263,39 +224,12 @@ function goBackHome() {
   }
 }
 
-/** 顶部避让（2026-08-03 修复：状态栏高度 + 右上角胶囊按钮）。
- * 搜索框右侧 margin-right = 胶囊按钮左侧到屏幕右缘的距离，避免搜索框被微信胶囊遮挡。 */
-const statusBarHeight = ref(20)
-const capsuleRightOffset = ref(0)
-const navBarHeight = ref(56)
-const capsuleHeight = ref(32)
-function measureTopBar() {
-  // @ts-ignore
-  const win = (typeof wx !== 'undefined' && wx.getWindowInfo) ? wx.getWindowInfo() : null
-  statusBarHeight.value = (win && win.statusBarHeight) || 20
-  // @ts-ignore - 微信特有：胶囊按钮位置
-  const menu = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (menu && win) {
-    // 搜索框右侧须在胶囊左侧之前结束：margin-right = 屏幕宽 - 胶囊.left + 余量
-    capsuleRightOffset.value = win.windowWidth - menu.left + 8
-    // 返回行高度 = 系统导航栏真实高度（无下限）：只有与之相等，胶囊才会在本行内真正垂直居中；
-    // 之前 Math.max(...,54) 会让行比系统导航栏高，导致胶囊比搜索框/返回箭低 ~7px（不在同一高度）。
-    if (menu.height) {
-      navBarHeight.value = getNavBarHeight(statusBarHeight.value, menu)
-      capsuleHeight.value = getCapsuleHeight(menu)
-    }
-  } else {
-    capsuleRightOffset.value = 0
-  }
-}
-
 /** 菜品详情：跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
   uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
 }
 const keyword = ref('')
-const pressedKey = ref('')
 const refresherTriggered = ref(false)
 const discoverLoading = ref(true)
 
@@ -458,13 +392,7 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   if (start < text.length) segs.push({ text: text.slice(start), hit: false })
   return segs
 }
-/** 输入框失焦：无额外处理（直接搜索，无联想面板） */
-function onSearchBlur() { /* no-op */ }
-
-function onKeywordInput() {
-  // 仅维护 keyword 输入态，确认/回车才触发搜索
-}
-
+/** 确认/回车搜索（AppHeader search variant 的 @search） */
 function onSearchConfirm() {
   const kw = keyword.value.trim()
   if (!kw) return
@@ -590,7 +518,6 @@ async function loadDiscover() {
 }
 
 onMounted(() => {
-  measureTopBar()
   loadHistory()
   ensureLocation()
   loadDiscover()
@@ -609,63 +536,12 @@ async function ensureLocation() {
 onShareAppMessage(() => buildSharePayload())
 // 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容
 onShow(() => clearShareState())
-
-watch(keyword, () => {
-  // 关键词变化仅维护输入态，确认/回车才触发搜索
-})
 </script>
 
 <style scoped>
 .find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 /* 顶部留白由内容块自己提供（搜索 mixed-list / 发现 skeleton 均为 md，与首页广播条-卡间距一致）；scroll 不再额外叠加 */
 .scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-
-/* ===== 顶部固定区（2026-08-03：返回 + 搜索框 + 结果 tab，位于滚动区外，天然不随滚动） ===== */
-.search-nav {
-  position: relative;
-  z-index: 30;
-  /* 朱砂红品牌色块（与首页 header 一致）；白底搜索框浮于其上 */
-  background: var(--color-primary);
-  padding-left: var(--spacing-lg);
-  padding-right: var(--spacing-lg);
-  /* 底部留白：让搜索框与红色块底边有呼吸感（不影响胶囊居中，胶囊由 paddingTop+search-nav-row 精确定位）。
-     ⚠️ 本页是全站 header 高度的基准：AppHeader(.header-wrap) 必须用同 token 复刻本留白，
-     否则搜索页会比其余页面高 16rpx。统一口径见 utils/navMetrics.ts。 */
-  padding-bottom: var(--spacing-sm);
-  box-sizing: border-box;
-}
-.search-nav-row { display: flex; align-items: center; gap: var(--spacing-sm); height: var(--nav-h); }
-/* 返回键尺寸对齐首页头像：calc(var(--nav-h) - 14px) 圆形命中区 */
-.search-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--capsule-h, 32px);
-  height: var(--capsule-h, 32px);
-  flex-shrink: 0;
-  transition: transform var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.search-back.pressed { transform: scale(var(--press-scale)); }
-.search-back-icon { flex-shrink: 0; line-height: 1; }
-/* 搜索框：圆角白条 + 放大镜 + 清空（与首页 home-search 同款：同高、同圆角、同底、无阴影） */
-.search-box {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: var(--capsule-h, 32px);
-  padding: 0 var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-pill);
-  box-sizing: border-box;
-}
-.search-box-icon { flex-shrink: 0; line-height: 1; }
-.search-box-input { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); }
-.search-box-ph { color: var(--text-tertiary); }
-.search-box-clear { flex-shrink: 0; display: flex; align-items: center; padding: var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.search-box-clear:active { opacity: 0.55; }
 
 /* 食堂筛选行（community-review-redesign：header 下方独立一行，复用 CanteenFilter） */
 .find-filter-row {
@@ -695,10 +571,9 @@ watch(keyword, () => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
   border-radius: var(--radius-pill);
-  transition: transform var(--duration-fast) ease, background var(--duration-fast) ease;
+  transition: background var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.history-chip.pressed { transform: scale(var(--press-scale)); background: var(--color-primary-soft); }
 .history-chip-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-chip-del {
   font-size: var(--font-aux);
@@ -718,13 +593,9 @@ watch(keyword, () => {
 .history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-toggle-text:active { opacity: 0.55; }
 
-/* 搜索混合结果页（2026-08-03：无排序/筛选） */
-/* 结果页进场过渡 */
-.filter-enter { animation: filter-enter 0.24s var(--ease-out) both; }
-@keyframes filter-enter {
-  from { opacity: 0; transform: translateY(16rpx); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* 搜索混合结果页（2026-08-03：无排序/筛选）
+   注：结果页进场过渡（原 .filter-enter / filter-enter）与逐行入场（原 mixed-item-in）
+   已于 client-mvp-strip-entrance-anim 剥离，内容静态直接呈现。 */
 /* 搜索结果列表（仅菜品，一行一个，左图右信息）。
    Apple Design 列表行卡：20px 大圆角 + hairline 分隔 + 按下背景高亮（Apple 偏好 highlight 而非 scale） */
 .mixed-list { margin: var(--spacing-md); }
@@ -739,12 +610,6 @@ watch(keyword, () => {
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  /* A7 逐行淡入（配合 :style animationDelay stagger） */
-  animation: mixed-item-in 0.28s var(--ease-out) both;
-}
-@keyframes mixed-item-in {
-  from { opacity: 0; transform: translateY(12rpx); }
-  to { opacity: 1; transform: translateY(0); }
 }
 .mixed-item + .mixed-item { margin-top: var(--spacing-sm); }
 .mixed-item.pressed { background-color: var(--bg-soft); }
@@ -832,22 +697,11 @@ watch(keyword, () => {
 .sk-name { height: 32rpx; width: 70%; border-radius: var(--radius-tag); }
 .sk-sub { height: 24rpx; width: 50%; border-radius: var(--radius-tag); }
 .sk-meta { height: 28rpx; width: 40%; border-radius: var(--radius-tag); }
-/* 骨架闪烁动画（全局未定义，本地补全） */
+/* 骨架占位（微光由全局 .skeleton 处理；本页保留灰底） */
 .skeleton {
   position: relative;
   overflow: hidden;
   background: var(--bg-soft);
-}
-.skeleton::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  animation: skeleton-shine 1.2s infinite;
-}
-@keyframes skeleton-shine {
-  to { transform: translateX(100%); }
 }
 
 /* 发现主页加载失败空态 */
@@ -876,18 +730,8 @@ watch(keyword, () => {
 /* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
 .history-chip-hot { background: var(--color-primary-soft); }
 .history-chip-hot .history-chip-text { color: var(--color-primary); }
-/* 推荐词按下反馈：底色转实心主色，文字反白，与中性 chip 的按压态拉开差异 */
-.history-chip-hot.pressed { background: var(--color-primary); }
-.history-chip-hot.pressed .history-chip-text { color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .filter-enter { animation: none; }
   .discover-retry { transition: none; }
-  .find-filter-chip { transition: none; }
-  .find-filter-chip:active { transform: none; }
-  /* A7/C12 动效兜底：关闭逐行入场与图片淡入 */
-  .mixed-item { animation: none; }
-  .mixed-thumb-img { opacity: 1; transition: none; }
-  .skeleton::after { animation: none; }
 }
 </style>

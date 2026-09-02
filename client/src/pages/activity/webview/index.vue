@@ -1,7 +1,10 @@
 <template>
   <view class="wv-page">
     <!-- 自定义返回条：web-view 为原生组件会覆盖整页，故用 webview-styles 把网页内容下移，
-         返回条置于其上（始终可见），避免用户卡在外部网页无法返回 -->
+         返回条置于其上（始终可见），避免用户卡在外部网页无法返回。
+         ⚠️ provenance：此页活动跳转走 web-view，是 spec §0.4 唯一允许的 web-view 用途；
+         header 复用自绘（wv-bar）而非并入 AppHeader 全局组件，正是因为 web-view 原生组件覆盖整页、
+         返回条必须浮于其上始终可见（AppHeader 的 sticky 定位会被原生层盖住），故独立实现、勿误删/误并。 -->
     <view class="wv-bar" :style="{ height: barHeight + 'px', paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', paddingBottom: padBottomPx + 'px' }">
       <view class="wv-back" @tap="back" role="button" aria-label="返回">
         <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" />
@@ -25,7 +28,7 @@
  * WebView 通用页（活动/广播 URL 跳转，用于打开微信公众号文章）
  *
  * 用法：
- *   uni.navigateTo({ url: `/pages/standalone/webview/index?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })
+ *   uni.navigateTo({ url: `/pages/activity/webview/index?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })
  *
  * 注意（上线必读）：
  *   1. 生产环境需在微信公众平台「开发管理-开发设置-业务域名」添加并配置

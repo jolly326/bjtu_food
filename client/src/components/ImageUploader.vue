@@ -133,24 +133,22 @@ function chooseImage() {
   border-radius: var(--radius-circle);
   background: var(--badge-dark-bg);
   display: flex; align-items: center; justify-content: center;
-  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
-.img-remove:active { transform: scale(var(--press-scale)); opacity: 0.85; }
+.img-remove:active { opacity: 0.85; }
 .img-add {
   display: flex; align-items: center; justify-content: center;
   border: 2rpx dashed var(--border-bold);
   background: var(--bg-soft);
-  transition: transform var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.img-add:active { transform: scale(var(--press-scale)); }
 .img-counter { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
 /* compact：单元格与输入框同高（72rpx）、横向单行，置于评论栏同行左侧 */
 .img-uploader.compact { width: auto; flex-shrink: 0; }
 .img-uploader.compact .img-grid { flex-wrap: nowrap; gap: var(--spacing-xs); }
 .img-uploader.compact .img-cell { width: 72rpx; height: 72rpx; }
 .img-uploader.compact .img-add { width: 72rpx; height: 72rpx; }
-.img-uploader.compact .img-add:active { transform: scale(var(--press-scale)); background: var(--bg-soft); transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
+.img-uploader.compact .img-add:active { background: var(--bg-soft); }
 .img-uploader.compact .img-remove { width: 36rpx; height: 36rpx; border-radius: var(--radius-circle); }
 .img-uploader.compact .img-remove::after { content: ''; position: absolute; inset: -14rpx; }
 </style>

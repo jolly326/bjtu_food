@@ -1,6 +1,6 @@
 <template>
   <view class="rw-mask" @tap="close">
-  <view class="rw-sheet" v-bind="dialogAttrs" @tap.stop>
+  <view class="rw-sheet" role="dialog" :aria-modal="true" tabindex="-1" @tap.stop>
       <view class="rw-handle" />
       <view class="rw-head">
         <text class="rw-title">写评价</text>
@@ -89,7 +89,7 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 const dishStore = useDishStore()
-const { captureTrigger, dialogAttrs } = useSheetFocus()
+const { captureTrigger } = useSheetFocus()
 
 const star = ref(0)
 const content = ref('')
@@ -184,9 +184,7 @@ async function onSubmit() {
 .rw-close {
   width: 56rpx; height: 56rpx;
   display: flex; align-items: center; justify-content: center;
-  transition: transform var(--duration-fast) var(--ease-out);
 }
-.rw-close:active { transform: scale(var(--press-scale)); }
 .rw-dish { font-size: var(--font-aux); color: var(--text-tertiary); margin-bottom: var(--spacing-md); }
 .rw-body { overflow-y: auto; }
 .rw-field { margin-bottom: var(--spacing-lg); }
@@ -194,7 +192,6 @@ async function onSubmit() {
 .rw-req { color: var(--color-error); margin-left: 4rpx; }
 .rw-stars { display: flex; gap: var(--spacing-sm); }
 .rw-star { transition: transform var(--duration-fast) var(--ease-out); }
-.rw-star:active { transform: scale(var(--press-scale)); }
 .rw-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .rw-tag {
   padding: 10rpx 24rpx;
@@ -205,7 +202,6 @@ async function onSubmit() {
   border: 2rpx solid transparent;
   transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
-.rw-tag:active { transform: scale(var(--press-scale)); }
 .rw-tag.on {
   background: var(--color-primary-soft);
   color: var(--color-primary);
@@ -233,12 +229,10 @@ async function onSubmit() {
   font-size: var(--font-body);
   font-weight: var(--weight-bold);
   border: none;
-  transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
-.rw-submit:active { transform: scale(var(--press-scale)); }
 .rw-submit.disabled { opacity: 0.5; }
 @media (prefers-reduced-motion: reduce) {
-  .rw-close, .rw-star, .rw-tag, .rw-submit { transition: none !important; }
-  .rw-close:active, .rw-star:active, .rw-tag:active, .rw-submit:active { transform: none !important; }
+  .rw-submit { transition: none !important; }
 }
 </style>

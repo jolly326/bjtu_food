@@ -490,7 +490,7 @@
       <scroll-view class="sheet-list" scroll-y>
         <!-- 搜索中 -->
         <view v-if="dishLoading" class="sheet-empty">
-          <view class="footer-spinner" />
+          <text class="footer-text">加载中…</text>
         </view>
         <!-- 无结果：去补录 -->
         <view v-else-if="dishSearched && !dishCandidates.length" class="sheet-empty">
@@ -1133,10 +1133,8 @@ onLoad(async (opts?: Record<string, string>) => {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.type-card:active { transform: scale(var(--press-scale)); }
 .type-card.active {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
@@ -1217,10 +1215,8 @@ onLoad(async (opts?: Record<string, string>) => {
   border-radius: var(--radius-btn);
   background: var(--bg-input);
   border: 2rpx solid var(--border-color);
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.sub-chip:active { transform: scale(var(--press-scale)); }
 .sub-chip.active { background: var(--color-primary-soft); border-color: var(--color-primary); }
 .sub-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .sub-chip.active .sub-text { color: var(--color-primary); font-weight: var(--weight-semibold); }
@@ -1236,7 +1232,6 @@ onLoad(async (opts?: Record<string, string>) => {
   background: var(--bg-input);
   border-radius: var(--radius-btn);
   box-sizing: border-box;
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
 /* A1：未选食堂时档口行禁用态 */
@@ -1283,10 +1278,8 @@ onLoad(async (opts?: Record<string, string>) => {
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-card);
   border-radius: var(--radius-tag);
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.dish-change:active { transform: scale(var(--press-scale)); }
 .dish-change-text { font-size: var(--font-aux); color: var(--text-secondary); }
 
 .search-bar {
@@ -1313,11 +1306,9 @@ onLoad(async (opts?: Record<string, string>) => {
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 2rpx solid var(--border-color);
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
 .candidate-item:last-child { border-bottom: none; }
-.candidate-item:active { transform: scale(var(--press-scale)); }
 .candidate-thumb {
   width: 72rpx;
   height: 72rpx;
@@ -1346,7 +1337,6 @@ onLoad(async (opts?: Record<string, string>) => {
   box-shadow: var(--shadow-modal);
   z-index: 100;
   transform: translateY(100%);
-  transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex;
   flex-direction: column;
   height: 60vh;
@@ -1357,14 +1347,12 @@ onLoad(async (opts?: Record<string, string>) => {
 .sheet-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .sheet-head-left { display: flex; align-items: center; gap: var(--spacing-xs); }
-.sheet-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
-.sheet-back:active { transform: scaleX(-1) scale(var(--press-scale)); }
+.sheet-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); -webkit-tap-highlight-color: transparent; }
 .sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
 .sheet-close { padding: var(--spacing-xs); }
 .sheet-search { padding: var(--spacing-md); flex-shrink: 0; }
 .sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md) var(--spacing-sm); }
-.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: var(--press-transition); -webkit-tap-highlight-color: transparent; }
-.sheet-item:active { transform: scale(var(--press-scale)); }
+.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
 .sheet-item.on { background: var(--bg-soft); }
 .sheet-item-icon {
   width: 64rpx;
@@ -1401,13 +1389,10 @@ onLoad(async (opts?: Record<string, string>) => {
   background: var(--color-primary);
   border-radius: var(--radius-btn);
   box-sizing: border-box;
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.sheet-goto-add:active { transform: scale(var(--press-scale)); }
 .sheet-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 /* ===== 哪里不对：每项一行（左侧选项 + 右侧编辑区，不嵌套） ===== */
 .point-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
@@ -1436,10 +1421,8 @@ onLoad(async (opts?: Record<string, string>) => {
   border: 2rpx solid var(--border-color);
   border-radius: var(--radius-btn);
   box-sizing: border-box;
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.point-option:active { transform: scale(var(--press-scale)); }
 .point-option.active {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
@@ -1481,16 +1464,5 @@ onLoad(async (opts?: Record<string, string>) => {
 
 
 @media (prefers-reduced-motion: reduce) {
-  .type-card, .sub-chip, .dish-change, .candidate-item, .point-option, .picker-row,
-  .sheet-item, .sheet-goto-add, .sheet-back {
-    transition: none !important;
-  }
-  .type-card:active, .sub-chip:active, .dish-change:active, .candidate-item:active,
-  .point-option:active, .picker-row:active, .sheet-item:active, .sheet-goto-add:active,
-  .sheet-back:active {
-    transform: none !important;
-  }
-  .loc-sheet { transition: none !important; }
-  .footer-spinner { animation: none; }
 }
 </style>

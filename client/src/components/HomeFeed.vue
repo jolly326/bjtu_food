@@ -2,14 +2,24 @@
   <view class="feed-wrap">
     <!-- 首屏冷启动骨架屏（global-ui-polish / ui-feed-loading）：仅首次真实首拉期间展示 -->
     <view v-if="dishStore.filterInitialLoading && dishStore.filterList.length === 0" class="feed-skeleton">
-      <DishCardSkeleton v-for="n in 6" :key="n" />
+      <view v-for="n in 6" :key="n" class="dish-skeleton">
+        <view class="sk-image skeleton" />
+        <view class="sk-body">
+          <view class="sk-line sk-w70 skeleton" />
+          <view class="sk-line sk-w40 skeleton" />
+          <view class="sk-line sk-w90 skeleton" />
+          <view class="sk-row">
+            <view class="sk-chip skeleton" />
+            <view class="sk-price skeleton" />
+          </view>
+        </view>
+      </view>
     </view>
 
     <template v-else-if="dishStore.filterList.length > 0">
       <WaterfallList :list="dishStore.filterList" @card-click="goToDetail" />
 
       <view v-if="dishStore.filterLoadingMore" class="list-footer loading">
-        <view class="footer-spinner" />
         <text class="footer-text">加载中…</text>
       </view>
       <view v-else-if="dishStore.filterFinished" class="list-footer finished">
@@ -33,7 +43,6 @@
 import { computed } from 'vue'
 import WaterfallList from '@/components/WaterfallList.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import DishCardSkeleton from '@/components/DishCardSkeleton.vue'
 import { useDishStore } from '@/stores/dish'
 
 const props = defineProps<{
@@ -68,6 +77,23 @@ function goToDetail(dish: { id: number }) {
   gap: var(--spacing-md);
 }
 
+/* 首屏骨架占位（由 DishCardSkeleton 内联而来，client-component-over-split-cleanup；shimmer 走全局 .skeleton 工具类） */
+.dish-skeleton {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.sk-image { width: 100%; height: 200rpx; }
+.sk-body { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.sk-line { height: 24rpx; border-radius: var(--radius-card); }
+.sk-w70 { width: 70%; }
+.sk-w40 { width: 40%; }
+.sk-w90 { width: 90%; }
+.sk-row { display: flex; align-items: center; justify-content: space-between; margin-top: var(--spacing-xs); }
+.sk-chip { width: 96rpx; height: 32rpx; border-radius: var(--radius-pill); }
+.sk-price { width: 96rpx; height: 32rpx; border-radius: var(--radius-card); }
+
 .list-footer {
   display: flex;
   align-items: center;
@@ -75,24 +101,9 @@ function goToDetail(dish: { id: number }) {
   padding: var(--spacing-md) 0;
   gap: var(--spacing-xs);
 
-  .footer-spinner {
-    width: 28rpx;
-    height: 28rpx;
-    border: 3rpx solid var(--border-color);
-    border-top-color: var(--color-primary);
-    border-radius: var(--radius-circle);
-    animation: spin 0.8s linear infinite;
-  }
-
   .footer-text {
     font-size: var(--font-body);
     color: var(--text-tertiary);
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -120,13 +131,7 @@ function goToDetail(dish: { id: number }) {
     padding: var(--spacing-sm) var(--spacing-lg);
     background: var(--color-primary);
     border-radius: var(--radius-btn);
-    transition: var(--press-transition);
     -webkit-tap-highlight-color: transparent;
-
-    &.pressed {
-      background: var(--color-primary);
-      opacity: 0.85;
-    }
 
     .home-retry-text {
       font-size: var(--font-body);

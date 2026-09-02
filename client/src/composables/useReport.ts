@@ -2,7 +2,7 @@
  * 举报逻辑公共 hook（useReport）。
  *
  * 原先 openReport / submitReport / reportOpen / reportSubmitting / reportTarget 在
- * community、dish、moment、review-list、my-moments 等 5 处页面逐字复制，现统一收敛到
+ * community、dish、moment、review-list、my-published 等 5 处页面逐字复制，现统一收敛到
  * 本 hook，消除重复代码并保证行为一致（requireAuth 前置 → ReportModal 弹窗 → submitFeedback）。
  */
 import { ref, type Ref } from 'vue'

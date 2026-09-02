@@ -6,7 +6,7 @@
       scroll-y
       :refresher-enabled="true"
       :refresher-triggered="refreshing"
-      :scroll-with-animation="!reduceMotion"
+      :scroll-with-animation="false"
       @refresherrefresh="onRefresh"
       @scrolltolower="loadMore"
     >
@@ -15,13 +15,6 @@
           v-for="act in list"
           :key="act.id"
           class="activity-card"
-          :class="{ pressed: pressedId === act.id }"
-          @touchstart="pressedId = act.id"
-          @touchend="pressedId = null"
-          @touchcancel="pressedId = null"
-          @mousedown="pressedId = act.id"
-          @mouseup="pressedId = null"
-          @mouseleave="pressedId = null"
           @tap="openActivity(act)"
         >
           <!-- 公众号文章卡片：来源标识 + 日期 / 标题 / 摘要 / 阅读原文 -->
@@ -54,7 +47,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useReducedMotion } from '@/composables/useReducedMotion'
 import { onLoad } from '@dcloudio/uni-app'
 import { useThemeStore } from '@/stores/theme'
 import { getActivities, type ActivityItem } from '@/api/activity'
@@ -72,9 +64,7 @@ const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
 const list = ref<ActivityItem[]>([])
-const pressedId = ref<number | null>(null)
 
-const reduceMotion = useReducedMotion().reduceMotion
 
 function formatTime(t: string) {
   return formatDateTime(t)
@@ -113,7 +103,7 @@ function openActivity(act: ActivityItem) {
   if (act.articleUrl) {
     // 修复：跳转路径必须带 /index（pages.json 注册的是 pages/webview/index），
     // 否则 uni.navigateTo 找不到页面导致活动文章打不开
-    uni.navigateTo({ url: `/pages/standalone/webview/index?url=${encodeURIComponent(act.articleUrl)}` })
+    uni.navigateTo({ url: `/pages/activity/webview/index?url=${encodeURIComponent(act.articleUrl)}` })
   }
 }
 
@@ -151,13 +141,10 @@ onLoad(() => {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: background-color var(--duration-fast) ease, transform var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.activity-card.pressed {
-  background-color: var(--bg-soft);
-  transform: scale(var(--press-scale));
-}
+
 .activity-card-head {
   display: flex;
   align-items: center;

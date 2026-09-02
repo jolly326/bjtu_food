@@ -14,7 +14,9 @@
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
       :style="sheetStyle"
-      v-bind="dialogAttrs"
+      role="dialog"
+      :aria-modal="true"
+      tabindex="-1"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -47,7 +49,7 @@ import { useSheetFocus } from '@/composables/useSheetFocus'
 
 const authSheetStore = useAuthSheetStore()
 const userStore = useUserStore()
-const { captureTrigger, restoreFocus, dialogAttrs } = useSheetFocus()
+const { captureTrigger, restoreFocus } = useSheetFocus()
 
 // 必须用 storeToRefs 保持响应性（直接解构会丢失更新，弹层永不显示）
 const { visible } = storeToRefs(authSheetStore)
@@ -69,7 +71,7 @@ const dragging = ref(false)
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
+  transition: 'none',
 }))
 
 // 用户主动关闭（遮罩/关闭按钮/下拉）未完成认证：清除待办，避免过期动作在后续认证成功后误执行

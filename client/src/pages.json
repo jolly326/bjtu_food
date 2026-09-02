@@ -27,13 +27,6 @@
 				"navigationBarTitleText": "动态",
 				"navigationStyle": "custom"
 			}
-		},
-		{
-			"path": "pages/profile/notifications/index",
-			"style": {
-				"navigationBarTitleText": "系统通知",
-				"navigationStyle": "custom"
-			}
 		}
 	],
 	"subPackages": [
@@ -64,19 +57,19 @@
 			]
 		},
 		{
-			"root": "pages/user/",
+			"root": "pages/mine/",
 			"pages": [
 				{
-					"path": "publish-content/index",
+					"path": "notifications/index",
 					"style": {
-						"navigationBarTitleText": "发表内容",
+						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
 				},
 				{
-					"path": "my-moments/index",
+					"path": "my-published/index",
 					"style": {
-						"navigationBarTitleText": "我的动态",
+						"navigationBarTitleText": "我发布的",
 						"navigationStyle": "custom"
 					}
 				},
@@ -86,12 +79,14 @@
 						"navigationBarTitleText": "个人信息",
 						"navigationStyle": "custom"
 					}
-				}
-			]
-		},
-		{
-			"root": "pages/standalone/",
-			"pages": [
+				},
+				{
+					"path": "publish-content/index",
+					"style": {
+						"navigationBarTitleText": "发表内容",
+						"navigationStyle": "custom"
+					}
+				},
 				{
 					"path": "feedback/index",
 					"style": {
@@ -100,16 +95,21 @@
 					}
 				},
 				{
-					"path": "activity/index",
-					"style": {
-						"navigationBarTitleText": "最新活动",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "about/index",
 					"style": {
 						"navigationBarTitleText": "关于我们",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/activity/",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "最新活动",
 						"navigationStyle": "custom"
 					}
 				},
@@ -126,11 +126,11 @@
 	"preloadRule": {
 		"pages/home/index": {
 			"network": "all",
-			"packages": ["pages/detail/", "pages/user/", "pages/standalone/"]
+			"packages": ["pages/detail/", "pages/mine/", "pages/activity/"]
 		},
 		"pages/profile/index": {
 			"network": "all",
-			"packages": ["pages/detail/", "pages/user/", "pages/standalone/"]
+			"packages": ["pages/detail/", "pages/mine/", "pages/activity/"]
 		}
 	},
 	"globalStyle": {

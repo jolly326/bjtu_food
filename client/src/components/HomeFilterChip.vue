@@ -124,7 +124,6 @@ onMounted(() => {
   background: var(--bg-card);
   border-radius: var(--radius-pill);
   -webkit-tap-highlight-color: transparent;
-  transition: var(--press-transition);
 }
 /* 无障碍：胶囊高度 < 44px 热区，透明 ::after 扩展命中区域至 ≈44px */
 .filter-chip::after {
@@ -139,7 +138,6 @@ onMounted(() => {
 .price-chip { background: var(--bg-card); }
 /* 胶囊内图标不参与收缩，让省略号只截文字，避免图标被压扁 */
 .chip-icon { flex-shrink: 0; }
-.filter-chip:active { transform: scale(var(--press-scale)); }
 /* 展开态：主色底白字（收起后即恢复白底，选中值只由文案回显） */
 .filter-chip.active { background: var(--color-primary); }
 .filter-chip.active .filter-chip-text { color: var(--color-on-primary); }
@@ -162,7 +160,6 @@ onMounted(() => {
   height: 64rpx;
   border-radius: var(--radius-circle);
   -webkit-tap-highlight-color: transparent;
-  transition: var(--press-transition);
 }
-.filter-icon-btn:active { transform: scale(var(--press-scale)); background: var(--bg-soft); }
+.filter-icon-btn:active { background: var(--bg-soft); }
 </style>

@@ -66,12 +66,6 @@ const theme = useThemeStore()
   color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
   box-shadow: var(--shadow-card);
-  /* 仅透明度交叉淡入，无位移过冲（红线 §4.9） */
-  animation: cfIn var(--duration-base) ease both;
-}
-@keyframes cfIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 .cf-title {
   font-size: var(--font-subtitle);

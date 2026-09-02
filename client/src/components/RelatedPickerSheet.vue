@@ -44,7 +44,7 @@
       <view class="sheet-divider" />
 
       <view v-if="loading" class="sheet-empty">
-        <view class="footer-spinner" />
+        <text class="footer-text">加载中…</text>
       </view>
       <view v-else-if="candidates.length === 0" class="sheet-empty">
         <text class="sheet-empty-text">{{ keyword ? '没有找到相关菜品' : '输入关键词搜索菜品' }}</text>
@@ -122,7 +122,6 @@ function noop() {}
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${props.open ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
 let startY = 0
@@ -219,7 +218,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: var(--z-sheet-mask); opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
+.sheet-mask { position: fixed; inset: 0; background: var(--overlay-scrim); z-index: var(--z-sheet-mask); opacity: 0; }
 .sheet-mask.show { opacity: 1; }
 .related-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
@@ -228,7 +227,6 @@ onUnmounted(() => {
   box-shadow: var(--shadow-modal);
   z-index: var(--z-sheet);
   transform: translateY(100%);
-  transition: transform var(--duration-slow) var(--ease-drawer);
   display: flex; flex-direction: column;
   max-height: 82vh;
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
@@ -256,15 +254,12 @@ onUnmounted(() => {
 .sheet-divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-2xs) var(--spacing-sm) var(--spacing-xs); }
 /* 底部：单一主色「完成」按钮 */
 .sheet-footer { display: flex; padding: var(--spacing-md); border-top: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-confirm { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); font-size: var(--font-subtitle); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.sheet-confirm:active { opacity: 0.85; transform: scale(var(--press-scale)); }
+.sheet-confirm { flex: 1; height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-weight: var(--weight-bold); font-size: var(--font-subtitle); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.sheet-confirm:active { opacity: 0.85; }
 
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); margin: 0 auto; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .related-sheet { transition: opacity 0.2s ease; transform: none !important; }
-  .sheet-mask { transition: none !important; }
-  .footer-spinner { animation: none; }
+  .sheet-mask { opacity: 1; }
 }
 </style>

@@ -11,7 +11,9 @@
       class="bottom-sheet"
       :class="{ open: sheetOpen }"
       :style="sheetStyle"
-      v-bind="dialogAttrs"
+      role="dialog"
+      :aria-modal="true"
+      tabindex="-1"
       @touchstart="onTouchStart"
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
@@ -98,7 +100,7 @@ const emit = defineEmits<{
   (e: 'submitted'): void
 }>()
 
-const { captureTrigger, restoreFocus, dialogAttrs } = useSheetFocus()
+const { captureTrigger, restoreFocus } = useSheetFocus()
 
 const entityTypes: { value: ApplyEntityType; label: string }[] = [
   { value: 'DISH', label: '菜品' },
@@ -128,7 +130,6 @@ const dragging = ref(false)
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
 }))
 
 watch(() => props.open, (v) => {
@@ -223,7 +224,7 @@ function onTouchEnd() {
 .apply-root { z-index: var(--z-sheet); }
 .sheet-mask {
   position: fixed; inset: 0; background: var(--overlay-scrim);
-  opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); z-index: var(--z-sheet-mask);
+  opacity: 0; z-index: var(--z-sheet-mask);
 }
 .sheet-mask.show { opacity: 1; }
 
@@ -238,7 +239,6 @@ function onTouchEnd() {
   flex-direction: column;
   max-height: 80vh;
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  will-change: transform;
 }
 .bottom-sheet.open { transform: translateY(0); }
 
@@ -255,20 +255,17 @@ function onTouchEnd() {
 .form-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-bold); color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
 .seg-row { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
 /* 类型选择 chips：与反馈中心弹窗 type-chip 同款（选中主色软底 + 边框 + 主色字） */
-.seg { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-soft); border: 2rpx solid transparent; font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease, transform var(--duration-fast); -webkit-tap-highlight-color: transparent; }
-.seg:active { transform: scale(var(--press-scale)); }
+.seg { padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--radius-tag); background: var(--bg-soft); border: 2rpx solid transparent; font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-semibold); transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .seg.on { background: var(--color-primary-soft); border-color: var(--color-primary); color: var(--color-primary); }
 /* 输入框 / 描述框：与反馈中心弹窗同款（bg-page 浅底 + radius-card + 无边框） */
 .form-input { width: 100%; height: 88rpx; background: var(--bg-page); border-radius: var(--radius-card); border: none; padding: 0 var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); box-sizing: border-box; }
 .form-textarea { width: 100%; min-height: 200rpx; background: var(--bg-page); border-radius: var(--radius-card); border: none; padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; box-sizing: border-box; }
 .sheet-submit { padding: var(--spacing-md) var(--spacing-lg); border-top: 2rpx solid var(--border-color); }
-.sheet-submit-btn { height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.sheet-submit-btn:active { transform: scale(var(--press-scale)); }
+.sheet-submit-btn { height: 88rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .sheet-submit-btn.disabled { opacity: 0.58; }
 .sheet-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--color-on-primary); }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet-mask { transition: opacity 0.2s ease; }
-  .bottom-sheet { transition: opacity 0.2s ease; transform: none !important; }
+  .sheet-mask { opacity: 1; }
 }
 </style>

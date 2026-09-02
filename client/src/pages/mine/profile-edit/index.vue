@@ -160,10 +160,9 @@ async function save() {
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像（112rpx/24rpx）一致。
    可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
-.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
+.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
 .avatar.uploading { opacity: 0.55; }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
-.info-row.info-tappable:active .avatar { transform: scale(var(--press-scale)); }
 .row-arrow { flex-shrink: 0; }
 /* 输入框：右侧留白，光标不贴右缘 */
 .nickname-input { flex: 1; min-width: 0; text-align: right; padding-right: var(--spacing-xs); font-size: var(--font-body); color: var(--text-primary); }

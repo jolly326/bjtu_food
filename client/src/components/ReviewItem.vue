@@ -303,9 +303,7 @@ function onThumbError(idx: number) {
   height: 144rpx;
   border-radius: var(--radius-card);
   background: var(--bg-page);
-  transition: transform var(--duration-fast) var(--ease-out);
 }
-.review-thumb:active { transform: scale(var(--press-scale)); }
 
 /* footer：操作组（有用·举报·删除，纯文字链无背景） */
 .review-footer { margin-top: var(--spacing-xs); }

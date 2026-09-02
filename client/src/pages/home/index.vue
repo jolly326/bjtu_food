@@ -345,14 +345,12 @@ onShareAppMessage(() => {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transform: translateY(20rpx) scale(var(--scale-fab-enter));
-  transition: var(--press-transition);
+  transform: translateY(20rpx);
   z-index: 50;
   -webkit-tap-highlight-color: transparent;
 }
 .fab-show {
   opacity: 1;
-  transform: translateY(0) scale(var(--scale-rest));
+  transform: translateY(0);
 }
-.fab:active { transform: scale(var(--press-scale)); }
 </style>

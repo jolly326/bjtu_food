@@ -62,7 +62,7 @@ const dragging = ref(false)
 
 const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
-  transition: dragging.value ? 'none' : 'transform var(--duration-slow) var(--ease-drawer)',
+  transition: 'none',
 }))
 
 watch(() => props.open, (v) => {

@@ -1,13 +1,6 @@
 <template>
   <view
     class="comment-item"
-    :class="{ pressed: pressed }"
-    @touchstart="pressed = true"
-    @touchend="pressed = false"
-    @touchcancel="pressed = false"
-    @mousedown="pressed = true"
-    @mouseup="pressed = false"
-    @mouseleave="pressed = false"
     @longpress="onLongPress"
   >
     <image v-if="avatarOk && comment.userAvatar" class="c-avatar" :src="getImageUrl(comment.userAvatar)" mode="aspectFill" @error="avatarOk = false" />
@@ -61,7 +54,6 @@ const emit = defineEmits<{
 }>()
 
 const userStore = useUserStore()
-const pressed = ref(false)
 const avatarOk = ref(true)
 
 function replyTo(c: MomentComment) { emit('reply', c) }
@@ -76,8 +68,7 @@ function onLongPress() {
 </script>
 
 <style scoped>
-.comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.comment-item.pressed { transform: scale(var(--press-scale)); }
+.comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
 .comment-item:last-child { border-bottom: none; }
 .c-avatar { width: 60rpx; height: 60rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
 .c-avatar-empty { display: flex; align-items: center; justify-content: center; }

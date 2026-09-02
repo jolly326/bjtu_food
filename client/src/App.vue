@@ -20,9 +20,9 @@ onLaunch(() => {
 </script>
 <style>
 /* ========== 全局设计 Token（Apple Design 风格） ==========
-   关键修复：uni.scss 的 :root 变量块在编译为小程序 WXSS 时被丢弃，
-   导致全部 CSS 变量解析为空、页面裸文本。此处定义在 App 全局样式中，
-   作用到小程序 page 根与 H5 :root，确保各平台 token 全部生效。
+   设计 Token 值以 theme/tokens.ts 为单一事实源（仅 IconSvg 色值等原生属性例外见该文件）。
+   此处（App 全局样式）为 WXSS 变量声明面：因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，
+   真实声明须落在 App.vue 的 page / .theme-dark / :root 三条规则中，确保各平台 token 全部生效。
    增量补齐组件实际引用但此前缺失的 --color-accent / --color-primary-soft /
    --font-title / --icon-lg / --radius-tag / --font-small 等。 */
 /* =========================================================================
@@ -156,14 +156,9 @@ page {
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
   --shadow-bar-primary: 0 12rpx 28rpx rgba(155, 42, 29, 0.28);
-  /* 动效：补充缓动曲线（global-ui-polish） */
-  --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   /* 浮起/按下阴影（global-ui-polish：替代裸 rgba 阴影） */
   --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
   --shadow-press: 0 1rpx 3rpx rgba(0, 0, 0, 0.12);
-  /* 非按压强调缩放（§4.9：须量化独立 token，禁裸 scale()）：如选中 Tab 指示微放大 */
-  --tab-active-scale: 1.06;
   /* 长条删除按钮（图片移除）暗底白字 */
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
   --badge-dark-text: var(--text-white);
@@ -171,26 +166,11 @@ page {
   --text-white-soft: rgba(255, 255, 255, 0.84);
   --text-white-faint: rgba(255, 255, 255, 0.18);
   --text-white-edge: rgba(255, 255, 255, 0.24);
-  /* 动效：按压 + 缓动曲线（emil-design-eng / Apple §1/§4） */
-  --press-scale: 0.97;
-  --press-transition: transform 0.12s ease;
-  /* 非按压缩放（§4.9：须量化为独立 token 并在 uni.scss 登记，禁裸 scale()）
-     rest=静止态（与 --press-scale 配对）、modal-enter=居中弹窗入场、image-zoom=图片查看放大 */
-  --scale-rest: 1;
-  --scale-modal-enter: 0.92;
-  --scale-image-zoom: 1.04;
-  /* 入场微缩放（@提及浮层等轻量 pop-in，非按压强调，§4.9 须量化独立 token） */
-  --scale-enter-sm: 0.96;
-  /* 回到顶部 FAB 入场微缩放（home/index.vue），非按压强调 */
-  --scale-fab-enter: 0.9;
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
-  --duration-drawer: 400ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
   --tracking-h1: -0.02em;
   --tracking-h2: -0.02em;
@@ -405,25 +385,11 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   --text-white-soft: rgba(255, 255, 255, 0.84);
   --text-white-faint: rgba(255, 255, 255, 0.18);
   --text-white-edge: rgba(255, 255, 255, 0.24);
-  --press-scale: 0.97;
-  --press-transition: transform 0.12s ease;
-  /* 非按压缩放（§4.9：须量化为独立 token 并在 uni.scss 登记，禁裸 scale()）
-     rest=静止态（与 --press-scale 配对）、modal-enter=居中弹窗入场、image-zoom=图片查看放大 */
-  --scale-rest: 1;
-  --scale-modal-enter: 0.92;
-  --scale-image-zoom: 1.04;
-  /* 入场微缩放（@提及浮层等轻量 pop-in，非按压强调，§4.9 须量化独立 token） */
-  --scale-enter-sm: 0.96;
-  /* 回到顶部 FAB 入场微缩放（home/index.vue），非按压强调 */
-  --scale-fab-enter: 0.9;
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
-  --duration-drawer: 400ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
   --tracking-h1: -0.02em;
   --tracking-h2: -0.02em;
@@ -443,7 +409,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
    加载态遮罩底色（骨架/禁用态复用）、禁用态弱化文字色（复用四档文字末档）。
    微信小程序以 page 为准、H5 以 :root 为准，此处三者统一声明。 */
-page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
+page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); }
 .theme-dark { --state-loading: rgba(255, 255, 255, 0.06); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
 :root { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); --scale-hover: 1.02; }
 
@@ -472,112 +438,18 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quater
   }
 }
 
-/* ========== 按压反馈（emil-design-eng / Apple §1） ==========
-   按下瞬间缩放到 0.97，松手回弹；仅 transform，合成层友好。 */
-.press {
-  transition: var(--press-transition);
-  -webkit-tap-highlight-color: transparent;
-}
-.press:active {
-  transform: scale(var(--press-scale));
-}
-/* ========== 真机按压反馈（微信 hover-class 用，WXSS 下 :active 无效） ==========
-   微信小程序 view 不支持 :active 伪类，真机按压缩放需用 hover-class="pressed"。
-   此全局类供各可点击 view 的 hover-class 复用（含 TabBar/InteractBar 等）。 */
-.pressed {
-  transform: scale(var(--press-scale)) !important;
-  transition: transform var(--duration-fast) var(--ease-out);
-}
+/* 按压反馈已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 弱化为交互反馈，不再使用 transform scale / hover-class。 */
 
-/* ========== 进场动画（红线 §4.9②：MVP 真机仅简单 CSS 过渡，位移 ≤0） ==========
-   降级为纯 opacity 交叉淡入，不做位移 / 复杂 keyframe。 */
-@keyframes enterFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.enter-up {
-  animation: enterFade var(--duration-base) ease both;
-  animation-delay: calc(var(--enter-i, 0) * 40ms);
-}
+/* 注：装饰性入场动效（原 .enter-up / enterFade）已于 client-mvp-strip-entrance-anim 剥离，
+   MVP 阶段内容一律静态直接呈现，可见性不依赖动画。 */
 
-/* ========== 骨架屏（加载占位，shimmer 流光） ========== */
-@keyframes shimmer {
-  0% { background-position: -150% 0; }
-  100% { background-position: 150% 0; }
-}
+/* ========== 骨架屏（加载占位，静态灰块，无 shimmer 流光） ========== */
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
+  background: var(--bg-soft);
   border-radius: var(--radius-card);
 }
 
-/* ========== 减少动态效果（Apple §14） ==========
-   全局降级：关闭按压 transform / 过渡 / 入场与循环动画，仅保留必要的透明度交叉淡入。
-   覆盖全站可点击元素的按压反馈（--press-scale）与各类动效，确保 reduce 偏好下无位移/弹性过冲。
-   注：.pressed 用 !important 提权，此处必须用同权 !important 覆盖。 */
-@media (prefers-reduced-motion: reduce) {
-  .dish-card,
-  .app-btn,
-  .tab-item,
-  .swiper-slide,
-  .enter-up,
-  .press,
-  .pressed,
-  .filter-enter,
-  .m-action,
-  .cf-panel,
-  .fab,
-  .interact-btn,
-  .stall-card-single,
-  .comment-item,
-  .review-item,
-  .review-thumb,
-  .moment-card,
-  .sheet-tab,
-  .history-chip,
-  .mixed-item,
-  .mention-item,
-  .app-btn:active,
-  .pressed {
-    transition: opacity 0.2s ease !important;
-    animation: none !important;
-  }
-  .dish-card,
-  .app-btn,
-  .press,
-  .pressed,
-  .press-active,
-  .tab-item.press-active,
-  .m-action,
-  .fab,
-  .interact-btn,
-  .stall-card-single,
-  .comment-item,
-  .c-useful-count,
-  .review-item,
-  .moment-card,
-  .sheet-tab,
-  .history-chip,
-  .mixed-item {
-    transform: none !important;
-  }
-  @keyframes tabIn { from, to { transform: none; opacity: 1; } }
-  /* 关闭所有骨架屏 / 旋转 / 流光动画，避免视觉抖动 */
-  .skeleton-icon,
-  .skeleton-line,
-  .skeleton-dish-img,
-  .skeleton-dish-name,
-  .skeleton-dish-price,
-  .skeleton,
-  .footer-spinner,
-  .interact-spinner,
-  .mention-enter-active,
-  .mention-leave-active {
-    animation: none !important;
-    transition: opacity 0.2s ease !important;
-  }
-}
+/* 减少动态效果媒体查询已移除：全站动效已于 client-ui-motion-removal-tokens-consolidation 剥离，无需降级。 */
 
 /* ========== 减少透明度（材质降级为更实） ========== */
 @media (prefers-reduced-transparency: reduce) {
@@ -606,11 +478,7 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quater
   outline-offset: 2rpx;
   border-radius: var(--radius-xs);
 }
-/* hover 态：仅在精确指针（桌面/平板鼠标）设备生效，触屏不触发误缩放 */
-@media (hover: hover) and (pointer: fine) {
-  .hoverable { transition: transform var(--duration-fast) var(--ease-out); }
-  .hoverable:hover { transform: scale(var(--scale-hover)); }
-}
+/* .hoverable 缩放已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 反馈。 */
 /* 宽屏容器：桌面/平板居中限宽，移动端自然铺满（4.1） */
 .app-container { width: 100%; margin: 0 auto; box-sizing: border-box; }
 @media (min-width: 768px) {

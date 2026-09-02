@@ -23,8 +23,8 @@
 import { ref, computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
-// 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 constants/ui.ts 注释），必须用真实色值
-import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/constants/ui'
+// 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 theme/tokens.ts 注释），必须用真实色值
+import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   images: string[]
@@ -70,11 +70,11 @@ function onImgLoad(idx: number) {
   background: var(--bg-page);
   opacity: 0;
   filter: blur(12px);
-  transform: scale(var(--scale-image-zoom));
-  transition: opacity var(--duration-slow) var(--ease-out), filter var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out);
+
+  transition: opacity var(--duration-slow) var(--ease-out), filter var(--duration-slow) var(--ease-out);
 }
 /* 加载完成：由模糊放大淡入至清晰；reduced-motion 下直接显示 */
-.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); transform: scale(var(--scale-rest)); }
+.image-swiper-img.img-loaded { opacity: 1; filter: blur(0); }
 @media (prefers-reduced-motion: reduce) {
   .image-swiper-img { opacity: 1; filter: none; transform: none; transition: none; }
 }

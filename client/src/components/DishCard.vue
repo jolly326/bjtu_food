@@ -1,5 +1,5 @@
 <template>
-  <Pressable class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" @tap="handleClick">
+  <view class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" @tap="handleClick" role="button" tabindex="0">
     <view class="card-image">
       <image
         v-if="imgSrc && imgOk"
@@ -40,7 +40,7 @@
         <text v-if="dish.distance != null" class="card-distance">{{ fmtDistance(dish.distance) }}</text>
       </view>
     </view>
-  </Pressable>
+  </view>
 </template>
 
 <script setup lang="ts">
@@ -49,7 +49,6 @@ import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from './IconSvg.vue'
 import TagLabel from './TagLabel.vue'
-import Pressable from './Pressable.vue'
 
 const props = defineProps<{
   dish: Dish
@@ -102,8 +101,6 @@ function handleClick() {
      否则阴影会渲染成无源头的暗色晕影（社区页「左侧色块」同源问题）。
      overflow:hidden 保留：顶部图片贴齐卡片上缘，需裁进圆角。 */
   border: 1rpx solid var(--border-card);
-  /* 进场仅极轻量淡入（红线 §4.9②：位移 ≤0，仅 transform/opacity）；
-     按压缩放统一由 Pressable（整卡 scale）承载，本卡不再挂 .pressed */
   transition: opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }

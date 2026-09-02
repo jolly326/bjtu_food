@@ -3,8 +3,10 @@ import { onBeforeUnmount } from 'vue'
 /**
  * 弹层焦点管理（client-ui-comprehensive-upgrade 2.3）。
  * 打开时记录触发焦点，关闭后还原到触发处（H5/桌面可达；小程序无 DOM 焦点 API，
- * 以 // #ifdef H5 守卫，mini-program 编译时被剔除，对本端为 no-op，不引入回归）。
- * 返回弹层根节点应透传的无障碍属性，统一 dialog 语义与模态声明。
+ * 函数体内用平台条件编译块守卫，mini-program 编译时剔除，对本端为 no-op，不引入回归）。
+ *
+ * 注意：本文件注释中不得出现条件编译指令字面量 —— uni-app 预处理器会扫描注释内的
+ * 指令词并要求配对，误写将导致构建失败（会报指令缺少配对的结束符）。
  *
  * 使用频次 ≥3（AuthSheet / ApplySheet / ReviewWriteSheet 等），故抽为独立组合式，
  * 符合「仅高频复用才抽取」的抽象阈值（避免过度抽象）。
@@ -34,12 +36,8 @@ export function useSheetFocus() {
   // 组件卸载（如父层 v-if 移除弹层）兜底还原，避免焦点丢失在遮罩上
   onBeforeUnmount(restoreFocus)
 
-  /** 弹层根节点无障碍属性：dialog 语义 + 模态声明，配合 tabindex="-1" 接收初始焦点 */
-  const dialogAttrs = {
-    role: 'dialog',
-    'aria-modal': true,
-    tabindex: '-1',
-  }
-
-  return { captureTrigger, restoreFocus, dialogAttrs }
+  // 注：弹层根节点的无障碍属性（role="dialog" / :aria-modal="true" / tabindex="-1"）
+  // 请在各弹层模板上「显式」书写，不要走 v-bind="obj" 展开绑定 ——
+  // uni-app 编译 mp-weixin 不支持对象展开绑定（构建期报 v-bind="" is not supported）。
+  return { captureTrigger, restoreFocus }
 }

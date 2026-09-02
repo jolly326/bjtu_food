@@ -25,18 +25,7 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔）
-             ⚠️ 动画必须挂在外层 wrapper，绝不能挂在 MomentCard 根元素上：
-             带 animation 的元素会被提升为合成层，而 WeChat 合成层上 border-radius
-             对「自身背景」的裁剪会失效 → 背景按方形绘制，左上角圆角外露出一道竖直色块。
-             overflow:hidden 只裁子元素、不裁自身背景，故加在卡片上无效。
-             对齐首页 WaterfallList 做法：.waterfall-item 挂 enter-up、DishCard 在其内部（无此问题）。 -->
-        <view
-          v-for="(m, i) in moments"
-          :key="m.id"
-          class="enter-up"
-          :style="{ '--enter-i': Math.min(i, 8) }"
-        >
+        <view v-for="m in moments" :key="m.id">
           <MomentCard
             :moment="m"
             @select="goDetail"
@@ -46,7 +35,6 @@
         </view>
         <!-- 触底状态 -->
         <view v-if="loadingMore" class="list-footer loading">
-          <view class="footer-spinner" />
           <text class="footer-text">加载中…</text>
         </view>
         <view v-else-if="finished" class="list-footer finished">
@@ -196,7 +184,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/user/publish-content/index' })
+  uni.navigateTo({ url: '/pages/mine/publish-content/index' })
 }
 
 onMounted(() => {
@@ -219,13 +207,7 @@ onShareAppMessage(() => buildSharePayload())
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .sk-card { width: 100%; height: 280rpx; }
 .list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
-.footer-spinner { width: 28rpx; height: 28rpx; border: 4rpx solid var(--border-color); border-top-color: var(--color-primary); border-radius: var(--radius-circle); animation: spin 0.8s linear infinite; }
 .footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .footer-spinner { animation: none; }
-}
 
 /* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充。
    bottom 须叠加 --tabbar-height，否则被常驻 TabBar 盖住下半截（红线 §4.9 布局） */
@@ -242,8 +224,8 @@ onShareAppMessage(() => buildSharePayload())
   align-items: center;
   justify-content: center;
   z-index: 60;
-  transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
 }
-.fab-publish:active { transform: scale(var(--press-scale)); opacity: 0.85; }
+.fab-publish:active { opacity: 0.85; }
 </style>

@@ -12,13 +12,7 @@
           v-for="n in list"
           :key="n.id"
           class="msg-item"
-          :class="{ unread: n.isRead === 0, pressed: pressedId === n.id }"
-          @touchstart="pressedId = n.id"
-          @touchend="pressedId = 0"
-          @touchcancel="pressedId = 0"
-          @mousedown="pressedId = n.id"
-          @mouseup="pressedId = 0"
-          @mouseleave="pressedId = 0"
+          :class="{ unread: n.isRead === 0 }"
           @tap="onTap(n)"
         >
           <view class="msg-dot" :class="{ read: n.isRead === 1 }" />
@@ -64,7 +58,6 @@ const list = ref<Notification[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
-const pressedId = ref(0)
 // 分页与防重复加载：#4 触底加载下一页；#8 onShow 与 watch 双触发去重（认证瞬间不重复请求）
 let page = 1
 const pageSize = 20
@@ -184,11 +177,10 @@ onShow(() => {
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .msg-item.pressed { background-color: var(--bg-soft); }
-.msg-item.pressed:active { transform: scale(var(--press-scale)); }
 .msg-item.unread { background: var(--color-primary-soft); }
 
 .msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-error); margin-top: 12rpx; }
@@ -203,6 +195,5 @@ onShow(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }
-  .msg-item.pressed:active { transform: none; }
 }
 </style>

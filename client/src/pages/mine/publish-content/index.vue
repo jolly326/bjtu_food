@@ -271,10 +271,8 @@ onLoad(async (query) => {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-soft);
   border-radius: var(--radius-card);
-  transition: transform var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.related-picker:active { transform: scale(var(--press-scale)); }
 .related-picker-icon { flex-shrink: 0; }
 .related-label {
   flex: 1;

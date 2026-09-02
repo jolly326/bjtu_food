@@ -45,17 +45,11 @@
 
     <view
       class="primary-action"
-      :class="{ pressed: primaryPressed, disabled: isBusy }"
+      :class="{ disabled: isBusy }"
       role="button"
       aria-label="认证"
       :aria-disabled="isBusy ? 'true' : 'false'"
       :aria-busy="isBusy ? 'true' : 'false'"
-      @touchstart="primaryPressed = true"
-      @touchend="primaryPressed = false"
-      @touchcancel="primaryPressed = false"
-      @mousedown="primaryPressed = true"
-      @mouseup="primaryPressed = false"
-      @mouseleave="primaryPressed = false"
       @tap="submit"
     >
       <text class="primary-action-text">{{ primaryText }}</text>
@@ -87,7 +81,6 @@ const userStore = useUserStore()
 const form = ref({ username: '', code: '' })
 const codeCountdown = ref(0)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
-const primaryPressed = ref(false)
 
 // 外部（AuthSheet）传入的冷却值变化时回填到本地，重开弹层后倒计时继续
 watch(
@@ -169,8 +162,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .email-hint { padding: 0 var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 
 /* 主按钮：与全站主操作同款（radius-btn + shadow-bar-primary + 按压缩放） */
-.primary-action { height: 92rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); display: flex; align-items: center; justify-content: center; transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out); }
-.primary-action.pressed { transform: scale(var(--press-scale)); opacity: 0.92; }
+.primary-action { height: 92rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); display: flex; align-items: center; justify-content: center; transition: opacity var(--duration-fast) var(--ease-out); }
 .primary-action.disabled { opacity: 0.58; }
 .primary-action-text { color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-bold); }
 

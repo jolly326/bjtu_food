@@ -1,5 +1,5 @@
 <template>
-  <Pressable class="moment-card" :aria-label="ariaLabel" @tap="goDetail">
+  <view class="moment-card" :aria-label="ariaLabel" @tap="goDetail" role="button" tabindex="0">
     <view class="m-head">
       <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" lazy-load />
       <view v-else class="m-avatar m-avatar-empty">
@@ -71,13 +71,12 @@
         </view>
       </view>
     </view>
-  </Pressable>
+  </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
-import Pressable from './Pressable.vue'
 import { formatDateTime } from '@/utils/time'
 import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
@@ -179,9 +178,7 @@ async function onUseful() {
      圆角外侧会残留一圈背景色方角（四角皆有，左侧因贴齐列表边缘最明显，
      表现为「屏幕左侧色块」）。必须由本属性裁掉，否则该渲染残留会暴露。
      同理不投影：卡片与页面同色＝没有被抬起的面，box-shadow 只会渲染成
-     一圈无源头的暗色晕影，多卡堆叠后连成竖条色块。
-     按压反馈统一由 Pressable（整卡 scale，不换背景色）承载，
-     本卡不再挂换色型 .pressed，避免合成层下露出左上角色块。 */
+     一圈无源头的暗色晕影，多卡堆叠后连成竖条色块。 */
   border: 1rpx solid var(--border-card);
   padding: var(--spacing-md);
   overflow: hidden;
@@ -220,9 +217,8 @@ async function onUseful() {
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-base) var(--ease-out); }
+.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
 .m-image.loaded { opacity: 1; }
-.m-image-wrap:active .m-image { transform: scale(var(--press-scale)); }
 /* 关联 chip：胶囊背景（primary-soft + 主色文字），左侧为圆角正方形菜品缩略图（有图显图、无图显菜品占位图标）——
    与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
 /* ⚠️ overflow:hidden：本 chip 位于卡片底部左侧、带主色浅底，圆角外侧的背景方角残留
@@ -241,8 +237,8 @@ async function onUseful() {
 /* 互动按钮：icon + 数字纯文字链，去胶囊背景（原 bg-soft 胶囊与关联 chip 叠加视觉过重）。
    统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
    与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
-.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.m-action:active { opacity: 0.55; transform: scale(var(--press-scale)); }
+.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.m-action:active { opacity: 0.55; }
 /* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
 .m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
 .m-action.m-action-share::after { border: none; }

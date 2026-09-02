@@ -41,15 +41,8 @@
           v-for="f in featuredItems"
           :key="f.key"
           class="feature-card"
-          :class="{ pressed: pressedKey === f.key }"
           role="button"
           :aria-label="f.label"
-          @touchstart="pressedKey = f.key"
-          @touchend="pressedKey = ''"
-          @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = f.key"
-          @mouseup="pressedKey = ''"
-          @mouseleave="pressedKey = ''"
           @tap="f.action"
         >
           <view class="feature-card-icon">
@@ -66,15 +59,8 @@
           v-for="e in entryItems"
           :key="e.key"
           class="entry-row"
-          :class="{ pressed: pressedKey === e.key }"
           role="button"
           :aria-label="e.label"
-          @touchstart="pressedKey = e.key"
-          @touchend="pressedKey = ''"
-          @touchcancel="pressedKey = ''"
-          @mousedown="pressedKey = e.key"
-          @mouseup="pressedKey = ''"
-          @mouseleave="pressedKey = ''"
           @tap="e.action"
         >
           <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
@@ -129,7 +115,6 @@ const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
 /** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
 const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
-const pressedKey = ref('')
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
@@ -163,20 +148,20 @@ function onUserCardTap() {
     authSheetStore.show()
     return
   }
-  uni.navigateTo({ url: '/pages/user/profile-edit/index' })
+  uni.navigateTo({ url: '/pages/mine/profile-edit/index' })
 }
 
 /** 功能凸显区块：意见反馈 / 最新活动（community-review-redesign 抽离至顶部高亮，区别于常规入口） */
 const featuredItems = [
   { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
-  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/standalone/feedback/index' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/mine/feedback/index' }) },
 ]
 
 /** 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部凸显区块） */
 const entryItems = [
-  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/profile/notifications/index' })) },
-  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/user/my-moments/index' })) },
-  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/standalone/about/index' }) },
+  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/mine/notifications/index' })) },
+  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/mine/my-published/index' })) },
+  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/mine/about/index' }) },
 ]
 
 
@@ -195,7 +180,7 @@ const entryItems = [
   background: transparent;
   border-radius: var(--radius-card);
   border-top: 6rpx solid transparent;
-  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 /* 已认证：一级身份卡（白底 + 主色软条纹 + 强阴影，从页面抬起） */
@@ -210,7 +195,7 @@ const entryItems = [
   border-top-color: transparent;
   box-shadow: none;
 }
-.user-card:active { background-color: var(--bg-soft); transform: scale(var(--press-scale)); }
+.user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 112rpx; height: 112rpx; }
 .avatar { width: 112rpx; height: 112rpx; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-soft); }
@@ -243,11 +228,10 @@ const entryItems = [
   border-radius: var(--radius-card);
   /* 二级功能卡：微抬阴影，弱于一级身份卡 */
   box-shadow: var(--shadow-card-soft);
-  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .feature-card.pressed { background-color: var(--bg-soft); }
-.feature-card.pressed:active { transform: scale(var(--press-scale)); }
 .feature-card-icon {
   position: relative;
   width: 96rpx;
@@ -291,12 +275,11 @@ const entryItems = [
   gap: var(--spacing-md);
   height: 104rpx;
   padding: 0 var(--spacing-lg);
-  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
 .entry-row.pressed { background-color: var(--bg-soft); }
-.entry-row.pressed:active { transform: scale(var(--press-scale)); }
 .entry-icon { flex-shrink: 0; }
 .entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 需认证入口的未认证弱标识（不置灰） */
@@ -320,6 +303,5 @@ const entryItems = [
 
 @media (prefers-reduced-motion: reduce) {
   .user-card, .entry-row, .feature-card { transition: none; }
-  .user-card:active, .entry-row.pressed:active, .feature-card.pressed:active { transform: none; }
 }
 </style>

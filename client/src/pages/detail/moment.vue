@@ -171,7 +171,7 @@
           />
         </view>
         <view class="comment-send" :class="{ disabled: commentSubmitting }" role="button" aria-label="发送评论" @tap="submitComment">
-          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" :class="{ spin: commentSubmitting }" />
+          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
         </view>
       </view>
     </view>
@@ -309,7 +309,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/user/publish-content/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: `/pages/mine/publish-content/index?id=${moment.value.id}` })
 }
 
 /** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */
@@ -580,8 +580,7 @@ onLoad((query) => {
 .audit-rejected .m-audit-text { color: var(--color-error); }
 .m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
 .m-images { margin-top: var(--spacing-sm); }
-.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: var(--radius-none); box-shadow: none; border-bottom: 2rpx solid var(--border-color); transition: transform var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.related-card:active { transform: scale(var(--press-scale)); }
+.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: var(--radius-none); box-shadow: none; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
 /* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
 .related-icon { font-size: var(--font-subtitle); line-height: 1; }
 /* 圆角正方形菜品缩略图（与动态卡片 m-related-thumb 统一） */
@@ -613,25 +612,14 @@ onLoad((query) => {
    底部栏白底融为一体，视觉层次丢失（Apple 输入框聚焦保持背景一致） */
 .comment-input-box.focused { border-color: var(--color-primary); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-subtitle); color: var(--text-primary); }
-.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
-.comment-send:active { opacity: 0.8; transform: scale(var(--press-scale)); }
+.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
+.comment-send:active { opacity: 0.8; }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }
 .comment-send-text { font-size: var(--font-subtitle); line-height: 1; color: var(--color-on-primary); }
-.comment-send-text.spin { animation: comment-spin 0.8s linear infinite; }
-@keyframes comment-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% + 8rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
 .mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
 .mention-item:active { background: var(--bg-soft); }
 .mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: var(--font-caption); }
 .mention-name { font-size: var(--font-caption); color: var(--text-primary); }
 .mention-empty { padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); }
-.mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-drawer); }
-.mention-enter-from, .mention-leave-to { opacity: 0; transform: translateY(12rpx) scale(var(--scale-enter-sm)); }
-.mention-enter-to, .mention-leave-from { opacity: 1; transform: translateY(0) scale(var(--scale-rest)); }
-
-/* reduced-motion 降级：去位移/弹性过冲，保留透明度交叉淡入 */
-@media (prefers-reduced-motion: reduce) {
-  .mention-enter-active, .mention-leave-active { transition: opacity var(--duration-fast) ease; }
-  .mention-enter-from, .mention-leave-to { transform: none; }
-}
 </style>

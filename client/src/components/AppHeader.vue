@@ -9,6 +9,32 @@
     </view>
   </view>
 
+  <!-- 搜索页：返回箭头 + 可输入搜索框 + 清除按钮（find 页复用，消除自绘 header 漂移） -->
+  <view v-else-if="variant === 'search'" class="header-wrap search" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
+    <view class="search-nav" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
+      <view class="back-area" @tap="handleBack" role="button" aria-label="返回">
+        <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" class="back-arrow" />
+      </view>
+      <view class="search-box">
+        <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="search-box-icon" />
+        <input
+          class="search-box-input"
+          :value="modelValue"
+          type="text"
+          confirm-type="search"
+          :placeholder="searchPlaceholder"
+          placeholder-class="search-box-ph"
+          :adjust-position="true"
+          @input="onSearchInput"
+          @confirm="onSearchConfirm"
+        />
+        <view v-if="modelValue" class="search-box-clear" @tap="$emit('clear')">
+          <IconSvg name="close" :size="'16px'" color="var(--text-tertiary)" />
+        </view>
+      </view>
+    </view>
+  </view>
+
   <!-- 通用/二级页：返回箭头 + 居中标题 + 右上角留空 -->
   <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
@@ -32,11 +58,13 @@ import IconSvg from './IconSvg.vue'
 import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 
 const props = withDefaults(defineProps<{
-  /** home=首页头部（仅搜索框）；默认=二级页返回箭头+标题 */
-  variant?: 'home' | 'default'
+  /** home=首页头部（仅搜索框）；search=返回箭头+可输入搜索框（find 页）；default=二级页返回箭头+标题 */
+  variant?: 'home' | 'search' | 'default'
   title?: string
-  /** 首页搜索框占位 */
+  /** 首页/搜索框占位 */
   searchPlaceholder?: string
+  /** search variant 双向绑定的搜索关键词 */
+  modelValue?: string
   /** 深色模式（仅影响无背景变量时的兜底） */
   dark?: boolean
   /** 是否显示返回箭头；从首页头像 navigateTo 进入二级页时传 true，TabBar 直入时传 false */
@@ -45,6 +73,7 @@ const props = withDefaults(defineProps<{
   variant: 'default',
   title: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
+  modelValue: '',
   dark: false,
   showBack: true,
 })
@@ -52,6 +81,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'back'): void
   (e: 'search'): void
+  (e: 'clear'): void
+  (e: 'update:modelValue', value: string): void
 }>()
 
 const statusBarHeight = ref(20)
@@ -91,6 +122,12 @@ onMounted(() => {
 function handleBack() {
   emit('back')
 }
+function onSearchInput(e: { detail: { value: string } }) {
+  emit('update:modelValue', e.detail.value)
+}
+function onSearchConfirm() {
+  emit('search')
+}
 </script>
 
 <style scoped>
@@ -126,10 +163,8 @@ function handleBack() {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--press-transition);
   -webkit-tap-highlight-color: transparent;
 }
-.back-area:active { transform: scale(var(--press-scale)); }
 .back-arrow { line-height: 1; }
 /* 标题绝对居中：无论有无返回箭头，始终相对导航行真正水平居中（不再因左侧补偿而偏右） */
 .title {
@@ -172,4 +207,40 @@ function handleBack() {
 }
 .home-search-icon { flex-shrink: 0; line-height: 1; }
 .home-search-placeholder { font-size: var(--font-body); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== 搜索 variant（find 页）：返回箭头 + 可输入搜索框 + 清除按钮 ===== */
+.search-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding-left: var(--spacing-lg);
+  padding-right: var(--spacing-lg);
+  box-sizing: border-box;
+}
+/* 搜索态下返回区域改为行内（默认 variant 为绝对定位以居中标题），共享 .back-arrow 图标 */
+.search-nav .back-area { position: static; width: 44px; flex-shrink: 0; }
+.search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  height: var(--capsule-h, 32px);
+  padding: 0 var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  box-sizing: border-box;
+}
+.search-box-icon { flex-shrink: 0; line-height: 1; }
+.search-box-input { flex: 1; min-width: 0; font-size: var(--font-body); color: var(--text-primary); }
+.search-box-ph { color: var(--text-tertiary); }
+.search-box-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-tag);
+  -webkit-tap-highlight-color: transparent;
+}
+.search-box-clear:active { opacity: 0.55; }
 </style>

@@ -1,8 +1,8 @@
 <template>
-  <view class="page my-moments-page" :class="{ 'theme-dark': theme.isDark }">
-    <Header title="我的动态" @back="backToHome" />
+  <view class="page my-published-page" :class="{ 'theme-dark': theme.isDark }">
+    <Header title="我发布的" @back="backToHome" />
 
-    <!-- 直接展示一列我的动态（无分类 tab；被退回的会通过系统通知提醒） -->
+    <!-- 直接展示一列我发布的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <view v-if="loading && moments.length === 0" class="skeleton-list">
         <view v-for="s in 3" :key="s" class="sk-card skeleton" />
@@ -19,16 +19,7 @@
       />
 
       <view v-else class="moment-list">
-        <!-- enter-up + --enter-i：列表 stagger 入场（全局 enterFade var(--duration-base) + 40ms 间隔）
-             ⚠️ 动画挂外层 wrapper、不挂 MomentCard 根元素（与社区页同源规则）：
-             合成层上 border-radius 对自身背景裁剪失效，会把卡片背景画成方形，
-             左上角露出竖直色块。详见 pages/community/index.vue 同位置注释。 -->
-        <view
-          v-for="(m, i) in moments"
-          :key="m.id"
-          class="enter-up"
-          :style="{ '--enter-i': Math.min(i, 8) }"
-        >
+        <view v-for="m in moments" :key="m.id">
           <MomentCard
             :moment="m"
             :show-audit="true"
@@ -129,7 +120,7 @@ async function loadData() {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/user/publish-content/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/mine/publish-content/index?id=${m.id}` })
   } else {
     uni.navigateTo({ url: `/pages/detail/moment?id=${m.id}` })
   }
@@ -164,7 +155,7 @@ onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>
-.my-moments-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+.my-published-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 .skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
