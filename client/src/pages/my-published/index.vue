@@ -1,5 +1,5 @@
 <template>
-  <view class="page my-published-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page my-published-page">
     <Header title="我发布的" @back="backToHome" />
 
     <!-- 直接展示一列我发布的动态（无分类 tab；被退回的会通过系统通知提醒） -->
@@ -61,7 +61,6 @@
 import { ref, watch } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
-import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
@@ -75,11 +74,10 @@ import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
-const theme = useThemeStore()
 const moments = ref<Moment[]>([])
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -120,9 +118,9 @@ async function loadData() {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/mine/publish-content/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/publish-content/index?id=${m.id}` })
   } else {
-    uni.navigateTo({ url: `/pages/detail/moment?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/moment/index?id=${m.id}` })
   }
 }
 

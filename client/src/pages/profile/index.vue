@@ -1,5 +1,5 @@
 <template>
-  <view class="page profile-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page profile-page">
     <Header title="我的" :showBack="showBack" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -99,13 +99,11 @@ import ImageFallback from '@/components/ImageFallback.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
-import { useThemeStore } from '@/stores/theme'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useNotifyStore } from '@/stores/notify'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
 
-const theme = useThemeStore()
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
 const notifyStore = useNotifyStore()
@@ -148,20 +146,20 @@ function onUserCardTap() {
     authSheetStore.show()
     return
   }
-  uni.navigateTo({ url: '/pages/mine/profile-edit/index' })
+  uni.navigateTo({ url: '/pages/profile-edit/index' })
 }
 
 /** 功能凸显区块：意见反馈 / 最新活动（community-review-redesign 抽离至顶部高亮，区别于常规入口） */
 const featuredItems = [
   { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
-  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/mine/feedback/index' }) },
+  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
 ]
 
 /** 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部凸显区块） */
 const entryItems = [
-  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/mine/notifications/index' })) },
-  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/mine/my-published/index' })) },
-  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/mine/about/index' }) },
+  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/notifications/index' })) },
+  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/my-published/index' })) },
+  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
 

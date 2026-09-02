@@ -1,5 +1,5 @@
 <template>
-  <view class="page review-list-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page review-list-page">
     <Header :title="`${dishName} · 评价`" @back="backToHome" />
     <scroll-view
       class="scroll-wrap"
@@ -57,7 +57,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteReview } from '@/api/review'
@@ -71,7 +70,6 @@ import ReportModal from '@/components/ReportModal.vue'
 import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
-const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
 

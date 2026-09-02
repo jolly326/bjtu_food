@@ -1,5 +1,5 @@
 <template>
-  <view class="page feedback-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page feedback-page">
     <Header title="意见反馈" @back="goBack" />
 
     <!-- 轻量单视图 · 动态表单（三类型等宽卡片 + 结构化字段） -->
@@ -536,7 +536,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
 import { searchDishes, getDishDetail } from '@/api/dish'
@@ -549,7 +548,6 @@ import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 
-const theme = useThemeStore()
 
 // 返回：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页
 function goBack() {

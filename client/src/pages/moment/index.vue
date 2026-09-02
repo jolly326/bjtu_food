@@ -1,5 +1,5 @@
 <template>
-  <view class="page moment-detail-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
       <!-- 骨架屏：贴合真实首屏（主卡：发布者行 + 正文 + 三图 + 互动按钮；评论卡：标题 + 两条评论），
@@ -195,7 +195,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import { submitFeedback } from '@/api/feedback'
@@ -215,13 +214,12 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
-const theme = useThemeStore()
 const userStore = useUserStore()
 const moment = ref<Moment | null>(null)
 onShareAppMessage(() => buildSharePayload(undefined, moment.value))
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
 const loading = ref(false)
@@ -309,7 +307,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/mine/publish-content/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: `/pages/publish-content/index?id=${moment.value.id}` })
 }
 
 /** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */

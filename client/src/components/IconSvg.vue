@@ -57,6 +57,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'arrow-left': { path: ['m15 18-6-6 6-6'] },
   // 向下箭头（下拉关闭提示：不依赖 rotate，微信小程序 transform 方向不可靠）
   'arrow-down': { path: ['m6 9 6 6 6-6'] },
+  // 向上箭头（下拉展开提示：与 arrow-down 垂直镜像，同样不依赖 rotate）
+  'arrow-up': { path: ['m6 15 6-6 6 6'] },
   // 用户（人形，语义：账号/我的）
   user: { path: ['M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M4 21a8 8 0 0 1 16 0'] },
   // 锁（密码）
@@ -77,13 +79,14 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
-// 单一事实源：色值统一维护在 src/theme/tokens.ts（改主色只改一处，图标全同步）
-// 深浅双模式：图标色随主题切换，深色模式不再沿用浅色真值导致脱色
-import { ICON_COLOR_VARS as COLOR_VARS_TABLE } from '@/theme/tokens'
-import { useThemeStore } from '@/stores/theme'
+// 单一事实源：色值统一维护在 src/theme/tokens.ts 的 COLOR_MAP（改主色只改一处，图标全同步）
+// 由 COLOR_MAP 派生主题色表并补 currentColor；产品仅浅色一种主体颜色，图标色固定取浅色表
+import { COLOR_MAP } from '@/theme/tokens'
 
-const themeStore = useThemeStore()
-const COLOR_VARS = computed(() => COLOR_VARS_TABLE[themeStore.isDark ? 'dark' : 'light'])
+const COLOR_VARS_TABLE: Record<'light', Record<string, string>> = {
+  light: { ...COLOR_MAP, currentColor: COLOR_MAP['text-primary'] },
+}
+const COLOR_VARS = computed(() => COLOR_VARS_TABLE['light'])
 
 function resolveColor(c: string): string {
   if (!c) return COLOR_VARS.value.currentColor || '#1C1C1E'

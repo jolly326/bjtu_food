@@ -1,5 +1,5 @@
 <template>
-  <view class="page community-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page community-page">
     <Header title="最新动态" @back="backToHome" />
     <scroll-view
       class="scroll-wrap"
@@ -82,7 +82,6 @@ import { ref, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import TabBar from '@/components/TabBar.vue'
-import { useThemeStore } from '@/stores/theme'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
@@ -96,12 +95,11 @@ import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-const theme = useThemeStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish?id=${id}` })
+  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -174,7 +172,7 @@ function onRefresh() {
 }
 
 function goDetail(m: Moment) {
-  uni.navigateTo({ url: `/pages/detail/moment?id=${m.id}` })
+  uni.navigateTo({ url: `/pages/moment/index?id=${m.id}` })
 }
 
 function goRelated(m: Moment) {
@@ -184,7 +182,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/mine/publish-content/index' })
+  uni.navigateTo({ url: '/pages/publish-content/index' })
 }
 
 onMounted(() => {

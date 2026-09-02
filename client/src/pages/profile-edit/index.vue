@@ -1,5 +1,5 @@
 <template>
-  <view class="page profile-edit-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page profile-edit-page">
     <Header title="个人信息" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -53,7 +53,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
 import { uploadImage } from '@/api/upload'
@@ -62,7 +61,6 @@ import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-const theme = useThemeStore()
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 

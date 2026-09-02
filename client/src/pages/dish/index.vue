@@ -1,5 +1,5 @@
 <template>
-  <view class="page dish-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page dish-page">
     <Header title="菜品详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false" ref="mainRef" tabindex="-1">
       <!-- 加载骨架屏 -->
@@ -220,7 +220,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
@@ -244,7 +243,6 @@ import ReportModal from '@/components/ReportModal.vue'
 import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
 import ReviewWriteSheet from '@/components/ReviewWriteSheet.vue'
 
-const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
 const locationStore = useLocationStore()
@@ -421,7 +419,7 @@ async function loadDishData() {
 
 onShareAppMessage(() => ({
   title: dish.value ? `${dish.value.name} ¥${dish.value.price}` : '菜品详情',
-  path: `/pages/detail/dish?id=${dishId.value}`,
+  path: `/pages/dish/index?id=${dishId.value}`,
 }))
 
 /** 申请下架/纠错 Sheet */
@@ -492,7 +490,7 @@ function onDeleteReview(rv: Review) {
 
 /** 查看全部评价 → 独立评价列表页 */
 function goReviewList() {
-  uni.navigateTo({ url: `/pages/detail/review-list?dishId=${currentDishId.value}` })
+  uni.navigateTo({ url: `/pages/review-list/index?dishId=${currentDishId.value}` })
 }
 
 /** 写评价入口：打开美团式写评 Sheet（动态/评价已隔离，提交不再回写动态；认证在 Sheet 提交时检测） */

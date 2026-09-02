@@ -1,7 +1,7 @@
 <template>
-  <!-- 首页头部：仅含搜索框（全宽，避让胶囊）。筛选 chip 已拆为独立 HomeFilterChip 组件，由父级在 header 之下渲染 -->
+  <!-- 首页头部：仅含搜索框（全宽，避让胶囊）。筛选栏已合并为独立 FilterBar 组件，由父级在 header 之下渲染 -->
   <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
-    <view class="home-nav" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
+    <view class="home-nav" :style="{ height: navBarHeight + 'px', paddingRight: navPadRight }">
       <view class="home-search" @tap="$emit('search')" role="search" :aria-label="searchPlaceholder">
         <IconSvg name="search" :size="'18px'" color="var(--text-tertiary)" class="home-search-icon" />
         <text class="home-search-placeholder">{{ searchPlaceholder }}</text>
@@ -11,7 +11,7 @@
 
   <!-- 搜索页：返回箭头 + 可输入搜索框 + 清除按钮（find 页复用，消除自绘 header 漂移） -->
   <view v-else-if="variant === 'search'" class="header-wrap search" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
-    <view class="search-nav" :style="{ height: navBarHeight + 'px', paddingRight: 'calc(env(safe-area-inset-right, 0px) + ' + rightPad + ')' }">
+    <view class="search-nav" :style="{ height: navBarHeight + 'px', paddingRight: navPadRight }">
       <view class="back-area" @tap="handleBack" role="button" aria-label="返回">
         <IconSvg name="arrow-left" :size="'22px'" color="var(--text-white)" class="back-arrow" />
       </view>
@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 
@@ -91,6 +91,9 @@ const capsuleHeight = ref(32)
 // 是否微信小程序环境（决定右上角是否避让原生胶囊）；非微信端（H5）右侧留白收窄
 const isWeChat = ref(false)
 const rightPad = ref('180rpx')
+/** 导航行右侧留白：home 与 search 两 variant **共用此唯一计算式**，
+ *  使首页与搜索页搜索框右缘始终对齐 —— 两页宽度差异只应来自 search variant 左侧的返回箭头。 */
+const navPadRight = computed(() => `calc(env(safe-area-inset-right, 0px) + ${rightPad.value})`)
 
 onMounted(() => {
   // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync（避免拿不到 statusBarHeight 导致刘海遮挡）

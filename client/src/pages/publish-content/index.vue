@@ -1,5 +1,5 @@
 <template>
-  <view class="page publish-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page publish-page">
     <Header :title="pageTitle" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -61,7 +61,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
@@ -76,7 +75,6 @@ import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import type { RelatedItem } from '@/types/related-item'
 
-const theme = useThemeStore()
 const dishStore = useDishStore()
 const userStore = useUserStore()
 

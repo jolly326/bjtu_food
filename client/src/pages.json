@@ -31,24 +31,34 @@
 	],
 	"subPackages": [
 		{
-			"root": "pages/detail/",
+			"root": "pages/dish/",
 			"pages": [
 				{
-					"path": "moment",
-					"style": {
-						"navigationBarTitleText": "动态详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "dish",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/moment/",
+			"pages": [
 				{
-					"path": "review-list",
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "动态详情",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/review-list/",
+			"pages": [
+				{
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "全部评价",
 						"navigationStyle": "custom"
@@ -57,45 +67,70 @@
 			]
 		},
 		{
-			"root": "pages/mine/",
+			"root": "pages/notifications/",
 			"pages": [
 				{
-					"path": "notifications/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/my-published/",
+			"pages": [
 				{
-					"path": "my-published/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "我发布的",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/profile-edit/",
+			"pages": [
 				{
-					"path": "profile-edit/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/publish-content/",
+			"pages": [
 				{
-					"path": "publish-content/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "发表内容",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/feedback/",
+			"pages": [
 				{
-					"path": "feedback/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "意见反馈",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/about/",
+			"pages": [
 				{
-					"path": "about/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "关于我们",
 						"navigationStyle": "custom"
@@ -112,9 +147,14 @@
 						"navigationBarTitleText": "最新活动",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/activity-webview/",
+			"pages": [
 				{
-					"path": "webview/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "",
 						"navigationStyle": "custom"
@@ -126,11 +166,11 @@
 	"preloadRule": {
 		"pages/home/index": {
 			"network": "all",
-			"packages": ["pages/detail/", "pages/mine/", "pages/activity/"]
+			"packages": ["pages/dish/", "pages/moment/", "pages/review-list/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
 		},
 		"pages/profile/index": {
 			"network": "all",
-			"packages": ["pages/detail/", "pages/mine/", "pages/activity/"]
+			"packages": ["pages/dish/", "pages/moment/", "pages/review-list/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
 		}
 	},
 	"globalStyle": {

@@ -1,6 +1,6 @@
 <template>
   <!-- 底部菜单栏：区分「首页 / 社区 / 我的」三主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
-  <view v-if="tabVisible" class="tab-bar" :class="{ 'theme-dark': theme.isDark }">
+  <view v-if="tabVisible" class="tab-bar">
     <view
       v-for="item in tabs"
       :key="item.key"
@@ -22,11 +22,9 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useThemeStore } from '@/stores/theme'
 import IconSvg from '@/components/IconSvg.vue'
 import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
 
-const theme = useThemeStore()
 
 const tabs = [
   { key: 'home', label: '首页', icon: 'home', url: '/pages/home/index' },

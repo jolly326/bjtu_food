@@ -1,5 +1,5 @@
 <template>
-  <view class="page about-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page about-page">
     <Header title="关于我们" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false">
       <view class="hero">
@@ -42,12 +42,10 @@
 </template>
 
 <script setup lang="ts">
-import { useThemeStore } from '@/stores/theme'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-const theme = useThemeStore()
 
 </script>
 

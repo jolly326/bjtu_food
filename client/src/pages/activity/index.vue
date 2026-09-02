@@ -1,5 +1,5 @@
 <template>
-  <view class="page activity-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page activity-page">
     <Header title="最新活动" @back="backToHome" />
     <scroll-view
       class="scroll-wrap"
@@ -48,7 +48,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { useThemeStore } from '@/stores/theme'
 import { getActivities, type ActivityItem } from '@/api/activity'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
@@ -56,7 +55,6 @@ import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-const theme = useThemeStore()
 
 const page = ref(1)
 const pageSize = 20
@@ -103,7 +101,7 @@ function openActivity(act: ActivityItem) {
   if (act.articleUrl) {
     // 修复：跳转路径必须带 /index（pages.json 注册的是 pages/webview/index），
     // 否则 uni.navigateTo 找不到页面导致活动文章打不开
-    uni.navigateTo({ url: `/pages/activity/webview/index?url=${encodeURIComponent(act.articleUrl)}` })
+    uni.navigateTo({ url: `/pages/activity-webview/index?url=${encodeURIComponent(act.articleUrl)}` })
   }
 }
 

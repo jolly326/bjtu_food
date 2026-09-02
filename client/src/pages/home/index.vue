@@ -1,5 +1,5 @@
 <template>
-  <view class="page home-page" :class="{ 'theme-dark': theme.isDark }">
+  <view class="page home-page">
     <!-- 首页头部容器：朱砂红底，仅承载搜索框（与微信导航栏同高） -->
     <view class="home-top">
       <Header
@@ -11,28 +11,13 @@
 
     <!-- 筛选行：左=全部食堂 / 全部价格（仅展开时红底），最右=筛选图标（常驻，暂不挂跳转） -->
     <view class="filter-bar">
-      <HomeFilterChip
-        :selected-canteen="selectedCanteenName"
-        :capsule-height="36"
-        :filter-open="showFilter"
-        :price-label="priceLabel"
-        :price-open="showPrice"
-        @filter="toggleFilter"
-        @price="togglePrice"
-      />
-      <CanteenFilter
-        v-if="showFilter"
+      <FilterBar
         :canteens="dishStore.canteenList"
-        :selected-id="selectedCanteenId"
-        @select="onCanteenSelect"
-        @close="showFilter = false"
-      />
-      <!-- 价格筛选下拉：从筛选条向下展开，点击遮罩或再次点击价格 chip 关闭 -->
-      <HomePriceSheet
-        :open="showPrice"
-        :current="dishStore.filterPrice"
-        @update:open="showPrice = $event"
-        @select="onPriceSelect"
+        :selected-canteen-id="selectedCanteenId"
+        :price-range="dishStore.filterPrice"
+        :capsule-height="36"
+        @canteen-select="onCanteenSelect"
+        @price-select="onPriceSelect"
       />
     </view>
 
@@ -79,8 +64,6 @@
       <IconSvg name="up" :size="44" color="var(--color-primary)" />
     </view>
 
-    <AuthSheet />
-
     <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
     <TabBar />
   </view>
@@ -90,23 +73,17 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
-import { useThemeStore } from '@/stores/theme'
 import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { fenToYuan } from '@/utils/money'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import HomeFilterChip from '@/components/HomeFilterChip.vue'
-import HomePriceSheet from '@/components/HomePriceSheet.vue'
+import FilterBar from '@/components/FilterBar.vue'
 import HomeFeed from '@/components/HomeFeed.vue'
-import CanteenFilter from '@/components/CanteenFilter.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
 import TabBar from '@/components/TabBar.vue'
 import type { FilterTab } from '@/types/filter-tab'
 
-const theme = useThemeStore()
 const dishStore = useDishStore()
 const locationStore = useLocationStore()
 
@@ -114,25 +91,11 @@ const loadingHot = ref(true)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
-/** 食堂筛选下拉显隐 */
-const showFilter = ref(false)
-/** 胶囊高度（px），与 AppHeader 同一取值口径，用于对齐筛选 chip 与搜索框高度 */
+/** 胶囊高度（px），与 AppHeader 同一取值口径 */
 const capsuleHeight = ref(32)
-/** 价格筛选面板显隐 */
-const showPrice = ref(false)
 
-/** 价格胶囊文案：未选「全部价格」，已选回显具体区间。
- *  store 的 filterPrice 单位为「分」，展示必须转「元」——统一走 utils/money 的 fenToYuan（红线：禁止裸算 /100）。
- *  修复前直接把「分」当「元」显示，选中 10–20 元会显示成「1000-2000」。 */
-const priceLabel = computed(() => {
-  const p = dishStore.filterPrice
-  if (p.min == null && p.max == null) return '全部价格'
-  if (p.min != null && p.max == null) return `${fenToYuan(p.min)} 元以上`
-  if (p.min == null && p.max != null) return `${fenToYuan(p.max)} 元以下`
-  return `${fenToYuan(p.min)}-${fenToYuan(p.max)} 元`
-})
-
-/** 选择价格区间：写回 store 并刷新当前筛选流（后端既有 minPrice/maxPrice，无新契约） */
+/** 选择价格区间：写回 store 并刷新当前筛选流（后端既有 minPrice/maxPrice，无新契约）。
+ *  价格区间文案回显由 FilterBar 内部用 fenToYuan 换算（红线：禁止裸算 /100）。 */
 async function onPriceSelect(range: { min?: number; max?: number }) {
   await dishStore.setHomePrice(range)
 }
@@ -165,20 +128,11 @@ watch(
   { immediate: true },
 )
 
-/** 食堂筛选：点击切换（展开/收起） */
-function toggleFilter() {
-  showFilter.value = !showFilter.value
-}
+/** 食堂筛选：写回选中 id 并按该食堂刷新筛选流（表单显隐由 FilterBar 自持） */
 function onCanteenSelect(id: number | null) {
   selectedCanteenId.value = id
-  showFilter.value = false
   const tab = id == null ? defaultTab() : canteenTab(id, selectedCanteenName.value || '食堂')
   dishStore.fetchFilterDishes(tab, true)
-}
-
-/** 价格筛选：点击切换（展开/收起） */
-function togglePrice() {
-  showPrice.value = !showPrice.value
 }
 
 function goToSearch() {
