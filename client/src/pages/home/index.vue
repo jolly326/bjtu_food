@@ -12,6 +12,7 @@
     <!-- 筛选行：左=全部食堂 / 全部价格（仅展开时红底），最右=筛选图标（常驻，暂不挂跳转） -->
     <view class="filter-bar">
       <FilterBar
+        class="fb-host"
         :canteens="dishStore.canteenList"
         :selected-canteen-id="selectedCanteenId"
         :price-range="dishStore.filterPrice"
@@ -33,17 +34,7 @@
       @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 加载骨架屏（贴合真实首屏：双列瀑布流） -->
-      <view v-if="loadingHot" class="home-skeleton">
-        <view class="sk-waterfall">
-          <view class="sk-col">
-            <view v-for="s in 3" :key="'l' + s" class="sk-wcard skeleton" />
-          </view>
-          <view class="sk-col">
-            <view v-for="s in 3" :key="'r' + s" class="sk-wcard skeleton" />
-          </view>
-        </view>
-      </view>
+      <LoadingHint v-if="loadingHot" />
 
       <view v-if="!loadingHot" class="home-content">
         <!-- 瀑布流：按所选食堂过滤；未选 = 全部 -->
@@ -80,7 +71,8 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import FilterBar from '@/components/FilterBar.vue'
-import HomeFeed from '@/components/HomeFeed.vue'
+import HomeFeed from './HomeFeed.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import TabBar from '@/components/TabBar.vue'
 import type { FilterTab } from '@/types/filter-tab'
 
@@ -244,9 +236,15 @@ onShareAppMessage(() => {
   display: flex;
   align-items: center;
   padding: var(--spacing-sm) var(--spacing-lg);
-  /* 表面统一：筛选条与内容区同为凹陷面（--bg-page），消除白条割裂感；发丝线衔接 Header */
+  /* 表面统一：筛选条与内容区同为凹陷面（--bg-page）且无分隔线，与下方 scroll-view 视觉一体 */
   background: var(--bg-page);
-  border-bottom: 1rpx solid var(--border-color);
+}
+/* ⚠️ 关键：自定义组件在小程序里是一个真实节点（<filter-bar>），.filter-bar 的 flex item 是宿主而非组件内的 .fb-row。
+   宿主默认 flex:0 1 auto → 宽度按内容收缩、不撑满；此时组件内 .fb-row 的 width:100%/flex:1 只是「撑满一个内容宽的宿主」，
+   没有任何剩余空间可分配，筛选 icon 会紧贴两颗按钮而不是靠右。必须让宿主撑满，icon 才能贴筛选行最右。 */
+.fb-host {
+  flex: 1;
+  min-width: 0;
 }
 /* 结果计数：贴右、固定不收缩，读 dishStore.filterTotal */
 .filter-count {
@@ -267,23 +265,7 @@ onShareAppMessage(() => {
 .home-content {
   padding: 0;
 }
-.home-skeleton {
-  padding: var(--spacing-md);
-}
-.sk-waterfall {
-  display: flex;
-  gap: var(--spacing-md);
-}
-.sk-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-.sk-wcard {
-  width: 100%;
-  border-radius: var(--radius-card);
-}
+
 
 /* 回到顶部悬浮按钮 */
 .fab {

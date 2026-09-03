@@ -1,5 +1,0 @@
-- client\src\pages\home\index.vue中的筛选行可以整个抽出为一个组件，把HomeFilterChip、CanteenFilter、HomePriceSheet等component合成一个筛选行组件即可，find页面和home的筛选行完全可以复用合并后的整个筛选行组件。筛选行组件有全部食堂、全部价格和筛选icon，布局为icon在最右，左侧空间平均分配给全部食堂、全部价格按钮，交互效果是单击按钮打开表单，双击关闭表单，按钮激活（表单展开时）状态为红色，而且上下展开的向上向下icon需要变化。此外两个按钮展开的表单不能覆盖，如果已经展开一个按钮的表单，此时点击另一个按钮，前一个按钮的表单要先收起。也就是说最多同时只有一个表单展开，一个按钮激活。
-- lient\src\pages\home\index.vue首页现在不需要 <AuthSheet />了，首页没有认证组件了
-- client\src\pages\find\index.vue和lient\src\pages\home\index.vue两个页面的header中的搜索框长度不一样，要求，find页面因为有左侧的返回上一级的按钮，所以宽度上左侧减少，但是右侧应该和home的搜索框右侧对齐
-- 为什么还是有client\src\App.vue和client\src\theme\tokens.ts都有css样式？为什么不能统一到一起而是要分两个文件放置？而且现在只有一种主体颜色，没有切换黑暗模式的功能，所以不必要太多冗余的css颜色和字体
-- pages分包按照页面分，client\src\pages\community 每一个单独需要跳转的页面都单独设置一个包在client\src\pages下吧，例如client\src\pages\xxxx,不要再嵌套了例如client\src\pages\mine\about，直接变成client\src\pages\about，但是要确保命名清晰且规范统一

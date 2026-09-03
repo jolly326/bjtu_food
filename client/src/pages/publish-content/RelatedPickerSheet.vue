@@ -79,8 +79,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick, onUnmounted } from 'vue'
-import IconSvg from './IconSvg.vue'
-import SearchBar from './SearchBar.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import * as dishApi from '@/api/dish'
 import { getImageUrl } from '@/utils/image'
 import type { RelatedItem } from '@/types/related-item'

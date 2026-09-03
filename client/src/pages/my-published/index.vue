@@ -4,9 +4,7 @@
 
     <!-- 直接展示一列我发布的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <view v-if="loading && moments.length === 0" class="skeleton-list">
-        <view v-for="s in 3" :key="s" class="sk-card skeleton" />
-      </view>
+      <LoadingHint v-if="loading && moments.length === 0" />
 
       <!-- 加载失败：与空数据语义区分，提供重试 -->
       <EmptyState v-else-if="loadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="loadData" />
@@ -70,6 +68,7 @@ import Header from '@/components/AppHeader.vue'
 import MomentCard from '@/components/MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
@@ -156,6 +155,5 @@ onShareAppMessage(() => buildSharePayload())
 .my-published-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.sk-card { width: 100%; height: 280rpx; }
+
 </style>

@@ -125,7 +125,7 @@ onMounted(() => {
 function handleBack() {
   emit('back')
 }
-function onSearchInput(e: { detail: { value: string } }) {
+function onSearchInput(e: any) {
   emit('update:modelValue', e.detail.value)
 }
 function onSearchConfirm() {

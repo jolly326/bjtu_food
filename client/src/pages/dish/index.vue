@@ -2,31 +2,7 @@
   <view class="page dish-page">
     <Header title="菜品详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false" ref="mainRef" tabindex="-1">
-      <!-- 加载骨架屏 -->
-      <view v-if="dishStore.loading && !dish" class="dish-skeleton">
-        <view class="skeleton-swiper"></view>
-        <view class="skeleton-card">
-          <view class="skeleton-line skeleton-title"></view>
-          <view class="skeleton-line skeleton-price"></view>
-          <view class="skeleton-tags">
-            <view class="skeleton-tag"></view>
-            <view class="skeleton-tag"></view>
-          </view>
-          <view class="skeleton-line skeleton-loc"></view>
-          <view class="skeleton-line skeleton-rating"></view>
-        </view>
-        <view class="skeleton-metric">
-          <view class="skeleton-metric-col"></view>
-          <view class="skeleton-metric-col"></view>
-          <view class="skeleton-metric-col"></view>
-          <view class="skeleton-metric-col"></view>
-        </view>
-        <view class="skeleton-card">
-          <view class="skeleton-line skeleton-block"></view>
-          <view class="skeleton-line skeleton-block"></view>
-          <view class="skeleton-line skeleton-block short"></view>
-        </view>
-      </view>
+      <LoadingHint v-if="dishStore.loading && !dish" />
 
       <template v-else-if="dish">
         <!-- 2. 菜品大图：横向撑满，高约屏宽 56%，圆角 -->
@@ -234,14 +210,15 @@ import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
-import ApplySheet from '@/components/ApplySheet.vue'
+import ApplySheet from './ApplySheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
-import ReviewWriteSheet from '@/components/ReviewWriteSheet.vue'
+import ReviewWriteSheet from './ReviewWriteSheet.vue'
 
 const dishStore = useDishStore()
 const userStore = useUserStore()
@@ -664,20 +641,7 @@ const hasMetrics = computed(() => {
 .share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-medium); border: none; padding: 0; }
 .share-btn-native::after { border: none; }
 
-/* 加载骨架 */
-.dish-skeleton { display: flex; flex-direction: column; gap: var(--spacing-md); }
-.skeleton-swiper { width: 100%; height: 460rpx; border-radius: var(--radius-card); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
-.skeleton-card { background: var(--bg-card); border-radius: var(--radius-card); padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-sm); margin: 0 var(--spacing-md); }
-.skeleton-line { height: 28rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
-.skeleton-title { width: 60%; height: 40rpx; }
-.skeleton-price { width: 36%; }
-.skeleton-rating { width: 44%; }
-.skeleton-block { height: 24rpx; }
-.skeleton-block.short { width: 70%; }
-.skeleton-tags { display: flex; gap: var(--spacing-xs); }
-.skeleton-metric { display: flex; gap: 0; margin: 0 var(--spacing-md); padding: var(--spacing-md) 0; background: var(--bg-card); border-radius: var(--radius-card); }
-.skeleton-metric-col { flex: 0 0 25%; height: 64rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
-.skeleton-tag { width: 96rpx; height: 36rpx; border-radius: var(--radius-tag); background: linear-gradient(90deg, var(--bg-soft) 25%, var(--border-color) 37%, var(--bg-soft) 63%); background-size: 400% 100% }
+
 
 
 </style>

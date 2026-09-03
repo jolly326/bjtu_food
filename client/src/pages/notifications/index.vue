@@ -3,9 +3,7 @@
     <Header title="系统通知" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
-      <view v-if="loading && list.length === 0" class="skeleton-list">
-        <view v-for="s in 4" :key="s" class="sk-item skeleton" />
-      </view>
+      <LoadingHint v-if="loading && list.length === 0" />
 
       <view v-else-if="list.length > 0" class="list">
         <view
@@ -43,6 +41,7 @@ import { ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
@@ -162,9 +161,7 @@ onShow(() => {
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md); box-sizing: border-box; }
 
-.skeleton-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.sk-item { height: 160rpx; border-radius: var(--radius-card); }
-.skeleton { background: var(--bg-card); }
+
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .msg-item {

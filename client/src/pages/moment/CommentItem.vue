@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
-import MomentImageGrid from '@/components/MomentImageGrid.vue'
+import MomentImageGrid from './MomentImageGrid.vue'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import { useUserStore } from '@/stores/user'

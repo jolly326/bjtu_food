@@ -47,8 +47,8 @@
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
-import IconSvg from './IconSvg.vue'
-import TagLabel from './TagLabel.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import TagLabel from '@/components/TagLabel.vue'
 
 const props = defineProps<{
   dish: Dish

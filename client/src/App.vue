@@ -160,7 +160,7 @@ page {
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
-   加载态遮罩底色（骨架/禁用态复用）、禁用态弱化文字色（复用四档文字末档）。
+   加载态遮罩底色（.is-loading 遮罩复用）、禁用态弱化文字色（复用四档文字末档）。
    仅由 page 声明（H5 兜底与深色分支已移除）。 */
 page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); }
 
@@ -194,12 +194,6 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quater
 /* 注：装饰性入场动效（原 .enter-up / enterFade）已于 client-mvp-strip-entrance-anim 剥离，
    MVP 阶段内容一律静态直接呈现，可见性不依赖动画。 */
 
-/* ========== 骨架屏（加载占位，静态灰块，无 shimmer 流光） ========== */
-.skeleton {
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-}
-
 /* 减少动态效果媒体查询已移除：全站动效已于 client-ui-motion-removal-tokens-consolidation 剥离，无需降级。 */
 
 /* ========== 减少透明度（材质降级为更实） ========== */
@@ -213,7 +207,7 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quater
 
 /* ========== 交互状态工具类（client-ui-comprehensive-upgrade 1.2/1.4/1.6/2.2/4.1） ==========
    统一加载/禁用/错误态与键盘焦点、hover、宽屏容器，避免各组件散落重复实现。 */
-/* 加载态：叠加微光遮罩并禁交互（配合 .skeleton 或独立用于整块） */
+/* 加载态：叠加微光遮罩并禁交互（独立用于整块） */
 .is-loading { position: relative; pointer-events: none; }
 .is-loading::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit;

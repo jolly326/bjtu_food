@@ -70,8 +70,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import IconSvg from './IconSvg.vue'
-import ImageUploader from './ImageUploader.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import { useUserStore } from '@/stores/user'
 import { useDishStore } from '@/stores/dish'

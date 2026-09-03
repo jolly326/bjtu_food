@@ -2,38 +2,7 @@
   <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <!-- 骨架屏：贴合真实首屏（主卡：发布者行 + 正文 + 三图 + 互动按钮；评论卡：标题 + 两条评论），
-           子元素统一挂全局 .skeleton 闪烁类，避免加载完成跳变 -->
-      <view v-if="loading && !moment" class="detail-skeleton">
-        <view class="sk-card">
-          <view class="sk-head">
-            <view class="sk-avatar skeleton" />
-            <view class="sk-lines">
-              <view class="sk-line w-40 skeleton" />
-              <view class="sk-line w-25 skeleton" />
-            </view>
-          </view>
-          <view class="sk-line w-90 skeleton" />
-          <view class="sk-line w-75 skeleton" />
-          <view class="sk-grid">
-            <view v-for="i in 3" :key="'g' + i" class="sk-img skeleton" />
-          </view>
-          <view class="sk-actions">
-            <view class="sk-action skeleton" />
-            <view class="sk-action skeleton" />
-          </view>
-        </view>
-        <view class="sk-card">
-          <view class="sk-line w-30 skeleton" />
-          <view v-for="i in 2" :key="'c' + i" class="sk-comment">
-            <view class="sk-avatar skeleton" />
-            <view class="sk-lines">
-              <view class="sk-line w-55 skeleton" />
-              <view class="sk-line w-85 skeleton" />
-            </view>
-          </view>
-        </view>
-      </view>
+      <LoadingHint v-if="loading && !moment" />
 
       <!-- 动态已删除/审核下架：接口返回空，显示兜底提示而非空白 -->
       <EmptyState
@@ -205,11 +174,12 @@ import { buildSharePayload } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import MomentImageGrid from '@/components/MomentImageGrid.vue'
-import InteractBar from '@/components/InteractBar.vue'
-import CommentItem from '@/components/CommentItem.vue'
+import MomentImageGrid from './MomentImageGrid.vue'
+import InteractBar from './InteractBar.vue'
+import CommentItem from './CommentItem.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -541,26 +511,7 @@ onLoad((query) => {
 <style scoped>
 .moment-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
-/* 骨架屏（贴合真实首屏：主卡 + 评论卡；子元素挂全局 .skeleton 闪烁类） */
-.detail-skeleton { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.sk-card { padding: var(--spacing-md); border-radius: var(--radius-modal); background: var(--bg-card); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.sk-head { display: flex; align-items: center; gap: var(--spacing-sm); }
-.sk-avatar { width: 72rpx; height: 72rpx; border-radius: var(--radius-xs); flex-shrink: 0; }
-.sk-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.sk-line { height: 28rpx; border-radius: var(--radius-tag); }
-.w-90 { width: 90%; }
-.w-85 { width: 85%; }
-.w-75 { width: 75%; }
-.w-55 { width: 55%; }
-.w-40 { width: 40%; }
-.w-30 { width: 30%; }
-.w-25 { width: 25%; }
-.sk-grid { display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs); }
-.sk-img { width: 220rpx; height: 220rpx; border-radius: var(--radius-tag); }
-.sk-actions { display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xs); }
-.sk-action { width: 120rpx; height: 56rpx; border-radius: var(--radius-tag); }
-.sk-comment { display: flex; align-items: center; gap: var(--spacing-sm); }
-.sk-comment .sk-avatar { width: 60rpx; height: 60rpx; }
+
 /* 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡；评论区单独一张卡 */
 .m-card { margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card); }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }

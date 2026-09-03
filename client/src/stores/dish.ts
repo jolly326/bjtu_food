@@ -72,9 +72,9 @@ export const useDishStore = defineStore('dish', () => {
   const filterFinished = ref(false)
   /** 首页筛选流首拉/切换失败标记：HomeFeed 据此展示「加载失败 + 重试」，避免与广播/万能区错误态割裂 */
   const filterLoadFailed = ref(false)
-  /** 首屏冷启动骨架屏标记（global-ui-polish / ui-feed-loading）：仅首次进入首页真实首拉期间为 true */
+  /** 首屏冷启动加载标记（global-ui-polish / ui-feed-loading）：仅首次进入首页真实首拉期间为 true，驱动 LoadingHint 显示 */
   const filterInitialLoading = ref(false)
-  /** 首页是否已成功加载过一次：用于区分「首屏冷启动骨架」与「切换品类保留旧列表」，避免每次切换都闪骨架 */
+  /** 首页是否已成功加载过一次：用于区分「首屏冷启动加载」与「切换品类保留旧列表」，避免每次切换都闪 LoadingHint */
   const homeHasLoadedOnce = ref(false)
 
   /** 首页排序面板当前选中项（问题一：默认「最新」，综合推荐不保留） */
@@ -348,7 +348,7 @@ export const useDishStore = defineStore('dish', () => {
       filterPage.value = 1
       filterFinished.value = false
     }
-    // 仅首次冷启动（尚未成功加载过）显示骨架屏，品类切换复用旧列表不闪骨架
+    // 仅首次冷启动（尚未成功加载过）显示加载中文本，品类切换复用旧列表不闪 LoadingHint
     if (reset && !homeHasLoadedOnce.value) filterInitialLoading.value = true
     filterTab.value = tab
     filterLoadFailed.value = false

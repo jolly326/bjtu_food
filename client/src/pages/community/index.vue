@@ -9,9 +9,7 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <view v-if="loading && moments.length === 0" class="skeleton-list">
-        <view v-for="s in 3" :key="s" class="sk-card skeleton" />
-      </view>
+      <LoadingHint v-if="loading && moments.length === 0" />
 
       <EmptyState
         v-else-if="moments.length === 0"
@@ -34,12 +32,7 @@
           />
         </view>
         <!-- 触底状态 -->
-        <view v-if="loadingMore" class="list-footer loading">
-          <text class="footer-text">加载中…</text>
-        </view>
-        <view v-else-if="finished" class="list-footer finished">
-          <text class="footer-text">— 已经到底啦 —</text>
-        </view>
+
       </view>
 
       <view style="height: var(--spacing-lg)" />
@@ -91,6 +84,7 @@ import MomentCard from '@/components/MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingHint from '@/components/LoadingHint.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -202,10 +196,7 @@ onShareAppMessage(() => buildSharePayload())
 
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.skeleton-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
-.sk-card { width: 100%; height: 280rpx; }
-.list-footer { display: flex; align-items: center; justify-content: center; padding: var(--spacing-md) 0; gap: var(--spacing-xs); }
-.footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+
 
 /* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充。
    bottom 须叠加 --tabbar-height，否则被常驻 TabBar 盖住下半截（红线 §4.9 布局） */

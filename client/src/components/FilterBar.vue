@@ -8,7 +8,7 @@
   >
     <!-- 左组：食堂 + 价格 两按钮（独占剩余空间、可收缩，长文案以 … 省略） -->
     <view class="fb-chips">
-      <!-- 食堂按钮：单击展开、双击关闭；仅展开时红底，箭头随之翻转 -->
+      <!-- 食堂按钮：单击切换（展开 / 再次单击收起）；仅展开时红底，箭头随之翻转 -->
       <view
         class="fb-chip"
         :class="{ active: activePanel === 'canteen' }"
@@ -170,23 +170,27 @@ function closePanel() {
   activePanel.value = null
 }
 
-/** 双击（double tap）识别阈值：两次 tap 间隔小于该值视为双击 → 关闭表单 */
-const DOUBLE_TAP_MS = 300
-let lastTapPanel: 'canteen' | 'price' | null = null
-let lastTapAt = 0
-
 /**
- * 按钮点击语义：单击展开，双击关闭。
- * - 单击：activePanel 置为该按钮（已展开时保持展开，不 toggle 收起）
- * - 双击：activePanel 置 null（收起）
- * 切换按钮时因 activePanel 为单值，前一个表单自动让位，两表单不重叠覆盖。
+ * 按钮点击语义：单击切换（toggle）。
+ * - 收起态（activePanel === null）：单击展开目标表单
+ * - 已展开且为同一按钮：再次单击收起
+ * - 已展开且为另一按钮：先置 null 收起当前表单，下一帧再展开目标表单
+ *   （单值 activePanel 已天然保证互斥、最多一个表单展开；把两次状态变更拆到不同帧，
+ *     才能让「先收起、再展开」成为用户可观察的先后次序，两表单不重叠覆盖）
+ * 不依赖任何 double-tap 手势识别。
  */
 function onChipTap(panel: 'canteen' | 'price') {
-  const now = Date.now()
-  const isDoubleTap = lastTapPanel === panel && now - lastTapAt < DOUBLE_TAP_MS
-  lastTapPanel = panel
-  lastTapAt = now
-  activePanel.value = isDoubleTap ? null : panel
+  if (activePanel.value === null) {
+    activePanel.value = panel
+  } else if (activePanel.value === panel) {
+    activePanel.value = null
+  } else {
+    // 跨表单切换：先收起当前表单，下一帧再展开目标表单（先收后展）
+    activePanel.value = null
+    nextTick(() => {
+      activePanel.value = panel
+    })
+  }
 }
 
 // ===== 文案内化计算（页面不再各自算，杜绝「分当元」在两页重现） =====
@@ -310,16 +314,20 @@ function onReset() {
 
 <style scoped lang="scss">
 /* ===== 筛选行 ===== */
-/* 筛选行：左侧两颗按钮（食堂/价格），筛选 icon 常驻最右 */
+/* 筛选行：左侧两颗按钮（食堂/价格），筛选 icon 常驻最右（两端对齐） */
 .fb-row {
   display: flex;
   align-items: center;
-  /* ⚠️ flex:1 不可移除：本组件被 .filter-bar / .find-filter-row（均为 display:flex）包裹，
-     作为 flex item 默认 flex:0 1 auto → 宽度只按内容收缩、不撑满父级，
-     此时 .fb-icon-btn 的 margin-left:auto 没有任何剩余空间可分配，
-     筛选 icon 会紧贴价格按钮右侧而不是靠右。必须撑满，auto 外边距才生效。 */
+  /* ⚠️ 本组件在小程序中是一个真实节点（<filter-bar>），其父 .filter-bar / .find-filter-row 为 flex 容器时，
+     flex item 是宿主节点而非本行；宿主的撑满由**父级**的 .fb-host { flex:1; min-width:0 } 负责
+     （见 home/index.vue 与 find/index.vue 的 .fb-host 规则），组件自身无法越权控制宿主。
+     在此之上，flex:1 覆盖宿主为 flex 容器的情形、width:100% 覆盖宿主为 block 的情形，二者共同保证本行撑满宿主宽度——
+     行若不撑满，则没有剩余空间可分配，space-between 与 auto 外边距都会失效，icon 会紧贴两颗按钮而非靠右。 */
   flex: 1;
+  width: 100%;
   min-width: 0;
+  /* 两端对齐：左组（.fb-chips）与右侧筛选 icon 分列两端，icon 恒定贴行最右 */
+  justify-content: space-between;
   padding: 0;
   box-sizing: border-box;
   gap: var(--spacing-sm);
@@ -375,7 +383,6 @@ function onReset() {
 /* 右侧筛选 icon 按钮：透明底，圆形热区 */
 .fb-icon-btn {
   flex-shrink: 0;
-  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -398,12 +405,11 @@ function onReset() {
   background: var(--overlay-scrim);
   z-index: 90;
 }
-/* 面板：与米色筛选区/页面同色（非红非白），紧贴筛选条无间隙，亮/暗模式均无缝 */
+/* 面板：与米色筛选区/页面同色（非红非白），紧贴筛选条无间隙、无顶部阴影线，亮/暗模式均无缝 */
 .cf-panel {
   background: var(--bg-page);
   color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-card);
 }
 .cf-title {
   font-size: var(--font-subtitle);
@@ -452,7 +458,9 @@ function onReset() {
   transition: opacity var(--duration-base) var(--ease-out);
 }
 .ps-mask.show { opacity: 1; }
-/* 米色面板：紧贴筛选条向下展开，与米色页面/筛选区无缝衔接（非红非白） */
+/* 米色面板：紧贴筛选条向下展开，与米色页面/筛选区无缝衔接（非红非白）。
+   刻意不挂 box-shadow：卡片阴影会在上边沿投出细线，与同色筛选条割裂（违反「无分隔线」原则）。
+   面板浮起感由下方遮罩 scrim 压暗提供层级区分。 */
 .ps-panel {
   position: absolute;
   top: 0;
@@ -461,7 +469,6 @@ function onReset() {
   background: var(--bg-page);
   color: var(--text-primary);
   padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  box-shadow: var(--shadow-card);
   /* opacity 淡入（无位移/缩放，MVP 静态） */
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-out);
