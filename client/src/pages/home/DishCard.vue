@@ -16,7 +16,7 @@
       </view>
       <!-- 评分徽标：图片右上角（黑底白字，浅色图上也能看清） -->
       <view class="card-rating-badge">
-        <IconSvg name="star-filled" :size="22" color="var(--color-star)" class="star-icon" />
+        <IconSvg name="star-filled" :size="22" color="var(--color-primary)" class="star-icon" />
         <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
       </view>
     </view>

@@ -92,7 +92,7 @@
                     :key="n"
                     name="star"
                     :size="20"
-                    :color="n <= item.star ? 'var(--color-star)' : 'var(--color-star-empty)'"
+                    :color="n <= item.star ? 'var(--color-primary)' : 'var(--color-star-empty)'"
                   />
                 </view>
                 <text class="dist-star-num">{{ item.star }}</text>
@@ -582,7 +582,7 @@ const hasMetrics = computed(() => {
 .dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 .dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill, 999rpx); background: var(--color-star-empty); overflow: hidden; }
-.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-star) }
+.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-primary) }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 
 /* 6. 评价卡片：整卡一张（卡头 + flat 条目 + footer），与动态卡片形态趋同、无竖条装饰 */

@@ -22,7 +22,7 @@
               :class="{ active: star >= n }"
               @tap="star = n"
             >
-              <IconSvg :name="star >= n ? 'star-filled' : 'star'" :size="52" :color="star >= n ? 'var(--color-warning)' : 'var(--text-tertiary)'" />
+              <IconSvg :name="star >= n ? 'star-filled' : 'star'" :size="52" :color="star >= n ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
             </view>
           </view>
         </view>

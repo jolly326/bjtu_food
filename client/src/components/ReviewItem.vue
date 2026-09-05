@@ -31,7 +31,7 @@
             :key="n"
             name="star-filled"
             :size="22"
-            color="var(--color-star)"
+            color="var(--color-primary)"
             class="review-star"
           />
           <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>

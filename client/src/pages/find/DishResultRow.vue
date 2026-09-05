@@ -27,7 +27,7 @@
           </text>
           <!-- 评分：贴近菜名右侧、小一号/两号（星 + 分数，不含评论数；星星放大与菜名字号匹配） -->
           <view v-if="dish.rating != null" class="mixed-rating-group">
-            <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="mixed-rating-star" />
+            <IconSvg name="star-filled" :size="26" color="var(--color-primary)" class="mixed-rating-star" />
             <text class="mixed-rating-num">{{ Number(dish.rating).toFixed(1) }}</text>
           </view>
         </view>

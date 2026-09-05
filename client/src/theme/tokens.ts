@@ -16,7 +16,7 @@ export const COLOR_MAP = {
   warning: '#F5A623',
   'warning-soft': '#FFF8E1',
   price: '#C45549',
-  star: '#F5A623',
+  /* 星级填充语义收敛到 primary（content-flow-visual-polish），不再保留独立 star 实色 */
   'star-empty': '#E5E5EA',
   like: '#9E3B2E',
   'like-soft': '#F6E3E0',

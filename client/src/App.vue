@@ -44,8 +44,7 @@ page {
   --color-warning-soft: #FFF8E1;
   /* 价格红：并入主色体系（价格用主色） */
   --color-price: #C45549;
-  --color-star: #F5A623;
-  /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
+  /* 星级填充语义已收敛到 --color-primary（content-flow-visual-polish）；仅保留空心星颜色 */
   --color-star-empty: #E5E5EA;
   --color-like: #9E3B2E;
   --color-like-soft: #F6E3E0;
