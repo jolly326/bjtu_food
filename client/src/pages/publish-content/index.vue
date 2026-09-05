@@ -128,7 +128,7 @@ function onRelatedOptionPick(opt: { key: string; label: string; image?: string }
   }
   const id = Number(opt.key.replace('dish-', ''))
   if (!Number.isFinite(id)) return
-  onRelatedSelect({ id, type: 'dish', name: opt.label, image: opt.image })
+  onRelatedSelect({ id, type: 'dish', name: opt.label, image: opt.image || '' })
 }
 
 /** 完成：应用当前选中并关闭 */

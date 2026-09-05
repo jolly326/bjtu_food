@@ -308,224 +308,75 @@
       </view>
     </scroll-view>
 
-    <!-- ===== 底部弹窗：选择位置（食堂 → 档口 两级联动） ===== -->
-    <view v-if="locSheetOpen" class="sheet-mask" @tap="closeLocationSheet" @touchmove.stop.prevent="noop" />
-    <view
-      class="loc-sheet"
-      :class="{ open: locSheetOpen }"
-      :style="locSheetDrag.style.value"
-      @touchstart="locSheetDrag.onStart"
-      @touchmove="locSheetDrag.onMove"
-      @touchend="locSheetDrag.onEnd(closeLocationSheet)"
-      @touchcancel="locSheetDrag.onEnd(closeLocationSheet)"
+    <!-- ===== 底部选择器：位置（食堂 → 档口 两级联动，ListPickerSheet 单实例 locStep 切换） ===== -->
+    <ListPickerSheet
+      :open="locSheetOpen"
+      :title="locStep === 'canteen' ? '选择食堂' : '选择档口'"
+      :backable="locStep === 'stall'"
+      :options="locOptions"
+      row-style="plain"
+      :selected-key="locSelectedKey"
+      @close="closeLocationSheet"
+      @back="locStep = 'canteen'"
+      @select="onLocSelect"
     >
-      <view class="sheet-grabber" />
-      <view class="sheet-head">
-        <view class="sheet-head-left">
-          <view v-if="locStep === 'stall'" class="sheet-back" hover-class="pressed" hover-stay-time="80" role="button" aria-label="返回选择食堂" @tap="locStep = 'canteen'">
-            <IconSvg name="arrow" :size="30" color="var(--text-secondary)" />
-          </view>
-          <text class="sheet-title">{{ locStep === 'canteen' ? '选择食堂' : '选择档口' }}</text>
-        </view>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="closeLocationSheet" />
+      <!-- 尾部「其他」自定义输入（仅选中「其他」时由默认槽承载） -->
+      <view v-if="locCustomShown" class="pick-custom">
+        <input
+          :value="locCustomValue"
+          class="pick-custom-input"
+          :placeholder="locStep === 'canteen' ? '写一下食堂名' : '写一下档口名'"
+          maxlength="50"
+          :cursor-spacing="20"
+          :adjust-position="true"
+          @input="onLocCustomInput"
+        />
       </view>
+    </ListPickerSheet>
 
-      <scroll-view class="sheet-list" scroll-y>
-        <!-- 食堂级：列表 + 其他 -->
-        <template v-if="locStep === 'canteen'">
-          <view
-            v-for="c in canteenTree"
-            :key="c.id || c.name"
-            class="sheet-item"
-            :class="{ on: form.add.canteen === c.name }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="c.name"
-            @tap="pickCanteen(c.name)"
-          >
-            <view class="sheet-item-icon"><IconSvg name="canteen" :size="32" color="var(--text-tertiary)" /></view>
-            <text class="sheet-item-name">{{ c.name }}</text>
-            <IconSvg v-if="form.add.canteen === c.name" name="check" :size="32" color="var(--color-primary)" />
-          </view>
-          <view
-            class="sheet-item"
-            :class="{ on: form.add.canteen === '其他' }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            aria-label="其他食堂"
-            @tap="pickCanteen('其他')"
-          >
-            <view class="sheet-item-icon"><IconSvg name="add" :size="32" color="var(--text-tertiary)" /></view>
-            <text class="sheet-item-name">其他</text>
-          </view>
-          <view v-if="form.add.canteen === '其他'" class="sheet-custom">
-            <input
-              v-model="form.add.canteenCustom"
-              class="sheet-custom-input"
-              placeholder="写一下食堂名"
-              maxlength="50"
-              :cursor-spacing="20"
-              :adjust-position="true"
-            />
-          </view>
-        </template>
-        <!-- 档口级：列表 + 其他 -->
-        <template v-else>
-          <view
-            v-for="s in stallOptions"
-            :key="s.name"
-            class="sheet-item"
-            :class="{ on: form.add.stallName === s.name }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="s.name"
-            @tap="pickStall(s.name)"
-          >
-            <view class="sheet-item-icon"><IconSvg name="stall" :size="32" color="var(--text-tertiary)" /></view>
-            <text class="sheet-item-name">{{ s.name }}</text>
-            <IconSvg v-if="form.add.stallName === s.name" name="check" :size="32" color="var(--color-primary)" />
-          </view>
-          <view
-            class="sheet-item"
-            :class="{ on: form.add.stallName === '其他' }"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            aria-label="其他档口"
-            @tap="pickStall('其他')"
-          >
-            <view class="sheet-item-icon"><IconSvg name="add" :size="32" color="var(--text-tertiary)" /></view>
-            <text class="sheet-item-name">其他</text>
-          </view>
-          <view v-if="form.add.stallName === '其他'" class="sheet-custom">
-            <input
-              v-model="form.add.stallCustom"
-              class="sheet-custom-input"
-              placeholder="写一下档口名"
-              maxlength="50"
-              :cursor-spacing="20"
-              :adjust-position="true"
-            />
-          </view>
-        </template>
-      </scroll-view>
-    </view>
+    <!-- ===== 底部选择器：楼层（1/2/3） ===== -->
+    <ListPickerSheet
+      :open="floorSheetOpen"
+      title="选择楼层"
+      :options="floorPickerOptions"
+      row-style="plain"
+      :selected-key="form.add.floor || null"
+      @close="closeFloorSheet"
+      @select="onFloorSelect"
+    />
 
-    <!-- ===== 底部弹窗：选择楼层 ===== -->
-    <view v-if="floorSheetOpen" class="sheet-mask" @tap="closeFloorSheet" @touchmove.stop.prevent="noop" />
-    <view
-      class="loc-sheet"
-      :class="{ open: floorSheetOpen }"
-      :style="floorSheetDrag.style.value"
-      @touchstart="floorSheetDrag.onStart"
-      @touchmove="floorSheetDrag.onMove"
-      @touchend="floorSheetDrag.onEnd(closeFloorSheet)"
-      @touchcancel="floorSheetDrag.onEnd(closeFloorSheet)"
+    <!-- ===== 底部选择器：菜品（搜索 + 列表 + 空态去补录） ===== -->
+    <ListPickerSheet
+      :open="dishSheetOpen"
+      title="选择菜品"
+      searchable
+      search-placeholder="搜菜名 / 食堂"
+      :search-initial="dishKeyword"
+      :options="dishPickerOptions"
+      row-style="plain"
+      @close="closeDishSheet"
+      @search="onDishSearchKw"
+      @select="onDishPick"
     >
-      <view class="sheet-grabber" />
-      <view class="sheet-head">
-        <view class="sheet-head-left">
-          <text class="sheet-title">选择楼层</text>
-        </view>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="closeFloorSheet" />
-      </view>
-
-      <scroll-view class="sheet-list" scroll-y>
-        <view
-          v-for="f in floorOptions"
-          :key="f"
-          class="sheet-item"
-          :class="{ on: form.add.floor === f }"
-          hover-class="pressed"
-          hover-stay-time="80"
-          role="button"
-          :aria-label="`${f} 楼`"
-          @tap="pickFloor(f)"
-        >
-          <view class="sheet-item-icon"><IconSvg name="canteen" :size="32" color="var(--text-tertiary)" /></view>
-          <text class="sheet-item-name">{{ f }} 楼</text>
-          <IconSvg v-if="form.add.floor === f" name="check" :size="32" color="var(--color-primary)" />
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- ===== 底部弹窗：选择菜品（搜索 + 列表 + 空态去补录） ===== -->
-    <view v-if="dishSheetOpen" class="sheet-mask" @tap="closeDishSheet" @touchmove.stop.prevent="noop" />
-    <view
-      class="loc-sheet"
-      :class="{ open: dishSheetOpen }"
-      :style="dishSheetDrag.style.value"
-      @touchstart="dishSheetDrag.onStart"
-      @touchmove="dishSheetDrag.onMove"
-      @touchend="dishSheetDrag.onEnd(closeDishSheet)"
-      @touchcancel="dishSheetDrag.onEnd(closeDishSheet)"
-    >
-      <view class="sheet-grabber" />
-      <view class="sheet-head">
-        <view class="sheet-head-left">
-          <text class="sheet-title">选择菜品</text>
-        </view>
-        <IconSvg class="sheet-close" name="close" :size="36" color="var(--text-tertiary)" @tap="closeDishSheet" />
-      </view>
-
-      <view class="sheet-search">
-        <view class="search-bar">
-          <IconSvg name="search" :size="30" color="var(--text-tertiary)" />
-          <input
-            v-model="dishKeyword"
-            class="search-input"
-            placeholder="搜菜名 / 食堂"
-            confirm-type="search"
-            :cursor-spacing="20"
-            :adjust-position="true"
-            @input="onDishInput"
-            @confirm="onDishSearch"
-          />
-        </view>
-      </view>
-
-      <scroll-view class="sheet-list" scroll-y>
-        <!-- 无结果：去补录 -->
-        <view v-if="dishSearched && !dishCandidates.length" class="sheet-empty">
-          <text class="sheet-empty-text">没搜到「{{ dishKeyword }}」</text>
+      <!-- 列表区内空态：无关键词引导 / 无结果「去补录一道」CTA -->
+      <template #empty>
+        <view v-if="dishSearched && !dishPickerOptions.length" class="pick-empty">
+          <text class="pick-empty-text">没搜到「{{ dishKeyword }}」</text>
           <view
-            class="sheet-goto-add"
+            class="pick-goto-add"
             hover-class="pressed"
             hover-stay-time="80"
             role="button"
             aria-label="去推荐菜品补录"
             @tap="gotoAdd"
-          ><text class="sheet-goto-add-text">去补录一道</text></view>
+          ><text class="pick-goto-add-text">去补录一道</text></view>
         </view>
-        <!-- 初始引导 -->
-        <view v-else-if="!dishKeyword" class="sheet-empty">
-          <text class="sheet-empty-text">输入关键词搜索菜品</text>
+        <view v-else-if="!dishKeyword" class="pick-empty">
+          <text class="pick-empty-text">输入关键词搜索菜品</text>
         </view>
-        <!-- 候选列表 -->
-        <view v-else class="candidate-list">
-          <view
-            v-for="d in dishCandidates"
-            :key="d.id"
-            class="candidate-item"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            :aria-label="`选择 ${d.name}`"
-            @tap="selectDish(d)"
-          >
-            <image class="candidate-thumb" :src="d.image || ''" mode="aspectFill" />
-            <view class="candidate-main">
-              <text class="candidate-name">{{ d.name }}</text>
-              <text class="candidate-meta">{{ d.canteen }} · {{ d.stallName }}</text>
-            </view>
-            <IconSvg name="check" :size="28" color="var(--text-tertiary)" />
-          </view>
-        </view>
-      </scroll-view>
-    </view>
+        <!-- 搜索进行中（防抖未回）/ 已有关键词但无结果外：留空 -->
+      </template>
+    </ListPickerSheet>
   </view>
 </template>
 
@@ -543,73 +394,13 @@ import AppButton from '@/components/AppButton.vue'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-
+import ListPickerSheet from '@/components/ListPickerSheet.vue'
 
 // 返回：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页
 function goBack() {
   if (getCurrentPages().length > 1) uni.navigateBack()
   else backToHome()
 }
-
-/** 空处理器：遮罩 touchmove 防背景滚动穿透 */
-function noop() {}
-
-// ===== 底部弹窗：下拉关闭手势（每个弹窗独立拖拽实例，互不串扰） =====
-function createSheetDrag() {
-  const drag = ref(0) // 当前拖拽位移（px）
-  const dragging = ref(false)
-  let startY = 0
-  let lastY = 0
-  let lastTime = 0
-  let velocity = 0
-
-  const style = computed(() =>
-    dragging.value
-      ? { transform: `translateY(${drag.value}px)`, transition: 'none' }
-      : {},
-  )
-
-  function onStart(e: any) {
-    startY = e.touches?.[0]?.clientY ?? 0
-    lastY = startY
-    lastTime = Date.now()
-    velocity = 0
-    dragging.value = true
-  }
-
-  function onMove(e: any) {
-    if (!dragging.value) return
-    const y = e.touches?.[0]?.clientY ?? 0
-    const now = Date.now()
-    const dt = Math.max(now - lastTime, 1)
-    velocity = ((y - lastY) / dt) * 1000
-    lastY = y
-    lastTime = now
-    const delta = y - startY
-    // 仅允许向下拖拽
-    drag.value = delta > 0 ? delta : 0
-  }
-
-  function onEnd(close: () => void) {
-    const wasDragging = dragging.value
-    dragging.value = false
-    // 松手速度 > 480px/s 或位移 > 60px（≈120rpx）关闭，否则回弹
-    if (wasDragging && (velocity > 480 || drag.value > 60)) close()
-    drag.value = 0
-  }
-
-  function reset() {
-    dragging.value = false
-    drag.value = 0
-  }
-
-  return { style, onStart, onMove, onEnd, reset }
-}
-
-// 位置 / 楼层 / 菜品 三个弹窗各自的独立拖拽
-const locSheetDrag = createSheetDrag()
-const floorSheetDrag = createSheetDrag()
-const dishSheetDrag = createSheetDrag()
 
 // ---- ① 类型（3 类等宽卡片：左侧 icon + 右侧标题） ----
 const types: { value: FeedbackSubmit['type']; label: string; desc: string; icon: string }[] = [
@@ -657,20 +448,17 @@ const dishSheetOpen = ref(false)
 const dishKeyword = ref('')
 const dishCandidates = ref<Dish[]>([])
 const dishSearched = ref(false)
-let searchTimer: ReturnType<typeof setTimeout> | null = null
 /** 成功态自动返回定时器（⑨ scheduleAutoBack） */
 let backTimer: ReturnType<typeof setTimeout> | null = null
 /** 页面级一次性定时器注册表（markErrors 的 scrollIntoView 定位延迟）：onUnload 统一清理（P0 防越界访问） */
 let pageTimers: ReturnType<typeof setTimeout>[] = []
 onUnload(() => {
-  if (searchTimer) clearTimeout(searchTimer)
   if (backTimer) clearTimeout(backTimer)
   pageTimers.forEach((t) => clearTimeout(t))
   pageTimers = []
 })
 
 function openDishSheet() {
-  dishSheetDrag.reset()
   dishSheetOpen.value = true
 }
 
@@ -684,34 +472,48 @@ function gotoAdd() {
   type.value = 'add'
 }
 
-function onDishInput() {
-  cancelAutoBack()
-  dishSearched.value = false
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(onDishSearch, 300)
-}
+/** ListPickerSheet 候选行（image/icon/文字）映射 */
+const dishPickerOptions = computed(() =>
+  dishCandidates.value.map((d) => ({
+    key: String(d.id),
+    label: d.name,
+    sub: [d.canteen, d.stallName].filter(Boolean).join(' · '),
+    image: d.image || '',
+  })),
+)
 
-/** 搜索请求序号：快速输入/防抖连续触发时，丢弃过期响应，避免旧请求晚到覆盖新候选（竞态守卫，对齐 review.vue） */
+/** 搜索请求序号：快速输入/连续触发时丢弃过期响应，避免旧请求晚到覆盖新候选（竞态守卫，对齐 review.vue） */
 let searchSeq = 0
-async function onDishSearch() {
-  const kw = dishKeyword.value.trim()
-  if (!kw) {
-    dishCandidates.value = []
+
+/** 由 ListPickerSheet 内部防抖 emit('search', kw) 驱动；keyword 语义与迁移前一致 */
+function onDishSearchKw(kw: string) {
+  cancelAutoBack()
+  dishKeyword.value = kw
+  if (!kw.trim()) {
     dishSearched.value = false
+    dishCandidates.value = []
+    searchSeq++
     return
   }
+  dishSearched.value = false
   const seq = ++searchSeq
   dishSearched.value = true
-  try {
-    const list = await searchDishes({ keyword: kw, page: 1, pageSize: 6 })
-    if (seq !== searchSeq) return // 已有更新的搜索发出，丢弃本次过期结果
-    dishCandidates.value = list
-  } catch (err) {
-    if (seq !== searchSeq) return
-    // 静默：请求失败不呈现任何占位，异常仅记录
-    console.error('[feedback] 搜索菜品失败', err)
-    dishCandidates.value = []
-  }
+  searchDishes({ keyword: kw.trim(), page: 1, pageSize: 6 })
+    .then((list) => {
+      if (seq !== searchSeq) return // 已有更新的搜索发出，丢弃本次过期结果
+      dishCandidates.value = list
+    })
+    .catch((err) => {
+      if (seq !== searchSeq) return
+      // 静默：请求失败不呈现任何占位，异常仅记录
+      console.error('[feedback] 搜索菜品失败', err)
+      dishCandidates.value = []
+    })
+}
+
+function onDishPick(opt: { key: string }) {
+  const d = dishCandidates.value.find((x) => String(x.id) === opt.key)
+  if (d) selectDish(d)
 }
 
 function selectDish(d: Dish) {
@@ -786,7 +588,7 @@ const dishPrevValues = computed<Record<string, string>>(() => {
   return out
 })
 
-// ---- ⑤ 位置选择：底部弹窗（食堂 → 档口 两级联动，含「其他」自定义） ----
+// ---- ⑤ 位置选择：ListPickerSheet 单实例两级联动（食堂 → 档口，含「其他」自定义） ----
 const canteenTree = ref<any[]>([])
 const locSheetOpen = ref(false)
 const locStep = ref<'canteen' | 'stall'>('canteen')
@@ -800,30 +602,39 @@ const displayStall = computed(() =>
   form.add.stallName === '其他' ? form.add.stallCustom.trim() || '其他' : form.add.stallName,
 )
 
-/** 当前食堂下的档口选项（含「其他」由模板追加） */
-const stallOptions = computed(() => {
-  const c = canteenTree.value.find(x => x.name === form.add.canteen)
-  return (c?.stalls || []).map((s: any) => ({ name: s.name }))
+/** 当前食堂下的档口原始列表 */
+const currentStalls = computed<string[]>(() => {
+  const c = canteenTree.value.find((x: any) => x.name === form.add.canteen)
+  return (c?.stalls || []).map((s: any) => s.name as string)
 })
 
-// ---- ⑤.5 楼层选择：底部弹窗（1/2/3） ----
-const floorSheetOpen = ref(false)
-const floorOptions = ['1', '2', '3']
+/** ListPickerSheet 位置选项：食堂级(canteen icon) / 档口级(stall icon)，末尾追加「其他」(add icon) */
+const locOptions = computed<{ key: string; label: string; icon: string }[]>(() => {
+  const base =
+    locStep.value === 'canteen'
+      ? canteenTree.value.map((c: any) => ({ key: c.name as string, label: c.name as string, icon: 'canteen' }))
+      : currentStalls.value.map((name) => ({ key: name, label: name, icon: 'stall' }))
+  return [...base, { key: '其他', label: '其他', icon: 'add' }]
+})
 
-function openFloorSheet() {
-  floorSheetDrag.reset()
-  floorSheetOpen.value = true
+/** 当前高亮项 key：食堂/档口原始选中值（'' → 无高亮；'其他' 命中末尾项） */
+const locSelectedKey = computed(() => (locStep.value === 'canteen' ? form.add.canteen || null : form.add.stallName || null))
+
+/** 尾部「其他」自定义输入可见性：当前级已选中「其他」 */
+const locCustomShown = computed(() =>
+  locStep.value === 'canteen' ? form.add.canteen === '其他' : form.add.stallName === '其他',
+)
+const locCustomValue = computed(() => (locStep.value === 'canteen' ? form.add.canteenCustom : form.add.stallCustom))
+function onLocCustomInput(e: any) {
+  const v = e?.detail?.value ?? ''
+  if (locStep.value === 'canteen') form.add.canteenCustom = v
+  else form.add.stallCustom = v
 }
 
-function closeFloorSheet() {
-  floorSheetOpen.value = false
-}
-
-function pickFloor(f: string) {
-  // 再次点击已选项取消
-  form.add.floor = form.add.floor === f ? '' : f
-  clearError('add.floor')
-  closeFloorSheet()
+/** 位置选项点击 → 转发到 pickCanteen/pickStall（保留 toggle 与档口联动清空语义） */
+function onLocSelect(opt: { key: string; label: string }) {
+  if (locStep.value === 'canteen') pickCanteen(opt.key)
+  else pickStall(opt.key)
 }
 
 async function loadCanteens() {
@@ -835,7 +646,6 @@ async function loadCanteens() {
 }
 
 function openLocationSheet(step: 'canteen' | 'stall') {
-  locSheetDrag.reset()
   locStep.value = step
   locSheetOpen.value = true
 }
@@ -885,6 +695,34 @@ function onStallRowTap() {
     return
   }
   openLocationSheet('stall')
+}
+
+// ---- ⑤.5 楼层选择：ListPickerSheet（1/2/3，icon 沿用原观感） ----
+const floorSheetOpen = ref(false)
+const floorList = ['1', '2', '3']
+
+/** ListPickerSheet 楼层选项（label 显示「N 楼」，key 存原值用于高亮/回传） */
+const floorPickerOptions = computed<{ key: string; label: string; icon: string }[]>(() =>
+  floorList.map((f) => ({ key: f, label: `${f} 楼`, icon: 'canteen' })),
+)
+
+function openFloorSheet() {
+  floorSheetOpen.value = true
+}
+
+function closeFloorSheet() {
+  floorSheetOpen.value = false
+}
+
+function pickFloor(f: string) {
+  // 再次点击已选项取消
+  form.add.floor = form.add.floor === f ? '' : f
+  clearError('add.floor')
+  closeFloorSheet()
+}
+
+function onFloorSelect(opt: { key: string }) {
+  pickFloor(opt.key)
 }
 
 // ---- ⑥ 字段级错误定位 ----
@@ -1087,8 +925,7 @@ onLoad(async (opts?: Record<string, string>) => {
     }
   } else if (opts?.name) {
     // 仅有菜名：预填搜索框并自动检索，用户点选确认
-    dishKeyword.value = opts.name
-    onDishSearch()
+    onDishSearchKw(opts.name)
   }
 })
 </script>
@@ -1274,91 +1111,9 @@ onLoad(async (opts?: Record<string, string>) => {
 }
 .dish-change-text { font-size: var(--font-aux); color: var(--text-secondary); }
 
-.search-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  padding: 0 var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-btn);
-  box-sizing: border-box;
-}
-.search-input { flex: 1; font-size: var(--font-body); color: var(--text-primary); }
-.candidate-list {
-  margin-top: var(--spacing-sm);
-  background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-}
-.candidate-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 2rpx solid var(--border-color);
-  -webkit-tap-highlight-color: transparent;
-}
-.candidate-item:last-child { border-bottom: none; }
-.candidate-thumb {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: var(--radius-icon);
-  background: var(--bg-placeholder);
-  flex-shrink: 0;
-}
-.candidate-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.candidate-name { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.candidate-meta { font-size: var(--font-tiny); color: var(--text-tertiary); }
-/* ===== 底部弹窗（位置选择 / 菜品搜索） ===== */
-.sheet-mask {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay-scrim);
-  z-index: 90;
-  opacity: 1;
-}
-.loc-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
-  box-shadow: var(--shadow-modal);
-  z-index: 100;
-  transform: translateY(100%);
-  display: flex;
-  flex-direction: column;
-  height: 60vh;
-  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-}
-.loc-sheet.open { transform: translateY(0); }
-.sheet-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
-.sheet-head-left { display: flex; align-items: center; gap: var(--spacing-xs); }
-.sheet-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); -webkit-tap-highlight-color: transparent; }
-.sheet-title { font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); }
-.sheet-close { padding: var(--spacing-xs); }
-.sheet-search { padding: var(--spacing-md); flex-shrink: 0; }
-.sheet-list { flex: 1; overflow-y: auto; padding: 0 var(--spacing-md) var(--spacing-sm); }
-.sheet-item { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
-.sheet-item.on { background: var(--bg-soft); }
-.sheet-item-icon {
-  width: 64rpx;
-  height: 64rpx;
-  flex-shrink: 0;
-  border-radius: var(--radius-icon);
-  background: var(--bg-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sheet-item-name { flex: 1; font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sheet-custom { padding: var(--spacing-sm) 0 var(--spacing-md); }
-.sheet-custom-input {
+/* ===== ListPickerSheet 尾部「其他」自定义输入（默认槽承载） ===== */
+.pick-custom { padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md); box-sizing: border-box; }
+.pick-custom-input {
   width: 100%;
   height: 76rpx;
   background: var(--bg-input);
@@ -1369,9 +1124,11 @@ onLoad(async (opts?: Record<string, string>) => {
   box-sizing: border-box;
   border: 2rpx solid var(--color-primary);
 }
-.sheet-empty { padding: var(--spacing-xl) 0; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); }
-.sheet-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.sheet-goto-add {
+
+/* ===== ListPickerSheet 列表空态（菜品搜索引导 / 无结果去补录 CTA） ===== */
+.pick-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-md); }
+.pick-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.pick-goto-add {
   min-width: 200rpx;
   height: 68rpx;
   display: flex;
@@ -1383,8 +1140,7 @@ onLoad(async (opts?: Record<string, string>) => {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
-.sheet-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
-.footer-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.pick-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
 
 /* ===== 哪里不对：每项一行（左侧选项 + 右侧编辑区，不嵌套） ===== */
 .point-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }

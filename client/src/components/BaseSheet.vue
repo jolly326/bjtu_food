@@ -24,8 +24,13 @@
     />
     <view class="bs-sheet" :class="{ open: sheetOpen }" :style="sheetStyle">
       <view class="bs-grabber" />
-      <view v-if="closable || title" class="bs-head">
-        <text v-if="title" class="bs-title">{{ title }}</text>
+      <view v-if="closable || title || backable" class="bs-head">
+        <view class="bs-head-left">
+          <view v-if="backable" class="bs-back" role="button" aria-label="返回" @tap.stop="emit('back')">
+            <IconSvg name="arrow" :size="30" color="var(--text-secondary)" />
+          </view>
+          <text v-if="title" class="bs-title">{{ title }}</text>
+        </view>
         <view v-if="closable" class="bs-close" role="button" aria-label="关闭" @tap.stop="emitClose">
           <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
         </view>
@@ -57,6 +62,8 @@ const props = withDefaults(defineProps<{
   closable?: boolean
   /** 头部标题（可省略） */
   title?: string
+  /** 头部标题左侧返回箭头（层级型弹层回退到上级；与 closable 右上关闭钮并存） */
+  backable?: boolean
   /** 内容区是否用 scroll-view 包裹（内容超高时可滚动；默认普通 view） */
   scrollBody?: boolean
   /** 是否接管弹层打开/关闭的焦点还原（默认开启，AuthSheet 等既有语义保持不变） */
@@ -65,12 +72,14 @@ const props = withDefaults(defineProps<{
   zToken: '--z-sheet',
   closable: false,
   title: '',
+  backable: false,
   scrollBody: false,
   manageFocus: true,
 })
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'back'): void
 }>()
 
 const { captureTrigger, restoreFocus } = useSheetFocus()
@@ -182,7 +191,10 @@ function onTouchEnd() {
 
 /* 可选头部：标题左（如有）+ 关闭钮右 */
 .bs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
-.bs-title { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.bs-head-left { display: flex; align-items: center; gap: var(--spacing-2xs); flex: 1; min-width: 0; }
+.bs-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.bs-back:active { opacity: 0.5; }
+.bs-title { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-close { padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .bs-close:active { opacity: 0.5; }
 

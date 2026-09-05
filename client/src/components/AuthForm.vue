@@ -1,3 +1,8 @@
+<!-- ===== 归属说明（component-org-sheet-unify 4.3）=====
+      AuthForm 属 C 类私有子件：仅被 AuthSheet 内部引用，而 AuthSheet 被 6 个分包宿主
+      （动态/详情/我的/写评价等认证入口）共用，宿主须留在主包 components/。若把 AuthForm 机械
+      下沉到任一 pages/<包>/，会在主包 components/ 的 AuthSheet → 分包子件间形成反向越界引用，
+      破坏分包边界。故 AuthForm 跟随宿主留在 components/ 公共层，不因「只被一处引用」而下沉。 -->
 <template>
   <view class="auth-shell">
     <!-- 学号邮箱认证：学号 + 验证码（purpose=verify，无密码/无注册切换，§5.y） -->

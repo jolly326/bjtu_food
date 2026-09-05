@@ -147,9 +147,9 @@ page {
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
   /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透 */
-  --z-sheet: 2000;        /* 底部半屏弹层（ApplySheet / RelatedPickerSheet） */
+  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
   --z-sheet-mask: 1990;   /* 上述弹层遮罩 */
-  --z-actionsheet: 4000;  /* 操作菜单（ReviewActionSheet / MomentActionSheet） */
+  --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
   --z-modal: 5000;        /* 居中弹窗（ReportModal） */
   --z-auth: 6000;         /* 登录网关，最高层级 */
 }

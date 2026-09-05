@@ -84,13 +84,13 @@
       </button>
     </view>
 
-    <!-- 写评价底部抽屉（挂 scroll-view 外；提交成功后重拉评价 + 综合评分） -->
+    <!-- 写评价底部抽屉（挂 scroll-view 外；BaseSheet 受控显隐，close 回写关闭；提交成功后重拉评价 + 综合评分） -->
     <ReviewComposer
       v-if="dish"
-      :open="composerOpen"
+      :visible="composerOpen"
       :dish-id="dishId"
       :dish-name="dish.name"
-      @update:open="composerOpen = $event"
+      @close="composerOpen = false"
       @submitted="onReviewSubmitted"
     />
 
@@ -133,11 +133,11 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
 import IconSvg from '@/components/IconSvg.vue'
-import ImageSwiper from '@/components/ImageSwiper.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
-import ReviewComposer from '@/components/ReviewComposer.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import ImageSwiper from './ImageSwiper.vue'
+import ReviewComposer from './ReviewComposer.vue'
 import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
@@ -456,7 +456,7 @@ function onReviewSubmitted() {
   dishStore.fetchDetail(dishId.value)
 }
 
-/* ===== 评价三点菜单（ReviewItem @more → 页面级 ReviewActionSheet） ===== */
+/* ===== 评价三点菜单（ReviewItem @more → 页面级通用 ActionSheet） ===== */
 const reviewMoreOpen = ref(false)
 const reviewMoreTarget = ref<Review | null>(null)
 const reviewMoreIsOwn = computed(() => {

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
-import IconSvg from './IconSvg.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   src?: string

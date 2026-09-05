@@ -16,7 +16,7 @@
       <view v-if="moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
         <text class="m-audit-text">{{ auditLabel }}</text>
       </view>
-      <!-- 右上角三点菜单：分享（自己的动态不提供举报，父页面 MomentActionSheet is-own=true）；
+      <!-- 右上角三点菜单：分享（自己的动态不提供举报，父页面以通用 ActionSheet 组装仅分享 items）；
            仅触发 emit，弹层由父页面在 scroll-view 外渲染 -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
         <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />

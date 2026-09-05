@@ -177,7 +177,7 @@ async function onUseful() {
 .m-action-count { font-size: var(--font-caption); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-primary); }
 /* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
-   仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */
+   仅触发 emit，弹层由父页面以通用 ActionSheet 组装 items 渲染（scroll-view 外 fixed 层级才正确） */
 .m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-more:active { opacity: 0.5; }
 </style>

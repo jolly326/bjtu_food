@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import ReviewItem from '@/components/ReviewItem.vue'
+import ReviewItem from './ReviewItem.vue'
 import type { Review } from '@/types/review'
 
 defineProps<{

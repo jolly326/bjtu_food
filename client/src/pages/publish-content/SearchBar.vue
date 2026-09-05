@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import IconSvg from './IconSvg.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   placeholder?: string

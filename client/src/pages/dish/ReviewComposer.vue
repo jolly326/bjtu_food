@@ -1,21 +1,18 @@
 <template>
-  <!-- 写评价底部抽屉（dish-detail-visual-polish 扩展：底栏「写评价」入口的真实功能）。
-       与 ReviewActionSheet / AuthSheet 同一底部抽屉范式：遮罩淡入 + grabber + 右上角关闭 + 底部安全区。
+  <!-- 写评价底部抽屉（component-org-sheet-unify 2.4）：骨架统一复用 BaseSheet（遮罩/grabber/下滑关闭/安全区/焦点还原），
+       本组件只承载「写评价」表单语义（星级 + 正文 + 提交状态），不再自持第二套 sheet 骨架/CSS。
+       头部标题「写评价」由 BaseSheet title 渲染，右上 X 由 closable 提供；菜名作为表单首行置于内容区。
        注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。 -->
-  <view v-if="open" class="rc-root">
-    <view class="rc-mask" :class="{ show: maskShow }" @tap="close" @touchmove.stop.prevent="noop" />
-    <view class="rc-sheet" :class="{ open: sheetOpen }">
-      <view class="rc-grabber" />
-      <!-- 头部：标题 + 菜名 + 右上角关闭 -->
-      <view class="rc-head">
-        <view class="rc-head-titles">
-          <view class="rc-title">写评价</view>
-          <text class="rc-sub">{{ dishName }}</text>
-        </view>
-        <view class="rc-close" role="button" aria-label="关闭" @tap.stop="close">
-          <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
-        </view>
-      </view>
+  <BaseSheet
+    :visible="visible"
+    title="写评价"
+    closable
+    z-token="--z-actionsheet"
+    @close="onClose"
+  >
+    <view class="rc-body">
+      <!-- 菜名副标题：BaseSheet 头部之下、星级之上 -->
+      <text class="rc-dish">{{ dishName }}</text>
 
       <!-- 星级：1-5 必填；未选 outline 浅灰、已选填充主色 -->
       <view class="rc-field">
@@ -64,16 +61,18 @@
         <text class="rc-submit-text">{{ submitting ? '提交中…' : '发布评价' }}</text>
       </view>
     </view>
-  </view>
+  </BaseSheet>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-import IconSvg from './IconSvg.vue'
+import { ref, watch } from 'vue'
+import BaseSheet from '@/components/BaseSheet.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { createReview } from '@/api/review'
 
 const props = defineProps<{
-  open: boolean
+  /** 受控显隐（由 BaseSheet close 驱动父级更新后回写） */
+  visible: boolean
   /** 菜品 ID（提交目标） */
   dishId: number
   /** 菜名（标题下展示） */
@@ -81,40 +80,31 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:open', v: boolean): void
+  (e: 'close'): void
   /** 提交成功后通知父级刷新（父级重拉评价列表 + 综合评分） */
   (e: 'submitted'): void
 }>()
-
-/** 空处理器：遮罩 touchmove.stop 防背景滚动穿透（小程序 catchtouchmove） */
-function noop() {}
-
-/* 开合动画（与 ReviewActionSheet 一致：遮罩淡入 + 抽屉上滑） */
-const maskShow = ref(false)
-const sheetOpen = ref(false)
-watch(() => props.open, (v) => {
-  if (v) {
-    // 每次打开重置表单
-    rating.value = 0
-    content.value = ''
-    submitting.value = false
-    nextTick(() => {
-      maskShow.value = true
-      sheetOpen.value = true
-    })
-  } else {
-    maskShow.value = false
-    sheetOpen.value = false
-  }
-})
 
 /* 表单状态 */
 const rating = ref(0)
 const content = ref('')
 const submitting = ref(false)
 
-function close() {
-  emit('update:open', false)
+// 每次打开重置表单（BaseSheet 常驻挂载，由 visible 驱动开合）
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) {
+      rating.value = 0
+      content.value = ''
+      submitting.value = false
+    }
+  },
+)
+
+/** 用户主动关闭（BaseSheet 遮罩/下滑/右上 X）或提交成功后关闭 */
+function onClose() {
+  emit('close')
 }
 
 async function onSubmit() {
@@ -132,7 +122,7 @@ async function onSubmit() {
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
     emit('submitted')
-    close()
+    onClose()
   } catch (e: any) {
     uni.showToast({ title: e.message || '发布失败，请稍后重试', icon: 'none' })
   } finally {
@@ -142,39 +132,22 @@ async function onSubmit() {
 </script>
 
 <style scoped lang="scss">
-.rc-root { z-index: var(--z-actionsheet); }
-.rc-mask {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay-scrim);
-  opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
-  z-index: calc(var(--z-actionsheet) - 10);
+/* 内容区仅承载表单语义；水平留白 + 底部常规留白（底部安全区由 BaseSheet 根弹层统一提供 env，此处不重复累加） */
+.rc-body {
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-lg);
 }
-.rc-mask.show { opacity: 1; }
-.rc-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-modal) var(--radius-modal) 0 0;
-  box-shadow: var(--shadow-modal);
-  z-index: var(--z-actionsheet);
-  transform: translateY(100%);
-  padding: var(--spacing-sm) var(--spacing-lg) calc(var(--spacing-lg) + env(safe-area-inset-bottom));
-  will-change: transform;
+/* 菜名副标题：次级浅灰小字，单行省略 */
+.rc-dish {
+  display: block;
+  font-size: var(--font-small);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: var(--spacing-2xs);
 }
-.rc-sheet.open { transform: translateY(0); }
-.rc-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
-.rc-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: var(--spacing-sm) 0 var(--spacing-md); }
-.rc-head-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.rc-title { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.rc-sub { font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-close { padding: 0 var(--spacing-xs); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.rc-close:active { opacity: 0.5; }
 
-.rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-xs) 0 var(--spacing-sm); }
+.rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) 0; }
 .rc-stars { display: flex; align-items: center; }
 .rc-star { padding: 0 var(--spacing-2xs); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .rc-star:active { opacity: 0.6; }
@@ -188,9 +161,4 @@ async function onSubmit() {
 .rc-submit { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: var(--spacing-lg); border-radius: 24rpx; background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
 .rc-submit.disabled { opacity: 0.5; }
 .rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--color-on-primary); }
-
-@media (prefers-reduced-motion: reduce) {
-  .rc-mask { transition: opacity 0.2s ease; }
-  .rc-sheet { transition: opacity 0.2s ease; transform: none !important; }
-}
 </style>

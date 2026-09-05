@@ -228,7 +228,7 @@ async function onCommentUseful(c: MomentComment) {
 }
 
 /* 举报动作面板（moment-detail-action-deemphasis）：
-   动态主体卡三点(kind=moment) / 评论长按(kind=comment) → MomentActionSheet；
+   动态主体卡三点(kind=moment) / 评论长按(kind=comment) → 通用 ActionSheet；
    面板内「举报」项再打开 ReportModal（举报免认证，游客可直达） */
 const actionOpen = ref(false)
 const actionKind = ref<'moment' | 'comment'>('moment')

@@ -19,7 +19,7 @@
       <view v-if="isAuthor && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
         <text class="m-audit-text">{{ auditLabel }}</text>
       </view>
-      <!-- 右上角三点：分享/举报收进页面级 MomentActionSheet（仅触发 emit，弹层由父页面渲染） -->
+      <!-- 右上角三点：分享/举报收进页面级通用 ActionSheet（仅触发 emit，弹层由父页面渲染） -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
         <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
       </view>
