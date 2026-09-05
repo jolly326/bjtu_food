@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * {@link RequireVerified} 切面（spec §5.y）。
  * <p>
  * 在请求时按 user.verified 实时判定（verified 不进 JWT），未认证抛 403 引导先完成学号邮箱认证。
- * 置于 controller 层切面，保证所有社区写操作统一鉴权，不重复编码。
+ * 置于 controller 层切面，保证所有写操作统一鉴权，不重复编码。
  */
 @Aspect
 @Component

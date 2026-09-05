@@ -24,12 +24,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 社区动态接口（task-06）
+ * 动态接口（task-06）
  * <p>
  * 列表/详情/评论浏览为公开（GET /moments/** 在 SecurityConfig 中被 method=GET 放行）；
  * 写操作需登录（STU）。
  */
-@Tag(name = "06. 社区动态", description = "社区广场、动态详情、发布/编辑/删除、有用、评论。发布需登录。")
+@Tag(name = "06. 动态", description = "动态列表/详情、发布/编辑/删除、有用、评论。发布需登录。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class MomentController {
 
     private final MomentService momentService;
 
-    @Operation(summary = "社区广场列表", description = "PUB。仅返回 approved 且 status=0。支持 dishId/stallId 关联过滤，canteenId 按食堂下全部档口聚合。tab=latest（默认，按 created_at desc）/ tab=hot（按 useful_count*2+comment_count 降序）。非法 tab（含历史 recommend）回退 latest，不打错误码。")
+    @Operation(summary = "动态广场列表", description = "PUB。仅返回 approved 且 status=0。支持 dishId/stallId 关联过滤，canteenId 按食堂下全部档口聚合。tab=latest（默认，按 created_at desc）/ tab=hot（按 useful_count*2+comment_count 降序）。非法 tab（含历史 recommend）回退 latest，不打错误码。")
     @GetMapping("/moments")
     public Result<PageResult<MomentVO>> list(
             @Parameter(description = "排序：latest/hot（默认 latest，非法值回退 latest）", example = "latest")

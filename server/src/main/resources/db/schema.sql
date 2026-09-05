@@ -24,7 +24,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -------------------- 用户 --------------------
 -- 认证模型（2026-08 微信登录体系，spec §5.y）：
 --   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
---   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁社区写操作。
+--   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁动态写操作。
 --   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
 --   · email 列保留作为历史迁移凭证；password 列仅管理员（后台）保留使用，学生侧不再校验。
 CREATE TABLE IF NOT EXISTS `user`
@@ -469,7 +469,7 @@ CREATE TABLE IF NOT EXISTS `apply_action`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='实体贡献统一申请';
 
--- -------------------- 社区动态（task-12.x 社区广场） --------------------
+-- -------------------- 动态（moment 表，task-12.x 动态广场） --------------------
 CREATE TABLE IF NOT EXISTS `moment`
 (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '动态ID',
@@ -491,7 +491,7 @@ CREATE TABLE IF NOT EXISTS `moment`
     KEY `idx_moment_audit` (`audit_status`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='社区动态';
+  COLLATE = utf8mb4_general_ci COMMENT ='动态';
 
 -- 动态「有用👍」标记（一人一票）
 CREATE TABLE IF NOT EXISTS `moment_useful`

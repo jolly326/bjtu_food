@@ -106,7 +106,7 @@ INSERT INTO dish (stall_id, category_id, name, price, description, images, tags,
 (14, 2, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'recommended',          'on', 'approved', 580, 4.7, 110),
 (14, 2, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 'approved', 520, 4.6, 100);
 
--- -------------------- 社区动态 moment（user_id 1~4 为注册学生；related_type: dish/stall/none；首页广播条取动态前 10 条轮播） --------------------
+-- -------------------- 动态（moment；user_id 1~4 为注册学生；related_type: dish/stall/none；首页广播条取动态前 10 条轮播） --------------------
 INSERT INTO moment (user_id, content, images, related_type, related_id, audit_status, useful_count, comment_count, status, created_at) VALUES
 (1, '今天在学一面点坊吃到了现做的鲜肉小笼，皮薄汁多，一口下去太满足了！推荐大家来试试～', NULL, 'dish',  7, 'approved', 12, 3, 0, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
 (2, '学三麻辣烫自选食材真的yyds，骨汤底绝了，人均 20 吃到撑，晚自习前干饭首选！',        NULL, 'dish', 12, 'approved', 8,  2, 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),

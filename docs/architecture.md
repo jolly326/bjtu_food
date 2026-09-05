@@ -31,7 +31,7 @@ com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security
 ├── dish/        # 菜品：列表/详情/发布/评分聚合/统计
 ├── review/      # 评价 + 评分聚合事件
-├── moment/      # 社区动态 + 评论
+├── moment/      # 动态 + 评论
 ├── canteen/     # 食堂/档口
 ├── content/     # category 品类 / broadcast 广播
 ├── activity/    # 最新活动（入口展示，点击提示「功能暂未实现」）

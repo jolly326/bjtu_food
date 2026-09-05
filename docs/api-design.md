@@ -19,7 +19,7 @@
 ### 1.2 认证模型（微信登录 + 邮箱认证）
 | 概念 | 说明 |
 |---|---|
-| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写社区内容 |
+| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（动态/评价等） |
 | 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后 `verified=1`，解锁写操作 |
 | 角色 | `student`（默认）/ `admin` / `super_admin` |
 | 状态 | `active` / `disabled` / `deleted` |
@@ -72,7 +72,7 @@
 | GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一）/page/pageSize/sort/isWithImage | `IPage<ReviewVO>` | 评价列表 |
 | GET | `/dishes/{dishId}/reviews` | page/pageSize/sort | `IPage<ReviewVO>` | 菜品评价 |
 
-### 2.4 社区动态（MomentController）
+### 2.4 动态（MomentController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | GET | `/moments` | `tab`/`dishId`/`stallId`/`canteenId`/page/pageSize | `IPage<MomentVO>` | 广场（仅 approved+status0） |
@@ -121,7 +121,7 @@
 | POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票） |
 | GET | `/my/reviews` | page/pageSize | 我的评价 |
 
-### 3.4 社区动态（邮箱认证）
+### 3.4 动态（邮箱认证）
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/moments` | 发动态（pending；含评分字段则走评价逻辑） |

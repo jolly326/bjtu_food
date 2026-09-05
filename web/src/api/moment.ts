@@ -2,7 +2,7 @@ import { get, put, del } from './http'
 import { pageRecords } from './adapter'
 
 /**
- * 社区动态管理（task-06 Web · 动态管理/下架 W5）。
+ * 动态管理（task-06 Web · 动态管理/下架 W5）。
  * 注意区分两类状态：
  *  - audit_status：审核态（pending/approved/rejected），由审核台处理（见 audit.ts）
  *  - status：下架态（0=正常 1=管理员强制下架），由本模块 hide/delete 处理

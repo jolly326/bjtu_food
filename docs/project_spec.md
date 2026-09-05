@@ -9,7 +9,7 @@
 ## 0. 系统总览
 
 ### 0.1 角色模型（仅两种）
-- `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁发布 / 更新菜品、提交 / 更新档口·食堂、写评价、评论、点赞、动态等**社区写操作**。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
+- `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁发布 / 更新菜品、提交 / 更新档口·食堂、写评价、评论、点赞、动态等**动态写操作**。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
 - `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理、**录入活动（活动标题 / 描述 / 发布时间 / 公众号文章链接，手动录入，不经学生 UGC、不经审核流）**。**管理后台登录沿用方案 C：管理员账号密码 + BCrypt + JWT（放弃微信开放平台扫码 / 复用小程序码）**，见 §1 认证与 §5 认证红线。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
 - **活动功能（2026-08-12 拍板，收回「活动仅经 Banner 触达」旧决策）**：活动为**独立功能模块**，数据由后台运营（ADMIN）手动录入；小程序首页「万能区域」展示最近一条活动预览，点击进入独立「活动列表页」，列表页点击具体活动经微信 web-view 跳转对应公众号文章。**Banner 已整体移除（2026-08-18 拍板）**，活动不依附任何 Banner 类型，独立成表承载。
@@ -69,7 +69,7 @@
 - 前端 UI 遵循 §4（spring 动效、即时反馈、半透材质、reduced-motion 降级）。
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
   - **无账号密码登录**：小程序端**无密码、无登录页、无登录按钮、无注册页**；微信打开即静默登录（`POST /auth/wechat-login`），默认得到 `verified=false` 的游客态账号。
-  - **`verified` 门槛**：社区写操作（发布/评论/点赞/动态等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（JWT 仍只含 `userId`），后端按 `user.verified` 实时判定。
+  - **`verified` 门槛**：动态写操作（发布/评论/点赞/动态等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（JWT 仍只含 `userId`），后端按 `user.verified` 实时判定。
   - **游客权限矩阵**：游客可浏览全部公开数据 + `POST /feedback`（公开无需认证）；需认证功能**入口不置灰**，点击时弹认证引导。
   - **邮箱是唯一迁移 / 绑定凭证**：`@bjtu.edu.cn` 邮箱验证码认证即绑定当前微信；同一邮箱被新微信认证时**直接替换旧微信绑定**（旧数据归属跟到新绑定微信）；**不设解绑入口**。
   - **管理后台登录例外（方案 C）**：管理后台维持「管理员账号密码 + BCrypt + JWT」，与小程序微信登录体系解耦；`/admin/**` 仍仅 `ADMIN`（含 `SUPER_ADMIN`）。
@@ -81,12 +81,12 @@
 - 小程序端：uni-app + Vue 3 (`<script setup>`) + TypeScript + Pinia，目录 `client/`。
 - Web 管理端：Vue 3 + Vite + TypeScript + Element Plus，目录 `web/`，无 Pinia。**定位：辅助后端管理数据的 UI 工具（非用户端）**——只经 `/admin/**` 接口消费与管理小程序产生的数据，见 §0.4。
 - 数据库：MySQL 8.0，库 `bjtu_food`，utf8mb4；**建表脚本唯一权威：`server/src/main/resources/db/schema.sql`**（`user.role` 默认 `'student'`）。
-- 认证（微信登录体系，2026-08 拍板，详见 §5「认证与鉴权」）：JWT（7 天），`Authorization: Bearer {token}`。小程序端无账号密码，经 `POST /auth/wechat-login`（`code2Session` 静默建号/取号）获取 JWT；社区写操作需 `verified=true`。`verified` 不进 JWT，后端按 `user.verified` 实时判定。
+- 认证（微信登录体系，2026-08 拍板，详见 §5「认证与鉴权」）：JWT（7 天），`Authorization: Bearer {token}`。小程序端无账号密码，经 `POST /auth/wechat-login`（`code2Session` 静默建号/取号）获取 JWT；动态写操作需 `verified=true`。`verified` 不进 JWT，后端按 `user.verified` 实时判定。
 - 管理后台登录（方案 C）：仍用「管理员账号密码 + BCrypt + JWT」；不引微信开放平台扫码，不复用小程序码。与小程序微信登录解耦。
 
 ## 2. 目录结构
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
-- 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 3 页：home / community / profile，2026-08-03 移除 find**——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；消息中心、我要贡献进 `profile`，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
+- 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 3 页：home / dynamic / profile，2026-08-03 移除 find**——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；消息中心、我要贡献进 `profile`，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
 
 ### 2.1 小程序页面架构（2026-08-19 复核，与 `client/src/pages.json` 严格一致）
 > 与 `client/src/pages.json` 严格一致。当前共注册 **15 个页面**：主包 9 + `pages-detail` 分包 3 + `pages-user` 分包 3。**无孤儿路由**（原 `publish-dish` / `submit-stall` 等孤儿路由已随发布页合并清理）。**学号邮箱认证走 `AuthSheet` 弹层（无独立认证页）**；`pages/profile/notifications/index` 为「系统通知」（「我的」菜单进入）。已按 2026-08-19 决策**不建 `docs/pages/` 逐页设计文档**（以 `docs/ui-design.md` 整体规范替代，详见 §4）。
@@ -97,7 +97,7 @@
 | `pages/home/index` | 首页 | TabBar |
 | `pages/find/index` | 搜索 | 首页搜索框 `navigateTo` |
 | `pages/profile/index` | 我的 | TabBar |
-| `pages/community/index` | 动态 | TabBar |
+| `pages/dynamic/index` | 动态 | TabBar |
 | `pages/feedback/index` | 意见反馈 | 「我的」菜单 |
 | `pages/profile/notifications/index` | 系统通知 | 「我的」菜单 |
 | `pages/activity/index` | 最新活动 | 首页万能区域 + 「我的」菜单入口均展示，点击提示「功能暂未实现」（2026-08-19） |
@@ -122,8 +122,8 @@
 > **注**：原 spec 的 `pages/pages-user/my-reviews`（我的评价）、`publish-moment`、`publish-dish`、`submit-stall` 及 `pages/profile/verify`（独立认证页）**均已不在 pages.json**，按当前代码合并/移除（评价统一经菜品详情看，发布统一走 `publish-content`，认证走 `AuthSheet` 弹层）。
 
 #### 2.1.4 关键设计决策与约束
-- **TabBar 固定 3 页**：`home` / `community` / `profile`；搜索、意见反馈、活动、关于、消息中心均为二级页（经 TabBar 页内入口进入）。
-- **首页三段式（无定位条，2026-08-15 拍板）**：（1）广播栏（**动态信息流**：最新评价/动态摘录，触摸暂停，**点击按类型路由** community→动态列表 / dish→菜品详情 / url→web-view；仅承载动态类，非动态类不进首页广播）/（2）万能区域（**水平一行网格**，每列独立跳转，当前「最新活动」→活动列表页，未来模块同排均分）/（3）瀑布流（`WaterfallList` 双列，综合热度排序，**距你距离由后端计算并随菜品下发展示（前端无定位条 UI）、无收藏**）。首页不显示定位条、不弹坐标授权。
+- **TabBar 固定 3 页**：`home` / `dynamic` / `profile`；搜索、意见反馈、活动、关于、消息中心均为二级页（经 TabBar 页内入口进入）。
+- **首页三段式（无定位条，2026-08-15 拍板）**：（1）广播栏（**动态信息流**：最新评价/动态摘录，触摸暂停，**点击按类型路由** dynamic→动态列表 / dish→菜品详情 / url→web-view；仅承载动态类，非动态类不进首页广播）/（2）万能区域（**水平一行网格**，每列独立跳转，当前「最新活动」→活动列表页，未来模块同排均分）/（3）瀑布流（`WaterfallList` 双列，综合热度排序，**距你距离由后端计算并随菜品下发展示（前端无定位条 UI）、无收藏**）。首页不显示定位条、不弹坐标授权。
 - **搜索（2026-08-03）**：二级搜索页 `find`，非 tab。
 - **活动为独立模块（2026-08-12）**：列表页 `activity` 展示运营活动，点击经 `web-view` 跳公众号文章。`web-view` 仅活动使用；广播外链仍「复制链接 + toast」（Banner 已移除）。
 - **反馈合并（2026-08-15）**：原「反馈中心」(`messages-services`) 已并入 `feedback` 意见反馈页（提交表单 + 我的反馈记录同页）；早期「联系/contact」表单亦并入。无独立反馈中心/contact 路由。
@@ -148,7 +148,7 @@
 ## 3. API 基础规范
 - 统一响应：`{ code: number, message: string, data: T }`；成功 `code=200`；异常由 `GlobalExceptionHandler` 统一包装，Controller 不得裸抛。
 - 错误码：`200` 成功 / `400` 参数 / `401` 未登录 / `403` 无权限 / `500` 服务器错误；**禁止自定义非标错误码**（如 1001/600）。**例外（2026-08-19 登记豁免）**：`4031` = 邮箱未认证（`@RequireVerified` 触发），与 `403`（普通无权限，含越权访问管理接口）区分，供前端「需先认证 vs 无权限」分流提示；前端 `http.ts` 据此分别处理。
-- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/admin/login`（管理后台登录，方案 C）、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/moments`、`/broadcasts`、`/categories`、`/activities`、静态图片 `/images/**`；学生社区写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN`）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**。
+- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/admin/login`（管理后台登录，方案 C）、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/moments`、`/broadcasts`、`/categories`、`/activities`、静态图片 `/images/**`；学生动态写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN`）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**。
 - 分页：`PageResult<T>{ records, total, page, pageSize }`，用 MP 分页插件；单页非分页接口返回 `List<T>`。
 - 金额：存储与传输一律「分」（int/Long）；分↔元转换必须在 api 层统一（`utils/money` 的 `fenToYuan`/`yuanToFen`），**禁止页面/组件层裸算**；前端统一展示已为元的 `price`（不得再在模板 `/100`）。
 - 数据隔离：`dish.created_by=当前用户`，学生仅读写自己提交；从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId。
@@ -199,9 +199,9 @@
   - **卡片设计**：纵向列表按发布时间倒序；标题稍大字号加粗、发布时间灰色小字（相对时间如「2小时前」/「昨天」）位于标题下方、简要描述更小字号置于底部；卡片 tap 反馈 `scale(0.97)`、入场 spring `1.0/0.3`（与全局卡片一致）。
   - **手势交互**：整卡 `@tap` 经微信 `web-view` 跳转对应公众号文章链接（活动唯一 web-view 场景，见 §2.1）。
 - **广播栏（2026-08-12 新增，首页顶部；内容定位见 §2.1.4 首页三段式，与 `docs/pages/首页.md` §二 对齐）**：
-  - **内容**：动态信息流 ticker——学生对菜品的最新评价 / 动态摘录，纯文本循环滚动；每条格式「评价人：菜品名 ⭐评分 摘录」；每次显示一条，不展示头像；仅承载动态类（`community` / `dish` / `url`），非动态类（`NOTICE` / `ACTIVITY` 等）不进首页广播。
+  - **内容**：动态信息流 ticker——学生对菜品的最新评价 / 动态摘录，纯文本循环滚动；每条格式「评价人：菜品名 ⭐评分 摘录」；每次显示一条，不展示头像；仅承载动态类（`dynamic` / `dish` / `url`），非动态类（`NOTICE` / `ACTIVITY` 等）不进首页广播。
   - **动效**：垂直滚动 ticker（位移 ≤8rpx 起步、缓动循环，`prefers-reduced-motion` 降级为静态轮播或停留），遵循 §4.9「动效从简」红线——禁长 keyframe、禁大位移；轮播间隔约 3s，可中断（用户触屏暂停）。
-  - **手势交互**：整栏 `@tap` 按当前条目 `broadcastType` 路由分发：`community`→动态列表页（`pages/community/index`）、`dish`→菜品详情页、`url`→web-view（复制链接 + toast）；非动态类不进此流。
+  - **手势交互**：整栏 `@tap` 按当前条目 `broadcastType` 路由分发：`dynamic`→动态列表页（`pages/dynamic/index`）、`dish`→菜品详情页、`url`→web-view（复制链接 + toast）；非动态类不进此流。
 
 ### 4.9 小程序 MVP 红线（布局 / 动效 / 图标 / 组件渲染）
 - **布局（750rpx 视口）**：根容器视为 750rpx；横向用 `flex` + `flex-wrap`/`flex:1`/`min-width:0` 防溢出；图片 / 卡片 `width:100%` + `box-sizing:border-box`；禁止横向滚动条；长文本 `-webkit-line-clamp` 截断。每页须通过「真机 750rpx 无横向滚动 / 无裁切」。
@@ -229,9 +229,9 @@
 - 所有 API 响应含 `code/message/data`；前端 `http.ts` 判定 `code!==200` 抛异常，页面 try-catch，Store fetch 失败置空数组不向上抛。
 - Controller 入参 DTO + `@Validated`；Service 写操作 `@Transactional`；评分 / 点赞计数走 Spring 事件异步维护，禁止主流程内联重算。
 - 内容审核流：学生提交 `audit_status=pending` → 管理员 `approved/rejected`（退回必填 `reject_reason` 并回显）；小程序仅展示 `approved` 且上架 / 营业中；评价 `is_hidden` 控制可见性；Web「菜品审核」「评价审核」为独立模块。学生编辑重提**复用原记录**、`reject_reason` 清空。下架 / 变更申请落独立 `apply` 表（见 §0.3）。
-- **认证**：微信打开静默登录（`wechat-login`）即游客态；社区写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台登录例外，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
+- **认证**：微信打开静默登录（`wechat-login`）即游客态；动态写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台登录例外，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
 - 小程序请求超时 8s、管理端 5s；API 基地址集中 `api/config.ts` 的 `API_BASE_URL`，禁止硬编码 URL。
-- **广播栏动态来源（2026-08-15 复核，与 §2.1.4 / `docs/pages/首页.md` §二 对齐）**：广播栏承载**动态信息流**——学生对菜品的最新评价 / 动态摘录（`community` 类，按时间倒序循环滚动）；每条展示「评价人：菜品名 ⭐评分 摘录」纯文本，不展示头像。整栏 `@tap` 按 `broadcastType` 路由：`community`→动态列表页、`dish`→菜品详情页、`url`→web-view；**仅承载动态类，非动态类（`NOTICE` / `ACTIVITY` / 食堂档口类）不进首页广播**。运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，与「评价 ticker 跳转 community」旧方案一并收回。
+- **广播栏动态来源（2026-08-15 复核，与 §2.1.4 / `docs/pages/首页.md` §二 对齐）**：广播栏承载**动态信息流**——学生对菜品的最新评价 / 动态摘录（`dynamic` 类，按时间倒序循环滚动）；每条展示「评价人：菜品名 ⭐评分 摘录」纯文本，不展示头像。整栏 `@tap` 按 `broadcastType` 路由：`dynamic`→动态列表页、`dish`→菜品详情页、`url`→web-view；**仅承载动态类，非动态类（`NOTICE` / `ACTIVITY` / 食堂档口类）不进首页广播**。运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，与「评价 ticker 跳转动态页」旧方案一并收回。
 - **活动数据结构（2026-08-12 拍板）**：活动由后台运营录入，存储字段含「活动标题 / 活动描述 / 发布时间 / 公众号文章链接」；首页万能区域展示最近一条活动（标题 + 发布时间，标题截前 15 字），整列点击进入活动列表页；活动列表页按发布时间倒序排列全部活动，点击具体活动跳转对应公众号文章链接（微信 web-view）。活动为独立数据对象，后端有独立活动实体与 CRUD 接口（Web 录入、小程序列表页消费），不与菜品 / 档口 / 广播耦合。
 
 ### 5.y 认证与鉴权（微信登录体系，2026-08 拍板，强制）
@@ -241,7 +241,7 @@
 #### 5.y.1 认证模型
 - **废除账号密码登录**：小程序端无登录页 / 登录按钮 / 注册页 / 密码修改 / 密码重置；`/auth/login`、`/auth/register`、`/auth/password`、`/auth/password/reset` 及其 DTO（`LoginReq`/`RegisterReq`/`PasswordResetReq`/`PasswordUpdateReq`/`LoginResp` 密码相关）废弃移除。
 - **微信自动静默登录**：微信打开小程序即调用 `POST /auth/wechat-login`（携带 `code`），后端 `code2Session` 换取 `openid`，按 `openid` 取号；不存在则自动建号。用户**默认即已登录的未认证账号**（`verified=false`，游客态），不做「未登录」概念（见 §5.y.3 游客态语义）。
-- **认证解锁社区**：`@bjtu.edu.cn` 邮箱验证码认证通过 → `verified=true`，解锁社区写操作（发布 / 评论 / 点赞 / 动态 / 菜品 / 档口·食堂提交等）。**无收藏功能（全量移除确认）**。
+- **认证解锁写操作**：`@bjtu.edu.cn` 邮箱验证码认证通过 → `verified=true`，解锁动态写操作（发布 / 评论 / 点赞 / 动态 / 菜品 / 档口·食堂提交等）。**无收藏功能（全量移除确认）**。
 - **绑定与替换**：同一邮箱认证后绑定当前微信；**不设解绑入口**；新微信用同一邮箱认证时**直接替换旧微信绑定**（旧邮箱绑定关系的账号历史数据归属跟到新微信账号）。邮箱是唯一迁移 / 绑定凭证。
 
 #### 5.y.2 User 表结构变更
@@ -265,8 +265,8 @@
 - **权限矩阵**：
   - 浏览全部公开数据（菜品 / 评价 / 动态 / 食堂 / 档口 / 活动）→ 游客可。
   - `POST /feedback`（基础反馈提交）→ **公开，无需认证**。
-  - 社区写操作（发布菜品 / 写评价 / 发动态 / 评论 / 点赞 / 更新本人记录）→ 需 `verified=true`。（学生提交档口/食堂 `/my/stalls` 与美食清单模块已于 2026-08-18 随代码清理移除）
-  - **系统通知（`/my/notifications/*`）→ 认证专属（`verified=true`）**：通知是按 `userId` 归属的账号私有数据（`/my/` 前缀），内容为内容贡献者的行为反馈（审核结果 / 收到评论 / 点赞）。游客（`verified=false`）无任何可产生通知的社区写操作来源，通知列表恒空、未读恒为 0，故**不属公开数据、不对游客开放**。「我的」页「系统通知」入口 `authLocked=true`，游客点击弹认证引导；游客态**不拉取未读数**（红点仅在 `verified=true` 时刷新）。
+  - 动态写操作（发布菜品 / 写评价 / 发动态 / 评论 / 点赞 / 更新本人记录）→ 需 `verified=true`。（学生提交档口/食堂 `/my/stalls` 与美食清单模块已于 2026-08-18 随代码清理移除）
+  - **系统通知（`/my/notifications/*`）→ 认证专属（`verified=true`）**：通知是按 `userId` 归属的账号私有数据（`/my/` 前缀），内容为内容贡献者的行为反馈（审核结果 / 收到评论 / 点赞）。游客（`verified=false`）无任何可产生通知的动态写操作来源，通知列表恒空、未读恒为 0，故**不属公开数据、不对游客开放**。「我的」页「系统通知」入口 `authLocked=true`，游客点击弹认证引导；游客态**不拉取未读数**（红点仅在 `verified=true` 时刷新）。
   - **入口不置灰**：需认证功能入口对游客可见且可点；点击时弹**认证引导**（`AuthSheet`，触发「学号邮箱 + 验证码」认证），认证成功后自动继续原动作。
 - 昵称保持「食客+ID 尾号」；`bind_email`（学号邮箱）**仅存认证关系、不公开**，可在「我的」页展示绑定邮箱。
 
@@ -275,7 +275,7 @@
 - `POST /auth/email-code`（公开，改造）— 入参 `{ username(学号), email(可空，自动推导 {学号}@bjtu.edu.cn), purpose }`；`purpose` 改为 `verify`（认证用途，替代旧 `login`/`register`/`reset`）；60s 限频、10min 有效。
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 置 `verified=1`、写 `bind_email`/`verified_at` → 返回更新后 `LoginResp`。
 - `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像、`guestShortId`。
-- 鉴权：社区写操作改为**校验 `verified`**；`/admin/**` 仍仅 `ADMIN`；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客恒空、前端不拉取）**。
+- 鉴权：动态写操作改为**校验 `verified`**；`/admin/**` 仍仅 `ADMIN`；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客恒空、前端不拉取）**。
 - **管理后台登录（方案 C）**：维持 `/auth/admin/login`（管理员账号密码 + BCrypt + JWT），与小程序微信登录体系解耦；`/admin/**` 校验 `ADMIN` / `SUPER_ADMIN`。
 
 ### 5.z 已拍板架构决策（强制）
@@ -285,8 +285,8 @@
 - **D-D** 推荐 / 热门 / 广场用 Caffeine 短 TTL 缓存(60s) + 写失效；`recommendDishes()` 改 SQL 分页。
 - **D-E** schema 漂移治理：启动时 fail-fast 校验或 CI 步骤。
 - **Q1** 不建成就 / 等级 / 成长体系（无 `achievement`/`user_achievement`）。
-- **Q2** 不置顶 / 话题 / 精选运营干预，社区排序不干预。
-- **Q4** 必须交付：②社区举报复用 `user_feedback`(`related_type`/`related_id`)，不新建举报表 ③删除本人记录（动态 / 菜品 / 评价）④关联动态双向跳转。（①`DELETE /my/account` 账号注销接口因无前端入口已随清理移除，2026-08-18）
+- **Q2** 不置顶 / 话题 / 精选运营干预，动态排序不干预。
+- **Q4** 必须交付：②动态举报复用 `user_feedback`(`related_type`/`related_id`)，不新建举报表 ③删除本人记录（动态 / 菜品 / 评价）④关联动态双向跳转。（①`DELETE /my/account` 账号注销接口因无前端入口已随清理移除，2026-08-18）
 - **Q5** 不碰关注 / 粉丝流，不建用户关系表。
 - **D-工作台（2026-08-18 对账拍板）**：Web 管理后台登录默认落地页为 `/dashboard`（`DashboardView`，工作台 = 待办 + 数据总览），契约见 §0.4.1。**工作台不含 ECharts 图表看板**；`/admin/dashboard` 返回的 `DashboardVO` 虽含趋势/排行/上新等图表字段（供后续图表看板复用），当前 DashboardView 不消费，图表看板非本期交付。前后端契约已对齐、登录首屏已落地，**无开发缺口，不需要为此新建开发 task**（本决策记录即对账结论，勿为已存在代码再拆 task）。
 
@@ -296,7 +296,7 @@
 - **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/profile/index.vue` 的「我的收藏」、`pages-detail/dish.vue` 底部收藏按钮、`my-favorites` 页），统一移除。语义仅保留 `ic-heart=喜欢`（点赞/喜欢，非收藏）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
 - **状态枚举**：Dish `status` on/off；Canteen/Stall `status` open/closed；Broadcast/Activity `status` enabled/disabled；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举。（Banner 已移除）
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
-- **学生 UGC 路径**：发布菜品仅 `POST /dishes` 系列，写评价 / 评论 / 点赞 / 动态等社区写操作——均需 `verified=true`（见 §5.y 权限矩阵）；严禁 `/stall-owner/**`。（学生提交档口/食堂 `POST /my/stalls` 已随功能移除，2026-08-18）
+- **学生 UGC 路径**：发布菜品仅 `POST /dishes` 系列，写评价 / 评论 / 点赞 / 动态等动态写操作——均需 `verified=true`（见 §5.y 权限矩阵）；严禁 `/stall-owner/**`。（学生提交档口/食堂 `POST /my/stalls` 已随功能移除，2026-08-18）
 - **分页结构**：列表接口统一 `PageResult<T>{ records, total, page, pageSize }`；单页非分页返回 `List<T>`。
 - **整改影响面清单（谁改什么）以本文件各红线条款为准，不再另立文档。**
 

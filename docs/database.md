@@ -234,7 +234,7 @@
 
 **索引/约束**：PK(`id`)；UNIQUE `uk_entity_applytype_pending`(`entity_type`,`entity_id`,`apply_type`,`status`)；KEY `idx_applicant`(`applicant_id`)；KEY `idx_status`(`status`)；KEY `idx_entity`(`entity_type`,`entity_id`)。
 
-### 3.13 moment（社区动态）
+### 3.13 moment（动态）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 动态ID |

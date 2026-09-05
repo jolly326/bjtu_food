@@ -37,7 +37,7 @@ public class Feedback {
     @Schema(description = "附图（JSON 数组字符串，存绝对URL）")
     private String images;
 
-    /** 关联类型（社区举报场景）：moment（关联被举报动态）；其他反馈为 null */
+    /** 关联类型（动态举报场景）：moment（关联被举报动态）；其他反馈为 null */
     @Schema(description = "关联类型（举报场景）：moment；其他为 null")
     private String relatedType;
 
