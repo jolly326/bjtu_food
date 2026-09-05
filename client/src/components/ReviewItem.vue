@@ -208,12 +208,12 @@ function onThumbError(idx: number) {
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：与动态卡（moment.vue m-head）统一 72rpx 圆角正方形 */
+/* 头像：与动态卡统一圆形浅灰底（content-flow-visual-polish 5.2） */
 .review-avatar {
   width: 72rpx;
   height: 72rpx;
-  border-radius: var(--radius-xs);
-  background: var(--bg-page);
+  border-radius: var(--radius-circle);
+  background: var(--bg-soft);
   flex-shrink: 0;
 }
 .review-avatar-empty { display: flex; align-items: center; justify-content: center; }
@@ -287,11 +287,11 @@ function onThumbError(idx: number) {
 }
 .review-more:active { opacity: 0.5; }
 
-/* 正文：转主色（提升阅读重心），与昵称拉开层级 */
+/* 正文：二级灰、行高 1.5（content-flow-visual-polish 5.2，与动态卡正文同档） */
 .review-content {
   font-size: var(--font-body);
-  color: var(--text-primary);
-  line-height: 1.6;
+  color: var(--text-secondary);
+  line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
 }

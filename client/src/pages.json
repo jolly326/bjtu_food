@@ -55,18 +55,6 @@
 			]
 		},
 		{
-			"root": "pages/review-list/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "全部评价",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
 			"root": "pages/notifications/",
 			"pages": [
 				{
@@ -166,11 +154,11 @@
 	"preloadRule": {
 		"pages/home/index": {
 			"network": "all",
-			"packages": ["pages/dish/", "pages/moment/", "pages/review-list/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
+			"packages": ["pages/dish/", "pages/moment/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
 		},
 		"pages/profile/index": {
 			"network": "all",
-			"packages": ["pages/dish/", "pages/moment/", "pages/review-list/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
+			"packages": ["pages/dish/", "pages/moment/", "pages/notifications/", "pages/my-published/", "pages/profile-edit/", "pages/publish-content/", "pages/feedback/", "pages/about/", "pages/activity/", "pages/activity-webview/"]
 		}
 	},
 	"globalStyle": {

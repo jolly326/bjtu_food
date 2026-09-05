@@ -40,7 +40,6 @@
           <text class="info-value">{{ roleLabel }}</text>
         </view>
       </view>
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 保存（固定底部，与其他表单页一致） -->

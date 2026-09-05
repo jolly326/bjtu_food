@@ -15,7 +15,7 @@
       <!-- 右上角三点菜单：分享 / 举报 收进页面级 ActionSheet（去胶囊化，图标按钮；
            仅触发 emit，弹层由父页面在 scroll-view 外渲染，避免 fixed 遮罩层级被压扁） -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
-        <IconSvg name="more-v" :size="32" color="var(--text-tertiary)" />
+        <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
       </view>
     </view>
 
@@ -53,7 +53,7 @@
       </view>
       <view class="m-actions">
         <view class="m-action" :class="{ active: usefulActive }" @tap.stop="onUseful">
-          <IconSvg name="thumb" :size="36" class="m-action-icon" :color="usefulActive ? 'var(--color-primary)' : 'var(--text-secondary)'" />
+          <IconSvg :name="usefulActive ? 'thumb-filled' : 'thumb'" :size="36" class="m-action-icon" :color="usefulActive ? 'var(--color-primary)' : 'var(--text-secondary)'" />
           <text class="m-action-count">{{ moment.usefulCount > 0 ? moment.usefulCount : 0 }}</text>
         </view>
         <view class="m-action" @tap.stop="goDetail">
@@ -159,7 +159,8 @@ async function onUseful() {
      圆角外侧会残留一圈背景色方角（四角皆有，左侧因贴齐列表边缘最明显，
      表现为「屏幕左侧色块」）。必须由本属性裁掉，否则该渲染残留会暴露。 */
   box-shadow: var(--shadow-card);
-  padding: var(--spacing-lg);
+  /* moment-card-visual-polish：水平 lg(32rpx=16px)、上下 36rpx(=18px，lg+2xs)，对 8 基网格（D2） */
+  padding: 36rpx var(--spacing-lg);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
@@ -168,7 +169,8 @@ async function onUseful() {
 .m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-circle); background: var(--bg-soft); flex-shrink: 0; overflow: hidden; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: var(--font-subtitle); line-height: 1; }
-.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+/* 昵称-时间行距收紧（2rpx 属 4pt 网格内微调，moment-card-visual-polish D3） */
+.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
 /* 昵称：一级标题档（32rpx / 600），与菜名 / 菜单主标题同档 */
 .m-nickname {
   font-size: var(--font-subtitle);
@@ -182,12 +184,15 @@ async function onUseful() {
 }
 /* 第二行：发布时间（辅助信息档 24rpx / 400 / 三级文字） */
 .m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
-.m-time { flex-shrink: 0; font-size: var(--font-small); font-weight: var(--weight-regular); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+/* 发布时间较昵称小一档（aux 22rpx）、三级浅灰弱化，moment-card-visual-polish D3 */
+.m-time { flex-shrink: 0; font-size: var(--font-aux); font-weight: var(--weight-regular); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 /* 正文：正文档（28rpx / 400），行高约 1.5 提升可读性 */
-.m-content { display: block; margin-top: var(--spacing-sm); font-size: var(--font-body); font-weight: var(--weight-regular); color: var(--text-secondary); line-height: 1.5; word-break: break-word; }
+/* 正文：头部→正文 md(24rpx=12px)、行高 1.55、二级灰（moment-card-visual-polish D2/D4） */
+.m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); font-weight: var(--weight-regular); color: var(--text-secondary); line-height: 1.55; word-break: break-word; }
 .m-content.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .m-expand { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); align-self: flex-start; }
-.m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
+/* 正文→图片 28rpx(≈14px，md/lg 间 4rpx 网格裸值，moment-card-visual-polish D2） */
+.m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: 28rpx; }
 /* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
 .m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-page); }
 .m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
@@ -196,6 +201,7 @@ async function onUseful() {
    与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
 /* ⚠️ overflow:hidden：本 chip 位于卡片底部左侧、带主色浅底，圆角外侧的背景方角残留
    会在列表里表现为「屏幕左侧色块」（每条动态一块），必须裁掉。 */
+/* 关联 chip：底色/圆角/内边距与首页 TagLabel 同语言（radius-tag + primary-soft；moment-card-visual-polish D5） */
 .m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
 /* 圆角正方形菜品缩略图（56rpx + 12rpx 圆角，chip 内上下各留 4rpx） */
@@ -203,18 +209,21 @@ async function onUseful() {
 .m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
-.m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
-.m-actions { display: flex; align-items: center; gap: var(--spacing-xs); margin-left: auto; flex-shrink: 0; }
+/* 正文→标签/互动行 28rpx（≈14px，梯度大于头部-正文 24rpx；D2/D4） */
+.m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: 28rpx; }
+/* 两按钮间距 xl(48rpx=24px)，D2 */
+.m-actions { display: flex; align-items: center; gap: var(--spacing-xl); margin-left: auto; flex-shrink: 0; }
 /* 互动按钮：icon + 数字纯文字链，去胶囊背景。
    统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
    与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
-.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.m-action:active { opacity: 0.55; }
+.m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-sm); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+/* 按压：图标+数字整组降至约 80%（moment-card-visual-polish D5） */
+.m-action:active { opacity: 0.8; }
 .m-action-icon { font-size: var(--font-caption); line-height: 1; color: var(--text-secondary); }
 /* 点赞后：图标与数字同步变主色，反馈更明确 */
 .m-action.active .m-action-icon { color: var(--color-primary); }
-/* 互动数：强调信息档（32rpx / 600） */
-.m-action-count { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+/* 互动数：500 字重 + 二级灰，弱于昵称（caption 30rpx，moment-card-visual-polish D5） */
+.m-action-count { font-size: var(--font-caption); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .m-action.active .m-action-count { color: var(--color-primary); }
 /* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
    仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */

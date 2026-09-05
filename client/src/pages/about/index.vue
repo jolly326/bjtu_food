@@ -1,7 +1,7 @@
 <template>
   <view class="page about-page">
     <Header title="关于我们" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false">
+    <view class="about-content">
       <view class="hero">
         <view class="logo">
           <IconSvg name="comment" :size="64" color="var(--color-primary)" />
@@ -37,7 +37,7 @@
 
       <view class="footer-note">北京交通大学 · 校园美食分享圈</view>
       <view style="height: calc(var(--spacing-lg) + env(safe-area-inset-bottom))" />
-    </scroll-view>
+    </view>
   </view>
 </template>
 
@@ -50,18 +50,15 @@ import IconSvg from '@/components/IconSvg.vue'
 </script>
 
 <style scoped>
+/* detail-modular-review-cleanup 3.1：静态短内容页不再常驻 scroll-view，页面自然文档滚动承载超高内容 */
 .page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  min-height: 100vh;
   background: var(--bg-page);
 }
-.scroll-wrap {
+.about-content {
   flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 .hero {
   display: flex;

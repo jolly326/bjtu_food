@@ -39,8 +39,6 @@
              首屏冷启动加载态由 HomeContent 内 StateView 统一承载（不在本页重复放置加载态，避免多层嵌套） -->
         <HomeContent :initial-loading="loadingHot" :load-failed="loadFailed" @retry="retryWaterfall" />
       </view>
-
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 回到顶部悬浮按钮 -->
@@ -259,7 +257,7 @@ onShareAppMessage(() => {
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
-  /* 预留底部菜单栏高度，避免内容被 TabBar 遮挡 */
+  /* 预留底部菜单栏高度，避免内容被 TabBar 遮挡；不再叠加 spacing-lg（否则最后卡片/触底加载区会悬空在 TabBar 上方，与 dynamic 页口径统一为 tabbar-height + env） */
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
 }
 .home-content {

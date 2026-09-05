@@ -34,7 +34,6 @@
         </view>
       </view>
 
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
   </view>
 </template>
@@ -154,7 +153,7 @@ onShow(() => {
 
 <style scoped>
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md); box-sizing: border-box; }
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .msg-item {

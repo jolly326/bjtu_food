@@ -74,7 +74,6 @@
             </view>
           </CardSection>
 
-          <view style="height: var(--spacing-lg)" />
         </template>
       </view>
 
@@ -339,7 +338,6 @@ function onResultsRefresh() {
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
 function goToMixed(id: number) {
-  try { uni.vibrateShort({ type: 'light' }) } catch { /* 部分平台无震动 API，忽略 */ }
   if (id) openDishDetail(id)
 }
 
@@ -399,7 +397,7 @@ onShow(() => clearShareState())
 /* 内容区：占满 header/筛选行之外的剩余高度；滚动职责随分支（发现态静态/结果态 FindResults） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 /* 发现态：普通内容容器 + 无下拉刷新的高度兜底（搜索记录上限 4 条内容短；异常超高时可内部滚动兜底，不提供下拉刷新） */
-.discover-body { flex: 1; min-height: 0; overflow-y: auto; }
+.discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }
 
@@ -431,7 +429,7 @@ onShow(() => clearShareState())
   align-items: center;
   gap: var(--spacing-xs);
   max-width: 360rpx;
-  /* 放大命中区：上下 sm(32rpx)、左右 lg(48rpx)，字号升至 body，不再是细小胶囊 */
+  /* 放大命中区：上下 sm(32rpx)、左右 lg(48rpx)，字号升至 body；可点词条胶囊与页面内小标签语义区分（content-flow-visual-polish 评审回退） */
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
   border-radius: var(--radius-pill);

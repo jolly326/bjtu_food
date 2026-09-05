@@ -22,16 +22,5 @@ export interface Review {
       讨论沉淀到动态评论区，菜品评价仅保留 评分+图文+有用 的口碑形态 */
 }
 
-export interface ReviewSubmit {
-  dishId: number
-  rating: number
-  content: string
-  images: string[]
-  /** 美团式写评标签（口味/分量/性价比…），可选 */
-  tags?: string[]
-  /** 是否同步为动态；拆改后评价不再打通动态，固定 false */
-  shareToMoment?: boolean
-}
-
 /** 评价排序方式：最新 / 最有用 */
 export type ReviewSort = 'latest' | 'useful'

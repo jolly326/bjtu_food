@@ -2,7 +2,7 @@
   <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态/错误态复用 EmptyState，不在详情区重复放置加载态） -->
+      <!-- 加载/失败/空态统一由 StateView 一次承载 -->
       <StateView
         v-if="!moment"
         :loading="loading"
@@ -15,80 +15,25 @@
       />
 
       <template v-else>
-        <!-- 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡 -->
-        <view class="m-card">
-          <view class="m-head">
-            <image v-if="moment.userAvatar" class="m-avatar" :src="getImageUrl(moment.userAvatar)" mode="aspectFill" />
-            <view v-else class="m-avatar m-avatar-empty">
-              <IconSvg name="user" :size="36" color="var(--text-tertiary)" />
-            </view>
-            <view class="m-head-right">
-              <text class="m-nickname">{{ moment.userNickname || '匿名用户' }}</text>
-              <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
-            </view>
-            <!-- 审核态（作者本人可见） -->
-            <view v-if="isAuthor && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
-              <text class="m-audit-text">{{ auditLabel }}</text>
-            </view>
-          </view>
-
-          <!-- 正文全文 -->
-          <text class="m-content">{{ moment.content }}</text>
-
-          <!-- 九宫格大图 -->
-          <view class="m-images">
-            <MomentImageGrid :images="moment.images" />
-          </view>
-
-          <!-- 关联对象（与下方互动栏用细线分隔）：左侧圆角正方形菜品缩略图（有图显图、无图显占位图标） -->
-          <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="related-card" @tap="goRelated">
-            <image v-if="moment.relatedImage" class="related-thumb" :src="getImageUrl(moment.relatedImage)" mode="aspectFill" lazy-load />
-            <view v-else class="related-thumb related-thumb--empty">
-              <IconSvg :name="relatedIconName" :size="28" color="var(--text-tertiary)" class="related-icon" />
-            </view>
-            <view class="related-body">
-              <text class="related-type">{{ relatedTypeLabel }}</text>
-              <view class="related-name-row">
-                <text class="related-name">{{ moment.relatedName }}</text>
-              </view>
-            </view>
-            <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="related-arrow" />
-          </view>
-
-          <!-- 互动区（有用 / 评论 / 举报） -->
-          <InteractBar
-            :comment-count="moment.commentCount"
-            :useful-count="moment.usefulCount"
-            :useful-active="!!moment.useful"
-            :useful-pending="pendingUseful"
-            @useful="onUseful"
-            @comment="focusComment"
-            @report="openReport"
-          />
-        </view>
-
-        <!-- 评论单独卡片（id 供「评论」按钮 scroll-into-view 定位） -->
-        <view id="comment-section" class="comment-section">
-          <!-- 评论区标题：不加左侧装饰竖线（简洁分区；评论内容本身无竖线装饰） -->
-          <SectionTitle :title="`评论 (${moment.commentCount})`" :bar="false" />
-          <EmptyState v-if="comments.length === 0" text="还没有评论，来说两句" icon="comment" />
-          <view v-else class="comment-list">
-            <CommentItem
-              v-for="c in visibleComments"
-              :key="c.id"
-              :comment="c"
-              :moment-id="moment.id"
-              @reply="replyTo"
-              @reply-named="replyToNamed"
-              @delete="onCommentLongPress"
-              @report="onCommentReport"
-            />
-
-            <view v-if="comments.length > collapseThreshold" class="comment-expand" @tap="commentExpanded = !commentExpanded">
-              <text class="comment-expand-text">{{ commentExpanded ? '收起' : `共 ${comments.length} 条，点击展开` }}</text>
-            </view>
-          </view>
-        </view>
+        <!-- 私有组件编排：动态主卡 + 评论区（detail-modular-review-cleanup） -->
+        <MomentDetailCard
+          :moment="moment"
+          :is-author="isAuthor"
+          :useful-pending="pendingUseful"
+          @useful="onUseful"
+          @comment="focusComment"
+          @report="openReport"
+          @related="goRelated"
+        />
+        <MomentCommentSection
+          :comments="comments"
+          :comment-count="moment.commentCount"
+          :moment-id="moment.id"
+          @reply="replyTo"
+          @reply-named="replyToNamed"
+          @delete="onCommentLongPress"
+          @report="onCommentReport"
+        />
 
         <!-- 退回原因 + 编辑重提 -->
         <view v-if="isAuthor && moment.auditStatus === 'rejected' && moment.rejectReason" class="reject-box">
@@ -101,7 +46,6 @@
         </view>
       </template>
 
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 底部评论输入栏 -->
@@ -124,14 +68,15 @@
         <ImageUploader v-model="commentImages" :max="3" compact class="comment-uploader" />
         <view class="comment-input-box" :class="{ focused: commentFocus }">
           <input
-            class="comment-input"
-            v-model="commentText"
-            :focus="commentFocus"
-            placeholder="说点什么…"
-            confirm-type="send"
-            aria-label="评论输入框"
-            @confirm="submitComment"
-            @blur="onCommentBlur"
+          class="comment-input"
+          v-model="commentText"
+          :focus="commentFocus"
+          placeholder="说点什么…"
+          placeholder-class="comment-ph"
+          confirm-type="send"
+          aria-label="评论输入框"
+          @confirm="submitComment"
+          @blur="onCommentBlur"
           />
         </view>
         <view class="comment-send" :class="{ disabled: commentSubmitting }" role="button" aria-label="发送评论" @tap="submitComment">
@@ -162,21 +107,17 @@ import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import { submitFeedback } from '@/api/feedback'
-import { formatDateTime } from '@/utils/time'
-import { getImageUrl } from '@/utils/image'
 import type { Moment, MomentComment } from '@/types/moment'
 import { buildSharePayload } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import SectionTitle from '@/components/SectionTitle.vue'
-import MomentImageGrid from './MomentImageGrid.vue'
-import InteractBar from './InteractBar.vue'
-import CommentItem from './CommentItem.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import MomentDetailCard from './MomentDetailCard.vue'
+import MomentCommentSection from './MomentCommentSection.vue'
 
 const userStore = useUserStore()
 const moment = ref<Moment | null>(null)
@@ -192,24 +133,16 @@ const refresherTriggered = ref(false)
 const commentText = ref('')
 /** 评论图片（最多 3 张，复用 Moment 图床） */
 const commentImages = ref<string[]>([])
-/** 评论输入自动聚焦（点 InteractBar「评论」/ 楼中楼回复时触发，2026-08-03 打磨） */
+/** 评论输入自动聚焦（点互动区「评论」/ 回复时触发） */
 const commentFocus = ref(false)
-const commentExpanded = ref(false)
-/** @提及弹层状态（手动输入 @ 唤起选人，微信式回复，2026-08-16） */
+/** @提及弹层状态 */
 const mentionOpen = ref(false)
 const mentionQuery = ref('')
 const atPos = ref(-1)
-const collapseThreshold = 5
-
-/** 楼中楼「共 N 条」展开/收起 */
-const visibleComments = computed(() => {
-  if (commentExpanded.value || comments.value.length <= collapseThreshold) return comments.value
-  return comments.value.slice(0, collapseThreshold)
-})
 
 let currentId = 0
 
-/** 页面级定时器注册表：onUnload 统一清理，避免页面销毁后 setTimeout 仍触发（P0 防多退一层/越界访问） */
+/** 页面级定时器注册表：onUnload 统一清理 */
 let pageTimers: ReturnType<typeof setTimeout>[] = []
 onUnload(() => {
   pageTimers.forEach((t) => clearTimeout(t))
@@ -217,18 +150,8 @@ onUnload(() => {
 })
 
 const isAuthor = computed(() => !!moment.value && !!userStore.userInfo && moment.value.userId === userStore.userInfo.id)
-const relatedTypeLabel = computed(() => {
-  if (!moment.value) return ''
-  return moment.value.relatedType === 'dish' ? '关联菜品' : moment.value.relatedType === 'stall' ? '关联档口' : ''
-})
-const relatedIconName = computed(() => {
-  if (!moment.value) return 'dish'
-  return moment.value.relatedType === 'stall' ? 'list' : 'dish'
-})
-const auditLabel = computed(() => moment.value?.auditStatus === 'pending' ? '审核中' : '已退回')
-const auditClass = computed(() => `audit-${moment.value?.auditStatus}`)
 
-/** 加载序号：onLoad/onRefresh 快速连续触发时，旧请求结果不得覆盖新请求（竞态守卫） */
+/** 加载序号：竞态守卫 */
 let loadSeq = 0
 async function loadData() {
   if (!currentId) return
@@ -241,7 +164,6 @@ async function loadData() {
       momentApi.getMomentComments(currentId, 1, 50),
     ])
     if (seq !== loadSeq) return
-    // 接口返回空：动态已删除 / 审核下架 / 不存在
     if (!m) {
       deleted.value = true
       moment.value = null
@@ -249,8 +171,6 @@ async function loadData() {
     }
     moment.value = m
     comments.value = c.list
-    // 以服务端权威值回写评论数，避免乐观插入（commentCount += 1）与刷新覆盖后不一致；
-    // 评论超 50 条时本地插入项已在刷新中丢失，此处用服务端真实总数校正展示
     if (m) moment.value.commentCount = m.commentCount ?? comments.value.length
   } catch (e: any) {
     if (seq !== loadSeq) return
@@ -266,7 +186,7 @@ function goRelated() {
   if (moment.value.relatedType === 'dish' && moment.value.relatedId) {
     openDishDetail(moment.value.relatedId)
   }
-  // 档口详情页已下线（2026-08-09）：相关档口不再展示跳转入口
+  // 档口详情页已下线：相关档口不再展示跳转入口
 }
 
 function goEdit() {
@@ -274,10 +194,9 @@ function goEdit() {
   uni.navigateTo({ url: `/pages/publish-content/index?id=${moment.value.id}` })
 }
 
-/** scroll-into-view 目标：点「评论」定位到评论卡（scroll-view 内滚动，uni.pageScrollTo 对 scroll-view 无效） */
+/** scroll-into-view 目标：点「评论」定位到评论区（id 位于 MomentCommentSection 内） */
 const commentIntoView = ref('')
 function focusComment() {
-  // 先清空再延迟设置目标值，保证重复点击每次都能触发 scroll-into-view 定位
   commentIntoView.value = ''
   const t = setTimeout(() => {
     commentIntoView.value = 'comment-section'
@@ -286,8 +205,7 @@ function focusComment() {
   pageTimers.push(t)
 }
 
-/** 动态「有用」乐观更新：与 MomentCard / CommentItem 同模式（后端计数已含当前用户），失败回滚。
- *  pendingUseful 锁防连点（P0 防重复请求 / 计数漂移）。 */
+/** 动态「有用」乐观更新（pendingUseful 锁防连点） */
 const pendingUseful = ref(false)
 function onUseful() {
   const m = moment.value
@@ -315,10 +233,9 @@ function onUseful() {
     })
 }
 
-/** 举报（动态 or 评论，共享 ReportModal，2026-08-16 扩展评论举报） */
+/* 举报（动态 or 评论） */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
-/** 评论提交中：防连点 */
 const commentSubmitting = ref(false)
 const reportTarget = ref<{ type: string; id: number } | null>(null)
 
@@ -357,20 +274,19 @@ async function submitReport(text: string) {
   }
 }
 
-/** 点击「回复 @昵称」：等价于在输入框写入 @昵称 （微信式提及回复，2026-08-16） */
+/* 点击「回复 @昵称」等价于在输入框写入 @昵称 */
 function replyTo(c: MomentComment) {
   commentText.value = '@' + c.userNickname + ' '
   commentFocus.value = true
   mentionOpen.value = false
 }
 
-/** 点击「回复 @昵称」直接以该昵称为回复目标 */
 function replyToNamed(nickname: string) {
   const target = comments.value.find(c => c.userNickname === nickname)
   if (target) replyTo(target)
 }
 
-/** 候选评论者昵称（动态作者 + 已有评论者，去重） */
+/** 候选评论者昵称（作者 + 评论者，去重） */
 const mentionList = computed(() => {
   const set = new Set<string>()
   if (moment.value?.userNickname) set.add(moment.value.userNickname)
@@ -378,14 +294,12 @@ const mentionList = computed(() => {
   return [...set]
 })
 
-/** 按已输入的 @ 查询词过滤 */
 const filteredMentions = computed(() => {
   const q = mentionQuery.value.trim().toLowerCase()
   if (!q) return mentionList.value
   return mentionList.value.filter(n => n.toLowerCase().includes(q))
 })
 
-/** 监听输入框：检测手动输入 @ 唤起选人；@ 被删则关闭弹层 */
 watch(commentText, (val, old) => {
   if (mentionOpen.value) {
     if (val[atPos.value] !== '@') {
@@ -402,7 +316,6 @@ watch(commentText, (val, old) => {
   }
 })
 
-/** 选中提及：在 @ 位置插入 @昵称 ，并定位回复目标 */
 function selectMention(name: string) {
   const before = commentText.value.slice(0, atPos.value + 1) // 含 @
   const after = commentText.value.slice(atPos.value + 1 + mentionQuery.value.length)
@@ -411,7 +324,6 @@ function selectMention(name: string) {
   commentFocus.value = true
 }
 
-/** 输入框失焦：收起提及弹层（延迟以允许点击选项先触发） */
 function onCommentBlur() {
   commentFocus.value = false
   const t = setTimeout(() => { mentionOpen.value = false }, 150)
@@ -428,7 +340,6 @@ async function submitComment() {
     return
   }
   if (commentSubmitting.value) return
-  // 以开头的 @昵称 识别回复目标（微信式），@提及本身保留在内容中
   let parentId: number | null = null
   const m = content.match(/^@(\S+)\s/)
   if (m) {
@@ -439,7 +350,6 @@ async function submitComment() {
   commentSubmitting.value = true
   try {
     await momentApi.commentMoment(moment.value.id, { content, parentId, images })
-    // 本地插入评论（避免整页 loadData 重拉，评论列表为扁平按时间升序，新评论追加末尾）
     const me = userStore.userInfo
     comments.value.push({
       id: -Date.now(),
@@ -476,7 +386,6 @@ async function onCommentLongPress(c: MomentComment) {
       if (res.confirm && moment.value) {
         try {
           await momentApi.deleteMomentComment(moment.value.id, c.id)
-          // 本地过滤删除（避免整页 loadData 重拉）
           comments.value = comments.value.filter((x) => x.id !== c.id)
           moment.value.commentCount = Math.max(0, moment.value.commentCount - 1)
           uni.showToast({ title: '已删除', icon: 'none' })
@@ -504,57 +413,23 @@ onLoad((query) => {
 
 <style scoped>
 .moment-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom)); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
-/* 动态主卡（合并卡）：发布者 + 正文 + 九宫格 + 关联对象 + 点赞评论举报 + 用户评价 全部一张卡；评论区单独一张卡 */
-.m-card { margin: var(--spacing-md); padding: var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card); }
-.m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
-.m-avatar { width: 72rpx; height: 72rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
-.m-avatar-empty { display: flex; align-items: center; justify-content: center; }
-.m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-/* 作者行：详情页字号略大于列表卡（caption 30rpx），字重与列表统一 bold，突出作者层级 */
-.m-nickname { font-size: var(--font-caption); font-weight: var(--weight-bold); color: var(--text-primary); letter-spacing: var(--tracking-h3); }
-.m-time { font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-.m-audit { padding: 4rpx 12rpx; border-radius: var(--radius-tag); }
-.m-audit-text { font-size: var(--font-tiny); font-weight: var(--weight-bold); }
-.audit-pending { background: var(--color-warning-soft); }
-.audit-pending .m-audit-text { color: var(--color-warning); }
-.audit-rejected { background: var(--color-error-soft); }
-.audit-rejected .m-audit-text { color: var(--color-error); }
-.m-content { display: block; margin-top: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; word-break: break-word; }
-.m-images { margin-top: var(--spacing-sm); }
-.related-card { display: flex; align-items: center; gap: var(--spacing-sm); margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-xs) var(--spacing-md); background: transparent; border-radius: var(--radius-none); box-shadow: none; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
-/* 互动栏顶部留白在 InteractBar 组件内实现（mp-weixin 样式隔离，:deep 不生效） */
-.related-icon { font-size: var(--font-subtitle); line-height: 1; }
-/* 圆角正方形菜品缩略图（与动态卡片 m-related-thumb 统一） */
-.related-thumb { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; }
-.related-thumb--empty { display: flex; align-items: center; justify-content: center; }
-.related-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.related-type { font-size: var(--font-aux); color: var(--text-tertiary); }
-.related-name-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
-.related-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.related-arrow { font-size: var(--font-body); color: var(--text-tertiary); }
+/* 退回原因 + 编辑重提 */
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .reject-title { display: block; font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-error); margin-bottom: var(--spacing-xs); }
 .reject-reason { display: block; font-size: var(--font-body); color: var(--color-error); line-height: 1.5; }
 .reject-edit { margin-top: var(--spacing-sm); display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary); border-radius: var(--radius-tag); }
 .reject-edit-text { font-size: var(--font-aux); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
-/* 评论卡（Apple Design Typography：大字负 tracking + 设计系统 card 规范）。
-   与菜品详情评价区、档口详情评价 tab 的 comment-section 完全同款（升级版：圆角 24px、标题 34rpx weight 800、阴影更深更柔）。
-   分区标题统一 SectionTitle（§4.9 红线） */
-.comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
-.comment-list { display: flex; flex-direction: column; }
-.comment-expand { padding: var(--spacing-sm) 0; text-align: center; }
-.comment-expand-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+
+/* 底部评论输入栏 */
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
-.comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid transparent; transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
-/* 聚焦态：仅强调主色边框，背景保持 --bg-soft 灰底不变白。
-   原实现把背景换成 --bg-card（白）——输入 @ 触发聚焦后输入框瞬间变白，且与上方 mention-pop 白卡片、
-   底部栏白底融为一体，视觉层次丢失（Apple 输入框聚焦保持背景一致） */
+.comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid var(--border-color); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-input-box.focused { border-color: var(--color-primary); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-subtitle); color: var(--text-primary); }
+.comment-ph { color: var(--text-tertiary); }
 .comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-send:active { opacity: 0.8; }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }

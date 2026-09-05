@@ -21,7 +21,7 @@
       />
 
       <!-- 搜索结果：一行一个菜品（DishResultRow），左图右信息 -->
-      <view v-else class="mixed-list">
+      <view v-else class="mixed-list" :class="{ single: items.length === 1 }">
         <DishResultRow
           v-for="item in items"
           :key="`${item.type}-${item.id}`"
@@ -31,7 +31,6 @@
         />
       </view>
 
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
   </view>
 </template>
@@ -88,7 +87,10 @@ const emit = defineEmits<{
 .results-scroll {
   flex: 1;
   min-height: 0;
+  padding-bottom: var(--spacing-lg);
 }
 /* 搜索结果列表（仅菜品，一行一个，左图右信息） */
 .mixed-list { margin: var(--spacing-md); }
+/* 2.4 单条结果视觉平衡：仅加大顶部间距使卡片位于上半舒适区，不填充内容 */
+.mixed-list.single { margin-top: calc(var(--spacing-md) + var(--spacing-lg)); }
 </style>

@@ -2,7 +2,7 @@
   <view class="page profile-page">
     <Header title="我的" :showBack="showBack" @back="backToHome" />
 
-    <scroll-view class="scroll-wrap" scroll-y>
+    <view class="profile-content">
       <!-- 用户卡：游客（未认证）显示食客短 ID；已认证显示昵称 + 绑定邮箱 -->
       <view
         class="user-card"
@@ -85,7 +85,7 @@
       <view class="app-version">
         <text class="app-version-text">知行食记 v{{ appVersion }}</text>
       </view>
-    </scroll-view>
+    </view>
 
     <!-- 认证弹层：游客点击需认证功能时弹出 -->
     <AuthSheet />
@@ -179,9 +179,10 @@ const entryItems = [
 </script>
 
 <style scoped>
-.profile-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
-/* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+/* detail-modular-review-cleanup 3.1：profile 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
+   页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
+.profile-page { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-page); }
+.profile-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
    与首页/动态卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容

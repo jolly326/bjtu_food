@@ -63,7 +63,7 @@ import { ref, computed } from 'vue'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
 
-/** 搜索结果（仅菜品）单行展示模型；与 find 页 MixedResult 结构兼容 */
+/** 搜索结果（仅菜品）单行结果卡模型 */
 interface DishResultItem {
   id?: number
   name: string
@@ -176,7 +176,7 @@ function onTap() {
 .mixed-tag {
   font-size: var(--font-tiny);
   line-height: 1.4;
-  padding: 2rpx 12rpx;
+  padding: var(--spacing-2xs) var(--spacing-xs);
   border-radius: var(--radius-tag);
   background: var(--color-primary-soft);
   color: var(--color-primary);
@@ -207,6 +207,6 @@ function onTap() {
 /* 第三行位置：左段档口·食堂可省略、右段「距你 Xm」固定不截断，两端对齐，与标徽行分隔 */
 .mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-secondary); }
 .mixed-sub-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* A4 距离段：主色强调，无定位时不显示 */
-.mixed-dist-seg { flex-shrink: 0; color: var(--color-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+/* A4 距离段：与首页卡片同语义的三级浅灰弱化，无定位时不显示（content-flow-visual-polish 2.3） */
+.mixed-dist-seg { flex-shrink: 0; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 </style>

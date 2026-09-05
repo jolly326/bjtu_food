@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Dish, DishDetail, DishQuery, DishSortBy, HotSearch } from '@/types/dish'
-import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
+import type { Review, ReviewSort } from '@/types/review'
 import type { CanteenInfo } from '@/types/canteen'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
@@ -225,10 +225,6 @@ export const useDishStore = defineStore('dish', () => {
       }
       return { list: reviewList.value, total: reviewTotal.value }
     }
-  }
-
-  async function submitReview(data: ReviewSubmit) {
-    await reviewApi.submitReview(data)
   }
 
   async function fetchNewDishes(): Promise<Dish[]> {
@@ -478,7 +474,7 @@ export const useDishStore = defineStore('dish', () => {
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed, filterInitialLoading, filterPrice,
     homeSortBy, setHomeSort, setHomePrice,
     fetchRecommend, fetchGuess,
-    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, submitReview, fetchStallDishes,
+    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
     fetchRelatedMoments,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,

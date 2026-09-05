@@ -35,7 +35,7 @@
           </view>
         </view>
       </view>
-      <EmptyState v-else-if="!loading" text="暂无活动，敬请期待" icon="broadcast" />
+      <StateView v-else-if="!loading" :empty="true" empty-text="暂无活动，敬请期待" empty-icon="broadcast" />
 
       <view class="loading-more" v-if="loading">加载中…</view>
       <view class="loading-more" v-else-if="finished && list.length > 0">没有更多了</view>
@@ -52,7 +52,7 @@ import { getActivities, type ActivityItem } from '@/api/activity'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 

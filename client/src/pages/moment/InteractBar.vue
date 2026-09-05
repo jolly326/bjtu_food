@@ -23,9 +23,8 @@
       <IconSvg name="comment" :size="28" color="var(--text-secondary)" class="interact-icon" />
       <text class="interact-count">{{ commentCount > 0 ? commentCount : '评论' }}</text>
     </view>
-    <view class="interact-btn report" hover-class="pressed" hover-stay-time="80" role="button" aria-label="举报" @tap="onReport">
-      <IconSvg name="report" :size="28" color="var(--text-secondary)" class="interact-icon" />
-      <text class="interact-count">举报</text>
+    <view class="interact-report" hover-class="pressed" hover-stay-time="80" role="button" aria-label="举报" @tap="onReport">
+      <text class="interact-report-text">举报</text>
     </view>
   </view>
 </template>
@@ -76,7 +75,15 @@ function onUseful() {
 .interact-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
 .interact-btn.active .interact-icon { color: var(--color-like); }
 .interact-btn.active .interact-count { color: var(--color-like); }
-.interact-btn.report { margin-left: auto; }
-.interact-btn.report .interact-icon { color: var(--text-tertiary); }
-.interact-btn.report .interact-count { color: var(--text-tertiary); }
+/* content-flow-visual-polish 6.3：举报弱化为最右侧三级浅灰纯文字，降低对主互动（有用/评论）的干扰 */
+.interact-report {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  padding: 0 var(--spacing-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+.interact-report-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 </style>

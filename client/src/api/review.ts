@@ -1,4 +1,4 @@
-import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
+import type { Review, ReviewSort } from '@/types/review'
 import { get, post, del } from './http'
 import { recordsOf, normalizeImages } from './shared'
 
@@ -56,18 +56,6 @@ export async function getReviewsByDish(
   options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
   return getReviews({ type: 'dish', id: dishId }, options)
-}
-
-export async function submitReview(data: ReviewSubmit): Promise<void> {
-  await post('/reviews', {
-    dishId: data.dishId,
-    rating: data.rating,
-    content: data.content,
-    images: data.images || [],
-    // 拆改后评价不再同步为动态（动态/评价已隔离：写评不再产出动态）
-    tags: data.tags || [],
-    shareToMoment: false,
-  })
 }
 
 /**

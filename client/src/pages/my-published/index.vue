@@ -29,7 +29,6 @@
         </view>
       </view>
 
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 三点菜单：仅分享（作者自己的动态不提供举报；allow-report=false） -->
@@ -140,7 +139,7 @@ onShareAppMessage(() => buildSharePayload())
 
 <style scoped>
 .my-published-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding: 0; }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: 0 0 var(--spacing-lg); }
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 
 </style>
