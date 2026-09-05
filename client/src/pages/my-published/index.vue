@@ -4,15 +4,16 @@
 
     <!-- 直接展示一列我发布的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <LoadingHint v-if="loading && moments.length === 0" />
-
-      <!-- 加载失败：与空数据语义区分，提供重试 -->
-      <EmptyState v-else-if="loadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="loadData" />
-
-      <EmptyState
-        v-else-if="moments.length === 0"
-        text="你还没有发布动态"
-        icon="comment"
+      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态复用 EmptyState，不在列表区重复放置加载态） -->
+      <StateView
+        v-if="moments.length === 0"
+        :loading="loading"
+        :failed="loadFailed"
+        :empty="true"
+        error-text="加载失败，请重试"
+        empty-text="你还没有发布动态"
+        empty-icon="comment"
+        :empty-retry="true"
         @retry="loadData"
       />
 
@@ -20,10 +21,10 @@
         <view v-for="m in moments" :key="m.id">
           <MomentCard
             :moment="m"
-            :show-audit="true"
             @select="goDetail"
             @go-related="goRelated"
             @more="openMore"
+            @edit="goEditMoment"
           />
         </view>
       </view>
@@ -31,23 +32,12 @@
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
-    <!-- 举报弹窗（共享组件） -->
-    <ReportModal
-      :open="reportOpen"
-      title="举报动态"
-      placeholder="请描述举报原因…"
-      confirm-text="提交举报"
-      :submitting="reportSubmitting"
-      @update:open="reportOpen = $event"
-      @submit="submitReport"
-    />
-
-    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
+    <!-- 三点菜单：仅分享（作者自己的动态不提供举报；allow-report=false） -->
     <MomentActionSheet
       :open="moreOpen"
       :moment="moreMoment"
+      :allow-report="false"
       @update:open="moreOpen = $event"
-      @report="openReportForMoment"
     />
 
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
@@ -61,15 +51,12 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
-import { useReport } from '@/composables/useReport'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
-import MomentCard from '@/components/MomentCard.vue'
+import MomentCard from './MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
-import ReportModal from '@/components/ReportModal.vue'
+import StateView from '@/components/StateView.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
@@ -79,7 +66,7 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
 }
 
-/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
+/* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet，作者列表仅分享） ===== */
 const moreOpen = ref(false)
 const moreMoment = ref<Moment | null>(null)
 
@@ -88,13 +75,13 @@ function openMore(m: Moment) {
   moreOpen.value = true
 }
 
-/* ===== 动态举报（ActionSheet @report → ReportModal，收敛到 useReport hook） ===== */
-const { reportOpen, reportSubmitting, openReport, submitReport } =
-  useReport({ type: 'moment', title: '举报动态', placeholder: '请描述举报原因…' })
-
-function openReportForMoment(m: Moment) {
-  openReport(m.id)
+/** 已退回动态的「编辑重提」主入口 */
+function goEditMoment(m: Moment) {
+  if (m.auditStatus === 'rejected' && m.id) {
+    uni.navigateTo({ url: `/pages/publish-content/index?id=${m.id}` })
+  }
 }
+
 const loading = ref(false)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)

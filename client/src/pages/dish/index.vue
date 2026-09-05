@@ -2,9 +2,10 @@
   <view class="page dish-page">
     <Header title="菜品详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false" ref="mainRef" tabindex="-1">
-      <LoadingHint v-if="dishStore.loading && !dish" />
+      <!-- 加载/不存在态统一由 StateView 一次承载（ui-feed-loading：空态复用 EmptyState，不在详情区重复放置加载态） -->
+      <StateView v-if="!dish" :loading="dishStore.loading" :empty="true" empty-text="菜品不存在或已下架" empty-icon="empty" />
 
-      <template v-else-if="dish">
+      <template v-else>
         <!-- 2. 菜品大图：横向撑满，高约屏宽 56%，圆角 -->
         <view class="hero-img">
           <ImageSwiper :images="heroImages" height="56vw" :indicator-dots="true" />
@@ -148,7 +149,6 @@
         <view style="height: calc(var(--spacing-lg) + 160rpx)" />
       </template>
 
-      <EmptyState v-else text="菜品不存在或已下架" icon="empty" />
     </scroll-view>
 
     <!-- 7. 底部固定操作栏：分享占满 -->
@@ -210,7 +210,7 @@ import ImageSwiper from '@/components/ImageSwiper.vue'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
+import StateView from '@/components/StateView.vue'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
@@ -229,7 +229,7 @@ const dish = computed(() => dishStore.currentDish)
 const reviewList = computed(() => dishStore.reviewList)
 const reviewTotal = computed(() => dishStore.reviewTotal)
 const currentDishId = computed(() => dishId.value)
-/** 美团式写评 Sheet 显隐（community-review-redesign：评价与动态隔离） */
+/** 美团式写评 Sheet 显隐（评价与动态隔离） */
 const showReviewSheet = ref(false)
 
 // N07 修复：删除后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层

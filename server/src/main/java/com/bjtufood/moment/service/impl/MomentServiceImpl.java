@@ -47,7 +47,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 社区动态服务实现
+ * 动态服务实现
  */
 @Service
 @RequiredArgsConstructor

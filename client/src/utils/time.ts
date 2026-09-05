@@ -1,6 +1,6 @@
 /**
  * 绝对时间格式化：一律输出「YYYY-MM-DD HH:mm」（年月日 + 时分）。
- * 产品决策：社区动态 / 评价 / 评论 / 消息一律显示绝对日期，不保留「X天前」相对时间，
+ * 产品决策：动态 / 评价 / 评论 / 消息一律显示绝对日期，不保留「X天前」相对时间，
  * 保证内容发布时间可精确回溯（用户反馈"每一条都缺少发送时间，起码显示年月日"）。
  */
 export function formatDateTime(dateStr?: string): string {
@@ -13,7 +13,7 @@ export function formatDateTime(dateStr?: string): string {
 
 /**
  * 相对时间格式化（保留：个别场景如需"刚刚/X分钟前"可继续用）。
- * 注意：社区 / 评价 / 评论已全面切换 formatDateTime，此函数仅作兼容保留。
+ * 注意：动态 / 评价 / 评论已全面切换 formatDateTime，此函数仅作兼容保留。
  */
 export function relativeTime(dateStr?: string): string {
   if (!dateStr) return ''

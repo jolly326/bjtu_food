@@ -23,94 +23,75 @@
       />
     </view>
 
-    <scroll-view
-      class="scroll-wrap"
-      scroll-y
-      refresher-enabled
-      :refresher-triggered="refresherTriggered"
-      @refresherrefresh="onRefresh"
-    >
-      <!-- ============ 发现主页（2026-08-03 重构：去掉分类宫格 → 热搜火排名卡 → 历史搜索折叠弱化） ============ -->
-      <view v-if="!inFilter" class="discover-home">
-        <LoadingHint v-if="discoverLoading" />
-
-        <!-- 发现主页加载失败：明确错误 + 重试（避免首屏空白） -->
-        <view v-else-if="discoverFailed" class="discover-empty">
-          <IconSvg name="empty" :size="96" color="var(--text-tertiary)" />
-          <text class="discover-empty-tip">加载失败</text>
-          <text class="discover-empty-sub">网络异常，下拉或点击重试</text>
-          <view class="discover-retry" @tap="loadDiscover">重新加载</view>
-        </view>
+    <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
+         发现态 = 静态区块（无页面级 scroll/下拉刷新）；结果态 = 滚动随 FindResults 内容区 -->
+    <view class="find-body">
+      <!-- ============ 发现主页（未进入结果态）：历史 + 猜你想搜，静态展示 ============ -->
+      <view v-if="!inFilter" class="discover-body">
+        <!-- 发现主页加载/失败态统一由 StateView 一次承载 -->
+        <StateView
+          v-if="discoverLoading || discoverFailed"
+          :loading="discoverLoading"
+          :failed="discoverFailed"
+          error-text="加载失败，请重试"
+          @retry="loadDiscover"
+        />
 
         <template v-else>
-        <!-- 搜索记录（2026-08-03：首位） -->
-        <CardSection v-if="historyList.length > 0">
-          <SectionTitle title="搜索记录" :bar="false">
-            <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
-          </SectionTitle>
-          <view class="history-chips">
-            <view
-              v-for="(kw, i) in historyExpanded ? historyList : historyList.slice(0, 3)"
-              :key="kw"
-              class="history-chip"
-              @tap="goKeyword(kw)"
-            >
-              <text class="history-chip-text">{{ kw }}</text>
-              <view class="history-chip-del" @tap.stop="removeHistory(i)">
-                <IconSvg name="close" :size="24" color="var(--text-tertiary)" />
+          <!-- 搜索记录（首位） -->
+          <CardSection v-if="historyList.length > 0">
+            <SectionTitle title="搜索记录" :bar="false">
+              <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
+            </SectionTitle>
+            <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
+            <view class="history-chips">
+              <view
+                v-for="(kw, i) in historyList"
+                :key="kw"
+                class="history-chip"
+                @tap="goKeyword(kw)"
+              >
+                <text class="history-chip-text">{{ kw }}</text>
+                <view class="history-chip-del" @tap.stop="removeHistory(i)">
+                  <IconSvg name="close" :size="24" color="var(--text-tertiary)" />
+                </view>
               </view>
             </view>
-          </view>
-          <view class="history-toggle" v-if="historyList.length > 3" @tap="historyExpanded = !historyExpanded">
-            <text class="history-toggle-text">{{ historyExpanded ? '收起' : `展开全部 ${historyList.length} 条` }}</text>
-          </view>
-        </CardSection>
+          </CardSection>
 
-        <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
-        <CardSection v-if="hotSearchList.length > 0">
-          <SectionTitle title="猜你想搜" :bar="false" />
-          <view class="history-chips">
-            <view
-              v-for="(kw) in hotSearchList"
-              :key="kw.keyword"
-              class="history-chip history-chip-hot"
-              @tap="goKeyword(kw.keyword)"
-            >
-              <text class="history-chip-text">{{ kw.keyword }}</text>
+          <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
+          <CardSection v-if="hotSearchList.length > 0">
+            <SectionTitle title="猜你想搜" :bar="false" />
+            <view class="history-chips">
+              <view
+                v-for="(kw) in hotSearchList"
+                :key="kw.keyword"
+                class="history-chip history-chip-hot"
+                @tap="goKeyword(kw.keyword)"
+              >
+                <text class="history-chip-text">{{ kw.keyword }}</text>
+              </view>
             </view>
-          </view>
-        </CardSection>
+          </CardSection>
 
+          <view style="height: var(--spacing-lg)" />
         </template>
       </view>
 
-      <!-- ============ 搜索混合结果页（2026-08-03：无标题直接列表；tab 在顶部固定区） ============ -->
-      <view v-else class="filter-result">
-        <LoadingHint v-if="mixedLoading" />
-
-        <!-- A7 逐行 stagger 入场（reduced-motion 兜底见 style） -->
-        <view class="mixed-list" v-else-if="filteredMixed.length > 0">
-          <DishResultRow
-            v-for="item in filteredMixed"
-            :key="`${item.type}-${item.id}`"
-            :dish="item"
-            :keyword="keyword"
-            @select="goToMixed"
-          />
-        </view>
-        <EmptyState
-          v-else-if="!mixedLoading"
-          :text="`没有找到与“${keyword}”相关的结果`"
-          :retry="true"
-          @retry="doMixedSearch"
-        />
-      </view>
-
-      <view style="height: var(--spacing-lg)" />
-    </scroll-view>
-
-    <!-- 认证弹层（未登录点赞/写评价等 requireAuth 统一在此弹出） -->
-    <AuthSheet />
+      <!-- ============ 搜索混合结果态：滚动容器在 FindResults 内容区内（仅结果态渲染） ============ -->
+      <FindResults
+        v-else
+        class="results-host"
+        :items="filteredMixed"
+        :loading="mixedLoading"
+        :failed="mixedFailed"
+        :keyword="keyword"
+        :refresher-triggered="refresherTriggered"
+        @retry="onRetrySearch"
+        @select="goToMixed"
+        @refresh="onResultsRefresh"
+      />
+    </view>
   </view>
 </template>
 
@@ -123,14 +104,12 @@ import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
 import { getUserLocation } from '@/utils/location'
 import IconSvg from '@/components/IconSvg.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
+import StateView from '@/components/StateView.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import AppHeader from '@/components/AppHeader.vue'
-import DishResultRow from './DishResultRow.vue'
+import FindResults from './FindResults.vue'
 
 const dishStore = useDishStore()
 const locationStore = useLocationStore()
@@ -156,10 +135,9 @@ const discoverLoading = ref(true)
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
-const HISTORY_MAX = 12
+/** 搜索记录上限 4 条（find-page-layout-restructure 2.6：缓存与展示一致、无展开收起） */
+const HISTORY_MAX = 4
 const historyList = ref<string[]>([])
-/** 历史搜索展开/收起（2026-08-03：默认折叠仅显示 3 条，弱化次级入口） */
-const historyExpanded = ref(false)
 
 /** 热搜词列表（来源：后端 GET /dishes/hot-search，由 loadDiscover → fetchHotSearch 拉取，无前端 mock） */
 const hotSearchList = computed(() => dishStore.hotSearchList)
@@ -201,7 +179,7 @@ function clearHistory() {
 // 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
 const inFilter = ref(false)
 
-// 食堂筛选（community-review-redesign：find 页独立状态，与首页 selectedCanteenId 隔离）
+// 食堂筛选（find 页独立状态，与首页 selectedCanteenId 隔离）
 const findCanteenId = ref<number | null>(null)
 function onFindCanteenSelect(id: number | null) {
   findCanteenId.value = id && id > 0 ? id : null
@@ -210,8 +188,6 @@ function onFindCanteenSelect(id: number | null) {
 }
 
 // ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时红底） =====
-// 排序按钮早已从筛选行移除（筛选行只保留食堂+价格两个按钮），排序弹层随之无触发入口；
-// findSortBy 仍作为检索入参来源保留（doMixedSearch → findSortParams），待后续排序入口再启用。
 const findSortBy = ref<HomeSortKey>('latest')
 /** 当前价格区间（分）；文案回显由 FilterBar 内部用 fenToYuan 换算（红线：禁止裸算 /100） */
 const findPrice = ref<{ min?: number; max?: number }>({})
@@ -263,10 +239,10 @@ interface MixedResult {
 }
 const mixedResults = ref<MixedResult[]>([])
 const mixedLoading = ref(false)
+const mixedFailed = ref(false)
 
 /** 搜索结果（仅菜品单列；距离已在 doMixedSearch 经 withLocalDistance 写回，未定位回退校区中心，恒有值） */
 const filteredMixed = computed(() => mixedResults.value)
-
 
 /** 确认/回车搜索（AppHeader search variant 的 @search） */
 function onSearchConfirm() {
@@ -297,6 +273,7 @@ async function doMixedSearch(kw?: string) {
   const seq = ++mixedSearchSeq
   inFilter.value = true
   mixedLoading.value = true
+  mixedFailed.value = false
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
     const list = await dishStore.search({
@@ -340,11 +317,24 @@ async function doMixedSearch(kw?: string) {
       .filter(r => r.name)
   } catch {
     mixedResults.value = []
+    mixedFailed.value = true
   } finally {
     // 竞态修复：仅在 seq 匹配（本次请求仍是最新）时才关闭 loading，
     // 避免旧慢请求返回时把新请求的 loading 提前关闭导致加载中文本闪烁
     if (seq === mixedSearchSeq) mixedLoading.value = false
   }
+}
+
+/** 空态「重试」：按当前关键词/食堂重新检索（结果态内，FindResults 上抛） */
+function onRetrySearch() {
+  doMixedSearch(keyword.value.trim())
+}
+
+/** 结果态下拉刷新：FindResults 内容区滚动内置 refresher，上抛到 index 重跑当前检索 */
+function onResultsRefresh() {
+  if (refresherTriggered.value) return
+  refresherTriggered.value = true
+  doMixedSearch(keyword.value.trim()).finally(() => { refresherTriggered.value = false })
 }
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
@@ -356,21 +346,13 @@ function goToMixed(id: number) {
 function exitFilter() {
   inFilter.value = false
   mixedResults.value = []
+  mixedFailed.value = false
   // 退出结果态：重置筛选条件，下次进入结果态从默认开始
   findCanteenId.value = null
   findSortBy.value = 'latest'
   findPrice.value = {}
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
-}
-
-function onRefresh() {
-  if (refresherTriggered.value) return
-  refresherTriggered.value = true
-  const task = inFilter.value
-    ? doMixedSearch(keyword.value.trim())
-    : loadDiscover()
-  Promise.resolve(task).finally(() => { refresherTriggered.value = false })
 }
 
 const discoverFailed = ref(false)
@@ -413,11 +395,15 @@ onShow(() => clearShareState())
 </script>
 
 <style scoped>
-.find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-/* 顶部留白由内容块自己提供（搜索 mixed-list / 发现页首屏占位均为 md，与首页广播条-卡间距一致）；scroll 不再额外叠加 */
-.scroll-wrap { flex: 1; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
+.find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
+/* 内容区：占满 header/筛选行之外的剩余高度；滚动职责随分支（发现态静态/结果态 FindResults） */
+.find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* 发现态：普通内容容器 + 无下拉刷新的高度兜底（搜索记录上限 4 条内容短；异常超高时可内部滚动兜底，不提供下拉刷新） */
+.discover-body { flex: 1; min-height: 0; overflow-y: auto; }
+/* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
+.results-host { flex: 1; min-height: 0; }
 
-/* 食堂筛选行（community-review-redesign：header 下方独立一行，与首页共用 FilterBar） */
+/* 食堂筛选行（header 下方独立一行，与首页共用 FilterBar） */
 .find-filter-row {
   position: relative;
   z-index: 20;
@@ -466,48 +452,7 @@ onShow(() => clearShareState())
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
-/* 历史折叠按钮（2026-08-03：展开/收起） */
-.history-toggle { display: flex; align-items: center; justify-content: center; padding: var(--spacing-sm) 0 0; }
-.history-toggle-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.history-toggle-text:active { opacity: 0.55; }
-
-/* 搜索混合结果页（2026-08-03：无排序/筛选）
-   注：结果页进场过渡（原 .filter-enter / filter-enter）与逐行入场（原 mixed-item-in）
-   已于 client-mvp-strip-entrance-anim 剥离，内容静态直接呈现。 */
-/* 搜索结果列表（仅菜品，一行一个，左图右信息）。
-   Apple Design 列表行卡：20px 大圆角 + hairline 分隔 + 按下背景高亮（Apple 偏好 highlight 而非 scale） */
-.mixed-list { margin: var(--spacing-md); }
-
-
-
-/* 发现主页加载失败空态 */
-.discover-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xl) var(--spacing-lg);
-  gap: var(--spacing-sm);
-}
-.discover-empty-tip { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-.discover-empty-sub { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
-.discover-retry {
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-primary);
-  border-radius: var(--radius-btn);
-  font-size: var(--font-body);
-  font-weight: var(--weight-medium);
-  color: var(--color-on-primary);
-  transition: opacity var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.discover-retry:active { opacity: 0.8; }
 /* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
 .history-chip-hot { background: var(--color-primary-soft); }
 .history-chip-hot .history-chip-text { color: var(--color-primary); }
-
-@media (prefers-reduced-motion: reduce) {
-  .discover-retry { transition: none; }
-}
 </style>

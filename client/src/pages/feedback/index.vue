@@ -1461,6 +1461,4 @@ onLoad(async (opts?: Record<string, string>) => {
 /* 滚动区底部留白（配合固定底栏） */
 
 
-@media (prefers-reduced-motion: reduce) {
-}
 </style>

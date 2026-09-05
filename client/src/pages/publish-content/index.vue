@@ -3,7 +3,7 @@
     <Header :title="pageTitle" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 关联对象：发动态可自由关联菜品（分享探店），不评分、不同步评价（community-review-redesign） -->
+      <!-- 关联对象：发动态可自由关联菜品（分享探店），不评分、不同步评价（动态/评价隔离） -->
       <view class="block">
         <SectionTitle title="关联对象">
           <template #extra><text class="section-sub">选填</text></template>

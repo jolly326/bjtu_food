@@ -25,38 +25,37 @@ onLaunch(() => {
    - 产品仅一种主体颜色、无深色模式切换，不再保留 .theme-dark 令牌块。 */
 page {
   /* ========== 浅色模式（值见 src/theme/tokens.ts 单一事实源） ==========
-     2026-08-16 拍板：品牌主色由珊瑚橙 → 朱砂红 #9B2A1D（呼应食堂暖色场景） */
-  /* 品牌主色（朱砂红 vermilion；全站统一朱砂红色系，浅色=#9B2A1D） */
-  --color-primary: #9B2A1D;
-  /* 主色上的文字（按钮/强调）：珊瑚橙底配白字（#9B2A1D 与白字对比 ~3:1，按钮用白字） */
+     2026-09-05 拍板：主色先定暖砖红（tab-pages-visual-unify），tab-pages-visual-refine-2 提亮为 #C45549 */
+  /* 品牌主色（提亮暖砖红 terracotta；全站统一暖砖红色系） */
+  --color-primary: #C45549;
+  /* 主色上的文字（按钮/强调）：暖砖红底配白字（#C45549 与白字对比 ~3:1，按钮用白字） */
   --color-on-primary: #FFFFFF;
   /* 主色浅底（图标软底/选中标签底），已收敛 primary-bg/primary-soft2 */
-  --color-primary-soft: #E8D0C4;
+  --color-primary-soft: #F8E8E5;
   /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
   --color-on-primary-surface: #FFFFFF;
   /* 强调色（热卖/热搜/新品统一走 accent，已收敛 color-hot） */
   --color-accent: #C45A3C;
-  --color-accent-soft: #E8D0C4;
+  --color-accent-soft: #F5E6E3;
   /* 语义色（error/success/warning/price/star/like 深浅对称） */
   --color-error: #FF3B30;
   --color-error-soft: #FFECEB;
   --color-warning: #F5A623;
   --color-warning-soft: #FFF8E1;
-  /* 价格红：珊瑚橙加深（区别于 primary 与 error） */
-  --color-price: #C45A3C;
+  /* 价格红：并入主色体系（价格用主色） */
+  --color-price: #C45549;
   --color-star: #F5A623;
   /* 空心星颜色（浅暖灰，避免评分低时大量空星显黑） */
   --color-star-empty: #E5E5EA;
-  --color-like: #B53B2C;
+  --color-like: #9E3B2E;
   --color-like-soft: #F6E3E0;
-  /* 文字（四档层级，tertiary 提对比至 ~3:1） */
+  /* 文字（三阶层级：一级 #262626 / 二级 #595959 / 三级 #999999） */
   --text-white: #FFFFFF;
-  --text-primary: #1D1A18;
-  --text-secondary: #6E6964;
-  --text-tertiary: #8F8A84;
-  --text-quaternary: #ABA59E;
+  --text-primary: #262626;
+  --text-secondary: #595959;
+  --text-tertiary: #999999;
   /* 背景 */
-  --bg-page: #F1ECE6;
+  --bg-page: #F7F3EF;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
@@ -73,10 +72,10 @@ page {
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
   --radius-none: 0;
   --radius-xs: 16rpx;
-  --radius-tag: 32rpx;
+  --radius-tag: 16rpx;
   --radius-card: 32rpx;
   --radius-modal: 48rpx;
-  --radius-btn: 32rpx;
+  --radius-btn: 16rpx;
   --radius-icon: 24rpx;
   /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签）；原 16px 名实不符，已修正为全圆角 */
   --radius-pill: 999rpx;
@@ -109,8 +108,8 @@ page {
   --icon-2xl: 64rpx;
   --icon-3xl: 80rpx;
   --icon-4xl: 120rpx;
-  /* 阴影（材质 / 深度；卡片阴影 2026-08-12 拍板：0 2px 8px rgba(0,0,0,0.04)） */
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+  /* 阴影（材质 / 深度；卡片阴影为中性淡投影 rgba(0,0,0,0.04)，不随主色；顶栏品牌阴影见 --shadow-bar-primary） */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   /* 半透材质（小程序真机 backdrop-filter 降级） */
@@ -123,7 +122,7 @@ page {
   /* 卡片/底栏阴影（替代裸 shadow rgba） */
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(155, 42, 29, 0.28);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(196, 85, 73, 0.28);
   /* 浮起/按下阴影（global-ui-polish：替代裸 rgba 阴影） */
   --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
   /* 长条删除按钮（图片移除）暗底白字 */
@@ -162,7 +161,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
    加载态遮罩底色（.is-loading 遮罩复用）、禁用态弱化文字色（复用四档文字末档）。
    仅由 page 声明（H5 兜底与深色分支已移除）。 */
-page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-quaternary); }
+page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-tertiary); }
 
 /* ========== 页面基础壳 ========== */
 .page {

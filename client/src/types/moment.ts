@@ -1,4 +1,4 @@
-/** 社区动态（task-06，对齐 MomentVO：camelCase 对外字段） */
+/** 动态（task-06，对齐 MomentVO：camelCase 对外字段） */
 export type RelatedType = 'none' | 'dish' | 'stall'
 
 /** 审核状态（与全局一致：pending/approved/rejected） */

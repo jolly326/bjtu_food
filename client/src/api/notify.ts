@@ -87,7 +87,7 @@ export async function readNotification(id: number): Promise<void> {
 
 export interface BroadcastItem {
   text: string
-  type: 'dish' | 'community' | 'url' | 'canteen' | 'stall'
+  type: 'dish' | 'dynamic' | 'url' | 'canteen' | 'stall'
   targetId?: number
   targetUrl?: string
 }

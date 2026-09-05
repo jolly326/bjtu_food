@@ -15,7 +15,7 @@
           <view class="avatar-wrap">
             <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
             <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
+              <IconSvg name="user" :size="60" color="var(--text-tertiary)" />
             </view>
           </view>
           <view class="user-meta">
@@ -27,9 +27,15 @@
             </text>
             <text v-else-if="!isVerified" class="user-id">游客 {{ guestShortId }}</text>
           </view>
-          <view v-if="!isVerified" class="verify-badge">
-            <IconSvg name="lock" :size="24" color="var(--color-primary)" />
-            <text class="verify-badge-text">未认证</text>
+          <!-- 未认证：主色文字按钮「去认证」——把状态提示转为行动引导（点击弹 AuthSheet） -->
+          <view
+            v-if="!isVerified"
+            class="verify-action"
+            role="button"
+            aria-label="去认证"
+            @tap.stop="onVerifyTap"
+          >
+            <text class="verify-action-text">去认证</text>
           </view>
           <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
         </view>
@@ -46,7 +52,7 @@
           @tap="f.action"
         >
           <view class="feature-card-icon">
-            <IconSvg :name="f.icon" :size="44" color="var(--color-primary)" />
+            <IconSvg :name="f.icon" :size="40" color="var(--color-primary)" />
             <text v-if="f.key === 'activity'" class="feature-card-tag">新</text>
           </view>
           <text class="feature-card-label">{{ f.label }}</text>
@@ -65,8 +71,8 @@
         >
           <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
           <text class="entry-label">{{ e.label }}</text>
-          <!-- 需认证入口的未认证提示（不置灰，仅弱化标识） -->
-          <text v-if="e.authLocked && !isVerified" class="entry-lock">认证</text>
+          <!-- 认证提示已移除（tab-pages-visual-unify）：需认证入口不置灰、行内不显示「认证」弱标识，
+               未认证用户点击时由 requireAuth → AuthSheet 弹出引导，页面只保留用户卡上的「去认证」入口 -->
           <!-- 系统通知未读红点角标 -->
           <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
             <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
@@ -84,7 +90,7 @@
     <!-- 认证弹层：游客点击需认证功能时弹出 -->
     <AuthSheet />
 
-    <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
     <TabBar />
   </view>
 </template>
@@ -140,6 +146,11 @@ function requireAuth(action: () => void) {
   authSheetStore.requireAuth(action)
 }
 
+/** 「去认证」：与用户卡点击同源，复用底部认证弹层（不单独写认证页） */
+function onVerifyTap() {
+  authSheetStore.show()
+}
+
 /** 用户卡：已认证点击进个人信息页；游客点击唤起底部认证弹窗（统一认证入口，不单独写页） */
 function onUserCardTap() {
   if (!userStore.isVerified()) {
@@ -149,17 +160,19 @@ function onUserCardTap() {
   uni.navigateTo({ url: '/pages/profile-edit/index' })
 }
 
-/** 功能凸显区块：意见反馈 / 最新活动（community-review-redesign 抽离至顶部高亮，区别于常规入口） */
+/** 功能凸显区块：意见反馈 / 最新活动（抽离至顶部高亮，区别于常规入口） */
 const featuredItems = [
   { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
   { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
 ]
 
 /** 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部凸显区块） */
+// 注：原 authLocked 字段已移除——菜单行内不再渲染「认证」弱标识，
+// 需认证行为由 action 内的 requireAuth() 直接表达（未认证点击即弹 AuthSheet）。
 const entryItems = [
-  { key: 'notify', icon: 'bell', label: '系统通知', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/notifications/index' })) },
-  { key: 'moments', icon: 'comment', label: '我发布的', authLocked: true, action: () => requireAuth(() => uni.navigateTo({ url: '/pages/my-published/index' })) },
-  { key: 'about', icon: 'contact', label: '关于我们', authLocked: false, action: () => uni.navigateTo({ url: '/pages/about/index' }) },
+  { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: '/pages/notifications/index' }) },
+  { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/my-published/index' })) },
+  { key: 'about', icon: 'contact', label: '关于我们', action: () => uni.navigateTo({ url: '/pages/about/index' }) },
 ]
 
 
@@ -170,41 +183,51 @@ const entryItems = [
 /* 顶部留白由 user-card 的 margin-top 提供（md，与首页广播条-卡间距一致） */
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
-/* 用户卡：默认透明（落在页面底色上）；已认证=白底一级身份卡，游客=透明弱化 */
+/* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
+   与首页/动态卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
+   （昵称/绑定邮箱、游客态的「去认证」引导）表达，不再用「透明 vs 白底」区分。 */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
   margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
   padding: var(--spacing-lg);
-  background: transparent;
+  background: var(--bg-card);
   border-radius: var(--radius-card);
   border-top: 6rpx solid transparent;
+  box-shadow: var(--shadow-card);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-/* 已认证：一级身份卡（白底 + 主色软条纹 + 强阴影，从页面抬起） */
+/* 已认证：顶部主色软条纹 */
 .user-card--verified {
-  background: var(--bg-card);
   border-top-color: var(--color-primary-soft);
-  box-shadow: var(--shadow-card);
 }
-/* 游客：白底抽离落到背景（透明、无条纹、无阴影，弱化） */
+/* 游客：无条纹（表面与认证态一致，引导由「去认证」按钮承担） */
 .user-card--guest {
-  background: transparent;
   border-top-color: transparent;
-  box-shadow: none;
 }
 .user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; width: 112rpx; height: 112rpx; }
-.avatar { width: 112rpx; height: 112rpx; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-soft); }
+.avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }
+/* 头像：正圆 + 浅底色（头像统一 50%；tab-pages-visual-polish-3 放大） */
+.avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .nickname { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 未认证角标：锁图标 + 「未认证」小字 */
-.verify-badge { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: var(--radius-pill); background: var(--color-primary-soft); }
-.verify-badge-text { font-size: var(--font-tiny); color: var(--color-primary); font-weight: var(--weight-semibold); }
+/* 「去认证」行动按钮：主色文字 + 细边框轻量胶囊（tab-pages-visual-polish-3：边框 1rpx、字重 500） */
+.verify-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  border: 1rpx solid var(--color-primary);
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.verify-action:active { opacity: 0.7; }
+.verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
 /* 功能方块卡（网格 2 列，区别于下方常规列表，视觉分层） */
@@ -221,7 +244,8 @@ const entryItems = [
   gap: var(--spacing-sm);
   flex: 1;
   min-width: 0;
-  padding: var(--spacing-lg) var(--spacing-md);
+  /* tab-pages-visual-polish-3：垂直内边距收窄压缩高度 */
+  padding: var(--spacing-md) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   /* 二级功能卡：微抬阴影，弱于一级身份卡 */
@@ -232,8 +256,8 @@ const entryItems = [
 .feature-card.pressed { background-color: var(--bg-soft); }
 .feature-card-icon {
   position: relative;
-  width: 96rpx;
-  height: 96rpx;
+  width: 80rpx;
+  height: 80rpx;
   border-radius: var(--radius-pill);
   background: var(--color-primary-soft);
   display: flex;
@@ -242,20 +266,21 @@ const entryItems = [
 }
 .feature-card-tag {
   position: absolute;
-  top: -10rpx;
-  right: -10rpx;
+  top: -8rpx;
+  right: -8rpx;
   font-size: var(--font-tiny);
   color: var(--bg-card);
   background: var(--color-error);
   border-radius: var(--radius-pill);
-  padding: 2rpx 10rpx;
+  padding: 2rpx 8rpx;
   font-weight: var(--weight-semibold);
   line-height: 1.4;
 }
-.feature-card-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+/* 功能卡标题：一级标题档（32rpx / 600），与菜名/昵称同档 */
+.feature-card-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
 
-/* 版本号 footer */
-.app-version { display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg) 0 calc(var(--spacing-xl) + env(safe-area-inset-bottom)); }
+/* 版本号 footer：右下角 + 最小字号三级灰（tab-pages-visual-polish-3：再降一档） */
+.app-version { display: flex; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .app-version-text { font-size: var(--font-tiny); color: var(--text-tertiary); }
 
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
@@ -271,7 +296,8 @@ const entryItems = [
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  height: 104rpx;
+  /* tab-pages-visual-unify：菜单行高收紧（104→96rpx） */
+  height: 96rpx;
   padding: 0 var(--spacing-lg);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -279,9 +305,9 @@ const entryItems = [
 .entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
 .entry-row.pressed { background-color: var(--bg-soft); }
 .entry-icon { flex-shrink: 0; }
-.entry-label { flex: 1; min-width: 0; font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 需认证入口的未认证弱标识（不置灰） */
-.entry-lock { flex-shrink: 0; font-size: var(--font-tiny); color: var(--text-tertiary); font-weight: var(--weight-semibold); }
+/* 菜单主标题：一级标题档（32rpx / 600），与菜名/昵称/功能卡标题同档 */
+.entry-label { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .entry-arrow { flex-shrink: 0; }
 
 /* 系统通知未读红点角标 */

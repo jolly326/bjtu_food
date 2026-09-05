@@ -76,6 +76,13 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   canteen: { path: ['M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15', 'M8 21v-5h8v5', 'M9 9h2', 'M13 9h2'] },
   // 更多（三点竖排，语义：评价/动态右上角更多操作）
   'more-v': { circle: [{ cx: 12, cy: 5, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 12, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 19, r: 1.4, fill: 'currentColor' }] },
+  // ── tab-pages-visual-unify：底部导航选中态填充变体（与同名线性键配对，TabBar 按 active 切换） ──
+  // 首页（房屋实心；下方门洞因路径内凹而自然留白）
+  'home-filled': { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'], fill: true },
+  // 动态（对话气泡实心，含左下角气泡尾）
+  'comment-filled': { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'], fill: true },
+  // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
+  'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）

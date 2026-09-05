@@ -1,6 +1,6 @@
 <template>
   <view class="page home-page">
-    <!-- 首页头部容器：朱砂红底，仅承载搜索框（与微信导航栏同高） -->
+    <!-- 首页头部容器：暖砖红底，仅承载搜索框（与微信导航栏同高） -->
     <view class="home-top">
       <Header
         variant="home"
@@ -34,11 +34,10 @@
       @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
-      <LoadingHint v-if="loadingHot" />
-
-      <view v-if="!loadingHot" class="home-content">
-        <!-- 瀑布流：按所选食堂过滤；未选 = 全部 -->
-        <HomeFeed :load-failed="loadFailed" @retry="retryWaterfall" />
+      <view class="home-content">
+        <!-- 瀑布流：按所选食堂过滤；未选 = 全部。
+             首屏冷启动加载态由 HomeContent 内 StateView 统一承载（不在本页重复放置加载态，避免多层嵌套） -->
+        <HomeContent :initial-loading="loadingHot" :load-failed="loadFailed" @retry="retryWaterfall" />
       </view>
 
       <view style="height: var(--spacing-lg)" />
@@ -55,7 +54,7 @@
       <IconSvg name="up" :size="44" color="var(--color-primary)" />
     </view>
 
-    <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
     <TabBar />
   </view>
 </template>
@@ -71,8 +70,7 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import FilterBar from '@/components/FilterBar.vue'
-import HomeFeed from './HomeFeed.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
+import HomeContent from './HomeContent.vue'
 import TabBar from '@/components/TabBar.vue'
 import type { FilterTab } from '@/types/filter-tab'
 
@@ -229,7 +227,9 @@ onShareAppMessage(() => {
   position: relative;
   z-index: 20;
 }
-/* 白底横置筛选条（与 find 页一致）：定位在红头之下、瀑布流之上，承载筛选/排序胶囊 */
+/* 筛选条：定位在红头之下、瀑布流之上，承载筛选/排序胶囊 + 最右筛选图标。
+   tab-pages-visual-unify：筛选栏落在页面底色（--bg-page 浅米灰）区，
+   与上方白色悬浮搜索卡形成明度分层，二者层级可辨。 */
 .filter-bar {
   position: relative;
   z-index: 20;

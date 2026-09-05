@@ -3,9 +3,18 @@
     <Header title="系统通知" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
-      <LoadingHint v-if="loading && list.length === 0" />
+      <!-- 加载/失败/空态统一由 StateView 一次承载 -->
+      <StateView
+        v-if="list.length === 0"
+        :loading="loading"
+        :failed="loadFailed"
+        :empty="true"
+        error-text="加载失败，请重试"
+        empty-text="暂无通知"
+        @retry="load"
+      />
 
-      <view v-else-if="list.length > 0" class="list">
+      <view v-else class="list">
         <view
           v-for="n in list"
           :key="n.id"
@@ -25,24 +34,16 @@
         </view>
       </view>
 
-      <!-- 加载失败：与空数据语义区分，提供重试 -->
-      <EmptyState v-else-if="loadFailed" text="加载失败，请重试" icon="report" :retry="true" @retry="load" />
-      <EmptyState v-else text="暂无通知" />
       <view style="height: var(--spacing-lg)" />
     </scroll-view>
-
-    <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
-    <AuthSheet />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
+import StateView from '@/components/StateView.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getNotifications, readNotification, type Notification, type NotificationType } from '@/api/notify'
@@ -55,11 +56,10 @@ const list = ref<Notification[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
 const refresherTriggered = ref(false)
-// 分页与防重复加载：#4 触底加载下一页；#8 onShow 与 watch 双触发去重（认证瞬间不重复请求）
+// 分页与防重复加载（onShow / 下拉刷新）
 let page = 1
 const pageSize = 20
 const finished = ref(false)
-let hasLoaded = false
 
 const TYPE_LABEL: Record<NotificationType, string> = {
   moment_audit: '动态审核',
@@ -80,7 +80,6 @@ function formatTime(iso?: string) {
 }
 
 async function load() {
-  if (!userStore.isVerified()) return
   loading.value = true
   loadFailed.value = false
   try {
@@ -92,13 +91,20 @@ async function load() {
     // 刷新后重拉未读数，保持红点同步
     notifyStore.fetchUnread()
   } catch {
-    loadFailed.value = true
+    // client-auth-boundary：查看系统通知免认证——游客无个人数据（接口未授权或列表为空）统一空态而非错误态；
+    // 已认证用户请求失败仍显示失败态供重试。
+    if (userStore.isVerified()) {
+      loadFailed.value = true
+    } else {
+      list.value = []
+      finished.value = true
+    }
   } finally {
     loading.value = false
   }
 }
 
-/** #4 修复：触底加载下一页 */
+/** #4 触底加载下一页（游客无个人数据，列表为空时不会触发） */
 async function loadMore() {
   if (finished.value || loading.value || !userStore.isVerified()) return
   loading.value = true
@@ -140,19 +146,8 @@ async function onTap(n: Notification) {
   // comment / useful 无独立目标页，仅标已读
 }
 
-// 通知属认证专属：游客访问由 profile 入口 requireAuth 弹认证；认证成功后（isVerified 由 false→true）
-// 必须显式触发 load，否则游客态 userInfo 引用不变、浅比较 watch 不会触发，导致列表永久空白。
-watch(
-  () => userStore.isVerified(),
-  (ok) => { if (ok) load() },
-)
+// 进入/返回本页即加载（游客亦可进入；无个人数据时展示空态）
 onShow(() => {
-  // 返回本页时刷新（从详情返回/首次进入）。认证成功瞬间与 watch 可能重叠触发一次，
-  // 属低危轻微重复请求，可接受；hasLoaded 标志防止「首次进入 + watch 认证」双触发重复首载。
-  if (!userStore.isVerified()) return
-  if (!hasLoaded) {
-    hasLoaded = true
-  }
   load()
 })
 </script>
@@ -160,8 +155,6 @@ onShow(() => {
 <style scoped>
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md); box-sizing: border-box; }
-
-
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .msg-item {

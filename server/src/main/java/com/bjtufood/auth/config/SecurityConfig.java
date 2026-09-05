@@ -81,7 +81,7 @@ public class SecurityConfig {
             "/reviews", "/api/reviews",
             "/lists/share/**", "/api/lists/share/**",
             "/images/**", "/api/images/**",
-            // 二期新增：社区动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）
+            // 二期新增：动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）
             "/moments/**", "/api/moments/**",
             "/broadcasts", "/api/broadcasts",
             "/categories", "/api/categories",

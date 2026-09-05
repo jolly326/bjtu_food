@@ -139,7 +139,7 @@ export const useUserStore = defineStore('user', () => {
     return !!token.value && !!userInfo.value
   }
 
-  /** 是否已邮箱认证（§5.y）：true 解锁社区写操作；false = 游客态 */
+  /** 是否已邮箱认证（§5.y）：true 解锁动态写操作；false = 游客态 */
   function isVerified(): boolean {
     return userInfo.value?.verified === true
   }

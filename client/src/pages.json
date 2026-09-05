@@ -22,7 +22,7 @@
 			}
 		},
 		{
-			"path": "pages/community/index",
+			"path": "pages/dynamic/index",
 			"style": {
 				"navigationBarTitleText": "动态",
 				"navigationStyle": "custom"

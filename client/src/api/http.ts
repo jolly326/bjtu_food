@@ -49,7 +49,7 @@ async function handleUnauthorized(): Promise<void> {
 
 /**
  * 统一无权限/未认证处理（§5.y / §5.x 403）：
- * 社区写操作需 verified=true，游客触发时后端返回 403 →
+ * 动态写操作需 verified=true，游客触发时后端返回 403 →
  * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
  */
 async function handleForbidden(): Promise<void> {
@@ -181,7 +181,7 @@ async function request<T>(
   }
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    // 游客触发需 verified 的动态写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
     void handleForbidden()
     throw new Error(body.message || '请先完成学号邮箱认证')
   }

@@ -12,14 +12,10 @@
           <text class="m-time">{{ formatDateTime(moment.createdAt) }}</text>
         </view>
       </view>
-      <!-- 审核态徽标（仅作者本人可见，我的动态页） -->
-      <view v-if="showAudit && moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
-        <text class="m-audit-text">{{ auditLabel }}</text>
-      </view>
       <!-- 右上角三点菜单：分享 / 举报 收进页面级 ActionSheet（去胶囊化，图标按钮；
            仅触发 emit，弹层由父页面在 scroll-view 外渲染，避免 fixed 遮罩层级被压扁） -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
-        <IconSvg name="more-v" :size="36" color="var(--text-tertiary)" />
+        <IconSvg name="more-v" :size="32" color="var(--text-tertiary)" />
       </view>
     </view>
 
@@ -46,11 +42,6 @@
       </view>
     </view>
 
-    <!-- 退回原因（作者本人可见） -->
-    <view v-if="moment.auditStatus === 'rejected' && moment.rejectReason" class="m-reject">
-      <text class="m-reject-text">已退回：{{ moment.rejectReason }}</text>
-    </view>
-
     <!-- 关联对象 chip + 互动栏（同一行，互动靠右） -->
     <view class="m-foot">
       <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
@@ -62,11 +53,11 @@
       </view>
       <view class="m-actions">
         <view class="m-action" :class="{ active: usefulActive }" @tap.stop="onUseful">
-          <IconSvg name="thumb" :size="30" class="m-action-icon" :color="usefulActive ? 'var(--color-like)' : 'var(--text-secondary)'" />
+          <IconSvg name="thumb" :size="36" class="m-action-icon" :color="usefulActive ? 'var(--color-primary)' : 'var(--text-secondary)'" />
           <text class="m-action-count">{{ moment.usefulCount > 0 ? moment.usefulCount : 0 }}</text>
         </view>
         <view class="m-action" @tap.stop="goDetail">
-          <IconSvg name="comment" :size="30" color="var(--text-secondary)" class="m-action-icon" />
+          <IconSvg name="comment" :size="36" color="var(--text-secondary)" class="m-action-icon" />
           <text class="m-action-count">{{ moment.commentCount > 0 ? moment.commentCount : 0 }}</text>
         </view>
       </view>
@@ -76,20 +67,16 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
-import IconSvg from './IconSvg.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import { formatDateTime } from '@/utils/time'
 import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   moment: Moment
-  /** 是否展示审核态徽标（我的动态页） */
-  showAudit?: boolean
-}>(), {
-  showAudit: false,
-})
+}>()
 
 // 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
 // 父组件的 @tap 会被编译为原生 bindtap，emit 参数丢失，点击跳转 id 变 undefined。
@@ -103,12 +90,12 @@ const emit = defineEmits<{
 
 const userStore = useUserStore()
 
-/** 卡片无障碍语义标签（global-ui-polish / ui-press-system） */
+/** 卡片无障碍语义标签 */
 const ariaLabel = computed(() => `${(props.moment.userNickname || '匿名用户')}的动态`)
-/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡（B.5） */
+/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡 */
 const loadedSet = reactive(new Set<number>())
 
-// 正文展开态（点1：超长折叠，粗判长度显示展开入口）
+// 正文展开态（超长折叠，粗判长度显示展开入口）
 const expanded = ref(false)
 const needClamp = computed(() => (props.moment.content?.length || 0) > 80)
 
@@ -116,13 +103,6 @@ const relatedLabel = computed(() => {
   const prefix = props.moment.relatedType === 'dish' ? '菜品' : props.moment.relatedType === 'stall' ? '档口' : ''
   return `${prefix}·${props.moment.relatedName || ''}`
 })
-
-const auditLabel = computed(() => {
-  if (props.moment.auditStatus === 'pending') return '审核中'
-  if (props.moment.auditStatus === 'rejected') return '已退回'
-  return ''
-})
-const auditClass = computed(() => `audit-${props.moment.auditStatus}`)
 
 // 有用 toggle 本地状态（乐观 UI）：初始与回显均取 moment.useful（api 层已归一当前用户点赞态）
 const usefulActive = ref(!!props.moment.useful)
@@ -171,29 +151,28 @@ async function onUseful() {
 
 <style scoped>
 .moment-card {
-  background: var(--bg-page);
+  background: var(--bg-card);
   border-radius: var(--radius-card);
-  /* 边界：与页面同色 + 发丝边区分。
+  /* 表面：白卡 + 品牌淡色柔和投影（tab-pages-visual-unify）——
+     页面层级由「浅米灰底 — 白卡 — 内容 — 强调」四层结构承担。
      ⚠️ overflow:hidden 不可移除：微信 WXSS 渲染「border-radius + background」时，
      圆角外侧会残留一圈背景色方角（四角皆有，左侧因贴齐列表边缘最明显，
-     表现为「屏幕左侧色块」）。必须由本属性裁掉，否则该渲染残留会暴露。
-     同理不投影：卡片与页面同色＝没有被抬起的面，box-shadow 只会渲染成
-     一圈无源头的暗色晕影，多卡堆叠后连成竖条色块。 */
-  border: 1rpx solid var(--border-card);
-  padding: var(--spacing-md);
+     表现为「屏幕左侧色块」）。必须由本属性裁掉，否则该渲染残留会暴露。 */
+  box-shadow: var(--shadow-card);
+  padding: var(--spacing-lg);
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
 .m-head { display: flex; align-items: center; gap: var(--spacing-sm); }
-/* 圆角正方形头像：用明确 rpx（16rpx），不用 var(--radius-card)=16px（在 64rpx 头像上接近圆形） */
-.m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
+/* 默认头像：正圆 + 浅底色（头像/圆形图标底统一 50%） */
+.m-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-circle); background: var(--bg-soft); flex-shrink: 0; overflow: hidden; }
 .m-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .m-avatar-fallback { font-size: var(--font-subtitle); line-height: 1; }
 .m-head-right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-/* Apple Design Typography：昵称 body-bold（与动态详情页昵称一致） */
+/* 昵称：一级标题档（32rpx / 600），与菜名 / 菜单主标题同档 */
 .m-nickname {
-  font-size: var(--font-body);
-  font-weight: var(--weight-bold);
+  font-size: var(--font-subtitle);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-h3);
   overflow: hidden;
@@ -201,17 +180,11 @@ async function onUseful() {
   white-space: nowrap;
   min-width: 0;
 }
-/* 第二行：星星（左）+ 发布时间（小间隙同行，不推右；无星星时仅时间自然排列） */
+/* 第二行：发布时间（辅助信息档 24rpx / 400 / 三级文字） */
 .m-meta { display: flex; align-items: center; gap: var(--spacing-sm); }
-.m-time { flex-shrink: 0; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-/* 圆角 + 底色（由 .audit-pending/.audit-rejected 提供）：overflow:hidden 裁掉圆角外侧背景方角残留 */
-.m-audit { padding: var(--spacing-2xs) var(--spacing-sm); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; }
-.m-audit-text { font-size: var(--font-aux); font-weight: var(--weight-bold); }
-.audit-pending { background: var(--color-warning-soft); }
-.audit-pending .m-audit-text { color: var(--color-warning); }
-.audit-rejected { background: var(--color-error-soft); }
-.audit-rejected .m-audit-text { color: var(--color-error); }
-.m-content { display: block; margin-top: var(--spacing-sm); font-size: var(--font-body); color: var(--text-secondary); line-height: 1.5; word-break: break-word; }
+.m-time { flex-shrink: 0; font-size: var(--font-small); font-weight: var(--weight-regular); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+/* 正文：正文档（28rpx / 400），行高约 1.5 提升可读性 */
+.m-content { display: block; margin-top: var(--spacing-sm); font-size: var(--font-body); font-weight: var(--weight-regular); color: var(--text-secondary); line-height: 1.5; word-break: break-word; }
 .m-content.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .m-expand { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); align-self: flex-start; }
 .m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
@@ -229,23 +202,20 @@ async function onUseful() {
 .m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
 .m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
 .m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
-.m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); overflow: hidden; }
-.m-reject-text { font-size: var(--font-aux); color: var(--color-error); line-height: 1.5; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
 .m-actions { display: flex; align-items: center; gap: var(--spacing-xs); margin-left: auto; flex-shrink: 0; }
-/* 互动按钮：icon + 数字纯文字链，去胶囊背景（原 bg-soft 胶囊与关联 chip 叠加视觉过重）。
+/* 互动按钮：icon + 数字纯文字链，去胶囊背景。
    统一 64rpx 触控高度 + 轻内边距，hover/active 透明度反馈，激活态着 --color-like。
    与 ReviewItem 评价操作区（纯文字链）风格一致，符合 Apple Design 克制层级 */
 .m-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); box-sizing: border-box; transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .m-action:active { opacity: 0.55; }
-/* button 重置（微信原生分享按钮）：与其他互动按钮完全同高同间距，仅清除原生样式 */
-.m-action.m-action-share { margin: 0; padding: 0 var(--spacing-sm); line-height: 1; font-size: var(--font-small); font-weight: var(--weight-semibold); }
-.m-action.m-action-share::after { border: none; }
-.m-action-icon { font-size: var(--font-body); line-height: 1; color: var(--text-secondary); }
-.m-action.active .m-action-icon { color: var(--color-like); }
-.m-action-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.m-action.active .m-action-count { color: var(--color-like); }
+.m-action-icon { font-size: var(--font-caption); line-height: 1; color: var(--text-secondary); }
+/* 点赞后：图标与数字同步变主色，反馈更明确 */
+.m-action.active .m-action-icon { color: var(--color-primary); }
+/* 互动数：强调信息档（32rpx / 600） */
+.m-action-count { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.m-action.active .m-action-count { color: var(--color-primary); }
 /* 右上角三点菜单按钮：图标按钮（无胶囊背景），与互动区同高；
    仅触发 emit，弹层由页面级 MomentActionSheet 渲染（scroll-view 外 fixed 层级才正确） */
 .m-more { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex-shrink: 0; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }

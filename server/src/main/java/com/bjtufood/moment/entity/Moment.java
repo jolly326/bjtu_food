@@ -7,13 +7,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 社区动态实体类
+ * 动态实体类
  * <p>
  * 对应数据库表：moment
  */
 @Data
 @TableName("moment")
-@Schema(description = "社区动态")
+@Schema(description = "动态")
 public class Moment {
 
     @TableId(type = IdType.AUTO)

@@ -35,13 +35,15 @@
       </view>
     </view>
 
-    <!-- 筛选 icon：恒在最右（左组 flex:1 吃掉剩余空间）；按产品要求不挂跳转、不参与表单展开 -->
+    <!-- 筛选控件：与食堂/价格同款白底圆角胶囊（「筛选」文字 + 线性图标）；恒在最右。
+         仍不挂跳转、不参与面板展开（tab-pages-visual-refine-2） -->
     <view
-      class="fb-icon-btn"
+      class="fb-chip fb-chip--more"
       role="button"
       aria-label="详细筛选"
     >
-      <IconSvg name="filter" :size="'20px'" color="var(--text-secondary)" />
+      <IconSvg class="fb-chip-icon" name="filter" :size="'18px'" color="var(--text-secondary)" />
+      <text class="fb-chip-text">筛选</text>
     </view>
 
     <!-- ===== 食堂下拉：红色背景面板，与 header 同一红色块；点击面板外遮罩关闭 ===== -->
@@ -380,18 +382,14 @@ function onReset() {
   white-space: nowrap;
   min-width: 0;
 }
-/* 右侧筛选 icon 按钮：透明底，圆形热区 */
-.fb-icon-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: var(--radius-circle);
+/* 最右「筛选」胶囊：复用 .fb-chip 白底圆角表面，但固定宽度不参与收缩/展开 */
+.fb-chip--more {
+  flex: 0 0 auto;
+  min-width: auto;
   -webkit-tap-highlight-color: transparent;
 }
-.fb-icon-btn:active { background: var(--bg-soft); }
+.fb-chip--more:active { opacity: 0.7; }
+.fb-chip--more .fb-chip-text { color: var(--text-secondary); }
 
 /* ===== 食堂下拉 ===== */
 /* 遮罩：自 header 底部向下铺满，承接面板外点击关闭；下方内容轻微压暗 */

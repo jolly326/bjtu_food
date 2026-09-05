@@ -12,7 +12,7 @@
 
       <view class="card">
         <text class="card-title">关于产品</text>
-        <text class="card-text">「知行食记」是北京交通大学专属的美食发现社区，致力于帮助同学快速找到食堂里值得一试的好菜，分享真实评价，让每一餐都更有选择。</text>
+        <text class="card-text">「知行食记」是北京交通大学专属的美食发现分享圈，致力于帮助同学快速找到食堂里值得一试的好菜，分享真实评价，让每一餐都更有选择。</text>
       </view>
 
       <view class="card">
@@ -35,7 +35,7 @@
         </view>
       </view>
 
-      <view class="footer-note">北京交通大学 · 校园美食社区</view>
+      <view class="footer-note">北京交通大学 · 校园美食分享圈</view>
       <view style="height: calc(var(--spacing-lg) + env(safe-area-inset-bottom))" />
     </scroll-view>
   </view>

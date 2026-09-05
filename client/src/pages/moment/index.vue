@@ -2,20 +2,15 @@
   <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <LoadingHint v-if="loading && !moment" />
-
-      <!-- 动态已删除/审核下架：接口返回空，显示兜底提示而非空白 -->
-      <EmptyState
-        v-else-if="!moment && deleted"
-        text="该动态不存在或已删除"
-        :retry="true"
-        @retry="loadData"
-      />
-
-      <EmptyState
-        v-else-if="!moment"
-        text="动态加载失败，请稍后重试"
-        :retry="true"
+      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态/错误态复用 EmptyState，不在详情区重复放置加载态） -->
+      <StateView
+        v-if="!moment"
+        :loading="loading"
+        :failed="!deleted"
+        :empty="deleted"
+        error-text="动态加载失败，请稍后重试"
+        empty-text="该动态不存在或已删除"
+        :empty-retry="true"
         @retry="loadData"
       />
 
@@ -173,8 +168,7 @@ import type { Moment, MomentComment } from '@/types/moment'
 import { buildSharePayload } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
+import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import MomentImageGrid from './MomentImageGrid.vue'

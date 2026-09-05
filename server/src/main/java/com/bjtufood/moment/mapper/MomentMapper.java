@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * 社区动态 Mapper 接口
+ * 动态 Mapper 接口
  */
 public interface MomentMapper extends BaseMapper<Moment> {
 

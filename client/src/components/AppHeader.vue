@@ -175,8 +175,10 @@ function onSearchConfirm() {
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
-  font-size: var(--font-h2);
-  font-weight: var(--weight-bold);
+  /* 导航标题档（36rpx / 600）——client-visual-language R3 五档映射，与菜品名/昵称的
+     一级标题档（32rpx / 600）区分，避免同一语义出现多套字号 */
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
   color: var(--text-white);
   max-width: 60%;
   overflow: hidden;
@@ -203,9 +205,12 @@ function onSearchConfirm() {
   gap: var(--spacing-xs);
   height: var(--capsule-h, 32px);
   padding: 0 var(--spacing-md);
-  /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底 */
+  /* 白色实底（浅色模式），深色模式自动切换为卡片底色；可见性优于透明底。
+     tab-pages-visual-unify：加柔和投影，让搜索入口从红色顶栏中「悬浮」抽出，弱化红栏厚重感。
+     ⚠️ 只加投影、不改高度：头部须与 find 页 .search-nav 等高（ui-surface-consistency 全站头部高度统一）。 */
   background: var(--bg-card);
   border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-float);
   -webkit-tap-highlight-color: transparent;
 }
 .home-search-icon { flex-shrink: 0; line-height: 1; }

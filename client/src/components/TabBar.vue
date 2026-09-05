@@ -1,5 +1,5 @@
 <template>
-  <!-- 底部菜单栏：区分「首页 / 社区 / 我的」三主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
+  <!-- 底部菜单栏：区分「首页 / 动态 / 我的」三主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
   <view v-if="tabVisible" class="tab-bar">
     <view
       v-for="item in tabs"
@@ -10,9 +10,10 @@
       :aria-label="item.label"
       @tap="onTap(item)"
     >
+      <!-- 选中态：图标切换为填充变体（<name>-filled），图标与文字同步变主色 -->
       <IconSvg
-        :name="item.icon"
-        :size="44"
+        :name="item.key === activeTab ? `${item.icon}-filled` : item.icon"
+        :size="48"
         :color="item.key === activeTab ? 'var(--color-primary)' : 'var(--text-tertiary)'"
       />
       <text class="tab-label">{{ item.label }}</text>
@@ -28,7 +29,7 @@ import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/rout
 
 const tabs = [
   { key: 'home', label: '首页', icon: 'home', url: '/pages/home/index' },
-  { key: 'community', label: '社区', icon: 'comment', url: '/pages/community/index' },
+  { key: 'dynamic', label: '动态', icon: 'comment', url: '/pages/dynamic/index' },
   { key: 'profile', label: '我的', icon: 'profile', url: '/pages/profile/index' },
 ] as const
 
@@ -73,12 +74,14 @@ syncRoute()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-2xs);
+  /* tab-pages-visual-polish-3：图标与文字间距 8rpx */
+  gap: var(--spacing-xs);
   height: var(--tabbar-height);
   -webkit-tap-highlight-color: transparent;
 }
 .tab-label {
-  font-size: var(--font-aux);
+  /* tab-pages-visual-polish-3：标签 24rpx */
+  font-size: var(--font-small);
   line-height: 1;
   color: var(--text-tertiary);
 }

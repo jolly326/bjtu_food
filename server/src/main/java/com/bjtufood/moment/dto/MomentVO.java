@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 社区动态视图对象（公开列表/详情）
+ * 动态视图对象（公开列表/详情）
  */
 @Data
 @Schema(description = "动态展示信息")

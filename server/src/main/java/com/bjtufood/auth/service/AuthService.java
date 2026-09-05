@@ -13,7 +13,7 @@ import java.util.Map;
  * 认证服务接口（微信登录体系，spec §5.y）
  * <p>
  * 小程序端无账号密码：微信静默登录（wechat-login）→ 游客态（verified=0）；
- * 邮箱验证码认证（verify-email）解锁社区写操作。管理后台走独立方案 C（/auth/admin/login）。
+ * 邮箱验证码认证（verify-email）解锁动态写操作。管理后台走独立方案 C（/auth/admin/login）。
  */
 public interface AuthService {
 

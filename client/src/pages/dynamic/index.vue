@@ -1,6 +1,6 @@
 <template>
-  <view class="page community-page">
-    <Header title="最新动态" @back="backToHome" />
+  <view class="page dynamic-page">
+    <Header title="动态" :show-back="false" />
     <scroll-view
       class="scroll-wrap"
       scroll-y
@@ -9,14 +9,16 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <LoadingHint v-if="loading && moments.length === 0" />
-
-      <EmptyState
-        v-else-if="moments.length === 0"
-        :text="loadFailed ? '动态加载失败，请重试' : '还没有动态，快去发布第一条吧'"
-        icon="comment"
-        :retry="loadFailed"
-        :action-text="!loadFailed ? '发布第一条动态' : ''"
+      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态/错误态复用 EmptyState，不在列表区重复放置加载态） -->
+      <StateView
+        v-if="moments.length === 0"
+        :loading="loading"
+        :failed="loadFailed"
+        :empty="true"
+        error-text="动态加载失败，请重试"
+        empty-text="还没有动态，快去发布第一条吧"
+        empty-icon="comment"
+        :action-text="'发布第一条动态'"
         action-icon="plus"
         @retry="loadData(true)"
         @action="goPublish"
@@ -31,16 +33,12 @@
             @more="openMore"
           />
         </view>
-        <!-- 触底状态 -->
-
       </view>
-
-      <view style="height: var(--spacing-lg)" />
     </scroll-view>
 
     <!-- 常驻发布按钮（FAB）：列表/加载态均可直接发布动态，避免仅空态可发布 -->
     <view class="fab fab-publish" role="button" aria-label="发布动态" @tap="goPublish">
-      <IconSvg name="plus" :size="48" color="var(--color-on-primary)" />
+      <IconSvg name="plus" :size="44" color="var(--color-on-primary)" />
     </view>
 
     <!-- 举报弹窗（共享组件） -->
@@ -65,7 +63,7 @@
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
     <AuthSheet />
 
-    <!-- 底部常驻菜单栏：首页/社区/我的 三主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
     <TabBar />
   </view>
 </template>
@@ -79,12 +77,10 @@ import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { backToHome } from '@/utils/nav'
-import MomentCard from '@/components/MomentCard.vue'
+import MomentCard from './MomentCard.vue'
 import MomentActionSheet from '@/components/MomentActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import LoadingHint from '@/components/LoadingHint.vue'
+import StateView from '@/components/StateView.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -121,7 +117,7 @@ const refresherTriggered = ref(false)
 let page = 1
 const pageSize = 10
 // 请求序号：下拉刷新/切标签自增，使在途的旧请求结果失效，避免快速触底+刷新并发导致页码跳号、
-// 分页数据重复或丢失（社区列表竞态守卫，对齐 dish store 的 fetchSeq 方案）
+// 分页数据重复或丢失（动态列表竞态守卫，对齐 dish store 的 fetchSeq 方案）
 let fetchSeq = 0
 
 async function loadData(reset = false) {
@@ -134,7 +130,7 @@ async function loadData(reset = false) {
   loading.value = true
   loadFailed.value = false
   try {
-    // 社区单「最新」流（问题二：去双 Tab；getMoments 默认 latest）
+    // 动态单「最新」流（问题二：去双 Tab；getMoments 默认 latest）
     const res = await momentApi.getMoments({ page, pageSize })
     // 过期响应（期间又触发刷新/加载更多）丢弃，避免旧结果覆盖新列表
     if (seq !== fetchSeq) return
@@ -182,33 +178,36 @@ function goPublish() {
 onMounted(() => {
   loadData(true)
 })
-// 从动态详情返回社区时：清掉详情页的分享残留，避免右上角分享菜单沿用上一条动态
+// 从动态详情返回动态页时：清掉详情页的分享残留，避免右上角分享菜单沿用上一条动态
 onShow(() => {
-  // 锚定底部菜单栏：社区页始终显示并高亮
-  showTab('community')
+  // 锚定底部菜单栏：动态页始终显示并高亮
+  showTab('dynamic')
   clearShareState()
 })
 onShareAppMessage(() => buildSharePayload())
 </script>
 
 <style scoped>
-.community-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
+.dynamic-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
 
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+/* 动态列表：卡片之间固定间距（--spacing-md），配合白卡投影形成呼吸节奏 */
 .moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
 
 
 /* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充。
-   bottom 须叠加 --tabbar-height，否则被常驻 TabBar 盖住下半截（红线 §4.9 布局） */
+   bottom 须叠加 --tabbar-height，否则被常驻 TabBar 盖住下半截（红线 §4.9 布局）。
+   tab-pages-visual-unify：缩小尺寸（112→96rpx）、投影改柔和（modal→float）、
+   整体上移（+spacing-xl），避免遮挡列表最后一条动态的互动区（配合列表底部加大留白）。 */
 .fab-publish {
   position: fixed;
   right: var(--spacing-lg);
-  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-lg));
-  width: 112rpx;
-  height: 112rpx;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-xl));
+  width: 96rpx;
+  height: 96rpx;
   border-radius: var(--radius-circle);
   background: var(--color-primary);
-  box-shadow: var(--shadow-modal);
+  box-shadow: var(--shadow-float);
   display: flex;
   align-items: center;
   justify-content: center;

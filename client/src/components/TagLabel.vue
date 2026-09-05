@@ -19,11 +19,12 @@ const typeClass = computed(() => {
 </script>
 
 <style scoped>
+/* 小标签：小元素档圆角（16rpx）+ 收紧内边距（tab-pages-visual-unify，缩小尺寸不抢主信息） */
 .tag-label {
   display: inline-block;
   font-size: var(--font-tiny);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-icon);
+  padding: var(--spacing-2xs) var(--spacing-xs);
+  border-radius: var(--radius-tag);
   line-height: 1.4;
 }
 /* 必吃推荐 — 红色系（推荐强调） */

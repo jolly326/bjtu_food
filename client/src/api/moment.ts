@@ -1,5 +1,5 @@
 /**
- * 社区动态接口模块（task-06，ARCH §3.1）
+ * 动态接口模块（task-06，ARCH §3.1）
  *
  * 列表/详情/评论为 PUB（GET /moments/** 在后端白名单 GET 放行）；
  * 发布/编辑/删除/有用/评论为 STU。
@@ -74,9 +74,9 @@ function listOf<T>(res: PageResult<T> | undefined): T[] {
   return res.list || res.records || []
 }
 
-/** 社区广场列表 / 关联过滤（PUB）
- * tab：'latest' 最新（默认，社区单流；问题二去双 Tab 后仅此一项）。
- * 'recommend' 已彻底移除（R1 裁决）；'hot' 不再作为社区流 Tab。 */
+/** 动态广场列表 / 关联过滤（PUB）
+ * tab：'latest' 最新（默认，动态单流；问题二去双 Tab 后仅此一项）。
+ * 'recommend' 已彻底移除（R1 裁决）；'hot' 不再作为动态流 Tab。 */
 export async function getMoments(params: {
   tab?: 'latest'
   dishId?: number

@@ -19,7 +19,7 @@ interface ShareDish {
 export const sharedMoment = ref<Moment | null>(null)
 export const sharedDish = ref<ShareDish | null>(null)
 
-/** 清空共享分享状态：进入无特定分享上下文页面（首页/社区/我的动态/发现）时调用，避免残留上次分享内容 */
+/** 清空共享分享状态：进入无特定分享上下文页面（首页/动态/我的动态/发现）时调用，避免残留上次分享内容 */
 export function clearShareState() {
   sharedMoment.value = null
   sharedDish.value = null

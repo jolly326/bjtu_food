@@ -158,7 +158,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-control { flex: 1; height: 90rpx; font-size: var(--font-small); color: var(--text-primary); min-width: 0; }
 .code-action { min-width: 154rpx; height: 90rpx; padding: 0 var(--spacing-sm); display: flex; align-items: center; justify-content: center; border-left: 2rpx solid var(--border-color); color: var(--color-primary); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
-.code-action.disabled { color: var(--text-quaternary); }
+.code-action.disabled { color: var(--text-tertiary); }
 .email-hint { padding: 0 var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 
 /* 主按钮：与全站主操作同款（radius-btn + shadow-bar-primary + 按压缩放） */

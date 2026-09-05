@@ -1,7 +1,7 @@
 package com.bjtufood.moment.constant;
 
 /**
- * 社区动态相关常量
+ * 动态相关常量
  */
 public interface MomentConst {
 

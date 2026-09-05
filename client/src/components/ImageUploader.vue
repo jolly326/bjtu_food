@@ -8,7 +8,7 @@
       >
         <image v-if="!failed.has(img)" class="img-thumb" :src="img" mode="aspectFill" @error="onImgError(img)" />
         <view v-else class="img-thumb img-thumb-fallback">
-          <IconSvg name="image" :size="compact ? 28 : 40" color="var(--text-quaternary)" />
+          <IconSvg name="image" :size="compact ? 28 : 40" color="var(--text-tertiary)" />
         </view>
         <view class="img-remove" @tap="removeImage(idx)">
           <IconSvg name="close" :size="compact ? 18 : 24" color="var(--badge-dark-text)" />

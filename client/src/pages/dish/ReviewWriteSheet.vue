@@ -22,7 +22,7 @@
               :class="{ active: star >= n }"
               @tap="star = n"
             >
-              <IconSvg :name="star >= n ? 'star-filled' : 'star'" :size="52" :color="star >= n ? 'var(--color-warning)' : 'var(--text-quaternary)'" />
+              <IconSvg :name="star >= n ? 'star-filled' : 'star'" :size="52" :color="star >= n ? 'var(--color-warning)' : 'var(--text-tertiary)'" />
             </view>
           </view>
         </view>
@@ -217,7 +217,7 @@ async function onSubmit() {
   color: var(--text-primary);
   box-sizing: border-box;
 }
-.rw-ph { color: var(--text-quaternary); }
+.rw-ph { color: var(--text-tertiary); }
 .rw-foot { margin-top: var(--spacing-md); }
 .rw-submit {
   width: 100%;

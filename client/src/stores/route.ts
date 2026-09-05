@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-/** 当前主区 tab key（home/community/profile），空串表示处于二级页 */
+/** 当前主区 tab key（home/dynamic/profile），空串表示处于二级页 */
 export const activeTab = ref<string>('home')
 /**
  * 自定义 TabBar 是否可见（仅三主根页可见，navigateTo 二级页隐藏）。
@@ -12,7 +12,7 @@ export const tabVisible = ref<boolean>(true)
 // 主根页 route（不带前导斜杠）-> tab key
 export const routeMap: Record<string, string> = {
   'pages/home/index': 'home',
-  'pages/community/index': 'community',
+  'pages/dynamic/index': 'dynamic',
   'pages/profile/index': 'profile',
 }
 

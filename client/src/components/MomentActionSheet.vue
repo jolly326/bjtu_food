@@ -26,8 +26,9 @@
         <IconSvg name="share" :size="34" color="var(--text-primary)" class="more-item-icon" />
         <text class="more-item-text">分享</text>
       </button>
-      <!-- 举报：emit 给父页面弹 ReportModal。选项不设按钮背景，与其他弹层一致 -->
-      <view class="more-item more-item--danger" role="button" aria-label="举报动态" @tap="onReport">
+      <!-- 举报：emit 给父页面弹 ReportModal。作者视角列表（如「我发布的」）经 allowReport=false 隐藏。
+           选项不设按钮背景，与其他弹层一致 -->
+      <view v-if="allowReport" class="more-item more-item--danger" role="button" aria-label="举报动态" @tap="onReport">
         <IconSvg name="report" :size="34" color="var(--color-error)" class="more-item-icon" />
         <text class="more-item-text">举报</text>
       </view>
@@ -41,10 +42,14 @@ import IconSvg from './IconSvg.vue'
 import { sharedMoment } from '@/utils/share-state'
 import type { Moment } from '@/types/moment'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   moment?: Moment | null
-}>()
+  /** 是否显示「举报」项（默认开）；作者本人列表可置 false（自己的动态不举报） */
+  allowReport?: boolean
+}>(), {
+  allowReport: true,
+})
 
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void

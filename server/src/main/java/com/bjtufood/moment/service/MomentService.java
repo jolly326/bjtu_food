@@ -10,7 +10,7 @@ import com.bjtufood.moment.dto.MomentUsefulResult;
 import com.bjtufood.moment.dto.MomentVO;
 
 /**
- * 社区动态服务接口
+ * 动态服务接口
  */
 public interface MomentService {
 

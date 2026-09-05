@@ -41,6 +41,8 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import IconSvg from '@/components/IconSvg.vue'
 import { getNavBarHeight } from '@/utils/navMetrics'
+// 原生属性例外：<web-view> 的 progressbar.color 不接受 var()，取登记于 tokens.ts 的真实色值
+import { WEBVIEW_PROGRESSBAR_COLOR } from '@/theme/tokens'
 
 const url = ref('')
 const statusBarHeight = ref(20)
@@ -99,7 +101,7 @@ onLoad((options) => {
   barHeight.value = sb + navBarHeight.value + padBottomPx.value
   webviewStyles.value = {
     top: `${barHeight.value}px`,
-    progressbar: { color: '#9B2A1D' },
+    progressbar: { color: WEBVIEW_PROGRESSBAR_COLOR },
   }
 })
 
@@ -107,7 +109,7 @@ onLoad((options) => {
 // 初值与 barHeight 初值一致（20 + 56 + 8），onLoad 内按真机实测值覆盖。
 const webviewStyles = ref({
   top: '84px',
-  progressbar: { color: '#9B2A1D' },
+  progressbar: { color: WEBVIEW_PROGRESSBAR_COLOR },
 })
 
 function back() {
