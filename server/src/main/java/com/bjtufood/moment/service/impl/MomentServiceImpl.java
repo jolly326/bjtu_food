@@ -24,7 +24,9 @@ import com.bjtufood.moment.dto.MomentVO;
 import com.bjtufood.moment.entity.Moment;
 import com.bjtufood.moment.entity.MomentUseful;
 import com.bjtufood.moment.entity.MomentComment;
+import com.bjtufood.moment.entity.MomentCommentUseful;
 import com.bjtufood.moment.mapper.MomentCommentMapper;
+import com.bjtufood.moment.mapper.MomentCommentUsefulMapper;
 import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.moment.mapper.MomentUsefulMapper;
 import com.bjtufood.moment.service.MomentService;
@@ -55,6 +57,7 @@ public class MomentServiceImpl implements MomentService {
 
     private final MomentMapper momentMapper;
     private final MomentCommentMapper momentCommentMapper;
+    private final MomentCommentUsefulMapper momentCommentUsefulMapper;
     private final MomentUsefulMapper momentUsefulMapper;
     private final NotificationMapper notificationMapper;
     private final UserMapper userMapper;
@@ -254,6 +257,45 @@ public class MomentServiceImpl implements MomentService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MomentUsefulResult toggleCommentUseful(Long momentId, Long commentId, Long userId) {
+        MomentComment c = momentCommentMapper.selectById(commentId);
+        if (c == null || !c.getMomentId().equals(momentId)) {
+            throw new BusinessException("评论不存在");
+        }
+        LambdaQueryWrapper<MomentCommentUseful> w = new LambdaQueryWrapper<MomentCommentUseful>()
+                .eq(MomentCommentUseful::getUserId, userId)
+                .eq(MomentCommentUseful::getCommentId, commentId);
+        MomentCommentUseful exist = momentCommentUsefulMapper.selectOne(w);
+        MomentUsefulResult result = new MomentUsefulResult();
+        if (exist != null) {
+            // 并发取消守卫：仅当「真正删除到 1 行」才减计数，避免并发下两请求各减一次导致计数漂移
+            int deleted = momentCommentUsefulMapper.deleteById(exist.getId());
+            if (deleted > 0) {
+                momentCommentMapper.changeUsefulCount(commentId, -1);
+            }
+            result.setUseful(false);
+        } else {
+            MomentCommentUseful useful = new MomentCommentUseful();
+            useful.setUserId(userId);
+            useful.setCommentId(commentId);
+            try {
+                momentCommentUsefulMapper.insert(useful);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发先查后插竞态：uk_useful_user_comment 兜底，不重复加计数
+                throw new BusinessException("你已经标记过这条评论");
+            }
+            // 计数原子 +1（并发安全）
+            momentCommentMapper.changeUsefulCount(commentId, 1);
+            result.setUseful(true);
+        }
+        // 原子增减后回读最新计数
+        MomentComment latest = momentCommentMapper.selectById(commentId);
+        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
+        return result;
+    }
+
+    @Override
     @org.springframework.cache.annotation.CacheEvict(cacheNames = {CACHE_LATEST, CACHE_HOT, CACHE_RANKING}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public Long comment(Long momentId, Long userId, MomentCommentReq req) {
@@ -328,6 +370,15 @@ public class MomentServiceImpl implements MomentService {
                 .toList();
         Map<Long, User> userMap = loadUsers(userIds);
         Map<Long, User> parentMap = loadUsers(parentIds);
+        // 评论「有用」当前用户标记（moment-comment-thread-view 恢复；游客恒 false）
+        Set<Long> usefulCommentIds = new HashSet<>();
+        if (currentUserId != null && !p.getRecords().isEmpty()) {
+            momentCommentUsefulMapper.selectList(new LambdaQueryWrapper<MomentCommentUseful>()
+                            .eq(MomentCommentUseful::getUserId, currentUserId)
+                            .in(MomentCommentUseful::getCommentId,
+                                    p.getRecords().stream().map(MomentComment::getId).toList()))
+                    .forEach(u -> usefulCommentIds.add(u.getCommentId()));
+        }
 
         IPage<MomentCommentVO> result = new Page<>(page, pageSize, p.getTotal());
         result.setRecords(p.getRecords().stream().map(c -> {
@@ -347,8 +398,8 @@ public class MomentServiceImpl implements MomentService {
             // 评论图片：JSON 数组字符串 → 绝对 URL 列表（最多 3 张）
             vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(c.getImages()));
             vo.setUsefulCount(c.getUsefulCount() == null ? 0 : c.getUsefulCount());
-            // 评论点赞已下线（前端同步移除），标记恒为 false，保留字段兼容前端类型
-            vo.setUseful(false);
+            // 当前用户是否已点「有用」（登录用户按本页评论 ID 批量查标记，游客恒 false）
+            vo.setUseful(usefulCommentIds.contains(c.getId()));
             vo.setCreatedAt(c.getCreatedAt());
             return vo;
         }).toList());
@@ -553,6 +604,8 @@ public class MomentServiceImpl implements MomentService {
                 if (MomentConst.RELATED_DISH.equals(vo.getRelatedType())) {
                     Dish d = dishMap.get(vo.getRelatedId());
                     vo.setRelatedName(d != null ? d.getName() : null);
+                    // 关联菜品价格（分；前端 api 层统一换算为元，展示「菜品名 + ¥价格」单行）
+                    vo.setRelatedPrice(d != null ? d.getPrice() : null);
                     List<String> dishImgs = d != null ? imageUrlUtil.parseAndToAbsoluteUrls(d.getImages()) : null;
                     vo.setRelatedImage(dishImgs != null && !dishImgs.isEmpty() ? dishImgs.get(0) : null);
                 } else if (MomentConst.RELATED_STALL.equals(vo.getRelatedType())) {

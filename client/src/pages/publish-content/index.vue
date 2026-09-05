@@ -43,14 +43,19 @@
       </view>
     </scroll-view>
 
-    <!-- 关联对象选择 Sheet（W5：走正式 API，返回真实 id） -->
-    <RelatedPickerSheet
+    <!-- 关联对象选择 Sheet（ListPickerSheet：搜索 + 列表 + 完成） -->
+    <ListPickerSheet
       :open="relatedSheetOpen"
-      :selected="selectedRelated"
+      title="选择关联菜品"
+      searchable
+      confirmable
+      :options="relatedOptions"
+      :leading="relatedLeading"
+      :selected-key="relatedSelectedKey"
       @close="relatedSheetOpen = false"
-      @clear="clearRelated"
-      @select="onRelatedSelect"
-      @confirm="onRelatedConfirm"
+      @search="loadRelatedCandidates"
+      @select="onRelatedOptionPick"
+      @confirm="onRelatedConfirmSheet"
     />
 
     <!-- 认证弹层（未登录提交 requireAuth 统一在此弹出） -->
@@ -59,17 +64,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
+import * as dishApi from '@/api/dish'
+import { getImageUrl } from '@/utils/image'
 import type { Moment, RelatedType } from '@/types/moment'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import RelatedPickerSheet from './RelatedPickerSheet.vue'
+import ListPickerSheet from '@/components/ListPickerSheet.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -85,6 +92,49 @@ const submitting = ref(false)
 // 动态入口：自由关联（菜品 / 档口 / 不关联）；dishId 仅表示预选关联菜品（分享探店）
 const relatedSheetOpen = ref(false)
 const selectedRelated = ref<RelatedItem | null>(null)
+
+// 关联选择（ListPickerSheet：搜索列表由本页供给，缓存上限一次拉 10 条）
+const relatedOptions = ref<{ key: string; label: string; sub?: string; image?: string }[]>([])
+const relatedLeading = [{ key: '__none__', label: '不关联', sub: '自由动态，不带菜品标签' }]
+const relatedSelectedKey = computed(() => (selectedRelated.value ? `dish-${selectedRelated.value.id}` : null))
+let relatedSeq = 0
+
+async function loadRelatedCandidates(kw: string) {
+  const seq = ++relatedSeq
+  try {
+    const res = await dishApi.searchDishesPage({ keyword: kw, page: 1, pageSize: 10 })
+    if (seq !== relatedSeq) return
+    relatedOptions.value = res.list.map(d => ({
+      key: `dish-${d.id}`,
+      label: d.name,
+      sub: '关联菜品',
+      image: getImageUrl(d.image),
+    }))
+  } catch (err) {
+    if (seq !== relatedSeq) return
+    // 静默：请求失败不呈现任何占位，异常仅记录
+    console.error('[publish] 搜索关联菜品失败', err)
+    relatedOptions.value = []
+  }
+}
+
+watch(() => relatedSheetOpen.value, (v) => { if (v) loadRelatedCandidates('') })
+
+/** 关联选择项点击：不关联清空；菜品 toggle（与迁移前语义一致） */
+function onRelatedOptionPick(opt: { key: string; label: string; image?: string }) {
+  if (opt.key === '__none__') {
+    clearRelated()
+    return
+  }
+  const id = Number(opt.key.replace('dish-', ''))
+  if (!Number.isFinite(id)) return
+  onRelatedSelect({ id, type: 'dish', name: opt.label, image: opt.image })
+}
+
+/** 完成：应用当前选中并关闭 */
+function onRelatedConfirmSheet() {
+  relatedSheetOpen.value = false
+}
 
 // 编辑态（仅动态可编辑）
 const editId = ref<number | null>(null)
@@ -120,12 +170,6 @@ function onRelatedSelect(item: RelatedItem) {
 function clearRelated() {
   // 弹窗内「不关联」为列表首项：仅清空选中，弹窗保持打开，由「完成」统一关闭（与其他选项一致）
   selectedRelated.value = null
-}
-
-/** 确定：组件回传当前选中项（selected），关闭弹层 */
-function onRelatedConfirm(item: RelatedItem | null) {
-  selectedRelated.value = item
-  relatedSheetOpen.value = false
 }
 
 async function submit() {

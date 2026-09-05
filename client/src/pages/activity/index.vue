@@ -35,11 +35,6 @@
           </view>
         </view>
       </view>
-      <StateView v-else-if="!loading" :empty="true" empty-text="暂无活动，敬请期待" empty-icon="broadcast" />
-
-      <view class="loading-more" v-if="loading">加载中…</view>
-      <view class="loading-more" v-else-if="finished && list.length > 0">没有更多了</view>
-
       <view style="height: calc(var(--spacing-lg) + env(safe-area-inset-bottom))" />
     </scroll-view>
   </view>
@@ -52,7 +47,6 @@ import { getActivities, type ActivityItem } from '@/api/activity'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
-import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
 
@@ -101,7 +95,7 @@ function openActivity(act: ActivityItem) {
   if (act.articleUrl) {
     // 修复：跳转路径必须带 /index（pages.json 注册的是 pages/webview/index），
     // 否则 uni.navigateTo 找不到页面导致活动文章打不开
-    uni.navigateTo({ url: `/pages/activity-webview/index?url=${encodeURIComponent(act.articleUrl)}` })
+    uni.navigateTo({ url: `/pages/activity/webview?url=${encodeURIComponent(act.articleUrl)}` })
   }
 }
 
@@ -200,11 +194,5 @@ onLoad(() => {
 }
 .activity-link--muted {
   color: var(--text-tertiary);
-}
-.loading-more {
-  text-align: center;
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  padding: var(--spacing-md);
 }
 </style>

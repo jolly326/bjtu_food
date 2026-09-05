@@ -9,22 +9,7 @@
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态/错误态复用 EmptyState，不在列表区重复放置加载态） -->
-      <StateView
-        v-if="moments.length === 0"
-        :loading="loading"
-        :failed="loadFailed"
-        :empty="true"
-        error-text="动态加载失败，请重试"
-        empty-text="还没有动态，快去发布第一条吧"
-        empty-icon="comment"
-        :action-text="'发布第一条动态'"
-        action-icon="plus"
-        @retry="loadData(true)"
-        @action="goPublish"
-      />
-
-      <view v-else class="moment-list">
+      <view class="moment-list">
         <view v-for="m in moments" :key="m.id">
           <MomentCard
             :moment="m"
@@ -36,7 +21,7 @@
       </view>
     </scroll-view>
 
-    <!-- 常驻发布按钮（FAB）：列表/加载态均可直接发布动态，避免仅空态可发布 -->
+    <!-- 常驻发布按钮（FAB）：任何列表状态下均可直接发布动态 -->
     <view class="fab fab-publish" role="button" aria-label="发布动态" @tap="goPublish">
       <IconSvg name="plus" :size="44" color="var(--color-on-primary)" />
     </view>
@@ -52,12 +37,12 @@
       @submit="submitReport"
     />
 
-    <!-- 三点菜单：分享 / 举报（页面根级挂载，scroll-view 外 fixed 层级才正确） -->
-    <MomentActionSheet
+    <!-- 三点菜单：分享 / 举报（通用 ActionSheet；本人动态仅分享） -->
+    <ActionSheet
       :open="moreOpen"
-      :moment="moreMoment"
-      @update:open="moreOpen = $event"
-      @report="openReportForMoment"
+      :items="momentMoreItems"
+      @close="moreOpen = false"
+      @select="onMomentMoreSelect"
     />
 
     <!-- 认证弹层（未登录点赞/评论等 requireAuth 入口统一在此弹出） -->
@@ -69,22 +54,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
+import { useUserStore } from '@/stores/user'
 import TabBar from '@/components/TabBar.vue'
 import * as momentApi from '@/api/moment'
-import type { Moment } from '@/types/moment'
+import type { Moment, MomentComment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
-import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import { buildSharePayload, clearShareState, sharedMoment } from '@/utils/share-state'
 import MomentCard from './MomentCard.vue'
-import MomentActionSheet from '@/components/MomentActionSheet.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
-import StateView from '@/components/StateView.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
+const userStore = useUserStore()
 const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
@@ -95,23 +81,42 @@ function openDishDetail(id: number) {
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
 const moreOpen = ref(false)
 const moreMoment = ref<Moment | null>(null)
+/** 本人动态不出「举报」（moment-detail-action-deemphasis isOwn 语义） */
+const moreIsOwn = computed(() => !!moreMoment.value && !!userStore.userInfo && moreMoment.value.userId === userStore.userInfo.id)
 
 function openMore(m: Moment) {
   moreMoment.value = m
   moreOpen.value = true
 }
 
+/** 菜单项：分享（恒有）+ 举报（非本人动态） */
+const momentMoreItems = computed(() => {
+  if (!moreMoment.value) return []
+  const items: { key: string; label: string; icon: string; iconColor?: string; textColor?: string }[] = [
+    { key: 'share', label: '分享', icon: 'share' },
+  ]
+  if (!moreIsOwn.value) {
+    items.push({ key: 'report', label: '举报', icon: 'report', iconColor: 'var(--color-primary)', textColor: 'var(--color-primary)' })
+  }
+  return items
+})
+
+function onMomentMoreSelect(key: string) {
+  const m = moreMoment.value
+  if (key === 'share' && m) sharedMoment.value = m
+  if (key === 'report' && m) openReportForMoment(m)
+}
+
 /* ===== 动态举报（ActionSheet @report → ReportModal，逻辑收敛到 useReport hook） ===== */
 const { reportOpen, reportSubmitting, openReport, submitReport } =
   useReport({ type: 'moment', title: '举报动态', placeholder: '请描述举报原因…' })
 
-function openReportForMoment(m: Moment) {
-  openReport(m.id)
+function openReportForMoment(target: Moment | MomentComment) {
+  openReport((target as Moment).id)
 }
 const loading = ref(false)
 const loadingMore = ref(false)
 const finished = ref(false)
-const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
 let page = 1
@@ -128,7 +133,6 @@ async function loadData(reset = false) {
   }
   const seq = ++fetchSeq
   loading.value = true
-  loadFailed.value = false
   try {
     // 动态单「最新」流（问题二：去双 Tab；getMoments 默认 latest）
     const res = await momentApi.getMoments({ page, pageSize })
@@ -138,8 +142,9 @@ async function loadData(reset = false) {
     // M02 修复：基于本页实际返回量判据（本地 sort 不干扰），不足一页即到底
     if (res.list.length < pageSize) finished.value = true
     page += 1
-  } catch {
-    loadFailed.value = true
+  } catch (err) {
+    // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
+    console.error('[dynamic] 加载动态失败', err)
   } finally {
     loading.value = false
   }

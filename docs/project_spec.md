@@ -163,7 +163,7 @@
 ### 4.2 视觉 Token（基线）
 - 品牌主色：朱砂红 `#9B2A1D`（浅色模式主色，故宫红墙灵感；**2026-08-16 拍板，由暖杏色 `#D4884C` 进一步定调为朱砂红 `#9B2A1D`**，沉稳庄重、有文化厚度，不冷不土；深色模式主色为同色相提亮朱砂红 `#C45A3C`，见 `client/src/theme/tokens.ts` 与 `App.vue`）。小程序按钮统一 `AppButton`（primary 取朱砂红 `#9B2A1D`，outline/text 沿用）/ 管理端侧栏同步改用朱砂红（替代旧深红 `#6B1010`）。实际色值以 `client/src/uni.scss` 的 `$uni-color-primary`（小程序，已对齐 `#9B2A1D`）与 `web/` 主题变量（管理端）为准，本文仅定权威色号。
 - 圆角：卡片 `16px`；底部弹层 `20px 20px 0 0`。材质模糊 `blur(20px) saturate(180%)`；按下缩放 `0.97`；弹层阴影 `0 -8px 30px rgba(0,0,0,0.12)`。
-- 小程序自研组件（新页面必须复用）：`ImageSwiper/DishCard/WaterfallList/Rating/TagLabel/CardSection/EmptyState/AppButton/CustomTabBar/MomentCard/SearchBar/StatusBadge/UsefulButton/ImageFallback/SectionTitle/StallCardSingle/ImageUploader/RelatedPickerSheet`；**`CategoryTabs`、`Loading` 组件已于清理提交 f9560c6 删除**——加载态改内联骨架屏（不再依赖 Loading 组件），分类切换由 `SegmentTabs`/筛选条替代，设计规范见 `docs/pages/TEMPLATE.md` 已校准。
+- 小程序自研组件（新页面必须复用）：`ImageSwiper/DishCard/WaterfallList/Rating/TagLabel/CardSection/AppButton/CustomTabBar/MomentCard/SearchBar/StatusBadge/UsefulButton/ImageFallback/SectionTitle/StallCardSingle/ImageUploader/RelatedPickerSheet`；**`CategoryTabs`、`Loading` 组件已于清理提交 f9560c6 删除**——分类切换由 `SegmentTabs`/筛选条替代；**`EmptyState`、`StateView` 组件已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不再展示加载中、空态与失败态占位（异常静默、仅 console 记录，恢复靠下拉刷新/重进页面），设计规范见 `docs/pages/TEMPLATE.md` 已校准。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`，文档 `docs/web-ui.md` §七已校准。
 - **小程序图标统一使用 SVG 矢量图标**（本地 `client/src/assets/icons` 优先，缺失从阿里云矢量库 Iconfont 经 MCP 拉取）：搜索=ic-search、位置=ic-location、喜欢=ic-heart、有用/点赞=ic-thumb、热门=ic-fire、限时=ic-clock、猜你喜欢=ic-lightbulb、分享=ic-share、评价=ic-comment、发布=ic-plus、举报=ic-report（图标映射见本 § 上文列表）。语义唯一：ic-heart=喜欢（不与点赞混用）、ic-thumb=有用/点赞；**收藏功能已移除，无收藏图标**。**禁止 emoji 字符充当图标**。
 
@@ -193,7 +193,7 @@
 - 小程序：无 Pointer Events，用 touch + 自记速度历史；`backdrop-filter` 真机部分支持降级纯色半透 + 阴影；动画只用 `transform`/`opacity`。
 
 ### 4.8 组件级约定
-- 卡片 tap `scale(0.97)`、入场 spring `1.0/0.3`；TabBar spring `1.0/0.3`；抽屉 / Sheet §4.4 `0.8/0.3` + 手势中断；列表 / 瀑布流滚动橡皮筋；Toast 四态同帧触发；列表页三态（Loading/EmptyState/正常）。
+- 卡片 tap `scale(0.97)`、入场 spring `1.0/0.3`；TabBar spring `1.0/0.3`；抽屉 / Sheet §4.4 `0.8/0.3` + 手势中断；列表 / 瀑布流滚动橡皮筋；Toast 四态同帧触发；列表/信息流页仅呈现真实内容，不再设加载中/空态/失败态占位（三态已随 2026-09-06 状态占位清理变更移除，异常静默、恢复靠下拉刷新）。
 - **活动列表页（2026-08-12 新增）**：
   - **header 设计**：统一二级页规范——左上角返回箭头（ibenefit `backToHome` reLaunch 首页）、居中加粗标题「最新活动」、右上角留空；浅色背景，遵循 §4 一致性。
   - **卡片设计**：纵向列表按发布时间倒序；标题稍大字号加粗、发布时间灰色小字（相对时间如「2小时前」/「昨天」）位于标题下方、简要描述更小字号置于底部；卡片 tap 反馈 `scale(0.97)`、入场 spring `1.0/0.3`（与全局卡片一致）。

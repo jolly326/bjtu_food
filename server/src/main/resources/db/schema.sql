@@ -419,8 +419,8 @@ DELIMITER ;
 CALL `add_canteen_location`();
 DROP PROCEDURE IF EXISTS `add_canteen_location`;
 
--- 动态评论「有用」关系表已于评论点赞功能下线时移除（task-12.4 → 前端下线 + 后端清理）。
--- 说明：moment_comment.useful_count 列保留（无写入，不影响前端展示）。
+-- 动态评论「有用」关系表：曾于评论点赞功能下线时移除（task-12.4 → 前端下线 + 后端清理），
+-- 后在 moment-comment-thread-view 恢复评论「有用」：moment_comment.useful_count 列全程保留，关系表于下方重建。
 
 
 -- 菜品：折扣价（task-12.9；CREATE TABLE 已含，列定义以 CREATE 为准：original_price/promo_price 均允许 NULL；旧库幂等补齐）
@@ -525,6 +525,20 @@ CREATE TABLE IF NOT EXISTS `moment_comment`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='动态评论';
+
+-- 动态评论「有用👍」标记（一人一票，moment-comment-thread-view 恢复）
+CREATE TABLE IF NOT EXISTS `moment_comment_useful`
+(
+    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
+    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
+    `comment_id` BIGINT   NOT NULL DEFAULT 0 COMMENT '评论ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_useful_user_comment` (`user_id`, `comment_id`),
+    KEY `idx_useful_comment` (`comment_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='动态评论有用标记';
 
 -- 动态评论图片（task-13：评论支持至多 3 张图，JSON 数组字符串存储）
 -- MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程做幂等防护

@@ -26,31 +26,17 @@
       ref="scrollView"
       class="scroll-wrap"
       scroll-y
-      :scroll-top="scrollTop"
       :scroll-with-animation="false"
       refresher-enabled
       :refresher-triggered="refresherTriggered"
       @refresherrefresh="onRefresh"
-      @scroll="onScroll"
       @scrolltolower="onScrollToLower"
     >
       <view class="home-content">
-        <!-- 瀑布流：按所选食堂过滤；未选 = 全部。
-             首屏冷启动加载态由 HomeContent 内 StateView 统一承载（不在本页重复放置加载态，避免多层嵌套） -->
-        <HomeContent :initial-loading="loadingHot" :load-failed="loadFailed" @retry="retryWaterfall" />
+        <!-- 瀑布流：按所选食堂过滤；未选 = 全部 -->
+        <HomeContent />
       </view>
     </scroll-view>
-
-    <!-- 回到顶部悬浮按钮 -->
-    <view
-      v-if="showBackTop"
-      class="fab fab-backtop"
-      :class="{ 'fab-show': showBackTop }"
-      @tap="scrollToTop"
-      aria-label="回到顶部"
-    >
-      <IconSvg name="up" :size="44" color="var(--color-primary)" />
-    </view>
 
     <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
     <TabBar />
@@ -66,7 +52,6 @@ import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import Header from '@/components/AppHeader.vue'
-import IconSvg from '@/components/IconSvg.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import HomeContent from './HomeContent.vue'
 import TabBar from '@/components/TabBar.vue'
@@ -75,15 +60,12 @@ import type { FilterTab } from '@/types/filter-tab'
 const dishStore = useDishStore()
 const locationStore = useLocationStore()
 
-const loadingHot = ref(true)
-const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
 /** 胶囊高度（px），与 AppHeader 同一取值口径 */
 const capsuleHeight = ref(32)
 
-/** 选择价格区间：写回 store 并刷新当前筛选流（后端既有 minPrice/maxPrice，无新契约）。
- *  价格区间文案回显由 FilterBar 内部用 fenToYuan 换算（红线：禁止裸算 /100）。 */
+/** 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约） */
 async function onPriceSelect(range: { min?: number; max?: number }) {
   await dishStore.setHomePrice(range)
 }
@@ -107,8 +89,6 @@ async function ensureBoot() {
   if (bootstrapped) return
   bootstrapped = true
   await dishStore.fetchFilterDishes(defaultTab(), true)
-  loadingHot.value = false
-  loadFailed.value = false
 }
 watch(
   () => dishStore.canteenList.length,
@@ -127,7 +107,7 @@ function goToSearch() {
   uni.navigateTo({ url: '/pages/find/index' })
 }
 
-/** 失败态重试 */
+/** 重试当前筛选流：下拉刷新复用同一条重拉路径（食堂列表缺失时先补拉） */
 async function retryWaterfall() {
   if (dishStore.canteenList.length === 0) {
     await dishStore.fetchCanteens()
@@ -140,31 +120,14 @@ async function retryWaterfall() {
 }
 
 const scrollView = ref()
-const scrollTop = ref(0)
-const showBackTop = ref(false)
-let lastScrollTop = 0
 
-function onScroll(e: any) {
-  const t = e.detail?.scrollTop || 0
-  // 下滑超过一屏显示回到顶部；同时驱动无限滚动
-  showBackTop.value = t > 600
-  lastScrollTop = t
-}
-function scrollToTop() {
-  scrollTop.value = lastScrollTop > 0 ? 0 : -1
-  // 触发 scroll-view 回到顶部后复位，便于下次再触发
-  requestAnimationFrame(() => {
-    scrollTop.value = 0
-  })
-}
 function onScrollToLower() {
   dishStore.loadMoreFilterDishes()
 }
 
 async function onRefresh() {
   refresherTriggered.value = true
-  bootstrapped = false
-  await ensureBoot()
+  await retryWaterfall()
   refresherTriggered.value = false
 }
 
@@ -265,26 +228,4 @@ onShareAppMessage(() => {
 }
 
 
-/* 回到顶部悬浮按钮 */
-.fab {
-  position: fixed;
-  right: var(--spacing-lg);
-  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-lg));
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: var(--radius-circle);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-bar);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transform: translateY(20rpx);
-  z-index: 50;
-  -webkit-tap-highlight-color: transparent;
-}
-.fab-show {
-  opacity: 1;
-  transform: translateY(0);
-}
 </style>

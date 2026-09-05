@@ -23,34 +23,16 @@
     <text class="m-content" :class="{ clamped: !expanded }">{{ moment.content }}</text>
     <text v-if="needClamp" class="m-expand" @tap.stop="expanded = !expanded">{{ expanded ? '收起' : '展开' }}</text>
 
-    <!-- 图片九宫格 -->
-    <view v-if="moment.images.length > 0" class="m-images" :class="`img-${Math.min(moment.images.length, 9)}`">
-      <view
-        v-for="(img, idx) in moment.images.slice(0, 9)"
-        :key="idx"
-        class="m-image-wrap"
-        @tap.stop="previewImage(idx)"
-      >
-        <image
-          class="m-image"
-          :class="{ loaded: loadedSet.has(idx) }"
-          :src="getImageUrl(getThumbUrl(img))"
-          mode="aspectFill"
-          lazy-load
-          @load="loadedSet.add(idx)"
-        />
-      </view>
-    </view>
+    <!-- 图片九宫格（共享组件，消除 4 处重复） -->
+    <MomentImageGrid :images="moment.images" />
 
     <!-- 关联对象 chip + 互动栏（同一行，互动靠右） -->
     <view class="m-foot">
       <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
-        <image v-if="moment.relatedImage" class="m-related-thumb" :src="getImageUrl(moment.relatedImage)" mode="aspectFill" lazy-load />
-        <view v-else class="m-related-thumb m-related-thumb--empty">
-          <IconSvg name="dish" :size="20" color="var(--text-tertiary)" />
-        </view>
         <text class="m-related-text">{{ relatedLabel }}</text>
       </view>
+      <!-- 关联价格：红色 ¥ 跟在 chip 右侧，与 chip 同一跳转（moment-list relatedPrice 增量） -->
+      <text v-if="moment.relatedPrice" class="m-related-price" @tap.stop="goRelated">¥{{ moment.relatedPrice }}</text>
       <view class="m-actions">
         <view class="m-action" :class="{ active: usefulActive }" @tap.stop="onUseful">
           <IconSvg :name="usefulActive ? 'thumb-filled' : 'thumb'" :size="36" class="m-action-icon" :color="usefulActive ? 'var(--color-primary)' : 'var(--text-secondary)'" />
@@ -66,13 +48,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import { formatDateTime } from '@/utils/time'
-import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
+import { getImageUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
-import { useUserStore } from '@/stores/user'
-import * as momentApi from '@/api/moment'
+import { useMomentUseful } from '@/composables/useMomentUseful'
 
 const props = defineProps<{
   moment: Moment
@@ -88,28 +70,20 @@ const emit = defineEmits<{
   (e: 'more', moment: Moment): void
 }>()
 
-const userStore = useUserStore()
-
 /** 卡片无障碍语义标签 */
 const ariaLabel = computed(() => `${(props.moment.userNickname || '匿名用户')}的动态`)
-/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡 */
-const loadedSet = reactive(new Set<number>())
 
 // 正文展开态（超长折叠，粗判长度显示展开入口）
 const expanded = ref(false)
 const needClamp = computed(() => (props.moment.content?.length || 0) > 80)
 
 const relatedLabel = computed(() => {
-  // 动态仅可关联菜品：直接展示菜品名，不再加「菜品·」前缀
-  return props.moment.relatedName || ''
+  // 关联菜品：chip 文案「相关菜品·菜品名」（用户口径），价格单列红色跟在 chip 右侧
+  const name = props.moment.relatedName || ''
+  return name ? `${name}` : ''
 })
 
-// 有用 toggle 本地状态（乐观 UI）：初始与回显均取 moment.useful（api 层已归一当前用户点赞态）
-const usefulActive = ref(!!props.moment.useful)
-// 列表刷新/详情返回后 moment 对象更新时，同步点赞态回显（避免跨页状态丢失）
-watch(() => props.moment.useful, (v) => {
-  usefulActive.value = !!v
-})
+const { usefulActive, onUseful: toggleUseful } = useMomentUseful(props.moment)
 
 function goDetail() {
   emit('select', props.moment)
@@ -119,33 +93,10 @@ function goRelated() {
   emit('go-related', props.moment)
 }
 
-function previewImage(idx: number) {
-  previewImages(props.moment.images, idx)
-}
-
-/** pending 锁防连点（P0 防重复请求 / 计数漂移） */
-const pendingUseful = ref(false)
+/** 点赞后回传父级（父级据此刷新列表态） */
 async function onUseful() {
-  if (!userStore.requireAuth(() => onUseful())) return
-  if (pendingUseful.value) return
-  pendingUseful.value = true
-  const prevActive = usefulActive.value
-  const prevCount = props.moment.usefulCount || 0
-  usefulActive.value = !prevActive
-  props.moment.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
-  try {
-    const res = await momentApi.toggleUseful(props.moment.id)
-    usefulActive.value = res.useful
-    props.moment.usefulCount = res.usefulCount
-    props.moment.useful = res.useful
-    emit('useful', props.moment)
-  } catch {
-    usefulActive.value = prevActive
-    props.moment.usefulCount = prevCount
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  } finally {
-    pendingUseful.value = false
-  }
+  await toggleUseful()
+  emit('useful', props.moment)
 }
 </script>
 
@@ -192,26 +143,24 @@ async function onUseful() {
 .m-content.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .m-expand { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); align-self: flex-start; }
 /* 正文→图片 12px(=24rpx md)，moment-list-detail-polish D1 */
-.m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: var(--spacing-md); }
-/* 缩略图：圆角正方形（16rpx，与全站缩略图/头像统一） */
-.m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
-.m-image.loaded { opacity: 1; }
-/* 关联 chip：胶囊背景（primary-soft + 主色文字），左侧为圆角正方形菜品缩略图（有图显图、无图显菜品占位图标）——
-   与右侧互动区（纯文字链）形成「信息标识 vs 轻量操作」的视觉层级 */
-/* ⚠️ overflow:hidden：本 chip 位于卡片底部左侧、带主色浅底，圆角外侧的背景方角残留
-   会在列表里表现为「屏幕左侧色块」（每条动态一块），必须裁掉。 */
-/* 关联 chip：底色/圆角/内边距与首页 TagLabel 同语言（radius-tag + primary-soft；moment-card-visual-polish D5） */
-/* 关联菜品 chip：浅灰 #F5F5F5 底、深灰 #333 文字、中灰图标、矮高、8px(16rpx) 圆角（用户口径） */
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 48rpx; padding: 4rpx var(--spacing-sm) 4rpx 4rpx; background: #F5F5F5; border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* 九宫格样式已抽取至 components/MomentImageGrid.vue */
+/* 关联菜品 chip：纯白底 + 1px 纯主色细描边标签形态（边界感最强、识别度最高，仍属信息标识非操作按钮） */
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 48rpx; padding: 0 var(--spacing-sm); background: #FFFFFF; border: 1px solid var(--color-primary); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
-/* 圆角正方形菜品缩略图（40rpx，chip 内上下各留 4rpx） */
-.m-related-thumb { width: 40rpx; height: 40rpx; border-radius: var(--radius-xs); background: #F5F5F5; flex-shrink: 0; overflow: hidden; }
-.m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: #F5F5F5; }
-.m-related-text { font-size: var(--font-small); color: #333333; font-weight: var(--weight-medium); line-height: 1.2; }
-/* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
-/* 正文→标签/互动行 12px(=24rpx md)，moment-list-detail-polish D1 */
-.m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.m-related-text { font-size: var(--font-small); color: var(--color-primary); font-weight: var(--weight-medium); line-height: 1.2; }
+/* 关联价格：--color-price 红色、同 chip 高度居中对齐，点击同跳关联对象（moment-list relatedPrice 增量） */
+.m-related-price { flex-shrink: 0; font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.m-related-price:active { opacity: 0.7; }
+/* 关联 chip + 互动栏同一行（m-foot），互动靠右；
+   上方细浅灰横线把「作者/正文/图片」与「关联+操作」区隔开（fix：灰色线分隔） */
+.m-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 2rpx solid var(--border-color);
+}
 /* 两按钮间距 16px(=32rpx lg)，moment-list-detail-polish D1 */
 .m-actions { display: flex; align-items: center; gap: var(--spacing-lg); margin-left: auto; flex-shrink: 0; }
 /* 互动按钮：icon + 数字纯文字链，去胶囊背景。

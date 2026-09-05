@@ -77,4 +77,17 @@ export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
 }
 
+/** 提交菜品评价（POST /reviews；需完成学号邮箱认证。每个用户对同一菜品仅评价一次，评分 1-5 必填） */
+export interface ReviewSubmitPayload {
+  dishId: number
+  /** 评分，1-5 星（必填） */
+  rating: number
+  /** 文字评价（≤500 字，选填） */
+  content?: string
+}
+
+export async function createReview(payload: ReviewSubmitPayload): Promise<void> {
+  await post<void>('/reviews', payload)
+}
+
 

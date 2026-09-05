@@ -1,5 +1,5 @@
 <template>
-  <!-- 评价卡：整卡一张（卡头 + flat 条目 + 到底/加载中），与动态卡片形态趋同 -->
+  <!-- 评价卡：整卡一张（卡头 + flat 条目），与动态卡片形态趋同；无评价时卡内静默（无空态/加载提示） -->
   <view class="review-section" id="review-section">
     <view class="review-card">
       <view class="review-card-head">
@@ -19,12 +19,6 @@
           @more="emit('more', $event)"
         />
       </view>
-      <view v-else class="review-empty">
-        <text class="review-empty-text">还没有人评价过这道菜</text>
-      </view>
-
-      <!-- 加载中提示（卡内）；「没有更多了」已移至评价卡外（dish/index 居中弱化） -->
-      <view v-if="reviews.length > 0 && loadingMore" class="review-more-hint">加载中…</view>
     </view>
   </view>
 </template>
@@ -37,8 +31,6 @@ defineProps<{
   reviews: Review[]
   total: number
   currentUserId?: number
-  loadingMore: boolean
-  finished: boolean
 }>()
 
 const emit = defineEmits<{
@@ -72,7 +64,4 @@ const emit = defineEmits<{
   min-width: 0;
 }
 .review-list { display: flex; flex-direction: column; }
-.review-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-sm); padding: var(--spacing-lg) 0; }
-.review-empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
-.review-more-hint { text-align: center; font-size: var(--font-tiny); color: var(--text-tertiary); padding: var(--spacing-md) 0 var(--spacing-2xs); }
 </style>

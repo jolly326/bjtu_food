@@ -488,12 +488,8 @@
       </view>
 
       <scroll-view class="sheet-list" scroll-y>
-        <!-- 搜索中 -->
-        <view v-if="dishLoading" class="sheet-empty">
-          <text class="footer-text">加载中…</text>
-        </view>
         <!-- 无结果：去补录 -->
-        <view v-else-if="dishSearched && !dishCandidates.length" class="sheet-empty">
+        <view v-if="dishSearched && !dishCandidates.length" class="sheet-empty">
           <text class="sheet-empty-text">没搜到「{{ dishKeyword }}」</text>
           <view
             class="sheet-goto-add"
@@ -660,7 +656,6 @@ const suggestionSubs = [
 const dishSheetOpen = ref(false)
 const dishKeyword = ref('')
 const dishCandidates = ref<Dish[]>([])
-const dishLoading = ref(false)
 const dishSearched = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 /** 成功态自动返回定时器（⑨ scheduleAutoBack） */
@@ -706,17 +701,16 @@ async function onDishSearch() {
     return
   }
   const seq = ++searchSeq
-  dishLoading.value = true
   dishSearched.value = true
   try {
     const list = await searchDishes({ keyword: kw, page: 1, pageSize: 6 })
     if (seq !== searchSeq) return // 已有更新的搜索发出，丢弃本次过期结果
     dishCandidates.value = list
-  } catch {
+  } catch (err) {
     if (seq !== searchSeq) return
+    // 静默：请求失败不呈现任何占位，异常仅记录
+    console.error('[feedback] 搜索菜品失败', err)
     dishCandidates.value = []
-  } finally {
-    if (seq === searchSeq) dishLoading.value = false
   }
 }
 

@@ -52,6 +52,9 @@ public class MomentVO {
     @Schema(description = "关联对象缩略图（仅 relatedType=dish 返回，关联菜品主图，供前端卡片展示）")
     private String relatedImage;
 
+    @Schema(description = "关联菜品价格（单位：分，仅 relatedType=dish 返回；前端 api 层统一分→元换算）")
+    private Integer relatedPrice;
+
     @Schema(description = "当前登录用户是否已点「有用」（未登录为 null/false）")
     private Boolean useful;
 

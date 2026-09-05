@@ -1,6 +1,6 @@
 <template>
   <view class="interact-bar">
-    <!-- 「有用」：动态核心互动（与列表 MomentCard / 评论 CommentItem 语义一致：thumb 图标 + 计数 + 激活态） -->
+    <!-- 「有用」：动态核心互动（与列表 MomentCard 语义一致：thumb 图标 + 计数 + 激活态） -->
     <view
       class="interact-btn"
       :class="{ active: usefulActive }"
@@ -23,9 +23,6 @@
       <IconSvg name="comment" :size="36" color="var(--text-secondary)" class="interact-icon" />
       <text class="interact-count">{{ commentCount > 0 ? commentCount : '评论' }}</text>
     </view>
-    <view class="interact-report" hover-class="pressed" hover-stay-time="80" role="button" aria-label="举报" @tap="onReport">
-      <text class="interact-report-text">举报</text>
-    </view>
   </view>
 </template>
 
@@ -47,12 +44,10 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'comment'): void
-  (e: 'report'): void
   (e: 'useful'): void
 }>()
 
 function onComment() { emit('comment') }
-function onReport() { emit('report') }
 function onUseful() {
   // 受控连点锁：请求在途直接拦截（P0 防重复请求 / 计数漂移）
   if (props.usefulPending) return
@@ -73,15 +68,6 @@ function onUseful() {
 .interact-count { font-size: var(--font-caption); font-weight: var(--weight-medium); color: var(--text-secondary); }
 .interact-btn.active .interact-icon { color: var(--color-like); }
 .interact-btn.active .interact-count { color: var(--color-like); }
-/* content-flow-visual-polish 6.3：举报弱化为最右侧三级浅灰纯文字，降低对主互动（有用/评论）的干扰 */
-.interact-report {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 64rpx;
-  padding: 0 var(--spacing-sm);
-  -webkit-tap-highlight-color: transparent;
-}
-.interact-report-text { font-size: var(--font-small); color: var(--text-tertiary); }
+/* moment-detail-action-deemphasis：动态主体卡举报统一收纳进「三点」动作面板，
+   互动条移除原弱化「举报」文字项，仅保留有用/评论高频互动 */
 </style>

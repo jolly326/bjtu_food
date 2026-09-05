@@ -4,49 +4,52 @@
     <view
       class="dish-nav"
       :class="{ solid: navSolid }"
-      :style="{ paddingTop: topPad, '--nav-h': navBarHeight + 'px', '--nav-pad-right': navPadRight, '--top-pad': topPad }"
+      :style="{ paddingTop: topPad, '--nav-h': navBarHeight + 'px', '--nav-pad-right': navPadRight }"
     >
-      <!-- 1.6 顶部渐变 scrim：状态栏+胶囊高度区叠透明→微暗渐变，给微信胶囊区衬底、提升返回钮对比度；
-           随导航渐显反向淡出（1 - navOpacity），导航变实底后由实底接管，零滚动模型变动 -->
-      <view class="dish-nav-scrim" :style="{ opacity: 1 - navOpacity }" />
       <view class="dish-nav-row">
         <view class="dish-nav-back" role="button" aria-label="返回" @tap="backToHome">
-          <IconSvg
-            name="arrow-left"
-            :size="'22px'"
-            :color="navSolid ? 'var(--text-primary)' : '#FFFFFF'"
-            class="dish-nav-back-icon"
-          />
+          <!-- 返回钮＝显式 chip + 黑箭头（微信原生同款配色）：不再用 ::before 伪元素画底，
+               避免伪元素层级盖住箭头导致“看不到 icon” -->
+          <view class="dish-back-chip">
+            <IconSvg
+              name="arrow-left"
+              :size="'22px'"
+              color="#1A1A1A"
+              class="dish-back-icon"
+            />
+          </view>
         </view>
         <text class="dish-nav-title" :style="{ opacity: dish ? navOpacity : 1 }">{{ dishName }}</text>
       </view>
     </view>
 
-    <scroll-view
-      class="scroll-wrap"
-      scroll-y
-      :scroll-with-animation="false"
-      ref="mainRef"
-      tabindex="-1"
-      @scroll="onNavScroll"
-      @scrolltolower="onReviewsReachBottom"
+    <!-- 空态/加载/不存在承接条：dish 缺失时固定实底承接返回钮/标题（z 介于滚动内容与覆盖导航之间）；
+         有图态无需此条——大图自身持续盖住承接区，定格后由内容流内 .hero-carry 平滑承接 -->
+    <view v-if="!dish" class="no-dish-bar" :style="{ height: `${pinLine}px` }" />
+
+    <!-- 大图（.hero-slot）：内容流首块，页面级滚动 + CSS position:sticky 原生实现"两阶段定格"。
+         当页面滚动量达到 pinStart 后，浏览器/微信把大图钉在 top:-(heroBase-pinLine)（其底边恰落承接线 pinLine），
+         不再逐帧改写 transform——消除"实时计算"造成的偶发闪帧；此后仅下方卡片继续上滑。
+         内容未溢出剩余区域时页面本身不滚动，也就没有多余滚动区。 -->
+    <view
+      v-if="dish"
+      class="hero-slot"
+      :style="{ height: `${heroBase}px`, top: `-${pinStart}px` }"
     >
-      <!-- 加载/不存在态统一由 StateView 一次承载（ui-feed-loading：空态复用 EmptyState，不在详情区重复放置加载态） -->
-      <StateView v-if="!dish" :loading="dishStore.loading" :empty="true" empty-text="菜品不存在或已下架" empty-icon="empty" />
+      <ImageSwiper
+        :images="heroImages"
+        :height="`${heroBase}px`"
+        :placeholder-size="96"
+        placeholder-background="var(--bg-card)"
+      />
+      <view class="hero-carry" :style="{ height: `${pinLine}px`, opacity: carryOpacity }" />
+    </view>
 
-      <template v-else>
-        <!-- 菜品大图：全幅出血（顶部贴屏顶，仅底部圆角裁切），高约屏高 1/4 -->
-        <view class="hero-wrap">
-          <ImageSwiper
-            :images="heroImages"
-            height="26vh"
-            :indicator-dots="true"
-            :placeholder-size="96"
-            placeholder-background="var(--bg-card)"
-          />
-        </view>
-
-        <!-- 私有组件编排：基本信息 / 综合评分（只读）/ 评价（卡内触底加载） -->
+    <template v-if="dish">
+      <!-- 私有组件编排：基本信息 / 综合评分（只读）/ 评价（卡内触底加载）。
+           内容块最小高度（dishBodyMin）保证：即使内容不足一屏，页面也可滚动 ≥ pinStart，
+           「无论如何」都能把顶部大图滑到 header 定格位 -->
+      <view class="dish-body" :style="{ minHeight: dishBodyMin + 'px' }">
         <DishInfoCard
           :dish="dish"
           :location-text="locationText"
@@ -64,24 +67,32 @@
           :reviews="reviewList"
           :total="reviewTotal"
           :current-user-id="currentUserId"
-          :loading-more="reviewLoadingMore"
-          :finished="reviewFinished"
           @delete="onDeleteReview"
           @report="onReviewReport"
           @more="onReviewMore"
         />
+      </view>
+    </template>
 
-        <!-- 「没有更多了」在评价卡下方居中弱化（dish-detail-visual-polish） -->
-        <view v-if="reviewFinished && reviewList.length > 0" class="reviews-end">没有更多了</view>
-
-        <view style="height: calc(var(--spacing-lg) + 160rpx)" />
-      </template>
-    </scroll-view>
-
-    <!-- 底部固定操作栏：分享占满 -->
+    <!-- 底部固定操作栏：左「写评价」（打开提交弹层）右「去分享」（open-type=share），等宽双按钮 -->
     <view class="action-bar" v-if="dish">
-      <button class="share-btn-native" open-type="share">分享给同学</button>
+      <button class="bar-btn bar-btn--write" aria-label="写评价" @tap="onOpenReviewComposer">
+        <text class="bar-btn-text">写评价</text>
+      </button>
+      <button class="bar-btn bar-btn--share" open-type="share" aria-label="去分享">
+        <text class="bar-btn-text">去分享</text>
+      </button>
     </view>
+
+    <!-- 写评价底部抽屉（挂 scroll-view 外；提交成功后重拉评价 + 综合评分） -->
+    <ReviewComposer
+      v-if="dish"
+      :open="composerOpen"
+      :dish-id="dishId"
+      :dish-name="dish.name"
+      @update:open="composerOpen = $event"
+      @submitted="onReviewSubmitted"
+    />
 
     <!-- 举报弹窗（共享组件） -->
     <ReportModal
@@ -94,13 +105,12 @@
       @submit="submitReport"
     />
 
-    <!-- 评价三点菜单：删除/举报（与动态卡一致：点击直接弹层，删除/举报动作内部再要求登录） -->
-    <ReviewActionSheet
+    <!-- 评价三点菜单：删除/举报（通用 ActionSheet） -->
+    <ActionSheet
       :open="reviewMoreOpen"
-      :is-own="reviewMoreIsOwn"
-      @update:open="reviewMoreOpen = $event"
-      @delete="onReviewMoreDelete"
-      @report="onReviewMoreReport"
+      :items="reviewMoreItems"
+      @close="reviewMoreOpen = false"
+      @select="onReviewMoreSelect"
     />
 
     <!-- 认证弹层：点赞等需认证入口统一底部弹出 -->
@@ -109,8 +119,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
-import { onLoad, onShow, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad, onShow, onUnload, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
@@ -122,10 +132,11 @@ import { useReport } from '@/composables/useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
+import IconSvg from '@/components/IconSvg.vue'
 import ImageSwiper from '@/components/ImageSwiper.vue'
-import StateView from '@/components/StateView.vue'
 import ReportModal from '@/components/ReportModal.vue'
-import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
+import ReviewComposer from '@/components/ReviewComposer.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
@@ -175,9 +186,6 @@ onUnload(() => {
   navTimer = null
 })
 
-// 主内容区引用（2.4 路由切换聚焦，H5/桌面生效）
-const mainRef = ref<any>()
-
 /** 大图列表：优先 images，回退单图 */
 const heroImages = computed(() => {
   const d = dish.value
@@ -189,8 +197,6 @@ const heroImages = computed(() => {
 const statusBarHeight = ref(20)
 const navBarHeight = ref(56)
 const scrollTop = ref(0)
-/** 大图高度（px）：与 .hero-wrap 内 ImageSwiper 的 26vh 对应，用于推算渐显起点 */
-const heroH = ref(0)
 /** 右上角原生胶囊避让：与 AppHeader 同款计算（screenW − menuBtn.left + 8px），仅微信端生效 */
 const rightPad = ref(0)
 const topPad = computed(() => `max(${statusBarHeight.value}px, env(safe-area-inset-top))`)
@@ -198,25 +204,62 @@ const topPad = computed(() => `max(${statusBarHeight.value}px, env(safe-area-ins
 const navPadRight = computed(() =>
   rightPad.value > 0 ? `calc(env(safe-area-inset-right, 0px) + ${rightPad.value}px)` : '0px',
 )
-/**
- * 渐显区间（px）：延迟到「信息卡菜名滚出可视区」之后才开始淡入覆盖导航标题，
- * 避免与信息卡自身的菜名在屏内同屏重复（dish-detail-visual-polish 1.5）。
- * 信息卡菜名位于大图之下（page-y ≈ heroH + 卡片顶距），当其整行滚到导航栏底之下时再淡入。
- */
-const NAV_FADE_START = computed(() =>
-  Math.max(8, heroH.value + 40 - (statusBarHeight.value + navBarHeight.value)),
-)
-const NAV_FADE_END = computed(() => NAV_FADE_START.value + 96)
+/** 视口尺寸（px，onMounted 取真值；缺省兜底） */
+const windowHeight = ref(800)
+const windowWidth = ref(375)
+
+/* ===== 顶部大图（dish-hero-scroll-model + fix：两阶段定格 = 页面滚动 + CSS sticky） =====
+   大图仍是页面内容流首块（.hero-slot）并设 position:sticky、top:-pinStart：
+   - 阶段 A：滚动量 ≤ pinStart，大图随页面自然上移，其底边与下方卡片顶边始终重合、承接区无空窗；
+   - 阶段 B：滚动量 > pinStart，由滚动引擎把大图钉在 top:-pinStart（底边恰落承接线 pinLine），
+     此后仅下方卡片继续上滑；反向回滚自动脱离并恢复满高贴顶。全程由原生 sticky 承担，
+     不逐帧改写 transform → 无实时计算造成的偶发闪帧。
+   - 承接：大图自身持续盖住顶部（无空窗），定格后 .hero-carry 在 pinLine 高平滑淡入 --bg-card 实底；
+     菜品不存在（数据为空）时顶部承接强制实底，返回始终可用。 */
+/** AppHeader 底部留白 --spacing-sm（16rpx）折算 px：承接线口径含它，与其它二级页 AppHeader 底边对齐 */
+const spacingSmPx = ref(8)
+/** 承接线 = 状态栏 + 导航行 + AppHeader 底部留白（与其他二级页 AppHeader 底边同高的水平线） */
+const pinLine = computed(() => statusBarHeight.value + navBarHeight.value + spacingSmPx.value)
+/** 大图满高：≈ 屏高 1/4（沿用 26vh 口径，px 与滚动量同单位）；恒大于承接线，保证有定格区间 */
+const heroBase = computed(() => Math.max(Math.round(windowHeight.value * 0.26), pinLine.value + 20))
+/** 大图底边到达承接线所需滚动量 = 满高 − 承接线（sticky top 取 -pinStart，阶段 A/B 分界） */
+const pinStart = computed(() => Math.max(heroBase.value - pinLine.value, 1))
+/** 内容块最小高度（px）：即使菜品内容不足一屏，也让页面可滚动量 ≥ pinStart，
+ *  保证"无论如何"都能把顶部大图滑到 header 定格位（内容较多时该下限自动失效）。 */
+const dishBodyMin = computed(() => Math.max(0, windowHeight.value + pinStart.value - heroBase.value))
+/** 承接条淡入位移：越过承接线后 48px 内淡入完成（先于标题渐显，避免浅条下出现标题） */
+const CARRY_FADE_PX = 48
+/** 承接条不透明度：大图定格后 .hero-carry 在 pinLine 高淡入实底（连续映射，无阶跃/空窗）；dish==null 由固定条承接 */
+const carryOpacity = computed(() => {
+  if (dish.value == null) return 1
+  const overscroll = scrollTop.value - pinStart.value
+  return Math.min(1, Math.max(0, overscroll / CARRY_FADE_PX))
+})
+/** 实底态：驱动返回图标色（实底黑 / 图片态白）与 .dish-nav-back::before 深色圆底显隐 */
+const navSolid = computed(() => dish.value == null || carryOpacity.value >= 1)
+
+/* ===== D1e 标题渐显公式：卡片菜名滚出导航条下沿后才渐显，避免同屏两份菜名 ===== */
+/** ≈ 信息卡上内边距(32rpx≈16px) + 菜名行高，按 8 基网格就近取整；
+ *  若真机仍有短瞬同屏，此常量为唯一调节点（只增不减）。 */
+const NAME_EXIT_SLACK = 40
+/** 沿用既有 96px 淡入区间 */
+const TITLE_FADE_SPAN = 96
+/** 渐显起点：大图底边定格于承接线后，信息卡菜名滚出承接线才渐显 */
+const titleFadeStart = computed(() => pinStart.value + NAME_EXIT_SLACK)
 const navOpacity = computed(() => {
   if (dish.value == null) return 1
-  const p = (scrollTop.value - NAV_FADE_START.value) / (NAV_FADE_END.value - NAV_FADE_START.value)
+  const p = (scrollTop.value - titleFadeStart.value) / TITLE_FADE_SPAN
   return Math.min(1, Math.max(0, p))
 })
-const navSolid = computed(() => dish.value == null || navOpacity.value >= 1)
 const dishName = computed(() => (dish.value ? dish.value.name : '菜品详情'))
-function onNavScroll(e: any) {
-  scrollTop.value = e?.detail?.scrollTop || 0
-}
+/** 页面级滚动同步（原内层 scroll-view @scroll 移除）：只驱动承接条/标题的 opacity，不再参与布局/位移 */
+onPageScroll((e: any) => {
+  scrollTop.value = e?.scrollTop || 0
+})
+/** 页面滚动到底（原 scroll-view @scrolltolower）：评价触底加载下一页 */
+onReachBottom(() => {
+  onReviewsReachBottom()
+})
 onMounted(() => {
   // 与 AppHeader 同款导航尺寸计算（自定义导航 + 右上角胶囊避让）
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,12 +267,14 @@ onMounted(() => {
   const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
   const sb = (win && win.statusBarHeight) || 20
   statusBarHeight.value = sb
+  // dish-hero-scroll-model：大图满高取视口高度 26%（px），与滚动量同单位
+  windowHeight.value = (win && win.windowHeight) || 800
+  windowWidth.value = (win && win.windowWidth) || 375
+  // --spacing-sm（16rpx）折算 px：承接线需与其它页 AppHeader 底部留白对齐
+  spacingSmPx.value = (16 * windowWidth.value) / 750
   const mb = w && w.getMenuButtonBoundingClientRect ? w.getMenuButtonBoundingClientRect() : null
   if (mb && mb.height) {
     navBarHeight.value = getNavBarHeight(sb, mb)
-    // 大图按 26vh 推算（miniprogram vh 基于屏幕高），用于延迟渐显起点
-    const screenH = (win && (win.screenHeight || win.windowHeight)) || 667
-    heroH.value = screenH * 0.26
     // 胶囊避让：screenW − 胶囊.left + 8px（px，不随屏宽缩放），与 AppHeader 一致
     const screenW = (win && win.windowWidth) || 375
     rightPad.value = Math.max(screenW - mb.left + 8, 0)
@@ -286,9 +331,6 @@ onLoad((query) => {
 /** 从二级页返回时：脏标记置位才重拉（评价列表 + 综合评分） */
 onShow(() => {
   if (!dishId.value || !dish.value) return
-  // #ifdef H5
-  nextTick(() => mainRef.value?.$el?.focus?.())
-  // #endif
   if (dishStore.reviewsDirty) {
     dishStore.reviewsDirty = false
     resetReviewPaging()
@@ -396,6 +438,24 @@ function onDeleteReview(rv: Review) {
   })
 }
 
+/* ===== 写评价（底栏左钮 → ReviewComposer 底部抽屉；提交成功后重拉评价 + 综合评分） ===== */
+const composerOpen = ref(false)
+function openComposer() {
+  composerOpen.value = true
+}
+function onOpenReviewComposer() {
+  if (!dish.value) return
+  // 与删除/举报同款：未认证先弹认证（AuthSheet），认证完成后回调重进本函数
+  if (!userStore.requireAuth(() => onOpenReviewComposer())) return
+  openComposer()
+}
+/** 提交成功：重置分页并重拉最新评价（sort=latest 新评置顶）+ 刷新综合评分分布 */
+function onReviewSubmitted() {
+  resetReviewPaging()
+  dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 10 })
+  dishStore.fetchDetail(dishId.value)
+}
+
 /* ===== 评价三点菜单（ReviewItem @more → 页面级 ReviewActionSheet） ===== */
 const reviewMoreOpen = ref(false)
 const reviewMoreTarget = ref<Review | null>(null)
@@ -408,11 +468,20 @@ function onReviewMore(rv: Review) {
   reviewMoreTarget.value = rv
   reviewMoreOpen.value = true
 }
-function onReviewMoreDelete() {
-  if (reviewMoreTarget.value) onDeleteReview(reviewMoreTarget.value)
-}
-function onReviewMoreReport() {
-  if (reviewMoreTarget.value) onReviewReport(reviewMoreTarget.value)
+
+/** 动作项：本人删除 / 他人举报（危险操作警示色） */
+const reviewMoreItems = computed(() => {
+  if (!reviewMoreTarget.value) return []
+  return reviewMoreIsOwn.value
+    ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
+    : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
+})
+
+function onReviewMoreSelect(key: string) {
+  const rv = reviewMoreTarget.value
+  if (!rv) return
+  if (key === 'delete') onDeleteReview(rv)
+  else if (key === 'report') onReviewReport(rv)
 }
 
 /* ===== 评价举报（收敛到 useReport hook） ===== */
@@ -425,35 +494,23 @@ function onReviewReport(rv: Review) {
 </script>
 
 <style scoped>
-.dish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: calc(120rpx + env(safe-area-inset-bottom)); }
+/* 页面级滚动（fix）：根节点不设固定高度、不放内层 scroll-view——内容未溢出剩余区域时页面不产生滚动区；
+   内容溢出时由微信原生页面滚动承接（配合下方 hero 的 position:sticky）。
+   底部只预留操作栏高度，防止固定操作栏遮挡最后内容。 */
+.dish-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
 
 /* ===== dish-detail-visual-polish：覆盖导航 ===== */
+/* 覆盖导航层全程透明、不自持实底/描边/阴影——导航区背景：有图态由大图本身覆盖承接区（无空窗），
+   定格后由内容流内 .hero-carry 实底承接；dish 缺失态由 .no-dish-bar 固定实底承接。
+   返回钮使用恒定高对比圆形浮层（见 .dish-nav-back::before），不随背景切换而“隐身”。 */
 .dish-nav {
   position: fixed;
   left: 0;
   top: 0;
   right: 0;
   z-index: 80;
-  background: transparent;
-  transition: background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
-.dish-nav.solid {
-  background: var(--bg-card);
-  border-bottom: 1rpx solid var(--border-color);
-  box-shadow: var(--shadow-bar-soft);
-}
-/* 顶部渐变 scrim：覆盖状态栏+胶囊高度区，向上略深、向下渐隐，纯展示不拦截触摸 */
-.dish-nav-scrim {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: calc(var(--top-pad) + var(--nav-h) + 36px);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.30) 0%, rgba(0, 0, 0, 0.12) 46%, rgba(0, 0, 0, 0) 100%);
-  pointer-events: none;
-  z-index: 0;
-}
+/* 顶部渐变 scrim 已移除（方案 C→常驻固定 hero header 替代） */
 .dish-nav-row {
   position: relative;
   z-index: 1;
@@ -472,25 +529,26 @@ function onReviewReport(rv: Review) {
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
 }
-/* 大图态：返回图标加半透深色圆底保证可见；非大图态透明白底黑图标 */
-.dish-nav-back::before {
-  content: '';
-  position: absolute;
+/* 返回钮：底色对齐微信右上角自带胶囊（中性浅灰透底 + #1A1A1A 黑箭头、细边），
+   icon 依赖显式 import 的 IconSvg 渲染（此前未 import 导致页面全部图标不可见） */
+.dish-back-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-  background: var(--overlay-dark-faint);
-  transition: background var(--duration-fast) var(--ease-out);
+  background: rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 0 0 1rpx rgba(0, 0, 0, 0.1);
 }
-.dish-nav.solid .dish-nav-back::before { background: transparent; }
-.dish-nav-back-icon { line-height: 1; }
+.dish-back-icon { line-height: 1; }
 .dish-nav-title {
   position: absolute;
-  /* 1.4 胶囊避让：标题左侧起于返回钮之后，右侧止于微信胶囊左侧（--nav-pad-right），
-     长菜名被胶囊截断并省略，绝不进入胶囊区；短菜名在 [返回钮, 胶囊] 间居中 */
-  left: 60px;
-  right: var(--nav-pad-right, 0px);
-  max-width: none;
+  /* 渐渐显现的标题：以视口水平居中（原生导航标题一致），非在 [返回钮, 胶囊] 之间偏移居中；
+     长菜名由 max-width + 省略号收口，避免伸入返回钮 / 右侧胶囊区 */
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 60%;
   font-size: var(--font-h3);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
@@ -501,15 +559,57 @@ function onReviewReport(rv: Review) {
   transition: opacity var(--duration-base) var(--ease-out);
 }
 
-/* 菜品大图：全幅出血（顶部贴屏顶、左右撑满、仅底部圆角），图片底部圆角裁切 */
-.hero-wrap { width: 100%; border-radius: 0 0 var(--radius-card) var(--radius-card); overflow: hidden; line-height: 0; }
+/* 空态/加载/不存在承接条：固定于屏幕顶端、高 pinLine（内联）、实底 --bg-card，保证返回钮可读可用；
+   pointer-events:none 不拦手势；底部圆角与卡片一致（16px）。 */
+.no-dish-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  width: 100%;
+  background: var(--bg-card);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  pointer-events: none;
+}
+/* 大图容器：内容流首块 + position:sticky（top 由内联 -pinStart 动态给定）。
+   滚动越过 pinStart 后由滚动引擎把大图钉在 top:-pinStart（其底边恰落承接线 pinLine），
+   原生接管“定格”，不逐帧改写 transform → 消除实时计算导致的偶发闪帧；
+   此后仅下方卡片继续上滑并被 z-index:2 的大图盖于其上。
+   底部圆角全程恒定由 overflow 裁切，任何态不丢圆角。 */
+.hero-slot {
+  position: sticky;
+  z-index: 2;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+/* 承接条：锚于大图容器底部 pinLine 高，定格后按 carryOpacity 连续淡入 --bg-card 实底（无空窗/阶跃）；
+   opacity 由滚动量驱动，非 CSS transition */
+.hero-carry {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-card);
+  opacity: 0;
+  pointer-events: none;
+}
 
-/* 「没有更多了」位于评价卡下方居中弱化 */
-.reviews-end { text-align: center; font-size: var(--font-small); color: var(--text-tertiary); padding: var(--spacing-md) 0 var(--spacing-2xs); }
-
-/* 底部固定操作栏 */
-.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
-/* dish-detail-visual-polish：与全局主按钮统一（圆角 12px=24rpx 就近落地、600 字重、极淡下投影） */
-.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: 24rpx; background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-semibold); border: none; padding: 0; box-shadow: var(--shadow-float); }
-.share-btn-native::after { border: none; }
+/* 底部固定操作栏：左写评价（主色实底）+ 右分享给同学（白底主色描边次按钮），等宽双按钮，与全局主按钮同高/圆角/字重 */
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
+/* 按钮基线（圆角 12px=24rpx 就近落地、600 字重、88rpx 高；图标 + 文字同行居中） */
+.bar-btn { flex: 1; min-width: 0; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); border-radius: 24rpx; border: none; padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent; }
+.bar-btn::after { border: none; }
+.bar-btn-icon { flex-shrink: 0; }
+.bar-btn-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 写评价 = 主操作（主色实底 + 白字 + 极淡下投影） */
+.bar-btn--write { background: var(--color-primary); box-shadow: var(--shadow-float); }
+.bar-btn--write .bar-btn-text { color: var(--color-on-primary); }
+/* 分享 = 次操作（白底 + 主色细边/文字，弱于实底主钮） */
+.bar-btn--share { background: var(--bg-card); border: 2rpx solid var(--color-primary); }
+.bar-btn--share .bar-btn-text { color: var(--color-primary); }
 </style>

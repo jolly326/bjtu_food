@@ -1,52 +1,38 @@
 <template>
   <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="commentIntoView" refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <!-- 加载/失败/空态统一由 StateView 一次承载 -->
-      <StateView
-        v-if="!moment"
-        :loading="loading"
-        :failed="!deleted"
-        :empty="deleted"
-        error-text="动态加载失败，请稍后重试"
-        empty-text="该动态不存在或已删除"
-        :empty-retry="true"
-        @retry="loadData"
+    <!-- 页面级自然滚动（同 dish/about 先例，fix）：不再套内层 scroll-view——内容不足一屏时不产生滚动区，
+         不再出现「上滑可拖起小段再回弹」；内容超高时由微信页面滚动承接。 -->
+    <template v-if="moment">
+      <!-- 私有组件编排：动态主卡 + 评论区（detail-modular-review-cleanup） -->
+      <MomentDetailCard
+        :moment="moment"
+        :is-author="isAuthor"
+        @more="openMomentSheet"
+        @go-related="goRelated"
+      />
+      <MomentCommentSection
+        :comments="comments"
+        :comment-count="moment.commentCount"
+        :moment-id="moment.id"
+        :author-id="moment.userId"
+        @reply="replyTo"
+        @reply-named="replyToNamed"
+        @delete="onCommentLongPress"
+        @report="openCommentSheet"
+        @useful="onCommentUseful"
       />
 
-      <template v-else>
-        <!-- 私有组件编排：动态主卡 + 评论区（detail-modular-review-cleanup） -->
-        <MomentDetailCard
-          :moment="moment"
-          :is-author="isAuthor"
-          :useful-pending="pendingUseful"
-          @useful="onUseful"
-          @comment="focusComment"
-          @report="openReport"
-          @related="goRelated"
-        />
-        <MomentCommentSection
-          :comments="comments"
-          :comment-count="moment.commentCount"
-          :moment-id="moment.id"
-          @reply="replyTo"
-          @reply-named="replyToNamed"
-          @delete="onCommentLongPress"
-          @report="onCommentReport"
-        />
-
-        <!-- 退回原因 + 编辑重提 -->
-        <view v-if="isAuthor && moment.auditStatus === 'rejected' && moment.rejectReason" class="reject-box">
-          <text class="reject-title">已退回</text>
-          <text class="reject-reason">{{ moment.rejectReason }}</text>
-          <view class="reject-edit" @tap="goEdit">
-            <IconSvg name="edit" :size="26" color="var(--color-on-primary)" />
-            <text class="reject-edit-text">编辑重提</text>
-          </view>
+      <!-- 退回原因 + 编辑重提 -->
+      <view v-if="isAuthor && moment.auditStatus === 'rejected' && moment.rejectReason" class="reject-box">
+        <text class="reject-title">已退回</text>
+        <text class="reject-reason">{{ moment.rejectReason }}</text>
+        <view class="reject-edit" @tap="goEdit">
+          <IconSvg name="edit" :size="26" color="var(--color-on-primary)" />
+          <text class="reject-edit-text">编辑重提</text>
         </view>
-      </template>
-
-    </scroll-view>
+      </view>
+    </template>
 
     <!-- 底部评论输入栏 -->
     <view class="comment-bar" v-if="moment">
@@ -64,6 +50,13 @@
         <view v-if="!filteredMentions.length" class="mention-empty">暂无匹配评论者</view>
       </view>
       </transition>
+      <!-- 回复提示条（interaction-polish 增量：正在回复某人时告知，发送/取消后消失） -->
+      <view v-if="replyingTo" class="reply-hint">
+        <text class="reply-hint-text">回复 @{{ replyingTo.userNickname }}</text>
+        <view class="reply-hint-cancel" role="button" aria-label="取消回复" @tap="cancelReply">
+          <IconSvg name="close" :size="22" color="var(--text-tertiary)" />
+        </view>
+      </view>
       <view class="comment-input-row">
         <ImageUploader v-model="commentImages" :max="3" compact class="comment-uploader" />
         <view class="comment-input-box" :class="{ focused: commentFocus }">
@@ -96,6 +89,14 @@
       @submit="submitReport"
     />
 
+    <!-- 动作面板（ActionSheet）：动态主体卡三点(kind=moment 分享/举报) / 评论长按(kind=comment 仅举报) 共用 -->
+    <ActionSheet
+      :open="actionOpen"
+      :items="momentActionItems"
+      @close="actionOpen = false"
+      @select="onActionSheetSelect"
+    />
+
     <!-- 认证弹层（未登录点赞/评论/举报 requireAuth 统一在此弹出） -->
     <AuthSheet />
   </view>
@@ -103,19 +104,19 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onUnload, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import { submitFeedback } from '@/api/feedback'
 import type { Moment, MomentComment } from '@/types/moment'
-import { buildSharePayload } from '@/utils/share-state'
+import { buildSharePayload, sharedMoment } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
-import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import MomentDetailCard from './MomentDetailCard.vue'
 import MomentCommentSection from './MomentCommentSection.vue'
 
@@ -127,9 +128,6 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
-const loading = ref(false)
-const deleted = ref(false)
-const refresherTriggered = ref(false)
 const commentText = ref('')
 /** 评论图片（最多 3 张，复用 Moment 图床） */
 const commentImages = ref<string[]>([])
@@ -156,8 +154,6 @@ let loadSeq = 0
 async function loadData() {
   if (!currentId) return
   const seq = ++loadSeq
-  loading.value = true
-  deleted.value = false
   try {
     const [m, c] = await Promise.all([
       momentApi.getMomentDetail(currentId),
@@ -165,19 +161,17 @@ async function loadData() {
     ])
     if (seq !== loadSeq) return
     if (!m) {
-      deleted.value = true
       moment.value = null
       return
     }
     moment.value = m
     comments.value = c.list
     if (m) moment.value.commentCount = m.commentCount ?? comments.value.length
-  } catch (e: any) {
+  } catch (err) {
     if (seq !== loadSeq) return
-    uni.showToast({ title: e.message || '加载失败', icon: 'none' })
+    // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠重进页面
+    console.error('[moment] 加载动态详情失败', err)
     moment.value = null
-  } finally {
-    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -194,62 +188,108 @@ function goEdit() {
   uni.navigateTo({ url: `/pages/publish-content/index?id=${moment.value.id}` })
 }
 
-/** scroll-into-view 目标：点「评论」定位到评论区（id 位于 MomentCommentSection 内） */
-const commentIntoView = ref('')
-function focusComment() {
-  commentIntoView.value = ''
-  const t = setTimeout(() => {
-    commentIntoView.value = 'comment-section'
-    commentFocus.value = true
-  }, 30)
-  pageTimers.push(t)
+/** 正在回复的评论（interaction-polish 增量：驱动输入框上方「回复 @xxx」提示条） */
+const replyingTo = ref<MomentComment | null>(null)
+
+
+
+/** 取消回复：清提示条与预填的 @目标 */
+function cancelReply() {
+  replyingTo.value = null
+  commentText.value = commentText.value.replace(/^@\S+\s/, '')
+  mentionOpen.value = false
 }
 
-/** 动态「有用」乐观更新（pendingUseful 锁防连点） */
-const pendingUseful = ref(false)
-function onUseful() {
+/* 动态「有用」已由 MomentDetailCard 副本内 useMomentUseful 自管（乐观更新/失败回滚/连点锁/requireAuth 认证），
+   页面不再维护 pendingUseful 受控点赞（moment-detail 整卡副本改造） */
+/* 评论「有用」切换（moment-comment-thread-view 4.3）：乐观更新 + 失败回滚 + 连点锁 + 未认证先认证 */
+const commentUsefulPending = new Set<number>()
+async function onCommentUseful(c: MomentComment) {
   const m = moment.value
-  if (!m) return
-  if (!userStore.requireAuth(() => onUseful())) return
-  if (pendingUseful.value) return
-  pendingUseful.value = true
-  const prevActive = !!m.useful
-  const prevCount = m.usefulCount || 0
-  m.useful = !prevActive
-  m.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
-  momentApi
-    .toggleUseful(m.id)
-    .then((res) => {
-      m.useful = res.useful
-      m.usefulCount = res.usefulCount
-    })
-    .catch(() => {
-      m.useful = prevActive
-      m.usefulCount = prevCount
-      uni.showToast({ title: '操作失败', icon: 'none' })
-    })
-    .finally(() => {
-      pendingUseful.value = false
-    })
+  if (!m || !c) return
+  if (!userStore.requireAuth(() => onCommentUseful(c))) return
+  if (commentUsefulPending.has(c.id)) return
+  commentUsefulPending.add(c.id)
+  const prevActive = !!c.useful
+  const prevCount = c.usefulCount || 0
+  c.useful = !prevActive
+  c.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
+  try {
+    const res = await momentApi.toggleMomentCommentUseful(m.id, c.id)
+    c.useful = res.useful
+    c.usefulCount = res.usefulCount
+  } catch (e: any) {
+    c.useful = prevActive
+    c.usefulCount = prevCount
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+  } finally {
+    commentUsefulPending.delete(c.id)
+  }
 }
 
-/* 举报（动态 or 评论） */
+/* 举报动作面板（moment-detail-action-deemphasis）：
+   动态主体卡三点(kind=moment) / 评论长按(kind=comment) → MomentActionSheet；
+   面板内「举报」项再打开 ReportModal（举报免认证，游客可直达） */
+const actionOpen = ref(false)
+const actionKind = ref<'moment' | 'comment'>('moment')
+const actionComment = ref<MomentComment | null>(null)
+
+function openMomentSheet() {
+  actionKind.value = 'moment'
+  actionComment.value = null
+  actionOpen.value = true
+}
+
+function openCommentSheet(c: MomentComment) {
+  actionKind.value = 'comment'
+  actionComment.value = c
+  actionOpen.value = true
+}
+
+/** 动作项：comment=仅举报；moment=分享 +（非作者时）举报 */
+const momentActionItems = computed(() => {
+  if (actionKind.value === 'comment') {
+    return actionComment.value
+      ? [{ key: 'report', label: '举报', icon: 'report', iconColor: 'var(--color-primary)', textColor: 'var(--color-primary)' }]
+      : []
+  }
+  const items: { key: string; label: string; icon: string; iconColor?: string; textColor?: string }[] = []
+  if (moment.value) items.push({ key: 'share', label: '分享', icon: 'share' })
+  if (!isAuthor.value && moment.value) {
+    items.push({ key: 'report', label: '举报', icon: 'report', iconColor: 'var(--color-primary)', textColor: 'var(--color-primary)' })
+  }
+  return items
+})
+
+function onActionSheetSelect(key: string) {
+  if (key === 'share' && moment.value) {
+    sharedMoment.value = moment.value
+  } else if (key === 'report') {
+    if (actionKind.value === 'comment') {
+      if (actionComment.value) onActionReport(actionComment.value)
+    } else if (moment.value) {
+      onActionReport(moment.value)
+    }
+  }
+}
+
+function onActionReport(target: Moment | MomentComment) {
+  const t = target as MomentComment
+  if (t.momentId != null) {
+    // 评论举报
+    reportTarget.value = { type: 'moment_comment', id: t.id }
+  } else if (moment.value) {
+    // 动态举报
+    reportTarget.value = { type: 'moment', id: moment.value.id }
+  }
+  reportOpen.value = true
+}
+
+/* 举报（动态 or 评论）提交弹窗 */
 const reportOpen = ref(false)
 const reportSubmitting = ref(false)
 const commentSubmitting = ref(false)
 const reportTarget = ref<{ type: string; id: number } | null>(null)
-
-function openReport() {
-  // 举报免认证（游客可直达，同 useReport 口径）
-  reportTarget.value = moment.value ? { type: 'moment', id: moment.value.id } : null
-  reportOpen.value = true
-}
-
-function onCommentReport(c: MomentComment) {
-  // 举报免认证（游客可直达）
-  reportTarget.value = { type: 'moment_comment', id: c.id }
-  reportOpen.value = true
-}
 
 async function submitReport(text: string) {
   if (!reportTarget.value) return
@@ -274,8 +314,9 @@ async function submitReport(text: string) {
   }
 }
 
-/* 点击「回复 @昵称」等价于在输入框写入 @昵称 */
+/* 点击评论本体/「回复」：记录回复对象并预填 @昵称（interaction-polish 增量：显示回复提示条） */
 function replyTo(c: MomentComment) {
+  replyingTo.value = c
   commentText.value = '@' + c.userNickname + ' '
   commentFocus.value = true
   mentionOpen.value = false
@@ -368,6 +409,7 @@ async function submitComment() {
     commentText.value = ''
     commentImages.value = []
     mentionOpen.value = false
+    replyingTo.value = null
     uni.showToast({ title: '评论成功', icon: 'success' })
   } catch (e: any) {
     uni.showToast({ title: e.message || '评论失败', icon: 'none' })
@@ -397,11 +439,7 @@ async function onCommentLongPress(c: MomentComment) {
   })
 }
 
-function onRefresh() {
-  if (refresherTriggered.value) return
-  refresherTriggered.value = true
-  loadData().finally(() => { refresherTriggered.value = false })
-}
+
 
 onLoad((query) => {
   if (query?.id) {
@@ -409,11 +447,18 @@ onLoad((query) => {
     loadData()
   }
 })
+
+/** 页面级下拉刷新（pages.json moment 路由已开启 enablePullDownRefresh，页面自然滚动下替代原 scroll-view refresher） */
+onPullDownRefresh(() => {
+  loadData().finally(() => { uni.stopPullDownRefresh() })
+})
 </script>
 
 <style scoped>
-.moment-detail-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; overflow-y: auto; padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 页面级自然滚动（同 dish/about 先例，fix）：根节点不设固定高度、不放内层 scroll-view——
+   内容不足一屏时页面不产生滚动区，不再出现「上滑可拖起小段再回弹」；
+   内容超高时由微信页面滚动承接。底部预留固定评论栏高度，防其遮挡末尾内容（dish 同款 padding-bottom） */
+.moment-detail-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* 退回原因 + 编辑重提 */
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
@@ -424,6 +469,11 @@ onLoad((query) => {
 
 /* 底部评论输入栏 */
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
+/* 回复提示条（interaction-polish 增量）：告知当前回复对象，发送/取消后消失 */
+.reply-hint { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-sm); margin-bottom: var(--spacing-xs); background: var(--bg-soft); border-radius: var(--radius-tag); }
+.reply-hint-text { font-size: var(--font-small); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reply-hint-cancel { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
+.reply-hint-cancel:active { opacity: 0.6; }
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
 .comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid var(--border-color); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }

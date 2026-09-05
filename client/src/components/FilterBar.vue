@@ -18,7 +18,7 @@
       >
         <IconSvg class="fb-chip-icon" name="dish" :size="'18px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
         <text class="fb-chip-text">{{ canteenLabel }}</text>
-        <IconSvg class="fb-chip-icon" :name="activePanel === 'canteen' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-tertiary)'" />
+        <IconSvg class="fb-chip-icon" :name="activePanel === 'canteen' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
       </view>
 
       <!-- 价格按钮：与食堂按钮同款交互；收起后文案回显所选区间（元） -->
@@ -31,7 +31,7 @@
       >
         <IconSvg class="fb-chip-icon" name="price" :size="'18px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
         <text class="fb-chip-text">{{ priceLabel }}</text>
-        <IconSvg class="fb-chip-icon" :name="activePanel === 'price' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-tertiary)'" />
+        <IconSvg class="fb-chip-icon" :name="activePanel === 'price' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
       </view>
     </view>
 
@@ -58,7 +58,7 @@
             @tap="selectCanteen(null)"
           >
             <text class="cf-name">全部</text>
-            <IconSvg v-if="selectedCanteenId === null" name="check" :size="32" color="var(--color-primary)" />
+            <IconSvg v-if="selectedCanteenId === null" name="check" :size="32" color="var(--color-on-primary)" />
           </view>
           <view
             v-for="c in canteens"
@@ -69,7 +69,7 @@
             @tap="selectCanteen(c.id ?? null)"
           >
             <text class="cf-name">{{ c.name }}</text>
-            <IconSvg v-if="selectedCanteenId === c.id" name="check" :size="32" color="var(--color-primary)" />
+            <IconSvg v-if="selectedCanteenId === c.id" name="check" :size="32" color="var(--color-on-primary)" />
           </view>
         </scroll-view>
       </view>
@@ -94,7 +94,7 @@
             @tap="pickPreset(opt.key)"
           >
             <text class="ps-name">{{ opt.label }}</text>
-            <IconSvg v-if="activeKey === opt.key" name="check" :size="28" color="var(--color-primary)" />
+            <IconSvg v-if="activeKey === opt.key" name="check" :size="28" color="var(--color-on-primary)" />
           </view>
         </view>
 
@@ -138,7 +138,6 @@
 import { computed, ref, watch, nextTick } from 'vue'
 
 import IconSvg from './IconSvg.vue'
-import { fenToYuan, yuanToFen } from '@/utils/money'
 import type { CanteenInfo } from '@/types/canteen'
 
 const props = withDefaults(defineProps<{
@@ -146,7 +145,7 @@ const props = withDefaults(defineProps<{
   canteens: CanteenInfo[]
   /** 当前选中食堂 id（受控；null = 全部） */
   selectedCanteenId: number | null
-  /** 当前价格区间（受控，单位：分） */
+  /** 当前价格区间（受控，单位：元）；emit 与透传同为元，禁止二次换算 */
   priceRange?: { min?: number; max?: number }
   /** 胶囊高度（px），对齐原生胶囊/搜索框高度；缺省回退 36px */
   capsuleHeight?: number
@@ -203,13 +202,20 @@ const selectedCanteenName = computed(
 )
 const canteenLabel = computed(() => selectedCanteenName.value || '全部食堂')
 
-/** 价格胶囊文案：priceRange 单位为「分」，展示转「元」统一走 fenToYuan（红线：禁止裸算 /100） */
+/** 金额展示归一：最多两位小数、去掉整数的多余尾零（10 显示「10」，4.5 显示「4.5」）；空值兜底空串 */
+function formatYuan(v: number | null | undefined): string {
+  if (v == null) return ''
+  return String(Math.round(v * 100) / 100)
+}
+
+/** 价格胶囊文案：priceRange 单位为「元」，直接以元回显（红线：禁止裸算 /100、禁止二次换算） */
 const priceLabel = computed(() => {
-  const p = props.priceRange
-  if (p.min == null && p.max == null) return '全部价格'
-  if (p.min != null && p.max == null) return `${fenToYuan(p.min)} 元以上`
-  if (p.min == null && p.max != null) return `${fenToYuan(p.max)} 元以下`
-  return `${fenToYuan(p.min)}-${fenToYuan(p.max)} 元`
+  const min = props.priceRange.min
+  const max = props.priceRange.max
+  if (min == null && max == null) return '全部价格'
+  if (min != null && max == null) return `${formatYuan(min)} 元以上`
+  if (min == null && max != null) return `${formatYuan(max)} 元以下`
+  return `${formatYuan(min)}-${formatYuan(max)} 元`
 })
 
 // ===== 食堂下拉 =====
@@ -236,12 +242,12 @@ watch(activePanel, (v) => {
   }
 })
 
-// 预设：不限 / 0–10 / 10–20 / 20 元以上（元→分，金额换算仅在组件内、不裸算于页面）
+// 预设：不限 / 0–10 / 10–20 / 20 元以上（单位：元，与 priceRange / emit 同为元口径，禁止换算）
 const presets = [
   { key: 'all', label: '不限', min: undefined, max: undefined },
-  { key: '0-10', label: '0–10 元', min: 0, max: 1000 },
-  { key: '10-20', label: '10–20 元', min: 1000, max: 2000 },
-  { key: '20+', label: '20 元以上', min: 2000, max: undefined },
+  { key: '0-10', label: '0–10 元', min: 0, max: 10 },
+  { key: '10-20', label: '10–20 元', min: 10, max: 20 },
+  { key: '20+', label: '20 元以上', min: 20, max: undefined },
 ] as const
 
 type PresetKey = (typeof presets)[number]['key']
@@ -260,12 +266,12 @@ const draftMax = ref(vModelMax())
 function vModelMin(): string {
   const m = props.priceRange.min
   if (m === undefined) return ''
-  return String(fenToYuan(m))
+  return String(m)
 }
 function vModelMax(): string {
   const m = props.priceRange.max
   if (m === undefined) return ''
-  return String(fenToYuan(m))
+  return String(m)
 }
 
 function onMinInput(e: any) {
@@ -284,18 +290,17 @@ function pickPreset(key: PresetKey) {
   emit('price-select', { min: opt.min, max: opt.max })
 }
 
-/** 输入串（元）→ 分：空串 / 非法值返回 undefined（表示不限）。
- *  ×100 主体仍走 utils/money 的 yuanToFen，此处只负责「输入串 → 数字」的解析与边界兜底。 */
-function toFen(v: string): number | undefined {
+/** 输入串（元）→ 元数值：空串 / 非法值返回 undefined（表示不限）。单位即元，禁止任何 ×/÷ 换算。 */
+function toYuan(v: string): number | undefined {
   if (v === '') return undefined
   const n = Number(v)
   if (!Number.isFinite(n)) return undefined
-  return yuanToFen(n)
+  return n
 }
 
 function onConfirm() {
-  let min = toFen(draftMin.value)
-  let max = toFen(draftMax.value)
+  let min = toYuan(draftMin.value)
+  let max = toYuan(draftMax.value)
   // 边界：min>max 时自动纠正为区间（取较小值为下界）
   if (min !== undefined && max !== undefined && min > max) {
     const t = min
@@ -403,17 +408,27 @@ function onReset() {
   background: var(--overlay-scrim);
   z-index: 90;
 }
-/* 面板：与米色筛选区/页面同色（非红非白），紧贴筛选条无间隙、无顶部阴影线，亮/暗模式均无缝 */
+/* 面板：紧贴筛选条向下展开的下拉片，**不是浮空的孤立卡片**。
+   - 满宽（无左右外边距）+ 顶边方角：与 .filter-bar / .find-filter-row 底边无缝衔接，
+     视觉上从筛选条底部「长出来」，而不是一张漂在页面上的 card。
+   - 底色与筛选条同面（--bg-page）、接缝处无任何 border：表单与 FilterBar 连成一体。
+   - 底边圆角 + 极淡柔阴影：表达「向下展开的下拉片」，层级主要由下方 scrim 压暗提供。
+   ⚠️ 刻意不做「左右留边 + 四角圆角 + 异色面」的悬浮卡：那会让面板看起来没有根、与筛选条脱开。
+   ⚠️ 左右内边距 = 筛选行内容边（--spacing-lg）：与 .cf-item 的 --spacing-md 叠加后
+      选项文字落在 56rpx，与胶囊内文字（32+24）落在同一条内容轴上。 */
 .cf-panel {
   background: var(--bg-page);
   color: var(--text-primary);
-  padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--spacing-md) var(--spacing-lg) calc(var(--spacing-md) + env(safe-area-inset-bottom));
 }
 .cf-title {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-md);
+  /* 左右与 .cf-item 同为 --spacing-md：标题与选项共用一条内容轴 */
+  padding: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
 }
 .cf-list {
   max-height: 60vh;
@@ -423,12 +438,26 @@ function onReset() {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-sm);
+  /* 左右 --spacing-md = 胶囊内边距：选项文字与胶囊文字同内容轴（56rpx） */
+  padding: var(--spacing-md);
   border-radius: var(--radius-card);
   -webkit-tap-highlight-color: transparent;
 }
+/* 选中项：纯红底 + 反白文字/对勾，与顶部胶囊选中态 100% 同语言 */
 .cf-item.active {
+  background: var(--color-primary);
+}
+.cf-item.active .cf-name {
+  color: var(--color-on-primary);
+}
+/* 未选中项点击反馈：极浅灰，中性不碰红系 */
+.cf-item:active {
   background: var(--bg-soft);
+}
+/* 选中项点击反馈：保持纯红，仅轻微降透明度（特异性高于 .cf-item:active，不会回退成灰） */
+.cf-item.active:active {
+  background: var(--color-primary);
+  opacity: 0.85;
 }
 .cf-name {
   font-size: var(--font-subtitle);
@@ -456,17 +485,21 @@ function onReset() {
   transition: opacity var(--duration-base) var(--ease-out);
 }
 .ps-mask.show { opacity: 1; }
-/* 米色面板：紧贴筛选条向下展开，与米色页面/筛选区无缝衔接（非红非白）。
-   刻意不挂 box-shadow：卡片阴影会在上边沿投出细线，与同色筛选条割裂（违反「无分隔线」原则）。
-   面板浮起感由下方遮罩 scrim 压暗提供层级区分。 */
+/* 面板：与食堂下拉同款——紧贴筛选条向下展开、与筛选条同面（--bg-page）、接缝无 border 的下拉片。
+   满宽无左右边距、顶边方角与筛选条无缝衔接、底边圆角 + 柔阴影表达展开层级。
+   左右内边距同取 --spacing-lg：与 .ps-preset 的 --spacing-md 叠加后，
+   预设文字落在 56rpx，与胶囊文字、食堂选项文字共用同一条内容轴。
+   （.ps-panel 的包含块是 .ps-root，其 left/right:0 已是满宽，故无需外边距。） */
 .ps-panel {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   background: var(--bg-page);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  box-shadow: var(--shadow-card);
   color: var(--text-primary);
-  padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  padding: var(--spacing-md) var(--spacing-lg) calc(var(--spacing-md) + env(safe-area-inset-bottom));
   /* opacity 淡入（无位移/缩放，MVP 静态） */
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-out);
@@ -476,7 +509,8 @@ function onReset() {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  padding: var(--spacing-xs) var(--spacing-sm) var(--spacing-md);
+  /* 左右与 .ps-preset 同为 --spacing-md：标题与预设共用一条内容轴 */
+  padding: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
 }
 .ps-presets {
   display: flex;
@@ -487,33 +521,51 @@ function onReset() {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-sm);
+  /* 左右 --spacing-md = 胶囊内边距：预设文字与胶囊文字同内容轴（56rpx） */
+  padding: var(--spacing-md);
   border-radius: var(--radius-card);
   -webkit-tap-highlight-color: transparent;
 }
+/* 选中预设：纯红底 + 反白文字/对勾，与食堂面板、顶部胶囊完全同一选中语言 */
 .ps-preset.active {
+  background: var(--color-primary);
+}
+.ps-preset.active .ps-name {
+  color: var(--color-on-primary);
+}
+/* 未选中项点击反馈：极浅灰，中性不碰红系 */
+.ps-preset:active {
   background: var(--bg-soft);
+}
+/* 选中项点击反馈：保持纯红，仅轻微降透明度 */
+.ps-preset.active:active {
+  background: var(--color-primary);
+  opacity: 0.85;
 }
 .ps-name {
   font-size: var(--font-subtitle);
   color: var(--text-primary);
   min-width: 0;
 }
+/* 自定义区：与上方预设之间**仅靠间距分隔**，刻意不挂 border-top——
+   横线会把表单切成互不相干的两块，破坏「与筛选条连成一体」的整体感。
+   （上方预设项自带 --spacing-md 下内边距，叠加此处 margin-top 已有 48rpx 呼吸。） */
 .ps-custom {
   margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1rpx solid var(--border-color);
+  padding-top: 0;
 }
 .ps-custom-title {
   font-size: var(--font-body);
   color: var(--text-secondary);
-  padding: 0 var(--spacing-sm) var(--spacing-sm);
+  /* 左右 --spacing-md：与预设、标题、胶囊同内容轴 */
+  padding: 0 var(--spacing-md) var(--spacing-sm);
 }
 .ps-inputs {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: 0 var(--spacing-sm);
+  /* 输入框左右与内容轴对齐（面板 --spacing-lg + 此处 --spacing-md = 56rpx） */
+  padding: 0 var(--spacing-md);
 }
 .ps-input {
   flex: 1;
@@ -556,7 +608,7 @@ function onReset() {
   background: var(--color-primary);
 }
 .ps-confirm .ps-btn-text {
-  color: var(--color-on-primary-surface);
+  color: var(--color-on-primary);
 }
 .ps-btn-text {
   font-size: var(--font-subtitle);

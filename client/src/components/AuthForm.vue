@@ -3,7 +3,7 @@
     <!-- 学号邮箱认证：学号 + 验证码（purpose=verify，无密码/无注册切换，§5.y） -->
     <view class="form-head">
       <text class="form-title">学号邮箱认证</text>
-      <text class="form-note">验证码发至校园邮箱，认证后解锁发布 / 评价 / 点赞 / 动态</text>
+      <text class="form-note">{{ NOTE_SUBTITLE }}</text>
     </view>
 
     <view v-if="formError" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
@@ -13,42 +13,44 @@
     <view class="group-card">
       <view class="input-field">
         <input
-          v-model="form.username"
+          :value="form.username"
           class="input-control"
           type="number"
           placeholder="学号"
           aria-label="学号"
           :aria-invalid="formError ? 'true' : 'false'"
-          @input="clearError"
+          @input="onUsernameInput"
+          @blur="onUsernameBlur"
         />
       </view>
       <view class="input-field">
         <input
-          v-model="form.code"
+          :value="form.code"
           class="input-control"
           placeholder="邮箱验证码"
           aria-label="邮箱验证码"
           :aria-invalid="formError ? 'true' : 'false'"
-          @input="clearError"
+          @input="onCodeInput"
         />
         <text
           class="code-action"
-          :class="{ disabled: codeCountdown > 0 }"
+          :class="{ disabled: !codeActionEnabled }"
           role="button"
-          :aria-label="codeCountdown > 0 ? `${codeCountdown}s 后重发验证码` : '获取验证码'"
-          :aria-disabled="codeCountdown > 0 ? 'true' : 'false'"
+          :aria-label="codeActionLabel"
+          :aria-disabled="codeActionEnabled ? 'false' : 'true'"
+          :aria-busy="sendingCode ? 'true' : 'false'"
           @tap="sendCode"
         >{{ codeButtonText }}</text>
       </view>
-      <view v-if="form.username.trim()" class="email-hint">验证码将发送至 {{ deriveCampusEmail(form.username) }}</view>
+      <view v-if="usernameValid" class="email-hint">验证码将发送至 {{ deriveCampusEmail(form.username.trim()) }}</view>
     </view>
 
     <view
       class="primary-action"
-      :class="{ disabled: isBusy }"
+      :class="{ disabled: !submitEnabled }"
       role="button"
       aria-label="认证"
-      :aria-disabled="isBusy ? 'true' : 'false'"
+      :aria-disabled="submitEnabled ? 'false' : 'true'"
       :aria-busy="isBusy ? 'true' : 'false'"
       @tap="submit"
     >
@@ -57,7 +59,7 @@
 
     <view class="bottom-note">
       <IconSvg name="lock" :size="24" color="var(--text-tertiary)" />
-      <text class="note-text">仅用于确认校园身份，认证即绑定当前微信</text>
+      <text class="note-text">{{ NOTE_PRIVACY }}</text>
     </view>
   </view>
 </template>
@@ -101,8 +103,41 @@ function clearError() { formError.value = '' }
 const sendingCode = ref(false)
 const isBusy = computed(() => userStore.loading)
 
-const primaryText = computed(() => (isBusy.value ? '认证中...' : '认证'))
-const codeButtonText = computed(() => (codeCountdown.value > 0 ? `${codeCountdown.value}s` : '获取验证码'))
+/** 文案常量（spec 契约基线，去除斜杠缩写） */
+const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成认证后即可使用发布、评价、点赞、发布动态功能'
+const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前微信账号绑定，不会用于其他用途'
+
+/** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */
+const usernameValid = computed(() => /^\d+$/.test(form.value.username.trim()))
+/** 发码钮可用性：学号合法 && 非冷却 && 无发送在途 */
+const codeActionEnabled = computed(() => usernameValid.value && codeCountdown.value === 0 && !sendingCode.value)
+/** 认证钮可用性：学号合法非空 && 验证码非空 && 无请求在途 */
+const submitEnabled = computed(() => usernameValid.value && form.value.code.trim() !== '' && !isBusy.value)
+
+const primaryText = computed(() => (isBusy.value ? '认证中…' : '认证'))
+/** 发码钮文案：发送在途 / 倒计时 / 常态三分支 */
+const codeButtonText = computed(() =>
+  sendingCode.value ? '发送中…' : codeCountdown.value > 0 ? `${codeCountdown.value}s 后重发` : '获取验证码',
+)
+const codeActionLabel = computed(() =>
+  sendingCode.value ? '发送中' : codeCountdown.value > 0 ? `${codeCountdown.value}s 后重发验证码` : '获取验证码',
+)
+
+/** 学号 @input 净化：仅保留数字并去空白，保证「纯数字」判定可靠（粘贴含空格/小数点也会被净化） */
+function onUsernameInput(e: any) {
+  form.value.username = String(e.detail?.value ?? '').replace(/\D/g, '')
+  clearError()
+}
+/** 学号失焦浅提示：空 / 含非数字才提示原因，不发起任何请求 */
+function onUsernameBlur() {
+  const v = form.value.username.trim()
+  if (!v) setError('请输入学号')
+  else if (!/^\d+$/.test(v)) setError('学号需为纯数字')
+}
+function onCodeInput(e: any) {
+  form.value.code = String(e.detail?.value ?? '')
+  clearError()
+}
 
 function startCountdown() {
   // 若已由外部回填（重开弹层续接），不重置为 60，沿用当前剩余值
@@ -117,9 +152,9 @@ function startCountdown() {
 }
 
 async function sendCode() {
-  if (codeCountdown.value > 0 || sendingCode.value) return
+  // 前置状态锁：不满足可用性时静默返回（按钮已置灰，不产生错误提示）
+  if (!codeActionEnabled.value) return
   const username = form.value.username.trim()
-  if (!username) { setError('请填写学号'); return }
   clearError()
   sendingCode.value = true
   try {
@@ -130,8 +165,8 @@ async function sendCode() {
 }
 
 async function submit() {
-  if (isBusy.value) return
-  if (!form.value.username.trim() || !form.value.code.trim()) { setError('请填写学号和验证码'); return }
+  // 前置状态锁：任一条件不满足（字段空/学号非法/在途）静默返回
+  if (!submitEnabled.value) return
   clearError()
   try {
     await userStore.verifyEmail(form.value.code.trim())
@@ -157,7 +192,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-control { flex: 1; height: 90rpx; font-size: var(--font-small); color: var(--text-primary); min-width: 0; }
-.code-action { min-width: 154rpx; height: 90rpx; padding: 0 var(--spacing-sm); display: flex; align-items: center; justify-content: center; border-left: 2rpx solid var(--border-color); color: var(--color-primary); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
+.code-action { flex-shrink: 0; min-width: 154rpx; height: 90rpx; padding: 0 0 0 var(--spacing-sm); display: flex; align-items: center; justify-content: flex-end; color: var(--color-primary); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
 .code-action.disabled { color: var(--text-tertiary); }
 .email-hint { padding: 0 var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 

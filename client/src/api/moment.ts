@@ -9,6 +9,7 @@
  */
 import { get, post, put, del } from './http'
 import { getImageUrl } from '@/utils/image'
+import { fenToYuan } from '@/utils/money'
 import { normalizeImages } from './shared'
 import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
 
@@ -30,6 +31,8 @@ function toMoment(raw: any): Moment | null {
     relatedType: (raw.relatedType as RelatedType) || 'none',
     relatedId: raw.relatedId ?? null,
     relatedName: raw.relatedName ?? null,
+    // 关联菜品价格：后端返回单位「分」，统一经 fenToYuan 换算为元（金额规约：仅 api 层换算）
+    relatedPrice: raw.relatedPrice != null ? fenToYuan(raw.relatedPrice) : null,
     // 关联档口所属食堂名（后端 MomentVO.relatedCanteen），跳档口详情需携带 navParams.canteen
     relatedCanteen: raw.relatedCanteen ?? null,
     auditStatus: raw.auditStatus,
@@ -147,4 +150,9 @@ export async function commentMoment(id: number, payload: MomentCommentPublish): 
 /** 删除自己评论（STU 仅作者） */
 export async function deleteMomentComment(momentId: number, commentId: number): Promise<void> {
   await del<void>(`/my/moments/${momentId}/comments/${commentId}`)
+}
+
+/** 评论「有用」切换（STU，幂等；moment-comment-thread-view 恢复） */
+export async function toggleMomentCommentUseful(momentId: number, commentId: number): Promise<MomentUsefulResult> {
+  return post<MomentUsefulResult>(`/moments/${momentId}/comments/${commentId}/useful`)
 }

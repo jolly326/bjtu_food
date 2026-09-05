@@ -1,7 +1,7 @@
 <template>
   <view class="filter-result">
     <!-- 结果态滚动容器：find-page-layout-restructure —— 滚动随结果内容区（FindResults）走，
-         不再由 find/index 页根层包裹两态共用滚动。加载/失败/空态仍由 StateView 一次承载 -->
+         不再由 find/index 页根层包裹两态共用滚动。结果为空或请求失败时静默（无占位） -->
     <scroll-view
       class="results-scroll"
       scroll-y
@@ -9,19 +9,8 @@
       :refresher-triggered="refresherTriggered"
       @refresherrefresh="emit('refresh')"
     >
-      <StateView
-        v-if="loading || failed || items.length === 0"
-        :loading="loading"
-        :failed="failed"
-        :empty="true"
-        error-text="加载失败，请重试"
-        :empty-text="`没有找到与“${keyword}”相关的结果`"
-        :empty-retry="true"
-        @retry="emit('retry')"
-      />
-
       <!-- 搜索结果：一行一个菜品（find-result-card-polish：单卡内联于 FindResults，DishResultRow 已合并） -->
-      <view v-else class="mixed-list" :class="{ single: items.length === 1 }">
+      <view class="mixed-list" :class="{ single: items.length === 1 }">
         <view
           v-for="item in items"
           :key="`${item.type}-${item.id}`"
@@ -87,7 +76,6 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
-import StateView from '@/components/StateView.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 
@@ -113,15 +101,12 @@ interface MixedResultItem {
 
 const props = defineProps<{
   items: MixedResultItem[]
-  loading?: boolean
-  failed?: boolean
   keyword?: string
   /** 结果态下拉刷新触发态：由宿主页面维护并复位 */
   refresherTriggered?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'retry'): void
   (e: 'select', id: number): void
   /** 结果态下拉刷新：宿主页面据此重跑当前搜索/筛选 */
   (e: 'refresh'): void

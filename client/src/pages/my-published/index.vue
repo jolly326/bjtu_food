@@ -4,20 +4,7 @@
 
     <!-- 直接展示一列我发布的动态（无分类 tab；被退回的会通过系统通知提醒） -->
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh">
-      <!-- 加载/失败/空态统一由 StateView 一次承载（ui-feed-loading：空态复用 EmptyState，不在列表区重复放置加载态） -->
-      <StateView
-        v-if="moments.length === 0"
-        :loading="loading"
-        :failed="loadFailed"
-        :empty="true"
-        error-text="加载失败，请重试"
-        empty-text="你还没有发布动态"
-        empty-icon="comment"
-        :empty-retry="true"
-        @retry="loadData"
-      />
-
-      <view v-else class="moment-list">
+      <view class="moment-list">
         <view v-for="m in moments" :key="m.id">
           <MomentCard
             :moment="m"
@@ -31,12 +18,12 @@
 
     </scroll-view>
 
-    <!-- 三点菜单：仅分享（作者自己的动态不提供举报；allow-report=false） -->
-    <MomentActionSheet
+    <!-- 三点菜单：仅分享（作者自己的动态不提供举报；通用 ActionSheet） -->
+    <ActionSheet
       :open="moreOpen"
-      :moment="moreMoment"
-      :allow-report="false"
-      @update:open="moreOpen = $event"
+      :items="publishMoreItems"
+      @close="moreOpen = false"
+      @select="onPublishMoreSelect"
     />
 
     <!-- 认证弹层：游客直访时引导登录，认证成功后自动加载 -->
@@ -45,17 +32,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
-import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import { buildSharePayload, clearShareState, sharedMoment } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import MomentCard from './MomentCard.vue'
-import MomentActionSheet from '@/components/MomentActionSheet.vue'
-import StateView from '@/components/StateView.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 
 const userStore = useUserStore()
@@ -74,6 +60,17 @@ function openMore(m: Moment) {
   moreOpen.value = true
 }
 
+/** 菜单项：作者列表仅分享 */
+const publishMoreItems = computed(() =>
+  moreMoment.value
+    ? [{ key: 'share', label: '分享', icon: 'share' }]
+    : [],
+)
+
+function onPublishMoreSelect(key: string) {
+  if (key === 'share' && moreMoment.value) sharedMoment.value = moreMoment.value
+}
+
 /** 已退回动态的「编辑重提」主入口 */
 function goEditMoment(m: Moment) {
   if (m.auditStatus === 'rejected' && m.id) {
@@ -82,18 +79,16 @@ function goEditMoment(m: Moment) {
 }
 
 const loading = ref(false)
-const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 
 async function loadData() {
   if (!userStore.requireAuth()) return
   loading.value = true
-  loadFailed.value = false
   try {
     moments.value = await momentApi.getMyMoments()
-  } catch (e: any) {
-    // 网络/业务错误 http 层已统一 toast，页面仅置失败态（空态展示重试），避免重复提示
-    loadFailed.value = true
+  } catch (err) {
+    // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
+    console.error('[my-published] 加载我的动态失败', err)
     moments.value = []
   } finally {
     loading.value = false

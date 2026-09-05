@@ -16,7 +16,7 @@
       <view v-if="moment.auditStatus && moment.auditStatus !== 'approved'" class="m-audit" :class="auditClass">
         <text class="m-audit-text">{{ auditLabel }}</text>
       </view>
-      <!-- 右上角三点菜单：分享（自己的动态不提供举报）——经页面级 ActionSheet（allow-report=false）；
+      <!-- 右上角三点菜单：分享（自己的动态不提供举报，父页面 MomentActionSheet is-own=true）；
            仅触发 emit，弹层由父页面在 scroll-view 外渲染 -->
       <view class="m-more" role="button" aria-label="更多操作" @tap.stop="emit('more', props.moment)">
         <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
@@ -27,24 +27,8 @@
     <text class="m-content" :class="{ clamped: !expanded }">{{ moment.content }}</text>
     <text v-if="needClamp" class="m-expand" @tap.stop="expanded = !expanded">{{ expanded ? '收起' : '展开' }}</text>
 
-    <!-- 图片九宫格 -->
-    <view v-if="moment.images.length > 0" class="m-images" :class="`img-${Math.min(moment.images.length, 9)}`">
-      <view
-        v-for="(img, idx) in moment.images.slice(0, 9)"
-        :key="idx"
-        class="m-image-wrap"
-        @tap.stop="previewImage(idx)"
-      >
-        <image
-          class="m-image"
-          :class="{ loaded: loadedSet.has(idx) }"
-          :src="getImageUrl(getThumbUrl(img))"
-          mode="aspectFill"
-          lazy-load
-          @load="loadedSet.add(idx)"
-        />
-      </view>
-    </view>
+    <!-- 图片九宫格（共享组件，消除 4 处重复） -->
+    <MomentImageGrid :images="moment.images" />
 
     <!-- 已退回：退回原因 + 「编辑重提」作者主入口 -->
     <view v-if="isRejected && moment.rejectReason" class="m-reject">
@@ -82,13 +66,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import MomentImageGrid from '@/components/MomentImageGrid.vue'
 import { formatDateTime } from '@/utils/time'
-import { previewImages, getImageUrl, getThumbUrl } from '@/utils/image'
+import { getImageUrl } from '@/utils/image'
 import type { Moment } from '@/types/moment'
-import { useUserStore } from '@/stores/user'
-import * as momentApi from '@/api/moment'
+import { useMomentUseful } from '@/composables/useMomentUseful'
 
 const props = defineProps<{
   moment: Moment
@@ -105,13 +89,8 @@ const emit = defineEmits<{
   (e: 'edit', moment: Moment): void
 }>()
 
-const userStore = useUserStore()
-
 /** 卡片无障碍语义标签 */
 const ariaLabel = computed(() => `${(props.moment.userNickname || '匿名用户')}的动态`)
-/** 图片淡入：记录已加载下标，配合 .m-image.loaded 做 opacity 过渡 */
-const loadedSet = reactive(new Set<number>())
-
 // 正文展开态（超长折叠，粗判长度显示展开入口）
 const expanded = ref(false)
 const needClamp = computed(() => (props.moment.content?.length || 0) > 80)
@@ -132,11 +111,7 @@ const relatedLabel = computed(() => {
   return props.moment.relatedName || ''
 })
 
-// 有用 toggle 本地状态（乐观 UI）
-const usefulActive = ref(!!props.moment.useful)
-watch(() => props.moment.useful, (v) => {
-  usefulActive.value = !!v
-})
+const { usefulActive, onUseful: toggleUseful } = useMomentUseful(props.moment)
 
 function goDetail() {
   emit('select', props.moment)
@@ -151,33 +126,10 @@ function goEdit() {
   emit('edit', props.moment)
 }
 
-function previewImage(idx: number) {
-  previewImages(props.moment.images, idx)
-}
-
-/** pending 锁防连点（P0 防重复请求 / 计数漂移） */
-const pendingUseful = ref(false)
+/** 点赞后回传父级（父级据此刷新列表态） */
 async function onUseful() {
-  if (!userStore.requireAuth(() => onUseful())) return
-  if (pendingUseful.value) return
-  pendingUseful.value = true
-  const prevActive = usefulActive.value
-  const prevCount = props.moment.usefulCount || 0
-  usefulActive.value = !prevActive
-  props.moment.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
-  try {
-    const res = await momentApi.toggleUseful(props.moment.id)
-    usefulActive.value = res.useful
-    props.moment.usefulCount = res.usefulCount
-    props.moment.useful = res.useful
-    emit('useful', props.moment)
-  } catch {
-    usefulActive.value = prevActive
-    props.moment.usefulCount = prevCount
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  } finally {
-    pendingUseful.value = false
-  }
+  await toggleUseful()
+  emit('useful', props.moment)
 }
 </script>
 
@@ -229,11 +181,7 @@ async function onUseful() {
 .m-content.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 .m-expand { margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); align-self: flex-start; }
 /* 正文→图片 28rpx(≈14px，md/lg 间 4rpx 网格裸值，moment-card-visual-polish D2） */
-.m-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-xs); margin-top: 28rpx; }
-/* 缩略图：圆角正方形（16rpx） */
-.m-image-wrap { aspect-ratio: 1 / 1; width: 100%; border-radius: var(--radius-xs); overflow: hidden; background: var(--bg-page); }
-.m-image { width: 100%; height: 100%; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
-.m-image.loaded { opacity: 1; }
+/* 九宫格样式已抽取至 components/MomentImageGrid.vue */
 /* 已退回提示 + 编辑重提主入口 */
 .m-reject { margin-top: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-tag); overflow: hidden; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .m-reject-row { display: flex; align-items: flex-start; }

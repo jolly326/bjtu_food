@@ -65,18 +65,10 @@ export const useDishStore = defineStore('dish', () => {
   const filterList = ref<Dish[]>([])
   const filterTotal = ref(0)
   const filterPage = ref(1)
-  /** 首页价格筛选区间（分，null/undefined 表示不限）；透传后端既有 minPrice/maxPrice。
-   *  展示层需转「元」时必须走 utils/money 的 fenToYuan，禁止裸算 /100。 */
+  /** 首页价格筛选区间（元，null/undefined 表示不限）；直接透传 api（api 层统一元→分），禁止二次换算/裸算 /100 */
   const filterPrice = ref<{ min?: number; max?: number }>({})
   const filterLoadingMore = ref(false)
   const filterFinished = ref(false)
-  /** 首页筛选流首拉/切换失败标记：HomeContent 据此展示「加载失败 + 重试」，避免与广播/万能区错误态割裂 */
-  const filterLoadFailed = ref(false)
-  /** 首屏冷启动加载标记（global-ui-polish / ui-feed-loading）：仅首次进入首页真实首拉期间为 true，驱动首屏加载态（StateView）显示 */
-  const filterInitialLoading = ref(false)
-  /** 首页是否已成功加载过一次：用于区分「首屏冷启动加载」与「切换品类保留旧列表」，避免每次切换都闪加载态（StateView） */
-  const homeHasLoadedOnce = ref(false)
-
   /** 首页排序面板当前选中项（问题一：默认「最新」，综合推荐不保留） */
   const homeSortBy = ref<HomeSortKey>('latest')
 
@@ -344,10 +336,7 @@ export const useDishStore = defineStore('dish', () => {
       filterPage.value = 1
       filterFinished.value = false
     }
-    // 仅首次冷启动（尚未成功加载过）显示加载中文本，品类切换复用旧列表不闪加载态（StateView）
-    if (reset && !homeHasLoadedOnce.value) filterInitialLoading.value = true
     filterTab.value = tab
-    filterLoadFailed.value = false
     try {
       const pageSize = 10
       let rows: Dish[] = []
@@ -385,13 +374,9 @@ export const useDishStore = defineStore('dish', () => {
       // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
       if (rows.length < pageSize) filterFinished.value = true
     } catch (e: any) {
-      // 过期请求失败不再置失败态（新请求状态为准）
+      // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
       if (seq !== filterFetchSeq) return
       console.error('加载筛选菜品失败', e)
-      filterLoadFailed.value = true
-    } finally {
-      filterInitialLoading.value = false
-      homeHasLoadedOnce.value = true
     }
   }
 
@@ -471,7 +456,7 @@ export const useDishStore = defineStore('dish', () => {
     hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments, reviewsDirty,
     loading, navParams,
     categories,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterLoadFailed, filterInitialLoading, filterPrice,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice,
     homeSortBy, setHomeSort, setHomePrice,
     fetchRecommend, fetchGuess,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, fetchStallDishes,

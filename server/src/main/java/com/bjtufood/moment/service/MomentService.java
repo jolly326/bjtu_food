@@ -63,10 +63,14 @@ public interface MomentService {
     Long comment(Long momentId, Long userId, MomentCommentReq req);
 
     /**
-     * 评论 👍 有用切换（幂等，一人一票；task-12.4）
+     * 评论 👍 有用切换（幂等，一人一票；moment-comment-thread-view 恢复）
      *
+     * @param momentId  动态ID
+     * @param commentId 评论ID
+     * @param userId    当前用户ID
      * @return 是否点过 + 当前计数
      */
+    MomentUsefulResult toggleCommentUseful(Long momentId, Long commentId, Long userId);
 
     /**
      * 评论列表（按 created_at asc，扁平化带 parentId/replyToNickname）

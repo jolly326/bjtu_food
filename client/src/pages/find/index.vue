@@ -28,16 +28,7 @@
     <view class="find-body">
       <!-- ============ 发现主页（未进入结果态）：历史 + 猜你想搜，静态展示 ============ -->
       <view v-if="!inFilter" class="discover-body">
-        <!-- 发现主页加载/失败态统一由 StateView 一次承载 -->
-        <StateView
-          v-if="discoverLoading || discoverFailed"
-          :loading="discoverLoading"
-          :failed="discoverFailed"
-          error-text="加载失败，请重试"
-          @retry="loadDiscover"
-        />
-
-        <template v-else>
+        <template>
           <!-- 搜索记录（首位） -->
           <CardSection v-if="historyList.length > 0">
             <SectionTitle title="搜索记录" :bar="false">
@@ -82,11 +73,8 @@
         v-else
         class="results-host"
         :items="filteredMixed"
-        :loading="mixedLoading"
-        :failed="mixedFailed"
         :keyword="keyword"
         :refresher-triggered="refresherTriggered"
-        @retry="onRetrySearch"
         @select="goToMixed"
         @refresh="onResultsRefresh"
       />
@@ -103,7 +91,6 @@ import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
 import { getUserLocation } from '@/utils/location'
 import IconSvg from '@/components/IconSvg.vue'
-import StateView from '@/components/StateView.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import FilterBar from '@/components/FilterBar.vue'
@@ -130,7 +117,6 @@ function openDishDetail(id: number) {
 }
 const keyword = ref('')
 const refresherTriggered = ref(false)
-const discoverLoading = ref(true)
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
@@ -188,7 +174,7 @@ function onFindCanteenSelect(id: number | null) {
 
 // ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时红底） =====
 const findSortBy = ref<HomeSortKey>('latest')
-/** 当前价格区间（分）；文案回显由 FilterBar 内部用 fenToYuan 换算（红线：禁止裸算 /100） */
+/** 当前价格区间（元）；回显由 FilterBar 直显元，提交直接透传（api 层统一元→分，禁止二次换算） */
 const findPrice = ref<{ min?: number; max?: number }>({})
 
 function findSortParams(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc' | 'desc' } {
@@ -237,8 +223,6 @@ interface MixedResult {
   distance?: number
 }
 const mixedResults = ref<MixedResult[]>([])
-const mixedLoading = ref(false)
-const mixedFailed = ref(false)
 
 /** 搜索结果（仅菜品单列；距离已在 doMixedSearch 经 withLocalDistance 写回，未定位回退校区中心，恒有值） */
 const filteredMixed = computed(() => mixedResults.value)
@@ -271,8 +255,6 @@ async function doMixedSearch(kw?: string) {
   // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
   const seq = ++mixedSearchSeq
   inFilter.value = true
-  mixedLoading.value = true
-  mixedFailed.value = false
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
     const list = await dishStore.search({
@@ -314,26 +296,23 @@ async function doMixedSearch(kw?: string) {
         }
       })
       .filter(r => r.name)
-  } catch {
+  } catch (err) {
+    // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
+    console.error('[find] 搜索失败', err)
     mixedResults.value = []
-    mixedFailed.value = true
-  } finally {
-    // 竞态修复：仅在 seq 匹配（本次请求仍是最新）时才关闭 loading，
-    // 避免旧慢请求返回时把新请求的 loading 提前关闭导致加载中文本闪烁
-    if (seq === mixedSearchSeq) mixedLoading.value = false
   }
 }
 
-/** 空态「重试」：按当前关键词/食堂重新检索（结果态内，FindResults 上抛） */
+/** 重试当前检索：结果态下拉刷新与恢复均走此路径（按当前关键词/食堂重跑） */
 function onRetrySearch() {
-  doMixedSearch(keyword.value.trim())
+  return doMixedSearch(keyword.value.trim())
 }
 
 /** 结果态下拉刷新：FindResults 内容区滚动内置 refresher，上抛到 index 重跑当前检索 */
 function onResultsRefresh() {
   if (refresherTriggered.value) return
   refresherTriggered.value = true
-  doMixedSearch(keyword.value.trim()).finally(() => { refresherTriggered.value = false })
+  onRetrySearch().finally(() => { refresherTriggered.value = false })
 }
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
@@ -344,7 +323,6 @@ function goToMixed(id: number) {
 function exitFilter() {
   inFilter.value = false
   mixedResults.value = []
-  mixedFailed.value = false
   // 退出结果态：重置筛选条件，下次进入结果态从默认开始
   findCanteenId.value = null
   findSortBy.value = 'latest'
@@ -353,21 +331,15 @@ function exitFilter() {
   mixedSearchSeq += 1
 }
 
-const discoverFailed = ref(false)
-
 async function loadDiscover() {
-  discoverLoading.value = true
-  discoverFailed.value = false
   try {
     await Promise.all([
       dishStore.fetchHotSearch(),
       dishStore.fetchCanteens(),
     ])
   } catch (e) {
+    // 静默：发现态加载失败不呈现任何占位，异常仅记录
     console.error('[find] 发现页加载失败', e)
-    discoverFailed.value = true
-  } finally {
-    discoverLoading.value = false
   }
 }
 

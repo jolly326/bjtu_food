@@ -62,5 +62,5 @@ export type IconColorName = keyof typeof COLOR_MAP
 export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
 export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
 // 微信原生 <web-view> 的 progressbar.color 不接受 var()，必须用真实色值
-// （见 pages/activity-webview/index.vue）。主色变更时须同步此处。
+// （见 pages/activity/webview.vue）。主色变更时须同步此处。
 export const WEBVIEW_PROGRESSBAR_COLOR = '#C45549'

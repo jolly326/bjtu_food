@@ -3,18 +3,7 @@
     <Header title="系统通知" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
-      <!-- 加载/失败/空态统一由 StateView 一次承载 -->
-      <StateView
-        v-if="list.length === 0"
-        :loading="loading"
-        :failed="loadFailed"
-        :empty="true"
-        error-text="加载失败，请重试"
-        empty-text="暂无通知"
-        @retry="load"
-      />
-
-      <view v-else class="list">
+      <view class="list">
         <view
           v-for="n in list"
           :key="n.id"
@@ -42,7 +31,6 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
-import StateView from '@/components/StateView.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getNotifications, readNotification, type Notification, type NotificationType } from '@/api/notify'
@@ -53,7 +41,6 @@ const notifyStore = useNotifyStore()
 
 const list = ref<Notification[]>([])
 const loading = ref(false)
-const loadFailed = ref(false)
 const refresherTriggered = ref(false)
 // 分页与防重复加载（onShow / 下拉刷新）
 let page = 1
@@ -80,7 +67,6 @@ function formatTime(iso?: string) {
 
 async function load() {
   loading.value = true
-  loadFailed.value = false
   try {
     const res = await getNotifications({ page: 1, pageSize })
     list.value = res.list
@@ -89,15 +75,9 @@ async function load() {
     finished.value = res.list.length < pageSize
     // 刷新后重拉未读数，保持红点同步
     notifyStore.fetchUnread()
-  } catch {
-    // client-auth-boundary：查看系统通知免认证——游客无个人数据（接口未授权或列表为空）统一空态而非错误态；
-    // 已认证用户请求失败仍显示失败态供重试。
-    if (userStore.isVerified()) {
-      loadFailed.value = true
-    } else {
-      list.value = []
-      finished.value = true
-    }
+  } catch (err) {
+    // client-auth-boundary：查看系统通知免认证——游客无个人数据与请求失败均静默（无空态/错误态），异常仅记录，恢复靠下拉刷新
+    console.error('[notifications] 加载通知失败', err)
   } finally {
     loading.value = false
   }
