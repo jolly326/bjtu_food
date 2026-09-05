@@ -407,7 +407,8 @@ onShow(() => clearShareState())
   z-index: 20;
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  /* 下缘留白收窄（find-result-card-polish 5.1：避免与首卡叠加成大 gap） */
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-xs);
   /* 表面统一：与首页筛选条一致，使用页面凹陷面且无分隔线，与下方结果列表视觉一体 */
   background: var(--bg-page);
 }

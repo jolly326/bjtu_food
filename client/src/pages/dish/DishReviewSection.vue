@@ -23,9 +23,8 @@
         <text class="review-empty-text">还没有人评价过这道菜</text>
       </view>
 
-      <!-- 评价到底/加载中提示（卡内触底加载全部评价） -->
+      <!-- 加载中提示（卡内）；「没有更多了」已移至评价卡外（dish/index 居中弱化） -->
       <view v-if="reviews.length > 0 && loadingMore" class="review-more-hint">加载中…</view>
-      <view v-else-if="reviews.length > 0 && finished" class="review-more-hint">没有更多了</view>
     </view>
   </view>
 </template>
@@ -64,11 +63,11 @@ const emit = defineEmits<{
   gap: var(--spacing-sm);
   padding: var(--spacing-xs) 0 var(--spacing-sm);
 }
+/* dish-detail-visual-polish：评价标题与综合评分标题同档（600 左对齐） */
 .review-card-title {
-  font-size: var(--font-h2);
-  font-weight: var(--weight-heavy);
+  font-size: var(--font-subtitle);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  letter-spacing: var(--tracking-h2);
   flex: 1;
   min-width: 0;
 }

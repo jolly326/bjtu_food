@@ -91,24 +91,25 @@ function onLongPress() {
 </script>
 
 <style scoped>
-.comment-item { display: flex; gap: var(--spacing-sm); padding: var(--spacing-sm) 0; border-bottom: 2rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
+/* moment-list-detail-polish：单条纵向间距收紧、文字档位统一（头像 32px=64rpx、昵称 14px=body、正文 1.45） */
+.comment-item { display: flex; gap: var(--spacing-sm); padding: 12rpx 0; border-bottom: 1rpx solid var(--border-color); -webkit-tap-highlight-color: transparent; }
 .comment-item:last-child { border-bottom: none; }
-/* content-flow-visual-polish 6.4：@回复评论以左侧微缩进区分层级（配合头行主色 @昵称） */
-.comment-item.is-reply { padding-left: var(--spacing-xs); }
-.c-avatar { width: 60rpx; height: 60rpx; border-radius: var(--radius-circle); background: var(--bg-soft); flex-shrink: 0; }
+/* @回复评论缩进 8px(=16rpx sm) */
+.comment-item.is-reply { padding-left: var(--spacing-sm); }
+.c-avatar { width: 64rpx; height: 64rpx; border-radius: var(--radius-circle); background: var(--bg-soft); flex-shrink: 0; }
 .c-avatar-empty { display: flex; align-items: center; justify-content: center; }
 .c-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .c-head { display: flex; align-items: baseline; flex-wrap: wrap; }
-.c-nickname { font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.c-nickname { font-size: var(--font-body); font-weight: var(--weight-medium); color: var(--text-primary); }
 .c-reply { font-size: var(--font-aux); color: var(--color-primary); margin-left: var(--spacing-xs); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
 .c-reply:active { opacity: 0.6; }
-.c-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.5; margin-top: 4rpx; }
-.c-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6rpx; }
-.c-time { font-size: var(--font-aux); color: var(--text-tertiary); }
-.c-actions { display: inline-flex; align-items: center; gap: var(--spacing-md); }
-.c-reply-btn { font-size: var(--font-aux); color: var(--color-primary); align-self: center; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
+.c-content { font-size: var(--font-body); color: var(--text-secondary); line-height: 1.45; margin-top: 2rpx; }
+.c-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4rpx; }
+.c-time { font-size: var(--font-small); color: var(--text-tertiary); }
+.c-actions { display: inline-flex; align-items: center; gap: var(--spacing-lg); }
+.c-reply-btn { font-size: var(--font-small); color: var(--color-primary); align-self: center; padding: 0 var(--spacing-xs); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
 .c-reply-btn:active { opacity: 0.6; }
-.c-report-btn { font-size: var(--font-aux); color: var(--text-tertiary); align-self: center; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
+.c-report-btn { font-size: var(--font-small); color: var(--text-tertiary); align-self: center; padding: 0 var(--spacing-xs); border-radius: var(--radius-card); transition: opacity var(--duration-fast); -webkit-tap-highlight-color: transparent; }
 .c-report-btn:active { opacity: 0.6; }
 .c-images { margin-top: var(--spacing-xs); }
 /* 评论紧凑图网格（原 MomentImageGrid compact 样式内联） */

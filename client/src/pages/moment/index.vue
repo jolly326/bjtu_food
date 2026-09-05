@@ -80,7 +80,7 @@
           />
         </view>
         <view class="comment-send" :class="{ disabled: commentSubmitting }" role="button" aria-label="发送评论" @tap="submitComment">
-          <IconSvg name="send" :size="32" color="var(--color-on-primary)" class="comment-send-text" />
+          <IconSvg name="send" :size="28" color="var(--color-on-primary)" class="comment-send-text" />
         </view>
       </view>
     </view>
@@ -240,13 +240,13 @@ const commentSubmitting = ref(false)
 const reportTarget = ref<{ type: string; id: number } | null>(null)
 
 function openReport() {
-  if (!userStore.requireAuth(() => openReport())) return
+  // 举报免认证（游客可直达，同 useReport 口径）
   reportTarget.value = moment.value ? { type: 'moment', id: moment.value.id } : null
   reportOpen.value = true
 }
 
 function onCommentReport(c: MomentComment) {
-  if (!userStore.requireAuth(() => onCommentReport(c))) return
+  // 举报免认证（游客可直达）
   reportTarget.value = { type: 'moment_comment', id: c.id }
   reportOpen.value = true
 }
@@ -428,9 +428,10 @@ onLoad((query) => {
 .comment-uploader { flex-shrink: 0; }
 .comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid var(--border-color); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-input-box.focused { border-color: var(--color-primary); }
-.comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-subtitle); color: var(--text-primary); }
+.comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-body); color: var(--text-primary); }
 .comment-ph { color: var(--text-tertiary); }
-.comment-send { width: 88rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
+/* moment-list-detail-polish：发送钮与输入框同高 72rpx(36px) */
+.comment-send { width: 72rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-send:active { opacity: 0.8; }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }
 .comment-send-text { font-size: var(--font-subtitle); line-height: 1; color: var(--color-on-primary); }

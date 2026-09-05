@@ -192,7 +192,8 @@ onShareAppMessage(() => buildSharePayload())
 
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding-top: 0; padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 /* 动态列表：卡片之间固定间距（--spacing-md），配合白卡投影形成呼吸节奏 */
-.moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md); }
+/* 卡间距 14px(=28rpx)，moment-list-detail-polish D1 */
+.moment-list { padding: var(--spacing-md); display: flex; flex-direction: column; gap: 28rpx; }
 
 
 /* 常驻发布按钮（FAB）：右下角悬浮，Apple 风格圆底 + 主色填充。
@@ -202,7 +203,8 @@ onShareAppMessage(() => buildSharePayload())
 .fab-publish {
   position: fixed;
   right: var(--spacing-lg);
-  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-xl));
+  /* moment-list-detail-polish：直径 96rpx(=48px) 保持，上移 10px(=20rpx) */
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-xl) + 20rpx);
   width: 96rpx;
   height: 96rpx;
   border-radius: var(--radius-circle);

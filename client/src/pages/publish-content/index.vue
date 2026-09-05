@@ -9,7 +9,7 @@
           <template #extra><text class="section-sub">选填</text></template>
         </SectionTitle>
         <view class="related-picker" @tap="relatedSheetOpen = true" role="button" :aria-label="relatedLabel">
-          <IconSvg name="dish" :size="30" color="var(--color-primary)" class="related-picker-icon" />
+          <IconSvg name="dish" :size="30" color="var(--text-tertiary)" class="related-picker-icon" />
           <text class="related-label">{{ relatedLabel }}</text>
           <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
         </view>
@@ -95,8 +95,8 @@ const submitText = computed(() => (isEdit.value ? '保存并重新提交' : '发
 
 const relatedLabel = computed(() => {
   if (!selectedRelated.value) return '不关联（自由动态）'
-  const prefix = selectedRelated.value.type === 'dish' ? '菜品' : '档口'
-  return `${prefix}·${selectedRelated.value.name}`
+  // 动态仅可关联菜品（产品决策）：不再显示「菜品·」前缀
+  return selectedRelated.value.name
 })
 
 const canSubmit = computed(() => !!content.value.trim())
@@ -262,13 +262,14 @@ onLoad(async (query) => {
   border-radius: var(--radius-tag);
   padding: 4rpx 16rpx;
 }
+/* 关联菜品选择器：浅灰 #F5F5F5 底、深灰 #333 文字、中灰 #999 图标、8px(16rpx) 圆角、高度收矮（用户口径） */
 .related-picker {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: #F5F5F5;
+  border-radius: var(--radius-btn);
   -webkit-tap-highlight-color: transparent;
 }
 .related-picker-icon { flex-shrink: 0; }
@@ -276,7 +277,8 @@ onLoad(async (query) => {
   flex: 1;
   min-width: 0;
   font-size: var(--font-body);
-  color: var(--text-secondary);
+  font-weight: var(--weight-medium);
+  color: #333333;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

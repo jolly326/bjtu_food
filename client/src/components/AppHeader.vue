@@ -221,12 +221,14 @@ function onSearchConfirm() {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding-left: var(--spacing-lg);
+  /* find 页反馈：返回钮收窄，避免占用搜索框过多宽度 */
+  padding-left: var(--spacing-sm);
   padding-right: var(--spacing-lg);
   box-sizing: border-box;
 }
-/* 搜索态下返回区域改为行内（默认 variant 为绝对定位以居中标题），共享 .back-arrow 图标 */
-.search-nav .back-area { position: static; width: 44px; flex-shrink: 0; }
+/* 搜索态下返回区域改为行内（默认 variant 为绝对定位以居中标题），共享 .back-arrow 图标；
+   收窄命中区（44→32px），把更多宽度让给搜索框 */
+.search-nav .back-area { position: static; width: 32px; flex-shrink: 0; }
 .search-box {
   flex: 1;
   min-width: 0;

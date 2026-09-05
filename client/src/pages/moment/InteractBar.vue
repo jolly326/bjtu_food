@@ -13,14 +13,14 @@
       <view v-if="usefulPending" class="interact-text">…</view>
       <IconSvg
         name="thumb"
-        :size="28"
+        :size="36"
         :color="usefulActive ? 'var(--color-like)' : 'var(--text-secondary)'"
         class="interact-icon"
       />
       <text class="interact-count">{{ usefulCount > 0 ? usefulCount : '有用' }}</text>
     </view>
     <view class="interact-btn" hover-class="pressed" hover-stay-time="80" role="button" aria-label="评论" @tap="onComment">
-      <IconSvg name="comment" :size="28" color="var(--text-secondary)" class="interact-icon" />
+      <IconSvg name="comment" :size="36" color="var(--text-secondary)" class="interact-icon" />
       <text class="interact-count">{{ commentCount > 0 ? commentCount : '评论' }}</text>
     </view>
     <view class="interact-report" hover-class="pressed" hover-stay-time="80" role="button" aria-label="举报" @tap="onReport">
@@ -65,14 +65,12 @@ function onUseful() {
    注意：mp-weixin 组件样式隔离，父级 :deep() 无法命中本组件根节点，
    顶部留白必须写在本组件内，避免互动栏与上方分隔线贴合） */
 .interact-bar { display: flex; align-items: center; gap: var(--spacing-md); margin: 0; padding: var(--spacing-md) 0 0; }
-/* 互动按钮：高度/字号与列表 MomentCard 的 m-action 完全一致（64rpx + 28rpx 图标 + 24rpx 文字），
-   透明边框占位保证激活时变边框不跳高；「有用」激活态统一用点赞色 --color-like（与列表/评论语义一致） */
-.interact-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs); height: 64rpx; padding: 0 var(--spacing-md); border-radius: var(--radius-tag); border: 2rpx solid transparent; background: var(--bg-soft); box-sizing: border-box; transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* moment-list-detail-polish：去浅灰底，改极简图标+数字（与列表 m-action 同款 36rpx/2px 图标、计数 30rpx/500） */
+.interact-btn { display: inline-flex; align-items: center; justify-content: center; gap: 12rpx; height: 64rpx; padding: 0 var(--spacing-sm); border-radius: var(--radius-tag); border: none; background: transparent; box-sizing: border-box; transition: color var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .interact-icon { font-size: var(--font-body); line-height: 1; color: var(--text-secondary); }
 /* 有用在途指示（受控锁视觉，用 --color-like 与激活态一致） */
-.interact-text { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--color-like); }
-.interact-count { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-.interact-btn.active { border-color: var(--color-like); background: var(--color-like-soft); }
+.interact-text { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--color-like); }
+.interact-count { font-size: var(--font-caption); font-weight: var(--weight-medium); color: var(--text-secondary); }
 .interact-btn.active .interact-icon { color: var(--color-like); }
 .interact-btn.active .interact-count { color: var(--color-like); }
 /* content-flow-visual-polish 6.3：举报弱化为最右侧三级浅灰纯文字，降低对主互动（有用/评论）的干扰 */
@@ -85,5 +83,5 @@ function onUseful() {
   padding: 0 var(--spacing-sm);
   -webkit-tap-highlight-color: transparent;
 }
-.interact-report-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+.interact-report-text { font-size: var(--font-small); color: var(--text-tertiary); }
 </style>

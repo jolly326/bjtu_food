@@ -20,7 +20,7 @@
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet -->
         <view v-if="!hideReport || canDelete" class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
-          <IconSvg name="more-v" :size="36" color="var(--text-tertiary)" />
+          <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
         </view>
       </view>
       <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
@@ -208,10 +208,10 @@ function onThumbError(idx: number) {
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：与动态卡统一圆形浅灰底（content-flow-visual-polish 5.2） */
+/* 头像：与动态卡统一圆形浅灰底（content-flow-visual-polish 5.2；dish-detail-visual-polish 对齐 64rpx） */
 .review-avatar {
-  width: 72rpx;
-  height: 72rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: var(--radius-circle);
   background: var(--bg-soft);
   flex-shrink: 0;
@@ -245,7 +245,7 @@ function onThumbError(idx: number) {
   flex: 0 1 auto;
   min-width: 0;
   font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   letter-spacing: var(--tracking-h3);
   overflow: hidden;
@@ -260,7 +260,7 @@ function onThumbError(idx: number) {
 }
 .review-time {
   flex-shrink: 0;
-  font-size: var(--font-aux);
+  font-size: var(--font-small);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }

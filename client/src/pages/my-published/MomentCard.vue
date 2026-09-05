@@ -63,7 +63,7 @@
       <view v-if="moment.relatedType && moment.relatedType !== 'none' && moment.relatedName" class="m-related" @tap.stop="goRelated">
         <image v-if="moment.relatedImage" class="m-related-thumb" :src="getImageUrl(moment.relatedImage)" mode="aspectFill" lazy-load />
         <view v-else class="m-related-thumb m-related-thumb--empty">
-          <IconSvg name="dish" :size="26" color="var(--color-primary)" />
+          <IconSvg name="dish" :size="20" color="var(--text-tertiary)" />
         </view>
         <text class="m-related-text">{{ relatedLabel }}</text>
       </view>
@@ -128,8 +128,8 @@ const auditLabel = computed(() => {
 const auditClass = computed(() => `audit-${props.moment.auditStatus}`)
 
 const relatedLabel = computed(() => {
-  const prefix = props.moment.relatedType === 'dish' ? '菜品' : props.moment.relatedType === 'stall' ? '档口' : ''
-  return `${prefix}·${props.moment.relatedName || ''}`
+  // 动态仅可关联菜品：直接展示菜品名，不再加「菜品·」前缀
+  return props.moment.relatedName || ''
 })
 
 // 有用 toggle 本地状态（乐观 UI）
@@ -242,13 +242,12 @@ async function onUseful() {
 .m-reject-edit { display: flex; align-items: center; justify-content: center; gap: var(--spacing-2xs); height: 64rpx; border-radius: var(--radius-tag); background: var(--color-primary); align-self: flex-start; padding: 0 var(--spacing-md); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-reject-edit:active { opacity: 0.85; }
 .m-reject-edit-text { font-size: var(--font-body); font-weight: var(--weight-bold); color: var(--color-on-primary); }
-/* 关联 chip：胶囊背景（primary-soft + 主色文字） */
-/* 关联 chip：底色/圆角/内边距与首页 TagLabel 同语言（radius-tag + primary-soft；moment-card-visual-polish D5） */
-.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 64rpx; padding: 4rpx var(--spacing-md) 4rpx 4rpx; background: var(--color-primary-soft); border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* 关联菜品 chip：浅灰 #F5F5F5 底、深灰 #333 文字、中灰图标、矮高、8px(16rpx) 圆角（用户口径） */
+.m-related { display: inline-flex; align-items: center; gap: var(--spacing-xs); height: 48rpx; padding: 4rpx var(--spacing-sm) 4rpx 4rpx; background: #F5F5F5; border-radius: var(--radius-tag); flex-shrink: 0; overflow: hidden; transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .m-related:active { opacity: 0.7; }
-.m-related-thumb { width: 56rpx; height: 56rpx; border-radius: var(--radius-xs); background: var(--bg-page); flex-shrink: 0; overflow: hidden; }
-.m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft); }
-.m-related-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-semibold); }
+.m-related-thumb { width: 40rpx; height: 40rpx; border-radius: var(--radius-xs); background: #F5F5F5; flex-shrink: 0; overflow: hidden; }
+.m-related-thumb--empty { display: flex; align-items: center; justify-content: center; background: #F5F5F5; }
+.m-related-text { font-size: var(--font-small); color: #333333; font-weight: var(--weight-medium); line-height: 1.2; }
 /* 关联 chip + 互动栏同一行（m-foot），互动靠右 */
 /* 正文→标签/互动行 28rpx（≈14px，梯度大于头部-正文 24rpx；D2/D4） */
 .m-foot { display: flex; align-items: center; gap: var(--spacing-sm); margin-top: 28rpx; }

@@ -12,8 +12,8 @@
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
-      <view v-else class="image-swiper-placeholder">
-        <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
+      <view v-else class="image-swiper-placeholder" :style="{ background: placeholderBackground }">
+        <IconSvg name="empty" :size="placeholderSize" color="var(--text-tertiary)" class="placeholder-icon" />
       </view>
     </swiper-item>
   </swiper>
@@ -34,6 +34,10 @@ const props = withDefaults(defineProps<{
   autoplay?: boolean
   interval?: number
   circular?: boolean
+  /** 占位图标尺寸（dish-detail-visual-polish：无图大图位放大占位） */
+  placeholderSize?: number
+  /** 占位底色（默认同页面浅色，可传白卡等做轻微区分） */
+  placeholderBackground?: string
 }>(), {
   height: '400rpx',
   indicatorDots: true,
@@ -41,6 +45,8 @@ const props = withDefaults(defineProps<{
   autoplay: true,
   interval: 4000,
   circular: true,
+  placeholderSize: 64,
+  placeholderBackground: 'var(--bg-page)',
 })
 
 /** 空图片也保留轮播项目数，用占位图显示 */

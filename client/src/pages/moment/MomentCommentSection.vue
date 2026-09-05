@@ -52,7 +52,8 @@ const visibleComments = computed(() => {
 </script>
 
 <style scoped>
-.comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-modal); box-shadow: var(--shadow-card-soft); }
+/* moment-list-detail-polish：评论卡与列表/全局卡片表面统一（radius-card + shadow-card） */
+.comment-section { margin: 0 var(--spacing-md) var(--spacing-md); padding: var(--spacing-md) var(--spacing-md) var(--spacing-sm); background: var(--bg-card); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .comment-empty { padding: var(--spacing-lg) 0; display: flex; align-items: center; justify-content: center; }
 .comment-empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
 .comment-list { display: flex; flex-direction: column; }

@@ -1,14 +1,49 @@
 <template>
   <view class="page dish-page">
-    <Header title="菜品详情" @back="backToHome" />
-    <scroll-view class="scroll-wrap" scroll-y :scroll-with-animation="false" ref="mainRef" tabindex="-1" @scrolltolower="onReviewsReachBottom">
+    <!-- dish-detail-visual-polish：页面内覆盖导航（顶部透明 → 滚动渐显菜名与底白），大图全幅出血 -->
+    <view
+      class="dish-nav"
+      :class="{ solid: navSolid }"
+      :style="{ paddingTop: topPad, '--nav-h': navBarHeight + 'px', '--nav-pad-right': navPadRight, '--top-pad': topPad }"
+    >
+      <!-- 1.6 顶部渐变 scrim：状态栏+胶囊高度区叠透明→微暗渐变，给微信胶囊区衬底、提升返回钮对比度；
+           随导航渐显反向淡出（1 - navOpacity），导航变实底后由实底接管，零滚动模型变动 -->
+      <view class="dish-nav-scrim" :style="{ opacity: 1 - navOpacity }" />
+      <view class="dish-nav-row">
+        <view class="dish-nav-back" role="button" aria-label="返回" @tap="backToHome">
+          <IconSvg
+            name="arrow-left"
+            :size="'22px'"
+            :color="navSolid ? 'var(--text-primary)' : '#FFFFFF'"
+            class="dish-nav-back-icon"
+          />
+        </view>
+        <text class="dish-nav-title" :style="{ opacity: dish ? navOpacity : 1 }">{{ dishName }}</text>
+      </view>
+    </view>
+
+    <scroll-view
+      class="scroll-wrap"
+      scroll-y
+      :scroll-with-animation="false"
+      ref="mainRef"
+      tabindex="-1"
+      @scroll="onNavScroll"
+      @scrolltolower="onReviewsReachBottom"
+    >
       <!-- 加载/不存在态统一由 StateView 一次承载（ui-feed-loading：空态复用 EmptyState，不在详情区重复放置加载态） -->
       <StateView v-if="!dish" :loading="dishStore.loading" :empty="true" empty-text="菜品不存在或已下架" empty-icon="empty" />
 
       <template v-else>
-        <!-- 菜品大图：横向撑满，高约屏宽 44%（约屏高 1/4），圆角 -->
-        <view class="hero-img">
-          <ImageSwiper :images="heroImages" height="44vw" :indicator-dots="true" />
+        <!-- 菜品大图：全幅出血（顶部贴屏顶，仅底部圆角裁切），高约屏高 1/4 -->
+        <view class="hero-wrap">
+          <ImageSwiper
+            :images="heroImages"
+            height="26vh"
+            :indicator-dots="true"
+            :placeholder-size="96"
+            placeholder-background="var(--bg-card)"
+          />
         </view>
 
         <!-- 私有组件编排：基本信息 / 综合评分（只读）/ 评价（卡内触底加载） -->
@@ -35,6 +70,9 @@
           @report="onReviewReport"
           @more="onReviewMore"
         />
+
+        <!-- 「没有更多了」在评价卡下方居中弱化（dish-detail-visual-polish） -->
+        <view v-if="reviewFinished && reviewList.length > 0" class="reviews-end">没有更多了</view>
 
         <view style="height: calc(var(--spacing-lg) + 160rpx)" />
       </template>
@@ -71,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
@@ -83,9 +121,9 @@ import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
+import { getNavBarHeight } from '@/utils/navMetrics'
 import ImageSwiper from '@/components/ImageSwiper.vue'
 import StateView from '@/components/StateView.vue'
-import Header from '@/components/AppHeader.vue'
 import ReportModal from '@/components/ReportModal.vue'
 import ReviewActionSheet from '@/components/ReviewActionSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
@@ -145,6 +183,57 @@ const heroImages = computed(() => {
   const d = dish.value
   if (!d) return []
   return (d.images && d.images.length > 0) ? d.images : [d.image]
+})
+
+/* ===== dish-detail-visual-polish：覆盖导航 + 滚动渐显菜名 ===== */
+const statusBarHeight = ref(20)
+const navBarHeight = ref(56)
+const scrollTop = ref(0)
+/** 大图高度（px）：与 .hero-wrap 内 ImageSwiper 的 26vh 对应，用于推算渐显起点 */
+const heroH = ref(0)
+/** 右上角原生胶囊避让：与 AppHeader 同款计算（screenW − menuBtn.left + 8px），仅微信端生效 */
+const rightPad = ref(0)
+const topPad = computed(() => `max(${statusBarHeight.value}px, env(safe-area-inset-top))`)
+/** 导航行右侧安全留白：避让微信胶囊，长菜名省略于胶囊左侧 */
+const navPadRight = computed(() =>
+  rightPad.value > 0 ? `calc(env(safe-area-inset-right, 0px) + ${rightPad.value}px)` : '0px',
+)
+/**
+ * 渐显区间（px）：延迟到「信息卡菜名滚出可视区」之后才开始淡入覆盖导航标题，
+ * 避免与信息卡自身的菜名在屏内同屏重复（dish-detail-visual-polish 1.5）。
+ * 信息卡菜名位于大图之下（page-y ≈ heroH + 卡片顶距），当其整行滚到导航栏底之下时再淡入。
+ */
+const NAV_FADE_START = computed(() =>
+  Math.max(8, heroH.value + 40 - (statusBarHeight.value + navBarHeight.value)),
+)
+const NAV_FADE_END = computed(() => NAV_FADE_START.value + 96)
+const navOpacity = computed(() => {
+  if (dish.value == null) return 1
+  const p = (scrollTop.value - NAV_FADE_START.value) / (NAV_FADE_END.value - NAV_FADE_START.value)
+  return Math.min(1, Math.max(0, p))
+})
+const navSolid = computed(() => dish.value == null || navOpacity.value >= 1)
+const dishName = computed(() => (dish.value ? dish.value.name : '菜品详情'))
+function onNavScroll(e: any) {
+  scrollTop.value = e?.detail?.scrollTop || 0
+}
+onMounted(() => {
+  // 与 AppHeader 同款导航尺寸计算（自定义导航 + 右上角胶囊避让）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w: any = (globalThis as any).wx
+  const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
+  const sb = (win && win.statusBarHeight) || 20
+  statusBarHeight.value = sb
+  const mb = w && w.getMenuButtonBoundingClientRect ? w.getMenuButtonBoundingClientRect() : null
+  if (mb && mb.height) {
+    navBarHeight.value = getNavBarHeight(sb, mb)
+    // 大图按 26vh 推算（miniprogram vh 基于屏幕高），用于延迟渐显起点
+    const screenH = (win && (win.screenHeight || win.windowHeight)) || 667
+    heroH.value = screenH * 0.26
+    // 胶囊避让：screenW − 胶囊.left + 8px（px，不随屏宽缩放），与 AppHeader 一致
+    const screenW = (win && win.windowWidth) || 375
+    rightPad.value = Math.max(screenW - mb.left + 8, 0)
+  }
 })
 
 /** 位置文案：食堂 › 楼层 › 档口 › 窗口 */
@@ -339,12 +428,88 @@ function onReviewReport(rv: Review) {
 .dish-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
 .scroll-wrap { flex: 1; overflow-y: auto; width: 100%; padding-bottom: calc(120rpx + env(safe-area-inset-bottom)); }
 
-/* 菜品大图 */
-.hero-img { width: 100%; border-radius: var(--radius-card); overflow: hidden; line-height: 0; margin-top: var(--spacing-md); }
-/* 首卡与头图衔接：头图外容器首卡自身 CardSection 带边距，无额外处理 */
+/* ===== dish-detail-visual-polish：覆盖导航 ===== */
+.dish-nav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  z-index: 80;
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.dish-nav.solid {
+  background: var(--bg-card);
+  border-bottom: 1rpx solid var(--border-color);
+  box-shadow: var(--shadow-bar-soft);
+}
+/* 顶部渐变 scrim：覆盖状态栏+胶囊高度区，向上略深、向下渐隐，纯展示不拦截触摸 */
+.dish-nav-scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--top-pad) + var(--nav-h) + 36px);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.30) 0%, rgba(0, 0, 0, 0.12) 46%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.dish-nav-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: var(--nav-h);
+}
+.dish-nav-back {
+  position: absolute;
+  left: var(--spacing-sm);
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 大图态：返回图标加半透深色圆底保证可见；非大图态透明白底黑图标 */
+.dish-nav-back::before {
+  content: '';
+  position: absolute;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--overlay-dark-faint);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.dish-nav.solid .dish-nav-back::before { background: transparent; }
+.dish-nav-back-icon { line-height: 1; }
+.dish-nav-title {
+  position: absolute;
+  /* 1.4 胶囊避让：标题左侧起于返回钮之后，右侧止于微信胶囊左侧（--nav-pad-right），
+     长菜名被胶囊截断并省略，绝不进入胶囊区；短菜名在 [返回钮, 胶囊] 间居中 */
+  left: 60px;
+  right: var(--nav-pad-right, 0px);
+  max-width: none;
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+/* 菜品大图：全幅出血（顶部贴屏顶、左右撑满、仅底部圆角），图片底部圆角裁切 */
+.hero-wrap { width: 100%; border-radius: 0 0 var(--radius-card) var(--radius-card); overflow: hidden; line-height: 0; }
+
+/* 「没有更多了」位于评价卡下方居中弱化 */
+.reviews-end { text-align: center; font-size: var(--font-small); color: var(--text-tertiary); padding: var(--spacing-md) 0 var(--spacing-2xs); }
 
 /* 底部固定操作栏 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
-.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: var(--radius-btn); background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-medium); border: none; padding: 0; box-shadow: var(--shadow-float); }
+/* dish-detail-visual-polish：与全局主按钮统一（圆角 12px=24rpx 就近落地、600 字重、极淡下投影） */
+.share-btn-native { flex: 1; min-width: 0; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: 24rpx; background: var(--color-primary); color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-semibold); border: none; padding: 0; box-shadow: var(--shadow-float); }
 .share-btn-native::after { border: none; }
 </style>

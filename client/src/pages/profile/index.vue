@@ -37,7 +37,7 @@
           >
             <text class="verify-action-text">去认证</text>
           </view>
-          <IconSvg name="arrow" :size="32" color="var(--text-secondary)" class="card-arrow" />
+          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="card-arrow" />
         </view>
       </view>
 
@@ -52,7 +52,7 @@
           @tap="f.action"
         >
           <view class="feature-card-icon">
-            <IconSvg :name="f.icon" :size="40" color="var(--color-primary)" />
+            <IconSvg :name="f.icon" :size="36" color="var(--color-primary)" />
             <text v-if="f.key === 'activity'" class="feature-card-tag">新</text>
           </view>
           <text class="feature-card-label">{{ f.label }}</text>
@@ -77,7 +77,7 @@
           <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
             <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
           </view>
-          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="entry-arrow" />
+          <IconSvg name="arrow" :size="24" color="var(--text-tertiary)" class="entry-arrow" />
         </view>
       </view>
 
@@ -189,7 +189,8 @@ const entryItems = [
    （昵称/绑定邮箱、游客态的「去认证」引导）表达，不再用「透明 vs 白底」区分。 */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
-  margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  /* 三区间距加大、均匀分布（profile-page-visual-polish） */
+  margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
   padding: var(--spacing-lg);
   background: var(--bg-card);
   border-radius: var(--radius-card);
@@ -213,7 +214,8 @@ const entryItems = [
 .avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.nickname { font-size: var(--font-subtitle); font-weight: var(--weight-bold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* moment/卡片一致：昵称 600 档一级深灰第一落点（profile-page-visual-polish） */
+.nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 「去认证」行动按钮：主色文字 + 细边框轻量胶囊（tab-pages-visual-polish-3：边框 1rpx、字重 500） */
@@ -221,7 +223,8 @@ const entryItems = [
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  /* 去认证：收窄左右内边距，轻盈细边（profile-page-visual-polish） */
+  padding: var(--spacing-xs);
   border-radius: var(--radius-pill);
   border: 1rpx solid var(--color-primary);
   background: transparent;
@@ -235,7 +238,8 @@ const entryItems = [
 .feature-grid {
   display: flex;
   gap: var(--spacing-md);
-  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
+  /* 三区间距加大（profile-page-visual-polish） */
+  margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
 }
 .feature-card {
   display: flex;
@@ -245,8 +249,8 @@ const entryItems = [
   gap: var(--spacing-sm);
   flex: 1;
   min-width: 0;
-  /* tab-pages-visual-polish-3：垂直内边距收窄压缩高度 */
-  padding: var(--spacing-md) var(--spacing-md);
+  /* 卡高再收紧：纵向 sm（profile-page-visual-polish） */
+  padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   /* 二级功能卡：微抬阴影，弱于一级身份卡 */
@@ -257,8 +261,9 @@ const entryItems = [
 .feature-card.pressed { background-color: var(--bg-soft); }
 .feature-card-icon {
   position: relative;
-  width: 80rpx;
-  height: 80rpx;
+  /* 图标背景圆收紧（profile-page-visual-polish） */
+  width: 72rpx;
+  height: 72rpx;
   border-radius: var(--radius-pill);
   background: var(--color-primary-soft);
   display: flex;
@@ -267,28 +272,29 @@ const entryItems = [
 }
 .feature-card-tag {
   position: absolute;
-  top: -8rpx;
-  right: -8rpx;
+  top: -6rpx;
+  right: -6rpx;
+  /* 「新」角标再缩小、贴右上角（profile-page-visual-polish） */
   font-size: var(--font-tiny);
   color: var(--bg-card);
   background: var(--color-error);
   border-radius: var(--radius-pill);
-  padding: 2rpx 8rpx;
+  padding: 0 6rpx;
   font-weight: var(--weight-semibold);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 /* 功能卡标题：一级标题档（32rpx / 600），与菜名/昵称同档 */
 .feature-card-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
 
-/* 版本号 footer：右下角 + 最小字号三级灰（tab-pages-visual-polish-3：再降一档） */
-.app-version { display: flex; justify-content: flex-end; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 版本号：水平居中弱化（居中于菜单与底部导航之间、无分隔线，profile-page-visual-polish） */
+.app-version { display: flex; justify-content: center; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 .app-version-text { font-size: var(--font-tiny); color: var(--text-tertiary); }
 
 /* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
 .entry-group {
-  margin: 0 var(--spacing-md) var(--spacing-sm);
-  /* 三级列表：凹陷表面 + 去悬浮阴影，以发丝线分隔行，读作分组列表而非悬浮卡 */
-  background: var(--bg-soft);
+  margin: 0 var(--spacing-md) var(--spacing-md);
+  /* 三级列表：底色再浅一度（placeholder 介于 page 与白卡间），行分隔发丝线（profile-page-visual-polish） */
+  background: var(--bg-placeholder);
   border-radius: var(--radius-card);
   box-shadow: none;
   overflow: hidden;
@@ -297,8 +303,8 @@ const entryItems = [
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  /* tab-pages-visual-unify：菜单行高收紧（104→96rpx） */
-  height: 96rpx;
+  /* 行高再收紧（96→88rpx，profile-page-visual-polish） */
+  height: 88rpx;
   padding: 0 var(--spacing-lg);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -306,8 +312,8 @@ const entryItems = [
 .entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
 .entry-row.pressed { background-color: var(--bg-soft); }
 .entry-icon { flex-shrink: 0; }
-/* 菜单主标题：一级标题档（32rpx / 600），与菜名/昵称/功能卡标题同档 */
-.entry-label { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 菜单主标题：一级深灰 500 档（profile-page-visual-polish） */
+.entry-label { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .entry-arrow { flex-shrink: 0; }
 
