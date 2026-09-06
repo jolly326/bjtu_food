@@ -9,10 +9,24 @@
 
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE } from './config'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
+}
+
+/** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
+export type RequestData = string | object | ArrayBuffer | undefined
+
+/** 请求选项：header 收窄为字符串表（原 any） */
+export interface RequestOptions {
+  header?: Record<string, string>
+  hideLoading?: boolean
+}
+
+/** 平台响应载体：请求层只关心 body 内容（data），其余字段由微信/uni 回调自身携带 */
+interface RawResponse {
+  data?: unknown
 }
 
 /** 401 处理进行中标志：避免并发 401（如首页多请求同时失效）重复触发登出+重登+Toast 风暴 */
@@ -67,7 +81,7 @@ function getToken(): string {
 }
 
 /** 解析响应体：兼容 JSON 字符串或已解析对象 */
-function parseBody<T>(data: any): ApiResponse<T> {
+function parseBody<T>(data: unknown): ApiResponse<T> {
   if (typeof data === 'string') {
     try {
       return JSON.parse(data) as ApiResponse<T>
@@ -81,20 +95,20 @@ function parseBody<T>(data: any): ApiResponse<T> {
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data?: any,
-  options?: { header?: any; hideLoading?: boolean },
+  data?: RequestData,
+  options?: RequestOptions,
   _retried = false,
 ): Promise<T> {
-  const header = {
+  const header: Record<string, string> = {
     Authorization: `Bearer ${getToken()}`,
     ...(options?.header || {}),
   }
 
-  let res: any
+  let res: RawResponse
   try {
     // ===== 微信小程序端：走云托管内部链路（免域名白名单） =====
     // #ifdef MP-WEIXIN
-    res = await new Promise<any>((resolve, reject) => {
+    res = await new Promise<RawResponse>((resolve, reject) => {
       let settled = false
       const done = (fn: () => void) => {
         if (!settled) {
@@ -102,6 +116,7 @@ async function request<T>(
           fn()
         }
       }
+      // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（与 navMetrics 同款说明）
       const wxApi: any = (globalThis as any).wx
       if (!wxApi || !wxApi.cloud) {
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
@@ -121,7 +136,8 @@ async function request<T>(
           'X-WX-SERVICE': WX_SERVICE,
           ...header,
         },
-        success: (r: any) => { clearTimer(); done(() => resolve(r)) },
+        // 平台例外：微信回调透传，仅取其 data 字段
+        success: (r: any) => { clearTimer(); done(() => resolve({ data: r?.data })) },
         fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
       })
     })
@@ -129,15 +145,7 @@ async function request<T>(
 
     // ===== 其他端（H5 等）：回退普通 HTTP =====
     // #ifndef MP-WEIXIN
-    res = await new Promise<any>((resolve, reject) => {
-      const task = uni.request({
-        url: `${API_BASE_URL}${url}`,
-        method,
-        data,
-        header,
-        success: (r: any) => { clearTimer(); resolve(r) },
-        fail: err => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
-      })
+    res = await new Promise<RawResponse>((resolve, reject) => {
       let finished = false
       const timeoutTimer = setTimeout(() => {
         finished = true
@@ -148,11 +156,19 @@ async function request<T>(
       const clearTimer = () => {
         if (!finished) clearTimeout(timeoutTimer)
       }
+      const task = uni.request({
+        url: `${API_BASE_URL}${url}`,
+        method,
+        data,
+        header,
+        success: (r) => { clearTimer(); resolve({ data: r.data }) },
+        fail: (err) => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
+      })
     })
     // #endif
-  } catch (e: any) {
+  } catch (e) {
     // 网络层错误（超时 / 断网）：不抛出裸错误，统一提示
-    uni.showToast({ title: e.message || '网络异常，请稍后重试', icon: 'none' })
+    uni.showToast({ title: e instanceof Error ? e.message : '网络异常，请稍后重试', icon: 'none' })
     throw e
   }
 
@@ -198,19 +214,19 @@ async function request<T>(
   return body.data as T
 }
 
-export async function get<T>(url: string, data?: any): Promise<T> {
+export async function get<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('GET', url, data)
 }
 
-export async function post<T>(url: string, data?: any): Promise<T> {
+export async function post<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('POST', url, data)
 }
 
-export async function put<T>(url: string, data?: any): Promise<T> {
+export async function put<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('PUT', url, data)
 }
 
-export async function del<T>(url: string, data?: any): Promise<T> {
+export async function del<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('DELETE', url, data)
 }
 
@@ -229,6 +245,7 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   // ===== 微信小程序端：微信云存储 =====
   // #ifdef MP-WEIXIN
   result = new Promise<{ url: string }>((resolve, reject) => {
+    // 平台例外：wx 句柄为微信运行时对象（同 request 说明）
     const wxApi: any = (globalThis as any).wx
     if (!wxApi || !wxApi.cloud) {
       reject(new Error('当前环境不支持 wx.cloud'))
@@ -243,6 +260,7 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       config: { env: WX_CLOUD_ENV },
       cloudPath,
       filePath: tempFilePath,
+      // 平台例外：微信回调透传，仅取其 fileID
       success: (r: any) => resolve({ url: r.fileID }),
       fail: (err: any) => reject(new Error(err.errMsg || '上传失败，请重试')),
     })

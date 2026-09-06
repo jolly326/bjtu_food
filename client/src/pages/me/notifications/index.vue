@@ -118,9 +118,9 @@ async function onTap(n: Notification) {
     } catch { /* 失败静默，下轮刷新对齐 */ }
   }
   if (n.type === 'moment_audit' && n.relatedId) {
-    uni.navigateTo({ url: `/pages/moment/index?id=${n.relatedId}` })
+    uni.navigateTo({ url: `/pages/detail/moment/index?id=${n.relatedId}` })
   } else if (n.type === 'dish_audit' && n.relatedId) {
-    uni.navigateTo({ url: `/pages/dish/index?id=${n.relatedId}` })
+    uni.navigateTo({ url: `/pages/detail/dish/index?id=${n.relatedId}` })
   }
   // comment / useful 无独立目标页，仅标已读
 }

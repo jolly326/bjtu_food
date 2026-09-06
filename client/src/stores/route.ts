@@ -42,12 +42,17 @@ export function ensureTabForUrl(url?: string) {
  * 必须在页面已就绪后调用（如导航 complete、App.onShow）：getCurrentPages() 返回非响应式数组，
  * 不能放进 computed，需在这些时机主动调用。
  */
+/** getCurrentPages 返回的页面栈元素最小形状（仅消费 route 字段，不再依赖 any） */
+interface PageStackItem {
+  route?: string
+}
+
 export function syncRoute() {
-  const pages = (getCurrentPages?.() ?? []) as any[]
+  const pages = (getCurrentPages?.() ?? []) as PageStackItem[]
   // 页面栈尚未就绪（如 TabBar 初始挂载）：保留当前显隐，避免误隐藏（首页启动即应可见）
   if (pages.length === 0) return
   const cur = pages[pages.length - 1]
-  const raw = (cur?.route as string) || ''
+  const raw = cur?.route || ''
   const path = raw.replace(/^\/+/, '')
   const key = routeMap[path]
   setTab(key || null)

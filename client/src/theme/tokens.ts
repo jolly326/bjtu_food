@@ -62,7 +62,7 @@ export type IconColorName = keyof typeof COLOR_MAP
 
 // ========== 原生属性例外登记（uni-app 限制） ==========
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，
-// 必须用真实色值（见 pages/dish/ImageSwiper.vue）。删除 uni.scss 后，原例外说明迁此。
+// 必须用真实色值（见 pages/detail/dish/ImageSwiper.vue）。删除 uni.scss 后，原例外说明迁此。
 export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
 export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
 // 微信原生 <web-view> 的 progressbar.color 不接受 var()，必须用真实色值

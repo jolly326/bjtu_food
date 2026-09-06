@@ -31,22 +31,17 @@
 	],
 	"subPackages": [
 		{
-			"root": "pages/dish/",
+			"root": "pages/detail/",
 			"pages": [
 				{
-					"path": "index",
+					"path": "dish/index",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
 						"navigationStyle": "custom"
 					}
-				}
-			]
-		},
-		{
-			"root": "pages/moment/",
-			"pages": [
+				},
 				{
-					"path": "index",
+					"path": "moment/index",
 					"style": {
 						"navigationBarTitleText": "动态详情",
 						"navigationStyle": "custom"
@@ -55,36 +50,33 @@
 			]
 		},
 		{
-			"root": "pages/notifications/",
+			"root": "pages/me/",
 			"pages": [
 				{
-					"path": "index",
+					"path": "notifications/index",
 					"style": {
 						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
-				}
-			]
-		},
-		{
-			"root": "pages/publish-mine/",
-			"pages": [
+				},
 				{
-					"path": "index",
+					"path": "publish-mine/index",
 					"style": {
 						"navigationBarTitleText": "我发布的",
 						"navigationStyle": "custom"
 					}
-				}
-			]
-		},
-		{
-			"root": "pages/profile/",
-			"pages": [
+				},
 				{
-					"path": "index",
+					"path": "profile/index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "feedback/index",
+					"style": {
+						"navigationBarTitleText": "意见反馈",
 						"navigationStyle": "custom"
 					}
 				}
@@ -97,18 +89,6 @@
 					"path": "index",
 					"style": {
 						"navigationBarTitleText": "发布动态",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/feedback/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "意见反馈",
 						"navigationStyle": "custom"
 					}
 				}
@@ -137,7 +117,7 @@
 	"preloadRule": {
 		"pages/home/index": {
 			"network": "wifi",
-			"packages": ["pages/dish/", "pages/moment/"]
+			"packages": ["pages/detail/"]
 		}
 	},
 	"globalStyle": {

@@ -78,8 +78,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import BaseSheet from '@/components/BaseSheet.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import BaseSheet from './BaseSheet.vue'
+import IconSvg from './IconSvg.vue'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'

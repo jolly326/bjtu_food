@@ -75,7 +75,7 @@ const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -167,7 +167,7 @@ function onRefresh() {
 }
 
 function goDetail(m: Moment) {
-  uni.navigateTo({ url: `/pages/moment/index?id=${m.id}` })
+  uni.navigateTo({ url: `/pages/detail/moment/index?id=${m.id}` })
 }
 
 function goRelated(m: Moment) {

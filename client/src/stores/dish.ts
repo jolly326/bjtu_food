@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Dish, DishDetail, DishQuery, DishSortBy, HotSearch } from '@/types/dish'
 import type { Review, ReviewSort } from '@/types/review'
 import type { CanteenInfo } from '@/types/canteen'
+import type { Moment } from '@/types/moment'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
 import * as canteenApi from '@/api/canteen'
@@ -79,7 +80,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchCategories(): Promise<CategoryItem[]> {
     try {
       categories.value = await getCategories()
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载品类失败', e)
       categories.value = []
     }
@@ -98,12 +99,12 @@ export const useDishStore = defineStore('dish', () => {
   const reviewsDirty = ref(false)
 
   /** task-03 关联动态（二期占位，一期为空） */
-  const relatedMoments = ref<any[]>([])
+  const relatedMoments = ref<Moment[]>([])
 
   async function fetchCanteens() {
     try {
       canteenList.value = await canteenApi.getCanteenList()
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载食堂列表失败', e)
       canteenList.value = []
     }
@@ -112,7 +113,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchRecommend() {
     return withLoading('fetchRecommend', async () => {
       recommendList.value = await dishApi.getRecommendList()
-    }).catch((e: any) => {
+    }).catch((e) => {
       console.error('[store] fetchRecommend failed', e)
       recommendList.value = []
     })
@@ -123,7 +124,7 @@ export const useDishStore = defineStore('dish', () => {
     return withLoading('fetchGuess', async () => {
       const res = await getRecommendDishes({ excludeIds, pageSize: 10 })
       guessList.value = res.list
-    }).catch((e: any) => {
+    }).catch((e) => {
       console.error('[store] fetchGuess failed', e)
       guessList.value = []
     })
@@ -134,7 +135,7 @@ export const useDishStore = defineStore('dish', () => {
       const list = await withLoading('search', async () => await dishApi.searchDishes(query))
       dishList.value = list
       return list
-    } catch (e: any) {
+    } catch (e) {
       console.error('搜索失败', e)
       dishList.value = []
       return []
@@ -147,7 +148,7 @@ export const useDishStore = defineStore('dish', () => {
       const res = await withLoading('searchPage', async () => await dishApi.searchDishesPage(query))
       dishList.value = res.list
       return res
-    } catch (e: any) {
+    } catch (e) {
       console.error('搜索失败', e)
       dishList.value = []
       return { list: [], total: 0 }
@@ -157,7 +158,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchDetail(id: number) {
     return withLoading('fetchDetail', async () => {
       currentDish.value = await dishApi.getDishDetail(id)
-    }).catch((e: any) => {
+    }).catch((e) => {
       console.error('加载菜品详情失败', e)
       currentDish.value = null
     })
@@ -209,7 +210,7 @@ export const useDishStore = defineStore('dish', () => {
       }
       reviewTotal.value = res.total
       return res
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载评价失败', e)
       if (!options?.append) {
         reviewList.value = []
@@ -224,7 +225,7 @@ export const useDishStore = defineStore('dish', () => {
       const data = await dishApi.getNewDishes()
       newDishes.value = data
       return data
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载上新菜品失败', e)
       newDishes.value = []
       return []
@@ -236,7 +237,7 @@ export const useDishStore = defineStore('dish', () => {
       const data = await dishApi.getPromotionDishes()
       promotionDishes.value = data
       return data
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载活动菜品失败', e)
       promotionDishes.value = []
       return []
@@ -247,7 +248,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchHotSearch() {
     try {
       hotSearchList.value = await dishApi.getHotSearch()
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载热搜失败', e)
       hotSearchList.value = []
     }
@@ -257,7 +258,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchRising() {
     try {
       risingDishes.value = await dishApi.getRisingDishes()
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载新晋黑马失败', e)
       risingDishes.value = []
     }
@@ -295,7 +296,7 @@ export const useDishStore = defineStore('dish', () => {
     try {
       const { list } = await momentApi.getMoments({ dishId, pageSize: 10 })
       relatedMoments.value = list
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载关联动态失败', e)
       relatedMoments.value = []
     }
@@ -304,7 +305,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchStallDishes(stallId: number) {
     return withLoading('fetchStallDishes', async () => {
       stallDishes.value = await dishApi.getStallDishes(stallId)
-    }).catch((e: any) => {
+    }).catch((e) => {
       console.error('加载档口菜品失败', e)
       stallDishes.value = []
     })
@@ -373,7 +374,7 @@ export const useDishStore = defineStore('dish', () => {
       }
       // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
       if (rows.length < pageSize) filterFinished.value = true
-    } catch (e: any) {
+    } catch (e) {
       // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
       if (seq !== filterFetchSeq) return
       console.error('加载筛选菜品失败', e)
@@ -422,7 +423,7 @@ export const useDishStore = defineStore('dish', () => {
       // 分页结束判据基于「本页返回条数 < pageSize」（见 fetchFilterDishes 说明）
       if (rows.length < pageSize) filterFinished.value = true
       return rows.length > 0
-    } catch (e: any) {
+    } catch (e) {
       console.error('加载更多筛选菜品失败', e)
       filterPage.value -= 1
       return false

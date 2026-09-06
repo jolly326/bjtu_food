@@ -45,7 +45,7 @@ const splitList = computed(() => {
 
 /** 菜品卡片点击 → 独立详情页（pages/detail/dish） */
 function goToDetail(dish: { id: number }) {
-  uni.navigateTo({ url: `/pages/dish/index?id=${dish.id}` })
+  uni.navigateTo({ url: `/pages/detail/dish/index?id=${dish.id}` })
 }
 </script>
 

@@ -36,7 +36,7 @@
  * - 一列铺排当前认证用户本人发布的动态；游客/未认证进入时 loadData 内 requireAuth 弹认证，
  *   认证成功后（isVerified false→true）watch 自动加载列表；
  * - 已退回（rejected）动态展示退回原因，「编辑重提」与点卡均跳 /pages/publish-moment?id= 重提；
- * - 其余态点击进动态详情页 /pages/moment/index；作者自己的动态三点菜单仅「分享」（ActionSheet，不提供举报）；
+ * - 其余态点击进动态详情页 /pages/detail/moment/index；作者自己的动态三点菜单仅「分享」（ActionSheet，不提供举报）；
  * - 支持下拉刷新；onShow 从编辑/发布页返回时自动刷新（避免编辑或重提后内容变更不展示）。
  */
 import { ref, computed, watch } from 'vue'
@@ -55,7 +55,7 @@ const userStore = useUserStore()
 const moments = ref<Moment[]>([])
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet，作者列表仅分享） ===== */
@@ -107,7 +107,7 @@ function goDetail(m: Moment) {
   if (m.auditStatus === 'rejected') {
     uni.navigateTo({ url: `/pages/publish-moment/index?id=${m.id}` })
   } else {
-    uni.navigateTo({ url: `/pages/moment/index?id=${m.id}` })
+    uni.navigateTo({ url: `/pages/detail/moment/index?id=${m.id}` })
   }
 }
 

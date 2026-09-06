@@ -40,13 +40,13 @@ export function buildSharePayload(dish?: ShareDish | null, moment?: Moment | nul
   if (d) {
     return {
       title: `推荐「${d.name}」¥${d.price}${d.stallName ? ' · ' + d.stallName : ''}，来自食在交大`,
-      path: `/pages/dish/index?id=${d.id}`,
+      path: `/pages/detail/dish/index?id=${d.id}`,
     }
   }
   if (m) {
     return {
       title: `${m.userNickname || '食在交大用户'}：${m.content?.slice(0, 30) || '看看这条动态'}`,
-      path: `/pages/moment/index?id=${m.id}`,
+      path: `/pages/detail/moment/index?id=${m.id}`,
     }
   }
   return { title: '食在交大 · 发现校园美食', path: '/pages/home/index' }

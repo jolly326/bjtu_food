@@ -4,7 +4,7 @@
 
     <view class="mine-content">
       <!-- 用户卡：游客（未认证）显示食客短 ID +「去认证」；已认证显示昵称 + 绑定邮箱。
-           点击行为二分：游客整卡唤起认证弹层（不进入编辑页）；认证态进入个人信息编辑页（/pages/profile/index） -->
+           点击行为二分：游客整卡唤起认证弹层（不进入编辑页）；认证态进入个人信息编辑页（/pages/me/profile/index） -->
       <view
         class="user-card"
         :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
@@ -137,13 +137,13 @@ function onVerifyTap() {
   authSheetStore.show()
 }
 
-/** 用户卡点击二分：游客整卡直接唤起认证弹层；已认证点击进个人信息编辑页（/pages/profile/index） */
+/** 用户卡点击二分：游客整卡直接唤起认证弹层；已认证点击进个人信息编辑页（/pages/me/profile/index） */
 function onUserCardTap() {
   if (!userStore.isVerified()) {
     authSheetStore.show()
     return
   }
-  uni.navigateTo({ url: '/pages/profile/index' })
+  uni.navigateTo({ url: '/pages/me/profile/index' })
 }
 
 /** 2×2 功能宫格数据（顺序固定：第一行 最新活动/意见反馈，第二行 系统通知/我发布的）；每格整格热区 */
@@ -156,11 +156,11 @@ interface GridCell {
 const gridRows: GridCell[][] = [
   [
     { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
-    { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
+    { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/me/feedback/index' }) },
   ],
   [
-    { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: '/pages/notifications/index' }) },
-    { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/publish-mine/index' })) },
+    { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: '/pages/me/notifications/index' }) },
+    { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/me/publish-mine/index' })) },
   ],
 ]
 </script>

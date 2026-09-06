@@ -114,7 +114,7 @@ const moment = ref<Moment | null>(null)
 onShareAppMessage(() => buildSharePayload(undefined, moment.value))
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
 }
 const comments = ref<MomentComment[]>([])
 const commentText = ref('')

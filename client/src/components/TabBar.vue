@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
+import IconSvg from './IconSvg.vue'
 import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
 
 

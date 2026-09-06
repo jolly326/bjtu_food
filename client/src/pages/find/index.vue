@@ -113,7 +113,7 @@ function goBackHome() {
 /** 菜品详情：跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/dish/index?id=${id}` })
+  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
 }
 const keyword = ref('')
 const refresherTriggered = ref(false)

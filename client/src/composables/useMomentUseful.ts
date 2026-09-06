@@ -4,7 +4,7 @@ import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 
 /**
- * 动态「有用」toggle 复用逻辑（抽取自 pages/dynamic 与 pages/publish-mine 两份 MomentCard 的近全量重复脚本）。
+ * 动态「有用」toggle 复用逻辑（抽取自 pages/dynamic 与 pages/me/publish-mine 两份 MomentCard 的近全量重复脚本）。
  * 乐观更新 + 失败回滚 + pending 锁防连点；调用方在 toggle 成功后自行 emit('useful', moment)。
  */
 export function useMomentUseful(moment: Moment) {
