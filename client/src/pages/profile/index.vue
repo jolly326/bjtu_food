@@ -1,338 +1,179 @@
 <template>
-  <view class="page profile-page">
-    <Header title="我的" :showBack="showBack" @back="backToHome" />
+  <view class="page profile-edit-page">
+    <Header title="个人信息" @back="backToHome" />
 
-    <view class="profile-content">
-      <!-- 用户卡：游客（未认证）显示食客短 ID；已认证显示昵称 + 绑定邮箱 -->
-      <view
-        class="user-card"
-        :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
-        role="button"
-        :aria-label="isVerified ? '查看或编辑个人资料' : '游客身份'"
-        @tap="onUserCardTap"
-      >
-        <view class="user-card-head">
+    <scroll-view class="scroll-wrap" scroll-y>
+      <view class="info-card">
+        <!-- 头像 -->
+        <view class="info-row info-tappable" @tap="changeAvatar">
+          <text class="info-label">头像</text>
           <view class="avatar-wrap">
-            <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
-            <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="60" color="var(--text-tertiary)" />
+            <image v-if="avatar" :src="getImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
+            <view v-else class="avatar avatar-empty" :class="{ uploading: avatarUploading }">
+              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
+            <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="row-arrow" />
           </view>
-          <view class="user-meta">
-            <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
-              {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
-            </text>
-            <text v-if="isVerified && (bindEmail || userInfo?.email)" class="user-id">
-              {{ bindEmail || userInfo?.email }}
-            </text>
-            <text v-else-if="!isVerified" class="user-id">游客 {{ guestShortId }}</text>
-          </view>
-          <!-- 未认证：主色文字按钮「去认证」——把状态提示转为行动引导（点击弹 AuthSheet） -->
-          <view
-            v-if="!isVerified"
-            class="verify-action"
-            role="button"
-            aria-label="去认证"
-            @tap.stop="onVerifyTap"
-          >
-            <text class="verify-action-text">去认证</text>
-          </view>
-          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="card-arrow" />
+        </view>
+
+        <!-- 昵称 -->
+        <view class="info-row">
+          <text class="info-label">昵称</text>
+          <input v-model="nickname" class="nickname-input" placeholder="请输入昵称" maxlength="16" placeholder-class="input-placeholder" />
+        </view>
+
+        <!-- 学号（校园身份，只读） -->
+        <view class="info-row">
+          <text class="info-label">学号</text>
+          <text class="info-value">{{ userInfo?.username || '--' }}</text>
+        </view>
+
+        <!-- 校园邮箱（只读） -->
+        <view class="info-row">
+          <text class="info-label">校园邮箱</text>
+          <text class="info-value info-value-email">{{ userInfo?.email || '--' }}</text>
+        </view>
+
+        <!-- 身份（角色，只读） -->
+        <view class="info-row">
+          <text class="info-label">身份</text>
+          <text class="info-value">{{ roleLabel }}</text>
         </view>
       </view>
+    </scroll-view>
 
-      <!-- 功能方块卡：意见反馈 / 最新活动（顶部高亮，区别于下方常规入口；网格布局，与常规列表明显分层） -->
-      <view class="feature-grid">
-        <view
-          v-for="f in featuredItems"
-          :key="f.key"
-          class="feature-card"
-          role="button"
-          :aria-label="f.label"
-          @tap="f.action"
-        >
-          <view class="feature-card-icon">
-            <IconSvg :name="f.icon" :size="36" color="var(--color-primary)" />
-            <text v-if="f.key === 'activity'" class="feature-card-tag">新</text>
-          </view>
-          <text class="feature-card-label">{{ f.label }}</text>
-        </view>
-      </view>
-
-      <!-- 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部方块卡；需认证入口不置灰，点击弹认证引导） -->
-      <view class="entry-group">
-        <view
-          v-for="e in entryItems"
-          :key="e.key"
-          class="entry-row"
-          role="button"
-          :aria-label="e.label"
-          @tap="e.action"
-        >
-          <IconSvg :name="e.icon" :size="40" color="var(--color-primary)" class="entry-icon" />
-          <text class="entry-label">{{ e.label }}</text>
-          <!-- 认证提示已移除（tab-pages-visual-unify）：需认证入口不置灰、行内不显示「认证」弱标识，
-               未认证用户点击时由 requireAuth → AuthSheet 弹出引导，页面只保留用户卡上的「去认证」入口 -->
-          <!-- 系统通知未读红点角标 -->
-          <view v-if="e.key === 'notify' && notifyStore.unreadCount > 0" class="entry-badge" aria-hidden="true">
-            <text class="entry-badge-text">{{ notifyStore.unreadCount > 99 ? '99+' : notifyStore.unreadCount }}</text>
-          </view>
-          <IconSvg name="arrow" :size="24" color="var(--text-tertiary)" class="entry-arrow" />
-        </view>
-      </view>
-
-      <!-- 版本号 footer：构建期注入（vite.config.ts 读取 manifest versionName） -->
-      <view class="app-version">
-        <text class="app-version-text">知行食记 v{{ appVersion }}</text>
-      </view>
+    <!-- 保存（固定底部，与其他表单页一致） -->
+    <view class="submit-bar">
+      <AppButton text="保存" type="primary" :loading="saving" @press="save" />
     </view>
-
-    <!-- 认证弹层：游客点击需认证功能时弹出 -->
-    <AuthSheet />
-
-    <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
-    <TabBar />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
-import { showTab } from '@/stores/route'
-import Header from '@/components/AppHeader.vue'
-import IconSvg from '@/components/IconSvg.vue'
-import ImageFallback from './ImageFallback.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
-import TabBar from '@/components/TabBar.vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
-import { useAuthSheetStore } from '@/stores/auth-sheet'
-import { useNotifyStore } from '@/stores/notify'
+import { getImageUrl } from '@/utils/image'
+import { uploadImage } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
-import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
+import Header from '@/components/AppHeader.vue'
+import AppButton from '@/components/AppButton.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 const userStore = useUserStore()
-const authSheetStore = useAuthSheetStore()
-const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-/** 已认证（verified=true）——微信静默登录后恒有登录态，游客/认证用 verified 区分（§5.y） */
-const isVerified = computed(() => userStore.isVerified())
-const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
-/** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
-const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
-/** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
-const appVersion = __APP_VERSION__
 
-// 是否从首页头像 navigateTo 进入（带 ?from=home），是则显示返回箭头
-const showBack = ref(false)
-onLoad((q) => {
-  showBack.value = q?.from === 'home'
-  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
-  userStore.silentLogin()
+// N07/审计#2 修复：userInfo 在 setup 时可能仍为 null（静默登录异步回填），
+// 直接用快照会导致头像/昵称/身份永久空白且回写空值。改为响应式派生 + watch immediate 回填。
+const avatar = ref('')
+const nickname = ref('')
+const saving = ref(false)
+/** 身份标签：student=交大学生 / admin=管理员（对齐 §0.2 仅两种角色） */
+const roleLabel = ref('交大学生')
+
+watch(
+  () => userInfo.value,
+  (u) => {
+    if (!u) return
+    if (u.avatar) avatar.value = u.avatar
+    if (u.nickname) nickname.value = u.nickname
+    roleLabel.value = u.role === 'admin' ? '管理员' : '交大学生'
+  },
+  { immediate: true },
+)
+/** 头像上传中：禁用重复选择 + 头像半透明反馈 */
+const avatarUploading = ref(false)
+
+// N07 修复：保存后延迟返回定时器句柄，离开页面时清理，避免手动返回后多退一层
+let navTimer: ReturnType<typeof setTimeout> | null = null
+onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
+  navTimer = null
 })
 
-// 每次进入「我的」刷新未读通知数（红点角标；通知属认证专属，仅认证用户刷新未读数）
-onShow(() => {
-  // 锚定底部菜单栏：我的页始终显示并高亮
-  showTab('profile')
-  if (userStore.isVerified()) notifyStore.fetchUnread()
-})
+function changeAvatar() {
+  if (avatarUploading.value) return
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (res) => {
+      avatarUploading.value = true
+      try {
+        const url = await uploadImage(res.tempFilePaths[0])
+        avatar.value = url
+        uni.showToast({ title: '头像已更新', icon: 'success' })
+      } catch {
+        uni.showToast({ title: '上传失败', icon: 'none' })
+      } finally {
+        avatarUploading.value = false
+      }
+    },
+  })
+}
 
-/** 需认证入口统一拦截：未认证（verified=false）弹认证引导，认证成功后自动继续原动作（§5.y 入口不置灰） */
-function requireAuth(action: () => void) {
-  if (userStore.isVerified()) {
-    action()
+async function save() {
+  const name = nickname.value.trim()
+  if (!name) {
+    uni.showToast({ title: '昵称不能为空', icon: 'none' })
     return
   }
-  authSheetStore.requireAuth(action)
-}
-
-/** 「去认证」：与用户卡点击同源，复用底部认证弹层（不单独写认证页） */
-function onVerifyTap() {
-  authSheetStore.show()
-}
-
-/** 用户卡：已认证点击进个人信息页；游客点击唤起底部认证弹窗（统一认证入口，不单独写页） */
-function onUserCardTap() {
-  if (!userStore.isVerified()) {
-    authSheetStore.show()
-    return
+  saving.value = true
+  try {
+    await userStore.updateProfile({ nickname: name, avatar: avatar.value })
+    uni.showToast({ title: '已保存', icon: 'success' })
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => uni.navigateBack(), 400)
+  } catch {
+    uni.showToast({ title: '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
   }
-  uni.navigateTo({ url: '/pages/profile-edit/index' })
 }
-
-/** 功能凸显区块：意见反馈 / 最新活动（抽离至顶部高亮，区别于常规入口） */
-const featuredItems = [
-  { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.showToast({ title: '功能暂未实现', icon: 'none' }) },
-  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/feedback/index' }) },
-]
-
-/** 我的入口：系统通知 / 我发布的 / 关于我们（意见反馈、最新活动已抽离至顶部凸显区块） */
-// 注：原 authLocked 字段已移除——菜单行内不再渲染「认证」弱标识，
-// 需认证行为由 action 内的 requireAuth() 直接表达（未认证点击即弹 AuthSheet）。
-const entryItems = [
-  { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: '/pages/notifications/index' }) },
-  { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/my-published/index' })) },
-  { key: 'about', icon: 'contact', label: '关于我们', action: () => uni.navigateTo({ url: '/pages/about/index' }) },
-]
-
-
 </script>
 
 <style scoped>
-/* detail-modular-review-cleanup 3.1：profile 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
-   页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
-.profile-page { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-page); }
-.profile-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
-
-/* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
-   与首页/动态卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
-   （昵称/绑定邮箱、游客态的「去认证」引导）表达，不再用「透明 vs 白底」区分。 */
-.user-card {
-  display: flex; flex-direction: column; gap: var(--spacing-md);
-  /* 三区间距加大、均匀分布（profile-page-visual-polish） */
-  margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
-  padding: var(--spacing-lg);
+.profile-edit-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+.scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
+/* 信息卡：inset 分组卡（Apple 列表分组风格：更大圆角 + 柔和阴影） */
+.info-card {
+  margin: 0 var(--spacing-md);
   background: var(--bg-card);
-  border-radius: var(--radius-card);
-  border-top: 6rpx solid transparent;
+  border-radius: var(--radius-modal);
   box-shadow: var(--shadow-card);
-  transition: background-color var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-/* 已认证：顶部主色软条纹 */
-.user-card--verified {
-  border-top-color: var(--color-primary-soft);
-}
-/* 游客：无条纹（表面与认证态一致，引导由「去认证」按钮承担） */
-.user-card--guest {
-  border-top-color: transparent;
-}
-.user-card:active { background-color: var(--bg-soft); }
-.user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }
-/* 头像：正圆 + 浅底色（头像统一 50%；tab-pages-visual-polish-3 放大） */
-.avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
-.avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
-.user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* moment/卡片一致：昵称 600 档一级深灰第一落点（profile-page-visual-polish） */
-.nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nickname--guest { color: var(--text-primary); }
-.user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 「去认证」行动按钮：主色文字 + 细边框轻量胶囊（tab-pages-visual-polish-3：边框 1rpx、字重 500） */
-.verify-action {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  /* 去认证：收窄左右内边距，轻盈细边（profile-page-visual-polish） */
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-pill);
-  border: 1rpx solid var(--color-primary);
-  background: transparent;
-  -webkit-tap-highlight-color: transparent;
-}
-.verify-action:active { opacity: 0.7; }
-.verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
-.card-arrow { flex-shrink: 0; }
-
-/* 功能方块卡（网格 2 列，区别于下方常规列表，视觉分层） */
-.feature-grid {
-  display: flex;
-  gap: var(--spacing-md);
-  /* 三区间距加大（profile-page-visual-polish） */
-  margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
-}
-.feature-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  flex: 1;
-  min-width: 0;
-  /* 卡高再收紧：纵向 sm（profile-page-visual-polish） */
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  /* 二级功能卡：微抬阴影，弱于一级身份卡 */
-  box-shadow: var(--shadow-card-soft);
-  transition: background-color var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.feature-card.pressed { background-color: var(--bg-soft); }
-.feature-card-icon {
-  position: relative;
-  /* 图标背景圆收紧（profile-page-visual-polish） */
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.feature-card-tag {
-  position: absolute;
-  top: -6rpx;
-  right: -6rpx;
-  /* 「新」角标再缩小、贴右上角（profile-page-visual-polish） */
-  font-size: var(--font-tiny);
-  color: var(--bg-card);
-  background: var(--color-error);
-  border-radius: var(--radius-pill);
-  padding: 0 6rpx;
-  font-weight: var(--weight-semibold);
-  line-height: 1.5;
-}
-/* 功能卡标题：一级标题档（32rpx / 600），与菜名/昵称同档 */
-.feature-card-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
-
-/* 版本号：水平居中弱化（居中于菜单与底部导航之间、无分隔线，profile-page-visual-polish） */
-.app-version { display: flex; justify-content: center; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-.app-version-text { font-size: var(--font-tiny); color: var(--text-tertiary); }
-
-/* 我的入口（白底圆角卡 + 行布局 + 右箭头；图标 40rpx 主色；按压背景微变+缩放） */
-.entry-group {
-  margin: 0 var(--spacing-md) var(--spacing-md);
-  /* 三级列表：底色再浅一度（placeholder 介于 page 与白卡间），行分隔发丝线（profile-page-visual-polish） */
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-card);
-  box-shadow: none;
   overflow: hidden;
 }
-.entry-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  /* 行高再收紧（96→88rpx，profile-page-visual-polish） */
-  height: 88rpx;
-  padding: 0 var(--spacing-lg);
+.info-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1rpx solid var(--border-color);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.entry-row:not(:last-child) { border-bottom: 1rpx solid var(--border-color); }
-.entry-row.pressed { background-color: var(--bg-soft); }
-.entry-icon { flex-shrink: 0; }
-/* 菜单主标题：一级深灰 500 档（profile-page-visual-polish） */
-.entry-label { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.entry-arrow { flex-shrink: 0; }
-
-/* 系统通知未读红点角标 */
-.entry-badge {
-  flex-shrink: 0;
-  min-width: 32rpx;
-  height: 32rpx;
-  padding: 0 8rpx;
-  border-radius: var(--radius-xs);
-  background: var(--color-error);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-}
-.entry-badge-text { font-size: var(--font-tiny); color: var(--bg-card); font-weight: var(--weight-semibold); line-height: 1; }
-
-@media (prefers-reduced-motion: reduce) {
-  .user-card, .entry-row, .feature-card { transition: none; }
+.info-row:last-child { border-bottom: none; }
+/* 可点行（头像）按压反馈 */
+.info-row.info-tappable:active { background-color: var(--bg-soft); }
+.info-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); flex-shrink: 0; }
+.avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
+/* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像（112rpx/24rpx）一致。
+   可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
+.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
+.avatar.uploading { opacity: 0.55; }
+.avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
+.row-arrow { flex-shrink: 0; }
+/* 输入框：右侧留白，光标不贴右缘 */
+.nickname-input { flex: 1; min-width: 0; text-align: right; padding-right: var(--spacing-xs); font-size: var(--font-body); color: var(--text-primary); }
+.input-placeholder { color: var(--text-tertiary); }
+.info-value { font-size: var(--font-body); color: var(--text-secondary); }
+/* 邮箱较长：允许右对齐但自动换行不溢出 */
+.info-value-email { max-width: 62%; text-align: right; word-break: break-all; }
+/* 保存按钮：固定底部（与其他表单页一致） */
+.submit-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: var(--spacing-md);
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  background: var(--bg-card);
+  border-top: 2rpx solid var(--border-color);
+  box-shadow: var(--shadow-bar-soft);
 }
 </style>

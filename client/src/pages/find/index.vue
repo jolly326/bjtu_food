@@ -31,7 +31,7 @@
         <template>
           <!-- 搜索记录（首位） -->
           <CardSection v-if="historyList.length > 0">
-            <SectionTitle title="搜索记录" :bar="false">
+            <SectionTitle title="搜索记录">
               <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
             </SectionTitle>
             <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
@@ -52,7 +52,7 @@
 
           <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
           <CardSection v-if="hotSearchList.length > 0">
-            <SectionTitle title="猜你想搜" :bar="false" />
+            <SectionTitle title="猜你想搜" />
             <view class="history-chips">
               <view
                 v-for="(kw) in hotSearchList"

@@ -177,7 +177,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/publish-content/index' })
+  uni.navigateTo({ url: '/pages/publish-moment/index' })
 }
 
 onMounted(() => {

@@ -1,79 +1,68 @@
 <template>
   <view class="page moment-detail-page">
     <Header title="动态详情" @back="backToHome" />
-    <!-- 页面级自然滚动（同 dish/about 先例，fix）：不再套内层 scroll-view——内容不足一屏时不产生滚动区，
-         不再出现「上滑可拖起小段再回弹」；内容超高时由微信页面滚动承接。 -->
-    <template v-if="moment">
-      <!-- 私有组件编排：动态主卡 + 评论区（detail-modular-review-cleanup） -->
-      <MomentDetailCard
-        :moment="moment"
-        :is-author="isAuthor"
-        @more="openMomentSheet"
-        @go-related="goRelated"
-      />
-      <MomentCommentSection
-        :comments="comments"
-        :comment-count="moment.commentCount"
-        :moment-id="moment.id"
-        :author-id="moment.userId"
-        @reply="replyTo"
-        @reply-named="replyToNamed"
-        @delete="onCommentLongPress"
-        @report="openCommentSheet"
-        @useful="onCommentUseful"
-      />
+    <!-- 内容区滚动 + 局部下拉刷新（moment-detail-publish-ux）：页面壳 flex 纵向，Header 固定顶部不随内容滚动；
+         内容区 scroll-view 承担纵向滚动与下拉刷新（refresher），底部评论栏 fixed 不随内容滚动 -->
+    <scroll-view
+      class="moment-scroll"
+      scroll-y
+      refresher-enabled
+      :refresher-triggered="refresherTriggered"
+      @refresherrefresh="onRefresh"
+    >
+      <view class="moment-scroll-inner">
+        <template v-if="moment">
+          <!-- 私有组件编排：动态主卡 + 评论区（detail-modular-review-cleanup） -->
+          <MomentDetailCard
+            :moment="moment"
+            :is-author="isAuthor"
+            @more="openMomentSheet"
+            @go-related="goRelated"
+          />
+          <MomentCommentSection
+            :comments="comments"
+            :comment-count="moment.commentCount"
+            :moment-id="moment.id"
+            :author-id="moment.userId"
+            @reply="replyTo"
+            @reply-named="replyToNamed"
+            @delete="onCommentLongPress"
+            @report="openCommentSheet"
+            @useful="onCommentUseful"
+          />
 
-      <!-- 退回原因 + 编辑重提 -->
-      <view v-if="isAuthor && moment.auditStatus === 'rejected' && moment.rejectReason" class="reject-box">
-        <text class="reject-title">已退回</text>
-        <text class="reject-reason">{{ moment.rejectReason }}</text>
-        <view class="reject-edit" @tap="goEdit">
-          <IconSvg name="edit" :size="26" color="var(--color-on-primary)" />
-          <text class="reject-edit-text">编辑重提</text>
-        </view>
+          <!-- 退回原因 + 编辑重提 -->
+          <view v-if="isAuthor && moment.auditStatus === 'rejected' && moment.rejectReason" class="reject-box">
+            <text class="reject-title">已退回</text>
+            <text class="reject-reason">{{ moment.rejectReason }}</text>
+            <view class="reject-edit" @tap="goEdit">
+              <IconSvg name="edit" :size="26" color="var(--color-on-primary)" />
+              <text class="reject-edit-text">编辑重提</text>
+            </view>
+          </view>
+        </template>
       </view>
-    </template>
+    </scroll-view>
 
     <!-- 底部评论输入栏 -->
     <view class="comment-bar" v-if="moment">
-      <transition name="mention">
-      <view v-if="mentionOpen" class="mention-pop">
-        <view
-          v-for="name in filteredMentions"
-          :key="name"
-          class="mention-item"
-          @tap="selectMention(name)"
-        >
-          <text class="mention-at">@</text>
-          <text class="mention-name">{{ name }}</text>
-        </view>
-        <view v-if="!filteredMentions.length" class="mention-empty">暂无匹配评论者</view>
-      </view>
-      </transition>
-      <!-- 回复提示条（interaction-polish 增量：正在回复某人时告知，发送/取消后消失） -->
-      <view v-if="replyingTo" class="reply-hint">
-        <text class="reply-hint-text">回复 @{{ replyingTo.userNickname }}</text>
-        <view class="reply-hint-cancel" role="button" aria-label="取消回复" @tap="cancelReply">
-          <IconSvg name="close" :size="22" color="var(--text-tertiary)" />
-        </view>
-      </view>
       <view class="comment-input-row">
         <ImageUploader v-model="commentImages" :max="3" compact class="comment-uploader" />
         <view class="comment-input-box" :class="{ focused: commentFocus }">
           <input
-          class="comment-input"
-          v-model="commentText"
-          :focus="commentFocus"
-          placeholder="说点什么…"
-          placeholder-class="comment-ph"
-          confirm-type="send"
-          aria-label="评论输入框"
-          @confirm="submitComment"
-          @blur="onCommentBlur"
+            class="comment-input"
+            v-model="commentText"
+            :focus="commentFocus"
+            :placeholder="commentPlaceholder"
+            placeholder-class="comment-ph"
+            confirm-type="send"
+            aria-label="评论输入框"
+            @confirm="submitComment"
+            @blur="onCommentBlur"
           />
         </view>
         <view class="comment-send" :class="{ disabled: commentSubmitting }" role="button" aria-label="发送评论" @tap="submitComment">
-          <IconSvg name="send" :size="28" color="var(--color-on-primary)" class="comment-send-text" />
+          <IconSvg name="send-simple" :size="30" color="var(--color-on-primary)" class="comment-send-text" />
         </view>
       </view>
     </view>
@@ -103,8 +92,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { onLoad, onUnload, onShareAppMessage, onPullDownRefresh } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import * as momentApi from '@/api/moment'
 import { submitFeedback } from '@/api/feedback'
@@ -133,19 +122,19 @@ const commentText = ref('')
 const commentImages = ref<string[]>([])
 /** 评论输入自动聚焦（点互动区「评论」/ 回复时触发） */
 const commentFocus = ref(false)
-/** @提及弹层状态 */
-const mentionOpen = ref(false)
-const mentionQuery = ref('')
-const atPos = ref(-1)
+
+/** 正在回复的评论（moment-detail-publish-ux：回复态以输入框浅灰占位「回复 @昵称」呈现，不再预填文本/提示条/@候选） */
+const replyingTo = ref<MomentComment | null>(null)
+
+/** 评论输入占位：回复态显示被回复昵称，否则默认文案（浅灰由 placeholder-class comment-ph 承载） */
+const commentPlaceholder = computed(() =>
+  replyingTo.value ? `回复 @${replyingTo.value.userNickname}` : '说点什么…',
+)
+
+/** 内容区下拉刷新状态（页面级整窗下拉已移除） */
+const refresherTriggered = ref(false)
 
 let currentId = 0
-
-/** 页面级定时器注册表：onUnload 统一清理 */
-let pageTimers: ReturnType<typeof setTimeout>[] = []
-onUnload(() => {
-  pageTimers.forEach((t) => clearTimeout(t))
-  pageTimers = []
-})
 
 const isAuthor = computed(() => !!moment.value && !!userStore.userInfo && moment.value.userId === userStore.userInfo.id)
 
@@ -175,6 +164,15 @@ async function loadData() {
   }
 }
 
+/** 内容区局部下拉刷新：重新拉取主卡与评论（moment-detail-publish-ux） */
+function onRefresh() {
+  if (refresherTriggered.value) return
+  refresherTriggered.value = true
+  loadData().finally(() => {
+    refresherTriggered.value = false
+  })
+}
+
 function goRelated() {
   if (!moment.value) return
   if (moment.value.relatedType === 'dish' && moment.value.relatedId) {
@@ -185,19 +183,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/publish-content/index?id=${moment.value.id}` })
-}
-
-/** 正在回复的评论（interaction-polish 增量：驱动输入框上方「回复 @xxx」提示条） */
-const replyingTo = ref<MomentComment | null>(null)
-
-
-
-/** 取消回复：清提示条与预填的 @目标 */
-function cancelReply() {
-  replyingTo.value = null
-  commentText.value = commentText.value.replace(/^@\S+\s/, '')
-  mentionOpen.value = false
+  uni.navigateTo({ url: `/pages/publish-moment/index?id=${moment.value.id}` })
 }
 
 /* 动态「有用」已由 MomentDetailCard 副本内 useMomentUseful 自管（乐观更新/失败回滚/连点锁/requireAuth 认证），
@@ -314,12 +300,11 @@ async function submitReport(text: string) {
   }
 }
 
-/* 点击评论本体/「回复」：记录回复对象并预填 @昵称（interaction-polish 增量：显示回复提示条） */
+/* 点击评论本体/「回复」：记录回复对象并聚焦输入框（moment-detail-publish-ux：
+   不再预填 @昵称 文本，回复对象以 placeholder 呈现，无提示条与 @候选弹层） */
 function replyTo(c: MomentComment) {
   replyingTo.value = c
-  commentText.value = '@' + c.userNickname + ' '
   commentFocus.value = true
-  mentionOpen.value = false
 }
 
 function replyToNamed(nickname: string) {
@@ -327,48 +312,12 @@ function replyToNamed(nickname: string) {
   if (target) replyTo(target)
 }
 
-/** 候选评论者昵称（作者 + 评论者，去重） */
-const mentionList = computed(() => {
-  const set = new Set<string>()
-  if (moment.value?.userNickname) set.add(moment.value.userNickname)
-  comments.value.forEach(c => { if (c.userNickname) set.add(c.userNickname) })
-  return [...set]
-})
-
-const filteredMentions = computed(() => {
-  const q = mentionQuery.value.trim().toLowerCase()
-  if (!q) return mentionList.value
-  return mentionList.value.filter(n => n.toLowerCase().includes(q))
-})
-
-watch(commentText, (val, old) => {
-  if (mentionOpen.value) {
-    if (val[atPos.value] !== '@') {
-      mentionOpen.value = false
-      return
-    }
-    mentionQuery.value = val.slice(atPos.value + 1)
-    return
-  }
-  if (val.length === old.length + 1 && val.endsWith('@')) {
-    atPos.value = val.length - 1
-    mentionQuery.value = ''
-    mentionOpen.value = true
-  }
-})
-
-function selectMention(name: string) {
-  const before = commentText.value.slice(0, atPos.value + 1) // 含 @
-  const after = commentText.value.slice(atPos.value + 1 + mentionQuery.value.length)
-  commentText.value = before + name + ' ' + after
-  mentionOpen.value = false
-  commentFocus.value = true
-}
-
+/* 输入框失焦：关闭聚焦；回复态下输入为空（收起）时退出回复态，占位恢复默认 */
 function onCommentBlur() {
   commentFocus.value = false
-  const t = setTimeout(() => { mentionOpen.value = false }, 150)
-  pageTimers.push(t)
+  if (!commentText.value.trim()) {
+    replyingTo.value = null
+  }
 }
 
 async function submitComment() {
@@ -381,12 +330,9 @@ async function submitComment() {
     return
   }
   if (commentSubmitting.value) return
-  let parentId: number | null = null
-  const m = content.match(/^@(\S+)\s/)
-  if (m) {
-    const target = comments.value.find(c => c.userNickname === m[1])
-    if (target) parentId = target.parentId ? target.parentId : target.id
-  }
+  // 归属直接由回复态对象决定（moment-detail-publish-ux）：正文为纯文本，不再从 ^@ 解析
+  const replyTarget = replyingTo.value
+  const parentId: number | null = replyTarget ? (replyTarget.parentId ? replyTarget.parentId : replyTarget.id) : null
   const images = commentImages.value.length ? [...commentImages.value] : null
   commentSubmitting.value = true
   try {
@@ -408,7 +354,6 @@ async function submitComment() {
     moment.value.commentCount += 1
     commentText.value = ''
     commentImages.value = []
-    mentionOpen.value = false
     replyingTo.value = null
     uni.showToast({ title: '评论成功', icon: 'success' })
   } catch (e: any) {
@@ -439,26 +384,20 @@ async function onCommentLongPress(c: MomentComment) {
   })
 }
 
-
-
 onLoad((query) => {
   if (query?.id) {
     currentId = Number(query.id)
     loadData()
   }
 })
-
-/** 页面级下拉刷新（pages.json moment 路由已开启 enablePullDownRefresh，页面自然滚动下替代原 scroll-view refresher） */
-onPullDownRefresh(() => {
-  loadData().finally(() => { uni.stopPullDownRefresh() })
-})
 </script>
 
 <style scoped>
-/* 页面级自然滚动（同 dish/about 先例，fix）：根节点不设固定高度、不放内层 scroll-view——
-   内容不足一屏时页面不产生滚动区，不再出现「上滑可拖起小段再回弹」；
-   内容超高时由微信页面滚动承接。底部预留固定评论栏高度，防其遮挡末尾内容（dish 同款 padding-bottom） */
-.moment-detail-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 页面壳：flex 纵向 + 整窗高度，Header 固定在顶部，页面自身不滚动（moment-detail-publish-ux） */
+.moment-detail-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-page); }
+/* 内容区：承担纵向滚动与下拉刷新；底部预留固定评论栏高度 + 安全区 */
+.moment-scroll { flex: 1; min-height: 0; box-sizing: border-box; }
+.moment-scroll-inner { padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* 退回原因 + 编辑重提 */
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
@@ -469,26 +408,15 @@ onPullDownRefresh(() => {
 
 /* 底部评论输入栏 */
 .comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
-/* 回复提示条（interaction-polish 增量）：告知当前回复对象，发送/取消后消失 */
-.reply-hint { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); padding: var(--spacing-xs) var(--spacing-sm); margin-bottom: var(--spacing-xs); background: var(--bg-soft); border-radius: var(--radius-tag); }
-.reply-hint-text { font-size: var(--font-small); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reply-hint-cancel { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
-.reply-hint-cancel:active { opacity: 0.6; }
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
 .comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid var(--border-color); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-input-box.focused { border-color: var(--color-primary); }
 .comment-input { flex: 1; min-width: 0; height: 72rpx; background: transparent; padding: 0; font-size: var(--font-body); color: var(--text-primary); }
 .comment-ph { color: var(--text-tertiary); }
-/* moment-list-detail-polish：发送钮与输入框同高 72rpx(36px) */
+/* 发送钮：与输入框同高 72rpx；左侧 ImageUploader compact 的「+」与之同尺寸同圆角（moment-detail-publish-ux） */
 .comment-send { width: 72rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--color-primary); border-radius: var(--radius-btn); transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .comment-send:active { opacity: 0.8; }
 .comment-send.disabled { opacity: 0.5; pointer-events: none; }
-.comment-send-text { font-size: var(--font-subtitle); line-height: 1; color: var(--color-on-primary); }
-.mention-pop { position: absolute; left: var(--spacing-md); right: var(--spacing-md); bottom: calc(100% + 8rpx); background: var(--bg-card); border: 2rpx solid var(--border-color); border-radius: var(--radius-card); box-shadow: var(--shadow-bar-soft); max-height: 360rpx; overflow-y: auto; padding: var(--spacing-xs) 0; z-index: 60; }
-.mention-item { display: flex; align-items: center; padding: var(--spacing-sm) var(--spacing-md); }
-.mention-item:active { background: var(--bg-soft); }
-.mention-at { color: var(--color-primary); font-weight: var(--weight-semibold); margin-right: 4rpx; font-size: var(--font-caption); }
-.mention-name { font-size: var(--font-caption); color: var(--text-primary); }
-.mention-empty { padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-aux); color: var(--text-tertiary); }
+.comment-send-text { line-height: 1; color: var(--color-on-primary); }
 </style>

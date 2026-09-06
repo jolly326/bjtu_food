@@ -1,6 +1,5 @@
 <template>
   <view class="section-title" :class="{ 'no-margin': noMargin }" @tap="$emit('tap')">
-    <view v-if="bar" class="section-bar" />
     <text class="section-text">{{ title }}</text>
     <slot name="extra" />
   </view>
@@ -9,19 +8,16 @@
 <script setup lang="ts">
 /**
  * 分区标题（全局统一组件，task-13 §0.3/§0.4）
- * 列表 / 分区标题默认左侧竖向 accent 条（品牌色），全端一致。
- * 部分场景（如 find 页搜索记录/高频搜索）不需要装饰竖条时传 bar=false。
+ * moment-detail-publish-ux：全站分区/模块标题为无竖线纯文本标题，层级由字号/字重承担，
+ * 不再渲染左侧品牌色竖条（旧 bar 装饰已移除）。
  */
 withDefaults(defineProps<{
   /** 标题文案 */
   title: string
   /** 是否去掉左右外边距（用于已自带 padding 的容器内部） */
   noMargin?: boolean
-  /** 是否显示左侧竖向 accent 条（默认显示；简洁场景可关闭） */
-  bar?: boolean
 }>(), {
   noMargin: false,
-  bar: true,
 })
 
 defineEmits<{
@@ -39,16 +35,8 @@ defineEmits<{
   margin-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
-/* 竖向 accent 条：8rpx × 32rpx 品牌色（§0.3；bar=false 时隐藏） */
-.section-bar {
-  width: 8rpx;
-  height: 32rpx;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  flex-shrink: 0;
-}
 .section-text {
-  /* Apple Design Typography：分区标题加大（h2 级）并加重（800），强化信息层级 */
+  /* Apple Design Typography：分区标题加大（h2 级）并加重（800），强化信息层级（无竖线纯文本） */
   font-size: var(--font-h2);
   font-weight: var(--weight-heavy);
   color: var(--text-primary);

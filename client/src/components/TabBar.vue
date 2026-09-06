@@ -30,7 +30,7 @@ import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/rout
 const tabs = [
   { key: 'home', label: '首页', icon: 'home', url: '/pages/home/index' },
   { key: 'dynamic', label: '动态', icon: 'comment', url: '/pages/dynamic/index' },
-  { key: 'profile', label: '我的', icon: 'profile', url: '/pages/profile/index' },
+  { key: 'profile', label: '我的', icon: 'profile', url: '/pages/mine/index' },
 ] as const
 
 function onTap(item: (typeof tabs)[number]) {

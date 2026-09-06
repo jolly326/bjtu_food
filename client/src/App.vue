@@ -215,11 +215,20 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-tertia
 .is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
 /* 错误态：内联校验失败提示容器（与 .has-error 文字色配对） */
 .has-error { color: var(--color-error); }
-/* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显） */
-:focus-visible {
+/* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显）。
+   fix：文本输入类（input / textarea）聚焦时 SHALL NOT 呈现主色描边——移动端/小程序点击输入框
+   即命中 :focus-visible，主色（暖砖红）描边会被读成「红色边框」。输入态由各输入容器自身样式表达
+   （如评论栏 .comment-input-box.focused），不复用全局 outline。 */
+:focus-visible:not(input):not(textarea) {
   outline: 3rpx solid var(--color-primary);
   outline-offset: 2rpx;
   border-radius: var(--radius-xs);
+}
+input:focus,
+textarea:focus,
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 /* .hoverable 缩放已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 反馈。 */
 /* 宽屏容器：桌面/平板居中限宽，移动端自然铺满（4.1） */

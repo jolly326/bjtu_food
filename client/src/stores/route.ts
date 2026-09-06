@@ -9,11 +9,11 @@ export const activeTab = ref<string>('home')
  */
 export const tabVisible = ref<boolean>(true)
 
-// 主根页 route（不带前导斜杠）-> tab key
+// 主根页 route（不带前导斜杠）-> tab key（「我的」根页目录为 mine，tab key 语义仍 profile）
 export const routeMap: Record<string, string> = {
   'pages/home/index': 'home',
   'pages/dynamic/index': 'dynamic',
-  'pages/profile/index': 'profile',
+  'pages/mine/index': 'profile',
 }
 
 /** 直接设定 TabBar 显隐与高亮（主根页 onShow 锚定，最稳定，不依赖页面栈时序） */

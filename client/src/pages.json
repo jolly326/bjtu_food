@@ -15,7 +15,7 @@
 			}
 		},
 		{
-			"path": "pages/profile/index",
+			"path": "pages/mine/index",
 			"style": {
 				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
@@ -49,9 +49,7 @@
 					"path": "index",
 					"style": {
 						"navigationBarTitleText": "动态详情",
-						"navigationStyle": "custom",
-						"enablePullDownRefresh": true,
-						"backgroundTextStyle": "dark"
+						"navigationStyle": "custom"
 					}
 				}
 			]
@@ -69,7 +67,7 @@
 			]
 		},
 		{
-			"root": "pages/my-published/",
+			"root": "pages/publish-mine/",
 			"pages": [
 				{
 					"path": "index",
@@ -81,7 +79,7 @@
 			]
 		},
 		{
-			"root": "pages/profile-edit/",
+			"root": "pages/profile/",
 			"pages": [
 				{
 					"path": "index",
@@ -93,12 +91,12 @@
 			]
 		},
 		{
-			"root": "pages/publish-content/",
+			"root": "pages/publish-moment/",
 			"pages": [
 				{
 					"path": "index",
 					"style": {
-						"navigationBarTitleText": "发表内容",
+						"navigationBarTitleText": "发布动态",
 						"navigationStyle": "custom"
 					}
 				}
@@ -111,18 +109,6 @@
 					"path": "index",
 					"style": {
 						"navigationBarTitleText": "意见反馈",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/about/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "关于我们",
 						"navigationStyle": "custom"
 					}
 				}

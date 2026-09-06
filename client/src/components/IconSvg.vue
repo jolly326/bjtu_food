@@ -30,6 +30,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'thumb-filled': { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'], fill: true },
   // 发送（feather paper plane；moment-list-detail-polish：详情评论输入栏发送按钮，修正此前空盒回退）
   send: { path: ['M22 2 11 13', 'M22 2 15 22 11 13 2 9z'] },
+  // 简约发送（moment-detail-publish-ux：评论栏发送钮改简约线性右上箭头，替代复杂 send 纸飞机）
+  'send-simple': { path: ['M7 17 17 7', 'M8 7h9v9'] },
   search: { path: ['M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
   // 向上箭头（回到顶部按钮）

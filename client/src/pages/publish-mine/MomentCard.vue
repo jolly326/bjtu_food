@@ -66,6 +66,13 @@
 </template>
 
 <script setup lang="ts">
+/** MomentCard（publish-mine 包内，作者视角）——「我发布的」动态卡片
+ * - 头部：头像/昵称/发布时间 + 审核态徽标（审核中/已退回）+ 右上三点菜单（仅 emit @more，弹层由父页渲染）；
+ * - 正文超长折叠（>80 字显示展开/收起）；图片墙复用公共 MomentImageGrid；
+ * - 已退回：展示退回原因 +「编辑重提」入口（emit @edit，父页跳 /pages/publish-moment?id=）；
+ * - 已过审才展示关联菜品 chip 与互动栏（有用/评论），互动态复用 useMomentUseful；
+ * 事件：select / go-related / more / edit / useful —— 全部透传 Moment，跳转与弹层由父页统一处理。
+ */
 import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import MomentImageGrid from '@/components/MomentImageGrid.vue'
@@ -121,7 +128,7 @@ function goRelated() {
   emit('go-related', props.moment)
 }
 
-/** 已退回：编辑重提（页面接到后跳 publish-content?id= 编辑重提） */
+/** 已退回：编辑重提（页面接到后跳 publish-moment?id= 编辑重提） */
 function goEdit() {
   emit('edit', props.moment)
 }

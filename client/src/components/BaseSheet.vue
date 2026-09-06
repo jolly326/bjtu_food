@@ -11,7 +11,7 @@
     :aria-modal="true"
     tabindex="-1"
     @touchstart="onTouchStart"
-    @touchmove="onTouchMove"
+    @touchmove.stop.prevent="onTouchMove"
     @touchend="onTouchEnd"
     @touchcancel="onTouchEnd"
   >
@@ -127,7 +127,9 @@ watch(
   },
 )
 
-/** 下拉关闭手势（1:1 跟随 + 速度投影，松手速度 >480px/s 或位移 >120rpx 关闭） */
+/** 下拉关闭手势（1:1 跟随 + 速度投影，松手速度 >480px/s 或位移 >120rpx 关闭）。
+ *  根容器 touchmove 带 stop.prevent（= catchtouchmove）：弹层区域上开始的手势不再穿透滚动背景页面；
+ *  内部原生 scroll-view（scrollBody / ListPickerSheet 列表）自行承接滚动，不受影响。 */
 let startY = 0
 let lastY = 0
 let lastTime = 0
