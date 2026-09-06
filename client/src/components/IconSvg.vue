@@ -89,6 +89,15 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'comment-filled': { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'], fill: true },
   // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
   'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
+  // ── feedback-forms-ux-polish：圆润填充（胖）glyph（意见反馈页顶部/选项等使用；SVG data-uri，禁 emoji） ──
+  // 灯泡实心（提个想法）：圆润灯身 + 灯座
+  'lightbulb-fill': { path: ['M12 3.4a6.6 6.6 0 0 0-4.7 11.3c1 1 1.6 2 1.8 3.1h5.8c.2-1.1.8-2.1 1.8-3.1A6.6 6.6 0 0 0 12 3.4z', 'M9.4 20h5.2c.1.9 0 1.5-.6 1.8-.7.4-3.3.4-4 0-.6-.3-.7-.9-.6-1.8z'], fill: true },
+  // 碗盘实心（推荐菜品）：一碗米饭 + 顶部热气
+  'dish-fill': { path: ['M4 10.8h16a9 9 0 0 1-18 0z', 'M12 2.6c-.8 0-1.4.6-1.4 1.4v2a1.4 1.4 0 0 0 2.8 0V4c0-.8-.6-1.4-1.4-1.4z'], fill: true },
+  // 警示三角实心（信息不对）：实心三角形（白色感叹号由上层文本/间距表达）
+  'report-fill': { path: ['M10.6 3.8a2 2 0 0 1 2.8 0l6.4 7a2 2 0 0 1 0 2.8l-6.4 7a2 2 0 0 1-2.8 0l-6.4-7a2 2 0 0 1 0-2.8z'], fill: true },
+  // 搜索放大镜实心（信息不对搜索菜品）：实心镜片 + 手柄（手柄以端部圆点表达，避免开放式描边）
+  'search-fill': { circle: [{ cx: 10.5, cy: 10.5, r: 6, fill: 'currentColor' }], path: ['M14.8 14.8l5.7 5.7'], fill: false },
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）

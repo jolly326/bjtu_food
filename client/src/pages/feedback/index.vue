@@ -29,7 +29,7 @@
       </view>
 
       <!-- 动态字段区 -->
-      <CardSection>
+      <view class="q-card">
         <!-- 提个想法（提建议 / 报问题，均文本 + 图片） -->
         <template v-if="type === 'suggestion'">
           <view class="sub-row" role="radiogroup" aria-label="细分类型">
@@ -59,7 +59,7 @@
               :placeholder="form.suggestion.sub === 'idea' ? '你的想法，比如：希望加几个素食窗口' : '发生啥了？描述一下'"
               maxlength="1000"
               :auto-height="true"
-              :cursor-spacing="20"
+              :cursor-spacing="40"
               :adjust-position="true"
               @input="clearError('suggestion.text')"
             />
@@ -86,7 +86,7 @@
                   :class="{ 'input-error': fieldErrors['add.name'] }"
                   placeholder="必填"
                   maxlength="50"
-                  :cursor-spacing="20"
+                  :cursor-spacing="40"
                   :adjust-position="true"
                   @input="clearError('add.name')"
                 />
@@ -102,7 +102,7 @@
                   type="digit"
                   placeholder="0.00"
                   maxlength="7"
-                  :cursor-spacing="20"
+                  :cursor-spacing="40"
                   :adjust-position="true"
                   @input="clearError('add.price')"
                 />
@@ -179,7 +179,7 @@
                 placeholder="口味 / 特色"
                 maxlength="200"
                 :auto-height="true"
-                :cursor-spacing="20"
+                :cursor-spacing="40"
                 :adjust-position="true"
               />
             </view>
@@ -218,7 +218,7 @@
               aria-label="搜索选择菜品"
               @tap="openDishSheet"
             >
-              <IconSvg name="search" :size="30" color="var(--text-tertiary)" />
+              <IconSvg name="search-fill" :size="30" color="var(--color-primary)" />
               <text class="picker-value placeholder">搜索选择菜品</text>
               <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
             </view>
@@ -266,7 +266,7 @@
                     :class="{ 'input-error': fieldErrors[`error.correct.${c.key}`] }"
                     :placeholder="`${c.editPlaceholder}`"
                     maxlength="200"
-                    :cursor-spacing="20"
+                    :cursor-spacing="40"
                     :adjust-position="true"
                     @input="clearError(`error.correct.${c.key}`)"
                     @focus="focusKey = c.key"
@@ -294,17 +294,23 @@
                 placeholder="补充说明，比如照片里能看到啥"
                 maxlength="500"
                 :auto-height="true"
-                :cursor-spacing="20"
+                :cursor-spacing="40"
                 :adjust-position="true"
               />
             </view>
           </view>
         </template>
-      </CardSection>
+      </view>
 
-      <!-- 提交反馈（表单最下方，随内容滚动） -->
-      <view class="submit-area">
-        <AppButton :text="submitting ? '提交中…' : '提交反馈'" :loading="submitting" @press="submit" />
+      <!-- 提交反馈（表单最下方，随内容滚动）：
+           外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast（仿 publish-moment） -->
+      <view class="submit-area" @tap="onSubmitAreaTap">
+        <AppButton
+          :text="submitting ? '提交中…' : '提交反馈'"
+          :disabled="!canSubmit"
+          :loading="submitting"
+          @press="submit"
+        />
       </view>
     </scroll-view>
 
@@ -327,7 +333,7 @@
           class="pick-custom-input"
           :placeholder="locStep === 'canteen' ? '写一下食堂名' : '写一下档口名'"
           maxlength="50"
-          :cursor-spacing="20"
+          :cursor-spacing="40"
           :adjust-position="true"
           @input="onLocCustomInput"
         />
@@ -381,7 +387,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
@@ -391,7 +397,6 @@ import { getCanteensWithStalls } from '@/api/canteen'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
-import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ListPickerSheet from '@/components/ListPickerSheet.vue'
@@ -404,9 +409,9 @@ function goBack() {
 
 // ---- ① 类型（3 类等宽卡片：左侧 icon + 右侧标题） ----
 const types: { value: FeedbackSubmit['type']; label: string; desc: string; icon: string }[] = [
-  { value: 'suggestion', label: '提个想法', desc: '建议 / 问题', icon: 'lightbulb' },
-  { value: 'add', label: '推荐菜品', desc: '补录一道', icon: 'dish' },
-  { value: 'error', label: '信息不对', desc: '纠错 / 下架', icon: 'report' },
+  { value: 'suggestion', label: '提个想法', desc: '建议 / 问题', icon: 'lightbulb-fill' },
+  { value: 'add', label: '推荐菜品', desc: '补录一道', icon: 'dish-fill' },
+  { value: 'error', label: '信息不对', desc: '纠错 / 下架', icon: 'report-fill' },
 ]
 const type = ref<FeedbackSubmit['type']>('suggestion')
 
@@ -442,6 +447,40 @@ const suggestionSubs = [
   { value: 'idea' as const, label: '提建议' },
   { value: 'problem' as const, label: '报问题' },
 ]
+
+// ---- feedback-forms-ux-polish：提交门禁（canSubmit 置灰；置灰点击由外层热区兜底 toast） ----
+const canSubmit = computed(() => {
+  const t = type.value
+  if (t === 'suggestion') return !!form.suggestion.text.trim()
+  if (t === 'add') return !!form.add.name.trim() && !!form.add.floor
+  if (t === 'error') return !!form.error.dish && form.error.points.length > 0
+  return false
+})
+
+/** 置灰点击提示文案：按当前类型缺失项优先给出（结构必填口径，见 feedback-forms-ux spec） */
+const gateHint = computed(() => {
+  const t = type.value
+  if (t === 'suggestion') return '请填写反馈内容'
+  if (t === 'add') {
+    if (!form.add.name.trim()) return '菜名叫啥？填一下'
+    if (!form.add.floor) return '楼层必填'
+    return ''
+  }
+  if (t === 'error') {
+    if (!form.error.dish) return '先选一道菜'
+    if (!form.error.points.length) return '至少选一项'
+    return ''
+  }
+  return ''
+})
+
+/** 置灰态点击提示：AppButton 在 disabled 时不 emit press，由 .submit-area 外层热区兜底 */
+function onSubmitAreaTap() {
+  if (!canSubmit.value) uni.showToast({ title: gateHint.value, icon: 'none' })
+}
+
+// ---- feedback-forms-ux-polish：类型切换即清空（已拍板口径；watch 单一入口，含菜品空态去补录联动） ----
+watch(type, () => resetForm())
 
 // ---- ③ 信息不对：关联菜品搜索（底部弹窗） ----
 const dishSheetOpen = ref(false)
@@ -882,7 +921,7 @@ async function submit() {
       relatedType,
       relatedId,
     })
-    uni.showToast({ title: '收到！谢谢你', icon: 'success' })
+    uni.showToast({ title: '感谢你的反馈！', icon: 'success' })
     resetForm()
     // 成功态双态：2 秒后无输入则自动返回来源页
     scheduleAutoBack()
@@ -931,7 +970,8 @@ onLoad(async (opts?: Record<string, string>) => {
 </script>
 
 <style scoped>
-.feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
+/* Q 版暖调：页面底用奶油米白 --bg-warm（feedback-forms-ux-polish） */
+.feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-warm); }
 
 /* 主滚动区：底部预留固定底栏高度 + safe-area（防遮挡） */
 .scroll-wrap {
@@ -943,7 +983,7 @@ onLoad(async (opts?: Record<string, string>) => {
   box-sizing: border-box;
 }
 
-/* ===== 类型图标卡片（三列等宽：左侧 icon + 右侧两行两字） ===== */
+/* ===== 顶部类型入口：三枚等宽大胶囊（Q 版满圆；选中浅红底主色，未选中白底浅灰细边） ===== */
 .type-row {
   display: flex;
   gap: var(--spacing-sm);
@@ -954,13 +994,15 @@ onLoad(async (opts?: Record<string, string>) => {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm);
+  justify-content: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-sm) var(--spacing-xs);
   background: var(--bg-card);
   border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-warm);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -969,19 +1011,29 @@ onLoad(async (opts?: Record<string, string>) => {
   border-color: var(--color-primary);
 }
 .type-icon {
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
-  border-radius: var(--radius-icon);
+  border-radius: var(--radius-circle);
   background: var(--bg-soft);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .type-card.active .type-icon { background: var(--bg-card); }
-.type-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.type-line { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.type-copy { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2xs); }
+.type-line { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.3; white-space: nowrap; }
+.type-card.active .type-line { color: var(--color-primary); }
 .type-desc { font-size: var(--font-tiny); color: var(--color-primary); line-height: 1.3; }
+
+/* ===== 表单外层 Q 卡（替代 CardSection 观感：大圆角 + 暖调柔和阴影，内部模块靠间距分层） ===== */
+.q-card {
+  margin: var(--spacing-xs) var(--spacing-md) 0;
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-warm);
+}
 
 /* ===== 推荐菜品字段分组（仅靠间距分区） ===== */
 .form-group { margin-bottom: var(--spacing-lg); }
@@ -991,7 +1043,8 @@ onLoad(async (opts?: Record<string, string>) => {
 .field { margin-bottom: var(--spacing-md); }
 .field:last-child { margin-bottom: 0; }
 .field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--spacing-xs); }
-.req { color: var(--color-error); margin-left: var(--spacing-2xs); }
+/* 必填红星醒目（feedback-forms-ux-polish） */
+.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
 .field-gap { height: var(--spacing-sm); }
 
 /* 同一行双字段（菜名+价格 / 食堂+楼层） */
@@ -1000,22 +1053,23 @@ onLoad(async (opts?: Record<string, string>) => {
 
 .content-input {
   width: 100%;
-  min-height: 220rpx;
+  /* feedback-forms-ux-polish：正文/描述文本域增高（300rpx）给输入更多纵向空间 */
+  min-height: 300rpx;
   font-size: var(--font-body);
   color: var(--text-primary);
   line-height: 1.6;
   padding: var(--spacing-md);
   background: var(--bg-input);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-icon);
   box-sizing: border-box;
   border: 2rpx solid transparent;
 }
-.content-input-sm { min-height: 120rpx; }
+.content-input-sm { min-height: 140rpx; }
 .field-input {
   width: 100%;
   height: 88rpx;
   background: var(--bg-input);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-icon);
   padding: 0 var(--spacing-md);
   font-size: var(--font-body);
   color: var(--text-primary);
@@ -1041,8 +1095,8 @@ onLoad(async (opts?: Record<string, string>) => {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-btn);
-  background: var(--bg-input);
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
   border: 2rpx solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
 }
@@ -1059,7 +1113,7 @@ onLoad(async (opts?: Record<string, string>) => {
   height: 88rpx;
   padding: 0 var(--spacing-md);
   background: var(--bg-input);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-icon);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1106,7 +1160,7 @@ onLoad(async (opts?: Record<string, string>) => {
   flex-shrink: 0;
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-card);
-  border-radius: var(--radius-tag);
+  border-radius: var(--radius-pill);
   -webkit-tap-highlight-color: transparent;
 }
 .dish-change-text { font-size: var(--font-aux); color: var(--text-secondary); }
@@ -1117,7 +1171,7 @@ onLoad(async (opts?: Record<string, string>) => {
   width: 100%;
   height: 76rpx;
   background: var(--bg-input);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-icon);
   padding: 0 var(--spacing-md);
   font-size: var(--font-body);
   color: var(--text-primary);
@@ -1136,7 +1190,7 @@ onLoad(async (opts?: Record<string, string>) => {
   justify-content: center;
   padding: 0 var(--spacing-lg);
   background: var(--color-primary);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-pill);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1165,9 +1219,9 @@ onLoad(async (opts?: Record<string, string>) => {
   gap: var(--spacing-xs);
   min-height: 76rpx;
   padding: 0 var(--spacing-md);
-  background: var(--bg-input);
+  background: var(--bg-card);
   border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-pill);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1179,8 +1233,8 @@ onLoad(async (opts?: Record<string, string>) => {
   width: 48rpx;
   height: 48rpx;
   flex-shrink: 0;
-  border-radius: var(--radius-icon);
-  background: var(--bg-card);
+  border-radius: var(--radius-circle);
+  background: var(--bg-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1193,7 +1247,7 @@ onLoad(async (opts?: Record<string, string>) => {
   width: 100%;
   height: 68rpx;
   background: var(--bg-input);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-icon);
   padding: 0 var(--spacing-md);
   font-size: var(--font-small);
   color: var(--text-primary);

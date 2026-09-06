@@ -55,6 +55,8 @@ page {
   --text-tertiary: #999999;
   /* 背景 */
   --bg-page: #F7F3EF;
+  /* feedback-forms-ux-polish：奶油米白（意见反馈等 Q 版暖调表面） */
+  --bg-warm: #FAF6F0;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
@@ -109,6 +111,8 @@ page {
   --icon-4xl: 120rpx;
   /* 阴影（材质 / 深度；卡片阴影为中性淡投影 rgba(0,0,0,0.04)，不随主色；顶栏品牌阴影见 --shadow-bar-primary） */
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
+  /* feedback-forms-ux-polish：Q 版暖调柔和投影（表单卡暖调分层用；中性阴影仍走 shadow-card） */
+  --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   /* 半透材质（小程序真机 backdrop-filter 降级） */

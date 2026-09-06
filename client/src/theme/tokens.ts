@@ -29,6 +29,8 @@ export const COLOR_MAP = {
   'text-secondary': '#595959',
   'text-tertiary': '#999999',
   'bg-page': '#F7F3EF',
+  /* feedback-forms-ux-polish：意见反馈页奶油米白底（Q 版暖调表面） */
+  'bg-warm': '#FAF6F0',
   'bg-card': '#FFFFFF',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
@@ -46,6 +48,8 @@ export const COLOR_MAP = {
   'color-cell-feedback': '#0E9E6E',
   'bg-cell-feedback': '#C4ECDD',
   'shadow-card': '0 2px 12px rgba(0,0,0,0.04)',
+  /* feedback-forms-ux-polish：Q 版暖调柔和投影（卡片暖调分层；中性阴影仍走 shadow-card） */
+  'shadow-warm': '0 4rpx 12rpx rgba(180, 140, 120, 0.08)',
   'shadow-card-soft': '0 8rpx 32rpx rgba(0,0,0,0.06)',
   'shadow-modal': '0 18rpx 54rpx rgba(0,0,0,0.18)',
   'blur-bg': 'rgba(255,255,255,0.72)',

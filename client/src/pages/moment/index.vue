@@ -397,7 +397,9 @@ onLoad((query) => {
 .moment-detail-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-page); }
 /* 内容区：承担纵向滚动与下拉刷新；底部预留固定评论栏高度 + 安全区 */
 .moment-scroll { flex: 1; min-height: 0; box-sizing: border-box; }
-.moment-scroll-inner { padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 评论栏在文档流底部（非浮层），滚动区不再叠加底部大预留——否则内容接近满一屏时
+   会出现“内容未超出却被末尾预留撑出可滚动空白”的伪滚动（scrollbar 可拖但无实际内容）。 */
+.moment-scroll-inner { padding-bottom: 0; }
 
 /* 退回原因 + 编辑重提 */
 .reject-box { margin: 0 var(--spacing-md); padding: var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
@@ -406,8 +408,10 @@ onLoad((query) => {
 .reject-edit { margin-top: var(--spacing-sm); display: inline-flex; align-items: center; gap: var(--spacing-xs); padding: var(--spacing-xs) var(--spacing-md); background: var(--color-primary); border-radius: var(--radius-tag); }
 .reject-edit-text { font-size: var(--font-aux); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
 
-/* 底部评论输入栏 */
-.comment-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); z-index: 50; }
+/* 底部评论输入栏：作为页面 flex 纵向的末位子项（在文档流中），
+   不再 position:fixed 浮层，避免与滚动区预留高度重复占用导致伪滚动；
+   scroll 区 flex:1 仅在 Header 与评论栏之间的可用高度内滚动 */
+.comment-bar { flex-shrink: 0; display: flex; flex-direction: column; padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 .comment-input-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .comment-uploader { flex-shrink: 0; }
 .comment-input-box { flex: 1; display: flex; align-items: center; min-width: 0; height: 72rpx; background: var(--bg-input); border-radius: var(--radius-btn); padding: 0 var(--spacing-md); border: 2rpx solid var(--border-color); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
