@@ -30,276 +30,32 @@
 
       <!-- 动态字段区 -->
       <view class="q-card">
-        <!-- 提个想法（提建议 / 报问题，均文本 + 图片） -->
-        <template v-if="type === 'suggestion'">
-          <view class="sub-row" role="radiogroup" aria-label="细分类型">
-            <view
-              v-for="s in suggestionSubs"
-              :key="s.value"
-              class="sub-chip"
-              :class="{ active: form.suggestion.sub === s.value }"
-              hover-class="pressed"
-              hover-stay-time="80"
-              role="radio"
-              :aria-checked="form.suggestion.sub === s.value"
-              :aria-label="s.label"
-              @tap="form.suggestion.sub = s.value"
-            >
-              <text class="sub-text">{{ s.label }}</text>
-            </view>
-          </view>
-
-          <view class="field">
-            <text class="field-label">想说啥<text class="req">*</text></text>
-            <textarea
-              id="f-sug-text"
-              v-model="form.suggestion.text"
-              class="content-input"
-              :class="{ 'input-error': fieldErrors['suggestion.text'] }"
-              :placeholder="form.suggestion.sub === 'idea' ? '你的想法，比如：希望加几个素食窗口' : '发生啥了？描述一下'"
-              maxlength="1000"
-              :auto-height="true"
-              :cursor-spacing="40"
-              :adjust-position="true"
-              @input="clearError('suggestion.text')"
-            />
-            <text v-if="form.suggestion.text.length > 800" class="counter">{{ form.suggestion.text.length }}/1000</text>
-            <text v-if="fieldErrors['suggestion.text']" class="field-error">{{ fieldErrors['suggestion.text'] }}</text>
-          </view>
-
-          <view class="field">
-            <text class="field-label">图片</text>
-            <ImageUploader v-model="form.suggestion.images" :max="3" show-counter />
-          </view>
-        </template>
-
-        <!-- 推荐菜品（分组：基本信息 / 位置 / 图片与描述） -->
-        <template v-else-if="type === 'add'">
-          <view class="form-group">
-            <view class="row-fields">
-              <view class="col">
-                <text class="field-label">菜名<text class="req">*</text></text>
-                <input
-                  id="f-add-name"
-                  v-model="form.add.name"
-                  class="field-input"
-                  :class="{ 'input-error': fieldErrors['add.name'] }"
-                  placeholder="必填"
-                  maxlength="50"
-                  :cursor-spacing="40"
-                  :adjust-position="true"
-                  @input="clearError('add.name')"
-                />
-                <text v-if="fieldErrors['add.name']" class="field-error">{{ fieldErrors['add.name'] }}</text>
-              </view>
-              <view class="col">
-                <text class="field-label">价格（元）</text>
-                <input
-                  id="f-add-price"
-                  v-model="form.add.price"
-                  class="field-input"
-                  :class="{ 'input-error': fieldErrors['add.price'] }"
-                  type="digit"
-                  placeholder="0.00"
-                  maxlength="7"
-                  :cursor-spacing="40"
-                  :adjust-position="true"
-                  @input="clearError('add.price')"
-                />
-                <text v-if="fieldErrors['add.price']" class="field-error">{{ fieldErrors['add.price'] }}</text>
-              </view>
-            </view>
-          </view>
-
-          <view class="form-group">
-            <!-- 食堂 + 档口（一行） -->
-            <view class="row-fields">
-              <view class="col">
-                <text class="field-label">食堂</text>
-                <view
-                  class="picker-row"
-                  hover-class="pressed"
-                  hover-stay-time="80"
-                  role="button"
-                  aria-label="选择食堂"
-                  @tap="openLocationSheet('canteen')"
-                >
-                  <text class="picker-value" :class="{ placeholder: !displayCanteen }">{{ displayCanteen || '选择食堂' }}</text>
-                  <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
-                </view>
-              </view>
-              <view class="col">
-                <text class="field-label">档口</text>
-                <!-- A1：未选食堂时禁用 + 引导 -->
-                <view
-                  class="picker-row"
-                  :class="{ disabled: !displayCanteen }"
-                  :hover-class="displayCanteen ? 'pressed' : 'none'"
-                  hover-stay-time="80"
-                  role="button"
-                  :aria-label="displayCanteen ? '选择档口' : '请先选择食堂'"
-                  @tap="onStallRowTap"
-                >
-                  <text class="picker-value" :class="{ placeholder: !displayStall }">{{ displayStall || (displayCanteen ? '选择档口' : '先选食堂') }}</text>
-                  <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
-                </view>
-              </view>
-            </view>
-
-            <view class="field-gap" />
-
-            <!-- 楼层（单独一行，1/2/3 选择） -->
-            <text class="field-label">楼层<text class="req">*</text></text>
-            <view
-              id="f-add-floor"
-              class="picker-row"
-              hover-class="pressed"
-              hover-stay-time="80"
-              role="button"
-              aria-label="选择楼层"
-              @tap="openFloorSheet"
-            >
-              <text class="picker-value" :class="{ placeholder: !form.add.floor }">{{ form.add.floor ? `${form.add.floor} 楼` : '选择' }}</text>
-              <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
-            </view>
-            <text v-if="fieldErrors['add.floor']" class="field-error">{{ fieldErrors['add.floor'] }}</text>
-          </view>
-
-          <view class="form-group">
-            <view class="field">
-              <text class="field-label">菜品图片</text>
-              <ImageUploader v-model="form.add.images" :max="3" show-counter />
-            </view>
-
-            <view class="field">
-              <text class="field-label">一句话描述</text>
-              <textarea
-                v-model="form.add.description"
-                class="content-input content-input-sm"
-                placeholder="口味 / 特色"
-                maxlength="200"
-                :auto-height="true"
-                :cursor-spacing="40"
-                :adjust-position="true"
-              />
-            </view>
-          </view>
-        </template>
-
-        <!-- 信息不对（关联菜品 + 多选哪里不对 + 正确信息 + 作证） -->
-        <template v-else-if="type === 'error'">
-          <view class="field" id="f-dish">
-            <text class="field-label">关联菜品<text class="req">*</text></text>
-
-            <!-- 已选中：菜品摘要卡 -->
-            <view v-if="form.error.dish" class="dish-linked">
-              <image class="dish-thumb" :src="form.error.dish.image || ''" mode="aspectFill" />
-              <view class="dish-info">
-                <text class="dish-name">{{ form.error.dish.name }}</text>
-                <text class="dish-meta">{{ formatDishMeta(form.error.dish) }}</text>
-              </view>
-              <view
-                class="dish-change"
-                hover-class="pressed"
-                hover-stay-time="80"
-                role="button"
-                aria-label="换一个"
-                @tap="resetDish"
-              ><text class="dish-change-text">换一个</text></view>
-            </view>
-
-            <!-- 未选中：点击打开底部搜索弹窗 -->
-            <view
-              v-else
-              class="picker-row dish-picker-row"
-              hover-class="pressed"
-              hover-stay-time="80"
-              role="button"
-              aria-label="搜索选择菜品"
-              @tap="openDishSheet"
-            >
-              <IconSvg name="search-fill" :size="30" color="var(--color-primary)" />
-              <text class="picker-value placeholder">搜索选择菜品</text>
-              <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
-            </view>
-
-            <text v-if="fieldErrors['error.dish']" class="field-error">{{ fieldErrors['error.dish'] }}</text>
-          </view>
-
-          <!-- 哪里不对（每项一行：左侧选项 + 右侧编辑区，两独立组件不嵌套） -->
-          <view class="field" id="f-point">
-            <text class="field-label">哪里不对？<text class="req">*</text></text>
-            <view class="point-list">
-              <view
-                v-for="c in correctionPoints"
-                :key="c.key"
-                class="point-row"
-                :class="{ focused: focusKey === c.key }"
-              >
-                <!-- 左侧：选项（独立组件，点击选中/取消） -->
-                <view
-                  class="point-option"
-                  :class="{ active: form.error.points.includes(c.key) }"
-                  hover-class="pressed"
-                  hover-stay-time="80"
-                  role="checkbox"
-                  :aria-checked="form.error.points.includes(c.key)"
-                  :aria-label="c.label"
-                  @tap="togglePoint(c.key)"
-                >
-                  <view class="point-option-icon">
-                    <IconSvg :name="c.icon" :size="28" :color="form.error.points.includes(c.key) ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
-                  </view>
-                  <text class="point-option-text">{{ c.label }}</text>
-                  <IconSvg v-if="form.error.points.includes(c.key)" name="check" :size="24" color="var(--color-primary)" />
-                </view>
-
-                <!-- 右侧：编辑区（独立组件，选中后出现；已下架/图片属性也可输入文本） -->
-                <view
-                  v-if="form.error.points.includes(c.key)"
-                  class="point-edit"
-                  @tap.stop
-                >
-                  <input
-                    v-model="form.error.correctValues[c.key]"
-                    class="edit-input"
-                    :class="{ 'input-error': fieldErrors[`error.correct.${c.key}`] }"
-                    :placeholder="`${c.editPlaceholder}`"
-                    maxlength="200"
-                    :cursor-spacing="40"
-                    :adjust-position="true"
-                    @input="clearError(`error.correct.${c.key}`)"
-                    @focus="focusKey = c.key"
-                    @blur="focusKey = ''"
-                  />
-                  <text v-if="fieldErrors[`error.correct.${c.key}`]" class="field-error">{{ fieldErrors[`error.correct.${c.key}`] }}</text>
-                </view>
-              </view>
-            </view>
-            <text v-if="fieldErrors['error.points']" class="field-error">{{ fieldErrors['error.points'] }}</text>
-          </view>
-
-          <!-- 作证（选填）：图片 + 文本，仅选中问题后显示 -->
-          <view v-if="form.error.points.length" class="evidence-box">
-            <text class="evidence-title">作证</text>
-            <view class="field">
-              <text class="field-label">图片</text>
-              <ImageUploader v-model="form.error.evidenceImages" :max="3" show-counter />
-            </view>
-            <view class="field">
-              <text class="field-label">文本</text>
-              <textarea
-                v-model="form.error.evidenceText"
-                class="content-input content-input-sm"
-                placeholder="补充说明，比如照片里能看到啥"
-                maxlength="500"
-                :auto-height="true"
-                :cursor-spacing="40"
-                :adjust-position="true"
-              />
-            </view>
-          </view>
-        </template>
+        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分） -->
+        <SuggestionForm
+          v-if="type === 'suggestion'"
+          :model="form.suggestion"
+          :errors="fieldErrors"
+          @clear="clearError"
+        />
+        <AddForm
+          v-else-if="type === 'add'"
+          :model="form.add"
+          :errors="fieldErrors"
+          @clear="clearError"
+          @open-location="openLocationSheet"
+          @open-floor="openFloorSheet"
+          @stall-tap="onStallRowTap"
+        />
+        <ErrorForm
+          v-else-if="type === 'error'"
+          :model="form.error"
+          :points="correctionPoints"
+          :errors="fieldErrors"
+          @clear="clearError"
+          @open-dish="openDishSheet"
+          @reset-dish="resetDish"
+          @toggle="togglePoint"
+        />
       </view>
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
@@ -400,6 +156,9 @@ import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ListPickerSheet from '@/components/ListPickerSheet.vue'
+import SuggestionForm from './SuggestionForm.vue'
+import AddForm from './AddForm.vue'
+import ErrorForm from './ErrorForm.vue'
 
 // 返回：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页
 function goBack() {
@@ -441,12 +200,6 @@ const form = reactive({
     evidenceText: '',
   },
 })
-
-// 「提个想法」细分
-const suggestionSubs = [
-  { value: 'idea' as const, label: '提建议' },
-  { value: 'problem' as const, label: '报问题' },
-]
 
 // ---- feedback-forms-ux-polish：提交门禁（canSubmit 置灰；置灰点击由外层热区兜底 toast） ----
 const canSubmit = computed(() => {
@@ -572,12 +325,6 @@ function resetDish() {
   dishSearched.value = false
 }
 
-function formatDishMeta(d: Dish) {
-  const parts = [d.canteen, d.stallName].filter(Boolean)
-  if (d.price > 0) parts.push(`¥${d.price}`)
-  return parts.join(' · ') || '菜品'
-}
-
 // ---- ④ 信息不对：哪里不对（多选）+ 正确信息 ----
 const correctionPoints = [
   { key: 'price', label: '价格不对', short: '价格', icon: 'price', editPlaceholder: '正确价格，如 0.00' },
@@ -636,11 +383,6 @@ const locStep = ref<'canteen' | 'stall'>('canteen')
 const displayCanteen = computed(() =>
   form.add.canteen === '其他' ? form.add.canteenCustom.trim() || '其他' : form.add.canteen,
 )
-/** 档口显示名：选「其他」且有自定义名时显示自定义名 */
-const displayStall = computed(() =>
-  form.add.stallName === '其他' ? form.add.stallCustom.trim() || '其他' : form.add.stallName,
-)
-
 /** 当前食堂下的档口原始列表 */
 const currentStalls = computed<string[]>(() => {
   const c = canteenTree.value.find((x: any) => x.name === form.add.canteen)
@@ -767,8 +509,6 @@ function onFloorSelect(opt: { key: string }) {
 // ---- ⑥ 字段级错误定位 ----
 const fieldErrors = reactive<Record<string, string>>({})
 const scrollIntoView = ref('')
-/** 当前聚焦的纠错行 key（focus 时左侧选项加主色左边条） */
-const focusKey = ref('')
 /** 提交中状态（防连点 + AppButton loading 绑定） */
 const submitting = ref(false)
 
@@ -823,7 +563,6 @@ function resetForm() {
   locSheetOpen.value = false
   floorSheetOpen.value = false
   dishSheetOpen.value = false
-  focusKey.value = ''
 }
 
 async function submit() {
@@ -1035,136 +774,6 @@ onLoad(async (opts?: Record<string, string>) => {
   box-shadow: var(--shadow-warm);
 }
 
-/* ===== 推荐菜品字段分组（仅靠间距分区） ===== */
-.form-group { margin-bottom: var(--spacing-lg); }
-.form-group:last-child { margin-bottom: 0; }
-
-/* ===== 字段通用 ===== */
-.field { margin-bottom: var(--spacing-md); }
-.field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--spacing-xs); }
-/* 必填红星醒目（feedback-forms-ux-polish） */
-.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
-.field-gap { height: var(--spacing-sm); }
-
-/* 同一行双字段（菜名+价格 / 食堂+楼层） */
-.row-fields { display: flex; gap: var(--spacing-sm); }
-.row-fields .col { flex: 1; min-width: 0; }
-
-.content-input {
-  width: 100%;
-  /* feedback-forms-ux-polish：正文/描述文本域增高（300rpx）给输入更多纵向空间 */
-  min-height: 300rpx;
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  line-height: 1.6;
-  padding: var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
-  border: 2rpx solid transparent;
-}
-.content-input-sm { min-height: 140rpx; }
-.field-input {
-  width: 100%;
-  height: 88rpx;
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  padding: 0 var(--spacing-md);
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  box-sizing: border-box;
-  border: 2rpx solid transparent;
-}
-/* 字段级错误：红描边 + 错误文案 */
-.input-error { border-color: var(--color-error); }
-.field-error {
-  display: block;
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-tiny);
-  color: var(--color-error);
-}
-.counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
-
-/* 细分 chips（提建议/报问题） */
-.sub-row { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); }
-.sub-chip {
-  flex: 1;
-  min-height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-pill);
-  background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
-  -webkit-tap-highlight-color: transparent;
-}
-.sub-chip.active { background: var(--color-primary-soft); border-color: var(--color-primary); }
-.sub-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
-.sub-chip.active .sub-text { color: var(--color-primary); font-weight: var(--weight-semibold); }
-
-/* 食堂/档口 picker 行（并排紧凑） */
-.picker-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  padding: 0 var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-/* A1：未选食堂时档口行禁用态 */
-.picker-row.disabled { opacity: 0.5; }
-.picker-value { font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-value.placeholder { color: var(--text-tertiary); }
-
-/* B2：作证区（仅选中问题后显示） */
-.evidence-box {
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-}
-.evidence-title {
-  display: block;
-  font-size: var(--font-tiny);
-  font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
-  margin-bottom: var(--spacing-sm);
-}
-
-/* ===== 关联菜品：摘要卡 + 搜索选择器 ===== */
-.dish-linked {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-}
-.dish-thumb {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: var(--radius-icon);
-  background: var(--bg-placeholder);
-  flex-shrink: 0;
-}
-.dish-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.dish-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.dish-meta { font-size: var(--font-tiny); color: var(--text-tertiary); }
-.dish-change {
-  flex-shrink: 0;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--bg-card);
-  border-radius: var(--radius-pill);
-  -webkit-tap-highlight-color: transparent;
-}
-.dish-change-text { font-size: var(--font-aux); color: var(--text-secondary); }
-
 /* ===== ListPickerSheet 尾部「其他」自定义输入（默认槽承载） ===== */
 .pick-custom { padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md); box-sizing: border-box; }
 .pick-custom-input {
@@ -1195,68 +804,6 @@ onLoad(async (opts?: Record<string, string>) => {
   -webkit-tap-highlight-color: transparent;
 }
 .pick-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
-
-/* ===== 哪里不对：每项一行（左侧选项 + 右侧编辑区，不嵌套） ===== */
-.point-list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.point-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding-left: var(--spacing-xs);
-  border-left: 6rpx solid transparent;
-  border-radius: var(--radius-tag);
-  box-sizing: border-box;
-}
-.point-row.focused {
-  border-left-color: var(--color-primary);
-  background: var(--bg-card);
-}
-/* 左侧：选项 */
-.point-option {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  min-height: 76rpx;
-  padding: 0 var(--spacing-md);
-  background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-pill);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-.point-option.active {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary);
-}
-.point-option-icon {
-  width: 48rpx;
-  height: 48rpx;
-  flex-shrink: 0;
-  border-radius: var(--radius-circle);
-  background: var(--bg-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.point-option-text { font-size: var(--font-small); color: var(--text-tertiary); font-weight: var(--weight-regular); white-space: nowrap; }
-.point-option.active .point-option-text { font-size: var(--font-body); color: var(--color-primary); font-weight: var(--weight-semibold); }
-/* 右侧：编辑区（独立） */
-.point-edit { flex: 1; min-width: 0; }
-.edit-input {
-  width: 100%;
-  height: 68rpx;
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  padding: 0 var(--spacing-md);
-  font-size: var(--font-small);
-  color: var(--text-primary);
-  box-sizing: border-box;
-  border: 2rpx solid var(--color-primary);
-}
-.edit-input.input-error { border-color: var(--color-error); }
-
-
 
 /* ===== 提交反馈（表单最下方，随内容滚动，非固定） ===== */
 .submit-area {

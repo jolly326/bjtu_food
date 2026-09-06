@@ -87,6 +87,7 @@
 ## 2. 目录结构
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
 - 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 3 页：home / dynamic / mine（tab key 语义仍 `profile`；2026-09-06 目录收敛）**；2026-08-03 移除 find——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；「我的」页功能入口收敛为 **2×2 宫格**（见 §2.1.4），消息中心、意见反馈、活动等入口进 mine 宫格，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
+- **前端组件组织原则（2026-09-06 立规；细则见 `.codebuddy/rules/client-components-org.md`，含于 QA 门禁与开发 agent）**：`components/` 仅容被 `pages` ≥2 个页面包直接使用（或经多页公共壳间接使用）的公用组件；`pages/<包>/index.vue` 为页面渲染主文件，页面内多次复用卡片/复杂模块应抽为**包内私有组件**，且**只做一级拆分**（禁二级细分/碎组件）；components 与 pages **双向定期治理**——components 中低复用或页间差异大者下沉至唯一使用包，pages 中多包高频复用者上提至 components；迁移不改变行为并须同步引用，type-check + `mp-weixin` 构建全绿。
 
 ### 2.1 小程序页面架构（2026-09-06 复核，与 `client/src/pages.json` 严格一致）
 > 与 `client/src/pages.json` 严格一致。当前共注册 **13 个页面**：主包 4 + 8 个分包（共 9 页）。**2026-09-06 路径收敛**：Tab「我的」根页 `pages/profile` → `pages/mine`（`/pages/mine/index`）、个人信息编辑页 `pages/profile-edit` → `pages/profile`（`/pages/profile/index`）、发表页已为 `pages/publish-moment`；**独立「关于我们」页 `pages/about` 已删除**（目录 / 路由 / 入口一并移除，见 §2.1.4）。**无孤儿路由**（原 `publish-dish` / `submit-stall` 等孤儿路由已随发布页合并清理）。**学号邮箱认证走 `AuthSheet` 弹层（无独立认证页）**；「系统通知」为 `pages/notifications/index`（mine 宫格进入）。已按 2026-08-19 决策**不建 `docs/pages/` 逐页设计文档**（以 `docs/ui-design.md` 整体规范替代，详见 §4）。
