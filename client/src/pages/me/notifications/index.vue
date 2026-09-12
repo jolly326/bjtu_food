@@ -4,6 +4,7 @@
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
       <view class="list">
+        <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
         <view
           v-for="n in list"
           :key="n.id"
@@ -15,10 +16,9 @@
           <view class="msg-body">
             <view class="msg-title-row">
               <text class="msg-title">{{ n.title }}</text>
-              <text class="msg-type">{{ typeLabel(n.type) }}</text>
+              <text class="msg-time">{{ formatTime(n.createdAt) }}</text>
             </view>
             <text class="msg-content">{{ n.content }}</text>
-            <text class="msg-time">{{ formatTime(n.createdAt) }}</text>
           </view>
         </view>
       </view>
@@ -33,8 +33,9 @@ import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
-import { getNotifications, readNotification, type Notification, type NotificationType } from '@/api/notify'
+import { getNotifications, readNotification, type Notification } from '@/api/notify'
 import { backToHome } from '@/utils/nav'
+import { dishDetailUrl, momentDetailUrl } from '@/utils/routes'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -46,17 +47,6 @@ const refresherTriggered = ref(false)
 let page = 1
 const pageSize = 20
 const finished = ref(false)
-
-const TYPE_LABEL: Record<NotificationType, string> = {
-  moment_audit: '动态审核',
-  dish_audit: '菜品审核',
-  comment: '评论',
-  useful: '有用',
-}
-
-function typeLabel(t: NotificationType) {
-  return TYPE_LABEL[t] || '系统'
-}
 
 function formatTime(iso?: string) {
   if (!iso) return ''
@@ -118,9 +108,9 @@ async function onTap(n: Notification) {
     } catch { /* 失败静默，下轮刷新对齐 */ }
   }
   if (n.type === 'moment_audit' && n.relatedId) {
-    uni.navigateTo({ url: `/pages/detail/moment/index?id=${n.relatedId}` })
+    uni.navigateTo({ url: momentDetailUrl(n.relatedId) })
   } else if (n.type === 'dish_audit' && n.relatedId) {
-    uni.navigateTo({ url: `/pages/detail/dish/index?id=${n.relatedId}` })
+    uni.navigateTo({ url: dishDetailUrl(n.relatedId) })
   }
   // comment / useful 无独立目标页，仅标已读
 }
@@ -137,28 +127,53 @@ onShow(() => {
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .msg-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 .msg-item.pressed { background-color: var(--bg-soft); }
-.msg-item.unread { background: var(--color-primary-soft); }
+/* 未读：白卡 + 左侧主色竖条 + 淡主色标题字（不再整卡铺色，卡片观感更清爽） */
+.msg-item.unread {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-warm);
+}
+.msg-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--spacing-lg);
+  bottom: var(--spacing-lg);
+  width: 6rpx;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+}
 
-.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-error); margin-top: 12rpx; }
+.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: 10rpx; }
 .msg-dot.read { background: transparent; }
 
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.msg-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
-.msg-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.msg-type { flex-shrink: 0; font-size: var(--font-tiny); color: var(--color-primary); }
-.msg-content { font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; }
-.msg-time { font-size: var(--font-tiny); color: var(--text-tertiary); }
+.msg-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
+.msg-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.msg-item.unread .msg-title { color: var(--color-primary); }
+/* 时间收进标题行右侧（次级灰小字），通知只剩「标题 + 内容 + 时间」三要素 */
+.msg-time { flex-shrink: 0; font-size: var(--font-tiny); color: var(--text-tertiary); }
+.msg-content {
+  font-size: var(--font-small);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }

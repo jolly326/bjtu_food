@@ -145,8 +145,8 @@
 <script setup lang="ts">
 /**
  * feedback —— 意见反馈页（页面入口：mine 宫格；首页「反馈菜品」入口带 object/name/id 预选）
- * - 三类型（suggestion/add/error）单视图动态切换，编排逻辑抽 `composables/useFeedback.ts`；
- *   包内子件：SuggestionForm / AddForm / ErrorForm（一级拆分，feedback-form-component-split）。
+ * - 三类型（suggestion/add/error）单视图动态切换，编排逻辑抽包内私有 `useFeedback.ts`；
+ *   包内子件：SuggestionForm / AddForm / ErrorForm / useFeedback（一级拆分/就近组织）。
  * - 本文件仅保留模板贴片组装与子件引用；生命周期 / 提交门禁 / 弹层联动见 useFeedback。
  */
 import Header from '@/components/AppHeader.vue'
@@ -156,7 +156,7 @@ import ListPickerSheet from '@/components/ListPickerSheet.vue'
 import SuggestionForm from './SuggestionForm.vue'
 import AddForm from './AddForm.vue'
 import ErrorForm from './ErrorForm.vue'
-import { useFeedback } from '@/composables/useFeedback'
+import { useFeedback } from './useFeedback'
 
 const {
   goBack,

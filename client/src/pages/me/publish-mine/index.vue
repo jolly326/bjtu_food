@@ -46,6 +46,7 @@ import * as momentApi from '@/api/moment'
 import type { Moment } from '@/types/moment'
 import { buildSharePayload, clearShareState, sharedMoment } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
+import { dishDetailUrl, momentDetailUrl, publishMomentUrl } from '@/utils/routes'
 import Header from '@/components/AppHeader.vue'
 import MomentCard from './MomentCard.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
@@ -55,7 +56,7 @@ const userStore = useUserStore()
 const moments = ref<Moment[]>([])
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
+  uni.navigateTo({ url: dishDetailUrl(id) })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet，作者列表仅分享） ===== */
@@ -81,7 +82,7 @@ function onPublishMoreSelect(key: string) {
 /** 已退回动态的「编辑重提」主入口 */
 function goEditMoment(m: Moment) {
   if (m.auditStatus === 'rejected' && m.id) {
-    uni.navigateTo({ url: `/pages/publish-moment/index?id=${m.id}` })
+    uni.navigateTo({ url: publishMomentUrl({ id: m.id }) })
   }
 }
 
@@ -105,9 +106,9 @@ async function loadData() {
 function goDetail(m: Moment) {
   // 已退回可直达编辑；其他态进详情
   if (m.auditStatus === 'rejected') {
-    uni.navigateTo({ url: `/pages/publish-moment/index?id=${m.id}` })
+    uni.navigateTo({ url: publishMomentUrl({ id: m.id }) })
   } else {
-    uni.navigateTo({ url: `/pages/detail/moment/index?id=${m.id}` })
+    uni.navigateTo({ url: momentDetailUrl(m.id) })
   }
 }
 

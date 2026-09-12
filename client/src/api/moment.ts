@@ -10,7 +10,7 @@
 import { get, post, put, del } from './http'
 import { getImageUrl } from '@/utils/image'
 import { fenToYuan } from '@/utils/money'
-import { normalizeImages } from './shared'
+import { listOf, normalizeImages, type PageResult, type RawRow } from './shared'
 import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, MomentUsefulResult, RelatedType } from '@/types/moment'
 
 /**
@@ -19,7 +19,7 @@ import type { Moment, MomentComment, MomentPublish, MomentCommentPublish, Moment
  * 中可能不被注册（同 api/broadcast.js 问题），合并到已存在模块根治。
  */
 
-function toMoment(raw: any): Moment | null {
+function toMoment(raw: RawRow): Moment | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
@@ -46,7 +46,7 @@ function toMoment(raw: any): Moment | null {
   }
 }
 
-function toMomentComment(raw: any): MomentComment | null {
+function toMomentComment(raw: RawRow): MomentComment | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
@@ -64,19 +64,6 @@ function toMomentComment(raw: any): MomentComment | null {
   }
 }
 
-interface PageResult<T> {
-  list?: T[]
-  records?: T[]
-  total?: number
-  page?: number
-  pageSize?: number
-}
-
-function listOf<T>(res: PageResult<T> | undefined): T[] {
-  if (!res) return []
-  return res.list || res.records || []
-}
-
 /** 动态广场列表 / 关联过滤（PUB）
  * tab：'latest' 最新（默认，动态单流；问题二去双 Tab 后仅此一项）。
  * 'recommend' 已彻底移除（R1 裁决）；'hot' 不再作为动态流 Tab。 */
@@ -88,7 +75,7 @@ export async function getMoments(params: {
   page?: number
   pageSize?: number
 }): Promise<{ list: Moment[]; total: number }> {
-  const query: Record<string, any> = {
+  const query: Record<string, unknown> = {
     tab: params.tab ?? 'latest',
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 10,
@@ -96,14 +83,14 @@ export async function getMoments(params: {
   if (params.dishId != null) query.dishId = params.dishId
   if (params.stallId != null) query.stallId = params.stallId
   if (params.canteenId != null) query.canteenId = params.canteenId
-  const res = await get<PageResult<any>>('/moments', query)
+  const res = await get<PageResult<RawRow>>('/moments', query)
   const raw = listOf(res).map(toMoment).filter(Boolean) as Moment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 
 /** 动态详情（PUB，作者本人可见 rejectReason） */
 export async function getMomentDetail(id: number): Promise<Moment | null> {
-  const res = await get<any>(`/moments/${id}`)
+  const res = await get<RawRow>(`/moments/${id}`)
   return toMoment(res)
 }
 
@@ -119,9 +106,9 @@ export async function updateMoment(id: number, payload: MomentPublish): Promise<
 
 /** 我的动态列表（STU，补齐契约缺口） */
 export async function getMyMoments(auditStatus?: string): Promise<Moment[]> {
-  const query: Record<string, any> = {}
+  const query: Record<string, unknown> = {}
   if (auditStatus) query.auditStatus = auditStatus
-  const res = await get<any[]>('/my/moments', query)
+  const res = await get<RawRow[]>('/my/moments', query)
   return (res || []).map(toMoment).filter(Boolean) as Moment[]
 }
 
@@ -132,8 +119,8 @@ export async function toggleUseful(id: number): Promise<MomentUsefulResult> {
 
 /** 评论列表（PUB，created_at asc 扁平化） */
 export async function getMomentComments(id: number, page = 1, pageSize = 20): Promise<{ list: MomentComment[]; total: number }> {
-  const res = await get<PageResult<any>>(`/moments/${id}/comments`, { page, pageSize })
-  const raw = listOf(res).map((item: any) => toMomentComment(item)).filter(Boolean) as MomentComment[]
+  const res = await get<PageResult<RawRow>>(`/moments/${id}/comments`, { page, pageSize })
+  const raw = listOf(res).map((item: RawRow) => toMomentComment(item)).filter(Boolean) as MomentComment[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 

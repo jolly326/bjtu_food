@@ -5,14 +5,38 @@
  */
 import { getImageUrl } from '@/utils/image'
 
+/**
+ * 后端响应行（归一化边界载体，R4 收敛）。
+ * 后端 JSON 未按 OpenAPI 逐字段建模时，各模块 toXxx 归一化函数统一以 `RawRow` 作入参
+ * （替代散落的裸 any 形参），字段读取保持与 any 相同的宽松语义；本类型禁止流出 api/ 层。
+ */
+export type RawRow = Record<string, any>
+
 /** 后端分页返回形态：可能是平铺数组，或 { records | list, total } */
 type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
+
+/** 分页响应统一结构（{ list | records, total, page, pageSize }；F2 收敛自 notify/moment/activity 三份私有定义） */
+export interface PageResult<T> {
+  list?: T[]
+  records?: T[]
+  total?: number
+  page?: number
+  pageSize?: number
+}
 
 /** 从分页响应提取列表（任意形态均安全降级为空数组） */
 export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   if (!value) return []
   if (Array.isArray(value)) return value
   return value.records || value.list || []
+}
+
+/**
+ * 从分页响应提取列表——兼容裸数组 / { list } / { records } 三形态
+ * （统一版取 notify/moment/activity 三份私有 listOf 行为超集；activity 曾支持裸数组）。
+ */
+export function listOf<T>(value: PageResult<T> | T[] | undefined | null): T[] {
+  return recordsOf<T>(value)
 }
 
 /** 从分页响应提取总数（缺省回退列表长度） */
@@ -47,4 +71,10 @@ export function normalizeImages(value: unknown): string[] {
   } catch {
     return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
   }
+}
+
+/** 取行首图（normalizeImages 后取首项；兼容 images/image/icon 字段形态；F3 上提自 canteen 私有版） */
+export function firstImage(raw: RawRow | null | undefined): string {
+  if (!raw) return ''
+  return normalizeImages(raw.images ?? raw.image ?? raw.icon)[0] || ''
 }

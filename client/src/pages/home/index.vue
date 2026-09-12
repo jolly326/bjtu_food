@@ -51,6 +51,7 @@ import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
+import { PATH } from '@/utils/routes'
 import Header from '@/components/AppHeader.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import HomeContent from './HomeContent.vue'
@@ -104,7 +105,7 @@ function onCanteenSelect(id: number | null) {
 }
 
 function goToSearch() {
-  uni.navigateTo({ url: '/pages/find/index' })
+  uni.navigateTo({ url: PATH.find })
 }
 
 /** 重试当前筛选流：下拉刷新复用同一条重拉路径（食堂列表缺失时先补拉） */

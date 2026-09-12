@@ -21,6 +21,7 @@ import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
+import { dishDetailUrl } from '@/utils/routes'
 
 const dishStore = useDishStore()
 
@@ -45,7 +46,7 @@ const splitList = computed(() => {
 
 /** 菜品卡片点击 → 独立详情页（pages/detail/dish） */
 function goToDetail(dish: { id: number }) {
-  uni.navigateTo({ url: `/pages/detail/dish/index?id=${dish.id}` })
+  uni.navigateTo({ url: dishDetailUrl(dish.id) })
 }
 </script>
 

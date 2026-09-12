@@ -1,13 +1,13 @@
 import type { Review, ReviewSort } from '@/types/review'
 import { get, post, del } from './http'
-import { recordsOf, normalizeImages } from './shared'
+import { recordsOf, totalOf, normalizeImages, type RawRow } from './shared'
 
 type ReviewTarget =
   | { type: 'dish'; id: number }
   | { type: 'stall'; id: number }
   | { type: 'canteen'; id: number }
 
-function toReview(raw: any): Review {
+function toReview(raw: RawRow): Review {
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
@@ -36,7 +36,7 @@ async function getReviews(
   target: ReviewTarget,
   options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 50,
   }
@@ -46,7 +46,7 @@ async function getReviews(
   if (options?.isWithImage) params.isWithImage = true
   const res = await get<any>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
   const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
+  const total = totalOf(res)
   return { list, total }
 }
 
@@ -77,8 +77,9 @@ export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
 }
 
-/** 提交菜品评价（POST /reviews；需完成学号邮箱认证。每个用户对同一菜品仅评价一次，评分 1-5 必填） */
-export interface ReviewSubmitPayload {
+/** 提交菜品评价（POST /reviews；需完成学号邮箱认证。每个用户对同一菜品仅评价一次，评分 1-5 必填）
+ *  2026-09-07：无外部消费，收敛为模块私有（仅供本文件 createReview 入参） */
+interface ReviewSubmitPayload {
   dishId: number
   /** 评分，1-5 星（必填） */
   rating: number

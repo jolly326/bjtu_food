@@ -7,8 +7,10 @@
  * PUT /my/notifications/read-all    全部已读
  */
 import { get, put } from './http'
+import { listOf, type PageResult, type RawRow } from './shared'
 
-export type NotificationType = 'moment_audit' | 'dish_audit' | 'comment' | 'useful'
+/** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用） */
+type NotificationType = 'moment_audit' | 'dish_audit' | 'comment' | 'useful'
 
 export interface Notification {
   id: number
@@ -23,20 +25,7 @@ export interface Notification {
   createdAt?: string
 }
 
-interface PageResult<T> {
-  list?: T[]
-  records?: T[]
-  total?: number
-  page?: number
-  pageSize?: number
-}
-
-function listOf<T>(res: PageResult<T> | undefined): T[] {
-  if (!res) return []
-  return res.list || res.records || []
-}
-
-function toNotification(raw: any): Notification | null {
+function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
@@ -55,12 +44,12 @@ export async function getNotifications(params: {
   page?: number
   pageSize?: number
 }): Promise<{ list: Notification[]; total: number }> {
-  const query: Record<string, any> = {
+  const query: Record<string, unknown> = {
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
   }
   if (params.isRead != null) query.isRead = params.isRead
-  const res = await get<PageResult<any>>('/my/notifications', query)
+  const res = await get<PageResult<RawRow>>('/my/notifications', query)
   const raw = listOf(res).map(toNotification).filter(Boolean) as Notification[]
   return { list: raw, total: res?.total ?? raw.length }
 }
@@ -81,13 +70,6 @@ export async function readNotification(id: number): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 首页广播条类型：数据源为「动态前 10 条」（见 pages/home/index.vue toBroadcastItem）。
-// 原 getBroadcasts()（broadcast 表接口）已随广播条改版下线。
+// 首页广播条数据源为「动态前 10 条」（见 pages/home/index.vue 本地 toBroadcastItem）；
+// 原 notify.ts 的 BroadcastItem（broadcast 表接口）已随广播条改版下线，2026-09-07 移除死定义。
 // ─────────────────────────────────────────────────────────────
-
-export interface BroadcastItem {
-  text: string
-  type: 'dish' | 'dynamic' | 'url' | 'canteen' | 'stall'
-  targetId?: number
-  targetUrl?: string
-}

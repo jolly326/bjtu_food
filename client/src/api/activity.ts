@@ -9,6 +9,7 @@
  * - 接口失败 / 空返回一律回落空数组，不阻断调用方。
  */
 import { get } from './http'
+import { listOf, type PageResult, type RawRow } from './shared'
 
 export interface ActivityItem {
   id: number
@@ -24,27 +25,14 @@ export interface ActivityItem {
   image?: string
 }
 
-interface PageResult<T> {
-  list?: T[]
-  records?: T[]
-  total?: number
-  page?: number
-  pageSize?: number
-}
-
 /**
  * 兼容两种返回形态：
  * - 后端 GET /activities 返回裸 List<ActivityVO>（Result.data 即数组）
  * - 旧/他处可能返回 PageResult{list/records}
  * 防止将数组误当 PageResult 读取导致恒返回 []。
+ * （listOf 统一版已兼容裸数组，F2 收敛至 shared。）
  */
-function listOf<T>(res: PageResult<T> | T[] | undefined): T[] {
-  if (!res) return []
-  if (Array.isArray(res)) return res
-  return res.list || res.records || []
-}
-
-function toActivity(raw: any): ActivityItem {
+function toActivity(raw: RawRow): ActivityItem {
   return {
     id: Number(raw.id),
     title: raw.title || '',
@@ -61,11 +49,11 @@ export async function getActivities(params: {
   pageSize?: number
 } = {}): Promise<ActivityItem[]> {
   try {
-    const query: Record<string, any> = {
+    const query: Record<string, unknown> = {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 20,
     }
-    const res = await get<PageResult<any>>('/activities', query)
+    const res = await get<PageResult<RawRow>>('/activities', query)
     return listOf(res).map(toActivity)
   } catch (e) {
     console.error('[activity] 活动列表加载失败', e)

@@ -28,7 +28,7 @@
  * WebView 通用页（活动/广播 URL 跳转，用于打开微信公众号文章）
  *
  * 用法：
- *   uni.navigateTo({ url: `/pages/activity/webview?url=${encodeURIComponent('https://mp.weixin.qq.com/s/xxx')}` })
+ *   uni.navigateTo({ url: activityWebviewUrl('https://mp.weixin.qq.com/s/xxx') })（见 utils/routes.ts）
  *
  * 注意（上线必读）：
  *   1. 生产环境需在微信公众平台「开发管理-开发设置-业务域名」添加并配置
@@ -41,6 +41,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import IconSvg from '@/components/IconSvg.vue'
 import { getNavBarHeight } from '@/utils/navMetrics'
+import { PATH } from '@/utils/routes'
 // 原生属性例外：<web-view> 的 progressbar.color 不接受 var()，取登记于 tokens.ts 的真实色值
 import { WEBVIEW_PROGRESSBAR_COLOR } from '@/theme/tokens'
 
@@ -116,7 +117,7 @@ function back() {
   // @ts-ignore
   const pages = (typeof getCurrentPages === 'function') ? getCurrentPages() : []
   if (pages.length > 1) uni.navigateBack()
-  else uni.reLaunch({ url: '/pages/home/index' })
+  else uni.reLaunch({ url: PATH.home })
 }
 
 function onMessage(e: any) {

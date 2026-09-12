@@ -3,11 +3,9 @@ import { ref, computed } from 'vue'
 import type { Dish, DishDetail, DishQuery, DishSortBy, HotSearch } from '@/types/dish'
 import type { Review, ReviewSort } from '@/types/review'
 import type { CanteenInfo } from '@/types/canteen'
-import type { Moment } from '@/types/moment'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
 import * as canteenApi from '@/api/canteen'
-import * as momentApi from '@/api/moment'
 import { getRecommendDishes } from '@/api/recommend'
 import { getCategories, type CategoryItem } from '@/api/category'
 import { useLocationStore } from '@/stores/location'
@@ -98,9 +96,6 @@ export const useDishStore = defineStore('dish', () => {
   /** 评价脏标记：写评价/回复/删除成功后置 true，onShow 据此决定是否重拉，避免每次返回都发请求（#8） */
   const reviewsDirty = ref(false)
 
-  /** task-03 关联动态（二期占位，一期为空） */
-  const relatedMoments = ref<Moment[]>([])
-
   async function fetchCanteens() {
     try {
       canteenList.value = await canteenApi.getCanteenList()
@@ -169,8 +164,6 @@ export const useDishStore = defineStore('dish', () => {
     currentDish.value = null
     reviewList.value = []
     reviewTotal.value = 0
-    // 清理关联动态，避免切换菜品时闪现上一菜品的关联内容
-    relatedMoments.value = []
   }
 
   /**
@@ -289,17 +282,6 @@ export const useDishStore = defineStore('dish', () => {
       decorated.sort((a, b) => (a.distance ?? Number.MAX_SAFE_INTEGER) - (b.distance ?? Number.MAX_SAFE_INTEGER))
     }
     return decorated
-  }
-
-  /** task-12.6 关联动态聚合：GET /moments?dishId= */
-  async function fetchRelatedMoments(dishId: number) {
-    try {
-      const { list } = await momentApi.getMoments({ dishId, pageSize: 10 })
-      relatedMoments.value = list
-    } catch (e) {
-      console.error('加载关联动态失败', e)
-      relatedMoments.value = []
-    }
   }
 
   async function fetchStallDishes(stallId: number) {
@@ -454,7 +436,7 @@ export const useDishStore = defineStore('dish', () => {
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
     canteenList, newDishes, promotionDishes,
-    hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, relatedMoments, reviewsDirty,
+    hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, reviewsDirty,
     loading, navParams,
     categories,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice,
@@ -462,7 +444,6 @@ export const useDishStore = defineStore('dish', () => {
     fetchRecommend, fetchGuess,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, fetchStallDishes,
     fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
-    fetchRelatedMoments,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,
     withLocalDistance,
   }

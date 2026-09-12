@@ -4,14 +4,15 @@ import type {
 } from '@/types/dish'
 import { get, del, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './shared'
+import { recordsOf, totalOf, normalizeBoolean, normalizeImages, type RawRow } from './shared'
 
-export const TAG_MAP: Record<string, string> = {
+/** 2026-09-07：无外部消费，收敛为模块私有（仅供本文件 toDish 标签映射） */
+const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
 }
 
-export function toDish(raw: any): Dish {
+export function toDish(raw: RawRow): Dish {
   const images = normalizeImages(raw.images ?? raw.image)
   const tags = Array.isArray(raw.tags)
     ? raw.tags
@@ -54,7 +55,7 @@ export function toDish(raw: any): Dish {
   }
 }
 
-function toDishDetail(raw: any): DishDetail {
+function toDishDetail(raw: RawRow): DishDetail {
   return {
     ...toDish(raw),
     ratingDistribution: raw.ratingDistribution || [],
@@ -80,7 +81,7 @@ export async function getStallDishes(stallId: number): Promise<Dish[]> {
  * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 20,
   }
@@ -143,7 +144,7 @@ export async function getRisingDishes(): Promise<Dish[]> {
 /** 热搜 TOP10（task-02：GET /dishes/hot-search，一期为菜品热度派生的热门词条） */
 export async function getHotSearch(): Promise<HotSearch[]> {
   const raw = await get<any[]>('/dishes/hot-search')
-  return (raw || []).map((item: any) => ({
+  return (raw || []).map((item: RawRow) => ({
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),
     relatedCount: Number(item.relatedCount ?? 0) || undefined,

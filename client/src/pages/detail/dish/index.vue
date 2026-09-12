@@ -121,10 +121,10 @@
 <script setup lang="ts">
 /**
  * dish —— 菜品详情页（入口：首页/搜索/动态/通知等卡片点击）
- * - 编排逻辑抽 `composables/useDishPage.ts`（数据流 / 顶部大图滚动几何 / 评价分页与删除 /
+ * - 编排逻辑抽包内私有 `useDishPage.ts`（数据流 / 顶部大图滚动几何 / 评价分页与删除 /
  *   写评价弹层 / 三点菜单 / 举报 / 距你距离与定位补齐 / 分享）。
  * - 本文件仅保留模板贴片组装与包内子件引用（ImageSwiper / ReviewComposer /
- *   DishInfoCard / DishSummaryCard / DishReviewSection）；生命周期见 useDishPage。
+ *   DishInfoCard / DishSummaryCard / DishReviewSection / useDishPage）；生命周期见 useDishPage。
  */
 import IconSvg from '@/components/IconSvg.vue'
 import ReportModal from '@/components/ReportModal.vue'
@@ -135,7 +135,7 @@ import ReviewComposer from './ReviewComposer.vue'
 import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
-import { useDishPage } from '@/composables/useDishPage'
+import { useDishPage } from './useDishPage'
 
 const {
   dish,

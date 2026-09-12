@@ -1,5 +1,6 @@
 import type { UserInfo } from '@/types/user'
 import { get, post, put } from './http'
+import type { RawRow } from './shared'
 
 function toFrontendRole(role?: string): UserInfo['role'] {
   // 后端现已直接存储 student / admin（§0.2 仅两种角色），无需再做 USER→STUDENT 映射。
@@ -12,7 +13,7 @@ function isStudentNumber(s: string): boolean {
   return /^\d+$/.test(s.trim())
 }
 
-function toUserInfo(resp: any, fallbackId = 0): UserInfo {
+function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
   // 后端 LoginResp 透传 userId/username/nickname/avatar/role/verified/bindEmail/guestShortId（见 auth/dto/LoginResp）
   const username = String(user.username || resp?.username || '')
@@ -50,7 +51,7 @@ export async function sendEmailCode(username: string, purpose: 'verify'): Promis
 
 /** 微信静默登录（§5.y.5 POST /auth/wechat-login）：wx.login code → 游客态账号 token+userInfo */
 export async function wechatLogin(code: string): Promise<AuthResult> {
-  const resp = await post<any>('/auth/wechat-login', { code })
+  const resp = await post<RawRow>('/auth/wechat-login', { code })
   return {
     token: resp.token,
     userInfo: toUserInfo(resp),
@@ -59,7 +60,7 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
 
 /** 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → verified=true */
 export async function verifyEmail(code: string): Promise<AuthResult> {
-  const resp = await post<any>('/auth/verify-email', { code })
+  const resp = await post<RawRow>('/auth/verify-email', { code })
   return {
     token: resp.token,
     userInfo: toUserInfo(resp),
@@ -68,11 +69,11 @@ export async function verifyEmail(code: string): Promise<AuthResult> {
 
 /** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 verified/bindEmail/guestShortId） */
 export async function getProfile(): Promise<UserInfo> {
-  const resp = await get<any>('/auth/profile')
+  const resp = await get<RawRow>('/auth/profile')
   return toUserInfo(resp)
 }
 
 export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
-  const resp = await put<any>('/auth/profile', data)
+  const resp = await put<RawRow>('/auth/profile', data)
   return toUserInfo(resp)
 }

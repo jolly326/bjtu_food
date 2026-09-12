@@ -5,6 +5,7 @@
  */
 import { ref } from 'vue'
 import type { Moment } from '@/types/moment'
+import { PATH, dishDetailUrl, momentDetailUrl } from '@/utils/routes'
 
 /** 待分享的菜品（分享路径见 buildSharePayload） */
 interface ShareDish {
@@ -40,14 +41,14 @@ export function buildSharePayload(dish?: ShareDish | null, moment?: Moment | nul
   if (d) {
     return {
       title: `推荐「${d.name}」¥${d.price}${d.stallName ? ' · ' + d.stallName : ''}，来自食在交大`,
-      path: `/pages/detail/dish/index?id=${d.id}`,
+      path: dishDetailUrl(d.id),
     }
   }
   if (m) {
     return {
       title: `${m.userNickname || '食在交大用户'}：${m.content?.slice(0, 30) || '看看这条动态'}`,
-      path: `/pages/detail/moment/index?id=${m.id}`,
+      path: momentDetailUrl(m.id),
     }
   }
-  return { title: '食在交大 · 发现校园美食', path: '/pages/home/index' }
+  return { title: '食在交大 · 发现校园美食', path: PATH.home }
 }

@@ -56,8 +56,6 @@
           >
             <view class="grid-cell-icon">
               <IconSvg :name="cell.icon" :size="44" color="var(--color-primary)" />
-              <!-- 最新活动：右上常驻红色「新」角标 -->
-              <text v-if="cell.key === 'activity'" class="badge badge-new" aria-hidden="true">新</text>
               <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
               <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
             </view>
@@ -93,8 +91,10 @@ import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useNotifyStore } from '@/stores/notify'
+import { PATH } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
+import { FEATURE_GATES, resolveGate } from '@/utils/feature-gates'
 
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
@@ -123,15 +123,6 @@ onShow(() => {
   if (userStore.isVerified()) notifyStore.fetchUnread()
 })
 
-/** 需认证入口统一拦截：未认证（verified=false）弹认证引导，认证成功后自动继续原动作（§5.y 入口不置灰） */
-function requireAuth(action: () => void) {
-  if (userStore.isVerified()) {
-    action()
-    return
-  }
-  authSheetStore.requireAuth(action)
-}
-
 /** 「去认证」：与用户卡点击同源，复用底部认证弹层（不单独写认证页） */
 function onVerifyTap() {
   authSheetStore.show()
@@ -143,7 +134,7 @@ function onUserCardTap() {
     authSheetStore.show()
     return
   }
-  uni.navigateTo({ url: '/pages/me/profile/index' })
+  uni.navigateTo({ url: PATH.profile })
 }
 
 /** 2×2 功能宫格数据（顺序固定：第一行 最新活动/意见反馈，第二行 系统通知/我发布的）；每格整格热区 */
@@ -153,14 +144,24 @@ interface GridCell {
   label: string
   action: () => void
 }
+/** 暂缓开放格点击：按 feature-gates 读取——open ? 跳转登记路由 : toast 提示（文案不在此硬编码） */
+function gateTap(gateKey: keyof typeof FEATURE_GATES): () => void {
+  return () => {
+    const gate = resolveGate(gateKey)
+    if (gate.open) uni.navigateTo({ url: gate.url })
+    else uni.showToast({ title: gate.toast, icon: 'none' })
+  }
+}
 const gridRows: GridCell[][] = [
   [
-    { key: 'activity', icon: 'broadcast', label: '最新活动', action: () => uni.navigateTo({ url: '/pages/activity/index' }) },
-    { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: '/pages/me/feedback/index' }) },
+    // 最新活动：暂缓开放登记于 utils/feature-gates.ts
+    { key: 'activity', icon: 'broadcast', label: '最新活动', action: gateTap('activity') },
+    { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
   ],
   [
-    { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: '/pages/me/notifications/index' }) },
-    { key: 'moments', icon: 'comment', label: '我发布的', action: () => requireAuth(() => uni.navigateTo({ url: '/pages/me/publish-mine/index' })) },
+    { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
+    // 我发布的：暂缓开放登记于 utils/feature-gates.ts
+    { key: 'moments', icon: 'comment', label: '我发布的', action: gateTap('publishMine') },
   ],
 ]
 </script>
@@ -250,7 +251,6 @@ const gridRows: GridCell[][] = [
 .grid-cell-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
-.badge-new { font-size: var(--font-tiny); line-height: 1.5; color: var(--bg-card); background: var(--color-error); border-radius: var(--radius-pill); padding: 0 8rpx; font-weight: var(--weight-semibold); }
 .badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-error); }
 
 /* 底部静态信息区：与宫格之间留大片留白，居中小号浅灰、纯展示（无点击/跳转），位于 TabBar 之上 */

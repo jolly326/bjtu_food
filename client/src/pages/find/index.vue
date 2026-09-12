@@ -90,6 +90,7 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
 import { getUserLocation } from '@/utils/location'
+import { PATH, dishDetailUrl } from '@/utils/routes'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
@@ -106,14 +107,14 @@ function goBackHome() {
   if (pages.length > 1) {
     uni.navigateBack()
   } else {
-    uni.reLaunch({ url: '/pages/home/index' })
+    uni.reLaunch({ url: PATH.home })
   }
 }
 
 /** 菜品详情：跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
+  uni.navigateTo({ url: dishDetailUrl(id) })
 }
 const keyword = ref('')
 const refresherTriggered = ref(false)

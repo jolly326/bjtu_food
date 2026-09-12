@@ -9,7 +9,6 @@ import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
-import com.bjtufood.feedback.dto.FeedbackMyVO;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
@@ -80,26 +79,6 @@ public class FeedbackServiceImpl implements FeedbackService {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    @Override
-    public List<FeedbackMyVO> listMy(Long userId) {
-        return feedbackMapper.selectList(new LambdaQueryWrapper<Feedback>()
-                        .eq(Feedback::getUserId, userId)
-                        .orderByDesc(Feedback::getId))
-                .stream()
-                .map(f -> {
-                    FeedbackMyVO vo = new FeedbackMyVO();
-                    vo.setId(f.getId());
-                    vo.setType(f.getType());
-                    vo.setContent(f.getContent());
-                    vo.setImages(deserializeImages(f.getImages()));
-                    vo.setStatus(f.getStatus());
-                    vo.setReply(f.getReply());
-                    vo.setCreatedAt(f.getCreatedAt());
-                    return vo;
-                })
-                .toList();
     }
 
     @Override

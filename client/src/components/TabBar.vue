@@ -25,12 +25,13 @@
 import { onMounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
+import { TAB_URL_BY_KEY } from '@/utils/routes'
 
 
 const tabs = [
-  { key: 'home', label: '首页', icon: 'home', url: '/pages/home/index' },
-  { key: 'dynamic', label: '动态', icon: 'comment', url: '/pages/dynamic/index' },
-  { key: 'profile', label: '我的', icon: 'profile', url: '/pages/mine/index' },
+  { key: 'home', label: '首页', icon: 'home', url: TAB_URL_BY_KEY.home },
+  { key: 'dynamic', label: '动态', icon: 'comment', url: TAB_URL_BY_KEY.dynamic },
+  { key: 'profile', label: '我的', icon: 'profile', url: TAB_URL_BY_KEY.profile },
 ] as const
 
 function onTap(item: (typeof tabs)[number]) {

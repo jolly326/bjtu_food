@@ -1,32 +1,11 @@
 /**
  * 反馈接口模块（project_spec.md §3.x.5：POST /feedback，需 STUDENT）
+ * 2026-09-07：反馈中心进度页已下线，私有 `FeedbackMyItem` / `getMyFeedback`（GET /feedback/my）删除，
+ * 联动后端候选见 openspec change `client-quality-contract-cleanup` 的 backend 候选清单。
  */
-import { post, get } from './http'
+import { post } from './http'
 import type { FeedbackSubmit } from '@/types/feedback'
 
 export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
-}
-
-/** 我的反馈项（反馈中心进度列表，进度追踪后续另做，接口保留）
- * type 契约整改后只含枚举 suggestion/error/add/bug/other/report；保留 string 兜底以兼容历史复合串记录 */
-export interface FeedbackMyItem {
-  id: number
-  type: string
-  content: string
-  /** 附图（绝对URL数组，2026-08-17 新增） */
-  images?: string[]
-  /** pending / handled */
-  status: string
-  reply?: string
-  createdAt?: string
-}
-
-/** 我的反馈列表（GET /feedback/my，倒序） */
-export async function getMyFeedback(): Promise<FeedbackMyItem[]> {
-  const res = await get<any>('/feedback/my')
-  if (Array.isArray(res)) return res as FeedbackMyItem[]
-  if (Array.isArray(res?.list)) return res.list as FeedbackMyItem[]
-  if (Array.isArray(res?.records)) return res.records as FeedbackMyItem[]
-  return []
 }

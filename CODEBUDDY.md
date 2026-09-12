@@ -32,17 +32,17 @@
 
 ## 高层架构
 ### 三端定位与数据链路（spec §0.4，强制）
-- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、UGC 提交、评价、动态、反馈）。
+- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品贡献、菜品评价、产品反馈）。**社区/动态（moment）板块已于 2026-09-12 下线删除**。
 - **后端 `server/` = 数据服务**：唯一存储与业务规则；小程序与 Web **共用同一套 API 契约**（`/` 用户接口供小程序，`/admin/**` 供 Web）。
 - **Web `web/` = 辅助管理工具（非用户端）**：只经 `/admin/**` 读取/管理后端数据（CRUD、UGC 审核、看板、操作日志），不产生业务数据。
 - 数据流向：小程序产生数据 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提（**活动模块除外**：后台录入、小程序消费、web-view 跳公众号文章）。
 
 ### 后端分层（包结构 `com.bjtufood.*`）
-每业务模块（auth/dish/review/moment/canteen/content/activity/apply/feedback/notify/history/upload/common）严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁止跨层调用**（Controller 不得直调 Mapper）。ORM 用 MyBatis-Plus（`BaseMapper` + `resources/mapper/*.xml`）。API 文档 SpringDoc OpenAPI（非 Knife4j）。统一响应由 `GlobalExceptionHandler` 包装，Controller 不得裸抛。写操作 Service 加 `@Transactional`；评分/点赞计数走 Spring 事件异步维护（`@Async` AFTER_COMMIT），禁止主流程内联重算。
+每业务模块（auth/dish/review/canteen/content/activity/apply/feedback/notify/history/upload/common；**`moment` 包已于 2026-09-12 随动态板块下线删除**）严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁止跨层调用**（Controller 不得直调 Mapper）。ORM 用 MyBatis-Plus（`BaseMapper` + `resources/mapper/*.xml`）。API 文档 SpringDoc OpenAPI（非 Knife4j）。统一响应由 `GlobalExceptionHandler` 包装，Controller 不得裸抛。写操作 Service 加 `@Transactional`；评分/点赞计数走 Spring 事件异步维护（`@Async` AFTER_COMMIT），禁止主流程内联重算。
 
 ### 认证与鉴权（spec §5.y，强制）
 - **废除账号密码/注册**：小程序无登录页/登录按钮/密码体系；微信打开即 `POST /auth/wechat-login`（`code2Session`）静默建号 → **游客态 `verified=false`**（默认已登录）。
-- **`verified` 门槛**：动态写操作（发菜品/评价/动态/评论/点赞）改鉴 `verified=true`（邮箱验证码认证 `@bjtu.edu.cn`）；`verified` **不进 JWT**（JWT 仅含 userId），后端按 `user.verified` 实时判定。游客入口不置灰，点击弹 `AuthSheet` 认证引导。
+- **`verified` 门槛**：UGC 写操作（发菜品/写评价/点赞）改鉴 `verified=true`（邮箱验证码认证 `@bjtu.edu.cn`）；`verified` **不进 JWT**（JWT 仅含 userId），后端按 `user.verified` 实时判定。游客入口不置灰，点击弹 `AuthSheet` 认证引导。
 - `verified` 缺失异常码 **`4031`**（与 `403` 普通无权限分流）；前端 `http.ts` 据此分别提示。
 - **管理后台登录例外（方案 C）**：`/auth/admin/login` 管理员账号密码 + BCrypt + JWT，与小程序微信体系解耦；`/admin/**` 仍仅 `ADMIN`/`SUPER_ADMIN`。
 - 角色**仅 `STUDENT`/`ADMIN`**，禁止 `STALL_OWNER` 或 `/stall-owner/**`。
@@ -54,13 +54,13 @@
 - 数据隔离：从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId；UGC `created_by=当前用户`。
 - 状态枚举：Dish `status` on/off；Canteen/Stall open/closed；Activity enabled/disabled。评价可见性 `isHidden`(0/1) 非 `isDeleted`。
 
-### 数据库（18 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
-- 表：user / email_verification_code / canteen / stall / dish / category / review / review_useful / moment / moment_comment / moment_useful / activity / notification / user_feedback / apply_action / view_log / operation_log（broadcast 表保留但运营广播方案已废弃，首页广播由动态驱动）。
+### 数据库（14 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
+- 表（14 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / activity / notification / user_feedback / apply_action / view_log / operation_log（broadcast 表保留但运营广播方案已废弃；**moment / moment_comment / moment_useful / moment_comment_useful 四表已于 2026-09-12 从初始化脚本移除**）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
 - UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；学生编辑**复用原记录**、`reject_reason` 清空；下架/变更申请落独立 `apply` 表。
 
 ### 前端架构要点
-- **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review/moment)、`pages/`(主包 home/dynamic/profile/find + 分包 detail/user/standalone)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。
+- **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me/activity)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。
   - `http.ts`：401 先静默登录重试一次，仍失败 `handleUnauthorized`（清 token+Toast+重登，并发去重），**不用事件总线**；403/4031 分级提示。
   - 图片：小程序走微信云存储 `cloud://`；上传统一 `ImageUploader`；图标统一 `<IconSvg>`（本地 `assets/icons`，语义唯一 ic-heart=喜欢、ic-thumb=有用/点赞、无收藏）。
 - **Web `web/src`**：`api/`(含 `adapter.ts` 做 snake_case→camelCase 映射，**禁止视图层直处字段名**)、`views/`、`components/`、`router/`、`api/dashboard.ts`；登录首屏 `/dashboard`（工作台=待办+数据总览，**非 ECharts 看板**）。
@@ -76,10 +76,16 @@
 - 底部 Sheet 统一下拉关闭手势（阈值 ~120px）+ `prefers-reduced-motion` 降级；分区标题复用 `SectionTitle`。
 
 ### 已拍板关键决策（避免回退）
+- **权威口径（2026-09-12 校正）**：`docs/project_spec.md` 为唯一权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
+- **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品 + 菜品贡献）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
+- **UGC 全谱系 = 评价 + 反馈 / 贡献**（③ + ④），是菜品信息迭代与程序优化的输入源；**反馈类 UGC 与评价同等重要，不得弱化**——它是实时发现菜品信息错误与程序问题、驱动信息更新与优化的主通道。本次下线的是「社区 / 动态」社交广场形态，**不是下线 UGC**。
+- **社区 / 动态（moment）板块已下线并全量删除（2026-09-12）**：小程序四页（dynamic / detail-moment / publish-moment / me-publish-mine）、`api/moment.ts`、`types/moment.ts`、`MomentImageGrid`、`useMomentUseful`、后端 `moment` 包与 `/moments*`·`/admin/moments*` 接口、Web `MomentManageView`、库表 `moment*` 全部删除；恢复靠 git 历史。评价不再「同步到动态」（`shareToMoment` 已删）。
+- TabBar **固定 home / mine 两页**（原 dynamic 移除）；「我的」页宫格 **1×3**（最新活动 / 意见反馈 / 系统通知），「我发布的」已删。
+- UGC 唯一发布路径 = 菜品详情底栏「写评价」；无独立发布页、无「关联对象」表单。
 - 收藏功能全量移除（无入口/字段/图标）；喜欢语义仅 `ic-heart`。
 - 食堂/档口降级为菜品属性（`dish.canteen`/`dish.stall`），无独立路由。
-- 搜索为二级页 `find`（非 tab）；TabBar 固定 home/dynamic/profile 三页。
-- 活动为独立模块（后台录入、列表页、`web-view` 跳公众号文章；`web-view` 仅活动用）。
+- 搜索为二级页 `find`（非 tab），属核心板块，不得降级或移除。
+- 活动为独立模块（后台录入、列表页、`web-view` 跳公众号文章；`web-view` 仅活动用）；**当前 `FEATURE_GATES.activity=false` 暂缓开放，非核心板块**。
 - 认证走 `AuthSheet` 弹层（无独立认证页）；反馈页 `POST /feedback` 公开、不收集联系方式、匿名提交。
 - 通知异步写（`@Async`+有界线程池，不引 MQ）；推荐/热门用 Caffeine 60s TTL + 写失效；报表导出已移除。
 

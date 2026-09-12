@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { ROUTE_KEY_BY_URL } from '@/utils/routes'
 
 /** 当前主区 tab key（home/dynamic/profile），空串表示处于二级页 */
 export const activeTab = ref<string>('home')
@@ -9,15 +10,12 @@ export const activeTab = ref<string>('home')
  */
 export const tabVisible = ref<boolean>(true)
 
-// 主根页 route（不带前导斜杠）-> tab key（「我的」根页目录为 mine，tab key 语义仍 profile）
-export const routeMap: Record<string, string> = {
-  'pages/home/index': 'home',
-  'pages/dynamic/index': 'dynamic',
-  'pages/mine/index': 'profile',
-}
+// 主根页 route（不带前导斜杠）-> tab key（「我的」根页目录为 mine，tab key 语义仍 profile；真源见 utils/routes.ts）
+export const routeMap: Record<string, string> = ROUTE_KEY_BY_URL
 
-/** 直接设定 TabBar 显隐与高亮（主根页 onShow 锚定，最稳定，不依赖页面栈时序） */
-export function setTab(key: string | null) {
+/** 直接设定 TabBar 显隐与高亮（主根页 onShow 锚定，最稳定，不依赖页面栈时序）
+ *  2026-09-07：无外部消费（外部经 showTab/ensureTabForUrl/syncRoute 调用），收敛为模块私有 */
+function setTab(key: string | null) {
   activeTab.value = key || ''
   tabVisible.value = key !== null
 }

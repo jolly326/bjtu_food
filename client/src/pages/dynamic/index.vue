@@ -63,6 +63,7 @@ import * as momentApi from '@/api/moment'
 import type { Moment, MomentComment } from '@/types/moment'
 import { useReport } from '@/composables/useReport'
 import { buildSharePayload, clearShareState, sharedMoment } from '@/utils/share-state'
+import { dishDetailUrl, momentDetailUrl, PATH } from '@/utils/routes'
 import MomentCard from './MomentCard.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
@@ -75,7 +76,7 @@ const moments = ref<Moment[]>([])
 /** 菜品详情跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
+  uni.navigateTo({ url: dishDetailUrl(id) })
 }
 
 /* ===== 三点菜单（MomentCard @more → 页面级 ActionSheet） ===== */
@@ -167,7 +168,7 @@ function onRefresh() {
 }
 
 function goDetail(m: Moment) {
-  uni.navigateTo({ url: `/pages/detail/moment/index?id=${m.id}` })
+  uni.navigateTo({ url: momentDetailUrl(m.id) })
 }
 
 function goRelated(m: Moment) {
@@ -177,7 +178,7 @@ function goRelated(m: Moment) {
 }
 
 function goPublish() {
-  uni.navigateTo({ url: '/pages/publish-moment/index' })
+  uni.navigateTo({ url: PATH.publishMoment })
 }
 
 onMounted(() => {

@@ -7,29 +7,24 @@
 import { get } from './http'
 import type { Dish } from '@/types/dish'
 import { toDish } from './dish'
-
-interface RecommendPage {
-  list?: Dish[]
-  records?: Dish[]
-  total?: number
-}
+import { listOf, totalOf, type PageResult, type RawRow } from './shared'
 
 export async function getRecommendDishes(params?: {
   page?: number
   pageSize?: number
   excludeIds?: number[]
 }): Promise<{ list: Dish[]; total: number }> {
-  const query: Record<string, any> = {
+  const query: Record<string, unknown> = {
     page: params?.page ?? 1,
     pageSize: params?.pageSize ?? 10,
   }
   if (params?.excludeIds?.length) {
     query.excludeIds = params.excludeIds.join(',')
   }
-  const res = await get<RecommendPage>('/dishes/recommend', query)
-  const raw = res?.list || res?.records || []
+  const res = await get<PageResult<RawRow>>('/dishes/recommend', query)
+  const list = listOf(res).map(toDish)
   return {
-    list: raw.map(toDish),
-    total: res?.total ?? raw.length,
+    list,
+    total: totalOf(res),
   }
 }

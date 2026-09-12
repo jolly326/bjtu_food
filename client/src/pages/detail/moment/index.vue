@@ -100,6 +100,7 @@ import { submitFeedback } from '@/api/feedback'
 import type { Moment, MomentComment } from '@/types/moment'
 import { buildSharePayload, sharedMoment } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
+import { dishDetailUrl, publishMomentUrl } from '@/utils/routes'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -114,7 +115,7 @@ const moment = ref<Moment | null>(null)
 onShareAppMessage(() => buildSharePayload(undefined, moment.value))
 function openDishDetail(id: number) {
   if (!id) return
-  uni.navigateTo({ url: `/pages/detail/dish/index?id=${id}` })
+  uni.navigateTo({ url: dishDetailUrl(id) })
 }
 const comments = ref<MomentComment[]>([])
 const commentText = ref('')
@@ -183,7 +184,7 @@ function goRelated() {
 
 function goEdit() {
   if (!moment.value) return
-  uni.navigateTo({ url: `/pages/publish-moment/index?id=${moment.value.id}` })
+  uni.navigateTo({ url: publishMomentUrl({ id: moment.value.id }) })
 }
 
 /* 动态「有用」已由 MomentDetailCard 副本内 useMomentUseful 自管（乐观更新/失败回滚/连点锁/requireAuth 认证），
