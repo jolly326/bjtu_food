@@ -33,12 +33,6 @@ import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.history.entity.ViewLog;
 import com.bjtufood.history.mapper.ViewLogMapper;
-import com.bjtufood.moment.entity.Moment;
-import com.bjtufood.moment.entity.MomentComment;
-import com.bjtufood.moment.entity.MomentUseful;
-import com.bjtufood.moment.mapper.MomentCommentMapper;
-import com.bjtufood.moment.mapper.MomentMapper;
-import com.bjtufood.moment.mapper.MomentUsefulMapper;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
@@ -66,9 +60,6 @@ public class AuthServiceImpl implements AuthService {
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final DishMapper dishMapper;
-    private final MomentMapper momentMapper;
-    private final MomentCommentMapper momentCommentMapper;
-    private final MomentUsefulMapper momentUsefulMapper;
     private final FeedbackMapper feedbackMapper;
     private final ApplyActionMapper applyActionMapper;
     private final ViewLogMapper viewLogMapper;
@@ -390,20 +381,13 @@ public class AuthServiceImpl implements AuthService {
                 .eq(Review::getUserId, fromUserId)
                 .set(Review::getUserId, toUserId));
 
-        // review_useful / moment_useful：先清冲突后转移（moment_comment_useful 已随评论点赞下线移除）
+        // review_useful：先清冲突后转移
         reviewUsefulMapper.delete(new LambdaUpdateWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getUserId, fromUserId)
                 .inSql(ReviewUseful::getReviewId, "SELECT review_id FROM review_useful WHERE user_id = " + toUserId));
         reviewUsefulMapper.update(null, new LambdaUpdateWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getUserId, fromUserId)
                 .set(ReviewUseful::getUserId, toUserId));
-
-        momentUsefulMapper.delete(new LambdaUpdateWrapper<MomentUseful>()
-                .eq(MomentUseful::getUserId, fromUserId)
-                .inSql(MomentUseful::getMomentId, "SELECT moment_id FROM moment_useful WHERE user_id = " + toUserId));
-        momentUsefulMapper.update(null, new LambdaUpdateWrapper<MomentUseful>()
-                .eq(MomentUseful::getUserId, fromUserId)
-                .set(MomentUseful::getUserId, toUserId));
 
         // apply_action：唯一键 (entity_type,entity_id,apply_type,status)，仅 pending 态可能冲突。
         // 先查出新账号的 pending 申请，删除旧账号同 (entity_type,entity_id,apply_type) 的 pending 申请，再整体改挂。
@@ -427,12 +411,6 @@ public class AuthServiceImpl implements AuthService {
         dishMapper.update(null, new LambdaUpdateWrapper<Dish>()
                 .eq(Dish::getCreatedBy, fromUserId)
                 .set(Dish::getCreatedBy, toUserId));
-        momentMapper.update(null, new LambdaUpdateWrapper<Moment>()
-                .eq(Moment::getUserId, fromUserId)
-                .set(Moment::getUserId, toUserId));
-        momentCommentMapper.update(null, new LambdaUpdateWrapper<MomentComment>()
-                .eq(MomentComment::getUserId, fromUserId)
-                .set(MomentComment::getUserId, toUserId));
         feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
                 .eq(Feedback::getUserId, fromUserId)
                 .set(Feedback::getUserId, toUserId));

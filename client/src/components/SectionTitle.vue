@@ -8,7 +8,7 @@
 <script setup lang="ts">
 /**
  * 分区标题（全局统一组件，task-13 §0.3/§0.4）
- * moment-detail-publish-ux：全站分区/模块标题为无竖线纯文本标题，层级由字号/字重承担，
+ * 全站分区/模块标题为无竖线纯文本标题，层级由字号/字重承担，
  * 不再渲染左侧品牌色竖条（旧 bar 装饰已移除）。
  */
 withDefaults(defineProps<{

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * AuditManageView：内容审核聚合页。
- * 设计（去冗余）：顶部三张分类卡 = 唯一一级导航（带待办数），点击在本页切换下方列表，无重复 tabbar。
- * - 申请与反馈 / 评价 / 动态（UGC 申请并入"申请与反馈"卡内分段）
+ * 设计（去冗余）：顶部两张分类卡 = 唯一一级导航（带待办数），点击在本页切换下方列表，无重复 tabbar。
+ * - 申请与反馈 / 评价（UGC 申请并入"申请与反馈"卡内分段）
  * 兼容旧链接 ?tab=xxx → 定位对应分类卡。
  */
 import { ref, watch, onMounted } from 'vue'
@@ -12,8 +12,7 @@ import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import ApplyFeedbackView from '@/views/audit/ApplyFeedbackView.vue'
 import ApplyReviewView from '@/views/admin/ApplyReviewView.vue'
-import MomentManageView from '@/views/admin/MomentManageView.vue'
-import { Document, ChatDotRound, ChatLineSquare } from '@element-plus/icons-vue'
+import { Document, ChatLineSquare } from '@element-plus/icons-vue'
 
 const page = usePageStore()
 page.setPage({ breadcrumbs: [{ label: '内容审核' }] })
@@ -38,14 +37,8 @@ const sections = [
     badge: () => 0,
     icon: ChatLineSquare,
   },
-  {
-    key: 'moment',
-    label: '动态',
-    badge: () => todo.value?.pendingMomentCount ?? 0,
-    icon: ChatDotRound,
-  },
 ]
-const KEYS = ['feedback', 'review', 'moment']
+const KEYS = ['feedback', 'review']
 const route = useRoute()
 
 function resolveKey(q: unknown): string {
@@ -77,8 +70,7 @@ watch(() => route.query.tab, (t) => { activeKey.value = resolveKey(t) })
 
     <!-- 纯 v-if 切换：组件挂载时重新读取数据，切换回来必显示 -->
     <ApplyFeedbackView v-if="activeKey === 'feedback'" />
-    <ApplyReviewView v-else-if="activeKey === 'review'" initial-entity="review" />
-    <MomentManageView v-else />
+    <ApplyReviewView v-else />
   </PageContainer>
 </template>
 

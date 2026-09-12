@@ -147,9 +147,9 @@ function previewImg(images: string[], idx: number) {
   window.open(images[idx], '_blank')
 }
 
-async function copyMomentLink(momentId?: number) {
-  if (momentId == null) return
-  const link = `pages/moment/detail?id=${momentId}`
+async function copyReviewLink(reviewId?: number) {
+  if (reviewId == null) return
+  const link = `pages/review/detail?id=${reviewId}`
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link)
@@ -161,7 +161,7 @@ async function copyMomentLink(momentId?: number) {
       document.execCommand('copy')
       document.body.removeChild(ta)
     }
-    toast.success('动态链接已复制')
+    toast.success('评价标识已复制')
   } catch {
     toast.error('复制失败，请手动记录：' + link)
   }
@@ -200,7 +200,8 @@ async function copyMomentLink(momentId?: number) {
         <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeLabel[row.type] || row.type }}</span>
       </template>
       <template #cell-related="{ row }">
-        <span v-if="row.relatedType === 'moment'" class="related">动态#{{ row.relatedId }}</span>
+        <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
+        <span v-else-if="row.relatedType === 'dish'" class="related">菜品#{{ row.relatedId }}</span>
         <span v-else class="muted">—</span>
       </template>
       <template #cell-content="{ row }">
@@ -238,12 +239,16 @@ async function copyMomentLink(momentId?: number) {
         <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ detail.userNickname || ('用户#' + detail.userId) }}</span></div>
         <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
         <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ fmtTime(detail.createdAt) }}</span></div>
-        <div class="detail-row" v-if="detail.relatedType === 'moment'">
-          <span class="dl">关联动态</span>
+        <div class="detail-row" v-if="detail.relatedType === 'review'">
+          <span class="dl">关联评价</span>
           <span class="dv">
-            <span class="related">动态 #{{ detail.relatedId }}</span>
-            <button class="link" v-press @click="copyMomentLink(detail.relatedId)">复制链接</button>
+            <span class="related">评价 #{{ detail.relatedId }}</span>
+            <button class="link" v-press @click="copyReviewLink(detail.relatedId)">复制标识</button>
           </span>
+        </div>
+        <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
+          <span class="dl">关联菜品</span>
+          <span class="dv"><span class="related">菜品 #{{ detail.relatedId }}</span></span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.images && detail.images.length">

@@ -42,7 +42,7 @@
         </view>
       </view>
 
-      <!-- 2×2 功能宫格：最新活动 / 意见反馈 / 系统通知 / 我发布的（每格整格热区，角标贴右上角） -->
+      <!-- 1×3 功能宫格：最新活动 / 意见反馈 / 系统通知（每格整格热区，角标贴右上角） -->
       <view class="grid">
         <view v-for="(row, ri) in gridRows" :key="ri" class="grid-row">
           <view
@@ -74,7 +74,7 @@
     <!-- 认证弹层：游客点击用户卡或需认证功能时弹出 -->
     <AuthSheet />
 
-    <!-- 底部常驻菜单栏：首页/动态/我的 三主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示） -->
     <TabBar />
   </view>
 </template>
@@ -137,7 +137,7 @@ function onUserCardTap() {
   uni.navigateTo({ url: PATH.profile })
 }
 
-/** 2×2 功能宫格数据（顺序固定：第一行 最新活动/意见反馈，第二行 系统通知/我发布的）；每格整格热区 */
+/** 1×3 功能宫格数据（顺序固定：最新活动 / 意见反馈 / 系统通知）；每格整格热区 */
 interface GridCell {
   key: string
   icon: string
@@ -157,11 +157,7 @@ const gridRows: GridCell[][] = [
     // 最新活动：暂缓开放登记于 utils/feature-gates.ts
     { key: 'activity', icon: 'broadcast', label: '最新活动', action: gateTap('activity') },
     { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
-  ],
-  [
     { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
-    // 我发布的：暂缓开放登记于 utils/feature-gates.ts
-    { key: 'moments', icon: 'comment', label: '我发布的', action: gateTap('publishMine') },
   ],
 ]
 </script>
@@ -218,7 +214,7 @@ const gridRows: GridCell[][] = [
 .verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
-/* 2×2 功能宫格：四格等尺寸圆角白卡，格间间距均匀，每格整格热区 */
+/* 1×3 功能宫格：三格等尺寸圆角白卡，格间间距均匀，每格整格热区 */
 .grid { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
 .grid-row { display: flex; gap: var(--spacing-md); }
 .grid-cell {

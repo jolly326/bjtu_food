@@ -44,14 +44,11 @@ export interface DashboardData {
   totalCanteenCount: number
   totalStallCount: number
   totalUserCount: number
-  totalMomentCount: number
   totalApplyCount: number
   totalFeedbackCount: number
   pendingApplyCount: number
-  pendingMomentCount: number
   pendingFeedbackCount: number
   pendingApplies: DashboardTodoItem[]
-  pendingMoments: DashboardTodoItem[]
   pendingFeedbacks: DashboardTodoItem[]
   recentLogs: DashboardRecentLog[]
   hotCanteens: DashboardRankItem[]

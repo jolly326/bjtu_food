@@ -20,13 +20,6 @@
 				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
 			}
-		},
-		{
-			"path": "pages/dynamic/index",
-			"style": {
-				"navigationBarTitleText": "动态",
-				"navigationStyle": "custom"
-			}
 		}
 	],
 	"subPackages": [
@@ -37,13 +30,6 @@
 					"path": "dish/index",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "moment/index",
-					"style": {
-						"navigationBarTitleText": "动态详情",
 						"navigationStyle": "custom"
 					}
 				}
@@ -60,13 +46,6 @@
 					}
 				},
 				{
-					"path": "publish-mine/index",
-					"style": {
-						"navigationBarTitleText": "我发布的",
-						"navigationStyle": "custom"
-					}
-				},
-				{
 					"path": "profile/index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
@@ -77,18 +56,6 @@
 					"path": "feedback/index",
 					"style": {
 						"navigationBarTitleText": "意见反馈",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/publish-moment/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "发布动态",
 						"navigationStyle": "custom"
 					}
 				}

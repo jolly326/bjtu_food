@@ -36,9 +36,6 @@ public class DashboardVO {
     @Schema(description = "总学生数")
     private Long totalUserCount;
 
-    @Schema(description = "总动态数")
-    private Long totalMomentCount;
-
     @Schema(description = "总申请数")
     private Long totalApplyCount;
 
@@ -48,17 +45,11 @@ public class DashboardVO {
     @Schema(description = "待审核申请数")
     private Long pendingApplyCount;
 
-    @Schema(description = "待审核动态数")
-    private Long pendingMomentCount;
-
     @Schema(description = "待处理反馈数")
     private Long pendingFeedbackCount;
 
     @Schema(description = "待审核申请明细（最近 5 条）")
     private List<TodoItem> pendingApplies;
-
-    @Schema(description = "待审核动态明细（最近 5 条）")
-    private List<TodoItem> pendingMoments;
 
     @Schema(description = "待处理反馈明细（最近 5 条）")
     private List<TodoItem> pendingFeedbacks;

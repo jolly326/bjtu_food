@@ -7,7 +7,7 @@ export interface FeedbackSubmit {
   content: string
   /** 附图（选填，已上传的绝对URL数组） */
   images?: string[]
-  /** 反馈对象细分类型（dish/stall/canteen，未选实体可不传；type=report 举报时可为 'moment' 等） */
+  /** 反馈对象细分类型（error 信息纠错为 'dish'；type=report 举报为 'review'（评价）；未选实体可不传） */
   relatedType?: string
   /** 关联对象 ID（用户未选实体可不传；type=report 举报时按需填） */
   relatedId?: number

@@ -1,5 +1,5 @@
 <template>
-  <!-- 底部菜单栏：区分「首页 / 动态 / 我的」三主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
+  <!-- 底部菜单栏：区分「首页 / 我的」两主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
   <view v-if="tabVisible" class="tab-bar">
     <view
       v-for="item in tabs"
@@ -30,7 +30,6 @@ import { TAB_URL_BY_KEY } from '@/utils/routes'
 
 const tabs = [
   { key: 'home', label: '首页', icon: 'home', url: TAB_URL_BY_KEY.home },
-  { key: 'dynamic', label: '动态', icon: 'comment', url: TAB_URL_BY_KEY.dynamic },
   { key: 'profile', label: '我的', icon: 'profile', url: TAB_URL_BY_KEY.profile },
 ] as const
 

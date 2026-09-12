@@ -2,7 +2,7 @@ import type { AuditVO, Review } from '@/types'
 import { del, get, post, put } from './http'
 import { pageRecords, auditToLegacy, reviewToLegacy } from './adapter'
 
-/** 审核类型：菜品 / 档口 / 食堂（动态审核走 /admin/moments，不在此列） */
+/** 审核类型：菜品 / 档口 / 食堂 */
 export type AuditType = 'dish' | 'stall' | 'canteen'
 
 /** 待审核 / 指定状态列表（分页） */

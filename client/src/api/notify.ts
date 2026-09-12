@@ -10,7 +10,7 @@ import { get, put } from './http'
 import { listOf, type PageResult, type RawRow } from './shared'
 
 /** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用） */
-type NotificationType = 'moment_audit' | 'dish_audit' | 'comment' | 'useful'
+type NotificationType = 'dish_audit'
 
 export interface Notification {
   id: number
@@ -18,7 +18,7 @@ export interface Notification {
   type: NotificationType
   title: string
   content: string
-  /** 关联对象 ID（按 type 解释：动态/菜品 ID） */
+  /** 关联对象 ID（按 type 解释：菜品 ID） */
   relatedId?: number | null
   /** 是否已读：0=未读 1=已读 */
   isRead: number
@@ -29,7 +29,7 @@ function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    type: (raw.type as NotificationType) || 'moment_audit',
+    type: (raw.type as NotificationType) || 'dish_audit',
     title: raw.title || '',
     content: raw.content || '',
     relatedId: raw.relatedId ?? null,

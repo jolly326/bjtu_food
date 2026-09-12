@@ -1,10 +1,10 @@
 import { ref } from 'vue'
 import { ROUTE_KEY_BY_URL } from '@/utils/routes'
 
-/** 当前主区 tab key（home/dynamic/profile），空串表示处于二级页 */
+/** 当前主区 tab key（home/profile），空串表示处于二级页 */
 export const activeTab = ref<string>('home')
 /**
- * 自定义 TabBar 是否可见（仅三主根页可见，navigateTo 二级页隐藏）。
+ * 自定义 TabBar 是否可见（仅两主根页可见，navigateTo 二级页隐藏）。
  * 默认 true：首页是小程序入口页，启动即应显示底部菜单栏；
  * 二级页（navigateTo）由拦截器按目标 URL 显式隐藏，主区切换由各自 onShow 锚定。
  */

@@ -6,7 +6,7 @@ import { pageRecords } from './adapter'
  * 列表 GET /admin/feedbacks（status/type 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
  * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, content, contact, status, reply, createdAt, handledAt, relatedType, relatedId }。
- * relatedType/relatedId 用于举报类反馈（report）关联被举报动态（moment）。
+ * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
  */
 
 /** 安全解析反馈附图：兼容 JSON 数组字符串 / 逗号分隔字符串 / 数组 / 空值，解析失败兜底空数组 */

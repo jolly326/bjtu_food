@@ -21,7 +21,7 @@
 ### 1.1 端
 | 端 | 目录 | 技术栈 | 说明 |
 |---|---|---|---|
-| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（15 页） |
+| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页） |
 | 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
 | 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus + ECharts | 仅 ADMIN |
 
@@ -31,7 +31,6 @@ com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security
 ├── dish/        # 菜品：列表/详情/发布/评分聚合/统计
 ├── review/      # 评价 + 评分聚合事件
-├── moment/      # 动态 + 评论
 ├── canteen/     # 食堂/档口
 ├── content/     # category 品类 / broadcast 广播
 ├── activity/    # 最新活动（入口展示，点击提示「功能暂未实现」）
@@ -131,7 +130,7 @@ npm run dev   # http://localhost:5173
 | `theme` | 深色模式（手动/跟随系统） |
 | `location` | 定位/距离计算 |
 | `notify` | 未读红点（`reset` 供登出联动） |
-| `review`/`moment` | 评价/动态状态 |
+| `review` | 评价状态 |
 
 ### 5.1 登录态一致性
 - `forceLogout` 会联动 `dishStore.resetUserScopedData` + `notifyStore.reset`，避免换用户串数据
@@ -142,7 +141,7 @@ npm run dev   # http://localhost:5173
 2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑猜你喜欢
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
-5. **activity 接入**：2026-08-19 首页万能区与「我的」页活动入口均恢复展示，但点击提示「功能暂未实现」（不跳转活动页，独立页与 `/activities` 接口保留待开放）
+5. **activity 接入**：活动入口位于「我的」页功能宫格，点击提示「功能暂未实现」（不跳转活动页，独立页与 `/activities` 接口保留待开放）
 
 ## 7. 已知技术债（见 api-design.md §9）
 - 4031 非标码需 spec 豁免登记

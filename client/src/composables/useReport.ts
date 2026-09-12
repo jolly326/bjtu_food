@@ -8,9 +8,9 @@ import { ref, type Ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
 
 export interface UseReportOptions {
-  /** 举报对象类型：'moment' | 'dish' | 'review' 等，随 submitFeedback.relatedType 使用 */
-  type: 'moment' | 'dish' | 'stall' | 'canteen' | 'review' | string
-  /** 举报弹窗标题，如「举报动态」 */
+  /** 举报对象类型：现网为 'review'（菜品详情的评价），随 submitFeedback.relatedType 使用 */
+  type: 'review' | string
+  /** 举报弹窗标题，如「举报评价」 */
   title?: string
   /** 举报弹窗占位提示 */
   placeholder?: string

@@ -15,9 +15,8 @@ public interface FeedbackConst {
     String TYPE_OTHER = "other";
     String TYPE_REPORT = "report";
 
-    /** 举报关联类型 */
-    String RELATED_MOMENT = "moment";
-    String RELATED_MOMENT_COMMENT = "moment_comment";
+    /** 举报关联类型（举报对象：菜品评价） */
+    String RELATED_REVIEW = "review";
 
     /** 处理状态：待处理 / 已处理 */
     String STATUS_PENDING = "pending";

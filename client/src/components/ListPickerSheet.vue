@@ -9,7 +9,7 @@
        - 默认槽渲染于滚动列表之后、底部按钮区之前（承载「其他」自定义输入等尾部内容）；
        - 具名 #empty 槽渲染于列表区内当无任何项时（承载「无关键词引导 / 无结果去补录 CTA」，由父级条件供内容），
          未提供时回退到 searchable 的「输入关键词搜索」内置提示（发布页等旧行为不变）。
-       注意：不得引用 SearchBar（其位于分包 pages/publish-moment，主包不可反向依赖分包）。 -->
+       注意：不得反向依赖其它分包组件。 -->
   <BaseSheet
     :visible="open"
     z-token="--z-sheet"
@@ -161,18 +161,18 @@ watch(
 .lp-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .lp-tail { flex-shrink: 0; }
 
-/* 圆形单选指示（moment-detail-publish-ux）：每行常驻，未选浅灰空心圆 / 选中主色实心带内白点 */
+/* 圆形单选指示：每行常驻，未选浅灰空心圆 / 选中主色实心带内白点 */
 .lp-radio { width: 36rpx; height: 36rpx; flex-shrink: 0; box-sizing: border-box; border-radius: var(--radius-circle); border: 3rpx solid var(--text-tertiary); background: var(--bg-card); transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out); }
 .lp-radio.on { border-color: var(--color-primary); background: var(--color-primary); box-shadow: inset 0 0 0 6rpx var(--bg-card); }
 
 /* ===== 行：card 默认（发布页） ===== */
 .lp-item { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 88rpx; padding: var(--spacing-sm); border-radius: var(--radius-card); transition: background var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-/* moment-detail-publish-ux：card 行间以轻微间距区隔，不拥挤 */
+/* card 行间以轻微间距区隔，不拥挤 */
 .lp-item { margin-bottom: var(--spacing-2xs); }
 .lp-item.on { background: var(--bg-soft); }
 .lp-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 .lp-item-name { font-size: var(--font-body); color: var(--text-primary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* moment-detail-publish-ux：次要说明（如「关联菜品」）再降档弱化，突出主名 */
+/* 次要说明（如「关联菜品」）再降档弱化，突出主名 */
 .lp-item-sub { font-size: var(--font-tiny); color: var(--text-tertiary); }
 .lp-lead--icon { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lp-lead--empty { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }

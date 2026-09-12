@@ -32,13 +32,13 @@
 
 ## 高层架构
 ### 三端定位与数据链路（spec §0.4，强制）
-- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品贡献、菜品评价、产品反馈）。**社区/动态（moment）板块已于 2026-09-12 下线删除**。
+- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品贡献、菜品评价、产品反馈）。**社区板块（原动态信息流）已于 2026-09-12 下线删除**。
 - **后端 `server/` = 数据服务**：唯一存储与业务规则；小程序与 Web **共用同一套 API 契约**（`/` 用户接口供小程序，`/admin/**` 供 Web）。
 - **Web `web/` = 辅助管理工具（非用户端）**：只经 `/admin/**` 读取/管理后端数据（CRUD、UGC 审核、看板、操作日志），不产生业务数据。
 - 数据流向：小程序产生数据 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提（**活动模块除外**：后台录入、小程序消费、web-view 跳公众号文章）。
 
 ### 后端分层（包结构 `com.bjtufood.*`）
-每业务模块（auth/dish/review/canteen/content/activity/apply/feedback/notify/history/upload/common；**`moment` 包已于 2026-09-12 随动态板块下线删除**）严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁止跨层调用**（Controller 不得直调 Mapper）。ORM 用 MyBatis-Plus（`BaseMapper` + `resources/mapper/*.xml`）。API 文档 SpringDoc OpenAPI（非 Knife4j）。统一响应由 `GlobalExceptionHandler` 包装，Controller 不得裸抛。写操作 Service 加 `@Transactional`；评分/点赞计数走 Spring 事件异步维护（`@Async` AFTER_COMMIT），禁止主流程内联重算。
+每业务模块（auth/dish/review/canteen/content/activity/apply/feedback/notify/history/upload/common）严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁止跨层调用**（Controller 不得直调 Mapper）。ORM 用 MyBatis-Plus（`BaseMapper` + `resources/mapper/*.xml`）。API 文档 SpringDoc OpenAPI（非 Knife4j）。统一响应由 `GlobalExceptionHandler` 包装，Controller 不得裸抛。写操作 Service 加 `@Transactional`；评分/点赞计数走 Spring 事件异步维护（`@Async` AFTER_COMMIT），禁止主流程内联重算。
 
 ### 认证与鉴权（spec §5.y，强制）
 - **废除账号密码/注册**：小程序无登录页/登录按钮/密码体系；微信打开即 `POST /auth/wechat-login`（`code2Session`）静默建号 → **游客态 `verified=false`**（默认已登录）。
@@ -55,7 +55,7 @@
 - 状态枚举：Dish `status` on/off；Canteen/Stall open/closed；Activity enabled/disabled。评价可见性 `isHidden`(0/1) 非 `isDeleted`。
 
 ### 数据库（14 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
-- 表（14 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / activity / notification / user_feedback / apply_action / view_log / operation_log（broadcast 表保留但运营广播方案已废弃；**moment / moment_comment / moment_useful / moment_comment_useful 四表已于 2026-09-12 从初始化脚本移除**）。
+- 表（14 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / activity / notification / user_feedback / apply_action / view_log / operation_log（broadcast 表保留但运营广播方案已废弃）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
 - UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；学生编辑**复用原记录**、`reject_reason` 清空；下架/变更申请落独立 `apply` 表。
 
@@ -79,8 +79,8 @@
 - **权威口径（2026-09-12 校正）**：`docs/project_spec.md` 为唯一权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
 - **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品 + 菜品贡献）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
 - **UGC 全谱系 = 评价 + 反馈 / 贡献**（③ + ④），是菜品信息迭代与程序优化的输入源；**反馈类 UGC 与评价同等重要，不得弱化**——它是实时发现菜品信息错误与程序问题、驱动信息更新与优化的主通道。本次下线的是「社区 / 动态」社交广场形态，**不是下线 UGC**。
-- **社区 / 动态（moment）板块已下线并全量删除（2026-09-12）**：小程序四页（dynamic / detail-moment / publish-moment / me-publish-mine）、`api/moment.ts`、`types/moment.ts`、`MomentImageGrid`、`useMomentUseful`、后端 `moment` 包与 `/moments*`·`/admin/moments*` 接口、Web `MomentManageView`、库表 `moment*` 全部删除；恢复靠 git 历史。评价不再「同步到动态」（`shareToMoment` 已删）。
-- TabBar **固定 home / mine 两页**（原 dynamic 移除）；「我的」页宫格 **1×3**（最新活动 / 意见反馈 / 系统通知），「我发布的」已删。
+- **社区板块（原动态信息流）已下线并全量删除干净（2026-09-12）**：小程序四个页面与发布流程分包、对应 api / types / 组件 / composable、后端模块与两端接口、Web 管理页、相关库表**全部删除，代码与文档均不留残留字样**；恢复靠 git 历史。评价不再「同步到社区」。
+- TabBar **固定 home / mine 两页**；「我的」页宫格 **1×3**（最新活动 / 意见反馈 / 系统通知），「我发布的」已删。
 - UGC 唯一发布路径 = 菜品详情底栏「写评价」；无独立发布页、无「关联对象」表单。
 - 收藏功能全量移除（无入口/字段/图标）；喜欢语义仅 `ic-heart`。
 - 食堂/档口降级为菜品属性（`dish.canteen`/`dish.stall`），无独立路由。

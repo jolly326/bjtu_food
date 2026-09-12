@@ -33,7 +33,7 @@ import { uploadImage } from '@/api/upload'
 
 /**
  * ImageUploader —— 图片上传网格（task-14 W2/W5 / task-13 T11）
- * 复用：publish-moment（发布动态）/ 评论栏（compact）
+ * 复用：意见反馈表单（多图）
  * 受控：v-model 绑定 string[]（已上传的相对/绝对路径）。
  */
 const props = withDefaults(defineProps<{
@@ -144,7 +144,7 @@ function chooseImage() {
 }
 .img-counter { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); color: var(--text-tertiary); }
 /* compact：单元格与输入框同高（72rpx）、横向单行，置于评论栏同行左侧；
-   moment-detail-publish-ux：圆角与发送钮统一（--radius-btn），垂直居中对齐 */
+   圆角与按钮统一（--radius-btn），垂直居中对齐 */
 .img-uploader.compact { width: auto; flex-shrink: 0; }
 .img-uploader.compact .img-grid { flex-wrap: nowrap; gap: var(--spacing-xs); }
 .img-uploader.compact .img-cell { width: 72rpx; height: 72rpx; border-radius: var(--radius-btn); }

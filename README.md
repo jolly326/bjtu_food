@@ -49,8 +49,7 @@ bjtu_food/
 │   │   ├── canteen/           # 食堂/档口
 │   │   ├── dish/              # 菜品（评分/推荐/热度）
 │   │   ├── review/            # 评价（含「有用」标记）
-│   │   ├── moment/            # 动态（含评论）
-│   │   ├── content/           # 内容审核（菜品/档口/动态/反馈）
+│   │   ├── content/           # 内容审核（菜品/档口/食堂）
 │   │   ├── activity/          # 活动
 │   │   ├── feedback/          # 用户反馈
 │   │   ├── apply/             # 学生申请
@@ -73,17 +72,15 @@ bjtu_food/
 | 食堂档口 | 食堂列表（定位距离排序）、档口展示 | ✅ |
 | 菜品浏览 | 搜索、个性化推荐（猜你喜欢/热门）、新品/促销、详情、热门排行 | ✅ |
 | 就餐评价 | 写评价（星级+文字+图片）、列表、过滤、「有用」标记 | ✅ |
-| 动态 | 发布动态（可关联菜品/档口）、评论（回复/举报）、动态点赞 | ✅ |
-| 首页广播条 | 取动态前 10 条轮播展示 | ✅ |
-| 活动卡片 | 首页万能区 + 「我的」页入口展示最新活动，点击提示「功能暂未实现」（列表页与 web-view 链路已就绪，待后续开放） | ⏸️ |
-| 内容审核 | 学生提交内容（菜品/档口/动态/反馈）后台审核流 | ✅ |
-| 消息通知 | 动态/菜品审核、评论、点赞通知 + 未读红点 | ✅ |
+| 活动卡片 | 「我的」页宫格入口展示最新活动，点击提示「功能暂未实现」（列表页与 web-view 链路已就绪，待后续开放） | ⏸️ |
+| 内容审核 | 学生提交内容（菜品/档口/食堂）后台审核流 | ✅ |
+| 消息通知 | 菜品审核通知 + 未读红点 | ✅ |
 | 管理后台 | 信息管理 / 内容审核 / 用户与系统 / 数据看板 | ✅ |
 | 图片上传 | 小程序走微信云存储（cloud://，不受域名白名单限制）；H5/后台走后端上传 | ✅ |
 
 ---
 
-## 数据库（18 张表）
+## 数据库（14 张表）
 
 | 表 | 说明 |
 |----|------|
@@ -92,9 +89,8 @@ bjtu_food/
 | canteen / stall / dish | 食堂 / 档口 / 菜品（菜品含审核流、折扣、辣度/分量/供应时段/地域等扩展字段） |
 | category | 菜品分类（find 宫格） |
 | review / review_useful | 评价 / 评价「有用」标记 |
-| moment / moment_comment / moment_useful | 动态 / 动态评论 / 动态点赞 |
-| broadcast | 广播条（历史：运营广播方案已废弃，首页广播由动态驱动，表保留） |
-| activity | 最新活动（首页万能区） |
+| broadcast | 广播条（历史：运营广播方案已废弃，表保留） |
+| activity | 最新活动（「我的」页宫格入口） |
 | notification | 消息通知 |
 | user_feedback / apply_action | 用户反馈 / 学生申请 |
 | view_log | 浏览足迹（个性化推荐用） |
@@ -114,7 +110,7 @@ JDK 21+、Maven 3.8+、MySQL 8.0+、Node.js 18+、pnpm、微信开发者工具
 ```bash
 # 先建表（自包含建库选库，无需预先 CREATE DATABASE）
 mysql -u root -p < server/src/main/resources/db/schema.sql
-# 再灌种子数据（演示用户/菜品/动态/通知等）
+# 再灌种子数据（演示用户/菜品/评价/通知等）
 mysql -u root -p < server/src/main/resources/db/seed_data.sql
 ```
 
@@ -164,7 +160,7 @@ cd client && npm install && npm run dev:mp-weixin
 | 文档 | 说明 |
 |------|------|
 | [docs/project_spec.md](docs/project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
-| [docs/database.md](docs/database.md) | 数据库设计（18 张表 + ER 图，与 schema.sql 一致） |
+| [docs/database.md](docs/database.md) | 数据库设计（14 张表 + ER 图，与 schema.sql 一致） |
 | [docs/api-design.md](docs/api-design.md) | 功能/接口设计总览：全部接口契约、认证模型、错误码、分页约定 |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
 | [docs/architecture.md](docs/architecture.md) | 架构设计 / 部署说明（微信云托管）/ 本地快速上手 / 前端状态管理 |

@@ -19,7 +19,7 @@
 ### 1.2 认证模型（微信登录 + 邮箱认证）
 | 概念 | 说明 |
 |---|---|
-| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（动态/评价等） |
+| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（评价 / 菜品贡献等 UGC） |
 | 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后 `verified=1`，解锁写操作 |
 | 角色 | `student`（默认）/ `admin` / `super_admin` |
 | 状态 | `active` / `disabled` / `deleted` |
@@ -72,13 +72,6 @@
 | GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一）/page/pageSize/sort/isWithImage | `IPage<ReviewVO>` | 评价列表 |
 | GET | `/dishes/{dishId}/reviews` | page/pageSize/sort | `IPage<ReviewVO>` | 菜品评价 |
 
-### 2.4 动态（MomentController）
-| 方法 | 路径 | 参数 | 返回 | 说明 |
-|---|---|---|---|---|
-| GET | `/moments` | `tab`/`dishId`/`stallId`/`canteenId`/page/pageSize | `IPage<MomentVO>` | 广场（仅 approved+status0） |
-| GET | `/moments/{id}` | `id` | `MomentDetailVO` | 详情（作者可见 rejectReason） |
-| GET | `/moments/{id}/comments` | page/pageSize | `IPage<评论>` | 评论列表（扁平化） |
-
 ### 2.5 内容/活动/品类（公开）
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -121,17 +114,6 @@
 | POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票） |
 | GET | `/my/reviews` | page/pageSize | 我的评价 |
 
-### 3.4 动态（邮箱认证）
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| POST | `/moments` | 发动态（pending；含评分字段则走评价逻辑） |
-| PUT | `/my/moments/{id}` | 编辑动态（评分回填） |
-| DELETE | `/my/moments/{id}` | 删动态（级联清理） |
-| GET | `/my/moments` | 我的动态（auditStatus 过滤） |
-| POST | `/moments/{id}/useful` | 有用切换 |
-| POST | `/moments/{id}/comments` | 发评论（一层回复） |
-| DELETE | `/my/moments/{id}/comments/{cid}` | 删评论（仅作者） |
-
 ### 3.5 通知（登录 student）
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -147,7 +129,7 @@
 | GET | `/feedback/my` | 登录 | 我的反馈（含管理员回复） |
 | POST | `/my/apply` | 邮箱认证 | 提交贡献申请（重复 pending 返 409） |
 | GET | `/my/apply` | 登录 | 我的申请 |
-| GET | `/my/submissions` | 登录 | 我的提交聚合（apply+moment） |
+| GET | `/my/submissions` | 登录 | 我的提交聚合（实体贡献申请） |
 
 ---
 
@@ -194,7 +176,6 @@
 | GET | `/admin/reviews` | 评价审核列表（isHidden/userId 过滤） |
 | PUT | `/admin/reviews/{id}/hide` | 隐藏评价 |
 | DELETE | `/admin/reviews/{id}` | 删评价（清理 useful 孤儿） |
-| GET/POST | `/admin/moments*` | 动态审核（approve/reject/hide/delete） |
 | GET/POST | `/admin/apply*` | 贡献审核（approve/reject） |
 | GET | `/admin/feedbacks*` | 反馈审核（回复） |
 
@@ -245,7 +226,7 @@ Dish/Stall/Canteen：学生写走 apply_action 或直接发布，均需审核
 
 | 项 | spec 描述 | 实际代码 | 建议 |
 |---|---|---|---|
-| 页面数量 | 19 页 | 15 页（pages.json） | spec 待更新 |
+| 页面数量 | 9 页 | 9 页（pages.json：主包 3 + 分包 3 root / 6 页） | 已对齐（2026-09-12） |
 | 403 错误码 | 禁止非标码 | 使用 4031 细分 | 在 spec 登记豁免 |
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
 

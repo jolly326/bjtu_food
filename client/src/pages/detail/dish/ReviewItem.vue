@@ -116,7 +116,7 @@ const usefulActive = ref(!!props.review.useful)
 // pending 锁防连点（P0 防重复请求 / 计数漂移）
 const pendingUseful = ref(false)
 
-/** 评价「有用」：组件内乐观更新 + 失败回滚 + 连点锁（与 CommentItem / MomentCard 同模式） */
+/** 评价「有用」：组件内乐观更新 + 失败回滚 + 连点锁（与点赞类组件同模式） */
 function onLike() {
   if (props.hideUseful) return
   if (!userStore.requireAuth(() => onLike())) return
@@ -178,7 +178,7 @@ function onThumbError(idx: number) {
 </script>
 
 <style scoped>
-/* ===== 评价项（口碑卡片，与 MomentCard 动态卡片统一视觉：独立卡片 + 圆角 + 阴影）。
+/* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
    三处评价区共用（菜品详情 / 全部评价 / 我的评价），打磨一处即统一全部。
    与动态卡片的差异仅：无评论/回复入口（口碑层扁平，讨论沉淀到动态评论区）。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */

@@ -29,9 +29,9 @@ public class OperationLogAdminController {
     public Result<PageResult<OperationLogVO>> list(
             @Parameter(description = "操作管理员ID")
             @RequestParam(required = false) Long adminId,
-            @Parameter(description = "动作标识：audit_approve/audit_reject/moment_hide/moment_delete/feedback_handle")
+            @Parameter(description = "动作标识：audit_approve/audit_reject/review_hide/feedback_handle")
             @RequestParam(required = false) String action,
-            @Parameter(description = "操作对象类型：moment/dish/stall/canteen/feedback/review")
+            @Parameter(description = "操作对象类型：dish/stall/canteen/feedback/review")
             @RequestParam(required = false) String targetType,
             @Parameter(description = "起始时间 yyyy-MM-dd HH:mm:ss")
             @RequestParam(required = false) String startAt,

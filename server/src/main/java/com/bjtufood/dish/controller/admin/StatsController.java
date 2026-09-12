@@ -18,8 +18,6 @@ import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
-import com.bjtufood.moment.entity.Moment;
-import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,7 +50,6 @@ public class StatsController {
     private final CanteenMapper canteenMapper;
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
-    private final MomentMapper momentMapper;
     private final ApplyActionMapper applyActionMapper;
     private final FeedbackMapper feedbackMapper;
     private final OperationLogMapper operationLogMapper;
@@ -115,16 +112,13 @@ public class StatsController {
         try { vo.setTotalCanteenCount(canteenMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalCanteenCount(0L); }
         try { vo.setTotalStallCount(stallMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalStallCount(0L); }
         try { vo.setTotalUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getRole, "student"))); } catch (Exception ignored) { vo.setTotalUserCount(0L); }
-        try { vo.setTotalMomentCount(momentMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalMomentCount(0L); }
         try { vo.setTotalApplyCount(applyActionMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalApplyCount(0L); }
         try { vo.setTotalFeedbackCount(feedbackMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalFeedbackCount(0L); }
 
         try { vo.setPendingApplyCount(applyActionMapper.selectCount(new LambdaQueryWrapper<ApplyAction>().eq(ApplyAction::getStatus, "pending"))); } catch (Exception ignored) { vo.setPendingApplyCount(0L); }
-        try { vo.setPendingMomentCount(momentMapper.selectCount(new LambdaQueryWrapper<Moment>().eq(Moment::getAuditStatus, "pending"))); } catch (Exception ignored) { vo.setPendingMomentCount(0L); }
         try { vo.setPendingFeedbackCount(feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>().eq(Feedback::getStatus, "pending"))); } catch (Exception ignored) { vo.setPendingFeedbackCount(0L); }
 
         try { vo.setPendingApplies(buildPendingApplies()); } catch (Exception ignored) { vo.setPendingApplies(List.of()); }
-        try { vo.setPendingMoments(buildPendingMoments()); } catch (Exception ignored) { vo.setPendingMoments(List.of()); }
         try { vo.setPendingFeedbacks(buildPendingFeedbacks()); } catch (Exception ignored) { vo.setPendingFeedbacks(List.of()); }
         try { vo.setRecentLogs(buildRecentLogs()); } catch (Exception ignored) { vo.setRecentLogs(List.of()); }
     }
@@ -142,21 +136,6 @@ public class StatsController {
                     item.setType(a.getEntityType());
                     item.setTitle(entityLabel(a.getEntityType()) + "申请");
                     item.setTime(a.getCreatedAt() == null ? "" : a.getCreatedAt().format(DT_FMT));
-                    return item;
-                }).toList();
-    }
-
-    private List<DashboardVO.TodoItem> buildPendingMoments() {
-        return momentMapper.selectList(new LambdaQueryWrapper<Moment>()
-                        .eq(Moment::getAuditStatus, "pending")
-                        .orderByDesc(Moment::getCreatedAt)
-                        .last("LIMIT 5"))
-                .stream().map(m -> {
-                    DashboardVO.TodoItem item = new DashboardVO.TodoItem();
-                    item.setId(m.getId());
-                    item.setType("moment");
-                    item.setTitle(abbrev(m.getContent(), 24));
-                    item.setTime(m.getCreatedAt() == null ? "" : m.getCreatedAt().format(DT_FMT));
                     return item;
                 }).toList();
     }

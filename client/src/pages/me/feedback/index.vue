@@ -59,7 +59,7 @@
       </view>
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
-           外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast（仿 publish-moment） -->
+           外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
       <view class="submit-area" @tap="onSubmitAreaTap">
         <AppButton
           :text="submitting ? '提交中…' : '提交反馈'"

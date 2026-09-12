@@ -14,7 +14,6 @@ import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
-import com.bjtufood.moment.service.MomentService;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
@@ -47,7 +46,6 @@ public class ReviewServiceImpl implements ReviewService {
     private final DishMapper dishMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    private final MomentService momentService;
     private final SensitiveFilter sensitiveFilter;
 
     @Override
@@ -181,12 +179,6 @@ public class ReviewServiceImpl implements ReviewService {
             reviewMapper.insert(review);
         } catch (DuplicateKeyException e) {
             throw new BusinessException("您已评价过该菜品");
-        }
-        // 评价与动态打通：勾选"同步到动态"且评价有正文时，生成 approved 动态直接上广场（评价可见即动态可见）
-        boolean shareToMoment = Boolean.TRUE.equals(req.getShareToMoment());
-        if (shareToMoment && StringUtils.hasText(filteredContent)) {
-            List<String> images = req.getImages() == null ? List.of() : req.getImages();
-            momentService.publishFromReview(userId, filteredContent, images, req.getDishId());
         }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();

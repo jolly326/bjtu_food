@@ -35,7 +35,7 @@ import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getNotifications, readNotification, type Notification } from '@/api/notify'
 import { backToHome } from '@/utils/nav'
-import { dishDetailUrl, momentDetailUrl } from '@/utils/routes'
+import { dishDetailUrl } from '@/utils/routes'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -107,12 +107,9 @@ async function onTap(n: Notification) {
       await readNotification(n.id)
     } catch { /* 失败静默，下轮刷新对齐 */ }
   }
-  if (n.type === 'moment_audit' && n.relatedId) {
-    uni.navigateTo({ url: momentDetailUrl(n.relatedId) })
-  } else if (n.type === 'dish_audit' && n.relatedId) {
+  if (n.type === 'dish_audit' && n.relatedId) {
     uni.navigateTo({ url: dishDetailUrl(n.relatedId) })
   }
-  // comment / useful 无独立目标页，仅标已读
 }
 
 // 进入/返回本页即加载（游客亦可进入；无个人数据时展示空态）

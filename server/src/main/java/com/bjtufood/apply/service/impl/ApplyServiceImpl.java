@@ -21,8 +21,6 @@ import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
-import com.bjtufood.moment.dto.MomentVO;
-import com.bjtufood.moment.service.MomentService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +43,6 @@ public class ApplyServiceImpl implements ApplyService {
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
-    private final MomentService momentService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -116,22 +113,6 @@ public class ApplyServiceImpl implements ApplyService {
             result.add(vo);
         }
 
-        // 动态标签
-        List<MomentVO> moments = momentService.myMoments(applicantId, null);
-        for (MomentVO m : moments) {
-            SubmissionVO vo = new SubmissionVO();
-            vo.setType("moment");
-            vo.setId(m.getId());
-            vo.setEntityType(null);
-            vo.setAction(null);
-            String content = m.getContent();
-            vo.setTitle(StringUtils.hasText(content)
-                    ? (content.length() > 30 ? content.substring(0, 30) + "…" : content)
-                    : "动态");
-            vo.setStatus(m.getAuditStatus());
-            vo.setCreatedAt(m.getCreatedAt());
-            result.add(vo);
-        }
         return result;
     }
 

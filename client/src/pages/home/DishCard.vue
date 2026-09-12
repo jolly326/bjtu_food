@@ -55,7 +55,7 @@ const props = defineProps<{
 }>()
 
 // 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
-// 父组件 @click 编译为原生 bindclick，emit 参数丢失（同 MomentCard 坑）。
+// 父组件 @click 编译为原生 bindclick，emit 参数丢失。
 const emit = defineEmits<{
   select: [dish: Dish]
 }>()

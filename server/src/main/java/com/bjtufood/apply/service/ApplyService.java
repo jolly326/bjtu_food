@@ -25,7 +25,7 @@ public interface ApplyService {
     List<ApplyVO> myApplies(Long applicantId, String status);
 
     /**
-     * 「我的提交」聚合（STU，GET /my/submissions）：apply + moment 两标签。
+     * 「我的提交」聚合（STU，GET /my/submissions）：实体贡献申请。
      */
     List<SubmissionVO> mySubmissions(Long applicantId);
 

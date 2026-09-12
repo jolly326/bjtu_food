@@ -23,8 +23,8 @@ public class ViewLog {
     @Schema(description = "浏览者用户ID")
     private Long userId;
 
-    /** 浏览对象类型：dish / stall / canteen / moment */
-    @Schema(description = "浏览对象类型：dish/stall/canteen/moment")
+    /** 浏览对象类型：dish / stall / canteen */
+    @Schema(description = "浏览对象类型：dish/stall/canteen")
     private String targetType;
 
     @Schema(description = "浏览对象ID")

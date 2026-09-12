@@ -11,15 +11,15 @@
 | 主键 | 业务表统一 `BIGINT AUTO_INCREMENT`；`email_verification_code` 等同样自增主键 |
 | 时间戳 | `created_at` 默认 `CURRENT_TIMESTAMP`；`updated_at` 默认 `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`（由 `MybatisMetaObjectHandler` 统一写入） |
 | 金额 | 以「分」为单位存储 `INT`（如 12.00 元 = `1200`），避免浮点误差 |
-| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`）；`review.images` / `moment.images` 为逗号分隔或 JSON，按表定义 |
-| 审核流 | UGC 实体（`dish`/`stall`/`canteen`/`moment`/`apply_action`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
+| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`）；`review.images` 为 JSON 数组字符串，按表定义 |
+| 审核流 | UGC 实体（`dish`/`stall`/`canteen`/`apply_action`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
 | 角色 | `user.role`：`student`（默认）/ `admin` / `super_admin`；`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 18 张业务表）
+## 2. 表清单（共 14 张业务表）
 
-`user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `category` · `broadcast` · `activity` · `user_feedback` · `apply_action` · `moment` · `moment_useful` · `moment_comment` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `broadcast` · `activity` · `user_feedback` · `apply_action` · `email_verification_code` · `view_log` · `operation_log`
 
 > 说明：`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除（见 `task-12.12`）。
 
@@ -148,7 +148,7 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 通知ID |
 | user_id | BIGINT | 否 | 0 | 接收用户ID |
-| type | VARCHAR(32) | 否 | '' | moment_audit/dish_audit/comment/useful/activity |
+| type | VARCHAR(32) | 否 | '' | dish_audit |
 | title | VARCHAR(128) | 否 | '' | 通知标题 |
 | content | VARCHAR(512) | 可 | NULL | 正文 |
 | related_id | BIGINT | 可 | NULL | 关联对象ID（按 type 解释） |
@@ -209,8 +209,8 @@
 | images | VARCHAR(2048) | 可 | NULL | 附图 JSON |
 | status | VARCHAR(32) | 否 | 'pending' | pending/handled |
 | reply | VARCHAR(1024) | 可 | NULL | 管理员回复 |
-| related_type | VARCHAR(32) | 可 | NULL | 关联类型（举报：moment） |
-| related_id | BIGINT | 可 | NULL | 关联对象ID（举报：动态ID） |
+| related_type | VARCHAR(32) | 可 | NULL | 关联类型（举报：review；信息纠错：dish） |
+| related_id | BIGINT | 可 | NULL | 关联对象ID（举报：评价ID；信息纠错：菜品ID） |
 | handled_at | DATETIME | 可 | NULL | 处理时间 |
 | handler_id | BIGINT | 可 | NULL | 处理人管理员ID |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
@@ -234,49 +234,7 @@
 
 **索引/约束**：PK(`id`)；UNIQUE `uk_entity_applytype_pending`(`entity_type`,`entity_id`,`apply_type`,`status`)；KEY `idx_applicant`(`applicant_id`)；KEY `idx_status`(`status`)；KEY `idx_entity`(`entity_type`,`entity_id`)。
 
-### 3.13 moment（动态）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 动态ID |
-| user_id | BIGINT | 否 | 0 | 发布者用户ID |
-| content | VARCHAR(1000) | 否 | '' | 正文 |
-| images | VARCHAR(1024) | 可 | NULL | 图片URL列表（逗号分隔，≤9张） |
-| related_type | VARCHAR(32) | 否 | 'none' | dish/stall/none |
-| related_id | BIGINT | 可 | NULL | 关联对象ID |
-| audit_status | VARCHAR(32) | 否 | 'pending' | 审核态 |
-| reject_reason | VARCHAR(255) | 可 | NULL | 退回原因 |
-| useful_count | INT | 否 | 0 | 「有用👍」标记数 |
-| comment_count | INT | 否 | 0 | 评论数（冗余） |
-| status | TINYINT | 否 | 0 | 下架：0正常/1管理员强制下架 |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
-
-**索引/约束**：PK(`id`)；KEY `idx_moment_user`(`user_id`)；KEY `idx_moment_related`(`related_type`,`related_id`)；KEY `idx_moment_audit`(`audit_status`)。
-
-### 3.14 moment_useful（动态有用标记）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 标记ID |
-| user_id | BIGINT | 否 | 0 | 用户ID |
-| moment_id | BIGINT | 否 | 0 | 动态ID |
-| created_at | DATETIME | 否 | NOW | 创建时间 |
-
-**索引/约束**：PK(`id`)；UNIQUE `uk_useful_user_moment`(`user_id`,`moment_id`)；KEY `idx_useful_moment`(`moment_id`)。
-
-### 3.15 moment_comment（动态评论，含一层回复）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 评论ID |
-| moment_id | BIGINT | 否 | 0 | 所属动态ID |
-| user_id | BIGINT | 否 | 0 | 评论者用户ID |
-| parent_id | BIGINT | 可 | NULL | 父评论ID（NULL=顶级） |
-| content | VARCHAR(1000) | 否 | '' | 正文 |
-| useful_count | INT | 否 | 0 | 「有用👍」计数（一人一票） |
-| images | VARCHAR(2000) | 可 | NULL | 评论图片 JSON（≤3张） |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
-
-**索引/约束**：PK(`id`)；KEY `idx_mc_moment`(`moment_id`)；KEY `idx_mc_user`(`user_id`)；KEY `idx_mc_parent`(`parent_id`)。
-
-### 3.16 email_verification_code（邮箱验证码）
+### 3.13 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 记录ID |
@@ -294,7 +252,7 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 足迹ID |
 | user_id | BIGINT | 否 | 0 | 浏览者用户ID |
-| target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/moment |
+| target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen |
 | target_id | BIGINT | 否 | 0 | 浏览对象ID |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
@@ -307,8 +265,8 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
 | admin_id | BIGINT | 否 | 0 | 操作管理员ID |
-| action | VARCHAR(64) | 否 | '' | audit_approve/audit_reject/moment_hide/moment_delete/feedback_handle/… |
-| target_type | VARCHAR(32) | 否 | '' | moment/dish/stall/canteen/feedback/review |
+| action | VARCHAR(64) | 否 | '' | audit_approve/audit_reject/review_hide/review_delete/feedback_handle/… |
+| target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/feedback/review |
 | target_id | BIGINT | 可 | NULL | 操作对象ID |
 | ip | VARCHAR(64) | 可 | NULL | 来源IP |
 | created_at | DATETIME | 否 | NOW | 操作时间 |
@@ -321,12 +279,11 @@
 
 业务层以**应用级关联**为主（逻辑外键，索引见各表），下文为实体关系语义：
 
-- `user` 1—N `review` / `moment` / `notification` / `user_feedback` / `apply_action` / `view_log`（均经 `user_id`）
+- `user` 1—N `review` / `notification` / `user_feedback` / `apply_action` / `view_log`（均经 `user_id`）
 - `canteen` 1—N `stall`（`stall.canteen_id`）
 - `stall` 1—N `dish`（`dish.stall_id`）
 - `dish` 1—N `review`（`review.dish_id`）；`dish` N—1 `category`（`dish.category_id`）
-- `review` 1—N `review_useful`（`review_id`）；`moment` 1—N `moment_useful` / `moment_comment`（`moment_id`）
-- `moment_comment` 自引用 `parent_id`（一层回复）
+- `review` 1—N `review_useful`（`review_id`）
 - `email_verification_code` 独立（按 `email`+`purpose` 查询）
 - `operation_log` 关联 `admin_id`（引用 `user.id` 的管理员）
 
@@ -335,25 +292,18 @@
 ```mermaid
 erDiagram
     user ||--o{ review : "writes"
-    user ||--o{ moment : "publishes"
     user ||--o{ notification : "receives"
     user ||--o{ user_feedback : "submits"
     user ||--o{ apply_action : "applies"
     user ||--o{ view_log : "views"
     user ||--o{ operation_log : "operates_as_admin"
     user ||--o{ review_useful : "marks_useful_review"
-    user ||--o{ moment_useful : "marks_useful_moment"
-    user ||--o{ moment_comment : "comments"
 
     canteen ||--o{ stall : "has"
     stall ||--o{ dish : "has"
     category ||--o{ dish : "classifies"
     dish ||--o{ review : "rated_by"
     review ||--o{ review_useful : "useful_marks"
-
-    moment ||--o{ moment_useful : "useful_marks"
-    moment ||--o{ moment_comment : "comments"
-    moment_comment ||--o{ moment_comment : "replies"
 
     email_verification_code {
         BIGINT id PK
@@ -398,7 +348,6 @@ erDiagram
 | uk_user_openid | user | openid | 微信登录唯一取号 |
 | uk_review_user_dish | review | (user_id, dish_id) | 一人一评 |
 | uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
-| uk_useful_user_moment | moment_useful | (user_id, moment_id) | 动态点赞一人一票 |
 | uk_category_code | category | code | 品类机器标识唯一 |
 | uk_entity_applytype_pending | apply_action | (entity_type, entity_id, apply_type, status) | 防重复待审申请 |
 

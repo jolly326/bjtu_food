@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * DashboardView：工作台（运营全貌 + 待办处理）。
- * 一次请求 /admin/dashboard 返回：待办数、待办明细（申请/动态/反馈各 5 条）、
- * 8 项规模指标、近期操作（日志 10 条）。点击直达对应管理 tab。
+ * 一次请求 /admin/dashboard 返回：待办数、待办明细（申请/反馈各 5 条）、
+ * 7 项规模指标、近期操作（日志 10 条）。点击直达对应管理 tab。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -10,7 +10,7 @@ import { usePageStore } from '@/stores/pageStore'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import {
-  PriceTag, ChatDotRound, ChatLineSquare, House, Food, User, Document,
+  PriceTag, ChatLineSquare, House, Food, User, Document,
   Refresh, ArrowRight, Check,
 } from '@element-plus/icons-vue'
 
@@ -39,17 +39,15 @@ function navTo(path: string) { router.push(path) }
 // ===== 待办卡（点击直达对应 tab） =====
 const todoCards = computed(() => [
   { key: 'apply', label: '待审核申请', count: data.value?.pendingApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
-  { key: 'moment', label: '待审核动态', count: data.value?.pendingMomentCount ?? 0, icon: ChatDotRound, to: '/dashboard/audit?tab=moment' },
   { key: 'feedback', label: '待处理反馈', count: data.value?.pendingFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
 ])
 
-// ===== 8 项规模指标 =====
+// ===== 7 项规模指标 =====
 const metrics = computed(() => [
   { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
   { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=canteen' },
   { key: 'dish', label: '菜品', value: data.value?.totalDishCount ?? 0, icon: PriceTag, to: '/dashboard/content?tab=dish' },
   { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=account' },
-  { key: 'moment', label: '动态', value: data.value?.totalMomentCount ?? 0, icon: ChatDotRound, to: '/dashboard/audit?tab=moment' },
   { key: 'review', label: '评价', value: data.value?.totalReviewCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=review' },
   { key: 'apply', label: '申请', value: data.value?.totalApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
   { key: 'feedback', label: '反馈', value: data.value?.totalFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },

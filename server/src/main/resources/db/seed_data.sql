@@ -106,50 +106,6 @@ INSERT INTO dish (stall_id, category_id, name, price, description, images, tags,
 (14, 2, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'recommended',          'on', 'approved', 580, 4.7, 110),
 (14, 2, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 'approved', 520, 4.6, 100);
 
--- -------------------- 动态（moment；user_id 1~4 为注册学生；related_type: dish/stall/none；首页广播条取动态前 10 条轮播） --------------------
-INSERT INTO moment (user_id, content, images, related_type, related_id, audit_status, useful_count, comment_count, status, created_at) VALUES
-(1, '今天在学一面点坊吃到了现做的鲜肉小笼，皮薄汁多，一口下去太满足了！推荐大家来试试～', NULL, 'dish',  7, 'approved', 12, 3, 0, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(2, '学三麻辣烫自选食材真的yyds，骨汤底绝了，人均 20 吃到撑，晚自习前干饭首选！',        NULL, 'dish', 12, 'approved', 8,  2, 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(3, '明湖餐厅的烤五花肉滋滋冒油，配上一瓶冰可乐，考试周解压神器。',                     NULL, 'dish', 18, 'approved', 15, 4, 0, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(4, '嘉园奶茶的珍珠奶茶 Q 弹顺滑，下午茶标配，甜度刚刚好。',                             NULL, 'dish', 22, 'approved', 6,  1, 0, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(1, '早八人福音！学三粥铺的皮蛋瘦肉粥绵密温润，配根油条开启元气满满的一天。',           NULL, 'dish', 14, 'approved', 9,  2, 0, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(2, '这家档口师傅手艺是真的好，兰州牛肉面一清二白汤鲜面劲，每次来都排长队，值得等待！', NULL, 'stall', 11, 'approved', 11, 3, 0, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(3, '新发现的宝藏档口，清真烤串孜然飘香，晚上下课来两串太治愈了。',                     NULL, 'stall', 12, 'approved', 7,  1, 0, DATE_SUB(NOW(), INTERVAL 3 DAY)),
-(4, '食堂新装修后环境好了很多，吃饭心情都变好了，随手记录一下～',                       NULL, 'none',  NULL, 'approved', 3,  0, 0, DATE_SUB(NOW(), INTERVAL 3 DAY));
-
--- -------------------- 动态评论 moment_comment（parent_id NULL=顶级，非 NULL=楼中楼回复） --------------------
-INSERT INTO moment_comment (moment_id, user_id, parent_id, content, created_at) VALUES
-(1, 2, NULL, '小笼包确实好吃！我也常去', DATE_SUB(NOW(), INTERVAL 100 MINUTE)),
-(1, 3, NULL, '求问是学一食堂哪一层呀',      DATE_SUB(NOW(), INTERVAL 80 MINUTE)),
-(1, 1, 2,    '一楼最里面那家，去晚就卖完了', DATE_SUB(NOW(), INTERVAL 70 MINUTE)),
-(2, 4, NULL, '骨汤底yyds！已安利室友',      DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(2, 1, NULL, '人均20？这么实惠的吗',        DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(3, 1, NULL, '考试周就该吃点好的！',        DATE_SUB(NOW(), INTERVAL 20 HOUR)),
-(3, 4, NULL, '下次一起冲',                  DATE_SUB(NOW(), INTERVAL 18 HOUR)),
-(4, 2, NULL, '三分糖党报到',               DATE_SUB(NOW(), INTERVAL 20 HOUR)),
-(5, 3, NULL, '早八人+1，粥铺yyds',         DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(6, 4, NULL, '这家拉面真的每次都要排队',   DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(6, 1, 4,    '避开饭点去会好很多',         DATE_SUB(NOW(), INTERVAL 23 HOUR)),
-(7, 2, NULL, '烤串一绝，推荐羊肉串',       DATE_SUB(NOW(), INTERVAL 2 DAY));
-
--- -------------------- 动态「有用 👍」标记（moment_useful，一人一票） --------------------
-INSERT INTO moment_useful (user_id, moment_id, created_at) VALUES
-(2, 1, DATE_SUB(NOW(), INTERVAL 90 MINUTE)),
-(3, 1, DATE_SUB(NOW(), INTERVAL 60 MINUTE)),
-(4, 1, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
-(1, 2, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(3, 2, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(1, 3, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
-(2, 3, DATE_SUB(NOW(), INTERVAL 19 HOUR)),
-(4, 3, DATE_SUB(NOW(), INTERVAL 16 HOUR)),
-(1, 4, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
-(1, 5, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, 5, DATE_SUB(NOW(), INTERVAL 23 HOUR)),
-(2, 6, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(3, 6, DATE_SUB(NOW(), INTERVAL 23 HOUR)),
-(4, 6, DATE_SUB(NOW(), INTERVAL 20 HOUR)),
-(1, 7, DATE_SUB(NOW(), INTERVAL 2 DAY));
-
 -- -------------------- 评价（为部分菜品填充评价，丰富详情页；与 dish.avg_rating/rating_count 大致对应） --------------------
 INSERT INTO review (user_id, dish_id, rating, content, images, is_hidden) VALUES
 (1, 1,  5, '宫保鸡丁真的绝，下饭神器！',               NULL, 0),
@@ -198,7 +154,7 @@ DELETE FROM user_feedback;
 INSERT INTO user_feedback (user_id, type, content, contact, status, related_type, related_id, created_at) VALUES
 (1, 'suggestion', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', '2024001@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
 (2, 'error',     '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(3, 'report',    '有动态内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'moment', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(3, 'report',    '有评价内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'review', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
 (4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
 (2, 'bug',       '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
 (1, 'add',       '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', NULL, 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
@@ -274,15 +230,10 @@ UPDATE dish SET original_price=1200, promo_price=1000 WHERE id=22;  -- 珍珠奶
 UPDATE dish SET original_price=2400, promo_price=2000 WHERE id=26;  -- 羊肉串 24.00 → 20.00
 
 -- -------------------- 消息通知（演示个人中心红点与通知列表；无唯一键，先清后插保证可重复执行） --------------------
--- 类型 moment_audit/dish_audit/comment/useful 与后端 NotificationConst 一致；related_id 指向真实动态/菜品 ID。
+-- 类型 dish_audit 与后端 NotificationConst 一致；related_id 指向真实菜品 ID。
 DELETE FROM notification;
 INSERT INTO notification (user_id, type, title, content, related_id, is_read, created_at) VALUES
-(1, 'moment_audit', '动态审核通过', '您的动态「早八人福音！学三粥铺的皮蛋瘦肉粥…」已通过审核并发布。', 5, 0, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(1, 'useful',       '动态被点赞',   '有同学觉得您的动态「早八人福音…」很有用，去看看吧。',           5, 0, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(2, 'dish_audit',   '菜品审核通过', '您提交的菜品「牛肉拉面」已通过审核，可以在对应档口查看。',       6, 0, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(2, 'comment',      '收到新评论',   '有同学评论了您的动态。',                                         2, 1, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(3, 'moment_audit', '动态审核通过', '您的动态「新发现的宝藏档口…」已通过审核并发布。',              7, 0, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(4, 'dish_audit',   '菜品审核通过', '您提交的菜品「珍珠奶茶」已通过审核，可以在对应档口查看。',       22, 1, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(4, 'useful',       '动态被点赞',   '有同学觉得您的动态很有用。',                                      4, 0, DATE_SUB(NOW(), INTERVAL 6 HOUR));
+(2, 'dish_audit', '菜品审核通过', '您提交的菜品「牛肉拉面」已通过审核，可以在对应档口查看。', 6, 0, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(4, 'dish_audit', '菜品审核通过', '您提交的菜品「珍珠奶茶」已通过审核，可以在对应档口查看。', 22, 1, DATE_SUB(NOW(), INTERVAL 2 DAY));
 
 SET FOREIGN_KEY_CHECKS = 1;

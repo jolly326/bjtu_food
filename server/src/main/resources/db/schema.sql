@@ -180,10 +180,10 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：moment_audit/dish_audit/comment/useful/activity',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
-    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（动态/菜品/活动ID，按 type 解释）',
+    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/活动ID，按 type 解释）',
     `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -258,8 +258,8 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `images`       VARCHAR(2048) NULL    DEFAULT NULL COMMENT '附图（JSON 数组字符串，绝对URL；截图/作证照片/菜品图）',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
-    `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型（举报场景）：moment；其他为 null（task-12.7）',
-    `related_id`   BIGINT        NULL    DEFAULT NULL COMMENT '关联对象ID（举报场景：动态ID）；其他为 null（task-12.7）',
+    `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型：举报为 review；信息纠错为 dish；其他为 null',
+    `related_id`   BIGINT        NULL    DEFAULT NULL COMMENT '关联对象ID：举报为评价ID；信息纠错为菜品ID；其他为 null',
     `handled_at`   DATETIME      NULL    DEFAULT NULL COMMENT '处理时间',
     `handler_id`   BIGINT        NULL    DEFAULT NULL COMMENT '处理人管理员ID',
     `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
 
 -- -------------------- 活动说明 --------------------
--- activity 表（见上方「最新活动」）为 task-12.10 活动模块：小程序首页「万能区」展示最新活动标题、web 后台可 CRUD、卡片经 web-view 打开公众号文章。
+-- activity 表（见上方「最新活动」）为 task-12.10 活动模块：入口为「我的」页宫格，活动列表页展示最新活动标题、web 后台可 CRUD、卡片经 web-view 打开公众号文章。
 -- 轮播图（banner）功能已废弃移除，活动不再关联 Banner，独立成表承载。
 
 -- =============================================================
@@ -419,10 +419,6 @@ DELIMITER ;
 CALL `add_canteen_location`();
 DROP PROCEDURE IF EXISTS `add_canteen_location`;
 
--- 动态评论「有用」关系表：曾于评论点赞功能下线时移除（task-12.4 → 前端下线 + 后端清理），
--- 后在 moment-comment-thread-view 恢复评论「有用」：moment_comment.useful_count 列全程保留，关系表于下方重建。
-
-
 -- 菜品：折扣价（task-12.9；CREATE TABLE 已含，列定义以 CREATE 为准：original_price/promo_price 均允许 NULL；旧库幂等补齐）
 DROP PROCEDURE IF EXISTS `add_dish_promo_fields`;
 DELIMITER $$
@@ -469,97 +465,6 @@ CREATE TABLE IF NOT EXISTS `apply_action`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='实体贡献统一申请';
 
--- -------------------- 动态（moment 表，task-12.x 动态广场） --------------------
-CREATE TABLE IF NOT EXISTS `moment`
-(
-    `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '动态ID',
-    `user_id`        BIGINT       NOT NULL DEFAULT 0 COMMENT '发布者用户ID',
-    `content`        VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '动态正文',
-    `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '动态图片URL列表（逗号分隔，≤9张）',
-    `related_type`   VARCHAR(32)  NOT NULL DEFAULT 'none' COMMENT '关联对象类型：dish / stall / none',
-    `related_id`     BIGINT       NULL    DEFAULT NULL COMMENT '关联对象ID（related_type=none 时为 NULL）',
-    `audit_status`   VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
-    `reject_reason`  VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
-    `useful_count`   INT          NOT NULL DEFAULT 0 COMMENT '「有用👍」标记数（一人一票）',
-    `comment_count`  INT          NOT NULL DEFAULT 0 COMMENT '评论数（冗余计数）',
-    `status`         TINYINT      NOT NULL DEFAULT 0 COMMENT '下架状态：0=正常 1=管理员强制下架',
-    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_moment_user` (`user_id`),
-    KEY `idx_moment_related` (`related_type`, `related_id`),
-    KEY `idx_moment_audit` (`audit_status`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='动态';
-
--- 动态「有用👍」标记（一人一票）
-CREATE TABLE IF NOT EXISTS `moment_useful`
-(
-    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
-    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `moment_id`  BIGINT   NOT NULL DEFAULT 0 COMMENT '动态ID',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_useful_user_moment` (`user_id`, `moment_id`),
-    KEY `idx_useful_moment` (`moment_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='动态有用标记';
-
--- 动态评论（含一层回复）
-CREATE TABLE IF NOT EXISTS `moment_comment`
-(
-    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '评论ID',
-    `moment_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '所属动态ID',
-    `user_id`      BIGINT       NOT NULL DEFAULT 0 COMMENT '评论者用户ID',
-    `parent_id`    BIGINT       NULL    DEFAULT NULL COMMENT '父评论ID（一层回复：NULL=顶级评论）',
-    `content`      VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '评论正文',
-    `useful_count` INT          NOT NULL DEFAULT 0 COMMENT '「有用👍」计数（一人一票）',
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_mc_moment` (`moment_id`),
-    KEY `idx_mc_user` (`user_id`),
-    KEY `idx_mc_parent` (`parent_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='动态评论';
-
--- 动态评论「有用👍」标记（一人一票，moment-comment-thread-view 恢复）
-CREATE TABLE IF NOT EXISTS `moment_comment_useful`
-(
-    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '标记ID',
-    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `comment_id` BIGINT   NOT NULL DEFAULT 0 COMMENT '评论ID',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_useful_user_comment` (`user_id`, `comment_id`),
-    KEY `idx_useful_comment` (`comment_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='动态评论有用标记';
-
--- 动态评论图片（task-13：评论支持至多 3 张图，JSON 数组字符串存储）
--- MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程做幂等防护
-DROP PROCEDURE IF EXISTS `add_moment_comment_images`;
-DELIMITER $$
-CREATE PROCEDURE `add_moment_comment_images`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'moment_comment'
-          AND COLUMN_NAME = 'images'
-    ) THEN
-        ALTER TABLE `moment_comment`
-            ADD COLUMN `images` VARCHAR(2000) NULL DEFAULT NULL COMMENT '评论图片（JSON 数组字符串，最多 3 张）';
-    END IF;
-END$$
-DELIMITER ;
-CALL `add_moment_comment_images`();
-DROP PROCEDURE IF EXISTS `add_moment_comment_images`;
-
 -- 邮箱验证码（认证用途 verify；code_hash 存哈希，过期/使用后标记）
 CREATE TABLE IF NOT EXISTS `email_verification_code`
 (
@@ -582,7 +487,7 @@ CREATE TABLE IF NOT EXISTS `view_log`
 (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '足迹ID',
     `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览者用户ID',
-    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '浏览对象类型：dish / stall / canteen / moment',
+    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '浏览对象类型：dish / stall / canteen',
     `target_id`   BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览对象ID',
     `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '浏览时间',
     `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -598,8 +503,8 @@ CREATE TABLE IF NOT EXISTS `operation_log`
 (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '日志ID',
     `admin_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '操作管理员ID',
-    `action`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '动作标识：audit_approve / audit_reject / moment_hide / moment_delete / feedback_handle / ...',
-    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '操作对象类型：moment / dish / stall / canteen / feedback / review',
+    `action`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '动作标识：audit_approve / audit_reject / review_hide / review_delete / feedback_handle / ...',
+    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '操作对象类型：dish / stall / canteen / feedback / review',
     `target_id`   BIGINT       NULL    DEFAULT NULL COMMENT '操作对象ID',
     `ip`          VARCHAR(64)  NULL    DEFAULT NULL COMMENT '操作来源IP',
     `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',

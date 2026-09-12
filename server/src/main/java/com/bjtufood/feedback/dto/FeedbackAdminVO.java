@@ -34,10 +34,10 @@ public class FeedbackAdminVO {
     @Schema(description = "联系方式")
     private String contact;
 
-    @Schema(description = "关联类型（举报场景）：moment；其他为 null")
+    @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
     private String relatedType;
 
-    @Schema(description = "关联对象ID（举报场景：动态ID）；其他为 null")
+    @Schema(description = "关联对象ID（举报：评价ID；信息纠错：菜品ID）；其他为 null")
     private Long relatedId;
 
     @Schema(description = "处理状态：pending/handled")

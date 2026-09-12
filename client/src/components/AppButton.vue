@@ -37,7 +37,7 @@ const props = withDefaults(defineProps<{
 })
 
 // 自定义事件禁用原生事件名（tap/click）：否则 uni-app 编译 mp-weixin 时父组件
-// 监听被当作原生 bindxxx，emit 参数会丢失（同 MomentCard/DishCard 坑，见其注释）。
+// 监听被当作原生 bindxxx，emit 参数会丢失（同 DishCard 坑，见其注释）。
 const emit = defineEmits<{
   press: []
 }>()

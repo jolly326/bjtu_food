@@ -9,40 +9,33 @@
 
 /** 静态路径常量（与 pages.json path 完全一致，不含前导斜杠的前缀按页面注册形态书写） */
 export const PATH = {
-  // 主包（TabBar 3 + find 二级搜索页）
+  // 主包（TabBar 2 + find 二级搜索页）
   home: '/pages/home/index',
-  dynamic: '/pages/dynamic/index',
   mine: '/pages/mine/index',
   find: '/pages/find/index',
   // 分包 pages/detail/（内容阅读域）
   dishDetail: '/pages/detail/dish/index',
-  momentDetail: '/pages/detail/moment/index',
   // 分包 pages/me/（个人中心域）
   profile: '/pages/me/profile/index',
-  publishMine: '/pages/me/publish-mine/index',
   notifications: '/pages/me/notifications/index',
   feedback: '/pages/me/feedback/index',
-  // 分包 pages/publish-moment/（发布流程，独立分包）
-  publishMoment: '/pages/publish-moment/index',
   // 分包 pages/activity/（活动 + webview，独立分包）
   activity: '/pages/activity/index',
   activityWebview: '/pages/activity/webview',
 } as const
 
 /** 主包 TabBar 路由集合（TabBar.vue / route store 复用） */
-export const TAB_PATHS = [PATH.home, PATH.dynamic, PATH.mine] as const
+export const TAB_PATHS = [PATH.home, PATH.mine] as const
 
 /** tab key → 主根页路径（TabBar 渲染与跳转共用） */
-export const TAB_URL_BY_KEY: Record<'home' | 'dynamic' | 'profile', string> = {
+export const TAB_URL_BY_KEY: Record<'home' | 'profile', string> = {
   home: PATH.home,
-  dynamic: PATH.dynamic,
   profile: PATH.mine,
 }
 
 /** 去掉前导斜杠：主根页 route（页面栈 cur.route 不带斜杠，供 TabBar 显隐 routeMap 使用） */
 export const ROUTE_KEY_BY_URL: Record<string, string> = {
   [PATH.home.slice(1)]: 'home',
-  [PATH.dynamic.slice(1)]: 'dynamic',
   [PATH.mine.slice(1)]: 'profile',
 }
 
@@ -51,18 +44,6 @@ export const ROUTE_KEY_BY_URL: Record<string, string> = {
 /** 菜品详情：/pages/detail/dish/index?id= */
 export function dishDetailUrl(id: number | string): string {
   return `${PATH.dishDetail}?id=${id}`
-}
-
-/** 动态详情：/pages/detail/moment/index?id= */
-export function momentDetailUrl(id: number | string): string {
-  return `${PATH.momentDetail}?id=${id}`
-}
-
-/** 发布动态：无参新增；?id= 编辑；?dishId= 预选关联菜品（分享菜品动态） */
-export function publishMomentUrl(opts?: { id?: number | string; dishId?: number | string }): string {
-  if (opts?.id != null) return `${PATH.publishMoment}?id=${opts.id}`
-  if (opts?.dishId != null) return `${PATH.publishMoment}?dishId=${opts.dishId}`
-  return PATH.publishMoment
 }
 
 /** 活动 webview：?url= 编码后的公众号文章链接 */
