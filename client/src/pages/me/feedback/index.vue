@@ -249,7 +249,7 @@ const {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
 }
-/* 按压反馈：统一 bg-soft 语言（与 mine 宫格 / activity 卡一致）；选中态按下保持主色浅底，避免翻灰 */
+/* 按压反馈：统一 bg-soft 语言（与 mine 宫格一致）；选中态按下保持主色浅底，避免翻灰 */
 .type-card.pressed { background-color: var(--bg-soft); }
 .type-card.active.pressed { background: var(--color-primary-soft); }
 .type-icon {

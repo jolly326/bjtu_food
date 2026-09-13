@@ -1,7 +1,7 @@
 -- =============================================================
 -- 食在交大 种子数据脚本（重置服务器数据库用，一次性执行，非自动加载）
 -- =============================================================
--- 用途：重置服务器数据库时灌入演示/基础数据（用户、分类、广播、食堂、档口、
+-- 用途：重置服务器数据库时灌入演示/基础数据（用户、分类、食堂、档口、
 --       菜品、评价、反馈、通知等），使三端有完整联调数据。
 -- 本脚本自包含：自动建库并切换 USE bjtu_food（与 schema.sql 一致，库不存在时先建库）。
 -- 执行前提：已按 schema.sql 建好全部表与最终字段；本脚本不建表。
@@ -38,12 +38,6 @@ INSERT INTO category (code, name, sort_order, status) VALUES
 ('porridge', '汤粥',     6, 'enabled'),
 ('drink',    '饮品甜点', 7, 'enabled'),
 ('halal',    '清真',     8, 'enabled');
-
--- -------------------- 首页广播条（status=enabled 才展示） --------------------
-INSERT INTO broadcast (title, content, broadcast_type, target_id, target_url, sort_order, status) VALUES
-('开餐提醒',   '学苑区各食堂午间 11:00-13:30 供餐，错峰就餐更舒适', 'NOTICE', NULL, NULL, 1, 'enabled'),
-('今日特惠',   '明湖烧烤 烤五花肉 限时 8 折',                     'DISH',   18,  NULL, 2, 'enabled'),
-('新生指引',   '扫码进入小程序，探索交大各食堂招牌菜',           'NONE',   NULL, NULL, 3, 'enabled');
 
 -- -------------------- 食堂（共 7 个；id=1 为学一食堂，档口/菜品 canteen_id 引用以此对齐） --------------------
 INSERT INTO canteen (name, location, description, status, sort_order, audit_status, latitude, longitude) VALUES
@@ -142,13 +136,6 @@ INSERT INTO review_useful (user_id, review_id, created_at) VALUES
 UPDATE review SET useful_count = 3 WHERE id = 1;
 UPDATE review SET useful_count = 2 WHERE id IN (2, 3, 4, 5, 6);
 
--- -------------------- 最新活动（公众号文章卡片，article_url 由小程序 web-view 打开；无唯一键，先清后插保证可重复执行） --------------------
-DELETE FROM activity;
-INSERT INTO activity (title, description, image, article_url, status, sort_order) VALUES
-('开学季食堂焕新：7 大食堂全新菜单抢先看', '学苑区与明湖餐厅全面上新，招牌菜测评合集出炉', NULL, 'https://mp.weixin.qq.com/s/example-activity-1', 'enabled', 1),
-('冬季暖胃指南：这些食堂招牌菜值得一试',     '天一冷就想吃点热乎的，收好这份暖胃清单',     NULL, 'https://mp.weixin.qq.com/s/example-activity-2', 'enabled', 2),
-('明湖夜市开业啦！夜宵党的深夜食堂',         '烤串、炒粉、烤冷面……晚自习后加餐好去处',     NULL, 'https://mp.weixin.qq.com/s/example-activity-3', 'enabled', 3);
-
 -- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
 DELETE FROM user_feedback;
 INSERT INTO user_feedback (user_id, type, content, contact, status, related_type, related_id, created_at) VALUES
@@ -215,7 +202,7 @@ UPDATE dish SET region='川湘'   WHERE id IN (9,13);       -- 香辣虾/冒脑�
 -- -------------------- 菜品折扣（促销角标/划线价演示；promo_price 非空视为有折扣；幂等 UPDATE 可重复执行） --------------------
 UPDATE dish SET original_price=2000, promo_price=1600 WHERE id=1;   -- 宫保鸡丁 20.00 → 16.00
 UPDATE dish SET original_price=3200, promo_price=2800 WHERE id=2;   -- 水煮牛肉 32.00 → 28.00
-UPDATE dish SET original_price=2500, promo_price=2000 WHERE id=18;  -- 烤五花肉 25.00 → 20.00（呼应广播「限时 8 折」）
+UPDATE dish SET original_price=2500, promo_price=2000 WHERE id=18;  -- 烤五花肉 25.00 → 20.00
 UPDATE dish SET original_price=2400, promo_price=2000 WHERE id=10;  -- 招牌烤肉饭 24.00 → 20.00
 UPDATE dish SET original_price=1300, promo_price=1100 WHERE id=21;  -- 烤冷面 13.00 → 11.00
 UPDATE dish SET original_price=1200, promo_price=1000 WHERE id=22;  -- 珍珠奶茶 12.00 → 10.00

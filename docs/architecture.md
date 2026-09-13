@@ -21,7 +21,7 @@
 ### 1.1 端
 | 端 | 目录 | 技术栈 | 说明 |
 |---|---|---|---|
-| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（11 页，见 spec §2.1） |
+| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页，见 spec §2.1） |
 | 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
 | 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（登录首屏 `/dashboard` 工作台，非 ECharts 看板） |
 
@@ -32,8 +32,7 @@ com.bjtufood/
 ├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合/统计（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
 ├── review/      # 评价 + 评分聚合事件
 ├── canteen/     # 食堂/档口
-├── content/     # category 品类 / broadcast 广播（兼容保留）
-├── activity/    # 最新活动（入口展示，点击提示「功能暂未实现」）
+├── content/     # category 品类
 ├── feedback/    # 用户反馈
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
@@ -147,12 +146,11 @@ npm run dev   # http://localhost:5173
 2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑猜你喜欢
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
-5. **activity 接入**：活动入口位于「我的」页功能宫格，点击提示「功能暂未实现」（不跳转活动页，独立页与 `/activities` 接口保留待开放）
+5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
 
 ## 7. 已知技术债（见 api-design.md §9）
 - 验证码 IP 维度限频待补
 - `<PressCard>` 按压组件待抽取
-- `BroadcastAdminController` 校验待补
 - `NotificationController` 直调 Mapper（分层红线，建议下沉 Service）
 - ~~4031 非标码需 spec 豁免登记~~（已在 spec §3 登记豁免）
 - ~~通知接口 verified 口径待统一~~（`@RequireVerified` 已补齐）

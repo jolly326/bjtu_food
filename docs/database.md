@@ -17,11 +17,11 @@
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 14 张表，与 `schema.sql` 严格一致）
+## 2. 表清单（共 12 张表，与 `schema.sql` 严格一致）
 
-`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `broadcast` · `activity` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
 
-> 说明：`broadcast` 为**兼容保留表**（运营广播方案已废弃、首页不消费，仅历史数据兼容，总表数含其为 14）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。
+> 说明：`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。
 
 ---
 
@@ -171,36 +171,9 @@
 
 **索引/约束**：PK(`id`)；UNIQUE `uk_category_code`(`code`)；KEY `idx_category_status_sort`(`status`,`sort_order`)。
 
-### 3.9 broadcast（首页广播条）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 广播ID |
-| title | VARCHAR(128) | 否 | '' | 标题 |
-| content | VARCHAR(512) | 否 | '' | ticker 展示文本 |
-| broadcast_type | VARCHAR(32) | 否 | 'NOTICE' | NOTICE/ACTIVITY/DISH/URL/NONE |
-| target_id | BIGINT | 可 | NULL | 跳转目标ID（DISH 时填菜品ID） |
-| target_url | VARCHAR(512) | 可 | NULL | 跳转外链（URL 时填） |
-| sort_order | INT | 否 | 0 | 排序权重 |
-| status | VARCHAR(32) | 否 | 'enabled' | enabled/disabled |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
+> **已删除表（2026-09-13 下线，勿重建）**：原 §3.9 `broadcast`（首页广播条）与原 §3.10 `activity`（最新活动/公众号文章卡片）已随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
 
-**索引/约束**：PK(`id`)；KEY `idx_broadcast_status_sort`(`status`,`sort_order`)。
-
-### 3.10 activity（最新活动/公众号文章卡片）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 活动ID |
-| title | VARCHAR(100) | 否 | '' | 标题 |
-| description | VARCHAR(500) | 可 | NULL | 摘要 |
-| image | VARCHAR(500) | 可 | NULL | 封面图URL |
-| article_url | VARCHAR(500) | 可 | NULL | 公众号文章链接（web-view 打开） |
-| status | VARCHAR(20) | 否 | 'enabled' | enabled/disabled |
-| sort_order | INT | 否 | 0 | 排序权重 |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
-
-**索引/约束**：PK(`id`)；KEY `idx_activity_status_sort`(`status`,`sort_order`)。
-
-### 3.11 user_feedback（用户反馈）
+### 3.9 user_feedback（用户反馈）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 反馈ID |
@@ -218,7 +191,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
 
-### 3.12 email_verification_code（邮箱验证码）
+### 3.10 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 记录ID |
@@ -231,7 +204,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_evc_email`(`email`,`purpose`)；KEY `idx_evc_expires`(`expires_at`)。
 
-### 3.17 view_log（浏览足迹）
+### 3.11 view_log（浏览足迹）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 足迹ID |
@@ -244,7 +217,7 @@
 
 > **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
-### 3.18 operation_log（操作日志，AOP 埋点，Web 只读）
+### 3.12 operation_log（操作日志，AOP 埋点，Web 只读）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
@@ -308,15 +281,6 @@ erDiagram
         VARCHAR action
         VARCHAR target_type
         BIGINT target_id
-    }
-    broadcast {
-        BIGINT id PK
-        VARCHAR broadcast_type
-        BIGINT target_id
-    }
-    activity {
-        BIGINT id PK
-        VARCHAR status
     }
 ```
 

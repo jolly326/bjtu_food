@@ -11,15 +11,14 @@
 
 ### 0.1 角色模型（仅两种）
 - `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁写评价 / 评价点赞等 **UGC 写操作**。**学生端无菜品写接口**：`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理（学生提交档口 / 食堂 `/my/stalls` 已于 2026-08-18 随代码清理移除；社区/动态板块已于 2026-09-12 下线，见 §0.5）。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
-- `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理、**录入活动（活动标题 / 描述 / 发布时间 / 公众号文章链接，手动录入，不经学生 UGC、不经审核流）**。**管理后台登录沿用方案 C：管理员账号密码 + BCrypt + JWT（放弃微信开放平台扫码 / 复用小程序码）**，见 §1 认证与 §5 认证红线。
+- `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理。**管理后台登录沿用方案 C：管理员账号密码 + BCrypt + JWT（放弃微信开放平台扫码 / 复用小程序码）**，见 §1 认证与 §5 认证红线。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
-- **活动功能（2026-08-12 拍板；2026-09-12 按代码校准）**：活动为**独立功能模块**，数据由后台运营（ADMIN）手动录入；**入口为「我的」页宫格「最新活动」格**（非首页——原「首页万能区域」从未落地，spec 描述作废），经宫格进入独立「活动列表页」，列表页点击具体活动经微信 web-view 跳转对应公众号文章。**当前 `FEATURE_GATES.activity=false` 暂缓开放**：入口点击 toast「功能暂未实现」不跳转，页面 / 路由 / 接口保留。**Banner 已整体移除（2026-08-18 拍板）**，活动不依附任何 Banner 类型，独立成表承载。**活动属非核心板块，不新增投入**（见 §0.5）。
+- **活动与公告（broadcast）已全链路下线（2026-09-13 拍板）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表全部删除，ADMIN 不再承担活动录入职责（详见 §0.5「已下线」）。
 
 ### 0.2 数据流闭环
-1. **浏览**：首页（搜索框 → 筛选 → 瀑布流）/ 搜索 → 菜品详情 → 评价 / 分享（**无广播栏、无万能区域**，见 §2.1.4）。
+1. **浏览**：首页（搜索框 → 筛选 → 瀑布流）/ 搜索 → 菜品详情 → 评价 / 分享（**无广播栏**，见 §2.1.4）。
 2. **贡献（平鉴官）**：需 `verified=true`（游客未认证不可贡献）→ 提交 → `audit_status=pending` → 后台审核 → `approved` / `rejected`（回写 `reject_reason`）。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`；学生菜品需求走反馈 `add` 类型，由管理员在后台据反馈手工录入，闭环无学生侧重提。
 3. **运营（后勤）**：后台审 UGC / CRUD → 小程序即时体现。
-4. **活动闭环（2026-08-12 拍板；2026-09-12 按代码校准）**：后台运营录入活动（活动标题 / 描述 / 发布时间 / 公众号文章链接，手动录入，不经学生 UGC、不经审核流）→ **「我的」页宫格「最新活动」格**进入独立「活动列表页」（按发布时间倒序）→ 点击具体活动经微信 `web-view` 跳转对应公众号文章。活动为独立模块（Banner 已移除）；**该入口当前 `FEATURE_GATES.activity=false` 暂缓开放**，首页不承载活动入口。
 
 ### 0.4 三端定位与数据链路（2026-08-05 拍板，强制）
 - **小程序（`client/`）= 服务端 / 用户端**：学生使用，是**业务数据的唯一产生源头**（浏览、菜品评价、产品反馈——含新增菜品 / 纠错 / 推荐等反馈诉求；**学生端无菜品写接口**，菜品由管理员录入，见 §5.x）。
@@ -27,12 +26,11 @@
 - **Web 管理端（`web/`）= 辅助后端管理数据的 UI 工具（非用户端）**：职责 = 对小程序产生的数据做**管理（CRUD / 上下架 / 排序 / 配置）与审阅（UGC 审核 / 内容治理 / 操作日志 / 数据总览）**；Web 不产生业务数据，只消费与管理后端数据。
 - **数据链路**：小程序产生数据 → 后端落库（MySQL）→ Web 经 `/admin/**` 读取与管理 → 小程序即时反映。
 - **Web 端管理能力全景**：
-  - 信息管理：食堂 / 档口 / 菜品（业务信息）+ 广播（首页配置；轮播 Banner 已移除）
+  - 信息管理：食堂 / 档口 / 菜品（业务信息）
   - 内容审核：菜品评价 / 反馈
   - 用户与权限：学生账号 / 管理员账号（超管分层）。**Web 端权限从简（2026-09 拍板）**：普通 `admin` 可用全部管理功能（菜品/食堂/档口 CRUD、UGC 审核、反馈处理、看板、日志等不做角色区分）；唯一例外「管理员账号管理」仅 `SUPER_ADMIN`——web 路由守卫（`meta.role`）与后端 `@PreAuthorize` 双闸门口径一致；后端 `/admin/**` 仍保留 `ADMIN`/`SUPER_ADMIN` 硬闸门。
   - 系统：操作日志 / 工作台（待办 + 数据总览）
-  - （2026-08-12 拍板）**活动管理**：Web 端新增活动录入 / 列表管理能力，对应小程序新增的独立「活动」数据对象（活动标题 / 描述 / 发布时间 / 公众号文章链接）——此为首次在 Web 端引入小程序不存在的专用数据模型，属已拍板例外（活动模块整体新增）。
-- 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务（**活动模块除外**：2026-08-12 拍板，活动为整体新增的独立数据对象，Web 端录入、小程序活动列表页消费、经 web-view 跳转公众号文章）。
+- 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务（原「活动模块」例外已随 2026-09-13 活动全链路下线作废）。
 
 #### 0.4.1 工作台（DashboardView）契约（2026-08-18 拍板）
 > **首屏定位**：Web 管理后台登录默认落地页为 `/dashboard`（`DashboardView.vue`，面包屑「工作台」）；登录成功或访问登录页时已登录均重定向 `/dashboard`。**工作台 = 待办 + 数据总览，非图表看板**（无 ECharts 图表，与「数据看板 / 统计报表」边界见下）。
@@ -73,14 +71,14 @@
 **已下线（不再投入，恢复须重新拍板）：**
 
 - **社区板块（原动态信息流）整体下线（2026-09-12）**：社区广场流、社区详情、评论楼、社区发布页、「我发布的」页，以及其后端模块、用户端与后台接口、相关库表**全部删除干净**（页面 / 目录 / 路由 / 入口 / 接口 / 实体 / 建表脚本 / 种子数据 / 文档，一律不留残留与废弃标注）。
-- 下线后：TabBar 收敛为 **home / mine 两页**；「我发布的」宫格移除，我的页宫格为 **2×2**（最新活动 / 意见反馈 / 系统通知 / 我的评价）；评价不再「同步生成社区内容」；通知类型保留 `dish_audit` 与 `feedback_handle`（反馈处理回执）。
-- **活动模块属暂缓开放（`FEATURE_GATES.activity=false`），非核心板块，不新增投入**；系统通知（反馈 / 审核结果回执）为核心板块的支撑能力，保留。
+- **活动 + 公告（broadcast）全链路下线（2026-09-13）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表**全部删除干净**（页面 / 目录 / 路由 / 宫格入口 / 接口 / 实体 / 建表脚本 / 种子数据 / 文档，一律不留残留与废弃标注）；「我的」页宫格「最新活动」格随之移除；`web-view` 随活动下线退出小程序（全项目无 web-view 场景）；数据库基线 14 → 12 张表。
+- 下线后：TabBar 收敛为 **home / mine 两页**；「我发布的」「最新活动」宫格移除，我的页宫格收敛为**一行 3 列**（意见反馈 / 系统通知 / 我的评价）；评价不再「同步生成社区内容」；通知类型保留 `dish_audit` 与 `feedback_handle`（反馈处理回执）。
+- 系统通知（反馈 / 审核结果回执）为核心板块的支撑能力，保留。
 - **执行口径**：本文件一经同步即为唯一权威；后续实现若与本文档冲突，**改代码、不改文档**（代码只在 UI 实现层提供指导）。开发交付以「静态错误清零」为准，编译 / 构建 / 真机运行由用户执行。
 
 ### 0.3 一致性红线（全局，强制）
 - 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN` 分层，见 §5.x）。
 - 菜品 / 档口 / 食堂均含独立 `audit_status`(pending/approved/rejected) + `reject_reason`（与上下架 `status` 解耦）。
-- 活动为**独立功能模块**（2026-08-12 拍板，收回「`ACTIVITY` 已移除」旧红线）：活动数据由后台运营录入（活动标题 / 描述 / 发布时间 / 公众号文章链接），经独立「活动列表页」展示（入口为「我的」页宫格，首页不承载），点击经微信 `web-view` 跳转公众号文章；活动与菜品 / 档口 / 广播均不耦合，独立成表承载。（原「Banner 跳转用 `target_type` 枚举」红线随 Banner 移除，2026-08-18）
 - 实体贡献「下架 / 变更」类诉求走**反馈类型承载**（`error` 关联菜品纠错/下架、「新增菜品」走 `add`），**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台据反馈手工闭环）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
@@ -102,7 +100,7 @@
 
 ## 2. 目录结构
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
-- 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 2 页：home / mine（tab key 语义仍 `profile`；2026-09-06 目录收敛；2026-09-12 移除社区页）**；2026-08-03 移除 find——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；「我的」页功能入口收敛为 **2×2 宫格**（见 §2.1.4），消息中心、意见反馈、活动等入口进 mine 宫格，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
+- 小程序 `client/src/`：`api/`、`types/`、`stores/`、`pages/`（**TabBar 固定 2 页：home / mine（tab key 语义仍 `profile`；2026-09-06 目录收敛；2026-09-12 移除社区页）**；2026-08-03 移除 find——搜索改为首页顶部搜索框入口，跳转二级搜索页 `/pages/find/index`，非 tab 页；「我的」页功能入口收敛为**一行 3 列宫格**（见 §2.1.4），意见反馈 / 系统通知 / 我的评价入口进 mine 宫格，不占 TabBar；**收藏功能已全量移除（2026-08-12 复核），无收藏入口**）、`components/`。
 - **前端组件组织原则（2026-09-06 立规；细则见 `.codebuddy/rules/client-components-org.md`，含于 QA 门禁与开发 agent）**：`components/` 仅容被 `pages` ≥2 个页面包直接使用（或经多页公共壳间接使用）的公用组件；`pages/<包>/index.vue` 为页面渲染主文件，页面内多次复用卡片/复杂模块应抽为**包内私有组件**，且**只做一级拆分**（禁二级细分/碎组件）；components 与 pages **双向定期治理**——components 中低复用或页间差异大者下沉至唯一使用包，pages 中多包高频复用者上提至 components；迁移不改变行为并须同步引用，type-check + `mp-weixin` 构建全绿。
 - **小程序 `client/src/` 分层职责（2026-09-06 成文）**：
   - `api/`：按域一文件的 HTTP 契约薄层，只调 `utils` 层 http helper，不夹页面逻辑；
@@ -112,12 +110,12 @@
   - `utils/`：纯函数工具（时间/格式化/nav 等，不 import 页面）；
   - `theme/`：设计令牌（供 App.vue `page{}` 消费的键 + 真值登记）；
   - `components/`：仅 ≥2 页直接（或经公共壳间接）使用的公用组件；
-  - `pages/`：**分包根按功能域组织**——`detail/`=内容阅读域（仅菜品详情）、`me/`=个人中心域、`activity/`=活动；主包仅 home/find/mine（原社区板块页面与发布流程分包已于 2026-09-12 删除，见 §0.5）。
+  - `pages/`：**分包根按功能域组织**——`detail/`=内容阅读域（仅菜品详情）、`me/`=个人中心域；主包仅 home/find/mine（原社区板块页面与发布流程分包已于 2026-09-12 删除，`pages/activity/` 活动分包已于 2026-09-13 随活动全链路下线删除，见 §0.5）。
   - **import 路径风格**：同目录/兄弟文件用 `./X`，页面与包内子件用 `./X`；跨层一律 `@/…`；**禁止 `../` 跨层相对逃逸**；不引入 barrel/`index.ts` 重导出。
   - **`find` 留主包为刻意决策（2026-09-06）**：`pages/find/index`（搜索结果页）是首页顶部搜索框的即时二级页，保留主包以**避免分包加载闪断**；不作为独立分包。
 
 ### 2.1 小程序页面架构（2026-09-06 复核，与 `client/src/pages.json` 严格一致）
-> 与 `client/src/pages.json` 严格一致。当前共注册 **11 个页面**：主包 3 + 3 个分包（共 8 页）。**2026-09-06 收敛**：路径收敛 Tab「我的」根页 `pages/profile` → `pages/mine`（`/pages/mine/index`）、个人信息编辑页 `pages/profile-edit` → `pages/profile`；分包聚合：菜品详情并入内容阅读域 `pages/detail/`，`profile`/`notifications`/`feedback` 并入个人中心域 `pages/me/`，`activity`（活动+web-view）保留独立分包。**2026-09-12 社区板块下线（见 §0.5）：删除其四个页面与发布流程分包，分包 root 4→3**；同日 prelaunch-loop-closure 收敛后**新增 `pages/me/my-reviews/index`（我的评价）与 `pages/me/privacy/index`（隐私政策与用户协议）两页，页面实况 9→11**（以 pages.json 为准）。`home` 的 `preloadRule` 仍为单一预载 `pages/detail/`。**独立「关于我们」页 `pages/about` 已删除**（目录 / 路由 / 入口一并移除，见 §2.1.4）。**无孤儿路由**（原 `publish-dish` / `submit-stall` 等孤儿路由已随发布页合并清理）。**学号邮箱认证走 `AuthSheet` 弹层（无独立认证页）**；「系统通知」为 `pages/me/notifications/index`（mine 宫格进入）。已按 2026-08-19 决策**不建逐页设计文档**（视觉与交互规范统一以本文件 §4 为唯一权威）。
+> 与 `client/src/pages.json` 严格一致。当前共注册 **9 个页面**：主包 3 + 2 个分包（共 6 页）。**2026-09-06 收敛**：路径收敛 Tab「我的」根页 `pages/profile` → `pages/mine`（`/pages/mine/index`）、个人信息编辑页 `pages/profile-edit` → `pages/profile`；分包聚合：菜品详情并入内容阅读域 `pages/detail/`，`profile`/`notifications`/`feedback` 并入个人中心域 `pages/me/`。**2026-09-12 社区板块下线（见 §0.5）：删除其四个页面与发布流程分包**；同日 prelaunch-loop-closure 收敛后**新增 `pages/me/my-reviews/index`（我的评价）与 `pages/me/privacy/index`（隐私政策与用户协议）两页**。**2026-09-13 活动 + 公告全链路下线（见 §0.5）：删除 `pages/activity/` 分包两页（活动列表 + web-view），分包 root 3→2，页面实况 11→9**（以 pages.json 为准）。`home` 的 `preloadRule` 仍为单一预载 `pages/detail/`。**独立「关于我们」页 `pages/about` 已删除**（目录 / 路由 / 入口一并移除，见 §2.1.4）。**无孤儿路由**（原 `publish-dish` / `submit-stall` 等孤儿路由已随发布页合并清理）。**学号邮箱认证走 `AuthSheet` 弹层（无独立认证页）**；「系统通知」为 `pages/me/notifications/index`（mine 宫格进入）。已按 2026-08-19 决策**不建逐页设计文档**（视觉与交互规范统一以本文件 §4 为唯一权威）。
 
 #### 2.1.1 主包（3；2026-09-12 移除社区广场页）
 | 路由 | 标题 | 入口 |
@@ -126,7 +124,7 @@
 | `pages/mine/index` | 我的 | TabBar（目录 `pages/mine`，tab key 语义仍 `profile`） |
 | `pages/find/index` | 搜索 | 首页顶部搜索框入口，`navigateTo`（二级页，非 Tab） |
 
-#### 2.1.2 分包（3 个 root / 共 8 页；2026-09-12 随社区板块下线删除 1 个 root，同批次 prelaunch-loop-closure 回加 my-reviews / privacy 两页）
+#### 2.1.2 分包（2 个 root / 共 6 页；2026-09-12 随社区板块下线删除 1 个 root，同批次 prelaunch-loop-closure 回加 my-reviews / privacy 两页；2026-09-13 随活动全链路下线删除 `pages/activity/` 分包）
 | 分包 root | 页面 | 标题 | 入口 |
 |---|---|---|---|
 | `pages/detail/`（内容阅读域） | `pages/detail/dish/index` | 菜品详情 | 卡片点击 |
@@ -135,24 +133,22 @@
 | | `pages/me/feedback/index` | 意见反馈 | mine 宫格 |
 | | `pages/me/my-reviews/index` | 我的评价 | mine 宫格「我的评价」格（`requireAuth`，本人评价列表 + 删除，复用 `DELETE /reviews/{id}`） |
 | | `pages/me/privacy/index` | 隐私政策与用户协议 | mine 底部静态信息区合规入口 |
-| `pages/activity/`（活动独立） | `pages/activity/index`、`pages/activity/webview` | 最新活动 / 外部链接 | mine 宫格（**2026-09-07 暂缓开放**：入口点击提示「功能暂未实现」，页面/路由保留）；`web-view` 仅活动使用 |
 
 > **预载**：`pages/home/index` 在 wifi 下预载 `pages/detail/`（该分包现仅承载菜品详情）。
 
 > **注**：原 spec 的 `pages/pages-user/my-reviews`（旧路径）、`publish-dish`、`submit-stall` 及 `pages/profile/verify`（独立认证页）**均已不在 pages.json**（认证走 `AuthSheet` 弹层；「我的评价」已于 2026-09-12 以新路径 `pages/me/my-reviews/index` 回加为在册页面，见 §2.1.2 / §2.1.4）。**社区板块相关四页（社区广场 / 社区详情 / 「我发布的」/ 社区发布页）已于 2026-09-12 删除**，发布统一 = 评价提交（菜品详情底栏「写评价」），不再有独立发布流程页（见 §0.5）。
 
 #### 2.1.4 关键设计决策与约束
-- **TabBar 固定 2 页（2026-09-12 收敛）**：`home` / `mine`（目录名；tab key 语义 `profile`）；原「动态」Tab 随社区板块下线移除。搜索、意见反馈、活动、消息中心等均为二级页（经 TabBar 页内入口进入）。「关于我们」独立页已删除（2026-09-06），团队/邮箱等文案不再展示；mine 底部静态信息区 = 版本/学校两行纯展示（aria-hidden）+ 一行可点合规入口「隐私政策 · 用户协议」（跳 `pages/me/privacy/index`，该区域唯一可点元素）。
+- **TabBar 固定 2 页（2026-09-12 收敛）**：`home` / `mine`（目录名；tab key 语义 `profile`）；原「动态」Tab 随社区板块下线移除。搜索、意见反馈、消息中心等均为二级页（经 TabBar 页内入口进入）。「关于我们」独立页已删除（2026-09-06），团队/邮箱等文案不再展示；mine 底部静态信息区 = 版本/学校两行纯展示（aria-hidden）+ 一行可点合规入口「隐私政策 · 用户协议」（跳 `pages/me/privacy/index`，该区域唯一可点元素）。
 - **首页结构（以代码为准，2026-09-12 校准）**：`pages/home/index` = ① **顶部搜索框**（`AppHeader` 的 `home` variant，暖砖红底，点击进入二级搜索页 `find`）/ ② **筛选行**（`FilterBar`：全部食堂 / 全部价格两枚胶囊 + 常驻筛选图标）/ ③ **瀑布流**（`HomeContent` → `WaterfallList` 双列 `DishCard`，综合热度排序，**距你距离由端上本地计算**——`stores/dish.ts` 的 `withLocalDistance` 以 Haversine 用本机定位坐标与菜品坐标在客户端写回 `distance` 并参与本地重排；口径拍板「本地计算」：坐标不出端、隐私更优、离线友好；前端无定位条 UI、无收藏）。首页不显示定位条、不弹坐标授权。
-  - **spec 旧描述作废（代码从未落地，不得再据此开发）**：原「广播栏（动态信息流 ticker）」与「万能区域（水平一行网格，承载活动入口）」**均不存在于代码**——前者随动态板块下线作废，后者本未实现；活动入口不在首页（见 §0.1 活动功能）。`broadcast` 表保留但运营广播方案早已废弃。
+  - **spec 旧描述作废（代码从未落地，不得再据此开发）**：原「广播栏（动态信息流 ticker）」与「万能区域（水平一行网格，承载活动入口）」**均不存在于代码**——前者随动态板块下线作废，后者本未实现；活动入口不在首页（活动已于 2026-09-13 全链路下线，见 §0.5），`broadcast` 表亦已随公告下线删除。
   - **后端距离字段口径（2026-09 拍板登记）**：后端 `DishVO.distance` / `CanteenInfoVO.distance` **字段弃用保留**——请求携带坐标时后端仍可能返回该字段（历史兼容），但**以端上本地计算为准**，小程序不消费后端下发的 `distance`；后端不对「个人化距离服务」做契约承诺。
 - **搜索（2026-08-03）**：二级搜索页 `find`，非 tab；**属核心板块「搜索与查找」，不得降级或移除**（见 §0.5）。
-- **活动为独立模块（2026-08-12；2026-09-12 按代码校准）**：**入口 = 「我的」页宫格「最新活动」格**（首页无活动入口，原「万能区域」未落地）；列表页 `activity` 展示运营活动，点击经 `web-view` 跳公众号文章。`web-view` 仅活动使用；当前 `FEATURE_GATES.activity=false` 暂缓开放。
 - **反馈合并（2026-08-15）**：原「反馈中心」(`messages-services`) 已并入 `feedback` 意见反馈页（提交表单 + 我的反馈记录同页）；早期「联系/contact」表单亦并入。无独立反馈中心/contact 路由。
 - **反馈重设计（2026-08-17 拍板；2026-09 按 ARCH-009 校准）**：`feedback` 页定为**收集用户诉求**的轻量单视图动态表单——**克制温度引导**（仅一行短标题「想说点啥，直接说」，不做大段文案）+ 口语化类型 chip + 类型与字段合一为一张大卡；类型前置单选必选，**实况 3 类**（提个想法 `suggestion` / 推荐菜品 `add` / 信息不对 `error`；原第 4 类「App 有问题」已并入「提个想法」的问题域，不再单列），字段随类型动态切换且**收集管理员所需关键结构化字段**（每类型必填 1 个，辅助选填，无冗余提示文案）；**不设登录守卫，任何人可提交**（`POST /feedback` 维持公开 PUB）；「新增菜品」从纠错二级细分提升为一级类型（后端扩 `add` 枚举）；纠错点含「已下架」作证流程（不要求正文，**文本作证**——「可照片作证」已随 UGC 图片全量下线作废，2026-09-12）；**不收集联系方式**（移除前端字段，后端 `contact` 列保留兼容历史）；**匿名心智（2026-09 随反馈回执能力演进校准，见 change `prelaunch-loop-closure` 的 `feedback-receipt` spec）**：原底部「匿名提交 · 不记账号」静态文案已移除，改为**提交成功 toast 按认证态二分告知**——游客（`verified=false`）明确提示「未记账号、结果无法单独通知你」（游客提交不保留归属、管理员处理后不投递回执通知），已认证提示「数个工作日内查看并处理」（回执经系统通知投递；实况见 `pages/me/feedback/useFeedback.ts` 提交成功分支）；移除「我的反馈」Tab（进度追踪后续另做；`GET /feedback/my` 已随反馈中心下线删除）；举报继续走内容页弹窗不进本页。
 - **食堂与档口降级为菜品属性（2026-08-15）**：学生决策主体是菜品，食堂/档口为 `dish.canteen` / `dish.stall`，仅在菜品详情「来源信息区」展示；无 `canteen`/`stall` 独立路由。
 - **收藏功能已全量移除（2026-08-12 复核）**：无收藏入口。
-- **「我的」页 IA（2026-09-06 方案 B 重构；2026-09-12 随动态下线由 2×2 改 1×3，2026-09-12 随 prelaunch-loop-closure 改回 2×2）**：`pages/mine/index` 自上而下 = 用户卡 + **2×2 功能宫格**（「最新活动｜意见反馈｜系统通知｜我的评价（有未读显示红点，无未读/未登录不显示）」）+ **底部静态信息区（含隐私政策/用户协议合规入口）**（`知行食记 v{version}` · 学校，居中小号浅灰纯展示）。宫格每格整格热区：**最新活动 2026-09-07 起暂缓开放，集中登记于 `utils/feature-gates.ts`**（grep 语义：暂缓 ≠ 孤儿，审计「无引用页面」时先查登记表；`open=false` → 入口点击 toast「功能暂未实现」不导航，`open=true` 恢复开放只改该文件一处）→ 意见反馈→`/pages/me/feedback/index`、系统通知→`/pages/me/notifications/index` 正常跳转。**「我发布的」格已随社区板块下线移除**（含其在 `utils/feature-gates.ts` 的登记项）。原「一行两卡 + 三行浅色入口列表 + 中部单行版本号」整体删除。
+- **「我的」页 IA（2026-09-06 方案 B 重构；2026-09-12 随动态下线由 2×2 改 1×3，2026-09-12 随 prelaunch-loop-closure 改回 2×2，2026-09-13 随活动全链路下线收敛为一行 3 列）**：`pages/mine/index` 自上而下 = 用户卡 + **一行 3 列功能宫格**（「意见反馈｜系统通知｜我的评价（有未读显示红点，无未读/未登录不显示）」）+ **底部静态信息区（含隐私政策/用户协议合规入口）**（`知行食记 v{version}` · 学校，居中小号浅灰纯展示）。宫格每格整格热区：意见反馈→`/pages/me/feedback/index`、系统通知→`/pages/me/notifications/index` 正常跳转。**「我发布的」格已随社区板块下线移除、「最新活动」格已随活动全链路下线移除**（均含其在 `utils/feature-gates.ts` 的登记项；「最新活动」为最后一项在册登记，移除后 feature-gates 无在册条目）。原「一行两卡 + 三行浅色入口列表 + 中部单行版本号」整体删除。
 - **微信登录体系（2026-08 拍板，详见 §5.y）**：小程序无登录页/登录按钮/注册/密码体系；微信打开即静默登录为游客态（`verified=false`）。「我的」页用户卡点击二分：游客整卡点击直接弹 `AuthSheet` 认证弹层（学号邮箱 + 验证码），认证态点击进个人信息编辑页 `/pages/me/profile/index`；需认证的写操作（写评价 / 点赞）沿用「不置灰、点击弹认证、认证后继续原动作」口径（原「我发布的」认证门已随动态下线移除）。「我的」页展示已绑定邮箱（`bind_email`）与认证状态。**认证走 `AuthSheet` 弹层，无独立认证页**（2026-08-19 复核：`pages/profile/verify/index` 已不在 pages.json）。
 - **发布收敛为评价（2026-09-12，替代原「发布社区内容」相关拍板）**：**唯一 UGC 发布路径 = 菜品详情底栏「写评价」**（星级必选 + ≤500 字选填正文，弹层提交 `POST /reviews`）；**不再有独立发布页、不再有「关联对象」表单、不再有「同步到社区」**。原社区发布流程页与「我发布的」页及其路由、宫格入口、feature-gates 登记项**均已删除**；`publish-dish`/`submit-stall` 孤儿路由此前已合并清理。**评价是唯一的「评价类」UGC**，用户查看自己的贡献经菜品详情评价区（一人一菜一评）。
 - **取消「评价同步生成社区内容」**：后端评价接口的「同步到社区」布尔字段与社区服务的联动方法已删除；评价可见性只由评价自身审核态 / `is_hidden` 决定。
@@ -160,7 +156,7 @@
 
 #### 2.1.5 已移除（历史保留）
 - `settings`（设置，2026-08-03）→ 设置项内嵌 mine（「我的」根页），无独立路由。
-- `activity-detail`（活动详情，2026-08-12）→ 活动直接经 `web-view` 跳转，无中间详情页。
+- `activity-detail`（活动详情，2026-08-12）→ 活动直接经 `web-view` 跳转，无中间详情页；**活动列表页与 web-view 页已随 2026-09-13 活动全链路下线整体删除**（`pages/activity/` 分包移除，见 §0.5）。
 - `my-publish` / `my-submissions`（2026-08-15）→ 由「我发布的」页承接（该页已于 2026-09-12 随社区板块删除）。`my-reviews`（旧路径 `pages/pages-user/my-reviews`）曾随评价收敛移除，**2026-09-12 已以新路径 `pages/me/my-reviews/index` 回加为在册页面**（mine 宫格「我的评价」进入，见 §2.1.2 / §2.1.4）；菜品详情评价区仍是评价的主消费场景，两者并存不冲突。
 - **社区板块四页（2026-09-12）**：社区广场 / 社区详情 / 「我发布的」/ 社区发布页 → 随社区板块下线**整体删除**（目录 / 路由 / 入口 / 接口 / 库表 / 文档，见 §0.5）。
 - `review-list`（档口/食堂维度聚合评价）→ 取消独立跳转，改内联；菜品维度「全部评价」保留为独立页（§2.1.2）。
@@ -173,7 +169,7 @@
 ## 3. API 基础规范
 - 统一响应：`{ code: number, message: string, data: T }`；成功 `code=200`；异常由 `GlobalExceptionHandler` 统一包装，Controller 不得裸抛。
 - 错误码：`200` 成功 / `400` 参数 / `401` 未登录 / `403` 无权限 / `500` 服务器错误；**禁止自定义非标错误码**（如 1001/600）。**例外（2026-08-19 登记豁免）**：`4031` = 邮箱未认证（`@RequireVerified` 触发），与 `403`（普通无权限，含越权访问管理接口）区分，供前端「需先认证 vs 无权限」分流提示；前端 `http.ts` 据此分别处理。
-- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/admin/login`（管理后台登录，方案 C）、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/broadcasts`、`/categories`、`/activities`、静态图片 `/images/**`；学生 UGC 写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN`）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**。
+- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/admin/login`（管理后台登录，方案 C）、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/categories`、静态图片 `/images/**`；学生 UGC 写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN`）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**。
 - 分页：`PageResult<T>{ records, total, page, pageSize }`，用 MP 分页插件；单页非分页接口返回 `List<T>`。
 - 金额：存储与传输一律「分」（int/Long）；分↔元转换必须在 api 层统一（`utils/money` 的 `fenToYuan`/`yuanToFen`），**禁止页面/组件层裸算**；前端统一展示已为元的 `price`（不得再在模板 `/100`）。
 - 数据隔离：从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId；UGC `created_by=当前用户`。**学生端无菜品写接口**——`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入（`/admin/dishes/**`），学生提交菜品需求走意见反馈 `add` 类型由后台处理；`dish.created_by` 仅留痕历史学生提交，不再作为学生侧写权限依据。
@@ -186,7 +182,7 @@
 - 八原则：Purpose / Agency / Responsibility / Familiarity / Flexibility / Simplicity / Craft / Delight；流体交互四要素：即时响应、1:1 直接操控、可中断、速度 / 动量接力。
 
 ### 4.2 视觉 Token（基线）
-- 品牌主色：暖砖红 `#C45549`（浅色模式主色；**2026-09-06 复核，由朱砂红 `#9B2A1D` 定调为 `#C45549`**，更明快亲和、与故宫红墙同色相；深色模式主色见 `client/src/theme/tokens.ts` 的 `primary-dark`）。小程序按钮统一 `AppButton`（primary 取 `#C45549`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）。**色值为全站唯一事实源**：以 `client/src/theme/tokens.ts`（`COLOR_MAP.primary`）与 `App.vue` 的 `page` 浅色块为准；`client/uni.scss` 为已废弃的浅色 token 快照（其 `#7A241A` 陈旧且与事实源冲突，待清理，见 tokens.ts 注释「删除 uni.scss 后」）。裸 hex 例外（`<swiper>` 指示点、`web-view` progressbar）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` / `WEBVIEW_PROGRESSBAR_COLOR` 登记，主色变更须同步。
+- 品牌主色：暖砖红 `#C45549`（浅色模式主色；**2026-09-06 复核，由朱砂红 `#9B2A1D` 定调为 `#C45549`**，更明快亲和、与故宫红墙同色相；深色模式主色见 `client/src/theme/tokens.ts` 的 `primary-dark`）。小程序按钮统一 `AppButton`（primary 取 `#C45549`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）。**色值为全站唯一事实源**：以 `client/src/theme/tokens.ts`（`COLOR_MAP.primary`）与 `App.vue` 的 `page` 浅色块为准；`client/uni.scss` 为已废弃的浅色 token 快照（其 `#7A241A` 陈旧且与事实源冲突，待清理，见 tokens.ts 注释「删除 uni.scss 后」）。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
 - 圆角：卡片 `16px`；底部弹层 `20px 20px 0 0`。材质模糊 `blur(20px) saturate(180%)`；按压反馈为 bg-soft/opacity（**scale 按压已废止**，见 §4.9；Web 端 `scale(var(--press-scale))` 为登记豁免，同见 §4.9）；弹层阴影 `0 -8px 30px rgba(0,0,0,0.12)`。
 - 小程序自研组件（新页面必须复用）：公共 `components/`（实况：`AppButton/AppHeader/AuthSheet/BaseSheet/ActionSheet/ListPickerSheet/ReportModal/CardSection/FilterBar/SectionTitle/TagLabel/TabBar/IconSvg`）与页内私有组件（按 §2「前端组件组织原则」下沉，如 `pages/home/DishCard.vue`、`pages/home/HomeContent.vue`）；**`ImageUploader` 组件已于 change `prelaunch-loop-closure` 随 UGC 图片全量下线删除**（全项目 UGC 仅剩纯文本，图片上传仅保留用户头像）；`TabBar` 实况路径 `components/TabBar.vue`。（社区板块的卡片与图片墙组件已于 2026-09-12 随板块下线删除；**`CategoryTabs`、`Loading` 已于清理提交 f9560c6 删除**——分类切换由 `FilterBar`/筛选条替代；**`EmptyState`、`StateView` 已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不设空态占位，**失败态按 MP-012 呈现「加载失败 · 点击重试」块（登记见 `openspec/specs/client-page-structure`）**；页面细则以本文件 §4 为准）。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`（原 `docs/web-ui.md` 已删除，勿再引用）。
@@ -221,11 +217,7 @@
 
 ### 4.8 组件级约定
 - 卡片 tap 反馈走 `bg-soft`/opacity，**无入场动效**（§4.3 capability 拍板）；TabBar 切换不做过渡动效；抽屉 / Sheet 开合瞬开瞬关 + 下拉关闭手势（§4.4）；列表 / 瀑布流滚动橡皮筋；Toast 四态同帧触发；列表/信息流页**不设加载中骨架与 loading 指示**（随 2026-09-06 状态占位清理移除），**失败态按 MP-012 呈现「加载失败 · 点击重试」行内块**（失败 ≠ 无数据；分页失败静默，登记见 `openspec/specs/client-page-structure`）、**空态**仅首页贡献卡片与搜索无结果引导两处显式例外（登记见 `openspec/specs/client-page-structure` / `contribution-entry`），其余保持空白静默。
-- **活动列表页（2026-08-12 新增）**：
-  - **header 设计**：统一二级页规范——左上角返回箭头（ibenefit `backToHome` reLaunch 首页）、居中加粗标题「最新活动」、右上角留空；浅色背景，遵循 §4 一致性。
-  - **卡片设计**：纵向列表按发布时间倒序；标题稍大字号加粗、发布时间灰色小字（**绝对日期口径：`YYYY-MM-DD HH:mm`**，经 `utils/time.ts formatDateTime` 全站统一，不使用「2小时前」/「昨天」等相对时间——与 utils/time.ts 产品决策一致，见 2026-09 拍板）位于标题下方、简要描述更小字号置于底部；卡片 tap 反馈走 `bg-soft`/opacity，无入场动效（与全局一致）。
-  - **手势交互**：整卡 `@tap` 经微信 `web-view` 跳转对应公众号文章链接（活动唯一 web-view 场景，见 §2.1）。
-- **首页无广播栏**：首页结构 = 搜索框头部 + 筛选行 + 瀑布流（见 §2.1.4）。`broadcast` 表保留但运营广播方案已废弃，不作为首页数据来源。
+- **首页无广播栏**：首页结构 = 搜索框头部 + 筛选行 + 瀑布流（见 §2.1.4）；`broadcast` 表已于 2026-09-13 随公告全链路下线删除，不存在广播数据来源。
 
 ### 4.9 小程序 MVP 红线（布局 / 动效 / 图标 / 组件渲染）
 - **布局（750rpx 视口）**：根容器视为 750rpx；横向用 `flex` + `flex-wrap`/`flex:1`/`min-width:0` 防溢出；图片 / 卡片 `width:100%` + `box-sizing:border-box`；禁止横向滚动条；长文本 `-webkit-line-clamp` 截断。每页须通过「真机 750rpx 无横向滚动 / 无裁切」。
@@ -255,8 +247,7 @@
 - 内容审核流：学生提交 `audit_status=pending` → 管理员 `approved/rejected`（退回必填 `reject_reason` 并回显）；小程序仅展示 `approved` 且上架 / 营业中；评价 `is_hidden` 控制可见性；Web「菜品审核」「评价审核」为独立模块。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`，**学生侧无编辑重提**（历史存量 pending 菜品仍可由后台审核）；学生菜品需求走反馈 `add` 类型由后台手工录入闭环。下架 / 变更类诉求走反馈 `error` 类型（关联菜品）承载，无独立申请表（`apply_action` 已于 2026-09-12 随贡献链路下线删除，见 §0.3）。
 - **认证**：微信打开静默登录（`wechat-login`）即游客态；UGC 写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台登录例外，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
 - 小程序请求超时 8s、管理端 5s；API 基地址集中 `api/config.ts` 的 `API_BASE_URL`，禁止硬编码 URL。
-- **首页不消费 `broadcast` 数据**：首页信息来源仅为菜品接口（推荐 / 筛选结果），不设信息流广播位。运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，`broadcast` 表仅保留兼容。
-- **活动数据结构（2026-08-12 拍板；2026-09-12 按代码校准）**：活动由后台运营录入，存储字段含「活动标题 / 活动描述 / 发布时间 / 公众号文章链接」；**入口为「我的」页宫格「最新活动」格**（原「首页万能区域展示最近一条活动，标题截前 15 字」未落地，spec 描述作废），当前 `FEATURE_GATES.activity=false` 暂缓开放（点击 toast 不跳转）；活动列表页按发布时间倒序排列全部活动，点击具体活动跳转对应公众号文章链接（微信 web-view）。活动为独立数据对象，后端有独立活动实体与 CRUD 接口（Web 录入、小程序列表页消费），不与菜品 / 档口 / 广播耦合。
+- **首页不消费广播数据**：首页信息来源仅为菜品接口（推荐 / 筛选结果），不设信息流广播位；原运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，`broadcast` 表已于 2026-09-13 随公告全链路下线删除（见 §0.5）。
 
 ### 5.y 认证与鉴权（微信登录体系，2026-08 拍板，强制）
 
@@ -287,7 +278,7 @@
 #### 5.y.4 游客态语义与权限矩阵
 - **游客态** = 已登录的未认证账号（`verified=false`）。前端「游客」标识用 `getGuestShortId()`（=「食客+ID 尾 4 位」）。
 - **权限矩阵**：
-  - 浏览全部公开数据（菜品 / 评价 / 食堂 / 档口 / 活动）→ 游客可。
+  - 浏览全部公开数据（菜品 / 评价 / 食堂 / 档口）→ 游客可。
   - `POST /feedback`（基础反馈提交）→ **公开，无需认证**。
   - UGC 写操作（写评价 / 评价点赞 / 删本人评价）→ 需 `verified=true`。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线，客户端零消费）：菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理。（学生提交档口/食堂 `/my/stalls` 与美食清单模块已于 2026-08-18 随代码清理移除；发动态 / 评论动态已于 2026-09-12 随动态下线移除）
   - **系统通知（`/my/notifications/*`）→ 服务端认证专属（`verified=true`）、前端游客可直达（2026-09 校准，见归档 capability `openspec/specs/client-auth-boundary`）**：通知是按 `userId` 归属的账号私有数据（`/my/` 前缀；服务端 `@RequireVerified` 校验，游客请求被拒），内容为内容贡献者的行为反馈（审核结果）；游客（`verified=false`）无任何可产生通知的 UGC 写操作来源，个人通知恒空，**不属公开数据**。**前端边界（替代原 `authLocked=true` 入口锁定口径，前端已无该机制）**：「我的」页「系统通知」入口对游客**直接放行**进入通知页，页面**不挂 `AuthSheet`、不弹认证引导**；游客无个人通知或请求被拒时**静默处理**（不呈现空态提示 / 错误态 / 认证引导，「暂无通知」轻提示仅 `verified=true` 展示，失败静默、靠下拉刷新恢复）；游客态**不拉取未读数**（红点仅在 `verified=true` 时刷新）。本条**不适用**下方「入口不置灰、点击弹认证」口径。
@@ -315,10 +306,10 @@
 - **D-工作台（2026-08-18 对账拍板）**：Web 管理后台登录默认落地页为 `/dashboard`（`DashboardView`，工作台 = 待办 + 数据总览），契约见 §0.4.1。**工作台不含 ECharts 图表看板**；`/admin/dashboard` 返回的 `DashboardVO` 虽含趋势/排行/上新等图表字段（供后续图表看板复用），当前 DashboardView 不消费，图表看板非本期交付。前后端契约已对齐、登录首屏已落地，**无开发缺口，不需要为此新建开发 task**（本决策记录即对账结论，勿为已存在代码再拆 task）。
 
 ### 5.x 三端一致性红线（强制，违反即阻断级缺陷）
-- **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner 契约，Banner 已移除后适用于广播等）；评价状态 `isHidden`(0/1) 非 `isDeleted`；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
+- **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner/广播契约，二者均已移除后保留为通用跳转字段规范）；评价状态 `isHidden`(0/1) 非 `isDeleted`；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
 - **错误码统一**：成功 200 / 参数 400 / 未登录 401 / 无权限 403 / 服务器 500（**4031 邮箱未认证例外见 §3**）；**401 统一处理**（2026-08-19 更新）：小程序 `http.ts` 对 401 先确保静默登录再自动重试一次，仍失败才 `handleUnauthorized`（清 token + Toast + 重新微信静默登录），`handleUnauthorized` 有并发去重防登录风暴；**不再用 `uni.$emit('auth:unauthorized')` 事件总线**（规避 HMR 重复订阅泄漏）；**web `http.ts`（管理后台）** 补齐 401 拦截（清 `localStorage.token` + 跳转管理后台登录页 `/login`，方案 C 仍用账号密码）。
 - **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/mine/index.vue` 的「我的收藏」、`pages/detail/dish/index.vue` 底部收藏按钮、`my-favorites` 页），统一移除。语义仅保留 `ic-heart=喜欢`（点赞/喜欢，非收藏）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
-- **状态枚举**：Dish `status` on/off；Canteen/Stall `status` open/closed；Broadcast/Activity `status` enabled/disabled；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举。（Banner 已移除）
+- **状态枚举**：Dish `status` on/off；Canteen/Stall `status` open/closed；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举。（Banner 及 Broadcast/Activity 已随公告/活动下线移除）
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
 - **学生 UGC 路径**：学生端**无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线，客户端零消费）；**菜品由管理员录入**（`/admin/dishes/**`），学生提交菜品需求走意见反馈 `add` 类型（`POST /feedback`）由后台处理。学生端保留的 UGC 写操作 = 写评价 / 评价点赞 / 删本人评价——均需 `verified=true`（见 §5.y 权限矩阵）；反馈与举报公开免认证；`POST /dishes/{id}/view`（浏览埋点）与全部 GET 接口保留。严禁 `/stall-owner/**`。（学生提交档口/食堂 `POST /my/stalls` 已随功能移除，2026-08-18）
 - **分页结构**：列表接口统一 `PageResult<T>{ records, total, page, pageSize }`；单页非分页返回 `List<T>`。

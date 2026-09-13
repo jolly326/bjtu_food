@@ -57,7 +57,7 @@
 |---|---|---|---|---|
 | GET | `/dishes/hot` | `lat`/`lng`/`limit`(可选) | `List<DishVO>` | 热门菜品 |
 | GET | `/dishes/new` | — | `List<DishVO>` | 今日上新 TOP8 |
-| GET | `/dishes/promotions` | — | `List<DishVO>` | 限时活动 TOP4（`FIND_IN_SET('promotion', tags)`） |
+| GET | `/dishes/promotions` | — | `List<DishVO>` | 限时促销 TOP4（`FIND_IN_SET('promotion', tags)`；指菜品促销标签，与已下线的 activity 活动模块无关） |
 | GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10 |
 | GET | `/dishes/rising` | — | `List<DishVO>` | 新晋黑马 TOP10 |
 | GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/categoryId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize/excludeIds） | `IPage<DishVO>` | 菜品分页搜索/筛选/排序 |
@@ -72,13 +72,13 @@
 
 > 评价全量纯文本（UGC 图片已下线），`isWithImage` 参数已不存在（2026-09 契约清理）。
 
-### 2.5 内容/活动/品类（公开）
+### 2.5 内容/品类（公开）
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/categories` | 首页品类滚轮（enabled，sort_order 升序） |
-| GET | `/broadcasts` | 首页广播 ticker（enabled） |
-| GET | `/activities` | 最新活动（公众号文章卡片；返回**裸 List**，前端需按数组解析） |
 | GET | `/images/**` | 静态图片资源 |
+
+> `GET /broadcasts`、`GET /activities` 及管理端 `/admin/broadcasts`、`/admin/activities` 系列接口已于 2026-09-13 随活动/公告（broadcast）全链路下线删除，接口与实体均不存在（spec §0.5 已登记）。
 
 ---
 
@@ -185,7 +185,6 @@
 |---|---|---|
 | CRUD | `/admin/canteens`、`/admin/stalls` | 食堂/档口 |
 | CRUD | `/admin/categories` | 品类（sortOrder 非数字返回 400） |
-| CRUD | `/admin/broadcasts` | 广播 |
 | GET | `/admin/operation-logs` | 操作日志（只读） |
 | GET | `/admin/audit/*` | 待审内容 |
 
@@ -218,7 +217,7 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 
 - **base URL**：小程序经 `wx.cloud.callContainer` 访问（云托管），`context-path=/api`；web 管理端走公网/内网代理。
 - **图片**：`relativeUrl` 用于存库，展示时前端拼完整前缀。
-- **分页**：统一读 `records`/`total`；`/activities` 例外返回裸数组。
+- **分页**：统一读 `records`/`total`（原 `/activities` 裸数组例外已随该接口下线删除，2026-09-13）。
 - **403 分级**：`code=403`（无权限）与 `code=4031`（未认证邮箱）前端需区分处理。
 
 ---
@@ -227,7 +226,8 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 
 | 项 | spec 描述 | 实际代码 | 建议 |
 |---|---|---|---|
-| 页面数量 | 9 页（旧） | 11 页（pages.json：主包 3 + 分包 detail/me/activity，共 11 页） | 已对齐（2026-09 spec §2.1 已校准为 11） |
+| **activity / broadcast 全链路下线（2026-09-13）** | spec 曾列 `/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口与 activity/broadcast 实体 | 接口 / 实体 / 库表 / Web 管理页 / 小程序页面（`pages/activity/` 分包）与「最新活动」宫格全部删除，数据库基线 14 → 12 张表 | 本文档 §2.5 / §5.5 已删除相关行；spec §0.5 已登记下线拍板 |
+| 页面数量 | 9 页（spec §2.1，2026-09-13 随 activity 下线由 11 收敛） | 9 页（pages.json：主包 3 + 分包 detail/me，共 9 页） | 已对齐（spec §2.1 与 pages.json 一致） |
 | 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
 | `GET /my/reviews` 分页形态 | IPage `{records,total,...}`（§1.4 通用） | `PageResult{list,total}`（`ReviewController.java:79`） | 已在 §1.4 / §3.3 加注，前端 `recordsOf()` 双形态兼容 |
@@ -238,9 +238,9 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 ---
 
 ## 9. 已知技术债 / 建议
-- `BroadcastAdminController` 用 `@RequestBody Broadcast` 直收无 `@Valid`/枚举校验 → 建议补 DTO+校验
+- ~~`BroadcastAdminController` 用 `@RequestBody Broadcast` 直收无 `@Valid`/枚举校验~~ → 已随 2026-09-13 活动/公告全链路下线删除（该 Controller 不存在）
 - 验证码限频无 IP 维度 → 建议补 IP 维度 + 单日总量限制
-- 前端裸 hex（webview progressbar、find confirmColor）→ 建议登记 `uni.scss` token
+- 前端裸 hex（find confirmColor）→ 建议登记 token（原 webview progressbar 例外已随 `web-view` 退出小程序移除）
 - `SecurityConfig` 白名单残留 `/lists/share/**`（美食清单模块已移除，无对应 Controller）→ 建议清理白名单条目
 - `NotificationController` 直调 `NotificationMapper`（分页/已读/未读计数在 Controller 内完成）→ 违反「Controller 不得直调 Mapper」分层红线（spec §2），建议下沉至 `NotificationService`
 - ~~通知接口用 `hasRole('STUDENT')` 而非 verified 口径~~ → **已解决**（`@RequireVerified` 切面已补齐，2026-09 核实）

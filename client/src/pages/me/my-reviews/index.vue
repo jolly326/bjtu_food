@@ -227,7 +227,7 @@ onShow(() => {
 }
 .empty-text { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
-/* 加载失败重试块（MP-012）：与 find/activity/feed 重试块同族视觉
+/* 加载失败重试块（MP-012）：与 find/feed 重试块同族视觉
    （居中、凹陷面 bg-soft、次级文字色），整块 @tap 触发重拉，无独立按钮 */
 .my-reviews-retry {
   display: flex;

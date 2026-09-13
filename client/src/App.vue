@@ -67,9 +67,6 @@ page {
   /* 边框（已收敛 border-light → border-color） */
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
-  /* 万能卡片语义色（首页两列：最新活动=冷蓝、反馈菜品=青绿，深浅两套对称）。
-     2026-08-17 加深浅色底：原 #E8F1FB/#E7F7F2 在白页上接近白色卡片，无法与广播条等白色组件区分；
-     加深到中低明度冷色底，保证一眼可辨的彩色卡片，同时保持图标/文字对比 ≥4.5:1。 */
   /* 卡片描边（万能两卡与通用卡片边界，低对比强化边界；语义卡用各自色淡描边） */
   --border-card: rgba(0, 0, 0, 0.12);
   /* 圆角 */
@@ -172,7 +169,6 @@ page {
   --z-filter-dropdown: 90; /* 首页/搜索页筛选下拉（FilterBar 食堂下拉遮罩与价格弹层根） */
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
-  --z-webview-bar: 999;    /* 活动 web-view 页顶部自绘返回栏 */
   --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
   --z-sheet-mask: 1990;   /* 上述弹层遮罩 */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */

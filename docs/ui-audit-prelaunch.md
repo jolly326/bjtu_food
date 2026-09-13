@@ -5,6 +5,7 @@
 > 判据：`docs/project_spec.md` §4（含 §4.9 BLOCKER 红线）、`client/src/App.vue` 令牌真源、`client/src/theme/tokens.ts`、`client/src/components/IconSvg.vue` 键表、skill `apple-design`
 > 范围：`client/src/pages/**` + `client/src/components/**`（全量）+ `web/src/views/**`（抽查）
 > **判据缺口登记**：`docs/ui-design.md` **不存在**（`docs/` 实际仅 `api-design.md` / `architecture.md` / `database.md` / `NEED.md` / `project_spec.md`）。此前若有引用 `docs/ui-design.md` 的流程步骤，应改判据为 §4 + `App.vue`。同理 `docs/web-ui.md` / `docs/pages/TEMPLATE.md` 已按 spec §4.2 声明删除，本次审计未引用。
+> **时效标注（2026-09-13）**：活动 + 公告（broadcast）已全链路下线，`pages/activity/*` 两页（活动列表 / web-view）及其后端接口、库表已删除。本报告中涉及 `pages/activity/index.vue`、`pages/activity/webview.vue`、`broadcast`/`broadcast-fill` 图标键的条目（§0 键注册、§1.1/1.4/1.5/1.6 相关行、§3 PASS 清单）均**随页面删除而失效**，仅作历史审计快照保留，相关整改项一律不再执行；「我的」页宫格相关描述按 2026-09-13 一行 3 列口径复核。
 
 ---
 
@@ -42,7 +43,7 @@
 | `pages/detail/dish/DishReviewSection.vue` | `:46-50` 评价卡 `padding: var(--spacing-sm) var(--spacing-md)`（16/24） | 与 DishInfoCard 的 `CardSection` 内边距（`CardSection.vue:22` = `--spacing-md` 24 四边）不一致，同页两卡内缘不齐 | 评价卡内边距改 `var(--spacing-md)` 四边，或显式声明「卡内列表卡缩进」并同步 DishInfoCard | P3 | 否 |
 | 全站卡片 | `DishCard:95-106` / `HomeContent .contribute-card:164-174` / `notifications .msg-item:155-167` / `my-reviews .review-card:164-174` / `activity .activity-card:173-183` / `privacy .doc:108-117` | 卡片圆角/阴影均走 `var(--radius-card)` + `var(--shadow-card\|shadow-warm)` ✅ | **一致，无需改**（暖调页用 `--shadow-warm` 属已登记 Q 版语言，非漂移） | PASS | — |
 | Web `variables.css` / `AdminLayout` / `DashboardView` | `variables.css` 三层 token；`DashboardView.vue:124-209` 全 token | 无裸值、无裸 hex ✅ | **PASS** | PASS | — |
-| `pages/activity/index.vue` | `:286` `padding: 180rpx var(--spacing-lg)` 空态；`:251` `height: 56rpx` 胶囊 | 180rpx 裸值（非 token）；56rpx 小于 88rpx 触达下限 | 空态改 `padding: var(--spacing-4xl?) → 用 var(--icon-4xl)` 派生或 `padding: 160rpx var(--spacing-lg)`；胶囊高改 ≥88rpx（见 §1.3） | P2 | 否 |
+| `pages/activity/index.vue` | `:286` `padding: 180rpx var(--spacing-lg)` 空态；`:251` `height: 56rpx` 胶囊 | 180rpx 裸值（非 token）；56rpx 小于 88rpx 触达下限 | 空态改 `padding: var(--spacing-4xl?) → 用 var(--icon-4xl)` 派生或 `padding: 160rpx var(--spacing-lg)`；胶囊高改 ≥88rpx（见 §1.3）。**【已失效】页面已随 2026-09-13 活动全链路下线删除，本条不再执行** | P2 | 否 |
 
 ### 1.2 可读性与层级（字号 / 字重 / 对比度）
 
@@ -127,7 +128,7 @@
 | `pages/activity/index.vue` | `:160-165` `.scroll-wrap` `padding-bottom: env(safe-area-inset-bottom)`；`:66` 尾部显式注入 `calc(--spacing-lg + env)` 占位 | **PASS**（尾部占位块补齐避让） | **PASS** | PASS | — |
 | `pages/me/my-reviews` / `notifications` | `:161`/`:152` `.scroll-wrap` `padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg))`，**无 safe-area** | 二级页无固定底栏，但**竖屏底部 home indicator 区未避让**，末条卡片可能贴底 | 加 `env(safe-area-inset-bottom)`：`calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom))` | P2 | 否 |
 | `pages/privacy` | `:106` 同上无 safe-area | 同 | 同上 | P2 | 否 |
-| `pages/mine/index.vue` 宫格标题 | `:278` `.grid-cell-label { white-space: nowrap }` + 字 `--font-subtitle`(32rpx) | **窄屏单行不折行**：2×2 每格宽 ≈ (750-48-48-24)/2 = 315rpx；「最新活动」「系统通知」4 字 ×32rpx=128rpx ✅ 不折行 | **PASS**（已 `nowrap` 且宽度充足），建议补 `overflow: hidden; text-overflow: ellipsis` 兜底超大字号 | PASS | — |
+| `pages/mine/index.vue` 宫格标题 | `:278` `.grid-cell-label { white-space: nowrap }` + 字 `--font-subtitle`(32rpx) | **窄屏单行不折行**：一行 3 列每格宽 ≈ (750-48-24)/3 ≈ 226rpx（2026-09-13 口径）；「意见反馈」「系统通知」4 字 ×32rpx=128rpx ✅ 不折行（原 2×2 四格口径下「最新活动」计算随该格下线作废） | **PASS**（已 `nowrap` 且宽度充足），建议补 `overflow: hidden; text-overflow: ellipsis` 兜底超大字号 | PASS | — |
 
 ### 1.7 动效克制一致性（§4.3 capability：弹层瞬开瞬关、无入场动效、按压仅 opacity/bg-soft）
 
@@ -182,12 +183,12 @@
 - `client/src/components/IconSvg.vue`（`empty` 中性占位回退正确、dev 告警、data-uri 缓存）
 - `client/src/components/FilterBar.vue`（全 token、两胶囊 + 常驻筛选、互斥面板）
 - `client/src/pages/home/index.vue` + `HomeContent.vue` + `DishCard.vue`（瀑布流双列 `flex:1 1 0; width:0; min-width:0` 兜底、DishCard 根 `width:100%;min-width:0`、**无具名 slot 分发**、3:2 固定比例 CLS=0）
-- `client/src/pages/mine/index.vue`（2×2 宫格整格热区、footer aria-hidden 修复闭环、认证态二分正确）
+- `client/src/pages/mine/index.vue`（一行 3 列宫格整格热区、footer aria-hidden 修复闭环、认证态二分正确；2026-09-13 口径）
 - `client/src/pages/me/notifications/index.vue`（重试块 + 游客静默 + 未读竖条）
 - `client/src/pages/me/my-reviews/index.vue`（重试块 + 删空轻提示双口径）
 - `client/src/pages/me/privacy/index.vue`（合规文本随包、无外链依赖）
-- `client/src/pages/activity/index.vue`（Q 版卡片、重试块、空态、尾部避让占位）
-- `client/src/pages/activity/webview.vue`（返回条浮于原生层、协议白名单校验、progressbar token 登记）
+- ~~`client/src/pages/activity/index.vue`（Q 版卡片、重试块、空态、尾部避让占位）~~（已随 2026-09-13 活动全链路下线删除）
+- ~~`client/src/pages/activity/webview.vue`（返回条浮于原生层、协议白名单校验、progressbar token 登记）~~（已随 2026-09-13 活动全链路下线删除）
 - `web/src/styles/variables.css` + `web/src/views/layout/AdminLayout.vue` + `web/src/views/dashboard/DashboardView.vue`（三层 token、双主题、reduced-motion/transparency 降级、响应式列）
 
 ---

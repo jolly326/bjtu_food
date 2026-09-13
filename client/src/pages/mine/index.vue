@@ -42,29 +42,23 @@
         </view>
       </view>
 
-      <!-- 2×2 功能宫格：第一行 最新活动 / 意见反馈；第二行 系统通知 / 我的评价（每格整格热区，角标贴右上角） -->
+      <!-- 功能宫格：一行三列（意见反馈 / 系统通知 / 我的评价），三格等宽等高，每格整格热区 -->
       <view class="grid">
-        <view v-for="(row, ri) in gridRows" :key="ri" class="grid-row">
-          <view
-            v-for="cell in row"
-            :key="cell.key"
-            class="grid-cell"
-            role="button"
-            :aria-label="cell.label"
-            hover-class="pressed"
-            @tap="cell.action"
-          >
-            <view class="grid-cell-icon">
-              <IconSvg :name="cell.icon" :size="44" color="var(--color-primary)" />
-              <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
-              <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
-              <!-- 最新活动：「新」角标仅在功能开放时显示（暂缓期不显示，避免角标承诺与 toast 提示矛盾） -->
-              <view v-if="cell.key === 'activity' && activityOpen" class="badge badge-new" aria-hidden="true">
-                <text class="badge-new-text">新</text>
-              </view>
-            </view>
-            <text class="grid-cell-label">{{ cell.label }}</text>
+        <view
+          v-for="cell in gridCells"
+          :key="cell.key"
+          class="grid-cell"
+          role="button"
+          :aria-label="cell.label"
+          hover-class="pressed"
+          @tap="cell.action"
+        >
+          <view class="grid-cell-icon">
+            <IconSvg :name="cell.icon" :size="44" color="var(--color-primary)" />
+            <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
+            <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
           </view>
+          <text class="grid-cell-label">{{ cell.label }}</text>
         </view>
       </view>
 
@@ -108,7 +102,6 @@ import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
-import { FEATURE_GATES, resolveGate } from '@/utils/feature-gates'
 
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
@@ -151,23 +144,13 @@ function onUserCardTap() {
   uni.navigateTo({ url: PATH.profile })
 }
 
-/** 2×2 功能宫格数据（顺序固定：最新活动｜意见反馈 / 系统通知｜我的评价）；每格整格热区 */
+/** 功能宫格数据（一行三列，顺序固定：意见反馈 / 系统通知 / 我的评价）；每格整格热区 */
 interface GridCell {
   key: string
   icon: string
   label: string
   action: () => void
 }
-/** 暂缓开放格点击：按 feature-gates 读取——open ? 跳转登记路由 : toast 提示（文案不在此硬编码） */
-function gateTap(gateKey: keyof typeof FEATURE_GATES): () => void {
-  return () => {
-    const gate = resolveGate(gateKey)
-    if (gate.open) uni.navigateTo({ url: gate.url })
-    else uni.showToast({ title: gate.toast, icon: 'none' })
-  }
-}
-/** 活动功能是否开放：仅在开放时显示「新」角标（暂缓期不显示） */
-const activityOpen = FEATURE_GATES.activity.open
 
 /** 「我的评价」：需认证入口（未认证弹 AuthSheet，认证成功后自动续跑进入本页） */
 function goMyReviews() {
@@ -180,16 +163,10 @@ function goPrivacy() {
   uni.navigateTo({ url: PATH.privacy })
 }
 
-const gridRows: GridCell[][] = [
-  [
-    // 最新活动：暂缓开放登记于 utils/feature-gates.ts
-    { key: 'activity', icon: 'broadcast', label: '最新活动', action: gateTap('activity') },
-    { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
-  ],
-  [
-    { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
-    { key: 'myReviews', icon: 'star', label: '我的评价', action: goMyReviews },
-  ],
+const gridCells: GridCell[] = [
+  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
+  { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
+  { key: 'myReviews', icon: 'star', label: '我的评价', action: goMyReviews },
 ]
 </script>
 
@@ -245,9 +222,8 @@ const gridRows: GridCell[][] = [
 .verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
-/* 2×2 功能宫格：四格等尺寸圆角白卡，格间间距均匀，每格整格热区 */
-.grid { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
-.grid-row { display: flex; gap: var(--spacing-md); }
+/* 功能宫格：一行三列等宽等高圆角白卡，格间间距均匀，每格整格热区 */
+.grid { display: flex; align-items: stretch; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
 .grid-cell {
   flex: 1;
   min-width: 0;
@@ -279,18 +255,6 @@ const gridRows: GridCell[][] = [
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
 .badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-error); }
-/* 「新」角标（仅活动功能开放时出现） */
-.badge-new {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32rpx;
-  height: 32rpx;
-  padding: 0 var(--spacing-2xs);
-  border-radius: var(--radius-pill);
-  background: var(--color-error);
-}
-.badge-new-text { font-size: var(--font-tiny); color: var(--text-white); line-height: 1; }
 
 /* 底部信息区：与宫格之间留大片留白，位于 TabBar 之上。
    两行纯展示（版本 / 学校）走 aria-hidden 子容器；合规入口为该区域唯一可点元素 */

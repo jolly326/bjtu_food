@@ -45,10 +45,6 @@ export const COLOR_MAP = {
   'overlay-dark-soft': 'rgba(0,0,0,0.15)',
   'overlay-dark-faint': 'rgba(0,0,0,0.06)',
   'overlay-scrim': 'rgba(0,0,0,0.4)',
-  'color-cell-activity': '#1E5FCE',
-  'bg-cell-activity': '#CFE3FA',
-  'color-cell-feedback': '#0E9E6E',
-  'bg-cell-feedback': '#C4ECDD',
   'shadow-card': '0 2px 12px rgba(0,0,0,0.04)',
   /* feedback-forms-ux-polish：Q 版暖调柔和投影（卡片暖调分层；中性阴影仍走 shadow-card） */
   'shadow-warm': '0 4rpx 12rpx rgba(180, 140, 120, 0.08)',
@@ -67,9 +63,6 @@ export type IconColorName = keyof typeof COLOR_MAP
 // 必须用真实色值（见 pages/detail/dish/ImageSwiper.vue）。删除 uni.scss 后，原例外说明迁此。
 export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
 export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
-// 微信原生 <web-view> 的 progressbar.color 不接受 var()，必须用真实色值
-// （见 pages/activity/webview.vue）。主色变更时须同步此处。
-export const WEBVIEW_PROGRESSBAR_COLOR = '#C45549'
 // uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（危险操作确认按钮，与 --color-error 同值）
 // （见 pages/detail/dish/useDishPage.ts、pages/me/my-reviews/index.vue、pages/find/index.vue）
 export const MODAL_CONFIRM_DANGER_COLOR = '#FF3B30'

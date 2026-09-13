@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS `notification`
     `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit / feedback_handle',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
-    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/活动ID，按 type 解释）',
+    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
     `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -209,43 +209,6 @@ CREATE TABLE IF NOT EXISTS `category`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（首页品类滚轮）';
 
--- -------------------- 首页广播通知条（A.14） --------------------
-CREATE TABLE IF NOT EXISTS `broadcast`
-(
-    `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '广播ID',
-    `title`          VARCHAR(128) NOT NULL DEFAULT '' COMMENT '广播标题',
-    `content`        VARCHAR(512) NOT NULL DEFAULT '' COMMENT '广播正文（首页 ticker 展示文本）',
-    `broadcast_type` VARCHAR(32)  NOT NULL DEFAULT 'NOTICE' COMMENT '广播类型：NOTICE/ACTIVITY/DISH/URL/NONE（首页按类型分发跳转）',
-    `target_id`      BIGINT       NULL     DEFAULT NULL COMMENT '跳转目标ID（broadcast_type=DISH 时填菜品ID）',
-    `target_url`     VARCHAR(512) NULL     DEFAULT NULL COMMENT '跳转目标URL（broadcast_type=URL 时填外链）',
-    `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `status`         VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
-    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_broadcast_status_sort` (`status`, `sort_order`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='首页广播通知条';
-
--- -------------------- 最新活动（公众号文章卡片） --------------------
-CREATE TABLE IF NOT EXISTS `activity`
-(
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '活动ID',
-    `title`       VARCHAR(100) NOT NULL DEFAULT '' COMMENT '活动/文章标题',
-    `description` VARCHAR(500) NULL    DEFAULT NULL COMMENT '摘要（卡片副文案）',
-    `image`       VARCHAR(500) NULL    DEFAULT NULL COMMENT '封面图 URL（公众号文章封面，可空）',
-    `article_url` VARCHAR(500) NULL    DEFAULT NULL COMMENT '公众号文章链接（小程序 web-view 打开）',
-    `status`      VARCHAR(20)  NOT NULL DEFAULT 'enabled' COMMENT '展示状态：enabled/disabled',
-    `sort_order`  INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_activity_status_sort` (`status`, `sort_order`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='最新活动（公众号文章卡片）';
-
 -- -------------------- 用户反馈 --------------------
 CREATE TABLE IF NOT EXISTS `user_feedback`
 (
@@ -267,10 +230,6 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
-
--- -------------------- 活动说明 --------------------
--- activity 表（见上方「最新活动」）为 task-12.10 活动模块：入口为「我的」页宫格，活动列表页展示最新活动标题、web 后台可 CRUD、卡片经 web-view 打开公众号文章。
--- 轮播图（banner）功能已废弃移除，活动不再关联 Banner，独立成表承载。
 
 -- =============================================================
 -- 一期扩展字段（追加，不改动既有列）

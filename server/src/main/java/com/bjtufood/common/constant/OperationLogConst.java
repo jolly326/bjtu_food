@@ -16,7 +16,4 @@ public interface OperationLogConst {
     String ACTION_CATEGORY_UPDATE = "category_update";
     String ACTION_CATEGORY_TOGGLE = "category_toggle";
     String ACTION_CATEGORY_DELETE = "category_delete";
-    String ACTION_ACTIVITY_CREATE = "activity_create";
-    String ACTION_ACTIVITY_UPDATE = "activity_update";
-    String ACTION_ACTIVITY_DELETE = "activity_delete";
 }

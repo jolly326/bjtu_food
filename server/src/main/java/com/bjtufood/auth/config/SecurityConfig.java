@@ -82,10 +82,7 @@ public class SecurityConfig {
             "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
             "/images/**", "/api/images/**",
-            "/broadcasts", "/api/broadcasts",
-            "/categories", "/api/categories",
-            // 活动列表/详情为公开浏览内容（GET），游客可看；写操作仍须登录
-            "/activities/**", "/api/activities/**"
+            "/categories", "/api/categories"
     };
 
     @Bean

@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * 消息通知服务实现
  * <p>
- * 被审核/评论/👍/活动等业务调用，异步解耦写入 notification 表。
+ * 被审核/评论/👍等业务调用，异步解耦写入 notification 表。
  * P3/ARCH-008：学生端「我的通知」列表/未读数/已读逻辑自 Controller 下沉至此。
  */
 @Service

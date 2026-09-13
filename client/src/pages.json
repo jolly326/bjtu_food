@@ -74,25 +74,6 @@
 					}
 				}
 			]
-		},
-		{
-			"root": "pages/activity/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "最新活动",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "webview",
-					"style": {
-						"navigationBarTitleText": "",
-						"navigationStyle": "custom"
-					}
-				}
-			]
 		}
 	],
 	"preloadRule": {
