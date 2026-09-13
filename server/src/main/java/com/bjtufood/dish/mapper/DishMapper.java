@@ -32,14 +32,14 @@ public interface DishMapper extends BaseMapper<Dish> {
     /**
      * 查询热门菜品 TOP10（联表）
      * <p>
-     * 按收藏量降序，取前 10 条
+     * 按评价数降序、评分次之（rating_count DESC, avg_rating DESC），取前 10 条
      */
     List<DishVO> selectHotDishes();
 
     /**
      * 查询热门菜品 TOP10（按用户位置距离加权排序）
      * <p>
-     * 有坐标时：先按食堂距离升序（近的食堂菜品优先），热度（收藏/评分）作次级排序。
+     * 有坐标时：先按食堂距离升序（近的食堂菜品优先），热度（评价数/评分）作次级排序。
      * 无坐标食堂的菜品排最后。
      *
      * @param lat 用户纬度（GCJ-02，可为 null）

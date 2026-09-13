@@ -48,6 +48,7 @@
         SELECT
             d.id,
             d.name,
+            d.alias,
             d.price,
             d.original_price,
             d.promo_price,
@@ -88,7 +89,9 @@
           AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         <if test="req.keyword != null and req.keyword != ''">
-            AND (d.name LIKE CONCAT('%', #{req.keyword}, '%')
+            -- 菜品名或别名命中即返回（alias 为管理员配置的逗号分隔别名，NULL 行 LIKE 恒 false 不影响 OR 短路）
+            AND ((d.name LIKE CONCAT('%', #{req.keyword}, '%')
+            OR d.alias LIKE CONCAT('%', #{req.keyword}, '%'))
             OR s.name LIKE CONCAT('%', #{req.keyword}, '%')
             OR c.name LIKE CONCAT('%', #{req.keyword}, '%')
             OR d.tags LIKE CONCAT('%', #{req.keyword}, '%'))
@@ -252,6 +255,8 @@
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
         <result property="categoryId" column="category_id"/>
+        <result property="name" column="name"/>
+        <result property="alias" column="alias"/>
         <result property="originalPrice" column="original_price"/>
         <result property="promoPrice" column="promo_price"/>
         <result property="spiceLevel" column="spice_level"/>

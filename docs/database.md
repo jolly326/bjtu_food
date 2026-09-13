@@ -103,6 +103,7 @@
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
 | tags | VARCHAR(128) | 可 | NULL | 逗号分隔；**权威值域：`recommended`（必吃推荐）/ `signature`（招牌菜）**；web 管理端写入值域以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值，禁止写入中文或其他值 |
+| alias | VARCHAR(255) | 可 | NULL | 搜索别名（逗号分隔，管理员配置；搜索 keyword 同时命中 name 与 alias；旧库经 schema.sql 幂等迁移块补齐） |
 | region | VARCHAR(32) | 可 | NULL | 地域（美食来源地），如 清真/川湘/西北/粤式/东北（一期扩展，schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
 | portion | INT | 否 | 1 | 分量：0小/1中/2大 |

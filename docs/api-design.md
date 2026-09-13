@@ -60,9 +60,9 @@
 | GET | `/dishes/promotions` | — | `List<DishVO>` | 限时促销 TOP4（`FIND_IN_SET('promotion', tags)`；指菜品促销标签，与已下线的 activity 活动模块无关） |
 | GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10 |
 | GET | `/dishes/rising` | — | `List<DishVO>` | 新晋黑马 TOP10 |
-| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/categoryId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize/excludeIds） | `IPage<DishVO>` | 菜品分页搜索/筛选/排序 |
+| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/categoryId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize/excludeIds） | `IPage<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名） |
 | GET | `/dishes/recommend` | `page`/`pageSize`/`excludeIds` | `IPage<DishVO>` | 猜你喜欢（基于浏览足迹个性化） |
-| GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（登录时含 isFavorited/hasReviewed） |
+| GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（登录时含 hasReviewed） |
 
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
@@ -93,6 +93,7 @@
 | GET | `/auth/profile` | 登录 | — | 用户资料（**不含 openid**） |
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
 | PUT | `/auth/password` | 登录 | `{ oldPassword, newPassword }` | 改密（管理员用） |
+| DELETE | `/auth/account` | 登录 | — | **注销账号（匿名化，非物理删除）**：nickname→'已注销用户'、openid/unionid→NULL（解绑，允许重新登录建新游客号）、status→'deleted'；评价/反馈保留但去身份化；token 立即失效（TokenBlacklist token+userId 双维度）；幂等（重复调用 400「账号已注销」） |
 
 ### 3.2 菜品埋点（登录即可，非写接口）
 | 方法 | 路径 | 参数 | 说明 |

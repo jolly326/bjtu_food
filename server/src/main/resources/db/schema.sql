@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
     `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id，首页品类滚轮筛选用；可空=未分类）',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
+    `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（折扣前，单位：分）；promo_price 非空视为有折扣',
     `promo_price`    INT          NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空）；非空视为有折扣',
@@ -592,5 +593,24 @@ END$$
 DELIMITER ;
 CALL `add_feedback_ugc_sec_fields`();
 DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+
+-- 菜品搜索别名（2026-09-13 需求：搜索命中别名也能找到菜品；管理员经后台配置）：
+-- dish 补齐 alias 列（CREATE TABLE 已含，列定义以 CREATE 为准：alias VARCHAR(255) NULL）；
+-- 旧库幂等补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护，与上方迁移惯例一致）。
+DROP PROCEDURE IF EXISTS `add_dish_alias`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_alias`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'alias'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `alias` VARCHAR(255) NULL DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_alias`();
+DROP PROCEDURE IF EXISTS `add_dish_alias`;
 
 SET FOREIGN_KEY_CHECKS = 1;

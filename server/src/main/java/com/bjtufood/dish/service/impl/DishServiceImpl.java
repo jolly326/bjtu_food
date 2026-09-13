@@ -44,6 +44,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
 
+    /** 搜索别名最大长度（与 schema.sql dish.alias VARCHAR(255) 对齐，含逗号分隔符） */
+    private static final int ALIAS_MAX_LENGTH = 255;
+
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
@@ -358,13 +361,20 @@ public class DishServiceImpl implements DishService {
         // 契约约定：null 表示清空可空的原价/促销价；updateById 默认 NOT_NULL 策略不落 null，需显式置空
         boolean clearOriginalPrice = req.getOriginalPrice() == null;
         boolean clearPromoPrice = req.getPromoPrice() == null;
-        if (clearOriginalPrice || clearPromoPrice) {
+        // alias 契约与原价/促销价不同：null=不修改（保护「仅传 status 的行内部分更新」不误清别名）；
+        // 传了字段（含空串/纯空白）但规范化后为空 = 清空别名，updateById 不落 null，需显式置空。
+        boolean clearAlias = req.getAlias() != null
+                && !StringUtils.hasText(normalizeAlias(req.getAlias()));
+        if (clearOriginalPrice || clearPromoPrice || clearAlias) {
             LambdaUpdateWrapper<Dish> clearWrapper = new LambdaUpdateWrapper<Dish>().eq(Dish::getId, id);
             if (clearOriginalPrice) {
                 clearWrapper.set(Dish::getOriginalPrice, null);
             }
             if (clearPromoPrice) {
                 clearWrapper.set(Dish::getPromoPrice, null);
+            }
+            if (clearAlias) {
+                clearWrapper.set(Dish::getAlias, null);
             }
             dishMapper.update(null, clearWrapper);
         }
@@ -404,6 +414,11 @@ public class DishServiceImpl implements DishService {
         dish.setStallId(req.getStallId());
         dish.setCategoryId(req.getCategoryId());
         dish.setName(req.getName());
+        String alias = normalizeAlias(req.getAlias());
+        if (alias != null && alias.length() > ALIAS_MAX_LENGTH) {
+            throw new BusinessException("搜索别名过长（含逗号分隔符最多 " + ALIAS_MAX_LENGTH + " 字符）");
+        }
+        dish.setAlias(alias);
         dish.setPrice(req.getPrice());
         dish.setOriginalPrice(req.getOriginalPrice());
         dish.setPromoPrice(req.getPromoPrice());
@@ -411,6 +426,26 @@ public class DishServiceImpl implements DishService {
         dish.setImages(JsonListUtil.toJson(req.getImages()));
         dish.setTags(req.getTags());
         dish.setStatus(req.getStatus());
+    }
+
+    /**
+     * 搜索别名规范化：支持中英文逗号分隔，逐项 trim、去空项、去重（保持首次出现顺序）。
+     *
+     * @param raw 原始输入（可空）
+     * @return null=未传（不修改）；空串=清空；非空=逗号分隔的规范化别名
+     */
+    private static String normalizeAlias(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        java.util.LinkedHashSet<String> parts = new java.util.LinkedHashSet<>();
+        for (String part : raw.split("[,，]")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                parts.add(trimmed);
+            }
+        }
+        return parts.isEmpty() ? "" : String.join(",", parts);
     }
 
     /**

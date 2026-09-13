@@ -23,6 +23,15 @@ public class DishAdminReq {
     @Schema(description = "菜品名称", example = "番茄炒蛋盖饭")
     private String name;
 
+    /**
+     * 搜索别名（逗号分隔，可空）。搜索关键词命中别名也能找到该菜品；
+     * 支持中英文逗号分隔，后端保存前 trim 去空项并去重，总长 ≤255（超限 400）。
+     * 注意：DTO 层不做校验——PUT /admin/dishes/{id} 支持部分更新（仅传 status 等），
+     * alias 为 null 表示不修改；传空串表示清空别名（由 Service 显式落 NULL）。
+     */
+    @Schema(description = "搜索别名，逗号分隔（可空；null=不修改，空串=清空）", example = "冒菜,麻辣拌")
+    private String alias;
+
     @Schema(description = "价格，单位：分。1200 表示 12 元。", example = "1200")
     private Integer price;
 

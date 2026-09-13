@@ -34,6 +34,10 @@ public class Dish {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
+    /** 搜索别名（逗号分隔，管理员配置，可空）；搜索关键词命中别名也能找到该菜品 */
+    @Schema(description = "搜索别名（逗号分隔，管理员配置，可空）", example = "拉面,牛肉面")
+    private String alias;
+
     /** 价格（单位：分） */
     @Schema(description = "价格（分）", example = "1200")
     private Integer price;

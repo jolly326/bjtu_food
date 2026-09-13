@@ -51,6 +51,7 @@ const form = ref({
   stallId: '' as string | number,
   image: '',
   description: '',
+  alias: '',
   tags: '',
   status: 'active' as 'active' | 'inactive',
   spiceLevel: 0,
@@ -78,6 +79,7 @@ watch(
           stallId: String(d.stall_id ?? ''),
           image: d.image || '',
           description: d.description || '',
+          alias: d.alias || '',
           tags: d.tags || '',
           status: d.status as 'active' | 'inactive',
           spiceLevel: d.spiceLevel ?? 0,
@@ -90,7 +92,7 @@ watch(
       form.value = {
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
         stallId: props.defaultStallId != null ? String(props.defaultStallId) : '',
-        image: '', description: '', tags: '', status: 'active',
+        image: '', description: '', alias: '', tags: '', status: 'active',
         spiceLevel: 0, portion: 0, servePeriod: '', limited: 0,
       }
     }
@@ -244,6 +246,14 @@ async function submit() {
 
       <div class="field"><label>描述</label>
         <textarea v-model="form.description" rows="2" placeholder="菜品描述"></textarea>
+          <p v-if="formErrors.description" class="field-error">{{ formErrors.description }}</p>
+      </div>
+
+      <div class="df-row">
+        <div class="field flex-1"><label>搜索别名（选填，逗号分隔）</label>
+          <input v-model="form.alias" placeholder="如：麻小,小龙虾" />
+          <p class="field-hint">学生搜索这些词也能找到本菜品</p>
+        </div>
       </div>
 
       <div class="df-row">

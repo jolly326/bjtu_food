@@ -62,6 +62,8 @@ export interface Dish {
   price: number;
   tags?: string;
   description?: string;
+  /** 搜索别名（逗号分隔，管理员配置；搜索命中 name 或 alias） */
+  alias?: string;
   avg_rating: number;
   rating_count: number;
   view_count: number;

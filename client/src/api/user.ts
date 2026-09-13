@@ -1,5 +1,5 @@
 import type { UserInfo } from '@/types/user'
-import { get, post, put } from './http'
+import { get, post, put, del } from './http'
 import type { RawRow } from './shared'
 
 function toFrontendRole(role?: string): UserInfo['role'] {
@@ -76,4 +76,12 @@ export async function getProfile(): Promise<UserInfo> {
 export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
   const resp = await put<RawRow>('/auth/profile', data)
   return toUserInfo(resp)
+}
+
+/**
+ * 注销账号（合规：DELETE /auth/account）：账号匿名化（评价/反馈保留但去身份化）。
+ * skipAuthRetry：401 时禁止「静默登录后重试」——静默登录可能建出新游客号，重试会误删新账号。
+ */
+export async function deleteAccount(): Promise<void> {
+  await del('/auth/account', undefined, { skipAuthRetry: true })
 }

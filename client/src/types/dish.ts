@@ -82,7 +82,7 @@ export interface DishQuery {
   /** 价格区间（前端「元」，API 层转分提交） */
   minPrice?: number
   maxPrice?: number
-  /** 排序维度（ARCH §3.1：heat/rating/price/created_at/collects） */
+  /** 排序维度（ARCH §3.1：heat/rating/price/created_at） */
   sortBy?: DishSortBy
   sortOrder?: 'asc' | 'desc'
   page?: number

@@ -13,7 +13,7 @@ import java.util.List;
  * 菜品服务接口
  * <p>
  * 菜品展示、搜索、管理、统计相关业务逻辑。
- * 评价/收藏模块通过事件机制通知本模块更新评分和收藏数。
+ * 评价模块通过事件机制通知本模块更新评分。
  */
 public interface DishService {
 
@@ -23,7 +23,7 @@ public interface DishService {
      * 菜品列表查询（分页+筛选+排序）
      * <p>
      * 支持参数：keyword, canteenId, stallId, tag, minPrice, maxPrice, sortBy, sortOrder
-     * 默认排序：综合热度（收藏量*3 + 浏览量*1 + 评价数*5）降序
+     * 排序：sortBy=heat 时按综合热度（浏览量*1 + 评价数*100 + 评分*20）降序；未传 sortBy 时按评价数、评分降序
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
@@ -34,7 +34,7 @@ public interface DishService {
     /**
      * 获取热门菜品 TOP10
      * <p>
-     * 按收藏量降序排列，取前10条
+     * 按评价数降序、评分次之（rating_count DESC, avg_rating DESC），取前10条
      *
      * @return 热门菜品列表
      */
@@ -72,7 +72,6 @@ public interface DishService {
      * 获取菜品详情
      * <p>
      * 如果请求已登录，会在响应中附加：
-     * - isFavorited：当前用户是否收藏该菜
      * - hasReviewed：当前用户是否评价过该菜
      *
      * @param id     菜品ID
@@ -157,7 +156,7 @@ public interface DishService {
     /**
      * 删除菜品
      * <p>
-     * 物理删除菜品，并清理评价、收藏、清单项等关联数据。
+     * 物理删除菜品，并级联清理关联评价与评价「有用」标记（review_useful）。
      *
      * @param id 菜品ID
      */

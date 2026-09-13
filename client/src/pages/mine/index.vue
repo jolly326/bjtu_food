@@ -70,12 +70,20 @@
           <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
           <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
         </view>
-        <text
-          class="app-footer-link"
-          role="button"
-          aria-label="隐私政策与用户协议"
-          @tap="goPrivacy"
-        >隐私政策 · 用户协议</text>
+        <view class="app-footer-links">
+          <text
+            class="app-footer-link"
+            role="button"
+            aria-label="隐私政策与用户协议"
+            @tap="goPrivacy"
+          >隐私政策 · 用户协议</text>
+          <text
+            class="app-footer-link app-footer-link--danger"
+            role="button"
+            aria-label="注销账号"
+            @tap="onAccountDelete"
+          >注销账号</text>
+        </view>
       </view>
     </view>
 
@@ -102,6 +110,7 @@ import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
+import { deleteAccount } from '@/api/user'
 
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
@@ -161,6 +170,27 @@ function goMyReviews() {
 /** 底部合规入口：隐私政策与用户协议（应用内页面，不依赖外部域名） */
 function goPrivacy() {
   uni.navigateTo({ url: PATH.privacy })
+}
+
+/** 注销账号（合规硬需求）：二次确认 → 后端匿名化 → 清本地态（旧 token 已被后端拉黑，静默登录建新游客号） */
+function onAccountDelete() {
+  uni.showModal({
+    title: '注销账号',
+    content: '注销后账号将匿名化且不可恢复：你的评价与反馈会保留，但不再关联你的身份；注销后需重新登录。',
+    confirmText: '确认注销',
+    confirmColor: '#C45549',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await deleteAccount()
+        uni.showToast({ title: '账号已注销', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: e instanceof Error && e.message ? e.message : '注销失败，请稍后重试', icon: 'none' })
+      } finally {
+        userStore.forceLogout()
+      }
+    },
+  })
 }
 
 const gridCells: GridCell[] = [
@@ -277,6 +307,9 @@ const gridCells: GridCell[] = [
   -webkit-tap-highlight-color: transparent;
 }
 .app-footer-link:active { opacity: 0.7; }
+.app-footer-links { display: flex; align-items: center; gap: var(--spacing-md); }
+/* 注销账号：danger 弱化（合规入口但非主行动），与隐私胶囊同行 */
+.app-footer-link--danger { color: var(--color-error); border-color: var(--color-error); opacity: 0.8; }
 
 @media (prefers-reduced-motion: reduce) {
   .user-card, .grid-cell { transition: none; }

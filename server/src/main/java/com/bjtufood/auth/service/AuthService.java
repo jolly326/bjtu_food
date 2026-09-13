@@ -82,6 +82,27 @@ public interface AuthService {
     void changePassword(Long userId, String oldPassword, String newPassword);
 
     /**
+     * 注销当前登录账号（匿名化，非物理删除，合规硬需求）。
+     * <p>
+     * 匿名化范围（事务内）：
+     * <ul>
+     *   <li>user 行：nickname→'已注销用户'；avatar/email/password/openid/unionid/bind_email→NULL；
+     *       verified→0；verified_at→NULL；status→'deleted'；username 改写为 deleted_{id}
+     *       （释放 uk_user_username，保证同一微信可重新静默登录建新游客号）；</li>
+     *   <li>review / user_feedback / notification / view_log：保留（内容价值 + 评分聚合不破坏），
+     *       展示昵称经 join user 自然变为「已注销用户」；</li>
+     *   <li>email_verification_code：删除该用户（email / bind_email 匹配）的验证码记录。</li>
+     * </ul>
+     * token 失效：注销成功后把当前请求 token 拉黑（token 维度）并按 userId 整体拉黑
+     * （兜底同用户多设备历史 token），复用 {@code TokenBlacklist}。
+     * 幂等：已注销（status=deleted）用户重复调用返回 400「账号已注销」。
+     *
+     * @param userId 当前登录用户ID（SecurityUtil 取，不信任前端）
+     * @param token  当前请求携带的 JWT（用于注销后立即失效；可空——为空时仅按 userId 拉黑）
+     */
+    void deleteAccount(Long userId, String token);
+
+    /**
      * 管理后台登录（方案 C，spec §5.y.5）：管理员账号密码 + BCrypt + JWT。
      *
      * @param req 账号 + 密码

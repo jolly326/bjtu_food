@@ -51,7 +51,7 @@ public class DashboardVO {
     @Schema(description = "最热门食堂（按浏览量/评价数）")
     private List<RankItem> hotCanteens;
 
-    @Schema(description = "最热门菜品（按浏览量/收藏量）")
+    @Schema(description = "最热门菜品（按浏览量）")
     private List<RankItem> hotDishes;
 
     @Schema(description = "浏览量趋势（按天）")
@@ -67,7 +67,7 @@ public class DashboardVO {
         private Long id;
         @Schema(description = "名称")
         private String name;
-        @Schema(description = "热度值（浏览量或收藏量）")
+        @Schema(description = "热度值（浏览量；食堂榜单为下属菜品浏览量汇总）")
         private Long score;
     }
 
