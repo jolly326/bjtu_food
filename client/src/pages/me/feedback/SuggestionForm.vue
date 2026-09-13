@@ -35,15 +35,24 @@
       <text v-if="model.text.length > 800" class="counter">{{ model.text.length }}/1000</text>
       <text v-if="errors['suggestion.text']" class="field-error">{{ errors['suggestion.text'] }}</text>
     </view>
+
+    <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传），随 model.images 交给父页提交；提交中禁选（评审 m1） -->
+    <view class="field">
+      <text class="field-label">配图</text>
+      <ImagePicker v-model="model.images" :max="3" :disabled="submitting" />
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-/** SuggestionForm（feedback 包内私有）：「提个想法」字段区（细分 chips + 正文） */
+/** SuggestionForm（feedback 包内私有）：「提个想法」字段区（细分 chips + 正文 + 配图） */
+import ImagePicker from '@/components/ImagePicker.vue'
 
 const props = defineProps<{
-  model: { sub: 'idea' | 'problem'; text: string }
+  model: { sub: 'idea' | 'problem'; text: string; images: string[] }
   errors: Record<string, string>
+  /** 提交中：禁选配图（评审 m1，与 ReviewComposer 一致） */
+  submitting?: boolean
 }>()
 const emit = defineEmits<{ (e: 'clear', key: string): void }>()
 

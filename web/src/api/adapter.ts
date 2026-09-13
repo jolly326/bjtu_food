@@ -1,4 +1,4 @@
-import type { Canteen, Dish, Review, Stall, User, AuditVO, AdminUser } from '@/types'
+import type { Canteen, Dish, Review, SecState, Stall, User, AuditVO, AdminUser } from '@/types'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[]; list?: T[] }
@@ -31,17 +31,25 @@ export function formatTags(tags: string[]): string {
   return tags.map(t => t.trim()).filter(Boolean).join(',')
 }
 
-export function imagesToLegacy(images: unknown): string {
-  if (Array.isArray(images)) return images.filter(Boolean).map(toAbsoluteImageUrl).join('|||')
-  if (typeof images !== 'string') return ''
+/**
+ * 图片字段容错解析：string[] / JSON 数组串 / ||| 分隔串 → string[]（绝对 URL）。
+ * COS 公网地址原样返回；相对路径补 API_BASE_URL（dev 下防 Vite 源 404）。
+ */
+export function imagesToList(images: unknown): string[] {
+  if (Array.isArray(images)) return images.filter(Boolean).map(toAbsoluteImageUrl)
+  if (typeof images !== 'string') return []
   const trimmed = images.trim()
-  if (!trimmed) return ''
+  if (!trimmed) return []
   try {
     const parsed = JSON.parse(trimmed)
-    return Array.isArray(parsed) ? parsed.filter(Boolean).map(toAbsoluteImageUrl).join('|||') : toAbsoluteImageUrl(trimmed)
-  } catch {
-    return trimmed.split('|||').map(item => toAbsoluteImageUrl(item.trim())).filter(Boolean).join('|||')
-  }
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).map(toAbsoluteImageUrl)
+  } catch { /* 非合法 JSON，按分隔串继续解析 */ }
+  return trimmed.split('|||').map(item => toAbsoluteImageUrl(item.trim())).filter(Boolean)
+}
+
+/** imagesToList 的 legacy 串出口（||| 连接，供 image: string 旧字段沿用） */
+export function imagesToLegacy(images: unknown): string {
+  return imagesToList(images).join('|||')
 }
 
 export function legacyToJsonImages(image?: string): string {
@@ -176,6 +184,19 @@ export function dishToApi(data: Partial<Dish>) {
   })
 }
 
+/**
+ * 安检状态归一化：仅接受后端 ReviewAdminVO.secState 的 'review'/'rejected'，
+ * 其余（缺省/脏值，含旧后端未返回字段）按 'pass' 处理——存量评价均已过安检，不得误标待复核。
+ */
+export function normalizeSecState(v: unknown): SecState {
+  return v === 'review' || v === 'rejected' ? v : 'pass'
+}
+
+/** 筛选下拉字符串 → 服务端 secState 查询参数（白名单收窄：非法/空值归 ''，即全部不透传） */
+export function toSecFilter(v: unknown): SecState | '' {
+  return v === 'review' || v === 'rejected' || v === 'pass' ? v : ''
+}
+
 export function reviewToLegacy(raw: any): Review {
   return {
     id: raw.id,
@@ -183,7 +204,8 @@ export function reviewToLegacy(raw: any): Review {
     dish_id: raw.dishId ?? raw.dish_id,
     rating: raw.rating,
     content: raw.content || '',
-    images: imagesToLegacy(raw.images),
+    images: imagesToList(raw.images),
+    secState: normalizeSecState(raw.secState ?? raw.sec_state),
     is_hidden: raw.isHidden ?? raw.is_hidden ?? 0,
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),

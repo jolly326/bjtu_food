@@ -1,14 +1,16 @@
-import type { Review } from '@/types'
+import type { Review, SecAction, SecState } from '@/types'
 import { del, get, put } from './http'
 import { pageRecords, reviewToLegacy } from './adapter'
 
 /**
  * 评价列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。
- * 若传 userId 则按用户过滤；pageSize 上限受后端 PageUtil 限制（≤100），不在此放宽。
+ * 若传 userId 则按用户过滤；secState 为内容安检筛选（pass/review/rejected，'' = 全部不透传）；
+ * pageSize 上限受后端 PageUtil 限制（≤100），不在此放宽。
  */
 export async function listReviews(params: {
   userId?: number
   keyword?: string
+  secState?: SecState | ''
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: Review[]; total: number }> {
@@ -18,6 +20,7 @@ export async function listReviews(params: {
   }
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
+  if (params.secState) query.secState = params.secState
   const data: any = await get<any>('/admin/reviews', query)
   return {
     list: pageRecords(data).map(reviewToLegacy),
@@ -57,4 +60,13 @@ export async function updateById(id: number, data: Partial<Review> & { is_hidden
 
 export async function deleteById(id: number) {
   await del<void>(`/admin/reviews/${id}`)
+}
+
+/**
+ * 内容安检复核：放行（pass）/ 驳回（rejected）。
+ * PUT /admin/reviews/{id}/sec-state，body { state }，仅 ADMIN；
+ * 'review' 是待复核态由后端安检流水线写入，不作为本接口入参（SecAction 已在类型层收窄）。
+ */
+export async function updateSecState(id: number, state: SecAction): Promise<void> {
+  await put<void>(`/admin/reviews/${id}/sec-state`, { state })
 }

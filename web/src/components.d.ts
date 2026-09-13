@@ -15,6 +15,7 @@ declare module 'vue' {
     DataTable: typeof import('./components/DataTable.vue')['default']
     DishFormDialog: typeof import('./components/DishFormDialog.vue')['default']
     ElIcon: typeof import('element-plus/es')['ElIcon']
+    ElImage: typeof import('element-plus/es')['ElImage']
     ElOption: typeof import('element-plus/es')['ElOption']
     ElPagination: typeof import('element-plus/es')['ElPagination']
     ElSelect: typeof import('element-plus/es')['ElSelect']

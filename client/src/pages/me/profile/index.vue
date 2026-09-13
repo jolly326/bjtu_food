@@ -125,8 +125,9 @@ async function save() {
     uni.showToast({ title: '已保存', icon: 'success' })
     if (navTimer) clearTimeout(navTimer)
     navTimer = setTimeout(() => uni.navigateBack(), 400)
-  } catch {
-    uni.showToast({ title: '保存失败', icon: 'none' })
+  } catch (e: any) {
+    // 后端业务 400 message 直透（如昵称违规「内容包含违规信息，请修改后重试」），网络失败回落固定文案
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
   } finally {
     saving.value = false
   }

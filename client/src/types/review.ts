@@ -19,8 +19,12 @@ export interface Review {
   usefulCount?: number
   /** 当前登录用户是否已标记「有用」（仅登录态返回，可选） */
   useful?: boolean
-  /** 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
-      菜品评价仅保留 评分+文字+有用 的口碑形态；UGC 图片已于 2026-09-12 全量下线（见 project_spec §0.5） */
+  /** 评价配图（COS URL，≤3 张；2026-09 恢复 UGC 配图，后端 /upload/images 安检后回传 URL） */
+  images?: string[]
+  /** 内容安检状态（后端 ReviewVO）：pass=通过对外可见；review=机审中，仅作者本人可见 */
+  secState?: 'pass' | 'review'
+  // 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
+  // 菜品评价保留 评分+文字+图片+有用 的口碑形态
 }
 
 /** 评价排序方式：最新 / 最有用 */

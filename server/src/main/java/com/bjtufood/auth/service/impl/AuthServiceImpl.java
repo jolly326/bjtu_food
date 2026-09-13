@@ -21,6 +21,7 @@ import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
@@ -63,6 +64,7 @@ public class AuthServiceImpl implements AuthService {
     private final NotificationMapper notificationMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
+    private final ContentSecurityService contentSecurityService;
     private final com.bjtufood.auth.config.AdminLoginAttemptLimiter loginAttemptLimiter;
 
     @Override
@@ -169,6 +171,10 @@ public class AuthServiceImpl implements AuthService {
             if (sensitiveFilter.containsSensitive(req.getNickname())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
             }
+            // 内容安全检测（产品定稿 2026-09-13：昵称变更 msgSecCheck v2，scene=1 资料）。
+            // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
+            // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
+            contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
             updater.set(User::getNickname, req.getNickname());
         }
         if (StringUtils.hasText(req.getAvatar())) {

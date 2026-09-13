@@ -106,3 +106,15 @@ wechat:
   secret: ${WECHAT_SECRET:}
   # 小程序登录凭证校验（code2Session）接口地址（GET）
   code2session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+  # 微信云开发（CloudBase）环境 ID：tcb/batchdownloadfile 拉取云存储临时链接用。
+  # 缺省为空时后端尝试从 fileID（cloud://{env}.{bucket}/path）自动解析，仅当解析失败才要求显式配置。
+  cloud-env: ${WECHAT_CLOUD_ENV:}
+
+# ---------- 腾讯云 COS 对象存储（UGC 配图最终存储） ----------
+# 四项均从环境变量注入；任一缺失视为「COS 未配置」，/upload/images 返回 400「图片存储未配置」，
+# 旧 multipart /upload/image 降级本地磁盘存储（开发环境无 COS 仍可用）。
+cos:
+  bucket: ${COS_BUCKET:}
+  secret-id: ${COS_SECRET_ID:}
+  secret-key: ${COS_SECRET_KEY:}
+  region: ${COS_REGION:}

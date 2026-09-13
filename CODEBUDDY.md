@@ -58,11 +58,12 @@
 - 表（12 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / notification / user_feedback / view_log / operation_log（`broadcast`/`activity` 两表已于 2026-09-13 随活动/公告全链路下线删除，基线 14→12；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
 - UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线），菜品由管理员录入（`/admin/dishes`）后即 `approved`，学生侧无编辑重提（历史存量 pending 菜品仍可由后台审核）；下架/纠错类需求走反馈 `error` 类型（关联菜品），新增菜品走 `add`，不再有独立 `apply` 表。
+- **UGC 配图与安检列（2026-09-13，以列扩展落地、不加表，基线仍 12 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）+ `review.sec_state` / `user_feedback.sec_state`（`pass`/`review`）；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
 
 ### 前端架构要点
 - **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。
   - `http.ts`：401 先静默登录重试一次，仍失败 `handleUnauthorized`（清 token+Toast+重登，并发去重），**不用事件总线**；403/4031 分级提示。
-  - 图片：小程序走微信云存储 `cloud://`（仅头像/菜品图）；UGC 评价/反馈全量纯文本、无图片上传（`ImageUploader` 已下线）；图标统一 `<IconSvg>`（本地 `assets/icons`，语义唯一 ic-heart=喜欢、ic-thumb=有用/点赞、无收藏）。
+  - 图片：**UGC 配图（2026-09-13 恢复）**走 `wx.cloud.uploadFile` 传云开发云存储（中转）→ `POST /api/upload/images`（后端 imgSecCheck → COS 转存，返回 COS URL），配图组件（≤3 张、`wx.compressImage` 压缩 ≤1MB、≤750×1334）供评价弹层与反馈表单复用；头像仍走既有单图链路；图标统一 `<IconSvg>`（本地 `assets/icons`，语义唯一 ic-heart=喜欢、ic-thumb=有用/点赞、无收藏）。
 - **Web `web/src`**：`api/`(含 `adapter.ts` 做 snake_case→camelCase 映射，**禁止视图层直处字段名**)、`views/`、`components/`、`router/`、`api/dashboard.ts`；登录首屏 `/dashboard`（工作台=待办+数据总览，**非 ECharts 看板**）。
 - 两前端**无共享代码**，各自独立 `api/` 层；字段命名约定靠 `project_spec.md` §5.x 对齐。
 
@@ -78,7 +79,8 @@
 ### 已拍板关键决策（避免回退）
 - **权威口径（2026-09-12 校正）**：`docs/project_spec.md` 为唯一权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
 - **学生端菜品写接口全量下线（2026-09-13 拍板，防回退）**：`POST /dishes`（发布）、`PUT /dishes/{id}`（编辑重提）、`DELETE /dishes/{id}`（删本人菜品）三者已从 controller/service/impl 全量删除，DTO `dish/dto/DishPublishReq.java` 一并删除；客户端 `api/dish.ts` 的 `deleteDish`、详情页长按删除链路（`onDishLongPress`/`navTimer`/`onUnload`/`DishInfoCard` 的 `@longpress`）同步移除。**学生端无菜品写接口 = 学生只有评价类 UGC 写能力**；菜品由管理员经 `/admin/dishes/**` 录入，学生菜品需求走反馈 `add` 类型。**保留**：`POST /dishes/{id}/view`（浏览埋点）、全部 `GET /dishes*`、管理端 `/admin/dishes/**` 全部能力。恢复须重新拍板。
-- **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品等反馈入口；菜品提交经反馈 `add` 由后台录入，学生端无菜品写接口）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
+- **产品定位（2026-09-13 定稿）**：**校园菜品信息展示与检索平台**——信息展示 + 搜索 + 认证评价 + 反馈驱动的**轻 UGC 信息共建**；不做重社区。菜品 UGC 通道 = **反馈表单（可配图）→ 管理员审阅录入/修改/上下架**；不恢复学生直建菜卡接口（`POST /dishes` 维持已下线）。
+- **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态，支持配图 ≤3 张）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品等反馈入口，支持配图 ≤3 张；菜品提交经反馈 `add` 由后台录入，学生端无菜品写接口）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
 - **UGC 全谱系 = 评价 + 反馈 / 贡献**（③ + ④），是菜品信息迭代与程序优化的输入源；**反馈类 UGC 与评价同等重要，不得弱化**——它是实时发现菜品信息错误与程序问题、驱动信息更新与优化的主通道。本次下线的是「社区 / 动态」社交广场形态，**不是下线 UGC**。
 - **社区板块（原动态信息流）已下线并全量删除干净（2026-09-12）**：小程序四个页面与发布流程分包、对应 api / types / 组件 / composable、后端模块与两端接口、Web 管理页、相关库表**全部删除，代码与文档均不留残留字样**；恢复靠 git 历史。评价不再「同步到社区」。
 - TabBar **固定 home / mine 两页**；「我的」页宫格为**一行 3 列**（意见反馈 / 系统通知 / 我的评价），「我发布的」「最新活动」已删。
@@ -90,7 +92,8 @@
 - 认证走 `AuthSheet` 弹层（无独立认证页）；反馈页 `POST /feedback` 公开、不收集联系方式、匿名提交。
 - 通知异步写（`@Async`+有界线程池，不引 MQ）；推荐/热门用 Caffeine 60s TTL + 写失效；报表导出已移除。
 - **贡献链路下线（2026-09-12）**：`apply_action` 表与 `/my/apply`、`/admin/apply*`、`/my/submissions` 接口全量删除；贡献类（新增菜品 / 推荐 / 纠错 / 申请下架）统一走反馈 `add`/`error` 类型，由管理员在 Web 后台据反馈手工录入/修正菜品闭环，无独立申请链路。
-- **UGC 图片全量下线（2026-09-12）**：评价 `images` 与评价图展示、反馈 `images` 与三表单上传入口全部移除；`ImageUploader` 因无消费方删除；全项目 UGC 仅剩纯文本，图片上传仅保留头像与后台录菜品。
+- **UGC 配图与微信内容安检恢复（2026-09-13 拍板，防回退）**：评价与反馈**支持配图**（各 ≤3 张；前端 `wx.compressImage` 压缩至 ≤1MB、≤750×1334）；**全部 UGC（文本+图片）过微信内容安检**——文本 `msgSecCheck` v2（scene：昵称=1、评价/反馈=2；suggest 三态 pass/review/risky，risky 拦截=400、review 进人工复核）、图片 `imgSecCheck`（87014 拦截）；access_token 用 stable_token 缓存。图片链路：`wx.cloud.uploadFile` 传云开发云存储（免域名白名单）→ 后端 tcb 拉取 → imgSecCheck → 转存 **COS**（新接口 `POST /api/upload/images` 入参 fileId；multipart `/api/upload/image` 保留）。安检态 `review.sec_state`/`user_feedback.sec_state`（pass/review），review 对非作者不可见、后台可放行/驳回（`PUT /admin/reviews/{id}/sec-state`）。环境变量新增 `COS_BUCKET/COS_SECRET_ID/COS_SECRET_KEY/COS_REGION`。**此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」口径**——评价/反馈相关走查清单中「无图片入口」类条款作废；链路不绑定云托管，后端可整体迁移独立服务器（届时上传域名走备案域名白名单）。
+- ~~UGC 图片全量下线（2026-09-12）~~ → **已被 2026-09-13 拍板取代**（见上条）：当日曾移除评价/反馈 `images` 与上传入口并删除 `ImageUploader`，现随配图恢复重新落地（配图组件供评价弹层与反馈表单复用）；本条保留为演进记录，勿再据「全量下线」口径开发或走查。
 - **我的评价（2026-09-12）**：新增「我的评价」格（`requireAuth`）与 `pages/me/my-reviews` 列表页（本人删除 + 空态双口径），复用 `DELETE /reviews/{id}`；2026-09-13 随活动下线宫格由 2×2 收敛回一行 3 列（意见反馈 / 系统通知 / 我的评价）。
 - **反馈回执（2026-09-12）**：反馈/举报提交成功给处理预期文案（游客明确「无法单独通知你」）；管理员标记处理后，已认证提交人于系统通知收到 `feedback_handle` 回执（游客不投递不阻塞）。
 - **按压语言改用 bg-soft（2026-09-12 拍板；适用范围 = 小程序端）**：废止 `scale(0.97)` 按压（小程序侧 `--press-scale` token 作废）；mp-weixin 下 `transform: scale` 按压易致卡片边缘溢出/裁剪，`client/` 统一 `background: var(--color-bg-soft)`/`opacity` 作按压反馈；`grep` 范围限 `client/` 应 0 处裸 `scale(...)`。**Web 端登记豁免**：DOM 端无 mp-weixin 溢出问题，`web/` 的 `scale(var(--press-scale))` 维持使用，不受本条约束。

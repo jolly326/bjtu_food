@@ -17,6 +17,10 @@
       <view class="review-head">
         <view class="review-head-left">
           <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
+          <!-- 内容安检中：仅本人可见的评价显示小标（后端 secState='review'，机审通过后对全量可见） -->
+          <view v-if="inReview" class="review-sec-badge">
+            <text class="review-sec-badge-text">审核中</text>
+          </view>
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet -->
         <view v-if="!hideReport || canDelete" class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
@@ -39,6 +43,26 @@
         <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
+      <!-- 配图行（≤3 张 COS URL）：等比小方图，点击预览大图；破图兜底 empty 中性占位 -->
+      <view v-if="reviewImages.length" class="review-images">
+        <view v-for="(img, i) in reviewImages" :key="img" class="review-image-cell">
+          <view class="review-image-box">
+            <image
+              v-if="!brokenImages.has(i)"
+              class="review-image"
+              :src="getImageUrl(img)"
+              mode="aspectFill"
+              role="img"
+              :aria-label="`评价配图 ${i + 1}`"
+              @tap="onPreviewImage(i)"
+              @error="onImageError(i)"
+            />
+            <view v-else class="review-image-fallback" @tap="onPreviewImage(i)">
+              <IconSvg name="empty" :size="36" color="var(--text-tertiary)" />
+            </view>
+          </view>
+        </view>
+      </view>
       <!-- footer 操作组：仅有用（举报/删除已上移右上角）。
            评价卡片不展示点赞/评论类互动组件（UGC 互动仅保留「有用」），由父页面传 hideUseful 隐藏整块 footer -->
       <view v-if="!hideUseful" class="review-footer">
@@ -59,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { getImageUrl } from '@/utils/image'
 import { formatDateTime } from '@/utils/time'
@@ -136,6 +160,34 @@ function onLike() {
 const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
 // 可删除：显式 deletable（个人管理页）或本人评价（详情页）
 const canDelete = computed(() => !!props.deletable || isOwn.value)
+
+/* ===== 配图展示（2026-09 恢复 UGC 配图）：≤3 张 COS URL，点击预览大图 ===== */
+const reviewImages = computed(() =>
+  Array.isArray(props.review.images) ? props.review.images.filter(Boolean) : [],
+)
+/** 破图下标集合：error 后切 empty 中性占位；images 变化（列表重拉）时重置 */
+const brokenImages = ref<Set<number>>(new Set())
+watch(
+  () => props.review.images,
+  () => { brokenImages.value = new Set() },
+)
+function onImageError(i: number) {
+  const next = new Set(brokenImages.value)
+  next.add(i)
+  brokenImages.value = next
+}
+/** 预览大图（仅未破图可进入；current 定位到点击那张） */
+function onPreviewImage(i: number) {
+  if (brokenImages.value.has(i)) return
+  const okIdx = reviewImages.value.map((_, idx) => idx).filter((idx) => !brokenImages.value.has(idx))
+  const okUrls = okIdx.map((idx) => getImageUrl(reviewImages.value[idx]))
+  if (!okUrls.length) return
+  const cur = okIdx.indexOf(i)
+  uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
+}
+
+/* ===== 内容安检（后端 secState）：机审中仅作者本人可见，显示「审核中」小标 ===== */
+const inReview = computed(() => props.review.secState === 'review' && isOwn.value)
 
 function onDelete() {
   if (!canDelete.value) return
@@ -224,6 +276,19 @@ function onMore() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 「审核中」小标（仅本人 secState='review' 可见）：warning 语义浅底胶囊，弱提示不抢评价主信息 */
+.review-sec-badge {
+  flex-shrink: 0;
+  margin-left: var(--spacing-xs);
+  padding: 2rpx var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-soft);
+}
+.review-sec-badge-text {
+  font-size: var(--font-tiny);
+  color: var(--color-warning);
+  line-height: 1.4;
+}
 /* 第二行：评分（星星+数字）与发布时间小间隙同行（不推右）；间距由 review-body gap 提供，不叠加 margin */
 .review-meta {
   display: flex;
@@ -266,6 +331,44 @@ function onMore() {
   line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
+}
+
+/* 配图行（≤3 张等比小方图）：与 ImagePicker 同一网格语言（3 等分 + 16rpx gap） */
+.review-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: var(--spacing-2xs);
+}
+.review-image-cell {
+  width: calc((100% - 32rpx) / 3);
+}
+/* 正方形容器：padding-bottom 等比盒（与 ImagePicker 同法，小程序 aspect-ratio 支持不稳） */
+.review-image-box {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 100%;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bg-placeholder);
+  -webkit-tap-highlight-color: transparent;
+}
+.review-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.review-image:active { opacity: 0.6; }
+/* 破图兜底：empty 中性占位（浅底居中），可点击但不进预览 */
+.review-image-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* footer：操作组（有用·举报·删除，纯文字链无背景） */

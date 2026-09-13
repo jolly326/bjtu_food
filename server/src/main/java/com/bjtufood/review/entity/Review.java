@@ -37,6 +37,17 @@ public class Review {
     @Schema(description = "评价内容")
     private String content;
 
+    /** 评价配图 URL 列表 JSON（COS 绝对地址，≤3 张；落库为 JSON 字符串，见 JsonListUtil） */
+    @Schema(description = "评价配图URL列表JSON（COS 绝对地址，≤3 张）")
+    private String images;
+
+    /**
+     * 内容安全状态（产品定稿 2026-09-13）：pass / review / rejected。
+     * review=机检待人工复核、rejected=人工复核不通过，二者对他端不可见（作者本人可见）。
+     */
+    @Schema(description = "内容安全状态：pass/review/rejected（review/rejected 对他端不可见）")
+    private String secState;
+
     /** 管理员隐藏标记（0=正常, 1=隐藏） */
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")
     private Integer isHidden;

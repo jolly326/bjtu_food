@@ -12,6 +12,9 @@
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
 --      用于 UGC 内容（dish / stall / canteen）的审核流；后台录入默认 approved。
+--   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
+--      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
+--      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
 -- =============================================================
 
 -- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
@@ -146,6 +149,8 @@ CREATE TABLE IF NOT EXISTS `review`
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `tags`       VARCHAR(255) NULL    DEFAULT NULL COMMENT '评价标签（美团式写评，逗号分隔或 JSON 数组）',
+    `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）',
+    `sec_state`  VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -216,6 +221,8 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
     `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
+    `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
+    `sec_state`    VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）',
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
@@ -534,5 +541,56 @@ END$$
 DELIMITER ;
 CALL `add_user_wechat_auth`();
 DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
+
+-- UGC 内容安全列幂等迁移（2026-09-13 产品定稿：评价/反馈支持配图，全部 UGC 过微信内容安全检测）：
+-- review / user_feedback 补齐 images（配图 URL 列表 JSON）与 sec_state（内容安全状态），
+-- 新库 CREATE TABLE 已含该列；旧库幂等补齐，列定义与 CREATE 保持一致，不破坏既有数据。
+DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_review_ugc_sec_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'images'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_review_ugc_sec_fields`();
+DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_feedback_ugc_sec_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'images'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_feedback_ugc_sec_fields`();
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
 
 SET FOREIGN_KEY_CHECKS = 1;

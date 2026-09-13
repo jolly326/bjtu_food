@@ -10,4 +10,6 @@ export interface FeedbackSubmit {
   relatedType?: string
   /** 关联对象 ID（用户未选实体可不传；type=report 举报时按需填） */
   relatedId?: number
+  /** 配图（COS URL，≤3 张；2026-09 恢复反馈配图，经 ImagePicker → /upload/images 安检后回传） */
+  images?: string[]
 }

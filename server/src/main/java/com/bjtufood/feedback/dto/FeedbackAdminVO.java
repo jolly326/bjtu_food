@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 反馈管理端视图对象
@@ -26,6 +27,12 @@ public class FeedbackAdminVO {
 
     @Schema(description = "反馈内容")
     private String content;
+
+    @Schema(description = "反馈配图 URL 列表（COS 绝对地址，≤3 张）")
+    private List<String> images;
+
+    @Schema(description = "内容安全状态：pass/review/rejected（管理端复核用）")
+    private String secState;
 
     @Schema(description = "联系方式")
     private String contact;

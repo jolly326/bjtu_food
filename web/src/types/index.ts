@@ -121,9 +121,18 @@ export interface Review {
   dish_id: bigint;
   rating: number;
   content?: string;
-  images?: string;
+  /** 配图列表（adapter 归一为 string[]；COS 公网地址可直接 <img> 展示） */
+  images?: string[];
   is_hidden: number;
+  /** 内容安检状态：pass=正常 / review=待复核 / rejected=已驳回 */
+  secState?: SecState;
   created_at: Date;
   updated_at: Date;
 }
+
+/** 内容安检状态（评价 / 反馈共用）：pass=正常 / review=待复核 / rejected=已驳回 */
+export type SecState = 'pass' | 'review' | 'rejected';
+
+/** 安检复核动作：放行 pass / 驳回 rejected（review 为待复核态，不可直接写入） */
+export type SecAction = 'pass' | 'rejected';
 

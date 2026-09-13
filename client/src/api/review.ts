@@ -24,6 +24,12 @@ function toReview(raw: RawRow): Review {
     usefulCount: Number(raw.usefulCount ?? raw.useful_count ?? 0),
     // 当前登录用户是否已标记有用（仅登录态返回）
     useful: !!raw.useful,
+    // 配图（COS URL，≤3 张；后端未返回时缺省空数组，消费方按 length 渲染）
+    images: Array.isArray(raw.images)
+      ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
+      : [],
+    // 内容安检状态：pass=对外可见；review=机审中仅作者本人可见（缺省 pass 兼容旧响应）
+    secState: raw.secState === 'review' ? 'review' : 'pass',
   }
 }
 
@@ -99,6 +105,8 @@ interface ReviewSubmitPayload {
   rating: number
   /** 文字评价（≤500 字，选填） */
   content?: string
+  /** 配图（COS URL，≤3 张，选填；经 /upload/images 后端安检后回传的 URL） */
+  images?: string[]
 }
 
 export async function createReview(payload: ReviewSubmitPayload): Promise<void> {

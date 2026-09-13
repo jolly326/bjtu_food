@@ -7,7 +7,9 @@ import StatusTag from '@/components/StatusTag.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
-import { ChatDotRound, EditPen, CircleCheck } from '@element-plus/icons-vue'
+import { ChatDotRound, EditPen, CircleCheck, Picture } from '@element-plus/icons-vue'
+import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS } from '@/constants'
+import { toSecFilter } from '@/api/adapter'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
@@ -47,6 +49,9 @@ const typeOptions = [
 ]
 const activeType = ref('')
 
+// 安检状态筛选（'' = 全部，服务端过滤）：筛「待复核」时优先处理被安检拦截的反馈
+const activeSecState = ref('')
+
 const loading = ref(false)
 const error = ref('')
 const rows = ref<FeedbackAdminVO[]>([])
@@ -81,6 +86,7 @@ async function loadList() {
       status: activeStatus.value || undefined,
       keyword: searchQuery.value.trim() || undefined,
       type: activeType.value || undefined,
+      secState: toSecFilter(activeSecState.value) || undefined,
       page: page.value,
       pageSize: pageSize.value,
     })
@@ -102,6 +108,9 @@ async function onTypeChange() {
   await reloadFromFirstPage()
 }
 async function onStatusChange() {
+  await reloadFromFirstPage()
+}
+async function onSecStateChange() {
   await reloadFromFirstPage()
 }
 
@@ -195,6 +204,7 @@ async function copyReviewLink(reviewId?: number) {
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="activeStatus" label="状态" :options="statusOptions" :width="140" @change="onStatusChange" />
+        <FilterSelect v-model="activeSecState" label="安检" :options="SEC_FILTER_OPTIONS" :width="150" @change="onSecStateChange" />
         <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
     </FilterBar>
@@ -212,6 +222,7 @@ async function copyReviewLink(reviewId?: number) {
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
         { prop: 'time', label: '提交时间', width: '170px', sortable: true, sortValue: (row) => row.createdAt },
+        { prop: 'secState', label: '安检', width: '90px', align: 'center' },
         { prop: 'status', label: '状态', width: '100px', align: 'center' },
 
       ]"
@@ -230,10 +241,16 @@ async function copyReviewLink(reviewId?: number) {
       </template>
       <template #cell-content="{ row }">
         <button class="link" v-press @click="openDetail(row)">{{ row.content || '（无内容）' }}</button>
+        <span v-if="(row.images || []).length" class="img-flag" title="该反馈附有配图">
+          <el-icon><Picture /></el-icon>{{ row.images.length }}
+        </span>
       </template>
       <template #cell-contact="{ row }"><span class="muted">{{ row.contact || '—' }}</span></template>
       <template #cell-submitter="{ row }">{{ row.userNickname || ('用户#' + row.userId) }}</template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
+      <template #cell-secState="{ row }">
+        <StatusTag :type="SEC_STATE_META[row.secState]?.type || 'success'" :text="SEC_STATE_META[row.secState]?.text || '正常'" />
+      </template>
       <template #cell-status="{ row }">
         <StatusTag :type="statusTag[row.status] || 'warning'" :text="statusText[row.status] || row.status" />
       </template>
@@ -275,6 +292,33 @@ async function copyReviewLink(reviewId?: number) {
           <span class="dv"><button class="link" v-press @click="goDishEdit(detail.relatedId)">菜品 #{{ detail.relatedId }}</button></span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
+        <div class="detail-row detail-row-desc" v-if="(detail.images || []).length">
+          <span class="dl">配图</span>
+          <div class="dv">
+            <div class="img-list">
+              <el-image
+                v-for="(img, i) in detail.images"
+                :key="i"
+                :src="img"
+                :preview-src-list="detail.images"
+                :initial-index="i"
+                fit="cover"
+                class="img-thumb"
+                preview-teleported
+                hide-on-click-modal
+                alt="反馈配图"
+                loading="lazy"
+              />
+            </div>
+            <p class="img-hint">点击图片放大预览</p>
+          </div>
+        </div>
+        <div class="detail-row" v-if="detail.secState && detail.secState !== SEC_PASS">
+          <span class="dl">安检</span>
+          <span class="dv">
+            <StatusTag :type="SEC_STATE_META[detail.secState]?.type || 'success'" :text="SEC_STATE_META[detail.secState]?.text || '正常'" />
+          </span>
+        </div>
         <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
@@ -309,9 +353,21 @@ async function copyReviewLink(reviewId?: number) {
 .dl { width: 64px; flex-shrink: 0; color: var(--text-muted); }
 .dv { color: var(--text-primary); flex: 1; }
 .dv.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); white-space: pre-wrap; }
-/* 反馈附图缩略图：横向排列、可点击放大 */
+/* 反馈附图缩略图：横向排列、点击页内放大预览（el-image viewer） */
 .img-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.img-thumb { width: 72px; height: 72px; border-radius: var(--radius); object-fit: cover; cursor: zoom-in; border: 1px solid var(--border-light); }
+.img-thumb {
+  width: 72px; height: 72px; border-radius: var(--radius); cursor: zoom-in;
+  border: 1px solid var(--border-light); overflow: hidden; background: var(--bg-soft); display: block;
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.img-thumb:hover { transform: scale(1.04); box-shadow: var(--shadow-card); }
+.img-thumb:active { transform: scale(var(--press-scale)); }
+.img-hint { margin: var(--space-2) 0 0; font-size: var(--font-xs); color: var(--text-light); }
+/* .img-flag（列表「附有配图」角标）已收敛至 shared.css 公共类 */
+@media (prefers-reduced-motion: reduce) {
+  .img-thumb { transition: none; }
+  .img-thumb:hover { transform: none; }
+}
 .reply-area { margin-top: var(--space-4); border-top: 1px solid var(--border-light); padding-top: var(--space-4); }
 .reply-area label { display: block; font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
 .reply-area textarea {

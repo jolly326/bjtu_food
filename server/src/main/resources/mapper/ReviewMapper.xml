@@ -13,6 +13,11 @@
     命名规则：
     - selectReviewPageByDishId：按维度分页查询评价并联表补齐用户昵称/头像
     - selectAvgRatingByStallId：统计档口平均分
+
+    内容安全可见性（产品定稿 2026-09-13）：
+    - review.sec_state：pass=可见 / review=机检待人工复核 / rejected=人工复核不通过；
+    - 对外列表仅展示 is_hidden=0 且 sec_state='pass'，viewerId=作者本人时放行 review 态（前端提示「审核中」）；
+    - images_json 列为配图 URL 列表 JSON 原文（review.images），由 service 层解析为 images 数组，不在 SQL 层转换。
     ============================================================
     -->
 
@@ -25,18 +30,29 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
+            r.images AS images_json,
+            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
+          AND (r.sec_state = 'pass'
+        <if test="viewerId != null">
+            OR r.user_id = #{viewerId}
+        </if>
+        )
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
         </choose>
     </select>
 
+    <!--
+        我的评价：本人视角，不过滤 sec_state（review 态由前端提示「审核中」），
+        返回 sec_state/images 供作者本人查看。
+    -->
     <select id="selectReviewPageByUserId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
             r.id,
@@ -47,6 +63,8 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
+            r.images AS images_json,
+            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -62,7 +80,7 @@
 
     <!--
         按档口查询评价：review 表无 stall_id，通过 review → dish(stall_id) 推导。
-        只返回 is_hidden=0 的评价。
+        可见性：is_hidden=0 且 sec_state='pass'，作者本人（viewerId）放行 review 态。
     -->
     <select id="selectReviewPageByStallId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -73,6 +91,8 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
+            r.images AS images_json,
+            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -80,6 +100,11 @@
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
+          AND (r.sec_state = 'pass'
+        <if test="viewerId != null">
+            OR r.user_id = #{viewerId}
+        </if>
+        )
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -88,7 +113,7 @@
 
     <!--
         按食堂查询评价：通过 review → dish(stall_id) → stall(canteen_id) 推导。
-        只返回 is_hidden=0 的评价。
+        可见性：is_hidden=0 且 sec_state='pass'，作者本人（viewerId）放行 review 态。
     -->
     <select id="selectReviewPageByCanteenId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -99,6 +124,8 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
+            r.images AS images_json,
+            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -107,6 +134,11 @@
                  JOIN stall s ON d.stall_id = s.id
         WHERE s.canteen_id = #{canteenId}
           AND r.is_hidden = 0
+          AND (r.sec_state = 'pass'
+        <if test="viewerId != null">
+            OR r.user_id = #{viewerId}
+        </if>
+        )
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>

@@ -103,14 +103,24 @@
         />
       </view>
     </view>
+
+    <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传），随 model.images 交给父页提交；
+         标签统一「配图」（评审 m2）；提交中禁选（评审 m1） -->
+    <view class="form-group">
+      <view class="field">
+        <text class="field-label">配图</text>
+        <ImagePicker v-model="model.images" :max="3" :disabled="submitting" />
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePicker from '@/components/ImagePicker.vue'
 
-/** AddForm（feedback 包内私有）：「推荐菜品」字段区（基本信息 + 位置 + 描述） */
+/** AddForm（feedback 包内私有）：「推荐菜品」字段区（基本信息 + 位置 + 描述 + 配图） */
 const props = defineProps<{
   model: {
     name: string
@@ -121,8 +131,11 @@ const props = defineProps<{
     stallCustom: string
     floor: string
     description: string
+    images: string[]
   }
   errors: Record<string, string>
+  /** 提交中：禁选配图（评审 m1，与 ReviewComposer 一致） */
+  submitting?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'clear', key: string): void

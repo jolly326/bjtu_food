@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 提交反馈请求（替代原 Map 裸参）
  */
@@ -21,6 +23,10 @@ public class FeedbackReq {
     @NotBlank(message = "反馈内容不能为空")
     @Size(max = 1000, message = "反馈内容不能超过1000字")
     private String content;
+
+    @Size(max = 3, message = "反馈配图最多 3 张")
+    @Schema(description = "反馈配图 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤3 张）")
+    private List<String> images;
 
     /** 联系方式（选填） */
     @Schema(description = "联系方式（选填）")

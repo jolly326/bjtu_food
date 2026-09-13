@@ -35,17 +35,20 @@
 
       <!-- 动态字段区 -->
       <view class="q-card">
-        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分） -->
+        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分）；
+             submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1） -->
         <SuggestionForm
           v-if="type === 'suggestion'"
           :model="form.suggestion"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
         />
         <AddForm
           v-else-if="type === 'add'"
           :model="form.add"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
           @open-location="openLocationSheet"
           @open-floor="openFloorSheet"
@@ -56,6 +59,7 @@
           :model="form.error"
           :points="correctionPoints"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
           @open-dish="openDishSheet"
           @reset-dish="resetDish"
