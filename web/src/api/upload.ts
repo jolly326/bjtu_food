@@ -18,9 +18,10 @@ export async function uploadImage(file: File): Promise<UploadImageResult> {
   const formData = new FormData()
   formData.append('file', file)
 
-  // 超时对齐 http.ts 的 5s
+  // 超时 30s：图片体积（手机原图常 2-5MB，且需后端中转再上传 COS）远大于普通 JSON 请求，
+  // 沿用 http.ts 的 5s 会在正常上传下频繁误报「上传超时」。
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 5000)
+  const timeout = setTimeout(() => controller.abort(), 30000)
 
   try {
     const res = await fetch(`${API_BASE_URL}/upload/image`, {

@@ -116,7 +116,11 @@ public class UploadServiceImpl implements UploadService {
             } catch (IOException e) {
                 throw new BusinessException("文件读取失败");
             }
-            return Map.of("url", cosStorageService.upload(data, extension.toLowerCase(Locale.ROOT)));
+            String cosUrl = cosStorageService.upload(data, extension.toLowerCase(Locale.ROOT));
+            // 管理端 web（api/upload.ts）约定：上传结果必须同时含 url 与 relativeUrl，否则前端抛
+            // 「上传接口返回缺少图片地址」。COS 场景下二者同为绝对 URL——落库用 relativeUrl，
+            // 两端展示层（web toAbsoluteImageUrl / 小程序 getImageUrl）对 http(s) 绝对地址原样返回。
+            return Map.of("url", cosUrl, "relativeUrl", cosUrl);
         }
 
         // COS 未配置：降级本地磁盘存储（开发环境无 COS 仍可用）
