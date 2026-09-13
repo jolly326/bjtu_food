@@ -333,6 +333,10 @@ public class DishServiceImpl implements DishService {
         if (req.getPrice() == null) {
             throw new BusinessException("价格不能为空");
         }
+        // 产品定型：菜品首图必填（无图不录入 / 不上架；已上架的老数据不受影响）
+        if (req.getImages() == null || req.getImages().isEmpty()) {
+            throw new BusinessException("请至少上传 1 张菜品图");
+        }
         // 校验 stallId 对应的档口是否存在
         if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
             throw new BusinessException("档口不存在");
@@ -355,6 +359,10 @@ public class DishServiceImpl implements DishService {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
+        }
+        // 首图不可清空：显式传入空 images 视为清空，拒绝（未传 images 的部分更新不校验）
+        if (req.getImages() != null && req.getImages().isEmpty()) {
+            throw new BusinessException("请至少保留 1 张菜品图");
         }
         applyReq(dish, req);
         dishMapper.updateById(dish);

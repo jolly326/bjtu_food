@@ -52,6 +52,8 @@ export interface Dish {
   distance?: number
   /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
   region?: string
+  /** 信息更新时间（dish.updated_at，详情页展示「信息更新于 X」判断新鲜度） */
+  updatedAt?: string
   /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
   latitude?: number
   /** 食堂经度（GCJ-02），来自 canteen 联表 */

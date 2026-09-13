@@ -60,6 +60,7 @@
             d.view_count,
             d.status,
             d.created_at,
+            d.updated_at,
             d.spice_level,
             d.portion,
             d.serve_period,

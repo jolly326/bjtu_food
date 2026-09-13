@@ -104,6 +104,8 @@ function validate() {
   if (!form.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!form.value.price || Number(form.value.price) <= 0) errs.price = '价格必须大于 0'
   if (!form.value.stallId) errs.stallId = '请选择所属档口'
+  // 产品定型：菜品首图必填（无图不录入 / 不上架）
+  if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
   if (Number(form.value.originalPrice) < 0) errs.originalPrice = '原价不能为负'
   if (Number(form.value.promoPrice) < 0) errs.promoPrice = '促销价不能为负'
   if (Number(form.value.promoPrice) > 0) {
@@ -265,8 +267,9 @@ async function submit() {
         </div>
       </div>
 
-      <div class="field"><label>图片</label>
+      <div class="field"><label>图片 <span class="required">*</span></label>
         <ImageUpload v-model="form.image" :max="3" />
+        <p v-if="formErrors.image" class="field-error">{{ formErrors.image }}</p>
       </div>
     </div>
   </FormDialog>

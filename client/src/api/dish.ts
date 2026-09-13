@@ -39,6 +39,7 @@ export function toDish(raw: RawRow): Dish {
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
     businessHours: raw.businessHours || '',
+    updatedAt: raw.updatedAt || '',
     // ===== task-03 属性标签（来自 dish） =====
     spiceLevel: raw.spiceLevel ?? raw.spice_level,
     portion: raw.portion,

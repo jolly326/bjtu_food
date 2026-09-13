@@ -60,6 +60,11 @@
       </view>
     </view>
 
+    <!-- 信息更新时间：让学判断信息新鲜度（产品定型：展示 dish.updated_at） -->
+    <view class="updated-row" v-if="updatedText">
+      <text class="updated-text" aria-label="信息更新时间">{{ updatedText }}</text>
+    </view>
+
     <!-- 纠错入口（贡献入口 A）：把④主线从「深度 2：我的→反馈→选类型」拉到「内容页原地」。
          点击直达反馈页预选「信息不对」并自动关联本菜品（落点唯一构造函数，from=dish） -->
     <view class="correct-row" role="button" aria-label="信息有误" hover-class="pressed" @tap="goCorrect">
@@ -133,6 +138,20 @@ function formatCount(n: number): string {
   return String(n)
 }
 
+/** 信息更新时间文案：格式化为「信息更新于 YYYY-MM-DD（或 X 天前） */
+const updatedText = computed(() => {
+  const raw = props.dish.updatedAt
+  if (!raw) return ''
+  const d = new Date(typeof raw === 'string' ? raw.replace(/-/g, '/') : raw)
+  if (Number.isNaN(d.getTime())) return ''
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000)
+  if (days <= 0) return '信息今天更新'
+  if (days === 1) return '信息昨天更新'
+  if (days < 30) return `信息 ${days} 天前更新`
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `信息更新于 ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+})
+
 const hasMetrics = computed(() => {
   const d = props.dish
   return (d.rating || 0) > 0 || (d.ratingCount || 0) > 0 || spiceText.value !== '-' || regionText.value !== '-'
@@ -179,6 +198,15 @@ function goCorrect() {
 .metric-val--text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); display: inline-block; line-height: 1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .metric-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
 /* 纠错入口：与位置行同分隔线语言，浅灰弱引导，不抢主信息 */
+/* 信息更新时间：弱化的辅助信息，不抢主体 */
+.updated-row {
+  margin-top: var(--spacing-sm);
+}
+.updated-text {
+  font-size: var(--font-tiny);
+  color: var(--text-tertiary);
+}
+
 .correct-row {
   display: flex;
   align-items: center;
