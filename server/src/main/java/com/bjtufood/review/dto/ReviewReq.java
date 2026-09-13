@@ -7,8 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.util.List;
-
 @Data
 @Schema(description = "评价提交/修改请求参数")
 public class ReviewReq {
@@ -26,10 +24,4 @@ public class ReviewReq {
     @Size(max = 500, message = "评论内容不能超过500字")
     @Schema(description = "文字评价", example = "味道不错，分量也足。")
     private String content;
-
-    @Schema(description = "评价图片 URL 列表，建议先调用 /upload/image 获取 URL", example = "[\"/images/seed/dishes/tomato-egg.jpg\"]")
-    private List<String> images;
-
-    @Schema(description = "是否同步为社区动态（评价可见即动态可见：同步生成的动态直接通过审核，无需后台审核；评价无内容时不生成）", example = "false")
-    private Boolean shareToMoment;
 }

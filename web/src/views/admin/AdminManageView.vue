@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAdminUserStore } from '@/stores/adminUserStore'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -16,6 +16,22 @@ const confirm = useConfirmStore()
 const userStore = useUserStore()
 
 const searchQuery = ref('')
+
+// 三态（WEB-108）：显式加载管理员列表供 DataTable 展示 loading/error（对齐 FeedbackView 等模式）
+const loading = ref(true)
+const error = ref('')
+async function refresh() {
+  loading.value = true
+  error.value = ''
+  try {
+    await store.loadAll()
+  } catch (e: any) {
+    error.value = e.message || '加载管理员列表失败'
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(refresh)
 
 const filtered = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -125,6 +141,8 @@ async function handleDelete(id: number) {
 
       ]"
       :rows="filtered"
+      :loading="loading"
+      :error="error"
       :empty-text="filtered.length ? '没有匹配的管理员' : '暂无管理员账号'"
     >
       <template #cell-username="{ row }">

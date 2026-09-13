@@ -40,6 +40,8 @@ watch(
   () => props.show,
   (v) => {
     if (v) {
+      // 快速关-开时清理未触发的退场卸载定时器，避免重开后 DOM 被 hideTimer 提前卸载（对照 ConfirmDialog 同款修复）
+      if (hideTimer) { window.clearTimeout(hideTimer); hideTimer = undefined }
       mounted.value = true
       window.addEventListener('keydown', onKeydown)
       requestAnimationFrame(() => {

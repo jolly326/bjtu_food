@@ -1,17 +1,19 @@
 package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.mapper.StallMapper;
+import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.util.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
+import com.bjtufood.dish.config.ViewRateLimiter;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
-import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishVO;
@@ -22,8 +24,12 @@ import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.review.entity.Review;
+import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;
+import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -41,8 +47,10 @@ public class DishServiceImpl implements DishService {
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
+    private final ReviewUsefulMapper reviewUsefulMapper;
     private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
+    private final ViewRateLimiter viewRateLimiter;
 
     @Override
     public IPage<DishVO> listDishes(DishQueryReq req) {
@@ -65,6 +73,8 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.CACHE_DISH_HOT,
+            key = "'hot:' + (#lat ?: 'null') + ':' + (#lng ?: 'null') + ':' + (#limit ?: 'default')")
     public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit) {
         boolean byDistance = lat != null && lng != null;
         List<com.bjtufood.dish.dto.DishVO> list = byDistance
@@ -111,6 +121,8 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.CACHE_DISH_RECOMMEND,
+            key = "'rec:' + #page + ':' + #pageSize + ':' + (#excludeIds ?: '') + ':' + (#userId ?: 0)")
     public IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId) {
         // 统一走 PageUtil.normalize（page<1→1，pageSize<1→10，pageSize>100→100），与其他分页入口保持一致
         int[] norm = PageUtil.normalize(page, pageSize);
@@ -266,11 +278,13 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.CACHE_DISH_HOT_SEARCH, key = "'all'")
     public List<HotSearchVO> hotSearch() {
         return dishMapper.selectHotSearch();
     }
 
     @Override
+    @Cacheable(cacheNames = CacheConfig.CACHE_DISH_RISING, key = "'all'")
     public List<DishVO> rising() {
         return dishMapper.selectRising().stream()
                 .map(this::enrichImages)
@@ -279,6 +293,10 @@ public class DishServiceImpl implements DishService {
 
     @Override
     public void addViewCount(Long dishId, Long userId) {
+        // 防刷（P1-5）：同一用户对同一菜品 5 分钟窗口内只计 1 次（内存去重，窗口内重复直接忽略）
+        if (!viewRateLimiter.tryAcquire(userId, dishId)) {
+            return;
+        }
         // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
         int affected = dishMapper.increaseViewCount(dishId);
         if (affected == 0) {
@@ -302,6 +320,8 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
     public void addDish(DishAdminReq req) {
         // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
         if (!StringUtils.hasText(req.getName())) {
@@ -326,6 +346,8 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
     public void updateDish(Long id, DishAdminReq req) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
@@ -333,84 +355,44 @@ public class DishServiceImpl implements DishService {
         }
         applyReq(dish, req);
         dishMapper.updateById(dish);
+        // 契约约定：null 表示清空可空的原价/促销价；updateById 默认 NOT_NULL 策略不落 null，需显式置空
+        boolean clearOriginalPrice = req.getOriginalPrice() == null;
+        boolean clearPromoPrice = req.getPromoPrice() == null;
+        if (clearOriginalPrice || clearPromoPrice) {
+            LambdaUpdateWrapper<Dish> clearWrapper = new LambdaUpdateWrapper<Dish>().eq(Dish::getId, id);
+            if (clearOriginalPrice) {
+                clearWrapper.set(Dish::getOriginalPrice, null);
+            }
+            if (clearPromoPrice) {
+                clearWrapper.set(Dish::getPromoPrice, null);
+            }
+            dishMapper.update(null, clearWrapper);
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
     public void deleteDish(Long id) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
+        // 级联清理评价与「有用」标记（BE-108）：先删引用 review.id 的 review_useful，再删评价本体
+        reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
+                .inSql(ReviewUseful::getReviewId, "SELECT id FROM review WHERE dish_id = " + id));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
         dishMapper.deleteById(id);
     }
 
-    // ==================== 学生端发布接口实现 ====================
-
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long createStudentDish(DishPublishReq req, Long userId) {
-        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
-            throw new BusinessException("档口不存在");
-        }
-        Dish dish = new Dish();
-        applyPublishReq(dish, req);
-        dish.setCreatedBy(userId);
-        // 审核状态机：学生提交即 pending；状态与审核解耦，默认上架待审核通过后展示
-        dish.setAuditStatus(DishConst.AUDIT_PENDING);
-        dish.setRejectReason(null);
-        dish.setStatus(DishConst.STATUS_ON);
-        dish.setAvgRating(BigDecimal.ZERO);
-        dish.setRatingCount(0);
-        dish.setViewCount(0);
-        dishMapper.insert(dish);
-        return dish.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateStudentDish(Long id, DishPublishReq req, Long userId) {
-        Dish existing = dishMapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("菜品不存在");
-        }
-        if (!userId.equals(existing.getCreatedBy())) {
-            throw new BusinessException("只能编辑自己发布的菜品");
-        }
-        applyPublishReq(existing, req);
-        // 编辑重提：复用原记录，审核状态回到 pending，退回原因清空
-        existing.setAuditStatus(DishConst.AUDIT_PENDING);
-        existing.setRejectReason(null);
-        dishMapper.updateById(existing);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteMyDish(Long id, Long userId) {
-        Dish existing = dishMapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("菜品不存在");
-        }
-        if (!userId.equals(existing.getCreatedBy())) {
-            throw new BusinessException(403, "只能删除自己发布的菜品");
-        }
-        // 复用现有管理员删除的级联清理逻辑（评价；favorite/清单 模块已移除）
-        reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
-        dishMapper.deleteById(id);
-    }
-
-    private void applyPublishReq(Dish dish, DishPublishReq req) {
-        dish.setStallId(req.getStallId());
-        dish.setName(req.getName());
-        dish.setPrice(req.getPrice());
-        dish.setDescription(req.getDescription());
-        dish.setImages(JsonListUtil.toJson(req.getImages()));
-        dish.setTags(req.getTags());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
+    // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，
+    // evict 发生在本方法写库完成之后（@CacheEvict 默认 afterInvocation），
+    // 不会出现「先清缓存、后写库」导致旧评分被回填的窗口
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
         dishMapper.recalcRatingBySubquery(dishId);

@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
@@ -14,7 +13,6 @@ import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
-import com.bjtufood.moment.service.MomentService;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
@@ -47,15 +45,13 @@ public class ReviewServiceImpl implements ReviewService {
     private final DishMapper dishMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    private final MomentService momentService;
     private final SensitiveFilter sensitiveFilter;
 
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, withImage)
-                .convert(this::enrichImages);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼），见 project_spec 决策
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -64,11 +60,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, withImage)
-                .convert(this::enrichImages);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -77,30 +72,29 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage) {
+    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, withImage)
-                .convert(this::enrichImages);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
         return pageResult;
-    }
-
-    @Override
-    public BigDecimal getAvgRatingByStallId(Long stallId) {
-        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stallId);
-        return avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2);
     }
 
     @Override
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, null)
-                .convert(this::enrichImages);
+        // 我的评价：固定按发表时间倒序（本人视角无需「有用」排序与 useful 标记回写）
+        return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
+    }
+
+    @Override
+    public BigDecimal getAvgRatingByStallId(Long stallId) {
+        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stallId);
+        return avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2);
     }
 
     @Override
@@ -182,7 +176,6 @@ public class ReviewServiceImpl implements ReviewService {
         review.setRating(req.getRating());
         String filteredContent = sensitiveFilter.filter(req.getContent());
         review.setContent(filteredContent);
-        review.setImages(JsonListUtil.toJson(req.getImages()));
         review.setIsHidden(0);
         try {
             // uk_review_user_dish 唯一键兜底并发竞态：前置 selectCount 通过但插入瞬间已被他人抢先落库
@@ -190,27 +183,8 @@ public class ReviewServiceImpl implements ReviewService {
         } catch (DuplicateKeyException e) {
             throw new BusinessException("您已评价过该菜品");
         }
-        // 评价与动态打通：勾选"同步到动态"且评价有正文时，生成 approved 动态直接上广场（评价可见即动态可见）
-        boolean shareToMoment = Boolean.TRUE.equals(req.getShareToMoment());
-        if (shareToMoment && StringUtils.hasText(filteredContent)) {
-            List<String> images = req.getImages() == null ? List.of() : req.getImages();
-            momentService.publishFromReview(userId, filteredContent, images, req.getDishId());
-        }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void updateReview(Long id, Long userId, Integer rating, String content) {
-        Review review = reviewMapper.selectById(id);
-        if (review == null || !review.getUserId().equals(userId)) {
-            throw new BusinessException("Review not found");
-        }
-        review.setRating(rating);
-        review.setContent(sensitiveFilter.filter(content));
-        reviewMapper.updateById(review);
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), rating));
     }
 
     @Override
@@ -218,7 +192,8 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long id, Long userId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            throw new BusinessException(404, "评价不存在");
+            // 错误码口径：仅 200/400/401/403/4031/500，资源不存在按 400 业务校验返回
+            throw new BusinessException(400, "评价不存在");
         }
         if (!review.getUserId().equals(userId)) {
             throw new BusinessException(403, "只能删除自己的评价");
@@ -239,7 +214,7 @@ public class ReviewServiceImpl implements ReviewService {
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
                         .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
-                                Review::getContent, Review::getImages, Review::getIsHidden,
+                                Review::getContent, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
                         .eq(userId != null, Review::getUserId, userId)
@@ -338,21 +313,9 @@ public class ReviewServiceImpl implements ReviewService {
         vo.setDishId(review.getDishId());
         vo.setRating(review.getRating());
         vo.setContent(review.getContent());
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(review.getImages()));
         vo.setCreatedAt(review.getCreatedAt());
         vo.setIsHidden(review.getIsHidden() != null ? review.getIsHidden() : 0);
         vo.setHasSensitive(false);
-        return vo;
-    }
-
-    /**
-     * 对公开 ReviewVO 的 imagesJson 字段进行 URL 解析（mapper 联表已填充 userNickname/userAvatar/imagesJson）
-     */
-    private ReviewVO enrichImages(ReviewVO vo) {
-        if (vo == null) {
-            return null;
-        }
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
         return vo;
     }
 }

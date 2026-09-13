@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
  * - GET /canteens, GET /stalls（食堂档口查询）
  * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
- * - GET /lists/share/{token}（分享查看）
  * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
@@ -62,7 +61,7 @@ public class SecurityConfig {
             "/auth/verify-email", "/api/auth/verify-email",
             // 管理后台登录（方案 C：管理员账号密码）
             "/auth/admin/login", "/api/auth/admin/login",
-            // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
+            // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback", "/api/feedback",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**", "/api/swagger-ui/**",
@@ -72,17 +71,17 @@ public class SecurityConfig {
 
     /**
      * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen/stall/review 只读路径，
-     * 使用 method-scoped 匹配，避免误放行 POST /dishes、PUT /dishes/{id}、POST /reviews 等写操作）。
+     * 使用 method-scoped 匹配，避免误放行 POST /reviews 等写操作）。
+     * <p>
+     * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
+     * 本条仅约束 GET 只读浏览，POST /dishes/{id}/view（浏览量上报）与 GET 系列仍保留。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
             "/dishes/**", "/api/dishes/**",
             "/canteens/**", "/api/canteens/**",
             "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
-            "/lists/share/**", "/api/lists/share/**",
             "/images/**", "/api/images/**",
-            // 二期新增：社区动态列表/详情/评论浏览公开（POST/PUT/DELETE 写操作仍须登录）
-            "/moments/**", "/api/moments/**",
             "/broadcasts", "/api/broadcasts",
             "/categories", "/api/categories",
             // 活动列表/详情为公开浏览内容（GET），游客可看；写操作仍须登录

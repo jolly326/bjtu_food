@@ -1,4 +1,5 @@
 import { get } from './http'
+import type { RawRow } from './shared'
 
 /** 品类（GET /categories：首页品类滚轮数据源） */
 export interface CategoryItem {
@@ -11,8 +12,8 @@ export interface CategoryItem {
 
 /** 首页品类滚轮数据：GET /categories（公开接口，enabled 品类按 sortOrder 升序） */
 export async function getCategories(): Promise<CategoryItem[]> {
-  const raw = await get<any[]>('/categories')
-  return (raw || []).map((c: any) => ({
+  const raw = await get<RawRow[]>('/categories')
+  return (raw || []).map((c: RawRow) => ({
     id: Number(c.id),
     code: String(c.code || ''),
     name: c.name || '',

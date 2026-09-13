@@ -1,11 +1,35 @@
 <template>
   <view v-if="open" class="modal-mask" :class="{ show: maskShow }" @tap="requestClose" @touchmove.stop.prevent="noop">
-    <view class="report-modal" :class="{ open: modalShow }" @tap.stop>
+    <!-- QA-02：居中弹窗无障碍语义与 BaseSheet 对齐（role/aria-modal/aria-label/tabindex） -->
+    <view
+      class="report-modal"
+      :class="{ open: modalShow }"
+      role="dialog"
+      :aria-modal="true"
+      :aria-label="title"
+      tabindex="-1"
+      @tap.stop
+    >
       <text class="report-title">{{ title }}</text>
-      <textarea class="report-input" v-model="reason" :placeholder="placeholder" maxlength="500" :auto-height="true" />
+      <textarea
+        class="report-input"
+        v-model="reason"
+        :placeholder="placeholder"
+        :aria-label="title"
+        maxlength="500"
+        :auto-height="true"
+      />
       <view class="report-actions">
-        <view class="report-btn report-cancel" @tap="requestClose">取消</view>
-        <view class="report-btn report-confirm" :class="{ disabled: submitting }" @tap="submit">{{ confirmText }}</view>
+        <view class="report-btn report-cancel" role="button" aria-label="取消" @tap="requestClose">取消</view>
+        <view
+          class="report-btn report-confirm"
+          :class="{ disabled: submitting }"
+          role="button"
+          :aria-label="confirmText"
+          :aria-disabled="!!submitting"
+          :aria-busy="!!submitting"
+          @tap="submit"
+        >{{ confirmText }}</view>
       </view>
     </view>
   </view>
@@ -54,21 +78,20 @@ function submit() {
 </script>
 
 <style scoped>
-.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); opacity: 0; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 .modal-mask.show { opacity: 1; }
-.report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%) scale(0.92); transition: opacity var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-drawer); will-change: opacity, transform; }
-.report-modal.open { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%); }
+.report-modal.open { transform: translate(-50%, -50%); opacity: 1; }
 .report-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
-.report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: var(--weight-semibold); transition: transform var(--duration-fast) ease, opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
-.report-btn:active { transform: scale(var(--press-scale)); }
+.report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: var(--weight-semibold); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .report-cancel { background: var(--bg-page); color: var(--text-secondary); }
 .report-confirm { background: var(--color-error); color: var(--text-white); }
 .report-confirm.disabled { opacity: 0.58; }
 
 @media (prefers-reduced-motion: reduce) {
-  .modal-mask { transition: opacity 0.2s ease; }
-  .report-modal { transition: opacity 0.2s ease; transform: translate(-50%, -50%) !important; }
+  .modal-mask { opacity: 1; }
+  .report-modal { transform: translate(-50%, -50%) !important; }
 }
 </style>

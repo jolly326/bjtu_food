@@ -23,7 +23,7 @@ public class Notification {
     @Schema(description = "接收用户ID")
     private Long userId;
 
-    /** 通知类型：moment_audit / dish_audit / comment / useful / activity */
+    /** 通知类型：dish_audit / feedback_handle */
     @Schema(description = "通知类型")
     private String type;
 
@@ -33,7 +33,7 @@ public class Notification {
     @Schema(description = "通知正文")
     private String content;
 
-    /** 关联对象ID（动态/菜品/活动ID，按 type 解释） */
+    /** 关联对象ID（dish_audit=菜品ID / feedback_handle=反馈ID，按 type 解释） */
     @Schema(description = "关联对象ID")
     private Long relatedId;
 

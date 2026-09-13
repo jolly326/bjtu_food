@@ -1,0 +1,10 @@
+# 生产环境配置（profile=prod 覆盖 application.yml）
+# 云托管/服务器部署在环境变量注入 SPRING_PROFILES_ACTIVE=prod 后生效。
+
+# 关闭 OpenAPI 文档与 Swagger UI（P1-7/BE-100）：生产环境不对外暴露接口拓扑与调试入口。
+# 若需临时排障开启，可在环境变量注入 SPRINGDOC_API_DOCS_ENABLED=true / SPRINGDOC_SWAGGER_UI_ENABLED=true。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

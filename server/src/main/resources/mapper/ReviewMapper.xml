@@ -11,8 +11,8 @@
     自定义查询（如：评价列表关联用户表）在此编写。
 
     命名规则：
-    - selectReviewWithUser：查询评价时同时查出用户昵称和头像
-    - countDishReviews：统计菜品评价总数
+    - selectReviewPageByDishId：按维度分页查询评价并联表补齐用户昵称/头像
+    - selectAvgRatingByStallId：统计档口平均分
     ============================================================
     -->
 
@@ -25,16 +25,12 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
-        <if test="withImage">
-            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
-        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -46,15 +42,16 @@
             r.id,
             r.user_id,
             r.dish_id,
+            d.name AS dish_name,
             u.nickname AS user_nickname,
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
+                 JOIN dish d ON r.dish_id = d.id
         WHERE r.user_id = #{userId}
           AND r.is_hidden = 0
         <choose>
@@ -76,7 +73,6 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -84,9 +80,6 @@
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
-        <if test="withImage">
-            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
-        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>
@@ -106,7 +99,6 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -115,9 +107,6 @@
                  JOIN stall s ON d.stall_id = s.id
         WHERE s.canteen_id = #{canteenId}
           AND r.is_hidden = 0
-        <if test="withImage">
-            AND r.images IS NOT NULL AND r.images != '' AND r.images != '[]'
-        </if>
         <choose>
             <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
             <otherwise>ORDER BY r.created_at DESC</otherwise>

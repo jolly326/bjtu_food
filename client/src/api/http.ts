@@ -9,14 +9,40 @@
 
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE } from './config'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
 }
 
+/** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
+export type RequestData = string | object | ArrayBuffer | undefined
+
+/** 请求选项：header 收窄为字符串表（原 any） */
+export interface RequestOptions {
+  header?: Record<string, string>
+  hideLoading?: boolean
+}
+
+/** 平台响应载体：请求层只关心 body 内容（data），其余字段由微信/uni 回调自身携带 */
+interface RawResponse {
+  data?: unknown
+}
+
 /** 401 处理进行中标志：避免并发 401（如首页多请求同时失效）重复触发登出+重登+Toast 风暴 */
 let _authHandling = false
+
+/** 「登录已失效」Toast 冷却窗口：同文案 5s 内不重复（部署事故期连续 401 时防 Toast 风暴） */
+const AUTH_TOAST_COOLDOWN_MS = 5000
+let _lastAuthToastAt = 0
+
+/**
+ * 普通请求超时：12s。
+ * 小程序端走 wx.cloud.callContainer（微信云托管），实例缩容到零后首次请求需冷启动拉起容器
+ * （通常 3~8s，弱网下更久），8s 在冷启动 + 弱网叠加时易误报「请求超时」，故放宽至 12s。
+ * H5 分支取同一常量，保证端间超时口径一致；上传走更宽的 UPLOAD_TIMEOUT_MS（15s）。
+ */
+const REQUEST_TIMEOUT_MS = 12000
 
 /**
  * 统一未登录/登录失效处理（§5.x 401 处理）：
@@ -34,7 +60,13 @@ async function handleUnauthorized(): Promise<void> {
   try {
     const { useUserStore } = await import('@/stores/user')
     useUserStore().forceLogout()
-    uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    // Toast 5s 冷却：部署事故（如后端 5xx 期间 token 校验连续失败）时用户每次操作都会走到这里，
+    // 同文案 5s 内不重复弹，避免 Toast 风暴；登出 + 重登流程本身不受冷却影响（401 重试逻辑不变）。
+    const now = Date.now()
+    if (now - _lastAuthToastAt > AUTH_TOAST_COOLDOWN_MS) {
+      _lastAuthToastAt = now
+      uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    }
     // 401 → 重新静默登录（游客态自动恢复）
     await useUserStore().silentLogin()
   } catch {
@@ -49,13 +81,13 @@ async function handleUnauthorized(): Promise<void> {
 
 /**
  * 统一无权限/未认证处理（§5.y / §5.x 403）：
- * 社区写操作需 verified=true，游客触发时后端返回 403 →
+ * UGC 写操作需 verified=true，游客触发时后端返回 403 →
  * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
  */
 async function handleForbidden(): Promise<void> {
   uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
   try {
-    const { useAuthSheetStore } = await import('@/stores/authSheet')
+    const { useAuthSheetStore } = await import('@/stores/auth-sheet')
     useAuthSheetStore().show()
   } catch {
     // 兜底：极端情况忽略，仅提示
@@ -67,7 +99,7 @@ function getToken(): string {
 }
 
 /** 解析响应体：兼容 JSON 字符串或已解析对象 */
-function parseBody<T>(data: any): ApiResponse<T> {
+function parseBody<T>(data: unknown): ApiResponse<T> {
   if (typeof data === 'string') {
     try {
       return JSON.parse(data) as ApiResponse<T>
@@ -81,20 +113,20 @@ function parseBody<T>(data: any): ApiResponse<T> {
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data?: any,
-  options?: { header?: any; hideLoading?: boolean },
+  data?: RequestData,
+  options?: RequestOptions,
   _retried = false,
 ): Promise<T> {
-  const header = {
+  const header: Record<string, string> = {
     Authorization: `Bearer ${getToken()}`,
     ...(options?.header || {}),
   }
 
-  let res: any
+  let res: RawResponse
   try {
     // ===== 微信小程序端：走云托管内部链路（免域名白名单） =====
     // #ifdef MP-WEIXIN
-    res = await new Promise<any>((resolve, reject) => {
+    res = await new Promise<RawResponse>((resolve, reject) => {
       let settled = false
       const done = (fn: () => void) => {
         if (!settled) {
@@ -102,15 +134,16 @@ async function request<T>(
           fn()
         }
       }
+      // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（与 navMetrics 同款说明）
       const wxApi: any = (globalThis as any).wx
       if (!wxApi || !wxApi.cloud) {
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
         return
       }
-      // N04 修复：超时定时器保存句柄，settle 后清理
+      // N04 修复：超时定时器保存句柄，settle 后清理；12s 兼顾云托管冷启动（见 REQUEST_TIMEOUT_MS 注释）
       const timeoutTimer = setTimeout(() => {
         done(() => reject(new Error('请求超时')))
-      }, 8000)
+      }, REQUEST_TIMEOUT_MS)
       const clearTimer = () => { clearTimeout(timeoutTimer) }
       wxApi.cloud.callContainer({
         config: { env: WX_CLOUD_ENV },
@@ -121,7 +154,8 @@ async function request<T>(
           'X-WX-SERVICE': WX_SERVICE,
           ...header,
         },
-        success: (r: any) => { clearTimer(); done(() => resolve(r)) },
+        // 平台例外：微信回调透传，仅取其 data 字段
+        success: (r: any) => { clearTimer(); done(() => resolve({ data: r?.data })) },
         fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
       })
     })
@@ -129,30 +163,30 @@ async function request<T>(
 
     // ===== 其他端（H5 等）：回退普通 HTTP =====
     // #ifndef MP-WEIXIN
-    res = await new Promise<any>((resolve, reject) => {
-      const task = uni.request({
-        url: `${API_BASE_URL}${url}`,
-        method,
-        data,
-        header,
-        success: (r: any) => { clearTimer(); resolve(r) },
-        fail: err => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
-      })
+    res = await new Promise<RawResponse>((resolve, reject) => {
       let finished = false
       const timeoutTimer = setTimeout(() => {
         finished = true
         // N04 修复：仅对尚未完成的 task abort，避免对已完成任务重复 abort
         if (task && typeof task.abort === 'function') task.abort()
         reject(new Error('请求超时'))
-      }, 8000)
+      }, REQUEST_TIMEOUT_MS)
       const clearTimer = () => {
         if (!finished) clearTimeout(timeoutTimer)
       }
+      const task = uni.request({
+        url: `${API_BASE_URL}${url}`,
+        method,
+        data,
+        header,
+        success: (r) => { clearTimer(); resolve({ data: r.data }) },
+        fail: (err) => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
+      })
     })
     // #endif
-  } catch (e: any) {
+  } catch (e) {
     // 网络层错误（超时 / 断网）：不抛出裸错误，统一提示
-    uni.showToast({ title: e.message || '网络异常，请稍后重试', icon: 'none' })
+    uni.showToast({ title: e instanceof Error ? e.message : '网络异常，请稍后重试', icon: 'none' })
     throw e
   }
 
@@ -181,7 +215,7 @@ async function request<T>(
   }
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需 verified 的社区写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    // 游客触发需 verified 的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
     void handleForbidden()
     throw new Error(body.message || '请先完成学号邮箱认证')
   }
@@ -198,21 +232,24 @@ async function request<T>(
   return body.data as T
 }
 
-export async function get<T>(url: string, data?: any): Promise<T> {
+export async function get<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('GET', url, data)
 }
 
-export async function post<T>(url: string, data?: any): Promise<T> {
+export async function post<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('POST', url, data)
 }
 
-export async function put<T>(url: string, data?: any): Promise<T> {
+export async function put<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('PUT', url, data)
 }
 
-export async function del<T>(url: string, data?: any): Promise<T> {
+export async function del<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('DELETE', url, data)
 }
+
+/** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起 */
+const UPLOAD_TIMEOUT_MS = 15000
 
 /**
  * 上传图片。
@@ -229,22 +266,40 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   // ===== 微信小程序端：微信云存储 =====
   // #ifdef MP-WEIXIN
   result = new Promise<{ url: string }>((resolve, reject) => {
+    // 平台例外：wx 句柄为微信运行时对象（同 request 说明）
     const wxApi: any = (globalThis as any).wx
     if (!wxApi || !wxApi.cloud) {
       reject(new Error('当前环境不支持 wx.cloud'))
       return
     }
+    // MP-003：超时保护（同 request 的 N04 settled 模式），超时/失败及时 reject，
+    // 防止调用方上传中守卫位（如 avatarUploading）永久锁死
+    let settled = false
+    const done = (fn: () => void) => {
+      if (!settled) {
+        settled = true
+        fn()
+      }
+    }
+    const timeoutTimer = setTimeout(() => {
+      done(() => {
+        if (task && typeof task.abort === 'function') task.abort()
+        reject(new Error('上传超时，请重试'))
+      })
+    }, UPLOAD_TIMEOUT_MS)
+    const clearTimer = () => { clearTimeout(timeoutTimer) }
     // cloudPath：images/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>，避免同名覆盖
     const ext = (tempFilePath.match(/\.\w+$/) || ['.jpg'])[0]
     const stamp = Date.now()
     const rand = Math.random().toString(36).slice(2, 8)
     const cloudPath = `images/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
-    wxApi.cloud.uploadFile({
+    const task = wxApi.cloud.uploadFile({
       config: { env: WX_CLOUD_ENV },
       cloudPath,
       filePath: tempFilePath,
-      success: (r: any) => resolve({ url: r.fileID }),
-      fail: (err: any) => reject(new Error(err.errMsg || '上传失败，请重试')),
+      // 平台例外：微信回调透传，仅取其 fileID
+      success: (r: any) => { clearTimer(); done(() => resolve({ url: r.fileID })) },
+      fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '上传失败，请重试'))) },
     })
   })
   // #endif
@@ -256,6 +311,8 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       url: `${API_BASE_URL}/upload/image`,
       filePath: tempFilePath,
       name: 'file',
+      // MP-003：与小程序端一致的上传超时保护
+      timeout: UPLOAD_TIMEOUT_MS,
       header: {
         Authorization: `Bearer ${token}`,
       },
@@ -271,8 +328,9 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
           reject(new Error('上传响应格式错误'))
         }
       },
-      fail() {
-        reject(new Error('上传失败，请重试'))
+      fail(err) {
+        // 超时体现在 errMsg（request:fail timeout），区分给出可读文案
+        reject(new Error(/timeout/i.test(err?.errMsg || '') ? '上传超时，请重试' : '上传失败，请重试'))
       },
     })
   })

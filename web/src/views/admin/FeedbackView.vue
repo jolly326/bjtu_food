@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -10,6 +11,7 @@ import { ChatDotRound, EditPen, CircleCheck } from '@element-plus/icons-vue'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
+const router = useRouter()
 
 const searchQuery = ref('')
 
@@ -24,7 +26,14 @@ const typeLabel: Record<string, string> = {
 const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
 const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
 
-// 反馈列表默认只显示「待处理」（管理员的处理待办），无状态 tab 切换
+// 状态筛选（prelaunch-final-audit AUD-PM-13：处理后需可回看，避免「已处理」分支不可达）
+// 默认「待处理」= 管理员处理待办；切换「已处理」可回看历史回复与处理时间。
+const statusOptions = [
+  { value: 'pending', label: '待处理' },
+  { value: 'handled', label: '已处理' },
+  { value: '', label: '全部状态' },
+]
+const activeStatus = ref('pending')
 
 // 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
 const typeOptions = [
@@ -69,7 +78,7 @@ async function loadList() {
   try {
     const { feedbackApi } = await import('@/api')
     const res = await feedbackApi.listFeedbacks({
-      status: 'pending',
+      status: activeStatus.value || undefined,
       keyword: searchQuery.value.trim() || undefined,
       type: activeType.value || undefined,
       page: page.value,
@@ -90,6 +99,9 @@ async function loadList() {
 
 onMounted(loadList)
 async function onTypeChange() {
+  await reloadFromFirstPage()
+}
+async function onStatusChange() {
   await reloadFromFirstPage()
 }
 
@@ -118,10 +130,7 @@ function closeDetail() { detail.value = null }
 
 async function submitHandle() {
   if (!detail.value) return
-  if (!reply.value.trim()) {
-    replyError.value = '请填写处理说明/回复'
-    return
-  }
+  // 处理说明/回复允许为空（后端对无回复走通用回执文案，见 change prelaunch-loop-closure 4.2 / 10.4）
   processingId.value = Number(detail.value.id)
   try {
     const { feedbackApi } = await import('@/api')
@@ -142,14 +151,28 @@ function fmtTime(v: string): string {
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
 }
 
-/** 附图预览（点击放大，新窗口打开原图） */
-function previewImg(images: string[], idx: number) {
-  window.open(images[idx], '_blank')
+/** 关联菜品一键直达编辑详情：反馈关联 dish 经公开详情接口拿到 stallId/canteenId，拼出档口链路路由 */
+async function goDishEdit(dishId?: number) {
+  if (dishId == null) return
+  try {
+    const { dishApi } = await import('@/api')
+    const dish = await dishApi.getById(dishId)
+    const stallId = Number(dish.stallId)
+    const canteenId = Number(dish.canteenId)
+    if (!stallId || !canteenId) {
+      toast.error('无法定位该菜品所属档口 / 食堂')
+      return
+    }
+    router.push(`/dashboard/canteens/${canteenId}/stalls/${stallId}/dishes/${dishId}`)
+  } catch (e: any) {
+    toast.error(e.message || '跳转菜品编辑失败')
+  }
 }
 
-async function copyMomentLink(momentId?: number) {
-  if (momentId == null) return
-  const link = `pages/moment/detail?id=${momentId}`
+async function copyReviewLink(reviewId?: number) {
+  if (reviewId == null) return
+  // AUD-PM-17：小程序无评价详情页，改为纯评价标识（避免被当作可打开的小程序路由）
+  const link = `review#${reviewId}`
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link)
@@ -161,7 +184,7 @@ async function copyMomentLink(momentId?: number) {
       document.execCommand('copy')
       document.body.removeChild(ta)
     }
-    toast.success('动态链接已复制')
+    toast.success('评价标识已复制')
   } catch {
     toast.error('复制失败，请手动记录：' + link)
   }
@@ -171,6 +194,7 @@ async function copyMomentLink(momentId?: number) {
 <template>
     <FilterBar v-model="searchQuery">
       <template #default>
+        <FilterSelect v-model="activeStatus" label="状态" :options="statusOptions" :width="140" @change="onStatusChange" />
         <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
     </FilterBar>
@@ -183,7 +207,7 @@ async function copyMomentLink(momentId?: number) {
       @page-change="onPageChange"
       :columns="[
         { prop: 'type', label: '类型', width: '120px', align: 'center' },
-        { prop: 'related', label: '关联动态', width: '140px', align: 'center' },
+        { prop: 'related', label: '关联评价', width: '140px', align: 'center' },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
@@ -200,7 +224,8 @@ async function copyMomentLink(momentId?: number) {
         <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeLabel[row.type] || row.type }}</span>
       </template>
       <template #cell-related="{ row }">
-        <span v-if="row.relatedType === 'moment'" class="related">动态#{{ row.relatedId }}</span>
+        <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
+        <button v-else-if="row.relatedType === 'dish'" class="link" v-press @click="goDishEdit(row.relatedId)">菜品#{{ row.relatedId }}</button>
         <span v-else class="muted">—</span>
       </template>
       <template #cell-content="{ row }">
@@ -226,7 +251,7 @@ async function copyMomentLink(momentId?: number) {
       :width="520"
       :footer="detail?.status !== 'handled'"
       :confirm-text="'标记处理'"
-      :confirm-disabled="!reply.trim()"
+      :confirm-disabled="false"
       :confirm-loading="processingId !== null"
       @close="closeDetail"
       @confirm="submitHandle"
@@ -238,28 +263,25 @@ async function copyMomentLink(momentId?: number) {
         <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ detail.userNickname || ('用户#' + detail.userId) }}</span></div>
         <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
         <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ fmtTime(detail.createdAt) }}</span></div>
-        <div class="detail-row" v-if="detail.relatedType === 'moment'">
-          <span class="dl">关联动态</span>
+        <div class="detail-row" v-if="detail.relatedType === 'review'">
+          <span class="dl">关联评价</span>
           <span class="dv">
-            <span class="related">动态 #{{ detail.relatedId }}</span>
-            <button class="link" v-press @click="copyMomentLink(detail.relatedId)">复制链接</button>
+            <span class="related">评价 #{{ detail.relatedId }}</span>
+            <button class="link" v-press @click="copyReviewLink(detail.relatedId)">复制标识</button>
           </span>
+        </div>
+        <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
+          <span class="dl">关联菜品</span>
+          <span class="dv"><button class="link" v-press @click="goDishEdit(detail.relatedId)">菜品 #{{ detail.relatedId }}</button></span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
-        <div class="detail-row detail-row-desc" v-if="detail.images && detail.images.length">
-          <span class="dl">附图</span>
-          <span class="dv">
-            <div class="img-list">
-              <img v-for="(img, i) in detail.images" :key="img" :src="img" class="img-thumb" @click="previewImg(detail.images, i)" />
-            </div>
-          </span>
-        </div>
         <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
         <div class="reply-area" v-if="detail.status !== 'handled'">
-          <label>处理说明 / 回复 <span class="required">*</span></label>
-          <textarea v-model="reply" rows="4" placeholder="请填写处理说明或回复内容..."></textarea>
+          <!-- AUD-PM-14：后端允许空回复（走通用回执文案），此处不得标注必填 -->
+          <label>处理说明 / 回复（选填）</label>
+          <textarea v-model="reply" rows="4" placeholder="可填写处理说明或回复内容；留空则用户收到通用回执"></textarea>
           <p v-if="replyError" class="field-error">{{ replyError }}</p>
         </div>
         <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>

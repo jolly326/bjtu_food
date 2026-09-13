@@ -7,7 +7,6 @@ import com.bjtufood.canteen.entity.Canteen;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 食堂服务接口
@@ -36,15 +35,6 @@ public interface CanteenService {
      * @return 食堂展示列表（含 distance 字段，米）
      */
     List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng);
-
-    /**
-     * 获取食堂背景图片映射
-     * <p>
-     * key = 食堂名称, value = 食堂图片 URL
-     *
-     * @return 食堂名称到图片的映射
-     */
-    Map<String, List<String>> listCanteenImages();
 
     /**
      * 获取所有食堂列表（含下属档口信息）

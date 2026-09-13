@@ -15,109 +15,92 @@
 			}
 		},
 		{
-			"path": "pages/profile/index",
+			"path": "pages/mine/index",
 			"style": {
 				"navigationBarTitleText": "我的",
 				"navigationStyle": "custom"
 			}
-		},
-		{
-			"path": "pages/community/index",
-			"style": {
-				"navigationBarTitleText": "动态",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/feedback/index",
-			"style": {
-				"navigationBarTitleText": "意见反馈",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/profile/notifications/index",
-			"style": {
-				"navigationBarTitleText": "系统通知",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/activity/index",
-			"style": {
-				"navigationBarTitleText": "最新活动",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/about/index",
-			"style": {
-				"navigationBarTitleText": "关于我们",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/webview/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationStyle": "custom"
-			}
-		},
+		}
 	],
 	"subPackages": [
 		{
-			"root": "pages/pages-detail/",
+			"root": "pages/detail/",
 			"pages": [
 				{
-					"path": "moment",
-					"style": {
-						"navigationBarTitleText": "动态详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "dish",
+					"path": "dish/index",
 					"style": {
 						"navigationBarTitleText": "菜品详情",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "review-list",
-					"style": {
-						"navigationBarTitleText": "全部评价",
 						"navigationStyle": "custom"
 					}
 				}
 			]
 		},
 		{
-			"root": "pages/pages-user/",
+			"root": "pages/me/",
 			"pages": [
 				{
-					"path": "publish-content/index",
+					"path": "notifications/index",
 					"style": {
-						"navigationBarTitleText": "发表内容",
+						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
 				},
 				{
-					"path": "my-moments/index",
-					"style": {
-						"navigationBarTitleText": "我的动态",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "profile-edit/index",
+					"path": "profile/index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "feedback/index",
+					"style": {
+						"navigationBarTitleText": "意见反馈",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "my-reviews/index",
+					"style": {
+						"navigationBarTitleText": "我的评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "privacy/index",
+					"style": {
+						"navigationBarTitleText": "隐私政策与用户协议",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/activity/",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "最新活动",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "webview",
+					"style": {
+						"navigationBarTitleText": "",
 						"navigationStyle": "custom"
 					}
 				}
 			]
 		}
 	],
+	"preloadRule": {
+		"pages/home/index": {
+			"network": "wifi",
+			"packages": ["pages/detail/"]
+		}
+	},
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "知行食记",

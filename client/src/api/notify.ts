@@ -7,40 +7,30 @@
  * PUT /my/notifications/read-all    全部已读
  */
 import { get, put } from './http'
+import { listOf, type PageResult, type RawRow } from './shared'
 
-export type NotificationType = 'moment_audit' | 'dish_audit' | 'comment' | 'useful'
+/** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用）。
+ *  2026-09-12：新增 feedback_handle（反馈处理结果回执），与后端 NotificationConst 对齐。 */
+type NotificationType = 'dish_audit' | 'feedback_handle'
 
 export interface Notification {
   id: number
-  /** 通知类型 */
+  /** 通知类型：dish_audit=菜品审核结果；feedback_handle=反馈处理结果回执 */
   type: NotificationType
   title: string
   content: string
-  /** 关联对象 ID（按 type 解释：动态/菜品 ID） */
+  /** 关联对象 ID（按 type 解释：dish_audit=菜品 ID；feedback_handle=反馈 ID） */
   relatedId?: number | null
   /** 是否已读：0=未读 1=已读 */
   isRead: number
   createdAt?: string
 }
 
-interface PageResult<T> {
-  list?: T[]
-  records?: T[]
-  total?: number
-  page?: number
-  pageSize?: number
-}
-
-function listOf<T>(res: PageResult<T> | undefined): T[] {
-  if (!res) return []
-  return res.list || res.records || []
-}
-
-function toNotification(raw: any): Notification | null {
+function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    type: (raw.type as NotificationType) || 'moment_audit',
+    type: (raw.type as NotificationType) || 'dish_audit',
     title: raw.title || '',
     content: raw.content || '',
     relatedId: raw.relatedId ?? null,
@@ -55,12 +45,12 @@ export async function getNotifications(params: {
   page?: number
   pageSize?: number
 }): Promise<{ list: Notification[]; total: number }> {
-  const query: Record<string, any> = {
+  const query: Record<string, unknown> = {
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 20,
   }
   if (params.isRead != null) query.isRead = params.isRead
-  const res = await get<PageResult<any>>('/my/notifications', query)
+  const res = await get<PageResult<RawRow>>('/my/notifications', query)
   const raw = listOf(res).map(toNotification).filter(Boolean) as Notification[]
   return { list: raw, total: res?.total ?? raw.length }
 }
@@ -80,19 +70,4 @@ export async function readNotification(id: number): Promise<void> {
   await put<void>(`/my/notifications/${id}/read`)
 }
 
-/** 全部已读（STU） */
-export async function readAllNotifications(): Promise<void> {
-  await put<void>('/my/notifications/read-all')
-}
 
-// ─────────────────────────────────────────────────────────────
-// 首页广播条类型：数据源为「动态前 10 条」（见 pages/home/index.vue toBroadcastItem）。
-// 原 getBroadcasts()（broadcast 表接口）已随广播条改版下线。
-// ─────────────────────────────────────────────────────────────
-
-export interface BroadcastItem {
-  text: string
-  type: 'dish' | 'community' | 'url' | 'canteen' | 'stall'
-  targetId?: number
-  targetUrl?: string
-}

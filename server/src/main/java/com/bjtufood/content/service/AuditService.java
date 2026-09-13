@@ -6,7 +6,8 @@ import com.bjtufood.content.dto.AuditVO;
 /**
  * UGC 审核服务接口
  * <p>
- * 学生提交的菜品/档口/食堂基础信息均 audit_status=pending → 管理员 approved/rejected。
+ * 档口/食堂基础信息仍为学生 UGC 提交（audit_status=pending → 管理员 approved/rejected）；
+ * 学生端菜品写接口已于 2026-09-13 全部下线，菜品由管理员经 /admin/dishes 录入。
  * 小程序端只展示 approved 且上架/营业中；评价用 is_hidden 控制可见性。
  */
 public interface AuditService {

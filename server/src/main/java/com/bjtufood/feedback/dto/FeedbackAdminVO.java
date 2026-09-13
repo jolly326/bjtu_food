@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 反馈管理端视图对象
@@ -22,22 +21,19 @@ public class FeedbackAdminVO {
     @Schema(description = "用户昵称")
     private String userNickname;
 
-    @Schema(description = "反馈类型：suggestion/error/other/report")
+    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
     private String type;
 
     @Schema(description = "反馈内容")
     private String content;
 
-    @Schema(description = "附图（绝对URL数组，2026-08-17 新增）")
-    private List<String> images;
-
     @Schema(description = "联系方式")
     private String contact;
 
-    @Schema(description = "关联类型（举报场景）：moment；其他为 null")
+    @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
     private String relatedType;
 
-    @Schema(description = "关联对象ID（举报场景：动态ID）；其他为 null")
+    @Schema(description = "关联对象ID（举报：评价ID；信息纠错：菜品ID）；其他为 null")
     private Long relatedId;
 
     @Schema(description = "处理状态：pending/handled")

@@ -6,12 +6,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器
@@ -72,6 +76,40 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理路径变量 / 查询参数类型不匹配（如 /dishes/{id} 传 abc），
+     * 返回 400 而非落到兜底 500（同 BE-110：非业务异常不返回 500）。
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        log.warn("参数类型错误: name={}, value={}, requiredType={}",
+                e.getName(), e.getValue(), e.getRequiredType());
+        return Result.badRequest("参数格式错误：" + e.getName());
+    }
+
+    /**
+     * 处理缺少必填查询参数（@RequestParam required=true 未携带），
+     * 返回 400 而非落到兜底 500。
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMissingParameterException(MissingServletRequestParameterException e) {
+        log.warn("缺少必填参数: name={}, type={}", e.getParameterName(), e.getParameterType());
+        return Result.badRequest("缺少必填参数：" + e.getParameterName());
+    }
+
+    /**
+     * 处理请求体反序列化失败（JSON 格式错误 / 字段类型不匹配），
+     * 返回 400 而非落到兜底 500；cause 中可能含敏感细节，不向客户端透出。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMessageNotReadableException(HttpMessageNotReadableException e) {
+        log.warn("请求体解析失败: {}", e.getMessage());
+        return Result.badRequest("请求体格式错误");
+    }
+
+    /**
      * 处理 IllegalArgumentException（非法参数）
      */
     @ExceptionHandler(IllegalArgumentException.class)
@@ -102,6 +140,18 @@ public class GlobalExceptionHandler {
     public Result<Void> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("数据冲突: {}", e.getMessage());
         return Result.badRequest("数据冲突，请重试");
+    }
+
+    /**
+     * 处理静态资源 / 未匹配路径 404（Spring 6.1 起未匹配请求统一抛 NoResourceFoundException），
+     * 属客户端请求错误而非服务端故障，返回 400 而非落到兜底 500 刷堆栈
+     * （同 BE-110：图片路径失效、错误 API 路径等场景不再误报 500）。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleNoResourceFoundException(NoResourceFoundException e) {
+        log.warn("资源不存在: {}", e.getResourcePath());
+        return Result.badRequest("资源不存在");
     }
 
     /**

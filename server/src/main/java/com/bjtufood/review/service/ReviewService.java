@@ -31,7 +31,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 获取档口评价列表
@@ -46,7 +46,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 获取食堂评价列表
@@ -61,7 +61,7 @@ public interface ReviewService {
      * @param userId    当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 计算某档口的平均评分（星级 1-5，取该档口下所有菜品评价的平均值）
@@ -72,12 +72,11 @@ public interface ReviewService {
     BigDecimal getAvgRatingByStallId(Long stallId);
 
     /**
-     * 获取当前登录用户自己的评价列表
+     * 获取当前用户的评价列表（我的评价）
      * <p>
-     * 按创建时间降序排列，只返回未隐藏的评价（is_hidden=0）。
-     * 用于个人中心「我的评价」页。
+     * 只返回该用户未隐藏的评价，按发表时间倒序；返回项含 {@code dishName}（mapper 联表 dish 补齐）。
      *
-     * @param userId   当前用户ID
+     * @param userId   当前登录用户ID
      * @param page     页码
      * @param pageSize 每页条数
      * @return 分页评价列表
@@ -102,19 +101,6 @@ public interface ReviewService {
      * @throws com.bjtufood.common.exception.BusinessException 已评价/菜品不存在
      */
     Long submitReview(Long userId, ReviewReq req);
-
-    /**
-     * 修改自己的评价
-     * <p>
-     * 可修改评分和内容，不允许修改图片
-     *
-     * @param id      评价ID
-     * @param userId  当前用户ID
-     * @param rating  新评分
-     * @param content 新内容
-     * @throws com.bjtufood.common.exception.BusinessException 评价不存在/无权限
-     */
-    void updateReview(Long id, Long userId, Integer rating, String content);
 
     /**
      * 删除自己的评价（软删除）

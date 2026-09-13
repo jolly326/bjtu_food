@@ -5,8 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.util.List;
-
 /**
  * 提交反馈请求（替代原 Map 裸参）
  */
@@ -14,8 +12,8 @@ import java.util.List;
 @Schema(description = "提交反馈请求")
 public class FeedbackReq {
 
-    /** 反馈类型：suggestion / error / other / report */
-    @Schema(description = "反馈类型：suggestion/error/other/report", example = "suggestion")
+    /** 反馈类型：suggestion / add / error / bug / report / other（与 FeedbackConst 保持一致） */
+    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other", example = "suggestion")
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 
@@ -29,15 +27,11 @@ public class FeedbackReq {
     @Size(max = 128, message = "联系方式不能超过128字")
     private String contact;
 
-    /** 附图（选填，已上传的绝对URL数组；截图/作证照片/菜品图，2026-08-17 新增） */
-    @Schema(description = "附图（选填，绝对URL数组）")
-    private List<String> images;
-
-    /** 关联类型（举报场景）：moment；其他反馈可空 */
-    @Schema(description = "关联类型（举报场景）：moment；其他反馈可空")
+    /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈可空 */
+    @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他可空")
     private String relatedType;
 
-    /** 关联对象ID（举报场景：被举报动态ID）；其他反馈可空 */
-    @Schema(description = "关联对象ID（举报场景：动态ID）；其他反馈可空")
+    /** 关联对象ID（举报场景：被举报评价ID；信息纠错：菜品ID）；其他反馈可空 */
+    @Schema(description = "关联对象ID（举报场景：评价ID）；其他反馈可空")
     private Long relatedId;
 }

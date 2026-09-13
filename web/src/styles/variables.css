@@ -6,11 +6,11 @@
    * 状态色（成功/警告/错误）与星级金为功能语义色，深色下提亮保对比。
    * ============================================================ */
 
-  /* ===== 主色系 — 品牌朱砂红（与小程序端对齐） ===== */
-  --color-primary: #C45A3C;              /* 深色主题主色（朱砂红，提亮保深底对比） */
-  --color-primary-light: #D06A4A;        /* hover 提亮 */
-  --color-primary-dark: #A84A30;
-  --color-primary-bg: rgba(196, 90, 60, 0.12);
+  /* ===== 主色系 — 品牌朱砂红（与小程序端对齐，UX-003） ===== */
+  --color-primary: #A13F35;              /* 深色主题主色（tokens.ts primary-dark 权威值，白字对比 6.4:1） */
+  --color-primary-light: #B5483C;        /* hover 提亮（同色相 +6% 亮度） */
+  --color-primary-dark: #82332B;         /* active 加深 */
+  --color-primary-bg: rgba(161, 63, 53, 0.12);
   --color-on-primary: #FFFFFF;           /* 主色上的文字（白字，保证深朱砂红底对比） */
   --color-accent: #9A9A9A;               /* 中灰（次要强调） */
   --color-star: #FBBF24;                 /* 星级（语义色） */
@@ -175,10 +175,10 @@
  * ============================================================ */
 @media (prefers-color-scheme: light) {
   :root {
-    --color-primary: #9B2A1D;            /* 浅色主题主色（深朱砂红，浅底高对比） */
-    --color-primary-light: #86251A;      /* hover 加深 */
-    --color-primary-dark: #B03A28;
-    --color-primary-bg: rgba(155, 42, 29, 0.10);
+    --color-primary: #C45549;            /* 浅色主题主色（spec §4.2 / tokens.ts primary 权威值） */
+    --color-primary-light: #B0463A;      /* hover 加深（同色相 -6% 亮度） */
+    --color-primary-dark: #A13F35;       /* active（tokens.ts primary-dark 权威值） */
+    --color-primary-bg: rgba(196, 85, 73, 0.10);
     --color-like: #B53B2C;               /* 点赞/喜欢（与小程序端浅色对齐） */
     --color-like-soft: rgba(181, 59, 44, 0.10);
     --color-on-primary: #FFFFFF;

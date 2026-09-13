@@ -10,25 +10,17 @@ export interface Review {
   userNickname: string
   userAvatar: string
   dishId: number
+  /** 关联菜品名称（我的评价列表由后端联表返回；菜品维度列表可不含） */
+  dishName?: string
   rating: number
   content: string
-  images: string[]
   createTime: string
   /** 「有用」计数（后端 usefulCount） */
   usefulCount?: number
   /** 当前登录用户是否已标记「有用」（仅登录态返回，可选） */
   useful?: boolean
   /** 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
-      讨论沉淀到动态评论区，菜品评价仅保留 评分+图文+有用 的口碑形态 */
-}
-
-export interface ReviewSubmit {
-  dishId: number
-  rating: number
-  content: string
-  images: string[]
-  /** 是否同步为社区动态（评价与动态打通：同步的动态直接可见，无需审核） */
-  shareToMoment?: boolean
+      菜品评价仅保留 评分+文字+有用 的口碑形态；UGC 图片已于 2026-09-12 全量下线（见 project_spec §0.5） */
 }
 
 /** 评价排序方式：最新 / 最有用 */

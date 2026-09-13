@@ -43,7 +43,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const res = await listActivities({ page: 1, pageSize: 200 })
+    const res = await listActivities({ page: 1, pageSize: 100 })
     list.value = res.list
   } catch (e: any) {
     error.value = e.message || '加载活动列表失败'

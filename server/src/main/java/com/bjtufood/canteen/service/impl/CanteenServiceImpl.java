@@ -63,17 +63,6 @@ public class CanteenServiceImpl implements CanteenService {
     }
 
     @Override
-    public Map<String, List<String>> listCanteenImages() {
-        List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getStatus, "open"));
-        Map<String, List<String>> result = new HashMap<>();
-        for (Canteen canteen : canteens) {
-            result.put(canteen.getName(), imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-        }
-        return result;
-    }
-
-    @Override
     public List<CanteenWithStallsVO> listWithStalls() {
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
                 .eq(Canteen::getStatus, "open")

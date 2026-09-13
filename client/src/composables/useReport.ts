@@ -1,18 +1,16 @@
 /**
  * 举报逻辑公共 hook（useReport）。
  *
- * 原先 openReport / submitReport / reportOpen / reportSubmitting / reportTarget 在
- * community、dish、moment、review-list、my-moments 等 5 处页面逐字复制，现统一收敛到
- * 本 hook，消除重复代码并保证行为一致（requireAuth 前置 → ReportModal 弹窗 → submitFeedback）。
+ * 原 openReport 前置 requireAuth（举报被挡在认证后），client-auth-boundary 修订：
+ * 举报属免认证行为，游客可直接填写提交，不再弹 AuthSheet。
  */
 import { ref, type Ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
-import { useUserStore } from '@/stores/user'
 
 export interface UseReportOptions {
-  /** 举报对象类型：'moment' | 'dish' | 'review' 等，随 submitFeedback.relatedType 使用 */
-  type: 'moment' | 'dish' | 'stall' | 'canteen' | 'review' | string
-  /** 举报弹窗标题，如「举报动态」 */
+  /** 举报对象类型：现网为 'review'（菜品详情的评价），随 submitFeedback.relatedType 使用 */
+  type: 'review' | string
+  /** 举报弹窗标题，如「举报评价」 */
   title?: string
   /** 举报弹窗占位提示 */
   placeholder?: string
@@ -24,7 +22,7 @@ export interface UseReportReturn {
   reportOpen: Ref<boolean>
   reportSubmitting: Ref<boolean>
   reportTargetId: Ref<number | null>
-  /** 打开举报弹窗；未登录时自动触发 requireAuth 引导 */
+  /** 打开举报弹窗（游客可直达，无需认证） */
   openReport: (targetId: number) => void
   /** 提交举报；text 为空时提示并中断 */
   submitReport: (text: string) => Promise<void>
@@ -34,10 +32,8 @@ export function useReport(options: UseReportOptions): UseReportReturn {
   const reportOpen = ref(false)
   const reportSubmitting = ref(false)
   const reportTargetId = ref<number | null>(null)
-  const userStore = useUserStore()
 
   function openReport(targetId: number) {
-    if (!userStore.requireAuth(() => openReport(targetId))) return
     reportTargetId.value = targetId
     reportOpen.value = true
   }

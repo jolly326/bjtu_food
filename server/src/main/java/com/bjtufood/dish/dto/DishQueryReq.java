@@ -27,7 +27,7 @@ public class DishQueryReq {
     @Schema(description = "品类ID筛选（category.id，首页品类滚轮使用）", example = "1")
     private Long categoryId;
 
-    @Schema(description = "标签筛选，例如 recommended、signature、halal、western", example = "recommended")
+    @Schema(description = "标签筛选，例如 recommended、signature（后端 dish.tags 实际仅产出这两类）", example = "recommended")
     private String tag;
 
     @Schema(description = "口味（辣度）筛选枚举：0=不辣 1=微辣 2=中辣 3=重辣（find 口味 Sheet 使用）", example = "2")

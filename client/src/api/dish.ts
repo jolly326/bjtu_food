@@ -2,23 +2,17 @@ import type {
   Dish, DishDetail, DishQuery, DishSortBy,
   HotSearch,
 } from '@/types/dish'
-import { get, del, post } from './http'
+import { get, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { recordsOf, totalOf, normalizeBoolean, normalizeImages } from './_shared'
+import { recordsOf, totalOf, normalizeBoolean, normalizeImages, type RawRow } from './shared'
 
-export const TAG_MAP: Record<string, string> = {
+/** 2026-09-07：无外部消费，收敛为模块私有（仅供本文件 toDish 标签映射） */
+const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
-  daily: '日常',
-  halal: '清真',
-  noodle: '面食',
-  rice: '米饭',
-  spicy: '辣味',
-  vegetarian: '素食',
-  western: '西餐',
 }
 
-export function toDish(raw: any): Dish {
+export function toDish(raw: RawRow): Dish {
   const images = normalizeImages(raw.images ?? raw.image)
   const tags = Array.isArray(raw.tags)
     ? raw.tags
@@ -61,7 +55,7 @@ export function toDish(raw: any): Dish {
   }
 }
 
-function toDishDetail(raw: any): DishDetail {
+function toDishDetail(raw: RawRow): DishDetail {
   return {
     ...toDish(raw),
     ratingDistribution: raw.ratingDistribution || [],
@@ -87,7 +81,7 @@ export async function getStallDishes(stallId: number): Promise<Dish[]> {
  * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 20,
   }
@@ -129,11 +123,6 @@ export async function addView(id: number): Promise<void> {
   }
 }
 
-/** 删除本人发布的菜品（STU 仅 created_by 本人，task-12.5） */
-export async function deleteDish(id: number): Promise<void> {
-  await del<void>(`/dishes/${id}`)
-}
-
 export async function getNewDishes(): Promise<Dish[]> {
   return recordsOf<any>(await get('/dishes/new')).map(toDish)
 }
@@ -150,27 +139,20 @@ export async function getRisingDishes(): Promise<Dish[]> {
 /** 热搜 TOP10（task-02：GET /dishes/hot-search，一期为菜品热度派生的热门词条） */
 export async function getHotSearch(): Promise<HotSearch[]> {
   const raw = await get<any[]>('/dishes/hot-search')
-  return (raw || []).map((item: any) => ({
+  return (raw || []).map((item: RawRow) => ({
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),
     relatedCount: Number(item.relatedCount ?? 0) || undefined,
   }))
 }
 
-/** 首页热门瀑布流首屏：复用 /dishes/hot（公开 TOP 列表；可选 lat/lng 按距离加权排序） */
-export async function getHomeHotDishes(limit = 20, lat?: number | null, lng?: number | null): Promise<Dish[]> {
-  const params: Record<string, unknown> = { limit }
-  if (typeof lat === 'number' && typeof lng === 'number') {
-    params.lat = lat
-    params.lng = lng
-  }
-  const res = await get<any>('/dishes/hot', params)
-  return recordsOf<any>(res).map(toDish)
-}
-
-/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc */
-export async function getHotDishesPage(page: number, pageSize = 20): Promise<{ list: Dish[]; total: number }> {
-  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize })
+/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；price 为可选价格区间（元），透传既有 minPrice/maxPrice */
+export async function getHotDishesPage(
+  page: number,
+  pageSize = 20,
+  price?: { min?: number; max?: number },
+): Promise<{ list: Dish[]; total: number }> {
+  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max })
 }
 
 export type { DishSortBy }

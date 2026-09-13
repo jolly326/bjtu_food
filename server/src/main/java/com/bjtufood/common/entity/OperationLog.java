@@ -23,11 +23,11 @@ public class OperationLog {
     @Schema(description = "操作管理员ID")
     private Long adminId;
 
-    /** 动作标识：audit_approve / audit_reject / moment_hide / moment_delete / feedback_handle ... */
+    /** 动作标识：audit_approve / audit_reject / review_hide / review_delete / feedback_handle ... */
     @Schema(description = "动作标识")
     private String action;
 
-    /** 操作对象类型：moment / dish / stall / canteen / feedback / review */
+    /** 操作对象类型：dish / stall / canteen / feedback / review */
     @Schema(description = "操作对象类型")
     private String targetType;
 

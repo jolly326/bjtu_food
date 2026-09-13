@@ -1,13 +1,13 @@
-import type { Review, ReviewSubmit, ReviewSort } from '@/types/review'
+import type { Review, ReviewSort } from '@/types/review'
 import { get, post, del } from './http'
-import { recordsOf, normalizeImages } from './_shared'
+import { recordsOf, totalOf, type RawRow } from './shared'
 
 type ReviewTarget =
   | { type: 'dish'; id: number }
   | { type: 'stall'; id: number }
   | { type: 'canteen'; id: number }
 
-function toReview(raw: any): Review {
+function toReview(raw: RawRow): Review {
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
@@ -16,7 +16,8 @@ function toReview(raw: any): Review {
     dishId: Number(raw.dishId ?? 0),
     rating: Number(raw.rating || 0),
     content: raw.content || '',
-    images: normalizeImages(raw.images),
+    // 我的评价列表由后端联表返回菜品名（菜品维度列表可不含）
+    dishName: raw.dishName || '',
     // 后端 ReviewVO 字段为 createdAt（LocalDateTime→JSON），兼容旧 createTime
     createTime: raw.createdAt || raw.createTime || '',
     // 语义统一：后端 ReviewVO.usefulCount（有用计数）
@@ -29,43 +30,32 @@ function toReview(raw: any): Review {
 /**
  * 获取评价（task-03 评价区重做）
  * 统一支持 dish / stall / canteen 三类目标查询（合并原 getReviewsByDish/Stall/Canteen 三函数）。
- * 支持 sort=latest|useful（useful 按 usefulCount DESC）、isWithImage 过滤有图。
+ * 支持 sort=latest|useful（useful 按 usefulCount DESC）。
  * 返回分页结果（list + total），供详情页评价区无限/分页展示。
  */
 async function getReviews(
   target: ReviewTarget,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
+  options?: { sort?: ReviewSort; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 50,
   }
   if (options?.sort) {
     params.sort = options.sort === 'latest' ? 'latest' : 'useful'
   }
-  if (options?.isWithImage) params.isWithImage = true
   const res = await get<any>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
   const list = recordsOf<any>(res).map(toReview)
-  const total = typeof res?.total === 'number' ? res.total : list.length
+  const total = totalOf(res)
   return { list, total }
 }
 
 /** @deprecated 语义化别名，保持向后兼容。新代码请用 getReviews({ type: 'dish', id }) */
 export async function getReviewsByDish(
   dishId: number,
-  options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number },
+  options?: { sort?: ReviewSort; page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
   return getReviews({ type: 'dish', id: dishId }, options)
-}
-
-export async function submitReview(data: ReviewSubmit): Promise<void> {
-  await post('/reviews', {
-    dishId: data.dishId,
-    rating: data.rating,
-    content: data.content,
-    images: data.images || [],
-    shareToMoment: !!data.shareToMoment,
-  })
 }
 
 /**
@@ -85,6 +75,34 @@ export async function toggleUseful(reviewId: number): Promise<{ useful: boolean;
 /** 删除本人评价（STU 仅本人，task-12.5；后端 DELETE /reviews/{id}） */
 export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
+}
+
+/**
+ * 我的评价列表（GET /my/reviews，STU 需邮箱认证）
+ * 按发表时间倒序，返回项含 dishName；删除仍走统一的 DELETE /reviews/{id}。
+ */
+export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<{ list: Review[]; total: number }> {
+  const res = await get<any>('/my/reviews', {
+    page: options?.page ?? 1,
+    pageSize: options?.pageSize ?? 20,
+  })
+  const list = recordsOf<any>(res).map(toReview)
+  const total = totalOf(res)
+  return { list, total }
+}
+
+/** 提交菜品评价（POST /reviews；需完成学号邮箱认证。每个用户对同一菜品仅评价一次，评分 1-5 必填）
+ *  2026-09-07：无外部消费，收敛为模块私有（仅供本文件 createReview 入参） */
+interface ReviewSubmitPayload {
+  dishId: number
+  /** 评分，1-5 星（必填） */
+  rating: number
+  /** 文字评价（≤500 字，选填） */
+  content?: string
+}
+
+export async function createReview(payload: ReviewSubmitPayload): Promise<void> {
+  await post<void>('/reviews', payload)
 }
 
 

@@ -15,10 +15,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AuditLog {
 
-    /** 动作标识，如 audit_approve / moment_hide / feedback_handle */
+    /** 动作标识，如 audit_approve / review_hide / feedback_handle */
     String action();
 
-    /** 操作对象类型，如 moment / dish / feedback */
+    /** 操作对象类型，如 dish / feedback */
     String targetType();
 
     /**

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import { canteenApi } from '@/api'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import FormDialog from '@/components/FormDialog.vue'
@@ -128,18 +129,38 @@ async function toggleStatus(row: any, active: boolean) {
   }
 }
 
-// ===== 批量上架/下架 =====
+// ===== 批量上架/下架（WEB-105：循环期间抑制逐条 reload——纯接口调用并统计成败，结束后统一刷新一次） =====
 const selectedIds = ref<number[]>([])
+const batchRunning = ref(false)
 async function batchSetStatus(status: 'active' | 'inactive') {
-  if (!selectedIds.value.length) return
+  if (!selectedIds.value.length || batchRunning.value) return
   const label = status === 'active' ? '上架' : '下架'
   if (!await confirm.confirm(`确定批量${label} ${selectedIds.value.length} 个食堂？`)) return
+  batchRunning.value = true
+  let okCount = 0
+  const failedIds: number[] = []
+  // 单条失败不中断批次：记录后继续执行下一条
+  for (const id of selectedIds.value) {
+    try {
+      await canteenApi.updateById(id, { status })
+      okCount++
+    } catch {
+      failedIds.push(id)
+    }
+  }
+  // 结束后统一刷新一次（替代逐条 N 次全量 reload）
   try {
-    for (const id of selectedIds.value) await store.updateCanteen(id, { status })
-    toast.success(`已批量${label} ${selectedIds.value.length} 个食堂`)
+    await store.loadAll()
+  } catch { /* 刷新失败由页面既有数据兜底，不吞掉批量结果提示 */ }
+  batchRunning.value = false
+  const failCount = failedIds.length
+  if (failCount === 0) {
+    toast.success(`已批量${label} ${okCount} 个食堂`)
     selectedIds.value = []
-  } catch (e: any) {
-    toast.error(e.message || `批量${label}失败`)
+  } else {
+    // 部分失败：汇总成败计数，仅保留失败项便于重试
+    toast.error(`批量${label}完成：成功 ${okCount} 条，失败 ${failCount} 条`)
+    selectedIds.value = failedIds
   }
 }
 </script>
@@ -151,8 +172,8 @@ async function batchSetStatus(status: 'active' | 'inactive') {
       </template>
       <template #actions>
         <template v-if="selectedIds.length">
-          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('active')">批量上架</button>
-          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('active')">批量上架</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
         </template>
         <button class="btn-primary" v-press @click="openAdd"><el-icon class="btn-plus-icon"><Plus /></el-icon>新增食堂</button>
       </template>

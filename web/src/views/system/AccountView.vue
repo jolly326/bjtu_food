@@ -1,25 +1,19 @@
 <script setup lang="ts">
 /**
  * AccountView：账号（学生 / 管理员）。
- * 上下区块展示（无分段切换）；管理员区块仅超管可见（后端已强校验）。
+ * 上下区块展示（无分段切换）；权限从简（WEB-100）：不再区分超管可见性，
+ * 普通管理员同样可管理管理员账号，接口侧由后端 /admin/** 硬鉴权兜底。
  */
-import { computed } from 'vue'
-import { useAdminUserStore } from '@/stores/adminUserStore'
 import UserView from '@/views/user/UserView.vue'
 import AdminManageView from '@/views/admin/AdminManageView.vue'
-
-const adminUser = useAdminUserStore()
-const isSuper = computed(() => adminUser.myRole === 'super_admin')
 </script>
 
 <template>
   <div>
     <div class="block-title">学生账号</div>
     <UserView />
-    <template v-if="isSuper">
-      <div class="block-title">管理员账号</div>
-      <AdminManageView />
-    </template>
+    <div class="block-title">管理员账号</div>
+    <AdminManageView />
   </div>
 </template>
 

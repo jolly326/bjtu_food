@@ -55,9 +55,6 @@ async function handleLogin() {
       <button class="login-btn" v-press :disabled="submitting" type="button" @click="handleLogin">
         {{ submitting ? '登录中…' : '登 录' }}
       </button>
-      <p class="login-hint">
-        默认管理员：<code>admin</code> / <code>admin123</code>（首次登录后请修改）
-      </p>
     </div>
   </div>
 </template>
@@ -126,21 +123,6 @@ async function handleLogin() {
   color: var(--color-error);
   font-size: var(--font-sm);
   margin: 0;
-}
-.login-hint {
-  margin: var(--space-2) 0 0;
-  text-align: center;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-.login-hint code {
-  padding: 0 4px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: var(--font-xs);
 }
 .login-btn {
   width: 100%;

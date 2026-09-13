@@ -7,6 +7,30 @@ export function pageRecords<T>(data: PageLike<T>): T[] {
   return Array.isArray(data) ? data : data.records || data.list || []
 }
 
+/**
+ * dish.tags 统一读写格式：CSV 逗号分隔串（权威契约）。
+ * 依据：schema.sql「标签，逗号分隔」、DishPublishReq.tags 为 String、
+ * DishMapper FIND_IN_SET / DishServiceImpl split(",")、DishAdminController 示例 "tags": "recommended"。
+ * parseTags 容错兼容历史脏数据（旧实现曾误写 JSON 数组串），展示时自动归一。
+ */
+export function parseTags(tags: unknown): string[] {
+  if (Array.isArray(tags)) return tags.map(t => String(t).trim()).filter(Boolean)
+  const s = typeof tags === 'string' ? tags.trim() : ''
+  if (!s) return []
+  if (s.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return parsed.map(t => String(t).trim()).filter(Boolean)
+    } catch { /* 非合法 JSON，按 CSV 继续解析 */ }
+  }
+  return s.split(',').map(t => t.trim()).filter(Boolean)
+}
+
+/** string[] → CSV 逗号分隔串（写库格式，写侧统一出口） */
+export function formatTags(tags: string[]): string {
+  return tags.map(t => t.trim()).filter(Boolean).join(',')
+}
+
 export function imagesToLegacy(images: unknown): string {
   if (Array.isArray(images)) return images.filter(Boolean).map(toAbsoluteImageUrl).join('|||')
   if (typeof images !== 'string') return ''
@@ -33,7 +57,8 @@ function compactPayload<T extends Record<string, unknown>>(payload: T): Partial<
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Partial<T>
 }
 
-function toAbsoluteImageUrl(url: string): string {
+/** 相对图片路径 → 绝对 URL（导出供上传预览等组件复用，dev 下相对路径会打到 Vite 源导致 404） */
+export function toAbsoluteImageUrl(url: string): string {
   if (!url || /^https?:\/\//i.test(url) || url.startsWith('blob:') || url.startsWith('data:')) return url
   return `${API_BASE_URL}${url.startsWith('/') ? url : `/${url}`}`
 }

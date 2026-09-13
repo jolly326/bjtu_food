@@ -55,22 +55,18 @@
             "urlCheck" : false
         },
         "usingComponents" : true,
+        /* 隐私合规：开启微信隐私接口检查（MP-002），相册/位置声明见公众平台《用户隐私保护指引》 */
+        "__usePrivacyCheck__" : true,
         /* 定位权限：uni.getLocation 授权弹窗文案（首页左上角定位 + 推荐按距离排序） */
         "permission" : {
             "scope.userLocation" : {
                 "desc" : "你的位置信息将用于首页食堂/菜品推荐按距离排序"
             }
         },
-        "requiredPrivateInfos" : [ "getLocation" ]
-    },
-    "mp-alipay" : {
-        "usingComponents" : true
-    },
-    "mp-baidu" : {
-        "usingComponents" : true
-    },
-    "mp-toutiao" : {
-        "usingComponents" : true
+        "requiredPrivateInfos" : [ "getLocation" ],
+        /* 按需注入（MP-019）：仅注入当前页面声明的自定义组件脚本，降低启动注入开销；
+           项目组件均为静态引用（无动态 addGlobalDynamics），无风险。 */
+        "lazyCodeLoading" : "requiredComponents"
     },
     "uniStatistics": {  
         "enable": false

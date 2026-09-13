@@ -1,12 +1,11 @@
 <script setup lang="ts">
 /**
  * UserActivityModal：用户行为聚合（任务：用户管理 → 查看某学生的全部行为）。
- * 打开时并行拉取该用户的动态 / 评价 / 反馈，分 tab 展示，方便管理员判断用户是否有违规内容。
+ * 打开时并行拉取该用户的评价 / 反馈，分 tab 展示，方便管理员判断用户是否有违规内容。
  */
 import { ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { listMoments, type MomentManageVO } from '@/api/moment'
 import { listFeedbacks, type FeedbackAdminVO } from '@/api/feedback'
 import { getAll } from '@/api/review'
 import type { Review } from '@/types'
@@ -14,9 +13,8 @@ import type { Review } from '@/types'
 const props = defineProps<{ show: boolean; user: any }>()
 const emit = defineEmits<{ close: [] }>()
 
-const section = ref<'moment' | 'review' | 'feedback'>('moment')
+const section = ref<'review' | 'feedback'>('review')
 const loading = ref(false)
-const moments = ref<MomentManageVO[]>([])
 const reviews = ref<Review[]>([])
 const feedbacks = ref<FeedbackAdminVO[]>([])
 
@@ -34,20 +32,17 @@ function fmtContent(s: string | undefined, max = 60): string {
 
 watch(() => props.show, async (v) => {
   if (v && props.user) {
-    section.value = 'moment'
+    section.value = 'review'
     loading.value = true
     try {
       const uid = Number(props.user.id)
-      const [m, r, f] = await Promise.all([
-        listMoments({ userId: uid, pageSize: 30 }),
+      const [r, f] = await Promise.all([
         getAll(uid),
         listFeedbacks({ userId: uid, pageSize: 30 }),
       ])
-      moments.value = m.list
       reviews.value = r
       feedbacks.value = f.list
     } catch {
-      moments.value = []
       reviews.value = []
       feedbacks.value = []
     } finally {
@@ -57,12 +52,10 @@ watch(() => props.show, async (v) => {
 })
 
 const sections = [
-  { key: 'moment' as const, label: '动态' },
   { key: 'review' as const, label: '评价' },
   { key: 'feedback' as const, label: '反馈' },
 ]
 function countOf(key: string): number {
-  if (key === 'moment') return moments.value.length
   if (key === 'review') return reviews.value.length
   return feedbacks.value.length
 }
@@ -102,23 +95,8 @@ function countOf(key: string): number {
     <div v-if="loading" class="ua-empty">加载中…</div>
 
     <template v-else>
-      <!-- 动态 -->
-      <div v-if="section === 'moment'" class="ua-list">
-        <div v-for="m in moments" :key="m.id" class="ua-item">
-          <div class="ua-item-main">{{ fmtContent(m.content) }}</div>
-          <div class="ua-item-meta">
-            <StatusTag
-              :type="m.auditStatus === 'approved' ? 'success' : m.auditStatus === 'rejected' ? 'danger' : 'warning'"
-              :text="m.auditStatus === 'approved' ? (m.status === 1 ? '已下架' : '已通过') : m.auditStatus === 'rejected' ? '已退回' : '待审核'"
-            />
-            <span class="ua-time">{{ fmtTime(m.createdAt) }}</span>
-          </div>
-        </div>
-        <div v-if="!moments.length" class="ua-empty">该用户暂无动态</div>
-      </div>
-
       <!-- 评价 -->
-      <div v-else-if="section === 'review'" class="ua-list">
+      <div v-if="section === 'review'" class="ua-list">
         <div v-for="r in reviews" :key="Number(r.id)" class="ua-item">
           <div class="ua-item-main">
             <span class="ua-stars">{{ '★'.repeat(r.rating) }}</span>

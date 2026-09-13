@@ -1,14 +1,11 @@
 import type { CanteenInfo } from '@/types/canteen'
 import { get } from './http'
-import { normalizeImages } from './_shared'
-
-function firstImage(raw: any): string {
-  return normalizeImages(raw?.images ?? raw?.image ?? raw?.icon)[0] || ''
-}
+import { firstImage, type RawRow } from './shared'
 
 export async function getCanteenList(): Promise<CanteenInfo[]> {
-  const rawList = await get<any[]>('/canteens')
-  return rawList.map((c: any) => ({
+  const rawList = await get<RawRow[]>('/canteens')
+  return rawList.map((c: RawRow) => ({
+    id: c.id != null ? Number(c.id) : undefined,
     name: c.name || '',
     location: c.location || c.description || '',
     icon: firstImage(c),
@@ -18,13 +15,7 @@ export async function getCanteenList(): Promise<CanteenInfo[]> {
   }))
 }
 
-export async function getCanteenImages(): Promise<Record<string, string>> {
-  const rawMap = await get<Record<string, unknown>>('/canteens/images')
-  return Object.fromEntries(
-    Object.entries(rawMap || {}).map(([name, value]) => [name, normalizeImages(value)[0] || '']),
-  )
-}
-
-export async function getCanteensWithStalls(): Promise<any[]> {
-  return await get<any[]>('/canteens/all')
+/** 食堂含档口树（食堂 → stalls[]；RawRow 载体见 shared.ts 归一化边界说明） */
+export async function getCanteensWithStalls(): Promise<RawRow[]> {
+  return await get<RawRow[]>('/canteens/all')
 }

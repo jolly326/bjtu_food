@@ -1,6 +1,7 @@
 package com.bjtufood.content.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.entity.User;
@@ -9,6 +10,7 @@ import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
+import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.content.constant.AuditConst;
@@ -16,12 +18,11 @@ import com.bjtufood.content.dto.AuditVO;
 import com.bjtufood.content.service.AuditService;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
-import com.bjtufood.moment.entity.Moment;
-import com.bjtufood.moment.mapper.MomentMapper;
 import com.bjtufood.notify.constant.NotificationConst;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -41,7 +42,6 @@ public class AuditServiceImpl implements AuditService {
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
-    private final MomentMapper momentMapper;
     private final UserMapper userMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final NotificationService notificationService;
@@ -79,12 +79,6 @@ public class AuditServiceImpl implements AuditService {
             IPage<Canteen> p = canteenMapper.selectPage(new Page<>(page, pageSize), w);
             total = p.getTotal();
             records = p.getRecords().stream().map(this::toCanteenVO).toList();
-        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
-            LambdaQueryWrapper<Moment> w = new LambdaQueryWrapper<Moment>().orderByDesc(Moment::getCreatedAt);
-            if (StringUtils.hasText(status)) w.eq(Moment::getAuditStatus, status);
-            IPage<Moment> p = momentMapper.selectPage(new Page<>(page, pageSize), w);
-            total = p.getTotal();
-            records = p.getRecords().stream().map(this::toMomentVO).toList();
         } else {
             throw new BusinessException("未知的审核类型：" + type);
         }
@@ -114,33 +108,37 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    // 审核状态变更影响菜品对外可见性（approved 才参与推荐位）；
+    // 仅 dish 类型清缓存（stall/canteen 审核不进推荐位缓存），evict 在写库事务完成后执行
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+            CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING},
+            allEntries = true, condition = "#type == 'dish'")
     public void approve(String type, Long id) {
         if (AuditConst.TYPE_DISH.equals(type)) {
             Dish e = dishMapper.selectById(id);
             if (e == null) throw new BusinessException("菜品不存在");
+            // 通过审核时清空退回原因必须显式 set NULL：updateById 忽略 null 字段不写列
+            dishMapper.update(null, new LambdaUpdateWrapper<Dish>()
+                    .eq(Dish::getId, id)
+                    .set(Dish::getAuditStatus, AuditConst.STATUS_APPROVED)
+                    .set(Dish::getRejectReason, null));
             e.setAuditStatus(AuditConst.STATUS_APPROVED);
             e.setRejectReason(null);
-            dishMapper.updateById(e);
             sendDishAuditNotification(e, true, null);
         } else if (AuditConst.TYPE_STALL.equals(type)) {
             Stall e = stallMapper.selectById(id);
             if (e == null) throw new BusinessException("档口不存在");
-            e.setAuditStatus(AuditConst.STATUS_APPROVED);
-            e.setRejectReason(null);
-            stallMapper.updateById(e);
+            stallMapper.update(null, new LambdaUpdateWrapper<Stall>()
+                    .eq(Stall::getId, id)
+                    .set(Stall::getAuditStatus, AuditConst.STATUS_APPROVED)
+                    .set(Stall::getRejectReason, null));
         } else if (AuditConst.TYPE_CANTEEN.equals(type)) {
             Canteen e = canteenMapper.selectById(id);
             if (e == null) throw new BusinessException("食堂不存在");
-            e.setAuditStatus(AuditConst.STATUS_APPROVED);
-            e.setRejectReason(null);
-            canteenMapper.updateById(e);
-        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
-            Moment e = momentMapper.selectById(id);
-            if (e == null) throw new BusinessException("动态不存在");
-            e.setAuditStatus(AuditConst.STATUS_APPROVED);
-            e.setRejectReason(null);
-            momentMapper.updateById(e);
-            sendMomentAuditNotification(e, true, null);
+            canteenMapper.update(null, new LambdaUpdateWrapper<Canteen>()
+                    .eq(Canteen::getId, id)
+                    .set(Canteen::getAuditStatus, AuditConst.STATUS_APPROVED)
+                    .set(Canteen::getRejectReason, null));
         } else {
             throw new BusinessException("未知的审核类型：" + type);
         }
@@ -148,6 +146,10 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
+    // 退回同样改变菜品可见性（rejected 不再对外可见），evict 时机同 approve
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
+            CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING},
+            allEntries = true, condition = "#type == 'dish'")
     public void reject(String type, Long id, String rejectReason) {
         if (!StringUtils.hasText(rejectReason)) {
             throw new BusinessException("退回原因不能为空");
@@ -171,13 +173,6 @@ public class AuditServiceImpl implements AuditService {
             e.setAuditStatus(AuditConst.STATUS_REJECTED);
             e.setRejectReason(rejectReason);
             canteenMapper.updateById(e);
-        } else if (AuditConst.TYPE_MOMENT.equals(type)) {
-            Moment e = momentMapper.selectById(id);
-            if (e == null) throw new BusinessException("动态不存在");
-            e.setAuditStatus(AuditConst.STATUS_REJECTED);
-            e.setRejectReason(rejectReason);
-            momentMapper.updateById(e);
-            sendMomentAuditNotification(e, false, rejectReason);
         } else {
             throw new BusinessException("未知的审核类型：" + type);
         }
@@ -247,41 +242,6 @@ public class AuditServiceImpl implements AuditService {
         v.setCreatedBy(c.getCreatedBy());
         v.setCreatedAt(c.getCreatedAt());
         return v;
-    }
-
-    private AuditVO toMomentVO(Moment m) {
-        AuditVO v = new AuditVO();
-        v.setId(m.getId());
-        v.setType("moment");
-        v.setName(truncate(m.getContent(), 30));
-        v.setDescription(m.getContent());
-        v.setImages(imageUrlUtil.parseAndToAbsoluteUrls(m.getImages()));
-        v.setAuditStatus(m.getAuditStatus());
-        v.setRejectReason(m.getRejectReason());
-        v.setCreatedBy(m.getUserId());
-        v.setCreatedAt(m.getCreatedAt());
-        return v;
-    }
-
-    private String truncate(String s, int max) {
-        if (s == null) return "";
-        return s.length() <= max ? s : s.substring(0, max) + "...";
-    }
-
-    private void sendMomentAuditNotification(Moment m, boolean approved, String rejectReason) {
-        Notification n = new Notification();
-        n.setUserId(m.getUserId());
-        n.setType(NotificationConst.TYPE_MOMENT_AUDIT);
-        n.setRelatedId(m.getId());
-        n.setIsRead(0);
-        if (approved) {
-            n.setTitle("动态审核通过");
-            n.setContent("您发布的动态已通过审核，现在对外可见啦~");
-        } else {
-            n.setTitle("动态审核未通过");
-            n.setContent("您的动态未通过审核：" + (rejectReason == null ? "" : rejectReason));
-        }
-        notificationService.notify(n);
     }
 
     private void sendDishAuditNotification(Dish d, boolean approved, String rejectReason) {

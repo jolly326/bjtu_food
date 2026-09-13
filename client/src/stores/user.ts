@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfo } from '@/types/user'
 import * as userApi from '@/api/user'
-import { useAuthSheetStore } from '@/stores/authSheet'
+import { useAuthSheetStore } from '@/stores/auth-sheet'
 
 const STORAGE_KEY_TOKEN = 'token'
 const STORAGE_KEY_USER = 'userInfo'
@@ -29,6 +29,12 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
   const loading = ref(false)
+  /**
+   * 最近一次静默登录的失败原因（AUD-BE-02）。
+   * silentLogin 刻意不抛错（保证游客可继续浏览），但原因必须可查证——
+   * 否则「未配置 / 凭证无效 / 服务不可用」等部署事故在端上只剩间接症状，排障与提示都会失真。
+   */
+  const lastLoginError = ref('')
 
   /**
    * 微信静默登录（§5.y）：微信打开小程序自动登录为游客态（verified=false）。
@@ -67,12 +73,14 @@ export const useUserStore = defineStore('user', () => {
         token.value = res.token
         userInfo.value = res.userInfo
         saveAuth(res.token, res.userInfo)
+        lastLoginError.value = ''
         // #endif
         // #ifndef MP-WEIXIN
         // 非微信端（H5 联调）：无 code 静默登录，保留本地游客态（无 token 亦可浏览）
         // #endif
       } catch (e) {
-        // 静默登录失败：保留本地登录态（若此前存在），不阻断浏览
+        // 静默登录失败：保留本地登录态（若此前存在），不阻断浏览；记录原因供上层提示/排障（AUD-BE-02）
+        lastLoginError.value = (e as Error)?.message || '微信登录失败'
         console.error('静默登录失败', e)
       } finally {
         silentLoginPending.value = false
@@ -87,13 +95,11 @@ export const useUserStore = defineStore('user', () => {
     // 兜底：认证需微信登录态，若静默登录未就绪（如启动竞态）或失败，先补一次。
     // 透传真实失败原因（如「微信登录未配置」/「凭证无效」），避免误导为网络问题。
     if (!isLoggedIn()) {
-      try {
-        await silentLogin()
-      } catch (e) {
-        throw new Error((e as Error)?.message || '微信登录未完成，请稍后重试')
-      }
+      // silentLogin 本身不 reject（上文 catch），故原 try/catch 是死代码；改为读取 lastLoginError 透出真实原因
+      lastLoginError.value = ''
+      await silentLogin()
       if (!isLoggedIn()) {
-        throw new Error('微信登录未完成，请稍后重试')
+        throw new Error(lastLoginError.value || '微信登录未完成，请稍后重试')
       }
     }
     loading.value = true
@@ -139,7 +145,7 @@ export const useUserStore = defineStore('user', () => {
     return !!token.value && !!userInfo.value
   }
 
-  /** 是否已邮箱认证（§5.y）：true 解锁社区写操作；false = 游客态 */
+  /** 是否已邮箱认证（§5.y）：true 解锁 UGC 写操作；false = 游客态 */
   function isVerified(): boolean {
     return userInfo.value?.verified === true
   }
@@ -165,6 +171,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     token,
     loading,
+    lastLoginError,
     silentLogin,
     verifyEmail,
     updateProfile,

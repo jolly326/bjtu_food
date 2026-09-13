@@ -36,29 +36,11 @@ public class DashboardVO {
     @Schema(description = "总学生数")
     private Long totalUserCount;
 
-    @Schema(description = "总动态数")
-    private Long totalMomentCount;
-
-    @Schema(description = "总申请数")
-    private Long totalApplyCount;
-
     @Schema(description = "总反馈数")
     private Long totalFeedbackCount;
 
-    @Schema(description = "待审核申请数")
-    private Long pendingApplyCount;
-
-    @Schema(description = "待审核动态数")
-    private Long pendingMomentCount;
-
     @Schema(description = "待处理反馈数")
     private Long pendingFeedbackCount;
-
-    @Schema(description = "待审核申请明细（最近 5 条）")
-    private List<TodoItem> pendingApplies;
-
-    @Schema(description = "待审核动态明细（最近 5 条）")
-    private List<TodoItem> pendingMoments;
 
     @Schema(description = "待处理反馈明细（最近 5 条）")
     private List<TodoItem> pendingFeedbacks;
@@ -103,9 +85,9 @@ public class DashboardVO {
     public static class TodoItem {
         @Schema(description = "ID")
         private Long id;
-        @Schema(description = "标题（申请类型 / 内容摘要）")
+        @Schema(description = "标题（内容摘要）")
         private String title;
-        @Schema(description = "类型（entityType 或反馈类型）")
+        @Schema(description = "类型（反馈类型）")
         private String type;
         @Schema(description = "提交时间（yyyy-MM-dd HH:mm）")
         private String time;

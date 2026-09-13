@@ -46,7 +46,7 @@ export interface Dish {
   originalPrice?: number
   /** 折扣价（分，可空）：促销价，非空即视为有折扣 */
   promoPrice?: number
-  /** 发布者用户 ID（task-12.5：仅本人可删除自己发布的菜品） */
+  /** 提交人用户 ID（后台录入/审计归属用；学生端菜品写接口已下线，不再用于客户端权限判断） */
   createdBy?: number
   /** 距当前用户距离（米）：由前端基于 locationStore 用户坐标 + Haversine 本地计算写回，未定位/无坐标时为 undefined */
   distance?: number

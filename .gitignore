@@ -59,6 +59,9 @@ desktop.ini
 .agents/
 .playwright-mcp/
 
+# OpenSpec change proposals / specs (planning artifacts, not project source)
+openspec/
+
 # Editor directories and files
 .idea/
 .vscode/

@@ -19,7 +19,7 @@ import java.util.List;
  */
 public interface ReviewMapper extends BaseMapper<Review> {
 
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort, @Param("withImage") boolean withImage);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort);
 
     IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 
@@ -29,14 +29,14 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * review 表仅关联 dish_id（无 stall_id / canteen_id），档口/食堂维度的评价通过
      * review → dish(stall_id) 推导。只返回 is_hidden=0 的评价。
      */
-    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort, @Param("withImage") boolean withImage);
+    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort);
 
     /**
      * 按食堂查询评价列表。
      * <p>
      * 通过 review → dish(stall_id) → stall(canteen_id) 推导。只返回 is_hidden=0 的评价。
      */
-    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort, @Param("withImage") boolean withImage);
+    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort);
 
     /**
      * 计算某档口下所有菜品评价的平均分（星级 1-5）。

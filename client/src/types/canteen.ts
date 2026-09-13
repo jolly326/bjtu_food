@@ -1,5 +1,7 @@
 /** 食堂信息 */
 export interface CanteenInfo {
+  /** 食堂 ID（过滤菜品用；后端 /canteens 返回 id，此前被丢弃，现补齐） */
+  id?: number
   name: string
   location: string
   icon: string

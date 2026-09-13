@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * {@link RequireVerified} 切面（spec §5.y）。
  * <p>
  * 在请求时按 user.verified 实时判定（verified 不进 JWT），未认证抛 403 引导先完成学号邮箱认证。
- * 置于 controller 层切面，保证所有社区写操作统一鉴权，不重复编码。
+ * 置于 controller 层切面，保证所有写操作统一鉴权，不重复编码。
  */
 @Aspect
 @Component
@@ -29,6 +29,11 @@ public class RequireVerifiedAspect {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(401, "请先登录");
+        }
+        // JWT 载荷不含 status，禁用/注销账号的存量 token 在有效期内仍可被携带，
+        // 这里按 user.status 实时判定，非 active 一律拒绝 UGC 写操作。
+        if (!"active".equals(user.getStatus())) {
+            throw new BusinessException(403, "账号已被禁用");
         }
         if (!Integer.valueOf(1).equals(user.getVerified())) {
             // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，
