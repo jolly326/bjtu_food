@@ -18,8 +18,10 @@ import org.springframework.web.bind.annotation.*;
  * UGC 审核接口（Web 后台，仅 ADMIN）
  * <p>
  * 菜品 / 档口 / 食堂审核通过 / 退回；退回必填 reject_reason。
+ * 注：学生端菜品写接口已于 2026-09-13 全部下线，菜品由管理员经 /admin/dishes 录入；
+ * 本模块保留对既有数据（含历史学生提交的待审菜品）的审核能力。
  */
-@Tag(name = "14. 后台UGC审核", description = "系统管理员审核学生提交的菜品/档口/食堂。需要管理员 token。")
+@Tag(name = "14. 后台UGC审核", description = "系统管理员审核菜品/档口/食堂。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/audit")
 @RequiredArgsConstructor

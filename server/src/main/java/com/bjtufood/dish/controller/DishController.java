@@ -1,9 +1,7 @@
 package com.bjtufood.dish.controller;
 
-import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
-import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
@@ -12,7 +10,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -131,52 +128,6 @@ public class DishController {
             @PathVariable Long id) {
         Long userId = SecurityUtil.getCurrentUserId();
         dishService.addViewCount(id, userId);
-        return Result.success();
-    }
-
-    // ==================== 学生端发布接口（STUDENT） ====================
-
-    @Operation(
-            summary = "学生发布菜品",
-            description = "提交新菜品，created_by=当前用户、audit_status=pending 待后台审核；学生不可设置上下架。需已完成学号邮箱认证。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @RequireVerified
-    @PostMapping("/dishes")
-    public Result<Void> publishDish(@Valid @RequestBody DishPublishReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        dishService.publishDish(req, userId);
-        return Result.success();
-    }
-
-    @Operation(
-            summary = "学生编辑 / 重新提交菜品",
-            description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。需已完成学号邮箱认证。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @RequireVerified
-    @PutMapping("/dishes/{id}")
-    public Result<Void> updateDish(
-            @Parameter(description = "菜品ID", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody DishPublishReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        dishService.updateStudentDish(id, req, userId);
-        return Result.success();
-    }
-
-    @Operation(
-            summary = "学生删除本人菜品",
-            description = "仅 created_by 本人可删，返回 200/400/403。级联清理评价与清单项（favorite 模块已移除，不处理）。需已完成学号邮箱认证。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @RequireVerified
-    @DeleteMapping("/dishes/{id}")
-    public Result<Void> deleteMyDish(
-            @Parameter(description = "菜品ID", example = "1")
-            @PathVariable Long id) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        dishService.deleteMyDish(id, userId);
         return Result.success();
     }
 }

@@ -29,7 +29,7 @@
 ```
 com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security
-├── dish/        # 菜品：列表/详情/发布/评分聚合/统计
+├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合/统计（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
 ├── review/      # 评价 + 评分聚合事件
 ├── canteen/     # 食堂/档口
 ├── content/     # category 品类 / broadcast 广播（兼容保留）
@@ -85,6 +85,13 @@ com.bjtufood/
 | `CORS_ALLOWED_ORIGINS` | 管理后台浏览器源（白名单） |
 
 > `spring-dotenv`：本地读 `server/.env`；云托管读同名环境变量。仓库不保留任何明文凭据。
+
+### 3.3 排障注记：微信 `jscode2session` 响应为 `text/plain`
+微信 `https://api.weixin.qq.com/sns/jscode2session` 实测以 **`HTTP 200 + Content-Type: text/plain`** 返回 JSON 体（而非 `application/json`）。因此后端**禁止**用 `restTemplate.getForObject(url, Map.class)`（或任何依赖 `MappingJackson2HttpMessageConverter` 自动转换的写法）——该方法按 Content-Type 选转换器，找不到可读 `text/plain → Map` 的转换器即抛 `RestClientException`，导致**真实 code 登录同样失败**。
+
+正确做法：**先按 `String.class` 读取，再用 Jackson（`ObjectMapper`）手工反序列化**（或等价方式），使解析不依赖上游 Content-Type。锁定实现见 `server/src/main/java/com/bjtufood/auth/service/WechatService.java`（`code2Session` 内 `getForObject(url, String.class)` + `parseJsonBody`），回归用例见 `server/src/test/java/com/bjtufood/auth/WechatServiceTest.java`。
+
+> 事故记录：**2026-09-13 曾因此缺陷导致全部微信登录返回 `400「微信登录服务异常，请稍后重试」`（P0，直接阻断登录闭环）**。修改本服务或替换 HTTP 客户端时，务必保留「不依赖 Content-Type 解析」这一约束。
 
 ## 4. 本地快速启动
 

@@ -84,7 +84,8 @@ public class Dish {
 
     /**
      * 审核状态（与上下架 status 解耦）：pending（待审核）/ approved（已通过）/ rejected（已退回）
-     * 学生 UGC 提交后写入 pending；后台通过置 approved、退回置 rejected 并回写 reject_reason。
+     * 管理员录入后置 approved；历史学生 UGC 提交的存量数据可为 pending，后台通过置 approved、退回置 rejected 并回写 reject_reason。
+     * （学生端菜品写接口已于 2026-09-13 全部下线，菜品由管理员经 /admin/dishes 录入。）
      */
     @Schema(description = "审核状态：pending/approved/rejected", example = "pending")
     private String auditStatus;
@@ -93,7 +94,7 @@ public class Dish {
     @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
     private String rejectReason;
 
-    /** 提交人用户ID（学生 UGC 由当前登录用户写入，禁止前端传入） */
+    /** 提交人用户ID（历史学生 UGC 提交留痕字段；学生端菜品写接口已下线，新数据由管理员录入，不作为业务判断依据） */
     @Schema(description = "提交人用户ID")
     private Long createdBy;
 

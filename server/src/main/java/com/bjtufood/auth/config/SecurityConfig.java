@@ -71,7 +71,10 @@ public class SecurityConfig {
 
     /**
      * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen/stall/review 只读路径，
-     * 使用 method-scoped 匹配，避免误放行 POST /dishes、PUT /dishes/{id}、POST /reviews 等写操作）。
+     * 使用 method-scoped 匹配，避免误放行 POST /reviews 等写操作）。
+     * <p>
+     * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
+     * 本条仅约束 GET 只读浏览，POST /dishes/{id}/view（浏览量上报）与 GET 系列仍保留。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
             "/dishes/**", "/api/dishes/**",

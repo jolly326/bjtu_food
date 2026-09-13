@@ -3,7 +3,6 @@ package com.bjtufood.dish.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
-import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
@@ -163,41 +162,6 @@ public interface DishService {
      * @param id 菜品ID
      */
     void deleteDish(Long id);
-
-    // ==================== 学生端发布接口（STUDENT） ====================
-
-    /**
-     * 学生发布菜品（POST /dishes，需已完成学号邮箱认证）
-     * <p>
-     * created_by 强制写入当前登录用户、audit_status=pending 交后台审核；
-     * 学生不可设置上下架状态。校验档口存在性（stallId 不可信）。
-     *
-     * @param req    发布参数（DishPublishReq）
-     * @param userId 当前登录用户ID
-     */
-    void publishDish(DishPublishReq req, Long userId);
-
-    /**
-     * 学生编辑 / 重新提交菜品
-     * <p>
-     * 仅本人 created_by 的菜品可编辑；编辑后复用原记录，audit_status 重置为 pending、reject_reason 置空。
-     *
-     * @param id     菜品ID
-     * @param req    发布参数
-     * @param userId 当前登录学生用户ID
-     */
-    void updateStudentDish(Long id, DishPublishReq req, Long userId);
-
-    /**
-     * 学生删除本人发布的菜品
-     * <p>
-     * 仅 created_by 本人可删；不存在抛 400（业务异常），非本人抛 403；
-     * 通过校验后物理删除并级联清理评价/清单项（favorite 模块已移除，不处理）。
-     *
-     * @param id     菜品ID
-     * @param userId 当前登录学生用户ID
-     */
-    void deleteMyDish(Long id, Long userId);
 
     // ==================== 评分更新（事件驱动） ====================
 

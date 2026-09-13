@@ -9,21 +9,21 @@
  *   onShow 依据 reviewsDirty 重拉；分享路径使用 current dish；
  * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量
  *   （statusBar/navBar/rightPad、heroBase/pinLine/pinStart/dishBodyMin、carryOpacity/navOpacity）；
- * - 评价分页（触底加载）、删除本人菜品/评价、写评价弹层（ReviewComposer）与提交后刷新、评价三点菜单、
+ * - 评价分页（触底加载）、删除本人评价、写评价弹层（ReviewComposer）与提交后刷新、评价三点菜单、
  *   举报（useReport，游客免认证）；
  * - 距你距离（本地 haversine + 会话级定位补齐）。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useDishPage()，
- * 使 store 获取与 onLoad/onShow/onUnload/onPageScroll/onReachBottom/onShareAppMessage/onMounted
+ * 使 store 获取与 onLoad/onShow/onPageScroll/onReachBottom/onShareAppMessage/onMounted
  * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShow, onUnload, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
-import { addView, deleteDish } from '@/api/dish'
+import { addView } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { useReport } from '@/composables/useReport'
@@ -70,13 +70,6 @@ export function useDishPage() {
       if (res.list.length < pageSize) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
   }
-
-  // N07 修复：删除后延迟返回定时器句柄，离开页面时清理
-  let navTimer: ReturnType<typeof setTimeout> | null = null
-  onUnload(() => {
-    if (navTimer) clearTimeout(navTimer)
-    navTimer = null
-  })
 
   /** 大图列表：优先 images，回退单图 */
   const heroImages = computed(() => {
@@ -274,29 +267,6 @@ export function useDishPage() {
     }
   }
 
-  /** 删除本人菜品（长按菜名触发） */
-  function onDishLongPress() {
-    const d = dish.value
-    if (!d) return
-    if (!userStore.userInfo || (d.createdBy != null && d.createdBy !== userStore.userInfo.id)) return
-    uni.showModal({
-      title: '删除菜品',
-      content: '确定删除你发布的这道菜品吗？删除后不可恢复。',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            await deleteDish(d.id)
-            uni.showToast({ title: '已删除', icon: 'none' })
-            if (navTimer) clearTimeout(navTimer)
-            navTimer = setTimeout(() => uni.navigateBack(), 600)
-          } catch (e: any) {
-            uni.showToast({ title: e.message || '删除失败', icon: 'none' })
-          }
-        }
-      },
-    })
-  }
-
   /** 删除本人评价：成功后重拉列表 + 刷新综合评分 */
   function onDeleteReview(rv: Review) {
     if (!userStore.requireAuth(() => onDeleteReview(rv))) return
@@ -404,7 +374,6 @@ export function useDishPage() {
     reviewMoreOpen,
     reviewMoreItems,
     backToHome,
-    onDishLongPress,
     onDistTap,
     onDeleteReview,
     onReviewReport,

@@ -14,7 +14,6 @@ import com.bjtufood.dish.config.ViewRateLimiter;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
-import com.bjtufood.dish.dto.DishPublishReq;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishVO;
@@ -385,79 +384,6 @@ public class DishServiceImpl implements DishService {
                 .inSql(ReviewUseful::getReviewId, "SELECT id FROM review WHERE dish_id = " + id));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
         dishMapper.deleteById(id);
-    }
-
-    // ==================== 学生端发布接口实现 ====================
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
-        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
-    public void publishDish(DishPublishReq req, Long userId) {
-        // 学生端提交的 stallId 不可信，后端校验档口存在性
-        if (stallMapper.selectById(req.getStallId()) == null) {
-            throw new BusinessException("档口不存在");
-        }
-        Dish dish = new Dish();
-        applyPublishReq(dish, req);
-        // UGC 提交：created_by 强制为当前登录用户（禁止前端传入）、审核状态 pending 等待后台审核
-        dish.setCreatedBy(userId);
-        dish.setAuditStatus(DishConst.AUDIT_PENDING);
-        dish.setStatus(DishConst.STATUS_ON);
-        dish.setAvgRating(BigDecimal.ZERO);
-        dish.setRatingCount(0);
-        dish.setViewCount(0);
-        dishMapper.insert(dish);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
-        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
-    public void updateStudentDish(Long id, DishPublishReq req, Long userId) {
-        Dish existing = dishMapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("菜品不存在");
-        }
-        if (!userId.equals(existing.getCreatedBy())) {
-            throw new BusinessException("只能编辑自己发布的菜品");
-        }
-        applyPublishReq(existing, req);
-        // 编辑重提：复用原记录，审核状态回到 pending
-        existing.setAuditStatus(DishConst.AUDIT_PENDING);
-        dishMapper.updateById(existing);
-        // reject_reason 置 NULL 必须显式 set：updateById 忽略 null 字段不写列，退回原因会残留
-        dishMapper.update(null, new LambdaUpdateWrapper<Dish>()
-                .eq(Dish::getId, id)
-                .set(Dish::getRejectReason, null));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
-        CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING}, allEntries = true)
-    public void deleteMyDish(Long id, Long userId) {
-        Dish existing = dishMapper.selectById(id);
-        if (existing == null) {
-            throw new BusinessException("菜品不存在");
-        }
-        if (!userId.equals(existing.getCreatedBy())) {
-            throw new BusinessException(403, "只能删除自己发布的菜品");
-        }
-        // 复用管理员删除的级联清理逻辑（评价与「有用」标记，BE-108；favorite/清单 模块已移除）
-        reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
-                .inSql(ReviewUseful::getReviewId, "SELECT id FROM review WHERE dish_id = " + id));
-        reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
-        dishMapper.deleteById(id);
-    }
-
-    private void applyPublishReq(Dish dish, DishPublishReq req) {
-        dish.setStallId(req.getStallId());
-        dish.setName(req.getName());
-        dish.setPrice(req.getPrice());
-        dish.setDescription(req.getDescription());
-        dish.setImages(JsonListUtil.toJson(req.getImages()));
-        dish.setTags(req.getTags());
     }
 
     @Override

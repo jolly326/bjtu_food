@@ -32,7 +32,7 @@
 
 ## 高层架构
 ### 三端定位与数据链路（spec §0.4，强制）
-- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品贡献、菜品评价、产品反馈）。**社区板块（原动态信息流）已于 2026-09-12 下线删除**。
+- **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品评价、产品反馈——含新增菜品/纠错等反馈诉求；学生端无菜品写接口，菜品由管理员录入）。**社区板块（原动态信息流）已于 2026-09-12 下线删除**。
 - **后端 `server/` = 数据服务**：唯一存储与业务规则；小程序与 Web **共用同一套 API 契约**（`/` 用户接口供小程序，`/admin/**` 供 Web）。
 - **Web `web/` = 辅助管理工具（非用户端）**：只经 `/admin/**` 读取/管理后端数据（CRUD、UGC 审核、看板、操作日志），不产生业务数据。
 - 数据流向：小程序产生数据 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提（**活动模块除外**：后台录入、小程序消费、web-view 跳公众号文章）。
@@ -42,7 +42,7 @@
 
 ### 认证与鉴权（spec §5.y，强制）
 - **废除账号密码/注册**：小程序无登录页/登录按钮/密码体系；微信打开即 `POST /auth/wechat-login`（`code2Session`）静默建号 → **游客态 `verified=false`**（默认已登录）。
-- **`verified` 门槛**：UGC 写操作（发菜品/写评价/点赞）改鉴 `verified=true`（邮箱验证码认证 `@bjtu.edu.cn`）；`verified` **不进 JWT**（JWT claims 实况含 `userId`/`role`/`username` 三项，不含 `verified`；后端以 userId 实时查 `user.verified` 判定）。游客入口不置灰，点击弹 `AuthSheet` 认证引导。
+- **`verified` 门槛**：UGC 写操作（写评价/评价点赞/删本人评价，即评价类 UGC）改鉴 `verified=true`（邮箱验证码认证 `@bjtu.edu.cn`）；**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线，菜品由管理员录入）；`verified` **不进 JWT**（JWT claims 实况含 `userId`/`role`/`username` 三项，不含 `verified`；后端以 userId 实时查 `user.verified` 判定）。游客入口不置灰，点击弹 `AuthSheet` 认证引导。
 - `verified` 缺失异常码 **`4031`**（与 `403` 普通无权限分流）；前端 `http.ts` 据此分别提示。
 - **管理后台登录例外（方案 C）**：`/auth/admin/login` 管理员账号密码 + BCrypt + JWT，与小程序微信体系解耦；`/admin/**` 仍仅 `ADMIN`/`SUPER_ADMIN`。
 - 角色**仅 `STUDENT`/`ADMIN`**，禁止 `STALL_OWNER` 或 `/stall-owner/**`。
@@ -57,7 +57,7 @@
 ### 数据库（14 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
 - 表（14 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / activity / notification / user_feedback / view_log / operation_log / broadcast（兼容保留表，运营广播方案已废弃；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
-- UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；学生编辑**复用原记录**、`reject_reason` 清空；下架/纠错类需求走反馈 `error` 类型（关联菜品），不再有独立 `apply` 表。
+- UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线），菜品由管理员录入（`/admin/dishes`）后即 `approved`，学生侧无编辑重提（历史存量 pending 菜品仍可由后台审核）；下架/纠错类需求走反馈 `error` 类型（关联菜品），新增菜品走 `add`，不再有独立 `apply` 表。
 
 ### 前端架构要点
 - **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me/activity)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。
@@ -77,7 +77,8 @@
 
 ### 已拍板关键决策（避免回退）
 - **权威口径（2026-09-12 校正）**：`docs/project_spec.md` 为唯一权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
-- **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品 + 菜品贡献）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
+- **学生端菜品写接口全量下线（2026-09-13 拍板，防回退）**：`POST /dishes`（发布）、`PUT /dishes/{id}`（编辑重提）、`DELETE /dishes/{id}`（删本人菜品）三者已从 controller/service/impl 全量删除，DTO `dish/dto/DishPublishReq.java` 一并删除；客户端 `api/dish.ts` 的 `deleteDish`、详情页长按删除链路（`onDishLongPress`/`navTimer`/`onUnload`/`DishInfoCard` 的 `@longpress`）同步移除。**学生端无菜品写接口 = 学生只有评价类 UGC 写能力**；菜品由管理员经 `/admin/dishes/**` 录入，学生菜品需求走反馈 `add` 类型。**保留**：`POST /dishes/{id}/view`（浏览埋点）、全部 `GET /dishes*`、管理端 `/admin/dishes/**` 全部能力。恢复须重新拍板。
+- **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品等反馈入口；菜品提交经反馈 `add` 由后台录入，学生端无菜品写接口）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
 - **UGC 全谱系 = 评价 + 反馈 / 贡献**（③ + ④），是菜品信息迭代与程序优化的输入源；**反馈类 UGC 与评价同等重要，不得弱化**——它是实时发现菜品信息错误与程序问题、驱动信息更新与优化的主通道。本次下线的是「社区 / 动态」社交广场形态，**不是下线 UGC**。
 - **社区板块（原动态信息流）已下线并全量删除干净（2026-09-12）**：小程序四个页面与发布流程分包、对应 api / types / 组件 / composable、后端模块与两端接口、Web 管理页、相关库表**全部删除，代码与文档均不留残留字样**；恢复靠 git 历史。评价不再「同步到社区」。
 - TabBar **固定 home / mine 两页**；「我的」页宫格 **2×2**（最新活动 / 意见反馈 / 系统通知 / 我的评价），「我发布的」已删。

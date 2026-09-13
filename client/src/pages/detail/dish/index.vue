@@ -55,7 +55,6 @@
           :location-text="locationText"
           :dist-text="distText"
           :dist-active="dishDistance != null"
-          @dish-longpress="onDishLongPress"
           @dist-tap="onDistTap"
         />
         <DishSummaryCard
@@ -165,7 +164,6 @@ const {
   reviewMoreOpen,
   reviewMoreItems,
   backToHome,
-  onDishLongPress,
   onDistTap,
   onDeleteReview,
   onReviewReport,

@@ -2,7 +2,7 @@ import type {
   Dish, DishDetail, DishQuery, DishSortBy,
   HotSearch,
 } from '@/types/dish'
-import { get, del, post } from './http'
+import { get, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
 import { recordsOf, totalOf, normalizeBoolean, normalizeImages, type RawRow } from './shared'
 
@@ -121,11 +121,6 @@ export async function addView(id: number): Promise<void> {
   } catch {
     /* 静默失败：浏览统计不应阻塞详情展示 */
   }
-}
-
-/** 删除本人发布的菜品（STU 仅 created_by 本人，task-12.5） */
-export async function deleteDish(id: number): Promise<void> {
-  await del<void>(`/dishes/${id}`)
 }
 
 export async function getNewDishes(): Promise<Dish[]> {

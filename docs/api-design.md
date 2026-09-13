@@ -19,7 +19,7 @@
 ### 1.2 认证模型（微信登录 + 邮箱认证）
 | 概念 | 说明 |
 |---|---|
-| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（评价 / 菜品贡献等 UGC） |
+| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（评价 / 评价点赞等 UGC；菜品贡献走公开反馈 `POST /feedback`） |
 | 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后 `verified=1`，解锁写操作 |
 | 角色 | `student`（默认）/ `admin` / `super_admin` |
 | 状态 | `active` / `disabled` / `deleted` |
@@ -94,15 +94,14 @@
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
 | PUT | `/auth/password` | 登录 | `{ oldPassword, newPassword }` | 改密（管理员用） |
 
-### 3.2 菜品发布（邮箱认证）
+### 3.2 菜品埋点（登录即可，非写接口）
 | 方法 | 路径 | 参数 | 说明 |
 |---|---|---|---|
-| POST | `/dishes` | `DishPublishReq` | 学生发布菜品（created_by=当前用户，pending） |
-| PUT | `/dishes/{id}` | `DishPublishReq` | 编辑重提（仅本人） |
-| DELETE | `/dishes/{id}` | — | 删本人菜品 |
 | POST | `/dishes/{id}/view` | — | 浏览量+1（同时记录浏览足迹） |
 
-> `DishPublishReq` 校验：`name≤64`、`price 0~999900`（分）、`description≤512`、`tags≤128`。
+> **学生端菜品写接口已于 2026-09-13 全部下线**：`POST /dishes`（学生发布）、`PUT /dishes/{id}`（编辑重提）、`DELETE /dishes/{id}`（删本人菜品）三者均已从 `DishController` / `DishService` / `DishServiceImpl` 删除，接口不存在，客户端零消费（`api/dish.ts` 的 `deleteDish`、详情页长按删除链路同步移除）。`DishPublishReq` DTO 已随之删除。菜品由管理员经 `/admin/dishes/**` 录入，学生新增菜品需求走反馈 `add` 类型（`POST /feedback`）由后台处理。
+>
+> 本表 `POST /dishes/{id}/view` 为浏览埋点，保留；全部 `GET /dishes*` 只读接口保留。
 
 ### 3.3 评价（邮箱认证）
 | 方法 | 路径 | 参数 | 说明 |
@@ -233,6 +232,8 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
 | `GET /my/reviews` 分页形态 | IPage `{records,total,...}`（§1.4 通用） | `PageResult{list,total}`（`ReviewController.java:79`） | 已在 §1.4 / §3.3 加注，前端 `recordsOf()` 双形态兼容 |
 | `GET /my/reviews` 权限 | 仅 `@RequireVerified` | 额外 `@PreAuthorize("hasRole('STUDENT')")`（`ReviewController.java:71`） | 已在 §3.3 加注（不影响小程序，默认 STUDENT） |
+| `POST /dishes`（学生发布菜品） | 曾列为 UGC 写路径 | 接口已删除（2026-09-13 下线） | 已在 §3.2 加注，spec §5 已同步 |
+| `PUT`/`DELETE /dishes/{id}`（学生编辑·删除本人菜品） | 曾列为学生 UGC 写路径 | 接口已删除（2026-09-13 下线，`DishPublishReq` 一并删除） | 已在 §3.2 加注，spec §0.1/§0.3/§3/§5/§5.y/§5.z 已同步为学生端无菜品写接口 |
 
 ---
 

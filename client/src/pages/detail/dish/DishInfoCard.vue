@@ -1,7 +1,7 @@
 <template>
   <CardSection>
     <!-- 第一行：名称 + 价格（标徽独立成行） -->
-    <view class="title-row" @longpress="emit('dish-longpress')">
+    <view class="title-row">
       <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
       <view class="price-row">
         <block v-if="hasPromo">
@@ -89,7 +89,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'dish-longpress'): void
   (e: 'dist-tap'): void
 }>()
 

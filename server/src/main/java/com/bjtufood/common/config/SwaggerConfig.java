@@ -37,7 +37,8 @@ public class SwaggerConfig {
                                 3. 管理后台登录：POST /auth/admin/login 传 `{ "account": "admin", "password": "admin123" }`。
                                 4. 复制登录响应 data.token。
                                 5. 点击 Swagger UI 页面右上角 Authorize，填入 token。
-                                6. 再测试评价、菜品贡献、个人资料等需要登录的接口。未认证用户访问写接口返回 code=4031「请先完成学号邮箱认证」。
+                                6. 再测试评价、点赞、个人资料等需要登录的接口。未认证用户访问写接口返回 code=4031「请先完成学号邮箱认证」。
+                                （学生端菜品写接口已于 2026-09-13 全部下线，菜品由管理员经 /admin/dishes 录入。）
 
                                 ## 统一响应格式
                                 所有接口返回 `{ "code": 200, "message": "操作成功", "data": ... }`。
