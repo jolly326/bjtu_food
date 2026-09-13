@@ -1,6 +1,8 @@
 package com.bjtufood.auth.service;
 
 import com.bjtufood.common.exception.BusinessException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,11 +31,27 @@ public class WechatService {
 
     private final RestTemplate restTemplate;
 
+    /** 微信响应固定以 text/plain 返回，无法依赖 Content-Type 选转换器，故统一先取 String 再手工反序列化 */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    /**
+     * Spring 装配入口：使用默认超时配置的 RestTemplate。
+     * 保留无参可注入语义，便于测试替换（MockRestServiceServer 需要受控 RestTemplate）。
+     */
     public WechatService() {
+        this(defaultRestTemplate());
+    }
+
+    /** 测试可注入构造：允许传入 MockRestServiceServer 绑定的 RestTemplate；生产装配走无参构造。 */
+    public WechatService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    private static RestTemplate defaultRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(WECHAT_TIMEOUT_MS);
         factory.setReadTimeout(WECHAT_TIMEOUT_MS);
-        this.restTemplate = new RestTemplate(factory);
+        return new RestTemplate(factory);
     }
 
     @Value("${wechat.appid:}")
@@ -66,11 +84,16 @@ public class WechatService {
         String url = UriComponentsBuilder.fromHttpUrl(code2sessionUrl).queryParams(params).toUriString();
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> resp = restTemplate.getForObject(url, Map.class);
-            if (resp == null) {
+            // 微信 jscode2session 实际返回 `Content-Type: text/plain`（非 application/json），
+            // 若直接 getForObject(url, Map.class) 会因找不到可读 text/plain→Map 的
+            // HttpMessageConverter 而抛 RestClientException，导致真实 code 登录也失败。
+            // 故先按 String 读取（StringHttpMessageConverter 支持 text/plain 与 */*），再用 Jackson 解析，
+            // 使解析不依赖上游 Content-Type（P0 修复）。
+            String body = restTemplate.getForObject(url, String.class);
+            if (body == null || body.isBlank()) {
                 throw new BusinessException(400, "微信登录校验失败：响应为空");
             }
+            Map<String, Object> resp = parseJsonBody(body);
             Integer errcode = parseErrcode(resp.get("errcode"));
             if (errcode != null && errcode != 0) {
                 log.warn("code2Session 失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
@@ -96,6 +119,28 @@ public class WechatService {
             // 避免底层异常（如序列化错误）穿透暴露实现细节
             log.error("调用微信 code2Session 接口失败（url={}）", maskUrl(url), e);
             throw new BusinessException(400, "微信登录服务异常，请稍后重试");
+        }
+    }
+
+    /**
+     * 反序列化微信响应体（不经 HttpMessageConverter，故不受 Content-Type 影响）。
+     * <p>
+     * 解析失败（非 JSON / 空对象）时抛出 RuntimeException，由调用处 catch(Exception) 兜底转
+     * 400「微信登录服务异常，请稍后重试」，保持既有语义分支不变。
+     */
+    private Map<String, Object> parseJsonBody(String body) {
+        try {
+            Map<String, Object> map = OBJECT_MAPPER.readValue(body, new TypeReference<Map<String, Object>>() {
+            });
+            if (map == null || map.isEmpty()) {
+                throw new BusinessException(400, "微信登录校验失败：响应为空");
+            }
+            return map;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            // 非 JSON（如网关 HTML 错误页）：语义同「结构异常」，交由外层兜底转 400
+            throw new IllegalStateException("code2Session 响应非 JSON：" + e.getMessage(), e);
         }
     }
 
