@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -85,12 +86,28 @@ public class WechatService {
         } catch (BusinessException e) {
             // 业务异常原样抛出（如「凭证无效」），不在这里被统一包装吞掉语义
             throw e;
+        } catch (ResourceAccessException e) {
+            // 上游不可达（云托管出网失败 / DNS / 超时）：语义属服务端不可用，用 500 承载（api-design 错误码表允许 500），
+            // 便于把「部署出网问题」与「用户凭证问题」区分开（AUD-BE-01 排障与 AUD-BE-03 语义修正）
+            log.error("调用微信 code2Session 接口不可达（url={}）", maskUrl(url), e);
+            throw new BusinessException(500, "微信登录服务暂不可用，请稍后重试");
         } catch (Exception e) {
-            // 防御放宽：网络异常、非 2xx、响应体结构异常等任何失败统一转 400，
-            // 避免底层异常（如序列化错误）穿透为 500 暴露实现细节
-            log.error("调用微信 code2Session 接口失败", e);
+            // 防御放宽：非 2xx、响应体结构异常等其余失败统一转 400，
+            // 避免底层异常（如序列化错误）穿透暴露实现细节
+            log.error("调用微信 code2Session 接口失败（url={}）", maskUrl(url), e);
             throw new BusinessException(400, "微信登录服务异常，请稍后重试");
         }
+    }
+
+    /** 日志脱敏：隐藏 appid / secret / js_code，避免凭证与登录码进入日志（AUD-BE-03） */
+    private String maskUrl(String url) {
+        if (url == null) {
+            return "";
+        }
+        return url
+                .replaceAll("(secret=)[^&]*", "$1***")
+                .replaceAll("(js_code=)[^&]*", "$1***")
+                .replaceAll("(appid=)[^&]*", "$1***");
     }
 
     /**

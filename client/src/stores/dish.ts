@@ -101,6 +101,9 @@ export const useDishStore = defineStore('dish', () => {
   /** 评价脏标记：写评价/回复/删除成功后置 true，onShow 据此决定是否重拉，避免每次返回都发请求（#8） */
   const reviewsDirty = ref(false)
 
+  /** 评价请求序号：排序切换/翻页/进新菜品时丢弃过期响应，防触底 append 与 reset 交错（对齐 filterFetchSeq 模式） */
+  let reviewFetchSeq = 0
+
   async function fetchCanteens() {
     try {
       canteenList.value = await canteenApi.getCanteenList()
@@ -168,6 +171,8 @@ export const useDishStore = defineStore('dish', () => {
 
   /** 进入新菜品前清空旧详情与评价态，避免闪现上一道菜（store 全局状态残留）。统一走 action 而非外部直接写 ref。 */
   function resetDishDetail() {
+    // 使所有在途评价请求失效：旧菜品的触底 append 晚到时不再写入新菜品列表（竞态守卫，对齐 fetchReviews 注释）
+    reviewFetchSeq++
     currentDish.value = null
     reviewList.value = []
     reviewTotal.value = 0
@@ -189,11 +194,15 @@ export const useDishStore = defineStore('dish', () => {
   /**
    * task-03 评价区重做：分页 + 排序。
    * sort: latest|useful。返回结果写入 reviewList/reviewTotal。
+   * 竞态守卫（reviewFetchSeq，对齐 filterFetchSeq 模式）：触底 append 与排序切换/进新菜品
+   * 的 reset 交错时，过期响应直接丢弃不写入，防旧页数据 append 污染新列表；
+   * 过期/失败的请求返回 null，调用方据其跳过分页推进。
    */
   async function fetchReviews(
     dishId: number,
     options?: { sort?: ReviewSort; page?: number; pageSize?: number; append?: boolean },
-  ): Promise<{ list: Review[]; total: number }> {
+  ): Promise<{ list: Review[]; total: number } | null> {
+    const seq = ++reviewFetchSeq
     const sort = options?.sort ?? reviewSort.value
     reviewSort.value = sort
     const page = options?.page ?? 1
@@ -201,6 +210,8 @@ export const useDishStore = defineStore('dish', () => {
     try {
       const res = await withLoading('fetchReviews', async () =>
         await reviewApi.getReviewsByDish(dishId, { sort, page, pageSize }))
+      // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
+      if (seq !== reviewFetchSeq) return null
       if (options?.append) {
         reviewList.value = [...reviewList.value, ...res.list]
       } else {
@@ -210,6 +221,8 @@ export const useDishStore = defineStore('dish', () => {
       return res
     } catch (e) {
       console.error('加载评价失败', e)
+      // 过期请求的失败不置状态（由最新一次请求决定）
+      if (seq !== reviewFetchSeq) return null
       if (!options?.append) {
         reviewList.value = []
         reviewTotal.value = 0

@@ -66,7 +66,7 @@ syncRoute()
   background: var(--bg-card);
   border-top: 1rpx solid var(--border-color);
   box-shadow: var(--shadow-bar);
-  z-index: 100;
+  z-index: var(--z-tabbar);
 }
 .tab-item {
   flex: 1;

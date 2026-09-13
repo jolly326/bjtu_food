@@ -29,12 +29,12 @@ public class FeedbackAdminController {
 
     private final FeedbackService feedbackService;
 
-    @Operation(summary = "反馈列表", description = "ADM。按 status/type/userId 过滤。")
+    @Operation(summary = "反馈列表", description = "ADM。按 status/type/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）。")
     @GetMapping
     public Result<PageResult<FeedbackAdminVO>> list(
             @Parameter(description = "处理状态：pending/handled")
             @RequestParam(required = false) String status,
-            @Parameter(description = "反馈类型：suggestion/error/other")
+            @Parameter(description = "反馈类型：suggestion/add/error/bug/report/other")
             @RequestParam(required = false) String type,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,

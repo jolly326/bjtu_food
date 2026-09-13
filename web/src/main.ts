@@ -1,7 +1,5 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
 
 import App from './App.vue'
 import router from './router'
@@ -9,11 +7,14 @@ import { setupPress } from './directives/press'
 import { onUnauthorized } from './api/http'
 import './styles/shared.css'
 
+// WEB-116：Element Plus 改为按需引入（vite.config.ts 中 ElementPlusResolver），
+// 全量 import 与全量 CSS 已移除；模板中的 el-* 组件与 ElMessage 等函数式 API
+// 由 unplugin 自动导入并携带对应样式，无需 app.use(ElementPlus)。
+
 const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(ElementPlus)
 setupPress(app)
 
 // P1-W1：401 统一引导登录（清 token + 跳 /login），对齐小程序 auth:unauthorized

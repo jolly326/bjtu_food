@@ -3,7 +3,7 @@ import LoginView from '@/views/login/LoginView.vue'
 import AdminLayout from '@/views/layout/AdminLayout.vue'
 import { userApi } from '@/api'
 import { useUserStore } from '@/stores/userStore'
-import { ElMessage } from 'element-plus'
+// ElMessage 由 unplugin-auto-import + ElementPlusResolver 自动导入（含样式，WEB-116）
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

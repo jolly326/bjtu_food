@@ -1,11 +1,35 @@
 <template>
   <view v-if="open" class="modal-mask" :class="{ show: maskShow }" @tap="requestClose" @touchmove.stop.prevent="noop">
-    <view class="report-modal" :class="{ open: modalShow }" @tap.stop>
+    <!-- QA-02：居中弹窗无障碍语义与 BaseSheet 对齐（role/aria-modal/aria-label/tabindex） -->
+    <view
+      class="report-modal"
+      :class="{ open: modalShow }"
+      role="dialog"
+      :aria-modal="true"
+      :aria-label="title"
+      tabindex="-1"
+      @tap.stop
+    >
       <text class="report-title">{{ title }}</text>
-      <textarea class="report-input" v-model="reason" :placeholder="placeholder" maxlength="500" :auto-height="true" />
+      <textarea
+        class="report-input"
+        v-model="reason"
+        :placeholder="placeholder"
+        :aria-label="title"
+        maxlength="500"
+        :auto-height="true"
+      />
       <view class="report-actions">
-        <view class="report-btn report-cancel" @tap="requestClose">取消</view>
-        <view class="report-btn report-confirm" :class="{ disabled: submitting }" @tap="submit">{{ confirmText }}</view>
+        <view class="report-btn report-cancel" role="button" aria-label="取消" @tap="requestClose">取消</view>
+        <view
+          class="report-btn report-confirm"
+          :class="{ disabled: submitting }"
+          role="button"
+          :aria-label="confirmText"
+          :aria-disabled="!!submitting"
+          :aria-busy="!!submitting"
+          @tap="submit"
+        >{{ confirmText }}</view>
       </view>
     </view>
   </view>

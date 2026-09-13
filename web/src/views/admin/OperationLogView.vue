@@ -38,8 +38,6 @@ const actionOptions = [
   { value: '', label: '全部动作' },
   { value: 'audit_approve', label: '审核通过' },
   { value: 'audit_reject', label: '审核退回' },
-  { value: 'apply_approve', label: 'UGC通过' },
-  { value: 'apply_reject', label: 'UGC退回' },
   { value: 'review_hide', label: '评价隐藏' },
   { value: 'review_delete', label: '评价删除' },
   { value: 'dish_delete', label: '菜品删除' },
@@ -53,7 +51,6 @@ const targetTypeOptions = [
   { value: 'canteen', label: '食堂' },
   { value: 'feedback', label: '反馈' },
   { value: 'review', label: '评价' },
-  { value: 'apply', label: 'UGC申请' },
   { value: 'user', label: '用户' },
 ]
 const activeAction = ref('')

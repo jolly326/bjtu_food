@@ -32,7 +32,14 @@
           <!-- 搜索记录（首位） -->
           <CardSection v-if="historyList.length > 0">
             <SectionTitle title="搜索记录">
-              <text slot="extra" class="section-extra history-clear" @tap="clearHistory">清空</text>
+              <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
+              <text
+                slot="extra"
+                class="section-extra history-clear"
+                role="button"
+                aria-label="清空搜索历史"
+                @tap="clearHistory"
+              >清空</text>
             </SectionTitle>
             <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
             <view class="history-chips">
@@ -494,7 +501,17 @@ onShow(() => clearShareState())
 .section-extra { flex-shrink: 0; }
 
 /* 历史搜索 */
-.history-clear { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
+.history-clear { position: relative; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.history-clear::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  transform: translate(-50%, -50%);
+}
 .history-clear:active { opacity: 0.55; }
 .history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .history-chip {

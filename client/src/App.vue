@@ -94,6 +94,8 @@ page {
   --spacing-md: 24rpx;
   --spacing-lg: 32rpx;
   --spacing-xl: 48rpx;
+  /* QA-01 修复：补齐悬空 token（空态上留白 padding 引用，缺失致声明被丢弃、空态贴顶） */
+  --spacing-2xl: 64rpx;
   /* 字体（尺寸梯度） */
   --font-tiny: 20rpx;
   --font-aux: 22rpx;
@@ -161,7 +163,16 @@ page {
   --tabbar-height: 100rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
-  /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透 */
+  /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
+     两段式：页面骨架层（50~999，内容之上、弹层之下）→ 弹层级（2000+）。
+     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。 */
+  --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
+  --z-detail-bar: 70;      /* 详情页空态/加载承接条（no-dish-bar，固定顶部） */
+  --z-detail-nav: 80;      /* 详情页覆盖导航（dish-nav，固定顶部） */
+  --z-filter-dropdown: 90; /* 首页/搜索页筛选下拉（FilterBar 食堂下拉遮罩与价格弹层根） */
+  --z-tabbar: 100;         /* 自绘底部菜单栏 */
+  --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
+  --z-webview-bar: 999;    /* 活动 web-view 页顶部自绘返回栏 */
   --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
   --z-sheet-mask: 1990;   /* 上述弹层遮罩 */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */

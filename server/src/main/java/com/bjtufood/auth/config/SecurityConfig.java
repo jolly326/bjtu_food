@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
  * - GET /canteens, GET /stalls（食堂档口查询）
  * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
- * - GET /lists/share/{token}（分享查看）
  * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
@@ -79,7 +78,6 @@ public class SecurityConfig {
             "/canteens/**", "/api/canteens/**",
             "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
-            "/lists/share/**", "/api/lists/share/**",
             "/images/**", "/api/images/**",
             "/broadcasts", "/api/broadcasts",
             "/categories", "/api/categories",

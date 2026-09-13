@@ -21,7 +21,7 @@ public class FeedbackAdminVO {
     @Schema(description = "用户昵称")
     private String userNickname;
 
-    @Schema(description = "反馈类型：suggestion/error/other/report")
+    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
     private String type;
 
     @Schema(description = "反馈内容")

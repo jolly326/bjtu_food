@@ -12,8 +12,8 @@ import lombok.Data;
 @Schema(description = "提交反馈请求")
 public class FeedbackReq {
 
-    /** 反馈类型：suggestion / error / other / report */
-    @Schema(description = "反馈类型：suggestion/error/other/report", example = "suggestion")
+    /** 反馈类型：suggestion / add / error / bug / report / other（与 FeedbackConst 保持一致） */
+    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other", example = "suggestion")
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 

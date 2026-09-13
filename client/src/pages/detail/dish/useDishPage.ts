@@ -64,8 +64,10 @@ export function useDishPage() {
         pageSize,
         append: true,
       })
+      // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
+      if (!res) return
       reviewPage.value += 1
-      if ((res?.list || []).length < pageSize) reviewFinished.value = true
+      if (res.list.length < pageSize) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
   }
 

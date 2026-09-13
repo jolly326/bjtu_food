@@ -163,12 +163,12 @@ function onTouchEnd() {
 /* 根容器仅占位 z-index 宿主，遮罩/弹层 fixed 覆盖全屏 */
 .bs-root { position: relative; }
 
-/* 遮罩：--overlay-scrim 半透明，opacity 过渡（与既有弹层一致）；z-index 由内联 style 按 zToken 折算 */
+/* 遮罩：--overlay-scrim 半透明；开合与 .bs-sheet 同拍「瞬开瞬关」（无 opacity 过渡），
+   避免弹层瞬现而遮罩慢淡入的节奏撕裂；z-index 由内联 style 按 zToken 折算 */
 .bs-mask {
   position: fixed; inset: 0;
   background: var(--overlay-scrim);
   opacity: 0;
-  transition: opacity var(--duration-slow) var(--ease-out);
 }
 .bs-mask.show { opacity: 1; }
 
@@ -203,9 +203,4 @@ function onTouchEnd() {
 /* 内容区：普通容器（默认无额外横留白，由各调用方内容决定）或滚动容器（复用 AuthSheet 口径留白） */
 .bs-body { flex: 1; min-height: 0; }
 .bs-body--scroll { box-sizing: border-box; padding: var(--spacing-md) var(--spacing-lg) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-
-@media (prefers-reduced-motion: reduce) {
-  .bs-mask { transition: opacity 0.2s ease; }
-  .bs-sheet { transition: opacity 0.2s ease; transform: none !important; }
-}
 </style>

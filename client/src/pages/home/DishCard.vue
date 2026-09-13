@@ -24,7 +24,7 @@
       <!-- 第一行：菜名（左，一级标题） + 价格（右上，主色大号加粗，第一眼可见） -->
       <view class="title-row">
         <text class="card-name">{{ dish.name }}</text>
-        <text class="card-price">¥{{ dish.price }}</text>
+        <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
       </view>
       <!-- 第二行：菜品标签（菜名下方，浅红底深红字，尺寸收小不抢主信息） -->
       <view class="card-tags" v-if="displayTags.length > 0">
@@ -47,6 +47,7 @@
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
+import { formatPrice } from '@/utils/money'
 import IconSvg from '@/components/IconSvg.vue'
 import TagLabel from '@/components/TagLabel.vue'
 

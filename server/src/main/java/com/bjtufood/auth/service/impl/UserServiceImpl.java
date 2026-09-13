@@ -56,6 +56,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void updateStatus(Long id, String status) {
+        // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
+        // 非法值（含 deleted）一律 400，避免垃圾值直接落库
+        if (!"active".equals(status) && !"disabled".equals(status)) {
+            throw new BusinessException("非法的状态：" + status);
+        }
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new BusinessException("User not found");
@@ -64,11 +69,12 @@ public class UserServiceImpl implements UserService {
         checkAdminOperation(user);
         user.setStatus(status);
         userMapper.updateById(user);
-        // 禁用/注销后，该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
+        // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
         // 恢复 active 时解除拉黑，使其可正常登录使用。
-        if ("disabled".equals(status) || "deleted".equals(status)) {
+        // （deleted 状态仅由微信账号合并流程在 AuthServiceImpl 内部写入，不经本接口）
+        if ("disabled".equals(status)) {
             tokenBlacklist.revokeUser(id);
-        } else if ("active".equals(status)) {
+        } else {
             tokenBlacklist.restoreUser(id);
         }
     }

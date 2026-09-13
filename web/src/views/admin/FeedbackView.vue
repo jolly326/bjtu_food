@@ -26,7 +26,14 @@ const typeLabel: Record<string, string> = {
 const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
 const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
 
-// 反馈列表默认只显示「待处理」（管理员的处理待办），无状态 tab 切换
+// 状态筛选（prelaunch-final-audit AUD-PM-13：处理后需可回看，避免「已处理」分支不可达）
+// 默认「待处理」= 管理员处理待办；切换「已处理」可回看历史回复与处理时间。
+const statusOptions = [
+  { value: 'pending', label: '待处理' },
+  { value: 'handled', label: '已处理' },
+  { value: '', label: '全部状态' },
+]
+const activeStatus = ref('pending')
 
 // 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
 const typeOptions = [
@@ -71,7 +78,7 @@ async function loadList() {
   try {
     const { feedbackApi } = await import('@/api')
     const res = await feedbackApi.listFeedbacks({
-      status: 'pending',
+      status: activeStatus.value || undefined,
       keyword: searchQuery.value.trim() || undefined,
       type: activeType.value || undefined,
       page: page.value,
@@ -92,6 +99,9 @@ async function loadList() {
 
 onMounted(loadList)
 async function onTypeChange() {
+  await reloadFromFirstPage()
+}
+async function onStatusChange() {
   await reloadFromFirstPage()
 }
 
@@ -161,7 +171,8 @@ async function goDishEdit(dishId?: number) {
 
 async function copyReviewLink(reviewId?: number) {
   if (reviewId == null) return
-  const link = `pages/review/detail?id=${reviewId}`
+  // AUD-PM-17：小程序无评价详情页，改为纯评价标识（避免被当作可打开的小程序路由）
+  const link = `review#${reviewId}`
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link)
@@ -183,6 +194,7 @@ async function copyReviewLink(reviewId?: number) {
 <template>
     <FilterBar v-model="searchQuery">
       <template #default>
+        <FilterSelect v-model="activeStatus" label="状态" :options="statusOptions" :width="140" @change="onStatusChange" />
         <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
     </FilterBar>
@@ -267,8 +279,9 @@ async function copyReviewLink(reviewId?: number) {
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
         <div class="reply-area" v-if="detail.status !== 'handled'">
-          <label>处理说明 / 回复 <span class="required">*</span></label>
-          <textarea v-model="reply" rows="4" placeholder="请填写处理说明或回复内容..."></textarea>
+          <!-- AUD-PM-14：后端允许空回复（走通用回执文案），此处不得标注必填 -->
+          <label>处理说明 / 回复（选填）</label>
+          <textarea v-model="reply" rows="4" placeholder="可填写处理说明或回复内容；留空则用户收到通用回执"></textarea>
           <p v-if="replyError" class="field-error">{{ replyError }}</p>
         </div>
         <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>

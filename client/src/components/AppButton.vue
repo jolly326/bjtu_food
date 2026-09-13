@@ -1,7 +1,7 @@
 <template>
   <view
     class="app-btn"
-    :class="[btnType, { disabled, loading }]"
+    :class="[btnType, { 'is-disabled': disabled, loading }]"
     :style="btnStyle"
     :aria-label="text"
     :aria-busy="loading ? 'true' : 'false'"
@@ -10,7 +10,7 @@
     tabindex="0"
     @tap="handleTap"
   >
-    <IconSvg v-if="icon" :name="icon" :size="30" color="var(--color-on-primary)" class="btn-icon" />
+    <IconSvg v-if="icon" :name="icon" :size="30" :color="iconColor" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
@@ -45,6 +45,9 @@ const emit = defineEmits<{
 // icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
 const btnType = computed(() => `btn-${props.type}`)
 
+/** 图标色与文字同源：实底型（primary/danger）用 on-primary 白字；outline 型文字为主色（.btn-outline .btn-text），图标须同色，避免白底白图标 */
+const iconColor = computed(() => (props.type === 'outline' ? 'var(--color-primary)' : 'var(--color-on-primary)'))
+
 const btnStyle = computed(() => ({
   width: props.width,
   margin: props.margin,
@@ -70,9 +73,8 @@ function handleTap() {
   flex-shrink: 0;
   margin-right: var(--spacing-xs);
 }
-.app-btn.disabled {
-  opacity: 0.4;
-}
+/* 禁用态：复用全局 .is-disabled 令牌（App.vue：opacity 0.5 + pointer-events:none + 轻灰度），
+   不再组件内自设 0.4 弱化档，与全站禁用口径单一来源 */
 .btn-text {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-medium);

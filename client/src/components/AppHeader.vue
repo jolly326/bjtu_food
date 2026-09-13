@@ -141,7 +141,7 @@ function onSearchConfirm() {
   border-bottom: none;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-header);
   /* 底部留白：全站 header 总高以「搜索页(find)」为基准，其 .search-nav 带此留白，
      故此处必须以同一 token（--spacing-sm）复刻，否则搜索页会比其余所有页面高 16rpx。
      ⚠️ 改此值必须同步改 find/index.vue 的 .search-nav —— 两者共用 --spacing-sm，

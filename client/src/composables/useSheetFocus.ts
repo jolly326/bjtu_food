@@ -8,7 +8,7 @@ import { onBeforeUnmount } from 'vue'
  * 注意：本文件注释中不得出现条件编译指令字面量 —— uni-app 预处理器会扫描注释内的
  * 指令词并要求配对，误写将导致构建失败（会报指令缺少配对的结束符）。
  *
- * 使用频次 ≥3（AuthSheet / ApplySheet / ReviewWriteSheet 等），故抽为独立组合式，
+ * 使用频次 ≥3（BaseSheet 骨架及其 AuthSheet / 选择器 / 写评价等派生弹层），故抽为独立组合式，
  * 符合「仅高频复用才抽取」的抽象阈值（避免过度抽象）。
  */
 export function useSheetFocus() {

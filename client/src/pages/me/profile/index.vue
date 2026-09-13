@@ -170,7 +170,7 @@ async function save() {
 .info-value-email { max-width: 62%; text-align: right; word-break: break-all; }
 /* 保存按钮：固定底部（与其他表单页一致） */
 .submit-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar);
   padding: var(--spacing-md);
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
   background: var(--bg-card);

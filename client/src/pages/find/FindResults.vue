@@ -48,9 +48,9 @@
               </view>
               <view v-if="item.price != null" class="mixed-price-group">
                 <view v-if="item.promoPrice != null" class="mixed-promo-badge">促销</view>
-                <text class="mixed-price" v-if="item.promoPrice != null"><text class="mixed-price-sym">¥</text>{{ item.promoPrice.toFixed(2) }}</text>
-                <text class="mixed-price" v-else><text class="mixed-price-sym">¥</text>{{ item.price.toFixed(2) }}</text>
-                <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ item.originalPrice.toFixed(2) }}</text>
+                <text class="mixed-price" v-if="item.promoPrice != null"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.promoPrice) }}</text>
+                <text class="mixed-price" v-else><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
+                <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
               </view>
             </view>
             <!-- 标签行（视觉对齐首页 TagLabel 尺寸/圆角/间距，保留主色软底 chip） -->
@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { formatPrice } from '@/utils/money'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 
 /** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */

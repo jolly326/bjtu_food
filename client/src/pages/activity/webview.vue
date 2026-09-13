@@ -130,7 +130,7 @@ function onMessage(e: any) {
 .wv-bar {
   position: fixed;
   left: 0; right: 0; top: 0;
-  z-index: 999;
+  z-index: var(--z-webview-bar);
   display: flex;
   align-items: center;
   box-sizing: border-box;

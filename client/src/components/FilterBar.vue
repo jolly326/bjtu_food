@@ -417,7 +417,7 @@ function onReset() {
   /* 向下延伸一屏，覆盖首页内容区 */
   height: 100vh;
   background: var(--overlay-scrim);
-  z-index: 90;
+  z-index: var(--z-filter-dropdown);
 }
 /* 面板：紧贴筛选条向下展开的下拉片，**不是浮空的孤立卡片**。
    - 满宽（无左右外边距）+ 顶边方角：与 .filter-bar / .find-filter-row 底边无缝衔接，
@@ -482,7 +482,7 @@ function onReset() {
   top: 100%;
   left: 0;
   right: 0;
-  z-index: 90;
+  z-index: var(--z-filter-dropdown);
 }
 /* 遮罩：自筛选条底部向下铺满，承接面板外点击关闭；仅透明度交叉淡入（红线 §4.9） */
 .ps-mask {

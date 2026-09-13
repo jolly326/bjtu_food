@@ -181,7 +181,8 @@ const {
 /* 页面级滚动（fix）：根节点不设固定高度、不放内层 scroll-view——内容未溢出剩余区域时页面不产生滚动区；
    内容溢出时由微信原生页面滚动承接（配合下方 hero 的 position:sticky）。
    底部只预留操作栏高度，防止固定操作栏遮挡最后内容。 */
-.dish-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(160rpx + env(safe-area-inset-bottom)); }
+/* QA-04 修复：底部避让由裸 160rpx 改为 token 组合（与 me/profile 同源写法） */
+.dish-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* ===== dish-detail-visual-polish：覆盖导航 ===== */
 /* 覆盖导航层全程透明、不自持实底/描边/阴影——导航区背景：有图态由大图本身覆盖承接区（无空窗），
@@ -192,7 +193,7 @@ const {
   left: 0;
   top: 0;
   right: 0;
-  z-index: 80;
+  z-index: var(--z-detail-nav);
 }
 /* 顶部渐变 scrim 已移除（方案 C→常驻固定 hero header 替代） */
 .dish-nav-row {
@@ -250,7 +251,7 @@ const {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 70;
+  z-index: var(--z-detail-bar);
   width: 100%;
   background: var(--bg-card);
   border-bottom-left-radius: 16px;
@@ -284,7 +285,7 @@ const {
 }
 
 /* 底部固定操作栏：左写评价（主色实底）+ 右分享给同学（白底主色描边次按钮），等宽双按钮，与全局主按钮同高/圆角/字重 */
-.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar); display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 /* 按钮基线（圆角 12px=24rpx 就近落地、600 字重、88rpx 高；图标 + 文字同行居中） */
 .bar-btn { flex: 1; min-width: 0; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); border-radius: 24rpx; border: none; padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent; }
 .bar-btn::after { border: none; }

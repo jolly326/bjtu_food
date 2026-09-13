@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * DashboardView：工作台（运营全貌 + 待办处理）。
- * 一次请求 /admin/dashboard 返回：待办数、待办明细（申请/反馈各 5 条）、
- * 7 项规模指标、近期操作（日志 10 条）。点击直达对应管理 tab。
+ * 一次请求 /admin/dashboard 返回：1 项待办（待处理反馈，明细 5 条）、
+ * 5 项规模指标、近期操作（日志 10 条）。点击直达对应管理 tab。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -41,7 +41,7 @@ const todoCards = computed(() => [
   { key: 'feedback', label: '待处理反馈', count: data.value?.pendingFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
 ])
 
-// ===== 5 项规模指标（食堂 / 档口 / 菜品 / 学生 / 评价；申请与反馈不再作为指标，见 §0.4.1） =====
+// ===== 5 项规模指标（食堂 / 档口 / 菜品 / 学生 / 评价；UGC 申请与反馈已下线，不再作为指标，见 §0.4.1） =====
 const metrics = computed(() => [
   { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
   { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=canteen' },

@@ -32,6 +32,18 @@ interface RawResponse {
 /** 401 处理进行中标志：避免并发 401（如首页多请求同时失效）重复触发登出+重登+Toast 风暴 */
 let _authHandling = false
 
+/** 「登录已失效」Toast 冷却窗口：同文案 5s 内不重复（部署事故期连续 401 时防 Toast 风暴） */
+const AUTH_TOAST_COOLDOWN_MS = 5000
+let _lastAuthToastAt = 0
+
+/**
+ * 普通请求超时：12s。
+ * 小程序端走 wx.cloud.callContainer（微信云托管），实例缩容到零后首次请求需冷启动拉起容器
+ * （通常 3~8s，弱网下更久），8s 在冷启动 + 弱网叠加时易误报「请求超时」，故放宽至 12s。
+ * H5 分支取同一常量，保证端间超时口径一致；上传走更宽的 UPLOAD_TIMEOUT_MS（15s）。
+ */
+const REQUEST_TIMEOUT_MS = 12000
+
 /**
  * 统一未登录/登录失效处理（§5.x 401 处理）：
  * 清本地登录态 + Toast + 重新触发微信静默登录（wechat-login）。
@@ -48,7 +60,13 @@ async function handleUnauthorized(): Promise<void> {
   try {
     const { useUserStore } = await import('@/stores/user')
     useUserStore().forceLogout()
-    uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    // Toast 5s 冷却：部署事故（如后端 5xx 期间 token 校验连续失败）时用户每次操作都会走到这里，
+    // 同文案 5s 内不重复弹，避免 Toast 风暴；登出 + 重登流程本身不受冷却影响（401 重试逻辑不变）。
+    const now = Date.now()
+    if (now - _lastAuthToastAt > AUTH_TOAST_COOLDOWN_MS) {
+      _lastAuthToastAt = now
+      uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+    }
     // 401 → 重新静默登录（游客态自动恢复）
     await useUserStore().silentLogin()
   } catch {
@@ -122,10 +140,10 @@ async function request<T>(
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
         return
       }
-      // N04 修复：超时定时器保存句柄，settle 后清理
+      // N04 修复：超时定时器保存句柄，settle 后清理；12s 兼顾云托管冷启动（见 REQUEST_TIMEOUT_MS 注释）
       const timeoutTimer = setTimeout(() => {
         done(() => reject(new Error('请求超时')))
-      }, 8000)
+      }, REQUEST_TIMEOUT_MS)
       const clearTimer = () => { clearTimeout(timeoutTimer) }
       wxApi.cloud.callContainer({
         config: { env: WX_CLOUD_ENV },
@@ -152,7 +170,7 @@ async function request<T>(
         // N04 修复：仅对尚未完成的 task abort，避免对已完成任务重复 abort
         if (task && typeof task.abort === 'function') task.abort()
         reject(new Error('请求超时'))
-      }, 8000)
+      }, REQUEST_TIMEOUT_MS)
       const clearTimer = () => {
         if (!finished) clearTimeout(timeoutTimer)
       }
@@ -230,7 +248,7 @@ export async function del<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('DELETE', url, data)
 }
 
-/** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 8s 基础上放宽至 15s，避免上传 promise 永久挂起 */
+/** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起 */
 const UPLOAD_TIMEOUT_MS = 15000
 
 /**

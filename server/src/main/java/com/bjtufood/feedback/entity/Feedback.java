@@ -23,8 +23,8 @@ public class Feedback {
     @Schema(description = "用户ID")
     private Long userId;
 
-    /** 反馈类型：suggestion / error / other / report */
-    @Schema(description = "反馈类型：suggestion/error/other/report")
+    /** 反馈类型：suggestion / add / error / bug / report / other（与 FeedbackConst 保持一致） */
+    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
     private String type;
 
     @Schema(description = "反馈内容")

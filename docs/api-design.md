@@ -40,6 +40,7 @@
 - 分页参数：`page`（从 1 起）、`pageSize`
 - **上限由 `PageUtil.normalize` 统一约束**（pageSize 超上限被截断，防一次性全表加载）
 - 分页返回结构为 MyBatis-Plus `IPage` 序列化：`{ records: [], total, page, pageSize, ... }`
+- **注记（2026-09 核实）**：部分接口经 `common/result/PageResult` 归一，形态为 **`PageResult{ list, total }`**（字段名 `list` 而非 `records`，且不含 `page/pageSize`）——如 `GET /my/reviews`（`ReviewController.java:79` `PageResult.of(result.getRecords(), result.getTotal())`）、`/admin/feedbacks*`、`/admin/dishes` 等。前端 `api` 层以 `recordsOf()` 双形态兼容（`records` / `list` 二选一），消费方不直接假设字段名。
 
 ---
 
@@ -109,9 +110,11 @@
 | POST | `/reviews` | `ReviewReq{dishId,rating,content}` | 提交评价（每菜一人一评，纯文本无图） |
 | DELETE | `/reviews/{id}` | — | 删本人评价（级联清理 useful） |
 | POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票） |
-| GET | `/my/reviews` | page/pageSize | 我的评价（`@RequireVerified`） |
+| GET | `/my/reviews` | page/pageSize | 我的评价（`@RequireVerified` + `@PreAuthorize("hasRole('STUDENT')")`，返回 **`PageResult{list,total}`**） |
 
 > 评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提（一人一菜一评由 `uk_review_user_dish` 保证）。
+>
+> **`GET /my/reviews` 契约注记（2026-09-13 核实，AUD-BE-06 / AUD-BE-07）**：① 返回形态为 `PageResult{list, total}`（**非** IPage 的 `{records,total,page,pageSize}`，见 §1.4 注记），前端经 `recordsOf()` 双形态兼容；② 除 `@RequireVerified`（切面按 `user.verified` 实时判定）外，另挂方法级 `@PreAuthorize("hasRole('STUDENT')")` 纵深防御——小程序端用户默认 `STUDENT` 角色，不影响正常调用；该双重校验口径与文档描述一致（`ReviewController.java:70-80`）。
 
 ### 3.5 通知（需邮箱认证 `@RequireVerified`）
 > 通知 `type`：`dish_audit`（菜品审核结果）、`feedback_handle`（反馈/举报处理结果回执，仅已认证提交人可收到）。
@@ -228,6 +231,8 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 | 页面数量 | 9 页（旧） | 11 页（pages.json：主包 3 + 分包 detail/me/activity，共 11 页） | 已对齐（2026-09 spec §2.1 已校准为 11） |
 | 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
+| `GET /my/reviews` 分页形态 | IPage `{records,total,...}`（§1.4 通用） | `PageResult{list,total}`（`ReviewController.java:79`） | 已在 §1.4 / §3.3 加注，前端 `recordsOf()` 双形态兼容 |
+| `GET /my/reviews` 权限 | 仅 `@RequireVerified` | 额外 `@PreAuthorize("hasRole('STUDENT')")`（`ReviewController.java:71`） | 已在 §3.3 加注（不影响小程序，默认 STUDENT） |
 
 ---
 

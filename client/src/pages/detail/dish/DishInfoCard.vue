@@ -5,11 +5,11 @@
       <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
       <view class="price-row">
         <block v-if="hasPromo">
-          <text class="promo-price">¥{{ dish.promoPrice }}</text>
-          <text class="origin-price">¥{{ dish.originalPrice }}</text>
+          <text class="promo-price">¥{{ formatPrice(dish.promoPrice) }}</text>
+          <text class="origin-price">¥{{ formatPrice(dish.originalPrice) }}</text>
           <text class="promo-tag"><IconSvg name="clock" :size="22" color="var(--color-primary)" /> 限时优惠</text>
         </block>
-        <text v-else class="price-text">¥{{ dish.price }}</text>
+        <text v-else class="price-text">¥{{ formatPrice(dish.price) }}</text>
       </view>
     </view>
 
@@ -78,6 +78,7 @@ import type { Dish } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { formatPrice } from '@/utils/money'
 import { feedbackEntryUrl } from '@/utils/routes'
 
 const props = defineProps<{
