@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * ContentManageView：信息管理聚合页。
- * 分类卡导航（去 tabbar）：食堂（含档口）/ 菜品 / 首页配置（轮播·广播）三张卡，点击切换视图。
+ * 分类卡导航（去 tabbar）：食堂（含档口）/ 菜品 / 首页配置（分类）三张卡，点击切换视图。
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'

@@ -7,7 +7,11 @@ import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.content.security.ContentSecurityService;
+import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
@@ -33,10 +37,20 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
 
+    /** 内容安全状态常量：与 ReviewServiceImpl 口径一致 */
+    public static final String SEC_STATE_PASS = "pass";
+    public static final String SEC_STATE_REVIEW = "review";
+    public static final String SEC_STATE_REJECTED = "rejected";
+
+    /** UGC 配图上限（张） */
+    private static final int MAX_IMAGES = 3;
+
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
     private final SensitiveFilter sensitiveFilter;
     private final NotificationService notificationService;
+    private final ContentSecurityService contentSecurityService;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -56,17 +70,69 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
+
+        // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
+        // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
+        // 边界（报告备案）：
+        // 1. 游客反馈（userId=null，PUB 接口）无 openid → 无法调 v2 接口，跳过机审放行，
+        //    依赖 SensitiveFilter 本地敏感词过滤 + 管理端人工处理兜底；
+        // 2. 登录用户 openid 为 NULL（历史学号账号）→ 同样跳过机审放行；
+        // 3. 微信凭据未配置（本地开发环境）→ 跳过机审放行，生产必须配置。
+        // 反馈无公开展示，sec_state 仅作管理端复核标记。
+        feedback.setSecState(checkUgcText(userId, feedback.getContent()));
+        feedback.setImages(encodeImages(req.getImages()));
         feedbackMapper.insert(feedback);
     }
 
+    /** 文本机检：登录用户取 openid 调 msgSecCheck v2，review 态落库 sec_state='review' */
+    private String checkUgcText(Long userId, String content) {
+        if (!StringUtils.hasText(content)) {
+            return SEC_STATE_PASS;
+        }
+        if (userId == null) {
+            return SEC_STATE_PASS;
+        }
+        User user = userMapper.selectById(userId);
+        String openid = user == null ? null : user.getOpenid();
+        SecSuggest suggest = contentSecurityService.checkText(openid, content, 2);
+        return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
+    }
+
+    /**
+     * 校验并序列化反馈配图：≤3 张、每项必须为受信任的 COS 绝对地址（与评价口径一致）。
+     */
+    private String encodeImages(List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        if (images.size() > MAX_IMAGES) {
+            throw new BusinessException("反馈配图最多 " + MAX_IMAGES + " 张");
+        }
+        List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.size() > MAX_IMAGES) {
+            throw new BusinessException("反馈配图最多 " + MAX_IMAGES + " 张");
+        }
+        for (String url : normalized) {
+            if (!imageUrlUtil.isValidCosUgcUrl(url)) {
+                throw new BusinessException("图片地址不合法，请重新上传");
+            }
+        }
+        return JsonListUtil.toJson(normalized);
+    }
+
     @Override
-    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
+    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String secState, String keyword, int page, int pageSize) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
                 .eq(StringUtils.hasText(status), Feedback::getStatus, status)
                 .eq(StringUtils.hasText(type), Feedback::getType, type)
+                .eq(StringUtils.hasText(secState), Feedback::getSecState,
+                        secState == null ? null : secState.trim().toLowerCase())
                 .eq(userId != null, Feedback::getUserId, userId);
 
         // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
@@ -91,23 +157,29 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         IPage<FeedbackAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream().map(f -> {
-            FeedbackAdminVO vo = new FeedbackAdminVO();
-            vo.setId(f.getId());
-            vo.setUserId(f.getUserId());
-            vo.setUserNickname(userMap.get(f.getUserId()));
-            vo.setType(f.getType());
-            vo.setContent(f.getContent());
-            vo.setContact(f.getContact());
-            vo.setRelatedType(f.getRelatedType());
-            vo.setRelatedId(f.getRelatedId());
-            vo.setStatus(f.getStatus());
-            vo.setReply(f.getReply());
-            vo.setCreatedAt(f.getCreatedAt());
-            vo.setHandledAt(f.getHandledAt());
-            return vo;
-        }).toList());
+        result.setRecords(p.getRecords().stream().map(f -> toAdminVO(f, userMap)).toList());
         return result;
+    }
+
+    /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、内容安全状态 */
+    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap) {
+        FeedbackAdminVO vo = new FeedbackAdminVO();
+        vo.setId(f.getId());
+        vo.setUserId(f.getUserId());
+        vo.setUserNickname(userMap.get(f.getUserId()));
+        vo.setType(f.getType());
+        vo.setContent(f.getContent());
+        List<String> images = JsonListUtil.parseStringList(f.getImages());
+        vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
+        vo.setSecState(StringUtils.hasText(f.getSecState()) ? f.getSecState() : SEC_STATE_PASS);
+        vo.setContact(f.getContact());
+        vo.setRelatedType(f.getRelatedType());
+        vo.setRelatedId(f.getRelatedId());
+        vo.setStatus(f.getStatus());
+        vo.setReply(f.getReply());
+        vo.setCreatedAt(f.getCreatedAt());
+        vo.setHandledAt(f.getHandledAt());
+        return vo;
     }
 
     @Override

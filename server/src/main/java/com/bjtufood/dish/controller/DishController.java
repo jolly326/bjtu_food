@@ -26,7 +26,7 @@ public class DishController {
 
     private final DishService dishService;
 
-    @Operation(summary = "热门菜品 TOP", description = "用途：首页热门推荐。按收藏数、评分等规则返回热门菜品；可选传 lat/lng 按用户位置距离加权（近食堂菜品优先，首页推荐联动定位）；可选传 limit 控制返回条数。")
+    @Operation(summary = "热门菜品 TOP", description = "用途：首页热门推荐。按评价数、评分等规则返回热门菜品；可选传 lat/lng 按用户位置距离加权（近食堂菜品优先，首页推荐联动定位）；可选传 limit 控制返回条数。")
     @GetMapping("/dishes/hot")
     public Result<List<DishVO>> getHotDishes(
             @Parameter(description = "用户纬度（GCJ-02，可选）", example = "39.9538")
@@ -105,7 +105,7 @@ public class DishController {
             summary = "菜品详情",
             description = """
                     用途：菜品详情页。
-                    未登录可访问；如果已登录并携带 token，会额外返回 isFavorited、hasReviewed。
+                    未登录可访问；如果已登录并携带 token，会额外返回 hasReviewed。
                     测试示例：/dishes/1
                     """
     )

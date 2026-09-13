@@ -2,11 +2,21 @@ package com.bjtufood.upload.service.impl;
 
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.content.security.ContentSecurityService;
+import com.bjtufood.content.security.impl.ContentSecurityServiceImpl;
+import com.bjtufood.upload.service.CosStorageService;
 import com.bjtufood.upload.service.UploadService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
@@ -21,6 +31,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +40,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UploadServiceImpl implements UploadService {
+
+    private static final Logger log = LoggerFactory.getLogger(UploadServiceImpl.class);
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
@@ -41,13 +54,32 @@ public class UploadServiceImpl implements UploadService {
      */
     private static final int MAX_IMAGE_DIMENSION = 4000;
 
+    /** 云存储配图下载超时（毫秒）：拉临时链接后从微信云存储 CDN 下载，较机检接口放宽 */
+    private static final int CLOUD_DOWNLOAD_TIMEOUT_MS = 10_000;
+
+    private static final String BATCH_DOWNLOAD_URL = "https://api.weixin.qq.com/tcb/batchdownloadfile";
+
+    /** 微信响应固定以 text/plain 返回，统一先取 String 再手工反序列化（不依赖 Content-Type） */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final ImageUrlUtil imageUrlUtil;
+    private final ContentSecurityService contentSecurityService;
+    private final CosStorageService cosStorageService;
+
+    /** 云存储图片下载专用 RestTemplate（实例化一次复用；仅 batchdownloadfile / 临时链接下载两个出网点） */
+    private final RestTemplate cloudRestTemplate = newCloudRestTemplate();
 
     @Value("${upload.path:./uploads/images}")
     private String uploadPath;
 
     @Value("${upload.url-prefix:/images}")
     private String urlPrefix;
+
+    /** 微信云开发环境 ID；缺省时从 fileID 自动解析（cloud://{env}.{bucket}/path） */
+    @Value("${wechat.cloud-env:}")
+    private String cloudEnv;
+
+    // ==================== 链路一：multipart 直传（保留，H5/独立服务器场景） ====================
 
     @Override
     public Map<String, String> uploadImage(MultipartFile file) {
@@ -76,6 +108,22 @@ public class UploadServiceImpl implements UploadService {
             throw new BusinessException("文件读取失败");
         }
 
+        // COS 已配置：UGC 配图统一转存 COS（绝对 URL，不做本地缩略图/像素炸弹解码）
+        if (cosStorageService.isConfigured()) {
+            byte[] data;
+            try {
+                data = file.getBytes();
+            } catch (IOException e) {
+                throw new BusinessException("文件读取失败");
+            }
+            String cosUrl = cosStorageService.upload(data, extension.toLowerCase(Locale.ROOT));
+            // 管理端 web（api/upload.ts）约定：上传结果必须同时含 url 与 relativeUrl，否则前端抛
+            // 「上传接口返回缺少图片地址」。COS 场景下二者同为绝对 URL——落库用 relativeUrl，
+            // 两端展示层（web toAbsoluteImageUrl / 小程序 getImageUrl）对 http(s) 绝对地址原样返回。
+            return Map.of("url", cosUrl, "relativeUrl", cosUrl);
+        }
+
+        // COS 未配置：降级本地磁盘存储（开发环境无 COS 仍可用）
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
         String normalizedExt = extension.toLowerCase(Locale.ROOT);
         String filename = UUID.randomUUID() + "." + normalizedExt;
@@ -97,7 +145,7 @@ public class UploadServiceImpl implements UploadService {
         }
 
         // 图像炸弹防护（P1-6）：全图解码前先解析头部宽高，超 4000×4000 直接拒绝并清理原图，
-        // 防止小体积高分辨率图片在 ImageIO 解码时耗尽堆内存
+        // 防止小体积高分辨率图片在 ImageIO 解码时耗尽堆内存（仅本地落盘链路需要，COS 链路不解码全图）
         try {
             validateImageDimensions(target, normalizedExt);
         } catch (BusinessException e) {
@@ -120,6 +168,182 @@ public class UploadServiceImpl implements UploadService {
         }
         return result;
     }
+
+    // ==================== 链路二：小程序云存储 fileID 转存（UGC 配图主链路） ====================
+
+    @Override
+    public Map<String, String> uploadCloudImage(String fileId) {
+        if (!StringUtils.hasText(fileId) || !fileId.startsWith("cloud://")) {
+            throw new BusinessException("fileId 不合法，必须为微信云存储 cloud:// 文件标识");
+        }
+
+        // 1. batchdownloadfile 用 fileID 换取临时下载链接
+        String downloadUrl = fetchCloudDownloadUrl(fileId);
+
+        // 2. 下载图片二进制
+        byte[] data = downloadImage(downloadUrl);
+
+        // 3. 大小兜底校验（imgSecCheck 硬限制 1MB；≤750×1334 尺寸由前端压缩保证）
+        if (data.length > ContentSecurityServiceImpl.MAX_IMAGE_BYTES) {
+            throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
+        }
+
+        // 4. magic number 格式兜底（jpg/png/webp），扩展名按真实内容推断
+        String ext = detectImageExt(data);
+
+        // 5. imgSecCheck 内容安全检测（87014 → 400「图片包含违规内容，无法上传」）
+        contentSecurityService.checkImage(data);
+
+        // 6. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
+        String url = cosStorageService.upload(data, ext);
+        return Map.of("url", url);
+    }
+
+    /** batchdownloadfile：fileID → 临时下载链接（POST JSON，env 缺省时从 fileID 解析） */
+    private String fetchCloudDownloadUrl(String fileId) {
+        String env = resolveCloudEnv(fileId);
+        String url = BATCH_DOWNLOAD_URL + "?access_token=" + contentSecurityService.getStableAccessToken();
+
+        Map<String, Object> reqBody = Map.of(
+                "env", env,
+                "file_list", List.of(Map.of("fileid", fileId, "max_age", 7200)));
+
+        String body;
+        try {
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            body = cloudRestTemplate.postForObject(url,
+                    new org.springframework.http.HttpEntity<>(OBJECT_MAPPER.writeValueAsString(reqBody), headers),
+                    String.class);
+        } catch (ResourceAccessException e) {
+            log.error("batchdownloadfile 上游不可达（fileId={}）", fileId, e);
+            throw new BusinessException(500, "云存储服务暂不可用，请稍后重试");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("batchdownloadfile 调用失败（fileId={}）", fileId, e);
+            throw new BusinessException(400, "云存储文件获取失败，请重试");
+        }
+
+        Map<String, Object> resp = parseJsonBody(body);
+        Integer errcode = asInt(resp.get("errcode"));
+        if (errcode != null && errcode != 0) {
+            log.error("batchdownloadfile 失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
+            throw new BusinessException(400, "云存储文件获取失败，请重试");
+        }
+
+        Object fileListRaw = resp.get("file_list");
+        if (!(fileListRaw instanceof List<?> fileList) || fileList.isEmpty()
+                || !(fileList.get(0) instanceof Map<?, ?> item)) {
+            throw new BusinessException(400, "云存储文件不存在或已删除");
+        }
+        Integer status = asInt(item.get("status"));
+        if (status != null && status != 0) {
+            log.warn("batchdownloadfile 文件拉取失败 fileId={} status={} errmsg={}", fileId, status, item.get("errmsg"));
+            throw new BusinessException(400, "云存储文件不存在或已删除");
+        }
+        String downloadUrl = item.get("download_url") == null ? null : String.valueOf(item.get("download_url"));
+        if (!StringUtils.hasText(downloadUrl)) {
+            throw new BusinessException(400, "云存储文件不存在或已删除");
+        }
+        return downloadUrl;
+    }
+
+    /** 解析云开发环境 ID：配置优先，缺省从 fileID（cloud://{env}.{bucket}/path）解析 */
+    private String resolveCloudEnv(String fileId) {
+        if (StringUtils.hasText(cloudEnv)) {
+            return cloudEnv.trim();
+        }
+        String body = fileId.substring("cloud://".length());
+        int dot = body.indexOf('.');
+        if (dot <= 0) {
+            throw new BusinessException(400, "fileId 不合法，无法解析云环境 ID（可配置 WECHAT_CLOUD_ENV 显式指定）");
+        }
+        return body.substring(0, dot);
+    }
+
+    /** 下载云存储图片（GET 临时链接 → byte[]） */
+    private byte[] downloadImage(String downloadUrl) {
+        try {
+            byte[] data = cloudRestTemplate.getForObject(downloadUrl, byte[].class);
+            if (data == null || data.length == 0) {
+                throw new BusinessException(400, "图片下载失败，请重试");
+            }
+            return data;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("云存储图片下载失败（url={}）", maskUrl(downloadUrl), e);
+            throw new BusinessException(400, "图片下载失败，请重试");
+        }
+    }
+
+    /** magic number 推断图片真实格式（jpg/png/webp），不合法一律拒绝 */
+    private String detectImageExt(byte[] data) {
+        if (data == null || data.length < 12) {
+            throw new BusinessException(400, "仅支持 jpg、png、webp 图片");
+        }
+        if ((data[0] & 0xFF) == 0xFF && (data[1] & 0xFF) == 0xD8 && (data[2] & 0xFF) == 0xFF) {
+            return "jpg";
+        }
+        if ((data[0] & 0xFF) == 0x89 && (data[1] & 0xFF) == 0x50 && (data[2] & 0xFF) == 0x4E
+                && (data[3] & 0xFF) == 0x47) {
+            return "png";
+        }
+        if ((data[0] & 0xFF) == 0x52 && (data[1] & 0xFF) == 0x49 && (data[2] & 0xFF) == 0x46
+                && (data[3] & 0xFF) == 0x46 && (data[8] & 0xFF) == 0x57 && (data[9] & 0xFF) == 0x45
+                && (data[10] & 0xFF) == 0x42 && (data[11] & 0xFF) == 0x50) {
+            return "webp";
+        }
+        throw new BusinessException(400, "仅支持 jpg、png、webp 图片");
+    }
+
+    private Map<String, Object> parseJsonBody(String body) {
+        if (body == null || body.isBlank()) {
+            throw new BusinessException(400, "云存储文件获取失败，请重试");
+        }
+        try {
+            Map<String, Object> map = OBJECT_MAPPER.readValue(body, new TypeReference<Map<String, Object>>() {
+            });
+            if (map == null) {
+                throw new IllegalStateException("响应为空对象");
+            }
+            return map;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("batchdownloadfile 响应非 JSON：{}", body.length() > 200 ? body.substring(0, 200) : body);
+            throw new BusinessException(400, "云存储文件获取失败，请重试");
+        }
+    }
+
+    private Integer asInt(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** 日志脱敏：隐藏临时链接签名参数 */
+    private String maskUrl(String url) {
+        return url == null ? "" : url.replaceAll("([?&][^=]*=)[^&]{24,}", "$1***");
+    }
+
+    private static RestTemplate newCloudRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(CLOUD_DOWNLOAD_TIMEOUT_MS);
+        factory.setReadTimeout(CLOUD_DOWNLOAD_TIMEOUT_MS);
+        return new RestTemplate(factory);
+    }
+
+    // ==================== 本地存储链路（COS 未配置降级）私有方法 ====================
 
     /**
      * 用 ImageIO 为原图生成宽 400px 的等比缩略图，命名 {base}_thumb.{ext} 同目录落盘。

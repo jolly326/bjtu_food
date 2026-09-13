@@ -68,6 +68,33 @@ public class ImageUrlUtil {
         return trimmed.startsWith("/images/") || trimmed.startsWith("/uploads/");
     }
 
+    /**
+     * 校验 UGC 配图 URL 是否为受信任的 COS 绝对地址。
+     * <p>
+     * UGC 配图（评价/反馈）只允许走 {@code POST /upload/images} 链路产出：
+     * fileID → 内容安全检测 → COS 转存，返回形如
+     * {@code https://{bucket}.cos.{region}.myqcloud.com/{key}} 的绝对地址。
+     * 校验规则：https 协议 + 腾讯云 COS 固定域名格式（.cos.{region}.myqcloud.com），
+     * 拒绝外部图床/站内相对路径/云存储 fileID 混入，防止 UGC 配图沦为任意 URL 载体。
+     *
+     * @param url 待校验 URL
+     * @return true=合法 COS 绝对地址
+     */
+    public boolean isValidCosUgcUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return false;
+        }
+        String trimmed = url.trim();
+        // 域名正则：{bucket}.cos.{region}.myqcloud.com，bucket 可含 AppID 前缀（如 1250000000/bjtu-food 不出现在域名段，
+        // 实际域名为 bjtu-food-1250000000.cos.ap-beijing.myqcloud.com），region 形如 ap-beijing
+        return COS_URL_PATTERN.matcher(trimmed).matches();
+    }
+
+    /** COS 绝对地址匹配：https://{bucket}.cos.{region}.myqcloud.com/{key}，key 非空 */
+    private static final java.util.regex.Pattern COS_URL_PATTERN = java.util.regex.Pattern.compile(
+            "^https://[a-z0-9][a-z0-9-]*\\.cos\\.[a-z0-9-]+\\.myqcloud\\.com/\\S+$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+
     private static String trimEnd(String value, String suffix) {
         String result = value == null ? "" : value;
         while (result.endsWith(suffix)) {

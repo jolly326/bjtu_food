@@ -9,6 +9,7 @@ public interface OperationLogConst {
     String ACTION_AUDIT_REJECT = "audit_reject";
     String ACTION_REVIEW_HIDE = "review_hide";
     String ACTION_REVIEW_DELETE = "review_delete";
+    String ACTION_REVIEW_SEC_STATE = "review_sec_state";
     String ACTION_DISH_DELETE = "dish_delete";
     String ACTION_FEEDBACK_HANDLE = "feedback_handle";
     String ACTION_ACCOUNT_DELETE = "account_delete";
@@ -16,7 +17,4 @@ public interface OperationLogConst {
     String ACTION_CATEGORY_UPDATE = "category_update";
     String ACTION_CATEGORY_TOGGLE = "category_toggle";
     String ACTION_CATEGORY_DELETE = "category_delete";
-    String ACTION_ACTIVITY_CREATE = "activity_create";
-    String ACTION_ACTIVITY_UPDATE = "activity_update";
-    String ACTION_ACTIVITY_DELETE = "activity_delete";
 }

@@ -12,6 +12,9 @@
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
 --      用于 UGC 内容（dish / stall / canteen）的审核流；后台录入默认 approved。
+--   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
+--      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
+--      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
 -- =============================================================
 
 -- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
@@ -107,6 +110,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
     `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id，首页品类滚轮筛选用；可空=未分类）',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
+    `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（折扣前，单位：分）；promo_price 非空视为有折扣',
     `promo_price`    INT          NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空）；非空视为有折扣',
@@ -146,6 +150,8 @@ CREATE TABLE IF NOT EXISTS `review`
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `tags`       VARCHAR(255) NULL    DEFAULT NULL COMMENT '评价标签（美团式写评，逗号分隔或 JSON 数组）',
+    `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）',
+    `sec_state`  VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -182,7 +188,7 @@ CREATE TABLE IF NOT EXISTS `notification`
     `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit / feedback_handle',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
-    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/活动ID，按 type 解释）',
+    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
     `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -209,43 +215,6 @@ CREATE TABLE IF NOT EXISTS `category`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（首页品类滚轮）';
 
--- -------------------- 首页广播通知条（A.14） --------------------
-CREATE TABLE IF NOT EXISTS `broadcast`
-(
-    `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '广播ID',
-    `title`          VARCHAR(128) NOT NULL DEFAULT '' COMMENT '广播标题',
-    `content`        VARCHAR(512) NOT NULL DEFAULT '' COMMENT '广播正文（首页 ticker 展示文本）',
-    `broadcast_type` VARCHAR(32)  NOT NULL DEFAULT 'NOTICE' COMMENT '广播类型：NOTICE/ACTIVITY/DISH/URL/NONE（首页按类型分发跳转）',
-    `target_id`      BIGINT       NULL     DEFAULT NULL COMMENT '跳转目标ID（broadcast_type=DISH 时填菜品ID）',
-    `target_url`     VARCHAR(512) NULL     DEFAULT NULL COMMENT '跳转目标URL（broadcast_type=URL 时填外链）',
-    `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `status`         VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
-    `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_broadcast_status_sort` (`status`, `sort_order`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='首页广播通知条';
-
--- -------------------- 最新活动（公众号文章卡片） --------------------
-CREATE TABLE IF NOT EXISTS `activity`
-(
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '活动ID',
-    `title`       VARCHAR(100) NOT NULL DEFAULT '' COMMENT '活动/文章标题',
-    `description` VARCHAR(500) NULL    DEFAULT NULL COMMENT '摘要（卡片副文案）',
-    `image`       VARCHAR(500) NULL    DEFAULT NULL COMMENT '封面图 URL（公众号文章封面，可空）',
-    `article_url` VARCHAR(500) NULL    DEFAULT NULL COMMENT '公众号文章链接（小程序 web-view 打开）',
-    `status`      VARCHAR(20)  NOT NULL DEFAULT 'enabled' COMMENT '展示状态：enabled/disabled',
-    `sort_order`  INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_activity_status_sort` (`status`, `sort_order`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='最新活动（公众号文章卡片）';
-
 -- -------------------- 用户反馈 --------------------
 CREATE TABLE IF NOT EXISTS `user_feedback`
 (
@@ -253,6 +222,8 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
     `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
+    `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
+    `sec_state`    VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）',
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
@@ -267,10 +238,6 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
-
--- -------------------- 活动说明 --------------------
--- activity 表（见上方「最新活动」）为 task-12.10 活动模块：入口为「我的」页宫格，活动列表页展示最新活动标题、web 后台可 CRUD、卡片经 web-view 打开公众号文章。
--- 轮播图（banner）功能已废弃移除，活动不再关联 Banner，独立成表承载。
 
 -- =============================================================
 -- 一期扩展字段（追加，不改动既有列）
@@ -575,5 +542,75 @@ END$$
 DELIMITER ;
 CALL `add_user_wechat_auth`();
 DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
+
+-- UGC 内容安全列幂等迁移（2026-09-13 产品定稿：评价/反馈支持配图，全部 UGC 过微信内容安全检测）：
+-- review / user_feedback 补齐 images（配图 URL 列表 JSON）与 sec_state（内容安全状态），
+-- 新库 CREATE TABLE 已含该列；旧库幂等补齐，列定义与 CREATE 保持一致，不破坏既有数据。
+DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_review_ugc_sec_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'images'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_review_ugc_sec_fields`();
+DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+DELIMITER $$
+CREATE PROCEDURE `add_feedback_ugc_sec_fields`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'images'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_feedback_ugc_sec_fields`();
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+
+-- 菜品搜索别名（2026-09-13 需求：搜索命中别名也能找到菜品；管理员经后台配置）：
+-- dish 补齐 alias 列（CREATE TABLE 已含，列定义以 CREATE 为准：alias VARCHAR(255) NULL）；
+-- 旧库幂等补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护，与上方迁移惯例一致）。
+DROP PROCEDURE IF EXISTS `add_dish_alias`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_alias`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'alias'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `alias` VARCHAR(255) NULL DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_alias`();
+DROP PROCEDURE IF EXISTS `add_dish_alias`;
 
 SET FOREIGN_KEY_CHECKS = 1;

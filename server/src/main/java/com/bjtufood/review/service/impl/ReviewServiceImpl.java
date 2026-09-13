@@ -5,7 +5,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.content.security.ContentSecurityService;
+import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -39,6 +42,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
 
+    /** 内容安全状态常量：机检待人工复核 / 人工复核不通过（均对他端不可见，作者本人可见） */
+    public static final String SEC_STATE_PASS = "pass";
+    public static final String SEC_STATE_REVIEW = "review";
+    public static final String SEC_STATE_REJECTED = "rejected";
+
+    /** UGC 配图上限（张） */
+    private static final int MAX_IMAGES = 3;
+
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final UserMapper userMapper;
@@ -46,16 +57,18 @@ public class ReviewServiceImpl implements ReviewService {
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
+    private final ContentSecurityService contentSecurityService;
 
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼），见 project_spec 决策
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
+        fillImages(pageResult.getRecords());
         return pageResult;
     }
 
@@ -63,11 +76,12 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
+        fillImages(pageResult.getRecords());
         return pageResult;
     }
 
@@ -75,11 +89,12 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
         }
+        fillImages(pageResult.getRecords());
         return pageResult;
     }
 
@@ -88,7 +103,9 @@ public class ReviewServiceImpl implements ReviewService {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         // 我的评价：固定按发表时间倒序（本人视角无需「有用」排序与 useful 标记回写）
-        return reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
+        fillImages(pageResult.getRecords());
+        return pageResult;
     }
 
     @Override
@@ -177,6 +194,16 @@ public class ReviewServiceImpl implements ReviewService {
         String filteredContent = sensitiveFilter.filter(req.getContent());
         review.setContent(filteredContent);
         review.setIsHidden(0);
+
+        // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
+        // 文本 msgSecCheck v2（scene=2 评论）：risky 由 checkText 统一拦截（400），
+        // review 态落库 sec_state='review'（对他端不可见，作者本人可见并提示「审核中」）。
+        // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（产品登记边界）。
+        review.setSecState(checkUgcText(userId, filteredContent, 2));
+
+        // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
+        review.setImages(encodeImages(req.getImages()));
+
         try {
             // uk_review_user_dish 唯一键兜底并发竞态：前置 selectCount 通过但插入瞬间已被他人抢先落库
             reviewMapper.insert(review);
@@ -185,6 +212,66 @@ public class ReviewServiceImpl implements ReviewService {
         }
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
         return review.getId();
+    }
+
+    /**
+     * UGC 文本机检公共入口：取当前用户 openid 调 msgSecCheck v2。
+     * <p>
+     * 返回落库的 sec_state：pass / review（risky 已由 checkText 抛 400，不会返回）。
+     * 边界（报告备案）：
+     * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
+     * 2. 微信凭据未配置（本地开发环境）→ 跳过机审放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
+     */
+    private String checkUgcText(Long userId, String content, int scene) {
+        if (!StringUtils.hasText(content)) {
+            // 纯图评价/反馈：无文本可检，直接通过
+            return SEC_STATE_PASS;
+        }
+        User user = userMapper.selectById(userId);
+        String openid = user == null ? null : user.getOpenid();
+        SecSuggest suggest = contentSecurityService.checkText(openid, content, scene);
+        return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
+    }
+
+    /**
+     * 校验并序列化 UGC 配图：≤3 张、每项必须为受信任的 COS 绝对地址。
+     * 仅允许 {@code POST /upload/images} 链路产出的 COS URL，防止 UGC 配图沦为任意 URL 载体。
+     */
+    private String encodeImages(List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        if (images.size() > MAX_IMAGES) {
+            throw new BusinessException("评价配图最多 " + MAX_IMAGES + " 张");
+        }
+        List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (normalized.size() > MAX_IMAGES) {
+            throw new BusinessException("评价配图最多 " + MAX_IMAGES + " 张");
+        }
+        for (String url : normalized) {
+            if (!imageUrlUtil.isValidCosUgcUrl(url)) {
+                throw new BusinessException("图片地址不合法，请重新上传");
+            }
+        }
+        return JsonListUtil.toJson(normalized);
+    }
+
+    /**
+     * VO 配图填充：images_json（mapper 直填的 JSON 原文）解析为 images 数组。
+     * COS 绝对地址原样返回（toAbsoluteUrl 对 http(s) 无损），历史空值归一为空列表。
+     */
+    private void fillImages(List<ReviewVO> records) {
+        if (records == null) {
+            return;
+        }
+        for (ReviewVO vo : records) {
+            List<String> images = JsonListUtil.parseStringList(vo.getImagesJson());
+            vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
+            vo.setImagesJson(null);
+        }
     }
 
     @Override
@@ -206,7 +293,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, String secState, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
@@ -214,9 +301,12 @@ public class ReviewServiceImpl implements ReviewService {
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
                         .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
-                                Review::getContent, Review::getIsHidden,
+                                Review::getContent, Review::getImages, Review::getSecState, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
+                        // 内容安全状态筛选（管理端复核队列：secState=review 捞待人工复核）
+                        .eq(StringUtils.hasText(secState), Review::getSecState,
+                                secState == null ? null : secState.trim().toLowerCase())
                         .eq(userId != null, Review::getUserId, userId)
                         // 关键词模糊匹配评价正文，仅当显式传入时生效
                         .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
@@ -271,6 +361,22 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void setSecState(Long id, String state) {
+        // 枚举校验：本接口契约仅允许 pass/rejected（review 由机检写入，管理端只能改人工结论）
+        String normalized = state == null ? "" : state.trim().toLowerCase();
+        if (!SEC_STATE_PASS.equals(normalized) && !SEC_STATE_REJECTED.equals(normalized)) {
+            throw new BusinessException("state 仅允许 pass 或 rejected");
+        }
+        Review review = reviewMapper.selectById(id);
+        if (review == null) {
+            throw new BusinessException("评价不存在");
+        }
+        review.setSecState(normalized);
+        reviewMapper.updateById(review);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void likeReview(Long userId, Long reviewId) {
         ReviewUseful exist = reviewUsefulMapper.selectOne(
                 new LambdaQueryWrapper<ReviewUseful>()
@@ -304,7 +410,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 转换为管理端 VO（携带 is_hidden/has_sensitive 审核字段）
+     * 转换为管理端 VO（携带 is_hidden/has_sensitive/sec_state 审核字段与配图）
      */
     private ReviewAdminVO toAdminVO(Review review) {
         ReviewAdminVO vo = new ReviewAdminVO();
@@ -313,6 +419,9 @@ public class ReviewServiceImpl implements ReviewService {
         vo.setDishId(review.getDishId());
         vo.setRating(review.getRating());
         vo.setContent(review.getContent());
+        List<String> images = JsonListUtil.parseStringList(review.getImages());
+        vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
+        vo.setSecState(StringUtils.hasText(review.getSecState()) ? review.getSecState() : SEC_STATE_PASS);
         vo.setCreatedAt(review.getCreatedAt());
         vo.setIsHidden(review.getIsHidden() != null ? review.getIsHidden() : 0);
         vo.setHasSensitive(false);

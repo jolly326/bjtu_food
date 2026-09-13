@@ -8,6 +8,13 @@ server:
   servlet:
     context-path: /api          # 所有接口统一前缀（如 /api/dishes）
 
+# ---------- 管理端（Web 后台）口令 ----------
+# 2026-09-13 定型：Web 后台为本地数据操作工具、无登录体系；管理端接口（/admin/**）
+# 由 AdminTokenFilter 校验请求头 X-Admin-Token 是否等于此处配置。
+# 未配置时 fail-closed：全部 /admin 请求返回 403「管理端未配置 ADMIN_TOKEN」。云端/生产必须注入。
+admin:
+  token: ${ADMIN_TOKEN:}
+
 spring:
   application:
     name: bjtu-food
@@ -106,3 +113,15 @@ wechat:
   secret: ${WECHAT_SECRET:}
   # 小程序登录凭证校验（code2Session）接口地址（GET）
   code2session-url: ${WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+  # 微信云开发（CloudBase）环境 ID：tcb/batchdownloadfile 拉取云存储临时链接用。
+  # 缺省为空时后端尝试从 fileID（cloud://{env}.{bucket}/path）自动解析，仅当解析失败才要求显式配置。
+  cloud-env: ${WECHAT_CLOUD_ENV:}
+
+# ---------- 腾讯云 COS 对象存储（UGC 配图最终存储） ----------
+# 四项均从环境变量注入；任一缺失视为「COS 未配置」，/upload/images 返回 400「图片存储未配置」，
+# 旧 multipart /upload/image 降级本地磁盘存储（开发环境无 COS 仍可用）。
+cos:
+  bucket: ${COS_BUCKET:}
+  secret-id: ${COS_SECRET_ID:}
+  secret-key: ${COS_SECRET_KEY:}
+  region: ${COS_REGION:}

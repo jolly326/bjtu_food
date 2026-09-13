@@ -51,6 +51,7 @@ const form = ref({
   stallId: '' as string | number,
   image: '',
   description: '',
+  alias: '',
   tags: '',
   status: 'active' as 'active' | 'inactive',
   spiceLevel: 0,
@@ -78,6 +79,7 @@ watch(
           stallId: String(d.stall_id ?? ''),
           image: d.image || '',
           description: d.description || '',
+          alias: d.alias || '',
           tags: d.tags || '',
           status: d.status as 'active' | 'inactive',
           spiceLevel: d.spiceLevel ?? 0,
@@ -90,7 +92,7 @@ watch(
       form.value = {
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
         stallId: props.defaultStallId != null ? String(props.defaultStallId) : '',
-        image: '', description: '', tags: '', status: 'active',
+        image: '', description: '', alias: '', tags: '', status: 'active',
         spiceLevel: 0, portion: 0, servePeriod: '', limited: 0,
       }
     }
@@ -102,6 +104,8 @@ function validate() {
   if (!form.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!form.value.price || Number(form.value.price) <= 0) errs.price = '价格必须大于 0'
   if (!form.value.stallId) errs.stallId = '请选择所属档口'
+  // 产品定型：菜品首图必填（无图不录入 / 不上架）
+  if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
   if (Number(form.value.originalPrice) < 0) errs.originalPrice = '原价不能为负'
   if (Number(form.value.promoPrice) < 0) errs.promoPrice = '促销价不能为负'
   if (Number(form.value.promoPrice) > 0) {
@@ -244,6 +248,14 @@ async function submit() {
 
       <div class="field"><label>描述</label>
         <textarea v-model="form.description" rows="2" placeholder="菜品描述"></textarea>
+          <p v-if="formErrors.description" class="field-error">{{ formErrors.description }}</p>
+      </div>
+
+      <div class="df-row">
+        <div class="field flex-1"><label>搜索别名（选填，逗号分隔）</label>
+          <input v-model="form.alias" placeholder="如：麻小,小龙虾" />
+          <p class="field-hint">学生搜索这些词也能找到本菜品</p>
+        </div>
       </div>
 
       <div class="df-row">
@@ -255,8 +267,9 @@ async function submit() {
         </div>
       </div>
 
-      <div class="field"><label>图片</label>
+      <div class="field"><label>图片 <span class="required">*</span></label>
         <ImageUpload v-model="form.image" :max="3" />
+        <p v-if="formErrors.image" class="field-error">{{ formErrors.image }}</p>
       </div>
     </div>
   </FormDialog>

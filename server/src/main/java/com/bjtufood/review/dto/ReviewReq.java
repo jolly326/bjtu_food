@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Schema(description = "评价提交/修改请求参数")
 public class ReviewReq {
@@ -24,4 +26,8 @@ public class ReviewReq {
     @Size(max = 500, message = "评论内容不能超过500字")
     @Schema(description = "文字评价", example = "味道不错，分量也足。")
     private String content;
+
+    @Size(max = 3, message = "评价配图最多 3 张")
+    @Schema(description = "评价配图 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤3 张）")
+    private List<String> images;
 }

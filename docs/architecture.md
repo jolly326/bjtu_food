@@ -21,24 +21,23 @@
 ### 1.1 端
 | 端 | 目录 | 技术栈 | 说明 |
 |---|---|---|---|
-| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（11 页，见 spec §2.1） |
+| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页，见 spec §2.1） |
 | 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
 | 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（登录首屏 `/dashboard` 工作台，非 ECharts 看板） |
 
 ### 1.2 后端分层（包结构）
 ```
 com.bjtufood/
-├── auth/        # 认证：微信登录/邮箱认证/JWT/Security
+├── auth/        # 认证：微信登录/邮箱认证/JWT/Security（昵称变更过 msgSecCheck scene=1）
 ├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合/统计（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
-├── review/      # 评价 + 评分聚合事件
+├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── canteen/     # 食堂/档口
-├── content/     # category 品类 / broadcast 广播（兼容保留）
-├── activity/    # 最新活动（入口展示，点击提示「功能暂未实现」）
-├── feedback/    # 用户反馈
+├── content/     # category 品类
+├── feedback/    # 用户反馈（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
-├── upload/      # 图片上传
-└── common/      # Result/异常/工具/JWT 切面/操作日志
+├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
+└── common/      # Result/异常/工具/JWT 切面/操作日志；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
 ```
 
 ## 2. 认证与安全模型
@@ -63,6 +62,27 @@ com.bjtufood/
 - 敏感信息：VO 不返回 openid；updateProfile 仅更新昵称/头像；selectList 投影必要列
 - 分页上限统一 `PageUtil.normalize`
 
+### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板，契约见 spec §5.a / api-design.md §4）
+
+- **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2；`suggest` 三态 pass/review/risky）、图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
+- **安检态落库**：`suggest=review` → `review.sec_state` / `user_feedback.sec_state = 'review'`（对非作者不可见，管理后台 `PUT /admin/reviews/{id}/sec-state` 放行/驳回）；`risky` / `87014` → HTTP 400 拦截。
+- **UGC 图片上传链路（云存储中转 → 送检 → COS 转存）**：
+
+```
+小程序                         后端                          微信/腾讯云
+─────────                     ─────────                     ─────────
+wx.cloud.uploadFile ──────▶ 微信云开发云存储（中转，免域名白名单）
+        │
+POST /upload/images ──────▶ UploadController
+  { fileId }（单张，前端逐张调用）│ tcb batchdownloadfile 拉取原图
+                              │ imgSecCheck 送检 ── 违规 87014 → 400
+                              │   （单张失败该张 400，前端跳过不中断其余图片）
+                              ▼
+                            转存 COS（永久存储，images 列存 COS URL）
+```
+
+- **平台可迁移（面向未来）**：COS / 安检 / 上传接口均不绑定云托管，后端可整体迁移独立服务器；届时小程序上传域名改走备案域名白名单，链路结构不变。
+
 ## 3. 部署（微信云托管）
 
 ### 3.1 环境信息
@@ -80,8 +100,9 @@ com.bjtufood/
 | `SPRING_DATASOURCE_USERNAME` / `PASSWORD` | 数据库账号 |
 | `SPRING_MAIL_USERNAME` / `PASSWORD` | 网易 163 SMTP 邮箱与授权码 |
 | `JWT_SECRET` | ≥32 字节强随机密钥（**禁止默认值**） |
-| `WECHAT_APPID` / `WECHAT_SECRET` | 微信小程序凭据 |
-| `APP_PUBLIC_BASE_URL` | 图片完整 URL 前缀 |
+| `WECHAT_APPID` / `WECHAT_SECRET` | 微信小程序凭据（登录 + 安检 stable_token） |
+| `COS_BUCKET` / `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_REGION` | 腾讯云 COS 对象存储（**UGC 配图永久存储**，2026-09-13 起必填；见 §2.5 链路） |
+| `APP_PUBLIC_BASE_URL` | 图片完整 URL 前缀（头像 / 后台菜品图；UGC 配图为 COS URL 不经此前缀） |
 | `CORS_ALLOWED_ORIGINS` | 管理后台浏览器源（白名单） |
 
 > `spring-dotenv`：本地读 `server/.env`；云托管读同名环境变量。仓库不保留任何明文凭据。
@@ -147,12 +168,12 @@ npm run dev   # http://localhost:5173
 2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑猜你喜欢
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
-5. **activity 接入**：活动入口位于「我的」页功能宫格，点击提示「功能暂未实现」（不跳转活动页，独立页与 `/activities` 接口保留待开放）
+5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
+6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；安检态 `sec_state`（**三态** pass/review/rejected，rejected=人工驳回，与 review 同对非作者不可见）、后台可放行（→pass）/驳回（→rejected）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
 
 ## 7. 已知技术债（见 api-design.md §9）
 - 验证码 IP 维度限频待补
 - `<PressCard>` 按压组件待抽取
-- `BroadcastAdminController` 校验待补
 - `NotificationController` 直调 Mapper（分层红线，建议下沉 Service）
 - ~~4031 非标码需 spec 豁免登记~~（已在 spec §3 登记豁免）
 - ~~通知接口 verified 口径待统一~~（`@RequireVerified` 已补齐）

@@ -15,7 +15,7 @@ export type RawRow = Record<string, any>
 /** 后端分页返回形态：可能是平铺数组，或 { records | list, total } */
 type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
 
-/** 分页响应统一结构（{ list | records, total, page, pageSize }；F2 收敛自 notify/activity 等私有定义） */
+/** 分页响应统一结构（{ list | records, total, page, pageSize }；F2 收敛自 notify 等模块私有定义） */
 export interface PageResult<T> {
   list?: T[]
   records?: T[]
@@ -33,7 +33,7 @@ export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
 
 /**
  * 从分页响应提取列表——兼容裸数组 / { list } / { records } 三形态
- * （统一版取 notify/activity 等私有 listOf 行为超集；activity 曾支持裸数组）。
+ * （统一版取 notify 等私有 listOf 行为超集，并额外兼容裸数组形态）。
  */
 export function listOf<T>(value: PageResult<T> | T[] | undefined | null): T[] {
   return recordsOf<T>(value)

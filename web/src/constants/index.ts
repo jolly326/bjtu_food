@@ -18,3 +18,25 @@ export const SERVE_BREAKFAST = 'breakfast'
 export const SERVE_LUNCH = 'lunch'
 export const SERVE_DINNER = 'dinner'
 export const SERVE_MIDNIGHT = 'midnight'
+
+/** 内容安检状态：正常（评价/反馈共用，与后端 ReviewAdminVO.secState 契约一致） */
+export const SEC_PASS = 'pass'
+/** 内容安检状态：待复核 */
+export const SEC_REVIEW = 'review'
+/** 内容安检状态：已驳回 */
+export const SEC_REJECTED = 'rejected'
+
+/** 安检状态展示元数据（StatusTag 类型 + 文案）：评价审核 / 菜品评论 / 反馈三视图共用 */
+export const SEC_STATE_META: Record<string, { type: 'success' | 'warning' | 'danger'; text: string }> = {
+  [SEC_PASS]: { type: 'success', text: '正常' },
+  [SEC_REVIEW]: { type: 'warning', text: '待复核' },
+  [SEC_REJECTED]: { type: 'danger', text: '已驳回' },
+}
+
+/** 安检状态筛选下拉选项（'' = 全部，不透传后端）；「待复核」紧随全部，便于一键进入复核队列 */
+export const SEC_FILTER_OPTIONS = [
+  { value: '', label: '全部安检状态' },
+  { value: SEC_REVIEW, label: '待复核' },
+  { value: SEC_PASS, label: '正常' },
+  { value: SEC_REJECTED, label: '已驳回' },
+]

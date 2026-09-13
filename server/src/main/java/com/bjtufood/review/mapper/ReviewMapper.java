@@ -19,24 +19,35 @@ import java.util.List;
  */
 public interface ReviewMapper extends BaseMapper<Review> {
 
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort);
+    /**
+     * 按菜品查询评价列表（含内容安全可见性过滤）。
+     * <p>
+     * 可见性规则（产品定稿 2026-09-13）：is_hidden=0 且 sec_state='pass' 对外可见；
+     * sec_state='review'（机检待人工复核）仅作者本人可见（{@code viewerId} 为作者时放行）。
+     *
+     * @param viewerId 当前登录用户ID（可空；空时仅返回 pass 态评价）
+     */
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort,
+                                             @Param("viewerId") Long viewerId);
 
     IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 
     /**
-     * 按档口查询评价列表。
+     * 按档口查询评价列表（含内容安全可见性过滤，规则同 {@link #selectReviewPageByDishId}）。
      * <p>
      * review 表仅关联 dish_id（无 stall_id / canteen_id），档口/食堂维度的评价通过
-     * review → dish(stall_id) 推导。只返回 is_hidden=0 的评价。
+     * review → dish(stall_id) 推导。
      */
-    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort);
+    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort,
+                                              @Param("viewerId") Long viewerId);
 
     /**
-     * 按食堂查询评价列表。
+     * 按食堂查询评价列表（含内容安全可见性过滤，规则同 {@link #selectReviewPageByDishId}）。
      * <p>
-     * 通过 review → dish(stall_id) → stall(canteen_id) 推导。只返回 is_hidden=0 的评价。
+     * 通过 review → dish(stall_id) → stall(canteen_id) 推导。
      */
-    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort);
+    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort,
+                                                @Param("viewerId") Long viewerId);
 
     /**
      * 计算某档口下所有菜品评价的平均分（星级 1-5）。

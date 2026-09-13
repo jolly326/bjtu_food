@@ -35,17 +35,20 @@
 
       <!-- 动态字段区 -->
       <view class="q-card">
-        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分） -->
+        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分）；
+             submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1） -->
         <SuggestionForm
           v-if="type === 'suggestion'"
           :model="form.suggestion"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
         />
         <AddForm
           v-else-if="type === 'add'"
           :model="form.add"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
           @open-location="openLocationSheet"
           @open-floor="openFloorSheet"
@@ -56,6 +59,7 @@
           :model="form.error"
           :points="correctionPoints"
           :errors="fieldErrors"
+          :submitting="submitting"
           @clear="clearError"
           @open-dish="openDishSheet"
           @reset-dish="resetDish"
@@ -249,7 +253,7 @@ const {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
 }
-/* 按压反馈：统一 bg-soft 语言（与 mine 宫格 / activity 卡一致）；选中态按下保持主色浅底，避免翻灰 */
+/* 按压反馈：统一 bg-soft 语言（与 mine 宫格一致）；选中态按下保持主色浅底，避免翻灰 */
 .type-card.pressed { background-color: var(--bg-soft); }
 .type-card.active.pressed { background: var(--color-primary-soft); }
 .type-icon {

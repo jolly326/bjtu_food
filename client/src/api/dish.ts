@@ -39,6 +39,7 @@ export function toDish(raw: RawRow): Dish {
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
     businessHours: raw.businessHours || '',
+    updatedAt: raw.updatedAt || '',
     // ===== task-03 属性标签（来自 dish） =====
     spiceLevel: raw.spiceLevel ?? raw.spice_level,
     portion: raw.portion,
@@ -77,7 +78,7 @@ export async function getStallDishes(stallId: number): Promise<Dish[]> {
  * 通用菜品检索（task-02 多维筛选结果页 + task-01 首页无限加载）
  * 复用 GET /dishes，支持 keyword / canteenId / tag / minPrice / maxPrice / sortBy / sortOrder / page / pageSize。
  * 金额 minPrice/maxPrice 由前端「元」在 API 层转「分」提交（§3.x 金额红线）。
- * sortBy 取值（ARCH §3.1）：heat / rating / price / created_at / collects。
+ * sortBy 取值（ARCH §3.1）：heat / rating / price / created_at。
  * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {

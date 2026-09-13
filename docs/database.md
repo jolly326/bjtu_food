@@ -11,17 +11,18 @@
 | 主键 | 业务表统一 `BIGINT AUTO_INCREMENT`；`email_verification_code` 等同样自增主键 |
 | 时间戳 | `created_at` 默认 `CURRENT_TIMESTAMP`；`updated_at` 默认 `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`（由 `MybatisMetaObjectHandler` 统一写入） |
 | 金额 | 以「分」为单位存储 `INT`（如 12.00 元 = `1200`），避免浮点误差 |
-| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，仅用于菜品/食堂/档口图）；UGC 评价/反馈已全量纯文本，无 images 列 |
+| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，用于菜品/食堂/档口图；**2026-09-13 起 UGC 评价/反馈恢复 `images` 列**：同为 JSON 数组字符串，≤3 项 COS URL，见 §3.5 / §3.9） |
+| 内容安检 | UGC（评价/反馈）文本与配图过微信内容安检；`review.sec_state` / `user_feedback.sec_state`（**三态** `pass`/`review`/`rejected`，默认 `pass`，2026-09-13 追加列）承载安检态，`review`（机检待人工复核）与 `rejected`（人工驳回）均对非作者不可见 |
 | 审核流 | UGC 实体（`dish`/`stall`/`canteen`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
 | 角色 | `user.role`：`student`（默认）/ `admin` / `super_admin`；`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 14 张表，与 `schema.sql` 严格一致）
+## 2. 表清单（共 12 张表，与 `schema.sql` 严格一致）
 
-`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `broadcast` · `activity` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
 
-> 说明：`broadcast` 为**兼容保留表**（运营广播方案已废弃、首页不消费，仅历史数据兼容，总表数含其为 14）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。
+> 说明：`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images`/`review.sec_state`、`user_feedback.images`/`user_feedback.sec_state`）以列扩展落地，不新建表，基线维持 12 张**。
 
 ---
 
@@ -102,6 +103,7 @@
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
 | tags | VARCHAR(128) | 可 | NULL | 逗号分隔；**权威值域：`recommended`（必吃推荐）/ `signature`（招牌菜）**；web 管理端写入值域以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值，禁止写入中文或其他值 |
+| alias | VARCHAR(255) | 可 | NULL | 搜索别名（逗号分隔，管理员配置；搜索 keyword 同时命中 name 与 alias；旧库经 schema.sql 幂等迁移块补齐） |
 | region | VARCHAR(32) | 可 | NULL | 地域（美食来源地），如 清真/川湘/西北/粤式/东北（一期扩展，schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
 | portion | INT | 否 | 1 | 分量：0小/1中/2大 |
@@ -129,6 +131,8 @@
 | rating | INT | 否 | 0 | 评分（1-5星） |
 | content | VARCHAR(512) | 可 | NULL | 评价内容 |
 | tags | VARCHAR(255) | 可 | NULL | 评价标签（美团式写评预留列，**当前预留未消费**，schema.sql 已建列） |
+| images | VARCHAR(1024) | 可 | NULL | **评价配图（2026-09-13 恢复）**：JSON 数组字符串（`["cos-url1","cos-url2"]`，≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS） |
+| sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`（放行）/`review`（文本 msgSecCheck `suggest=review` 落此态，机检待人工复核，对非作者不可见）/`rejected`（管理后台人工复核驳回落此态，对非作者不可见同 review）；管理后台 `PUT /admin/reviews/{id}/sec-state` 放行（→`pass`）/驳回（→`rejected`）；公开展示条件 = `is_hidden=0` 且 `sec_state='pass'` |
 | is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏） |
 | useful_count | INT | 否 | 0 | 「有用」标记数（schema.sql 末尾幂等 ALTER 追加列，由 review_useful 聚合维护） |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
@@ -171,42 +175,17 @@
 
 **索引/约束**：PK(`id`)；UNIQUE `uk_category_code`(`code`)；KEY `idx_category_status_sort`(`status`,`sort_order`)。
 
-### 3.9 broadcast（首页广播条）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 广播ID |
-| title | VARCHAR(128) | 否 | '' | 标题 |
-| content | VARCHAR(512) | 否 | '' | ticker 展示文本 |
-| broadcast_type | VARCHAR(32) | 否 | 'NOTICE' | NOTICE/ACTIVITY/DISH/URL/NONE |
-| target_id | BIGINT | 可 | NULL | 跳转目标ID（DISH 时填菜品ID） |
-| target_url | VARCHAR(512) | 可 | NULL | 跳转外链（URL 时填） |
-| sort_order | INT | 否 | 0 | 排序权重 |
-| status | VARCHAR(32) | 否 | 'enabled' | enabled/disabled |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
+> **已删除表（2026-09-13 下线，勿重建）**：原 §3.9 `broadcast`（首页广播条）与原 §3.10 `activity`（最新活动/公众号文章卡片）已随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
 
-**索引/约束**：PK(`id`)；KEY `idx_broadcast_status_sort`(`status`,`sort_order`)。
-
-### 3.10 activity（最新活动/公众号文章卡片）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 活动ID |
-| title | VARCHAR(100) | 否 | '' | 标题 |
-| description | VARCHAR(500) | 可 | NULL | 摘要 |
-| image | VARCHAR(500) | 可 | NULL | 封面图URL |
-| article_url | VARCHAR(500) | 可 | NULL | 公众号文章链接（web-view 打开） |
-| status | VARCHAR(20) | 否 | 'enabled' | enabled/disabled |
-| sort_order | INT | 否 | 0 | 排序权重 |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
-
-**索引/约束**：PK(`id`)；KEY `idx_activity_status_sort`(`status`,`sort_order`)。
-
-### 3.11 user_feedback（用户反馈）
+### 3.9 user_feedback（用户反馈）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 反馈ID |
 | user_id | BIGINT | 否 | 0 | 用户ID |
 | type | VARCHAR(32) | 否 | 'suggestion' | suggestion/error/add/bug/other/report |
 | content | VARCHAR(1024) | 否 | '' | 反馈内容 |
+| images | VARCHAR(1024) | 可 | NULL | **反馈配图（2026-09-13 恢复）**：JSON 数组字符串（≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS），游客提交同样可带图 |
+| sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`/`review`（机检待人工复核）/`rejected`（人工复核驳回，对非作者不可见同 review）；管理后台放行（→`pass`）/驳回（→`rejected`） |
 | contact | VARCHAR(128) | 可 | NULL | 联系方式 |
 | status | VARCHAR(32) | 否 | 'pending' | pending/handled |
 | reply | VARCHAR(1024) | 可 | NULL | 管理员回复 |
@@ -218,7 +197,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
 
-### 3.12 email_verification_code（邮箱验证码）
+### 3.10 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 记录ID |
@@ -231,7 +210,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_evc_email`(`email`,`purpose`)；KEY `idx_evc_expires`(`expires_at`)。
 
-### 3.17 view_log（浏览足迹）
+### 3.11 view_log（浏览足迹）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 足迹ID |
@@ -244,7 +223,7 @@
 
 > **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
-### 3.18 operation_log（操作日志，AOP 埋点，Web 只读）
+### 3.12 operation_log（操作日志，AOP 埋点，Web 只读）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
@@ -308,15 +287,6 @@ erDiagram
         VARCHAR action
         VARCHAR target_type
         BIGINT target_id
-    }
-    broadcast {
-        BIGINT id PK
-        VARCHAR broadcast_type
-        BIGINT target_id
-    }
-    activity {
-        BIGINT id PK
-        VARCHAR status
     }
 ```
 

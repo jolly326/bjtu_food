@@ -2,8 +2,6 @@ package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.bjtufood.auth.dto.AdminLoginReq;
-import com.bjtufood.auth.dto.AdminLoginResp;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
@@ -15,12 +13,14 @@ import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.auth.service.WechatService;
+import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
@@ -63,7 +63,8 @@ public class AuthServiceImpl implements AuthService {
     private final NotificationMapper notificationMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
-    private final com.bjtufood.auth.config.AdminLoginAttemptLimiter loginAttemptLimiter;
+    private final ContentSecurityService contentSecurityService;
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
     public void createEmailCode(String username, String email, String purpose) {
@@ -169,6 +170,10 @@ public class AuthServiceImpl implements AuthService {
             if (sensitiveFilter.containsSensitive(req.getNickname())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
             }
+            // 内容安全检测（产品定稿 2026-09-13：昵称变更 msgSecCheck v2，scene=1 资料）。
+            // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
+            // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
+            contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
             updater.set(User::getNickname, req.getNickname());
         }
         if (StringUtils.hasText(req.getAvatar())) {
@@ -199,32 +204,78 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AdminLoginResp adminLogin(AdminLoginReq req) {
-        String account = req.getAccount().trim();
-        // 同账号失败锁定：锁定期内直接拒绝，抑制对管理后台的暴力破解（P1-7）
-        loginAttemptLimiter.checkLocked(account);
-        User user = userService.getByUsername(account);
-        if (user == null || !RoleConst.isAdmin(user.getRole())
-                || !StringUtils.hasText(user.getPassword())
-                || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            // 统一口径记录失败（含账号不存在），避免通过计数差异探测账号存在性
-            loginAttemptLimiter.recordFailure(account);
-            throw new BusinessException("账号或密码错误");
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteAccount(Long userId, String token) {
+        if (userId == null) {
+            throw new BusinessException(401, "请先登录");
         }
-        if ("disabled".equals(user.getStatus())) {
-            throw new BusinessException("账号已被禁用");
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(401, "请先登录");
         }
+        // 幂等保护：已注销用户重复调用返回 400「账号已注销」
+        // （场景：服务重启后 TokenBlacklist 清空，同用户其他有效 token 再次到达；正常场景已被过滤器 401 拦截）
         if ("deleted".equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        user.setLastLoginAt(DateTimeUtil.now());
-        userMapper.updateById(user);
-        // 登录成功清除失败计数
-        loginAttemptLimiter.reset(account);
-        // 管理端短期 Token：12 小时过期，降低泄露风险（学生端静默登录保持 7 天，见 application.yml）
-        String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername(), ADMIN_TOKEN_EXPIRATION_MS);
-        return new AdminLoginResp(token, user.getUsername(), user.getRole());
+        if ("disabled".equals(user.getStatus())) {
+            throw new BusinessException("账号已被禁用，无法注销");
+        }
+
+        // 匿名化 user 行（非物理删除）。必须用 LambdaUpdateWrapper 显式 set NULL：
+        // updateById 默认 NOT_NULL 策略对 null 字段不写列，avatar/email/password/openid 等无法被清空。
+        // · username → deleted_{id}：释放 uk_user_username 唯一键占用。openid 置 NULL 解绑后，
+        //   同一微信重新静默登录会按 username='wx_'+openid 尾 16 位建新游客号，若保留旧 username
+        //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
+        // · openid/unionid → NULL：解绑微信身份，允许同一微信重新建号（unionid 同属微信身份标识，
+        //   新号登录时 wechatLogin 会自动重新补全，匿名化更彻底）。
+        // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
+        // · password → NULL：管理后台密码登录体系随即不可用。
+        // · bind_email/verified_at → NULL、verified → 0：解绑认证关系，避免 verifyEmail 的
+        //   getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
+        // · nickname → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
+        //   历史内容自然匿名化，评分聚合不破坏。
+        // · status → 'deleted'：与 wechatLogin/adminLogin 的登录拦截、RequireVerifiedAspect 的
+        //   UGC 写拦截形成持久化兜底（黑名单重启清空后仍有效）。
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, userId)
+                .set(User::getNickname, "已注销用户")
+                .set(User::getUsername, "deleted_" + userId)
+                .set(User::getAvatar, null)
+                .set(User::getEmail, null)
+                .set(User::getPassword, null)
+                .set(User::getOpenid, null)
+                .set(User::getUnionid, null)
+                .set(User::getVerified, 0)
+                .set(User::getBindEmail, null)
+                .set(User::getVerifiedAt, null)
+                .set(User::getStatus, "deleted"));
+
+        // email_verification_code 按该用户邮箱删除（表无 user_id 列，以 email 匹配）；
+        // email 与 bind_email 可能不同（迁移/替换绑定场景），两批都清，避免残留验证码在他端被消费。
+        deleteVerifyCodesByEmail(user.getEmail());
+        deleteVerifyCodesByEmail(user.getBindEmail());
+
+        // token 立即失效（复用 TokenBlacklist，与管理员禁用同一机制）：
+        // · token 维度：精确拉黑当前请求 token，JwtAuthFilter 命中后 401「账号已注销，请重新登录」；
+        // · userId 维度：兜底拉黑同用户其余设备的历史 token（注销者拿不到那些 token 明文）。
+        tokenBlacklist.revoke(token);
+        tokenBlacklist.revokeUser(userId);
     }
+
+    /**
+     * 删除指定邮箱的验证码记录（邮箱为空时跳过）。
+     */
+    private void deleteVerifyCodesByEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return;
+        }
+        emailVerificationCodeMapper.delete(new LambdaQueryWrapper<EmailVerificationCode>()
+                .eq(EmailVerificationCode::getEmail, email));
+    }
+
+    // 管理后台登录（adminLogin）已随管理端账号体系一并移除（2026-09-13 定型：后台无登录，
+    // 管理端接口由 AdminTokenFilter 的环境变量口令 ADMIN_TOKEN 校验保护）。
 
     @Override
     public UserInfoVO toUserInfo(User user) {
@@ -279,7 +330,6 @@ public class AuthServiceImpl implements AuthService {
      * 管理端凭据泄露面小但危害大，短期过期降低风险；
      * 学生端静默登录保持长期（见 toLoginResp），两者策略分离。
      */
-    private static final long ADMIN_TOKEN_EXPIRATION_MS = 12 * 60 * 60 * 1000L;
 
     /**
      * 新建微信游客账号（verified=0）。

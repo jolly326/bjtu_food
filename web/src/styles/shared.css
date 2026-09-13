@@ -44,12 +44,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
  * v-press 指令已处理部分元素；此处作为 CSS 兜底，保证未加指令的
  * 裸 <button>/<a>/.tab/.link 等也具备一致按压反馈。
  * ============================================================ */
-.btn-primary, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
+.btn-primary, .btn-success, .btn-warn, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
 .tag-option, .type-opt, .card, .pk-card, .banner-card, .stat-card,
 .action-btn, .action-link, .toggle-btn, button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
-.btn-primary, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
+.btn-primary, .btn-success, .btn-warn, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
 .tag-option, .type-opt, .action-btn, .action-link, .toggle-btn, .me-tag {
   transition:
     transform 0.12s ease,
@@ -65,14 +65,15 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
     box-shadow 0.2s cubic-bezier(0.33, 1, 0.68, 1),
     border-color 0.2s ease;
 }
-.btn-primary:active, .btn-cancel:active, .btn-danger:active,
+.btn-primary:active, .btn-success:active, .btn-warn:active, .btn-cancel:active, .btn-danger:active,
 .link:active, .tab:active, .nav-item:active, .tag-option:active,
 .type-opt:active, .action-btn:active, .toggle-btn:active,
 button:active:not(:disabled), a:active {
   transform: scale(0.97);
 }
 /* 键盘焦点环：所有可交互元素统一 focus-ring（--focus-ring 为 box-shadow 定义，对比 .btn-secondary 已有，补核心按钮/链接/表格排序/清除） */
-.btn-primary:focus-visible, .btn-cancel:focus-visible, .btn-danger:focus-visible,
+.btn-primary:focus-visible, .btn-success:focus-visible, .btn-warn:focus-visible,
+.btn-cancel:focus-visible, .btn-danger:focus-visible,
 .link:focus-visible, .tab:focus-visible, .nav-item:focus-visible,
 .tag-option:focus-visible, .type-opt:focus-visible,
 .action-btn:focus-visible, .toggle-btn:focus-visible,
@@ -196,6 +197,15 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .tag-gray { background: var(--bg-gray); color: var(--text-muted); }
 .tag-red { background: var(--color-danger-soft); color: var(--color-error); }
 
+/* 列表内容列「附有配图」角标：Picture 图标 + 张数（反馈/评价列表共用；原 FeedbackView scoped 上提） */
+.img-flag {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: var(--space-2);
+  padding: 0 var(--space-2); border-radius: var(--radius-pill);
+  background: var(--bg-soft); color: var(--text-muted); font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums; vertical-align: middle;
+}
+.img-flag .el-icon { width: 12px; height: 12px; }
+
 /* 通用按钮（自封装；按压 + hover 走 Token） */
 .btn-primary {
   padding: var(--space-2) var(--space-5); background: var(--color-primary); color: var(--color-on-primary);
@@ -268,6 +278,21 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 }
 .btn-danger:hover { background: var(--color-error); color: var(--text-white); }
 .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+/* 全链语义梯度：放行绿 < 驳回黄 < 删除/隐藏红 */
+.btn-success {
+  padding: var(--space-2) var(--space-5); border: 1px solid var(--color-success); border-radius: var(--radius);
+  background: var(--bg-card); color: var(--color-success); font-size: var(--font-base);
+  cursor: pointer; font-weight: var(--weight-medium);
+}
+.btn-success:hover { background: var(--color-success); color: var(--text-white); }
+.btn-success:disabled { opacity: .5; cursor: not-allowed; }
+.btn-warn {
+  padding: var(--space-2) var(--space-5); border: 1px solid var(--color-warning); border-radius: var(--radius);
+  background: var(--bg-card); color: var(--color-warning); font-size: var(--font-base);
+  cursor: pointer; font-weight: var(--weight-medium);
+}
+.btn-warn:hover { background: var(--color-warning); color: var(--text-white); }
+.btn-warn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-sm { padding: var(--space-1) var(--space-4); font-size: var(--font-sm); }
 
 .link { background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: var(--font-sm); padding: var(--space-1) 0; }
@@ -326,7 +351,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
     transition-duration: 0.18s !important;
     scroll-behavior: auto !important;
   }
-  .btn-primary:active, .btn-cancel:active, .btn-danger:active,
+  .btn-primary:active, .btn-success:active, .btn-warn:active, .btn-cancel:active, .btn-danger:active,
   .link:active, .tab:active, .nav-item:active, .tag-option:active,
   .type-opt:active, .action-btn:active, .toggle-btn:active,
   .sec-card:active, .card:active, .pk-card:active, .banner-card:active,

@@ -24,6 +24,9 @@ public class DishAdminVO {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
+    @Schema(description = "搜索别名（逗号分隔，管理员配置，可空）", example = "拉面,牛肉面")
+    private String alias;
+
     @Schema(description = "价格（分）", example = "1200")
     private Integer price;
 
@@ -51,9 +54,6 @@ public class DishAdminVO {
 
     @Schema(description = "浏览量")
     private Integer viewCount;
-
-    @Schema(description = "收藏量（喜欢总数）")
-    private Integer favoriteCount;
 
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;

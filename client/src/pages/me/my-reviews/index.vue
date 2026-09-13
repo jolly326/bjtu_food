@@ -13,13 +13,39 @@
       <view class="list">
         <view v-for="r in list" :key="r.id" class="review-card">
           <view class="card-head">
-            <text class="dish-name">{{ r.dishName || '菜品' }}</text>
+            <view class="card-head-left">
+              <text class="dish-name">{{ r.dishName || '菜品' }}</text>
+              <!-- 内容安检中：仅本人可见的评价显示小标（secState='review'，机审通过后对全量可见） -->
+              <view v-if="r.secState === 'review'" class="sec-badge">
+                <text class="sec-badge-text">审核中</text>
+              </view>
+            </view>
             <view class="rating">
               <IconSvg name="star-filled" :size="24" color="var(--color-primary)" />
               <text class="rating-num">{{ (r.rating || 0).toFixed(1) }}</text>
             </view>
           </view>
           <text class="review-content">{{ r.content }}</text>
+          <!-- 配图行（≤3 张 COS URL）：等比小方图，点击预览大图；破图兜底 empty 中性占位 -->
+          <view v-if="imagesOf(r).length" class="review-images">
+            <view v-for="(img, i) in imagesOf(r)" :key="img" class="review-image-cell">
+              <view class="review-image-box">
+                <image
+                  v-if="!isBroken(r.id, i)"
+                  class="review-image"
+                  :src="getImageUrl(img)"
+                  mode="aspectFill"
+                  role="img"
+                  :aria-label="`评价配图 ${i + 1}`"
+                  @tap="onPreviewImage(r, i)"
+                  @error="markBroken(r.id, i)"
+                />
+                <view v-else class="review-image-fallback">
+                  <IconSvg name="empty" :size="36" color="var(--text-tertiary)" />
+                </view>
+              </view>
+            </view>
+          </view>
           <view class="card-foot">
             <text class="review-time">{{ formatDateTime(r.createTime) }}</text>
             <text
@@ -69,6 +95,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { getMyReviews, deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
+import { getImageUrl } from '@/utils/image'
 import { backToHome } from '@/utils/nav'
 import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
@@ -130,6 +157,31 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
+/* ===== 配图展示（2026-09 恢复 UGC 配图）：≤3 张 COS URL，点击预览大图 ===== */
+function imagesOf(r: Review): string[] {
+  return Array.isArray(r.images) ? r.images.filter(Boolean) : []
+}
+/** 破图下标记录（按评价 id 分桶）：error 后切 empty 中性占位；重拉列表后按 id 天然重置 */
+const brokenMap = ref<Record<string, Set<number>>>({})
+function isBroken(id: number, i: number): boolean {
+  return brokenMap.value[String(id)]?.has(i) ?? false
+}
+function markBroken(id: number, i: number) {
+  const key = String(id)
+  const next = new Set(brokenMap.value[key] || [])
+  next.add(i)
+  brokenMap.value = { ...brokenMap.value, [key]: next }
+}
+/** 预览大图（current 定位到点击那张；破图不计入预览列表） */
+function onPreviewImage(r: Review, i: number) {
+  const imgs = imagesOf(r)
+  const okIdx = imgs.map((_, idx) => idx).filter((idx) => !isBroken(r.id, idx))
+  const okUrls = okIdx.map((idx) => getImageUrl(imgs[idx]))
+  if (!okUrls.length) return
+  const cur = okIdx.indexOf(i)
+  uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
+}
+
 /** 删除本人评价：二次确认 → 删除 → 列表移除（删空后给轻提示） */
 function onDelete(r: Review) {
   uni.showModal({
@@ -174,8 +226,9 @@ onShow(() => {
 }
 
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.card-head-left { display: flex; align-items: center; gap: var(--spacing-xs); flex: 1; min-width: 0; }
 .dish-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
@@ -184,6 +237,14 @@ onShow(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 「审核中」小标（secState='review'，本人可见）：与 ReviewItem 同款 warning 浅底胶囊 */
+.sec-badge {
+  flex-shrink: 0;
+  padding: 2rpx var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-soft);
+}
+.sec-badge-text { font-size: var(--font-tiny); color: var(--color-warning); line-height: 1.4; }
 .rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); flex-shrink: 0; }
 .rating-num { font-size: var(--font-small); color: var(--text-secondary); }
 
@@ -197,6 +258,42 @@ onShow(() => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
+}
+
+/* 配图行：与 ReviewItem/ImagePicker 同一网格语言（3 等分 + 16rpx gap + 等比盒） */
+.review-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: var(--spacing-2xs);
+}
+.review-image-cell {
+  width: calc((100% - 32rpx) / 3);
+}
+.review-image-box {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 100%;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bg-placeholder);
+  -webkit-tap-highlight-color: transparent;
+}
+.review-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.review-image:active { opacity: 0.6; }
+.review-image-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
@@ -227,7 +324,7 @@ onShow(() => {
 }
 .empty-text { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
-/* 加载失败重试块（MP-012）：与 find/activity/feed 重试块同族视觉
+/* 加载失败重试块（MP-012）：与 find/feed 重试块同族视觉
    （居中、凹陷面 bg-soft、次级文字色），整块 @tap 触发重拉，无独立按钮 */
 .my-reviews-retry {
   display: flex;

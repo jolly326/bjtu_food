@@ -2,11 +2,13 @@
   <!-- 写评价底部抽屉（component-org-sheet-unify 2.4）：骨架统一复用 BaseSheet（遮罩/grabber/下滑关闭/安全区/焦点还原），
        本组件只承载「写评价」表单语义（星级 + 正文 + 提交状态），不再自持第二套 sheet 骨架/CSS。
        头部标题「写评价」由 BaseSheet title 渲染，右上 X 由 closable 提供；菜名作为表单首行置于内容区。
-       注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。 -->
+       注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。
+      小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。 -->
   <BaseSheet
     :visible="visible"
     title="写评价"
     closable
+    scroll-body
     z-token="--z-actionsheet"
     @close="onClose"
   >
@@ -36,18 +38,25 @@
         <text class="rc-star-tip">{{ rating > 0 ? `已评 ${rating} 星` : '点击星星打分（必填）' }}</text>
       </view>
 
-      <!-- 正文（选填 ≤500）：与写评价/反馈弹窗 textarea 同款浅底圆角无边框 -->
+      <!-- 正文（选填 ≤500）：与写评价/反馈弹窗 textarea 同款浅底圆角无边框；
+           cursor-spacing 40 对齐全站输入语言（评审 B1-③/M3），键盘弹起不贴输入框 -->
       <view class="rc-input-wrap">
         <textarea
           class="rc-input"
           v-model="content"
           maxlength="500"
           auto-height
+          :cursor-spacing="40"
           placeholder="说说味道、分量、性价比…（选填）"
           placeholder-class="rc-ph"
           :disabled="submitting"
         />
         <view class="rc-count">{{ content.length }}/500</view>
+      </view>
+
+      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传）；提交中禁选 -->
+      <view class="rc-field-images">
+        <ImagePicker v-model="images" :max="3" :disabled="submitting" />
       </view>
 
       <!-- 提交：主色实底；未选星或提交中禁用 -->
@@ -68,6 +77,7 @@
 import { ref, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePicker from '@/components/ImagePicker.vue'
 import { createReview } from '@/api/review'
 
 const props = defineProps<{
@@ -88,6 +98,8 @@ const emit = defineEmits<{
 /* 表单状态 */
 const rating = ref(0)
 const content = ref('')
+/** 配图（COS URL，≤3 张；经 ImagePicker 安检上传） */
+const images = ref<string[]>([])
 const submitting = ref(false)
 
 // 每次打开重置表单（BaseSheet 常驻挂载，由 visible 驱动开合）
@@ -97,6 +109,7 @@ watch(
     if (v) {
       rating.value = 0
       content.value = ''
+      images.value = []
       submitting.value = false
     }
   },
@@ -119,6 +132,8 @@ async function onSubmit() {
       dishId: props.dishId,
       rating: rating.value,
       content: content.value.trim() || undefined,
+      // 配图（≤3 张 COS URL）；违规文本/图片后端 400 message 经此处 toast 直透
+      images: images.value.length ? [...images.value] : undefined,
     })
     uni.showToast({ title: '评价成功', icon: 'success' })
     emit('submitted')
@@ -132,9 +147,11 @@ async function onSubmit() {
 </script>
 
 <style scoped lang="scss">
-/* 内容区仅承载表单语义；水平留白 + 底部常规留白（底部安全区由 BaseSheet 根弹层统一提供 env，此处不重复累加） */
+/* 内容区仅承载表单语义（评审 B1-②）：BaseSheet scroll-body 模式已带
+   padding: md lg (lg+safe-area) 四周留白，此处不再叠加横向/底部 padding 避免双重缩进，
+   仅补顶部少量间距（菜名与头部之间） */
 .rc-body {
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-lg);
+  padding-top: var(--spacing-2xs);
 }
 /* 菜名副标题：次级浅灰小字，单行省略 */
 .rc-dish {
@@ -154,9 +171,13 @@ async function onSubmit() {
 .rc-star-tip { font-size: var(--font-small); color: var(--text-tertiary); }
 
 .rc-input-wrap { position: relative; }
-.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--bg-input); border-radius: var(--radius-card); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
+/* auto-height 上限 320rpx（评审 B1-③）：长文不再无限撑高，超出由 BaseSheet scroll-body 滚动承接 */
+.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; max-height: 320rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--bg-input); border-radius: var(--radius-card); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
 .rc-ph { color: var(--text-hint); }
 .rc-count { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); font-size: var(--font-aux); color: var(--text-tertiary); }
+
+/* 配图区：正文与提交之间留档位间距（ImagePicker 自身网格） */
+.rc-field-images { margin-top: var(--spacing-md); }
 
 .rc-submit { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: var(--spacing-lg); border-radius: 24rpx; background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
 .rc-submit.disabled { opacity: 0.5; }

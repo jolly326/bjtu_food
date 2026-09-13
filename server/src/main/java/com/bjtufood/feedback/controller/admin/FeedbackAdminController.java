@@ -29,7 +29,7 @@ public class FeedbackAdminController {
 
     private final FeedbackService feedbackService;
 
-    @Operation(summary = "反馈列表", description = "ADM。按 status/type/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）。")
+    @Operation(summary = "反馈列表", description = "ADM。按 status/type/secState/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）；secState=review 捞内容安全待人工复核队列。")
     @GetMapping
     public Result<PageResult<FeedbackAdminVO>> list(
             @Parameter(description = "处理状态：pending/handled")
@@ -38,11 +38,13 @@ public class FeedbackAdminController {
             @RequestParam(required = false) String type,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,
+            @Parameter(description = "内容安全状态：pass/review/rejected（可选，复核队列用）", example = "review")
+            @RequestParam(required = false) String secState,
             @Parameter(description = "关键词（可选，对反馈内容 / 管理员回复模糊匹配）")
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<FeedbackAdminVO> result = feedbackService.listForAdmin(status, type, userId, keyword, page, pageSize);
+        IPage<FeedbackAdminVO> result = feedbackService.listForAdmin(status, type, userId, secState, keyword, page, pageSize);
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 

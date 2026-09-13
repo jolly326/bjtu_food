@@ -17,9 +17,9 @@ export const useStallStore = defineStore('stall', () => {
   async function update(id: number, data: Partial<Stall>) { await stallApi.updateById(id, data); await loadAll() }
   async function remove(id: number) { await stallApi.deleteById(id); await loadAll() }
 
-  // 顶层不再裸发请求（对齐 userStore）：未登录（无 token）时跳过，
-  // 避免 http 拦截层 401 清 token 跳登录的副作用；有 token 时兜底加载并吞掉拒绝。
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('token')) {
+  // 管理端无登录体系（2026-09-13 定型）：始终兜底加载（令牌由 http 层统一携带），
+  // 加载失败静默吞掉，避免顶层异常。
+  if (true) {
     loadAll().catch(() => {})
   }
   return { list, loadAll, activeList, add, update, remove }

@@ -101,11 +101,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效
                 // （管理端拿不到对方 token，只能按 userId 拉黑，故此处补一次判定）
+                // 消息涵盖禁用与注销两种来源：本人注销时也会按 userId 兜底拉黑其余设备的旧 token（AuthService.deleteAccount）
                 if (userId != null && tokenBlacklist.isUserRevoked(userId)) {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");
                     try {
-                        response.getWriter().write("{\"code\":401,\"message\":\"账号已被禁用，请联系管理员\",\"data\":null}");
+                        response.getWriter().write("{\"code\":401,\"message\":\"账号已被禁用或注销，请重新登录\",\"data\":null}");
                     } catch (Exception ignored) {
                     }
                     return;

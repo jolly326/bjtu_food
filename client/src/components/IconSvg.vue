@@ -46,7 +46,6 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   star: { path: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'] },
   // 实心星星（填充黄，E16）：与 star 同形，fill 实心渲染（展示用评分星）
   'star-filled': { path: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'], fill: true },
-  broadcast: { path: ['M4 11a9 9 0 0 1 9 9', 'M4 4a16 16 0 0 1 16 16'], circle: [{ cx: 5, cy: 19, r: 1.5, fill: 'currentColor' }] },
   home: { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'] },
   profile: { path: ['M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M4 21a8 8 0 0 1 16 0'] },
   fire: { path: ['M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 1-3-2 1-4 3-4 6a7 7 0 0 0 14 0c0-5-7-11-7-11z'] },
@@ -97,11 +96,6 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'report-fill': { path: ['M10.6 3.8a2 2 0 0 1 2.8 0l6.4 7a2 2 0 0 1 0 2.8l-6.4 7a2 2 0 0 1-2.8 0l-6.4-7a2 2 0 0 1 0-2.8z'], fill: true },
   // 搜索放大镜实心（信息不对搜索菜品）：实心镜片 + 手柄（手柄以端部圆点表达，避免开放式描边）
   'search-fill': { circle: [{ cx: 10.5, cy: 10.5, r: 6, fill: 'currentColor' }], path: ['M14.8 14.8l5.7 5.7'], fill: false },
-  // ── activity-page-q-style：广播/喇叭胖填充 + 右向胖箭头（最新活动页） ──
-  // 喇叭实心（来源/活动）：胖圆号角 + 右侧两条声波
-  'broadcast-fill': { path: ['M4.2 9.7h.9l7.4-4.9A1.5 1.5 0 0 1 14.6 6.1v11.8a1.5 1.5 0 0 1-2.1 1.3L5.1 14.3h-.9a1.8 1.8 0 0 1-1.8-1.8v-1A1.8 1.8 0 0 1 4.2 9.7z', 'M16.6 9.3v5.4a1.05 1.05 0 0 0 2.1 0V9.3a1.05 1.05 0 0 0-2.1 0z', 'M19.8 7.7v8.6a1.2 1.2 0 0 0 2.4 0V7.7a1.2 1.2 0 0 0-2.4 0z'], fill: true },
-  // 右向胖箭头（阅读原文胶囊；块状尾部 + 三角箭头一体闭合轮廓）
-  'arrow-fat': { path: ['M4 4.6a1 1 0 0 1 1-1h8.3a1.6 1.6 0 0 1 1.2 2.6l3 3.2a1.3 1.3 0 0 1 0 1.7l-3 3.2a1.6 1.6 0 0 1-1.2 2.6H5a1 1 0 0 1-1-1z'], fill: true },
 }
 
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）

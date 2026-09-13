@@ -108,6 +108,10 @@ public class DishVO {
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 
+    /** 信息更新时间：详情页展示「信息更新于 X」，供学生判断信息新鲜度 */
+    @Schema(description = "信息更新时间")
+    private LocalDateTime updatedAt;
+
     // ==================== 一期新增菜品属性标签字段 ====================
 
     /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */

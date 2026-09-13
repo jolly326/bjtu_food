@@ -65,8 +65,8 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException("User not found");
         }
-        // 垂直越权防护：禁止操作自身；目标为管理员/超级管理员时，仅 SUPER_ADMIN 可操作
-        checkAdminOperation(user);
+        // 说明：管理端已无登录与角色体系（2026-09-13 定型），用户状态变更不再做「禁止操作自身/越权」判定；
+        // 管理端接口整体由 AdminTokenFilter 的口令校验保护。
         user.setStatus(status);
         userMapper.updateById(user);
         // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
@@ -79,55 +79,8 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    @Override
-    public void updateRole(Long id, String role) {
-        User user = userMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException("User not found");
-        }
-        // 垂直越权防护：禁止操作自身；目标为管理员/超级管理员时，仅 SUPER_ADMIN 可操作
-        checkAdminOperation(user);
-        if (!RoleConst.STUDENT.equals(role) && !RoleConst.ADMIN.equals(role)) {
-            throw new BusinessException("角色只能设置为 student 或 admin");
-        }
-        user.setRole(role);
-        userMapper.updateById(user);
-        // 角色变更（含降权）后旧 token 载荷中的 role 已过时，必须整体失效：
-        // 按用户维度拉黑，客户端下次请求 401 后重新登录换取携带新角色的 token。
-        tokenBlacklist.revokeUser(id);
-    }
-
-    /**
-     * 垂直越权防护：
-     * 1. 禁止当前操作者对自身执行角色/状态变更（防误锁死自己）；
-     * 2. 当目标用户为 admin / super_admin 时，仅 SUPER_ADMIN 可操作，普通 admin 不可越权。
-     */
-    private void checkAdminOperation(User target) {
-        Object details = SecurityContextHolder.getContext().getAuthentication().getDetails();
-        Long operatorId = (details instanceof Long) ? (Long) details : null;
-        if (operatorId != null && operatorId.equals(target.getId())) {
-            throw new BusinessException("不能对自身执行该操作");
-        }
-        boolean targetIsAdmin = RoleConst.ADMIN.equals(target.getRole())
-                || RoleConst.SUPER_ADMIN.equals(target.getRole());
-        if (targetIsAdmin) {
-            String operatorRole = resolveOperatorRole();
-            if (!RoleConst.SUPER_ADMIN.equals(operatorRole)) {
-                throw new BusinessException("无权操作管理员账号");
-            }
-        }
-    }
-
-    /** 从 SecurityContext 解析当前操作者角色（JwtAuthFilter 已写入 authorities） */
-    private String resolveOperatorRole() {
-        var authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        for (var a : authorities) {
-            String auth = a.getAuthority();
-            if ("ROLE_SUPER_ADMIN".equals(auth)) return RoleConst.SUPER_ADMIN;
-            if ("ROLE_ADMIN".equals(auth)) return RoleConst.ADMIN;
-        }
-        return null;
-    }
+    // 垂直越权防护（checkAdminOperation / resolveOperatorRole）已随管理端角色体系一并移除：
+    // 后台无登录、无角色、单一使用者，管理端接口由 AdminTokenFilter 口令校验统一保护。
 
     private UserVO toVO(User user) {
         UserVO vo = new UserVO();

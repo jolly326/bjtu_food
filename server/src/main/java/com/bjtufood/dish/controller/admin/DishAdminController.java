@@ -62,7 +62,7 @@ public class DishAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价、收藏和清单项。")
+    @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价及评价「有用」标记（review_useful）。")
     @AuditLog(action = OperationLogConst.ACTION_DISH_DELETE, targetType = "dish", targetId = "#id")
     @DeleteMapping("/{id}")
     public Result<Void> deleteDish(

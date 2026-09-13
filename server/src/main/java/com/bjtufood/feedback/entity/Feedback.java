@@ -30,6 +30,17 @@ public class Feedback {
     @Schema(description = "反馈内容")
     private String content;
 
+    /** 反馈配图 URL 列表 JSON（COS 绝对地址，≤3 张；落库为 JSON 字符串，见 JsonListUtil） */
+    @Schema(description = "反馈配图URL列表JSON（COS 绝对地址，≤3 张）")
+    private String images;
+
+    /**
+     * 内容安全状态（产品定稿 2026-09-13）：pass / review / rejected。
+     * 反馈无公开展示，仅作管理端复核标记（列表 secState 筛选）。
+     */
+    @Schema(description = "内容安全状态：pass/review/rejected（仅管理端复核标记）")
+    private String secState;
+
     @Schema(description = "联系方式")
     private String contact;
 

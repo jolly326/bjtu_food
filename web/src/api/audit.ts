@@ -1,4 +1,4 @@
-import type { AuditVO, Review } from '@/types'
+import type { AuditVO, Review, SecAction, SecState } from '@/types'
 import { del, get, post, put } from './http'
 import { pageRecords, auditToLegacy, reviewToLegacy } from './adapter'
 
@@ -22,18 +22,20 @@ export async function rejectAudit(type: AuditType, id: number, rejectReason: str
   await post<void>(`/admin/audit/${type}/${id}/reject`, { rejectReason })
 }
 
-/** 评价列表（分页，可按 isHidden 过滤；pageSize 对齐后端 PageUtil 上限 100） */
-export async function listReviews(isHidden?: boolean, page = 1, pageSize = 100): Promise<Review[]> {
+/** 评价列表（分页，可按 isHidden / secState 过滤；pageSize 对齐后端 PageUtil 上限 100） */
+export async function listReviews(isHidden?: boolean, page = 1, pageSize = 100, secState?: SecState | ''): Promise<Review[]> {
   const params: Record<string, unknown> = { page, pageSize }
   if (isHidden !== undefined) params.isHidden = isHidden
+  if (secState) params.secState = secState
   return pageRecords(await get<any>('/admin/reviews', params)).map(reviewToLegacy)
 }
 
 /**
- * 评价全量检索：后端按 isHidden + 服务端过滤分页，前端翻页聚合全部页，
+ * 评价全量检索：后端按 isHidden + secState + 服务端过滤分页，前端翻页聚合全部页，
  * 避免默认分页硬上限导致超出部分漏搜漏审（如关键词检索场景）。
+ * secState 传 'review' 时聚合返回全部待复核评价（安检复核队列数据源）。
  */
-export async function listAllReviews(isHidden?: boolean, keyword?: string): Promise<Review[]> {
+export async function listAllReviews(isHidden?: boolean, keyword?: string, secState?: SecState | ''): Promise<Review[]> {
   const PAGE_SIZE = 100
   const all: Review[] = []
   let page = 1
@@ -41,6 +43,7 @@ export async function listAllReviews(isHidden?: boolean, keyword?: string): Prom
     const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
     if (isHidden !== undefined) params.isHidden = isHidden
     if (keyword) params.keyword = keyword.trim()
+    if (secState) params.secState = secState
     const data = await get<any>('/admin/reviews', params)
     const records: Review[] = pageRecords(data).map(reviewToLegacy)
     all.push(...records)
@@ -54,6 +57,11 @@ export async function listAllReviews(isHidden?: boolean, keyword?: string): Prom
 /** 设置评价隐藏 / 显示（is_hidden 控制可见性，显式语义） */
 export async function setReviewHidden(id: number, hidden: boolean) {
   await put<void>(`/admin/reviews/${id}/hide`, { hidden })
+}
+
+/** 内容安检复核：放行 / 驳回（与 reviewApi.updateSecState 同一后端契约，供审核中心就近调用） */
+export async function setReviewSecState(id: number, state: SecAction) {
+  await put<void>(`/admin/reviews/${id}/sec-state`, { state })
 }
 
 /** 删除评价（不当图片可单独删除，破坏性操作） */

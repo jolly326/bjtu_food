@@ -7,7 +7,9 @@ import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.VerifyEmailReq;
 import com.bjtufood.auth.dto.WechatLoginReq;
 import com.bjtufood.auth.service.AuthService;
+import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.config.IpRateLimiter;
+import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
@@ -17,8 +19,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -36,6 +40,9 @@ public class AuthController {
     private static final IpRateLimiter.Rule EMAIL_CODE_PER_MINUTE = new IpRateLimiter.Rule(3, 60_000L);
     /** IP 限频（P3/BE-105）：同 IP 每小时 ≤10 次，补齐「换邮箱绕过 60s 冷却」的缺口 */
     private static final IpRateLimiter.Rule EMAIL_CODE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
+
+    /** 请求头中 Token 的前缀（与 JwtAuthFilter 保持一致） */
+    private static final String TOKEN_PREFIX = "Bearer ";
 
     @Operation(
             summary = "获取邮箱验证码（认证用途）",
@@ -153,5 +160,50 @@ public class AuthController {
         Long userId = SecurityUtil.getCurrentUserId();
         authService.changePassword(userId, req.getOldPassword(), req.getNewPassword());
         return Result.success();
+    }
+
+    @Operation(
+            summary = "注销账号（匿名化）",
+            description = """
+                    用途：用户主动注销当前登录账号（合规硬需求）。语义为匿名化而非物理删除：
+                    昵称置为「已注销用户」，头像/邮箱/密码/微信绑定全部清空，认证状态复位，
+                    username 改写为 deleted_{id} 以释放唯一键（同一微信可重新静默登录建新游客号）；
+                    历史评价与反馈保留（展示昵称随 join user 自然变为「已注销用户」，评分聚合不破坏），
+                    该用户验证码记录删除，通知与浏览记录保留。
+                    注销后当前 token 立即失效（其余设备的历史 token 一并失效）。
+                    幂等：已注销账号重复调用返回 400「账号已注销」。
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    // 操作日志（ACTION_ACCOUNT_DELETE 常量既有，本次接入首个调用方）：
+    // targetId 经 SpEL T() 取当前登录用户（AuditLogAspect 在 proceed 前解析，此时 SecurityContext 已就绪）；
+    // 操作人 admin_id 与 IP 由 AuditLogAspect 统一写入。
+    @AuditLog(action = OperationLogConst.ACTION_ACCOUNT_DELETE, targetType = "user",
+            targetId = "T(com.bjtufood.common.utils.SecurityUtil).getCurrentUserId()")
+    @DeleteMapping("/auth/account")
+    public Result<Void> deleteAccount(HttpServletRequest request) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        authService.deleteAccount(userId, extractToken(request));
+        return Result.success();
+    }
+
+    /** 从当前请求头提取 JWT（兼容 Authorization: Bearer 与 Swagger bearerAuth 头），供注销后拉黑 */
+    private String extractToken(HttpServletRequest request) {
+        String token = extractTokenFromHeader(request.getHeader("Authorization"));
+        if (token == null) {
+            token = extractTokenFromHeader(request.getHeader("bearerAuth"));
+        }
+        return token;
+    }
+
+    private String extractTokenFromHeader(String header) {
+        if (!StringUtils.hasText(header)) {
+            return null;
+        }
+        String token = header.trim();
+        while (token.regionMatches(true, 0, TOKEN_PREFIX, 0, TOKEN_PREFIX.length())) {
+            token = token.substring(TOKEN_PREFIX.length()).trim();
+        }
+        return token;
     }
 }

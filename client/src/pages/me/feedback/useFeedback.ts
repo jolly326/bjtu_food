@@ -47,6 +47,7 @@ export function useFeedback() {
     suggestion: {
       sub: 'idea' as 'idea' | 'problem',
       text: '',
+      images: [] as string[],
     },
     add: {
       name: '',
@@ -57,12 +58,14 @@ export function useFeedback() {
       stallCustom: '',
       floor: '',
       description: '',
+      images: [] as string[],
     },
     error: {
       dish: null as Dish | null,
       points: [] as string[],
       correctValues: {} as Record<string, string>,
       evidenceText: '',
+      images: [] as string[],
     },
   })
 
@@ -411,6 +414,7 @@ export function useFeedback() {
   function resetForm() {
     form.suggestion.sub = 'idea'
     form.suggestion.text = ''
+    form.suggestion.images = []
     form.add.name = ''
     form.add.price = ''
     form.add.canteen = ''
@@ -419,10 +423,12 @@ export function useFeedback() {
     form.add.stallCustom = ''
     form.add.floor = ''
     form.add.description = ''
+    form.add.images = []
     form.error.dish = null
     form.error.points = []
     form.error.correctValues = {}
     form.error.evidenceText = ''
+    form.error.images = []
     dishKeyword.value = ''
     dishCandidates.value = []
     dishSearched.value = false
@@ -513,6 +519,10 @@ export function useFeedback() {
 
     if (content.length > 1000) { uni.showToast({ title: '内容不能超过1000字', icon: 'none' }); return }
 
+    // 配图（≤3 张 COS URL）：取当前类型子树，非空才上送；违规图片在上传阶段即被后端拦截
+    const typeImages = t === 'suggestion' ? form.suggestion.images : t === 'add' ? form.add.images : form.error.images
+    const images = (typeImages || []).filter(Boolean)
+
     submitting.value = true
     try {
       await submitFeedback({
@@ -520,6 +530,7 @@ export function useFeedback() {
         content,
         relatedType,
         relatedId,
+        images: images.length ? images : undefined,
       })
       // 成功反馈 + 处理预期说明；游客须明确「未记账号，结果无法单独通知」（见 feedback-receipt）
       uni.showToast({

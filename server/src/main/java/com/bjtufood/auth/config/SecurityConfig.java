@@ -45,6 +45,8 @@ import java.nio.charset.StandardCharsets;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    private final AdminTokenFilter adminTokenFilter;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
@@ -59,8 +61,6 @@ public class SecurityConfig {
             "/auth/wechat-login", "/api/auth/wechat-login",
             "/auth/email-code", "/api/auth/email-code",
             "/auth/verify-email", "/api/auth/verify-email",
-            // 管理后台登录（方案 C：管理员账号密码）
-            "/auth/admin/login", "/api/auth/admin/login",
             // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback", "/api/feedback",
             // SpringDoc Swagger UI 文档
@@ -82,10 +82,7 @@ public class SecurityConfig {
             "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
             "/images/**", "/api/images/**",
-            "/broadcasts", "/api/broadcasts",
-            "/categories", "/api/categories",
-            // 活动列表/详情为公开浏览内容（GET），游客可看；写操作仍须登录
-            "/activities/**", "/api/activities/**"
+            "/categories", "/api/categories"
     };
 
     @Bean
@@ -104,8 +101,9 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ANY_METHOD).permitAll()
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES).permitAll()
-                        // 管理端接口需要管理员角色
-                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
+                        // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
+                        .requestMatchers("/admin/**").permitAll()
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )
@@ -116,7 +114,10 @@ public class SecurityConfig {
                                 writeJson(response, HttpServletResponse.SC_FORBIDDEN, Result.forbidden("无权限访问该接口")))
                 )
 
-                // 4. 注册 JWT 过滤器（在 UsernamePasswordAuthenticationFilter 之前）
+                // 4. 注册管理端口令过滤器（先注册即先执行：/admin 走口令，不再走 JWT 角色）
+                .addFilterBefore(adminTokenFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // 5. 注册 JWT 过滤器（在 UsernamePasswordAuthenticationFilter 之前）
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

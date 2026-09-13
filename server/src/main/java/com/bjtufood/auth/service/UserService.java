@@ -75,5 +75,5 @@ public interface UserService {
      * @param role 新角色：user/admin
      * @throws com.bjtufood.common.exception.BusinessException 参数不合法
      */
-    void updateRole(Long id, String role);
+
 }

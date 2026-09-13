@@ -3,7 +3,7 @@
  *
  * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落（此前 14 文件 30+ 处），
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（11 页：主包 3 + 分包 8）。
+ * 与 `client/src/pages.json` 严格一致（9 页：主包 3 + pages/detail/ 1 + pages/me/ 5）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
  */
 
@@ -21,9 +21,6 @@ export const PATH = {
   feedback: '/pages/me/feedback/index',
   myReviews: '/pages/me/my-reviews/index',
   privacy: '/pages/me/privacy/index',
-  // 分包 pages/activity/（活动 + webview，独立分包）
-  activity: '/pages/activity/index',
-  activityWebview: '/pages/activity/webview',
 } as const
 
 /** 主包 TabBar 路由集合（TabBar.vue / route store 复用） */
@@ -46,11 +43,6 @@ export const ROUTE_KEY_BY_URL: Record<string, string> = {
 /** 菜品详情：/pages/detail/dish/index?id= */
 export function dishDetailUrl(id: number | string): string {
   return `${PATH.dishDetail}?id=${id}`
-}
-
-/** 活动 webview：?url= 编码后的公众号文章链接 */
-export function activityWebviewUrl(articleUrl: string): string {
-  return `${PATH.activityWebview}?url=${encodeURIComponent(articleUrl)}`
 }
 
 /* ===== 贡献入口统一落点（唯一构造函数，禁止各入口手拼参数；见 spec contribution-entry） ===== */

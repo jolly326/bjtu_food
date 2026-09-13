@@ -42,9 +42,9 @@ async function request<T>(
       method,
       headers: {
         'Content-Type': 'application/json',
-        // 已知折中（M12）：token 存于 localStorage（非 httpOnly Cookie），存在 XSS 窃取风险，
-        // 但可免跨端改动；敏感操作统一在此携带 Bearer token，由后端校验。已确认无 v-html 渲染用户输入。
-        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        // 管理端无登录体系（2026-09-13 定型）：携带环境变量里的管理端口令，由后端 AdminTokenFilter 校验。
+        // 口令配置在 web/.env.local 的 VITE_ADMIN_TOKEN（与后端 ADMIN_TOKEN 一致）；仅本地使用，不入库。
+        'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN || '',
       },
       body: method !== 'GET' && data ? JSON.stringify(data) : undefined,
       signal: controller.signal,
@@ -52,13 +52,12 @@ async function request<T>(
 
     clearTimeout(timeout)
     if (!res.ok) {
-      // 401 统一处理：清 token + 跳转登录/emit 事件（对齐小程序 §5.x 错误码）
+      // 管理端无登录体系：401/403 均按「口令或鉴权问题」提示（不再跳登录页）
       if (res.status === 401) {
-        emitUnauthorized()
-        throw new Error('登录已失效，请重新登录')
+        throw new Error('未授权：请检查管理端口令配置')
       }
       if (res.status === 403) {
-        throw new Error('无权限执行此操作')
+        throw new Error('无权限：管理端口令无效或未配置')
       }
       throw new Error(`HTTP ${res.status}`)
     }

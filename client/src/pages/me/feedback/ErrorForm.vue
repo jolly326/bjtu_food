@@ -88,7 +88,7 @@
       <text v-if="errors['error.points']" class="field-error">{{ errors['error.points'] }}</text>
     </view>
 
-    <!-- 作证（选填）：文本，仅选中问题后显示 -->
+    <!-- 作证（选填）：文本 + 配图，仅选中问题后显示 -->
     <view v-if="model.points.length" class="evidence-box">
       <text class="evidence-title">作证</text>
       <view class="field">
@@ -103,6 +103,12 @@
           :adjust-position="true"
         />
       </view>
+      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传），随 model.images 交给父页提交；
+           标签统一「配图」（评审 m2）；提交中禁选（评审 m1） -->
+      <view class="field">
+        <text class="field-label">配图</text>
+        <ImagePicker v-model="model.images" :max="3" :disabled="submitting" />
+      </view>
     </view>
   </view>
 </template>
@@ -111,18 +117,22 @@
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePicker from '@/components/ImagePicker.vue'
 
-/** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本） */
+/** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本/配图） */
 const props = defineProps<{
   model: {
     dish: Dish | null
     points: string[]
     correctValues: Record<string, string>
     evidenceText: string
+    images: string[]
   }
   /** 纠错选项定义（key/label/icon/editPlaceholder），与父页提交/校验共用同一数组源 */
   points: { key: string; label: string; icon: string; editPlaceholder: string }[]
   errors: Record<string, string>
+  /** 提交中：禁选配图（评审 m1，与 ReviewComposer 一致） */
+  submitting?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'open-dish'): void

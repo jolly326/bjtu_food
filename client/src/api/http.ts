@@ -22,6 +22,8 @@ export type RequestData = string | object | ArrayBuffer | undefined
 export interface RequestOptions {
   header?: Record<string, string>
   hideLoading?: boolean
+  /** 注销等敏感调用：401 时禁止「静默登录后重试」（重试会以新游客身份执行，可能误删新账号） */
+  skipAuthRetry?: boolean
 }
 
 /** 平台响应载体：请求层只关心 body 内容（data），其余字段由微信/uni 回调自身携带 */
@@ -198,6 +200,10 @@ async function request<T>(
     throw new Error(detail ? `服务响应异常：${detail}` : '服务响应异常，请稍后重试')
   }
   if (body.code === 401) {
+    // skipAuthRetry（注销等敏感调用）：401 直接上抛——静默登录可能建出新游客号，重试会误删新账号。
+    if (options?.skipAuthRetry) {
+      throw new Error('登录状态已失效，请重新进入小程序后操作')
+    }
     // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
     // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
     // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报（§5.x）。
@@ -244,8 +250,8 @@ export async function put<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('PUT', url, data)
 }
 
-export async function del<T>(url: string, data?: RequestData): Promise<T> {
-  return request<T>('DELETE', url, data)
+export async function del<T>(url: string, data?: RequestData, options?: RequestOptions): Promise<T> {
+  return request<T>('DELETE', url, data, options)
 }
 
 /** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起 */
