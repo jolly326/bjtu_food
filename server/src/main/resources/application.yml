@@ -8,6 +8,13 @@ server:
   servlet:
     context-path: /api          # 所有接口统一前缀（如 /api/dishes）
 
+# ---------- 管理端（Web 后台）口令 ----------
+# 2026-09-13 定型：Web 后台为本地数据操作工具、无登录体系；管理端接口（/admin/**）
+# 由 AdminTokenFilter 校验请求头 X-Admin-Token 是否等于此处配置。
+# 未配置时 fail-closed：全部 /admin 请求返回 403「管理端未配置 ADMIN_TOKEN」。云端/生产必须注入。
+admin:
+  token: ${ADMIN_TOKEN:}
+
 spring:
   application:
     name: bjtu-food

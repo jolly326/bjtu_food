@@ -50,22 +50,4 @@ public class UserAdminController {
         return Result.success();
     }
 
-    @Operation(
-            summary = "修改用户角色",
-            description = "用途：设置 student / admin。",
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "role": "admin"
-                    }
-                    """)))
-    )
-    @PutMapping("/{id}/role")
-    public Result<Void> updateRole(
-            @Parameter(description = "用户ID", example = "1")
-            @PathVariable Long id,
-            @RequestBody Map<String, Object> body) {
-        String role = (String) body.get("role");
-        userService.updateRole(id, role);
-        return Result.success();
-    }
 }

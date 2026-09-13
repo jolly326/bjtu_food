@@ -1,7 +1,5 @@
 package com.bjtufood.auth.service;
 
-import com.bjtufood.auth.dto.AdminLoginReq;
-import com.bjtufood.auth.dto.AdminLoginResp;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
@@ -101,14 +99,6 @@ public interface AuthService {
      * @param token  当前请求携带的 JWT（用于注销后立即失效；可空——为空时仅按 userId 拉黑）
      */
     void deleteAccount(Long userId, String token);
-
-    /**
-     * 管理后台登录（方案 C，spec §5.y.5）：管理员账号密码 + BCrypt + JWT。
-     *
-     * @param req 账号 + 密码
-     * @return AdminLoginResp{token, username, role}
-     */
-    AdminLoginResp adminLogin(AdminLoginReq req);
 
     /**
      * 将 User 实体转换为小程序端用户信息 VO。

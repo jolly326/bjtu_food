@@ -2,8 +2,6 @@ package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.bjtufood.auth.dto.AdminLoginReq;
-import com.bjtufood.auth.dto.AdminLoginResp;
 import com.bjtufood.auth.dto.LoginResp;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
@@ -67,7 +65,6 @@ public class AuthServiceImpl implements AuthService {
     private final SensitiveFilter sensitiveFilter;
     private final ContentSecurityService contentSecurityService;
     private final TokenBlacklist tokenBlacklist;
-    private final com.bjtufood.auth.config.AdminLoginAttemptLimiter loginAttemptLimiter;
 
     @Override
     public void createEmailCode(String username, String email, String purpose) {
@@ -277,33 +274,8 @@ public class AuthServiceImpl implements AuthService {
                 .eq(EmailVerificationCode::getEmail, email));
     }
 
-    @Override
-    public AdminLoginResp adminLogin(AdminLoginReq req) {
-        String account = req.getAccount().trim();
-        // 同账号失败锁定：锁定期内直接拒绝，抑制对管理后台的暴力破解（P1-7）
-        loginAttemptLimiter.checkLocked(account);
-        User user = userService.getByUsername(account);
-        if (user == null || !RoleConst.isAdmin(user.getRole())
-                || !StringUtils.hasText(user.getPassword())
-                || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            // 统一口径记录失败（含账号不存在），避免通过计数差异探测账号存在性
-            loginAttemptLimiter.recordFailure(account);
-            throw new BusinessException("账号或密码错误");
-        }
-        if ("disabled".equals(user.getStatus())) {
-            throw new BusinessException("账号已被禁用");
-        }
-        if ("deleted".equals(user.getStatus())) {
-            throw new BusinessException("账号已注销");
-        }
-        user.setLastLoginAt(DateTimeUtil.now());
-        userMapper.updateById(user);
-        // 登录成功清除失败计数
-        loginAttemptLimiter.reset(account);
-        // 管理端短期 Token：12 小时过期，降低泄露风险（学生端静默登录保持 7 天，见 application.yml）
-        String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername(), ADMIN_TOKEN_EXPIRATION_MS);
-        return new AdminLoginResp(token, user.getUsername(), user.getRole());
-    }
+    // 管理后台登录（adminLogin）已随管理端账号体系一并移除（2026-09-13 定型：后台无登录，
+    // 管理端接口由 AdminTokenFilter 的环境变量口令 ADMIN_TOKEN 校验保护）。
 
     @Override
     public UserInfoVO toUserInfo(User user) {
@@ -358,7 +330,6 @@ public class AuthServiceImpl implements AuthService {
      * 管理端凭据泄露面小但危害大，短期过期降低风险；
      * 学生端静默登录保持长期（见 toLoginResp），两者策略分离。
      */
-    private static final long ADMIN_TOKEN_EXPIRATION_MS = 12 * 60 * 60 * 1000L;
 
     /**
      * 新建微信游客账号（verified=0）。

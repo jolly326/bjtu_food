@@ -26,7 +26,7 @@ export async function uploadImage(file: File): Promise<UploadImageResult> {
     const res = await fetch(`${API_BASE_URL}/upload/image`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN || '',
       },
       body: formData,
       signal: controller.signal,
