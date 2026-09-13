@@ -195,10 +195,22 @@ public class ReviewServiceImpl implements ReviewService {
         review.setContent(filteredContent);
         review.setIsHidden(0);
 
+        // ---- UGC 准入门槛（project_spec §7.5 / §7.7：verified=1 且 openid 非空）----
+        // 仅约束「公开可见的评价内容」：微信 msgSecCheck v2 必填 openid，而 checkUgcText 在
+        // openid 为 NULL 时会走「跳过机审放行」分支，故必须在机检之前前置双约束，否则口子敞开。
+        // 反馈 / 投稿 / 举报按 §7.7 免认证，不受此约束。
+        User reviewUser = userMapper.selectById(userId);
+        if (reviewUser == null
+                || reviewUser.getVerified() == null
+                || reviewUser.getVerified() != 1
+                || !StringUtils.hasText(reviewUser.getOpenid())) {
+            throw new BusinessException(403, "请先完成邮箱认证并使用微信登录");
+        }
+
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2 评论）：risky 由 checkText 统一拦截（400），
         // review 态落库 sec_state='review'（对他端不可见，作者本人可见并提示「审核中」）。
-        // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（产品登记边界）。
+        // 注：openid 为 NULL 的情形已由上方准入校验拦截，此处不会走到「跳过机审放行」分支。
         review.setSecState(checkUgcText(userId, filteredContent, 2));
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）

@@ -73,11 +73,10 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
-        // 边界（报告备案）：
-        // 1. 游客反馈（userId=null，PUB 接口）无 openid → 无法调 v2 接口，跳过机审放行，
-        //    依赖 SensitiveFilter 本地敏感词过滤 + 管理端人工处理兜底；
-        // 2. 登录用户 openid 为 NULL（历史学号账号）→ 同样跳过机审放行；
-        // 3. 微信凭据未配置（本地开发环境）→ 跳过机审放行，生产必须配置。
+        // 边界（project_spec §7.7，2026-09-14 修订：不再静默放行）：
+        // 1. 游客反馈（userId=null，PUB 接口）与登录但 openid 为 NULL 的账号 → 无法调 v2 接口，
+        //    一律落库 sec_state='review' 进管理端人工复核队列（反馈不公开展示，先落库后复核）；
+        // 2. 微信凭据未配置（本地开发环境）→ 机检内部跳过返回 pass，生产必须配置。
         // 反馈无公开展示，sec_state 仅作管理端复核标记。
         feedback.setSecState(checkUgcText(userId, feedback.getContent()));
         feedback.setImages(encodeImages(req.getImages()));
@@ -90,10 +89,16 @@ public class FeedbackServiceImpl implements FeedbackService {
             return SEC_STATE_PASS;
         }
         if (userId == null) {
-            return SEC_STATE_PASS;
+            // 游客反馈（PUB 接口）无用户身份、无可信 openid：不静默放行，落库待人工复核
+            return SEC_STATE_REVIEW;
         }
         User user = userMapper.selectById(userId);
         String openid = user == null ? null : user.getOpenid();
+        if (!StringUtils.hasText(openid)) {
+            // 无 openid（历史学号 / 邮箱账号）：msgSecCheck v2 无法调用，
+            // 按 §7.7 不跳过放行，落库标记 review 进管理端人工复核队列。
+            return SEC_STATE_REVIEW;
+        }
         SecSuggest suggest = contentSecurityService.checkText(openid, content, 2);
         return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
     }
