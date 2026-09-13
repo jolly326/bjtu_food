@@ -11,17 +11,17 @@
 | 主键 | 业务表统一 `BIGINT AUTO_INCREMENT`；`email_verification_code` 等同样自增主键 |
 | 时间戳 | `created_at` 默认 `CURRENT_TIMESTAMP`；`updated_at` 默认 `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`（由 `MybatisMetaObjectHandler` 统一写入） |
 | 金额 | 以「分」为单位存储 `INT`（如 12.00 元 = `1200`），避免浮点误差 |
-| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`）；`review.images` 为 JSON 数组字符串，按表定义 |
-| 审核流 | UGC 实体（`dish`/`stall`/`canteen`/`apply_action`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
+| 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，仅用于菜品/食堂/档口图）；UGC 评价/反馈已全量纯文本，无 images 列 |
+| 审核流 | UGC 实体（`dish`/`stall`/`canteen`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
 | 角色 | `user.role`：`student`（默认）/ `admin` / `super_admin`；`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 14 张业务表）
+## 2. 表清单（共 14 张表，与 `schema.sql` 严格一致）
 
-`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `broadcast` · `activity` · `user_feedback` · `apply_action` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `broadcast` · `activity` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
 
-> 说明：`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除（见 `task-12.12`）。
+> 说明：`broadcast` 为**兼容保留表**（运营广播方案已废弃、首页不消费，仅历史数据兼容，总表数含其为 14）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。
 
 ---
 
@@ -101,7 +101,7 @@
 | promo_price | INT | 可 | NULL | 促销价（分，非空=有折扣） |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
-| tags | VARCHAR(128) | 可 | NULL | 逗号分隔：recommended/signature |
+| tags | VARCHAR(128) | 可 | NULL | 逗号分隔；**权威值域：`recommended`（必吃推荐）/ `signature`（招牌菜）**；web 管理端写入值域以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值，禁止写入中文或其他值 |
 | region | VARCHAR(32) | 可 | NULL | 地域（美食来源地），如 清真/川湘/西北/粤式/东北（一期扩展，schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
 | portion | INT | 否 | 1 | 分量：0小/1中/2大 |
@@ -118,6 +118,8 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_category`(`category_id`)；KEY `idx_dish_audit`(`audit_status`)；KEY `idx_dish_heat`(`status`,`audit_status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。
 
+**技术债（F-003①，2026-09 收口登记）**：`DishMapper.xml` 中 `selectPromotionDishes`（`FIND_IN_SET('promotion', d.tags)`，对外 `GET /dishes/promotions`）为**死查询**——写入侧无任何来源（web TAG_OPTIONS 仅 recommended/signature，seed_data.sql 无 promotion），消费侧无终端页面（client store 导出 `promotionDishes` 但无页面引用）；小程序「限时优惠」展示消费的是 `promo_price` 字段，与本标签无关。故 `promotion` **不登记**入权威值域；该查询链路如后续无消费场景应随死代码清理，在此之前任何人不得在 web 端或 seed 中写入 `promotion` 值。
+
 ### 3.5 review（评价）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
@@ -126,9 +128,9 @@
 | dish_id | BIGINT | 否 | 0 | 被评价菜品ID |
 | rating | INT | 否 | 0 | 评分（1-5星） |
 | content | VARCHAR(512) | 可 | NULL | 评价内容 |
-| images | VARCHAR(1024) | 可 | NULL | 评价图片 JSON |
+| tags | VARCHAR(255) | 可 | NULL | 评价标签（美团式写评预留列，**当前预留未消费**，schema.sql 已建列） |
 | is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏） |
-| useful_count | INT | 否 | 0 | 「有用」标记数（由 review_useful 聚合维护） |
+| useful_count | INT | 否 | 0 | 「有用」标记数（schema.sql 末尾幂等 ALTER 追加列，由 review_useful 聚合维护） |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_review_dish`(`dish_id`)；KEY `idx_review_user`(`user_id`)；UNIQUE `uk_review_user_dish`(`user_id`,`dish_id`)（一人一评）。
@@ -148,7 +150,7 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 通知ID |
 | user_id | BIGINT | 否 | 0 | 接收用户ID |
-| type | VARCHAR(32) | 否 | '' | dish_audit |
+| type | VARCHAR(32) | 否 | '' | dish_audit / feedback_handle（菜品审核结果 / 反馈处理回执） |
 | title | VARCHAR(128) | 否 | '' | 通知标题 |
 | content | VARCHAR(512) | 可 | NULL | 正文 |
 | related_id | BIGINT | 可 | NULL | 关联对象ID（按 type 解释） |
@@ -206,7 +208,6 @@
 | type | VARCHAR(32) | 否 | 'suggestion' | suggestion/error/add/bug/other/report |
 | content | VARCHAR(1024) | 否 | '' | 反馈内容 |
 | contact | VARCHAR(128) | 可 | NULL | 联系方式 |
-| images | VARCHAR(2048) | 可 | NULL | 附图 JSON |
 | status | VARCHAR(32) | 否 | 'pending' | pending/handled |
 | reply | VARCHAR(1024) | 可 | NULL | 管理员回复 |
 | related_type | VARCHAR(32) | 可 | NULL | 关联类型（举报：review；信息纠错：dish） |
@@ -217,24 +218,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
 
-### 3.12 apply_action（实体贡献统一申请）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 申请ID |
-| applicant_id | BIGINT | 否 | 0 | 申请人用户ID（学生） |
-| entity_type | VARCHAR(32) | 否 | '' | DISH/STALL/CANTEEN |
-| entity_id | BIGINT | 可 | NULL | 关联实体ID（新增类可空） |
-| apply_type | VARCHAR(32) | 否 | '' | NEW/CLOSE/CHANGE |
-| status | VARCHAR(32) | 否 | 'pending' | pending/approved/rejected |
-| payload | TEXT | 可 | NULL | 申请字段快照 JSON |
-| reject_reason | VARCHAR(255) | 可 | NULL | 退回原因 |
-| handled_by | BIGINT | 可 | NULL | 处理人管理员ID |
-| handled_at | DATETIME | 可 | NULL | 处理时间 |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
-
-**索引/约束**：PK(`id`)；UNIQUE `uk_entity_applytype_pending`(`entity_type`,`entity_id`,`apply_type`,`status`)；KEY `idx_applicant`(`applicant_id`)；KEY `idx_status`(`status`)；KEY `idx_entity`(`entity_type`,`entity_id`)。
-
-### 3.13 email_verification_code（邮箱验证码）
+### 3.12 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 记录ID |
@@ -279,7 +263,7 @@
 
 业务层以**应用级关联**为主（逻辑外键，索引见各表），下文为实体关系语义：
 
-- `user` 1—N `review` / `notification` / `user_feedback` / `apply_action` / `view_log`（均经 `user_id`）
+- `user` 1—N `review` / `notification` / `user_feedback` / `view_log`（均经 `user_id`）
 - `canteen` 1—N `stall`（`stall.canteen_id`）
 - `stall` 1—N `dish`（`dish.stall_id`）
 - `dish` 1—N `review`（`review.dish_id`）；`dish` N—1 `category`（`dish.category_id`）
@@ -294,7 +278,6 @@ erDiagram
     user ||--o{ review : "writes"
     user ||--o{ notification : "receives"
     user ||--o{ user_feedback : "submits"
-    user ||--o{ apply_action : "applies"
     user ||--o{ view_log : "views"
     user ||--o{ operation_log : "operates_as_admin"
     user ||--o{ review_useful : "marks_useful_review"
@@ -349,6 +332,5 @@ erDiagram
 | uk_review_user_dish | review | (user_id, dish_id) | 一人一评 |
 | uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
 | uk_category_code | category | code | 品类机器标识唯一 |
-| uk_entity_applytype_pending | apply_action | (entity_type, entity_id, apply_type, status) | 防重复待审申请 |
 
 **覆盖索引（排序优化）**：`idx_dish_heat`(status, audit_status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询。

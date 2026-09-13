@@ -5,6 +5,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { usePageStore } from '@/stores/pageStore'
+import { parseTags, formatTags } from '@/api/adapter'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PageSection from '@/components/layout/PageSection.vue'
@@ -15,6 +16,7 @@ import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import { Trophy, Star, Food } from '@element-plus/icons-vue'
+import { TAG_OPTIONS, SIGNATURE_TAG, tagDisplay } from '@/api/tags'
 
 const router = useRouter()
 const route = useRoute()
@@ -46,9 +48,6 @@ const activeTab = ref(0)
 function getUserName(userId: number | bigint): string {
   const u = store.users.find(u => Number(u.id) === Number(userId))
   return u?.nickname || u?.username || `用户${userId}`
-}
-function parseTags(tags: string): string[] {
-  try { return JSON.parse(tags || '[]') } catch { return [] }
 }
 
 // 菜品属性枚举（与后端 DishAttrConst 对齐）
@@ -150,11 +149,11 @@ function toggleEdit() {
 }
 
 function toggleFormTag(tag: string) {
-  const arr: string[] = []
-  try { arr.push(...JSON.parse(editForm.value.tags || '[]')) } catch {}
+  // tags 统一 CSV 格式（WEB-101）：读走 parseTags（兼容历史 JSON 脏数据），写走 formatTags
+  const arr = parseTags(editForm.value.tags)
   const i = arr.indexOf(tag)
   if (i === -1) { arr.push(tag) } else { arr.splice(i, 1) }
-  editForm.value.tags = JSON.stringify(arr)
+  editForm.value.tags = formatTags(arr)
 }
 
 async function confirmEdit() {
@@ -231,9 +230,6 @@ async function handleDeleteReview(id: number) {
   } catch (err: any) {
     toast.error(err.message || '评论删除失败')
   }
-}
-function parseReviewImages(img?: string): string[] {
-  return (img || '').split('|||').map(s => s.trim()).filter(Boolean)
 }
 const reviewDetail = ref<any | null>(null)
 function openReviewDetail(r: any) { reviewDetail.value = r }
@@ -336,15 +332,14 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
               <div class="detail-control">
                 <span v-if="!editing" class="detail-value">
                   <span v-if="parseTags(editForm.tags || '').length" class="tag-group">
-                    <span v-for="tag in parseTags(editForm.tags || '')" :key="tag" class="dish-tag" :class="tag === '招牌菜' ? 'tag-hot' : 'tag-rec'">
-                      <el-icon class="tag-icon"><component :is="tag === '招牌菜' ? Trophy : Star" /></el-icon> {{ tag }}
+                    <span v-for="tag in parseTags(editForm.tags || '')" :key="tag" class="dish-tag" :class="tag === SIGNATURE_TAG ? 'tag-hot' : 'tag-rec'">
+                      <el-icon class="tag-icon"><component :is="tag === SIGNATURE_TAG ? Trophy : Star" /></el-icon> {{ tagDisplay(tag) }}
                     </span>
                   </span>
                   <span v-else class="text-muted">无</span>
                 </span>
                 <div v-else class="tag-selector">
-                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('招牌菜') }" @click="toggleFormTag('招牌菜')"><el-icon class="tag-icon"><Trophy /></el-icon> 招牌菜</span>
-                  <span class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes('必吃推荐') }" @click="toggleFormTag('必吃推荐')"><el-icon class="tag-icon"><Star /></el-icon> 必吃推荐</span>
+                  <span v-for="opt in TAG_OPTIONS" :key="opt.value" class="tag-option" :class="{ active: parseTags(editForm.tags || '').includes(opt.value) }" @click="toggleFormTag(opt.value)"><el-icon class="tag-icon"><component :is="opt.value === SIGNATURE_TAG ? Trophy : Star" /></el-icon> {{ opt.label }}</span>
                 </div>
               </div>
             </div>
@@ -473,12 +468,6 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
         <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(reviewDetail.user_id) }}</span></div>
         <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(reviewDetail.rating) }}<span class="star-off">{{ '★'.repeat(5 - reviewDetail.rating) }}</span></span></div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ reviewDetail.content || '（无文字内容）' }}</span></div>
-        <div class="detail-row detail-row-desc" v-if="parseReviewImages(reviewDetail.images).length">
-          <span class="dl">图片</span>
-          <span class="dv detail-imgs">
-            <img v-for="(img, i) in parseReviewImages(reviewDetail.images)" :key="i" :src="img" class="detail-img" />
-          </span>
-        </div>
         <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ reviewDetail.created_at ? new Date(reviewDetail.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
       </div>
       <div class="modal-actions" v-if="reviewDetail">
@@ -577,7 +566,7 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--color-error); }
-.detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+/* 评价图片展示已下线（prelaunch-loop-closure 10.5），相关样式一并移除 */
 .detail-img { width: 96px; height: 96px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
 .detail-row { display: flex; gap: var(--space-3); font-size: var(--font-base); }

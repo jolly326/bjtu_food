@@ -36,12 +36,6 @@ export function getImageUrl(path?: string | null): string {
   return path
 }
 
-/** 批量转换图片路径数组（保持顺序），供组件图片网格 / 头像列表复用 */
-export function getImageUrls(images?: (string | null)[] | null): string[] {
-  if (!images || !Array.isArray(images)) return []
-  return images.map((img) => getImageUrl(img)).filter(Boolean)
-}
-
 /**
  * 推导图片缩略图路径：/images/.../xxx.jpg → /images/.../xxx_thumb.jpg（与后端 _thumb 命名严格一致）。
  * 仅对含 jpg/jpeg/png 扩展名的路径推导（webp 后端不生成缩略图，保持原路径）；已是 _thumb 或无法推导时原样返回。
@@ -55,10 +49,4 @@ export function getThumbUrl(path?: string | null): string {
   if (!/\.(jpg|jpeg|png)$/i.test(normalized)) return normalized
   if (/_thumb\./i.test(normalized)) return normalized
   return normalized.replace(/\.(jpg|jpeg|png)$/i, '_thumb.$1')
-}
-
-/** 将图片路径数组转为绝对 URL 并调起微信预览（统一 previewImage 实现，避免各组件重复 map） */
-export function previewImages(images: string[], current = 0) {
-  const urls = getImageUrls(images)
-  uni.previewImage({ urls, current: urls[current] ?? urls[0] })
 }

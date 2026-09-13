@@ -24,7 +24,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -------------------- 用户 --------------------
 -- 认证模型（2026-08 微信登录体系，spec §5.y）：
 --   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
---   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁动态写操作。
+--   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁 UGC 写操作。
 --   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
 --   · email 列保留作为历史迁移凭证；password 列仅管理员（后台）保留使用，学生侧不再校验。
 CREATE TABLE IF NOT EXISTS `user`
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `promo_price`    INT          NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空）；非空视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
-    `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔（recommended/signature）',
+    `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值（promotion 为 DishMapper 死查询技术债，禁止写入）',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `portion`        INT          NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大',
     `serve_period`   VARCHAR(64)  NULL     DEFAULT NULL COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight',
@@ -145,7 +145,6 @@ CREATE TABLE IF NOT EXISTS `review`
     `dish_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '被评价菜品ID',
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
-    `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价图片URL数组JSON',
     `tags`       VARCHAR(255) NULL    DEFAULT NULL COMMENT '评价标签（美团式写评，逗号分隔或 JSON 数组）',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -180,7 +179,7 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit / feedback_handle',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
     `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/活动ID，按 type 解释）',
@@ -255,7 +254,6 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
-    `images`       VARCHAR(2048) NULL    DEFAULT NULL COMMENT '附图（JSON 数组字符串，绝对URL；截图/作证照片/菜品图）',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
     `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型：举报为 review；信息纠错为 dish；其他为 null',
@@ -440,30 +438,6 @@ END$$
 DELIMITER ;
 CALL `add_dish_promo_fields`();
 DROP PROCEDURE IF EXISTS `add_dish_promo_fields`;
-
--- -------------------- 实体贡献统一申请（task-12.1） --------------------
-CREATE TABLE IF NOT EXISTS `apply_action`
-(
-    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '申请ID',
-    `applicant_id` BIGINT       NOT NULL DEFAULT 0 COMMENT '申请人用户ID（学生）',
-    `entity_type`  VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '实体类型：DISH/STALL/CANTEEN',
-    `entity_id`    BIGINT       NULL     DEFAULT NULL COMMENT '关联实体ID（新增类可空，审核通过后回填）',
-    `apply_type`   VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '申请类型：NEW/CLOSE/CHANGE',
-    `status`       VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
-    `payload`      TEXT         NULL     DEFAULT NULL COMMENT '申请字段快照（JSON）',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
-    `handled_by`   BIGINT       NULL     DEFAULT NULL COMMENT '处理人管理员ID',
-    `handled_at`   DATETIME     NULL     DEFAULT NULL COMMENT '处理时间',
-    `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_entity_applytype_pending` (`entity_type`, `entity_id`, `apply_type`, `status`),
-    KEY `idx_applicant` (`applicant_id`),
-    KEY `idx_status` (`status`),
-    KEY `idx_entity` (`entity_type`, `entity_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='实体贡献统一申请';
 
 -- 邮箱验证码（认证用途 verify；code_hash 存哈希，过期/使用后标记）
 CREATE TABLE IF NOT EXISTS `email_verification_code`

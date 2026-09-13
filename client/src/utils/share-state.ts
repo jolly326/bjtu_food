@@ -35,9 +35,9 @@ export function buildSharePayload(dish?: ShareDish | null) {
   }
   if (d) {
     return {
-      title: `推荐「${d.name}」¥${d.price}${d.stallName ? ' · ' + d.stallName : ''}，来自食在交大`,
+      title: `推荐「${d.name}」¥${d.price}${d.stallName ? ' · ' + d.stallName : ''}，来自知行食记`,
       path: dishDetailUrl(d.id),
     }
   }
-  return { title: '食在交大 · 发现校园美食', path: PATH.home }
+  return { title: '知行食记 · 发现校园美食', path: PATH.home }
 }

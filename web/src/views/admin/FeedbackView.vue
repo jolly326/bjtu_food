@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -10,6 +11,7 @@ import { ChatDotRound, EditPen, CircleCheck } from '@element-plus/icons-vue'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
+const router = useRouter()
 
 const searchQuery = ref('')
 
@@ -118,10 +120,7 @@ function closeDetail() { detail.value = null }
 
 async function submitHandle() {
   if (!detail.value) return
-  if (!reply.value.trim()) {
-    replyError.value = '请填写处理说明/回复'
-    return
-  }
+  // 处理说明/回复允许为空（后端对无回复走通用回执文案，见 change prelaunch-loop-closure 4.2 / 10.4）
   processingId.value = Number(detail.value.id)
   try {
     const { feedbackApi } = await import('@/api')
@@ -142,9 +141,22 @@ function fmtTime(v: string): string {
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
 }
 
-/** 附图预览（点击放大，新窗口打开原图） */
-function previewImg(images: string[], idx: number) {
-  window.open(images[idx], '_blank')
+/** 关联菜品一键直达编辑详情：反馈关联 dish 经公开详情接口拿到 stallId/canteenId，拼出档口链路路由 */
+async function goDishEdit(dishId?: number) {
+  if (dishId == null) return
+  try {
+    const { dishApi } = await import('@/api')
+    const dish = await dishApi.getById(dishId)
+    const stallId = Number(dish.stallId)
+    const canteenId = Number(dish.canteenId)
+    if (!stallId || !canteenId) {
+      toast.error('无法定位该菜品所属档口 / 食堂')
+      return
+    }
+    router.push(`/dashboard/canteens/${canteenId}/stalls/${stallId}/dishes/${dishId}`)
+  } catch (e: any) {
+    toast.error(e.message || '跳转菜品编辑失败')
+  }
 }
 
 async function copyReviewLink(reviewId?: number) {
@@ -183,7 +195,7 @@ async function copyReviewLink(reviewId?: number) {
       @page-change="onPageChange"
       :columns="[
         { prop: 'type', label: '类型', width: '120px', align: 'center' },
-        { prop: 'related', label: '关联动态', width: '140px', align: 'center' },
+        { prop: 'related', label: '关联评价', width: '140px', align: 'center' },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
@@ -201,7 +213,7 @@ async function copyReviewLink(reviewId?: number) {
       </template>
       <template #cell-related="{ row }">
         <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
-        <span v-else-if="row.relatedType === 'dish'" class="related">菜品#{{ row.relatedId }}</span>
+        <button v-else-if="row.relatedType === 'dish'" class="link" v-press @click="goDishEdit(row.relatedId)">菜品#{{ row.relatedId }}</button>
         <span v-else class="muted">—</span>
       </template>
       <template #cell-content="{ row }">
@@ -227,7 +239,7 @@ async function copyReviewLink(reviewId?: number) {
       :width="520"
       :footer="detail?.status !== 'handled'"
       :confirm-text="'标记处理'"
-      :confirm-disabled="!reply.trim()"
+      :confirm-disabled="false"
       :confirm-loading="processingId !== null"
       @close="closeDetail"
       @confirm="submitHandle"
@@ -248,17 +260,9 @@ async function copyReviewLink(reviewId?: number) {
         </div>
         <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
           <span class="dl">关联菜品</span>
-          <span class="dv"><span class="related">菜品 #{{ detail.relatedId }}</span></span>
+          <span class="dv"><button class="link" v-press @click="goDishEdit(detail.relatedId)">菜品 #{{ detail.relatedId }}</button></span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
-        <div class="detail-row detail-row-desc" v-if="detail.images && detail.images.length">
-          <span class="dl">附图</span>
-          <span class="dv">
-            <div class="img-list">
-              <img v-for="(img, i) in detail.images" :key="img" :src="img" class="img-thumb" @click="previewImg(detail.images, i)" />
-            </div>
-          </span>
-        </div>
         <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 

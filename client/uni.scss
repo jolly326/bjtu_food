@@ -90,3 +90,12 @@ page {
   /* ---------- 底部导航栏高度 ---------- */
   --tabbar-height: 100rpx;
 }
+
+/* ==========================================================================
+ * 原生 API 裸 hex 登记区（§4.9 例外：以下常量因原生 API 不接受 var() 必须写死）
+ * 此处仅作集中登记与溯源；禁止在组件内新增未登记的裸 hex 字面量（grep 自检覆盖）。
+ *   #FF3B30  iOS 系统红 / 破坏性操作确认色（uni.showModal confirmColor）
+ *            使用点：pages/find/index.vue、pages/me/my-reviews/index.vue、pages/detail/dish/useDishPage.ts
+ *   #1A1A1A  近黑图标色（IconSvg color 属性，SVG fill 不接受 var()）
+ *            使用点：pages/detail/dish/index.vue
+ * ========================================================================== */

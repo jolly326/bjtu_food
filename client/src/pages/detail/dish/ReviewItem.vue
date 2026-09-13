@@ -39,20 +39,8 @@
         <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
-      <view class="review-foot" v-if="review.images && review.images.length">
-        <image
-          v-for="(img, idx) in review.images.slice(0, 3)"
-          :key="idx"
-          class="review-thumb"
-          :src="thumbSrc(img, idx)"
-          mode="aspectFill"
-          lazy-load
-          @error="onThumbError(idx)"
-          @tap="previewImage(idx)"
-        />
-      </view>
       <!-- footer 操作组：仅有用（举报/删除已上移右上角）。
-           评价卡片不展示点赞/评论类互动组件（这些仅在动态中显示），由父页面传 hideUseful 隐藏整块 footer -->
+           评价卡片不展示点赞/评论类互动组件（UGC 互动仅保留「有用」），由父页面传 hideUseful 隐藏整块 footer -->
       <view v-if="!hideUseful" class="review-footer">
         <view class="review-ops">
           <text class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
@@ -73,7 +61,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
-import { getImageUrl, getThumbUrl, previewImages } from '@/utils/image'
+import { getImageUrl } from '@/utils/image'
 import { formatDateTime } from '@/utils/time'
 import { toggleUseful } from '@/api/review'
 import { useUserStore } from '@/stores/user'
@@ -159,28 +147,12 @@ function onMore() {
   emit('more', props.review)
 }
 
-function previewImage(idx: number) {
-  previewImages(props.review.images, idx)
-}
-
-/* ===== 评价图缩略图（#5）：优先缩略图减流量，加载失败回退原图 ===== */
-const thumbFailed = ref<boolean[]>([])
-function thumbSrc(img: string, idx: number): string {
-  // 该图缩略图加载失败过 → 回退原图
-  if (thumbFailed.value[idx]) return getImageUrl(img)
-  return getImageUrl(getThumbUrl(img))
-}
-function onThumbError(idx: number) {
-  if (!thumbFailed.value[idx]) {
-    thumbFailed.value[idx] = true
-  }
-}
 </script>
 
 <style scoped>
 /* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
    三处评价区共用（菜品详情 / 全部评价 / 我的评价），打磨一处即统一全部。
-   与动态卡片的差异仅：无评论/回复入口（口碑层扁平，讨论沉淀到动态评论区）。
+   口碑层扁平：不设评论/回复入口，互动仅「有用」标记。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
 .review-item {
   display: flex;
@@ -208,7 +180,7 @@ function onThumbError(idx: number) {
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：与动态卡统一圆形浅灰底（content-flow-visual-polish 5.2；dish-detail-visual-polish 对齐 64rpx） */
+/* 头像：圆形浅灰底（content-flow-visual-polish 5.2；dish-detail-visual-polish 对齐 64rpx） */
 .review-avatar {
   width: 64rpx;
   height: 64rpx;
@@ -218,7 +190,7 @@ function onThumbError(idx: number) {
 }
 .review-avatar-empty { display: flex; align-items: center; justify-content: center; }
 
-/* 右侧内容：行距与动态卡 m-head-right 一致（2xs），昵称与第二行不再因叠加间距拉开 */
+/* 右侧内容：行距 2xs，昵称与第二行不再因叠加间距拉开 */
 .review-body {
   flex: 1;
   min-width: 0;
@@ -287,22 +259,13 @@ function onThumbError(idx: number) {
 }
 .review-more:active { opacity: 0.5; }
 
-/* 正文：二级灰、行高 1.5（content-flow-visual-polish 5.2，与动态卡正文同档） */
+/* 正文：二级灰、行高 1.5（content-flow-visual-polish 5.2） */
 .review-content {
   font-size: var(--font-body);
   color: var(--text-secondary);
   line-height: 1.5;
   word-break: break-word;
   white-space: pre-wrap;
-}
-
-/* 缩略图 */
-.review-foot { display: flex; gap: var(--spacing-xs); margin-top: var(--spacing-xs); }
-.review-thumb {
-  width: 144rpx;
-  height: 144rpx;
-  border-radius: var(--radius-card);
-  background: var(--bg-page);
 }
 
 /* footer：操作组（有用·举报·删除，纯文字链无背景） */
@@ -324,6 +287,4 @@ function onThumbError(idx: number) {
 .review-op.active { color: var(--color-like); }
 .review-op-label { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); }
 .review-op.active .review-op-label { color: var(--color-like); }
-.review-op--report { color: var(--text-tertiary); }
-.review-op--delete { color: var(--color-error); }
 </style>

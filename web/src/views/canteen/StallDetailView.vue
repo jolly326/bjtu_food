@@ -5,6 +5,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { usePageStore } from '@/stores/pageStore'
+import { parseTags, formatTags } from '@/api/adapter'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import PageSection from '@/components/layout/PageSection.vue'
@@ -16,6 +17,7 @@ import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import { Food, Trophy, Star, Plus } from '@element-plus/icons-vue'
+import { TAG_OPTIONS, SIGNATURE_TAG, tagDisplay } from '@/api/tags'
 
 const router = useRouter()
 const route = useRoute()
@@ -68,9 +70,6 @@ function reviewUserName(userId: number | bigint): string {
   const u = store.users.find(x => Number(x.id) === Number(userId))
   return u?.nickname || u?.username || `用户${userId}`
 }
-function parseReviewImages(img?: string): string[] {
-  return (img || '').split('|||').map(s => s.trim()).filter(Boolean)
-}
 const reviewDetail = ref<any | null>(null)
 function openReviewDetail(r: any) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
@@ -100,7 +99,7 @@ const dishSearch = ref('')
 const dishTagOptions = computed(() => {
   const set = new Set<string>()
   for (const d of dishes.value) {
-    const tags = (d.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+    const tags = parseTags(d.tags)
     if (tags.length) tags.forEach(t => set.add(t))
     else set.add('其他')
   }
@@ -110,7 +109,7 @@ const filteredDishes = computed(() => {
   let list = dishes.value
   if (dishTagFilter.value) {
     list = list.filter(d => {
-      const tags = (d.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+      const tags = parseTags(d.tags)
       return dishTagFilter.value === '其他'
         ? tags.length === 0
         : tags.includes(dishTagFilter.value)
@@ -208,17 +207,13 @@ async function deleteStall() {
   }
 }
 
-function parseTags(tags: string): string[] {
-  try { return JSON.parse(tags || '[]') } catch { return [] }
-}
-
 const showModal = ref(false)
 
 const form = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '' })
 const formErrors = ref<Record<string, string>>({})
 
 function validate() { const errs: Record<string, string> = {}; if (!form.value.name.trim()) errs.name = '菜品名称不能为空'; if (!form.value.price || form.value.price <= 0) errs.price = '价格必须大于 0'; formErrors.value = errs; return Object.keys(errs).length === 0 }
-function toggleTag(tag: string) { const arr: string[] = []; try { arr.push(...JSON.parse(form.value.tags || '[]')) } catch {}; const i = arr.indexOf(tag); i === -1 ? arr.push(tag) : arr.splice(i, 1); form.value.tags = JSON.stringify(arr) }
+function toggleTag(tag: string) { const arr = parseTags(form.value.tags); const i = arr.indexOf(tag); i === -1 ? arr.push(tag) : arr.splice(i, 1); form.value.tags = formatTags(arr) }
 function openAdd() { form.value = { name: '', price: 0, description: '', image: '', tags: '', status: 'active' }; formErrors.value = {}; showModal.value = true }
 async function handleSubmit() {
   if (!validate()) return
@@ -375,9 +370,9 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
                 <div class="pk-price">¥{{ d.price }}</div>
               </div>
               <div class="pk-tags" v-if="parseTags(d.tags || '').length">
-                <span v-for="tag in parseTags(d.tags || '')" :key="tag" class="pk-tag" :class="tag === '招牌菜' ? 'tag-hot' : 'tag-rec'">
-                  <el-icon class="tag-icon"><component :is="tag === '招牌菜' ? Trophy : Star" /></el-icon>
-                  {{ tag }}
+                <span v-for="tag in parseTags(d.tags || '')" :key="tag" class="pk-tag" :class="tag === SIGNATURE_TAG ? 'tag-hot' : 'tag-rec'">
+                  <el-icon class="tag-icon"><component :is="tag === SIGNATURE_TAG ? Trophy : Star" /></el-icon>
+                  {{ tagDisplay(tag) }}
                 </span>
               </div>
               <p class="pk-desc">{{ d.description }}</p>
@@ -438,12 +433,6 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
         <div class="detail-row"><span class="dl">菜品</span><span class="dv">{{ reviewDishName(reviewDetail.dish_id) }}</span></div>
         <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(reviewDetail.rating) }}<span class="star-off">{{ '★'.repeat(5 - reviewDetail.rating) }}</span></span></div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ reviewDetail.content || '（无文字内容）' }}</span></div>
-        <div class="detail-row detail-row-desc" v-if="parseReviewImages(reviewDetail.images).length">
-          <span class="dl">图片</span>
-          <span class="dv detail-imgs">
-            <img v-for="(img, i) in parseReviewImages(reviewDetail.images)" :key="i" :src="img" class="detail-img" />
-          </span>
-        </div>
         <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ reviewDetail.created_at ? new Date(reviewDetail.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
       </div>
       <div class="modal-actions" v-if="reviewDetail">
@@ -467,7 +456,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
           <label>图片 <span class="text-muted">（至多 3 张）</span></label>
           <ImageUpload v-model="form.image" :max="3" />
         </div>
-        <div class="field"><label>特色标签</label><div class="tag-selector"><span class="tag-option" :class="{active: parseTags(form.tags).includes('招牌菜')}" @click="toggleTag('招牌菜')"><el-icon class="tag-icon"><Trophy /></el-icon> 招牌菜</span><span class="tag-option" :class="{active: parseTags(form.tags).includes('必吃推荐')}" @click="toggleTag('必吃推荐')"><el-icon class="tag-icon"><Star /></el-icon> 必吃推荐</span></div></div>
+        <div class="field"><label>特色标签</label><div class="tag-selector"><span v-for="opt in TAG_OPTIONS" :key="opt.value" class="tag-option" :class="{active: parseTags(form.tags).includes(opt.value)}" @click="toggleTag(opt.value)"><el-icon class="tag-icon"><component :is="opt.value === SIGNATURE_TAG ? Trophy : Star" /></el-icon> {{ opt.label }}</span></div></div>
       </div>
     </FormDialog>
   </PageContainer>
@@ -560,7 +549,7 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--color-error); }
 .cell-sub { font-size: var(--font-sm); color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; display: inline-block; vertical-align: middle; }
-.detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+/* 评价图片展示已下线（prelaunch-loop-closure 10.5），相关样式一并移除 */
 .detail-img { width: 96px; height: 96px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
 .detail-row { display: flex; gap: var(--space-3); font-size: var(--font-base); }

@@ -12,7 +12,8 @@ const listeners: Array<() => void> = []
 export function onUnauthorized(fn: () => void) {
   listeners.push(fn)
 }
-function emitUnauthorized() {
+/** 登录失效统一广播：清 token + 通知监听者。导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107） */
+export function emitUnauthorized() {
   localStorage.removeItem('token')
   listeners.forEach((fn) => fn())
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_UNAUTHORIZED))

@@ -1,7 +1,7 @@
 import { PATH } from '@/utils/routes'
 
 /**
- * 二级页统一返回：优先 navigateBack 保留来源栈（搜索→详情→返回搜索、动态→详情→返回动态），
+ * 二级页统一返回：优先 navigateBack 保留来源栈（搜索→详情→返回搜索），
  * 仅当无上一页（分享直达/扫码直达等冷启动场景）时 reLaunch 首页兜底，避免返回死路。
  */
 export function backToHome() {

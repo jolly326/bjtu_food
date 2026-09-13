@@ -1,18 +1,15 @@
 <script setup lang="ts">
 /**
- * ApplyFeedbackView：「申请与反馈」内容（UGC 申请审核 + 反馈举报处理）。
- * 上下两个区块展示（无分段切换），一屏看完反馈与申请待办。
+ * ApplyFeedbackView：反馈举报处理聚合（UGC 申请审核已随 apply 全链路下线，见 change prelaunch-loop-closure）。
+ * 仅保留反馈举报处理区块，不再内嵌「UGC 申请」段。
  */
-import ApplyReviewView from '@/views/admin/ApplyReviewView.vue'
 import FeedbackView from '@/views/admin/FeedbackView.vue'
 </script>
 
 <template>
   <div>
-    <div class="block-title">反馈举报</div>
+    <div class="block-title">反馈</div>
     <FeedbackView />
-    <div class="block-title">UGC 申请</div>
-    <ApplyReviewView initial-entity="dish" />
   </div>
 </template>
 

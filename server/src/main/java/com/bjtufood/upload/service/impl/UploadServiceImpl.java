@@ -35,6 +35,12 @@ public class UploadServiceImpl implements UploadService {
     /** 单图大小上限 5MB（与 spring.servlet.multipart.max-file-size 一致，服务层再兜底一次） */
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
+    /**
+     * 单边像素上限 4000（P1-6）：超过视为「图像炸弹」。
+     * 小体积高分辨率图（如几 KB 的 20000×20000 PNG）会在 ImageIO 全图解码时按像素数分配内存，直接 OOM。
+     */
+    private static final int MAX_IMAGE_DIMENSION = 4000;
+
     private final ImageUrlUtil imageUrlUtil;
 
     @Value("${upload.path:./uploads/images}")
@@ -88,6 +94,15 @@ public class UploadServiceImpl implements UploadService {
                 // 清理失败不影响主流程错误返回
             }
             throw new BusinessException("图片上传失败");
+        }
+
+        // 图像炸弹防护（P1-6）：全图解码前先解析头部宽高，超 4000×4000 直接拒绝并清理原图，
+        // 防止小体积高分辨率图片在 ImageIO 解码时耗尽堆内存
+        try {
+            validateImageDimensions(target, normalizedExt);
+        } catch (BusinessException e) {
+            deleteQuietly(target);
+            throw e;
         }
 
         // 生成缩略图（仅 jpg/jpeg/png，ImageIO 原生支持；webp 降级不生成）。失败静默，不阻塞上传主流程。
@@ -151,6 +166,113 @@ public class UploadServiceImpl implements UploadService {
             return null;
         }
         return trimEnd(urlPrefix, "/") + "/" + datePath + "/" + thumbFilename;
+    }
+
+    /**
+     * 校验图片头部宽高（P1-6 图像炸弹防护）：超过 {@value MAX_IMAGE_DIMENSION}px 直接拒绝。
+     * <p>
+     * 只解析文件头部字节、不解码像素，成本 O(几十字节)。仅校验 jpg/jpeg/png
+     * （这三个格式会进入 ImageIO 全图解码；webp 无原生解码器，不存在该风险）。
+     * 解析失败（截断/非标头）不拦截：magic number 已在前置步骤校验，此处防刷为主。
+     */
+    private void validateImageDimensions(Path file, String ext) {
+        if (!Set.of("jpg", "jpeg", "png").contains(ext)) {
+            return;
+        }
+        int[] dims;
+        try (java.io.InputStream in = Files.newInputStream(file)) {
+            dims = "png".equals(ext) ? readPngDimensions(in) : readJpegDimensions(in);
+        } catch (IOException e) {
+            // 头部读取失败不拦截，交由后续 ImageIO 解码与既有异常处理兜底
+            return;
+        }
+        if (dims != null && (dims[0] > MAX_IMAGE_DIMENSION || dims[1] > MAX_IMAGE_DIMENSION)) {
+            throw new BusinessException(400, "图片尺寸过大，宽和高均不能超过 4000 像素");
+        }
+    }
+
+    /**
+     * PNG 宽高解析：IHDR chunk 固定位于文件头 16 字节后，宽高各占 4 字节大端序。
+     */
+    private int[] readPngDimensions(java.io.InputStream in) throws IOException {
+        byte[] head = in.readNBytes(24);
+        if (head.length < 24) {
+            return null;
+        }
+        long width = ((head[16] & 0xFFL) << 24) | ((head[17] & 0xFFL) << 16)
+                | ((head[18] & 0xFFL) << 8) | (head[19] & 0xFFL);
+        long height = ((head[20] & 0xFFL) << 24) | ((head[21] & 0xFFL) << 16)
+                | ((head[22] & 0xFFL) << 8) | (head[23] & 0xFFL);
+        return new int[]{(int) width, (int) height};
+    }
+
+    /**
+     * JPEG 宽高解析：逐段扫描 SOFn（0xFFC0~0xFFCF，排除 C4/C8/CC 非帧标记），
+     * 段内依次为精度(1B)/高(2B 大端)/宽(2B 大端)。仅在头部有限范围内扫描，不做全量解码。
+     */
+    private int[] readJpegDimensions(java.io.InputStream in) throws IOException {
+        byte[] soi = in.readNBytes(2);
+        if (soi.length < 2 || (soi[0] & 0xFF) != 0xFF || (soi[1] & 0xFF) != 0xD8) {
+            return null;
+        }
+        while (true) {
+            int b = in.read();
+            if (b == -1) {
+                return null;
+            }
+            if (b != 0xFF) {
+                continue;
+            }
+            int marker = in.read();
+            if (marker == -1) {
+                return null;
+            }
+            if (marker == 0xFF) {
+                // 编码器填充的连续 0xFF，继续找有效标记
+                continue;
+            }
+            if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD9)) {
+                // 无长度字段的独立标记（TEM/RST/SOI/EOI），跳过
+                continue;
+            }
+            int hi = in.read();
+            int lo = in.read();
+            if (hi == -1 || lo == -1) {
+                return null;
+            }
+            int segLen = (hi << 8) | lo;
+            if (segLen < 2) {
+                return null;
+            }
+            if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
+                // 命中 SOFn：跳过 1 字节精度后读高、宽
+                byte[] data = in.readNBytes(5);
+                if (data.length < 5) {
+                    return null;
+                }
+                int height = ((data[1] & 0xFF) << 8) | (data[2] & 0xFF);
+                int width = ((data[3] & 0xFF) << 8) | (data[4] & 0xFF);
+                return new int[]{width, height};
+            }
+            // 跳过非帧段载荷（长度含 2 字节长度字段自身）
+            long toSkip = segLen - 2L;
+            while (toSkip > 0) {
+                long skipped = in.skip(toSkip);
+                if (skipped <= 0) {
+                    return null;
+                }
+                toSkip -= skipped;
+            }
+        }
+    }
+
+    /** 静默删除文件（拒绝超尺寸图时清理已落盘的原图，避免磁盘垃圾） */
+    private void deleteQuietly(Path file) {
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException ignored) {
+            // 清理失败不影响主流程错误返回
+        }
     }
 
     private String trimEnd(String value, String suffix) {

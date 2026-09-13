@@ -31,6 +31,7 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
 import { dishDetailUrl } from '@/utils/routes'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 export function useDishPage() {
   const dishStore = useDishStore()
@@ -59,7 +60,6 @@ export function useDishPage() {
     try {
       const res = await dishStore.fetchReviews(dishId.value, {
         sort: 'latest',
-        isWithImage: false,
         page: reviewPage.value + 1,
         pageSize,
         append: true,
@@ -142,6 +142,7 @@ export function useDishPage() {
   })
   onMounted(() => {
     // 与 AppHeader 同款导航尺寸计算（自定义导航 + 右上角胶囊避让）
+    // 平台例外：wx 全局仅存在于微信运行时，H5 分支由 w 判空兜底
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w: any = (globalThis as any).wx
     const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
@@ -214,7 +215,7 @@ export function useDishPage() {
     if (dishStore.reviewsDirty) {
       dishStore.reviewsDirty = false
       resetReviewPaging()
-      dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 10 })
+      dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
       dishStore.fetchDetail(dishId.value)
     }
   })
@@ -237,7 +238,7 @@ export function useDishPage() {
     addView(dishId.value)
     await Promise.all([
       dishStore.fetchDetail(dishId.value),
-      dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 10 }),
+      dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 }),
     ])
     const d = dish.value
     if (d) {
@@ -302,13 +303,13 @@ export function useDishPage() {
       title: '删除评价',
       content: '确定删除这条评价吗？删除后不可恢复。',
       confirmText: '删除',
-      confirmColor: '#FF3B30',
+      confirmColor: MODAL_CONFIRM_DANGER_COLOR,
       success: async (res) => {
         if (!res.confirm) return
         try {
           await deleteReview(rv.id)
           uni.showToast({ title: '评价已删除', icon: 'none' })
-          await dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 10 })
+          await dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
           resetReviewPaging()
           dishStore.fetchDetail(dishId.value)
         } catch (e: any) {
@@ -332,7 +333,7 @@ export function useDishPage() {
   /** 提交成功：重置分页并重拉最新评价（sort=latest 新评置顶）+ 刷新综合评分分布 */
   function onReviewSubmitted() {
     resetReviewPaging()
-    dishStore.fetchReviews(dishId.value, { sort: 'latest', isWithImage: false, pageSize: 10 })
+    dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
     dishStore.fetchDetail(dishId.value)
   }
 

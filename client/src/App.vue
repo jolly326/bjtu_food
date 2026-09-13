@@ -54,6 +54,8 @@ page {
   --text-primary: #262626;
   --text-secondary: #595959;
   --text-tertiary: #999999;
+  /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
+  --text-hint: var(--text-tertiary);
   /* 背景 */
   --bg-page: #F7F3EF;
   /* feedback-forms-ux-polish：奶油米白（意见反馈等 Q 版暖调表面） */
@@ -116,13 +118,21 @@ page {
   --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
   --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
-  /* 半透材质（小程序真机 backdrop-filter 降级） */
-  /* 玻璃/材质高光边（Apple §12 顶部光线） */
+  /* 半透材质（小程序真机 backdrop-filter 降级）；blur 系为 .glass 材质参数（MP-005 补齐悬空定义，值同 tokens.ts COLOR_MAP） */
+  --blur-radius: 40rpx;
+  --blur-bg: rgba(255, 255, 255, 0.72);
+  --blur-bg-solid: rgba(255, 255, 255, 0.92);
+  /* 玻璃/材质高光边（Apple §12 顶部光线）；白字/白边半透梯度与 tokens.ts COLOR_MAP 'text-white-edge' 同值 */
+  --text-white-edge: rgba(255, 255, 255, 0.24);
   /* 暗化遮罩（图片叠加层 / 弹窗 scrim，禁止裸 rgba） */
   --overlay-dark-strong: rgba(0, 0, 0, 0.6);
   --overlay-dark-soft: rgba(0, 0, 0, 0.15);
   --overlay-dark-faint: rgba(0, 0, 0, 0.06);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
+  /* 详情页返回钮胶囊（微信右上角原生胶囊同款：中性浅灰透底 + 细边 + 黑箭头；UX-002 裸色收口） */
+  --bg-nav-back-chip: rgba(0, 0, 0, 0.08);
+  --border-nav-back-chip: rgba(0, 0, 0, 0.1);
+  --nav-back-icon: #1A1A1A;
   /* 卡片/底栏阴影（替代裸 shadow rgba） */
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
@@ -192,7 +202,11 @@ page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-tertia
   }
 }
 
-/* 按压反馈已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 弱化为交互反馈，不再使用 transform scale / hover-class。 */
+/* ========== 按压反馈（client-ui-motion 拍板：仅 opacity / bg-soft，禁 transform scale） ==========
+   hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
+   取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-row.pressed）。
+   页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */
+.pressed { opacity: 0.7; }
 
 /* 注：装饰性入场动效（原 .enter-up / enterFade）已于 client-mvp-strip-entrance-anim 剥离，
    MVP 阶段内容一律静态直接呈现，可见性不依赖动画。 */

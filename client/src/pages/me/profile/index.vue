@@ -102,7 +102,8 @@ function changeAvatar() {
       try {
         const url = await uploadImage(res.tempFilePaths[0])
         avatar.value = url
-        uni.showToast({ title: '头像已更新', icon: 'success' })
+        // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
+        uni.showToast({ title: '上传成功，请点击保存', icon: 'none' })
       } catch {
         uni.showToast({ title: '上传失败', icon: 'none' })
       } finally {

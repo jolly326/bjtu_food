@@ -63,7 +63,7 @@ async function handleUnauthorized(): Promise<void> {
 
 /**
  * 统一无权限/未认证处理（§5.y / §5.x 403）：
- * 动态写操作需 verified=true，游客触发时后端返回 403 →
+ * UGC 写操作需 verified=true，游客触发时后端返回 403 →
  * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
  */
 async function handleForbidden(): Promise<void> {
@@ -197,7 +197,7 @@ async function request<T>(
   }
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需 verified 的动态写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    // 游客触发需 verified 的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
     void handleForbidden()
     throw new Error(body.message || '请先完成学号邮箱认证')
   }
@@ -230,6 +230,9 @@ export async function del<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('DELETE', url, data)
 }
 
+/** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 8s 基础上放宽至 15s，避免上传 promise 永久挂起 */
+const UPLOAD_TIMEOUT_MS = 15000
+
 /**
  * 上传图片。
  * - 微信小程序端：走微信云存储 wx.cloud.uploadFile，返回 cloud:// 文件 ID。
@@ -251,18 +254,34 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       reject(new Error('当前环境不支持 wx.cloud'))
       return
     }
+    // MP-003：超时保护（同 request 的 N04 settled 模式），超时/失败及时 reject，
+    // 防止调用方上传中守卫位（如 avatarUploading）永久锁死
+    let settled = false
+    const done = (fn: () => void) => {
+      if (!settled) {
+        settled = true
+        fn()
+      }
+    }
+    const timeoutTimer = setTimeout(() => {
+      done(() => {
+        if (task && typeof task.abort === 'function') task.abort()
+        reject(new Error('上传超时，请重试'))
+      })
+    }, UPLOAD_TIMEOUT_MS)
+    const clearTimer = () => { clearTimeout(timeoutTimer) }
     // cloudPath：images/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>，避免同名覆盖
     const ext = (tempFilePath.match(/\.\w+$/) || ['.jpg'])[0]
     const stamp = Date.now()
     const rand = Math.random().toString(36).slice(2, 8)
     const cloudPath = `images/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
-    wxApi.cloud.uploadFile({
+    const task = wxApi.cloud.uploadFile({
       config: { env: WX_CLOUD_ENV },
       cloudPath,
       filePath: tempFilePath,
       // 平台例外：微信回调透传，仅取其 fileID
-      success: (r: any) => resolve({ url: r.fileID }),
-      fail: (err: any) => reject(new Error(err.errMsg || '上传失败，请重试')),
+      success: (r: any) => { clearTimer(); done(() => resolve({ url: r.fileID })) },
+      fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '上传失败，请重试'))) },
     })
   })
   // #endif
@@ -274,6 +293,8 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       url: `${API_BASE_URL}/upload/image`,
       filePath: tempFilePath,
       name: 'file',
+      // MP-003：与小程序端一致的上传超时保护
+      timeout: UPLOAD_TIMEOUT_MS,
       header: {
         Authorization: `Bearer ${token}`,
       },
@@ -289,8 +310,9 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
           reject(new Error('上传响应格式错误'))
         }
       },
-      fail() {
-        reject(new Error('上传失败，请重试'))
+      fail(err) {
+        // 超时体现在 errMsg（request:fail timeout），区分给出可读文案
+        reject(new Error(/timeout/i.test(err?.errMsg || '') ? '上传超时，请重试' : '上传失败，请重试'))
       },
     })
   })

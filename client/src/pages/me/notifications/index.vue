@@ -23,6 +23,12 @@
         </view>
       </view>
 
+      <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
+           空态不含重试按钮、错误提示与认证引导。 -->
+      <view v-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
+        <text class="empty-title">暂无通知</text>
+        <text class="empty-desc">菜品审核结果与反馈处理结果会在这里通知你</text>
+      </view>
     </scroll-view>
   </view>
 </template>
@@ -43,6 +49,8 @@ const notifyStore = useNotifyStore()
 const list = ref<Notification[]>([])
 const loading = ref(false)
 const refresherTriggered = ref(false)
+/** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
+const loaded = ref(false)
 // 分页与防重复加载（onShow / 下拉刷新）
 let page = 1
 const pageSize = 20
@@ -70,6 +78,7 @@ async function load() {
     console.error('[notifications] 加载通知失败', err)
   } finally {
     loading.value = false
+    loaded.value = true
   }
 }
 
@@ -97,7 +106,7 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
-/** 点击通知：标记已读；审核类跳对应详情页（type 编码目标类型，relatedId 为目标对象 ID） */
+/** 点击通知：标记已读；dish_audit 跳菜品详情；feedback_handle 停留本页（回执正文已在内容区展示，不做跳转） */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {
     // 乐观更新已读态
@@ -171,6 +180,18 @@ onShow(() => {
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
+
+/* 空态（仅已认证用户）：轻提示，无重试按钮 / 错误提示 / 认证引导 */
+.empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-2xl) var(--spacing-lg);
+}
+.empty-title { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
+.empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }

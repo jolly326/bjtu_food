@@ -11,8 +11,6 @@ public interface OperationLogConst {
     String ACTION_REVIEW_DELETE = "review_delete";
     String ACTION_DISH_DELETE = "dish_delete";
     String ACTION_FEEDBACK_HANDLE = "feedback_handle";
-    String ACTION_APPLY_APPROVE = "apply_approve";
-    String ACTION_APPLY_REJECT = "apply_reject";
     String ACTION_ACCOUNT_DELETE = "account_delete";
     String ACTION_CATEGORY_CREATE = "category_create";
     String ACTION_CATEGORY_UPDATE = "category_update";

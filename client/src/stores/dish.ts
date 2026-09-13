@@ -68,6 +68,12 @@ export const useDishStore = defineStore('dish', () => {
   const filterPrice = ref<{ min?: number; max?: number }>({})
   const filterLoadingMore = ref(false)
   const filterFinished = ref(false)
+  /**
+   * 首页筛选流最近一次请求是否失败（MP-012）：失败 ≠ 空数据。
+   * 首页列表区据其渲染「加载失败 · 点击重试」块，替代此前「静默吞错 → 空态/无菜品误导」；
+   * 过期响应（seq 失效）不修改本状态，由最新一次请求决定。
+   */
+  const filterError = ref(false)
   /** 首页排序面板当前选中项（问题一：默认「最新」，综合推荐不保留） */
   const homeSortBy = ref<HomeSortKey>('latest')
 
@@ -92,7 +98,6 @@ export const useDishStore = defineStore('dish', () => {
   /** task-03 评价分页 */
   const reviewTotal = ref(0)
   const reviewSort = ref<ReviewSort>('latest')
-  const reviewOnlyImage = ref(false)
   /** 评价脏标记：写评价/回复/删除成功后置 true，onShow 据此决定是否重拉，避免每次返回都发请求（#8） */
   const reviewsDirty = ref(false)
 
@@ -131,9 +136,11 @@ export const useDishStore = defineStore('dish', () => {
       dishList.value = list
       return list
     } catch (e) {
+      // MP-012：失败不再静默吞成空数组（会被误读为「没有结果」）——向上抛错，
+      // 由唯一消费方（find 搜索流）的 catch 区分「失败」与「无结果」；dishList 仅内部缓存，失败清空防残留
       console.error('搜索失败', e)
       dishList.value = []
-      return []
+      throw e
     }
   }
 
@@ -180,22 +187,20 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * task-03 评价区重做：分页 + 排序 + 晒图过滤。
-   * sort: latest|useful；isWithImage 晒图过滤。返回结果写入 reviewList/reviewTotal。
+   * task-03 评价区重做：分页 + 排序。
+   * sort: latest|useful。返回结果写入 reviewList/reviewTotal。
    */
   async function fetchReviews(
     dishId: number,
-    options?: { sort?: ReviewSort; isWithImage?: boolean; page?: number; pageSize?: number; append?: boolean },
+    options?: { sort?: ReviewSort; page?: number; pageSize?: number; append?: boolean },
   ): Promise<{ list: Review[]; total: number }> {
     const sort = options?.sort ?? reviewSort.value
-    const isWithImage = options?.isWithImage ?? reviewOnlyImage.value
     reviewSort.value = sort
-    reviewOnlyImage.value = isWithImage
     const page = options?.page ?? 1
     const pageSize = options?.pageSize ?? 50
     try {
       const res = await withLoading('fetchReviews', async () =>
-        await reviewApi.getReviewsByDish(dishId, { sort, isWithImage, page, pageSize }))
+        await reviewApi.getReviewsByDish(dishId, { sort, page, pageSize }))
       if (options?.append) {
         reviewList.value = [...reviewList.value, ...res.list]
       } else {
@@ -318,6 +323,8 @@ export const useDishStore = defineStore('dish', () => {
       filterList.value = []
       filterPage.value = 1
       filterFinished.value = false
+      // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
+      filterError.value = false
     }
     filterTab.value = tab
     try {
@@ -354,12 +361,16 @@ export const useDishStore = defineStore('dish', () => {
       } else {
         filterList.value = filterList.value.concat(rows)
       }
+      // 成功写回：清除失败态（MP-012，重试成功后错误块消失）
+      filterError.value = false
       // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
       if (rows.length < pageSize) filterFinished.value = true
     } catch (e) {
-      // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
+      // MP-012：不再静默——置 filterError 供首页列表区渲染「加载失败 · 点击重试」块；
+      // 过期请求不置位（由最新一次请求决定状态），恢复走重试块 @tap 或下拉刷新
       if (seq !== filterFetchSeq) return
       console.error('加载筛选菜品失败', e)
+      filterError.value = true
     }
   }
 
@@ -436,10 +447,10 @@ export const useDishStore = defineStore('dish', () => {
   return {
     dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
     canteenList, newDishes, promotionDishes,
-    hotSearchList, risingDishes, reviewTotal, reviewSort, reviewOnlyImage, reviewsDirty,
+    hotSearchList, risingDishes, reviewTotal, reviewSort, reviewsDirty,
     loading, navParams,
     categories,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterError,
     homeSortBy, setHomeSort, setHomePrice,
     fetchRecommend, fetchGuess,
     fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, fetchStallDishes,

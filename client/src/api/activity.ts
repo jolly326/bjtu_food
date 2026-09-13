@@ -6,7 +6,7 @@
  * 注意：活动模块接入状态（2026-08-19 复核）：
  * - 「我的」页宫格「最新活动」入口已恢复展示，但点击提示「功能暂未实现」（不跳转活动页）；
  * - pages/activity/index 独立页与 pages.json 注册保留（待后续开放）；
- * - 接口失败 / 空返回一律回落空数组，不阻断调用方。
+ * - 空返回为 []；请求失败向上抛错（MP-012），由调用方区分「失败」与「无活动」。
  */
 import { get } from './http'
 import { listOf, type PageResult, type RawRow } from './shared'
@@ -38,25 +38,25 @@ function toActivity(raw: RawRow): ActivityItem {
     title: raw.title || '',
     description: raw.description || '',
     publishTime: raw.publishTime || raw.createdAt || raw.publishTimeAt,
-    articleUrl: raw.articleUrl || raw.url || '',
+    // MP-009 字段核对：后端真源为 ActivityVO.articleUrl（ActivityServiceImpl#toVO setArticleUrl），
+    // 后端从不输出 url 字段，移除冗余 fallback
+    articleUrl: raw.articleUrl || '',
     image: raw.image || raw.coverImage || raw.cover || '',
   }
 }
 
-/** 活动列表（倒序）；失败 / 空返回 [] */
+/**
+ * 活动列表（倒序）；空返回（真的没有活动）为 []，请求失败向上抛错（MP-012）——
+ * 失败与空数据是两种状态，由调用方（活动页）分别渲染错误重试块与空态。
+ */
 export async function getActivities(params: {
   page?: number
   pageSize?: number
 } = {}): Promise<ActivityItem[]> {
-  try {
-    const query: Record<string, unknown> = {
-      page: params.page ?? 1,
-      pageSize: params.pageSize ?? 20,
-    }
-    const res = await get<PageResult<RawRow>>('/activities', query)
-    return listOf(res).map(toActivity)
-  } catch (e) {
-    console.error('[activity] 活动列表加载失败', e)
-    return []
+  const query: Record<string, unknown> = {
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 20,
   }
+  const res = await get<PageResult<RawRow>>('/activities', query)
+  return listOf(res).map(toActivity)
 }

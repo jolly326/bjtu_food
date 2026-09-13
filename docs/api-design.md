@@ -28,15 +28,13 @@
 | code | 含义 | 前端处理 |
 |---|---|---|
 | 200 | 成功 | — |
-| 400 | 参数/业务校验失败 | 提示 `message` |
+| 400 | 参数/业务校验失败（含资源不存在） | 提示 `message` |
 | 401 | 未登录 / token 失效 | 触发静默登录重试，仍失败则登出 |
 | 403 | 无权限（含越权访问管理接口） | 提示「无权限访问该内容」 |
 | **4031** | 邮箱未认证（`@RequireVerified` 触发，区别于 403） | 提示「请先完成学号邮箱认证」并弹认证引导 |
-| 404 | 资源不存在 | 提示 |
-| 409 | 资源冲突（如重复申请） | 提示 |
 | 500 | 服务器异常 | 通用兜底 |
 
-> **注**：`4031` 为细分业务码（前端 http.ts 已据此分流「未认证」与「无权限」），但不符合 spec §3「禁止非标错误码」红线，需在 spec 登记豁免（见 §9 已知差异）。
+> 错误码仅 `200/400/401/403/4031/500`（404 已收敛入 400，`Result.notFound` 工厂已删除，2026-09）；`4031` 为唯一登记豁免的细分业务码（spec §3 已登记，前端 http.ts 据此分流「未认证」与「无权限」）。
 
 ### 1.4 分页约定
 - 分页参数：`page`（从 1 起）、`pageSize`
@@ -51,7 +49,6 @@
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | GET | `/canteens` | `lat`/`lng`（可选） | `List<CanteenInfoVO>` | open 食堂；带经纬度按距离升序 |
-| GET | `/canteens/images` | — | `Map<String, List<String>>` | 食堂名 → 图片URL列表 |
 | GET | `/canteens/all` | — | `List<食堂含档口树>` | 一次性渲染食堂+档口 |
 
 ### 2.2 菜品（DishController）
@@ -69,8 +66,10 @@
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一）/page/pageSize/sort/isWithImage | `IPage<ReviewVO>` | 评价列表 |
-| GET | `/dishes/{dishId}/reviews` | page/pageSize/sort | `IPage<ReviewVO>` | 菜品评价 |
+| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一，至少传其一）/page/pageSize/sort(latest/useful) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏） |
+| GET | `/dishes/{dishId}/reviews` | page/pageSize/sort | `PageResult<ReviewVO>` | 菜品评价 |
+
+> 评价全量纯文本（UGC 图片已下线），`isWithImage` 参数已不存在（2026-09 契约清理）。
 
 ### 2.5 内容/活动/品类（公开）
 | 方法 | 路径 | 说明 |
@@ -88,7 +87,7 @@
 | 方法 | 路径 | 认证 | 参数 | 说明 |
 |---|---|---|---|---|
 | POST | `/auth/wechat-login` | 公开 | `{ code }` | 微信静默登录，新 openid 自动建号（verified=0），返回 token |
-| POST | `/auth/email-code` | 登录 | `{ email, purpose }` | 发学号邮箱验证码（60s 限频，6 位 10 分钟有效） |
+| POST | `/auth/email-code` | 登录 | `{ username, email(可空，传学号自动推导 {username}@bjtu.edu.cn), purpose }` | 发学号邮箱验证码（60s 限频，6 位 10 分钟有效） |
 | POST | `/auth/verify-email` | 登录 | `{ code }` | 验证码认证，绑定邮箱，verified→1，返回新 token |
 | GET | `/auth/profile` | 登录 | — | 用户资料（**不含 openid**） |
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
@@ -107,29 +106,30 @@
 ### 3.3 评价（邮箱认证）
 | 方法 | 路径 | 参数 | 说明 |
 |---|---|---|---|
-| POST | `/reviews` | `ReviewReq{dishId,rating,content,images}` | 提交评价（每菜一人一评） |
-| PUT | `/reviews/{id}` | `ReviewReq` | 修改评价（**@Valid 校验 rating 1-5**） |
-| DELETE | `/reviews/{id}` | — | 删评价（级联清理 useful） |
-| DELETE | `/my/reviews/{id}` | — | 契约路径删 |
+| POST | `/reviews` | `ReviewReq{dishId,rating,content}` | 提交评价（每菜一人一评，纯文本无图） |
+| DELETE | `/reviews/{id}` | — | 删本人评价（级联清理 useful） |
 | POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票） |
-| GET | `/my/reviews` | page/pageSize | 我的评价 |
+| GET | `/my/reviews` | page/pageSize | 我的评价（`@RequireVerified`） |
 
-### 3.5 通知（登录 student）
+> 评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提（一人一菜一评由 `uk_review_user_dish` 保证）。
+
+### 3.5 通知（需邮箱认证 `@RequireVerified`）
+> 通知 `type`：`dish_audit`（菜品审核结果）、`feedback_handle`（反馈/举报处理结果回执，仅已认证提交人可收到）。
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/my/notifications` | 消息列表（isRead/page/pageSize） |
 | GET | `/my/notifications/unread-count` | 未读总数（红点） |
 | PUT | `/my/notifications/{id}/read` | 单条已读 |
-| PUT | `/my/notifications/read-all` | 全部已读 |
 
-### 3.6 反馈 / 贡献申请 / 足迹
+> 全部已读接口 `PUT /my/notifications/read-all` 不存在（2026-09 契约清理）；已读仅单条操作。
+
+### 3.6 反馈
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| POST | `/feedback` | 公开 | 提交反馈（游客可） |
-| GET | `/feedback/my` | 登录 | 我的反馈（含管理员回复） |
-| POST | `/my/apply` | 邮箱认证 | 提交贡献申请（重复 pending 返 409） |
-| GET | `/my/apply` | 登录 | 我的申请 |
-| GET | `/my/submissions` | 登录 | 我的提交聚合（实体贡献申请） |
+| POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品，纯文本免图） |
+
+> 「我的反馈」接口 `GET /feedback/my` 已随反馈中心下线删除（2026-09-07）；进度追踪后续另做。
 
 ---
 
@@ -137,7 +137,7 @@
 
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| POST | `/upload/image` | `file`（multipart，jpg/jpeg/png/webp） | `{ url, relativeUrl }` | 上传头像/菜品图/评价图 |
+| POST | `/upload/image` | `file`（multipart，jpg/jpeg/png/webp） | `{ url, relativeUrl }` | 上传头像/菜品图（UGC 评价/反馈已全量纯文本，不再传图） |
 
 - 校验：扩展名白名单 + magic number + UUID 重命名 + 失败清理
 - 返回 `data.url`（完整访问）、`data.relativeUrl`（数据库保存的相对路径）
@@ -176,7 +176,6 @@
 | GET | `/admin/reviews` | 评价审核列表（isHidden/userId 过滤） |
 | PUT | `/admin/reviews/{id}/hide` | 隐藏评价 |
 | DELETE | `/admin/reviews/{id}` | 删评价（清理 useful 孤儿） |
-| GET/POST | `/admin/apply*` | 贡献审核（approve/reject） |
 | GET | `/admin/feedbacks*` | 反馈审核（回复） |
 
 ### 5.5 基础数据维护
@@ -208,7 +207,7 @@ GET /dishes/recommend → recentViewedDishIds → 同 stall/tags 加权排序
 ### 6.3 审核流
 ```
 学生提交(UGC) → audit_status=pending → 管理员 approve/reject（reject 写 reject_reason）
-Dish/Stall/Canteen：学生写走 apply_action 或直接发布，均需审核
+Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 error 类型承载），均需审核
 ```
 
 ---
@@ -226,14 +225,16 @@ Dish/Stall/Canteen：学生写走 apply_action 或直接发布，均需审核
 
 | 项 | spec 描述 | 实际代码 | 建议 |
 |---|---|---|---|
-| 页面数量 | 9 页 | 9 页（pages.json：主包 3 + 分包 3 root / 6 页） | 已对齐（2026-09-12） |
-| 403 错误码 | 禁止非标码 | 使用 4031 细分 | 在 spec 登记豁免 |
+| 页面数量 | 9 页（旧） | 11 页（pages.json：主包 3 + 分包 detail/me/activity，共 11 页） | 已对齐（2026-09 spec §2.1 已校准为 11） |
+| 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
 
 ---
 
 ## 9. 已知技术债 / 建议
 - `BroadcastAdminController` 用 `@RequestBody Broadcast` 直收无 `@Valid`/枚举校验 → 建议补 DTO+校验
-- 通知接口用 `hasRole('STUDENT')` 而非 verified 口径 → 与 §5.y 契约有出入，建议统一
 - 验证码限频无 IP 维度 → 建议补 IP 维度 + 单日总量限制
 - 前端裸 hex（webview progressbar、find confirmColor）→ 建议登记 `uni.scss` token
+- `SecurityConfig` 白名单残留 `/lists/share/**`（美食清单模块已移除，无对应 Controller）→ 建议清理白名单条目
+- `NotificationController` 直调 `NotificationMapper`（分页/已读/未读计数在 Controller 内完成）→ 违反「Controller 不得直调 Mapper」分层红线（spec §2），建议下沉至 `NotificationService`
+- ~~通知接口用 `hasRole('STUDENT')` 而非 verified 口径~~ → **已解决**（`@RequireVerified` 切面已补齐，2026-09 核实）

@@ -102,7 +102,8 @@ public class AdminManagerController {
         Long userId = SecurityUtil.getCurrentUserId();
         User user = userMapper.selectById(userId);
         if (user == null) {
-            return Result.notFound("管理员不存在");
+            // 错误码口径：仅 200/400/401/403/4031/500，资源不存在按 400 业务校验返回
+            return Result.badRequest("管理员不存在");
         }
         UserVO vo = new UserVO();
         vo.setId(user.getId());

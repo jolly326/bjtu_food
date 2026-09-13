@@ -27,8 +27,6 @@ import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.mapper.ReviewUsefulMapper;
-import com.bjtufood.apply.entity.ApplyAction;
-import com.bjtufood.apply.mapper.ApplyActionMapper;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.history.entity.ViewLog;
@@ -61,11 +59,11 @@ public class AuthServiceImpl implements AuthService {
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final DishMapper dishMapper;
     private final FeedbackMapper feedbackMapper;
-    private final ApplyActionMapper applyActionMapper;
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
+    private final com.bjtufood.auth.config.AdminLoginAttemptLimiter loginAttemptLimiter;
 
     @Override
     public void createEmailCode(String username, String email, String purpose) {
@@ -126,11 +124,13 @@ public class AuthServiceImpl implements AuthService {
         if (legacyAccount != null && !legacyAccount.getId().equals(current.getId())) {
             // 数据归属转移：旧账号业务数据改挂到当前微信
             migrateOwnership(legacyAccount.getId(), current.getId());
-            // 旧账号清理：标记 deleted，释放其 username/email 唯一键占用
-            // email 置 NULL 而非空串：多账号统一置 '' 会撞 uk_user_email 唯一索引，NULL 不占用唯一键
-            legacyAccount.setStatus("deleted");
-            legacyAccount.setEmail(null);
-            userMapper.updateById(legacyAccount);
+            // 旧账号清理：标记 deleted 并释放 email 唯一键占用。
+            // email 置 NULL 必须显式 set（updateById 忽略 null 字段不写列）：
+            // NULL 不占用 uk_user_email 唯一索引，空串则会与其它置 '' 的账号冲突。
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, legacyAccount.getId())
+                    .set(User::getStatus, "deleted")
+                    .set(User::getEmail, null));
         }
 
         // 置当前微信为已认证
@@ -200,10 +200,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AdminLoginResp adminLogin(AdminLoginReq req) {
-        User user = userService.getByUsername(req.getAccount().trim());
+        String account = req.getAccount().trim();
+        // 同账号失败锁定：锁定期内直接拒绝，抑制对管理后台的暴力破解（P1-7）
+        loginAttemptLimiter.checkLocked(account);
+        User user = userService.getByUsername(account);
         if (user == null || !RoleConst.isAdmin(user.getRole())
                 || !StringUtils.hasText(user.getPassword())
                 || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+            // 统一口径记录失败（含账号不存在），避免通过计数差异探测账号存在性
+            loginAttemptLimiter.recordFailure(account);
             throw new BusinessException("账号或密码错误");
         }
         if ("disabled".equals(user.getStatus())) {
@@ -214,7 +219,9 @@ public class AuthServiceImpl implements AuthService {
         }
         user.setLastLoginAt(DateTimeUtil.now());
         userMapper.updateById(user);
-        // 管理端短期 Token：12 小时过期，降低泄露风险（学生端静默登录保持长期，见 toLoginResp）
+        // 登录成功清除失败计数
+        loginAttemptLimiter.reset(account);
+        // 管理端短期 Token：12 小时过期，降低泄露风险（学生端静默登录保持 7 天，见 application.yml）
         String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername(), ADMIN_TOKEN_EXPIRATION_MS);
         return new AdminLoginResp(token, user.getUsername(), user.getRole());
     }
@@ -353,12 +360,16 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 释放已被他微信绑定的邮箱：旧微信 verified=0、bind_email=NULL、verified_at=NULL。
+     * <p>
+     * 必须走 LambdaUpdateWrapper 显式 set NULL：updateById 对 null 字段默认不写列，
+     * bind_email/verified_at 无法被清空，会导致唯一键占用不释放、替换绑定失效。
      */
     private void releaseVerifiedBinding(User binding) {
-        binding.setVerified(0);
-        binding.setBindEmail(null);
-        binding.setVerifiedAt(null);
-        userMapper.updateById(binding);
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, binding.getId())
+                .set(User::getVerified, 0)
+                .set(User::getBindEmail, null)
+                .set(User::getVerifiedAt, null));
     }
 
     /**
@@ -388,24 +399,6 @@ public class AuthServiceImpl implements AuthService {
         reviewUsefulMapper.update(null, new LambdaUpdateWrapper<ReviewUseful>()
                 .eq(ReviewUseful::getUserId, fromUserId)
                 .set(ReviewUseful::getUserId, toUserId));
-
-        // apply_action：唯一键 (entity_type,entity_id,apply_type,status)，仅 pending 态可能冲突。
-        // 先查出新账号的 pending 申请，删除旧账号同 (entity_type,entity_id,apply_type) 的 pending 申请，再整体改挂。
-        List<ApplyAction> toPendingApplies = applyActionMapper.selectList(
-                new LambdaQueryWrapper<ApplyAction>()
-                        .eq(ApplyAction::getApplicantId, toUserId)
-                        .eq(ApplyAction::getStatus, "pending"));
-        for (ApplyAction ta : toPendingApplies) {
-            applyActionMapper.delete(new LambdaUpdateWrapper<ApplyAction>()
-                    .eq(ApplyAction::getApplicantId, fromUserId)
-                    .eq(ApplyAction::getStatus, "pending")
-                    .eq(ApplyAction::getEntityType, ta.getEntityType())
-                    .eq(ApplyAction::getEntityId, ta.getEntityId())
-                    .eq(ApplyAction::getApplyType, ta.getApplyType()));
-        }
-        applyActionMapper.update(null, new LambdaUpdateWrapper<ApplyAction>()
-                .eq(ApplyAction::getApplicantId, fromUserId)
-                .set(ApplyAction::getApplicantId, toUserId));
 
         // 无唯一键约束的直接归属改写
         dishMapper.update(null, new LambdaUpdateWrapper<Dish>()

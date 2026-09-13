@@ -91,11 +91,6 @@
 
     <view class="form-group">
       <view class="field">
-        <text class="field-label">菜品图片</text>
-        <ImageUploader v-model="model.images" :max="3" show-counter />
-      </view>
-
-      <view class="field">
         <text class="field-label">一句话描述</text>
         <textarea
           v-model="model.description"
@@ -113,10 +108,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import ImageUploader from '@/components/ImageUploader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-/** AddForm（feedback 包内私有）：「推荐菜品」字段区（基本信息 + 位置 + 图片/描述） */
+/** AddForm（feedback 包内私有）：「推荐菜品」字段区（基本信息 + 位置 + 描述） */
 const props = defineProps<{
   model: {
     name: string
@@ -126,7 +120,6 @@ const props = defineProps<{
     stallName: string
     stallCustom: string
     floor: string
-    images: string[]
     description: string
   }
   errors: Record<string, string>

@@ -52,7 +52,6 @@ bjtu_food/
 │   │   ├── content/           # 内容审核（菜品/档口/食堂）
 │   │   ├── activity/          # 活动
 │   │   ├── feedback/          # 用户反馈
-│   │   ├── apply/             # 学生申请
 │   │   ├── notify/            # 消息通知
 │   │   ├── upload/            # 文件上传
 │   │   └── common/            # 公共模块（配置/异常/响应/工具）
@@ -71,16 +70,15 @@ bjtu_food/
 | 微信登录与邮箱认证 | 微信静默登录、游客自动建号；「我的」页未认证用户卡点击唤起底部认证弹窗，学号邮箱认证（verified）解锁发布/评价/评论 | ✅ |
 | 食堂档口 | 食堂列表（定位距离排序）、档口展示 | ✅ |
 | 菜品浏览 | 搜索、个性化推荐（猜你喜欢/热门）、新品/促销、详情、热门排行 | ✅ |
-| 就餐评价 | 写评价（星级+文字+图片）、列表、过滤、「有用」标记 | ✅ |
+| 就餐评价 | 写评价（星级+文字，纯文本）、列表、过滤、「有用」标记 | ✅ |
 | 活动卡片 | 「我的」页宫格入口展示最新活动，点击提示「功能暂未实现」（列表页与 web-view 链路已就绪，待后续开放） | ⏸️ |
 | 内容审核 | 学生提交内容（菜品/档口/食堂）后台审核流 | ✅ |
 | 消息通知 | 菜品审核通知 + 未读红点 | ✅ |
 | 管理后台 | 信息管理 / 内容审核 / 用户与系统 / 数据看板 | ✅ |
-| 图片上传 | 小程序走微信云存储（cloud://，不受域名白名单限制）；H5/后台走后端上传 | ✅ |
 
 ---
 
-## 数据库（14 张表）
+## 数据库（13 张表）
 
 | 表 | 说明 |
 |----|------|
@@ -92,7 +90,7 @@ bjtu_food/
 | broadcast | 广播条（历史：运营广播方案已废弃，表保留） |
 | activity | 最新活动（「我的」页宫格入口） |
 | notification | 消息通知 |
-| user_feedback / apply_action | 用户反馈 / 学生申请 |
+| user_feedback | 用户反馈（纯文本；含举报/纠错/推荐菜品） |
 | view_log | 浏览足迹（个性化推荐用） |
 | operation_log | 后台操作日志 |
 
@@ -160,7 +158,7 @@ cd client && npm install && npm run dev:mp-weixin
 | 文档 | 说明 |
 |------|------|
 | [docs/project_spec.md](docs/project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
-| [docs/database.md](docs/database.md) | 数据库设计（14 张表 + ER 图，与 schema.sql 一致） |
+| [docs/database.md](docs/database.md) | 数据库设计（13 张表 + ER 图，与 schema.sql 一致） |
 | [docs/api-design.md](docs/api-design.md) | 功能/接口设计总览：全部接口契约、认证模型、错误码、分页约定 |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
 | [docs/architecture.md](docs/architecture.md) | 架构设计 / 部署说明（微信云托管）/ 本地快速上手 / 前端状态管理 |

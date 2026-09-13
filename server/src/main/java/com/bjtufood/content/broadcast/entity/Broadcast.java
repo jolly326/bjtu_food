@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 首页广播通知条实体类
  * <p>
  * 对应数据库表：broadcast
- * 首页竖直翻滚 ticker 的数据来源，按 broadcastType 分发跳转（不写死为动态页）。
+ * 兼容保留表：运营广播方案已废弃，首页不再消费；按 broadcastType 分发跳转的旧语义仅供历史数据解释。
  */
 @Data
 @TableName("broadcast")

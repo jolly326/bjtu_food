@@ -4,7 +4,7 @@
     <view
       v-for="item in tabs"
       :key="item.key"
-      class="tab-item press"
+      class="tab-item"
       :class="{ active: item.key === activeTab }"
       hover-class="pressed"
       :aria-label="item.label"

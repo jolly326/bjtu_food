@@ -6,8 +6,9 @@
  * - 单文件 ≤5MB，jpg/jpeg/png/webp（§4.2）
  * - 上传/失败走 useToastStore
  */
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { uploadImage } from '@/api/upload'
+import { toAbsoluteImageUrl } from '@/api/adapter'
 import { useToastStore } from '@/stores/toastStore'
 import { icon } from '@/utils/icon'
 
@@ -27,11 +28,16 @@ const uploading = ref(false)
 
 const images = computed(() => (props.modelValue || '').split('|||').map((s) => s.trim()).filter(Boolean))
 
+/** 预览用绝对地址：相对路径统一拼 API_BASE_URL（dev 下相对路径会打到 Vite 源导致 404） */
+const previewUrls = computed(() => images.value.map((img) => toAbsoluteImageUrl(img)))
+
 function sync(val: string[]) {
   emit('update:modelValue', val.join('|||'))
 }
 
 function handleAdd() {
+  // 上传进行中禁止再次唤起文件选择，避免并发上传互相覆盖 v-model 丢图（WEB-106）
+  if (uploading.value) return
   if (props.single ? images.value.length >= 1 : images.value.length >= props.max) return
   fileInput.value?.click()
 }
@@ -69,14 +75,11 @@ function removeImage(idx: number) {
   next.splice(idx, 1)
   sync(next)
 }
-
-// 占位：避免 unused watch 告警（保持 v-model 受控）
-watch(() => props.modelValue, () => {})
 </script>
 
 <template>
   <div class="image-upload">
-    <div v-for="(img, idx) in images" :key="idx" class="image-item">
+    <div v-for="(img, idx) in previewUrls" :key="idx" class="image-item">
       <img :src="img" alt="预览" />
       <span class="image-remove" v-press role="button" tabindex="0" :aria-label="`删除图片 ${idx + 1}`" @click="removeImage(idx)" @keydown.enter.prevent="removeImage(idx)" @keydown.space.prevent="removeImage(idx)">
         <img :src="icon.close" class="icon-x" alt="" />

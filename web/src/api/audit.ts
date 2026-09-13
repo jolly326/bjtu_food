@@ -22,8 +22,8 @@ export async function rejectAudit(type: AuditType, id: number, rejectReason: str
   await post<void>(`/admin/audit/${type}/${id}/reject`, { rejectReason })
 }
 
-/** 评价列表（分页，可按 isHidden 过滤） */
-export async function listReviews(isHidden?: boolean, page = 1, pageSize = 200): Promise<Review[]> {
+/** 评价列表（分页，可按 isHidden 过滤；pageSize 对齐后端 PageUtil 上限 100） */
+export async function listReviews(isHidden?: boolean, page = 1, pageSize = 100): Promise<Review[]> {
   const params: Record<string, unknown> = { page, pageSize }
   if (isHidden !== undefined) params.isHidden = isHidden
   return pageRecords(await get<any>('/admin/reviews', params)).map(reviewToLegacy)

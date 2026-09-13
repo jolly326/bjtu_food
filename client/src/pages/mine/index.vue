@@ -42,7 +42,7 @@
         </view>
       </view>
 
-      <!-- 1×3 功能宫格：最新活动 / 意见反馈 / 系统通知（每格整格热区，角标贴右上角） -->
+      <!-- 2×2 功能宫格：第一行 最新活动 / 意见反馈；第二行 系统通知 / 我的评价（每格整格热区，角标贴右上角） -->
       <view class="grid">
         <view v-for="(row, ri) in gridRows" :key="ri" class="grid-row">
           <view
@@ -58,16 +58,30 @@
               <IconSvg :name="cell.icon" :size="44" color="var(--color-primary)" />
               <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
               <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
+              <!-- 最新活动：「新」角标仅在功能开放时显示（暂缓期不显示，避免角标承诺与 toast 提示矛盾） -->
+              <view v-if="cell.key === 'activity' && activityOpen" class="badge badge-new" aria-hidden="true">
+                <text class="badge-new-text">新</text>
+              </view>
             </view>
             <text class="grid-cell-label">{{ cell.label }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 底部静态信息区：纯展示（版本 / 学校），无点击与跳转，位于 TabBar 上方 -->
-      <view class="app-footer" aria-hidden="true">
-        <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
-        <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
+      <!-- 底部信息区：两行纯展示（版本 / 学校，aria-hidden）+ 一行可点合规入口。
+           合规入口是该区域内唯一可点元素，做可点性最小差异化（主色 + 描边胶囊），
+           故不能再把 aria-hidden 挂在整个容器上（否则可点元素对辅助技术不可见）。 -->
+      <view class="app-footer">
+        <view class="app-footer-lines" aria-hidden="true">
+          <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
+          <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
+        </view>
+        <text
+          class="app-footer-link"
+          role="button"
+          aria-label="隐私政策与用户协议"
+          @tap="goPrivacy"
+        >隐私政策 · 用户协议</text>
       </view>
     </view>
 
@@ -137,7 +151,7 @@ function onUserCardTap() {
   uni.navigateTo({ url: PATH.profile })
 }
 
-/** 1×3 功能宫格数据（顺序固定：最新活动 / 意见反馈 / 系统通知）；每格整格热区 */
+/** 2×2 功能宫格数据（顺序固定：最新活动｜意见反馈 / 系统通知｜我的评价）；每格整格热区 */
 interface GridCell {
   key: string
   icon: string
@@ -152,12 +166,29 @@ function gateTap(gateKey: keyof typeof FEATURE_GATES): () => void {
     else uni.showToast({ title: gate.toast, icon: 'none' })
   }
 }
+/** 活动功能是否开放：仅在开放时显示「新」角标（暂缓期不显示） */
+const activityOpen = FEATURE_GATES.activity.open
+
+/** 「我的评价」：需认证入口（未认证弹 AuthSheet，认证成功后自动续跑进入本页） */
+function goMyReviews() {
+  if (!userStore.requireAuth(goMyReviews)) return
+  uni.navigateTo({ url: PATH.myReviews })
+}
+
+/** 底部合规入口：隐私政策与用户协议（应用内页面，不依赖外部域名） */
+function goPrivacy() {
+  uni.navigateTo({ url: PATH.privacy })
+}
+
 const gridRows: GridCell[][] = [
   [
     // 最新活动：暂缓开放登记于 utils/feature-gates.ts
     { key: 'activity', icon: 'broadcast', label: '最新活动', action: gateTap('activity') },
     { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
+  ],
+  [
     { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
+    { key: 'myReviews', icon: 'star', label: '我的评价', action: goMyReviews },
   ],
 ]
 </script>
@@ -169,7 +200,7 @@ const gridRows: GridCell[][] = [
 .mine-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
 
 /* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
-   与首页/动态卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
+   与首页卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
    （昵称/绑定邮箱、游客态的「去认证」引导）表达，不再用「透明 vs 白底」区分。 */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
@@ -214,7 +245,7 @@ const gridRows: GridCell[][] = [
 .verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
-/* 1×3 功能宫格：三格等尺寸圆角白卡，格间间距均匀，每格整格热区 */
+/* 2×2 功能宫格：四格等尺寸圆角白卡，格间间距均匀，每格整格热区 */
 .grid { display: flex; flex-direction: column; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
 .grid-row { display: flex; gap: var(--spacing-md); }
 .grid-cell {
@@ -244,20 +275,44 @@ const gridRows: GridCell[][] = [
   align-items: center;
   justify-content: center;
 }
-.grid-cell-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.grid-cell-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap; text-align: center; }
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
 .badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-error); }
+/* 「新」角标（仅活动功能开放时出现） */
+.badge-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 var(--spacing-2xs);
+  border-radius: var(--radius-pill);
+  background: var(--color-error);
+}
+.badge-new-text { font-size: var(--font-tiny); color: var(--text-white); line-height: 1; }
 
-/* 底部静态信息区：与宫格之间留大片留白，居中小号浅灰、纯展示（无点击/跳转），位于 TabBar 之上 */
+/* 底部信息区：与宫格之间留大片留白，位于 TabBar 之上。
+   两行纯展示（版本 / 学校）走 aria-hidden 子容器；合规入口为该区域唯一可点元素 */
 .app-footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
   padding: calc(var(--spacing-xl) + var(--spacing-xl)) var(--spacing-md) var(--spacing-lg);
 }
+.app-footer-lines { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs); }
 .app-footer-line { font-size: var(--font-tiny); color: var(--text-tertiary); line-height: 1.5; }
+/* 合规入口可点性最小差异化：主色 + 描边胶囊（与浅灰纯展示行明确区分） */
+.app-footer-link {
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  font-size: var(--font-tiny);
+  color: var(--color-primary);
+  border: 1rpx solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  -webkit-tap-highlight-color: transparent;
+}
+.app-footer-link:active { opacity: 0.7; }
 
 @media (prefers-reduced-motion: reduce) {
   .user-card, .grid-cell { transition: none; }

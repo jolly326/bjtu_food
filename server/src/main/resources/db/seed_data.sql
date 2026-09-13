@@ -2,11 +2,11 @@
 -- 食在交大 种子数据脚本（重置服务器数据库用，一次性执行，非自动加载）
 -- =============================================================
 -- 用途：重置服务器数据库时灌入演示/基础数据（用户、分类、广播、食堂、档口、
---       菜品、动态、评论、评价、反馈、申请、通知等），使三端有完整联调数据。
+--       菜品、评价、反馈、通知等），使三端有完整联调数据。
 -- 本脚本自包含：自动建库并切换 USE bjtu_food（与 schema.sql 一致，库不存在时先建库）。
 -- 执行前提：已按 schema.sql 建好全部表与最终字段；本脚本不建表。
 -- 执行：mysql -u <user> -p -h localhost < seed_data.sql
--- 注意：本脚本部分段落（user_feedback / apply_action / notification）采用先清后插，可重复执行；
+-- 注意：本脚本部分段落（user_feedback / notification）采用先清后插，可重复执行；
 --       其余段落（user / dish 等）重复执行会重复插入，重置时请先清库再运行。
 -- 金额字段单位：分（如 1600 = 16.00 元）
 -- images 置 NULL，由前端占位图（emoji）优雅降级，避免小程序外链域名限制。
@@ -19,7 +19,7 @@ USE `bjtu_food`;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- -------------------- 用户（动态/评价/通知等均依赖；密码统一为 123456，BCrypt 哈希） --------------------
+-- -------------------- 用户（评价/通知/反馈等均依赖；密码统一为 123456，BCrypt 哈希） --------------------
 -- BCrypt('123456') = $2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa
 INSERT INTO `user` (username, email, password, nickname, avatar, role, status, last_login_at) VALUES
 ('2024001',  '2024001@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '交大干饭王',  NULL, 'student', 'active', NOW()),
@@ -107,27 +107,27 @@ INSERT INTO dish (stall_id, category_id, name, price, description, images, tags,
 (14, 2, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 'approved', 520, 4.6, 100);
 
 -- -------------------- 评价（为部分菜品填充评价，丰富详情页；与 dish.avg_rating/rating_count 大致对应） --------------------
-INSERT INTO review (user_id, dish_id, rating, content, images, is_hidden) VALUES
-(1, 1,  5, '宫保鸡丁真的绝，下饭神器！',               NULL, 0),
-(1, 2,  5, '水煮牛肉麻辣鲜香，分量很足',               NULL, 0),
-(1, 6,  4, '牛肉拉面汤头浓郁，就是稍微有点咸',         NULL, 0),
-(1, 18, 5, '烤五花肉滋滋冒油，太香了',                 NULL, 0),
-(1, 22, 5, '珍珠奶茶奶香十足，珍珠很Q',                NULL, 0),
-(1, 24, 5, '兰州牛肉面一清二白，地道！',               NULL, 0),
-(2, 1,  4, '分量足，性价比高',                         NULL, 0),
-(2, 3,  5, '回锅肉肥而不腻，川味正',                   NULL, 0),
-(2, 12, 5, '骨汤麻辣烫自选很爽，汤底好喝',             NULL, 0),
-(2, 16, 5, '干锅花菜锅气十足，下饭',                   NULL, 0),
-(2, 26, 5, '羊肉串外焦里嫩，孜然味足',                 NULL, 0),
-(3, 4,  5, '番茄炒蛋家常味，酸甜可口',                 NULL, 0),
-(3, 7,  5, '皮蛋瘦肉粥绵密温润，暖胃',                 NULL, 0),
-(3, 8,  5, '干锅花菜朋友都夸',                         NULL, 0),
-(3, 14, 5, '皮蛋瘦肉粥配油条绝配',                     NULL, 0),
-(3, 29, 5, '鲜虾烧卖皮薄馅大，好吃',                   NULL, 0),
-(4, 9,  5, '香辣虾弹牙爽口，够味',                     NULL, 0),
-(4, 19, 4, '炒粉镬气足，宵夜首选',                     NULL, 0),
-(4, 23, 5, '杨枝甘露清甜解腻',                         NULL, 0),
-(4, 30, 5, '叉烧包松软甜香，广式经典',                 NULL, 0);
+INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
+(1, 1,  5, '宫保鸡丁真的绝，下饭神器！',               0),
+(1, 2,  5, '水煮牛肉麻辣鲜香，分量很足',               0),
+(1, 6,  4, '牛肉拉面汤头浓郁，就是稍微有点咸',         0),
+(1, 18, 5, '烤五花肉滋滋冒油，太香了',                 0),
+(1, 22, 5, '珍珠奶茶奶香十足，珍珠很Q',                0),
+(1, 24, 5, '兰州牛肉面一清二白，地道！',               0),
+(2, 1,  4, '分量足，性价比高',                         0),
+(2, 3,  5, '回锅肉肥而不腻，川味正',                   0),
+(2, 12, 5, '骨汤麻辣烫自选很爽，汤底好喝',             0),
+(2, 16, 5, '干锅花菜锅气十足，下饭',                   0),
+(2, 26, 5, '羊肉串外焦里嫩，孜然味足',                 0),
+(3, 4,  5, '番茄炒蛋家常味，酸甜可口',                 0),
+(3, 7,  5, '皮蛋瘦肉粥绵密温润，暖胃',                 0),
+(3, 8,  5, '干锅花菜朋友都夸',                         0),
+(3, 14, 5, '皮蛋瘦肉粥配油条绝配',                     0),
+(3, 29, 5, '鲜虾烧卖皮薄馅大，好吃',                   0),
+(4, 9,  5, '香辣虾弹牙爽口，够味',                     0),
+(4, 19, 4, '炒粉镬气足，宵夜首选',                     0),
+(4, 23, 5, '杨枝甘露清甜解腻',                         0),
+(4, 30, 5, '叉烧包松软甜香，广式经典',                 0);
 
 -- -------------------- 评价「有用」标记（review_useful，一人一票） --------------------
 INSERT INTO review_useful (user_id, review_id, created_at) VALUES
@@ -158,14 +158,6 @@ INSERT INTO user_feedback (user_id, type, content, contact, status, related_type
 (4, 'other',     '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
 (2, 'bug',       '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', 'none', NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
 (1, 'add',       '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', NULL, 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
-
--- -------------------- 实体贡献申请（UGC，测试申请审核流；无唯一键，先清后插保证可重复执行） --------------------
-DELETE FROM apply_action;
-INSERT INTO apply_action (applicant_id, entity_type, entity_id, apply_type, status, payload, created_at) VALUES
-(1, 'DISH',   NULL, 'NEW',    'pending', '{"name":"香煎鸡排饭","price":1800,"description":"外酥里嫩，配时蔬","stall_id":1,"tags":"recommended"}',     DATE_SUB(NOW(), INTERVAL 40 MINUTE)),
-(2, 'STALL',  NULL, 'NEW',    'pending', '{"name":"学二奶茶铺","location":"学二食堂一层","description":"鲜制果茶与奶茶","canteen_id":2}',            DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(3, 'CANTEEN', 2,  'CHANGE', 'pending', '{"name":"学二食堂","location":"学苑区一栋东侧","description":"新增夜宵窗口"}',                          DATE_SUB(NOW(), INTERVAL 6 HOUR)),
-(4, 'STALL',  14, 'CLOSE',   'pending', '{"name":"留园包点","reason":"档口歇业，申请关闭"}',                                                   DATE_SUB(NOW(), INTERVAL 1 DAY));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）
@@ -230,7 +222,7 @@ UPDATE dish SET original_price=1200, promo_price=1000 WHERE id=22;  -- 珍珠奶
 UPDATE dish SET original_price=2400, promo_price=2000 WHERE id=26;  -- 羊肉串 24.00 → 20.00
 
 -- -------------------- 消息通知（演示个人中心红点与通知列表；无唯一键，先清后插保证可重复执行） --------------------
--- 类型 dish_audit 与后端 NotificationConst 一致；related_id 指向真实菜品 ID。
+-- 类型 dish_audit / feedback_handle 与后端 NotificationConst 一致；related_id 指向真实菜品 / 反馈 ID。
 DELETE FROM notification;
 INSERT INTO notification (user_id, type, title, content, related_id, is_read, created_at) VALUES
 (2, 'dish_audit', '菜品审核通过', '您提交的菜品「牛肉拉面」已通过审核，可以在对应档口查看。', 6, 0, DATE_SUB(NOW(), INTERVAL 4 HOUR)),

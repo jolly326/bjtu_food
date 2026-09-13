@@ -28,6 +28,11 @@
         </view>
       </view>
 
+      <!-- 来源承接行：仅由贡献入口带参进入时出现，说明「我从哪来」；切换类型后消失 -->
+      <view v-if="sourceHint" class="source-hint">
+        <text class="source-hint-text">{{ sourceHint }}</text>
+      </view>
+
       <!-- 动态字段区 -->
       <view class="q-card">
         <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分） -->
@@ -162,6 +167,7 @@ const {
   goBack,
   types,
   type,
+  sourceHint,
   form,
   canSubmit,
   gateHint,
@@ -243,6 +249,9 @@ const {
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
 }
+/* 按压反馈：统一 bg-soft 语言（与 mine 宫格 / activity 卡一致）；选中态按下保持主色浅底，避免翻灰 */
+.type-card.pressed { background-color: var(--bg-soft); }
+.type-card.active.pressed { background: var(--color-primary-soft); }
 .type-icon {
   width: 72rpx;
   height: 72rpx;
@@ -258,6 +267,10 @@ const {
 .type-line { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.3; white-space: nowrap; }
 .type-card.active .type-line { color: var(--color-primary); }
 .type-desc { font-size: var(--font-tiny); color: var(--color-primary); line-height: 1.3; }
+
+/* ===== 来源承接行：由贡献入口带参进入时出现（三级灰小字，只读，不与表单字段耦合） ===== */
+.source-hint { padding: 0 var(--spacing-lg) var(--spacing-xs); }
+.source-hint-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.5; }
 
 /* ===== 表单外层 Q 卡（替代 CardSection 观感：大圆角 + 暖调柔和阴影，内部模块靠间距分层） ===== */
 .q-card {

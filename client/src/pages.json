@@ -58,6 +58,20 @@
 						"navigationBarTitleText": "意见反馈",
 						"navigationStyle": "custom"
 					}
+				},
+				{
+					"path": "my-reviews/index",
+					"style": {
+						"navigationBarTitleText": "我的评价",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "privacy/index",
+					"style": {
+						"navigationBarTitleText": "隐私政策与用户协议",
+						"navigationStyle": "custom"
+					}
 				}
 			]
 		},

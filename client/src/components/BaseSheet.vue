@@ -58,7 +58,7 @@ const props = withDefaults(defineProps<{
   visible: boolean
   /** 弹层 z 层级 token 名（含 -- 前缀），如 --z-auth / --z-actionsheet / --z-sheet */
   zToken?: string
-  /** 右上角关闭钮（按语义显式开启；动态/认证等「去 X」弹层不传） */
+  /** 右上角关闭钮（按语义显式开启；认证等「去 X」弹层不传） */
   closable?: boolean
   /** 头部标题（可省略） */
   title?: string

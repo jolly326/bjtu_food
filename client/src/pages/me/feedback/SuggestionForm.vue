@@ -35,20 +35,14 @@
       <text v-if="model.text.length > 800" class="counter">{{ model.text.length }}/1000</text>
       <text v-if="errors['suggestion.text']" class="field-error">{{ errors['suggestion.text'] }}</text>
     </view>
-
-    <view class="field">
-      <text class="field-label">图片</text>
-      <ImageUploader v-model="model.images" :max="3" show-counter />
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-/** SuggestionForm（feedback 包内私有）：「提个想法」字段区（细分 chips + 正文 + 图片） */
-import ImageUploader from '@/components/ImageUploader.vue'
+/** SuggestionForm（feedback 包内私有）：「提个想法」字段区（细分 chips + 正文） */
 
 const props = defineProps<{
-  model: { sub: 'idea' | 'problem'; text: string; images: string[] }
+  model: { sub: 'idea' | 'problem'; text: string }
   errors: Record<string, string>
 }>()
 const emit = defineEmits<{ (e: 'clear', key: string): void }>()

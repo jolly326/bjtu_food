@@ -1,5 +1,5 @@
 <template>
-  <!-- 评价卡：整卡一张（卡头 + flat 条目），与动态卡片形态趋同；无评价时卡内静默（无空态/加载提示） -->
+  <!-- 评价卡：整卡一张（卡头 + flat 条目）；无评价时卡内静默（无空态/加载提示） -->
   <view class="review-section" id="review-section">
     <view class="review-card">
       <view class="review-card-head">

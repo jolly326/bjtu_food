@@ -2,8 +2,8 @@ import type { AdminUser } from '@/types'
 import { del, get, post, put } from './http'
 import { pageRecords, adminUserToLegacy } from './adapter'
 
-/** 后台管理员账号列表 */
-export async function getAll(page = 1, pageSize = 200): Promise<AdminUser[]> {
+/** 后台管理员账号列表（pageSize 对齐后端 PageUtil 上限 100，超限会被静默截断） */
+export async function getAll(page = 1, pageSize = 100): Promise<AdminUser[]> {
   return pageRecords(await get<any>('/admin/admins', { page, pageSize })).map(adminUserToLegacy)
 }
 

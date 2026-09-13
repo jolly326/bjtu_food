@@ -14,7 +14,7 @@
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useFeedback()，
  * 使 onLoad/onUnload/watch 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
@@ -22,8 +22,10 @@ import { searchDishes, getDishDetail } from '@/api/dish'
 import type { Dish } from '@/types/dish'
 import { getCanteensWithStalls } from '@/api/canteen'
 import { backToHome } from '@/utils/nav'
+import { useUserStore } from '@/stores/user'
 
 export function useFeedback() {
+  const userStore = useUserStore()
   // 返回：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页
   function goBack() {
     if (getCurrentPages().length > 1) uni.navigateBack()
@@ -37,13 +39,14 @@ export function useFeedback() {
     { value: 'error', label: '信息不对', desc: '纠错 / 下架', icon: 'report-fill' },
   ]
   const type = ref<FeedbackSubmit['type']>('suggestion')
+  /** 来源承接文案：由贡献入口落点参数推导（见 contribution-entry），仅读展示；用户切换类型后清空 */
+  const sourceHint = ref('')
 
   // ---- ② 动态字段（各类型独立状态，切换保留，提交清空） ----
   const form = reactive({
     suggestion: {
       sub: 'idea' as 'idea' | 'problem',
       text: '',
-      images: [] as string[],
     },
     add: {
       name: '',
@@ -53,14 +56,12 @@ export function useFeedback() {
       stallName: '',
       stallCustom: '',
       floor: '',
-      images: [] as string[],
       description: '',
     },
     error: {
       dish: null as Dish | null,
       points: [] as string[],
       correctValues: {} as Record<string, string>,
-      evidenceImages: [] as string[],
       evidenceText: '',
     },
   })
@@ -97,7 +98,11 @@ export function useFeedback() {
   }
 
   // ---- feedback-forms-ux-polish：类型切换即清空（已拍板口径；watch 单一入口，含菜品空态去补录联动） ----
-  watch(type, () => resetForm())
+  watch(type, () => {
+    resetForm()
+    // 切换类型即脱离原贡献场景，清空来源承接文案（避免与新表单语义矛盾）
+    sourceHint.value = ''
+  })
 
   // ---- ③ 信息不对：关联菜品搜索（底部弹窗） ----
   const dishSheetOpen = ref(false)
@@ -259,7 +264,7 @@ export function useFeedback() {
       locStep.value === 'canteen'
         ? canteenTree.value.map((c: any) => ({ key: c.name as string, label: c.name as string, icon: 'canteen' }))
         : currentStalls.value.map((name) => ({ key: name, label: name, icon: 'stall' }))
-    return [...base, { key: '其他', label: '其他', icon: 'add' }]
+    return [...base, { key: '其他', label: '其他', icon: 'plus' }]
   })
 
   /** 当前高亮项 key：食堂/档口原始选中值（'' → 无高亮；'其他' 命中末尾项） */
@@ -406,7 +411,6 @@ export function useFeedback() {
   function resetForm() {
     form.suggestion.sub = 'idea'
     form.suggestion.text = ''
-    form.suggestion.images = []
     form.add.name = ''
     form.add.price = ''
     form.add.canteen = ''
@@ -414,12 +418,10 @@ export function useFeedback() {
     form.add.stallName = ''
     form.add.stallCustom = ''
     form.add.floor = ''
-    form.add.images = []
     form.add.description = ''
     form.error.dish = null
     form.error.points = []
     form.error.correctValues = {}
-    form.error.evidenceImages = []
     form.error.evidenceText = ''
     dishKeyword.value = ''
     dishCandidates.value = []
@@ -471,7 +473,6 @@ export function useFeedback() {
 
     // 组装 content（结构化文本）
     let content = ''
-    const images: string[] = []
     let relatedType: string | undefined
     // #6 修复：relatedId 与 relatedType 成对赋值，仅在 error 分支设置。
     // 原实现 unconditionally 取 form.error.dish?.id，切到 suggestion/add 类型提交时残留
@@ -480,7 +481,6 @@ export function useFeedback() {
 
     if (t === 'suggestion') {
       content = form.suggestion.text.trim()
-      images.push(...form.suggestion.images)
     } else if (t === 'add') {
       const parts = [`【新增菜品】${form.add.name.trim()}`]
       if (form.add.price.trim()) parts.push(`价格：${form.add.price.trim()}元`)
@@ -492,7 +492,6 @@ export function useFeedback() {
       if (form.add.floor.trim()) parts.push(`楼层：${form.add.floor.trim()}`)
       if (form.add.description.trim()) parts.push(`描述：${form.add.description.trim()}`)
       content = parts.join('\n')
-      images.push(...form.add.images)
       // add 为新增菜品，无关联已有对象，不传 relatedType
     } else if (t === 'error') {
       const parts: string[] = []
@@ -508,7 +507,6 @@ export function useFeedback() {
       }
       content = parts.join('\n')
       if (form.error.evidenceText.trim()) content += `\n作证：${form.error.evidenceText.trim()}`
-      images.push(...form.error.evidenceImages)
       relatedType = 'dish'
       relatedId = form.error.dish?.id
     }
@@ -520,11 +518,16 @@ export function useFeedback() {
       await submitFeedback({
         type: t,
         content,
-        images: images.length ? images : undefined,
         relatedType,
         relatedId,
       })
-      uni.showToast({ title: '感谢你的反馈！', icon: 'success' })
+      // 成功反馈 + 处理预期说明；游客须明确「未记账号，结果无法单独通知」（见 feedback-receipt）
+      uni.showToast({
+        title: userStore.isVerified()
+          ? '感谢你的反馈！我们会在数个工作日内查看并处理'
+          : '感谢你的反馈！我们会在数个工作日内处理，但未记账号、结果无法单独通知你',
+        icon: 'none',
+      })
       resetForm()
       // 成功态双态：2 秒后无输入则自动返回来源页
       scheduleAutoBack()
@@ -551,23 +554,35 @@ export function useFeedback() {
     }
   }
 
-  // ---- 预选菜品（首页「反馈菜品」入口带 object/name/id） ----
+  /** 来源承接文案：由落点参数推导（不新增参数）；首页卡片 / 搜索无结果 / 详情页纠错三种语义 */
+  function buildSourceHint(opts?: Record<string, string>): string {
+    if (opts?.from === 'dish') {
+      const name = opts?.dishName || form.error.dish?.name || ''
+      return name ? `正在纠正：${name}` : '正在纠正这条菜品信息'
+    }
+    if (opts?.from === 'find') return '搜索没找到，来推荐一道'
+    if (opts?.from === 'home') return '从首页「想吃啥没找到」进来'
+    return ''
+  }
+
+  // ---- 贡献入口落点（统一参数：type / from / dishId / dishName，见 spec contribution-entry） ----
+  // 键名唯一：替代原「首页反馈菜品入口」遗留的 object/name/id 分支（该入口已不存在）。
   onLoad(async (opts?: Record<string, string>) => {
     loadCanteens()
-    const hasDishRef = opts?.object === 'dish' || opts?.name || opts?.id
-    // 「反馈菜品」入口：预置「信息不对」+ 关联菜品；类型仍可自由切换
-    if (hasDishRef) type.value = 'error'
-    if (opts?.id) {
-      const id = Number(opts.id)
-      if (!Number.isNaN(id)) {
-        try {
-          const d = await getDishDetail(id)
-          if (d) form.error.dish = d
-        } catch { /* 忽略：详情拉取失败则进入手动搜索 */ }
-      }
-    } else if (opts?.name) {
-      // 仅有菜名：预填搜索框并自动检索，用户点选确认
-      onDishSearchKw(opts.name)
+    const t = opts?.type
+    if (t !== 'suggestion' && t !== 'add' && t !== 'error') return
+    type.value = t
+    // 时序契约：watch(type) 会触发 resetForm()（含清空 form.error.dish），
+    // 因此来源承接文案与关联菜品必须在清空完成之后（nextTick 之后）再注入，否则会被清掉。
+    await nextTick()
+    sourceHint.value = buildSourceHint(opts)
+    const dishId = Number(opts?.dishId ?? 0)
+    if (t === 'error' && dishId) {
+      try {
+        const d = await getDishDetail(dishId)
+        // 注入形态契约：必须落成完整 Dish 对象（提交使能 canSubmit 依赖 form.error.dish 非空）
+        if (d) form.error.dish = d
+      } catch { /* 忽略：详情拉取失败则回退为手动搜索选择菜品 */ }
     }
   })
 
@@ -576,6 +591,7 @@ export function useFeedback() {
     goBack,
     types,
     type,
+    sourceHint,
     form,
     canSubmit,
     gateHint,

@@ -86,6 +86,9 @@ public class UserServiceImpl implements UserService {
         }
         user.setRole(role);
         userMapper.updateById(user);
+        // 角色变更（含降权）后旧 token 载荷中的 role 已过时，必须整体失效：
+        // 按用户维度拉黑，客户端下次请求 401 后重新登录换取携带新角色的 token。
+        tokenBlacklist.revokeUser(id);
     }
 
     /**

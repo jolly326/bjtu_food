@@ -59,6 +59,16 @@
         <text class="metric-label">地域</text>
       </view>
     </view>
+
+    <!-- 纠错入口（贡献入口 A）：把④主线从「深度 2：我的→反馈→选类型」拉到「内容页原地」。
+         点击直达反馈页预选「信息不对」并自动关联本菜品（落点唯一构造函数，from=dish） -->
+    <view class="correct-row" role="button" aria-label="信息有误" hover-class="pressed" @tap="goCorrect">
+      <view class="correct-left">
+        <IconSvg name="report" :size="26" color="var(--text-tertiary)" />
+        <text class="correct-text">信息有误？</text>
+      </view>
+      <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" />
+    </view>
   </CardSection>
 </template>
 
@@ -68,6 +78,7 @@ import type { Dish } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import TagLabel from '@/components/TagLabel.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { feedbackEntryUrl } from '@/utils/routes'
 
 const props = defineProps<{
   dish: Dish
@@ -126,6 +137,13 @@ const hasMetrics = computed(() => {
   const d = props.dish
   return (d.rating || 0) > 0 || (d.ratingCount || 0) > 0 || spiceText.value !== '-' || regionText.value !== '-'
 })
+
+/** 纠错入口 → 反馈页预选「信息不对」并关联本菜品（落点唯一构造函数，from=dish，见 contribution-entry） */
+function goCorrect() {
+  uni.navigateTo({
+    url: feedbackEntryUrl({ type: 'error', from: 'dish', dishId: props.dish.id, dishName: props.dish.name }),
+  })
+}
 </script>
 
 <style scoped>
@@ -160,4 +178,18 @@ const hasMetrics = computed(() => {
 .metric-val { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 4rpx; }
 .metric-val--text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); display: inline-block; line-height: 1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .metric-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
+/* 纠错入口：与位置行同分隔线语言，浅灰弱引导，不抢主信息 */
+.correct-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 2rpx solid var(--border-color);
+  -webkit-tap-highlight-color: transparent;
+}
+.correct-row.pressed { opacity: 0.7; }
+.correct-left { display: flex; align-items: center; gap: var(--spacing-xs); min-width: 0; }
+.correct-text { font-size: var(--font-small); color: var(--text-tertiary); }
 </style>

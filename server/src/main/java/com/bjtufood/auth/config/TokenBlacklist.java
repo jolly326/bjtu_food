@@ -39,9 +39,9 @@ public class TokenBlacklist {
     /**
      * 将 token 加入黑名单。
      * <p>
-     * 存活期使用固定短窗口（7 天）而非 token 自身的 exp：JWT 有效期为产品决策的超长时长（100 年），
-     * 若按 token exp 清理会让黑名单项常驻内存造成泄漏。7 天窗口足以覆盖「注销/禁用后旧 token 立即失效」的诉求，
-     * 因为被注销/禁用的账号无法再次登录换取新 token，且服务重启后黑名单清空同样要求重新登录。
+     * 存活期使用固定窗口（7 天）：JWT 有效期同为 7 天（spec §5.y.5，见 application.yml jwt.expiration），
+     * 黑名单窗口与 token 剩余有效期对齐即可完整覆盖「注销/禁用后旧 token 立即失效」的诉求。
+     * 被注销/禁用的账号无法再次登录换取新 token，且服务重启后黑名单清空同样要求重新登录。
      */
     public void revoke(String token) {
         if (token == null || token.isBlank()) return;

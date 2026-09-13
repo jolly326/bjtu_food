@@ -42,6 +42,20 @@
           </view>
         </view>
       </view>
+      <!-- 加载失败重试块（MP-012）：请求失败 ≠ 没有活动——极简「加载失败 · 点击重试」行内块，
+           先于空态判断，与既有空态同族视觉（居中、次级文字色、@tap 重拉） -->
+      <view
+        v-else-if="loadFailed && !loading && !refreshing"
+        class="activity-retry"
+        role="button"
+        aria-label="加载失败，点击重试"
+        hover-class="pressed"
+        @tap="onRetryLoad"
+      >
+        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
+        <text class="activity-retry-title">加载失败</text>
+        <text class="activity-retry-hint">网络似乎不太顺畅 · 点击重试</text>
+      </view>
       <!-- 空状态：无活动且非加载/刷新中 → 居中友好提示（Q 版圆润，避免白屏） -->
       <view v-else-if="!loading && !refreshing" class="activity-empty">
         <view class="activity-empty-icon">
@@ -70,6 +84,8 @@ const pageSize = 20
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
+/** 首屏/下拉刷新是否失败（MP-012）：失败 ≠ 无活动，失败渲染重试块而非空态 */
+const loadFailed = ref(false)
 const list = ref<ActivityItem[]>([])
 
 
@@ -82,13 +98,20 @@ async function fetchPage(reset: boolean) {
   loading.value = true
   try {
     const res = await getActivities({ page: page.value, pageSize })
+    // 成功即清失败态（MP-012，重试成功后错误块消失）
+    loadFailed.value = false
     if (reset) list.value = res
     else list.value = list.value.concat(res)
     finished.value = res.length < pageSize
-    if (!reset && res.length > 0) page.value += 1
+    // reset（首次加载/下拉刷新）成功后同样递增，否则首次触底会重拉第 1 页造成重复（MP-001）
+    if (reset || res.length > 0) page.value += 1
   } catch (e) {
     console.error('[activity] 加载失败', e)
-    if (reset) list.value = []
+    if (reset) {
+      list.value = []
+      // 首屏/刷新失败置错误态（MP-012）：与「真的没有活动」区分；分页失败保持静默，可再触底重试
+      loadFailed.value = true
+    }
   } finally {
     loading.value = false
     refreshing.value = false
@@ -103,6 +126,13 @@ function onRefresh() {
   page.value = 1
   finished.value = false
   refreshing.value = true
+  fetchPage(true)
+}
+
+/** 重试块 @tap：从第 1 页重拉（与 onRefresh 同路径，仅无下拉动画）（MP-012） */
+function onRetryLoad() {
+  page.value = 1
+  finished.value = false
   fetchPage(true)
 }
 
@@ -228,6 +258,24 @@ onLoad(() => {
   font-weight: var(--weight-semibold);
   color: var(--color-primary);
 }
+
+/* 加载失败重试块（MP-012）：与空态同族视觉（居中、bg-soft 凹陷面、次级文字色），
+   整块 @tap 重拉，按压仅透明度反馈，不引入 scale */
+.activity-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background: var(--bg-soft);
+  border-radius: var(--radius-card);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.activity-retry.pressed { opacity: 0.7; }
+.activity-retry-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
+.activity-retry-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
 /* 空状态：居中广播图标 + 治愈文案 */
 .activity-empty {

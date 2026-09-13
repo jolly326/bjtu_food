@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 评价实体类
  * <p>
  * 对应数据库表：review
- * 学生就餐后对菜品发表的图文评价
+ * 学生就餐后对菜品发表的文字评价
  */
 @Data
 @TableName("review")
@@ -36,10 +36,6 @@ public class Review {
     /** 文字评价内容 */
     @Schema(description = "评价内容")
     private String content;
-
-    /** 评价图片，JSON数组：["url1","url2"] */
-    @Schema(description = "评价图片URL数组")
-    private String images;
 
     /** 管理员隐藏标记（0=正常, 1=隐藏） */
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")

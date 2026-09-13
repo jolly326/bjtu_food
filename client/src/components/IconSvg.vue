@@ -1,5 +1,6 @@
 <template>
-  <view class="icon-svg" :style="rootStyle" @tap="onClick">
+  <!-- 纯展示组件：不向外派发任何事件（MP-017，可点元素由父级自行绑定 @tap） -->
+  <view class="icon-svg" :style="rootStyle">
     <!-- 微信小程序无原生 <svg> 组件，改用 <image> + SVG data-uri 渲染矢量图标，
          真机稳定且支持通过 color 注入描边色。 -->
     <image class="icon-svg-el" :src="dataUri" mode="aspectFit" :style="imgStyle" />
@@ -80,13 +81,11 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   stall: { path: ['M3 9l1.5-4.5A2 2 0 0 1 6.4 3h11.2a2 2 0 0 1 1.9 1.5L21 9', 'M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M9 13h6v4'] },
   // 食堂（楼栋/餐厅）：区别于 stall 店铺、home 房屋；带入口门与二楼窗
   canteen: { path: ['M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15', 'M8 21v-5h8v5', 'M9 9h2', 'M13 9h2'] },
-  // 更多（三点竖排，语义：评价/动态右上角更多操作）
+  // 更多（三点竖排，语义：评价/内容右上角更多操作）
   'more-v': { circle: [{ cx: 12, cy: 5, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 12, r: 1.4, fill: 'currentColor' }, { cx: 12, cy: 19, r: 1.4, fill: 'currentColor' }] },
   // ── tab-pages-visual-unify：底部导航选中态填充变体（与同名线性键配对，TabBar 按 active 切换） ──
   // 首页（房屋实心；下方门洞因路径内凹而自然留白）
   'home-filled': { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'], fill: true },
-  // 动态（对话气泡实心，含左下角气泡尾）
-  'comment-filled': { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'], fill: true },
   // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
   'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
   // ── feedback-forms-ux-polish：圆润填充（胖）glyph（意见反馈页顶部/选项等使用；SVG data-uri，禁 emoji） ──
@@ -108,7 +107,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
 // CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
 // 单一事实源：色值统一维护在 src/theme/tokens.ts 的 COLOR_MAP（改主色只改一处，图标全同步）
 // 由 COLOR_MAP 派生主题色表并补 currentColor；产品仅浅色一种主体颜色，图标色固定取浅色表
-import { COLOR_MAP } from '@/theme/tokens'
+import { COLOR_MAP, ICON_FALLBACK_COLOR } from '@/theme/tokens'
 
 const COLOR_VARS_TABLE: Record<'light', Record<string, string>> = {
   light: { ...COLOR_MAP, currentColor: COLOR_MAP['text-primary'] },
@@ -116,10 +115,10 @@ const COLOR_VARS_TABLE: Record<'light', Record<string, string>> = {
 const COLOR_VARS = computed(() => COLOR_VARS_TABLE['light'])
 
 function resolveColor(c: string): string {
-  if (!c) return COLOR_VARS.value.currentColor || '#1C1C1E'
+  if (!c) return COLOR_VARS.value.currentColor || ICON_FALLBACK_COLOR
   if (c.startsWith('var(')) {
     const name = c.slice(4, -1).trim()
-    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || '#1C1C1E'
+    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || ICON_FALLBACK_COLOR
   }
   return c
 }
@@ -136,8 +135,6 @@ const props = withDefaults(defineProps<{
   color: 'currentColor',
 })
 
-const emit = defineEmits<{ (e: 'click'): void }>()
-
 const viewBox = 24
 // 开发期告警：未知图标名会静默回退到 empty（空盒）图标，难以及时发现。
 // 仅开发环境告警，生产环境保持静默回退，渲染不中断。
@@ -150,19 +147,36 @@ if (props.name && !ICONS[props.name]) {
 const icon = computed(() => ICONS[props.name] || ICONS.empty)
 const stroke = computed(() => resolveColor(props.color))
 
-// 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染
-const dataUri = computed(() => {
-  const fillMode = icon.value.fill
-  const paths = (icon.value.path || [])
+// 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染。
+// MP-019：模块级缓存（icon name + 颜色 → data-uri）——百级卡片列表（瀑布流点赞星标等）
+// 中同名同色图标不再逐实例重复「拼串 + encodeURIComponent」，命中直接复用。
+// 键空间有界（ICONS 枚举固定 × token 色值固定），无需 LRU 淘汰。
+const dataUriCache = new Map<string, string>()
+
+/** 纯函数：由图标定义 + 描边色构建 data-uri（不读组件状态，供缓存复用） */
+function buildDataUri(iconDef: typeof ICONS[string], strokeColor: string): string {
+  const fillMode = iconDef.fill
+  const paths = (iconDef.path || [])
     .map((d) => fillMode
-      ? `<path d="${d}" fill="${stroke.value}" stroke="none"/>`
-      : `<path d="${d}" fill="none" stroke="${stroke.value}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`)
+      ? `<path d="${d}" fill="${strokeColor}" stroke="none"/>`
+      : `<path d="${d}" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`)
     .join('')
-  const circles = (icon.value.circle || [])
-    .map((c) => `<circle cx="${c.cx}" cy="${c.cy}" r="${c.r}" fill="${c.fill === 'currentColor' ? stroke.value : (c.fill || 'none')}" ${c.fill ? '' : `stroke="${stroke.value}"`} stroke-width="2"/>`)
+  const circles = (iconDef.circle || [])
+    .map((c) => `<circle cx="${c.cx}" cy="${c.cy}" r="${c.r}" fill="${c.fill === 'currentColor' ? strokeColor : (c.fill || 'none')}" ${c.fill ? '' : `stroke="${strokeColor}"`} stroke-width="2"/>`)
     .join('')
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBox} ${viewBox}" width="${viewBox}" height="${viewBox}">${paths}${circles}</svg>`
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+const dataUri = computed(() => {
+  // key 用原始 name（未知名回退 empty 后仍按 name 区分键，同 name 必同 icon，缓存正确）
+  const key = `${props.name}|${stroke.value}`
+  let uri = dataUriCache.get(key)
+  if (uri === undefined) {
+    uri = buildDataUri(icon.value, stroke.value)
+    dataUriCache.set(key, uri)
+  }
+  return uri
 })
 
 const rootStyle = computed(() => ({
@@ -178,10 +192,6 @@ const imgStyle = computed(() => ({
   width: '100%',
   height: '100%',
 }))
-
-function onClick() {
-  emit('click')
-}
 </script>
 
 <style scoped>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import { userApi } from '@/api'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
@@ -19,6 +20,23 @@ const confirm = useConfirmStore()
 const searchQuery = ref('')
 // 用户行为聚合弹窗
 const activityUser = ref<any>(null)
+
+// 三态（WEB-108）：进入页面显式刷新，供 DataTable 展示 loading/error
+// （对齐 ContentManageView 等聚合页 onMounted loadAll 模式，此处补齐失败态）
+const loading = ref(true)
+const error = ref('')
+async function refresh() {
+  loading.value = true
+  error.value = ''
+  try {
+    await store.loadAll()
+  } catch (e: any) {
+    error.value = e.message || '加载学生列表失败'
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(refresh)
 
 const students = computed(() => store.users.filter(u => u.role !== 'admin'))
 
@@ -78,10 +96,11 @@ async function toggleStatus(row: any, active: boolean) {
   }
 }
 
-// ===== 批量启用/禁用 =====
+// ===== 批量启用/禁用（WEB-105：循环期间抑制逐条 reload——纯接口调用并统计成败，结束后统一刷新一次） =====
 const selectedIds = ref<number[]>([])
+const batchRunning = ref(false)
 async function batchSetStatus(status: 'active' | 'disabled') {
-  if (!selectedIds.value.length) return
+  if (!selectedIds.value.length || batchRunning.value) return
   const action = status === 'active' ? '启用' : '禁用'
   // 过滤掉当前登录管理员自身，避免批量封禁把自己踢下线
   const selfId = userStore.adminId
@@ -91,12 +110,29 @@ async function batchSetStatus(status: 'active' | 'disabled') {
     return
   }
   if (!await confirm.confirm(`确定批量${action} ${targets.length} 名学生？`)) return
-  try {
-    for (const u of targets) await store.toggleUserStatus(Number(u.id), status)
-    toast.success(`已批量${action} ${targets.length} 名学生`)
+  batchRunning.value = true
+  let okCount = 0
+  const failedIds: number[] = []
+  // 单条失败不中断批次：记录后继续执行下一条
+  for (const u of targets) {
+    try {
+      await userApi.toggleUserStatusById(Number(u.id), status)
+      okCount++
+    } catch {
+      failedIds.push(Number(u.id))
+    }
+  }
+  // 结束后统一刷新一次（替代逐条 N 次全量 reload）
+  await refresh()
+  batchRunning.value = false
+  const failCount = failedIds.length
+  if (failCount === 0) {
+    toast.success(`已批量${action} ${okCount} 名学生`)
     selectedIds.value = []
-  } catch (e: any) {
-    toast.error(e.message || `批量${action}失败`)
+  } else {
+    // 部分失败：汇总成败计数，仅保留失败项便于重试
+    toast.error(`批量${action}完成：成功 ${okCount} 条，失败 ${failCount} 条`)
+    selectedIds.value = failedIds
   }
 }
 </script>
@@ -110,8 +146,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
       </template>
       <template #actions>
         <template v-if="selectedIds.length">
-          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('active')">批量启用</button>
-          <button class="btn-danger" v-press type="button" @click="batchSetStatus('disabled')">批量禁用（{{ selectedIds.length }}）</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('active')">批量启用</button>
+          <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('disabled')">批量禁用（{{ selectedIds.length }}）</button>
         </template>
         <span class="stat-inline">共 {{ stats.total }} · 正常 {{ stats.active }} · 禁用 {{ stats.disabled }}</span>
       </template>
@@ -129,6 +165,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 
       ]"
       :rows="filteredStudents"
+      :loading="loading"
+      :error="error"
       :empty-text="searchQuery ? '没有匹配的学生' : '暂无学生用户'"
     >
       <template #cell-avatar="{ row }">

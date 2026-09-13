@@ -13,8 +13,9 @@ import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bjtufood.notify.constant.NotificationConst;
+import com.bjtufood.notify.entity.Notification;
+import com.bjtufood.notify.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +36,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
     private final SensitiveFilter sensitiveFilter;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,30 +55,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
-        feedback.setImages(serializeImages(req.getImages()));
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
         feedbackMapper.insert(feedback);
-    }
-
-    /** 附图数组 → JSON 字符串（空/非法安全降级 null） */
-    private String serializeImages(List<String> images) {
-        if (images == null || images.isEmpty()) return null;
-        try {
-            return OBJECT_MAPPER.writeValueAsString(images);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /** JSON 字符串 → 附图数组（空/非法安全降级 null） */
-    private List<String> deserializeImages(String json) {
-        if (!StringUtils.hasText(json)) return null;
-        try {
-            List<String> list = OBJECT_MAPPER.readValue(json, new TypeReference<List<String>>() {});
-            return (list == null || list.isEmpty()) ? null : list;
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Override
@@ -119,7 +98,6 @@ public class FeedbackServiceImpl implements FeedbackService {
             vo.setUserNickname(userMap.get(f.getUserId()));
             vo.setType(f.getType());
             vo.setContent(f.getContent());
-            vo.setImages(deserializeImages(f.getImages()));
             vo.setContact(f.getContact());
             vo.setRelatedType(f.getRelatedType());
             vo.setRelatedId(f.getRelatedId());
@@ -144,5 +122,39 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setHandledAt(LocalDateTime.now());
         feedback.setHandlerId(handlerId);
         feedbackMapper.updateById(feedback);
+        // 处理结果回执：仅向「可归属」提交人（提交时为已认证登录用户）投递
+        sendFeedbackReceipt(feedback);
+    }
+
+    /**
+     * 反馈处理结果回执。
+     * <p>
+     * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（verified=1）。
+     * 游客（userId 为空）与未认证账号不投递——反馈主路径刻意匿名，不保留可回执身份。
+     * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
+     */
+    private void sendFeedbackReceipt(Feedback feedback) {
+        Long userId = feedback.getUserId();
+        if (userId == null) {
+            return;
+        }
+        try {
+            User user = userMapper.selectById(userId);
+            if (user == null || user.getVerified() == null || user.getVerified() != 1) {
+                return;
+            }
+            Notification n = new Notification();
+            n.setUserId(userId);
+            n.setType(NotificationConst.TYPE_FEEDBACK_HANDLE);
+            n.setRelatedId(feedback.getId());
+            n.setIsRead(0);
+            n.setTitle("反馈已处理");
+            n.setContent(StringUtils.hasText(feedback.getReply())
+                    ? "你提交的反馈已处理：" + feedback.getReply()
+                    : "你提交的反馈我们已处理完毕，感谢你的反馈！");
+            notificationService.notify(n);
+        } catch (Exception ignored) {
+            // 回执失败不阻塞反馈处理
+        }
     }
 }

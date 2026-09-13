@@ -2,27 +2,12 @@ import { get, put } from './http'
 import { pageRecords } from './adapter'
 
 /**
- * 反馈处理（task-09 Web · 反馈闭环 W1）。
+ * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
  * 列表 GET /admin/feedbacks（status/type 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
  * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, content, contact, status, reply, createdAt, handledAt, relatedType, relatedId }。
  * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
  */
-
-/** 安全解析反馈附图：兼容 JSON 数组字符串 / 逗号分隔字符串 / 数组 / 空值，解析失败兜底空数组 */
-function parseImages(images: unknown): string[] | undefined {
-  if (Array.isArray(images)) return images.filter(Boolean)
-  if (typeof images !== 'string') return undefined
-  const trimmed = images.trim()
-  if (!trimmed) return undefined
-  try {
-    const parsed = JSON.parse(trimmed)
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [trimmed]
-  } catch {
-    // 非 JSON 格式（如逗号分隔），按分隔符拆分兜底
-    return trimmed.split(',').map((s) => s.trim()).filter(Boolean)
-  }
-}
 
 export interface FeedbackAdminVO {
   id: number
@@ -37,8 +22,6 @@ export interface FeedbackAdminVO {
   handledAt: string
   relatedType?: string
   relatedId?: number
-  /** 附图（绝对URL数组，2026-08-17 新增） */
-  images?: string[]
 }
 
 function feedbackToLegacy(raw: any): FeedbackAdminVO {
@@ -55,7 +38,6 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     handledAt: raw.handledAt ?? raw.handled_at ?? '',
     relatedType: raw.relatedType ?? raw.related_type ?? undefined,
     relatedId: raw.relatedId ?? raw.related_id ?? undefined,
-    images: parseImages(raw.images),
   }
 }
 

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import { dishApi } from '@/api'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -99,32 +100,60 @@ async function toggleStatus(row: any, active: boolean) {
   }
 }
 
-// ===== 批量上架/下架/删除 =====
+// ===== 批量上架/下架/删除（WEB-105：循环期间抑制逐条 reload——纯接口调用并统计成败，结束后统一刷新一次） =====
 const selectedIds = ref<number[]>([])
+const batchRunning = ref(false)
 
-async function batchSetStatus(status: 'active' | 'inactive') {
-  if (!selectedIds.value.length) return
-  const label = status === 'active' ? '上架' : '下架'
-  if (!await confirm.confirm(`确定批量${label} ${selectedIds.value.length} 个菜品？`)) return
+/**
+ * 批量执行通用编排：循环纯接口调用（不逐条触发 store 内部 loadAll），
+ * 单条失败不中断批次；结束后统一 store.loadAll() 一次并汇总「成功 N 条，失败 M 条」。
+ */
+async function runBatch(
+  label: string,
+  ids: number[],
+  exec: (id: number) => Promise<void>,
+  successText: (n: number) => string,
+) {
+  batchRunning.value = true
+  let okCount = 0
+  const failedIds: number[] = []
+  for (const id of ids) {
+    try {
+      await exec(id)
+      okCount++
+    } catch {
+      failedIds.push(id)
+    }
+  }
+  // 结束后统一刷新一次（替代逐条 N 次全量 reload）
   try {
-    for (const id of selectedIds.value) await store.updateDish(id, { status })
-    toast.success(`已批量${label} ${selectedIds.value.length} 个菜品`)
+    await store.loadAll()
+  } catch { /* 刷新失败由页面既有数据兜底，不吞掉批量结果提示 */ }
+  batchRunning.value = false
+  const failCount = failedIds.length
+  if (failCount === 0) {
+    toast.success(successText(okCount))
     selectedIds.value = []
-  } catch (e: any) {
-    toast.error(e.message || `批量${label}失败`)
+  } else {
+    toast.error(`批量${label}完成：成功 ${okCount} 条，失败 ${failCount} 条`)
+    // 部分失败：仅保留失败项便于重试
+    selectedIds.value = failedIds
   }
 }
 
+async function batchSetStatus(status: 'active' | 'inactive') {
+  if (!selectedIds.value.length || batchRunning.value) return
+  const label = status === 'active' ? '上架' : '下架'
+  if (!await confirm.confirm(`确定批量${label} ${selectedIds.value.length} 个菜品？`)) return
+  await runBatch(label, [...selectedIds.value], id => dishApi.updateById(id, { status }),
+    n => `已批量${label} ${n} 个菜品`)
+}
+
 async function batchDelete() {
-  if (!selectedIds.value.length) return
+  if (!selectedIds.value.length || batchRunning.value) return
   if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。`)) return
-  try {
-    for (const id of selectedIds.value) await store.deleteDish(id)
-    toast.success(`已删除 ${selectedIds.value.length} 个菜品`)
-    selectedIds.value = []
-  } catch (e: any) {
-    toast.error(e.message || '批量删除失败')
-  }
+  await runBatch('删除', [...selectedIds.value], id => dishApi.deleteById(id),
+    n => `已删除 ${n} 个菜品`)
 }
 </script>
 
@@ -136,9 +165,9 @@ async function batchDelete() {
       </template>
       <template #actions>
         <template v-if="selectedIds.length">
-          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('active')">批量上架</button>
-          <button class="btn-secondary" v-press type="button" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
-          <button class="btn-danger" v-press type="button" @click="batchDelete">批量删除</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('active')">批量上架</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
+          <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchDelete">批量删除</button>
         </template>
         <button class="btn-primary" v-press @click="openAddDish">
           <el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品

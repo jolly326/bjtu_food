@@ -31,7 +31,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 获取档口评价列表
@@ -46,7 +46,7 @@ public interface ReviewService {
      * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 获取食堂评价列表
@@ -61,7 +61,7 @@ public interface ReviewService {
      * @param userId    当前登录用户ID（可空，用于回写 useful 标记）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId, boolean withImage);
+    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
 
     /**
      * 计算某档口的平均评分（星级 1-5，取该档口下所有菜品评价的平均值）
@@ -70,6 +70,18 @@ public interface ReviewService {
      * @return 平均分（BigDecimal，保留两位），无评价返回 0.00
      */
     BigDecimal getAvgRatingByStallId(Long stallId);
+
+    /**
+     * 获取当前用户的评价列表（我的评价）
+     * <p>
+     * 只返回该用户未隐藏的评价，按发表时间倒序；返回项含 {@code dishName}（mapper 联表 dish 补齐）。
+     *
+     * @param userId   当前登录用户ID
+     * @param page     页码
+     * @param pageSize 每页条数
+     * @return 分页评价列表
+     */
+    IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize);
 
     // ==================== 需登录接口（学生） ====================
 

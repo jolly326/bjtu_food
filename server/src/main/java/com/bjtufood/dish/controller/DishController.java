@@ -137,6 +137,19 @@ public class DishController {
     // ==================== 学生端发布接口（STUDENT） ====================
 
     @Operation(
+            summary = "学生发布菜品",
+            description = "提交新菜品，created_by=当前用户、audit_status=pending 待后台审核；学生不可设置上下架。需已完成学号邮箱认证。",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @RequireVerified
+    @PostMapping("/dishes")
+    public Result<Void> publishDish(@Valid @RequestBody DishPublishReq req) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        dishService.publishDish(req, userId);
+        return Result.success();
+    }
+
+    @Operation(
             summary = "学生编辑 / 重新提交菜品",
             description = "仅本人发布的菜品可编辑；重提复用原记录，audit_status 重置为 pending、reject_reason 清空。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
@@ -154,7 +167,7 @@ public class DishController {
 
     @Operation(
             summary = "学生删除本人菜品",
-            description = "仅 created_by 本人可删，返回 200/403/404。级联清理评价与清单项（favorite 模块已移除，不处理）。需已完成学号邮箱认证。",
+            description = "仅 created_by 本人可删，返回 200/400/403。级联清理评价与清单项（favorite 模块已移除，不处理）。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @RequireVerified

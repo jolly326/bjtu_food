@@ -18,7 +18,7 @@ const router = createRouter({
         { path: '', name: 'dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
         { path: 'content', name: 'contentManage', component: () => import('@/views/content/ContentManageView.vue') },
         { path: 'audit', name: 'auditManage', component: () => import('@/views/audit/AuditManageView.vue') },
-        { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue'), meta: { role: 'super_admin' } },
+        { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue') },
         { path: 'canteens/:canteenId', name: 'canteenDetail', component: () => import('@/views/canteen/CanteenDetailView.vue') },
         { path: 'canteens/:canteenId/stalls/:stallId', name: 'stallDetail', component: () => import('@/views/canteen/StallDetailView.vue') },
         { path: 'canteens/:canteenId/stalls/:stallId/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
@@ -30,7 +30,6 @@ const router = createRouter({
 
 // 全局前置守卫：401 引导登录；仅 ADMIN / SUPER_ADMIN 可进后台（M11 守卫缓存）
 const isBackendRole = (role?: string) => role === 'admin' || role === 'super_admin'
-const isSuperAdmin = (role?: string) => role === 'super_admin'
 
 /**
  * 读取当前角色：优先读 userStore 缓存（登录后回填），缺失或 401 才回源 getProfile（M11）。
@@ -69,12 +68,8 @@ router.beforeEach(async (to) => {
       // 非后台角色禁止进入
       return { path: '/login' }
     }
-    // 细粒度权限：标注 meta.role 的路由（如管理员管理）仅对应角色可进（M10）
-    const needRole = to.meta.role as string | undefined
-    if (needRole && !isSuperAdmin(role)) {
-      ElMessage.warning('无权限访问该页面')
-      return { path: '/dashboard' }
-    }
+    // 权限从简（WEB-100）：路由层不再做角色细分，普通管理员可用全部管理功能；
+    // 敏感接口的权限闸门在后端 /admin/** 硬鉴权。
     return true
   } catch (e: any) {
     // 401（token 失效）时 http 拦截层已清除 token，无需重复清除；

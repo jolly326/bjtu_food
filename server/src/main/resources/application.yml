@@ -68,9 +68,18 @@ jwt:
   # JWT 签名密钥：生产/云端必须从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库。
   # 本地开发默认值仅供调试，切勿直接用于生产。
   secret: ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}
-  # Token 过期时间：产品决策「不设置登录超时」，token 长期有效（100年 ≈ 3153600000000ms）
-  # 注销/禁用仍可通过 TokenBlacklist 立即失效，不影响账号安全
-  expiration: 3153600000000
+  # Token 过期时间：7 天（604800000ms，spec §5.y.5）。
+  # 小程序端过期后经静默登录自动换取新 token；注销/禁用仍可通过 TokenBlacklist 立即失效。
+  expiration: 604800000
+
+# ---------- SpringDoc OpenAPI (Swagger) ----------
+# 文档默认开启供本地开发联调；生产（profile=prod，见 application-prod.yml，或环境变量
+# SPRINGDOC_API_DOCS_ENABLED=false）必须关闭，避免对外暴露接口拓扑与调试入口。
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
 
 # ---------- CORS 受信任前端源 ----------
 # 仅放行白名单内的浏览器源（逗号分隔）；微信小程序 wx.request 不带 Origin 头，不受影响。

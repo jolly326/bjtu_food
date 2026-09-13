@@ -9,16 +9,17 @@
 import { get, put } from './http'
 import { listOf, type PageResult, type RawRow } from './shared'
 
-/** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用） */
-type NotificationType = 'dish_audit'
+/** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用）。
+ *  2026-09-12：新增 feedback_handle（反馈处理结果回执），与后端 NotificationConst 对齐。 */
+type NotificationType = 'dish_audit' | 'feedback_handle'
 
 export interface Notification {
   id: number
-  /** 通知类型 */
+  /** 通知类型：dish_audit=菜品审核结果；feedback_handle=反馈处理结果回执 */
   type: NotificationType
   title: string
   content: string
-  /** 关联对象 ID（按 type 解释：菜品 ID） */
+  /** 关联对象 ID（按 type 解释：dish_audit=菜品 ID；feedback_handle=反馈 ID） */
   relatedId?: number | null
   /** 是否已读：0=未读 1=已读 */
   isRead: number
@@ -69,7 +70,4 @@ export async function readNotification(id: number): Promise<void> {
   await put<void>(`/my/notifications/${id}/read`)
 }
 
-// ─────────────────────────────────────────────────────────────
-// 首页广播条数据源为「动态前 10 条」（见 pages/home/index.vue 本地 toBroadcastItem）；
-// 原 notify.ts 的 BroadcastItem（broadcast 表接口）已随广播条改版下线，2026-09-07 移除死定义。
-// ─────────────────────────────────────────────────────────────
+

@@ -11,12 +11,12 @@
 
     <!-- 筛选行：左=全部食堂 / 全部价格（仅展开时红底），最右=筛选图标（常驻，暂不挂跳转） -->
     <view class="filter-bar">
+      <!-- 胶囊高度不再传硬编码：FilterBar 组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017） -->
       <FilterBar
         class="fb-host"
         :canteens="dishStore.canteenList"
         :selected-canteen-id="selectedCanteenId"
         :price-range="dishStore.filterPrice"
-        :capsule-height="36"
         @canteen-select="onCanteenSelect"
         @price-select="onPriceSelect"
       />
@@ -33,8 +33,8 @@
       @scrolltolower="onScrollToLower"
     >
       <view class="home-content">
-        <!-- 瀑布流：按所选食堂过滤；未选 = 全部 -->
-        <HomeContent />
+        <!-- 瀑布流：按所选食堂过滤；未选 = 全部。末尾贡献卡片由 HomeContent 承载（含筛选无结果脱困动作） -->
+        <HomeContent :filtered="hasFilter" @clear-filter="onClearFilter" @retry="retryWaterfall" />
       </view>
     </scroll-view>
 
@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
@@ -62,9 +62,6 @@ const dishStore = useDishStore()
 const locationStore = useLocationStore()
 
 const refresherTriggered = ref(false)
-
-/** 胶囊高度（px），与 AppHeader 同一取值口径 */
-const capsuleHeight = ref(32)
 
 /** 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约） */
 async function onPriceSelect(range: { min?: number; max?: number }) {
@@ -102,6 +99,17 @@ function onCanteenSelect(id: number | null) {
   selectedCanteenId.value = id
   const tab = id == null ? defaultTab() : canteenTab(id, selectedCanteenName.value || '食堂')
   dishStore.fetchFilterDishes(tab, true)
+}
+
+/** 是否存在生效的筛选条件（食堂 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
+const hasFilter = computed(
+  () => selectedCanteenId.value != null || dishStore.filterPrice.min != null || dishStore.filterPrice.max != null,
+)
+
+/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间并回到「全部」食堂 */
+function onClearFilter() {
+  dishStore.setHomePrice({})
+  onCanteenSelect(null)
 }
 
 function goToSearch() {
@@ -152,13 +160,6 @@ onLoad(() => {
   loadData()
 })
 
-// 读取原生胶囊高度，使独立筛选 chip 与 header 搜索框高度对齐（与 AppHeader 同一口径）
-onMounted(() => {
-  // @ts-ignore - 跨端兼容（H5 无 wx，退化为默认 32px）
-  const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) capsuleHeight.value = mb.height
-})
-
 onShow(() => {
   // 锚定底部菜单栏：首页始终显示并高亮（页面已就绪，最可靠时机）
   showTab('home')
@@ -207,14 +208,6 @@ onShareAppMessage(() => {
 .fb-host {
   flex: 1;
   min-width: 0;
-}
-/* 结果计数：贴右、固定不收缩，读 dishStore.filterTotal */
-.filter-count {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: var(--font-aux);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
 }
 .scroll-wrap {
   flex: 1;

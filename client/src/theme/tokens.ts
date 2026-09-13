@@ -25,6 +25,8 @@ export const COLOR_MAP = {
   'text-white-soft': 'rgba(255,255,255,0.84)',
   'text-white-faint': 'rgba(255,255,255,0.18)',
   'text-white-edge': 'rgba(255,255,255,0.24)',
+  /* 详情页返回钮黑箭头（微信原生胶囊同款配色，IconSvg color="var(--nav-back-icon)" 经 COLOR_VARS 解析） */
+  'nav-back-icon': '#1A1A1A',
   'text-primary': '#262626',
   'text-secondary': '#595959',
   'text-tertiary': '#999999',
@@ -68,3 +70,10 @@ export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
 // 微信原生 <web-view> 的 progressbar.color 不接受 var()，必须用真实色值
 // （见 pages/activity/webview.vue）。主色变更时须同步此处。
 export const WEBVIEW_PROGRESSBAR_COLOR = '#C45549'
+// uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（危险操作确认按钮，与 --color-error 同值）
+// （见 pages/detail/dish/useDishPage.ts、pages/me/my-reviews/index.vue、pages/find/index.vue）
+export const MODAL_CONFIRM_DANGER_COLOR = '#FF3B30'
+// pages.json globalStyle 导航栏/窗口底色（JSON 无法引用 TS 常量，此处登记为色值事实源，改动须与 pages.json 同步）
+export const NAVIGATION_BAR_BACKGROUND = '#F5F5F7'
+// IconSvg resolveColor 的最终兜底色（COLOR_VARS 双重兜底，中性近黑，正常路径不触发；见 components/IconSvg.vue）
+export const ICON_FALLBACK_COLOR = '#1C1C1E'

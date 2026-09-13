@@ -15,7 +15,7 @@ public class NotificationVO {
     @Schema(description = "通知ID")
     private Long id;
 
-    @Schema(description = "通知类型：dish_audit")
+    @Schema(description = "通知类型：dish_audit / feedback_handle")
     private String type;
 
     @Schema(description = "通知标题")

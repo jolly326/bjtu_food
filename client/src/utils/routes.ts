@@ -3,7 +3,7 @@
  *
  * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落（此前 14 文件 30+ 处），
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（13 页：主包 4 + 分包 9）。
+ * 与 `client/src/pages.json` 严格一致（11 页：主包 3 + 分包 8）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
  */
 
@@ -19,6 +19,8 @@ export const PATH = {
   profile: '/pages/me/profile/index',
   notifications: '/pages/me/notifications/index',
   feedback: '/pages/me/feedback/index',
+  myReviews: '/pages/me/my-reviews/index',
+  privacy: '/pages/me/privacy/index',
   // 分包 pages/activity/（活动 + webview，独立分包）
   activity: '/pages/activity/index',
   activityWebview: '/pages/activity/webview',
@@ -49,4 +51,29 @@ export function dishDetailUrl(id: number | string): string {
 /** 活动 webview：?url= 编码后的公众号文章链接 */
 export function activityWebviewUrl(articleUrl: string): string {
   return `${PATH.activityWebview}?url=${encodeURIComponent(articleUrl)}`
+}
+
+/* ===== 贡献入口统一落点（唯一构造函数，禁止各入口手拼参数；见 spec contribution-entry） ===== */
+
+/** 落点来源：首页内容流末尾卡片 / 搜索无结果引导 / 菜品详情页纠错入口 */
+export type ContributionSource = 'home' | 'find' | 'dish'
+
+/** 目标反馈表单类型：推荐菜品（add）/ 信息不对（error） */
+export type ContributionType = 'add' | 'error'
+
+/**
+ * 意见反馈页落点 URL：
+ * - 首页卡片 / 搜索无结果 → type=add（推荐菜品，空表单）
+ * - 菜品详情页纠错 → type=error + dishId + dishName（自动关联该菜品）
+ */
+export function feedbackEntryUrl(options: {
+  type: ContributionType
+  from: ContributionSource
+  dishId?: number | string
+  dishName?: string
+}): string {
+  const params = [`type=${options.type}`, `from=${options.from}`]
+  if (options.dishId != null) params.push(`dishId=${options.dishId}`)
+  if (options.dishName) params.push(`dishName=${encodeURIComponent(options.dishName)}`)
+  return `${PATH.feedback}?${params.join('&')}`
 }

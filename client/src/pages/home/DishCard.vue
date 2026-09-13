@@ -146,7 +146,8 @@ function handleClick() {
   align-items: center;
   gap: var(--spacing-xs);
   box-shadow: var(--shadow-float);
-  border: 1rpx solid rgba(255, 255, 255, 0.28);
+  /* 白色高光描边：复用语义 token --text-white-edge（与 COLOR_MAP 同值 0.24，视觉不可辨差异，避免悬空近似值） */
+  border: 1rpx solid var(--text-white-edge);
 }
 .star-icon {
   font-size: var(--font-aux);

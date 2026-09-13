@@ -14,7 +14,7 @@
             <IconSvg
               name="arrow-left"
               :size="'22px'"
-              color="#1A1A1A"
+              color="var(--nav-back-icon)"
               class="dish-back-icon"
             />
           </view>
@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 /**
- * dish —— 菜品详情页（入口：首页/搜索/动态/通知等卡片点击）
+ * dish —— 菜品详情页（入口：首页/搜索/通知等卡片点击）
  * - 编排逻辑抽包内私有 `useDishPage.ts`（数据流 / 顶部大图滚动几何 / 评价分页与删除 /
  *   写评价弹层 / 三点菜单 / 举报 / 距你距离与定位补齐 / 分享）。
  * - 本文件仅保留模板贴片组装与包内子件引用（ImageSwiper / ReviewComposer /
@@ -222,8 +222,8 @@ const {
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.08);
-  box-shadow: inset 0 0 0 1rpx rgba(0, 0, 0, 0.1);
+  background: var(--bg-nav-back-chip);
+  box-shadow: inset 0 0 0 1rpx var(--border-nav-back-chip);
 }
 .dish-back-icon { line-height: 1; }
 .dish-nav-title {

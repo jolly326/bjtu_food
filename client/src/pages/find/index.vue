@@ -12,12 +12,12 @@
 
     <!-- 结果态筛选条：仅出搜索结果时渲染，与首页共用同一 FilterBar（client-filter-bar-consolidation） -->
     <view v-if="inFilter" class="find-filter-row">
+      <!-- 胶囊高度不再传硬编码：FilterBar 组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017） -->
       <FilterBar
         class="fb-host"
         :canteens="dishStore.canteenList"
         :selected-canteen-id="findCanteenId"
         :price-range="findPrice"
-        :capsule-height="36"
         @canteen-select="onFindCanteenSelect"
         @price-select="onFindPriceSelect"
       />
@@ -70,7 +70,7 @@
 
       <!-- ============ 搜索混合结果态：滚动容器在 FindResults 内容区内（仅结果态渲染） ============ -->
       <FindResults
-        v-else
+        v-else-if="filteredMixed.length > 0"
         class="results-host"
         :items="filteredMixed"
         :keyword="keyword"
@@ -78,6 +78,32 @@
         @select="goToMixed"
         @refresh="onResultsRefresh"
       />
+      <!-- 搜索失败重试块（MP-012）：请求已完成且失败 → 极简「加载失败 · 点击重试」行内块，
+           先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据） -->
+      <view
+        v-else-if="inFilter && searchDone && searchFailed"
+        class="find-retry"
+        role="button"
+        aria-label="搜索失败，点击重试"
+        hover-class="pressed"
+        @tap="onRetrySearch"
+      >
+        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
+        <text class="fr-title">搜索加载失败</text>
+        <text class="fr-hint">网络似乎不太顺畅 · 点击重试</text>
+      </view>
+      <!-- 搜索无结果引导（search-no-result-guidance）：请求**已完成**且结果为空才呈现；
+           未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
+      <view v-else-if="inFilter && searchDone" class="find-empty">
+        <view class="fe-icon">
+          <IconSvg name="search" :size="48" color="var(--text-tertiary)" />
+        </view>
+        <text class="fe-title">没搜到「{{ keyword }}」相关的菜</text>
+        <text class="fe-desc">把它报给我们，让更多同学也能找到</text>
+        <view class="fe-btn" role="button" aria-label="推荐这道菜" hover-class="pressed" @tap="goContributeNotFound">
+          <text class="fe-btn-text">推荐这道菜</text>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -90,13 +116,14 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
 import type { DishSortBy } from '@/types/dish'
 import { getUserLocation } from '@/utils/location'
-import { PATH, dishDetailUrl } from '@/utils/routes'
+import { PATH, dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import FilterBar from '@/components/FilterBar.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import FindResults from './FindResults.vue'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 const dishStore = useDishStore()
 const locationStore = useLocationStore()
@@ -153,7 +180,7 @@ function clearHistory() {
     title: '清空搜索历史',
     content: '确定要清空全部搜索历史吗？此操作不可恢复。',
     confirmText: '清空',
-    confirmColor: '#FF3B30',
+    confirmColor: MODAL_CONFIRM_DANGER_COLOR,
     success: (res) => {
       if (!res.confirm) return
       historyList.value = []
@@ -164,6 +191,10 @@ function clearHistory() {
 
 // 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
 const inFilter = ref(false)
+/** 搜索请求是否已完成（成功/失败均置真，过期请求不置）：用于区分「静默加载中」与「无结果引导」，避免空态闪现 */
+const searchDone = ref(false)
+/** 最近一次已完成搜索是否失败（MP-012）：失败 ≠ 无结果，失败渲染重试块而非「没搜到」空态 */
+const searchFailed = ref(false)
 
 // 食堂筛选（find 页独立状态，与首页 selectedCanteenId 隔离）
 const findCanteenId = ref<number | null>(null)
@@ -256,6 +287,8 @@ async function doMixedSearch(kw?: string) {
   // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
   const seq = ++mixedSearchSeq
   inFilter.value = true
+  searchDone.value = false
+  searchFailed.value = false
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
     const list = await dishStore.search({
@@ -297,16 +330,26 @@ async function doMixedSearch(kw?: string) {
         }
       })
       .filter(r => r.name)
+    searchDone.value = true
   } catch (err) {
-    // 静默：请求失败不呈现任何占位，异常仅记录，恢复靠下拉刷新
+    // MP-012：失败不再伪装成空结果——置 searchFailed 渲染「加载失败 · 点击重试」块，
+    // 与「没搜到」空态区分；恢复走重试块 @tap（onRetrySearch）或结果态下拉刷新
     console.error('[find] 搜索失败', err)
+    if (seq !== mixedSearchSeq) return
     mixedResults.value = []
+    searchDone.value = true
+    searchFailed.value = true
   }
 }
 
 /** 重试当前检索：结果态下拉刷新与恢复均走此路径（按当前关键词/食堂重跑） */
 function onRetrySearch() {
   return doMixedSearch(keyword.value.trim())
+}
+
+/** 搜索无结果引导 → 反馈页预选「推荐菜品」空表单（落点唯一构造函数，from=find，见 contribution-entry） */
+function goContributeNotFound() {
+  uni.navigateTo({ url: feedbackEntryUrl({ type: 'add', from: 'find' }) })
 }
 
 /** 结果态下拉刷新：FindResults 内容区滚动内置 refresher，上抛到 index 重跑当前检索 */
@@ -324,6 +367,8 @@ function goToMixed(id: number) {
 function exitFilter() {
   inFilter.value = false
   mixedResults.value = []
+  searchDone.value = false
+  searchFailed.value = false
   // 退出结果态：重置筛选条件，下次进入结果态从默认开始
   findCanteenId.value = null
   findSortBy.value = 'latest'
@@ -373,6 +418,60 @@ onShow(() => clearShareState())
 .discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }
+
+/* 搜索无结果引导：居中静态卡片（白底 + 大圆角 + 柔和投影），与列表卡同表面语言 */
+.find-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  box-sizing: border-box;
+}
+/* 搜索失败重试块（MP-012）：与空态同族视觉（居中、凹陷面 bg-soft、次级文字色），
+   整块 @tap 触发重拉，无独立按钮——极简行内块，不引入新组件文件 */
+.find-retry {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background: var(--bg-soft);
+  border-radius: var(--radius-card);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.find-retry.pressed { opacity: 0.7; }
+.fr-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
+.fr-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
+.fe-icon {
+  width: 112rpx;
+  height: 112rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  margin-bottom: var(--spacing-xs);
+}
+.fe-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); text-align: center; }
+.fe-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
+.fe-btn {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  -webkit-tap-highlight-color: transparent;
+}
+.fe-btn.pressed { opacity: 0.85; }
+.fe-btn-text { font-size: var(--font-small); color: var(--text-white); font-weight: var(--weight-medium); }
 
 /* 食堂筛选行（header 下方独立一行，与首页共用 FilterBar） */
 .find-filter-row {

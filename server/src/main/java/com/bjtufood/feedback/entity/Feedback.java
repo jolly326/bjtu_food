@@ -33,10 +33,6 @@ public class Feedback {
     @Schema(description = "联系方式")
     private String contact;
 
-    /** 附图（JSON 数组字符串，如 ["/uploads/xx.jpg"]；截图/作证照片/菜品图，2026-08-17 新增） */
-    @Schema(description = "附图（JSON 数组字符串，存绝对URL）")
-    private String images;
-
     /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈为 null */
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
     private String relatedType;

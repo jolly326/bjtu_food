@@ -62,7 +62,7 @@ public class SecurityConfig {
             "/auth/verify-email", "/api/auth/verify-email",
             // 管理后台登录（方案 C：管理员账号密码）
             "/auth/admin/login", "/api/auth/admin/login",
-            // 反馈提交（PUB：产品决策「反馈不登录也能用」；GET /feedback/my 仍须登录）
+            // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback", "/api/feedback",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**", "/api/swagger-ui/**",

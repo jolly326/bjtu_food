@@ -78,6 +78,13 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
+        <!-- Caffeine 进程内缓存（P1-9）：推荐位读接口 60s TTL 缓存，写操作触发失效；
+             版本由 Spring Boot 3.2 依赖管理托管 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>

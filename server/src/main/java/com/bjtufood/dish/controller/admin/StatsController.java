@@ -1,8 +1,6 @@
 package com.bjtufood.dish.controller.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bjtufood.apply.entity.ApplyAction;
-import com.bjtufood.apply.mapper.ApplyActionMapper;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.canteen.entity.Canteen;
@@ -50,7 +48,6 @@ public class StatsController {
     private final CanteenMapper canteenMapper;
     private final StallMapper stallMapper;
     private final UserMapper userMapper;
-    private final ApplyActionMapper applyActionMapper;
     private final FeedbackMapper feedbackMapper;
     private final OperationLogMapper operationLogMapper;
 
@@ -112,33 +109,15 @@ public class StatsController {
         try { vo.setTotalCanteenCount(canteenMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalCanteenCount(0L); }
         try { vo.setTotalStallCount(stallMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalStallCount(0L); }
         try { vo.setTotalUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>().eq(User::getRole, "student"))); } catch (Exception ignored) { vo.setTotalUserCount(0L); }
-        try { vo.setTotalApplyCount(applyActionMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalApplyCount(0L); }
         try { vo.setTotalFeedbackCount(feedbackMapper.selectCount(new LambdaQueryWrapper<>())); } catch (Exception ignored) { vo.setTotalFeedbackCount(0L); }
 
-        try { vo.setPendingApplyCount(applyActionMapper.selectCount(new LambdaQueryWrapper<ApplyAction>().eq(ApplyAction::getStatus, "pending"))); } catch (Exception ignored) { vo.setPendingApplyCount(0L); }
         try { vo.setPendingFeedbackCount(feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>().eq(Feedback::getStatus, "pending"))); } catch (Exception ignored) { vo.setPendingFeedbackCount(0L); }
 
-        try { vo.setPendingApplies(buildPendingApplies()); } catch (Exception ignored) { vo.setPendingApplies(List.of()); }
         try { vo.setPendingFeedbacks(buildPendingFeedbacks()); } catch (Exception ignored) { vo.setPendingFeedbacks(List.of()); }
         try { vo.setRecentLogs(buildRecentLogs()); } catch (Exception ignored) { vo.setRecentLogs(List.of()); }
     }
 
     // ===== 工作台待办明细 / 近期操作 =====
-
-    private List<DashboardVO.TodoItem> buildPendingApplies() {
-        return applyActionMapper.selectList(new LambdaQueryWrapper<ApplyAction>()
-                        .eq(ApplyAction::getStatus, "pending")
-                        .orderByDesc(ApplyAction::getCreatedAt)
-                        .last("LIMIT 5"))
-                .stream().map(a -> {
-                    DashboardVO.TodoItem item = new DashboardVO.TodoItem();
-                    item.setId(a.getId());
-                    item.setType(a.getEntityType());
-                    item.setTitle(entityLabel(a.getEntityType()) + "申请");
-                    item.setTime(a.getCreatedAt() == null ? "" : a.getCreatedAt().format(DT_FMT));
-                    return item;
-                }).toList();
-    }
 
     private List<DashboardVO.TodoItem> buildPendingFeedbacks() {
         return feedbackMapper.selectList(new LambdaQueryWrapper<Feedback>()
@@ -174,15 +153,6 @@ public class StatsController {
             item.setTime(l.getCreatedAt() == null ? "" : l.getCreatedAt().format(DT_FMT));
             return item;
         }).toList();
-    }
-
-    private String entityLabel(String entityType) {
-        return switch (entityType == null ? "" : entityType) {
-            case "dish" -> "菜品";
-            case "stall" -> "档口";
-            case "canteen" -> "食堂";
-            default -> "内容";
-        };
     }
 
     private String abbrev(String s, int max) {

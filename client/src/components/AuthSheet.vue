@@ -105,7 +105,7 @@ const sendingCode = ref(false)
 const isBusy = computed(() => userStore.loading)
 
 /** 文案常量（spec 契约基线，去除斜杠缩写） */
-const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成认证后即可使用发布、评价、点赞、发布动态功能'
+const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成认证后即可使用发布菜品、评价、点赞等功能'
 const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前微信账号绑定，不会用于其他用途'
 
 /** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */

@@ -10,7 +10,7 @@ export interface UserInfo {
   nickname: string
   avatar: string
   role: UserRole
-  /** 是否已邮箱认证（微信登录体系 §5.y）：true 解锁动态写操作 */
+  /** 是否已邮箱认证（微信登录体系 §5.y）：true 解锁 UGC 写操作 */
   verified: boolean
   /** 已认证绑定邮箱（bind_email，仅展示用，不公开传播）；未认证为 undefined */
   bindEmail?: string

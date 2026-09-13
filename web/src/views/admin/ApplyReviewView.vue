@@ -1,81 +1,42 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/**
+ * ApplyReviewView：评价审核（UGC 审核中心）。
+ * 实体贡献申请审核已随 apply 全链路下线（change prelaunch-loop-closure），本视图仅保留用户评价审核：
+ * 列表 / 隐藏 / 显示 / 删除 / 批量，数据来自 auditApi（listAllReviews / setReviewHidden / deleteReview）。
+ */
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import FormDialog from '@/components/FormDialog.vue'
 import DataTable from '@/components/DataTable.vue'
-import StatusTag from '@/components/StatusTag.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { Delete } from '@element-plus/icons-vue'
-import type { ApplyActionVO, ApplyEntityType, ApplyStatus, ApplyType } from '@/api/apply'
-
-type EntityTab = ApplyEntityType | 'review'
 
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const store = useAdminStore()
 
-const entityLabel: Record<EntityTab, string> = { dish: '菜品', stall: '档口', canteen: '食堂', review: '评价' }
-const applyTypeLabel: Record<ApplyType, string> = { NEW: '新增', CLOSE: '下架/关闭', CHANGE: '变更' }
-
-// 由聚合页传入审核类型（dish=申请审核，review=评价审核）
-const props = withDefaults(defineProps<{ initialEntity?: string }>(), { initialEntity: 'dish' })
-const entityType = ref<EntityTab>(props.initialEntity as EntityTab)
-
-type AuditStatus = 'pending' | 'approved' | 'rejected'
-const statusLabel: Record<AuditStatus, string> = { pending: '待审核', approved: '已通过', rejected: '已退回' }
-const statusTagType: Record<AuditStatus, 'warning' | 'success' | 'danger'> = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'danger',
-}
-// 申请审核默认只展示「待审核」（待办优先，无状态 tab）；评价展示全部（显隐状态标签列）
-
 const loading = ref(false)
 const error = ref('')
-const rows = ref<ApplyActionVO[]>([])
-// 评价审核数据（复用 auditApi）
 const reviews = ref<any[]>([])
 const selectedIds = ref<number[]>([])
-
-const isReview = computed(() => entityType.value === 'review')
-// 仅当申请仍为待审核时，详情抽屉才展示通过/退回操作（修复常量 isPending 导致已审申请仍显示按钮）
-const isPending = computed(() => detail.value?.status === 'pending')
-
 const searchQuery = ref('')
-const filtered = computed(() => {
-  const q = searchQuery.value
-  if (!q) return isReview.value ? reviews.value : rows.value
-  if (isReview.value) {
-    // 评价分支关键词已改为服务端 keyword 过滤（loadList 透传），此处不再本地截断
-    return reviews.value
-  }
-  return rows.value.filter(r =>
-    (previewTitle(r) || '').toLowerCase().includes(q) ||
-    (r.applicantName || '').toLowerCase().includes(q),
-  )
-})
+// 批量执行中标记：禁用批量按钮，防止并发批次（WEB-105）
+const batchRunning = ref(false)
+
+const filtered = computed(() => reviews.value)
 
 async function loadList() {
   loading.value = true
   error.value = ''
   selectedIds.value = []
   try {
-    if (isReview.value) {
-      const { auditApi } = await import('@/api')
-      // 查全部评价（显示中/已隐藏），显隐状态由列表标签列展示；
-      // 关键词服务端过滤 + 前端翻页聚合全部页，避免分页硬上限导致漏搜漏审
-      reviews.value = await auditApi.listAllReviews(undefined, searchQuery.value.trim() || undefined)
-    } else {
-      const { listApply } = await import('@/api/apply')
-      // 全部实体（菜品/档口/食堂）的待审核申请
-      const res = await listApply({ status: 'pending' })
-      rows.value = res.list
-    }
+    const { auditApi } = await import('@/api')
+    // 查全部评价（显示中 / 已隐藏），显隐状态由列表开关列控制；关键词服务端过滤
+    reviews.value = await auditApi.listAllReviews(undefined, searchQuery.value.trim() || undefined)
   } catch (e: any) {
-    error.value = e.message || '加载审核列表失败'
-    rows.value = []
+    error.value = e.message || '加载评价列表失败'
     reviews.value = []
   } finally {
     loading.value = false
@@ -84,77 +45,21 @@ async function loadList() {
 
 onMounted(loadList)
 
-// ===== payload 预览标题（新增/变更类无实体名时，用 payload 预览） =====
-function previewTitle(r: ApplyActionVO): string {
-  const p = parsePayload(r.payload)
-  if (p?.name) return String(p.name)
-  if (p?.title) return String(p.title)
-  return `${entityLabel[r.entityType]}#${r.entityId ?? '新'}`
-}
-function parsePayload(payload?: any): Record<string, any> | null {
-  if (!payload) return null
-  if (typeof payload === 'string') {
-    try { return JSON.parse(payload) } catch { return null }
-  }
-  return payload
-}
+// 关键词变化（输入或清空）→ 防抖 300ms 后按服务端 keyword 过滤重拉（WEB-103，对照 FeedbackView 既有模式）
+let searchDebounce: ReturnType<typeof setTimeout> | undefined
+watch(searchQuery, () => {
+  clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => { loadList() }, 300)
+})
+// 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
+onBeforeUnmount(() => clearTimeout(searchDebounce))
 
-// ===== 详情抽屉 =====
-const detail = ref<ApplyActionVO | null>(null)
 const detailReview = ref<any | null>(null)
-const rejectReason = ref('')
-const rejectError = ref('')
-const processingId = ref<number | null>(null)
+function openReviewDetail(r: any) { detailReview.value = r }
+function closeDetail() { detailReview.value = null }
 
-function openDetail(row: ApplyActionVO) {
-  detail.value = row
-  rejectReason.value = ''
-  rejectError.value = ''
-}
-function openReviewDetail(r: any) {
-  detailReview.value = r
-}
-function closeDetail() { detail.value = null; detailReview.value = null }
-
-async function approve(row: ApplyActionVO) {
-  processingId.value = Number(row.id)
-  try {
-    const { approveApply } = await import('@/api/apply')
-    await approveApply(Number(row.id))
-    toast.success(`${entityLabel[row.entityType]}申请已通过`)
-    await loadList()
-    closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '操作失败')
-  } finally {
-    processingId.value = null
-  }
-}
-
-async function reject(row: ApplyActionVO) {
-  rejectError.value = ''
-  if (!rejectReason.value.trim()) {
-    rejectError.value = '退回必须填写原因'
-    return
-  }
-  if (!await confirm.confirm('确定退回该申请？退回原因将回显学生端。')) return
-  processingId.value = Number(row.id)
-  try {
-    const { rejectApply } = await import('@/api/apply')
-    await rejectApply(Number(row.id), rejectReason.value.trim())
-    toast.success(`${entityLabel[row.entityType]}申请已退回`)
-    await loadList()
-    closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '操作失败')
-  } finally {
-    processingId.value = null
-  }
-}
-
-// ===== 评价审核操作（隐藏/显示/删除） =====
 async function setHidden(r: any, hidden: boolean) {
-  processingId.value = Number(r.id)
+  if (!await confirm.confirm(hidden ? '确定隐藏该评价？' : '确定显示该评价？')) return
   try {
     const { auditApi } = await import('@/api')
     await auditApi.setReviewHidden(Number(r.id), hidden)
@@ -163,42 +68,45 @@ async function setHidden(r: any, hidden: boolean) {
     if (detailReview.value && Number(detailReview.value.id) === Number(r.id)) closeDetail()
   } catch (e: any) {
     toast.error(e.message || '操作失败')
-  } finally {
-    processingId.value = null
   }
 }
-// 行内快捷隐藏/显示（Switch 直切，无需确认）
-async function toggleHidden(r: any, hidden: boolean) {
-  await setHidden(r, hidden)
-}
+async function toggleHidden(r: any, hidden: boolean) { await setHidden(r, hidden) }
 
-// ===== 评价批量操作（隐藏/显示/删除） =====
 async function batchReviews(hidden: boolean | null) {
-  if (!selectedIds.value.length) return
+  if (!selectedIds.value.length || batchRunning.value) return
   if (hidden === null) {
     if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 条评价？此操作不可恢复。`)) return
   } else {
     if (!await confirm.confirm(`确定批量${hidden ? '隐藏' : '显示'} ${selectedIds.value.length} 条评价？`)) return
   }
-  processingId.value = -1
-  try {
-    const { auditApi } = await import('@/api')
-    for (const id of selectedIds.value) {
+  // WEB-105：循环纯接口调用并统计成败（单条失败不中断批次），结束后统一 loadList 一次
+  batchRunning.value = true
+  const { auditApi } = await import('@/api')
+  const action = hidden === null ? '删除' : hidden ? '隐藏' : '显示'
+  let okCount = 0
+  const failedIds: number[] = []
+  for (const id of selectedIds.value) {
+    try {
       if (hidden === null) await auditApi.deleteReview(id)
       else await auditApi.setReviewHidden(id, hidden)
+      okCount++
+    } catch {
+      failedIds.push(id)
     }
-    toast.success(hidden === null ? `已删除 ${selectedIds.value.length} 条评价` : `已批量${hidden ? '隐藏' : '显示'} ${selectedIds.value.length} 条评价`)
-    selectedIds.value = []
-    await loadList()
-  } catch (e: any) {
-    toast.error(e.message || '批量操作失败')
-  } finally {
-    processingId.value = null
+  }
+  await loadList()
+  batchRunning.value = false
+  const failCount = failedIds.length
+  if (failCount === 0) {
+    toast.success(hidden === null ? `已删除 ${okCount} 条评价` : `已批量${hidden ? '隐藏' : '显示'} ${okCount} 条评价`)
+  } else {
+    // 部分失败：汇总成败计数，仅保留失败项便于重试（loadList 已清空选择，此处回填）
+    toast.error(`批量${action}完成：成功 ${okCount} 条，失败 ${failCount} 条`)
+    selectedIds.value = failedIds
   }
 }
 async function removeReview(r: any) {
   if (!await confirm.confirm('确定删除该评价？此操作不可恢复。')) return
-  processingId.value = Number(r.id)
   try {
     const { auditApi } = await import('@/api')
     await auditApi.deleteReview(Number(r.id))
@@ -207,12 +115,7 @@ async function removeReview(r: any) {
     if (detailReview.value && Number(detailReview.value.id) === Number(r.id)) closeDetail()
   } catch (e: any) {
     toast.error(e.message || '删除失败')
-  } finally {
-    processingId.value = null
   }
-}
-function parseImages(img?: string): string[] {
-  return (img || '').split('|||').map(s => s.trim()).filter(Boolean)
 }
 function getUserName(userId: number | bigint): string {
   const u = store.users.find(u => Number(u.id) === Number(userId))
@@ -222,178 +125,80 @@ function getDishName(dishId: number | bigint): string {
   const d = store.dishes.find(d => Number(d.id) === Number(dishId))
   return d?.name || `菜品${dishId}`
 }
-
-// 帮助：把 payload 关键字段列成可读行
-function payloadRows(r: ApplyActionVO): { k: string; v: string }[] {
-  const p = parsePayload(r.payload)
-  if (!p) return []
-  const skip = ['images', 'image']
-  return Object.entries(p)
-    .filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
-    .map(([k, v]) => ({ k, v: typeof v === 'object' ? JSON.stringify(v) : String(v) }))
-}
-function applicantName(r: ApplyActionVO): string {
-  if (r.applicantName) return r.applicantName
-  const u = store.users.find(u => Number(u.id) === Number(r.applicantId))
-  return u?.nickname || u?.username || `用户${r.applicantId ?? '-'}`
-}
 </script>
 
 <template>
-    <!-- 无 tab：申请固定待审核列表，评价全量列表（显隐状态列标签） -->
-    <FilterBar v-model="searchQuery">
-      <template #actions>
-        <template v-if="isReview && selectedIds.length">
-          <button class="btn-secondary" v-press type="button" @click="batchReviews(true)">批量隐藏（{{ selectedIds.length }}）</button>
-          <button class="btn-secondary" v-press type="button" @click="batchReviews(false)">批量显示</button>
-          <button class="btn-danger" v-press type="button" @click="batchReviews(null)">批量删除</button>
-        </template>
+  <FilterBar v-model="searchQuery">
+    <template #actions>
+      <template v-if="selectedIds.length">
+        <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchReviews(true)">批量隐藏（{{ selectedIds.length }}）</button>
+        <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchReviews(false)">批量显示</button>
+        <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchReviews(null)">批量删除</button>
       </template>
-    </FilterBar>
+    </template>
+  </FilterBar>
 
-    <!-- 评价审核表 -->
-    <DataTable
-      v-if="isReview"
-      selectable
-      v-model:selectedIds="selectedIds"
-      :columns="[
-        { prop: 'user', label: '用户' },
-        { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
-        { prop: 'content', label: '内容', ellipsis: true },
-        { prop: 'dish', label: '菜品' },
-        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
-        { prop: 'status', label: '状态', width: '110px', align: 'center' },
+  <!-- 评价审核表 -->
+  <DataTable
+    selectable
+    v-model:selectedIds="selectedIds"
+    :columns="[
+      { prop: 'user', label: '用户' },
+      { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
+      { prop: 'content', label: '内容', ellipsis: true },
+      { prop: 'dish', label: '菜品' },
+      { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
+      { prop: 'status', label: '状态', width: '110px', align: 'center' },
 
-      ]"
-      :rows="filtered"
-      :loading="loading"
-      :error="error"
-      empty-text="暂无评价"
-    >
-      <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
-      <template #cell-rating="{ row }">
-        <span class="stars">{{ '★'.repeat(row.rating) }}<span class="star-off">{{ '★'.repeat(5 - row.rating) }}</span></span>
-      </template>
-      <template #cell-content="{ row }">
-        <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
-      </template>
-      <template #cell-dish="{ row }">{{ getDishName(row.dish_id) }}</template>
-      <template #cell-time="{ row }">{{ row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '—' }}</template>
-      <template #cell-status="{ row }">
-        <div class="status-cell">
-          <el-switch
-            :model-value="!row.is_hidden"
-            :loading="processingId === Number(row.id)"
-            :disabled="processingId === Number(row.id)"
-            @change="(v: any) => toggleHidden(row, !v)"
-          />
-          <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
-        </div>
-      </template>
-      <template #actions="{ row }">
-        <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="removeReview(row)">
-          <el-icon class="act-ico"><Delete /></el-icon>删除
-        </button>
-      </template>
-    </DataTable>
-
-    <!-- 实体审核表（菜品 / 档口 / 食堂） -->
-    <DataTable
-      v-else
-      :columns="[
-        { prop: 'type', label: '类型', width: '90px', align: 'center' },
-        { prop: 'title', label: '名称 / 预览' },
-        { prop: 'applyType', label: '申请类型', width: '130px', align: 'center' },
-        { prop: 'applicant', label: '提交人', width: '150px' },
-        { prop: 'time', label: '提交时间', width: '160px', sortable: true, sortValue: (row) => row.createdAt },
-
-      ]"
-      :rows="filtered"
-      :loading="loading"
-      :error="error"
-      empty-text="暂无待审核的申请"
-    >
-      <template #cell-type="{ row }">
-        <StatusTag :type="row.entityType === 'canteen' ? 'warning' : 'info'" :text="entityLabel[row.entityType as EntityTab]" />
-      </template>
-      <template #cell-title="{ row }">
-        <button class="link" v-press @click="openDetail(row)">{{ previewTitle(row) }}</button>
-      </template>
-      <template #cell-applyType="{ row }">
-        <StatusTag
-          :type="row.applyType === 'NEW' ? 'info' : row.applyType === 'CLOSE' ? 'warning' : 'gray'"
-          :text="applyTypeLabel[row.applyType as ApplyType]"
+    ]"
+    :rows="filtered"
+    :loading="loading"
+    :error="error"
+    empty-text="暂无评价"
+  >
+    <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
+    <template #cell-rating="{ row }">
+      <span class="stars">{{ '★'.repeat(row.rating) }}<span class="star-off">{{ '★'.repeat(5 - row.rating) }}</span></span>
+    </template>
+    <template #cell-content="{ row }">
+      <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
+    </template>
+    <template #cell-dish="{ row }">{{ getDishName(row.dish_id) }}</template>
+    <template #cell-time="{ row }">{{ row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '—' }}</template>
+    <template #cell-status="{ row }">
+      <div class="status-cell">
+        <el-switch
+          :model-value="!row.is_hidden"
+          :loading="false"
+          :disabled="false"
+          @change="(v: any) => toggleHidden(row, !v)"
         />
-      </template>
-      <template #cell-applicant="{ row }">{{ applicantName(row) }}</template>
-      <template #cell-status="{ row }">
-        <StatusTag :type="statusTagType[row.status as AuditStatus]" :text="statusLabel[row.status as AuditStatus]" />
-      </template>
-      <template #cell-time="{ row }">
-        {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '—' }}
-      </template>
-      <template #actions="{ row }">
-        <button class="link primary-text" :disabled="processingId === Number(row.id)" v-press @click="approve(row)">通过</button>
-        <button class="link danger" :disabled="processingId === Number(row.id)" v-press @click="openDetail(row)">退回</button>
-      </template>
-    </DataTable>
-
-    <!-- 实体审核详情抽屉 -->
-    <FormDialog :show="!!detail" title="审核详情" :width="520" :footer="false" @close="closeDetail">
-      <div v-if="detail" class="detail">
-        <div class="detail-row"><span class="dl">申请类型</span><span class="dv">
-          <StatusTag :type="detail.applyType === 'NEW' ? 'info' : detail.applyType === 'CLOSE' ? 'warning' : 'gray'" :text="applyTypeLabel[detail.applyType]" />
-        </span></div>
-        <div class="detail-row"><span class="dl">名称</span><span class="dv">{{ previewTitle(detail) }}</span></div>
-        <div class="detail-row"><span class="dl">关联实体</span><span class="dv">{{ entityLabel[detail.entityType] }}#{{ detail.entityId ?? '（新增，待回填）' }}</span></div>
-        <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ applicantName(detail) }}</span></div>
-        <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ detail.createdAt ? new Date(detail.createdAt).toLocaleString('zh-CN') : '—' }}</span></div>
-
-        <div class="detail-row detail-row-desc" v-if="payloadRows(detail).length">
-          <span class="dl">申请内容</span>
-          <span class="dv">
-            <div v-for="p in payloadRows(detail)" :key="p.k" class="payload-line">
-              <span class="payload-k">{{ p.k }}</span><span class="payload-v">{{ p.v }}</span>
-            </div>
-          </span>
-        </div>
-
-        <div class="detail-row detail-row-desc" v-if="detail.status === 'rejected'">
-          <span class="dl">退回原因</span><span class="dv text-desc danger-text">{{ detail.rejectReason || '（无）' }}</span>
-        </div>
-
-        <div class="reject-area" v-if="isPending">
-          <label>退回原因 <span class="required">*</span>（退回时必填，将回显学生端）</label>
-          <textarea v-model="rejectReason" rows="3" placeholder="请填写退回原因..."></textarea>
-          <p v-if="rejectError" class="field-error">{{ rejectError }}</p>
-        </div>
+        <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
       </div>
-      <div class="modal-actions" v-if="isPending && detail">
-        <button class="btn-cancel" v-press @click="closeDetail">取消</button>
-        <button class="btn-danger" :disabled="processingId === Number(detail?.id)" v-press @click="reject(detail)">退回</button>
-        <button class="btn-primary" :disabled="processingId === Number(detail?.id)" v-press @click="approve(detail)">通过</button>
-      </div>
-    </FormDialog>
+    </template>
+    <template #actions="{ row }">
+      <button class="link danger" v-press @click="removeReview(row)">
+        <el-icon class="act-ico"><Delete /></el-icon>删除
+      </button>
+    </template>
+  </DataTable>
 
-    <!-- 评价审核详情抽屉 -->
-    <FormDialog :show="!!detailReview" title="评价详情" :width="520" :footer="false" @close="closeDetail">
-      <div v-if="detailReview" class="detail">
-        <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(detailReview.user_id) }}</span></div>
-        <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(detailReview.rating) }}<span class="star-off">{{ '★'.repeat(5 - detailReview.rating) }}</span></span></div>
-        <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detailReview.content || '（无文字内容）' }}</span></div>
-        <div class="detail-row"><span class="dl">菜品</span><span class="dv">{{ getDishName(detailReview.dish_id) }}</span></div>
-        <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ detailReview.created_at ? new Date(detailReview.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
-        <div class="detail-imgs" v-if="parseImages(detailReview.images).length">
-          <img v-for="(img, i) in parseImages(detailReview.images)" :key="i" :src="img" class="detail-img" />
-        </div>
-      </div>
-      <div class="modal-actions" v-if="detailReview">
-        <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
-        <button v-if="!detailReview.is_hidden" class="btn-danger" :disabled="processingId === Number(detailReview.id)" v-press @click="setHidden(detailReview, true)">隐藏</button>
-        <button v-else class="btn-primary" :disabled="processingId === Number(detailReview.id)" v-press @click="setHidden(detailReview, false)">显示</button>
-        <button class="btn-danger" :disabled="processingId === Number(detailReview.id)" v-press @click="removeReview(detailReview)">删除</button>
-      </div>
-    </FormDialog>
+  <!-- 评价审核详情抽屉 -->
+  <FormDialog :show="!!detailReview" title="评价详情" :width="520" :footer="false" @close="closeDetail">
+    <div v-if="detailReview" class="detail">
+      <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(detailReview.user_id) }}</span></div>
+      <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(detailReview.rating) }}<span class="star-off">{{ '★'.repeat(5 - detailReview.rating) }}</span></span></div>
+      <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detailReview.content || '（无文字内容）' }}</span></div>
+      <div class="detail-row"><span class="dl">菜品</span><span class="dv">{{ getDishName(detailReview.dish_id) }}</span></div>
+      <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ detailReview.created_at ? new Date(detailReview.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
+    </div>
+    <div class="modal-actions" v-if="detailReview">
+      <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
+      <button v-if="!detailReview.is_hidden" class="btn-danger" v-press @click="setHidden(detailReview, true)">隐藏</button>
+      <button v-else class="btn-primary" v-press @click="setHidden(detailReview, false)">显示</button>
+      <button class="btn-danger" v-press @click="removeReview(detailReview)">删除</button>
+    </div>
+  </FormDialog>
 </template>
 
 <style scoped>
@@ -417,7 +222,7 @@ function applicantName(r: ApplyActionVO): string {
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--color-error); }
 /* .act-ico 已收敛至 shared.css 公共类 */
-.detail-imgs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+/* 评价图片展示已下线（prelaunch-loop-closure 10.5），相关样式一并移除 */
 .detail-img { width: 100px; height: 100px; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-color); }
 
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }

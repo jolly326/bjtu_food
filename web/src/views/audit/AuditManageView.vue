@@ -27,8 +27,8 @@ onMounted(async () => {
 const sections = [
   {
     key: 'feedback',
-    label: '申请与反馈',
-    badge: () => (todo.value?.pendingApplyCount ?? 0) + (todo.value?.pendingFeedbackCount ?? 0),
+    label: '反馈',
+    badge: () => (todo.value?.pendingFeedbackCount ?? 0),
     icon: Document,
   },
   {

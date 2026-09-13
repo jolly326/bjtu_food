@@ -7,6 +7,8 @@
 import { ref, watch } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
+import { parseTags, formatTags } from '@/api/adapter'
+import { TAG_OPTIONS } from '@/api/tags'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 
@@ -111,11 +113,12 @@ function validate() {
 }
 
 function toggleTag(tag: string) {
-  const arr = (form.value.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+  // tags 统一 CSV 格式（WEB-101）：读走 parseTags（兼容历史 JSON 脏数据），写走 formatTags
+  const arr = parseTags(form.value.tags)
   const i = arr.indexOf(tag)
   if (i === -1) arr.push(tag)
   else arr.splice(i, 1)
-  form.value.tags = arr.join(',')
+  form.value.tags = formatTags(arr)
 }
 
 function togglePeriod(p: string) {
@@ -135,15 +138,17 @@ async function submit() {
     stall_id: Number(form.value.stallId),
     image: form.value.image,
     description: form.value.description,
-    tags: form.value.tags,
+    tags: formatTags(parseTags(form.value.tags)),
     status: form.value.status,
     spiceLevel: Number(form.value.spiceLevel) || 0,
     portion: Number(form.value.portion) || 0,
     servePeriod: form.value.servePeriod,
     limited: Number(form.value.limited) || 0,
   }
-  if (Number(form.value.originalPrice) > 0) payload.originalPrice = Number(form.value.originalPrice)
-  if (Number(form.value.promoPrice) > 0) payload.promoPrice = Number(form.value.promoPrice)
+  // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价/促销价
+  // （对照 DishDetailView.confirmEdit 的既有正确做法；api 层 dishToApi 0 → 分、null 直传）
+  payload.originalPrice = Number(form.value.originalPrice) > 0 ? Number(form.value.originalPrice) : null
+  payload.promoPrice = Number(form.value.promoPrice) > 0 ? Number(form.value.promoPrice) : null
   try {
     if (props.editingId != null) {
       await store.updateDish(Number(props.editingId), payload)
@@ -231,9 +236,9 @@ async function submit() {
 
       <div class="field"><label>标签（点击切换）</label>
         <div class="tag-group">
-          <button v-for="t in ['招牌', '新品', '实惠', '热销']" :key="t" type="button"
-            class="tag-opt" :class="{ on: (form.tags || '').split(',').includes(t) }"
-            @click="toggleTag(t)">{{ t }}</button>
+          <button v-for="t in TAG_OPTIONS" :key="t.value" type="button"
+            class="tag-opt" :class="{ on: parseTags(form.tags).includes(t.value) }"
+            @click="toggleTag(t.value)">{{ t.label }}</button>
         </div>
       </div>
 

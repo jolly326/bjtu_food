@@ -4,7 +4,7 @@
        两表单互斥：由单一 activePanel 驱动，任意时刻最多一个展开、最多一个按钮激活（红）。 -->
   <view
     class="fb-row"
-    :style="{ '--capsule-h': capsuleHeight + 'px' }"
+    :style="{ '--capsule-h': capsuleH + 'px' }"
   >
     <!-- 左组：食堂 + 价格 两按钮（独占剩余空间、可收缩，长文案以 … 省略） -->
     <view class="fb-chips">
@@ -16,7 +16,7 @@
         role="button"
         :aria-label="canteenLabel"
       >
-        <IconSvg class="fb-chip-icon" name="dish" :size="'18px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <IconSvg class="fb-chip-icon" name="canteen" :size="'18px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
         <text class="fb-chip-text">{{ canteenLabel }}</text>
         <IconSvg class="fb-chip-icon" :name="activePanel === 'canteen' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
       </view>
@@ -139,6 +139,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 
 import IconSvg from './IconSvg.vue'
 import type { CanteenInfo } from '@/types/canteen'
+import { getCapsuleHeight, type MenuButtonRect } from '@/utils/navMetrics'
 
 const props = withDefaults(defineProps<{
   /** 食堂列表（下拉数据源，同时用于按 id 回显食堂名） */
@@ -147,12 +148,22 @@ const props = withDefaults(defineProps<{
   selectedCanteenId: number | null
   /** 当前价格区间（受控，单位：元）；emit 与透传同为元，禁止二次换算 */
   priceRange?: { min?: number; max?: number }
-  /** 胶囊高度（px），对齐原生胶囊/搜索框高度；缺省回退 36px */
+  /** 胶囊高度（px）显式覆盖口；不传则组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017 修正此前硬编码 36 与该口径矛盾） */
   capsuleHeight?: number
 }>(), {
   priceRange: () => ({}),
-  capsuleHeight: 36,
 })
+
+/**
+ * 胶囊高度（px）：与 AppHeader 的搜索框同一真源 navMetrics.getCapsuleHeight——
+ * 微信端读真实原生胶囊高度，H5 / 非微信端回退 32px。运行期恒定，setup 一次性解析即可。
+ */
+function resolveCapsuleHeight(): number {
+  // @ts-ignore - 跨端兼容（H5 无 wx，回退默认胶囊高度）
+  const mb: MenuButtonRect | null = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
+  return getCapsuleHeight(mb)
+}
+const capsuleH = ref<number>(props.capsuleHeight ?? resolveCapsuleHeight())
 
 const emit = defineEmits<{
   (e: 'canteen-select', id: number | null): void
@@ -358,7 +369,7 @@ function onReset() {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: var(--capsule-h, 36px);
+  height: var(--capsule-h, 32px);
   padding: 0 var(--spacing-md);
   /* 抬起控制件：白底从米色筛选条中浮起 */
   background: var(--bg-card);

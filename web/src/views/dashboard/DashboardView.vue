@@ -10,7 +10,7 @@ import { usePageStore } from '@/stores/pageStore'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import {
-  PriceTag, ChatLineSquare, House, Food, User, Document,
+  PriceTag, ChatLineSquare, House, Food, User,
   Refresh, ArrowRight, Check,
 } from '@element-plus/icons-vue'
 
@@ -36,21 +36,18 @@ async function loadData() {
 
 function navTo(path: string) { router.push(path) }
 
-// ===== 待办卡（点击直达对应 tab） =====
+// ===== 待办卡（点击直达对应 tab）：仅保留「待处理反馈」一项（apply 已全链路下线，见 change prelaunch-loop-closure） =====
 const todoCards = computed(() => [
-  { key: 'apply', label: '待审核申请', count: data.value?.pendingApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
   { key: 'feedback', label: '待处理反馈', count: data.value?.pendingFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
 ])
 
-// ===== 7 项规模指标 =====
+// ===== 5 项规模指标（食堂 / 档口 / 菜品 / 学生 / 评价；申请与反馈不再作为指标，见 §0.4.1） =====
 const metrics = computed(() => [
   { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
   { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=canteen' },
   { key: 'dish', label: '菜品', value: data.value?.totalDishCount ?? 0, icon: PriceTag, to: '/dashboard/content?tab=dish' },
   { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=account' },
   { key: 'review', label: '评价', value: data.value?.totalReviewCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=review' },
-  { key: 'apply', label: '申请', value: data.value?.totalApplyCount ?? 0, icon: Document, to: '/dashboard/audit?tab=feedback&section=apply' },
-  { key: 'feedback', label: '反馈', value: data.value?.totalFeedbackCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=feedback&section=feedback' },
 ])
 
 onMounted(loadData)
@@ -189,7 +186,7 @@ onMounted(loadData)
 .todo-clear { display: inline-flex; align-items: center; gap: 2px; color: var(--color-success); }
 
 /* ===== 指标卡 ===== */
-.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+.metric-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-5); }
 .metric-card {
   display: flex;
   align-items: center;

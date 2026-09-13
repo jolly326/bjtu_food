@@ -69,11 +69,6 @@ public class Result<T> {
         return new Result<>(403, message, null);
     }
 
-    /** 资源不存在 */
-    public static <T> Result<T> notFound(String message) {
-        return new Result<>(404, message, null);
-    }
-
     /** 服务器内部错误 */
     public static <T> Result<T> error(String message) {
         return new Result<>(500, message, null);

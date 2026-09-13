@@ -7,7 +7,10 @@ import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.VerifyEmailReq;
 import com.bjtufood.auth.dto.WechatLoginReq;
 import com.bjtufood.auth.service.AuthService;
+import com.bjtufood.common.config.IpRateLimiter;
+import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.common.utils.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,6 +30,12 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final IpRateLimiter ipRateLimiter;
+
+    /** IP 限频（P3/BE-105）：同 IP 每分钟 ≤3 次，防瞬时并发耗尽 SMTP 配额 */
+    private static final IpRateLimiter.Rule EMAIL_CODE_PER_MINUTE = new IpRateLimiter.Rule(3, 60_000L);
+    /** IP 限频（P3/BE-105）：同 IP 每小时 ≤10 次，补齐「换邮箱绕过 60s 冷却」的缺口 */
+    private static final IpRateLimiter.Rule EMAIL_CODE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
 
     @Operation(
             summary = "获取邮箱验证码（认证用途）",
@@ -34,6 +43,7 @@ public class AuthController {
                     用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码，用于学号邮箱认证（purpose 仅 verify）。
                     校园邮箱 = {学号}@bjtu.edu.cn，传 username（学号）即可自动推导邮箱，无需填 email。
                     规则：同一邮箱 60 秒内不能重复发送，验证码 10 分钟有效。验证码经邮件发送，不会在响应中返回。
+                    同 IP 每分钟 ≤3 次、每小时 ≤10 次。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -44,8 +54,22 @@ public class AuthController {
     )
     @PostMapping("/auth/email-code")
     public Result<Map<String, String>> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
+        checkEmailCodeIpRateLimit();
         authService.createEmailCode(req.getUsername(), req.getEmail(), req.getPurpose());
         return Result.success(Map.of("message", "验证码已发送"));
+    }
+
+    /**
+     * IP 维度限频（P3/BE-105）：/auth/email-code 原仅邮箱维度 60s 冷却
+     * （EmailCodeServiceImpl.checkRateLimit），换邮箱即可绕过刷码。
+     * 接入层防护放 Controller（非业务逻辑）；邮箱维度冷却仍归 Service。
+     */
+    private void checkEmailCodeIpRateLimit() {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "email-code", ClientIpUtil.resolveCurrent(), EMAIL_CODE_PER_MINUTE, EMAIL_CODE_PER_HOUR);
+        if (waitSeconds > 0) {
+            throw new BusinessException("验证码发送过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 
     @Operation(

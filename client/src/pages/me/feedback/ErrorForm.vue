@@ -88,19 +88,15 @@
       <text v-if="errors['error.points']" class="field-error">{{ errors['error.points'] }}</text>
     </view>
 
-    <!-- 作证（选填）：图片 + 文本，仅选中问题后显示 -->
+    <!-- 作证（选填）：文本，仅选中问题后显示 -->
     <view v-if="model.points.length" class="evidence-box">
       <text class="evidence-title">作证</text>
-      <view class="field">
-        <text class="field-label">图片</text>
-        <ImageUploader v-model="model.evidenceImages" :max="3" show-counter />
-      </view>
       <view class="field">
         <text class="field-label">文本</text>
         <textarea
           v-model="model.evidenceText"
           class="content-input content-input-sm"
-          placeholder="补充说明，比如照片里能看到啥"
+          placeholder="补充说明，比如实际情况是啥"
           maxlength="500"
           :auto-height="true"
           :cursor-spacing="40"
@@ -114,16 +110,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
-import ImageUploader from '@/components/ImageUploader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 
-/** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证） */
+/** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本） */
 const props = defineProps<{
   model: {
     dish: Dish | null
     points: string[]
     correctValues: Record<string, string>
-    evidenceImages: string[]
     evidenceText: string
   }
   /** 纠错选项定义（key/label/icon/editPlaceholder），与父页提交/校验共用同一数组源 */

@@ -30,6 +30,11 @@ public class RequireVerifiedAspect {
         if (user == null) {
             throw new BusinessException(401, "请先登录");
         }
+        // JWT 载荷不含 status，禁用/注销账号的存量 token 在有效期内仍可被携带，
+        // 这里按 user.status 实时判定，非 active 一律拒绝 UGC 写操作。
+        if (!"active".equals(user.getStatus())) {
+            throw new BusinessException(403, "账号已被禁用");
+        }
         if (!Integer.valueOf(1).equals(user.getVerified())) {
             // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，
             // 便于前端对「需先认证」与「无权限」给出不同引导（避免越权错误被误导向邮箱认证）。
