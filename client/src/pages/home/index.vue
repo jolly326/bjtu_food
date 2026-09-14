@@ -17,8 +17,10 @@
         :canteens="dishStore.canteenList"
         :selected-canteen-id="selectedCanteenId"
         :price-range="dishStore.filterPrice"
+        :spice-level="dishStore.filterSpice"
         @canteen-select="onCanteenSelect"
         @price-select="onPriceSelect"
+        @spice-select="onSpiceSelect"
       />
     </view>
 
@@ -69,6 +71,14 @@ async function onPriceSelect(range: { min?: number; max?: number }) {
   await dishStore.setHomePrice(range)
 }
 
+/**
+ * 选择辣度档位（§7.18）：写回 store（null = 不限）并刷新当前筛选流。
+ * 与价格筛选同一条路径——store 内 reset 到第 1 页 + 复用既有 filterFetchSeq 竞态防护，端上不另写竞态逻辑。
+ */
+async function onSpiceSelect(level: number | null) {
+  await dishStore.setHomeSpice(level)
+}
+
 /** 当前选中食堂 id（null = 全部） */
 const selectedCanteenId = ref<number | null>(null)
 const selectedCanteenName = computed(
@@ -102,14 +112,20 @@ function onCanteenSelect(id: number | null) {
   dishStore.fetchFilterDishes(tab, true)
 }
 
-/** 是否存在生效的筛选条件（食堂 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
+/** 是否存在生效的筛选条件（食堂 / 价格 / 辣度任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
 const hasFilter = computed(
-  () => selectedCanteenId.value != null || dishStore.filterPrice.min != null || dishStore.filterPrice.max != null,
+  () =>
+    selectedCanteenId.value != null ||
+    dishStore.filterPrice.min != null ||
+    dishStore.filterPrice.max != null ||
+    dishStore.filterSpice != null,
 )
 
-/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间并回到「全部」食堂 */
+/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间与辣度并回到「全部」食堂 */
 function onClearFilter() {
   dishStore.setHomePrice({})
+  // 辣度一并清空（§7.18）；不传 tab 只写状态不额外发请求——随下方 onCanteenSelect 的那一次重拉一起生效
+  dishStore.setHomeSpice(null)
   onCanteenSelect(null)
 }
 

@@ -57,6 +57,11 @@ export const useDishStore = defineStore('dish', () => {
   const filterPage = ref(1)
   /** 首页价格筛选区间（元，null/undefined 表示不限）；直接透传 api（api 层统一元→分），禁止二次换算/裸算 /100 */
   const filterPrice = ref<{ min?: number; max?: number }>({})
+  /**
+   * 首页辣度筛选（§7.18）：null = 全部/不限（不传 spiceLevel）；0=不辣 1=微辣 2=中辣 3=重辣。
+   * 单选，与价格区间同层同生命周期（切换重置到第 1 页 + 复用 filterFetchSeq 竞态防护）。
+   */
+  const filterSpice = ref<number | null>(null)
   const filterLoadingMore = ref(false)
   const filterFinished = ref(false)
   /**
@@ -224,6 +229,18 @@ export const useDishStore = defineStore('dish', () => {
     if (tab) await fetchFilterDishes(tab, true)
   }
 
+  /**
+   * 首页辣度筛选（§7.18）：写回选中档位（null = 不限）并刷新当前筛选流——
+   * 与 setHomePrice 完全同路径：reset=true 使 filterPage 归 1，
+   * 竞态由 fetchFilterDishes 内既有 filterFetchSeq 序号守卫复用（不另写一套竞态逻辑）。
+   */
+  async function setHomeSpice(level: number | null) {
+    if (filterSpice.value === level) return
+    filterSpice.value = level
+    const tab = filterTab.value
+    if (tab) await fetchFilterDishes(tab, true)
+  }
+
   /** 首页筛选：按选中品类/标签拉取菜品列表（真实品类 categoryId 优先；tag 兼容旧用法），复用现有分页 */
   async function fetchFilterDishes(tab: FilterTab, reset = false) {
     const seq = ++filterFetchSeq
@@ -240,23 +257,25 @@ export const useDishStore = defineStore('dish', () => {
       let rows: Dish[] = []
       /** 首页排序（问题一）：映射为后端既有 sortBy/sortOrder 查询参数 */
       const s = sortParamsFor(homeSortBy.value)
+      /** 辣度筛选（§7.18）：null = 不限，不传该查询参数 */
+      const spice = filterSpice.value ?? undefined
       if (tab.type === 'category' && tab.categoryId != null) {
-        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         // 仅写回距离供卡片「距你」展示，顺序由后端按排序项决定（loc-hint 提示开启定位才有意义）
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'canteen' && tab.canteenId != null) {
         // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序按当前排序项
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else {
         // 默认流：按当前排序项取分页（非距离排序沿用本地距离升序的历史兜底）
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
+        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
         rows = withLocalDistance(res.list, homeSortBy.value === 'distance')
         filterTotal.value = res.total
       }
@@ -296,20 +315,22 @@ export const useDishStore = defineStore('dish', () => {
       let rows: Dish[] = []
       /** 翻页沿用首页当前排序项（问题一） */
       const s = sortParamsFor(homeSortBy.value)
+      /** 辣度筛选（§7.18）：翻页沿用当前选中档位，null = 不限 */
+      const spice = filterSpice.value ?? undefined
       if (tab.type === 'category' && tab.categoryId != null) {
-        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ categoryId: tab.categoryId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else if (tab.type === 'canteen' && tab.canteenId != null) {
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
+        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, sortBy: s.sortBy, sortOrder: s.sortOrder, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
         rows = withLocalDistance(res.list, false)
         filterTotal.value = res.total
       } else {
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
+        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
         rows = withLocalDistance(res.list, homeSortBy.value === 'distance')
         filterTotal.value = res.total
       }
@@ -357,8 +378,8 @@ export const useDishStore = defineStore('dish', () => {
     canteenList,
     hotSearchList, reviewTotal, reviewSort, reviewsDirty,
     loading,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterError,
-    homeSortBy, setHomeSort, setHomePrice,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterSpice, filterError,
+    homeSortBy, setHomeSort, setHomePrice, setHomeSpice,
     fetchCanteens, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
     fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,

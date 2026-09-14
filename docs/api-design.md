@@ -126,8 +126,12 @@
 | GET | `/my/notifications` | 消息列表（isRead/page/pageSize） |
 | GET | `/my/notifications/unread-count` | 未读总数（红点） |
 | PUT | `/my/notifications/{id}/read` | 单条已读 |
+| PUT | `/my/notifications/read-all` | 全部已读（**2026-09-14 恢复**） |
 
-> 全部已读接口 `PUT /my/notifications/read-all` 不存在（2026-09 契约清理）；已读仅单条操作。
+> **全部已读 `PUT /my/notifications/read-all`（2026-09-14 恢复该能力，此前契约清理时曾被移除；依据 `project_spec.md` §7.18 第 2 条）**：
+> ① 鉴权：需登录（同 `/my/notifications` 系列口径——`@RequireVerified` 按 `user.verified` 实时判定 + 方法级 `hasRole('STUDENT')`）；
+> ② 语义：一次性将该用户**全部未读**通知置为已读，**幂等**——无未读时返回 0，不报错；重复调用结果一致；
+> ③ 返回：`Result<Integer>`，`data` = 本次置为已读的条数（无未读时为 `0`）。
 
 ### 3.6 反馈
 | 方法 | 路径 | 认证 | 说明 |
@@ -263,5 +267,5 @@ Dish/Stall/Canteen：学生写走直接发布（菜品/档口纠错由反馈 err
 - 验证码限频无 IP 维度 → 建议补 IP 维度 + 单日总量限制
 - 前端裸 hex（find confirmColor）→ 建议登记 token（原 webview progressbar 例外已随 `web-view` 退出小程序移除）
 - `SecurityConfig` 白名单残留 `/lists/share/**`（美食清单模块已移除，无对应 Controller）→ 建议清理白名单条目
-- `NotificationController` 直调 `NotificationMapper`（分页/已读/未读计数在 Controller 内完成）→ 违反「Controller 不得直调 Mapper」分层红线（spec §2），建议下沉至 `NotificationService`
+- ~~`NotificationController` 直调 `NotificationMapper`（分页/已读/未读计数在 Controller 内完成）→ 违反「Controller 不得直调 Mapper」分层红线（spec §2）~~ → **已解决**（P3/ARCH-008：查询/计数/已读逻辑下沉 `NotificationService`，Controller 不再注入 Mapper，2026-09 核实）
 - ~~通知接口用 `hasRole('STUDENT')` 而非 verified 口径~~ → **已解决**（`@RequireVerified` 切面已补齐，2026-09 核实）

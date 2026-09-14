@@ -1,6 +1,22 @@
 <template>
   <view class="page notifications-page">
-    <Header title="系统通知" @back="backToHome" />
+    <Header title="系统通知" @back="backToHome">
+      <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
+           无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
+      <template v-if="userStore.isVerified()" #action>
+        <view
+          class="read-all"
+          :class="{ 'is-disabled': !hasUnread || readAllBusy }"
+          role="button"
+          aria-label="全部已读"
+          hover-class="read-all-pressed"
+          @tap="onReadAll"
+        >
+          <IconSvg name="check" :size="26" :color="hasUnread ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+          <text class="read-all-text">全部已读</text>
+        </view>
+      </template>
+    </Header>
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
       <view class="list">
@@ -49,13 +65,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
-import { getNotifications, readNotification, type Notification } from '@/api/notify'
+import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import { dishDetailUrl } from '@/utils/routes'
@@ -64,6 +80,8 @@ const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 
 const list = ref<Notification[]>([])
+/** 全部已读进行中（并发守卫 + 行内禁用态） */
+const readAllBusy = ref(false)
 const loading = ref(false)
 const refresherTriggered = ref(false)
 /** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
@@ -127,6 +145,29 @@ async function onRefresh() {
   refresherTriggered.value = true
   await load()
   refresherTriggered.value = false
+}
+
+/** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
+const hasUnread = computed(() => list.value.some(n => n.isRead === 0))
+
+/**
+ * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
+ * 成功后重拉列表 + 未读数（不本地乐观改 list，避免与服务端真实态偏差）；
+ * 失败只提示、不改变任何本地状态；请求中 readAllBusy 守卫防重复点击。
+ */
+async function onReadAll() {
+  if (readAllBusy.value || !hasUnread.value) return
+  readAllBusy.value = true
+  try {
+    await readAllNotifications()
+    await load()
+    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+  } catch (err) {
+    console.error('[notifications] 全部已读失败', err)
+    uni.showToast({ title: '操作失败，请稍后重试', icon: 'none' })
+  } finally {
+    readAllBusy.value = false
+  }
 }
 
 /** 点击通知：标记已读；dish_audit 跳菜品详情；feedback_handle 停留本页（回执正文已在内容区展示，不做跳转） */

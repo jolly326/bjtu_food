@@ -1,6 +1,7 @@
 package com.bjtufood.notify.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.result.PageResult;
@@ -69,6 +70,18 @@ public class NotificationServiceImpl implements NotificationService {
         }
         n.setIsRead(1);
         notificationMapper.updateById(n);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int markAllRead(Long userId) {
+        // 单条批量 UPDATE：notification SET is_read = 1 WHERE user_id = ? AND is_read = 0
+        // 数据隔离：仅当前用户；幂等：无未读时返回 0，不报错。
+        Notification patch = new Notification();
+        patch.setIsRead(1);
+        return notificationMapper.update(patch, new LambdaUpdateWrapper<Notification>()
+                .eq(Notification::getUserId, userId)
+                .eq(Notification::getIsRead, 0));
     }
 
     private NotificationVO toVO(Notification n) {

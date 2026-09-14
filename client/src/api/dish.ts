@@ -119,13 +119,18 @@ export async function getHotSearch(): Promise<HotSearch[]> {
   }))
 }
 
-/** 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；price 为可选价格区间（元），透传既有 minPrice/maxPrice */
+/**
+ * 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；
+ * price 为可选价格区间（元），透传既有 minPrice/maxPrice；
+ * spiceLevel 为可选辣度档位（0-3，undefined = 不限），透传既有 spiceLevel 查询参数（§7.18）。
+ */
 export async function getHotDishesPage(
   page: number,
   pageSize = 20,
   price?: { min?: number; max?: number },
+  spiceLevel?: number,
 ): Promise<{ list: Dish[]; total: number }> {
-  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max })
+  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max, spiceLevel })
 }
 
 export type { DishSortBy }

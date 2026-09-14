@@ -44,6 +44,7 @@
 
 - 后端门禁一律 `mvn -q clean compile -DskipTests`（增量编译会掩盖缺失 import；2026-09-14 实际发生）
 - 子 agent 交付必须**落盘到指定文件**，主 agent 以读文件验收（回报可能被截断）
+- 小程序门禁必须**同时**跑 `npm run type-check` **与** `npm run build:mp-weixin`：`build:mp-weixin` **不做类型检查**，模板里引用了不存在的标识符（如 `selectedSpiceLevel` 未定义）也能"Build complete"（2026-09-14 实际发生）
 
 ## 循环触发
 - 手动：用户说「继续下一轮」→ 读本文件接续

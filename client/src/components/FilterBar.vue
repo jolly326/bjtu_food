@@ -33,6 +33,19 @@
         <text class="fb-chip-text">{{ priceLabel }}</text>
         <IconSvg class="fb-chip-icon" :name="activePanel === 'price' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
       </view>
+
+      <!-- 辣度按钮（§7.18）：与食堂/价格同款胶囊；收起后文案回显所选档位（不限 →「全部辣度」） -->
+      <view
+        class="fb-chip"
+        :class="{ active: activePanel === 'spice' }"
+        @tap="onChipTap('spice')"
+        role="button"
+        :aria-label="`辣度：${spiceLabel}`"
+      >
+        <IconSvg class="fb-chip-icon" name="fire" :size="'18px'" :color="activePanel === 'spice' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <text class="fb-chip-text">{{ spiceLabel }}</text>
+        <IconSvg class="fb-chip-icon" :name="activePanel === 'spice' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'spice' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+      </view>
     </view>
 
     <!-- 筛选控件：与食堂/价格同款白底圆角胶囊（「筛选」文字 + 线性图标）；恒在最右。
@@ -70,6 +83,27 @@
           >
             <text class="cf-name">{{ c.name }}</text>
             <IconSvg v-if="selectedCanteenId === c.id" name="check" :size="32" color="var(--color-on-primary)" />
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- ===== 辣度下拉（§7.18）：结构与食堂下拉 100% 同款（同遮罩、同面板、同选中语言），
+         复用 canteen 系列样式类，不新增样式资产，交互/视觉与既有筛选完全一致。 ===== -->
+    <view v-if="activePanel === 'spice'" class="cf-mask" @tap="closePanel">
+      <view class="cf-panel" @tap.stop>
+        <view class="cf-title">选择辣度</view>
+        <scroll-view scroll-y class="cf-list">
+          <view
+            v-for="opt in spiceOptions"
+            :key="opt.key"
+            class="cf-item press"
+            :class="{ active: spiceLevel === opt.level }"
+            hover-class="pressed"
+            @tap="selectSpice(opt.level)"
+          >
+            <text class="cf-name">{{ opt.label }}</text>
+            <IconSvg v-if="spiceLevel === opt.level" name="check" :size="32" color="var(--color-on-primary)" />
           </view>
         </scroll-view>
       </view>
@@ -148,10 +182,13 @@ const props = withDefaults(defineProps<{
   selectedCanteenId: number | null
   /** 当前价格区间（受控，单位：元）；emit 与透传同为元，禁止二次换算 */
   priceRange?: { min?: number; max?: number }
+  /** 当前辣度档位（受控；null = 全部/不限，0-3 对应后台 spice_level 枚举） */
+  spiceLevel?: number | null
   /** 胶囊高度（px）显式覆盖口；不传则组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017 修正此前硬编码 36 与该口径矛盾） */
   capsuleHeight?: number
 }>(), {
   priceRange: () => ({}),
+  spiceLevel: null,
 })
 
 /**
@@ -168,6 +205,7 @@ const capsuleH = ref<number>(props.capsuleHeight ?? resolveCapsuleHeight())
 const emit = defineEmits<{
   (e: 'canteen-select', id: number | null): void
   (e: 'price-select', range: { min?: number; max?: number }): void
+  (e: 'spice-select', level: number | null): void
 }>()
 
 
@@ -176,7 +214,7 @@ const emit = defineEmits<{
  * 取代原 showFilter/showPrice 双布尔：单值天然保证「两表单互斥、最多一个展开、最多一个按钮激活」，
  * 切换按钮时「先收起前一个再展开后一个」由状态本身成立，无需写互斥分支。
  */
-const activePanel = ref<'canteen' | 'price' | null>(null)
+const activePanel = ref<'canteen' | 'price' | 'spice' | null>(null)
 
 function closePanel() {
   activePanel.value = null
@@ -191,7 +229,7 @@ function closePanel() {
  *     才能让「先收起、再展开」成为用户可观察的先后次序，两表单不重叠覆盖）
  * 不依赖任何 double-tap 手势识别。
  */
-function onChipTap(panel: 'canteen' | 'price') {
+function onChipTap(panel: 'canteen' | 'price' | 'spice') {
   if (activePanel.value === null) {
     activePanel.value = panel
   } else if (activePanel.value === panel) {
@@ -228,6 +266,28 @@ const priceLabel = computed(() => {
   if (min == null && max != null) return `${formatYuan(max)} 元以下`
   return `${formatYuan(min)}-${formatYuan(max)} 元`
 })
+
+// ===== 辣度下拉（§7.18：口径与后端 dish.spice_level 一致，单选，null = 不限） =====
+
+/** 辣度档位：全部（不限）/ 不辣 / 微辣 / 中辣 / 重辣（level=null 表示不传 spiceLevel） */
+const spiceOptions = [
+  { key: 'all', label: '全部', level: null },
+  { key: '0', label: '不辣', level: 0 },
+  { key: '1', label: '微辣', level: 1 },
+  { key: '2', label: '中辣', level: 2 },
+  { key: '3', label: '重辣', level: 3 },
+] as const satisfies readonly { key: string; label: string; level: number | null }[]
+
+/** 选中项文案：未选回显「全部辣度」，与「全部食堂 / 全部价格」同语言 */
+const spiceLabel = computed(
+  () => spiceOptions.find((o) => o.level === props.spiceLevel)?.label || '全部辣度',
+)
+
+/** 选中即收起面板并上抛档位（与食堂下拉同交互：单击即生效，无二次确认） */
+function selectSpice(level: number | null) {
+  closePanel()
+  emit('spice-select', level)
+}
 
 // ===== 食堂下拉 =====
 
@@ -350,21 +410,23 @@ function onReset() {
   box-sizing: border-box;
   gap: var(--spacing-sm);
 }
-/* 左组（食堂 + 价格）：独占全部剩余空间（flex:1），把右侧筛选 icon 顶到最右。
-   组内两颗按钮 flex:1 平均分左区空间，超长食堂名仅在其内部省略（min-width:0），
-   既均分又不挤出右侧 icon。 */
+/* 左组（食堂 + 价格 + 辣度）：独占全部剩余空间（flex:1），把右侧筛选 icon 顶到最右。
+   §7.18 增加辣度维度后由 2 颗变 3 颗：窄屏（750rpx 视口）下文案必然拥挤，
+   故左组改为 flex-wrap 换行、单颗设 min-width 后按行均分（flex:1 1 <basis>），
+   超长食堂名仍只在其内部省略（min-width:0 语义由 flex-basis 兜住），既均分又不挤出右侧 icon。 */
 .fb-chips {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   flex: 1;
   min-width: 0;
   gap: var(--spacing-sm);
 }
 .fb-chip {
-  /* ⚠️ flex:1 均分左区：两按钮各占一半剩余空间，平均分配左侧区域。
-     min-width:0 保证长食堂名只在其内部省略，不会把右侧筛选 icon 挤出屏幕。 */
-  flex: 1;
-  min-width: 0;
+  /* ⚠️ flex:1 1 basis（≈内容双倍宽）+ 换行：单行容纳 3 颗（每颗 ≥110rpx）时平均分左侧区域；
+     容纳不下时按行折行（每行 flex-grow 均分本行），长按钮内部省略，不会把右侧 icon 挤出屏。 */
+  flex: 1 1 2.2em;
+  min-width: 110rpx;
   position: relative;
   display: flex;
   align-items: center;
@@ -443,6 +505,12 @@ function onReset() {
 }
 .cf-list {
   max-height: 60vh;
+}
+/* 隐藏 scroll-view 滚动条（小程序 width/height 需 ≥0；Web/H5 下 width:0 即不占位） */
+.cf-list ::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 .cf-item {
   display: flex;
