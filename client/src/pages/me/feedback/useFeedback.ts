@@ -33,11 +33,17 @@ export function useFeedback() {
   }
 
   // ---- ① 类型（3 类等宽卡片：左侧 icon + 右侧标题） ----
+  // 投稿类目（add / error）desc 须明示审核后上架语义（spec §7.3 / §7.7 第 2 条：投稿为待审核反馈，不得让用户以为提交即生效）
   const types: { value: FeedbackSubmit['type']; label: string; desc: string; icon: string }[] = [
     { value: 'suggestion', label: '提个想法', desc: '建议 / 问题', icon: 'lightbulb-fill' },
-    { value: 'add', label: '推荐菜品', desc: '补录一道', icon: 'dish-fill' },
-    { value: 'error', label: '信息不对', desc: '纠错 / 下架', icon: 'report-fill' },
+    { value: 'add', label: '推荐菜品', desc: '审核后上架', icon: 'dish-fill' },
+    { value: 'error', label: '信息不对', desc: '纠错 / 审核后上架', icon: 'report-fill' },
   ]
+
+  /** 投稿类目（add / error）通用说明：提交后由管理员审核，确认后才会展示（spec §7.7 第 2 条） */
+  const SUBMIT_PENDING_HINT = '提交后由管理员审核，确认后才会展示'
+  /** 投稿类目审核说明可见性：仅 add / error 两类的表单与提交区展示 */
+  const submitPendingHint = computed(() => (type.value === 'add' || type.value === 'error' ? SUBMIT_PENDING_HINT : ''))
   const type = ref<FeedbackSubmit['type']>('suggestion')
   /** 来源承接文案：由贡献入口落点参数推导（见 contribution-entry），仅读展示；用户切换类型后清空 */
   const sourceHint = ref('')
@@ -603,6 +609,7 @@ export function useFeedback() {
     types,
     type,
     sourceHint,
+    submitPendingHint,
     form,
     canSubmit,
     gateHint,

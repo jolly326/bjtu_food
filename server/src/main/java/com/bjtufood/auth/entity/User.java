@@ -11,6 +11,11 @@ import java.time.LocalDateTime;
  * <p>
  * 对应数据库表：user
  * 包含两种角色：student（学生）、admin（管理员）
+ * <p>
+ * 注：表名 `user` 为 MySQL 保留字，当前 MyBatis-Plus 生成语句与手写 XML 均可正常执行（2026-09-14 评估：
+ * MybatisPlusConfig 未配置全局表名转义，MP 生成的 FROM user 与 ReviewMapper.xml 的 JOIN user u 实测均正常，
+ * 因 `user` 在 MySQL 8 为非保留关键字，仅裸标识符场景需注意），故保持现状不加转义；
+ * 若后续引入原生拼接 SQL 需注意转义。
  */
 @Data
 @TableName("user")

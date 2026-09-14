@@ -23,7 +23,9 @@ public interface DishService {
      * 菜品列表查询（分页+筛选+排序）
      * <p>
      * 支持参数：keyword, canteenId, stallId, tag, minPrice, maxPrice, sortBy, sortOrder
-     * 排序：sortBy=heat 时按综合热度（浏览量*1 + 评价数*100 + 评分*20）降序；未传 sortBy 时按评价数、评分降序
+     * 排序：sortBy=heat 时按综合热度（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20）降序；
+     * 热度口径真源见 DishMapper.xml 的 heatScoreExpr 片段与 DishHeatWeights 常量（两者必须等价）；
+     * 未传 sortBy 时按评价数、评分降序
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
@@ -60,7 +62,8 @@ public interface DishService {
      * 热搜词条 TOP10
      * <p>
      * 一期限定：无真实搜索词埋点，基于菜品综合热度派生热门词条；
-     * heat 为该词条的热度分（view_count*1 + rating_count*5*20 + avg_rating*20）。
+     * heat 为该词条的热度分（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20），
+     * 与列表 heat 排序共用 DishMapper.xml 的 heatScoreExpr 片段（等价口径）。
      *
      * @return 热搜词条列表（keyword=菜品名, heat=热度分）
      */

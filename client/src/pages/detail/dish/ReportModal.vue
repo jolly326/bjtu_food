@@ -11,6 +11,8 @@
       @tap.stop
     >
       <text class="report-title">{{ title }}</text>
+      <!-- 处理承诺（spec §7.8 第 4 条）：举报/反馈 48 小时内处理，纯人工，无自动动作 -->
+      <text class="report-note">举报将在 48 小时内处理</text>
       <textarea
         class="report-input"
         v-model="reason"
@@ -83,6 +85,8 @@ function submit() {
 .report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%); }
 .report-modal.open { transform: translate(-50%, -50%); opacity: 1; }
 .report-title { display: block; font-size: var(--font-h3); font-weight: var(--weight-bold); color: var(--text-primary); text-align: center; margin-bottom: var(--spacing-lg); }
+/* 处理承诺说明：三级灰小字，置于标题与输入框之间（不改变既有布局结构，仅补一行文案） */
+.report-note { display: block; font-size: var(--font-tiny); color: var(--text-tertiary); text-align: center; line-height: 1.5; margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-sm); }
 .report-input { width: 100%; min-height: 180rpx; background: var(--bg-soft); border-radius: var(--radius-btn); padding: var(--spacing-md); font-size: var(--font-body); color: var(--text-primary); line-height: 1.6; box-sizing: border-box; }
 .report-actions { display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg); }
 .report-btn { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-btn); font-size: var(--font-body); font-weight: var(--weight-semibold); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
