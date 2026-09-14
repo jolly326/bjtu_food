@@ -5,11 +5,14 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.util.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.content.security.SecSuggest;
+import com.bjtufood.review.constant.ReviewConst;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -48,9 +51,6 @@ public class ReviewServiceImpl implements ReviewService {
     public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
     public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
 
-    /** UGC 配图上限（张） */
-    private static final int MAX_IMAGES = 3;
-
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final UserMapper userMapper;
@@ -60,10 +60,16 @@ public class ReviewServiceImpl implements ReviewService {
     private final SensitiveFilter sensitiveFilter;
     private final ContentSecurityService contentSecurityService;
 
+    /**
+     * 菜品评价公开列表。
+     * <p>
+     * 排序（2026-09-14 §7.14 B）：sort 缺省/sort=useful 按「有用数」置顶，sort=latest 按时间倒序。
+     */
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
+        sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼），见 project_spec 决策
         if (userId != null) {
@@ -77,6 +83,7 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
+        sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
@@ -90,6 +97,7 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
+        sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, userId);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
@@ -103,7 +111,10 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // 我的评价：固定按发表时间倒序（本人视角无需「有用」排序与 useful 标记回写）
+        // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden/sec_state 过滤均不适用——
+        // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」），
+        // 机检待复核（sec_state=review）同样放行（端上提示「审核中」）。
+        // 排序固定按发表时间倒序（sort=latest 显式传入，本人评价按时间更自然；与公开列表默认「有用数置顶」解耦）
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
         fillImages(pageResult.getRecords());
         return pageResult;
@@ -157,6 +168,17 @@ public class ReviewServiceImpl implements ReviewService {
         Review latest = reviewMapper.selectById(reviewId);
         result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
         return result;
+    }
+
+    /**
+     * 排序入参白名单校验与归一化（P2-01 / PR-06）。
+     * <p>
+     * 公开列表 sort 值域仅 {@code useful} / {@code latest}：null/空白视为未传（走缺省 useful 口径），
+     * 非法值抛 400，不再静默落 useful 分支（掩盖入参错误）。
+     */
+    private String normalizeSort(String sort) {
+        String normalized = ParamValidator.optionalInWhitelist(sort, ReviewConst.SORT_WHITELIST, "排序方式");
+        return normalized == null ? ReviewConst.SORT_USEFUL : normalized;
     }
 
     /**
@@ -219,7 +241,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setSecState(checkUgcText(userId, filteredContent, 2));
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
-        review.setImages(encodeImages(req.getImages()));
+        review.setImages(UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil));
 
         try {
             // uk_review_user_dish 唯一键兜底并发竞态：前置 selectCount 通过但插入瞬间已被他人抢先落库
@@ -248,32 +270,6 @@ public class ReviewServiceImpl implements ReviewService {
         String openid = user == null ? null : user.getOpenid();
         SecSuggest suggest = contentSecurityService.checkText(openid, content, scene);
         return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
-    }
-
-    /**
-     * 校验并序列化 UGC 配图：≤3 张、每项必须为受信任的 COS 绝对地址。
-     * 仅允许 {@code POST /upload/images} 链路产出的 COS URL，防止 UGC 配图沦为任意 URL 载体。
-     */
-    private String encodeImages(List<String> images) {
-        if (images == null || images.isEmpty()) {
-            return null;
-        }
-        if (images.size() > MAX_IMAGES) {
-            throw new BusinessException("评价配图最多 " + MAX_IMAGES + " 张");
-        }
-        List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
-        if (normalized.isEmpty()) {
-            return null;
-        }
-        if (normalized.size() > MAX_IMAGES) {
-            throw new BusinessException("评价配图最多 " + MAX_IMAGES + " 张");
-        }
-        for (String url : normalized) {
-            if (!imageUrlUtil.isValidCosUgcUrl(url)) {
-                throw new BusinessException("图片地址不合法，请重新上传");
-            }
-        }
-        return JsonListUtil.toJson(normalized);
     }
 
     /**
@@ -313,6 +309,8 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, String secState, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
+        // 内容安全状态查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空
+        secState = ParamValidator.optionalInWhitelist(secState, SecStateConst.ALL, "内容安全状态");
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
         // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
@@ -321,9 +319,8 @@ public class ReviewServiceImpl implements ReviewService {
                                 Review::getContent, Review::getImages, Review::getSecState, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
-                        // 内容安全状态筛选（管理端复核队列：secState=review 捞待人工复核）
-                        .eq(StringUtils.hasText(secState), Review::getSecState,
-                                secState == null ? null : secState.trim().toLowerCase())
+                        // 内容安全状态筛选（管理端复核队列：secState=review 捞待人工复核），值已在上方白名单校验并归一化
+                        .eq(StringUtils.hasText(secState), Review::getSecState, secState)
                         .eq(userId != null, Review::getUserId, userId)
                         // 关键词模糊匹配评价正文，仅当显式传入时生效
                         .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
@@ -390,6 +387,12 @@ public class ReviewServiceImpl implements ReviewService {
         }
         review.setSecState(normalized);
         reviewMapper.updateById(review);
+        // Q-110（2026-09-14 用户拍板）：机审结果回写必须触发评分聚合重算。
+        // 计入白名单为 sec_state='pass'：review→pass 应补计入（原被机审拦下未计），
+        // pass→rejected 应扣除（原已计入），故任何人工复核结论变更都需重算。
+        // 复用 ReviewSubmittedEvent + RatingUpdateListener（AFTER_COMMIT 后异步重算），
+        // 与评价新增/删除/隐藏路径同一真源，避免口径漂移。
+        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }
 
     @Override

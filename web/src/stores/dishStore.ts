@@ -2,16 +2,17 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Dish } from '@/types'
 import { dishApi } from '@/api'
-import { STATUS_ACTIVE } from '@/constants'
 
+/**
+ * 菜品 store。
+ * `activeList` 已于 2026-09-14（P3-08）移除：唯一消费方是 adminStore 的 `activeDishes`（零消费死成员），
+ * 删除后无任何页面/组件读取，避免多维护一份派生数据。
+ */
 export const useDishStore = defineStore('dish', () => {
   const list = ref<Dish[]>([])
-  const activeList = ref<Dish[]>([])
 
   async function loadAll() {
-    const data = await dishApi.getAll()
-    list.value = data
-    activeList.value = data.filter(d => d.status === STATUS_ACTIVE)
+    list.value = await dishApi.getAll()
   }
   async function add(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) { await dishApi.create(data); await loadAll() }
   async function update(id: number, data: Partial<Dish>) { await dishApi.updateById(id, data); await loadAll() }
@@ -22,5 +23,5 @@ export const useDishStore = defineStore('dish', () => {
   if (true) {
     loadAll().catch(() => {})
   }
-  return { list, loadAll, activeList, add, update, remove }
+  return { list, loadAll, add, update, remove }
 })

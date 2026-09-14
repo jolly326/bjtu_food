@@ -1,8 +1,7 @@
 <template>
   <CardSection>
-    <view class="summary-head">
-      <text class="summary-head-title">综合评分</text>
-    </view>
+    <!-- 分区标题统一走 SectionTitle（§4.9 红线；同页三处标题同一实现，字重/间距/对齐不再漂移） -->
+    <SectionTitle title="综合评分" noMargin />
     <view v-if="ratingCount > 0" class="summary-body">
       <view class="summary-left">
         <text class="summary-score">{{ scoreText }}</text>
@@ -37,6 +36,7 @@
 import { computed } from 'vue'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
 
 interface RatingDistItem {
   star: number
@@ -59,8 +59,7 @@ function distPct(count: number): string {
 </script>
 
 <style scoped>
-.summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-sm); }
-.summary-head-title { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
+/* 分区标题已改用 SectionTitle（§4.9），手写 .summary-head 样式随之删除 */
 /* dish-detail-visual-polish：紧凑平衡（左评分区收窄、行距收紧） */
 .summary-body { display: flex; align-items: center; gap: var(--spacing-md); }
 .summary-left { flex: 0 0 132rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-2xs); }

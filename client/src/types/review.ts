@@ -23,9 +23,12 @@ export interface Review {
   images?: string[]
   /** 内容安检状态（后端 ReviewVO）：pass=通过对外可见；review=机审中，仅作者本人可见 */
   secState?: 'pass' | 'review'
+  /** 管理侧隐藏标记（§7.14，后端 isHidden）：仅 /my/reviews 对作者本人返回。
+   *  与 secState 语义不同：review=机审中（待过审、仍会对外展示），isHidden=已被隐藏（不再对外展示） */
+  isHidden?: boolean
   // 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
   // 菜品评价保留 评分+文字+图片+有用 的口碑形态
 }
-
-/** 评价排序方式：最新 / 最有用 */
-export type ReviewSort = 'latest' | 'useful'
+// 原 `ReviewSort`（latest|useful）已于 2026-09-14 删除：评价列表排序口径唯一权威方是后端
+// （spec §7.14 第 2 条 / §7.18 第 3 条「默认按有用数置顶、不提供排序切换」），
+// 端上不持有排序状态、不传 sort（PR-02 / PR-05：零消费类型不留存）。

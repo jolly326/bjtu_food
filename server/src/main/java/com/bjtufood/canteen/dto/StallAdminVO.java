@@ -29,9 +29,6 @@ public class StallAdminVO {
     @Schema(description = "窗口号", example = "3号窗口")
     private String windowNo;
 
-    @Schema(description = "营业时间，如 10:00-20:00", example = "10:00-20:00")
-    private String businessHours;
-
     @Schema(description = "档口描述")
     private String description;
 
@@ -43,15 +40,6 @@ public class StallAdminVO {
 
     @Schema(description = "排序权重")
     private Integer sortOrder;
-
-    @Schema(description = "状态（open/closed）")
-    private String status;
-
-    @Schema(description = "审核状态：pending/approved/rejected")
-    private String auditStatus;
-
-    @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
-    private String rejectReason;
 
     @Schema(description = "提交人用户ID")
     private Long createdBy;

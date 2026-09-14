@@ -1,4 +1,7 @@
 // canteen 食堂表
+// 2026-09-14（Q-113 / PR-14）契约收紧：食堂是**菜品筛选属性字典**，非业务实体，
+// 生命周期只有「新增 / 改名」——后端已移除 status / auditStatus / rejectReason（列即将 DROP），
+// 故此处不再声明任何实体状态字段（营业/停业/审核态一律不设）。
 export interface Canteen {
   id: bigint;
   name: string;
@@ -6,12 +9,14 @@ export interface Canteen {
   location?: string;
   description?: string;
   sort_order: number;
-  status: string;
   created_at: Date;
   updated_at: Date;
 }
 
 // stall 档口表
+// 2026-09-14（Q-113 / PR-14）契约收紧：档口同为**菜品筛选属性字典**，非业务实体，
+// 后端已移除 status / auditStatus / rejectReason（列即将 DROP）。
+// floor（楼层）/ windowNo（窗口号）保留——端上有消费。
 export interface Stall {
   id: bigint;
   canteen_id: bigint;
@@ -21,13 +26,10 @@ export interface Stall {
   description?: string;
   avg_rating: number;
   sort_order: number;
-  status: string;
-  /** 楼层（如 1F/2F） */
+  /** 楼层（如 1F/2F）——保留 */
   floor?: string;
   /** 窗口号 */
   windowNo?: string;
-  /** 营业时间，如 10:00-20:00 */
-  businessHours?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -70,8 +72,6 @@ export interface Dish {
   status: string;
   /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
   spiceLevel?: number;
-  /** 分量枚举：0=小 1=中 2=大 */
-  portion?: number;
   /** 风味/菜系（东北 / 川湘 / 粤式 / 西北 / 清真 / 其他；空=未填） */
   region?: string;
   /** 审核状态：pending / approved / rejected（与上下架 status 解耦） */
@@ -86,22 +86,8 @@ export interface Dish {
   updated_at: Date;
 }
 
-// UGC 审核记录（菜品 / 档口 / 食堂）
-export interface AuditVO {
-  id: bigint;
-  type: 'dish' | 'stall' | 'canteen';
-  name: string;
-  price?: number;
-  images?: string;
-  description?: string;
-  location?: string;
-  submitterId?: bigint;
-  submitterName?: string;
-  audit_status: string;
-  reject_reason?: string;
-  created_at: Date;
-  updated_at: Date;
-}
+// 注：AuditVO（UGC 审核记录：菜品 / 档口 / 食堂）已于 2026-09-14 随审核中心死代码删除（Q-107 / P1-01）：
+// /admin/audit/** 三条接口前端零消费（管理员录入即 approved，pending 无新来源），无任何页面消费该类型。
 
 // review 评价表
 export interface Review {

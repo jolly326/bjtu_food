@@ -15,6 +15,15 @@ export interface ApiResponse<T = unknown> {
   data: T
 }
 
+/**
+ * 「已由请求层提示过」的错误标记。
+ * 请求层对网络异常 / 401 / 4031 / 403 已各自提示（4031 另弹 AuthSheet 认证引导；
+ * 403 且 message 指向「微信登录」时另弹窗说明 + 用户确认后才重跑微信静默登录补 openid，
+ * 依据 spec §7.7 第 1 条（2026-09-14 裁决）：提示 + 用户主动确认，禁止自动重登换登录态），
+ * 调用方 catch 到本类型时应只做状态回滚，不再重复提示（避免同一失败弹两条提示）。
+ */
+export class SurfacedError extends Error {}
+
 /** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
 export type RequestData = string | object | ArrayBuffer | undefined
 
@@ -82,11 +91,12 @@ async function handleUnauthorized(): Promise<void> {
 }
 
 /**
- * 统一无权限/未认证处理（§5.y / §5.x 403）：
- * UGC 写操作需 verified=true，游客触发时后端返回 403 →
+ * 统一「邮箱未认证」处理（4031）：
+ * UGC 写操作需 verified=true，游客触发时后端返回 4031（细分业务码）→
  * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
+ * 与普通 403 严格分流：4031 弹认证表单，403 不弹（避免误导用户去改邮箱）。
  */
-async function handleForbidden(): Promise<void> {
+async function handleUnverified(): Promise<void> {
   uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
   try {
     const { useAuthSheetStore } = await import('@/stores/auth-sheet')
@@ -94,6 +104,54 @@ async function handleForbidden(): Promise<void> {
   } catch {
     // 兜底：极端情况忽略，仅提示
   }
+}
+
+/**
+ * 统一「需微信登录」处理（403 且 message 指向微信登录，spec §7.5 / §7.7 第 1 条）：
+ * 已认证（verified=1）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
+ * message「请使用微信登录后再发布评价」。端上处置 = 「提示 + 用户主动确认」
+ * （依据 spec §7.7 第 1 条，2026-09-14 裁决，禁止自动重登换登录态）：
+ * 弹窗说明 + 用户点「重新登录」确认后，才重跑微信静默登录（wx.login → POST /auth/wechat-login）
+ * 补齐 openid；**禁止自动重登**——对「无 openid 的历史学号账号」自动重登会静默切到新游客号
+ * （登录态无感知互换，且新号 verified=false，重试仍撞 4031），顺滑收益≈0，静默换号代价真实。
+ * 用户点取消 / 弹窗调用失败：仅保留提示，不换号、不清登录态；确认重登成功后提示用户重试原操作。
+ * **不新增页面、不弹邮箱认证引导**（邮箱已认证，弹它属误导）。
+ */
+function isWechatLoginRequired(msg: string): boolean {
+  return /微信登录/.test(msg)
+}
+
+function handleWechatLoginRequired(msg: string): void {
+  uni.showModal({
+    title: '需要微信登录',
+    content: msg,
+    confirmText: '重新登录',
+    showCancel: true,
+    success: (r) => {
+      // 取消：弹窗本身已说明原因，仅保留提示，不换号、不清登录态
+      if (!r.confirm) return
+      void (async () => {
+        try {
+          const { useUserStore } = await import('@/stores/user')
+          const userStore = useUserStore()
+          // 关键：必须经 wx.login 重新取 code 换号（后端在 wechat-login 时按 openid 绑定），
+          // 而 silentLogin 在「已有 token」分支只刷新 profile、不会补 openid。
+          // 故先清本地态（forceLogout 幂等，仅清 token/userInfo，不触发请求），再跑完整静默登录。
+          userStore.forceLogout()
+          await userStore.silentLogin(true)
+          // 成功仅表示已补齐 openid，原操作需用户自行重试
+          uni.showToast({ title: '已重新登录，请重试', icon: 'none' })
+        } catch {
+          // 兜底：重新登录动作失败——仅提示，本地登录态按 401 既有机制自恢复，不在此重复处理
+          uni.showToast({ title: '重新登录未完成，请稍后重试', icon: 'none' })
+        }
+      })()
+    },
+    fail: () => {
+      // 弹窗调用失败（极端环境）：降级为仅提示后端 message，不换号、不清登录态
+      uni.showToast({ title: msg, icon: 'none' })
+    },
+  })
 }
 
 function getToken(): string {
@@ -187,9 +245,9 @@ async function request<T>(
     })
     // #endif
   } catch (e) {
-    // 网络层错误（超时 / 断网）：不抛出裸错误，统一提示
+    // 网络层错误（超时 / 断网）：不抛出裸错误，统一提示；标记已提示，调用方只需回滚状态
     uni.showToast({ title: e instanceof Error ? e.message : '网络异常，请稍后重试', icon: 'none' })
-    throw e
+    throw new SurfacedError(e instanceof Error ? e.message : '网络异常，请稍后重试')
   }
 
   const body = parseBody<T>(res.data)
@@ -217,20 +275,27 @@ async function request<T>(
       }
     }
     await handleUnauthorized()
-    throw new Error(body.message || '请先登录')
+    throw new SurfacedError(body.message || '请先登录')
   }
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
     // 游客触发需 verified 的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
-    void handleForbidden()
-    throw new Error(body.message || '请先完成学号邮箱认证')
+    void handleUnverified()
+    throw new SurfacedError(body.message || '请先完成学号邮箱认证')
   }
   if (body.code === 403) {
-    // 403 = 普通权限拒绝（如越权访问管理接口 / 已认证但缺 openid）：不弹邮箱认证引导（避免误导），
-    // 但提示文案优先透传后端 message，否则用户只能看到笼统的「无权限」，无从判断该做什么。
+    // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
+    // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
+    //   （2026-09-14 裁决：提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
+    // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
+    // 两种情形都不弹 AuthSheet（邮箱认证引导），避免把「需微信登录」误导成「需邮箱认证」。
     const msg = body.message || '无权限访问该内容'
-    uni.showToast({ title: msg, icon: 'none' })
-    throw new Error(msg)
+    if (isWechatLoginRequired(msg)) {
+      void handleWechatLoginRequired(msg)
+    } else {
+      uni.showToast({ title: msg, icon: 'none' })
+    }
+    throw new SurfacedError(msg)
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message

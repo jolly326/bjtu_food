@@ -23,7 +23,7 @@ public class Notification {
     @Schema(description = "接收用户ID")
     private Long userId;
 
-    /** 通知类型：dish_audit / feedback_handle */
+    /** 通知类型：feedback_handle（active）/ dish_audit（仅存量兼容，2026-09-14 Q-107 后不再新增） */
     @Schema(description = "通知类型")
     private String type;
 

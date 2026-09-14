@@ -23,8 +23,11 @@ public class Feedback {
     @Schema(description = "用户ID")
     private Long userId;
 
-    /** 反馈类型：suggestion / add / error / bug / report / other（与 FeedbackConst 保持一致） */
-    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
+    /**
+     * 反馈类型：写入口径仅 suggestion / add / error / report（FeedbackConst.WRITABLE_TYPES）；
+     * 历史存量数据可含 bug / other（已下线，读取与后台筛选保持兼容）。
+     */
+    @Schema(description = "反馈类型：suggestion/add/error/report（历史可含 bug/other）")
     private String type;
 
     @Schema(description = "反馈内容")

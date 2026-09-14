@@ -53,9 +53,8 @@ export async function updateProfile(data: { nickname?: string; avatar?: string }
   return userToLegacy(await put<any>('/auth/profile', data))
 }
 
-export async function updatePassword(data: { oldPassword: string; newPassword: string }) {
-  await put<void>('/auth/password', data)
-}
+// updatePassword（PUT /auth/password）已于 2026-09-14 删除（Q-108 / G-13 / spec §5.y.1）：
+// 该端点后端已移除；学生侧无密码体系（user.password 恒 NULL），管理员语义亦随单口令模型失效。
 
 /**
  * 切换用户状态：直接向后端传目标状态，不再前端 getAll() 全量拉取再反查（P-2 性能）。

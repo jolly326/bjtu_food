@@ -5,8 +5,8 @@
  * 抽取自 detail/dish/index.vue 的 <script setup>（dish-detail-visual-polish / detail-modular-review-cleanup / N07 等之后），
  * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard / DishSummaryCard / DishReviewSection）引用。
  * 职责：
- * - 数据流：onLoad 解析 id → resetDishDetail → 定位补齐 + fetchDetail/fetchReviews（含 addView 埋点），
- *   onShow 依据 reviewsDirty 重拉；分享路径使用 current dish；
+ * - 数据流：onLoad 解析 id → resetDishDetail → 定位补齐 + fetchDetail/fetchReviews（含 addView 埋点）；
+ *   分享路径使用 current dish；
  * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量
  *   （statusBar/navBar/rightPad、heroBase/pinLine/pinStart/dishBodyMin、carryOpacity/navOpacity）；
  * - 评价分页（触底加载）、删除本人评价、写评价弹层（ReviewComposer）与提交后刷新、评价三点菜单、
@@ -43,6 +43,10 @@ export function useDishPage() {
   const reviewList = computed(() => dishStore.reviewList)
   const reviewTotal = computed(() => dishStore.reviewTotal)
   const currentUserId = computed(() => userStore.userInfo?.id)
+  /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
+  const reviewFailed = computed(() => dishStore.reviewError)
+  /** 评价在途（骨架态；有数据时不遮挡列表） */
+  const reviewLoading = computed(() => dishStore.loading)
 
   /** detail-modular-review-cleanup：评价卡内触底分页（不再跳转独立全部评价页） */
   const reviewPage = ref(1)
@@ -58,8 +62,8 @@ export function useDishPage() {
     const pageSize = 10
     reviewLoadingMore.value = true
     try {
+      // 不传 sort：评价排序口径唯一由后端决定（§7.14 第 2 条 / §7.18 第 3 条「按有用数置顶」；PR-02）
       const res = await dishStore.fetchReviews(dishId.value, {
-        sort: 'latest',
         page: reviewPage.value + 1,
         pageSize,
         append: true,
@@ -204,15 +208,14 @@ export function useDishPage() {
     loadDishData()
   })
 
-  /** 从二级页返回时：脏标记置位才重拉（评价列表 + 综合评分） */
+  /**
+   * 从二级页返回时：不重拉。
+   * 原 `reviewsDirty` 脏标记机制已删除（P2-11 / PR-05）——全仓无任何处置 `reviewsDirty = true` 的写入点，
+   * 分支恒不成立，属「存在但永不触发」的死机制；评价与评分的更新统一由写评价提交回调
+   * （onReviewSubmitted）与删除回调（onDeleteReview）显式重拉，路径明确且必达。
+   */
   onShow(() => {
     if (!dishId.value || !dish.value) return
-    if (dishStore.reviewsDirty) {
-      dishStore.reviewsDirty = false
-      resetReviewPaging()
-      dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
-      dishStore.fetchDetail(dishId.value)
-    }
   })
 
   /** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级 */
@@ -233,7 +236,7 @@ export function useDishPage() {
     addView(dishId.value)
     await Promise.all([
       dishStore.fetchDetail(dishId.value),
-      dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 }),
+      dishStore.fetchReviews(dishId.value, { pageSize: 10 }),
     ])
     const d = dish.value
     if (d) {
@@ -281,7 +284,7 @@ export function useDishPage() {
         try {
           await deleteReview(rv.id)
           uni.showToast({ title: '评价已删除', icon: 'none' })
-          await dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
+          await dishStore.fetchReviews(dishId.value, { pageSize: 10 })
           resetReviewPaging()
           dishStore.fetchDetail(dishId.value)
         } catch (e: any) {
@@ -302,11 +305,18 @@ export function useDishPage() {
     if (!userStore.requireAuth(() => onOpenReviewComposer())) return
     openComposer()
   }
-  /** 提交成功：重置分页并重拉最新评价（sort=latest 新评置顶）+ 刷新综合评分分布 */
+  /** 提交成功：重置分页并重拉评价（排序仍由后端默认「有用数置顶」接管，端上不传 sort）+ 刷新综合评分分布 */
   function onReviewSubmitted() {
     resetReviewPaging()
-    dishStore.fetchReviews(dishId.value, { sort: 'latest', pageSize: 10 })
+    dishStore.fetchReviews(dishId.value, { pageSize: 10 })
     dishStore.fetchDetail(dishId.value)
+  }
+
+  /** 评价失败态点击重试（PR-03）：重置分页后从第 1 页重拉，与进入页面同路径 */
+  function onRetryReviews() {
+    if (!dishId.value) return
+    resetReviewPaging()
+    dishStore.fetchReviews(dishId.value, { pageSize: 10 })
   }
 
   /* ===== 评价三点菜单（ReviewItem @more → 页面级通用 ActionSheet） ===== */
@@ -367,6 +377,8 @@ export function useDishPage() {
     ratingDistribution,
     reviewList,
     reviewTotal,
+    reviewFailed,
+    reviewLoading,
     currentUserId,
     composerOpen,
     reportOpen,
@@ -381,6 +393,7 @@ export function useDishPage() {
     onReviewMoreSelect,
     onOpenReviewComposer,
     onReviewSubmitted,
+    onRetryReviews,
     submitReport,
   }
 }

@@ -1,37 +1,49 @@
 <script setup lang="ts">
 /**
  * ContentManageView：信息管理聚合页。
- * 分类卡导航（去 tabbar）：食堂（含档口）/ 菜品 / 首页配置（分类）三张卡，点击切换视图。
+ * 卡片导航（去 tabbar）：**菜品 / 首页配置（分类）两张卡**。
+ * 2026-09-14 拍板（project_spec §7.15）：食堂与档口是「菜品」的附属维度，
+ * 随菜品表单一起维护 → 移除「食堂（含档口）」独立入口（详见 docs/loop/design/dish-entry-flow.md §1.1）。
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { usePageStore } from '@/stores/pageStore'
 import { useAdminStore } from '@/stores/adminStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
-import CanteensView from '@/views/canteen/CanteensView.vue'
 import DishManageView from '@/views/canteen/DishManageView.vue'
 import HomeConfigView from '@/views/content/HomeConfigView.vue'
-import { House, Food, Picture } from '@element-plus/icons-vue'
+import { Food, Picture } from '@element-plus/icons-vue'
 
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '信息管理' }] })
-
-// 进入信息管理即重新加载全部业务数据（食堂/档口/菜品/轮播），保证各视图有数据
+// 进入信息管理即重新加载全部业务数据（档口/菜品/轮播），保证各视图有数据
 const adminStore = useAdminStore()
 onMounted(() => { adminStore.loadAll() })
 
 const sections = [
-  { key: 'canteen', label: '食堂', badge: () => adminStore.canteens.length, icon: House },
   { key: 'dish', label: '菜品', badge: () => adminStore.dishes.length, icon: Food },
   { key: 'home', label: '首页配置', icon: Picture },
 ]
-const KEYS = ['canteen', 'dish', 'home']
+const KEYS = ['dish', 'home']
 const route = useRoute()
-const activeKey = ref(
-  typeof route.query.tab === 'string' && KEYS.includes(route.query.tab) ? route.query.tab : 'canteen',
-)
-watch(() => route.query.tab, (t) => {
-  if (typeof t === 'string' && KEYS.includes(t)) activeKey.value = t
+
+/**
+ * 深链降级：历史 `?tab=canteen`（含各页旧返回链接 / 书签）不再有对应视图，
+ * 统一降级到「菜品」，不出现空白页。
+ */
+function normalizeKey(raw: unknown): string {
+  if (typeof raw !== 'string') return 'dish'
+  if (KEYS.includes(raw)) return raw
+  if (raw === 'canteen' || raw === 'stall' || raw === 'stalls') return 'dish'
+  return 'dish'
+}
+
+const activeKey = ref(normalizeKey(route.query.tab))
+watch(() => route.query.tab, (t) => { activeKey.value = normalizeKey(t) })
+watch(activeKey, (k) => {
+  // 同步地址栏：把非法 tab（如 canteen）改写为实际生效的 tab，避免刷新后又走降级分支
+  if (route.query.tab !== k) {
+    const query = { ...route.query, tab: k }
+    // 仅更新 query，不新增历史记录
+    history.replaceState(history.state, '', `${route.path}?${new URLSearchParams(query as Record<string, string>).toString()}`)
+  }
 })
 </script>
 
@@ -55,12 +67,11 @@ watch(() => route.query.tab, (t) => {
     </div>
 
     <!-- 纯 v-if 切换：组件挂载时读取响应式 store，切换回来必显示 -->
-    <CanteensView v-if="activeKey === 'canteen'" />
-    <DishManageView v-else-if="activeKey === 'dish'" />
+    <DishManageView v-if="activeKey === 'dish'" />
     <HomeConfigView v-else />
   </PageContainer>
 </template>
 
 <style scoped>
-/* 分类卡样式统一在 shared.css（.sec-grid/.sec-card），保证三页大小 UI 一致 */
+/* 分类卡样式统一在 shared.css（.sec-grid/.sec-card），保证各页大小 UI 一致 */
 </style>

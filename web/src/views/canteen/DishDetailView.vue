@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { usePageStore } from '@/stores/pageStore'
 import { parseTags, formatTags } from '@/api/adapter'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
@@ -16,9 +15,10 @@ import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import StarRating from '@/components/StarRating.vue'
 import { Trophy, Star, Food, Picture } from '@element-plus/icons-vue'
 import { TAG_OPTIONS, SIGNATURE_TAG, tagDisplay } from '@/api/tags'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW } from '@/constants'
+import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW, AUDIT_STATUS_META, AUDIT_REJECTED } from '@/constants'
 import type { SecAction } from '@/types'
 
 const router = useRouter()
@@ -26,10 +26,12 @@ const route = useRoute()
 const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
-const page = usePageStore()
+
+/** 菜品列表页地址（本页唯一上级；食堂/档口仅作为筛选维度，不是独立页面） */
+const DISH_LIST_PATH = '/dashboard/content?tab=dish'
 
 function goBack() {
-  router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}`)
+  router.push(DISH_LIST_PATH)
 }
 
 const statusOptions = [
@@ -37,13 +39,12 @@ const statusOptions = [
   { label: '已下架', value: 'inactive' },
 ]
 
-const canteenId = computed(() => Number(route.params.canteenId))
-const stallId = computed(() => Number(route.params.stallId))
 const dishId = computed(() => Number(route.params.dishId))
 
 const dish = computed(() => store.dishes.find(d => Number(d.id) === dishId.value))
-const canteen = computed(() => store.canteens.find(c => Number(c.id) === canteenId.value))
-const stall = computed(() => store.stalls.find(s => Number(s.id) === stallId.value))
+// 所属食堂 / 档口：由 dish.stall_id → stall → canteen 派生（只读展示，不跳转实体页）
+const stall = computed(() => store.stalls.find(s => Number(s.id) === Number(dish.value?.stall_id)))
+const canteen = computed(() => store.canteens.find(c => Number(c.id) === Number(stall.value?.canteen_id)))
 // 评论管理本地安检筛选（数据已全量在 store，'' = 全部；v-model 为 string，比较时直接字符串匹配）
 const activeSecState = ref('')
 const dishReviews = computed(() => store.reviews.filter(r => Number(r.dish_id) === dishId.value))
@@ -67,24 +68,45 @@ const SPICE_OPTIONS = [
   { value: 2, label: '中辣' },
   { value: 3, label: '重辣' },
 ]
-const PORTION_OPTIONS = [
-  { value: 0, label: '小份' },
-  { value: 1, label: '中份' },
-  { value: 2, label: '大份' },
-]
 /** 风味/菜系权威值域（project_spec §7.9） */
 const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
 
 function spiceLabel(v?: number): string {
   return SPICE_OPTIONS.find(o => o.value === v)?.label || '不辣'
 }
-function portionLabel(v?: number): string {
-  return PORTION_OPTIONS.find(o => o.value === v)?.label || '小份'
-}
+
+// ===== 审核闭环展示（§4.9）：审核态走 StatusTag，退回时展示原因 =====
+const AUDIT_FALLBACK = { type: 'warning' as const, text: '待审核' }
+const auditMeta = computed(() => {
+  const s = dish.value?.audit_status || 'pending'
+  return AUDIT_STATUS_META[s] ?? AUDIT_FALLBACK
+})
+/** 退回原因仅在 audit_status=rejected 且有值时展示 */
+const rejectReason = computed(() =>
+  dish.value?.audit_status === AUDIT_REJECTED ? (dish.value?.reject_reason || '') : '',
+)
 
 const editing = ref(false)
-const editForm = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '', spiceLevel: 0, portion: 0, region: '', originalPrice: 0, promoPrice: 0 })
+const editForm = ref({ name: '', price: 0, description: '', image: '', alias: '', tags: '', status: '', spiceLevel: 0, region: '', originalPrice: 0, promoPrice: 0 })
 const editErrors = ref<Record<string, string>>({})
+
+/**
+ * 「他人已修改」轻提示基线（Q-112 ①，PR-13 最简实现）：
+ * 进入编辑时记录该菜品当前 updated_at；保存前仅比对该基线是否与当前行一致，
+ * 不一致则给一次可「继续保存 / 取消」的**非阻塞**提示；不引版本号 / 乐观锁 / ETag。
+ */
+const editBaselineUpdatedAt = ref('')
+function updatedAtKey(v: unknown): string {
+  return v ? new Date(v as any).getTime().toString() : ''
+}
+
+/**
+ * 搜索别名（后端 DishAdminReq.alias，逗号分隔，保存前后端 trim 去空项去重，总长 ≤255 超限 400）。
+ * 输入允许中英文逗号，提交前统一归一为英文逗号并去空项；空串表示清空别名。
+ */
+function normalizeAlias(raw: string): string {
+  return raw.split(/[,，]/).map(s => s.trim()).filter(Boolean).join(',')
+}
 
 const showImageModal = ref(false)
 
@@ -110,20 +132,13 @@ async function saveImageModal() {
 }
 function closeImageModal() { showImageModal.value = false }
 
-watch([canteen, stall, dish], ([c, s, d]) => {
-  page.setPage({
-    breadcrumbs: [
-      { label: '食堂管理', path: '/dashboard/content?tab=canteen' },
-      { label: c?.name || '加载中', path: c ? `/dashboard/canteens/${canteenId.value}` : '' },
-      { label: s?.name || '加载中', path: s ? `/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}` : '' },
-      { label: d?.name || '加载中' },
-    ],
-  })
+watch([canteen, stall, dish], ([, , d]) => {
+  // 后台顶部导航已表达层级（食堂/档口不是独立页面），不再维护面包屑
   if (d) {
     editForm.value = {
       name: d.name, price: d.price, description: d.description || '',
-      image: d.image || '', tags: d.tags || '', status: d.status,
-      spiceLevel: d.spiceLevel ?? 0, portion: d.portion ?? 0,
+      image: d.image || '', alias: d.alias || '', tags: d.tags || '', status: d.status,
+      spiceLevel: d.spiceLevel ?? 0,
       region: d.region || '',
       originalPrice: d.originalPrice ? d.originalPrice : 0,
       promoPrice: d.promoPrice ? d.promoPrice : 0,
@@ -137,13 +152,15 @@ function toggleEdit() {
   if (dish.value) {
     editForm.value = {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
-      image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
-      spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
+      image: dish.value.image || '', alias: dish.value.alias || '', tags: dish.value.tags || '', status: dish.value.status,
+      spiceLevel: dish.value.spiceLevel ?? 0,
       region: dish.value.region || '',
       originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
       promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
     }
     editErrors.value = {}
+    // 记录编辑基线（进入编辑时的 updated_at），保存前据此做一次轻量「他人已修改」提示
+    editBaselineUpdatedAt.value = updatedAtKey(dish.value.updated_at)
   }
 }
 
@@ -166,10 +183,22 @@ async function confirmEdit() {
   if (editForm.value.promoPrice > 0 && editForm.value.promoPrice >= basePrice) {
     errs.promoPrice = '促销价须低于原价/常规价'
   }
+  // 搜索别名：与后端 DishAdminReq.alias 长度约束（≤255）保持一致，前端提前拦截避免必然 400
+  const alias = normalizeAlias(editForm.value.alias || '')
+  if (alias.length > 255) errs.alias = '搜索别名过长（不超过 255 字）'
   editErrors.value = errs
   if (Object.keys(errs).length) return
+  // 「他人已修改」轻提示（Q-112 ①）：仅提示不阻塞，取消则留在编辑态保留已填内容
+  if (editBaselineUpdatedAt.value) {
+    const curKey = updatedAtKey(dish.value?.updated_at)
+    if (curKey && curKey !== editBaselineUpdatedAt.value) {
+      const goOn = await confirm.confirm('该菜品在你编辑期间已被修改，继续保存将覆盖对方的改动。是否继续保存？')
+      if (!goOn) return
+      editBaselineUpdatedAt.value = curKey
+    }
+  }
   if (dish.value) {
-    const payload: any = { ...editForm.value }
+    const payload: any = { ...editForm.value, alias }
     // promoPrice 为空（0）时置 null，表示无折扣
     if (!payload.promoPrice) payload.promoPrice = null
     try {
@@ -188,8 +217,8 @@ function cancelEdit() {
   if (dish.value) {
     editForm.value = {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
-      image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
-      spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
+      image: dish.value.image || '', alias: dish.value.alias || '', tags: dish.value.tags || '', status: dish.value.status,
+      spiceLevel: dish.value.spiceLevel ?? 0,
       region: dish.value.region || '',
       originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
       promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
@@ -201,11 +230,17 @@ function cancelEdit() {
 
 async function deleteDish() {
   if (!dish.value) return
-  if (!await confirm.confirm('确定删除该菜品？')) return
+  // 删除影响说明（Q-112 ②）：用本页已加载的评价数给出具体条数，无则通用文案（不新增接口）
+  const n = dishReviews.value.length
+  const reviewLine = n > 0
+    ? `该菜品下的 ${n} 条评价将一并删除、不可恢复。`
+    : '该菜品的评价将一并删除、不可恢复。'
+  if (!await confirm.confirm(`确定删除该菜品？删除后不可恢复。${reviewLine}`)) return
   try {
     await store.deleteDish(Number(dish.value.id))
     toast.success('菜品已删除')
-    router.push(`/dashboard/canteens/${canteenId.value}/stalls/${stallId.value}`)
+    // 删除后回菜品列表（本页已无对应实体）
+    router.push(DISH_LIST_PATH)
   } catch (err: any) {
     toast.error(err.message || '菜品删除失败')
   }
@@ -313,6 +348,14 @@ async function reviewSecState(r: any, state: SecAction) {
               </div>
             </div>
             <div class="detail-row">
+              <span class="detail-label">搜索别名</span>
+              <div class="detail-control">
+                <span v-if="!editing" class="detail-value" :class="{ 'text-muted': !editForm.alias }">{{ editForm.alias || '—' }}</span>
+                <input v-else v-model="editForm.alias" class="form-input" :class="{ 'input-error': editErrors.alias }" placeholder="选填，逗号分隔，如：麻小,小龙虾" />
+                <p v-if="editing && editErrors.alias" class="field-error">{{ editErrors.alias }}</p>
+              </div>
+            </div>
+            <div class="detail-row">
               <span class="detail-label">价格</span>
               <div class="detail-control">
                 <span v-if="!editing" class="detail-value price">¥{{ editForm.price }}</span>
@@ -371,15 +414,6 @@ async function reviewSecState(r: any, state: SecAction) {
               </div>
             </div>
             <div class="detail-row">
-              <span class="detail-label">分量</span>
-              <div class="detail-control">
-                <span v-if="!editing" class="detail-value">{{ portionLabel(editForm.portion) }}</span>
-                <el-select v-else v-model="editForm.portion" class="form-select-el" placeholder="选择分量">
-                  <el-option v-for="opt in PORTION_OPTIONS" :key="opt.value" :label="opt.label" :value="opt.value" />
-                </el-select>
-              </div>
-            </div>
-            <div class="detail-row">
               <span class="detail-label">风味 / 菜系</span>
               <div class="detail-control">
                 <span v-if="!editing" class="detail-value" :class="{ 'text-muted': !editForm.region }">{{ editForm.region || '—' }}</span>
@@ -399,6 +433,18 @@ async function reviewSecState(r: any, state: SecAction) {
                   :clearable="false"
                   width="160"
                 />
+              </div>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">审核</span>
+              <div class="detail-control">
+                <StatusTag :type="auditMeta.type" :text="auditMeta.text" />
+              </div>
+            </div>
+            <div v-if="rejectReason" class="detail-row detail-row-desc">
+              <span class="detail-label">退回原因</span>
+              <div class="detail-control">
+                <span class="detail-value text-desc reject-reason">{{ rejectReason }}</span>
               </div>
             </div>
             <div class="detail-row detail-row-desc">
@@ -444,7 +490,7 @@ async function reviewSecState(r: any, state: SecAction) {
         >
           <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
           <template #cell-rating="{ row }">
-            <span class="stars">{{ '★'.repeat(row.rating) }}<span class="star-off">{{ '★'.repeat(5 - row.rating) }}</span></span>
+            <StarRating :value="row.rating" />
           </template>
           <template #cell-content="{ row }">
             <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
@@ -481,7 +527,7 @@ async function reviewSecState(r: any, state: SecAction) {
     <FormDialog :show="!!reviewDetail" title="评价详情" :width="520" :footer="false" @close="closeReviewDetail">
       <div v-if="reviewDetail" class="detail">
         <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(reviewDetail.user_id) }}</span></div>
-        <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(reviewDetail.rating) }}<span class="star-off">{{ '★'.repeat(5 - reviewDetail.rating) }}</span></span></div>
+        <div class="detail-row"><span class="dl">评分</span><span class="dv"><StarRating :value="reviewDetail.rating" /></span></div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ reviewDetail.content || '（无文字内容）' }}</span></div>
         <div class="detail-row detail-row-desc" v-if="(reviewDetail.images || []).length">
           <span class="dl">配图</span>
@@ -563,6 +609,8 @@ async function reviewSecState(r: any, state: SecAction) {
 .detail-value.price { color: var(--color-price); font-weight: var(--weight-bold); font-size: var(--font-lg); }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .detail-value.text-muted { font-weight: var(--weight-regular); color: var(--text-light); }
+/* 退回原因：与错误色语义一致的弱化背景，便于一眼识别 */
+.reject-reason { color: var(--text-primary); background: var(--color-error-bg); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); display: inline-block; }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }
@@ -598,9 +646,7 @@ async function reviewSecState(r: any, state: SecAction) {
 .required { color: var(--color-error); }
 .form-select-el { width: 100%; }
 
-/* ===== 评价管理 ===== */
-.stars { color: var(--color-star); letter-spacing: 1px; }
-.star-off { color: var(--border-strong); }
+/* ===== 评价管理（星级样式已收敛至 StarRating 组件，P3-17） ===== */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
 .status-text.on { color: var(--color-success); }

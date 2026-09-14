@@ -1,6 +1,22 @@
 <template>
   <view class="page notifications-page">
-    <Header title="系统通知" @back="backToHome" />
+    <Header title="系统通知" @back="backToHome">
+      <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
+           无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
+      <template v-if="userStore.isVerified()" #action>
+        <view
+          class="read-all"
+          :class="{ 'is-disabled': !hasUnread || readAllBusy }"
+          role="button"
+          aria-label="全部已读"
+          hover-class="read-all-pressed"
+          @tap="onReadAll"
+        >
+          <IconSvg name="check" :size="26" :color="hasUnread ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+          <text class="read-all-text">全部已读</text>
+        </view>
+      </template>
+    </Header>
 
     <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
       <view class="list">
@@ -23,21 +39,10 @@
         </view>
       </view>
 
-      <!-- 加载失败重试块（MP-012 同族）：首屏请求失败 ≠ 无通知——极简「加载失败 · 点击重试」行内块，
+      <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
            先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap 或下拉刷新。
            C1 修复：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态（client-auth-boundary）。 -->
-      <view
-        v-if="loadFailed && !loading && userStore.isVerified()"
-        class="notify-retry"
-        role="button"
-        aria-label="加载失败，点击重试"
-        hover-class="pressed"
-        @tap="onRetryLoad"
-      >
-        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
-        <text class="notify-retry-title">加载失败</text>
-        <text class="notify-retry-hint">网络似乎不太顺畅 · 点击重试</text>
-      </view>
+      <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
            空态不含重试按钮、错误提示与认证引导。 -->
       <view v-else-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
@@ -49,13 +54,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
-import { getNotifications, readNotification, type Notification } from '@/api/notify'
+import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import { dishDetailUrl } from '@/utils/routes'
@@ -64,6 +70,8 @@ const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 
 const list = ref<Notification[]>([])
+/** 全部已读进行中（并发守卫 + 行内禁用态） */
+const readAllBusy = ref(false)
 const loading = ref(false)
 const refresherTriggered = ref(false)
 /** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
@@ -127,6 +135,29 @@ async function onRefresh() {
   refresherTriggered.value = true
   await load()
   refresherTriggered.value = false
+}
+
+/** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
+const hasUnread = computed(() => list.value.some(n => n.isRead === 0))
+
+/**
+ * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
+ * 成功后重拉列表 + 未读数（不本地乐观改 list，避免与服务端真实态偏差）；
+ * 失败只提示、不改变任何本地状态；请求中 readAllBusy 守卫防重复点击。
+ */
+async function onReadAll() {
+  if (readAllBusy.value || !hasUnread.value) return
+  readAllBusy.value = true
+  try {
+    await readAllNotifications()
+    await load()
+    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+  } catch (err) {
+    console.error('[notifications] 全部已读失败', err)
+    uni.showToast({ title: '操作失败，请稍后重试', icon: 'none' })
+  } finally {
+    readAllBusy.value = false
+  }
 }
 
 /** 点击通知：标记已读；dish_audit 跳菜品详情；feedback_handle 停留本页（回执正文已在内容区展示，不做跳转） */
@@ -216,23 +247,7 @@ onShow(() => {
 .empty-title { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
-/* 加载失败重试块（MP-012）：与 find/feed 重试块同族视觉
-   （居中、凹陷面 bg-soft、次级文字色），整块 @tap 触发重拉，无独立按钮 */
-.notify-retry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-  -webkit-tap-highlight-color: transparent;
-}
-.notify-retry.pressed { opacity: 0.7; }
-.notify-retry-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.notify-retry-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
+/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }

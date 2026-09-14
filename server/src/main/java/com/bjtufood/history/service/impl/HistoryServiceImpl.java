@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -17,6 +20,15 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class HistoryServiceImpl implements HistoryService {
+
+    /**
+     * 自然日判定时区（浏览量去重口径）。
+     * <p>
+     * 与 JVM 默认时区解耦：服务器可能部署在 UTC 容器中，直接用 {@code CURDATE()} 会按 UTC 切天，
+     * 导致北京时间 08:00 前的浏览被算作「前一天」而重复计数。此处以「今日零点（Asia/Shanghai）」
+     * 作为时间下界显式下推给 SQL，保证口径与业务（校园本地时区）一致。
+     */
+    private static final ZoneId VIEW_DEDUP_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final ViewLogMapper viewLogMapper;
 
@@ -55,5 +67,20 @@ public class HistoryServiceImpl implements HistoryService {
             log.setTargetId(dishId);
             viewLogMapper.insert(log);
         }
+    }
+
+    @Override
+    public boolean existsTodayDishView(Long userId, Long dishId) {
+        if (userId == null || dishId == null) {
+            // 游客不做当日去重（浏览量上报接口本身要求登录，此处仅为防御性兜底）
+            return false;
+        }
+        // 当天零点（Asia/Shanghai）→ java.sql.Date（时区无关的字面日期），由数据库按 DATETIME 比较
+        Date todayStart = Date.valueOf(LocalDate.now(VIEW_DEDUP_ZONE));
+        return viewLogMapper.selectCount(new LambdaQueryWrapper<ViewLog>()
+                .eq(ViewLog::getUserId, userId)
+                .eq(ViewLog::getTargetType, "dish")
+                .eq(ViewLog::getTargetId, dishId)
+                .ge(ViewLog::getCreatedAt, todayStart)) > 0;
     }
 }

@@ -20,4 +20,18 @@ public interface HistoryService {
      * @param dishId 被浏览菜品ID
      */
     void recordDishView(Long userId, Long dishId);
+
+    /**
+     * 判断当前用户「当天」（自然日，服务器时区 Asia/Shanghai）是否已浏览过该菜品。
+     * <p>
+     * 浏览量去重真源（2026-09-14 §7.14 A）：同一天内同一用户对同一菜品只计 1 次浏览量，
+     * 依据 view_log 中 user_id + target_type='dish' + target_id 的 created_at 是否落在今日。
+     * 存在旧足迹行（updated_at 被 upsert 刷新但 created_at 仍是首次浏览时刻）时，
+     * 今日重复浏览不会命中本判定，从而正确计为「新的一天」。
+     *
+     * @param userId 浏览者用户ID（null/游客直接返回 false，游客不做当日去重）
+     * @param dishId 被浏览菜品ID
+     * @return true=当天已有浏览记录（应幂等跳过计数与插记录）
+     */
+    boolean existsTodayDishView(Long userId, Long dishId);
 }

@@ -22,21 +22,14 @@ export interface Dish {
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
   /** 所属档口 ID（分享深链到档口详情用） */
   stallId?: number
-  /** 所属品类 ID（category.id，首页品类滚轮选中态映射用） */
-  categoryId?: number
   /** 档口所属楼层（如 1F/2F） */
   floor?: string
   /** 窗口号 */
   windowNo?: string
-  /** 档口营业时间（如 10:00-20:00） */
-
-  businessHours?: string
 
   /** ===== 属性标签（task-03，DishVO 扩展，来自 dish） ===== */
   /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
   spiceLevel?: number
-  /** 分量枚举：0=小 1=中 2=大 */
-  portion?: number
   /** 折扣价（分）：促销前原价（task-12.9，API 层已转元展示） */
   originalPrice?: number
   /** 折扣价（分，可空）：促销价，非空即视为有折扣 */
@@ -70,8 +63,6 @@ export interface DishQuery {
   keyword?: string
   /** 食堂 ID（task-02 多维筛选） */
   canteenId?: number
-  /** 品类 ID（category.id，首页品类滚轮筛选） */
-  categoryId?: number
   /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
   tag?: string
   /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */

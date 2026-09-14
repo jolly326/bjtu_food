@@ -17,8 +17,10 @@
         :canteens="dishStore.canteenList"
         :selected-canteen-id="selectedCanteenId"
         :price-range="dishStore.filterPrice"
+        :spice-level="dishStore.filterSpice"
         @canteen-select="onCanteenSelect"
         @price-select="onPriceSelect"
+        @spice-select="onSpiceSelect"
       />
     </view>
 
@@ -44,12 +46,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
+import { promptGeoOnce } from './geo-prompt'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
 import Header from '@/components/AppHeader.vue'
@@ -68,6 +71,14 @@ async function onPriceSelect(range: { min?: number; max?: number }) {
   await dishStore.setHomePrice(range)
 }
 
+/**
+ * 选择辣度档位（§7.18）：写回 store（null = 不限）并刷新当前筛选流。
+ * 与价格筛选同一条路径——store 内 reset 到第 1 页 + 复用既有 filterFetchSeq 竞态防护，端上不另写竞态逻辑。
+ */
+async function onSpiceSelect(level: number | null) {
+  await dishStore.setHomeSpice(level)
+}
+
 /** 当前选中食堂 id（null = 全部） */
 const selectedCanteenId = ref<number | null>(null)
 const selectedCanteenName = computed(
@@ -81,7 +92,7 @@ function canteenTab(id: number, name: string): FilterTab {
   return { key: `canteen-${id}`, label: name, type: 'canteen', canteenId: id }
 }
 
-/** 首拉：食品列表就绪后默认加载「全部」（热度流） */
+/** 首拉：食品列表就绪后默认加载「全部」（热度流）；返回 Promise 供「首屏渲染后」时机串接 */
 let bootstrapped = false
 async function ensureBoot() {
   if (bootstrapped) return
@@ -101,14 +112,20 @@ function onCanteenSelect(id: number | null) {
   dishStore.fetchFilterDishes(tab, true)
 }
 
-/** 是否存在生效的筛选条件（食堂 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
+/** 是否存在生效的筛选条件（食堂 / 价格 / 辣度任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
 const hasFilter = computed(
-  () => selectedCanteenId.value != null || dishStore.filterPrice.min != null || dishStore.filterPrice.max != null,
+  () =>
+    selectedCanteenId.value != null ||
+    dishStore.filterPrice.min != null ||
+    dishStore.filterPrice.max != null ||
+    dishStore.filterSpice != null,
 )
 
-/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间并回到「全部」食堂 */
+/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间与辣度并回到「全部」食堂 */
 function onClearFilter() {
   dishStore.setHomePrice({})
+  // 辣度一并清空（§7.18）；不传 tab 只写状态不额外发请求——随下方 onCanteenSelect 的那一次重拉一起生效
+  dishStore.setHomeSpice(null)
   onCanteenSelect(null)
 }
 
@@ -140,14 +157,29 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
+/** 把新拿到的坐标写入会话缓存并重算本地距离（提示同意后复用，与静默定位同一条落库路径） */
+function applyLocation(loc: { lat: number; lng: number }) {
+  locationStore.setLocation(loc)
+  dishStore.refreshLocalDistance()
+}
+
 /** 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗；拿到后刷新本地距离，使「距你」即时生效 */
 async function syncLocation() {
   if (locationStore.location) return
   const loc = await getLocationIfAuthorized()
-  if (loc) {
-    locationStore.setLocation(loc)
-    dishStore.refreshLocalDistance()
-  }
+  if (loc) applyLocation(loc)
+}
+
+/**
+ * 首次进入首页的一次性定位引导（§7.16 第 3 条）。
+ * **时序**：await 首屏数据就绪（ensureBoot）+ nextTick 确保瀑布流已渲染，再弹提示——
+ * 提示不在加载链路里 await，故不阻塞首屏；拒绝 / 失败时静默降级（不显示距离、按综合热度排序）。
+ */
+async function maybePromptGeo() {
+  await ensureBoot()
+  await nextTick()
+  const loc = await promptGeoOnce({ hasLocation: !!locationStore.location })
+  if (loc) applyLocation(loc)
 }
 
 function loadData() {
@@ -169,6 +201,11 @@ onShow(() => {
   if (!bootstrapped) ensureBoot()
   // 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗，避免首页强制定位打断浏览
   void syncLocation()
+  // 首次进入首页：首屏渲染后提示一次「开启定位可看距离」（已提示过则内部直接跳过）
+  void maybePromptGeo()
+  // 食堂字典最小失效机制：进程常驻期间回首页按节流窗口后台重拉（失败保留旧列表），
+  // 保证管理端改食堂/档口名后最终可见（spec §7.7 附加核查）；内部自带节流与去重，onShow 高频触发安全
+  void dishStore.refreshCanteensIfStale()
 })
 
 onShareAppMessage(() => {

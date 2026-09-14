@@ -54,7 +54,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
-import { uploadImage } from '@/api/upload'
+import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
@@ -100,7 +100,7 @@ function changeAvatar() {
     success: async (res) => {
       avatarUploading.value = true
       try {
-        const url = await uploadImage(res.tempFilePaths[0])
+        const url = await uploadAvatarImage(res.tempFilePaths[0])
         avatar.value = url
         // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
         uni.showToast({ title: '上传成功，请点击保存', icon: 'none' })

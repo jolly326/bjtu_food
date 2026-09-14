@@ -24,7 +24,7 @@ public interface DishService {
      * <p>
      * 支持参数：keyword, canteenId, stallId, tag, minPrice, maxPrice, sortBy, sortOrder
      * 排序：sortBy=heat 时按综合热度（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20）降序；
-     * 热度口径真源见 DishMapper.xml 的 heatScoreExpr 片段与 DishHeatWeights 常量（两者必须等价）；
+     * 热度口径唯一真源见 DishMapper.xml 的 heatScoreExpr 片段（Q-109：Java 侧权重常量已删除，调整请直接改该 SQL）；
      * 未传 sortBy 时按评价数、评分降序
      * 公开接口只查 status=on 的菜品
      *
@@ -49,7 +49,12 @@ public interface DishService {
     /**
      * 增加菜品浏览量
      * <p>
-     * 防刷机制：同一用户同一菜品 5 分钟内只计 1 次
+     * 防刷机制（2026-09-14 §7.14 A）：
+     * <ol>
+     *   <li>同一用户同一菜品 5 分钟内只计 1 次；</li>
+     *   <li>同一用户同一菜品<b>每天（自然日，Asia/Shanghai）只计 1 次</b>，
+     *       当日重复上报幂等返回成功，既不自增 view_count 也不重复写 view_log。</li>
+     * </ol>
      *
      * @param dishId 菜品ID
      * @param userId 当前用户ID

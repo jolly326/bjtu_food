@@ -11,28 +11,29 @@ import java.util.List;
 /**
  * 食堂服务接口
  * <p>
- * 食堂和档口的查询与管理，食堂管理员只能查看，系统管理员可增删改。
+ * 食堂已去实体化（2026-09-14）：降级为「菜品筛选属性字典」，生命周期仅「新增 / 改名（编辑）」＋列表查询，
+ * 无删除、无停业/审核能力。
  */
 public interface CanteenService {
 
     /**
      * 获取食堂列表（首页用于展示）
      * <p>
-     * 查询状态为 open 的食堂，按 sort_order 排序
+     * 全量返回（无停业语义，不再按 status 过滤），按 sort_order 排序
      *
      * @return 食堂展示列表
      */
     List<CanteenInfoVO> listCanteens();
 
     /**
-     * 获取食堂列表（首页推荐，支持按距离排序）
+     * 获取食堂列表（首页推荐，lat/lng 为兼容保留参数）
      * <p>
-     * 传 lat/lng 时按用户位置到食堂的直线距离（haversine，单位米）升序排序；
-     * 不传时保持 sort_order 排序。
+     * 服务端<b>不再</b>按距离排序（用户位置不出本机）：坐标随 VO 返回，距离由前端本地 Haversine 计算。
+     * 本方法当前与 {@link #listCanteens()} 等价（按 sort_order 排序，全量返回，无 status 过滤）。
      *
-     * @param lat 用户纬度（GCJ-02，可选）
-     * @param lng 用户经度（GCJ-02，可选）
-     * @return 食堂展示列表（含 distance 字段，米）
+     * @param lat 用户纬度（GCJ-02，可选，当前未使用）
+     * @param lng 用户经度（GCJ-02，可选，当前未使用）
+     * @return 食堂展示列表
      */
     List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng);
 
@@ -59,8 +60,7 @@ public interface CanteenService {
     /**
      * 新增食堂
      *
-     * @param canteen 食堂信息
-     * @throws com.bjtufood.common.exception.BusinessException 名称已存在
+     * @param canteen 食堂信息（created_by 由后端强制写入当前登录用户）
      */
     void add(Canteen canteen);
 
@@ -71,14 +71,4 @@ public interface CanteenService {
      * @throws com.bjtufood.common.exception.BusinessException 食堂不存在
      */
     void update(Canteen canteen);
-
-    /**
-     * 删除食堂
-     * <p>
-     * 约束：如果食堂下还有档口，禁止删除
-     *
-     * @param id 食堂ID
-     * @throws com.bjtufood.common.exception.BusinessException 食堂下有档口
-     */
-    void delete(Long id);
 }

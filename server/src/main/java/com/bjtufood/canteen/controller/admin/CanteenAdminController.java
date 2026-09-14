@@ -15,7 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "08. 后台食堂档口管理", description = "系统管理员维护食堂和档口基础数据。需要管理员 token。")
+@Tag(name = "08. 后台食堂档口管理", description = "管理员维护食堂/档口筛选属性字典。生命周期仅「新增 / 改名（编辑）」，无删除、无停业/审核。需要管理员 token。")
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class CanteenAdminController {
     private final CanteenService canteenService;
     private final StallService stallService;
 
-    @Operation(summary = "后台食堂列表", description = "用途：浏览器管理端查看全部食堂，包含 open/closed 状态。images 返回可访问的完整 URL 数组。")
+    @Operation(summary = "后台食堂列表", description = "用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。")
     @GetMapping("/canteens")
     public Result<?> listCanteens() {
         return Result.success(canteenService.listAllForAdmin());
@@ -40,8 +40,7 @@ public class CanteenAdminController {
                       "images": "[\\"/images/seed/canteens/canteen-dining-hall.jpg\\"]",
                       "location": "主校区",
                       "description": "Swagger UI 测试新增食堂",
-                      "sortOrder": 99,
-                      "status": "open"
+                      "sortOrder": 99
                     }
                     """)))
     )
@@ -62,15 +61,6 @@ public class CanteenAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除食堂", description = "用途：删除食堂。若食堂下仍有档口，Service 会阻止删除。")
-    @DeleteMapping("/canteens/{id}")
-    public Result<Void> deleteCanteen(
-            @Parameter(description = "食堂ID", example = "99")
-            @PathVariable Long id) {
-        canteenService.delete(id);
-        return Result.success();
-    }
-
     @Operation(
             summary = "新增档口",
             description = "用途：在指定食堂下创建档口。images 字段传 JSON 字符串。",
@@ -81,9 +71,7 @@ public class CanteenAdminController {
                       "images": "[\\"/images/seed/canteens/canteen-food-counter.jpg\\"]",
                       "location": "一层",
                       "description": "Swagger UI 测试新增档口",
-                      "avgRating": 0,
-                      "sortOrder": 99,
-                      "status": "open"
+                      "sortOrder": 99
                     }
                     """)))
     )
@@ -93,7 +81,7 @@ public class CanteenAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看全部档口，包含 open/closed 状态。images 返回可访问的完整 URL 数组。")
+    @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看全部档口（筛选属性字典）。images 返回可访问的完整 URL 数组。")
     @GetMapping("/stalls")
     public Result<?> listStalls() {
         return Result.success(stallService.listAllForAdmin());
@@ -107,15 +95,6 @@ public class CanteenAdminController {
             @Valid @RequestBody Stall stall) {
         stall.setId(id);
         stallService.update(stall);
-        return Result.success();
-    }
-
-    @Operation(summary = "删除档口", description = "用途：删除档口。若档口下仍有菜品，Service 会阻止删除。")
-    @DeleteMapping("/stalls/{id}")
-    public Result<Void> deleteStall(
-            @Parameter(description = "档口ID", example = "99")
-            @PathVariable Long id) {
-        stallService.delete(id);
         return Result.success();
     }
 }

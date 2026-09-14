@@ -16,19 +16,27 @@
 
 ---
 
-## B. 线上自动冒烟（agent 执行，需先完成部署 Q-004）
+## B. 线上自动冒烟（2026-09-14 实测通过 ✅）
 
-| # | 冒烟项 | 请求 | 期望 | 状态 |
+> 执行时间：2026-09-14｜环境：`https://bjtu-food-292909-9-1408890131.sh.run.tcloudbase.com/api`
+> 线上版本判定：响应含 `records` 分页字段且无 `hasSensitive` 字段 → **已部署含 ITER-003 B 批次的代码**
+
+| # | 冒烟项 | 请求 | 期望 | 实测结果 |
 |---|---|---|---|---|
-| B1 | 读接口（走 DB） | `GET /api/dishes/hot` | 200 且有数据 | ⬜ |
-| B2 | 食堂列表 | `GET /api/canteens` | 200，7 个食堂 | ⬜ |
-| B3 | 管理端鉴权 | `GET /api/admin/dishes`（带 `X-Admin-Token`） | 200（非 403「未配置 ADMIN_TOKEN」） | ⬜ |
-| B4 | 未授权拦截 | `GET /api/admin/dishes`（不带口令） | 403 | ⬜ |
-| B5 | 管理端图片上传 | `POST /api/upload/image`（带口令，1×1 测试图） | 200 且返回 COS 绝对 URL | ⬜ |
-| B6 | 菜单下线的 5 个接口 | `GET /api/dishes/hot|new|promotions|rising|recommend` | 404 | ⬜ |
-| B7 | 热搜词保留 | `GET /api/dishes/hot-search` | 200 | ⬜ |
-| B8 | 分页契约 | `GET /api/dishes?page=1&pageSize=5` | 含 `records`/`total`/`page`/`pageSize`（`list` 同值保留） | ⬜ |
-| B9 | UGC 未认证拦截 | `POST /api/reviews`（无 token） | 401 / 4031（非 500） | ⬜ |
+| B1 | 分页读接口（走 DB） | `GET /api/dishes?page=1&pageSize=3` | 200 且有数据 | ✅ 200：`records=3 / list=3 / total=31 / page=1 / pageSize=3` |
+| B2 | 食堂列表 | `GET /api/canteens` | 200，7 个食堂 | ✅ 200，7 个 |
+| B3 | 管理端鉴权（带口令） | `GET /api/admin/dishes` + `X-Admin-Token` | 200 | ✅ 200，`total=31` |
+| B4 | 未授权拦截（无口令） | `GET /api/admin/dishes` | 403 | ✅ 403 |
+| B5 | 管理端图片上传 → COS | `POST /api/upload/image`（带口令，1×1 测试图） | 200 且返回 COS 绝对 URL | ✅ 200，返回 `https://bjtu-food-image-1408890131.cos.ap-shanghai.myqcloud.com/ugc/20260914/…png`，`url` 与 `relativeUrl` 同值 |
+| B5b | COS 图片公有读 | 直链 `GET` 上述 URL | 200（可被小程序加载） | ✅ 200，`image/png`，70 字节 |
+| B6 | 已下线的 4 个接口 | `GET /api/dishes/{new,promotions,rising,recommend}` | 404 | ⚠️ 实际返回 **400** —— 路径被 `GET /dishes/{id}` 承接，`id` 转 Long 失败故 400。**接口功能确已下线**（无数据返回），仅状态码非 404（见下方遗留项） |
+| B7 | 热搜词保留 | `GET /api/dishes/hot-search` | 200 | ✅ 200，10 条 |
+| B8 | 分页契约字段 | 同 B1 | 含 `records`/`total`/`page`/`pageSize` | ✅ 全部存在，`list` 与 `records` 同值 |
+| B9 | UGC 未认证拦截 | `POST /api/reviews`（无 token） | 401 / 4031 | ✅ 401「请先登录或重新登录」 |
+| B10 | 数据迁移核验 | `INFORMATION_SCHEMA` 查三列 | 0 残留 | ✅ `dish.serve_period`/`dish.limited`/`review.tags` **均已删除**；`dish.region` 注释已同步为「风味/菜系」 |
+
+### B 段遗留项（低优先，已登记）
+- **B6 状态码**：已下线接口返回 400（而非 404），因 `/dishes/{id}` 路径承接导致类型转换失败。**无功能影响**（端上零消费），如需语义正确的 404，需为 `{id}` 增加非数字路径守卫（小改动，待排期）。
 
 ---
 

@@ -37,15 +37,42 @@ export function getImageUrl(path?: string | null): string {
 }
 
 /**
- * 推导图片缩略图路径：/images/.../xxx.jpg → /images/.../xxx_thumb.jpg（与后端 _thumb 命名严格一致）。
- * 仅对含 jpg/jpeg/png 扩展名的路径推导（webp 后端不生成缩略图，保持原路径）；已是 _thumb 或无法推导时原样返回。
- * 返回的是相对路径，调用方需再经 getImageUrl() 转绝对 URL。
+ * 缩略图 URL 推导（列表/卡片专用；详情大图仍用 getImageUrl 原图）。
+ *
+ * 两条链路必须区分开（C15 修复：首页与详情显示不一致的根因）：
+ * 1. **云对象存储绝对 URL（COS，当前生产链路）**：COS 上**不存在** `_thumb` 变体文件，
+ *    沿用旧约定改写会 404 → 列表白图（首页、搜索结果），而详情页用原图正常。
+ *    改为追加 **COS 图片处理参数** 生成真缩略图：`?imageMogr2/thumbnail/400x`
+ *    （实测：原图 166KB → 缩略图 37KB，且清晰度对列表卡片足够）。
+ * 2. **后端本地磁盘相对路径（`/images/...`，本地开发/历史数据）**：仍按 `_thumb` 命名推导
+ *    （后端 ImageIO 生成的 `{base}_thumb.{ext}` 同目录文件）。
+ *
+ * 其它情况（`cloud://` 云存储、data:/blob:、无图片扩展名、已含处理参数）一律原样返回。
  */
 export function getThumbUrl(path?: string | null): string {
   if (!path) return ''
   // 微信云存储文件 ID：无缩略图概念，原样返回
   if (path.startsWith('cloud://')) return path
+
   const normalized = path.replace(/^\/api/, '')
+
+  // 非 http(s) 的伪协议（data:/blob:）不可追加处理参数
+  if (/^(data:|blob:)/i.test(normalized)) return normalized
+
+  // ---- 链路 1：云存储绝对 URL（COS）----
+  if (/^https?:\/\//i.test(normalized)) {
+    const withoutQuery = normalized.split('?')[0]
+    if (!/\.(jpg|jpeg|png)$/i.test(withoutQuery)) return normalized
+    // 已带图片处理参数：不重复追加
+    if (/[?&]imageMogr2=/i.test(normalized)) return normalized
+    // 仅对腾讯云 COS 域名（*.myqcloud.com）追加，避免污染第三方图源
+    const host = (normalized.match(/^https?:\/\/([^/?#]+)/i) || [])[1] || ''
+    if (!/\.myqcloud\.com$/i.test(host)) return normalized
+    const sep = normalized.includes('?') ? '&' : '?'
+    return `${normalized}${sep}imageMogr2/thumbnail/400x`
+  }
+
+  // ---- 链路 2：后端本地磁盘相对路径 ----
   if (!/\.(jpg|jpeg|png)$/i.test(normalized)) return normalized
   if (/_thumb\./i.test(normalized)) return normalized
   return normalized.replace(/\.(jpg|jpeg|png)$/i, '_thumb.$1')

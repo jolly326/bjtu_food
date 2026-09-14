@@ -21,6 +21,7 @@ import type { FeedbackSubmit } from '@/types/feedback'
 import { searchDishes, getDishDetail } from '@/api/dish'
 import type { Dish } from '@/types/dish'
 import { getCanteensWithStalls } from '@/api/canteen'
+import type { CanteenWithStalls } from '@/types/canteen'
 import { backToHome } from '@/utils/nav'
 import { useUserStore } from '@/stores/user'
 
@@ -253,7 +254,8 @@ export function useFeedback() {
   })
 
   // ---- ⑤ 位置选择：ListPickerSheet 单实例两级联动（食堂 → 档口，含「其他」自定义） ----
-  const canteenTree = ref<any[]>([])
+  // P2-11 / PR-12：原 `ref<any[]>` 逃逸已消除，改用 API 层定型 DTO（CanteenWithStalls）
+  const canteenTree = ref<CanteenWithStalls[]>([])
   const locSheetOpen = ref(false)
   const locStep = ref<'canteen' | 'stall'>('canteen')
 
@@ -263,15 +265,15 @@ export function useFeedback() {
   )
   /** 当前食堂下的档口原始列表 */
   const currentStalls = computed<string[]>(() => {
-    const c = canteenTree.value.find((x: any) => x.name === form.add.canteen)
-    return (c?.stalls || []).map((s: any) => s.name as string)
+    const c = canteenTree.value.find((x) => x.name === form.add.canteen)
+    return (c?.stalls || []).map((s) => s.name)
   })
 
   /** ListPickerSheet 位置选项：食堂级(canteen icon) / 档口级(stall icon)，末尾追加「其他」(add icon) */
   const locOptions = computed<{ key: string; label: string; icon: string }[]>(() => {
     const base =
       locStep.value === 'canteen'
-        ? canteenTree.value.map((c: any) => ({ key: c.name as string, label: c.name as string, icon: 'canteen' }))
+        ? canteenTree.value.map((c) => ({ key: c.name, label: c.name, icon: 'canteen' }))
         : currentStalls.value.map((name) => ({ key: name, label: name, icon: 'stall' }))
     return [...base, { key: '其他', label: '其他', icon: 'plus' }]
   })
@@ -284,8 +286,14 @@ export function useFeedback() {
     locStep.value === 'canteen' ? form.add.canteen === '其他' : form.add.stallName === '其他',
   )
   const locCustomValue = computed(() => (locStep.value === 'canteen' ? form.add.canteenCustom : form.add.stallCustom))
-  function onLocCustomInput(e: any) {
-    const v = e?.detail?.value ?? ''
+  /**
+   * 自定义输入 @input 回调。
+   * 平台例外：uni input 事件对象由运行时透传，模板侧类型为 `Event`（无 `detail` 声明），
+   * 故形参取 `Event` 并在读取处做一次结构化收窄，避免 `any` 逃逸（同 http.ts wx 句柄说明）。
+   */
+  function onLocCustomInput(e: Event) {
+    const detail = (e as unknown as { detail?: { value?: string } })?.detail
+    const v = detail?.value ?? ''
     if (locStep.value === 'canteen') form.add.canteenCustom = v
     else form.add.stallCustom = v
   }
@@ -455,11 +463,14 @@ export function useFeedback() {
     } else if (t === 'add') {
       if (!form.add.name.trim()) errs['add.name'] = '菜名叫啥？填一下'
       if (!form.add.floor.trim()) errs['add.floor'] = '楼层必填'
-      // A4：价格格式校验（填了就必须是合法数字）
+      // A4：价格格式校验（填了就必须是合法数字）。P3-14：与提示文案「像 12.5 这样」对齐，
+      // 补齐「最多两位小数」校验——此前 `12.999` 可通过，与文案承诺的精度不一致（币值最小单位 = 分）。
       const priceStr = form.add.price.trim()
       if (priceStr) {
+        // 单一判定：合法数字 + 大于 0 + 不超过 9999 + 小数位 ≤2（拒绝 12.999 / 1.2345 / 1.）
+        const PRICE_PATTERN = /^(?:\d+)(?:\.\d{1,2})?$/
         const priceNum = Number(priceStr)
-        if (Number.isNaN(priceNum) || priceNum <= 0 || priceNum > 9999) {
+        if (!PRICE_PATTERN.test(priceStr) || !Number.isFinite(priceNum) || priceNum <= 0 || priceNum > 9999) {
           errs['add.price'] = '价格要像 12.5 这样'
         }
       }
@@ -548,8 +559,9 @@ export function useFeedback() {
       resetForm()
       // 成功态双态：2 秒后无输入则自动返回来源页
       scheduleAutoBack()
-    } catch (e: any) {
-      uni.showToast({ title: e.message || '没发出去，再试一次', icon: 'none' })
+    } catch (e) {
+      // Error 分支取 message（请求层抛 Error）；非 Error 兜底通用文案
+      uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
     } finally {
       submitting.value = false
     }

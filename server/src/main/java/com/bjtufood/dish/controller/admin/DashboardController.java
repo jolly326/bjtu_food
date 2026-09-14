@@ -9,11 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 数据看板（权威路径 /admin/dashboard）
+ * 数据工作台（权威路径 /admin/dashboard）
  * <p>
  * 内部复用 StatsController 的统计逻辑，仅为 Web 后台提供契约约定的对外路径。
+ * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，仅返回待办 + 规模指标 + 近期操作。
  */
-@Tag(name = "数据看板", description = "运营数据一览：上新/评价指标、热门排行、趋势图。需要管理员 token。")
+@Tag(name = "数据看板", description = "运营工作台：规模指标、待办明细、近期操作。需要管理员口令。")
 @RestController
 @RequestMapping("/admin/dashboard")
 @RequiredArgsConstructor
@@ -22,7 +23,7 @@ public class DashboardController {
 
     private final StatsController statsController;
 
-    @Operation(summary = "数据看板总览", description = "用途：运营数据一览。支持 range=week/month/all，默认 week。返回本周上新、本周评价、热门排行与趋势。")
+    @Operation(summary = "工作台总览", description = "用途：运营工作台。支持 range=week/month/all，默认 week。返回规模指标、待办明细（最近 5 条）与近期操作（最近 10 条）。")
     @GetMapping
     public Result<DashboardVO> dashboard(@RequestParam(defaultValue = "week") String range) {
         // Web 后台以字符串枚举（week/month/all）传参，后端映射为天数后复用 StatsController。

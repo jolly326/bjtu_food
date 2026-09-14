@@ -5,6 +5,12 @@ import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { Document } from '@element-plus/icons-vue'
 import type { OperationLogVO } from '@/api/operationLog'
+import {
+  OPERATION_ACTION_OPTIONS,
+  OPERATION_TARGET_OPTIONS,
+  operationActionText,
+  operationTargetText,
+} from '@/constants'
 
 const searchQuery = ref('')
 
@@ -33,36 +39,23 @@ function onPageChange() {
   loadList()
 }
 
-// 动作筛选预设（对齐 ARCH OperationLogConst.ACTION_*）
-const actionOptions = [
-  { value: '', label: '全部动作' },
-  { value: 'audit_approve', label: '审核通过' },
-  { value: 'audit_reject', label: '审核退回' },
-  { value: 'review_hide', label: '评价隐藏' },
-  { value: 'review_delete', label: '评价删除' },
-  { value: 'dish_delete', label: '菜品删除' },
-  { value: 'feedback_handle', label: '反馈处理' },
-  { value: 'account_delete', label: '账号删除' },
-]
-const targetTypeOptions = [
-  { value: '', label: '全部对象' },
-  { value: 'dish', label: '菜品' },
-  { value: 'stall', label: '档口' },
-  { value: 'canteen', label: '食堂' },
-  { value: 'feedback', label: '反馈' },
-  { value: 'review', label: '评价' },
-  { value: 'user', label: '用户' },
-]
+// 动作 / 对象筛选预设与文案映射统一收敛至 constants/index.ts（OPERATION_ACTION_* / OPERATION_TARGET_*）
+// ——与后端 OperationLogConst 同源、与工作台「近期操作」共用同一份映射，避免两处各写一套导致口径漂移。
 const activeAction = ref('')
 const activeTarget = ref('')
 
-function actionText(a: string): string {
-  const found = actionOptions.find(o => o.value === a)
-  return found ? found.label : a
+// 时间区间筛选（Q-112 ④）：透传既有 startAt / endAt 参数（后端已支持，仅补 UI 入口）。
+// el-date-picker 的 value-format 出参为 'YYYY-MM-DD'（含空值时为 [start,end] 或 null 的形态），
+// 提交前拼上日界时刻（起 00:00:00 / 止 23:59:59），与后端契约 yyyy-MM-dd HH:mm:ss 对齐（PR-02 口径以后端为准）。
+const dateRange = ref<[string, string] | null>(null)
+
+function toStartAt(): string | undefined {
+  const s = dateRange.value?.[0]
+  return s ? `${s} 00:00:00` : undefined
 }
-function targetText(t: string): string {
-  const found = targetTypeOptions.find(o => o.value === t)
-  return found ? found.label : t
+function toEndAt(): string | undefined {
+  const e = dateRange.value?.[1]
+  return e ? `${e} 23:59:59` : undefined
 }
 
 async function loadList() {
@@ -75,6 +68,8 @@ async function loadList() {
       action: activeAction.value || undefined,
       keyword: searchQuery.value.trim() || undefined,
       targetType: activeTarget.value || undefined,
+      startAt: toStartAt(),
+      endAt: toEndAt(),
       page: page.value,
       pageSize: pageSize.value,
     })
@@ -95,6 +90,8 @@ onMounted(loadList)
 
 async function onActionChange() { await reloadFromFirstPage() }
 async function onTargetChange() { await reloadFromFirstPage() }
+/** 时间区间变化（选择 / 清空）→ 回第 1 页按区间重新拉取 */
+async function onDateRangeChange() { await reloadFromFirstPage() }
 
 // 关键词检索已改为服务端 keyword 过滤（后端按 action/targetType 模糊），
 // 翻页/改筛选会重新请求后端对应页，不再本地截断当前页子集。
@@ -120,8 +117,24 @@ function fmtTime(v: string): string {
 <template>
     <FilterBar v-model="searchQuery">
       <template #default>
-        <FilterSelect v-model="activeAction" label="动作" :options="actionOptions" :width="160" @change="onActionChange" />
-        <FilterSelect v-model="activeTarget" label="对象" :options="targetTypeOptions" :width="160" @change="onTargetChange" />
+        <FilterSelect v-model="activeAction" label="动作" :options="OPERATION_ACTION_OPTIONS" :width="160" @change="onActionChange" />
+        <FilterSelect v-model="activeTarget" label="对象" :options="OPERATION_TARGET_OPTIONS" :width="160" @change="onTargetChange" />
+        <!-- 时间区间（Q-112 ④）：绑定既有 startAt / endAt，仅补 UI 入口，无新增接口 -->
+        <div class="date-range-filter">
+          <label class="dr-label">时间</label>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            unlink-panels
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            :clearable="true"
+            class="dr-picker"
+            @change="onDateRangeChange"
+          />
+        </div>
       </template>
     </FilterBar>
 
@@ -143,9 +156,9 @@ function fmtTime(v: string): string {
       :error="error" empty-text="暂无操作日志"
     >
       <template #cell-admin="{ row }">{{ row.adminNickname || ('管理员#' + row.adminId) }}</template>
-      <template #cell-action="{ row }"><StatusTag type="info" :text="actionText(row.action)" /></template>
+      <template #cell-action="{ row }"><StatusTag type="info" :text="operationActionText(row.action)" /></template>
       <template #cell-target="{ row }">
-        <span v-if="row.targetType">{{ targetText(row.targetType) }}#{{ row.targetId }}</span>
+        <span v-if="row.targetType">{{ operationTargetText(row.targetType) }}#{{ row.targetId }}</span>
         <span v-else class="muted">—</span>
       </template>
       <template #cell-ip="{ row }"><span class="ip">{{ row.ip || '—' }}</span></template>
@@ -160,6 +173,11 @@ function fmtTime(v: string): string {
 </template>
 
 <style scoped>
+/* 时间区间筛选：与 FilterSelect 同一视觉语言（label 在左、控件高度 ~36px 对齐） */
+.date-range-filter { display: inline-flex; align-items: center; gap: var(--space-2); }
+.dr-label { font-size: var(--font-sm); color: var(--text-secondary); font-weight: var(--weight-medium); white-space: nowrap; }
+.dr-picker { width: 260px; }
+.dr-picker :deep(.el-range-editor) { min-height: 36px; border-radius: var(--radius); }
 .muted { color: var(--text-light); }
 .ip { font-family: var(--font-numeric, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
 .read-only-tip {

@@ -29,6 +29,9 @@ public interface FeedbackService {
      * <p>
      * §7.10 决议：管理端「操作人身份」降级——单口令即单人，不再追究身份，
      * 故不再取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
+     * <p>
+     * §7.16（2026-09-14）：{@code reply} <b>必填</b>（trim 后非空白），落库并随回执通知发送，
+     * 缺失/纯空白抛 400；Service 层为 Controller {@code @NotBlank} 的兜底，两者文案一致。
      */
     void handle(Long id, String reply);
 }

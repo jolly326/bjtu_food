@@ -52,6 +52,25 @@ public class NotificationController {
         return Result.success(Map.of("count", count));
     }
 
+    /**
+     * 全部已读（spec §7.18）。
+     * <p>
+     * 路径冲突规避：本方法声明在 {@link #readAll()} 之前只是「字面路径优先」的额外保险，
+     * 真正的规避点在于单条已读路径是 {@code /my/notifications/{id}/read}（含后缀 {@code /read}），
+     * 而本方法是 {@code /my/notifications/read-all}（无后缀），二者**结构不同、不存在映射歧义**：
+     * {@code read-all} 不会被当作 {@code {id}} 解析，因为 {@code {id}} 那条要求路径末尾必须多一段
+     * {@code /read}，且 {@code id} 绑定为 {@code Long}（把 {@code read-all} 与 {@code {id}} 直接比较时
+     * 会因类型转换失败而不匹配，从而落到本方法）。
+     */
+    @Operation(summary = "全部已读", description = "STU（需邮箱认证）。一次性把当前用户全部未读置为已读，返回本次置读条数；幂等。",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PreAuthorize("hasRole('STUDENT')")
+    @RequireVerified
+    @PutMapping("/my/notifications/read-all")
+    public Result<Integer> readAll() {
+        return Result.success(notificationService.markAllRead(SecurityUtil.getCurrentUserId()));
+    }
+
     @Operation(summary = "单条已读", description = "STU（需邮箱认证）归属校验。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified

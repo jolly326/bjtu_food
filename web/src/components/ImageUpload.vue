@@ -4,6 +4,8 @@
  * - max 控制最多张数（默认 3，符合评价图约束）
  * - v-model 绑定以 "|||" 分隔的相对路径字符串，兼容现有 canteen/stall/dish 约定
  * - 单文件 ≤5MB，jpg/jpeg/png/webp（§4.2）
+ * - 上传前自动压缩（§7.17）：>1MB 或宽 >1200px 时才压；最大宽 1200px、PNG 保透明、JPEG 质量 0.85 起逐级降；
+ *   预览显示压缩后结果（所见即所传）；压缩异常回退原图直传（控制台 warn）
  * - 上传/失败走 useToastStore
  */
 import { ref, computed } from 'vue'
@@ -11,6 +13,7 @@ import { uploadImage } from '@/api/upload'
 import { toAbsoluteImageUrl } from '@/api/adapter'
 import { useToastStore } from '@/stores/toastStore'
 import { icon } from '@/utils/icon'
+import { compressImageIfNeeded } from '@/utils/imageCompress'
 
 const props = withDefaults(
   defineProps<{
@@ -51,14 +54,21 @@ async function handleFileChange(e: Event) {
     input.value = ''
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('图片大小不能超过 5MB')
-    input.value = ''
-    return
-  }
+  // 占用既有 loading/禁用态覆盖「压缩 + 上传」全程，不新增弹窗（§7.17）
   uploading.value = true
   try {
-    const result = await uploadImage(file)
+    // 压缩前不做 5MB 拦截：手机原图（3–6MB）由前端压缩至 ≤1MB 后再上传
+    const { file: payload, size, withinLimit } = await compressImageIfNeeded(file)
+    if (!withinLimit) {
+      // 压缩后仍超后端上限（极罕见：PNG 大图等）→ 明确提示，不发请求
+      toast.error('图片过大，请压缩后重试')
+      return
+    }
+    if (size === 0) {
+      toast.error('图片大小不能为空')
+      return
+    }
+    const result = await uploadImage(payload)
     const next = props.single ? [result.relativeUrl] : [...images.value, result.relativeUrl]
     sync(next)
     toast.success('图片上传成功')

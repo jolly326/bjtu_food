@@ -22,4 +22,7 @@ public interface SecStateConst {
 
     /** 内容安全状态：人工复核不通过（对外不可见） */
     String REJECTED = "rejected";
+
+    /** 全部合法值域（查询入参白名单校验用，单一真源） */
+    java.util.Set<String> ALL = java.util.Set.of(PASS, REVIEW, REJECTED);
 }

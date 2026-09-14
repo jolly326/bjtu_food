@@ -30,6 +30,13 @@ public interface ReviewMapper extends BaseMapper<Review> {
     IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort,
                                              @Param("viewerId") Long viewerId);
 
+    /**
+     * 按用户查询「我的评价」列表（本人视角）。
+     * <p>
+     * 可见性（2026-09-14 §7.14 C）：<b>不过滤 is_hidden</b> —— 被管理员隐藏的评价作者本人仍可见，
+     * 并返回 is_hidden 供端上标注「已被隐藏」；不过滤 sec_state（review 态由端上提示「审核中」）。
+     * 排序：sort=latest 时时间倒序（service 固定传入，本人评价按时间更自然）。
+     */
     IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 
     /**

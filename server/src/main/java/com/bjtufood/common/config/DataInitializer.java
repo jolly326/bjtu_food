@@ -58,12 +58,11 @@ public class DataInitializer implements CommandLineRunner {
         // 安全：仅提示账号存在，不输出明文口令，避免凭据泄露到日志
         log.info(">>> [MVP] 已初始化默认管理员账号(admin)，请尽快在正式环境修改口令并禁用 dev profile");
 
+        // 食堂/档口已去实体化（2026-09-14）：无 status/audit_status 实体语义，仅字典字段
         Canteen canteen = new Canteen();
         canteen.setName("学一食堂");
         canteen.setLocation("本部校区");
         canteen.setDescription("MVP 示例食堂");
-        canteen.setStatus("open");
-        canteen.setAuditStatus("approved");
         canteenMapper.insert(canteen);
 
         Stall stall = new Stall();
@@ -71,8 +70,6 @@ public class DataInitializer implements CommandLineRunner {
         stall.setName("川湘风味窗口");
         stall.setLocation("一楼");
         stall.setDescription("MVP 示例档口");
-        stall.setStatus("open");
-        stall.setAuditStatus("approved");
         stallMapper.insert(stall);
 
         // 菜品品类示例（首页品类滚轮数据源；贴合大学食堂档口业态，按 sort_order 升序）

@@ -53,9 +53,6 @@ public class DishAdminReq {
     @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
     private Integer spiceLevel;
 
-    @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
-    private Integer portion;
-
     @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他（可空）", example = "川湘")
     private String region;
 

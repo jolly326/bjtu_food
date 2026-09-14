@@ -14,8 +14,12 @@ import java.util.List;
 @Schema(description = "提交反馈请求")
 public class FeedbackReq {
 
-    /** 反馈类型：suggestion / add / error / bug / report / other（与 FeedbackConst 保持一致） */
-    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other", example = "suggestion")
+    /**
+     * 反馈类型写入值域（P3-10 收敛，单一真源 {@code FeedbackConst.WRITABLE_TYPES}）：
+     * suggestion / add / error / report。
+     * bug / other 为历史遗留类型（端上已无生产者），禁止新增，非法值由 Service 层返回 400。
+     */
+    @Schema(description = "反馈类型：suggestion/add/error/report（bug/other 为历史遗留、禁新增）", example = "suggestion")
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 

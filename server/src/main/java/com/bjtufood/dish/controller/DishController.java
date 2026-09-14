@@ -70,7 +70,11 @@ public class DishController {
 
     @Operation(
             summary = "增加浏览量",
-            description = "用途：进入菜品详情页时调用一次。需要登录，用于记录真实用户浏览行为。",
+            description = """
+                    用途：进入菜品详情页时调用一次。需要登录，用于记录真实用户浏览行为。
+                    去重口径：同一用户对同一菜品每天（自然日，Asia/Shanghai）只计 1 次；
+                    当日重复调用幂等返回成功（code=200），不自增 view_count、不重复写浏览记录。
+                    """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping("/dishes/{id}/view")

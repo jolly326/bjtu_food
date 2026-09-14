@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
@@ -8,22 +9,80 @@ import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import DataTable from '@/components/DataTable.vue'
 import DishFormDialog from '@/components/DishFormDialog.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import { AUDIT_STATUS_META, AUDIT_REJECTED } from '@/constants'
 import { Plus, Star, Delete } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
+const router = useRouter()
+const route = useRoute()
 
-const searchQuery = ref('')
+/**
+ * 关键词初值来源：反馈详情「关联菜品」跳转携带 `?tab=dish&q=<菜名>`（FeedbackView.goDishEdit）。
+ * 直接读取 route.query.q 作为初值，避免运营主路径在最后一跳断裂（管理员无需手敲菜名）。
+ */
+function queryKeyword(): string {
+  const q = route.query.q
+  return typeof q === 'string' ? q : ''
+}
+const searchQuery = ref(queryKeyword())
+
+/**
+ * 同组件内 query 变化响应：本页由 ContentManageView 以 v-if 承载，从反馈页二次跳转时
+ * 若组件实例未重建则不会重跑 setup → 必须 watch route.query.q 才能重新筛选。
+ * 仅在值确实变化时同步，避免用户手动修改关键词后被同值 query 回写覆盖。
+ */
+watch(
+  () => route.query.q,
+  (q) => {
+    const next = typeof q === 'string' ? q : ''
+    if (next !== searchQuery.value) searchQuery.value = next
+  },
+)
 
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
+
+// ===== 食堂 / 档口筛选（食堂与档口是菜品的「筛选条件」，非独立实体页） =====
+const canteenFilter = ref<string | number>('')
+const stallFilter = ref<string | number>('')
+
+const canteenFilterOptions = computed(() => [
+  { label: '全部食堂', value: '' },
+  ...store.canteens.map(c => ({ label: c.name, value: Number(c.id) })),
+])
+/** 档口选项随所选食堂联动过滤（未选食堂时不启用档口筛选，也不展示选项） */
+const stallFilterOptions = computed(() => {
+  if (!canteenFilter.value) return []
+  return store.stalls
+    .filter(s => Number(s.canteen_id) === Number(canteenFilter.value))
+    .map(s => ({ label: s.name, value: Number(s.id) }))
+})
+const stallFilterDisabled = computed(() => !canteenFilter.value)
+
+/** 切换食堂：静默清空档口筛选（防跨食堂脏筛选） */
+function onCanteenFilterChange() {
+  stallFilter.value = ''
+}
+// 边界兜底：食堂被清空时（外部重置）同步清掉档口筛选
+watch(canteenFilter, (v) => { if (!v) stallFilter.value = '' })
+
+/** 由档口 id 反查其所属食堂 id（菜品只存 stall_id，食堂需两级反查） */
+function canteenIdOfStall(stallId: number | bigint): number {
+  const s = store.stalls.find(x => Number(x.id) === Number(stallId))
+  return s ? Number(s.canteen_id) : 0
+}
 
 const rows = computed(() => {
   let list = store.dishes
   if (statusFilter.value) list = list.filter(r => r.status === statusFilter.value)
   if (typeFilter.value === 'discount') list = list.filter(r => !!r.promoPrice)
   else if (typeFilter.value === 'normal') list = list.filter(r => !r.promoPrice)
+  // 档口优先（更精确）；仅选食堂时按其下全部档口过滤
+  if (stallFilter.value) list = list.filter(r => Number(r.stall_id) === Number(stallFilter.value))
+  else if (canteenFilter.value) list = list.filter(r => canteenIdOfStall(r.stall_id) === Number(canteenFilter.value))
   const q = searchQuery.value.trim().toLowerCase()
   if (q) list = list.filter(r => (r.name || '').toLowerCase().includes(q))
   return list
@@ -40,6 +99,11 @@ const typeOptions = [
   { label: '常规菜品', value: 'normal' },
 ]
 
+// ===== 进入菜品详情（列表行点击 = 唯一详情入口；编辑仍走弹窗） =====
+function onRowClick(row: any) {
+  router.push(`/dashboard/content/dishes/${Number(row.id)}`)
+}
+
 function dishImage(row: any): string {
   return (row.image || '').split('|||')[0] || ''
 }
@@ -47,16 +111,16 @@ function stallName(stallId: number | bigint): string {
   const s = store.stalls.find(s => Number(s.id) === Number(stallId))
   return s?.name || `档口${stallId}`
 }
-// ===== 菜品新增/编辑（弹窗直达，不再跳档口详情） =====
+/** 所属食堂：由 dish.stall_id → stall.canteen_id 反查（档口是食堂的子级） */
+function canteenName(stallId: number | bigint): string {
+  const s = store.stalls.find(s => Number(s.id) === Number(stallId))
+  if (!s) return '—'
+  const c = store.canteens.find(c => Number(c.id) === Number(s.canteen_id))
+  return c?.name || '—'
+}
+// ===== 菜品新增/编辑（弹窗直达；归属选择在 DishFormDialog 内两级联动） =====
 const dishModal = ref(false)
 const editingDishId = ref<number | null>(null)
-
-const dishStallOptions = computed(() => {
-  return store.stalls.map(s => {
-    const c = store.canteens.find(c => Number(c.id) === Number(s.canteen_id))
-    return { label: c ? `${s.name}（${c.name}）` : s.name, value: Number(s.id) }
-  })
-})
 
 function openAddDish() {
   editingDishId.value = null
@@ -70,8 +134,20 @@ function onDishSaved() {
   editingDishId.value = null
 }
 
+/**
+ * 删除影响说明（Q-112 ②）：删除菜品将连带使其评价不可见。
+ * 列表接口已带 rating_count，能取到具体条数就带上；取不到则用通用文案（不为取数新增接口，PR-13）。
+ */
+function deleteImpactText(row: any): string {
+  const n = Number(row?.rating_count ?? 0)
+  const reviewLine = n > 0
+    ? `该菜品下的 ${n} 条评价将一并删除、不可恢复。`
+    : '该菜品的评价将一并删除、不可恢复。'
+  return `确定删除菜品「${row.name}」？删除后不可恢复。${reviewLine}`
+}
+
 async function handleDelete(row: any) {
-  if (!await confirm.confirm(`确定删除菜品「${row.name}」？删除后不可恢复。`)) return
+  if (!await confirm.confirm(deleteImpactText(row))) return
   try {
     await store.deleteDish(Number(row.id))
     toast.success('菜品已删除')
@@ -83,6 +159,16 @@ async function handleDelete(row: any) {
 function formatPrice(row: any): string {
   if (row.promoPrice) return `¥${row.promoPrice.toFixed(2)}`
   return `¥${row.price}`
+}
+
+// ===== 审核态展示（§4.9 审核闭环：列表回显 audit_status，退回附 reject_reason） =====
+const AUDIT_FALLBACK = { type: 'warning' as const, text: '待审核' }
+function auditMetaOf(row: any) {
+  const s = row?.audit_status || 'pending'
+  return AUDIT_STATUS_META[s] ?? AUDIT_FALLBACK
+}
+function rejectReasonOf(row: any): string {
+  return row?.audit_status === AUDIT_REJECTED ? (row?.reject_reason || '') : ''
 }
 
 // ===== 行内状态快捷切换（上架/下架，无需进弹窗） =====
@@ -151,7 +237,14 @@ async function batchSetStatus(status: 'active' | 'inactive') {
 
 async function batchDelete() {
   if (!selectedIds.value.length || batchRunning.value) return
-  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。`)) return
+  // 删除影响说明（Q-112 ②）：汇总所选菜品的评价条数（列表已有 rating_count），取不到则通用文案
+  const reviewTotal = store.dishes
+    .filter(d => selectedIds.value.includes(Number(d.id)))
+    .reduce((sum, d) => sum + Number(d.rating_count ?? 0), 0)
+  const reviewLine = reviewTotal > 0
+    ? `所选菜品下的 ${reviewTotal} 条评价将一并删除、不可恢复。`
+    : '所选菜品的评价将一并删除、不可恢复。'
+  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。${reviewLine}`)) return
   await runBatch('删除', [...selectedIds.value], id => dishApi.deleteById(id),
     n => `已删除 ${n} 个菜品`)
 }
@@ -160,6 +253,21 @@ async function batchDelete() {
 <template>
     <FilterBar v-model="searchQuery">
       <template #default>
+        <FilterSelect
+          v-model="canteenFilter"
+          label="食堂"
+          :options="canteenFilterOptions"
+          :width="170"
+          @change="onCanteenFilterChange"
+        />
+        <FilterSelect
+          v-model="stallFilter"
+          label="档口"
+          :options="stallFilterOptions"
+          :width="170"
+          :disabled="stallFilterDisabled"
+          :placeholder="stallFilterDisabled ? '请先选食堂' : '全部档口'"
+        />
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
         <FilterSelect v-model="typeFilter" label="类型" :options="typeOptions" :width="150" />
       </template>
@@ -177,17 +285,22 @@ async function batchDelete() {
 
     <DataTable
       selectable
+      row-clickable
       v-model:selectedIds="selectedIds"
+      @row-click="onRowClick"
       :columns="[
         { prop: 'image', label: '图片', width: '72px' },
         { prop: 'name', label: '菜品名称', sortable: true },
+        { prop: 'canteen', label: '所属食堂', width: '140px' },
         { prop: 'stall', label: '所属档口' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
         { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
+        { prop: 'audit', label: '审核', width: '110px', align: 'center' },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
 
       ]"
       :rows="rows"
+      actions-width="230px"
       empty-text="暂无菜品">
       <template #cell-image="{ row }">
         <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
@@ -196,6 +309,9 @@ async function batchDelete() {
       <template #cell-name="{ row }">
         <span class="cell-title" :title="row.name">{{ row.name }}</span>
         <span v-if="row.promoPrice" class="promo-flag">折扣</span>
+      </template>
+      <template #cell-canteen="{ row }">
+        <span class="cell-sub" :title="canteenName(row.stall_id)">{{ canteenName(row.stall_id) }}</span>
       </template>
       <template #cell-stall="{ row }">
         <span class="cell-sub" :title="stallName(row.stall_id)">{{ stallName(row.stall_id) }}</span>
@@ -207,6 +323,10 @@ async function batchDelete() {
       <template #cell-rating="{ row }">
         <span v-if="row.avg_rating" class="rating"><el-icon class="star"><Star /></el-icon>{{ Number(row.avg_rating).toFixed(1) }}</span>
         <span v-else class="text-muted">—</span>
+      </template>
+      <template #cell-audit="{ row }">
+        <StatusTag :type="auditMetaOf(row).type" :text="auditMetaOf(row).text" />
+        <span v-if="rejectReasonOf(row)" class="reject-flag" :title="rejectReasonOf(row)">退回原因</span>
       </template>
       <template #cell-status="{ row }">
         <div class="status-cell">
@@ -220,7 +340,8 @@ async function batchDelete() {
         </div>
       </template>
       <template #actions="{ row }">
-        <button class="link" v-press @click="openEditDish(row)">编辑</button>
+        <button class="link" v-press @click="onRowClick(row)">详情</button>
+        <button class="link muted-link" v-press @click="openEditDish(row)">编辑</button>
         <button class="link danger" v-press @click="handleDelete(row)">
           <el-icon class="act-ico"><Delete /></el-icon>删除
         </button>
@@ -231,7 +352,6 @@ async function batchDelete() {
       :show="dishModal"
       :editing-id="editingDishId"
       :default-stall-id="null"
-      :stall-options="dishStallOptions"
       @close="dishModal = false"
       @saved="onDishSaved"
     />
@@ -250,6 +370,10 @@ async function batchDelete() {
 .star { width: 13px; height: 13px; }
 .text-muted { color: var(--text-light); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
+/* 次级操作链接（编辑）：弱化于「详情」主链接，保持操作列层级清晰 */
+.muted-link { color: var(--text-secondary); }
+/* 审核列：退回态附「退回原因」小标（悬停可见完整原因） */
+.reject-flag { display: inline-block; margin-left: var(--space-1); font-size: var(--font-xs); color: var(--color-error); cursor: help; }
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

@@ -1,19 +1,8 @@
 <template>
   <view class="feed-wrap">
-    <!-- 加载失败重试块（MP-012）：筛选流失败且无数据时替代静默空态/「还没录菜品」误导文案。
-         与空态同族视觉（bg-soft 凹陷面 + 次级文字），整块 @tap 上抛 retry 由页面走重拉路径 -->
-    <view
-      v-if="loadFailed"
-      class="feed-retry"
-      role="button"
-      aria-label="加载失败，点击重试"
-      hover-class="pressed"
-      @tap="emit('retry')"
-    >
-      <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
-      <text class="feed-retry-title">加载失败</text>
-      <text class="feed-retry-hint">网络似乎不太顺畅 · 点击重试</text>
-    </view>
+    <!-- 加载失败重试块（MP-012，P3-03 上提为公共组件）：筛选流失败且无数据时替代静默空态/
+         「还没录菜品」误导文案；整块 @tap 上抛 retry 由页面走重拉路径 -->
+    <RetryBlock v-if="loadFailed" @retry="emit('retry')" />
 
     <view class="waterfall-grid">
       <!-- 双列瀑布流：奇偶分列（右列绝不空）；原 WaterfallList 已内联合并到此，减少一层组件嵌套 -->
@@ -59,6 +48,7 @@
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import { useDishStore } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
 import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
@@ -142,23 +132,7 @@ function goContribute() {
 }
 .waterfall-item:last-child { margin-bottom: 0; }
 
-/* 加载失败重试块（MP-012）：与空态/列表卡同族视觉（bg-soft 凹陷面 + 大圆角 + 次级文字），
-   居中极简行内块；整块可点（@tap），按压仅透明度反馈，不引入 scale */
-.feed-retry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin: var(--spacing-sm) 0 var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-.feed-retry.pressed { opacity: 0.7; }
-.feed-retry-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.feed-retry-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
+/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
 /* 贡献卡片：与列表卡同一表面语言（白底 + 大圆角 + 柔和投影），全宽单列 */
 .contribute-card {

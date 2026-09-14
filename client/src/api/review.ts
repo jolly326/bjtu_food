@@ -1,4 +1,4 @@
-import type { Review, ReviewSort } from '@/types/review'
+import type { Review } from '@/types/review'
 import { get, post, del } from './http'
 import { recordsOf, totalOf, type RawRow } from './shared'
 
@@ -30,25 +30,26 @@ function toReview(raw: RawRow): Review {
       : [],
     // 内容安检状态：pass=对外可见；review=机审中仅作者本人可见（缺省 pass 兼容旧响应）
     secState: raw.secState === 'review' ? 'review' : 'pass',
+    // 管理侧隐藏标记（§7.14）：仅 /my/reviews 返回给作者本人（后端 isHidden，兼容 is_hidden）。
+    // 语义区别于 secState：secState='review' 为机审中（待过审），isHidden=true 为已被隐藏（不再对外展示）。
+    isHidden: !!(raw.isHidden ?? raw.is_hidden ?? false),
   }
 }
 
 /**
  * 获取评价（task-03 评价区重做）
  * 统一支持 dish / stall / canteen 三类目标查询（合并原 getReviewsByDish/Stall/Canteen 三函数）。
- * 支持 sort=latest|useful（useful 按 usefulCount DESC）。
+ * 排序：**端上不传 sort**——公开列表排序口径唯一权威方是后端（spec §7.14 第 2 条 / §7.18 第 3 条：
+ * 默认按「有用数」置顶 `useful_count DESC, created_at DESC`），端上只消费不覆写（PR-02）。
  * 返回分页结果（list + total），供详情页评价区无限/分页展示。
  */
 async function getReviews(
   target: ReviewTarget,
-  options?: { sort?: ReviewSort; page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 50,
-  }
-  if (options?.sort) {
-    params.sort = options.sort === 'latest' ? 'latest' : 'useful'
   }
   const res = await get<any>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
   const list = recordsOf<any>(res).map(toReview)
@@ -59,7 +60,7 @@ async function getReviews(
 /** @deprecated 语义化别名，保持向后兼容。新代码请用 getReviews({ type: 'dish', id }) */
 export async function getReviewsByDish(
   dishId: number,
-  options?: { sort?: ReviewSort; page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number },
 ): Promise<{ list: Review[]; total: number }> {
   return getReviews({ type: 'dish', id: dishId }, options)
 }
@@ -85,7 +86,9 @@ export async function deleteReview(reviewId: number): Promise<void> {
 
 /**
  * 我的评价列表（GET /my/reviews，STU 需邮箱认证）
- * 按发表时间倒序，返回项含 dishName；删除仍走统一的 DELETE /reviews/{id}。
+ * 返回项含 dishName；删除仍走统一的 DELETE /reviews/{id}。
+ * §7.14：后端不再按 is_hidden 过滤（作者本人可见自己的被隐藏评价），并返回 isHidden 供前端标注；
+ * 排序由后端默认控制（按「有用数」置顶），前端不传 sort 覆写。
  */
 export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<{ list: Review[]; total: number }> {
   const res = await get<any>('/my/reviews', {

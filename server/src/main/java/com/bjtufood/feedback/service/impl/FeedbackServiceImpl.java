@@ -8,9 +8,11 @@ import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.util.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
@@ -43,9 +45,6 @@ public class FeedbackServiceImpl implements FeedbackService {
     public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
     public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
 
-    /** UGC 配图上限（张） */
-    private static final int MAX_IMAGES = 3;
-
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
     private final SensitiveFilter sensitiveFilter;
@@ -56,7 +55,10 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
-        if (FeedbackConst.TYPE_REPORT.equals(req.getType())) {
+        // 类型写入白名单（P2-01 / P3-10）：仅端上真实产出的 4 类可写，
+        // bug/other 为历史遗留、禁新增；非法值 400（不再原样落库）。
+        String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
+        if (FeedbackConst.TYPE_REPORT.equals(type)) {
             // 举报必须关联被举报对象（当前举报对象为菜品详情的评价，复用 user_feedback 表）
             if (req.getRelatedId() == null
                     || !FeedbackConst.RELATED_REVIEW.equals(req.getRelatedType())) {
@@ -75,7 +77,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
-        feedback.setType(req.getType());
+        feedback.setType(type);
         feedback.setContent(sensitiveFilter.filter(req.getContent()));
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
@@ -90,7 +92,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         // 2. 微信凭据未配置（本地开发环境）→ 机检内部跳过返回 pass，生产必须配置。
         // 反馈无公开展示，sec_state 仅作管理端复核标记。
         feedback.setSecState(checkUgcText(userId, feedback.getContent()));
-        feedback.setImages(encodeImages(req.getImages()));
+        feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackMapper.insert(feedback);
     }
 
@@ -114,41 +116,21 @@ public class FeedbackServiceImpl implements FeedbackService {
         return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
     }
 
-    /**
-     * 校验并序列化反馈配图：≤3 张、每项必须为受信任的 COS 绝对地址（与评价口径一致）。
-     */
-    private String encodeImages(List<String> images) {
-        if (images == null || images.isEmpty()) {
-            return null;
-        }
-        if (images.size() > MAX_IMAGES) {
-            throw new BusinessException("反馈配图最多 " + MAX_IMAGES + " 张");
-        }
-        List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
-        if (normalized.isEmpty()) {
-            return null;
-        }
-        if (normalized.size() > MAX_IMAGES) {
-            throw new BusinessException("反馈配图最多 " + MAX_IMAGES + " 张");
-        }
-        for (String url : normalized) {
-            if (!imageUrlUtil.isValidCosUgcUrl(url)) {
-                throw new BusinessException("图片地址不合法，请重新上传");
-            }
-        }
-        return JsonListUtil.toJson(normalized);
-    }
-
     @Override
     public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String secState, String keyword, int page, int pageSize) {
         int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
+        // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
+        // 兼容要求：type 白名单含历史遗留 bug/other（QUERY_TYPES），后台按历史类型筛选仍可查到老数据。
+        status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
+        type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
+        secState = ParamValidator.optionalInWhitelist(secState, SecStateConst.ALL, "内容安全状态");
+
         LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
                 .eq(StringUtils.hasText(status), Feedback::getStatus, status)
                 .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(StringUtils.hasText(secState), Feedback::getSecState,
-                        secState == null ? null : secState.trim().toLowerCase())
+                .eq(StringUtils.hasText(secState), Feedback::getSecState, secState)
                 .eq(userId != null, Feedback::getUserId, userId);
 
         // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
@@ -205,8 +187,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
         }
+        // §7.16（2026-09-14 用户拍板）：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
+        // 纯空白与 null 一律视为未填写：主流仍由 DTO 的 @NotBlank 在 Controller 层拦截（400）；
+        // 此处为 Service 层兜底（同口径、同错误码 400），并统一 trim 后落库。
+        String trimmedReply = reply == null ? null : reply.trim();
+        if (!StringUtils.hasText(trimmedReply)) {
+            throw new BusinessException("请填写处理回复（学生将收到该内容）");
+        }
         feedback.setStatus(FeedbackConst.STATUS_HANDLED);
-        feedback.setReply(reply);
+        feedback.setReply(trimmedReply);
         feedback.setHandledAt(LocalDateTime.now());
         // §7.10：管理端操作人身份降级（单口令即单人），不再写 handler_id；
         // 该列保留在库中（retired），列可空，不写即保持 NULL。
@@ -238,9 +227,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             n.setRelatedId(feedback.getId());
             n.setIsRead(0);
             n.setTitle("反馈已处理");
-            n.setContent(StringUtils.hasText(feedback.getReply())
-                    ? "你提交的反馈已处理：" + feedback.getReply()
-                    : "你提交的反馈我们已处理完毕，感谢你的反馈！");
+            // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文。
+            n.setContent("你提交的反馈已处理：" + feedback.getReply());
             notificationService.notify(n);
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理

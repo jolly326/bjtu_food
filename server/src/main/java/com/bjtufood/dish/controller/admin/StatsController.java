@@ -3,8 +3,6 @@ package com.bjtufood.dish.controller.admin;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
-import com.bjtufood.canteen.entity.Canteen;
-import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.entity.OperationLog;
@@ -25,20 +23,20 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
- * 数据统计控制器（Web 后台数据看板）
+ * 工作台统计控制器（Web 后台 dashboard）
  * <p>
- * 提供总览指标、最热门食堂/菜品排行、浏览量与评价量趋势（ECharts）。
+ * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，前端不消费热度排行 / 趋势字段，
+ * 故不再执行全表菜品聚合与逐日趋势查询，仅保留「待办 + 规模指标 + 近期操作」。
+ * <p>
+ * 本类不暴露任何 HTTP 端点（无 @RequestMapping / @GetMapping），仅作为 DashboardController 的
+ * 逻辑复用载体；原 api-design.md 记载的 GET /admin/stats/** 为幽灵端点（全仓零实现），不新建。
  */
-@Tag(name = "数据统计（数据看板）", description = "运营数据一览：上新/评价指标、热门排行、趋势图。统计逻辑由 DashboardController 复用。")
+@Tag(name = "数据统计（工作台）", description = "工作台总览：规模指标、待办明细、近期操作。逻辑由 DashboardController 复用。")
 @RestController
 @RequiredArgsConstructor
 public class StatsController {
@@ -51,10 +49,9 @@ public class StatsController {
     private final FeedbackMapper feedbackMapper;
     private final OperationLogMapper operationLogMapper;
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MM-dd");
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    /** 数据看板总览：由 DashboardController 直接调用复用，不再暴露独立 HTTP 端点 */
+    /** 工作台总览：由 DashboardController 直接调用复用，不再暴露独立 HTTP 端点 */
     public Result<DashboardVO> overview(int range) {
         // 支持 week(7)/month(30)/all(90)；修复此前 range=all 被吞回 7 天的问题
         if (range != 7 && range != 30 && range != 90) range = 7;
@@ -62,9 +59,9 @@ public class StatsController {
         DashboardVO vo = new DashboardVO();
         vo.setRange("近" + range + "天");
 
-        // 主体统计：整体容错，任一查询失败（表缺失/列不存在）不拖垮接口，保证工作台必能加载
+        // 规模指标（逐项容错，任一查询失败不拖垮接口，保证工作台必能加载）
         try {
-            // 本周/期内上新菜品数（created_at >= since 且 approved）
+            // 期内上新菜品数（created_at >= since 且 approved）
             vo.setNewDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                     .ge(Dish::getCreatedAt, since)
                     .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
@@ -74,28 +71,8 @@ public class StatsController {
             vo.setTotalDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                     .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
             vo.setTotalReviewCount(reviewMapper.selectCount(new LambdaQueryWrapper<>()));
-
-            // 最热门菜品（按浏览量降序 top5）
-            vo.setHotDishes(dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                            .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)
-                            .orderByDesc(Dish::getViewCount))
-                    .stream().limit(5)
-                    .map(d -> {
-                        DashboardVO.RankItem item = new DashboardVO.RankItem();
-                        item.setId(d.getId());
-                        item.setName(d.getName());
-                        item.setScore(d.getViewCount() == null ? 0L : d.getViewCount().longValue());
-                        return item;
-                    }).toList());
-
-            // 最热门食堂（按下属菜品浏览量汇总 top5）
-            vo.setHotCanteens(buildHotCanteens());
-
-            // 趋势：每日新增菜品 + 每日新增评价
-            vo.setViewTrend(buildTrend(since, range, true));
-            vo.setReviewTrend(buildTrend(since, range, false));
         } catch (Exception ignored) {
-            // 主体统计失败：保留空指标，工作台其余部分（待办/明细）仍正常
+            // 规模统计失败：保留空指标，工作台其余部分（待办/明细/近期操作）仍正常
         }
 
         // ===== 规模指标 / 待办 / 明细 / 近期操作（逐项容错） =====
@@ -159,60 +136,5 @@ public class StatsController {
         if (s == null) return "";
         String t = s.replaceAll("\\s+", " ").trim();
         return t.length() > max ? t.substring(0, max) + "…" : t;
-    }
-
-    private List<DashboardVO.RankItem> buildHotCanteens() {
-        List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getStatus, "open"));
-        List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>());
-        Map<Long, String> stallNameMap = stalls.stream()
-                .collect(Collectors.toMap(Stall::getId, Stall::getName, (a, b) -> a));
-        Map<Long, Long> canteenView = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED))
-                .stream()
-                .collect(Collectors.groupingBy(Dish::getStallId,
-                        Collectors.summingLong(d -> d.getViewCount() == null ? 0L : d.getViewCount().longValue())));
-        Map<Long, Long> stallToCanteenView = new LinkedHashMap<>();
-        stalls.forEach(s -> stallToCanteenView.merge(s.getCanteenId(),
-                canteenView.getOrDefault(s.getId(), 0L), Long::sum));
-        return stallToCanteenView.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                .limit(5)
-                .map(e -> {
-                    DashboardVO.RankItem item = new DashboardVO.RankItem();
-                    item.setId(e.getKey());
-                    Canteen c = canteens.stream().filter(x -> x.getId().equals(e.getKey())).findFirst().orElse(null);
-                    item.setName(c != null ? c.getName() : "未知食堂");
-                    item.setScore(e.getValue());
-                    return item;
-                }).toList();
-    }
-
-    private DashboardVO.TrendData buildTrend(LocalDateTime since, int range, boolean isView) {
-        DashboardVO.TrendData trend = new DashboardVO.TrendData();
-        List<String> dates = new ArrayList<>();
-        List<Long> values = new ArrayList<>();
-        for (int i = range - 1; i >= 0; i--) {
-            LocalDate day = LocalDate.now().minusDays(i);
-            dates.add(day.format(DATE_FMT));
-            LocalDateTime dayStart = day.atStartOfDay();
-            LocalDateTime dayEnd = day.plusDays(1).atStartOfDay();
-            long count;
-            if (isView) {
-                // 浏览量趋势：每日新增菜品产生的初始浏览增量近似（无独立浏览事件表，用每日上新菜品数近似）
-                count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                        .ge(Dish::getCreatedAt, dayStart)
-                        .lt(Dish::getCreatedAt, dayEnd)
-                        .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED));
-            } else {
-                count = reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
-                        .ge(Review::getCreatedAt, dayStart)
-                        .lt(Review::getCreatedAt, dayEnd));
-            }
-            values.add(count);
-        }
-        trend.setDates(dates);
-        trend.setValues(values);
-        return trend;
     }
 }

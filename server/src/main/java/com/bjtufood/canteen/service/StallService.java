@@ -8,7 +8,8 @@ import java.util.List;
 /**
  * 档口服务接口
  * <p>
- * 档口的查询和管理，一个档口从属于一个食堂。
+ * 档口已去实体化（2026-09-14）：降级为「菜品筛选属性字典」，生命周期仅「新增 / 改名（编辑）」＋列表查询，
+ * 无删除、无停业/审核能力；一个档口仍从属于一个食堂（canteen_id）。
  */
 public interface StallService {
 
@@ -33,23 +34,4 @@ public interface StallService {
      * @param stall 档口信息（含ID）
      */
     void update(Stall stall);
-
-    /**
-     * 删除档口
-     * <p>
-     * 约束：如果档口下还有菜品，禁止删除
-     *
-     * @param id 档口ID
-     * @throws com.bjtufood.common.exception.BusinessException 档口下有菜品
-     */
-    void delete(Long id);
-
-    /**
-     * 根据ID查询档口
-     *
-     * @param id 档口ID
-     * @return 档口实体
-     * @throws com.bjtufood.common.exception.BusinessException 档口不存在
-     */
-    Stall getById(Long id);
 }

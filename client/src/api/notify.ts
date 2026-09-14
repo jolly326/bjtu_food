@@ -4,6 +4,7 @@
  * GET /my/notifications         我的消息（倒序，isRead 过滤）
  * GET /my/notifications/unread-count 未读总数（红点）
  * PUT /my/notifications/{id}/read  单条已读
+ * PUT /my/notifications/read-all   全部已读（幂等，需登录，返回本次置为已读的条数）
  */
 import { get, put } from './http'
 import { listOf, type PageResult, type RawRow } from './shared'
@@ -67,6 +68,18 @@ export async function getUnreadCount(): Promise<number> {
 /** 单条已读（STU，归属校验） */
 export async function readNotification(id: number): Promise<void> {
   await put<void>(`/my/notifications/${id}/read`)
+}
+
+/**
+ * 全部已读（STU，PUT /my/notifications/read-all；需登录、幂等）。
+ * 返回 data = 本次置为已读的条数（无未读时为 0），非分页结构，故不经 listOf/recordsOf。
+ * 失败向上抛错，由调用方提示且不改变本地状态。
+ */
+export async function readAllNotifications(): Promise<number> {
+  const res = await put<number | { count?: number }>('/my/notifications/read-all')
+  const raw = res as { count?: number } | number | null | undefined
+  if (typeof raw === 'number') return raw
+  return Number(raw?.count ?? 0)
 }
 
 

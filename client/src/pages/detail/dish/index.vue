@@ -66,9 +66,13 @@
           :reviews="reviewList"
           :total="reviewTotal"
           :current-user-id="currentUserId"
+          :load-failed="reviewFailed"
+          :loading="reviewLoading"
           @delete="onDeleteReview"
           @report="onReviewReport"
           @more="onReviewMore"
+          @retry="onRetryReviews"
+          @write="onOpenReviewComposer"
         />
       </view>
     </template>
@@ -157,6 +161,8 @@ const {
   ratingDistribution,
   reviewList,
   reviewTotal,
+  reviewFailed,
+  reviewLoading,
   currentUserId,
   composerOpen,
   reportOpen,
@@ -171,6 +177,7 @@ const {
   onReviewMoreSelect,
   onOpenReviewComposer,
   onReviewSubmitted,
+  onRetryReviews,
   submitReport,
 } = useDishPage()
 </script>

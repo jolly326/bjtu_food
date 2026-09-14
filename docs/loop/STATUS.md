@@ -1,6 +1,7 @@
 # Loop 状态看板（STATUS）
 
 - **分支策略（2026-09-14 变更）**：**工作分支统一为 `develop`**；`feature/client-ui` 已快进合入 `develop` 并删除（本地 + 远端）；`main` 仍按既有规范由 `develop` 经 PR 更新。
+- **业务定型进度**：spec §7.1 ~ §7.17（17 组决议）全部落地或有明确归属；最新批次含「食堂档口仅作筛选条件、菜品列表+详情为主体」「反馈回复必填」「首页一次性定位提示」「后台上传自动压缩（宽 1200px / ≤1MB）」。
 - **当前轮次**：ITER-003（团队缺陷与不一致排查）——**A/B/C/D 四批次全部闭环**
 - **报告**：`docs/loop/audit/ITER-003-AUDIT.md`＋`backend.md`/`frontend.md`（明细）
 - **验收标准**：`docs/loop/launch-checklist.md`（三项并行）
@@ -20,14 +21,17 @@
 | **C** | 需用户拍板项（§7.9~§7.13） | ✅ 全部拍板并落地 |
 | **D** | 热度公式抽 `heatScoreExpr`＋`DishHeatWeights`、`user` 保留字评估（保持现状＋注释）、反馈/举报文案落位 | ✅ |
 
-## 待用户执行（4 项 · launch-checklist D 段）
+## 上线阻塞项进度
 
-| # | 事项 | 影响 |
+| # | 事项 | 状态 |
 |---|---|---|
-| D1 | 云托管按 `main`（`6a61b7d`）**重新部署** | 后台可用；`ADMIN_TOKEN`/COS/上传鉴权/文案/双约束才生效 |
-| D2 | 上传 **31 张菜品首图**（当前 31/31 缺失）＋按 `dish-proofread-checklist.md` 逐条校对 | 小程序菜品图与数据质量 |
-| D3 | 小程序 **downloadFile 域名**加 COS 域名 | 正式版图片显示 |
-| D4 | 执行 **DB 迁移**（`serve_period`/`limited`/`review.tags` 三列删除，脚本幂等） | 清除孤儿列 |
+| D1 | 云托管重新部署 | ✅ **已完成**（2026-09-14 实测：线上已含分页契约与 B 批次代码；`ADMIN_TOKEN`/COS/上传鉴权均已生效） |
+| D4 | 执行 DB 迁移（删 3 列） | ✅ **已完成**（agent 执行：`serve_period`/`limited`/`review.tags` 三列已删除，`region` 注释已同步；迁移后全部接口复测 200） |
+| D2 | 上传 **31 张菜品首图**（当前 31/31 缺失）＋按 `dish-proofread-checklist.md` 逐条校对 | ⏳ 待用户（上传链路已实测打通：`POST /upload/image` → COS 直链 200） |
+| D3 | 小程序 **downloadFile 域名**加 COS 域名 | ⏳ 待用户（COS 图片已验证公有读可访问） |
+| D5 | 死文件删除授权 | ✅ 已完成（5 个文件已物理删除） |
+| **D6** | **删列迁移 `stall.business_hours`（⚠️ 必须在新代码部署之后再执行）** | ⏳ 挂起中 —— 当前线上代码仍在 `SELECT s.business_hours`，**现在删列会导致线上全部菜品接口 500**；正确顺序：部署新代码 → 我立即执行该列删除（脚本已幂等写入 `schema.sql`） |
+| D7 | 小程序端图片修复需**重新编译预览/上传新版本**（非云托管部署） | ⏳ 待用户 |
 
 ## 下一轮候选（部署完成后）
 
@@ -40,6 +44,7 @@
 
 - 后端门禁一律 `mvn -q clean compile -DskipTests`（增量编译会掩盖缺失 import；2026-09-14 实际发生）
 - 子 agent 交付必须**落盘到指定文件**，主 agent 以读文件验收（回报可能被截断）
+- 小程序门禁必须**同时**跑 `npm run type-check` **与** `npm run build:mp-weixin`：`build:mp-weixin` **不做类型检查**，模板里引用了不存在的标识符（如 `selectedSpiceLevel` 未定义）也能"Build complete"（2026-09-14 实际发生）
 
 ## 循环触发
 - 手动：用户说「继续下一轮」→ 读本文件接续

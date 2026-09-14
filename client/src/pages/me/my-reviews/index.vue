@@ -15,9 +15,14 @@
           <view class="card-head">
             <view class="card-head-left">
               <text class="dish-name">{{ r.dishName || '菜品' }}</text>
-              <!-- 内容安检中：仅本人可见的评价显示小标（secState='review'，机审通过后对全量可见） -->
+              <!-- 状态小标（同一位置/同一胶囊语言，二者互斥，语义不混淆）：
+                   secState='review' → 「审核中」（机审中，通过后对外可见）
+                   isHidden=true     → 「已被隐藏」（管理员隐藏，不再对外展示，仅本人可见） -->
               <view v-if="r.secState === 'review'" class="sec-badge">
                 <text class="sec-badge-text">审核中</text>
+              </view>
+              <view v-else-if="r.isHidden" class="sec-badge sec-badge--hidden">
+                <text class="sec-badge-text sec-badge-text--hidden">已被隐藏</text>
               </view>
             </view>
             <view class="rating">
@@ -58,20 +63,9 @@
         </view>
       </view>
 
-      <!-- 加载失败重试块（MP-012 同族）：首屏请求失败 ≠ 无评价——极简「加载失败 · 点击重试」行内块，
+      <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无评价——
            先于空态渲染，避免网络失败被误读；恢复走重试块 @tap 或下拉刷新 -->
-      <view
-        v-if="loadFailed && !loading"
-        class="my-reviews-retry"
-        role="button"
-        aria-label="加载失败，点击重试"
-        hover-class="pressed"
-        @tap="onRetryLoad"
-      >
-        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
-        <text class="my-reviews-retry-title">加载失败</text>
-        <text class="my-reviews-retry-hint">网络似乎不太顺畅 · 点击重试</text>
-      </view>
+      <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
       <!-- 空态：首次进入无评价保持静默；仅「删除最后一条」触发时给轻提示，避免被误解为加载异常（见 my-reviews） -->
       <view v-else-if="emptiedByDelete" class="empty-tip">
         <text class="empty-text">暂无评价，去菜品详情写一条吧</text>
@@ -84,6 +78,8 @@
 /**
  * 我的评价：评价类 UGC 的用户侧自管理入口（列表 + 本人删除）。
  * - 数据源 GET /my/reviews（后端联表返回 dishName），删除复用 DELETE /reviews/{id}
+ * - 状态小标（§7.14）：作者本人可见自己的全部评价，secState='review' 标「审核中」、
+ *   isHidden=true 标「已被隐藏」，避免「评价凭空消失」；排序由后端默认控制（不传 sort）
  * - 空态双口径：首次进入静默；删除导致清空时给轻提示（见 spec my-reviews）
  * - 失败态（MP-012）：首屏/刷新失败渲染「加载失败 · 点击重试」块，与静默空态区分；
  *   分页失败保持静默，可再触底重试
@@ -92,6 +88,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import { getMyReviews, deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
@@ -245,6 +242,10 @@ onShow(() => {
   background: var(--color-warning-soft);
 }
 .sec-badge-text { font-size: var(--font-tiny); color: var(--color-warning); line-height: 1.4; }
+/* 「已被隐藏」（isHidden，§7.14）：与「审核中」同位置同尺寸，仅换中性灰 token——
+   隐藏是终态而非警示，用中性色与 warning 的「审核中」明确区分，语气客观不指责 */
+.sec-badge--hidden { background: var(--bg-placeholder); }
+.sec-badge-text--hidden { color: var(--text-secondary); }
 .rating { display: inline-flex; align-items: center; gap: var(--spacing-2xs); flex-shrink: 0; }
 .rating-num { font-size: var(--font-small); color: var(--text-secondary); }
 
@@ -324,21 +325,5 @@ onShow(() => {
 }
 .empty-text { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
-/* 加载失败重试块（MP-012）：与 find/feed 重试块同族视觉
-   （居中、凹陷面 bg-soft、次级文字色），整块 @tap 触发重拉，无独立按钮 */
-.my-reviews-retry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-  -webkit-tap-highlight-color: transparent;
-}
-.my-reviews-retry.pressed { opacity: 0.7; }
-.my-reviews-retry-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.my-reviews-retry-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
+/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 </style>

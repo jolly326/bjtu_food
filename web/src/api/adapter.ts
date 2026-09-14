@@ -1,4 +1,4 @@
-import type { Canteen, Dish, Review, SecState, Stall, User, AuditVO } from '@/types'
+import type { Canteen, Dish, Review, SecState, Stall, User } from '@/types'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[]; list?: T[] }
@@ -75,6 +75,11 @@ function stripImageBaseUrl(url: string): string {
   return url.startsWith(API_BASE_URL) ? url.slice(API_BASE_URL.length) : url
 }
 
+/**
+ * 食堂 → 前端模型（2026-09-14 Q-113 / PR-14 契约收紧）：
+ * 食堂是**菜品筛选属性字典**，后端已移除 status / auditStatus / rejectReason（列即将 DROP），
+ * 故不再做 status 映射（原 `active/inactive` 派生意已随契约作废）。
+ */
 export function canteenToLegacy(raw: any): Canteen {
   return {
     id: raw.id,
@@ -83,12 +88,12 @@ export function canteenToLegacy(raw: any): Canteen {
     location: raw.location || '',
     description: raw.description || '',
     sort_order: raw.sortOrder ?? raw.sort_order ?? 0,
-    status: raw.status === 'open' ? 'active' : 'inactive',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
 }
 
+/** 食堂 → 接口 payload（属性字典只「新增 / 改名」，不提交任何状态字段） */
 export function canteenToApi(data: Partial<Canteen>) {
   return compactPayload({
     name: data.name,
@@ -96,10 +101,14 @@ export function canteenToApi(data: Partial<Canteen>) {
     location: data.location,
     description: data.description,
     sortOrder: data.sort_order,
-    status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
   })
 }
 
+/**
+ * 档口 → 前端模型（2026-09-14 Q-113 / PR-14 契约收紧）：档口同为**菜品筛选属性字典**，
+ * 后端已移除 status / auditStatus / rejectReason（列即将 DROP），故不再做 status 映射；
+ * floor（楼层）/ windowNo（窗口号）保留（端上有消费）。
+ */
 export function stallToLegacy(raw: any): Stall {
   return {
     id: raw.id,
@@ -110,15 +119,14 @@ export function stallToLegacy(raw: any): Stall {
     description: raw.description || '',
     avg_rating: raw.avgRating ?? raw.avg_rating ?? 0,
     sort_order: raw.sortOrder ?? raw.sort_order ?? 0,
-    status: raw.status === 'open' ? 'active' : 'inactive',
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
-    businessHours: raw.businessHours || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
 }
 
+/** 档口 → 接口 payload（属性字典只「新增 / 改名」，不提交任何状态字段） */
 export function stallToApi(data: Partial<Stall>) {
   return compactPayload({
     canteenId: data.canteen_id,
@@ -127,10 +135,8 @@ export function stallToApi(data: Partial<Stall>) {
     location: data.location,
     description: data.description,
     sortOrder: data.sort_order,
-    status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
     floor: data.floor,
     windowNo: data.windowNo,
-    businessHours: data.businessHours,
   })
 }
 
@@ -150,7 +156,6 @@ export function dishToLegacy(raw: any): Dish {
     view_count: raw.viewCount ?? raw.view_count ?? 0,
     status: raw.status === 'on' ? 'active' : 'inactive',
     spiceLevel: raw.spiceLevel ?? 0,
-    portion: raw.portion ?? 0,
     region: raw.region || '',
     audit_status: raw.auditStatus ?? raw.audit_status,
     reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
@@ -177,7 +182,6 @@ export function dishToApi(data: Partial<Dish>) {
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
     auditStatus: data.audit_status,
     spiceLevel: data.spiceLevel,
-    portion: data.portion,
     region: data.region,
     originalPrice: data.originalPrice === undefined ? undefined : Math.round(Number(data.originalPrice) * 100),
     promoPrice: data.promoPrice === undefined || data.promoPrice === null ? null : Math.round(Number(data.promoPrice) * 100),
@@ -226,24 +230,6 @@ export function userToLegacy(raw: any): User {
     wechatBound: raw.wechatBound ?? (raw.openid ? true : false),
     bindEmail: (raw.bindEmail ?? raw.bind_email) || '',
     guestShortId: (raw.guestShortId ?? raw.guest_short_id) || '',
-    created_at: toDate(raw.createdAt || raw.created_at),
-    updated_at: toDate(raw.updatedAt || raw.updated_at),
-  }
-}
-
-export function auditToLegacy(raw: any): AuditVO {
-  return {
-    id: raw.id,
-    type: raw.type,
-    name: raw.name || '',
-    price: raw.price !== undefined && raw.price !== null ? Math.round(raw.price) / 100 : undefined,
-    images: imagesToLegacy(raw.images ?? raw.image),
-    description: raw.description || raw.location || '',
-    location: raw.location || '',
-    submitterId: raw.submitterId ?? raw.submitter_id ?? raw.createdBy ?? raw.created_by,
-    submitterName: (raw.submitterName ?? raw.submitter_name) || '',
-    audit_status: (raw.auditStatus ?? raw.audit_status) || 'pending',
-    reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }

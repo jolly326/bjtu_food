@@ -33,7 +33,7 @@ public class FeedbackAdminController {
     public Result<PageResult<FeedbackAdminVO>> list(
             @Parameter(description = "处理状态：pending/handled")
             @RequestParam(required = false) String status,
-            @Parameter(description = "反馈类型：suggestion/add/error/bug/report/other")
+            @Parameter(description = "反馈类型：suggestion/add/error/report（历史类型 bug/other 亦可筛选存量数据）；非法值 400")
             @RequestParam(required = false) String type,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,
@@ -49,15 +49,16 @@ public class FeedbackAdminController {
                 (int) result.getCurrent(), (int) result.getSize()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），reply 可选。")
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），"
+            + "reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400（学生将收到该回复内容）。")
     @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "回复内容（可选），仅经 JSON body 传参：{reply:...}")
-            @Valid @RequestBody(required = false) FeedbackHandleReq body) {
-        feedbackService.handle(id, body == null ? null : body.getReply());
+            @Parameter(description = "回复内容（必填），仅经 JSON body 传参：{reply:...}；校验失败返回 400")
+            @Valid @RequestBody FeedbackHandleReq body) {
+        feedbackService.handle(id, body.getReply());
         return Result.success();
     }
 }

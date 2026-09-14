@@ -3,8 +3,9 @@
  * ApplyReviewView：评价审核（UGC 审核中心）。
  * 实体贡献申请审核已随 apply 全链路下线（change prelaunch-loop-closure），本视图仅保留用户评价审核：
  * 列表 / 隐藏 / 显示 / 删除 / 批量 + 内容安检复核（放行/驳回）+ 配图查看。
- * 数据来自 auditApi（listAllReviews / setReviewHidden / setReviewSecState / deleteReview）；
+ * 数据来自 reviewApi（listAllReviews / updateById / updateSecState / deleteById）；
  * secState 安检筛选走服务端参数（'' = 全部）。
+ * （2026-09-14 Q-107：原 auditApi 随审核中心死代码删除，评价域能力统一归 reviewApi。）
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
@@ -12,6 +13,7 @@ import { useConfirmStore } from '@/stores/confirmStore'
 import FormDialog from '@/components/FormDialog.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import StarRating from '@/components/StarRating.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { useAdminStore } from '@/stores/adminStore'
@@ -48,9 +50,9 @@ async function loadList() {
   error.value = ''
   selectedIds.value = []
   try {
-    const { auditApi } = await import('@/api')
+    const { reviewApi } = await import('@/api')
     // 查全部评价（显示中 / 已隐藏），显隐状态由列表开关列控制；关键词 / 安检状态均服务端过滤
-    const list = await auditApi.listAllReviews(undefined, searchQuery.value.trim() || undefined, toSecFilter(activeSecState.value))
+    const list = await reviewApi.listAllReviews(undefined, searchQuery.value.trim() || undefined, toSecFilter(activeSecState.value))
     if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
     reviews.value = list
   } catch (e: any) {
@@ -84,8 +86,8 @@ function closeDetail() { detailReview.value = null }
 async function setHidden(r: any, hidden: boolean) {
   if (!await confirm.confirm(hidden ? '确定隐藏该评价？' : '确定显示该评价？')) return
   try {
-    const { auditApi } = await import('@/api')
-    await auditApi.setReviewHidden(Number(r.id), hidden)
+    const { reviewApi } = await import('@/api')
+    await reviewApi.updateById(Number(r.id), { is_hidden: hidden })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
     await loadList()
     if (detailReview.value && Number(detailReview.value.id) === Number(r.id)) closeDetail()
@@ -104,14 +106,14 @@ async function batchReviews(hidden: boolean | null) {
   }
   // WEB-105：循环纯接口调用并统计成败（单条失败不中断批次），结束后统一 loadList 一次
   batchRunning.value = true
-  const { auditApi } = await import('@/api')
+  const { reviewApi } = await import('@/api')
   const action = hidden === null ? '删除' : hidden ? '隐藏' : '显示'
   let okCount = 0
   const failedIds: number[] = []
   for (const id of selectedIds.value) {
     try {
-      if (hidden === null) await auditApi.deleteReview(id)
-      else await auditApi.setReviewHidden(id, hidden)
+      if (hidden === null) await reviewApi.deleteById(id)
+      else await reviewApi.updateById(id, { is_hidden: hidden })
       okCount++
     } catch {
       failedIds.push(id)
@@ -131,8 +133,8 @@ async function batchReviews(hidden: boolean | null) {
 async function removeReview(r: any) {
   if (!await confirm.confirm('确定删除该评价？此操作不可恢复。')) return
   try {
-    const { auditApi } = await import('@/api')
-    await auditApi.deleteReview(Number(r.id))
+    const { reviewApi } = await import('@/api')
+    await reviewApi.deleteById(Number(r.id))
     toast.success('评价已删除')
     await loadList()
     if (detailReview.value && Number(detailReview.value.id) === Number(r.id)) closeDetail()
@@ -158,8 +160,8 @@ async function reviewSecState(r: any, state: SecAction) {
     : '确定驳回该评价？驳回后评价内容将被拦截，不再对用户展示。')) return
   secActingId.value = Number(r.id)
   try {
-    const { auditApi } = await import('@/api')
-    await auditApi.setReviewSecState(Number(r.id), state)
+    const { reviewApi } = await import('@/api')
+    await reviewApi.updateSecState(Number(r.id), state)
     toast.success(state === 'pass' ? '评价已放行' : '评价已驳回')
     await loadList()
     if (detailReview.value && Number(detailReview.value.id) === Number(r.id)) closeDetail()
@@ -215,7 +217,7 @@ function getDishName(dishId: number | bigint): string {
   >
     <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
     <template #cell-rating="{ row }">
-      <span class="stars">{{ '★'.repeat(row.rating) }}<span class="star-off">{{ '★'.repeat(5 - row.rating) }}</span></span>
+      <StarRating :value="row.rating" />
     </template>
     <template #cell-content="{ row }">
       <button class="link" v-press @click="openReviewDetail(row)">{{ row.content || '（无文字内容）' }}</button>
@@ -258,7 +260,7 @@ function getDishName(dishId: number | bigint): string {
   <FormDialog :show="!!detailReview" title="评价详情" :width="520" :footer="false" @close="closeDetail">
     <div v-if="detailReview" class="detail">
       <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(detailReview.user_id) }}</span></div>
-      <div class="detail-row"><span class="dl">评分</span><span class="dv stars">{{ '★'.repeat(detailReview.rating) }}<span class="star-off">{{ '★'.repeat(5 - detailReview.rating) }}</span></span></div>
+      <div class="detail-row"><span class="dl">评分</span><span class="dv"><StarRating :value="detailReview.rating" /></span></div>
       <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detailReview.content || '（无文字内容）' }}</span></div>
       <div class="detail-row detail-row-desc" v-if="(detailReview.images || []).length">
         <span class="dl">配图</span>
@@ -309,8 +311,7 @@ function getDishName(dishId: number | bigint): string {
 .status-tab { font-size: var(--font-sm); }
 .tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
 
-.stars { color: var(--color-star); letter-spacing: 1px; }
-.star-off { color: var(--border-strong); }
+/* 星级样式已收敛至 StarRating 组件（P3-17） */
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

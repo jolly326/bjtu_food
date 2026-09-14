@@ -23,13 +23,13 @@ const navItems = computed(() => [
 ])
 
 /**
- * 导航激活判断：聚合页内的详情/子路由归属对应一级入口。
- * - 食堂详情(/dashboard/canteens/…) 归属「信息管理」
+ * 导航激活判断：聚合页内的子路由归属对应一级入口。
+ * 注：食堂/档口/菜品详情下钻路由已随 §7.15 收敛删除，不再需要 /dashboard/canteens 前缀判断。
  */
 function isNavActive(path: string) {
   if (path === '/dashboard') return activePath.value === '/dashboard'
   if (path === '/dashboard/content') {
-    return activePath.value === '/dashboard/content' || activePath.value.startsWith('/dashboard/canteens')
+    return activePath.value === '/dashboard/content'
   }
   if (path === '/dashboard/audit') return activePath.value.startsWith('/dashboard/audit')
   if (path === '/dashboard/system') return activePath.value === '/dashboard/system'

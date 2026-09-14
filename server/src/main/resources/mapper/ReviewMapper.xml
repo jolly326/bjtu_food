@@ -44,14 +44,19 @@
         </if>
         )
         <choose>
-            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
-            <otherwise>ORDER BY r.created_at DESC</otherwise>
+            <!-- 默认（含 sort 缺省）按「有用数」置顶（2026-09-14 §7.14 B）；
+                 sort=latest 显式传参仍走时间倒序，保持向后兼容。 -->
+            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
+            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
         </choose>
     </select>
 
     <!--
         我的评价：本人视角，不过滤 sec_state（review 态由前端提示「审核中」），
         返回 sec_state/images 供作者本人查看。
+        可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见，
+        并返回 is_hidden 供端上标注「已被隐藏」；公开列表的 is_hidden=0 过滤保持不放宽。
+        排序：本人视角固定时间倒序（sort=latest 由 service 固定传入），不随公开列表默认口径变化。
     -->
     <select id="selectReviewPageByUserId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -65,16 +70,16 @@
             r.content,
             r.images AS images_json,
             r.sec_state AS sec_state,
+            r.is_hidden AS is_hidden,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
                  JOIN dish d ON r.dish_id = d.id
         WHERE r.user_id = #{userId}
-          AND r.is_hidden = 0
         <choose>
-            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
-            <otherwise>ORDER BY r.created_at DESC</otherwise>
+            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
+            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
         </choose>
     </select>
 
@@ -106,8 +111,9 @@
         </if>
         )
         <choose>
-            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
-            <otherwise>ORDER BY r.created_at DESC</otherwise>
+            <!-- 默认（含 sort 缺省）按「有用数」置顶（§7.14 B）；sort=latest 仍走时间倒序 -->
+            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
+            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
         </choose>
     </select>
 
@@ -140,21 +146,29 @@
         </if>
         )
         <choose>
-            <when test="sort == 'useful'">ORDER BY r.useful_count DESC, r.created_at DESC</when>
-            <otherwise>ORDER BY r.created_at DESC</otherwise>
+            <!-- 默认（含 sort 缺省）按「有用数」置顶（§7.14 B）；sort=latest 仍走时间倒序 -->
+            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
+            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
         </choose>
     </select>
 
-    <!-- 某档口下所有菜品评价的平均分（无评价返回 NULL） -->
+    <!--
+        某档口下所有菜品评价的平均分（无评价返回 NULL）。
+        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
+    -->
     <select id="selectAvgRatingByStallId" resultType="java.math.BigDecimal">
         SELECT AVG(r.rating)
         FROM review r
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
+          AND r.sec_state = 'pass'
     </select>
 
-    <!-- 批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射 -->
+    <!--
+        批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
+        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
+    -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,
                AVG(r.rating)  AS avgRating
@@ -165,6 +179,7 @@
             #{sid}
         </foreach>
           AND r.is_hidden = 0
+          AND r.sec_state = 'pass'
         GROUP BY d.stall_id
     </select>
 

@@ -10,8 +10,14 @@ export const activeTab = ref<string>('home')
  */
 export const tabVisible = ref<boolean>(true)
 
-// 主根页 route（不带前导斜杠）-> tab key（「我的」根页目录为 mine，tab key 语义仍 profile；真源见 utils/routes.ts）
-export const routeMap: Record<string, string> = ROUTE_KEY_BY_URL
+/**
+ * 主根页 route（不带前导斜杠）→ tab key（「我的」根页目录为 mine，tab key 语义仍 profile；
+ * 真源见 utils/routes.ts）。
+ * P2-11 收敛：原以 `export const routeMap` 对外暴露，但全仓零外部消费（引用计数证明：仅本文件
+ * 的 ensureTabForUrl / syncRoute 两处内部读取），导出面收窄为模块私有，避免外部绕过
+ * showTab / ensureTabForUrl / syncRoute 直接读表导致显隐口径分裂。
+ */
+const routeMap: Record<string, string> = ROUTE_KEY_BY_URL
 
 /** 直接设定 TabBar 显隐与高亮（主根页 onShow 锚定，最稳定，不依赖页面栈时序）
  *  2026-09-07：无外部消费（外部经 showTab/ensureTabForUrl/syncRoute 调用），收敛为模块私有 */
