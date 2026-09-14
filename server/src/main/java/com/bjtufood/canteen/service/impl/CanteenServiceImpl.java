@@ -172,9 +172,9 @@ public class CanteenServiceImpl implements CanteenService {
             return Map.of();
         }
         List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
-        List<com.bjtufood.review.dto.StallAvgRatingDTO> ratings = reviewMapper.selectAvgRatingByStallIds(ids);
+        List<com.bjtufood.review.dto.StallAvgRatingVO> ratings = reviewMapper.selectAvgRatingByStallIds(ids);
         Map<Long, BigDecimal> map = new HashMap<>(ratings.size());
-        for (com.bjtufood.review.dto.StallAvgRatingDTO r : ratings) {
+        for (com.bjtufood.review.dto.StallAvgRatingVO r : ratings) {
             map.put(r.getStallId(), r.getAvgRating());
         }
         return map;

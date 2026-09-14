@@ -155,7 +155,7 @@
     </select>
 
     <!-- 批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射 -->
-    <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingDTO">
+    <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,
                AVG(r.rating)  AS avgRating
         FROM review r

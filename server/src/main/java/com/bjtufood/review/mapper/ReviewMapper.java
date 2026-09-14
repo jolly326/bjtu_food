@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.review.dto.ReviewVO;
-import com.bjtufood.review.dto.StallAvgRatingDTO;
+import com.bjtufood.review.dto.StallAvgRatingVO;
 import com.bjtufood.review.entity.Review;
 import org.apache.ibatis.annotations.Param;
 
@@ -67,7 +67,7 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * @param stallIds 档口ID集合
      * @return 每行含 stallId、avgRating（可能为 null）
      */
-    List<StallAvgRatingDTO> selectAvgRatingByStallIds(@Param("stallIds") Collection<Long> stallIds);
+    List<StallAvgRatingVO> selectAvgRatingByStallIds(@Param("stallIds") Collection<Long> stallIds);
 
     /**
      * 评价「有用」计数原子增减（并发安全：SET useful_count = useful_count ± delta，最小值 0）

@@ -22,6 +22,7 @@ import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;

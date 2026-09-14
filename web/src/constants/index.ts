@@ -34,3 +34,17 @@ export const SEC_FILTER_OPTIONS = [
   { value: SEC_PASS, label: '正常' },
   { value: SEC_REJECTED, label: '已驳回' },
 ]
+
+/** 反馈处理状态：待处理 */
+export const FEEDBACK_PENDING = 'pending'
+/** 反馈处理状态：已处理 */
+export const FEEDBACK_HANDLED = 'handled'
+
+/**
+ * 反馈处理状态展示元数据（StatusTag 类型 + 文案）。
+ * 与后端 FeedbackAdminVO.status 契约一致（pending / handled）。
+ */
+export const FEEDBACK_STATUS_META: Record<string, { type: 'warning' | 'success'; text: string }> = {
+  [FEEDBACK_PENDING]: { type: 'warning', text: '待处理' },
+  [FEEDBACK_HANDLED]: { type: 'success', text: '已处理' },
+}

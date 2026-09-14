@@ -73,8 +73,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import BaseSheet from './BaseSheet.vue'
-import IconSvg from './IconSvg.vue'
+import BaseSheet from '@/components/BaseSheet.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 interface PickerOption {
   /** 稳定唯一 key（用于高亮/去重） */

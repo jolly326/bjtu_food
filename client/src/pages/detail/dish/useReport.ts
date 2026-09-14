@@ -1,5 +1,5 @@
 /**
- * 举报逻辑公共 hook（useReport）。
+ * 举报逻辑 hook（useReport）——菜品详情页包内私有编排（仅本页使用，就近置于页面包）。
  *
  * 原 openReport 前置 requireAuth（举报被挡在认证后），client-auth-boundary 修订：
  * 举报属免认证行为，游客可直接填写提交，不再弹 AuthSheet。

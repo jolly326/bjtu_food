@@ -175,7 +175,8 @@ CREATE TABLE IF NOT EXISTS `review_useful`
   COLLATE = utf8mb4_general_ci COMMENT ='评价有用标记';
 
 -- -------------------- 收藏（本期整体移除，见 task-12.12） --------------------
--- /favorites 端点与 favorite 表本期彻底删除；喜欢(❤️)语义保留，存储方案待架构师评估。
+-- /favorites 端点与 favorite 表本期彻底删除。产品定稿：不做「收藏/喜欢」功能，
+-- UGC 互动仅保留「有用」（review_useful 表 + useful_count 计数），故不另建喜欢计数存储。
 
 -- -------------------- 消息通知（账号注销级联清理依赖，A.15） --------------------
 CREATE TABLE IF NOT EXISTS `notification`

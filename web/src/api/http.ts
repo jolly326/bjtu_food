@@ -12,7 +12,7 @@ const listeners: Array<() => void> = []
 export function onUnauthorized(fn: () => void) {
   listeners.push(fn)
 }
-/** 登录失效统一广播：清 token + 通知监听者。导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107） */
+/** 鉴权失效统一广播：清理遗留登录态残留 + 通知监听者（不跳转，管理端无登录页）。导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107） */
 export function emitUnauthorized() {
   localStorage.removeItem('token')
   listeners.forEach((fn) => fn())
@@ -64,10 +64,10 @@ async function request<T>(
 
     const body: ApiResponse<T> = await res.json()
     if (body.code !== 200) {
-      // 业务层 401（code===401）同样按未登录处理
+      // 业务层 401（code===401）同样按「口令/鉴权失效」处理（管理端无登录页）
       if (body.code === 401) {
         emitUnauthorized()
-        throw new Error('登录已失效，请重新登录')
+        throw new Error('未授权：请检查管理端口令配置')
       }
       throw new Error(body.message || '请求失败')
     }

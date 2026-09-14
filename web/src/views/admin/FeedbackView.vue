@@ -8,7 +8,7 @@ import FormDialog from '@/components/FormDialog.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { ChatDotRound, EditPen, CircleCheck, Picture } from '@element-plus/icons-vue'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS } from '@/constants'
+import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS, FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED } from '@/constants'
 import { toSecFilter } from '@/api/adapter'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
@@ -25,17 +25,16 @@ const typeLabel: Record<string, string> = {
   report: '举报',
   other: '其他',
 }
-const statusTag: Record<string, 'warning' | 'success'> = { pending: 'warning', handled: 'success' }
-const statusText: Record<string, string> = { pending: '待处理', handled: '已处理' }
+// 状态展示元数据（tag 类型 + 文案）统一收敛至 constants/index.ts（RF13）
 
 // 状态筛选（prelaunch-final-audit AUD-PM-13：处理后需可回看，避免「已处理」分支不可达）
 // 默认「待处理」= 管理员处理待办；切换「已处理」可回看历史回复与处理时间。
 const statusOptions = [
-  { value: 'pending', label: '待处理' },
-  { value: 'handled', label: '已处理' },
+  { value: FEEDBACK_PENDING, label: '待处理' },
+  { value: FEEDBACK_HANDLED, label: '已处理' },
   { value: '', label: '全部状态' },
 ]
-const activeStatus = ref('pending')
+const activeStatus = ref(FEEDBACK_PENDING)
 
 // 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
 const typeOptions = [
@@ -252,11 +251,11 @@ async function copyReviewLink(reviewId?: number) {
         <StatusTag :type="SEC_STATE_META[row.secState]?.type || 'success'" :text="SEC_STATE_META[row.secState]?.text || '正常'" />
       </template>
       <template #cell-status="{ row }">
-        <StatusTag :type="statusTag[row.status] || 'warning'" :text="statusText[row.status] || row.status" />
+        <StatusTag :type="FEEDBACK_STATUS_META[row.status]?.type || 'warning'" :text="FEEDBACK_STATUS_META[row.status]?.text || row.status" />
       </template>
       <template #actions="{ row }">
         <button class="link" v-press @click="openDetail(row)">
-          <el-icon class="act-ico"><EditPen /></el-icon>{{ row.status === 'handled' ? '查看' : '处理' }}
+          <el-icon class="act-ico"><EditPen /></el-icon>{{ row.status === FEEDBACK_HANDLED ? '查看' : '处理' }}
         </button>
       </template>
     </DataTable>
@@ -264,9 +263,9 @@ async function copyReviewLink(reviewId?: number) {
     <!-- 详情 + 处理抽屉 -->
     <FormDialog
       :show="!!detail"
-      :title="detail?.status === 'handled' ? '反馈详情' : '处理反馈'"
+      :title="detail?.status === FEEDBACK_HANDLED ? '反馈详情' : '处理反馈'"
       :width="520"
-      :footer="detail?.status !== 'handled'"
+      :footer="detail?.status !== FEEDBACK_HANDLED"
       :confirm-text="'标记处理'"
       :confirm-disabled="false"
       :confirm-loading="processingId !== null"
@@ -319,10 +318,10 @@ async function copyReviewLink(reviewId?: number) {
             <StatusTag :type="SEC_STATE_META[detail.secState]?.type || 'success'" :text="SEC_STATE_META[detail.secState]?.text || '正常'" />
           </span>
         </div>
-        <div class="detail-row" v-if="detail.status === 'handled'"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
+        <div class="detail-row" v-if="detail.status === FEEDBACK_HANDLED"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
-        <div class="reply-area" v-if="detail.status !== 'handled'">
+        <div class="reply-area" v-if="detail.status !== FEEDBACK_HANDLED">
           <!-- AUD-PM-14：后端允许空回复（走通用回执文案），此处不得标注必填 -->
           <label>处理说明 / 回复（选填）</label>
           <textarea v-model="reply" rows="4" placeholder="可填写处理说明或回复内容；留空则用户收到通用回执"></textarea>
@@ -330,7 +329,7 @@ async function copyReviewLink(reviewId?: number) {
         </div>
         <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>
       </div>
-      <template v-if="detail?.status === 'handled'" #actions>
+      <template v-if="detail?.status === FEEDBACK_HANDLED" #actions>
         <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
       </template>
     </FormDialog>

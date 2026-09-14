@@ -9,8 +9,10 @@ import java.util.List;
 /**
  * 评价视图对象（管理端专用 VO）
  * <p>
- * 相比公开 {@link ReviewVO}，额外携带管理端审核所需的 {@code isHidden}/{@code hasSensitive}/{@code secState} 字段。
- * 公开接口严禁返回 isHidden/hasSensitive（见 spec §3.x.6.4）。
+ * 相比公开 {@link ReviewVO}，额外携带管理端审核所需的 {@code isHidden} 字段
+ * （{@code secState} 两端均返回：公开接口 {@link ReviewVO#getSecState()} 已放行，
+ * 用于作者本人查看「审核中/已退回」的自有评价，见 spec §3.x.6.4）。
+ * 管理端独有语义字段为 {@code isHidden}（是否被隐藏，仅管理端可见/可改）。
  */
 @Data
 @Schema(description = "评价展示信息（管理端专用，含审核标记）")
@@ -48,9 +50,6 @@ public class ReviewAdminVO {
 
     @Schema(description = "评价时间")
     private LocalDateTime createdAt;
-
-    @Schema(description = "是否包含敏感词（管理端标记用）")
-    private Boolean hasSensitive;
 
     @Schema(description = "是否被隐藏（管理端用，0/1）")
     private Integer isHidden;

@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 /**
  * 档口平均评分批量查询结果
  */
-public class StallAvgRatingDTO {
+public class StallAvgRatingVO {
 
     /** 档口ID（dish.stall_id） */
     private Long stallId;
