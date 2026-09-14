@@ -4,13 +4,6 @@
  */
 
 /**
- * 菜品上架 / 下架状态（2026-09-14：仅用于「菜品」上下架语义）。
- * 注：食堂/档口已改为筛选属性字典，营业/停业状态不再使用本常量（Q-113/Q-115）。
- */
-export const STATUS_ACTIVE = 'active'
-export const STATUS_INACTIVE = 'inactive'
-
-/**
  * 操作日志动作元数据（唯一真源，操作日志页 + 工作台「近期操作」共用）。
  * 必须与后端 `OperationLogConst` 同源：`server/src/main/java/com/bjtufood/common/constant/OperationLogConst.java`
  * （ACTION_* 常量逐个对齐；后端新增动作时此处同步补登，否则列表单元格会回落为裸英文枚举）。

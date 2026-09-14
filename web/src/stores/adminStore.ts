@@ -33,27 +33,7 @@ export const useAdminStore = defineStore('admin', () => {
   const reviews = computed<Review[]>(() => review.list)
   const users = computed<User[]>(() => user.list)
 
-  /**
-   * 统一重新加载全部业务数据（确需全量刷新的场景调用，如批量操作结束后的统一刷新）。
-   *
-   * WEB-09：改为 Promise.allSettled **各域独立容错**——单域失败不再拖垮整页
-   * （此前 Promise.all 任一域 reject 会让其余已成功域的结果对调用方不可见）。
-   * 语义：成功域的数据照常落库；存在失败域时抛出第一个错误，由调用方进入错误态重试。
-   */
-  async function loadAll() {
-    const results = await Promise.allSettled([
-      canteen.loadAll(),
-      stall.loadAll(),
-      dish.loadAll(),
-      review.loadAll(),
-      user.loadAll(),
-    ])
-    const firstRejected = results.find((r): r is PromiseSettledResult<never> & { status: 'rejected' } => r.status === 'rejected')
-    if (firstRejected) throw firstRejected.reason
-  }
-
   return {
-    loadAll,
     canteens,
     stalls,
     dishes,

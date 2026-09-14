@@ -26,14 +26,6 @@ public interface UserService {
     IPage<UserVO> listUsers(int page, int pageSize, String role, String status);
 
     /**
-     * 根据用户名查询用户
-     *
-     * @param username 用户名
-     * @return 用户实体，不存在返回 null
-     */
-    User getByUsername(String username);
-
-    /**
      * 根据邮箱查询用户。
      *
      * @param email 邮箱

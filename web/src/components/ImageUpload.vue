@@ -153,7 +153,7 @@ function removeImage(idx: number) {
   transition: background 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
 .image-remove:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--el-mask-color, rgba(0, 0, 0, 0.7));
 }
 .image-remove:active {
   transform: scale(var(--press-scale));

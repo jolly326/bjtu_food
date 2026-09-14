@@ -38,7 +38,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { useSheetFocus } from '@/composables/useSheetFocus'
 
 const props = defineProps<{
   open: boolean
@@ -53,6 +54,8 @@ const emit = defineEmits<{
   (e: 'submit', reason: string): void
 }>()
 
+const { captureTrigger, restoreFocus } = useSheetFocus()
+
 const reason = ref('')
 const maskShow = ref(false)
 const modalShow = ref(false)
@@ -61,6 +64,8 @@ const modalShow = ref(false)
 function noop() {}
 watch(() => props.open, (v) => {
   if (v) {
+    /** UI-OPT-04：打开时捕获触发焦点，关闭后由 useSheetFocus 还原（H5/桌面可达） */
+    captureTrigger()
     reason.value = ''
     nextTick(() => {
       maskShow.value = true
@@ -69,7 +74,32 @@ watch(() => props.open, (v) => {
   } else {
     maskShow.value = false
     modalShow.value = false
+    restoreFocus()
   }
+})
+
+/** UI-OPT-04：ESC 关闭（H5/桌面可达；小程序无键盘事件，编译期剔除，本端 no-op） */
+function onKeydown(e: KeyboardEvent) {
+  // #ifdef H5
+  if (props.open && e.key === 'Escape') {
+    e.preventDefault()
+    requestClose()
+  }
+  // #endif
+}
+onMounted(() => {
+  // #ifdef H5
+  if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', onKeydown)
+  }
+  // #endif
+})
+onBeforeUnmount(() => {
+  // #ifdef H5
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('keydown', onKeydown)
+  }
+  // #endif
 })
 
 function requestClose() { emit('update:open', false) }

@@ -202,7 +202,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
                 .eq(Review::getDishId, req.getDishId())) > 0) {
-            throw new BusinessException("Already reviewed this dish");
+            throw new BusinessException("您已评价过该菜品");
         }
         Review review = new Review();
         review.setUserId(userId);

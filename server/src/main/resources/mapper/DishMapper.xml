@@ -32,8 +32,6 @@
         <!-- 菜品属性标签字段 -->
         <result property="spiceLevel" column="spice_level"/>
         <result property="region" column="region"/>
-        <!-- 距用户距离（米）：无查询返回该列（selectHotDishesByDistance 已随 §7.10 下线），恒为 null -->
-        <result property="distance" column="distance"/>
     </resultMap>
 
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"

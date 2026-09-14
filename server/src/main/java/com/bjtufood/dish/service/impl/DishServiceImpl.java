@@ -167,7 +167,7 @@ public class DishServiceImpl implements DishService {
         pageSize = norm[1];
         IPage<DishAdminVO> result = dishMapper.selectAllForAdmin(new Page<>(page, pageSize));
         result.setRecords(result.getRecords().stream()
-                .map(this::enrichDishAdminImages)
+                .map(this::enrichImages)
                 .toList());
         return result;
     }
@@ -517,24 +517,26 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 将数据库原始的 imagesJson 解析为 List{@literal <String>} 并回填到 images
+     * 将数据库原始的 imagesJson 解析为绝对 URL 列表并回填到 images。
+     * DishVO 与 DishAdminVO 共用同一套转换逻辑，故统一方法名 enrichImages，以重载区分。
      */
+    private List<String> resolveImages(String imagesJson) {
+        return imageUrlUtil.parseAndToAbsoluteUrls(imagesJson);
+    }
+
     private DishVO enrichImages(DishVO vo) {
         if (vo == null) {
             return null;
         }
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
+        vo.setImages(resolveImages(vo.getImagesJson()));
         return vo;
     }
 
-    /**
-     * 对后台菜品 VO 的 imagesJson 字段进行 URL 转换
-     */
-    private DishAdminVO enrichDishAdminImages(DishAdminVO vo) {
+    private DishAdminVO enrichImages(DishAdminVO vo) {
         if (vo == null) {
             return null;
         }
-        vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(vo.getImagesJson()));
+        vo.setImages(resolveImages(vo.getImagesJson()));
         return vo;
     }
 
