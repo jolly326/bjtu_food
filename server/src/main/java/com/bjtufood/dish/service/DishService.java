@@ -32,15 +32,6 @@ public interface DishService {
     IPage<DishVO> listDishes(DishQueryReq req);
 
     /**
-     * 获取热门菜品 TOP10
-     * <p>
-     * 按评价数降序、评分次之（rating_count DESC, avg_rating DESC），取前10条
-     *
-     * @return 热门菜品列表
-     */
-    List<DishVO> getHotDishes();
-
-    /**
      * 获取热门菜品（支持按用户位置距离加权排序，首页推荐联动定位；可控制返回条数）
      *
      * @param lat   用户纬度（GCJ-02，可为 null）

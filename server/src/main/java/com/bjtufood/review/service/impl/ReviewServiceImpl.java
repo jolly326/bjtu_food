@@ -393,27 +393,6 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void likeReview(Long userId, Long reviewId) {
-        ReviewUseful exist = reviewUsefulMapper.selectOne(
-                new LambdaQueryWrapper<ReviewUseful>()
-                        .eq(ReviewUseful::getUserId, userId)
-                        .eq(ReviewUseful::getReviewId, reviewId));
-        if (exist != null) {
-            throw new BusinessException("你已经喜欢过这条评价");
-        }
-        ReviewUseful useful = new ReviewUseful();
-        useful.setUserId(userId);
-        useful.setReviewId(reviewId);
-        try {
-            reviewUsefulMapper.insert(useful);
-        } catch (DuplicateKeyException e) {
-            // 并发下先查后插存在竞态，唯一键兜底：统一转为业务提示，避免 500
-            throw new BusinessException("你已经喜欢过这条评价");
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void deleteByAdmin(Long id) {
         Review review = reviewMapper.selectById(id);
         if (review != null) {

@@ -175,10 +175,4 @@ public interface ReviewService {
      */
     UsefulResult toggleUseful(Long userId, Long reviewId);
 
-    /**
-     * @deprecated 一期起废弃，请使用 {@link #toggleUseful(Long, Long)}。
-     * 原「喜欢」单向投票语义与「切赞/取消」需求不符。
-     */
-    @Deprecated
-    void likeReview(Long userId, Long reviewId);
 }

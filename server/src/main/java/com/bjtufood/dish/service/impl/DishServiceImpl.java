@@ -71,11 +71,6 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public List<DishVO> getHotDishes() {
-        return getHotDishes(null, null, null);
-    }
-
-    @Override
     @Cacheable(cacheNames = CacheConfig.CACHE_DISH_HOT,
             key = "'hot:' + (#lat ?: 'null') + ':' + (#lng ?: 'null') + ':' + (#limit ?: 'default')")
     public List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit) {
@@ -421,8 +416,6 @@ public class DishServiceImpl implements DishService {
         // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
         dishMapper.recalcRatingBySubquery(dishId);
     }
-
-    // syncCollectCount 已随 favorite 模块移除（task-12.12）；喜欢计数存储方案待架构师评估。
 
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
