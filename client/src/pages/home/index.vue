@@ -44,12 +44,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { useLocationStore } from '@/stores/location'
 import { getLocationIfAuthorized } from '@/utils/location'
+import { promptGeoOnce } from '@/utils/geo-prompt'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
 import Header from '@/components/AppHeader.vue'
@@ -81,7 +82,7 @@ function canteenTab(id: number, name: string): FilterTab {
   return { key: `canteen-${id}`, label: name, type: 'canteen', canteenId: id }
 }
 
-/** 首拉：食品列表就绪后默认加载「全部」（热度流） */
+/** 首拉：食品列表就绪后默认加载「全部」（热度流）；返回 Promise 供「首屏渲染后」时机串接 */
 let bootstrapped = false
 async function ensureBoot() {
   if (bootstrapped) return
@@ -140,14 +141,29 @@ async function onRefresh() {
   refresherTriggered.value = false
 }
 
+/** 把新拿到的坐标写入会话缓存并重算本地距离（提示同意后复用，与静默定位同一条落库路径） */
+function applyLocation(loc: { lat: number; lng: number }) {
+  locationStore.setLocation(loc)
+  dishStore.refreshLocalDistance()
+}
+
 /** 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗；拿到后刷新本地距离，使「距你」即时生效 */
 async function syncLocation() {
   if (locationStore.location) return
   const loc = await getLocationIfAuthorized()
-  if (loc) {
-    locationStore.setLocation(loc)
-    dishStore.refreshLocalDistance()
-  }
+  if (loc) applyLocation(loc)
+}
+
+/**
+ * 首次进入首页的一次性定位引导（§7.16 第 3 条）。
+ * **时序**：await 首屏数据就绪（ensureBoot）+ nextTick 确保瀑布流已渲染，再弹提示——
+ * 提示不在加载链路里 await，故不阻塞首屏；拒绝 / 失败时静默降级（不显示距离、按综合热度排序）。
+ */
+async function maybePromptGeo() {
+  await ensureBoot()
+  await nextTick()
+  const loc = await promptGeoOnce({ hasLocation: !!locationStore.location })
+  if (loc) applyLocation(loc)
 }
 
 function loadData() {
@@ -169,6 +185,8 @@ onShow(() => {
   if (!bootstrapped) ensureBoot()
   // 静默定位（方案 C）：仅已授权才取坐标，未授权不弹窗，避免首页强制定位打断浏览
   void syncLocation()
+  // 首次进入首页：首屏渲染后提示一次「开启定位可看距离」（已提示过则内部直接跳过）
+  void maybePromptGeo()
 })
 
 onShareAppMessage(() => {

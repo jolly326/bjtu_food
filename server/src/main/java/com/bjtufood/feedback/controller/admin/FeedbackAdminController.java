@@ -49,15 +49,16 @@ public class FeedbackAdminController {
                 (int) result.getCurrent(), (int) result.getSize()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），reply 可选。")
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），"
+            + "reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400（学生将收到该回复内容）。")
     @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "回复内容（可选），仅经 JSON body 传参：{reply:...}")
-            @Valid @RequestBody(required = false) FeedbackHandleReq body) {
-        feedbackService.handle(id, body == null ? null : body.getReply());
+            @Parameter(description = "回复内容（必填），仅经 JSON body 传参：{reply:...}；校验失败返回 400")
+            @Valid @RequestBody FeedbackHandleReq body) {
+        feedbackService.handle(id, body.getReply());
         return Result.success();
     }
 }

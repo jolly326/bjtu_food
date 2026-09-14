@@ -13,6 +13,13 @@ export const AUDIT_PENDING = 'pending'
 export const AUDIT_APPROVED = 'approved'
 export const AUDIT_REJECTED = 'rejected'
 
+/** 审核状态展示元数据（StatusTag 类型 + 文案）：菜品/档口/食堂详情与列表共用（§4.9 审核闭环） */
+export const AUDIT_STATUS_META: Record<string, { type: 'warning' | 'success' | 'danger'; text: string }> = {
+  [AUDIT_PENDING]: { type: 'warning', text: '待审核' },
+  [AUDIT_APPROVED]: { type: 'success', text: '已通过' },
+  [AUDIT_REJECTED]: { type: 'danger', text: '已退回' },
+}
+
 /** 内容安检状态：正常（评价/反馈共用，与后端 ReviewAdminVO.secState 契约一致） */
 export const SEC_PASS = 'pass'
 /** 内容安检状态：待复核 */

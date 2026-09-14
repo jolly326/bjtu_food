@@ -2,7 +2,8 @@
 /**
  * FilterSelect：封装 el-select 的筛选下拉（T-1）。
  * - 禁止页面裸写 el-select（约束）。
- * - props: label / options / clearable(默认true) / width(默认160px，命中≥44px)
+ * - props: label / options / clearable(默认true) / width(默认160px，命中≥44px) / disabled
+ *   disabled 用于级联筛选（如档口依赖食堂：未选食堂时可见不可交互）。
  * - v-model 双向；change 事件透传。
  */
 interface Option {
@@ -18,8 +19,9 @@ const props = withDefaults(
     clearable?: boolean
     width?: number | string
     placeholder?: string
+    disabled?: boolean
   }>(),
-  { modelValue: '', label: '', options: () => [], clearable: true, width: 160, placeholder: '请选择' },
+  { modelValue: '', label: '', options: () => [], clearable: true, width: 160, placeholder: '请选择', disabled: false },
 )
 
 const emit = defineEmits<{
@@ -39,6 +41,7 @@ function onUpdate(v: string | number) {
     <el-select
       :model-value="modelValue"
       :clearable="clearable"
+      :disabled="disabled"
       :placeholder="placeholder"
       class="fs-select"
       :style="{ width: typeof width === 'number' ? width + 'px' : width }"

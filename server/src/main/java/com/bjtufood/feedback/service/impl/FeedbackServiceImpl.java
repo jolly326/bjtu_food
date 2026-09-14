@@ -205,8 +205,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
         }
+        // §7.16（2026-09-14 用户拍板）：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
+        // 纯空白与 null 一律视为未填写：主流仍由 DTO 的 @NotBlank 在 Controller 层拦截（400）；
+        // 此处为 Service 层兜底（同口径、同错误码 400），并统一 trim 后落库。
+        String trimmedReply = reply == null ? null : reply.trim();
+        if (!StringUtils.hasText(trimmedReply)) {
+            throw new BusinessException("请填写处理回复（学生将收到该内容）");
+        }
         feedback.setStatus(FeedbackConst.STATUS_HANDLED);
-        feedback.setReply(reply);
+        feedback.setReply(trimmedReply);
         feedback.setHandledAt(LocalDateTime.now());
         // §7.10：管理端操作人身份降级（单口令即单人），不再写 handler_id；
         // 该列保留在库中（retired），列可空，不写即保持 NULL。
@@ -238,9 +245,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             n.setRelatedId(feedback.getId());
             n.setIsRead(0);
             n.setTitle("反馈已处理");
-            n.setContent(StringUtils.hasText(feedback.getReply())
-                    ? "你提交的反馈已处理：" + feedback.getReply()
-                    : "你提交的反馈我们已处理完毕，感谢你的反馈！");
+            // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文。
+            n.setContent("你提交的反馈已处理：" + feedback.getReply());
             notificationService.notify(n);
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理
