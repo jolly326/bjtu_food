@@ -202,9 +202,13 @@ public class ReviewServiceImpl implements ReviewService {
         User reviewUser = userMapper.selectById(userId);
         if (reviewUser == null
                 || reviewUser.getVerified() == null
-                || reviewUser.getVerified() != 1
-                || !StringUtils.hasText(reviewUser.getOpenid())) {
-            throw new BusinessException(403, "请先完成邮箱认证并使用微信登录");
+                || reviewUser.getVerified() != 1) {
+            // 4031 = 邮箱未认证（细分业务码，前端据此弹认证引导，区别于普通 403）
+            throw new BusinessException(4031, "请先完成学号邮箱认证");
+        }
+        if (!StringUtils.hasText(reviewUser.getOpenid())) {
+            // 已认证但无 openid（邮箱验证码登录账号）：msgSecCheck v2 无法调用，须先微信登录
+            throw new BusinessException(403, "请使用微信登录后再发布评价");
         }
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----

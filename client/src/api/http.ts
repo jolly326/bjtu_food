@@ -226,9 +226,11 @@ async function request<T>(
     throw new Error(body.message || '请先完成学号邮箱认证')
   }
   if (body.code === 403) {
-    // 403 = 普通权限拒绝（如越权访问管理接口）：不应误导用户去做邮箱认证。
-    uni.showToast({ title: '无权限访问该内容', icon: 'none' })
-    throw new Error(body.message || '无权限访问该内容')
+    // 403 = 普通权限拒绝（如越权访问管理接口 / 已认证但缺 openid）：不弹邮箱认证引导（避免误导），
+    // 但提示文案优先透传后端 message，否则用户只能看到笼统的「无权限」，无从判断该做什么。
+    const msg = body.message || '无权限访问该内容'
+    uni.showToast({ title: msg, icon: 'none' })
+    throw new Error(msg)
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message
