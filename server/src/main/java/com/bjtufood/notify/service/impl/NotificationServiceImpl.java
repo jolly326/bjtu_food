@@ -48,7 +48,8 @@ public class NotificationServiceImpl implements NotificationService {
         }
         IPage<Notification> p = notificationMapper.selectPage(new Page<>(page, pageSize), wrapper);
         List<NotificationVO> records = p.getRecords().stream().map(this::toVO).toList();
-        return PageResult.of(records, p.getTotal());
+        // page/pageSize 传归一化后的实际生效值（前置 PageUtil.normalize 已写回局部变量）
+        return PageResult.of(records, p.getTotal(), page, pageSize);
     }
 
     @Override
