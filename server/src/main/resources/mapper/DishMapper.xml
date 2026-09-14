@@ -23,10 +23,9 @@
         <result property="stallId" column="stall_id"/>
         <result property="categoryId" column="category_id"/>
         <result property="canteenId" column="canteen_id"/>
-        <!-- 档口位置链路字段（来自 stall 联表） -->
+        <!-- 档口位置链路字段（来自 stall 联表）：楼层/窗口号（营业时间已于 2026-09-14 §7.14 D 下线） -->
         <result property="floor" column="floor"/>
         <result property="windowNo" column="window_no"/>
-        <result property="businessHours" column="business_hours"/>
         <!-- 食堂坐标（GCJ-02）：前端本地算距离用，服务器不再计算 distance -->
         <result property="latitude" column="c_lat"/>
         <result property="longitude" column="c_lng"/>
@@ -79,7 +78,6 @@
             s.name AS stall_name,
             s.floor,
             s.window_no,
-            s.business_hours,
             c.id   AS canteen_id,
             c.name AS canteen_name,
             -- 坐标缺失兜底（旧库 canteen 未填坐标）：回退校区中心默认值，保证前端「距你 Xm」恒有值

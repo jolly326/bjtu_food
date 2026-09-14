@@ -66,4 +66,13 @@ public class ReviewVO {
     /** 当前登录用户是否已标记「有用」（仅登录态返回；公开列表可为 null，以免泄露） */
     @Schema(description = "当前用户是否已标记「有用」（仅登录态返回）")
     private Boolean useful;
+
+    /**
+     * 是否被管理员隐藏（0=正常 / 1=已被隐藏）。
+     * <p>
+     * 仅「我的评价」本人视角填充（用于端上标注「已被隐藏」），公开评价列表恒为 null
+     * （公开列表已在 SQL 层过滤 is_hidden=1，不会看到隐藏内容，也不对外暴露该字段语义）。
+     */
+    @Schema(description = "是否被管理员隐藏：0=正常/1=已隐藏（仅「我的评价」本人视角返回）", example = "0")
+    private Integer isHidden;
 }

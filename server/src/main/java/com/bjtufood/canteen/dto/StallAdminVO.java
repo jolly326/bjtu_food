@@ -29,9 +29,6 @@ public class StallAdminVO {
     @Schema(description = "窗口号", example = "3号窗口")
     private String windowNo;
 
-    @Schema(description = "营业时间，如 10:00-20:00", example = "10:00-20:00")
-    private String businessHours;
-
     @Schema(description = "档口描述")
     private String description;
 

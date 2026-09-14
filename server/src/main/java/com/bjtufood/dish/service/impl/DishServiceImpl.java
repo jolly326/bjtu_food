@@ -98,19 +98,39 @@ public class DishServiceImpl implements DishService {
         return dishMapper.selectHotSearch();
     }
 
+    /**
+     * 浏览量上报（2026-09-14 §7.14 A：同一用户对同一菜品每天只计 1 次）。
+     * <p>
+     * 去重真源为 view_log 表（user_id + target_type='dish' + target_id 的 created_at 落在
+     * 「当天」，自然日按 Asia/Shanghai 切分），与原 5 分钟内存窗口
+     * （{@link ViewRateLimiter}，多用于吸收短时间内的刷新抖动）叠加生效：
+     * <ol>
+     *   <li>5 分钟窗口命中 → 立即返回（省去一次 DB 查询）；</li>
+     *   <li>当日已存在浏览记录 → 幂等返回成功：<b>不自增 view_count，也不重复插记录</b>；</li>
+     *   <li>否则插入一条 view_log 并执行原子自增，同时刷新浏览足迹时间（供「猜你喜欢」）。</li>
+     * </ol>
+     * 并发说明（已登记、不修）：第 2 步「先查后插」存在极小竞态窗口——两个并发首次请求可能
+     * 同时查不到当日记录，导致当日最多多计 1 次（insert 无唯一键约束，view_log 表结构不变）。
+     * 该偏差对热度排序无实质影响，故按用户拍板不加唯一键。
+     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addViewCount(Long dishId, Long userId) {
         // 防刷（P1-5）：同一用户对同一菜品 5 分钟窗口内只计 1 次（内存去重，窗口内重复直接忽略）
         if (!viewRateLimiter.tryAcquire(userId, dishId)) {
             return;
         }
+        // 当日去重（§7.14 A）：当天已计过则幂等返回，不自增、不重复插记录
+        if (historyService.existsTodayDishView(userId, dishId)) {
+            return;
+        }
+        // 记录浏览足迹（去重），供「猜你喜欢」个性化读取；游客不记录（recordDishView 内部判空）
+        historyService.recordDishView(userId, dishId);
         // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
         int affected = dishMapper.increaseViewCount(dishId);
         if (affected == 0) {
             throw new BusinessException("菜品不存在");
         }
-        // 记录浏览足迹（去重），供「猜你喜欢」个性化读取；游客不记录（recordDishView 内部判空）
-        historyService.recordDishView(userId, dishId);
     }
 
     @Override

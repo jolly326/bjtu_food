@@ -152,21 +152,21 @@ INSERT INTO user_feedback (user_id, type, content, contact, status, related_type
 -- 仅用于演示/联调，给档口填位置链路、给菜品填属性标签。
 -- =============================================================
 
--- 档口：楼层 / 窗口号 / 营业时间
-UPDATE stall SET floor='1F',  window_no='1号窗口',  business_hours='10:00-20:00' WHERE id=1;
-UPDATE stall SET floor='1F',  window_no='2号窗口',  business_hours='07:00-14:00' WHERE id=2;
-UPDATE stall SET floor='1F',  window_no='3号窗口',  business_hours='10:00-20:00' WHERE id=3;
-UPDATE stall SET floor='1F',  window_no='4号窗口',  business_hours='10:00-20:00' WHERE id=4;
-UPDATE stall SET floor='2F',  window_no='5号窗口',  business_hours='10:00-21:00' WHERE id=5;
-UPDATE stall SET floor='2F',  window_no='6号窗口',  business_hours='06:30-14:00' WHERE id=6;
-UPDATE stall SET floor='1F',  window_no='7号窗口',  business_hours='10:00-22:00' WHERE id=7;
-UPDATE stall SET floor='1F',  window_no='8号窗口',  business_hours='16:00-23:00' WHERE id=8;
-UPDATE stall SET floor='B1',  window_no='9号窗口',  business_hours='17:00-02:00' WHERE id=9;
-UPDATE stall SET floor='B1',  window_no='10号窗口', business_hours='10:00-23:00' WHERE id=10;
-UPDATE stall SET floor='1F',  window_no='11号窗口', business_hours='10:00-21:00' WHERE id=11;
-UPDATE stall SET floor='1F',  window_no='12号窗口', business_hours='17:00-23:00' WHERE id=12;
-UPDATE stall SET floor='2F',  window_no='13号窗口', business_hours='10:00-21:00' WHERE id=13;
-UPDATE stall SET floor='2F',  window_no='14号窗口', business_hours='07:00-14:00' WHERE id=14;
+-- 档口：楼层 / 窗口号（营业时间 business_hours 已于 2026-09-14 §7.14 D 随列下线一并删除）
+UPDATE stall SET floor='1F',  window_no='1号窗口'  WHERE id=1;
+UPDATE stall SET floor='1F',  window_no='2号窗口'  WHERE id=2;
+UPDATE stall SET floor='1F',  window_no='3号窗口'  WHERE id=3;
+UPDATE stall SET floor='1F',  window_no='4号窗口'  WHERE id=4;
+UPDATE stall SET floor='2F',  window_no='5号窗口'  WHERE id=5;
+UPDATE stall SET floor='2F',  window_no='6号窗口'  WHERE id=6;
+UPDATE stall SET floor='1F',  window_no='7号窗口'  WHERE id=7;
+UPDATE stall SET floor='1F',  window_no='8号窗口'  WHERE id=8;
+UPDATE stall SET floor='B1',  window_no='9号窗口'  WHERE id=9;
+UPDATE stall SET floor='B1',  window_no='10号窗口' WHERE id=10;
+UPDATE stall SET floor='1F',  window_no='11号窗口' WHERE id=11;
+UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
+UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
+UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
 
 -- 菜品：先给全部菜品一个基础属性，再对部分招牌/特征菜做差异化
 UPDATE dish SET spice_level=1, portion=1, serve_period='lunch,dinner', limited=0

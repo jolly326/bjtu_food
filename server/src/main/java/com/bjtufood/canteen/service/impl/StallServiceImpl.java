@@ -81,6 +81,10 @@ public class StallServiceImpl implements StallService {
         vo.setCanteenId(stall.getCanteenId());
         vo.setName(stall.getName());
         vo.setLocation(stall.getLocation());
+        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于 2026-09-14 §7.14 D 整体下线，
+        // 此前该值本就未填充（恒为 null），故删除实体/VO 字段不影响后台接口对外语义。
+        vo.setFloor(stall.getFloor());
+        vo.setWindowNo(stall.getWindowNo());
         vo.setDescription(stall.getDescription());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         // 档口评分统一实时聚合（BCNF：stall.avg_rating 孤岛字段已删，与 toVO 同口径，避免两端不一致）

@@ -45,10 +45,6 @@ public class Stall {
     @Schema(description = "窗口号", example = "3号窗口")
     private String windowNo;
 
-    /** 营业时间，如 10:00-20:00 */
-    @Schema(description = "营业时间，如 10:00-20:00", example = "10:00-20:00")
-    private String businessHours;
-
     /** 档口描述 */
     @Schema(description = "档口描述")
     private String description;

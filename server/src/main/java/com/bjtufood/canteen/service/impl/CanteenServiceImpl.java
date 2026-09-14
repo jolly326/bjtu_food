@@ -133,6 +133,10 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setName(stall.getName());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         vo.setLocation(stall.getLocation());
+        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于 2026-09-14 §7.14 D 整体下线，
+        // 此前该值本就未填充（恒为 null），故删除实体/VO 字段不改变本接口对外语义。
+        vo.setFloor(stall.getFloor());
+        vo.setWindowNo(stall.getWindowNo());
         vo.setDescription(stall.getDescription());
         BigDecimal avg = avgRatingMap.get(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));

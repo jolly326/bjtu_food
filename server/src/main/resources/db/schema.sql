@@ -88,7 +88,6 @@ CREATE TABLE IF NOT EXISTS `stall`
     `location`       VARCHAR(128) NULL    DEFAULT NULL COMMENT '档口位置',
     `floor`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '楼层（如 1F/2F）',
     `window_no`      VARCHAR(32)  NULL    DEFAULT NULL COMMENT '窗口号（如 3号窗口）',
-    `business_hours` VARCHAR(64)  NULL    DEFAULT NULL COMMENT '营业时间，如 10:00-20:00',
     `description`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '档口描述',
     `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'open' COMMENT '状态：open / closed',
@@ -655,5 +654,25 @@ END$$
 DELIMITER ;
 CALL `drop_review_tags_column`();
 DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
+
+-- 字段下线（2026-09-14 §7.14 D 用户拍板）：
+--   stall.business_hours（营业时间）——用户明确「不需要营业时间」，端上零消费（无展示/无读取），
+--   实体（Stall）/VO（StallDetailVO、StallAdminVO、DishVO）与 Mapper 映射同批移除。
+--   CREATE TABLE 已同步移除该列定义；旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
+--   注意：同批保留 stall.floor（楼层）与 stall.window_no（窗口号）——端上有消费（档口卡展示位置）。
+DROP PROCEDURE IF EXISTS `drop_stall_business_hours`;
+DELIMITER $$
+CREATE PROCEDURE `drop_stall_business_hours`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'business_hours'
+    ) THEN
+        ALTER TABLE `stall` DROP COLUMN `business_hours`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_stall_business_hours`();
+DROP PROCEDURE IF EXISTS `drop_stall_business_hours`;
 
 SET FOREIGN_KEY_CHECKS = 1;

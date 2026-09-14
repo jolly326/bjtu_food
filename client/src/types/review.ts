@@ -23,6 +23,9 @@ export interface Review {
   images?: string[]
   /** 内容安检状态（后端 ReviewVO）：pass=通过对外可见；review=机审中，仅作者本人可见 */
   secState?: 'pass' | 'review'
+  /** 管理侧隐藏标记（§7.14，后端 isHidden）：仅 /my/reviews 对作者本人返回。
+   *  与 secState 语义不同：review=机审中（待过审、仍会对外展示），isHidden=已被隐藏（不再对外展示） */
+  isHidden?: boolean
   // 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
   // 菜品评价保留 评分+文字+图片+有用 的口碑形态
 }

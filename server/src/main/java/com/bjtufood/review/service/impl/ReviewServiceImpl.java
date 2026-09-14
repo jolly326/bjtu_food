@@ -60,6 +60,11 @@ public class ReviewServiceImpl implements ReviewService {
     private final SensitiveFilter sensitiveFilter;
     private final ContentSecurityService contentSecurityService;
 
+    /**
+     * 菜品评价公开列表。
+     * <p>
+     * 排序（2026-09-14 §7.14 B）：sort 缺省/sort=useful 按「有用数」置顶，sort=latest 按时间倒序。
+     */
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
@@ -103,7 +108,10 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
         int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // 我的评价：固定按发表时间倒序（本人视角无需「有用」排序与 useful 标记回写）
+        // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden/sec_state 过滤均不适用——
+        // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」），
+        // 机检待复核（sec_state=review）同样放行（端上提示「审核中」）。
+        // 排序固定按发表时间倒序（sort=latest 显式传入，本人评价按时间更自然；与公开列表默认「有用数置顶」解耦）
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
         fillImages(pageResult.getRecords());
         return pageResult;

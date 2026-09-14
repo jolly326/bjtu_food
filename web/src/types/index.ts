@@ -26,8 +26,6 @@ export interface Stall {
   floor?: string;
   /** 窗口号 */
   windowNo?: string;
-  /** 营业时间，如 10:00-20:00 */
-  businessHours?: string;
   created_at: Date;
   updated_at: Date;
 }

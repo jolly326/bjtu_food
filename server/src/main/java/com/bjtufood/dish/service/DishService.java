@@ -49,7 +49,12 @@ public interface DishService {
     /**
      * 增加菜品浏览量
      * <p>
-     * 防刷机制：同一用户同一菜品 5 分钟内只计 1 次
+     * 防刷机制（2026-09-14 §7.14 A）：
+     * <ol>
+     *   <li>同一用户同一菜品 5 分钟内只计 1 次；</li>
+     *   <li>同一用户同一菜品<b>每天（自然日，Asia/Shanghai）只计 1 次</b>，
+     *       当日重复上报幂等返回成功，既不自增 view_count 也不重复写 view_log。</li>
+     * </ol>
      *
      * @param dishId 菜品ID
      * @param userId 当前用户ID

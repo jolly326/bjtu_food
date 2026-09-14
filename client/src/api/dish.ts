@@ -37,7 +37,6 @@ export function toDish(raw: RawRow): Dish {
     // ===== task-03 位置链路（来自 stall 联表） =====
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
-    businessHours: raw.businessHours || '',
     updatedAt: raw.updatedAt || '',
     // ===== task-03 属性标签（来自 dish） =====
     spiceLevel: raw.spiceLevel ?? raw.spice_level,

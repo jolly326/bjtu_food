@@ -113,7 +113,6 @@ export function stallToLegacy(raw: any): Stall {
     status: raw.status === 'open' ? 'active' : 'inactive',
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
-    businessHours: raw.businessHours || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
@@ -130,7 +129,6 @@ export function stallToApi(data: Partial<Stall>) {
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'closed' : 'open'),
     floor: data.floor,
     windowNo: data.windowNo,
-    businessHours: data.businessHours,
   })
 }
 

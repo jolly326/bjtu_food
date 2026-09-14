@@ -30,6 +30,9 @@ function toReview(raw: RawRow): Review {
       : [],
     // 内容安检状态：pass=对外可见；review=机审中仅作者本人可见（缺省 pass 兼容旧响应）
     secState: raw.secState === 'review' ? 'review' : 'pass',
+    // 管理侧隐藏标记（§7.14）：仅 /my/reviews 返回给作者本人（后端 isHidden，兼容 is_hidden）。
+    // 语义区别于 secState：secState='review' 为机审中（待过审），isHidden=true 为已被隐藏（不再对外展示）。
+    isHidden: !!(raw.isHidden ?? raw.is_hidden ?? false),
   }
 }
 
@@ -85,7 +88,9 @@ export async function deleteReview(reviewId: number): Promise<void> {
 
 /**
  * 我的评价列表（GET /my/reviews，STU 需邮箱认证）
- * 按发表时间倒序，返回项含 dishName；删除仍走统一的 DELETE /reviews/{id}。
+ * 返回项含 dishName；删除仍走统一的 DELETE /reviews/{id}。
+ * §7.14：后端不再按 is_hidden 过滤（作者本人可见自己的被隐藏评价），并返回 isHidden 供前端标注；
+ * 排序由后端默认控制（按「有用数」置顶），前端不传 sort 覆写。
  */
 export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<{ list: Review[]; total: number }> {
   const res = await get<any>('/my/reviews', {

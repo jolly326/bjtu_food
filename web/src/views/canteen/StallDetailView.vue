@@ -43,7 +43,7 @@ const stall = computed(() => store.stalls.find(s => Number(s.id) === stallId.val
 const activeTab = ref(0)
 
 const editing = ref(false)
-const stallForm = ref({ name: '', location: '', description: '', image: '', avg_rating: 0, status: 'active' as 'active' | 'inactive', floor: '', windowNo: '', businessHours: '' })
+const stallForm = ref({ name: '', location: '', description: '', image: '', avg_rating: 0, status: 'active' as 'active' | 'inactive', floor: '', windowNo: '' })
 const stallFormErrors = ref<Record<string, string>>({})
 
 const showImageModal = ref(false)
@@ -146,7 +146,7 @@ watch([canteen, stall], ([c, s]) => {
     stallForm.value = {
       name: s.name, location: s.location || '', description: s.description || '',
       image: s.image || '', avg_rating: s.avg_rating, status: s.status as 'active' | 'inactive',
-      floor: s.floor || '', windowNo: s.windowNo || '', businessHours: s.businessHours || '',
+      floor: s.floor || '', windowNo: s.windowNo || '',
     }
   }
 }, { immediate: true })
@@ -159,7 +159,7 @@ function toggleEdit() {
       name: stall.value.name, location: stall.value.location || '',
       description: stall.value.description || '', image: stall.value.image || '',
       avg_rating: stall.value.avg_rating, status: stall.value.status as 'active' | 'inactive',
-      floor: stall.value.floor || '', windowNo: stall.value.windowNo || '', businessHours: stall.value.businessHours || '',
+      floor: stall.value.floor || '', windowNo: stall.value.windowNo || '',
     }
     stallFormErrors.value = {}
   }
@@ -189,7 +189,7 @@ function cancelEdit() {
       name: stall.value.name, location: stall.value.location || '',
       description: stall.value.description || '', image: stall.value.image || '',
       avg_rating: stall.value.avg_rating, status: stall.value.status as 'active' | 'inactive',
-      floor: stall.value.floor || '', windowNo: stall.value.windowNo || '', businessHours: stall.value.businessHours || '',
+      floor: stall.value.floor || '', windowNo: stall.value.windowNo || '',
     }
   }
   stallFormErrors.value = {}
@@ -300,13 +300,6 @@ function enterDish(id: number) { router.push(`/dashboard/canteens/${canteenId.va
               <div class="detail-control">
                 <span v-if="!editing" class="detail-value">{{ stallForm.windowNo || '-' }}</span>
                 <input v-else v-model="stallForm.windowNo" class="form-input" placeholder="如 12 号窗口" />
-              </div>
-            </div>
-            <div class="detail-row detail-row-desc">
-              <span class="detail-label">营业时间</span>
-              <div class="detail-control">
-                <span v-if="!editing" class="detail-value">{{ stallForm.businessHours || '-' }}</span>
-                <input v-else v-model="stallForm.businessHours" class="form-input" placeholder="如 10:00-20:00" />
               </div>
             </div>
             <div class="detail-row detail-row-desc">

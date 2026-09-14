@@ -28,9 +28,6 @@ export interface Dish {
   floor?: string
   /** 窗口号 */
   windowNo?: string
-  /** 档口营业时间（如 10:00-20:00） */
-
-  businessHours?: string
 
   /** ===== 属性标签（task-03，DishVO 扩展，来自 dish） ===== */
   /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */

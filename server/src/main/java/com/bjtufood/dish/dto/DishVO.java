@@ -81,10 +81,6 @@ public class DishVO {
     @Schema(description = "食堂经度（GCJ-02），前端本地算距离用", example = "116.40")
     private BigDecimal longitude;
 
-    /** 档口营业时间，来自 stall 联表 */
-    @Schema(description = "档口营业时间，如 10:00-20:00", example = "10:00-20:00")
-    private String businessHours;
-
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;
 
