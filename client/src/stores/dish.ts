@@ -30,6 +30,12 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
   const canteenList = ref<CanteenInfo[]>([])
+  /** 食堂字典最近一次成功拉取时间（ms）；0 = 从未成功。供后台刷新节流判断 */
+  let canteensFetchedAt = 0
+  /** 后台刷新节流窗口：进程常驻（tabBar 页不销毁）期间回到首页最多每 5 分钟重拉一次字典 */
+  const CANTEEN_REFRESH_INTERVAL_MS = 5 * 60 * 1000
+  /** 后台刷新进行中标志：onShow 高频触发时防重复请求 */
+  let canteensRefreshing = false
 
   /** 首页筛选 Bar：食堂/维度筛选选中态（选中即换内容） */
   const filterTab = ref<FilterTab | null>(null)
@@ -68,12 +74,33 @@ export const useDishStore = defineStore('dish', () => {
   /** 评价请求序号：排序切换/翻页/进新菜品时丢弃过期响应，防触底 append 与 reset 交错（对齐 filterFetchSeq 模式） */
   let reviewFetchSeq = 0
 
-  async function fetchCanteens() {
+  async function fetchCanteens(options?: { keepOnFail?: boolean }) {
     try {
       canteenList.value = await canteenApi.getCanteenList()
+      canteensFetchedAt = Date.now()
     } catch (e) {
       console.error('加载食堂列表失败', e)
-      canteenList.value = []
+      // keepOnFail（后台静默刷新用）：失败保留旧列表不清空，避免把可用字典刷没；
+      // 首次拉取维持原清空语义（渲染空态，由重试路径补拉）
+      if (!options?.keepOnFail) canteenList.value = []
+    }
+  }
+
+  /**
+   * 食堂/档口字典最小失效机制（保证管理端改名最终可见，不追求实时）：
+   * 距上次成功拉取超过节流窗口才后台重拉，失败保留旧列表（keepOnFail）。
+   * 供常驻页（首页 onShow）调用——tabBar 页不销毁，此前仅 onLoad「空才拉」，
+   * 进程存活期间字典永不更新（PUT /admin/canteens|stalls/{id} 改名需杀进程才可见）。
+   * 字典无 storage 持久化，冷启动必拉新，本机制覆盖的只是「进程常驻热启动」窗口。
+   */
+  async function refreshCanteensIfStale() {
+    if (canteensRefreshing) return
+    if (canteensFetchedAt > 0 && Date.now() - canteensFetchedAt < CANTEEN_REFRESH_INTERVAL_MS) return
+    canteensRefreshing = true
+    try {
+      await fetchCanteens({ keepOnFail: true })
+    } finally {
+      canteensRefreshing = false
     }
   }
 
@@ -330,7 +357,7 @@ export const useDishStore = defineStore('dish', () => {
     loading,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterSpice, filterError,
     setHomePrice, setHomeSpice,
-    fetchCanteens, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
+    fetchCanteens, refreshCanteensIfStale, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
     fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,
     withLocalDistance,

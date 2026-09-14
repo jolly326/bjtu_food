@@ -203,6 +203,9 @@ onShow(() => {
   void syncLocation()
   // 首次进入首页：首屏渲染后提示一次「开启定位可看距离」（已提示过则内部直接跳过）
   void maybePromptGeo()
+  // 食堂字典最小失效机制：进程常驻期间回首页按节流窗口后台重拉（失败保留旧列表），
+  // 保证管理端改食堂/档口名后最终可见（spec §7.7 附加核查）；内部自带节流与去重，onShow 高频触发安全
+  void dishStore.refreshCanteensIfStale()
 })
 
 onShareAppMessage(() => {

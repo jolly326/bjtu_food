@@ -17,9 +17,10 @@ export interface ApiResponse<T = unknown> {
 
 /**
  * 「已由请求层提示过」的错误标记。
- * 请求层对网络异常 / 401 / 4031 / 403 已各自 Toast（4031 另弹 AuthSheet 认证引导；
- * 403 且 message 指向「微信登录」时另给可执行引导——重跑微信静默登录补 openid），
- * 调用方 catch 到本类型时应只做状态回滚，不再重复 Toast（避免同一失败弹两条提示）。
+ * 请求层对网络异常 / 401 / 4031 / 403 已各自提示（4031 另弹 AuthSheet 认证引导；
+ * 403 且 message 指向「微信登录」时另弹窗说明 + 用户确认后才重跑微信静默登录补 openid，
+ * 依据 spec §7.7 第 1 条（2026-09-14 裁决）：提示 + 用户主动确认，禁止自动重登换登录态），
+ * 调用方 catch 到本类型时应只做状态回滚，不再重复提示（避免同一失败弹两条提示）。
  */
 export class SurfacedError extends Error {}
 
@@ -108,29 +109,49 @@ async function handleUnverified(): Promise<void> {
 /**
  * 统一「需微信登录」处理（403 且 message 指向微信登录，spec §7.5 / §7.7 第 1 条）：
  * 已认证（verified=1）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
- * message「请使用微信登录后再发布评价」。端上须给**可执行引导**，而非仅 toast 后无下文：
- * 复用既有登录方式——再跑一次微信静默登录（wx.login → POST /auth/wechat-login）补齐 openid，
- * 登录成功后提示可重试。**不新增页面、不新增登录按钮、不弹邮箱认证引导**（邮箱已认证，弹它属误导）。
+ * message「请使用微信登录后再发布评价」。端上处置 = 「提示 + 用户主动确认」
+ * （依据 spec §7.7 第 1 条，2026-09-14 裁决，禁止自动重登换登录态）：
+ * 弹窗说明 + 用户点「重新登录」确认后，才重跑微信静默登录（wx.login → POST /auth/wechat-login）
+ * 补齐 openid；**禁止自动重登**——对「无 openid 的历史学号账号」自动重登会静默切到新游客号
+ * （登录态无感知互换，且新号 verified=false，重试仍撞 4031），顺滑收益≈0，静默换号代价真实。
+ * 用户点取消 / 弹窗调用失败：仅保留提示，不换号、不清登录态；确认重登成功后提示用户重试原操作。
+ * **不新增页面、不弹邮箱认证引导**（邮箱已认证，弹它属误导）。
  */
 function isWechatLoginRequired(msg: string): boolean {
   return /微信登录/.test(msg)
 }
 
-async function handleWechatLoginRequired(msg: string): Promise<void> {
-  try {
-    const { useUserStore } = await import('@/stores/user')
-    const userStore = useUserStore()
-    // 关键：必须经 wx.login 重新取 code 换号（后端在 wechat-login 时按 openid 绑定），
-    // 而 silentLogin 在「已有 token」分支只刷新 profile、不会补 openid。
-    // 故先清本地态（forceLogout 幂等，仅清 token/userInfo，不触发请求），再跑完整静默登录；
-    // 登录成功后用户可原路重试即可正常发布（缺 openid 的账号补上绑定）。
-    userStore.forceLogout()
-    await userStore.silentLogin(true)
-    uni.showToast({ title: `${msg}，已重新发起微信登录，请重试`, icon: 'none' })
-  } catch {
-    // 兜底：登录动作不可用时仍透传后端 message（含「请使用微信登录」的明确指引）
-    uni.showToast({ title: msg, icon: 'none' })
-  }
+function handleWechatLoginRequired(msg: string): void {
+  uni.showModal({
+    title: '需要微信登录',
+    content: msg,
+    confirmText: '重新登录',
+    showCancel: true,
+    success: (r) => {
+      // 取消：弹窗本身已说明原因，仅保留提示，不换号、不清登录态
+      if (!r.confirm) return
+      void (async () => {
+        try {
+          const { useUserStore } = await import('@/stores/user')
+          const userStore = useUserStore()
+          // 关键：必须经 wx.login 重新取 code 换号（后端在 wechat-login 时按 openid 绑定），
+          // 而 silentLogin 在「已有 token」分支只刷新 profile、不会补 openid。
+          // 故先清本地态（forceLogout 幂等，仅清 token/userInfo，不触发请求），再跑完整静默登录。
+          userStore.forceLogout()
+          await userStore.silentLogin(true)
+          // 成功仅表示已补齐 openid，原操作需用户自行重试
+          uni.showToast({ title: '已重新登录，请重试', icon: 'none' })
+        } catch {
+          // 兜底：重新登录动作失败——仅提示，本地登录态按 401 既有机制自恢复，不在此重复处理
+          uni.showToast({ title: '重新登录未完成，请稍后重试', icon: 'none' })
+        }
+      })()
+    },
+    fail: () => {
+      // 弹窗调用失败（极端环境）：降级为仅提示后端 message，不换号、不清登录态
+      uni.showToast({ title: msg, icon: 'none' })
+    },
+  })
 }
 
 function getToken(): string {
@@ -264,7 +285,8 @@ async function request<T>(
   }
   if (body.code === 403) {
     // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
-    // ① 已认证但缺 openid（message 含「微信登录」）→ 给可执行引导（重跑微信静默登录），不弹邮箱认证；
+    // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
+    //   （2026-09-14 裁决：提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
     // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
     // 两种情形都不弹 AuthSheet（邮箱认证引导），避免把「需微信登录」误导成「需邮箱认证」。
     const msg = body.message || '无权限访问该内容'
