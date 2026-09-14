@@ -33,22 +33,6 @@ export const useUserStore = defineStore('user', () => {
     return me
   }
 
-  async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      const res = await userApi.login(username, password)
-      // 已知折中（M12）：token 维持 localStorage，非 httpOnly Cookie，存在 XSS 窃取风险但免跨端改动。
-      localStorage.setItem('token', res.token)
-      localStorage.setItem('username', res.username)
-      // 登录接口本身不返回 adminId/role，登录成功后立即回源 profile 回填（C02 + M11 缓存）
-      try {
-        await loadProfile()
-      } catch { /* profile 失败不阻断登录，守卫会兜底 */ }
-      return { success: true }
-    } catch (e: any) {
-      return { success: false, error: e.message || '管理员账号或密码错误' }
-    }
-  }
-
   /** 统一清理登录态（M09）：清除 localStorage 并重置 store 状态，避免残留上一账号信息 */
   function clearAuth() {
     localStorage.removeItem('token')
@@ -61,5 +45,5 @@ export const useUserStore = defineStore('user', () => {
 
   // 注意：不再在 setup 顶层自动调用 loadAll()，避免未登录（无 token）时触发 getAll() 请求
   // 导致 http 拦截层 401 清 token 跳登录的副作用。list 由实际需要的页面显式调用 loadAll() 加载。
-  return { list, adminId, role, loadAll, loadProfile, toggleUserStatus, login, clearAuth }
+  return { list, adminId, role, loadAll, loadProfile, toggleUserStatus, clearAuth }
 })

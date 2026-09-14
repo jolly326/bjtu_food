@@ -1,4 +1,4 @@
-import type { Canteen, Dish, Review, SecState, Stall, User, AuditVO, AdminUser } from '@/types'
+import type { Canteen, Dish, Review, SecState, Stall, User, AuditVO } from '@/types'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[]; list?: T[] }
@@ -246,18 +246,6 @@ export function auditToLegacy(raw: any): AuditVO {
     submitterName: (raw.submitterName ?? raw.submitter_name) || '',
     audit_status: (raw.auditStatus ?? raw.audit_status) || 'pending',
     reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
-    created_at: toDate(raw.createdAt || raw.created_at),
-    updated_at: toDate(raw.updatedAt || raw.updated_at),
-  }
-}
-
-export function adminUserToLegacy(raw: any): AdminUser {
-  return {
-    id: raw.id,
-    username: raw.username,
-    nickname: raw.nickname || '',
-    role: raw.role || 'admin',
-    status: raw.status || 'active',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
