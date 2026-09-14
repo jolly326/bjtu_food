@@ -1,33 +1,40 @@
 # Loop 状态看板（STATUS）
 
-- **当前轮次**：ITER-003（团队缺陷与不一致排查，已产出报告）
-- **上一轮结论**：ITER-002 二轮对齐（4 项决议落地）
-- **本轮报告**：`docs/loop/audit/ITER-003-AUDIT.md`（汇总）＋ `audit/backend.md`＋`audit/frontend.md`（明细）
-- **问题渠道**：`docs/loop/QUESTIONS.md`（开放：Q-004~Q-008、Q-013~Q-028）
+- **当前轮次**：ITER-003（团队缺陷与不一致排查）→ A/B 批次已闭环
+- **报告**：`docs/loop/audit/ITER-003-AUDIT.md`（汇总）＋ `backend.md` / `frontend.md`（明细）
+- **验收标准**：`docs/loop/launch-checklist.md`（三项并行）
+- **问题渠道**：`docs/loop/QUESTIONS.md`
 
-## ITER-003 排查汇总
-| 级别 | 后端 | 前端 | 合计 |
-|---|---|---|---|
-| 🔴 | 3 | 2 | 5 |
-| 🟠 | 9 | 9 | 18 |
-| 🔵 | 6 | 5 | 11 |
+## ITER-003 批次进度
 
-**放行结论：不放行**（5 个 🔴）。
+| 批次 | 内容 | 状态 |
+|---|---|---|
+| **A** | 死方法 `likeReview` / `getHotDishes()`、web 401 死跳 `/login`、悬空注释 | ✅ 已闭环 |
+| **B** | 命名统一（`StallAvgRatingDTO`→`VO`）、死字段 `hasSensitive`、常量单一真源（`AuditStatusConst`/`SecStateConst`）、组件与 composable 下沉（4 个）、`PUT /admin/feedbacks/{id}` 收敛为仅 body、删中转文件与孤立 store、物理删除 5 个死文件、修复 `HistoryService` 缺失 import | ✅ 已闭环 |
+| **C** | 需用户拍板项 | ✅ 全部拍板（§7.9~§7.12） |
+| **D** | 蓝色优化项（热度公式抽常量、`user` 保留字转义评估等） | ⏳ 剩余少量 |
 
-## 批次进度
-- ✅ **A 批次（本轮已清零）**：RB1 删 `likeReview` 死方法｜RB2 删 `getHotDishes()` 无参重载｜RF1 删 web 401 死跳 `/login`｜RB11 清理悬空技术债注释。验证：`mvn compile` EXIT=0、`npm run build` EXIT=0。
-- ⏳ **B 批次（下一轮）**：RB3 `handler_id` 运行时验证与处置｜RF2 `adminId` 自保护死链｜RF7 `/dashboard/account` 死链｜RF4+RF5 client 组件/composable 下沉｜RF3 占位文件删除（需用户批准删除权限）｜RB7/RB8/RB9/RB10/RB12/RB14/RB15/RB17 后端清理与契约回写
-- ⏳ **C 批次（待拍板）**：Q-023~Q-028
-- ⏳ **D 批次（排期）**：11 条 🔵 优化（热度公式抽常量、反馈状态映射集中、未使用 import、幽灵接口注释等）
+> **教训（已记入流程）**：`mvn compile` 增量编译会被旧 class 掩盖缺失 import，**门禁须用 `mvn clean compile`**。
 
-## 待用户决策（阻塞）
-| 事项 | 阻塞什么 |
-|---|---|
-| Q-004 重新部署云托管 | 后台全部功能（上一版早于今日修复） |
-| Q-005 后台上传 31 道菜首图 | 小程序菜品图（上传鉴权已修，待部署生效） |
-| Q-023 管理端操作人身份 | 审计链（handler_id / 操作日志）与自保护分支的去留 |
-| Q-024 / Q-025 / Q-026 | 账号设置入口、review.tags 列、上新/促销等板块存废 |
-| Q-006 小程序 downloadFile 域名 | 正式版图片显示 |
+## 待用户执行（5 项，见 launch-checklist D 段）
+
+| # | 事项 | 影响 |
+|---|---|---|
+| D1 | 云托管按 `main`（`d75b981`）重新部署 | 后台可用（`ADMIN_TOKEN`/COS/上传鉴权修复才生效） |
+| D2 | 上传 31 张菜品首图（当前 31/31 缺失）+ 按 `dish-proofread-checklist.md` 逐条校对 | 小程序菜品图与数据质量 |
+| D3 | 小程序 downloadFile 域名加 COS 域名 | 正式版图片显示 |
+| D4 | 执行 DB 迁移（`serve_period`/`limited`/`review.tags` 三列删除，脚本幂等） | 清除孤儿列 |
+| D5 | （已完成）死文件删除授权 | ✅ 5 个文件已物理删除 |
+
+## 已闭环决策（spec §7.1 ~ §7.12）
+
+首发校本部 / 定位找吃的 / 投稿合并进 feedback / 先发后审+举报人工巡查 / 评价准入双约束（反馈免认证）/ 收藏不存在 / 管理端菜品直接 approved / 风味菜系定型 / isNew·餐段·限量下线 / 5 个零消费入口下线 / 操作人身份降级 / 评价 tags 删列 / 账号设置入口删除 / 分页契约收尾 / 举报去重 / 验收三项并行 / 不做只读口令 / 下架菜评价保留 / 不做「喜欢」计数 / 注销色保留主色
+
+## 下一步候选
+
+1. **D 批次**：热度公式抽常量、`user` 表名转义评估、`FeedbackView` 等剩余蓝色项
+2. **二期**：反馈「一键转菜品」（§7.3/§7.7）
+3. **UI 文案**：反馈入口「审核后上架」与「48 小时内处理」两处文案落位（属 UI 评审范围，待设计师确认落点）
 
 ## 循环触发
 - 手动：用户说「继续下一轮」→ 读本文件接续
