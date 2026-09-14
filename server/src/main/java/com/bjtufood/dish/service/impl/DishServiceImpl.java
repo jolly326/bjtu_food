@@ -349,6 +349,9 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
+        // 产品定型（2026-09-14 用户拍板）：管理员即权威——后台新增直接审核通过。
+        // 否则落库默认 audit_status='pending'，而小程序端仅展示 approved，新录入的菜品将全部不可见。
+        dish.setAuditStatus(DishConst.AUDIT_APPROVED);
         dishMapper.insert(dish);
     }
 
@@ -365,6 +368,9 @@ public class DishServiceImpl implements DishService {
             throw new BusinessException("请至少保留 1 张菜品图");
         }
         applyReq(dish, req);
+        // 同上（2026-09-14 用户拍板）：管理员编辑视为权威操作，确保菜品保持可见，
+        // 顺带修正历史 pending/rejected 态，避免"改了信息反而从端上消失"。
+        dish.setAuditStatus(DishConst.AUDIT_APPROVED);
         dishMapper.updateById(dish);
         // 契约约定：null 表示清空可空的原价/促销价；updateById 默认 NOT_NULL 策略不落 null，需显式置空
         boolean clearOriginalPrice = req.getOriginalPrice() == null;
