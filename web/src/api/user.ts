@@ -1,11 +1,6 @@
 import type { User } from '@/types'
-import { get, post, put } from './http'
+import { get, put } from './http'
 import { pageRecords, userToLegacy } from './adapter'
-
-export async function login(username: string, password: string): Promise<{ token: string; username: string }> {
-  // 方案 C：管理后台专用登录端点（账号密码 + BCrypt + JWT），与小程序微信登录体系解耦（§5.y.5）
-  return await post('/auth/admin/login', { account: username, password })
-}
 
 /**
  * 用户列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。

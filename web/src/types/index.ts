@@ -105,17 +105,6 @@ export interface AuditVO {
   updated_at: Date;
 }
 
-// 后台管理员账号
-export interface AdminUser {
-  id: bigint;
-  username: string;
-  nickname?: string;
-  role: string;
-  status: string;
-  created_at: Date;
-  updated_at: Date;
-}
-
 // review 评价表
 export interface Review {
   id: bigint;

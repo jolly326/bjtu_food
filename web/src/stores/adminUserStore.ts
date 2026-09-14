@@ -1,24 +1,18 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { AdminUser } from '@/types'
-import { adminApi } from '@/api'
 
+/**
+ * 已下线（2026-09-14）：管理员账号 store。
+ *
+ * 原实现在 store 初始化时就发起 /admin/admins、/admin/admins/me 请求，
+ * 而这两个接口在「管理端去登录与角色体系」（2026-09-13 定型）后已不存在，
+ * 导致打开后台即产生 404 请求。现改为纯占位：不再发起任何请求。
+ *
+ * 保留 myRole 仅供布局层读取，待页面收口后随本文件一并物理删除。
+ */
 export const useAdminUserStore = defineStore('adminUser', () => {
-  const list = ref<AdminUser[]>([])
+  const list = ref<never[]>([])
   const myRole = ref<string>('admin')
 
-  async function loadAll() { list.value = await adminApi.getAll() }
-  async function loadMyRole() { try { myRole.value = await adminApi.getMyRole() } catch { myRole.value = 'admin' } }
-  async function add(data: { username: string; password: string; nickname?: string }) { await adminApi.create(data); await loadAll() }
-  async function update(id: number, data: { nickname?: string; password?: string }) { await adminApi.updateById(id, data); await loadAll() }
-  async function setStatus(id: number, status: 'active' | 'disabled') { await adminApi.setStatus(id, status); await loadAll() }
-  async function remove(id: number) { await adminApi.deleteById(id); await loadAll() }
-
-  // 顶层不再裸发请求（对齐 userStore/canteenStore 已吸取的教训）：未登录（无 token）时跳过，
-  // 避免 http 拦截层 401 清 token 跳登录的副作用；有 token 时兜底加载并吞掉拒绝（WEB-108）。
-  if (true) {
-    loadAll().catch(() => {})
-  }
-  loadMyRole()
-  return { list, myRole, add, update, setStatus, remove, loadAll, loadMyRole }
+  return { list, myRole }
 })

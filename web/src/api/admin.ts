@@ -1,34 +1,10 @@
-import type { AdminUser } from '@/types'
-import { del, get, post, put } from './http'
-import { pageRecords, adminUserToLegacy } from './adapter'
-
-/** 后台管理员账号列表（pageSize 对齐后端 PageUtil 上限 100，超限会被静默截断） */
-export async function getAll(page = 1, pageSize = 100): Promise<AdminUser[]> {
-  return pageRecords(await get<any>('/admin/admins', { page, pageSize })).map(adminUserToLegacy)
-}
-
-/** 新增管理员账号（含初始密码） */
-export async function create(data: { username: string; password: string; nickname?: string }) {
-  await post<void>('/admin/admins', data)
-}
-
-/** 编辑管理员（昵称 / 密码，密码为空则不改） */
-export async function updateById(id: number, data: { nickname?: string; password?: string }) {
-  await put<void>(`/admin/admins/${id}`, data)
-}
-
-/** 禁用 / 启用管理员 */
-export async function setStatus(id: number, status: 'active' | 'disabled') {
-  await put<void>(`/admin/admins/${id}/status`, { status })
-}
-
-/** 删除管理员 */
-export async function deleteById(id: number) {
-  await del<void>(`/admin/admins/${id}`)
-}
-
-/** 当前登录管理员是否为超级管理员（用于「管理员管理」入口可见性判断） */
-export async function getMyRole(): Promise<string> {
-  const me = adminUserToLegacy(await get<any>('/admin/admins/me'))
-  return me.role
-}
+/**
+ * 已下线（2026-09-14）：管理端管理员账号体系 API。
+ *
+ * 背景：管理端自 2026-09-13 起「去登录与角色体系」，改由环境变量口令
+ * （请求头 X-Admin-Token，见 api/http.ts）保护；后端 /admin/admins* 与
+ * /auth/admin/login 均已不存在，继续调用只会产生 404。
+ *
+ * 本文件保留为占位（避免悬空引用），待布局与页面收口后物理删除。
+ */
+export {}

@@ -1,19 +1,16 @@
 <script setup lang="ts">
 /**
- * AccountView：账号（学生 / 管理员）。
- * 上下区块展示（无分段切换）；权限从简（WEB-100）：不再区分超管可见性，
- * 普通管理员同样可管理管理员账号，接口侧由后端 /admin/** 硬鉴权兜底。
+ * AccountView：学生账号管理。
+ * 管理端已去登录与角色体系（2026-09-13 定型，改由环境变量口令保护），
+ * 管理员账号模块随之下线，本页仅保留学生账号。
  */
 import UserView from '@/views/user/UserView.vue'
-import AdminManageView from '@/views/admin/AdminManageView.vue'
 </script>
 
 <template>
   <div>
     <div class="block-title">学生账号</div>
     <UserView />
-    <div class="block-title">管理员账号</div>
-    <AdminManageView />
   </div>
 </template>
 
