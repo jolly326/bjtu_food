@@ -46,7 +46,16 @@ public class AdminTokenFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         // context-path 可能为 /api，统一用包含判断，避免前后缀差异导致漏检/误检
         String uri = request.getRequestURI();
-        return uri == null || !uri.contains("/admin/");
+        if (uri == null) {
+            return true;
+        }
+        // 1) /admin/** 全量受口令保护；
+        // 2) /upload/image 是**管理后台**的图片上传入口（web 端只带 X-Admin-Token、没有学生 JWT），
+        //    若不在本过滤器范围内会落到 anyRequest().authenticated() 而返回 401，导致后台上传必然失败。
+        //    注意必须用 endsWith 精确匹配："/upload/image" 是学生端 "/upload/images" 的子串，
+        //    用 contains 会把小程序链路一并拖进口令校验（小程序走 JWT，会 403）。
+        boolean isAdminUpload = uri.endsWith("/upload/image");
+        return !uri.contains("/admin/") && !isAdminUpload;
     }
 
     @Override
