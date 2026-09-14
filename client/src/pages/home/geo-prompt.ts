@@ -10,7 +10,7 @@
  * - **拒绝即静默降级**：拒绝授权 / 取坐标失败一律返回 null，不弹二次提示、不报错，
  *   距离不显示、排序回退综合热度（既有降级行为不变）。
  */
-import { getLocationIfAuthorized, getUserLocation, type UserLocation } from './location'
+import { getLocationIfAuthorized, getUserLocation, type UserLocation } from '@/utils/location'
 // uni.showModal 的 confirmColor 不接受 var()，须用真实色值；复用 tokens 登记的主色常量。
 import { MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 

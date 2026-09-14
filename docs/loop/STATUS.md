@@ -1,6 +1,7 @@
 # Loop 状态看板（STATUS）
 
 - **分支策略（2026-09-14 变更）**：**工作分支统一为 `develop`**；`feature/client-ui` 已快进合入 `develop` 并删除（本地 + 远端）；`main` 仍按既有规范由 `develop` 经 PR 更新。
+- **业务定型进度**：spec §7.1 ~ §7.17（17 组决议）全部落地或有明确归属；最新批次含「食堂档口仅作筛选条件、菜品列表+详情为主体」「反馈回复必填」「首页一次性定位提示」「后台上传自动压缩（宽 1200px / ≤1MB）」。
 - **当前轮次**：ITER-003（团队缺陷与不一致排查）——**A/B/C/D 四批次全部闭环**
 - **报告**：`docs/loop/audit/ITER-003-AUDIT.md`＋`backend.md`/`frontend.md`（明细）
 - **验收标准**：`docs/loop/launch-checklist.md`（三项并行）
