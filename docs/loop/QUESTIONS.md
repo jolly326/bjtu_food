@@ -5,6 +5,42 @@
 
 ## 开放中（Open）
 
+### Q-023 · P1 · 管理端口令体系下是否还需要「操作人身份」
+- 提出：ITER-003 排查（后端 #3 / 前端 #2）｜2026-09-14｜类型：T4 实现约束冲突
+- 问题：`/admin/**` 改为共享口令后不经 JWT，`FeedbackAdminController.java:62` 的 `handler_id` 与操作日志 `admin_id` 可能恒为 NULL（审计链断裂）；web `userStore.adminId` 唯一赋值点 `loadProfile()` 零调用，`UserView` 的「禁止操作自己/批量自保护」成死分支。
+- 候选：① 认定单人口令即单人操作，**删掉操作人字段与自保护分支**，`handler_id` 落固定标识（推荐，零维护）；② 保留身份概念，在口令校验处注入固定操作人标识（如 admin=1）；
+- 影响：审计可追溯性 vs 实现复杂度｜决策人：用户 + 技术负责人｜状态：`open`
+
+### Q-024 · P2 · 用户菜单「账号设置」入口去留
+- 提出：ITER-003（前端 #7）｜2026-09-14｜类型：T1
+- 问题：`AdminLayout.goAccount()` 跳 `/dashboard/account`，该路由**未注册**（点击空白）；实际学生账号管理在 `/dashboard/system?tab=account`。
+- 候选：① 改跳 `/dashboard/system?tab=account` 并清理死分支（推荐）；② 删除该菜单入口
+- 决策人：用户｜状态：`open`
+
+### Q-025 · P2 · 美团式写评是否彻底不做
+- 提出：ITER-003（后端 #7）｜2026-09-14｜类型：T1
+- 问题：`review.tags` 列存在于线上库与 `schema.sql:152`，但实体 `Review` 无该字段（脚本与代码反向漂移）。
+- 候选：① 彻底不做，删除该列（推荐，需幂等迁移脚本）；② 保留待恢复，在实体与 VO 登记该字段
+- 决策人：用户｜状态：`open`
+
+### Q-026 · P1 · 上新 / 促销 / 新晋黑马 / 猜你喜欢 / 档口菜品 板块是否保留
+- 提出：ITER-003（前端 #6 / 后端 #12）｜2026-09-14｜类型：T1 需求模糊
+- 问题：`stores/dish.ts` 有 16 个零消费成员，连带 `/dishes/new`、`/dishes/promotions`、`/dishes/rising`、`/dishes/hot`、`/dishes/recommend`、`?stallId=` 成「死 store + 死 api」链；后端 `promotion` 标签查询线上恒返回空（`schema.sql:119` 自认技术债）。
+- 候选：① 确认不做，删除死 store/api 与后端 promotion 链路（推荐，与「零消费即下线」一致）；② 保留接口待接回页面
+- 决策人：用户｜状态：`open`
+
+### Q-027 · P2 · 分页契约：改后端还是改文档
+- 提出：ITER-003（后端 #4）｜2026-09-14｜类型：T2 规则冲突
+- 问题：spec §5 规定分页统一 `PageResult{records,total,page,pageSize}`，实际 `PageResult` 仅 `{list,total}`，靠前后端各自兜底才不炸。
+- 候选：① 后端补 `records/page/pageSize`（保留 `list` 过渡），前端收敛兜底（推荐）；② 修订 spec 承认 `{list,total}`
+- 决策人：技术负责人｜状态：`open`
+
+### Q-028 · P2 · 注销确认色语义
+- 提出：ITER-003（前端 #8）｜2026-09-14｜类型：T1
+- 问题：`pages/mine/index.vue:181` 内联裸 hex `#C45549`（主色），同类另外 3 处用危险色 token `#FF3B30`。注销属破坏性操作，是否统一为危险色？
+- 候选：① 统一危险色 token（推荐）；② 保留主色，仅登记常量
+- 决策人：UI-UX 设计师｜状态：`open`
+
 ### Q-013 · P1 · 首版功能边界：「找吃的」之外还要哪些入口
 - 提出：主 agent｜2026-09-14｜类型：T1（功能边界 / 暂不实现范围）
 - 问题：§7.2 定「首版定位找吃的」，但未明确下列入口是否需要：随机推荐（今天吃什么）、榜单、分享、搜索历史、热门搜索词

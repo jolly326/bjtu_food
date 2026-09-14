@@ -4,7 +4,6 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { setupPress } from './directives/press'
-import { onUnauthorized } from './api/http'
 import './styles/shared.css'
 
 // WEB-116：Element Plus 改为按需引入（vite.config.ts 中 ElementPlusResolver），
@@ -17,9 +16,7 @@ app.use(createPinia())
 app.use(router)
 setupPress(app)
 
-// P1-W1：401 统一引导登录（清 token + 跳 /login），对齐小程序 auth:unauthorized
-onUnauthorized(() => {
-  if (router.currentRoute.value.path !== '/login') router.push('/login')
-})
-
+// 管理端无登录体系（2026-09-13 定型）：接口由 X-Admin-Token 口令校验，401/403 语义为「口令无效/未授权」，
+// 由 api/http.ts 的提示文案承担，不再做路由跳转。
+// （原实现 401 时 push('/login')，而 /login 路由已随登录体系一并删除且无 catch-all → 会跳空白页）
 app.mount('#app')
