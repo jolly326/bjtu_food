@@ -61,6 +61,16 @@ public class FeedbackServiceImpl implements FeedbackService {
                     || !FeedbackConst.RELATED_REVIEW.equals(req.getRelatedType())) {
                 throw new BusinessException("举报必须指定关联对象（relatedType=review 且 relatedId 必填）");
             }
+            // 举报去重（project_spec §7.11 第 3 条，2026-09-14 用户拍板）：
+            // 同一登录用户对同一被举报对象的重复举报不再新增记录，直接给业务提示。
+            // 边界：游客举报（userId=null）无身份标识，不做去重（已登记备查）。
+            if (userId != null && feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>()
+                    .eq(Feedback::getUserId, userId)
+                    .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
+                    .eq(Feedback::getRelatedType, req.getRelatedType())
+                    .eq(Feedback::getRelatedId, req.getRelatedId())) > 0) {
+                throw new BusinessException("你已举报过该内容，我们会尽快处理，请勿重复提交");
+            }
         }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);

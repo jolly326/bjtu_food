@@ -1,9 +1,12 @@
 package com.bjtufood.dish.controller.admin;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.constant.OperationLogConst;
+import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,9 +29,12 @@ public class DishAdminController {
 
     @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。")
     @GetMapping
-    public Result<?> listMyDishes(@RequestParam(defaultValue = "1") int page,
-                                  @RequestParam(defaultValue = "20") int pageSize) {
-        return Result.success(dishService.listAllForAdmin(page, pageSize));
+    public Result<PageResult<DishAdminVO>> listMyDishes(@RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int pageSize) {
+        IPage<DishAdminVO> result = dishService.listAllForAdmin(page, pageSize);
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 
     @Operation(

@@ -111,6 +111,7 @@ import { PATH } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
+import { MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
@@ -178,7 +179,7 @@ function onAccountDelete() {
     title: '注销账号',
     content: '注销后账号将匿名化且不可恢复：你的评价与反馈会保留，但不再关联你的身份；注销后需重新登录。',
     confirmText: '确认注销',
-    confirmColor: '#C45549',
+    confirmColor: MODAL_CONFIRM_PRIMARY_COLOR,
     success: async (res) => {
       if (!res.confirm) return
       try {

@@ -42,6 +42,8 @@ public class OperationLogAdminController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         IPage<OperationLogVO> result = operationLogService.listLogs(adminId, action, targetType, startAt, endAt, keyword, page, pageSize);
-        return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 }

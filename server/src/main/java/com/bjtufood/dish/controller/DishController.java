@@ -1,8 +1,11 @@
 package com.bjtufood.dish.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.dto.DishQueryReq;
+import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,8 +45,11 @@ public class DishController {
                     """
     )
     @GetMapping("/dishes")
-    public Result<?> listDishes(@ModelAttribute DishQueryReq req) {
-        return Result.success(dishService.listDishes(req));
+    public Result<PageResult<DishVO>> listDishes(@ModelAttribute DishQueryReq req) {
+        IPage<DishVO> result = dishService.listDishes(req);
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 
     @Operation(

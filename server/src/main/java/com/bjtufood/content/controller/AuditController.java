@@ -40,7 +40,9 @@ public class AuditController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         IPage<AuditVO> result = auditService.listAudit(type, status, page, pageSize);
-        return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 
     @Operation(summary = "审核通过", description = "用途：通过置 audit_status=approved，入正式体系并展示。")

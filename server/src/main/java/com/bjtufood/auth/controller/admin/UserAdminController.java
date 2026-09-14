@@ -1,6 +1,9 @@
 package com.bjtufood.auth.controller.admin;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,12 +27,15 @@ public class UserAdminController {
 
     @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 role/status 筛选。测试示例：/admin/users?page=1&pageSize=10&role=student&status=active")
     @GetMapping
-    public Result<?> listUsers(
+    public Result<PageResult<UserVO>> listUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status) {
-        return Result.success(userService.listUsers(page, pageSize, role, status));
+        IPage<UserVO> result = userService.listUsers(page, pageSize, role, status);
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 
     @Operation(

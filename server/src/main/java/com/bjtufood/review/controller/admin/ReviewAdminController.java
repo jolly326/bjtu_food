@@ -1,8 +1,11 @@
 package com.bjtufood.review.controller.admin;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.constant.OperationLogConst;
+import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,7 +28,7 @@ public class ReviewAdminController {
 
     @Operation(summary = "全部评价列表", description = "用途：后台查看所有评价，支持按 isHidden/secState/userId 筛选。secState=review 捞内容安全待人工复核队列。测试示例：/admin/reviews?page=1&pageSize=10&isHidden=0&secState=review")
     @GetMapping
-    public Result<?> listAll(
+    public Result<PageResult<ReviewAdminVO>> listAll(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) Integer isHidden,
@@ -35,7 +38,10 @@ public class ReviewAdminController {
             @RequestParam(required = false) Long userId,
             @Parameter(description = "评价正文关键词（可选，模糊匹配）")
             @RequestParam(required = false) String keyword) {
-        return Result.success(reviewService.listAllForAdmin(page, pageSize, isHidden, secState, userId, keyword));
+        IPage<ReviewAdminVO> result = reviewService.listAllForAdmin(page, pageSize, isHidden, secState, userId, keyword);
+        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
+        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
+                (int) result.getCurrent(), (int) result.getSize()));
     }
 
     @Operation(
