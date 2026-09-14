@@ -51,7 +51,7 @@
 
 ### 0.1 角色模型（仅两种）
 - `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁写评价 / 评价点赞等 **UGC 写操作**（评价**支持配图 ≤3 张**，全部 UGC 过微信内容安检，见 §5.a）。**学生端无菜品写接口**：`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理（学生提交档口 / 食堂 `/my/stalls` 已于 2026-08-18 随代码清理移除；社区/动态板块已于 2026-09-12 下线，见 §0.5）。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开，**可配图 ≤3 张**，同样过内容安检）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
-- `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理。**管理后台登录沿用方案 C：管理员账号密码 + BCrypt + JWT（放弃微信开放平台扫码 / 复用小程序码）**，见 §1 认证与 §5 认证红线。
+- `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
 - **活动与公告（broadcast）已全链路下线（2026-09-13 拍板）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表全部删除，ADMIN 不再承担活动录入职责（详见 §0.5「已下线」）。
 
@@ -68,7 +68,7 @@
 - **Web 端管理能力全景**：
   - 信息管理：食堂 / 档口 / 菜品（业务信息）
   - 内容审核：菜品评价 / 反馈
-  - 用户与权限：学生账号 / 管理员账号（超管分层）。**Web 端权限从简（2026-09 拍板）**：普通 `admin` 可用全部管理功能（菜品/食堂/档口 CRUD、UGC 审核、反馈处理、看板、日志等不做角色区分）；唯一例外「管理员账号管理」仅 `SUPER_ADMIN`——web 路由守卫（`meta.role`）与后端 `@PreAuthorize` 双闸门口径一致；后端 `/admin/**` 仍保留 `ADMIN`/`SUPER_ADMIN` 硬闸门。
+  - 用户与权限：学生账号。**管理端无角色体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已无登录与角色分层，`/admin/**` 统一由**环境变量口令**（`ADMIN_TOKEN`，请求头 `X-Admin-Token`）把关，**不区分角色、不判断操作人身份**；「管理员账号管理」入口已删除（§7.10 第 4 条）、`SUPER_ADMIN` 角色已移除、假角色判断文案固定为「管理员」。
   - 系统：操作日志 / 工作台（待办 + 数据总览）
 - 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务（原「活动模块」例外已随 2026-09-13 活动全链路下线作废）。
 
@@ -118,7 +118,7 @@
 - **执行口径**：本文件一经同步即为唯一权威；后续实现若与本文档冲突，**改代码、不改文档**（代码只在 UI 实现层提供指导）。开发交付以「静态错误清零」为准，编译 / 构建 / 真机运行由用户执行。
 
 ### 0.3 一致性红线（全局，强制）
-- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN` 分层，见 §5.x）。
+- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由。**`/admin/**` 的访问控制为「环境变量口令」而非角色**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`AdminTokenFilter` 校验请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置口令时 fail-closed 403；`SUPER_ADMIN` 分层已移除（`RoleConst` 仅 `student`/`admin` 两层数据语义，用于区分账号归属而非权限，见 §5.x）。
 - 菜品 / 档口 / 食堂均含独立 `audit_status`(pending/approved/rejected) + `reject_reason`（与上下架 `status` 解耦）。
 - 实体贡献「下架 / 变更」类诉求走**反馈类型承载**（`error` 关联菜品纠错/下架、「新增菜品」走 `add`），**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台据反馈手工闭环）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
@@ -127,7 +127,7 @@
   - **`verified` 门槛**：UGC 写操作（写评价 / 评价点赞等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（JWT claims 实况含 `userId` / `role` / `username` 三项稳定字段，不含 `verified`——实现决策：userId 供业务鉴权实时查 `user.verified`，role 供网关与方法级权限校验），后端按 `user.verified` 实时判定。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入。
   - **游客权限矩阵**：游客可浏览全部公开数据 + `POST /feedback`（公开无需认证）；需认证功能**入口不置灰**，点击时弹认证引导。
   - **邮箱是唯一迁移 / 绑定凭证**：`@bjtu.edu.cn` 邮箱验证码认证即绑定当前微信；同一邮箱被新微信认证时**直接替换旧微信绑定**（旧数据归属跟到新绑定微信）；**不设解绑入口**。
-  - **管理后台登录例外（方案 C）**：管理后台维持「管理员账号密码 + BCrypt + JWT」，与小程序微信登录体系解耦；`/admin/**` 仍仅 `ADMIN`（含 `SUPER_ADMIN`）。
+  - **管理后台无登录例外（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理后台**不做账号登录**（登录即用 / 无感），管理端接口由**环境变量口令**保护（请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置 fail-closed 403）；与小程序微信登录体系完全解耦，**无 `/auth/admin/login`、无 BCrypt、无 JWT、无 `SUPER_ADMIN` 分层**。
 
 ---
 
@@ -137,7 +137,7 @@
 - Web 管理端：Vue 3 + Vite + TypeScript + Element Plus，目录 `web/`，无 Pinia。**定位：辅助后端管理数据的 UI 工具（非用户端）**——只经 `/admin/**` 接口消费与管理小程序产生的数据，见 §0.4。
 - 数据库：MySQL 8.0，库 `bjtu_food`，utf8mb4；**建表脚本唯一权威：`server/src/main/resources/db/schema.sql`**（`user.role` 默认 `'student'`）。
 - 认证（微信登录体系，2026-08 拍板，详见 §5「认证与鉴权」）：JWT（7 天），`Authorization: Bearer {token}`。小程序端无账号密码，经 `POST /auth/wechat-login`（`code2Session` 静默建号/取号）获取 JWT；UGC 写操作需 `verified=true`。`verified` 不进 JWT，后端按 `user.verified` 实时判定。
-- 管理后台登录（方案 C）：仍用「管理员账号密码 + BCrypt + JWT」；不引微信开放平台扫码，不复用小程序码。与小程序微信登录解耦。
+- 管理后台鉴权（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：**无登录体系**，管理端接口（`/admin/**`）由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`web/.env.local` 的 `VITE_ADMIN_TOKEN` 与之同值），未配置口令即 fail-closed 403；与小程序微信登录解耦，无账号密码 / BCrypt / JWT / 角色分层。
 
 ## 2. 目录结构
 - 后端按业务分包：`com.bjtufood.{auth|canteen|dish|review|content|upload|common}`，每模块 `controller/service(+impl)/mapper/entity/dto/` 四层，**禁止跨层调用**（Controller 不得直接调 Mapper）。
@@ -209,9 +209,9 @@
 
 ## 3. API 基础规范
 - 统一响应：`{ code: number, message: string, data: T }`；成功 `code=200`；异常由 `GlobalExceptionHandler` 统一包装，Controller 不得裸抛。
-- 错误码：`200` 成功 / `400` 参数 / `401` 未登录 / `403` 无权限 / `500` 服务器错误；**禁止自定义非标错误码**（如 1001/600）。**例外（2026-08-19 登记豁免）**：`4031` = 邮箱未认证（`@RequireVerified` 触发），与 `403`（普通无权限，含越权访问管理接口）区分，供前端「需先认证 vs 无权限」分流提示；前端 `http.ts` 据此分别处理。
+- 错误码：`200` 成功 / `400` 参数 / `401` 未登录 / `403` 无权限 / `500` 服务器错误；**禁止自定义非标错误码**（如 1001/600）。**例外（2026-08-19 登记豁免，2026-09-14 收口）**：`4031` = **邮箱未认证**（`@RequireVerified` 触发，端上弹认证引导），与 `403` 区分，供前端「需先认证 vs 无权限」分流提示；`403` 覆盖 **普通无权限（越权 / 非本人资源 / 账号禁用）+ 需微信登录（`verified=1` 但 `openid` 空）**，端上提示后端 message 但不弹认证引导。UGC 准入失败的分码口径见 §7.7 第 1 条。
 - **内容安全安检（2026-09-13）**：全部 UGC（评价 / 反馈的文本与配图）须经微信内容安检（文本 `msgSecCheck` v2 / 图片 `imgSecCheck`）；安检**违规一律以 `400` 返回**（文本 `suggest=risky` / 图片微信 code `87014`），**不新增错误码**；`suggest=review` 落 `sec_state=review` 进人工复核、不拦截提交（契约细则见 §5.a 与 `docs/api-design.md` §4）。
-- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/admin/login`（管理后台登录，方案 C）、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/categories`、静态图片 `/images/**`；学生 UGC 写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色；`/admin/**` 仅 `ADMIN`（含 `SUPER_ADMIN`）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**。
+- 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig.PUBLIC_ANY_METHOD`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/canteens`、`/stalls`、`/dishes`、`/reviews`、`/categories`、静态图片 `/images/**`；学生 UGC 写操作需 `verified=true`（见 §5 认证与鉴权），不再依赖 `STUDENT` 角色。**`/admin/**` 不由 JWT/角色把关**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`SecurityConfig` 放行后由 `AdminTokenFilter` 以环境变量口令（`X-Admin-Token`）校验，未配置 fail-closed 403；**无 `/auth/admin/login` 白名单项**（该端点不存在）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**；`PUT /auth/password` 为遗留实现、无消费方，待清理（见 §5.y.1）。
 - 分页：`PageResult<T>{ records, total, page, pageSize }`，用 MP 分页插件；单页非分页接口返回 `List<T>`。
 - 金额：存储与传输一律「分」（int/Long）；分↔元转换必须在 api 层统一（`utils/money` 的 `fenToYuan`/`yuanToFen`），**禁止页面/组件层裸算**；前端统一展示已为元的 `price`（不得再在模板 `/100`）。
 - 数据隔离：从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId；UGC `created_by=当前用户`。**学生端无菜品写接口**——`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入（`/admin/dishes/**`），学生提交菜品需求走意见反馈 `add` 类型由后台处理；`dish.created_by` 仅留痕历史学生提交，不再作为学生侧写权限依据。
@@ -287,7 +287,7 @@
 - 所有 API 响应含 `code/message/data`；前端 `http.ts` 判定 `code!==200` 抛异常，页面 try-catch，Store fetch 失败置空数组不向上抛。
 - Controller 入参 DTO + `@Validated`；Service 写操作 `@Transactional`；评分 / 点赞计数走 Spring 事件异步维护，禁止主流程内联重算。
 - 内容审核流：学生提交 `audit_status=pending` → 管理员 `approved/rejected`（退回必填 `reject_reason` 并回显）；小程序仅展示 `approved` 且上架 / 营业中；评价 `is_hidden` 控制可见性；Web「菜品审核」「评价审核」为独立模块。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`，**学生侧无编辑重提**（历史存量 pending 菜品仍可由后台审核）；学生菜品需求走反馈 `add` 类型由后台手工录入闭环。下架 / 变更类诉求走反馈 `error` 类型（关联菜品）承载，无独立申请表（`apply_action` 已于 2026-09-12 随贡献链路下线删除，见 §0.3）。
-- **认证**：微信打开静默登录（`wechat-login`）即游客态；UGC 写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台登录例外，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
+- **认证**：微信打开静默登录（`wechat-login`）即游客态；UGC 写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台亦无登录体系，改为环境变量口令，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
 - 小程序请求超时 8s、管理端 5s；API 基地址集中 `api/config.ts` 的 `API_BASE_URL`，禁止硬编码 URL。
 - **首页不消费广播数据**：首页信息来源仅为菜品接口（推荐 / 筛选结果），不设信息流广播位；原运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，`broadcast` 表已于 2026-09-13 随公告全链路下线删除（见 §0.5）。
 
@@ -311,10 +311,10 @@
 
 ### 5.y 认证与鉴权（微信登录体系，2026-08 拍板，强制）
 
-> 全量拍板决策，替换旧「邮箱注册 + 密码登录」体系。管理后台登录例外见本 § 末尾。
+> 全量拍板决策，替换旧「邮箱注册 + 密码登录」体系。管理后台**无登录体系**（环境变量口令，2026-09-14 与 §7.10 对齐，原方案 C 描述作废），见 §5.y.5 末尾。
 
 #### 5.y.1 认证模型
-- **废除账号密码登录**：小程序端无登录页 / 登录按钮 / 注册页 / 密码修改 / 密码重置；`/auth/login`、`/auth/register`、`/auth/password`、`/auth/password/reset` 及其 DTO（`LoginReq`/`RegisterReq`/`PasswordResetReq`/`PasswordUpdateReq`/`LoginResp` 密码相关）废弃移除。
+- **废除账号密码登录**：小程序端无登录页 / 登录按钮 / 注册页 / 密码修改 / 密码重置；`/auth/login`、`/auth/register`、`/auth/password/reset` 及其 DTO（`LoginReq`/`RegisterReq`/`PasswordResetReq`/`PasswordUpdateReq`/`LoginResp` 密码相关）废弃移除。**`PUT /auth/password` 已废弃（2026-09-14 核实：无消费方，仅遗留实现，待清理，见 §9）**：后端 `AuthController.changePassword` / `AuthServiceImpl.changePassword` / `PasswordChangeReq` 与 web `api/user.ts` 的 `updatePassword` 声明仍存在，但**小程序端与 Web 视图层均无任何调用点**（零消费），随认证体系废置；清理动作另行排期，**不得据其存在反向推导「仍有密码体系」**。
 - **微信自动静默登录**：微信打开小程序即调用 `POST /auth/wechat-login`（携带 `code`），后端 `code2Session` 换取 `openid`，按 `openid` 取号；不存在则自动建号。用户**默认即已登录的未认证账号**（`verified=false`，游客态），不做「未登录」概念（见 §5.y.3 游客态语义）。
 - **认证解锁写操作**：`@bjtu.edu.cn` 邮箱验证码认证通过 → `verified=true`，解锁 UGC 写操作（写评价 / 评价点赞 / 菜品 / 档口·食堂提交等；原「发动态 / 评论动态」随动态板块下线移除）。**无收藏功能（全量移除确认）**。
 - **绑定与替换**：同一邮箱认证后绑定当前微信；**不设解绑入口**；新微信用同一邮箱认证时**直接替换旧微信绑定**（旧邮箱绑定关系的账号历史数据归属跟到新微信账号）。邮箱是唯一迁移 / 绑定凭证。
@@ -327,7 +327,7 @@
 - `bind_email` VARCHAR(128) NULL（**仅存认证关系，不公开**；与 `email` 的关系见数据迁移规则）。
 - `verified_at` DATETIME NULL（认证时间）。
 - `username` 语义调整：游客建号 `username='wx_'+openid 尾 16 位`；昵称默认「食客+ID 尾 4 位」（`getGuestShortId` 语义，见 §5.y.4）。
-- 旧 `email` 列保留作为历史迁移凭证（见 5.y.3 数据迁移）；旧 `password` 列可保留兼容历史（管理端 admin 仍用密码）但学生侧不再使用。
+- 旧 `email` 列保留作为历史迁移凭证（见 5.y.3 数据迁移）；旧 `password` 列仅作历史兼容保留、学生侧不再使用；**管理端亦不再使用密码**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废：管理端改为环境变量口令，无密码校验）。
 
 #### 5.y.3 数据迁移合并规则（历史邮箱账号）
 - **迁移凭证唯一 = 校园邮箱**：旧邮箱注册账号的用户，用新微信进入后，通过「学号邮箱 + 验证码」认证（`verify-email`）触发自动合并。
@@ -351,8 +351,8 @@
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 置 `verified=1`、写 `bind_email`/`verified_at` → 返回更新后 `LoginResp`。
 - `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像、`guestShortId`。
 - `DELETE /auth/account`（登录，新增，2026-09-13 合规）— **注销账号（匿名化，非物理删除）**：事务内将 user 行置为 `nickname='已注销用户'`、`username=deleted_{id}`、avatar/email/password→NULL、**openid/unionid→NULL（解绑，允许同一微信重新静默登录创建新游客号）**、verified→0、bind_email/verified_at→NULL、status→'deleted'；评价/反馈/通知/浏览记录**保留**（展示昵称经 join 自然匿名化，评分聚合不破坏）；email_verification_code 按邮箱清理；当前 token 经 TokenBlacklist（token+userId 双维度）立即失效 + status=deleted 持久兜底；幂等（重复调用 400「账号已注销」）；@AuditLog 埋点。前端：底部合规区「注销账号」→ 二次确认 → 成功后 forceLogout（skipAuthRetry 防 401 重试误删新游客号）。
-- 鉴权：UGC 写操作改为**校验 `verified`**；`/admin/**` 仍仅 `ADMIN`；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客请求被拒、个人通知恒空；前端不拉取未读数，入口游客直达见 §5.y.4）**。
-- **管理后台登录（方案 C）**：维持 `/auth/admin/login`（管理员账号密码 + BCrypt + JWT），与小程序微信登录体系解耦；`/admin/**` 校验 `ADMIN` / `SUPER_ADMIN`。管理端 token 为 **12 小时短期过期**（`ADMIN_TOKEN_EXPIRATION_MS`，降低泄露风险），学生端维持 7 天（`application.yml`）——两者策略分离为既定实现。
+- 鉴权：UGC 写操作改为**校验 `verified`**（准入失败按 §7.7 第 1 条分码：`4031` / `403`）；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客请求被拒、个人通知恒空；前端不拉取未读数，入口游客直达见 §5.y.4）**。
+- **管理后台鉴权（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端**无登录体系**，`/auth/admin/login` 端点**不存在**（`AuthServiceImpl.adminLogin` 已随账号体系移除；残留的 `SecurityConfig` / `SwaggerConfig` / `AuthService` 注释为待清理的历史描述）；`/admin/**` **不校验 `ADMIN` / `SUPER_ADMIN`**，改由 `AdminTokenFilter` 校验环境变量口令（请求头 `X-Admin-Token` == `ADMIN_TOKEN`），未配置即 fail-closed 403。原「管理端 token 12 小时短期过期（`ADMIN_TOKEN_EXPIRATION_MS`）」策略随登录体系一并作废；学生端 JWT 维持 7 天（`application.yml`）。
 
 ### 5.z 已拍板架构决策（强制）
 - **D-A** 通知异步写 `notification` 用 `@Async` + 有界线程池，不引 MQ。
@@ -368,7 +368,7 @@
 
 ### 5.x 三端一致性红线（强制，违反即阻断级缺陷）
 - **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner/广播契约，二者均已移除后保留为通用跳转字段规范）；评价状态 `isHidden`(0/1) 非 `isDeleted`；UGC 配图字段统一 `images`（字符串数组，≤3 项 COS URL）、安检态字段统一 `secState`(`pass`/`review`/`rejected` 三态)（评价 / 反馈 VO 与提交请求标准字段，见 §5.a）；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
-- **错误码统一**：成功 200 / 参数 400 / 未登录 401 / 无权限 403 / 服务器 500（**4031 邮箱未认证例外见 §3**）；**401 统一处理**（2026-08-19 更新）：小程序 `http.ts` 对 401 先确保静默登录再自动重试一次，仍失败才 `handleUnauthorized`（清 token + Toast + 重新微信静默登录），`handleUnauthorized` 有并发去重防登录风暴；**不再用 `uni.$emit('auth:unauthorized')` 事件总线**（规避 HMR 重复订阅泄漏）；**web `http.ts`（管理后台）** 补齐 401 拦截（清 `localStorage.token` + 跳转管理后台登录页 `/login`，方案 C 仍用账号密码）。
+- **错误码统一**：成功 200 / 参数 400 / 未登录 401 / 无权限 403 / 服务器 500（**4031 邮箱未认证例外见 §3 与 §7.7 第 1 条**：`4031`=需邮箱认证（弹认证引导）、`403`=无权限或需微信登录（提示 message，不弹引导））；**401 统一处理**（2026-08-19 更新）：小程序 `http.ts` 对 401 先确保静默登录再自动重试一次，仍失败才 `handleUnauthorized`（清 token + Toast + 重新微信静默登录），`handleUnauthorized` 有并发去重防登录风暴；**不再用 `uni.$emit('auth:unauthorized')` 事件总线**（规避 HMR 重复订阅泄漏）；**web `http.ts`（管理后台）** 的鉴权失败（401/403）统一提示口令无效（`VITE_ADMIN_TOKEN` 配置错误）——**管理端无登录页**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废：不再跳转 `/login`、不再清 `localStorage.token`）。
 - **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/mine/index.vue` 的「我的收藏」、`pages/detail/dish/index.vue` 底部收藏按钮、`my-favorites` 页），统一移除。语义仅保留 `ic-heart=喜欢`（点赞/喜欢，非收藏）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
 - **状态枚举**：Dish `status` on/off；Canteen/Stall `status` open/closed；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举。（Banner 及 Broadcast/Activity 已随公告/活动下线移除）
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
@@ -431,7 +431,7 @@
 
 ### 7.7 落地任务分档
 **上线前必做**
-1. UGC 准入双约束**仅作用于评价（含评价配图）**：写评价 / 评价传图须 `verified=1 && openid != null`；不满足时返回 **403**，message 用「请先完成邮箱认证并使用微信登录」（沿用现有 fail-closed 403 风格）。小程序端对无 openid 账号给出「请先微信登录」引导。
+1. UGC 准入双约束**仅作用于评价（含评价配图）**：写评价 / 评价传图须 `verified=1 && openid != null`。**准入失败按原因分码（2026-09-14 裁定修订，以实现为准）**：`verified != 1` → **`4031`**（`@RequireVerified`/`RequireVerifiedAspect` 触发，message「请先完成学号邮箱认证」，端上弹认证引导 `AuthSheet`）；`verified=1` 但 `openid` 为空 → **`403`**（message「请使用微信登录后再发布评价」，端上提示微信登录，**不弹邮箱认证引导以免误导**，见 `ReviewServiceImpl`）。两种情形的用户引导动作不同，故有意分码；**原「统一返回 403」表述作废**。
    **反馈（含投稿 `type=add`、纠错 `type=error`、举报 `type=report`）不设认证门槛**，保持公开免认证 —— 否则会把 §7.3 的学生投稿通道掐死（新用户未认证即无法投稿，与该条决议自相矛盾）。
    反馈虽免认证，服务端机检照常执行：有 openid 时正常调 `msgSecCheck v2`；无 openid 时**不跳过**，而是落库标记 `sec_state=review` 进入管理员人工复核队列。反馈内容**不对外公开展示**（仅管理员在后台可见），故跳过机审的暴露面可接受，但不能静默放行。
 2. 反馈入口文案：投稿类目标注「提交后由管理员审核后上架」。
