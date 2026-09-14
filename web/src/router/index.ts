@@ -20,9 +20,10 @@ const router = createRouter({
         { path: 'content', name: 'contentManage', component: () => import('@/views/content/ContentManageView.vue') },
         { path: 'audit', name: 'auditManage', component: () => import('@/views/audit/AuditManageView.vue') },
         { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue') },
-        { path: 'canteens/:canteenId', name: 'canteenDetail', component: () => import('@/views/canteen/CanteenDetailView.vue') },
-        { path: 'canteens/:canteenId/stalls/:stallId', name: 'stallDetail', component: () => import('@/views/canteen/StallDetailView.vue') },
-        { path: 'canteens/:canteenId/stalls/:stallId/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
+        // 食堂/档口/菜品详情三条下钻路由已删除（2026-09-14 §7.15：食堂与档口随菜品一起维护，
+        // 归属选择收敛到 DishFormDialog，见 docs/loop/design/dish-entry-flow.md §1.5）。
+        // 旧书签按下方兜底重定向到信息管理页，避免白屏。
+        { path: 'canteens/:pathMatch(.*)*', redirect: '/dashboard/content?tab=dish' },
       ],
     },
   ],

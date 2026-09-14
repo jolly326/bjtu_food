@@ -1,26 +1,35 @@
 <script setup lang="ts">
 /**
- * DishFormDialog：菜品新增/编辑弹窗（食堂详情页 + 全局菜品管理页共用）。
+ * DishFormDialog：菜品新增/编辑弹窗（后台菜品管理页唯一入口）。
  * 提交走 adminStore.addDish / updateDish（api 层 dishToApi 自动转分）。
  * 价格/原价/促销价均以「元」编辑。
+ *
+ * 归属区（docs/loop/design/dish-entry-flow.md §1.2）：**食堂 → 档口两级联动**
+ *  - 食堂仅用于级联过滤，不进 payload（菜品只提交 stall_id，后端契约不变）；
+ *  - 未选食堂时档口 disabled（可见不可交互，非隐藏）；
+ *  - 切换食堂静默清空已选档口，防跨食堂脏数据；
+ *  - 编辑态由 dish.stall_id 反查档口 → 反查其食堂回显；
+ *  - 两控件面板底部固定「+ 新增食堂 / + 新增档口」，叠层小弹窗新建后自动选中，
+ *    本弹窗保持打开且已填字段不丢失（§1.3）。
  */
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { parseTags, formatTags } from '@/api/adapter'
 import { TAG_OPTIONS } from '@/api/tags'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
+import InlineSelectPanel from '@/components/InlineSelectPanel.vue'
+import CanteenCreateDialog from '@/components/CanteenCreateDialog.vue'
+import StallCreateDialog from '@/components/StallCreateDialog.vue'
 
 const props = withDefaults(
   defineProps<{
     show: boolean
     /** 编辑中的菜品 id（null = 新增） */
     editingId?: number | null
-    /** 新增时默认选中的档口 */
+    /** 新增时默认选中的档口（其食堂自动级联反查） */
     defaultStallId?: number | null
-    /** 档口下拉选项 [{label, value}] */
-    stallOptions: { label: string; value: number }[]
   }>(),
   { editingId: null, defaultStallId: null },
 )
@@ -49,6 +58,9 @@ const form = ref({
   price: 0,
   originalPrice: 0,
   promoPrice: 0,
+  /** 所属食堂（级联用，不进 payload） */
+  canteenId: '' as string | number,
+  /** 所属档口（提交为 stall_id） */
   stallId: '' as string | number,
   image: '',
   description: '',
@@ -61,6 +73,35 @@ const form = ref({
 })
 const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
+/** 归属区错误补充提示（档口失效等失败恢复路径，§1.4-3） */
+const stallHint = ref('')
+
+const canteenModal = ref(false)
+const stallModal = ref(false)
+
+// ===== 级联数据源 =====
+const canteenOptions = computed(() =>
+  store.canteens.map(c => ({ label: c.name, value: Number(c.id) })),
+)
+/** 档口选项：严格按所选食堂的 canteen_id 过滤（§1.2 防脏数据） */
+const stallOptions = computed(() => {
+  if (!form.value.canteenId) return []
+  return store.stalls
+    .filter(s => Number(s.canteen_id) === Number(form.value.canteenId))
+    .map(s => ({ label: s.name, value: Number(s.id) }))
+})
+const stallPlaceholder = computed(() => (form.value.canteenId ? '选择档口' : '请先选择食堂'))
+/** 该食堂下无档口时的面板内联提示（§1.2） */
+const stallEmptyText = computed(() =>
+  form.value.canteenId ? '该食堂暂无档口，点下方新增' : '请先选择食堂',
+)
+
+/** 由档口 id 反查其所属食堂 id（编辑回显 / defaultStallId 预选共用） */
+function canteenIdOfStall(stallId: number | string | bigint | null | undefined): number | '' {
+  if (stallId === '' || stallId === null || stallId === undefined) return ''
+  const s = store.stalls.find(x => Number(x.id) === Number(stallId))
+  return s ? Number(s.canteen_id) : ''
+}
 
 watch(
   () => props.show,
@@ -68,6 +109,9 @@ watch(
     if (!v) return
     submitting.value = false
     formErrors.value = {}
+    stallHint.value = ''
+    canteenModal.value = false
+    stallModal.value = false
     if (props.editingId != null) {
       const d = store.dishes.find(x => Number(x.id) === Number(props.editingId))
       if (d) {
@@ -76,6 +120,7 @@ watch(
           price: Number(d.price) || 0,
           originalPrice: d.originalPrice ? Number(d.originalPrice) : 0,
           promoPrice: d.promoPrice ? Number(d.promoPrice) : 0,
+          canteenId: canteenIdOfStall(d.stall_id),
           stallId: String(d.stall_id ?? ''),
           image: d.image || '',
           description: d.description || '',
@@ -88,9 +133,11 @@ watch(
         }
       }
     } else {
+      const presetStall = props.defaultStallId != null ? String(props.defaultStallId) : ''
       form.value = {
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
-        stallId: props.defaultStallId != null ? String(props.defaultStallId) : '',
+        canteenId: canteenIdOfStall(presetStall),
+        stallId: presetStall,
         image: '', description: '', alias: '', tags: '', status: 'active',
         spiceLevel: 0, portion: 0, region: '',
       }
@@ -98,10 +145,36 @@ watch(
   },
 )
 
+/** 选择食堂：切换时静默清空档口并重算选项（§1.2 / 流程 C） */
+function onCanteenChange() {
+  form.value.stallId = ''
+  formErrors.value.stallId = ''
+  stallHint.value = ''
+}
+
+/** 新建食堂成功：追加选项 → 自动选中 → 档口 enable 并清空（§1.3(B) / 验收 11） */
+function onCanteenCreated(payload: { id: number; name: string }) {
+  form.value.canteenId = payload.id
+  form.value.stallId = ''
+  formErrors.value.canteenId = ''
+  formErrors.value.stallId = ''
+  stallHint.value = ''
+}
+
+/** 新建档口成功：追加选项 → 自动选中 → 食堂级联到其所属食堂（§1.3(A) / 验收 9、10） */
+function onStallCreated(payload: { id: number; canteenId: number; name: string }) {
+  form.value.canteenId = payload.canteenId
+  form.value.stallId = payload.id
+  formErrors.value.canteenId = ''
+  formErrors.value.stallId = ''
+  stallHint.value = ''
+}
+
 function validate() {
   const errs: Record<string, string> = {}
   if (!form.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!form.value.price || Number(form.value.price) <= 0) errs.price = '价格必须大于 0'
+  if (!form.value.canteenId) errs.canteenId = '请选择所属食堂'
   if (!form.value.stallId) errs.stallId = '请选择所属档口'
   // 产品定型：菜品首图必填（无图不录入 / 不上架）
   if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
@@ -140,7 +213,7 @@ async function submit() {
     region: form.value.region,
   }
   // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价/促销价
-  // （对照 DishDetailView.confirmEdit 的既有正确做法；api 层 dishToApi 0 → 分、null 直传）
+  // （api 层 dishToApi 0 → 分、null 直传）
   payload.originalPrice = Number(form.value.originalPrice) > 0 ? Number(form.value.originalPrice) : null
   payload.promoPrice = Number(form.value.promoPrice) > 0 ? Number(form.value.promoPrice) : null
   try {
@@ -154,7 +227,15 @@ async function submit() {
     emit('saved')
     emit('close')
   } catch (e: any) {
-    toast.error(e.message || '保存失败')
+    // 失败恢复路径（§1.4-3）：弹窗保留、表单数据保留；若归属档口已失效则清空重选并刷新选项
+    toast.error(e?.message || '保存失败')
+    const sid = Number(form.value.stallId)
+    if (sid && !store.stalls.some(s => Number(s.id) === sid)) {
+      form.value.stallId = ''
+      formErrors.value = { ...formErrors.value, stallId: '所选档口已失效，请重新选择' }
+      stallHint.value = '所选档口已失效，请重新选择'
+      store.loadAll().catch(() => {})
+    }
   } finally {
     submitting.value = false
   }
@@ -172,25 +253,48 @@ async function submit() {
     :on-confirm="submit"
   >
     <div class="df-form">
+      <!-- 第一行：菜品名称 + 所属食堂（归属是录菜第一步心智，保持在弹窗上半屏） -->
       <div class="df-row">
         <div class="field flex-1"><label>菜品名称 <span class="required">*</span></label>
           <input v-model="form.name" placeholder="如：鱼香肉丝" />
           <p v-if="formErrors.name" class="field-error">{{ formErrors.name }}</p>
         </div>
-        <div class="field" style="width: 180px"><label>所属档口 <span class="required">*</span></label>
-          <select v-model="form.stallId">
-            <option value="">选择档口</option>
-            <option v-for="s in stallOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-          <p v-if="formErrors.stallId" class="field-error">{{ formErrors.stallId }}</p>
+        <div class="field flex-1"><label>所属食堂 <span class="required">*</span></label>
+          <InlineSelectPanel
+            v-model="form.canteenId"
+            :options="canteenOptions"
+            placeholder="选择食堂"
+            add-text="新增食堂"
+            empty-text="暂无食堂，点下方新增"
+            @update:model-value="onCanteenChange"
+            @add="canteenModal = true"
+          />
+          <p v-if="formErrors.canteenId" class="field-error">{{ formErrors.canteenId }}</p>
         </div>
       </div>
 
+      <!-- 第二行：所属档口（依赖食堂）+ 售价 -->
       <div class="df-row">
+        <div class="field flex-1"><label>所属档口 <span class="required">*</span></label>
+          <InlineSelectPanel
+            v-model="form.stallId"
+            :options="stallOptions"
+            :placeholder="stallPlaceholder"
+            :disabled="!form.canteenId"
+            add-text="新增档口"
+            :empty-text="stallEmptyText"
+            @add="stallModal = true"
+          />
+          <p v-if="formErrors.stallId" class="field-error">{{ formErrors.stallId }}</p>
+          <p v-else-if="stallHint" class="field-error">{{ stallHint }}</p>
+        </div>
         <div class="field flex-1"><label>售价（元） <span class="required">*</span></label>
           <input v-model.number="form.price" type="number" min="0" step="0.5" />
           <p v-if="formErrors.price" class="field-error">{{ formErrors.price }}</p>
         </div>
+      </div>
+
+      <div class="df-row">
         <div class="field flex-1"><label>原价（元，选填）</label>
           <input v-model.number="form.originalPrice" type="number" min="0" step="0.5" />
           <p v-if="formErrors.originalPrice" class="field-error">{{ formErrors.originalPrice }}</p>
@@ -254,6 +358,19 @@ async function submit() {
         <p v-if="formErrors.image" class="field-error">{{ formErrors.image }}</p>
       </div>
     </div>
+
+    <!-- 叠层小弹窗：新建食堂 / 新建档口（不离开本弹窗，已填字段随 ref 保留） -->
+    <CanteenCreateDialog
+      :show="canteenModal"
+      @close="canteenModal = false"
+      @created="onCanteenCreated"
+    />
+    <StallCreateDialog
+      :show="stallModal"
+      :default-canteen-id="form.canteenId === '' ? null : Number(form.canteenId)"
+      @close="stallModal = false"
+      @created="onStallCreated"
+    />
   </FormDialog>
 </template>
 
@@ -261,9 +378,10 @@ async function submit() {
 .df-form { display: flex; flex-direction: column; gap: var(--space-3); }
 .df-row { display: flex; gap: var(--space-3); }
 .df-row .field { margin-bottom: 0; }
-.flex-1 { flex: 1; }
+.flex-1 { flex: 1; min-width: 0; }
 .required { color: var(--color-error); }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
+.field-hint { font-size: var(--font-xs); color: var(--text-light); margin-top: var(--space-1); }
 .tag-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .tag-opt {
   padding: var(--space-1) var(--space-4);

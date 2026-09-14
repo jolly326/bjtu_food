@@ -43,8 +43,9 @@ const todoCards = computed(() => [
 
 // ===== 5 项规模指标（食堂 / 档口 / 菜品 / 学生 / 评价；UGC 申请与反馈已下线，不再作为指标，见 §0.4.1） =====
 const metrics = computed(() => [
-  { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=canteen' },
-  { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=canteen' },
+  // 食堂 / 档口已随菜品一起维护（project_spec §7.15），不再有独立入口，跳菜品列表
+  { key: 'canteen', label: '食堂', value: data.value?.totalCanteenCount ?? 0, icon: House, to: '/dashboard/content?tab=dish' },
+  { key: 'stall', label: '档口', value: data.value?.totalStallCount ?? 0, icon: Food, to: '/dashboard/content?tab=dish' },
   { key: 'dish', label: '菜品', value: data.value?.totalDishCount ?? 0, icon: PriceTag, to: '/dashboard/content?tab=dish' },
   { key: 'user', label: '学生', value: data.value?.totalUserCount ?? 0, icon: User, to: '/dashboard/system?tab=account' },
   { key: 'review', label: '评价', value: data.value?.totalReviewCount ?? 0, icon: ChatLineSquare, to: '/dashboard/audit?tab=review' },

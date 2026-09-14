@@ -47,16 +47,16 @@ function stallName(stallId: number | bigint): string {
   const s = store.stalls.find(s => Number(s.id) === Number(stallId))
   return s?.name || `档口${stallId}`
 }
-// ===== 菜品新增/编辑（弹窗直达，不再跳档口详情） =====
+/** 所属食堂：由 dish.stall_id → stall.canteen_id 反查（档口是食堂的子级） */
+function canteenName(stallId: number | bigint): string {
+  const s = store.stalls.find(s => Number(s.id) === Number(stallId))
+  if (!s) return '—'
+  const c = store.canteens.find(c => Number(c.id) === Number(s.canteen_id))
+  return c?.name || '—'
+}
+// ===== 菜品新增/编辑（弹窗直达；归属选择在 DishFormDialog 内两级联动） =====
 const dishModal = ref(false)
 const editingDishId = ref<number | null>(null)
-
-const dishStallOptions = computed(() => {
-  return store.stalls.map(s => {
-    const c = store.canteens.find(c => Number(c.id) === Number(s.canteen_id))
-    return { label: c ? `${s.name}（${c.name}）` : s.name, value: Number(s.id) }
-  })
-})
 
 function openAddDish() {
   editingDishId.value = null
@@ -181,6 +181,7 @@ async function batchDelete() {
       :columns="[
         { prop: 'image', label: '图片', width: '72px' },
         { prop: 'name', label: '菜品名称', sortable: true },
+        { prop: 'canteen', label: '所属食堂', width: '140px' },
         { prop: 'stall', label: '所属档口' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
         { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
@@ -196,6 +197,9 @@ async function batchDelete() {
       <template #cell-name="{ row }">
         <span class="cell-title" :title="row.name">{{ row.name }}</span>
         <span v-if="row.promoPrice" class="promo-flag">折扣</span>
+      </template>
+      <template #cell-canteen="{ row }">
+        <span class="cell-sub" :title="canteenName(row.stall_id)">{{ canteenName(row.stall_id) }}</span>
       </template>
       <template #cell-stall="{ row }">
         <span class="cell-sub" :title="stallName(row.stall_id)">{{ stallName(row.stall_id) }}</span>
@@ -231,7 +235,6 @@ async function batchDelete() {
       :show="dishModal"
       :editing-id="editingDishId"
       :default-stall-id="null"
-      :stall-options="dishStallOptions"
       @close="dishModal = false"
       @saved="onDishSaved"
     />

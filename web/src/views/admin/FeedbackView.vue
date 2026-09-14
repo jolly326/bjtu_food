@@ -159,21 +159,22 @@ function fmtTime(v: string): string {
   return isNaN(d.getTime()) ? v : d.toLocaleString('zh-CN')
 }
 
-/** 关联菜品一键直达编辑详情：反馈关联 dish 经公开详情接口拿到 stallId/canteenId，拼出档口链路路由 */
+/**
+ * 关联菜品一键直达：菜品详情独立页已随「食堂/档口随菜品一起维护」收敛而删除
+ * （project_spec §7.15 / docs/loop/design/dish-entry-flow.md §1.5），
+ * 故改为跳到菜品列表（`/dashboard/content?tab=dish`）由管理员在列表内检索编辑。
+ */
 async function goDishEdit(dishId?: number) {
   if (dishId == null) return
   try {
     const { dishApi } = await import('@/api')
     const dish = await dishApi.getById(dishId)
-    const stallId = Number(dish.stallId)
-    const canteenId = Number(dish.canteenId)
-    if (!stallId || !canteenId) {
-      toast.error('无法定位该菜品所属档口 / 食堂')
-      return
-    }
-    router.push(`/dashboard/canteens/${canteenId}/stalls/${stallId}/dishes/${dishId}`)
+    await router.push({
+      path: '/dashboard/content',
+      query: { tab: 'dish', q: dish?.name || String(dishId) },
+    })
   } catch (e: any) {
-    toast.error(e.message || '跳转菜品编辑失败')
+    toast.error(e.message || '跳转菜品列表失败')
   }
 }
 
