@@ -126,8 +126,8 @@
  *   DishInfoCard / DishSummaryCard / DishReviewSection / useDishPage）；生命周期见 useDishPage。
  */
 import IconSvg from '@/components/IconSvg.vue'
-import ReportModal from '@/components/ReportModal.vue'
-import ActionSheet from '@/components/ActionSheet.vue'
+import ReportModal from './ReportModal.vue'
+import ActionSheet from './ActionSheet.vue'
 import AuthSheet from '@/components/AuthSheet.vue'
 import ImageSwiper from './ImageSwiper.vue'
 import ReviewComposer from './ReviewComposer.vue'

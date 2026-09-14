@@ -3,6 +3,7 @@ package com.bjtufood.review.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
@@ -42,10 +43,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
 
-    /** 内容安全状态常量：机检待人工复核 / 人工复核不通过（均对他端不可见，作者本人可见） */
-    public static final String SEC_STATE_PASS = "pass";
-    public static final String SEC_STATE_REVIEW = "review";
-    public static final String SEC_STATE_REJECTED = "rejected";
+    /** 内容安全状态常量：机检待人工复核 / 人工复核不通过（均对他端不可见，作者本人可见）。真源：{@link SecStateConst} */
+    public static final String SEC_STATE_PASS = SecStateConst.PASS;
+    public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
+    public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
 
     /** UGC 配图上限（张） */
     private static final int MAX_IMAGES = 3;
@@ -405,7 +406,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 转换为管理端 VO（携带 is_hidden/has_sensitive/sec_state 审核字段与配图）
+     * 转换为管理端 VO（携带 is_hidden/sec_state 审核字段与配图）
      */
     private ReviewAdminVO toAdminVO(Review review) {
         ReviewAdminVO vo = new ReviewAdminVO();
@@ -419,7 +420,6 @@ public class ReviewServiceImpl implements ReviewService {
         vo.setSecState(StringUtils.hasText(review.getSecState()) ? review.getSecState() : SEC_STATE_PASS);
         vo.setCreatedAt(review.getCreatedAt());
         vo.setIsHidden(review.getIsHidden() != null ? review.getIsHidden() : 0);
-        vo.setHasSensitive(false);
         return vo;
     }
 }

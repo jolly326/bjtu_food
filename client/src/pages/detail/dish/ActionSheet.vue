@@ -31,8 +31,8 @@
 </template>
 
 <script setup lang="ts">
-import BaseSheet from './BaseSheet.vue'
-import IconSvg from './IconSvg.vue'
+import BaseSheet from '@/components/BaseSheet.vue'
+import IconSvg from '@/components/IconSvg.vue'
 
 /** 动作项：share=true 走原生分享 button；颜色可用 iconColor/textColor 显式指定（默认次级浅灰） */
 interface ActionSheetItem {

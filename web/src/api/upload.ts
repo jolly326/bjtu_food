@@ -10,7 +10,8 @@ export interface UploadImageResult {
 /**
  * 图片上传（独立 fetch 通道：multipart 不走 http.ts 的 JSON request）。
  * 与 http.ts 对齐的兜底（WEB-107）：
- * ① 401 走同一 emitUnauthorized 失效广播（清 token + 跳登录），不再各自为政；
+ * ① 401 走同一 emitUnauthorized 失效广播，不再各自为政。
+ *    管理端无登录体系（X-Admin-Token 口令保护），401 语义为「口令无效/缺失」，由广播统一提示，不做路由跳转；
  * ② 响应 JSON.parse 包保护——网关 502/504 返 HTML 时不裸抛 SyntaxError，给可读错误；
  * ③ 5s 超时（AbortController），避免上传请求无界挂起。
  */
@@ -36,7 +37,7 @@ export async function uploadImage(file: File): Promise<UploadImageResult> {
     // ① 401 与 http.ts 同通道处理；403 语义对齐（无权限 ≠ 未登录）
     if (res.status === 401) {
       emitUnauthorized()
-      throw new Error('登录已失效，请重新登录')
+      throw new Error('访问口令无效或已失效，请检查 VITE_ADMIN_TOKEN 配置')
     }
     if (res.status === 403) {
       throw new Error('无权限执行此操作')

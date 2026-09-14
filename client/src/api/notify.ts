@@ -4,7 +4,6 @@
  * GET /my/notifications         我的消息（倒序，isRead 过滤）
  * GET /my/notifications/unread-count 未读总数（红点）
  * PUT /my/notifications/{id}/read  单条已读
- * PUT /my/notifications/read-all    全部已读
  */
 import { get, put } from './http'
 import { listOf, type PageResult, type RawRow } from './shared'

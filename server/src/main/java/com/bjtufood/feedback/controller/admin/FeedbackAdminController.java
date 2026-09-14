@@ -6,15 +6,15 @@ import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
+import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 反馈管理接口（Web 后台，ADM）
@@ -49,18 +49,15 @@ public class FeedbackAdminController {
                 (int) result.getCurrent(), (int) result.getSize()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。reply 支持 JSON body（{reply:...}）或 query 参数两种传法，body 优先。")
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），reply 可选。")
     @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "回复内容（可选），JSON body {reply:...} 或 query 参数")
-            @RequestBody(required = false) Map<String, String> body,
-            @RequestParam(required = false) String reply) {
-        String replyText = (body != null && body.get("reply") != null && !body.get("reply").isBlank())
-                ? body.get("reply") : reply;
-        feedbackService.handle(id, replyText);
+            @Parameter(description = "回复内容（可选），仅经 JSON body 传参：{reply:...}")
+            @Valid @RequestBody(required = false) FeedbackHandleReq body) {
+        feedbackService.handle(id, body == null ? null : body.getReply());
         return Result.success();
     }
 }

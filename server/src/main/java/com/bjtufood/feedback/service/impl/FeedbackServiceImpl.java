@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
+import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
@@ -37,10 +38,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
 
-    /** 内容安全状态常量：与 ReviewServiceImpl 口径一致 */
-    public static final String SEC_STATE_PASS = "pass";
-    public static final String SEC_STATE_REVIEW = "review";
-    public static final String SEC_STATE_REJECTED = "rejected";
+    /** 内容安全状态常量：与 ReviewServiceImpl 口径一致。真源：{@link SecStateConst} */
+    public static final String SEC_STATE_PASS = SecStateConst.PASS;
+    public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
+    public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
 
     /** UGC 配图上限（张） */
     private static final int MAX_IMAGES = 3;

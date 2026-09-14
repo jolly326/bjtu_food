@@ -75,7 +75,10 @@ export async function listFeedbacks(params: {
   }
 }
 
-/** 标记处理/回复：status=handled + reply + handled_at + handler_id */
+/**
+ * 标记处理/回复（RB18 收敛：仅 JSON body，后端 FeedbackHandleReq{ reply }；路径与方法不变）。
+ * 处理动作固定为「标记 handled + 写回复 + 记处理时间」，body 无需 status 字段。
+ */
 export async function handleFeedback(id: number, reply: string) {
-  await put<void>(`/admin/feedbacks/${id}`, { status: 'handled', reply })
+  await put<void>(`/admin/feedbacks/${id}`, { reply })
 }
