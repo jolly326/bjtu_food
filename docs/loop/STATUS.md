@@ -1,5 +1,6 @@
 # Loop 状态看板（STATUS）
 
+- **分支策略（2026-09-14 变更）**：**工作分支统一为 `develop`**；`feature/client-ui` 已快进合入 `develop` 并删除（本地 + 远端）；`main` 仍按既有规范由 `develop` 经 PR 更新。
 - **当前轮次**：ITER-003（团队缺陷与不一致排查）——**A/B/C/D 四批次全部闭环**
 - **报告**：`docs/loop/audit/ITER-003-AUDIT.md`＋`backend.md`/`frontend.md`（明细）
 - **验收标准**：`docs/loop/launch-checklist.md`（三项并行）
