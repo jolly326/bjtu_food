@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets;
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - POST /auth/admin/login（管理后台登录，方案 C）
  * - GET /canteens, GET /stalls（食堂档口查询）
- * - GET /dishes, GET /dishes/hot, GET /dishes/{id}（菜品浏览）
+ * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
  * - Swagger UI (SpringDoc) 相关路径
  */

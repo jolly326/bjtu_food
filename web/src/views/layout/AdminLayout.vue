@@ -1,18 +1,16 @@
 <script setup lang="ts">
 /**
  * AdminLayout：现代控制台外壳（无侧边栏）。
- * 顶部一级导航（Logo + 4 个功能入口 + 用户菜单），内容区全宽。
+ * 顶部一级导航（Logo + 4 个功能入口 + 只读身份标识），内容区全宽。
  */
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useAdminUserStore } from '@/stores/adminUserStore'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { House, PriceTag, Document, User, UserFilled, ArrowDown } from '@element-plus/icons-vue'
+import { House, PriceTag, Document, User, UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
-const adminUser = useAdminUserStore()
 
 const activePath = computed(() => route.path)
 
@@ -27,7 +25,6 @@ const navItems = computed(() => [
 /**
  * 导航激活判断：聚合页内的详情/子路由归属对应一级入口。
  * - 食堂详情(/dashboard/canteens/…) 归属「信息管理」
- * - 账号设置(/dashboard/account) 归属「用户与系统」
  */
 function isNavActive(path: string) {
   if (path === '/dashboard') return activePath.value === '/dashboard'
@@ -35,9 +32,7 @@ function isNavActive(path: string) {
     return activePath.value === '/dashboard/content' || activePath.value.startsWith('/dashboard/canteens')
   }
   if (path === '/dashboard/audit') return activePath.value.startsWith('/dashboard/audit')
-  if (path === '/dashboard/system') {
-    return activePath.value === '/dashboard/system' || activePath.value === '/dashboard/account'
-  }
+  if (path === '/dashboard/system') return activePath.value === '/dashboard/system'
   return false
 }
 
@@ -45,9 +40,9 @@ function navTo(path: string) {
   router.push(path)
 }
 
-// ===== 用户菜单（账号设置；系统为超时自动登出，无主动退出入口） =====
-const userMenuOpen = ref(false)
-function goAccount() { userMenuOpen.value = false; router.push('/dashboard/account') }
+// ===== 身份标识（§7.10 B：管理端已无角色体系，固定文案「管理员」；
+// 系统为超时自动登出，无主动退出/账号设置入口，故此处仅为只读身份展示） =====
+const currentRoleLabel = ref('管理员')
 </script>
 
 <template>
@@ -76,14 +71,9 @@ function goAccount() { userMenuOpen.value = false; router.push('/dashboard/accou
       </nav>
 
       <div class="topnav-right">
-        <div class="topbar-user" role="button" tabindex="0" :aria-expanded="userMenuOpen" aria-haspopup="menu" :aria-label="adminUser.myRole === 'super_admin' ? '用户菜单（超级管理员）' : '用户菜单'" @click="userMenuOpen = !userMenuOpen" @keydown.enter.prevent="userMenuOpen = !userMenuOpen" @keydown.space.prevent="userMenuOpen = !userMenuOpen" @keydown.escape="userMenuOpen = false">
+        <div class="topbar-user" aria-label="当前身份：管理员">
           <el-icon class="tu-ico"><UserFilled /></el-icon>
-          <span class="tu-name">{{ adminUser.myRole === 'super_admin' ? '超级管理员' : '管理员' }}</span>
-          <el-icon class="tu-caret" :class="{ open: userMenuOpen }"><ArrowDown /></el-icon>
-          <div v-if="userMenuOpen" class="user-menu" @click.stop>
-            <button class="um-item" v-press @click="goAccount">账号设置</button>
-          </div>
-          <div v-if="userMenuOpen" class="user-menu-mask" @click="userMenuOpen = false"></div>
+          <span class="tu-name">{{ currentRoleLabel }}</span>
         </div>
       </div>
     </header>
@@ -179,63 +169,18 @@ function goAccount() { userMenuOpen.value = false; router.push('/dashboard/accou
   flex-shrink: 0;
 }
 
-/* ===== 用户菜单 ===== */
+/* ===== 身份标识（只读，无可点区域） ===== */
 .topbar-user {
-  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius);
-  cursor: pointer;
   user-select: none;
   color: var(--text-secondary);
-  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
 }
-.topbar-user:hover { background: var(--bg-hover); color: var(--text-primary); }
-.topbar-user:active { transform: scale(var(--press-scale)); }
-.topbar-user:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .tu-ico { width: 18px; height: 18px; }
 .tu-name { font-size: var(--font-base); font-weight: var(--weight-medium); color: var(--text-primary); }
-.tu-caret { width: 14px; height: 14px; color: var(--text-light); transition: transform 0.2s var(--ease-out); }
-.tu-caret.open { transform: rotate(180deg); }
-
-.user-menu {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  right: 0;
-  min-width: 140px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-pop);
-  padding: var(--space-1);
-  z-index: 60;
-  animation: user-menu-in 0.16s var(--ease-out) both;
-  transform-origin: top right;
-}
-@keyframes user-menu-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .user-menu { animation: none; }
-}
-.um-item {
-  display: block;
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  background: none;
-  border-radius: var(--radius);
-  text-align: left;
-  font-size: var(--font-base);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
-}
-.um-item:hover { background: var(--bg-soft); }
-.user-menu-mask { position: fixed; inset: 0; z-index: 55; }
 
 /* ===== 内容区 ===== */
 .shell-content {

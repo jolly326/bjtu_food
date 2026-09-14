@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `promo_price`    INT          NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空）；非空视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
-    `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值（promotion 为 DishMapper 死查询技术债，禁止写入）',
+    `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `portion`        INT          NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
@@ -147,7 +147,6 @@ CREATE TABLE IF NOT EXISTS `review`
     `dish_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '被评价菜品ID',
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
-    `tags`       VARCHAR(255) NULL    DEFAULT NULL COMMENT '评价标签（美团式写评，逗号分隔或 JSON 数组）',
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）',
     `sec_state`  VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）',
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
@@ -633,5 +632,27 @@ END$$
 DELIMITER ;
 CALL `drop_dish_unused_fields`();
 DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
+
+-- 字段下线（2026-09-14 §7.10 用户拍板）：
+--   review.tags（评价标签）随「美团式写评」确认不做而下线：
+--   写入侧无任何入口（ReviewReq / 小程序端均无该字段），读取侧实体/VO 零引用（已复核），
+--   属纯零消费列。CREATE TABLE 已同步移除该列定义；旧库在此幂等 DROP，保证重复执行安全、不影响既有数据。
+--   同批 §7.10 决定保留（不删）两个 retired 列，仅停写、不再追究身份，此处不处理：
+--     - user_feedback.handler_id（管理端操作人身份降级：单口令即单人，handle 不再写入，保持 NULL）
+--     - operation_log.admin_id（同上，切面不再取当前管理员 ID，显式写 0）
+DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
+DELIMITER $$
+CREATE PROCEDURE `drop_review_tags_column`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'tags'
+    ) THEN
+        ALTER TABLE `review` DROP COLUMN `tags`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_review_tags_column`();
+DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
 
 SET FOREIGN_KEY_CHECKS = 1;

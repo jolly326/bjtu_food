@@ -5,7 +5,6 @@ import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
-import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,7 +47,7 @@ public class FeedbackAdminController {
         return Result.success(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at/handler_id，埋操作日志。reply 支持 JSON body（{reply:...}）或 query 参数两种传法，body 优先。")
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。reply 支持 JSON body（{reply:...}）或 query 参数两种传法，body 优先。")
     @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
@@ -59,8 +58,7 @@ public class FeedbackAdminController {
             @RequestParam(required = false) String reply) {
         String replyText = (body != null && body.get("reply") != null && !body.get("reply").isBlank())
                 ? body.get("reply") : reply;
-        Long handlerId = SecurityUtil.getCurrentUserId();
-        feedbackService.handle(id, handlerId, replyText);
+        feedbackService.handle(id, replyText);
         return Result.success();
     }
 }

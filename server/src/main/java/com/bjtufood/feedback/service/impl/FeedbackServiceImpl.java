@@ -189,7 +189,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void handle(Long id, Long handlerId, String reply) {
+    public void handle(Long id, String reply) {
         Feedback feedback = feedbackMapper.selectById(id);
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
@@ -197,7 +197,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setStatus(FeedbackConst.STATUS_HANDLED);
         feedback.setReply(reply);
         feedback.setHandledAt(LocalDateTime.now());
-        feedback.setHandlerId(handlerId);
+        // §7.10：管理端操作人身份降级（单口令即单人），不再写 handler_id；
+        // 该列保留在库中（retired），列可空，不写即保持 NULL。
         feedbackMapper.updateById(feedback);
         // 处理结果回执：仅向「可归属」提交人（提交时为已认证登录用户）投递
         sendFeedbackReceipt(feedback);
