@@ -29,6 +29,12 @@ const router = createRouter({
         { path: 'canteens/:pathMatch(.*)*', redirect: '/dashboard/content?tab=dish' },
       ],
     },
+    /**
+     * 根级兜底（PR-03「新入口必须具备失败态」）：非法/历史/拼错 URL 命中不到任何路由时，
+     * 若无此条则 <router-view> 空渲染 → 全白无提示。统一重定向到仪表盘（工作台）。
+     * 注意：必须放在最后，且为根级（非 /dashboard 子路由），否则 `/xxx` 不匹配 children 前缀。
+     */
+    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
 })
 

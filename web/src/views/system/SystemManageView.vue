@@ -5,15 +5,11 @@
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { usePageStore } from '@/stores/pageStore'
 import { useAdminStore } from '@/stores/adminStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import AccountView from '@/views/system/AccountView.vue'
 import OperationLogView from '@/views/admin/OperationLogView.vue'
 import { User, Document } from '@element-plus/icons-vue'
-
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '用户与系统' }] })
 
 // 进入即重载用户数据，保证账号视图有数据
 const adminStore = useAdminStore()

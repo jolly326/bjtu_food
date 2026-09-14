@@ -7,15 +7,11 @@
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { usePageStore } from '@/stores/pageStore'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import FeedbackView from '@/views/admin/FeedbackView.vue'
 import ApplyReviewView from '@/views/admin/ApplyReviewView.vue'
 import { Document, ChatLineSquare } from '@element-plus/icons-vue'
-
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '内容审核' }] })
 
 // ===== 待办数（来自 dashboard，加载失败静默不影响切换） =====
 const todo = ref<DashboardData | null>(null)

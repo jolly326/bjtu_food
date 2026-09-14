@@ -3,17 +3,93 @@
  * 与后端约定保持一致；页面/组件内优先引用此处，避免同一值在多个文件重复硬编码。
  */
 
-/** 上架/营业/启用状态 */
+/**
+ * 菜品上架 / 下架状态（2026-09-14：仅用于「菜品」上下架语义）。
+ * 注：食堂/档口已改为筛选属性字典，营业/停业状态不再使用本常量（Q-113/Q-115）。
+ */
 export const STATUS_ACTIVE = 'active'
-/** 下架/关闭/停用状态 */
 export const STATUS_INACTIVE = 'inactive'
+
+/**
+ * 操作日志动作元数据（唯一真源，操作日志页 + 工作台「近期操作」共用）。
+ * 必须与后端 `OperationLogConst` 同源：`server/src/main/java/com/bjtufood/common/constant/OperationLogConst.java`
+ * （ACTION_* 常量逐个对齐；后端新增动作时此处同步补登，否则列表单元格会回落为裸英文枚举）。
+ *
+ * 2026-09-14（P1-03 / WEB-08）对齐结果：后端原有 12 个常量，原前端仅登记 7 项、缺 5 项。
+ * - 补登：review_sec_state / category_create / category_update / category_toggle / category_delete
+ * - `audit_approve` / `audit_reject`：随审核中心链路（Q-107：不新增页面、删除死代码）下线，
+ *   前端不再登记（保留在常量表会形成「恒空筛选项」误导排查）。后端仍保留常量以兼容存量日志，
+ *   故 actionText 对未登记值回落为原始串（存量历史日志可读，不删数据、不改后端契约）。
+ */
+export const OPERATION_ACTION_META: Record<string, string> = {
+  review_hide: '评价隐藏',
+  review_delete: '评价删除',
+  review_sec_state: '安检复核',
+  dish_delete: '菜品删除',
+  feedback_handle: '反馈处理',
+  account_delete: '账号删除',
+  category_create: '品类新增',
+  category_update: '品类编辑',
+  category_toggle: '品类启停',
+  category_delete: '品类删除',
+}
+
+/** 操作日志动作筛选下拉（'' = 全部，不透传后端） */
+export const OPERATION_ACTION_OPTIONS = [
+  { value: '', label: '全部动作' },
+  ...Object.entries(OPERATION_ACTION_META).map(([value, label]) => ({ value, label })),
+]
+
+/**
+ * 操作日志对象类型元数据（唯一真源，同上）。
+ * 与后端 `targetType` 取值同源：dish / stall / canteen / category / feedback / review / user。
+ */
+export const OPERATION_TARGET_META: Record<string, string> = {
+  dish: '菜品',
+  stall: '档口',
+  canteen: '食堂',
+  category: '品类',
+  feedback: '反馈',
+  review: '评价',
+  user: '用户',
+}
+
+/** 操作日志对象筛选下拉（'' = 全部，不透传后端） */
+export const OPERATION_TARGET_OPTIONS = [
+  { value: '', label: '全部对象' },
+  ...Object.entries(OPERATION_TARGET_META).map(([value, label]) => ({ value, label })),
+]
+
+/** 动作枚举 → 中文文案（未登记值回落原始串，兼容存量历史日志，不显示空白） */
+export function operationActionText(action: string): string {
+  if (!action) return '—'
+  return OPERATION_ACTION_META[action] ?? action
+}
+
+/** 对象类型枚举 → 中文文案（未登记值回落原始串） */
+export function operationTargetText(targetType: string): string {
+  if (!targetType) return '—'
+  return OPERATION_TARGET_META[targetType] ?? targetType
+}
+
+/** 操作日志 target 字段（后端拼为 `targetType#targetId`）→ 可读中文；targetId 为空时只显示类型 */
+export function operationTargetLabel(target: string): string {
+  if (!target) return '—'
+  const sep = target.indexOf('#')
+  if (sep < 0) return operationTargetText(target)
+  return `${operationTargetText(target.slice(0, sep))}${target.slice(sep)}`
+}
 
 /** 菜品/档口/食堂审核状态 */
 export const AUDIT_PENDING = 'pending'
 export const AUDIT_APPROVED = 'approved'
 export const AUDIT_REJECTED = 'rejected'
 
-/** 审核状态展示元数据（StatusTag 类型 + 文案）：菜品/档口/食堂详情与列表共用（§4.9 审核闭环） */
+/**
+ * 审核状态展示元数据（StatusTag 类型 + 文案）：菜品列表与详情共用（§4.9 审核闭环）。
+ * 注（2026-09-14 Q-113 / PR-14）：档口 / 食堂已降为筛选属性字典、后端移除实体审核态，
+ * 故本映射仅服务于 dish.audit_status。
+ */
 export const AUDIT_STATUS_META: Record<string, { type: 'warning' | 'success' | 'danger'; text: string }> = {
   [AUDIT_PENDING]: { type: 'warning', text: '待审核' },
   [AUDIT_APPROVED]: { type: 'success', text: '已通过' },
@@ -41,6 +117,25 @@ export const SEC_FILTER_OPTIONS = [
   { value: SEC_PASS, label: '正常' },
   { value: SEC_REJECTED, label: '已驳回' },
 ]
+
+/**
+ * 反馈类型展示文案（唯一真源，反馈列表 + 工作台「待办明细」共用）。
+ * 与后端 FeedbackService 类型白名单同源：suggestion/add/error/report（历史类型 bug/other 亦可读存量）。
+ */
+export const FEEDBACK_TYPE_META: Record<string, string> = {
+  suggestion: '功能建议',
+  add: '新增菜品',
+  error: '内容纠错',
+  bug: '系统问题',
+  report: '举报',
+  other: '其他',
+}
+
+/** 反馈类型 → 中文文案（未登记值回落原始串，兼容存量脏数据） */
+export function feedbackTypeText(type: string): string {
+  if (!type) return '—'
+  return FEEDBACK_TYPE_META[type] ?? type
+}
 
 /** 反馈处理状态：待处理 */
 export const FEEDBACK_PENDING = 'pending'

@@ -11,11 +11,13 @@
  * 交互与可达性：
  *  - 点外部关闭（el-popover 默认）、Esc 关闭、选中后关闭；
  *  - 键盘：Tab 聚焦触发器 → Enter/Space 展开；面板内 ↑/↓ 移动、Enter 选中、Esc 关闭；
- *  - 语义：触发器 aria-haspopup="listbox" / aria-expanded，列表 role="listbox"，选项 role="option"。
+ *  - 语义：触发器 aria-haspopup="listbox" / aria-expanded，列表 role="listbox"，选项 role="option"；
+ *  - renamable（Q-113/Q-115）：选项行右侧追加改名入口（独立按钮，不参与 ↑/↓ 导航），
+ *    点击后收起面板并 emit rename，由调用方弹改名弹窗。
  */
 import { ref, computed, nextTick, useId } from 'vue'
 import { ElPopover } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Check, EditPen } from '@element-plus/icons-vue'
 
 interface PanelOption {
   label: string
@@ -34,19 +36,30 @@ const props = withDefaults(
     addText?: string
     /** 选项区空态文案（如「该食堂暂无档口」） */
     emptyText?: string
+    /**
+     * 是否允许「改名」（Q-113/Q-115：食堂/档口是属性字典，生命周期只有新增/改名）。
+     * 开启后，每个选项行右侧出现改名入口，点击 emit rename(option)（不选中、不关闭面板）。
+     */
+    renamable?: boolean
   }>(),
   {
     placeholder: '请选择',
     disabled: false,
     addText: '',
     emptyText: '',
+    renamable: false,
   },
 )
 
-const emit = defineEmits<{ 'update:modelValue': [value: number | string]; add: [] }>()
+const emit = defineEmits<{
+  'update:modelValue': [value: number | string]
+  add: []
+  /** 请求改名：由调用方弹出改名弹窗（本组件不自行处理表单） */
+  rename: [option: PanelOption]
+}>()
 
 const open = ref(false)
-/** 键盘导航高亮下标：-1 = 无高亮（-2 = 底部新增项） */
+/** 键盘导航高亮下标：-1 = 无高亮（= options.length 时为底部新增项） */
 const activeIndex = ref(-1)
 const listId = useId()
 
@@ -85,6 +98,16 @@ function onAdd() {
   open.value = false
   activeIndex.value = -1
   emit('add')
+}
+
+/**
+ * 改名：请求调用方弹出改名弹窗。先收起面板——否则 el-popover 会浮在弹窗之上，
+ * 形成「面板压弹窗」的层级混乱（§4.5 材质/层级一致性）。
+ */
+function onRename(opt: PanelOption, e: Event) {
+  e.stopPropagation()
+  close()
+  emit('rename', opt)
 }
 
 /** 面板内键盘导航：↑/↓ 移动、Enter 选中/开新增、Esc 关闭（Esc 由 el-popover 兜底） */
@@ -152,21 +175,35 @@ function onPanelKeydown(e: KeyboardEvent) {
         @keydown="onPanelKeydown"
       >
         <div class="isp-list">
-          <button
+          <div
             v-for="(opt, idx) in options"
             :key="String(opt.value)"
-            class="isp-opt"
-            :data-idx="idx"
-            type="button"
-            role="option"
-            :aria-selected="String(opt.value) === String(modelValue)"
-            :class="{ on: String(opt.value) === String(modelValue), hi: activeIndex === idx }"
-            @click="pick(opt)"
+            class="isp-row"
             @mouseenter="activeIndex = idx"
           >
-            <span class="isp-opt-label">{{ opt.label }}</span>
-            <span v-if="String(opt.value) === String(modelValue)" class="isp-check" aria-hidden="true">✓</span>
-          </button>
+            <button
+              class="isp-opt"
+              :data-idx="idx"
+              type="button"
+              role="option"
+              :aria-selected="String(opt.value) === String(modelValue)"
+              :class="{ on: String(opt.value) === String(modelValue), hi: activeIndex === idx }"
+              @click="pick(opt)"
+            >
+              <span class="isp-opt-label">{{ opt.label }}</span>
+              <el-icon v-if="String(opt.value) === String(modelValue)" class="isp-check" aria-hidden="true"><Check /></el-icon>
+            </button>
+            <button
+              v-if="renamable"
+              class="isp-rename"
+              type="button"
+              :title="`改名「${opt.label}」`"
+              :aria-label="`改名「${opt.label}」`"
+              @click="onRename(opt, $event)"
+            >
+              <el-icon class="isp-rename-ico"><EditPen /></el-icon>
+            </button>
+          </div>
           <p v-if="!options.length && emptyText" class="isp-empty">{{ emptyText }}</p>
         </div>
 
@@ -248,6 +285,9 @@ function onPanelKeydown(e: KeyboardEvent) {
 }
 .isp-panel { display: flex; flex-direction: column; }
 .isp-list { max-height: 240px; overflow-y: auto; padding: var(--space-1); }
+/* 选项行：选中按钮 + （可选）改名按钮并排 */
+.isp-row { display: flex; align-items: center; gap: var(--space-1); }
+.isp-row .isp-opt { flex: 1; width: auto; }
 .isp-opt {
   display: flex;
   align-items: center;
@@ -269,8 +309,29 @@ function onPanelKeydown(e: KeyboardEvent) {
 .isp-opt:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .isp-opt.on { color: var(--color-primary); font-weight: var(--weight-medium); }
 .isp-opt-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.isp-check { flex-shrink: 0; font-size: var(--font-sm); color: var(--color-primary); }
+.isp-check { flex-shrink: 0; width: 14px; height: 14px; color: var(--color-primary); }
 .isp-empty { margin: 0; padding: var(--space-3); font-size: var(--font-sm); color: var(--text-light); text-align: center; }
+
+/* 改名入口（Q-113/Q-115）：仅在 renamable 时渲染；悬停行内可见，静止时弱化不抢焦点 */
+.isp-rename {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
+}
+.isp-rename:hover { background: var(--bg-soft); color: var(--color-primary); }
+.isp-rename:active { transform: scale(var(--press-scale)); }
+.isp-rename:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.isp-rename-ico { width: 14px; height: 14px; }
 
 /* 底部固定新增项：1px 分隔线隔开，主色文字 */
 .isp-divider { height: 1px; background: var(--border-light); }

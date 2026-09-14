@@ -15,7 +15,7 @@ export interface CanteenCreateResult {
 
 /**
  * 新建食堂：仅名称必填（位置 / 描述 / 图片选填，§1.3(B) 注：原独立管理页的 location 必填口径已降级）。
- * 提交沿用 `POST /admin/canteens`（后台录入默认 audit_status=approved，不改后端契约）。
+ * 提交沿用 `POST /admin/canteens`（属性字典，无 status / auditStatus 语义，Q-113 / PR-14）。
  * 失败时向上抛出，由调用方保留表单数据并提示（§1.4）。
  */
 export async function createCanteenInline(payload: {
@@ -28,13 +28,13 @@ export async function createCanteenInline(payload: {
   const toast = useToastStore()
   const name = payload.name.trim()
   if (!name) throw new Error('食堂名称不能为空')
+  // 属性字典无状态语义（Q-113 / PR-14：后端 status 已移除），不再提交 status
   await store.addCanteen({
     name,
     location: payload.location?.trim() || '',
     description: payload.description?.trim() || '',
     image: payload.image || '',
     sort_order: 0,
-    status: 'active',
   })
   // 重名等失败已在上面抛错；成功后 store.list 已刷新，取回新行 id 供级联选中
   const created = [...store.canteens]
@@ -49,7 +49,7 @@ export async function createCanteenInline(payload: {
 
 /**
  * 新建档口：食堂 + 档口名必填，楼层 / 窗口号 / 位置 / 图片 / 描述选填。
- * 提交沿用 `POST /admin/stalls`（status=open，即前端 active；sort_order=0）。
+ * 提交沿用 `POST /admin/stalls`（属性字典，无 status / auditStatus 语义，Q-113 / PR-14；sort_order=0）。
  * 失败时向上抛出（重名 / 食堂已被并发删除等），由调用方保留表单数据并提示。
  */
 export async function createStallInline(payload: {
@@ -66,6 +66,7 @@ export async function createStallInline(payload: {
   const name = payload.name.trim()
   if (!canteenId) throw new Error('请选择所属食堂')
   if (!name) throw new Error('档口名称不能为空')
+  // 属性字典无状态语义（Q-113 / PR-14：后端 status 已移除），不再提交 status
   await store.addStall({
     canteen_id: canteenId as unknown as bigint,
     name,
@@ -76,7 +77,6 @@ export async function createStallInline(payload: {
     image: payload.image || '',
     avg_rating: 0,
     sort_order: 0,
-    status: 'active',
   })
   const created = [...store.stalls]
     .filter(s => Number(s.canteen_id) === canteenId && s.name === name)

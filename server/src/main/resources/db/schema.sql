@@ -11,7 +11,10 @@
 --   2. 金额类字段（dish.price）以「分」为单位存储（如 12.00 元 = 1200）。
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
---      用于 UGC 内容（dish / stall / canteen）的审核流；后台录入默认 approved。
+--      用于 UGC 内容审核流；后台录入默认 approved。
+--      注（2026-09-14 用户拍板）：食堂/档口已去实体化，降级为「菜品筛选属性字典」，
+--      其 status / audit_status / reject_reason 三列已整体下线（CREATE TABLE 不再创建，
+--      存量库由文件末尾 drop_canteen_stall_entity_fields 幂等 DROP）。菜品 dish 的同名列保留。
 --   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
 --      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
 --      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
@@ -66,10 +69,7 @@ CREATE TABLE IF NOT EXISTS `canteen`
     `description`   VARCHAR(512) NULL    DEFAULT NULL COMMENT '食堂描述',
     `latitude`      DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）',
     `longitude`     DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）',
-    `status`        VARCHAR(32)  NOT NULL DEFAULT 'open' COMMENT '状态：open / closed',
     `sort_order`    INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'approved' COMMENT '审核状态：pending/approved/rejected',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
     `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -90,9 +90,6 @@ CREATE TABLE IF NOT EXISTS `stall`
     `window_no`      VARCHAR(32)  NULL    DEFAULT NULL COMMENT '窗口号（如 3号窗口）',
     `description`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '档口描述',
     `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重',
-    `status`         VARCHAR(32)  NOT NULL DEFAULT 'open' COMMENT '状态：open / closed',
-    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'approved' COMMENT '审核状态：pending/approved/rejected',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
     `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -117,7 +114,6 @@ CREATE TABLE IF NOT EXISTS `dish`
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
-    `portion`        INT          NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
     `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
@@ -241,7 +237,9 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 -- 来源：tasks/ARCH_DECISIONS_PHASE1.md §1.2
 -- =============================================================
 
--- 档口：楼层 / 窗口号 / 营业时间（CREATE TABLE 已含；旧库幂等补齐，列定义与 CREATE 保持一致）
+-- 档口：楼层 / 窗口号（CREATE TABLE 已含；旧库幂等补齐，列定义与 CREATE 保持一致）
+-- 注：营业时间 stall.business_hours 已于 2026-09-14 §7.14 D 随列下线，本段不再创建；
+--     存量库由文件末尾 drop_stall_business_hours 幂等清理，新库 CREATE TABLE 亦不含该列。
 DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
 DELIMITER $$
 CREATE PROCEDURE `add_stall_phase1_fields`()
@@ -258,19 +256,15 @@ BEGIN
     ) THEN
         ALTER TABLE `stall` ADD COLUMN `window_no` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '窗口号';
     END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'business_hours'
-    ) THEN
-        ALTER TABLE `stall` ADD COLUMN `business_hours` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '营业时间，如 10:00-20:00';
-    END IF;
 END$$
 DELIMITER ;
 CALL `add_stall_phase1_fields`();
 DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
 
--- 菜品：辣度 / 分量 / 风味菜系（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
--- 注：供应时段 serve_period 与限量 limited 已于 2026-09-14 整体下线（见文件末尾 drop_dish_unused_fields 迁移）
+-- 菜品：辣度 / 风味菜系（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
+-- 注1：供应时段 serve_period 与限量 limited 已于 2026-09-14 整体下线（见文件末尾 drop_dish_unused_fields 迁移）
+-- 注2：分量 portion 已于 2026-09-14 §7.14（Q-114）整体下线：CREATE TABLE 已移除该列，
+--      此处不再 ADD（新库不创建）；存量库由文件末尾 drop_dish_portion 幂等清理。辣度 spice_level 保留。
 DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
 DELIMITER $$
 CREATE PROCEDURE `add_dish_phase1_fields`()
@@ -280,12 +274,6 @@ BEGIN
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'spice_level'
     ) THEN
         ALTER TABLE `dish` ADD COLUMN `spice_level` INT NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣';
-    END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'portion'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `portion` INT NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大';
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
@@ -674,5 +662,86 @@ END$$
 DELIMITER ;
 CALL `drop_stall_business_hours`();
 DROP PROCEDURE IF EXISTS `drop_stall_business_hours`;
+
+-- 字段下线（2026-09-14 §7.14 · Q-114 用户拍板）：
+--   dish.portion（分量）——用户拍板「彻底下线」，连后台录入一并移除（PR-07：字段引入与下线成对处置）。
+--   实体（Dish）/DTO（DishAdminReq）/VO（DishVO、DishAdminVO、DishDetailVO）/Mapper XML 列映射与查询列
+--   已同批移除，后台录入写入与值域校验亦删除；CREATE TABLE 已同步移除该列定义。
+--   旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
+--   注意：同批保留 dish.spice_level（辣度）——用户拍板要保留的维度，端上有消费。
+DROP PROCEDURE IF EXISTS `drop_dish_portion`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_portion`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'portion'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `portion`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_portion`();
+DROP PROCEDURE IF EXISTS `drop_dish_portion`;
+
+-- 字段下线（2026-09-14 §7.14 用户拍板）：
+--   食堂/档口已去实体化，降级为「菜品筛选属性字典」（生命周期仅新增/改名，无停业、无营业时间、无实体审核），
+--   故其 status（停业语义）/ audit_status（实体审核语义）/ reject_reason（退回原因）共 6 列整体下线：
+--     canteen.status / canteen.audit_status / canteen.reject_reason
+--     stall.status   / stall.audit_status   / stall.reject_reason
+--   实体（Canteen/Stall）、VO 与 Service 读写已同批移除，Mapper 侧无任何引用；CREATE TABLE 已同步移除列定义。
+--   旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
+--   注意：保留 canteen.name / stall.name / stall.floor / stall.window_no，以及新增/改名/列表查询能力；
+--         菜品 dish 的同名列（dish.status / dish.audit_status / dish.reject_reason）**必须保留**，
+--         菜品上下架与审核流仍在使用，本段只处理 canteen / stall 两表。
+DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
+DELIMITER $$
+CREATE PROCEDURE `drop_canteen_stall_entity_fields`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'status'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `status`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'audit_status'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `audit_status`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'reject_reason'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `reject_reason`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'status'
+    ) THEN
+        ALTER TABLE `stall` DROP COLUMN `status`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'audit_status'
+    ) THEN
+        ALTER TABLE `stall` DROP COLUMN `audit_status`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'reject_reason'
+    ) THEN
+        ALTER TABLE `stall` DROP COLUMN `reject_reason`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_canteen_stall_entity_fields`();
+DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
 
 SET FOREIGN_KEY_CHECKS = 1;

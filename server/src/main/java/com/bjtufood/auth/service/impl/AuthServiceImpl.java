@@ -162,8 +162,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
-        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 password 哈希、verified）
-        // 重新写回，导致与「修改密码」并发时产生 lost update。
+        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 password 哈希、verified 等）
+        // 重新写回，与「邮箱认证置 verified」等并发写操作产生 lost update（整行覆盖会回滚并发已提交的字段）。
         LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
         updater.eq(User::getId, userId);
         if (StringUtils.hasText(req.getNickname())) {
@@ -185,22 +185,6 @@ public class AuthServiceImpl implements AuthService {
         userMapper.update(updater);
         User updated = userMapper.selectById(userId);
         return buildProfileMap(updated);
-    }
-
-    @Override
-    public void changePassword(Long userId, String oldPassword, String newPassword) {
-        User user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException("用户不存在");
-        }
-        if (!StringUtils.hasText(user.getPassword())) {
-            throw new BusinessException("当前账号未设置密码，无法修改");
-        }
-        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new BusinessException("原密码错误");
-        }
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
     }
 
     @Override
@@ -434,7 +418,13 @@ public class AuthServiceImpl implements AuthService {
         if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
             return;
         }
-        // review：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）
+        // review：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）。
+        // 级联口径与 ReviewServiceImpl.deleteReview 一致：删除评价前先清 review_useful 中引用这些评价的行，
+        // 否则唯一键冲突行被物理删除后 review_useful 残留孤儿行（P2-04）。
+        reviewUsefulMapper.delete(new LambdaUpdateWrapper<ReviewUseful>()
+                .inSql(ReviewUseful::getReviewId,
+                        "SELECT id FROM review WHERE user_id = " + fromUserId
+                                + " AND dish_id IN (SELECT dish_id FROM review WHERE user_id = " + toUserId + ")"));
         reviewMapper.delete(new LambdaUpdateWrapper<Review>()
                 .eq(Review::getUserId, fromUserId)
                 .inSql(Review::getDishId, "SELECT dish_id FROM review WHERE user_id = " + toUserId));

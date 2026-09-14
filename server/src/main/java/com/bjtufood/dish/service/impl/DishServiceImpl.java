@@ -22,6 +22,8 @@ import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.history.entity.ViewLog;
+import com.bjtufood.history.mapper.ViewLogMapper;
 import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
@@ -46,10 +48,14 @@ public class DishServiceImpl implements DishService {
     /** 搜索别名最大长度（与 schema.sql dish.alias VARCHAR(255) 对齐，含逗号分隔符） */
     private static final int ALIAS_MAX_LENGTH = 255;
 
+    /** view_log.target_type 值：菜品（与 ViewLog 实体注释 / HistoryServiceImpl 写入口径一致） */
+    private static final String VIEW_TARGET_TYPE_DISH = "dish";
+
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
+    private final ViewLogMapper viewLogMapper;
     private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
     private final ViewRateLimiter viewRateLimiter;
@@ -147,6 +153,7 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void addDish(DishAdminReq req) {
         // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
@@ -179,6 +186,7 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void updateDish(Long id, DishAdminReq req) {
         Dish dish = dishMapper.selectById(id);
@@ -194,9 +202,10 @@ public class DishServiceImpl implements DishService {
         // 顺带修正历史 pending/rejected 态，避免"改了信息反而从端上消失"。
         dish.setAuditStatus(DishConst.AUDIT_APPROVED);
         dishMapper.updateById(dish);
-        // 契约约定：null 表示清空可空的原价/促销价；updateById 默认 NOT_NULL 策略不落 null，需显式置空
-        boolean clearOriginalPrice = req.getOriginalPrice() == null;
-        boolean clearPromoPrice = req.getPromoPrice() == null;
+        // 契约约定：null/0 表示清空可空的原价/促销价（applyReq 已把 0 归一为 null 并写回实体）；
+        // updateById 默认 NOT_NULL 策略不落 null，需显式置空
+        boolean clearOriginalPrice = dish.getOriginalPrice() == null;
+        boolean clearPromoPrice = dish.getPromoPrice() == null;
         // alias 契约与原价/促销价不同：null=不修改（保护「仅传 status 的行内部分更新」不误清别名）；
         // 传了字段（含空串/纯空白）但规范化后为空 = 清空别名，updateById 不落 null，需显式置空。
         boolean clearAlias = req.getAlias() != null
@@ -228,6 +237,11 @@ public class DishServiceImpl implements DishService {
         reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
                 .inSql(ReviewUseful::getReviewId, "SELECT id FROM review WHERE dish_id = " + id));
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
+        // 级联清理浏览足迹（P2-04）：target_type='dish' + target_id 的 view_log 行，
+        // 否则菜品物理删除后残留孤儿行（且「猜你喜欢」按已删菜品 ID 读取恒空）。与评价级联同属本事务。
+        viewLogMapper.delete(new LambdaQueryWrapper<ViewLog>()
+                .eq(ViewLog::getTargetType, VIEW_TARGET_TYPE_DISH)
+                .eq(ViewLog::getTargetId, id));
         dishMapper.deleteById(id);
     }
 
@@ -238,10 +252,22 @@ public class DishServiceImpl implements DishService {
     // 不会出现「先清缓存、后写库」导致旧评分被回填的窗口
     @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void recalcAvgRating(Long dishId) {
-        // 并发安全：子查询 AVG/COUNT 整体写回（仅统计未隐藏评价），避免全量查询后回写丢数据
+        // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
+        // 计入口径（Q-110，2026-09-14 用户拍板）：仅 is_hidden=0 且 sec_state='pass' 的评价计入，
+        // 被机审/人工拦下（review/rejected）的内容完全不进统计；口径真源在 DishMapper.xml
+        // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏/机审回写）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
     }
 
+    /**
+     * 请求体 → 实体写入（新增与编辑共用）。
+     * <p>
+     * 可选字段（price/originalPrice/promoPrice/description/tags/spiceLevel/region/status）
+     * 遵循「null=不修改」语义：编辑路径 MyBatis-Plus {@code updateById} 默认 NOT_NULL 策略会跳过 null 字段，
+     * 新增路径 null 则落库列默认值（与既有 applyReq 风格一致）。
+     * <p>
+     * 所有值域/白名单校验集中在此（PR-06：非法入参必须 400 报错，不得静默降级落库）。
+     */
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
         dish.setCategoryId(req.getCategoryId());
@@ -251,15 +277,98 @@ public class DishServiceImpl implements DishService {
             throw new BusinessException("搜索别名过长（含逗号分隔符最多 " + ALIAS_MAX_LENGTH + " 字符）");
         }
         dish.setAlias(alias);
-        dish.setPrice(req.getPrice());
-        dish.setOriginalPrice(req.getOriginalPrice());
-        dish.setPromoPrice(req.getPromoPrice());
+
+        // 金额值域校验与归一化（P1-05）：单位仍为「分」，仅加值域约束，不改量纲。
+        // price 为必填价格：非 null 时必须 > 0，0/负数 → 400。
+        // originalPrice/promoPrice 为可空折扣字段：web 以 0 表示「无原价/无折扣」（schema 用 NULL 表达该语义），
+        // 故 0 归一为 null（清空/未设置），负数 → 400；真正设值时必须 > 0 且 promoPrice <= originalPrice。
+        Integer price = req.getPrice();
+        if (price != null && price <= 0) {
+            throw new BusinessException("价格必须大于 0（单位：分）");
+        }
+        Integer originalPrice = normalizeDiscount(req.getOriginalPrice(), "原价");
+        Integer promoPrice = normalizeDiscount(req.getPromoPrice(), "促销价");
+        validateDiscountRelation(originalPrice, promoPrice);
+        dish.setPrice(price);
+        dish.setOriginalPrice(originalPrice);
+        dish.setPromoPrice(promoPrice);
+
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
-        dish.setTags(req.getTags());
+        // 标签白名单校验（P2-01）：schema 注释声明「仅允许登记值」，非法值 400
+        dish.setTags(validateAndNormalizeTags(req.getTags()));
+
+        // 辣度（P0-01）：原漏写导致字段恒为默认值，首页辣度筛选恒空集；此处补齐写入
+        // 注：分量 portion 已于 2026-09-14 §7.14（Q-114）整体下线，连同写入/校验一并移除。
+        validateSpiceLevel(req.getSpiceLevel());
+        dish.setSpiceLevel(req.getSpiceLevel());
+
         // 风味/菜系（§7.9 定型）：先前后台无维护入口，此处补齐写入
         dish.setRegion(req.getRegion());
         dish.setStatus(req.getStatus());
+    }
+
+    /**
+     * 折扣字段（原价/促销价，单位：分）归一化与值域校验（P1-05）。
+     * <p>
+     * 语义（与 web 管理端既有契约对齐）：null / 0 均表示「无该价格」→ 落 NULL；
+     * 负数非法 → 400；正数原样保留（schema 中 NULL 表示无折扣，0 虽为金额但语义上等于「无」，
+     * 归一为 NULL 可避免「库中存在 0 元原价」这一无意义状态）。
+     */
+    private Integer normalizeDiscount(Integer value, String fieldName) {
+        if (value == null || value == 0) {
+            return null;
+        }
+        if (value < 0) {
+            throw new BusinessException(fieldName + "不能为负（单位：分）");
+        }
+        return value;
+    }
+
+    /**
+     * 折扣组合校验：promoPrice 非空（真正设了促销价）时不得高于 originalPrice（原价非空时比较）。
+     * 原价为空（无折扣基准）时不做比较。
+     */
+    private void validateDiscountRelation(Integer originalPrice, Integer promoPrice) {
+        if (originalPrice != null && promoPrice != null && promoPrice > originalPrice) {
+            throw new BusinessException("促销价不能高于原价");
+        }
+    }
+
+    /**
+     * 标签白名单校验与规范化：支持中英文逗号分隔，逐项 trim、去空项、去重（保持首次出现顺序）。
+     * 空白输入返回 null（清空）；任一项不在 {@link DishConst#VALID_TAGS} 内 → 400（PR-06，不再原样落库）。
+     */
+    private String validateAndNormalizeTags(String raw) {
+        if (raw == null) {
+            // null=不修改（与其它可选字段一致，保护「仅传 status 的行内部分更新」不误清标签）
+            return null;
+        }
+        java.util.LinkedHashSet<String> parts = new java.util.LinkedHashSet<>();
+        for (String part : raw.split("[,，]")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                parts.add(trimmed);
+            }
+        }
+        for (String tag : parts) {
+            if (!DishConst.VALID_TAGS.contains(tag)) {
+                throw new BusinessException("标签值非法：" + tag
+                        + "（仅允许 " + DishConst.TAG_RECOMMENDED + " / " + DishConst.TAG_SIGNATURE + "）");
+            }
+        }
+        return parts.isEmpty() ? "" : String.join(",", parts);
+    }
+
+    /** 辣度值域校验（P0-01 / PR-06）：0-3（含），越界 400。null=不修改 */
+    private void validateSpiceLevel(Integer spiceLevel) {
+        if (spiceLevel == null) {
+            return;
+        }
+        if (spiceLevel < DishConst.SPICE_LEVEL_MIN || spiceLevel > DishConst.SPICE_LEVEL_MAX) {
+            throw new BusinessException("辣度取值非法：" + spiceLevel
+                    + "（仅允许 " + DishConst.SPICE_LEVEL_MIN + "-" + DishConst.SPICE_LEVEL_MAX + "）");
+        }
     }
 
     /**

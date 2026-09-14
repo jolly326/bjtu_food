@@ -6,7 +6,11 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 数据看板视图对象（Web 后台 dashboard）
+ * 工作台视图对象（Web 后台 dashboard）
+ * <p>
+ * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，前端不消费热度排行/趋势字段，
+ * 故移除 hotCanteens / hotDishes / viewTrend / reviewTrend 及其全表菜品聚合查询。
+ * 仅保留「待办 + 规模指标 + 近期操作」。
  */
 @Data
 @Schema(description = "数据看板")
@@ -47,38 +51,6 @@ public class DashboardVO {
 
     @Schema(description = "近期操作（操作日志最近 10 条）")
     private List<RecentLogItem> recentLogs;
-
-    @Schema(description = "最热门食堂（按浏览量/评价数）")
-    private List<RankItem> hotCanteens;
-
-    @Schema(description = "最热门菜品（按浏览量）")
-    private List<RankItem> hotDishes;
-
-    @Schema(description = "浏览量趋势（按天）")
-    private TrendData viewTrend;
-
-    @Schema(description = "评价量趋势（按天）")
-    private TrendData reviewTrend;
-
-    @Data
-    @Schema(description = "排行项")
-    public static class RankItem {
-        @Schema(description = "ID")
-        private Long id;
-        @Schema(description = "名称")
-        private String name;
-        @Schema(description = "热度值（浏览量；食堂榜单为下属菜品浏览量汇总）")
-        private Long score;
-    }
-
-    @Data
-    @Schema(description = "趋势数据")
-    public static class TrendData {
-        @Schema(description = "日期标签列表，如 [01-01, 01-02]")
-        private List<String> dates;
-        @Schema(description = "数值列表")
-        private List<Long> values;
-    }
 
     @Data
     @Schema(description = "待办明细项")

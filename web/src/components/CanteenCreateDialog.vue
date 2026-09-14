@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * CanteenCreateDialog：内联新建食堂小弹窗（叠层，宽 520，confirmText「创建并选中」）。
+ * CanteenCreateDialog：内联新建食堂字典项小弹窗（叠层，宽 520，confirmText「创建并选中」）。
  * 归属：docs/loop/design/dish-entry-flow.md §1.3(B) / §3.3。
+ * 2026-09-14 Q-113/Q-115：食堂是**菜品筛选属性字典**，非业务实体，生命周期只有「新增 / 改名」，
+ * 无营业状态 / 营业时间 / 实体审核字段（本弹窗均不出现）。
  * 仅名称必填；位置 / 描述 / 图片选填。成功后 emit created({id, name})，由调用方级联选中。
  */
 import { ref, watch } from 'vue'
@@ -60,6 +62,7 @@ async function submit() {
     :on-confirm="submit"
     @close="emit('close')"
   >
+    <p class="dict-hint">食堂字典项，作为菜品筛选项使用（可随时改名）</p>
     <div class="field">
       <label>食堂名称 <span class="required">*</span></label>
       <input v-model="form.name" placeholder="如：一食堂" />
@@ -86,6 +89,7 @@ async function submit() {
 <style scoped>
 .field { margin-bottom: 0; }
 .mt { margin-top: var(--space-3); }
+.dict-hint { margin: 0 0 var(--space-3); font-size: var(--font-xs); color: var(--text-light); }
 .required { color: var(--color-error); }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
 </style>

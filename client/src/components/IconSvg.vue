@@ -19,26 +19,25 @@ import { computed } from 'vue'
  *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
  *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
  *
- * 用法：<IconSvg name="heart" :size="32" color="var(--color-like)" />
+ * 用法：<IconSvg name="thumb" :size="26" color="var(--color-like)" />
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
+// 2026-09-14（P3-05 / PR-05「零消费即删」）：'heart-filled' / 'heart' / 'send-simple' 三键已删除——
+// 逐一核查确认端上零 `name="..."` 引用（收藏功能全量移除、评价发送键未启用）；
+// 'thumb-filled' 亦零引用，但**「有用」按钮（唯一 UGC 互动，ReviewItem.vue）实际引用的是 'thumb' 线性键**，
+// 故此处保留 'thumb'（点赞/有用语义唯一图标），仅删除 'thumb-filled' 填充变体。
+// 同批删除的其余零消费键：'send'（评价发送，改用文本提交）、'up'（原回顶按钮已移除）、
+// 'lightbulb'（线性灯泡，实色 lightbulb-fill 在用）、'contact'（联系开发者独立入口已下线）。
+// ⚠️ 'home-filled' / 'profile-filled' 必须保留：TabBar.vue 以 `${icon}-filled` 动态拼接选中态图标，
+//    静态 grep 会误判为零消费（P0-06 点赞图标同类陷阱）。
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
-  // 实心喜欢（填充红，E16）：与 heart 同形，fill 实心渲染
-  'heart-filled': { path: ['M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'], fill: true },
   thumb: { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'] },
-  // 实心点赞（点赞选中态填充变体，与 thumb 同形）
-  'thumb-filled': { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'], fill: true },
-  // 发送（feather paper plane）
-  send: { path: ['M22 2 11 13', 'M22 2 15 22 11 13 2 9z'] },
-  // 简约发送（线性右上箭头）
-  'send-simple': { path: ['M7 17 17 7', 'M8 7h9v9'] },
   search: { path: ['M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
-  // 向上箭头（回到顶部按钮）
-  up: { path: ['m18 15-6-6-6 6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
-  filter: { path: ['M22 3H2l8 9.46V19l4 2v-8.54L22 3z'] },
+  // 原 `filter`（漏斗）键已于 2026-09-14 删除：唯一消费点 FilterBar 的假控件胶囊已按 P0-05 移除，
+  // 成为零消费键（PR-05：零消费图标不留存）。
   comment: { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'] },
   report: { path: ['M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z', 'M12 9v4', 'M12 17h.01'] },
   plus: { path: ['M12 5v14', 'M5 12h14'] },
@@ -55,7 +54,6 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   delete: { path: ['M3 6h18', 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M10 11v6', 'M14 11v6'] },
   check: { path: ['M20 6 9 17l-5-5'] },
   share: { path: ['M18 5m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'M18 19m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0', 'm8.6 13.5 6.8 4', 'M15.4 6.5l-6.8 4'] },
-  lightbulb: { path: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
   image: { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'm21 15-5-5L5 21'] },
   // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
@@ -74,8 +72,6 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   // 空状态（无数据 / 空盒子）：中性线性占位，区别于 dish 碗
   empty: { path: ['M3 10.5 12 4l9 6.5', 'M5 9.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5', 'M9 20v-6h6v6'] },
   // ── task-15 emoji→IconSvg 迁移补充图标 ──
-  // 联系开发者（信封 + 对话）
-  contact: { path: ['M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', 'm3 7 9 6 9-6'] },
   // 档口（店铺）
   stall: { path: ['M3 9l1.5-4.5A2 2 0 0 1 6.4 3h11.2a2 2 0 0 1 1.9 1.5L21 9', 'M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M9 13h6v4'] },
   // 食堂（楼栋/餐厅）：区别于 stall 店铺、home 房屋；带入口门与二楼窗

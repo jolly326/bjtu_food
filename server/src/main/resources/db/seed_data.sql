@@ -40,31 +40,33 @@ INSERT INTO category (code, name, sort_order, status) VALUES
 ('halal',    '清真',     8, 'enabled');
 
 -- -------------------- 食堂（共 7 个；id=1 为学一食堂，档口/菜品 canteen_id 引用以此对齐） --------------------
-INSERT INTO canteen (name, location, description, status, sort_order, audit_status, latitude, longitude) VALUES
-('学一食堂', '学苑区',     '综合食堂，家常风味', 'open', 1, 'approved', 39.953800, 116.335400),
-('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 'open', 2, 'approved', 39.954200, 116.335800),
-('学三食堂', '学苑区二栋', '品类丰富，平价美味', 'open', 3, 'approved', 39.954600, 116.336200),
-('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 'open', 4, 'approved', 39.955800, 116.331500),
-('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     'open', 5, 'approved', 39.953000, 116.339000),
-('清真食堂', '学苑区',     '清真风味，干净卫生', 'open', 6, 'approved', 39.954800, 116.335000),
-('留园餐厅', '留园区',     '精致小炒与面点',     'open', 7, 'approved', 39.957000, 116.338000);
+-- 注：食堂已去实体化（2026-09-14 §7.14），status/audit_status 列已下线，不再写入（否则新库报 Unknown column）
+INSERT INTO canteen (name, location, description, sort_order, latitude, longitude) VALUES
+('学一食堂', '学苑区',     '综合食堂，家常风味', 1, 39.953800, 116.335400),
+('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 2, 39.954200, 116.335800),
+('学三食堂', '学苑区二栋', '品类丰富，平价美味', 3, 39.954600, 116.336200),
+('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 4, 39.955800, 116.331500),
+('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     5, 39.953000, 116.339000),
+('清真食堂', '学苑区',     '清真风味，干净卫生', 6, 39.954800, 116.335000),
+('留园餐厅', '留园区',     '精致小炒与面点',     7, 39.957000, 116.338000);
 
 -- -------------------- 档口（canteen_id 对应上面的食堂） --------------------
-INSERT INTO stall (canteen_id, name, location, description, status, sort_order, audit_status) VALUES
-(1, '学一基本伙食', '学一食堂一层', '平价家常菜',       'open', 2, 'approved'),
-(1, '学一面点坊',   '学一食堂一层', '现做面点与汤包',   'open', 3, 'approved'),
-(2, '学二快餐档',   '学二食堂',     '快捷套餐',         'open', 1, 'approved'),
-(2, '学二盖饭档',   '学二食堂',     '各式盖饭',         'open', 2, 'approved'),
-(3, '学三麻辣烫',   '学三食堂',     '自选麻辣烫',       'open', 1, 'approved'),
-(3, '学三粥铺',     '学三食堂',     '养生粥品',         'open', 2, 'approved'),
-(4, '明湖小炒',     '明湖餐厅',     '现炒小菜',         'open', 1, 'approved'),
-(4, '明湖烧烤',     '明湖餐厅',     '炭火烧烤',         'open', 2, 'approved'),
-(5, '嘉园夜宵',     '嘉园餐厅',     '深夜食堂',         'open', 1, 'approved'),
-(5, '嘉园奶茶',     '嘉园餐厅',     '鲜制饮品',         'open', 2, 'approved'),
-(6, '清真拉面',     '清真食堂',     '手工拉面',         'open', 1, 'approved'),
-(6, '清真烤串',     '清真食堂',     '清真烤串',         'open', 2, 'approved'),
-(7, '留园小炒',     '留园餐厅',     '精致小炒',         'open', 1, 'approved'),
-(7, '留园包点',     '留园餐厅',     '广式包点',         'open', 2, 'approved');
+-- 注：档口已去实体化（2026-09-14 §7.14），status/audit_status 列已下线，不再写入（否则新库报 Unknown column）
+INSERT INTO stall (canteen_id, name, location, description, sort_order) VALUES
+(1, '学一基本伙食', '学一食堂一层', '平价家常菜',       2),
+(1, '学一面点坊',   '学一食堂一层', '现做面点与汤包',   3),
+(2, '学二快餐档',   '学二食堂',     '快捷套餐',         1),
+(2, '学二盖饭档',   '学二食堂',     '各式盖饭',         2),
+(3, '学三麻辣烫',   '学三食堂',     '自选麻辣烫',       1),
+(3, '学三粥铺',     '学三食堂',     '养生粥品',         2),
+(4, '明湖小炒',     '明湖餐厅',     '现炒小菜',         1),
+(4, '明湖烧烤',     '明湖餐厅',     '炭火烧烤',         2),
+(5, '嘉园夜宵',     '嘉园餐厅',     '深夜食堂',         1),
+(5, '嘉园奶茶',     '嘉园餐厅',     '鲜制饮品',         2),
+(6, '清真拉面',     '清真食堂',     '手工拉面',         1),
+(6, '清真烤串',     '清真食堂',     '清真烤串',         2),
+(7, '留园小炒',     '留园餐厅',     '精致小炒',         1),
+(7, '留园包点',     '留园餐厅',     '广式包点',         2);
 
 -- -------------------- 菜品（stall_id 对应上面档口；category_id 对应上面品类 1=麻辣烫 2=面食 3=盖饭套餐 4=家常小炒 5=烧烤炸物 6=汤粥 7=饮品甜点 8=清真；价格单位：分） --------------------
 INSERT INTO dish (stall_id, category_id, name, price, description, images, tags, status, audit_status, view_count, avg_rating, rating_count) VALUES
@@ -168,28 +170,31 @@ UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
 UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
 UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
 
--- 菜品：先给全部菜品一个基础属性，再对部分招牌/特征菜做差异化
-UPDATE dish SET spice_level=1, portion=1, serve_period='lunch,dinner', limited=0
-    WHERE spice_level=0 AND serve_period='';
+-- 菜品：先给全部菜品一个基础辣度，再对部分招牌/特征菜做差异化。
+-- 注：餐段 serve_period 与限量 limited 两列已于 2026-09-14 §7.9 整体下线，
+--     由 schema.sql 末尾 drop_dish_unused_fields 幂等 DROP，种子脚本不再引用（否则新库报 Unknown column）。
+--     分量 portion 列已于 2026-09-14 §7.14（Q-114）整体下线，本脚本自始未对其赋值，无需处理；
+--     存量库由 schema.sql 末尾 drop_dish_portion 幂等 DROP。辣度 spice_level 保留（下方差异化赋值有效）。
+UPDATE dish SET spice_level=1 WHERE spice_level=0;
 
-UPDATE dish SET spice_level=2, portion=1, serve_period='lunch,dinner' WHERE id=1;   -- 宫保鸡丁
-UPDATE dish SET spice_level=3, portion=2, serve_period='lunch,dinner' WHERE id=2;   -- 水煮牛肉
-UPDATE dish SET spice_level=2, portion=1, serve_period='lunch,dinner' WHERE id=3;   -- 回锅肉
-UPDATE dish SET spice_level=0, portion=1, serve_period='lunch,dinner' WHERE id=4;   -- 番茄炒蛋
-UPDATE dish SET spice_level=1, portion=1, serve_period='lunch,dinner' WHERE id=6;   -- 牛肉拉面
-UPDATE dish SET spice_level=3, portion=2, serve_period='dinner'       WHERE id=9;   -- 香辣虾
-UPDATE dish SET spice_level=2, portion=2, serve_period='lunch,dinner' WHERE id=12;  -- 骨汤麻辣烫
-UPDATE dish SET spice_level=3, portion=1, serve_period='dinner'       WHERE id=13;  -- 冒脑花
-UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=14; -- 皮蛋瘦肉粥
-UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=15; -- 广式肠粉
-UPDATE dish SET spice_level=1, portion=1, serve_period='midnight'     WHERE id=19;  -- 炒粉
-UPDATE dish SET spice_level=1, portion=1, serve_period='midnight'     WHERE id=20;  -- 烤冷面
-UPDATE dish SET spice_level=0, portion=1, serve_period='lunch,dinner' WHERE id=22;  -- 珍珠奶茶
-UPDATE dish SET spice_level=0, portion=1, serve_period='lunch,dinner' WHERE id=23;  -- 杨枝甘露
-UPDATE dish SET spice_level=1, portion=1, serve_period='lunch,dinner' WHERE id=24;  -- 兰州牛肉面
-UPDATE dish SET spice_level=2, portion=1, serve_period='dinner,midnight' WHERE id=26; -- 羊肉串
-UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=29; -- 鲜虾烧卖
-UPDATE dish SET spice_level=0, portion=1, serve_period='breakfast,lunch' WHERE id=30; -- 叉烧包
+UPDATE dish SET spice_level=2 WHERE id=1;   -- 宫保鸡丁
+UPDATE dish SET spice_level=3 WHERE id=2;   -- 水煮牛肉
+UPDATE dish SET spice_level=2 WHERE id=3;   -- 回锅肉
+UPDATE dish SET spice_level=0 WHERE id=4;   -- 番茄炒蛋
+UPDATE dish SET spice_level=1 WHERE id=6;   -- 牛肉拉面
+UPDATE dish SET spice_level=3 WHERE id=9;   -- 香辣虾
+UPDATE dish SET spice_level=2 WHERE id=12;  -- 骨汤麻辣烫
+UPDATE dish SET spice_level=3 WHERE id=13;  -- 冒脑花
+UPDATE dish SET spice_level=0 WHERE id=14;  -- 皮蛋瘦肉粥
+UPDATE dish SET spice_level=0 WHERE id=15;  -- 广式肠粉
+UPDATE dish SET spice_level=1 WHERE id=19;  -- 炒粉
+UPDATE dish SET spice_level=1 WHERE id=20;  -- 烤冷面
+UPDATE dish SET spice_level=0 WHERE id=22;  -- 珍珠奶茶
+UPDATE dish SET spice_level=0 WHERE id=23;  -- 杨枝甘露
+UPDATE dish SET spice_level=1 WHERE id=24;  -- 兰州牛肉面
+UPDATE dish SET spice_level=2 WHERE id=26;  -- 羊肉串
+UPDATE dish SET spice_level=0 WHERE id=29;  -- 鲜虾烧卖
+UPDATE dish SET spice_level=0 WHERE id=30;  -- 叉烧包
 
 -- 地域（美食来源地，与食堂位置无关）：按菜品特征推断
 UPDATE dish SET region='川湘'   WHERE id IN (1,2,3);      -- 宫保鸡丁/水煮牛肉/回锅肉

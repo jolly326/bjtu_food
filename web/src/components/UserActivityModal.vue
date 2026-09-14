@@ -6,6 +6,7 @@
 import { ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import StarRating from '@/components/StarRating.vue'
 import { listFeedbacks, type FeedbackAdminVO } from '@/api/feedback'
 import { getAll } from '@/api/review'
 import type { Review } from '@/types'
@@ -99,7 +100,7 @@ function countOf(key: string): number {
       <div v-if="section === 'review'" class="ua-list">
         <div v-for="r in reviews" :key="Number(r.id)" class="ua-item">
           <div class="ua-item-main">
-            <span class="ua-stars">{{ '★'.repeat(r.rating) }}</span>
+            <StarRating class="ua-stars" :value="r.rating" :max="0" tone="warning" />
             {{ fmtContent(r.content) }}
           </div>
           <div class="ua-item-meta">
@@ -170,7 +171,8 @@ function countOf(key: string): number {
 }
 .ua-item:last-child { border-bottom: none; }
 .ua-item-main { font-size: var(--font-base); color: var(--text-primary); line-height: 1.5; }
-.ua-stars { color: var(--color-warning); margin-right: var(--space-2); }
+/* 星级样式由 StarRating 组件提供（tone=warning），此处仅保留列表内间距 */
+.ua-stars { margin-right: var(--space-2); }
 .ua-item-meta {
   display: flex;
   align-items: center;

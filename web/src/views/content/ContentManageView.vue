@@ -7,15 +7,11 @@
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { usePageStore } from '@/stores/pageStore'
 import { useAdminStore } from '@/stores/adminStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import DishManageView from '@/views/canteen/DishManageView.vue'
 import HomeConfigView from '@/views/content/HomeConfigView.vue'
 import { Food, Picture } from '@element-plus/icons-vue'
-
-const page = usePageStore()
-page.setPage({ breadcrumbs: [{ label: '信息管理' }] })
 
 // 进入信息管理即重新加载全部业务数据（档口/菜品/轮播），保证各视图有数据
 const adminStore = useAdminStore()

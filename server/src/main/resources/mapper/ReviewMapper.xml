@@ -152,16 +152,23 @@
         </choose>
     </select>
 
-    <!-- 某档口下所有菜品评价的平均分（无评价返回 NULL） -->
+    <!--
+        某档口下所有菜品评价的平均分（无评价返回 NULL）。
+        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
+    -->
     <select id="selectAvgRatingByStallId" resultType="java.math.BigDecimal">
         SELECT AVG(r.rating)
         FROM review r
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
+          AND r.sec_state = 'pass'
     </select>
 
-    <!-- 批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射 -->
+    <!--
+        批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
+        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
+    -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,
                AVG(r.rating)  AS avgRating
@@ -172,6 +179,7 @@
             #{sid}
         </foreach>
           AND r.is_hidden = 0
+          AND r.sec_state = 'pass'
         GROUP BY d.stall_id
     </select>
 

@@ -6,9 +6,18 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 用户视图对象（VO）
+ * 用户视图对象（VO）——<b>管理端</b>用户列表专用。
  * <p>
- * 用于管理端展示用户列表信息，不包含密码等敏感字段
+ * 与 {@link UserInfoVO}（小程序端登录/资料体）字段高度相似但<b>不可合并</b>，差异登记如下：
+ * <ul>
+ *   <li>{@code verified} 类型不同：本类为 {@code Integer}（0/1，直接暴露库值，管理端展示原始态）；
+ *       {@link UserInfoVO} 为 {@code Boolean}（true=已认证 / false=游客态，端上语义）。</li>
+ *   <li>本类额外汇总 {@code createdAt}（管理端需要展示注册时间）、{@code wechatBound}
+ *       （是否已绑定微信，仅布尔标识不暴露 openid 明文）——{@link UserInfoVO} 均无。</li>
+ *   <li>消费方：{@code GET /admin/users}（UserAdminController）；{@link UserInfoVO} 消费方为
+ *       {@code POST /auth/wechat-login}、{@code POST /auth/verify-email}、{@code GET /auth/profile}。</li>
+ * </ul>
+ * 不含密码等敏感字段。
  */
 @Data
 @Schema(description = "用户视图对象（管理端用）")

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
@@ -17,8 +17,30 @@ const store = useAdminStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const router = useRouter()
+const route = useRoute()
 
-const searchQuery = ref('')
+/**
+ * 关键词初值来源：反馈详情「关联菜品」跳转携带 `?tab=dish&q=<菜名>`（FeedbackView.goDishEdit）。
+ * 直接读取 route.query.q 作为初值，避免运营主路径在最后一跳断裂（管理员无需手敲菜名）。
+ */
+function queryKeyword(): string {
+  const q = route.query.q
+  return typeof q === 'string' ? q : ''
+}
+const searchQuery = ref(queryKeyword())
+
+/**
+ * 同组件内 query 变化响应：本页由 ContentManageView 以 v-if 承载，从反馈页二次跳转时
+ * 若组件实例未重建则不会重跑 setup → 必须 watch route.query.q 才能重新筛选。
+ * 仅在值确实变化时同步，避免用户手动修改关键词后被同值 query 回写覆盖。
+ */
+watch(
+  () => route.query.q,
+  (q) => {
+    const next = typeof q === 'string' ? q : ''
+    if (next !== searchQuery.value) searchQuery.value = next
+  },
+)
 
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
@@ -112,8 +134,20 @@ function onDishSaved() {
   editingDishId.value = null
 }
 
+/**
+ * 删除影响说明（Q-112 ②）：删除菜品将连带使其评价不可见。
+ * 列表接口已带 rating_count，能取到具体条数就带上；取不到则用通用文案（不为取数新增接口，PR-13）。
+ */
+function deleteImpactText(row: any): string {
+  const n = Number(row?.rating_count ?? 0)
+  const reviewLine = n > 0
+    ? `该菜品下的 ${n} 条评价将一并删除、不可恢复。`
+    : '该菜品的评价将一并删除、不可恢复。'
+  return `确定删除菜品「${row.name}」？删除后不可恢复。${reviewLine}`
+}
+
 async function handleDelete(row: any) {
-  if (!await confirm.confirm(`确定删除菜品「${row.name}」？删除后不可恢复。`)) return
+  if (!await confirm.confirm(deleteImpactText(row))) return
   try {
     await store.deleteDish(Number(row.id))
     toast.success('菜品已删除')
@@ -203,7 +237,14 @@ async function batchSetStatus(status: 'active' | 'inactive') {
 
 async function batchDelete() {
   if (!selectedIds.value.length || batchRunning.value) return
-  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。`)) return
+  // 删除影响说明（Q-112 ②）：汇总所选菜品的评价条数（列表已有 rating_count），取不到则通用文案
+  const reviewTotal = store.dishes
+    .filter(d => selectedIds.value.includes(Number(d.id)))
+    .reduce((sum, d) => sum + Number(d.rating_count ?? 0), 0)
+  const reviewLine = reviewTotal > 0
+    ? `所选菜品下的 ${reviewTotal} 条评价将一并删除、不可恢复。`
+    : '所选菜品的评价将一并删除、不可恢复。'
+  if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。${reviewLine}`)) return
   await runBatch('删除', [...selectedIds.value], id => dishApi.deleteById(id),
     n => `已删除 ${n} 个菜品`)
 }

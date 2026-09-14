@@ -115,10 +115,6 @@ public class DishVO {
     @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他", example = "川湘")
     private String region;
 
-    /** 分量枚举：0=小 1=中 2=大 */
-    @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
-    private Integer portion;
-
     /**
      * 距用户距离（米），仅当请求携带 lat/lng 时由后端计算返回；
      * 无坐标食堂或请求未带坐标时为 null（前端「距你 Xm」缺省不展示）。

@@ -85,19 +85,11 @@
         @select="goToMixed"
         @refresh="onResultsRefresh"
       />
-      <!-- 搜索失败重试块（MP-012）：请求已完成且失败 → 极简「加载失败 · 点击重试」行内块，
-           先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据） -->
-      <view
-        v-else-if="inFilter && searchDone && searchFailed"
-        class="find-retry"
-        role="button"
-        aria-label="搜索失败，点击重试"
-        hover-class="pressed"
-        @tap="onRetrySearch"
-      >
-        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
-        <text class="fr-title">搜索加载失败</text>
-        <text class="fr-hint">网络似乎不太顺畅 · 点击重试</text>
+      <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
+           先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
+           find-retry-host 仅负责整屏居中占位（页面内部滚动容器需撑满剩余高度），视觉全在 RetryBlock 内。 -->
+      <view v-else-if="inFilter && searchDone && searchFailed" class="find-retry-host">
+        <RetryBlock title="搜索加载失败" aria-label="搜索失败，点击重试" :margin="false" @retry="onRetrySearch" />
       </view>
       <!-- 搜索无结果引导（search-no-result-guidance）：请求**已完成**且结果为空才呈现；
            未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
@@ -118,13 +110,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
-import { useDishStore, type HomeSortKey } from '@/stores/dish'
+import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
-import type { DishSortBy } from '@/types/dish'
 import { getUserLocation } from '@/utils/location'
 import { PATH, dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
 import IconSvg from '@/components/IconSvg.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import FilterBar from '@/components/FilterBar.vue'
@@ -212,19 +204,10 @@ function onFindCanteenSelect(id: number | null) {
 }
 
 // ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时红底） =====
-const findSortBy = ref<HomeSortKey>('latest')
+// 搜索结果排序：端上不持有排序状态、不传 sortBy——排序口径唯一由后端决定（PR-02；
+// §7.17 第 2 条「热度优先、不设排序入口」）。
 /** 当前价格区间（元）；回显由 FilterBar 直显元，提交直接透传（api 层统一元→分，禁止二次换算） */
 const findPrice = ref<{ min?: number; max?: number }>({})
-
-function findSortParams(key: HomeSortKey): { sortBy: DishSortBy; sortOrder: 'asc' | 'desc' } {
-  switch (key) {
-    case 'latest': return { sortBy: 'created_at', sortOrder: 'desc' }
-    case 'priceAsc': return { sortBy: 'price', sortOrder: 'asc' }
-    case 'priceDesc': return { sortBy: 'price', sortOrder: 'desc' }
-    case 'hot': return { sortBy: 'heat', sortOrder: 'desc' }
-    case 'distance': return { sortBy: 'heat', sortOrder: 'desc' }
-  }
-}
 
 function onFindPriceSelect(range: { min?: number; max?: number }) {
   findPrice.value = range
@@ -303,14 +286,14 @@ async function doMixedSearch(kw?: string) {
       page: 1,
       pageSize: 50,
       canteenId: findCanteenId.value ?? undefined,
-      ...findSortParams(findSortBy.value),
       minPrice: findPrice.value.min,
       maxPrice: findPrice.value.max,
     })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
-    // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）
-    const decorated = dishStore.withLocalDistance(list, false)
+    // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）；
+    // 只写回距离不重排——顺序为后端返回口径（PR-02）
+    const decorated = dishStore.withLocalDistance(list)
     mixedResults.value = decorated
       .map(d => {
         // B8 副信息：档口名 + 食堂名
@@ -378,7 +361,6 @@ function exitFilter() {
   searchFailed.value = false
   // 退出结果态：重置筛选条件，下次进入结果态从默认开始
   findCanteenId.value = null
-  findSortBy.value = 'latest'
   findPrice.value = {}
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
@@ -438,26 +420,16 @@ onShow(() => clearShareState())
   padding: var(--spacing-xl) var(--spacing-lg);
   box-sizing: border-box;
 }
-/* 搜索失败重试块（MP-012）：与空态同族视觉（居中、凹陷面 bg-soft、次级文字色），
-   整块 @tap 触发重拉，无独立按钮——极简行内块，不引入新组件文件 */
-.find-retry {
+/* 搜索失败态宿主（P3-03）：仅承担整屏居中占位与边距，视觉全在公共 RetryBlock 内 */
+.find-retry-host {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
   margin: var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
-.find-retry.pressed { opacity: 0.7; }
-.fr-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.fr-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 .fe-icon {
   width: 112rpx;
   height: 112rpx;

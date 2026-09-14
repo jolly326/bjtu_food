@@ -55,7 +55,7 @@ public interface AuthService {
      * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
      *
      * @param userId 用户ID
-     * @return 用户信息 Map（id/username/email/nickname/avatar/role/status/openid/verified/bindEmail/guestShortId）
+     * @return 用户信息 Map（id/username/email/nickname/avatar/role/status/verified/bindEmail/guestShortId）
      */
     Map<String, Object> getProfile(Long userId);
 
@@ -67,17 +67,6 @@ public interface AuthService {
      * @return 更新后的用户信息 Map
      */
     Map<String, Object> updateProfile(Long userId, ProfileUpdateReq req);
-
-    /**
-     * 修改当前登录用户密码（管理后台个人中心）。
-     * <p>
-     * 校验旧密码；通过后以 BCrypt 加密更新。学生微信账号未设置密码时直接报错。
-     *
-     * @param userId      当前登录用户ID
-     * @param oldPassword 旧密码
-     * @param newPassword 新密码（6-64 位）
-     */
-    void changePassword(Long userId, String oldPassword, String newPassword);
 
     /**
      * 注销当前登录账号（匿名化，非物理删除，合规硬需求）。

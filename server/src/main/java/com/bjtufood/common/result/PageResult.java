@@ -82,17 +82,4 @@ public class PageResult<T> {
         result.setPageSize(pageSize);
         return result;
     }
-
-    /**
-     * 创建分页结果（兼容重载，legacy）。
-     * <p>
-     * 保留以兼容历史调用方；因无法从入参获知归一化后的分页信息，page/pageSize 置 0。
-     * 新代码请一律使用 {@link #of(List, long, int, int)}。
-     *
-     * @deprecated 请改用 {@link #of(List, long, int, int)} 以携带契约字段 page/pageSize
-     */
-    @Deprecated(since = "2026-09-14")
-    public static <T> PageResult<T> of(List<T> records, long total) {
-        return of(records, total, 0, 0);
-    }
 }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * StallCreateDialog：内联新建档口小弹窗（叠层，宽 480，confirmText「创建并选中」）。
+ * StallCreateDialog：内联新建档口字典项小弹窗（叠层，宽 480，confirmText「创建并选中」）。
  * 归属：docs/loop/design/dish-entry-flow.md §1.3(A) / §3.2。
+ * 2026-09-14 Q-113/Q-115：档口是**菜品筛选属性字典**，非业务实体，生命周期只有「新增 / 改名」；
+ * 营业时间 / 营业状态 / 实体审核字段均已下线，本弹窗不出现。
  * 食堂（预选菜品表单当前食堂）+ 档口名必填；楼层 / 窗口号 / 位置 / 图片 / 描述选填。
  * 食堂字段旁提供「+ 新建食堂」文字链，复用 CanteenCreateDialog（避免两套实现）。
- * 营业时间字段已下线，本弹窗不出现。
  */
 import { ref, watch, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
@@ -91,6 +92,7 @@ async function submit() {
     :on-confirm="submit"
     @close="emit('close')"
   >
+    <p class="dict-hint">档口字典项，作为菜品筛选项使用（可随时改名）</p>
     <div class="field">
       <label>所属食堂 <span class="required">*</span></label>
       <div class="canteen-row">
@@ -142,6 +144,7 @@ async function submit() {
 <style scoped>
 .field { margin-bottom: 0; }
 .mt { margin-top: var(--space-3); }
+.dict-hint { margin: 0 0 var(--space-3); font-size: var(--font-xs); color: var(--text-light); }
 .row { display: flex; gap: var(--space-3); }
 .flex-1 { flex: 1; }
 .canteen-row { display: flex; align-items: center; gap: var(--space-2); }

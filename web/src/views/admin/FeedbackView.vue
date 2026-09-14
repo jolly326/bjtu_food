@@ -1,30 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
+import { useConfirmStore } from '@/stores/confirmStore'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { ChatDotRound, EditPen, CircleCheck, Picture } from '@element-plus/icons-vue'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS, FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED } from '@/constants'
+import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS, FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED, FEEDBACK_TYPE_META } from '@/constants'
 import { toSecFilter } from '@/api/adapter'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
+const confirm = useConfirmStore()
 const router = useRouter()
+const route = useRoute()
 
 const searchQuery = ref('')
 
-const typeLabel: Record<string, string> = {
-  suggestion: '功能建议',
-  error: '内容纠错',
-  add: '新增菜品',
-  bug: '系统问题',
-  report: '举报',
-  other: '其他',
-}
+// 类型文案统一收敛至 constants（工作台「待办明细」共用同一份，避免两处口径漂移）
+const typeLabel = FEEDBACK_TYPE_META
 // 状态展示元数据（tag 类型 + 文案）统一收敛至 constants/index.ts（RF13）
 
 // 状态筛选（prelaunch-final-audit AUD-PM-13：处理后需可回看，避免「已处理」分支不可达）
@@ -102,7 +99,44 @@ async function loadList() {
   }
 }
 
-onMounted(loadList)
+/**
+ * 工作台「待办明细」直达：`/dashboard/audit?tab=feedback&fid=<id>`（P1-03）。
+ * 复用既有详情抽屉（本页无独立 /feedbacks/:id 路由，也无 GET /admin/feedbacks/{id} 单查接口），
+ * 故在列表落地后按 id 定位该行并自动打开抽屉；若不在当前页则回退为「关键词=该条摘要」服务端检索，
+ * 保证「看得到是哪一条 → 点进就能处理」闭环，且不改后端契约、不新增页面。
+ */
+async function openFeedbackById(id: number) {
+  const hit = rows.value.find(r => Number(r.id) === id)
+  if (hit) {
+    openDetail(hit)
+    return
+  }
+  // 不在当前页：用待办标题（内容摘要）走服务端关键词检索，命中后自动打开
+  const title = route.query.title
+  if (typeof title === 'string' && title) {
+    searchQuery.value = title
+    await reloadFromFirstPage()
+    const found = rows.value.find(r => Number(r.id) === id)
+    if (found) openDetail(found)
+    else toast.error('未在当前筛选条件下找到该反馈，已按摘要检索')
+    return
+  }
+  toast.error('该反馈不在当前列表中，可用关键词检索')
+}
+
+/** 消费 route.query.fid（含从工作台二次跳转：同实例不重建，故需 watch 而非仅 onMounted 读取） */
+async function consumeFid() {
+  const raw = route.query.fid
+  const id = typeof raw === 'string' ? Number(raw) : NaN
+  if (!Number.isFinite(id)) return
+  // 先按默认筛选（待处理）拉一遍列表，再按 id 定位自动打开详情抽屉
+  await loadList()
+  await openFeedbackById(id)
+}
+
+onMounted(consumeFid)
+watch(() => route.query.fid, () => { consumeFid() })
+
 async function onTypeChange() {
   await reloadFromFirstPage()
 }
@@ -138,11 +172,24 @@ function closeDetail() { detail.value = null }
 
 async function submitHandle() {
   if (!detail.value) return
-  // 处理说明/回复允许为空（后端对无回复走通用回执文案，见 change prelaunch-loop-closure 4.2 / 10.4）
+  // 回复必填（2026-09-14 拍板 project_spec §7.16；后端 FeedbackHandleReq.reply 为 @NotBlank）：
+  // 纯空白视为未填写 → 前端拦截，不发请求（避免必然 400）。
+  const trimmed = reply.value.trim()
+  if (!trimmed) {
+    replyError.value = '请填写处理回复（学生将收到该内容）'
+    return
+  }
+  if (trimmed.length > 1000) {
+    replyError.value = '回复内容不能超过 1000 字'
+    return
+  }
+  replyError.value = ''
+  // 二次确认（Q-112 ③，最简实现）：标记处理为不可逆（学生立即收到回执），提交前先确认。
+  if (!await confirm.confirm('确定将该反馈标记为「已处理」？提交后学生将收到你的回复。')) return
   processingId.value = Number(detail.value.id)
   try {
     const { feedbackApi } = await import('@/api')
-    await feedbackApi.handleFeedback(Number(detail.value.id), reply.value.trim())
+    await feedbackApi.handleFeedback(Number(detail.value.id), trimmed)
     toast.success('反馈已标记处理')
     await loadList()
     closeDetail()
@@ -323,9 +370,9 @@ async function copyReviewLink(reviewId?: number) {
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
 
         <div class="reply-area" v-if="detail.status !== FEEDBACK_HANDLED">
-          <!-- AUD-PM-14：后端允许空回复（走通用回执文案），此处不得标注必填 -->
-          <label>处理说明 / 回复（选填）</label>
-          <textarea v-model="reply" rows="4" placeholder="可填写处理说明或回复内容；留空则用户收到通用回执"></textarea>
+          <!-- 回复必填（2026-09-14 §7.16）：与后端 @NotBlank 校验规则严格一致，前端措辞不得出现「选填/留空」 -->
+          <label>处理说明 / 回复 <span class="required">*</span>（必填）</label>
+          <textarea v-model="reply" rows="4" placeholder="请填写处理回复，学生将收到该内容"></textarea>
           <p v-if="replyError" class="field-error">{{ replyError }}</p>
         </div>
         <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>

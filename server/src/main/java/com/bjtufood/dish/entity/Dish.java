@@ -70,10 +70,6 @@ public class Dish {
     @Schema(description = "地域（美食来源地），如 清真/川湘/西北/粤式/东北", example = "清真")
     private String region;
 
-    /** 分量枚举：0=小 1=中 2=大 */
-    @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
-    private Integer portion;
-
     /** 状态：on（上架）/ off（下架），与审核状态解耦 */
     @Schema(description = "状态", example = "on")
     private String status;

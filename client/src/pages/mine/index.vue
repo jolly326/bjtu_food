@@ -1,6 +1,8 @@
 <template>
   <view class="page mine-page">
-    <Header title="我的" :showBack="showBack" @back="backToHome" />
+    <!-- 「我的」是 TabBar 主根页（TabBar 经 reLaunch 切换，无带参跳转），恒不需要返回箭头：
+         showBack 显式传 false（AppHeader 默认值为 true，不能省略）；原 `?from=home` 死分支已删（P2-11） -->
+    <Header title="我的" :show-back="false" />
 
     <view class="mine-content">
       <!-- 用户卡：游客（未认证）显示食客短 ID +「去认证」；已认证显示昵称 + 绑定邮箱。
@@ -96,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
@@ -108,7 +110,6 @@ import { useUserStore } from '@/stores/user'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
-import { backToHome } from '@/utils/nav'
 import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
 import { MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
@@ -125,11 +126,10 @@ const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGues
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
-// 是否从首页头像 navigateTo 进入（带 ?from=home），是则显示返回箭头
-const showBack = ref(false)
-onLoad((q) => {
-  showBack.value = q?.from === 'home'
-  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
+onLoad(() => {
+  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）；
+  // 原 `showBack = q?.from === 'home'` 分支已删（P2-11 / PR-05）：全仓无任何带 ?from=home 跳转
+  // 到本页的调用点（TabBar 经 reLaunch 切换、无参数），该状态恒为 false，属死状态。
   userStore.silentLogin()
 })
 

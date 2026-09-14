@@ -1,12 +1,13 @@
 <template>
   <!-- 筛选栏（client-filter-bar-consolidation 合并版）：
-       单行 = 左「全部食堂」+「全部价格」两按钮均分剩余空间，最右常驻筛选 icon（无跳转）。
-       两表单互斥：由单一 activePanel 驱动，任意时刻最多一个展开、最多一个按钮激活（红）。 -->
+       单行 = 「全部食堂」+「全部价格」+「全部辣度」三颗真控件均分整行（均为可点胶囊）。
+       表单互斥：由单一 activePanel 驱动，任意时刻最多一个展开、最多一个按钮激活（红）。
+       原最右「筛选」胶囊为无动作假控件，已按 P0-05 / PR-11 移除（不留死语义）。 -->
   <view
     class="fb-row"
     :style="{ '--capsule-h': capsuleH + 'px' }"
   >
-    <!-- 左组：食堂 + 价格 两按钮（独占剩余空间、可收缩，长文案以 … 省略） -->
+    <!-- 胶囊组：食堂 + 价格 + 辣度（独占整行、按行均分可收缩，长文案以 … 省略） -->
     <view class="fb-chips">
       <!-- 食堂按钮：单击切换（展开 / 再次单击收起）；仅展开时红底，箭头随之翻转 -->
       <view
@@ -48,16 +49,10 @@
       </view>
     </view>
 
-    <!-- 筛选控件：与食堂/价格同款白底圆角胶囊（「筛选」文字 + 线性图标）；恒在最右。
-         仍不挂跳转、不参与面板展开（tab-pages-visual-refine-2） -->
-    <view
-      class="fb-chip fb-chip--more"
-      role="button"
-      aria-label="详细筛选"
-    >
-      <IconSvg class="fb-chip-icon" name="filter" :size="'18px'" color="var(--text-secondary)" />
-      <text class="fb-chip-text">筛选</text>
-    </view>
+    <!-- 原最右「筛选」胶囊已移除（P0-05 / PR-11）：它有 role="button" + aria-label，
+         却无 @tap、无 emit，外观与相邻可点胶囊同款 → 假控件交互欺骗。
+         排序不另设切换入口（§7.17 第 2 条「热度优先、不加排序入口」），故整体删除，
+         筛选行由「食堂 / 价格 / 辣度」三颗真控件均分整行（justify-content 已不依赖右侧常驻件）。 -->
 
     <!-- ===== 食堂下拉：红色背景面板，与 header 同一红色块；点击面板外遮罩关闭 ===== -->
     <view v-if="activePanel === 'canteen'" class="cf-mask" @tap="closePanel">
@@ -392,28 +387,26 @@ function onReset() {
 
 <style scoped lang="scss">
 /* ===== 筛选行 ===== */
-/* 筛选行：左侧两颗按钮（食堂/价格），筛选 icon 常驻最右（两端对齐） */
+/* 筛选行：食堂 / 价格 / 辣度三颗胶囊均分整行（原最右「筛选」假控件已按 P0-05 移除） */
 .fb-row {
   display: flex;
   align-items: center;
   /* ⚠️ 本组件在小程序中是一个真实节点（<filter-bar>），其父 .filter-bar / .find-filter-row 为 flex 容器时，
      flex item 是宿主节点而非本行；宿主的撑满由**父级**的 .fb-host { flex:1; min-width:0 } 负责
      （见 home/index.vue 与 find/index.vue 的 .fb-host 规则），组件自身无法越权控制宿主。
-     在此之上，flex:1 覆盖宿主为 flex 容器的情形、width:100% 覆盖宿主为 block 的情形，二者共同保证本行撑满宿主宽度——
-     行若不撑满，则没有剩余空间可分配，space-between 与 auto 外边距都会失效，icon 会紧贴两颗按钮而非靠右。 */
+     在此之上，flex:1 覆盖宿主为 flex 容器的情形、width:100% 覆盖宿主为 block 的情形，二者共同保证本行撑满宿主宽度，
+     使 .fb-chips 的 flex:1 有整行宽度可均分（行不撑满时三颗胶囊会按内容宽收缩）。 */
   flex: 1;
   width: 100%;
   min-width: 0;
-  /* 两端对齐：左组（.fb-chips）与右侧筛选 icon 分列两端，icon 恒定贴行最右 */
-  justify-content: space-between;
   padding: 0;
   box-sizing: border-box;
   gap: var(--spacing-sm);
 }
-/* 左组（食堂 + 价格 + 辣度）：独占全部剩余空间（flex:1），把右侧筛选 icon 顶到最右。
+/* 胶囊组（食堂 + 价格 + 辣度）：独占整行（flex:1），三颗按行均分。
    §7.18 增加辣度维度后由 2 颗变 3 颗：窄屏（750rpx 视口）下文案必然拥挤，
-   故左组改为 flex-wrap 换行、单颗设 min-width 后按行均分（flex:1 1 <basis>），
-   超长食堂名仍只在其内部省略（min-width:0 语义由 flex-basis 兜住），既均分又不挤出右侧 icon。 */
+   故本组 flex-wrap 换行、单颗设 min-width 后按行均分（flex:1 1 <basis>），
+   超长食堂名仍只在其内部省略（min-width:0 语义由 flex-basis 兜住）。 */
 .fb-chips {
   display: flex;
   align-items: center;
@@ -460,15 +453,6 @@ function onReset() {
   white-space: nowrap;
   min-width: 0;
 }
-/* 最右「筛选」胶囊：复用 .fb-chip 白底圆角表面，但固定宽度不参与收缩/展开 */
-.fb-chip--more {
-  flex: 0 0 auto;
-  min-width: auto;
-  -webkit-tap-highlight-color: transparent;
-}
-.fb-chip--more:active { opacity: 0.7; }
-.fb-chip--more .fb-chip-text { color: var(--text-secondary); }
-
 /* ===== 食堂下拉 ===== */
 /* 遮罩：自 header 底部向下铺满，承接面板外点击关闭；下方内容轻微压暗 */
 .cf-mask {

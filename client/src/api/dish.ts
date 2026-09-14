@@ -6,7 +6,14 @@ import { get, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
 import { recordsOf, totalOf, normalizeImages, type RawRow } from './shared'
 
-/** 2026-09-07：无外部消费，收敛为模块私有（仅供本文件 toDish 标签映射） */
+/**
+ * 标签机器值 → 中文展示值映射（**标签语义唯一真源**）。
+ *
+ * P3-13 / PR-02：映射只在本 API 层完成一次，视图层（DishCard / DishInfoCard / find→FindResults）
+ * 一律直取 `Dish.tags`（已是中文数组），**禁止在页面/组件层再做二次映射或直取后端原始值**，
+ * 避免出现两套实现导致同一标签在不同页面展示不一致。
+ * 未命中映射的值按原样透传（兼容后端未来新增标签，不会丢标签）。
+ */
 const TAG_MAP: Record<string, string> = {
   recommended: '必吃推荐',
   signature: '招牌菜',
@@ -31,7 +38,6 @@ export function toDish(raw: RawRow): Dish {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
-    categoryId: raw.categoryId != null ? Number(raw.categoryId) : undefined,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
     // ===== task-03 位置链路（来自 stall 联表） =====
@@ -40,7 +46,6 @@ export function toDish(raw: RawRow): Dish {
     updatedAt: raw.updatedAt || '',
     // ===== task-03 属性标签（来自 dish） =====
     spiceLevel: raw.spiceLevel ?? raw.spice_level,
-    portion: raw.portion,
     // 折扣价（分→元，仅展示层转换；task-12.9）
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
@@ -73,7 +78,6 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.canteenId != null) params.canteenId = query.canteenId
-  if (query.categoryId != null) params.categoryId = query.categoryId
   if (query.tag) params.tag = query.tag
   if (query.spiceLevel != null) params.spiceLevel = query.spiceLevel
   if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)

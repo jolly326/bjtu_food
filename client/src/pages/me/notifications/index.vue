@@ -39,21 +39,10 @@
         </view>
       </view>
 
-      <!-- 加载失败重试块（MP-012 同族）：首屏请求失败 ≠ 无通知——极简「加载失败 · 点击重试」行内块，
+      <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
            先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap 或下拉刷新。
            C1 修复：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态（client-auth-boundary）。 -->
-      <view
-        v-if="loadFailed && !loading && userStore.isVerified()"
-        class="notify-retry"
-        role="button"
-        aria-label="加载失败，点击重试"
-        hover-class="pressed"
-        @tap="onRetryLoad"
-      >
-        <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
-        <text class="notify-retry-title">加载失败</text>
-        <text class="notify-retry-hint">网络似乎不太顺畅 · 点击重试</text>
-      </view>
+      <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
            空态不含重试按钮、错误提示与认证引导。 -->
       <view v-else-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
@@ -69,6 +58,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
@@ -257,23 +247,7 @@ onShow(() => {
 .empty-title { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
-/* 加载失败重试块（MP-012）：与 find/feed 重试块同族视觉
-   （居中、凹陷面 bg-soft、次级文字色），整块 @tap 触发重拉，无独立按钮 */
-.notify-retry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
-  -webkit-tap-highlight-color: transparent;
-}
-.notify-retry.pressed { opacity: 0.7; }
-.notify-retry-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.notify-retry-hint { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
+/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }

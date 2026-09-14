@@ -9,11 +9,10 @@ import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.SecurityUtil;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,7 +23,6 @@ public class StallServiceImpl implements StallService {
 
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
-    private final DishMapper dishMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final ReviewMapper reviewMapper;
 
@@ -40,39 +38,22 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void add(Stall stall) {
         if (canteenMapper.selectById(stall.getCanteenId()) == null) {
             throw new BusinessException("Canteen not found");
         }
-        // 创建者：后台录入时记为当前登录用户
+        // 创建者：后台录入时记为当前登录用户，禁止前端传入
         stall.setCreatedBy(SecurityUtil.getCurrentUserId());
-        // audit_status 沿用表默认 approved（后台录入默认通过，见 schema.sql 注释）
         stallMapper.insert(stall);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(Stall stall) {
         if (stall.getId() == null || stallMapper.updateById(stall) == 0) {
             throw new BusinessException("Stall not found");
         }
-    }
-
-    @Override
-    public void delete(Long id) {
-        Long count = dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getStallId, id));
-        if (count > 0) {
-            throw new BusinessException("Stall still has dishes");
-        }
-        stallMapper.deleteById(id);
-    }
-
-    @Override
-    public Stall getById(Long id) {
-        Stall stall = stallMapper.selectById(id);
-        if (stall == null) {
-            throw new BusinessException("Stall not found");
-        }
-        return stall;
     }
 
     private StallAdminVO toAdminVO(Stall stall) {
@@ -91,9 +72,6 @@ public class StallServiceImpl implements StallService {
         BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
         vo.setSortOrder(stall.getSortOrder());
-        vo.setStatus(stall.getStatus());
-        vo.setAuditStatus(stall.getAuditStatus());
-        vo.setRejectReason(stall.getRejectReason());
         vo.setCreatedBy(stall.getCreatedBy());
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());

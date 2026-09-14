@@ -63,9 +63,10 @@
           </view>
         </view>
       </view>
-      <!-- footer 操作组：仅有用（举报/删除已上移右上角）。
-           评价卡片不展示点赞/评论类互动组件（UGC 互动仅保留「有用」），由父页面传 hideUseful 隐藏整块 footer -->
-      <view v-if="!hideUseful" class="review-footer">
+      <!-- footer 操作组：仅「有用」（举报/删除已上移右上角）。
+           评价卡片不展示点赞/评论类互动组件（UGC 互动仅保留「有用」）。
+           「有用」是公开评价列表「按有用数置顶」排序口径的唯一入口（§7.14 第 2 条），必须常驻。 -->
+      <view class="review-footer">
         <view class="review-ops">
           <text class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
             <IconSvg
@@ -88,6 +89,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { getImageUrl } from '@/utils/image'
 import { formatDateTime } from '@/utils/time'
 import { toggleUseful } from '@/api/review'
+import { SurfacedError } from '@/api/http'
 import { useUserStore } from '@/stores/user'
 import type { Review } from '@/types/review'
 
@@ -95,10 +97,8 @@ defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
   review: Review
-  /** 当前用户是否已点赞（控制填充态） */
-  usefulActive?: boolean
-  /** 隐藏点赞（有用）操作：个人管理页按产品决策不设点赞 */
-  hideUseful?: boolean
+  // 原 `usefulActive` prop（外部注入已赞态）已于 2026-09-14 删除：零消费（无调用点传入），
+  // 且已赞态唯一真源为后端 `review.useful`（见下方 usefulActive computed），PR-05 不留悬空 prop。
   /** 隐藏举报（右上角）：我的评价页无需举报自己的评价 */
   hideReport?: boolean
   /** 当前登录用户 ID：用于判定本人评价（本人可删、隐藏举报） */
@@ -121,35 +121,50 @@ const avatarOk = ref(true)
 const userStore = useUserStore()
 
 // 有用计数直接用后端 usefulCount（语义已含当前用户：toggleUseful 切换 ±1 均反映在计数中），
-// 若再加 usefulActive 会重复 +1。usefulActive 仅控制填充态显示。
+// 不再另加本地计数偏移。usefulActive 仅控制填充态显示。
 const likeCount = computed(() => props.review.usefulCount || 0)
-// 本地「有用」激活态（初始取后端 useful；切换后以后端返回为准）
-const usefulActive = ref(!!props.review.useful)
-// pending 锁防连点（P0 防重复请求 / 计数漂移）
+/**
+ * 「有用」已赞态：**唯一真源 = 后端 `review.useful`**（`GET /reviews` 登录态逐条回写），
+ * 不另造本地状态字段；乐观更新/回滚/成功均写回该字段本身，故与后端始终一致
+ * （forceLogout → store.resetUserScopedData 清 `useful` 后本态自动跟随复位）。
+ */
+const usefulActive = computed(() => !!props.review.useful)
+// pending 锁防连点（防重复提交 / 计数漂移）
 const pendingUseful = ref(false)
 
-/** 评价「有用」：组件内乐观更新 + 失败回滚 + 连点锁（与点赞类组件同模式） */
+/**
+ * 评价「有用」：乐观更新 + 失败回滚 + 连点锁 + 已赞不重复提交。
+ * 准入：**只需登录**（点赞不产生公开内容、不涉机检）——未登录给登录引导；
+ * 其余准入（`4031` 需邮箱认证 / `403` 需微信登录 / 网络异常）由请求层统一提示，
+ * 本组件 catch 到已提示错误（SurfacedError）时只回滚，不重复 Toast。
+ */
 function onLike() {
-  if (props.hideUseful) return
-  if (!userStore.requireAuth(() => onLike())) return
+  if (!userStore.isLoggedIn()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    void userStore.silentLogin()
+    return
+  }
   if (pendingUseful.value) return
   pendingUseful.value = true
   const prevActive = usefulActive.value
   const prevCount = likeCount.value
-  // 乐观更新
-  usefulActive.value = !prevActive
+  // 乐观更新：计数 + 已赞态同步翻转
+  props.review.useful = !prevActive
   props.review.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
   toggleUseful(props.review.id)
     .then((res) => {
-      usefulActive.value = res.useful
-      props.review.usefulCount = res.usefulCount
+      // 以后端返回为准（useful / usefulCount 同一响应写回，避免两端口径漂移）
       props.review.useful = res.useful
+      props.review.usefulCount = res.usefulCount
     })
-    .catch(() => {
-      // 回滚
-      usefulActive.value = prevActive
+    .catch((e: unknown) => {
+      // 回滚到点击前状态
+      props.review.useful = prevActive
       props.review.usefulCount = prevCount
-      uni.showToast({ title: '操作失败', icon: 'none' })
+      // 请求层已提示过的错误（4031 认证引导 / 403 / 网络）不再重复弹
+      if (!(e instanceof SurfacedError)) {
+        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
+      }
     })
     .finally(() => {
       pendingUseful.value = false

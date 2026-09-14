@@ -33,7 +33,7 @@ public class FeedbackAdminController {
     public Result<PageResult<FeedbackAdminVO>> list(
             @Parameter(description = "处理状态：pending/handled")
             @RequestParam(required = false) String status,
-            @Parameter(description = "反馈类型：suggestion/add/error/bug/report/other")
+            @Parameter(description = "反馈类型：suggestion/add/error/report（历史类型 bug/other 亦可筛选存量数据）；非法值 400")
             @RequestParam(required = false) String type,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,

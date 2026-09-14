@@ -18,6 +18,7 @@ import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -43,8 +44,8 @@ public class CanteenServiceImpl implements CanteenService {
     @Override
     public List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng) {
         // 注：lat/lng 不再用于服务端距离计算——坐标随食堂返回，距离由前端本地 Haversine 算（用户位置不出本机）
+        // 食堂已去实体化（2026-09-14）：无停业语义，不再按 status 过滤，全量字典按 sort_order 返回
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getStatus, "open")
                 .orderByAsc(Canteen::getSortOrder));
         return canteens.stream()
                 .map(canteen -> {
@@ -64,13 +65,12 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public List<CanteenWithStallsVO> listWithStalls() {
+        // 食堂/档口已去实体化（2026-09-14）：无停业语义，不再按 status 过滤，全量字典按 sort_order 返回
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getStatus, "open")
                 .orderByAsc(Canteen::getSortOrder));
         // 收集所有档口 ID，批量查询平均分一次，消除逐档口 N+1 查询
         List<Stall> allStalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .in(Stall::getCanteenId, canteens.stream().map(Canteen::getId).toList())
-                .eq(Stall::getStatus, "open")
                 .orderByAsc(Stall::getSortOrder));
         Map<Long, BigDecimal> avgRatingMap = batchAvgRating(allStalls);
         // 批量查询全部档口在售菜品（一次 IN 查询按 stallId 分组），消除逐档口 N+1
@@ -104,27 +104,19 @@ public class CanteenServiceImpl implements CanteenService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void add(Canteen canteen) {
-        // 创建者：后台录入时记为当前登录用户（学生 UGC 入口接入时同理由前端不可用、后端强制写入）
+        // 创建者：后台录入时记为当前登录用户，禁止前端传入
         canteen.setCreatedBy(SecurityUtil.getCurrentUserId());
-        // audit_status 沿用表默认 approved（后台录入默认通过，见 schema.sql 注释）
         canteenMapper.insert(canteen);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(Canteen canteen) {
         if (canteen.getId() == null || canteenMapper.updateById(canteen) == 0) {
             throw new BusinessException("Canteen not found");
         }
-    }
-
-    @Override
-    public void delete(Long id) {
-        Long count = stallMapper.selectCount(new LambdaQueryWrapper<Stall>().eq(Stall::getCanteenId, id));
-        if (count > 0) {
-            throw new BusinessException("Canteen still has stalls");
-        }
-        canteenMapper.deleteById(id);
     }
 
     private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap, List<Dish> onSaleDishes) {
@@ -140,7 +132,7 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(stall.getDescription());
         BigDecimal avg = avgRatingMap.get(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
-        // 主要菜品（评分前3）与菜品数（task todo#3：档口卡展示）；onSaleDishes 已按 avg_rating/updated_at 降序
+        // 主要菜品（评分前 3）与菜品数（档口卡展示）；onSaleDishes 已按 avg_rating/updated_at 降序
         vo.setDishCount(onSaleDishes.size());
         vo.setTopDishes(onSaleDishes.stream().limit(3).map(Dish::getName).toList());
         // 人均消费（元，展示用）：在售菜品成交价（分：有促销价取 promoPrice，否则取 price）中位数 → /100 转元取整
@@ -215,9 +207,6 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(canteen.getDescription());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         vo.setSortOrder(canteen.getSortOrder());
-        vo.setStatus(canteen.getStatus());
-        vo.setAuditStatus(canteen.getAuditStatus());
-        vo.setRejectReason(canteen.getRejectReason());
         vo.setCreatedBy(canteen.getCreatedBy());
         vo.setCreatedAt(canteen.getCreatedAt());
         vo.setUpdatedAt(canteen.getUpdatedAt());

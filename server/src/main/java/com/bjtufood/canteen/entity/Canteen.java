@@ -10,8 +10,10 @@ import java.time.LocalDateTime;
 /**
  * 食堂实体类
  * <p>
- * 对应数据库表：canteen
- * 例如：第一食堂、第二食堂
+ * 对应数据库表：canteen。2026-09-14 用户拍板：食堂已<b>去实体化</b>，降级为「菜品筛选属性字典」，
+ * 生命周期仅「新增 / 改名（编辑）」，不再具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
+ * 原 {@code status}（停业语义）/ {@code audit_status}（实体审核语义）/ {@code reject_reason} 字段
+ * 已从实体与接口层移除（不再读写）；对应数据库列是否 DROP 另行评估，见任务回报的列下线方案。
  */
 @Data
 @TableName("canteen")
@@ -45,21 +47,6 @@ public class Canteen {
     /** 食堂描述 */
     @Schema(description = "食堂描述")
     private String description;
-
-    /** 状态：open / closed */
-    @Schema(description = "状态", example = "open")
-    private String status;
-
-    /**
-     * 审核状态（与启停 status 解耦）：pending（待审核）/ approved（已通过）/ rejected（已退回）
-     * 后台录入默认 approved；学生 UGC 提交写入 pending。
-     */
-    @Schema(description = "审核状态：pending/approved/rejected", example = "approved")
-    private String auditStatus;
-
-    /** 退回原因（仅 audit_status=rejected 时由后台填写，可空） */
-    @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
-    private String rejectReason;
 
     /** 提交人用户ID（UGC 由当前登录用户写入，禁止前端传入） */
     @Schema(description = "提交人用户ID")

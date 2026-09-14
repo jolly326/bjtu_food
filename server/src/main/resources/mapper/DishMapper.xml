@@ -31,7 +31,6 @@
         <result property="longitude" column="c_lng"/>
         <!-- 菜品属性标签字段 -->
         <result property="spiceLevel" column="spice_level"/>
-        <result property="portion" column="portion"/>
         <result property="region" column="region"/>
         <!-- 距用户距离（米）：无查询返回该列（selectHotDishesByDistance 已随 §7.10 下线），恒为 null -->
         <result property="distance" column="distance"/>
@@ -41,11 +40,12 @@
                extends="dishVOMap"/>
 
     <!--
-    综合热度分表达式（唯一 SQL 真源）：
+    综合热度分表达式（**热度权重的唯一真源**）：
         view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20
         权重：浏览量 1、评价数 5*20=100、评分 20。
-    须与 Java 侧 DishHeatWeights（WEIGHT_VIEW / WEIGHT_RATING_COUNT / RATING_SCALE）保持等价，
-    任一处调整权重需同步修改两侧，避免排序/热搜口径分叉。
+    注意（Q-109，2026-09-14 用户拍板）：Java 侧 DishHeatWeights 常量已删除，热度口径**只存在于本处 SQL**。
+    如需调整权重，**直接改本片段**（并按需同步 docs/project_spec.md 相关性条款），不存在第二处需同步的常量，
+    避免「改了常量以为生效」的误判。
     仅供「等价口径」复用（heat 排序、热搜词条）；其他独立业务口径请勿 include 本片段。
     -->
     <sql id="heatScoreExpr">
@@ -71,7 +71,6 @@
             d.created_at,
             d.updated_at,
             d.spice_level,
-            d.portion,
             d.region,
             d.category_id,
             s.id   AS stall_id,
@@ -91,9 +90,8 @@
     <!-- 分页查询菜品 -->
     <select id="selectDishPage" resultMap="dishVOMap">
         <include refid="joinDishSql"/>
+        <!-- 档口/食堂已去实体化（§7.14）：无停业语义，原 s.status/c.status='open' 过滤已移除（列同批 DROP） -->
         WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         <if test="req.keyword != null and req.keyword != ''">
             -- 菜品名或别名命中即返回（alias 为管理员配置的逗号分隔别名，NULL 行 LIKE 恒 false 不影响 OR 短路）
@@ -166,8 +164,6 @@
         <include refid="joinDishSql"/>
         WHERE d.id = #{id}
           AND d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         LIMIT 1
     </select>
@@ -176,8 +172,6 @@
     <select id="selectDishDetailsByIds" resultMap="dishDetailMap">
         <include refid="joinDishSql"/>
         WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
           AND d.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
@@ -195,7 +189,6 @@
         <result property="originalPrice" column="original_price"/>
         <result property="promoPrice" column="promo_price"/>
         <result property="spiceLevel" column="spice_level"/>
-        <result property="portion" column="portion"/>
         <result property="region" column="region"/>
     </resultMap>
 
@@ -207,12 +200,18 @@
         ORDER BY d.updated_at DESC
     </select>
 
-    <!-- 评分分布 -->
+    <!--
+        评分分布。
+        计入口径（Q-110，2026-09-14 用户拍板）：仅 is_hidden=0 且 sec_state='pass' 的评价计入，
+        被机审/人工拦下（review/rejected）的内容完全不进任何统计（与 recalcRatingBySubquery 同口径）。
+        注：sec_state 列为 NOT NULL DEFAULT 'pass'，无 NULL 分支。
+    -->
     <select id="selectRatingDistribution" resultType="com.bjtufood.dish.dto.RatingDistributionVO">
         SELECT rating AS star, COUNT(*) AS count
         FROM review
         WHERE dish_id = #{dishId}
           AND is_hidden = 0
+          AND sec_state = 'pass'
         GROUP BY rating
     </select>
 
@@ -234,19 +233,28 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 评分聚合原子重算（并发安全：子查询 AVG/COUNT 整体写回，仅统计未隐藏评价） -->
+    <!--
+        评分聚合原子重算（并发安全：子查询 AVG/COUNT 整体写回）。
+        计入口径（Q-110，2026-09-14 用户拍板）：仅 is_hidden=0 且 sec_state='pass' 的评价计入
+        avg_rating / rating_count —— 被机审拦下（sec_state=review）或人工复核不通过（rejected）
+        的内容完全不进任何统计。全量重算与增量路径（selectRatingDistribution、
+        ReviewMapper 的档口均值查询）必须保持同一口径，否则会再次漂移。
+        注：sec_state 列为 NOT NULL DEFAULT 'pass'，无 NULL 分支。
+    -->
     <update id="recalcRatingBySubquery">
         UPDATE dish d
         SET d.avg_rating = IFNULL(
                 (SELECT ROUND(AVG(r.rating), 1)
                  FROM review r
                  WHERE r.dish_id = d.id
-                   AND r.is_hidden = 0),
+                   AND r.is_hidden = 0
+                   AND r.sec_state = 'pass'),
                 0),
             d.rating_count = (SELECT COUNT(*)
                               FROM review r
                               WHERE r.dish_id = d.id
-                                AND r.is_hidden = 0)
+                                AND r.is_hidden = 0
+                                AND r.sec_state = 'pass')
         WHERE d.id = #{dishId}
     </update>
 

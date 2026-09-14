@@ -15,6 +15,7 @@
 import { ref, watch, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useConfirmStore } from '@/stores/confirmStore'
 import { parseTags, formatTags } from '@/api/adapter'
 import { TAG_OPTIONS } from '@/api/tags'
 import FormDialog from '@/components/FormDialog.vue'
@@ -22,6 +23,7 @@ import ImageUpload from '@/components/ImageUpload.vue'
 import InlineSelectPanel from '@/components/InlineSelectPanel.vue'
 import CanteenCreateDialog from '@/components/CanteenCreateDialog.vue'
 import StallCreateDialog from '@/components/StallCreateDialog.vue'
+import RenameEntityDialog from '@/components/RenameEntityDialog.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -38,17 +40,13 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 
 const store = useAdminStore()
 const toast = useToastStore()
+const confirm = useConfirmStore()
 
 const SPICE_OPTIONS = [
   { label: '不辣', value: 0 },
   { label: '微辣', value: 1 },
   { label: '中辣', value: 2 },
   { label: '重辣', value: 3 },
-]
-const PORTION_OPTIONS = [
-  { label: '小份', value: 0 },
-  { label: '中份', value: 1 },
-  { label: '大份', value: 2 },
 ]
 /** 风味/菜系权威值域（project_spec §7.9；空选项 = 未填，不提交空串） */
 const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
@@ -68,7 +66,6 @@ const form = ref({
   tags: '',
   status: 'active' as 'active' | 'inactive',
   spiceLevel: 0,
-  portion: 0,
   region: '' as string,
 })
 const formErrors = ref<Record<string, string>>({})
@@ -78,6 +75,30 @@ const stallHint = ref('')
 
 const canteenModal = ref(false)
 const stallModal = ref(false)
+
+/**
+ * 「他人已修改」轻提示基线（Q-112 ①，PR-13 最简实现）：
+ * 打开编辑弹窗时记录该菜品当前的 updated_at 作为基线；保存前仅比对该基线是否与
+ * store 中当前行的 updated_at 一致（不一致说明期间被改过），给一次可「继续保存 / 取消」的**非阻塞**提示。
+ * 不引入版本号 / 乐观锁 / ETag 等并发控制机制。
+ */
+const editBaselineUpdatedAt = ref<string>('')
+function updatedAtKey(v: unknown): string {
+  return v ? new Date(v as any).getTime().toString() : ''
+}
+
+// 改名（Q-113/Q-115）：属性字典唯一的编辑动作，无删除
+const renameKind = ref<'canteen' | 'stall'>('canteen')
+const renameId = ref<number | null>(null)
+const renameName = ref('')
+const renameModal = ref(false)
+
+function openRename(kind: 'canteen' | 'stall', id: number | string, name: string) {
+  renameKind.value = kind
+  renameId.value = Number(id)
+  renameName.value = name
+  renameModal.value = true
+}
 
 // ===== 级联数据源 =====
 const canteenOptions = computed(() =>
@@ -115,6 +136,8 @@ watch(
     if (props.editingId != null) {
       const d = store.dishes.find(x => Number(x.id) === Number(props.editingId))
       if (d) {
+        // 记录编辑基线（打开时的 updated_at），保存前据此做一次轻量「他人已修改」提示
+        editBaselineUpdatedAt.value = updatedAtKey(d.updated_at)
         form.value = {
           name: d.name,
           price: Number(d.price) || 0,
@@ -128,18 +151,18 @@ watch(
           tags: d.tags || '',
           status: d.status as 'active' | 'inactive',
           spiceLevel: d.spiceLevel ?? 0,
-          portion: d.portion ?? 0,
           region: d.region || '',
         }
       }
     } else {
+      editBaselineUpdatedAt.value = ''
       const presetStall = props.defaultStallId != null ? String(props.defaultStallId) : ''
       form.value = {
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
         canteenId: canteenIdOfStall(presetStall),
         stallId: presetStall,
         image: '', description: '', alias: '', tags: '', status: 'active',
-        spiceLevel: 0, portion: 0, region: '',
+        spiceLevel: 0, region: '',
       }
     }
   },
@@ -199,6 +222,18 @@ function toggleTag(tag: string) {
 
 async function submit() {
   if (!validate()) return
+  // 「他人已修改」轻提示（Q-112 ①）：仅编辑态、仅提示不阻塞——比对编辑基线与当前行 updated_at，
+  // 不一致时给「继续保存 / 取消」二选一；取消则退回弹窗保留已填内容（不重载、不丢输入）。
+  if (props.editingId != null && editBaselineUpdatedAt.value) {
+    const cur = store.dishes.find(x => Number(x.id) === Number(props.editingId))
+    const curKey = updatedAtKey(cur?.updated_at)
+    if (curKey && curKey !== editBaselineUpdatedAt.value) {
+      const goOn = await confirm.confirm('该菜品在你编辑期间已被修改，继续保存将覆盖对方的改动。是否继续保存？')
+      if (!goOn) return
+      // 用户确认继续：以当前行最新时间为新基线，避免重复提示
+      editBaselineUpdatedAt.value = curKey
+    }
+  }
   submitting.value = true
   const payload: any = {
     name: form.value.name.trim(),
@@ -206,10 +241,11 @@ async function submit() {
     stall_id: Number(form.value.stallId),
     image: form.value.image,
     description: form.value.description,
+    // 搜索别名：后端 DishAdminReq.alias（逗号分隔，trim 后总长 ≤255）。显式传串（含空串=清空别名）
+    alias: form.value.alias.trim(),
     tags: formatTags(parseTags(form.value.tags)),
     status: form.value.status,
     spiceLevel: Number(form.value.spiceLevel) || 0,
-    portion: Number(form.value.portion) || 0,
     region: form.value.region,
   }
   // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价/促销价
@@ -264,10 +300,12 @@ async function submit() {
             v-model="form.canteenId"
             :options="canteenOptions"
             placeholder="选择食堂"
-            add-text="新增食堂"
+            add-text="新增食堂字典项"
             empty-text="暂无食堂，点下方新增"
+            renamable
             @update:model-value="onCanteenChange"
             @add="canteenModal = true"
+            @rename="(opt) => openRename('canteen', opt.value, opt.label)"
           />
           <p v-if="formErrors.canteenId" class="field-error">{{ formErrors.canteenId }}</p>
         </div>
@@ -281,9 +319,11 @@ async function submit() {
             :options="stallOptions"
             :placeholder="stallPlaceholder"
             :disabled="!form.canteenId"
-            add-text="新增档口"
+            add-text="新增档口字典项"
             :empty-text="stallEmptyText"
+            renamable
             @add="stallModal = true"
+            @rename="(opt) => openRename('stall', opt.value, opt.label)"
           />
           <p v-if="formErrors.stallId" class="field-error">{{ formErrors.stallId }}</p>
           <p v-else-if="stallHint" class="field-error">{{ stallHint }}</p>
@@ -309,11 +349,6 @@ async function submit() {
         <div class="field flex-1"><label>辣度</label>
           <select v-model.number="form.spiceLevel">
             <option v-for="s in SPICE_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-        <div class="field flex-1"><label>分量</label>
-          <select v-model.number="form.portion">
-            <option v-for="p in PORTION_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</option>
           </select>
         </div>
         <div class="field flex-1"><label>风味 / 菜系</label>
@@ -370,6 +405,14 @@ async function submit() {
       :default-canteen-id="form.canteenId === '' ? null : Number(form.canteenId)"
       @close="stallModal = false"
       @created="onStallCreated"
+    />
+    <!-- 改名（属性字典唯一编辑动作；无删除） -->
+    <RenameEntityDialog
+      :show="renameModal"
+      :kind="renameKind"
+      :target-id="renameId"
+      :current-name="renameName"
+      @close="renameModal = false"
     />
   </FormDialog>
 </template>
