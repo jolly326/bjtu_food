@@ -6,8 +6,6 @@ import type { CanteenInfo } from '@/types/canteen'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
 import * as canteenApi from '@/api/canteen'
-import { getRecommendDishes } from '@/api/recommend'
-import { getCategories, type CategoryItem } from '@/api/category'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, CAMPUS_CENTER } from '@/utils/location'
 import type { FilterTab } from '@/types/filter-tab'
@@ -32,12 +30,8 @@ function sortByDistance(rows: Dish[]): Dish[] {
 }
 
 export const useDishStore = defineStore('dish', () => {
-  const dishList = ref<Dish[]>([])
   const currentDish = ref<DishDetail | null>(null)
-  const recommendList = ref<Dish[]>([])
-  const guessList = ref<Dish[]>([])
   const reviewList = ref<Review[]>([])
-  const stallDishes = ref<Dish[]>([])
   /**
    * 在途请求引用计数：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
    * 改用 Set 记录各业务请求 key，loading 派生为"是否有请求在飞"，互不影响。
@@ -54,10 +48,7 @@ export const useDishStore = defineStore('dish', () => {
       inFlight.delete(key)
     }
   }
-  const navParams = { stallName: '', canteen: '' }
   const canteenList = ref<CanteenInfo[]>([])
-  const newDishes = ref<Dish[]>([])
-  const promotionDishes = ref<Dish[]>([])
 
   /** 首页筛选 Bar：品类滚轮（真实食堂品类，来自 GET /categories），选中即换内容 */
   const filterTab = ref<FilterTab | null>(null)
@@ -77,23 +68,8 @@ export const useDishStore = defineStore('dish', () => {
   /** 首页排序面板当前选中项（问题一：默认「最新」，综合推荐不保留） */
   const homeSortBy = ref<HomeSortKey>('latest')
 
-  /** 首页品类滚轮数据源（后端 category 表 enabled 品类，按 sortOrder 升序） */
-  const categories = ref<CategoryItem[]>([])
-
-  /** 拉取品类列表（首页品类滚轮数据源；失败回退空数组） */
-  async function fetchCategories(): Promise<CategoryItem[]> {
-    try {
-      categories.value = await getCategories()
-    } catch (e) {
-      console.error('加载品类失败', e)
-      categories.value = []
-    }
-    return categories.value
-  }
-
   /** task-02 榜单数据 */
   const hotSearchList = ref<HotSearch[]>([])
-  const risingDishes = ref<Dish[]>([])
 
   /** task-03 评价分页 */
   const reviewTotal = ref(0)
@@ -113,50 +89,14 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  async function fetchRecommend() {
-    return withLoading('fetchRecommend', async () => {
-      recommendList.value = await dishApi.getRecommendList()
-    }).catch((e) => {
-      console.error('[store] fetchRecommend failed', e)
-      recommendList.value = []
-    })
-  }
-
-  /** 猜你喜欢：GET /dishes/recommend，未登录降级纯热度；excludeIds 去重 */
-  async function fetchGuess(excludeIds: number[] = []) {
-    return withLoading('fetchGuess', async () => {
-      const res = await getRecommendDishes({ excludeIds, pageSize: 10 })
-      guessList.value = res.list
-    }).catch((e) => {
-      console.error('[store] fetchGuess failed', e)
-      guessList.value = []
-    })
-  }
-
   async function search(query: DishQuery): Promise<Dish[]> {
     try {
-      const list = await withLoading('search', async () => await dishApi.searchDishes(query))
-      dishList.value = list
-      return list
+      return await withLoading('search', async () => await dishApi.searchDishes(query))
     } catch (e) {
       // MP-012：失败不再静默吞成空数组（会被误读为「没有结果」）——向上抛错，
-      // 由唯一消费方（find 搜索流）的 catch 区分「失败」与「无结果」；dishList 仅内部缓存，失败清空防残留
+      // 由唯一消费方（find 搜索流）的 catch 区分「失败」与「无结果」
       console.error('搜索失败', e)
-      dishList.value = []
       throw e
-    }
-  }
-
-  /** task-02 多维筛选结果页：返回分页结果（list + total），供无限加载 */
-  async function searchPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
-    try {
-      const res = await withLoading('searchPage', async () => await dishApi.searchDishesPage(query))
-      dishList.value = res.list
-      return res
-    } catch (e) {
-      console.error('搜索失败', e)
-      dishList.value = []
-      return { list: [], total: 0 }
     }
   }
 
@@ -180,12 +120,10 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 登录态变更（登出/换用户）时清理「用户态个性化数据」：
-   * - guessList（猜你喜欢，依赖登录态个性化）
    * - reviewList 中各评价的 isUseful（有用标记是当前用户维度）
    * 防止 forceLogout 后上一用户的偏好数据残留串档（§5.x 登录态一致性）。
    */
   function resetUserScopedData() {
-    guessList.value = []
     for (const r of reviewList.value) {
       if (r.useful) r.useful = false
     }
@@ -231,30 +169,6 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  async function fetchNewDishes(): Promise<Dish[]> {
-    try {
-      const data = await dishApi.getNewDishes()
-      newDishes.value = data
-      return data
-    } catch (e) {
-      console.error('加载上新菜品失败', e)
-      newDishes.value = []
-      return []
-    }
-  }
-
-  async function fetchPromotionDishes(): Promise<Dish[]> {
-    try {
-      const data = await dishApi.getPromotionDishes()
-      promotionDishes.value = data
-      return data
-    } catch (e) {
-      console.error('加载活动菜品失败', e)
-      promotionDishes.value = []
-      return []
-    }
-  }
-
   /** task-02 热搜 TOP10（派生热度词条） */
   async function fetchHotSearch() {
     try {
@@ -262,16 +176,6 @@ export const useDishStore = defineStore('dish', () => {
     } catch (e) {
       console.error('加载热搜失败', e)
       hotSearchList.value = []
-    }
-  }
-
-  /** task-02 新晋黑马 */
-  async function fetchRising() {
-    try {
-      risingDishes.value = await dishApi.getRisingDishes()
-    } catch (e) {
-      console.error('加载新晋黑马失败', e)
-      risingDishes.value = []
     }
   }
 
@@ -300,15 +204,6 @@ export const useDishStore = defineStore('dish', () => {
       decorated.sort((a, b) => (a.distance ?? Number.MAX_SAFE_INTEGER) - (b.distance ?? Number.MAX_SAFE_INTEGER))
     }
     return decorated
-  }
-
-  async function fetchStallDishes(stallId: number) {
-    return withLoading('fetchStallDishes', async () => {
-      stallDishes.value = await dishApi.getStallDishes(stallId)
-    }).catch((e) => {
-      console.error('加载档口菜品失败', e)
-      stallDishes.value = []
-    })
   }
 
   /** 筛选请求序号：快速切换品类时丢弃过期响应，避免旧请求晚到覆盖新品类（P0 竞态修复） */
@@ -458,16 +353,14 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   return {
-    dishList, currentDish, recommendList, guessList, reviewList, stallDishes,
-    canteenList, newDishes, promotionDishes,
-    hotSearchList, risingDishes, reviewTotal, reviewSort, reviewsDirty,
-    loading, navParams,
-    categories,
+    currentDish, reviewList,
+    canteenList,
+    hotSearchList, reviewTotal, reviewSort, reviewsDirty,
+    loading,
     filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterError,
     homeSortBy, setHomeSort, setHomePrice,
-    fetchRecommend, fetchGuess,
-    fetchCategories, fetchCanteens, search, searchPage, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews, fetchStallDishes,
-    fetchNewDishes, fetchPromotionDishes, fetchHotSearch, fetchRising,
+    fetchCanteens, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
+    fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,
     withLocalDistance,
   }

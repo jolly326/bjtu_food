@@ -25,7 +25,10 @@ public interface FeedbackService {
     IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String secState, String keyword, int page, int pageSize);
 
     /**
-     * 处理反馈：标记 handled + 写 reply/handled_at/handler_id
+     * 处理反馈：标记 handled + 写 reply/handled_at
+     * <p>
+     * §7.10 决议：管理端「操作人身份」降级——单口令即单人，不再追究身份，
+     * 故不再取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
      */
-    void handle(Long id, Long handlerId, String reply);
+    void handle(Long id, String reply);
 }

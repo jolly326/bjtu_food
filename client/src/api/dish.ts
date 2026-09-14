@@ -60,17 +60,6 @@ function toDishDetail(raw: RawRow): DishDetail {
   }
 }
 
-export async function getRecommendList(): Promise<Dish[]> {
-  return recordsOf<any>(await get('/dishes/hot')).map(toDish)
-}
-
-/** 档口菜品：按 stallId 精确过滤（后端 GET /dishes 已支持 stallId，避免 keyword 模糊搜索召回同名菜品） */
-export async function getStallDishes(stallId: number): Promise<Dish[]> {
-  if (!stallId) return []
-  const res = await get<any>('/dishes', { stallId, page: 1, pageSize: 50 })
-  return recordsOf<any>(res).map(toDish)
-}
-
 /**
  * 通用菜品检索（task-02 多维筛选结果页 + task-01 首页无限加载）
  * 复用 GET /dishes，支持 keyword / canteenId / tag / minPrice / maxPrice / sortBy / sortOrder / page / pageSize。
@@ -119,19 +108,6 @@ export async function addView(id: number): Promise<void> {
   } catch {
     /* 静默失败：浏览统计不应阻塞详情展示 */
   }
-}
-
-export async function getNewDishes(): Promise<Dish[]> {
-  return recordsOf<any>(await get('/dishes/new')).map(toDish)
-}
-
-export async function getPromotionDishes(): Promise<Dish[]> {
-  return recordsOf<any>(await get('/dishes/promotions')).map(toDish)
-}
-
-/** 新晋黑马（task-02：GET /dishes/rising，近 14 天热度增速 TOP10） */
-export async function getRisingDishes(): Promise<Dish[]> {
-  return recordsOf<any>(await get('/dishes/rising')).map(toDish)
 }
 
 /** 热搜 TOP10（task-02：GET /dishes/hot-search，一期为菜品热度派生的热门词条） */

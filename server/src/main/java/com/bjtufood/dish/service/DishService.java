@@ -32,34 +32,6 @@ public interface DishService {
     IPage<DishVO> listDishes(DishQueryReq req);
 
     /**
-     * 获取热门菜品（支持按用户位置距离加权排序，首页推荐联动定位；可控制返回条数）
-     *
-     * @param lat   用户纬度（GCJ-02，可为 null）
-     * @param lng   用户经度（GCJ-02，可为 null）
-     * @param limit 返回条数（可为 null，默认 TOP10）
-     * @return 热门菜品列表（近食堂菜品优先）
-     */
-    List<DishVO> getHotDishes(java.math.BigDecimal lat, java.math.BigDecimal lng, Integer limit);
-
-    /**
-     * 获取今日上新菜品
-     * <p>
-     * 按创建时间降序排列，取前8条（status=on）
-     *
-     * @return 上新菜品列表
-     */
-    List<DishVO> getNewDishes();
-
-    /**
-     * 获取限时活动菜品
-     * <p>
-     * 返回有活动特价的菜品，带活动价和截止时间
-     *
-     * @return 活动菜品列表
-     */
-    List<DishVO> getPromotionDishes();
-
-    /**
      * 获取菜品详情
      * <p>
      * 如果请求已登录，会在响应中附加：
@@ -71,20 +43,6 @@ public interface DishService {
      * @throws com.bjtufood.common.exception.BusinessException 菜品不存在
      */
     DishVO getDishDetail(Long id, Long userId);
-
-    /**
-     * 「猜你喜欢」推荐菜品（公开，无需登录；登录态个性化更强）
-     * <p>
-     * 仅对 audit_status=approved 且上架菜品生效，按热度分降序分页；
-     * 支持 excludeIds 排除前端已展示项；未登录/无浏览历史时按纯热度（等同于热门弱化版）。
-     *
-     * @param page       页码
-     * @param pageSize   每页条数
-     * @param excludeIds 排除的菜品ID（逗号分隔，可选）
-     * @param userId     当前登录用户ID（可选，用于个性化加权）
-     * @return 分页推荐菜品
-     */
-    IPage<DishVO> recommendDishes(int page, int pageSize, String excludeIds, Long userId);
 
     /**
      * 增加菜品浏览量
@@ -107,15 +65,6 @@ public interface DishService {
      * @return 热搜词条列表（keyword=菜品名, heat=热度分）
      */
     List<HotSearchVO> hotSearch();
-
-    /**
-     * 新晋黑马 TOP10
-     * <p>
-     * 取近 14 天新上架且热度增速高的菜品，按 (rating_count*20 + view_count) 降序。
-     *
-     * @return 菜品列表
-     */
-    List<DishVO> rising();
 
     // ==================== 管理端接口（管理员） ====================
 

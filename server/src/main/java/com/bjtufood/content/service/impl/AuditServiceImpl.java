@@ -108,10 +108,9 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-    // 审核状态变更影响菜品对外可见性（approved 才参与推荐位）；
-    // 仅 dish 类型清缓存（stall/canteen 审核不进推荐位缓存），evict 在写库事务完成后执行
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
-            CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING},
+    // 审核状态变更影响菜品对外可见性（approved 才参与热搜榜单）；
+    // 仅 dish 类型清缓存（stall/canteen 审核不进热搜缓存），evict 在写库事务完成后执行
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH},
             allEntries = true, condition = "#type == 'dish'")
     public void approve(String type, Long id) {
         if (AuditConst.TYPE_DISH.equals(type)) {
@@ -147,8 +146,7 @@ public class AuditServiceImpl implements AuditService {
     @Override
     @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     // 退回同样改变菜品可见性（rejected 不再对外可见），evict 时机同 approve
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT, CacheConfig.CACHE_DISH_RECOMMEND,
-            CacheConfig.CACHE_DISH_HOT_SEARCH, CacheConfig.CACHE_DISH_RISING},
+    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH},
             allEntries = true, condition = "#type == 'dish'")
     public void reject(String type, Long id, String rejectReason) {
         if (!StringUtils.hasText(rejectReason)) {

@@ -1,10 +1,8 @@
 package com.bjtufood.common.aspect;
 
-import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.entity.OperationLog;
 import com.bjtufood.common.mapper.OperationLogMapper;
-import com.bjtufood.common.utils.SecurityUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +36,6 @@ import java.lang.reflect.Method;
 public class AuditLogAspect {
 
     private final OperationLogMapper operationLogMapper;
-    private final UserMapper userMapper;
 
     private static final ExpressionParser PARSER = new SpelExpressionParser();
     private static final ParameterNameDiscoverer DISCOVERER = new DefaultParameterNameDiscoverer();
@@ -68,23 +65,16 @@ public class AuditLogAspect {
     }
 
     private void writeLog(AuditLog annotation, Long targetId) {
-        Long adminId = getCurrentAdminId();
         String ip = getCurrentIp();
         OperationLog log = new OperationLog();
-        log.setAdminId(adminId == null ? 0L : adminId);
+        // §7.10：管理端操作人身份降级（单口令即单人），不再取当前管理员 ID 写 admin_id；
+        // 该列保留在库中（retired，NOT NULL DEFAULT 0），显式写 0 表示「未记录身份」。
+        log.setAdminId(0L);
         log.setAction(annotation.action());
         log.setTargetType(annotation.targetType());
         log.setTargetId(targetId);
         log.setIp(ip);
         operationLogMapper.insert(log);
-    }
-
-    private Long getCurrentAdminId() {
-        try {
-            return SecurityUtil.getCurrentUserId();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private String getCurrentIp() {

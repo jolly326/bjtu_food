@@ -3,6 +3,31 @@
 > 机制见 `docs/PRODUCT_LOOP.md` §8。**本文件是「产品定型模糊 / 规则冲突 / 契约缺口」的唯一登记渠道**，对话里的结论一律不算数。
 > 字段：ID | 提出角色 | 时间 | 类型 | 问题 | 证据 | 影响面 | 候选方案 | 优先级 | 决策人 | 状态 | 决策结论 | 闭环证据
 
+## 已关闭（Closed）· 第 5 批（2026-09-14）
+
+### Q-026 · P1 · 小程序 5 个零消费入口 + 16 个死 store 成员 → 全部下线
+- 决策：**全部不做，删掉**（零消费即下线）
+- 实现：后端删 `GET /dishes/hot|new|promotions|rising|recommend` 及其 service/mapper/缓存；小程序删 16 个死 store 成员与 5 个死 api 函数、`api/recommend.ts` 整文件删除
+- **保留**：`/dishes`、`/dishes/{id}`、`/dishes/{id}/view`、`/dishes/hot-search`（首页热搜）；促销价/划线价字段与端上折扣标保留
+- 证据：spec §7.10 第 1 条；`DishController` 仅剩 4 个 `/dishes` 端点；三端构建 EXIT=0；死路径残留 0 处 ｜ 状态：`closed` ✅
+
+### Q-023 · P1 · 管理端操作人身份 → 删字段，不追究身份
+- 决策：认定单口令即单人；移除 `handler_id` 与 `operation_log.admin_id` 的写入，及 web 端 `adminId`/`role`/`loadProfile`/`clearAuth` 与两处自保护死分支
+- 列保留在库（retired），「反馈处理人/操作日志操作人」可追溯性**明示降级**
+- 证据：spec §7.10 第 2 条；`mvn compile`/`web build` EXIT=0；web 残留 0 处（`adminId` 仅剩 operationLog 契约字段）｜ 状态：`closed` ✅
+
+### Q-025 · P2 · 美团式写评 `review.tags` → 删列
+- 决策：不做，删除该列
+- 实现：`schema.sql` 幂等迁移 `drop_review_tags_column` + `CREATE TABLE review` 移除该列（遵数据库红线，未直连 ALTER）
+- 证据：spec §7.10 第 3 条 ｜ 状态：`closed` ✅（线上执行迁移后生效）
+
+### Q-024 · P2 · 「账号设置」死入口 → 删入口
+- 决策：直接删除入口（原指向未注册路由）
+- 实现：`AdminLayout` 删入口/`goAccount()`/死激活分支/`useAdminUserStore` 假态，用户菜单收敛为只读「管理员」标识，清理 46 行死 CSS
+- 证据：spec §7.10 第 4 条；`web build` EXIT=0 ｜ 状态：`closed` ✅
+
+---
+
 ## 开放中（Open）
 
 ### Q-023 · P1 · 管理端口令体系下是否还需要「操作人身份」

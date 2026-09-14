@@ -30,38 +30,6 @@ public interface DishMapper extends BaseMapper<Dish> {
     IPage<DishVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
 
     /**
-     * 查询热门菜品 TOP10（联表）
-     * <p>
-     * 按评价数降序、评分次之（rating_count DESC, avg_rating DESC），取前 10 条
-     */
-    List<DishVO> selectHotDishes();
-
-    /**
-     * 查询热门菜品 TOP10（按用户位置距离加权排序）
-     * <p>
-     * 有坐标时：先按食堂距离升序（近的食堂菜品优先），热度（评价数/评分）作次级排序。
-     * 无坐标食堂的菜品排最后。
-     *
-     * @param lat 用户纬度（GCJ-02，可为 null）
-     * @param lng 用户经度（GCJ-02，可为 null）
-     */
-    List<DishVO> selectHotDishesByDistance(@Param("lat") java.math.BigDecimal lat, @Param("lng") java.math.BigDecimal lng);
-
-    /**
-     * 查询今日上新菜品 TOP8
-     * <p>
-     * 按创建时间降序，取前 8 条
-     */
-    List<DishVO> selectNewDishes();
-
-    /**
-     * 查询限时活动菜品 TOP4
-     * <p>
-     * 按标签筛选 promotion，取前 4 条
-     */
-    List<DishVO> selectPromotionDishes();
-
-    /**
      * 查询菜品详情（联表）
      */
     DishDetailVO selectDishDetail(@Param("id") Long id);
@@ -96,13 +64,6 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return 热搜词条列表（HotSearchVO{keyword,heat}）
      */
     List<HotSearchVO> selectHotSearch();
-
-    /**
-     * 新晋黑马 TOP10（近 14 天新上架且热度增速高的菜品）
-     *
-     * @return 菜品列表（DishVO）
-     */
-    List<DishVO> selectRising();
 
     /**
      * 浏览量原子自增（并发安全：UPDATE ... SET view_count = view_count + 1）

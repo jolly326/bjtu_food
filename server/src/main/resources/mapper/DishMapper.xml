@@ -34,7 +34,7 @@
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
         <result property="region" column="region"/>
-        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
+        <!-- 距用户距离（米）：无查询返回该列（selectHotDishesByDistance 已随 §7.10 下线），恒为 null -->
         <result property="distance" column="distance"/>
     </resultMap>
 
@@ -151,78 +151,6 @@
         </choose>
     </select>
 
-    <!-- 今日上新菜品 TOP8 -->
-    <select id="selectNewDishes" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-        ORDER BY d.created_at DESC
-        LIMIT 8
-    </select>
-
-    <!-- 限时活动菜品 TOP4 -->
-    <select id="selectPromotionDishes" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-          -- 促销标签精确匹配，避免 LIKE 误命中「promotion_xxx」等包含 promotion 子串的标签
-          AND FIND_IN_SET('promotion', d.tags) > 0
-        ORDER BY d.created_at DESC
-        LIMIT 4
-    </select>
-
-    <!-- 热门菜品 TOP10 -->
-    <select id="selectHotDishes" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-        ORDER BY d.rating_count DESC, d.avg_rating DESC
-        LIMIT 10
-    </select>
-
-    <!-- 热门菜品 TOP10（按用户位置距离加权：近食堂菜品优先，热度次级排序）。
-         有坐标食堂按 haversine 距离升序；无坐标食堂的菜品排最后（距离=极大值）。
-         计算出的距离（米）同时作为 distance 列返回前端用于「距你 Xm」展示。
-         lat/lng 均为 GCJ-02。 -->
-    <select id="selectHotDishesByDistance" resultMap="dishVOMap">
-        SELECT
-            sub.*,
-            CASE
-                WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
-                  THEN ROUND(6371000 * 2 * ASIN(SQRT(
-                        POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
-                      + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
-                      * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
-                  )))
-                ELSE NULL
-            END AS distance
-        FROM (
-            <include refid="joinDishSql"/>
-            WHERE d.status = 'on'
-              AND s.status = 'open'
-              AND c.status = 'open'
-              AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-        ) sub
-        ORDER BY
-          CASE
-            WHEN sub.c_lat IS NOT NULL AND sub.c_lng IS NOT NULL
-              THEN 6371000 * 2 * ASIN(SQRT(
-                    POWER(SIN(RADIANS(sub.c_lat - #{lat}) / 2), 2)
-                  + COS(RADIANS(#{lat})) * COS(RADIANS(sub.c_lat))
-                  * POWER(SIN(RADIANS(sub.c_lng - #{lng}) / 2), 2)
-              ))
-            ELSE 99999999
-          END ASC,
-          sub.rating_count DESC, sub.avg_rating DESC
-        LIMIT 10
-    </select>
-
     <!-- 菜品详情 -->
     <select id="selectDishDetail" resultMap="dishDetailMap">
         <include refid="joinDishSql"/>
@@ -259,8 +187,6 @@
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
         <result property="region" column="region"/>
-        <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
-        <result property="distance" column="distance"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称）。
@@ -288,18 +214,6 @@
         WHERE d.status = 'on'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
         ORDER BY heat DESC
-        LIMIT 10
-    </select>
-
-    <!-- 新晋黑马 TOP10（近 14 天新上架且热度增速高的菜品） -->
-    <select id="selectRising" resultMap="dishVOMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND s.status = 'open'
-          AND c.status = 'open'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-          AND d.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-        ORDER BY (d.rating_count * 20 + d.view_count) DESC
         LIMIT 10
     </select>
 
