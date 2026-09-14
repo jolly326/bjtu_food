@@ -41,6 +41,18 @@
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"
                extends="dishVOMap"/>
 
+    <!--
+    综合热度分表达式（唯一 SQL 真源）：
+        view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20
+        权重：浏览量 1、评价数 5*20=100、评分 20。
+    须与 Java 侧 DishHeatWeights（WEIGHT_VIEW / WEIGHT_RATING_COUNT / RATING_SCALE）保持等价，
+    任一处调整权重需同步修改两侧，避免排序/热搜口径分叉。
+    仅供「等价口径」复用（heat 排序、热搜词条）；其他独立业务口径请勿 include 本片段。
+    -->
+    <sql id="heatScoreExpr">
+        (d.view_count * 1 + d.rating_count * 5 * 20 + COALESCE(d.avg_rating, 0) * 20)
+    </sql>
+
     <!-- 联表查询基础 SQL 片段 -->
     <sql id="joinDishSql">
         SELECT
@@ -121,7 +133,7 @@
         </if>
         <choose>
             <when test="req.sortBy == 'heat'">
-                ORDER BY (d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20) DESC
+                ORDER BY <include refid="heatScoreExpr"/> DESC
             </when>
             <when test="req.sortBy == 'rating'">
                 ORDER BY d.avg_rating
@@ -209,7 +221,7 @@
     <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->
     <select id="selectHotSearch" resultType="com.bjtufood.dish.dto.HotSearchVO">
         SELECT d.name AS keyword,
-               CAST((d.view_count * 1 + d.rating_count * 5 * 20 + COALESCE(d.avg_rating, 0) * 20) AS SIGNED) AS heat
+               CAST(<include refid="heatScoreExpr"/> AS SIGNED) AS heat
         FROM dish d
         WHERE d.status = 'on'
           AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
