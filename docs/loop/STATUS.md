@@ -20,14 +20,15 @@
 | **C** | 需用户拍板项（§7.9~§7.13） | ✅ 全部拍板并落地 |
 | **D** | 热度公式抽 `heatScoreExpr`＋`DishHeatWeights`、`user` 保留字评估（保持现状＋注释）、反馈/举报文案落位 | ✅ |
 
-## 待用户执行（4 项 · launch-checklist D 段）
+## 上线阻塞项进度
 
-| # | 事项 | 影响 |
+| # | 事项 | 状态 |
 |---|---|---|
-| D1 | 云托管按 `main`（`6a61b7d`）**重新部署** | 后台可用；`ADMIN_TOKEN`/COS/上传鉴权/文案/双约束才生效 |
-| D2 | 上传 **31 张菜品首图**（当前 31/31 缺失）＋按 `dish-proofread-checklist.md` 逐条校对 | 小程序菜品图与数据质量 |
-| D3 | 小程序 **downloadFile 域名**加 COS 域名 | 正式版图片显示 |
-| D4 | 执行 **DB 迁移**（`serve_period`/`limited`/`review.tags` 三列删除，脚本幂等） | 清除孤儿列 |
+| D1 | 云托管重新部署 | ✅ **已完成**（2026-09-14 实测：线上已含分页契约与 B 批次代码；`ADMIN_TOKEN`/COS/上传鉴权均已生效） |
+| D4 | 执行 DB 迁移（删 3 列） | ✅ **已完成**（agent 执行：`serve_period`/`limited`/`review.tags` 三列已删除，`region` 注释已同步；迁移后全部接口复测 200） |
+| D2 | 上传 **31 张菜品首图**（当前 31/31 缺失）＋按 `dish-proofread-checklist.md` 逐条校对 | ⏳ 待用户（上传链路已实测打通：`POST /upload/image` → COS 直链 200） |
+| D3 | 小程序 **downloadFile 域名**加 COS 域名 | ⏳ 待用户（COS 图片已验证公有读可访问） |
+| D5 | 死文件删除授权 | ✅ 已完成（5 个文件已物理删除） |
 
 ## 下一轮候选（部署完成后）
 
