@@ -45,6 +45,15 @@
 
 ## 已关闭（Closed）
 
+### Q-022 · P0 · 管理后台图片上传必然 401（阻塞 31 道菜传图）
+- 提出：主 agent（线上实测）｜2026-09-14｜类型：T4 实现约束冲突
+- 问题：`/upload/image` 不在任何放行清单中 → 落到 `anyRequest().authenticated()` 要求学生 JWT；而 web 管理后台只带 `X-Admin-Token`。实测 `POST /api/upload/image`（带正确口令）返回 401「请先登录或重新登录」→ **后台上传图片必然失败**，直接阻塞 Q-005（31 道菜首图）。
+- 证据：线上实测 401；`SecurityConfig.PUBLIC_ANY_METHOD/PUBLIC_GET_PREFIXES` 均无 `/upload`；`AdminTokenFilter.shouldNotFilter` 仅匹配 `/admin/`
+- 决策：把 `/upload/image`（管理端 multipart 上传）与 `/admin/**` 同源处理 —— 口令过滤器把关 + SecurityConfig 放行；学生端 `/upload/images` 保持不变仍走 JWT
+- 实现：`AdminTokenFilter.shouldNotFilter` 增加 `uri.endsWith("/upload/image")`（**必须 endsWith**：`/upload/image` 是 `/upload/images` 的子串，用 contains 会误伤小程序上传链路）；`SecurityConfig` 增加 `.requestMatchers("/upload/image", "/api/upload/image").permitAll()`
+- 验证：`mvn compile` EXIT=0；线上待部署后复测
+- 状态：`closed` ✅（代码已修，**待用户重新部署生效**）
+
 ### Q-009 · P0 · 管理端新增菜品落 `pending` → 小程序不显示
 - 提出：主 agent｜2026-09-14｜类型：T7 决议疑似被推翻
 - 问题：`dish.audit_status` 建表默认 `pending`，`DishServiceImpl.addDish` 未设该字段；小程序仅展示 `approved` → 后台新录入菜品全部不可见（现有 31 条为种子脚本写入 approved，故此前未暴露）

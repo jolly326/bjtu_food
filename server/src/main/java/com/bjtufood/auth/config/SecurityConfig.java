@@ -104,6 +104,10 @@ public class SecurityConfig {
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers("/admin/**").permitAll()
+                        // 管理端图片上传（web 后台上传菜品图，multipart）：与 /admin/** 同源、同口令把关。
+                        // 不在此放行会落到 anyRequest().authenticated() → 后台上传 401（2026-09-14 实测）。
+                        // 注意：学生端 /upload/images 不在本行，仍走 JWT。
+                        .requestMatchers("/upload/image", "/api/upload/image").permitAll()
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )
