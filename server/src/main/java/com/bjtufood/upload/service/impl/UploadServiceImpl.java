@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,7 +26,9 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -199,9 +203,34 @@ public class UploadServiceImpl implements UploadService {
         return Map.of("url", url);
     }
 
-    /** batchdownloadfile：fileID → 临时下载链接（POST JSON，env 缺省时从 fileID 解析） */
+    /**
+     * batchdownloadfile：fileID → 临时下载链接（POST JSON，env 缺省时从 fileID 解析）。
+     * <p>
+     * token 失效自愈（对齐 {@code ContentSecurityServiceImpl} 的 BE-06 模式）：
+     * 单次调用遇 40001（invalid credential）/ 42001（access_token expired）时，
+     * 先清空 stable_token 缓存再重试一次（重试时 {@code getStableAccessToken()} 会重新拉取）；
+     * 重试仍失败则 fail-closed 抛 500。
+     */
     private String fetchCloudDownloadUrl(String fileId) {
         String env = resolveCloudEnv(fileId);
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                return doFetchCloudDownloadUrl(env, fileId);
+            } catch (WechatTokenInvalidException e) {
+                if (attempt == 2) {
+                    log.error("刷新 access_token 后仍返回失效 errcode={}，fail-closed", e.errcode);
+                    throw new BusinessException(500, "云存储服务暂不可用，请稍后重试");
+                }
+                log.warn("batchdownloadfile access_token 失效（errcode={}），清空缓存后重试一次", e.errcode);
+                contentSecurityService.invalidateCachedToken();
+            }
+        }
+        // 循环至多两轮：第二轮要么 return 要么抛出，此分支理论上不可达（防御性兜底）
+        throw new BusinessException(500, "云存储服务暂不可用，请稍后重试");
+    }
+
+    /** 单次 batchdownloadfile 调用：取 token → 请求 → 判 errcode → 解析临时下载链接 */
+    private String doFetchCloudDownloadUrl(String env, String fileId) {
         String url = BATCH_DOWNLOAD_URL + "?access_token=" + contentSecurityService.getStableAccessToken();
 
         Map<String, Object> reqBody = Map.of(
@@ -228,6 +257,10 @@ public class UploadServiceImpl implements UploadService {
         Map<String, Object> resp = parseJsonBody(body);
         Integer errcode = asInt(resp.get("errcode"));
         if (errcode != null && errcode != 0) {
+            if (isTokenInvalidErrcode(errcode)) {
+                // token 失效类 errcode：向上抛内部标记，由 fetchCloudDownloadUrl 清缓存重试
+                throw new WechatTokenInvalidException(errcode);
+            }
             log.error("batchdownloadfile 失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
             throw new BusinessException(400, "云存储文件获取失败，请重试");
         }
@@ -249,6 +282,26 @@ public class UploadServiceImpl implements UploadService {
         return downloadUrl;
     }
 
+    /**
+     * token 失效类 errcode（微信官方定义）：
+     * 40001 = invalid credential / access_token 无效；42001 = access_token timeout。
+     */
+    private static boolean isTokenInvalidErrcode(int errcode) {
+        return errcode == 40001 || errcode == 42001;
+    }
+
+    /**
+     * token 失效信号（内部标记异常，由 {@link #fetchCloudDownloadUrl} 捕获并触发清缓存重试）。
+     */
+    private static final class WechatTokenInvalidException extends RuntimeException {
+        private final int errcode;
+
+        private WechatTokenInvalidException(int errcode) {
+            super("wechat token invalid: " + errcode);
+            this.errcode = errcode;
+        }
+    }
+
     /** 解析云开发环境 ID：配置优先，缺省从 fileID（cloud://{env}.{bucket}/path）解析 */
     private String resolveCloudEnv(String fileId) {
         if (StringUtils.hasText(cloudEnv)) {
@@ -262,20 +315,54 @@ public class UploadServiceImpl implements UploadService {
         return body.substring(0, dot);
     }
 
-    /** 下载云存储图片（GET 临时链接 → byte[]） */
+    /**
+     * 流式下载云存储图片（BE-05）。
+     * <p>
+     * 原实现 {@code getForObject(byte[].class)} 会把整个响应体全量缓冲进堆内存，且体积上限在
+     * 「下载完成之后」才判定——攻击者只需给出一个几百 MB 的临时链接即可单请求打爆堆（OOM 面）。
+     * 改为以 {@code ResponseExtractor} 直接消费响应流，边读边累计，超过 1MB 立即中断并抛 400。
+     *
+     * @return 图片字节（已保证非空且 ≤ {@link ContentSecurityServiceImpl#MAX_IMAGE_BYTES}）
+     */
     private byte[] downloadImage(String downloadUrl) {
         try {
-            byte[] data = cloudRestTemplate.getForObject(downloadUrl, byte[].class);
-            if (data == null || data.length == 0) {
-                throw new BusinessException(400, "图片下载失败，请重试");
-            }
-            return data;
+            // 说明：RestTemplate 默认的错误处理器会在 extractData 之前对 4xx/5xx 抛
+            // HttpClientErrorException / HttpServerErrorException，故此处拿到的响应已是 2xx。
+            // 非 2xx 会落入下面的 catch(Exception) 统一转 400，不会误判为成功。
+            return cloudRestTemplate.execute(downloadUrl, HttpMethod.GET, null, response -> {
+                // try-with-resources：无论正常读完还是超限中断，都确保响应流与底层连接被关闭
+                try (ClientHttpResponse resp = response; InputStream in = resp.getBody()) {
+                    return readCapped(in, ContentSecurityServiceImpl.MAX_IMAGE_BYTES);
+                }
+            });
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.error("云存储图片下载失败（url={}）", maskUrl(downloadUrl), e);
             throw new BusinessException(400, "图片下载失败，请重试");
         }
+    }
+
+    /**
+     * 边读边截断：累计字节数一旦超过 {@code limit} 立即抛出 400 并停止读取，
+     * 不再把剩余字节读进内存（缓冲区仅 8KB 常驻）。
+     */
+    private static byte[] readCapped(InputStream in, long limit) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        long total = 0;
+        int n;
+        while ((n = in.read(buf)) != -1) {
+            total += n;
+            if (total > limit) {
+                throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
+            }
+            out.write(buf, 0, n);
+        }
+        if (total == 0) {
+            throw new BusinessException(400, "图片下载失败，请重试");
+        }
+        return out.toByteArray();
     }
 
     /** magic number 推断图片真实格式（jpg/png/webp），不合法一律拒绝 */

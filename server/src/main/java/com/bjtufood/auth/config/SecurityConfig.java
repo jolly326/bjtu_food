@@ -32,7 +32,7 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * 公开接口白名单（无需登录）：
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
- * - POST /auth/admin/login（管理后台登录，方案 C）
+ * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
  * - GET /canteens, GET /stalls（食堂档口查询）
  * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
  * - GET /dishes/{dishId}/reviews（评价列表）
@@ -132,6 +132,14 @@ public class SecurityConfig {
      * <p>
      * 使用 BCrypt 算法加密密码。
      * BCrypt 每次加密结果不同（内置 salt），安全性高。
+     * <p>
+     * 2026-09-14 保留说明（BE「删除 DataInitializer」联动评估结论）：
+     * 管理端已无登录/密码体系（/admin/** 走 {@code AdminTokenFilter} 的 X-Admin-Token 口令），
+     * 原 DataInitializer 写入的 admin/admin123 账号已随该类一并删除；
+     * 但本 Bean <b>不能摘除</b>——邮箱验证码仍以 BCrypt 存/验哈希：
+     * {@code EmailCodeServiceImpl#passwordEncoder.encode(验证码)} 与
+     * {@code AuthServiceImpl#passwordEncoder.matches(输入码, code_hash)} 依赖它。
+     * 摘除将直接导致启动期依赖注入失败。
      *
      * @return PasswordEncoder
      */

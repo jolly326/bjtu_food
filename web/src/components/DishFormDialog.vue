@@ -4,25 +4,28 @@
  * 提交走 adminStore.addDish / updateDish（api 层 dishToApi 自动转分）。
  * 价格/原价/促销价均以「元」编辑。
  *
- * 归属区（docs/loop/design/dish-entry-flow.md §1.2）：**食堂 → 档口两级联动**
- *  - 食堂仅用于级联过滤，不进 payload（菜品只提交 stall_id，后端契约不变）；
- *  - 未选食堂时档口 disabled（可见不可交互，非隐藏）；
- *  - 切换食堂静默清空已选档口，防跨食堂脏数据；
- *  - 编辑态由 dish.stall_id 反查档口 → 反查其食堂回显；
- *  - 两控件面板底部固定「+ 新增食堂 / + 新增档口」，叠层小弹窗新建后自动选中，
- *    本弹窗保持打开且已填字段不丢失（§1.3）。
+ * 归属区（§7.23 第 1 条，2026-09-15 蓝图 v1）：**食堂 → 档口两级联动 + 直接输入新名称**
+ *  - 下拉选既有字典值；也支持直接输入新名称，提交时随菜品保存，后端按名 upsert 自动建档
+ *    （同名不重复建档；独立新增端点 POST /admin/canteens|stalls 已删除，孪生创建弹窗一并下线）；
+ *  - 未选食堂时档口 disabled（可见不可交互，非隐藏）；切换食堂静默清空已选档口，防跨食堂脏数据；
+ *  - 编辑态由 dish.stall_id 回填档口、按名回填食堂；
+ *  - 提交契约（DishAdminReq）：既有档口传 stallId；新档口传 stallName + canteenName
+ *    （canteenName 仅在 stallName 触发新建档口时被后端消费，故两者总是成对提供）；
+ *  - 名称「其他/其它/无/未知」为后端空值语义（不建档），前端同步拦截（对齐 EMPTY_NAME_VALUES）；
+ *  - 改名（属性字典唯一编辑动作）保留：行内「改名」入口 → RenameEntityDialog。
  */
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
+import { useDishStore } from '@/stores/dishStore'
+import { useCanteenStore } from '@/stores/canteenStore'
+import { useStallStore } from '@/stores/stallStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import { categoryApi } from '@/api'
 import { parseTags, formatTags } from '@/api/adapter'
 import { TAG_OPTIONS } from '@/api/tags'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import InlineSelectPanel from '@/components/InlineSelectPanel.vue'
-import CanteenCreateDialog from '@/components/CanteenCreateDialog.vue'
-import StallCreateDialog from '@/components/StallCreateDialog.vue'
 import RenameEntityDialog from '@/components/RenameEntityDialog.vue'
 
 const props = withDefaults(
@@ -39,6 +42,9 @@ const props = withDefaults(
 const emit = defineEmits<{ close: []; saved: [] }>()
 
 const store = useAdminStore()
+const dishStore = useDishStore()
+const canteenStore = useCanteenStore()
+const stallStore = useStallStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -50,16 +56,20 @@ const SPICE_OPTIONS = [
 ]
 /** 风味/菜系权威值域（project_spec §7.9；空选项 = 未填，不提交空串） */
 const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
+/** 后端 upsert 空值语义名称（DishServiceImpl.EMPTY_NAME_VALUES 同源）：视为未传、不建档 */
+const UPSET_EMPTY_NAMES = ['其他', '其它', '无', '未知']
 
 const form = ref({
   name: '',
   price: 0,
   originalPrice: 0,
   promoPrice: 0,
-  /** 所属食堂（级联用，不进 payload） */
-  canteenId: '' as string | number,
-  /** 所属档口（提交为 stall_id） */
-  stallId: '' as string | number,
+  /** 所属食堂：number = 既有食堂 id；string = 直接输入的新名称（后端按名 upsert） */
+  canteenValue: '' as string | number,
+  /** 所属档口：number = 既有档口 id；string = 直接输入的新名称（后端按名 upsert） */
+  stallValue: '' as string | number,
+  /** 所属品类（WEB-06，可空=未分类） */
+  categoryId: '' as string | number,
   image: '',
   description: '',
   alias: '',
@@ -70,11 +80,27 @@ const form = ref({
 })
 const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
-/** 归属区错误补充提示（档口失效等失败恢复路径，§1.4-3） */
+/** 归属区错误补充提示（档口失效等失败恢复路径） */
 const stallHint = ref('')
 
-const canteenModal = ref(false)
-const stallModal = ref(false)
+/** 品类字典（WEB-06）：懒加载一次，取 /admin/categories */
+const categories = ref<Array<{ id: number; name: string }>>([])
+onMounted(async () => {
+  if (categories.value.length) return
+  try {
+    categories.value = await categoryApi.getAll()
+  } catch { /* 品类加载失败不阻塞菜品主流程，下拉回落为「未分类」 */ }
+})
+
+// WEB-02：打开弹窗时若归属字典尚未加载（如直接深链进入），兜底拉一次（静默）
+watch(
+  () => props.show,
+  (v) => {
+    if (!v) return
+    if (!store.canteens.length) canteenStore.loadAll().catch(() => {})
+    if (!store.stalls.length) stallStore.loadAll().catch(() => {})
+  },
+)
 
 /**
  * 「他人已修改」轻提示基线（Q-112 ①，PR-13 最简实现）：
@@ -104,18 +130,15 @@ function openRename(kind: 'canteen' | 'stall', id: number | string, name: string
 const canteenOptions = computed(() =>
   store.canteens.map(c => ({ label: c.name, value: Number(c.id) })),
 )
-/** 档口选项：严格按所选食堂的 canteen_id 过滤（§1.2 防脏数据） */
+/** 档口选项：严格按所选食堂的 canteen_id 过滤（防脏数据）；食堂为手输新名称时无既有选项，仅允许手输 */
 const stallOptions = computed(() => {
-  if (!form.value.canteenId) return []
+  if (!form.value.canteenValue || typeof form.value.canteenValue !== 'number') return []
   return store.stalls
-    .filter(s => Number(s.canteen_id) === Number(form.value.canteenId))
+    .filter(s => Number(s.canteen_id) === Number(form.value.canteenValue))
     .map(s => ({ label: s.name, value: Number(s.id) }))
 })
-const stallPlaceholder = computed(() => (form.value.canteenId ? '选择档口' : '请先选择食堂'))
-/** 该食堂下无档口时的面板内联提示（§1.2） */
-const stallEmptyText = computed(() =>
-  form.value.canteenId ? '该食堂暂无档口，点下方新增' : '请先选择食堂',
-)
+const stallDisabled = computed(() => !form.value.canteenValue)
+const stallPlaceholder = computed(() => (form.value.canteenValue ? '选择或输入新档口名' : '请先选择食堂'))
 
 /** 由档口 id 反查其所属食堂 id（编辑回显 / defaultStallId 预选共用） */
 function canteenIdOfStall(stallId: number | string | bigint | null | undefined): number | '' {
@@ -131,8 +154,6 @@ watch(
     submitting.value = false
     formErrors.value = {}
     stallHint.value = ''
-    canteenModal.value = false
-    stallModal.value = false
     if (props.editingId != null) {
       const d = store.dishes.find(x => Number(x.id) === Number(props.editingId))
       if (d) {
@@ -143,8 +164,9 @@ watch(
           price: Number(d.price) || 0,
           originalPrice: d.originalPrice ? Number(d.originalPrice) : 0,
           promoPrice: d.promoPrice ? Number(d.promoPrice) : 0,
-          canteenId: canteenIdOfStall(d.stall_id),
-          stallId: String(d.stall_id ?? ''),
+          canteenValue: canteenIdOfStall(d.stall_id) || d.canteenName || '',
+          stallValue: Number(d.stall_id ?? 0) || d.stallName || '',
+          categoryId: d.categoryId ? Number(d.categoryId) : '',
           image: d.image || '',
           description: d.description || '',
           alias: d.alias || '',
@@ -159,8 +181,9 @@ watch(
       const presetStall = props.defaultStallId != null ? String(props.defaultStallId) : ''
       form.value = {
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
-        canteenId: canteenIdOfStall(presetStall),
-        stallId: presetStall,
+        canteenValue: canteenIdOfStall(presetStall),
+        stallValue: presetStall,
+        categoryId: '',
         image: '', description: '', alias: '', tags: '', status: 'active',
         spiceLevel: 0, region: '',
       }
@@ -168,28 +191,10 @@ watch(
   },
 )
 
-/** 选择食堂：切换时静默清空档口并重算选项（§1.2 / 流程 C） */
+/** 选择食堂：切换时静默清空档口并重算选项（防跨食堂脏数据；手输新名同样触发清空） */
 function onCanteenChange() {
-  form.value.stallId = ''
-  formErrors.value.stallId = ''
-  stallHint.value = ''
-}
-
-/** 新建食堂成功：追加选项 → 自动选中 → 档口 enable 并清空（§1.3(B) / 验收 11） */
-function onCanteenCreated(payload: { id: number; name: string }) {
-  form.value.canteenId = payload.id
-  form.value.stallId = ''
-  formErrors.value.canteenId = ''
-  formErrors.value.stallId = ''
-  stallHint.value = ''
-}
-
-/** 新建档口成功：追加选项 → 自动选中 → 食堂级联到其所属食堂（§1.3(A) / 验收 9、10） */
-function onStallCreated(payload: { id: number; canteenId: number; name: string }) {
-  form.value.canteenId = payload.canteenId
-  form.value.stallId = payload.id
-  formErrors.value.canteenId = ''
-  formErrors.value.stallId = ''
+  form.value.stallValue = ''
+  formErrors.value.stallValue = ''
   stallHint.value = ''
 }
 
@@ -197,8 +202,18 @@ function validate() {
   const errs: Record<string, string> = {}
   if (!form.value.name.trim()) errs.name = '菜品名称不能为空'
   if (!form.value.price || Number(form.value.price) <= 0) errs.price = '价格必须大于 0'
-  if (!form.value.canteenId) errs.canteenId = '请选择所属食堂'
-  if (!form.value.stallId) errs.stallId = '请选择所属档口'
+  // 归属必填（§7.23 第 1 条）：既有选择（数字 id）或直接输入新名称二选一
+  if (!form.value.canteenValue) errs.canteenValue = '请选择或输入所属食堂'
+  else if (typeof form.value.canteenValue === 'string' && UPSET_EMPTY_NAMES.includes(form.value.canteenValue.trim())) {
+    errs.canteenValue = '该名称为空值语义，请输入实际食堂名称'
+  }
+  if (!form.value.stallValue) errs.stallValue = '请选择或输入所属档口'
+  else if (typeof form.value.stallValue === 'string' && UPSET_EMPTY_NAMES.includes(form.value.stallValue.trim())) {
+    errs.stallValue = '该名称为空值语义，请输入实际档口名称'
+  }
+  if (typeof form.value.canteenValue === 'string' && typeof form.value.stallValue === 'number') {
+    errs.stallValue = '新食堂暂无既有档口，请直接输入新档口名称'
+  }
   // 产品定型：菜品首图必填（无图不录入 / 不上架）
   if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
   if (Number(form.value.originalPrice) < 0) errs.originalPrice = '原价不能为负'
@@ -220,6 +235,23 @@ function toggleTag(tag: string) {
   form.value.tags = formatTags(arr)
 }
 
+/** 归属 payload（§7.23 第 1 条 DishAdminReq 契约）：stallName 有效时优先；canteenName 随新档口成对提供 */
+function ownershipPayload(): { stallId?: number; stallName?: string; canteenName?: string } {
+  const { canteenValue, stallValue } = form.value
+  const canteenNameOf = (v: string | number): string => {
+    if (typeof v === 'number') {
+      return store.canteens.find(c => Number(c.id) === Number(v))?.name || ''
+    }
+    return v.trim()
+  }
+  if (typeof stallValue === 'number') {
+    // 既有档口：只传 stallId（食堂由档口派生，后端不消费 canteenName）
+    return { stallId: stallValue }
+  }
+  // 新档口：stallName + canteenName 成对（既有食堂传其名称 → 后端按名复用；新食堂传输入名 → 自动建档）
+  return { stallName: stallValue.trim(), canteenName: canteenNameOf(canteenValue) }
+}
+
 async function submit() {
   if (!validate()) return
   // 「他人已修改」轻提示（Q-112 ①）：仅编辑态、仅提示不阻塞——比对编辑基线与当前行 updated_at，
@@ -238,7 +270,8 @@ async function submit() {
   const payload: any = {
     name: form.value.name.trim(),
     price: Number(form.value.price),
-    stall_id: Number(form.value.stallId),
+    ...ownershipPayload(),
+    categoryId: form.value.categoryId === '' ? null : Number(form.value.categoryId),
     image: form.value.image,
     description: form.value.description,
     // 搜索别名：后端 DishAdminReq.alias（逗号分隔，trim 后总长 ≤255）。显式传串（含空串=清空别名）
@@ -263,14 +296,16 @@ async function submit() {
     emit('saved')
     emit('close')
   } catch (e: any) {
-    // 失败恢复路径（§1.4-3）：弹窗保留、表单数据保留；若归属档口已失效则清空重选并刷新选项
+    // 失败恢复路径：弹窗保留、表单数据保留；若归属档口已失效则清空重选并刷新归属字典
     toast.error(e?.message || '保存失败')
-    const sid = Number(form.value.stallId)
+    const sid = Number(form.value.stallValue)
     if (sid && !store.stalls.some(s => Number(s.id) === sid)) {
-      form.value.stallId = ''
-      formErrors.value = { ...formErrors.value, stallId: '所选档口已失效，请重新选择' }
+      form.value.stallValue = ''
+      formErrors.value = { ...formErrors.value, stallValue: '所选档口已失效，请重新选择' }
       stallHint.value = '所选档口已失效，请重新选择'
-      store.loadAll().catch(() => {})
+      dishStore.loadAll().catch(() => {})
+      canteenStore.loadAll().catch(() => {})
+      stallStore.loadAll().catch(() => {})
     }
   } finally {
     submitting.value = false
@@ -295,37 +330,55 @@ async function submit() {
           <input v-model="form.name" placeholder="如：鱼香肉丝" />
           <p v-if="formErrors.name" class="field-error">{{ formErrors.name }}</p>
         </div>
-        <div class="field flex-1"><label>所属食堂 <span class="required">*</span></label>
-          <InlineSelectPanel
-            v-model="form.canteenId"
-            :options="canteenOptions"
-            placeholder="选择食堂"
-            add-text="新增食堂字典项"
-            empty-text="暂无食堂，点下方新增"
-            renamable
+        <div class="field flex-1">
+          <div class="label-row">
+            <label>所属食堂 <span class="required">*</span></label>
+            <button
+              v-if="typeof form.canteenValue === 'number'"
+              class="link rename-link" v-press type="button"
+              @click="openRename('canteen', form.canteenValue, store.canteens.find(c => Number(c.id) === Number(form.canteenValue))?.name || '')"
+            >改名</button>
+          </div>
+          <el-select
+            v-model="form.canteenValue"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择或输入新食堂名"
+            class="w-full"
             @update:model-value="onCanteenChange"
-            @add="canteenModal = true"
-            @rename="(opt) => openRename('canteen', opt.value, opt.label)"
-          />
-          <p v-if="formErrors.canteenId" class="field-error">{{ formErrors.canteenId }}</p>
+          >
+            <el-option v-for="c in canteenOptions" :key="c.value" :label="c.label" :value="c.value" />
+          </el-select>
+          <p class="field-hint">下拉选既有食堂，或直接输入新名称（保存时自动建档）</p>
+          <p v-if="formErrors.canteenValue" class="field-error">{{ formErrors.canteenValue }}</p>
         </div>
       </div>
 
       <!-- 第二行：所属档口（依赖食堂）+ 售价 -->
       <div class="df-row">
-        <div class="field flex-1"><label>所属档口 <span class="required">*</span></label>
-          <InlineSelectPanel
-            v-model="form.stallId"
-            :options="stallOptions"
+        <div class="field flex-1">
+          <div class="label-row">
+            <label>所属档口 <span class="required">*</span></label>
+            <button
+              v-if="typeof form.stallValue === 'number'"
+              class="link rename-link" v-press type="button"
+              @click="openRename('stall', form.stallValue, store.stalls.find(s => Number(s.id) === Number(form.stallValue))?.name || '')"
+            >改名</button>
+          </div>
+          <el-select
+            v-model="form.stallValue"
+            filterable
+            allow-create
+            default-first-option
             :placeholder="stallPlaceholder"
-            :disabled="!form.canteenId"
-            add-text="新增档口字典项"
-            :empty-text="stallEmptyText"
-            renamable
-            @add="stallModal = true"
-            @rename="(opt) => openRename('stall', opt.value, opt.label)"
-          />
-          <p v-if="formErrors.stallId" class="field-error">{{ formErrors.stallId }}</p>
+            :disabled="stallDisabled"
+            class="w-full"
+          >
+            <el-option v-for="s in stallOptions" :key="s.value" :label="s.label" :value="s.value" />
+          </el-select>
+          <p class="field-hint">下拉选既有档口，或直接输入新名称（保存时自动建档）</p>
+          <p v-if="formErrors.stallValue" class="field-error">{{ formErrors.stallValue }}</p>
           <p v-else-if="stallHint" class="field-error">{{ stallHint }}</p>
         </div>
         <div class="field flex-1"><label>售价（元） <span class="required">*</span></label>
@@ -346,15 +399,30 @@ async function submit() {
       </div>
 
       <div class="df-row">
+        <div class="field flex-1"><label>品类</label>
+          <select v-model="form.categoryId">
+            <option value="">未分类</option>
+            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </div>
         <div class="field flex-1"><label>辣度</label>
           <select v-model.number="form.spiceLevel">
             <option v-for="s in SPICE_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
           </select>
         </div>
+      </div>
+
+      <div class="df-row">
         <div class="field flex-1"><label>风味 / 菜系</label>
           <select v-model="form.region">
             <option value="">未填写</option>
             <option v-for="r in REGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
+          </select>
+        </div>
+        <div class="field flex-1"><label>状态</label>
+          <select v-model="form.status">
+            <option value="active">在售</option>
+            <option value="inactive">已下架</option>
           </select>
         </div>
       </div>
@@ -379,34 +447,13 @@ async function submit() {
         </div>
       </div>
 
-      <div class="df-row">
-        <div class="field flex-1"><label>状态</label>
-          <select v-model="form.status">
-            <option value="active">在售</option>
-            <option value="inactive">已下架</option>
-          </select>
-        </div>
-      </div>
-
       <div class="field"><label>图片 <span class="required">*</span></label>
         <ImageUpload v-model="form.image" :max="3" />
         <p v-if="formErrors.image" class="field-error">{{ formErrors.image }}</p>
       </div>
     </div>
 
-    <!-- 叠层小弹窗：新建食堂 / 新建档口（不离开本弹窗，已填字段随 ref 保留） -->
-    <CanteenCreateDialog
-      :show="canteenModal"
-      @close="canteenModal = false"
-      @created="onCanteenCreated"
-    />
-    <StallCreateDialog
-      :show="stallModal"
-      :default-canteen-id="form.canteenId === '' ? null : Number(form.canteenId)"
-      @close="stallModal = false"
-      @created="onStallCreated"
-    />
-    <!-- 改名（属性字典唯一编辑动作；无删除） -->
+    <!-- 改名（属性字典唯一编辑动作；新增由后端按名 upsert，无删除） -->
     <RenameEntityDialog
       :show="renameModal"
       :kind="renameKind"
@@ -422,6 +469,9 @@ async function submit() {
 .df-row { display: flex; gap: var(--space-3); }
 .df-row .field { margin-bottom: 0; }
 .flex-1 { flex: 1; min-width: 0; }
+/* 字段标签行：标签 + 行内「改名」入口右对齐 */
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rename-link { font-size: var(--font-xs); }
 .required { color: var(--color-error); }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
 .field-hint { font-size: var(--font-xs); color: var(--text-light); margin-top: var(--space-1); }
@@ -438,4 +488,5 @@ async function submit() {
 }
 .tag-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
 .tag-opt:active { transform: scale(var(--press-scale)); }
+.w-full { width: 100%; }
 </style>

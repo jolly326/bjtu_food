@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
+import { useDishStore } from '@/stores/dishStore'
+import { useReviewStore } from '@/stores/reviewStore'
+import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { parseTags, formatTags } from '@/api/adapter'
@@ -18,12 +21,15 @@ import StatusTag from '@/components/StatusTag.vue'
 import StarRating from '@/components/StarRating.vue'
 import { Trophy, Star, Food, Picture } from '@element-plus/icons-vue'
 import { TAG_OPTIONS, SIGNATURE_TAG, tagDisplay } from '@/api/tags'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW, AUDIT_STATUS_META, AUDIT_REJECTED } from '@/constants'
+import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW } from '@/constants'
 import type { SecAction } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
 const store = useAdminStore()
+const dishStore = useDishStore()
+const reviewStore = useReviewStore()
+const userStore = useUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -42,9 +48,16 @@ const statusOptions = [
 const dishId = computed(() => Number(route.params.dishId))
 
 const dish = computed(() => store.dishes.find(d => Number(d.id) === dishId.value))
-// 所属食堂 / 档口：由 dish.stall_id → stall → canteen 派生（只读展示，不跳转实体页）
-const stall = computed(() => store.stalls.find(s => Number(s.id) === Number(dish.value?.stall_id)))
-const canteen = computed(() => store.canteens.find(c => Number(c.id) === Number(stall.value?.canteen_id)))
+// 所属食堂 / 档口：DishAdminVO 联表直读（§7.23 第 1 条），只读展示、不跳转实体页
+const canteenName = computed(() => dish.value?.canteenName || '')
+const stallName = computed(() => dish.value?.stallName || '')
+
+// WEB-02：本页所需域按需加载（菜品 / 评价 / 用户字典）；users 供评论管理用户名降级显示（WEB-03）
+onMounted(() => {
+  dishStore.loadAll().catch(() => {})
+  reviewStore.loadAll().catch(() => {})
+  userStore.loadAll().catch(() => {})
+})
 // 评论管理本地安检筛选（数据已全量在 store，'' = 全部；v-model 为 string，比较时直接字符串匹配）
 const activeSecState = ref('')
 const dishReviews = computed(() => store.reviews.filter(r => Number(r.dish_id) === dishId.value))
@@ -75,16 +88,8 @@ function spiceLabel(v?: number): string {
   return SPICE_OPTIONS.find(o => o.value === v)?.label || '不辣'
 }
 
-// ===== 审核闭环展示（§4.9）：审核态走 StatusTag，退回时展示原因 =====
-const AUDIT_FALLBACK = { type: 'warning' as const, text: '待审核' }
-const auditMeta = computed(() => {
-  const s = dish.value?.audit_status || 'pending'
-  return AUDIT_STATUS_META[s] ?? AUDIT_FALLBACK
-})
-/** 退回原因仅在 audit_status=rejected 且有值时展示 */
-const rejectReason = computed(() =>
-  dish.value?.audit_status === AUDIT_REJECTED ? (dish.value?.reject_reason || '') : '',
-)
+// 注（§7.23 第 4 条，2026-09-15）：菜品无独立审核，原「审核」行与「退回原因」回显已删除，
+// 管理员录入即生效（dish.audit_status 为退役历史列，前端不再展示）。
 
 const editing = ref(false)
 const editForm = ref({ name: '', price: 0, description: '', image: '', alias: '', tags: '', status: '', spiceLevel: 0, region: '', originalPrice: 0, promoPrice: 0 })
@@ -132,7 +137,7 @@ async function saveImageModal() {
 }
 function closeImageModal() { showImageModal.value = false }
 
-watch([canteen, stall, dish], ([, , d]) => {
+watch(dish, (d) => {
   // 后台顶部导航已表达层级（食堂/档口不是独立页面），不再维护面包屑
   if (d) {
     editForm.value = {
@@ -199,8 +204,10 @@ async function confirmEdit() {
   }
   if (dish.value) {
     const payload: any = { ...editForm.value, alias }
-    // promoPrice 为空（0）时置 null，表示无折扣
-    if (!payload.promoPrice) payload.promoPrice = null
+    // WEB-10（对齐 DishFormDialog）：originalPrice/promoPrice 为空（≤0）时置 null，
+    // 表示「无折扣/清空原价」；禁止落 0 分被后端当作真实原价 0 元
+    payload.originalPrice = Number(payload.originalPrice) > 0 ? Number(payload.originalPrice) : null
+    payload.promoPrice = Number(payload.promoPrice) > 0 ? Number(payload.promoPrice) : null
     try {
       await store.updateDish(Number(dish.value.id), payload)
       toast.success('菜品已更新')
@@ -303,7 +310,7 @@ async function reviewSecState(r: any, state: SecAction) {
     <PageHeader
       :back="true"
       :title="dish?.name || '加载中'"
-      :subtitle="(canteen?.name || '') + ' · ' + (stall?.name || '')"
+      :subtitle="(canteenName || '') + ' · ' + (stallName || '')"
       @back="goBack"
     >
       <template #extra>
@@ -386,7 +393,7 @@ async function reviewSecState(r: any, state: SecAction) {
             </div>
             <div class="detail-row">
               <span class="detail-label">所属</span>
-              <div class="detail-control"><span class="detail-value text-muted">{{ canteen?.name }} · {{ stall?.name }}</span></div>
+              <div class="detail-control"><span class="detail-value text-muted">{{ canteenName || '—' }} · {{ stallName || '—' }}</span></div>
             </div>
             <div class="detail-row">
               <span class="detail-label">标签</span>
@@ -433,18 +440,6 @@ async function reviewSecState(r: any, state: SecAction) {
                   :clearable="false"
                   width="160"
                 />
-              </div>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">审核</span>
-              <div class="detail-control">
-                <StatusTag :type="auditMeta.type" :text="auditMeta.text" />
-              </div>
-            </div>
-            <div v-if="rejectReason" class="detail-row detail-row-desc">
-              <span class="detail-label">退回原因</span>
-              <div class="detail-control">
-                <span class="detail-value text-desc reject-reason">{{ rejectReason }}</span>
               </div>
             </div>
             <div class="detail-row detail-row-desc">
@@ -609,8 +604,6 @@ async function reviewSecState(r: any, state: SecAction) {
 .detail-value.price { color: var(--color-price); font-weight: var(--weight-bold); font-size: var(--font-lg); }
 .detail-value.text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .detail-value.text-muted { font-weight: var(--weight-regular); color: var(--text-light); }
-/* 退回原因：与错误色语义一致的弱化背景，便于一眼识别 */
-.reject-reason { color: var(--text-primary); background: var(--color-error-bg); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); display: inline-block; }
 
 /* ===== 统计卡片（统一 StatCard） ===== */
 .stats-row { display: flex; gap: var(--space-4); }

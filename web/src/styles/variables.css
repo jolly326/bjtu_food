@@ -46,16 +46,16 @@
   --border-strong: #4A4A4A;
   --border-soft: #2C2C2C;
 
-  /* ===== 圆角（适中，沉稳） ===== */
+  /* ===== 圆角（适中，沉稳；UI-06 对齐 spec §4.2：卡片 16px / 抽屉顶部 20px） ===== */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius: 8px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-card: 12px;
-  --radius-modal: 12px;
+  --radius-card: 16px;
+  --radius-modal: 16px;
   --radius-pill: 999px;
-  --radius-sheet: 12px 12px 0 0;
+  --radius-sheet: 20px 20px 0 0;
 
   /* ===== 价格色（归中性，浅色） ===== */
   --color-price: #F0F0F0;
@@ -166,6 +166,9 @@
   --agg-tab-active-shadow: 0 1px 2px rgba(0,0,0,0.40);
   /* 卡片 hover 抬升 */
   --card-hover-shadow: var(--shadow-hover);
+  /* 统计卡图标字号（UI-10：图标字号非正文标度，单独登记组件 token） */
+  --stat-icon-lg: 24px;
+  --stat-icon-md: 20px;
 }
 
 /* ============================================================

@@ -16,6 +16,7 @@ import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
+import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
@@ -174,7 +175,17 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         vo.setStatus(f.getStatus());
+        // 处理结论回显（§7.23 第 5 条）：表无 outcome 物理列，按 status + reject_reason 派生——
+        // handle() 落库保证「rejected ⇒ reject_reason 非空、handled ⇒ reject_reason 为 NULL」，
+        // 故 handled 且 rejectReason 非空即 rejected，否则 handled（历史存量 reject_reason=NULL → handled，
+        // 与缺省「已处理」一致）；pending（未处理）保持 null。
+        vo.setOutcome(FeedbackConst.STATUS_HANDLED.equals(f.getStatus())
+                ? (StringUtils.hasText(f.getRejectReason())
+                        ? FeedbackConst.OUTCOME_REJECTED
+                        : FeedbackConst.OUTCOME_HANDLED)
+                : null);
         vo.setReply(f.getReply());
+        vo.setRejectReason(f.getRejectReason());
         vo.setCreatedAt(f.getCreatedAt());
         vo.setHandledAt(f.getHandledAt());
         return vo;
@@ -182,7 +193,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void handle(Long id, String reply) {
+    public void handle(Long id, FeedbackHandleReq req) {
         Feedback feedback = feedbackMapper.selectById(id);
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
@@ -190,28 +201,53 @@ public class FeedbackServiceImpl implements FeedbackService {
         // §7.16（2026-09-14 用户拍板）：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
         // 纯空白与 null 一律视为未填写：主流仍由 DTO 的 @NotBlank 在 Controller 层拦截（400）；
         // 此处为 Service 层兜底（同口径、同错误码 400），并统一 trim 后落库。
-        String trimmedReply = reply == null ? null : reply.trim();
+        String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
         if (!StringUtils.hasText(trimmedReply)) {
             throw new BusinessException("请填写处理回复（学生将收到该内容）");
         }
+        // §7.23 第 5 条（2026-09-15）：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
+        // 白名单外一律 400（PR-06），不再静默降级；rejectReason 仅在 rejected 结论下消费与落库。
+        String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
+                ? FeedbackConst.OUTCOME_HANDLED
+                : req.getOutcome().trim();
+        if (!FeedbackConst.OUTCOMES.contains(outcome)) {
+            throw new BusinessException("处理结论非法（仅允许 handled=通过/已处理、rejected=不采纳/退回）");
+        }
+        boolean rejected = FeedbackConst.OUTCOME_REJECTED.equals(outcome);
+        String rejectReason = null;
+        if (rejected) {
+            // 不采纳/退回 → reject_reason 必填：1~200 字，纯空白视为未填写 → 400
+            rejectReason = req.getRejectReason() == null ? null : req.getRejectReason().trim();
+            if (!StringUtils.hasText(rejectReason)) {
+                throw new BusinessException("请填写不采纳原因");
+            }
+            if (rejectReason.length() > FeedbackConst.REJECT_REASON_MAX_LENGTH) {
+                throw new BusinessException("不采纳原因不能超过" + FeedbackConst.REJECT_REASON_MAX_LENGTH + "字");
+            }
+        }
         feedback.setStatus(FeedbackConst.STATUS_HANDLED);
         feedback.setReply(trimmedReply);
+        feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
         // §7.10：管理端操作人身份降级（单口令即单人），不再写 handler_id；
         // 该列保留在库中（retired），列可空，不写即保持 NULL。
         feedbackMapper.updateById(feedback);
-        // 处理结果回执：仅向「可归属」提交人（提交时为已认证登录用户）投递
-        sendFeedbackReceipt(feedback);
+        // 处理结果回执（携带处理结论与不采纳原因）：仅向「可归属」提交人（提交时为已认证登录用户）投递
+        sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason);
     }
 
     /**
-     * 反馈处理结果回执。
+     * 反馈处理结果回执（§7.23 第 5 条：回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
      * <p>
      * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（verified=1）。
      * 游客（userId 为空）与未认证账号不投递——反馈主路径刻意匿名，不保留可回执身份。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
+     *
+     * @param rejected    true=处理结论为不采纳/退回（此时 rejectReason 非空，handle 已校验）
+     * @param reply       处理回复（handle 已保证 trim 后非空白）
+     * @param rejectReason 不采纳原因（rejected=true 时非空；否则为 null，不参与文案）
      */
-    private void sendFeedbackReceipt(Feedback feedback) {
+    private void sendFeedbackReceipt(Feedback feedback, boolean rejected, String reply, String rejectReason) {
         Long userId = feedback.getUserId();
         if (userId == null) {
             return;
@@ -226,9 +262,12 @@ public class FeedbackServiceImpl implements FeedbackService {
             n.setType(NotificationConst.TYPE_FEEDBACK_HANDLE);
             n.setRelatedId(feedback.getId());
             n.setIsRead(0);
-            n.setTitle("反馈已处理");
-            // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文。
-            n.setContent("你提交的反馈已处理：" + feedback.getReply());
+            n.setTitle(rejected ? "反馈未采纳" : "反馈已处理");
+            // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文；
+            // §7.23 第 5 条：不采纳结论时回执必须带不采纳原因（handle 已保证非空白）。
+            n.setContent(rejected
+                    ? "你提交的反馈未采纳：" + rejectReason + "。处理说明：" + reply
+                    : "你提交的反馈已处理：" + reply);
             notificationService.notify(n);
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理

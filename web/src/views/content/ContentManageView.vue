@@ -5,7 +5,7 @@
  * 2026-09-14 拍板（project_spec §7.15）：食堂与档口是「菜品」的附属维度，
  * 随菜品表单一起维护 → 移除「食堂（含档口）」独立入口（详见 docs/loop/design/dish-entry-flow.md §1.1）。
  */
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
@@ -13,9 +13,9 @@ import DishManageView from '@/views/canteen/DishManageView.vue'
 import HomeConfigView from '@/views/content/HomeConfigView.vue'
 import { Food, Picture } from '@element-plus/icons-vue'
 
-// 进入信息管理即重新加载全部业务数据（档口/菜品/轮播），保证各视图有数据
+// WEB-02：本页不再顶层 loadAll——菜品/食堂/档口/品类域由 DishManageView 挂载时按需加载，
+// 品类域由 CategoryManage 自行加载，避免聚合页进页连发多轮全量请求
 const adminStore = useAdminStore()
-onMounted(() => { adminStore.loadAll() })
 
 const sections = [
   { key: 'dish', label: '菜品', badge: () => adminStore.dishes.length, icon: Food },

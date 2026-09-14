@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { Document } from '@element-plus/icons-vue'
+import { useAsyncGuard } from '@/composables/useAsyncGuard'
 import type { OperationLogVO } from '@/api/operationLog'
 import {
   OPERATION_ACTION_OPTIONS,
@@ -19,17 +20,15 @@ const searchQuery = ref('')
  * 过滤：adminId / action / targetType / startAt / endAt（前端 SearchInput 模糊匹配本地结果）。
  */
 
-const loading = ref(false)
-const error = ref('')
+// 请求竞态守卫（UI-05 收敛为 useAsyncGuard）：连续输入/切筛选会并发请求，
+// 过期响应整份丢弃，防数据错乱；数据赋值在 alive() 校验后进行。
+const { loading, error, run } = useAsyncGuard()
 const rows = ref<OperationLogVO[]>([])
 
 // ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-
-// 请求竞态守卫：连续输入/切筛选会并发请求，仅接受最新一次的结果，丢弃过期响应（防数据错乱）
-let reqToken = 0
 
 async function reloadFromFirstPage() {
   page.value = 1
@@ -59,10 +58,7 @@ function toEndAt(): string | undefined {
 }
 
 async function loadList() {
-  loading.value = true
-  error.value = ''
-  const token = ++reqToken
-  try {
+  await run(async (alive) => {
     const { operationLogApi } = await import('@/api')
     const res = await operationLogApi.listOperationLogs({
       action: activeAction.value || undefined,
@@ -73,17 +69,10 @@ async function loadList() {
       page: page.value,
       pageSize: pageSize.value,
     })
-    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
+    if (!alive()) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
     total.value = res.total
-  } catch (e: any) {
-    if (token !== reqToken) return
-    error.value = e.message || '加载操作日志失败'
-    rows.value = []
-    total.value = 0
-  } finally {
-    if (token === reqToken) loading.value = false
-  }
+  })
 }
 
 onMounted(loadList)

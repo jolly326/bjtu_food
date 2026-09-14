@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
 
 /**
  * 浏览足迹服务实现
@@ -33,33 +33,23 @@ public class HistoryServiceImpl implements HistoryService {
     private final ViewLogMapper viewLogMapper;
 
     @Override
-    public List<Long> recentViewedDishIds(Long userId, int limit) {
-        if (limit < 1) limit = 20;
-        return viewLogMapper.selectList(new LambdaQueryWrapper<ViewLog>()
-                        .eq(ViewLog::getUserId, userId)
-                        .eq(ViewLog::getTargetType, "dish")
-                        .orderByDesc(ViewLog::getCreatedAt)
-                        .last("LIMIT " + limit))
-                .stream()
-                .map(ViewLog::getTargetId)
-                .distinct()
-                .toList();
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public void recordDishView(Long userId, Long dishId) {
         if (userId == null || dishId == null) {
             // 游客（未登录）或参数缺失不记录足迹，仅统计浏览量由调用方负责
             return;
         }
-        // 去重 upsert：同 userId+targetType=dish+targetId 已存在则仅更新浏览时间，
-        // 不存在则插入一条；避免重复浏览产生重复足迹行，保持「猜你喜欢」去重读取有意义。
+        // 去重 upsert：同 userId+targetType=dish+targetId 已存在则仅刷新 updated_at（不新增行），
+        // 不存在则插入一条（「猜你喜欢」已下线，本表现仅作为浏览量当日去重的判据真源）。
+        // 时钟统一（2026-09-15）：update 分支显式传 JVM 时钟值（LocalDateTime.now()）作为参数，
+        // 不再用 SQL NOW()（DB 时区）——DB 与 JVM 时区不一致时凌晨存在切天偏差；
+        // insert 分支由 MybatisMetaObjectHandler 以同一 JVM 时钟填充 created_at/updated_at，二者同源。
+        LocalDateTime now = LocalDateTime.now();
         int updated = viewLogMapper.update(new LambdaUpdateWrapper<ViewLog>()
                 .eq(ViewLog::getUserId, userId)
                 .eq(ViewLog::getTargetType, "dish")
                 .eq(ViewLog::getTargetId, dishId)
-                .setSql("updated_at = NOW()"));
+                .set(ViewLog::getUpdatedAt, now));
         if (updated == 0) {
             ViewLog log = new ViewLog();
             log.setUserId(userId);
@@ -77,10 +67,13 @@ public class HistoryServiceImpl implements HistoryService {
         }
         // 当天零点（Asia/Shanghai）→ java.sql.Date（时区无关的字面日期），由数据库按 DATETIME 比较
         Date todayStart = Date.valueOf(LocalDate.now(VIEW_DEDUP_ZONE));
+        // BE-02：判据必须用 updated_at 而非 created_at。
+        // recordDishView 的 upsert 只刷新 updated_at、不刷新 created_at，若按 created_at 判重，
+        // 「今天首次浏览之后」的每一次浏览都查不到今日记录 → 判据恒 false → view_count 可被反复刷。
         return viewLogMapper.selectCount(new LambdaQueryWrapper<ViewLog>()
                 .eq(ViewLog::getUserId, userId)
                 .eq(ViewLog::getTargetType, "dish")
                 .eq(ViewLog::getTargetId, dishId)
-                .ge(ViewLog::getCreatedAt, todayStart)) > 0;
+                .ge(ViewLog::getUpdatedAt, todayStart)) > 0;
     }
 }

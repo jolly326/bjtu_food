@@ -49,16 +49,19 @@ public class FeedbackAdminController {
                 (int) result.getCurrent(), (int) result.getSize()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/handled_at，埋操作日志。仅接受 JSON body（{reply:...}），"
-            + "reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400（学生将收到该回复内容）。")
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/处理结论/handled_at，埋操作日志。仅接受 JSON body（{reply, outcome, rejectReason}）："
+            + "reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；"
+            + "outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400；"
+            + "outcome=rejected 时 rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。"
+            + "已认证提交人将收到携带处理结论（及不采纳原因）的站内回执。")
     @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "回复内容（必填），仅经 JSON body 传参：{reply:...}；校验失败返回 400")
+            @Parameter(description = "处理请求体 {reply, outcome, rejectReason}；校验失败返回 400")
             @Valid @RequestBody FeedbackHandleReq body) {
-        feedbackService.handle(id, body.getReply());
+        feedbackService.handle(id, body);
         return Result.success();
     }
 }

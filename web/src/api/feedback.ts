@@ -22,6 +22,10 @@ export interface FeedbackAdminVO {
   contact: string
   status: string
   reply: string
+  /** 处理结论（§7.23 第 5 条）：handled=已处理；rejected=不采纳/退回（未回显时为 undefined） */
+  outcome?: string
+  /** 不采纳原因（outcome=rejected 时由后端填写；随回执一并向提交人展示） */
+  rejectReason?: string
   createdAt: string
   handledAt: string
   relatedType?: string
@@ -41,6 +45,8 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     contact: raw.contact || '',
     status: raw.status || 'pending',
     reply: raw.reply || '',
+    outcome: raw.outcome ?? undefined,
+    rejectReason: (raw.rejectReason ?? raw.reject_reason) || undefined,
     createdAt: raw.createdAt ?? raw.created_at ?? '',
     handledAt: raw.handledAt ?? raw.handled_at ?? '',
     relatedType: raw.relatedType ?? raw.related_type ?? undefined,
@@ -76,9 +82,20 @@ export async function listFeedbacks(params: {
 }
 
 /**
- * 标记处理/回复（RB18 收敛：仅 JSON body，后端 FeedbackHandleReq{ reply }；路径与方法不变）。
- * 处理动作固定为「标记 handled + 写回复 + 记处理时间」，body 无需 status 字段。
+ * 标记处理/回复（RB18 收敛：仅 JSON body；路径与方法不变）。
+ * §7.23 第 5 条（2026-09-15）：处理 = 标记 handled + 回执。
+ *  - `reply` 必填（1~1000 字）；
+ *  - `outcome`：'handled'=通过/已处理（缺省）；'rejected'=不采纳/退回；
+ *  - `rejectReason`：outcome='rejected' 时必填（1~200 字，纯空白视为未填写 → 后端 400），
+ *    随回执一并向提交人展示；outcome='handled' 时不消费（后端保持落库 NULL）。
  */
-export async function handleFeedback(id: number, reply: string) {
-  await put<void>(`/admin/feedbacks/${id}`, { reply })
+export async function handleFeedback(
+  id: number,
+  reply: string,
+  options: { outcome?: 'handled' | 'rejected'; rejectReason?: string } = {},
+) {
+  const body: Record<string, string> = { reply }
+  if (options.outcome) body.outcome = options.outcome
+  if (options.rejectReason) body.rejectReason = options.rejectReason
+  await put<void>(`/admin/feedbacks/${id}`, body)
 }

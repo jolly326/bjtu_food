@@ -1,10 +1,9 @@
 package com.bjtufood.content.category.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.content.category.dto.CategoryVO;
 import com.bjtufood.content.category.entity.Category;
-import com.bjtufood.content.category.mapper.CategoryMapper;
+import com.bjtufood.content.category.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +17,8 @@ import java.util.List;
  * 菜品品类（task-14 W6/W2，CONTRACT_IMPACT A.17；2026-08-17 重构：真实食堂品类体系）
  * <p>
  * 公开接口，无需登录；首页品类滚轮数据来源（前端 FilterBar 按 code 组装滚轮项，选中后以 categoryId 拉菜品）。
+ * <p>
+ * BE-04：查询改走 {@link CategoryService#listEnabled()}，Controller 不再直调 Mapper。
  */
 @Tag(name = "19. 菜品品类", description = "首页品类滚轮数据，公开接口。")
 @RestController
@@ -25,7 +26,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CategoryController {
 
-    private final CategoryMapper categoryMapper;
+    private final CategoryService categoryService;
 
     @Operation(
             summary = "菜品品类列表",
@@ -37,10 +38,7 @@ public class CategoryController {
     )
     @GetMapping("/categories")
     public Result<List<CategoryVO>> listCategories() {
-        List<Category> list = categoryMapper.selectList(
-                new LambdaQueryWrapper<Category>()
-                        .eq(Category::getStatus, "enabled")
-                        .orderByAsc(Category::getSortOrder));
+        List<Category> list = categoryService.listEnabled();
         return Result.success(list.stream().map(this::toVO).toList());
     }
 

@@ -17,6 +17,21 @@ public class DishAdminReq {
     @Schema(description = "所属档口ID", example = "1")
     private Long stallId;
 
+    /**
+     * 档口名称（§7.23 第 1 条：食堂/档口随菜品按名 upsert）。
+     * 传有效名称时优先生效：字典存在同名档口则复用其 ID，不存在则由后端自动建档（同名不重复建档）；
+     * 「其他」等空值语义名称不建档（视为未传，回退 stallId 逻辑）。
+     */
+    @Schema(description = "档口名称（按名 upsert：存在则复用，不存在则自动建档；「其他」等空值不建档）", example = "面食窗口")
+    private String stallName;
+
+    /**
+     * 食堂名称：仅当按 stallName 新建档口时消费——
+     * 有效名称按名 upsert 食堂并作为新档口的所属食堂；「其他」等空值/未传则新档口不挂食堂（canteen_id=0）。
+     */
+    @Schema(description = "食堂名称（仅当 stallName 触发新建档口时按名 upsert；「其他」等空值不建档）", example = "第一食堂")
+    private String canteenName;
+
     @Schema(description = "所属品类ID（category.id，可空=未分类；首页品类滚轮筛选用）", example = "1")
     private Long categoryId;
 

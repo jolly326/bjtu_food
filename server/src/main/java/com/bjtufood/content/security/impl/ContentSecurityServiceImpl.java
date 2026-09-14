@@ -21,6 +21,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * 微信内容安全检测服务实现（msgSecCheck v2 / imgSecCheck / stable_token）。
@@ -98,6 +99,67 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     @Override
     public boolean isConfigured() {
         return StringUtils.hasText(appid) && StringUtils.hasText(secret);
+    }
+
+    @Override
+    public void invalidateCachedToken() {
+        invalidateToken();
+    }
+
+    /**
+     * 清空 access_token 缓存（BE-06 自愈入口）。
+     * <p>
+     * 仅在识别到 40001（invalid credential）/ 42001（access_token expired）时调用：
+     * 旧实现缓存不失效，导致 token 提前失效后全量 UGC 被 fail-closed 阻断最长 2 小时（缓存 TTL）。
+     */
+    private void invalidateToken() {
+        synchronized (this) {
+            cachedToken = null;
+        }
+    }
+
+    /**
+     * token 失效类 errcode（微信官方定义）：
+     * 40001 = invalid credential / access_token 无效；42001 = access_token timeout。
+     */
+    private boolean isTokenInvalidErrcode(int errcode) {
+        return errcode == 40001 || errcode == 42001;
+    }
+
+    /**
+     * 带一次自愈重试的微信调用包装（BE-06）。
+     * <p>
+     * 执行 {@code action}（内部会取缓存 token 发起请求）；若因 token 失效失败，
+     * 先清空本地 token 缓存再重试一次——重试时 {@link #getStableAccessToken()} 会重新拉取 stable_token。
+     * 重试仍失败则按原 fail-closed 口径抛 500，语义与修复前一致（不放行任何未过检内容）。
+     *
+     * @param action 单次微信调用（须把「取 token → 请求 → 判 errcode」整体包进来，重试才有意义）
+     */
+    private <T> T callWithTokenRetry(Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (TokenInvalidException first) {
+            log.warn("微信 access_token 失效（errcode={}），清空缓存后重试一次", first.errcode);
+            invalidateToken();
+            try {
+                return action.get();
+            } catch (TokenInvalidException second) {
+                log.error("刷新 access_token 后仍返回失效 errcode={}，fail-closed", second.errcode);
+                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            }
+        }
+    }
+
+    /**
+     * token 失效信号（内部标记异常，由 {@link #callWithTokenRetry} 捕获并触发重取）。
+     */
+    private static final class TokenInvalidException extends RuntimeException {
+        private final int errcode;
+
+        private TokenInvalidException(int errcode) {
+            super("wechat token invalid: " + errcode);
+            this.errcode = errcode;
+        }
     }
 
     @Override
@@ -188,15 +250,22 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
                 "openid", openid,
                 "content", content);
 
-        String body = postJson(MSG_SEC_CHECK_URL + "?access_token=" + getStableAccessToken(), reqBody);
-        Map<String, Object> resp = parseJson(body, "msg_sec_check");
-
-        Integer errcode = asInt(resp.get("errcode"));
-        if (errcode != null && errcode != 0) {
-            // 40001/42001 token 失效等：fail-closed 交由用户重试（下次请求会刷新 token 缓存）
-            log.error("msgSecCheck 调用失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
-        }
+        // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
+        // token 失效（40001/42001）时清空缓存重取一次，避免机检持续失败最长 2 小时。
+        Map<String, Object> resp = callWithTokenRetry(() -> {
+            String body = postJson(MSG_SEC_CHECK_URL + "?access_token=" + getStableAccessToken(), reqBody);
+            Map<String, Object> r = parseJson(body, "msg_sec_check");
+            Integer errcode = asInt(r.get("errcode"));
+            if (errcode != null && errcode != 0) {
+                if (isTokenInvalidErrcode(errcode)) {
+                    throw new TokenInvalidException(errcode);
+                }
+                // 其余 errcode：fail-closed 交由用户重试
+                log.error("msgSecCheck 调用失败 errcode={} errmsg={}", errcode, r.get("errmsg"));
+                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            }
+            return r;
+        });
 
         // 红线：以 result.suggest 三态判定，不只看 errcode
         Object result = resp.get("result");
@@ -227,7 +296,16 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             return;
         }
 
-        // imgSecCheck 为 multipart/form-data（media 字段承载图片二进制）
+        // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
+        // token 失效（40001/42001）时清空缓存重取一次，避免图片机检持续失败最长 2 小时。
+        callWithTokenRetry(() -> {
+            doImgSecCheck(image);
+            return null;
+        });
+    }
+
+    /** 单次 imgSecCheck 调用：multipart/form-data 上传图片并按 errcode 判定（含 token 失效信号） */
+    private void doImgSecCheck(byte[] image) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
@@ -260,10 +338,13 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             return;
         }
         if (errcode == 87014) {
-            // 违规图片统一拦截
+            // 违规图片统一拦截（非 token 问题，不触发重试）
             throw new BusinessException(400, "图片包含违规内容，无法上传");
         }
-        // 其余 errcode（token 失效/媒体格式不支持等）：fail-closed，交由用户重试或换图
+        if (isTokenInvalidErrcode(errcode)) {
+            throw new TokenInvalidException(errcode);
+        }
+        // 其余 errcode（媒体格式不支持等）：fail-closed，交由用户重试或换图
         log.error("imgSecCheck 调用失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
         throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
+import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { userApi } from '@/api'
@@ -12,6 +13,7 @@ import UserActivityModal from '@/components/UserActivityModal.vue'
 import { Pointer } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
+const userStore = useUserStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -20,14 +22,14 @@ const searchQuery = ref('')
 const activityUser = ref<any>(null)
 
 // 三态（WEB-108）：进入页面显式刷新，供 DataTable 展示 loading/error
-// （对齐 ContentManageView 等聚合页 onMounted loadAll 模式，此处补齐失败态）
+// WEB-02：本页仅依赖「学生用户」一个域，按需加载（此前经 adminStore.loadAll 触发 5 域全量请求）
 const loading = ref(true)
 const error = ref('')
 async function refresh() {
   loading.value = true
   error.value = ''
   try {
-    await store.loadAll()
+    await userStore.loadAll()
   } catch (e: any) {
     error.value = e.message || '加载学生列表失败'
   } finally {
@@ -222,7 +224,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--font-base);
   font-weight: var(--weight-semibold);
   flex-shrink: 0;
 }

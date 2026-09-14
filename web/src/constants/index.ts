@@ -80,21 +80,12 @@ export function operationTargetLabel(target: string): string {
   return `${operationTargetText(target.slice(0, sep))}${target.slice(sep)}`
 }
 
-/** 菜品/档口/食堂审核状态 */
-export const AUDIT_PENDING = 'pending'
-export const AUDIT_APPROVED = 'approved'
-export const AUDIT_REJECTED = 'rejected'
-
 /**
- * 审核状态展示元数据（StatusTag 类型 + 文案）：菜品列表与详情共用（§4.9 审核闭环）。
- * 注（2026-09-14 Q-113 / PR-14）：档口 / 食堂已降为筛选属性字典、后端移除实体审核态，
- * 故本映射仅服务于 dish.audit_status。
+ * 注（§7.23 第 4 条，2026-09-15）：原 AUDIT_PENDING / AUDIT_APPROVED / AUDIT_REJECTED /
+ * AUDIT_STATUS_META 已随「菜品审核 UI 下线」删除——菜品无独立审核，管理员录入即生效，
+ * 客户端与后台均不出现「菜品审核」概念。dish.audit_status / reject_reason 为退役历史列，
+ * 前端契约不再读写（types/Dish 与 api/adapter 已同步移除映射）。
  */
-export const AUDIT_STATUS_META: Record<string, { type: 'warning' | 'success' | 'danger'; text: string }> = {
-  [AUDIT_PENDING]: { type: 'warning', text: '待审核' },
-  [AUDIT_APPROVED]: { type: 'success', text: '已通过' },
-  [AUDIT_REJECTED]: { type: 'danger', text: '已退回' },
-}
 
 /** 内容安检状态：正常（评价/反馈共用，与后端 ReviewAdminVO.secState 契约一致） */
 export const SEC_PASS = 'pass'

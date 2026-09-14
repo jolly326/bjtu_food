@@ -8,7 +8,6 @@ import com.bjtufood.review.dto.StallAvgRatingVO;
 import com.bjtufood.review.entity.Review;
 import org.apache.ibatis.annotations.Param;
 
-import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 
@@ -55,16 +54,6 @@ public interface ReviewMapper extends BaseMapper<Review> {
      */
     IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort,
                                                 @Param("viewerId") Long viewerId);
-
-    /**
-     * 计算某档口下所有菜品评价的平均分（星级 1-5）。
-     * <p>
-     * 通过 review → dish(stall_id) 推导；无评价返回 NULL。
-     *
-     * @param stallId 档口ID
-     * @return 平均分，可能为 null
-     */
-    BigDecimal selectAvgRatingByStallId(@Param("stallId") Long stallId);
 
     /**
      * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。

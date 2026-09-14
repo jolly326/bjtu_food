@@ -353,7 +353,8 @@ function onServerPageChange(p: number, ps: number) {
 .th-sort:hover { color: var(--color-primary); background: var(--table-row-hover); }
 .th-sort:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .sort-arrow {
-  font-size: 10px;
+  /* UI-10：裸 10px 回落 --font-xs 标度，保留 opacity 弱化 */
+  font-size: var(--font-xs);
   color: var(--text-light);
   opacity: .55;
   transition: color 0.15s var(--ease-out), opacity 0.15s var(--ease-out);
@@ -393,21 +394,7 @@ function onServerPageChange(p: number, ps: number) {
   display: flex;
   gap: var(--space-2);
 }
-.state-box {
-  text-align: center;
-  color: var(--text-light);
-  padding: var(--space-10) var(--space-4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  /* 三态高度稳定：加载/错误态不塌陷 */
-  min-height: 240px;
-  box-sizing: border-box;
-}
-.state-err {
-  color: var(--color-error);
-}
+/* 三态盒（.state-box/.state-err/.spin）已收敛至 shared.css 全局唯一实现（UI-04），此处不再持副本 */
 /* ===== 空态（视觉引导：图标 + 文案 + CTA） ===== */
 .empty-state {
   display: flex;
@@ -456,22 +443,4 @@ function onServerPageChange(p: number, ps: number) {
 .tf-pager :deep(.el-pagination.is-background .el-pager li) { border-radius: var(--radius-sm); }
 .tf-pager :deep(.el-pagination__sizes .el-select__wrapper) { min-height: 28px; }
 .tf-pager :deep(.el-pagination__total) { display: none; }
-.spin {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border-color);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .spin {
-    animation-duration: 1.4s;
-  }
-}
 </style>

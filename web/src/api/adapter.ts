@@ -157,8 +157,11 @@ export function dishToLegacy(raw: any): Dish {
     status: raw.status === 'on' ? 'active' : 'inactive',
     spiceLevel: raw.spiceLevel ?? 0,
     region: raw.region || '',
-    audit_status: raw.auditStatus ?? raw.audit_status,
-    reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
+    categoryId: raw.categoryId ?? raw.category_id,
+    stallName: raw.stallName || raw.stall_name || '',
+    canteenName: raw.canteenName || raw.canteen_name || '',
+    // 注（§7.23 第 4 条，2026-09-15）：dish.audit_status / reject_reason 已随「菜品审核 UI 下线」
+    // 从前端契约移除（后端列为退役历史列，DishAdminVO 不再返回，业务代码不再读写）。
     originalPrice: raw.originalPrice == null && raw.original_price == null
       ? undefined
       : Math.round((raw.originalPrice ?? raw.original_price)) / 100,
@@ -173,6 +176,11 @@ export function dishToLegacy(raw: any): Dish {
 export function dishToApi(data: Partial<Dish>) {
   return compactPayload({
     stallId: data.stall_id,
+    // 按名 upsert（§7.23 第 1 条）：stallName 有效时优先生效（存在复用/不存在自动建档）；
+    // canteenName 仅在 stallName 触发新建档口时被后端消费（按名 upsert 所属食堂）
+    stallName: data.stallName,
+    canteenName: data.canteenName,
+    categoryId: data.categoryId === undefined ? undefined : (data.categoryId ?? null),
     name: data.name,
     price: data.price === undefined ? undefined : Math.round(Number(data.price) * 100),
     description: data.description,
@@ -180,11 +188,20 @@ export function dishToApi(data: Partial<Dish>) {
     images: data.image === undefined ? undefined : legacyToImageList(data.image),
     tags: data.tags,
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
-    auditStatus: data.audit_status,
     spiceLevel: data.spiceLevel,
     region: data.region,
-    originalPrice: data.originalPrice === undefined ? undefined : Math.round(Number(data.originalPrice) * 100),
-    promoPrice: data.promoPrice === undefined || data.promoPrice === null ? null : Math.round(Number(data.promoPrice) * 100),
+    // null 显式携带 = 清空原价（WEB-102 折扣清空契约；0 分语义由 null 表达，禁止落 0）
+    originalPrice: data.originalPrice === undefined
+      ? undefined
+      : data.originalPrice === null || Number(data.originalPrice) <= 0
+        ? null
+        : Math.round(Number(data.originalPrice) * 100),
+    // null 显式携带 = 清空折扣（WEB-102）；undefined = 不修改（部分更新路径，禁止误清空）
+    promoPrice: data.promoPrice === undefined
+      ? undefined
+      : data.promoPrice === null || Number(data.promoPrice) <= 0
+        ? null
+        : Math.round(Number(data.promoPrice) * 100),
   })
 }
 

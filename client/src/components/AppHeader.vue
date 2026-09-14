@@ -125,6 +125,7 @@ onMounted(() => {
 function handleBack() {
   emit('back')
 }
+// 平台例外：uni input 事件对象未纳入项目 TS 类型，取 e.detail.value（MP-08 标注例外）
 function onSearchInput(e: any) {
   emit('update:modelValue', e.detail.value)
 }

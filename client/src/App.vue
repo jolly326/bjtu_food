@@ -18,57 +18,23 @@ onLaunch(() => {
 </script>
 <style>
 /* ========== 全局设计 Token（Apple Design 风格） ==========
-   设计 Token 值以 theme/tokens.ts 为单一事实源（仅 IconSvg 色值等原生属性例外见该文件）。
-   此处（App 全局样式）为 WXSS 变量声明面，且**仅保留 page 一条规则**：
+   设计 Token 值以 theme/tokens.ts 为单一事实源。
+   UI-03（spec §4.2）：颜色变量块由 scripts/gen-css-vars.ts 从 tokens.ts 的 CSS_VARS
+   生成至 theme/generated-colors.css，此处 @import 引入（构建期由 vite/postcss 内联进 app.wxss）。
+   **颜色块由 gen:tokens 生成，禁止手工编辑**；改色值只改 tokens.ts 后运行 npm run gen:tokens。
+   本文件仅保留非颜色 token（圆角/间距/字号/高度/动效/层级）与 var() 派生引用（不含裸色值）。
    - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须落在 App.vue；
    - 微信小程序 WXSS 不支持 :root 选择器，故必须以 page 承载；
-   - 交付目标仅微信小程序（H5 构建脚本已移除），不再保留 :root 兜底块；
    - 产品仅一种主体颜色、无深色模式切换，不再保留 .theme-dark 令牌块。 */
+@import './theme/generated-colors.css';
+
 page {
-  /* ========== 浅色模式（值见 src/theme/tokens.ts 单一事实源） ==========
-     2026-09-05 拍板：主色先定暖砖红（tab-pages-visual-unify），tab-pages-visual-refine-2 提亮为 #C45549 */
-  /* 品牌主色（提亮暖砖红 terracotta；全站统一暖砖红色系） */
-  --color-primary: #C45549;
-  /* 主色上的文字（按钮/强调）：暖砖红底配白字（#C45549 与白字对比 ~3:1，按钮用白字） */
-  --color-on-primary: #FFFFFF;
-  /* 主色浅底（图标软底/选中标签底），已收敛 primary-bg/primary-soft2 */
-  --color-primary-soft: #F8E8E5;
-  /* 主色表面（header/home-top 大面积品牌色块，珊瑚橙统一） */
-  --color-on-primary-surface: #FFFFFF;
-  /* 强调色（热卖/热搜/新品统一走 accent，已收敛 color-hot） */
-  --color-accent: #C45A3C;
-  --color-accent-soft: #F5E6E3;
-  /* 语义色（error/success/warning/price/star/like 深浅对称） */
-  --color-error: #FF3B30;
-  --color-error-soft: #FFECEB;
-  --color-warning: #F5A623;
-  --color-warning-soft: #FFF8E1;
-  /* 价格红：并入主色体系（价格用主色） */
-  --color-price: #C45549;
-  /* 星级填充语义已收敛到 --color-primary（content-flow-visual-polish）；仅保留空心星颜色 */
-  --color-star-empty: #E5E5EA;
-  --color-like: #9E3B2E;
-  --color-like-soft: #F6E3E0;
-  /* 文字（三阶层级：一级 #262626 / 二级 #595959 / 三级 #999999） */
-  --text-white: #FFFFFF;
-  --text-primary: #262626;
-  --text-secondary: #595959;
-  --text-tertiary: #999999;
+  /* ========== 派生颜色引用（var 组合，非色值真源；真源见 tokens.ts） ========== */
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
-  /* 背景 */
-  --bg-page: #F7F3EF;
-  /* feedback-forms-ux-polish：奶油米白（意见反馈等 Q 版暖调表面） */
-  --bg-warm: #FAF6F0;
-  --bg-card: #FFFFFF;
-  --bg-input: #F7F5F2;
-  --bg-soft: #EDE9E5;
-  --bg-placeholder: #F0ECE8;
-  /* 边框（已收敛 border-light → border-color） */
-  --border-color: #E8E3DE;
-  --border-bold: #CBC5BE;
-  /* 卡片描边（万能两卡与通用卡片边界，低对比强化边界；语义卡用各自色淡描边） */
-  --border-card: rgba(0, 0, 0, 0.12);
+  /* 长条删除按钮（图片移除）暗底白字 */
+  --badge-dark-text: var(--text-white);
+
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
   --radius-none: 0;
@@ -111,37 +77,8 @@ page {
   --icon-2xl: 64rpx;
   --icon-3xl: 80rpx;
   --icon-4xl: 120rpx;
-  /* 阴影（材质 / 深度；卡片阴影为中性淡投影 rgba(0,0,0,0.04)，不随主色；顶栏品牌阴影见 --shadow-bar-primary） */
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
-  /* feedback-forms-ux-polish：Q 版暖调柔和投影（表单卡暖调分层用；中性阴影仍走 shadow-card） */
-  --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
-  --shadow-card-soft: 0 8rpx 32rpx rgba(0, 0, 0, 0.06);
-  --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
-  /* 半透材质（小程序真机 backdrop-filter 降级）；blur 系为 .glass 材质参数（MP-005 补齐悬空定义，值同 tokens.ts COLOR_MAP） */
+  /* 半透材质（小程序真机 backdrop-filter 降级）；blur 半径为长度参数（颜色部分见生成物） */
   --blur-radius: 40rpx;
-  --blur-bg: rgba(255, 255, 255, 0.72);
-  --blur-bg-solid: rgba(255, 255, 255, 0.92);
-  /* 玻璃/材质高光边（Apple §12 顶部光线）；白字/白边半透梯度与 tokens.ts COLOR_MAP 'text-white-edge' 同值 */
-  --text-white-edge: rgba(255, 255, 255, 0.24);
-  /* 暗化遮罩（图片叠加层 / 弹窗 scrim，禁止裸 rgba） */
-  --overlay-dark-strong: rgba(0, 0, 0, 0.6);
-  --overlay-dark-soft: rgba(0, 0, 0, 0.15);
-  --overlay-dark-faint: rgba(0, 0, 0, 0.06);
-  --overlay-scrim: rgba(0, 0, 0, 0.4);
-  /* 详情页返回钮胶囊（微信右上角原生胶囊同款：中性浅灰透底 + 细边 + 黑箭头；UX-002 裸色收口） */
-  --bg-nav-back-chip: rgba(0, 0, 0, 0.08);
-  --border-nav-back-chip: rgba(0, 0, 0, 0.1);
-  --nav-back-icon: #1A1A1A;
-  /* 卡片/底栏阴影（替代裸 shadow rgba） */
-  --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
-  --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(196, 85, 73, 0.28);
-  /* 浮起/按下阴影（global-ui-polish：替代裸 rgba 阴影） */
-  --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
-  /* 长条删除按钮（图片移除）暗底白字 */
-  --badge-dark-bg: rgba(0, 0, 0, 0.5);
-  --badge-dark-text: var(--text-white);
-  /* 浅色文字半透（hero 副标题等） */
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -180,9 +117,9 @@ page {
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
-   加载态遮罩底色（.is-loading 遮罩复用）、禁用态弱化文字色（复用四档文字末档）。
-   仅由 page 声明（H5 兜底与深色分支已移除）。 */
-page { --state-loading: rgba(0, 0, 0, 0.04); --state-disabled: var(--text-tertiary); }
+   禁用态弱化文字色（var 派生引用，非色值真源）；加载态遮罩底色 --state-loading
+   为裸色值，已随 UI-03 收口至生成物 generated-colors.css。仅由 page 声明。 */
+page { --state-disabled: var(--text-tertiary); }
 
 /* ========== 页面基础壳 ========== */
 .page {

@@ -21,6 +21,16 @@ public interface CategoryService {
     List<Category> listAll();
 
     /**
+     * 启用品类（status=enabled），按 sort_order 升序（小程序公开列表）
+     * <p>
+     * BE-04：原 CategoryController 绕过本 Service 直接注入 CategoryMapper 拼查询，
+     * 破坏四层分层；此处补齐只读方法，Controller 统一改走 Service。
+     *
+     * @return enabled 品类列表，无数据时返回空列表
+     */
+    List<Category> listEnabled();
+
+    /**
      * 新增品类（code 必填、格式与唯一性校验；status 缺省 enabled），返回自增ID
      */
     Long create(Map<String, Object> body);

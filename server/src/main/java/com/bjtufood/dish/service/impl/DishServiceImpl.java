@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.canteen.entity.Canteen;
+import com.bjtufood.canteen.entity.Stall;
+import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
@@ -40,6 +43,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -51,8 +55,24 @@ public class DishServiceImpl implements DishService {
     /** view_log.target_type 值：菜品（与 ViewLog 实体注释 / HistoryServiceImpl 写入口径一致） */
     private static final String VIEW_TARGET_TYPE_DISH = "dish";
 
+    /**
+     * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。
+     * 命中即回退 stallId 逻辑，绝不以其为名新建食堂/档口。
+     */
+    private static final Set<String> EMPTY_NAME_VALUES = Set.of("其他", "其它", "无", "未知");
+
+    /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
+    private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
+
+    /**
+     * 随菜品录入自动建档的 created_by 口径：管理端无身份（单口令即单人），
+     * 沿用 AuditLogAspect 的降级口径写 0L，不引入伪身份。
+     */
+    private static final Long UPSERT_CREATED_BY_SYSTEM = 0L;
+
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
+    private final CanteenMapper canteenMapper;
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final ViewLogMapper viewLogMapper;
@@ -107,13 +127,13 @@ public class DishServiceImpl implements DishService {
     /**
      * 浏览量上报（2026-09-14 §7.14 A：同一用户对同一菜品每天只计 1 次）。
      * <p>
-     * 去重真源为 view_log 表（user_id + target_type='dish' + target_id 的 created_at 落在
+     * 去重真源为 view_log 表（user_id + target_type='dish' + target_id 的 updated_at 落在
      * 「当天」，自然日按 Asia/Shanghai 切分），与原 5 分钟内存窗口
      * （{@link ViewRateLimiter}，多用于吸收短时间内的刷新抖动）叠加生效：
      * <ol>
      *   <li>5 分钟窗口命中 → 立即返回（省去一次 DB 查询）；</li>
      *   <li>当日已存在浏览记录 → 幂等返回成功：<b>不自增 view_count，也不重复插记录</b>；</li>
-     *   <li>否则插入一条 view_log 并执行原子自增，同时刷新浏览足迹时间（供「猜你喜欢」）。</li>
+     *   <li>否则写入/刷新一条 view_log 并执行原子自增（足迹行即「当日已计」的判据）。</li>
      * </ol>
      * 并发说明（已登记、不修）：第 2 步「先查后插」存在极小竞态窗口——两个并发首次请求可能
      * 同时查不到当日记录，导致当日最多多计 1 次（insert 无唯一键约束，view_log 表结构不变）。
@@ -130,7 +150,7 @@ public class DishServiceImpl implements DishService {
         if (historyService.existsTodayDishView(userId, dishId)) {
             return;
         }
-        // 记录浏览足迹（去重），供「猜你喜欢」个性化读取；游客不记录（recordDishView 内部判空）
+        // 写入/刷新浏览足迹（upsert：已存在则刷新 updated_at，作为次日起的新判据）；游客不记录（内部判空）
         historyService.recordDishView(userId, dishId);
         // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
         int affected = dishMapper.increaseViewCount(dishId);
@@ -167,12 +187,15 @@ public class DishServiceImpl implements DishService {
         if (req.getImages() == null || req.getImages().isEmpty()) {
             throw new BusinessException("请至少上传 1 张菜品图");
         }
-        // 校验 stallId 对应的档口是否存在
-        if (req.getStallId() == null || stallMapper.selectById(req.getStallId()) == null) {
+        // 解析档口归属（§7.23 第 1 条：支持按名 upsert 食堂/档口；新增路径必须得到有效档口）
+        Long stallId = resolveStallId(req);
+        if (stallId == null) {
             throw new BusinessException("档口不存在");
         }
         Dish dish = new Dish();
         applyReq(dish, req);
+        // 按名 upsert 解析出的档口可能不同于 req.stallId（stallName 有效时优先），在 applyReq 之后回填
+        dish.setStallId(stallId);
         dish.setAvgRating(BigDecimal.ZERO);
         dish.setRatingCount(0);
         dish.setViewCount(0);
@@ -197,7 +220,13 @@ public class DishServiceImpl implements DishService {
         if (req.getImages() != null && req.getImages().isEmpty()) {
             throw new BusinessException("请至少保留 1 张菜品图");
         }
+        // 编辑路径按名 upsert（§7.23 第 1 条）：stallName 有效时解析/建档并覆盖档口；
+        // 未传有效名称时回退 stallId（null=不修改；非 null 则校验存在，与新增路径同口径）
+        Long stallId = resolveStallId(req);
         applyReq(dish, req);
+        if (stallId != null) {
+            dish.setStallId(stallId);
+        }
         // 同上（2026-09-14 用户拍板）：管理员编辑视为权威操作，确保菜品保持可见，
         // 顺带修正历史 pending/rejected 态，避免"改了信息反而从端上消失"。
         dish.setAuditStatus(DishConst.AUDIT_APPROVED);
@@ -257,6 +286,102 @@ public class DishServiceImpl implements DishService {
         // 被机审/人工拦下（review/rejected）的内容完全不进统计；口径真源在 DishMapper.xml
         // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏/机审回写）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
+    }
+
+    /**
+     * 解析菜品归属档口（§7.23 第 1 条：食堂/档口是菜品属性，随菜品按名 upsert，不独立建档）。
+     * <p>
+     * 优先级：
+     * <ol>
+     *   <li>{@code stallName} 传了有效名称（非空白且不在 {@link #EMPTY_NAME_VALUES} 空值集合内）：
+     *       按名查字典——命中同名档口则复用其 ID（同名不重复建档）；未命中则自动建档
+     *       （建档时 {@code canteenName} 必须为有效名称并按名 upsert 所属食堂，
+     *       空值/未传 → 400「请选择所属食堂」，不允许落 canteen_id=0）。</li>
+     *   <li>否则回退 {@code stallId}：null=不修改（编辑路径部分更新语义）；非 null 时校验档口存在，
+     *       不存在 400（新增/编辑同口径，PR-06）。</li>
+     * </ol>
+     *
+     * @return 解析后的档口 ID；null 仅在「无有效 stallName 且 stallId 未传」时出现（新增路径上游已拦截为 400）
+     */
+    private Long resolveStallId(DishAdminReq req) {
+        String stallName = normalizeUpsetName(req.getStallName());
+        if (stallName != null) {
+            return upsertStallByName(stallName, req.getCanteenName());
+        }
+        if (req.getStallId() != null && stallMapper.selectById(req.getStallId()) == null) {
+            throw new BusinessException("档口不存在");
+        }
+        return req.getStallId();
+    }
+
+    /**
+     * 按名 upsert 档口：同名不重复建档（精确匹配，名称列无唯一键，并发双写极端情况由调用方幂等容忍）。
+     * <p>
+     * 新建档口必须有可解析的有效所属食堂（canteenName 有效），否则 400「请选择所属食堂」——
+     * 不允许落 canteen_id=0（未挂食堂）：joinDishSql 对 stall/canteen 为 INNER JOIN，
+     * canteen_id=0 的菜品会被列表/详情查询静默剔除（2026-09-15 收口，与 web 端「食堂必填」契约一致）。
+     */
+    private Long upsertStallByName(String stallName, String rawCanteenName) {
+        Stall existing = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getName, stallName)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            // 同名档口已存在：直接复用（canteenName 仅在新建档口时消费，不迁移既有档口归属）
+            return existing.getId();
+        }
+        Long canteenId = upsertCanteenIdByName(rawCanteenName);
+        if (canteenId == null) {
+            // 新建档口必须挂有效食堂：拦截在写入前，杜绝 canteen_id=0 的不可见脏数据
+            throw new BusinessException(MSG_CANTEEN_REQUIRED);
+        }
+        Stall stall = new Stall();
+        stall.setName(stallName);
+        stall.setCanteenId(canteenId);
+        stall.setCreatedBy(UPSERT_CREATED_BY_SYSTEM);
+        stallMapper.insert(stall);
+        return stall.getId();
+    }
+
+    /**
+     * 按名 upsert 食堂（仅当新建档口时消费）：有效名称查字典命中则复用，未命中自动建档。
+     * <p>
+     * 空白/「其他」等空值语义名称 <b>不建档也不落 0</b>，返回 null 由调用方 400 拦截
+     * （2026-09-15 收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
+     * joinDishSql 的 INNER JOIN 静默剔除，属隐性数据丢失）。
+     *
+     * @return 食堂 ID；null=无可解析的有效食堂名（调用方必须 400，不得写库）
+     */
+    private Long upsertCanteenIdByName(String rawCanteenName) {
+        String canteenName = normalizeUpsetName(rawCanteenName);
+        if (canteenName == null) {
+            return null;
+        }
+        Canteen existing = canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getName, canteenName)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            return existing.getId();
+        }
+        Canteen canteen = new Canteen();
+        canteen.setName(canteenName);
+        canteen.setCreatedBy(UPSERT_CREATED_BY_SYSTEM);
+        canteenMapper.insert(canteen);
+        return canteen.getId();
+    }
+
+    /**
+     * upsert 名称规范化：trim 后为空白或命中 {@link #EMPTY_NAME_VALUES}（「其他」等空值语义）返回 null（不建档）；
+     * 其余返回 trim 后的名称。
+     */
+    private static String normalizeUpsetName(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty() || EMPTY_NAME_VALUES.contains(trimmed)) {
+            return null;
+        }
+        return trimmed;
     }
 
     /**

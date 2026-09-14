@@ -44,4 +44,17 @@ public interface FeedbackConst {
 
     /** 处理状态查询白名单（后台筛选入参校验用） */
     Set<String> QUERY_STATUSES = Set.of(STATUS_PENDING, STATUS_HANDLED);
+
+    /**
+     * 处理结论（§7.23 第 5 条）：{@code handled}=通过/已处理（缺省值）；
+     * {@code rejected}=不采纳/退回（此时 reject_reason 必填，1~200 字）。
+     */
+    String OUTCOME_HANDLED = "handled";
+    String OUTCOME_REJECTED = "rejected";
+
+    /** 处理结论白名单（后台处理入参校验用；未传按 handled 缺省） */
+    Set<String> OUTCOMES = Set.of(OUTCOME_HANDLED, OUTCOME_REJECTED);
+
+    /** 不采纳原因最大长度（schema user_feedback.reject_reason VARCHAR(200)，§7.23 第 5 条） */
+    int REJECT_REASON_MAX_LENGTH = 200;
 }

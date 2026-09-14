@@ -83,7 +83,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 }
 
 /* ============================================================
- * 统一卡片 / 容器圆角（§4.2 卡片 16px）+ 柔和阴影 + 统一边框
+ * 统一卡片 / 容器圆角（§4.2 卡片 16px；UI-06 --radius-card 已对齐 16px）+ 柔和阴影 + 统一边框
  * 所有页面复用这些公共类，禁止各页写死 px 圆角/边框。
  * ============================================================ */
 .card, .table-wrap, .state-box, .empty-state, .tag, .kpi,
@@ -117,7 +117,10 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .card-hd h3 { font-size: var(--font-lg); font-weight: var(--weight-semibold); color: var(--text-primary); margin: 0; }
 .card-body { padding: var(--space-4) var(--space-5); }
 
-/* 状态/空态盒：统一圆角 + 阴影 + 底色 */
+/* ============================================================
+ * 三态盒（UI-04 全局唯一实现）：加载 / 错误 / 空态统一高度与布局，
+ * 原由 DashboardView 与 DataTable 各持一份私有副本，现收敛于此。
+ * ============================================================ */
 .state-box, .empty-state {
   text-align: center;
   color: var(--text-light);
@@ -125,8 +128,43 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+  /* 三态高度稳定：加载/错误态不塌陷；居中排布（文案 + spinner 同行） */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 240px;
+  box-sizing: border-box;
 }
 .state-err { color: var(--color-error); }
+/* 内联态（UI-04）：紧凑场景（卡片内、区块头部等）用小高度版本 */
+.state-box--inline {
+  padding: var(--space-6) var(--space-4);
+  min-height: 0;
+}
+/* 全局唯一旋转指示（.spin）：16px、主色顶弧；reduced-motion 降速不停转（停转会误导为卡死） */
+.spin {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* !important：胜过下方全局降级块的 0.01ms——spin 停转会误导为「卡死」，须降速而非停转 */
+  .spin
+  {
+    animation-duration: 1.4s !important;
+    /* 全局降级块会把 iteration-count 压成 1（转一圈即停，误导为「卡死」），此处必须夺回无限循环 */
+    animation-iteration-count: infinite !important;
+  }
+}
 
 /* 分段 Tab（看板/审核等）：胶囊式，激活态走主色 */
 .tabs { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }

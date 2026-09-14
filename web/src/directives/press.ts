@@ -42,6 +42,8 @@ function reset(el: HTMLElement) {
 
 const press: Directive = {
   mounted(el: HTMLElement, binding) {
+    // v-press="false"：显式关闭按压反馈（如 StatCard 非交互卡，避免「可点」错觉）
+    if (binding.value === false) return
     if (reduceMotion) return
     el.style.touchAction = 'manipulation'
     el.__pressHandlers__ = {

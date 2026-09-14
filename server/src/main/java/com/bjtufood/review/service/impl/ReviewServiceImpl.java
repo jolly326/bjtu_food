@@ -34,7 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -118,12 +118,6 @@ public class ReviewServiceImpl implements ReviewService {
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
         fillImages(pageResult.getRecords());
         return pageResult;
-    }
-
-    @Override
-    public BigDecimal getAvgRatingByStallId(Long stallId) {
-        BigDecimal avg = reviewMapper.selectAvgRatingByStallId(stallId);
-        return avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2);
     }
 
     @Override

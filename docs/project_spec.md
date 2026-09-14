@@ -5,6 +5,7 @@
 > 本文件只规定「不会轻易变、且所有端必须遵守」的基础规范。**多 agent 协作流程与角色权限见 `CODEBUDDY.md` 与 `.codebuddy/agents/`（原 `docs/WORKFLOW.md` 已删除，勿再引用）**。
 > **唯一可修改者：技术负责人**（需求梳理师 + 架构师合并角色）。其余角色不得改动本文件，发现冲突须提技术负责人，不得自行绕过。
 > **产品蓝图定版决议见 §7（2026-09-14 用户拍板）**：与前文冲突时以 §7 为准。
+> **项目框架与蓝图 v1 见 §7.23（2026-09-15 用户拍板）**：五条框架原则（菜品为唯一核心实体 / UGC 只有评价与反馈两种形态 / 学生诉求即反馈 / 菜品无独立审核 / 反馈处理是唯一运营闭环）。**与 §7.23 冲突的历史表述已就地修订并标注变更来源**；后续改动若与 §7.23 冲突，须先修订 §7.23（重新拍板）再动代码。
 
 ---
 
@@ -19,14 +20,14 @@
 **五个定型支柱**
 
 1. **信息展示优先**：把静态信息做扎实（名称 / 价格 / 档口 / 楼层 / 营业时间 / 口味标签 / 图片）；「售罄 / 今日供应」即时状态**一期不做**，二期评估。
-2. **轻社区边界**：UGC 仅「评价」一种形态（1-5 星 + 文字 + 配图 ≤3 张），**终局形态已定，不再大改**；不做动态 / 关注 / 私聊 / 收藏。
-3. **UGC 通道唯一**：菜品信息共建走「反馈表单（可配图）→ 管理员审阅录入 / 修改 / 上下架」；**不恢复学生直建菜卡接口**；信息发布源唯一 = 管理员。
+2. **轻社区边界**：**UGC 只有两种形态**——**评价**（1-5 星 + 文字 + 配图 ≤3 张，需 `verified=true`）与**反馈**（公开提交、无需登录、可配图 ≤3 张）；**终局形态已定，不再大改**；不做动态 / 关注 / 私聊 / 收藏。*（2026-09-15 蓝图 v1 修订，见 §7.23 第 2 条：原「UGC 仅『评价』一种形态」的表述易被误读为「不保留反馈 UGC」，本次修订为两种形态；被否掉的始终是「社区 / 动态」社交广场形态，不是 UGC 本身。）*
+3. **学生诉求通道唯一 = 反馈**：学生对菜品的一切诉求（新增 `add` / 纠错与下架 `error` / 举报 `report` / 建议与问题 `suggestion`）**只有反馈一种表达形式**；菜品信息共建走「反馈 → 管理员在**反馈处理**中录入 / 修改 / 下架」；**不恢复学生直建菜卡接口**；信息发布源唯一 = 管理员。
 4. **合规底线**：全部 UGC 过微信内容安检（msgSecCheck / imgSecCheck 三态：risky 拦截、review 人工复核、pass 放行）；评价对他端可见需 pass。
 5. **轻运营**：无运营位（活动 / 公告 / 首页置顶均下线或定型不做）；菜品数据管理员手动维护；**Excel 批量导入推二期**（预留导入通道抽象，未来 OCR 菜单识别走同一通道）。
 
 **平台边界**
 
-- 用户：游客可浏览 / 搜索一切；评价 / 反馈须学号邮箱认证（防刷不防看）；认证口径不变（`@bjtu.edu.cn`）；不做多校区隔离（region 字段已预留）。
+- 用户：游客可浏览 / 搜索一切；**写评价 / 评价点赞 / 删本人评价须学号邮箱认证**（`verified=true`，防刷不防看，见 §5.y.4 与 §7.23 第 2 条）；**反馈 / 举报 / 投稿 `POST /feedback` 公开提交、无需登录、无需认证**——*（2026-09-15 蓝图 v1 修订：原「评价 / 反馈须学号邮箱认证」把反馈一并纳入认证门槛，会掐死学生投稿通道（§7.7 第 1 条同口径），本次按 §7.23 第 2 条收口为「评价需认证、反馈免认证」）*；认证口径不变（`@bjtu.edu.cn`）；不做多校区隔离（region 字段已预留）。
 - 通知：**仅站内通知中心**，不做任何推送（微信订阅消息二期评估，需用户订阅）。
 - 推荐心智：保持现热度算法（浏览 + 评分聚合）。**勘误：算法不含「收藏」维度——产品无收藏功能，历史文档 / 代码注释中的「收藏」为措辞残留（收藏功能不存在，措辞残留勘误，2026-09-13）**；算法未来演进（数据量增大后）须重新拍板，不得静默修改。
 - 北极星指标：**周活 / 留存**（用户侧）；辅助观察：评价覆盖率、反馈处理时效（dashboard 一期不加新指标，跑一个月后评估）。
@@ -44,6 +45,7 @@
 - **账号注销本期落地**（合规硬需求，微信平台账号删除要求）：「我的」页底部注销入口 → 二次确认 → 匿名化（nickname→'已注销用户'、openid/unionid 解绑、status=deleted），评价/反馈保留但去身份化；token 立即失效（详见 §5.y）。
 - 菜品下架（status=off）= **客户端完全不可见、评价保留**（现状登记为定型口径；恢复上架时重现）。
 - dish.alias **别名搜索本期落地**（管理员配置，搜索命中 name 或 alias）。
+- **蓝图 v1 增补（2026-09-15 用户拍板，权威见 §7.23）**：① **菜品是唯一核心实体**——食堂 / 档口是菜品的**属性**（`dish.canteen` / `dish.stall`），不独立成页、不独立建档、无删除，录入菜品时名字不存在由**后端 upsert** 自动入库；② **菜品无独立审核**——管理员录入即生效，客户端与后台都不出现「菜品审核」概念；③ **反馈处理是唯一的运营闭环**——处理 = 标记已处理 + 回执（已认证用户收站内通知），不采纳 / 退回 = 必填 `reject_reason`。
 
 **详细设计基线**：`docs/product-blueprint.md`（《产品定型总纲 v1.0》）——页面 / 流程 / 数据模型 / 接口 / 内容安全 / 算法 / 版本边界的全量固化版。**原则以本页为准，细节以总纲为准**，两者共同构成产品宪法。
 
@@ -51,14 +53,14 @@
 
 ### 0.1 角色模型（仅两种）
 - `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁写评价 / 评价点赞等 **UGC 写操作**（评价**支持配图 ≤3 张**，全部 UGC 过微信内容安检，见 §5.a）。**学生端无菜品写接口**：`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理（学生提交档口 / 食堂 `/my/stalls` 已于 2026-08-18 随代码清理移除；社区/动态板块已于 2026-09-12 下线，见 §0.5）。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开，**可配图 ≤3 张**，同样过内容安检）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
-- `ADMIN`（系统管理员 / 食堂后勤）：审核 UGC、看板、食堂 / 档口 / 菜品 CRUD + 上架下架、用户 / 管理员管理。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
+- `ADMIN`（系统管理员 / 食堂后勤）：**反馈处理（唯一运营闭环，见 §7.23 第 5 条）+ 评价治理（隐藏 / 安检复核）**、看板、**菜品 CRUD + 上架下架**（食堂 / 档口为菜品属性，随菜品 upsert）、学生账号管理。**菜品无独立审核**（§7.23 第 4 条：录入即生效，无「菜品审核」环节）。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
 - **活动与公告（broadcast）已全链路下线（2026-09-13 拍板）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表全部删除，ADMIN 不再承担活动录入职责（详见 §0.5「已下线」）。
 
 ### 0.2 数据流闭环
 1. **浏览**：首页（搜索框 → 筛选 → 瀑布流）/ 搜索 → 菜品详情 → 评价 / 分享（**无广播栏**，见 §2.1.4）。
-2. **贡献（平鉴官）**：需 `verified=true`（游客未认证不可贡献）→ 提交 → `audit_status=pending` → 后台审核 → `approved` / `rejected`（回写 `reject_reason`）。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`；学生菜品需求走反馈 `add` 类型，由管理员在后台据反馈手工录入，闭环无学生侧重提。
-3. **运营（后勤）**：后台审 UGC / CRUD → 小程序即时体现。UGC 文本与配图先过微信内容安检（`sec_state`，见 §5.a），`review` 态进管理后台复核队列（放行 / 驳回）。
+2. **贡献（平鉴官）**：需 `verified=true`（游客未认证不可贡献）→ **提交评价**（先发后审，无前置审核态；见 §7.4）。**菜品无独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条）**：管理员录入 / 编辑即生效（`audit_status=approved`），`dish.audit_status` 不再作为运营处理入口；学生对菜品的一切诉求（新增 / 纠错 / 下架 / 举报 / 建议）**一律走反馈**（`add` / `error` / `report` / `suggestion`），由管理员在**反馈处理**中闭环。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线）。
+3. **运营（后勤）**：**反馈处理是唯一的运营闭环**（2026-09-15 蓝图 v1，见 §7.23 第 5 条）——后台处理反馈（含据此录入 / 修改 / 下架菜品）→ 已认证提交人收站内回执 → 小程序即时体现。UGC 文本与配图先过微信内容安检（`sec_state`，见 §5.a），`review` 态进管理后台复核队列（放行 / 驳回）。
 
 ### 0.4 三端定位与数据链路（2026-08-05 拍板，强制）
 - **小程序（`client/`）= 服务端 / 用户端**：学生使用，是**业务数据的唯一产生源头**（浏览、菜品评价、产品反馈——含新增菜品 / 纠错 / 推荐等反馈诉求；**学生端无菜品写接口**，菜品由管理员录入，见 §5.x）。
@@ -105,7 +107,7 @@
 1. **菜品信息展示**：浏览 / 筛选 / 排序 / 菜品详情（食堂与档口降级为菜品属性，无独立路由）。首页 = 搜索框头部 + 筛选行 + 瀑布流（**无广播栏、无万能区域**）。
 2. **搜索与查找**：二级搜索页 `find`（首页顶部搜索框进入）+ 结果列表，作为菜品发现主线保留并强化。
 3. **用户 UGC —— 评价类**：**菜品评价是唯一的「评价」形态**（社区/动态下线后不再有第二种评价语义载体）。菜品详情页评价区（展示 + 内联加载）+ 底栏「写评价」提交；一人一菜一评（`uk_review_user_dish`），评价侧「有用」点赞一人一票（`uk_useful_user_review`）。**评价支持配图（≤3 张）**，文本与图片均须过微信内容安检（`sec_state`，`review` 态对非作者不可见，见 §5.a）。
-4. **用户 UGC —— 反馈 / 贡献类**：**反馈本身就是 UGC，与评价同等重要，不得弱化**。含 ① 意见反馈页 `pages/me/feedback/index`（公开提交、不收集联系方式、匿名心智、类型化结构化字段，**支持配图 ≤3 张**；`relatedType`：`dish` = 信息纠错关联菜品）；② 内容页主动入口——**举报（`type=report`，关联类型 `relatedType=review`，即菜品详情评价卡三点菜单的「举报评价」；游客免认证，见 `client-auth-boundary`）**、纠错 / 信息不对 / 申请下架 / 推荐菜品 / 新增菜品；③ 档口 / 食堂的贡献提交（**菜品无独立贡献提交入口**：`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线，学生新增菜品经反馈 `add` 类型、由管理员在后台录入）。**价值锚点：反馈类 UGC 是实时发现菜品信息错误与程序问题、驱动「信息更新优化 + 程序优化」的主通道**，是本项目快速上线收集反馈的核心机制。反馈文本与配图均过微信内容安检（`sec_state`，见 §5.a）。
+4. **用户 UGC —— 反馈 / 贡献类**：**反馈本身就是 UGC，与评价同等重要，不得弱化**。含 ① 意见反馈页 `pages/me/feedback/index`（公开提交、不收集联系方式、匿名心智、类型化结构化字段，**支持配图 ≤3 张**；`relatedType`：`dish` = 信息纠错关联菜品）；② 内容页主动入口——**举报（`type=report`，关联类型 `relatedType=review`，即菜品详情评价卡三点菜单的「举报评价」；游客免认证，见 `client-auth-boundary`）**、纠错 / 信息不对 / 申请下架 / 推荐菜品 / 新增菜品；③ 档口 / 食堂的贡献提交（**菜品无独立贡献提交入口**：`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线，学生新增菜品经反馈 `add` 类型、由管理员在后台录入）。**价值锚点：反馈类 UGC 是实时发现菜品信息错误与程序问题、驱动「信息更新优化 + 程序优化」的主通道**，是本项目快速上线收集反馈的核心机制。反馈文本与配图均过微信内容安检（`sec_state`，见 §5.a）。**反馈类型写入白名单（2026-09-15 蓝图 v1 真源，见 §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**（`bug` / `other` 为历史遗留、禁新增）。
 
 > **③ 与 ④ 合称 UGC 全谱系**（评价 + 反馈 / 贡献），共同构成菜品信息迭代的输入源。本次下线的是「社区 / 动态」这种**社交广场形态**，**不是**下线 UGC 本身——UGC 全谱系保留并强化。
 
@@ -120,12 +122,14 @@
   - **`portion` 分量字段**（2026-09-14 Q-114，见 §7.21 第 8 条）：连同后台录入全链路下线（DTO / 实体 / VO / Mapper / 后台表单 / 端上映射 / 建表脚本，存量库幂等 DROP）。
   - **食堂 / 档口的实体语义**（2026-09-14 Q-113，见 §7.21 第 7 条与 §7.20 PR-14）：停业（`status`）、营业时间（`business_hours`）、实体审核（`audit_status` / `reject_reason`）等实体语义**一律不设**；食堂 / 档口仅为**菜品筛选属性字典**，生命周期只有「新增 / 改名」。——**本条已涵盖「停业 / 营业时间 / 实体审核」三类实体语义**（对应列 `canteen.status` / `canteen.audit_status` / `canteen.reject_reason` / `stall.status` / `stall.audit_status` / `stall.reject_reason` 与 `stall.business_hours`，均已下线，见 §7.22 第 3 条）。
   - **食堂 / 档口的「删除」能力**（2026-09-14 Q-115，见 §7.22 第 5 条）：食堂 / 档口字典**不提供删除**（用户拍板：不保留删除，只能改名纠错）；录入侧仅「新增 / 改名 / 列表查看」。
+  - **菜品独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条）**：`dish.audit_status` / `dish.reject_reason` 退役为历史列，**不再作为运营处理入口**（后台无审核列 / 无审核模块、客户端无「菜品审核」概念）；学生的菜品诉求走反馈闭环。恢复须重新拍板。
+  - **反馈类型 `bug` / `other`（2026-09-15 蓝图 v1，见 §7.23 第 3 条）**：历史遗留枚举位、无生产者、**禁止新增**；「系统 bug」归 `suggestion` 的二级 `sub=problem`，不升为一级类型。仅保留在查询白名单以筛存量数据。
 - **执行口径**：本文件一经同步即为唯一权威；后续实现若与本文档冲突，**改代码、不改文档**（代码只在 UI 实现层提供指导）。开发交付以「静态错误清零」为准，编译 / 构建 / 真机运行由用户执行。
 
 ### 0.3 一致性红线（全局，强制）
 - 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由。**`/admin/**` 的访问控制为「环境变量口令」而非角色**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`AdminTokenFilter` 校验请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置口令时 fail-closed 403；`SUPER_ADMIN` 分层已移除（`RoleConst` 仅 `student`/`admin` 两层数据语义，用于区分账号归属而非权限，见 §5.x）。
-- **菜品**含独立 `audit_status`(pending/approved/rejected) + `reject_reason`，与上下架 `status`(on/off) 解耦。**档口 / 食堂已去实体化（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）：不再有 `status` / `audit_status` / `reject_reason` 列**（6 列已下线），仅为菜品筛选属性字典。
-- 实体贡献「下架 / 变更」类诉求走**反馈类型承载**（`error` 关联菜品纠错/下架、「新增菜品」走 `add`），**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台据反馈手工闭环）。
+- **菜品**的唯一运营开关是上下架 `status`(on/off)；**`dish.audit_status` / `dish.reject_reason` 为已退役的历史列（2026-09-15 蓝图 v1，见 §7.23 第 4 条）**——**菜品无独立审核**：管理员录入 / 编辑即置 `approved` 并直接生效，`audit_status` **不再作为运营处理入口**（后台列表不设审核列、菜品详情不回显审核态与 `reject_reason`、客户端不出现「菜品审核」概念），**不再扩展该字段**；存量数据由一次性脚本归一为 `approved`（`server/src/main/resources/db/normalize_dish_audit_status.sql`，由用户执行）。学生的菜品诉求走**反馈**承载（见下一行）。**档口 / 食堂已去实体化（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）：不再有 `status` / `audit_status` / `reject_reason` 列**（6 列已下线），仅为菜品筛选属性字典。
+- 学生对菜品的一切诉求（下架 / 变更 / 纠错 / 举报 / 新增 / 建议）走**反馈类型承载**，**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台**在反馈处理中**手工闭环）。**反馈类型真源（2026-09-15 蓝图 v1，见 §7.23 第 3 条；取自小程序反馈收集表，勿臆造）**：写入白名单 = `suggestion`（建议 / 问题，二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `sub=problem`，不升为一级类型**）/ `add`（新增菜品）/ `error`（纠错 / 下架，`relatedType=dish`）/ `report`（举报，`relatedType=review`）；`bug` / `other` 为**历史遗留枚举位、无生产者、禁止新增**（仅保留在查询白名单以筛存量数据）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
   - **无账号密码登录**：小程序端**无密码、无登录页、无登录按钮、无注册页**；微信打开即静默登录（`POST /auth/wechat-login`），默认得到 `verified=false` 的游客态账号。
@@ -191,7 +195,7 @@
   - **后端距离字段口径（2026-09 拍板登记）**：后端 `DishVO.distance` / `CanteenInfoVO.distance` **字段弃用保留**——请求携带坐标时后端仍可能返回该字段（历史兼容），但**以端上本地计算为准**，小程序不消费后端下发的 `distance`；后端不对「个人化距离服务」做契约承诺。
 - **搜索（2026-08-03）**：二级搜索页 `find`，非 tab；**属核心板块「搜索与查找」，不得降级或移除**（见 §0.5）。
 - **反馈合并（2026-08-15）**：原「反馈中心」(`messages-services`) 已并入 `feedback` 意见反馈页（提交表单 + 我的反馈记录同页）；早期「联系/contact」表单亦并入。无独立反馈中心/contact 路由。
-- **反馈重设计（2026-08-17 拍板；2026-09 按 ARCH-009 校准）**：`feedback` 页定为**收集用户诉求**的轻量单视图动态表单——**克制温度引导**（仅一行短标题「想说点啥，直接说」，不做大段文案）+ 口语化类型 chip + 类型与字段合一为一张大卡；类型前置单选必选，**实况 3 类**（提个想法 `suggestion` / 推荐菜品 `add` / 信息不对 `error`；原第 4 类「App 有问题」已并入「提个想法」的问题域，不再单列），字段随类型动态切换且**收集管理员所需关键结构化字段**（每类型必填 1 个，辅助选填，无冗余提示文案）；**不设登录守卫，任何人可提交**（`POST /feedback` 维持公开 PUB）；「新增菜品」从纠错二级细分提升为一级类型（后端扩 `add` 枚举）；纠错点含「已下架」作证流程（不要求正文，**文本作证**为主 + **可选配图作证**——「可照片作证」曾随 2026-09-12 UGC 图片下线作废，**2026-09-13 随评价/反馈配图恢复以带安检的配图形式回归**，见 §5.a）；**不收集联系方式**（移除前端字段，后端 `contact` 列保留兼容历史）；**匿名心智（2026-09 随反馈回执能力演进校准，见 change `prelaunch-loop-closure` 的 `feedback-receipt` spec）**：原底部「匿名提交 · 不记账号」静态文案已移除，改为**提交成功 toast 按认证态二分告知**——游客（`verified=false`）明确提示「未记账号、结果无法单独通知你」（游客提交不保留归属、管理员处理后不投递回执通知），已认证提示「数个工作日内查看并处理」（回执经系统通知投递；实况见 `pages/me/feedback/useFeedback.ts` 提交成功分支）；移除「我的反馈」Tab（进度追踪后续另做；`GET /feedback/my` 已随反馈中心下线删除）；举报继续走内容页弹窗不进本页。
+- **反馈重设计（2026-08-17 拍板；2026-09 按 ARCH-009 校准）**：`feedback` 页定为**收集用户诉求**的轻量单视图动态表单——**克制温度引导**（仅一行短标题「想说点啥，直接说」，不做大段文案）+ 口语化类型 chip + 类型与字段合一为一张大卡；类型前置单选必选，**实况 3 类**（提个想法 `suggestion` / 推荐菜品 `add` / 信息不对 `error`；原第 4 类「App 有问题」已并入「提个想法」的问题域，不再单列），字段随类型动态切换且**收集管理员所需关键结构化字段**（每类型必填 1 个，辅助选填，无冗余提示文案）；**不设登录守卫，任何人可提交**（`POST /feedback` 维持公开 PUB）；「新增菜品」从纠错二级细分提升为一级类型（后端扩 `add` 枚举）；纠错点含「已下架」作证流程（不要求正文，**文本作证**为主 + **可选配图作证**——「可照片作证」曾随 2026-09-12 UGC 图片下线作废，**2026-09-13 随评价/反馈配图恢复以带安检的配图形式回归**，见 §5.a）；**不收集联系方式**（移除前端字段，后端 `contact` 列保留兼容历史）；**匿名心智（2026-09 随反馈回执能力演进校准，见 change `prelaunch-loop-closure` 的 `feedback-receipt` spec）**：原底部「匿名提交 · 不记账号」静态文案已移除，改为**提交成功 toast 按认证态二分告知**——游客（`verified=false`）明确提示「未记账号、结果无法单独通知你」（游客提交不保留归属、管理员处理后不投递回执通知），已认证提示「数个工作日内查看并处理」（回执经系统通知投递；实况见 `pages/me/feedback/useFeedback.ts` 提交成功分支）；移除「我的反馈」Tab（进度追踪后续另做；`GET /feedback/my` 已随反馈中心下线删除）；举报继续走内容页弹窗不进本页。**反馈类型写入白名单（2026-09-15 蓝图 v1 真源，见 §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：本页产出前三类（`suggestion` 含二级 `sub=idea` 建议 / `sub=problem` 问题，**「系统 bug」归 `problem`，不单列一级类型**），举报 `report` 由内容页 `ReportModal` 产出；`bug` / `other` 为历史遗留枚举位、无任何生产者、**禁止新增**（端上 `FeedbackSubmit['type']` 须同步收口为四类）。
 - **食堂与档口降级为菜品属性（2026-08-15）**：学生决策主体是菜品，食堂/档口为 `dish.canteen` / `dish.stall`，仅在菜品详情「来源信息区」展示；无 `canteen`/`stall` 独立路由。
 - **收藏功能已全量移除（2026-08-12 复核）**：无收藏入口。
 - **「我的」页 IA（2026-09-06 方案 B 重构；2026-09-12 随动态下线由 2×2 改 1×3，2026-09-12 随 prelaunch-loop-closure 改回 2×2，2026-09-13 随活动全链路下线收敛为一行 3 列）**：`pages/mine/index` 自上而下 = 用户卡 + **一行 3 列功能宫格**（「意见反馈｜系统通知｜我的评价（有未读显示红点，无未读/未登录不显示）」）+ **底部静态信息区（含隐私政策/用户协议合规入口）**（`知行食记 v{version}` · 学校，居中小号浅灰纯展示）。宫格每格整格热区：意见反馈→`/pages/me/feedback/index`、系统通知→`/pages/me/notifications/index` 正常跳转。**「我发布的」格已随社区板块下线移除、「最新活动」格已随活动全链路下线移除**（均含其在 `utils/feature-gates.ts` 的登记项；「最新活动」为最后一项在册登记，移除后 feature-gates 无在册条目）。原「一行两卡 + 三行浅色入口列表 + 中部单行版本号」整体删除。
@@ -229,8 +233,8 @@
 - 八原则：Purpose / Agency / Responsibility / Familiarity / Flexibility / Simplicity / Craft / Delight；流体交互四要素：即时响应、1:1 直接操控、可中断、速度 / 动量接力。
 
 ### 4.2 视觉 Token（基线）
-- 品牌主色：暖砖红 `#C45549`（浅色模式主色；**2026-09-06 复核，由朱砂红 `#9B2A1D` 定调为 `#C45549`**，更明快亲和、与故宫红墙同色相；深色模式主色见 `client/src/theme/tokens.ts` 的 `primary-dark`）。小程序按钮统一 `AppButton`（primary 取 `#C45549`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）。**色值为全站唯一事实源**：以 `client/src/theme/tokens.ts`（`COLOR_MAP.primary`）与 `App.vue` 的 `page` 浅色块为准；`client/uni.scss` 为已废弃的浅色 token 快照（其 `#7A241A` 陈旧且与事实源冲突，待清理，见 tokens.ts 注释「删除 uni.scss 后」）。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
-- 圆角：卡片 `16px`；底部弹层 `20px 20px 0 0`。材质模糊 `blur(20px) saturate(180%)`；按压反馈为 bg-soft/opacity（**scale 按压已废止**，见 §4.9；Web 端 `scale(var(--press-scale))` 为登记豁免，同见 §4.9）；弹层阴影 `0 -8px 30px rgba(0,0,0,0.12)`。
+- 品牌主色：暖砖红 `#C45549`（浅色模式主色；**2026-09-06 复核，由朱砂红 `#9B2A1D` 定调为 `#C45549`**，更明快亲和、与故宫红墙同色相；深色模式主色见 `client/src/theme/tokens.ts` 的 `primary-dark`）。小程序按钮统一 `AppButton`（primary 取 `#C45549`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）。**色值为全站唯一事实源（2026-09-15 PM 拍板登记，依据 `docs/loop/design/frontend-ui-consolidation.md` UI-03）**：`client/src/theme/tokens.ts` 是**唯一**事实源；`App.vue` 的 `page{}` 颜色块由 `gen:tokens` 脚本（`client/scripts/gen-css-vars.ts` → `theme/generated-colors.css` 生成物，受版本控制）**生成**，**禁止手工编辑**生成物与该颜色块；CI 以「生成物与仓库副本 diff 一致」校验（`npm run gen:tokens` 挂 type-check 前置）。原废弃快照 `client/uni.scss` 已清除（登记见 §8「已修复」），不得再据其取值。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
+- 圆角：卡片 `16px`；底部弹层 `20px 20px 0 0`。**Web 端对齐同值（2026-09-15 PM 拍板取 A 方案，不做 Web 豁免，依据 frontend-ui-consolidation UI-06）**：`web/src/styles/variables.css` 的 `--radius-card: 16px`、`--radius-sheet: 20px 20px 0 0`。材质模糊 `blur(20px) saturate(180%)`；按压反馈为 bg-soft/opacity（**scale 按压已废止**，见 §4.9；Web 端 `scale(var(--press-scale))` 为登记豁免，同见 §4.9）；弹层阴影 `0 -8px 30px rgba(0,0,0,0.12)`。
 - 小程序自研组件（新页面必须复用）：公共 `components/`（实况：`AppButton/AppHeader/AuthSheet/BaseSheet/ActionSheet/ListPickerSheet/ReportModal/CardSection/FilterBar/SectionTitle/TagLabel/TabBar/IconSvg`）与页内私有组件（按 §2「前端组件组织原则」下沉，如 `pages/home/DishCard.vue`、`pages/home/HomeContent.vue`）；**UGC 配图组件（多图选择 / `wx.compressImage` 压缩 / 预览 / 删除，上限 3 张）随 2026-09-13 配图拍板恢复建设**（原 `ImageUploader` 曾于 change `prelaunch-loop-closure` 随 UGC 图片下线删除；恢复后作为「写评价弹层」与「意见反馈表单」共享组件，落位遵循 §2 组件组织原则），图片上传另有用户头像与后台菜品图两条独立链路；`TabBar` 实况路径 `components/TabBar.vue`。（社区板块的卡片与图片墙组件已于 2026-09-12 随板块下线删除；**`CategoryTabs`、`Loading` 已于清理提交 f9560c6 删除**——分类切换由 `FilterBar`/筛选条替代；**`EmptyState`、`StateView` 已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不设空态占位，**失败态按 MP-012 呈现「加载失败 · 点击重试」块（登记见 `openspec/specs/client-page-structure`）**；页面细则以本文件 §4 为准）。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`（原 `docs/web-ui.md` 已删除，勿再引用）。
 - **小程序图标统一使用 SVG 矢量图标**（本地 `client/src/assets/icons` 优先，缺失从阿里云矢量库 Iconfont 经 MCP 拉取）：搜索=ic-search、位置=ic-location、喜欢=ic-heart、有用/点赞=ic-thumb、热门=ic-fire、限时=ic-clock、猜你喜欢=ic-lightbulb、分享=ic-share、评价=ic-comment、发布=ic-plus、举报=ic-report（图标映射见本 § 上文列表）。语义唯一：ic-heart=喜欢（不与点赞混用）、ic-thumb=有用/点赞；**收藏功能已移除，无收藏图标**。**禁止 emoji 字符充当图标**。
@@ -277,7 +281,7 @@
   - **事件绑定统一 `@tap`**：小程序内所有可点元素事件绑定统一用 `@tap`，**禁止**混用 `@click`（uni-app 编译 mp-weixin 时 `@click` 行为与 `@tap` 不一致，易致命中区/手势异常）。
   - **按压反馈统一走 `background: var(--color-bg-soft)`（或 `opacity` 微降），废止 `transform: scale` 按压（2026-09-12 拍板）**：mp-weixin 下 scale 按压易致卡片边缘溢出/裁剪，小程序端（`client/`）统一 bg-soft 按压语言；**适用范围 = 小程序端**——Web 管理端（`web/`）登记豁免：mp-weixin 的边缘溢出问题在 DOM 端不成立，`scale(var(--press-scale))` 按压（`web/src/styles/variables.css` 的 `--press-scale` + `web/src/directives/press.ts`）**维持使用，不受本条与 grep-zero 约束**。小程序端非按压强调 scale 仍须量化独立 token 登记。原小程序侧 `--press-scale` token 作废（`client/src/theme/tokens.ts` 不再有该键）。可点元素按下反馈（`.pressed` 类、`@tap` 触发元素的 `:active`、`.sheet-option`、`.cell`、action icon 等）一律不得写裸 `scale(...)`。适用范围覆盖**所有交互元素**：`.pressed` 类、`@tap` 触发元素的 `:active`、`.sheet-option`、`.cell`、action icon 等一律不得写裸 scale 值。**grep 期望 0 处裸 `scale(...)`（范围限 `client/`；`web/` 的 `scale(var(--press-scale))` 为本条已登记豁免）**（`pages/me/profile/index.vue` 的注释说明除外，仅注释、非样式规则），整改后须复验此 grep-zero 期望不破。⚠️ **裸 scale 红线（按压 scale 已废止，改走 bg-soft）**：仅「非按压强调 scale」（如 tab 选中放大高亮 `scale(1.05)`）须量化为独立 token（如 `--tab-active-scale`）并在 `client/src/theme/tokens.ts` 登记，方不作为 grep-zero 违规——未登记的非按压 `scale(...)` 仍计入 grep-zero 违规。
   - **图标统一走 `IconSvg`**：所有功能 / 情感图标一律经 `<IconSvg name="…" />` 渲染 `client/src/assets/icons` 下 SVG，**禁止**手写 `<text>+</text>`、`content: '+'`、`✦` 等文本 / Unicode 字符当图标（与 §4.2 / §4.9 emoji 红线同源强化）。⚠️ **`IconSvg` 必须注册中性 `empty` 占位键，缺失/未注册键禁止静默回退到语义图标**：`IconSvg` 内部**不得**采用 `ICONS[name] || ICONS.dish` 这类「未命中键静默落到语义图标（如 `dish` 碗）」的回退写法——拼写错误 / 未注册键（如 `name="empty"`）会无声渲染成菜品碗，造成「空状态显示菜品碗」这类静默语义 bug。须注册专用 `empty` 中性占位键（不可见/中性占位 SVG），缺失键渲染该占位键而非语义图标；**`IconSvg` 现已在 dev 环境（`import.meta.env?.DEV`）对未知 `name` 触发 `console.warn`（仍暂回退 `dish` 以保渲染，但告警已落地）**，便于及时发现拼写/注册遗漏。⚠️ **审计须 diff 字符串字面量 icon 与 `ICONS` keys，防未注册键漏网**：凡以**字符串字面量**向 `SettingCell` / `TabBar` / `ContributeSheet` / `AppButton` 等组件传入 `icon`/`name` 属性（而非动态键），审计时须与该组件实际读取的 `ICONS` 注册键做 diff，确认每个字面量均已注册；未注册键（如第八轮 `profile/index.vue:58` 的 `folder` 未注册、静默成碗）即便 dev `console.warn` 也不得放过，须登记整改——`console.warn` 仅辅助发现、不替代静态 diff 核查。⚠️ **中性占位必须为 `empty`（非 `dish`），且覆盖「IconSvg 回退目标」与「任何硬编码 ImageFallback / 破图占位」两处**：① `IconSvg` 的回退目标（含 dev 告警后的兜底落点）必须落在 `empty` 中性占位键，**不得**保留 `dish` 语义图标在中性占位语境的残留；② `ImageFallback.vue` 等全局图片裂图兜底组件的模板**硬编码**占位（如 `name="dish"`）一律改为 `name="empty"`——破图 / 空态语境禁止用语义图标（碗 `dish`）冒充中性占位（头像 / 档口 / 评价图加载失败全显示成碗属静默语义 bug，且该类硬编码不触发未注册告警，是第九轮新发现的全局兜底组件高危盲区）。⚠️ **审计须 grep 模板 `name="dish"` / `name="empty"` 逐文件核对中性语境**：凡模板出现 `name="empty"` 须确认确为中性占位语义；凡出现 `name="dish"` 须确认是「菜品 / 档口图语义」而非破图 / 空态占位冒充——两处（IconSvg 回退目标 + ImageFallback 等硬编码兜底）须同时落 `empty`，方算 IconSvg 红线收口。⚠️ **中性占位边界细化（第十轮收官补强）**：仅当组件语义**明确**为「菜品」时（如 `DishCard` 的菜品图占位）才可用 `dish` 作图片占位；**食堂卡 / 档口关联 / 关于页 / 通用轮播等容器语义≠菜品的中性场景一律用 `empty`**（如 `home` 食堂卡、`find` 搜索建议 `suggestIcon`、`RelatedPickerSheet` 非菜品关联项、`settings` 关于页、`ImageSwiper` 通用轮播等），不得用 `dish` 冒充中性占位。图标语义契约（10 轮迭代已稳定）：`thumb`=有用/点赞、`heart`=喜欢、`star`=评分，三者互不混用。
-  - **底部抽屉 / 弹窗规范**：各类底部抽屉 / 弹窗须含 `env(safe-area-inset-bottom)` 安全区避让；开合**瞬开瞬关**（无进出 transition，§4.3 capability 拍板），不保留进出场缓动与 reduced-motion 交叉淡入降级条款（无过渡动效时自然满足）。
+  - **底部抽屉 / 弹窗规范**：各类底部抽屉 / 弹窗须含 `env(safe-area-inset-bottom)` 安全区避让；开合**瞬开瞬关**（无进出 transition，§4.3 capability 拍板），不保留进出场缓动与 reduced-motion 交叉淡入降级条款（无过渡动效时自然满足）。**⚠️ Web 端豁免（2026-09-15 PM 拍板「动效分处置」登记，依据 `docs/loop/design/frontend-ui-consolidation.md` UI-02）**：Web 弹层（`Modal`/`ConfirmDialog` 等 DOM 弹窗）**保留 220ms scale+opacity 开合过渡**，不受「瞬开瞬关」约束（同 §4.9 已登记的 Web `scale(var(--press-scale))` 豁免同构：mp-weixin 限定向 DOM 端不成立）；小程序端维持瞬开瞬关**不变**。**卡片类装饰性入场动画全端删除（同批拍板）**：`@keyframes sc-enter` 及其配套 `delay` prop（如 Web `StatCard`）属装饰性入场动效，**client + web 全端删除**，对齐 §4.3「不引入装饰性入场动效」，删除后 grep `sc-enter` 全端期望 0 处。
   - **`<swiper indicator-active-color>` / `<swiper indicator-color>` 裸 hex 为例外**：该原生属性（含激活态 `indicator-active-color` 与非激活态 `indicator-color`）不支持 `var()`，允许写裸 hex，但**须在 `client/src/theme/tokens.ts` 注释登记**（注明对应 token 名，便于全局改色时同步），不作为红线违规。
   - **UGC 配图与内容安检（2026-09-13 拍板恢复）**：评价与反馈**恢复配图**（各 ≤3 张，`wx.compressImage` 压缩至**最长边 ≤1334 且文件 ≤1MB** 后上传），**全部 UGC（文本 + 图片）须过微信内容安检**（链路与契约详见 §5.a）；配图入口须复用统一配图组件，**禁止**页面内联复制「+ 添加图片」上传逻辑 / 裸加号文本（`IconSvg name="plus"` 在配图组件内部作为「添加图片」触发语义使用，页面级仍仅用于非图片「添加」）。**用户头像单图上传**（`pages/me/profile/index.vue`，内联 `uni.chooseImage` + 受 `canSubmit` 门控的「延迟上传」流程，登记为合法例外）与后台录入菜品图片（Web 端）维持既有链路，不占用 UGC 配图契约。⚠️ **历史口径作废登记**：原「UGC 图片已全量下线、评价区与反馈表单均无图片入口、不得再新增 UGC 配图入口」（2026-09 `prelaunch-loop-closure`）条款**随本条一并作废**——此前按该口径落地的走查清单条款不再执行；grep 自检时以本条与 §5.a 口径为准（历史拍板记录保留「曾下线 → 2026-09-13 恢复为带安检的配图」演进说明）。
   - **分区标题复用 `SectionTitle`**：所有分区 / 区块标题一律渲染 `<SectionTitle title="…" />`；`CardSection` 内部**不另起**一套标题语言（不得手写 `.section-head`+`.section-title` 竖条 / 纯文字标题模拟 accent 条），表单内字段级 label 属字段语义允许纯 text。
@@ -291,7 +295,7 @@
 - 命名：Java PascalCase、字段 / 方法 camelCase；DB snake_case（MP 自动驼峰）；前端 TS camelCase，Web 经 `api/adapter.ts` 转换，禁止 View 层直接处理字段名。
 - 所有 API 响应含 `code/message/data`；前端 `http.ts` 判定 `code!==200` 抛异常，页面 try-catch，Store fetch 失败置空数组不向上抛。
 - Controller 入参 DTO + `@Validated`；Service 写操作 `@Transactional`；评分 / 点赞计数走 Spring 事件异步维护，禁止主流程内联重算。
-- 内容审核流：学生提交 `audit_status=pending` → 管理员 `approved/rejected`（退回必填 `reject_reason` 并回显）；小程序仅展示 `approved` 且上架 / 营业中；评价 `is_hidden` 控制可见性；Web「菜品审核」「评价审核」为独立模块。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`，**学生侧无编辑重提**（历史存量 pending 菜品仍可由后台审核）；学生菜品需求走反馈 `add` 类型由后台手工录入闭环。下架 / 变更类诉求走反馈 `error` 类型（关联菜品）承载，无独立申请表（`apply_action` 已于 2026-09-12 随贡献链路下线删除，见 §0.3）。
+- 内容审核流（**2026-09-15 蓝图 v1 修订，见 §7.23 第 4 条**）：**菜品无独立审核**——管理员录入 / 编辑即生效（`audit_status=approved`），Web 端**不再有**「菜品审核」模块、菜品列表**删除审核列**、菜品详情**删除审核态与 `reject_reason` 回显**；`dish.audit_status` / `dish.reject_reason` 为已退役历史列，**不再扩展**。**评价为先发后审**（无 `audit_status`；对外可见条件 = `is_hidden=0` 且 `sec_state='pass'`，见 §7.4）。**反馈 / 举报是唯一有待处理态的运营对象**（`status=pending/handled`；处理必填回执 `reply`，**不采纳 / 退回必填 `reject_reason`**，见 §7.16 第 2 条与 §7.23 第 5 条）。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入后即 `approved`，学生侧无编辑重提；学生菜品需求走反馈 `add` 类型由后台手工录入闭环。*（2026-09-15 蓝图 v1 修订：删除原「历史存量 pending 菜品仍可由后台审核」——菜品无独立审核，后台无审核入口，存量 pending 由一次性脚本归一为 `approved`，见 §7.23 第 4 条。）*下架 / 变更类诉求走反馈 `error` 类型（关联菜品）承载，无独立申请表（`apply_action` 已于 2026-09-12 随贡献链路下线删除，见 §0.3）。
 - **认证**：微信打开静默登录（`wechat-login`）即游客态；UGC 写操作需 `verified=true`（邮箱验证码认证）；**废除账号密码 / 注册**（管理后台亦无登录体系，改为环境变量口令，见 §5.y.5）。评价一人一菜一条（`uk_review_user_dish`）、点赞一人一票（`uk_useful_user_review`），业务代码须与唯一键一致。
 - 小程序请求超时 8s、管理端 5s；API 基地址集中 `api/config.ts` 的 `API_BASE_URL`，禁止硬编码 URL。
 - **首页不消费广播数据**：首页信息来源仅为菜品接口（推荐 / 筛选结果），不设信息流广播位；原运营广播 `Broadcast` 实体（ADMIN 录入通知条）方案已废弃，`broadcast` 表已于 2026-09-13 随公告全链路下线删除（见 §0.5）。
@@ -375,7 +379,7 @@
 - **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner/广播契约，二者均已移除后保留为通用跳转字段规范）；评价状态 `isHidden`(0/1) 非 `isDeleted`；UGC 配图字段统一 `images`（字符串数组，≤3 项 COS URL）、安检态字段统一 `secState`(`pass`/`review`/`rejected` 三态)（评价 / 反馈 VO 与提交请求标准字段，见 §5.a）；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
 - **错误码统一**：成功 200 / 参数 400 / 未登录 401 / 无权限 403 / 服务器 500（**4031 邮箱未认证例外见 §3 与 §7.7 第 1 条**：`4031`=需邮箱认证（弹认证引导）、`403`=无权限或需微信登录（提示 message，不弹引导））；**401 统一处理**（2026-08-19 更新）：小程序 `http.ts` 对 401 先确保静默登录再自动重试一次，仍失败才 `handleUnauthorized`（清 token + Toast + 重新微信静默登录），`handleUnauthorized` 有并发去重防登录风暴；**不再用 `uni.$emit('auth:unauthorized')` 事件总线**（规避 HMR 重复订阅泄漏）；**web `http.ts`（管理后台）** 的鉴权失败（401/403）统一提示口令无效（`VITE_ADMIN_TOKEN` 配置错误）——**管理端无登录页**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废：不再跳转 `/login`、不再清 `localStorage.token`）。
 - **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/mine/index.vue` 的「我的收藏」、`pages/detail/dish/index.vue` 底部收藏按钮、`my-favorites` 页），统一移除。语义仅保留 `ic-heart=喜欢`（点赞/喜欢，非收藏）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
-- **状态枚举**：Dish `status` on/off（`audit_status` pending/approved/rejected）；**Canteen/Stall 无 `status` 枚举**（停业/实体审核语义已随去实体化下线，2026-09-14 Q-119，见 §7.22 第 3 条）；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举（仅用于菜品）。（Banner 及 Broadcast/Activity 已随公告/活动下线移除）
+- **状态枚举**：Dish `status` on/off（**`audit_status` 为已退役历史列，2026-09-15 蓝图 v1 见 §7.23 第 4 条：菜品无独立审核，恒为 `approved`**）；**Canteen/Stall 无 `status` 枚举**（停业/实体审核语义已随去实体化下线，2026-09-14 Q-119，见 §7.22 第 3 条）；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举（仅用于菜品）。（Banner 及 Broadcast/Activity 已随公告/活动下线移除）
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
 - **学生 UGC 路径**：学生端**无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线，客户端零消费）；**菜品由管理员录入**（`/admin/dishes/**`），学生提交菜品需求走意见反馈 `add` 类型（`POST /feedback`）由后台处理。学生端保留的 UGC 写操作 = 写评价 / 评价点赞 / 删本人评价——均需 `verified=true`（见 §5.y 权限矩阵）；反馈与举报公开免认证；`POST /dishes/{id}/view`（浏览埋点）与全部 GET 接口保留。严禁 `/stall-owner/**`。（学生提交档口/食堂 `POST /my/stalls` 已随功能移除，2026-08-18）
 - **分页结构**：列表接口统一 `PageResult<T>{ records, total, page, pageSize }`；单页非分页返回 `List<T>`。
@@ -427,7 +431,7 @@
 - 邮箱登录账号：补做一次微信登录（取得 openid）后即可发 UGC。
 - 机检失败为 **fail-closed**（`ContentSecurityServiceImpl` 抛 500 拦截，不放行）；图片 >1MB 直接拒绝上传。
 - **适用范围**：本双约束仅适用于**公开可见的评价内容**。反馈 / 投稿 / 举报不在此约束内（见 §7.7 第 1 条）。
-> **准入范围收窄（2026-09-14 补充）**：本双约束**仅作用于 `POST /reviews`（写评价正文与配图）**。评价「有用」点赞（`POST /reviews/{id}/useful`）仅需登录，不受本约束（见 §7.8 第 3 条）。
+> **准入范围收窄（2026-09-14 补充；2026-09-15 蓝图 v1 修订，见 §7.23 第 2 条）**：本双约束**仅作用于 `POST /reviews`（写评价正文与配图）**。评价「有用」点赞（`POST /reviews/{id}/useful`）**不受 §7.5 的 openid 约束，但需 `verified=true`（学号邮箱认证）**——未认证返回 **`4031`** 并弹 `AuthSheet` 认证引导。**原「点赞仅需登录」表述作废**（见 §7.8 第 3 条与 §7.19 第 4 条同步修订）。**代码锚点：`ReviewController#toggleUseful`（`ReviewController.java:128`）的 `@RequireVerified` 为准——本次是文档对齐代码，代码不动。**
 
 ### 7.6 收藏：不存在，且不做（措辞勘误）
 - 产品确认**无收藏功能**（2026-08-12 全量移除复核），后续也不做。
@@ -447,9 +451,10 @@
 
 ### 7.8 第二轮对齐决议（2026-09-14 用户拍板）
 
-1. **管理端菜品直接生效**：管理员在后台**新增/编辑**菜品时，`audit_status` 直接置 `approved`（管理员即权威）。理由：`dish.audit_status` 建表默认 `pending`，而小程序端**仅展示 `approved`**，若不显式置位则后台新录入的菜品全部不可见（2026-09-14 实测：现有 31 条为种子脚本写入的 approved）。「审核中心」保留给学生投稿链路（feedback → 管理员人工录入）使用，不作为管理员自录菜品的必经环节。
+1. **管理端菜品直接生效**：管理员在后台**新增/编辑**菜品时，`audit_status` 直接置 `approved`（管理员即权威）。理由：`dish.audit_status` 建表默认 `pending`，而小程序端**仅展示 `approved`**，若不显式置位则后台新录入的菜品全部不可见（2026-09-14 实测：现有 31 条为种子脚本写入的 approved）。*（2026-09-15 蓝图 v1 修订，见 §7.23 第 4 条：原「『审核中心』保留给学生投稿链路使用」表述作废——**菜品无独立审核**，`/admin/audit/**` 已于 2026-09-14 Q-107 删除，学生投稿（反馈 `add`）由管理员**在反馈处理中人工编辑后录入菜品**，不经任何审核中心。）*
 2. **投稿形态**：学生投稿新菜品沿用**现有反馈表单**（自由文本 + 配图 ≤3 张），**不新增结构化字段**；由管理员人工解析后在菜品管理页录入。`type=add` 为新增菜品、`type=error` 为信息纠错。
-3. **点赞准入**：评价「有用」（`POST /reviews/{id}/useful`）**仅需登录（STUDENT）**，**不适用 §7.5 双约束**。理由：点赞不产生公开可见内容、不触发内容机检。§7.5 的双约束**仅约束「产生公开可见内容并需机检」的评价正文与配图（`POST /reviews`）**。
+3. **点赞准入**（**2026-09-15 蓝图 v1 修订，见 §7.23 第 2 条**）：评价「有用」（`POST /reviews/{id}/useful`）**需学号邮箱认证（`verified=true`）**——未认证返回 **`4031`**，端上弹 `AuthSheet` 认证引导（入口不置灰）；**不适用 §7.5 双约束中的 openid 约束**（点赞不产生公开可见内容、不触发内容机检，故不要求 openid）。§7.5 的双约束**仅约束「产生公开可见内容并需机检」的评价正文与配图（`POST /reviews`）**。
+   *变更说明*：原「**仅需登录（STUDENT）**」表述与 §5.y.4「UGC 写操作需 `verified=true`」及代码（`ReviewController.java:128` `@RequireVerified`）冲突，**本次为文档对齐代码，代码保持不动**；§7.5 末段与 §7.19 第 4 条同口径修订。
 4. **处理反馈**：举报/反馈被处理时**通知提交人**（复用既有 `TYPE_FEEDBACK_HANDLE` 通知机制），并对外承诺 **48 小时内处理**（小程序端反馈/举报说明文案需体现该承诺）。
 
 ### 7.9 字段语义定型决议（2026-09-14 用户拍板 · 第 4 批）
@@ -550,7 +555,7 @@
 1. **PR-01 立为产品硬原则（Q-101，用户确认）**：任何面向用户的筛选 / 展示维度，**必须先在后台有录入入口且能真正落库**，否则不得放出该维度。依据根因：`dish.spice_level` 已上线筛选却从不写入（筛选恒空）、`dish.alias` 表单有输入框但 payload 不送达 —— 均为「有维度无数据」的假功能。原则全文与违反后果见 §7.20 PR-01。
 2. **PR-02 立为产品硬原则（Q-102，用户确认）**：同一业务口径（**排序 / 分页 / 鉴权 / 错误码**）的权威方**固定为后端**，端上**只消费不覆写**；文档与代码冲突时一律**以最新拍板决议为准**，**不得据代码现状反推文档**。原则全文与违反后果见 §7.20 PR-02。
 3. **「品类」维度不做（Q-103，用户确认，原话：不做品类，删除死链路）**：首页与搜索**不提供品类筛选**。连带删除端上死链路——`client/src/api/category.ts`、store 的 category 分支、品类滚轮 UI，以及后端零消费接口 `GET /categories` 的端上调用；**后端 `GET /categories` 的存废已定（2026-09-14 Q-117，见 §7.22 第 1 条）：保留，仅供后台菜品归类用途，不再作为端上筛选数据源**（原「随清理排期另行处置」表述按此收口）。**本项同时登记进 §0.5「已下线 / 不再投入」清单**（恢复须重新拍板）。依据：§7 四维筛选（食堂 / 价格 / 辣度 / 热度）未含品类，且端上零消费（PR-04 / PR-05）。
-4. **评价「有用」点赞开放并让置顶生效（Q-104，用户确认）**：菜品详情页**恢复「有用」按钮**（准入只需登录，未登录 / 未认证给引导，口径见 §7.8 第 3 条与 §7.5 末段）；端上**不得覆写评价排序**，公开评价列表一律按后端默认（**有用数优先**）展示。本项**落实** §7.14 第 2 条（默认按有用数置顶）与 §7.18 第 3 条（不提供排序切换的单一默认）——即：隐式覆写 `sort='latest'` 与硬编码隐藏「有用」按钮的现实现，均须按本条清除。
+4. **评价「有用」点赞开放并让置顶生效（Q-104，用户确认；准入口径 2026-09-15 蓝图 v1 修订，见 §7.23 第 2 条）**：菜品详情页**恢复「有用」按钮**（**准入 = 需 `verified=true`**：未认证返回 `4031` → 弹 `AuthSheet` 认证引导，**入口不置灰**；原「准入只需登录」表述作废，口径见 §7.8 第 3 条与 §7.5 末段）；端上**不得覆写评价排序**，公开评价列表一律按后端默认（**有用数优先**）展示。本项**落实** §7.14 第 2 条（默认按有用数置顶）与 §7.18 第 3 条（不提供排序切换的单一默认）——即：隐式覆写 `sort='latest'` 与硬编码隐藏「有用」按钮的现实现，均须按本条清除。
 
 > 本轮 6 路审计共 **44 条**问题（P0×7 / P1×6 / P2×11 / P3×20），清单见 `docs/loop/audit/2026-09-14-CONSOLIDATED.md`（引用即可，不在本文件复制全表）。
 
@@ -602,9 +607,53 @@
    - **与 §0.5 / §7.19 第 3 条「不做品类筛选维度」的边界（重要，二者不矛盾）**：§0.5 与 §7.19 第 3 条否掉的是**面向用户的筛选 / 展示维度**（首页与搜索不提供品类筛选，端上品类死链路已删）——**该结论不变**；本条管的是**后台内部的数据组织能力**（保留 `category` 表、`/admin/categories` 增删改启停、菜品 `categoryId` 归类字段）。一句话：**品类只在后台存在、只服务管理员的归类需要，不出现在学生端任何位置**。
    - **落地口径**：`GET /categories` 仅保留为后台归类用途（**不再作为端上筛选数据源**）；`DishQueryReq.categoryId` 保留为后台归类查询维度，**端上不传**（端上无品类筛选入口）。本项与 PR-01（有录入入口且能落库才可放出维度）一致——品类有后台录入、可落库，但**不放出到端上**，故不构成假功能。
 2. **Q-109 热度权重常量删除，口径只留 SQL（用户已确认）**：**删除 Java 侧 `DishHeatWeights` 常量**。**热度权重的唯一真源为 `DishMapper.xml` 的 `heatScoreExpr` SQL**；不存在第二处常量，调整权重直接改该 SQL 并同步本节。本项**修订** §7.13 第 4 条与 §7.15 第 2 条中「与 Java 侧 `DishHeatWeights` 常量保持等价 / 两处同步修改」的表述（该等表述作废）；对应代码注释已同步（`DishMapper.xml`、`DishService`）。本项**落实** PR-05（冗余边界：零消费常量应删除）与 PR-02（口径单一真源）。
-3. **Q-119 食堂 / 档口停业与实体审核列下线（用户已确认）**：确认 DROP `canteen.status` / `canteen.audit_status` / `canteen.reject_reason` / `stall.status` / `stall.audit_status` / `stall.reject_reason` 共 6 列（对应 §7.21 第 7 条「属性字典」语义的库表落位）。**同时说明：菜品的 `dish.status` / `dish.audit_status`（及 `reject_reason`）保留**——下架与审核语义仍在 `dish` 上，菜品上下架、审核流与「管理员录入即 `approved`」（§7.8 第 1 条）均不变。列下线**只允许改 `server/src/main/resources/db/` 下幂等脚本**（`schema.sql` 的 `drop_canteen_stall_entity_fields` 存储过程，先判存在再 DROP，可重复执行），**禁止直连 ALTER**。本项**收敛并代表** §7.14 第 4/5 条、§7.15 第 1 条、§7.16 第 1 条、§7.21 第 7 条在库表层的落地口径。
+3. **Q-119 食堂 / 档口停业与实体审核列下线（用户已确认）**：确认 DROP `canteen.status` / `canteen.audit_status` / `canteen.reject_reason` / `stall.status` / `stall.audit_status` / `stall.reject_reason` 共 6 列（对应 §7.21 第 7 条「属性字典」语义的库表落位）。**同时说明：菜品的 `dish.status` 保留**（下架语义仍在 `dish` 上）；`dish.audit_status` / `dish.reject_reason` **列保留但语义已退役**（2026-09-15 蓝图 v1，见 §7.23 第 4 条：菜品无独立审核，恒写 `approved`，后台无审核入口；原「审核流仍在 `dish` 上」的表述按此作废）。列下线**只允许改 `server/src/main/resources/db/` 下幂等脚本**（`schema.sql` 的 `drop_canteen_stall_entity_fields` 存储过程，先判存在再 DROP，可重复执行），**禁止直连 ALTER**。本项**收敛并代表** §7.14 第 4/5 条、§7.15 第 1 条、§7.16 第 1 条、§7.21 第 7 条在库表层的落地口径。
 4. **Q-120 评分历史数据重算授权（用户已确认）**：用户**授权**在部署后执行**一次性**评分历史数据重算。脚本：`server/src/main/resources/db/fix_rating_by_sec_state.sql`——**幂等、只改数据不改结构**（全量覆盖式 UPDATE，不含 DROP / ALTER），执行前**先备份** `dish` 表（至少 `id` / `avg_rating` / `rating_count` 三列）；**不得并入 `schema.sql` 自动执行路径**。本项**落实/收紧** §7.21 第 4 条与 §8「待运维执行」条目（原「重算脚本由后端提供、执行前需双方确认」已满足：脚本已就位、用户已授权执行）；**执行动作仍由用户执行**。
 5. **Q-115 食堂 / 档口字典的能力集合（用户已确认）**：字典**只允许**「**新增 / 改名（编辑） / 列表查看（供菜品选择与端上筛选）**」三类能力；**不提供删除**（用户拍板：不保留删除，只能改名纠错）。本条**细化** §7.20 PR-14 与 §7.21 第 7 条的「新增 / 改名」生命周期表述——「新增 / 改名」为**写操作**全集，另含**只读**的列表查看；并登记进 §0.5「明确不做」清单。对应实现：`/admin/canteens`、`/admin/stalls` 仅有 GET（列表）/ POST（新增）/ PUT（编辑），**无 DELETE**（见 `canteen/controller/admin/CanteenAdminController.java`）。
+
+### 7.23 项目框架与蓝图 v1（2026-09-15 用户拍板）
+
+> 决策来源：用户 2026-09-15 拍板「项目框架与蓝图 v1」。**本章是产品框架总纲，效力高于本文件其他小节的历史表述**（§0.0 产品定型一页纸除外：二者共同构成产品宪法，冲突时以 §0.0 为准）。本次已就地修订与本章冲突的旧表述并标注变更来源：§0.0 支柱②③、§0.0 定型增补、§0.2、§0.3 两行、§0.5 第 4 条、§2.1.4 反馈重设计、§5「内容审核流」、§7.5 末段、§7.8 第 3 条、§7.19 第 4 条。
+>
+> **一句话定位**：交大人的「吃什么不踩雷」——**以菜品为唯一核心实体**的校园菜品信息展示与检索平台。
+
+**五条框架原则**
+
+1. **菜品是唯一核心实体**。食堂 / 档口是菜品的**属性**（`dish.canteen` / `dish.stall`）：**不独立成页、不独立建档、不提供删除**（承 PR-14 与 §7.22 第 5 条）。**录入菜品时若食堂 / 档口名不存在，由后端 upsert 自动入库**（契约见下「派生契约变更」）。
+2. **UGC 只有两种形态**（本次同步修订 §0.0 支柱②）：
+   - **评价**——写 / 点赞 / 删本人评价，**需 `verified=true`**（学号邮箱认证；未认证 `4031` + 弹 `AuthSheet`，入口不置灰）。
+   - **反馈**——`POST /feedback` **公开提交、无需登录、无需认证**（可配图 ≤3 张）。
+3. **学生对菜品的一切诉求 = 反馈**（唯一通道，无第二条）。写入真源（**取自小程序反馈收集表，勿臆造**）：
+
+   | type | 含义 | 关联字段 | 生产者 |
+   |---|---|---|---|
+   | `add` | 新增菜品投稿 | — | 反馈页「推荐菜品」 |
+   | `error` | 信息纠错 / 申请下架 | `relatedType=dish` + `relatedId` | 反馈页「信息不对」+ 菜品详情纠错入口 |
+   | `report` | 举报 | `relatedType=review` + `relatedId` | 评价卡「举报评价」（`ReportModal`） |
+   | `suggestion` | 建议 / 问题 | — | 反馈页「提个想法」；**二级 `sub=idea`（建议）/ `sub=problem`（问题）** |
+
+   - **`bug` / `other` 为历史遗留枚举位**：无生产者、**禁止新增**；仅保留在**查询**白名单（`FeedbackConst.QUERY_TYPES`）以筛存量数据。**「系统 bug」不升为一级类型，归入 `suggestion` 的二级「问题」（`sub=problem`）**。
+   - **Web 端在「反馈处理」中统一处理上述诉求**，处理动作即实际的录入 / 修改 / 下架菜品（**不得**做「一键转菜品」，见 §7.13 第 1 条）。
+4. **菜品无独立审核**。管理员录入 / 编辑即生效（`audit_status=approved`）；**学生的菜品诉求以反馈形式存在并由反馈处理闭环，客户端与后台均不出现「菜品审核」概念**。
+   - **契约断裂的消除方式（两件事都要做，缺一不可）**：① **前端下线审核展示**——Web 菜品列表删除审核列（`DishManageView` 的 `auditMetaOf` / `rejectReasonOf`）、Web 菜品详情删除「审核」行与「退回原因」行（`DishDetailView`）、小程序 `types/dish.ts` 的 `AuditStatus` / `Dish.auditStatus` 零消费则删除；② **一次性脚本把存量 `dish.audit_status` 归一为 `approved`**——`server/src/main/resources/db/normalize_dish_audit_status.sql`（幂等、只改数据不改结构、不并入 `schema.sql` 自动执行路径，**执行动作由用户执行**）。
+   - `dish.audit_status` / `dish.reject_reason` 自此为**退役历史列**：列保留、不再扩展、业务代码不再写入新值。
+5. **反馈处理是唯一的运营闭环**：
+   - **处理 = 标记已处理（`status=handled`）+ 回执**（`reply` 必填、1~1000 字，见 §7.16 第 2 条）→ 已认证提交人收到站内通知 `feedback_handle`（游客不投递、不阻塞，见 §0.1 与 §2.1.4 匿名心智）。
+   - **不采纳 / 退回 = 必填 `reject_reason`**（不采纳原因，随回执一并向提交人展示；纯空白视为未填写 → `400`）。
+   - 反馈是**唯一的待处理运营对象**：Web 工作台「待处理反馈」待办与「48 小时内处理」承诺（§7.8 第 4 条）均挂在其上，口径不变。
+
+**管理端无密码体系（口径自洽，`DataInitializer` 删除后）**
+
+- 管理端**无账号、无密码、无登录**：`/auth/admin/login` 端点不存在（见 §5.y.5）；`/admin/**` 由 `AdminTokenFilter` 校验环境变量口令 `ADMIN_TOKEN`（请求头 `X-Admin-Token`，未配置 fail-closed 403）。
+- **`super_admin` / `SUPER_ADMIN` 已移除**：`user.role` 仅 `student` / `admin` **两层**数据语义（`RoleConst`），**不作权限分层**。
+- **`user.password` 为历史兼容列**：管理端与学生端**均不使用**（不校验、不写入、不展示）；**BCrypt 仅用于邮箱验证码哈希**（`email_verification_code.code_hash`），**不用于任何登录口令校验**。
+- **`DataInitializer`（dev 环境默认管理员 `admin/admin123` 与其 `PasswordEncoder` 依赖）整体删除**。删除后**不得**在任何端重建管理端账号 / 密码 / 角色分层——恢复须重新拍板（PR-04）。
+
+**派生契约变更（本次拍板落地清单，见文末「给下游的契约变更」）**
+
+- 后端：① `POST` / `PUT /admin/dishes` 支持**按名 upsert 食堂 / 档口**；② `PUT /admin/feedbacks/{id}` 支持「不采纳 / 退回」结论并校验 `reject_reason` 必填；③ 删除 `DataInitializer`；④ 点赞保持 `@RequireVerified`（**不动**）；⑤ 反馈类型写入白名单保持 `suggestion/add/error/report`（**不动**）。
+- Web：① 菜品列表删除审核列、菜品详情删除审核态与退回原因回显；② 反馈处理弹窗增加「不采纳 / 退回」结论与必填原因输入；③ 菜品表单支持直接输入食堂 / 档口名（不存在由后端自动建档）。
+- 小程序：① `types/dish.ts` 的 `AuditStatus` / `auditStatus` 零消费则删除；② `FeedbackSubmit['type']` 收口为四类真源（移除 `bug` / `other` 可写位）；③ 点赞按钮未认证走 `4031` → 弹 `AuthSheet`，**不得置灰**。
 
 ---
 
@@ -622,7 +671,10 @@
   - **品类死链删除（2026-09-14 Q-103，见 §7.19 第 3 条）**——`client/src/api/category.ts`、store 的 category 分支、品类滚轮 UI 及 `GET /categories` 的端上调用已删除；`GET /categories` 后端保留为**后台菜品归类用途**（2026-09-14 Q-117，见 §7.22 第 1 条，端上不呈现）。
   - **`portion`（分量）字段全链路下线（2026-09-14 Q-114，见 §7.21 第 8 条）**——DTO（`DishAdminReq`）/ 实体（`Dish`）/ VO（`DishVO`/`DishAdminVO`/`DishDetailVO`）/ Mapper 列映射 / 后台表单 / 端上映射全链路移除，`schema.sql` 以幂等存储过程 `drop_dish_portion` 下线存量列（先判存在再 DROP，可重复执行）。对应 PR-07（字段生命周期成对处置）。
   - **热度权重常量删除（2026-09-14 Q-109，见 §7.22 第 2 条）**——Java 侧 `DishHeatWeights` 常量已删除，热度口径唯一真源收敛为 `DishMapper.xml` 的 `heatScoreExpr` SQL；`DishMapper.xml` / `DishService` 注释同步说明「不存在第二处常量」。对应 PR-05 / PR-02。
-  - **食堂 / 档口去实体化与列下线（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）**——`canteen` / `stall` 的 `status` / `audit_status` / `reject_reason` 共 6 列与 `stall.business_hours` 整体下线（`schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` / `drop_stall_business_hours`），实体 / VO / Service 读写同批移除；字典能力收敛为「新增 / 改名 / 列表查看」，**无删除**。菜品 `dish.status` / `dish.audit_status` **保留**。
+  - **食堂 / 档口去实体化与列下线（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）**——`canteen` / `stall` 的 `status` / `audit_status` / `reject_reason` 共 6 列与 `stall.business_hours` 整体下线（`schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` / `drop_stall_business_hours`），实体 / VO / Service 读写同批移除；字典能力收敛为「新增 / 改名 / 列表查看」，**无删除**。菜品 `dish.status` 保留；`dish.audit_status` / `dish.reject_reason` **列保留但语义已退役**（2026-09-15 蓝图 v1，见 §7.23 第 4 条）。
   - **星级组件统一**——评价星级展示统一走同一星级组件（评分口径与「有用」置顶口径一致，见 §7.14 第 2 条）。
   - **失败态组件上提（RetryBlock，P3-03 / QA-09）**——「加载失败 · 点击重试」失败态块原在 my-reviews / notifications / HomeContent / find 四页各自完整复制（含独立模板与样式），已上提为公共组件 `components/RetryBlock.vue`（接收 `title` / `hint` / `aria-label` / `margin` 属性与 `retry` 事件）并完成 4 处替换；失败态呈现口径按 MP-012（`openspec/specs/client-page-structure` 登记），组件归位遵循 §2 组件组织原则。
+- **菜品无独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条）——文档已收口，代码 / 脚本待落地**：`dish.audit_status` / `dish.reject_reason` 退役为历史列；前端下线审核展示（Web 菜品列表审核列 + 菜品详情审核态/退回原因回显、小程序 `Dish.auditStatus`）；存量 `audit_status` 归一为 `approved` 由一次性脚本完成（见下「待运维执行」）。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **管理端密码体系收口（2026-09-15 蓝图 v1，见 §7.23）——文档已收口，`DataInitializer` 待删除**：dev 环境默认管理员（`admin/admin123`）与其 `PasswordEncoder` 依赖整体删除后，管理端无账号 / 密码 / BCrypt 登录校验 / `SUPER_ADMIN` 分层；`user.password` 为历史兼容列，**BCrypt 仅用于邮箱验证码哈希**。对应 PR-04（被否决项留痕）与 PR-05（死资产清理）。
 - **待运维执行（本轮登记，一次性，执行前须技术负责人与用户确认）**：**评分历史数据一次性重算**——Q-110 新口径（只计入 `is_hidden=0 AND sec_state='pass'`）生效前，被内容安检拦下的评价（`sec_state='review'` / `'rejected'`）已被计入 `avg_rating` / `rating_count`，需按新口径重算历史数据。**脚本已就位：`server/src/main/resources/db/fix_rating_by_sec_state.sql`（2026-09-14 Q-120 用户已授权执行，见 §7.22 第 4 条）**——脚本幂等、只改数据不改结构（全量覆盖式 UPDATE，不含 DROP / ALTER），执行前**先备份** `dish` 表（至少 `id` / `avg_rating` / `rating_count` 三列），**不得并入 `schema.sql` 自动执行路径**；**执行动作由用户执行**（对应 PR-08：聚合须声明真源与重算时机）。
+- **待运维执行（2026-09-15 蓝图 v1 登记，一次性，见 §7.23 第 4 条）**：**存量 `dish.audit_status` 归一为 `approved`**——配合「菜品无独立审核」，消除「存量非 approved 菜品在端上不可见」的契约断裂。脚本：`server/src/main/resources/db/normalize_dish_audit_status.sql`——**幂等、只改数据不改结构**（幂等 UPDATE，不含 DROP / ALTER），**不并入 `schema.sql` 自动执行路径**；执行前**先备份** `dish` 表（至少 `id` / `audit_status` 两列）；**执行动作由用户执行**。

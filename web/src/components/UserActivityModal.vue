@@ -143,7 +143,7 @@ function countOf(key: string): number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--font-xl);
   font-weight: var(--weight-semibold);
   flex-shrink: 0;
 }

@@ -24,6 +24,13 @@ export interface PageResult<T> {
   pageSize?: number
 }
 
+/**
+ * API 层 `get<T>` 的**定型分页载体**（MP-08）：裸数组或 { list | records, total } 二选一。
+ * 取代各 api 模块里的 `get<any>` / `recordsOf<any>`——后端 JSON 未按 OpenAPI 逐字段建模，
+ * 但「响应是分页结构」这一层是确定的，足以定型，不必退到 any。
+ */
+export type RawPage = PageResult<RawRow> | RawRow[]
+
 /** 从分页响应提取列表（任意形态均安全降级为空数组） */
 export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   if (!value) return []

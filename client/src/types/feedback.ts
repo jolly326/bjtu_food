@@ -1,10 +1,12 @@
 /** 提交反馈（project_spec.md §3.x.5：POST /feedback，公开可提交，无需登录）
  * 2026-08-17 重设计：type 支持 add（新增菜品）一级枚举。
- * 对齐后端 FeedbackReq：type 只传枚举 suggestion/error/add/bug/other/report，禁止复合串。
+ * 2026-09-15 收口（spec §7.23）：写入口径四类 suggestion / add / error / report。
+ * bug / other 为历史遗留枚举，**禁止新增写入**（后端对历史数据兼容读展示），
+ * 故从可写类型中移除；纠错子项「其他」走 error + content 结构化文本承载，不占用独立枚举。
  * 「新增菜品」为独立一级类型 add（对应 content 结构化文本）；纠错/举报的二级信息走 content/related 字段。
- * UGC 图片已全量下线，反馈仅提交纯文本（见 project_spec §0.5）。 */
+ * 反馈支持配图（≤3 张 COS URL，2026-09-13 拍板恢复，见 spec §0.5 与 images 字段）。 */
 export interface FeedbackSubmit {
-  type: 'suggestion' | 'error' | 'add' | 'bug' | 'other' | 'report'
+  type: 'suggestion' | 'add' | 'error' | 'report'
   content: string
   /** 反馈对象细分类型（error 信息纠错为 'dish'；type=report 举报为 'review'（评价）；未选实体可不传） */
   relatedType?: string

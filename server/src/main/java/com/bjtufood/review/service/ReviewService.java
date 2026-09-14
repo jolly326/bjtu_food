@@ -2,8 +2,6 @@ package com.bjtufood.review.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.review.dto.ReviewReq;
-
-import java.math.BigDecimal;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.dto.UsefulResult;
@@ -62,14 +60,6 @@ public interface ReviewService {
      * @return 分页评价列表
      */
     IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
-
-    /**
-     * 计算某档口的平均评分（星级 1-5，取该档口下所有菜品评价的平均值）
-     *
-     * @param stallId 档口ID
-     * @return 平均分（BigDecimal，保留两位），无评价返回 0.00
-     */
-    BigDecimal getAvgRatingByStallId(Long stallId);
 
     /**
      * 获取当前用户的评价列表（我的评价）

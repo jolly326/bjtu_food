@@ -1,6 +1,6 @@
 import type { Review } from '@/types/review'
 import { get, post, del } from './http'
-import { recordsOf, totalOf, type RawRow } from './shared'
+import { recordsOf, totalOf, type RawRow, type RawPage } from './shared'
 
 type ReviewTarget =
   | { type: 'dish'; id: number }
@@ -51,8 +51,9 @@ async function getReviews(
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 50,
   }
-  const res = await get<any>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
-  const list = recordsOf<any>(res).map(toReview)
+  // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
+  const res = await get<RawPage>(`/reviews`, { [`${target.type}Id`]: target.id, ...params })
+  const list = recordsOf<RawRow>(res).map(toReview)
   const total = totalOf(res)
   return { list, total }
 }
@@ -91,11 +92,12 @@ export async function deleteReview(reviewId: number): Promise<void> {
  * 排序由后端默认控制（按「有用数」置顶），前端不传 sort 覆写。
  */
 export async function getMyReviews(options?: { page?: number; pageSize?: number }): Promise<{ list: Review[]; total: number }> {
-  const res = await get<any>('/my/reviews', {
+  // MP-08：同 getReviews，响应定型为 RawPage / RawRow
+  const res = await get<RawPage>('/my/reviews', {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 20,
   })
-  const list = recordsOf<any>(res).map(toReview)
+  const list = recordsOf<RawRow>(res).map(toReview)
   const total = totalOf(res)
   return { list, total }
 }

@@ -1,4 +1,4 @@
-package com.bjtufood.dish.controller.admin;
+package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.auth.entity.User;
@@ -7,18 +7,17 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.entity.OperationLog;
 import com.bjtufood.common.mapper.OperationLogMapper;
-import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DashboardVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.StatsService;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,18 +27,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 工作台统计控制器（Web 后台 dashboard）
+ * 工作台统计服务实现（BE-03：自原 StatsController 整体下沉，逻辑零变化）
  * <p>
  * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，前端不消费热度排行 / 趋势字段，
  * 故不再执行全表菜品聚合与逐日趋势查询，仅保留「待办 + 规模指标 + 近期操作」。
  * <p>
- * 本类不暴露任何 HTTP 端点（无 @RequestMapping / @GetMapping），仅作为 DashboardController 的
- * 逻辑复用载体；原 api-design.md 记载的 GET /admin/stats/** 为幽灵端点（全仓零实现），不新建。
+ * 只读聚合，不加 @Transactional；每一项独立 try-catch 容错，保证工作台始终可加载。
  */
-@Tag(name = "数据统计（工作台）", description = "工作台总览：规模指标、待办明细、近期操作。逻辑由 DashboardController 复用。")
-@RestController
+@Service
 @RequiredArgsConstructor
-public class StatsController {
+public class StatsServiceImpl implements StatsService {
 
     private final DishMapper dishMapper;
     private final ReviewMapper reviewMapper;
@@ -51,8 +48,8 @@ public class StatsController {
 
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    /** 工作台总览：由 DashboardController 直接调用复用，不再暴露独立 HTTP 端点 */
-    public Result<DashboardVO> overview(int range) {
+    @Override
+    public DashboardVO overview(int range) {
         // 支持 week(7)/month(30)/all(90)；修复此前 range=all 被吞回 7 天的问题
         if (range != 7 && range != 30 && range != 90) range = 7;
         LocalDateTime since = LocalDate.now().minusDays(range).atStartOfDay();
@@ -78,7 +75,7 @@ public class StatsController {
         // ===== 规模指标 / 待办 / 明细 / 近期操作（逐项容错） =====
         fillExtended(vo);
 
-        return Result.success(vo);
+        return vo;
     }
 
     /** 扩展指标/待办/明细/近期操作：每一项独立 try-catch，失败给默认值，保证工作台始终可加载 */

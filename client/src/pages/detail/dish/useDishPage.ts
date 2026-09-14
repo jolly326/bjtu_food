@@ -19,7 +19,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
-import { useDishStore } from '@/stores/dish'
+import { useDishStore, LOADING_KEY_REVIEWS } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
@@ -45,8 +45,13 @@ export function useDishPage() {
   const currentUserId = computed(() => userStore.userInfo?.id)
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
   const reviewFailed = computed(() => dishStore.reviewError)
-  /** 评价在途（骨架态；有数据时不遮挡列表） */
-  const reviewLoading = computed(() => dishStore.loading)
+  /**
+   * 评价在途（骨架态；有数据时不遮挡列表）。
+   * MP-04：此前取 dishStore.loading =「是否有任意 dish 请求在飞」的全局聚合，
+   * 于是同一页面内的 fetchDetail / 其它搜索请求都会让评价区显骨架。
+   * 现按 key 只订阅评价那一个请求（LOADING_KEY_REVIEWS）。
+   */
+  const reviewLoading = computed(() => dishStore.isLoading(LOADING_KEY_REVIEWS))
 
   /** detail-modular-review-cleanup：评价卡内触底分页（不再跳转独立全部评价页） */
   const reviewPage = ref(1)
@@ -131,8 +136,9 @@ export function useDishPage() {
     return Math.min(1, Math.max(0, p))
   })
   const dishName = computed(() => (dish.value ? dish.value.name : '菜品详情'))
-  /** 页面级滚动同步（原内层 scroll-view @scroll 移除）：只驱动承接条/标题的 opacity，不再参与布局/位移 */
-  onPageScroll((e: any) => {
+  /** 页面级滚动同步（原内层 scroll-view @scroll 移除）：只驱动承接条/标题的 opacity，不再参与布局/位移。
+   *  平台例外：uni 滚动回调只声明本组件真正读取的字段（MP-08，替代裸 any） */
+  onPageScroll((e: { scrollTop?: number }) => {
     scrollTop.value = e?.scrollTop || 0
   })
   /** 页面滚动到底（原 scroll-view @scrolltolower）：评价触底加载下一页 */

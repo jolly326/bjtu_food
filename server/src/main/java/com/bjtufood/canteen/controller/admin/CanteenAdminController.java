@@ -7,15 +7,20 @@ import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "08. 后台食堂档口管理", description = "管理员维护食堂/档口筛选属性字典。生命周期仅「新增 / 改名（编辑）」，无删除、无停业/审核。需要管理员 token。")
+/**
+ * 后台食堂/档口字典接口（2026-09-15 蓝图 v1，project_spec §7.23 第 1 条）：
+ * 食堂/档口是菜品的属性，不独立建档——独立新增端点 {@code POST /admin/canteens}、{@code POST /admin/stalls}
+ * 已删除；字典的写入入口收敛为「菜品录入按名 upsert」（DishServiceImpl，同名不重复建档）。
+ * 本 Controller 仅保留只读列表与改名（编辑）能力。
+ */
+@Tag(name = "08. 后台食堂档口管理", description = "管理员维护食堂/档口筛选属性字典。生命周期仅「改名（编辑）＋列表查询」——独立新增端点已下线，"
+        + "新食堂/档口由菜品录入按名 upsert 自动建档（POST/PUT /admin/dishes 传 canteenName/stallName）。无删除。需要管理员 token。")
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
@@ -31,26 +36,8 @@ public class CanteenAdminController {
         return Result.success(canteenService.listAllForAdmin());
     }
 
-    @Operation(
-            summary = "新增食堂",
-            description = "用途：创建新的物理食堂/餐厅。images 字段传 JSON 字符串，例如 [\"/images/a.jpg\"]。",
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "name": "测试食堂",
-                      "images": "[\\"/images/seed/canteens/canteen-dining-hall.jpg\\"]",
-                      "location": "主校区",
-                      "description": "Swagger UI 测试新增食堂",
-                      "sortOrder": 99
-                    }
-                    """)))
-    )
-    @PostMapping("/canteens")
-    public Result<Void> addCanteen(@Valid @RequestBody Canteen canteen) {
-        canteenService.add(canteen);
-        return Result.success();
-    }
-
-    @Operation(summary = "编辑食堂", description = "用途：修改食堂名称、图片、位置、描述、排序、状态。")
+    @Operation(summary = "编辑食堂", description = "用途：修改食堂名称、图片、位置、描述、排序。"
+            + "新增食堂不再开放独立端点——由菜品录入按名 upsert 自动建档。")
     @PutMapping("/canteens/{id}")
     public Result<Void> updateCanteen(
             @Parameter(description = "食堂ID", example = "1")
@@ -61,33 +48,14 @@ public class CanteenAdminController {
         return Result.success();
     }
 
-    @Operation(
-            summary = "新增档口",
-            description = "用途：在指定食堂下创建档口。images 字段传 JSON 字符串。",
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "canteenId": 1,
-                      "name": "测试档口",
-                      "images": "[\\"/images/seed/canteens/canteen-food-counter.jpg\\"]",
-                      "location": "一层",
-                      "description": "Swagger UI 测试新增档口",
-                      "sortOrder": 99
-                    }
-                    """)))
-    )
-    @PostMapping("/stalls")
-    public Result<Void> addStall(@Valid @RequestBody Stall stall) {
-        stallService.add(stall);
-        return Result.success();
-    }
-
     @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看全部档口（筛选属性字典）。images 返回可访问的完整 URL 数组。")
     @GetMapping("/stalls")
     public Result<?> listStalls() {
         return Result.success(stallService.listAllForAdmin());
     }
 
-    @Operation(summary = "编辑档口", description = "用途：修改档口基础信息。")
+    @Operation(summary = "编辑档口", description = "用途：修改档口基础信息。"
+            + "新增档口不再开放独立端点——由菜品录入按名 upsert 自动建档。")
     @PutMapping("/stalls/{id}")
     public Result<Void> updateStall(
             @Parameter(description = "档口ID", example = "1")

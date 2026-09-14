@@ -38,13 +38,21 @@ function onTap(item: (typeof tabs)[number]) {
   uni.reLaunch({ url: item.url })
 }
 
+/**
+ * uni 路由拦截器入参的**最小接口**（MP-08）：本组件只读取目标 URL 一个字段，
+ * 故声明为 `{ url?: string }` 即可，无需退到裸 any（uni 未对 invoke 入参建模）。
+ */
+interface RouteInvokeArgs {
+  url?: string
+}
+
 // 跳转发起时即按目标 URL 判定显隐（URL 已知，不依赖页面栈就绪时序，最稳定）；
 // navigateBack 无可预知目标，待 complete（栈已更新）再据栈重算。
 // 主根页的初始显示由各自 onShow 锚定（见 pages/*/index.vue）。
-uni.addInterceptor('navigateTo', { invoke: (a: any) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('redirectTo', { invoke: (a: any) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('reLaunch', { invoke: (a: any) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('switchTab', { invoke: (a: any) => ensureTabForUrl(a?.url) })
+uni.addInterceptor('navigateTo', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
+uni.addInterceptor('redirectTo', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
+uni.addInterceptor('reLaunch', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
+uni.addInterceptor('switchTab', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
 uni.addInterceptor('navigateBack', { complete: () => syncRoute() })
 
 // 首屏兜底（主根页 onShow 才是可靠锚点，此处仅双保险）

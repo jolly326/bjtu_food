@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    CanteenCreateDialog: typeof import('./components/CanteenCreateDialog.vue')['default']
     ConfirmDialog: typeof import('./components/ConfirmDialog.vue')['default']
     DataTable: typeof import('./components/DataTable.vue')['default']
     DishFormDialog: typeof import('./components/DishFormDialog.vue')['default']
@@ -27,7 +26,6 @@ declare module 'vue' {
     FilterSelect: typeof import('./components/layout/FilterSelect.vue')['default']
     FormDialog: typeof import('./components/FormDialog.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
-    InlineSelectPanel: typeof import('./components/InlineSelectPanel.vue')['default']
     Modal: typeof import('./components/Modal.vue')['default']
     PageContainer: typeof import('./components/layout/PageContainer.vue')['default']
     PageHeader: typeof import('./components/layout/PageHeader.vue')['default']
@@ -35,7 +33,6 @@ declare module 'vue' {
     RenameEntityDialog: typeof import('./components/RenameEntityDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    StallCreateDialog: typeof import('./components/StallCreateDialog.vue')['default']
     StarRating: typeof import('./components/StarRating.vue')['default']
     StatCard: typeof import('./components/common/StatCard.vue')['default']
     StatusTag: typeof import('./components/StatusTag.vue')['default']

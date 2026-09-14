@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,7 @@ import java.util.Map;
  * 3. JwtAuthFilter 调用 validateToken() 校验 → 通过则放行
  */
 @Component
+@Slf4j
 public class JwtUtil {
 
     /** JWT 签名密钥（从配置读取） */
@@ -48,15 +50,31 @@ public class JwtUtil {
     private static final String DEV_DEFAULT_SECRET = "BjtuFoodDevSecretKey2024ChangeMe";
 
     /**
-     * 启动期 fail-fast：若仍使用仓库内置的默认弱密钥，直接阻断启动，
-     * 防止误用默认密钥导致任意用户 Token 可被伪造。
+     * 启动期 fail-fast（BE-11）：密钥缺失/过短/仍是仓库内置默认弱密钥时阻断启动，
+     * 防止误用默认密钥导致任意 userId 的 Token 可被伪造。
+     * <p>
+     * 口径（2026-09-15 裁决 B，全 profile 一致）：
+     * <ul>
+     *   <li>缺失或长度 &lt; 32 字节：HMAC-SHA 算法的硬要求（{@code Keys.hmacShaKeyFor} 会直接抛
+     *       WeakKeyException），<b>所有 profile 一律拒绝启动</b>；</li>
+     *   <li>等于仓库内置默认密钥：<b>所有 profile 一律拒绝启动</b>（与 README「禁止默认值」口径字面一致），
+     *       dev 不再放行——本地开发必须通过环境变量 JWT_SECRET 注入自己的密钥。</li>
+     * </ul>
+     * 配置层另有一道闸门：application-prod.yml 将 {@code jwt.secret} 覆盖为无默认值的
+     * {@code ${JWT_SECRET}}，prod 漏注入时占位符解析失败、启动直接终止。
      */
     @PostConstruct
     public void validateSecretOnStartup() {
-        if (secret == null || secret.equals(DEV_DEFAULT_SECRET) || secret.length() < 32) {
+        if (secret == null || secret.length() < 32) {
             throw new IllegalStateException(
                     "JWT 签名密钥强度不足：请通过环境变量 JWT_SECRET 注入 >=32 字节的强随机密钥，" +
-                            "禁止使用默认/弱密钥启动生产环境。"
+                            "禁止使用默认/弱密钥启动。"
+            );
+        }
+        if (DEV_DEFAULT_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                    "检测到仓库内置默认 JWT 密钥：所有环境（含 dev）均禁止使用默认密钥启动，" +
+                            "请通过环境变量 JWT_SECRET 注入 >=32 字节的强随机密钥。"
             );
         }
         // 启动时预构建并缓存签名密钥，供后续所有签发/验签复用

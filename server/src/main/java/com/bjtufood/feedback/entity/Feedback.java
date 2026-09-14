@@ -63,6 +63,14 @@ public class Feedback {
     @Schema(description = "管理员回复")
     private String reply;
 
+    /**
+     * 不采纳原因（§7.23 第 5 条）：处理结论为「不采纳/退回」时必填（1~200 字），
+     * 随回执通知一并向已认证提交人展示；结论为通过/已处理时保持 NULL。
+     * 对应列 user_feedback.reject_reason（由技术负责人在 schema.sql 幂等补列）。
+     */
+    @Schema(description = "不采纳原因（处理结论为不采纳/退回时必填，1~200 字）")
+    private String rejectReason;
+
     /** 处理时间 */
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;

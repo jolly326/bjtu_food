@@ -79,15 +79,24 @@ async function onSpiceSelect(level: number | null) {
   await dishStore.setHomeSpice(level)
 }
 
-/** 当前选中食堂 id（null = 全部） */
-const selectedCanteenId = ref<number | null>(null)
-const selectedCanteenName = computed(
-  () => dishStore.canteenList.find((c) => c.id === selectedCanteenId.value)?.name || '',
-)
+/**
+ * 当前选中食堂 id（null = 全部）——MP-03：**由 store 的 filterTab 派生**，页面不再自持一份。
+ * 此前页面 selectedCanteenId 与 store filterTab.canteenId 是两个真源：
+ * 下拉选项选中态读前者、列表请求读后者，二者在「清除筛选 / 首屏 ensureBoot」等路径上会不一致
+ * （如 filterTab 已被换掉而页面 ref 未同步 → 胶囊回显与内容不匹配）。
+ */
+const selectedCanteenId = computed<number | null>(() => {
+  const tab = dishStore.filterTab
+  return tab && tab.type === 'canteen' && tab.canteenId != null ? tab.canteenId : null
+})
 
-function defaultTab(): FilterTab {
-  return { key: 'all', label: '全部', type: 'recommend' }
+/** 按 id 取食堂名（选中态派生后，构造 canteen tab 时不能再读「尚未更新的派生值」） */
+function canteenNameOf(id: number | null): string {
+  if (id == null) return ''
+  return dishStore.canteenList.find((c) => c.id === id)?.name || ''
 }
+const selectedCanteenName = computed(() => canteenNameOf(selectedCanteenId.value))
+
 function canteenTab(id: number, name: string): FilterTab {
   return { key: `canteen-${id}`, label: name, type: 'canteen', canteenId: id }
 }
@@ -97,7 +106,7 @@ let bootstrapped = false
 async function ensureBoot() {
   if (bootstrapped) return
   bootstrapped = true
-  await dishStore.fetchFilterDishes(defaultTab(), true)
+  await dishStore.fetchFilterDishes(dishStore.defaultFilterTab(), true)
 }
 watch(
   () => dishStore.canteenList.length,
@@ -105,10 +114,13 @@ watch(
   { immediate: true },
 )
 
-/** 食堂筛选：写回选中 id 并按该食堂刷新筛选流（表单显隐由 FilterBar 自持） */
+/**
+ * 食堂筛选：只按该食堂刷新筛选流（表单显隐由 FilterBar 自持）。
+ * MP-03：选中态不再写页面本地 ref —— fetchFilterDishes 会同步写入 filterTab，
+ * 上面的 selectedCanteenId 由它派生，胶囊回显与列表条件天然同源。
+ */
 function onCanteenSelect(id: number | null) {
-  selectedCanteenId.value = id
-  const tab = id == null ? defaultTab() : canteenTab(id, selectedCanteenName.value || '食堂')
+  const tab = id == null ? dishStore.defaultFilterTab() : canteenTab(id, canteenNameOf(id) || '食堂')
   dishStore.fetchFilterDishes(tab, true)
 }
 
@@ -121,12 +133,13 @@ const hasFilter = computed(
     dishStore.filterSpice != null,
 )
 
-/** 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间与辣度并回到「全部」食堂 */
+/**
+ * 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间与辣度并回到「全部」食堂。
+ * MP-03：改为 store 的 clearHomeFilter —— 一次交互只发一次列表请求
+ * （原实现 setHomePrice → setHomeSpice → onCanteenSelect 各发一次，共 3 次）。
+ */
 function onClearFilter() {
-  dishStore.setHomePrice({})
-  // 辣度一并清空（§7.18）；不传 tab 只写状态不额外发请求——随下方 onCanteenSelect 的那一次重拉一起生效
-  dishStore.setHomeSpice(null)
-  onCanteenSelect(null)
+  dishStore.clearHomeFilter()
 }
 
 function goToSearch() {
@@ -138,10 +151,8 @@ async function retryWaterfall() {
   if (dishStore.canteenList.length === 0) {
     await dishStore.fetchCanteens()
   }
-  const tab =
-    selectedCanteenId.value == null
-      ? defaultTab()
-      : canteenTab(selectedCanteenId.value, selectedCanteenName.value || '食堂')
+  // 重试当前生效的筛选流：filterTab 是唯一真源，缺失时退回默认热度流（MP-03）
+  const tab = dishStore.filterTab ?? dishStore.defaultFilterTab()
   dishStore.fetchFilterDishes(tab, true)
 }
 

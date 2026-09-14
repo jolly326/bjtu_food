@@ -8,3 +8,10 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+# JWT 签名密钥（BE-11）：生产刻意**不提供默认值**——此处写 ${JWT_SECRET}（无 :default），
+# 一旦环境变量未注入，占位符无法解析，Spring 在装配阶段即抛错终止启动（fail-fast），
+# 杜绝「线上沿用 application.yml 里的仓库内置默认密钥 → 任意 userId 的 Token 可被伪造」。
+# 开发环境（profile=dev）不受影响：仍走 application.yml 的 ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}。
+jwt:
+  secret: ${JWT_SECRET}

@@ -6,14 +6,17 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
+import { useUserStore } from '@/stores/userStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import AccountView from '@/views/system/AccountView.vue'
 import OperationLogView from '@/views/admin/OperationLogView.vue'
 import { User, Document } from '@element-plus/icons-vue'
 
-// 进入即重载用户数据，保证账号视图有数据
+// WEB-02：进入即按需加载「用户」域（分类卡徽标 + 账号视图），
+// 不再经 adminStore.loadAll 连发 5 域全量请求（操作日志域由 OperationLogView 自行加载）
 const adminStore = useAdminStore()
-onMounted(() => { adminStore.loadAll() })
+const userStore = useUserStore()
+onMounted(() => { userStore.loadAll().catch(() => {}) })
 
 const sections = [
   { key: 'account', label: '账号', badge: () => adminStore.users.length, icon: User },

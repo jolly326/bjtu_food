@@ -8,14 +8,12 @@ export interface ApiResponse<T = any> {
 
 /** 401 未登录事件（对齐小程序 uni.$emit('auth:unauthorized')） */
 export const AUTH_UNAUTHORIZED = 'auth:unauthorized'
-const listeners: Array<() => void> = []
-export function onUnauthorized(fn: () => void) {
-  listeners.push(fn)
-}
-/** 鉴权失效统一广播：清理遗留登录态残留 + 通知监听者（不跳转，管理端无登录页）。导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107） */
+/**
+ * 鉴权失效统一广播：通知监听者（不跳转，管理端无登录页）。
+ * 导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107）。
+ * WEB-05：onUnauthorized 订阅链路全仓零消费、已删除；emitUnauthorized 仅保留事件广播。
+ */
 export function emitUnauthorized() {
-  localStorage.removeItem('token')
-  listeners.forEach((fn) => fn())
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_UNAUTHORIZED))
 }
 
@@ -46,7 +44,8 @@ async function request<T>(
         // 口令配置在 web/.env.local 的 VITE_ADMIN_TOKEN（与后端 ADMIN_TOKEN 一致）；仅本地使用，不入库。
         'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN || '',
       },
-      body: method !== 'GET' && data ? JSON.stringify(data) : undefined,
+      // GET 不携带 body（fetch 规范 + oxlint no-invalid-fetch-options）
+      ...(method !== 'GET' && data ? { body: JSON.stringify(data) } : {}),
       signal: controller.signal,
     })
 

@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Dish } from '@/types'
 import { dishApi } from '@/api'
+import type { DishSavePayload } from '@/api/dish'
 
 /**
  * 菜品 store。
@@ -14,14 +15,11 @@ export const useDishStore = defineStore('dish', () => {
   async function loadAll() {
     list.value = await dishApi.getAll()
   }
-  async function add(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) { await dishApi.create(data); await loadAll() }
+  async function add(data: DishSavePayload) { await dishApi.create(data); await loadAll() }
   async function update(id: number, data: Partial<Dish>) { await dishApi.updateById(id, data); await loadAll() }
   async function remove(id: number) { await dishApi.deleteById(id); await loadAll() }
 
-  // 管理端无登录体系（2026-09-13 定型）：始终兜底加载（令牌由 http 层统一携带），
-  // 加载失败静默吞掉，避免顶层异常。
-  if (true) {
-    loadAll().catch(() => {})
-  }
+  // **不在 setup 顶层自动加载（WEB-02）**：由需要的页面（菜品列表/详情等）显式调用 loadAll()，
+  // 避免 store 实例化即发全量请求、与其他页面加载叠加成「进页连发多轮全量」。
   return { list, loadAll, add, update, remove }
 })

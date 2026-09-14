@@ -168,17 +168,6 @@
         LIMIT 1
     </select>
 
-    <!-- 批量菜品详情（消除推荐/分页逐条详情的 N+1） -->
-    <select id="selectDishDetailsByIds" resultMap="dishDetailMap">
-        <include refid="joinDishSql"/>
-        WHERE d.status = 'on'
-          AND (d.audit_status = 'approved' OR d.audit_status IS NULL)
-          AND d.id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">
-            #{id}
-        </foreach>
-    </select>
-
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>

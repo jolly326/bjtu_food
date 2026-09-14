@@ -8,7 +8,6 @@ import { pageRecords, userToLegacy } from './adapter'
  */
 export async function listUsers(params: {
   status?: string
-  keyword?: string
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: User[]; total: number }> {
@@ -17,7 +16,8 @@ export async function listUsers(params: {
     pageSize: params.pageSize ?? 20,
   }
   if (params.status) query.status = params.status
-  if (params.keyword) query.keyword = params.keyword
+  // WEB-08：后端 GET /admin/users 不接收 keyword（模糊检索参数不存在），
+  // 关键词搜索为前端本地过滤（UserView.filteredStudents），此处禁止透传该参数。
   const data: any = await get('/admin/users', query)
   return {
     list: pageRecords(data).map(userToLegacy),
@@ -45,13 +45,8 @@ export async function getAll(): Promise<User[]> {
   return all
 }
 
-export async function getProfile(): Promise<User> {
-  return userToLegacy(await get<any>('/auth/profile'))
-}
-
-export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<User> {
-  return userToLegacy(await put<any>('/auth/profile', data))
-}
+// getProfile / updateProfile（GET|PUT /auth/profile）已于 2026-09-15 删除（WEB-05）：
+// 端点属学生端 JWT 体系，管理端走 X-Admin-Token 口令、必然 401，且全仓零消费。
 
 // updatePassword（PUT /auth/password）已于 2026-09-14 删除（Q-108 / G-13 / spec §5.y.1）：
 // 该端点后端已移除；学生侧无密码体系（user.password 恒 NULL），管理员语义亦随单口令模型失效。

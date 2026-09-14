@@ -22,7 +22,21 @@ export async function getAll(): Promise<Dish[]> {
   return all
 }
 
-export async function create(data: Omit<Dish, 'id' | 'created_at' | 'updated_at'>) {
+/**
+ * 菜品保存 payload（DishAdminReq 契约，§7.23 第 1 条）：
+ *  - `stallId`：既有档口直接选中；
+ *  - `stallName`：按名 upsert 档口（存在复用 / 不存在自动建档），有效时优先于 stallId；
+ *  - `canteenName`：仅在 stallName 触发新建档口时被后端消费（按名 upsert 所属食堂）；
+ *  - `categoryId`：所属品类（可空=未分类，null=清空）。
+ * 价格等其余字段沿用 Dish（api 层 dishToApi 元→分）。
+ */
+export type DishSavePayload = Omit<Dish, 'id' | 'created_at' | 'updated_at'> & {
+  canteenName?: string | null
+  stallName?: string | null
+  categoryId?: number | null
+}
+
+export async function create(data: DishSavePayload) {
   await post<void>('/admin/dishes', dishToApi(data))
 }
 

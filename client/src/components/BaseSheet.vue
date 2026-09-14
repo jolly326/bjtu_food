@@ -134,6 +134,7 @@ let startY = 0
 let lastY = 0
 let lastTime = 0
 let velocity = 0
+// 平台例外：uni touch 事件对象未纳入项目 TS 类型，取 e.touches[0].clientY（MP-08 标注例外）
 function onTouchStart(e: any) {
   startY = e.touches?.[0]?.clientY ?? 0
   lastY = startY

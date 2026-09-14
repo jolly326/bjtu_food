@@ -8,7 +8,8 @@ import StatusTag from '@/components/StatusTag.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
-import { ChatDotRound, EditPen, CircleCheck, Picture } from '@element-plus/icons-vue'
+import { useAsyncGuard } from '@/composables/useAsyncGuard'
+import { ChatDotRound, EditPen, CircleCheck, CircleClose, Picture } from '@element-plus/icons-vue'
 import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS, FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED, FEEDBACK_TYPE_META } from '@/constants'
 import { toSecFilter } from '@/api/adapter'
 import type { FeedbackAdminVO } from '@/api/feedback'
@@ -48,17 +49,14 @@ const activeType = ref('')
 // 安检状态筛选（'' = 全部，服务端过滤）：筛「待复核」时优先处理被安检拦截的反馈
 const activeSecState = ref('')
 
-const loading = ref(false)
-const error = ref('')
+// 请求竞态守卫（UI-05 收敛为 useAsyncGuard）：过期响应整份丢弃（防连续输入数据错乱）
+const { loading, error, run } = useAsyncGuard()
 const rows = ref<FeedbackAdminVO[]>([])
 
 // ===== 受控分页（后端已分页，total 来自后端；pageSize ≤ 100 不触碰后端上限） =====
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
-
-// 请求竞态守卫：仅接受最新一次请求结果，丢弃过期响应（防连续输入数据错乱）
-let reqToken = 0
 
 async function reloadFromFirstPage() {
   page.value = 1
@@ -73,10 +71,7 @@ function onPageChange() {
 const filtered = computed(() => rows.value)
 
 async function loadList() {
-  loading.value = true
-  error.value = ''
-  const token = ++reqToken
-  try {
+  await run(async (alive) => {
     const { feedbackApi } = await import('@/api')
     const res = await feedbackApi.listFeedbacks({
       status: activeStatus.value || undefined,
@@ -86,17 +81,10 @@ async function loadList() {
       page: page.value,
       pageSize: pageSize.value,
     })
-    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
+    if (!alive()) return // 已有更新的请求发出，丢弃过期响应
     rows.value = res.list
     total.value = res.total
-  } catch (e: any) {
-    if (token !== reqToken) return
-    error.value = e.message || '加载反馈列表失败'
-    rows.value = []
-    total.value = 0
-  } finally {
-    if (token === reqToken) loading.value = false
-  }
+  })
 }
 
 /**
@@ -161,12 +149,24 @@ onBeforeUnmount(() => clearTimeout(searchDebounce))
 const detail = ref<FeedbackAdminVO | null>(null)
 const reply = ref('')
 const replyError = ref('')
+/**
+ * 处理结论（§7.23 第 5 条，2026-09-15 拍板）：
+ *  - handled = 已处理（缺省）；rejected = 不采纳/退回；
+ *  - 选「不采纳」时原因必填（1~200 字，与后端 FeedbackHandleReq 校验一致），
+ *    原因随回执一并向提交人展示。
+ */
+const outcome = ref<'handled' | 'rejected'>('handled')
+const rejectReason = ref('')
+const rejectReasonError = ref('')
 const processingId = ref<number | null>(null)
 
 function openDetail(row: FeedbackAdminVO) {
   detail.value = row
   reply.value = row.reply || ''
   replyError.value = ''
+  outcome.value = row.outcome === 'rejected' ? 'rejected' : 'handled'
+  rejectReason.value = row.rejectReason || ''
+  rejectReasonError.value = ''
 }
 function closeDetail() { detail.value = null }
 
@@ -184,13 +184,34 @@ async function submitHandle() {
     return
   }
   replyError.value = ''
+  // 不采纳原因必填（§7.23 第 5 条）：outcome=rejected 时 1~200 字，后端同样校验（纯空白 → 400）
+  let reason: string | undefined
+  if (outcome.value === 'rejected') {
+    const trimmedReason = rejectReason.value.trim()
+    if (!trimmedReason) {
+      rejectReasonError.value = '不采纳 / 退回必须填写原因（学生将收到该原因）'
+      return
+    }
+    if (trimmedReason.length > 200) {
+      rejectReasonError.value = '不采纳原因不能超过 200 字'
+      return
+    }
+    reason = trimmedReason
+  }
+  rejectReasonError.value = ''
   // 二次确认（Q-112 ③，最简实现）：标记处理为不可逆（学生立即收到回执），提交前先确认。
-  if (!await confirm.confirm('确定将该反馈标记为「已处理」？提交后学生将收到你的回复。')) return
+  const confirmText = outcome.value === 'rejected'
+    ? '确定将该反馈标记为「不采纳」？提交后学生将收到回复与不采纳原因。'
+    : '确定将该反馈标记为「已处理」？提交后学生将收到你的回复。'
+  if (!await confirm.confirm(confirmText)) return
   processingId.value = Number(detail.value.id)
   try {
     const { feedbackApi } = await import('@/api')
-    await feedbackApi.handleFeedback(Number(detail.value.id), trimmed)
-    toast.success('反馈已标记处理')
+    await feedbackApi.handleFeedback(Number(detail.value.id), trimmed, {
+      outcome: outcome.value,
+      rejectReason: reason,
+    })
+    toast.success(outcome.value === 'rejected' ? '反馈已标记不采纳' : '反馈已标记处理')
     await loadList()
     closeDetail()
   } catch (e: any) {
@@ -314,7 +335,7 @@ async function copyReviewLink(reviewId?: number) {
       :title="detail?.status === FEEDBACK_HANDLED ? '反馈详情' : '处理反馈'"
       :width="520"
       :footer="detail?.status !== FEEDBACK_HANDLED"
-      :confirm-text="'标记处理'"
+      :confirm-text="outcome === 'rejected' ? '标记不采纳' : '标记处理'"
       :confirm-disabled="false"
       :confirm-loading="processingId !== null"
       @close="closeDetail"
@@ -368,12 +389,47 @@ async function copyReviewLink(reviewId?: number) {
         </div>
         <div class="detail-row" v-if="detail.status === FEEDBACK_HANDLED"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
+        <!-- 不采纳原因回显（§7.23 第 5 条：随回执向提交人展示；历史数据无 outcome 时按 rejectReason 兜底） -->
+        <div class="detail-row detail-row-desc" v-if="detail.status === FEEDBACK_HANDLED && (detail.outcome === 'rejected' || detail.rejectReason)">
+          <span class="dl">不采纳原因</span>
+          <span class="dv text-desc reject-reason">{{ detail.rejectReason || '—' }}</span>
+        </div>
 
         <div class="reply-area" v-if="detail.status !== FEEDBACK_HANDLED">
+          <!-- 处理结论（§7.23 第 5 条）：已处理 = 通过并回复；不采纳/退回 = 必填原因 -->
+          <label>处理结论</label>
+          <div class="outcome-group" role="radiogroup" aria-label="处理结论">
+            <button
+              type="button"
+              class="outcome-opt"
+              :class="{ on: outcome === 'handled' }"
+              role="radio"
+              :aria-checked="outcome === 'handled'"
+              v-press
+              @click="outcome = 'handled'"
+            ><el-icon class="outcome-ico"><CircleCheck /></el-icon>已处理</button>
+            <button
+              type="button"
+              class="outcome-opt"
+              :class="{ on: outcome === 'rejected' }"
+              role="radio"
+              :aria-checked="outcome === 'rejected'"
+              v-press
+              @click="outcome = 'rejected'"
+            ><el-icon class="outcome-ico"><CircleClose /></el-icon>不采纳 / 退回</button>
+          </div>
+
           <!-- 回复必填（2026-09-14 §7.16）：与后端 @NotBlank 校验规则严格一致，前端措辞不得出现「选填/留空」 -->
-          <label>处理说明 / 回复 <span class="required">*</span>（必填）</label>
+          <label class="mt-label">处理说明 / 回复 <span class="required">*</span>（必填）</label>
           <textarea v-model="reply" rows="4" placeholder="请填写处理回复，学生将收到该内容"></textarea>
           <p v-if="replyError" class="field-error">{{ replyError }}</p>
+
+          <!-- 不采纳原因（§7.23 第 5 条）：选「不采纳/退回」时必填，1~200 字，后端同样校验 -->
+          <template v-if="outcome === 'rejected'">
+            <label class="mt-label">不采纳原因 <span class="required">*</span>（必填，1~200 字）</label>
+            <textarea v-model="rejectReason" rows="3" placeholder="请填写不采纳 / 退回原因，学生将收到该原因"></textarea>
+            <p v-if="rejectReasonError" class="field-error">{{ rejectReasonError }}</p>
+          </template>
         </div>
         <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>
       </div>
@@ -417,6 +473,8 @@ async function copyReviewLink(reviewId?: number) {
 }
 .reply-area { margin-top: var(--space-4); border-top: 1px solid var(--border-light); padding-top: var(--space-4); }
 .reply-area label { display: block; font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
+/* 结论选择之后的标签追加与输入框一致的垂直间距 */
+.reply-area .mt-label { margin-top: var(--space-3); }
 .reply-area textarea {
   width: 100%; padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong);
   border-radius: var(--radius); font-size: var(--font-sm); outline: none; resize: vertical; box-sizing: border-box;
@@ -425,4 +483,24 @@ async function copyReviewLink(reviewId?: number) {
 .reply-area textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 .required { color: var(--color-error); }
 .handled-tip { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); color: var(--color-success); font-size: var(--font-sm); }
+
+/* ===== 处理结论选择（§7.23 第 5 条）：胶囊单选，选中态走语义色 ===== */
+.outcome-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.outcome-opt {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-pill);
+  background: var(--bg-card); color: var(--text-secondary);
+  font-size: var(--font-sm); font-weight: var(--weight-medium);
+  cursor: pointer; user-select: none;
+  transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
+}
+.outcome-opt:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.outcome-opt:active { transform: scale(var(--press-scale)); }
+.outcome-opt:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.outcome-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); }
+.outcome-ico { width: 13px; height: 13px; }
+
+/* 不采纳原因回显：与错误色语义一致的弱化背景，便于一眼识别 */
+.reject-reason { color: var(--text-primary); background: var(--color-error-bg); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); display: inline-block; }
 </style>

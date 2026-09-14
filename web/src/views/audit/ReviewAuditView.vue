@@ -1,11 +1,14 @@
 <script setup lang="ts">
 /**
- * ApplyReviewView：评价审核（UGC 审核中心）。
+ * ReviewAuditView（UI-09：由原管理域评价审核视图改名落位审核域，路由与侧栏文案不变）：
+ * 评价审核（UGC 审核中心）。
  * 实体贡献申请审核已随 apply 全链路下线（change prelaunch-loop-closure），本视图仅保留用户评价审核：
  * 列表 / 隐藏 / 显示 / 删除 / 批量 + 内容安检复核（放行/驳回）+ 配图查看。
  * 数据来自 reviewApi（listAllReviews / updateById / updateSecState / deleteById）；
  * secState 安检筛选走服务端参数（'' = 全部）。
  * （2026-09-14 Q-107：原 auditApi 随审核中心死代码删除，评价域能力统一归 reviewApi。）
+ * WEB-03：用户名降级显示（getUserName 读 store.users）——本页 onMounted 显式拉取 users / dishes 字典，
+ * 不再依赖 store setup 顶层自动加载（WEB-02）。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useToastStore } from '@/stores/toastStore'
@@ -17,6 +20,9 @@ import StarRating from '@/components/StarRating.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { useAdminStore } from '@/stores/adminStore'
+import { useDishStore } from '@/stores/dishStore'
+import { useUserStore } from '@/stores/userStore'
+import { useAsyncGuard } from '@/composables/useAsyncGuard'
 import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW } from '@/constants'
 import { toSecFilter } from '@/api/adapter'
 import type { SecAction } from '@/types'
@@ -25,9 +31,12 @@ import { Delete, CircleCheck, CircleClose, Picture } from '@element-plus/icons-v
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const store = useAdminStore()
+const dishStore = useDishStore()
+const userStore = useUserStore()
 
-const loading = ref(false)
-const error = ref('')
+// 请求竞态守卫（UI-05 收敛为 useAsyncGuard）：安检/关键词快速切换时仅接受最新一次请求结果，
+// listAllReviews 多页循环无法中途取消，落地前校验 alive 丢弃过期响应。
+const { loading, error, run } = useAsyncGuard()
 const reviews = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 const searchQuery = ref('')
@@ -40,35 +49,27 @@ const secActingId = ref<number | null>(null)
 
 const filtered = computed(() => reviews.value)
 
-// 请求竞态守卫（对照 FeedbackView 模式）：安检/关键词快速切换时仅接受最新一次请求结果，
-// listAllReviews 多页循环无法中途取消，落地前校验 token 丢弃过期响应。
-let reqToken = 0
-
 async function loadList() {
-  const token = ++reqToken
-  loading.value = true
-  error.value = ''
-  selectedIds.value = []
-  try {
+  await run(async (alive) => {
     const { reviewApi } = await import('@/api')
     // 查全部评价（显示中 / 已隐藏），显隐状态由列表开关列控制；关键词 / 安检状态均服务端过滤
     const list = await reviewApi.listAllReviews(undefined, searchQuery.value.trim() || undefined, toSecFilter(activeSecState.value))
-    if (token !== reqToken) return // 已有更新的请求发出，丢弃过期响应
+    if (!alive()) return // 已有更新的请求发出，丢弃过期响应
     reviews.value = list
-  } catch (e: any) {
-    if (token !== reqToken) return
-    error.value = e.message || '加载评价列表失败'
-    reviews.value = []
-  } finally {
-    if (token === reqToken) loading.value = false
-  }
+    if (alive()) selectedIds.value = []
+  })
 }
 
 async function onSecStateChange() {
   await loadList()
 }
 
-onMounted(loadList)
+onMounted(() => {
+  loadList()
+  // WEB-03：用户名 / 菜品名降级显示依赖的字典显式加载（域间独立，单域失败回落「用户#id」不影响列表）
+  userStore.loadAll().catch(() => {})
+  dishStore.loadAll().catch(() => {})
+})
 
 // 关键词变化（输入或清空）→ 防抖 300ms 后按服务端 keyword 过滤重拉（WEB-103，对照 FeedbackView 既有模式）
 let searchDebounce: ReturnType<typeof setTimeout> | undefined
@@ -340,21 +341,4 @@ function getDishName(dishId: number | bigint): string {
 .dv { color: var(--text-primary); flex: 1; }
 .text-desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .danger-text { color: var(--color-error) !important; }
-
-.payload-line { display: flex; gap: var(--space-2); padding: var(--space-1) 0; border-bottom: 1px dashed var(--border-color); }
-.payload-line:last-child { border-bottom: none; }
-.payload-k { width: 96px; flex-shrink: 0; color: var(--text-secondary); }
-.payload-v { color: var(--text-primary); word-break: break-all; }
-
-.reject-area { margin-top: var(--space-4); border-top: 1px solid var(--border-light); padding-top: var(--space-4); }
-.reject-area label { display: block; font-size: var(--font-sm); color: var(--text-secondary); margin-bottom: var(--space-2); }
-.reject-area textarea {
-  width: 100%; padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong);
-  border-radius: var(--radius); font-size: var(--font-sm); outline: none;
-  resize: vertical; box-sizing: border-box; background: var(--bg-card);
-  transition: border-color .2s var(--ease-out), box-shadow .2s var(--ease-out);
-}
-.reject-area textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
-.field-error { margin: var(--space-1) 0 0; font-size: var(--font-sm); color: var(--color-error); }
-.required { color: var(--color-error); }
 </style>

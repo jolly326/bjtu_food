@@ -12,7 +12,7 @@
 
     命名规则：
     - selectReviewPageByDishId：按维度分页查询评价并联表补齐用户昵称/头像
-    - selectAvgRatingByStallId：统计档口平均分
+    - selectAvgRatingByStallIds：批量统计多个档口平均分（单档口零调用版本已删除）
 
     内容安全可见性（产品定稿 2026-09-13）：
     - review.sec_state：pass=可见 / review=机检待人工复核 / rejected=人工复核不通过；
@@ -150,19 +150,6 @@
             <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
             <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
         </choose>
-    </select>
-
-    <!--
-        某档口下所有菜品评价的平均分（无评价返回 NULL）。
-        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
-    -->
-    <select id="selectAvgRatingByStallId" resultType="java.math.BigDecimal">
-        SELECT AVG(r.rating)
-        FROM review r
-                 JOIN dish d ON r.dish_id = d.id
-        WHERE d.stall_id = #{stallId}
-          AND r.is_hidden = 0
-          AND r.sec_state = 'pass'
     </select>
 
     <!--

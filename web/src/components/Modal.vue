@@ -1,11 +1,17 @@
 <script setup lang="ts">
 /**
- * Modal：通用弹层（§4.2 自封装组件，§4.5 材质 + §4.4 动效）。
+ * Modal：唯一弹层基座（§4.2 自封装组件，§4.5 材质 + §4.4 动效；UI-02 收敛契约）。
  * 基于 Teleport 挂载到 body，含遮罩点击关闭、spring 入场/退场。
  * 调用方通过 show 控制显隐，close 事件关闭，默认插槽承载内容。
- * FormDialog / 各页面弹层均复用此组件。
+ * FormDialog / ConfirmDialog / 各页面弹层均复用此组件（ConfirmDialog 不再自带 Teleport 与样式副本）。
+ *
+ * UI-02 新增契约：
+ *  - variant: 'dialog'（默认，带标题/关闭 X）| 'confirm'（role="alertdialog"、无右上角 X、默认聚焦「取消」）；
+ *  - danger: 确认按钮走 btn-danger（破坏性操作二次确认）；
+ *  - confirmText/cancelText/confirmLoading/onConfirm + slot footer + event confirm。
+ *  - Web 弹层 220ms scale+opacity 过渡保留（spec §4.9 登记 Web 豁免）。
  */
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 const props = withDefaults(
@@ -13,21 +19,34 @@ const props = withDefaults(
     show: boolean
     title?: string
     width?: number
+    /** dialog=常规弹层；confirm=二次确认（无 X、alertdialog 语义、默认聚焦取消） */
+    variant?: 'dialog' | 'confirm'
+    /** 确认按钮是否为危险色（破坏性操作） */
+    danger?: boolean
+    confirmText?: string
+    cancelText?: string
+    confirmLoading?: boolean
+    /** 异步确认函数：传入后确认按钮自动 loading 直至 resolve/reject */
+    onConfirm?: () => void | Promise<void>
   }>(),
-  { title: '', width: 520 },
+  { title: '', width: 520, variant: 'dialog', danger: false, confirmText: '确定', cancelText: '取消', confirmLoading: false },
 )
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; confirm: [] }>()
 
 const overlay = ref<HTMLElement | null>(null)
 const box = ref<HTMLElement | null>(null)
+const cancelBtn = ref<HTMLElement | null>(null)
 const mounted = ref(false)
 const visible = ref(false)
+// 内部确认中（onConfirm 异步时自动管理）
+const submitting = ref(false)
 let hideTimer: number | undefined
 
 /**
  * 退场卸载延时（ms）。必须与下方 .modal-box / .modal-overlay 的 CSS transition 时长一致
  * （0.22s = 220ms），否则会在退场动画结束前提前卸载 DOM，造成弹层闪烁。
+ * （spec §4.9 登记 Web 弹层 220ms 豁免，保留）
  */
 const EXIT_DURATION_MS = 220
 
@@ -40,7 +59,7 @@ watch(
   () => props.show,
   (v) => {
     if (v) {
-      // 快速关-开时清理未触发的退场卸载定时器，避免重开后 DOM 被 hideTimer 提前卸载（对照 ConfirmDialog 同款修复）
+      // 快速关-开时清理未触发的退场卸载定时器，避免重开后 DOM 被 hideTimer 提前卸载（防闪烁）
       if (hideTimer) { window.clearTimeout(hideTimer); hideTimer = undefined }
       mounted.value = true
       window.addEventListener('keydown', onKeydown)
@@ -48,6 +67,10 @@ watch(
         visible.value = true
         enterAnim()
       })
+      // confirm 语义：默认聚焦「取消」，避免键盘误确认（§4.9 可达性）
+      if (props.variant === 'confirm') {
+        nextTick(() => cancelBtn.value?.focus())
+      }
     } else {
       visible.value = false
       window.removeEventListener('keydown', onKeydown)
@@ -69,6 +92,20 @@ function enterAnim() {
   box.value.style.opacity = '1'
   box.value.style.transform = 'scale(1) translateY(0)'
 }
+
+async function handleConfirm() {
+  if (submitting.value) return
+  if (props.onConfirm) {
+    submitting.value = true
+    try {
+      await props.onConfirm()
+    } finally {
+      submitting.value = false
+    }
+  } else {
+    emit('confirm')
+  }
+}
 </script>
 
 <template>
@@ -83,12 +120,12 @@ function enterAnim() {
       <div
         ref="box"
         class="modal-box"
-        :class="{ show: visible }"
+        :class="{ show: visible, 'variant-confirm': variant === 'confirm' }"
         :style="{ width: width + 'px' }"
-        role="dialog"
+        :role="variant === 'confirm' ? 'alertdialog' : 'dialog'"
         aria-modal="true"
       >
-        <header v-if="title" class="modal-header">
+        <header v-if="variant === 'dialog' && title" class="modal-header">
           <h3 class="modal-title">{{ title }}</h3>
           <button class="modal-close" v-press type="button" aria-label="关闭" @click="emit('close')">
             <el-icon><Close /></el-icon>
@@ -96,6 +133,19 @@ function enterAnim() {
         </header>
         <div class="modal-body">
           <slot />
+          <slot name="footer" />
+        </div>
+        <!-- confirm 变体：底部取消/确认（取消默认聚焦；danger 时确认走危险色） -->
+        <div v-if="variant === 'confirm'" class="modal-confirm-actions">
+          <button ref="cancelBtn" class="btn-cancel" v-press type="button" @click="emit('close')">{{ cancelText }}</button>
+          <button
+            v-press type="button"
+            :class="danger ? 'btn-danger' : 'btn-primary'"
+            :disabled="submitting || confirmLoading"
+            @click="handleConfirm"
+          >
+            {{ submitting || confirmLoading ? '处理中…' : confirmText }}
+          </button>
         </div>
       </div>
     </div>
@@ -187,6 +237,18 @@ function enterAnim() {
 .modal-body {
   padding: var(--space-6);
   overflow-y: auto;
+}
+/* confirm 变体（UI-02 取值）：body padding = space-8 / space-8 / space-5，无 header */
+.variant-confirm .modal-body {
+  padding: var(--space-8) var(--space-8) var(--space-5);
+}
+/* confirm 变体底部操作区（原 ConfirmDialog.confirm-actions 收敛至此） */
+.modal-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: 0 var(--space-8) var(--space-5);
+  flex-shrink: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

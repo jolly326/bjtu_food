@@ -19,16 +19,19 @@ USE `bjtu_food`;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- -------------------- 用户（评价/通知/反馈等均依赖；密码统一为 123456，BCrypt 哈希） --------------------
--- BCrypt('123456') = $2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa
+-- -------------------- 用户（评价/通知/反馈等均依赖） --------------------
+-- 【2026-09-15 蓝图 v1 / project_spec.md §7.23「管理端无密码体系」口径】
+--   · password 为**历史兼容列**：管理端（环境变量口令 ADMIN_TOKEN）与学生端（微信静默登录 + 邮箱验证码）
+--     均不使用，故种子数据一律写 NULL，不再灌入任何口令哈希，避免「仍有密码体系」的误导；
+--   · role 仅两层：student / admin；**super_admin 已移除**，原 admin 行由 'super_admin' 改为 'admin'。
 INSERT INTO `user` (username, email, password, nickname, avatar, role, status, last_login_at) VALUES
-('2024001',  '2024001@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '交大干饭王',  NULL, 'student', 'active', NOW()),
-('2024002',  '2024002@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '食堂常客',    NULL, 'student', 'active', NOW()),
-('2024003',  '2024003@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '深夜放毒',    NULL, 'student', 'active', NOW()),
-('2024004',  '2024004@bjtu.edu.cn', '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '奶茶三分甜',  NULL, 'student', 'active', NOW()),
-('admin',    'admin@bjtu.edu.cn',   '$2a$10$cpM/NAuF4sjRoKILNJ.G7uDAoLHwF0G6eOpY2P/uTKy8WMyNjQuHa', '管理员',      NULL, 'super_admin', 'active', NOW());
+('2024001',  '2024001@bjtu.edu.cn', NULL, '交大干饭王',  NULL, 'student', 'active', NOW()),
+('2024002',  '2024002@bjtu.edu.cn', NULL, '食堂常客',    NULL, 'student', 'active', NOW()),
+('2024003',  '2024003@bjtu.edu.cn', NULL, '深夜放毒',    NULL, 'student', 'active', NOW()),
+('2024004',  '2024004@bjtu.edu.cn', NULL, '奶茶三分甜',  NULL, 'student', 'active', NOW()),
+('admin',    'admin@bjtu.edu.cn',   NULL, '管理员',      NULL, 'admin',   'active', NOW());
 
--- -------------------- 菜品品类（首页品类滚轮：贴合大学食堂档口业态的真实品类） --------------------
+-- -------------------- 菜品品类（**后台归类用途，端上不呈现**；贴合大学食堂档口业态的真实品类） --------------------
 INSERT INTO category (code, name, sort_order, status) VALUES
 ('malatang', '麻辣烫',   1, 'enabled'),
 ('noodle',   '面食',     2, 'enabled'),

@@ -21,14 +21,6 @@ public interface StallService {
     List<StallAdminVO> listAllForAdmin();
 
     /**
-     * 新增档口
-     *
-     * @param stall 档口信息
-     * @throws com.bjtufood.common.exception.BusinessException 食堂不存在
-     */
-    void add(Stall stall);
-
-    /**
      * 编辑档口
      *
      * @param stall 档口信息（含ID）

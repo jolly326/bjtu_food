@@ -10,7 +10,7 @@ import { useRoute } from 'vue-router'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import FeedbackView from '@/views/admin/FeedbackView.vue'
-import ApplyReviewView from '@/views/admin/ApplyReviewView.vue'
+import ReviewAuditView from '@/views/audit/ReviewAuditView.vue'
 import { Document, ChatLineSquare } from '@element-plus/icons-vue'
 
 // ===== 待办数（来自 dashboard，加载失败静默不影响切换） =====
@@ -70,7 +70,7 @@ watch(() => route.query.tab, (t) => { activeKey.value = resolveKey(t) })
       <div class="block-title">反馈</div>
       <FeedbackView />
     </template>
-    <ApplyReviewView v-else />
+    <ReviewAuditView v-else />
   </PageContainer>
 </template>
 

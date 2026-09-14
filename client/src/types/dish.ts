@@ -1,6 +1,3 @@
-/** 审核状态（§3.x.1）：pending 待审核 / approved 已通过 / rejected 已退回 */
-export type AuditStatus = 'pending' | 'approved' | 'rejected'
-
 export interface Dish {
   id: number
   name: string
@@ -16,8 +13,6 @@ export interface Dish {
   stallName: string
   /** 当前用户是否已评价 */
   hasReviewed?: boolean
-  /** 审核状态（公开接口仅返回 approved 记录） */
-  auditStatus?: AuditStatus
 
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
   /** 所属档口 ID（分享深链到档口详情用） */

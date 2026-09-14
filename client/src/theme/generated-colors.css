@@ -1,0 +1,55 @@
+/* =========================================================================
+ * generated-colors.css —— 自动生成，禁止手工编辑（UI-03 色值唯一真源，spec §4.2）
+ * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
+ * 再生成：npm run gen:tokens；CI 校验：生成后 git diff --exit-code 本文件
+ * ======================================================================== */
+
+page {
+  --color-primary: #C45549;
+  --color-on-primary: #FFFFFF;
+  --color-primary-soft: #F8E8E5;
+  --color-on-primary-surface: #FFFFFF;
+  --color-accent: #C45A3C;
+  --color-accent-soft: #F5E6E3;
+  --color-error: #FF3B30;
+  --color-error-soft: #FFECEB;
+  --color-warning: #F5A623;
+  --color-warning-soft: #FFF8E1;
+  --color-price: #C45549;
+  --color-star-empty: #E5E5EA;
+  --color-like: #9E3B2E;
+  --color-like-soft: #F6E3E0;
+  --text-white: #FFFFFF;
+  --text-primary: #262626;
+  --text-secondary: #595959;
+  --text-tertiary: #999999;
+  --bg-page: #F7F3EF;
+  --bg-warm: #FAF6F0;
+  --bg-card: #FFFFFF;
+  --bg-input: #F7F5F2;
+  --bg-soft: #EDE9E5;
+  --bg-placeholder: #F0ECE8;
+  --border-color: #E8E3DE;
+  --border-bold: #CBC5BE;
+  --border-card: rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.04);
+  --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
+  --shadow-card-soft: 0 8rpx 32rpx rgba(0,0,0,0.06);
+  --shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18);
+  --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
+  --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(196, 85, 73, 0.28);
+  --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
+  --blur-bg: rgba(255,255,255,0.72);
+  --blur-bg-solid: rgba(255,255,255,0.92);
+  --text-white-edge: rgba(255,255,255,0.24);
+  --overlay-dark-strong: rgba(0,0,0,0.6);
+  --overlay-dark-soft: rgba(0,0,0,0.15);
+  --overlay-dark-faint: rgba(0,0,0,0.06);
+  --overlay-scrim: rgba(0,0,0,0.4);
+  --bg-nav-back-chip: rgba(0, 0, 0, 0.08);
+  --border-nav-back-chip: rgba(0, 0, 0, 0.1);
+  --nav-back-icon: #1A1A1A;
+  --badge-dark-bg: rgba(0, 0, 0, 0.5);
+  --state-loading: rgba(0, 0, 0, 0.04);
+}

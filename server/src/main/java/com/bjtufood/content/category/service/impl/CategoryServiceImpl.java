@@ -32,6 +32,14 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    public List<Category> listEnabled() {
+        return categoryMapper.selectList(
+                new LambdaQueryWrapper<Category>()
+                        .eq(Category::getStatus, "enabled")
+                        .orderByAsc(Category::getSortOrder));
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Long create(Map<String, Object> body) {
         String code = String.valueOf(body.getOrDefault("code", "")).trim();

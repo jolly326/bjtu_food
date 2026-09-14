@@ -65,6 +65,16 @@ public interface ContentSecurityService {
     String getStableAccessToken();
 
     /**
+     * 清空进程内 access_token 缓存（token 失效自愈入口）。
+     * <p>
+     * 供使用 token 的其他出网点（如小程序云存储 batchdownloadfile）在收到
+     * 40001（invalid credential）/ 42001（access_token expired）时调用：
+     * 清空缓存后重新调 {@link #getStableAccessToken()} 即会重新拉取新 token，
+     * 对齐 {@code ContentSecurityServiceImpl} 内部 BE-06 的「失效清缓存 + 重试一次」模式。
+     */
+    void invalidateCachedToken();
+
+    /**
      * 微信凭据（appid/secret）是否已配置。
      * <p>
      * 未配置（本地开发/测试环境）时调用方应跳过机审放行；生产云托管必须配置

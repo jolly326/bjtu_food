@@ -111,7 +111,7 @@
 |---|---|---|---|
 | POST | `/reviews` | `ReviewReq{dishId,rating,content,images?}` | 提交评价（每菜一人一评；`images` 可选字符串数组，≤3 项 COS URL） |
 | DELETE | `/reviews/{id}` | — | 删本人评价（级联清理 useful） |
-| POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票） |
+| POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票）。**准入 = 需学号邮箱认证 `verified=true`**（`@RequireVerified`，未认证返回 **`4031`** 并弹 `AuthSheet` 认证引导，入口不置灰）；**仅此一条，不受 §7.5 的 openid 双约束**（spec §7.23 第 2 条 / §7.8 第 3 条。*原「仅需登录」表述已于 2026-09-15 作废，为文档对齐代码*） |
 | GET | `/my/reviews` | page/pageSize | 我的评价（`@RequireVerified` + `@PreAuthorize("hasRole('STUDENT')")`，返回 `PageResult<ReviewVO>` 4 参统一形态） |
 
 > 评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提（一人一菜一评由 `uk_review_user_dish` 保证）。
@@ -138,7 +138,7 @@
 ### 3.6 反馈
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品；**2026-09-13 起请求体增可选 `images`：字符串数组 ≤3 项 COS URL**，游客提交同样可带图；文本过 `msgSecCheck` v2 `scene=2`，`risky` 拦 400、`review` 落 `sec_state='review'`） |
+| POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品；**2026-09-13 起请求体增可选 `images`：字符串数组 ≤3 项 COS URL**，游客提交同样可带图；文本过 `msgSecCheck` v2 `scene=2`，`risky` 拦 400、`review` 落 `sec_state='review'`）。**`type` 写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `problem`，不升一级类型**）、`add` 新增菜品、`error` 纠错与申请下架（`relatedType=dish`）、`report` 举报（`relatedType=review`，必填 `relatedId`）；**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，非法值 400（仅查询白名单保留以筛存量） |
 
 > 「我的反馈」接口 `GET /feedback/my` 已随反馈中心下线删除（2026-09-07）；进度追踪后续另做。
 
@@ -185,10 +185,26 @@
 ### 5.2 菜品管理（DishAdminController）
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/admin/dishes` | 菜品列表（分页 `PageResult<DishAdminVO>`，4 参统一形态 `{records,total,page,pageSize}`） |
-| POST | `/admin/dishes` | 新增菜品（默认 approved） |
-| PUT | `/admin/dishes/{id}` | 编辑 |
+| GET | `/admin/dishes` | 菜品列表（分页 `PageResult<DishAdminVO>`，4 参统一形态 `{records,total,page,pageSize}`）。**2026-09-15 蓝图 v1（spec §7.23 第 4 条）：菜品无独立审核**——列表**不再返回 / 不再展示审核态**（Web 侧删除审核列与 `reject_reason` 回显） |
+| POST | `/admin/dishes` | 新增菜品（**录入即生效**，`audit_status=approved`）。**食堂 / 档口随菜品 upsert（2026-09-15 蓝图 v1 原则 1）**，见下方契约 |
+| PUT | `/admin/dishes/{id}` | 编辑（同上；`audit_status` 恒写 `approved`，后台无审核入口）。食堂 / 档口按名 upsert 同新增 |
 | DELETE | `/admin/dishes/{id}` | 删除（级联清评价） |
+
+**食堂 / 档口随菜品 upsert 契约（2026-09-15 蓝图 v1 原则 1，spec §7.23）**
+
+> 前提不变：食堂 / 档口是**菜品属性字典**（无独立管理页、无删除，仅「新增 / 改名 / 列表查看」，见 §5.5）。本契约只解决「录入菜品时字典里还没有这个食堂 / 档口」的问题。
+
+- `DishAdminReq` 新增可选字段：**`canteenName`**（食堂名）、**`stallName`**（档口名）；既有的 **`stallId`** 保留。
+- 服务端解析顺序（同一事务内，`@Transactional`）：
+  1. 传了 `stallId` 且该档口存在 → **沿用现状**（原校验「档口不存在」保留）；
+  2. 未传 `stallId`（或为 `null`）而传了 `canteenName` / `stallName` → **按名 upsert**：
+     - `canteen`：按 `name` 精确查 `canteen`；不存在则 **INSERT**（`sort_order` 默认 0，`created_by` 置空）后取回 `id`；
+     - `stall`：按 `canteen_id` + `name` 查 `stall`；不存在则 **INSERT**（带 `canteen_id`）后取回 `id`；
+     - 名称入参须 trim 后非空且长度 ≤64，非法 → `400`；
+  3. 三者均未传 / 均无法解析 → **`400`「请指定所属档口」**（现有「档口不存在」文案按此细化）。
+- upsert 落在 **Service 层**（`DishServiceImpl`），**禁止 Controller 直调 Mapper**；与既有的 `/admin/canteens`、`/admin/stalls` POST（独立新增字典项）并存、不冲突。
+- 返回：`DishAdminVO` / `DishVO` 的 `canteenName` / `stallName` / `canteenId` / `stallId` 语义不变。
+- **验收**：新增菜品时填入一个字典中不存在的食堂名与档口名 → 保存成功且 `canteen` / `stall` 各新增 1 条，菜品归属正确；重复提交同名 → **不重复建档**（命中既有字典项）。
 
 ### 5.3 用户管理（UserAdminController）
 | 方法 | 路径 | 说明 |
@@ -205,12 +221,22 @@
 | PUT | `/admin/reviews/{id}/sec-state` | **评价安检复核（2026-09-13 新增）**：入参 `{ state: "pass" \| "rejected" }`——放行（落 `sec_state='pass'`，恢复公开展示）/ 驳回（落 `sec_state='rejected'`，持续对非作者不可见，作者侧呈现未过审态）。`review` 态仅由机检写入，本接口不接受（管理端只写人工结论） |
 | PUT | `/admin/reviews/{id}/hide` | 隐藏评价 |
 | DELETE | `/admin/reviews/{id}` | 删评价（清理 useful 孤儿） |
-| GET | `/admin/feedbacks*` | 反馈审核（回复；**VO 含 `images`/`secState`，详情展示配图 ≤3 张**） |
+| GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`secState`，详情展示配图 ≤3 张**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
+| PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
+
+**反馈处理契约（2026-09-15 蓝图 v1 第 5 条，spec §7.23）**
+
+- 结论二分，管理端在弹窗中显式选择：
+  - **采纳 / 已处理** → `status='handled'`，**`reply` 必填**（1~1000 字，纯空白视为未填写 → `400`；§7.16 第 2 条口径不变）；
+  - **不采纳 / 退回** → `status='handled'`（反馈无「退回重提」链路，终态唯一），**`reject_reason` 必填**（1~200 字，纯空白视为未填写 → `400`），说明不采纳原因，**随回执一并向提交人展示**。
+- 入参：`{ reply?: string, rejectReason?: string, rejected?: boolean }`——`rejected=true` 时 `rejectReason` 必填；`rejected=false/缺省` 时 `reply` 必填（二者按结论二选一必填，不得同时为空）。
+- 回执投递不变：已认证提交人收站内通知 `feedback_handle`（含回执正文；不采纳时含不采纳原因），游客不投递、不阻塞（§7.8 第 4 条 / §0.1 匿名心智）。
+- **落地前置（待用户拍板，见输出清单「待拍板项 1」）**：`reject_reason` 建议新增为 `user_feedback.reject_reason` 列（幂等 `ADD COLUMN`，可空）；**列落地前该语义由 `reply` 承载**（即不采纳原因写入 `reply` 并随通知展示），契约字段 `rejectReason` 保持不变。
 
 ### 5.5 基础数据维护
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET/POST/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 新增 / 改名（编辑）」，**无 DELETE**（2026-09-14 Q-115，spec §7.22 第 5 条）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP） |
+| GET/POST/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 新增 / 改名（编辑）」，**无 DELETE**（2026-09-14 Q-115，spec §7.22 第 5 条）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP）。**2026-09-15 蓝图 v1（spec §7.23 原则 1）：字典项亦可随菜品录入 upsert 建档**（`POST`/`PUT /admin/dishes` 传 `canteenName`/`stallName`，见 §5.2），本组端点保留为独立维护入口，二者并存 |
 | GET/POST/PUT/DELETE | `/admin/categories` | 品类（增删改启停，sortOrder 非数字返回 400）。**2026-09-14 Q-117 定型：仅供后台菜品归类用途**（菜品表单 `categoryId` 归类），端上不呈现 |
 | GET | `/admin/operation-logs` | 操作日志（只读） |
 
@@ -235,12 +261,18 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 
 > 原「`GET /dishes/recommend` 猜你喜欢」已随 2026-09-14 端上零消费接口下线删除（spec §7.10 第 1 条）；浏览足迹仅作为 `view_log` 数据留存，无下游消费接口。
 
-### 6.3 审核流（2026-09-14 校准，与 spec §7.8 / §7.21 对齐）
+### 6.3 审核流（2026-09-15 蓝图 v1 校准，与 spec §7.8 / §7.21 / §7.23 对齐）
 ```
-菜品：管理员经 /admin/dishes 录入/编辑 → audit_status=approved（管理员即权威，spec §7.8 第 1 条）；学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
+菜品：管理员经 /admin/dishes 录入/编辑 → audit_status=approved 且**直接生效**（管理员即权威，spec §7.8 第 1 条）；
+      ★2026-09-15 蓝图 v1（§7.23 第 4 条）：菜品无独立审核——dish.audit_status / dish.reject_reason 退役为历史列，
+        后台无审核入口（列表无审核列、详情无审核态与退回原因回显），客户端不出现「菜品审核」概念；
+        学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
 评价：先发后审、无 audit_status——机检 pass 即公开（is_hidden=0 AND sec_state='pass'）；sec_state='review' 进人工复核队列（PUT /admin/reviews/{id}/sec-state）；risky 提交即 400 拦截
-反馈/举报：POST /feedback 公开提交 → 管理员 PUT /admin/feedbacks/{id} 处理（reply 必填）→ 站内通知回执
-纠错/下架/新增菜品：反馈类型承载（error/add，关联菜品），无独立申请表
+反馈/举报（唯一运营闭环）：POST /feedback 公开提交（type ∈ suggestion/add/error/report）
+     → 管理员 PUT /admin/feedbacks/{id} 处理：采纳=reply 必填 / 不采纳·退回=rejectReason 必填
+     → status=handled + 站内通知回执（游客不投递）
+     → 处理动作即实际的录入/修改/下架菜品（不得「一键转菜品」，须人工编辑确认，spec §7.13 第 1 条）
+食堂/档口：无审核流；作为菜品属性字典随菜品 upsert（不存在即自动建档，spec §7.23 原则 1）
 ```
 
 > 食堂/档口为筛选属性字典，无 `status`/`audit_status`/`reject_reason`（2026-09-14 Q-113 / Q-119 去实体化），不参与审核流。
@@ -256,9 +288,14 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 
 ---
 
-## 8. 与 project_spec.md 的差异（以代码为准）
+## 8. 差异登记（裁决以 project_spec.md 与最新拍板为准；代码侧差异列为待对齐项）
 
-| 项 | spec 描述 | 实际代码 | 建议 |
+> **⚠️ 裁决口径（本节唯一有效，2026-09-15 修订，原「以代码为准」表述作废）**：本节是**待对齐项登记册**，不是裁决依据。
+> - **规范 / 契约冲突一律以 `project_spec.md` 与最新拍板决议为准**（spec §0.4 / §0.5 执行口径、PR-02 硬原则）；**禁止据代码现状反向推翻文档**。
+> - 「实际代码」列仅用于**标记代码尚未对齐文档的缺口**，对应行的处置方向恒为**改代码**（除非该差异已由新的用户拍板推翻文档，此时应先改文档再改代码）。
+> - 任何人**不得**援引本节「代码与文档不一致」作为按代码实现的依据。
+
+| 项 | spec 描述 | 实际代码（待对齐项） | 处置 |
 |---|---|---|---|
 | **UGC 配图与内容安检（2026-09-13 拍板，QA 门禁契约校准）** | spec §5.a：评价/反馈配图 ≤3 张、msgSecCheck v2/imgSecCheck、`sec_state` 可见性、`POST /upload/images`、`PUT /admin/reviews/{id}/sec-state` | 已落地并对账一致（本文档 §2.3 / §3.3 / §3.6 / §4 / §5.4 契约与实现一致：**单张**上传、前端逐张调用、`sec_state` 三态 `pass/review/rejected`、复核入参 `{ state: "pass"\|"rejected" }`） | 原「评价全量纯文本、反馈纯文本免图」注记已随本拍板作废 |
 | **activity / broadcast 全链路下线（2026-09-13）** | spec 曾列 `/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口与 activity/broadcast 实体 | 接口 / 实体 / 库表 / Web 管理页 / 小程序页面（`pages/activity/` 分包）与「最新活动」宫格全部删除，数据库基线 14 → 12 张表 | 本文档 §2.5 / §5.5 已删除相关行；spec §0.5 已登记下线拍板 |
@@ -269,6 +306,11 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 | `GET /my/reviews` 权限 | 仅 `@RequireVerified` | 额外 `@PreAuthorize("hasRole('STUDENT')")`（`ReviewController.java:71`） | 已在 §3.3 加注（不影响小程序，默认 STUDENT） |
 | `POST /dishes`（学生发布菜品） | 曾列为 UGC 写路径 | 接口已删除（2026-09-13 下线） | 已在 §3.2 加注，spec §5 已同步 |
 | `PUT`/`DELETE /dishes/{id}`（学生编辑·删除本人菜品） | 曾列为学生 UGC 写路径 | 接口已删除（2026-09-13 下线，`DishPublishReq` 一并删除） | 已在 §3.2 加注，spec §0.1/§0.3/§3/§5/§5.y/§5.z 已同步为学生端无菜品写接口 |
+| **评价「有用」点赞准入**（2026-09-15 蓝图 v1，spec §7.23 第 2 条） | 需 `verified=true`（未认证 `4031` + 弹 `AuthSheet`） | 代码**已符合**：`ReviewController.java:128` `@RequireVerified` | **代码不动，文档对齐代码**；原「仅需登录」表述（§7.8 第 3 条 / §7.19 第 4 条 / 本文档 §3.3）已同步作废 |
+| **反馈处理 `reject_reason`**（2026-09-15 蓝图 v1，spec §7.23 第 5 条） | 结论「不采纳 / 退回」时 `rejectReason` 必填，随回执展示 | 代码**尚未实现**：`FeedbackHandleReq` 仅 `reply`；`user_feedback` 无 `reject_reason` 列 | **改代码 + 待拍板加列**：后端补 `rejected` / `rejectReason` 入参与校验；`user_feedback.reject_reason` 列待用户确认后以幂等脚本追加（列落地前由 `reply` 承载），见 §5.4 |
+| **食堂 / 档口随菜品 upsert**（2026-09-15 蓝图 v1，spec §7.23 原则 1） | `POST`/`PUT /admin/dishes` 支持按 `canteenName` / `stallName` upsert | 代码**尚未实现**：`DishAdminReq` 仅 `stallId`，`DishServiceImpl` 校验「档口不存在」即 400 | **改代码**：按 §5.2 契约在 Service 层实现 upsert（禁止 Controller 直调 Mapper），同名不重复建档 |
+| **菜品无独立审核**（2026-09-15 蓝图 v1，spec §7.23 第 4 条） | `dish.audit_status` / `dish.reject_reason` 退役：后台无审核入口、端上无「菜品审核」概念；管理员录入 / 编辑即 `approved` 并生效 | 后端**已符合**（`DishServiceImpl` 新增 / 编辑均写 `AUDIT_APPROVED`，`/admin/audit/**` 已删）；**Web 前端未对齐**：`DishManageView` 仍有审核列（`auditMetaOf`/`rejectReasonOf`）、`DishDetailView` 仍回显审核态与退回原因 | **改前端**：Web 两处审核展示下线；小程序 `types/dish.ts` 的 `AuditStatus`/`auditStatus` 零消费则删除；存量 `audit_status` 由 `normalize_dish_audit_status.sql` 一次性归一（用户执行） |
+| **管理端无密码体系**（2026-09-15 蓝图 v1，spec §7.23） | 无账号 / 无密码 / 无 BCrypt 登录校验 / 无 `SUPER_ADMIN`；`user.password` 为历史兼容列 | 后端**接口层已符合**（无 `/auth/admin/login`，`/admin/**` 走 `AdminTokenFilter`）；**代码未清**：`common/config/DataInitializer.java` 仍注入 `PasswordEncoder` 并在 dev 建默认管理员 `admin/admin123` | **改代码**：删除 `DataInitializer`，并确认 BCrypt 仅保留于 `email_verification_code.code_hash` |
 
 ---
 

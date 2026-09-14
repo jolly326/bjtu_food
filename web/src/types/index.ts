@@ -74,10 +74,16 @@ export interface Dish {
   spiceLevel?: number;
   /** 风味/菜系（东北 / 川湘 / 粤式 / 西北 / 清真 / 其他；空=未填） */
   region?: string;
-  /** 审核状态：pending / approved / rejected（与上下架 status 解耦） */
-  audit_status?: string;
-  /** 退回原因（audit_status=rejected 时由后台填写，回显学生端） */
-  reject_reason?: string;
+  /**
+   * 所属品类 ID（可空=未分类；DishAdminVO.categoryId，§7.23 WEB-06）。
+   * 注（§7.23 第 4 条，2026-09-15）：菜品无独立审核，原 audit_status / reject_reason
+   * 已随「菜品审核 UI 下线」从前端契约移除（后端列为退役历史列，不再读写）。
+   */
+  categoryId?: number;
+  /** 档口名称（DishAdminVO 联表返回；列表/详情直读，不再经 store.stalls 反查） */
+  stallName?: string;
+  /** 所属食堂名称（DishAdminVO 联表返回） */
+  canteenName?: string;
   /** 原价（元），用于折扣价展示；promoPrice 非空时为折扣价 */
   originalPrice?: number;
   /** 促销价（元，可空）；非空时视为有折扣 */

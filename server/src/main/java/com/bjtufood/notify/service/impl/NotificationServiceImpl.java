@@ -11,6 +11,8 @@ import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;
 import com.bjtufood.notify.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +26,35 @@ import java.util.List;
  * P3/ARCH-008：学生端「我的通知」列表/未读数/已读逻辑自 Controller 下沉至此。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationMapper notificationMapper;
 
+    /**
+     * 写入一条通知。
+     * <p>
+     * BE-07：补 {@code @Async("taskExecutor")}——此前仅靠 REQUIRES_NEW 开新事务，
+     * 写入仍发生在调用方请求线程上，通知表慢/抖会直接拖慢业务主流程（反馈处理）。
+     * 现按既定规约走 {@code common/config/AsyncConfig} 的有界线程池（core 4 / max 8 / queue 128 / CallerRuns）。
+     * <p>
+     * 注意：@Async 依赖 Spring 代理，调用方必须经 {@link NotificationService} Bean 调用（禁止同类自调）；
+     * 且方法返回 void，异步线程内的异常不会回传调用方——调用方原有的 try-catch 兜底保持不变（更稳）。
+     * REQUIRES_NEW 保留：异步线程内独立事务，不并入调用方事务。
+     */
     @Override
+    @Async("taskExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void notify(Notification notification) {
-        notificationMapper.insert(notification);
+        try {
+            notificationMapper.insert(notification);
+        } catch (Exception e) {
+            // 异步线程内异常不会传播到调用方，必须就地记日志，否则写入失败将完全静默
+            log.error("通知写入失败（userId={} type={} relatedId={}）",
+                    notification.getUserId(), notification.getType(), notification.getRelatedId(), e);
+            throw e;
+        }
     }
 
     @Override

@@ -9,7 +9,7 @@
           :class="{ 'is-disabled': !hasUnread || readAllBusy }"
           role="button"
           aria-label="全部已读"
-          hover-class="read-all-pressed"
+          hover-class="pressed"
           @tap="onReadAll"
         >
           <IconSvg name="check" :size="26" :color="hasUnread ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
@@ -61,6 +61,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
+import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
@@ -160,6 +161,13 @@ async function onReadAll() {
   }
 }
 
+/**
+ * onShow 重拉闸门（MP-07）：首次进入必拉；之后从二级页（如菜品详情）返回时，
+ * 30s 内且本页无「写失败遗留」则跳过重拉，避免列表被无谓重置、浏览位置丢失。
+ * 下拉刷新与失败重试块不经过闸门（用户显式意图 → 直接 load）。
+ */
+const { markDirty, refreshOnShow } = useOnShowRefresh(load)
+
 /** 点击通知：标记已读；dish_audit 跳菜品详情；feedback_handle 停留本页（回执正文已在内容区展示，不做跳转） */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {
@@ -168,16 +176,18 @@ async function onTap(n: Notification) {
     notifyStore.fetchUnread()
     try {
       await readNotification(n.id)
-    } catch { /* 失败静默，下轮刷新对齐 */ }
+    } catch {
+      // 失败静默；但本地已乐观置位、与服务端不一致 → 置脏，下次进入本页必然重拉对齐（MP-07）
+      markDirty()
+    }
   }
   if (n.type === 'dish_audit' && n.relatedId) {
     uni.navigateTo({ url: dishDetailUrl(n.relatedId) })
   }
 }
 
-// 进入/返回本页即加载（游客亦可进入；无个人数据时展示空态）
 onShow(() => {
-  load()
+  refreshOnShow()
 })
 </script>
 
@@ -248,6 +258,22 @@ onShow(() => {
 .empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
 
 /* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
+
+/* 「全部已读」胶囊（MP-06 补齐）：模板注释承诺「与下方通知卡同一表面语言」，此前样式区零规则，
+   胶囊裸文字无外观；按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
+   （App.vue 全局注释明确允许页面 scoped 覆盖）；禁用态复用全局 .is-disabled */
+.read-all {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-card);
+  -webkit-tap-highlight-color: transparent;
+}
+.read-all.pressed { background: var(--bg-soft); opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .msg-item { transition: none; }

@@ -1,6 +1,7 @@
 # 数据库设计（食在交大 bjtu_food）
 
 > 本文档基于 `server/src/main/resources/db/schema.sql` 自动核对生成，与当前实现严格一致。
+> **2026-09-15 对账修订（蓝图 v1，权威 `project_spec.md` §7.23）**：删除已 DROP 列（`dish.portion` / `dish.serve_period` / `dish.limited`、`canteen`/`stall` 的 `status`/`audit_status`/`reject_reason` 6 列、`stall.business_hours`、`review.tags`）；`user.role` 收为两层（移除 `super_admin`）；`user.password` 标注为历史兼容列；`dish.category_id` 改为「后台归类、端上不呈现」；`dish.region` 改为「风味 / 菜系」；`dish.audit_status` / `dish.reject_reason` 标注为已退役历史列；清理已删除接口条目（`selectPromotionDishes` / `GET /dishes/promotions`）。
 > 数据库名：`bjtu_food`；字符集：`utf8mb4` / `utf8mb4_general_ci`；引擎：`InnoDB`。
 
 ## 1. 设计约定
@@ -13,8 +14,8 @@
 | 金额 | 以「分」为单位存储 `INT`（如 12.00 元 = `1200`），避免浮点误差 |
 | 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，用于菜品/食堂/档口图；**2026-09-13 起 UGC 评价/反馈恢复 `images` 列**：同为 JSON 数组字符串，≤3 项 COS URL，见 §3.5 / §3.9） |
 | 内容安检 | UGC（评价/反馈）文本与配图过微信内容安检；`review.sec_state` / `user_feedback.sec_state`（**三态** `pass`/`review`/`rejected`，默认 `pass`，2026-09-13 追加列）承载安检态，`review`（机检待人工复核）与 `rejected`（人工驳回）均对非作者不可见 |
-| 审核流 | UGC 实体（`dish`/`stall`/`canteen`）含 `audit_status`（pending/approved/rejected）、`reject_reason`、`created_by`；后台录入默认 `approved` |
-| 角色 | `user.role`：`student`（默认）/ `admin` / `super_admin`；`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
+| 审核流 | **2026-09-15 蓝图 v1（`project_spec.md` §7.23 第 4 条）：菜品无独立审核**——`dish.audit_status` / `dish.reject_reason` 为**已退役的历史列**（列保留、不再扩展、后台无审核入口、端上无「菜品审核」概念），管理员录入 / 编辑即写 `approved` 并直接生效；`stall` / `canteen` 的 `audit_status` / `reject_reason` 已于 2026-09-14 随去实体化 DROP。**唯一有待处理态的运营对象是 `user_feedback`**（`status` pending/handled + `reply` 回执；不采纳 / 退回写 `reject_reason`） |
+| 角色 | `user.role`：**仅两层** `student`（默认）/ `admin`；**`super_admin` 已于 2026-09-14 移除（2026-09-15 蓝图 v1 再确认）**，`role` 仅作账号归属的数据语义、不作权限分层。`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
@@ -34,10 +35,10 @@
 | id | BIGINT | 否 | AUTO | 用户ID |
 | username | VARCHAR(64) | 否 | '' | 学号/工号；游客建号为 `wx_`+openid 尾16位（唯一） |
 | email | VARCHAR(128) | 可 | NULL | 校园邮箱（历史迁移凭证；游客为 NULL） |
-| password | VARCHAR(128) | 可 | NULL | 密码哈希（仅管理员后台用，学生侧不校验） |
+| password | VARCHAR(128) | 可 | NULL | **历史兼容列**：密码哈希。**管理端已不使用**（管理端为环境变量口令 `ADMIN_TOKEN`，无账号密码登录），学生侧亦不校验；**BCrypt 仅用于邮箱验证码哈希（`email_verification_code.code_hash`），不用于任何登录口令校验**（2026-09-15 蓝图 v1，spec §7.23） |
 | nickname | VARCHAR(64) | 否 | '' | 昵称 |
 | avatar | VARCHAR(512) | 可 | NULL | 头像URL |
-| role | VARCHAR(32) | 否 | 'student' | student/admin/super_admin |
+| role | VARCHAR(32) | 否 | 'student' | **仅两层**：student / admin（**`super_admin` 已移除**，2026-09-15 与 spec §7.23 对齐） |
 | status | VARCHAR(32) | 否 | 'active' | active/disabled/deleted |
 | openid | VARCHAR(64) | 可 | NULL | 微信 openid（静默登录取号依据，唯一） |
 | unionid | VARCHAR(64) | 可 | NULL | 微信 unionid（可空） |
@@ -60,14 +61,13 @@
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | latitude | DECIMAL(10,6) | 可 | NULL | 纬度（GCJ-02，首页「距你 Xm」依赖） |
 | longitude | DECIMAL(10,6) | 可 | NULL | 经度（GCJ-02） |
-| status | VARCHAR(32) | 否 | 'open' | open/closed |
 | sort_order | INT | 否 | 0 | 排序权重（小靠前） |
-| audit_status | VARCHAR(32) | 否 | 'approved' | pending/approved/rejected |
-| reject_reason | VARCHAR(255) | 可 | NULL | 退回原因 |
 | created_by | BIGINT | 可 | NULL | 提交人用户ID |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)。
+
+> **已下线列（2026-09-14 Q-113 / Q-119，食堂 / 档口去实体化为「菜品筛选属性字典」）**：`canteen` / `stall` 的 `status`、`audit_status`、`reject_reason` 共 6 列已由 `schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` DROP，CREATE TABLE 亦不再创建；实体 / VO / Service 读写同批移除。字典能力集合仅「列表查看 / 新增 / 改名」，**无删除**（spec §7.22 第 5 条）。
 
 ### 3.3 stall（档口）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -79,23 +79,21 @@
 | location | VARCHAR(128) | 可 | NULL | 位置 |
 | floor | VARCHAR(16) | 可 | NULL | 楼层（如 1F） |
 | window_no | VARCHAR(32) | 可 | NULL | 窗口号 |
-| business_hours | VARCHAR(64) | 可 | NULL | 营业时间 |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | sort_order | INT | 否 | 0 | 排序权重 |
-| status | VARCHAR(32) | 否 | 'open' | open/closed |
-| audit_status | VARCHAR(32) | 否 | 'approved' | 审核态 |
-| reject_reason | VARCHAR(255) | 可 | NULL | 退回原因 |
 | created_by | BIGINT | 可 | NULL | 提交人 |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_stall_canteen`(`canteen_id`)。
+
+> **已下线列**：`stall.business_hours`（营业时间）已于 2026-09-14 §7.14 第 4 条下线（`drop_stall_business_hours` 幂等 DROP）；`status` / `audit_status` / `reject_reason` 见上节说明。`floor`（楼层）与 `window_no`（窗口号）**保留**（端上有消费）。
 
 ### 3.4 dish（菜品）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 菜品ID |
 | stall_id | BIGINT | 否 | 0 | 所属档口ID |
-| category_id | BIGINT | 可 | NULL | 品类ID（首页品类滚轮筛选；可空=未分类） |
+| category_id | BIGINT | 可 | NULL | 品类ID（**后台归类用途，端上不呈现**——2026-09-14 Q-117 / spec §7.22 第 1 条：端上无品类筛选与展示入口，仅管理员在菜品表单归类；可空=未分类） |
 | name | VARCHAR(64) | 否 | '' | 菜品名称 |
 | price | INT | 否 | 0 | 价格（分） |
 | original_price | INT | 可 | NULL | 原价（分，折扣前） |
@@ -104,14 +102,11 @@
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
 | tags | VARCHAR(128) | 可 | NULL | 逗号分隔；**权威值域：`recommended`（必吃推荐）/ `signature`（招牌菜）**；web 管理端写入值域以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值，禁止写入中文或其他值 |
 | alias | VARCHAR(255) | 可 | NULL | 搜索别名（逗号分隔，管理员配置；搜索 keyword 同时命中 name 与 alias；旧库经 schema.sql 幂等迁移块补齐） |
-| region | VARCHAR(32) | 可 | NULL | 地域（美食来源地），如 清真/川湘/西北/粤式/东北（一期扩展，schema.sql 存储过程幂等追加） |
+| region | VARCHAR(32) | 可 | NULL | **风味 / 菜系**（**不是「地域 / 校区」**；2026-09-14 §7.9 第 1 条定型），权威值域：东北 / 川湘 / 粤式 / 西北 / 清真 / 其他（schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
-| portion | INT | 否 | 1 | 分量：0小/1中/2大 |
-| serve_period | VARCHAR(64) | 可 | NULL | 供应时段：breakfast/lunch/dinner/midnight |
-| limited | INT | 否 | 0 | 是否限量（0否/1是） |
-| status | VARCHAR(32) | 否 | 'on' | 上架：on/off |
-| audit_status | VARCHAR(32) | 否 | 'pending' | 审核态 |
-| reject_reason | VARCHAR(255) | 可 | NULL | 退回原因 |
+| status | VARCHAR(32) | 否 | 'on' | 上架：on/off（**菜品唯一的运营开关**） |
+| audit_status | VARCHAR(32) | 否 | 'pending' | **已退役的历史列（2026-09-15 蓝图 v1 / spec §7.23 第 4 条）**：菜品无独立审核，管理员录入 / 编辑即写 `approved` 并直接生效；列保留、不再扩展、后台与端上均无审核入口。存量非 `approved` 由 `normalize_dish_audit_status.sql` 一次性归一 |
+| reject_reason | VARCHAR(255) | 可 | NULL | **已退役的历史列**（同上，随菜品审核语义退役；不采纳 / 退回语义已迁至 `user_feedback.reject_reason`） |
 | created_by | BIGINT | 可 | NULL | 提交人 |
 | view_count | INT | 否 | 0 | 浏览量 |
 | avg_rating | DECIMAL(3,2) | 可 | NULL | 平均评分 |
@@ -120,7 +115,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_category`(`category_id`)；KEY `idx_dish_audit`(`audit_status`)；KEY `idx_dish_heat`(`status`,`audit_status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。
 
-**技术债（F-003①，2026-09 收口登记）**：`DishMapper.xml` 中 `selectPromotionDishes`（`FIND_IN_SET('promotion', d.tags)`，对外 `GET /dishes/promotions`）为**死查询**——写入侧无任何来源（web TAG_OPTIONS 仅 recommended/signature，seed_data.sql 无 promotion），消费侧无终端页面（client store 导出 `promotionDishes` 但无页面引用）；小程序「限时优惠」展示消费的是 `promo_price` 字段，与本标签无关。故 `promotion` **不登记**入权威值域；该查询链路如后续无消费场景应随死代码清理，在此之前任何人不得在 web 端或 seed 中写入 `promotion` 值。
+> **已下线列（2026-09-14 用户拍板，字段生命周期成对处置 PR-07）**：`dish.serve_period`（餐段，§7.9 第 3 条）、`dish.limited`（限量，§7.9 第 4 条）、`dish.portion`（分量，§7.21 第 8 条 / Q-114）三列已整体下线——CREATE TABLE 不再创建，存量库由 `schema.sql` 幂等存储过程 `drop_dish_unused_fields` / `drop_dish_portion` DROP，实体 / VO / DTO / Mapper / 后台表单 / 端上映射全链路移除。**列已从本表删除，勿再据旧文档引用。**
 
 ### 3.5 review（评价）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -130,7 +125,6 @@
 | dish_id | BIGINT | 否 | 0 | 被评价菜品ID |
 | rating | INT | 否 | 0 | 评分（1-5星） |
 | content | VARCHAR(512) | 可 | NULL | 评价内容 |
-| tags | VARCHAR(255) | 可 | NULL | 评价标签（美团式写评预留列，**当前预留未消费**，schema.sql 已建列） |
 | images | VARCHAR(1024) | 可 | NULL | **评价配图（2026-09-13 恢复）**：JSON 数组字符串（`["cos-url1","cos-url2"]`，≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS） |
 | sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`（放行）/`review`（文本 msgSecCheck `suggest=review` 落此态，机检待人工复核，对非作者不可见）/`rejected`（管理后台人工复核驳回落此态，对非作者不可见同 review）；管理后台 `PUT /admin/reviews/{id}/sec-state` 放行（→`pass`）/驳回（→`rejected`）；公开展示条件 = `is_hidden=0` 且 `sec_state='pass'` |
 | is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏） |
@@ -154,7 +148,7 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 通知ID |
 | user_id | BIGINT | 否 | 0 | 接收用户ID |
-| type | VARCHAR(32) | 否 | '' | dish_audit / feedback_handle（菜品审核结果 / 反馈处理回执） |
+| type | VARCHAR(32) | 否 | '' | `feedback_handle`（**唯一在产类型**：反馈 / 举报处理回执，仅已认证提交人可收到）/ `dish_audit`（**仅存量兼容，2026-09-14 Q-107 起不再产生新通知**——菜品无独立审核，见 spec §7.23 第 4 条） |
 | title | VARCHAR(128) | 否 | '' | 通知标题 |
 | content | VARCHAR(512) | 可 | NULL | 正文 |
 | related_id | BIGINT | 可 | NULL | 关联对象ID（按 type 解释） |
@@ -167,9 +161,9 @@
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 分类ID |
-| code | VARCHAR(32) | 否 | '' | 品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal；前端滚轮 key） |
+| code | VARCHAR(32) | 否 | '' | 品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal）。**2026-09-14 Q-117 定型：品类仅作后台菜品归类用途，端上不呈现**（原「前端滚轮 key」语义已随端上品类死链路删除） |
 | name | VARCHAR(64) | 否 | '' | 分类名称（麻辣烫/面食/…） |
-| sort_order | INT | 否 | 0 | 排序权重（对应首页滚轮顺序） |
+| sort_order | INT | 否 | 0 | 排序权重（后台归类列表顺序） |
 | status | VARCHAR(32) | 否 | 'enabled' | enabled/disabled |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
@@ -182,17 +176,18 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 反馈ID |
 | user_id | BIGINT | 否 | 0 | 用户ID |
-| type | VARCHAR(32) | 否 | 'suggestion' | suggestion/error/add/bug/other/report |
+| type | VARCHAR(32) | 否 | 'suggestion' | **写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea`/`sub=problem`，「系统 bug」归 `problem`）、`add` 新增菜品投稿、`error` 信息纠错与申请下架（`related_type=dish`）、`report` 举报（`related_type=review`）。**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，仅保留在查询白名单以筛存量数据 |
 | content | VARCHAR(1024) | 否 | '' | 反馈内容 |
 | images | VARCHAR(1024) | 可 | NULL | **反馈配图（2026-09-13 恢复）**：JSON 数组字符串（≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS），游客提交同样可带图 |
 | sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`/`review`（机检待人工复核）/`rejected`（人工复核驳回，对非作者不可见同 review）；管理后台放行（→`pass`）/驳回（→`rejected`） |
 | contact | VARCHAR(128) | 可 | NULL | 联系方式 |
-| status | VARCHAR(32) | 否 | 'pending' | pending/handled |
-| reply | VARCHAR(1024) | 可 | NULL | 管理员回复 |
+| status | VARCHAR(32) | 否 | 'pending' | pending/handled（**全项目唯一有待处理态的运营对象**，spec §7.23 第 5 条）。**处理结论 `outcome`（`handled`=通过/已处理（缺省）/`rejected`=不采纳/退回）为请求级字段（`FeedbackHandleReq.outcome`，蓝图 v1），不单独落列**：两种结论落库均写 `status='handled'`，结论差异由 `reject_reason` 是否非空承载（rejected 必填原因、handled 保持 NULL） |
+| reply | VARCHAR(1024) | 可 | NULL | 管理员回执（**必填**，1~1000 字，投递为站内通知 `feedback_handle`，回执区分「反馈已处理 / 反馈未采纳」） |
+| reject_reason | VARCHAR(200) | 可 | NULL | **不采纳/退回原因（2026-09-15 蓝图 v1 §7.23 第 5 条，已由规划列转正式列，DDL 随 `schema.sql` 幂等块 `add_feedback_reject_reason` 落地）**：处理结论 `outcome=rejected` 时必填（1~200 字，纯空白视为未填写 → 400），随回执通知一并向已认证提交人展示；`outcome=handled` 时不消费、保持 NULL |
 | related_type | VARCHAR(32) | 可 | NULL | 关联类型（举报：review；信息纠错：dish） |
 | related_id | BIGINT | 可 | NULL | 关联对象ID（举报：评价ID；信息纠错：菜品ID） |
 | handled_at | DATETIME | 可 | NULL | 处理时间 |
-| handler_id | BIGINT | 可 | NULL | 处理人管理员ID |
+| handler_id | BIGINT | 可 | NULL | **retired 列（2026-09-14 第 5 批，管理端操作人身份降级）**：不再写入、不再保证有值，「单口令即单人」不追究操作人身份 |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
@@ -219,7 +214,7 @@
 | target_id | BIGINT | 否 | 0 | 浏览对象ID |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
-**索引/约束**：PK(`id`)；KEY `idx_view_user_time`(`user_id`,`created_at`)；KEY `idx_view_target`(`target_type`,`target_id`)。
+**索引/约束**：PK(`id`)；KEY `idx_view_user_time`(`user_id`,`created_at`)；KEY `idx_view_target`(`target_type`,`target_id`)；KEY `idx_view_user_target_time`(`user_id`,`target_type`,`target_id`,`updated_at`)（**判重复合索引，2026-09-15 新增**：后端浏览量判重已改用 `updated_at`，四列组合覆盖判重查询；新库 CREATE TABLE 已含，旧库由 `schema.sql` 幂等存储过程 `add_view_log_dedup_index` 补建）。
 
 > **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
@@ -303,4 +298,4 @@ erDiagram
 | uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
 | uk_category_code | category | code | 品类机器标识唯一 |
 
-**覆盖索引（排序优化）**：`idx_dish_heat`(status, audit_status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询。
+**覆盖索引（排序优化）**：`idx_dish_heat`(status, audit_status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_view_user_target_time`(user_id, target_type, target_id, updated_at) 支撑浏览量判重（判重已改用 updated_at，2026-09-15）；`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询。

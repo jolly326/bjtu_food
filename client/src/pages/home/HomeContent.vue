@@ -1,55 +1,76 @@
 <template>
   <view class="feed-wrap">
     <!-- 加载失败重试块（MP-012，P3-03 上提为公共组件）：筛选流失败且无数据时替代静默空态/
-         「还没录菜品」误导文案；整块 @tap 上抛 retry 由页面走重拉路径 -->
+         「还没录菜品」误导文案；整块 @tap 上抛 retry 由页面走重拉路径。
+         失败态**优先于**加载态与空态：失败 ≠ 加载中 ≠ 无内容 -->
     <RetryBlock v-if="loadFailed" @retry="emit('retry')" />
 
-    <view class="waterfall-grid">
-      <!-- 双列瀑布流：奇偶分列（右列绝不空）；原 WaterfallList 已内联合并到此，减少一层组件嵌套 -->
-      <view class="waterfall-col waterfall-col-left">
-        <view v-for="entry in splitList.left" :key="entry.key" class="waterfall-item">
-          <DishCard :dish="entry.item" @select="goToDetail" />
-        </view>
-      </view>
-      <view class="waterfall-col waterfall-col-right">
-        <view v-for="entry in splitList.right" :key="entry.key" class="waterfall-item">
-          <DishCard :dish="entry.item" @select="goToDetail" />
-        </view>
-      </view>
-    </view>
+    <!-- 加载骨架（MP-01）：首屏 / 切筛选期间占位，避免空白区 + 贡献卡抢先渲染造成「没内容」误导 -->
+    <FeedSkeleton v-else-if="loading" />
 
-    <!-- 贡献卡片：内容流末尾的**独立兄弟节点**（全宽单列，不进双列高度计算，规避瀑布流具名 slot 塌缩与列高断层）。
+    <template v-else>
+      <view class="waterfall-grid">
+        <!-- 双列瀑布流：奇偶分列（右列绝不空）；原 WaterfallList 已内联合并到此，减少一层组件嵌套 -->
+        <view class="waterfall-col waterfall-col-left">
+          <view v-for="entry in splitList.left" :key="entry.key" class="waterfall-item">
+            <DishCard :dish="entry.item" @select="goToDetail" />
+          </view>
+        </view>
+        <view class="waterfall-col waterfall-col-right">
+          <view v-for="entry in splitList.right" :key="entry.key" class="waterfall-item">
+            <DishCard :dish="entry.item" @select="goToDetail" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 触底态（MP-05）：到达保留页数上限给出说明并保留「清除筛选」脱困动作，
+           不再无限 concat；加载中给出在途提示（filterLoadingMore 此前全仓零消费） -->
+      <view v-if="pageLimited" class="feed-foot">
+        <text class="feed-foot-text">已展示前 {{ maxDishes }} 个结果，缩小筛选范围可查看更多</text>
+      </view>
+      <view v-else-if="loadingMore" class="feed-foot">
+        <text class="feed-foot-text">正在加载更多…</text>
+      </view>
+
+      <!-- 贡献卡片：内容流末尾的**独立兄弟节点**（全宽单列，不进双列高度计算，规避瀑布流具名 slot 塌缩与列高断层）。
          卡片常驻于网格整体之下：内容非空时为末尾一项，内容为空时即为内容区唯一元素（空态显式例外，见 spec contribution-entry）。
          文案随筛选上下文切换「同节点换文案」，不做整卡条件重建，避免切换闪烁与位移跳动。 -->
-    <view class="contribute-card" role="button" aria-label="推荐菜品" hover-class="pressed" @tap="goContribute">
-      <view class="cc-icon">
-        <IconSvg :name="scopeEmpty ? 'search' : 'plus'" :size="40" color="var(--color-primary)" />
+      <view class="contribute-card" role="button" aria-label="推荐菜品" hover-class="pressed" @tap="goContribute">
+        <view class="cc-icon">
+          <IconSvg :name="scopeEmpty ? 'search' : 'plus'" :size="40" color="var(--color-primary)" />
+        </view>
+        <view class="cc-copy">
+          <text class="cc-title">{{ scopeEmpty ? '这个范围还没录菜品' : '想吃啥没找到？告诉我们' }}</text>
+          <text class="cc-desc">
+            {{ scopeEmpty ? '把你吃到的菜报给我们，也可以扩大范围再找找' : '补录一道菜，让更多同学找到它' }}
+          </text>
+        </view>
+        <!-- 次级动作：仅在「筛选后无结果」时出现，帮助用户脱困（子元素显隐，不重建整卡） -->
+        <text
+          v-if="scopeEmpty"
+          class="cc-clear"
+          role="button"
+          aria-label="清除筛选"
+          @tap.stop="emit('clear-filter')"
+        >清除筛选</text>
+        <IconSvg v-else name="arrow" :size="28" color="var(--text-tertiary)" />
       </view>
-      <view class="cc-copy">
-        <text class="cc-title">{{ scopeEmpty ? '这个范围还没录菜品' : '想吃啥没找到？告诉我们' }}</text>
-        <text class="cc-desc">
-          {{ scopeEmpty ? '把你吃到的菜报给我们，也可以扩大范围再找找' : '补录一道菜，让更多同学找到它' }}
-        </text>
-      </view>
-      <!-- 次级动作：仅在「筛选后无结果」时出现，帮助用户脱困（子元素显隐，不重建整卡） -->
-      <text
-        v-if="scopeEmpty"
-        class="cc-clear"
-        role="button"
-        aria-label="清除筛选"
-        @tap.stop="emit('clear-filter')"
-      >清除筛选</text>
-      <IconSvg v-else name="arrow" :size="28" color="var(--text-tertiary)" />
-    </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
+import FeedSkeleton from './FeedSkeleton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
-import { useDishStore } from '@/stores/dish'
+import {
+  useDishStore,
+  LOADING_KEY_FILTER,
+  FILTER_PAGE_SIZE,
+  FILTER_MAX_PAGES,
+} from '@/stores/dish'
 import type { Dish } from '@/types/dish'
 import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
 
@@ -65,6 +86,18 @@ const emit = defineEmits<{
 }>()
 
 const dishStore = useDishStore()
+
+/**
+ * 筛选流首屏 / 切筛选在途（MP-01）：此前 store 未把筛选流纳入 withLoading，
+ * 请求期间无在途态可消费，内容区只能空白，而贡献卡又抢先渲染 → 「加载中」被读成「没内容」。
+ * 只订阅 LOADING_KEY_FILTER（触底加载更多是另一个 key，不遮挡已有列表）。
+ */
+const loading = computed(() => dishStore.isLoading(LOADING_KEY_FILTER))
+/** 触底加载更多在途（MP-05 顺带让此前全仓零消费的 filterLoadingMore 有出口） */
+const loadingMore = computed(() => dishStore.filterLoadingMore)
+/** 触达保留页数上限（MP-05）：给出「已展示前 N 个」说明，避免静默截断 */
+const pageLimited = computed(() => dishStore.filterPageLimited)
+const maxDishes = FILTER_MAX_PAGES * FILTER_PAGE_SIZE
 
 /** 筛选流最近一次请求失败且当前无数据（MP-012）：渲染错误重试块，失败 ≠ 无数据 */
 const loadFailed = computed(() => dishStore.filterError && dishStore.filterList.length === 0)
@@ -167,6 +200,19 @@ function goContribute() {
   color: var(--color-primary);
   border: 1rpx solid var(--color-primary);
   border-radius: var(--radius-pill);
+}
+
+/* 触底 / 加载更多提示（MP-05）：居中次级灰小字，不抢内容焦点 */
+.feed-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--spacing-md) var(--spacing-lg);
+}
+.feed-foot-text {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -58,13 +58,6 @@ public interface CanteenService {
     List<CanteenAdminVO> listAllForAdmin();
 
     /**
-     * 新增食堂
-     *
-     * @param canteen 食堂信息（created_by 由后端强制写入当前登录用户）
-     */
-    void add(Canteen canteen);
-
-    /**
      * 编辑食堂
      *
      * @param canteen 食堂信息（含ID）

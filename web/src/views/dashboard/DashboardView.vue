@@ -11,6 +11,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
 import PageContainer from '@/components/layout/PageContainer.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import {
   PriceTag, ChatLineSquare, House, Food, User,
   Refresh, ArrowRight, Check, Clock, Bell,
@@ -87,27 +88,23 @@ onMounted(loadData)
           </button>
         </div>
         <div class="todo-grid">
-          <article
+          <StatCard
             v-for="t in todoCards"
             :key="t.key"
-            class="todo-card"
-            :class="{ done: t.count === 0 }"
-            v-press
-            role="button"
-            tabindex="0"
+            variant="inline"
+            size="lg"
+            interactive
+            :label="t.label"
+            :value="t.count"
+            :tone="t.count > 0 ? 'primary' : 'success'"
             @click="navTo(t.to)"
-            @keyup.enter="navTo(t.to)"
           >
-            <div class="todo-icon"><el-icon><component :is="t.icon" /></el-icon></div>
-            <div class="todo-body">
-              <div class="todo-value">{{ t.count }}</div>
-              <div class="todo-label">{{ t.label }}</div>
-            </div>
-            <div class="todo-action">
+            <template #icon><el-icon><component :is="t.icon" /></el-icon></template>
+            <template #action>
               <template v-if="t.count > 0">去处理<el-icon class="todo-arrow"><ArrowRight /></el-icon></template>
               <span v-else class="todo-clear"><el-icon class="todo-arrow"><Check /></el-icon>已清空</span>
-            </div>
-          </article>
+            </template>
+          </StatCard>
         </div>
       </section>
 
@@ -115,22 +112,19 @@ onMounted(loadData)
       <section class="block-section">
         <h3 class="section-title">数据总览</h3>
         <div class="metric-grid">
-          <article
+          <StatCard
             v-for="m in metrics"
             :key="m.key"
-            class="metric-card"
-            v-press
-            role="button"
-            tabindex="0"
+            variant="inline"
+            size="md"
+            interactive
+            :label="m.label"
+            :value="m.value"
+            tone="primary"
             @click="navTo(m.to)"
-            @keyup.enter="navTo(m.to)"
           >
-            <div class="metric-icon"><el-icon><component :is="m.icon" /></el-icon></div>
-            <div class="metric-body">
-              <div class="metric-value">{{ m.value }}</div>
-              <div class="metric-label">{{ m.label }}</div>
-            </div>
-          </article>
+            <template #icon><el-icon><component :is="m.icon" /></el-icon></template>
+          </StatCard>
         </div>
       </section>
 
@@ -228,61 +222,16 @@ onMounted(loadData)
 .btn-secondary.inline { margin-left: var(--space-3); }
 .ref-ico { width: 14px; height: 14px; }
 
-.state-box { text-align: center; color: var(--text-light); padding: var(--space-10) var(--space-4); display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
-.state-err { color: var(--color-error); }
-.spin { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 1.4s; } }
+/* 三态盒（.state-box/.state-err/.spin）已收敛至 shared.css 全局唯一实现（UI-04） */
 
-/* ===== 待办卡 ===== */
+/* ===== 待办卡 / 指标卡（UI-01）：结构统一走 StatCard（variant="inline"），私有卡片样式已删除 ===== */
 .todo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
-.todo-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  cursor: pointer;
-  user-select: none;
-  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
-}
-@media (hover: hover) { .todo-card:hover { box-shadow: var(--card-hover-shadow); border-color: var(--border-strong); } }
-.todo-card:active { transform: scale(var(--press-scale)); }
-.todo-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.todo-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--radius-md); flex-shrink: 0; color: var(--color-primary); background: var(--color-primary-bg); }
-.todo-icon .el-icon { font-size: 24px; }
-.todo-card.done .todo-icon { color: var(--color-success); background: var(--color-success-bg); }
-.todo-body { flex: 1; min-width: 0; }
-.todo-value { font-size: var(--font-4xl); font-weight: var(--weight-bold); line-height: 1.1; color: var(--text-primary); letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
-.todo-label { margin-top: var(--space-1); font-size: var(--font-md); font-weight: var(--weight-medium); color: var(--text-secondary); }
-.todo-action { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-sm); color: var(--color-primary); font-weight: var(--weight-medium); flex-shrink: 0; }
+.todo-grid :deep(.stat-card) { min-width: 0; }
 .todo-arrow { width: 14px; height: 14px; }
 .todo-clear { display: inline-flex; align-items: center; gap: 2px; color: var(--color-success); }
 
-/* ===== 指标卡 ===== */
 .metric-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-5); }
-.metric-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-card);
-  cursor: pointer;
-  user-select: none;
-  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
-}
-@media (hover: hover) { .metric-card:hover { box-shadow: var(--card-hover-shadow); border-color: var(--border-strong); } }
-.metric-card:active { transform: scale(var(--press-scale)); }
-.metric-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.metric-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-md); flex-shrink: 0; color: var(--color-primary); background: var(--color-primary-bg); }
-.metric-icon .el-icon { font-size: 20px; }
-.metric-body { min-width: 0; }
-.metric-value { font-size: var(--font-2xl); font-weight: var(--weight-bold); line-height: 1.1; color: var(--text-primary); letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums; }
-.metric-label { margin-top: 2px; font-size: var(--font-xs); color: var(--text-muted); }
+.metric-grid :deep(.stat-card) { min-width: 0; }
 
 /* ===== 列表卡（待办明细 / 近期操作共用，同一设计语言：卡片容器 + 分隔线行） ===== */
 .list-card {
@@ -376,7 +325,7 @@ onMounted(loadData)
 
 /* 降低动效：按压缩放属「运动」，降级为无位移（保留 hover/背景等非运动反馈） */
 @media (prefers-reduced-motion: reduce) {
-  .todo-row, .todo-row:active, .metric-card, .metric-card:active, .todo-card, .todo-card:active { transition: none; transform: none; }
+  .todo-row, .todo-row:active { transition: none; transform: none; }
 }
 
 /* ===== 响应式 ===== */

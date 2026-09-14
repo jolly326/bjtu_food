@@ -4,7 +4,7 @@ import type {
 } from '@/types/dish'
 import { get, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { recordsOf, totalOf, normalizeImages, type RawRow } from './shared'
+import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from './shared'
 
 /**
  * 标签机器值 → 中文展示值映射（**标签语义唯一真源**）。
@@ -39,7 +39,6 @@ export function toDish(raw: RawRow): Dish {
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
     hasReviewed: !!raw.hasReviewed,
-    auditStatus: raw.auditStatus ?? raw.audit_status,
     // ===== task-03 位置链路（来自 stall 联表） =====
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
@@ -85,8 +84,9 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]
   if (query.sortBy) params.sortBy = query.sortBy
   if (query.sortOrder) params.sortOrder = query.sortOrder
 
-  const res = await get<any>('/dishes', params)
-  const list = recordsOf<any>(res).map(toDish)
+  // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
+  const res = await get<RawPage>('/dishes', params)
+  const list = recordsOf<RawRow>(res).map(toDish)
   return { list, total: totalOf(res) }
 }
 
@@ -96,7 +96,8 @@ export async function searchDishes(query: DishQuery): Promise<Dish[]> {
 }
 
 export async function getDishDetail(id: number): Promise<DishDetail> {
-  const raw = await get<any>(`/dishes/${id}`)
+  // MP-08：详情是单行响应，定型为 RawRow
+  const raw = await get<RawRow>(`/dishes/${id}`)
   return toDishDetail(raw)
 }
 
@@ -115,7 +116,8 @@ export async function addView(id: number): Promise<void> {
 
 /** 热搜 TOP10（task-02：GET /dishes/hot-search，一期为菜品热度派生的热门词条） */
 export async function getHotSearch(): Promise<HotSearch[]> {
-  const raw = await get<any[]>('/dishes/hot-search')
+  // MP-08：热搜是裸数组响应，定型为 RawRow[]
+  const raw = await get<RawRow[]>('/dishes/hot-search')
   return (raw || []).map((item: RawRow) => ({
     keyword: item.keyword || '',
     heat: Number(item.heat ?? 0),

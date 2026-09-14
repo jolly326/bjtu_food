@@ -89,6 +89,7 @@ import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getMyReviews, deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
@@ -200,8 +201,15 @@ function onDelete(r: Review) {
   })
 }
 
+/**
+ * onShow 重拉闸门（MP-07）：首次进入必拉；之后 30s 内返回本页不再全量重拉第 1 页、
+ * 也不重置分页（本页无跨页写操作入口，删除已在本地移除条目）。
+ * 下拉刷新与失败重试块不经过闸门（用户显式意图 → 直接 load）。
+ */
+const { refreshOnShow } = useOnShowRefresh(load)
+
 onShow(() => {
-  load()
+  refreshOnShow()
 })
 </script>
 

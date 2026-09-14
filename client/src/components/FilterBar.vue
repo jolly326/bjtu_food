@@ -340,6 +340,7 @@ function vModelMax(): string {
   return String(m)
 }
 
+// 平台例外：uni input 事件对象未纳入项目 TS 类型，取 e.detail.value（MP-08 标注例外）
 function onMinInput(e: any) {
   draftMin.value = e.detail.value
 }

@@ -12,7 +12,6 @@ import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -101,14 +100,6 @@ public class CanteenServiceImpl implements CanteenService {
                 .stream()
                 .map(this::toAdminVO)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void add(Canteen canteen) {
-        // 创建者：后台录入时记为当前登录用户，禁止前端传入
-        canteen.setCreatedBy(SecurityUtil.getCurrentUserId());
-        canteenMapper.insert(canteen);
     }
 
     @Override

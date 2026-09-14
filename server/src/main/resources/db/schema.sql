@@ -7,7 +7,10 @@
 -- 配合 seed_data.sql 使用：本文件只建表不插数据。
 --
 -- 说明：
---   1. 角色三种：student（学生）/ admin（普通管理员）/ super_admin（超级管理员，可管理管理员账号）。user.role 默认值 'student'。
+--   1. 角色两层：student（学生）/ admin（管理端账号数据标记）。**super_admin 已于 2026-09-14 移除
+--      （2026-09-15 蓝图 v1 再确认，见 project_spec.md §7.23）**——管理端无登录与角色体系，
+--      /admin/** 统一由环境变量口令（AdminTokenFilter，X-Admin-Token == ADMIN_TOKEN）把关；
+--      role 仅保留两层数据语义，用于区分账号归属，不作权限分层。user.role 默认值 'student'。
 --   2. 金额类字段（dish.price）以「分」为单位存储（如 12.00 元 = 1200）。
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
@@ -32,16 +35,19 @@ SET FOREIGN_KEY_CHECKS = 0;
 --   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
 --   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁 UGC 写操作。
 --   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
---   · email 列保留作为历史迁移凭证；password 列仅管理员（后台）保留使用，学生侧不再校验。
+--   · email 列保留作为历史迁移凭证；**password 为历史兼容列——管理端与学生端均已不使用**
+--     （管理端为环境变量口令 ADMIN_TOKEN，无账号密码登录；学生端为微信静默登录 + 邮箱验证码，无密码体系）。
+--     BCrypt 仅用于邮箱验证码哈希（email_verification_code.code_hash），不用于任何登录口令校验。
+--     （2026-09-15 蓝图 v1 / project_spec.md §7.23「管理端无密码体系」，DataInitializer 删除后口径。）
 CREATE TABLE IF NOT EXISTS `user`
 (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
     `username`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '学号/工号（游客建号为 wx_+openid 尾 16 位，唯一）',
     `email`        VARCHAR(128) NULL    DEFAULT NULL COMMENT '校园邮箱（历史迁移凭证；微信游客为 NULL，多游客 NULL 不冲突唯一索引 uk_user_email）',
-    `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '密码哈希（仅管理员后台用，学生侧不校验）',
+    `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '历史兼容列：密码哈希。管理端与学生端均已不使用（管理端为环境变量口令，见 project_spec.md §7.23；BCrypt 仅用于邮箱验证码哈希）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
-    `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin / super_admin',
+    `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin（两层；super_admin 已移除，2026-09-15 见 project_spec.md §7.23）',
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
     `openid`       VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信游客/已认证账号有值，历史学号账号为 NULL）',
     `unionid`      VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）',
@@ -104,7 +110,7 @@ CREATE TABLE IF NOT EXISTS `dish`
 (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '菜品ID',
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
-    `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id，首页品类滚轮筛选用；可空=未分类）',
+    `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id；**后台归类用途、端上不呈现**，2026-09-14 Q-117 / spec §7.22 第 1 条；可空=未分类）',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
     `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
@@ -115,8 +121,8 @@ CREATE TABLE IF NOT EXISTS `dish`
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
-    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
+    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '【已退役的历史列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 4 条）】菜品无独立审核：管理员录入/编辑即写 approved 并直接生效；本列不再作为运营处理入口、不再扩展。存量非 approved 由 normalize_dish_audit_status.sql 一次性归一（不并入本脚本自动执行）',
+    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '【已退役的历史列（同上）】随菜品审核语义退役；「不采纳/退回」语义已迁至反馈处理（user_feedback）',
     `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `view_count`    INT          NOT NULL DEFAULT 0 COMMENT '浏览量',
     `avg_rating`    DECIMAL(3, 2) NULL    DEFAULT NULL COMMENT '平均评分',
@@ -191,11 +197,11 @@ CREATE TABLE IF NOT EXISTS `notification`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='消息通知';
 
--- -------------------- 菜品分类（find 宫格，A.17） --------------------
+-- -------------------- 菜品品类（**后台归类用途，端上不呈现**；2026-09-14 Q-117 / spec §7.22 第 1 条） --------------------
 CREATE TABLE IF NOT EXISTS `category`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '分类ID',
-    `code`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal；前端滚轮 key 与筛选用）',
+    `code`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal）。端上不呈现，仅后台归类用（Q-117）',
     `name`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '分类名称（如 麻辣烫/面食/盖饭套餐/家常小炒/烧烤炸物/汤粥/饮品甜点/清真）',
     `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前，对应首页品类滚轮顺序）',
     `status`     VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
@@ -206,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `category`
     KEY `idx_category_status_sort` (`status`, `sort_order`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（首页品类滚轮）';
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（后台归类用途，端上不呈现）';
 
 -- -------------------- 用户反馈 --------------------
 CREATE TABLE IF NOT EXISTS `user_feedback`
@@ -220,6 +226,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
+    `reject_reason` VARCHAR(200) NULL    DEFAULT NULL COMMENT '不采纳/退回原因（outcome=rejected 时必填）',
     `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型：举报为 review；信息纠错为 dish；其他为 null',
     `related_id`   BIGINT        NULL    DEFAULT NULL COMMENT '关联对象ID：举报为评价ID；信息纠错为菜品ID；其他为 null',
     `handled_at`   DATETIME      NULL    DEFAULT NULL COMMENT '处理时间',
@@ -408,10 +415,36 @@ CREATE TABLE IF NOT EXISTS `view_log`
     `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_view_user_time` (`user_id`, `created_at`),
-    KEY `idx_view_target` (`target_type`, `target_id`)
+    KEY `idx_view_target` (`target_type`, `target_id`),
+    -- 判重复合索引（2026-09-15）：后端浏览量判重已改用 updated_at（同 userId+targetType+targetId
+    -- 按时间判定），该四列组合索引覆盖判重查询的过滤列与时间列
+    KEY `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（唯一存储，供猜你喜欢个性化读取）';
+
+-- 浏览足迹判重复合索引 idx_view_user_target_time（2026-09-15）：
+-- 后端浏览量判重（POST /dishes/{id}/view，spec §7.14 第 1 条）已改用 updated_at 判定，
+-- 需 (user_id, target_type, target_id, updated_at) 覆盖判重查询。
+-- CREATE TABLE 已含该 KEY；旧库幂等补建（MySQL 8 不支持 CREATE INDEX IF NOT EXISTS，
+-- 用存储过程防护，与上方 idx_dish_heat 迁移惯例一致），重复执行安全、不影响既有数据。
+DROP PROCEDURE IF EXISTS `add_view_log_dedup_index`;
+DELIMITER $$
+CREATE PROCEDURE `add_view_log_dedup_index`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'view_log'
+          AND INDEX_NAME = 'idx_view_user_target_time'
+    ) THEN
+        ALTER TABLE `view_log`
+            ADD INDEX `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`);
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_view_log_dedup_index`();
+DROP PROCEDURE IF EXISTS `add_view_log_dedup_index`;
 
 -- 操作日志 operation_log（AOP 埋点，Web 管理端只读查询）
 CREATE TABLE IF NOT EXISTS `operation_log`
@@ -567,6 +600,27 @@ END$$
 DELIMITER ;
 CALL `add_feedback_ugc_sec_fields`();
 DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+
+-- 反馈处理结论列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 5 条）：
+-- user_feedback.reject_reason（不采纳/退回原因，1~200 字）：管理端处理结论 outcome=rejected 时必填，
+-- 随回执通知（已处理/未采纳）向已认证提交人展示；outcome=handled 时不写、保持 NULL。
+-- 新库 CREATE TABLE 已含该列；旧库幂等补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护，
+-- 与上方迁移惯例一致），列定义与 CREATE 保持一致、可重跑、不影响既有数据。
+DROP PROCEDURE IF EXISTS `add_feedback_reject_reason`;
+DELIMITER $$
+CREATE PROCEDURE `add_feedback_reject_reason`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'reject_reason'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `reject_reason` VARCHAR(200) NULL DEFAULT NULL COMMENT '不采纳/退回原因（outcome=rejected 时必填）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_feedback_reject_reason`();
+DROP PROCEDURE IF EXISTS `add_feedback_reject_reason`;
 
 -- 菜品搜索别名（2026-09-13 需求：搜索命中别名也能找到菜品；管理员经后台配置）：
 -- dish 补齐 alias 列（CREATE TABLE 已含，列定义以 CREATE 为准：alias VARCHAR(255) NULL）；

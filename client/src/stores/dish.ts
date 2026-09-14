@@ -10,23 +10,57 @@ import { useLocationStore } from '@/stores/location'
 import { haversineMeters, CAMPUS_CENTER } from '@/utils/location'
 import type { FilterTab } from '@/types/filter-tab'
 
+/** 首页筛选流单页条数（MP-05 常量化：fetchFilterDishes / loadMoreFilterDishes 共用，防口径漂移） */
+export const FILTER_PAGE_SIZE = 10
+/**
+ * 首页筛选流最大保留页数（MP-05）：10 页 × 10 条 = 100 条封顶。
+ * 此前 pageSize=10 无限 concat，深翻后 filterList 无上限增长，
+ * 而 HomeContent 的 splitList 每次都全量重算 → 低端机掉帧。
+ * 到底后不再静默截断，改由 filterPageLimited 驱动页面给出「已展示前 N 个结果」提示。
+ */
+export const FILTER_MAX_PAGES = 10
+
+/** loading key：首页筛选流首屏 / 切筛选（MP-01：供 HomeContent 渲染骨架块） */
+export const LOADING_KEY_FILTER = 'filter'
+/** loading key：首页筛选流触底加载更多（MP-01） */
+export const LOADING_KEY_FILTER_MORE = 'filterMore'
+/** loading key：评价列表（MP-04：供详情页评价区单独显骨架，不再被全局聚合态误伤） */
+export const LOADING_KEY_REVIEWS = 'fetchReviews'
+
+/**
+ * 首页默认筛选流（热度流 / 未选食堂）：首屏初始态与「清除筛选」后唯一对应的 tab。
+ * MP-03：由 store 统一提供，页面不再自持一份 defaultTab，消除「页面选中态与 store filterTab」双源。
+ */
+export function defaultFilterTab(): FilterTab {
+  return { key: 'all', label: '全部', type: 'recommend' }
+}
+
 export const useDishStore = defineStore('dish', () => {
   const currentDish = ref<DishDetail | null>(null)
   const reviewList = ref<Review[]>([])
   /**
-   * 在途请求引用计数：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
-   * 改用 Set 记录各业务请求 key，loading 派生为"是否有请求在飞"，互不影响。
+   * 在途请求登记：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
+   * 改用 Set 记录各业务请求 key，并**必须是响应式 Set**——此前为普通 Set，
+   * `computed(() => inFlight.size > 0)` 取不到依赖，首次求值后再不更新（MP-04 根因之一）。
    */
-  const inFlight = new Set<string>()
-  const loading = computed(() => inFlight.size > 0)
+  const inFlight = ref<Set<string>>(new Set())
+
+  /**
+   * 按 key 派生在途态（MP-04）：消费方只订阅自己关心的那一个请求。
+   * 取代原「全局聚合 loading」——详情页曾把「是否有任意 dish 请求在飞」
+   * 当成「评价在加载」，导致一次 search/fetchDetail 就让评价区显骨架。
+   */
+  function isLoading(key: string): boolean {
+    return inFlight.value.has(key)
+  }
 
   /** 包裹异步请求：进入时登记 key，结束（成功/失败）时移除，保证并发互不干扰 */
   async function withLoading<T>(key: string, fn: () => Promise<T>): Promise<T> {
-    inFlight.add(key)
+    inFlight.value.add(key)
     try {
       return await fn()
     } finally {
-      inFlight.delete(key)
+      inFlight.value.delete(key)
     }
   }
   const canteenList = ref<CanteenInfo[]>([])
@@ -49,8 +83,17 @@ export const useDishStore = defineStore('dish', () => {
    * 单选，与价格区间同层同生命周期（切换重置到第 1 页 + 复用 filterFetchSeq 竞态防护）。
    */
   const filterSpice = ref<number | null>(null)
-  const filterLoadingMore = ref(false)
+  /**
+   * 触底加载更多是否在途（MP-01）：派生自 LOADING_KEY_FILTER_MORE，不再是手工置位的布尔——
+   * 既作为 loadMore 的并发守卫，也可被页面直接消费（此前手工布尔全仓零消费，属死标志）。
+   */
+  const filterLoadingMore = computed(() => isLoading(LOADING_KEY_FILTER_MORE))
   const filterFinished = ref(false)
+  /**
+   * 是否已触达保留页数上限（MP-05）：true 时不再 concat 新页，由页面给触底提示，
+   * 避免「无限加载」在低端机拖垮渲染，也避免「静默截断」让用户以为没有更多。
+   */
+  const filterPageLimited = ref(false)
   /**
    * 首页筛选流最近一次请求是否失败（MP-012）：失败 ≠ 空数据。
    * 首页列表区据其渲染「加载失败 · 点击重试」块，替代此前「静默吞错 → 空态/无菜品误导」；
@@ -162,7 +205,7 @@ export const useDishStore = defineStore('dish', () => {
     const page = options?.page ?? 1
     const pageSize = options?.pageSize ?? 50
     try {
-      const res = await withLoading('fetchReviews', async () =>
+      const res = await withLoading(LOADING_KEY_REVIEWS, async () =>
         await reviewApi.getReviewsByDish(dishId, { page, pageSize }))
       // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
       if (seq !== reviewFetchSeq) return null
@@ -200,7 +243,7 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * 基于坐标 + Haversine 本地写回每个菜品 distance（米），**只写回不排序**：
+   * 基于坐标 + Haversine **原地**写回单个菜品的 distance（米），只写字段、不换对象、不换数组：
    * - 用户已授权定位：用真实坐标算距离；未授权 / 无法获取（如 H5 预览）：回退到 CAMPUS_CENTER，
    *   距离字段始终有值；
    * - 菜品坐标缺失（旧库 canteen 无坐标 / 后端返回 null）：回退 CAMPUS_CENTER 兜底计算，
@@ -209,17 +252,20 @@ export const useDishStore = defineStore('dish', () => {
    * 端上不持有排序状态、不传 sortBy——PR-02），故本函数不再提供本地排序分支。
    * 用户位置不出本机，服务器不算距离。
    */
+  function writeLocalDistance(d: Dish, loc: { lat: number; lng: number }): void {
+    const dishLoc =
+      typeof d.latitude === 'number' && typeof d.longitude === 'number'
+        ? { lat: d.latitude, lng: d.longitude }
+        : CAMPUS_CENTER // 菜品坐标缺失兜底：距校区中心
+    d.distance = haversineMeters(loc, dishLoc)
+  }
+
+  /** 批量写回（新拉取列表用）：原地写字段后返回同一数组引用，不构造新数组 */
   function withLocalDistance(list: Dish[]): Dish[] {
     const locStore = useLocationStore()
     const loc = locStore.location || CAMPUS_CENTER
-    return list.map((d) => {
-      const dishLoc =
-        typeof d.latitude === 'number' && typeof d.longitude === 'number'
-          ? { lat: d.latitude, lng: d.longitude }
-          : CAMPUS_CENTER // 菜品坐标缺失兜底：距校区中心
-      d.distance = haversineMeters(loc, dishLoc)
-      return d
-    })
+    for (const d of list) writeLocalDistance(d, loc)
+    return list
   }
 
   /** 筛选请求序号：快速切换筛选条件时丢弃过期响应，避免旧请求晚到覆盖新列表（P0 竞态修复） */
@@ -244,119 +290,161 @@ export const useDishStore = defineStore('dish', () => {
     if (tab) await fetchFilterDishes(tab, true)
   }
 
-  /** 首页筛选：按选中食堂/标签拉取菜品列表，复用现有分页 */
+  /**
+   * 首页筛选：按选中食堂/标签拉取菜品列表，复用现有分页。
+   * MP-01：整体纳入 withLoading(LOADING_KEY_FILTER)——此前只有 search/fetchDetail/fetchReviews
+   * 登记 inFlight，筛选流请求期间「无任何在途态」，首屏/切筛选时列表区空白，
+   * 首页只能先渲染贡献卡「想吃啥没找到？告诉我们」，把「加载中」误导成「没内容」。
+   */
   async function fetchFilterDishes(tab: FilterTab, reset = false) {
-    const seq = ++filterFetchSeq
-    if (reset) {
-      filterList.value = []
-      filterPage.value = 1
-      filterFinished.value = false
-      // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
-      filterError.value = false
-    }
-    filterTab.value = tab
-    try {
-      const pageSize = 10
-      let rows: Dish[] = []
-      /** 辣度筛选（§7.18）：null = 不限，不传该查询参数 */
-      const spice = filterSpice.value ?? undefined
-      // 端上不传 sortBy/sortOrder：列表顺序唯一由后端排序口径决定（§7.17 第 2 条「热度优先」；PR-02）
-      if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      } else if (tab.type === 'canteen' && tab.canteenId != null) {
-        // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序由后端决定
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      } else {
-        // 默认流：热度优先（后端口径）
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      }
-      // 过期响应（期间又切换了筛选条件）直接丢弃，不覆盖新列表
-      if (seq !== filterFetchSeq) return
+    return withLoading(LOADING_KEY_FILTER, async () => {
+      const seq = ++filterFetchSeq
       if (reset) {
-        filterList.value = rows
-      } else {
-        filterList.value = filterList.value.concat(rows)
+        filterList.value = []
+        filterPage.value = 1
+        filterFinished.value = false
+        filterPageLimited.value = false
+        // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
+        filterError.value = false
       }
-      // 成功写回：清除失败态（MP-012，重试成功后错误块消失）
-      filterError.value = false
-      // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
-      if (rows.length < pageSize) filterFinished.value = true
-    } catch (e) {
-      // MP-012：不再静默——置 filterError 供首页列表区渲染「加载失败 · 点击重试」块；
-      // 过期请求不置位（由最新一次请求决定状态），恢复走重试块 @tap 或下拉刷新
-      if (seq !== filterFetchSeq) return
-      console.error('加载筛选菜品失败', e)
-      filterError.value = true
-    }
+      filterTab.value = tab
+      try {
+        const pageSize = FILTER_PAGE_SIZE
+        let rows: Dish[] = []
+        /** 辣度筛选（§7.18）：null = 不限，不传该查询参数 */
+        const spice = filterSpice.value ?? undefined
+        // 端上不传 sortBy/sortOrder：列表顺序唯一由后端排序口径决定（§7.17 第 2 条「热度优先」；PR-02）
+        if (tab.type === 'tag' && tab.payload) {
+          const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        } else if (tab.type === 'canteen' && tab.canteenId != null) {
+          // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序由后端决定
+          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        } else {
+          // 默认流：热度优先（后端口径）
+          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        }
+        // 过期响应（期间又切换了筛选条件）直接丢弃，不覆盖新列表
+        if (seq !== filterFetchSeq) return
+        if (reset) {
+          filterList.value = rows
+        } else {
+          filterList.value = filterList.value.concat(rows)
+        }
+        // 成功写回：清除失败态（MP-012，重试成功后错误块消失）
+        filterError.value = false
+        // 分页结束判据基于「本页返回条数 < pageSize」，避免 recommend 本地排序后 total 语义不一致导致误判到底
+        if (rows.length < pageSize) filterFinished.value = true
+      } catch (e) {
+        // MP-012：不再静默——置 filterError 供首页列表区渲染「加载失败 · 点击重试」块；
+        // 过期请求不置位（由最新一次请求决定状态），恢复走重试块 @tap 或下拉刷新
+        if (seq !== filterFetchSeq) return
+        console.error('加载筛选菜品失败', e)
+        filterError.value = true
+      }
+    })
   }
 
-  /** 首页筛选触底加载更多 */
+  /**
+   * 首页筛选触底加载更多。
+   * MP-05：页数达 FILTER_MAX_PAGES 后不再 concat —— filterList 无上限增长会让
+   * HomeContent 的 splitList 每次全量重算（深翻后低端机掉帧）；到底时置
+   * filterPageLimited，由页面给出「已展示前 N 个结果」提示，而不是静默截断。
+   */
   async function loadMoreFilterDishes(): Promise<boolean> {
     const tab = filterTab.value
     if (!tab || filterLoadingMore.value || filterFinished.value) return false
+    if (filterPage.value >= FILTER_MAX_PAGES) {
+      filterFinished.value = true
+      filterPageLimited.value = true
+      return false
+    }
     // 与 fetchFilterDishes 共用 filterFetchSeq：切换筛选条件会使其自增，使在途的旧条件第 2 页结果失效，
     // 避免「切换条件时旧结果第 2 页晚到 concat 进新列表」的竞态（P0 修复）
     const seq = ++filterFetchSeq
-    filterLoadingMore.value = true
     filterPage.value += 1
-    try {
-      const pageSize = 10
-      let rows: Dish[] = []
-      /** 辣度筛选（§7.18）：翻页沿用当前选中档位，null = 不限 */
-      const spice = filterSpice.value ?? undefined
-      // 与 fetchFilterDishes 一致：端上不传 sortBy，顺序由后端口径决定（PR-02）
-      if (tab.type === 'tag' && tab.payload) {
-        const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      } else if (tab.type === 'canteen' && tab.canteenId != null) {
-        const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      } else {
-        const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
-        rows = withLocalDistance(res.list)
-        filterTotal.value = res.total
-      }
-      // 过期响应（期间又切换了筛选条件）丢弃，不混入新列表
-      if (seq !== filterFetchSeq) {
+    // MP-01：触底加载同样登记在途 key（filterLoadingMore 即派生自它，不再手工置位布尔）
+    return withLoading(LOADING_KEY_FILTER_MORE, async () => {
+      try {
+        const pageSize = FILTER_PAGE_SIZE
+        let rows: Dish[] = []
+        /** 辣度筛选（§7.18）：翻页沿用当前选中档位，null = 不限 */
+        const spice = filterSpice.value ?? undefined
+        // 与 fetchFilterDishes 一致：端上不传 sortBy，顺序由后端口径决定（PR-02）
+        if (tab.type === 'tag' && tab.payload) {
+          const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        } else if (tab.type === 'canteen' && tab.canteenId != null) {
+          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        } else {
+          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
+          rows = withLocalDistance(res.list)
+          filterTotal.value = res.total
+        }
+        // 过期响应（期间又切换了筛选条件）丢弃，不混入新列表
+        if (seq !== filterFetchSeq) {
+          filterPage.value -= 1
+          return false
+        }
+        filterList.value = filterList.value.concat(rows)
+        // 分页结束判据基于「本页返回条数 < pageSize」（见 fetchFilterDishes 说明）
+        if (rows.length < pageSize) {
+          filterFinished.value = true
+        } else if (filterPage.value >= FILTER_MAX_PAGES) {
+          // 恰好翻满保留页数上限：置位提示，避免用户继续触底却毫无反馈
+          filterFinished.value = true
+          filterPageLimited.value = true
+        }
+        return rows.length > 0
+      } catch (e) {
+        console.error('加载更多筛选菜品失败', e)
         filterPage.value -= 1
         return false
       }
-      filterList.value = filterList.value.concat(rows)
-      // 分页结束判据基于「本页返回条数 < pageSize」（见 fetchFilterDishes 说明）
-      if (rows.length < pageSize) filterFinished.value = true
-      return rows.length > 0
-    } catch (e) {
-      console.error('加载更多筛选菜品失败', e)
-      filterPage.value -= 1
-      return false
-    } finally {
-      filterLoadingMore.value = false
-    }
+    })
   }
 
   /** 定位晚于首屏列表到达后，重算已加载菜品的本地距离（不重拉后端）：
-   * 仅刷新 filterList 中每个 Dish.distance（Haversine 复用 withLocalDistance 的距离写回逻辑）；
-   * 顺序**不动**——排序唯一由后端口径决定（§7.17 第 2 条：定位仅用于「距你 Xm」展示，不改变排序口径）。 */
+   * 仅刷新 filterList 中每个 Dish.distance（Haversine 复用 writeLocalDistance 的距离写回逻辑）；
+   * 顺序**不动**——排序唯一由后端口径决定（§7.17 第 2 条：定位仅用于「距你 Xm」展示，不改变排序口径）。
+   * MP-05：改为**原地写字段**（原 `filterList.value = withLocalDistance(...)` 会换数组引用，
+   * 使 HomeContent 的 splitList 全量重算、整列卡片重建），现在只触发各卡片距离文案的局部更新。 */
   function refreshLocalDistance() {
     if (filterList.value.length === 0) return
-    filterList.value = withLocalDistance(filterList.value)
+    const locStore = useLocationStore()
+    const loc = locStore.location || CAMPUS_CENTER
+    for (const d of filterList.value) writeLocalDistance(d, loc)
+  }
+
+  /**
+   * 清除全部首页筛选（食堂 + 价格 + 辣度）→ **只发一次**列表请求（MP-03）。
+   * 此前页面侧连续调用 setHomePrice({}) → setHomeSpice(null) → onCanteenSelect(null)，
+   * 三者各触发一次 fetchFilterDishes，一次「清除筛选」打出 3 次请求，
+   * 且中间两帧 filterList 被清空重建（列表区闪白）。
+   */
+  async function clearHomeFilter() {
+    filterPrice.value = {}
+    filterSpice.value = null
+    await fetchFilterDishes(defaultFilterTab(), true)
   }
 
   return {
     currentDish, reviewList,
     canteenList,
     hotSearchList, reviewTotal, reviewError,
-    loading,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPrice, filterSpice, filterError,
-    setHomePrice, setHomeSpice,
+    // MP-04：不再导出全局聚合 loading（任何 dish 请求在飞都会为真，消费方无法区分），
+    // 改由 isLoading(key) 按业务请求订阅（key 常量见本文件顶部 LOADING_KEY_*）。
+    isLoading,
+    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPageLimited, filterPrice, filterSpice, filterError,
+    setHomePrice, setHomeSpice, clearHomeFilter, defaultFilterTab,
     fetchCanteens, refreshCanteensIfStale, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
     fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes, refreshLocalDistance,
