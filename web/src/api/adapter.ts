@@ -151,8 +151,7 @@ export function dishToLegacy(raw: any): Dish {
     status: raw.status === 'on' ? 'active' : 'inactive',
     spiceLevel: raw.spiceLevel ?? 0,
     portion: raw.portion ?? 0,
-    servePeriod: raw.servePeriod || '',
-    limited: raw.limited ?? 0,
+    region: raw.region || '',
     audit_status: raw.auditStatus ?? raw.audit_status,
     reject_reason: (raw.rejectReason ?? raw.reject_reason) || '',
     originalPrice: raw.originalPrice == null && raw.original_price == null
@@ -179,8 +178,7 @@ export function dishToApi(data: Partial<Dish>) {
     auditStatus: data.audit_status,
     spiceLevel: data.spiceLevel,
     portion: data.portion,
-    servePeriod: data.servePeriod,
-    limited: data.limited,
+    region: data.region,
     originalPrice: data.originalPrice === undefined ? undefined : Math.round(Number(data.originalPrice) * 100),
     promoPrice: data.promoPrice === undefined || data.promoPrice === null ? null : Math.round(Number(data.promoPrice) * 100),
   })

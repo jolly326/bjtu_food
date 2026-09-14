@@ -12,7 +12,6 @@ const props = defineProps<{
 const typeClass = computed(() => {
   if (props.text === '必吃推荐') return 'tag-recommend'
   if (props.text === '招牌菜') return 'tag-featured'
-  if (props.text === '新品') return 'tag-new'
   if (props.text === '热卖') return 'tag-hot'
   return 'tag-default'
 })
@@ -36,11 +35,6 @@ const typeClass = computed(() => {
 .tag-featured {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-}
-/* 新品 — 绿色系（新鲜感） */
-.tag-new {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
 }
 /* 热卖 — 橙色系（热卖氛围，统一走 accent） */
 .tag-hot {

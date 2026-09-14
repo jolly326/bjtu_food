@@ -33,8 +33,6 @@
         <!-- 菜品属性标签字段 -->
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
-        <result property="servePeriod" column="serve_period"/>
-        <result property="limited" column="limited"/>
         <result property="region" column="region"/>
         <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
         <result property="distance" column="distance"/>
@@ -63,8 +61,6 @@
             d.updated_at,
             d.spice_level,
             d.portion,
-            d.serve_period,
-            d.limited,
             d.region,
             d.category_id,
             s.id   AS stall_id,
@@ -262,8 +258,7 @@
         <result property="promoPrice" column="promo_price"/>
         <result property="spiceLevel" column="spice_level"/>
         <result property="portion" column="portion"/>
-        <result property="servePeriod" column="serve_period"/>
-        <result property="limited" column="limited"/>
+        <result property="region" column="region"/>
         <!-- 距用户距离（米）：仅 selectHotDishesByDistance 在携带坐标时返回，其余查询该列为 null -->
         <result property="distance" column="distance"/>
     </resultMap>

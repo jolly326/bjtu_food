@@ -432,6 +432,8 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
         dish.setTags(req.getTags());
+        // 风味/菜系（§7.9 定型）：先前后台无维护入口，此处补齐写入
+        dish.setRegion(req.getRegion());
         dish.setStatus(req.getStatus());
     }
 

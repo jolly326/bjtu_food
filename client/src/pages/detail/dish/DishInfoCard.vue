@@ -104,11 +104,10 @@ watch(() => props.dish.name, () => { descExpanded.value = false })
 /** 折扣价展示 */
 const hasPromo = computed(() => !!props.dish.promoPrice)
 
-/** 标签列表（新品 + 属性标签去重） */
+/** 标签列表（属性标签去重） */
 const tagList = computed(() => {
   const d = props.dish
   const list: string[] = []
-  if (d.isNew) list.push('新品')
   for (const t of d.tags || []) {
     if (!list.includes(t)) list.push(t)
   }

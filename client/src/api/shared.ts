@@ -46,11 +46,6 @@ export function totalOf(value: PageLike<any> | undefined | null): number {
   return typeof value.total === 'number' ? value.total : recordsOf(value).length
 }
 
-/** 统一布尔归一化（兼容 true / 1 / '1'） */
-export function normalizeBoolean(value: unknown): boolean {
-  return value === true || value === 1 || value === '1'
-}
-
 /**
  * 图片字段归一化（健壮版，全模块统一）：
  * - 数组：逐项转绝对地址
