@@ -81,6 +81,34 @@
 
 ## 已关闭（Closed）
 
+### Q-029 · P1 · `region` 语义定型为「风味/菜系」并补齐维护入口（DTO-1）
+- 提出：主 agent（业务定型扫描第 4 批）｜2026-09-14｜类型：T1 需求模糊
+- 问题：`region` 端上展示（`DishInfoCard` 指标）但**后台零维护入口**，线上值为 东北/川湘/粤式/西北/清真（非校区）。
+- 决策：定型为「风味/菜系」；后台表单加下拉（东北/川湘/粤式/西北/清真/其他），详情页展示；文档与 UI 一律用「风味/菜系」表述
+- 实现：后端 `DishAdminReq/DishAdminVO/DishVO` 补 `region` + `applyReq` 写入；web 类型/adapter/表单/详情贯通；schema 列注释同步
+- 闭环证据：spec §7.9 第 1 条；三端构建 EXIT=0；残留 grep 0 处 ｜ 状态：`closed` ✅
+
+### Q-030 · P1 · 「新品」标下线（DTO-2）
+- 提出：主 agent｜2026-09-14｜类型：T7
+- 问题：`DishVO.isNew` 后端**从未赋值**，端上「新品」标签永不显示（死功能）
+- 决策：不做，整体删除
+- 实现：删 `DishVO.isNew`、client `dish.ts` 映射、`DishInfoCard` 新品分支、`TagLabel.tag-new` 样式
+- 闭环证据：spec §7.9 第 2 条；三端构建 EXIT=0 ｜ 状态：`closed` ✅
+
+### Q-031 · P2 · 餐段 `serve_period` 下线（DTO-3）
+- 提出：主 agent｜2026-09-14｜类型：T1
+- 问题：端上无展示无筛选、仅数据映射，属零消费
+- 决策：不做，整体下线（字段/实体/VO/DTO/Mapper/后台表单与详情/端上映射）
+- 实现：含 `schema.sql` 幂等迁移 `drop_dish_unused_fields`（存在性判断后 DROP，禁直连 ALTER）
+- 闭环证据：spec §7.9 第 3、5 条；三端构建 EXIT=0；三端残留 0 处 ｜ 状态：`closed` ✅
+
+### Q-032 · P2 · 限量 `limited` 下线（DTO-4）
+- 提出：主 agent｜2026-09-14｜类型：T1
+- 问题：线上 0 条使用、端上无展示规则
+- 决策：不做，整体下线
+- 实现：同上迁移一并 DROP；web 端连带清理零消费常量 `SERVE_BREAKFAST/LUNCH/DINNER/MIDNIGHT`
+- 闭环证据：spec §7.9 第 4、5 条；三端构建 EXIT=0 ｜ 状态：`closed` ✅
+
 ### Q-022 · P0 · 管理后台图片上传必然 401（阻塞 31 道菜传图）
 - 提出：主 agent（线上实测）｜2026-09-14｜类型：T4 实现约束冲突
 - 问题：`/upload/image` 不在任何放行清单中 → 落到 `anyRequest().authenticated()` 要求学生 JWT；而 web 管理后台只带 `X-Admin-Token`。实测 `POST /api/upload/image`（带正确口令）返回 401「请先登录或重新登录」→ **后台上传图片必然失败**，直接阻塞 Q-005（31 道菜首图）。

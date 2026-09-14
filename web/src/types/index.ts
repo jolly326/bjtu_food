@@ -72,10 +72,8 @@ export interface Dish {
   spiceLevel?: number;
   /** 分量枚举：0=小 1=中 2=大 */
   portion?: number;
-  /** 供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight */
-  servePeriod?: string;
-  /** 是否限量（0=否 1=是） */
-  limited?: number;
+  /** 风味/菜系（东北 / 川湘 / 粤式 / 西北 / 清真 / 其他；空=未填） */
+  region?: string;
   /** 审核状态：pending / approved / rejected（与上下架 status 解耦） */
   audit_status?: string;
   /** 退回原因（audit_status=rejected 时由后台填写，回显学生端） */

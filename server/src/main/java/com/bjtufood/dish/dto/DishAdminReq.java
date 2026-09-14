@@ -56,11 +56,8 @@ public class DishAdminReq {
     @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
     private Integer portion;
 
-    @Schema(description = "供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight", example = "lunch,dinner")
-    private String servePeriod;
-
-    @Schema(description = "是否限量：0=否 1=是", example = "0")
-    private Integer limited;
+    @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他（可空）", example = "川湘")
+    private String region;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;

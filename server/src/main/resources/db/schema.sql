@@ -119,8 +119,6 @@ CREATE TABLE IF NOT EXISTS `dish`
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值（promotion 为 DishMapper 死查询技术债，禁止写入）',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `portion`        INT          NOT NULL DEFAULT 1 COMMENT '分量枚举：0=小 1=中 2=大',
-    `serve_period`   VARCHAR(64)  NULL     DEFAULT NULL COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight',
-    `limited`        INT          NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '审核状态：pending/approved/rejected',
     `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '退回原因（rejected 时填写）',
@@ -272,7 +270,8 @@ DELIMITER ;
 CALL `add_stall_phase1_fields`();
 DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
 
--- 菜品：辣度 / 分量 / 供应时段 / 是否限量 / 地域（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
+-- 菜品：辣度 / 分量 / 风味菜系（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
+-- 注：供应时段 serve_period 与限量 limited 已于 2026-09-14 整体下线（见文件末尾 drop_dish_unused_fields 迁移）
 DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
 DELIMITER $$
 CREATE PROCEDURE `add_dish_phase1_fields`()
@@ -291,21 +290,9 @@ BEGIN
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'serve_period'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `serve_period` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight';
-    END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'limited'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `limited` INT NOT NULL DEFAULT 0 COMMENT '是否限量（0=否 1=是）';
-    END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
     ) THEN
-        ALTER TABLE `dish` ADD COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '地域（美食来源地），如 清真/川湘/西北/粤式/东北';
+        ALTER TABLE `dish` ADD COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '风味/菜系：东北/川湘/粤式/西北/清真/其他';
     END IF;
 END$$
 DELIMITER ;
@@ -612,5 +599,39 @@ END$$
 DELIMITER ;
 CALL `add_dish_alias`();
 DROP PROCEDURE IF EXISTS `add_dish_alias`;
+
+-- 字段下线（2026-09-14 §7.9 用户拍板）：
+--   serve_period（餐段）与 limited（限量）在端上/后台/代码中均为零消费，整体下线；
+--   region 语义定型为「风味/菜系」（非校区），同步列注释，避免后续维护者误读。
+-- 幂等：先做存在性判断再 DROP，重复执行安全；两列无任何代码/数据引用。
+DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_unused_fields`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'serve_period'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `serve_period`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'limited'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `limited`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
+    ) THEN
+        ALTER TABLE `dish`
+            MODIFY COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '风味/菜系：东北/川湘/粤式/西北/清真/其他';
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_unused_fields`();
+DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
 
 SET FOREIGN_KEY_CHECKS = 1;

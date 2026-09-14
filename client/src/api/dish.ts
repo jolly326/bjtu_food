@@ -4,7 +4,7 @@ import type {
 } from '@/types/dish'
 import { get, post } from './http'
 import { fenToYuan, yuanToFen } from '@/utils/money'
-import { recordsOf, totalOf, normalizeBoolean, normalizeImages, type RawRow } from './shared'
+import { recordsOf, totalOf, normalizeImages, type RawRow } from './shared'
 
 /** 2026-09-07：无外部消费，收敛为模块私有（仅供本文件 toDish 标签映射） */
 const TAG_MAP: Record<string, string> = {
@@ -32,7 +32,6 @@ export function toDish(raw: RawRow): Dish {
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
     categoryId: raw.categoryId != null ? Number(raw.categoryId) : undefined,
-    isNew: !!raw.isNew,
     hasReviewed: !!raw.hasReviewed,
     auditStatus: raw.auditStatus ?? raw.audit_status,
     // ===== task-03 位置链路（来自 stall 联表） =====
@@ -43,8 +42,6 @@ export function toDish(raw: RawRow): Dish {
     // ===== task-03 属性标签（来自 dish） =====
     spiceLevel: raw.spiceLevel ?? raw.spice_level,
     portion: raw.portion,
-    servePeriod: raw.servePeriod || raw.serve_period || '',
-    limited: normalizeBoolean(raw.limited ?? raw.is_limited),
     // 折扣价（分→元，仅展示层转换；task-12.9）
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,

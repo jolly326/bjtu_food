@@ -72,20 +72,9 @@ const PORTION_OPTIONS = [
   { value: 1, label: '中份' },
   { value: 2, label: '大份' },
 ]
-const SERVE_PERIOD_OPTIONS = [
-  { value: 'breakfast', label: '早餐' },
-  { value: 'lunch', label: '午餐' },
-  { value: 'dinner', label: '晚餐' },
-  { value: 'midnight', label: '夜宵' },
-]
+/** 风味/菜系权威值域（project_spec §7.9） */
+const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
 
-function parseServePeriod(sp: string): string[] {
-  if (!sp) return []
-  return sp.split(',').map(s => s.trim()).filter(Boolean)
-}
-function servePeriodLabel(key: string): string {
-  return SERVE_PERIOD_OPTIONS.find(o => o.value === key)?.label || key
-}
 function spiceLabel(v?: number): string {
   return SPICE_OPTIONS.find(o => o.value === v)?.label || '不辣'
 }
@@ -94,7 +83,7 @@ function portionLabel(v?: number): string {
 }
 
 const editing = ref(false)
-const editForm = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '', spiceLevel: 0, portion: 0, servePeriod: '', limited: 0, originalPrice: 0, promoPrice: 0 })
+const editForm = ref({ name: '', price: 0, description: '', image: '', tags: '', status: '', spiceLevel: 0, portion: 0, region: '', originalPrice: 0, promoPrice: 0 })
 const editErrors = ref<Record<string, string>>({})
 
 const showImageModal = ref(false)
@@ -135,7 +124,7 @@ watch([canteen, stall, dish], ([c, s, d]) => {
       name: d.name, price: d.price, description: d.description || '',
       image: d.image || '', tags: d.tags || '', status: d.status,
       spiceLevel: d.spiceLevel ?? 0, portion: d.portion ?? 0,
-      servePeriod: d.servePeriod || '', limited: d.limited ?? 0,
+      region: d.region || '',
       originalPrice: d.originalPrice ? d.originalPrice : 0,
       promoPrice: d.promoPrice ? d.promoPrice : 0,
     }
@@ -150,7 +139,7 @@ function toggleEdit() {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
       spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
-      servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
+      region: dish.value.region || '',
       originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
       promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
     }
@@ -201,22 +190,13 @@ function cancelEdit() {
       name: dish.value.name, price: dish.value.price, description: dish.value.description || '',
       image: dish.value.image || '', tags: dish.value.tags || '', status: dish.value.status,
       spiceLevel: dish.value.spiceLevel ?? 0, portion: dish.value.portion ?? 0,
-      servePeriod: dish.value.servePeriod || '', limited: dish.value.limited ?? 0,
+      region: dish.value.region || '',
       originalPrice: dish.value.originalPrice ? dish.value.originalPrice : 0,
       promoPrice: dish.value.promoPrice ? dish.value.promoPrice : 0,
     }
   }
   editErrors.value = {}
   editing.value = false
-}
-
-// 供应时段多选切换（逗号分隔存储）
-function toggleServePeriod(key: string) {
-  const arr = parseServePeriod(editForm.value.servePeriod)
-  const i = arr.indexOf(key)
-  if (i === -1) arr.push(key)
-  else arr.splice(i, 1)
-  editForm.value.servePeriod = arr.join(',')
 }
 
 async function deleteDish() {
@@ -399,31 +379,13 @@ async function reviewSecState(r: any, state: SecAction) {
                 </el-select>
               </div>
             </div>
-            <div class="detail-row detail-row-desc">
-              <span class="detail-label">供应时段</span>
-              <div class="detail-control">
-                <span v-if="!editing" class="detail-value">
-                  <span v-if="parseServePeriod(editForm.servePeriod).length" class="tag-group">
-                    <span v-for="p in parseServePeriod(editForm.servePeriod)" :key="p" class="dish-tag tag-rec">{{ servePeriodLabel(p) }}</span>
-                  </span>
-                  <span v-else class="text-muted">无</span>
-                </span>
-                <div v-else class="tag-selector">
-                  <span
-                    v-for="opt in SERVE_PERIOD_OPTIONS"
-                    :key="opt.value"
-                    class="tag-option"
-                    :class="{ active: parseServePeriod(editForm.servePeriod).includes(opt.value) }"
-                    @click="toggleServePeriod(opt.value)"
-                  >{{ opt.label }}</span>
-                </div>
-              </div>
-            </div>
             <div class="detail-row">
-              <span class="detail-label">是否限量</span>
+              <span class="detail-label">风味 / 菜系</span>
               <div class="detail-control">
-                <span v-if="!editing" class="detail-value">{{ editForm.limited ? '限量供应' : '不限量' }}</span>
-                <el-switch v-else v-model="editForm.limited" :active-value="1" :inactive-value="0" active-text="限量" inactive-text="不限" />
+                <span v-if="!editing" class="detail-value" :class="{ 'text-muted': !editForm.region }">{{ editForm.region || '—' }}</span>
+                <el-select v-else v-model="editForm.region" class="form-select-el" placeholder="选择风味 / 菜系" clearable>
+                  <el-option v-for="r in REGION_OPTIONS" :key="r" :label="r" :value="r" />
+                </el-select>
               </div>
             </div>
             <div class="detail-row">

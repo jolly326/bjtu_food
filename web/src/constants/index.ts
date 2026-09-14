@@ -13,12 +13,6 @@ export const AUDIT_PENDING = 'pending'
 export const AUDIT_APPROVED = 'approved'
 export const AUDIT_REJECTED = 'rejected'
 
-/** 供应时段（逗号分隔存储） */
-export const SERVE_BREAKFAST = 'breakfast'
-export const SERVE_LUNCH = 'lunch'
-export const SERVE_DINNER = 'dinner'
-export const SERVE_MIDNIGHT = 'midnight'
-
 /** 内容安检状态：正常（评价/反馈共用，与后端 ReviewAdminVO.secState 契约一致） */
 export const SEC_PASS = 'pass'
 /** 内容安检状态：待复核 */

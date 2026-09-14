@@ -94,9 +94,6 @@ public class DishVO {
     @Schema(description = "浏览量", example = "200")
     private Integer viewCount;
 
-    @Schema(description = "是否为新品")
-    private Boolean isNew;
-
     @Schema(description = "状态（on/off）", example = "on")
     private String status;
 
@@ -118,21 +115,13 @@ public class DishVO {
     @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
     private Integer spiceLevel;
 
-    /** 地域（美食来源地）：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
-    @Schema(description = "地域（美食来源地），如 清真/川湘/西北/粤式/东北", example = "清真")
+    /** 风味/菜系（§7.9 定型）：东北/川湘/粤式/西北/清真/其他；与食堂位置无关 */
+    @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他", example = "川湘")
     private String region;
 
     /** 分量枚举：0=小 1=中 2=大 */
     @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
     private Integer portion;
-
-    /** 供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight */
-    @Schema(description = "供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight", example = "lunch,dinner")
-    private String servePeriod;
-
-    /** 是否限量 */
-    @Schema(description = "是否限量", example = "false")
-    private Boolean limited;
 
     /**
      * 距用户距离（米），仅当请求携带 lat/lng 时由后端计算返回；

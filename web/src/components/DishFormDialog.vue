@@ -41,7 +41,8 @@ const PORTION_OPTIONS = [
   { label: '中份', value: 1 },
   { label: '大份', value: 2 },
 ]
-const PERIOD_OPTIONS = ['早餐', '午餐', '晚餐', '夜宵']
+/** 风味/菜系权威值域（project_spec §7.9；空选项 = 未填，不提交空串） */
+const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
 
 const form = ref({
   name: '',
@@ -56,8 +57,7 @@ const form = ref({
   status: 'active' as 'active' | 'inactive',
   spiceLevel: 0,
   portion: 0,
-  servePeriod: '' as string,
-  limited: 0,
+  region: '' as string,
 })
 const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
@@ -84,8 +84,7 @@ watch(
           status: d.status as 'active' | 'inactive',
           spiceLevel: d.spiceLevel ?? 0,
           portion: d.portion ?? 0,
-          servePeriod: d.servePeriod || '',
-          limited: d.limited ?? 0,
+          region: d.region || '',
         }
       }
     } else {
@@ -93,7 +92,7 @@ watch(
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
         stallId: props.defaultStallId != null ? String(props.defaultStallId) : '',
         image: '', description: '', alias: '', tags: '', status: 'active',
-        spiceLevel: 0, portion: 0, servePeriod: '', limited: 0,
+        spiceLevel: 0, portion: 0, region: '',
       }
     }
   },
@@ -125,14 +124,6 @@ function toggleTag(tag: string) {
   form.value.tags = formatTags(arr)
 }
 
-function togglePeriod(p: string) {
-  const arr = (form.value.servePeriod || '').split(',').map(t => t.trim()).filter(Boolean)
-  const i = arr.indexOf(p)
-  if (i === -1) arr.push(p)
-  else arr.splice(i, 1)
-  form.value.servePeriod = arr.join(',')
-}
-
 async function submit() {
   if (!validate()) return
   submitting.value = true
@@ -146,8 +137,7 @@ async function submit() {
     status: form.value.status,
     spiceLevel: Number(form.value.spiceLevel) || 0,
     portion: Number(form.value.portion) || 0,
-    servePeriod: form.value.servePeriod,
-    limited: Number(form.value.limited) || 0,
+    region: form.value.region,
   }
   // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价/促销价
   // （对照 DishDetailView.confirmEdit 的既有正确做法；api 层 dishToApi 0 → 分、null 直传）
@@ -222,19 +212,11 @@ async function submit() {
             <option v-for="p in PORTION_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</option>
           </select>
         </div>
-        <div class="field flex-1"><label>限量</label>
-          <select v-model.number="form.limited">
-            <option :value="0">不限量</option>
-            <option :value="1">限量</option>
+        <div class="field flex-1"><label>风味 / 菜系</label>
+          <select v-model="form.region">
+            <option value="">未填写</option>
+            <option v-for="r in REGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
           </select>
-        </div>
-      </div>
-
-      <div class="field"><label>供应时段</label>
-        <div class="tag-group">
-          <button v-for="p in PERIOD_OPTIONS" :key="p" type="button"
-            class="tag-opt" :class="{ on: (form.servePeriod || '').split(',').includes(p) }"
-            @click="togglePeriod(p)">{{ p }}</button>
         </div>
       </div>
 

@@ -74,14 +74,6 @@ public class Dish {
     @Schema(description = "分量枚举：0=小 1=中 2=大", example = "1")
     private Integer portion;
 
-    /** 供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight */
-    @Schema(description = "供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight", example = "lunch,dinner")
-    private String servePeriod;
-
-    /** 是否限量（0=否 1=是） */
-    @Schema(description = "是否限量（0=否 1=是）", example = "0")
-    private Integer limited;
-
     /** 状态：on（上架）/ off（下架），与审核状态解耦 */
     @Schema(description = "状态", example = "on")
     private String status;

@@ -14,7 +14,6 @@ export interface Dish {
   description: string
   canteen: string
   stallName: string
-  isNew?: boolean
   /** 当前用户是否已评价 */
   hasReviewed?: boolean
   /** 审核状态（公开接口仅返回 approved 记录） */
@@ -38,10 +37,6 @@ export interface Dish {
   spiceLevel?: number
   /** 分量枚举：0=小 1=中 2=大 */
   portion?: number
-  /** 供应时段 tag，逗号分隔：breakfast/lunch/dinner/midnight */
-  servePeriod?: string
-  /** 是否限量（0=否 1=是） */
-  limited?: number | boolean
   /** 折扣价（分）：促销前原价（task-12.9，API 层已转元展示） */
   originalPrice?: number
   /** 折扣价（分，可空）：促销价，非空即视为有折扣 */
