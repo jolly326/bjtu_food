@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@Tag(name = "09. 后台用户管理", description = "系统管理员管理用户状态和角色。需要管理员 token。")
+@Tag(name = "09. 后台用户管理", description = "系统管理员管理用户状态。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
@@ -25,14 +25,13 @@ public class UserAdminController {
 
     private final UserService userService;
 
-    @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 role/status 筛选。测试示例：/admin/users?page=1&pageSize=10&role=student&status=active")
+    @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 status 筛选（role 筛选已随 user.role 列退役移除，2026-09-15）。测试示例：/admin/users?page=1&pageSize=10&status=active")
     @GetMapping
     public Result<PageResult<UserVO>> listUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String role,
             @RequestParam(required = false) String status) {
-        IPage<UserVO> result = userService.listUsers(page, pageSize, role, status);
+        IPage<UserVO> result = userService.listUsers(page, pageSize, status);
         // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
         return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize()));

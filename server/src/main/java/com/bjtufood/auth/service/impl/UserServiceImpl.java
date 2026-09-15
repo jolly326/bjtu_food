@@ -23,11 +23,10 @@ public class UserServiceImpl implements UserService {
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
-    public IPage<UserVO> listUsers(int page, int pageSize, String role, String status) {
+    public IPage<UserVO> listUsers(int page, int pageSize, String status) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
-                .eq(StringUtils.hasText(role), User::getRole, role)
                 .eq(StringUtils.hasText(status), User::getStatus, status)
                 .orderByDesc(User::getCreatedAt);
         return userMapper.selectPage(new Page<>(page, pageSize), wrapper).convert(this::toVO);
@@ -83,7 +82,6 @@ public class UserServiceImpl implements UserService {
         vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setVerified(user.getVerified());
         vo.setBindEmail(user.getBindEmail());

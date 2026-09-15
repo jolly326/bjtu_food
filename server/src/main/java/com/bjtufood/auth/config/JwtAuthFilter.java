@@ -95,9 +95,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // 2. 校验并解析 Token（单次解析，避免重复验签）
             Claims claims = jwtUtil.parseAndValidate(token);
             if (claims != null) {
-                // 3. 解析用户信息（复用本次解析结果）
+                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除，2026-09-15）
                 Long userId = claims.get("userId", Long.class);
-                String role = claims.get("role", String.class);
 
                 // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效
                 // （管理端拿不到对方 token，只能按 userId 拉黑，故此处补一次判定）
@@ -112,14 +111,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                if (userId != null && role != null) {
-                    // 4. 构建认证信息（角色加 ROLE_ 前缀）
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role.toUpperCase());
+                if (userId != null) {
+                    // 4. 构建认证信息：固定学生态 authorities（JWT 不再携带 role；
+                    //    学生接口鉴权实际依赖 @RequireVerified + userId，不依赖角色，
+                    //    此处固定授予 ROLE_STUDENT 以兼容既有 @PreAuthorize("hasRole('STUDENT')")）
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userId,          // principal：用户ID
                                     null,            // credentials：密码（不需要）
-                                    List.of(authority) // authorities：角色
+                                    List.of(new SimpleGrantedAuthority("ROLE_STUDENT")) // authorities：固定学生态
                             );
                     // 将用户ID存入 details，方便 Controller 获取
                     authentication.setDetails(userId);

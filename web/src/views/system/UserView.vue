@@ -47,7 +47,8 @@ async function refresh() {
 }
 onMounted(refresh)
 
-const students = computed(() => store.users.filter(u => u.role !== 'admin'))
+// user.role 列已退役（2026-09-15）：全量用户即学生，列表无需再按角色过滤
+const students = computed(() => store.users)
 
 // 计数不再页内自算：数量只由 DataTable footer「共 N 条」承担（原 stat-inline 与筛选条争位，已删）
 
@@ -102,7 +103,7 @@ const batchRunning = ref(false)
 async function batchSetStatus(status: 'active' | 'disabled') {
   if (!selectedIds.value.length || batchRunning.value) return
   const action = status === 'active' ? '启用' : '禁用'
-  // 列表仅含学生（role !== 'admin'），不存在误封当前管理员身份的风险（§7.10 A：后台无操作人身份）
+  // 后台无操作人身份（§7.10 A），且全量用户即学生（user.role 列已退役），不存在误封管理员的风险
   const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
   if (!targets.length) {
     toast.error('所选用户中无可操作的账号')

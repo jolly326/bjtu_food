@@ -38,9 +38,6 @@ public class UserInfoVO {
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "角色", example = "student")
-    private String role;
-
     @Schema(description = "状态：active/disabled/deleted", example = "active")
     private String status;
 

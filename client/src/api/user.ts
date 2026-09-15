@@ -2,12 +2,6 @@ import type { UserInfo } from '@/types/user'
 import { get, post, put, del } from './http'
 import type { RawRow } from './shared'
 
-function toFrontendRole(role?: string): UserInfo['role'] {
-  // 后端现已直接存储 student / admin（§0.2 仅两种角色），无需再做 USER→STUDENT 映射。
-  // 直接透传并收敛类型：显式识别 admin，其余（含缺省/未知）归一为 student。
-  return (role === 'admin' ? 'admin' : 'student') as UserInfo['role']
-}
-
 /** 判断学号是否为纯数字（校园身份学号），仅此才用 {学号}@bjtu.edu.cn 推导校园邮箱 */
 function isStudentNumber(s: string): boolean {
   return /^\d+$/.test(s.trim())
@@ -15,7 +9,8 @@ function isStudentNumber(s: string): boolean {
 
 function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
-  // 后端 LoginResp 透传 userId/username/nickname/avatar/role/verified/bindEmail/guestShortId（见 auth/dto/LoginResp）
+  // 后端 LoginResp 透传 userId/username/nickname/avatar/verified/bindEmail/guestShortId（见 auth/dto/LoginResp；
+  // role 字段已随 user.role 列退役移除，2026-09-15）
   const username = String(user.username || resp?.username || '')
   // 微信登录体系：游客态 username 为 'wx_'+openid 尾 16 位，非学号 → 不推导校园邮箱（email 留空）
   const email = user.email || resp?.email || (isStudentNumber(username) ? deriveCampusEmail(username) : '')
@@ -26,7 +21,6 @@ function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
     email,
     nickname: user.nickname || resp?.nickname || '食客',
     avatar: user.avatar || resp?.avatar || '',
-    role: toFrontendRole(user.role || resp?.role),
     // 微信登录体系（§5.y）：verified / bindEmail / guestShortId 由后端 wechat-login / verify-email 返回
     verified: !!(user.verified ?? resp?.verified),
     bindEmail: user.bindEmail || resp?.bindEmail || user.bind_email || undefined,

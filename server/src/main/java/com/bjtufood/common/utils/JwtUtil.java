@@ -18,7 +18,7 @@ import java.util.Map;
  * JWT 工具类
  * <p>
  * 负责 JWT Token 的生成、校验和解析。
- * Token 载荷中存储 userId、role、username，不存储敏感信息。
+ * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除，2026-09-15）。
  * <p>
  * 流程说明：
  * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
@@ -40,7 +40,7 @@ public class JwtUtil {
     /**
      * 缓存的 HMAC 签名密钥。
      * <p>
-     * 原实现每次 {@code validateToken}/{@code getUserIdFromToken}/{@code getRoleFromToken}
+     * 原实现每次 {@code validateToken}/{@code getUserIdFromToken}/{@code getUsernameFromToken}
      * 都各自 {@code Keys.hmacShaKeyFor} 重建 Key 并完整验签一次（每请求 3 次 HMAC 验签）。
      * 改为启动时构建一次并复用，避免每请求重复重建与多次验签的固定开销。
      */
@@ -102,12 +102,11 @@ public class JwtUtil {
      * 创建 JWT Token
      *
      * @param userId   用户 ID
-     * @param role     用户角色
      * @param username 用户名
      * @return 签发的 JWT 字符串（如：eyJhbGciOiJIUzI1NiJ9.xxx）
      */
-    public String createToken(Long userId, String role, String username) {
-        return createToken(userId, role, username, expiration);
+    public String createToken(Long userId, String username) {
+        return createToken(userId, username, expiration);
     }
 
     /**
@@ -117,16 +116,15 @@ public class JwtUtil {
      * 由业务侧自行持有过期策略，避免全局统一时长一刀切。
      *
      * @param userId          用户 ID
-     * @param role            用户角色
      * @param username        用户名
      * @param expirationMillis 过期时长（毫秒）
      * @return 签发的 JWT 字符串
      */
-    public String createToken(Long userId, String role, String username, long expirationMillis) {
-        // 设置载荷（Payload）
+    public String createToken(Long userId, String username, long expirationMillis) {
+        // 设置载荷（Payload）。注：role claim 已随 user.role 列退役移除——
+        // 学生态 authorities 由 JwtAuthFilter 固定授予（学生接口鉴权依赖 @RequireVerified + userId，不依赖角色）
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("role", role);
         claims.put("username", username);
 
         // 生成签名密钥（复用缓存 Key）
@@ -144,7 +142,7 @@ public class JwtUtil {
      * 验证并解析 Token
      *
      * @param token JWT 字符串
-     * @return 解析后的 Claims（包含 userId、role、username），
+     * @return 解析后的 Claims（包含 userId、username），
      *         如果 token 无效/过期返回 null
      */
     public Claims parseToken(String token) {
@@ -164,8 +162,8 @@ public class JwtUtil {
      * 一次性校验并解析 Token，返回 Claims。
      * <p>
      * 供 {@code JwtAuthFilter} 在一次请求中只解析一次（原实现在 filter 内分别调用
-     * {@link #validateToken}、{@link #getUserIdFromToken}、{@link #getRoleFromToken}，
-     * 触发 3 次独立验签）。调用方应先判非空，再读取 userId/role，避免重复解析。
+     * {@link #validateToken}、{@link #getUserIdFromToken} 等多个方法，
+     * 触发 3 次独立验签）。调用方应先判非空，再读取 userId/username，避免重复解析。
      *
      * @param token JWT 字符串
      * @return 有效则返回 Claims，否则返回 null
@@ -193,16 +191,5 @@ public class JwtUtil {
     public Long getUserIdFromToken(String token) {
         Claims claims = parseToken(token);
         return claims != null ? claims.get("userId", Long.class) : null;
-    }
-
-    /**
-     * 从 Token 中获取用户角色
-     *
-     * @param token JWT 字符串
-     * @return 角色名，无效 token 返回 null
-     */
-    public String getRoleFromToken(String token) {
-        Claims claims = parseToken(token);
-        return claims != null ? claims.get("role", String.class) : null;
     }
 }

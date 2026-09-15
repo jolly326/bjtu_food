@@ -41,7 +41,6 @@ export interface User {
   password: string;
   nickname?: string;
   avatar?: string;
-  role: string;
   status: string;
   /** 是否已邮箱认证（0=游客未认证 / 1=已认证） */
   verified?: number;

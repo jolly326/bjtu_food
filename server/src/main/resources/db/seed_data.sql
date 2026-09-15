@@ -23,13 +23,14 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 【2026-09-15 蓝图 v1 / project_spec.md §7.23「管理端无密码体系」口径】
 --   · password 为**历史兼容列**：管理端（环境变量口令 ADMIN_TOKEN）与学生端（微信静默登录 + 邮箱验证码）
 --     均不使用，故种子数据一律写 NULL，不再灌入任何口令哈希，避免「仍有密码体系」的误导；
---   · role 仅两层：student / admin；**super_admin 已移除**，原 admin 行由 'super_admin' 改为 'admin'。
-INSERT INTO `user` (username, email, password, nickname, avatar, role, status, last_login_at) VALUES
-('2024001',  '2024001@bjtu.edu.cn', NULL, '交大干饭王',  NULL, 'student', 'active', NOW()),
-('2024002',  '2024002@bjtu.edu.cn', NULL, '食堂常客',    NULL, 'student', 'active', NOW()),
-('2024003',  '2024003@bjtu.edu.cn', NULL, '深夜放毒',    NULL, 'student', 'active', NOW()),
-('2024004',  '2024004@bjtu.edu.cn', NULL, '奶茶三分甜',  NULL, 'student', 'active', NOW()),
-('admin',    'admin@bjtu.edu.cn',   NULL, '管理员',      NULL, 'admin',   'active', NOW());
+--   · user.role / user.last_login_at 已于 2026-09-15 用户拍板退役（角色收敛恒 student、登录时间只写不读），
+--     列清单与各行值已同步移除（否则新库报 Unknown column）。
+INSERT INTO `user` (username, email, password, nickname, avatar, status) VALUES
+('2024001',  '2024001@bjtu.edu.cn', NULL, '交大干饭王',  NULL, 'active'),
+('2024002',  '2024002@bjtu.edu.cn', NULL, '食堂常客',    NULL, 'active'),
+('2024003',  '2024003@bjtu.edu.cn', NULL, '深夜放毒',    NULL, 'active'),
+('2024004',  '2024004@bjtu.edu.cn', NULL, '奶茶三分甜',  NULL, 'active'),
+('admin',    'admin@bjtu.edu.cn',   NULL, '管理员',      NULL, 'active');
 
 -- 注：菜品品类 category 表与 dish.category_id 列已整链退役（2026-09-15 用户拍板），
 --     本脚本不再灌入品类种子数据（否则新库报 Unknown column / Unknown table）。

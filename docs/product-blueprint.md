@@ -24,7 +24,7 @@
 
 **做（四条主线，唯一投入方向）**
 1. **菜品信息展示**：菜品为唯一核心实体，食堂 / 档口仅为其筛选属性；展示静态信息（名称、价格、食堂 / 档口、楼层、窗口号、口味辣度、风味 / 菜系、图片）。
-2. **搜索与查找**：关键词（含别名）、多维筛选（食堂 / 价格 / 辣度等；**品类维度已于 2026-09-15 整链删除，端上 / 后台均无**）、热搜；「猜你喜欢」接口已随端上零消费下线，浏览足迹仅作数据留存。
+2. **搜索与查找**：关键词（含别名）、多维筛选（食堂 / 价格 / 辣度等；**品类维度已于 2026-09-15 整链删除，端上 / 后台均无**）、热搜；「猜你喜欢」接口已随端上零消费下线，浏览足迹仅作浏览量当日去重判据与浏览计数来源。
 3. **评价类 UGC**：认证学生（`verified=true`）对菜品打星 + 文字 + 配图；可点赞（「有用」，需认证，未认证 4031 弹 `AuthSheet`）、可删除本人评价。
 4. **反馈 / 贡献类 UGC**：意见反馈、新增菜品（`add`）、纠错 / 申请下架（`error`）、举报（`report`）——管理员在反馈处理中审阅后录入 / 修改 / 上下架，结果以站内回执通知（不采纳 / 退回必填 `reject_reason`）。
 
@@ -54,7 +54,7 @@
 |---|---|---|
 | **游客** | 打开小程序 → `wx.login` 静默登录自动建号（`verified=0`） | 浏览 / 搜索 / 看详情 / 提交反馈（可配图）；**不能**写评价、点赞、看系统通知 |
 | **认证学生** | 学号 + `@bjtu.edu.cn` 邮箱验证码（`verified=1`） | 游客全部 + 写评价（可配图）、评价有用、删除本人评价、系统通知与回执 |
-| **管理员 ADMIN**（`user.role` 仅 `student`/`admin` 两层数据语义，无 `SUPER_ADMIN` 权限分层） | Web 管理后台**无登录体系**：请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`AdminTokenFilter`，未配置 fail-closed 403），打开即用 | 菜品录入（**录入即生效、无菜品审核**）与上下架；食堂 / 档口为筛选属性字典，**随菜品按名 upsert 自动入库**，无独立建档 / 删除（仅新增 / 改名 / 列表查看）；反馈处理（**唯一运营闭环**，回复必填、不采纳 / 退回必填 `reject_reason`）；评价**事后处置**（隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 v1.5 变更）；学生账号管理。**~~操作日志~~ 已删除（2026-09-15，见 v1.6 变更）** |
+| **管理员 ADMIN**（user 表仅承载学生、无角色字段；`user.role` 列已于 2026-09-15 删除，无 `SUPER_ADMIN` 权限分层） | Web 管理后台**无登录体系**：请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`AdminTokenFilter`，未配置 fail-closed 403），打开即用 | 菜品录入（**录入即生效、无菜品审核**）与上下架；食堂 / 档口为筛选属性字典，**随菜品按名 upsert 自动入库**，无独立建档 / 删除（仅新增 / 改名 / 列表查看）；反馈处理（**唯一运营闭环**，回复必填、不采纳 / 退回必填 `reject_reason`）；评价**事后处置**（隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 v1.5 变更）；学生账号管理。**~~操作日志~~ 已删除（2026-09-15，见 v1.6 变更）** |
 
 **状态迁移**
 ```
@@ -102,7 +102,7 @@
 
 | 表 | 关键字段 | 说明 |
 |---|---|---|
-| `user` | id, username, email, password, nickname, avatar, role, status, openid, unionid, verified, bind_email, verified_at, last_login_at | 微信取号（openid 唯一）；`role` 仅 `student`/`admin` **两层数据语义**；`password` 为历史兼容列（学生侧与管理端均不使用，BCrypt 仅用于验证码哈希）；`status` 含 `active/disabled/deleted`；注销后 openid/unionid 置空 |
+| `user` | id, username, email, password, nickname, avatar, status, openid, unionid, verified, bind_email, verified_at | 微信取号（openid 唯一）；**user 表仅承载学生**（`role` 与 `last_login_at` 列已于 2026-09-15 冗余清理删除；`role` 曾为 student/admin 两层数据语义，admin 值无生产者）；`password` 为历史兼容列（学生侧与管理端均不使用，BCrypt 仅用于验证码哈希）；`status` 含 `active/disabled/deleted`；注销后 openid/unionid 置空 |
 | `canteen` | name, images, location, description, latitude, longitude, sort_order | 食堂（**筛选属性字典**：实体语义列 `status`/`audit_status`/`reject_reason` 与归属列 `created_by` 均已下线；仅新增 / 改名 / 列表查看，无删除；随菜品 upsert 自动建档） |
 | `stall` | canteen_id, name, images, location, floor, window_no, description, sort_order | 档口（楼层 / 窗口号保留；**仅为菜品筛选属性字典**，`business_hours`、实体语义列与 `created_by` 已下线） |
 | `dish` | stall_id, name, **alias**, price, original_price, promo_price, description, images, tags, region, spice_level, status, reject_reason†, created_by, view_count, avg_rating, rating_count | 菜品；**金额一律「分」**；`alias` 逗号分隔供搜索；`region` = 风味 / 菜系（非校区）；`serve_period`/`limited`/`portion`/`audit_status`/**`category_id`** 已下线；`status=off` 客户端不可见（**`status='on'` 即公开展示，菜品无独立审核、公开查询不按审核列过滤**）；† `reject_reason` 为**退役历史列**（保留、恒 NULL，语义已迁至 `user_feedback.reject_reason`） |
@@ -111,7 +111,7 @@
 | `notification` | user_id, type, title, content, related_id, is_read | 站内通知 / 反馈回执（`feedback_handle` 为唯一在产类型） |
 | `user_feedback` | user_id, type, **sub**, content, images, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；**`sub` = 二级类型 `idea`/`problem`（仅 `suggestion` 有效，写入白名单、非法 400，后台展示「建议·想法 / 建议·问题」，不新增筛选维度）**；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
 | `email_verification_code` | email, code_hash, purpose, expires_at, used_at | 认证验证码（`code_hash` 存储） |
-| `view_log` | user_id, target_type, target_id | 浏览埋点（热度输入；「猜你喜欢」接口已下线，足迹仅作数据留存，**与管理员操作留痕无关，2026-09-15 明确保留不动**） |
+| `view_log` | user_id, target_type, target_id | 浏览埋点（**浏览量当日去重判据（HistoryService 判重）与浏览计数来源**；「猜你喜欢」接口已下线，**与管理员操作留痕无关，2026-09-15 明确保留不动**） |
 
 > **已删除表：`operation_log`（操作日志）——2026-09-15 全链删除（见 v1.6 变更与 `project_spec.md` §7.25 第 1 条）**：表不再创建（存量库由 `schema.sql` 末尾幂等段 `drop_operation_log_table` 清理），原字段 `admin_id` / `action` / `target_type` / `target_id` / `ip` 与索引 `idx_op_admin_time` / `idx_op_target` 一并作废；**表基线 11 → 10**。对照 `docs/database.md` §2 / §3.11。
 
@@ -147,7 +147,7 @@
 - **热度排序**（`DishMapper.xml` 实际）：`view_count×1 + rating_count×100 + avg_rating×20`（浏览 + 评价数 + 评分聚合，**无收藏维度**）。
 - **搜索**：`keyword` 命中 `name` 或 `alias`（管理员配别名）；筛选支持食堂 / 价格 / 辣度 / 标签（**`categoryId` 已随品类维度整链删除移除，`DishQueryReq` 无该字段，见 v1.4 变更**）；排序 /排除 ID。
 - **热搜 TOP10**：由菜品热度派生（一期无搜索词埋点）。
-- **猜你喜欢**：**已随 2026-09-14 端上零消费接口下线整体删除**（`GET /dishes/recommend` 不存在）；`view_log` 浏览足迹仅作为数据留存，无下游消费接口。
+- **猜你喜欢**：**已随 2026-09-14 端上零消费接口下线整体删除**（`GET /dishes/recommend` 不存在）；`view_log` 浏览足迹现仅作**浏览量当日去重判据（HistoryService 判重）与浏览计数来源**（2026-09-15 口径修正）。
 
 ---
 

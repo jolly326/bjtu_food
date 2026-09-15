@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 用户实体类
  * <p>
  * 对应数据库表：user
- * 包含两种角色：student（学生）、admin（管理员）
+ * 全量用户即学生（user.role 列已于 2026-09-15 用户拍板退役，管理端走口令体系、无角色数据语义）。
  * <p>
  * 注：表名 `user` 为 MySQL 保留字，当前 MyBatis-Plus 生成语句与手写 XML 均可正常执行（2026-09-14 评估：
  * MybatisPlusConfig 未配置全局表名转义，MP 生成的 FROM user 与 ReviewMapper.xml 的 JOIN user u 实测均正常，
@@ -46,10 +46,6 @@ public class User {
     @Schema(description = "头像URL")
     private String avatar;
 
-    /** 角色：student / admin */
-    @Schema(description = "角色", example = "student")
-    private String role;
-
     /** 状态：active（正常）/ disabled（禁用）/ deleted（已注销） */
     @Schema(description = "状态", example = "active")
     private String status;
@@ -83,8 +79,4 @@ public class User {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
-
-    /** 最近登录时间 */
-    @Schema(description = "最近登录时间")
-    private LocalDateTime lastLoginAt;
 }

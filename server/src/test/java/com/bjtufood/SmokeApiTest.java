@@ -200,7 +200,6 @@ class SmokeApiTest {
         UserInfoVO userInfo = new UserInfoVO();
         userInfo.setId(USER_ID);
         userInfo.setUsername("wx_tail16");
-        userInfo.setRole("student");
         userInfo.setVerified(false);
         when(authService.wechatLogin("wx-login-code")).thenReturn(new LoginResp("minted-jwt", userInfo));
 
@@ -481,9 +480,9 @@ class SmokeApiTest {
 
     // ==================== 辅助方法 ====================
 
-    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/role，verified 不入 token） */
+    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/username，verified 不入 token；role claim 已退役） */
     private String studentToken() {
-        return "Bearer " + jwtUtil.createToken(USER_ID, "STUDENT", "smoke");
+        return "Bearer " + jwtUtil.createToken(USER_ID, "smoke");
     }
 
     private User user(int verified) {

@@ -31,7 +31,7 @@ public interface AuthService {
      * 微信静默登录（spec §5.y.1 / task-01 1.1）。
      * <p>
      * 后端 code2Session 换 openid（+unionid 若有）→ 按 user.openid 取号：
-     * 存在则更新 last_login_at 返回原账号；不存在则自动建号（游客态 verified=0）。
+     * 存在则返回原账号；不存在则自动建号（游客态 verified=0）。
      *
      * @param code 微信 wx.login 临时凭证
      * @return LoginResp{token, userInfo}
@@ -55,7 +55,7 @@ public interface AuthService {
      * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
      *
      * @param userId 用户ID
-     * @return 用户信息 Map（id/username/email/nickname/avatar/role/status/verified/bindEmail/guestShortId）
+     * @return 用户信息 Map（id/username/email/nickname/avatar/status/verified/bindEmail/guestShortId）
      */
     Map<String, Object> getProfile(Long userId);
 

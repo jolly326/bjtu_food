@@ -228,7 +228,6 @@ export function userToLegacy(raw: any): User {
     password: '',
     nickname: raw.nickname || '',
     avatar: raw.avatar || '',
-    role: raw.role,
     status: raw.status,
     // task-02 新增：微信登录体系字段（snake_case 仅在 adapter 内部兜底）
     verified: raw.verified ?? 0,

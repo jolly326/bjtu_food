@@ -14,7 +14,6 @@ import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.auth.service.WechatService;
 import com.bjtufood.auth.config.TokenBlacklist;
-import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -86,7 +85,7 @@ public class AuthServiceImpl implements AuthService {
         if ("deleted".equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        user.setLastLoginAt(DateTimeUtil.now());
+        // last_login_at 写入点已随列退役（2026-09-15 用户拍板「只写不读零消费，删列」）
         // 补全 unionid：已建账号首登时微信未必返回 unionid，后续补全（幂等，不影响唯一键）
         if (!StringUtils.hasText(user.getUnionid()) && StringUtils.hasText(session.unionid())) {
             user.setUnionid(session.unionid());
@@ -269,7 +268,6 @@ public class AuthServiceImpl implements AuthService {
         vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        vo.setRole(user.getRole());
         vo.setStatus(user.getStatus());
         vo.setVerified(Integer.valueOf(1).equals(user.getVerified()));
         vo.setBindEmail(user.getBindEmail());
@@ -280,7 +278,8 @@ public class AuthServiceImpl implements AuthService {
     // ============================ 私有方法 ============================
 
     private LoginResp toLoginResp(User user) {
-        String token = jwtUtil.createToken(user.getId(), user.getRole(), user.getUsername());
+        // JWT 载荷不含 role（role 列已退役）：学生态 authorities 由 JwtAuthFilter 固定授予
+        String token = jwtUtil.createToken(user.getId(), user.getUsername());
         return new LoginResp(token, toUserInfo(user));
     }
 
@@ -291,7 +290,6 @@ public class AuthServiceImpl implements AuthService {
         map.put("email", user.getEmail());
         map.put("nickname", user.getNickname());
         map.put("avatar", imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        map.put("role", user.getRole());
         map.put("status", user.getStatus());
         map.put("verified", Integer.valueOf(1).equals(user.getVerified()));
         map.put("bindEmail", user.getBindEmail());
@@ -327,7 +325,7 @@ public class AuthServiceImpl implements AuthService {
         String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
         user.setUsername("wx_" + tail);
         user.setNickname("食客新友");
-        user.setRole(RoleConst.STUDENT);
+        // role 列已退役（2026-09-15）：全量用户即学生，无需写入角色
         user.setStatus("active");
         user.setVerified(0);
         try {

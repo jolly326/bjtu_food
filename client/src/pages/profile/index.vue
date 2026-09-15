@@ -33,12 +33,6 @@
           <text class="info-label">校园邮箱</text>
           <text class="info-value info-value-email">{{ userInfo?.email || '--' }}</text>
         </view>
-
-        <!-- 身份（角色，只读） -->
-        <view class="info-row">
-          <text class="info-label">身份</text>
-          <text class="info-value">{{ roleLabel }}</text>
-        </view>
       </view>
     </scroll-view>
 
@@ -64,12 +58,10 @@ const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 
 // N07/审计#2 修复：userInfo 在 setup 时可能仍为 null（静默登录异步回填），
-// 直接用快照会导致头像/昵称/身份永久空白且回写空值。改为响应式派生 + watch immediate 回填。
+// 直接用快照会导致头像/昵称永久空白且回写空值。改为响应式派生 + watch immediate 回填。
 const avatar = ref('')
 const nickname = ref('')
 const saving = ref(false)
-/** 身份标签：student=交大学生 / admin=管理员（对齐 §0.2 仅两种角色） */
-const roleLabel = ref('交大学生')
 
 watch(
   () => userInfo.value,
@@ -77,7 +69,6 @@ watch(
     if (!u) return
     if (u.avatar) avatar.value = u.avatar
     if (u.nickname) nickname.value = u.nickname
-    roleLabel.value = u.role === 'admin' ? '管理员' : '交大学生'
   },
   { immediate: true },
 )

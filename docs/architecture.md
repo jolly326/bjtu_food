@@ -59,7 +59,7 @@ com.bjtufood/
 - 写操作接口用 `@RequireVerified` 切面（未认证抛 `4031`）
 
 ### 2.3 角色与权限
-- `user.role` 仅 `student` / `admin` **两层数据语义**（账号归属区分，不作权限分层；`super_admin` 已移除，spec §7.10 / §7.23）
+- **`user.role` 列已于 2026-09-15 冗余清理删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制；JWT 仅含 `userId` claim，学生态 authorities 固定，spec §7.10 / §7.23）
 - Security：URL 白名单 + JWT 过滤器 + `@RequireVerified` 切面（未认证 4031）；**`/admin/**` 不走角色**——由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置 fail-closed 403，校验通过后置 `ROLE_ADMIN` 授权放行）；`POST /upload/image` 亦由该口令守卫（2026-09-15 B4）
 
 ### 2.4 安全加固（已落实）
@@ -194,7 +194,7 @@ npm run dev   # http://localhost:5173
 
 ## 6. 关键设计决策
 1. **评分聚合异步化**：`RatingUpdateListener` 用 `@Async("taskExecutor")` AFTER_COMMIT 重算，不阻塞提交
-2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑猜你喜欢
+2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑浏览量当日去重判据（HistoryService 判重）与浏览计数来源（「猜你喜欢」已下线，2026-09-15 口径修正）
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
 5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板

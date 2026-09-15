@@ -54,7 +54,7 @@
 
 ### 0.1 角色模型（仅两种）
 - `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁写评价 / 评价点赞等 **UGC 写操作**（评价**支持配图 ≤3 张**，全部 UGC 过微信内容安检，见 §5.a）。**学生端无菜品写接口**：`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理（学生提交档口 / 食堂 `/my/stalls` 已于 2026-08-18 随代码清理移除；社区/动态板块已于 2026-09-12 下线，见 §0.5）。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开，**可配图 ≤3 张**，同样过内容安检）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
-- `ADMIN`（系统管理员 / 食堂后勤）：**反馈处理（唯一运营闭环，见 §7.23 第 5 条）+ 评价治理（事后处置：隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 §7.24）**、**菜品 CRUD + 上架下架**（食堂 / 档口为菜品属性，随菜品 upsert）、学生账号管理。**管理端职责不含任何操作留痕 / 审计（2026-09-15 用户拍板：操作日志全链删除，见 §7.25 第 1 条）**。**~~看板 / 工作台~~已下线（2026-09-15 用户拍板，见 §0.4.1）**：后台无「全局聚合看板」，待办可见性由**「反馈」入口徽标** + 各业务页**表格 footer 统计**承担（2026-09-15 IA 扁平化改名，见 §0.4.2）。**菜品无独立审核**（§7.23 第 4 条：录入即生效，无「菜品审核」环节）。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
+- `ADMIN`（系统管理员 / 食堂后勤）：**反馈处理（唯一运营闭环，见 §7.23 第 5 条）+ 评价治理（事后处置：隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 §7.24）**、**菜品 CRUD + 上架下架**（食堂 / 档口为菜品属性，随菜品 upsert）、学生账号管理。**管理端职责不含任何操作留痕 / 审计（2026-09-15 用户拍板：操作日志全链删除，见 §7.25 第 1 条）**。**~~看板 / 工作台~~已下线（2026-09-15 用户拍板，见 §0.4.1）**：后台无「全局聚合看板」，待办可见性由**「反馈」入口徽标** + 各业务页**表格 footer 统计**承担（2026-09-15 IA 扁平化改名，见 §0.4.2）。**菜品无独立审核**（§7.23 第 4 条：录入即生效，无「菜品审核」环节）。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除；**2026-09-15 冗余清理后 `user.role` 列已删除，user 表仅承载学生、无角色字段（管理端无账号体系、口令制，既有口径不变）**，`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
 - **活动与公告（broadcast）已全链路下线（2026-09-13 拍板）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表全部删除，ADMIN 不再承担活动录入职责（详见 §0.5「已下线」）。
 
@@ -73,7 +73,7 @@
   - **② 评价**：`/dashboard/reviews`（`ReviewManageView`）——评价**事后处置**（隐藏 / 显示 / 删除）；**无安检列 / 无安检筛选 / 无放行·驳回动作 / 无「待复核」统计**（2026-09-15 取消人工复核，见 §7.24）。原 `AuditManageView`（内容审核聚合页）与 `/dashboard/audit` 路由**已删除**，旧深链由前端兜底重定向（整份保留 query：`tab=feedback*` / `apply*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`）
   - **③ 反馈**：`/dashboard/feedback`（`FeedbackView`）——反馈处理闭环（唯一运营闭环，见 §7.23 第 5 条）
   - **④ 学生账号**：`/dashboard/system`（`UserView`）——学生账号管理。**原「用户与系统」分类卡聚合层 `SystemManageView`（含其下 `AccountView` 透传壳）已删除，路由直指 `UserView`**（2026-09-15）。**管理端无角色体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已无登录与角色分层，`/admin/**` 统一由**环境变量口令**（`ADMIN_TOKEN`，请求头 `X-Admin-Token`）把关，**不区分角色、不判断操作人身份**；「管理员账号管理」入口已删除（§7.10 第 4 条）、`SUPER_ADMIN` 角色已移除、假角色判断文案固定为「管理员」。
-  - **~~系统 / 操作日志~~ 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：`OperationLogView` 页面与 `GET /admin/operation-logs` 端点、`operation_log` 表全链移除；**管理端不存在操作日志页，亦不存在任何操作留痕能力**（`ClientIpUtil` 仅服务 `RequestLoggingFilter` 服务端访问日志；`view_log` 浏览足迹属用户侧「猜你喜欢」数据源，与管理员留痕无关，均不属本项）。
+  - **~~系统 / 操作日志~~ 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：`OperationLogView` 页面与 `GET /admin/operation-logs` 端点、`operation_log` 表全链移除；**管理端不存在操作日志页，亦不存在任何操作留痕能力**（`ClientIpUtil` 仅服务 `RequestLoggingFilter` 服务端访问日志；`view_log` 浏览足迹仅作浏览量当日去重判据与浏览计数来源（**「猜你喜欢」已随 §7.10 第 1 条下线，不再是其消费方**），与管理员留痕无关，均不属本项）。
 - 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务（原「活动模块」例外已随 2026-09-13 活动全链路下线作废）。
 
 #### 0.4.1 工作台已下线 + 后台默认落地页（2026-09-15 用户拍板，取代 2026-08-18 工作台契约）
@@ -133,14 +133,14 @@
 - **执行口径**：本文件一经同步即为唯一权威；后续实现若与本文档冲突，**改代码、不改文档**（代码只在 UI 实现层提供指导）。开发交付以「静态错误清零」为准，编译 / 构建 / 真机运行由用户执行。
 
 ### 0.3 一致性红线（全局，强制）
-- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由。**`/admin/**` 的访问控制为「环境变量口令」而非角色**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`AdminTokenFilter` 校验请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置口令时 fail-closed 403；`SUPER_ADMIN` 分层已移除（`RoleConst` 仅 `student`/`admin` 两层数据语义，用于区分账号归属而非权限，见 §5.x）。
+- 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由。**`/admin/**` 的访问控制为「环境变量口令」而非角色**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`AdminTokenFilter` 校验请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置口令时 fail-closed 403；`SUPER_ADMIN` 分层已移除；**2026-09-15 冗余清理后 `user.role` 列已删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制，`/admin/**` 由口令而非角色把关的口径不变，见 §5.x）。
 - **菜品**的唯一运营开关是上下架 `status`(on/off)；**`dish.audit_status` 列与索引已全量删除（2026-09-15 阶段4 用户批准，见 §7.23 第 4 条；此前「列保留、仅作公开查询过滤」的口径已作废）**——**菜品无独立审核**：管理员录入 / 编辑即生效，**公开查询不再过滤该列，`status='on'` 即公开展示**（后台列表不设审核列、菜品详情不回显审核态与 `reject_reason`、客户端不出现「菜品审核」概念）；`DishConst.AUDIT_APPROVED` 别名常量、`common/constant/AuditStatusConst` 值域真源与一次性归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql` **均已删除**，存量库由 `schema.sql` 末尾幂等 DROP 段 `drop_dish_audit_status_column` 清理（`idx_dish_audit` 随列连带删除，`idx_dish_heat` 自动退化为 `(status, view_count, rating_count, avg_rating)`）。`dish.reject_reason` 为退役历史列（列保留、恒 NULL、不写入）。学生的菜品诉求走**反馈**承载（见下一行）。**档口 / 食堂已去实体化（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）：不再有 `status` / `audit_status` / `reject_reason` 列**（6 列已下线），仅为菜品筛选属性字典。
 - 学生对菜品的一切诉求（下架 / 变更 / 纠错 / 举报 / 新增 / 建议）走**反馈类型承载**，**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台**在反馈处理中**手工闭环）。**反馈类型真源（2026-09-15 蓝图 v1，见 §7.23 第 3 条；取自小程序反馈收集表，勿臆造）**：写入白名单 = `suggestion`（建议 / 问题，二级 `sub` ∈ {`idea`, `problem`}，**仅 `suggestion` 有效、写入白名单校验、非法 400、后台展示「建议·想法 / 建议·问题」、不新增筛选维度**，**「系统 bug」归 `sub=problem`，不升为一级类型**；见 §7.23 第 3 条）/ `add`（新增菜品）/ `error`（纠错 / 下架，`relatedType=dish`）/ `report`（举报，`relatedType=review`）；`bug` / `other` 为**历史遗留枚举位、无生产者、禁止新增**（仅保留在查询白名单以筛存量数据）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
 - **UGC 内容安全红线（2026-09-13 立；2026-09-15 用户拍板「取消人工复核」修订，见 §7.24）**：全部 UGC（评价 / 反馈的文本与配图）提交时过微信机检（`msgSecCheck` v2 / `imgSecCheck`）——**机检 `pass` 与 `review`（疑似）一律放行，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）与图片违规 code `87014` 拒绝（HTTP `400`，不新增错误码）**。**不存在人工复核**：无复核队列、无放行 / 驳回动作、无安检态落库——`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、`PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、评价列表 `secState` 筛选参数与 `viewerId` 均已**全链退役**。评价可见性唯一判据 = `is_hidden=0`；管理端只做事后处置（`is_hidden` 隐藏 / 显示、删除）。**（2026-09-15 追加：`OperationLogConst` 已随「操作日志」全链删除而不存在，见 §7.25 第 1 条——本条对该常量的退役表述已成历史留痕。）**
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
   - **无账号密码登录**：小程序端**无密码、无登录页、无登录按钮、无注册页**；微信打开即静默登录（`POST /auth/wechat-login`），默认得到 `verified=false` 的游客态账号。
-  - **`verified` 门槛**：UGC 写操作（写评价 / 评价点赞等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（JWT claims 实况含 `userId` / `role` / `username` 三项稳定字段，不含 `verified`——实现决策：userId 供业务鉴权实时查 `user.verified`，role 供网关与方法级权限校验），后端按 `user.verified` 实时判定。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入。
+  - **`verified` 门槛**：UGC 写操作（写评价 / 评价点赞等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（**2026-09-15 冗余清理后 JWT claims 仅含 `userId`，不再含 `role` / `username` claim**——`user.role` 列已删除、学生态 authorities 固定；实现决策：userId 供业务鉴权实时查 `user.verified`），后端按 `user.verified` 实时判定。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入。
   - **游客权限矩阵**：游客可浏览全部公开数据 + `POST /feedback`（公开无需认证）；需认证功能**入口不置灰**，点击时弹认证引导。
   - **邮箱是唯一迁移 / 绑定凭证**：`@bjtu.edu.cn` 邮箱验证码认证即绑定当前微信；同一邮箱被新微信认证时**直接替换旧微信绑定**（旧数据归属跟到新绑定微信）；**不设解绑入口**。
   - **管理后台无登录例外（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理后台**不做账号登录**（登录即用 / 无感），管理端接口由**环境变量口令**保护（请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置 fail-closed 403）；与小程序微信登录体系完全解耦，**无 `/auth/admin/login`、无 BCrypt、无 JWT、无 `SUPER_ADMIN` 分层**。
@@ -151,7 +151,7 @@
 - 后端：Spring Boot 3.2 + Java 21，ORM MyBatis-Plus 3.5.5（BaseMapper + XML，`resources/mapper/*.xml`）；API 文档 **SpringDoc OpenAPI（`/swagger-ui.html` + `/v3/api-docs`），不使用 Knife4j**。
 - 小程序端：uni-app + Vue 3 (`<script setup>`) + TypeScript + Pinia，目录 `client/`。
 - Web 管理端：Vue 3 + Vite + TypeScript + Element Plus，目录 `web/`，无 Pinia。**定位：辅助后端管理数据的 UI 工具（非用户端）**——只经 `/admin/**` 接口消费与管理小程序产生的数据，见 §0.4。
-- 数据库：MySQL 8.0，库 `bjtu_food`，utf8mb4；**建表脚本唯一权威：`server/src/main/resources/db/schema.sql`**（`user.role` 默认 `'student'`）。
+- 数据库：MySQL 8.0，库 `bjtu_food`，utf8mb4；**建表脚本唯一权威：`server/src/main/resources/db/schema.sql`**（user 表仅承载学生，`user.role` 列已删除）。
 - 认证（微信登录体系，2026-08 拍板，详见 §5「认证与鉴权」）：JWT（7 天），`Authorization: Bearer {token}`。小程序端无账号密码，经 `POST /auth/wechat-login`（`code2Session` 静默建号/取号）获取 JWT；UGC 写操作需 `verified=true`。`verified` 不进 JWT，后端按 `user.verified` 实时判定。
 - 管理后台鉴权（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：**无登录体系**，管理端接口（`/admin/**`）由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`web/.env.local` 的 `VITE_ADMIN_TOKEN` 与之同值），未配置口令即 fail-closed 403；与小程序微信登录解耦，无账号密码 / BCrypt / JWT / 角色分层。
 
@@ -588,7 +588,7 @@
 | **PR-06** | **参数非法即报错：所有面向管理端 / 端上的枚举、标签、排序、筛选、金额类入参必须经单一真源白名单校验，非法值返回 400，绝不静默降级。** | P2-01、P1-05、P3-10 | 反馈 `type` 可写 `foobar`；菜品 `tags` 原样落库；`sort` 非法值静默落 `useful` 分支；`status` 非法值进 SQL 恒空（原 `secState` 筛选入参已随 2026-09-15「取消人工复核」退役） | 脏数据污染维度；静默恒空**掩盖真实积压**；排序「以为切了却没切」。 |
 | **PR-07** | **字段生命周期成对处置：任何字段的引入与下线必须一一对应（DTO / 实体 / VO / Mapper / 后台表单 / 端上映射 / 建表脚本），端上零消费且后端不写的字段必须显式下线或显式登记为「仅存量兼容」。** | P2-06、P2-07、P1-01、P3-10、P3-11 | `portion` 与 `spice_level` 同批引入却处置不对称；建库脚本内先 add 后 drop 同一列；无生产者的通知类型仍在册 | 悬置字段扰民、脚本自相矛盾，最终以「Unknown column」在建库时爆炸（P0-02）。 |
 | **PR-08** | **聚合与冗余计数必须声明「谁是真源、何时重算、失败如何补偿」；异步聚合失败不得只有一行告警日志。** | P2-03、P2-04 | 评分聚合异步失败即丢弃、无对账；`avg_rating` / `rating_count` / `useful_count` 漂移无人知 | 首页排序 / 热搜按漂移值计算 → 推荐失真且**无人发现**。 |
-| **PR-09** | **删除类与合并类操作必须成对定义级联范围（评价 / `review_useful` / `view_log` / 通知），各处口径保持一致。** | P2-04 | `deleteDish` 不清 `view_log`；`migrateOwnership` 删评价前不清 `review_useful`；管理端新增 / 编辑未标 `@Transactional` | 孤儿行指向不存在对象，「猜你喜欢」拿到无效 ID，计数长期发散。 |
+| **PR-09** | **删除类与合并类操作必须成对定义级联范围（评价 / `review_useful` / `view_log` / 通知），各处口径保持一致。** | P2-04 | `deleteDish` 不清 `view_log`；`migrateOwnership` 删评价前不清 `review_useful`；管理端新增 / 编辑未标 `@Transactional` | 孤儿行指向不存在对象，「猜你喜欢」拿到无效 ID（**该消费方已随 §7.10 第 1 条下线**），计数长期发散。 |
 | **PR-10** | **凡产生公开可见内容的图片上传必须唯一走安检链路（UGC 上传链路）；无安检上传函数只能用于已登记的例外（如头像），且命名须自证用途。** | P2-11、P2-01 | 头像上传函数命名过于「通用」，新页面极易误用无安检链路而绕过内容安检 | UGC 绕过内容安检 → 合规红线失守（见 §5.a 与 §0.0 合规底线）。 |
 | **PR-11** | **任何具备可点外观或无障碍可点语义的控件必须绑定真实动作；占位 / 装饰元素不得使用可点语义交付。** | P0-05、P2-09、P2-11 | 「筛选」胶囊带 `role="button"` 却无 `@tap`、无 emit；排序状态存在但无 UI 入口 | 交互欺骗；用户反复点击；无障碍承诺与实现矛盾。 |
 | **PR-12** | **枚举 / 常量展示必须与后端常量表同源；前端不得手写子集或裸英文枚举；跨端 DTO 必须显式定型（平台句柄外禁止 `any`）。** | P3-09、P3-10、P2-11、P3-12 | ~~操作日志前端只登记 7/12 动作、单元格显示裸英文~~（**2026-09-15：操作日志能力已整体删除，本案例仅作 PR-12 历史例证，见 §7.25 第 1 条**）；反馈页食堂树用 `any`；同类 VO 存在双份 | 筛选项恒空 / 漏项；字段名变更时端上静默失效且无编译期保护。 |
@@ -661,7 +661,7 @@
 **管理端无密码体系（口径自洽，`DataInitializer` 删除后）**
 
 - 管理端**无账号、无密码、无登录**：`/auth/admin/login` 端点不存在（见 §5.y.5）；`/admin/**` 由 `AdminTokenFilter` 校验环境变量口令 `ADMIN_TOKEN`（请求头 `X-Admin-Token`，未配置 fail-closed 403）。
-- **`super_admin` / `SUPER_ADMIN` 已移除**：`user.role` 仅 `student` / `admin` **两层**数据语义（`RoleConst`），**不作权限分层**。
+- **`super_admin` / `SUPER_ADMIN` 已移除**；**2026-09-15 冗余清理后 `user.role` 列已删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制口径不变，web 学生列表不再按 role 过滤）。
 - **`user.password` 为历史兼容列**：管理端与学生端**均不使用**（不校验、不写入、不展示）；**BCrypt 仅用于邮箱验证码哈希**（`email_verification_code.code_hash`），**不用于任何登录口令校验**。
 - **`DataInitializer`（dev 环境默认管理员 `admin/admin123` 与其 `PasswordEncoder` 依赖）整体删除**。删除后**不得**在任何端重建管理端账号 / 密码 / 角色分层——恢复须重新拍板（PR-04）。
 
@@ -692,7 +692,7 @@
 - **后端**：删 `@AuditLog` 注解、`AuditLogAspect` 切面、`OperationLogConst`、`OperationLogAdminController`、`OperationLogVO`、`OperationLog` 实体、`OperationLogMapper`、`OperationLogService`(+`Impl`)，以及 4 处 `@AuditLog` 调用点（含 `DELETE /auth/account` 埋点）。
 - **库表**：`operation_log` 表**不再创建**（`schema.sql` 末尾幂等段 `drop_operation_log_table` 清理存量库，先判存在再 DROP、可重复执行）；**表基线 11 → 10 张**（见 `docs/database.md` §2 / §3.11）。
 - **Web**：删 `OperationLogView.vue`、`api/operationLog.ts` 与 `OPERATION_*` 常量；`GET /admin/operation-logs` 端点条目同步从 `docs/api-design.md` 移除。
-- **保留（不属操作日志能力，不得误删）**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 服务端访问日志）；`view_log`（浏览足迹，用户侧「猜你喜欢」数据源）**不动**。
+- **保留（不属操作日志能力，不得误删）**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 服务端访问日志）；`view_log`（浏览足迹，仅作浏览量当日去重判据与浏览计数来源）**不动**。
 - **口径定型**：管理端为**单人共享口令工具**（`X-Admin-Token`，见 §7.10），**不提供任何操作留痕 / 审计追溯页面**，未来也不以任何形式重建；恢复须**重新拍板**（PR-04）。
 - **连带注销**：§8「待收尾」中「`OperationLogConst` 的 `category_*` 四值」收尾项**随之注销**（常量类本体已删除）；§7.10 第 2 条中 `operation_log.admin_id` retired 列口径作废（`user_feedback.handler_id` retired 口径**不变**）。
 

@@ -22,7 +22,7 @@
 |---|---|
 | 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（评价 / 评价点赞等 UGC；菜品贡献走公开反馈 `POST /feedback`） |
 | 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后 `verified=1`，解锁写操作 |
-| 角色 | `student`（默认）/ `admin`（**`super_admin` 已移除**，2026-09-14 与 spec §7.10 对齐；`user.role` 仅作账号归属的数据语义，不再作权限分层） |
+| 角色 | **`user.role` 列已于 2026-09-15 冗余清理删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制；JWT 仅含 `userId` claim，与 spec §7.10 对齐） |
 | 状态 | `active` / `disabled` / `deleted` |
 
 > **管理端鉴权（2026-09-14 与 spec §7.10 对齐，原方案 C 作废）**：`/admin/**` **无登录体系、无 JWT、无角色校验、无 BCrypt**；由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403）。`/auth/admin/login` 端点**不存在**、`SUPER_ADMIN` 分层已移除（详见 §1.2 与 §5 抬头）。
@@ -208,7 +208,7 @@
 ### 5.3 用户管理（UserAdminController）
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/admin/users` | 用户列表（role/status 过滤，`PageResult<UserVO>` 4 参统一形态） |
+| GET | `/admin/users` | 学生列表（仅 status 过滤，**role 过滤参数已随 `user.role` 列删除移除，2026-09-15**，`PageResult<UserVO>` 4 参统一形态） |
 | PUT | `/admin/users/{id}/status` | 启停用户 |
 
 > **已删除端点（2026-09-14 与 spec §7.10 对齐）**：`PUT /admin/users/{id}/role`（改角色，无实现；`SUPER_ADMIN` 已移除）与 `GET/POST/PUT/DELETE /admin/admins/*`（管理员账号管理，Controller 不存在；管理后台「账号设置」入口已删除，spec §7.10 第 4 条）均**不存在**，勿按旧版记载对接。
@@ -266,7 +266,7 @@ POST /reviews → ReviewSubmittedEvent → RatingUpdateListener(@Async AFTER_COM
 GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + recordDishView(userId,dishId) upsert 足迹
 ```
 
-> 原「`GET /dishes/recommend` 猜你喜欢」已随 2026-09-14 端上零消费接口下线删除（spec §7.10 第 1 条）；浏览足迹仅作为 `view_log` 数据留存，无下游消费接口。
+> 原「`GET /dishes/recommend` 猜你喜欢」已随 2026-09-14 端上零消费接口下线删除（spec §7.10 第 1 条）；`view_log` 浏览足迹现仅作**浏览量当日去重判据（HistoryService 判重）与浏览计数来源**（2026-09-15 口径修正）。
 
 ### 6.3 审核流（2026-09-15 蓝图 v1 校准，与 spec §7.8 / §7.21 / §7.23 对齐）
 ```

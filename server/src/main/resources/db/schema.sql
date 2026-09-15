@@ -7,10 +7,11 @@
 -- 配合 seed_data.sql 使用：本文件只建表不插数据。
 --
 -- 说明：
---   1. 角色两层：student（学生）/ admin（管理端账号数据标记）。**super_admin 已于 2026-09-14 移除
---      （2026-09-15 蓝图 v1 再确认，见 project_spec.md §7.23）**——管理端无登录与角色体系，
---      /admin/** 统一由环境变量口令（AdminTokenFilter，X-Admin-Token == ADMIN_TOKEN）把关；
---      role 仅保留两层数据语义，用于区分账号归属，不作权限分层。user.role 默认值 'student'。
+--   1. 角色体系已整体退役（2026-09-15 用户拍板「user.role 收敛为恒 student，删列」）——
+--      管理端无登录与角色体系，/admin/** 统一由环境变量口令（AdminTokenFilter，X-Admin-Token == ADMIN_TOKEN）把关；
+--      小程序端全量用户即学生，JWT 不再携带 role claim，JwtAuthFilter 固定授学生态 authorities。
+--      user.role 列已从 CREATE TABLE 移除（原默认值 'student'），存量库由文件末尾
+--      drop_user_redundant_columns 幂等段清理（同段一并退役 user.last_login_at 只写不读列）。
 --   2. 金额类字段（dish.price）以「分」为单位存储（如 12.00 元 = 1200）。
 --   3. 图片/多图类字段使用 JSON 字符串存储（如 ["url1","url2"]）。
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
@@ -63,7 +64,8 @@ CREATE TABLE IF NOT EXISTS `user`
     `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '历史兼容列：密码哈希。管理端与学生端均已不使用（管理端为环境变量口令，见 project_spec.md §7.23；BCrypt 仅用于邮箱验证码哈希）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
-    `role`         VARCHAR(32)  NOT NULL DEFAULT 'student' COMMENT '角色：student / admin（两层；super_admin 已移除，2026-09-15 见 project_spec.md §7.23）',
+    -- user.role / user.last_login_at 已于 2026-09-15 用户拍板退役（role 恒 student、last_login_at 只写不读零消费）；
+    -- CREATE TABLE 不再创建，存量库由文件末尾 drop_user_redundant_columns 幂等段清理。
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
     `openid`       VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信游客/已认证账号有值，历史学号账号为 NULL）',
     `unionid`      VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）',
@@ -72,7 +74,6 @@ CREATE TABLE IF NOT EXISTS `user`
     `verified_at`  DATETIME     NULL     DEFAULT NULL COMMENT '认证时间',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `last_login_at` DATETIME     NULL     DEFAULT NULL COMMENT '最近登录时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
     UNIQUE KEY `uk_user_email` (`email`),
@@ -415,8 +416,9 @@ CREATE TABLE IF NOT EXISTS `view_log`
     `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '浏览时间',
     `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_view_user_time` (`user_id`, `created_at`),
-    KEY `idx_view_target` (`target_type`, `target_id`),
+    -- idx_view_user_time / idx_view_target 两个冗余索引已于 2026-09-15 用户拍板退役
+    -- （审计确认零查询使用；判重查询唯一依赖下方 idx_view_user_target_time）。
+    -- CREATE TABLE 不再创建，存量库由文件末尾 drop_view_log_redundant_indexes 幂等段清理。
     -- 判重复合索引（2026-09-15）：后端浏览量判重已改用 updated_at（同 userId+targetType+targetId
     -- 按时间判定），该四列组合索引覆盖判重查询的过滤列与时间列
     KEY `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`)
@@ -927,5 +929,60 @@ END$$
 DELIMITER ;
 CALL `drop_operation_log_table`();
 DROP PROCEDURE IF EXISTS `drop_operation_log_table`;
+
+-- 索引下线（2026-09-15 用户拍板）：view_log 两个冗余索引退役——
+--   idx_view_user_time(user_id, created_at) / idx_view_target(target_type, target_id)，
+--   审计确认零查询使用；判重查询唯一依赖保留的 idx_view_user_target_time（与 PK 一并保留）。
+-- CREATE TABLE 已同步移除两 KEY 定义；存量库在此幂等 DROP。
+-- 注意：MySQL 8 不支持 DROP INDEX IF NOT EXISTS，须 ALTER TABLE ... DROP INDEX，
+--       并先查 INFORMATION_SCHEMA.STATISTICS 判索引存在（与上方建索引迁移惯例一致），可重跑、不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_view_log_redundant_indexes`;
+DELIMITER $$
+CREATE PROCEDURE `drop_view_log_redundant_indexes`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND INDEX_NAME = 'idx_view_user_time'
+    ) THEN
+        ALTER TABLE `view_log` DROP INDEX `idx_view_user_time`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND INDEX_NAME = 'idx_view_target'
+    ) THEN
+        ALTER TABLE `view_log` DROP INDEX `idx_view_target`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_view_log_redundant_indexes`();
+DROP PROCEDURE IF EXISTS `drop_view_log_redundant_indexes`;
+
+-- 字段下线（2026-09-15 用户拍板）：user 两列退役——
+--   · user.role：收敛为恒 student（全量用户即学生，管理端走口令体系），列与角色语义一并退役；
+--   · user.last_login_at：只写不读、零消费。
+-- CREATE TABLE 已同步移除两列定义；实体/Service 写入点同批移除；存量库在此幂等 DROP
+-- （先判 INFORMATION_SCHEMA.COLUMNS 存在再 DROP COLUMN，可重跑；两列均无索引成员，无连带对象）。
+DROP PROCEDURE IF EXISTS `drop_user_redundant_columns`;
+DELIMITER $$
+CREATE PROCEDURE `drop_user_redundant_columns`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'role'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `role`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'last_login_at'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `last_login_at`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_user_redundant_columns`();
+DROP PROCEDURE IF EXISTS `drop_user_redundant_columns`;
 
 SET FOREIGN_KEY_CHECKS = 1;

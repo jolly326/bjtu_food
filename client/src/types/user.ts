@@ -1,6 +1,4 @@
-/** 角色仅 STUDENT / ADMIN（对齐 project_spec.md §0.2） */
-type UserRole = 'student' | 'admin'
-
+/** 用户信息（user.role 列已退役，2026-09-15：全量用户即学生，类型不再含 role 字段） */
 export interface UserInfo {
   id: number
   /** 学号/工号（校园身份，等于邮箱前缀）；游客态为 'wx_'+openid 尾 16 位 */
@@ -9,7 +7,6 @@ export interface UserInfo {
   email: string
   nickname: string
   avatar: string
-  role: UserRole
   /** 是否已邮箱认证（微信登录体系 §5.y）：true 解锁 UGC 写操作 */
   verified: boolean
   /** 已认证绑定邮箱（bind_email，仅展示用，不公开传播）；未认证为 undefined */

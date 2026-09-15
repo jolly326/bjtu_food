@@ -130,7 +130,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = null
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
     uni.removeStorageSync(STORAGE_KEY_USER)
-    // 联动重置：评价列表有用标记 / 猜你喜欢个性化推荐
+    // 联动重置：评价列表有用标记 / 浏览足迹等用户维度数据
     void import('@/stores/dish').then(({ useDishStore }) => {
       try { useDishStore().resetUserScopedData() } catch { /* 忽略未初始化 */ }
     }).catch(() => {})
