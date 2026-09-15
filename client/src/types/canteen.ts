@@ -18,7 +18,7 @@ export interface StallNode {
 /**
  * 食堂含档口树（GET /canteens/all）：食堂 → stalls[]。
  * 反馈页「推荐菜品」位置选择用它做食堂 / 档口两级联动，唯一消费方为
- * `pages/me/feedback/useFeedback.ts`。
+ * `pages/feedback/useFeedback.ts`。
  */
 export interface CanteenWithStalls {
   id?: number

@@ -8,7 +8,7 @@ import { WX_CLOUD_ENV } from './config'
  * 极易被新页面误用于 UGC 公开内容而绕过微信内容安检。
  *   → **禁止用于 UGC 公开内容**（评价配图 / 反馈配图等一切他人可见的图）。
  *   → UGC 必须走 `uploadUgcImage`（云存储 fileID → POST /upload/images，含 imgSecCheck 安检 + COS 转存）。
- * 当前唯一合法调用点：pages/me/profile（本人头像）。
+ * 当前唯一合法调用点：pages/profile（本人头像）。
  *
  * - 微信小程序端：微信云存储 wx.cloud.uploadFile，返回 cloud:// 文件 ID
  * - 其他端（H5 等）：POST /api/upload/image (multipart/form-data)，返回后端绝对 URL

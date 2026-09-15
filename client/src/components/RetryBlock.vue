@@ -24,8 +24,8 @@
  * RetryBlock —— 「加载失败 · 点击重试」失败态块（MP-012 同族视觉）
  *
  * 消费方（4 处，替换前各自复制）：
- * - pages/me/my-reviews/index.vue（我的评价首屏失败）
- * - pages/me/notifications/index.vue（通知首屏失败）
+ * - pages/my-reviews/index.vue（我的评价首屏失败）
+ * - pages/notifications/index.vue（通知首屏失败）
  * - pages/home/HomeContent.vue（首页筛选流失败）
  * - pages/find/index.vue（搜索失败）
  *

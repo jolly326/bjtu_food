@@ -6,7 +6,7 @@
 
     <view class="mine-content">
       <!-- 用户卡：游客（未认证）显示食客短 ID +「去认证」；已认证显示昵称 + 绑定邮箱。
-           点击行为二分：游客整卡唤起认证弹层（不进入编辑页）；认证态进入个人信息编辑页（/pages/me/profile/index） -->
+           点击行为二分：游客整卡唤起认证弹层（不进入编辑页）；认证态进入个人信息编辑页（/pages/profile/index） -->
       <view
         class="user-card"
         :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
@@ -145,7 +145,7 @@ function onVerifyTap() {
   authSheetStore.show()
 }
 
-/** 用户卡点击二分：游客整卡直接唤起认证弹层；已认证点击进个人信息编辑页（/pages/me/profile/index） */
+/** 用户卡点击二分：游客整卡直接唤起认证弹层；已认证点击进个人信息编辑页（/pages/profile/index） */
 function onUserCardTap() {
   if (!userStore.isVerified()) {
     authSheetStore.show()

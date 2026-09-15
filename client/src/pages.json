@@ -36,38 +36,58 @@
 			]
 		},
 		{
-			"root": "pages/me/",
+			"root": "pages/notifications/",
 			"pages": [
 				{
-					"path": "notifications/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/profile/",
+			"pages": [
 				{
-					"path": "profile/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/feedback/",
+			"pages": [
 				{
-					"path": "feedback/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "意见反馈",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/my-reviews/",
+			"pages": [
 				{
-					"path": "my-reviews/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "我的评价",
 						"navigationStyle": "custom"
 					}
-				},
+				}
+			]
+		},
+		{
+			"root": "pages/privacy/",
+			"pages": [
 				{
-					"path": "privacy/index",
+					"path": "index",
 					"style": {
 						"navigationBarTitleText": "隐私政策与用户协议",
 						"navigationStyle": "custom"

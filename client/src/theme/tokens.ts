@@ -119,7 +119,7 @@ export const CSS_VARS: Record<string, string> = {
 export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
 export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
 // uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（危险操作确认按钮，与 --color-error 同值）
-// （见 pages/detail/dish/useDishPage.ts、pages/me/my-reviews/index.vue、pages/find/index.vue）
+// （见 pages/detail/dish/useDishPage.ts、pages/my-reviews/index.vue、pages/find/index.vue）
 export const MODAL_CONFIRM_DANGER_COLOR = '#FF3B30'
 // uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（重要操作确认按钮，与 --color-primary 同值）
 // （见 pages/mine/index.vue 注销账号确认弹窗）

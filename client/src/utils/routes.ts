@@ -3,7 +3,9 @@
  *
  * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落（此前 14 文件 30+ 处），
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（9 页：主包 3 + pages/detail/ 1 + pages/me/ 5）。
+ * 与 `client/src/pages.json` 严格一致（9 页：主包 3 + 分包 6，其中 pages/detail/ 1、
+ * 个人中心域拆为 5 个独立分包 root：pages/profile/、pages/notifications/、pages/feedback/、
+ * pages/my-reviews/、pages/privacy/，各含 1 页）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
  */
 
@@ -15,12 +17,12 @@ export const PATH = {
   find: '/pages/find/index',
   // 分包 pages/detail/（内容阅读域）
   dishDetail: '/pages/detail/dish/index',
-  // 分包 pages/me/（个人中心域）
-  profile: '/pages/me/profile/index',
-  notifications: '/pages/me/notifications/index',
-  feedback: '/pages/me/feedback/index',
-  myReviews: '/pages/me/my-reviews/index',
-  privacy: '/pages/me/privacy/index',
+  // 个人中心域：5 个独立分包（各自为 subPackage root，禁止再合并为单包）
+  profile: '/pages/profile/index',
+  notifications: '/pages/notifications/index',
+  feedback: '/pages/feedback/index',
+  myReviews: '/pages/my-reviews/index',
+  privacy: '/pages/privacy/index',
 } as const
 
 /** tab key → 主根页路径（TabBar 渲染与跳转共用） */

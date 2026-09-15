@@ -1,5 +1,5 @@
 /**
- * useFeedback —— 意见反馈页（pages/me/feedback/index.vue）编排逻辑
+ * useFeedback —— 意见反馈页（pages/feedback/index.vue）编排逻辑
  *
  * 页面私有编排（仅本页使用，就近置于页面包，不驻留 composables/）：
  * 抽取自 feedback/index.vue 的 <script setup>（feedback-forms-ux-polish 之后版本），

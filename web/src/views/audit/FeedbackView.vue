@@ -325,7 +325,7 @@ async function copyReviewLink(reviewId?: number) {
       @page-change="onPageChange"
       :columns="[
         { prop: 'type', label: '类型', width: '170px', align: 'center' },
-        { prop: 'related', label: '关联评价', width: '140px', align: 'center' },
+        { prop: 'related', label: '关联对象', width: '140px', align: 'center' },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
@@ -395,7 +395,7 @@ async function copyReviewLink(reviewId?: number) {
         <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
         <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ fmtTime(detail.createdAt) }}</span></div>
         <div class="detail-row" v-if="detail.relatedType === 'review'">
-          <span class="dl">关联评价</span>
+          <span class="dl">关联对象</span>
           <span class="dv">
             <span class="related">评价 #{{ detail.relatedId }}</span>
             <button class="link" v-press @click="copyReviewLink(detail.relatedId)">复制标识</button>
