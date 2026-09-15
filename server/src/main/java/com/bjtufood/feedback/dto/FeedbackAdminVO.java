@@ -46,6 +46,16 @@ public class FeedbackAdminVO {
     @Schema(description = "关联对象ID（举报：评价ID；信息纠错：菜品ID）；其他为 null")
     private Long relatedId;
 
+    /**
+     * 关联菜品名称（DEV-04）：仅 {@code relatedType='dish'}（信息纠错）时填充，
+     * 由服务端按 related_id 批量查 dish 表补全（<b>不区分上/下架</b>，含已下架菜品，供管理端回看纠错对象）；
+     * 其他关联类型、relatedId 为空、或菜品已被物理删除时保持 null。
+     * <p>
+     * 后台管理端点对管理端开放，故此处可安全呈现下架菜品名——端上不得据此推断菜品可见性。
+     */
+    @Schema(description = "关联菜品名称（仅 relatedType=dish 时填充，含已下架菜品；否则为 null）")
+    private String relatedDishName;
+
     @Schema(description = "处理状态：pending/handled")
     private String status;
 

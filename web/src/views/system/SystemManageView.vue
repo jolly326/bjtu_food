@@ -9,7 +9,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useUserStore } from '@/stores/userStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import AccountView from '@/views/system/AccountView.vue'
-import OperationLogView from '@/views/admin/OperationLogView.vue'
+import OperationLogView from '@/views/system/OperationLogView.vue'
 import { User, Document } from '@element-plus/icons-vue'
 
 // WEB-02：进入即按需加载「用户」域（分类卡徽标 + 账号视图），

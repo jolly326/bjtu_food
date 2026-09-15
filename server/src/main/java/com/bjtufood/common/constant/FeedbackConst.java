@@ -57,6 +57,12 @@ public interface FeedbackConst {
     /** 举报关联类型（举报对象：菜品评价） */
     String RELATED_REVIEW = "review";
 
+    /**
+     * 信息纠错关联类型（关联对象：菜品，related_id = dish.id）——与 schema user_feedback.related_type 注释一致。
+     * 管理端列表按本值判定是否补全 relatedDishName（DEV-04）。
+     */
+    String RELATED_DISH = "dish";
+
     /** 处理状态：待处理 / 已处理 */
     String STATUS_PENDING = "pending";
     String STATUS_HANDLED = "handled";

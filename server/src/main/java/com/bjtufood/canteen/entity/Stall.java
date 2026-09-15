@@ -12,7 +12,10 @@ import java.time.LocalDateTime;
  * 对应数据库表：stall。2026-09-14 用户拍板：档口已<b>去实体化</b>，降级为「菜品筛选属性字典」，
  * 生命周期仅「新增 / 改名（编辑）」，不再具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
  * 原 {@code status}（停业语义）/ {@code audit_status}（实体审核语义）/ {@code reject_reason} 字段
- * 已从实体与接口层移除（不再读写）；对应数据库列是否 DROP 另行评估，见任务回报的列下线方案。
+ * 已从实体与接口层移除（不再读写）。
+ * <p>
+ * {@code created_by}（提交人）亦已退役（2026-09-15，阶段4）：档口降级为「菜品筛选属性字典」后无归属语义，
+ * 写入侧恒为系统占位值、三端零消费，实体字段与写入/列定义同批移除（存量库由 schema.sql 幂等 DROP）。
  * {@code floor}/{@code window_no} 属字典描述字段（端上有消费），保留。
  */
 @Data
@@ -55,10 +58,6 @@ public class Stall {
     /** 排序权重 */
     @Schema(description = "排序权重")
     private Integer sortOrder;
-
-    /** 提交人用户ID（UGC 由当前登录用户写入，禁止前端传入） */
-    @Schema(description = "提交人用户ID")
-    private Long createdBy;
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

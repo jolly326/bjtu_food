@@ -5,7 +5,7 @@
  * 管理员账号模块随之下线，本页仅保留学生账号。
  * 2026-09-15（本轮）：删除页内「学生账号」标题——与上方「账号」分类卡重复（视觉噪音）。
  */
-import UserView from '@/views/user/UserView.vue'
+import UserView from '@/views/system/UserView.vue'
 </script>
 
 <template>

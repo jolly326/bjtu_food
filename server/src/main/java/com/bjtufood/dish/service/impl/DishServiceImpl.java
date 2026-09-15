@@ -64,12 +64,6 @@ public class DishServiceImpl implements DishService {
     /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
     private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
 
-    /**
-     * 随菜品录入自动建档的 created_by 口径：管理端无身份（单口令即单人），
-     * 沿用 AuditLogAspect 的降级口径写 0L，不引入伪身份。
-     */
-    private static final Long UPSERT_CREATED_BY_SYSTEM = 0L;
-
     private final DishMapper dishMapper;
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
@@ -199,9 +193,8 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
-        // 产品定型（2026-09-14 用户拍板）：管理员即权威——后台新增直接审核通过。
-        // 否则落库默认 audit_status='pending'，而小程序端仅展示 approved，新录入的菜品将全部不可见。
-        dish.setAuditStatus(DishConst.AUDIT_APPROVED);
+        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，2026-09-15 阶段4）——
+        // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
         dishMapper.insert(dish);
     }
 
@@ -224,9 +217,8 @@ public class DishServiceImpl implements DishService {
         if (stallId != null) {
             dish.setStallId(stallId);
         }
-        // 同上（2026-09-14 用户拍板）：管理员编辑视为权威操作，确保菜品保持可见，
-        // 顺带修正历史 pending/rejected 态，避免"改了信息反而从端上消失"。
-        dish.setAuditStatus(DishConst.AUDIT_APPROVED);
+        // 同上（2026-09-15 阶段4）：审核语义退役后编辑路径不再回写审核态，
+        // 「改了信息反而从端上消失」的隐患随 audit_status 列下线一并消除。
         dishMapper.updateById(dish);
         // 契约约定：null/0 表示清空可空的原价/促销价（applyReq 已把 0 归一为 null 并写回实体）；
         // updateById 默认 NOT_NULL 策略不落 null，需显式置空
@@ -334,7 +326,6 @@ public class DishServiceImpl implements DishService {
         Stall stall = new Stall();
         stall.setName(stallName);
         stall.setCanteenId(canteenId);
-        stall.setCreatedBy(UPSERT_CREATED_BY_SYSTEM);
         stallMapper.insert(stall);
         return stall.getId();
     }
@@ -361,7 +352,6 @@ public class DishServiceImpl implements DishService {
         }
         Canteen canteen = new Canteen();
         canteen.setName(canteenName);
-        canteen.setCreatedBy(UPSERT_CREATED_BY_SYSTEM);
         canteenMapper.insert(canteen);
         return canteen.getId();
     }

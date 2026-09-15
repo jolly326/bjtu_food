@@ -1,21 +1,17 @@
 package com.bjtufood.dish.constant;
 
-import com.bjtufood.common.constant.AuditStatusConst;
-
 import java.util.Set;
 
 /**
- * 菜品模块常量（统一上架/审核状态字面量，避免散落字符串）
+ * 菜品模块常量（统一上架/标签/辣度字面量，避免散落字符串）
  * <p>
- * 审核状态值域真源在 {@link AuditStatusConst}（common/constant），此处仅做别名引用（值域：pending/approved/rejected）。
+ * 注（2026-09-15 阶段4）：菜品审核语义已整体退役，{@code AUDIT_APPROVED} 别名常量与
+ * {@code common/constant/AuditStatusConst} 值域真源（仅服务该审核流）已同批删除。
  */
 public interface DishConst {
 
     /** 上架状态：on=在售（off=下架无独立常量，见 schema.sql dish.status 列注释） */
     String STATUS_ON = "on";
-
-    /** 审核状态：已通过（真源：{@link AuditStatusConst#APPROVED}） */
-    String AUDIT_APPROVED = AuditStatusConst.APPROVED;
 
     /**
      * 标签权威值域 —— 单一真源（与 schema.sql dish.tags 列注释、web/src/api/tags.ts TAG_OPTIONS 对齐）。

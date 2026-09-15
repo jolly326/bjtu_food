@@ -23,12 +23,12 @@
 
 ### 管理后台（web/，Vue3 + Vite + Element Plus）
 - 装依赖：在 `web/` 执行 `npm install`（或 README 的 `pnpm install`）。
-- 开发：`npm run dev`（`http://localhost:5173`，需 ADMIN 登录）。
+- 开发：`npm run dev`（`http://localhost:5173`；管理端无登录体系，接口经 `X-Admin-Token` 口令把关）。
 - 构建 + 类型检查：`npm run build`（含 `vue-tsc --build`）。
 - 校验：`npm run lint`（oxlint + eslint 自动修复）；格式化 `npm run format`（prettier）。
 
 ### 测试说明
-后端 `mvn test` 仅含 `BjtuFoodApplicationTests` 冒烟用例（无业务单测）；前端无单测脚本，质量靠类型检查 + lint + 真机/模拟器验证（由用户在微信开发者工具完成，agent 不执行真机验证）。
+后端 `mvn test` 含 4 个用例：`BjtuFoodApplicationTests`（contextLoads，需数据库）、`WechatServiceTest`、`ContentSecurityServiceTest`、`SmokeApiTest`（MockMvc 六链路接口冒烟，不依赖数据库，可用 `mvn -q -Dtest=SmokeApiTest test` 离线运行）；前端无单测脚本，质量靠类型检查 + lint + 真机/模拟器验证（由用户在微信开发者工具完成，agent 不执行真机验证）。
 
 ## 高层架构
 ### 三端定位与数据链路（spec §0.4，强制）

@@ -28,7 +28,7 @@ const router = createRouter({
         { path: 'content', name: 'contentManage', component: () => import('@/views/content/ContentManageView.vue') },
         // 菜品详情：挂在内容管理下（2026-09-14：食堂/档口只是筛选条件，后台主体是「菜品列表 + 菜品详情」）。
         // 入口为「菜品管理」列表行点击；编辑仍走 DishFormDialog 弹窗。
-        { path: 'content/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/canteen/DishDetailView.vue') },
+        { path: 'content/dishes/:dishId', name: 'dishDetail', component: () => import('@/views/content/DishDetailView.vue') },
         { path: 'audit', name: 'auditManage', component: () => import('@/views/audit/AuditManageView.vue') },
         { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue') },
         // 独立的食堂/档口管理页已删除（2026-09-14 §7.15：食堂与档口随菜品一起维护，

@@ -9,7 +9,7 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
-import DishManageView from '@/views/canteen/DishManageView.vue'
+import DishManageView from '@/views/content/DishManageView.vue'
 import HomeConfigView from '@/views/content/HomeConfigView.vue'
 import { Food, Picture } from '@element-plus/icons-vue'
 

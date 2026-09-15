@@ -263,22 +263,27 @@ function fmtTime(v: string): string {
 }
 
 /**
+ * 关联菜品展示（DEV-04 收口）：菜品名由后端 FeedbackAdminVO.relatedDishName 回填
+ * （服务端批量查询、含已下架菜品），前端不再直连公开端点 GET /dishes/{id}。
+ * 缺省（历史数据 / 已下架且未回填）时退回既有「菜品#id」占位，不发起二次请求。
+ */
+function dishLabel(id?: number, name?: string): string {
+  if (name) return name
+  return id != null ? `菜品#${id}` : '—'
+}
+
+/**
  * 关联菜品一键直达：菜品详情独立页已随「食堂/档口随菜品一起维护」收敛而删除
  * （project_spec §7.15），
  * 故改为跳到菜品列表（`/dashboard/content?tab=dish`）由管理员在列表内检索编辑。
+ * 检索词优先用服务端回填的菜品名（含已下架菜品），无名字时退回菜品 id。
  */
-async function goDishEdit(dishId?: number) {
+function goDishEdit(dishId?: number, dishName?: string) {
   if (dishId == null) return
-  try {
-    const { dishApi } = await import('@/api')
-    const dish = await dishApi.getById(dishId)
-    await router.push({
-      path: '/dashboard/content',
-      query: { tab: 'dish', q: dish?.name || String(dishId) },
-    })
-  } catch (e: any) {
-    toast.error(e.message || '跳转菜品列表失败')
-  }
+  router.push({
+    path: '/dashboard/content',
+    query: { tab: 'dish', q: dishName || String(dishId) },
+  })
 }
 
 async function copyReviewLink(reviewId?: number) {
@@ -339,7 +344,13 @@ async function copyReviewLink(reviewId?: number) {
       </template>
       <template #cell-related="{ row }">
         <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
-        <button v-else-if="row.relatedType === 'dish'" class="link" v-press @click="goDishEdit(row.relatedId)">菜品#{{ row.relatedId }}</button>
+        <button
+          v-else-if="row.relatedType === 'dish'"
+          class="link dish-name-cell"
+          v-press
+          :title="`菜品#${row.relatedId}`"
+          @click="goDishEdit(row.relatedId, row.relatedDishName)"
+        >{{ dishLabel(row.relatedId, row.relatedDishName) }}</button>
         <span v-else class="muted">—</span>
       </template>
       <template #cell-content="{ row }">
@@ -392,7 +403,14 @@ async function copyReviewLink(reviewId?: number) {
         </div>
         <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
           <span class="dl">关联菜品</span>
-          <span class="dv"><button class="link" v-press @click="goDishEdit(detail.relatedId)">菜品 #{{ detail.relatedId }}</button></span>
+          <span class="dv">
+            <button
+              class="link"
+              v-press
+              :title="`菜品#${detail.relatedId}`"
+              @click="goDishEdit(detail.relatedId, detail.relatedDishName)"
+            >{{ dishLabel(detail.relatedId, detail.relatedDishName) }}</button>
+          </span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
         <div class="detail-row detail-row-desc" v-if="(detail.images || []).length">
@@ -482,6 +500,12 @@ async function copyReviewLink(reviewId?: number) {
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
 .related { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-error-bg); color: var(--color-error); font-size: var(--font-xs); font-weight: var(--weight-medium); }
+/**
+ * 关联菜品名（DEV-04）：列宽 140px（减两侧 --space-4 内边距 ≈ 108px 可用），
+ * 名称可能较长（含已下架菜品），单元格内单行截断，避免撑高行高/挤压相邻列；
+ * 完整名称经 title 提示，点击仍可跳转菜品列表检索。
+ */
+.dish-name-cell { display: inline-block; max-width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .type-ico { width: 13px; height: 13px; }
 /* .act-ico 已收敛至 shared.css 公共类 */
 .muted { color: var(--text-light); }

@@ -15,6 +15,8 @@ import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.content.security.SecSuggest;
+import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
@@ -48,6 +50,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
+    /** 管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
+    private final DishMapper dishMapper;
     private final SensitiveFilter sensitiveFilter;
     private final NotificationService notificationService;
     private final ContentSecurityService contentSecurityService;
@@ -172,13 +176,41 @@ public class FeedbackServiceImpl implements FeedbackService {
                     .forEach(u -> userMap.put(u.getId(), u.getNickname()));
         }
 
+        // 关联菜品名（DEV-04）：一次 IN 查询取回本页全部 dish 关联 id → name（消除 N+1）。
+        // 口径：不过滤 status/上架态——信息纠错的对象可能已被下架，管理端仍需看到菜品名回看纠错内容；
+        //       菜品已物理删除时不在结果集，VO 保持 null（前端按「菜品已删除」缺省展示）。
+        Map<Long, String> dishNameMap = batchRelatedDishNames(p.getRecords());
+
         IPage<FeedbackAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream().map(f -> toAdminVO(f, userMap)).toList());
+        result.setRecords(p.getRecords().stream().map(f -> toAdminVO(f, userMap, dishNameMap)).toList());
         return result;
     }
 
-    /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、内容安全状态 */
-    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap) {
+    /**
+     * 批量查询本页反馈关联的菜品名（DEV-04）：{@code relatedType='dish'} 且 relatedId 非空的 id 去重后
+     * 一次 IN 查询，返回 dishId → dish.name 映射（空集合返回空 Map，不发起查询）。
+     */
+    private Map<Long, String> batchRelatedDishNames(List<Feedback> records) {
+        List<Long> dishIds = records.stream()
+                .filter(f -> FeedbackConst.RELATED_DISH.equals(f.getRelatedType()))
+                .map(Feedback::getRelatedId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        if (dishIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> map = new HashMap<>(dishIds.size());
+        // 只取 id/name 两列，避免拉取整行（含 images 等大字段）
+        dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                        .select(Dish::getId, Dish::getName)
+                        .in(Dish::getId, dishIds))
+                .forEach(d -> map.put(d.getId(), d.getName()));
+        return map;
+    }
+
+    /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、内容安全状态、关联菜品名（DEV-04） */
+    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap, Map<Long, String> dishNameMap) {
         FeedbackAdminVO vo = new FeedbackAdminVO();
         vo.setId(f.getId());
         vo.setUserId(f.getUserId());
@@ -193,6 +225,13 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContact(f.getContact());
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
+        // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
+        // 其他关联类型/无关联/菜品已物理删除 → null（前端按「无」缺省展示）。
+        // 注：映射在无 dish 关联时为空不可变 Map（Map.of()），故必须先判 relatedId 非空再取值。
+        Long relatedId = f.getRelatedId();
+        vo.setRelatedDishName(relatedId != null && FeedbackConst.RELATED_DISH.equals(f.getRelatedType())
+                ? dishNameMap.get(relatedId)
+                : null);
         vo.setStatus(f.getStatus());
         // 处理结论回显（§7.23 第 5 条）：表无 outcome 物理列，按 status + reject_reason 派生——
         // handle() 落库保证「rejected ⇒ reject_reason 非空、handled ⇒ reject_reason 为 NULL」，

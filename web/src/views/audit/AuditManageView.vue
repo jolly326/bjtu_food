@@ -14,7 +14,7 @@ import { listReviews } from '@/api/review'
 import { listFeedbacks } from '@/api/feedback'
 import { FEEDBACK_PENDING, SEC_REVIEW } from '@/constants'
 import PageContainer from '@/components/layout/PageContainer.vue'
-import FeedbackView from '@/views/admin/FeedbackView.vue'
+import FeedbackView from '@/views/audit/FeedbackView.vue'
 import ReviewAuditView from '@/views/audit/ReviewAuditView.vue'
 import { Document, ChatLineSquare } from '@element-plus/icons-vue'
 

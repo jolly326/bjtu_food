@@ -16,8 +16,13 @@
 --   4. 审核字段 audit_status（pending/approved/rejected）、reject_reason、created_by
 --      用于 UGC 内容审核流；后台录入默认 approved。
 --      注（2026-09-14 用户拍板）：食堂/档口已去实体化，降级为「菜品筛选属性字典」，
---      其 status / audit_status / reject_reason 三列已整体下线（CREATE TABLE 不再创建，
---      存量库由文件末尾 drop_canteen_stall_entity_fields 幂等 DROP）。菜品 dish 的同名列保留。
+--      其 status / audit_status / reject_reason 三列已整体下线（CREATE TABLE 不再创建）。
+--      注（2026-09-15 阶段4）：
+--        · canteen.created_by / stall.created_by 同批退役（无归属语义、写侧恒占位值、三端零消费）；
+--        · dish.audit_status 全量退役（菜品无独立审核：管理员录入/编辑即生效，公开可见性唯一判据为 status='on'），
+--          列与相关索引（idx_dish_audit、idx_dish_heat 中的该列）同批移除；
+--        · 上述存量库清理均由文件末尾幂等 DROP 段完成（可重跑）；
+--        · dish.reject_reason / dish.created_by、review / user_feedback 的审核类列保留（后两者见第 5 条）。
 --   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
 --      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
 --      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
@@ -76,13 +81,12 @@ CREATE TABLE IF NOT EXISTS `canteen`
     `latitude`      DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）',
     `longitude`     DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）',
     `sort_order`    INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
-    `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='食堂';
+  COLLATE = utf8mb4_general_ci COMMENT ='食堂（created_by 列已退役，2026-09-15 阶段4）';
 
 -- -------------------- 档口 --------------------
 CREATE TABLE IF NOT EXISTS `stall`
@@ -96,14 +100,13 @@ CREATE TABLE IF NOT EXISTS `stall`
     `window_no`      VARCHAR(32)  NULL    DEFAULT NULL COMMENT '窗口号（如 3号窗口）',
     `description`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '档口描述',
     `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重',
-    `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_stall_canteen` (`canteen_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='档口';
+  COLLATE = utf8mb4_general_ci COMMENT ='档口（created_by 列已退役，2026-09-15 阶段4）';
 
 -- -------------------- 菜品 --------------------
 CREATE TABLE IF NOT EXISTS `dish`
@@ -121,8 +124,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
-    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'approved' COMMENT '【已退役的历史列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 4 条；DB-01 默认值改 approved）】菜品无独立审核：管理员录入/编辑即写 approved 并直接生效；本列仅作公开查询过滤（列表/详情仅取 approved），不再作为运营处理入口、不再扩展。存量非 approved 由 normalize_dish_audit_status.sql 一次性归一（不并入本脚本自动执行）',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '【已退役的历史列（同上）】随菜品审核语义退役；「不采纳/退回」语义已迁至反馈处理（user_feedback）',
+    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '【历史留痕列】随菜品审核语义退役（2026-09-15 阶段4 起 audit_status 列亦已下线）：无写入入口、恒为 NULL；「不采纳/退回」语义已迁至反馈处理（user_feedback）',
     `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `view_count`    INT          NOT NULL DEFAULT 0 COMMENT '浏览量',
     `avg_rating`    DECIMAL(3, 2) NULL    DEFAULT NULL COMMENT '平均评分',
@@ -132,13 +134,13 @@ CREATE TABLE IF NOT EXISTS `dish`
     PRIMARY KEY (`id`),
     KEY `idx_dish_stall` (`stall_id`),
     KEY `idx_dish_category` (`category_id`),
-    KEY `idx_dish_audit` (`audit_status`),
+    -- idx_dish_audit（audit_status 单列）已随 audit_status 列退役一并删除（2026-09-15 阶段4）
     -- 热度/推荐排序（view_count/rating_count/avg_rating 无索引）：组合索引同时覆盖过滤列与排序列，
     -- 支持推荐、榜单、列表 heat 排序走索引扫描（表达式排序本身无法索引，该索引覆盖常用过滤+排序列）
-    KEY `idx_dish_heat` (`status`, `audit_status`, `view_count`, `rating_count`, `avg_rating`)
+    KEY `idx_dish_heat` (`status`, `view_count`, `rating_count`, `avg_rating`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='菜品';
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品（audit_status 列已退役，2026-09-15 阶段4）';
 
 -- -------------------- 评价 --------------------
 CREATE TABLE IF NOT EXISTS `review`
@@ -476,8 +478,10 @@ BEGIN
           AND TABLE_NAME = 'dish'
           AND INDEX_NAME = 'idx_dish_heat'
     ) THEN
+        -- 列定义与 CREATE TABLE 保持一致：不含已退役的 audit_status（2026-09-15 阶段4）；
+        -- 存量库该列为索引成员，随列 DROP 自动从索引中摘除，无需重建
         ALTER TABLE `dish`
-            ADD INDEX `idx_dish_heat` (`status`, `audit_status`, `view_count`, `rating_count`, `avg_rating`);
+            ADD INDEX `idx_dish_heat` (`status`, `view_count`, `rating_count`, `avg_rating`);
     END IF;
 END$$
 DELIMITER ;
@@ -761,16 +765,19 @@ DELIMITER ;
 CALL `drop_dish_portion`();
 DROP PROCEDURE IF EXISTS `drop_dish_portion`;
 
--- 字段下线（2026-09-14 §7.14 用户拍板）：
+-- 字段下线（2026-09-14 §7.14 用户拍板 + 2026-09-15 阶段4 收敛）：
 --   食堂/档口已去实体化，降级为「菜品筛选属性字典」（生命周期仅新增/改名，无停业、无营业时间、无实体审核），
---   故其 status（停业语义）/ audit_status（实体审核语义）/ reject_reason（退回原因）共 6 列整体下线：
---     canteen.status / canteen.audit_status / canteen.reject_reason
---     stall.status   / stall.audit_status   / stall.reject_reason
+--   故其 status（停业语义）/ audit_status（实体审核语义）/ reject_reason（退回原因）共 6 列整体下线；
+--   阶段4 追加：created_by（归属语义）同批退役，理由为「无归属语义 + 写侧恒系统占位值 + 三端零消费」。
+--   合计 8 列：
+--     canteen.status / canteen.audit_status / canteen.reject_reason / canteen.created_by
+--     stall.status   / stall.audit_status   / stall.reject_reason   / stall.created_by
 --   实体（Canteen/Stall）、VO 与 Service 读写已同批移除，Mapper 侧无任何引用；CREATE TABLE 已同步移除列定义。
 --   旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
 --   注意：保留 canteen.name / stall.name / stall.floor / stall.window_no，以及新增/改名/列表查询能力；
---         菜品 dish 的同名列（dish.status / dish.audit_status / dish.reject_reason）**必须保留**，
---         菜品上下架与审核流仍在使用，本段只处理 canteen / stall 两表。
+--         菜品 dish 的 dish.status / dish.reject_reason / dish.created_by **保留**（上下架判据与历史留痕），
+--         dish.audit_status 由文件末尾 drop_dish_audit_status_column 段单独 DROP；
+--         本段只处理 canteen / stall 两表。
 DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
 DELIMITER $$
 CREATE PROCEDURE `drop_canteen_stall_entity_fields`()
@@ -816,9 +823,49 @@ BEGIN
     ) THEN
         ALTER TABLE `stall` DROP COLUMN `reject_reason`;
     END IF;
+
+    -- 阶段4（2026-09-15）：created_by 归属列退役（canteen 在前、stall 在后，与上方同表分组顺序一致）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'created_by'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `created_by`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'created_by'
+    ) THEN
+        ALTER TABLE `stall` DROP COLUMN `created_by`;
+    END IF;
 END$$
 DELIMITER ;
 CALL `drop_canteen_stall_entity_fields`();
 DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
+
+-- 字段下线（2026-09-15 阶段4 用户批准「归一后清理」）：
+--   dish.audit_status 全量退役——菜品无独立审核：管理员录入 / 编辑即生效，
+--   公开可见性唯一判据为上架状态 dish.status='on'（DishMapper.xml 过滤条件已同步移除）。
+--   列与相关索引（idx_dish_audit 单列索引、idx_dish_heat 中的该列）同批移除；
+--   ATTENTION：DROP COLUMN 会连带删除 idx_dish_audit（其唯一成员列），
+--   idx_dish_heat 自动退化为 (status, view_count, rating_count, avg_rating)（与 CREATE TABLE 定义一致），无需重建。
+--   执行前置（由运维/用户执行，不由 agent 代跑）：本列退役前须先跑历史一次性归一脚本
+--   （normalize_dish_audit_status.sql，2026-09-15 已随本列退役一并删除）以消除存量
+--   pending/rejected 行；本段幂等，重复执行安全（先判存在再 DROP），不影响既有数据。
+--   dish.reject_reason / dish.created_by 不在本段范围内（保留）。
+DROP PROCEDURE IF EXISTS `drop_dish_audit_status_column`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_audit_status_column`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'audit_status'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `audit_status`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_audit_status_column`();
+DROP PROCEDURE IF EXISTS `drop_dish_audit_status_column`;
 
 SET FOREIGN_KEY_CHECKS = 1;

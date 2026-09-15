@@ -48,8 +48,9 @@ export async function deleteById(id: number) {
   await del<void>(`/admin/dishes/${id}`)
 }
 
-/** 菜品详情（公开端点 GET /dishes/{id}，含 stallId/canteenId 联表），用于反馈关联跳转档口链路（见 change prelaunch-loop-closure 10.3） */
-export async function getById(id: number): Promise<{ id: number; stallId?: number; canteenId?: number; name?: string }> {
-  const raw: any = await get(`/dishes/${id}`)
-  return { id: raw.id, stallId: raw.stallId, canteenId: raw.canteenId, name: raw.name }
-}
+/**
+ * 原 `getById(id)` 封装（公开端点 GET /dishes/{id}）已于 DEV-04 收口移除：
+ * Web 后台只经 /admin/**，且该公开端点只返回在售菜品 → 已下架菜品取不到名。
+ * 反馈关联菜品名改由 FeedbackAdminVO.relatedDishName 提供（见 api/feedback.ts）。
+ * 如需菜品详情，请从 /admin/dishes 聚合（getAll）或列表数据中取，勿再直连公开端点。
+ */

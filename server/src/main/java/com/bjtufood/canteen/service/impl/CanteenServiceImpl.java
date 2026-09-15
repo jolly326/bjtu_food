@@ -147,7 +147,7 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         vo.setSortOrder(canteen.getSortOrder());
         // 2026-09-15：createdBy 三端零消费（单口令模型无真实身份，恒为系统占位值），
-        // 已随 VO 字段一并删除；实体 canteen.created_by 列保留（写入侧仍在用，仅收敛对外暴露）。
+        // VO 字段已删除；实体字段与写入侧、canteen.created_by 列定义同批退役（阶段4，schema.sql 幂等 DROP）。
         vo.setCreatedAt(canteen.getCreatedAt());
         vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;

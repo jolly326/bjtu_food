@@ -70,20 +70,12 @@ public class Dish {
     @Schema(description = "风味/菜系，如 清真/川湘/西北/粤式/东北", example = "清真")
     private String region;
 
-    /** 状态：on（上架）/ off（下架），与审核状态解耦 */
+    /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */
     @Schema(description = "状态", example = "on")
     private String status;
 
-    /**
-     * 审核状态（与上下架 status 解耦）：pending（待审核）/ approved（已通过）/ rejected（已退回）
-     * 管理员录入后置 approved；历史学生 UGC 提交的存量数据可为 pending，后台通过置 approved、退回置 rejected 并回写 reject_reason。
-     * （学生端菜品写接口已于 2026-09-13 全部下线，菜品由管理员经 /admin/dishes 录入。）
-     */
-    @Schema(description = "审核状态：pending/approved/rejected", example = "pending")
-    private String auditStatus;
-
-    /** 退回原因（仅 audit_status=rejected 时由后台填写，可空） */
-    @Schema(description = "退回原因（audit_status=rejected 时由后台填写）")
+    /** 退回原因（历史列，随菜品审核语义退役；管理端已无写入入口，写入恒 null，仅保留列与实体字段） */
+    @Schema(description = "退回原因（历史列，已无写入入口，恒为 null）")
     private String rejectReason;
 
     /** 提交人用户ID（历史学生 UGC 提交留痕字段；学生端菜品写接口已下线，新数据由管理员录入，不作为业务判断依据） */

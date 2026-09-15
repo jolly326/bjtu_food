@@ -13,6 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * 「浏览量」导致热门榜 / 推荐位失真。窗口状态仅存 JVM 内存、重启清零
  * （可接受：防刷属统计降噪，不要求跨实例强一致）；设容量上限 + 定时清理，
  * 防 key 无限增长造成内存泄漏。
+ * <p>
+ * ⚠️ 职责边界（限流器统一评审结论，<b>刻意不与 IpRateLimiter 合并</b>）：
+ * 本类语义为<b>幂等 / 去重</b>——命中窗口时仅让调用方<b>跳过计数</b>
+ * （见 DishServiceImpl#addViewCount 直接 return，接口仍返回成功），<b>不拒绝请求</b>；
+ * key 空间为 userId:dishId，输出为「窗口内是否首次」布尔值。
+ * 而 {@link com.bjtufood.common.config.IpRateLimiter} 语义为<b>请求节流</b>——
+ * 超限时由调用方抛 400 阻断请求；key 空间为 scope:IP，支持多条规则并返回等待秒数。
+ * 二者 key 空间、返回语义、调用方处置方式均不同（去重 vs 阻断），
+ * 强行合并为一个类会引入「布尔/秒数」双语义分支，故保持独立实现。
  */
 @Component
 public class ViewRateLimiter {

@@ -83,6 +83,18 @@ POST /upload/images ──────▶ UploadController
 
 - **平台可迁移（面向未来）**：COS / 安检 / 上传接口均不绑定云托管，后端可整体迁移独立服务器；届时小程序上传域名改走备案域名白名单，链路结构不变。
 
+### 2.6 限流 / 去重 / 吊销三组件职责边界（2026-09-15 登记，刻意不合并）
+
+三个组件**名字相近但职责正交、互不替代**，评审与重构时**不得以「重复实现」为由合并、互调或删其一**：
+
+| 组件 | 位置 | 职责 | 触发后果 |
+|---|---|---|---|
+| `IpRateLimiter` | `common/config/IpRateLimiter.java` | **请求节流**（按来源 IP 限频，如 `/auth/email-code` 同 IP 每分钟 ≤3 次、每小时 ≤10 次） | **阻断请求**，返回 `400` |
+| `ViewRateLimiter` | `dish/config/ViewRateLimiter.java` | **幂等去重**（同一用户对同一菜品按自然日只计 1 次浏览，配 `view_log` upsert） | **不阻断请求**（请求正常成功，仅不重复计数 / 不重复写库） |
+| `TokenBlacklist` | `auth/config/TokenBlacklist.java` | **JWT 吊销**（注销 / 禁用后使已签发 token 立即失效） | **鉴权失败**，返回 `401` |
+
+> 判据：三者解决的是三个不同问题——「防刷」「计数幂等」「凭证失效」，其**输入维度、判定时机、失败语义**均不相同（`400` / 成功 / `401`）。此前多次被误判为「三套重复的限流实现」，本条为**职责边界的正式登记**。
+
 ## 3. 部署（微信云托管）
 
 ### 3.1 环境信息
@@ -151,6 +163,12 @@ npm run dev   # http://localhost:5173
 ```
 - 无登录体系：本地 `.env.local` 配 `VITE_ADMIN_TOKEN`（与后端环境变量 `ADMIN_TOKEN` 同值）即打开即用（`AdminTokenFilter` 校验请求头 `X-Admin-Token`，未配置 fail-closed 403）
 
+### 4.4 前端目录与包管理器约定（2026-09-15 登记）
+
+- **包管理器统一为 npm（唯一）**：仓库仅保留 `client/package-lock.json` 与 `web/package-lock.json` **两个锁文件**；**禁止引入 `yarn.lock` / `pnpm-lock.yaml` / `bun.lockb` 等任何其他锁文件**（多锁并存会导致依赖树漂移与 CI / 本地不一致）。安装与运行一律 `npm install` / `npm run *`，文档命令不得写成 `yarn` / `pnpm`。
+- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`AuditManageView` / `FeedbackView` / `ReviewAuditView`）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView` / `CategoryManage` / `HomeConfigView`）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
+- **路由未变（兼容承诺）**：`path` 与 `name` 均保持原值——`/dashboard/content`（`contentManage`）、`/dashboard/content/dishes/:dishId`（`dishDetail`）、`/dashboard/audit`（`auditManage`）、`/dashboard/system`（`systemManage`），故书签 / 深链不受目录重组影响。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
+
 ## 5. 前端状态管理（Pinia store）
 
 | Store | 职责 |
@@ -182,3 +200,15 @@ npm run dev   # http://localhost:5173
 - ~~`NotificationController` 直调 Mapper（分层红线，建议下沉 Service）~~（已解决：逻辑已下沉 `NotificationService`，2026-09-15 DOC-10 收敛）
 - ~~4031 非标码需 spec 豁免登记~~（已在 spec §3 登记豁免）
 - ~~通知接口 verified 口径待统一~~（`@RequireVerified` 已补齐）
+
+### 7.1 测试资产登记（2026-09-15）
+
+- `server/src/test/java/` 现有 **4 个**用例：`BjtuFoodApplicationTests`（`contextLoads` 冒烟，需数据库）、`auth/WechatServiceTest`（微信 `jscode2session` 返回 `text/plain` 的解析回归，见 §3.3）、`content/security/ContentSecurityServiceTest`（内容安检服务单测）、**`SmokeApiTest`（MockMvc 六链路接口冒烟：登录 / 菜品详情 / 评价写赞含 4031 / 反馈含 `sub` 严格 400 / 上传口令 403 / 管理端口令，16 用例 58 断言，`@WebMvcTest` 切片 + 打桩，不依赖数据库，`mvn -q -Dtest=SmokeApiTest test` 可离线运行）**。
+- **更正过时描述**：不再存在「`mvn test` 仅含一个冒烟用例 / 无业务用例」的说法。
+- 前端无单测脚本，质量靠类型检查 + lint + 真机 / 模拟器验证（**由用户执行；agent 不代跑真机验证**）。
+
+### 7.2 seed 演示素材收敛（2026-09-15）
+
+- `server/uploads/images/seed/` **仅保留 `dishes/tomato-egg.jpg`**（Swagger 示例引用所需：`DishAdminReq`、`DishAdminController`、`ProfileUpdateReq`、`AuthController` 的 `@Schema` example 均引用该路径）；其余 **12 件已删除**（`canteens/` 2 件、`dishes/` 9 件、`stalls/` 1 件）。
+- `db/seed_data.sql` 不引用图片文件路径，故素材收敛**不影响建库 / 导种子**流程。
+- 后续若新增演示图，须同步更新上述 Swagger example 与本节登记。

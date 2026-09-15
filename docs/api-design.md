@@ -185,8 +185,8 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/admin/dishes` | 菜品列表（分页 `PageResult<DishAdminVO>`，4 参统一形态 `{records,total,page,pageSize}`）。**2026-09-15 蓝图 v1（spec §7.23 第 4 条）：菜品无独立审核**——列表**不再返回 / 不再展示审核态**（Web 侧删除审核列与 `reject_reason` 回显） |
-| POST | `/admin/dishes` | 新增菜品（**录入即生效**，`audit_status=approved`）。**食堂 / 档口随菜品 upsert（2026-09-15 蓝图 v1 原则 1）**，见下方契约 |
-| PUT | `/admin/dishes/{id}` | 编辑（同上；`audit_status` 恒写 `approved`，后台无审核入口）。食堂 / 档口按名 upsert 同新增 |
+| POST | `/admin/dishes` | 新增菜品（**录入即生效**，无审核环节；2026-09-15 阶段4 起 `dish.audit_status` 列已删除，公开可见性唯一判据 = `status='on'`）。**食堂 / 档口随菜品 upsert（2026-09-15 蓝图 v1 原则 1）**，见下方契约 |
+| PUT | `/admin/dishes/{id}` | 编辑（同上，**无审核入口**；食堂 / 档口按名 upsert 同新增） |
 | DELETE | `/admin/dishes/{id}` | 删除（级联清评价） |
 
 **食堂 / 档口随菜品 upsert 契约（2026-09-15 蓝图 v1 原则 1，spec §7.23）**
@@ -220,7 +220,7 @@
 | PUT | `/admin/reviews/{id}/sec-state` | **评价安检复核（2026-09-13 新增）**：入参 `{ state: "pass" \| "rejected" }`——放行（落 `sec_state='pass'`，恢复公开展示）/ 驳回（落 `sec_state='rejected'`，持续对非作者不可见，作者侧呈现未过审态）。`review` 态仅由机检写入，本接口不接受（管理端只写人工结论） |
 | PUT | `/admin/reviews/{id}/hide` | 隐藏评价 |
 | DELETE | `/admin/reviews/{id}` | 删评价（清理 useful 孤儿） |
-| GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`secState`/`sub`，详情展示配图 ≤3 张**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
+| GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`secState`/`sub`/`relatedDishName`（DEV-04，仅 `relatedType='dish'` 填充、含已下架菜品，见下方出参契约），详情展示配图 ≤3 张**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
 | PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
 
 **反馈处理契约（2026-09-15 蓝图 v1 第 5 条，spec §7.23；2026-09-15 CT-03 以代码为准修订）**
@@ -232,6 +232,12 @@
 - 回执投递不变：已认证提交人收站内通知 `feedback_handle`（含回执正文；不采纳时含不采纳原因），游客不投递、不阻塞（§7.8 第 4 条 / §0.1 匿名心智）。
 - 落库：`user_feedback.reject_reason` 列**已落地**（`schema.sql` 幂等块 `add_feedback_reject_reason`），结论差异由 `reject_reason` 是否非空承载，无「待拍板」遗留。
 
+**`FeedbackAdminVO` 出参（DEV-04 契约变更，2026-09-15）**
+
+- 出参字段全集：`id` / `userId` / `userNickname` / `type` / `sub` / `content` / `images` / `secState` / `contact` / `relatedType` / `relatedId` / **`relatedDishName`（新增）** / `status` / `outcome` / `reply` / `rejectReason` / `createdAt` / `handledAt`。
+- **`relatedDishName`（新增）**：`String`，**仅 `relatedType='dish'`（信息纠错 / 申请下架）时填充**；由**服务端按 `relatedId` 批量查询 `dish` 表回填**（一次 `IN` 批量取，避免 N+1），**不区分上/下架、含已下架菜品**（供管理端回看纠错对象）；其他关联类型（如 `review`）、`relatedId` 为空、或菜品已物理删除时恒为 `null`（由前端退回「菜品#id」占位，**不发起二次请求**）。
+- **跨端边界口径（登记，强制）**：**Web 管理端不得调用公开端点 `GET /dishes/{id}` 取名**——Web 只经 `/admin/**` 取数；且公开端点只返回在售（`status='on'`）菜品，**已下架菜品取不到名**。菜品名一律由管理端接口提供（反馈关联菜品名走 `relatedDishName`；菜品列表 / 详情走 `GET /admin/dishes`）。Web 侧 `api/dish.ts` 的 `getById()` 封装（公开端点）已随 DEV-04 收口移除，**勿再重建**。
+
 ### 5.5 基础数据维护
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -239,7 +245,7 @@
 | GET/POST/PUT/DELETE | `/admin/categories` | 品类（增删改启停，sortOrder 非数字返回 400）。**2026-09-14 Q-117 定型：仅供后台菜品归类用途**（菜品表单 `categoryId` 归类），端上不呈现 |
 | GET | `/admin/operation-logs` | 操作日志（只读） |
 
-> 原 `GET /admin/audit/*`（待审内容）已于 2026-09-14 随实体审核链路删除（spec §7.21 第 2 条 Q-107）：`/admin/audit/**` 三条端点及其专属 Service / VO / DTO 均已移除；菜品审核语义收敛为「管理员录入即 `approved`」（spec §7.8 第 1 条）。
+> 原 `GET /admin/audit/*`（待审内容）已于 2026-09-14 随实体审核链路删除（spec §7.21 第 2 条 Q-107）：`/admin/audit/**` 三条端点及其专属 Service / VO / DTO 均已移除；菜品审核语义收敛为「管理员录入即直接生效」（spec §7.8 第 1 条）；**2026-09-15 阶段4 起 `dish.audit_status` 列已删除，菜品无审核态字段可写**。
 
 ---
 
@@ -262,8 +268,11 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 
 ### 6.3 审核流（2026-09-15 蓝图 v1 校准，与 spec §7.8 / §7.21 / §7.23 对齐）
 ```
-菜品：管理员经 /admin/dishes 录入/编辑 → audit_status=approved 且**直接生效**（管理员即权威，spec §7.8 第 1 条）；
-      ★2026-09-15 蓝图 v1（§7.23 第 4 条）：菜品无独立审核——dish.audit_status / dish.reject_reason 退役为历史列，
+菜品：管理员经 /admin/dishes 录入/编辑 → **直接生效**（管理员即权威，spec §7.8 第 1 条；公开可见性唯一判据 status='on'）；
+      ★2026-09-15 蓝图 v1（§7.23 第 4 条）+ 阶段4 全量退役：菜品无独立审核——
+        dish.audit_status 列与 idx_dish_audit 索引已删除（公开查询不再按该列过滤；
+        DishConst.AUDIT_APPROVED / AuditStatusConst / normalize_dish_audit_status.sql 一并删除），
+        dish.reject_reason 为退役历史列（保留、恒 NULL、不写入）；
         后台无审核入口（列表无审核列、详情无审核态与退回原因回显），客户端不出现「菜品审核」概念；
         学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
 评价：先发后审、无 audit_status——机检 pass 即公开（is_hidden=0 AND sec_state='pass'）；sec_state='review' 进人工复核队列（PUT /admin/reviews/{id}/sec-state）；risky 提交即 400 拦截
@@ -308,7 +317,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 | **评价「有用」点赞准入**（2026-09-15 蓝图 v1，spec §7.23 第 2 条） | 需 `verified=true`（未认证 `4031` + 弹 `AuthSheet`） | 代码**已符合**：`ReviewController.java:128` `@RequireVerified` | **代码不动，文档对齐代码**；原「仅需登录」表述（§7.8 第 3 条 / §7.19 第 4 条 / 本文档 §3.3）已同步作废 |
 | **反馈处理 `reject_reason`**（2026-09-15 蓝图 v1，spec §7.23 第 5 条） | 结论「不采纳 / 退回」时 `rejectReason` 必填，随回执展示 | 代码**已实现并对齐**：`FeedbackHandleReq.outcome/rejectReason` 校验、`schema.sql` 幂等补列 `add_feedback_reject_reason`、`FeedbackServiceImpl` 结论派生与回执文案均已落地（见 §5.4） | 已对齐（线上生效待部署） |
 | **食堂 / 档口随菜品 upsert**（2026-09-15 蓝图 v1，spec §7.23 原则 1） | `POST`/`PUT /admin/dishes` 支持按 `canteenName` / `stallName` upsert | 代码**已实现并对齐**：`DishAdminReq` 增 `stallName` / `canteenName`，`DishServiceImpl` 在 Service 层按名解析 / 建档（同名复用，新建档口时食堂名必有效） | 已对齐 |
-| **菜品无独立审核**（2026-09-15 蓝图 v1，spec §7.23 第 4 条） | `dish.audit_status` / `dish.reject_reason` 退役：后台无审核入口、端上无「菜品审核」概念；管理员录入 / 编辑即 `approved` 并生效 | 后端**已符合**（`DishServiceImpl` 新增 / 编辑均写 `AUDIT_APPROVED`，`/admin/audit/**` 已删）；**Web / 小程序已对齐**（`DishManageView` 审核列与 `DishDetailView` 审核态回显已删；小程序 `AuditStatus` 已无引用） | **收尾**：存量 `audit_status` 由 `normalize_dish_audit_status.sql` 一次性归一（用户执行） |
+| **菜品无独立审核 · `audit_status` 全量退役**（2026-09-15 蓝图 v1 + 阶段4 用户批准，spec §7.23 第 4 条） | `dish.audit_status` **列与索引已删除**、公开查询不再按该列过滤（`status='on'` 即公开展示）；`dish.reject_reason` 为退役历史列（恒 NULL）；后台无审核入口、端上无「菜品审核」概念；原「列保留、仅作公开查询过滤」口径作废 | **已全面对齐**：`Dish` 实体 / `DishServiceImpl` / `DishMapper.xml` 过滤条件已移除该列；`DishConst.AUDIT_APPROVED`、`common/constant/AuditStatusConst`、`normalize_dish_audit_status.sql` **均已删除**；`/admin/audit/**` 已删；`schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 已就位；Web（`DishManageView` 审核列 / `DishDetailView` 审核态回显）与小程序 `AuditStatus` 已删 | **已对齐**（存量库列清退随用户执行 `schema.sql` 幂等 DROP 完成，**无任何人工归一动作**） |
 | **管理端无密码体系**（2026-09-15 蓝图 v1，spec §7.23） | 无账号 / 无密码 / 无 BCrypt 登录校验 / 无 `SUPER_ADMIN`；`user.password` 为历史兼容列 | **已完全符合**（2026-09-15 优化 Loop：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线；`/admin/**` 走 `AdminTokenFilter`）；BCrypt 仅保留于 `email_verification_code.code_hash` | 已对齐（`SecurityConfig` / `SwaggerConfig` 等处历史注释为待清理残留） |
 
 ---

@@ -6,9 +6,11 @@ import { imagesToList, normalizeSecState, pageRecords } from './adapter'
  * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
  * 列表 GET /admin/feedbacks（status/type/secState 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
- * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, contact, status, reply, createdAt, handledAt, relatedType, relatedId, secState }。
+ * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, contact, status, reply, createdAt, handledAt, relatedType, relatedId, relatedDishName, secState }。
  * sub（DEV-01）：建议二级类型 idea/problem，仅 type=suggestion 有值；可选字段，缺省不展示。
  * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
+ * relatedDishName（DEV-04 收口）：仅 relatedType='dish' 时由后端批量回填（含已下架菜品），
+ * 前端不再走公开端点 GET /dishes/{id} 取名（Web 只经 /admin/**，且公开端点查不到下架菜品）。
  * images 为用户上传配图（COS 公网地址数组）；secState 为内容安检状态（评价类反馈同步展示）。
  */
 
@@ -37,6 +39,11 @@ export interface FeedbackAdminVO {
   handledAt: string
   relatedType?: string
   relatedId?: number
+  /**
+   * 关联菜品名（DEV-04）：仅 relatedType='dish' 时由后端填充（服务端批量查询，含已下架菜品）。
+   * 为空/缺省（历史数据、其他关联类型）时由视图层退回「菜品#id」占位，不做二次请求。
+   */
+  relatedDishName?: string
   /** 内容安检状态：pass=正常 / review=待复核 / rejected=已驳回 */
   secState: SecState
 }
@@ -69,6 +76,8 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     handledAt: raw.handledAt ?? raw.handled_at ?? '',
     relatedType: raw.relatedType ?? raw.related_type ?? undefined,
     relatedId: raw.relatedId ?? raw.related_id ?? undefined,
+    // 空串归一为 undefined（视图层只判真值），沿用既有 snake→camel 归一样式
+    relatedDishName: (raw.relatedDishName ?? raw.related_dish_name) || undefined,
     secState: normalizeSecState(raw.secState ?? raw.sec_state),
   }
 }

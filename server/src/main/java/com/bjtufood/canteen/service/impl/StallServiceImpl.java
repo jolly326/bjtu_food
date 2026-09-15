@@ -95,7 +95,7 @@ public class StallServiceImpl implements StallService {
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
         // 2026-09-15：createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
-        // 已随 VO 字段一并删除；实体 stall.created_by 列保留（写入侧仍在用，仅收敛对外暴露）。
+        // VO 字段已删除；实体字段与写入侧、stall.created_by 列定义同批退役（阶段4，schema.sql 幂等 DROP）。
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
