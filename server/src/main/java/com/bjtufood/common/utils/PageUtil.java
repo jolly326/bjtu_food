@@ -1,4 +1,4 @@
-package com.bjtufood.common.util;
+package com.bjtufood.common.utils;
 
 /**
  * 分页参数归一化工具

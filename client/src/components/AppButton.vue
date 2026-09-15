@@ -10,30 +10,23 @@
     tabindex="0"
     @tap="handleTap"
   >
-    <IconSvg v-if="icon" :name="icon" :size="30" :color="iconColor" class="btn-icon" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import IconSvg from './IconSvg.vue'
 
 const props = withDefaults(defineProps<{
   text: string
-  icon?: string
-  type?: 'primary' | 'danger' | 'outline'
+  /** 按钮型（当前仅实底主色一种；danger/outline 变体零使用已删除） */
+  type?: 'primary'
   disabled?: boolean
   loading?: boolean
-  width?: string
-  margin?: string
 }>(), {
   type: 'primary',
   disabled: false,
   loading: false,
-  width: '100%',
-  margin: '0',
-  icon: '',
 })
 
 // 自定义事件禁用原生事件名（tap/click）：否则 uni-app 编译 mp-weixin 时父组件
@@ -42,15 +35,11 @@ const emit = defineEmits<{
   press: []
 }>()
 
-// icon 为 IconSvg 矢量图标名（通过 btnIcon slot 或文本渲染），全量禁 emoji（红线 §4.9③）。
 const btnType = computed(() => `btn-${props.type}`)
 
-/** 图标色与文字同源：实底型（primary/danger）用 on-primary 白字；outline 型文字为主色（.btn-outline .btn-text），图标须同色，避免白底白图标 */
-const iconColor = computed(() => (props.type === 'outline' ? 'var(--color-primary)' : 'var(--color-on-primary)'))
-
 const btnStyle = computed(() => ({
-  width: props.width,
-  margin: props.margin,
+  width: '100%',
+  margin: '0',
 }))
 
 function handleTap() {
@@ -69,10 +58,6 @@ function handleTap() {
   box-sizing: border-box;
   gap: var(--spacing-xs);
 }
-.btn-icon {
-  flex-shrink: 0;
-  margin-right: var(--spacing-xs);
-}
 /* 禁用态：复用全局 .is-disabled 令牌（App.vue：opacity 0.5 + pointer-events:none + 轻灰度），
    不再组件内自设 0.4 弱化档，与全站禁用口径单一来源 */
 .btn-text {
@@ -82,16 +67,6 @@ function handleTap() {
 }
 .btn-primary {
   background: var(--color-primary);
-}
-.btn-danger {
-  background: var(--color-error);
-}
-.btn-outline {
-  background: transparent;
-  border: 2rpx solid var(--color-primary);
-}
-.btn-outline .btn-text {
-  color: var(--color-primary);
 }
 .app-btn.loading {
   opacity: 0.6;

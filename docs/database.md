@@ -177,7 +177,8 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 反馈ID |
 | user_id | BIGINT | 否 | 0 | 用户ID |
-| type | VARCHAR(32) | 否 | 'suggestion' | **写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea`/`sub=problem`，「系统 bug」归 `problem`）、`add` 新增菜品投稿、`error` 信息纠错与申请下架（`related_type=dish`）、`report` 举报（`related_type=review`）。**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，仅保留在查询白名单以筛存量数据 |
+| type | VARCHAR(32) | 否 | 'suggestion' | **写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub`，见下行）、`add` 新增菜品投稿、`error` 信息纠错与申请下架（`related_type=dish`）、`report` 举报（`related_type=review`）。**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，仅保留在查询白名单以筛存量数据 |
+| sub | VARCHAR(16) | 可 | NULL | **反馈二级类型（2026-09-15 用户拍板，spec §7.23 第 3 条）**：值域 `idea`（建议·想法）/ `problem`（建议·问题），**仅 `type='suggestion'` 有效**；写入白名单校验、非法值（含非 `suggestion` 类型携带）400、不静默降级；后台展示为「建议·想法 / 建议·问题」，**不新增筛选维度**。**新库 CREATE TABLE 直接含此列；旧库由 `schema.sql` 幂等存储过程加列**（先判 `INFORMATION_SCHEMA` 存在性再 `ADD COLUMN`，可重跑，列定义与 CREATE 一致） |
 | content | VARCHAR(1024) | 否 | '' | 反馈内容 |
 | images | VARCHAR(1024) | 可 | NULL | **反馈配图（2026-09-13 恢复）**：JSON 数组字符串（≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS），游客提交同样可带图 |
 | sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`/`review`（机检待人工复核）/`rejected`（人工复核驳回，对非作者不可见同 review）；管理后台放行（→`pass`）/驳回（→`rejected`） |

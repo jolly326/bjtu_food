@@ -501,9 +501,13 @@ export function useFeedback() {
     // 原实现 unconditionally 取 form.error.dish?.id，切到 suggestion/add 类型提交时残留
     // error 的 relatedId 而 relatedType 为 undefined，造成契约不一致。
     let relatedId: number | undefined
+    // DEV-01：二级选项（提建议 idea / 报问题 problem）此前仅端上选中、提交时被丢弃；
+    // 契约口径＝仅 suggestion 携带，其他类型不传（后端按 type 走白名单，非法值 400）。
+    let sub: 'idea' | 'problem' | undefined
 
     if (t === 'suggestion') {
       content = form.suggestion.text.trim()
+      sub = form.suggestion.sub
     } else if (t === 'add') {
       const parts = [`【新增菜品】${form.add.name.trim()}`]
       if (form.add.price.trim()) parts.push(`价格：${form.add.price.trim()}元`)
@@ -545,6 +549,7 @@ export function useFeedback() {
       await submitFeedback({
         type: t,
         content,
+        sub,
         relatedType,
         relatedId,
         images: images.length ? images : undefined,

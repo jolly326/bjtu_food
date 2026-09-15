@@ -129,7 +129,7 @@
 ### 0.3 一致性红线（全局，强制）
 - 角色仅 `STUDENT` / `ADMIN`；**禁止** `STALL_OWNER` 或 `/stall-owner/**` 路由。**`/admin/**` 的访问控制为「环境变量口令」而非角色**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`AdminTokenFilter` 校验请求头 `X-Admin-Token` == `ADMIN_TOKEN`，未配置口令时 fail-closed 403；`SUPER_ADMIN` 分层已移除（`RoleConst` 仅 `student`/`admin` 两层数据语义，用于区分账号归属而非权限，见 §5.x）。
 - **菜品**的唯一运营开关是上下架 `status`(on/off)；**`dish.audit_status` / `dish.reject_reason` 为已退役的历史列（2026-09-15 蓝图 v1，见 §7.23 第 4 条）**——**菜品无独立审核**：管理员录入 / 编辑即置 `approved` 并直接生效，`audit_status` **不再作为运营处理入口**（后台列表不设审核列、菜品详情不回显审核态与 `reject_reason`、客户端不出现「菜品审核」概念），**不再扩展该字段**；存量数据由一次性脚本归一为 `approved`（`server/src/main/resources/db/normalize_dish_audit_status.sql`，由用户执行）。学生的菜品诉求走**反馈**承载（见下一行）。**档口 / 食堂已去实体化（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）：不再有 `status` / `audit_status` / `reject_reason` 列**（6 列已下线），仅为菜品筛选属性字典。
-- 学生对菜品的一切诉求（下架 / 变更 / 纠错 / 举报 / 新增 / 建议）走**反馈类型承载**，**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台**在反馈处理中**手工闭环）。**反馈类型真源（2026-09-15 蓝图 v1，见 §7.23 第 3 条；取自小程序反馈收集表，勿臆造）**：写入白名单 = `suggestion`（建议 / 问题，二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `sub=problem`，不升为一级类型**）/ `add`（新增菜品）/ `error`（纠错 / 下架，`relatedType=dish`）/ `report`（举报，`relatedType=review`）；`bug` / `other` 为**历史遗留枚举位、无生产者、禁止新增**（仅保留在查询白名单以筛存量数据）。
+- 学生对菜品的一切诉求（下架 / 变更 / 纠错 / 举报 / 新增 / 建议）走**反馈类型承载**，**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台**在反馈处理中**手工闭环）。**反馈类型真源（2026-09-15 蓝图 v1，见 §7.23 第 3 条；取自小程序反馈收集表，勿臆造）**：写入白名单 = `suggestion`（建议 / 问题，二级 `sub` ∈ {`idea`, `problem`}，**仅 `suggestion` 有效、写入白名单校验、非法 400、后台展示「建议·想法 / 建议·问题」、不新增筛选维度**，**「系统 bug」归 `sub=problem`，不升为一级类型**；见 §7.23 第 3 条）/ `add`（新增菜品）/ `error`（纠错 / 下架，`relatedType=dish`）/ `report`（举报，`relatedType=review`）；`bug` / `other` 为**历史遗留枚举位、无生产者、禁止新增**（仅保留在查询白名单以筛存量数据）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
   - **无账号密码登录**：小程序端**无密码、无登录页、无登录按钮、无注册页**；微信打开即静默登录（`POST /auth/wechat-login`），默认得到 `verified=false` 的游客态账号。
@@ -635,6 +635,7 @@
    | `report` | 举报 | `relatedType=review` + `relatedId` | 评价卡「举报评价」（`ReportModal`） |
    | `suggestion` | 建议 / 问题 | — | 反馈页「提个想法」；**二级 `sub=idea`（建议）/ `sub=problem`（问题）** |
 
+   - **二级类型 `sub`（2026-09-15 用户拍板定型，本次补录）**：值域 **`idea`（建议·想法）/ `problem`（建议·问题）**，**仅 `type=suggestion` 有效**；同为**写入白名单**（`FeedbackConst` 单一真源，PR-06），**非法值一律 `400`**（含「`suggestion` 之外的类型携带 `sub`」），不静默降级。管理后台展示为「建议·想法 / 建议·问题」（`FeedbackAdminVO.sub` 出参）；**不新增筛选维度**——后台筛选仍只按一级 `type`，`sub` 仅作展示与存量归类。
    - **`bug` / `other` 为历史遗留枚举位**：无生产者、**禁止新增**；仅保留在**查询**白名单（`FeedbackConst.QUERY_TYPES`）以筛存量数据。**「系统 bug」不升为一级类型，归入 `suggestion` 的二级「问题」（`sub=problem`）**。
    - **Web 端在「反馈处理」中统一处理上述诉求**，处理动作即实际的录入 / 修改 / 下架菜品（**不得**做「一键转菜品」，见 §7.13 第 1 条）。
 4. **菜品无独立审核**。管理员录入 / 编辑即生效（`audit_status=approved`）；**学生的菜品诉求以反馈形式存在并由反馈处理闭环，客户端与后台均不出现「菜品审核」概念**。
@@ -654,7 +655,7 @@
 
 **派生契约变更（本次拍板落地清单，见文末「给下游的契约变更」）**
 
-- 后端：① `POST` / `PUT /admin/dishes` 支持**按名 upsert 食堂 / 档口**；② `PUT /admin/feedbacks/{id}` 支持「不采纳 / 退回」结论并校验 `reject_reason` 必填；③ 删除 `DataInitializer`；④ 点赞保持 `@RequireVerified`（**不动**）；⑤ 反馈类型写入白名单保持 `suggestion/add/error/report`（**不动**）。
+- 后端：① `POST` / `PUT /admin/dishes` 支持**按名 upsert 食堂 / 档口**；② `PUT /admin/feedbacks/{id}` 支持「不采纳 / 退回」结论并校验 `reject_reason` 必填；③ 删除 `DataInitializer`；④ 点赞保持 `@RequireVerified`（**不动**）；⑤ 反馈类型写入白名单保持 `suggestion/add/error/report`（**不动**）；⑥ **反馈二级类型 `sub`（2026-09-15 用户拍板补录）**——`FeedbackReq` 增可选 `sub`（`idea`/`problem`，**仅 `suggestion` 有效、写入白名单校验、非法 400**），`FeedbackAdminVO` 增 `sub` 出参，`user_feedback` 增 `sub VARCHAR(16) NULL` 列（`schema.sql` 幂等加列；后台展示「建议·想法 / 建议·问题」，不新增筛选维度）。
 - Web：① 菜品列表删除审核列、菜品详情删除审核态与退回原因回显；② 反馈处理弹窗增加「不采纳 / 退回」结论与必填原因输入；③ 菜品表单支持直接输入食堂 / 档口名（不存在由后端自动建档）。
 - 小程序：① `types/dish.ts` 的 `AuditStatus` / `auditStatus` 零消费则删除；② `FeedbackSubmit['type']` 收口为四类真源（移除 `bug` / `other` 可写位）；③ 点赞按钮未认证走 `4031` → 弹 `AuthSheet`，**不得置灰**。
 
@@ -677,6 +678,7 @@
   - **食堂 / 档口去实体化与列下线（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）**——`canteen` / `stall` 的 `status` / `audit_status` / `reject_reason` 共 6 列与 `stall.business_hours` 整体下线（`schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` / `drop_stall_business_hours`），实体 / VO / Service 读写同批移除；字典能力收敛为「新增 / 改名 / 列表查看」，**无删除**。菜品 `dish.status` 保留；`dish.audit_status` / `dish.reject_reason` **列保留但语义已退役**（2026-09-15 蓝图 v1，见 §7.23 第 4 条）。
   - **星级组件统一**——评价星级展示统一走同一星级组件（评分口径与「有用」置顶口径一致，见 §7.14 第 2 条）。
   - **失败态组件上提（RetryBlock，P3-03 / QA-09）**——「加载失败 · 点击重试」失败态块原在 my-reviews / notifications / HomeContent / find 四页各自完整复制（含独立模板与样式），已上提为公共组件 `components/RetryBlock.vue`（接收 `title` / `hint` / `aria-label` / `margin` 属性与 `retry` 事件）并完成 4 处替换；失败态呈现口径按 MP-012（`openspec/specs/client-page-structure` 登记），组件归位遵循 §2 组件组织原则。
+  - **阶段 1 零风险死代码清理（2026-09-15 优化 Loop 登记）**——退役审核常量、死 props / emit、零引用导出、误提交的上传产物（构建 / 运行产物）已整体清理（**不逐条罗列**）。对应 PR-05（冗余边界：对外暴露但零消费的常量 / 导出 / 产物一律删除）。
 - **菜品无独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条）——文档已收口，代码 / 脚本待落地**：`dish.audit_status` / `dish.reject_reason` 退役为历史列；前端下线审核展示（Web 菜品列表审核列 + 菜品详情审核态/退回原因回显、小程序 `Dish.auditStatus`）；存量 `audit_status` 归一为 `approved` 由一次性脚本完成（见下「待运维执行」）。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
 - **管理端密码体系收口（2026-09-15 蓝图 v1，见 §7.23）——已完成（2026-09-15 优化 Loop 登记：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线）**：管理端无账号 / 密码 / BCrypt 登录校验 / `SUPER_ADMIN` 分层；`user.password` 为历史兼容列，**BCrypt 仅用于邮箱验证码哈希**（`SecurityConfig` / `SwaggerConfig` 等处的历史注释为待清理残留，不构成能力）。对应 PR-04（被否决项留痕）与 PR-05（死资产清理）。
 - **待运维执行（本轮登记，一次性，执行前须技术负责人与用户确认）**：**评分历史数据一次性重算**——Q-110 新口径（只计入 `is_hidden=0 AND sec_state='pass'`）生效前，被内容安检拦下的评价（`sec_state='review'` / `'rejected'`）已被计入 `avg_rating` / `rating_count`，需按新口径重算历史数据。**脚本已就位：`server/src/main/resources/db/fix_rating_by_sec_state.sql`（2026-09-14 Q-120 用户已授权执行，见 §7.22 第 4 条）**——脚本幂等、只改数据不改结构（全量覆盖式 UPDATE，不含 DROP / ALTER），执行前**先备份** `dish` 表（至少 `id` / `avg_rating` / `rating_count` 三列），**不得并入 `schema.sql` 自动执行路径**；**执行动作由用户执行**（对应 PR-08：聚合须声明真源与重算时机）。

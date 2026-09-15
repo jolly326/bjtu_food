@@ -11,18 +11,11 @@ import java.util.Set;
  */
 public interface DishConst {
 
-    /** 上架状态：on=在售 / off=下架 */
+    /** 上架状态：on=在售（off=下架无独立常量，见 schema.sql dish.status 列注释） */
     String STATUS_ON = "on";
-    String STATUS_OFF = "off";
-
-    /** 审核状态：待审核（真源：{@link AuditStatusConst#PENDING}） */
-    String AUDIT_PENDING = AuditStatusConst.PENDING;
 
     /** 审核状态：已通过（真源：{@link AuditStatusConst#APPROVED}） */
     String AUDIT_APPROVED = AuditStatusConst.APPROVED;
-
-    /** 审核状态：已退回（真源：{@link AuditStatusConst#REJECTED}） */
-    String AUDIT_REJECTED = AuditStatusConst.REJECTED;
 
     /**
      * 标签权威值域 —— 单一真源（与 schema.sql dish.tags 列注释、web/src/api/tags.ts TAG_OPTIONS 对齐）。

@@ -29,7 +29,8 @@
 ```
 com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security（昵称变更过 msgSecCheck scene=1）
-├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合/统计（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
+├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
+├── dashboard/   # 工作台业务域：工作台 controller / service / dto（原置于 dish 包，2026-09-15 迁出独立成域；端点不变，仍为 GET /admin/dashboard，统计逻辑 StatsService 随迁）
 ├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── canteen/     # 食堂/档口
 ├── content/     # category 品类
@@ -37,7 +38,7 @@ com.bjtufood/
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
 ├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
-└── common/      # Result/异常/工具/JWT 切面/操作日志；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
+└── common/      # Result/异常/JWT 切面/操作日志；**工具包唯一真源 = `common/utils`**（复数，2026-09-15 登记；原 `common/util` 单数包已合并废弃、勿再引用）；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
 ```
 
 ## 2. 认证与安全模型

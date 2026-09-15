@@ -1,7 +1,8 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export interface ToastMessage {
+/** 仅本 store 内部使用（消息结构 + 类型收敛），故不对外导出 */
+interface ToastMessage {
   id: number
   type: 'success' | 'error' | 'info'
   message: string
@@ -28,19 +29,9 @@ export const useToastStore = defineStore('toast', () => {
     messages.value = messages.value.filter(m => m.id !== id)
   }
 
+  // 仅保留 success / error：info 与 clear 在全仓无消费方（阶段1 死代码清理），已删除。
   function success(msg: string) { add('success', msg) }
   function error(msg: string) { add('error', msg, 4000) }  // 错误信息停留更久，方便阅读
-  function info(msg: string) { add('info', msg) }
 
-  /**
-   * 清空全部 toast（如登出/切换账号时调用，避免残留上一账号的提示）。
-   * 全局单例无组件卸载销毁问题，常规自动消失由 setTimeout 负责，无需额外 onUnmounted 清理。
-   */
-  function clear() {
-    timers.forEach((t) => clearTimeout(t))
-    timers.clear()
-    messages.value = []
-  }
-
-  return { messages, success, error, info, clear }
+  return { messages, success, error }
 })

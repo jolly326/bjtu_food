@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '反馈ID',
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
     `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
+    `sub`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '二级分类（仅 type=suggestion 有效）：idea=想法/problem=问题；其他类型为 NULL',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
     `sec_state`    VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）',
@@ -621,6 +622,28 @@ END$$
 DELIMITER ;
 CALL `add_feedback_reject_reason`();
 DROP PROCEDURE IF EXISTS `add_feedback_reject_reason`;
+
+-- 反馈二级分类列（DEV-01，2026-09-15）：user_feedback.sub（二级分类，varchar(16) NULL）。
+-- 背景：端上「提个想法」页的「想法/问题」二选一此前仅在请求中出现、未落库（假字段），
+--       现补全落库，仅 type=suggestion 有效，值域 idea/problem（FeedbackConst.SUB_WRITE_WHITELIST）。
+-- 新库 CREATE TABLE 已含该列；旧库幂等补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，
+-- 用存储过程防护，与上方迁移惯例一致），列定义与 CREATE 保持一致、可重跑、不影响既有数据
+-- （存量行该列为 NULL，管理端按「未分类」展示）。
+DROP PROCEDURE IF EXISTS `add_feedback_sub`;
+DELIMITER $$
+CREATE PROCEDURE `add_feedback_sub`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'sub'
+    ) THEN
+        ALTER TABLE `user_feedback`
+            ADD COLUMN `sub` VARCHAR(16) NULL DEFAULT NULL COMMENT '二级分类（仅 type=suggestion 有效）：idea=想法/problem=问题；其他类型为 NULL';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_feedback_sub`();
+DROP PROCEDURE IF EXISTS `add_feedback_sub`;
 
 -- 菜品搜索别名（2026-09-13 需求：搜索命中别名也能找到菜品；管理员经后台配置）：
 -- dish 补齐 alias 列（CREATE TABLE 已含，列定义以 CREATE 为准：alias VARCHAR(255) NULL）；

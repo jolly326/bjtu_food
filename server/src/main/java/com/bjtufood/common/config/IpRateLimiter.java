@@ -9,8 +9,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * IP 维度滑动窗口限频（进程内内存实现，组件风格对齐 dish 包 ViewRateLimiter /
- * auth 包 AdminLoginAttemptLimiter：ConcurrentHashMap + 容量上限 + @Scheduled 定时清理）。
+ * IP 维度滑动窗口限频（进程内内存实现，组件风格对齐 dish 包 ViewRateLimiter：
+ * ConcurrentHashMap + 容量上限 + @Scheduled 定时清理）。
  * <p>
  * 适用 permitAll 公开写入口的滥用防护（如 POST /feedback 灌库、/auth/email-code
  * 换邮箱刷码）：同一客户端 IP 在窗口内的请求次数受多条规则共同约束（如

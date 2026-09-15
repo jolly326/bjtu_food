@@ -1,4 +1,4 @@
-package com.bjtufood.dish.dto;
+package com.bjtufood.dashboard.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -11,6 +11,9 @@ import java.util.List;
  * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，前端不消费热度排行/趋势字段，
  * 故移除 hotCanteens / hotDishes / viewTrend / reviewTrend 及其全表菜品聚合查询。
  * 仅保留「待办 + 规模指标 + 近期操作」。
+ * <p>
+ * 2026-09-15 用户拍板：工作台域自 {@code dish} 包迁出至独立 {@code dashboard} 包
+ * （与 canteen/feedback 等同级业务域），字段与 JSON 结构零变化。
  */
 @Data
 @Schema(description = "数据看板")

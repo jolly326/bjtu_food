@@ -7,8 +7,8 @@
 
 /** 招牌菜（写库值） */
 export const SIGNATURE_TAG = 'signature'
-/** 必吃推荐（写库值） */
-export const RECOMMENDED_TAG = 'recommended'
+/** 必吃推荐（写库值）：仅本文件自用（外部消费出口为 TAG_OPTIONS / tagDisplay），故不导出 */
+const RECOMMENDED_TAG = 'recommended'
 
 /** 标签选项：value = 写库英文值，label = 中文展示文案（对齐 client TAG_MAP） */
 export const TAG_OPTIONS = [

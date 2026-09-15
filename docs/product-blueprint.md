@@ -102,7 +102,7 @@
 | `review_useful` | user_id, review_id | 评价「有用」标记（唯一性由业务保证） |
 | `notification` | user_id, type, title, content, related_id, is_read | 站内通知 / 反馈回执（`feedback_handle` 为唯一在产类型） |
 | `category` | code, name, sort_order, status | **仅供后台菜品归类**（端上无品类筛选 / 展示入口，spec §7.22 第 1 条） |
-| `user_feedback` | user_id, type, content, images, **sec_state**, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
+| `user_feedback` | user_id, type, **sub**, content, images, **sec_state**, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；**`sub` = 二级类型 `idea`/`problem`（仅 `suggestion` 有效，写入白名单、非法 400，后台展示「建议·想法 / 建议·问题」，不新增筛选维度）**；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
 | `email_verification_code` | email, code_hash, purpose, expires_at, used_at | 认证验证码（`code_hash` 存储） |
 | `view_log` | user_id, target_type, target_id | 浏览埋点（热度输入；「猜你喜欢」接口已下线，足迹仅作数据留存） |
 | `operation_log` | admin_id†, action, target_type, target_id, ip | 后台操作审计（AOP 埋点）；† `admin_id` 已停写（单口令即单人，不追究操作人身份） |

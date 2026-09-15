@@ -106,7 +106,7 @@
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- swagger 注解（@Schema 等）：knife4j 将其标为 optional 未传递，二期实体/DTO 使用 @Schema 需显式声明完整 jar（含 media.Schema），版本与 knife4j 一致 -->
+        <!-- swagger 注解（@Schema 等）：经 springdoc 传递时被标为 optional，实体/DTO 使用 @Schema 需显式声明完整 jar（含 media.Schema） -->
         <dependency>
             <groupId>io.swagger.core.v3</groupId>
             <artifactId>swagger-annotations-jakarta</artifactId>

@@ -16,9 +16,10 @@
  * 降级：canvas/压缩链路任一步异常 → 返回原文件（保证上传可用），仅控制台 warn。
  */
 
-export const COMPRESS_THRESHOLD_BYTES = 1 * 1024 * 1024 // 1MB
-export const COMPRESS_MAX_EDGE = 1200
-export const COMPRESS_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024 // 后端单图 5MB 上限
+// 以下三个阈值仅本文件内消费（外部出口为 compressImage / CompressResult），故不导出。
+const COMPRESS_THRESHOLD_BYTES = 1 * 1024 * 1024 // 1MB
+const COMPRESS_MAX_EDGE = 1200
+const COMPRESS_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024 // 后端单图 5MB 上限
 const JPEG_QUALITIES = [0.85, 0.75, 0.65, 0.6]
 const MIN_QUALITY = 0.6
 

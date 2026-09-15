@@ -36,7 +36,7 @@
   </view>
 
   <!-- 通用/二级页：返回箭头 + 居中标题 + 右上角留空 -->
-  <view v-else class="header-wrap" :class="{ dark: dark }" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
+  <view v-else class="header-wrap" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
       <view
         v-if="showBack"
@@ -65,8 +65,6 @@ const props = withDefaults(defineProps<{
   searchPlaceholder?: string
   /** search variant 双向绑定的搜索关键词 */
   modelValue?: string
-  /** 深色模式（仅影响无背景变量时的兜底） */
-  dark?: boolean
   /** 是否显示返回箭头；从首页头像 navigateTo 进入二级页时传 true，TabBar 直入时传 false */
   showBack?: boolean
 }>(), {
@@ -74,7 +72,6 @@ const props = withDefaults(defineProps<{
   title: '',
   searchPlaceholder: '搜索菜品、档口或食堂',
   modelValue: '',
-  dark: false,
   showBack: true,
 })
 

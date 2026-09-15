@@ -30,6 +30,14 @@ public class Feedback {
     @Schema(description = "反馈类型：suggestion/add/error/report（历史可含 bug/other）")
     private String type;
 
+    /**
+     * 二级分类（DEV-01 补全落库，映射列 {@code user_feedback.sub}）：
+     * 仅 {@code type=suggestion} 有效，值域 idea/problem（FeedbackConst.SUB_WRITE_WHITELIST）；
+     * 其他 type 或不填时为 NULL。
+     */
+    @Schema(description = "二级分类（仅 suggestion 有效）：idea/problem，其余为 null")
+    private String sub;
+
     @Schema(description = "反馈内容")
     private String content;
 

@@ -1,8 +1,8 @@
-package com.bjtufood.dish.controller.admin;
+package com.bjtufood.dashboard.controller.admin;
 
 import com.bjtufood.common.result.Result;
-import com.bjtufood.dish.dto.DashboardVO;
-import com.bjtufood.dish.service.StatsService;
+import com.bjtufood.dashboard.dto.DashboardVO;
+import com.bjtufood.dashboard.service.StatsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
  * BE-03：统计逻辑已下沉 {@link StatsService}，本 Controller 只做「参数归一化 + 响应包装」，
  * 不再出现 Controller→Controller 与 Controller 直调 Mapper。
  * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，仅返回待办 + 规模指标 + 近期操作。
+ * 2026-09-15 用户拍板：工作台域自 {@code dish} 包迁出至独立 {@code dashboard} 包，端点路径与响应零变化。
  */
 @Tag(name = "数据看板", description = "运营工作台：规模指标、待办明细、近期操作。需要管理员口令。")
 @RestController

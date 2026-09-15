@@ -10,7 +10,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.util.PageUtil;
+import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.config.ViewRateLimiter;

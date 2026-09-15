@@ -6,6 +6,10 @@
 import { post } from './http'
 import type { FeedbackSubmit } from '@/types/feedback'
 
+/**
+ * 提交反馈：payload 整体透传（不逐字段映射），字段契约由 `FeedbackSubmit` 承载。
+ * DEV-01：`sub`（idea/problem）随 payload 一并上送，本层无需额外处理。
+ */
 export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
 }

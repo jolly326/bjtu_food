@@ -17,11 +17,6 @@ public interface RoleConst {
     /** 管理员（管理端账号数据标记；不再用于权限分级） */
     String ADMIN = "admin";
 
-    // ==================== Spring Security 角色名（带前缀） ====================
-
-    String ROLE_STUDENT = "ROLE_STUDENT";
-    String ROLE_ADMIN = "ROLE_ADMIN";
-
     /** 是否为管理端账号（仅剩 admin 一级） */
     static boolean isAdmin(String role) {
         return ADMIN.equals(role);

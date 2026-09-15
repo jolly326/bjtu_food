@@ -1,4 +1,4 @@
-package com.bjtufood.common.util;
+package com.bjtufood.common.utils;
 
 import com.bjtufood.common.exception.BusinessException;
 

@@ -1,6 +1,6 @@
-package com.bjtufood.dish.service;
+package com.bjtufood.dashboard.service;
 
-import com.bjtufood.dish.dto.DashboardVO;
+import com.bjtufood.dashboard.dto.DashboardVO;
 
 /**
  * 工作台统计服务（只读）
@@ -10,6 +10,8 @@ import com.bjtufood.dish.dto.DashboardVO;
  * 方式调用，破坏四层分层。此处整体下沉为 Service，Controller 只保留参数与响应包装。
  * <p>
  * 全部为聚合查询，<b>不加事务</b>（只读、无需原子性）；各项独立容错，任一查询失败不影响其余指标。
+ * <p>
+ * 2026-09-15 用户拍板：工作台域自 {@code dish} 包迁出至独立 {@code dashboard} 包，接口语义与端点零变化。
  */
 public interface StatsService {
 

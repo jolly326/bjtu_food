@@ -6,8 +6,8 @@ export interface ApiResponse<T = any> {
   data: T
 }
 
-/** 401 未登录事件（对齐小程序 uni.$emit('auth:unauthorized')） */
-export const AUTH_UNAUTHORIZED = 'auth:unauthorized'
+/** 401 未登录事件名（对齐小程序 uni.$emit('auth:unauthorized')）；仅本文件自用，故不导出 */
+const AUTH_UNAUTHORIZED = 'auth:unauthorized'
 /**
  * 鉴权失效统一广播：通知监听者（不跳转，管理端无登录页）。
  * 导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107）。

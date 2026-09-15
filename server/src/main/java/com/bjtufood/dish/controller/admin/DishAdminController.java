@@ -58,7 +58,7 @@ public class DishAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "编辑菜品", description = "用途：修改菜品信息（支持部分更新，未传字段不修改）。仅 ADMIN/SUPER_ADMIN 可访问；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。")
+    @Operation(summary = "编辑菜品", description = "用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端口令鉴权（AdminTokenFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。")
     @PutMapping("/{id}")
     public Result<Void> updateDish(
             @Parameter(description = "菜品ID", example = "1")

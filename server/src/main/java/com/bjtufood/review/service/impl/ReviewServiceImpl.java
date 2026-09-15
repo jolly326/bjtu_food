@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.util.ParamValidator;
+import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
@@ -67,7 +67,7 @@ public class ReviewServiceImpl implements ReviewService {
      */
     @Override
     public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, userId);
@@ -81,7 +81,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, userId);
@@ -95,7 +95,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, userId);
@@ -109,7 +109,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden/sec_state 过滤均不适用——
         // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」），
@@ -301,7 +301,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, String secState, Long userId, String keyword) {
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         // 内容安全状态查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空
         secState = ParamValidator.optionalInWhitelist(secState, SecStateConst.ALL, "内容安全状态");

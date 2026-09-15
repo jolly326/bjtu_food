@@ -8,6 +8,12 @@
 export interface FeedbackSubmit {
   type: 'suggestion' | 'add' | 'error' | 'report'
   content: string
+  /**
+   * 二级选项（2026-09-15 DEV-01 补齐）：仅 type=suggestion 时上送，
+   * 承载「提建议 idea / 报问题 problem」的二级语义（此前仅端上选中、提交时被丢弃）。
+   * 契约：仅 suggestion 携带；其他类型不传（后端按 type 走白名单校验，非法值 400）。
+   */
+  sub?: 'idea' | 'problem'
   /** 反馈对象细分类型（error 信息纠错为 'dish'；type=report 举报为 'review'（评价）；未选实体可不传） */
   relatedType?: string
   /** 关联对象 ID（用户未选实体可不传；type=report 举报时按需填） */

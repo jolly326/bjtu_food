@@ -30,7 +30,7 @@ public class OperationLogServiceImpl implements OperationLogService {
     @Override
     public IPage<OperationLogVO> listLogs(Long adminId, String action, String targetType,
                                           String startAt, String endAt, String keyword, int page, int pageSize) {
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         LambdaQueryWrapper<OperationLog> wrapper = new LambdaQueryWrapper<OperationLog>()

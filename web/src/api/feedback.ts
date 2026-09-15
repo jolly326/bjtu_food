@@ -6,7 +6,8 @@ import { imagesToList, normalizeSecState, pageRecords } from './adapter'
  * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
  * 列表 GET /admin/feedbacks（status/type/secState 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
- * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, content, images, contact, status, reply, createdAt, handledAt, relatedType, relatedId, secState }。
+ * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, contact, status, reply, createdAt, handledAt, relatedType, relatedId, secState }。
+ * sub（DEV-01）：建议二级类型 idea/problem，仅 type=suggestion 有值；可选字段，缺省不展示。
  * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
  * images 为用户上传配图（COS 公网地址数组）；secState 为内容安检状态（评价类反馈同步展示）。
  */
@@ -17,6 +18,11 @@ export interface FeedbackAdminVO {
   userId?: number
   userNickname: string
   type: string
+  /**
+   * 二级类型（DEV-01）：仅 type='suggestion'（功能建议）有值 —— idea=想法 / problem=问题。
+   * 后端字段为可选（历史数据、其他类型均无值），故前端一律按可选字段容错：缺省/非法值 → undefined（UI 不展示）。
+   */
+  sub?: 'idea' | 'problem'
   content: string
   /** 用户上传配图（adapter 归一为 string[]，COS 公网地址可直接展示） */
   images: string[]
@@ -35,12 +41,23 @@ export interface FeedbackAdminVO {
   secState: SecState
 }
 
+/**
+ * 二级类型归一（DEV-01，沿用 snake→camel 归一样式）：
+ * 白名单收窄 idea / problem，其余（含未落库的 null、后端未就绪时的字段缺失）→ undefined，
+ * 由视图层决定是否展示（UI 侧再按 type='suggestion' 限定层级归属）。
+ */
+function normalizeSub(raw: any): 'idea' | 'problem' | undefined {
+  const v = raw.sub ?? raw.subType ?? raw.sub_type
+  return v === 'idea' || v === 'problem' ? v : undefined
+}
+
 function feedbackToLegacy(raw: any): FeedbackAdminVO {
   return {
     id: raw.id,
     userId: raw.userId ?? raw.user_id ?? undefined,
     userNickname: raw.userNickname || '',
     type: raw.type || 'other',
+    sub: normalizeSub(raw),
     content: raw.content || '',
     images: imagesToList(raw.images),
     contact: raw.contact || '',

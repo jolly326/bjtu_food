@@ -26,8 +26,3 @@ function buildMap(): Record<string, string> {
 
 /** 统一图标映射：icon.plus / icon.search / icon.delete ... */
 export const icon = buildMap()
-
-/** 取指定名称的图标 URL（不存在回退空字符串，便于调用方降级） */
-export function getIcon(name: string): string {
-  return icon[name] || ''
-}

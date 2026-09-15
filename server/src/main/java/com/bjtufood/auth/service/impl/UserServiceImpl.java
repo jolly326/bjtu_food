@@ -7,7 +7,6 @@ import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.common.constant.RoleConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public IPage<UserVO> listUsers(int page, int pageSize, String role, String status) {
-        int[] p = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(StringUtils.hasText(role), User::getRole, role)

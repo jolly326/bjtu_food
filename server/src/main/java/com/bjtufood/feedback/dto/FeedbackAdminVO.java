@@ -25,6 +25,9 @@ public class FeedbackAdminVO {
     @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
     private String type;
 
+    @Schema(description = "二级分类（仅 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
+    private String sub;
+
     @Schema(description = "反馈内容")
     private String content;
 

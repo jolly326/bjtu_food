@@ -23,6 +23,14 @@ public class FeedbackReq {
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 
+    /**
+     * 二级分类（DEV-01 补全落库）：仅 {@code type=suggestion} 有效，值域 idea/problem
+     * （单一真源 {@code FeedbackConst.SUB_WRITE_WHITELIST}）。
+     * type 非 suggestion 时后端忽略该值并置 null；provided 但值域非法由 Service 层返回 400。
+     */
+    @Schema(description = "二级分类：仅 suggestion 类型有效，值域 idea/problem（其他类型忽略）", example = "idea")
+    private String sub;
+
     @Schema(description = "反馈内容", example = "希望增加更多素食档口")
     @NotBlank(message = "反馈内容不能为空")
     @Size(max = 1000, message = "反馈内容不能超过1000字")

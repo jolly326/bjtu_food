@@ -35,6 +35,24 @@ public interface FeedbackConst {
      */
     Set<String> QUERY_TYPES = Set.of(TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_BUG, TYPE_OTHER, TYPE_REPORT);
 
+    /**
+     * 反馈二级分类（sub，DEV-01 补全落库）：<b>仅</b> {@code type=suggestion}（提个想法）有效。
+     * <p>
+     * 端上「提个想法」页存在「想法 / 问题」二选一，此前该值仅在请求中出现、未落库（假字段）；
+     * 现收敛为服务端白名单并落库 {@code user_feedback.sub}，供管理端按二级分类查看。
+     * 其他 type 一律忽略该值并置 NULL（不报错、不落库），避免跨类型污染。
+     */
+    String SUB_IDEA = "idea";
+    String SUB_PROBLEM = "problem";
+
+    /**
+     * 反馈二级分类写入白名单（单一真源）：仅 {@code idea} / {@code problem}。
+     * <p>
+     * provided 且不在白名单 → 400（PR-06：非法入参必须报错，不静默降级）；
+     * 未提供（null/空白）→ 按未填处理（落库 NULL），由 Service 归一化。
+     */
+    Set<String> SUB_WRITE_WHITELIST = Set.of(SUB_IDEA, SUB_PROBLEM);
+
     /** 举报关联类型（举报对象：菜品评价） */
     String RELATED_REVIEW = "review";
 

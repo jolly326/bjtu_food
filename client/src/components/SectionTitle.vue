@@ -1,5 +1,5 @@
 <template>
-  <view class="section-title" :class="{ 'no-margin': noMargin }" @tap="$emit('tap')">
+  <view class="section-title" :class="{ 'no-margin': noMargin }">
     <text class="section-text">{{ title }}</text>
     <!-- 右侧附加信息：优先文案 prop（extraText，免具名 slot 跨组件分发），其次具名 slot（复杂内容用） -->
     <text v-if="extraText" class="section-extra">{{ extraText }}</text>
@@ -29,11 +29,6 @@ withDefaults(defineProps<{
   noMargin: false,
   extraText: '',
 })
-
-defineEmits<{
-  /** 点击标题时触发（用于跳转到列表详情等） */
-  (e: 'tap'): void
-}>()
 </script>
 
 <style scoped>

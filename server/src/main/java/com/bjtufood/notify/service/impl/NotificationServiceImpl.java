@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.result.PageResult;
-import com.bjtufood.common.util.PageUtil;
+import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.notify.dto.NotificationVO;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;

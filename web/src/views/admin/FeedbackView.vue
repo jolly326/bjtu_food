@@ -23,6 +23,20 @@ const searchQuery = ref('')
 
 // 类型文案统一收敛至 constants（工作台「待办明细」共用同一份，避免两处口径漂移）
 const typeLabel = FEEDBACK_TYPE_META
+
+/**
+ * 二级类型展示（DEV-01）：仅「功能建议」（type=suggestion）有值，idea=想法 / problem=问题。
+ * 与一级类型同格拼为「功能建议 · 想法」，避免出现「建议」与二级类型两处口径不一致。
+ * 后端字段可选（历史数据 / 其他类型均无值）→ 缺省不展示，不产生占位符。
+ * 列表 type 列宽相应由 120px 调至 170px（容纳拼合后的最长文案，12px 字 + 两侧单元格内边距）。
+ */
+const FEEDBACK_SUGGESTION = 'suggestion'
+const SUB_LABEL: Record<'idea' | 'problem', string> = { idea: '想法', problem: '问题' }
+function typeText(v: { type: string; sub?: 'idea' | 'problem' }): string {
+  const base = typeLabel[v.type] || v.type
+  const sub = v.type === FEEDBACK_SUGGESTION ? v.sub : undefined
+  return sub ? `${base} · ${SUB_LABEL[sub]}` : base
+}
 // 状态展示元数据（tag 类型 + 文案）统一收敛至 constants/index.ts（RF13）
 
 // 状态筛选（prelaunch-final-audit AUD-PM-13：处理后需可回看，避免「已处理」分支不可达）
@@ -304,7 +318,7 @@ async function copyReviewLink(reviewId?: number) {
       v-model:server-page-size="pageSize"
       @page-change="onPageChange"
       :columns="[
-        { prop: 'type', label: '类型', width: '120px', align: 'center' },
+        { prop: 'type', label: '类型', width: '170px', align: 'center' },
         { prop: 'related', label: '关联评价', width: '140px', align: 'center' },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'contact', label: '联系方式', width: '160px' },
@@ -320,7 +334,7 @@ async function copyReviewLink(reviewId?: number) {
       empty-text="暂无反馈"
     >
       <template #cell-type="{ row }">
-        <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeLabel[row.type] || row.type }}</span>
+        <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeText(row) }}</span>
       </template>
       <template #cell-related="{ row }">
         <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
@@ -363,7 +377,7 @@ async function copyReviewLink(reviewId?: number) {
     >
       <div v-if="detail" class="detail">
         <div class="detail-row"><span class="dl">类型</span>
-          <span class="dv"><span class="type-pill">{{ typeLabel[detail.type] || detail.type }}</span></span>
+          <span class="dv"><span class="type-pill">{{ typeText(detail) }}</span></span>
         </div>
         <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ submitterLabel(detail) }}</span></div>
         <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
@@ -464,7 +478,8 @@ async function copyReviewLink(reviewId?: number) {
 .status-tab { font-size: var(--font-sm); }
 .tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
 
-.type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); }
+/* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
+.type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
 .related { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-error-bg); color: var(--color-error); font-size: var(--font-xs); font-weight: var(--weight-medium); }
 .type-ico { width: 13px; height: 13px; }
 /* .act-ico 已收敛至 shared.css 公共类 */

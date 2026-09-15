@@ -66,15 +66,12 @@ const props = withDefaults(defineProps<{
   backable?: boolean
   /** 内容区是否用 scroll-view 包裹（内容超高时可滚动；默认普通 view） */
   scrollBody?: boolean
-  /** 是否接管弹层打开/关闭的焦点还原（默认开启，AuthSheet 等既有语义保持不变） */
-  manageFocus?: boolean
 }>(), {
   zToken: '--z-sheet',
   closable: false,
   title: '',
   backable: false,
   scrollBody: false,
-  manageFocus: true,
 })
 
 const emit = defineEmits<{
@@ -113,7 +110,8 @@ watch(
   () => props.visible,
   (v) => {
     if (v) {
-      if (props.manageFocus) captureTrigger()
+      // 焦点还原：打开前记住触发元素、关闭后还原（全调用点统一行为，无开关）
+      captureTrigger()
       nextTick(() => {
         maskShow.value = true
         sheetOpen.value = true
@@ -122,7 +120,7 @@ watch(
       maskShow.value = false
       sheetOpen.value = false
       dragOffset.value = 0
-      if (props.manageFocus) restoreFocus()
+      restoreFocus()
     }
   },
 )

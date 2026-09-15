@@ -66,9 +66,3 @@ export function normalizeImages(value: unknown): string[] {
     return text.split('|||').map(item => item.trim()).filter(Boolean).map(getImageUrl)
   }
 }
-
-/** 取行首图（normalizeImages 后取首项；兼容 images/image/icon 字段形态；F3 上提自 canteen 私有版） */
-export function firstImage(raw: RawRow | null | undefined): string {
-  if (!raw) return ''
-  return normalizeImages(raw.images ?? raw.image ?? raw.icon)[0] || ''
-}

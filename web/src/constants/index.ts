@@ -14,7 +14,8 @@
  *   前端不再登记（保留在常量表会形成「恒空筛选项」误导排查）。后端仍保留常量以兼容存量日志，
  *   故 actionText 对未登记值回落为原始串（存量历史日志可读，不删数据、不改后端契约）。
  */
-export const OPERATION_ACTION_META: Record<string, string> = {
+// 仅本文件自用（外部消费出口为 OPERATION_ACTION_OPTIONS / operationActionText），故不单独导出。
+const OPERATION_ACTION_META: Record<string, string> = {
   review_hide: '评价隐藏',
   review_delete: '评价删除',
   review_sec_state: '安检复核',
@@ -37,7 +38,8 @@ export const OPERATION_ACTION_OPTIONS = [
  * 操作日志对象类型元数据（唯一真源，同上）。
  * 与后端 `targetType` 取值同源：dish / stall / canteen / category / feedback / review / user。
  */
-export const OPERATION_TARGET_META: Record<string, string> = {
+// 同上：仅本文件自用（外部消费出口为 OPERATION_TARGET_OPTIONS / operationTargetText）。
+const OPERATION_TARGET_META: Record<string, string> = {
   dish: '菜品',
   stall: '档口',
   canteen: '食堂',

@@ -1,4 +1,4 @@
-package com.bjtufood.dish.service.impl;
+package com.bjtufood.dashboard.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.auth.entity.User;
@@ -7,11 +7,11 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.common.entity.OperationLog;
 import com.bjtufood.common.mapper.OperationLogMapper;
+import com.bjtufood.dashboard.dto.DashboardVO;
+import com.bjtufood.dashboard.service.StatsService;
 import com.bjtufood.dish.constant.DishConst;
-import com.bjtufood.dish.dto.DashboardVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
-import com.bjtufood.dish.service.StatsService;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -28,6 +28,9 @@ import java.util.Map;
  * <p>
  * 2026-09-14 用户拍板（Q-106）：工作台不含图表看板，前端不消费热度排行 / 趋势字段，
  * 故不再执行全表菜品聚合与逐日趋势查询，仅保留「待办 + 规模指标 + 近期操作」。
+ * <p>
+ * 2026-09-15 用户拍板：工作台域自 {@code dish} 包迁出至独立 {@code dashboard} 包，
+ * 仅包名/import 变化，统计口径与响应结构零变化。
  * <p>
  * 只读聚合，不加 @Transactional；每一项独立 try-catch 容错，保证工作台始终可加载。
  */

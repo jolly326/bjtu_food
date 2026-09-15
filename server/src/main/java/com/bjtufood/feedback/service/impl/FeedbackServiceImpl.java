@@ -8,7 +8,7 @@ import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.util.ParamValidator;
+import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
@@ -76,9 +76,18 @@ public class FeedbackServiceImpl implements FeedbackService {
                 throw new BusinessException("你已举报过该内容，我们会尽快处理，请勿重复提交");
             }
         }
+        // 二级分类 sub（DEV-01 补全落库）：仅 type=suggestion（提个想法）有效——
+        // 端上「想法/问题」二选一此前仅在请求中出现、未落库，现收敛为白名单并落库。
+        // provided 但不在 SUB_WRITE_WHITELIST → 400（ParamValidator 统一口径，不静默降级）；
+        // 未提供（null/空白）→ 按未填处理，落库 NULL。
+        // type != suggestion 时该值无效：整体忽略并置 null（不校验、不写库，避免跨类型污染）。
+        String sub = FeedbackConst.TYPE_SUGGESTION.equals(type)
+                ? ParamValidator.optionalInWhitelist(req.getSub(), FeedbackConst.SUB_WRITE_WHITELIST, "反馈二级分类")
+                : null;
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(type);
+        feedback.setSub(sub);
         feedback.setContent(sensitiveFilter.filter(req.getContent()));
         feedback.setContact(req.getContact());
         feedback.setRelatedType(req.getRelatedType());
@@ -119,7 +128,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String secState, String keyword, int page, int pageSize) {
-        int[] norm = com.bjtufood.common.util.PageUtil.normalize(page, pageSize);
+        int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
@@ -167,6 +176,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setUserId(f.getUserId());
         vo.setUserNickname(userMap.get(f.getUserId()));
         vo.setType(f.getType());
+        // 二级分类：仅 suggestion 有效（老数据/其他类型该列为 NULL，前端按「未分类」展示）
+        vo.setSub(f.getSub());
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));

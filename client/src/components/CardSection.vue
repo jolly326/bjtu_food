@@ -1,19 +1,9 @@
 <template>
+  <!-- 纯容器（卡片外壳）：不渲染分区标题，标题由调用方自行渲染 SectionTitle（4 调用点均如此） -->
   <view class="card-section">
-    <SectionTitle v-if="title" :title="title" noMargin />
     <slot />
   </view>
 </template>
-
-<script setup lang="ts">
-import SectionTitle from './SectionTitle.vue'
-
-withDefaults(defineProps<{
-  title?: string
-}>(), {
-  title: '',
-})
-</script>
 
 <style scoped>
 .card-section {
