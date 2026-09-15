@@ -12,6 +12,7 @@
  * 不依赖 store setup 顶层自动加载（WEB-02）。
  */
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
@@ -89,8 +90,30 @@ async function loadStats() {
   statItems.value = parts
 }
 
+const route = useRoute()
+
+/**
+ * 深链定位（2026-09-15，举报处置闭环）：由「反馈处理」页点击举报关联的「评价#id」跳转而来（`?rid=`），
+ * 进页后自动翻到该行所在页、滚入视口并高亮（交由 DataTable 的 highlightRowKey）；
+ * 目标评价不存在（如已删除）时提示且不高亮，不阻断列表正常使用。
+ */
+const highlightId = ref<number | null>(null)
+async function locateReview(raw: unknown) {
+  const rid = Number(raw)
+  if (!raw || Number.isNaN(rid)) { highlightId.value = null; return }
+  await loadList()
+  if (reviews.value.some((r) => Number(r.id) === rid)) {
+    highlightId.value = rid
+  } else {
+    highlightId.value = null
+    toast.error('该评价不存在或已删除')
+  }
+}
+
 onMounted(() => {
-  loadList()
+  // 深链定位优先（其内部自行 loadList）；无 rid 时走常规加载
+  if (route.query.rid) locateReview(route.query.rid)
+  else loadList()
   loadStats()
   // WEB-03：用户名 / 菜品名降级显示依赖的字典显式加载（域间独立，单域失败回落「用户#id」不影响列表）
   userStore.loadAll().catch(() => {})
@@ -105,6 +128,12 @@ watch(searchQuery, () => {
 })
 // 卸载时清理防抖定时器，避免组件销毁后回调仍触发（M4：定时器泄漏修复）
 onBeforeUnmount(() => clearTimeout(searchDebounce))
+
+// 同页再次跳入（如从反馈页连续点不同举报）时响应 rid 变化
+watch(() => route.query.rid, (v) => {
+  if (v) locateReview(v)
+  else highlightId.value = null
+})
 
 const detailReview = ref<any | null>(null)
 function openReviewDetail(r: any) { detailReview.value = r }
@@ -221,6 +250,7 @@ function getDishName(dishId: number | bigint): string {
       :rows="reviews"
       :loading="loading"
       :error="error"
+      :highlight-row-key="highlightId"
       actions-width="120px"
       empty-text="暂无评价"
     >

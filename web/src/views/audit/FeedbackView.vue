@@ -290,25 +290,13 @@ function goDishEdit(dishId?: number, dishName?: string) {
   })
 }
 
-async function copyReviewLink(reviewId?: number) {
+/**
+ * 关联评价一键直达（2026-09-15）：跳到「评价管理」并按 `rid` 自动翻页/滚入视口/高亮该评价，
+ * 由管理员在该页决定隐藏或删除（举报处置闭环）——替代原「复制标识」的临时手段。
+ */
+function goReviewManage(reviewId?: number) {
   if (reviewId == null) return
-  // AUD-PM-17：小程序无评价详情页，改为纯评价标识（避免被当作可打开的小程序路由）
-  const link = `review#${reviewId}`
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(link)
-    } else {
-      const ta = document.createElement('textarea')
-      ta.value = link
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
-    toast.success('评价标识已复制')
-  } catch {
-    toast.error('复制失败，请手动记录：' + link)
-  }
+  router.push({ path: '/dashboard/reviews', query: { rid: String(reviewId) } })
 }
 </script>
 
@@ -347,7 +335,13 @@ async function copyReviewLink(reviewId?: number) {
         <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeText(row) }}</span>
       </template>
       <template #cell-related="{ row }">
-        <span v-if="row.relatedType === 'review'" class="related">评价#{{ row.relatedId }}</span>
+        <button
+          v-if="row.relatedType === 'review'"
+          class="related"
+          v-press
+          :title="`评价#${row.relatedId} —— 点击去评价管理处置`"
+          @click="goReviewManage(row.relatedId)"
+        >评价#{{ row.relatedId }}</button>
         <button
           v-else-if="row.relatedType === 'dish'"
           class="link dish-name-cell"
@@ -398,8 +392,13 @@ async function copyReviewLink(reviewId?: number) {
         <div class="detail-row" v-if="detail.relatedType === 'review'">
           <span class="dl">关联对象</span>
           <span class="dv">
-            <span class="related">评价 #{{ detail.relatedId }}</span>
-            <button class="link" v-press @click="copyReviewLink(detail.relatedId)">复制标识</button>
+            <button
+              class="related"
+              v-press
+              :title="`评价#${detail.relatedId} —— 点击去评价管理处置`"
+              @click="goReviewManage(detail.relatedId)"
+            >评价 #{{ detail.relatedId }}</button>
+            <span class="muted">去评价管理处置</span>
           </span>
         </div>
         <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
@@ -495,6 +494,9 @@ async function copyReviewLink(reviewId?: number) {
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
 .related { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-error-bg); color: var(--color-error); font-size: var(--font-xs); font-weight: var(--weight-medium); }
+/* 举报类关联评价：可点直达评价管理（保持 pill 视觉；焦点环与既有按钮一致） */
+button.related { cursor: pointer; font: inherit; }
+button.related:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 /**
  * 关联菜品名（DEV-04）：列宽 140px（减两侧 --space-4 内边距 ≈ 108px 可用），
  * 名称可能较长（含已下架菜品），单元格内单行截断，避免撑高行高/挤压相邻列；

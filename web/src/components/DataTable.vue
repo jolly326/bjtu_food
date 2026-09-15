@@ -54,16 +54,21 @@ const props = withDefaults(
     serverPage?: number
     /** serverMode 下每页条数（v-model，≤ 后端上限 100） */
     serverPageSize?: number
+    /**
+     * 需要高亮并滚动定位的行主键（深链场景，如「反馈处理」→「评价管理」定位被举报评价）。
+     * 传 null（默认）时组件行为与视觉完全不变；非空时会自动翻到该行所在页、滚入视口并加左标高亮。
+     */
+    highlightRowKey?: number | string | null
   }>(),
   {
     loading: false, error: '', emptyText: '暂无数据', selectable: false, rowKey: 'id',
     selectedIds: () => [], rowClickable: false, emptyIcon: null, actionsWidth: '160px',
     pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10,
-    serverMode: false, serverTotal: 0, serverPage: 1, serverPageSize: 20,
+    serverMode: false, serverTotal: 0, serverPage: 1, serverPageSize: 20, highlightRowKey: null,
   },
 )
 
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { ArrowRight } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
@@ -175,10 +180,29 @@ function onServerPageChange(p: number, ps: number) {
   emit('update:serverPageSize', ps)
   emit('page-change', p, ps)
 }
+
+/**
+ * 深链定位（highlightRowKey）：非空时自动翻到该行所在页 → 行渲染后滚入视口（高亮由行类承担）。
+ * 传 null 时不做任何事（既有调用零影响）。放在脚本末尾以确保 sortedRows / page / pageSize 已初始化。
+ */
+const wrapRef = ref<HTMLElement | null>(null)
+watch(
+  () => props.highlightRowKey,
+  async (key) => {
+    if (key == null) return
+    if (props.pagination && !props.serverMode) {
+      const idx = sortedRows.value.findIndex((r) => String(rowKeyValue(r)) === String(key))
+      if (idx >= 0) page.value = Math.floor(idx / pageSize.value) + 1
+    }
+    await nextTick()
+    const el = wrapRef.value?.querySelector(`[data-row-key="${String(key)}"]`)
+    if (el instanceof HTMLElement) el.scrollIntoView({ block: 'center' })
+  },
+)
 </script>
 
 <template>
-  <div class="table-wrap">
+  <div class="table-wrap" ref="wrapRef">
     <!-- 三态 -->
     <div v-if="loading" class="state-box"><span class="spin" />加载中…</div>
     <div v-else-if="error" class="state-box state-err">{{ error }}，请刷新页面重试</div>
@@ -226,7 +250,11 @@ function onServerPageChange(p: number, ps: number) {
           <tr
             v-for="row in displayRows.rows"
             :key="rowKeyValue(row)"
-            :class="{ 'row-sel': selectable && isSelected(row) }"
+            :data-row-key="rowKeyValue(row)"
+            :class="{
+              'row-sel': selectable && isSelected(row),
+              'row-highlight': highlightRowKey != null && String(rowKeyValue(row)) === String(highlightRowKey),
+            }"
             :role="rowClickable ? 'button' : undefined"
             :tabindex="rowClickable ? 0 : undefined"
             :style="rowClickable ? { cursor: 'pointer' } : undefined"
@@ -376,6 +404,11 @@ function onServerPageChange(p: number, ps: number) {
 }
 .table tbody tr.row-sel {
   background: var(--table-row-active);
+}
+/* 深链定位高亮（反馈处理 → 评价管理定位被举报评价）：左侧主色标 + 选中同款底色，无动画（§4.3） */
+.table tbody tr.row-highlight {
+  background: var(--table-row-active);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 .table tbody tr:focus-visible {
   outline: 2px solid var(--color-primary);
