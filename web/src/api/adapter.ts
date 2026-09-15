@@ -1,4 +1,4 @@
-import type { Canteen, Dish, Review, SecState, Stall, User } from '@/types'
+import type { Canteen, Dish, Review, Stall, User } from '@/types'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[]; list?: T[] }
@@ -204,18 +204,9 @@ export function dishToApi(data: Partial<Dish>) {
 }
 
 /**
- * 安检状态归一化：仅接受后端 ReviewAdminVO.secState 的 'review'/'rejected'，
- * 其余（缺省/脏值，含旧后端未返回字段）按 'pass' 处理——存量评价均已过安检，不得误标待复核。
+ * 2026-09-15（取消人工复核）：原「安检状态归一化 / 筛选白名单」两个导出函数随内容机检策略调整退役
+ * （pass/review 均放行、仅 risky 拒绝，后台不再读取该字段，后端字段同源移除）。
  */
-export function normalizeSecState(v: unknown): SecState {
-  return v === 'review' || v === 'rejected' ? v : 'pass'
-}
-
-/** 筛选下拉字符串 → 服务端 secState 查询参数（白名单收窄：非法/空值归 ''，即全部不透传） */
-export function toSecFilter(v: unknown): SecState | '' {
-  return v === 'review' || v === 'rejected' || v === 'pass' ? v : ''
-}
-
 export function reviewToLegacy(raw: any): Review {
   return {
     id: raw.id,
@@ -224,7 +215,6 @@ export function reviewToLegacy(raw: any): Review {
     rating: raw.rating,
     content: raw.content || '',
     images: imagesToList(raw.images),
-    secState: normalizeSecState(raw.secState ?? raw.sec_state),
     is_hidden: raw.isHidden ?? raw.is_hidden ?? 0,
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),

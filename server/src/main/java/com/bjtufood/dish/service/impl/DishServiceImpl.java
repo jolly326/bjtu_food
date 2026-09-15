@@ -271,9 +271,9 @@ public class DishServiceImpl implements DishService {
     @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
-        // 计入口径（Q-110，2026-09-14 用户拍板）：仅 is_hidden=0 且 sec_state='pass' 的评价计入，
-        // 被机审/人工拦下（review/rejected）的内容完全不进统计；口径真源在 DishMapper.xml
-        // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏/机审回写）统一走本方法。
+        // 计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
+        // 机检 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
+        // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
     }
 

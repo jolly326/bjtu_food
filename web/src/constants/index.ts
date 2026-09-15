@@ -9,18 +9,19 @@
  * （ACTION_* 常量逐个对齐；后端新增动作时此处同步补登，否则列表单元格会回落为裸英文枚举）。
  *
  * 2026-09-14（P1-03 / WEB-08）对齐结果：后端原有 12 个常量，原前端仅登记 7 项、缺 5 项。
- * - 补登：review_sec_state 及字典域 4 项（字典域维护入口已整链删除，本次同步移除，见下）。
+ * - 补登：安检复核动作及字典域 4 项（字典域维护入口已整链删除，本次同步移除，见下）。
  * - `audit_approve` / `audit_reject`：随审核中心链路（Q-107：不新增页面、删除死代码）下线，
  *   前端不再登记（保留在常量表会形成「恒空筛选项」误导排查）。后端仍保留常量以兼容存量日志，
  *   故 actionText 对未登记值回落为原始串（存量历史日志可读，不删数据、不改后端契约）。
  * - 2026-09-15：字典域（后台已无维护入口）的 4 个动作与对应 targetType 一并移除，理由同上——
  *   后台已无产生该动作的入口，登记后会形成「恒空筛选项」误导排查；存量历史日志仍按原始串展示。
+ * - 2026-09-15（取消人工复核）：安检复核动作随后台人工复核职责取消一并移除，理由同上——
+ *   内容机检的放行态与待复核态均对客户端放行、仅风险项拒绝，后台已无产生该动作的入口。
  */
 // 仅本文件自用（外部消费出口为 OPERATION_ACTION_OPTIONS / operationActionText），故不单独导出。
 const OPERATION_ACTION_META: Record<string, string> = {
   review_hide: '评价隐藏',
   review_delete: '评价删除',
-  review_sec_state: '安检复核',
   dish_delete: '菜品删除',
   feedback_handle: '反馈处理',
   account_delete: '账号删除',
@@ -80,27 +81,12 @@ export function operationTargetLabel(target: string): string {
  * 前端契约不再读写（types/Dish 与 api/adapter 已同步移除映射）。
  */
 
-/** 内容安检状态：正常（评价/反馈共用，与后端 ReviewAdminVO.secState 契约一致） */
-export const SEC_PASS = 'pass'
-/** 内容安检状态：待复核 */
-export const SEC_REVIEW = 'review'
-/** 内容安检状态：已驳回 */
-export const SEC_REJECTED = 'rejected'
-
-/** 安检状态展示元数据（StatusTag 类型 + 文案）：评价审核 / 菜品评论 / 反馈三视图共用 */
-export const SEC_STATE_META: Record<string, { type: 'success' | 'warning' | 'danger'; text: string }> = {
-  [SEC_PASS]: { type: 'success', text: '正常' },
-  [SEC_REVIEW]: { type: 'warning', text: '待复核' },
-  [SEC_REJECTED]: { type: 'danger', text: '已驳回' },
-}
-
-/** 安检状态筛选下拉选项（'' = 全部，不透传后端）；「待复核」紧随全部，便于一键进入复核队列 */
-export const SEC_FILTER_OPTIONS = [
-  { value: '', label: '全部安检状态' },
-  { value: SEC_REVIEW, label: '待复核' },
-  { value: SEC_PASS, label: '正常' },
-  { value: SEC_REJECTED, label: '已驳回' },
-]
+/**
+ * 注（2026-09-15 拍板：取消人工复核）：原「内容安检状态」三态常量（正常 / 待复核 / 已驳回）、
+ * 其展示元数据与筛选下拉选项已整体删除——内容机检的放行态与待复核态均对客户端放行、
+ * 仅风险项拒绝，后台已无人工复核动作，评价管理 / 反馈处理两页均不展示、不筛选安检状态
+ * （后端字段同源移除）。保留在此会形成「恒空筛选项」误导排查，故不留空壳映射。
+ */
 
 /**
  * 反馈类型展示文案（唯一真源，反馈列表消费）。

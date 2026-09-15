@@ -1,5 +1,7 @@
-# 产品定型总纲 v1.4（2026-09-15）
+# 产品定型总纲 v1.5（2026-09-15）
 
+> **v1.5 变更（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：① **内容安全判定归一为二态**——机检 `pass` / `review`（疑似）**一律放行**，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）与图片违规 `87014` 拒绝（HTTP `400`、不落库）；**取消人工复核**（无复核队列、无放行 / 驳回动作）。② **内容安全态 `sec_state` 全链退役**——`review.sec_state` / `user_feedback.sec_state` 两列（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理）、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、评价 / 反馈列表 `secState` 筛选入参、VO / DTO 的 `secState` 字段、`viewerId` 一并删除；**评价可见性与评分聚合口径收敛为仅 `is_hidden=0` 单一判据**。③ **管理端 IA 由 3 项改为 4 项**——删除 `AuditManageView`（「内容审核」聚合页），`ReviewAuditView` 改名 `ReviewManageView`（`/dashboard/reviews`，**评价管理**，只做隐藏 / 显示 / 删除），`FeedbackView` 独立为**反馈处理**页（`/dashboard/feedback`）；一级导航 = 信息管理 / 评价管理 / 反馈处理 / 用户与系统；旧 `/dashboard/audit` 兜底重定向。④ **保留的事后处置**：`is_hidden`、`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`、`DELETE /reviews/{id}`；**小程序端删除 `secState` 字段与「审核中」提示，保留 `isHidden`「已被隐藏」**。⑤ **一次性重算脚本 `db/fix_rating_by_sec_state.sql` 已删除**（前提列退役，原 Q-120 授权作废）。
+>
 > **v1.4 变更（2026-09-15 用户拍板，权威 `project_spec.md` §7.22 第 1 条：**撤销**原 Q-117「后台保留品类作归类用途」口径）**：① **品类（category）维度整链删除**——`category` 表、`dish.category_id` 列与 `idx_dish_category` 索引、`/admin/categories` 全链（Controller / Service / Mapper / 实体）、Web 品类维护页（`CategoryManage`）与首页配置入口（`HomeConfigView`）、菜品表单分类下拉、菜品列表品类筛选与分类列、端上 `api/category.ts` **全部移除**；**数据表基线 12 → 11**；② **定型口径**：**菜品按食堂 / 档口归属，不存在分类维度**（端上无、后台亦无）——原「品类只在后台存在、只服务管理员归类」的边界表述**整体作废**；③ 本文档数据模型表 / 关系式 / 接口清单同步收敛，`/admin/categories` 列入「已删端点」；④ **待对齐**：`db/schema.sql` / `seed_data.sql` 的品类残留（建表 / 列 / 索引 / 种子数据）与 `OperationLogConst` 的 `category_*` 四值尚未收口，登记见 `project_spec.md` §8「待收尾」。
 >
 > **v1.3 变更（对齐 `project_spec.md` §7.23 第 4 条 + 2026-09-15 阶段4 用户批准）**：① **`dish.audit_status` 全量退役**——**列与索引已删除**（`schema.sql` 末尾幂等段 `drop_dish_audit_status_column`；`DishConst.AUDIT_APPROVED` / `AuditStatusConst` / `normalize_dish_audit_status.sql` 一并删除）；**公开查询不再按该列过滤，`status='on'` 即公开展示**——原「列保留、仅作公开查询过滤」「存量非 `approved` 由归一脚本处理」口径作废；`dish.reject_reason` 保留为退役历史列（恒 NULL）；② **`canteen.created_by` / `stall.created_by` 两列退役**（DROP 归入 `drop_canteen_stall_entity_fields`）；③ **`FeedbackAdminVO` 新增 `relatedDishName`**（仅 `relatedType='dish'` 填充，服务端批量查询、含已下架菜品），并登记跨端边界：**Web 不得调用公开 `GET /dishes/{id}` 取菜品名**；④ **Web 目录重组**——`web/src/views/` 收敛为 `audit/ content/ system/ layout/` 四目录（原 `admin/ canteen/ user/` 已合并，**路由 path / name 未变**）；⑤ **npm 为唯一包管理器**（仓库仅 `package-lock.json`，禁引入其他锁文件）；⑥ 测试资产登记（见 `architecture.md` §7）；⑦ seed 素材收敛：`uploads/images/seed/` 仅保留 Swagger 示例引用的 `tomato-egg.jpg`。
@@ -50,7 +52,7 @@
 |---|---|---|
 | **游客** | 打开小程序 → `wx.login` 静默登录自动建号（`verified=0`） | 浏览 / 搜索 / 看详情 / 提交反馈（可配图）；**不能**写评价、点赞、看系统通知 |
 | **认证学生** | 学号 + `@bjtu.edu.cn` 邮箱验证码（`verified=1`） | 游客全部 + 写评价（可配图）、评价有用、删除本人评价、系统通知与回执 |
-| **管理员 ADMIN**（`user.role` 仅 `student`/`admin` 两层数据语义，无 `SUPER_ADMIN` 权限分层） | Web 管理后台**无登录体系**：请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`AdminTokenFilter`，未配置 fail-closed 403），打开即用 | 菜品录入（**录入即生效、无菜品审核**）与上下架；食堂 / 档口为筛选属性字典，**随菜品按名 upsert 自动入库**，无独立建档 / 删除（仅新增 / 改名 / 列表查看）；反馈处理（**唯一运营闭环**，回复必填、不采纳 / 退回必填 `reject_reason`）；评价隐藏与安检复核；学生账号管理；操作日志 |
+| **管理员 ADMIN**（`user.role` 仅 `student`/`admin` 两层数据语义，无 `SUPER_ADMIN` 权限分层） | Web 管理后台**无登录体系**：请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`AdminTokenFilter`，未配置 fail-closed 403），打开即用 | 菜品录入（**录入即生效、无菜品审核**）与上下架；食堂 / 档口为筛选属性字典，**随菜品按名 upsert 自动入库**，无独立建档 / 删除（仅新增 / 改名 / 列表查看）；反馈处理（**唯一运营闭环**，回复必填、不采纳 / 退回必填 `reject_reason`）；评价**事后处置**（隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 v1.5 变更）；学生账号管理；操作日志 |
 
 **状态迁移**
 ```
@@ -71,7 +73,7 @@
 | 主包 | 首页 | `pages/home/index` | 顶部搜索框（跳 `find`）、筛选（食堂 / 价格 / 排序；**品类维度已整链删除、无品类筛选**，spec §7.19 第 3 条与 §7.22 第 1 条）、菜品瀑布流（综合热度排序，分页加载，距离由端上本地计算）、无结果时展示贡献卡片 |
 | 主包 | 搜索 | `pages/find/index` | **发现态**（无词 / 无筛选）：搜索历史（≤4 条，可清空与单条删）+ 猜你想搜；**结果态**：结果列表 + 筛选 + 无结果引导（换词提示 + 去反馈「推荐菜品」）；请求中静默、请求失败显示「加载失败 · 点击重试」 |
 | 主包 | 我的 | `pages/mine/index` | 用户卡（默认头像占位、昵称 / 游客编号；游客点 → 认证弹层，认证点 → 编辑资料）、**一行 3 列宫格**（意见反馈 / 系统通知 / 我的评价，通知未读红点）、底部信息区（版本 / 学校 / **隐私胶囊 + 注销账号**） |
-| detail | 菜品详情 | `pages/detail/dish/index` | 菜品图、名称、价格（原价 / 促销价）、档口 · 食堂 · 楼层 · 窗口号、辣度 / 风味 / 菜系、评分与分布、评价列表（有用数优先，含配图与「审核中」标）、写评价入口（需认证）、「有用」点赞（需认证，未认证 4031 弹 `AuthSheet`）、「信息有误？」纠错入口、**信息更新于 X（dish.updated_at，今日 / 昨天 / N 天前 / 具体日期）**、进入时上报浏览埋点 |
+| detail | 菜品详情 | `pages/detail/dish/index` | 菜品图、名称、价格（原价 / 促销价）、档口 · 食堂 · 楼层 · 窗口号、辣度 / 风味 / 菜系、评分与分布、评价列表（有用数优先，含配图；**无「审核中」标**——2026-09-15 取消人工复核后仅保留 `isHidden`「已被隐藏」标注）、写评价入口（需认证）、「有用」点赞（需认证，未认证 4031 弹 `AuthSheet`）、「信息有误？」纠错入口、**信息更新于 X（dish.updated_at，今日 / 昨天 / N 天前 / 具体日期）**、进入时上报浏览埋点 |
 | feedback | 意见反馈 | `pages/feedback/index` | 反馈类型（建议 / 新增菜品 / 纠错 / 举报等）、文本 + 配图 ≤3（压缩后上传）、游客可提交、提交后经安检入库，管理员处理 → 站内回执 |
 | notifications | 系统通知 | `pages/notifications/index` | 需认证；反馈回执与系统通知列表、已读标记 |
 | my-reviews | 我的评价 | `pages/my-reviews/index` | 本人评价列表（分页、删除、空态双口径），删除后菜品评分刷新 |
@@ -85,12 +87,12 @@
 ## 4. 核心流程
 
 1. **浏览 / 搜索**：首页（筛选）→ 瀑布流 → 详情（**2026-09-15 修订：原「首页（品类 / 筛选）」的品类入口已随品类维度整链删除移除，见 §3 与 v1.4 变更**）；搜索页发现态 → 结果态（筛选）→ 详情。请求中静默、失败可重试、无结果走引导。
-2. **评价**：认证用户 → 星 + 文 + 图（≤3）→ 后端 `msgSecCheck`（scene=2）→ `pass` 立即对他端可见；`review` 仅本人可见（标「审核中」）待后台复核；`risky` 拦截并提示。
+2. **评价**：认证用户 → 星 + 文 + 图（≤3）→ 后端 `msgSecCheck`（scene=2）→ `pass` **与 `review`（疑似）均立即放行可见**（**无人工复核、无「审核中」态**，见 v1.5 变更）；`risky` 拦截并提示（不落库）。
 3. **反馈**：游客亦可提交 → 文本 `msgSecCheck`（scene=2）、图片 `imgSecCheck` → 入库 → 管理员处理：**回复必填**；不采纳 / 退回必填 `reject_reason` → 生成站内通知回执（游客不投递、不阻塞）。
 4. **认证**：学号 → 60s 限频发送验证码（10 分钟有效）→ 校验 → 绑定邮箱与微信 → `verified=1` → 刷新 token。
 5. **注销**：底部入口 → 二次确认（明示不可恢复）→ `DELETE /auth/account` 匿名化 → 本地清态 → 新游客态。
-6. **通知回执**：管理员处理反馈 / 复核评价 → `notification` → 通知中心 → 已读标记 + 未读红点。
-7. **管理端信息维护**：菜品录入（含别名；食堂 / 档口按名 upsert 自动入库，**录入即生效、无独立审核环节**）→ 上下架（下架 = 客户端完全不可见、评价保留）→ 反馈处理（唯一运营闭环）→ 评价隐藏 / 安检复核 → 操作日志留痕。
+6. **通知回执**：管理员处理反馈 → `notification` → 通知中心 → 已读标记 + 未读红点。（**评价侧无审核结论通知**——2026-09-15 取消人工复核后已无复核动作，见 v1.5 变更。）
+7. **管理端信息维护**：菜品录入（含别名；食堂 / 档口按名 upsert 自动入库，**录入即生效、无独立审核环节**）→ 上下架（下架 = 客户端完全不可见、评价保留）→ 反馈处理（唯一运营闭环）→ 评价**事后处置**（隐藏 / 显示 / 删除，**无安检复核**）→ 操作日志留痕。
 
 ---
 
@@ -102,16 +104,17 @@
 | `canteen` | name, images, location, description, latitude, longitude, sort_order | 食堂（**筛选属性字典**：实体语义列 `status`/`audit_status`/`reject_reason` 与归属列 `created_by` 均已下线；仅新增 / 改名 / 列表查看，无删除；随菜品 upsert 自动建档） |
 | `stall` | canteen_id, name, images, location, floor, window_no, description, sort_order | 档口（楼层 / 窗口号保留；**仅为菜品筛选属性字典**，`business_hours`、实体语义列与 `created_by` 已下线） |
 | `dish` | stall_id, name, **alias**, price, original_price, promo_price, description, images, tags, region, spice_level, status, reject_reason†, created_by, view_count, avg_rating, rating_count | 菜品；**金额一律「分」**；`alias` 逗号分隔供搜索；`region` = 风味 / 菜系（非校区）；`serve_period`/`limited`/`portion`/`audit_status`/**`category_id`** 已下线；`status=off` 客户端不可见（**`status='on'` 即公开展示，菜品无独立审核、公开查询不按审核列过滤**）；† `reject_reason` 为**退役历史列**（保留、恒 NULL，语义已迁至 `user_feedback.reject_reason`） |
-| `review` | user_id, dish_id, rating, content, images, useful_count, **sec_state**, is_hidden | 评价（一人一菜一评）；`review.tags` 已下线；`sec_state`：`pass/review/rejected`（review/rejected 对非作者不可见）；配图 ≤3 |
+| `review` | user_id, dish_id, rating, content, images, useful_count, is_hidden | 评价（一人一菜一评）；`review.tags` 已下线；**`sec_state` 列已全链退役（2026-09-15 取消人工复核）**，评价可见性唯一判据 = `is_hidden=0`；配图 ≤3 |
 | `review_useful` | user_id, review_id | 评价「有用」标记（唯一性由业务保证） |
 | `notification` | user_id, type, title, content, related_id, is_read | 站内通知 / 反馈回执（`feedback_handle` 为唯一在产类型） |
-| `user_feedback` | user_id, type, **sub**, content, images, **sec_state**, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；**`sub` = 二级类型 `idea`/`problem`（仅 `suggestion` 有效，写入白名单、非法 400，后台展示「建议·想法 / 建议·问题」，不新增筛选维度）**；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
+| `user_feedback` | user_id, type, **sub**, content, images, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；**`sub` = 二级类型 `idea`/`problem`（仅 `suggestion` 有效，写入白名单、非法 400，后台展示「建议·想法 / 建议·问题」，不新增筛选维度）**；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
 | `email_verification_code` | email, code_hash, purpose, expires_at, used_at | 认证验证码（`code_hash` 存储） |
 | `view_log` | user_id, target_type, target_id | 浏览埋点（热度输入；「猜你喜欢」接口已下线，足迹仅作数据留存） |
 | `operation_log` | admin_id†, action, target_type, target_id, ip | 后台操作审计（AOP 埋点）；† `admin_id` 已停写（单口令即单人，不追究操作人身份） |
 
 **关系**：`canteen 1─n stall 1─n dish`；`dish 1─n review 1─n review_useful`；`user 1─n {review, review_useful, notification, user_feedback, view_log}`。**~~`dish.category_id → category`~~ 已随品类维度整链删除移除（2026-09-15，`category` 表与本表去 `category_id`，见 v1.4 变更）**。
 **全局约束**：金额以「分」存储与传输；无外键（应用层保证）；评价 / 反馈配图 ≤3 张（COS 绝对地址 JSON）。
+**已下线列（2026-09-15 用户拍板「取消人工复核」）**：`review.sec_state` / `user_feedback.sec_state`（原三态安检态 `pass`/`review`/`rejected`）——**随人工复核取消失效并全链退役**，CREATE TABLE 不再创建、存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理（可重跑）；**表基线仍 11 张（本次为纯列级变更）**；`SecStateConst` / 复核端点 / VO·DTO 的 `secState` 字段 / 列表筛选入参同批删除，一次性重算脚本 `db/fix_rating_by_sec_state.sql` 已删除（见 v1.5 变更）。
 
 ---
 
@@ -119,8 +122,8 @@
 
 **公开 / 游客可读**：`GET /canteens`、`/canteens/all`、`/dishes`（搜索 / 筛选 / 排序，keyword 命中 name 或 alias）、`/dishes/hot-search`、`/dishes/{id}`、`POST /auth/wechat-login`、`POST /feedback`（公开提交）。**已删端点（勿再引用）**：`/dishes/hot|new|promotions|rising|recommend`（2026-09-14 端上零消费下线）、`/categories` 与 `/dishes/{dishId}/reviews`（2026-09-15 三端零调用删除，评价走 `GET /reviews?dishId=`）。
 **登录态**：`POST /dishes/{id}/view`、`POST /reviews`、`DELETE /reviews/{id}`、`POST /reviews/{id}/useful`（**需 `verified=true`**，未认证 4031）、`GET /my/reviews`、`GET /my/notifications`、`/my/notifications/unread-count`、`PUT /my/notifications/{id}/read`、`GET|PUT /auth/profile`、`POST /auth/email-code`、`POST /auth/verify-email`、`DELETE /auth/account`（注销）、`POST /upload/images`（fileId→COS URL）、`POST /upload/image`（multipart，管理端用）。
-**管理端 `/admin/**`**（无登录体系，`X-Admin-Token` 口令把关）：`dishes`（含食堂 / 档口按名 upsert）、`/canteens`、`/stalls`、`/reviews`（含 `secState` 筛选与 `{id}/sec-state`、`{id}/hide`）、`feedbacks`（处理结论 `outcome`，`rejected` 必填 `reject_reason`）、`users`、`operation-logs`。**已删端点（勿再引用）**：`/admins`（管理员账号管理）、`/audit/**`（实体审核）、`/auth/admin/login`、**`/categories`（品类维度整链删除；2026-09-15 用户撤销原 Q-117「后台保留归类用途」口径，`category` 表 / `dish.category_id` / Web 品类维护页一并移除，spec §7.22 第 1 条）**、**`/dashboard`（工作台总览；2026-09-15 用户拍板「去工作台」，页面与接口一并删除，spec §0.4.1）**。
-**管理后台信息架构（2026-09-15 更新）**：**默认落地页 = 信息管理 · 菜品页 `/dashboard/content?tab=dish`**；**无「全局聚合看板」**——待办可见性由「内容审核」入口徽标（待处理反馈数）+ 各业务页行内统计承担，近期操作由操作日志页承载。
+**管理端 `/admin/**`**（无登录体系，`X-Admin-Token` 口令把关）：`dishes`（含食堂 / 档口按名 upsert）、`/canteens`、`/stalls`、`/reviews`（**`{id}/hide` 隐藏·显示 / `DELETE {id}` 删除——均为事后处置**；原 `secState` 筛选与 `{id}/sec-state` 端点已随 2026-09-15「取消人工复核」删除）、`feedbacks`（处理结论 `outcome`，`rejected` 必填 `reject_reason`）、`users`、`operation-logs`。**已删端点（勿再引用）**：`/admins`（管理员账号管理）、`/audit/**`（实体审核）、`/auth/admin/login`、**`/categories`（品类维度整链删除；2026-09-15 用户撤销原 Q-117「后台保留归类用途」口径，`category` 表 / `dish.category_id` / Web 品类维护页一并移除，spec §7.22 第 1 条）**、**`/dashboard`（工作台总览；2026-09-15 用户拍板「去工作台」，页面与接口一并删除，spec §0.4.1）**。
+**管理后台信息架构（2026-09-15「取消人工复核」后更新；一级导航 4 项）**：**信息管理** `/dashboard/content`（含菜品详情 `/dashboard/content/dishes/:dishId`）/ **评价管理** `/dashboard/reviews`（`ReviewManageView`，隐藏·显示·删除 = 事后处置）/ **反馈处理** `/dashboard/feedback`（`FeedbackView`，唯一运营闭环）/ **用户与系统** `/dashboard/system`（用户 + 操作日志）；**默认落地页 = 信息管理 · 菜品页 `/dashboard/content?tab=dish`**；**无「全局聚合看板」**——待办可见性由「反馈处理」入口徽标（待处理反馈数）+ 各业务页行内统计承担，近期操作由操作日志页承载。**原「内容审核」聚合页（`AuditManageView`）与 `/dashboard/audit` 路由已删除**，旧深链兜底重定向（`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`）。
 
 **错误码（固定）**：`200 / 400 / 401 / 403 / 4031 / 500`；安检违规、违规图片、未配置存储等一律 **400**；游客触发需认证写操作 **4031**。
 
@@ -130,9 +133,9 @@
 
 - **文本**：`msgSecCheck` v2（`content`≤2500 字、`openid`、`scene`、`version=2`）——`scene=1` 昵称，`scene=2` 评价与反馈。
 - **图片**：`imgSecCheck`（≤1MB、最长边 ≤1334，前端 `wx.compressImage` 压缩后上传；87014 = 违规拦截）。
-- **判定**：以 `result.suggest` 为准（**不得只看 errcode**）——`pass` 放行 / `review` 进人工复核（评价对他端不可见）/ `risky` 拦截。未知值 fail-closed 按 risky；安检上游异常（已配置凭据时）fail-closed 返回 500；未配置凭据（本地开发）跳过；`openid` 为 NULL 的历史账号跳过检测。
+- **判定（2026-09-15 归一为二态、无人工复核）**：以 `result.suggest` 为准（**不得只看 errcode**）——`pass` **与 `review`（疑似）均放行**（`SecSuggest.fromValue("review") → PASS`）/ `risky` 拦截（HTTP `400`、不落库）。未知 / 缺失值 fail-closed 按 risky（拦 `400`）；安检上游异常（已配置凭据时）fail-closed 返回 500；未配置凭据（本地开发）跳过；`openid` 为 NULL 的历史账号跳过检测。**机检结论不落库、不构成可见性闸门**（评价可见性唯一判据 `is_hidden=0`）。
 - **链路**：`wx.cloud.uploadFile` → 云存储 fileID → 后端 `tcb/batchdownloadfile` 拉取 → `imgSecCheck` → 转存 **COS**（永久）→ 返回 URL；`access_token` 用 stable_token 缓存。
-- **复核**：管理后台按 `secState=review` 筛选，放行（`pass`）/ 驳回（`rejected`），均二次确认并埋操作日志。
+- **复核（已废止，2026-09-15）**：~~管理后台按 `secState=review` 筛选，放行（`pass`）/ 驳回（`rejected`）~~ ——**取消人工复核**：`secState` 列与复核端点全链退役，管理端不设复核队列，仅保留事后处置（隐藏 / 显示 / 删除）并埋操作日志。
 
 ---
 
@@ -174,7 +177,7 @@
 
 ## 12. 默认口径（未单独拍板、按现状固化的默认项；有异议请指出后修订）
 
-1. 评价列表默认按**最新**排序，可切「有用」；评价按 `is_hidden=0 且 sec_state=pass`（或本人）对外可见。
+1. 评价列表默认按**最新**排序，可切「有用」；评价按 **`is_hidden=0`**（或本人视角）对外可见——**安检不构成可见性闸门**（2026-09-15 取消人工复核、`sec_state` 已全链退役，见 v1.5 变更与 spec §7.24）。
 2. 头像**不支持上传**，全站使用默认占位头像（`user.avatar` 允许站内 / cloud 地址但产品无上传入口）。
 3. 系统通知为**认证专属**（游客入口直达、**不弹认证引导、静默处理**——无个人通知或请求被拒时不呈现错误态/认证引导，仅 `verified=true` 展示「暂无通知」轻提示，游客不拉未读数；对齐 spec §5.y.4，2026-09-15 DOC-12 修订，原「入口直达提示认证」表述作废）。
 4. 反馈类型写入白名单 = `suggestion` / `add` / `error` / `report`（`bug` / `other` 为历史遗留枚举位，无生产者、禁止新增），举报复用该表并置 `related_type='review'`。

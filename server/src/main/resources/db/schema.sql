@@ -23,9 +23,11 @@
 --          列与相关索引（idx_dish_audit、idx_dish_heat 中的该列）同批移除；
 --        · 上述存量库清理均由文件末尾幂等 DROP 段完成（可重跑）；
 --        · dish.reject_reason / dish.created_by、review / user_feedback 的审核类列保留（后两者见第 5 条）。
---   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
---      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
---      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
+--   5. UGC 内容安全（2026-09-13 产品定稿 + 2026-09-15 用户拍板「取消人工复核」）：
+--      review / user_feedback 支持配图（images JSON，配图经 COS 转存后以 COS 绝对 URL 存库）；
+--      内容安全机检结果（sec_state：pass/review/rejected）**已全链退役**——机检 pass/review 一律放行、
+--      risky 直接拒绝（不入库），无人工复核队列，故 CREATE TABLE 不再创建该列，
+--      存量库由文件末尾 drop_sec_state_columns 幂等段清理（可重跑）。
 --   6. 菜品品类整链退役（2026-09-15 用户拍板）：category 表与 dish.category_id 列（含单列索引
 --      idx_dish_category）不再创建（端上零呈现、仅 Web 自用的不可见第三维度）；
 --      存量库由文件末尾 drop_category_chain 幂等段清理（可重跑）。
@@ -153,7 +155,7 @@ CREATE TABLE IF NOT EXISTS `review`
     `rating`     INT          NOT NULL DEFAULT 0 COMMENT '评分（1-5星）',
     `content`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '评价内容',
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）',
-    `sec_state`  VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）',
+    -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -215,7 +217,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `sub`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '二级分类（仅 type=suggestion 有效）：idea=想法/problem=问题；其他类型为 NULL',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
-    `sec_state`    VARCHAR(16)  NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）',
+    -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
     `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
@@ -545,12 +547,14 @@ DELIMITER ;
 CALL `add_user_wechat_auth`();
 DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
 
--- UGC 内容安全列幂等迁移（2026-09-13 产品定稿：评价/反馈支持配图，全部 UGC 过微信内容安全检测）：
--- review / user_feedback 补齐 images（配图 URL 列表 JSON）与 sec_state（内容安全状态），
+-- UGC 配图列幂等迁移（2026-09-13 产品定稿：评价/反馈支持配图）：
+-- review / user_feedback 补齐 images（配图 URL 列表 JSON）；
 -- 新库 CREATE TABLE 已含该列；旧库幂等补齐，列定义与 CREATE 保持一致，不破坏既有数据。
-DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+-- 注（2026-09-15）：本段原同时补齐的 sec_state 列已随「取消人工复核」全链退役，
+-- 不再作为「补齐目标」写入，改由文件末尾 drop_sec_state_columns 幂等段落清理（先建后删会互相打架）。
+DROP PROCEDURE IF EXISTS `add_review_ugc_images`;
 DELIMITER $$
-CREATE PROCEDURE `add_review_ugc_sec_fields`()
+CREATE PROCEDURE `add_review_ugc_images`()
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
@@ -559,22 +563,14 @@ BEGIN
         ALTER TABLE `review`
             ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）';
     END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'sec_state'
-    ) THEN
-        ALTER TABLE `review`
-            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；review/rejected 对他端不可见，作者本人可见）';
-    END IF;
 END$$
 DELIMITER ;
-CALL `add_review_ugc_sec_fields`();
-DROP PROCEDURE IF EXISTS `add_review_ugc_sec_fields`;
+CALL `add_review_ugc_images`();
+DROP PROCEDURE IF EXISTS `add_review_ugc_images`;
 
-DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_images`;
 DELIMITER $$
-CREATE PROCEDURE `add_feedback_ugc_sec_fields`()
+CREATE PROCEDURE `add_feedback_ugc_images`()
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
@@ -583,18 +579,10 @@ BEGIN
         ALTER TABLE `user_feedback`
             ADD COLUMN `images` VARCHAR(1024) NULL DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）';
     END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'sec_state'
-    ) THEN
-        ALTER TABLE `user_feedback`
-            ADD COLUMN `sec_state` VARCHAR(16) NOT NULL DEFAULT 'pass' COMMENT '内容安全状态：pass/review/rejected（review=机检待人工复核，rejected=人工复核不通过；仅管理端复核标记，无公开展示）';
-    END IF;
 END$$
 DELIMITER ;
-CALL `add_feedback_ugc_sec_fields`();
-DROP PROCEDURE IF EXISTS `add_feedback_ugc_sec_fields`;
+CALL `add_feedback_ugc_images`();
+DROP PROCEDURE IF EXISTS `add_feedback_ugc_images`;
 
 -- 反馈处理结论列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 5 条）：
 -- user_feedback.reject_reason（不采纳/退回原因，1~200 字）：管理端处理结论 outcome=rejected 时必填，
@@ -887,5 +875,38 @@ END$$
 DELIMITER ;
 CALL `drop_category_chain`();
 DROP PROCEDURE IF EXISTS `drop_category_chain`;
+
+-- 字段下线（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+--   review.sec_state 与 user_feedback.sec_state 同批退役。
+--   背景：机检 pass/review 一律直接放行、仅 risky 拒绝（不落库），不再有「待人工复核」语义，
+--   该列恒为单值、属死重；后端同批移除实体字段（Review/Feedback）、VO 字段
+--   （ReviewVO/ReviewAdminVO/FeedbackAdminVO）、Mapper 过滤条件与查询列、SecStateConst、
+--   管理端复核端点 PUT /admin/reviews/{id}/sec-state 及其 Service 方法、
+--   OperationLogConst.ACTION_REVIEW_SEC_STATE，列表查询的 secState 过滤入参一并删除。
+--   注意：is_hidden 与事后处置能力（PUT /admin/reviews/{id}/hide、DELETE /admin/reviews/{id}、
+--         DELETE /reviews/{id}）**保留**——举报→下架通道不受影响。
+--   本段幂等（先判存在再 DROP），可重跑、不影响既有数据（列无索引，DROP COLUMN 无连带对象）。
+--   历史一次性数据修正脚本 fix_rating_by_sec_state.sql 已随本列退役一并删除（口径不再引用该列）。
+DROP PROCEDURE IF EXISTS `drop_sec_state_columns`;
+DELIMITER $$
+CREATE PROCEDURE `drop_sec_state_columns`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `review` DROP COLUMN `sec_state`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'sec_state'
+    ) THEN
+        ALTER TABLE `user_feedback` DROP COLUMN `sec_state`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_sec_state_columns`();
+DROP PROCEDURE IF EXISTS `drop_sec_state_columns`;
 
 SET FOREIGN_KEY_CHECKS = 1;

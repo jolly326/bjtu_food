@@ -28,7 +28,9 @@ import java.util.function.Supplier;
  * <p>
  * 判定口径（红线）：
  * <ul>
- *   <li>文本以 {@code result.suggest} 三态判定，不得只看 errcode（errcode=0 仅代表调用成功）；</li>
+ *   <li>文本以 {@code result.suggest} 判定，不得只看 errcode（errcode=0 仅代表调用成功）；
+ *       2026-09-15 用户拍板「取消人工复核」后归一为二态：pass/review → 放行，risky → 拒绝
+ *       （归一发生在 {@link SecSuggest#fromValue} 判定入口，业务侧只需按 RISKY 判拒绝）；</li>
  *   <li>图片以 errcode 判定：0=通过，87014=违规，其余=调用失败 fail-closed；</li>
  *   <li>risky 统一在本服务拦截为 400「内容包含违规信息，请修改后重试」，文案不散落调用方；</li>
  *   <li>上游不可达/调用失败 fail-closed（500），保证入库内容必过机审（产品定稿「全部 UGC 过检」）；</li>
@@ -267,7 +269,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             return r;
         });
 
-        // 红线：以 result.suggest 三态判定，不只看 errcode
+        // 红线：以 result.suggest 判定，不只看 errcode；review 已在 SecSuggest.fromValue 归一为 PASS（放行）
         Object result = resp.get("result");
         String suggest = null;
         if (result instanceof Map<?, ?> resultMap) {

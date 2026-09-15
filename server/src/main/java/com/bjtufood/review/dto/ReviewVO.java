@@ -43,14 +43,6 @@ public class ReviewVO {
     @Schema(description = "评价配图 URL 列表（COS 绝对地址，≤3 张；无图返回空列表）")
     private List<String> images;
 
-    /**
-     * 内容安全状态：pass / review。
-     * 仅当查看者=作者本人时可能返回 review（机检待人工复核，前端提示「审核中」）；
-     * 他端可见的评价恒为 pass（review/rejected 已在后端过滤，不外泄审核态）。
-     */
-    @Schema(description = "内容安全状态：pass/review（review 仅作者本人可见，前端提示「审核中」）")
-    private String secState;
-
     /** 配图 JSON 原文（mapper 直填，service 层解析为 images；不对外输出） */
     @JsonIgnore
     @Schema(hidden = true)

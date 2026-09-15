@@ -30,9 +30,9 @@
 com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security（昵称变更过 msgSecCheck scene=1）
 ├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
-├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
+├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images；**无安检态字段**，见 §2.5）
 ├── canteen/     # 食堂/档口
-├── feedback/    # 用户反馈（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
+├── feedback/    # 用户反馈（提交过 msgSecCheck scene=2；images；**无安检态字段**，见 §2.5）
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
 ├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
@@ -63,10 +63,10 @@ com.bjtufood/
 - 敏感信息：VO 不返回 openid；updateProfile 仅更新昵称/头像；selectList 投影必要列
 - 分页上限统一 `PageUtil.normalize`
 
-### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板，契约见 spec §5.a / api-design.md §4）
+### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板；2026-09-15「取消人工复核」修订，契约见 spec §5.a / §7.24 / api-design.md §4）
 
-- **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2；`suggest` 三态 pass/review/risky）、图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
-- **安检态落库**：`suggest=review` → `review.sec_state` / `user_feedback.sec_state = 'review'`（对非作者不可见，管理后台 `PUT /admin/reviews/{id}/sec-state` 放行/驳回）；`risky` / `87014` → HTTP 400 拦截。
+- **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2）；**`suggest` 判定归一为二态（2026-09-15）**——`pass` 与 `review`（疑似）**均放行**（`SecSuggest.fromValue("review") → PASS`），`risky` 与未知 / 缺失态（fail-closed 同按 risky）**拒绝**（业务侧抛 `400`、不落库）；图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
+- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE` 均已删除——**机检结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
 - **UGC 图片上传链路（云存储中转 → 送检 → COS 转存）**：
 
 ```
@@ -167,8 +167,8 @@ npm run dev   # http://localhost:5173
 ### 4.4 前端目录与包管理器约定（2026-09-15 登记）
 
 - **包管理器统一为 npm（唯一）**：仓库仅保留 `client/package-lock.json` 与 `web/package-lock.json` **两个锁文件**；**禁止引入 `yarn.lock` / `pnpm-lock.yaml` / `bun.lockb` 等任何其他锁文件**（多锁并存会导致依赖树漂移与 CI / 本地不一致）。安装与运行一律 `npm install` / `npm run *`，文档命令不得写成 `yarn` / `pnpm`。
-- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`AuditManageView` / `FeedbackView` / `ReviewAuditView`）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除，`ContentManageView` 收敛为「菜品」单一视图**）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
-- **路由未变（兼容承诺）**：`path` 与 `name` 均保持原值——`/dashboard/content`（`contentManage`）、`/dashboard/content/dishes/:dishId`（`dishDetail`）、`/dashboard/audit`（`auditManage`）、`/dashboard/system`（`systemManage`），故书签 / 深链不受目录重组影响。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
+- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`FeedbackView`＝**反馈处理**页 / `ReviewManageView`＝**评价管理**页，由原 `ReviewAuditView` 改名；**`AuditManageView`（原「内容审核」聚合页）已于 2026-09-15「取消人工复核」时删除**）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除，`ContentManageView` 收敛为「菜品」单一视图**）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
+- **路由（2026-09-15「取消人工复核」后更新，与 `web/src/router/index.ts` / `AdminLayout` 一致）**：一级导航 **4 项**——信息管理 `/dashboard/content`（`contentManage`）、**评价管理** `/dashboard/reviews`（`reviewManage`）、**反馈处理** `/dashboard/feedback`（`feedbackManage`）、用户与系统 `/dashboard/system`（`systemManage`）；菜品详情 `/dashboard/content/dishes/:dishId`（`dishDetail`）保持原值。原 `/dashboard/audit`（`auditManage`，内容审核聚合页）**已删除**，旧深链由前端兜底重定向（`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，查询参数保留）。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
 
 ## 5. 前端状态管理（Pinia store）
 
@@ -193,7 +193,7 @@ npm run dev   # http://localhost:5173
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
 5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
-6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；安检态 `sec_state`（**三态** pass/review/rejected，rejected=人工驳回，与 review 同对非作者不可见）、后台可放行（→pass）/驳回（→rejected）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
+6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；**安检判定为二态（2026-09-15 用户拍板「取消人工复核」）**——机检 `pass` / `review` 一律放行、仅 `risky` 拒绝（`400`、不落库），**`sec_state` 列与全链能力已退役**（原三态 pass/review/rejected 与后台放行 / 驳回动作一并作废，见 spec §7.24），管理端只做事后处置（隐藏 / 删除）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
 
 ## 7. 已知技术债（见 api-design.md §9）
 - ~~验证码 IP 维度限频待补~~（已解决：`/auth/email-code` 已接入 `IpRateLimiter`，2026-09-15 DOC-10 收敛）

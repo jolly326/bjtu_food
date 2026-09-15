@@ -17,10 +17,8 @@
       <view class="review-head">
         <view class="review-head-left">
           <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
-          <!-- 内容安检中：仅本人可见的评价显示小标（后端 secState='review'，机审通过后对全量可见） -->
-          <view v-if="inReview" class="review-sec-badge">
-            <text class="review-sec-badge-text">审核中</text>
-          </view>
+          <!-- 机检中间态小标已于 2026-09-15 随「取消人工复核」删除（机检 pass/review 均直接放行、
+               仅 risky 拒绝，端上不存在中间态）。「已被隐藏」标注属事后处置口径，仅在「我的评价」页呈现 -->
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet -->
         <view v-if="!hideReport || canDelete" class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
@@ -201,9 +199,6 @@ function onPreviewImage(i: number) {
   uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
 }
 
-/* ===== 内容安检（后端 secState）：机审中仅作者本人可见，显示「审核中」小标 ===== */
-const inReview = computed(() => props.review.secState === 'review' && isOwn.value)
-
 function onDelete() {
   if (!canDelete.value) return
   emit('delete', props.review)
@@ -291,19 +286,8 @@ function onMore() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 「审核中」小标（仅本人 secState='review' 可见）：warning 语义浅底胶囊，弱提示不抢评价主信息 */
-.review-sec-badge {
-  flex-shrink: 0;
-  margin-left: var(--spacing-xs);
-  padding: 2rpx var(--spacing-xs);
-  border-radius: var(--radius-pill);
-  background: var(--color-warning-soft);
-}
-.review-sec-badge-text {
-  font-size: var(--font-tiny);
-  color: var(--color-warning);
-  line-height: 1.4;
-}
+/* 机检中间态小标（.review-sec-badge / .review-sec-badge-text，warning 浅底胶囊）于 2026-09-15
+   随「取消人工复核」删除：机检 pass/review 均直接放行、仅 risky 拒绝，端上不存在中间态，样式一并收敛 */
 /* 第二行：评分（星星+数字）与发布时间小间隙同行（不推右）；间距由 review-body gap 提供，不叠加 margin */
 .review-meta {
   display: flex;

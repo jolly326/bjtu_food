@@ -19,41 +19,37 @@ import java.util.List;
 public interface ReviewMapper extends BaseMapper<Review> {
 
     /**
-     * 按菜品查询评价列表（含内容安全可见性过滤）。
+     * 按菜品查询评价列表（含可见性过滤）。
      * <p>
-     * 可见性规则（产品定稿 2026-09-13）：is_hidden=0 且 sec_state='pass' 对外可见；
-     * sec_state='review'（机检待人工复核）仅作者本人可见（{@code viewerId} 为作者时放行）。
-     *
-     * @param viewerId 当前登录用户ID（可空；空时仅返回 pass 态评价）
+     * 可见性规则（2026-09-15 用户拍板取消人工复核、sec_state 全链退役）：唯一判据 is_hidden=0。
+     * 原 sec_state='pass' 过滤与「作者本人（viewerId）放行 review 态」分支同批删除，
+     * 故 {@code viewerId} 入参失去用途并一并移除。
      */
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort,
-                                             @Param("viewerId") Long viewerId);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort);
 
     /**
      * 按用户查询「我的评价」列表（本人视角）。
      * <p>
      * 可见性（2026-09-14 §7.14 C）：<b>不过滤 is_hidden</b> —— 被管理员隐藏的评价作者本人仍可见，
-     * 并返回 is_hidden 供端上标注「已被隐藏」；不过滤 sec_state（review 态由端上提示「审核中」）。
+     * 并返回 is_hidden 供端上标注「已被隐藏」。
      * 排序：sort=latest 时时间倒序（service 固定传入，本人评价按时间更自然）。
      */
     IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 
     /**
-     * 按档口查询评价列表（含内容安全可见性过滤，规则同 {@link #selectReviewPageByDishId}）。
+     * 按档口查询评价列表（含可见性过滤，规则同 {@link #selectReviewPageByDishId}：仅 is_hidden=0）。
      * <p>
      * review 表仅关联 dish_id（无 stall_id / canteen_id），档口/食堂维度的评价通过
      * review → dish(stall_id) 推导。
      */
-    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort,
-                                              @Param("viewerId") Long viewerId);
+    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort);
 
     /**
-     * 按食堂查询评价列表（含内容安全可见性过滤，规则同 {@link #selectReviewPageByDishId}）。
+     * 按食堂查询评价列表（含可见性过滤，规则同 {@link #selectReviewPageByDishId}：仅 is_hidden=0）。
      * <p>
      * 通过 review → dish(stall_id) → stall(canteen_id) 推导。
      */
-    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort,
-                                                @Param("viewerId") Long viewerId);
+    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort);
 
     /**
      * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。

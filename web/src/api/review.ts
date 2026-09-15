@@ -1,20 +1,21 @@
-import type { Review, SecAction, SecState } from '@/types'
+import type { Review } from '@/types'
 import { del, get, put } from './http'
 import { pageRecords, reviewToLegacy } from './adapter'
 
 /**
  * 评价列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。
- * 若传 userId 则按用户过滤；secState 为内容安检筛选（pass/review/rejected，'' = 全部不透传）；
- * pageSize 上限受后端 PageUtil 限制（≤100），不在此放宽。
+ * 若传 userId 则按用户过滤；pageSize 上限受后端 PageUtil 限制（≤100），不在此放宽。
  *
  * isHidden（可选）：后端 ReviewAdminController 的 isHidden 为 `Integer`（`.eq(isHidden != null, …)`），
  * 故此处收窄为 0 | 1 传数值——传布尔会被序列化成 `isHidden=true` 触发后端类型转换失败（400）。
- * 用途：审核页统计行取「已隐藏」总数（pageSize=1 仅取 total，不拉数据）。
+ * 用途：评价管理页统计行取「已隐藏」总数（pageSize=1 仅取 total，不拉数据）。
+ *
+ * 2026-09-15（取消人工复核）：原「安检状态」查询参数随内容机检策略调整退役——放行态与待复核态
+ * 均对客户端放行、仅风险项拒绝，后台不再消费该字段（后端字段同源移除）。
  */
 export async function listReviews(params: {
   userId?: number
   keyword?: string
-  secState?: SecState | ''
   isHidden?: 0 | 1
   page?: number
   pageSize?: number
@@ -25,7 +26,6 @@ export async function listReviews(params: {
   }
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
-  if (params.secState) query.secState = params.secState
   if (params.isHidden !== undefined) query.isHidden = params.isHidden
   const data: any = await get<any>('/admin/reviews', query)
   return {
@@ -70,23 +70,15 @@ export async function deleteById(id: number) {
 }
 
 /**
- * 内容安检复核：放行（pass）/ 驳回（rejected）。
- * PUT /admin/reviews/{id}/sec-state，body { state }，仅 ADMIN；
- * 'review' 是待复核态由后端安检流水线写入，不作为本接口入参（SecAction 已在类型层收窄）。
- */
-export async function updateSecState(id: number, state: SecAction): Promise<void> {
-  await put<void>(`/admin/reviews/${id}/sec-state`, { state })
-}
-
-/**
- * 评价全量检索：后端按 isHidden + secState + 服务端过滤分页，前端翻页聚合全部页，
- * 避免默认分页硬上限导致超出部分漏搜漏审（如关键词检索场景）。
- * secState 传 'review' 时聚合返回全部待复核评价（安检复核队列数据源）。
+ * 评价全量检索：后端按 isHidden + 服务端过滤分页，前端翻页聚合全部页，
+ * 避免默认分页硬上限导致超出部分漏搜（如关键词检索场景）。
+ * isHidden 取 0 | 1（与 listReviews 同源：后端字段为 Integer，布尔会导致类型转换失败 400）。
  *
  * 2026-09-14（Q-107）：原 `api/audit.ts` 模块随审核中心死代码一并删除，
  * 本函数（唯一仍被消费的成员）迁入 review 模块——它只打 `/admin/reviews`，归属评价域。
+ * 2026-09-15：原「安检状态」入参随人工复核取消一并移除。
  */
-export async function listAllReviews(isHidden?: boolean, keyword?: string, secState?: SecState | ''): Promise<Review[]> {
+export async function listAllReviews(isHidden?: 0 | 1, keyword?: string): Promise<Review[]> {
   const PAGE_SIZE = 100
   const all: Review[] = []
   let page = 1
@@ -94,7 +86,6 @@ export async function listAllReviews(isHidden?: boolean, keyword?: string, secSt
     const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
     if (isHidden !== undefined) params.isHidden = isHidden
     if (keyword) params.keyword = keyword.trim()
-    if (secState) params.secState = secState
     const data = await get<any>('/admin/reviews', params)
     const records: Review[] = pageRecords(data).map(reviewToLegacy)
     all.push(...records)

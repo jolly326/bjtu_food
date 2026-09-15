@@ -106,29 +106,17 @@ public interface ReviewService {
     /**
      * 查询所有评价列表（管理端用）
      * <p>
-     * 不排除已删除/已隐藏，敏感词高亮标记
+     * 不排除已删除/已隐藏，敏感词高亮标记。
+     * 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
      *
      * @param page     页码
      * @param pageSize 每页条数
      * @param isHidden 是否隐藏（可选）
-     * @param secState 内容安全状态筛选（可选，pass/review/rejected）
      * @param userId   提交用户ID（可选）
      * @param keyword  评价正文关键词（可选，模糊匹配）
      * @return 分页评价列表
      */
-    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, String secState, Long userId, String keyword);
-
-    /**
-     * 管理端设置评价内容安全复核结果（PUT /admin/reviews/{id}/sec-state）。
-     * <p>
-     * pass=复核通过（对外可见）；rejected=复核不通过（对外不可见，同 review 态过滤口径）。
-     * 与 is_hidden（管理端手动隐藏）解耦，互不覆盖。
-     *
-     * @param id    评价ID
-     * @param state pass / rejected
-     * @throws com.bjtufood.common.exception.BusinessException 评价不存在 / state 非法
-     */
-    void setSecState(Long id, String state);
+    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword);
 
     /**
      * 切换隐藏/显示评价

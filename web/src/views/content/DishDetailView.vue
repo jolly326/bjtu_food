@@ -17,12 +17,9 @@ import FormDialog from '@/components/FormDialog.vue'
 import EntityImage from '@/components/EntityImage.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
-import StatusTag from '@/components/StatusTag.vue'
 import StarRating from '@/components/StarRating.vue'
 import { Trophy, Star, Food, Picture } from '@element-plus/icons-vue'
 import { TAG_OPTIONS, SIGNATURE_TAG, tagDisplay } from '@/api/tags'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_REVIEW } from '@/constants'
-import type { SecAction } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -58,14 +55,9 @@ onMounted(() => {
   reviewStore.loadAll().catch(() => {})
   userStore.loadAll().catch(() => {})
 })
-// 评论管理本地安检筛选（数据已全量在 store，'' = 全部；v-model 为 string，比较时直接字符串匹配）
-const activeSecState = ref('')
+// 评论管理：本菜品下全部评价（数据已全量在 store，无需二次请求）
+// 注（2026-09-15 取消人工复核）：原「安检筛选 / 待复核计数」已删除，后台不再有安检口径的评论动作。
 const dishReviews = computed(() => store.reviews.filter(r => Number(r.dish_id) === dishId.value))
-const reviews = computed(() => {
-  if (!activeSecState.value) return dishReviews.value
-  return dishReviews.value.filter(r => (r.secState || 'pass') === activeSecState.value)
-})
-const pendingSecCount = computed(() => dishReviews.value.filter(r => (r.secState || 'pass') === 'review').length)
 
 const activeTab = ref(0)
 
@@ -264,8 +256,6 @@ async function handleDeleteReview(id: number) {
   }
 }
 const reviewDetail = ref<any | null>(null)
-// 安检复核进行中的评价 id：防重复提交
-const secActingId = ref<number | null>(null)
 function openReviewDetail(r: any) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
 /** 配图点击：新窗口查看原图（COS 公网地址，noopener 防标签页劫持） */
@@ -283,26 +273,6 @@ async function toggleReviewHidden(r: any, hidden: boolean) {
   }
 }
 
-/**
- * 内容安检复核（评论管理）：放行（pass）/ 驳回（rejected），仅对待复核行开放。
- * 两种动作均二次确认（驳回拦截用户内容、放行放行平台内容，均不可静默提交）。
- */
-async function reviewSecState(r: any, state: SecAction) {
-  if (secActingId.value !== null) return
-  if (!await confirm.confirm(state === 'pass'
-    ? '确定放行该评价？放行后评价恢复正常展示。'
-    : '确定驳回该评价？驳回后评价内容将被拦截，不再对用户展示。')) return
-  secActingId.value = Number(r.id)
-  try {
-    await store.updateReviewSecState(Number(r.id), state)
-    toast.success(state === 'pass' ? '评价已放行' : '评价已驳回')
-    if (reviewDetail.value && Number(reviewDetail.value.id) === Number(r.id)) reviewDetail.value = null
-  } catch (err: any) {
-    toast.error(err.message || '安检复核操作失败')
-  } finally {
-    secActingId.value = null
-  }
-}
 </script>
 
 <template>
@@ -461,13 +431,12 @@ async function reviewSecState(r: any, state: SecAction) {
       </PageSection>
     </template>
 
-    <!-- Tab 2: 评论管理（直观展示评分/内容/配图/安检/用户，可查看详情/安检复核/删除） -->
+    <!-- Tab 2: 评论管理（直观展示评分/内容/配图/用户，可查看详情/隐藏/删除） -->
     <template v-if="activeTab === 1">
       <PageSection>
         <template #header-extra>
           <div class="panel-actions">
-            <FilterSelect v-model="activeSecState" label="安检" :options="SEC_FILTER_OPTIONS" :width="140" />
-            <span class="count-tag">共 {{ reviews.length }} 条<template v-if="pendingSecCount"> · 待复核 {{ pendingSecCount }}</template></span>
+            <span class="count-tag">共 {{ dishReviews.length }} 条</span>
           </div>
         </template>
         <DataTable
@@ -475,12 +444,11 @@ async function reviewSecState(r: any, state: SecAction) {
             { prop: 'user', label: '用户', width: '150px' },
             { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
             { prop: 'content', label: '内容', ellipsis: true },
-            { prop: 'secState', label: '安检', width: '90px', align: 'center' },
             { prop: 'status', label: '状态', width: '110px', align: 'center' },
             { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
           ]"
-          :rows="reviews"
-          actions-width="250px"
+          :rows="dishReviews"
+          actions-width="180px"
           empty-text="暂无评论"
         >
           <template #cell-user="{ row }">{{ getUserName(row.user_id) }}</template>
@@ -493,9 +461,6 @@ async function reviewSecState(r: any, state: SecAction) {
               <el-icon><Picture /></el-icon>{{ row.images.length }}
             </span>
           </template>
-          <template #cell-secState="{ row }">
-            <StatusTag :type="SEC_STATE_META[row.secState]?.type || 'success'" :text="SEC_STATE_META[row.secState]?.text || '正常'" />
-          </template>
           <template #cell-status="{ row }">
             <div class="status-cell">
               <el-switch
@@ -507,10 +472,6 @@ async function reviewSecState(r: any, state: SecAction) {
           </template>
           <template #cell-time="{ row }">{{ row.created_at ? new Date(row.created_at).toLocaleString('zh-CN') : '—' }}</template>
           <template #actions="{ row }">
-            <template v-if="row.secState === SEC_REVIEW">
-              <button class="link primary-text" v-press :disabled="secActingId !== null" @click="reviewSecState(row, 'pass')">放行</button>
-              <button class="link warn" v-press :disabled="secActingId !== null" @click="reviewSecState(row, 'rejected')">驳回</button>
-            </template>
             <button class="link" v-press @click="openReviewDetail(row)">查看</button>
             <button class="link danger" v-press @click="handleDeleteReview(Number(row.id))">删除</button>
           </template>
@@ -518,7 +479,7 @@ async function reviewSecState(r: any, state: SecAction) {
       </PageSection>
     </template>
 
-    <!-- 评价详情抽屉（图 + 文 + 评分 + 安检 + 用户） -->
+    <!-- 评价详情抽屉（图 + 文 + 评分 + 用户） -->
     <FormDialog :show="!!reviewDetail" title="评价详情" :width="520" :footer="false" @close="closeReviewDetail">
       <div v-if="reviewDetail" class="detail">
         <div class="detail-row"><span class="dl">用户</span><span class="dv">{{ getUserName(reviewDetail.user_id) }}</span></div>
@@ -541,17 +502,10 @@ async function reviewSecState(r: any, state: SecAction) {
             <p class="img-hint">点击图片在新窗口查看原图</p>
           </div>
         </div>
-        <div class="detail-row"><span class="dl">安检</span><span class="dv">
-          <StatusTag :type="SEC_STATE_META[reviewDetail.secState]?.type || 'success'" :text="SEC_STATE_META[reviewDetail.secState]?.text || '正常'" />
-        </span></div>
         <div class="detail-row"><span class="dl">时间</span><span class="dv">{{ reviewDetail.created_at ? new Date(reviewDetail.created_at).toLocaleString('zh-CN') : '—' }}</span></div>
       </div>
       <div class="modal-actions" v-if="reviewDetail">
         <button class="btn-cancel" v-press @click="closeReviewDetail">关闭</button>
-        <template v-if="reviewDetail.secState === SEC_REVIEW">
-          <button class="btn-success" v-press :disabled="secActingId !== null" @click="reviewSecState(reviewDetail, 'pass')">放行</button>
-          <button class="btn-warn" v-press :disabled="secActingId !== null" @click="reviewSecState(reviewDetail, 'rejected')">驳回</button>
-        </template>
         <button v-if="!reviewDetail.is_hidden" class="btn-danger" v-press @click="toggleReviewHidden(reviewDetail, true)">隐藏</button>
         <button v-else class="btn-primary" v-press @click="toggleReviewHidden(reviewDetail, false)">显示</button>
         <button class="btn-danger" v-press @click="handleDeleteReview(Number(reviewDetail.id))">删除</button>
@@ -644,7 +598,7 @@ async function reviewSecState(r: any, state: SecAction) {
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }
 .status-text.on { color: var(--color-success); }
 .status-text.off { color: var(--color-error); }
-/* ===== 安检复核配图（缩略图：hover 微放大提示可点，active 按压缩放） ===== */
+/* ===== 评价配图（缩略图：hover 微放大提示可点，active 按压缩放） ===== */
 .img-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .img-thumb {
   width: 88px; height: 88px; border-radius: var(--radius-md); object-fit: cover;

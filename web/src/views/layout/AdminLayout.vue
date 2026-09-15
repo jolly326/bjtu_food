@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /**
  * AdminLayout：现代控制台外壳（无侧边栏）。
- * 顶部一级导航（Logo + 3 个功能入口 + 只读身份标识），内容区全宽。
+ * 顶部一级导航（Logo + 4 个功能入口 + 只读身份标识），内容区全宽。
  * 2026-09-15（本轮）：工作台入口已下线，一级导航收敛为 信息管理 / 内容审核 / 用户与系统。
+ * 2026-09-15（取消人工复核）：原「内容审核」聚合页拆分为「评价管理 / 反馈处理」两个一级入口，
+ * 一级导航定为 4 项（信息管理 / 评价管理 / 反馈处理 / 用户与系统），默认落点仍为菜品页。
  */
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { PriceTag, Document, User, UserFilled } from '@element-plus/icons-vue'
+import { PriceTag, Star, ChatDotRound, User, UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,22 +20,26 @@ const activePath = computed(() => route.path)
 /** 后台默认落点：菜品列表（brand 与所有空入口统一指向此处，工作台已下线） */
 const DISH_LIST_PATH = '/dashboard/content?tab=dish'
 
-// ===== 顶部一级导航（3 项） =====
-const navItems = computed(() => [
+// ===== 顶部一级导航（4 项） =====
+/**
+ * 图标语义（沿用既有语义，禁用 emoji 当图标）：信息管理=菜品价格牌、
+ * 评价管理=评分星、反馈处理=反馈消息、用户与系统=用户。
+ */
+// 静态列表（无响应式依赖）：不用 computed，避免读处多一层 .value 的心智负担
+const navItems = [
   { key: 'content', label: '信息管理', path: '/dashboard/content', icon: PriceTag },
-  { key: 'audit', label: '内容审核', path: '/dashboard/audit', icon: Document },
+  { key: 'reviews', label: '评价管理', path: '/dashboard/reviews', icon: Star },
+  { key: 'feedback', label: '反馈处理', path: '/dashboard/feedback', icon: ChatDotRound },
   { key: 'system', label: '用户与系统', path: '/dashboard/system', icon: User },
-])
+]
 
 /**
  * 导航激活判断：聚合页内的子路由归属对应一级入口
  * （如菜品详情 /dashboard/content/dishes/:id 归属「信息管理」）。
+ * 四个入口路径互不为前缀，故按「等值或子路径」判定即可。
  */
 function isNavActive(path: string) {
-  if (path === '/dashboard/content') return activePath.value.startsWith('/dashboard/content')
-  if (path === '/dashboard/audit') return activePath.value.startsWith('/dashboard/audit')
-  if (path === '/dashboard/system') return activePath.value.startsWith('/dashboard/system')
-  return false
+  return activePath.value === path || activePath.value.startsWith(`${path}/`)
 }
 
 function navTo(path: string) {

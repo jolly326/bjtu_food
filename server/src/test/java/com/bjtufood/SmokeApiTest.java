@@ -31,6 +31,7 @@ import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
 import com.bjtufood.notify.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
+import com.bjtufood.review.controller.admin.ReviewAdminController;
 import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.upload.controller.UploadController;
@@ -50,14 +51,18 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -77,7 +82,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>反馈：{@code POST /feedback}（sub 严格模式 400、类型白名单 400、suggestion 正常落库 200）；</li>
  *   <li>上传：{@code POST /upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
  *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
- *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）。</li>
+ *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
+ *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
+ *       保留的 {@code /admin/reviews/{id}/hide} 仍在册作阳性对照）；</li>
+ *   <li>机检口径：反馈机检 risky → 400「内容包含违规信息，请修改后重试」且不落库
+ *       （2026-09-15 取消人工复核后，pass/review 一律放行）。</li>
  * </ol>
  * 实现要点：
  * <ul>
@@ -104,6 +113,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         FeedbackController.class,
         UploadController.class,
         FeedbackAdminController.class,
+        // 后台评价管理（用于 sec-state 端点退役的映射表回归断言）
+        ReviewAdminController.class,
         // 统一异常处理（HTTP 状态码 + body.code 口径的唯一真源）
         GlobalExceptionHandler.class,
         // 真实安全链路
@@ -140,6 +151,10 @@ class SmokeApiTest {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    /** 切片内真实注册的处理器映射表（用于「端点是否在册」的防回归断言，不发起请求） */
+    @Autowired
+    private RequestMappingHandlerMapping handlerMapping;
 
     @MockBean
     private AuthService authService;
@@ -320,6 +335,29 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(400));
     }
 
+    /**
+     * 机检 risky → 400（2026-09-15 取消人工复核后的统一口径：仅 risky 拒绝，pass/review 一律放行）。
+     * <p>
+     * 走真实 {@link FeedbackServiceImpl}（机检调用点保留在写入路径内，删列不得顺手摘掉机检），
+     * 仅打桩 {@link ContentSecurityService} 让其抛违规异常，断言 400 文案透传且内容不落库。
+     */
+    @Test
+    void submitFeedback_riskyContent_returns400AndNotPersisted() throws Exception {
+        when(sensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(contentSecurityService.checkText(any(), anyString(), eq(2)))
+                .thenThrow(new BusinessException(400, "内容包含违规信息，请修改后重试"));
+
+        mockMvc.perform(post("/feedback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"suggestion\",\"sub\":\"idea\",\"content\":\"违规内容\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("内容包含违规信息，请修改后重试"));
+
+        // risky 内容不得落库
+        verify(feedbackMapper, never()).insert(any());
+    }
+
     @Test
     void submitFeedback_guestSuggestion_persistsSubAndReturns200() throws Exception {
         when(sensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -418,6 +456,27 @@ class SmokeApiTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("资源不存在"));
+    }
+
+    /**
+     * 防回归（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+     * {@code PUT /admin/reviews/{id}/sec-state} 必须不再注册（人工复核队列已无存续价值）。
+     * <p>
+     * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求，
+     * 规避「PUT 打到 /** 静态资源处理器」的状态码不确定性）。并以保留的
+     * {@code PUT /admin/reviews/{id}/hide}（举报→下架的事后处置通道）作<b>阳性对照</b>：
+     * 证明 {@link ReviewAdminController} 确实已注册在本切片，故「无 sec-state 映射」不是空洞断言。
+     */
+    @Test
+    void adminReviewSecState_removedEndpointGone() {
+        Set<String> patterns = handlerMapping.getHandlerMethods().keySet().stream()
+                .flatMap(info -> info.getPatternValues().stream())
+                .collect(Collectors.toSet());
+
+        Assertions.assertTrue(patterns.contains("/admin/reviews/{id}/hide"),
+                "保留端点 /admin/reviews/{id}/hide 应在册；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.stream().anyMatch(p -> p.contains("sec-state")),
+                "sec-state 端点应已随列退役删除；实际映射：" + patterns);
     }
 
     // ==================== 辅助方法 ====================

@@ -28,11 +28,10 @@ function toReview(raw: RawRow): Review {
     images: Array.isArray(raw.images)
       ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
       : [],
-    // 内容安检状态：pass=对外可见；review=机审中仅作者本人可见（缺省 pass 兼容旧响应）
-    secState: raw.secState === 'review' ? 'review' : 'pass',
-    // 管理侧隐藏标记（§7.14）：仅 /my/reviews 返回给作者本人（后端 isHidden，兼容 is_hidden）。
-    // 语义区别于 secState：secState='review' 为机审中（待过审），isHidden=true 为已被隐藏（不再对外展示）。
+    // 管理侧隐藏标记（§7.14）：仅 /my/reviews 返回给作者本人（后端 isHidden，兼容 is_hidden）
     isHidden: !!(raw.isHidden ?? raw.is_hidden ?? false),
+    // 退役（2026-09-15，取消人工复核）：原内容机检中间态字段（后端内容安检状态字段）的归一化已删除——
+    // 机检 pass/review 均直接放行、仅 risky 拒绝，端上无中间态可消费，故不再映射（零消费字段不留存）。
   }
 }
 

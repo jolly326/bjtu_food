@@ -24,8 +24,8 @@ import static org.springframework.http.HttpMethod.POST;
 /**
  * ContentSecurityService 单元测试（MockRestServiceServer，参照 WechatServiceTest 风格）。
  * <p>
- * 覆盖（产品定稿 2026-09-13 验收点）：
- * 1. msgSecCheck v2 按 result.suggest 三态判定（pass/review/risky），不只看 errcode；
+ * 覆盖（产品定稿 2026-09-13；2026-09-15 用户拍板「取消人工复核」后三态归一为「放行/拒绝」二态）：
+ * 1. msgSecCheck v2 按 result.suggest 判定（pass/review → 放行，risky → 拒绝），不只看 errcode；
  * 2. risky 统一抛 400「内容包含违规信息，请修改后重试」；
  * 3. imgSecCheck 87014 → 400「图片包含违规内容，无法上传」；
  * 4. stable_token 缓存：同一 token 有效期内两次机检仅请求一次 stable_token；
@@ -81,19 +81,44 @@ class ContentSecurityServiceTest {
     }
 
     @Test
-    @DisplayName("msgSecCheck v2 suggest=review → REVIEW（errcode=0 但按 suggest 判定，不放过）")
-    void shouldReturnReviewOnSuggestReview() {
+    @DisplayName("msgSecCheck v2 suggest=review → 视为放行（归一为 PASS，非 risky，不再产生待复核语义）")
+    void shouldTreatSuggestReviewAsPass() {
         expectStableToken();
         expectMsgSecCheck("{\"errcode\":0,\"errmsg\":\"ok\",\"result\":{\"suggest\":\"review\",\"label\":200}}");
 
         SecSuggest suggest = contentSecurityService.detectText("oX-openid", "一份番茄炒蛋", 2);
 
-        assertThat(suggest).isEqualTo(SecSuggest.REVIEW);
+        // 2026-09-15 用户拍板「取消人工复核」：review（疑似）直接放行，仅 risky 拒绝
+        assertThat(suggest).isEqualTo(SecSuggest.PASS);
+        assertThat(suggest).isNotEqualTo(SecSuggest.RISKY);
         server.verify();
     }
 
     @Test
-    @DisplayName("msgSecCheck v2 suggest=risky → detectText 三态原语返回 RISKY（不拦截）")
+    @DisplayName("checkText 主链路：suggest=review 直接放行，不抛异常（原「待复核」链路已退役）")
+    void shouldAllowReviewOnCheckText() {
+        expectStableToken();
+        expectMsgSecCheck("{\"errcode\":0,\"errmsg\":\"ok\",\"result\":{\"suggest\":\"review\",\"label\":200}}");
+
+        assertThatCode(() -> contentSecurityService.checkText("oX-openid", "一份番茄炒蛋", 2))
+                .doesNotThrowAnyException();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("SecSuggest.fromValue 归一：pass/review → PASS（放行）；risky/未知/缺失 → RISKY（拒绝，fail-closed）")
+    void shouldNormalizeSuggestValues() {
+        assertThat(SecSuggest.fromValue("pass")).isEqualTo(SecSuggest.PASS);
+        // 2026-09-15 归一：review 不再产生「待复核」态，映射即为放行
+        assertThat(SecSuggest.fromValue("review")).isEqualTo(SecSuggest.PASS);
+        assertThat(SecSuggest.fromValue("risky")).isEqualTo(SecSuggest.RISKY);
+        // 微信未来新增未知态一律拒绝（宁可误拦不放行）
+        assertThat(SecSuggest.fromValue("new-state")).isEqualTo(SecSuggest.RISKY);
+        assertThat(SecSuggest.fromValue(null)).isEqualTo(SecSuggest.RISKY);
+    }
+
+    @Test
+    @DisplayName("msgSecCheck v2 suggest=risky → detectText 原语返回 RISKY（不拦截）")
     void shouldReturnRiskyOnSuggestRisky() {
         expectStableToken();
         expectMsgSecCheck("{\"errcode\":0,\"errmsg\":\"ok\",\"result\":{\"suggest\":\"risky\",\"label\":20001}}");

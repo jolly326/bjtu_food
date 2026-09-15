@@ -47,7 +47,6 @@ export const useAdminStore = defineStore('admin', () => {
     updateDish: dish.update,
     deleteDish: dish.remove,
     updateReview: review.update,
-    updateReviewSecState: review.updateSecState,
     deleteReview: review.remove,
     toggleUserStatus: user.toggleUserStatus,
   }

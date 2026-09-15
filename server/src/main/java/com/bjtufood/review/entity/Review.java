@@ -41,12 +41,10 @@ public class Review {
     @Schema(description = "评价配图URL列表JSON（COS 绝对地址，≤3 张）")
     private String images;
 
-    /**
-     * 内容安全状态（产品定稿 2026-09-13）：pass / review / rejected。
-     * review=机检待人工复核、rejected=人工复核不通过，二者对他端不可见（作者本人可见）。
+    /*
+     * 内容安全状态 sec_state 已随「取消人工复核」（2026-09-15 用户拍板）全链退役：
+     * 机检 pass/review 一律放行、risky 直接拒绝（不落库），故无安全态可存。
      */
-    @Schema(description = "内容安全状态：pass/review/rejected（review/rejected 对他端不可见）")
-    private String secState;
 
     /** 管理员隐藏标记（0=正常, 1=隐藏） */
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")

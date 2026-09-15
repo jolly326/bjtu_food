@@ -45,12 +45,10 @@ public class Feedback {
     @Schema(description = "反馈配图URL列表JSON（COS 绝对地址，≤3 张）")
     private String images;
 
-    /**
-     * 内容安全状态（产品定稿 2026-09-13）：pass / review / rejected。
-     * 反馈无公开展示，仅作管理端复核标记（列表 secState 筛选）。
+    /*
+     * 内容安全状态 sec_state 已随「取消人工复核」（2026-09-15 用户拍板）全链退役：
+     * 机检 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
      */
-    @Schema(description = "内容安全状态：pass/review/rejected（仅管理端复核标记）")
-    private String secState;
 
     @Schema(description = "联系方式")
     private String contact;

@@ -68,9 +68,9 @@
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（**可同时传，按 `stallId` > `canteenId` > `dishId` 优先取一，不报 400**（2026-09-15 CT-04 修订「三选一」口径）；至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏且机检通过；本人评价除外，后端过滤） |
+| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（**可同时传，按 `stallId` > `canteenId` > `dishId` 优先取一，不报 400**（2026-09-15 CT-04 修订「三选一」口径）；至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏 `is_hidden=0`；本人视角除外，后端过滤）——**无安检态过滤**（2026-09-15 取消人工复核） |
 
-> **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充）**：新增 `images`（字符串数组，≤3 项 COS URL，无图返回空数组）与 `secState`（**三态** `pass`/`review`/`rejected`——`review`=机检待人工复核、`rejected`=人工驳回，两者均对非作者不可见；列表 / 详情接口仅返回 `sec_state='pass'` 或本人评价，后端过滤，前端不兜底）。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
+> **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充；2026-09-15「取消人工复核」修订）**：`images`（字符串数组，≤3 项 COS URL，无图返回空数组）。**安检态字段 `secState` 已随 `sec_state` 列全链退役删除**（见 spec §7.24）——列表 / 详情接口的可见性判据收敛为**仅 `is_hidden=0`**（后端过滤，前端不兜底），不再存在「机检态过滤」条件。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
 ### 2.5 内容（公开）
 | 方法 | 路径 | 说明 |
@@ -114,7 +114,7 @@
 
 > 评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提（一人一菜一评由 `uk_review_user_dish` 保证）。
 >
-> **安检（2026-09-13）**：提交时文本过 `msgSecCheck` v2（`scene=2` 评价场景）；`suggest=pass` 正常落库，`suggest=review` 正常落库且 `sec_state='review'`（对非作者不可见，进管理后台复核队列），`suggest=risky` 返回 `400` 拦截。配图须先经 `POST /upload/images` 逐张安检转存（单张接口，违规该张 400、前端跳过不中断），再把返回的 COS URL 随 `images` 提交。
+> **安检（2026-09-13 立；2026-09-15「取消人工复核」修订，见 spec §7.24）**：提交时文本过 `msgSecCheck` v2（`scene=2` 评价场景）——`suggest=pass` **与 `review`（疑似）一律正常落库放行**（`review` 不再落任何安检态、不进复核队列），`suggest=risky`（含未知 / 缺失态 fail-closed 同按 risky）返回 `400` 拦截、不落库。配图须先经 `POST /upload/images` 逐张安检转存（单张接口，违规该张 400、前端跳过不中断），再把返回的 COS URL 随 `images` 提交。
 >
 > **`GET /my/reviews` 契约注记（2026-09-13 核实，AUD-BE-06 / AUD-BE-07；2026-09-14 更新）**：① 返回形态已随 `PageResult` 4 参统一化收敛（spec §7.11 第 2 条）——现经 `PageResult.of(records, total, page, pageSize)` 返回 **`{ records, total, page, pageSize }`**（`page`/`pageSize` 为归一化实际生效值），原「`PageResult{list, total}` 两参形态」注记作废；前端 `recordsOf()` 双形态兼容兜底暂予保留（收敛另行排期）。② 除 `@RequireVerified`（切面按 `user.verified` 实时判定）外，另挂方法级 `@PreAuthorize("hasRole('STUDENT')")` 纵深防御——小程序端用户默认 `STUDENT` 角色，不影响正常调用；该双重校验口径与文档描述一致（`ReviewController.java:70-80`）。
 
@@ -136,7 +136,7 @@
 ### 3.6 反馈
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品；**2026-09-13 起请求体增可选 `images`：字符串数组 ≤3 项 COS URL**，游客提交同样可带图；文本过 `msgSecCheck` v2 `scene=2`，`risky` 拦 400、`review` 落 `sec_state='review'`）。**`type` 写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `problem`，不升一级类型**）、`add` 新增菜品、`error` 纠错与申请下架（`relatedType=dish`）、`report` 举报（`relatedType=review`，必填 `relatedId`）；**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，非法值 400（仅查询白名单保留以筛存量） |
+| POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品；**2026-09-13 起请求体增可选 `images`：字符串数组 ≤3 项 COS URL**，游客提交同样可带图；文本过 `msgSecCheck` v2 `scene=2`，`risky`（含未知 / 缺失态）拦 400、`review` 与 `pass` 一律放行且**不落安检态**——2026-09-15 取消人工复核）。**`type` 写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `problem`，不升一级类型**）、`add` 新增菜品、`error` 纠错与申请下架（`relatedType=dish`）、`report` 举报（`relatedType=review`，必填 `relatedId`）；**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，非法值 400（仅查询白名单保留以筛存量） |
 
 > **`FeedbackReq` 字段（2026-09-15 用户拍板补录 `sub`）**：`{ type, content, sub?, images?, relatedType?, relatedId? }`——`sub` 为**二级类型**，值域 **`idea`（建议·想法）/ `problem`（建议·问题）**，**仅 `type='suggestion'` 时有效**；写入白名单校验（`FeedbackConst` 单一真源），**严格模式（2026-09-15 DEV-01 收口）**：**`sub` 非空且 `type != 'suggestion'` → `400`**，`sub` 非空但不在 `idea`/`problem` 值域 → 同 `400`，**一律不静默降级、不忽略**（PR-06）。**不新增筛选维度**（后台筛选仅按一级 `type`）。
 >
@@ -163,10 +163,10 @@
 |---|---|
 | 文本安检 | `msgSecCheck` **v2**：入参 `openid`（提交人 openid，服务端据 userId 取）+ `scene` + `version=2`；后端封装为统一安检入口（`ContentSecurityService`），评价 / 反馈提交与昵称更新均不得绕过 |
 | scene 映射 | **昵称=1；评价/反馈=2**（后续新增 UGC 形态须在本表登记 scene 值） |
-| suggest 三态 | `pass` 放行；`review` 落 `sec_state='review'` 进人工复核（不拦截提交）；`risky` 返回 `400` 拦截 |
+| suggest 判定（**2026-09-15 归一为二态**，见 spec §7.24） | `pass` **与 `review`（疑似）均放行**（`SecSuggest.fromValue` 把 `review` 归一为放行态）；`risky` 与未知 / 缺失态（fail-closed 同按 risky）返回 `400` 拦截、不落库 |
 | 图片安检 | `imgSecCheck`：违规（微信 code `87014`）返回 `400` 拦截 |
 | access_token | 统一使用微信 **`stable_token`** 并缓存（刷新互斥、不走过期即弃的普通 token） |
-| 状态字段 | `review.sec_state` / `user_feedback.sec_state`（**三态** `pass`/`review`/`rejected`，默认 `pass`；`review`=机检待人工复核、`rejected`=人工复核驳回，两者均对非作者不可见）；管理后台 `PUT /admin/reviews/{id}/sec-state` 复核放行（→`pass`）/ 驳回（→`rejected`） |
+| 安检态落库（**已退役，2026-09-15**） | **无安检态字段**：`review.sec_state` / `user_feedback.sec_state` 两列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、列表 `secState` 查询入参、VO `secState` 字段同批删除；机检结论仅作**提交闸门**，不落库、不参与可见性 |
 | 错误码 | 安检违规一律 `400`，不新增错误码（错误码仅 `200/400/401/403/4031/500`） |
 
 ---
@@ -177,7 +177,7 @@
 
 ### 5.1 工作台（已下线，2026-09-15 用户拍板）
 
-> **`GET /admin/dashboard` 已删除，勿再对接**：`DashboardController` 及其统计逻辑载体（`StatsService` / `StatsController`）、`DashboardVO` / 待办明细 VO 已随**工作台业务域整体移除**（spec §0.4.1 / §5.z D-工作台）。**管理后台无「全局聚合看板」**——待办可见性由**「内容审核」入口徽标**（待处理反馈数）＋ **各业务页行内统计**承担；默认落地页为**信息管理·菜品页** `/dashboard/content?tab=dish`。
+> **`GET /admin/dashboard` 已删除，勿再对接**：`DashboardController` 及其统计逻辑载体（`StatsService` / `StatsController`）、`DashboardVO` / 待办明细 VO 已随**工作台业务域整体移除**（spec §0.4.1 / §5.z D-工作台）。**管理后台无「全局聚合看板」**——待办可见性由**「反馈处理」入口徽标**（待处理反馈数）＋ **各业务页行内统计**承担；默认落地页为**信息管理·菜品页** `/dashboard/content?tab=dish`。
 >
 > 随之作废：2026-09-14 Q-106「工作台摘除图表字段」的全部口径（spec §7.21 第 1 条，保留为历史留痕），以及「`GET /admin/stats/**` 为幽灵端点、仅作 `DashboardController` 统计逻辑复用载体」的表述（**复用载体已不存在**；该端点仍不新建）。
 
@@ -213,14 +213,15 @@
 
 > **已删除端点（2026-09-14 与 spec §7.10 对齐）**：`PUT /admin/users/{id}/role`（改角色，无实现；`SUPER_ADMIN` 已移除）与 `GET/POST/PUT/DELETE /admin/admins/*`（管理员账号管理，Controller 不存在；管理后台「账号设置」入口已删除，spec §7.10 第 4 条）均**不存在**，勿按旧版记载对接。
 
-### 5.4 审核与内容治理
+### 5.4 评价管理与反馈处理（2026-09-15「取消人工复核」后由「审核与内容治理」改名，见 spec §7.24）
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/admin/reviews` | 评价审核列表（isHidden/secState/userId/keyword 过滤；**2026-09-13 起支持 `secState` 过滤，VO 含 `images`/`secState`**） |
-| PUT | `/admin/reviews/{id}/sec-state` | **评价安检复核（2026-09-13 新增）**：入参 `{ state: "pass" \| "rejected" }`——放行（落 `sec_state='pass'`，恢复公开展示）/ 驳回（落 `sec_state='rejected'`，持续对非作者不可见，作者侧呈现未过审态）。`review` 态仅由机检写入，本接口不接受（管理端只写人工结论） |
-| PUT | `/admin/reviews/{id}/hide` | 隐藏评价 |
-| DELETE | `/admin/reviews/{id}` | 删评价（清理 useful 孤儿） |
-| GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`secState`/`sub`/`relatedDishName`（DEV-04，仅 `relatedType='dish'` 填充、含已下架菜品，见下方出参契约），详情展示配图 ≤3 张**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
+| GET | `/admin/reviews` | 评价列表（isHidden/userId/keyword 过滤；VO 含 `images`；**无 `secState` 过滤、无 `secState` 出参**，2026-09-15）——评价管理页（`/dashboard/reviews`，`ReviewManageView`）用，**只做事后处置** |
+| PUT | `/admin/reviews/{id}/hide` | **事后处置**：隐藏 / 显示评价（`is_hidden` 0/1） |
+| DELETE | `/admin/reviews/{id}` | **事后处置**：删评价（清理 useful 孤儿） |
+
+> **已删端点（勿再引用）**：~~`PUT /admin/reviews/{id}/sec-state`~~（**评价安检复核，2026-09-13 新增 → 2026-09-15 随「取消人工复核」与 `sec_state` 列全链退役删除**：原入参 `{ state: "pass" \| "rejected" }`、放行 / 驳回语义一并作废）。**管理端不设内容复核队列**——机检 `pass` / `review` 一律放行、仅 `risky` 拒绝（见 §4.2 与 spec §5.a / §7.24）。
+| GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`sub`/`relatedDishName`（DEV-04，仅 `relatedType='dish'` 填充、含已下架菜品，见下方出参契约），详情展示配图 ≤3 张；原 `secState` 出参已随安检态全链退役删除（2026-09-15）**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
 | PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
 
 **反馈处理契约（2026-09-15 蓝图 v1 第 5 条，spec §7.23；2026-09-15 CT-03 以代码为准修订）**
@@ -234,7 +235,7 @@
 
 **`FeedbackAdminVO` 出参（DEV-04 契约变更，2026-09-15）**
 
-- 出参字段全集：`id` / `userId` / `userNickname` / `type` / `sub` / `content` / `images` / `secState` / `contact` / `relatedType` / `relatedId` / **`relatedDishName`（新增）** / `status` / `outcome` / `reply` / `rejectReason` / `createdAt` / `handledAt`。
+- 出参字段全集：`id` / `userId` / `userNickname` / `type` / `sub` / `content` / `images` / `contact` / `relatedType` / `relatedId` / **`relatedDishName`（新增）** / `status` / `outcome` / `reply` / `rejectReason` / `createdAt` / `handledAt`。（**`secState` 已随 2026-09-15「取消人工复核」删除，不出参**。）
 - **`relatedDishName`（新增）**：`String`，**仅 `relatedType='dish'`（信息纠错 / 申请下架）时填充**；由**服务端按 `relatedId` 批量查询 `dish` 表回填**（一次 `IN` 批量取，避免 N+1），**不区分上/下架、含已下架菜品**（供管理端回看纠错对象）；其他关联类型（如 `review`）、`relatedId` 为空、或菜品已物理删除时恒为 `null`（由前端退回「菜品#id」占位，**不发起二次请求**）。
 - **跨端边界口径（登记，强制）**：**Web 管理端不得调用公开端点 `GET /dishes/{id}` 取名**——Web 只经 `/admin/**` 取数；且公开端点只返回在售（`status='on'`）菜品，**已下架菜品取不到名**。菜品名一律由管理端接口提供（反馈关联菜品名走 `relatedDishName`；菜品列表 / 详情走 `GET /admin/dishes`）。Web 侧 `api/dish.ts` 的 `getById()` 封装（公开端点）已随 DEV-04 收口移除，**勿再重建**。
 
@@ -257,7 +258,7 @@ POST /reviews → ReviewSubmittedEvent → RatingUpdateListener(@Async AFTER_COM
              → recalcAvgRating(dishId) 更新 dish.avg_rating / rating_count
 ```
 - 聚合异步执行，失败仅记 `[ALERT]` 日志不阻塞提交
-- **聚合口径（2026-09-14 Q-110，spec §7.21 第 4 条）**：只计入 `is_hidden=0 AND sec_state='pass'` 的评价——被内容安检判为 `review` / `rejected` 的内容完全不进统计；机审结果回写时须触发重算；`rating_count` 与「该菜品可见评价数」同口径（历史存量重算见 spec §8「待运维执行」条目）
+- **聚合口径（2026-09-14 Q-110；2026-09-15 修订，spec §7.21 第 4 条）**：只计入 `is_hidden=0` 的评价——**原 `sec_state='pass'` 条件随该列全链退役删除**（机检 `pass` / `review` 一律放行、`risky` 不落库，故不再存在「被安检拦下的内容」语境）；`rating_count` 与「该菜品可见评价数」同口径。**原「历史存量一次性重算」任务随前提列退役取消（脚本 `db/fix_rating_by_sec_state.sql` 已删除），不再存在人工重算动作**。
 
 ### 6.2 浏览 → 足迹
 ```
@@ -275,7 +276,8 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
         dish.reject_reason 为退役历史列（保留、恒 NULL、不写入）；
         后台无审核入口（列表无审核列、详情无审核态与退回原因回显），客户端不出现「菜品审核」概念；
         学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
-评价：先发后审、无 audit_status——机检 pass 即公开（is_hidden=0 AND sec_state='pass'）；sec_state='review' 进人工复核队列（PUT /admin/reviews/{id}/sec-state）；risky 提交即 400 拦截
+评价：先发后审、无 audit_status、**无人工复核**——机检 pass / review 一律公开（**is_hidden=0 单一判据**）；
+      risky 提交即 400 拦截（不落库）；管理端仅事后处置（PUT /admin/reviews/{id}/hide、DELETE /admin/reviews/{id}）
 反馈/举报（唯一运营闭环）：POST /feedback 公开提交（type ∈ suggestion/add/error/report）
      → 管理员 PUT /admin/feedbacks/{id} 处理：reply 恒必填；不采纳·退回（outcome=rejected）另 rejectReason 必填
      → status=handled + 站内通知回执（游客不投递）
@@ -305,7 +307,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 
 | 项 | spec 描述 | 实际代码（待对齐项） | 处置 |
 |---|---|---|---|
-| **UGC 配图与内容安检（2026-09-13 拍板，QA 门禁契约校准）** | spec §5.a：评价/反馈配图 ≤3 张、msgSecCheck v2/imgSecCheck、`sec_state` 可见性、`POST /upload/images`、`PUT /admin/reviews/{id}/sec-state` | 已落地并对账一致（本文档 §2.3 / §3.3 / §3.6 / §4 / §5.4 契约与实现一致：**单张**上传、前端逐张调用、`sec_state` 三态 `pass/review/rejected`、复核入参 `{ state: "pass"\|"rejected" }`） | 原「评价全量纯文本、反馈纯文本免图」注记已随本拍板作废 |
+| **UGC 配图与内容安检（2026-09-13 拍板；2026-09-15「取消人工复核」修订，见 spec §7.24）** | spec §5.a：评价/反馈配图 ≤3 张、`msgSecCheck` v2 / `imgSecCheck`、**机检 `pass` / `review` 放行、`risky` 拒绝（无人工复核、无安检态落库）**、`POST /upload/images` | 已落地并对账一致（本文档 §2.3 / §3.3 / §3.6 / §4 / §5.4 契约与实现一致：**单张**上传、前端逐张调用；**`sec_state` 列 / `SecStateConst` / `PUT /admin/reviews/{id}/sec-state` / `secState` 入参出参全链已删除**；保留事后处置 `PUT {id}/hide` 与 `DELETE {id}`） | 原「评价全量纯文本、反馈纯文本免图」注记随 2026-09-13 拍板作废；原「`sec_state` 三态 + 复核入参」契约随 2026-09-15 拍板作废 |
 | **activity / broadcast 全链路下线（2026-09-13）** | spec 曾列 `/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口与 activity/broadcast 实体 | 接口 / 实体 / 库表 / Web 管理页 / 小程序页面（`pages/activity/` 分包）与「最新活动」宫格全部删除，数据库基线 14 → 12 张表 | 本文档 §2.5 / §5.5 已删除相关行；spec §0.5 已登记下线拍板 |
 | 页面数量 | 9 页（spec §2.1，2026-09-13 随 activity 下线由 11 收敛） | 9 页（pages.json：主包 3 + 分包 detail/me，共 9 页） | 已对齐（spec §2.1 与 pages.json 一致） |
 | 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |

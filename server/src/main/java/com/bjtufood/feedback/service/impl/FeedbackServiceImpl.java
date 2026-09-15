@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
-import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -14,7 +13,6 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
@@ -42,11 +40,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
-
-    /** 内容安全状态常量：与 ReviewServiceImpl 口径一致。真源：{@link SecStateConst} */
-    public static final String SEC_STATE_PASS = SecStateConst.PASS;
-    public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
-    public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
 
     private final FeedbackMapper feedbackMapper;
     private final UserMapper userMapper;
@@ -108,51 +101,45 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
-        // 边界（project_spec §7.7，2026-09-14 修订：不再静默放行）：
-        // 1. 游客反馈（userId=null，PUB 接口）与登录但 openid 为 NULL 的账号 → 无法调 v2 接口，
-        //    一律落库 sec_state='review' 进管理端人工复核队列（反馈不公开展示，先落库后复核）；
-        // 2. 微信凭据未配置（本地开发环境）→ 机检内部跳过返回 pass，生产必须配置。
-        // 反馈无公开展示，sec_state 仅作管理端复核标记。
-        feedback.setSecState(checkUgcText(userId, feedback.getContent()));
+        // 2026-09-15 用户拍板「取消人工复核」：机检 review（疑似）归一为放行，
+        // 不再落库 sec_state（该列已全链退役），故此处只保留拦截语义。
+        // 边界（报告备案）：游客反馈（userId=null，PUB 接口）与 openid 为 NULL 的账号无法调 v2 接口
+        // （msgSecCheck v2 openid 必填），按服务内既有口径跳过机检放行；微信凭据未配置（本地开发）同。
+        checkUgcText(userId, feedback.getContent());
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackMapper.insert(feedback);
     }
 
-    /** 文本机检：登录用户取 openid 调 msgSecCheck v2，review 态落库 sec_state='review' */
-    private String checkUgcText(Long userId, String content) {
+    /**
+     * 文本机检：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
+     * <p>
+     * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
+     * pass 与机检 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
+     * 边界：游客（userId=null）与无 openid 账号无 openid 可用，机检内部按既有口径跳过放行。
+     */
+    private void checkUgcText(Long userId, String content) {
         if (!StringUtils.hasText(content)) {
-            return SEC_STATE_PASS;
+            return;
         }
-        if (userId == null) {
-            // 游客反馈（PUB 接口）无用户身份、无可信 openid：不静默放行，落库待人工复核
-            return SEC_STATE_REVIEW;
-        }
-        User user = userMapper.selectById(userId);
+        User user = userId == null ? null : userMapper.selectById(userId);
         String openid = user == null ? null : user.getOpenid();
-        if (!StringUtils.hasText(openid)) {
-            // 无 openid（历史学号 / 邮箱账号）：msgSecCheck v2 无法调用，
-            // 按 §7.7 不跳过放行，落库标记 review 进管理端人工复核队列。
-            return SEC_STATE_REVIEW;
-        }
-        SecSuggest suggest = contentSecurityService.checkText(openid, content, 2);
-        return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
+        contentSecurityService.checkText(openid, content, 2);
     }
 
     @Override
-    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String secState, String keyword, int page, int pageSize) {
+    public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
         // 兼容要求：type 白名单含历史遗留 bug/other（QUERY_TYPES），后台按历史类型筛选仍可查到老数据。
+        // 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
         status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
         type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
-        secState = ParamValidator.optionalInWhitelist(secState, SecStateConst.ALL, "内容安全状态");
 
         LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
                 .eq(StringUtils.hasText(status), Feedback::getStatus, status)
                 .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(StringUtils.hasText(secState), Feedback::getSecState, secState)
                 .eq(userId != null, Feedback::getUserId, userId);
 
         // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
@@ -209,7 +196,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         return map;
     }
 
-    /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、内容安全状态、关联菜品名（DEV-04） */
+    /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、关联菜品名（DEV-04）；内容安全态已随 sec_state 退役 */
     private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap, Map<Long, String> dishNameMap) {
         FeedbackAdminVO vo = new FeedbackAdminVO();
         vo.setId(f.getId());
@@ -221,7 +208,6 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        vo.setSecState(StringUtils.hasText(f.getSecState()) ? f.getSecState() : SEC_STATE_PASS);
         vo.setContact(f.getContact());
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());

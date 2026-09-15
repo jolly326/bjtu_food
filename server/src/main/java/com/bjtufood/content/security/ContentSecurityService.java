@@ -19,26 +19,28 @@ public interface ContentSecurityService {
      * <p>
      * 内部完成 risky 统一拦截：判定为 risky 时抛
      * {@code BusinessException(400, "内容包含违规信息，请修改后重试")}。
-     * 返回值仅 PASS / REVIEW（REVIEW=机检存疑，调用方落库 sec_state='review' 待人工复核）。
+     * 返回值仅 PASS（放行）：机检 review（疑似）已归一为放行（2026-09-15 用户拍板取消人工复核），
+     * 不再产生「待复核」语义与任何落库安全态。
      *
      * @param openid  当前用户的微信 openid（msgSecCheck v2 必填）；null 时跳过检测放行并返回 PASS
      *                （历史学号账号无 openid，属产品登记边界，报告已备案）
      * @param content 待检测文本（≤2500 字）
      * @param scene   场景值：1=资料（昵称） 2=评论（评价/反馈）
-     * @return PASS / REVIEW（永不返回 RISKY，risky 已统一拦截）
+     * @return 恒为 PASS（放行）；risky 已统一拦截，永不返回
      * @throws com.bjtufood.common.exception.BusinessException risky=400；内容超长/上游异常=400 或 500
      */
     SecSuggest checkText(String openid, String content, int scene);
 
     /**
-     * 文本检测原语（不拦截，返回三态）。
+     * 文本检测原语（不拦截，返回放行/拒绝）。
      * <p>
      * 供测试与特殊场景使用；常规 UGC 链路请用 {@link #checkText}（含统一拦截）。
+     * 机检 review（疑似）在此同样已归一为 PASS（放行），故实际返回 PASS / RISKY 二态。
      *
      * @param openid  微信 openid（null 时跳过检测返回 PASS）
      * @param content 待检测文本
      * @param scene   场景值：1=资料 2=评论
-     * @return PASS / REVIEW / RISKY 三态
+     * @return PASS（放行，含 review 归一）/ RISKY（拒绝）
      */
     SecSuggest detectText(String openid, String content, int scene);
 

@@ -103,15 +103,11 @@ export interface Review {
   /** 配图列表（adapter 归一为 string[]；COS 公网地址可直接 <img> 展示） */
   images?: string[];
   is_hidden: number;
-  /** 内容安检状态：pass=正常 / review=待复核 / rejected=已驳回 */
-  secState?: SecState;
   created_at: Date;
   updated_at: Date;
 }
 
-/** 内容安检状态（评价 / 反馈共用）：pass=正常 / review=待复核 / rejected=已驳回 */
-export type SecState = 'pass' | 'review' | 'rejected';
-
-/** 安检复核动作：放行 pass / 驳回 rejected（review 为待复核态，不可直接写入） */
-export type SecAction = 'pass' | 'rejected';
+// 注（2026-09-15 拍板：取消人工复核）：评价 / 反馈的「内容安检状态」字段及其「安检态 / 复核动作」
+// 两个联合类型已随人工复核职责取消一并删除——内容机检放行态与待复核态均放行、仅风险项拒绝，
+// 后台不再读取或写入该字段（后端契约同源移除），前端不再保留其类型与字段映射。
 

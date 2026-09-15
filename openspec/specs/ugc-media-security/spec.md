@@ -1,9 +1,11 @@
 # UGC Media & Security Specification
 
 ## Purpose
-约束评价与反馈两类 UGC 的**配图能力**与**微信内容安全检测**：配图张数与压缩规格、图片上传链路（微信云开发云存储中转 → `imgSecCheck` 送检 → COS 永久转存）、文本 `msgSecCheck` v2 三态处理、安检状态字段 `sec_state` 的可见性规则与管理后台复核闭环、平台可迁移性。本 capability 为评价（`content-flow-visual` 写评价 / 评价区）与反馈（`feedback-forms-ux`）共用的横向能力；各 UX capability 只约束入口与展示形态，链路、规格与状态机以本 capability 为唯一权威。
+约束评价与反馈两类 UGC 的**配图能力**与**微信内容安全检测**：配图张数与压缩规格、图片上传链路（微信云开发云存储中转 → `imgSecCheck` 送检 → COS 永久转存）、文本 `msgSecCheck` v2 **判定口径（2026-09-15 起为二态：`pass` / `review` 一律放行、仅 `risky` 拒绝）**、平台可迁移性。本 capability 为评价（`content-flow-visual` 写评价 / 评价区）与反馈（`feedback-forms-ux`）共用的横向能力；各 UX capability 只约束入口与展示形态，链路、规格与判定口径以本 capability 为唯一权威。
 
 > **拍板来源（2026-09-13，防回退）**：本 capability 恢复评价/反馈配图并叠加内容安检，**推翻** 2026-09 `prelaunch-loop-closure` 期间「UGC 图片全量下线、评价区与反馈表单均无图片入口」的临时口径；相关旧条款已在各 spec 作废改写。
+>
+> **拍板来源（2026-09-15，防回退）**：**取消人工复核**——机检 `pass` 与 `review`（疑似）一律放行、仅 `risky` 拒绝；由该选择推导出内容安全态**单值化**，故**安检态字段 `sec_state`、其可见性规则与管理后台复核队列整体废止**（权威 `project_spec.md` §7.24）。原「`suggest` 三态」「`sec_state` 三态与可见性」「管理后台复核闭环」三条 Requirement 已就地改为**已废止**注记，恢复须重新拍板（PR-04）。
 
 ## Requirements
 
@@ -45,52 +47,43 @@ UGC 配图 SHALL 走统一链路：前端 `wx.cloud.uploadFile` 上传至**微�
 - **WHEN** 审查评价 / 反馈的图片上传调用
 - **THEN** 全部经 `POST /api/upload/images`（fileId），multipart `/api/upload/image` 仅承载头像与后台菜品图
 
-### Requirement: 文本安检（msgSecCheck v2，三态处理）
+### Requirement: 文本安检（msgSecCheck v2，二态判定）
 
-全部 UGC 文本（评价正文、反馈正文、用户昵称）在落库前 SHALL 经微信 `msgSecCheck` **v2** 检测：入参含提交人 `openid`（服务端据当前 userId 取得）、`scene`、`version=2`；`scene` 映射 SHALL 为**昵称=1、评价/反馈=2**（后续新增 UGC 形态须先登记 scene 值）。`suggest` 三态处理 SHALL 一致：`pass` 正常落库；`review` 正常落库并置 `sec_state='review'` 进人工复核（**不拦截提交**）；`risky` 拦截提交并返回 HTTP 400（不新增错误码）。安检调用 SHALL 统一收敛于后端 `ContentSecurityService`，业务模块不得自建安检调用；access_token SHALL 使用微信 **`stable_token`** 并缓存。前端对 400 违规 SHALL 提示内容存在违规且保留已填内容供修改重试。
+全部 UGC 文本（评价正文、反馈正文、用户昵称）在落库前 SHALL 经微信 `msgSecCheck` **v2** 检测：入参含提交人 `openid`（服务端据当前 userId 取得）、`scene`、`version=2`；`scene` 映射 SHALL 为**昵称=1、评价/反馈=2**（后续新增 UGC 形态须先登记 scene 值）。**判定 SHALL 为二态（2026-09-15 用户拍板「取消人工复核」）**：`pass` **与 `review`（疑似）均放行**（`SecSuggest.fromValue` 在判定入口把 `review` 归一为放行态）、`risky` 拦截提交并返回 HTTP 400（不新增错误码）；微信后续新增的**未知值或 `result.suggest` 缺失 SHALL fail-closed 按 `risky` 拦截**（宁可误拦、不放行）。判定**必须以 `result.suggest` 为准，SHALL NOT 只看 `errcode`**。安检调用 SHALL 统一收敛于后端 `ContentSecurityService`，业务模块不得自建安检调用；access_token SHALL 使用微信 **`stable_token`** 并缓存。前端对 400 违规 SHALL 提示内容存在违规且保留已填内容供修改重试。
 
-#### Scenario: 评价文本三态
+#### Scenario: 评价文本二态判定
 
 - **WHEN** 用户提交评价文本
-- **THEN** `pass` 直接落库展示；`review` 落库 `sec_state='review'`（提交成功但暂不公开）；`risky` 返回 400 拦截并提示
+- **THEN** `pass` 与 `review`（疑似）均直接落库并对外可见（无人工复核态）；`risky` 返回 400 拦截并提示、不落库
+
+#### Scenario: 未知 / 缺失 suggest 值 fail-closed
+
+- **WHEN** `msgSecCheck` 返回微信未来新增的未知 `suggest` 值，或响应中缺失 `result.suggest`
+- **THEN** 判定为 `risky`，提交被 400 拦截（不放行，不落库）
 
 #### Scenario: 反馈文本同样受检
 
 - **WHEN** 游客提交带图或纯文本反馈
-- **THEN** 反馈文本以 `scene=2` 受检，三态处理与评价一致
+- **THEN** 反馈文本以 `scene=2` 受检，二态判定与评价一致（`risky` 拦 400、其余放行且不留复核标记）
 
 #### Scenario: 昵称受检
 
 - **WHEN** 用户修改昵称
-- **THEN** 昵称以 `scene=1` 受检，`risky` 拦截、`review`/`pass` 按既有昵称流程处理
+- **THEN** 昵称以 `scene=1` 受检，`risky` 拦截、`pass` / `review` 放行
 
-### Requirement: 安检状态字段与可见性
+### Requirement: ~~安检状态字段与可见性~~（已废止：2026-09-15）
 
-`review.sec_state` 与 `user_feedback.sec_state` SHALL 取值 **`pass`/`review`/`rejected` 三态**（`pass`=通过；`review`=机检 `msgSecCheck` `suggest=review` 落库、待人工复核；`rejected`=管理端人工复核驳回），默认 `pass`，以列扩展落地（**不新建表**）；`review` 态仅由机检写入，管理端复核接口 SHALL NOT 写入 `review`（只写人工结论 `pass`/`rejected`）。`sec_state` SHALL 独立于 `is_hidden`（评价管理员隐藏语义不变），评价公开展示条件 SHALL 为 `is_hidden=0` **且** `sec_state='pass'`。`sec_state='review'` 与 `sec_state='rejected'` 的记录 SHALL 同口径对非作者不可见（**后端过滤，前端不兜底**）；作者本人 SHALL 可见并呈现「安检复核中 / 未过审」态（评价在「我的评价」可见，反馈本身无公开列表页、不受此影响）。VO 与提交请求字段命名 SHALL 为 camelCase 的 `images`（≤3 项 COS URL 数组）与 `secState`。
+> **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「安检状态字段与可见性」整体作废——`review.sec_state` / `user_feedback.sec_state` **三态**（`pass`/`review`/`rejected`，默认 `pass`）、`review` 态仅由机检写入、公开条件 `is_hidden=0` **且** `sec_state='pass'`、`review` / `rejected` 对非作者不可见（后端过滤）、作者本人「安检复核中 / 未过审」态、以及 VO / 请求字段 `secState` 的约定，**均不再适用**。
+>
+> **退役落地（不可回退）**：`sec_state` 两列**已删除**（CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理，可重跑）；`SecStateConst`、实体 / DTO / VO 的 `secState` 字段、Mapper 过滤条件（含 `DishMapper` 评分聚合的 `sec_state='pass'`）同批删除；`viewerId`（原仅服务「作者本人放行 `review` 态」）一并删除。
+>
+> **现口径（SHALL）**：机检结论 SHALL NOT 落库、SHALL NOT 构成可见性闸门；评价公开展示条件 SHALL 为 **`is_hidden=0` 单一判据**（后端过滤，前端不兜底），作者本人视角不再有「审核中」标识（仅保留 `isHidden`「已被隐藏」）。评价 / 反馈 VO 与提交请求的 camelCase 字段**仅保留 `images`**（≤3 项 COS URL 数组），**SHALL NOT 出现 `secState`**。
 
-#### Scenario: 复核态对非作者不可见
+### Requirement: ~~管理后台复核闭环~~（已废止：2026-09-15）
 
-- **WHEN** 非作者用户浏览含 `sec_state='review'` 评价的菜品评价列表
-- **THEN** 该评价不出现在列表与计数中（后端过滤），作者本人在「我的评价」可见并带复核中标识
-
-#### Scenario: 状态字段命名一致
-
-- **WHEN** 检查评价 / 反馈相关接口的 JSON 载荷
-- **THEN** 配图字段为 `images`、安检态字段为 `secState`（camelCase），无第二套并行命名
-
-### Requirement: 管理后台复核闭环
-
-管理后台 SHALL 提供评价安检复核队列：可筛选 `secState='review'` 并展示正文、配图与所属菜品，提供**放行**（`sec_state`→`pass`，恢复公开展示）与**驳回**（`sec_state`→`rejected`，持续对非作者不可见，作者侧呈现未过审态）两个动作，经 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）。反馈详情 SHALL 展示配图（≤3 张可放大）。交互细则见 `web-admin-feedback-loop`。
-
-#### Scenario: 放行恢复公开展示
-
-- **WHEN** 管理员对复核态评价执行放行
-- **THEN** `sec_state` 置 `pass`，评价恢复对非作者的公开展示
-
-#### Scenario: 驳回持续不可见
-
-- **WHEN** 管理员对复核态评价执行驳回
-- **THEN** 该评价对非作者持续不可见，不恢复展示
+> **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「管理后台复核闭环」整体作废——复核队列、`secState='review'` 筛选、**放行**（`sec_state`→`pass`）与**驳回**（`sec_state`→`rejected`）、端点 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）**均已删除**。
+>
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列、安检筛选或放行 / 驳回动作（机检 `pass` / `review` 一律放行、`risky` 已在提交侧拦截，后台无复核职责）。评价只提供**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），页面为「评价管理」`/dashboard/reviews`。**反馈详情 SHALL 仍展示配图（≤3 张可放大）**（该条保留），页面为「反馈处理」`/dashboard/feedback`；交互细则见 `web-admin-feedback-loop`。
 
 ### Requirement: 平台可迁移（不绑定云托管）
 

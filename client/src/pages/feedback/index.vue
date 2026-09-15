@@ -70,7 +70,7 @@
       <!-- 提交反馈（表单最下方，随内容滚动）：
            外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
       <view class="submit-area" @tap="onSubmitAreaTap">
-        <!-- 审核说明：仅投稿类目（add / error）展示（spec §7.7 第 2 条） -->
+        <!-- 处理说明：仅投稿类目（add / error）展示（spec §7.7 第 2 条） -->
         <text v-if="submitPendingHint" class="submit-note">{{ submitPendingHint }}</text>
         <!-- 处理承诺：48 小时内处理（spec §7.8 第 4 条） -->
         <text class="submit-note">我们会在 48 小时内处理你的反馈，处理结果将通过站内通知告知</text>
@@ -325,7 +325,7 @@ const {
 .submit-area {
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 }
-/* 提交区说明行（审核说明 / 48h 处理承诺）：三级灰小字，只读，不参与交互 */
+/* 提交区说明行（处理说明 / 48h 处理承诺）：三级灰小字，只读，不参与交互 */
 .submit-note {
   display: block;
   margin-bottom: var(--spacing-xs);

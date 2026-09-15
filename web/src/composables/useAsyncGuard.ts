@@ -5,7 +5,7 @@ import { ref } from 'vue'
  *
  * 背景：连续快速切换筛选 / 输入关键词会并发请求，过期响应晚到会覆盖最新数据（数据错乱）。
  * 此前操作日志 / 反馈 / 评价审核三个列表视图各自维护 `reqToken` 手工比对（三份重复样板），
- * 本收敛为唯一 composable（迁移顺序：OperationLogView → FeedbackView → ReviewAuditView）。
+ * 本收敛为唯一 composable（迁移顺序：OperationLogView → FeedbackView → ReviewManageView）。
  *
  * 契约（frontend-ui-consolidation.md UI-05）：
  *  - `run(fn)` 内部 `++token`、置 loading=true、清空 error、catch 填 error；

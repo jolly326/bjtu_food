@@ -3,7 +3,6 @@ package com.bjtufood.review.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bjtufood.common.constant.SecStateConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -11,7 +10,6 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.content.security.SecSuggest;
 import com.bjtufood.review.constant.ReviewConst;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
@@ -46,11 +44,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
 
-    /** 内容安全状态常量：机检待人工复核 / 人工复核不通过（均对他端不可见，作者本人可见）。真源：{@link SecStateConst} */
-    public static final String SEC_STATE_PASS = SecStateConst.PASS;
-    public static final String SEC_STATE_REVIEW = SecStateConst.REVIEW;
-    public static final String SEC_STATE_REJECTED = SecStateConst.REJECTED;
-
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
     private final UserMapper userMapper;
@@ -70,7 +63,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort, userId);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼），见 project_spec 决策
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -84,7 +77,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort, userId);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -98,7 +91,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort, userId);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort);
         // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
         if (userId != null) {
             markUseful(pageResult.getRecords(), userId);
@@ -111,9 +104,8 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden/sec_state 过滤均不适用——
-        // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」），
-        // 机检待复核（sec_state=review）同样放行（端上提示「审核中」）。
+        // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden 过滤不适用——
+        // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」）。
         // 排序固定按发表时间倒序（sort=latest 显式传入，本人评价按时间更自然；与公开列表默认「有用数置顶」解耦）
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
         fillImages(pageResult.getRecords());
@@ -229,10 +221,10 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
-        // 文本 msgSecCheck v2（scene=2 评论）：risky 由 checkText 统一拦截（400），
-        // review 态落库 sec_state='review'（对他端不可见，作者本人可见并提示「审核中」）。
+        // 文本 msgSecCheck v2（scene=2 评论）：risky 由 checkText 统一拦截（400）；
+        // 机检 review（疑似）已归一为放行（2026-09-15 用户拍板取消人工复核），不再落库任何安全态。
         // 注：openid 为 NULL 的情形已由上方准入校验拦截，此处不会走到「跳过机审放行」分支。
-        review.setSecState(checkUgcText(userId, filteredContent, 2));
+        checkUgcText(userId, filteredContent, 2);
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
         review.setImages(UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil));
@@ -248,22 +240,22 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * UGC 文本机检公共入口：取当前用户 openid 调 msgSecCheck v2。
+     * UGC 文本机检公共入口：取当前用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
-     * 返回落库的 sec_state：pass / review（risky 已由 checkText 抛 400，不会返回）。
+     * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
+     * pass 与机检 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
      * 边界（报告备案）：
      * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
      * 2. 微信凭据未配置（本地开发环境）→ 跳过机审放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
      */
-    private String checkUgcText(Long userId, String content, int scene) {
+    private void checkUgcText(Long userId, String content, int scene) {
         if (!StringUtils.hasText(content)) {
-            // 纯图评价/反馈：无文本可检，直接通过
-            return SEC_STATE_PASS;
+            // 纯图评价/反馈：无文本可检，直接放行
+            return;
         }
         User user = userMapper.selectById(userId);
         String openid = user == null ? null : user.getOpenid();
-        SecSuggest suggest = contentSecurityService.checkText(openid, content, scene);
-        return suggest == SecSuggest.REVIEW ? SEC_STATE_REVIEW : SEC_STATE_PASS;
+        contentSecurityService.checkText(openid, content, scene);
     }
 
     /**
@@ -300,21 +292,17 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, String secState, Long userId, String keyword) {
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
-        // 内容安全状态查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空
-        secState = ParamValidator.optionalInWhitelist(secState, SecStateConst.ALL, "内容安全状态");
         // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
         // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
         // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
                         .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
-                                Review::getContent, Review::getImages, Review::getSecState, Review::getIsHidden,
+                                Review::getContent, Review::getImages, Review::getIsHidden,
                                 Review::getCreatedAt, Review::getUpdatedAt)
                         .eq(isHidden != null, Review::getIsHidden, isHidden)
-                        // 内容安全状态筛选（管理端复核队列：secState=review 捞待人工复核），值已在上方白名单校验并归一化
-                        .eq(StringUtils.hasText(secState), Review::getSecState, secState)
                         .eq(userId != null, Review::getUserId, userId)
                         // 关键词模糊匹配评价正文，仅当显式传入时生效
                         .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
@@ -369,28 +357,6 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void setSecState(Long id, String state) {
-        // 枚举校验：本接口契约仅允许 pass/rejected（review 由机检写入，管理端只能改人工结论）
-        String normalized = state == null ? "" : state.trim().toLowerCase();
-        if (!SEC_STATE_PASS.equals(normalized) && !SEC_STATE_REJECTED.equals(normalized)) {
-            throw new BusinessException("state 仅允许 pass 或 rejected");
-        }
-        Review review = reviewMapper.selectById(id);
-        if (review == null) {
-            throw new BusinessException("评价不存在");
-        }
-        review.setSecState(normalized);
-        reviewMapper.updateById(review);
-        // Q-110（2026-09-14 用户拍板）：机审结果回写必须触发评分聚合重算。
-        // 计入白名单为 sec_state='pass'：review→pass 应补计入（原被机审拦下未计），
-        // pass→rejected 应扣除（原已计入），故任何人工复核结论变更都需重算。
-        // 复用 ReviewSubmittedEvent + RatingUpdateListener（AFTER_COMMIT 后异步重算），
-        // 与评价新增/删除/隐藏路径同一真源，避免口径漂移。
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void deleteByAdmin(Long id) {
         Review review = reviewMapper.selectById(id);
         if (review != null) {
@@ -403,7 +369,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 转换为管理端 VO（携带 is_hidden/sec_state 审核字段与配图）
+     * 转换为管理端 VO（携带 is_hidden 处置字段与配图；sec_state 已随取消人工复核退役）
      */
     private ReviewAdminVO toAdminVO(Review review) {
         ReviewAdminVO vo = new ReviewAdminVO();
@@ -414,7 +380,6 @@ public class ReviewServiceImpl implements ReviewService {
         vo.setContent(review.getContent());
         List<String> images = JsonListUtil.parseStringList(review.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        vo.setSecState(StringUtils.hasText(review.getSecState()) ? review.getSecState() : SEC_STATE_PASS);
         vo.setCreatedAt(review.getCreatedAt());
         vo.setIsHidden(review.getIsHidden() != null ? review.getIsHidden() : 0);
         return vo;

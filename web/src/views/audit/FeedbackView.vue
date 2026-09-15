@@ -1,8 +1,19 @@
 <script setup lang="ts">
+/**
+ * FeedbackView（独立「反馈处理」页，2026-09-15）：
+ * 原挂在「内容审核」聚合页内，内容审核重构为「评价管理」后，本视图独立为一级入口
+ * （路由 /dashboard/feedback，一级导航「反馈处理」），职责不变：
+ * 列表（状态 / 类型 / 关键词服务端过滤）+ 处理闭环（采纳 / 不采纳 + 不采纳原因必填 + 回执文案）。
+ *
+ * 2026-09-15 取消人工复核：内容机检改为 pass/review 均放行、仅 risky 拒绝，
+ * 反馈不再有「安检状态」筛选 / 列 / 展示项（后端该字段同步退役，前端不再读写）。
+ */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import FormDialog from '@/components/FormDialog.vue'
@@ -10,8 +21,7 @@ import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { useAsyncGuard } from '@/composables/useAsyncGuard'
 import { ChatDotRound, EditPen, CircleCheck, CircleClose, Picture } from '@element-plus/icons-vue'
-import { SEC_STATE_META, SEC_FILTER_OPTIONS, SEC_PASS, FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED, FEEDBACK_TYPE_META } from '@/constants'
-import { toSecFilter } from '@/api/adapter'
+import { FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED, FEEDBACK_TYPE_META } from '@/constants'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
@@ -60,9 +70,6 @@ const typeOptions = [
 ]
 const activeType = ref('')
 
-// 安检状态筛选（'' = 全部，服务端过滤）：筛「待复核」时优先处理被安检拦截的反馈
-const activeSecState = ref('')
-
 // 请求竞态守卫（UI-05 收敛为 useAsyncGuard）：过期响应整份丢弃（防连续输入数据错乱）
 const { loading, error, run } = useAsyncGuard()
 const rows = ref<FeedbackAdminVO[]>([])
@@ -91,7 +98,6 @@ async function loadList() {
       status: activeStatus.value || undefined,
       keyword: searchQuery.value.trim() || undefined,
       type: activeType.value || undefined,
-      secState: toSecFilter(activeSecState.value) || undefined,
       page: page.value,
       pageSize: pageSize.value,
     })
@@ -102,7 +108,8 @@ async function loadList() {
 }
 
 /**
- * 单条反馈深链直达：`/dashboard/audit?tab=feedback&fid=<id>`（P1-03）。
+ * 单条反馈深链直达：`/dashboard/feedback?fid=<id>`（P1-03；本页独立成页前为
+ * `/dashboard/audit?tab=feedback&fid=<id>`，旧链接由路由兜底跳转时保留查询参数，深链仍可达）。
  * （原入口为工作台「待办明细」，工作台已下线，深链参数保持兼容。）
  * 复用既有详情抽屉（本页无独立 /feedbacks/:id 路由，也无 GET /admin/feedbacks/{id} 单查接口），
  * 故在列表落地后按 id 定位该行并自动打开抽屉；若不在当前页则回退为「关键词=该条摘要」服务端检索，
@@ -144,9 +151,6 @@ async function onTypeChange() {
   await reloadFromFirstPage()
 }
 async function onStatusChange() {
-  await reloadFromFirstPage()
-}
-async function onSecStateChange() {
   await reloadFromFirstPage()
 }
 
@@ -309,10 +313,12 @@ async function copyReviewLink(reviewId?: number) {
 </script>
 
 <template>
+  <PageContainer>
+    <PageHeader title="反馈处理" subtitle="处理学生反馈：采纳回复 / 不采纳（必填原因）" />
+
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="activeStatus" label="状态" :options="statusOptions" :width="140" @change="onStatusChange" />
-        <FilterSelect v-model="activeSecState" label="安检" :options="SEC_FILTER_OPTIONS" :width="150" @change="onSecStateChange" />
         <FilterSelect v-model="activeType" label="类型" :options="typeOptions" :width="150" @change="onTypeChange" />
       </template>
     </FilterBar>
@@ -330,9 +336,7 @@ async function copyReviewLink(reviewId?: number) {
         { prop: 'contact', label: '联系方式', width: '160px' },
         { prop: 'submitter', label: '提交人', width: '140px' },
         { prop: 'time', label: '提交时间', width: '170px', sortable: true, sortValue: (row) => row.createdAt },
-        { prop: 'secState', label: '安检', width: '90px', align: 'center' },
         { prop: 'status', label: '状态', width: '100px', align: 'center' },
-
       ]"
       :rows="filtered"
       :loading="loading"
@@ -362,9 +366,6 @@ async function copyReviewLink(reviewId?: number) {
       <template #cell-contact="{ row }"><span class="muted">{{ row.contact || '—' }}</span></template>
       <template #cell-submitter="{ row }">{{ submitterLabel(row) }}</template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
-      <template #cell-secState="{ row }">
-        <StatusTag :type="SEC_STATE_META[row.secState]?.type || 'success'" :text="SEC_STATE_META[row.secState]?.text || '正常'" />
-      </template>
       <template #cell-status="{ row }">
         <StatusTag :type="FEEDBACK_STATUS_META[row.status]?.type || 'warning'" :text="FEEDBACK_STATUS_META[row.status]?.text || row.status" />
       </template>
@@ -434,12 +435,6 @@ async function copyReviewLink(reviewId?: number) {
             <p class="img-hint">点击图片放大预览</p>
           </div>
         </div>
-        <div class="detail-row" v-if="detail.secState && detail.secState !== SEC_PASS">
-          <span class="dl">安检</span>
-          <span class="dv">
-            <StatusTag :type="SEC_STATE_META[detail.secState]?.type || 'success'" :text="SEC_STATE_META[detail.secState]?.text || '正常'" />
-          </span>
-        </div>
         <div class="detail-row" v-if="detail.status === FEEDBACK_HANDLED"><span class="dl">处理时间</span><span class="dv">{{ fmtTime(detail.handledAt) }}</span></div>
         <div class="detail-row detail-row-desc" v-if="detail.reply"><span class="dl">历史回复</span><span class="dv text-desc">{{ detail.reply }}</span></div>
         <!-- 不采纳原因回显（§7.23 第 5 条：随回执向提交人展示；历史数据无 outcome 时按 rejectReason 兜底） -->
@@ -490,12 +485,12 @@ async function copyReviewLink(reviewId?: number) {
         <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
       </template>
     </FormDialog>
+  </PageContainer>
 </template>
 
 <style scoped>
-.status-tabs { margin-bottom: var(--space-4); }
-.status-tab { font-size: var(--font-sm); }
-.tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
+/* 注（2026-09-15）：原聚合页遗留的 .status-tabs / .status-tab / .tab-count 三条死样式
+   （页内 tab 切换早随分类卡收敛删除、模板已无引用）已清理，避免误导后续维护。 */
 
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }

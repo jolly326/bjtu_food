@@ -1,7 +1,9 @@
 # web-admin-feedback-loop Specification
 
 ## Purpose
-为管理后台建立反馈驱动的治理闭环：反馈列表可直达其关联对象的编辑位置、处理动作触发用户回执、审核页收敛为「反馈 / 评价」两个分区，工作台按最小口径呈现待办与规模指标，并承载 UGC 配图展示与安检复核（放行 / 驳回，安检链路见 `ugc-media-security`），使管理员能「看到问题 → 修正数据 → 回传结果」一气呵成。
+为管理后台建立反馈驱动的治理闭环：反馈列表可直达其关联对象的编辑位置、处理动作触发用户回执，使管理员能「看到问题 → 修正数据 → 回传结果」一气呵成；页面归属为**「反馈处理」与「评价管理」两个一级页**（2026-09-15 由原「内容审核」聚合页拆分，一级导航 4 项：信息管理 / 评价管理 / 反馈处理 / 用户与系统），评价侧只做**事后处置**（隐藏 / 显示 / 删除），并承载 UGC 配图展示（配图链路与判定口径见 `ugc-media-security`）。
+
+> **2026-09-15 变更（权威 `project_spec.md` §7.24「取消人工复核」）**：机检 `pass` / `review` 一律放行、仅 `risky` 拒绝 ⇒ 管理后台**不再承担内容复核职责**。原「评价安检复核队列（放行 / 驳回，`PUT /admin/reviews/{id}/sec-state`）」Requirement **整体废止**；原「内容审核页」Requirement 改注为新的页面划分；原「工作台最小口径」Requirement 随 2026-09-15 工作台下线一并废止（`GET /admin/dashboard` 已删除）。恢复任一已废止能力须**重新拍板**。
 
 ## Requirements
 
@@ -38,63 +40,43 @@
 - **WHEN** 管理员打开一条无配图的反馈详情
 - **THEN** 不出现配图占位区，详情布局与配图能力上线前一致
 
-### Requirement: 评价安检复核队列（2026-09-13）
+### Requirement: ~~评价安检复核队列~~（已废止：2026-09-15）
 
-管理后台 SHALL 为安检复核态（`sec_state='review'`，文本 `msgSecCheck` `suggest=review` 落库产生）的评价提供复核队列：列表可筛选 `secState` 并展示该评价的正文、配图与所属菜品；每条 SHALL 提供「放行」与「驳回」两个动作——放行 SHALL 置 `sec_state='pass'` 并恢复该评价对非作者的公开展示；驳回 SHALL 置 `sec_state='rejected'`，使该评价持续对非作者不可见（作者侧呈现未过审态），不得恢复展示。复核动作 SHALL 调用 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）。队列外的评价（`sec_state='pass'`）不受影响，`is_hidden` 管理员隐藏语义与安检态独立并存。
-
-#### Scenario: 复核态评价进入队列
-
-- **WHEN** 某评价提交后文本安检 `suggest=review` 落库 `sec_state='review'`
-- **THEN** 管理后台复核队列可筛出该条并展示其正文、配图与所属菜品，该评价在用户端对非作者不可见
-
-#### Scenario: 放行恢复展示
-
-- **WHEN** 管理员对复核态评价执行「放行」
-- **THEN** `sec_state` 置为 `pass`，该评价在用户端恢复对非作者的公开展示
-
-#### Scenario: 驳回不再展示
-
-- **WHEN** 管理员对复核态评价执行「驳回」
-- **THEN** 该评价对非作者持续不可见，仅作者侧可见未过审态，不出现于用户端公开列表
+> **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「评价安检复核队列（2026-09-13）」整体作废——复核队列、列表 `secState` 筛选、**放行**（`sec_state='pass'`）/ **驳回**（`sec_state='rejected'`）两个动作、端点 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）**均已删除**；`sec_state` 列亦已全链退役（不落库、不参与可见性）。
+>
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列 / 安检筛选 / 放行·驳回动作，SHALL NOT 呈现「待复核」统计。评价治理收敛为**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），位于「评价管理」页 `/dashboard/reviews`（`ReviewManageView`，2026-09-15 由 `ReviewAuditView` 改名）；评价列表 SHALL NOT 返回 / 展示安检态字段（原 `secState` 已删除）。
 
 ### Requirement: 处理动作触发用户回执
 
 管理员将反馈标记为已处理（含回复内容）时，后台 SHALL 一并触发面向提交人的回执投递（细则见 `feedback-receipt`）。处理结果 SHALL 以管理员回复为回执正文；无回复时 SHALL 仍可标记处理并给出通用回执文案。
+（**2026-09-15 收紧**：`reply` 恒必填——1~1000 字、纯空白视为未填写 → `400`；「不采纳 / 退回」`outcome='rejected'` 时另需必填 `reject_reason`，见 `project_spec.md` §7.23 第 5 条与 `docs/api-design.md` §5.4。）
 
 #### Scenario: 处理后回执已投递
 
 - **WHEN** 管理员填写回复并标记某条反馈为已处理
 - **THEN** 该处理成功落库，且对应提交人（若可归属）收到处理结果通知
 
-#### Scenario: 无回复也可处理
+#### Scenario: 缺回复拒绝提交
 
-- **WHEN** 管理员未填写回复直接标记处理
-- **THEN** 处理成功执行，回执使用通用文案
+- **WHEN** 管理员未填写回复直接提交处理
+- **THEN** 服务端返回 `400` 拒绝（纯空白同样视为未填写），反馈状态不变
 
-### Requirement: 审核页仅含反馈与评价分区
+### Requirement: 管理端页面划分（2026-09-15 修订；原「审核页仅含反馈与评价分区」）
 
-内容审核页 SHALL 仅提供「反馈」与「评价」两个分区，SHALL NOT 呈现「UGC 申请」分区或任何实体贡献申请相关列表、待办计数与筛选。原申请链路（提交申请 → 管理员审核 → 自动建实体）SHALL NOT 存在于用户端与管理后台。
+管理端一级导航 SHALL 为 **4 项**：**信息管理 / 评价管理 / 反馈处理 / 用户与系统**。原「内容审核」聚合页（`AuditManageView`）SHALL NOT 存在，其职责 SHALL 拆为两个独立页：「**评价管理**」`/dashboard/reviews`（`ReviewManageView`，隐藏 / 显示 / 删除 = 事后处置）与「**反馈处理**」`/dashboard/feedback`（`FeedbackView`，处理闭环）。后台 SHALL NOT 呈现「UGC 申请」分区或任何实体贡献申请相关列表、待办计数与筛选；原申请链路（提交申请 → 管理员审核 → 自动建实体）SHALL NOT 存在于用户端与管理后台。
 
-#### Scenario: 审核页仅两个分区
+#### Scenario: 旧深链兜底可达
 
-- **WHEN** 管理员打开内容审核页
-- **THEN** 仅见「反馈」与「评价」两个分类卡，无申请相关分区与计数
+- **WHEN** 管理员打开旧深链 `/dashboard/audit`（可带查询参数）
+- **THEN** 前端兜底重定向：`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，查询参数保留（如 `fid` 深链仍可达）
 
-#### Scenario: 申请链路不可达
+#### Scenario: 无申请链路
 
 - **WHEN** 检索管理后台路由、接口调用与用户端入口
-- **THEN** 不存在申请提交、申请列表、申请审核的可用入口与调用
+- **THEN** 不存在申请提交、申请列表、申请审核的可用入口与调用，亦不存在「内容审核」聚合页
 
-### Requirement: 工作台最小口径
+### Requirement: ~~工作台最小口径~~（已废止：2026-09-15）
 
-工作台 SHALL 按最小口径呈现：待办 SHALL 仅含「待处理反馈」一项；规模指标 SHALL 为 5 项（食堂 / 档口 / 菜品 / 学生 / 评价）。工作台 SHALL NOT 呈现申请相关待办与指标，亦 SHALL NOT 呈现评价治理类待办。
-
-#### Scenario: 待办仅反馈一项
-
-- **WHEN** 管理员打开工作台
-- **THEN** 待办区仅显示「待处理反馈」及其数量，点击直达反馈处理位置
-
-#### Scenario: 指标为五项
-
-- **WHEN** 管理员查看工作台规模指标区
-- **THEN** 恰好呈现食堂 / 档口 / 菜品 / 学生 / 评价五项，无申请与评价治理指标
+> **已废止（2026-09-15 用户拍板「去工作台」，权威 `project_spec.md` §0.4.1 / §5.z D-工作台）**：原 Requirement「工作台最小口径」整体作废——工作台页面 `DashboardView` 与 `GET /admin/dashboard` 接口**已删除**，`dashboard` 业务域不再存在。
+>
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何全局聚合看板 / 总览页 / ECharts 图表 / 跨模块聚合统计。待办可见性 SHALL 由「**反馈处理**」入口徽标（待处理反馈数，数据源 `feedback.status='pending'`）＋ 各业务页行内统计承担；近期操作由操作日志页 `/dashboard/system` 承载；默认落地页为「信息管理 · 菜品页」`/dashboard/content?tab=dish`。恢复聚合看板须重新拍板（PR-04）。

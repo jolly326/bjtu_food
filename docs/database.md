@@ -4,6 +4,7 @@
 > **2026-09-15 对账修订（蓝图 v1，权威 `project_spec.md` §7.23）**：删除已 DROP 列（`dish.portion` / `dish.serve_period` / `dish.limited`、`canteen`/`stall` 的 `status`/`audit_status`/`reject_reason` 6 列、`stall.business_hours`、`review.tags`）；`user.role` 收为两层（移除 `super_admin`）；`user.password` 标注为历史兼容列；`dish.region` 改为「风味 / 菜系」；清理已删除接口条目（`selectPromotionDishes` / `GET /dishes/promotions`）。
 > **2026-09-15 阶段4 对账修订（用户批准，权威 `project_spec.md` §7.23 第 4 条）**：① **`dish.audit_status` 列与索引全量退役**——列已 DROP（存量库由 `schema.sql` 末尾幂等存储过程 `drop_dish_audit_status_column` 清理）、`idx_dish_audit` 一并删除、`idx_dish_heat` 收为 `(status, view_count, rating_count, avg_rating)`；**公开查询不再按该列过滤（`status='on'` 即公开展示）**；`DishConst.AUDIT_APPROVED` / `AuditStatusConst` / 一次性归一脚本 `normalize_dish_audit_status.sql` 同批删除。② **`canteen.created_by` / `stall.created_by` 两列退役**（DROP 归入同一幂等存储过程 `drop_canteen_stall_entity_fields`）。③ `dish.reject_reason` / `dish.created_by` / `user_feedback.*` **不动**（前者为退役历史列、后者保留）。
 > **2026-09-15 品类维度整链删除对账（用户拍板，权威 `project_spec.md` §7.22 第 1 条——原 Q-117「后台保留品类作归类用途」口径已撤销）**：`category` 表、`dish.category_id` 列、`idx_dish_category` 索引、`uk_category_code` 唯一键、关系图 / ER 图中的 `category` 节点**一律移除**；**表基线 12 → 11 张**。**定型口径：菜品按食堂 / 档口归属，不存在分类维度**（端上无、后台亦无）。⚠️ **待对齐（尚未收口）**：`server/src/main/resources/db/schema.sql` / `seed_data.sql` 中的品类残留（建表、列、索引、种子数据与 `dish.category_id` 赋值）尚未清理，须以幂等段移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**）；**清理完成前，本文件「与 `schema.sql` 严格一致」的声明不成立**，收尾项登记见 `project_spec.md` §8「待收尾」。
+> **2026-09-15 取消人工复核对账修订（用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：**`review.sec_state` 与 `user_feedback.sec_state` 两列已全链退役**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等存储过程 `drop_sec_state_columns` 清理（先判存在再 DROP，可重复执行）；**评价可见性与评分聚合口径收敛为仅 `is_hidden=0` 单一判据**（机检 `pass` / `review` 一律放行、仅 `risky` 拒绝且不落库）；`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、实体 / DTO / VO 的 `secState` 字段、列表筛选入参与 `OperationLogConst.ACTION_REVIEW_SEC_STATE` 同批删除；一次性重算脚本 `fix_rating_by_sec_state.sql` **已删除**。**表基线仍 11 张（本次为纯列级变更，不增删表）。**
 > 数据库名：`bjtu_food`；字符集：`utf8mb4` / `utf8mb4_general_ci`；引擎：`InnoDB`。
 
 ## 1. 设计约定
@@ -15,7 +16,7 @@
 | 时间戳 | `created_at` 默认 `CURRENT_TIMESTAMP`；`updated_at` 默认 `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`（由 `MybatisMetaObjectHandler` 统一写入） |
 | 金额 | 以「分」为单位存储 `INT`（如 12.00 元 = `1200`），避免浮点误差 |
 | 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，用于菜品/食堂/档口图；**2026-09-13 起 UGC 评价/反馈恢复 `images` 列**：同为 JSON 数组字符串，≤3 项 COS URL，见 §3.5 / §3.9） |
-| 内容安检 | UGC（评价/反馈）文本与配图过微信内容安检；`review.sec_state` / `user_feedback.sec_state`（**三态** `pass`/`review`/`rejected`，默认 `pass`，2026-09-13 追加列）承载安检态，`review`（机检待人工复核）与 `rejected`（人工驳回）均对非作者不可见 |
+| 内容安检 | UGC（评价/反馈）文本与配图**提交时**过微信内容安检（`msgSecCheck` v2 / `imgSecCheck`）——**机检 `pass` 与 `review`（疑似）一律放行，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）拒绝且不落库**（2026-09-15 用户拍板「取消人工复核」，见 `project_spec.md` §7.24）；**安检态无落库列**——`review.sec_state` / `user_feedback.sec_state` 两列已全链退役；评价可见性唯一判据 = `is_hidden=0` |
 | 审核流 | **2026-09-15 蓝图 v1（`project_spec.md` §7.23 第 4 条）+ 阶段4 全量退役：菜品无独立审核**——`dish.audit_status` **列与索引已删除**（公开查询不再按该列过滤，`status='on'` 即公开展示），`dish.reject_reason` 为**退役历史列**（列保留、恒 NULL、不写入），后台无审核入口、端上无「菜品审核」概念，管理员录入 / 编辑即直接生效；`stall` / `canteen` 的 `audit_status` / `reject_reason` 已于 2026-09-14 随去实体化 DROP。**唯一有待处理态的运营对象是 `user_feedback`**（`status` pending/handled + `reply` 回执；不采纳 / 退回写 `reject_reason`） |
 | 角色 | `user.role`：**仅两层** `student`（默认）/ `admin`；**`super_admin` 已于 2026-09-14 移除（2026-09-15 蓝图 v1 再确认）**，`role` 仅作账号归属的数据语义、不作权限分层。`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
@@ -25,7 +26,7 @@
 
 `user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
 
-> 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images`/`review.sec_state`、`user_feedback.images`/`user_feedback.sec_state`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后当前基线为 11 张**，见本段首句）**。
+> 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images` / `user_feedback.images`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后当前基线为 11 张**，见本段首句）**；**其配套的 `review.sec_state` / `user_feedback.sec_state` 两列已于 2026-09-15 随「取消人工复核」全链退役**（不再创建，存量库由 `drop_sec_state_columns` 幂等清理）。
 
 ---
 
@@ -127,12 +128,13 @@
 | rating | INT | 否 | 0 | 评分（1-5星） |
 | content | VARCHAR(512) | 可 | NULL | 评价内容 |
 | images | VARCHAR(1024) | 可 | NULL | **评价配图（2026-09-13 恢复）**：JSON 数组字符串（`["cos-url1","cos-url2"]`，≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS） |
-| sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`（放行）/`review`（文本 msgSecCheck `suggest=review` 落此态，机检待人工复核，对非作者不可见）/`rejected`（管理后台人工复核驳回落此态，对非作者不可见同 review）；管理后台 `PUT /admin/reviews/{id}/sec-state` 放行（→`pass`）/驳回（→`rejected`）；公开展示条件 = `is_hidden=0` 且 `sec_state='pass'` |
-| is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏） |
+| is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏）——**评价公开可见性的唯一判据**（`is_hidden=0`） |
 | useful_count | INT | 否 | 0 | 「有用」标记数（schema.sql 末尾幂等 ALTER 追加列，由 review_useful 聚合维护） |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_review_dish`(`dish_id`)；KEY `idx_review_user`(`user_id`)；UNIQUE `uk_review_user_dish`(`user_id`,`dish_id`)（一人一评）。
+
+> **已下线列（2026-09-15 用户拍板「取消人工复核」，字段生命周期成对处置 PR-07）**：`review.sec_state`（原三态安检态 `pass`/`review`/`rejected`）**已全链退役**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等存储过程 `drop_sec_state_columns` DROP；`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、实体 / VO / DTO 的 `secState` 字段、列表筛选入参与 `OperationLogConst.ACTION_REVIEW_SEC_STATE` 同批删除。**列已从本表删除，勿再据旧文档引用**；评价公开展示条件收敛为 `is_hidden=0`。
 
 ### 3.6 review_useful（评价有用标记）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -170,8 +172,7 @@
 | sub | VARCHAR(16) | 可 | NULL | **反馈二级类型（2026-09-15 用户拍板，spec §7.23 第 3 条）**：值域 `idea`（建议·想法）/ `problem`（建议·问题），**仅 `type='suggestion'` 有效**；写入白名单校验、非法值（含非 `suggestion` 类型携带）400、不静默降级；后台展示为「建议·想法 / 建议·问题」，**不新增筛选维度**。**新库 CREATE TABLE 直接含此列；旧库由 `schema.sql` 幂等存储过程加列**（先判 `INFORMATION_SCHEMA` 存在性再 `ADD COLUMN`，可重跑，列定义与 CREATE 一致） |
 | content | VARCHAR(1024) | 否 | '' | 反馈内容 |
 | images | VARCHAR(1024) | 可 | NULL | **反馈配图（2026-09-13 恢复）**：JSON 数组字符串（≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS），游客提交同样可带图 |
-| sec_state | VARCHAR(16) | 否 | 'pass' | **安检态（2026-09-13 追加，三态）**：`pass`/`review`（机检待人工复核）/`rejected`（人工复核驳回，对非作者不可见同 review）；管理后台放行（→`pass`）/驳回（→`rejected`） |
-| contact | VARCHAR(128) | 可 | NULL | 联系方式 |
+| contact | VARCHAR(128) | 可 | NULL | 联系方式（**不收集**：前端无字段，列保留兼容历史，见 spec §2.1.4） |
 | status | VARCHAR(32) | 否 | 'pending' | pending/handled（**全项目唯一有待处理态的运营对象**，spec §7.23 第 5 条）。**处理结论 `outcome`（`handled`=通过/已处理（缺省）/`rejected`=不采纳/退回）为请求级字段（`FeedbackHandleReq.outcome`，蓝图 v1），不单独落列**：两种结论落库均写 `status='handled'`，结论差异由 `reject_reason` 是否非空承载（rejected 必填原因、handled 保持 NULL） |
 | reply | VARCHAR(1024) | 可 | NULL | 管理员回执（**必填**，1~1000 字，投递为站内通知 `feedback_handle`，回执区分「反馈已处理 / 反馈未采纳」） |
 | reject_reason | VARCHAR(200) | 可 | NULL | **不采纳/退回原因（2026-09-15 蓝图 v1 §7.23 第 5 条，已由规划列转正式列，DDL 随 `schema.sql` 幂等块 `add_feedback_reject_reason` 落地）**：处理结论 `outcome=rejected` 时必填（1~200 字，纯空白视为未填写 → 400），随回执通知一并向已认证提交人展示；`outcome=handled` 时不消费、保持 NULL |
@@ -182,6 +183,8 @@
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
+
+> **已下线列（2026-09-15 用户拍板「取消人工复核」，PR-07）**：`user_feedback.sec_state`（原三态安检态 `pass`/`review`/`rejected`）**已全链退役**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等存储过程 `drop_sec_state_columns` DROP（与 `review.sec_state` 同段清理）；`FeedbackAdminVO` 的 `secState` 出参与列表筛选入参同批删除。**列已从本表删除，勿再据旧文档引用**——反馈机检 `pass` / `review` 一律放行、`risky` 不落库，不留复核标记。
 
 ### 3.9 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -214,7 +217,7 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
 | admin_id | BIGINT | 否 | 0 | **已停写 / retired（2026-09-15 DOC-11 补注，spec §7.10 第 2 条）**：管理端操作人身份降级后不再写入、不再保证有值（恒 0 或历史值）；列与索引仅作历史数据查询保留 |
-| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java` 实际值重写；2026-09-15 品类整链删除后收敛）**：`review_hide` / `review_delete` / `review_sec_state` / `dish_delete` / `feedback_handle` / `account_delete`——**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除）。**⚠️ 待对齐（收尾项）**：`OperationLogConst` 现仍含 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值，品类链路删除后**已无生产者**，须随 `project_spec.md` §8「待收尾」删除（PR-05 / PR-12）；清理后本节值域收敛为上述六值 |
+| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java` 实际值重写；2026-09-15 品类整链删除后收敛）**：`review_hide` / `review_delete` / `dish_delete` / `feedback_handle` / `account_delete`（**五值**）——**`review_sec_state` 已随 2026-09-15「取消人工复核」删除**（`OperationLogConst.ACTION_REVIEW_SEC_STATE` 常量已不存在，无生产者）；**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除）。**⚠️ 待对齐（收尾项）**：`OperationLogConst` 现仍含 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值，品类链路删除后**已无生产者**，须随 `project_spec.md` §8「待收尾」删除（PR-05 / PR-12）；清理后本节值域收敛为上述五值 |
 | target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/feedback/review |
 | target_id | BIGINT | 可 | NULL | 操作对象ID |
 | ip | VARCHAR(64) | 可 | NULL | 来源IP |

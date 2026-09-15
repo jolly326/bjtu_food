@@ -14,9 +14,10 @@
     - selectReviewPageByDishId：按维度分页查询评价并联表补齐用户昵称/头像
     - selectAvgRatingByStallIds：批量统计多个档口平均分（单档口零调用版本已删除）
 
-    内容安全可见性（产品定稿 2026-09-13）：
-    - review.sec_state：pass=可见 / review=机检待人工复核 / rejected=人工复核不通过；
-    - 对外列表仅展示 is_hidden=0 且 sec_state='pass'，viewerId=作者本人时放行 review 态（前端提示「审核中」）；
+    内容安全可见性（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+    - 可见性唯一判据为 is_hidden=0（机检 pass/review 一律放行、risky 直接拒绝不入库）；
+    - 历史 sec_state='pass' 过滤与「作者本人放行 review 态」分支已随列退役删除，
+      原 viewerId 入参随之失去用途（本人可见性由 is_hidden=0 统一覆盖），故同批移除；
     - images_json 列为配图 URL 列表 JSON 原文（review.images），由 service 层解析为 images 数组，不在 SQL 层转换。
     ============================================================
     -->
@@ -31,18 +32,12 @@
             r.rating,
             r.content,
             r.images AS images_json,
-            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
-          AND (r.sec_state = 'pass'
-        <if test="viewerId != null">
-            OR r.user_id = #{viewerId}
-        </if>
-        )
         <choose>
             <!-- 默认（含 sort 缺省）按「有用数」置顶（2026-09-14 §7.14 B）；
                  sort=latest 显式传参仍走时间倒序，保持向后兼容。 -->
@@ -52,8 +47,7 @@
     </select>
 
     <!--
-        我的评价：本人视角，不过滤 sec_state（review 态由前端提示「审核中」），
-        返回 sec_state/images 供作者本人查看。
+        我的评价：本人视角，返回 images 供作者本人查看。
         可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见，
         并返回 is_hidden 供端上标注「已被隐藏」；公开列表的 is_hidden=0 过滤保持不放宽。
         排序：本人视角固定时间倒序（sort=latest 由 service 固定传入），不随公开列表默认口径变化。
@@ -69,7 +63,6 @@
             r.rating,
             r.content,
             r.images AS images_json,
-            r.sec_state AS sec_state,
             r.is_hidden AS is_hidden,
             r.created_at,
             r.useful_count AS useful_count
@@ -85,7 +78,7 @@
 
     <!--
         按档口查询评价：review 表无 stall_id，通过 review → dish(stall_id) 推导。
-        可见性：is_hidden=0 且 sec_state='pass'，作者本人（viewerId）放行 review 态。
+        可见性：is_hidden=0（sec_state 已全链退役，2026-09-15）。
     -->
     <select id="selectReviewPageByStallId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -97,7 +90,6 @@
             r.rating,
             r.content,
             r.images AS images_json,
-            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -105,11 +97,6 @@
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id = #{stallId}
           AND r.is_hidden = 0
-          AND (r.sec_state = 'pass'
-        <if test="viewerId != null">
-            OR r.user_id = #{viewerId}
-        </if>
-        )
         <choose>
             <!-- 默认（含 sort 缺省）按「有用数」置顶（§7.14 B）；sort=latest 仍走时间倒序 -->
             <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
@@ -119,7 +106,7 @@
 
     <!--
         按食堂查询评价：通过 review → dish(stall_id) → stall(canteen_id) 推导。
-        可见性：is_hidden=0 且 sec_state='pass'，作者本人（viewerId）放行 review 态。
+        可见性：is_hidden=0（sec_state 已全链退役，2026-09-15）。
     -->
     <select id="selectReviewPageByCanteenId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -131,7 +118,6 @@
             r.rating,
             r.content,
             r.images AS images_json,
-            r.sec_state AS sec_state,
             r.created_at,
             r.useful_count AS useful_count
         FROM review r
@@ -140,11 +126,6 @@
                  JOIN stall s ON d.stall_id = s.id
         WHERE s.canteen_id = #{canteenId}
           AND r.is_hidden = 0
-          AND (r.sec_state = 'pass'
-        <if test="viewerId != null">
-            OR r.user_id = #{viewerId}
-        </if>
-        )
         <choose>
             <!-- 默认（含 sort 缺省）按「有用数」置顶（§7.14 B）；sort=latest 仍走时间倒序 -->
             <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
@@ -154,7 +135,8 @@
 
     <!--
         批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
-        计入口径（Q-110）：仅 is_hidden=0 且 sec_state='pass' 的评价计入（与 dish 评分聚合同口径）。
+        计入口径（2026-09-15 归一）：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径；
+        sec_state 已全链退役，不再参与统计）。
     -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,
@@ -166,7 +148,6 @@
             #{sid}
         </foreach>
           AND r.is_hidden = 0
-          AND r.sec_state = 'pass'
         GROUP BY d.stall_id
     </select>
 

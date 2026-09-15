@@ -47,7 +47,7 @@
            空态不含重试按钮、错误提示与认证引导。 -->
       <view v-else-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
         <text class="empty-title">暂无通知</text>
-        <text class="empty-desc">菜品审核结果与反馈处理结果会在这里通知你</text>
+        <text class="empty-desc">反馈处理结果会在这里通知你</text>
       </view>
     </scroll-view>
   </view>
@@ -65,7 +65,6 @@ import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
-import { dishDetailUrl } from '@/utils/routes'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -168,7 +167,11 @@ async function onReadAll() {
  */
 const { markDirty, refreshOnShow } = useOnShowRefresh(load)
 
-/** 点击通知：标记已读；dish_audit 跳菜品详情；feedback_handle 停留本页（回执正文已在内容区展示，不做跳转） */
+/**
+ * 点击通知：仅标记已读（不删除该能力）。
+ * 跳转口径（2026-09-15）：feedback_handle 停留本页（回执正文已在内容区展示，不做跳转）；
+ * 未知类型（含历史存量通知的已退役类型）同样不跳转——端上不为未知类型臆测目标页。
+ */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {
     // 乐观更新已读态
@@ -181,9 +184,7 @@ async function onTap(n: Notification) {
       markDirty()
     }
   }
-  if (n.type === 'dish_audit' && n.relatedId) {
-    uni.navigateTo({ url: dishDetailUrl(n.relatedId) })
-  }
+  // 无跳转分支：feedback_handle 与未知类型一律停留本页（原「已退役类型 → 菜品详情」分支随该类型退役一并删除）
 }
 
 onShow(() => {
