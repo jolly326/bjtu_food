@@ -12,8 +12,6 @@ import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,7 +31,7 @@ public class CanteenServiceImpl implements CanteenService {
     private final StallMapper stallMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final ReviewMapper reviewMapper;
-    private final DishMapper dishMapper;
+    // 注：DishMapper 依赖已随 dishCount/topDishes/perCapita 下线一并移除（本类不再查询菜品）。
 
     @Override
     public List<CanteenInfoVO> listCanteens() {
@@ -67,8 +65,8 @@ public class CanteenServiceImpl implements CanteenService {
                 .in(Stall::getCanteenId, canteens.stream().map(Canteen::getId).toList())
                 .orderByAsc(Stall::getSortOrder));
         Map<Long, BigDecimal> avgRatingMap = batchAvgRating(allStalls);
-        // 批量查询全部档口在售菜品（一次 IN 查询按 stallId 分组），消除逐档口 N+1
-        Map<Long, List<Dish>> dishesByStall = batchOnSaleDishesByStall(allStalls);
+        // 2026-09-15：原「批量查询全部档口在售菜品」（dishCount/topDishes/perCapita 白算的数据源）
+        // 随三字段下线一并删除——/canteens/all 少一次全量菜品 IN 查询。
         return canteens.stream()
                 .map(canteen -> {
                     CanteenWithStallsVO vo = new CanteenWithStallsVO();
@@ -79,7 +77,7 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
                     List<StallDetailVO> stalls = allStalls.stream()
                             .filter(s -> s.getCanteenId().equals(canteen.getId()))
-                            .map(s -> toStallVO(s, avgRatingMap, dishesByStall.getOrDefault(s.getId(), List.of())))
+                            .map(s -> toStallVO(s, avgRatingMap))
                             .collect(Collectors.toList());
                     vo.setStalls(stalls);
                     return vo;
@@ -105,7 +103,7 @@ public class CanteenServiceImpl implements CanteenService {
         }
     }
 
-    private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap, List<Dish> onSaleDishes) {
+    private StallDetailVO toStallVO(Stall stall, Map<Long, BigDecimal> avgRatingMap) {
         StallDetailVO vo = new StallDetailVO();
         vo.setId(stall.getId());
         vo.setName(stall.getName());
@@ -118,30 +116,8 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(stall.getDescription());
         BigDecimal avg = avgRatingMap.get(stall.getId());
         vo.setAvgRating(avg != null ? avg.setScale(2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2));
-        // 主要菜品（评分前 3）与菜品数（档口卡展示）；onSaleDishes 已按 avg_rating/updated_at 降序
-        vo.setDishCount(onSaleDishes.size());
-        vo.setTopDishes(onSaleDishes.stream().limit(3).map(Dish::getName).toList());
-        // 人均消费（元，展示用）：在售菜品成交价（分：有促销价取 promoPrice，否则取 price）中位数 → /100 转元取整
-        vo.setPerCapita(derivePerCapita(onSaleDishes));
+        // 2026-09-15：dishCount / topDishes / perCapita 已随三端零消费下线（字段与派生逻辑同批删除）
         return vo;
-    }
-
-    /**
-     * 批量查询档口在售菜品，构建 stallId → 在售菜品列表（已按评分/更新时间降序）的映射
-     * （消除逐档口 N+1；空档口集合返回空 Map）。
-     */
-    private Map<Long, List<Dish>> batchOnSaleDishesByStall(List<Stall> stalls) {
-        if (stalls == null || stalls.isEmpty()) {
-            return Map.of();
-        }
-        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
-        return dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .in(Dish::getStallId, ids)
-                        .eq(Dish::getStatus, com.bjtufood.dish.constant.DishConst.STATUS_ON)
-                        .orderByDesc(Dish::getAvgRating)
-                        .orderByDesc(Dish::getUpdatedAt))
-                .stream()
-                .collect(Collectors.groupingBy(Dish::getStallId));
     }
 
     /**
@@ -162,29 +138,6 @@ public class CanteenServiceImpl implements CanteenService {
         return map;
     }
 
-    /**
-     * 派生档口人均消费（元，展示用，返回整元）。
-     * 取该档口在售菜品成交价（分）的中位数，转元取整；无在售菜品时返回 null。
-     */
-    private Integer derivePerCapita(List<Dish> dishes) {
-        if (dishes == null || dishes.isEmpty()) {
-            return null;
-        }
-        List<Integer> prices = dishes.stream()
-                .map(d -> d.getPromoPrice() != null ? d.getPromoPrice() : d.getPrice())
-                .filter(p -> p != null && p > 0)
-                .sorted()
-                .toList();
-        if (prices.isEmpty()) {
-            return null;
-        }
-        int mid = prices.size() / 2;
-        int medianFen = (prices.size() % 2 == 1)
-                ? prices.get(mid)
-                : (prices.get(mid - 1) + prices.get(mid)) / 2;
-        return medianFen / 100;
-    }
-
     private CanteenAdminVO toAdminVO(Canteen canteen) {
         CanteenAdminVO vo = new CanteenAdminVO();
         vo.setId(canteen.getId());
@@ -193,7 +146,8 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setDescription(canteen.getDescription());
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         vo.setSortOrder(canteen.getSortOrder());
-        vo.setCreatedBy(canteen.getCreatedBy());
+        // 2026-09-15：createdBy 三端零消费（单口令模型无真实身份，恒为系统占位值），
+        // 已随 VO 字段一并删除；实体 canteen.created_by 列保留（写入侧仍在用，仅收敛对外暴露）。
         vo.setCreatedAt(canteen.getCreatedAt());
         vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;

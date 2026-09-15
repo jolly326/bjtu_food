@@ -62,7 +62,10 @@ const subs = [
 ]
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 字段级样式（.field / .field-label / .req / .field-error / .content-input / .input-error）统一来自共享 partial */
+@use './form-shared';
+
 .sub-row { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-md); }
 .sub-chip {
   flex: 1;
@@ -80,23 +83,5 @@ const subs = [
 .sub-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .sub-chip.active .sub-text { color: var(--color-primary); font-weight: var(--weight-semibold); }
 
-.field { margin-bottom: var(--spacing-md); }
-.field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--spacing-xs); }
-.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
-.content-input {
-  width: 100%;
-  min-height: 300rpx;
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  line-height: 1.6;
-  padding: var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
-  border: 2rpx solid transparent;
-}
-.input-error { border-color: var(--color-error); }
-.field-error { display: block; margin-top: var(--spacing-xs); font-size: var(--font-tiny); color: var(--color-error); }
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 </style>

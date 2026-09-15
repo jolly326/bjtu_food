@@ -6,11 +6,16 @@ import { pageRecords, reviewToLegacy } from './adapter'
  * 评价列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。
  * 若传 userId 则按用户过滤；secState 为内容安检筛选（pass/review/rejected，'' = 全部不透传）；
  * pageSize 上限受后端 PageUtil 限制（≤100），不在此放宽。
+ *
+ * isHidden（可选）：后端 ReviewAdminController 的 isHidden 为 `Integer`（`.eq(isHidden != null, …)`），
+ * 故此处收窄为 0 | 1 传数值——传布尔会被序列化成 `isHidden=true` 触发后端类型转换失败（400）。
+ * 用途：审核页统计行取「已隐藏」总数（pageSize=1 仅取 total，不拉数据）。
  */
 export async function listReviews(params: {
   userId?: number
   keyword?: string
   secState?: SecState | ''
+  isHidden?: 0 | 1
   page?: number
   pageSize?: number
 } = {}): Promise<{ list: Review[]; total: number }> {
@@ -21,6 +26,7 @@ export async function listReviews(params: {
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
   if (params.secState) query.secState = params.secState
+  if (params.isHidden !== undefined) query.isHidden = params.isHidden
   const data: any = await get<any>('/admin/reviews', query)
   return {
     list: pageRecords(data).map(reviewToLegacy),

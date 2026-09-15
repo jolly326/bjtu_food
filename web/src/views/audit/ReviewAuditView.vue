@@ -64,8 +64,30 @@ async function onSecStateChange() {
   await loadList()
 }
 
+/**
+ * 行内统计（T5）：**每个数字都取自后端 total**（pageSize=1，只取计数不拉数据），
+ * 不用「当前筛选/当前页的局部计数」冒充全量：
+ *   共 N 条（无筛选 total）· 待复核 M（secState=review）· 已隐藏 K（isHidden=1，后端为 Integer 故传 1）。
+ * 单项失败即不展示该项（宁缺勿错）；不依赖 /admin/dashboard（该接口本轮下线）。
+ */
+const statItems = ref<string[]>([])
+async function loadStats() {
+  const { listReviews } = await import('@/api/review')
+  const [all, pending, hidden] = await Promise.allSettled([
+    listReviews({ page: 1, pageSize: 1 }),
+    listReviews({ secState: SEC_REVIEW, page: 1, pageSize: 1 }),
+    listReviews({ isHidden: 1, page: 1, pageSize: 1 }),
+  ])
+  const parts: string[] = []
+  if (all.status === 'fulfilled') parts.push(`共 ${all.value.total} 条`)
+  if (pending.status === 'fulfilled') parts.push(`待复核 ${pending.value.total}`)
+  if (hidden.status === 'fulfilled') parts.push(`已隐藏 ${hidden.value.total}`)
+  statItems.value = parts
+}
+
 onMounted(() => {
   loadList()
+  loadStats()
   // WEB-03：用户名 / 菜品名降级显示依赖的字典显式加载（域间独立，单域失败回落「用户#id」不影响列表）
   userStore.loadAll().catch(() => {})
   dishStore.loadAll().catch(() => {})
@@ -193,6 +215,8 @@ function getDishName(dishId: number | bigint): string {
         <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchReviews(false)">批量显示</button>
         <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchReviews(null)">批量删除</button>
       </template>
+      <!-- 全量统计（均取后端 total；取不到的分项不展示） -->
+      <span v-if="statItems.length" class="stat-inline">{{ statItems.join(' · ') }}</span>
     </template>
   </FilterBar>
 

@@ -36,15 +36,15 @@ public interface DishService {
     /**
      * 获取菜品详情
      * <p>
-     * 如果请求已登录，会在响应中附加：
-     * - hasReviewed：当前用户是否评价过该菜
+     * 2026-09-15：原「登录时附加 hasReviewed（是否已评价）」已下线（三端零消费）；
+     * 2026-09-16：因已无任何字段依赖登录态，随之下线已空转的 userId 入参
+     * （端点路径与响应结构零变化，未登录/登录返回完全一致）。
      *
-     * @param id     菜品ID
-     * @param userId 当前用户ID（未登录可为null）
+     * @param id 菜品ID
      * @return 菜品详情
      * @throws com.bjtufood.common.exception.BusinessException 菜品不存在
      */
-    DishVO getDishDetail(Long id, Long userId);
+    DishVO getDishDetail(Long id);
 
     /**
      * 增加菜品浏览量

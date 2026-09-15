@@ -115,6 +115,18 @@ const typeOptions = [
   { label: '常规菜品', value: 'normal' },
 ]
 
+/**
+ * 行内统计（T4）：口径为**全量**而非当前页/当前筛选——
+ * store.dishes 来自 dishApi.getAll()（按页循环拉取的全量聚合，WEB-104），故可直接计数；
+ * 已下架 = 非 active（与列表「非 active 即已下架」的展示口径严格一致，两者相加恒等于总数）。
+ * PR-13：不为取数新增接口。
+ */
+const stats = computed(() => {
+  const total = store.dishes.length
+  const active = store.dishes.filter(d => d.status === 'active').length
+  return { total, active, inactive: total - active }
+})
+
 // ===== 三态（WEB-02：store 不再顶层自动加载，进页显式加载本页所需域并暴露 loading/error） =====
 const loading = ref(true)
 const error = ref('')
@@ -294,6 +306,8 @@ async function batchDelete() {
           <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
           <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchDelete">批量删除</button>
         </template>
+        <!-- 全量统计（加载/失败态不展示，避免用 0 冒充真实计数） -->
+        <span v-if="!loading && !error" class="stat-inline">共 {{ stats.total }} · 在售 {{ stats.active }} · 已下架 {{ stats.inactive }}</span>
         <button class="btn-primary" v-press @click="openAddDish">
           <el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品
         </button>

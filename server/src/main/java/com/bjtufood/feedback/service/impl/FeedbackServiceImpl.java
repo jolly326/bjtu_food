@@ -78,12 +78,20 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         // 二级分类 sub（DEV-01 补全落库）：仅 type=suggestion（提个想法）有效——
         // 端上「想法/问题」二选一此前仅在请求中出现、未落库，现收敛为白名单并落库。
-        // provided 但不在 SUB_WRITE_WHITELIST → 400（ParamValidator 统一口径，不静默降级）；
-        // 未提供（null/空白）→ 按未填处理，落库 NULL。
-        // type != suggestion 时该值无效：整体忽略并置 null（不校验、不写库，避免跨类型污染）。
-        String sub = FeedbackConst.TYPE_SUGGESTION.equals(type)
-                ? ParamValidator.optionalInWhitelist(req.getSub(), FeedbackConst.SUB_WRITE_WHITELIST, "反馈二级分类")
-                : null;
+        // 1. type=suggestion：provided 但不在 SUB_WRITE_WHITELIST → 400（ParamValidator 统一口径，不静默降级）；
+        //    未提供（null/空白）→ 按未填处理，落库 NULL。
+        // 2. type != suggestion（2026-09-15 用户拍板，严格模式）：该值无效——
+        //    未提供（null/空白）零影响（其他类型本就不传 sub，存量调用行为不变）；
+        //    一旦提供（非空白）即 400，不再静默忽略，避免端上误传被吞掉而不自知。
+        String sub;
+        if (FeedbackConst.TYPE_SUGGESTION.equals(type)) {
+            sub = ParamValidator.optionalInWhitelist(req.getSub(), FeedbackConst.SUB_WRITE_WHITELIST, "反馈二级分类");
+        } else {
+            if (StringUtils.hasText(req.getSub())) {
+                throw new BusinessException(400, "反馈二级分类仅「提个想法」(suggestion) 类型有效");
+            }
+            sub = null;
+        }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(type);

@@ -4,34 +4,42 @@
  * 设计（去冗余）：顶部两张分类卡 = 唯一一级导航（带待办数），点击在本页切换下方列表，无重复 tabbar。
  * - 反馈 / 评价（UGC 申请审核已随 apply 全链路下线，见 change prelaunch-loop-closure）
  * 兼容旧链接 ?tab=xxx → 定位对应分类卡。
+ *
+ * 2026-09-15（本轮）：工作台下线，两个徽标数改为**各自域的列表接口 total**（pageSize=1 只取计数），
+ * 不再依赖 /admin/dashboard（该接口随工作台一并下线）。
  */
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getDashboard, type DashboardData } from '@/api/dashboard'
 import { listReviews } from '@/api/review'
+import { listFeedbacks } from '@/api/feedback'
+import { FEEDBACK_PENDING, SEC_REVIEW } from '@/constants'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import FeedbackView from '@/views/admin/FeedbackView.vue'
 import ReviewAuditView from '@/views/audit/ReviewAuditView.vue'
 import { Document, ChatLineSquare } from '@element-plus/icons-vue'
 
-// ===== 待办数（来自 dashboard，加载失败静默不影响切换） =====
-const todo = ref<DashboardData | null>(null)
-// 评价待复核数：安检流水线 secState=review 的评价首页 total（WA-04，原硬编码 0 恒绿）
+// ===== 待办数（各自域接口 total；加载失败静默退化为 0，不阻塞切换） =====
+/** 待处理反馈数：GET /admin/feedbacks?status=pending 的 total */
+const pendingFeedbackCount = ref(0)
+/** 评价待复核数：安检流水线 secState=review 的评价首页 total（WA-04，原硬编码 0 恒绿） */
 const pendingReviewCount = ref(0)
-onMounted(async () => {
-  try { todo.value = await getDashboard('week') } catch { todo.value = null }
-  try {
-    const { total } = await listReviews({ secState: 'review', page: 1, pageSize: 1 })
-    pendingReviewCount.value = total
-  } catch { pendingReviewCount.value = 0 } // 加载失败静默：徽标退化为 0（不阻塞切换）
-})
+
+async function loadBadges() {
+  const [feedback, review] = await Promise.allSettled([
+    listFeedbacks({ status: FEEDBACK_PENDING, page: 1, pageSize: 1 }),
+    listReviews({ secState: SEC_REVIEW, page: 1, pageSize: 1 }),
+  ])
+  pendingFeedbackCount.value = feedback.status === 'fulfilled' ? feedback.value.total : 0
+  pendingReviewCount.value = review.status === 'fulfilled' ? review.value.total : 0
+}
+onMounted(loadBadges)
 
 // ===== 唯一一级导航：分类卡（带待办数徽标，点击切换当前视图） =====
 const sections = [
   {
     key: 'feedback',
     label: '反馈',
-    badge: () => (todo.value?.pendingFeedbackCount ?? 0),
+    badge: () => pendingFeedbackCount.value,
     icon: Document,
   },
   {
@@ -73,38 +81,12 @@ watch(() => route.query.tab, (t) => { activeKey.value = resolveKey(t) })
     </div>
 
     <!-- 纯 v-if 切换：组件挂载时重新读取数据，切换回来必显示 -->
-    <template v-if="activeKey === 'feedback'">
-      <div class="block-title">反馈</div>
-      <FeedbackView />
-    </template>
+    <!-- 区块标题与分类卡重复，已删除（仅保留分类卡作为当前区块指示） -->
+    <FeedbackView v-if="activeKey === 'feedback'" />
     <ReviewAuditView v-else />
   </PageContainer>
 </template>
 
 <style scoped>
-/* ===== 分类卡（唯一一级导航） ===== */
 /* 分类卡样式统一在 shared.css（.sec-grid/.sec-card），保证三页大小 UI 一致 */
-
-/* 区块标题：与全站分区卡标题一致的品牌竖条（原 ApplyFeedbackView 中转文件收敛至此） */
-.block-title {
-  display: flex;
-  align-items: center;
-  margin: var(--space-3) 0 var(--space-2);
-  font-size: var(--font-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  padding-left: var(--space-3);
-  position: relative;
-}
-.block-title:first-child { margin-top: 0; }
-.block-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 3px;
-  bottom: 3px;
-  width: 3px;
-  border-radius: var(--radius-xs);
-  background: var(--color-primary);
-}
 </style>

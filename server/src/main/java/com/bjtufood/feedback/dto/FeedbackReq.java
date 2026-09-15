@@ -26,9 +26,10 @@ public class FeedbackReq {
     /**
      * 二级分类（DEV-01 补全落库）：仅 {@code type=suggestion} 有效，值域 idea/problem
      * （单一真源 {@code FeedbackConst.SUB_WRITE_WHITELIST}）。
-     * type 非 suggestion 时后端忽略该值并置 null；provided 但值域非法由 Service 层返回 400。
+     * type 非 suggestion 时该值无效：未提供（null/空白）按未填处理（落库 NULL）；
+     * 一旦提供（非空白）即 400（严格模式）；suggestion 场景下 provided 但值域非法同样 400。
      */
-    @Schema(description = "二级分类：仅 suggestion 类型有效，值域 idea/problem（其他类型忽略）", example = "idea")
+    @Schema(description = "二级分类：仅 suggestion 类型有效，值域 idea/problem（其他类型传值将 400）", example = "idea")
     private String sub;
 
     @Schema(description = "反馈内容", example = "希望增加更多素食档口")

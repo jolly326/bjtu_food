@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
-import { Document } from '@element-plus/icons-vue'
 import { useAsyncGuard } from '@/composables/useAsyncGuard'
 import type { OperationLogVO } from '@/api/operationLog'
 import {
@@ -39,7 +38,7 @@ function onPageChange() {
 }
 
 // 动作 / 对象筛选预设与文案映射统一收敛至 constants/index.ts（OPERATION_ACTION_* / OPERATION_TARGET_*）
-// ——与后端 OperationLogConst 同源、与工作台「近期操作」共用同一份映射，避免两处各写一套导致口径漂移。
+// ——与后端 OperationLogConst 同源，全站共用同一份映射，避免各处各写一套导致口径漂移。
 const activeAction = ref('')
 const activeTarget = ref('')
 
@@ -154,12 +153,6 @@ function fmtTime(v: string): string {
       <template #cell-ip="{ row }"><span class="ip">{{ row.ip || '—' }}</span></template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
     </DataTable>
-
-    <div class="read-only-tip">
-      <el-icon><Document /></el-icon>
-      <span>仅记录管理员写操作，系统自动生成</span>
-      <span class="read-only-badge">只读</span>
-    </div>
 </template>
 
 <style scoped>
@@ -170,17 +163,5 @@ function fmtTime(v: string): string {
 .dr-picker :deep(.el-range-editor) { min-height: 36px; border-radius: var(--radius); }
 .muted { color: var(--text-light); }
 .ip { font-family: var(--font-numeric, monospace); font-size: var(--font-sm); color: var(--text-secondary); }
-.read-only-tip {
-  margin-top: var(--space-4); display: flex; align-items: center; gap: var(--space-2);
-  font-size: var(--font-sm); color: var(--text-secondary);
-  background: var(--color-primary-bg); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
-  padding: var(--space-3) var(--space-4); border-radius: var(--radius);
-}
-.read-only-tip .el-icon { width: 16px; height: 16px; opacity: .7; color: var(--color-primary); }
-.read-only-badge {
-  margin-left: auto; flex-shrink: 0;
-  padding: 1px var(--space-2); border-radius: var(--radius-pill);
-  background: var(--bg-card); color: var(--text-secondary);
-  border: 1px solid var(--border-color); font-size: var(--font-xs); font-weight: var(--weight-medium);
-}
+/* .read-only-tip / .read-only-badge 已删除（2026-09-15 本轮）：与页面本身「只读列表」语义重复的色块噪音 */
 </style>

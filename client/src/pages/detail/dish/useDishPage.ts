@@ -23,6 +23,7 @@ import { useDishStore, LOADING_KEY_REVIEWS } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useLocationStore } from '@/stores/location'
 import { haversineMeters, getUserLocation } from '@/utils/location'
+import { formatDistance } from '@/utils/format'
 import { addView } from '@/api/dish'
 import { deleteReview } from '@/api/review'
 import type { Review } from '@/types/review'
@@ -188,11 +189,12 @@ export function useDishPage() {
     return haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
   })
 
-  /** 距你文案 */
+  /** 距你文案：距离口径统一走 utils/format（含取整/公里一位小数/>999km 守卫）；
+   *  未定位或脏坐标（non-finite）统一回落到「未定位」文案 */
   const distText = computed(() => {
     const m = dishDistance.value
     if (m == null) return '未定位'
-    return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${m}m`
+    return formatDistance(m) || '未定位'
   })
 
   /** 评分分布：按星级 5→1 排序（供综合评分卡） */

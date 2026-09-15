@@ -61,7 +61,7 @@
 |---|---|---|---|---|
 | GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10 |
 | GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize） | `PageResult<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名） |
-| GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（登录时含 hasReviewed） |
+| GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（含评分分布）。**2026-09-15 阶段 2 剪枝**：`DishDetailVO.hasReviewed` 已删除（连带详情接口内的一次 review 计数查询），`getDishDetail` **不再接收 `userId` 参数**——登录 / 游客返回结构完全一致，无用户态分支 |
 
 > **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`（§3.2）、`GET /dishes/hot-search`（首页热搜在用）。菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。
 
@@ -138,7 +138,7 @@
 |---|---|---|---|
 | POST | `/feedback` | 公开 | 提交反馈（游客可；含举报/纠错/推荐菜品；**2026-09-13 起请求体增可选 `images`：字符串数组 ≤3 项 COS URL**，游客提交同样可带图；文本过 `msgSecCheck` v2 `scene=2`，`risky` 拦 400、`review` 落 `sec_state='review'`）。**`type` 写入白名单（2026-09-15 蓝图 v1 真源，spec §7.23 第 3 条）= `suggestion` / `add` / `error` / `report`**：`suggestion` 建议 / 问题（端上二级 `sub=idea` / `sub=problem`，**「系统 bug」归 `problem`，不升一级类型**）、`add` 新增菜品、`error` 纠错与申请下架（`relatedType=dish`）、`report` 举报（`relatedType=review`，必填 `relatedId`）；**`bug` / `other` 为历史遗留枚举位、无生产者、禁止新增**，非法值 400（仅查询白名单保留以筛存量） |
 
-> **`FeedbackReq` 字段（2026-09-15 用户拍板补录 `sub`）**：`{ type, content, sub?, images?, relatedType?, relatedId? }`——`sub` 为**二级类型**，值域 **`idea`（建议·想法）/ `problem`（建议·问题）**，**仅 `type='suggestion'` 时有效**；写入白名单校验（`FeedbackConst` 单一真源），**非法值（含非 `suggestion` 携带 `sub`）→ `400`**，不静默降级（PR-06）。**不新增筛选维度**（后台筛选仅按一级 `type`）。
+> **`FeedbackReq` 字段（2026-09-15 用户拍板补录 `sub`）**：`{ type, content, sub?, images?, relatedType?, relatedId? }`——`sub` 为**二级类型**，值域 **`idea`（建议·想法）/ `problem`（建议·问题）**，**仅 `type='suggestion'` 时有效**；写入白名单校验（`FeedbackConst` 单一真源），**严格模式（2026-09-15 DEV-01 收口）**：**`sub` 非空且 `type != 'suggestion'` → `400`**，`sub` 非空但不在 `idea`/`problem` 值域 → 同 `400`，**一律不静默降级、不忽略**（PR-06）。**不新增筛选维度**（后台筛选仅按一级 `type`）。
 >
 > 「我的反馈」接口 `GET /feedback/my` 已随反馈中心下线删除（2026-09-07）；进度追踪后续另做。
 
@@ -175,12 +175,11 @@
 
 > **鉴权口径（2026-09-14 与 spec §7.10 对齐，原「需 ADMIN / SUPER_ADMIN + JWT + 方法级 `@PreAuthorize`」描述作废）**：`/admin/**` **无登录体系、无 JWT、无角色校验**——`SecurityConfig` 放行后由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403；web 端 `VITE_ADMIN_TOKEN` 与之同值）。`SUPER_ADMIN` 角色已移除，`/auth/admin/login` 端点不存在。
 
-### 5.1 工作台（DashboardController）
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/admin/dashboard` | 工作台总览（`range=week/month/all` → 7/30/90 天，默认 week）。**2026-09-14 Q-106 收口（spec §7.21 第 1 条）**：不再计算前端不消费的图表与趋势字段（`hotCanteens`/`hotDishes`/`viewTrend`/`reviewTrend`，原 `viewTrend` 命名与语义不符一并修正），不再执行全表菜品聚合；仅返回待办（含明细 5 条）+ 规模指标 + 近期操作（10 条），各统计项独立容错 |
+### 5.1 工作台（已下线，2026-09-15 用户拍板）
 
-> 原 `GET /admin/stats/**`（统计：热门排行/趋势）为**幽灵端点**（全仓零实现，2026-09-14 核实）：现 `StatsController` 不暴露任何 HTTP 端点（无 `@RequestMapping`/`@GetMapping`），仅作为 `DashboardController` 的统计逻辑复用载体，该端点**不新建**。
+> **`GET /admin/dashboard` 已删除，勿再对接**：`DashboardController` 及其统计逻辑载体（`StatsService` / `StatsController`）、`DashboardVO` / 待办明细 VO 已随**工作台业务域整体移除**（spec §0.4.1 / §5.z D-工作台）。**管理后台无「全局聚合看板」**——待办可见性由**「内容审核」入口徽标**（待处理反馈数）＋ **各业务页行内统计**承担；默认落地页为**信息管理·菜品页** `/dashboard/content?tab=dish`。
+>
+> 随之作废：2026-09-14 Q-106「工作台摘除图表字段」的全部口径（spec §7.21 第 1 条，保留为历史留痕），以及「`GET /admin/stats/**` 为幽灵端点、仅作 `DashboardController` 统计逻辑复用载体」的表述（**复用载体已不存在**；该端点仍不新建）。
 
 ### 5.2 菜品管理（DishAdminController）
 | 方法 | 路径 | 说明 |

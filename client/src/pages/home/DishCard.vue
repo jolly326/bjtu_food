@@ -37,7 +37,7 @@
           <IconSvg name="location" :size="22" color="var(--text-tertiary)" class="stall-icon" />
           <text class="stall-text">{{ dish.canteen }} · {{ dish.stallName }}</text>
         </view>
-        <text v-if="dish.distance != null" class="card-distance">{{ fmtDistance(dish.distance) }}</text>
+        <text v-if="dish.distance != null" class="card-distance">{{ formatDistance(dish.distance) }}</text>
       </view>
     </view>
   </view>
@@ -48,6 +48,7 @@ import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
+import { formatDistance } from '@/utils/format'
 import IconSvg from '@/components/IconSvg.vue'
 import TagLabel from '@/components/TagLabel.vue'
 
@@ -72,14 +73,6 @@ const imgLoaded = ref(false)
 
 /** 标签展示：最多 2 个 +「+N」（B.6 卡片信息区规整）；tags 可能为 undefined（旧数据/占位），空数组兜底防 length 报错 */
 const displayTags = computed(() => (props.dish.tags || []).slice(0, 2))
-
-/** 距你文案：米/公里自适应（distance 由前端基于定位本地算，服务器不算） */
-function fmtDistance(m: number): string {
-  // 脏数据（NaN/负数/非有限）隐藏；超大距离（>999km，应为异常坐标）截断显示
-  if (!Number.isFinite(m) || m < 0) return ''
-  if (m > 999000) return '>999km'
-  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
-}
 
 /** 评分统一保留一位小数（与详情页 toFixed(1) 一致，避免 4 / 4.5 显示不一致） */
 function fmtRating(r: number): string {

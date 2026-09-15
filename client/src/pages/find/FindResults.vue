@@ -53,9 +53,10 @@
                 <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
               </view>
             </view>
-            <!-- 标签行（视觉对齐首页 TagLabel 尺寸/圆角/间距，保留主色软底 chip） -->
+            <!-- 标签行：复用全站 TagLabel（variant="plain" = 统一主色软底 chip，不按语义分色），
+                 与首页卡片同源，不再本地自绘 -->
             <view v-if="item.tagLabels && item.tagLabels.length" class="mixed-tags">
-              <text v-for="t in item.tagLabels" :key="t" class="mixed-tag">{{ t }}</text>
+              <TagLabel v-for="t in item.tagLabels" :key="t" :text="t" variant="plain" />
             </view>
             <!-- 底部：位置左 + 距你右，两级浅灰弱化 -->
             <view class="mixed-sub">
@@ -65,7 +66,7 @@
                   :key="si"
                 >{{ seg.text }}</text>
               </text>
-              <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ fmtMixedDistance(item.distance) }}</text>
+              <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ formatDistance(item.distance) }}</text>
             </view>
           </view>
         </view>
@@ -78,6 +79,8 @@
 import { reactive } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { formatPrice } from '@/utils/money'
+import { formatDistance } from '@/utils/format'
+import TagLabel from '@/components/TagLabel.vue'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 
 /** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */
@@ -117,13 +120,6 @@ const emit = defineEmits<{
 const loadedSet = reactive(new Set<string>())
 function thumbSrc(src?: string): string {
   return src ? getImageUrl(getThumbUrl(src)) : ''
-}
-
-/** 距你文案：米/公里自适应 */
-function fmtMixedDistance(m: number): string {
-  if (!Number.isFinite(m) || m < 0) return ''
-  if (m > 999000) return '>999km'
-  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
 }
 
 /** 关键词拆段：find-result-card-polish 后命中片段不再上主色（红只给价格），保留分段语义以备未来弱化 */
@@ -214,15 +210,6 @@ function selectRow(item: MixedResultItem) {
 }
 /* 命中片段不再上主色：红仅保留给价格（find-result-card-polish） */
 .mixed-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2xs); margin-top: 2rpx; }
-.mixed-tag {
-  font-size: var(--font-tiny);
-  line-height: 1.4;
-  padding: var(--spacing-2xs) var(--spacing-xs);
-  border-radius: var(--radius-tag);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-weight: var(--weight-medium);
-}
 .mixed-promo-badge {
   font-size: var(--font-tiny);
   line-height: 1.4;

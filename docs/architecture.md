@@ -23,14 +23,13 @@
 |---|---|---|---|
 | 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页，见 spec §2.1） |
 | 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
-| 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（登录首屏 `/dashboard` 工作台，非 ECharts 看板） |
+| 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（**默认落地页 = 信息管理·菜品页 `/dashboard/content?tab=dish`**，2026-09-15 工作台下线后取代原 `/dashboard`；无全局聚合看板） |
 
 ### 1.2 后端分层（包结构）
 ```
 com.bjtufood/
 ├── auth/        # 认证：微信登录/邮箱认证/JWT/Security（昵称变更过 msgSecCheck scene=1）
 ├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
-├── dashboard/   # 工作台业务域：工作台 controller / service / dto（原置于 dish 包，2026-09-15 迁出独立成域；端点不变，仍为 GET /admin/dashboard，统计逻辑 StatsService 随迁）
 ├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── canteen/     # 食堂/档口
 ├── content/     # category 品类

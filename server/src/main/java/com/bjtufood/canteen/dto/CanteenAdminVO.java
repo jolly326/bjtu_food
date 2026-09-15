@@ -28,8 +28,8 @@ public class CanteenAdminVO {
     @Schema(description = "排序权重")
     private Integer sortOrder;
 
-    @Schema(description = "提交人用户ID")
-    private Long createdBy;
+    // 2026-09-15 字段下线：createdBy（提交人用户ID）web 后台零消费——
+    // 管理端为单口令模型、无真实身份（写入侧恒为系统占位 0），对外暴露无意义，已删除。
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

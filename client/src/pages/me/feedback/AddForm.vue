@@ -154,13 +154,13 @@ const displayStall = computed(() =>
 )
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 字段级样式（.field / .field-label / .req / .field-error / .content-input / .input-error /
+   .picker-row / .picker-value）统一来自共享 partial */
+@use './form-shared';
+
 .form-group { margin-bottom: var(--spacing-lg); }
 .form-group:last-child { margin-bottom: 0; }
-.field { margin-bottom: var(--spacing-md); }
-.field:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--spacing-xs); }
-.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
 .field-gap { height: var(--spacing-sm); }
 .row-fields { display: flex; gap: var(--spacing-sm); }
 .row-fields .col { flex: 1; min-width: 0; }
@@ -175,34 +175,4 @@ const displayStall = computed(() =>
   box-sizing: border-box;
   border: 2rpx solid transparent;
 }
-.content-input {
-  width: 100%;
-  min-height: 300rpx;
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  line-height: 1.6;
-  padding: var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
-  border: 2rpx solid transparent;
-}
-.content-input-sm { min-height: 140rpx; }
-.input-error { border-color: var(--color-error); }
-.field-error { display: block; margin-top: var(--spacing-xs); font-size: var(--font-tiny); color: var(--color-error); }
-.picker-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  padding: 0 var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-.picker-row.disabled { opacity: 0.5; }
-.picker-value { font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-value.placeholder { color: var(--text-tertiary); }
 </style>

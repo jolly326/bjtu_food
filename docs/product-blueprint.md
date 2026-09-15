@@ -116,7 +116,8 @@
 
 **公开 / 游客可读**：`GET /canteens`、`/canteens/all`、`/dishes`（搜索 / 筛选 / 排序，keyword 命中 name 或 alias）、`/dishes/hot-search`、`/dishes/{id}`、`POST /auth/wechat-login`、`POST /feedback`（公开提交）。**已删端点（勿再引用）**：`/dishes/hot|new|promotions|rising|recommend`（2026-09-14 端上零消费下线）、`/categories` 与 `/dishes/{dishId}/reviews`（2026-09-15 三端零调用删除，评价走 `GET /reviews?dishId=`）。
 **登录态**：`POST /dishes/{id}/view`、`POST /reviews`、`DELETE /reviews/{id}`、`POST /reviews/{id}/useful`（**需 `verified=true`**，未认证 4031）、`GET /my/reviews`、`GET /my/notifications`、`/my/notifications/unread-count`、`PUT /my/notifications/{id}/read`、`GET|PUT /auth/profile`、`POST /auth/email-code`、`POST /auth/verify-email`、`DELETE /auth/account`（注销）、`POST /upload/images`（fileId→COS URL）、`POST /upload/image`（multipart，管理端用）。
-**管理端 `/admin/**`**（无登录体系，`X-Admin-Token` 口令把关）：`dishes`（含食堂 / 档口按名 upsert）、`/canteens`、`/stalls`、`/categories`、`/reviews`（含 `secState` 筛选与 `{id}/sec-state`、`{id}/hide`）、`feedbacks`（处理结论 `outcome`，`rejected` 必填 `reject_reason`）、`users`、`dashboard`、`operation-logs`。**已删端点（勿再引用）**：`/admins`（管理员账号管理）、`/audit/**`（实体审核）、`/auth/admin/login`。
+**管理端 `/admin/**`**（无登录体系，`X-Admin-Token` 口令把关）：`dishes`（含食堂 / 档口按名 upsert）、`/canteens`、`/stalls`、`/categories`、`/reviews`（含 `secState` 筛选与 `{id}/sec-state`、`{id}/hide`）、`feedbacks`（处理结论 `outcome`，`rejected` 必填 `reject_reason`）、`users`、`operation-logs`。**已删端点（勿再引用）**：`/admins`（管理员账号管理）、`/audit/**`（实体审核）、`/auth/admin/login`、**`/dashboard`（工作台总览；2026-09-15 用户拍板「去工作台」，页面与接口一并删除，spec §0.4.1）**。
+**管理后台信息架构（2026-09-15 更新）**：**默认落地页 = 信息管理 · 菜品页 `/dashboard/content?tab=dish`**；**无「全局聚合看板」**——待办可见性由「内容审核」入口徽标（待处理反馈数）+ 各业务页行内统计承担，近期操作由操作日志页承载。
 
 **错误码（固定）**：`200 / 400 / 401 / 403 / 4031 / 500`；安检违规、违规图片、未配置存储等一律 **400**；游客触发需认证写操作 **4031**。
 

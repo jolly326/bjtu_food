@@ -40,7 +40,8 @@ public interface FeedbackConst {
      * <p>
      * 端上「提个想法」页存在「想法 / 问题」二选一，此前该值仅在请求中出现、未落库（假字段）；
      * 现收敛为服务端白名单并落库 {@code user_feedback.sub}，供管理端按二级分类查看。
-     * 其他 type 一律忽略该值并置 NULL（不报错、不落库），避免跨类型污染。
+     * type 非 suggestion 时该值无效：未提供（null/空白）按未填处理、落库 NULL；
+     * 一旦提供（非空白）即 400（严格模式，2026-09-15 用户拍板，不静默忽略），避免跨类型污染。
      */
     String SUB_IDEA = "idea";
     String SUB_PROBLEM = "problem";

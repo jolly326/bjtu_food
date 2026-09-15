@@ -39,13 +39,7 @@ public class StallDetailVO {
     @Schema(description = "档口平均评分（取该档口下所有菜品评价的平均值，1-5星，无评价为 0.00）", example = "4.50")
     private BigDecimal avgRating;
 
-    @Schema(description = "档口菜品数")
-    private Integer dishCount;
-
-    @Schema(description = "档口主要菜品（评分前3，名称）")
-    private List<String> topDishes;
-
-    /** 人均消费（元，展示用）。由该档口在售菜品成交价（有促销价取促销价，否则取原价）的中位数转元取整派生；无在售菜品时为 null。 */
-    @Schema(description = "人均消费（元，展示用，已为元）", example = "15")
-    private Integer perCapita;
+    // 2026-09-15 字段下线：dishCount / topDishes / perCapita 三端零消费
+    //（client 侧档口节点仅消费 name；端上档口卡不展示菜品数/招牌菜/人均），
+    // 连带删除 CanteenServiceImpl 的白算逻辑（含每次 /canteens/all 的「在售菜品批量 IN 查询」）。
 }

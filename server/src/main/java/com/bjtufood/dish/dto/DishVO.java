@@ -95,8 +95,8 @@ public class DishVO {
 
     // ==================== 以下字段仅详情页接口返回 ====================
 
-    @Schema(description = "当前用户是否已评价（仅登录用户）")
-    private Boolean hasReviewed;
+    // 注：hasReviewed（当前用户是否已评价）已于 2026-09-15 下线——三端零消费，
+    // 删除字段与 DishServiceImpl 的取值查询（省掉详情接口一次 review 计数查询）。
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

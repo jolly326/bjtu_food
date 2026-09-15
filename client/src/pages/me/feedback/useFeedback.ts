@@ -27,7 +27,10 @@ import { useUserStore } from '@/stores/user'
 
 export function useFeedback() {
   const userStore = useUserStore()
-  // 返回：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页
+  /**
+   * 全页唯一返回实现：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页。
+   * 手动返回与成功态自动返回（scheduleAutoBack）共用本函数，不再各写一份栈判断。
+   */
   function goBack() {
     if (getCurrentPages().length > 1) uni.navigateBack()
     else backToHome()
@@ -575,10 +578,7 @@ export function useFeedback() {
   // ---- ⑨ 成功态自动返回（用户 2 秒内无输入则 navigateBack） ----
   function scheduleAutoBack() {
     if (backTimer) clearTimeout(backTimer)
-    backTimer = setTimeout(() => {
-      if (getCurrentPages().length > 1) uni.navigateBack()
-      else backToHome()
-    }, 2000)
+    backTimer = setTimeout(goBack, 2000)
   }
 
   function cancelAutoBack() {

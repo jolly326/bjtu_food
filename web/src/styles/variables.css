@@ -146,9 +146,8 @@
   --agg-tab-active-shadow: 0 1px 2px rgba(0,0,0,0.40);
   /* 卡片 hover 抬升 */
   --card-hover-shadow: var(--shadow-hover);
-  /* 统计卡图标字号（UI-10：图标字号非正文标度，单独登记组件 token） */
-  --stat-icon-lg: 24px;
-  --stat-icon-md: 20px;
+  /* 注（2026-09-15 本轮）：--stat-icon-lg / --stat-icon-md 随 StatCard 的 inline 变体一并删除
+     （唯一消费者为工作台统计卡，工作台已下线；量级图标改由调用方就近决定）。 */
 }
 
 /* ============================================================

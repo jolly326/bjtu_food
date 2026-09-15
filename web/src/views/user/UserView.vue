@@ -204,16 +204,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 </template>
 
 <style scoped>
-/* 统计信息并入筛选条（合并为一，节省空间） */
-.stat-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
+/* 统计信息并入筛选条（合并为一，节省空间）；.stat-inline 已上提至 shared.css 公共类 */
 
 .avatar-circle {
   width: 36px;

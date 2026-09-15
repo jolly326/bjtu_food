@@ -5,7 +5,7 @@
       variant="search"
       v-model="keyword"
       :show-back="true"
-      @back="inFilter ? exitFilter() : goBackHome()"
+      @back="inFilter ? exitFilter() : backToHome()"
       @search="onSearchConfirm"
       @clear="clearKeyword"
     />
@@ -114,7 +114,8 @@ import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useLocationStore } from '@/stores/location'
 import { getUserLocation } from '@/utils/location'
-import { PATH, dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
+import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
+import { backToHome } from '@/utils/nav'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
@@ -127,15 +128,7 @@ import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 const dishStore = useDishStore()
 const locationStore = useLocationStore()
 
-/** 搜索页为非 tab 二级页：返回回首页（2026-08-03 修复：用 navigateBack 带返回动画；无上一页时兜底 reLaunch） */
-function goBackHome() {
-  const pages = getCurrentPages()
-  if (pages.length > 1) {
-    uni.navigateBack()
-  } else {
-    uni.reLaunch({ url: PATH.home })
-  }
-}
+/* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
 
 /** 菜品详情：跳转独立页（pages/detail/dish） */
 function openDishDetail(id: number) {

@@ -96,7 +96,7 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public DishVO getDishDetail(Long id, Long userId) {
+    public DishVO getDishDetail(Long id) {
         DishDetailVO vo = dishMapper.selectDishDetail(id);
         if (vo == null) {
             throw new BusinessException("菜品不存在");
@@ -109,12 +109,9 @@ public class DishServiceImpl implements DishService {
         List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
         vo.setRatingDistribution(fillRatingDistribution(distribution));
 
-        // 当前用户状态（收藏/favorite 模块已整体移除；仅保留是否已评价）
-        if (userId != null) {
-            vo.setHasReviewed(reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
-                    .eq(Review::getUserId, userId)
-                    .eq(Review::getDishId, id)) > 0);
-        }
+        // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）；
+        // 2026-09-16：详情已无任何登录态字段，userId 入参随之收口（Controller 不再解析登录态，
+        // 端点路径与响应结构零变化）。
         return vo;
     }
 

@@ -1,0 +1,57 @@
+/**
+ * 反馈表单「字段级」共享样式（feedback 包内私有，不对外）
+ *
+ * 背景：SuggestionForm / AddForm / ErrorForm 三个包内表单子件各自复刻了同一套字段样式
+ * （.field / .field-label / .req / .field-error / .content-input / .input-error / .picker-row /
+ *  .picker-value），逐字重复、改一处漏两处。此文件为三者唯一真源。
+ *
+ * 用法：三个子件在 `<style scoped lang="scss">` 顶部 `@use './form-shared';`。
+ * 说明：sass 在 vue 的 scoped 转换之前内联本文件，故其中规则照常带上 scoped 作用域，
+ *      不会泄漏到其他页面；这与「CSS 原生 @import 不被 scoped 处理」不同，故必须走 scss。
+ *
+ * 约束：仅收敛三处逐字一致的规则，视觉零变化（属性值与书写顺序均按原文）。
+ *      各表单自身特有规则（.row-fields / .field-input / .edit-input / .dish-* / .point-* /
+ *      .evidence-* / .sub-* / .counter / .field-gap 等）仍留在各自组件内。
+ */
+
+/* ---------- 字段块与标签 ---------- */
+.field { margin-bottom: var(--spacing-md); }
+.field:last-child { margin-bottom: 0; }
+.field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--spacing-xs); }
+.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
+
+/* ---------- 校验错误文案 ---------- */
+.field-error { display: block; margin-top: var(--spacing-xs); font-size: var(--font-tiny); color: var(--color-error); }
+
+/* ---------- 多行文本输入（.content-input 须先于 .input-error，避免 border 简写覆盖错误态边框） ---------- */
+.content-input {
+  width: 100%;
+  min-height: 300rpx;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: var(--spacing-md);
+  background: var(--bg-input);
+  border-radius: var(--radius-icon);
+  box-sizing: border-box;
+  border: 2rpx solid transparent;
+}
+.content-input-sm { min-height: 140rpx; }
+.input-error { border-color: var(--color-error); }
+
+/* ---------- 选择行（食堂 / 档口 / 楼层 / 菜品） ---------- */
+.picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  height: 88rpx;
+  padding: 0 var(--spacing-md);
+  background: var(--bg-input);
+  border-radius: var(--radius-icon);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.picker-row.disabled { opacity: 0.5; }
+.picker-value { font-size: var(--font-body); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-value.placeholder { color: var(--text-tertiary); }

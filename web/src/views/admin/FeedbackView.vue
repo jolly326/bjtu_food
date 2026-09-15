@@ -21,7 +21,7 @@ const route = useRoute()
 
 const searchQuery = ref('')
 
-// 类型文案统一收敛至 constants（工作台「待办明细」共用同一份，避免两处口径漂移）
+// 类型文案统一收敛至 constants（唯一真源，避免各处各写一套导致口径漂移）
 const typeLabel = FEEDBACK_TYPE_META
 
 /**
@@ -102,7 +102,8 @@ async function loadList() {
 }
 
 /**
- * 工作台「待办明细」直达：`/dashboard/audit?tab=feedback&fid=<id>`（P1-03）。
+ * 单条反馈深链直达：`/dashboard/audit?tab=feedback&fid=<id>`（P1-03）。
+ * （原入口为工作台「待办明细」，工作台已下线，深链参数保持兼容。）
  * 复用既有详情抽屉（本页无独立 /feedbacks/:id 路由，也无 GET /admin/feedbacks/{id} 单查接口），
  * 故在列表落地后按 id 定位该行并自动打开抽屉；若不在当前页则回退为「关键词=该条摘要」服务端检索，
  * 保证「看得到是哪一条 → 点进就能处理」闭环，且不改后端契约、不新增页面。
@@ -126,7 +127,7 @@ async function openFeedbackById(id: number) {
   toast.error('该反馈不在当前列表中，可用关键词检索')
 }
 
-/** 消费 route.query.fid（含从工作台二次跳转：同实例不重建，故需 watch 而非仅 onMounted 读取） */
+/** 消费 route.query.fid（含页内二次跳转：同实例不重建，故需 watch 而非仅 onMounted 读取） */
 async function consumeFid() {
   const raw = route.query.fid
   const id = typeof raw === 'string' ? Number(raw) : NaN

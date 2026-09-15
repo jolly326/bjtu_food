@@ -95,6 +95,20 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .page-header { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5); }
 .page-header h2 { font-size: var(--font-2xl); color: var(--text-primary); margin: 0; }
 
+/* ============================================================
+ * 行内统计（筛选条右侧「共 N · 在售 X · 已下架 Y」）：
+ * 原为 UserView 私有样式，菜品/评价/学生页共用 → 上提为公共类，避免各页各写一份。
+ * ============================================================ */
+.stat-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* 卡片容器：统一背景 / 圆角 / 阴影 / 边框 */
 .card {
   background: var(--bg-card);
@@ -106,7 +120,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 
 /* ============================================================
  * 三态盒（UI-04 全局唯一实现）：加载 / 错误 / 空态统一高度与布局，
- * 原由 DashboardView 与 DataTable 各持一份私有副本，现收敛于此。
+ * 原由各页与 DataTable 各持一份私有副本，现收敛于此（全局唯一实现）。
  * ============================================================ */
 .state-box, .empty-state {
   text-align: center;

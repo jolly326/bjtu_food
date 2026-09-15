@@ -56,7 +56,7 @@ public class DishController {
             summary = "菜品详情",
             description = """
                     用途：菜品详情页。
-                    未登录可访问；如果已登录并携带 token，会额外返回 hasReviewed。
+                    未登录可访问；登录态与游客态返回结构一致（原 hasReviewed 已下线）。
                     测试示例：/dishes/1
                     """
     )
@@ -64,8 +64,8 @@ public class DishController {
     public Result<?> getDishDetail(
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id) {
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        return Result.success(dishService.getDishDetail(id, userId));
+        // 详情不依赖登录态（hasReviewed 已下线），故不再解析当前用户；路径与响应结构零变化
+        return Result.success(dishService.getDishDetail(id));
     }
 
     @Operation(

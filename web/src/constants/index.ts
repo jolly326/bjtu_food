@@ -4,7 +4,7 @@
  */
 
 /**
- * 操作日志动作元数据（唯一真源，操作日志页 + 工作台「近期操作」共用）。
+ * 操作日志动作元数据（唯一真源，操作日志页消费）。
  * 必须与后端 `OperationLogConst` 同源：`server/src/main/java/com/bjtufood/common/constant/OperationLogConst.java`
  * （ACTION_* 常量逐个对齐；后端新增动作时此处同步补登，否则列表单元格会回落为裸英文枚举）。
  *
@@ -105,7 +105,7 @@ export const SEC_FILTER_OPTIONS = [
 ]
 
 /**
- * 反馈类型展示文案（唯一真源，反馈列表 + 工作台「待办明细」共用）。
+ * 反馈类型展示文案（唯一真源，反馈列表消费）。
  * 与后端 FeedbackService 类型白名单同源：suggestion/add/error/report（历史类型 bug/other 亦可读存量）。
  */
 export const FEEDBACK_TYPE_META: Record<string, string> = {

@@ -1,38 +1,38 @@
 <script setup lang="ts">
 /**
  * AdminLayout：现代控制台外壳（无侧边栏）。
- * 顶部一级导航（Logo + 4 个功能入口 + 只读身份标识），内容区全宽。
+ * 顶部一级导航（Logo + 3 个功能入口 + 只读身份标识），内容区全宽。
+ * 2026-09-15（本轮）：工作台入口已下线，一级导航收敛为 信息管理 / 内容审核 / 用户与系统。
  */
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { House, PriceTag, Document, User, UserFilled } from '@element-plus/icons-vue'
+import { PriceTag, Document, User, UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 
 const activePath = computed(() => route.path)
 
-// ===== 顶部一级导航 =====
+/** 后台默认落点：菜品列表（brand 与所有空入口统一指向此处，工作台已下线） */
+const DISH_LIST_PATH = '/dashboard/content?tab=dish'
+
+// ===== 顶部一级导航（3 项） =====
 const navItems = computed(() => [
-  { key: 'dashboard', label: '工作台', path: '/dashboard', icon: House },
   { key: 'content', label: '信息管理', path: '/dashboard/content', icon: PriceTag },
   { key: 'audit', label: '内容审核', path: '/dashboard/audit', icon: Document },
   { key: 'system', label: '用户与系统', path: '/dashboard/system', icon: User },
 ])
 
 /**
- * 导航激活判断：聚合页内的子路由归属对应一级入口。
- * 注：食堂/档口/菜品详情下钻路由已随 §7.15 收敛删除，不再需要 /dashboard/canteens 前缀判断。
+ * 导航激活判断：聚合页内的子路由归属对应一级入口
+ * （如菜品详情 /dashboard/content/dishes/:id 归属「信息管理」）。
  */
 function isNavActive(path: string) {
-  if (path === '/dashboard') return activePath.value === '/dashboard'
-  if (path === '/dashboard/content') {
-    return activePath.value === '/dashboard/content'
-  }
+  if (path === '/dashboard/content') return activePath.value.startsWith('/dashboard/content')
   if (path === '/dashboard/audit') return activePath.value.startsWith('/dashboard/audit')
-  if (path === '/dashboard/system') return activePath.value === '/dashboard/system'
+  if (path === '/dashboard/system') return activePath.value.startsWith('/dashboard/system')
   return false
 }
 
@@ -52,7 +52,7 @@ const currentRoleLabel = ref('管理员')
 
     <!-- ===== 顶部导航 ===== -->
     <header class="topnav">
-      <div class="topnav-brand" v-press role="button" tabindex="0" aria-label="回到工作台" @click="navTo('/dashboard')" @keydown.enter.prevent="navTo('/dashboard')" @keydown.space.prevent="navTo('/dashboard')">
+      <div class="topnav-brand" v-press role="button" tabindex="0" aria-label="进入菜品管理" @click="navTo(DISH_LIST_PATH)" @keydown.enter.prevent="navTo(DISH_LIST_PATH)" @keydown.space.prevent="navTo(DISH_LIST_PATH)">
         <span class="brand-text">知行食记</span>
       </div>
 
@@ -64,8 +64,10 @@ const currentRoleLabel = ref('管理员')
           :class="{ on: isNavActive(n.path) }"
           v-press
           type="button"
+          :aria-label="n.label"
           @click="navTo(n.path)"
         >
+          <el-icon class="nav-ico" aria-hidden="true"><component :is="n.icon" /></el-icon>
           <span>{{ n.label }}</span>
         </button>
       </nav>
@@ -78,11 +80,9 @@ const currentRoleLabel = ref('管理员')
       </div>
     </header>
 
-    <!-- ===== 内容区（全宽；路由切换过渡 §4.4） ===== -->
+    <!-- ===== 内容区（全宽；无装饰性入场动效，§4.3） ===== -->
     <main class="shell-content">
-      <Transition name="page" mode="out-in">
-        <router-view />
-      </Transition>
+      <router-view />
     </main>
   </div>
 </template>
@@ -162,6 +162,7 @@ const currentRoleLabel = ref('管理员')
 .topnav-item:active { transform: scale(var(--press-scale)); }
 .topnav-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .topnav-item.on { background: var(--nav-item-active-bg); color: var(--nav-item-active-color); font-weight: var(--weight-semibold); }
+.nav-ico { width: 16px; height: 16px; flex-shrink: 0; }
 
 .topnav-right {
   display: flex;
@@ -191,32 +192,9 @@ const currentRoleLabel = ref('管理员')
   /* 页面留白统一由 PageContainer 控制，避免双 padding */
 }
 
-/* ===== 路由切换过渡（§4.4：opacity + 8px 上移，时长走 --duration-base） ===== */
-.page-enter-active,
-.page-leave-active {
-  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
-}
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-@media (prefers-reduced-motion: reduce) {
-  .page-enter-active,
-  .page-leave-active {
-    transition: opacity 0.18s ease;
-  }
-  .page-enter-from,
-  .page-leave-to {
-    transform: none;
-  }
-}
 @media (max-width: 767px) {
   .topnav { padding: 0 var(--space-3); gap: var(--space-2); }
-  /* 窄屏：导航只显示图标，节省横向空间 */
+  /* 窄屏：导航只显示图标（保留 aria-label，屏幕阅读器仍可辨识），节省横向空间 */
   .topnav-item span { display: none; }
   .topnav-item { padding: var(--space-2); }
   .brand-text { display: none; }

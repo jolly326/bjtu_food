@@ -94,7 +94,8 @@ public class StallServiceImpl implements StallService {
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
-        vo.setCreatedBy(stall.getCreatedBy());
+        // 2026-09-15：createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
+        // 已随 VO 字段一并删除；实体 stall.created_by 列保留（写入侧仍在用，仅收敛对外暴露）。
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
