@@ -229,7 +229,7 @@ function fmtTime(v: string): string {
 
 /**
  * 关联菜品一键直达：菜品详情独立页已随「食堂/档口随菜品一起维护」收敛而删除
- * （project_spec §7.15 / docs/loop/design/dish-entry-flow.md §1.5），
+ * （project_spec §7.15），
  * 故改为跳到菜品列表（`/dashboard/content?tab=dish`）由管理员在列表内检索编辑。
  */
 async function goDishEdit(dishId?: number) {

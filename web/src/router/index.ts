@@ -24,7 +24,7 @@ const router = createRouter({
         { path: 'audit', name: 'auditManage', component: () => import('@/views/audit/AuditManageView.vue') },
         { path: 'system', name: 'systemManage', component: () => import('@/views/system/SystemManageView.vue') },
         // 独立的食堂/档口管理页已删除（2026-09-14 §7.15：食堂与档口随菜品一起维护，
-        // 归属选择收敛到 DishFormDialog，见 docs/loop/design/dish-entry-flow.md §1.5）。
+        // 归属选择收敛到 DishFormDialog，见 project_spec §7.15）。
         // 旧书签（含旧的食堂/档口下钻详情链接）按下方兜底重定向到菜品列表，避免白屏。
         { path: 'canteens/:pathMatch(.*)*', redirect: '/dashboard/content?tab=dish' },
       ],

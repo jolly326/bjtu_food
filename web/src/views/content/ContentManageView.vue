@@ -3,7 +3,7 @@
  * ContentManageView：信息管理聚合页。
  * 卡片导航（去 tabbar）：**菜品 / 首页配置（分类）两张卡**。
  * 2026-09-14 拍板（project_spec §7.15）：食堂与档口是「菜品」的附属维度，
- * 随菜品表单一起维护 → 移除「食堂（含档口）」独立入口（详见 docs/loop/design/dish-entry-flow.md §1.1）。
+ * 随菜品表单一起维护 → 移除「食堂（含档口）」独立入口（详见 project_spec §7.15）。
  */
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
