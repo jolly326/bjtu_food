@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：dish_audit / feedback_handle',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle（dish_audit 已随审核语义退役，历史存量可能残留）',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
     `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
@@ -406,7 +406,7 @@ CREATE TABLE IF NOT EXISTS `email_verification_code`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='邮箱验证码记录';
 
--- 浏览足迹 view_log（同时供猜你喜欢个性化读取）
+-- 浏览足迹 view_log（用途：菜品浏览量统计与当日重复浏览去重）
 CREATE TABLE IF NOT EXISTS `view_log`
 (
     `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '足迹ID',
@@ -424,7 +424,7 @@ CREATE TABLE IF NOT EXISTS `view_log`
     KEY `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（唯一存储，供猜你喜欢个性化读取）';
+  COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（用途：浏览量统计与当日去重，无推荐用途）';
 
 -- 浏览足迹判重复合索引 idx_view_user_target_time（2026-09-15）：
 -- 后端浏览量判重（POST /dishes/{id}/view，spec §7.14 第 1 条）已改用 updated_at 判定，
