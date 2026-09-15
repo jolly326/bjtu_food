@@ -31,6 +31,12 @@
 --   6. 菜品品类整链退役（2026-09-15 用户拍板）：category 表与 dish.category_id 列（含单列索引
 --      idx_dish_category）不再创建（端上零呈现、仅 Web 自用的不可见第三维度）；
 --      存量库由文件末尾 drop_category_chain 幂等段清理（可重跑）。
+--   7. 操作日志整链退役（2026-09-15 用户拍板「管理端不需要操作日志，相关链路全部删除」）：
+--      operation_log 表不再创建（CREATE TABLE 段已删除），存量库由文件末尾
+--      drop_operation_log_table 幂等段清理（可重跑）；后端同批删除 AuditLog 注解 /
+--      AuditLogAspect 切面 / OperationLogConst / OperationLogAdminController / OperationLogVO /
+--      OperationLog 实体 / OperationLogMapper / OperationLogService(+Impl) 与 4 处调用点。
+--      **数据表基线 11 → 10**（品类表下线后基线 11，本次再收敛为 10）。
 -- =============================================================
 
 -- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
@@ -441,22 +447,9 @@ DELIMITER ;
 CALL `add_view_log_dedup_index`();
 DROP PROCEDURE IF EXISTS `add_view_log_dedup_index`;
 
--- 操作日志 operation_log（AOP 埋点，Web 管理端只读查询）
-CREATE TABLE IF NOT EXISTS `operation_log`
-(
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '日志ID',
-    `admin_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '操作管理员ID',
-    `action`      VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '动作标识：audit_approve / audit_reject / review_hide / review_delete / feedback_handle / ...',
-    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '操作对象类型：dish / stall / canteen / feedback / review',
-    `target_id`   BIGINT       NULL    DEFAULT NULL COMMENT '操作对象ID',
-    `ip`          VARCHAR(64)  NULL    DEFAULT NULL COMMENT '操作来源IP',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_op_admin_time` (`admin_id`, `created_at`),
-    KEY `idx_op_target` (`target_type`, `target_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='操作日志（AOP 埋点，Web 只读查询）';
+-- 操作日志 operation_log：**整链退役**（2026-09-15 用户拍板「管理端不需要操作日志」）——
+-- 原 CREATE TABLE 段（含 idx_op_admin_time / idx_op_target 两索引）已删除，本文件不再创建该表；
+-- 存量库由文件末尾 drop_operation_log_table 幂等段清理（详见文件头说明第 7 条）。
 
 -- 菜品热度/推荐排序索引 idx_dish_heat（M3）：CREATE TABLE 已含该 KEY；
 -- 旧库幂等补建（MySQL 8 不支持 CREATE INDEX IF NOT EXISTS，用存储过程防护，与上方迁移惯例一致）
@@ -684,9 +677,10 @@ DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
 --   review.tags（评价标签）随「美团式写评」确认不做而下线：
 --   写入侧无任何入口（ReviewReq / 小程序端均无该字段），读取侧实体/VO 零引用（已复核），
 --   属纯零消费列。CREATE TABLE 已同步移除该列定义；旧库在此幂等 DROP，保证重复执行安全、不影响既有数据。
---   同批 §7.10 决定保留（不删）两个 retired 列，仅停写、不再追究身份，此处不处理：
---     - user_feedback.handler_id（管理端操作人身份降级：单口令即单人，handle 不再写入，保持 NULL）
---     - operation_log.admin_id（同上，切面不再取当前管理员 ID，显式写 0）
+--   同批 §7.10 决定保留（不删）的 retired 列：user_feedback.handler_id
+--     （管理端操作人身份降级：单口令即单人，handle 不再写入，保持 NULL）；
+--     另一列原为操作日志 admin_id，已随整张操作日志表退役（2026-09-15，见文件末尾
+--     drop_operation_log_table 幂等段），无需再处理。
 DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
 DELIMITER $$
 CREATE PROCEDURE `drop_review_tags_column`()
@@ -908,5 +902,30 @@ END$$
 DELIMITER ;
 CALL `drop_sec_state_columns`();
 DROP PROCEDURE IF EXISTS `drop_sec_state_columns`;
+
+-- 表下线（2026-09-15 用户拍板「管理端不需要操作日志，相关链路全部删除」）：
+--   操作日志表整体退役——CREATE TABLE 段已从本文件删除，后端同批删除 AuditLog 注解 /
+--   AuditLogAspect 切面 / OperationLogConst / OperationLogAdminController / OperationLogVO /
+--   OperationLog 实体 / OperationLogMapper / OperationLogService(+Impl)，并清理 4 处调用点
+--   （AuthController / DishAdminController / FeedbackAdminController / ReviewAdminController）。
+--   **数据表基线 11 → 10**（品类表下线后基线 11，本次再收敛为 10）；seed_data.sql 自始未灌入
+--   该表种子数据，无需清理。
+--   顺序：该表无外键约束、无其他表以逻辑外键引用，直接 DROP TABLE 即可；
+--   本段幂等（先查 INFORMATION_SCHEMA.TABLES 判存在再 DROP，与上方 drop_category_chain 惯例一致），
+--   重复执行安全、不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_operation_log_table`;
+DELIMITER $$
+CREATE PROCEDURE `drop_operation_log_table`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operation_log'
+    ) THEN
+        DROP TABLE `operation_log`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_operation_log_table`();
+DROP PROCEDURE IF EXISTS `drop_operation_log_table`;
 
 SET FOREIGN_KEY_CHECKS = 1;

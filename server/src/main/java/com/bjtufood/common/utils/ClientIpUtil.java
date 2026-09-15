@@ -9,7 +9,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 /**
  * 客户端 IP 解析工具
  * <p>
- * 统一 IP 取值口径（与 RequestLoggingFilter / AuditLogAspect 的既有逻辑一致）：
+ * 统一 IP 取值口径（与 RequestLoggingFilter 的既有逻辑一致）：
  * X-Forwarded-For 首段（云托管/反向代理场景，取真实客户端）→
  * X-Real-IP（单层代理）→ {@code getRemoteAddr()} 兜底（直连）。
  * <p>

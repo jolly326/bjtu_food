@@ -1,8 +1,6 @@
 package com.bjtufood.review.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.bjtufood.common.annotation.AuditLog;
-import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -43,7 +41,6 @@ public class ReviewAdminController {
     // 机检 pass/review 直接放行、risky 直接拒绝，无待复核队列；事后处置保留 /hide 与 DELETE。
 
     @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。")
-    @AuditLog(action = OperationLogConst.ACTION_REVIEW_HIDE, targetType = "review", targetId = "#id")
     @PutMapping("/{id}/hide")
     public Result<Void> setHidden(
             @Parameter(description = "评价ID", example = "1")
@@ -55,7 +52,6 @@ public class ReviewAdminController {
     }
 
     @Operation(summary = "管理员删除评价", description = "用途：管理员删除评价。当前实现为物理删除，并触发菜品评分重算。")
-    @AuditLog(action = OperationLogConst.ACTION_REVIEW_DELETE, targetType = "review", targetId = "#id")
     @DeleteMapping("/{id}")
     public Result<Void> deleteReview(
             @Parameter(description = "评价ID", example = "1")

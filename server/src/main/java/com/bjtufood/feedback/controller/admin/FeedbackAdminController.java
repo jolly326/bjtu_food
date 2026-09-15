@@ -1,8 +1,6 @@
 package com.bjtufood.feedback.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.bjtufood.common.annotation.AuditLog;
-import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
@@ -47,12 +45,11 @@ public class FeedbackAdminController {
                 (int) result.getCurrent(), (int) result.getSize()));
     }
 
-    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/处理结论/handled_at，埋操作日志。仅接受 JSON body（{reply, outcome, rejectReason}）："
+    @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/处理结论/handled_at。仅接受 JSON body（{reply, outcome, rejectReason}）："
             + "reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；"
             + "outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400；"
             + "outcome=rejected 时 rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。"
             + "已认证提交人将收到携带处理结论（及不采纳原因）的站内回执。")
-    @AuditLog(action = OperationLogConst.ACTION_FEEDBACK_HANDLE, targetType = "feedback", targetId = "#id")
     @PutMapping("/{id}")
     public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")

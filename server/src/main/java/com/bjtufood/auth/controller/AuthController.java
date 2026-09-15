@@ -6,9 +6,7 @@ import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.VerifyEmailReq;
 import com.bjtufood.auth.dto.WechatLoginReq;
 import com.bjtufood.auth.service.AuthService;
-import com.bjtufood.common.annotation.AuditLog;
 import com.bjtufood.common.config.IpRateLimiter;
-import com.bjtufood.common.constant.OperationLogConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
@@ -156,11 +154,6 @@ public class AuthController {
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    // 操作日志（ACTION_ACCOUNT_DELETE 常量既有，本次接入首个调用方）：
-    // targetId 经 SpEL T() 取当前登录用户（AuditLogAspect 在 proceed 前解析，此时 SecurityContext 已就绪）；
-    // 操作人 admin_id 与 IP 由 AuditLogAspect 统一写入。
-    @AuditLog(action = OperationLogConst.ACTION_ACCOUNT_DELETE, targetType = "user",
-            targetId = "T(com.bjtufood.common.utils.SecurityUtil).getCurrentUserId()")
     @DeleteMapping("/auth/account")
     public Result<Void> deleteAccount(HttpServletRequest request) {
         Long userId = SecurityUtil.getCurrentUserId();
