@@ -177,7 +177,7 @@
 
 ### 5.1 工作台（已下线，2026-09-15 用户拍板）
 
-> **`GET /admin/dashboard` 已删除，勿再对接**：`DashboardController` 及其统计逻辑载体（`StatsService` / `StatsController`）、`DashboardVO` / 待办明细 VO 已随**工作台业务域整体移除**（spec §0.4.1 / §5.z D-工作台）。**管理后台无「全局聚合看板」**——待办可见性由**「反馈处理」入口徽标**（待处理反馈数）＋ **各业务页行内统计**承担；默认落地页为**信息管理·菜品页** `/dashboard/content?tab=dish`。
+> **`GET /admin/dashboard` 已删除，勿再对接**：`DashboardController` 及其统计逻辑载体（`StatsService` / `StatsController`）、`DashboardVO` / 待办明细 VO 已随**工作台业务域整体移除**（spec §0.4.1 / §5.z D-工作台）。**管理后台无「全局聚合看板」**——待办可见性由**「反馈」入口徽标**（待处理反馈数）＋ **各业务页表格 footer 统计**承担；默认落地页为**菜品页** `/dashboard/content`。**（2026-09-15 IA 扁平化：一级导航 4 项与路由 1:1 = 菜品 / 评价 / 反馈 / 学生账号，删聚合壳、页面层级 ≤2、禁 `.stat-inline` 只读统计，见 spec §0.4.2 / §7.25 第 2 条。）**
 >
 > 随之作废：2026-09-14 Q-106「工作台摘除图表字段」的全部口径（spec §7.21 第 1 条，保留为历史留痕），以及「`GET /admin/stats/**` 为幽灵端点、仅作 `DashboardController` 统计逻辑复用载体」的表述（**复用载体已不存在**；该端点仍不新建）。
 
@@ -213,10 +213,10 @@
 
 > **已删除端点（2026-09-14 与 spec §7.10 对齐）**：`PUT /admin/users/{id}/role`（改角色，无实现；`SUPER_ADMIN` 已移除）与 `GET/POST/PUT/DELETE /admin/admins/*`（管理员账号管理，Controller 不存在；管理后台「账号设置」入口已删除，spec §7.10 第 4 条）均**不存在**，勿按旧版记载对接。
 
-### 5.4 评价管理与反馈处理（2026-09-15「取消人工复核」后由「审核与内容治理」改名，见 spec §7.24）
+### 5.4 评价与反馈（2026-09-15「取消人工复核」后由「审核与内容治理」改名；**2026-09-15 IA 扁平化后一级导航名为「评价」`/dashboard/reviews` 与「反馈」`/dashboard/feedback`，见 spec §7.25 第 2 条**）
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/admin/reviews` | 评价列表（isHidden/userId/keyword 过滤；VO 含 `images`；**无 `secState` 过滤、无 `secState` 出参**，2026-09-15）——评价管理页（`/dashboard/reviews`，`ReviewManageView`）用，**只做事后处置** |
+| GET | `/admin/reviews` | 评价列表（isHidden/userId/keyword 过滤；VO 含 `images`；**无 `secState` 过滤、无 `secState` 出参**，2026-09-15）——**「评价」页**（`/dashboard/reviews`，`ReviewManageView`）用，**只做事后处置** |
 | PUT | `/admin/reviews/{id}/hide` | **事后处置**：隐藏 / 显示评价（`is_hidden` 0/1） |
 | DELETE | `/admin/reviews/{id}` | **事后处置**：删评价（清理 useful 孤儿） |
 
@@ -243,8 +243,9 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 改名（编辑）」，**无 DELETE、无独立 POST**（2026-09-15 CT-02：独立新增端点已删；**新增仅随菜品录入按名 upsert 建档**，spec §7.23 原则 1，见 §5.2）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP） |
-| GET | `/admin/operation-logs` | 操作日志（只读） |
 
+> **~~`GET /admin/operation-logs`~~ 已删除（2026-09-15 用户拍板，spec §7.25 第 1 条）**：管理端**「操作日志」全链移除**——`OperationLogAdminController` 与 `GET /admin/operation-logs` 端点、出参 VO `OperationLogVO`、`OperationLog` 实体 / `OperationLogMapper` / `OperationLogService`(+`Impl`)、`@AuditLog` 注解与 `AuditLogAspect` 切面、`OperationLogConst`、4 处 `@AuditLog` 埋点调用、`operation_log` 表**一并删除**；**管理端不存在任何操作留痕 / 审计查询端点，勿再对接**。**保留**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 访问日志）、`view_log` 浏览足迹（无管理端查询端点，仅 `GET /dishes/{id}` 增量写入，见 §6.2）。恢复须重新拍板（PR-04）。
+>
 > **`/admin/categories` 已删除（2026-09-15 用户撤销 Q-117，spec §7.22 第 1 条）**：品类维度**整链删除**（端上零呈现 + 后台无实际业务价值）——`category` 表、`dish.category_id` 列与 `idx_dish_category` 索引、`/admin/categories`（`CategoryAdminController` / `CategoryService` / `CategoryServiceImpl` / `CategoryMapper` / `Category` 实体）、Web 品类维护页与首页配置入口、菜品表单分类下拉、菜品列表品类筛选与分类列**全部移除**。**`DishAdminReq` / `DishAdminVO` / `DishVO` / `DishQueryReq` 均无 `categoryId` 字段**；公开 `GET /categories` 此前已删（2026-09-15 DOC-01）。**定型口径：菜品按食堂 / 档口归属，不存在分类维度**；恢复须重新拍板。
 > 原 `GET /admin/audit/*`（待审内容）已于 2026-09-14 随实体审核链路删除（spec §7.21 第 2 条 Q-107）：`/admin/audit/**` 三条端点及其专属 Service / VO / DTO 均已移除；菜品审核语义收敛为「管理员录入即直接生效」（spec §7.8 第 1 条）；**2026-09-15 阶段4 起 `dish.audit_status` 列已删除，菜品无审核态字段可写**。
 

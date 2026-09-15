@@ -7,6 +7,12 @@
  *
  * 2026-09-15 取消人工复核：内容机检改为 pass/review 均放行、仅 risky 拒绝，
  * 反馈不再有「安检状态」筛选 / 列 / 展示项（后端该字段同步退役，前端不再读写）。
+ *
+ * 2026-09-15（本轮精简）：删除已处理态的 .handled-tip 只读提示（信息与列表状态列重复）；
+ * 详情抽屉的类型 / 提交人 / 联系方式 / 提交时间 / 关联对象由 5 行压成 1 个内联块；
+ * 举报类关联评价由红色 pill 改为主色文本链接「评价 #id →」（红=危险语义易误读）；
+ * 列表「联系方式」列并入「提交人」次行（7 列 → 6 列）。
+ * 处理动作、回复与不采纳原因（reject_reason）必填校验一律未动。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -108,9 +114,9 @@ async function loadList() {
 }
 
 /**
- * 单条反馈深链直达：`/dashboard/feedback?fid=<id>`（P1-03；本页独立成页前为
- * `/dashboard/audit?tab=feedback&fid=<id>`，旧链接由路由兜底跳转时保留查询参数，深链仍可达）。
- * （原入口为工作台「待办明细」，工作台已下线，深链参数保持兼容。）
+ * 单条反馈深链直达：`/dashboard/feedback?fid=<id>`（P1-03）。
+ * 注（2026-09-15）：原「内容审核」聚合页遗留的 `/dashboard/audit?...` 兜底跳转已随路由精简删除，
+ * 只有现行 `/dashboard/feedback?fid=<id>` 形式可用（工作台「待办明细」入口早已下线）。
  * 复用既有详情抽屉（本页无独立 /feedbacks/:id 路由，也无 GET /admin/feedbacks/{id} 单查接口），
  * 故在列表落地后按 id 定位该行并自动打开抽屉；若不在当前页则回退为「关键词=该条摘要」服务端检索，
  * 保证「看得到是哪一条 → 点进就能处理」闭环，且不改后端契约、不新增页面。
@@ -291,7 +297,7 @@ function goDishEdit(dishId?: number, dishName?: string) {
 }
 
 /**
- * 关联评价一键直达（2026-09-15）：跳到「评价管理」并按 `rid` 自动翻页/滚入视口/高亮该评价，
+ * 关联评价一键直达（2026-09-15）：跳到「评价」页并按 `rid` 自动翻页/滚入视口/高亮该评价，
  * 由管理员在该页决定隐藏或删除（举报处置闭环）——替代原「复制标识」的临时手段。
  */
 function goReviewManage(reviewId?: number) {
@@ -321,8 +327,7 @@ function goReviewManage(reviewId?: number) {
         { prop: 'type', label: '类型', width: '170px', align: 'center' },
         { prop: 'related', label: '关联对象', width: '140px', align: 'center' },
         { prop: 'content', label: '内容', ellipsis: true },
-        { prop: 'contact', label: '联系方式', width: '160px' },
-        { prop: 'submitter', label: '提交人', width: '140px' },
+        { prop: 'submitter', label: '提交人', width: '170px' },
         { prop: 'time', label: '提交时间', width: '170px', sortable: true, sortValue: (row) => row.createdAt },
         { prop: 'status', label: '状态', width: '100px', align: 'center' },
       ]"
@@ -335,13 +340,14 @@ function goReviewManage(reviewId?: number) {
         <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeText(row) }}</span>
       </template>
       <template #cell-related="{ row }">
+        <!-- 举报类关联评价：主色文本链接（原红色 pill 易被读成「危险/错误」），箭头提示去向 -->
         <button
           v-if="row.relatedType === 'review'"
-          class="related"
+          class="link"
           v-press
-          :title="`评价#${row.relatedId} —— 点击去评价管理处置`"
+          :title="`评价 #${row.relatedId} —— 点击去评价页处置`"
           @click="goReviewManage(row.relatedId)"
-        >评价#{{ row.relatedId }}</button>
+        >评价 #{{ row.relatedId }} →</button>
         <button
           v-else-if="row.relatedType === 'dish'"
           class="link dish-name-cell"
@@ -357,8 +363,11 @@ function goReviewManage(reviewId?: number) {
           <el-icon><Picture /></el-icon>{{ row.images.length }}
         </span>
       </template>
-      <template #cell-contact="{ row }"><span class="muted">{{ row.contact || '—' }}</span></template>
-      <template #cell-submitter="{ row }">{{ submitterLabel(row) }}</template>
+      <!-- 提交人 + 联系方式同格（两者同源，分列徒增横向占位）；联系方式整串经 title 悬停可读 -->
+      <template #cell-submitter="{ row }">
+        <div class="sub-name">{{ submitterLabel(row) }}</div>
+        <div class="sub-contact" :title="row.contact || ''">{{ row.contact || '—' }}</div>
+      </template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
       <template #cell-status="{ row }">
         <StatusTag :type="FEEDBACK_STATUS_META[row.status]?.type || 'warning'" :text="FEEDBACK_STATUS_META[row.status]?.text || row.status" />
@@ -383,31 +392,28 @@ function goReviewManage(reviewId?: number) {
       @confirm="submitHandle"
     >
       <div v-if="detail" class="detail">
-        <div class="detail-row"><span class="dl">类型</span>
-          <span class="dv"><span class="type-pill">{{ typeText(detail) }}</span></span>
-        </div>
-        <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ submitterLabel(detail) }}</span></div>
-        <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
-        <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ fmtTime(detail.createdAt) }}</span></div>
-        <div class="detail-row" v-if="detail.relatedType === 'review'">
-          <span class="dl">关联对象</span>
-          <span class="dv">
-            <button
-              class="related"
-              v-press
-              :title="`评价#${detail.relatedId} —— 点击去评价管理处置`"
-              @click="goReviewManage(detail.relatedId)"
-            >评价 #{{ detail.relatedId }}</button>
-            <span class="muted">去评价管理处置</span>
-          </span>
-        </div>
-        <div class="detail-row" v-else-if="detail.relatedType === 'dish'">
-          <span class="dl">关联菜品</span>
-          <span class="dv">
+        <!-- 元信息内联压缩：类型 / 提交人 / 联系方式 / 提交时间 / 关联对象
+             由原来的 5 行合为 1 块，窄屏自动折行；不再逐字段占一行 -->
+        <div class="meta">
+          <span class="type-pill">{{ typeText(detail) }}</span>
+          <span class="meta-item">提交人<span class="mv">{{ submitterLabel(detail) }}</span></span>
+          <span class="meta-item">联系方式<span class="mv">{{ detail.contact || '—' }}</span></span>
+          <span class="meta-item">提交时间<span class="mv">{{ fmtTime(detail.createdAt) }}</span></span>
+          <span v-if="detail.relatedType === 'review'" class="meta-item">
+            关联对象
             <button
               class="link"
               v-press
-              :title="`菜品#${detail.relatedId}`"
+              :title="`评价 #${detail.relatedId} —— 点击去评价页处置`"
+              @click="goReviewManage(detail.relatedId)"
+            >评价 #{{ detail.relatedId }} →</button>
+          </span>
+          <span v-else-if="detail.relatedType === 'dish'" class="meta-item">
+            关联菜品
+            <button
+              class="link"
+              v-press
+              :title="`菜品 #${detail.relatedId}`"
               @click="goDishEdit(detail.relatedId, detail.relatedDishName)"
             >{{ dishLabel(detail.relatedId, detail.relatedDishName) }}</button>
           </span>
@@ -478,7 +484,6 @@ function goReviewManage(reviewId?: number) {
             <p v-if="rejectReasonError" class="field-error">{{ rejectReasonError }}</p>
           </template>
         </div>
-        <div v-else class="handled-tip"><el-icon><CircleCheck /></el-icon>该反馈已处理</div>
       </div>
       <template v-if="detail?.status === FEEDBACK_HANDLED" #actions>
         <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
@@ -493,10 +498,8 @@ function goReviewManage(reviewId?: number) {
 
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
-.related { display: inline-flex; align-items: center; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-error-bg); color: var(--color-error); font-size: var(--font-xs); font-weight: var(--weight-medium); }
-/* 举报类关联评价：可点直达评价管理（保持 pill 视觉；焦点环与既有按钮一致） */
-button.related { cursor: pointer; font: inherit; }
-button.related:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+/* .related（红色 pill）已删除：举报类关联评价改用既有 .link 体系——
+   红色在本后台是「危险 / 删除」语义，用在小跳转链接上易被误读为风险提示，且 pill 与 .link 两套视觉并存易漂移。 */
 /**
  * 关联菜品名（DEV-04）：列宽 140px（减两侧 --space-4 内边距 ≈ 108px 可用），
  * 名称可能较长（含已下架菜品），单元格内单行截断，避免撑高行高/挤压相邻列；
@@ -507,7 +510,22 @@ button.related:focus-visible { outline: 2px solid var(--color-primary); outline-
 /* .act-ico 已收敛至 shared.css 公共类 */
 .muted { color: var(--text-light); }
 
+/* 列表「提交人」格：姓名 + 联系方式同格两行（联系方式整串经 title 悬停可读） */
+.sub-name { color: var(--text-primary); }
+.sub-contact {
+  margin-top: 2px; font-size: var(--font-xs); color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
+/* 元信息块：单块内联排布（替代「一字段一行」），标签弱化、取值走主文本色，窄屏自动折行 */
+.meta {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-sm); color: var(--text-muted);
+}
+.meta-item { display: inline-flex; align-items: center; gap: var(--space-1); }
+.mv { color: var(--text-primary); }
 .detail-row { display: flex; gap: var(--space-3); font-size: var(--font-base); }
 .detail-row-desc { align-items: flex-start; }
 .dl { width: 64px; flex-shrink: 0; color: var(--text-muted); }
@@ -539,7 +557,6 @@ button.related:focus-visible { outline: 2px solid var(--color-primary); outline-
 }
 .reply-area textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent); }
 .required { color: var(--color-error); }
-.handled-tip { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); color: var(--color-success); font-size: var(--font-sm); }
 
 /* ===== 处理结论选择（§7.23 第 5 条）：胶囊单选，选中态走语义色 ===== */
 .outcome-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }

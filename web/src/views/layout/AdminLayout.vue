@@ -2,15 +2,16 @@
 /**
  * AdminLayout：现代控制台外壳（无侧边栏）。
  * 顶部一级导航（Logo + 4 个功能入口 + 只读身份标识），内容区全宽。
- * 2026-09-15（本轮）：工作台入口已下线，一级导航收敛为 信息管理 / 内容审核 / 用户与系统。
- * 2026-09-15（取消人工复核）：原「内容审核」聚合页拆分为「评价管理 / 反馈处理」两个一级入口，
- * 一级导航定为 4 项（信息管理 / 评价管理 / 反馈处理 / 用户与系统），默认落点仍为菜品页。
+ * 2026-09-15（本轮精简）：一级导航收敛为 4 项 —— 菜品 / 评价 / 反馈 / 学生账号，
+ * 与路由 1:1；文案不带括号补注、无二级分类卡（导航即全部层级）。
+ * 原「用户与系统」聚合页（账号 / 操作日志两张卡）已删除，学生账号页直接作为一级入口。
+ * 默认落点仍为菜品页。
  */
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { PriceTag, Star, ChatDotRound, User, UserFilled } from '@element-plus/icons-vue'
+import { Food, Star, ChatDotRound, User, UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -22,15 +23,15 @@ const DISH_LIST_PATH = '/dashboard/content?tab=dish'
 
 // ===== 顶部一级导航（4 项） =====
 /**
- * 图标语义（沿用既有语义，禁用 emoji 当图标）：信息管理=菜品价格牌、
- * 评价管理=评分星、反馈处理=反馈消息、用户与系统=用户。
+ * 图标语义（Element Plus 图标，禁用 emoji 当图标）：菜品=菜品盘、评价=评分星、
+ * 反馈=反馈消息、学生账号=用户。文案与路由一一对应，不带括号补注（新管理员一眼可懂）。
  */
 // 静态列表（无响应式依赖）：不用 computed，避免读处多一层 .value 的心智负担
 const navItems = [
-  { key: 'content', label: '信息管理', path: '/dashboard/content', icon: PriceTag },
-  { key: 'reviews', label: '评价管理', path: '/dashboard/reviews', icon: Star },
-  { key: 'feedback', label: '反馈处理', path: '/dashboard/feedback', icon: ChatDotRound },
-  { key: 'system', label: '用户与系统', path: '/dashboard/system', icon: User },
+  { key: 'content', label: '菜品', path: '/dashboard/content', icon: Food },
+  { key: 'reviews', label: '评价', path: '/dashboard/reviews', icon: Star },
+  { key: 'feedback', label: '反馈', path: '/dashboard/feedback', icon: ChatDotRound },
+  { key: 'system', label: '学生账号', path: '/dashboard/system', icon: User },
 ]
 
 /**

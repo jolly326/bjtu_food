@@ -1,4 +1,21 @@
 <script setup lang="ts">
+/**
+ * DishManageView：菜品管理（扁平两层结构）。
+ *
+ * 结构（本轮 UI 收敛，无层层嵌套）：
+ *   PageContainer → 页头（H1「菜品」+ 右[新增菜品]）→ 主体（筛选条 + 列表）
+ *
+ * 本轮收敛：
+ *  - 页头承载主操作「新增菜品」（原在筛选条右侧，与筛选混在一起）；
+ *  - 删除 `stat-inline` 统计（共 N · 在售 X · 已下架 Y）——数量只在列表 footer 出现一次；
+ *  - 删除行内「详情」链接：整行点击即进详情（唯一入口），操作列只留 编辑 / 删除；
+ *  - 列合并：所属食堂 + 所属档口 → 位置（食堂 · 档口），少一列视觉噪音；
+ *  - 顶部统计/搜索与筛选保持一行。
+ *
+ * 深链兼容（本站旧书签 / 各页跳转）：
+ *  - `?q=<菜名>`：反馈页「关联菜品 →」跳转预填搜索（FeedbackView.goDishEdit）；
+ *  - `?tab=dish`：旧「信息管理」tab 参数，本页无多视图，读取时忽略（不报错、不改写 URL）。
+ */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore } from '@/stores/adminStore'
@@ -8,6 +25,8 @@ import { useStallStore } from '@/stores/stallStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { dishApi } from '@/api'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -24,7 +43,7 @@ const router = useRouter()
 const route = useRoute()
 
 /**
- * 关键词初值来源：反馈详情「关联菜品」跳转携带 `?tab=dish&q=<菜名>`（FeedbackView.goDishEdit）。
+ * 关键词初值来源：反馈详情「关联菜品」跳转携带 `?q=<菜名>`（FeedbackView.goDishEdit）。
  * 直接读取 route.query.q 作为初值，避免运营主路径在最后一跳断裂（管理员无需手敲菜名）。
  */
 function queryKeyword(): string {
@@ -34,8 +53,8 @@ function queryKeyword(): string {
 const searchQuery = ref(queryKeyword())
 
 /**
- * 同组件内 query 变化响应：本页由 ContentManageView 以 v-if 承载，从反馈页二次跳转时
- * 若组件实例未重建则不会重跑 setup → 必须 watch route.query.q 才能重新筛选。
+ * 同组件内 query 变化响应：从反馈页二次跳转时若组件实例未重建则不会重跑 setup
+ * → 必须 watch route.query.q 才能重新筛选。
  * 仅在值确实变化时同步，避免用户手动修改关键词后被同值 query 回写覆盖。
  */
 watch(
@@ -103,18 +122,6 @@ const typeOptions = [
   { label: '常规菜品', value: 'normal' },
 ]
 
-/**
- * 行内统计（T4）：口径为**全量**而非当前页/当前筛选——
- * store.dishes 来自 dishApi.getAll()（按页循环拉取的全量聚合，WEB-104），故可直接计数；
- * 已下架 = 非 active（与列表「非 active 即已下架」的展示口径严格一致，两者相加恒等于总数）。
- * PR-13：不为取数新增接口。
- */
-const stats = computed(() => {
-  const total = store.dishes.length
-  const active = store.dishes.filter(d => d.status === 'active').length
-  return { total, active, inactive: total - active }
-})
-
 // ===== 三态（WEB-02：store 不再顶层自动加载，进页显式加载本页所需域并暴露 loading/error） =====
 const loading = ref(true)
 const error = ref('')
@@ -134,7 +141,7 @@ async function refresh() {
 }
 onMounted(refresh)
 
-// ===== 进入菜品详情（列表行点击 = 唯一详情入口；编辑仍走弹窗） =====
+// ===== 进入菜品详情（整行点击 = 唯一详情入口；编辑走弹窗） =====
 function onRowClick(row: any) {
   router.push(`/dashboard/content/dishes/${Number(row.id)}`)
 }
@@ -183,7 +190,7 @@ async function handleDelete(row: any) {
 
 function formatPrice(row: any): string {
   if (row.promoPrice) return `¥${row.promoPrice.toFixed(2)}`
-  return `¥${row.price}`
+  return `¥${Number(row.price).toFixed(2)}`
 }
 
 // ===== 行内状态快捷切换（上架/下架，无需进弹窗） =====
@@ -258,7 +265,7 @@ async function batchDelete() {
     .reduce((sum, d) => sum + Number(d.rating_count ?? 0), 0)
   const reviewLine = reviewTotal > 0
     ? `所选菜品下的 ${reviewTotal} 条评价将一并删除、不可恢复。`
-    : '所选菜品的评价将一并删除、不可恢复。'
+    : `所选菜品的评价将一并删除、不可恢复。`
   if (!await confirm.confirm(`确定批量删除 ${selectedIds.value.length} 个菜品？删除后不可恢复。${reviewLine}`)) return
   await runBatch('删除', [...selectedIds.value], id => dishApi.deleteById(id),
     n => `已删除 ${n} 个菜品`)
@@ -266,6 +273,15 @@ async function batchDelete() {
 </script>
 
 <template>
+  <PageContainer>
+    <PageHeader title="菜品">
+      <template #actions>
+        <button class="btn-primary" v-press type="button" @click="openAddDish">
+          <el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品
+        </button>
+      </template>
+    </PageHeader>
+
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect
@@ -287,16 +303,13 @@ async function batchDelete() {
         <FilterSelect v-model="typeFilter" label="类型" :options="typeOptions" :width="150" />
       </template>
       <template #actions>
+        <!-- 批量动作仅在选中时出现（数量只在此处出现一次） -->
         <template v-if="selectedIds.length">
+          <span class="sel-count">已选 {{ selectedIds.length }} 项</span>
           <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('active')">批量上架</button>
-          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('inactive')">批量下架（{{ selectedIds.length }}）</button>
+          <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('inactive')">批量下架</button>
           <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchDelete">批量删除</button>
         </template>
-        <!-- 全量统计（加载/失败态不展示，避免用 0 冒充真实计数） -->
-        <span v-if="!loading && !error" class="stat-inline">共 {{ stats.total }} · 在售 {{ stats.active }} · 已下架 {{ stats.inactive }}</span>
-        <button class="btn-primary" v-press @click="openAddDish">
-          <el-icon class="btn-plus-icon"><Plus /></el-icon>新增菜品
-        </button>
       </template>
     </FilterBar>
 
@@ -308,17 +321,15 @@ async function batchDelete() {
       :columns="[
         { prop: 'image', label: '图片', width: '72px' },
         { prop: 'name', label: '菜品名称', sortable: true },
-        { prop: 'canteenName', label: '所属食堂', width: '140px' },
-        { prop: 'stallName', label: '所属档口' },
+        { prop: 'location', label: '位置' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
         { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
-
       ]"
       :rows="rows"
       :loading="loading"
       :error="error"
-      actions-width="230px"
+      actions-width="140px"
       empty-text="暂无菜品">
       <template #cell-image="{ row }">
         <img v-if="dishImage(row)" :src="dishImage(row)" :alt="row.name" class="cell-thumb" loading="lazy" decoding="async" />
@@ -328,12 +339,11 @@ async function batchDelete() {
         <span class="cell-title" :title="row.name">{{ row.name }}</span>
         <span v-if="row.promoPrice" class="promo-flag">折扣</span>
       </template>
-      <!-- 所属食堂/档口：DishAdminVO 联表直读（§7.23 第 1 条），不再经 store 反查 -->
-      <template #cell-canteenName="{ row }">
-        <span class="cell-sub" :title="row.canteenName">{{ row.canteenName || '—' }}</span>
-      </template>
-      <template #cell-stallName="{ row }">
-        <span class="cell-sub" :title="row.stallName">{{ row.stallName || '—' }}</span>
+      <!-- 位置：所属食堂 · 所属档口（DishAdminVO 联表直读，§7.23 第 1 条；两列合并为一列降噪） -->
+      <template #cell-location="{ row }">
+        <span class="cell-sub" :title="`${row.canteenName || '—'} · ${row.stallName || '—'}`">
+          {{ row.canteenName || '—' }} · {{ row.stallName || '—' }}
+        </span>
       </template>
       <template #cell-price="{ row }">
         <span class="price-cell" :class="{ promo: !!row.promoPrice }">{{ formatPrice(row) }}</span>
@@ -354,10 +364,10 @@ async function batchDelete() {
           <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '在售' : '已下架' }}</span>
         </div>
       </template>
+      <!-- 操作：详情统一走整行点击（不再重复一个「详情」链接） -->
       <template #actions="{ row }">
-        <button class="link" v-press @click="onRowClick(row)">详情</button>
-        <button class="link muted-link" v-press @click="openEditDish(row)">编辑</button>
-        <button class="link danger" v-press @click="handleDelete(row)">
+        <button class="link" v-press type="button" @click="openEditDish(row)">编辑</button>
+        <button class="link danger" v-press type="button" @click="handleDelete(row)">
           <el-icon class="act-ico"><Delete /></el-icon>删除
         </button>
       </template>
@@ -370,6 +380,7 @@ async function batchDelete() {
       @close="dishModal = false"
       @saved="onDishSaved"
     />
+  </PageContainer>
 </template>
 
 <style scoped>
@@ -385,8 +396,8 @@ async function batchDelete() {
 .star { width: 13px; height: 13px; }
 .text-muted { color: var(--text-light); }
 .btn-plus-icon { width: 14px; height: 14px; display: inline-flex; vertical-align: -2px; margin-right: var(--space-1); }
-/* 次级操作链接（编辑）：弱化于「详情」主链接，保持操作列层级清晰 */
-.muted-link { color: var(--text-secondary); }
+/* 选中计数（批量动作区只出现一次数量） */
+.sel-count { font-size: var(--font-sm); color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* 行内状态开关 */
 .status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
 .status-text { font-size: var(--font-xs); color: var(--text-muted); font-weight: var(--weight-medium); }

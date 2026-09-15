@@ -34,7 +34,7 @@
 ### 三端定位与数据链路（spec §0.4，强制）
 - **小程序 `client/` = 用户端**：业务数据唯一产生源（浏览、菜品评价、产品反馈——含新增菜品/纠错等反馈诉求；学生端无菜品写接口，菜品由管理员录入）。**社区板块（原动态信息流）已于 2026-09-12 下线删除**。
 - **后端 `server/` = 数据服务**：唯一存储与业务规则；小程序与 Web **共用同一套 API 契约**（`/` 用户接口供小程序，`/admin/**` 供 Web）。
-- **Web `web/` = 辅助管理工具（非用户端）**：只经 `/admin/**` 读取/管理后端数据（CRUD、UGC 审核、看板、操作日志），不产生业务数据。
+- **Web `web/` = 辅助管理工具（非用户端）**：只经 `/admin/**` 读取/管理后端数据（菜品 CRUD、评价事后处置、反馈处理、学生账号管理），不产生业务数据。**无登录体系**（`X-Admin-Token` 口令）；**无看板 / 无操作日志**（均已下线）。
 - 数据流向：小程序产生数据 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提（原「活动模块」例外已随 2026-09-13 活动全链路下线作废）。
 
 ### 后端分层（包结构 `com.bjtufood.*`）
@@ -54,11 +54,11 @@
 - 数据隔离：从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId；UGC `created_by=当前用户`。
 - 状态枚举：Dish `status` on/off；Canteen/Stall open/closed。评价可见性 `isHidden`(0/1) 非 `isDeleted`（原 Activity/Broadcast `enabled/disabled` 枚举已随下线移除）。
 
-### 数据库（11 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
-- 表（11 张）：user / email_verification_code / canteen / stall / dish / review / review_useful / notification / user_feedback / view_log / operation_log（`broadcast`/`activity` 两表已于 2026-09-13 随活动/公告全链路下线删除；`category` 表已于 2026-09-15 随品类维度整链删除（端上零呈现、仅 Web 自用的不可见第三维度），基线 14→12→11；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
+### 数据库（10 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
+- 表（10 张）：user / email_verification_code / canteen / stall / dish / review / review_useful / notification / user_feedback / view_log（`broadcast`/`activity` 两表已于 2026-09-13 随活动/公告全链路下线删除；`category` 表已于 2026-09-15 随品类维度整链删除；`operation_log` 表已于 2026-09-15 随「管理端不需要操作日志」整链删除，基线 14→12→11→10；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
 - 菜品无独立审核：`dish.audit_status` 退役列已于 2026-09-15 全量删除（含索引与常量），公开查询仅按 `status='on'` 过滤；菜品由管理员录入（`/admin/dishes`）即生效。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线）；下架/纠错类需求走反馈 `error` 类型（关联菜品），新增菜品走 `add`，不再有独立 `apply` 表。
-- **UGC 配图列（2026-09-13，以列扩展落地、不加表，基线 11 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）；`review.sec_state` / `user_feedback.sec_state` 已于 2026-09-15 随「取消人工复核」全链退役；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
+- **UGC 配图列（2026-09-13，以列扩展落地、不加表，基线 10 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）；`review.sec_state` / `user_feedback.sec_state` 已于 2026-09-15 随「取消人工复核」全链退役；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
 
 ### 前端架构要点
 - **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。

@@ -19,7 +19,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
 .shell-content::-webkit-scrollbar,
 .content::-webkit-scrollbar,
 .table-wrap::-webkit-scrollbar,
-.agg-tabs::-webkit-scrollbar,
 .topnav-nav::-webkit-scrollbar {
   display: none;
   width: 0;
@@ -86,7 +85,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .stat-card, .modal {
   border-radius: var(--radius-card);
 }
-.tab-item, .tab-count-item { border-radius: var(--radius-md); }
 
 /* ============================================================
  * 页面级公共类基线（供各 view 直接复用，避免重复 ad-hoc 样式）
@@ -94,20 +92,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .page { max-width: 1400px; }
 .page-header { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5); }
 .page-header h2 { font-size: var(--font-2xl); color: var(--text-primary); margin: 0; }
-
-/* ============================================================
- * 行内统计（筛选条右侧「共 N · 在售 X · 已下架 Y」）：
- * 原为 UserView 私有样式，菜品/评价/学生页共用 → 上提为公共类，避免各页各写一份。
- * ============================================================ */
-.stat-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
 
 /* 卡片容器：统一背景 / 圆角 / 阴影 / 边框 */
 .card {
@@ -162,20 +146,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   }
 }
 
-/* 分段 Tab（看板/审核等）：胶囊式，激活态走主色 */
-.tabs { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
-.tab {
-  display: inline-flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-2) var(--space-5);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
-  background: var(--bg-card);
-  cursor: pointer;
-  font-size: var(--font-base);
-  color: var(--text-secondary);
-  user-select: none;
-}
-.tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
 
 /* ============================================================
  * 数据表格基线（自封装 DataTable 已用；此处统一 hover/分隔线）
@@ -246,45 +216,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .btn-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ===== 聚合页快捷卡（内容审核 / 用户与系统聚合页共用：紧凑、等高、数量徽标，大小 UI 一致） ===== */
-.sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-5); }
-.sec-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
-.sec-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  min-height: 40px;
-  box-sizing: border-box;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  cursor: pointer;
-  text-align: left;
-  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
-}
-.sec-card:hover { border-color: var(--border-strong); }
-.sec-card:active { transform: scale(var(--press-scale)); }
-.sec-card:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.sec-card.on { border-color: var(--color-primary); background: var(--color-primary-bg); }
-.sec-ico { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; }
-.sec-card.done .sec-ico { color: var(--color-success); }
-.sec-label { flex: 1; min-width: 0; font-size: var(--font-sm); font-weight: var(--weight-medium); color: var(--text-primary); }
-.sec-badge {
-  flex-shrink: 0;
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  font-size: var(--font-xs);
-  font-weight: var(--weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-.sec-card.on .sec-badge { background: var(--color-primary); color: var(--color-on-primary); }
-.sec-card.done .sec-badge { background: var(--color-success-bg); color: var(--color-success); }
-@media (max-width: 767px) {
-  .sec-grid, .sec-grid.cols-2 { grid-template-columns: 1fr; }
-}
 .btn-danger {
   padding: var(--space-2) var(--space-5); border: 1px solid var(--color-error); border-radius: var(--radius);
   background: var(--bg-card); color: var(--color-error); font-size: var(--font-base);
@@ -367,7 +298,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   }
   .btn-primary:active, .btn-success:active, .btn-warn:active, .btn-cancel:active, .btn-danger:active,
   .link:active, .tab:active, .nav-item:active, .tag-option:active,
-  .sec-card:active, .card:active,
+  .card:active,
   .stat-card:active,
   button:active, a:active { transform: none !important; }
   /* 表格行 hover 去过渡（§4.7 减弱动效：去掉背景渐变动画） */

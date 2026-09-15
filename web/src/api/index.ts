@@ -9,4 +9,5 @@ export * as userApi from './user'
 // adminApi 已下线（2026-09-14，project_spec §7.10）：管理员账号体系随管理端「去登录与角色体系」一并移除，
 // 后端 /admin/admins* 与 /auth/admin/login 均不存在。原 web/src/api/admin.ts 已物理删除。
 export * as feedbackApi from './feedback'
-export * as operationLogApi from './operationLog'
+// operationLogApi 已物理删除（2026-09-15，后台精简）：操作日志页 / 常量表 / 路由整链下线，
+// 前端不再消费 GET /admin/operation-logs（后端 AOP 埋点仍照常写，不受影响）。

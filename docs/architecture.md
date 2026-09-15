@@ -23,7 +23,7 @@
 |---|---|---|---|
 | 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页，见 spec §2.1） |
 | 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
-| 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（**默认落地页 = 信息管理·菜品页 `/dashboard/content?tab=dish`**，2026-09-15 工作台下线后取代原 `/dashboard`；无全局聚合看板） |
+| 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（**默认落地页 = 菜品页 `/dashboard/content`**，2026-09-15 工作台下线后取代原 `/dashboard`；**2026-09-15 IA 扁平化：一级导航 4 项 = 菜品 / 评价 / 反馈 / 学生账号，路由与导航 1:1、页面层级 ≤2，见 spec §0.4.2 / §7.25 第 2 条**；无全局聚合看板、无分类卡聚合壳） |
 
 ### 1.2 后端分层（包结构）
 ```
@@ -36,10 +36,15 @@ com.bjtufood/
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
 ├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
-└── common/      # Result/异常/JWT 切面/操作日志；**工具包唯一真源 = `common/utils`**（复数，2026-09-15 登记；原 `common/util` 单数包已合并废弃、勿再引用）；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
+└── common/      # Result/异常/JWT 切面（**操作日志已于 2026-09-15 全链删除，见 §1.3；`common/annotation/AuditLog` 与 `AuditLogAspect` 均不存在**）；**工具包唯一真源 = `common/utils`**（复数，2026-09-15 登记；原 `common/util` 单数包已合并废弃、勿再引用）；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
 ```
 
-> **2026-09-15 品类维度整链删除（spec §7.22 第 1 条，用户撤销原 Q-117「后台保留归类用途」口径）**：原 `com.bjtufood.content.category` 包（`Category` 实体 / `CategoryMapper` / `CategoryService` / `CategoryServiceImpl` / `controller/admin/CategoryAdminController`）已整体移除，故上文包树中 **`content/`（category 品类）域不再存在**（该空目录亦应一并清除，不留残留）；`dish` 域同步去掉品类字段与 `/admin/categories` 端点。**定型口径：菜品按食堂 / 档口归属，不存在分类维度。** 待收尾项（`db/*.sql` 品类残留、`OperationLogConst` 的 `category_*` 四值）见 `project_spec.md` §8「待收尾」。
+> **2026-09-15 品类维度整链删除（spec §7.22 第 1 条，用户撤销原 Q-117「后台保留归类用途」口径）**：原 `com.bjtufood.content.category` 包（`Category` 实体 / `CategoryMapper` / `CategoryService` / `CategoryServiceImpl` / `controller/admin/CategoryAdminController`）已整体移除，故上文包树中 **`content/`（category 品类）域不再存在**（该空目录亦应一并清除，不留残留）；`dish` 域同步去掉品类字段与 `/admin/categories` 端点。**定型口径：菜品按食堂 / 档口归属，不存在分类维度。** 待收尾项（`db/*.sql` 品类残留）见 `project_spec.md` §8「待收尾」；**原「`OperationLogConst` 的 `category_*` 四值」一项已随操作日志全链删除注销（2026-09-15，见 §1.3）。**
+
+### 1.3 AOP 审计埋点已删除（2026-09-15 用户拍板，spec §7.25 第 1 条）
+- **管理端「操作日志」全链移除**：`@AuditLog` 注解（`common/annotation`）、`AuditLogAspect` 切面、`OperationLogConst`、`OperationLogAdminController`、`OperationLogVO`、`OperationLog` 实体、`OperationLogMapper`、`OperationLogService`(+`Impl`) 与 4 处 `@AuditLog` 调用点（含 `DELETE /auth/account`）**均已删除**；`operation_log` 表不再创建（`schema.sql` 末尾幂等段 `drop_operation_log_table`，**表基线 11 → 10**）；`GET /admin/operation-logs` 端点不存在。
+- **保留**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 服务端访问日志）；`view_log` 浏览足迹（`history/` 域，用户侧数据源）**不动**。
+- **口径**：管理端为单人共享口令工具，**不提供操作留痕 / 审计追溯**；恢复须重新拍板（PR-04）。详见 `docs/database.md` §3.11 与 `docs/api-design.md` §5.5。
 
 ## 2. 认证与安全模型
 
@@ -66,7 +71,7 @@ com.bjtufood/
 ### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板；2026-09-15「取消人工复核」修订，契约见 spec §5.a / §7.24 / api-design.md §4）
 
 - **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2）；**`suggest` 判定归一为二态（2026-09-15）**——`pass` 与 `review`（疑似）**均放行**（`SecSuggest.fromValue("review") → PASS`），`risky` 与未知 / 缺失态（fail-closed 同按 risky）**拒绝**（业务侧抛 `400`、不落库）；图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
-- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE` 均已删除——**机检结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
+- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`（**该常量类本体已于 2026-09-15 随操作日志全链删除，见 §1.3**）均已删除——**机检结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
 - **UGC 图片上传链路（云存储中转 → 送检 → COS 转存）**：
 
 ```
@@ -167,8 +172,8 @@ npm run dev   # http://localhost:5173
 ### 4.4 前端目录与包管理器约定（2026-09-15 登记）
 
 - **包管理器统一为 npm（唯一）**：仓库仅保留 `client/package-lock.json` 与 `web/package-lock.json` **两个锁文件**；**禁止引入 `yarn.lock` / `pnpm-lock.yaml` / `bun.lockb` 等任何其他锁文件**（多锁并存会导致依赖树漂移与 CI / 本地不一致）。安装与运行一律 `npm install` / `npm run *`，文档命令不得写成 `yarn` / `pnpm`。
-- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`FeedbackView`＝**反馈处理**页 / `ReviewManageView`＝**评价管理**页，由原 `ReviewAuditView` 改名；**`AuditManageView`（原「内容审核」聚合页）已于 2026-09-15「取消人工复核」时删除**）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除，`ContentManageView` 收敛为「菜品」单一视图**）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
-- **路由（2026-09-15「取消人工复核」后更新，与 `web/src/router/index.ts` / `AdminLayout` 一致）**：一级导航 **4 项**——信息管理 `/dashboard/content`（`contentManage`）、**评价管理** `/dashboard/reviews`（`reviewManage`）、**反馈处理** `/dashboard/feedback`（`feedbackManage`）、用户与系统 `/dashboard/system`（`systemManage`）；菜品详情 `/dashboard/content/dishes/:dishId`（`dishDetail`）保持原值。原 `/dashboard/audit`（`auditManage`，内容审核聚合页）**已删除**，旧深链由前端兜底重定向（`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，查询参数保留）。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
+- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`FeedbackView`＝**反馈**页 / `ReviewManageView`＝**评价**页，由原 `ReviewAuditView` 改名；**`AuditManageView`（原「内容审核」聚合页）已于 2026-09-15「取消人工复核」时删除**）、`content/`（`DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除；2026-09-15 IA 扁平化后聚合壳 `ContentManageView` 亦已删除**）、`system/`（`UserView`；**`SystemManageView`（分类卡层）与 `AccountView`（透传壳）已于 2026-09-15 IA 扁平化删除，`OperationLogView` 随操作日志全链删除**）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
+- **路由（2026-09-15 IA 扁平化后更新，与 `web/src/router/index.ts` / `AdminLayout` 一致）**：一级导航 **4 项、与路由 1:1**——**菜品** `/dashboard/content`（**默认落地**）、**评价** `/dashboard/reviews`、**反馈** `/dashboard/feedback`、**学生账号** `/dashboard/system`（四条均**直挂叶子页组件**，无中间聚合壳；路由名以 `web/src/router/index.ts` 为准）；菜品详情 `/dashboard/content/dishes/:dishId`（`dishDetail`）保持原值。**页面层级统一 ≤2 层**（页头 H1 + 主操作 → 主体 筛选 + 列表 / 表单），**已删除的中间层不得重建**：`ContentManageView`（原「信息管理」聚合壳）、`SystemManageView`（原「用户与系统」分类卡层）、`AccountView`（透传壳）、`AuditManageView`（原「内容审核」聚合页）。原 `/dashboard/audit`（`auditManage`）**已删除**，旧深链由前端兜底重定向（`tab=feedback*` / `apply*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，**整份保留 query**）。全站**禁 `.stat-inline` 只读统计块**（数量只由表格 footer 出现一次）、禁页头解释句与只读提示块；公共组件 `ReviewDetailDialog`（评价详情抽屉）供评价 / 反馈两页共用。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
 
 ## 5. 前端状态管理（Pinia store）
 

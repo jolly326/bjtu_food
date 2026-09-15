@@ -5,6 +5,7 @@
 > **2026-09-15 阶段4 对账修订（用户批准，权威 `project_spec.md` §7.23 第 4 条）**：① **`dish.audit_status` 列与索引全量退役**——列已 DROP（存量库由 `schema.sql` 末尾幂等存储过程 `drop_dish_audit_status_column` 清理）、`idx_dish_audit` 一并删除、`idx_dish_heat` 收为 `(status, view_count, rating_count, avg_rating)`；**公开查询不再按该列过滤（`status='on'` 即公开展示）**；`DishConst.AUDIT_APPROVED` / `AuditStatusConst` / 一次性归一脚本 `normalize_dish_audit_status.sql` 同批删除。② **`canteen.created_by` / `stall.created_by` 两列退役**（DROP 归入同一幂等存储过程 `drop_canteen_stall_entity_fields`）。③ `dish.reject_reason` / `dish.created_by` / `user_feedback.*` **不动**（前者为退役历史列、后者保留）。
 > **2026-09-15 品类维度整链删除对账（用户拍板，权威 `project_spec.md` §7.22 第 1 条——原 Q-117「后台保留品类作归类用途」口径已撤销）**：`category` 表、`dish.category_id` 列、`idx_dish_category` 索引、`uk_category_code` 唯一键、关系图 / ER 图中的 `category` 节点**一律移除**；**表基线 12 → 11 张**。**定型口径：菜品按食堂 / 档口归属，不存在分类维度**（端上无、后台亦无）。⚠️ **待对齐（尚未收口）**：`server/src/main/resources/db/schema.sql` / `seed_data.sql` 中的品类残留（建表、列、索引、种子数据与 `dish.category_id` 赋值）尚未清理，须以幂等段移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**）；**清理完成前，本文件「与 `schema.sql` 严格一致」的声明不成立**，收尾项登记见 `project_spec.md` §8「待收尾」。
 > **2026-09-15 取消人工复核对账修订（用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：**`review.sec_state` 与 `user_feedback.sec_state` 两列已全链退役**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等存储过程 `drop_sec_state_columns` 清理（先判存在再 DROP，可重复执行）；**评价可见性与评分聚合口径收敛为仅 `is_hidden=0` 单一判据**（机检 `pass` / `review` 一律放行、仅 `risky` 拒绝且不落库）；`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、实体 / DTO / VO 的 `secState` 字段、列表筛选入参与 `OperationLogConst.ACTION_REVIEW_SEC_STATE` 同批删除；一次性重算脚本 `fix_rating_by_sec_state.sql` **已删除**。**表基线仍 11 张（本次为纯列级变更，不增删表）。**
+> **2026-09-15 操作日志全链删除对账修订（用户拍板，权威 `project_spec.md` §7.25 第 1 条）**：**管理端「操作日志」全链移除**——`operation_log` 表**不再创建**（存量库由 `schema.sql` 末尾幂等存储过程 `drop_operation_log_table` 清理，先判存在再 DROP、可重复执行）；`OperationLog` 实体 / `OperationLogMapper` / `OperationLogService`(+`Impl`) / `OperationLogVO` / `OperationLogAdminController` / `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst`（含品类四值 `category_*` 与 `ACTION_REVIEW_SEC_STATE`；**§8「待收尾」第 ② 项随之注销**）/ 4 处 `@AuditLog` 埋点调用一并删除；Web 端 `OperationLogView.vue` 与 `GET /admin/operation-logs` 端点同批移除。**表基线 11 → 10 张**。**保留**：`ClientIpUtil`（服务 `RequestLoggingFilter` 访问日志，与操作日志无关）、`view_log` 浏览足迹（**不动**）。
 > 数据库名：`bjtu_food`；字符集：`utf8mb4` / `utf8mb4_general_ci`；引擎：`InnoDB`。
 
 ## 1. 设计约定
@@ -22,11 +23,12 @@
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 11 张表）
+## 2. 表清单（共 10 张表）
 
-`user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log`
 
-> 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images` / `user_feedback.images`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后当前基线为 11 张**，见本段首句）**；**其配套的 `review.sec_state` / `user_feedback.sec_state` 两列已于 2026-09-15 随「取消人工复核」全链退役**（不再创建，存量库由 `drop_sec_state_columns` 幂等清理）。
+> **2026-09-15 操作日志下线：表基线 11 → 10 张**——`operation_log` 表随管理端「操作日志」全链删除不再创建（存量库由 `schema.sql` 末尾幂等存储过程 `drop_operation_log_table` 清理，见 §3.11 与文首对账注）。**本项目不存在任何操作日志 / AOP 审计落库能力。**
+> 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images` / `user_feedback.images`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后为 11 张，操作日志表下线后当前基线为 10 张**，见本段首句与上段）**；**其配套的 `review.sec_state` / `user_feedback.sec_state` 两列已于 2026-09-15 随「取消人工复核」全链退役**（不再创建，存量库由 `drop_sec_state_columns` 幂等清理）。
 
 ---
 
@@ -161,7 +163,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_notification_user`(`user_id`)。
 
-> **已删除表（勿重建）**：**原 §3.8 `category`（菜品品类）已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留品类作归类用途」口径，定型口径 = 菜品按食堂 / 档口归属、不存在分类维度，见 `project_spec.md` §7.22 第 1 条；原字段 `code` / `name` / `sort_order` / `status` 与 `uk_category_code` / `idx_category_status_sort` 一并作废）；`broadcast`（首页广播条）与 `activity`（最新活动/公众号文章卡片）已于 2026-09-13 随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
+> **已删除表（勿重建）**：**`operation_log`（操作日志）已于 2026-09-15 随「操作日志」全链删除移除**（表 + 实体 / Mapper / Service / VO / Controller / `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` 全链删除，详见 §3.11 与 `project_spec.md` §7.25 第 1 条；**表基线 11 → 10**）；**原 §3.8 `category`（菜品品类）已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留品类作归类用途」口径，定型口径 = 菜品按食堂 / 档口归属、不存在分类维度，见 `project_spec.md` §7.22 第 1 条；原字段 `code` / `name` / `sort_order` / `status` 与 `uk_category_code` / `idx_category_status_sort` 一并作废）；`broadcast`（首页广播条）与 `activity`（最新活动/公众号文章卡片）已于 2026-09-13 随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
 
 ### 3.8 user_feedback（用户反馈）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -212,18 +214,17 @@
 
 > **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
-### 3.11 operation_log（操作日志，AOP 埋点，Web 只读）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 日志ID |
-| admin_id | BIGINT | 否 | 0 | **已停写 / retired（2026-09-15 DOC-11 补注，spec §7.10 第 2 条）**：管理端操作人身份降级后不再写入、不再保证有值（恒 0 或历史值）；列与索引仅作历史数据查询保留 |
-| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java` 实际值重写；2026-09-15 品类整链删除后收敛）**：`review_hide` / `review_delete` / `dish_delete` / `feedback_handle` / `account_delete`（**五值**）——**`review_sec_state` 已随 2026-09-15「取消人工复核」删除**（`OperationLogConst.ACTION_REVIEW_SEC_STATE` 常量已不存在，无生产者）；**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除）。**⚠️ 待对齐（收尾项）**：`OperationLogConst` 现仍含 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值，品类链路删除后**已无生产者**，须随 `project_spec.md` §8「待收尾」删除（PR-05 / PR-12）；清理后本节值域收敛为上述五值 |
-| target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/feedback/review |
-| target_id | BIGINT | 可 | NULL | 操作对象ID |
-| ip | VARCHAR(64) | 可 | NULL | 来源IP |
-| created_at | DATETIME | 否 | NOW | 操作时间 |
+### 3.11 ~~operation_log（操作日志，AOP 埋点，Web 只读）~~ —— **已删除（2026-09-15）**
 
-**索引/约束**：PK(`id`)；KEY `idx_op_admin_time`(`admin_id`,`created_at`)；KEY `idx_op_target`(`target_type`,`target_id`)。
+> **已删除表（勿重建）：「操作日志」全链删除（2026-09-15 用户拍板，权威 `project_spec.md` §7.25 第 1 条）**——`operation_log` 表**不再创建**（`schema.sql` 末尾幂等存储过程 `drop_operation_log_table` 清理存量库，先判存在再 DROP、可重复执行），其 `id` / `admin_id` / `action` / `target_type` / `target_id` / `ip` / `created_at` 七列与索引 `idx_op_admin_time` / `idx_op_target` **全部作废、不再存在**。
+>
+> **连带删除（无任何残留能力）**：`OperationLog` 实体、`OperationLogMapper`、`OperationLogService`(+`ServiceImpl`)、`OperationLogVO`、`OperationLogAdminController` 与端点 `GET /admin/operation-logs`、`common/annotation/AuditLog` 注解、`AuditLogAspect` 切面、`OperationLogConst`（**含 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值——`project_spec.md` §8「待收尾」第 ② 项随之注销；亦含早前退役的 `ACTION_REVIEW_SEC_STATE`**）、4 处 `@AuditLog` 埋点调用；Web 端 `OperationLogView.vue` 与 `api/operationLog.ts` / `OPERATION_*` 常量同批移除。
+>
+> **原 `action` 值域段落（`review_hide` / `review_delete` / `dish_delete` / `feedback_handle` / `account_delete` 五值及其待对齐收尾项）随本节整体作废，勿再据旧文档引用。**
+>
+> **保留（不属操作日志能力）**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 的服务端访问日志，与业务操作留痕无关）；`view_log`（浏览足迹）**不动**——浏览足迹是用户侧「猜你喜欢」的数据源，与管理员操作留痕无关，见 §3.10。
+>
+> **口径定型**：管理端为**单人共享口令工具**（`X-Admin-Token`，见 §3.1 与 `project_spec.md` §7.10），**不提供也不恢复任何操作留痕 / 审计追溯页面**；恢复须重新拍板（PR-04）。相应地，`project_spec.md` §7.10 第 2 条「操作人身份降级」中涉及 `operation_log.admin_id` 的表述随之废止（`user_feedback.handler_id` retired 口径**不变**）。
 
 ---
 
@@ -237,7 +238,7 @@
 - `dish` 1—N `review`（`review.dish_id`）。**~~`dish` N—1 `category`（`dish.category_id`）~~ 已于 2026-09-15 随品类维度整链删除移除**（`category` 表与 `dish.category_id` 均不存在，菜品只按食堂 / 档口归属）
 - `review` 1—N `review_useful`（`review_id`）
 - `email_verification_code` 独立（按 `email`+`purpose` 查询）
-- `operation_log` 关联 `admin_id`（引用 `user.id` 的管理员）
+- ~~`operation_log` 关联 `admin_id`（引用 `user.id` 的管理员）~~ —— **已于 2026-09-15 随「操作日志」全链删除移除**（表不存在，无 `user`—`operation_log` 关系；见 §3.11 与 `project_spec.md` §7.25 第 1 条）
 
 ### ER 图（Mermaid）
 
@@ -247,7 +248,6 @@ erDiagram
     user ||--o{ notification : "receives"
     user ||--o{ user_feedback : "submits"
     user ||--o{ view_log : "views"
-    user ||--o{ operation_log : "operates_as_admin"
     user ||--o{ review_useful : "marks_useful_review"
 
     canteen ||--o{ stall : "has"
@@ -269,14 +269,9 @@ erDiagram
         VARCHAR target_type
         BIGINT target_id
     }
-    operation_log {
-        BIGINT id PK
-        BIGINT admin_id FK
-        VARCHAR action
-        VARCHAR target_type
-        BIGINT target_id
-    }
 ```
+
+> **ER 图变更（2026-09-15）**：原 `operation_log` 实体块与 `user ||--o{ operation_log` 关系线已随「操作日志」全链删除移除（表不存在，见 §3.11）。
 
 ---
 
@@ -291,4 +286,4 @@ erDiagram
 | uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
 | ~~uk_category_code~~ | ~~category~~ | ~~code~~ | **已删除（2026-09-15 品类维度整链删除，`category` 表已移除，见 §2 说明）** |
 
-**覆盖索引（排序优化）**：`idx_dish_heat`(status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序（**2026-09-15 阶段4：原含 `audit_status` 的五列版本已随该列退役收窄为四列**）；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_view_user_target_time`(user_id, target_type, target_id, updated_at) 支撑浏览量判重（判重已改用 updated_at，2026-09-15）；`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询。
+**覆盖索引（排序优化）**：`idx_dish_heat`(status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序（**2026-09-15 阶段4：原含 `audit_status` 的五列版本已随该列退役收窄为四列**）；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_view_user_target_time`(user_id, target_type, target_id, updated_at) 支撑浏览量判重（判重已改用 updated_at，2026-09-15）；~~`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询~~ ——**两索引已于 2026-09-15 随 `operation_log` 表删除一并移除，不存在**（见 §3.11）。

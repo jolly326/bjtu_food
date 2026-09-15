@@ -1,15 +1,19 @@
 # web-admin-feedback-loop Specification
 
 ## Purpose
-为管理后台建立反馈驱动的治理闭环：反馈列表可直达其关联对象的编辑位置、处理动作触发用户回执，使管理员能「看到问题 → 修正数据 → 回传结果」一气呵成；页面归属为**「反馈处理」与「评价管理」两个一级页**（2026-09-15 由原「内容审核」聚合页拆分，一级导航 4 项：信息管理 / 评价管理 / 反馈处理 / 用户与系统），评价侧只做**事后处置**（隐藏 / 显示 / 删除），并承载 UGC 配图展示（配图链路与判定口径见 `ugc-media-security`）。
+为管理后台建立反馈驱动的治理闭环：反馈列表可直达其关联对象的编辑位置、处理动作触发用户回执，使管理员能「看到问题 → 修正数据 → 回传结果」一气呵成；页面归属为**「反馈」与「评价」两个一级页**（2026-09-15 由原「内容审核」聚合页拆分，**一级导航 4 项：菜品 / 评价 / 反馈 / 学生账号**，与路由 1:1；命名口径 2026-09-15 由「信息管理 / 评价管理 / 反馈处理 / 用户与系统」扁平化重写，见下），评价侧只做**事后处置**（隐藏 / 显示 / 删除），并承载 UGC 配图展示（配图链路与判定口径见 `ugc-media-security`）。
 
 > **2026-09-15 变更（权威 `project_spec.md` §7.24「取消人工复核」）**：机检 `pass` / `review` 一律放行、仅 `risky` 拒绝 ⇒ 管理后台**不再承担内容复核职责**。原「评价安检复核队列（放行 / 驳回，`PUT /admin/reviews/{id}/sec-state`）」Requirement **整体废止**；原「内容审核页」Requirement 改注为新的页面划分；原「工作台最小口径」Requirement 随 2026-09-15 工作台下线一并废止（`GET /admin/dashboard` 已删除）。恢复任一已废止能力须**重新拍板**。
+
+> **2026-09-15 追加变更（权威 `project_spec.md` §7.25，用户拍板两项）**：① **管理端「操作日志」全链删除**——`operation_log` 表、`OperationLog*` 后端类族、`@AuditLog` 注解与 `AuditLogAspect` 切面、`GET /admin/operation-logs` 端点、Web `OperationLogView.vue` 与 `api/operationLog.ts` **全部删除（2026-09-15）**；本 spec 内凡引用「操作日志页 `/dashboard/system`」或操作留痕的表述**一律失效**，管理端 SHALL NOT 提供任何操作留痕 / 审计追溯能力。② **Web IA 扁平化**——删中间聚合层（`ContentManageView` 信息管理聚合壳 / `SystemManageView` 用户与系统分类卡层 / `AccountView` 透传壳），页面层级统一 ≤2，全站 SHALL NOT 出现 `.stat-inline` 只读统计块、页头解释句与只读提示块。
 
 ## Requirements
 
 ### Requirement: 反馈关联对象可直达
 
 反馈详情中，当反馈携带关联对象（`relatedType` 为 `review` 评价或 `dish` 菜品）时，关联对象 SHALL 以可点击形式呈现，点击 SHALL 跳转至该对象的可达位置：菜品 SHALL 跳转菜品编辑详情，评价 SHALL 给出可定位的标识（评价无独立页面）。无关联对象时 SHALL 以占位符表示，不出现可点样式。
+
+（**2026-09-15 呈现定型**：举报类（`relatedType=review`）关联评价 SHALL 以**主色文本链接「评价 #id →」**呈现（**不再使用红色 pill**），点击 SHALL 跳转「评价」页并携带 `?rid=<id>` 深链定位；见 `project_spec.md` §7.25 第 2 条与 §7.23 第 5 条。）
 
 #### Scenario: 纠错反馈直达菜品编辑
 
@@ -44,7 +48,7 @@
 
 > **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「评价安检复核队列（2026-09-13）」整体作废——复核队列、列表 `secState` 筛选、**放行**（`sec_state='pass'`）/ **驳回**（`sec_state='rejected'`）两个动作、端点 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）**均已删除**；`sec_state` 列亦已全链退役（不落库、不参与可见性）。
 >
-> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列 / 安检筛选 / 放行·驳回动作，SHALL NOT 呈现「待复核」统计。评价治理收敛为**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），位于「评价管理」页 `/dashboard/reviews`（`ReviewManageView`，2026-09-15 由 `ReviewAuditView` 改名）；评价列表 SHALL NOT 返回 / 展示安检态字段（原 `secState` 已删除）。
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列 / 安检筛选 / 放行·驳回动作，SHALL NOT 呈现「待复核」统计。评价治理收敛为**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），位于**「评价」页** `/dashboard/reviews`（`ReviewManageView`，2026-09-15 由 `ReviewAuditView` 改名；导航名于 2026-09-15 IA 扁平化后由「评价管理」改为「评价」）；评价列表 SHALL NOT 返回 / 展示安检态字段（原 `secState` 已删除）。
 
 ### Requirement: 处理动作触发用户回执
 
@@ -63,12 +67,12 @@
 
 ### Requirement: 管理端页面划分（2026-09-15 修订；原「审核页仅含反馈与评价分区」）
 
-管理端一级导航 SHALL 为 **4 项**：**信息管理 / 评价管理 / 反馈处理 / 用户与系统**。原「内容审核」聚合页（`AuditManageView`）SHALL NOT 存在，其职责 SHALL 拆为两个独立页：「**评价管理**」`/dashboard/reviews`（`ReviewManageView`，隐藏 / 显示 / 删除 = 事后处置）与「**反馈处理**」`/dashboard/feedback`（`FeedbackView`，处理闭环）。后台 SHALL NOT 呈现「UGC 申请」分区或任何实体贡献申请相关列表、待办计数与筛选；原申请链路（提交申请 → 管理员审核 → 自动建实体）SHALL NOT 存在于用户端与管理后台。
+管理端一级导航 SHALL 为 **4 项，与路由 1:1**：**菜品** `/dashboard/content`（`DishManageView`，默认落地）/ **评价** `/dashboard/reviews`（`ReviewManageView`，隐藏 / 显示 / 删除 = 事后处置）/ **反馈** `/dashboard/feedback`（`FeedbackView`，处理闭环）/ **学生账号** `/dashboard/system`（`UserView`）。**（2026-09-15 扁平化重写：原命名「信息管理 / 评价管理 / 反馈处理 / 用户与系统」不再使用；路径不变。）** 原「内容审核」聚合页（`AuditManageView`）SHALL NOT 存在，其职责 SHALL 拆为上述「评价」「反馈」两页。**SHALL NOT 存在的中间层（已删除 2026-09-15，不得重建）**：`ContentManageView`（信息管理聚合壳）、`SystemManageView`（用户与系统分类卡层）、`AccountView`（透传壳）、`OperationLogView`（操作日志页）。**页面层级 SHALL ≤2 层**（页头 H1 + 主操作 → 主体 筛选 + 列表 / 表单），SHALL NOT 出现 `.stat-inline` 只读统计块（数量只由表格 footer 出现一次）、页头解释句与只读提示块。后台 SHALL NOT 呈现「UGC 申请」分区或任何实体贡献申请相关列表、待办计数与筛选；原申请链路（提交申请 → 管理员审核 → 自动建实体）SHALL NOT 存在于用户端与管理后台。
 
 #### Scenario: 旧深链兜底可达
 
 - **WHEN** 管理员打开旧深链 `/dashboard/audit`（可带查询参数）
-- **THEN** 前端兜底重定向：`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，查询参数保留（如 `fid` 深链仍可达）
+- **THEN** 前端兜底重定向：`tab=feedback*` 或 `apply*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，**整份保留查询参数**（如 `fid` 深链仍可达）
 
 #### Scenario: 无申请链路
 
@@ -79,4 +83,4 @@
 
 > **已废止（2026-09-15 用户拍板「去工作台」，权威 `project_spec.md` §0.4.1 / §5.z D-工作台）**：原 Requirement「工作台最小口径」整体作废——工作台页面 `DashboardView` 与 `GET /admin/dashboard` 接口**已删除**，`dashboard` 业务域不再存在。
 >
-> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何全局聚合看板 / 总览页 / ECharts 图表 / 跨模块聚合统计。待办可见性 SHALL 由「**反馈处理**」入口徽标（待处理反馈数，数据源 `feedback.status='pending'`）＋ 各业务页行内统计承担；近期操作由操作日志页 `/dashboard/system` 承载；默认落地页为「信息管理 · 菜品页」`/dashboard/content?tab=dish`。恢复聚合看板须重新拍板（PR-04）。
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何全局聚合看板 / 总览页 / ECharts 图表 / 跨模块聚合统计，亦 SHALL NOT 设任何分类卡 / 聚合壳中间层。待办可见性 SHALL 由「**反馈**」入口徽标（待处理反馈数，数据源 `feedback.status='pending'`）＋ 各业务页**表格 footer 统计**承担；~~近期操作由操作日志页 `/dashboard/system` 承载~~ —— **已删除（2026-09-15，见本文件抬头追加变更与 `project_spec.md` §7.25 第 1 条）**，后台 SHALL NOT 提供近期操作列表或任何操作留痕；默认落地页为**菜品页** `/dashboard/content`（带 `?tab=dish` 的历史写法作废）。恢复聚合看板须重新拍板（PR-04）。

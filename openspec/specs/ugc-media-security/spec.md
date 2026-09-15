@@ -83,7 +83,7 @@ UGC 配图 SHALL 走统一链路：前端 `wx.cloud.uploadFile` 上传至**微�
 
 > **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「管理后台复核闭环」整体作废——复核队列、`secState='review'` 筛选、**放行**（`sec_state`→`pass`）与**驳回**（`sec_state`→`rejected`）、端点 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）**均已删除**。
 >
-> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列、安检筛选或放行 / 驳回动作（机检 `pass` / `review` 一律放行、`risky` 已在提交侧拦截，后台无复核职责）。评价只提供**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），页面为「评价管理」`/dashboard/reviews`。**反馈详情 SHALL 仍展示配图（≤3 张可放大）**（该条保留），页面为「反馈处理」`/dashboard/feedback`；交互细则见 `web-admin-feedback-loop`。
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列、安检筛选或放行 / 驳回动作（机检 `pass` / `review` 一律放行、`risky` 已在提交侧拦截，后台无复核职责）。评价只提供**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），页面为**「评价」页** `/dashboard/reviews`（导航名于 2026-09-15 IA 扁平化后由「评价管理」改为「评价」，路径不变）。**反馈详情 SHALL 仍展示配图（≤3 张可放大）**（该条保留），页面为**「反馈」页** `/dashboard/feedback`（同上由「反馈处理」改名）；交互细则见 `web-admin-feedback-loop`。**（2026-09-15 追加：管理端「操作日志」全链已删除，后台 SHALL NOT 提供任何操作留痕 / 审计能力，见 `project_spec.md` §7.25 第 1 条。）**
 
 ### Requirement: 平台可迁移（不绑定云托管）
 

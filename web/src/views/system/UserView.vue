@@ -1,16 +1,25 @@
 <script setup lang="ts">
+/**
+ * UserView：学生账号页（一级入口 /dashboard/system）。
+ * 2026-09-15（本轮精简）：原「用户与系统」聚合页（账号 / 操作日志两张分类卡）删除后，
+ * 本视图直接作为该路由组件 —— 补页头（H1「学生账号」+ 唯一主操作「刷新」），
+ * 页内只读统计行（.stat-inline）删除，数量统一由 DataTable footer「共 N 条」承担。
+ * 能力不变：列表 / 状态开关 / 批量启用·禁用 / 行内「行为」聚合弹窗。
+ */
 import { ref, computed, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { userApi } from '@/api'
+import PageContainer from '@/components/layout/PageContainer.vue'
+import PageHeader from '@/components/layout/PageHeader.vue'
 import DataTable from '@/components/DataTable.vue'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import UserActivityModal from '@/components/UserActivityModal.vue'
-import { Pointer } from '@element-plus/icons-vue'
+import { Pointer, RefreshRight } from '@element-plus/icons-vue'
 
 const store = useAdminStore()
 const userStore = useUserStore()
@@ -40,11 +49,7 @@ onMounted(refresh)
 
 const students = computed(() => store.users.filter(u => u.role !== 'admin'))
 
-const stats = computed(() => ({
-  total: students.value.length,
-  active: students.value.filter(u => u.status === 'active').length,
-  disabled: students.value.filter(u => u.status === 'disabled').length,
-}))
+// 计数不再页内自算：数量只由 DataTable footer「共 N 条」承担（原 stat-inline 与筛选条争位，已删）
 
 const statusFilter = ref<string>('')
 const statusOptions = [
@@ -132,7 +137,16 @@ async function batchSetStatus(status: 'active' | 'disabled') {
 </script>
 
 <template>
-    <!-- 统计与筛选合并为一行，不再单独占卡片空间 -->
+  <PageContainer>
+    <!-- 页头：页面身份 + 唯一主操作（刷新）；数量只由表格 footer 承担，不与筛选条争位 -->
+    <PageHeader title="学生账号">
+      <template #actions>
+        <button class="btn-secondary" v-press type="button" :disabled="loading" @click="refresh">
+          <el-icon class="act-ico"><RefreshRight /></el-icon>刷新
+        </button>
+      </template>
+    </PageHeader>
+
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
@@ -143,7 +157,6 @@ async function batchSetStatus(status: 'active' | 'disabled') {
           <button class="btn-secondary" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('active')">批量启用</button>
           <button class="btn-danger" v-press type="button" :disabled="batchRunning" @click="batchSetStatus('disabled')">批量禁用（{{ selectedIds.length }}）</button>
         </template>
-        <span class="stat-inline">共 {{ stats.total }} · 正常 {{ stats.active }} · 禁用 {{ stats.disabled }}</span>
       </template>
     </FilterBar>
 
@@ -156,7 +169,6 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         { prop: 'verified', label: '认证', width: '90px', align: 'center' },
         { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
-
       ]"
       :rows="filteredStudents"
       :loading="loading"
@@ -194,17 +206,18 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         </div>
       </template>
       <template #actions="{ row }">
-        <button class="btn-secondary" v-press @click="activityUser = row">
+        <button class="link" v-press @click="activityUser = row">
           <el-icon class="act-ico"><Pointer /></el-icon>行为
         </button>
       </template>
     </DataTable>
 
     <UserActivityModal :show="!!activityUser" :user="activityUser" @close="activityUser = null" />
+  </PageContainer>
 </template>
 
 <style scoped>
-/* 统计信息并入筛选条（合并为一，节省空间）；.stat-inline 已上提至 shared.css 公共类 */
+/* 计数展示统一交 DataTable footer（共 N 条），本页不再持有统计样式 */
 
 .avatar-circle {
   width: 36px;

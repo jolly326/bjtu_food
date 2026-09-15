@@ -8,7 +8,7 @@ import { pageRecords, reviewToLegacy } from './adapter'
  *
  * isHidden（可选）：后端 ReviewAdminController 的 isHidden 为 `Integer`（`.eq(isHidden != null, …)`），
  * 故此处收窄为 0 | 1 传数值——传布尔会被序列化成 `isHidden=true` 触发后端类型转换失败（400）。
- * 用途：评价管理页统计行取「已隐藏」总数（pageSize=1 仅取 total，不拉数据）。
+ * 用途：按显隐 / 关键词 / 用户过滤的受控分页查询（pageSize=1 时只取 total，可用于计数）。
  *
  * 2026-09-15（取消人工复核）：原「安检状态」查询参数随内容机检策略调整退役——放行态与待复核态
  * 均对客户端放行、仅风险项拒绝，后台不再消费该字段（后端字段同源移除）。

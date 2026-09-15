@@ -54,7 +54,7 @@
 
 ### 0.1 角色模型（仅两种）
 - `STUDENT`（**微信自动登录 + 校园邮箱认证**，兼"平鉴官"）：微信打开小程序即自动静默登录为**未认证账号（游客态，`verified=false`）**；通过 `@bjtu.edu.cn` 邮箱验证码认证后 `verified=true`，解锁写评价 / 评价点赞等 **UGC 写操作**（评价**支持配图 ≤3 张**，全部 UGC 过微信内容安检，见 §5.a）。**学生端无菜品写接口**：`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线（客户端零消费），菜品由管理员录入，学生提交菜品需求走意见反馈 `add` 类型由后台处理（学生提交档口 / 食堂 `/my/stalls` 已于 2026-08-18 随代码清理移除；社区/动态板块已于 2026-09-12 下线，见 §0.5）。游客（`verified=false`）仅可浏览公开数据 + 提交基础反馈（`POST /feedback` 公开，**可配图 ≤3 张**，同样过内容安检）。**无账号密码登录、无登录页、无登录按钮**（见 §5 认证红线）。
-- `ADMIN`（系统管理员 / 食堂后勤）：**反馈处理（唯一运营闭环，见 §7.23 第 5 条）+ 评价治理（事后处置：隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 §7.24）**、**菜品 CRUD + 上架下架**（食堂 / 档口为菜品属性，随菜品 upsert）、学生账号管理。**~~看板 / 工作台~~已下线（2026-09-15 用户拍板，见 §0.4.1）**：后台无「全局聚合看板」，待办可见性由「反馈处理」入口徽标 + 各业务页行内统计承担。**菜品无独立审核**（§7.23 第 4 条：录入即生效，无「菜品审核」环节）。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
+- `ADMIN`（系统管理员 / 食堂后勤）：**反馈处理（唯一运营闭环，见 §7.23 第 5 条）+ 评价治理（事后处置：隐藏 / 显示 / 删除；**2026-09-15 取消人工复核后不再承担安检复核**，见 §7.24）**、**菜品 CRUD + 上架下架**（食堂 / 档口为菜品属性，随菜品 upsert）、学生账号管理。**管理端职责不含任何操作留痕 / 审计（2026-09-15 用户拍板：操作日志全链删除，见 §7.25 第 1 条）**。**~~看板 / 工作台~~已下线（2026-09-15 用户拍板，见 §0.4.1）**：后台无「全局聚合看板」，待办可见性由**「反馈」入口徽标** + 各业务页**表格 footer 统计**承担（2026-09-15 IA 扁平化改名，见 §0.4.2）。**菜品无独立审核**（§7.23 第 4 条：录入即生效，无「菜品审核」环节）。**管理后台无登录体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已降级为**环境变量共享口令**（请求头 `X-Admin-Token` 校验 `ADMIN_TOKEN`，`AdminTokenFilter`；未配置时 fail-closed 403），认定「单口令即单人」、**不追究操作人身份**；原「管理员账号密码 + BCrypt + JWT + `SUPER_ADMIN` 分层」整体作废，`SUPER_ADMIN` 角色已移除（`RoleConst` 仅剩 `student`/`admin` 两层数据语义），`/auth/admin/login` 端点**不存在**、`user.password` 学生侧与管理端均不再使用。见 §1 与 §5.y.5。
 - **无独立 `STALL_OWNER` 角色，亦无 `/stall-owner/**` 路由。**
 - **活动与公告（broadcast）已全链路下线（2026-09-13 拍板）**：小程序端零消费，`activity` 与 `broadcast` 的后端接口 / 实体、管理后台页面、库表全部删除，ADMIN 不再承担活动录入职责（详见 §0.5「已下线」）。
 
@@ -66,30 +66,42 @@
 ### 0.4 三端定位与数据链路（2026-08-05 拍板，强制）
 - **小程序（`client/`）= 服务端 / 用户端**：学生使用，是**业务数据的唯一产生源头**（浏览、菜品评价、产品反馈——含新增菜品 / 纠错 / 推荐等反馈诉求；**学生端无菜品写接口**，菜品由管理员录入，见 §5.x）。
 - **后端（`server/`）= 数据服务**：唯一数据存储与业务规则所在；小程序与 Web **共用同一套 API 契约**（`/admin/**` 供 Web，`/` 用户接口供小程序）。
-- **Web 管理端（`web/`）= 辅助后端管理数据的 UI 工具（非用户端）**：职责 = 对小程序产生的数据做**管理（CRUD / 上下架 / 排序 / 配置）与审阅（UGC 事后处置 / 内容治理 / 操作日志——**原「数据总览」随 2026-09-15 工作台下线一并移除，见 §0.4.1**；**原「内容审核」聚合页随 2026-09-15「取消人工复核」拆分为「评价管理」「反馈处理」两页**，见 §7.24）**；Web 不产生业务数据，只消费与管理后端数据。**后台无「全局聚合看板」**：待办可见性由「反馈处理」入口徽标 + 各业务页行内统计承担。
+- **Web 管理端（`web/`）= 辅助后端管理数据的 UI 工具（非用户端）**：职责 = 对小程序产生的数据做**管理（CRUD / 上下架 / 排序 / 配置）与事后处置（UGC 治理）**；Web 不产生业务数据，只消费与管理后端数据。（**2026-09-15 双项修订**：① **「操作日志」从职责中移除**——全链删除，管理端无任何留痕 / 审计能力，见 §7.25 第 1 条；② 原「数据总览」已随 2026-09-15 工作台下线移除，见 §0.4.1；③ 原「内容审核」聚合页随 2026-09-15「取消人工复核」拆分为「评价」「反馈」两页，见 §7.24。）**后台无「全局聚合看板」**：待办可见性由「反馈」入口徽标 + 各业务页表格 footer 统计承担。
 - **数据链路**：小程序产生数据 → 后端落库（MySQL）→ Web 经 `/admin/**` 读取与管理 → 小程序即时反映。
-- **Web 端管理能力全景**：
-  - 信息管理：菜品（业务信息）。**2026-09-15 收敛：信息管理页为「菜品」单一视图**——食堂 / 档口是菜品属性、随菜品录入按名 upsert 建档（无独立维护入口），首页配置入口与品类维护页同批移除（见 §7.22 第 1 条）；**一级导航实况（2026-09-15 取消人工复核后由 3 项改为 4 项）= 信息管理 / 评价管理 / 反馈处理 / 用户与系统**
-  - 评价管理：`/dashboard/reviews`（`ReviewManageView`，由原审核域 `ReviewAuditView` 改名而来）——评价**事后处置**（隐藏 / 显示 / 删除）；**无安检列 / 无安检筛选 / 无放行·驳回动作 / 无「待复核」统计**（2026-09-15 取消人工复核，见 §7.24）。原 `AuditManageView`（内容审核聚合页）与 `/dashboard/audit` 路由**已删除**，旧深链由前端兜底重定向（`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`）
-  - 反馈处理：`/dashboard/feedback`（`FeedbackView` 独立成页）——反馈处理闭环（唯一运营闭环，见 §7.23 第 5 条）
-  - 用户与权限：学生账号。**管理端无角色体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已无登录与角色分层，`/admin/**` 统一由**环境变量口令**（`ADMIN_TOKEN`，请求头 `X-Admin-Token`）把关，**不区分角色、不判断操作人身份**；「管理员账号管理」入口已删除（§7.10 第 4 条）、`SUPER_ADMIN` 角色已移除、假角色判断文案固定为「管理员」。
-  - 系统：操作日志（**工作台已下线，见 §0.4.1**：原「待办 + 数据总览」不再有独立页面）
+- **Web 端管理能力全景（2026-09-15 IA 扁平化重写：一级导航 4 项，路由与导航 1:1）**：
+  - **① 菜品**：`/dashboard/content`（`DishManageView`，**默认落地页**）——菜品业务信息 CRUD / 上下架 / 排序。食堂 / 档口是菜品属性、随菜品录入按名 upsert 建档（无独立维护入口，见 §7.22 第 1 条）；菜品详情 `/dashboard/content/dishes/:dishId`（`DishDetailView`）。**原「信息管理」聚合壳 `ContentManageView` 已删除，路由直指 `DishManageView`**（2026-09-15）
+  - **② 评价**：`/dashboard/reviews`（`ReviewManageView`）——评价**事后处置**（隐藏 / 显示 / 删除）；**无安检列 / 无安检筛选 / 无放行·驳回动作 / 无「待复核」统计**（2026-09-15 取消人工复核，见 §7.24）。原 `AuditManageView`（内容审核聚合页）与 `/dashboard/audit` 路由**已删除**，旧深链由前端兜底重定向（整份保留 query：`tab=feedback*` / `apply*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`）
+  - **③ 反馈**：`/dashboard/feedback`（`FeedbackView`）——反馈处理闭环（唯一运营闭环，见 §7.23 第 5 条）
+  - **④ 学生账号**：`/dashboard/system`（`UserView`）——学生账号管理。**原「用户与系统」分类卡聚合层 `SystemManageView`（含其下 `AccountView` 透传壳）已删除，路由直指 `UserView`**（2026-09-15）。**管理端无角色体系（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端已无登录与角色分层，`/admin/**` 统一由**环境变量口令**（`ADMIN_TOKEN`，请求头 `X-Admin-Token`）把关，**不区分角色、不判断操作人身份**；「管理员账号管理」入口已删除（§7.10 第 4 条）、`SUPER_ADMIN` 角色已移除、假角色判断文案固定为「管理员」。
+  - **~~系统 / 操作日志~~ 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：`OperationLogView` 页面与 `GET /admin/operation-logs` 端点、`operation_log` 表全链移除；**管理端不存在操作日志页，亦不存在任何操作留痕能力**（`ClientIpUtil` 仅服务 `RequestLoggingFilter` 服务端访问日志；`view_log` 浏览足迹属用户侧「猜你喜欢」数据源，与管理员留痕无关，均不属本项）。
 - 约束：**Web 端任何新增管理能力，必须以小程序已存在的数据对象为前提**；不得在 Web 端引入小程序不存在的数据模型或业务（原「活动模块」例外已随 2026-09-13 活动全链路下线作废）。
 
 #### 0.4.1 工作台已下线 + 后台默认落地页（2026-09-15 用户拍板，取代 2026-08-18 工作台契约）
 
 > **决策（用户拍板）**：**去工作台**——`DashboardView` 页面与 `GET /admin/dashboard` 接口**整体下线删除**（Controller / Service / 统计逻辑 / VO / DTO 同批移除，`dashboard` 业务域不再存在）。原 2026-08-18「工作台契约」与 2026-09-14 Q-106「工作台摘除图表字段」条款**随之废止**（后者保留为历史留痕，见 §7.21 第 1 条）。
 
-- **默认落地页**：Web 管理后台**默认落地页 = 信息管理 · 菜品页 `/dashboard/content?tab=dish`**（原「登录首屏 `/dashboard` 工作台」表述作废）。`/dashboard/*` 仅作为**路由前缀**保留给信息管理 / 评价管理 / 反馈处理 / 用户与系统各页（2026-09-15 取消人工复核后「内容审核」聚合页拆为「评价管理」「反馈处理」两页，见 §7.24），**该前缀不再指向任何「工作台」页面**。
+- **默认落地页**：Web 管理后台**默认落地页 = 菜品页 `/dashboard/content`**（原「登录首屏 `/dashboard` 工作台」表述作废；**2026-09-15 IA 扁平化后带 `?tab=dish` 的历史写法作废**——聚合壳已删，路由直指 `DishManageView`，见 §0.4.2）。`/dashboard/*` 仅作为**路由前缀**保留给菜品 / 评价 / 反馈 / 学生账号四页（2026-09-15 取消人工复核后「内容审核」聚合页拆为「评价」「反馈」两页，见 §7.24；**同批「信息管理」「用户与系统」两层聚合壳亦删除**，见 §0.4.2），**该前缀不再指向任何「工作台」页面**。
 - **原工作台信息的承接（不得另立聚合页）**：
-  - **待办可见性** → **「反馈处理」入口徽标**（待处理反馈数，数据源 `feedback.status='pending'`）＋ **各业务页行内统计**（列表自身的总数 / 分页信息）；
-  - **规模指标（食堂 / 档口 / 菜品 / 学生 / 评价计数）** → 随工作台一并下线、**不再提供**（确需查看直接进入对应管理页）；原指标卡跳转链路（`totalDishCount → /dashboard/content?tab=dish` 等）仅作历史留痕；
-  - **近期操作** → 由**操作日志页** `/dashboard/system` 承载（原为独立只读页，口径不变）。
-- **设计口径（强制）**：**后台无「全局聚合看板」**——不设总览页、不设 ECharts 图表、不做跨模块聚合统计；待办与规模信息的可见性**只由「反馈处理」入口徽标 + 各业务页行内统计承担**。恢复任何形式的聚合看板 / 总览页须**重新拍板**（PR-04）。
+  - **待办可见性** → **「反馈」入口徽标**（待处理反馈数，数据源 `feedback.status='pending'`）＋ **各业务页表格 footer 统计**（列表自身的总数 / 分页信息）；
+  - **规模指标（食堂 / 档口 / 菜品 / 学生 / 评价计数）** → 随工作台一并下线、**不再提供**（确需查看直接进入对应管理页）；原指标卡跳转链路（`totalDishCount → /dashboard/content` 等）仅作历史留痕；
+  - **~~近期操作~~ → 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：原「操作日志页 `/dashboard/system`」**整体不存在**——操作日志全链删除，「近期操作」承接方案随之作废；后台**不提供任何操作留痕 / 近期动作列表**。
+- **设计口径（强制）**：**后台无「全局聚合看板」**——不设总览页、不设 ECharts 图表、不做跨模块聚合统计、**不设任何分类卡 / 聚合壳中间层**（2026-09-15 IA 扁平化，见 §0.4.2）；待办与规模信息的可见性**只由「反馈」入口徽标 + 各业务页表格 footer 统计承担**，并**禁止 `.stat-inline` 式只读统计块**。恢复任何形式的聚合看板 / 总览页 / 中间层须**重新拍板**（PR-04）。
 - **与「数据看板 / 统计报表」边界**：图表看板 / 统计报表**非本期交付且现无载体**（报表导出 `ReportExportView` 早于 2026-08-18 移除；今回聚合看板一并归零）；`GET /admin/dashboard`、`GET /admin/stats/**` **均不存在**（后者历史上即为幽灵端点，其复用载体亦已删除）。
 - **范围约束**：本项为**删减**，不新增任何页面或端点；契约层面见 `docs/api-design.md` §5.1。
 
 > **原 §0.4.1 条文（2026-08-18 工作台契约：单次 `GET /admin/dashboard?range=week`、1 项待办卡 + 5 项规模指标、`DashboardVO` 统计口径 / 待办明细 5 条 / 近期操作 10 条 / 独立容错、`range=week/month/all`）全部作废，不再适用。**
+
+#### 0.4.2 管理端 IA 扁平化（2026-09-15 用户拍板，权威细则见 §7.25 第 2 条）
+
+> **决策**：Web 管理端**去掉层层嵌套的聚合壳**，一级导航与路由 **1:1 对应**，页面层级统一 **≤2 层**。
+
+- **一级导航 4 项（唯一形态，与路由 1:1）**：**菜品** `/dashboard/content` / **评价** `/dashboard/reviews` / **反馈** `/dashboard/feedback` / **学生账号** `/dashboard/system`；**默认落地 `/dashboard/content`**。
+- **已删除的中间层（不得重建）**：原「信息管理」聚合壳 `ContentManageView`（路由改直指 `DishManageView`）、原「用户与系统」分类卡聚合层 `SystemManageView` 与其下 `AccountView` 透传壳（路由改直指 `UserView`）、原「内容审核」聚合页 `AuditManageView`（2026-09-15 上游「取消人工复核」已删，见 §7.24）。
+- **页面结构口径（强制）**：**页头（H1 + 主操作）→ 主体（筛选 + 列表 / 表单）**，层级 ≤2；**全站删除 `.stat-inline` 只读统计块**（数量只允许在表格 footer 出现一次）；**删除页头解释句与只读提示块**；菜品详情删 `detail-tabs`、「数据统计」分区与 2×StatCard（数字并入页头副标题）、删页内 inline 编辑（统一走 `DishFormDialog`）。
+- **公共组件复用（去重）**：评价详情抽屉抽为公共组件 `ReviewDetailDialog`，供「评价」「反馈」两页共用（**删除入口只保留一处**）；反馈页举报类关联评价由红色 pill 改为**主色文本链接「评价 #id →」**（点击走 `?rid=` 深链定位）。
+- **旧书签兜底**：`/dashboard/audit` 重定向保留（`?tab=feedback*` / `apply*` → 反馈页，其余 → 评价页，**整份保留 query**）。
+- **死代码清理**：删 `StatCard.vue`、`PageSection.vue` 与 `shared.css` 的 `.tabs` / `.tab` / `.tab-count` / `.agg-tabs` / `.sec-*` / `.stat-inline`。
+- **与 §0.4.1 关系**：本节是 §0.4.1「后台无全局聚合看板」的**强化落地**（聚合壳一并清除）；恢复任何聚合层 / 总览页须**重新拍板**（PR-04）。
 
 ### 0.5 产品聚焦（2026-09-12 拍板，强制）
 
@@ -125,7 +137,7 @@
 - **菜品**的唯一运营开关是上下架 `status`(on/off)；**`dish.audit_status` 列与索引已全量删除（2026-09-15 阶段4 用户批准，见 §7.23 第 4 条；此前「列保留、仅作公开查询过滤」的口径已作废）**——**菜品无独立审核**：管理员录入 / 编辑即生效，**公开查询不再过滤该列，`status='on'` 即公开展示**（后台列表不设审核列、菜品详情不回显审核态与 `reject_reason`、客户端不出现「菜品审核」概念）；`DishConst.AUDIT_APPROVED` 别名常量、`common/constant/AuditStatusConst` 值域真源与一次性归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql` **均已删除**，存量库由 `schema.sql` 末尾幂等 DROP 段 `drop_dish_audit_status_column` 清理（`idx_dish_audit` 随列连带删除，`idx_dish_heat` 自动退化为 `(status, view_count, rating_count, avg_rating)`）。`dish.reject_reason` 为退役历史列（列保留、恒 NULL、不写入）。学生的菜品诉求走**反馈**承载（见下一行）。**档口 / 食堂已去实体化（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）：不再有 `status` / `audit_status` / `reject_reason` 列**（6 列已下线），仅为菜品筛选属性字典。
 - 学生对菜品的一切诉求（下架 / 变更 / 纠错 / 举报 / 新增 / 建议）走**反馈类型承载**，**无独立申请表**（`apply_action` 表已于 2026-09-12 随贡献链路下线全量删除，管理员经 Web 后台**在反馈处理中**手工闭环）。**反馈类型真源（2026-09-15 蓝图 v1，见 §7.23 第 3 条；取自小程序反馈收集表，勿臆造）**：写入白名单 = `suggestion`（建议 / 问题，二级 `sub` ∈ {`idea`, `problem`}，**仅 `suggestion` 有效、写入白名单校验、非法 400、后台展示「建议·想法 / 建议·问题」、不新增筛选维度**，**「系统 bug」归 `sub=problem`，不升为一级类型**；见 §7.23 第 3 条）/ `add`（新增菜品）/ `error`（纠错 / 下架，`relatedType=dish`）/ `report`（举报，`relatedType=review`）；`bug` / `other` 为**历史遗留枚举位、无生产者、禁止新增**（仅保留在查询白名单以筛存量数据）。
 - 前端 UI 遵循 §4（动效从简、即时反馈、半透材质、reduced-motion 降级；MVP 动效边界以 `openspec/specs/client-ui-motion` 拍板结论为权威，见 §4.3）。
-- **UGC 内容安全红线（2026-09-13 立；2026-09-15 用户拍板「取消人工复核」修订，见 §7.24）**：全部 UGC（评价 / 反馈的文本与配图）提交时过微信机检（`msgSecCheck` v2 / `imgSecCheck`）——**机检 `pass` 与 `review`（疑似）一律放行，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）与图片违规 code `87014` 拒绝（HTTP `400`，不新增错误码）**。**不存在人工复核**：无复核队列、无放行 / 驳回动作、无安检态落库——`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、`PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、评价列表 `secState` 筛选参数与 `viewerId` 均已**全链退役**。评价可见性唯一判据 = `is_hidden=0`；管理端只做事后处置（`is_hidden` 隐藏 / 显示、删除）。
+- **UGC 内容安全红线（2026-09-13 立；2026-09-15 用户拍板「取消人工复核」修订，见 §7.24）**：全部 UGC（评价 / 反馈的文本与配图）提交时过微信机检（`msgSecCheck` v2 / `imgSecCheck`）——**机检 `pass` 与 `review`（疑似）一律放行，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）与图片违规 code `87014` 拒绝（HTTP `400`，不新增错误码）**。**不存在人工复核**：无复核队列、无放行 / 驳回动作、无安检态落库——`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、`PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、评价列表 `secState` 筛选参数与 `viewerId` 均已**全链退役**。评价可见性唯一判据 = `is_hidden=0`；管理端只做事后处置（`is_hidden` 隐藏 / 显示、删除）。**（2026-09-15 追加：`OperationLogConst` 已随「操作日志」全链删除而不存在，见 §7.25 第 1 条——本条对该常量的退役表述已成历史留痕。）**
 - **认证与鉴权（2026-08 拍板，微信登录体系）**：
   - **无账号密码登录**：小程序端**无密码、无登录页、无登录按钮、无注册页**；微信打开即静默登录（`POST /auth/wechat-login`），默认得到 `verified=false` 的游客态账号。
   - **`verified` 门槛**：UGC 写操作（写评价 / 评价点赞等）鉴权从「需登录」改为「需 `verified=true`」；`verified` **不进 JWT**（JWT claims 实况含 `userId` / `role` / `username` 三项稳定字段，不含 `verified`——实现决策：userId 供业务鉴权实时查 `user.verified`，role 供网关与方法级权限校验），后端按 `user.verified` 实时判定。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线），菜品由管理员录入。
@@ -357,7 +369,7 @@
 - `POST /auth/email-code`（公开，改造）— 入参 `{ username(学号), email(可空，自动推导 {学号}@bjtu.edu.cn), purpose }`；`purpose` 改为 `verify`（认证用途，替代旧 `login`/`register`/`reset`）；60s 限频、10min 有效。
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 置 `verified=1`、写 `bind_email`/`verified_at` → 返回更新后 `LoginResp`。
 - `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像、`guestShortId`。
-- `DELETE /auth/account`（登录，新增，2026-09-13 合规）— **注销账号（匿名化，非物理删除）**：事务内将 user 行置为 `nickname='已注销用户'`、`username=deleted_{id}`、avatar/email/password→NULL、**openid/unionid→NULL（解绑，允许同一微信重新静默登录创建新游客号）**、verified→0、bind_email/verified_at→NULL、status→'deleted'；评价/反馈/通知/浏览记录**保留**（展示昵称经 join 自然匿名化，评分聚合不破坏）；email_verification_code 按邮箱清理；当前 token 经 TokenBlacklist（token+userId 双维度）立即失效 + status=deleted 持久兜底；幂等（重复调用 400「账号已注销」）；@AuditLog 埋点。前端：底部合规区「注销账号」→ 二次确认 → 成功后 forceLogout（skipAuthRetry 防 401 重试误删新游客号）。
+- `DELETE /auth/account`（登录，新增，2026-09-13 合规）— **注销账号（匿名化，非物理删除）**：事务内将 user 行置为 `nickname='已注销用户'`、`username=deleted_{id}`、avatar/email/password→NULL、**openid/unionid→NULL（解绑，允许同一微信重新静默登录创建新游客号）**、verified→0、bind_email/verified_at→NULL、status→'deleted'；评价/反馈/通知/浏览记录**保留**（展示昵称经 join 自然匿名化，评分聚合不破坏）；email_verification_code 按邮箱清理；当前 token 经 TokenBlacklist（token+userId 双维度）立即失效 + status=deleted 持久兜底；幂等（重复调用 400「账号已注销」）；~~@AuditLog 埋点~~（**该埋点已于 2026-09-15 随操作日志全链删除移除，注销动作不再留痕，见 §7.25 第 1 条**）。前端：底部合规区「注销账号」→ 二次确认 → 成功后 forceLogout（skipAuthRetry 防 401 重试误删新游客号）。
 - 鉴权：UGC 写操作改为**校验 `verified`**（准入失败按 §7.7 第 1 条分码：`4031` / `403`）；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客请求被拒、个人通知恒空；前端不拉取未读数，入口游客直达见 §5.y.4）**。
 - **管理后台鉴权（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端**无登录体系**，`/auth/admin/login` 端点**不存在**（`AuthServiceImpl.adminLogin` 已随账号体系移除；残留的 `SecurityConfig` / `SwaggerConfig` / `AuthService` 注释为待清理的历史描述）；`/admin/**` **不校验 `ADMIN` / `SUPER_ADMIN`**，改由 `AdminTokenFilter` 校验环境变量口令（请求头 `X-Admin-Token` == `ADMIN_TOKEN`），未配置即 fail-closed 403。原「管理端 token 12 小时短期过期（`ADMIN_TOKEN_EXPIRATION_MS`）」策略随登录体系一并作废；学生端 JWT 维持 7 天（`application.yml`）。
 
@@ -371,7 +383,7 @@
 - **Q2** 不置顶 / 话题 / 精选运营干预，不干预内容排序（无个性化分发）。
 - **Q4** 必须交付：②举报复用 `user_feedback`(`related_type`/`related_id`)，不新建举报表（当前举报对象为评价，`related_type='review'`）③删除本人记录（**仅评价**；`DELETE /reviews/{id}`。原含菜品删除，该能力已随学生端菜品写接口 `DELETE /dishes/{id}` 于 2026-09-13 全部下线）。（①`DELETE /my/account` 账号注销接口因无前端入口已随清理移除，2026-08-18；④「关联对象双向跳转」随社区板块 2026-09-12 整体下线作废）
 - **Q5** 不碰关注 / 粉丝流，不建用户关系表。
-- **D-工作台（已下线，2026-09-15 用户拍板）**：**工作台（`DashboardView`）与 `GET /admin/dashboard` 接口整体删除**，`dashboard` 业务域不再存在——原 2026-08-18「工作台 = 待办 + 数据总览」对账拍板与 2026-09-14 Q-106「摘除图表字段、保留待办 + 规模指标 + 近期操作」收口**一并废止**（详见 §0.4.1 与 §7.21 第 1 条留痕）。**后台默认落地页改为信息管理 · 菜品页 `/dashboard/content?tab=dish`**；**后台无「全局聚合看板」**——待办可见性由「反馈处理」入口徽标（待处理反馈数）+ 各业务页行内统计承担，近期操作由操作日志页承载。恢复聚合看板须重新拍板（PR-04）。
+- **D-工作台（已下线，2026-09-15 用户拍板）**：**工作台（`DashboardView`）与 `GET /admin/dashboard` 接口整体删除**，`dashboard` 业务域不再存在——原 2026-08-18「工作台 = 待办 + 数据总览」对账拍板与 2026-09-14 Q-106「摘除图表字段、保留待办 + 规模指标 + 近期操作」收口**一并废止**（详见 §0.4.1 与 §7.21 第 1 条留痕）。**后台默认落地页改为菜品页 `/dashboard/content`**（2026-09-15 IA 扁平化后带 `?tab=dish` 的写法作废，见 §0.4.2）；**后台无「全局聚合看板」**——待办可见性由「反馈」入口徽标（待处理反馈数）+ 各业务页表格 footer 统计承担。**~~近期操作由操作日志页承载~~ 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：操作日志全链移除，后台无任何留痕 / 近期动作列表。恢复聚合看板须重新拍板（PR-04）。
 
 ### 5.x 三端一致性红线（强制，违反即阻断级缺陷）
 - **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner/广播契约，二者均已移除后保留为通用跳转字段规范）；评价状态 `isHidden`(0/1) 非 `isDeleted`；UGC 配图字段统一 `images`（字符串数组，≤3 项 COS URL）（评价 / 反馈 VO 与提交请求标准字段，见 §5.a）；**安检态字段 `secState` 已随 2026-09-15「取消人工复核」全链退役，三端不得再出现该字段**；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
@@ -470,6 +482,7 @@
    **保留**：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`、`GET /dishes/hot-search`（首页热搜在用）。
    说明：菜品**促销价与划线原价**（`promo_price`/`original_price` 字段与端上折扣标）**保留不变**，本次下线的只是「促销专区」这个独立入口。
 2. **管理端「操作人身份」降级**：管理端已改为环境变量共享口令（无登录体系），认定「单口令即单人」，**不追究操作人身份**——移除 `user_feedback.handler_id` 与 `operation_log.admin_id` 的写入与前端相关自保护分支。二者列保留在库中(记为 retired 列)，不再保证有值；「反馈处理人/操作日志操作人」的可追溯性**明示降级**。若日后需要身份追溯，须重新拍板（例如注入固定操作人标识）。
+   - **废止注（2026-09-15 用户拍板，见 §7.25 第 1 条）**：本条涉及 `operation_log.admin_id` 的部分**整体作废**——**操作日志全链已删除**（`operation_log` 表与实体 / Mapper / Service / VO / Controller / `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` 全部移除），不存在「retired 列」亦不存在「操作日志操作人」语义。**`user_feedback.handler_id` 的 retired 口径不变**（列保留在库、不再写入、不保证有值）。
 3. **`review.tags` 列删除**：美团式写评（评价打标签）确认**不做**，从 `schema.sql` 与线上库删除该列（幂等迁移）。
 4. **管理后台「账号设置」入口删除**：该入口指向未注册路由（点击空白），彻底删除；学生账号管理仍在 `/dashboard/system?tab=account`。同时移除管理后台顶部「管理员/超级管理员」的假角色判断，文案固定为「管理员」。
 
@@ -578,7 +591,7 @@
 | **PR-09** | **删除类与合并类操作必须成对定义级联范围（评价 / `review_useful` / `view_log` / 通知），各处口径保持一致。** | P2-04 | `deleteDish` 不清 `view_log`；`migrateOwnership` 删评价前不清 `review_useful`；管理端新增 / 编辑未标 `@Transactional` | 孤儿行指向不存在对象，「猜你喜欢」拿到无效 ID，计数长期发散。 |
 | **PR-10** | **凡产生公开可见内容的图片上传必须唯一走安检链路（UGC 上传链路）；无安检上传函数只能用于已登记的例外（如头像），且命名须自证用途。** | P2-11、P2-01 | 头像上传函数命名过于「通用」，新页面极易误用无安检链路而绕过内容安检 | UGC 绕过内容安检 → 合规红线失守（见 §5.a 与 §0.0 合规底线）。 |
 | **PR-11** | **任何具备可点外观或无障碍可点语义的控件必须绑定真实动作；占位 / 装饰元素不得使用可点语义交付。** | P0-05、P2-09、P2-11 | 「筛选」胶囊带 `role="button"` 却无 `@tap`、无 emit；排序状态存在但无 UI 入口 | 交互欺骗；用户反复点击；无障碍承诺与实现矛盾。 |
-| **PR-12** | **枚举 / 常量展示必须与后端常量表同源；前端不得手写子集或裸英文枚举；跨端 DTO 必须显式定型（平台句柄外禁止 `any`）。** | P3-09、P3-10、P2-11、P3-12 | 操作日志前端只登记 7/12 动作、单元格显示裸英文；反馈页食堂树用 `any`；同类 VO 存在双份 | 筛选项恒空 / 漏项；字段名变更时端上静默失效且无编译期保护。 |
+| **PR-12** | **枚举 / 常量展示必须与后端常量表同源；前端不得手写子集或裸英文枚举；跨端 DTO 必须显式定型（平台句柄外禁止 `any`）。** | P3-09、P3-10、P2-11、P3-12 | ~~操作日志前端只登记 7/12 动作、单元格显示裸英文~~（**2026-09-15：操作日志能力已整体删除，本案例仅作 PR-12 历史例证，见 §7.25 第 1 条**）；反馈页食堂树用 `any`；同类 VO 存在双份 | 筛选项恒空 / 漏项；字段名变更时端上静默失效且无编译期保护。 |
 | **PR-13** | **管理后台是「单人运营工具」：唯一使用者即唯一维护者；一切后台功能以「最少点击完成运营动作」为最高准则，不引入多角色 / 权限矩阵 / 审批流 / 协作审阅 / 复杂并发控制等多人协作复杂度；后台的「简单高效」优先于「功能完备」。**（2026-09-14 用户拍板新增） | 2026-09-14 用户原话「web 端要的是简单高效，就只有我一个开发者用，也只有我一个开发者维护」；§7.10 第 2 条（操作人身份降级）、§7.10 第 4 条（账号设置入口删除）、§7.21 第 6 条（后台四项最简实现，不引版本号 / 乐观锁） | 为单人后台引入审批流 / 多角色权限矩阵 / 协作审阅；把「他人已修改」做成阻塞式乐观锁校验 | 后台复杂度失控 → 维护成本高于收益，单人无法承担运营与维护。 |
 | **PR-14** | **食堂 / 档口是筛选属性字典，不是业务实体：生命周期写操作仅「新增 / 改名」（无删除，另含只读的列表查看）；不得为它们增设停业、营业时间、实体审核或独立实体状态；菜品通过字典选择归属。**（2026-09-14 用户拍板新增） | 2026-09-14 Q-113 用户原话「不需要档口和食堂实体了，他们现在是属性、而且是用于筛选的属性」；Q-115（无删除，见 §7.22 第 5 条）；§7.14 第 4/5 条、§7.15 第 1 条、§7.16 第 1 条、§7.21 第 7 条 | 为档口引入营业时间（`stall.business_hours`，已下线）、为食堂 / 档口设停业态或实体审核态、把食堂 / 档口做成独立浏览实体、为字典提供删除（会孤立菜品归属） | 为「筛选属性」引入实体语义 → 后台维护面与数据模型双重膨胀，且端上零消费（违反 PR-05）；删除字典项会破坏菜品归属完整性。 |
 
@@ -594,7 +607,8 @@
 3. **Q-108 删除 `PUT /auth/password`（用户已确认）**：该端点（含 `AuthController` / `AuthServiceImpl` 方法、`PasswordChangeReq` DTO 与端上声明）**已删除**，学生端无密码体系。本项**落实** §5.y.1 与 §8 技术债中「`PUT /auth/password` 待清理」条目（已转为已完成，见 §8）。
 4. **Q-110 评分聚合口径（用户已确认；2026-09-15「取消人工复核」后修订）**：评分聚合**只计入 `is_hidden=0` 的评价**（原「`is_hidden=0 AND sec_state='pass'`」中的 `sec_state` 条件随该列全链退役删除，见 §7.24）；机检不再产生「待复核 / 驳回」态，故不存在「被安检拦下的内容不计入统计」的语境；`rating_count` 与「该菜品可见评价数」**同口径**。本项**落实** §5.a 可见性规则（评价公开展示条件 = `is_hidden=0`）与 PR-08（聚合须声明真源与重算时机）。**原登记的一次性历史数据重算随前提列退役一并取消**——脚本 `server/src/main/resources/db/fix_rating_by_sec_state.sql` **已删除**（前提列不存在，比照 `normalize_dish_audit_status.sql` 先例），**不再存在任何人工数据重算动作**（原 2026-09-14 Q-120 授权同步作废，见 §7.22 第 4 条与 §8）。
 5. **Q-111 错误码分流正式生效（用户已确认）**：用户**确认保留** `4031`（未认证 → 端上弹认证引导 `AuthSheet`）/ `403`（已认证但无 openid → 提示微信登录、不弹邮箱认证引导）的分流。**§7.7 第 1 条的「统一 403」表述按此修订**——该条已含「**原「统一返回 403」表述作废**」（2026-09-14 用户确认），本条为同口径的再次确认与正式生效登记；§3 与 §5.x 错误码条款中的 `4031` 例外一致不变。
-6. **Q-112 后台体验四项（用户已确认）**：① 编辑保存前「他人已修改」轻提示（**仅提示、不阻塞保存**）；② 删除菜品确认文案增加「评价影响」说明；③ 反馈「标记处理」增加二次确认；④ 操作日志支持按时间区间筛选。**均用最简实现，不引入版本号 / 乐观锁等复杂度**（依 PR-13「管理后台是单人运营工具」，不引入复杂并发控制）。
+6. **Q-112 后台体验四项（用户已确认）**：① 编辑保存前「他人已修改」轻提示（**仅提示、不阻塞保存**）；② 删除菜品确认文案增加「评价影响」说明；③ 反馈「标记处理」增加二次确认；~~④ 操作日志支持按时间区间筛选~~。**均用最简实现，不引入版本号 / 乐观锁等复杂度**（依 PR-13「管理后台是单人运营工具」，不引入复杂并发控制）。
+   - **废止注（2026-09-15 用户拍板，见 §7.25 第 1 条）**：其中 **④「操作日志支持按时间区间筛选」作废**——操作日志全链已删除，筛选需求失去载体，**不得据本条重建操作日志页 / 端点 / 表**。① / ② / ③ 三项**继续有效**。
 7. **Q-113 食堂 / 档口降为「属性字典」（用户已确认，用户原话：不需要档口和食堂实体了，他们现在是属性、而且是用于筛选的属性）**：保留数据表作为**菜品筛选属性字典**，生命周期**只有「新增 / 改名」**；**不设**停业、营业时间、实体审核、独立实体状态等实体语义；菜品从字典中选择。本项**收敛并代替** §7.14 第 4 条（`stall.business_hours` 下线）、第 5 条（食堂与档口是菜品附属维度）、§7.15 第 1 条（随菜品一起维护）、§7.16 第 1 条（食堂与档口只是筛选条件）的表述，统一为「属性字典」单一措辞；原则全文见 §7.20 PR-14，并登记进 §0.5「明确不做」清单。
 8. **Q-114 `portion`（分量）字段彻底下线（用户已确认）**：连同**后台录入**一并移除。依 PR-07「字段生命周期成对处置」全链路清理：DTO / 实体 / VO / Mapper / 后台表单 / 端上映射 / 建表脚本，**存量库幂等 DROP**（禁止直连 ALTER，只允许改 `server/src/main/resources/db/` 下脚本，须带存在性判断、可重复执行）。本项**完成** §7.20 PR-01 与 PR-07 中 `portion` 反面案例的收口，并登记进 §0.5「明确不做」清单。
 
@@ -604,7 +618,7 @@
 
 1. **Q-117 品类维度整链删除（2026-09-15 用户撤销原「后台保留归类能力」口径）**：**2026-09-15 用户撤销**——品类维度**整链删除**（判定依据：端上零呈现 + **后台无实际业务价值**）：`category` 表、`dish.category_id` 列与 `idx_dish_category` 索引、`/admin/categories` 全链（`CategoryAdminController` / `CategoryService` / `CategoryServiceImpl` / `CategoryMapper` / `Category` 实体）、Web 后台品类维护页（`CategoryManage`）、首页配置入口（`HomeConfigView`）、菜品表单分类下拉、菜品列表品类筛选与分类列、端上 `api/category.ts` **全部移除**。
    - **定型口径**：**菜品按食堂 / 档口归属，不存在分类维度**（端上无、后台亦无）。三端与后台**不存在任何品类端点 / 字段 / 页面 / 组件**——公开 `GET /categories` 与后台 `/admin/categories` 均不存在。
-   - **废止注**：本条原口径（2026-09-14「后台**保留** `category` 表、`/admin/categories` 增删改启停、菜品表单 `categoryId` 归类字段，端上不呈现」，及其「与 §0.5 / §7.19 第 3 条不矛盾」的边界说明）**已随本次撤销整体作废**——原前提「后台归类有实际业务价值」经用户复核不成立。恢复须重新拍板（PR-04 / PR-05）；`category_*` 类操作日志动作值与建库脚本中的品类残留随之成为待收尾项，明细见 §8「待收尾」段。
+   - **废止注**：本条原口径（2026-09-14「后台**保留** `category` 表、`/admin/categories` 增删改启停、菜品表单 `categoryId` 归类字段，端上不呈现」，及其「与 §0.5 / §7.19 第 3 条不矛盾」的边界说明）**已随本次撤销整体作废**——原前提「后台归类有实际业务价值」经用户复核不成立。恢复须重新拍板（PR-04 / PR-05）；`category_*` 类操作日志动作值与建库脚本中的品类残留随之成为待收尾项，明细见 §8「待收尾」段。**（2026-09-15 追加：其中「`category_*` 类操作日志动作值」一项已随「操作日志全链删除」整体注销——`OperationLogConst` 常量类本身已删除，该收尾项不复存在，见 §7.25 第 1 条与 §8。）**
 2. **Q-109 热度权重常量删除，口径只留 SQL（用户已确认）**：**删除 Java 侧 `DishHeatWeights` 常量**。**热度权重的唯一真源为 `DishMapper.xml` 的 `heatScoreExpr` SQL**；不存在第二处常量，调整权重直接改该 SQL 并同步本节。本项**修订** §7.13 第 4 条与 §7.15 第 2 条中「与 Java 侧 `DishHeatWeights` 常量保持等价 / 两处同步修改」的表述（该等表述作废）；对应代码注释已同步（`DishMapper.xml`、`DishService`）。本项**落实** PR-05（冗余边界：零消费常量应删除）与 PR-02（口径单一真源）。
 3. **Q-119 食堂 / 档口停业与实体审核列下线（用户已确认）**：确认 DROP `canteen.status` / `canteen.audit_status` / `canteen.reject_reason` / `stall.status` / `stall.audit_status` / `stall.reject_reason` 共 6 列（对应 §7.21 第 7 条「属性字典」语义的库表落位）。**同时说明：菜品的 `dish.status` 保留**（下架语义仍在 `dish` 上）；`dish.reject_reason` **列保留但语义已退役**（历史留痕、恒 NULL、不写入）；**`dish.audit_status` 列与索引已全量删除**（2026-09-15 阶段4 用户批准，`schema.sql` 幂等段 `drop_dish_audit_status_column`；见 §7.23 第 4 条：菜品无独立审核、公开可见性唯一判据 `status='on'`、后台无审核入口；原「审核流仍在 `dish` 上」及「该列列保留」的表述均按此作废）。列下线**只允许改 `server/src/main/resources/db/` 下幂等脚本**（`schema.sql` 的 `drop_canteen_stall_entity_fields` 存储过程，先判存在再 DROP，可重复执行），**禁止直连 ALTER**。本项**收敛并代表** §7.14 第 4/5 条、§7.15 第 1 条、§7.16 第 1 条、§7.21 第 7 条在库表层的落地口径。
 4. **Q-120 评分历史数据重算授权（2026-09-15「取消人工复核」后作废）**：原用户授权的一次性评分历史数据重算**随 `sec_state` 列全链退役取消**——脚本 `server/src/main/resources/db/fix_rating_by_sec_state.sql` **已删除**（前提列不存在，比照 `normalize_dish_audit_status.sql` 先例），**不再存在任何人工数据重算动作**。原授权、原「执行前先备份 `dish` 表」要求与 §8「待运维执行」对应条目**一并作废**；现口径见 §7.21 第 4 条与 §7.24。
@@ -633,7 +647,7 @@
 
    - **二级类型 `sub`（2026-09-15 用户拍板定型，本次补录）**：值域 **`idea`（建议·想法）/ `problem`（建议·问题）**，**仅 `type=suggestion` 有效**；同为**写入白名单**（`FeedbackConst` 单一真源，PR-06），**非法值一律 `400`**（含「`suggestion` 之外的类型携带 `sub`」），不静默降级。管理后台展示为「建议·想法 / 建议·问题」（`FeedbackAdminVO.sub` 出参）；**不新增筛选维度**——后台筛选仍只按一级 `type`，`sub` 仅作展示与存量归类。
    - **`bug` / `other` 为历史遗留枚举位**：无生产者、**禁止新增**；仅保留在**查询**白名单（`FeedbackConst.QUERY_TYPES`）以筛存量数据。**「系统 bug」不升为一级类型，归入 `suggestion` 的二级「问题」（`sub=problem`）**。
-   - **Web 端在「反馈处理」中统一处理上述诉求**，处理动作即实际的录入 / 修改 / 下架菜品（**不得**做「一键转菜品」，见 §7.13 第 1 条）。
+   - **Web 端在「反馈」页中统一处理上述诉求**（导航名 2026-09-15 由「反馈处理」定为「反馈」，路径 `/dashboard/feedback` 不变，见 §0.4.2），处理动作即实际的录入 / 修改 / 下架菜品（**不得**做「一键转菜品」，见 §7.13 第 1 条）。
 4. **菜品无独立审核**。管理员录入 / 编辑即生效（**公开可见性唯一判据 = `dish.status='on'`**）；**学生的菜品诉求以反馈形式存在并由反馈处理闭环，客户端与后台均不出现「菜品审核」概念**。
    - **`dish.audit_status` 全量退役（2026-09-15 阶段4 用户批准，此前「列保留、仅作公开查询过滤」口径作废）**：**列与索引已删除**——`schema.sql` 末尾幂等段 `drop_dish_audit_status_column`（先判存在再 DROP，可重复执行；`idx_dish_audit` 随其唯一成员列连带删除，`idx_dish_heat` 自动退化为 `(status, view_count, rating_count, avg_rating)`，与 CREATE TABLE 定义一致，无需重建）；`DishMapper.xml` 公开查询**不再过滤该列**（`status='on'` 即公开展示）；`DishConst.AUDIT_APPROVED` 别名常量、`common/constant/AuditStatusConst` 值域真源、一次性归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql`（**已删除**）**均已移除**——存量 `pending` / `rejected` 随列 DROP 自然消除，**无需任何数据归一动作**；`Dish` 实体 / VO / DTO / 后台表单 / 端上映射同步移除该字段（PR-07 字段生命周期成对处置）。
    - **前端下线审核展示（已完成）**：① Web 菜品列表删除审核列（`DishManageView` 的 `auditMetaOf` / `rejectReasonOf`）、Web 菜品详情删除「审核」行与「退回原因」行（`DishDetailView`）；② 小程序 `types/dish.ts` 的 `AuditStatus` / `Dish.auditStatus` 已无引用并删除。
@@ -641,8 +655,8 @@
 5. **反馈处理是唯一的运营闭环**：
    - **处理 = 标记已处理（`status=handled`）+ 回执**（`reply` 必填、1~1000 字，见 §7.16 第 2 条）→ 已认证提交人收到站内通知 `feedback_handle`（游客不投递、不阻塞，见 §0.1 与 §2.1.4 匿名心智）。
    - **不采纳 / 退回 = 必填 `reject_reason`**（不采纳原因，随回执一并向提交人展示；纯空白视为未填写 → `400`）。
-   - 反馈是**唯一的待处理运营对象**：后台**「反馈处理」入口徽标（待处理反馈数）**与「48 小时内处理」承诺（§7.8 第 4 条）均挂在其上，口径不变。**（2026-09-15 修订：工作台已下线，原「Web 工作台『待处理反馈』待办」改由入口徽标承接，见 §0.4.1；「内容审核」聚合页已拆为「评价管理」「反馈处理」两页，徽标落在后者，见 §7.24。）**
-   - **举报类反馈（`report`，`relatedType=review`）处置直达（2026-09-15）**：反馈处理页的「关联对象」对举报类显示为**可点链接「评价#id」**，点击跳转「评价管理」并携带 `?rid=<id>` → 目标页**自动翻至该行所在页 + 滚入视口 + 高亮**（`DataTable.highlightRowKey`，行左侧主色标，无动画）；目标评价不存在（已删除）时提示「该评价不存在或已删除」且不高亮。**处置动作仍在「评价管理」页执行（隐藏 / 删除）**，反馈页不新增写操作，两页分工为「反馈=诉求与回执 / 评价管理=内容事后处置」。
+   - 反馈是**唯一的待处理运营对象**：后台**「反馈」入口徽标（待处理反馈数）**与「48 小时内处理」承诺（§7.8 第 4 条）均挂在其上，口径不变。**（2026-09-15 修订：工作台已下线，原「Web 工作台『待处理反馈』待办」改由入口徽标承接，见 §0.4.1；「内容审核」聚合页已拆为「评价」「反馈」两页，徽标落在后者，见 §7.24。**导航名于 2026-09-15 IA 扁平化后由「反馈处理」定为「反馈」，见 §0.4.2 / §7.25 第 2 条。**）**
+   - **举报类反馈（`report`，`relatedType=review`）处置直达（2026-09-15）**：反馈页的「关联对象」对举报类显示为**可点链接**（**2026-09-15 呈现定型：由红色 pill 改为**主色文本链接「评价 #id →」**，见 §7.25 第 2 条**），点击跳转「评价」页并携带 `?rid=<id>` → 目标页**自动翻至该行所在页 + 滚入视口 + 高亮**（`DataTable.highlightRowKey`，行左侧主色标，无动画）；目标评价不存在（已删除）时提示「该评价不存在或已删除」且不高亮。**处置动作仍在「评价」页执行（隐藏 / 删除）**，反馈页不新增写操作，两页分工为「反馈 = 诉求与回执 / 评价 = 内容事后处置」。
 
 **管理端无密码体系（口径自洽，`DataInitializer` 删除后）**
 
@@ -654,7 +668,7 @@
 **派生契约变更（本次拍板落地清单，见文末「给下游的契约变更」）**
 
 - 后端：① `POST` / `PUT /admin/dishes` 支持**按名 upsert 食堂 / 档口**；② `PUT /admin/feedbacks/{id}` 支持「不采纳 / 退回」结论并校验 `reject_reason` 必填；③ 删除 `DataInitializer`；④ 点赞保持 `@RequireVerified`（**不动**）；⑤ 反馈类型写入白名单保持 `suggestion/add/error/report`（**不动**）；⑥ **反馈二级类型 `sub`（2026-09-15 用户拍板补录）**——`FeedbackReq` 增可选 `sub`（`idea`/`problem`，**仅 `suggestion` 有效、写入白名单校验、非法 400**），`FeedbackAdminVO` 增 `sub` 出参，`user_feedback` 增 `sub VARCHAR(16) NULL` 列（`schema.sql` 幂等加列；后台展示「建议·想法 / 建议·问题」，不新增筛选维度）。
-- Web：① 菜品列表删除审核列、菜品详情删除审核态与退回原因回显；② 反馈处理弹窗增加「不采纳 / 退回」结论与必填原因输入；③ 菜品表单支持直接输入食堂 / 档口名（不存在由后端自动建档）。
+- Web：① 菜品列表删除审核列、菜品详情删除审核态与退回原因回显；② 反馈处理弹窗增加「不采纳 / 退回」结论与必填原因输入；③ 菜品表单支持直接输入食堂 / 档口名（不存在由后端自动建档）。**（2026-09-15 追加：Web IA 扁平化——一级导航 4 项与路由 1:1、删聚合壳、层级 ≤2，见 §7.25 第 2 条。）**
 - 小程序：① `types/dish.ts` 的 `AuditStatus` / `auditStatus` 零消费则删除；② `FeedbackSubmit['type']` 收口为四类真源（移除 `bug` / `other` 可写位）；③ 点赞按钮未认证走 `4031` → 弹 `AuthSheet`，**不得置灰**。
 
 ### 7.24 取消人工复核 · 内容安全态（`sec_state`）全链退役（2026-09-15 用户拍板）
@@ -662,11 +676,46 @@
 > 决策来源：用户 2026-09-15 拍板「**取消人工复核**」——机检 `pass` 与 `review`（疑似）均直接放行，仅 `risky` 拒绝。由该选择推导出 `sec_state` **单值化**（放行成为唯一语义、不存在第二种落库值），故**该列及其全链能力一并退役**。本章与 §7.23 并用；与本章冲突的历史表述（§0.0 支柱④、§0.2、§0.3、§3、§5.a、§5.x、§7.4、§7.5、§7.14、§7.20 PR-06、§7.21 第 4 条、§7.22 第 4 条、§8）**已在本文件就地修订并标注来源**。
 
 1. **判定归一（后端唯一真源）**：`SecSuggest.fromValue` 把机检 `review` **归一为放行**；`risky` 与微信未来新增的未知 / 缺失态 **fail-closed 按 risky**。业务侧只消费二态：`risky` → HTTP `400` 拦截（不新增错误码），其余放行。
-2. **全链退役清单（不留残留能力）**：`review.sec_state` / `user_feedback.sec_state` 两列（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理，可重跑）；`SecStateConst`；`Review` / `Feedback` 实体与 `ReviewVO` / `ReviewAdminVO` / `FeedbackAdminVO` 的 `secState` 字段；`ReviewMapper` 可见性过滤条件与 `DishMapper` 评分聚合的 `sec_state='pass'` 条件（**评价可见性与聚合口径收敛为仅 `is_hidden=0` 单一判据**）；`PUT /admin/reviews/{id}/sec-state` 端点；`OperationLogConst.ACTION_REVIEW_SEC_STATE`；评价 / 反馈列表的 `secState` 查询入参；`viewerId`（原仅服务「作者本人放行 `review` 态」，已无用途）；`db/fix_rating_by_sec_state.sql`（前提列退役，已删除）。
+2. **全链退役清单（不留残留能力）**：`review.sec_state` / `user_feedback.sec_state` 两列（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理，可重跑）；`SecStateConst`；`Review` / `Feedback` 实体与 `ReviewVO` / `ReviewAdminVO` / `FeedbackAdminVO` 的 `secState` 字段；`ReviewMapper` 可见性过滤条件与 `DishMapper` 评分聚合的 `sec_state='pass'` 条件（**评价可见性与聚合口径收敛为仅 `is_hidden=0` 单一判据**）；`PUT /admin/reviews/{id}/sec-state` 端点；`OperationLogConst.ACTION_REVIEW_SEC_STATE`；评价 / 反馈列表的 `secState` 查询入参；`viewerId`（原仅服务「作者本人放行 `review` 态」，已无用途）；`db/fix_rating_by_sec_state.sql`（前提列退役，已删除）。**（2026-09-15 追加：本条所列 `OperationLogConst.ACTION_REVIEW_SEC_STATE` 已随 `OperationLogConst` 整体删除，见 §7.25 第 1 条。）**
 3. **保留（事后处置）**：`is_hidden` 列、`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）、`DELETE /admin/reviews/{id}`（管理端删除）、`DELETE /reviews/{id}`（学生删本人评价）。
 4. **管理端 IA（3 项 → 4 项）**：删除 `AuditManageView`（原「内容审核」聚合页）；`ReviewAuditView` **改名** `ReviewManageView`（路由 `/dashboard/reviews`，一级导航「评价管理」），删除安检列 / 安检筛选 / 放行·驳回动作 / 「待复核」统计，保留隐藏 / 删除；`FeedbackView` **独立为「反馈处理」页**（路由 `/dashboard/feedback`）。一级导航 = **信息管理 / 评价管理 / 反馈处理 / 用户与系统**；旧 `/dashboard/audit` 由前端兜底重定向（`tab=feedback*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`），深链查询参数保留。
+   - **调整注（2026-09-15 用户拍板，见 §7.25 第 2 条）**：本条确立的「**4 项一级导航**」数量口径**继续有效**，但**导航命名与页面层级已由本次 IA 扁平化重写**——一级导航现为**菜品 / 评价 / 反馈 / 学生账号**（路径不变：`/dashboard/content` / `/dashboard/reviews` / `/dashboard/feedback` / `/dashboard/system`）；原「信息管理」「用户与系统」两项的**聚合壳已删除**（`ContentManageView` / `SystemManageView` / `AccountView`），路由直指叶子页。旧 `/dashboard/audit` 兜底重定向**保留且扩为**：`tab=feedback*` / `apply*` → 反馈页，其余 → 评价页，**整份保留 query**。
 5. **小程序端**：删除 `secState` 字段 / 归一化 / 「审核中」提示；保留 `isHidden`「已被隐藏」（作者本人视角）。评价区展示条件 = 未隐藏（`is_hidden=0`）。
 6. **回复原状须重新拍板**：恢复人工复核 / 复核队列 / 安检态落库，须**重新拍板**（PR-04 留痕路径）。
+
+### 7.25 管理端操作日志全链删除 + Web IA 扁平化（2026-09-15 用户拍板）
+
+> 决策来源：用户 2026-09-15 两项拍板——① **管理端删除操作日志全链**；② **Web UI 重构（简化、去层层嵌套）**。本章与 §7.23 / §7.24 并用；与本章冲突的历史表述（§0.1、§0.4、§0.4.1、§5.z D-工作台、§7.10 第 2 条、§7.21 第 6 条、§7.22 第 1 条、§7.24 第 2 / 4 条、§8）**已在本文件就地修订并标注来源**。
+
+#### 1. 管理端「操作日志」全链删除（不留残留能力）
+
+- **后端**：删 `@AuditLog` 注解、`AuditLogAspect` 切面、`OperationLogConst`、`OperationLogAdminController`、`OperationLogVO`、`OperationLog` 实体、`OperationLogMapper`、`OperationLogService`(+`Impl`)，以及 4 处 `@AuditLog` 调用点（含 `DELETE /auth/account` 埋点）。
+- **库表**：`operation_log` 表**不再创建**（`schema.sql` 末尾幂等段 `drop_operation_log_table` 清理存量库，先判存在再 DROP、可重复执行）；**表基线 11 → 10 张**（见 `docs/database.md` §2 / §3.11）。
+- **Web**：删 `OperationLogView.vue`、`api/operationLog.ts` 与 `OPERATION_*` 常量；`GET /admin/operation-logs` 端点条目同步从 `docs/api-design.md` 移除。
+- **保留（不属操作日志能力，不得误删）**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 服务端访问日志）；`view_log`（浏览足迹，用户侧「猜你喜欢」数据源）**不动**。
+- **口径定型**：管理端为**单人共享口令工具**（`X-Admin-Token`，见 §7.10），**不提供任何操作留痕 / 审计追溯页面**，未来也不以任何形式重建；恢复须**重新拍板**（PR-04）。
+- **连带注销**：§8「待收尾」中「`OperationLogConst` 的 `category_*` 四值」收尾项**随之注销**（常量类本体已删除）；§7.10 第 2 条中 `operation_log.admin_id` retired 列口径作废（`user_feedback.handler_id` retired 口径**不变**）。
+
+#### 2. Web IA 与页面扁平化（简化、去层层嵌套）
+
+- **一级导航 4 项，路由与导航 1:1**：**菜品** `/dashboard/content`（`DishManageView`，**默认落地页**）/ **评价** `/dashboard/reviews`（`ReviewManageView`）/ **反馈** `/dashboard/feedback`（`FeedbackView`）/ **学生账号** `/dashboard/system`（`UserView`）。
+- **删除中间层（不得重建）**：原「信息管理」聚合壳 `ContentManageView`（路由直指 `DishManageView`）、原「用户与系统」分类卡层 `SystemManageView` 与其下 `AccountView`（透传壳，路由直指 `UserView`）。
+- **页面层级统一 ≤2 层**：页头（H1 + 主操作）→ 主体（筛选 + 列表 / 表单）。**全站删除 `.stat-inline` 只读统计**（数量只由表格 footer 出现一次）、**删除页头解释句与只读提示块**。
+- **菜品详情**：删 `detail-tabs`、删「数据统计」分区与 2×StatCard（数字并入页头副标题）、删页内 inline 编辑（统一走 `DishFormDialog`）；评价详情抽屉抽为**公共组件 `ReviewDetailDialog`** 供「评价」「反馈」两页共用（**删除入口只保留一处**）。
+- **反馈页**：详情只读行内联压缩；举报类关联评价由红色 pill 改为**主色文本链接「评价 #id →」**（点击走 `?rid=` 深链定位）。
+- **旧书签兜底**：`/dashboard/audit` 重定向**保留**（`?tab=feedback*` / `apply*` → 反馈页，其余 → 评价页，**整份保留 query**）。
+- **死代码清理**：删 `StatCard.vue`、`PageSection.vue`、`shared.css` 的 `.tabs` / `.tab` / `.tab-count` / `.agg-tabs` / `.sec-*` / `.stat-inline`。
+- **与 §0.4.1 一致性**：本项是「后台无全局聚合看板」的强化落地（聚合壳一并清除）；**恢复任何聚合层 / 总览页须重新拍板**（PR-04）。口径细则见 §0.4.2。
+
+#### 3. 影响面（本项为纯删减 + UI 收敛，不新增任何能力）
+
+- **后端**：无新增端点；仅删除操作日志相关类、注解、切面、常量与调用点，并追加一条幂等 DROP 存储过程。
+- **Web**：删除 **4 个视图文件**（`OperationLogView.vue` / `SystemManageView.vue` / `AccountView.vue` / `ContentManageView.vue`）与 **1 个 api 模块**（`api/operationLog.ts` + `OPERATION_*` 常量），路由与导航收敛为 4 项，页面层级扁平化；公共组件**新增 1 个**（`ReviewDetailDialog`）、**删除 2 个**（`StatCard.vue` / `PageSection.vue`），并清理 `shared.css` 的 `.tabs` / `.tab` / `.tab-count` / `.agg-tabs` / `.sec-*` / `.stat-inline` 样式块。
+- **小程序 / 契约**：**零影响**（不涉及端上页面、字段与端点）。
+
+#### 4. 恢复原状须重新拍板（PR-04 留痕路径）
+
+恢复操作日志（页面 / 端点 / 表 / AOP 审计埋点）或恢复任何聚合壳 / 分类卡中间层，均须**重新拍板**，不得静默重建。
 
 ---
 
@@ -677,13 +726,13 @@
 - **已修复（本轮）**：
   - **建库脚本自洽**——`server/src/main/resources/db/seed_data.sql` 不再引用已删列（`serve_period` 等），`schema.sql` 消除 `business_hours` 先加后删的自相矛盾（改为幂等 DROP 迁移）。修复验证口径 = 标准流程「先 `schema.sql` 后 `seed_data.sql`」在新环境**可重复执行且零报错**（对应 PR-07 / P0-02 / P2-07）。
   - **工作台图表摘除（2026-09-14 Q-106，见 §7.21 第 1 条）**——`GET /admin/dashboard` 不再计算热门食堂 / 热门菜品 / 浏览量趋势 / 评价趋势等前端不消费的图表与趋势字段，不再执行全表菜品聚合；保留待办（含明细 5 条）＋ 规模指标 ＋ 近期操作（10 条）。**（2026-09-15 修订：工作台与 `GET /admin/dashboard` 已整体下线，本条随之废止、仅作历史留痕——见下条与 §0.4.1。）**
-  - **工作台（Dashboard）下线 + 后端接口删除（2026-09-15 用户拍板，见 §0.4.1 与 §5.z D-工作台）**——`DashboardView` 页面与 `GET /admin/dashboard` 接口**删除**，`dashboard` 业务域（Controller / 统计逻辑载体 / VO / DTO，含原 `StatsController`）整体移除；**后台无「全局聚合看板」**，后台默认落地页改为**信息管理 · 菜品页 `/dashboard/content?tab=dish`**；待办可见性由「反馈处理」入口徽标（待处理反馈数）+ 各业务页行内统计承担，近期操作由操作日志页承载。对应 PR-04（被否决项留痕：恢复聚合看板须重新拍板）与 PR-05（死资产清理）。
+  - **工作台（Dashboard）下线 + 后端接口删除（2026-09-15 用户拍板，见 §0.4.1 与 §5.z D-工作台）**——`DashboardView` 页面与 `GET /admin/dashboard` 接口**删除**，`dashboard` 业务域（Controller / 统计逻辑载体 / VO / DTO，含原 `StatsController`）整体移除；**后台无「全局聚合看板」**，后台默认落地页改为**菜品页 `/dashboard/content`**（2026-09-15 IA 扁平化后带 `?tab=dish` 的写法作废，见 §0.4.2）；待办可见性由「反馈」入口徽标（待处理反馈数）+ 各业务页表格 footer 统计承担。**（2026-09-15 修订：原「近期操作由操作日志页承载」已随操作日志全链删除作废，见 §7.25 第 1 条。）** 对应 PR-04（被否决项留痕：恢复聚合看板须重新拍板）与 PR-05（死资产清理）。
   - **阶段 2 剪枝（2026-09-15 优化 Loop 登记：零消费字段 / 重复实现清理）**：**server**——删 `DishVO.hasReviewed`（含菜品详情接口内一次 review 计数查询；`getDishDetail` 去掉 `userId` 参数，登录 / 游客返回结构完全一致，无用户态分支）；删 `StallDetailVO.dishCount` / `topDishes` / `perCapita`（连带 3 处白算与一次全量菜品 `IN` 查询）；删 `CanteenAdminVO` / `StallAdminVO` 的 `createdBy` 出参（字典无追溯需求，与「单口令即单人、不追究操作人身份」口径一致，见 §7.10）。**client**——新增 `utils/format.ts`（距离格式化统一入口），反馈三表单抽共享样式 partial，`TagLabel` 增 `variant` 属性（`FindResults` 改用），返回兜底复用 `utils/nav`（不再各页自写）。对应 PR-02（口径单一真源）与 PR-05（冗余边界）。
   - **实体审核链路删除（2026-09-14 Q-107，见 §7.21 第 2 条）**——`/admin/audit/**` 三条端点及其专属 Service / VO / DTO 与 Web 侧死代码已删除；`dish_audit` 通知类型登记为「仅存量兼容（不再产生新通知）」；~~`dish.audit_status` 与「管理员录入即 `approved`」逻辑保留。~~ **（2026-09-15 阶段4 修订：`dish.audit_status` 列与索引已全量删除；「管理员录入即生效」逻辑不变。）**
   - **`PUT /auth/password` 删除（2026-09-14 Q-108，见 §7.21 第 3 条）**——端点、`AuthController` / `AuthServiceImpl` 方法、`PasswordChangeReq` DTO 与端上声明已删除，学生端无密码体系。
   - **评分口径统一（2026-09-14 Q-110，见 §7.21 第 4 条；2026-09-15 修订）**——聚合**只计入 `is_hidden=0` 的评价**（原 `sec_state='pass'` 条件随该列 2026-09-15 全链退役删除，见 §7.24）；`rating_count` 与「该菜品可见评价数」同口径。原「机审被判 `review` / `rejected` 的内容不进统计」与配套「机审回写触发重算」口径**随取消人工复核一并失效**。
   - **`uni.scss` 第二真源清除**——原废弃的浅色 token 快照（含陈旧 `#7A241A`）已清除，`client/src/theme/tokens.ts` 恢复为色值全站唯一事实源（对应 PR-02 / PR-12）。
-  - **品类死链删除（2026-09-14 Q-103，见 §7.19 第 3 条）**——`client/src/api/category.ts`、store 的 category 分支、品类滚轮 UI 及 `GET /categories` 的端上调用已删除。**2026-09-15 追加：品类维度整链删除（用户撤销原「后端保留 `GET /categories` 供后台归类」口径，见 §7.22 第 1 条）**——`category` 表与 `dish.category_id` / `idx_dish_category`、`/admin/categories` 全链（Controller / Service / Mapper / 实体）、Web 品类维护页（`CategoryManage`）与首页配置入口（`HomeConfigView`）、菜品表单分类下拉、菜品列表品类筛选与分类列一并移除；**定型口径：菜品只按食堂 / 档口归属，不存在分类维度**。对应 PR-05（端上零呈现且后台无业务价值的维度整体删除）与 PR-04（被否决项留痕）。**收尾项（须同批清理，不得留存死值）**：`OperationLogConst` 的 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值已无生产者，须随本项删除并同步 `docs/database.md` §3.11 `action` 值域（依 PR-12：枚举展示须与后端常量表同源）——**明细见本节末「待收尾」段**。
+  - **品类死链删除（2026-09-14 Q-103，见 §7.19 第 3 条）**——`client/src/api/category.ts`、store 的 category 分支、品类滚轮 UI 及 `GET /categories` 的端上调用已删除。**2026-09-15 追加：品类维度整链删除（用户撤销原「后端保留 `GET /categories` 供后台归类」口径，见 §7.22 第 1 条）**——`category` 表与 `dish.category_id` / `idx_dish_category`、`/admin/categories` 全链（Controller / Service / Mapper / 实体）、Web 品类维护页（`CategoryManage`）与首页配置入口（`HomeConfigView`）、菜品表单分类下拉、菜品列表品类筛选与分类列一并移除；**定型口径：菜品只按食堂 / 档口归属，不存在分类维度**。对应 PR-05（端上零呈现且后台无业务价值的维度整体删除）与 PR-04（被否决项留痕）。~~**收尾项（须同批清理，不得留存死值）**：`OperationLogConst` 的 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值已无生产者，须随本项删除并同步 `docs/database.md` §3.11 `action` 值域（依 PR-12：枚举展示须与后端常量表同源）——**明细见本节末「待收尾」段**。~~ **（2026-09-15 修订：本收尾项已注销——`OperationLogConst` 随「操作日志」全链删除整体移除，四值问题不复存在，见 §7.25 第 1 条；`docs/database.md` §3.11 已同步为「已删除表」注。）**
   - **`portion`（分量）字段全链路下线（2026-09-14 Q-114，见 §7.21 第 8 条）**——DTO（`DishAdminReq`）/ 实体（`Dish`）/ VO（`DishVO`/`DishAdminVO`/`DishDetailVO`）/ Mapper 列映射 / 后台表单 / 端上映射全链路移除，`schema.sql` 以幂等存储过程 `drop_dish_portion` 下线存量列（先判存在再 DROP，可重复执行）。对应 PR-07（字段生命周期成对处置）。
   - **热度权重常量删除（2026-09-14 Q-109，见 §7.22 第 2 条）**——Java 侧 `DishHeatWeights` 常量已删除，热度口径唯一真源收敛为 `DishMapper.xml` 的 `heatScoreExpr` SQL；`DishMapper.xml` / `DishService` 注释同步说明「不存在第二处常量」。对应 PR-05 / PR-02。
   - **食堂 / 档口去实体化与列下线（2026-09-14 Q-113 / Q-119，见 §7.21 第 7 条与 §7.22 第 3 条）**——`canteen` / `stall` 的 `status` / `audit_status` / `reject_reason` 共 6 列与 `stall.business_hours` 整体下线（`schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` / `drop_stall_business_hours`），实体 / VO / Service 读写同批移除；字典能力收敛为「新增 / 改名 / 列表查看」，**无删除**。菜品 `dish.status` 保留；`dish.reject_reason` **列保留但语义已退役**（恒 NULL、不写入）；**`dish.audit_status` 列与索引已全量删除**（2026-09-15 阶段4，见 §7.23 第 4 条）。**（2026-09-15 阶段4 追加：`canteen.created_by` / `stall.created_by` 两列同批退役——无归属语义、写侧恒系统占位值、三端零消费；两列 DROP 归入同一幂等存储过程 `drop_canteen_stall_entity_fields`。）**
@@ -693,7 +742,8 @@
 - **菜品无独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条）——2026-09-15 阶段4 全量退役已完成（含列清退）**：**`dish.audit_status` 列与索引已删除**（`schema.sql` 末尾幂等段 `drop_dish_audit_status_column`；`idx_dish_audit` 连带删除、`idx_dish_heat` 自动退化），**`DishConst.AUDIT_APPROVED` 常量、`common/constant/AuditStatusConst` 值域真源、一次性归一脚本 `normalize_dish_audit_status.sql` 一并删除**，`DishMapper.xml` 公开查询过滤条件同步移除（公开可见性唯一判据 `dish.status='on'`）；前端审核展示已下线（Web 菜品列表审核列 + 菜品详情审核态/退回原因回显、小程序 `Dish.auditStatus`）。`dish.reject_reason` 为退役历史列（列保留、恒 NULL、不写入）。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
 - **管理端密码体系收口（2026-09-15 蓝图 v1，见 §7.23）——已完成（2026-09-15 优化 Loop 登记：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线）**：管理端无账号 / 密码 / BCrypt 登录校验 / `SUPER_ADMIN` 分层；`user.password` 为历史兼容列，**BCrypt 仅用于邮箱验证码哈希**（`SecurityConfig` / `SwaggerConfig` 等处的历史注释为待清理残留，不构成能力）。对应 PR-04（被否决项留痕）与 PR-05（死资产清理）。
 - **client 个人中心域分包拆分（2026-09-15 用户拍板 · 结构性收敛，非技术债）**：`pages/me/` 单一分包**拆散为 5 个独立分包 root**——`pages/profile/`（个人信息）、`pages/notifications/`（系统通知）、`pages/feedback/`（意见反馈）、`pages/my-reviews/`（我的评价）、`pages/privacy/`（隐私政策与用户协议）；**分包 root 总数 2→6**（`detail` + 上述 5 个），**主包仍 3 页（home / find / mine）、页面注册总数仍 9、主包体积不增**——这 5 页原本即全部位于分包、无任何一页进主包，拆分只改变**分包归属粒度**，不改变**加载时机**（客户端仍按需加载，`preloadRule` 未扩项、仍只预载 `pages/detail/`）。**代价（如实登记）**：`pages.json` 的 `subPackages` 条目由 2 条增至 6 条（维护条目变多，**无运行时 / 体积开销**）。**动机（记录）**：个人中心域五页职责与入口互相独立，旧聚合 root 使「页面归属包」与「入口分组」概念重叠、单页改动易牵动整包语义。**旧 `pages/me/**` 路径不设兼容别名、不做重定向、无兼容期**，端上跳转 / `utils/nav` / 入口配置 / 文档引用须直指新路径（见 §2.1.2 / §2.1.5）。**验收口径**：`client/src/pages.json` 的 `pages` 恰 3 条、`subPackages` 恰 6 个 root、页面总数 9 不变，静态检查（type-check / `mp-weixin` 构建）全绿——**编译与构建由用户执行**。对应 PR-05（冗余边界：结构与文档同批收敛，不留旧路径残留字样）。
-- **取消人工复核 · 内容安全态 `sec_state` 全链退役（2026-09-15 用户拍板，见 §7.24；本次变更留痕）**——机检判定归一为「`pass` / `review` 放行、`risky` 拒绝」（`SecSuggest.fromValue("review") → PASS`；未知 / 缺失态 fail-closed 按 risky；业务侧 risky → HTTP `400`，其余放行）；`review.sec_state` / `user_feedback.sec_state` 两列退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理）、`SecStateConst`、实体 / DTO / VO 字段、`ReviewMapper` 可见性过滤与评分聚合的 `sec_state='pass'` 条件（**评价可见性与聚合口径均收敛为仅 `is_hidden=0`**）、`PUT /admin/reviews/{id}/sec-state` 端点、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、列表 `secState` 查询入参、`viewerId` 一并删除；`db/fix_rating_by_sec_state.sql` 删除（§7.22 第 4 条 Q-120 授权随之作废）。管理端：删 `AuditManageView`、`ReviewAuditView` 改名 `ReviewManageView`、`FeedbackView` 独立为「反馈处理」页、一级导航 **4 项**（信息管理 / 评价管理 / 反馈处理 / 用户与系统）、旧 `/dashboard/audit` 兜底重定向。小程序端：删 `secState` 字段 / 归一化 / 「审核中」提示，保留 `isHidden`「已被隐藏」。**保留的事后处置**：`is_hidden`、`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`、`DELETE /reviews/{id}`。对应 PR-04（被否决项留痕：恢复人工复核须重新拍板）、PR-05（死资产清理）、PR-07（字段生命周期成对处置）。
-- **待收尾（2026-09-15 品类维度整链删除，见 §7.22 第 1 条；执行由用户 / 后续任务承担）**：整链删除已覆盖三端与后台（Java 品类包、`/admin/categories`、Web 品类维护页与首页配置入口、菜品表单分类下拉、菜品列表品类筛选与分类列、端上 `api/category.ts`），**尚余两项未收口**：① **建库脚本**——`server/src/main/resources/db/schema.sql` 仍含 `category` 建表与 `dish.category_id` 列 / `idx_dish_category` 索引、`seed_data.sql` 仍含品类种子数据与 `dish.category_id` 赋值，须按幂等口径移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**，存量库同批清理）；② **操作日志动作值**——`OperationLogConst` 的 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值已无生产者，须删除并同步 `docs/database.md` §3.11 `action` 值域（PR-05 / PR-12）。**两项完成前，`docs/database.md` 与建库脚本存在已知差异，以其头部对账注为准。**
+- **取消人工复核 · 内容安全态 `sec_state` 全链退役（2026-09-15 用户拍板，见 §7.24；本次变更留痕）**——机检判定归一为「`pass` / `review` 放行、`risky` 拒绝」（`SecSuggest.fromValue("review") → PASS`；未知 / 缺失态 fail-closed 按 risky；业务侧 risky → HTTP `400`，其余放行）；`review.sec_state` / `user_feedback.sec_state` 两列退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理）、`SecStateConst`、实体 / DTO / VO 字段、`ReviewMapper` 可见性过滤与评分聚合的 `sec_state='pass'` 条件（**评价可见性与聚合口径均收敛为仅 `is_hidden=0`**）、`PUT /admin/reviews/{id}/sec-state` 端点、`OperationLogConst.ACTION_REVIEW_SEC_STATE`、列表 `secState` 查询入参、`viewerId` 一并删除；`db/fix_rating_by_sec_state.sql` 删除（§7.22 第 4 条 Q-120 授权随之作废）。管理端：删 `AuditManageView`、`ReviewAuditView` 改名 `ReviewManageView`、`FeedbackView` 独立为「反馈处理」页、一级导航 **4 项**（信息管理 / 评价管理 / 反馈处理 / 用户与系统；**2026-09-15 IA 扁平化后命名改为菜品 / 评价 / 反馈 / 学生账号，路径不变，见 §7.25 第 2 条**）、旧 `/dashboard/audit` 兜底重定向。小程序端：删 `secState` 字段 / 归一化 / 「审核中」提示，保留 `isHidden`「已被隐藏」。**保留的事后处置**：`is_hidden`、`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`、`DELETE /reviews/{id}`。对应 PR-04（被否决项留痕：恢复人工复核须重新拍板）、PR-05（死资产清理）、PR-07（字段生命周期成对处置）。
+- **待收尾（2026-09-15 品类维度整链删除，见 §7.22 第 1 条；执行由用户 / 后续任务承担）**：整链删除已覆盖三端与后台（Java 品类包、`/admin/categories`、Web 品类维护页与首页配置入口、菜品表单分类下拉、菜品列表品类筛选与分类列、端上 `api/category.ts`），**尚余一项未收口**：**建库脚本**——`server/src/main/resources/db/schema.sql` 仍含 `category` 建表与 `dish.category_id` 列 / `idx_dish_category` 索引、`seed_data.sql` 仍含品类种子数据与 `dish.category_id` 赋值，须按幂等口径移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**，存量库同批清理）。~~原第 ② 项「操作日志动作值」~~ **已注销（2026-09-15）**——`OperationLogConst` 随「操作日志」全链删除整体移除，`category_*` 四值问题不复存在（见 §7.25 第 1 条）。**该项完成前，`docs/database.md` 与建库脚本存在已知差异，以其头部对账注为准。**
+- **管理端操作日志全链删除 + Web IA 扁平化（2026-09-15 用户拍板，见 §7.25；本次变更留痕）**：① **操作日志全链删除**——删 `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` / `OperationLogAdminController` / `OperationLogVO` / `OperationLog` 实体 / `OperationLogMapper` / `OperationLogService`(+`Impl`) 与 4 处 `@AuditLog` 调用点；`operation_log` 表不再创建（`schema.sql` 末尾幂等段 `drop_operation_log_table` 清理存量库，**表基线 11 → 10**）；Web 删 `OperationLogView.vue` / `api/operationLog.ts` / `OPERATION_*` 常量，`GET /admin/operation-logs` 端点条目从 `docs/api-design.md` 移除。**保留**：`ClientIpUtil`（仅服务 `RequestLoggingFilter`）、`view_log` 浏览足迹（**不动**）。连带注销 §8「待收尾」原第 ② 项与 §7.10 第 2 条的 `operation_log.admin_id` retired 口径（`user_feedback.handler_id` retired 口径不变）；§7.21 第 6 条 ④ 操作日志时间区间筛选随之作废。② **Web IA 扁平化**——一级导航 4 项与路由 1:1（菜品 `/dashboard/content`（**默认落地页**）/ 评价 `/dashboard/reviews` / 反馈 `/dashboard/feedback` / 学生账号 `/dashboard/system`）；删原「信息管理」聚合壳 `ContentManageView`、原「用户与系统」分类卡层 `SystemManageView` 与其下 `AccountView` 透传壳（路由直指 `DishManageView` / `UserView`）；页面层级统一 ≤2 层，全站删 `.stat-inline` 只读统计、页头解释句与只读提示块；菜品详情删 `detail-tabs` / 「数据统计」分区与 2×StatCard / 页内 inline 编辑（统一走 `DishFormDialog`），评价详情抽屉抽公共组件 `ReviewDetailDialog`（两页共用、删除入口只保留一处）；反馈页举报类关联评价改主色文本链接「评价 #id →」（`?rid=` 深链）；旧 `/dashboard/audit` 兜底重定向保留并扩为 `tab=feedback*` / `apply*` → 反馈页、其余 → 评价页（整份保留 query）；删 `StatCard.vue` / `PageSection.vue` 与 `shared.css` 的 `.tabs` / `.tab` / `.tab-count` / `.agg-tabs` / `.sec-*` / `.stat-inline`。对应 PR-04（被否决项留痕：恢复操作日志或聚合层须重新拍板）、PR-05（死资产清理）、PR-13（单人运营工具，无需留痕）。
 - ~~**待运维执行（本轮登记，一次性，执行前须技术负责人与用户确认）**：**评分历史数据一次性重算**~~ ——**本一次性任务已取消（2026-09-15 用户拍板「取消人工复核」，见 §7.24）**：`sec_state` 列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），评分聚合口径收敛为**仅 `is_hidden=0` 单一判据**（见 §7.21 第 4 条），且**前提脚本 `server/src/main/resources/db/fix_rating_by_sec_state.sql` 已删除**（前提列不存在，比照 `normalize_dish_audit_status.sql` 先例），**不再存在任何人工数据重算动作**；原「先备份 `dish` 表、由用户执行重算 UPDATE」的执行要求随之作废。
 - ~~**待运维执行（2026-09-15 蓝图 v1 登记，一次性，见 §7.23 第 4 条）**：**存量 `dish.audit_status` 归一为 `approved`**~~ ——**本一次性任务已取消（2026-09-15 阶段4 用户批准「归一后清理」改为直接退役）**：`dish.audit_status` **列与索引已直接 DROP**，由 `schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 承载（`CALL` 在 `schema.sql` 内，随建库 / 升级自动执行，但**仍不由 agent 代跑**——建库动作由用户执行），**存量的 `pending` / `rejected` 随列删除自然消除**；归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql` **已删除**，**不再存在任何人工数据归一动作**，原「先备份 `dish` 表、由用户执行归一 UPDATE」的执行要求随之作废。
