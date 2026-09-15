@@ -35,7 +35,6 @@ import java.nio.charset.StandardCharsets;
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
  * - GET /canteens, GET /stalls（食堂档口查询）
  * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
- * - GET /dishes/{dishId}/reviews（评价列表）
  * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
@@ -82,7 +81,6 @@ public class SecurityConfig {
             "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
             "/images/**", "/api/images/**",
-            "/categories", "/api/categories"
     };
 
     @Bean

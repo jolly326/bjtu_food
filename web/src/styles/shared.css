@@ -20,8 +20,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
 .content::-webkit-scrollbar,
 .table-wrap::-webkit-scrollbar,
 .agg-tabs::-webkit-scrollbar,
-.topnav-nav::-webkit-scrollbar,
-.detail-list::-webkit-scrollbar {
+.topnav-nav::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
@@ -45,12 +44,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
  * 裸 <button>/<a>/.tab/.link 等也具备一致按压反馈。
  * ============================================================ */
 .btn-primary, .btn-success, .btn-warn, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
-.tag-option, .type-opt, .card, .pk-card, .banner-card, .stat-card,
-.action-btn, .action-link, .toggle-btn, button, a, [role="button"] {
+.tag-option, .card, .stat-card, button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
 .btn-primary, .btn-success, .btn-warn, .btn-cancel, .btn-danger, .link, .tab, .nav-item,
-.tag-option, .type-opt, .action-btn, .action-link, .toggle-btn, .me-tag {
+.tag-option {
   transition:
     transform 0.12s ease,
     background 0.2s ease,
@@ -59,7 +57,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
     box-shadow 0.2s ease;
 }
 /* 卡片类：按压 + hover 抬升都走 transform/box-shadow（§4.5 物理材质感） */
-.card, .pk-card, .banner-card, .stat-card, .kpi {
+.card, .stat-card {
   transition:
     transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
     box-shadow 0.2s cubic-bezier(0.33, 1, 0.68, 1),
@@ -67,7 +65,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
 }
 .btn-primary:active, .btn-success:active, .btn-warn:active, .btn-cancel:active, .btn-danger:active,
 .link:active, .tab:active, .nav-item:active, .tag-option:active,
-.type-opt:active, .action-btn:active, .toggle-btn:active,
 button:active:not(:disabled), a:active {
   transform: scale(0.97);
 }
@@ -75,8 +72,7 @@ button:active:not(:disabled), a:active {
 .btn-primary:focus-visible, .btn-success:focus-visible, .btn-warn:focus-visible,
 .btn-cancel:focus-visible, .btn-danger:focus-visible,
 .link:focus-visible, .tab:focus-visible, .nav-item:focus-visible,
-.tag-option:focus-visible, .type-opt:focus-visible,
-.action-btn:focus-visible, .toggle-btn:focus-visible,
+.tag-option:focus-visible,
 button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -86,12 +82,11 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
  * 统一卡片 / 容器圆角（§4.2 卡片 16px；UI-06 --radius-card 已对齐 16px）+ 柔和阴影 + 统一边框
  * 所有页面复用这些公共类，禁止各页写死 px 圆角/边框。
  * ============================================================ */
-.card, .table-wrap, .state-box, .empty-state, .tag, .kpi,
-.stat-card, .confirm-box, .modal, .headerbar, .tab-panel,
-.banner-card, .pk-card {
+.card, .table-wrap, .state-box, .empty-state, .tag,
+.stat-card, .modal {
   border-radius: var(--radius-card);
 }
-.card-hd, .tab-item, .tab-count-item { border-radius: var(--radius-md); }
+.tab-item, .tab-count-item { border-radius: var(--radius-md); }
 
 /* ============================================================
  * 页面级公共类基线（供各 view 直接复用，避免重复 ad-hoc 样式）
@@ -108,14 +103,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   border: 1px solid var(--border-light);
   overflow: hidden;
 }
-.card-hd {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: var(--space-4);
-}
-.card-hd h3 { font-size: var(--font-lg); font-weight: var(--weight-semibold); color: var(--text-primary); margin: 0; }
-.card-body { padding: var(--space-4) var(--space-5); }
 
 /* ============================================================
  * 三态盒（UI-04 全局唯一实现）：加载 / 错误 / 空态统一高度与布局，
@@ -137,11 +124,6 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   box-sizing: border-box;
 }
 .state-err { color: var(--color-error); }
-/* 内联态（UI-04）：紧凑场景（卡片内、区块头部等）用小高度版本 */
-.state-box--inline {
-  padding: var(--space-6) var(--space-4);
-  min-height: 0;
-}
 /* 全局唯一旋转指示（.spin）：16px、主色顶弧；reduced-motion 降速不停转（停转会误导为卡死） */
 .spin {
   display: inline-block;
@@ -179,27 +161,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   color: var(--text-secondary);
   user-select: none;
 }
-.tab-on { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
 .tab-count { font-size: var(--font-sm); color: var(--text-muted); margin-left: var(--space-1); }
-
-/* 批量操作条：统一毛玻璃感卡片 */
-.batch-bar {
-  display: flex; align-items: center; gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  background: var(--bg-card);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-light);
-}
-.batch-info { font-size: var(--font-sm); color: var(--text-secondary); }
-.batch-reason {
-  flex: 1; padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-color); border-radius: var(--radius);
-  font-size: var(--font-sm); outline: none; background: var(--bg-card);
-  transition: border-color .2s;
-}
-.batch-reason:focus { border-color: var(--color-primary); }
 
 /* ============================================================
  * 数据表格基线（自封装 DataTable 已用；此处统一 hover/分隔线）
@@ -391,14 +353,13 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   }
   .btn-primary:active, .btn-success:active, .btn-warn:active, .btn-cancel:active, .btn-danger:active,
   .link:active, .tab:active, .nav-item:active, .tag-option:active,
-  .type-opt:active, .action-btn:active, .toggle-btn:active,
-  .sec-card:active, .card:active, .pk-card:active, .banner-card:active,
-  .stat-card:active, .kpi:active,
+  .sec-card:active, .card:active,
+  .stat-card:active,
   button:active, a:active { transform: none !important; }
   /* 表格行 hover 去过渡（§4.7 减弱动效：去掉背景渐变动画） */
   .table tbody tr { transition: none !important; }
   /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放） */
-  .modal-box, .modal-overlay, .toast, .confirm-box, .topbar, .sidebar, .headerbar {
+  .modal-box, .modal-overlay, .toast, .topbar {
     transform: none !important;
     transition: opacity 0.18s ease !important;
   }
@@ -408,7 +369,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
  * 减弱透明度降级（§4.7）：半透面更实、去模糊
  * ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
-  .toast, .confirm-overlay, .modal-overlay, .headerbar, .topbar, .sidebar {
+  .toast, .modal-overlay, .topbar {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }

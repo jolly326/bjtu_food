@@ -38,14 +38,6 @@ export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   return value.records || value.list || []
 }
 
-/**
- * 从分页响应提取列表——兼容裸数组 / { list } / { records } 三形态
- * （统一版取 notify 等私有 listOf 行为超集，并额外兼容裸数组形态）。
- */
-export function listOf<T>(value: PageResult<T> | T[] | undefined | null): T[] {
-  return recordsOf<T>(value)
-}
-
 /** 从分页响应提取总数（缺省回退列表长度） */
 export function totalOf(value: PageLike<any> | undefined | null): number {
   if (!value) return 0

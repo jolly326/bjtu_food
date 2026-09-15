@@ -9,7 +9,8 @@
 
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE } from './config'
 
-export interface ApiResponse<T = unknown> {
+/** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
+interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
@@ -27,8 +28,8 @@ export class SurfacedError extends Error {}
 /** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
 export type RequestData = string | object | ArrayBuffer | undefined
 
-/** 请求选项：header 收窄为字符串表（原 any） */
-export interface RequestOptions {
+/** 请求选项：header 收窄为字符串表（原 any；MP-09：仅本模块消费，收敛为模块私有） */
+interface RequestOptions {
   header?: Record<string, string>
   hideLoading?: boolean
   /** 注销等敏感调用：401 时禁止「静默登录后重试」（重试会以新游客身份执行，可能误删新账号） */

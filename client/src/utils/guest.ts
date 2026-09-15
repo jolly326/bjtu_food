@@ -14,8 +14,8 @@ function generateUuid(): string {
   })
 }
 
-/** 获取（必要时生成并持久化）本地游客 ID */
-export function getGuestId(): string {
+/** 获取（必要时生成并持久化）本地游客 ID（MP-06：零外部消费，收敛为模块私有） */
+function getGuestId(): string {
   let id = uni.getStorageSync(STORAGE_KEY_GUEST_ID) as string
   if (!id) {
     id = generateUuid()

@@ -74,7 +74,6 @@ export const useDishStore = defineStore('dish', () => {
   /** 首页筛选 Bar：食堂/维度筛选选中态（选中即换内容） */
   const filterTab = ref<FilterTab | null>(null)
   const filterList = ref<Dish[]>([])
-  const filterTotal = ref(0)
   const filterPage = ref(1)
   /** 首页价格筛选区间（元，null/undefined 表示不限）；直接透传 api（api 层统一元→分），禁止二次换算/裸算 /100 */
   const filterPrice = ref<{ min?: number; max?: number }>({})
@@ -317,17 +316,14 @@ export const useDishStore = defineStore('dish', () => {
         if (tab.type === 'tag' && tab.payload) {
           const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         } else if (tab.type === 'canteen' && tab.canteenId != null) {
           // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序由后端决定
           const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         } else {
           // 默认流：热度优先（后端口径）
           const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         }
         // 过期响应（期间又切换了筛选条件）直接丢弃，不覆盖新列表
         if (seq !== filterFetchSeq) return
@@ -379,15 +375,12 @@ export const useDishStore = defineStore('dish', () => {
         if (tab.type === 'tag' && tab.payload) {
           const res = await dishApi.searchDishesPage({ tag: tab.payload, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         } else if (tab.type === 'canteen' && tab.canteenId != null) {
           const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, spiceLevel: spice })
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         } else {
           const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, spice)
           rows = withLocalDistance(res.list)
-          filterTotal.value = res.total
         }
         // 过期响应（期间又切换了筛选条件）丢弃，不混入新列表
         if (seq !== filterFetchSeq) {
@@ -442,8 +435,10 @@ export const useDishStore = defineStore('dish', () => {
     hotSearchList, reviewTotal, reviewError,
     // MP-04：不再导出全局聚合 loading（任何 dish 请求在飞都会为真，消费方无法区分），
     // 改由 isLoading(key) 按业务请求订阅（key 常量见本文件顶部 LOADING_KEY_*）。
+    // MP-05/MP-06：filterTotal（只写不读）已删；filterPage/filterFinished 为内部分页游标，
+    // 零外部消费，收敛为模块私有（不再出现在 store 返回对象）。
     isLoading,
-    filterTab, filterList, filterTotal, filterPage, filterLoadingMore, filterFinished, filterPageLimited, filterPrice, filterSpice, filterError,
+    filterTab, filterList, filterLoadingMore, filterPageLimited, filterPrice, filterSpice, filterError,
     setHomePrice, setHomeSpice, clearHomeFilter, defaultFilterTab,
     fetchCanteens, refreshCanteensIfStale, search, fetchDetail, resetDishDetail, resetUserScopedData, fetchReviews,
     fetchHotSearch,

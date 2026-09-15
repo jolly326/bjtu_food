@@ -174,7 +174,8 @@ onMounted(loadData)
           <ul v-if="recentLogs.length" class="log-list">
             <li v-for="log in recentLogs" :key="log.id" class="log-row">
               <el-icon class="log-ico"><Clock /></el-icon>
-              <span class="log-operator">{{ log.operator || '—' }}</span>
+              <!-- 操作人（WA-01）：单口令模型无多人身份，固定显示「管理端」 -->
+              <span class="log-operator">管理端</span>
               <span class="log-action">{{ operationActionText(log.action) }}</span>
               <span class="log-target">{{ operationTargetLabel(log.target) }}</span>
               <span class="log-time">{{ log.time || '—' }}</span>

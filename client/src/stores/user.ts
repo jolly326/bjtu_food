@@ -167,11 +167,11 @@ export const useUserStore = defineStore('user', () => {
     return true
   }
 
+  // MP-06：token / lastLoginError 零外部消费，收敛为内部状态（token 供请求层 getStorageSync，
+  // lastLoginError 供本 store 内静默登录失败透传），不再出现在 store 返回对象。
   return {
     userInfo,
-    token,
     loading,
-    lastLoginError,
     silentLogin,
     verifyEmail,
     updateProfile,

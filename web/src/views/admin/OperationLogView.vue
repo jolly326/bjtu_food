@@ -144,7 +144,8 @@ function fmtTime(v: string): string {
       :loading="loading"
       :error="error" empty-text="暂无操作日志"
     >
-      <template #cell-admin="{ row }">{{ row.adminNickname || ('管理员#' + row.adminId) }}</template>
+      <!-- 操作人（WA-01）：单口令模型无多人身份（后端固定 adminId=0），列固定显示「管理端」，保留列结构 -->
+      <template #cell-admin>管理端</template>
       <template #cell-action="{ row }"><StatusTag type="info" :text="operationActionText(row.action)" /></template>
       <template #cell-target="{ row }">
         <span v-if="row.targetType">{{ operationTargetText(row.targetType) }}#{{ row.targetId }}</span>

@@ -1,14 +1,8 @@
-/** 食堂信息 */
+/** 食堂信息（最小 DTO：消费方仅读 id/name） */
 export interface CanteenInfo {
   /** 食堂 ID（过滤菜品用；后端 /canteens 返回 id，此前被丢弃，现补齐） */
   id?: number
   name: string
-  location: string
-  icon: string
-  /** 食堂坐标（GCJ-02）；前端本地 Haversine 算「距你 Xm」用，服务器不再计算距离 */
-  latitude?: number
-  /** 食堂经度（GCJ-02） */
-  longitude?: number
 }
 
 /**

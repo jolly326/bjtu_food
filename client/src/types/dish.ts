@@ -11,8 +11,6 @@ export interface Dish {
   description: string
   canteen: string
   stallName: string
-  /** 当前用户是否已评价 */
-  hasReviewed?: boolean
 
   /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
   /** 所属档口 ID（分享深链到档口详情用） */
@@ -29,8 +27,6 @@ export interface Dish {
   originalPrice?: number
   /** 折扣价（分，可空）：促销价，非空即视为有折扣 */
   promoPrice?: number
-  /** 提交人用户 ID（后台录入/审计归属用；学生端菜品写接口已下线，不再用于客户端权限判断） */
-  createdBy?: number
   /** 距当前用户距离（米）：由前端基于 locationStore 用户坐标 + Haversine 本地计算写回，未定位/无坐标时为 undefined */
   distance?: number
   /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
@@ -75,10 +71,6 @@ export interface DishQuery {
 /** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */
 export interface HotSearch {
   keyword: string
-  /** 热度值 */
-  heat: number
-  /** 关联数（菜品/档口关联数量，后端可选返回，缺省则不展示） */
-  relatedCount?: number
 }
 
 

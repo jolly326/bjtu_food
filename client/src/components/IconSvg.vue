@@ -19,7 +19,7 @@ import { computed } from 'vue'
  *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
  *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
  *
- * 用法：<IconSvg name="thumb" :size="26" color="var(--color-like)" />
+ * 用法：<IconSvg name="thumb" :size="26" color="currentColor" />
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
@@ -94,24 +94,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'search-fill': { circle: [{ cx: 10.5, cy: 10.5, r: 6, fill: 'currentColor' }], path: ['M14.8 14.8l5.7 5.7'], fill: false },
 }
 
-// CSS 变量 → 真实色值映射（覆盖项目主题主色，避免 SVG data-uri 无法解析 var()）
-// 单一事实源：色值统一维护在 src/theme/tokens.ts 的 COLOR_MAP（改主色只改一处，图标全同步）
-// 由 COLOR_MAP 派生主题色表并补 currentColor；产品仅浅色一种主体颜色，图标色固定取浅色表
-import { COLOR_MAP, ICON_FALLBACK_COLOR } from '@/theme/tokens'
-
-const COLOR_VARS_TABLE: Record<'light', Record<string, string>> = {
-  light: { ...COLOR_MAP, currentColor: COLOR_MAP['text-primary'] },
-}
-const COLOR_VARS = computed(() => COLOR_VARS_TABLE['light'])
-
-function resolveColor(c: string): string {
-  if (!c) return COLOR_VARS.value.currentColor || ICON_FALLBACK_COLOR
-  if (c.startsWith('var(')) {
-    const name = c.slice(4, -1).trim()
-    return COLOR_VARS.value[name] || COLOR_VARS.value.currentColor || ICON_FALLBACK_COLOR
-  }
-  return c
-}
+// 描边色兜底常量（theme/tokens.ts 登记；MP-11 删除 resolveColor/COLOR_MAP 死机制后唯一色源）
+import { ICON_FALLBACK_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   /** 图标名（见 ICONS 键） */
@@ -135,7 +119,14 @@ if (props.name && !ICONS[props.name]) {
   }
 }
 const icon = computed(() => ICONS[props.name] || ICONS.empty)
-const stroke = computed(() => resolveColor(props.color))
+// MP-11：resolveColor/COLOR_MAP 死机制已删除——COLOR_MAP 键无 `--` 前缀，var() 查找从未命中，
+// var() 形态实际恒走 currentColor 兜底。SVG data-uri 无法解析 var()，var() 形态统一落到
+// 登记的兜底常量 ICON_FALLBACK_COLOR（与删除前的兜底同为中性近黑，渲染行为不变）；
+// 其余形态（currentColor / 真实色值）原样透传。
+const stroke = computed(() => {
+  const c = props.color
+  return !c || c.startsWith('var(') ? ICON_FALLBACK_COLOR : c
+})
 
 // 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染。
 // MP-019：模块级缓存（icon name + 颜色 → data-uri）——百级卡片列表（瀑布流点赞星标等）

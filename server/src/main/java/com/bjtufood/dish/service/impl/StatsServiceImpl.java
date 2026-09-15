@@ -14,13 +14,10 @@ import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.StatsService;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
-import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -52,19 +49,11 @@ public class StatsServiceImpl implements StatsService {
     public DashboardVO overview(int range) {
         // 支持 week(7)/month(30)/all(90)；修复此前 range=all 被吞回 7 天的问题
         if (range != 7 && range != 30 && range != 90) range = 7;
-        LocalDateTime since = LocalDate.now().minusDays(range).atStartOfDay();
         DashboardVO vo = new DashboardVO();
         vo.setRange("近" + range + "天");
 
         // 规模指标（逐项容错，任一查询失败不拖垮接口，保证工作台必能加载）
         try {
-            // 期内上新菜品数（created_at >= since 且 approved）
-            vo.setNewDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                    .ge(Dish::getCreatedAt, since)
-                    .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
-            // 期内新增评价数
-            vo.setNewReviewCount(reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
-                    .ge(Review::getCreatedAt, since)));
             vo.setTotalDishCount(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                     .eq(Dish::getAuditStatus, DishConst.AUDIT_APPROVED)));
             vo.setTotalReviewCount(reviewMapper.selectCount(new LambdaQueryWrapper<>()));

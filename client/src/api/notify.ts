@@ -7,7 +7,7 @@
  * PUT /my/notifications/read-all   全部已读（幂等，需登录，返回本次置为已读的条数）
  */
 import { get, put } from './http'
-import { listOf, type PageResult, type RawRow } from './shared'
+import { recordsOf, type PageResult, type RawRow } from './shared'
 
 /** 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用）。
  *  2026-09-12：新增 feedback_handle（反馈处理结果回执），与后端 NotificationConst 对齐。 */
@@ -51,7 +51,7 @@ export async function getNotifications(params: {
   }
   if (params.isRead != null) query.isRead = params.isRead
   const res = await get<PageResult<RawRow>>('/my/notifications', query)
-  const raw = listOf(res).map(toNotification).filter(Boolean) as Notification[]
+  const raw = recordsOf(res).map(toNotification).filter(Boolean) as Notification[]
   return { list: raw, total: res?.total ?? raw.length }
 }
 
@@ -72,7 +72,7 @@ export async function readNotification(id: number): Promise<void> {
 
 /**
  * 全部已读（STU，PUT /my/notifications/read-all；需登录、幂等）。
- * 返回 data = 本次置为已读的条数（无未读时为 0），非分页结构，故不经 listOf/recordsOf。
+ * 返回 data = 本次置为已读的条数（无未读时为 0），非分页结构，故不经 recordsOf。
  * 失败向上抛错，由调用方提示且不改变本地状态。
  */
 export async function readAllNotifications(): Promise<number> {

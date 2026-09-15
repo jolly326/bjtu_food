@@ -21,11 +21,6 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.imageio.ImageIO;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -157,19 +152,12 @@ public class UploadServiceImpl implements UploadService {
             throw e;
         }
 
-        // 生成缩略图（仅 jpg/jpeg/png，ImageIO 原生支持；webp 降级不生成）。失败静默，不阻塞上传主流程。
-        String thumbRelativeUrl = generateThumbnail(target, normalizedExt, datePath);
-
         String relativeUrl = trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
         String absoluteUrl = imageUrlUtil.toAbsoluteUrl(relativeUrl);
 
         Map<String, String> result = new HashMap<>();
         result.put("url", absoluteUrl);
         result.put("relativeUrl", relativeUrl);
-        if (thumbRelativeUrl != null) {
-            result.put("thumbUrl", imageUrlUtil.toAbsoluteUrl(thumbRelativeUrl));
-            result.put("thumbRelativeUrl", thumbRelativeUrl);
-        }
         return result;
     }
 
@@ -431,53 +419,6 @@ public class UploadServiceImpl implements UploadService {
     }
 
     // ==================== 本地存储链路（COS 未配置降级）私有方法 ====================
-
-    /**
-     * 用 ImageIO 为原图生成宽 400px 的等比缩略图，命名 {base}_thumb.{ext} 同目录落盘。
-     * 仅 jpg/jpeg/png 生成；webp 或生成失败时返回 null（降级，不抛异常、不影响上传主流程）。
-     *
-     * @return 缩略图相对 URL（/images/yyyy/MM/xxx_thumb.ext），失败返回 null
-     */
-    private String generateThumbnail(Path target, String ext, String datePath) {
-        if (!Set.of("jpg", "jpeg", "png").contains(ext)) {
-            return null;
-        }
-        // 缩略图统一以 JPEG 编码输出（兼容性好、体积小），因此扩展名固定为 .jpg，
-        // 避免原实现「jpg 内容写入 .png 文件名」导致扩展名与实际格式不符。
-        String baseName = target.getFileName().toString().replaceFirst("\\.[^.]+$", "");
-        String thumbFilename = baseName + "_thumb.jpg";
-        Path thumb = target.getParent().resolve(thumbFilename);
-        try {
-            BufferedImage original = ImageIO.read(target.toFile());
-            if (original == null) {
-                return null;
-            }
-            int thumbWidth = 400;
-            int thumbHeight = Math.max(1, (int) Math.round(original.getHeight() * (thumbWidth / (double) original.getWidth())));
-            BufferedImage scaled = new BufferedImage(thumbWidth, thumbHeight, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g = scaled.createGraphics();
-            // 先铺白底，避免透明 PNG 缩放后底色为黑（原实现缺此步造成黑底 bug）
-            g.setColor(Color.WHITE);
-            g.fillRect(0, 0, thumbWidth, thumbHeight);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            g.drawImage(original, 0, 0, thumbWidth, thumbHeight, null);
-            g.dispose();
-            // 统一按 jpg 输出缩略图（体积小、兼容性最好），降低失败面；透明度统一铺白底
-            if (!ImageIO.write(scaled, "jpg", thumb.toFile())) {
-                return null;
-            }
-        } catch (IOException | RuntimeException e) {
-            // 生成失败静默降级：清理半成品缩略图，不影响上传主流程
-            try {
-                Files.deleteIfExists(thumb);
-            } catch (IOException ignored) {
-                // 忽略清理失败
-            }
-            return null;
-        }
-        return trimEnd(urlPrefix, "/") + "/" + datePath + "/" + thumbFilename;
-    }
 
     /**
      * 校验图片头部宽高（P1-6 图像炸弹防护）：超过 {@value MAX_IMAGE_DIMENSION}px 直接拒绝。

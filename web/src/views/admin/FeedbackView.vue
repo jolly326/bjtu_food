@@ -160,6 +160,20 @@ const rejectReason = ref('')
 const rejectReasonError = ref('')
 const processingId = ref<number | null>(null)
 
+/**
+ * 提交人展示（WA-02）：后端 userId 为空（匿名）时不再显示「用户#0」，改显「游客」。
+ * 兼容历史数据：userId=0 亦视为匿名（WA-03）。
+ */
+function submitterLabel(v: FeedbackAdminVO): string {
+  if (v.userNickname) return v.userNickname
+  return v.userId != null && v.userId !== 0 ? `用户#${v.userId}` : '游客'
+}
+/** 匿名反馈判定（WA-03）：无站内回执，确认文案不承诺「学生将收到回复」 */
+const isAnon = computed(() => {
+  const d = detail.value
+  return d != null && (d.userId == null || d.userId === 0)
+})
+
 function openDetail(row: FeedbackAdminVO) {
   detail.value = row
   reply.value = row.reply || ''
@@ -174,9 +188,10 @@ async function submitHandle() {
   if (!detail.value) return
   // 回复必填（2026-09-14 拍板 project_spec §7.16；后端 FeedbackHandleReq.reply 为 @NotBlank）：
   // 纯空白视为未填写 → 前端拦截，不发请求（避免必然 400）。
+  // 匿名反馈（WA-03）不承诺「学生将收到」，避免无差别虚假承诺。
   const trimmed = reply.value.trim()
   if (!trimmed) {
-    replyError.value = '请填写处理回复（学生将收到该内容）'
+    replyError.value = isAnon.value ? '请填写处理回复' : '请填写处理回复（学生将收到该内容）'
     return
   }
   if (trimmed.length > 1000) {
@@ -189,7 +204,7 @@ async function submitHandle() {
   if (outcome.value === 'rejected') {
     const trimmedReason = rejectReason.value.trim()
     if (!trimmedReason) {
-      rejectReasonError.value = '不采纳 / 退回必须填写原因（学生将收到该原因）'
+      rejectReasonError.value = isAnon.value ? '不采纳 / 退回必须填写原因' : '不采纳 / 退回必须填写原因（学生将收到该原因）'
       return
     }
     if (trimmedReason.length > 200) {
@@ -199,10 +214,15 @@ async function submitHandle() {
     reason = trimmedReason
   }
   rejectReasonError.value = ''
-  // 二次确认（Q-112 ③，最简实现）：标记处理为不可逆（学生立即收到回执），提交前先确认。
-  const confirmText = outcome.value === 'rejected'
-    ? '确定将该反馈标记为「不采纳」？提交后学生将收到回复与不采纳原因。'
-    : '确定将该反馈标记为「已处理」？提交后学生将收到你的回复。'
+  // 二次确认（Q-112 ③，最简实现）：标记处理为不可逆，提交前先确认。
+  // 匿名反馈（WA-03）无站内回执，不承诺「学生将收到回复」，改显匿名提示。
+  const confirmText = isAnon.value
+    ? (outcome.value === 'rejected'
+        ? '确定将该反馈标记为「不采纳」？该反馈为匿名提交，无站内回执。'
+        : '确定将该反馈标记为「已处理」？该反馈为匿名提交，无站内回执。')
+    : (outcome.value === 'rejected'
+        ? '确定将该反馈标记为「不采纳」？提交后学生将收到回复与不采纳原因。'
+        : '确定将该反馈标记为「已处理」？提交后学生将收到你的回复。')
   if (!await confirm.confirm(confirmText)) return
   processingId.value = Number(detail.value.id)
   try {
@@ -314,7 +334,7 @@ async function copyReviewLink(reviewId?: number) {
         </span>
       </template>
       <template #cell-contact="{ row }"><span class="muted">{{ row.contact || '—' }}</span></template>
-      <template #cell-submitter="{ row }">{{ row.userNickname || ('用户#' + row.userId) }}</template>
+      <template #cell-submitter="{ row }">{{ submitterLabel(row) }}</template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
       <template #cell-secState="{ row }">
         <StatusTag :type="SEC_STATE_META[row.secState]?.type || 'success'" :text="SEC_STATE_META[row.secState]?.text || '正常'" />
@@ -345,7 +365,7 @@ async function copyReviewLink(reviewId?: number) {
         <div class="detail-row"><span class="dl">类型</span>
           <span class="dv"><span class="type-pill">{{ typeLabel[detail.type] || detail.type }}</span></span>
         </div>
-        <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ detail.userNickname || ('用户#' + detail.userId) }}</span></div>
+        <div class="detail-row"><span class="dl">提交人</span><span class="dv">{{ submitterLabel(detail) }}</span></div>
         <div class="detail-row"><span class="dl">联系方式</span><span class="dv muted">{{ detail.contact || '—' }}</span></div>
         <div class="detail-row"><span class="dl">提交时间</span><span class="dv">{{ fmtTime(detail.createdAt) }}</span></div>
         <div class="detail-row" v-if="detail.relatedType === 'review'">
@@ -421,13 +441,13 @@ async function copyReviewLink(reviewId?: number) {
 
           <!-- 回复必填（2026-09-14 §7.16）：与后端 @NotBlank 校验规则严格一致，前端措辞不得出现「选填/留空」 -->
           <label class="mt-label">处理说明 / 回复 <span class="required">*</span>（必填）</label>
-          <textarea v-model="reply" rows="4" placeholder="请填写处理回复，学生将收到该内容"></textarea>
+          <textarea v-model="reply" rows="4" :placeholder="isAnon ? '请填写处理回复' : '请填写处理回复，学生将收到该内容'"></textarea>
           <p v-if="replyError" class="field-error">{{ replyError }}</p>
 
           <!-- 不采纳原因（§7.23 第 5 条）：选「不采纳/退回」时必填，1~200 字，后端同样校验 -->
           <template v-if="outcome === 'rejected'">
             <label class="mt-label">不采纳原因 <span class="required">*</span>（必填，1~200 字）</label>
-            <textarea v-model="rejectReason" rows="3" placeholder="请填写不采纳 / 退回原因，学生将收到该原因"></textarea>
+            <textarea v-model="rejectReason" rows="3" :placeholder="isAnon ? '请填写不采纳 / 退回原因' : '请填写不采纳 / 退回原因，学生将收到该原因'"></textarea>
             <p v-if="rejectReasonError" class="field-error">{{ rejectReasonError }}</p>
           </template>
         </div>

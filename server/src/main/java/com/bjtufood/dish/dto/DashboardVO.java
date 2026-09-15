@@ -19,12 +19,6 @@ public class DashboardVO {
     @Schema(description = "时间范围（start~end）")
     private String range;
 
-    @Schema(description = "本周上新菜品数")
-    private Long newDishCount;
-
-    @Schema(description = "本周新增评价数")
-    private Long newReviewCount;
-
     @Schema(description = "总菜品数")
     private Long totalDishCount;
 

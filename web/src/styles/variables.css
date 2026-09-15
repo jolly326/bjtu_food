@@ -7,15 +7,12 @@
    * ============================================================ */
 
   /* ===== 主色系 — 品牌朱砂红（与小程序端对齐，UX-003） ===== */
-  --color-primary: #A13F35;              /* 深色主题主色（tokens.ts primary-dark 权威值，白字对比 6.4:1） */
+  --color-primary: #A13F35;              /* 深色主题主色（与小程序端 tokens.ts primary 同色相加深，白字对比 6.4:1） */
   --color-primary-light: #B5483C;        /* hover 提亮（同色相 +6% 亮度） */
   --color-primary-dark: #82332B;         /* active 加深 */
   --color-primary-bg: rgba(161, 63, 53, 0.12);
   --color-on-primary: #FFFFFF;           /* 主色上的文字（白字，保证深朱砂红底对比） */
-  --color-accent: #9A9A9A;               /* 中灰（次要强调） */
   --color-star: #FBBF24;                 /* 星级（语义色） */
-  --color-like: #D9695A;                 /* 点赞/喜欢（语义色，与小程序端对齐） */
-  --color-like-soft: rgba(217, 105, 90, 0.12);
 
   /* ===== 状态色（功能语义，深色下提亮） ===== */
   --color-success: #4ADE80;
@@ -31,7 +28,6 @@
   --text-muted: #959595;
   --text-light: #8A8A8A;
   --text-white: #FFFFFF;
-  --text-white-secondary: rgba(255,255,255,0.85);
 
   /* ===== 背景（近黑 / 深灰） ===== */
   --bg-page: #141414;
@@ -46,16 +42,13 @@
   --border-strong: #4A4A4A;
   --border-soft: #2C2C2C;
 
-  /* ===== 圆角（适中，沉稳；UI-06 对齐 spec §4.2：卡片 16px / 抽屉顶部 20px） ===== */
+  /* ===== 圆角（适中，沉稳；UI-06 对齐 spec §4.2：卡片 16px） ===== */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius: 8px;
   --radius-md: 8px;
-  --radius-lg: 12px;
   --radius-card: 16px;
-  --radius-modal: 16px;
   --radius-pill: 999px;
-  --radius-sheet: 20px 20px 0 0;
 
   /* ===== 价格色（归中性，浅色） ===== */
   --color-price: #F0F0F0;
@@ -65,7 +58,6 @@
   /* ===== 阴影（深色下加深） ===== */
   --shadow-card: 0 1px 3px rgba(0,0,0,0.40);
   --shadow-hover: 0 6px 16px rgba(0,0,0,0.50);
-  --shadow-sheet: 0 -8px 30px rgba(0,0,0,0.60);
   --shadow-pop: 0 12px 32px rgba(0,0,0,0.60);
 
   /* ===== 材质 ===== */
@@ -87,7 +79,6 @@
 
   /* ===== 焦点环（全站统一） ===== */
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent);
-  --focus-offset: 2px;
 
   /* ===== 次级按钮（全站统一） ===== */
   --btn-secondary-bg: var(--bg-card);
@@ -141,17 +132,6 @@
   --nav-item-active-bg: rgba(232, 232, 232, 0.12);
   --nav-item-active-color: #E8E8E8;
 
-  /* 别名 — 兼容旧引用 */
-  --primary: var(--color-primary);
-  --primary-hover: var(--color-primary-light);
-  --success: var(--color-success);
-  --success-bg: var(--color-success-bg);
-  --warning: var(--color-warning);
-  --danger: var(--color-error);
-  --danger-bg: var(--color-error-bg);
-  --border: var(--border-color);
-  --shadow: var(--shadow-card);
-
   /* ===== Component 层 token ===== */
   /* 数据表格：表头略亮区分 + 行分隔线可见 */
   --table-header-bg: #2A2A2A;
@@ -180,19 +160,15 @@
   :root {
     --color-primary: #C45549;            /* 浅色主题主色（spec §4.2 / tokens.ts primary 权威值） */
     --color-primary-light: #B0463A;      /* hover 加深（同色相 -6% 亮度） */
-    --color-primary-dark: #A13F35;       /* active（tokens.ts primary-dark 权威值） */
+    --color-primary-dark: #A13F35;       /* active 加深 */
     --color-primary-bg: rgba(196, 85, 73, 0.10);
-    --color-like: #B53B2C;               /* 点赞/喜欢（与小程序端浅色对齐） */
-    --color-like-soft: rgba(181, 59, 44, 0.10);
     --color-on-primary: #FFFFFF;
-    --color-accent: #6B6B6B;
 
     --text-primary: #1F1F1F;
     --text-secondary: #4A4A4A;
     --text-muted: #6E6E6E;
     --text-light: #8A8A8A;
     --text-white: #1F1F1F;
-    --text-white-secondary: rgba(0, 0, 0, 0.85);
 
     --bg-page: #F5F5F5;
     --bg-card: #FFFFFF;
@@ -210,7 +186,6 @@
 
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.10);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
-    --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.16);
     --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.18);
 
     --table-header-bg: #F0F0F0;

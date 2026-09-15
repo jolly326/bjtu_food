@@ -13,7 +13,8 @@ import { imagesToList, normalizeSecState, pageRecords } from './adapter'
 
 export interface FeedbackAdminVO {
   id: number
-  userId: number
+  /** 匿名反馈为 undefined（WA-02：不再归一为 0，UI 空值显示「游客」） */
+  userId?: number
   userNickname: string
   type: string
   content: string
@@ -37,7 +38,7 @@ export interface FeedbackAdminVO {
 function feedbackToLegacy(raw: any): FeedbackAdminVO {
   return {
     id: raw.id,
-    userId: raw.userId ?? raw.user_id ?? 0,
+    userId: raw.userId ?? raw.user_id ?? undefined,
     userNickname: raw.userNickname || '',
     type: raw.type || 'other',
     content: raw.content || '',

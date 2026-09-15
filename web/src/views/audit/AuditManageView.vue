@@ -8,6 +8,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDashboard, type DashboardData } from '@/api/dashboard'
+import { listReviews } from '@/api/review'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import FeedbackView from '@/views/admin/FeedbackView.vue'
 import ReviewAuditView from '@/views/audit/ReviewAuditView.vue'
@@ -15,8 +16,14 @@ import { Document, ChatLineSquare } from '@element-plus/icons-vue'
 
 // ===== 待办数（来自 dashboard，加载失败静默不影响切换） =====
 const todo = ref<DashboardData | null>(null)
+// 评价待复核数：安检流水线 secState=review 的评价首页 total（WA-04，原硬编码 0 恒绿）
+const pendingReviewCount = ref(0)
 onMounted(async () => {
   try { todo.value = await getDashboard('week') } catch { todo.value = null }
+  try {
+    const { total } = await listReviews({ secState: 'review', page: 1, pageSize: 1 })
+    pendingReviewCount.value = total
+  } catch { pendingReviewCount.value = 0 } // 加载失败静默：徽标退化为 0（不阻塞切换）
 })
 
 // ===== 唯一一级导航：分类卡（带待办数徽标，点击切换当前视图） =====
@@ -30,7 +37,7 @@ const sections = [
   {
     key: 'review',
     label: '评价',
-    badge: () => 0,
+    badge: () => pendingReviewCount.value,
     icon: ChatLineSquare,
   },
 ]

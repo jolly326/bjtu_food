@@ -1,5 +1,5 @@
 import type {
-  Dish, DishDetail, DishQuery, DishSortBy,
+  Dish, DishDetail, DishQuery,
   HotSearch,
 } from '@/types/dish'
 import { get, post } from './http'
@@ -38,7 +38,6 @@ export function toDish(raw: RawRow): Dish {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     stallId: raw.stallId != null ? Number(raw.stallId) : undefined,
-    hasReviewed: !!raw.hasReviewed,
     // ===== task-03 位置链路（来自 stall 联表） =====
     floor: raw.floor || '',
     windowNo: raw.windowNo || '',
@@ -48,7 +47,6 @@ export function toDish(raw: RawRow): Dish {
     // 折扣价（分→元，仅展示层转换；task-12.9）
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
     promoPrice: raw.promoPrice != null ? fenToYuan(raw.promoPrice) : undefined,
-    createdBy: raw.createdBy != null ? Number(raw.createdBy) : undefined,
     latitude: raw.latitude != null ? Number(raw.latitude) : undefined,
     longitude: raw.longitude != null ? Number(raw.longitude) : undefined,
     distance: raw.distance != null ? Number(raw.distance) : undefined,
@@ -118,10 +116,9 @@ export async function addView(id: number): Promise<void> {
 export async function getHotSearch(): Promise<HotSearch[]> {
   // MP-08：热搜是裸数组响应，定型为 RawRow[]
   const raw = await get<RawRow[]>('/dishes/hot-search')
+  // MP-03：HotSearch 收敛为 { keyword }——唯一消费方（find 热搜 chip）只读 keyword
   return (raw || []).map((item: RawRow) => ({
     keyword: item.keyword || '',
-    heat: Number(item.heat ?? 0),
-    relatedCount: Number(item.relatedCount ?? 0) || undefined,
   }))
 }
 
@@ -138,5 +135,3 @@ export async function getHotDishesPage(
 ): Promise<{ list: Dish[]; total: number }> {
   return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max, spiceLevel })
 }
-
-export type { DishSortBy }

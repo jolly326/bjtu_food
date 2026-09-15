@@ -60,7 +60,7 @@
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10 |
-| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/categoryId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize/excludeIds） | `PageResult<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名；`categoryId` 保留为**后台归类查询维度，端上不传**——端上无品类筛选入口，2026-09-14 Q-117） |
+| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize） | `PageResult<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名） |
 | GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（登录时含 hasReviewed） |
 
 > **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`（§3.2）、`GET /dishes/hot-search`（首页热搜在用）。菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。
@@ -69,14 +69,12 @@
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一，至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏且机检通过；本人评价除外，后端过滤） |
-| GET | `/dishes/{dishId}/reviews` | page/pageSize/sort | `PageResult<ReviewVO>` | 菜品评价（同上口径） |
 
 > **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充）**：新增 `images`（字符串数组，≤3 项 COS URL，无图返回空数组）与 `secState`（**三态** `pass`/`review`/`rejected`——`review`=机检待人工复核、`rejected`=人工驳回，两者均对非作者不可见；列表 / 详情接口仅返回 `sec_state='pass'` 或本人评价，后端过滤，前端不兜底）。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
 ### 2.5 内容/品类（公开）
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/categories` | 品类列表（enabled，sort_order 升序）。**2026-09-14 Q-117 定型（spec §7.22 第 1 条）：保留为后台菜品归类用途**——端上品类死链路已删除（`api/category.ts`、品类滚轮 UI 与本接口的端上调用均已清理），不再作为端上筛选数据源、端上零消费 |
 | GET | `/images/**` | 静态图片资源 |
 
 > `GET /broadcasts`、`GET /activities` 及管理端 `/admin/broadcasts`、`/admin/activities` 系列接口已于 2026-09-13 随活动/公告（broadcast）全链路下线删除，接口与实体均不存在（spec §0.5 已登记）。

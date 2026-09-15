@@ -32,8 +32,6 @@ page {
   /* ========== 派生颜色引用（var 组合，非色值真源；真源见 tokens.ts） ========== */
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
-  /* 长条删除按钮（图片移除）暗底白字 */
-  --badge-dark-text: var(--text-white);
 
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
@@ -48,8 +46,6 @@ page {
   --radius-pill: 999rpx;
   /* 正圆（头像 / 圆点 / 指示器） */
   --radius-circle: 50%;
-  /* 底部弹层/提交栏圆角顶边（与 --radius-modal 同值，意见反馈页提交栏等引用） */
-  --radius-sheet: 48rpx;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
@@ -63,7 +59,6 @@ page {
   --font-tiny: 20rpx;
   --font-aux: 22rpx;
   --font-small: 24rpx;
-  --font-label: 26rpx;
   --font-body: 28rpx;
   --font-caption: 30rpx;
   /* 字号标度（单调升序、同值无别名；32rpx=--font-subtitle，44rpx=--font-title） */
@@ -72,13 +67,8 @@ page {
   --font-h2: 40rpx;
   --font-title: 44rpx;
   /* 图标尺寸 */
-  /* 占位/空态图标字号（.placeholder-icon / .empty-icon 的字形尺寸，非文本排版） */
-  --icon-xl: 56rpx;
   --icon-2xl: 64rpx;
   --icon-3xl: 80rpx;
-  --icon-4xl: 120rpx;
-  /* 半透材质（小程序真机 backdrop-filter 降级）；blur 半径为长度参数（颜色部分见生成物） */
-  --blur-radius: 40rpx;
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -107,7 +97,6 @@ page {
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
   --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
-  --z-sheet-mask: 1990;   /* 上述弹层遮罩 */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
   --z-modal: 5000;        /* 居中弹窗（ReportModal） */
   --z-auth: 6000;         /* 登录网关，最高层级 */
@@ -115,11 +104,6 @@ page {
 
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
 page, view, scroll-view, text, image { box-sizing: border-box; }
-
-/* ========== 交互状态通用令牌（client-ui-comprehensive-upgrade 1.1） ==========
-   禁用态弱化文字色（var 派生引用，非色值真源）；加载态遮罩底色 --state-loading
-   为裸色值，已随 UI-03 收口至生成物 generated-colors.css。仅由 page 声明。 */
-page { --state-disabled: var(--text-tertiary); }
 
 /* ========== 页面基础壳 ========== */
 .page {
@@ -133,19 +117,6 @@ page { --state-disabled: var(--text-tertiary); }
   padding-bottom: calc(var(--tabbar-height) + 24rpx + env(safe-area-inset-bottom));
 }
 
-/* ========== 半透材质工具类（Apple Design §12 材质与深度） ========== */
-.glass {
-  background: var(--blur-bg-solid);
-  box-shadow: var(--shadow-card);
-}
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass {
-    background: var(--blur-bg);
-    backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-    -webkit-backdrop-filter: blur(var(--blur-radius)) saturate(180%);
-  }
-}
-
 /* ========== 按压反馈（client-ui-motion 拍板：仅 opacity / bg-soft，禁 transform scale） ==========
    hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
    取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-row.pressed）。
@@ -157,27 +128,11 @@ page { --state-disabled: var(--text-tertiary); }
 
 /* 减少动态效果媒体查询已移除：全站动效已于 client-ui-motion-removal-tokens-consolidation 剥离，无需降级。 */
 
-/* ========== 减少透明度（材质降级为更实） ========== */
-@media (prefers-reduced-transparency: reduce) {
-  .glass {
-    background: var(--bg-card);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
 /* ========== 交互状态工具类（client-ui-comprehensive-upgrade 1.2/1.4/1.6/2.2/4.1） ==========
-   统一加载/禁用/错误态与键盘焦点、hover、宽屏容器，避免各组件散落重复实现。 */
-/* 加载态：叠加微光遮罩并禁交互（独立用于整块） */
-.is-loading { position: relative; pointer-events: none; }
-.is-loading::after {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: var(--state-loading);
-}
-/* 禁用态：弱化 + 禁点（语义文字色复用 --state-disabled） */
+   统一禁用态与键盘焦点、hover，避免各组件散落重复实现。
+   （.glass / .is-loading / .has-error 死工具类已于 UI-03 清理删除。） */
+/* 禁用态：弱化 + 禁点 */
 .is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
-/* 错误态：内联校验失败提示容器（与 .has-error 文字色配对） */
-.has-error { color: var(--color-error); }
 /* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显）。
    fix：文本输入类（input / textarea）聚焦时 SHALL NOT 呈现主色描边——移动端/小程序点击输入框
    即命中 :focus-visible，主色（暖砖红）描边会被读成「红色边框」。输入态由各输入容器自身样式表达
@@ -194,11 +149,9 @@ textarea:focus-visible {
   outline: none;
 }
 /* .hoverable 缩放已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 反馈。 */
-/* 宽屏容器：桌面/平板居中限宽，移动端自然铺满（4.1） */
-.app-container { width: 100%; margin: 0 auto; box-sizing: border-box; }
+/* 宽屏适配（4.1）：主滚动区在宽屏居中限宽，避免内容被无限拉伸（仅 H5/桌面生效；
+   原 .app-container 死工具类已于 UI-03 删除） */
 @media (min-width: 768px) {
-  .app-container { max-width: 720px; }
-  /* 主滚动区在宽屏居中限宽，避免内容被无限拉伸（4.1，仅 H5/桌面生效） */
   .scroll-wrap { max-width: 720px; margin: 0 auto; }
 }
 </style>

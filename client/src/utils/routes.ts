@@ -23,9 +23,6 @@ export const PATH = {
   privacy: '/pages/me/privacy/index',
 } as const
 
-/** 主包 TabBar 路由集合（TabBar.vue / route store 复用） */
-export const TAB_PATHS = [PATH.home, PATH.mine] as const
-
 /** tab key → 主根页路径（TabBar 渲染与跳转共用） */
 export const TAB_URL_BY_KEY: Record<'home' | 'profile', string> = {
   home: PATH.home,

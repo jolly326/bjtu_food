@@ -40,5 +40,7 @@ export const useAuthSheetStore = defineStore('authSheet', () => {
     action?.()
   }
 
-  return { visible, pendingAction, show, hide, clearPending, requireAuth, runPending }
+  // MP-06：pendingAction 零外部消费（外部仅经 requireAuth/clearPending/runPending 操作待办），
+  // 收敛为内部状态，不再出现在 store 返回对象。
+  return { visible, show, hide, clearPending, requireAuth, runPending }
 })

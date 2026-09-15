@@ -5,8 +5,6 @@ package com.bjtufood.common.constant;
  */
 public interface OperationLogConst {
 
-    String ACTION_AUDIT_APPROVE = "audit_approve";
-    String ACTION_AUDIT_REJECT = "audit_reject";
     String ACTION_REVIEW_HIDE = "review_hide";
     String ACTION_REVIEW_DELETE = "review_delete";
     String ACTION_REVIEW_SEC_STATE = "review_sec_state";
