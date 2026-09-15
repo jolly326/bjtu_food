@@ -1,6 +1,6 @@
 # 产品定型总纲 v1.2（2026-09-15）
 
-> **v1.2 变更（对齐 `project_spec.md` §7.23「项目框架与蓝图 v1」+ 根目录 QA.md 优化 Loop）**：① 纳入五条框架原则——菜品为唯一核心实体、食堂 / 档口仅为菜品筛选属性（随菜品 upsert 自动入库，**无独立建档 / 删除接口**）、UGC 仅评价 + 反馈两形态且**评价「有用」点赞需学号邮箱认证（`verified`，未认证 4031）**、学生对菜品的一切诉求 = 反馈（`add/error/report/suggestion`）、**菜品无独立审核**（`dish.audit_status` 退役为历史列，存量归一 `approved`）且**反馈处理为唯一运营闭环**（不采纳 / 退回必填 `reject_reason`）；② 数据模型同步已删列（`dish.serve_period`/`limited`/`portion`、`review.tags`、`stall.business_hours`、食堂 / 档口实体语义 6 列）；③ 接口清单同步已删端点（`/dishes/hot|new|promotions|rising|recommend`、`/admin/admins`、`/admin/audit/**`、`/auth/admin/login`）与已删距离字段（后端 `DishVO.distance` 已删除，距离一律由端上本地计算）；④ `DataInitializer` 已整体删除，种子以 `db/seed_data.sql` 为唯一基线。
+> **v1.2 变更（对齐 `project_spec.md` §7.23「项目框架与蓝图 v1」+ 2026-09-15 优化 Loop）**：① 纳入五条框架原则——菜品为唯一核心实体、食堂 / 档口仅为菜品筛选属性（随菜品 upsert 自动入库，**无独立建档 / 删除接口**）、UGC 仅评价 + 反馈两形态且**评价「有用」点赞需学号邮箱认证（`verified`，未认证 4031）**、学生对菜品的一切诉求 = 反馈（`add/error/report/suggestion`）、**菜品无独立审核**（`dish.audit_status` 退役为历史列，存量归一 `approved`）且**反馈处理为唯一运营闭环**（不采纳 / 退回必填 `reject_reason`）；② 数据模型同步已删列（`dish.serve_period`/`limited`/`portion`、`review.tags`、`stall.business_hours`、食堂 / 档口实体语义 6 列）；③ 接口清单同步已删端点（`/dishes/hot|new|promotions|rising|recommend`、`/admin/admins`、`/admin/audit/**`、`/auth/admin/login`）与已删距离字段（后端 `DishVO.distance` 已删除，距离一律由端上本地计算）；④ `DataInitializer` 已整体删除，种子以 `db/seed_data.sql` 为唯一基线。
 
 > **v1.1 变更**：纳入第四 / 五 / 六轮 PM 问答决议 —— 菜品图片来源与首图必填规则、价格由纠错反馈驱动、录入即上架、通知仅回执、管理端单管理员无角色、上线门槛（先图后上）、详情页展示信息更新时间；并落地首图双校验（后端 + 管理端表单）与 `updatedAt` 字段。
 
