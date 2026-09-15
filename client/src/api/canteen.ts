@@ -11,7 +11,6 @@ export async function getCanteenList(): Promise<CanteenInfo[]> {
     icon: firstImage(c),
     latitude: c.latitude != null ? Number(c.latitude) : undefined,
     longitude: c.longitude != null ? Number(c.longitude) : undefined,
-    distance: c.distance != null ? Number(c.distance) : undefined,
   }))
 }
 

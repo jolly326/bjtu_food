@@ -1,4 +1,6 @@
-# 产品定型总纲 v1.1（2026-09-13）
+# 产品定型总纲 v1.2（2026-09-15）
+
+> **v1.2 变更（对齐 `project_spec.md` §7.23「项目框架与蓝图 v1」+ 根目录 QA.md 优化 Loop）**：① 纳入五条框架原则——菜品为唯一核心实体、食堂 / 档口仅为菜品筛选属性（随菜品 upsert 自动入库，**无独立建档 / 删除接口**）、UGC 仅评价 + 反馈两形态且**评价「有用」点赞需学号邮箱认证（`verified`，未认证 4031）**、学生对菜品的一切诉求 = 反馈（`add/error/report/suggestion`）、**菜品无独立审核**（`dish.audit_status` 退役为历史列，存量归一 `approved`）且**反馈处理为唯一运营闭环**（不采纳 / 退回必填 `reject_reason`）；② 数据模型同步已删列（`dish.serve_period`/`limited`/`portion`、`review.tags`、`stall.business_hours`、食堂 / 档口实体语义 6 列）；③ 接口清单同步已删端点（`/dishes/hot|new|promotions|rising|recommend`、`/admin/admins`、`/admin/audit/**`、`/auth/admin/login`）与已删距离字段（后端 `DishVO.distance` 已删除，距离一律由端上本地计算）；④ `DataInitializer` 已整体删除，种子以 `db/seed_data.sql` 为唯一基线。
 
 > **v1.1 变更**：纳入第四 / 五 / 六轮 PM 问答决议 —— 菜品图片来源与首图必填规则、价格由纠错反馈驱动、录入即上架、通知仅回执、管理端单管理员无角色、上线门槛（先图后上）、详情页展示信息更新时间；并落地首图双校验（后端 + 管理端表单）与 `updatedAt` 字段。
 
@@ -13,10 +15,10 @@
 **一句话**：交大人的「吃什么不踩雷」——校园菜品信息展示与检索平台：把食堂菜品结构化、可搜索、可信评价，用户反馈经安检与审核回流为高质量信息。
 
 **做（四条主线，唯一投入方向）**
-1. **菜品信息展示**：食堂 / 档口 / 菜品的静态信息（名称、价格、档口、楼层、窗口号、营业时间、品类、口味、分量、供应时段、图片）。
-2. **搜索与查找**：关键词（含别名）、品类滚轮、多维筛选、热搜、猜你喜欢。
-3. **评价类 UGC**：认证学生对菜品打星 + 文字 + 配图；可点赞（有用）、可删除本人评价。
-4. **反馈 / 贡献类 UGC**：意见反馈、新增菜品、纠错、举报 —— 管理员审阅后录入 / 修改 / 上下架，结果以站内回执通知。
+1. **菜品信息展示**：菜品为唯一核心实体，食堂 / 档口仅为其筛选属性；展示静态信息（名称、价格、食堂 / 档口、楼层、窗口号、口味辣度、风味 / 菜系、图片）。
+2. **搜索与查找**：关键词（含别名）、多维筛选（食堂 / 价格 / 辣度等，**无品类筛选**）、热搜；「猜你喜欢」接口已随端上零消费下线，浏览足迹仅作数据留存。
+3. **评价类 UGC**：认证学生（`verified=true`）对菜品打星 + 文字 + 配图；可点赞（「有用」，需认证，未认证 4031 弹 `AuthSheet`）、可删除本人评价。
+4. **反馈 / 贡献类 UGC**：意见反馈、新增菜品（`add`）、纠错 / 申请下架（`error`）、举报（`report`）——管理员在反馈处理中审阅后录入 / 修改 / 上下架，结果以站内回执通知（不采纳 / 退回必填 `reject_reason`）。
 
 **内容运营规则（2026-09-13 第四 / 五 / 六轮拍板）**
 - **菜品图片**：管理员（运营 / 后勤）实拍上传，每道菜 1-3 张；**首图必填** —— 无图不录入、不上架，管理端表单与后端双校验（已上架老数据不受影响）；不使用网图，**不启用占位图**。
@@ -44,7 +46,7 @@
 |---|---|---|
 | **游客** | 打开小程序 → `wx.login` 静默登录自动建号（`verified=0`） | 浏览 / 搜索 / 看详情 / 提交反馈（可配图）；**不能**写评价、点赞、看系统通知 |
 | **认证学生** | 学号 + `@bjtu.edu.cn` 邮箱验证码（`verified=1`） | 游客全部 + 写评价（可配图）、评价有用、删除本人评价、系统通知与回执 |
-| **管理员 ADMIN / SUPER_ADMIN** | 管理后台 `/auth/admin/login` | 食堂 / 档口 / 菜品录入与审核、上下架、反馈处理与回复、评价隐藏与安检复核、账号管理、操作日志 |
+| **管理员 ADMIN**（`user.role` 仅 `student`/`admin` 两层数据语义，无 `SUPER_ADMIN` 权限分层） | Web 管理后台**无登录体系**：请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（`AdminTokenFilter`，未配置 fail-closed 403），打开即用 | 菜品录入（**录入即生效、无菜品审核**）与上下架；食堂 / 档口为筛选属性字典，**随菜品按名 upsert 自动入库**，无独立建档 / 删除（仅新增 / 改名 / 列表查看）；反馈处理（**唯一运营闭环**，回复必填、不采纳 / 退回必填 `reject_reason`）；评价隐藏与安检复核；学生账号管理；操作日志 |
 
 **状态迁移**
 ```
@@ -62,10 +64,10 @@
 
 | 分包 | 页面 | 路径 | 功能与交互要点 |
 |---|---|---|---|
-| 主包 | 首页 | `pages/home/index` | 顶部搜索框（跳 `find`）、品类滚轮（`GET /categories`）、筛选（食堂 / 价格 / 排序）、菜品瀑布流（热门 / 推荐，分页加载）、无结果时展示贡献卡片 |
+| 主包 | 首页 | `pages/home/index` | 顶部搜索框（跳 `find`）、筛选（食堂 / 价格 / 排序；**无品类筛选**，spec §7.19 第 3 条）、菜品瀑布流（综合热度排序，分页加载，距离由端上本地计算）、无结果时展示贡献卡片 |
 | 主包 | 搜索 | `pages/find/index` | **发现态**（无词 / 无筛选）：搜索历史（≤4 条，可清空与单条删）+ 猜你想搜；**结果态**：结果列表 + 筛选 + 无结果引导（换词提示 + 去反馈「推荐菜品」）；请求中静默、请求失败显示「加载失败 · 点击重试」 |
 | 主包 | 我的 | `pages/mine/index` | 用户卡（默认头像占位、昵称 / 游客编号；游客点 → 认证弹层，认证点 → 编辑资料）、**一行 3 列宫格**（意见反馈 / 系统通知 / 我的评价，通知未读红点）、底部信息区（版本 / 学校 / **隐私胶囊 + 注销账号**） |
-| detail | 菜品详情 | `pages/detail/dish/index` | 菜品图、名称、价格（原价 / 促销价）、档口 · 食堂 · 楼层 · 窗口号、营业时间、品类、辣度 / 分量 / 供应时段 / 限量、评分与分布、评价列表（最新 / 有用，含配图与「审核中」标）、写评价入口（需认证）、「信息有误？」纠错入口、**信息更新于 X（dish.updated_at，今日 / 昨天 / N 天前 / 具体日期）**、进入时上报浏览埋点 |
+| detail | 菜品详情 | `pages/detail/dish/index` | 菜品图、名称、价格（原价 / 促销价）、档口 · 食堂 · 楼层 · 窗口号、辣度 / 风味 / 菜系、评分与分布、评价列表（有用数优先，含配图与「审核中」标）、写评价入口（需认证）、「有用」点赞（需认证，未认证 4031 弹 `AuthSheet`）、「信息有误？」纠错入口、**信息更新于 X（dish.updated_at，今日 / 昨天 / N 天前 / 具体日期）**、进入时上报浏览埋点 |
 | me | 意见反馈 | `pages/me/feedback/index` | 反馈类型（建议 / 新增菜品 / 纠错 / 举报等）、文本 + 配图 ≤3（压缩后上传）、游客可提交、提交后经安检入库，管理员处理 → 站内回执 |
 | me | 系统通知 | `pages/me/notifications/index` | 需认证；反馈回执与系统通知列表、已读标记 |
 | me | 我的评价 | `pages/me/my-reviews/index` | 本人评价列表（分页、删除、空态双口径），删除后菜品评分刷新 |
@@ -80,11 +82,11 @@
 
 1. **浏览 / 搜索**：首页（品类 / 筛选）→ 瀑布流 → 详情；搜索页发现态 → 结果态（筛选）→ 详情。请求中静默、失败可重试、无结果走引导。
 2. **评价**：认证用户 → 星 + 文 + 图（≤3）→ 后端 `msgSecCheck`（scene=2）→ `pass` 立即对他端可见；`review` 仅本人可见（标「审核中」）待后台复核；`risky` 拦截并提示。
-3. **反馈**：游客亦可提交 → 文本 `msgSecCheck`（scene=2）、图片 `imgSecCheck` → 入库 → 管理员处理并填回复 → 生成站内通知回执（游客无通知能力时提示）。
+3. **反馈**：游客亦可提交 → 文本 `msgSecCheck`（scene=2）、图片 `imgSecCheck` → 入库 → 管理员处理：**回复必填**；不采纳 / 退回必填 `reject_reason` → 生成站内通知回执（游客不投递、不阻塞）。
 4. **认证**：学号 → 60s 限频发送验证码（10 分钟有效）→ 校验 → 绑定邮箱与微信 → `verified=1` → 刷新 token。
 5. **注销**：底部入口 → 二次确认（明示不可恢复）→ `DELETE /auth/account` 匿名化 → 本地清态 → 新游客态。
 6. **通知回执**：管理员处理反馈 / 复核评价 → `notification` → 通知中心 → 已读标记 + 未读红点。
-7. **管理端信息维护**：食堂 / 档口 / 菜品录入（含别名）与审核 → 上下架（下架 = 客户端完全不可见、评价保留）→ 反馈处理 → 评价隐藏 / 安检复核 → 操作日志留痕。
+7. **管理端信息维护**：菜品录入（含别名；食堂 / 档口按名 upsert 自动入库，**录入即生效、无独立审核环节**）→ 上下架（下架 = 客户端完全不可见、评价保留）→ 反馈处理（唯一运营闭环）→ 评价隐藏 / 安检复核 → 操作日志留痕。
 
 ---
 
@@ -92,18 +94,18 @@
 
 | 表 | 关键字段 | 说明 |
 |---|---|---|
-| `user`(16) | id, username, email, password, nickname, avatar, role, status, openid, unionid, verified, bind_email, verified_at, last_login_at | 微信取号（openid 唯一）/ 学号账号；`status` 含 `active/disabled/deleted`；注销后 openid/unionid 置空 |
-| `canteen`(14) | name, images, location, description, latitude, longitude, status, sort_order, audit_status, reject_reason, created_by | 食堂 |
-| `stall`(16) | canteen_id, name, floor, window_no, business_hours, status, audit_status | 档口（楼层 / 窗口号 / 营业时间） |
-| `dish`(24) | stall_id, category_id, name, **alias**, price, original_price, promo_price, description, images, tags, spice_level, portion, serve_period, limited, status, audit_status, view_count, avg_rating, rating_count | 菜品；**金额一律「分」**；`alias` 逗号分隔供搜索；`status=off` 客户端不可见 |
-| `review`(11) | user_id, dish_id, rating, content, tags, images, **sec_state**, is_hidden | 评价；`sec_state`：`pass/review/rejected`（review/rejected 对非作者不可见）；配图 ≤3 |
-| `review_useful`(4) | user_id, review_id | 评价「有用」标记（唯一性由业务保证） |
-| `notification`(9) | user_id, type, title, content, related_id, is_read | 站内通知 / 反馈回执 |
-| `category`(7) | code, name, sort_order, status | 首页品类滚轮 |
-| `user_feedback`(15) | user_id, type, content, images, **sec_state**, contact, status, reply, related_type, related_id, handled_at, handler_id | 反馈 / 举报 / 纠错 / 新增菜品；`related_type='review'` 表示举报评价 |
-| `email_verification_code`(7) | email, code_hash, purpose, expires_at, used_at | 认证验证码（`code_hash` 存储） |
-| `view_log`(6) | user_id, target_type, target_id | 浏览埋点（热度 / 猜你喜欢输入） |
-| `operation_log`(7) | admin_id, action, target_type, target_id, ip | 后台操作审计（AOP 埋点） |
+| `user` | id, username, email, password, nickname, avatar, role, status, openid, unionid, verified, bind_email, verified_at, last_login_at | 微信取号（openid 唯一）；`role` 仅 `student`/`admin` **两层数据语义**；`password` 为历史兼容列（学生侧与管理端均不使用，BCrypt 仅用于验证码哈希）；`status` 含 `active/disabled/deleted`；注销后 openid/unionid 置空 |
+| `canteen` | name, images, location, description, latitude, longitude, sort_order, created_by | 食堂（**筛选属性字典**：实体语义列 `status`/`audit_status`/`reject_reason` 已下线；仅新增 / 改名 / 列表查看，无删除；随菜品 upsert 自动建档） |
+| `stall` | canteen_id, name, images, location, floor, window_no, description, sort_order, created_by | 档口（楼层 / 窗口号保留；**仅为菜品筛选属性字典**，`business_hours` 与实体语义列已下线） |
+| `dish` | stall_id, category_id, name, **alias**, price, original_price, promo_price, description, images, tags, region, spice_level, status, audit_status†, reject_reason†, created_by, view_count, avg_rating, rating_count | 菜品；**金额一律「分」**；`alias` 逗号分隔供搜索；`region` = 风味 / 菜系（非校区）；`serve_period`/`limited`/`portion` 已下线；`status=off` 客户端不可见；† `audit_status`/`reject_reason` 为**退役历史列**（菜品无独立审核，录入即 `approved`，存量经 `normalize_dish_audit_status.sql` 归一） |
+| `review` | user_id, dish_id, rating, content, images, useful_count, **sec_state**, is_hidden | 评价（一人一菜一评）；`review.tags` 已下线；`sec_state`：`pass/review/rejected`（review/rejected 对非作者不可见）；配图 ≤3 |
+| `review_useful` | user_id, review_id | 评价「有用」标记（唯一性由业务保证） |
+| `notification` | user_id, type, title, content, related_id, is_read | 站内通知 / 反馈回执（`feedback_handle` 为唯一在产类型） |
+| `category` | code, name, sort_order, status | **仅供后台菜品归类**（端上无品类筛选 / 展示入口，spec §7.22 第 1 条） |
+| `user_feedback` | user_id, type, content, images, **sec_state**, contact, status, reply, **reject_reason**, related_type, related_id, handled_at | 反馈 / 举报 / 纠错 / 新增菜品（类型白名单 `suggestion/add/error/report`）；`related_type='review'` 表示举报评价；处理结论 `outcome`（handled/rejected）为请求级字段，`rejected` 必填 `reject_reason`（随回执展示）；`handler_id` 已停写（单口令即单人） |
+| `email_verification_code` | email, code_hash, purpose, expires_at, used_at | 认证验证码（`code_hash` 存储） |
+| `view_log` | user_id, target_type, target_id | 浏览埋点（热度输入；「猜你喜欢」接口已下线，足迹仅作数据留存） |
+| `operation_log` | admin_id†, action, target_type, target_id, ip | 后台操作审计（AOP 埋点）；† `admin_id` 已停写（单口令即单人，不追究操作人身份） |
 
 **关系**：`canteen 1─n stall 1─n dish`；`dish 1─n review 1─n review_useful`；`user 1─n {review, review_useful, notification, user_feedback, view_log}`；`dish.category_id → category`。
 **全局约束**：金额以「分」存储与传输；无外键（应用层保证）；评价 / 反馈配图 ≤3 张（COS 绝对地址 JSON）。
@@ -112,9 +114,9 @@
 
 ## 6. 接口契约（现网实际路径）
 
-**公开 / 游客可读**：`GET /canteens`、`/canteens/{id}`、`/canteens/all`、`/categories`、`/dishes`（搜索 / 筛选 / 排序，keyword 命中 name 或 alias）、`/dishes/hot`、`/dishes/new`、`/dishes/promotions`、`/dishes/rising`、`/dishes/hot-search`、`/dishes/recommend`、`/dishes/{id}`、`/dishes/{dishId}/reviews`、`POST /auth/wechat-login`、`POST /feedback`。
-**登录态**：`POST /dishes/{id}/view`、`POST /reviews`、`DELETE /reviews/{id}`、`POST /reviews/{id}/useful`、`GET /my/reviews`、`GET /my/notifications`、`/my/notifications/unread-count`、`PUT /my/notifications/{id}/read`、`GET|PUT /auth/profile`、`POST /auth/email-code`、`POST /auth/verify-email`、`DELETE /auth/account`（注销）、`POST /upload/images`（fileId→COS URL）、`POST /upload/image`（multipart，保留）。
-**管理端 `/admin/**`**：`dishes`、`/canteens`、`/stalls`、`/categories`、`/reviews`（含 `secState` 筛选与 `{id}/sec-state`、`{id}/hide`）、`feedbacks`、`users`、`admins`、`audit`（`{type}/{id}/approve|reject`）、`dashboard`、`operation-logs`；`POST /auth/admin/login`。
+**公开 / 游客可读**：`GET /canteens`、`/canteens/all`、`/categories`（仅供后台菜品归类）、`/dishes`（搜索 / 筛选 / 排序，keyword 命中 name 或 alias）、`/dishes/hot-search`、`/dishes/{id}`、`/dishes/{dishId}/reviews`、`POST /auth/wechat-login`、`POST /feedback`（公开提交）。**已删端点（勿再引用）**：`/dishes/hot|new|promotions|rising|recommend`（2026-09-14 端上零消费下线）。
+**登录态**：`POST /dishes/{id}/view`、`POST /reviews`、`DELETE /reviews/{id}`、`POST /reviews/{id}/useful`（**需 `verified=true`**，未认证 4031）、`GET /my/reviews`、`GET /my/notifications`、`/my/notifications/unread-count`、`PUT /my/notifications/{id}/read`、`GET|PUT /auth/profile`、`POST /auth/email-code`、`POST /auth/verify-email`、`DELETE /auth/account`（注销）、`POST /upload/images`（fileId→COS URL）、`POST /upload/image`（multipart，管理端用）。
+**管理端 `/admin/**`**（无登录体系，`X-Admin-Token` 口令把关）：`dishes`（含食堂 / 档口按名 upsert）、`/canteens`、`/stalls`、`/categories`、`/reviews`（含 `secState` 筛选与 `{id}/sec-state`、`{id}/hide`）、`feedbacks`（处理结论 `outcome`，`rejected` 必填 `reject_reason`）、`users`、`dashboard`、`operation-logs`。**已删端点（勿再引用）**：`/admins`（管理员账号管理）、`/audit/**`（实体审核）、`/auth/admin/login`。
 
 **错误码（固定）**：`200 / 400 / 401 / 403 / 4031 / 500`；安检违规、违规图片、未配置存储等一律 **400**；游客触发需认证写操作 **4031**。
 
@@ -133,9 +135,9 @@
 ## 8. 搜索与推荐算法（定型，改动须重新拍板）
 
 - **热度排序**（`DishMapper.xml` 实际）：`view_count×1 + rating_count×100 + avg_rating×20`（浏览 + 评价数 + 评分聚合，**无收藏维度**）。
-- **搜索**：`keyword` 命中 `name` 或 `alias`（管理员配别名）；支持食堂 / 品类 / 价格 / 辣度 / 分量 / 供应时段 / 排序 / 排除 ID。
+- **搜索**：`keyword` 命中 `name` 或 `alias`（管理员配别名）；筛选支持食堂 / 价格 / 辣度 / 标签（`categoryId` 仅为后台归类查询维度，端上不传）；排序 /排除 ID。
 - **热搜 TOP10**：由菜品热度派生（一期无搜索词埋点）。
-- **猜你喜欢**：基于 `view_log` 浏览足迹个性化 + `excludeIds` 去重分页。
+- **猜你喜欢**：**已随 2026-09-14 端上零消费接口下线整体删除**（`GET /dishes/recommend` 不存在）；`view_log` 浏览足迹仅作为数据留存，无下游消费接口。
 
 ---
 
@@ -150,7 +152,7 @@
 
 ## 10. 非功能与合规
 
-- **鉴权**：JWT 7 天；`TokenBlacklist`（token + userId 双维度）；`/admin/**` 仅 ADMIN；游客 `4031` 引导认证。
+- **鉴权**：JWT 7 天（仅学生端，token 仅含 userId）；`TokenBlacklist`（token + userId 双维度）；`/admin/**` 无登录体系，由 `AdminTokenFilter` 校验 `X-Admin-Token` == `ADMIN_TOKEN`（未配置 fail-closed 403）；游客 `4031` 引导认证。
 - **合规**：隐私政策页 + 采集节点告知 + **账号注销（匿名化）**；UGC 全部过微信内容安检。
 - **部署与可迁移**：COS 存储、微信安检接口、业务接口均**不绑定微信云托管**，后端可整体迁移独立服务器（届时小程序上传域名走备案域名白名单；`callContainer` 仅作为当前传输层）。
 - **数据库红线**：表结构变更只改 `schema.sql`（含旧库幂等迁移块），**禁止直连 ALTER**；覆盖远端库前先 `mysqldump` 备份。
@@ -171,4 +173,4 @@
 1. 评价列表默认按**最新**排序，可切「有用」；评价按 `is_hidden=0 且 sec_state=pass`（或本人）对外可见。
 2. 头像**不支持上传**，全站使用默认占位头像（`user.avatar` 允许站内 / cloud 地址但产品无上传入口）。
 3. 系统通知为**认证专属**（游客不拉未读数、入口直达提示认证）。
-4. 反馈类型由 `user_feedback.type` 承载（建议 / 新增菜品 add / 纠错 error / 举报 report 等），举报复用该表并置 `related_type='review'`。
+4. 反馈类型写入白名单 = `suggestion` / `add` / `error` / `report`（`bug` / `other` 为历史遗留枚举位，无生产者、禁止新增），举报复用该表并置 `related_type='review'`。

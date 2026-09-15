@@ -35,6 +35,16 @@
 
 > 说明：以上项若执行，须先确认不扩大功能、可回滚，并补回归验证；建议用户在醒来后逐条拍板。
 
+## 2.1 拍板结果（2026-09-15，用户已答复）
+| 编号 | 决定 | 执行情况 |
+|---|---|---|
+| TL-OPT-03 / TL-OPT-04 | 一并收口 | ✅ 已执行：`launch-checklist.md` 顶部加「历史文档」标注并修正 D5 与现状冲突条目；`QUESTIONS.md` 收敛为单一真值 |
+| TL-OPT-05 | 一并收口 | ✅ 已执行：grep 确认 server 代码（.java/.xml）零引用；`schema.sql` 幂等 DROP 已就位，随下次部署生效；`STATUS.md` D6 关闭 |
+| BE-OPT-03 / BE-OPT-06 | **暂缓** | 按用户决定暂缓（当前缺充分集成测试覆盖，SQL/模板重构待补测试后再评估）；未执行 |
+| BE-OPT-04 | 精简 | ✅ 已执行：`GET /canteens` 去 `lat/lng`（server Controller/Service/Impl 三层 + client `api/canteen.ts`/`types/canteen.ts` 死读死字段清理；web 经 grep 确认本就未传参，无改动） |
+| UI-OPT-01 | 补 | ✅ 已执行：web `Modal.vue` + client `useSheetFocus.ts` Tab 焦点循环陷阱（对称注册/卸载，既有 ESC/聚焦行为不变） |
+| MP-OPT-03 / MP-OPT-05 | 保留 | PM 按「最小改动」自行决策保留（uni.scss 为 uni-app 全局 SCSS 入口；manifest 多端配置为多端预留） |
+
 ## 3. 本轮明确跳过（低风险但前置已满足 / 收益极小 / 保留意图）
 - **MP-OPT-04**：根 `.gitignore` 已覆盖 `dist/`、`node_modules/`，且二者均未跟踪，目标已达成，无需改动。
 - **WEB-OPT-05**：api 列表归一重复 `pageRecords` 调用，收益极小，本轮不做。

@@ -1,5 +1,7 @@
 # 上线放行清单（三项并行验收）· 2026-09-14 定版
 
+> ⚠️ **历史文档**：本清单为 **ITER-003 期间的过程快照**，各条目的实际完成状态以 `docs/loop/STATUS.md` 为准（本文件不再随进度更新）。
+>
 > 依据 `docs/project_spec.md` §7.12 第 1 条：**构建门禁 + 手工走查 + 线上自动冒烟**三项并行，缺一不可。
 > 使用方式：逐项勾选；不通过的写入 `docs/loop/QUESTIONS.md` 走问题流转（§8）。
 
@@ -100,4 +102,4 @@
 | D2 | 31 道菜首图上传 | 用户 | ⬜ |
 | D3 | 小程序 downloadFile 域名加 COS | 用户 | ⬜ |
 | D4 | DB 迁移执行（3 列删除） | 用户 | ⬜ |
-| D5 | 占位文件物理删除（`web/src/api/admin.ts`、`stores/adminUserStore.ts`、`views/admin/AdminManageView.vue`、`server/.../AdminCreateReq.java`） | 用户批准删除 | ⬜ |
+| D5 | 占位文件物理删除（`web/src/api/admin.ts`、`stores/adminUserStore.ts`、`views/admin/AdminManageView.vue`、`server/.../AdminCreateReq.java`） | 用户批准删除 | ✅ 已完成（2026-09-14 用户批准后已物理删除，5 个文件全部移除，见 STATUS.md D5） |

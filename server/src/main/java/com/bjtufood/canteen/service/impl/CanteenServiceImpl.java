@@ -37,12 +37,7 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public List<CanteenInfoVO> listCanteens() {
-        return listCanteens(null, null);
-    }
-
-    @Override
-    public List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng) {
-        // 注：lat/lng 不再用于服务端距离计算——坐标随食堂返回，距离由前端本地 Haversine 算（用户位置不出本机）
+        // 注：本接口不接收 lat/lng——坐标随食堂 VO 返回，距离由前端本地 Haversine 算（用户位置不出本机）
         // 食堂已去实体化（2026-09-14）：无停业语义，不再按 status 过滤，全量字典按 sort_order 返回
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
                 .orderByAsc(Canteen::getSortOrder));

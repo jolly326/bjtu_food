@@ -10,6 +10,11 @@
  *  - danger: 确认按钮走 btn-danger（破坏性操作二次确认）；
  *  - confirmText/cancelText/confirmLoading/onConfirm + slot footer + event confirm。
  *  - Web 弹层 220ms scale+opacity 过渡保留（spec §4.9 登记 Web 豁免）。
+ *
+ * UI-OPT-01 新增契约：
+ *  - Tab 焦点循环陷阱：弹层打开期间 Tab/Shift+Tab 在弹层内可聚焦元素间循环，焦点不逃逸到背景页面；
+ *  - 与 ESC 关闭共用同一个 window keydown 监听（show 打开注册 / 关闭与卸载移除，对称）；
+ *  - 不改变 confirm 默认聚焦「取消」与视觉表现。
  */
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { Close } from '@element-plus/icons-vue'
@@ -50,9 +55,41 @@ let hideTimer: number | undefined
  */
 const EXIT_DURATION_MS = 220
 
-// ESC 关闭（键盘可达性）
+// 弹层内可聚焦元素（按 DOM 顺序；过滤不可见元素，兜底 Tab 落点）
+function getFocusable(): HTMLElement[] {
+  if (!box.value) return []
+  const nodes = box.value.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
+      'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  )
+  return Array.from(nodes).filter((el) => el.getClientRects().length > 0)
+}
+
+// 键盘处理：ESC 关闭 + Tab 焦点循环陷阱（UI-OPT-01）
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.show) emit('close')
+  if (!props.show) return
+  if (e.key === 'Escape') {
+    emit('close')
+    return
+  }
+  if (e.key !== 'Tab') return
+  const focusables = getFocusable()
+  if (focusables.length === 0) {
+    // 弹层内无可聚焦元素：阻止焦点逃逸到背景
+    e.preventDefault()
+    return
+  }
+  const active = document.activeElement
+  const currentIndex = active instanceof HTMLElement ? focusables.indexOf(active) : -1
+  // 焦点在弹层外（含 body/背景元素）时拉回弹层内首/尾，否则按方向循环移动
+  const nextIndex =
+    currentIndex === -1
+      ? e.shiftKey
+        ? focusables.length - 1
+        : 0
+      : (currentIndex + (e.shiftKey ? -1 : 1) + focusables.length) % focusables.length
+  e.preventDefault()
+  focusables[nextIndex]!.focus()
 }
 
 watch(

@@ -5,7 +5,6 @@ import com.bjtufood.canteen.dto.CanteenInfoVO;
 import com.bjtufood.canteen.dto.CanteenWithStallsVO;
 import com.bjtufood.canteen.entity.Canteen;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -19,23 +18,12 @@ public interface CanteenService {
     /**
      * 获取食堂列表（首页用于展示）
      * <p>
-     * 全量返回（无停业语义，不再按 status 过滤），按 sort_order 排序
+     * 服务端不接收 lat/lng（用户位置不出本机）：坐标随 VO 返回，距离由前端本地 Haversine 计算。
+     * 全量返回（无停业语义，不再按 status 过滤），按 sort_order 排序。
      *
      * @return 食堂展示列表
      */
     List<CanteenInfoVO> listCanteens();
-
-    /**
-     * 获取食堂列表（首页推荐，lat/lng 为兼容保留参数）
-     * <p>
-     * 服务端<b>不再</b>按距离排序（用户位置不出本机）：坐标随 VO 返回，距离由前端本地 Haversine 计算。
-     * 本方法当前与 {@link #listCanteens()} 等价（按 sort_order 排序，全量返回，无 status 过滤）。
-     *
-     * @param lat 用户纬度（GCJ-02，可选，当前未使用）
-     * @param lng 用户经度（GCJ-02，可选，当前未使用）
-     * @return 食堂展示列表
-     */
-    List<CanteenInfoVO> listCanteens(BigDecimal lat, BigDecimal lng);
 
     /**
      * 获取所有食堂列表（含下属档口信息）

@@ -36,8 +36,21 @@
 ## Round 1 — 未执行（中高风险，已入 QA.md 待用户决策）
 TL-OPT-03 / TL-OPT-04 / TL-OPT-05 / BE-OPT-03 / BE-OPT-04 / BE-OPT-06 / UI-OPT-01 / MP-OPT-03 / MP-OPT-05 —— 详见 QA.md §2。
 
+## Round 2 — 用户拍板后执行（2026-09-15）
+
+| 编号 | 角色 | 目标 | 涉及文件 | 风险 | 验证 |
+|---|---|---|---|---|---|
+| BE-OPT-04 | 后端+小程序+Web | `GET /canteens` 精简 `lat/lng` 契约（距离由前端本地 Haversine 计算） | server `CanteenController/CanteenService/CanteenServiceImpl`；client `api/canteen.ts`、`types/canteen.ts`（死读死字段清理）；web 经 grep 确认本就未传参 | 中（契约变更，用户已拍板） | server `mvn compile` 0；client `type-check`/`build:mp-weixin` 0 |
+| UI-OPT-01 | Web+小程序 | 弹层 Tab 焦点循环陷阱（a11y，焦点不逃逸到背景） | `web/src/components/Modal.vue`、`client/src/composables/useSheetFocus.ts`（BaseSheet/ReportModal 自动获益） | 中（纯 a11y，用户已拍板） | web `build` 0；client `type-check` 0 |
+| TL-OPT-03/04/05 | 技术负责人 | 文档/db 收口：launch-checklist 历史标注+D5 修正；QUESTIONS.md 真值收敛；`business_hours` 代码零引用确认 + D6 关闭 | `docs/loop/launch-checklist.md`、`docs/loop/QUESTIONS.md`、`docs/loop/STATUS.md` | 低 | grep 复核（server .java/.xml 零引用） |
+| 蓝图/契约同步 | 技术负责人 | spec/product-blueprint/api-design/architecture 对齐已执行事实 | `project_spec.md`、`product-blueprint.md`(v1.2)、`api-design.md`、`architecture.md` | 低 | 文档对账 |
+| BE-OPT-03/06 | — | 用户拍板**暂缓**（待补集成测试后再评估） | — | — | — |
+
+## 停止判定（Round 2 后）
+- 低风险项已全部完成；用户拍板项已执行完毕；唯一遗留 BE-OPT-03/06 为用户明示暂缓项（挂起而非空转）。
+- **Loop 停止**：继续执行只剩暂缓项与运行时冒烟（需环境），无新的低风险优化项。
+
 ## 下一轮建议
-待用户就 QA.md §2 中高风险项拍板后，可启动 Round 2：
-1. 若 BE-OPT-03/06、UI-OPT-01 获准，需补回归测试（mapper SQL / service 列表 / 弹层 a11y）。
-2. 文档一致性（TL-OPT-03/04/05）可在用户确认后一次性收口。
-3. 若继续空转（无新低风险项且中高风险全在 QA），按协议停止。
+1. 补齐评价列表三维度（菜品/档口/食堂）集成测试后，再评估 BE-OPT-03/06 去重重构。
+2. 部署窗口执行 `schema.sql` 幂等 DROP（`stall.business_hours`），完成 D6 的线上收尾。
+3. 运行时冒烟（游客 token / 受保护接口 / 4031 / /admin 口令）需具备环境后补做。

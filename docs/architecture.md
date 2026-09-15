@@ -146,7 +146,7 @@ cd web
 npm install
 npm run dev   # http://localhost:5173
 ```
-- 需 ADMIN 角色登录（后端 `DataInitializer` 仅在 dev profile 下创建 admin，且不打印口令）
+- 无登录体系：本地 `.env.local` 配 `VITE_ADMIN_TOKEN`（与后端环境变量 `ADMIN_TOKEN` 同值）即打开即用（`AdminTokenFilter` 校验请求头 `X-Admin-Token`，未配置 fail-closed 403）
 
 ## 5. 前端状态管理（Pinia store）
 
