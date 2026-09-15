@@ -45,7 +45,7 @@ com.bjtufood/
 ### 2.1 微信登录（游客态）
 - `POST /auth/wechat-login`：`code` → 微信 code2Session → openid 唯一取号
 - 新 openid 自动建号（`username=wx_+openid尾16位`，`verified=0`）
-- token 长期有效（不设超时），注销/禁用走 `TokenBlacklist`
+- token 有效期 **7 天**（`application.yml` `jwt.expiration=604800000ms`，2026-09-15 DOC-08 修订，原「长期有效（不设超时）」表述有误）；注销/禁用走 `TokenBlacklist`
 
 ### 2.2 邮箱认证（解锁写操作）
 - `POST /auth/email-code` → 发 `@bjtu.edu.cn` 验证码（60s 限频、6 位、10 分钟有效）
@@ -53,8 +53,8 @@ com.bjtufood/
 - 写操作接口用 `@RequireVerified` 切面（未认证抛 `4031`）
 
 ### 2.3 角色与权限
-- `student` / `admin` / `super_admin`（管理管理员）
-- Security：URL 白名单 + `/admin/**` 规则 + 方法级 `@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")` 纵深防御
+- `user.role` 仅 `student` / `admin` **两层数据语义**（账号归属区分，不作权限分层；`super_admin` 已移除，spec §7.10 / §7.23）
+- Security：URL 白名单 + JWT 过滤器 + `@RequireVerified` 切面（未认证 4031）；**`/admin/**` 不走角色**——由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置 fail-closed 403，校验通过后置 `ROLE_ADMIN` 授权放行）；`POST /upload/image` 亦由该口令守卫（2026-09-15 B4）
 
 ### 2.4 安全加固（已落实）
 - JWT 密钥从环境变量注入，启动 fail-fast 拒绝弱密钥
@@ -104,6 +104,9 @@ POST /upload/images ──────▶ UploadController
 | `COS_BUCKET` / `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_REGION` | 腾讯云 COS 对象存储（**UGC 配图永久存储**，2026-09-13 起必填；见 §2.5 链路） |
 | `APP_PUBLIC_BASE_URL` | 图片完整 URL 前缀（头像 / 后台菜品图；UGC 配图为 COS URL 不经此前缀） |
 | `CORS_ALLOWED_ORIGINS` | 管理后台浏览器源（白名单） |
+| `ADMIN_TOKEN` | 管理端口令（`AdminTokenFilter` 校验请求头 `X-Admin-Token`；**未配置时 fail-closed 403**，web 侧 `VITE_ADMIN_TOKEN` 与之同值，2026-09-15 CF-01 补登记） |
+| `WECHAT_CLOUD_ENV` | 微信云开发环境 ID（UGC 配图云存储 fileID 校验 / tcb 拉取用，2026-09-15 CF-01 补登记） |
+| `UPLOAD_PATH` / `UPLOAD_URL_PREFIX` | 本地 multipart 上传目录（默认 `./uploads/images`）与图片访问前缀（默认 `/images`，web 管理端菜品图链路，2026-09-15 CF-01 补登记） |
 
 > `spring-dotenv`：本地读 `server/.env`；云托管读同名环境变量。仓库不保留任何明文凭据。
 
@@ -153,11 +156,13 @@ npm run dev   # http://localhost:5173
 | Store | 职责 |
 |---|---|
 | `user` | 登录态、token、profile；`forceLogout` 联动重置各 store |
-| `dish` | 菜品列表/详情/筛选/猜你喜欢/评价；竞态守卫（filterFetchSeq） |
-| `theme` | 深色模式（手动/跟随系统） |
+| `dish` | 菜品列表/详情/筛选/评价；竞态守卫（filterFetchSeq）；本地距离写回（withLocalDistance） |
 | `location` | 定位/距离计算 |
 | `notify` | 未读红点（`reset` 供登出联动） |
-| `review` | 评价状态 |
+| `auth-sheet` | `AuthSheet` 认证弹层全局编排（打开/关闭、认证成功回调，2026-09-15 DOC-10 对齐实况） |
+| `route` | 跨页路由辅助（2026-09-15 DOC-10 对齐实况） |
+
+> 原表中的 `theme`（深色模式）与 `review` store 已不存在——项目无深色模式（spec §4.2 S4-04）、评价状态由页面编排承载（2026-09-15 DOC-10）。
 
 ### 5.1 登录态一致性
 - `forceLogout` 会联动 `dishStore.resetUserScopedData` + `notifyStore.reset`，避免换用户串数据
@@ -172,8 +177,8 @@ npm run dev   # http://localhost:5173
 6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；安检态 `sec_state`（**三态** pass/review/rejected，rejected=人工驳回，与 review 同对非作者不可见）、后台可放行（→pass）/驳回（→rejected）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
 
 ## 7. 已知技术债（见 api-design.md §9）
-- 验证码 IP 维度限频待补
+- ~~验证码 IP 维度限频待补~~（已解决：`/auth/email-code` 已接入 `IpRateLimiter`，2026-09-15 DOC-10 收敛）
 - `<PressCard>` 按压组件待抽取
-- `NotificationController` 直调 Mapper（分层红线，建议下沉 Service）
+- ~~`NotificationController` 直调 Mapper（分层红线，建议下沉 Service）~~（已解决：逻辑已下沉 `NotificationService`，2026-09-15 DOC-10 收敛）
 - ~~4031 非标码需 spec 豁免登记~~（已在 spec §3 登记豁免）
 - ~~通知接口 verified 口径待统一~~（`@RequireVerified` 已补齐）

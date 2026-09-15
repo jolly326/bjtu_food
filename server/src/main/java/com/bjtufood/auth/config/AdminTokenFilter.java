@@ -9,6 +9,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -16,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.List;
 
 /**
  * 管理端（Web 后台）口令校验过滤器（2026-09-13 定型：后台为本地数据操作工具、无登录体系）。
@@ -28,7 +32,8 @@ import java.security.MessageDigest;
  * <ul>
  *   <li>未配置 {@code ADMIN_TOKEN} → **fail-closed 拒绝全部 /admin 请求**（403），避免遗忘配置导致管理端裸奔；</li>
  *   <li>口令比对使用等时比较（MessageDigest.isEqual），降低时序侧信道风险；</li>
- *   <li>仅作用 {@code /admin} 路径，小程序端接口不受任何影响。</li>
+ *   <li>仅作用 {@code /admin/**} 与 {@code /upload/image}（后台图片上传，2026-09-15 B4 纳入口令守卫），
+ *       小程序端接口不受任何影响；校验通过后设置 ROLE_ADMIN 认证供授权层使用。</li>
  * </ul>
  */
 @Component
@@ -72,7 +77,17 @@ public class AdminTokenFilter extends OncePerRequestFilter {
             writeJson(response, HttpStatus.FORBIDDEN.value(), Result.forbidden("管理端口令无效"));
             return;
         }
-        filterChain.doFilter(request, response);
+        // 口令校验通过后补设 Authentication（ROLE_ADMIN）：使请求能通过 SecurityConfig 的
+        // anyRequest().authenticated() 授权检查（/upload/image 已不在 permitAll 白名单，2026-09-15 B4）。
+        // 否则授权层因匿名身份返回 401，即使口令正确后台上传也会失败。
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                "admin", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // 无状态体系：请求结束后清理上下文，避免容器线程复用导致的认证残留
+            SecurityContextHolder.clearContext();
+        }
     }
 
     /** 等时比较，避免通过响应时间差逐字符猜测口令 */

@@ -28,10 +28,10 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。支持按维度查询评价：dishId（菜品）、stallId（档口）、canteenId（食堂），三者至多传其一，都不传默认按 dishId 维度但 dishId 必填。只返回未隐藏评价。排序 sort=useful（默认，按有用数置顶）/latest。测试示例：/reviews?stallId=1&page=1&pageSize=20&sort=latest")
+    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。支持按维度查询评价：dishId（菜品）、stallId（档口）、canteenId（食堂），可同时传，按 stallId > canteenId > dishId 优先取一，都不传默认按 dishId 维度但 dishId 必填。只返回未隐藏评价。排序 sort=useful（默认，按有用数置顶）/latest。测试示例：/reviews?stallId=1&page=1&pageSize=20&sort=latest")
     @GetMapping("/reviews")
     public Result<PageResult<ReviewVO>> listReviews(
-            @Parameter(description = "菜品ID（与 stallId / canteenId 至多传其一）", example = "1")
+            @Parameter(description = "菜品ID（可同时传，按 stallId > canteenId > dishId 优先取一）", example = "1")
             @RequestParam(required = false) Long dishId,
             @Parameter(description = "档口ID（按档口查评价）", example = "1")
             @RequestParam(required = false) Long stallId,

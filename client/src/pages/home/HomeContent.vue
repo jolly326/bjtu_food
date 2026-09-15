@@ -5,10 +5,8 @@
          失败态**优先于**加载态与空态：失败 ≠ 加载中 ≠ 无内容 -->
     <RetryBlock v-if="loadFailed" @retry="emit('retry')" />
 
-    <!-- 加载骨架（MP-01）：首屏 / 切筛选期间占位，避免空白区 + 贡献卡抢先渲染造成「没内容」误导 -->
-    <FeedSkeleton v-else-if="loading" />
-
-    <template v-else>
+    <!-- spec §4.8 不设加载骨架/加载指示：loading 期间本区块不渲染任何内容，保持空白 -->
+    <template v-else-if="!loading">
       <view class="waterfall-grid">
         <!-- 双列瀑布流：奇偶分列（右列绝不空）；原 WaterfallList 已内联合并到此，减少一层组件嵌套 -->
         <view class="waterfall-col waterfall-col-left">
@@ -62,7 +60,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
-import FeedSkeleton from './FeedSkeleton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import {

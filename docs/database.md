@@ -105,7 +105,7 @@
 | region | VARCHAR(32) | 可 | NULL | **风味 / 菜系**（**不是「地域 / 校区」**；2026-09-14 §7.9 第 1 条定型），权威值域：东北 / 川湘 / 粤式 / 西北 / 清真 / 其他（schema.sql 存储过程幂等追加） |
 | spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
 | status | VARCHAR(32) | 否 | 'on' | 上架：on/off（**菜品唯一的运营开关**） |
-| audit_status | VARCHAR(32) | 否 | 'pending' | **已退役的历史列（2026-09-15 蓝图 v1 / spec §7.23 第 4 条）**：菜品无独立审核，管理员录入 / 编辑即写 `approved` 并直接生效；列保留、不再扩展、后台与端上均无审核入口。存量非 `approved` 由 `normalize_dish_audit_status.sql` 一次性归一 |
+| audit_status | VARCHAR(32) | 否 | 'approved' | **已退役的历史列（2026-09-15 蓝图 v1 / spec §7.23 第 4 条；2026-09-15 DB-01 默认值改 `'approved'`，与 schema.sql 同步）**：菜品无独立审核，管理员录入 / 编辑即写 `approved` 并直接生效——**默认值与「录入即生效」对齐，新菜插入即公开可见**；列保留、不再扩展、后台与端上均无审核入口。**公开查询仍按该列过滤（`approved OR NULL`）**。存量非 `approved` 由 `normalize_dish_audit_status.sql` 一次性归一 |
 | reject_reason | VARCHAR(255) | 可 | NULL | **已退役的历史列**（同上，随菜品审核语义退役；不采纳 / 退回语义已迁至 `user_feedback.reject_reason`） |
 | created_by | BIGINT | 可 | NULL | 提交人 |
 | view_count | INT | 否 | 0 | 浏览量 |
@@ -149,6 +149,7 @@
 | id | BIGINT | 否 | AUTO | 通知ID |
 | user_id | BIGINT | 否 | 0 | 接收用户ID |
 | type | VARCHAR(32) | 否 | '' | `feedback_handle`（**唯一在产类型**：反馈 / 举报处理回执，仅已认证提交人可收到）/ `dish_audit`（**仅存量兼容，2026-09-14 Q-107 起不再产生新通知**——菜品无独立审核，见 spec §7.23 第 4 条） |
+> **注（2026-09-15 DB-04）**：`seed_data.sql` 中 `type='dish_audit'` 的通知为**存量演示数据**（配合历史数据展示、非在产类型；后端不动 seed，仅文档登记）。
 | title | VARCHAR(128) | 否 | '' | 通知标题 |
 | content | VARCHAR(512) | 可 | NULL | 正文 |
 | related_id | BIGINT | 可 | NULL | 关联对象ID（按 type 解释） |
@@ -222,8 +223,8 @@
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
-| admin_id | BIGINT | 否 | 0 | 操作管理员ID |
-| action | VARCHAR(64) | 否 | '' | audit_approve/audit_reject/review_hide/review_delete/feedback_handle/… |
+| admin_id | BIGINT | 否 | 0 | **已停写 / retired（2026-09-15 DOC-11 补注，spec §7.10 第 2 条）**：管理端操作人身份降级后不再写入、不再保证有值（恒 0 或历史值）；列与索引仅作历史数据查询保留 |
+| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java:8-17` 实际值重写）**：`review_hide` / `review_delete` / `review_sec_state` / `dish_delete` / `feedback_handle` / `account_delete` / `category_create` / `category_update` / `category_toggle` / `category_delete`——**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除） |
 | target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/feedback/review |
 | target_id | BIGINT | 可 | NULL | 操作对象ID |
 | ip | VARCHAR(64) | 可 | NULL | 来源IP |

@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
-    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'pending' COMMENT '【已退役的历史列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 4 条）】菜品无独立审核：管理员录入/编辑即写 approved 并直接生效；本列不再作为运营处理入口、不再扩展。存量非 approved 由 normalize_dish_audit_status.sql 一次性归一（不并入本脚本自动执行）',
+    `audit_status`  VARCHAR(32)  NOT NULL DEFAULT 'approved' COMMENT '【已退役的历史列（2026-09-15 蓝图 v1，project_spec.md §7.23 第 4 条；DB-01 默认值改 approved）】菜品无独立审核：管理员录入/编辑即写 approved 并直接生效；本列仅作公开查询过滤（列表/详情仅取 approved），不再作为运营处理入口、不再扩展。存量非 approved 由 normalize_dish_audit_status.sql 一次性归一（不并入本脚本自动执行）',
     `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '【已退役的历史列（同上）】随菜品审核语义退役；「不采纳/退回」语义已迁至反馈处理（user_feedback）',
     `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
     `view_count`    INT          NOT NULL DEFAULT 0 COMMENT '浏览量',

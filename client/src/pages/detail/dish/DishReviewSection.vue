@@ -6,16 +6,10 @@
       <!-- 评价数经 SectionTitle 既有 extra 能力承载（extraText prop，免具名 slot 跨组件分发） -->
       <SectionTitle title="评价" no-margin :extra-text="String(total)" />
 
-      <!-- ① 加载中：骨架行（避免首屏误闪「暂无评价」） -->
-      <view v-if="loading && reviews.length === 0" class="review-skeleton" aria-label="评价加载中">
-        <view v-for="n in 2" :key="n" class="skel-row">
-          <view class="skel-line skel-line--short" />
-          <view class="skel-line" />
-        </view>
-      </view>
+      <!-- ① spec §4.8 不设加载骨架/加载指示：加载期间本区块不渲染，保持空白 -->
 
       <!-- ② 失败态：可重试（此前静默吞成「暂无评价」，用户误以为确实没人评；§7.20 PR-03 失败态必备） -->
-      <RetryBlock v-else-if="loadFailed" :margin="false" @retry="emit('retry')" />
+      <RetryBlock v-if="loadFailed" :margin="false" @retry="emit('retry')" />
 
       <!-- ③ 有数据：评价列表（「有用」按钮保留，P0-06：公开评价的「有用数置顶」需真实入口才有意义） -->
       <view class="review-list" v-else-if="reviews.length > 0">
@@ -86,12 +80,6 @@ const emit = defineEmits<{
   padding: var(--spacing-sm) var(--spacing-md);
 }
 .review-list { display: flex; flex-direction: column; }
-
-/* ===== 骨架态：两行占位（浅灰圆角条，无动画闪烁；reduced-motion 下同样静态） ===== */
-.review-skeleton { display: flex; flex-direction: column; gap: var(--spacing-md); padding: var(--spacing-sm) 0 var(--spacing-xs); }
-.skel-row { display: flex; flex-direction: column; gap: var(--spacing-xs); }
-.skel-line { height: 20rpx; border-radius: var(--radius-tag); background: var(--bg-soft); }
-.skel-line--short { width: 40%; }
 
 /* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
 .review-card :deep(.retry-block) { margin: var(--spacing-sm) 0; }

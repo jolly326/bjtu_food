@@ -53,7 +53,7 @@
 ### 2.1 食堂与档口（CanteenController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/canteens` | `lat`/`lng`（可选，兼容保留） | `List<CanteenInfoVO>` | 全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；`lat`/`lng` 为兼容保留参数，距离由端上本地 Haversine 计算，服务端不再按距离排序 |
+| GET | `/canteens` | — | `List<CanteenInfoVO>` | 全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；**不接收 `lat`/`lng` 参数**（2026-09-15 DOC-05/CT-01 删「兼容保留」描述）：坐标随食堂 VO 返回，距离由端上本地 Haversine 计算，服务端不做距离排序 |
 | GET | `/canteens/all` | — | `List<食堂含档口树>` | 一次性渲染食堂+档口 |
 
 ### 2.2 菜品（DishController）
@@ -68,7 +68,7 @@
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（三选一，至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏且机检通过；本人评价除外，后端过滤） |
+| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（**可同时传，按 `stallId` > `canteenId` > `dishId` 优先取一，不报 400**（2026-09-15 CT-04 修订「三选一」口径）；至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏且机检通过；本人评价除外，后端过滤） |
 
 > **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充）**：新增 `images`（字符串数组，≤3 项 COS URL，无图返回空数组）与 `secState`（**三态** `pass`/`review`/`rejected`——`review`=机检待人工复核、`rejected`=人工驳回，两者均对非作者不可见；列表 / 详情接口仅返回 `sec_state='pass'` 或本人评价，后端过滤，前端不兜底）。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
@@ -87,7 +87,7 @@
 | 方法 | 路径 | 认证 | 参数 | 说明 |
 |---|---|---|---|---|
 | POST | `/auth/wechat-login` | 公开 | `{ code }` | 微信静默登录，新 openid 自动建号（verified=0），返回 token |
-| POST | `/auth/email-code` | 登录 | `{ username, email(可空，传学号自动推导 {username}@bjtu.edu.cn), purpose }` | 发学号邮箱验证码（同邮箱 60s 限频 + 同 IP 每分钟 ≤3 次/每小时 ≤10 次，P3/BE-105；6 位 10 分钟有效） |
+| POST | `/auth/email-code` | **公开**（2026-09-15 DOC-06 对齐 `SecurityConfig` 白名单；同邮箱 60s 限频 + 同 IP 每分钟 ≤3 次/每小时 ≤10 次） | `{ username, email(可空，传学号自动推导 {username}@bjtu.edu.cn), purpose }` | 发学号邮箱验证码（6 位 10 分钟有效） |
 | POST | `/auth/verify-email` | 登录 | `{ code }` | 验证码认证，绑定邮箱，verified→1，返回新 token |
 | GET | `/auth/profile` | 登录 | — | 用户资料（**不含 openid**） |
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
@@ -149,7 +149,7 @@
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | POST | `/upload/images` | JSON `{ fileId: string }`（**单张**，小程序 `wx.cloud.uploadFile` 产生的云存储 fileID，形如 `cloud://env.bucket/path`） | `{ url: string }`（该张 COS 永久 URL） | **UGC 配图上传（2026-09-13 新增；单张契约）**：后端经 tcb `batchdownloadfile` 从云开发云存储拉取 → `imgSecCheck` 送检（违规 code `87014` 返回 400）→ 转存 COS。多张配图由前端**逐张调用**本接口（每张独立送检转存，**单张失败该张返回 400、前端提示后跳过，不中断其余图片**）。需登录（游客亦可，无 `verified` 门槛）；评价 / 反馈提交前先逐张调本接口取 COS URL |
-| POST | `/upload/image` | `file`（multipart，jpg/jpeg/png/webp） | `{ url, relativeUrl }` | **保留**：用户头像、后台菜品图等既有链路，不承载 UGC 配图 |
+| POST | `/upload/image` | `file`（multipart，jpg/jpeg/png/webp） | `{ url, relativeUrl }` | **保留**：web 管理端菜品图 / H5 回退链路，不承载 UGC 配图（小程序端头像走微信云存储 `cloud://` 直存不经此端点）。**已纳入 `AdminTokenFilter` 口令守卫（2026-09-15 B4）**：不在 `permitAll` 白名单，`X-Admin-Token` 校验通过后置 `ROLE_ADMIN` 授权放行，口令缺失/无效 403 |
 
 - `/upload/images` 单张校验：fileId 属本小程序云环境（`cloud://` 前缀）+ 扩展名白名单 + 大小 ≤1MB（`imgSecCheck` 硬限制）+ `imgSecCheck` 通过才转存；任一不通过该张返回 400 与明确提示（违规 / 文件获取失败 / 存储未配置），不影响其他张。
 - **≤3 张总量约束不在本接口**：由评价 / 反馈提交载荷校验兜底（`ReviewReq.images` / 反馈 `images` ≤3 项，服务端对最终载荷再校验张数与 URL 域名白名单）。
@@ -200,7 +200,7 @@
      - `stall`：按 `canteen_id` + `name` 查 `stall`；不存在则 **INSERT**（带 `canteen_id`）后取回 `id`；
      - 名称入参须 trim 后非空且长度 ≤64，非法 → `400`；
   3. 三者均未传 / 均无法解析 → **`400`「请指定所属档口」**（现有「档口不存在」文案按此细化）。
-- upsert 落在 **Service 层**（`DishServiceImpl`），**禁止 Controller 直调 Mapper**；与既有的 `/admin/canteens`、`/admin/stalls` POST（独立新增字典项）并存、不冲突。
+- upsert 落在 **Service 层**（`DishServiceImpl`），**禁止 Controller 直调 Mapper**；**随菜品 upsert 是字典项新增的唯一入口**（原 `/admin/canteens`、`/admin/stalls` 独立 POST 已随 2026-09-15 CT-02 删除，两字典端点仅剩 GET + PUT）。
 - 返回：`DishAdminVO` / `DishVO` 的 `canteenName` / `stallName` / `canteenId` / `stallId` 语义不变。
 - **验收**：新增菜品时填入一个字典中不存在的食堂名与档口名 → 保存成功且 `canteen` / `stall` 各新增 1 条，菜品归属正确；重复提交同名 → **不重复建档**（命中既有字典项）。
 
@@ -222,19 +222,19 @@
 | GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`secState`，详情展示配图 ≤3 张**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
 | PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
 
-**反馈处理契约（2026-09-15 蓝图 v1 第 5 条，spec §7.23）**
+**反馈处理契约（2026-09-15 蓝图 v1 第 5 条，spec §7.23；2026-09-15 CT-03 以代码为准修订）**
 
-- 结论二分，管理端在弹窗中显式选择：
-  - **采纳 / 已处理** → `status='handled'`，**`reply` 必填**（1~1000 字，纯空白视为未填写 → `400`；§7.16 第 2 条口径不变）；
-  - **不采纳 / 退回** → `status='handled'`（反馈无「退回重提」链路，终态唯一），**`reject_reason` 必填**（1~200 字，纯空白视为未填写 → `400`），说明不采纳原因，**随回执一并向提交人展示**。
-- 入参：`{ reply?: string, rejectReason?: string, rejected?: boolean }`——`rejected=true` 时 `rejectReason` 必填；`rejected=false/缺省` 时 `reply` 必填（二者按结论二选一必填，不得同时为空）。
+- 结论二分（请求字段 **`outcome`**），管理端在弹窗中显式选择：
+  - **采纳 / 已处理**（`outcome='handled'`，缺省值）→ `status='handled'`；
+  - **不采纳 / 退回**（`outcome='rejected'`）→ `status='handled'`（反馈无「退回重提」链路，终态唯一），**`reject_reason` 必填**（1~200 字，纯空白视为未填写 → `400`），说明不采纳原因，**随回执一并向提交人展示**。
+- 入参：**`{ reply: string, outcome: "handled"|"rejected", rejectReason?: string }`**——**`reply` 恒必填**（1~1000 字，纯空白视为未填写 → `400`；§7.16 第 2 条口径不变）；`outcome='rejected'` 时 `rejectReason` 必填，`outcome='handled'` 时不消费 `rejectReason`（保持 NULL）。**原 `{ reply?, rejectReason?, rejected? }` 旧描述作废（2026-09-15 CT-03）**。
 - 回执投递不变：已认证提交人收站内通知 `feedback_handle`（含回执正文；不采纳时含不采纳原因），游客不投递、不阻塞（§7.8 第 4 条 / §0.1 匿名心智）。
-- **落地前置（待用户拍板，见输出清单「待拍板项 1」）**：`reject_reason` 建议新增为 `user_feedback.reject_reason` 列（幂等 `ADD COLUMN`，可空）；**列落地前该语义由 `reply` 承载**（即不采纳原因写入 `reply` 并随通知展示），契约字段 `rejectReason` 保持不变。
+- 落库：`user_feedback.reject_reason` 列**已落地**（`schema.sql` 幂等块 `add_feedback_reject_reason`），结论差异由 `reject_reason` 是否非空承载，无「待拍板」遗留。
 
 ### 5.5 基础数据维护
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET/POST/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 新增 / 改名（编辑）」，**无 DELETE**（2026-09-14 Q-115，spec §7.22 第 5 条）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP）。**2026-09-15 蓝图 v1（spec §7.23 原则 1）：字典项亦可随菜品录入 upsert 建档**（`POST`/`PUT /admin/dishes` 传 `canteenName`/`stallName`，见 §5.2），本组端点保留为独立维护入口，二者并存 |
+| GET/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 改名（编辑）」，**无 DELETE、无独立 POST**（2026-09-15 CT-02：独立新增端点已删；**新增仅随菜品录入按名 upsert 建档**，spec §7.23 原则 1，见 §5.2）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP） |
 | GET/POST/PUT/DELETE | `/admin/categories` | 品类（增删改启停，sortOrder 非数字返回 400）。**2026-09-14 Q-117 定型：仅供后台菜品归类用途**（菜品表单 `categoryId` 归类），端上不呈现 |
 | GET | `/admin/operation-logs` | 操作日志（只读） |
 
@@ -267,7 +267,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
         学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
 评价：先发后审、无 audit_status——机检 pass 即公开（is_hidden=0 AND sec_state='pass'）；sec_state='review' 进人工复核队列（PUT /admin/reviews/{id}/sec-state）；risky 提交即 400 拦截
 反馈/举报（唯一运营闭环）：POST /feedback 公开提交（type ∈ suggestion/add/error/report）
-     → 管理员 PUT /admin/feedbacks/{id} 处理：采纳=reply 必填 / 不采纳·退回=rejectReason 必填
+     → 管理员 PUT /admin/feedbacks/{id} 处理：reply 恒必填；不采纳·退回（outcome=rejected）另 rejectReason 必填
      → status=handled + 站内通知回执（游客不投递）
      → 处理动作即实际的录入/修改/下架菜品（不得「一键转菜品」，须人工编辑确认，spec §7.13 第 1 条）
 食堂/档口：无审核流；作为菜品属性字典随菜品 upsert（不存在即自动建档，spec §7.23 原则 1）

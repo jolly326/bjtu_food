@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
  * 公开接口白名单（无需登录）：
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
- * - GET /canteens, GET /stalls（食堂档口查询）
+ * - GET /canteens（食堂查询；/stalls/** 幽灵白名单已于 2026-09-15 CT-05 删除）
  * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
  * - Swagger UI (SpringDoc) 相关路径
  */
@@ -69,16 +69,16 @@ public class SecurityConfig {
     };
 
     /**
-     * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen/stall/review 只读路径，
+     * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen/review 只读路径，
      * 使用 method-scoped 匹配，避免误放行 POST /reviews 等写操作）。
      * <p>
      * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
      * 本条仅约束 GET 只读浏览，POST /dishes/{id}/view（浏览量上报）与 GET 系列仍保留。
+     * /stalls/** 白名单已于 2026-09-15 CT-05 删除：无公开 StallController 端点（幽灵路由）。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
             "/dishes/**", "/api/dishes/**",
             "/canteens/**", "/api/canteens/**",
-            "/stalls/**", "/api/stalls/**",
             "/reviews", "/api/reviews",
             "/images/**", "/api/images/**",
     };
@@ -102,10 +102,10 @@ public class SecurityConfig {
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers("/admin/**").permitAll()
-                        // 管理端图片上传（web 后台上传菜品图，multipart）：与 /admin/** 同源、同口令把关。
-                        // 不在此放行会落到 anyRequest().authenticated() → 后台上传 401（2026-09-14 实测）。
-                        // 注意：学生端 /upload/images 不在本行，仍走 JWT。
-                        .requestMatchers("/upload/image", "/api/upload/image").permitAll()
+                        // 管理端图片上传 /upload/image（2026-09-15 B4）已不在 permitAll 白名单：
+                        // 由 AdminTokenFilter 校验 X-Admin-Token，校验通过后其设置 ROLE_ADMIN 认证，
+                        // 落入 anyRequest().authenticated() 通过授权；口令缺失/无效时由过滤器 403 拦截。
+                        // 注意：学生端 /upload/images 仍走 JWT。
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )

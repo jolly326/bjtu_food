@@ -66,8 +66,8 @@ public class Dish {
     @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
     private Integer spiceLevel;
 
-    /** 地域（美食来源地）：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
-    @Schema(description = "地域（美食来源地），如 清真/川湘/西北/粤式/东北", example = "清真")
+    /** 风味/菜系：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
+    @Schema(description = "风味/菜系，如 清真/川湘/西北/粤式/东北", example = "清真")
     private String region;
 
     /** 状态：on（上架）/ off（下架），与审核状态解耦 */
