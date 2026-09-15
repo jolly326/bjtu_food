@@ -46,12 +46,12 @@
 - 子 agent 交付必须**落盘到指定文件**，主 agent 以读文件验收（回报可能被截断）
 - 小程序门禁必须**同时**跑 `npm run type-check` **与** `npm run build:mp-weixin`：`build:mp-weixin` **不做类型检查**，模板里引用了不存在的标识符（如 `selectedSpiceLevel` 未定义）也能"Build complete"（2026-09-14 实际发生）
 
-## 优化 Loop 登记（2026-09-15，详见根目录 QA.md）
+## 优化 Loop 登记（2026-09-15）
 
-- **当前轮次**：优化 Loop（基线 develop @ `68e76ee`，回滚分支 `backup/optimize-loop-20260915`）——QA.md §1 低风险项已执行并复核：BE-OPT-02（删 `DishVO.distance` 死字段）、BE-OPT-05（`enrichImages` 重载合并）、BE-OPT-07（评价重复文案统一中文）、UI-OPT-04（`ReportModal` 焦点捕获 + ESC）；连同既有清理项（`getByUsername`、`enrichDishAdminImages`、`adminStore.loadAll()`、`STATUS_ACTIVE/INACTIVE`、vue-i18n、`shims-uni.d.ts`、`image.png`）；`docs/loop/audit/` 7 份日期报告与 `ITER-001.md` 已归档至 `docs/loop/_archive/`。
+- **当前轮次**：优化 Loop（基线 develop @ `68e76ee`，回滚分支 `backup/optimize-loop-20260915`）——低风险项已执行并复核：BE-OPT-02（删 `DishVO.distance` 死字段）、BE-OPT-05（`enrichImages` 重载合并）、BE-OPT-07（评价重复文案统一中文）、UI-OPT-04（`ReportModal` 焦点捕获 + ESC）；连同既有清理项（`getByUsername`、`enrichDishAdminImages`、`adminStore.loadAll()`、`STATUS_ACTIVE/INACTIVE`、vue-i18n、`shims-uni.d.ts`、`image.png`）；`docs/loop/audit/` 7 份日期报告与 `ITER-001.md` 已归档至 `docs/loop/_archive/`。
 - **契约文档同步（本轮）**：spec §2.1.4 后端距离字段口径（已删除）、§5.z D-D 缓存收窄（仅剩热搜）、§8 `DataInitializer` 转已完成；api-design.md §8 对账表 4 行（`reject_reason` / 食堂档口 upsert / 菜品无独立审核 / 管理端无密码体系）刷新为「已实现并对齐」；architecture.md §4.3 管理后台无登录说明；product-blueprint.md 升版 v1.2 对齐 spec §7.23。
 
-## 中高风险项拍板结果（2026-09-15，详见根目录 QA.md §2）
+## 中高风险项拍板结果（2026-09-15，用户聊天拍板）
 
 以下 9 项为中高风险优化项，已于 2026-09-15 由用户拍板：
 
@@ -62,7 +62,7 @@
 | BE-OPT-03、BE-OPT-06 | ⏸ **暂缓**，待补集成测试后再执行 |
 | MP-OPT-03、MP-OPT-05 | 维持保留（此前 Round 1 已定跳过） |
 
-## 角色文档缺失（QA.md §0）
+## 角色文档缺失（2026-09-15 记录）
 
 `docs/` 下 7 个角色文档（产品经理 / 后端开发工程师 / 技术负责人 / 小程序开发工程师 / 质量把控工程师 / UI-UX设计师 / Web管理后台开发工程师）缺失。本轮以用户指令中的角色职责定义执行，**不擅自补全职责**；若用户后续补齐独立角色文档，以文档为准重新对齐。
 
