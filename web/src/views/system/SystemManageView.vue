@@ -57,5 +57,5 @@ watch(() => route.query.tab, (t) => {
 </template>
 
 <style scoped>
-/* 分类卡样式统一在 shared.css（.sec-grid/.sec-card），保证三页大小 UI 一致 */
+/* 分类卡样式统一在 shared.css（.sec-grid/.sec-card），保证各聚合页大小 UI 一致 */
 </style>

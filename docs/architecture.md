@@ -32,13 +32,14 @@ com.bjtufood/
 ├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
 ├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── canteen/     # 食堂/档口
-├── content/     # category 品类
 ├── feedback/    # 用户反馈（提交过 msgSecCheck scene=2；images/sec_state，见 §2.5）
 ├── notify/      # 消息通知
 ├── history/     # 浏览足迹（view_log）
 ├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
 └── common/      # Result/异常/JWT 切面/操作日志；**工具包唯一真源 = `common/utils`**（复数，2026-09-15 登记；原 `common/util` 单数包已合并废弃、勿再引用）；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
 ```
+
+> **2026-09-15 品类维度整链删除（spec §7.22 第 1 条，用户撤销原 Q-117「后台保留归类用途」口径）**：原 `com.bjtufood.content.category` 包（`Category` 实体 / `CategoryMapper` / `CategoryService` / `CategoryServiceImpl` / `controller/admin/CategoryAdminController`）已整体移除，故上文包树中 **`content/`（category 品类）域不再存在**（该空目录亦应一并清除，不留残留）；`dish` 域同步去掉品类字段与 `/admin/categories` 端点。**定型口径：菜品按食堂 / 档口归属，不存在分类维度。** 待收尾项（`db/*.sql` 品类残留、`OperationLogConst` 的 `category_*` 四值）见 `project_spec.md` §8「待收尾」。
 
 ## 2. 认证与安全模型
 
@@ -166,7 +167,7 @@ npm run dev   # http://localhost:5173
 ### 4.4 前端目录与包管理器约定（2026-09-15 登记）
 
 - **包管理器统一为 npm（唯一）**：仓库仅保留 `client/package-lock.json` 与 `web/package-lock.json` **两个锁文件**；**禁止引入 `yarn.lock` / `pnpm-lock.yaml` / `bun.lockb` 等任何其他锁文件**（多锁并存会导致依赖树漂移与 CI / 本地不一致）。安装与运行一律 `npm install` / `npm run *`，文档命令不得写成 `yarn` / `pnpm`。
-- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`AuditManageView` / `FeedbackView` / `ReviewAuditView`）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView` / `CategoryManage` / `HomeConfigView`）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
+- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`AuditManageView` / `FeedbackView` / `ReviewAuditView`）、`content/`（`ContentManageView` / `DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除，`ContentManageView` 收敛为「菜品」单一视图**）、`system/`（`SystemManageView` / `UserView` / `OperationLogView` / `AccountView`）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
 - **路由未变（兼容承诺）**：`path` 与 `name` 均保持原值——`/dashboard/content`（`contentManage`）、`/dashboard/content/dishes/:dishId`（`dishDetail`）、`/dashboard/audit`（`auditManage`）、`/dashboard/system`（`systemManage`），故书签 / 深链不受目录重组影响。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
 
 ## 5. 前端状态管理（Pinia store）

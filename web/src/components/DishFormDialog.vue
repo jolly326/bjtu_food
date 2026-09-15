@@ -14,14 +14,13 @@
  *  - 名称「其他/其它/无/未知」为后端空值语义（不建档），前端同步拦截（对齐 EMPTY_NAME_VALUES）；
  *  - 改名（属性字典唯一编辑动作）保留：行内「改名」入口 → RenameEntityDialog。
  */
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAdminStore } from '@/stores/adminStore'
 import { useDishStore } from '@/stores/dishStore'
 import { useCanteenStore } from '@/stores/canteenStore'
 import { useStallStore } from '@/stores/stallStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { categoryApi } from '@/api'
 import { parseTags, formatTags } from '@/api/adapter'
 import { TAG_OPTIONS } from '@/api/tags'
 import FormDialog from '@/components/FormDialog.vue'
@@ -68,8 +67,6 @@ const form = ref({
   canteenValue: '' as string | number,
   /** 所属档口：number = 既有档口 id；string = 直接输入的新名称（后端按名 upsert） */
   stallValue: '' as string | number,
-  /** 所属品类（WEB-06，可空=未分类） */
-  categoryId: '' as string | number,
   image: '',
   description: '',
   alias: '',
@@ -82,15 +79,6 @@ const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
 /** 归属区错误补充提示（档口失效等失败恢复路径） */
 const stallHint = ref('')
-
-/** 品类字典（WEB-06）：懒加载一次，取 /admin/categories */
-const categories = ref<Array<{ id: number; name: string }>>([])
-onMounted(async () => {
-  if (categories.value.length) return
-  try {
-    categories.value = await categoryApi.getAll()
-  } catch { /* 品类加载失败不阻塞菜品主流程，下拉回落为「未分类」 */ }
-})
 
 // WEB-02：打开弹窗时若归属字典尚未加载（如直接深链进入），兜底拉一次（静默）
 watch(
@@ -166,7 +154,6 @@ watch(
           promoPrice: d.promoPrice ? Number(d.promoPrice) : 0,
           canteenValue: canteenIdOfStall(d.stall_id) || d.canteenName || '',
           stallValue: Number(d.stall_id ?? 0) || d.stallName || '',
-          categoryId: d.categoryId ? Number(d.categoryId) : '',
           image: d.image || '',
           description: d.description || '',
           alias: d.alias || '',
@@ -183,7 +170,6 @@ watch(
         name: '', price: 0, originalPrice: 0, promoPrice: 0,
         canteenValue: canteenIdOfStall(presetStall),
         stallValue: presetStall,
-        categoryId: '',
         image: '', description: '', alias: '', tags: '', status: 'active',
         spiceLevel: 0, region: '',
       }
@@ -271,7 +257,6 @@ async function submit() {
     name: form.value.name.trim(),
     price: Number(form.value.price),
     ...ownershipPayload(),
-    categoryId: form.value.categoryId === '' ? null : Number(form.value.categoryId),
     image: form.value.image,
     description: form.value.description,
     // 搜索别名：后端 DishAdminReq.alias（逗号分隔，trim 后总长 ≤255）。显式传串（含空串=清空别名）
@@ -399,12 +384,6 @@ async function submit() {
       </div>
 
       <div class="df-row">
-        <div class="field flex-1"><label>品类</label>
-          <select v-model="form.categoryId">
-            <option value="">未分类</option>
-            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </div>
         <div class="field flex-1"><label>辣度</label>
           <select v-model.number="form.spiceLevel">
             <option v-for="s in SPICE_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>

@@ -246,7 +246,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .btn-danger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ===== 聚合页分类卡（三个聚合页共用：紧凑、等高、数量徽标，大小 UI 一致） ===== */
+/* ===== 聚合页快捷卡（内容审核 / 用户与系统聚合页共用：紧凑、等高、数量徽标，大小 UI 一致） ===== */
 .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-5); }
 .sec-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
 .sec-card {

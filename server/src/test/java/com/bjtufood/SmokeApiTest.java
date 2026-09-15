@@ -76,7 +76,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>评价：{@code POST /reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）与 {@code POST /reviews/{id}/useful}；</li>
  *   <li>反馈：{@code POST /feedback}（sub 严格模式 400、类型白名单 400、suggestion 正常落库 200）；</li>
  *   <li>上传：{@code POST /upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
- *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）。</li>
+ *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
+ *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）。</li>
  * </ol>
  * 实现要点：
  * <ul>
@@ -395,6 +396,28 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.total").value(0))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.pageSize").value(10));
+    }
+
+    /**
+     * 防回归（2026-09-15 用户拍板「品类整链删除」）：{@code GET /admin/categories} 已无任何处理器。
+     * <p>
+     * 此前带正确口令返回 200/code=200（CategoryAdminController 在线）；品类全链（Controller /
+     * Service / Mapper / Entity + dish.categoryId + category 表）整体退役后，该路径必须失效。
+     * <p>
+     * <b>状态码口径（实测校准，非 404）</b>：Spring 6.1 起未匹配到任何 {@code @RequestMapping}
+     * 的路径（含 /admin/categories）会落到静态资源处理器并抛 {@code NoResourceFoundException}，
+     * 由 {@link GlobalExceptionHandler#handleNoResourceFoundException} 统一转为
+     * <b>HTTP 400 + body.code=400</b>（message「资源不存在」，见 GlobalExceptionHandler 既有 BE-110 口径，
+     * 有意不采用 404）。故本用例断言「400 + code=400 + 资源不存在」，
+     * 且非 403「管理端口令无效」——正好证明请求已通过 AdminTokenFilter 口令校验、
+     * 失败原因是「路径无处理器」（端点确已删除），回归时会直接失败。
+     */
+    @Test
+    void adminCategories_removed_endpointGone_returns400() throws Exception {
+        mockMvc.perform(get("/admin/categories").header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("资源不存在"));
     }
 
     // ==================== 辅助方法 ====================

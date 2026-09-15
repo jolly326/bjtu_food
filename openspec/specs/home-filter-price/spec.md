@@ -6,7 +6,7 @@ Lets users narrow the home dish feed by a price range through the filter bar's p
 ## Requirements
 
 ### Requirement: 首页价格筛选
-首页筛选条 SHALL 提供「价格 ▾」胶囊，点击弹出底部 Sheet，含预设 `不限 / 0–10 / 10–20 / 20元以上` 与自定义最低/最高输入框（确定/重置）。选中区间 SHALL 透传 `minPrice`/`maxPrice`（元，api 层 `yuanToFen` 转分）至 `searchDishesPage`；默认"全部"流经 `getHotDishesPage` 扩展可选价格参数亦可感。后端 `DishQuery`/`DishQueryReq` 已支持 `minPrice`/`maxPrice`，**本筛选不新增后端契约/接口**。品类筛选本次不接（UI 不暴露）。
+首页筛选条 SHALL 提供「价格 ▾」胶囊，点击弹出底部 Sheet，含预设 `不限 / 0–10 / 10–20 / 20元以上` 与自定义最低/最高输入框（确定/重置）。选中区间 SHALL 透传 `minPrice`/`maxPrice`（元，api 层 `yuanToFen` 转分）至 `searchDishesPage`；默认"全部"流经 `getHotDishesPage` 扩展可选价格参数亦可感。后端 `DishQuery`/`DishQueryReq` 已支持 `minPrice`/`maxPrice`，**本筛选不新增后端契约/接口**。品类筛选本次不接（UI 不暴露）；**且自 2026-09-15 起品类维度已整链删除（已删除：端上 / 后台均无品类——`category` 表、`dish.category_id`、`/admin/categories` 与品类页面 / 组件全部移除，`project_spec.md` §7.22 第 1 条），本项目不存在品类维度可接**。
 
 #### Scenario: 选择价格区间
 - **WHEN** 用户于价格 Sheet 选「10–20」并确认

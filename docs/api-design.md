@@ -72,7 +72,7 @@
 
 > **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充）**：新增 `images`（字符串数组，≤3 项 COS URL，无图返回空数组）与 `secState`（**三态** `pass`/`review`/`rejected`——`review`=机检待人工复核、`rejected`=人工驳回，两者均对非作者不可见；列表 / 详情接口仅返回 `sec_state='pass'` 或本人评价，后端过滤，前端不兜底）。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
-### 2.5 内容/品类（公开）
+### 2.5 内容（公开）
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/images/**` | 静态图片资源 |
@@ -242,9 +242,9 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET/PUT | `/admin/canteens`、`/admin/stalls` | 食堂/档口**筛选属性字典**——能力仅「列表查看 / 改名（编辑）」，**无 DELETE、无独立 POST**（2026-09-15 CT-02：独立新增端点已删；**新增仅随菜品录入按名 upsert 建档**，spec §7.23 原则 1，见 §5.2）；无 `status`/`auditStatus`/`rejectReason` 字段（Q-119 已 DROP） |
-| GET/POST/PUT/DELETE | `/admin/categories` | 品类（增删改启停，sortOrder 非数字返回 400）。**2026-09-14 Q-117 定型：仅供后台菜品归类用途**（菜品表单 `categoryId` 归类），端上不呈现 |
 | GET | `/admin/operation-logs` | 操作日志（只读） |
 
+> **`/admin/categories` 已删除（2026-09-15 用户撤销 Q-117，spec §7.22 第 1 条）**：品类维度**整链删除**（端上零呈现 + 后台无实际业务价值）——`category` 表、`dish.category_id` 列与 `idx_dish_category` 索引、`/admin/categories`（`CategoryAdminController` / `CategoryService` / `CategoryServiceImpl` / `CategoryMapper` / `Category` 实体）、Web 品类维护页与首页配置入口、菜品表单分类下拉、菜品列表品类筛选与分类列**全部移除**。**`DishAdminReq` / `DishAdminVO` / `DishVO` / `DishQueryReq` 均无 `categoryId` 字段**；公开 `GET /categories` 此前已删（2026-09-15 DOC-01）。**定型口径：菜品按食堂 / 档口归属，不存在分类维度**；恢复须重新拍板。
 > 原 `GET /admin/audit/*`（待审内容）已于 2026-09-14 随实体审核链路删除（spec §7.21 第 2 条 Q-107）：`/admin/audit/**` 三条端点及其专属 Service / VO / DTO 均已移除；菜品审核语义收敛为「管理员录入即直接生效」（spec §7.8 第 1 条）；**2026-09-15 阶段4 起 `dish.audit_status` 列已删除，菜品无审核态字段可写**。
 
 ---

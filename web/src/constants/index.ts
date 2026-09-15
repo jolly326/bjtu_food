@@ -9,10 +9,12 @@
  * （ACTION_* 常量逐个对齐；后端新增动作时此处同步补登，否则列表单元格会回落为裸英文枚举）。
  *
  * 2026-09-14（P1-03 / WEB-08）对齐结果：后端原有 12 个常量，原前端仅登记 7 项、缺 5 项。
- * - 补登：review_sec_state / category_create / category_update / category_toggle / category_delete
+ * - 补登：review_sec_state 及字典域 4 项（字典域维护入口已整链删除，本次同步移除，见下）。
  * - `audit_approve` / `audit_reject`：随审核中心链路（Q-107：不新增页面、删除死代码）下线，
  *   前端不再登记（保留在常量表会形成「恒空筛选项」误导排查）。后端仍保留常量以兼容存量日志，
  *   故 actionText 对未登记值回落为原始串（存量历史日志可读，不删数据、不改后端契约）。
+ * - 2026-09-15：字典域（后台已无维护入口）的 4 个动作与对应 targetType 一并移除，理由同上——
+ *   后台已无产生该动作的入口，登记后会形成「恒空筛选项」误导排查；存量历史日志仍按原始串展示。
  */
 // 仅本文件自用（外部消费出口为 OPERATION_ACTION_OPTIONS / operationActionText），故不单独导出。
 const OPERATION_ACTION_META: Record<string, string> = {
@@ -22,10 +24,6 @@ const OPERATION_ACTION_META: Record<string, string> = {
   dish_delete: '菜品删除',
   feedback_handle: '反馈处理',
   account_delete: '账号删除',
-  category_create: '品类新增',
-  category_update: '品类编辑',
-  category_toggle: '品类启停',
-  category_delete: '品类删除',
 }
 
 /** 操作日志动作筛选下拉（'' = 全部，不透传后端） */
@@ -36,14 +34,14 @@ export const OPERATION_ACTION_OPTIONS = [
 
 /**
  * 操作日志对象类型元数据（唯一真源，同上）。
- * 与后端 `targetType` 取值同源：dish / stall / canteen / category / feedback / review / user。
+ * 与后端 `targetType` 取值同源：dish / stall / canteen / feedback / review / user
+ * （字典域 targetType 随该域维护入口下线一并移除，存量日志按原始串展示）。
  */
 // 同上：仅本文件自用（外部消费出口为 OPERATION_TARGET_OPTIONS / operationTargetText）。
 const OPERATION_TARGET_META: Record<string, string> = {
   dish: '菜品',
   stall: '档口',
   canteen: '食堂',
-  category: '品类',
   feedback: '反馈',
   review: '评价',
   user: '用户',

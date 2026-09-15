@@ -7,8 +7,7 @@ import { useCanteenStore } from '@/stores/canteenStore'
 import { useStallStore } from '@/stores/stallStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { dishApi, categoryApi } from '@/api'
-import type { CategoryItem } from '@/api/category'
+import { dishApi } from '@/api'
 import FilterBar from '@/components/layout/FilterBar.vue'
 import FilterSelect from '@/components/layout/FilterSelect.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -49,9 +48,8 @@ watch(
 
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
-const categoryFilter = ref<string | number>('')
 
-// ===== 食堂 / 档口 / 品类筛选（食堂与档口是菜品的「筛选条件」，非独立实体页） =====
+// ===== 食堂 / 档口筛选（食堂与档口是菜品的「筛选条件」，非独立实体页） =====
 const canteenFilter = ref<string | number>('')
 const stallFilter = ref<string | number>('')
 
@@ -67,15 +65,6 @@ const stallFilterOptions = computed(() => {
     .map(s => ({ label: s.name, value: Number(s.id) }))
 })
 const stallFilterDisabled = computed(() => !canteenFilter.value)
-
-/** 品类筛选（WEB-06）：取 /admin/categories 全量字典；未加载完成时仅「全部品类」 */
-const categories = ref<CategoryItem[]>([])
-const categoryFilterOptions = computed(() => [
-  { label: '全部品类', value: '' },
-  ...categories.value.map(c => ({ label: c.name, value: Number(c.id) })),
-])
-const categoryNameOf = (categoryId?: number): string =>
-  categories.value.find(c => Number(c.id) === Number(categoryId))?.name || '—'
 
 /** 切换食堂：静默清空档口筛选（防跨食堂脏筛选） */
 function onCanteenFilterChange() {
@@ -95,7 +84,6 @@ const rows = computed(() => {
   if (statusFilter.value) list = list.filter(r => r.status === statusFilter.value)
   if (typeFilter.value === 'discount') list = list.filter(r => !!r.promoPrice)
   else if (typeFilter.value === 'normal') list = list.filter(r => !r.promoPrice)
-  if (categoryFilter.value) list = list.filter(r => Number(r.categoryId) === Number(categoryFilter.value))
   // 档口优先（更精确）；仅选食堂时按其下全部档口过滤
   if (stallFilter.value) list = list.filter(r => Number(r.stall_id) === Number(stallFilter.value))
   else if (canteenFilter.value) list = list.filter(r => canteenIdOfStall(r.stall_id) === Number(canteenFilter.value))
@@ -133,13 +121,12 @@ const error = ref('')
 async function refresh() {
   loading.value = true
   error.value = ''
-  // 本页域：菜品（列表）+ 食堂/档口（筛选字典）+ 品类（WEB-06 品类列/筛选）
+  // 本页域：菜品（列表）+ 食堂/档口（筛选字典）
   // 域间独立容错（WEB-09 口径）：字典域失败不拖垮菜品主列表
   const results = await Promise.allSettled([
     dishStore.loadAll(),
     canteenStore.loadAll(),
     stallStore.loadAll(),
-    categoryApi.getAll().then((list: CategoryItem[]) => { categories.value = list }),
   ])
   const firstRejected = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined
   if (firstRejected) error.value = firstRejected.reason?.message || '加载菜品列表失败'
@@ -296,7 +283,6 @@ async function batchDelete() {
           :disabled="stallFilterDisabled"
           :placeholder="stallFilterDisabled ? '请先选食堂' : '全部档口'"
         />
-        <FilterSelect v-model="categoryFilter" label="品类" :options="categoryFilterOptions" :width="150" />
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
         <FilterSelect v-model="typeFilter" label="类型" :options="typeOptions" :width="150" />
       </template>
@@ -324,7 +310,6 @@ async function batchDelete() {
         { prop: 'name', label: '菜品名称', sortable: true },
         { prop: 'canteenName', label: '所属食堂', width: '140px' },
         { prop: 'stallName', label: '所属档口' },
-        { prop: 'category', label: '品类', width: '110px' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
         { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
@@ -349,9 +334,6 @@ async function batchDelete() {
       </template>
       <template #cell-stallName="{ row }">
         <span class="cell-sub" :title="row.stallName">{{ row.stallName || '—' }}</span>
-      </template>
-      <template #cell-category="{ row }">
-        <span class="cell-sub">{{ categoryNameOf(row.categoryId) }}</span>
       </template>
       <template #cell-price="{ row }">
         <span class="price-cell" :class="{ promo: !!row.promoPrice }">{{ formatPrice(row) }}</span>

@@ -54,11 +54,11 @@
 - 数据隔离：从 `SecurityUtil.getCurrentUserId()` 取用户，禁止信任前端 userId；UGC `created_by=当前用户`。
 - 状态枚举：Dish `status` on/off；Canteen/Stall open/closed。评价可见性 `isHidden`(0/1) 非 `isDeleted`（原 Activity/Broadcast `enabled/disabled` 枚举已随下线移除）。
 
-### 数据库（12 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
-- 表（12 张）：user / email_verification_code / canteen / stall / dish / category / review / review_useful / notification / user_feedback / view_log / operation_log（`broadcast`/`activity` 两表已于 2026-09-13 随活动/公告全链路下线删除，基线 14→12；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
+### 数据库（11 张表，唯一权威 `server/src/main/resources/db/schema.sql`）
+- 表（11 张）：user / email_verification_code / canteen / stall / dish / review / review_useful / notification / user_feedback / view_log / operation_log（`broadcast`/`activity` 两表已于 2026-09-13 随活动/公告全链路下线删除；`category` 表已于 2026-09-15 随品类维度整链删除（端上零呈现、仅 Web 自用的不可见第三维度），基线 14→12→11；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除）。
 - **工作区红线（必遵）**：涉及后端数据库修改**绝不能直连数据库 ALTER**，必须改初始化/种子脚本 `server/src/main/resources/db/`（schema.sql 与 seed_data.sql），保持脚本自包含、可重跑。
-- UGC 审核：提交 `audit_status=pending` → 后台 `approved/rejected`（退回必填 `reject_reason` 并回显）；**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线），菜品由管理员录入（`/admin/dishes`）后即 `approved`，学生侧无编辑重提（历史存量 pending 菜品仍可由后台审核）；下架/纠错类需求走反馈 `error` 类型（关联菜品），新增菜品走 `add`，不再有独立 `apply` 表。
-- **UGC 配图与安检列（2026-09-13，以列扩展落地、不加表，基线仍 12 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）+ `review.sec_state` / `user_feedback.sec_state`（`pass`/`review`）；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
+- 菜品无独立审核：`dish.audit_status` 退役列已于 2026-09-15 全量删除（含索引与常量），公开查询仅按 `status='on'` 过滤；菜品由管理员录入（`/admin/dishes`）即生效。**学生端无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全部下线）；下架/纠错类需求走反馈 `error` 类型（关联菜品），新增菜品走 `add`，不再有独立 `apply` 表。
+- **UGC 配图与安检列（2026-09-13，以列扩展落地、不加表，基线 11 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）+ `review.sec_state` / `user_feedback.sec_state`（`pass`/`review`）；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
 
 ### 前端架构要点
 - **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。

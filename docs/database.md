@@ -1,8 +1,9 @@
 # 数据库设计（食在交大 bjtu_food）
 
 > 本文档基于 `server/src/main/resources/db/schema.sql` 自动核对生成，与当前实现严格一致。
-> **2026-09-15 对账修订（蓝图 v1，权威 `project_spec.md` §7.23）**：删除已 DROP 列（`dish.portion` / `dish.serve_period` / `dish.limited`、`canteen`/`stall` 的 `status`/`audit_status`/`reject_reason` 6 列、`stall.business_hours`、`review.tags`）；`user.role` 收为两层（移除 `super_admin`）；`user.password` 标注为历史兼容列；`dish.category_id` 改为「后台归类、端上不呈现」；`dish.region` 改为「风味 / 菜系」；清理已删除接口条目（`selectPromotionDishes` / `GET /dishes/promotions`）。
+> **2026-09-15 对账修订（蓝图 v1，权威 `project_spec.md` §7.23）**：删除已 DROP 列（`dish.portion` / `dish.serve_period` / `dish.limited`、`canteen`/`stall` 的 `status`/`audit_status`/`reject_reason` 6 列、`stall.business_hours`、`review.tags`）；`user.role` 收为两层（移除 `super_admin`）；`user.password` 标注为历史兼容列；`dish.region` 改为「风味 / 菜系」；清理已删除接口条目（`selectPromotionDishes` / `GET /dishes/promotions`）。
 > **2026-09-15 阶段4 对账修订（用户批准，权威 `project_spec.md` §7.23 第 4 条）**：① **`dish.audit_status` 列与索引全量退役**——列已 DROP（存量库由 `schema.sql` 末尾幂等存储过程 `drop_dish_audit_status_column` 清理）、`idx_dish_audit` 一并删除、`idx_dish_heat` 收为 `(status, view_count, rating_count, avg_rating)`；**公开查询不再按该列过滤（`status='on'` 即公开展示）**；`DishConst.AUDIT_APPROVED` / `AuditStatusConst` / 一次性归一脚本 `normalize_dish_audit_status.sql` 同批删除。② **`canteen.created_by` / `stall.created_by` 两列退役**（DROP 归入同一幂等存储过程 `drop_canteen_stall_entity_fields`）。③ `dish.reject_reason` / `dish.created_by` / `user_feedback.*` **不动**（前者为退役历史列、后者保留）。
+> **2026-09-15 品类维度整链删除对账（用户拍板，权威 `project_spec.md` §7.22 第 1 条——原 Q-117「后台保留品类作归类用途」口径已撤销）**：`category` 表、`dish.category_id` 列、`idx_dish_category` 索引、`uk_category_code` 唯一键、关系图 / ER 图中的 `category` 节点**一律移除**；**表基线 12 → 11 张**。**定型口径：菜品按食堂 / 档口归属，不存在分类维度**（端上无、后台亦无）。⚠️ **待对齐（尚未收口）**：`server/src/main/resources/db/schema.sql` / `seed_data.sql` 中的品类残留（建表、列、索引、种子数据与 `dish.category_id` 赋值）尚未清理，须以幂等段移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**）；**清理完成前，本文件「与 `schema.sql` 严格一致」的声明不成立**，收尾项登记见 `project_spec.md` §8「待收尾」。
 > 数据库名：`bjtu_food`；字符集：`utf8mb4` / `utf8mb4_general_ci`；引擎：`InnoDB`。
 
 ## 1. 设计约定
@@ -20,11 +21,11 @@
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 12 张表，与 `schema.sql` 严格一致）
+## 2. 表清单（共 11 张表）
 
-`user` · `canteen` · `stall` · `dish` · `category` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
+`user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log` · `operation_log`
 
-> 说明：`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images`/`review.sec_state`、`user_feedback.images`/`user_feedback.sec_state`）以列扩展落地，不新建表，基线维持 12 张**。
+> 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images`/`review.sec_state`、`user_feedback.images`/`user_feedback.sec_state`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后当前基线为 11 张**，见本段首句）**。
 
 ---
 
@@ -92,7 +93,6 @@
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 菜品ID |
 | stall_id | BIGINT | 否 | 0 | 所属档口ID |
-| category_id | BIGINT | 可 | NULL | 品类ID（**后台归类用途，端上不呈现**——2026-09-14 Q-117 / spec §7.22 第 1 条：端上无品类筛选与展示入口，仅管理员在菜品表单归类；可空=未分类） |
 | name | VARCHAR(64) | 否 | '' | 菜品名称 |
 | price | INT | 否 | 0 | 价格（分） |
 | original_price | INT | 可 | NULL | 原价（分，折扣前） |
@@ -111,9 +111,10 @@
 | rating_count | INT | 否 | 0 | 评价数 |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
-**索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_category`(`category_id`)；KEY `idx_dish_heat`(`status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。**`idx_dish_audit`(`audit_status`) 已随 `audit_status` 列退役一并删除（2026-09-15 阶段4）**；`idx_dish_heat` 同步退化为上述四列，与 CREATE TABLE 定义一致（DROP COLUMN 连带删索引，无需重建）。
+**索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_heat`(`status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。**`idx_dish_category`(`category_id`) 已随品类维度整链删除一并移除（2026-09-15，见 §2 说明与 `project_spec.md` §7.22 第 1 条）**。**`idx_dish_audit`(`audit_status`) 已随 `audit_status` 列退役一并删除（2026-09-15 阶段4）**；`idx_dish_heat` 同步退化为上述四列，与 CREATE TABLE 定义一致（DROP COLUMN 连带删索引，无需重建）。
 
 > **已下线列（2026-09-14 用户拍板，字段生命周期成对处置 PR-07）**：`dish.serve_period`（餐段，§7.9 第 3 条）、`dish.limited`（限量，§7.9 第 4 条）、`dish.portion`（分量，§7.21 第 8 条 / Q-114）三列已整体下线——CREATE TABLE 不再创建，存量库由 `schema.sql` 幂等存储过程 `drop_dish_unused_fields` / `drop_dish_portion` DROP，实体 / VO / DTO / Mapper / 后台表单 / 端上映射全链路移除。**列已从本表删除，勿再据旧文档引用。**
+> **已下线列（2026-09-15 用户拍板）：`dish.category_id`（品类归属）随品类维度整链删除一并移除**——CREATE TABLE 不再创建、`idx_dish_category` 连带移除，DTO（`DishAdminReq` / `DishQueryReq`）/ 实体 / VO（`DishVO` / `DishAdminVO`）/ Mapper 列映射 / 后台表单分类字段 / 菜品列表品类筛选与分类列全链路移除（`project_spec.md` §7.22 第 1 条，原 Q-117「后台归类用途」口径已撤销）。**列已从本表删除，勿再据旧文档引用。**
 >
 > **已下线列（2026-09-15 阶段4 用户批准「菜品无独立审核」）：`dish.audit_status` 全量退役**——**列与 `idx_dish_audit` 索引均不再创建**，存量库由 `schema.sql` **末尾**幂等存储过程 `drop_dish_audit_status_column`（先判存在再 DROP，可重复执行）清理；公开查询不再按该列过滤，**公开可见性唯一判据 = `status='on'`**。连带清理：`DishConst.AUDIT_APPROVED` 别名常量、`common/constant/AuditStatusConst` 值域真源、一次性归一脚本 `normalize_dish_audit_status.sql`（**均已删除**）；`Dish` 实体 / VO / DTO / Mapper 列映射同步移除。**列已删除，`normalize_dish_audit_status.sql` 不再存在，勿再引用。**
 
@@ -158,21 +159,9 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_notification_user`(`user_id`)。
 
-### 3.8 category（菜品品类）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 分类ID |
-| code | VARCHAR(32) | 否 | '' | 品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal）。**2026-09-14 Q-117 定型：品类仅作后台菜品归类用途，端上不呈现**（原「前端滚轮 key」语义已随端上品类死链路删除） |
-| name | VARCHAR(64) | 否 | '' | 分类名称（麻辣烫/面食/…） |
-| sort_order | INT | 否 | 0 | 排序权重（后台归类列表顺序） |
-| status | VARCHAR(32) | 否 | 'enabled' | enabled/disabled |
-| created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
+> **已删除表（勿重建）**：**原 §3.8 `category`（菜品品类）已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留品类作归类用途」口径，定型口径 = 菜品按食堂 / 档口归属、不存在分类维度，见 `project_spec.md` §7.22 第 1 条；原字段 `code` / `name` / `sort_order` / `status` 与 `uk_category_code` / `idx_category_status_sort` 一并作废）；`broadcast`（首页广播条）与 `activity`（最新活动/公众号文章卡片）已于 2026-09-13 随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
 
-**索引/约束**：PK(`id`)；UNIQUE `uk_category_code`(`code`)；KEY `idx_category_status_sort`(`status`,`sort_order`)。
-
-> **已删除表（2026-09-13 下线，勿重建）**：原 §3.9 `broadcast`（首页广播条）与原 §3.10 `activity`（最新活动/公众号文章卡片）已随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
-
-### 3.9 user_feedback（用户反馈）
+### 3.8 user_feedback（用户反馈）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 反馈ID |
@@ -194,7 +183,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_feedback_user`(`user_id`)。
 
-### 3.10 email_verification_code（邮箱验证码）
+### 3.9 email_verification_code（邮箱验证码）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 记录ID |
@@ -207,7 +196,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_evc_email`(`email`,`purpose`)；KEY `idx_evc_expires`(`expires_at`)。
 
-### 3.11 view_log（浏览足迹）
+### 3.10 view_log（浏览足迹）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 足迹ID |
@@ -220,12 +209,12 @@
 
 > **写入语义（2026-08-19 修复补齐）**：此前仅 `HistoryService.recentViewedDishIds` 读取、无写入，导致「猜你喜欢」个性化数据缺失。现已在菜品浏览量自增（`DishServiceImpl.addViewCount`）时同步 `recordDishView` 写入，采用「存在则更新 updated_at、不存在则插入」的去重 upsert 语义（同 userId+target_type=dish+targetId 不重复插入）。表无唯一键，去重依赖应用层 update-else-insert。
 
-### 3.12 operation_log（操作日志，AOP 埋点，Web 只读）
+### 3.11 operation_log（操作日志，AOP 埋点，Web 只读）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
 |------|------|------|------|------|
 | id | BIGINT | 否 | AUTO | 日志ID |
 | admin_id | BIGINT | 否 | 0 | **已停写 / retired（2026-09-15 DOC-11 补注，spec §7.10 第 2 条）**：管理端操作人身份降级后不再写入、不再保证有值（恒 0 或历史值）；列与索引仅作历史数据查询保留 |
-| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java:8-17` 实际值重写）**：`review_hide` / `review_delete` / `review_sec_state` / `dish_delete` / `feedback_handle` / `account_delete` / `category_create` / `category_update` / `category_toggle` / `category_delete`——**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除） |
+| action | VARCHAR(64) | 否 | '' | **动作标识（2026-09-15 EN-01 按 `OperationLogConst.java` 实际值重写；2026-09-15 品类整链删除后收敛）**：`review_hide` / `review_delete` / `review_sec_state` / `dish_delete` / `feedback_handle` / `account_delete`——**无 `audit_*` 值**（实体审核链路已随 2026-09-14 Q-107 删除）。**⚠️ 待对齐（收尾项）**：`OperationLogConst` 现仍含 `category_create` / `category_update` / `category_toggle` / `category_delete` 四值，品类链路删除后**已无生产者**，须随 `project_spec.md` §8「待收尾」删除（PR-05 / PR-12）；清理后本节值域收敛为上述六值 |
 | target_type | VARCHAR(32) | 否 | '' | dish/stall/canteen/feedback/review |
 | target_id | BIGINT | 可 | NULL | 操作对象ID |
 | ip | VARCHAR(64) | 可 | NULL | 来源IP |
@@ -242,7 +231,7 @@
 - `user` 1—N `review` / `notification` / `user_feedback` / `view_log`（均经 `user_id`）
 - `canteen` 1—N `stall`（`stall.canteen_id`）
 - `stall` 1—N `dish`（`dish.stall_id`）
-- `dish` 1—N `review`（`review.dish_id`）；`dish` N—1 `category`（`dish.category_id`）
+- `dish` 1—N `review`（`review.dish_id`）。**~~`dish` N—1 `category`（`dish.category_id`）~~ 已于 2026-09-15 随品类维度整链删除移除**（`category` 表与 `dish.category_id` 均不存在，菜品只按食堂 / 档口归属）
 - `review` 1—N `review_useful`（`review_id`）
 - `email_verification_code` 独立（按 `email`+`purpose` 查询）
 - `operation_log` 关联 `admin_id`（引用 `user.id` 的管理员）
@@ -260,7 +249,6 @@ erDiagram
 
     canteen ||--o{ stall : "has"
     stall ||--o{ dish : "has"
-    category ||--o{ dish : "classifies"
     dish ||--o{ review : "rated_by"
     review ||--o{ review_useful : "useful_marks"
 
@@ -298,6 +286,6 @@ erDiagram
 | uk_user_openid | user | openid | 微信登录唯一取号 |
 | uk_review_user_dish | review | (user_id, dish_id) | 一人一评 |
 | uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
-| uk_category_code | category | code | 品类机器标识唯一 |
+| ~~uk_category_code~~ | ~~category~~ | ~~code~~ | **已删除（2026-09-15 品类维度整链删除，`category` 表已移除，见 §2 说明）** |
 
 **覆盖索引（排序优化）**：`idx_dish_heat`(status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序（**2026-09-15 阶段4：原含 `audit_status` 的五列版本已随该列退役收窄为四列**）；`idx_view_user_time`(user_id, created_at) 支撑「猜你喜欢」足迹读取；`idx_view_user_target_time`(user_id, target_type, target_id, updated_at) 支撑浏览量判重（判重已改用 updated_at，2026-09-15）；`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询。

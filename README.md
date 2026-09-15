@@ -79,14 +79,13 @@ bjtu_food/
 
 ---
 
-## 数据库（12 张表）
+## 数据库（11 张表）
 
 | 表 | 说明 |
 |----|------|
-| user | 用户（student / admin / super_admin；含微信 openid、认证 verified 字段） |
+| user | 用户（含微信 openid、认证 verified 字段） |
 | email_verification_code | 邮箱验证码 |
-| canteen / stall / dish | 食堂 / 档口 / 菜品（菜品含审核流、折扣、辣度/分量/供应时段/地域等扩展字段） |
-| category | 菜品分类（find 宫格） |
+| canteen / stall / dish | 食堂 / 档口 / 菜品（菜品含折扣、辣度、风味（菜系）等扩展字段；食堂/档口为菜品属性） |
 | review / review_useful | 评价（含配图 images ≤3 张、安检态 sec_state）/ 评价「有用」标记 |
 | notification | 消息通知 |
 | user_feedback | 用户反馈（含举报/纠错/推荐菜品；配图 images ≤3 张、安检态 sec_state） |
@@ -160,7 +159,7 @@ cd client && npm install && npm run dev:mp-weixin
 | 文档 | 说明 |
 |------|------|
 | [docs/project_spec.md](docs/project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
-| [docs/database.md](docs/database.md) | 数据库设计（12 张表 + ER 图，与 schema.sql 一致） |
+| [docs/database.md](docs/database.md) | 数据库设计（11 张表 + ER 图，与 schema.sql 一致） |
 | [docs/api-design.md](docs/api-design.md) | 功能/接口设计总览：全部接口契约、认证模型、错误码、分页约定 |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
 | [docs/architecture.md](docs/architecture.md) | 架构设计 / 部署说明（微信云托管）/ 本地快速上手 / 前端状态管理 |

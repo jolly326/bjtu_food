@@ -32,9 +32,6 @@ public class DishAdminReq {
     @Schema(description = "食堂名称（仅当 stallName 触发新建档口时按名 upsert；「其他」等空值不建档）", example = "第一食堂")
     private String canteenName;
 
-    @Schema(description = "所属品类ID（category.id，可空=未分类；首页品类滚轮筛选用）", example = "1")
-    private Long categoryId;
-
     @Schema(description = "菜品名称", example = "番茄炒蛋盖饭")
     private String name;
 

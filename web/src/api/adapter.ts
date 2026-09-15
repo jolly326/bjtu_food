@@ -157,7 +157,6 @@ export function dishToLegacy(raw: any): Dish {
     status: raw.status === 'on' ? 'active' : 'inactive',
     spiceLevel: raw.spiceLevel ?? 0,
     region: raw.region || '',
-    categoryId: raw.categoryId ?? raw.category_id,
     stallName: raw.stallName || raw.stall_name || '',
     canteenName: raw.canteenName || raw.canteen_name || '',
     // 注（§7.23 第 4 条，2026-09-15）：dish.audit_status / reject_reason 已随「菜品审核 UI 下线」
@@ -180,7 +179,6 @@ export function dishToApi(data: Partial<Dish>) {
     // canteenName 仅在 stallName 触发新建档口时被后端消费（按名 upsert 所属食堂）
     stallName: data.stallName,
     canteenName: data.canteenName,
-    categoryId: data.categoryId === undefined ? undefined : (data.categoryId ?? null),
     name: data.name,
     price: data.price === undefined ? undefined : Math.round(Number(data.price) * 100),
     description: data.description,

@@ -382,7 +382,6 @@ public class DishServiceImpl implements DishService {
      */
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
-        dish.setCategoryId(req.getCategoryId());
         dish.setName(req.getName());
         String alias = normalizeAlias(req.getAlias());
         if (alias != null && alias.length() > ALIAS_MAX_LENGTH) {

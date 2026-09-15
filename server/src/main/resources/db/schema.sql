@@ -26,6 +26,9 @@
 --   5. UGC 内容安全（2026-09-13 产品定稿）：review / user_feedback 支持配图（images JSON），
 --      sec_state 记录微信内容安全检测结果：pass（通过）/ review（待人工复核，对他端不可见，作者本人可见）/
 --      rejected（管理端人工复核不通过，对他端不可见）。配图经 COS 转存后以 COS 绝对 URL 存库。
+--   6. 菜品品类整链退役（2026-09-15 用户拍板）：category 表与 dish.category_id 列（含单列索引
+--      idx_dish_category）不再创建（端上零呈现、仅 Web 自用的不可见第三维度）；
+--      存量库由文件末尾 drop_category_chain 幂等段清理（可重跑）。
 -- =============================================================
 
 -- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
@@ -113,7 +116,6 @@ CREATE TABLE IF NOT EXISTS `dish`
 (
     `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '菜品ID',
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
-    `category_id`    BIGINT       NULL     DEFAULT NULL COMMENT '所属品类ID（category.id；**后台归类用途、端上不呈现**，2026-09-14 Q-117 / spec §7.22 第 1 条；可空=未分类）',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
     `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
@@ -133,7 +135,7 @@ CREATE TABLE IF NOT EXISTS `dish`
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_dish_stall` (`stall_id`),
-    KEY `idx_dish_category` (`category_id`),
+    -- idx_dish_category（category_id 单列）已随品类整链退役一并删除（2026-09-15）
     -- idx_dish_audit（audit_status 单列）已随 audit_status 列退役一并删除（2026-09-15 阶段4）
     -- 热度/推荐排序（view_count/rating_count/avg_rating 无索引）：组合索引同时覆盖过滤列与排序列，
     -- 支持推荐、榜单、列表 heat 排序走索引扫描（表达式排序本身无法索引，该索引覆盖常用过滤+排序列）
@@ -199,22 +201,10 @@ CREATE TABLE IF NOT EXISTS `notification`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='消息通知';
 
--- -------------------- 菜品品类（**后台归类用途，端上不呈现**；2026-09-14 Q-117 / spec §7.22 第 1 条） --------------------
-CREATE TABLE IF NOT EXISTS `category`
-(
-    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '分类ID',
-    `code`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '品类机器标识（唯一，如 malatang/noodle/rice/home/bbq/porridge/drink/halal）。端上不呈现，仅后台归类用（Q-117）',
-    `name`       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '分类名称（如 麻辣烫/面食/盖饭套餐/家常小炒/烧烤炸物/汤粥/饮品甜点/清真）',
-    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前，对应首页品类滚轮顺序）',
-    `status`     VARCHAR(32)  NOT NULL DEFAULT 'enabled' COMMENT '状态：enabled / disabled',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_category_code` (`code`),
-    KEY `idx_category_status_sort` (`status`, `sort_order`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='菜品品类（后台归类用途，端上不呈现）';
+-- -------------------- 菜品品类：已整链退役（2026-09-15 用户拍板） --------------------
+-- category 表（code/name/sort_order/status）与 dish.category_id 一并删除：
+-- 该维度端上零呈现、仅 Web 自用的「不可见第三维度」，维护成本高于收益。
+-- 新库：本脚本不再创建该表与列；存量库：由文件末尾 drop_category_chain 幂等段清理（可重跑）。
 
 -- -------------------- 用户反馈 --------------------
 CREATE TABLE IF NOT EXISTS `user_feedback`
@@ -867,5 +857,35 @@ END$$
 DELIMITER ;
 CALL `drop_dish_audit_status_column`();
 DROP PROCEDURE IF EXISTS `drop_dish_audit_status_column`;
+
+-- 字段/表下线（2026-09-15 用户拍板「品类整链删除」）：
+--   dish.category_id 列（含单列索引 idx_dish_category）与整张 category 表同批退役。
+--   背景：品类是「端上零呈现、仅 Web 自用的不可见第三维度」，维护成本高于收益；
+--   后端同批移除 CategoryAdminController / CategoryService(+Impl) / CategoryMapper / Category
+--   与 dish 侧 categoryId 字段（实体/DTO/VO）及 DishMapper.xml 的列映射与查询列。
+--   顺序：先 DROP dish.category_id（DROP COLUMN 连带删除 idx_dish_category——其唯一成员列，
+--   无需单独 DROP INDEX），再 DROP TABLE category（无外键约束，先列后表保证重复执行安全）。
+--   本段幂等（先判存在再操作），重复执行安全、不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_category_chain`;
+DELIMITER $$
+CREATE PROCEDURE `drop_category_chain`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'category_id'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `category_id`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'category'
+    ) THEN
+        DROP TABLE `category`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_category_chain`();
+DROP PROCEDURE IF EXISTS `drop_category_chain`;
 
 SET FOREIGN_KEY_CHECKS = 1;

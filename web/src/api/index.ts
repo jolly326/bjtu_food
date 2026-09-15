@@ -10,4 +10,3 @@ export * as userApi from './user'
 // 后端 /admin/admins* 与 /auth/admin/login 均不存在。原 web/src/api/admin.ts 已物理删除。
 export * as feedbackApi from './feedback'
 export * as operationLogApi from './operationLog'
-export * as categoryApi from './category'

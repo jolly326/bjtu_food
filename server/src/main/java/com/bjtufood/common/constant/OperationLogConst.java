@@ -11,8 +11,4 @@ public interface OperationLogConst {
     String ACTION_DISH_DELETE = "dish_delete";
     String ACTION_FEEDBACK_HANDLE = "feedback_handle";
     String ACTION_ACCOUNT_DELETE = "account_delete";
-    String ACTION_CATEGORY_CREATE = "category_create";
-    String ACTION_CATEGORY_UPDATE = "category_update";
-    String ACTION_CATEGORY_TOGGLE = "category_toggle";
-    String ACTION_CATEGORY_DELETE = "category_delete";
 }
