@@ -34,10 +34,6 @@ public class User {
     @Schema(description = "校园邮箱", example = "20240001@bjtu.edu.cn")
     private String email;
 
-    /** 兼容字段：验证码登录模式下可为空 */
-    @Schema(description = "密码哈希（验证码登录模式下可为空）")
-    private String password;
-
     /** 昵称 */
     @Schema(description = "昵称", example = "张三")
     private String nickname;
@@ -54,9 +50,9 @@ public class User {
     @Schema(description = "微信 openid（静默登录取号依据，唯一）", example = "oXXXXX...")
     private String openid;
 
-    /** 微信 unionid（同主体多应用，可空） */
-    @Schema(description = "微信 unionid（可空）")
-    private String unionid;
+    // user.password / user.unionid 已于 2026-09-16 用户拍板「零消费即删除」退役：
+    // password 零读（唯一写点=注销置 NULL）、unionid 只写不读（多应用预留撤销）；
+    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
     /** 认证状态：0=游客未认证 / 1=已邮箱认证（verified 不进 JWT，后端按此实时判定） */
     @Schema(description = "认证状态：0=游客未认证 / 1=已邮箱认证", example = "0")

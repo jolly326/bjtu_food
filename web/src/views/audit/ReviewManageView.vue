@@ -228,7 +228,7 @@ function getDishName(dishId: number | bigint): string {
       v-model:selectedIds="selectedIds"
       :columns="[
         { prop: 'user', label: '用户' },
-        { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
+        { prop: 'rating', label: '评分', width: '120px', align: 'center', sortable: true, sortValue: (row) => row.rating },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'dish', label: '菜品' },
         { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },

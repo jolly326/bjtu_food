@@ -72,33 +72,8 @@ public class ReviewServiceImpl implements ReviewService {
         return pageResult;
     }
 
-    @Override
-    public IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId) {
-        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
-        page = p[0]; pageSize = p[1];
-        sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByStallId(new Page<>(page, pageSize), stallId, sort);
-        // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
-        if (userId != null) {
-            markUseful(pageResult.getRecords(), userId);
-        }
-        fillImages(pageResult.getRecords());
-        return pageResult;
-    }
-
-    @Override
-    public IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId) {
-        int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
-        page = p[0]; pageSize = p[1];
-        sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByCanteenId(new Page<>(page, pageSize), canteenId, sort);
-        // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼）
-        if (userId != null) {
-            markUseful(pageResult.getRecords(), userId);
-        }
-        fillImages(pageResult.getRecords());
-        return pageResult;
-    }
+    // listByStallId / listByCanteenId 已随 GET /reviews 的 stallId / canteenId 维度参数退役
+    //（2026-09-16 用户拍板「端点零消费即删除」），selectReviewPageByStallId / ByCanteenId SQL 同批删除。
 
     @Override
     public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {

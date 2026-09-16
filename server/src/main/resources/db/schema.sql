@@ -23,7 +23,8 @@
 --        · dish.audit_status 全量退役（菜品无独立审核：管理员录入/编辑即生效，公开可见性唯一判据为 status='on'），
 --          列与相关索引（idx_dish_audit、idx_dish_heat 中的该列）同批移除；
 --        · 上述存量库清理均由文件末尾幂等 DROP 段完成（可重跑）；
---        · dish.reject_reason / dish.created_by、review / user_feedback 的审核类列保留（后两者见第 5 条）。
+--        · dish.reject_reason / dish.created_by 已于 2026-09-16 用户拍板「零消费即删除」退役
+--          （由文件末尾 drop_zero_consumer_columns 幂等段清理）；review / user_feedback 的审核类列见第 5 条。
 --   5. UGC 内容安全（2026-09-13 产品定稿 + 2026-09-15 用户拍板「取消人工复核」）：
 --      review / user_feedback 支持配图（images JSON，配图经 COS 转存后以 COS 绝对 URL 存库）；
 --      内容安全机检结果（sec_state：pass/review/rejected）**已全链退役**——机检 pass/review 一律放行、
@@ -52,23 +53,24 @@ SET FOREIGN_KEY_CHECKS = 0;
 --   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
 --   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁 UGC 写操作。
 --   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
---   · email 列保留作为历史迁移凭证；**password 为历史兼容列——管理端与学生端均已不使用**
---     （管理端为环境变量口令 ADMIN_TOKEN，无账号密码登录；学生端为微信静默登录 + 邮箱验证码，无密码体系）。
+--   · email 列保留作为历史迁移凭证。
+--   · user.password 已于 2026-09-16 用户拍板「零消费即删除」退役：三端零读（唯一写点=注销置 NULL），
+--     管理端为环境变量口令 ADMIN_TOKEN、学生端为微信静默登录 + 邮箱验证码，均无密码体系；
 --     BCrypt 仅用于邮箱验证码哈希（email_verification_code.code_hash），不用于任何登录口令校验。
---     （2026-09-15 蓝图 v1 / project_spec.md §7.23「管理端无密码体系」，DataInitializer 删除后口径。）
+--   · user.unionid 同批退役：只写不读（同主体多应用预留撤销，用户拍板「零消费即删除」）。
+--     两列存量库由文件末尾 drop_zero_consumer_columns 幂等段清理（可重跑）。
 CREATE TABLE IF NOT EXISTS `user`
 (
     `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '用户ID',
     `username`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '学号/工号（游客建号为 wx_+openid 尾 16 位，唯一）',
     `email`        VARCHAR(128) NULL    DEFAULT NULL COMMENT '校园邮箱（历史迁移凭证；微信游客为 NULL，多游客 NULL 不冲突唯一索引 uk_user_email）',
-    `password`     VARCHAR(128) NULL     DEFAULT NULL COMMENT '历史兼容列：密码哈希。管理端与学生端均已不使用（管理端为环境变量口令，见 project_spec.md §7.23；BCrypt 仅用于邮箱验证码哈希）',
     `nickname`     VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '昵称',
     `avatar`       VARCHAR(512) NULL     DEFAULT NULL COMMENT '头像URL',
     -- user.role / user.last_login_at 已于 2026-09-15 用户拍板退役（role 恒 student、last_login_at 只写不读零消费）；
-    -- CREATE TABLE 不再创建，存量库由文件末尾 drop_user_redundant_columns 幂等段清理。
+    -- user.password / user.unionid 已于 2026-09-16 用户拍板退役（零读 / 只写不读）；
+    -- CREATE TABLE 均不再创建，存量库由文件末尾幂等 DROP 段清理。
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
     `openid`       VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信游客/已认证账号有值，历史学号账号为 NULL）',
-    `unionid`      VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）',
     `verified`     TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）',
     `bind_email`   VARCHAR(128) NULL     DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）',
     `verified_at`  DATETIME     NULL     DEFAULT NULL COMMENT '认证时间',
@@ -135,8 +137,9 @@ CREATE TABLE IF NOT EXISTS `dish`
     `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
     `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
-    `reject_reason` VARCHAR(255) NULL    DEFAULT NULL COMMENT '【历史留痕列】随菜品审核语义退役（2026-09-15 阶段4 起 audit_status 列亦已下线）：无写入入口、恒为 NULL；「不采纳/退回」语义已迁至反馈处理（user_feedback）',
-    `created_by`    BIGINT       NULL    DEFAULT NULL COMMENT '提交人用户ID',
+    -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
+    -- 已于 2026-09-16 用户拍板「零消费即删除」退役：CREATE TABLE 不再创建，
+    -- 存量库由文件末尾 drop_zero_consumer_columns 幂等段清理。
     `view_count`    INT          NOT NULL DEFAULT 0 COMMENT '浏览量',
     `avg_rating`    DECIMAL(3, 2) NULL    DEFAULT NULL COMMENT '平均评分',
     `rating_count`  INT          NOT NULL DEFAULT 0 COMMENT '评价数',
@@ -225,14 +228,16 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
     -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
-    `contact`      VARCHAR(128)  NULL    DEFAULT NULL COMMENT '联系方式',
+    -- user_feedback.contact 已于 2026-09-16 用户拍板退役（产品定型「不收集联系方式」）：
+    -- FeedbackReq.contact / 实体字段 / 落库逻辑同批删除；
+    -- user_feedback.handler_id 同批退役（§7.10 操作人身份降级为单口令后一直未写、读侧恒 NULL）。
+    -- 两列存量库由文件末尾 drop_zero_consumer_columns 幂等段清理。
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
     `reject_reason` VARCHAR(200) NULL    DEFAULT NULL COMMENT '不采纳/退回原因（outcome=rejected 时必填）',
     `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型：举报为 review；信息纠错为 dish；其他为 null',
     `related_id`   BIGINT        NULL    DEFAULT NULL COMMENT '关联对象ID：举报为评价ID；信息纠错为菜品ID；其他为 null',
     `handled_at`   DATETIME      NULL    DEFAULT NULL COMMENT '处理时间',
-    `handler_id`   BIGINT        NULL    DEFAULT NULL COMMENT '处理人管理员ID',
     `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -476,7 +481,8 @@ CALL `add_dish_heat_index`();
 DROP PROCEDURE IF EXISTS `add_dish_heat_index`;
 
 -- 微信登录体系 user 表新列幂等迁移（task-01，spec §5.y.2）：
--- 旧库（尚无 openid/unionid/verified/bind_email/verified_at）补齐列与唯一索引，不破坏既有数据。
+-- 旧库（尚无 openid/verified/bind_email/verified_at）补齐列与唯一索引，不破坏既有数据。
+-- 注：unionid 不再补齐——该列已于 2026-09-16 零消费退役，由末尾 drop_zero_consumer_columns 段 DROP。
 DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
 DELIMITER $$
 CREATE PROCEDURE `add_user_wechat_auth`()
@@ -487,14 +493,6 @@ BEGIN
     ) THEN
         ALTER TABLE `user`
             ADD COLUMN `openid`     VARCHAR(64)  NULL DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信账号有值，历史学号账号为 NULL）';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'unionid'
-    ) THEN
-        ALTER TABLE `user`
-            ADD COLUMN `unionid`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '微信 unionid（同主体多应用，可空）';
     END IF;
 
     IF NOT EXISTS (
@@ -679,8 +677,9 @@ DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
 --   review.tags（评价标签）随「美团式写评」确认不做而下线：
 --   写入侧无任何入口（ReviewReq / 小程序端均无该字段），读取侧实体/VO 零引用（已复核），
 --   属纯零消费列。CREATE TABLE 已同步移除该列定义；旧库在此幂等 DROP，保证重复执行安全、不影响既有数据。
---   同批 §7.10 决定保留（不删）的 retired 列：user_feedback.handler_id
---     （管理端操作人身份降级：单口令即单人，handle 不再写入，保持 NULL）；
+--   同批 §7.10 曾决定保留的 retired 列 user_feedback.handler_id（管理端操作人身份降级：
+--     单口令即单人，handle 不再写入），已于 2026-09-16 用户拍板「零消费即删除」随
+--     drop_zero_consumer_columns 幂等段退役删除；
 --     另一列原为操作日志 admin_id，已随整张操作日志表退役（2026-09-15，见文件末尾
 --     drop_operation_log_table 幂等段），无需再处理。
 DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
@@ -749,8 +748,9 @@ DROP PROCEDURE IF EXISTS `drop_dish_portion`;
 --   实体（Canteen/Stall）、VO 与 Service 读写已同批移除，Mapper 侧无任何引用；CREATE TABLE 已同步移除列定义。
 --   旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
 --   注意：保留 canteen.name / stall.name / stall.floor / stall.window_no，以及新增/改名/列表查询能力；
---         菜品 dish 的 dish.status / dish.reject_reason / dish.created_by **保留**（上下架判据与历史留痕），
+--         菜品 dish 的 dish.status **保留**（上下架判据）；
 --         dish.audit_status 由文件末尾 drop_dish_audit_status_column 段单独 DROP；
+--         dish.reject_reason / dish.created_by 已由 2026-09-16 drop_zero_consumer_columns 段退役；
 --         本段只处理 canteen / stall 两表。
 DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
 DELIMITER $$
@@ -826,7 +826,7 @@ DROP PROCEDURE IF EXISTS `drop_canteen_stall_entity_fields`;
 --   执行前置（由运维/用户执行，不由 agent 代跑）：本列退役前须先跑历史一次性归一脚本
 --   （normalize_dish_audit_status.sql，2026-09-15 已随本列退役一并删除）以消除存量
 --   pending/rejected 行；本段幂等，重复执行安全（先判存在再 DROP），不影响既有数据。
---   dish.reject_reason / dish.created_by 不在本段范围内（保留）。
+--   dish.reject_reason / dish.created_by 不在本段范围内（已由 2026-09-16 drop_zero_consumer_columns 段退役）。
 DROP PROCEDURE IF EXISTS `drop_dish_audit_status_column`;
 DELIMITER $$
 CREATE PROCEDURE `drop_dish_audit_status_column`()
@@ -984,5 +984,66 @@ END$$
 DELIMITER ;
 CALL `drop_user_redundant_columns`();
 DROP PROCEDURE IF EXISTS `drop_user_redundant_columns`;
+
+-- 字段下线（2026-09-16 用户拍板「数据库重设计：零消费列全部删除，满足 BCNF」）：
+--   共 6 列，逐列三端 grep 复核零消费后退役：
+--   · user.password          —— 零读（唯一写点=注销置 NULL，AuthService 已同步删除该置空逻辑）；
+--   · user.unionid           —— 只写不读（同主体多应用预留撤销，微信登录仅消费 openid）；
+--   · dish.reject_reason     —— 恒 NULL（审核语义退役后无写入入口）；
+--   · dish.created_by        —— 只写不读（upsert 留痕撤销；migrateOwnership 的归属迁移同批删除）；
+--   · user_feedback.handler_id —— 退役不写（§7.10 操作人身份降级后读侧恒 NULL）；
+--   · user_feedback.contact  —— 产品定型「不收集联系方式」（FeedbackReq.contact / 实体字段 /
+--                               落库逻辑 / FeedbackAdminVO 展示同批删除，web 展示列由前端任务同步删）。
+-- CREATE TABLE 段已同步移除上述列定义；存量库在此幂等 DROP（先判 INFORMATION_SCHEMA.COLUMNS
+-- 存在再 DROP COLUMN，可重跑；六列均无索引成员，无连带对象），不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_zero_consumer_columns`;
+DELIMITER $$
+CREATE PROCEDURE `drop_zero_consumer_columns`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'password'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `password`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'unionid'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `unionid`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'reject_reason'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `reject_reason`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'created_by'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `created_by`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'handler_id'
+    ) THEN
+        ALTER TABLE `user_feedback` DROP COLUMN `handler_id`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback' AND COLUMN_NAME = 'contact'
+    ) THEN
+        ALTER TABLE `user_feedback` DROP COLUMN `contact`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_zero_consumer_columns`();
+DROP PROCEDURE IF EXISTS `drop_zero_consumer_columns`;
 
 SET FOREIGN_KEY_CHECKS = 1;

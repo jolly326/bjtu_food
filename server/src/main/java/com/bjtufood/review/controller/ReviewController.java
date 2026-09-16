@@ -28,29 +28,16 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。支持按维度查询评价：dishId（菜品）、stallId（档口）、canteenId（食堂），可同时传，按 stallId > canteenId > dishId 优先取一，都不传默认按 dishId 维度但 dishId 必填。只返回未隐藏评价。排序 sort=useful（默认，按有用数置顶）/latest。测试示例：/reviews?stallId=1&page=1&pageSize=20&sort=latest")
+    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。仅支持按菜品维度查询（dishId 必填）。此前提供的 stallId（档口）/ canteenId（食堂）维度参数已随 2026-09-16 用户拍板「端点零消费即删除」退役——三端审计确认零调用。只返回未隐藏评价。排序 sort=useful（默认，按有用数置顶）/latest。测试示例：/reviews?dishId=1&page=1&pageSize=20")
     @GetMapping("/reviews")
     public Result<PageResult<ReviewVO>> listReviews(
-            @Parameter(description = "菜品ID（可同时传，按 stallId > canteenId > dishId 优先取一）", example = "1")
-            @RequestParam(required = false) Long dishId,
-            @Parameter(description = "档口ID（按档口查评价）", example = "1")
-            @RequestParam(required = false) Long stallId,
-            @Parameter(description = "食堂ID（按食堂查评价）", example = "1")
-            @RequestParam(required = false) Long canteenId,
+            @Parameter(description = "菜品ID（必填）", example = "1")
+            @RequestParam Long dishId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "排序：useful（最有用的，默认）/ latest（最新）", example = "useful")
             @RequestParam(defaultValue = "useful") String sort) {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        if (stallId != null) {
-            return Result.success(toPageResult(reviewService.listByStallId(stallId, page, pageSize, sort, userId)));
-        }
-        if (canteenId != null) {
-            return Result.success(toPageResult(reviewService.listByCanteenId(canteenId, page, pageSize, sort, userId)));
-        }
-        if (dishId == null) {
-            throw new com.bjtufood.common.exception.BusinessException("dishId、stallId、canteenId 至少传入其一");
-        }
         return Result.success(toPageResult(reviewService.listByDishId(dishId, page, pageSize, sort, userId)));
     }
 

@@ -41,10 +41,8 @@ public class FeedbackReq {
     @Schema(description = "反馈配图 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤3 张）")
     private List<String> images;
 
-    /** 联系方式（选填） */
-    @Schema(description = "联系方式（选填）")
-    @Size(max = 128, message = "联系方式不能超过128字")
-    private String contact;
+    // contact 字段已于 2026-09-16 产品定型「不收集联系方式」删除：user_feedback.contact 列、
+    // 实体字段与落库逻辑同批退役；端上请求不再携带该字段（携带亦被忽略）。
 
     /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈可空 */
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他可空")

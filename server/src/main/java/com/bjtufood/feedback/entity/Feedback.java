@@ -50,8 +50,9 @@ public class Feedback {
      * 机检 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
      */
 
-    @Schema(description = "联系方式")
-    private String contact;
+    // user_feedback.contact 已于 2026-09-16 用户拍板「产品定型不收集联系方式」退役：
+    // 请求字段（FeedbackReq.contact）、实体字段与落库逻辑同批删除；
+    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
     /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈为 null */
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
@@ -81,9 +82,9 @@ public class Feedback {
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;
 
-    /** 处理人管理员ID */
-    @Schema(description = "处理人管理员ID")
-    private Long handlerId;
+    // user_feedback.handler_id 已于 2026-09-16 用户拍板「零消费即删除」退役
+    //（§7.10 管理端操作人身份降级为单口令后该列即不写，读侧恒 NULL）；
+    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

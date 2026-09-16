@@ -19,7 +19,8 @@ import java.util.Map;
 /**
  * 微信小程序服务（spec §5.y.1）
  * <p>
- * 调用微信 jscode2session 接口，用 wx.login 的 code 换取 openid（+unionid 若有）。
+ * 调用微信 jscode2session 接口，用 wx.login 的 code 换取 openid。
+ * （user.unionid 已于 2026-09-16 零消费退役，微信响应中的 unionid 字段不再解析。）
  */
 @Service
 public class WechatService {
@@ -67,7 +68,7 @@ public class WechatService {
      * 登录凭证校验（code2Session）。
      *
      * @param code wx.login 临时凭证
-     * @return 微信会话结果 { openid, unionid?, session_key }
+     * @return 微信会话结果 { openid, session_key }
      * @throws BusinessException code2Session 失败（未配置/接口错误/凭证无效）时 400
      */
     public WechatSession code2Session(String code) {
@@ -103,9 +104,9 @@ public class WechatService {
             if (openid == null || openid.isBlank()) {
                 throw new BusinessException(400, "微信登录校验失败：未返回 openid");
             }
-            String unionid = (String) resp.get("unionid");
+            // unionid 不再解析：user.unionid 列已随 2026-09-16 零消费退役（多应用预留撤销）
             String sessionKey = (String) resp.get("session_key");
-            return new WechatSession(openid, unionid, sessionKey);
+            return new WechatSession(openid, sessionKey);
         } catch (BusinessException e) {
             // 业务异常原样抛出（如「凭证无效」），不在这里被统一包装吞掉语义
             throw e;
@@ -178,7 +179,7 @@ public class WechatService {
         }
     }
 
-    /** 微信会话结果 */
-    public record WechatSession(String openid, String unionid, String sessionKey) {
+    /** 微信会话结果（unionid 已随 user.unionid 列退役不再解析，2026-09-16） */
+    public record WechatSession(String openid, String sessionKey) {
     }
 }

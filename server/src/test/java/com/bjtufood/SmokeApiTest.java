@@ -361,9 +361,11 @@ class SmokeApiTest {
     void submitFeedback_guestSuggestion_persistsSubAndReturns200() throws Exception {
         when(sensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        // 请求体故意携带已退役的 contact 字段（2026-09-16 产品定型「不收集联系方式」）：
+        // FeedbackReq.contact 已删除，Jackson 忽略未知字段，请求应正常落库且不含联系方式语义
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"suggestion\",\"sub\":\"idea\",\"content\":\"希望增加素食档口\"}"))
+                        .content("{\"type\":\"suggestion\",\"sub\":\"idea\",\"content\":\"希望增加素食档口\",\"contact\":\"2024001@bjtu.edu.cn\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -374,6 +376,24 @@ class SmokeApiTest {
         Assertions.assertEquals("idea", saved.getSub());
         // 游客反馈：不信任前端 userId，登录态缺失即 null
         Assertions.assertNull(saved.getUserId());
+    }
+
+    // ==================== 防回归：评价列表 stallId/canteenId 维度参数退役（2026-09-16 零消费删除） ====================
+
+    /**
+     * 防回归（2026-09-16 用户拍板「端点零消费即删除」）：{@code GET /reviews} 的
+     * stallId / canteenId 维度参数已删除，dishId 成为唯一必填维度。
+     * <p>
+     * 三端审计确认 client 仅以 type:'dish' 调用、web 不调该端点。此后仅传 stallId（不带 dishId）
+     * 将命中「缺少必填参数 dishId」的 400 分流（@RequestParam required=true 缺参 →
+     * MissingServletRequestParameterException → GlobalExceptionHandler 统一 400），不再返回按档口聚合的评价列表。
+     */
+    @Test
+    void reviews_stallDimensionRemoved_missingDishIdReturns400() throws Exception {
+        mockMvc.perform(get("/reviews").param("stallId", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("缺少必填参数：dishId"));
     }
 
     // ==================== 链路 5：上传（管理端口令守卫） ====================

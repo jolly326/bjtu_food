@@ -132,7 +132,7 @@
 
 ### Requirement: 反馈配图与内容安检（2026-09-13 恢复）
 
-「意见反馈」页三个表单 SHALL 均提供可选配图能力：最多 **3 张**，选择后经 `wx.compressImage` 压缩（最长边 ≤1334 且文件 ≤1MB）并经统一上传接口（`POST /api/upload/images` **单张契约**、前端逐张调用、单张失败跳过；云存储中转 → `imgSecCheck` → COS 转存，链路细则见 `ugc-media-security`）取得 COS URL 后随 `POST /feedback` 的 `images` 一并提交；配图上传失败的图片 SHALL NOT 混入提交载荷（提示移除或重试）。反馈文本与配图均须过微信内容安检：文本 `msgSecCheck` `suggest=risky`（含未知 / 缺失态 fail-closed 同按 risky）或图片违规（87014）时 SHALL 提示内容违规且不提交（HTTP 400）；**机检 `pass` 与 `review`（疑似）一律放行**（2026-09-15 拍板「取消人工复核」）——**无安检态落库、无复核队列**（`sec_state` 已全链退役）；反馈无公开展示，不存在安检可见性闸门。配图入口样式与整页 Q 版圆润语言一致，游客与已认证用户均可配图提交。
+「意见反馈」页三个表单 SHALL 均提供可选配图能力：最多 **3 张**，选择后经 `wx.compressImage` 压缩（最长边 ≤1334 且文件 ≤1MB）并经统一上传接口（`POST /api/upload/images` **单张契约**、前端逐张调用、单张失败跳过；云存储中转 → `imgSecCheck` → COS 转存，链路细则见 `ugc-media-security`）取得 COS URL 后随 `POST /feedback` 的 `images` 一并提交；配图上传失败的图片 SHALL NOT 混入提交载荷（提示移除或重试）。反馈文本与配图均须过微信内容安检：文本 `msgSecCheck` `suggest=risky`（含未知 / 缺失态 fail-closed 同按 risky）或图片违规（87014）时 SHALL 提示内容违规且不提交（HTTP 400）；**内容安全检测 `pass` 与 `review`（疑似）一律放行**（2026-09-15 拍板「取消人工复核」）——**无安检态落库、无复核队列**（`sec_state` 已全链退役）；反馈无公开展示，不存在安检可见性闸门。配图入口样式与整页 Q 版圆润语言一致，游客与已认证用户均可配图提交。
 
 #### Scenario: 配图随反馈提交
 

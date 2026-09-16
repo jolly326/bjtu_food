@@ -56,7 +56,7 @@
 
 ### Requirement: 账号注销（合规）
 
-「我的」页底部 SHALL 提供「注销账号」入口（danger 弱化文字，与合规胶囊同行）。点击 SHALL 经二次确认（明示后果：账号匿名化且不可恢复、评价与反馈保留但不再关联身份、注销后需重新登录）后才执行；确认后调用 `DELETE /auth/account`，账号 SHALL 被匿名化（昵称→'已注销用户'、openid/unionid 解绑、status=deleted）而非物理删除，评价与反馈 SHALL 保留但不再关联身份；当前 token SHALL 立即失效，随后进入新的游客态。重复注销 SHALL 返回 400 幂等错误。
+「我的」页底部 SHALL 提供「注销账号」入口（danger 弱化文字，与合规胶囊同行）。点击 SHALL 经二次确认（明示后果：账号匿名化且不可恢复、评价与反馈保留但不再关联身份、注销后需重新登录）后才执行；确认后调用 `DELETE /auth/account`，账号 SHALL 被匿名化（昵称→'已注销用户'、openid 解绑（~~unionid~~ 该列已于 2026-09-16 零消费清理删除，无需处置）、status=deleted）而非物理删除，评价与反馈 SHALL 保留但不再关联身份；当前 token SHALL 立即失效，随后进入新的游客态。重复注销 SHALL 返回 400 幂等错误。
 
 #### Scenario: 注销二次确认
 

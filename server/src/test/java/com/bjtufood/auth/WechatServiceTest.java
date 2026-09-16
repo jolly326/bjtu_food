@@ -79,7 +79,7 @@ class WechatServiceTest {
 
         assertThat(session.openid()).isEqualTo("oX");
         assertThat(session.sessionKey()).isEqualTo("k");
-        assertThat(session.unionid()).isNull();
+        // unionid 已随 user.unionid 列退役（2026-09-16 零消费删除），WechatSession 不再携带该字段
         server.verify();
     }
 
@@ -94,7 +94,8 @@ class WechatServiceTest {
         WechatService.WechatSession session = wechatService.code2Session("code");
 
         assertThat(session.openid()).isEqualTo("oJson");
-        assertThat(session.unionid()).isEqualTo("u1");
+        // 响应中的 unionid 字段不再解析（user.unionid 列已随 2026-09-16 零消费退役）
+        assertThat(session.sessionKey()).isEqualTo("sk");
         server.verify();
     }
 

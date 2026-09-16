@@ -68,9 +68,9 @@
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/reviews` | `dishId`/`stallId`/`canteenId`（**可同时传，按 `stallId` > `canteenId` > `dishId` 优先取一，不报 400**（2026-09-15 CT-04 修订「三选一」口径）；至少传其一）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条) | `PageResult<ReviewVO>` | 评价列表（仅未隐藏 `is_hidden=0`；本人视角除外，后端过滤）——**无安检态过滤**（2026-09-15 取消人工复核） |
+| GET | `/reviews` | `dishId`（**必填**，缺失 → `400`）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条)。~~`stallId` / `canteenId` 维度参数~~ **已于 2026-09-16 删除**（三端零消费，撤销 2026-09-15 CT-04「按 `stallId` > `canteenId` > `dishId` 优先取一」口径，见 spec §7.23 第 6 条 v1 基线冻结）——评价列表仅按菜品维度查询 | `PageResult<ReviewVO>` | 评价列表（仅未隐藏 `is_hidden=0`；本人视角除外，后端过滤）——**无安检态过滤**（2026-09-15 取消人工复核） |
 
-> **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充；2026-09-15「取消人工复核」修订）**：`images`（字符串数组，≤3 项 COS URL，无图返回空数组）。**安检态字段 `secState` 已随 `sec_state` 列全链退役删除**（见 spec §7.24）——列表 / 详情接口的可见性判据收敛为**仅 `is_hidden=0`**（后端过滤，前端不兜底），不再存在「机检态过滤」条件。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
+> **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充；2026-09-15「取消人工复核」修订）**：`images`（字符串数组，≤3 项 COS URL，无图返回空数组）。**安检态字段 `secState` 已随 `sec_state` 列全链退役删除**（见 spec §7.24）——列表 / 详情接口的可见性判据收敛为**仅 `is_hidden=0`**（后端过滤，前端不兜底），不再存在「内容安全检测态过滤」条件。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
 ### 2.5 内容（公开）
 | 方法 | 路径 | 说明 |
@@ -91,7 +91,7 @@
 | POST | `/auth/verify-email` | 登录 | `{ code }` | 验证码认证，绑定邮箱，verified→1，返回新 token |
 | GET | `/auth/profile` | 登录 | — | 用户资料（**不含 openid**） |
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
-| DELETE | `/auth/account` | 登录 | — | **注销账号（匿名化，非物理删除）**：nickname→'已注销用户'、openid/unionid→NULL（解绑，允许重新登录建新游客号）、status→'deleted'；评价/反馈保留但去身份化；token 立即失效（TokenBlacklist token+userId 双维度）；幂等（重复调用 400「账号已注销」） |
+| DELETE | `/auth/account` | 登录 | — | **注销账号（匿名化，非物理删除）**：nickname→'已注销用户'、openid→NULL（解绑，允许重新登录建新游客号；~~unionid~~ 该列已于 2026-09-16 删除、无需处置）、status→'deleted'；评价/反馈保留但去身份化；token 立即失效（TokenBlacklist token+userId 双维度）；幂等（重复调用 400「账号已注销」） |
 
 > `PUT /auth/password` **已于 2026-09-14 删除（spec §7.21 第 3 条 Q-108，用户确认）**：端点、`AuthController` / `AuthServiceImpl.changePassword` 方法与 `PasswordChangeReq` DTO 均已移除——学生端与管理端均无密码体系，本文档旧版记载作废，不得据此推导该端点存在。
 
@@ -166,7 +166,7 @@
 | suggest 判定（**2026-09-15 归一为二态**，见 spec §7.24） | `pass` **与 `review`（疑似）均放行**（`SecSuggest.fromValue` 把 `review` 归一为放行态）；`risky` 与未知 / 缺失态（fail-closed 同按 risky）返回 `400` 拦截、不落库 |
 | 图片安检 | `imgSecCheck`：违规（微信 code `87014`）返回 `400` 拦截 |
 | access_token | 统一使用微信 **`stable_token`** 并缓存（刷新互斥、不走过期即弃的普通 token） |
-| 安检态落库（**已退役，2026-09-15**） | **无安检态字段**：`review.sec_state` / `user_feedback.sec_state` 两列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、列表 `secState` 查询入参、VO `secState` 字段同批删除；机检结论仅作**提交闸门**，不落库、不参与可见性 |
+| 安检态落库（**已退役，2026-09-15**） | **无安检态字段**：`review.sec_state` / `user_feedback.sec_state` 两列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、列表 `secState` 查询入参、VO `secState` 字段同批删除；内容安全检测结论仅作**提交闸门**，不落库、不参与可见性 |
 | 错误码 | 安检违规一律 `400`，不新增错误码（错误码仅 `200/400/401/403/4031/500`） |
 
 ---
@@ -220,7 +220,7 @@
 | PUT | `/admin/reviews/{id}/hide` | **事后处置**：隐藏 / 显示评价（`is_hidden` 0/1） |
 | DELETE | `/admin/reviews/{id}` | **事后处置**：删评价（清理 useful 孤儿） |
 
-> **已删端点（勿再引用）**：~~`PUT /admin/reviews/{id}/sec-state`~~（**评价安检复核，2026-09-13 新增 → 2026-09-15 随「取消人工复核」与 `sec_state` 列全链退役删除**：原入参 `{ state: "pass" \| "rejected" }`、放行 / 驳回语义一并作废）。**管理端不设内容复核队列**——机检 `pass` / `review` 一律放行、仅 `risky` 拒绝（见 §4.2 与 spec §5.a / §7.24）。
+> **已删端点（勿再引用）**：~~`PUT /admin/reviews/{id}/sec-state`~~（**评价安检复核，2026-09-13 新增 → 2026-09-15 随「取消人工复核」与 `sec_state` 列全链退役删除**：原入参 `{ state: "pass" \| "rejected" }`、放行 / 驳回语义一并作废）。**管理端不设内容复核队列**——内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝（见 §4.2 与 spec §5.a / §7.24）。
 | GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`sub`/`relatedDishName`（DEV-04，仅 `relatedType='dish'` 填充、含已下架菜品，见下方出参契约），详情展示配图 ≤3 张；原 `secState` 出参已随安检态全链退役删除（2026-09-15）**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
 | PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
 
@@ -235,7 +235,7 @@
 
 **`FeedbackAdminVO` 出参（DEV-04 契约变更，2026-09-15）**
 
-- 出参字段全集：`id` / `userId` / `userNickname` / `type` / `sub` / `content` / `images` / `contact` / `relatedType` / `relatedId` / **`relatedDishName`（新增）** / `status` / `outcome` / `reply` / `rejectReason` / `createdAt` / `handledAt`。（**`secState` 已随 2026-09-15「取消人工复核」删除，不出参**。）
+- 出参字段全集：`id` / `userId` / `userNickname` / `type` / `sub` / `content` / `images` / `relatedType` / `relatedId` / **`relatedDishName`（新增）** / `status` / `outcome` / `reply` / `rejectReason` / `createdAt` / `handledAt`。（**`secState` 已随 2026-09-15「取消人工复核」删除，不出参**；~~`contact`~~ **已随 2026-09-16 零消费清理删除——`user_feedback.contact` 列已删、产品定型「不收集联系方式」，不再出参**。）
 - **`relatedDishName`（新增）**：`String`，**仅 `relatedType='dish'`（信息纠错 / 申请下架）时填充**；由**服务端按 `relatedId` 批量查询 `dish` 表回填**（一次 `IN` 批量取，避免 N+1），**不区分上/下架、含已下架菜品**（供管理端回看纠错对象）；其他关联类型（如 `review`）、`relatedId` 为空、或菜品已物理删除时恒为 `null`（由前端退回「菜品#id」占位，**不发起二次请求**）。
 - **跨端边界口径（登记，强制）**：**Web 管理端不得调用公开端点 `GET /dishes/{id}` 取名**——Web 只经 `/admin/**` 取数；且公开端点只返回在售（`status='on'`）菜品，**已下架菜品取不到名**。菜品名一律由管理端接口提供（反馈关联菜品名走 `relatedDishName`；菜品列表 / 详情走 `GET /admin/dishes`）。Web 侧 `api/dish.ts` 的 `getById()` 封装（公开端点）已随 DEV-04 收口移除，**勿再重建**。
 
@@ -259,7 +259,7 @@ POST /reviews → ReviewSubmittedEvent → RatingUpdateListener(@Async AFTER_COM
              → recalcAvgRating(dishId) 更新 dish.avg_rating / rating_count
 ```
 - 聚合异步执行，失败仅记 `[ALERT]` 日志不阻塞提交
-- **聚合口径（2026-09-14 Q-110；2026-09-15 修订，spec §7.21 第 4 条）**：只计入 `is_hidden=0` 的评价——**原 `sec_state='pass'` 条件随该列全链退役删除**（机检 `pass` / `review` 一律放行、`risky` 不落库，故不再存在「被安检拦下的内容」语境）；`rating_count` 与「该菜品可见评价数」同口径。**原「历史存量一次性重算」任务随前提列退役取消（脚本 `db/fix_rating_by_sec_state.sql` 已删除），不再存在人工重算动作**。
+- **聚合口径（2026-09-14 Q-110；2026-09-15 修订，spec §7.21 第 4 条；2026-09-16 定稿）**：只计入 `is_hidden=0` 的评价，**无其他任何过滤**——**原 `sec_state='pass'` 条件随该列全链退役删除**（微信内容安全检测 `pass` / `review` 一律放行、`risky` 不落库，故不再存在「被安检拦下的内容」语境）；`rating_count` 与「该菜品可见评价数」同口径。原脚本 `db/fix_rating_by_sec_state.sql` 已删除；**2026-09-16：按「通过即收录」定稿口径的一次性重算 SQL 已交付用户（部署时可选执行，非必做）**——不执行则个别菜品存量均分在该菜品下一次评价写入时自然纠正。
 
 ### 6.2 浏览 → 足迹
 ```
@@ -277,7 +277,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
         dish.reject_reason 为退役历史列（保留、恒 NULL、不写入）；
         后台无审核入口（列表无审核列、详情无审核态与退回原因回显），客户端不出现「菜品审核」概念；
         学生端无菜品写接口（POST/PUT/DELETE /dishes 已于 2026-09-13 下线）
-评价：先发后审、无 audit_status、**无人工复核**——机检 pass / review 一律公开（**is_hidden=0 单一判据**）；
+评价：先发后审、无 audit_status、**无人工复核**——内容安全检测 pass / review 一律公开（**is_hidden=0 单一判据**）；
       risky 提交即 400 拦截（不落库）；管理端仅事后处置（PUT /admin/reviews/{id}/hide、DELETE /admin/reviews/{id}）
 反馈/举报（唯一运营闭环）：POST /feedback 公开提交（type ∈ suggestion/add/error/report）
      → 管理员 PUT /admin/feedbacks/{id} 处理：reply 恒必填；不采纳·退回（outcome=rejected）另 rejectReason 必填
@@ -308,7 +308,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 
 | 项 | spec 描述 | 实际代码（待对齐项） | 处置 |
 |---|---|---|---|
-| **UGC 配图与内容安检（2026-09-13 拍板；2026-09-15「取消人工复核」修订，见 spec §7.24）** | spec §5.a：评价/反馈配图 ≤3 张、`msgSecCheck` v2 / `imgSecCheck`、**机检 `pass` / `review` 放行、`risky` 拒绝（无人工复核、无安检态落库）**、`POST /upload/images` | 已落地并对账一致（本文档 §2.3 / §3.3 / §3.6 / §4 / §5.4 契约与实现一致：**单张**上传、前端逐张调用；**`sec_state` 列 / `SecStateConst` / `PUT /admin/reviews/{id}/sec-state` / `secState` 入参出参全链已删除**；保留事后处置 `PUT {id}/hide` 与 `DELETE {id}`） | 原「评价全量纯文本、反馈纯文本免图」注记随 2026-09-13 拍板作废；原「`sec_state` 三态 + 复核入参」契约随 2026-09-15 拍板作废 |
+| **UGC 配图与内容安检（2026-09-13 拍板；2026-09-15「取消人工复核」修订，见 spec §7.24）** | spec §5.a：评价/反馈配图 ≤3 张、`msgSecCheck` v2 / `imgSecCheck`、**内容安全检测 `pass` / `review` 放行、`risky` 拒绝（无人工复核、无安检态落库）**、`POST /upload/images` | 已落地并对账一致（本文档 §2.3 / §3.3 / §3.6 / §4 / §5.4 契约与实现一致：**单张**上传、前端逐张调用；**`sec_state` 列 / `SecStateConst` / `PUT /admin/reviews/{id}/sec-state` / `secState` 入参出参全链已删除**；保留事后处置 `PUT {id}/hide` 与 `DELETE {id}`） | 原「评价全量纯文本、反馈纯文本免图」注记随 2026-09-13 拍板作废；原「`sec_state` 三态 + 复核入参」契约随 2026-09-15 拍板作废 |
 | **activity / broadcast 全链路下线（2026-09-13）** | spec 曾列 `/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口与 activity/broadcast 实体 | 接口 / 实体 / 库表 / Web 管理页 / 小程序页面（`pages/activity/` 分包）与「最新活动」宫格全部删除，数据库基线 14 → 12 张表 | 本文档 §2.5 / §5.5 已删除相关行；spec §0.5 已登记下线拍板 |
 | 页面数量 | 9 页（spec §2.1，2026-09-13 随 activity 下线由 11 收敛） | 9 页（pages.json：主包 3 + 分包 detail/me，共 9 页） | 已对齐（spec §2.1 与 pages.json 一致） |
 | 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |
@@ -321,7 +321,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 | **反馈处理 `reject_reason`**（2026-09-15 蓝图 v1，spec §7.23 第 5 条） | 结论「不采纳 / 退回」时 `rejectReason` 必填，随回执展示 | 代码**已实现并对齐**：`FeedbackHandleReq.outcome/rejectReason` 校验、`schema.sql` 幂等补列 `add_feedback_reject_reason`、`FeedbackServiceImpl` 结论派生与回执文案均已落地（见 §5.4） | 已对齐（线上生效待部署） |
 | **食堂 / 档口随菜品 upsert**（2026-09-15 蓝图 v1，spec §7.23 原则 1） | `POST`/`PUT /admin/dishes` 支持按 `canteenName` / `stallName` upsert | 代码**已实现并对齐**：`DishAdminReq` 增 `stallName` / `canteenName`，`DishServiceImpl` 在 Service 层按名解析 / 建档（同名复用，新建档口时食堂名必有效） | 已对齐 |
 | **菜品无独立审核 · `audit_status` 全量退役**（2026-09-15 蓝图 v1 + 阶段4 用户批准，spec §7.23 第 4 条） | `dish.audit_status` **列与索引已删除**、公开查询不再按该列过滤（`status='on'` 即公开展示）；`dish.reject_reason` 为退役历史列（恒 NULL）；后台无审核入口、端上无「菜品审核」概念；原「列保留、仅作公开查询过滤」口径作废 | **已全面对齐**：`Dish` 实体 / `DishServiceImpl` / `DishMapper.xml` 过滤条件已移除该列；`DishConst.AUDIT_APPROVED`、`common/constant/AuditStatusConst`、`normalize_dish_audit_status.sql` **均已删除**；`/admin/audit/**` 已删；`schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 已就位；Web（`DishManageView` 审核列 / `DishDetailView` 审核态回显）与小程序 `AuditStatus` 已删 | **已对齐**（存量库列清退随用户执行 `schema.sql` 幂等 DROP 完成，**无任何人工归一动作**） |
-| **管理端无密码体系**（2026-09-15 蓝图 v1，spec §7.23） | 无账号 / 无密码 / 无 BCrypt 登录校验 / 无 `SUPER_ADMIN`；`user.password` 为历史兼容列 | **已完全符合**（2026-09-15 优化 Loop：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线；`/admin/**` 走 `AdminTokenFilter`）；BCrypt 仅保留于 `email_verification_code.code_hash` | 已对齐（`SecurityConfig` / `SwaggerConfig` 等处历史注释为待清理残留） |
+| **管理端无密码体系**（2026-09-15 蓝图 v1，spec §7.23） | 无账号 / 无密码 / 无 BCrypt 登录校验 / 无 `SUPER_ADMIN`；**`user.password` 列已删除（2026-09-16 零消费清理）** | **已完全符合**（2026-09-15 优化 Loop：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线；`/admin/**` 走 `AdminTokenFilter`）；BCrypt 仅保留于 `email_verification_code.code_hash` | 已对齐（`SecurityConfig` / `SwaggerConfig` 等处历史注释为待清理残留） |
 
 ---
 

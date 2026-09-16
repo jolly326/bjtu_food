@@ -3,7 +3,7 @@
 ## Purpose
 为管理后台建立反馈驱动的治理闭环：反馈列表可直达其关联对象的编辑位置、处理动作触发用户回执，使管理员能「看到问题 → 修正数据 → 回传结果」一气呵成；页面归属为**「反馈」与「评价」两个一级页**（2026-09-15 由原「内容审核」聚合页拆分，**一级导航 4 项：菜品 / 评价 / 反馈 / 学生账号**，与路由 1:1；命名口径 2026-09-15 由「信息管理 / 评价管理 / 反馈处理 / 用户与系统」扁平化重写，见下），评价侧只做**事后处置**（隐藏 / 显示 / 删除），并承载 UGC 配图展示（配图链路与判定口径见 `ugc-media-security`）。
 
-> **2026-09-15 变更（权威 `project_spec.md` §7.24「取消人工复核」）**：机检 `pass` / `review` 一律放行、仅 `risky` 拒绝 ⇒ 管理后台**不再承担内容复核职责**。原「评价安检复核队列（放行 / 驳回，`PUT /admin/reviews/{id}/sec-state`）」Requirement **整体废止**；原「内容审核页」Requirement 改注为新的页面划分；原「工作台最小口径」Requirement 随 2026-09-15 工作台下线一并废止（`GET /admin/dashboard` 已删除）。恢复任一已废止能力须**重新拍板**。
+> **2026-09-15 变更（权威 `project_spec.md` §7.24「取消人工复核」）**：内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝 ⇒ 管理后台**不再承担内容复核职责**。原「评价安检复核队列（放行 / 驳回，`PUT /admin/reviews/{id}/sec-state`）」Requirement **整体废止**；原「内容审核页」Requirement 改注为新的页面划分；原「工作台最小口径」Requirement 随 2026-09-15 工作台下线一并废止（`GET /admin/dashboard` 已删除）。恢复任一已废止能力须**重新拍板**。
 
 > **2026-09-15 追加变更（权威 `project_spec.md` §7.25，用户拍板两项）**：① **管理端「操作日志」全链删除**——`operation_log` 表、`OperationLog*` 后端类族、`@AuditLog` 注解与 `AuditLogAspect` 切面、`GET /admin/operation-logs` 端点、Web `OperationLogView.vue` 与 `api/operationLog.ts` **全部删除（2026-09-15）**；本 spec 内凡引用「操作日志页 `/dashboard/system`」或操作留痕的表述**一律失效**，管理端 SHALL NOT 提供任何操作留痕 / 审计追溯能力。② **Web IA 扁平化**——删中间聚合层（`ContentManageView` 信息管理聚合壳 / `SystemManageView` 用户与系统分类卡层 / `AccountView` 透传壳），页面层级统一 ≤2，全站 SHALL NOT 出现 `.stat-inline` 只读统计块、页头解释句与只读提示块。
 

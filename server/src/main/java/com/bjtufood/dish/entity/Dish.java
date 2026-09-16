@@ -70,13 +70,9 @@ public class Dish {
     @Schema(description = "状态", example = "on")
     private String status;
 
-    /** 退回原因（历史列，随菜品审核语义退役；管理端已无写入入口，写入恒 null，仅保留列与实体字段） */
-    @Schema(description = "退回原因（历史列，已无写入入口，恒为 null）")
-    private String rejectReason;
-
-    /** 提交人用户ID（历史学生 UGC 提交留痕字段；学生端菜品写接口已下线，新数据由管理员录入，不作为业务判断依据） */
-    @Schema(description = "提交人用户ID")
-    private Long createdBy;
+    // dish.reject_reason / dish.created_by 已于 2026-09-16 用户拍板「零消费即删除」退役：
+    // reject_reason 恒 NULL（审核语义退役后无写入入口）、created_by 只写不读（upsert 留痕撤销）；
+    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
     /** 浏览量 */
     @Schema(description = "浏览量")

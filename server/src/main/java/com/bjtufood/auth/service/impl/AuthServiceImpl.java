@@ -20,8 +20,6 @@ import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JwtUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -56,7 +54,6 @@ public class AuthServiceImpl implements AuthService {
     private final WechatService wechatService;
     private final ReviewMapper reviewMapper;
     private final ReviewUsefulMapper reviewUsefulMapper;
-    private final DishMapper dishMapper;
     private final FeedbackMapper feedbackMapper;
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
@@ -86,11 +83,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("账号已注销");
         }
         // last_login_at 写入点已随列退役（2026-09-15 用户拍板「只写不读零消费，删列」）
-        // 补全 unionid：已建账号首登时微信未必返回 unionid，后续补全（幂等，不影响唯一键）
-        if (!StringUtils.hasText(user.getUnionid()) && StringUtils.hasText(session.unionid())) {
-            user.setUnionid(session.unionid());
-        }
-        userMapper.updateById(user);
+        // user.unionid 已随列退役（2026-09-16 用户拍板「零消费即删除」），微信登录仅消费 openid，无需回写
         return toLoginResp(user);
     }
 
@@ -206,14 +199,13 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 匿名化 user 行（非物理删除）。必须用 LambdaUpdateWrapper 显式 set NULL：
-        // updateById 默认 NOT_NULL 策略对 null 字段不写列，avatar/email/password/openid 等无法被清空。
+        // updateById 默认 NOT_NULL 策略对 null 字段不写列，avatar/email/openid 等无法被清空。
         // · username → deleted_{id}：释放 uk_user_username 唯一键占用。openid 置 NULL 解绑后，
         //   同一微信重新静默登录会按 username='wx_'+openid 尾 16 位建新游客号，若保留旧 username
         //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
-        // · openid/unionid → NULL：解绑微信身份，允许同一微信重新建号（unionid 同属微信身份标识，
-        //   新号登录时 wechatLogin 会自动重新补全，匿名化更彻底）。
+        // · openid → NULL：解绑微信身份，允许同一微信重新建号。
+        //   （user.password / user.unionid 列已于 2026-09-16 零消费退役，无需再置空。）
         // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
-        // · password → NULL：管理后台密码登录体系随即不可用。
         // · bind_email/verified_at → NULL、verified → 0：解绑认证关系，避免 verifyEmail 的
         //   getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
         // · nickname → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
@@ -226,9 +218,7 @@ public class AuthServiceImpl implements AuthService {
                 .set(User::getUsername, "deleted_" + userId)
                 .set(User::getAvatar, null)
                 .set(User::getEmail, null)
-                .set(User::getPassword, null)
                 .set(User::getOpenid, null)
-                .set(User::getUnionid, null)
                 .set(User::getVerified, 0)
                 .set(User::getBindEmail, null)
                 .set(User::getVerifiedAt, null)
@@ -315,12 +305,13 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 新建微信游客账号（verified=0）。
+     * <p>
+     * unionid 不再落库（user.unionid 列已随 2026-09-16 零消费退役），仅消费 openid。
      */
     private User createWechatGuest(WechatService.WechatSession session) {
         String openid = session.openid();
         User user = new User();
         user.setOpenid(openid);
-        user.setUnionid(session.unionid());
         // 游客建号：username = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
         String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
         user.setUsername("wx_" + tail);
@@ -439,9 +430,7 @@ public class AuthServiceImpl implements AuthService {
                 .set(ReviewUseful::getUserId, toUserId));
 
         // 无唯一键约束的直接归属改写
-        dishMapper.update(null, new LambdaUpdateWrapper<Dish>()
-                .eq(Dish::getCreatedBy, fromUserId)
-                .set(Dish::getCreatedBy, toUserId));
+        // （dish.created_by 已随列退役（2026-09-16 零消费删除），归属迁移不再覆盖 dish 表）
         feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
                 .eq(Feedback::getUserId, fromUserId)
                 .set(Feedback::getUserId, toUserId));

@@ -319,7 +319,7 @@ async function batchDelete() {
       v-model:selectedIds="selectedIds"
       @row-click="onRowClick"
       :columns="[
-        { prop: 'image', label: '图片', width: '72px' },
+        { prop: 'image', label: '图片', width: '72px', align: 'center' },
         { prop: 'name', label: '菜品名称', sortable: true },
         { prop: 'location', label: '位置' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },

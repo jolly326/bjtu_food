@@ -71,7 +71,7 @@ com.bjtufood/
 ### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板；2026-09-15「取消人工复核」修订，契约见 spec §5.a / §7.24 / api-design.md §4）
 
 - **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2）；**`suggest` 判定归一为二态（2026-09-15）**——`pass` 与 `review`（疑似）**均放行**（`SecSuggest.fromValue("review") → PASS`），`risky` 与未知 / 缺失态（fail-closed 同按 risky）**拒绝**（业务侧抛 `400`、不落库）；图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
-- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`（**该常量类本体已于 2026-09-15 随操作日志全链删除，见 §1.3**）均已删除——**机检结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
+- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`（**该常量类本体已于 2026-09-15 随操作日志全链删除，见 §1.3**）均已删除——**内容安全检测结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
 - **UGC 图片上传链路（云存储中转 → 送检 → COS 转存）**：
 
 ```
@@ -198,7 +198,7 @@ npm run dev   # http://localhost:5173
 3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
 5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
-6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；**安检判定为二态（2026-09-15 用户拍板「取消人工复核」）**——机检 `pass` / `review` 一律放行、仅 `risky` 拒绝（`400`、不落库），**`sec_state` 列与全链能力已退役**（原三态 pass/review/rejected 与后台放行 / 驳回动作一并作废，见 spec §7.24），管理端只做事后处置（隐藏 / 删除）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
+6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；**安检判定为二态（2026-09-15 用户拍板「取消人工复核」）**——内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝（`400`、不落库），**`sec_state` 列与全链能力已退役**（原三态 pass/review/rejected 与后台放行 / 驳回动作一并作废，见 spec §7.24），管理端只做事后处置（隐藏 / 删除）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
 
 ## 7. 已知技术债（见 api-design.md §9）
 - ~~验证码 IP 维度限频待补~~（已解决：`/auth/email-code` 已接入 `IpRateLimiter`，2026-09-15 DOC-10 收敛）

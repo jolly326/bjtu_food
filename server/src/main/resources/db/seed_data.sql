@@ -20,17 +20,18 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- -------------------- 用户（评价/通知/反馈等均依赖） --------------------
--- 【2026-09-15 蓝图 v1 / project_spec.md §7.23「管理端无密码体系」口径】
---   · password 为**历史兼容列**：管理端（环境变量口令 ADMIN_TOKEN）与学生端（微信静默登录 + 邮箱验证码）
---     均不使用，故种子数据一律写 NULL，不再灌入任何口令哈希，避免「仍有密码体系」的误导；
+-- 【2026-09-16 用户拍板「零消费即删除」口径】
+--   · user.password / user.unionid 两列已退役删除（password 零读、unionid 只写不读），
+--     列清单已同步移除（否则新库报 Unknown column）；存量库由 schema.sql 末尾
+--     drop_zero_consumer_columns 幂等段清理。
 --   · user.role / user.last_login_at 已于 2026-09-15 用户拍板退役（角色收敛恒 student、登录时间只写不读），
 --     列清单与各行值已同步移除（否则新库报 Unknown column）。
-INSERT INTO `user` (username, email, password, nickname, avatar, status) VALUES
-('2024001',  '2024001@bjtu.edu.cn', NULL, '交大干饭王',  NULL, 'active'),
-('2024002',  '2024002@bjtu.edu.cn', NULL, '食堂常客',    NULL, 'active'),
-('2024003',  '2024003@bjtu.edu.cn', NULL, '深夜放毒',    NULL, 'active'),
-('2024004',  '2024004@bjtu.edu.cn', NULL, '奶茶三分甜',  NULL, 'active'),
-('admin',    'admin@bjtu.edu.cn',   NULL, '管理员',      NULL, 'active');
+INSERT INTO `user` (username, email, nickname, avatar, status) VALUES
+('2024001',  '2024001@bjtu.edu.cn', '交大干饭王',  NULL, 'active'),
+('2024002',  '2024002@bjtu.edu.cn', '食堂常客',    NULL, 'active'),
+('2024003',  '2024003@bjtu.edu.cn', '深夜放毒',    NULL, 'active'),
+('2024004',  '2024004@bjtu.edu.cn', '奶茶三分甜',  NULL, 'active'),
+('admin',    'admin@bjtu.edu.cn',   '管理员',      NULL, 'active');
 
 -- 注：菜品品类 category 表与 dish.category_id 列已整链退役（2026-09-15 用户拍板），
 --     本脚本不再灌入品类种子数据（否则新库报 Unknown column / Unknown table）。
@@ -139,14 +140,15 @@ UPDATE review SET useful_count = 2 WHERE id IN (2, 3, 4, 5, 6);
 -- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
 -- sub（二级分类，DEV-01）仅 type=suggestion 有效：示例数据给 suggestion 行补 'idea' 便于联调可见，
 -- 其余类型（error/report/other/bug/add）该列按 NULL 写入（严格模式下其他类型传 sub 会被后端 400 拒绝）。
+-- user_feedback.contact 已于 2026-09-16 用户拍板退役（产品定型「不收集联系方式」），列清单已移除。
 DELETE FROM user_feedback;
-INSERT INTO user_feedback (user_id, type, sub, content, contact, status, related_type, related_id, created_at) VALUES
-(1, 'suggestion', 'idea', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', '2024001@bjtu.edu.cn', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
-(2, 'error',      NULL,   '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', '2024002@bjtu.edu.cn', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(3, 'report',     NULL,   '有评价内容疑似广告引流，建议管理员审核处理', NULL, 'pending', 'review', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(4, 'other',      NULL,   '账号无法收到登录验证码，邮箱没有新邮件，求帮助', '2024004@bjtu.edu.cn', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, 'bug',        NULL,   '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', '2024002@bjtu.edu.cn', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(1, 'add',        NULL,   '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', NULL, 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
+INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, related_id, created_at) VALUES
+(1, 'suggestion', 'idea', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+(2, 'error',      NULL,   '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(3, 'report',     NULL,   '有评价内容疑似广告引流，建议管理员审核处理', 'pending', 'review', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(4, 'other',      NULL,   '账号无法收到登录验证码，邮箱没有新邮件，求帮助', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2, 'bug',        NULL,   '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(1, 'add',        NULL,   '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）

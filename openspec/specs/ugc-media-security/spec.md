@@ -5,7 +5,7 @@
 
 > **拍板来源（2026-09-13，防回退）**：本 capability 恢复评价/反馈配图并叠加内容安检，**推翻** 2026-09 `prelaunch-loop-closure` 期间「UGC 图片全量下线、评价区与反馈表单均无图片入口」的临时口径；相关旧条款已在各 spec 作废改写。
 >
-> **拍板来源（2026-09-15，防回退）**：**取消人工复核**——机检 `pass` 与 `review`（疑似）一律放行、仅 `risky` 拒绝；由该选择推导出内容安全态**单值化**，故**安检态字段 `sec_state`、其可见性规则与管理后台复核队列整体废止**（权威 `project_spec.md` §7.24）。原「`suggest` 三态」「`sec_state` 三态与可见性」「管理后台复核闭环」三条 Requirement 已就地改为**已废止**注记，恢复须重新拍板（PR-04）。
+> **拍板来源（2026-09-15，防回退）**：**取消人工复核**——内容安全检测 `pass` 与 `review`（疑似）一律放行、仅 `risky` 拒绝；由该选择推导出内容安全态**单值化**，故**安检态字段 `sec_state`、其可见性规则与管理后台复核队列整体废止**（权威 `project_spec.md` §7.24）。原「`suggest` 三态」「`sec_state` 三态与可见性」「管理后台复核闭环」三条 Requirement 已就地改为**已废止**注记，恢复须重新拍板（PR-04）。
 
 ## Requirements
 
@@ -73,17 +73,17 @@ UGC 配图 SHALL 走统一链路：前端 `wx.cloud.uploadFile` 上传至**微�
 
 ### Requirement: ~~安检状态字段与可见性~~（已废止：2026-09-15）
 
-> **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「安检状态字段与可见性」整体作废——`review.sec_state` / `user_feedback.sec_state` **三态**（`pass`/`review`/`rejected`，默认 `pass`）、`review` 态仅由机检写入、公开条件 `is_hidden=0` **且** `sec_state='pass'`、`review` / `rejected` 对非作者不可见（后端过滤）、作者本人「安检复核中 / 未过审」态、以及 VO / 请求字段 `secState` 的约定，**均不再适用**。
+> **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「安检状态字段与可见性」整体作废——`review.sec_state` / `user_feedback.sec_state` **三态**（`pass`/`review`/`rejected`，默认 `pass`）、`review` 态仅由内容安全检测写入、公开条件 `is_hidden=0` **且** `sec_state='pass'`、`review` / `rejected` 对非作者不可见（后端过滤）、作者本人「安检复核中 / 未过审」态、以及 VO / 请求字段 `secState` 的约定，**均不再适用**。
 >
 > **退役落地（不可回退）**：`sec_state` 两列**已删除**（CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理，可重跑）；`SecStateConst`、实体 / DTO / VO 的 `secState` 字段、Mapper 过滤条件（含 `DishMapper` 评分聚合的 `sec_state='pass'`）同批删除；`viewerId`（原仅服务「作者本人放行 `review` 态」）一并删除。
 >
-> **现口径（SHALL）**：机检结论 SHALL NOT 落库、SHALL NOT 构成可见性闸门；评价公开展示条件 SHALL 为 **`is_hidden=0` 单一判据**（后端过滤，前端不兜底），作者本人视角不再有「审核中」标识（仅保留 `isHidden`「已被隐藏」）。评价 / 反馈 VO 与提交请求的 camelCase 字段**仅保留 `images`**（≤3 项 COS URL 数组），**SHALL NOT 出现 `secState`**。
+> **现口径（SHALL）**：内容安全检测结论 SHALL NOT 落库、SHALL NOT 构成可见性闸门；评价公开展示条件 SHALL 为 **`is_hidden=0` 单一判据**（后端过滤，前端不兜底），作者本人视角不再有「审核中」标识（仅保留 `isHidden`「已被隐藏」）。评价 / 反馈 VO 与提交请求的 camelCase 字段**仅保留 `images`**（≤3 项 COS URL 数组），**SHALL NOT 出现 `secState`**。
 
 ### Requirement: ~~管理后台复核闭环~~（已废止：2026-09-15）
 
 > **已废止（2026-09-15 用户拍板「取消人工复核」，权威 `project_spec.md` §7.24）**：原 Requirement「管理后台复核闭环」整体作废——复核队列、`secState='review'` 筛选、**放行**（`sec_state`→`pass`）与**驳回**（`sec_state`→`rejected`）、端点 `PUT /admin/reviews/{id}/sec-state`（入参 `{ state: "pass" | "rejected" }`）**均已删除**。
 >
-> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列、安检筛选或放行 / 驳回动作（机检 `pass` / `review` 一律放行、`risky` 已在提交侧拦截，后台无复核职责）。评价只提供**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），页面为**「评价」页** `/dashboard/reviews`（导航名于 2026-09-15 IA 扁平化后由「评价管理」改为「评价」，路径不变）。**反馈详情 SHALL 仍展示配图（≤3 张可放大）**（该条保留），页面为**「反馈」页** `/dashboard/feedback`（同上由「反馈处理」改名）；交互细则见 `web-admin-feedback-loop`。**（2026-09-15 追加：管理端「操作日志」全链已删除，后台 SHALL NOT 提供任何操作留痕 / 审计能力，见 `project_spec.md` §7.25 第 1 条。）**
+> **现口径（SHALL）**：管理后台 SHALL NOT 提供任何内容复核队列、安检筛选或放行 / 驳回动作（内容安全检测 `pass` / `review` 一律放行、`risky` 已在提交侧拦截，后台无复核职责）。评价只提供**事后处置**：`PUT /admin/reviews/{id}/hide`（隐藏 / 显示）与 `DELETE /admin/reviews/{id}`（删除），页面为**「评价」页** `/dashboard/reviews`（导航名于 2026-09-15 IA 扁平化后由「评价管理」改为「评价」，路径不变）。**反馈详情 SHALL 仍展示配图（≤3 张可放大）**（该条保留），页面为**「反馈」页** `/dashboard/feedback`（同上由「反馈处理」改名）；交互细则见 `web-admin-feedback-loop`。**（2026-09-15 追加：管理端「操作日志」全链已删除，后台 SHALL NOT 提供任何操作留痕 / 审计能力，见 `project_spec.md` §7.25 第 1 条。）**
 
 ### Requirement: 平台可迁移（不绑定云托管）
 

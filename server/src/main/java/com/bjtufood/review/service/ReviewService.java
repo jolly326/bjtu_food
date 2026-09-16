@@ -31,35 +31,8 @@ public interface ReviewService {
      */
     IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
 
-    /**
-     * 获取档口评价列表
-     * <p>
-     * review 表仅关联 dish_id，档口维度评价通过 review → dish(stall_id) 推导。
-     * 只返回 is_hidden=0 的评价；支持按最新（created_at）/「有用」数（useful_count）排序。
-     *
-     * @param stallId  档口ID
-     * @param page     页码
-     * @param pageSize 每页条数
-     * @param sort     排序：latest（默认）/ useful
-     * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
-     * @return 分页评价列表
-     */
-    IPage<ReviewVO> listByStallId(Long stallId, int page, int pageSize, String sort, Long userId);
-
-    /**
-     * 获取食堂评价列表
-     * <p>
-     * 通过 review → dish(stall_id) → stall(canteen_id) 推导。
-     * 只返回 is_hidden=0 的评价；支持按最新/「有用」排序。
-     *
-     * @param canteenId 食堂ID
-     * @param page      页码
-     * @param pageSize  每页条数
-     * @param sort      排序：latest（默认）/ useful
-     * @param userId    当前登录用户ID（可空，用于回写 useful 标记）
-     * @return 分页评价列表
-     */
-    IPage<ReviewVO> listByCanteenId(Long canteenId, int page, int pageSize, String sort, Long userId);
+    // listByStallId / listByCanteenId 已随 GET /reviews 的 stallId / canteenId 维度参数退役
+    //（2026-09-16 用户拍板「端点零消费即删除」，三端审计确认零调用），对应实现与 Mapper SQL 同批删除。
 
     /**
      * 获取当前用户的评价列表（我的评价）

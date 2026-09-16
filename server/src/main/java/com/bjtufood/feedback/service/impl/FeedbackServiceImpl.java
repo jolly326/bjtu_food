@@ -94,7 +94,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setType(type);
         feedback.setSub(sub);
         feedback.setContent(sensitiveFilter.filter(req.getContent()));
-        feedback.setContact(req.getContact());
+        // contact 落库点已随 user_feedback.contact 列退役删除（2026-09-16 产品定型「不收集联系方式」）
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
@@ -208,7 +208,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        vo.setContact(f.getContact());
+        // contact 已随列退役（2026-09-16），管理端 VO 不再返回联系方式
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
@@ -273,8 +273,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setReply(trimmedReply);
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
-        // §7.10：管理端操作人身份降级（单口令即单人），不再写 handler_id；
-        // 该列保留在库中（retired），列可空，不写即保持 NULL。
+        // §7.10：管理端操作人身份降级（单口令即单人），handler_id 一直未写；
+        // 该列已于 2026-09-16 零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
         feedbackMapper.updateById(feedback);
         // 处理结果回执（携带处理结论与不采纳原因）：仅向「可归属」提交人（提交时为已认证登录用户）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason);

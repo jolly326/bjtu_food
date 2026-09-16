@@ -30,8 +30,9 @@ public interface AuthService {
     /**
      * 微信静默登录（spec §5.y.1 / task-01 1.1）。
      * <p>
-     * 后端 code2Session 换 openid（+unionid 若有）→ 按 user.openid 取号：
+     * 后端 code2Session 换 openid → 按 user.openid 取号：
      * 存在则返回原账号；不存在则自动建号（游客态 verified=0）。
+     * （user.unionid 已随列退役，2026-09-16 零消费删除，不再回写/补全。）
      *
      * @param code 微信 wx.login 临时凭证
      * @return LoginResp{token, userInfo}
@@ -73,7 +74,7 @@ public interface AuthService {
      * <p>
      * 匿名化范围（事务内）：
      * <ul>
-     *   <li>user 行：nickname→'已注销用户'；avatar/email/password/openid/unionid/bind_email→NULL；
+     *   <li>user 行：nickname→'已注销用户'；avatar/email/openid/bind_email→NULL；
      *       verified→0；verified_at→NULL；status→'deleted'；username 改写为 deleted_{id}
      *       （释放 uk_user_username，保证同一微信可重新静默登录建新游客号）；</li>
      *   <li>review / user_feedback / notification / view_log：保留（内容价值 + 评分聚合不破坏），

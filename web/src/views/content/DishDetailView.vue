@@ -236,7 +236,7 @@ async function handleDeleteReview(id: number) {
     <DataTable
       :columns="[
         { prop: 'user', label: '用户', width: '150px' },
-        { prop: 'rating', label: '评分', width: '120px', sortable: true, sortValue: (row) => row.rating },
+        { prop: 'rating', label: '评分', width: '120px', align: 'center', sortable: true, sortValue: (row) => row.rating },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
         { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },

@@ -5,7 +5,8 @@ import { imagesToList, pageRecords } from './adapter'
  * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
  * 列表 GET /admin/feedbacks（status/type 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
- * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, contact, status, reply, createdAt, handledAt, relatedType, relatedId, relatedDishName }。
+ * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, status, reply, createdAt, handledAt, relatedType, relatedId, relatedDishName }。
+ * 2026-09-16（产品定型）：不再收集联系方式，user_feedback 联系方式列随服务端删列退役，前端同步移除读写。
  * sub（DEV-01）：建议二级类型 idea/problem，仅 type=suggestion 有值；可选字段，缺省不展示。
  * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
  * relatedDishName（DEV-04 收口）：仅 relatedType='dish' 时由后端批量回填（含已下架菜品），
@@ -30,7 +31,6 @@ export interface FeedbackAdminVO {
   content: string
   /** 用户上传配图（adapter 归一为 string[]，COS 公网地址可直接展示） */
   images: string[]
-  contact: string
   status: string
   reply: string
   /** 处理结论（§7.23 第 5 条）：handled=已处理；rejected=不采纳/退回（未回显时为 undefined） */
@@ -67,7 +67,6 @@ function feedbackToLegacy(raw: any): FeedbackAdminVO {
     sub: normalizeSub(raw),
     content: raw.content || '',
     images: imagesToList(raw.images),
-    contact: raw.contact || '',
     status: raw.status || 'pending',
     reply: raw.reply || '',
     outcome: raw.outcome ?? undefined,

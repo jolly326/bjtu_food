@@ -9,9 +9,10 @@
  * 反馈不再有「安检状态」筛选 / 列 / 展示项（后端该字段同步退役，前端不再读写）。
  *
  * 2026-09-15（本轮精简）：删除已处理态的 .handled-tip 只读提示（信息与列表状态列重复）；
- * 详情抽屉的类型 / 提交人 / 联系方式 / 提交时间 / 关联对象由 5 行压成 1 个内联块；
+ * 详情抽屉的类型 / 提交人 / 提交时间 / 关联对象由 5 行压成 1 个内联块；
  * 举报类关联评价由红色 pill 改为主色文本链接「评价 #id →」（红=危险语义易误读）；
- * 列表「联系方式」列并入「提交人」次行（7 列 → 6 列）。
+ * 列表「提交人」次行的旧联系方式信息（7 列 → 6 列）。
+ * 2026-09-16（产品定型）：不再收集联系方式，列表与详情中的联系方式展示全部移除（后端列同步删除）。
  * 处理动作、回复与不采纳原因（reject_reason）必填校验一律未动。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
@@ -93,7 +94,7 @@ function onPageChange() {
   loadList()
 }
 
-// 关键词检索已改为服务端 keyword 过滤（后端按 content/contact/userNickname 模糊），
+// 关键词检索已改为服务端 keyword 过滤（后端按 content/userNickname 模糊；联系方式已随产品定型下线），
 // 翻页/改类型会重新请求后端对应页，不再本地截断当前页子集。
 const filtered = computed(() => rows.value)
 
@@ -363,10 +364,9 @@ function goReviewManage(reviewId?: number) {
           <el-icon><Picture /></el-icon>{{ row.images.length }}
         </span>
       </template>
-      <!-- 提交人 + 联系方式同格（两者同源，分列徒增横向占位）；联系方式整串经 title 悬停可读 -->
+      <!-- 提交人（2026-09-16：不再收集联系方式，仅展示昵称/游客） -->
       <template #cell-submitter="{ row }">
         <div class="sub-name">{{ submitterLabel(row) }}</div>
-        <div class="sub-contact" :title="row.contact || ''">{{ row.contact || '—' }}</div>
       </template>
       <template #cell-time="{ row }">{{ fmtTime(row.createdAt) }}</template>
       <template #cell-status="{ row }">
@@ -397,7 +397,6 @@ function goReviewManage(reviewId?: number) {
         <div class="meta">
           <span class="type-pill">{{ typeText(detail) }}</span>
           <span class="meta-item">提交人<span class="mv">{{ submitterLabel(detail) }}</span></span>
-          <span class="meta-item">联系方式<span class="mv">{{ detail.contact || '—' }}</span></span>
           <span class="meta-item">提交时间<span class="mv">{{ fmtTime(detail.createdAt) }}</span></span>
           <span v-if="detail.relatedType === 'review'" class="meta-item">
             关联对象
@@ -510,12 +509,8 @@ function goReviewManage(reviewId?: number) {
 /* .act-ico 已收敛至 shared.css 公共类 */
 .muted { color: var(--text-light); }
 
-/* 列表「提交人」格：姓名 + 联系方式同格两行（联系方式整串经 title 悬停可读） */
+/* 列表「提交人」格：仅展示昵称/游客（2026-09-16 起不再收集联系方式） */
 .sub-name { color: var(--text-primary); }
-.sub-contact {
-  margin-top: 2px; font-size: var(--font-xs); color: var(--text-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
 /* 元信息块：单块内联排布（替代「一字段一行」），标签弱化、取值走主文本色，窄屏自动折行 */

@@ -421,10 +421,13 @@ watch(
 }
 .col-actions {
   white-space: nowrap;
+  /* 操作列统一居中（列对齐规范：状态/开关/操作类列居中，文本列左对齐） */
+  text-align: center;
 }
 .actions {
   white-space: nowrap;
   display: flex;
+  justify-content: center;
   gap: var(--space-2);
 }
 /* 三态盒（.state-box/.state-err/.spin）已收敛至 shared.css 全局唯一实现（UI-04），此处不再持副本 */

@@ -36,20 +36,8 @@ public interface ReviewMapper extends BaseMapper<Review> {
      */
     IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
 
-    /**
-     * 按档口查询评价列表（含可见性过滤，规则同 {@link #selectReviewPageByDishId}：仅 is_hidden=0）。
-     * <p>
-     * review 表仅关联 dish_id（无 stall_id / canteen_id），档口/食堂维度的评价通过
-     * review → dish(stall_id) 推导。
-     */
-    IPage<ReviewVO> selectReviewPageByStallId(Page<?> page, @Param("stallId") Long stallId, @Param("sort") String sort);
-
-    /**
-     * 按食堂查询评价列表（含可见性过滤，规则同 {@link #selectReviewPageByDishId}：仅 is_hidden=0）。
-     * <p>
-     * 通过 review → dish(stall_id) → stall(canteen_id) 推导。
-     */
-    IPage<ReviewVO> selectReviewPageByCanteenId(Page<?> page, @Param("canteenId") Long canteenId, @Param("sort") String sort);
+    // selectReviewPageByStallId / selectReviewPageByCanteenId 已随 GET /reviews 的
+    // stallId / canteenId 维度参数退役（2026-09-16 用户拍板「端点零消费即删除」，三端零调用）。
 
     /**
      * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。
