@@ -60,19 +60,14 @@ export interface Dish {
   stall_id: bigint;
   name: string;
   image?: string;
+  /** 现价（元，API 层已由分转元；已含折扣）——价格展示的唯一数据源（§7.26） */
   price: number;
-  tags?: string;
   description?: string;
   /** 搜索别名（逗号分隔，管理员配置；搜索命中 name 或 alias） */
   alias?: string;
   avg_rating: number;
   rating_count: number;
-  view_count: number;
   status: string;
-  /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
-  spiceLevel?: number;
-  /** 风味/菜系（东北 / 川湘 / 粤式 / 西北 / 清真 / 其他；空=未填） */
-  region?: string;
   /**
    * 档口名称（DishAdminVO 联表返回；列表/详情直读，不再经 store.stalls 反查）。
    * 注（§7.23 第 4 条，2026-09-15）：菜品无独立审核，原 audit_status / reject_reason
@@ -81,10 +76,24 @@ export interface Dish {
   stallName?: string;
   /** 所属食堂名称（DishAdminVO 联表返回） */
   canteenName?: string;
-  /** 原价（元），用于折扣价展示；promoPrice 非空时为折扣价 */
+  /**
+   * 原价（元，可空，折扣前）。判据 `originalPrice > price` 时端上呈现删除线（§7.26）——
+   * 原 `promoPrice`（促销价）已删除，展示值恒取 `price`，禁止双源切换。
+   */
   originalPrice?: number;
-  /** 促销价（元，可空）；非空时视为有折扣 */
-  promoPrice?: number;
+  /**
+   * ===== 描述四维（§7.28 描述维度替换，2026-09-20）=====
+   * 替代原 `spiceLevel`（辣度）/ `region`（风味 / 菜系）两维；机器值 / 中文映射真源见
+   * `constants/index.ts`（视图层禁止二次映射，统一经其文案函数输出）。
+   */
+  /** 荤素 / 饮食属性（单选）：meat=荤 / half=半荤 / veg=素 / halal=清真 */
+  dietType?: string;
+  /** 主料 / 食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice */
+  ingredients?: string;
+  /** 口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy */
+  flavorTags?: string;
+  /** 冷热（单选）：hot=热食 / room=常温 / ice=冰 */
+  serveTemp?: string;
   created_at: Date;
   updated_at: Date;
 }

@@ -26,18 +26,14 @@
         <text class="card-name">{{ dish.name }}</text>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
       </view>
-      <!-- 第二行：菜品标签（菜名下方，浅红底深红字，尺寸收小不抢主信息） -->
-      <view class="card-tags" v-if="displayTags.length > 0">
-        <TagLabel v-for="tag in displayTags" :key="tag" :text="tag" />
-        <text v-if="(dish.tags || []).length > 2" class="tag-plus">+{{ (dish.tags || []).length - 2 }}</text>
-      </view>
-      <!-- 第三行（卡片底部）：食堂·档口 + 距离（缩小字号、降为三级文字弱化） -->
+      <!-- 底部行：位置（食堂 · 档口名）。
+           标签 chips 与距离文案已随「菜品标签 / 坐标距离」全链下线删除（design D8/D9）；
+           位置行不再有右侧距离列，改为等宽收口，不补第三个信息点。 -->
       <view class="card-foot">
         <view class="card-stall">
           <IconSvg name="location" :size="22" color="var(--text-tertiary)" class="stall-icon" />
           <text class="stall-text">{{ dish.canteen }} · {{ dish.stallName }}</text>
         </view>
-        <text v-if="dish.distance != null" class="card-distance">{{ formatDistance(dish.distance) }}</text>
       </view>
     </view>
   </view>
@@ -48,9 +44,7 @@ import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
-import { formatDistance } from '@/utils/format'
 import IconSvg from '@/components/IconSvg.vue'
-import TagLabel from '@/components/TagLabel.vue'
 
 const props = defineProps<{
   dish: Dish
@@ -70,9 +64,6 @@ const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.image)))
 const imgOk = ref(true)
 /** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
 const imgLoaded = ref(false)
-
-/** 标签展示：最多 2 个 +「+N」（B.6 卡片信息区规整）；tags 可能为 undefined（旧数据/占位），空数组兜底防 length 报错 */
-const displayTags = computed(() => (props.dish.tags || []).slice(0, 2))
 
 /** 评分统一保留一位小数（与详情页 toFixed(1) 一致，避免 4 / 4.5 显示不一致） */
 function fmtRating(r: number): string {
@@ -177,11 +168,10 @@ function handleClick() {
   justify-content: space-between;
   gap: var(--spacing-sm);
 }
-/* 卡片底部行：食堂·档口（左） + 距离（右），同为辅助信息档（24rpx / 400 / 三级文字） */
+/* 卡片底部行：位置信息（食堂 · 档口），辅助信息档（24rpx / 400 / 三级文字） */
 .card-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
 }
@@ -201,33 +191,6 @@ function handleClick() {
 }
 .stall-icon { flex-shrink: 0; }
 .stall-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 第二行标签 chips：菜名下方（浅红底深红字），独立成行不挤压底部位置信息 */
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-xs);
-  min-width: 0;
-  margin-top: var(--spacing-sm);
-}
-/* 标签超出 2 个时的「+N」徽标：与标签同为小元素档圆角（16rpx） */
-.tag-plus {
-  font-size: var(--font-tiny);
-  line-height: 1.4;
-  padding: var(--spacing-2xs) var(--spacing-xs);
-  border-radius: var(--radius-tag);
-  background: var(--bg-placeholder);
-  color: var(--text-secondary);
-  font-weight: var(--weight-semibold);
-}
-/* 距离：卡片底部右侧，仅数字+单位，辅助信息档弱化 */
-.card-distance {
-  flex-shrink: 0;
-  font-size: var(--font-small);
-  font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
 /* 价格：强调信息档（大号加粗 + 主色），位于卡片右上角第一眼可见 */
 .card-price {
   font-size: var(--font-h3);

@@ -9,7 +9,8 @@
  * 本轮删除的层与重复入口：
  *  - `detail-tabs` 两个 tab（详情概览 / 评论管理）→ 信息与评价同屏直读，不再需要切换；
  *  - 「数据统计」分区 + 2 张 StatCard → 评分/人数并入页头副标题（同一个数字只出现一次）；
- *  - 页内 inline 编辑态（名称/价格/标签/辣度… 一整段读写实现）→ 统一走列表页同一个 DishFormDialog
+ *  - 页内 inline 编辑态（名称 / 价格（现价 + 原价划线）/ 荤素 / 主料 / 口味 / 冷热 一整段读写实现）
+ *    → 统一走列表页同一个 DishFormDialog
  *    （同一实体不得两套编辑实现）；
  *  - 头部缩略图（与信息卡图片同一功能的第二个入口）→ 只保留信息卡图片入口；
  *  - 评价详情抽屉改用公共组件 ReviewDetailDialog（与「评价管理」页共用唯一实现），且该抽屉为只读：
@@ -26,8 +27,7 @@ import { useReviewStore } from '@/stores/reviewStore'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { parseTags } from '@/api/adapter'
-import { tagDisplay } from '@/api/tags'
+import { dietTypeText, serveTempText, ingredientsText, flavorTagsText } from '@/constants'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -83,24 +83,15 @@ const headerSubtitle = computed(() => {
 })
 
 // ===== 信息卡字段（只读；编辑一律走 DishFormDialog） =====
+/** 展示值恒取现价 price（§7.26：禁止双源切换；原 promoPrice 已删除） */
 function formatPrice(d: any): string {
-  if (d?.promoPrice) return `¥${Number(d.promoPrice).toFixed(2)}`
   return `¥${Number(d?.price ?? 0).toFixed(2)}`
 }
 
-// 菜品属性枚举（与后端 DishAttrConst 对齐）
-const SPICE_OPTIONS = [
-  { value: 0, label: '不辣' },
-  { value: 1, label: '微辣' },
-  { value: 2, label: '中辣' },
-  { value: 3, label: '重辣' },
-]
-function spiceLabel(v?: number): string {
-  return SPICE_OPTIONS.find(o => o.value === v)?.label || '不辣'
+/** 有折扣（§7.26）：原价有值且高于现价 → 端上原价划线 */
+function hasPromo(d: any): boolean {
+  return d?.originalPrice != null && Number(d.originalPrice) > Number(d.price)
 }
-
-/** 标签：中文文案平铺（招牌菜 · 必吃推荐），无选中态样式负担 */
-const tagsText = computed(() => parseTags(dish.value?.tags || '').map(tagDisplay).join(' · '))
 
 /** 菜品图片（多图以 ||| 分隔，首图作封面） */
 const imageList = computed(() => (dish.value?.image || '').split('|||').filter(Boolean))
@@ -200,26 +191,30 @@ async function handleDeleteReview(id: number) {
         <div class="info-item">
           <dt>价格</dt>
           <dd>
-            <span class="price" :class="{ promo: !!dish.promoPrice }">{{ formatPrice(dish) }}</span>
-            <span v-if="dish.promoPrice && dish.originalPrice" class="origin">原价 ¥{{ Number(dish.originalPrice).toFixed(2) }}</span>
-            <span v-else-if="dish.promoPrice" class="promo-badge">促销</span>
+            <span class="price">{{ formatPrice(dish) }}</span>
+            <span v-if="hasPromo(dish)" class="origin">原价 ¥{{ Number(dish.originalPrice).toFixed(2) }}</span>
           </dd>
         </div>
         <div class="info-item">
           <dt>状态</dt>
           <dd><StatusTag :type="dish.status === 'active' ? 'success' : 'gray'" :text="dish.status === 'active' ? '在售' : '已下架'" /></dd>
         </div>
+        <!-- 描述四维（§7.28 描述维度替换，2026-09-20）：荤素 / 主料 / 口味 / 冷热；缺项显示「—」 -->
         <div class="info-item">
-          <dt>标签</dt>
-          <dd :class="{ muted: !tagsText }">{{ tagsText || '无' }}</dd>
+          <dt>荤素</dt>
+          <dd :class="{ muted: !dish.dietType }">{{ dietTypeText(dish.dietType) }}</dd>
         </div>
         <div class="info-item">
-          <dt>辣度</dt>
-          <dd>{{ spiceLabel(dish.spiceLevel) }}</dd>
+          <dt>主料</dt>
+          <dd :class="{ muted: !dish.ingredients }">{{ ingredientsText(dish.ingredients) }}</dd>
         </div>
         <div class="info-item">
-          <dt>风味 / 菜系</dt>
-          <dd :class="{ muted: !dish.region }">{{ dish.region || '—' }}</dd>
+          <dt>口味</dt>
+          <dd :class="{ muted: !dish.flavorTags }">{{ flavorTagsText(dish.flavorTags) }}</dd>
+        </div>
+        <div class="info-item">
+          <dt>冷热</dt>
+          <dd :class="{ muted: !dish.serveTemp }">{{ serveTempText(dish.serveTemp) }}</dd>
         </div>
         <div class="info-item">
           <dt>搜索别名</dt>
@@ -322,9 +317,7 @@ async function handleDeleteReview(id: number) {
 .info-item dd.desc { font-weight: var(--weight-regular); color: var(--text-secondary); line-height: var(--leading-loose); }
 .info-item dd.muted { font-weight: var(--weight-regular); color: var(--text-light); }
 .price { color: var(--color-price); font-weight: var(--weight-bold); }
-.price.promo { color: var(--color-error); }
 .origin { margin-left: var(--space-2); color: var(--text-light); text-decoration: line-through; font-weight: var(--weight-regular); font-size: var(--font-sm); }
-.promo-badge { margin-left: var(--space-2); font-size: var(--font-xs); color: var(--color-error); background: var(--color-error-bg); padding: 1px var(--space-2); border-radius: var(--radius-sm); }
 
 /* 窄屏：图片与字段上下排布（不横向滚动） */
 @media (max-width: 767px) {

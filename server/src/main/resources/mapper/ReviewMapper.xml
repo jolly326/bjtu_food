@@ -11,13 +11,15 @@
     自定义查询（如：评价列表关联用户表）在此编写。
 
     命名规则：
-    - selectReviewPageByDishId：按维度分页查询评价并联表补齐用户昵称/头像
-    - selectAvgRatingByStallIds：批量统计多个档口平均分（单档口零调用版本已删除）
+    - selectReviewPageByDishId：公开列表（按菜品，联表补齐作者昵称/头像，时间倒序，可选只看有图）
+    - selectReviewPageByUserId：我的评价（本人视角，含 dishId/dishName/isHidden）
+    - selectAvgRatingByStallIds：批量统计多个档口平均分
 
-    内容安全可见性（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
-    - 可见性唯一判据为 is_hidden=0（机检 pass/review 一律放行、risky 直接拒绝不入库）；
-    - 历史 sec_state='pass' 过滤与「作者本人放行 review 态」分支已随列退役删除，
-      原 viewerId 入参随之失去用途（本人可见性由 is_hidden=0 统一覆盖），故同批移除；
+    排序口径（2026-09-20 拍板）：评价列表排序唯一为 created_at DESC，
+    原「按有用数置顶」第二口径与 sort 入参已随「有用」全链下线一并删除。
+
+    可见性口径（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+    - 公开列表唯一判据为 is_hidden=0；本人视角（我的评价）不过滤 is_hidden。
     - images_json 列为配图 URL 列表 JSON 原文（review.images），由 service 层解析为 images 数组，不在 SQL 层转换。
     ============================================================
     -->
@@ -26,31 +28,28 @@
         SELECT
             r.id,
             r.user_id,
-            r.dish_id,
             u.nickname AS user_nickname,
             u.avatar AS user_avatar,
             r.rating,
             r.content,
             r.images AS images_json,
-            r.created_at,
-            r.useful_count AS useful_count
+            r.created_at
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
-        <choose>
-            <!-- 默认（含 sort 缺省）按「有用数」置顶（2026-09-14 §7.14 B）；
-                 sort=latest 显式传参仍走时间倒序，保持向后兼容。 -->
-            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
-            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
-        </choose>
+        <if test="hasImage != null and hasImage == 1">
+            -- 只看有图：images 非空且不为空数组（空串/[] 视为无图）
+            AND r.images IS NOT NULL AND r.images &lt;&gt; '' AND r.images &lt;&gt; '[]'
+        </if>
+        ORDER BY r.created_at DESC
     </select>
 
     <!--
-        我的评价：本人视角，返回 images 供作者本人查看。
-        可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见，
-        并返回 is_hidden 供端上标注「已被隐藏」；公开列表的 is_hidden=0 过滤保持不放宽。
-        排序：本人视角固定时间倒序（sort=latest 由 service 固定传入），不随公开列表默认口径变化。
+        我的评价：本人视角，返回 images 供作者本人查看，并返回作者视角字段
+        dish_id/dish_name/is_hidden（公开列表不返回这三者）。
+        可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见。
+        排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
     -->
     <select id="selectReviewPageByUserId" resultType="com.bjtufood.review.dto.ReviewVO">
         SELECT
@@ -64,27 +63,20 @@
             r.content,
             r.images AS images_json,
             r.is_hidden AS is_hidden,
-            r.created_at,
-            r.useful_count AS useful_count
+            r.created_at
         FROM review r
                  JOIN user u ON r.user_id = u.id
                  JOIN dish d ON r.dish_id = d.id
         WHERE r.user_id = #{userId}
-        <choose>
-            <when test="sort != null and sort == 'latest'">ORDER BY r.created_at DESC</when>
-            <otherwise>ORDER BY r.useful_count DESC, r.created_at DESC</otherwise>
-        </choose>
+        <if test="dishId != null">
+            AND r.dish_id = #{dishId}
+        </if>
+        ORDER BY r.created_at DESC
     </select>
 
     <!--
-        selectReviewPageByStallId / selectReviewPageByCanteenId 两段 SQL 已随 GET /reviews 的
-        stallId / canteenId 维度参数退役（2026-09-16 用户拍板「端点零消费即删除」，三端零调用）。
-    -->
-
-    <!--
         批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
-        计入口径（2026-09-15 归一）：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径；
-        sec_state 已全链退役，不再参与统计）。
+        计入口径（2026-09-15 归一）：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径）。
     -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,
@@ -98,12 +90,5 @@
           AND r.is_hidden = 0
         GROUP BY d.stall_id
     </select>
-
-    <!-- 「有用」计数原子增减（并发安全；GREATEST 保证不为负） -->
-    <update id="changeUsefulCount">
-        UPDATE review
-        SET useful_count = GREATEST(useful_count + #{delta}, 0)
-        WHERE id = #{id}
-    </update>
 
 </mapper>

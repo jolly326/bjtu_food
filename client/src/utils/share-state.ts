@@ -6,13 +6,11 @@
 import { ref } from 'vue'
 import { PATH, dishDetailUrl } from '@/utils/routes'
 
-/** 待分享的菜品（分享路径见 buildSharePayload） */
+/** 待分享的菜品（分享路径见 buildSharePayload；仅承载分享卡片实际读取的字段） */
 interface ShareDish {
   id: number
   name: string
   price: number
-  stallId?: number
-  canteen?: string
   stallName?: string
 }
 

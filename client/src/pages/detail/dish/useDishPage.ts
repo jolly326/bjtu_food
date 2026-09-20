@@ -2,31 +2,28 @@
  * useDishPage —— 菜品详情页（pages/detail/dish/index.vue）编排逻辑
  *
  * 页面私有编排（仅本页使用，就近置于页面包，不驻留 composables/）：
- * 抽取自 detail/dish/index.vue 的 <script setup>（dish-detail-visual-polish / detail-modular-review-cleanup / N07 等之后），
- * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard / DishSummaryCard / DishReviewSection）引用。
- * 职责：
- * - 数据流：onLoad 解析 id → resetDishDetail → 定位补齐 + fetchDetail/fetchReviews（含 addView 埋点）；
- *   分享路径使用 current dish；
- * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量
- *   （statusBar/navBar/rightPad、heroBase/pinLine/pinStart/dishBodyMin、carryOpacity/navOpacity）；
- * - 评价分页（触底加载）、删除本人评价、写评价弹层（ReviewComposer）与提交后刷新、评价三点菜单、
- *   举报（useReport，游客免认证）；
- * - 距你距离（本地 haversine + 会话级定位补齐）。
+ * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard /
+ * DishSummaryCard / DishReviewSection）引用。职责：
+ * - 数据流：onLoad 解析 id → resetDishDetail → 并行取详情 / 公开评价 / 我的评价（判定底栏双态）
+ *   + 上报浏览；
+ * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量；
+ * - 评价分页（触底加载，结束判据 = 已加载条数 ≥ total）、删除本人评价、写评价 / 重新评价弹层、
+ *   评价三点菜单、举报（useReport，游客免认证）；
+ * - 底栏「写评价 / 重新评价」双态与 ReviewComposer 预填（design D3）。
+ *
+ * 坐标与距离（utils/location、distance、CAMPUS_CENTER）已于 2026-09-20 全链下线，本文件不再持有定位逻辑。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useDishPage()，
- * 使 store 获取与 onLoad/onShow/onPageScroll/onReachBottom/onShareAppMessage/onMounted
+ * 使 store 获取与 onLoad/onPageScroll/onReachBottom/onShareAppMessage/onMounted
  * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShow, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
-import { useDishStore, LOADING_KEY_REVIEWS } from '@/stores/dish'
+import { onLoad, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
+import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
-import { useLocationStore } from '@/stores/location'
-import { haversineMeters, getUserLocation } from '@/utils/location'
-import { formatDistance } from '@/utils/format'
 import { addView } from '@/api/dish'
-import { deleteReview } from '@/api/review'
-import type { Review } from '@/types/review'
+import { deleteReview, getMyReviews } from '@/api/review'
+import type { Review, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
@@ -34,10 +31,12 @@ import { getNavBarHeight } from '@/utils/navMetrics'
 import { dishDetailUrl } from '@/utils/routes'
 import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
+/** 评价分页每页条数（详情页固定 10） */
+const REVIEW_PAGE_SIZE = 10
+
 export function useDishPage() {
   const dishStore = useDishStore()
   const userStore = useUserStore()
-  const locationStore = useLocationStore()
 
   const dishId = ref(0)
   const dish = computed(() => dishStore.currentDish)
@@ -46,15 +45,38 @@ export function useDishPage() {
   const currentUserId = computed(() => userStore.userInfo?.id)
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
   const reviewFailed = computed(() => dishStore.reviewError)
-  /**
-   * 评价在途（骨架态；有数据时不遮挡列表）。
-   * MP-04：此前取 dishStore.loading =「是否有任意 dish 请求在飞」的全局聚合，
-   * 于是同一页面内的 fetchDetail / 其它搜索请求都会让评价区显骨架。
-   * 现按 key 只订阅评价那一个请求（LOADING_KEY_REVIEWS）。
-   */
-  const reviewLoading = computed(() => dishStore.isLoading(LOADING_KEY_REVIEWS))
+  /** 详情请求失败态（失败 ≠ 加载中 ≠ 不存在）：驱动页面失败 / 不存在文案与恢复路径 */
+  const detailFailed = computed(() => dishStore.detailError)
+  /** onLoad 缺少 / 非法菜品 id：同样按失败态呈现（不留纯空白页） */
+  const missingDishId = ref(false)
 
-  /** detail-modular-review-cleanup：评价卡内触底分页（不再跳转独立全部评价页） */
+  /**
+   * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
+   * 覆盖首屏拉取与「只看有图」切换——先清空再拉取期间不得误闪「暂无带图评价 / 还没有人评价」；
+   * 页面上不呈现任何骨架屏 / loading 指示（§4.8 红线）。
+   * 用计数而非布尔：删除后重拉、提交后重拉可能与切换并发，计数可正确收敛。
+   */
+  const reviewPendingCount = ref(0)
+  const reviewPending = computed(() => reviewPendingCount.value > 0)
+
+  /** 重置式评价拉取（首屏 / 只看有图切换 / 重试 / 提交后与删除后刷新共用），置 pending 门控 */
+  async function fetchReviewsReset() {
+    if (!dishId.value) return
+    reviewPendingCount.value += 1
+    try {
+      await dishStore.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE, hasImage: imageOnly.value })
+    } finally {
+      reviewPendingCount.value -= 1
+    }
+  }
+
+  /** 当前用户对本菜的评价（判定底栏双态 + 重评预填）；游客 / 未认证恒为 null */
+  const myReview = ref<Review | null>(null)
+
+  /** 「只看有图」开关（服务端过滤：total 与分页同口径） */
+  const imageOnly = ref(false)
+
+  /** detail-modular-review-cleanup：评价卡内触底分页 */
   const reviewPage = ref(1)
   const reviewFinished = ref(false)
   const reviewLoadingMore = ref(false)
@@ -63,22 +85,41 @@ export function useDishPage() {
     reviewFinished.value = false
     reviewLoadingMore.value = false
   }
+
+  /** 触底加载下一页评价（D6：结束判据 = 已加载条数 ≥ total） */
   async function onReviewsReachBottom() {
     if (!dish.value || reviewLoadingMore.value || reviewFinished.value) return
-    const pageSize = 10
+    // 已加载条数 ≥ 服务端 total：直接判定结束，不再多发一次空请求（末页恰好满页场景）
+    if (reviewList.value.length >= reviewTotal.value) {
+      reviewFinished.value = true
+      return
+    }
     reviewLoadingMore.value = true
     try {
-      // 不传 sort：评价排序口径唯一由后端决定（§7.14 第 2 条 / §7.18 第 3 条「按有用数置顶」；PR-02）
+      // 排序唯一时间倒序，端上不传 sort（PR-02）
       const res = await dishStore.fetchReviews(dishId.value, {
         page: reviewPage.value + 1,
-        pageSize,
+        pageSize: REVIEW_PAGE_SIZE,
         append: true,
+        hasImage: imageOnly.value,
       })
       // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
       if (!res) return
       reviewPage.value += 1
-      if (res.list.length < pageSize) reviewFinished.value = true
+      // 结束判据：已加载条数 ≥ 服务端同口径 total（末页恰好满页时不再多发空请求）
+      if (reviewList.value.length >= res.total) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
+  }
+
+  /**
+   * 切换「只看有图」：重置分页 + 清空列表后按新口径重拉。
+   * 在途期由 reviewPending 驱动评价区空白静默（不误闪空态）；空态由评价卡按新口径渲染。
+   */
+  function onToggleImageOnly() {
+    imageOnly.value = !imageOnly.value
+    resetReviewPaging()
+    dishStore.clearReviews()
+    void fetchReviewsReset()
   }
 
   /** 大图列表：优先 images，回退单图 */
@@ -168,7 +209,7 @@ export function useDishPage() {
     }
   })
 
-  /** 位置文案：食堂 › 楼层 › 档口 › 窗口 */
+  /** 位置文案：食堂 · 楼层 · 档口名（窗口号与距离已下线） */
   const locationText = computed(() => {
     const d = dish.value
     if (!d) return ''
@@ -176,25 +217,7 @@ export function useDishPage() {
     if (d.canteen) nodes.push(d.canteen)
     if (d.floor) nodes.push(String(d.floor))
     if (d.stallName) nodes.push(d.stallName)
-    if (d.windowNo) nodes.push(`窗口 ${d.windowNo}`)
-    return nodes.join(' › ') || '未知位置'
-  })
-
-  /** 距你距离（米）：前端本地计算；未定位为 null */
-  const dishDistance = computed(() => {
-    const d = dish.value
-    if (!d) return null
-    const loc = locationStore.location
-    if (!loc || typeof d.latitude !== 'number' || typeof d.longitude !== 'number') return null
-    return haversineMeters(loc, { lat: d.latitude, lng: d.longitude })
-  })
-
-  /** 距你文案：距离口径统一走 utils/format（含取整/公里一位小数/>999km 守卫）；
-   *  未定位或脏坐标（non-finite）统一回落到「未定位」文案 */
-  const distText = computed(() => {
-    const m = dishDistance.value
-    if (m == null) return '未定位'
-    return formatDistance(m) || '未定位'
+    return nodes.join(' · ') || '未知位置'
   })
 
   /** 评分分布：按星级 5→1 排序（供综合评分卡） */
@@ -207,55 +230,57 @@ export function useDishPage() {
   onLoad((query) => {
     const id = Number(query?.id)
     if (!id) {
+      // 缺 ID：同「不存在」按失败态呈现（明确文案 + 返回），不留纯空白页
+      missingDishId.value = true
       uni.showToast({ title: '缺少菜品ID', icon: 'none' })
       return
     }
+    missingDishId.value = false
     dishId.value = id
     dishStore.resetDishDetail()
-    ensureLocation()
-    loadDishData()
+    myReview.value = null
+    imageOnly.value = false
+    void loadDishData()
   })
 
-  /**
-   * 从二级页返回时：不重拉。
-   * 原 `reviewsDirty` 脏标记机制已删除（P2-11 / PR-05）——全仓无任何处置 `reviewsDirty = true` 的写入点，
-   * 分支恒不成立，属「存在但永不触发」的死机制；评价与评分的更新统一由写评价提交回调
-   * （onReviewSubmitted）与删除回调（onDeleteReview）显式重拉，路径明确且必达。
-   */
-  onShow(() => {
-    if (!dishId.value || !dish.value) return
-  })
-
-  /** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级 */
-  async function ensureLocation() {
-    if (locationStore.location) return
-    try {
-      const loc = await getUserLocation()
-      if (loc) locationStore.setLocation(loc)
-    } catch (e) {
-      // 静默
-    }
-  }
-
-  /** 进入页面加载详情（addView 埋点失败静默） */
+  /** 进入页面并行取数：详情 + 公开评价 + 我的评价（判定底栏态），并上报浏览 */
   async function loadDishData() {
     if (!dishId.value) return
     resetReviewPaging()
     addView(dishId.value)
-    await Promise.all([
+    const tasks: Promise<unknown>[] = [
       dishStore.fetchDetail(dishId.value),
-      dishStore.fetchReviews(dishId.value, { pageSize: 10 }),
-    ])
+      fetchReviewsReset(),
+    ]
+    // 已认证用户才判定「我是否已评价」：未认证（游客）跳过，底栏按「未评价」呈现
+    if (userStore.isVerified()) tasks.push(loadMyReview())
+    await Promise.all(tasks)
+    syncSharedDish()
+  }
+
+  /** 拉取「我的评价（按菜过滤）」：判定底栏双态并取回评价 ID 供重评预填 */
+  async function loadMyReview() {
+    if (!dishId.value) return
+    try {
+      const res = await getMyReviews({ dishId: dishId.value, page: 1, pageSize: 1 })
+      myReview.value = res.list[0] ?? null
+    } catch {
+      // 判定失败静默降级为「未评价」，不阻塞详情展示
+      myReview.value = null
+    }
+  }
+
+  /** 详情请求失败后重试（与进入页面同路径，仅重拉详情） */
+  function onRetryDetail() {
+    if (!dishId.value) return
+    dishStore.fetchDetail(dishId.value)
+  }
+
+  /** 写回分享态（供 onShareAppMessage 读取菜名 + 现价） */
+  function syncSharedDish() {
     const d = dish.value
     if (d) {
-      sharedDish.value = {
-        id: d.id,
-        name: d.name,
-        price: d.price,
-        stallId: d.stallId,
-        canteen: d.canteen,
-        stallName: d.stallName,
-      }
+      sharedDish.value = { id: d.id, name: d.name, price: d.price, stallName: d.stallName }
     } else {
       sharedDish.value = null
     }
@@ -265,18 +290,6 @@ export function useDishPage() {
     title: dish.value ? `${dish.value.name} ¥${dish.value.price}` : '菜品详情',
     path: dishDetailUrl(dishId.value),
   }))
-
-  /** 距你未定位时点击：主动引导开启定位 */
-  async function onDistTap() {
-    if (dishDistance.value != null) return
-    const before = locationStore.location
-    await ensureLocation()
-    if (!before && locationStore.location) {
-      uni.showToast({ title: '已开启定位', icon: 'none' })
-    } else if (!locationStore.location) {
-      uni.showToast({ title: '定位未开启', icon: 'none' })
-    }
-  }
 
   /** 删除本人评价：成功后重拉列表 + 刷新综合评分 */
   function onDeleteReview(rv: Review) {
@@ -292,8 +305,10 @@ export function useDishPage() {
         try {
           await deleteReview(rv.id)
           uni.showToast({ title: '评价已删除', icon: 'none' })
-          await dishStore.fetchReviews(dishId.value, { pageSize: 10 })
+          // 删除的若是本人评价：判定态回退为「未评价」
+          if (myReview.value?.id === rv.id) myReview.value = null
           resetReviewPaging()
+          await fetchReviewsReset()
           dishStore.fetchDetail(dishId.value)
         } catch (e: any) {
           uni.showToast({ title: e.message || '删除失败', icon: 'none' })
@@ -302,21 +317,45 @@ export function useDishPage() {
     })
   }
 
-  /* ===== 写评价（底栏左钮 → ReviewComposer 底部抽屉；提交成功后重拉评价 + 综合评分） ===== */
+  /* ===== 写评价 / 重新评价（底栏左钮 → ReviewComposer 底部抽屉） ===== */
   const composerOpen = ref(false)
-  function openComposer() {
-    composerOpen.value = true
-  }
+  /** 底栏主按钮文案：已评价 = 重新评价，未评价 = 写评价（游客恒为「写评价」） */
+  const reviewButtonText = computed(() => (myReview.value ? '重新评价' : '写评价'))
+  /** 重评预填（评分 / 文字 / 配图）；未评价为 null */
+  const composerPrefill = computed(() => {
+    const rv = myReview.value
+    if (!rv) return null
+    return { rating: rv.rating, content: rv.content, images: rv.images ?? [] }
+  })
+  /** 重评目标评价 ID；未评价为 null（走首次发表 POST） */
+  const composerReviewId = computed(() => myReview.value?.id ?? null)
+
   function onOpenReviewComposer() {
     if (!dish.value) return
     // 与删除/举报同款：未认证先弹认证（AuthSheet），认证完成后回调重进本函数
     if (!userStore.requireAuth(() => onOpenReviewComposer())) return
-    openComposer()
+    composerOpen.value = true
   }
-  /** 提交成功：重置分页并重拉评价（排序仍由后端默认「有用数置顶」接管，端上不传 sort）+ 刷新综合评分分布 */
-  function onReviewSubmitted() {
+
+  /**
+   * 提交成功：
+   * - 重评：**本地写回** myReview（新值），底栏就地保持「重新评价」，不重新判定（design D3）；
+   * - 首次发表：回读「我的评价」取回 id，使后续入口切为「重新评价」；
+   * 两种情况均重置分页并按当前「只看有图」口径重拉评价 + 刷新综合评分。
+   */
+  function onReviewSubmitted(payload: ReviewSubmittedPayload) {
+    if (payload.mode === 'update' && myReview.value) {
+      myReview.value = {
+        ...myReview.value,
+        rating: payload.rating,
+        content: payload.content,
+        images: payload.images,
+      }
+    } else {
+      void loadMyReview()
+    }
     resetReviewPaging()
-    dishStore.fetchReviews(dishId.value, { pageSize: 10 })
+    void fetchReviewsReset()
     dishStore.fetchDetail(dishId.value)
   }
 
@@ -324,7 +363,7 @@ export function useDishPage() {
   function onRetryReviews() {
     if (!dishId.value) return
     resetReviewPaging()
-    dishStore.fetchReviews(dishId.value, { pageSize: 10 })
+    void fetchReviewsReset()
   }
 
   /* ===== 评价三点菜单（ReviewItem @more → 页面级通用 ActionSheet） ===== */
@@ -380,21 +419,27 @@ export function useDishPage() {
     navPadRight,
     navBarHeight,
     locationText,
-    distText,
-    dishDistance,
     ratingDistribution,
     reviewList,
     reviewTotal,
     reviewFailed,
-    reviewLoading,
+    reviewPending,
+    detailFailed,
+    missingDishId,
+    imageOnly,
     currentUserId,
+    myReview,
+    reviewButtonText,
+    composerPrefill,
+    composerReviewId,
     composerOpen,
     reportOpen,
     reportSubmitting,
     reviewMoreOpen,
     reviewMoreItems,
     backToHome,
-    onDistTap,
+    onRetryDetail,
+    onToggleImageOnly,
     onDeleteReview,
     onReviewReport,
     onReviewMore,

@@ -212,7 +212,7 @@ export function useFeedback() {
     { key: 'price', label: '价格不对', short: '价格', icon: 'price', editPlaceholder: '正确价格，如 0.00' },
     { key: 'name', label: '名字写错', short: '名字', icon: 'edit', editPlaceholder: '正确名字' },
     { key: 'location', label: '位置变了', short: '位置', icon: 'location', editPlaceholder: '正确位置，如：一食堂 · 面食窗口' },
-    { key: 'attr', label: '图片 / 属性不对', short: '图片属性', icon: 'image', editPlaceholder: '哪里不对，如：辣度标错了' },
+    { key: 'attr', label: '图片 / 属性不对', short: '图片属性', icon: 'image', editPlaceholder: '哪里不对，如：口味标错了' },
     { key: 'removed', label: '已下架', short: '已下架', icon: 'report', editPlaceholder: '补充下架说明（可选）' },
     { key: 'other', label: '其他', short: '其他', icon: 'comment', editPlaceholder: '还有啥问题' },
   ]

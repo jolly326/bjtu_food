@@ -5,17 +5,25 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 菜品视图对象（VO）
+ * 菜品视图对象（VO）—— 对小程序公开的菜品对象，**恰为 15 个字段**（§7.27 / §7.28 / §7.29 定稿）。
  * <p>
- * 展示给前端的菜品信息，包含关联的档口/食堂名称等冗余字段
- * 用于 GET /api/dishes（列表）和 GET /api/dishes/{id}（详情）
+ * 字段集：{@code id}、{@code name}、{@code price}、{@code originalPrice}、{@code description}、
+ * {@code images}、{@code stallName}、{@code canteenName}、{@code floor}、{@code avgRating}、
+ * {@code ratingCount}、{@code dietType}、{@code ingredients}、{@code flavorTags}、{@code serveTemp}。
+ * <p>
+ * 列表与详情返回同一字段集（详情仅额外附评分分布）。以下字段已从公开响应删除且不得回流：
+ * {@code status}（公开接口恒只返回在售）、{@code createdAt}、{@code canteenId}、{@code stallId}、
+ * {@code viewCount}、{@code promoPrice}、{@code tags}、{@code spiceLevel}、{@code region}、
+ * {@code windowNo}、{@code updatedAt}、{@code latitude}、{@code longitude}。
+ * <p>
+ * 价格口径（D2）：{@code price} = 现价（唯一数据源）；{@code originalPrice} = 原价（可空）；
+ * 「有折扣」判据为 {@code originalPrice} 有值且大于 {@code price}。
  */
 @Data
-@Schema(description = "菜品展示信息")
+@Schema(description = "菜品展示信息（公开 15 字段）")
 public class DishVO {
 
     @Schema(description = "菜品ID")
@@ -24,17 +32,13 @@ public class DishVO {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
-    /** 价格（分），前端自行转换显示为元 */
-    @Schema(description = "价格（分）", example = "1200")
+    /** 现价（分），唯一价格数据源；前端自行转换显示为元 */
+    @Schema(description = "现价（分，已含折扣）", example = "1200")
     private Integer price;
 
-    /** 原价（分，折扣前）；promoPrice 非空视为有折扣 */
-    @Schema(description = "原价（分，折扣前）", example = "1500")
+    /** 原价（分，可空）；originalPrice > price 视为有折扣 */
+    @Schema(description = "原价（分，可空）", example = "1500")
     private Integer originalPrice;
-
-    /** 促销价（分，可空）；非空视为有折扣 */
-    @Schema(description = "促销价（分，可空；非空视为有折扣）", example = "1200")
-    private Integer promoPrice;
 
     @Schema(description = "菜品描述")
     private String description;
@@ -47,17 +51,8 @@ public class DishVO {
     @Schema(description = "菜品多图URL列表")
     private List<String> images;
 
-    @Schema(description = "标签", example = "recommended")
-    private String tags;
-
-    @Schema(description = "所属档口ID")
-    private Long stallId;
-
     @Schema(description = "档口名称", example = "面食窗口")
     private String stallName;
-
-    @Schema(description = "所属食堂ID")
-    private Long canteenId;
 
     @Schema(description = "食堂名称", example = "第一食堂")
     private String canteenName;
@@ -66,50 +61,27 @@ public class DishVO {
     @Schema(description = "档口楼层（如 1F/2F）", example = "1F")
     private String floor;
 
-    /** 档口窗口号，来自 stall 联表 */
-    @Schema(description = "档口窗口号", example = "3号窗口")
-    private String windowNo;
-
-    /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
-    @Schema(description = "食堂纬度（GCJ-02），前端本地算距离用", example = "39.90")
-    private BigDecimal latitude;
-
-    /** 食堂经度（GCJ-02），来自 canteen 联表 */
-    @Schema(description = "食堂经度（GCJ-02），前端本地算距离用", example = "116.40")
-    private BigDecimal longitude;
-
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;
 
     @Schema(description = "评价数", example = "20")
     private Integer ratingCount;
 
-    @Schema(description = "浏览量", example = "200")
-    private Integer viewCount;
+    // ==================== 描述四维（§7.28） ====================
 
-    @Schema(description = "状态（on/off）", example = "on")
-    private String status;
+    /** 荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真 */
+    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
+    private String dietType;
 
-    // ==================== 以下字段仅详情页接口返回 ====================
+    /** 主料/食材：逗号分隔机器值 */
+    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "chicken,rice")
+    private String ingredients;
 
-    // 注：hasReviewed（当前用户是否已评价）已于 2026-09-15 下线——三端零消费，
-    // 删除字段与 DishServiceImpl 的取值查询（省掉详情接口一次 review 计数查询）。
+    /** 口味：逗号分隔机器值（吸收原辣度语义） */
+    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "spicy,sour")
+    private String flavorTags;
 
-    @Schema(description = "创建时间")
-    private LocalDateTime createdAt;
-
-    /** 信息更新时间：详情页展示「信息更新于 X」，供学生判断信息新鲜度 */
-    @Schema(description = "信息更新时间")
-    private LocalDateTime updatedAt;
-
-    // ==================== 一期新增菜品属性标签字段 ====================
-
-    /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
-    @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
-    private Integer spiceLevel;
-
-    /** 风味/菜系（§7.9 定型）：东北/川湘/粤式/西北/清真/其他；与食堂位置无关 */
-    @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他", example = "川湘")
-    private String region;
-
+    /** 冷热：hot=热食 / room=常温 / ice=冰 */
+    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
+    private String serveTemp;
 }

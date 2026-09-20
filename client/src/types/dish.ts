@@ -1,42 +1,50 @@
+/**
+ * 菜品类型（公开 DishVO 契约，15 字段 · 2026-09-20 dish-detail-remediation 收敛）
+ *
+ * 公开菜品契约字段集恰为 15 个（`specs/dish-field-contract`）：
+ * id / name / price / originalPrice / description / images /
+ * stallName / canteenName / floor / avgRating / ratingCount /
+ * dietType / ingredients / flavorTags / serveTemp。
+ *
+ * 端上定型说明：
+ * - `canteenName` → 端上别名 `canteen`（历史消费点沿用），`avgRating` → `rating`；
+ * - `image`（首图封面）由 `images[0]` 派生，属端上展示便利字段、非后端出参；
+ * - `dietType` / `serveTemp` 等四维在 API 层已由机器值映射为中文展示值（见 api/dish.ts），
+ *   视图层直取渲染，禁止二次映射。
+ *
+ * 已全链删除（SHALL NOT 回流）：promoPrice / status / createdAt / canteenId / stallId /
+ * viewCount / tags / spiceLevel / region / windowNo / updatedAt / latitude / longitude /
+ * distance（坐标与距离随「计算距离」概念整体下线）。
+ */
 export interface Dish {
   id: number
   name: string
-  /** 展示用「元」（API 层已由分转元） */
+  /** 现价（元；API 层已由分转元）。**价格展示唯一数据源** */
   price: number
+  /** 原价（元，可空）；有值且大于 price 时端上在原价加删除线表示折扣 */
+  originalPrice?: number
+  /** 封面首图（= images[0]，端上派生字段） */
   image: string
   images?: string[]
+  /** 平均评分（后端 avgRating，口径 = 仅未隐藏评价） */
   rating: number
+  /** 评价数（同上口径） */
   ratingCount: number
-  tags: string[]
   description: string
+  /** 食堂名称（后端 canteenName） */
   canteen: string
+  /** 档口名称 */
   stallName: string
-
-  /** ===== 位置链路（task-03，DishVO 扩展，来自 stall 联表） ===== */
-  /** 所属档口 ID（分享深链到档口详情用） */
-  stallId?: number
   /** 档口所属楼层（如 1F/2F） */
   floor?: string
-  /** 窗口号 */
-  windowNo?: string
-
-  /** ===== 属性标签（task-03，DishVO 扩展，来自 dish） ===== */
-  /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
-  spiceLevel?: number
-  /** 折扣价（分）：促销前原价（task-12.9，API 层已转元展示） */
-  originalPrice?: number
-  /** 折扣价（分，可空）：促销价，非空即视为有折扣 */
-  promoPrice?: number
-  /** 距当前用户距离（米）：由前端基于 locationStore 用户坐标 + Haversine 本地计算写回，未定位/无坐标时为 undefined */
-  distance?: number
-  /** 地域（美食来源地，如 清真/川湘/粤式/东北/西北），由后端联表回填 */
-  region?: string
-  /** 信息更新时间（dish.updated_at，详情页展示「信息更新于 X」判断新鲜度） */
-  updatedAt?: string
-  /** 食堂坐标（GCJ-02），来自 canteen 联表；前端本地 Haversine 算「距你 Xm」用，服务器不算距离 */
-  latitude?: number
-  /** 食堂经度（GCJ-02），来自 canteen 联表 */
-  longitude?: number
+  /** 描述四维·荤素（中文展示值：荤 / 半荤 / 素 / 清真） */
+  dietType?: string
+  /** 描述四维·主料（中文展示值，顿号分隔） */
+  ingredients?: string
+  /** 描述四维·口味（中文展示值，顿号分隔；吸收原「辣度」语义） */
+  flavorTags?: string
+  /** 描述四维·冷热（中文展示值：热食 / 常温 / 冰） */
+  serveTemp?: string
 }
 
 interface RatingDistribution {
@@ -52,25 +60,19 @@ export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at'
 
 export interface DishQuery {
   keyword?: string
-  /** 食堂 ID（task-02 多维筛选） */
+  /** 食堂 ID（多维筛选） */
   canteenId?: number
-  /** 口味/品类标签（复用 Dish.tags，task-02 分类宫格） */
-  tag?: string
-  /** 辣度筛选（后端 spiceLevel 枚举 0-3：0 不辣 / 1 微辣 / 2 中辣 / 3 重辣；-1 或 undefined 表示不限） */
-  spiceLevel?: number
   /** 价格区间（前端「元」，API 层转分提交） */
   minPrice?: number
   maxPrice?: number
-  /** 排序维度（ARCH §3.1：heat/rating/price/created_at） */
+  /** 排序维度（ARCH §3.1：heat/rating/price/created_at；端上默认不传） */
   sortBy?: DishSortBy
   sortOrder?: 'asc' | 'desc'
   page?: number
   pageSize?: number
 }
 
-/** 热搜词（GET /dishes/hot-search，task-02；一期为菜品热度派生的热门词条） */
+/** 热搜词（GET /dishes/hot-search；一期为菜品热度派生的热门词条） */
 export interface HotSearch {
   keyword: string
 }
-
-

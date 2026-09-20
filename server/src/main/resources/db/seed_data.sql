@@ -38,14 +38,16 @@ INSERT INTO `user` (username, email, nickname, avatar, status) VALUES
 
 -- -------------------- 食堂（共 7 个；id=1 为学一食堂，档口/菜品 canteen_id 引用以此对齐） --------------------
 -- 注：食堂已去实体化（2026-09-14 §7.14），status/audit_status/reject_reason/created_by 列已下线（2026-09-15 阶段4 追加 created_by），不再写入（否则新库报 Unknown column）
-INSERT INTO canteen (name, location, description, sort_order, latitude, longitude) VALUES
-('学一食堂', '学苑区',     '综合食堂，家常风味', 1, 39.953800, 116.335400),
-('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 2, 39.954200, 116.335800),
-('学三食堂', '学苑区二栋', '品类丰富，平价美味', 3, 39.954600, 116.336200),
-('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 4, 39.955800, 116.331500),
-('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     5, 39.953000, 116.339000),
-('清真食堂', '学苑区',     '清真风味，干净卫生', 6, 39.954800, 116.335000),
-('留园餐厅', '留园区',     '精致小炒与面点',     7, 39.957000, 116.338000);
+-- 注（2026-09-20 拍板）：canteen.latitude / canteen.longitude 坐标列已整链下线（位置表达收敛为 食堂 · 楼层 · 档口名），
+--     列清单与该两列取值已同步移除（否则新库报 Unknown column）；存量库由 schema.sql 末尾 drop_canteen_coordinates 幂等段清理。
+INSERT INTO canteen (name, location, description, sort_order) VALUES
+('学一食堂', '学苑区',     '综合食堂，家常风味', 1),
+('学二食堂', '学苑区一栋', '明亮整洁，家常味道', 2),
+('学三食堂', '学苑区二栋', '品类丰富，平价美味', 3),
+('明湖餐厅', '明湖旁',     '湖景餐厅，聚餐首选', 4),
+('嘉园餐厅', '嘉园公寓',   '夜宵与小吃天堂',     5),
+('清真食堂', '学苑区',     '清真风味，干净卫生', 6),
+('留园餐厅', '留园区',     '精致小炒与面点',     7);
 
 -- -------------------- 档口（canteen_id 对应上面的食堂） --------------------
 -- 注：档口已去实体化（2026-09-14 §7.14），status/audit_status/reject_reason/created_by 列已下线（2026-09-15 阶段4 追加 created_by），不再写入（否则新库报 Unknown column）
@@ -68,38 +70,46 @@ INSERT INTO stall (canteen_id, name, location, description, sort_order) VALUES
 -- -------------------- 菜品（stall_id 对应上面档口；价格单位：分） --------------------
 -- 注：dish.audit_status 列已退役（2026-09-15 阶段4，无独立菜品审核、公开可见性只看 status），不再写入（否则新库报 Unknown column）
 -- 注：dish.category_id 列已随品类整链退役（2026-09-15 用户拍板），列清单与各行值已同步移除（否则新库报 Unknown column）
-INSERT INTO dish (stall_id, name, price, description, images, tags, status, view_count, avg_rating, rating_count) VALUES
-(1,  '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'recommended,signature', 'on', 560, 4.7, 120),
-(1,  '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'signature',            'on', 720, 4.8,  98),
-(1,  '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'recommended',          'on', 430, 4.6,  76),
-(1,  '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'recommended',          'on', 610, 4.5, 150),
-(1,  '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, '',                    'on', 380, 4.4,  64),
-(11, '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'signature',            'on', 880, 4.7, 200),
-(2,  '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'recommended',          'on', 760, 4.8, 180),
-(4,  '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'recommended',          'on', 690, 4.6, 140),
-(4,  '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'signature',            'on', 320, 4.5,  55),
-(4,  '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'recommended',          'on', 700, 4.7, 130),
-(4,  '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, '',                    'on', 410, 4.4,  88),
-(5,  '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'recommended',          'on', 820, 4.6, 160),
-(5,  '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'signature',            'on', 260, 4.3,  42),
-(6,  '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'recommended',          'on', 520, 4.5, 110),
-(6,  '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, '',                    'on', 470, 4.6,  95),
-(7,  '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'recommended',          'on', 390, 4.5,  70),
-(7,  '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'signature',            'on', 640, 4.7, 120),
-(8,  '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'recommended',          'on', 780, 4.8, 140),
-(8,  '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, '',                    'on', 300, 4.4,  60),
-(9,  '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'recommended',          'on', 700, 4.6, 150),
-(9,  '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'signature',            'on', 560, 4.5, 130),
-(10, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'recommended',          'on', 980, 4.7, 220),
-(10, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'signature',            'on', 840, 4.8, 190),
-(11, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'signature',            'on', 900, 4.8, 210),
-(11, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'recommended',          'on', 460, 4.6,  80),
-(12, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'recommended',          'on', 720, 4.7, 160),
-(12, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, '',                    'on', 320, 4.5,  70),
-(13, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'recommended',          'on', 500, 4.5,  90),
-(13, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'signature',            'on', 360, 4.6,  60),
-(14, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'recommended',          'on', 580, 4.7, 110),
-(14, '叉烧包',     1000, '松软甜香，广式经典',           NULL, '',                    'on', 520, 4.6, 100);
+-- 注：dish.tags（标签）列与 promo_price（促销价）列已于 2026-09-20 拍板整链下线，列清单与各行值已同步移除
+--     （否则新库报 Unknown column）；四维示例值随本 INSERT 一并写入。
+-- 四维机器值（§7.28，**英文机器值**，中文仅由端上展示层映射；兼容值域见下方注释）：
+--   diet_type：meat=荤 / half=半荤 / veg=素 / halal=清真
+--   ingredients：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（逗号分隔）
+--   flavor_tags：spicy/numbing/sour/sweet/salty/umami/light/heavy（逗号分隔；辣度语义并入口味）
+--   serve_temp：hot=热食 / room=常温 / ice=冰
+INSERT INTO dish (stall_id, name, price, description, images, status, view_count, avg_rating, rating_count,
+                  diet_type, ingredients, flavor_tags, serve_temp) VALUES
+(1,  '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'on', 560, 4.7, 120, 'meat',  'chicken,veg',  'spicy,sour',    'hot'),
+(1,  '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'on', 720, 4.8,  98, 'meat',  'beef,veg',     'spicy,numbing', 'hot'),
+(1,  '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'on', 430, 4.6,  76, 'meat',  'pork,veg',     'spicy',         'hot'),
+(1,  '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'on', 610, 4.5, 150, 'half',  'egg',          'sour,sweet',    'hot'),
+(1,  '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, 'on', 380, 4.4,  64, 'meat',  'beef',         'salty',         'hot'),
+(11, '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'on', 880, 4.7, 200, 'halal', 'beef,noodle',  'salty',         'hot'),
+(2,  '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'on', 760, 4.8, 180, 'meat',  'pork,noodle',  'salty',         'hot'),
+(4,  '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'on', 690, 4.6, 140, 'meat',  'chicken,rice', 'salty',         'hot'),
+(4,  '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'on', 320, 4.5,  55, 'meat',  'fish',         'spicy',         'hot'),
+(4,  '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'on', 700, 4.7, 130, 'meat',  'pork,rice',    'salty',         'hot'),
+(4,  '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, 'on', 410, 4.4,  88, 'meat',  'chicken,rice', 'salty',         'hot'),
+(5,  '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'on', 820, 4.6, 160, 'meat',  'noodle,veg',   'spicy,numbing', 'hot'),
+(5,  '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'on', 260, 4.3,  42, 'meat',  'pork',         'spicy,numbing', 'hot'),
+(6,  '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'on', 520, 4.5, 110, 'half',  'egg,rice',     'light',         'hot'),
+(6,  '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, 'on', 470, 4.6,  95, 'half',  'rice',         'light',         'hot'),
+(7,  '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'on', 390, 4.5,  70, 'veg',   'veg',          'spicy',         'hot'),
+(7,  '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'on', 640, 4.7, 120, 'meat',  'pork',         'sour,sweet',    'hot'),
+(8,  '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'on', 780, 4.8, 140, 'meat',  'pork',         'salty',         'hot'),
+(8,  '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, 'on', 300, 4.4,  60, 'veg',   'veg',          'salty',         'hot'),
+(9,  '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'on', 700, 4.6, 150, 'meat',  'noodle,veg',   'salty',         'hot'),
+(9,  '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'on', 560, 4.5, 130, 'half',  'noodle,egg',   'sour,sweet',    'hot'),
+(10, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'on', 980, 4.7, 220, 'veg',   'rice',         'sweet',         'ice'),
+(10, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'on', 840, 4.8, 190, 'veg',   'rice',         'sweet',         'ice'),
+(11, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'on', 900, 4.8, 210, 'halal', 'beef,noodle',  'salty',         'hot'),
+(11, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'on', 460, 4.6,  80, 'halal', 'lamb,noodle',  'salty',         'hot'),
+(12, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'on', 720, 4.7, 160, 'halal', 'lamb',         'spicy',         'hot'),
+(12, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, 'on', 320, 4.5,  70, 'halal', 'noodle',       'salty',         'hot'),
+(13, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'on', 500, 4.5,  90, 'veg',   'veg',          'spicy,sour',    'hot'),
+(13, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'on', 360, 4.6,  60, 'meat',  'fish',         'spicy,sour',    'hot'),
+(14, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'on', 580, 4.7, 110, 'meat',  'fish,noodle',  'salty',         'hot'),
+(14, '叉烧包',     1000, '松软甜香，广式经典',           NULL, 'on', 520, 4.6, 100, 'meat',  'pork,noodle',  'sweet',         'hot');
 
 -- -------------------- 评价（为部分菜品填充评价，丰富详情页；与 dish.avg_rating/rating_count 大致对应） --------------------
 INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
@@ -124,18 +134,9 @@ INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
 (4, 23, 5, '杨枝甘露清甜解腻',                         0),
 (4, 30, 5, '叉烧包松软甜香，广式经典',                 0);
 
--- -------------------- 评价「有用」标记（review_useful，一人一票） --------------------
-INSERT INTO review_useful (user_id, review_id, created_at) VALUES
-(2, 1, NOW()), (3, 1, NOW()), (4, 1, NOW()),
-(1, 2, NOW()), (3, 2, NOW()),
-(2, 3, NOW()), (4, 3, NOW()),
-(1, 4, NOW()), (3, 4, NOW()),
-(2, 5, NOW()), (4, 5, NOW()),
-(1, 6, NOW()), (3, 6, NOW());
-
--- 回填 review.useful_count 冗余列，与上方 review_useful 标记保持一致（评价卡展示「有用」数）
-UPDATE review SET useful_count = 3 WHERE id = 1;
-UPDATE review SET useful_count = 2 WHERE id IN (2, 3, 4, 5, 6);
+-- 注（2026-09-20 拍板）：「评价有用」全链下线——review_useful 表与 review.useful_count 列已整链退役，
+--     本脚本不再灌入该表种子数据、不再回填 useful_count（否则新库报 Unknown table / Unknown column）；
+--     存量库由 schema.sql 末尾 drop_review_useful_chain 幂等段清理（表基线 10 → 9）。
 
 -- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
 -- sub（二级分类，DEV-01）仅 type=suggestion 有效：示例数据给 suggestion 行补 'idea' 便于联调可见，
@@ -172,48 +173,22 @@ UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
 UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
 UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
 
--- 菜品：先给全部菜品一个基础辣度，再对部分招牌/特征菜做差异化。
--- 注：餐段 serve_period 与限量 limited 两列已于 2026-09-14 §7.9 整体下线，
---     由 schema.sql 末尾 drop_dish_unused_fields 幂等 DROP，种子脚本不再引用（否则新库报 Unknown column）。
---     分量 portion 列已于 2026-09-14 §7.14（Q-114）整体下线，本脚本自始未对其赋值，无需处理；
---     存量库由 schema.sql 末尾 drop_dish_portion 幂等 DROP。辣度 spice_level 保留（下方差异化赋值有效）。
-UPDATE dish SET spice_level=1 WHERE spice_level=0;
+-- 菜品：描述四维（diet_type / ingredients / flavor_tags / serve_temp）示例值已在上方 `INSERT INTO dish` 内
+-- 直接写入（英文机器值，§7.28），此处不再以 UPDATE 二次赋值，避免双处维护漂移。
+-- 注（2026-09-20 拍板）：原 spice_level（辣度）与 region（风味/菜系）两列已整链下线，本脚本不再引用
+--     （否则新库报 Unknown column）；存量库由 schema.sql 末尾 drop_dish_description_dimensions 幂等段清理。
+-- 注：餐段 serve_period 与限量 limited 两列已于 2026-09-14 §7.9 整体下线（drop_dish_unused_fields）；
+--     分量 portion 列已于 2026-09-14 §7.14（Q-114）整体下线（drop_dish_portion），本脚本自始未对其赋值。
 
-UPDATE dish SET spice_level=2 WHERE id=1;   -- 宫保鸡丁
-UPDATE dish SET spice_level=3 WHERE id=2;   -- 水煮牛肉
-UPDATE dish SET spice_level=2 WHERE id=3;   -- 回锅肉
-UPDATE dish SET spice_level=0 WHERE id=4;   -- 番茄炒蛋
-UPDATE dish SET spice_level=1 WHERE id=6;   -- 牛肉拉面
-UPDATE dish SET spice_level=3 WHERE id=9;   -- 香辣虾
-UPDATE dish SET spice_level=2 WHERE id=12;  -- 骨汤麻辣烫
-UPDATE dish SET spice_level=3 WHERE id=13;  -- 冒脑花
-UPDATE dish SET spice_level=0 WHERE id=14;  -- 皮蛋瘦肉粥
-UPDATE dish SET spice_level=0 WHERE id=15;  -- 广式肠粉
-UPDATE dish SET spice_level=1 WHERE id=19;  -- 炒粉
-UPDATE dish SET spice_level=1 WHERE id=20;  -- 烤冷面
-UPDATE dish SET spice_level=0 WHERE id=22;  -- 珍珠奶茶
-UPDATE dish SET spice_level=0 WHERE id=23;  -- 杨枝甘露
-UPDATE dish SET spice_level=1 WHERE id=24;  -- 兰州牛肉面
-UPDATE dish SET spice_level=2 WHERE id=26;  -- 羊肉串
-UPDATE dish SET spice_level=0 WHERE id=29;  -- 鲜虾烧卖
-UPDATE dish SET spice_level=0 WHERE id=30;  -- 叉烧包
-
--- 地域（美食来源地，与食堂位置无关）：按菜品特征推断
-UPDATE dish SET region='川湘'   WHERE id IN (1,2,3);      -- 宫保鸡丁/水煮牛肉/回锅肉
-UPDATE dish SET region='清真'   WHERE id IN (6,24,26);    -- 牛肉拉面/兰州牛肉面/羊肉串
-UPDATE dish SET region='粤式'   WHERE id IN (15,22,29,30);-- 广式肠粉/珍珠奶茶/鲜虾烧卖/叉烧包
-UPDATE dish SET region='东北'   WHERE id IN (19,20);      -- 炒粉/烤冷面
-UPDATE dish SET region='西北'   WHERE id=12;              -- 骨汤麻辣烫
-UPDATE dish SET region='川湘'   WHERE id IN (9,13);       -- 香辣虾/冒脑花
-
--- -------------------- 菜品折扣（促销角标/划线价演示；promo_price 非空视为有折扣；幂等 UPDATE 可重复执行） --------------------
-UPDATE dish SET original_price=2000, promo_price=1600 WHERE id=1;   -- 宫保鸡丁 20.00 → 16.00
-UPDATE dish SET original_price=3200, promo_price=2800 WHERE id=2;   -- 水煮牛肉 32.00 → 28.00
-UPDATE dish SET original_price=2500, promo_price=2000 WHERE id=18;  -- 烤五花肉 25.00 → 20.00
-UPDATE dish SET original_price=2400, promo_price=2000 WHERE id=10;  -- 招牌烤肉饭 24.00 → 20.00
-UPDATE dish SET original_price=1300, promo_price=1100 WHERE id=21;  -- 烤冷面 13.00 → 11.00
-UPDATE dish SET original_price=1200, promo_price=1000 WHERE id=22;  -- 珍珠奶茶 12.00 → 10.00
-UPDATE dish SET original_price=2400, promo_price=2000 WHERE id=26;  -- 羊肉串 24.00 → 20.00
+-- -------------------- 菜品划线价（现价 price + 原价 original_price；判据 original_price > price；幂等 UPDATE 可重复执行） --------------------
+-- 注（2026-09-20 拍板 §7.26）：promo_price（促销价）列已下线，其值按迁移口径并入 price（唯一数据源=现价）。
+UPDATE dish SET price=1600, original_price=2000 WHERE id=1;   -- 宫保鸡丁 原价 20.00 / 现价 16.00
+UPDATE dish SET price=2800, original_price=3200 WHERE id=2;   -- 水煮牛肉 原价 32.00 / 现价 28.00
+UPDATE dish SET price=2000, original_price=2500 WHERE id=18;  -- 烤五花肉 原价 25.00 / 现价 20.00
+UPDATE dish SET price=2000, original_price=2400 WHERE id=10;  -- 招牌烤肉饭 原价 24.00 / 现价 20.00
+UPDATE dish SET price=1100, original_price=1300 WHERE id=21;  -- 烤冷面 原价 13.00 / 现价 11.00
+UPDATE dish SET price=1000, original_price=1200 WHERE id=22;  -- 珍珠奶茶 原价 12.00 / 现价 10.00
+UPDATE dish SET price=2000, original_price=2400 WHERE id=26;  -- 羊肉串 原价 24.00 / 现价 20.00
 
 -- -------------------- 消息通知（演示个人中心红点与通知列表；无唯一键，先清后插保证可重复执行） --------------------
 -- 类型 dish_audit / feedback_handle 与后端 NotificationConst 一致；related_id 指向真实菜品 / 反馈 ID。

@@ -8,6 +8,8 @@
     :autoplay="autoplay"
     :interval="interval"
     :circular="circular"
+    role="group"
+    :aria-label="label"
   >
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
@@ -38,6 +40,8 @@ const props = withDefaults(defineProps<{
   placeholderSize?: number
   /** 占位底色（默认同页面浅色，可传白卡等做轻微区分） */
   placeholderBackground?: string
+  /** 轮播容器可访问标签（a11y：读屏可识别图片区域，默认「菜品图片」） */
+  label?: string
 }>(), {
   height: '400rpx',
   indicatorDots: true,
@@ -47,6 +51,7 @@ const props = withDefaults(defineProps<{
   circular: true,
   placeholderSize: 64,
   placeholderBackground: 'var(--bg-page)',
+  label: '菜品图片',
 })
 
 /** 空图片也保留轮播项目数，用占位图显示 */

@@ -9,13 +9,15 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * 评价提交 / 重新评价请求参数。
+ * <p>
+ * 不含菜品 ID：归属由端点路径表达
+ * （{@code POST /dishes/{id}/reviews} 发表、{@code PUT /reviews/{id}} 重新评价）。
+ */
 @Data
-@Schema(description = "评价提交/修改请求参数")
+@Schema(description = "评价提交/重新评价请求参数")
 public class ReviewReq {
-
-    @NotNull(message = "菜品ID不能为空")
-    @Schema(description = "菜品ID", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long dishId;
 
     @NotNull(message = "评分不能为空")
     @Min(value = 1, message = "评分最低是1")

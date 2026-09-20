@@ -57,3 +57,109 @@ export const FEEDBACK_STATUS_META: Record<string, { type: 'warning' | 'success';
   [FEEDBACK_PENDING]: { type: 'warning', text: '待处理' },
   [FEEDBACK_HANDLED]: { type: 'success', text: '已处理' },
 }
+
+/* ============================================================
+ * 菜品「描述四维」（§7.28 描述维度替换，2026-09-20）
+ *
+ * 权威依据：project_spec.md §7.28 / docs/database.md dish 表四列注释。
+ * 四维替代原「辣度（spice_level）」与「风味/菜系（region）」——机器值 → 中文映射
+ * 唯一真源集中在此（Web 端），表单录入与详情展示均经此处，视图层禁止二次映射。
+ * 机器值必须与后端契约 / client 映射一致（写入错误值会导致端上无法识别）。
+ * ============================================================ */
+
+/** 多值机器字段（ingredients / flavorTags）读写格式：CSV 逗号分隔串（同原 tags 模式） */
+export function parseCsv(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean)
+  const s = typeof value === 'string' ? value.trim() : ''
+  if (!s) return []
+  // 容错兼容历史脏数据（旧实现曾误写 JSON 数组串），展示时自动归一
+  if (s.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(Boolean)
+    } catch { /* 非合法 JSON，按 CSV 继续解析 */ }
+  }
+  return s.split(',').map(v => v.trim()).filter(Boolean)
+}
+
+/** string[] → CSV 逗号分隔串（写库格式，写侧统一出口） */
+export function formatCsv(list: string[]): string {
+  return list.map(v => v.trim()).filter(Boolean).join(',')
+}
+
+/** 荤素 / 饮食属性（单选）：机器值 → 中文 */
+export const DIET_TYPE_META: Record<string, string> = {
+  meat: '荤',
+  half: '半荤',
+  veg: '素',
+  halal: '清真',
+}
+/** 荤素下拉选项（含「未填写」空值项，不提交时该维留空） */
+export const DIET_TYPE_OPTIONS = [
+  { value: '', label: '未填写' },
+  ...Object.entries(DIET_TYPE_META).map(([value, label]) => ({ value, label })),
+]
+/** 荤素 → 中文（空值回落「—」，未知值原样透出，不吞不译） */
+export function dietTypeText(v?: string): string {
+  if (!v) return '—'
+  return DIET_TYPE_META[v] ?? v
+}
+
+/** 冷热（单选）：机器值 → 中文 */
+export const SERVE_TEMP_META: Record<string, string> = {
+  hot: '热食',
+  room: '常温',
+  ice: '冰',
+}
+/** 冷热下拉选项（含「未填写」空值项） */
+export const SERVE_TEMP_OPTIONS = [
+  { value: '', label: '未填写' },
+  ...Object.entries(SERVE_TEMP_META).map(([value, label]) => ({ value, label })),
+]
+/** 冷热 → 中文 */
+export function serveTempText(v?: string): string {
+  if (!v) return '—'
+  return SERVE_TEMP_META[v] ?? v
+}
+
+/** 主料 / 食材（多选）：机器值 → 中文 */
+export const INGREDIENT_META: Record<string, string> = {
+  pork: '猪',
+  beef: '牛',
+  lamb: '羊',
+  chicken: '鸡',
+  duck: '鸭',
+  fish: '鱼虾',
+  egg: '蛋',
+  tofu: '豆制品',
+  mushroom: '菌菇',
+  veg: '青菜',
+  noodle: '面',
+  rice: '米',
+}
+/** 主料多选项（无空值项；未选即不提交 / 留空） */
+export const INGREDIENT_OPTIONS = Object.entries(INGREDIENT_META).map(([value, label]) => ({ value, label }))
+/** 主料 CSV → 中文「 · 」连接（空 = 「—」） */
+export function ingredientsText(csv?: string): string {
+  const arr = parseCsv(csv)
+  return arr.length ? arr.map(v => INGREDIENT_META[v] ?? v).join(' · ') : '—'
+}
+
+/** 口味（多选）：机器值 → 中文 */
+export const FLAVOR_TAG_META: Record<string, string> = {
+  spicy: '辣',
+  numbing: '麻',
+  sour: '酸',
+  sweet: '甜',
+  salty: '咸',
+  umami: '鲜',
+  light: '清淡',
+  heavy: '重口',
+}
+/** 口味多选项 */
+export const FLAVOR_TAG_OPTIONS = Object.entries(FLAVOR_TAG_META).map(([value, label]) => ({ value, label }))
+/** 口味 CSV → 中文「 · 」连接（空 = 「—」） */
+export function flavorTagsText(csv?: string): string {
+  const arr = parseCsv(csv)
+  return arr.length ? arr.map(v => FLAVOR_TAG_META[v] ?? v).join(' · ') : '—'
+}

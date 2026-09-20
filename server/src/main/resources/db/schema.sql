@@ -1,7 +1,7 @@
 -- =============================================================
 -- 食在交大 建立数据库（建表）脚本（MySQL 8）
 -- =============================================================
--- 用途：从零创建数据库与全部表结构、最终字段（含 region 列、折扣价等扩展字段）。
+-- 用途：从零创建数据库与全部表结构、最终字段（含描述四维 diet_type/ingredients/flavor_tags/serve_temp 等）。
 -- 本脚本自包含：自动建库并切换 USE bjtu_food，不依赖工具/命令行预先选中库。
 -- 重置服务器：先 DROP DATABASE bjtu_food 再执行本文件即可还原表结构（或直接执行本文件覆盖）。
 -- 配合 seed_data.sql 使用：本文件只建表不插数据。
@@ -39,6 +39,16 @@
 --      AuditLogAspect 切面 / OperationLogConst / OperationLogAdminController / OperationLogVO /
 --      OperationLog 实体 / OperationLogMapper / OperationLogService(+Impl) 与 4 处调用点。
 --      **数据表基线 11 → 10**（品类表下线后基线 11，本次再收敛为 10）。
+--   8. 菜品详情模块整改（2026-09-20 用户拍板，dish-detail-remediation）：
+--      · 价格口径——promo_price（促销价）列整链下线，price 为唯一价格数据源（现价，已含折扣），
+--        original_price 为可空原价（判据 original_price > price）；存量迁移见文件末尾
+--        migrate_dish_promo_to_price（先 UPDATE 再 DROP，幂等）。
+--      · 标签下线——dish.tags 列整链删除（含标签筛选与展示）。
+--      · 描述四维替换——ADD diet_type/ingredients/flavor_tags/serve_temp、DROP spice_level/region
+--        （辣度语义并入 flavor_tags、菜系放弃；region='清真' 的存量转换脚本 migrate_region_to_diet_type.sql 由用户执行）。
+--      · 坐标下线——canteen.latitude/longitude 两列幂等 DROP；原 add_canteen_location 迁移存储过程删除。
+--      · 「有用」全链下线——review.useful_count 列与 review_useful 表幂等 DROP，**数据表基线 10 → 9**。
+--      上述清理统一由文件末尾「菜品详情模块整改」幂等段完成（禁止直连 ALTER，可重跑）。
 -- =============================================================
 
 -- 自包含建库选库：避免在未选中库时建表语句落入默认库（如 mysql 系统库）触发 1044 权限错误
@@ -92,8 +102,8 @@ CREATE TABLE IF NOT EXISTS `canteen`
     `images`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '食堂图片URL列表JSON',
     `location`      VARCHAR(128) NULL    DEFAULT NULL COMMENT '食堂位置',
     `description`   VARCHAR(512) NULL    DEFAULT NULL COMMENT '食堂描述',
-    `latitude`      DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）',
-    `longitude`     DECIMAL(10,6) NULL    DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）',
+    -- canteen.latitude / canteen.longitude 已于 2026-09-20 拍板全链下线（位置表达收敛为 食堂 · 楼层 · 档口名，
+    -- 端上不申请定位权限、不算距离）；CREATE TABLE 不再创建，存量库由文件末尾 drop_canteen_coordinates 幂等段清理。
     `sort_order`    INT          NOT NULL DEFAULT 0 COMMENT '排序权重（越小越靠前）',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -129,13 +139,15 @@ CREATE TABLE IF NOT EXISTS `dish`
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
     `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
-    `price`          INT          NOT NULL DEFAULT 0 COMMENT '价格（单位：分）',
-    `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（折扣前，单位：分）；promo_price 非空视为有折扣',
-    `promo_price`    INT          NULL     DEFAULT NULL COMMENT '促销价（单位：分，可空）；非空视为有折扣',
+    `price`          INT          NOT NULL DEFAULT 0 COMMENT '现价（单位：分，已含折扣；唯一价格数据源）',
+    `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（单位：分，可空）；original_price > price 视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
-    `tags`           VARCHAR(128) NULL     DEFAULT NULL COMMENT '标签，逗号分隔；权威值域：recommended(必吃推荐)/signature(招牌菜)；web 管理端写入以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值',
-    `spice_level`    INT          NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣',
+    -- 描述四维（2026-09-20 拍板 §7.28）：荤素 / 主料 / 口味 / 冷热；替换原 spice_level（辣度）与 region（风味/菜系）
+    `diet_type`      VARCHAR(16)  NULL     DEFAULT NULL COMMENT '荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真',
+    `ingredients`    VARCHAR(255) NULL     DEFAULT NULL COMMENT '主料/食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice',
+    `flavor_tags`    VARCHAR(128) NULL     DEFAULT NULL COMMENT '口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy',
+    `serve_temp`     VARCHAR(16)  NULL     DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
     -- 已于 2026-09-16 用户拍板「零消费即删除」退役：CREATE TABLE 不再创建，
@@ -177,23 +189,13 @@ CREATE TABLE IF NOT EXISTS `review`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='评价';
 
--- -------------------- 评价「有用」 --------------------
-CREATE TABLE IF NOT EXISTS `review_useful`
-(
-    `id`         BIGINT   NOT NULL AUTO_INCREMENT COMMENT '记录ID',
-    `user_id`    BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
-    `review_id`  BIGINT   NOT NULL DEFAULT 0 COMMENT '评价ID',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_useful_user_review` (`user_id`, `review_id`),
-    KEY `idx_useful_review` (`review_id`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='评价有用标记';
+-- -------------------- 评价「有用」：已整链退役（2026-09-20 拍板） --------------------
+-- review_useful 表与 review.useful_count 列、投票端点、评价响应「有用」字段全部删除。
+-- 新库：本脚本不再创建该表与该列；存量库：由文件末尾 drop_review_useful_chain 幂等段清理（表基线 10 → 9）。
 
 -- -------------------- 收藏（本期整体移除，见 task-12.12） --------------------
 -- /favorites 端点与 favorite 表本期彻底删除。产品定稿：不做「收藏/喜欢」功能，
--- UGC 互动仅保留「有用」（review_useful 表 + useful_count 计数），故不另建喜欢计数存储。
+-- 评价互动中的「有用」亦已于 2026-09-20 整链下线，故不另建任何评价点赞/计数存储。
 
 -- -------------------- 消息通知（账号注销级联清理依赖，A.15） --------------------
 CREATE TABLE IF NOT EXISTS `notification`
@@ -275,104 +277,14 @@ DELIMITER ;
 CALL `add_stall_phase1_fields`();
 DROP PROCEDURE IF EXISTS `add_stall_phase1_fields`;
 
--- 菜品：辣度 / 风味菜系（spice_level 等 CREATE 已含；region 仅此处补充；旧库幂等补齐）
--- 注1：供应时段 serve_period 与限量 limited 已于 2026-09-14 整体下线（见文件末尾 drop_dish_unused_fields 迁移）
--- 注2：分量 portion 已于 2026-09-14 §7.14（Q-114）整体下线：CREATE TABLE 已移除该列，
---      此处不再 ADD（新库不创建）；存量库由文件末尾 drop_dish_portion 幂等清理。辣度 spice_level 保留。
-DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
-DELIMITER $$
-CREATE PROCEDURE `add_dish_phase1_fields`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'spice_level'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `spice_level` INT NOT NULL DEFAULT 0 COMMENT '辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣';
-    END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '风味/菜系：东北/川湘/粤式/西北/清真/其他';
-    END IF;
-END$$
-DELIMITER ;
-CALL `add_dish_phase1_fields`();
-DROP PROCEDURE IF EXISTS `add_dish_phase1_fields`;
-
--- 评价：有用计数（冗余列，由 review_useful 聚合维护；幂等补齐）
-DROP PROCEDURE IF EXISTS `add_review_useful_count`;
-DELIMITER $$
-CREATE PROCEDURE `add_review_useful_count`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'useful_count'
-    ) THEN
-        ALTER TABLE `review`
-            ADD COLUMN `useful_count` INT NOT NULL DEFAULT 0 COMMENT '「有用」标记数（一人一票，uk_useful_user_review）';
-    END IF;
-END$$
-DELIMITER ;
-CALL `add_review_useful_count`();
-DROP PROCEDURE IF EXISTS `add_review_useful_count`;
-
--- 食堂坐标（GCJ-02）：首页瀑布流「距你 Xm」依赖 canteen.latitude/longitude（前端 Haversine 本地计算）。
--- 新库：CREATE TABLE 已含该列；旧库：幂等迁移补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护）。
--- 坐标兜底：旧库可能已有 canteen 行但坐标 NULL，按食堂名回填 seed 默认坐标，保证「距你」始终可算。
-DROP PROCEDURE IF EXISTS `add_canteen_location`;
-DELIMITER $$
-CREATE PROCEDURE `add_canteen_location`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'canteen'
-          AND COLUMN_NAME = 'latitude'
-    ) THEN
-        ALTER TABLE `canteen`
-            ADD COLUMN `latitude`  DECIMAL(10,6) NULL DEFAULT NULL COMMENT '纬度（GCJ-02，距离排序用）';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'canteen'
-          AND COLUMN_NAME = 'longitude'
-    ) THEN
-        ALTER TABLE `canteen`
-            ADD COLUMN `longitude` DECIMAL(10,6) NULL DEFAULT NULL COMMENT '经度（GCJ-02，距离排序用）';
-    END IF;
-
-    -- 旧库坐标 NULL 兜底回填（仅当列已存在且行为 NULL 时执行；新库 seed 已带值，不受影响）
-    UPDATE `canteen`
-    SET `latitude` = CASE `name`
-                         WHEN '学一食堂' THEN 39.953800
-                         WHEN '学二食堂' THEN 39.954200
-                         WHEN '学三食堂' THEN 39.954600
-                         WHEN '明湖餐厅' THEN 39.955800
-                         WHEN '嘉园餐厅' THEN 39.953000
-                         WHEN '清真食堂' THEN 39.954800
-                         WHEN '留园餐厅' THEN 39.957000
-                         ELSE `latitude`
-        END,
-        `longitude` = CASE `name`
-                          WHEN '学一食堂' THEN 116.335400
-                          WHEN '学二食堂' THEN 116.335800
-                          WHEN '学三食堂' THEN 116.336200
-                          WHEN '明湖餐厅' THEN 116.331500
-                          WHEN '嘉园餐厅' THEN 116.339000
-                          WHEN '清真食堂' THEN 116.335000
-                          WHEN '留园餐厅' THEN 116.338000
-                          ELSE `longitude`
-        END
-    WHERE `latitude` IS NULL OR `longitude` IS NULL;
-END$$
-DELIMITER ;
-CALL `add_canteen_location`();
-DROP PROCEDURE IF EXISTS `add_canteen_location`;
-
--- 菜品：折扣价（task-12.9；CREATE TABLE 已含，列定义以 CREATE 为准：original_price/promo_price 均允许 NULL；旧库幂等补齐）
+-- 菜品：原价（task-12.9；CREATE TABLE 已含，列定义以 CREATE 为准：original_price 允许 NULL；旧库幂等补齐）
+-- 注1：供应时段 serve_period 与限量 limited 已于 2026-09-14 整体下线（见文件末尾 drop_dish_unused_fields 迁移）。
+-- 注2：分量 portion 已于 2026-09-14 §7.14（Q-114）整体下线，由文件末尾 drop_dish_portion 幂等清理。
+-- 注3（2026-09-20 拍板）：promo_price（促销价）整链下线——price 为唯一价格数据源（现价，已含折扣），
+--      original_price 为可空原价；新库 CREATE TABLE 不再创建 promo_price，旧库由文件末尾
+--      migrate_dish_promo_to_price 幂等段先迁移数据再 DROP。故本段不再 ADD promo_price。
+-- 注4（2026-09-20 拍板）：spice_level（辣度）与 region（风味/菜系）已被四维替换——
+--      新库 CREATE TABLE 不再创建，旧库由文件末尾 drop_dish_description_dimensions 幂等段清理；故本段不再 ADD。
 DROP PROCEDURE IF EXISTS `add_dish_promo_fields`;
 DELIMITER $$
 CREATE PROCEDURE `add_dish_promo_fields`()
@@ -381,13 +293,7 @@ BEGIN
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'original_price'
     ) THEN
-        ALTER TABLE `dish` ADD COLUMN `original_price` INT NULL DEFAULT NULL COMMENT '原价（单位：分，折扣前）；promo_price 非空视为有折扣';
-    END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'promo_price'
-    ) THEN
-        ALTER TABLE `dish` ADD COLUMN `promo_price` INT NULL DEFAULT NULL COMMENT '促销价（单位：分，可空；非空视为有折扣）';
+        ALTER TABLE `dish` ADD COLUMN `original_price` INT NULL DEFAULT NULL COMMENT '原价（单位：分，可空）；original_price > price 视为有折扣';
     END IF;
 END$$
 DELIMITER ;
@@ -432,7 +338,7 @@ CREATE TABLE IF NOT EXISTS `view_log`
   COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（用途：浏览量统计与当日去重，无推荐用途）';
 
 -- 浏览足迹判重复合索引 idx_view_user_target_time（2026-09-15）：
--- 后端浏览量判重（POST /dishes/{id}/view，spec §7.14 第 1 条）已改用 updated_at 判定，
+-- 后端浏览量判重（POST /dishes/{id}/views，spec §7.14 第 1 条）已改用 updated_at 判定，
 -- 需 (user_id, target_type, target_id, updated_at) 覆盖判重查询。
 -- CREATE TABLE 已含该 KEY；旧库幂等补建（MySQL 8 不支持 CREATE INDEX IF NOT EXISTS，
 -- 用存储过程防护，与上方 idx_dish_heat 迁移惯例一致），重复执行安全、不影响既有数据。
@@ -640,9 +546,10 @@ CALL `add_dish_alias`();
 DROP PROCEDURE IF EXISTS `add_dish_alias`;
 
 -- 字段下线（2026-09-14 §7.9 用户拍板）：
---   serve_period（餐段）与 limited（限量）在端上/后台/代码中均为零消费，整体下线；
---   region 语义定型为「风味/菜系」（非校区），同步列注释，避免后续维护者误读。
+--   serve_period（餐段）与 limited（限量）在端上/后台/代码中均为零消费，整体下线。
 -- 幂等：先做存在性判断再 DROP，重复执行安全；两列无任何代码/数据引用。
+-- 注（2026-09-20 拍板）：原本段的 region 列注释放宽逻辑已删除——region 已随四维替换整链下线，
+--   由文件末尾 drop_dish_description_dimensions 幂等段 DROP。
 DROP PROCEDURE IF EXISTS `drop_dish_unused_fields`;
 DELIMITER $$
 CREATE PROCEDURE `drop_dish_unused_fields`()
@@ -659,14 +566,6 @@ BEGIN
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'limited'
     ) THEN
         ALTER TABLE `dish` DROP COLUMN `limited`;
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
-    ) THEN
-        ALTER TABLE `dish`
-            MODIFY COLUMN `region` VARCHAR(32) NULL DEFAULT NULL COMMENT '风味/菜系：东北/川湘/粤式/西北/清真/其他';
     END IF;
 END$$
 DELIMITER ;
@@ -1045,5 +944,160 @@ END$$
 DELIMITER ;
 CALL `drop_zero_consumer_columns`();
 DROP PROCEDURE IF EXISTS `drop_zero_consumer_columns`;
+
+-- =============================================================
+-- 菜品详情模块整改（2026-09-20 用户拍板，dish-detail-remediation）
+-- 库结构变更（列级 + 一张表删除），全部幂等、可重复执行；**禁止直连 ALTER**，统一走本段。
+-- 涉及：promo_price 迁移/DROP、dish.tags DROP、四维 ADD + spice_level/region DROP、
+--      canteen 坐标 DROP、review.useful_count DROP + review_useful 表 DROP（表基线 10 → 9）。
+-- 存量数据转换由用户在部署前决定执行，脚本见同目录 migrate_region_to_diet_type.sql，
+--      **不由本段代跑 UPDATE**：其中 region='清真' → diet_type='halal' 为自动转换（语义唯一），
+--      spice_level → flavor_tags 补 'spicy' **默认不转换**（4 档坍缩为单值，取舍由用户决定）。
+-- =============================================================
+
+-- 4.1 价格唯一数据源：先迁移再删除 promo_price（§7.26 / D2）
+--     迁移语义：现价以 promo_price 为准（原展示源），故 UPDATE dish SET price = promo_price；
+--     随后幂等 DROP 该列。顺序不可颠倒（先 UPDATE 后 DROP），重复执行安全
+--     （第二次执行时列已不存在，UPDATE/DROP 均跳过）。
+DROP PROCEDURE IF EXISTS `migrate_dish_promo_to_price`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_dish_promo_to_price`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'promo_price'
+    ) THEN
+        -- 仅对设有促销价的行迁移；未设行保持原 price
+        UPDATE `dish` SET `price` = `promo_price` WHERE `promo_price` IS NOT NULL;
+        ALTER TABLE `dish` DROP COLUMN `promo_price`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_dish_promo_to_price`();
+DROP PROCEDURE IF EXISTS `migrate_dish_promo_to_price`;
+
+-- 4.2 标签下线：幂等 DROP dish.tags（§7.29；标签筛选与展示整链删除）
+DROP PROCEDURE IF EXISTS `drop_dish_tags_column`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_tags_column`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'tags'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `tags`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_tags_column`();
+DROP PROCEDURE IF EXISTS `drop_dish_tags_column`;
+
+-- 4.3 描述四维替换（§7.28 / D7：先加后删）
+--     先 ADD diet_type / ingredients / flavor_tags / serve_temp（新库 CREATE 已含，此处对旧库幂等补齐），
+--     再 DROP spice_level / region（辣度语义并入口味、菜系放弃；region='清真' 的存量转换由用户执行）。
+--     先加后删保证中间态不存在「代码读不到列」的窗口；重复执行安全。
+DROP PROCEDURE IF EXISTS `drop_dish_description_dimensions`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_description_dimensions`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'diet_type'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `diet_type` VARCHAR(16) NULL DEFAULT NULL COMMENT '荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'ingredients'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `ingredients` VARCHAR(255) NULL DEFAULT NULL COMMENT '主料/食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'flavor_tags'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `flavor_tags` VARCHAR(128) NULL DEFAULT NULL COMMENT '口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'serve_temp'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `serve_temp` VARCHAR(16) NULL DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰';
+    END IF;
+
+    -- 旧列下线（先加后删：上方四维已就位再 DROP，避免中间态读不到列）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'spice_level'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `spice_level`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `region`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_description_dimensions`();
+DROP PROCEDURE IF EXISTS `drop_dish_description_dimensions`;
+
+-- 4.4 坐标下线：幂等 DROP canteen.latitude / canteen.longitude（D8；位置表达收敛为 食堂 · 楼层 · 档口名）
+--     原 add_canteen_location 迁移存储过程（含逐食堂坐标回填）已从本文件删除，建列与回填逻辑一并退役。
+DROP PROCEDURE IF EXISTS `drop_canteen_coordinates`;
+DELIMITER $$
+CREATE PROCEDURE `drop_canteen_coordinates`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'latitude'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `latitude`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'canteen' AND COLUMN_NAME = 'longitude'
+    ) THEN
+        ALTER TABLE `canteen` DROP COLUMN `longitude`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_canteen_coordinates`();
+DROP PROCEDURE IF EXISTS `drop_canteen_coordinates`;
+
+-- 4.5 「有用」全链下线（§7.30 / D-2.7）：幂等 DROP review.useful_count 列与整张 review_useful 表
+--     **数据表基线 10 → 9**（该表为本次唯一表级变更）。热度公式与评分聚合均不含有用数，无下游依赖。
+--     CREATE TABLE 段已移除；本段清理存量库。顺序：先 DROP 列（无索引成员，无连带对象）再 DROP 表。
+DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
+DELIMITER $$
+CREATE PROCEDURE `drop_review_useful_chain`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'useful_count'
+    ) THEN
+        ALTER TABLE `review` DROP COLUMN `useful_count`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review_useful'
+    ) THEN
+        DROP TABLE `review_useful`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_review_useful_chain`();
+DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
 
 SET FOREIGN_KEY_CHECKS = 1;

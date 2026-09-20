@@ -44,14 +44,11 @@ public class DishAdminReq {
     @Schema(description = "搜索别名，逗号分隔（可空；null=不修改，空串=清空）", example = "冒菜,麻辣拌")
     private String alias;
 
-    @Schema(description = "价格，单位：分。1200 表示 12 元。", example = "1200")
+    @Schema(description = "现价，单位：分（已含折扣）。1200 表示 12 元。", example = "1200")
     private Integer price;
 
-    @Schema(description = "原价（分，折扣前）。1500 表示 15 元。", example = "1500")
+    @Schema(description = "原价（分，可空）。1500 表示 15 元；originalPrice > price 视为有折扣。", example = "1500")
     private Integer originalPrice;
-
-    @Schema(description = "促销价（分，可空）；非空视为有折扣。1200 表示 12 元。", example = "1200")
-    private Integer promoPrice;
 
     @Schema(description = "菜品描述", example = "学生餐厅常见基础套餐")
     private String description;
@@ -59,14 +56,19 @@ public class DishAdminReq {
     @Schema(description = "菜品图片 URL 列表。单图时只放一个 URL。", example = "[\"/images/seed/dishes/tomato-egg.jpg\"]")
     private List<String> images;
 
-    @Schema(description = "标签，多个标签用英文逗号分隔", example = "daily,recommended")
-    private String tags;
+    // ==================== 描述四维（§7.28；原 tags/spiceLevel/region 已下线） ====================
 
-    @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
-    private Integer spiceLevel;
+    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真（可空）", example = "half")
+    private String dietType;
 
-    @Schema(description = "风味/菜系：东北/川湘/粤式/西北/清真/其他（可空）", example = "川湘")
-    private String region;
+    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（可空）", example = "chicken,rice")
+    private String ingredients;
+
+    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy（可空）", example = "spicy,sour")
+    private String flavorTags;
+
+    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰（可空）", example = "hot")
+    private String serveTemp;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;

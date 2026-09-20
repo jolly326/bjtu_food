@@ -9,9 +9,14 @@
 > **2026-09-15 冗余清理对账修订（用户拍板，后端并行落地中、按目标状态登记）**：① **`view_log` 两个零消费冗余索引删除**——`idx_view_user_time`(`user_id`,`created_at`) 与 `idx_view_target`(`target_type`,`target_id`) 全项目零查询使用（浏览量判重实际走 `idx_view_user_target_time`），索引清单同步移除；② **`user.last_login_at` 删除**（只写不读零消费）；③ **`user.role` 列删除**（写入点唯一且恒 `STUDENT`、admin 值无生产者）——**user 表语义收敛为「仅承载学生」，管理端无账号体系（口令制）既有口径不变**；三者为**纯列 / 索引级变更，表基线仍 10 张**。
 > **2026-09-16 零消费列清理 + BCNF 声明 + 评分口径定稿对账（用户拍板「v1 基线冻结」，权威 `project_spec.md` §7.23 第 6 条；后端已落地）**：
 > ① **6 个零消费列删除**（CREATE TABLE 不再创建，存量库由 `schema.sql` 幂等段 DROP，先判存在再 DROP、可重复执行）：`user.password`（管理端口令制 + 学生无密码体系，零校验零写入；**BCrypt 仅用于邮箱验证码哈希**）、`user.unionid`（单应用场景，撤销多应用预留）、`dish.reject_reason`（菜品无独立审核，原退役历史列零消费）、`dish.created_by`（只写不读）、`user_feedback.handler_id`（单口令即单人，原 retired 列零消费）、`user_feedback.contact`（**产品定型「不收集联系方式」**，列 / `FeedbackReq` 入参 / `FeedbackAdminVO` 出参全删）。**纯列级变更，表基线仍 10 张**。
-> ② **BCNF 声明**：本库设计满足 BCNF；**唯一注册的反规范化**为 `dish.avg_rating` / `dish.rating_count` / `dish.view_count`（及 `review.useful_count`）——由异步事件维护的计数列，服务于热度 / 榜单排序性能；其**单一数据源**为 `review` / `view_log`（聚合列恒可由源表重算恢复）。恢复纯 BCNF（删除计数列、改实时聚合）须**重新拍板**。
+> ② **BCNF 声明**：本库设计满足 BCNF；**唯一注册的反规范化**为 `dish.avg_rating` / `dish.rating_count` / `dish.view_count`（~~及 `review.useful_count`~~ ——**该列已于 2026-09-20 随「评价有用」全链下线删除**，见文首 2026-09-20 对账注）——由异步事件维护的计数列，服务于热度 / 榜单排序性能；其**单一数据源**为 `review` / `view_log`（聚合列恒可由源表重算恢复）。恢复纯 BCNF（删除计数列、改实时聚合）须**重新拍板**。
 > ③ **评分聚合口径定稿（「通过即收录」，2026-09-16 用户拍板）**：评分聚合 = **仅 `is_hidden=0` 的评价**（无其他任何过滤条件；`rating_count` 与「该菜品可见评价数」同口径）。**一次性重算 SQL 已交付用户（部署时可选执行，非必做）**——不执行则个别菜品的存量均分在该菜品下一次评价写入时自然纠正。
 > ④ **术语正名**：本文件中「机检」统一表述为「**微信内容安全检测（`msgSecCheck`/`imgSecCheck`）**」；用户原话口径——「**评价的文本与图片通过微信内容安全检测即收录发布，不通过即拒绝；无任何人工环节**」。
+> **2026-09-18 菜品价格字段精简对账（用户拍板，权威 `project_spec.md` §7.26）**：删除「折扣价」`promo_price` 列（存量库由 `schema.sql` 末尾幂等段先 `UPDATE dish SET price = promo_price WHERE promo_price IS NOT NULL` 再 DROP，先判存在再 DROP、可重复执行）；`dish.price` 定型为**现价（当前实际售价，已含折扣）**、`dish.original_price` 为**原价（可空）**，「有折扣」判据 = `original_price > price`。**纯列级变更，表基线仍 10 张**。
+> **2026-09-20 菜品描述维度替换对账（用户拍板，权威 `project_spec.md` §7.28）**：`dish` 删 `spice_level` / `region` 两列、加 `diet_type` / `ingredients` / `flavor_tags` / `serve_temp` 四列（存量库由 `schema.sql` 幂等段先加新列、后 DROP 旧列；**禁止直连 ALTER**）；`region='清真'` 语义迁入 `diet_type='halal'`（存量数据转换由用户在部署前决定，**agent 不代跑 UPDATE**）。**纯列级变更，表基线仍 10 张**。
+> **2026-09-20 标签 `dish.tags` 删除对账（用户拍板，权威 `project_spec.md` §7.29）**：`dish.tags` 列删除（存量库由 `schema.sql` 幂等段 DROP，先判存在再 DROP、可重复执行；**禁止直连 ALTER**）；`GET /dishes` 的 `tag` 查询参数一并删除。**纯列级变更**（表基线变化见下条「评价有用」下线注）。
+> **2026-09-20 坐标与距离概念下线对账（用户拍板，权威 `project_spec.md` §7.31）**：**`canteen.latitude` / `canteen.longitude` 两列删除**（GCJ-02 坐标；存量库由 `schema.sql` 末尾幂等段 DROP，先判存在再 DROP、可重复执行；**禁止直连 ALTER**），配套删除 `add_canteen_location` 迁移存储过程（含逐食堂坐标 `CASE` 回填与 NULL 兜底 UPDATE）与 `seed_data.sql` 中 `canteen` INSERT 的两列赋值；`Canteen` 实体 / `CanteenInfoVO` / `DishVO` 坐标出参一并移除，端上不再有 Haversine 距离计算，**位置表达收敛为「食堂 · 楼层 · 档口名」**（`canteen.location` 描述字段保留）。**纯列级变更**（表基线变化见下条「评价有用」下线注）。
+> **2026-09-20 评价「有用」全链下线对账（用户拍板，权威 `project_spec.md` §7.30 清单 #1 / `review-api-contract` spec）**：**`review_useful` 表与 `review.useful_count` 列删除——数据表基线 10 → 9 张**（本次唯一表级变更）；存量库由 `schema.sql` 末尾幂等段 `drop_review_useful_chain` 先 DROP 列再 DROP 表（先判存在再 DROP、可重复执行；**禁止直连 ALTER**）。连带：投票端点 `POST /reviews/{id}/useful`、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount`、Web 评价列表「有用」列、`UsefulResult` / `ReviewUseful` / `ReviewUsefulMapper` / `ReviewConst` 一并删除；`review` 表 CREATE 不再创建 `useful_count`，`seed_data.sql` 不再灌入该表数据。**热度公式与评分聚合均不含有用数，无下游依赖**（`heatScoreExpr` 权重未变）。
 > 数据库名：`bjtu_food`；字符集：`utf8mb4` / `utf8mb4_general_ci`；引擎：`InnoDB`。
 
 ## 1. 设计约定
@@ -29,11 +34,12 @@
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
-## 2. 表清单（共 10 张表）
+## 2. 表清单（共 9 张表）
 
-`user` · `canteen` · `stall` · `dish` · `review` · `review_useful` · `notification` · `user_feedback` · `email_verification_code` · `view_log`
+`user` · `canteen` · `stall` · `dish` · `review` · `notification` · `user_feedback` · `email_verification_code` · `view_log`
 
 > **2026-09-15 操作日志下线：表基线 11 → 10 张**——`operation_log` 表随管理端「操作日志」全链删除不再创建（存量库由 `schema.sql` 末尾幂等存储过程 `drop_operation_log_table` 清理，见 §3.11 与文首对账注）。**本项目不存在任何操作日志 / AOP 审计落库能力。**
+> **2026-09-20 评价「有用」下线：表基线 10 → 9 张**——`review_useful` 表随「评价有用」全链删除不再创建（存量库由 `schema.sql` 末尾幂等段 `drop_review_useful_chain` 清理，见 §3.6 与文首 2026-09-20 对账注）；`review.useful_count` 冗余列同批删除。**恢复须重新拍板。**
 > 说明：**`category`（菜品品类）表已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留归类用途」口径，见 `project_spec.md` §7.22 第 1 条），**表基线 12 → 11**；定型口径 = **菜品按食堂 / 档口归属，不存在分类维度**。`broadcast` 与 `activity` 两表已于 2026-09-13 随活动/公告（broadcast）全链路下线删除（基线由 14 收敛为 12，见 `project_spec.md` §0.5）；`review_useful` 与 `review.useful_count` 冗余列配合使用（一人一票，由聚合维护）；`favorites` 收藏表已整体移除；`apply_action` 表已于 2026-09-12 随「贡献链路下线」删除（贡献统一走反馈 error/add 类型）。**2026-09-13 UGC 配图与内容安检（`review.images` / `user_feedback.images`）以列扩展落地，不新建表（该时点基线维持 12 张；**2026-09-15 品类表下线后为 11 张，操作日志表下线后当前基线为 10 张**，见本段首句与上段）**；**其配套的 `review.sec_state` / `user_feedback.sec_state` 两列已于 2026-09-15 随「取消人工复核」全链退役**（不再创建，存量库由 `drop_sec_state_columns` 幂等清理）。
 
 ---
@@ -72,14 +78,14 @@
 | images | VARCHAR(1024) | 可 | NULL | 图片URL列表 JSON |
 | location | VARCHAR(128) | 可 | NULL | 食堂位置 |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
-| latitude | DECIMAL(10,6) | 可 | NULL | 纬度（GCJ-02，首页「距你 Xm」依赖） |
-| longitude | DECIMAL(10,6) | 可 | NULL | 经度（GCJ-02） |
 | sort_order | INT | 否 | 0 | 排序权重（小靠前） |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)。
 
 > **已下线列（2026-09-14 Q-113 / Q-119，食堂 / 档口去实体化为「菜品筛选属性字典」）**：`canteen` / `stall` 的 `status`、`audit_status`、`reject_reason` 共 6 列已由 `schema.sql` 幂等存储过程 `drop_canteen_stall_entity_fields` DROP，CREATE TABLE 亦不再创建；实体 / VO / Service 读写同批移除。字典能力集合仅「列表查看 / 新增 / 改名」，**无删除**（spec §7.22 第 5 条）。**2026-09-15 阶段4 追加**：`canteen.created_by` / `stall.created_by` 两列同批退役（无归属语义、写侧恒系统占位值、三端零消费）——CREATE TABLE 不再创建，DROP 归入同一幂等存储过程 `drop_canteen_stall_entity_fields`（先判存在再 DROP，可重复执行）；对应 `CanteenAdminVO` / `StallAdminVO` 的 `createdBy` 出参已删除。`dish.created_by` 与 `user_feedback.*` 列**不动**（**2026-09-16 修订：`dish.created_by` 与 `user_feedback.handler_id` / `user_feedback.contact` 已随零消费清理删除**，见文首对账注）。
+>
+> **已下线列（2026-09-20 坐标 / 距离概念全链下线，见 `project_spec.md` §7.31）**：`latitude`（纬度，GCJ-02）与 `longitude`（经度，GCJ-02）两列已删除——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等段 DROP（先判存在再 DROP、可重复执行），`add_canteen_location` 迁移存储过程整体移除；`Canteen` 实体 / `CanteenInfoVO` / `DishVO` 坐标出参与端上 Haversine 距离计算一并移除，**位置表达收敛为「食堂 · 楼层 · 档口名」（`location` 描述字段保留）**。
 
 ### 3.3 stall（档口）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -105,22 +111,26 @@
 | id | BIGINT | 否 | AUTO | 菜品ID |
 | stall_id | BIGINT | 否 | 0 | 所属档口ID |
 | name | VARCHAR(64) | 否 | '' | 菜品名称 |
-| price | INT | 否 | 0 | 价格（分） |
-| original_price | INT | 可 | NULL | 原价（分，折扣前） |
-| promo_price | INT | 可 | NULL | 促销价（分，非空=有折扣） |
+| price | INT | 否 | 0 | 现价（分，当前实际售价，**已含折扣**） |
+| original_price | INT | 可 | NULL | 原价（分，折扣前）；**「有折扣」判据 = `original_price > price`**（2026-09-18 §7.26） |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
-| tags | VARCHAR(128) | 可 | NULL | 逗号分隔；**权威值域：`recommended`（必吃推荐）/ `signature`（招牌菜）**；web 管理端写入值域以 web/src/api/tags.ts TAG_OPTIONS 为准，仅允许登记值，禁止写入中文或其他值 |
 | alias | VARCHAR(255) | 可 | NULL | 搜索别名（逗号分隔，管理员配置；搜索 keyword 同时命中 name 与 alias；旧库经 schema.sql 幂等迁移块补齐） |
-| region | VARCHAR(32) | 可 | NULL | **风味 / 菜系**（**不是「地域 / 校区」**；2026-09-14 §7.9 第 1 条定型），权威值域：东北 / 川湘 / 粤式 / 西北 / 清真 / 其他（schema.sql 存储过程幂等追加） |
-| spice_level | INT | 否 | 0 | 辣度：0不辣/1微辣/2中辣/3重辣 |
+| diet_type | VARCHAR(16) | 可 | NULL | **荤素 / 饮食属性**（2026-09-20 §7.28）：`meat`=荤 / `half`=半荤 / `veg`=素 / `halal`=清真（原 `region='清真'` 迁入） |
+| ingredients | VARCHAR(255) | 可 | NULL | **主料 / 食材**（逗号分隔机器值，同 `tags` 模式）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice |
+| flavor_tags | VARCHAR(128) | 可 | NULL | **口味**（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy（**吸收原「辣度」语义**） |
+| serve_temp | VARCHAR(16) | 可 | NULL | **冷热**：`hot`=热食 / `room`=常温 / `ice`=冰 |
 | status | VARCHAR(32) | 否 | 'on' | 上架：on/off（**菜品唯一的运营开关**） |
-| view_count | INT | 否 | 0 | 浏览量 |
+| view_count | INT | 否 | 0 | 浏览量（**口径定论（2026-09-18）：一直累计、不清零**；**仅作热度排序与热搜派生输入，不对外出参**，见 `project_spec.md` §7.27） |
 | avg_rating | DECIMAL(3,2) | 可 | NULL | 平均评分 |
 | rating_count | INT | 否 | 0 | 评价数 |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_heat`(`status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。**`idx_dish_category`(`category_id`) 已随品类维度整链删除一并移除（2026-09-15，见 §2 说明与 `project_spec.md` §7.22 第 1 条）**。**`idx_dish_audit`(`audit_status`) 已随 `audit_status` 列退役一并删除（2026-09-15 阶段4）**；`idx_dish_heat` 同步退化为上述四列，与 CREATE TABLE 定义一致（DROP COLUMN 连带删索引，无需重建）。
+
+> **已下线列**：`promo_price`（折扣价）已于 2026-09-18 随「菜品价格字段精简」删除（`project_spec.md` §7.26）——存量库由 `schema.sql` 末尾幂等段先 `UPDATE dish SET price = promo_price WHERE promo_price IS NOT NULL` 再 DROP（先判存在再 DROP、可重复执行）；**折扣由 `price`（现价，已含折扣）与 `original_price`（原价，可空）两态表达**。
+>
+> **（2026-09-20 追加）**：`spice_level`（辣度）/ `region`（风味 / 菜系）两列随「描述维度替换」删除（`project_spec.md` §7.28）——`schema.sql` 幂等段**先加** `diet_type` / `ingredients` / `flavor_tags` / `serve_temp`、**后 DROP** 旧列（先判存在再 DROP、可重复执行；**禁止直连 ALTER**）。
 
 > **已下线列（2026-09-14 用户拍板，字段生命周期成对处置 PR-07）**：`dish.serve_period`（餐段，§7.9 第 3 条）、`dish.limited`（限量，§7.9 第 4 条）、`dish.portion`（分量，§7.21 第 8 条 / Q-114）三列已整体下线——CREATE TABLE 不再创建，存量库由 `schema.sql` 幂等存储过程 `drop_dish_unused_fields` / `drop_dish_portion` DROP，实体 / VO / DTO / Mapper / 后台表单 / 端上映射全链路移除。**列已从本表删除，勿再据旧文档引用。**
 > **已下线列（2026-09-15 用户拍板）：`dish.category_id`（品类归属）随品类维度整链删除一并移除**——CREATE TABLE 不再创建、`idx_dish_category` 连带移除，DTO（`DishAdminReq` / `DishQueryReq`）/ 实体 / VO（`DishVO` / `DishAdminVO`）/ Mapper 列映射 / 后台表单分类字段 / 菜品列表品类筛选与分类列全链路移除（`project_spec.md` §7.22 第 1 条，原 Q-117「后台归类用途」口径已撤销）。**列已从本表删除，勿再据旧文档引用。**
@@ -139,22 +149,17 @@
 | content | VARCHAR(512) | 可 | NULL | 评价内容 |
 | images | VARCHAR(1024) | 可 | NULL | **评价配图（2026-09-13 恢复）**：JSON 数组字符串（`["cos-url1","cos-url2"]`，≤3 项 COS URL）；上传经 `POST /upload/images`（imgSecCheck 通过后转存 COS） |
 | is_hidden | TINYINT | 否 | 0 | 是否隐藏（0正常/1管理员隐藏）——**评价公开可见性的唯一判据**（`is_hidden=0`） |
-| useful_count | INT | 否 | 0 | 「有用」标记数（schema.sql 末尾幂等 ALTER 追加列，由 review_useful 聚合维护） |
 | created_at / updated_at | DATETIME | 否 | NOW | 时间戳 |
 
 **索引/约束**：PK(`id`)；KEY `idx_review_dish`(`dish_id`)；KEY `idx_review_user`(`user_id`)；UNIQUE `uk_review_user_dish`(`user_id`,`dish_id`)（一人一评）。
 
 > **已下线列（2026-09-15 用户拍板「取消人工复核」，字段生命周期成对处置 PR-07）**：`review.sec_state`（原三态安检态 `pass`/`review`/`rejected`）**已全链退役**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等存储过程 `drop_sec_state_columns` DROP；`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、实体 / VO / DTO 的 `secState` 字段、列表筛选入参与 `OperationLogConst.ACTION_REVIEW_SEC_STATE` 同批删除。**列已从本表删除，勿再据旧文档引用**；评价公开展示条件收敛为 `is_hidden=0`。
+>
+> **已下线列（2026-09-20「评价有用」全链下线，见文首对账注）**：`useful_count`（有用计数）**已删除**——CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等段 `drop_review_useful_chain` DROP；`Review` 实体字段、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount` 同批移除，**避免 MP 读写不存在的列**。
 
-### 3.6 review_useful（评价有用标记）
-| 字段 | 类型 | 可空 | 默认 | 说明 |
-|------|------|------|------|------|
-| id | BIGINT | 否 | AUTO | 记录ID |
-| user_id | BIGINT | 否 | 0 | 用户ID |
-| review_id | BIGINT | 否 | 0 | 评价ID |
-| created_at | DATETIME | 否 | NOW | 创建时间 |
+### 3.6 ~~review_useful（评价有用标记）~~ —— **已删除（2026-09-20）**
 
-**索引/约束**：PK(`id`)；UNIQUE `uk_useful_user_review`(`user_id`,`review_id`)；KEY `idx_useful_review`(`review_id`)。
+**该表已随「评价有用」能力全链下线删除**（用户拍板，权威 `project_spec.md` §7.30 清单 #1）：CREATE TABLE 不再创建，存量库由 `schema.sql` 末尾幂等段 `drop_review_useful_chain` DROP（**数据表基线 10 → 9 张**）。原字段 `id` / `user_id` / `review_id` / `created_at`、唯一键 `uk_useful_user_review`、索引 `idx_useful_review` 一并作废；`POST /reviews/{id}/useful` 端点与三端「有用」展示同批删除。**勿再据旧文档引用该表；恢复须重新拍板（PR-04）。**
 
 ### 3.7 notification（消息通知）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -171,7 +176,7 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_notification_user`(`user_id`)。
 
-> **已删除表（勿重建）**：**`operation_log`（操作日志）已于 2026-09-15 随「操作日志」全链删除移除**（表 + 实体 / Mapper / Service / VO / Controller / `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` 全链删除，详见 §3.11 与 `project_spec.md` §7.25 第 1 条；**表基线 11 → 10**）；**原 §3.8 `category`（菜品品类）已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留品类作归类用途」口径，定型口径 = 菜品按食堂 / 档口归属、不存在分类维度，见 `project_spec.md` §7.22 第 1 条；原字段 `code` / `name` / `sort_order` / `status` 与 `uk_category_code` / `idx_category_status_sort` 一并作废）；`broadcast`（首页广播条）与 `activity`（最新活动/公众号文章卡片）已于 2026-09-13 随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
+> **已删除表（勿重建）**：**`review_useful`（评价有用标记）已于 2026-09-20 随「评价有用」全链下线删除**（表 + `review.useful_count` 列 + 投票端点 + 三端展示，详见 §3.6 与 `project_spec.md` §7.30；**表基线 10 → 9**）；**`operation_log`（操作日志）已于 2026-09-15 随「操作日志」全链删除移除**（表 + 实体 / Mapper / Service / VO / Controller / `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` 全链删除，详见 §3.11 与 `project_spec.md` §7.25 第 1 条；**表基线 11 → 10**）；**原 §3.8 `category`（菜品品类）已于 2026-09-15 随「品类维度整链删除」移除**（用户撤销原 Q-117「后台保留品类作归类用途」口径，定型口径 = 菜品按食堂 / 档口归属、不存在分类维度，见 `project_spec.md` §7.22 第 1 条；原字段 `code` / `name` / `sort_order` / `status` 与 `uk_category_code` / `idx_category_status_sort` 一并作废）；`broadcast`（首页广播条）与 `activity`（最新活动/公众号文章卡片）已于 2026-09-13 随活动/公告全链路下线从 `schema.sql` 删除（小程序端零消费，Web 管理页一并移除）。恢复须重新拍板。
 
 ### 3.8 user_feedback（用户反馈）
 | 字段 | 类型 | 可空 | 默认 | 说明 |
@@ -246,7 +251,7 @@
 - `canteen` 1—N `stall`（`stall.canteen_id`）
 - `stall` 1—N `dish`（`dish.stall_id`）
 - `dish` 1—N `review`（`review.dish_id`）。**~~`dish` N—1 `category`（`dish.category_id`）~~ 已于 2026-09-15 随品类维度整链删除移除**（`category` 表与 `dish.category_id` 均不存在，菜品只按食堂 / 档口归属）
-- `review` 1—N `review_useful`（`review_id`）
+- ~~`review` 1—N `review_useful`（`review_id`）~~ —— **已于 2026-09-20 随「评价有用」全链下线移除**（表不存在，评价侧无关联子表）
 - `email_verification_code` 独立（按 `email`+`purpose` 查询）
 - ~~`operation_log` 关联 `admin_id`（引用 `user.id` 的管理员）~~ —— **已于 2026-09-15 随「操作日志」全链删除移除**（表不存在，无 `user`—`operation_log` 关系；见 §3.11 与 `project_spec.md` §7.25 第 1 条）
 
@@ -258,12 +263,10 @@ erDiagram
     user ||--o{ notification : "receives"
     user ||--o{ user_feedback : "submits"
     user ||--o{ view_log : "views"
-    user ||--o{ review_useful : "marks_useful_review"
 
     canteen ||--o{ stall : "has"
     stall ||--o{ dish : "has"
     dish ||--o{ review : "rated_by"
-    review ||--o{ review_useful : "useful_marks"
 
     email_verification_code {
         BIGINT id PK
@@ -282,6 +285,7 @@ erDiagram
 ```
 
 > **ER 图变更（2026-09-15）**：原 `operation_log` 实体块与 `user ||--o{ operation_log` 关系线已随「操作日志」全链删除移除（表不存在，见 §3.11）。
+> **ER 图变更（2026-09-20）**：原 `review_useful` 关系线（`user ||--o{ review_useful`、`review ||--o{ review_useful`）已随「评价有用」全链下线移除（表不存在，见 §3.6）。
 
 ---
 
@@ -293,7 +297,7 @@ erDiagram
 | uk_user_email | user | email | 邮箱唯一（允许 NULL，多游客不冲突） |
 | uk_user_openid | user | openid | 微信登录唯一取号 |
 | uk_review_user_dish | review | (user_id, dish_id) | 一人一评 |
-| uk_useful_user_review | review_useful | (user_id, review_id) | 评价点赞一人一票 |
+| ~~uk_useful_user_review~~ | ~~review_useful~~ | ~~(user_id, review_id)~~ | **已删除（2026-09-20「评价有用」全链下线，`review_useful` 表已移除，见 §3.6）** |
 | ~~uk_category_code~~ | ~~category~~ | ~~code~~ | **已删除（2026-09-15 品类维度整链删除，`category` 表已移除，见 §2 说明）** |
 
 **覆盖索引（排序优化）**：`idx_dish_heat`(status, view_count, rating_count, avg_rating) 支撑推荐/榜单/热度排序（**2026-09-15 阶段4：原含 `audit_status` 的五列版本已随该列退役收窄为四列**）；`idx_view_user_target_time`(user_id, target_type, target_id, updated_at) 支撑浏览量判重（判重已改用 updated_at，2026-09-15）；~~`idx_view_user_time`(user_id, created_at) / `idx_view_target`(target_type, target_id)~~ ——**已于 2026-09-15 冗余清理删除，零查询使用、不存在**（见 §3.10）；~~`idx_op_admin_time` / `idx_op_target` 支撑操作日志查询~~ ——**两索引已于 2026-09-15 随 `operation_log` 表删除一并移除，不存在**（见 §3.11）。

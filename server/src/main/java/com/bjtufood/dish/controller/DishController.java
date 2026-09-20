@@ -41,7 +41,7 @@ public class DishController {
             description = """
                     用途：菜品列表页、搜索页、筛选页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    常用参数：keyword、canteenId、stallId、tag、minPrice、maxPrice、sortBy、sortOrder。
+                    常用参数：keyword、canteenId、stallId、minPrice、maxPrice、sortBy、sortOrder。
                     """
     )
     @GetMapping("/dishes")
@@ -74,10 +74,11 @@ public class DishController {
                     用途：进入菜品详情页时调用一次。需要登录，用于记录真实用户浏览行为。
                     去重口径：同一用户对同一菜品每天（自然日，Asia/Shanghai）只计 1 次；
                     当日重复调用幂等返回成功（code=200），不自增 view_count、不重复写浏览记录。
+                    测试示例：/dishes/1/views
                     """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PostMapping("/dishes/{id}/view")
+    @PostMapping("/dishes/{id}/views")
     public Result<Void> addView(
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id) {

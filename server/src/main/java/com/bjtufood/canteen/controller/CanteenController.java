@@ -18,7 +18,7 @@ public class CanteenController {
 
     private final CanteenService canteenService;
 
-    @Operation(summary = "食堂列表", description = "用途：首页/食堂页展示全部食堂（筛选属性字典）；坐标随食堂返回，距离由前端本地 Haversine 计算，本接口不接收 lat/lng。返回图片已拼接完整访问地址。")
+    @Operation(summary = "食堂列表", description = "用途：首页/食堂页展示全部食堂（筛选属性字典）；位置表达 = 食堂 · 楼层 · 档口名；不返回坐标、不涉及距离。返回图片已拼接完整访问地址。")
     @GetMapping("/canteens")
     public Result<List<CanteenInfoVO>> listCanteens() {
         return Result.success(canteenService.listCanteens());

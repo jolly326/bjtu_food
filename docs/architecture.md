@@ -180,13 +180,12 @@ npm run dev   # http://localhost:5173
 | Store | 职责 |
 |---|---|
 | `user` | 登录态、token、profile；`forceLogout` 联动重置各 store |
-| `dish` | 菜品列表/详情/筛选/评价；竞态守卫（filterFetchSeq）；本地距离写回（withLocalDistance） |
-| `location` | 定位/距离计算 |
+| `dish` | 菜品列表/详情/筛选/评价；竞态守卫（filterFetchSeq） |
 | `notify` | 未读红点（`reset` 供登出联动） |
 | `auth-sheet` | `AuthSheet` 认证弹层全局编排（打开/关闭、认证成功回调，2026-09-15 DOC-10 对齐实况） |
 | `route` | 跨页路由辅助（2026-09-15 DOC-10 对齐实况） |
 
-> 原表中的 `theme`（深色模式）与 `review` store 已不存在——项目无深色模式（spec §4.2 S4-04）、评价状态由页面编排承载（2026-09-15 DOC-10）。
+> 原表中的 `theme`（深色模式）与 `review` store 已不存在——项目无深色模式（spec §4.2 S4-04）、评价状态由页面编排承载（2026-09-15 DOC-10）。**`dish` store 的「本地距离写回（`withLocalDistance`）」与 `location` store（定位 / 距离计算）亦已于 2026-09-20 随「坐标 / 距离概念全链下线」删除（`project_spec.md` §7.31）。**
 
 ### 5.1 登录态一致性
 - `forceLogout` 会联动 `dishStore.resetUserScopedData` + `notifyStore.reset`，避免换用户串数据
@@ -195,7 +194,7 @@ npm run dev   # http://localhost:5173
 ## 6. 关键设计决策
 1. **评分聚合异步化**：`RatingUpdateListener` 用 `@Async("taskExecutor")` AFTER_COMMIT 重算，不阻塞提交
 2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑浏览量当日去重判据（HistoryService 判重）与浏览计数来源（「猜你喜欢」已下线，2026-09-15 口径修正）
-3. **tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）
+3. ~~**tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）~~ ——**已于 2026-09-20 随 `dish.tags` 字段删除作废（见 `project_spec.md` §7.29）**
 4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
 5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
 6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；**安检判定为二态（2026-09-15 用户拍板「取消人工复核」）**——内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝（`400`、不落库），**`sec_state` 列与全链能力已退役**（原三态 pass/review/rejected 与后台放行 / 驳回动作一并作废，见 spec §7.24），管理端只做事后处置（隐藏 / 删除）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）

@@ -10,10 +10,12 @@
       <view class="summary-right">
         <view class="dist-item" v-for="item in distribution" :key="item.star">
           <view class="dist-stars">
+            <!-- 已选星用实心键（star-filled）、未选用线性键：IconSvg 对 `var(...)` 统一落到兜底常量色，
+                 仅靠颜色无法区分实心/空心，故以 name 区分（评分弹层同口径） -->
             <IconSvg
               v-for="n in 5"
               :key="n"
-              name="star"
+              :name="n <= item.star ? 'star-filled' : 'star'"
               :size="20"
               :color="n <= item.star ? 'var(--color-primary)' : 'var(--color-star-empty)'"
             />
@@ -71,7 +73,7 @@ function distPct(count: number): string {
 .dist-item { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 36rpx; }
 .dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
-.dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill, 999rpx); background: var(--color-star-empty); overflow: hidden; }
-.dist-fill { height: 100%; border-radius: var(--radius-pill, 999rpx); background: var(--color-primary) }
+.dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill); background: var(--color-star-empty); overflow: hidden; }
+.dist-fill { height: 100%; border-radius: var(--radius-pill); background: var(--color-primary) }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 </style>

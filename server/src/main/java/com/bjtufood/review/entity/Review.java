@@ -50,10 +50,8 @@ public class Review {
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")
     private Integer isHidden;
 
-    /** 「有用」标记数（一人一票，由 review_useful 聚合维护的冗余计数） */
-    @Schema(description = "「有用」标记数（一人一票）")
-    @TableField("useful_count")
-    private Integer usefulCount;
+    // review.useful_count 冗余计数列与 review_useful 表已于 2026-09-20 整链下线
+    // （「评价有用」能力删除），实体字段同批移除，避免 MP 读写不存在的列。
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -39,13 +38,9 @@ public class Canteen {
     @Schema(description = "食堂位置")
     private String location;
 
-    /** 纬度（GCJ-02，距离排序用） */
-    @Schema(description = "纬度（GCJ-02）")
-    private BigDecimal latitude;
-
-    /** 经度（GCJ-02，距离排序用） */
-    @Schema(description = "经度（GCJ-02）")
-    private BigDecimal longitude;
+    // 坐标列 latitude / longitude 已于 2026-09-20 拍板全链下线（位置表达收敛为 食堂 · 楼层 · 档口名，
+    // 学生端不申请定位权限、不计算距离）；实体字段与 schema.sql CREATE TABLE 同批移除，
+    // 存量库由 schema.sql 末尾 drop_canteen_coordinates 幂等段清理。
 
     /** 食堂描述 */
     @Schema(description = "食堂描述")

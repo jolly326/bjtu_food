@@ -46,19 +46,14 @@
                   <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
                 </view>
               </view>
+              <!-- 价格：展示唯一数据源 = price（现价）；originalPrice 有值且大于 price 时并列划线原价。
+                   标签行与距离文案已随「菜品标签 / 坐标距离」全链下线删除（design D8/D9）。 -->
               <view v-if="item.price != null" class="mixed-price-group">
-                <view v-if="item.promoPrice != null" class="mixed-promo-badge">促销</view>
-                <text class="mixed-price" v-if="item.promoPrice != null"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.promoPrice) }}</text>
-                <text class="mixed-price" v-else><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
-                <text v-if="item.promoPrice != null && item.originalPrice != null" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
+                <text class="mixed-price"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
+                <text v-if="hasDiscount(item)" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
               </view>
             </view>
-            <!-- 标签行：复用全站 TagLabel（variant="plain" = 统一主色软底 chip，不按语义分色），
-                 与首页卡片同源，不再本地自绘 -->
-            <view v-if="item.tagLabels && item.tagLabels.length" class="mixed-tags">
-              <TagLabel v-for="t in item.tagLabels" :key="t" :text="t" variant="plain" />
-            </view>
-            <!-- 底部：位置左 + 距你右，两级浅灰弱化 -->
+            <!-- 底部：位置（食堂 · 档口名，与首页 DishCard 同序），三级浅灰弱化 -->
             <view class="mixed-sub">
               <text class="mixed-sub-text">
                 <text
@@ -66,7 +61,6 @@
                   :key="si"
                 >{{ seg.text }}</text>
               </text>
-              <text v-if="item.distance != null" class="mixed-dist-seg">距你 {{ formatDistance(item.distance) }}</text>
             </view>
           </view>
         </view>
@@ -79,8 +73,6 @@
 import { reactive } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { formatPrice } from '@/utils/money'
-import { formatDistance } from '@/utils/format'
-import TagLabel from '@/components/TagLabel.vue'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 
 /** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */
@@ -91,16 +83,10 @@ interface MixedResultItem {
   image?: string
   sub?: string
   price?: number
+  originalPrice?: number
   rating?: number
   ratingCount?: number
   stall?: string
-  tags?: string
-  tagLabels?: string[]
-  promoPrice?: number
-  originalPrice?: number
-  lat?: number
-  lng?: number
-  distance?: number
 }
 
 const props = defineProps<{
@@ -120,6 +106,11 @@ const emit = defineEmits<{
 const loadedSet = reactive(new Set<string>())
 function thumbSrc(src?: string): string {
   return src ? getImageUrl(getThumbUrl(src)) : ''
+}
+
+/** 「有折扣」判据：originalPrice 有值且大于 price（唯一口径，不引入第三个价格字段） */
+function hasDiscount(item: MixedResultItem): boolean {
+  return item.originalPrice != null && item.price != null && item.originalPrice > item.price
 }
 
 /** 关键词拆段：find-result-card-polish 后命中片段不再上主色（红只给价格），保留分段语义以备未来弱化 */
@@ -209,17 +200,6 @@ function selectRow(item: MixedResultItem) {
   overflow: hidden;
 }
 /* 命中片段不再上主色：红仅保留给价格（find-result-card-polish） */
-.mixed-tags { display: flex; flex-wrap: wrap; gap: var(--spacing-2xs); margin-top: 2rpx; }
-.mixed-promo-badge {
-  font-size: var(--font-tiny);
-  line-height: 1.4;
-  padding: 2rpx 12rpx;
-  border-radius: var(--radius-tag);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: var(--weight-bold);
-  align-self: center;
-}
 .mixed-original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 .mixed-price-group { display: flex; align-items: baseline; gap: var(--spacing-2xs); flex-shrink: 0; }
 /* 价格：专用主色 + 600，卡片唯一高饱和强调 */
@@ -229,7 +209,6 @@ function selectRow(item: MixedResultItem) {
 .mixed-rating-star { flex-shrink: 0; }
 .mixed-rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); }
-/* 底部位置/距你统一三级浅灰弱化（find-result-card-polish） */
+/* 底部位置统一三级浅灰弱化（find-result-card-polish） */
 .mixed-sub-text { flex: 1; min-width: 0; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mixed-dist-seg { flex-shrink: 0; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 </style>

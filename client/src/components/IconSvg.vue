@@ -25,8 +25,10 @@ import { computed } from 'vue'
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
 // 2026-09-14（P3-05 / PR-05「零消费即删」）：'heart-filled' / 'heart' / 'send-simple' 三键已删除——
 // 逐一核查确认端上零 `name="..."` 引用（收藏功能全量移除、评价发送键未启用）；
-// 'thumb-filled' 亦零引用，但**「有用」按钮（唯一 UGC 互动，ReviewItem.vue）实际引用的是 'thumb' 线性键**，
-// 故此处保留 'thumb'（点赞/有用语义唯一图标），仅删除 'thumb-filled' 填充变体。
+// 'thumb-filled' 亦零引用（仅保留 'thumb' 线性键）。
+// 2026-09-20（dish-detail-remediation）：「有用」按钮随该能力全链下线，'thumb' / 'clock' / 'fire'
+// 三键在端上已无 `name=` 引用；按设计资产口径**保留并登记**（见 tasks 6.3 零消费扫描产出），
+// 不做删除——避免与 Web 端/文档的图标语义表脱节。
 // 同批删除的其余零消费键：'send'（评价发送，改用文本提交）、'up'（原回顶按钮已移除）、
 // 'lightbulb'（线性灯泡，实色 lightbulb-fill 在用）、'contact'（联系开发者独立入口已下线）。
 // ⚠️ 'home-filled' / 'profile-filled' 必须保留：TabBar.vue 以 `${icon}-filled` 动态拼接选中态图标，

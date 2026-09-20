@@ -32,7 +32,6 @@ import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
 import com.bjtufood.notify.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
 import com.bjtufood.review.controller.admin.ReviewAdminController;
-import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.upload.controller.UploadController;
 import com.bjtufood.upload.service.UploadService;
@@ -68,6 +67,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -78,7 +78,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <ol>
  *   <li>登录：{@code POST /auth/wechat-login}（200/code=200 + token/userInfo，缺 code → 400）；</li>
  *   <li>菜品详情：{@code GET /dishes/{id}}（200 + 关键字段；不存在 → body code=400 口径）；</li>
- *   <li>评价：{@code POST /reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）与 {@code POST /reviews/{id}/useful}；</li>
+ *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）、
+ *       {@code PUT /reviews/{id}}（重新评价，4031 分流）与路径防回归（旧 {@code /reviews} 不再注册）；</li>
  *   <li>反馈：{@code POST /feedback}（sub 严格模式 400、类型白名单 400、suggestion 正常落库 200）；</li>
  *   <li>上传：{@code POST /upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
  *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
@@ -234,7 +235,6 @@ class SmokeApiTest {
         vo.setPrice(1200);
         vo.setAvgRating(new BigDecimal("4.5"));
         vo.setRatingCount(20);
-        vo.setStatus("on");
         when(dishService.getDishDetail(1L)).thenReturn(vo);
 
         mockMvc.perform(get("/dishes/1"))
@@ -262,7 +262,7 @@ class SmokeApiTest {
 
     @Test
     void submitReview_anonymous_returns401() throws Exception {
-        mockMvc.perform(post("/reviews")
+        mockMvc.perform(post("/dishes/1/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(reviewBody()))
                 .andExpect(status().isUnauthorized())
@@ -274,7 +274,7 @@ class SmokeApiTest {
         // verified=0（游客态）：@RequireVerified 必须给出 4031 细分码而非普通 403
         when(userMapper.selectById(USER_ID)).thenReturn(user(0));
 
-        mockMvc.perform(post("/reviews")
+        mockMvc.perform(post("/dishes/1/reviews")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(reviewBody()))
@@ -287,28 +287,42 @@ class SmokeApiTest {
     void submitReview_verifiedUser_returns200() throws Exception {
         when(userMapper.selectById(USER_ID)).thenReturn(user(1));
 
-        mockMvc.perform(post("/reviews")
+        mockMvc.perform(post("/dishes/1/reviews")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(reviewBody()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
-        verify(reviewService).submitReview(eq(USER_ID), any());
+        // 菜品归属由路径锁定：Service 签名 (userId, dishId, req)
+        verify(reviewService).submitReview(eq(USER_ID), eq(1L), any());
     }
 
     @Test
-    void toggleUseful_verifiedUser_returnsUsefulState() throws Exception {
-        when(userMapper.selectById(USER_ID)).thenReturn(user(1));
-        when(reviewService.toggleUseful(USER_ID, 8L))
-                .thenReturn(UsefulResult.builder().useful(true).usefulCount(12).build());
+    void updateReview_unverifiedUser_returns4031() throws Exception {
+        // 重新评价（PUT /reviews/{id}）同口径要求认证：未认证 → 4031，不进入 Service
+        when(userMapper.selectById(USER_ID)).thenReturn(user(0));
 
-        mockMvc.perform(post("/reviews/8/useful")
-                        .header("Authorization", studentToken()))
+        mockMvc.perform(put("/reviews/8")
+                        .header("Authorization", studentToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reviewBody()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.useful").value(true))
-                .andExpect(jsonPath("$.data.usefulCount").value(12));
+                .andExpect(jsonPath("$.code").value(4031));
+    }
+
+    @Test
+    void updateReview_verifiedUser_returns200() throws Exception {
+        when(userMapper.selectById(USER_ID)).thenReturn(user(1));
+
+        mockMvc.perform(put("/reviews/8")
+                        .header("Authorization", studentToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reviewBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(reviewService).updateReview(eq(8L), eq(USER_ID), any());
     }
 
     // ==================== 链路 4：反馈 ====================
@@ -378,22 +392,31 @@ class SmokeApiTest {
         Assertions.assertNull(saved.getUserId());
     }
 
-    // ==================== 防回归：评价列表 stallId/canteenId 维度参数退役（2026-09-16 零消费删除） ====================
+    // ==================== 防回归：评价/浏览端点 RESTful 化（2026-09-20 拍板，旧路径不再提供） ====================
 
     /**
-     * 防回归（2026-09-16 用户拍板「端点零消费即删除」）：{@code GET /reviews} 的
-     * stallId / canteenId 维度参数已删除，dishId 成为唯一必填维度。
+     * 防回归：评价与浏览端点改为 RESTful 子资源路径后，
+     * 新路径（{@code /dishes/{id}/reviews}、{@code /dishes/{id}/views}、{@code /my/reviews}）应在册，
+     * 旧路径 {@code /reviews}（查询参数表达归属）不得再注册。
      * <p>
-     * 三端审计确认 client 仅以 type:'dish' 调用、web 不调该端点。此后仅传 stallId（不带 dishId）
-     * 将命中「缺少必填参数 dishId」的 400 分流（@RequestParam required=true 缺参 →
-     * MissingServletRequestParameterException → GlobalExceptionHandler 统一 400），不再返回按档口聚合的评价列表。
+     * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求）。
      */
     @Test
-    void reviews_stallDimensionRemoved_missingDishIdReturns400() throws Exception {
-        mockMvc.perform(get("/reviews").param("stallId", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value("缺少必填参数：dishId"));
+    void reviewEndpoints_restfulPathsRegistered_legacyPathRemoved() {
+        Set<String> patterns = handlerMapping.getHandlerMethods().keySet().stream()
+                .flatMap(info -> info.getPatternValues().stream())
+                .collect(Collectors.toSet());
+
+        Assertions.assertTrue(patterns.contains("/dishes/{id}/reviews"),
+                "评价列表/发表的新路径 /dishes/{id}/reviews 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/dishes/{id}/views"),
+                "浏览量上报的新路径 /dishes/{id}/views 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/my/reviews"),
+                "我的评价 /my/reviews 应在册；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.contains("/reviews"),
+                "旧路径 /reviews 应随 RESTful 化删除；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.contains("/dishes/{id}/view"),
+                "旧浏览量路径 /dishes/{id}/view 应删除；实际映射：" + patterns);
     }
 
     // ==================== 链路 5：上传（管理端口令守卫） ====================
@@ -513,8 +536,9 @@ class SmokeApiTest {
         return user;
     }
 
+    /** 评价请求体（菜品归属由路径锁定，不含 dishId） */
     private String reviewBody() {
-        return "{\"dishId\":1,\"rating\":5,\"content\":\"味道不错，分量也足。\"}";
+        return "{\"rating\":5,\"content\":\"味道不错，分量也足。\"}";
     }
 
     private MockMultipartFile jpegFile() {

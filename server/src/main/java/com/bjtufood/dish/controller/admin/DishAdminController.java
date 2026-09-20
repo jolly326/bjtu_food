@@ -45,7 +45,10 @@ public class DishAdminController {
                       "price": 1200,
                       "description": "Swagger UI 测试新增菜品",
                       "images": ["/images/seed/dishes/tomato-egg.jpg"],
-                      "tags": "recommended",
+                      "dietType": "half",
+                      "ingredients": "egg,rice",
+                      "flavorTags": "sour,sweet",
+                      "serveTemp": "hot",
                       "status": "on"
                     }
                     """)))
@@ -66,7 +69,7 @@ public class DishAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价及评价「有用」标记（review_useful）。")
+    @Operation(summary = "删除菜品", description = "用途：物理删除菜品，并同步删除该菜品关联的评价与浏览足迹。")
     @DeleteMapping("/{id}")
     public Result<Void> deleteDish(
             @Parameter(description = "菜品ID", example = "1")

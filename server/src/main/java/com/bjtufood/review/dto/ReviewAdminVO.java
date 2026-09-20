@@ -48,7 +48,4 @@ public class ReviewAdminVO {
 
     @Schema(description = "是否被隐藏（管理端用，0/1）")
     private Integer isHidden;
-
-    @Schema(description = "「有用」标记总数", example = "3")
-    private Integer usefulCount;
 }

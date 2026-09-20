@@ -53,22 +53,22 @@
 ### 2.1 食堂与档口（CanteenController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/canteens` | — | `List<CanteenInfoVO>` | 全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；**不接收 `lat`/`lng` 参数**（2026-09-15 DOC-05/CT-01 删「兼容保留」描述）：坐标随食堂 VO 返回，距离由端上本地 Haversine 计算，服务端不做距离排序 |
+| GET | `/canteens` | — | `List<CanteenInfoVO>` | 全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；**不接收 `lat`/`lng` 参数**（2026-09-15 DOC-05/CT-01 删「兼容保留」描述）。**（2026-09-20 §7.31 修订：`CanteenInfoVO` 不再返回 `latitude` / `longitude`——「坐标 + 端上算距离」能力全链下线；服务端不出参坐标、不做距离排序，位置表达收敛为「食堂 · 楼层 · 档口名」。）** |
 | GET | `/canteens/all` | — | `List<食堂含档口树>` | 一次性渲染食堂+档口 |
 
 ### 2.2 菜品（DishController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
 | GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10 |
-| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/tag/minPrice/maxPrice/spiceLevel/sortBy/sortOrder/page/pageSize） | `PageResult<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名） |
+| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/stallId/minPrice/maxPrice/sortBy/sortOrder/page/pageSize） | `PageResult<DishVO>` | 菜品分页搜索/筛选/排序（keyword 同时命中 name 与 alias 别名） |
 | GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（含评分分布）。**2026-09-15 阶段 2 剪枝**：`DishDetailVO.hasReviewed` 已删除（连带详情接口内的一次 review 计数查询），`getDishDetail` **不再接收 `userId` 参数**——登录 / 游客返回结构完全一致，无用户态分支 |
 
-> **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`（§3.2）、`GET /dishes/hot-search`（首页热搜在用）。菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。
+> **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`（§3.2）、`GET /dishes/hot-search`（首页热搜在用）。~~菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。~~ **（2026-09-18 修订：删除「折扣价」`promo_price`；`dish.price` = 现价（已含折扣）、`dish.original_price` = 原价（可空），「有折扣」判据 = `original_price > price`；`DishVO`/`DishAdminVO`/`DishAdminReq` 与三端表单同步删除该字段，见 `project_spec.md` §7.26。）**
 
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/reviews` | `dishId`（**必填**，缺失 → `400`）/page/pageSize/sort(latest/useful，**默认 useful 按有用数置顶**，2026-09-14 §7.14 第 2 条)。~~`stallId` / `canteenId` 维度参数~~ **已于 2026-09-16 删除**（三端零消费，撤销 2026-09-15 CT-04「按 `stallId` > `canteenId` > `dishId` 优先取一」口径，见 spec §7.23 第 6 条 v1 基线冻结）——评价列表仅按菜品维度查询 | `PageResult<ReviewVO>` | 评价列表（仅未隐藏 `is_hidden=0`；本人视角除外，后端过滤）——**无安检态过滤**（2026-09-15 取消人工复核） |
+| GET | `/dishes/{id}/reviews` | `id`（**路径必填**）/page/pageSize/**hasImage（2026-09-20 新增）**。~~`sort`~~ **已废除**（排序唯一 = `created_at DESC`，`useful` 口径随之作废）；~~`stallId` / `canteenId` 维度参数~~ 已于 2026-09-16 删除（三端零消费，见 spec §7.23 第 6 条）。**2026-09-20 §7.30 RESTful 化**：原 `GET /reviews?dishId=` 改为**菜品子资源**；**公开列表出参收敛为 8 字段**（不再返回 `dishId` / `dishName` / `isHidden`） | `PageResult<ReviewVO>` | 评价列表（仅未隐藏 `is_hidden=0`），**时间倒序唯一排序**；`hasImage=1` 只返回带图评价；**无安检态过滤**（2026-09-15 取消人工复核） |
 
 > **`ReviewVO` 字段（2026-09-13 随 UGC 配图恢复扩充；2026-09-15「取消人工复核」修订）**：`images`（字符串数组，≤3 项 COS URL，无图返回空数组）。**安检态字段 `secState` 已随 `sec_state` 列全链退役删除**（见 spec §7.24）——列表 / 详情接口的可见性判据收敛为**仅 `is_hidden=0`**（后端过滤，前端不兜底），不再存在「内容安全检测态过滤」条件。历史注记（2026-09 契约清理）「`isWithImage` 参数已不存在」维持有效：`isWithImage` 筛选参数不恢复，配图随评价正文整体展示。
 
@@ -98,21 +98,22 @@
 ### 3.2 菜品埋点（登录即可，非写接口）
 | 方法 | 路径 | 参数 | 说明 |
 |---|---|---|---|
-| POST | `/dishes/{id}/view` | — | 浏览量+1（同时记录浏览足迹）。**去重口径（2026-09-14，spec §7.14 第 1 条）**：同一用户对同一菜品每个自然日（Asia/Shanghai）只计 1 次——当日已有 `view_log` 记录则幂等返回成功，不自增 `view_count`、不重复写足迹 |
+| POST | `/dishes/{id}/views` | — | 浏览量+1（同时记录浏览足迹）。**去重口径（2026-09-14，spec §7.14 第 1 条）**：同一用户对同一菜品每个自然日（Asia/Shanghai）只计 1 次——当日已有 `view_log` 记录则幂等返回成功，不自增 `view_count`、不重复写足迹。**2026-09-20 §7.30 RESTful 化**：原 `POST /dishes/{id}/view` 改为资源复数形式 `/views` |
 
 > **学生端菜品写接口已于 2026-09-13 全部下线**：`POST /dishes`（学生发布）、`PUT /dishes/{id}`（编辑重提）、`DELETE /dishes/{id}`（删本人菜品）三者均已从 `DishController` / `DishService` / `DishServiceImpl` 删除，接口不存在，客户端零消费（`api/dish.ts` 的 `deleteDish`、详情页长按删除链路同步移除）。`DishPublishReq` DTO 已随之删除。菜品由管理员经 `/admin/dishes/**` 录入，学生新增菜品需求走反馈 `add` 类型（`POST /feedback`）由后台处理。
 >
-> 本表 `POST /dishes/{id}/view` 为浏览埋点，保留；全部 `GET /dishes*` 只读接口保留。
+> 本表 `POST /dishes/{id}/views` 为浏览埋点，保留；全部 `GET /dishes*` 只读接口保留。
 
 ### 3.3 评价（邮箱认证）
 | 方法 | 路径 | 参数 | 说明 |
 |---|---|---|---|
-| POST | `/reviews` | `ReviewReq{dishId,rating,content,images?}` | 提交评价（每菜一人一评；`images` 可选字符串数组，≤3 项 COS URL） |
-| DELETE | `/reviews/{id}` | — | 删本人评价（级联清理 useful） |
-| POST | `/reviews/{id}/useful` | — | 「有用」切换（一人一票）。**准入 = 需学号邮箱认证 `verified=true`**（`@RequireVerified`，未认证返回 **`4031`** 并弹 `AuthSheet` 认证引导，入口不置灰）；**仅此一条，不受 §7.5 的 openid 双约束**（spec §7.23 第 2 条 / §7.8 第 3 条。*原「仅需登录」表述已于 2026-09-15 作废，为文档对齐代码*） |
-| GET | `/my/reviews` | page/pageSize | 我的评价（`@RequireVerified` + `@PreAuthorize("hasRole('STUDENT')")`，返回 `PageResult<ReviewVO>` 4 参统一形态） |
+| POST | `/dishes/{id}/reviews` | `ReviewReq{rating,content,images?}`（**菜品归属在路径**，body 不再收 `dishId`） | 提交评价（每菜一人一评；`images` 可选字符串数组，≤3 项 COS URL）。**2026-09-20 §7.30 RESTful 化** |
+| PUT | `/reviews/{id}` | `ReviewReq{rating,content,images?}`（**不收 `dishId`**，归属由路径锁定、不可换菜） | **重新评价（覆盖式，2026-09-20 实现）**：覆盖同一行（非删行重建）、`created_at` 刷新为当前（时间倒序置顶）、`is_hidden` 重置 0、发 `ReviewSubmittedEvent` 重算聚合、**不限次**；鉴权 = 作者本人 + `@RequireVerified`（未认证 `4031`、非本人 `403`）；文本过 `msgSecCheck`（违规 400 且原内容不变），图片沿用上传链路安检口径（见 `design.md` D4 补充） |
+| DELETE | `/reviews/{id}` | — | 删本人评价（**~~级联清理 useful~~ 已于 2026-09-20 随「评价有用」下线移除**） |
+| ~~POST~~ | ~~`/reviews/{id}/useful`~~ | — | **已删除（2026-09-20「评价有用」全链下线，spec §7.30 清单 #1）**：端点 + `ReviewVO.useful` / `usefulCount` + `ReviewAdminVO.usefulCount` + `review_useful` 表 + `review.useful_count` 列 + 三端展示一并移除；**恢复须重新拍板（PR-04）** |
+| GET | `/my/reviews` | page/pageSize/**dishId（新增，2026-09-20 §7.30）** | 我的评价（`@RequireVerified` + `@PreAuthorize("hasRole('STUDENT')")`，返回 `PageResult<ReviewVO>` 4 参统一形态）。**新增 `dishId` 过滤**——供菜品详情页判定「我是否已评价」并取回评价 `id` |
 
-> 评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提（一人一菜一评由 `uk_review_user_dish` 保证）。
+> ~~评价不支持修改（`PUT /reviews/{id}` 与契约路径 `DELETE /my/reviews/{id}` 均不存在，2026-09 契约清理）；改评 = 删除后重提~~ **（2026-09-20 修订：`PUT /reviews/{id}`「重新评价」已实现——覆盖同一行、刷新 `created_at`、`is_hidden` 重置 0，不删行重建；见 spec §7.14 清单 #4 与 `feature/client-菜品详情.md`。契约路径 `DELETE /my/reviews/{id}` 仍不存在。）**
 >
 > **安检（2026-09-13 立；2026-09-15「取消人工复核」修订，见 spec §7.24）**：提交时文本过 `msgSecCheck` v2（`scene=2` 评价场景）——`suggest=pass` **与 `review`（疑似）一律正常落库放行**（`review` 不再落任何安检态、不进复核队列），`suggest=risky`（含未知 / 缺失态 fail-closed 同按 risky）返回 `400` 拦截、不落库。配图须先经 `POST /upload/images` 逐张安检转存（单张接口，违规该张 400、前端跳过不中断），再把返回的 COS URL 随 `images` 提交。
 >
@@ -218,9 +219,10 @@
 |---|---|---|
 | GET | `/admin/reviews` | 评价列表（isHidden/userId/keyword 过滤；VO 含 `images`；**无 `secState` 过滤、无 `secState` 出参**，2026-09-15）——**「评价」页**（`/dashboard/reviews`，`ReviewManageView`）用，**只做事后处置** |
 | PUT | `/admin/reviews/{id}/hide` | **事后处置**：隐藏 / 显示评价（`is_hidden` 0/1） |
-| DELETE | `/admin/reviews/{id}` | **事后处置**：删评价（清理 useful 孤儿） |
+| DELETE | `/admin/reviews/{id}` | **事后处置**：删评价（**~~清理 useful 孤儿~~ 已于 2026-09-20 随「有用」下线移除**） |
 
 > **已删端点（勿再引用）**：~~`PUT /admin/reviews/{id}/sec-state`~~（**评价安检复核，2026-09-13 新增 → 2026-09-15 随「取消人工复核」与 `sec_state` 列全链退役删除**：原入参 `{ state: "pass" \| "rejected" }`、放行 / 驳回语义一并作废）。**管理端不设内容复核队列**——内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝（见 §4.2 与 spec §5.a / §7.24）。
+> **已删端点（2026-09-20）**：~~`POST /reviews/{id}/useful`~~（**评价「有用」切换，随该能力全链下线删除**；`GET /reviews`、`POST /reviews`、`POST /dishes/{id}/view` 三条旧路径亦不再注册，统一由 §2.3 / §3.2 的嵌套路径承载 —— 见 spec §7.30 与 `feature/client-评价有用.md`）。
 | GET | `/admin/feedbacks*` | 反馈列表（回复；**VO 含 `images`/`sub`/`relatedDishName`（DEV-04，仅 `relatedType='dish'` 填充、含已下架菜品，见下方出参契约），详情展示配图 ≤3 张；原 `secState` 出参已随安检态全链退役删除（2026-09-15）**；`sub` = 二级类型 `idea`/`problem`，后台展示为「建议·想法 / 建议·问题」，**仅作展示不作筛选维度**）。**2026-09-15 蓝图 v1（spec §7.23 第 5 条）：反馈是全项目唯一有待处理态的运营对象**，`status=pending/handled` 按 `type` 筛选（`suggestion`/`add`/`error`/`report`，历史 `bug`/`other` 可筛存量） |
 | PUT | `/admin/feedbacks/{id}` | **处理反馈（唯一运营闭环）**：见下方契约 |
 
@@ -322,6 +324,13 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 | **食堂 / 档口随菜品 upsert**（2026-09-15 蓝图 v1，spec §7.23 原则 1） | `POST`/`PUT /admin/dishes` 支持按 `canteenName` / `stallName` upsert | 代码**已实现并对齐**：`DishAdminReq` 增 `stallName` / `canteenName`，`DishServiceImpl` 在 Service 层按名解析 / 建档（同名复用，新建档口时食堂名必有效） | 已对齐 |
 | **菜品无独立审核 · `audit_status` 全量退役**（2026-09-15 蓝图 v1 + 阶段4 用户批准，spec §7.23 第 4 条） | `dish.audit_status` **列与索引已删除**、公开查询不再按该列过滤（`status='on'` 即公开展示）；`dish.reject_reason` 为退役历史列（恒 NULL）；后台无审核入口、端上无「菜品审核」概念；原「列保留、仅作公开查询过滤」口径作废 | **已全面对齐**：`Dish` 实体 / `DishServiceImpl` / `DishMapper.xml` 过滤条件已移除该列；`DishConst.AUDIT_APPROVED`、`common/constant/AuditStatusConst`、`normalize_dish_audit_status.sql` **均已删除**；`/admin/audit/**` 已删；`schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 已就位；Web（`DishManageView` 审核列 / `DishDetailView` 审核态回显）与小程序 `AuditStatus` 已删 | **已对齐**（存量库列清退随用户执行 `schema.sql` 幂等 DROP 完成，**无任何人工归一动作**） |
 | **管理端无密码体系**（2026-09-15 蓝图 v1，spec §7.23） | 无账号 / 无密码 / 无 BCrypt 登录校验 / 无 `SUPER_ADMIN`；**`user.password` 列已删除（2026-09-16 零消费清理）** | **已完全符合**（2026-09-15 优化 Loop：`DataInitializer` 已整体删除，种子数据以 `db/seed_data.sql` 为唯一基线；`/admin/**` 走 `AdminTokenFilter`）；BCrypt 仅保留于 `email_verification_code.code_hash` | 已对齐（`SecurityConfig` / `SwaggerConfig` 等处历史注释为待清理残留） |
+| **菜品「折扣价」`promo_price` 删除**（2026-09-18 用户拍板，spec §7.26） | `price`（现价，已含折扣）+ `originalPrice`（原价，可空）两态表达折扣，「有折扣」判据 = `originalPrice > price`；`promo_price` 全链删除（列 / `DishVO` / `DishAdminVO` / `DishAdminReq` / Mapper / 三端表单） | **已对齐（2026-09-20 `dish-detail-remediation` 落地）**：`DishVO` / `DishAdminVO` / `DishAdminReq` / `Dish` 实体 / `DishMapper.xml` 字段已删；`schema.sql` 幂等段 `migrate_dish_promo_to_price`（先 `UPDATE price = promo_price` 再 DROP）+ `seed_data.sql` 同步；client（卡片 / 详情 / 搜索）展示值恒取 `price`、`originalPrice > price` 才划线，「限时优惠」角标随字段下线删除；web 表单「促销价」项与折扣筛选已删 | **已对齐**（存量库列清退随用户执行 `schema.sql` 幂等段完成） |
+| **公开 `DishVO` 出参精简**（2026-09-18 用户拍板，spec §7.27） | 删出参 `status`（公开接口恒只返回在售，服务端已过滤）/ `createdAt` / `canteenId` / `stallId` / `viewCount`（**只为热度服务，口径 = 一直累计**，DB 列保留）（+ §7.26 的 `promoPrice`）；`DishAdminVO` 的 `status` / `stallId` / `createdAt` 保留、`viewCount` 同步删 | **已对齐（2026-09-20 落地；与其他批次合并后公开 `DishVO` 最终 15 字段）**：`DishVO` 字段集经核验恰为 15（`DishMapper.xml` 公开列收窄）；`DishAdminVO` / `DishMapper.xml` 同步；client `types/dish.ts` / `api/dish.ts` 收敛（`stallId` / `viewCount` 等已删，`utils/share-state.ts` 去 `stallId`）；web `api/adapter.ts` / `types/index.ts` 去 `view_count` | **已对齐** |
+| **菜品描述维度替换**（2026-09-20 用户拍板，spec §7.28） | 删 `spiceLevel`（辣度）/ `region`（风味 / 菜系）；新增 `dietType` / `ingredients` / `flavorTags` / `serveTemp`；**首页「辣度」筛选与 `spiceLevel` 查询参数一并删除** | **已对齐（2026-09-20 落地）**：`schema.sql` 幂等段 `drop_dish_description_dimensions`（先 ADD 四维 → 后 DROP 旧两列）+ `seed_data.sql` 四维**英文机器值**写入；`Dish` / `DishVO` / `DishAdminVO` / `DishAdminReq` / `DishQueryReq` / `DishMapper.xml` 同步；client `api/dish.ts` 为机器值→中文映射唯一真源，`FilterBar` 与 `stores/dish.ts` 的辣度筛选 / 标签筛选分支已删；web 表单四维录入 + 展示已落地 | **已对齐**（`region='清真' > diet_type='halal'` 存量转换脚本 `migrate_region_to_diet_type.sql` 由用户部署前决定执行） |
+| **删除菜品标签 `tags`**（2026-09-20 用户拍板，spec §7.29） | `dish.tags`（必吃推荐 / 招牌菜）全链删除；`DishQueryReq.tag` 查询参数删除；`DishVO` / `DishAdminVO` / `DishAdminReq` 删 `tags` | **已对齐（2026-09-20 落地）**：`schema.sql` 幂等段 `drop_dish_tags_column` + `seed_data.sql` 去赋值；`DishMapper.xml` 去 `FIND_IN_SET` 条件；client `TAG_MAP` / `types/dish.ts` / 卡片与详情标签行 / `TagLabel.vue`（已删除）/ store 标签分支全部清理；web `api/tags.ts`（`TAG_OPTIONS`）、表单标签输入、列表标签筛选与列已删 | **已对齐** |
+| **接口 RESTful 化 + 菜品详情模块优化**（2026-09-20 用户拍板，spec §7.30） | ① RESTful 原则写入 §3；本批改「评价 + 浏览」两域——`GET /dishes/{id}/reviews`、`POST /dishes/{id}/reviews`、`POST /dishes/{id}/views`、`GET /my/reviews?dishId=`；② 详情页加 `GET /my/reviews?dishId=` 判定「已评价」；③ 公开评价列表不再返回 `dishId` / `dishName` / `isHidden`；④ 公开 `DishVO` 删 `windowNo` / `updatedAt` | **已对齐（2026-09-20 落地，仅限本批两域）**：后端新路径在册、旧 `/reviews` 与 `/dishes/{id}/view` 不再注册（匿名 401 / 已登录 400「资源不存在」）；`ReviewVO` 公开 8 字段（`dishId`/`dishName`/`isHidden` 经 `@JsonInclude` 仅我的评价返回）、`hasImage` 筛选、`created_at DESC` 唯一排序、`PUT /reviews/{id}` 重评已实现；client `api` / `useDishPage` / `DishInfoCard` / `types` 已对齐（底栏双态 + 预填 + 分页按 `total` 判结束）；**管理端 / 登录域 / 热搜 / 上传等其余 REST 收敛仍登记待拍板**（§7.30 清单） | **本批已对齐**；其余收敛域待拍板后另批落地 |
+| **坐标与距离概念全链下线**（2026-09-20 用户拍板，spec §7.31） | 删 `canteen.latitude` / `canteen.longitude` 两列与 `Canteen` 实体字段；`CanteenInfoVO` / `DishVO` 不再出参 `latitude` / `longitude`（`DishMapper.xml` 去 `c_lat` / `c_lng` 与 `COALESCE` 兜底）；端上删 `distance` / Haversine / `CAMPUS_CENTER` / `formatDistance` / `location` store / `geo-prompt` 与首页·搜索·详情距离展示；`manifest.json` 撤 `scope.userLocation` 与 `getLocation` 声明 | **已对齐（2026-09-20 落地）**：`schema.sql` 幂等段 `drop_canteen_coordinates` 已就位、`add_canteen_location` 迁移段整段删除、`seed_data.sql` 去坐标赋值；`Canteen` / `CanteenInfoVO` / `CanteenServiceImpl` / `DishVO` / `DishMapper.xml` 去坐标；client 三个定位文件（`utils/location.ts`、`stores/location.ts`、`pages/home/geo-prompt.ts`）已删除，卡片 / 结果卡 / 详情距离展示与定位引导清零，`manifest.json` 权限声明已撤；**公开 `DishVO` 15 字段** | **已对齐**（存量库列清退随用户执行 `schema.sql` 幂等段完成；坐标列为不可逆 DROP，恢复须重新拍板） |
+| **评价「有用」全链下线**（2026-09-20 用户拍板，spec §7.30 清单 #1 / `review-api-contract`） | 端点 `POST /reviews/{id}/useful`、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount`、`review.useful_count` 列、`review_useful` 表、端上按钮、Web 列全部删除；评价排序改时间倒序（废除 `sort`） | **已对齐（2026-09-20 落地）**：端点与 `UsefulResult` / `ReviewUseful` / `ReviewUsefulMapper` / `ReviewConst` 已删；`ReviewVO` / `ReviewAdminVO` / `Review` 实体字段已删；`schema.sql` 幂等段 `drop_review_useful_chain`（先 DROP 列再 DROP 表）+ `seed_data.sql` 同步；`AuthServiceImpl.migrateOwnership` 去 useful 迁移、`deleteDish` 去级联；client 评价卡「有用」按钮 / 乐观更新 / `toggleUseful` 已删；web 评价列表无「有用」列（grep `useful` = 0） | **已对齐**（**数据表基线 10 → 9 张**；热度与评分聚合不含有用数，无下游依赖） |
 
 ---
 

@@ -22,7 +22,7 @@ public interface DishService {
     /**
      * 菜品列表查询（分页+筛选+排序）
      * <p>
-     * 支持参数：keyword, canteenId, stallId, tag, minPrice, maxPrice, sortBy, sortOrder
+     * 支持参数：keyword, canteenId, stallId, minPrice, maxPrice, sortBy, sortOrder
      * 排序：sortBy=heat 时按综合热度（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20）降序；
      * 热度口径唯一真源见 DishMapper.xml 的 heatScoreExpr 片段（Q-109：Java 侧权重常量已删除，调整请直接改该 SQL）；
      * 未传 sortBy 时按评价数、评分降序
@@ -104,7 +104,7 @@ public interface DishService {
     /**
      * 删除菜品
      * <p>
-     * 物理删除菜品，并级联清理关联评价与评价「有用」标记（review_useful）。
+     * 物理删除菜品，并级联清理该菜品下的全部评价与浏览足迹。
      *
      * @param id 菜品ID
      */

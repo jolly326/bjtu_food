@@ -4,13 +4,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
-import com.bjtufood.review.dto.UsefulResult;
 
 /**
  * 评价服务接口
  * <p>
- * 评价的提交、编辑、删除，和管理端的审核操作。
- * 提交评价后通过 Spring 事件通知 dish 模块更新评分。
+ * 评价的提交、重新评价（覆盖式）、删除，和管理端的事后处置。
+ * 评价发生变更后通过 Spring 事件通知 dish 模块异步重算评分聚合。
  */
 public interface ReviewService {
 
@@ -19,32 +18,30 @@ public interface ReviewService {
     /**
      * 获取菜品评价列表
      * <p>
-     * 只返回 is_hidden=0 的评价；支持按最新（created_at）/「有用」数（useful_count）排序。
-     * 若传入 userId（登录态），会回写每条评价 useful 标记（当前用户是否已标记「有用」），公开列表可传 null。
+     * 只返回 is_hidden=0 的评价；排序唯一为发表时间倒序（created_at DESC），不提供排序参数。
+     * hasImage=1 时仅返回带图评价（images 非空且不为空数组），total 按该筛选口径统计。
      *
      * @param dishId   菜品ID
      * @param page     页码
      * @param pageSize 每页条数
-     * @param sort     排序：latest（默认）/ useful
-     * @param userId   当前登录用户ID（可空，用于回写 useful 标记）
+     * @param hasImage 只看有图：1=仅带图；缺省/其他值=不过滤
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId);
-
-    // listByStallId / listByCanteenId 已随 GET /reviews 的 stallId / canteenId 维度参数退役
-    //（2026-09-16 用户拍板「端点零消费即删除」，三端审计确认零调用），对应实现与 Mapper SQL 同批删除。
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer hasImage);
 
     /**
      * 获取当前用户的评价列表（我的评价）
      * <p>
-     * 只返回该用户未隐藏的评价，按发表时间倒序；返回项含 {@code dishName}（mapper 联表 dish 补齐）。
+     * 只返回该用户本人的评价（不过滤 is_hidden，被隐藏的评价作者仍可见），按发表时间倒序；
+     * 返回项含 {@code dishId} / {@code dishName} / {@code isHidden}（作者视角字段）。
      *
      * @param userId   当前登录用户ID
      * @param page     页码
      * @param pageSize 每页条数
+     * @param dishId   菜品ID（可选，仅返回对该菜品的评价，用于详情页判定「我是否已评价」）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize);
+    IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId);
 
     // ==================== 需登录接口（学生） ====================
 
@@ -59,14 +56,29 @@ public interface ReviewService {
      * 5. 发布 ReviewSubmittedEvent（触发评分重算）
      *
      * @param userId 当前用户ID
+     * @param dishId 被评价菜品ID（归属由端点路径锁定）
      * @param req    评价内容
      * @return 评价ID
      * @throws com.bjtufood.common.exception.BusinessException 已评价/菜品不存在
      */
-    Long submitReview(Long userId, ReviewReq req);
+    Long submitReview(Long userId, Long dishId, ReviewReq req);
 
     /**
-     * 删除自己的评价（软删除）
+     * 重新评价（覆盖式更新同一条评价）
+     * <p>
+     * 覆盖评分 / 文字 / 配图，不新建行；发表时间刷新为当前（时间倒序下自然置顶），
+     * 隐藏标记重置为未隐藏（0），并发布 ReviewSubmittedEvent 重算评分聚合。
+     * 内容安全检测与首次发表同口径（文本送检，违规 400 且原内容不变）；不限次数。
+     *
+     * @param id     评价ID
+     * @param userId 当前用户ID（须为作者本人）
+     * @param req    新的评价内容
+     * @throws com.bjtufood.common.exception.BusinessException 评价不存在/非作者
+     */
+    void updateReview(Long id, Long userId, ReviewReq req);
+
+    /**
+     * 删除自己的评价
      *
      * @param id     评价ID
      * @param userId 当前用户ID
@@ -79,8 +91,7 @@ public interface ReviewService {
     /**
      * 查询所有评价列表（管理端用）
      * <p>
-     * 不排除已删除/已隐藏，敏感词高亮标记。
-     * 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
+     * 不排除已隐藏，敏感词高亮标记。
      *
      * @param page     页码
      * @param pageSize 每页条数
@@ -92,11 +103,6 @@ public interface ReviewService {
     IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword);
 
     /**
-     * 切换隐藏/显示评价
-     *
-     * @param id 评价ID
-     */
-    /**
      * 设置评价隐藏状态（显式，非 toggle）
      *
      * @param id     评价ID
@@ -105,25 +111,9 @@ public interface ReviewService {
     void setHidden(Long id, boolean hidden);
 
     /**
-     * 管理员删除评价（软删除）
+     * 管理员删除评价
      *
      * @param id 评价ID
      */
     void deleteByAdmin(Long id);
-
-    // ==================== 互动接口 ====================
-
-    /**
-     * 评价「有用」切换（幂等）
-     * <p>
-     * 未标记 → 插入 review_useful 记录并 useful_count+1，返回 useful=true；
-     * 已标记 → 删除记录并 useful_count-1，返回 useful=false。重复点击即取消，不抛错。
-     *
-     * @param userId   当前登录用户ID
-     * @param reviewId 评价ID
-     * @return UsefulResult{useful, usefulCount}
-     * @throws com.bjtufood.common.exception.BusinessException 评价不存在
-     */
-    UsefulResult toggleUseful(Long userId, Long reviewId);
-
 }

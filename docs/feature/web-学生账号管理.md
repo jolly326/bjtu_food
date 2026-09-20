@@ -1,0 +1,126 @@
+# 学生账号管理（B-05）
+
+> 所属板块：**web（管理后台）** ｜ 鉴权：**🔑 口令**（`X-Admin-Token`）
+> 返回：[功能总览](./README.md)
+
+## 干什么
+
+**禁用 / 启用**学生账号（禁用后无法登录），并查看某个学生的历史行为（评价与反馈）。管理端**没有角色概念**（全量用户即学生）。
+
+## UI
+
+- 导航「学生账号」→ `/dashboard/system`。
+- 筛选：状态（全部 / 正常 / 禁用）+ 关键词搜索（**本地过滤**）。
+- 表格列：头像 / 昵称 / 认证状态 / 状态（行内 switch）/ 注册时间。
+- 行为弹窗：点「行为」→ 查看该学生的评价与反馈记录。
+
+## 操作
+
+1. 进页 → 拉取学生列表（分页）。
+2. 行内 switch → 确认 → 禁用 / 启用（禁用后该用户无法登录，且 UGC 写操作被拦截）。
+3. 点「行为」→ 弹窗按 `userId` 拉该用户的评价与反馈。
+4. 关键词搜索为**前端本地过滤**（后端不接关键词参数）。
+
+## 接口
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| GET | `/admin/users` | 🔑 | 学生列表（分页，仅支持状态过滤） |
+| PUT | `/admin/users/{id}/status` | 🔑 | 启用 / 禁用学生 |
+| — | `GET /admin/reviews?userId=` | 🔑 | **行为弹窗数据源（评价）**，见 [web-评价管理](./web-评价管理.md) |
+| — | `GET /admin/feedbacks?userId=` | 🔑 | **行为弹窗数据源（反馈）**，见 [web-反馈处理](./web-反馈处理.md) |
+
+## 字段
+
+### 请求 · `GET /admin/users`（query）
+
+| 字段名 | 类型 | 必填 | 中文解释 |
+|---|---|---|---|
+| `page` | number | 否 | 页码，默认 1 |
+| `pageSize` | number | 否 | 每页条数，默认 10（上限 100） |
+| `status` | string | 否 | 状态过滤：`active`=正常 / `disabled`=已禁用 / `deleted`=已注销；不传 = 全部 |
+
+> **无 `keyword` 参数**：页面上的关键词搜索是前端本地过滤（后端不接收该参数）。
+> **无 `role` 参数**：`user.role` 列已退役，角色维度不存在。
+
+### 响应 · `GET /admin/users`（`data` = `PageResult<UserVO>`）
+
+**分页壳字段**：
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `records` | UserVO[] | 当前页学生行数组（端上以它为准） |
+| `total` | number | 符合条件的学生总条数 |
+| `page` | number | 服务端归一化后的实际页码 |
+| `pageSize` | number | 服务端归一化后的实际每页条数 |
+| `list` | UserVO[] | 过渡期兼容字段，恒等于 `records`，新代码勿用 |
+
+### 响应 · `UserVO` 单行字段
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `id` | number | 用户 ID |
+| `username` | string | 学号 / 账号（已注销账号为 `deleted_{id}`） |
+| `email` | string \| null | 校园邮箱（游客 / 已注销为 null） |
+| `nickname` | string | 昵称（已注销显示「已注销用户」） |
+| `avatar` | string \| null | 头像 URL |
+| `status` | string | 账号状态：`active`=正常 / `disabled`=已禁用 / `deleted`=已注销 |
+| `verified` | number | 认证状态：**`0`=游客未认证 / `1`=已邮箱认证**（注意：小程序端同名字段是 **Boolean**，此处为库值 0/1） |
+| `wechatBound` | boolean | 是否已绑定微信（**仅布尔标识，不返回 openid 明文**，规避隐私泄露） |
+| `bindEmail` | string \| null | 已认证绑定的校园邮箱 |
+| `guestShortId` | string | 游客短标识（「食客 + ID 后 4 位」） |
+| `createdAt` | string | 注册时间 |
+
+> **无 `role`**（该列已退役）；**无 `openid`**（隐私）。
+
+### 请求 · `PUT /admin/users/{id}/status`
+
+| 字段名 | 类型 | 必填 | 中文解释 |
+|---|---|---|---|
+| `id` | number | **是** | 用户 ID（路径参数） |
+| `status` | string | **是** | 目标状态：`active`=启用 / `disabled`=禁用（端上按当前状态取反后直接传目标值） |
+
+### 响应 · `PUT /admin/users/{id}/status`
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `data` | null | 无载荷；成功即 `code=200` |
+
+### 行为弹窗消费的字段
+
+弹窗从 `GET /admin/reviews?userId=` 与 `GET /admin/feedbacks?userId=` 取该生的评价 / 反馈，逐字段含义如下：
+
+**评价记录（`ReviewAdminVO`）**：
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `id` | number | 评价 ID |
+| `dishId` | number | 关联菜品 ID |
+| `dishName` | string | 关联菜品名称（联表补齐） |
+| `rating` | number | 评分（1~5 星） |
+| `content` | string | 评价正文 |
+| `images` | string[] | 评价配图 URL 数组（≤3 张 COS 地址） |
+| `createdAt` | string | 评价时间 |
+| `isHidden` | number | 是否被隐藏：`0`=正常 / `1`=已隐藏（本弹窗含被隐藏的评价） |
+
+**反馈记录（`FeedbackAdminVO`）**：
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `id` | number | 反馈 ID |
+| `type` | string | 反馈类型：`suggestion`=提个想法 / `add`=推荐菜品 / `error`=信息不对 / `report`=举报（历史存量可能为 `bug`/`other`） |
+| `sub` | string \| null | 二级分类（仅 `suggestion` 有值）：`idea`=想法 / `problem`=问题 |
+| `content` | string | 反馈内容 |
+| `status` | string | 处理状态：`pending`=待处理 / `handled`=已处理 |
+| `createdAt` | string | 提交时间 |
+| `handledAt` | string \| null | 处理时间（未处理为 null） |
+
+## 数据（读写）
+
+| 表 | 变化 | 中文解释 |
+|---|---|---|
+| `user.status` | UPDATE | `active` ↔ `disabled`；禁用后无法登录、UGC 写操作被拦截 |
+| `review` | SELECT（按 userId） | 行为弹窗展示评价记录 |
+| `user_feedback` | SELECT（按 userId） | 行为弹窗展示反馈记录 |
+
+> ⚠️ **实况核对（原文档「读 `view_log`」不成立）**：**`view_log` 没有管理端查询端点**（`api-design` §5.5 已登记：「无管理端查询端点，仅 `GET /dishes/{id}` 增量写入」）。因此行为弹窗**当前只能展示评价与反馈**；若要展示浏览记录，须**新增管理端端点**（属新增端点，需技术负责人登记）——要不要做，请拍。

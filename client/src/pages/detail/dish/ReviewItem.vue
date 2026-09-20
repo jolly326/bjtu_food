@@ -9,19 +9,25 @@
     @mouseup="pressed = false"
     @mouseleave="pressed = false"
   >
-    <image v-if="avatarOk && review.userAvatar" class="review-avatar" :src="getImageUrl(review.userAvatar)" mode="aspectFill" @error="avatarOk = false" />
-    <view v-else class="review-avatar review-avatar-empty">
+    <image
+      v-if="avatarOk && review.userAvatar"
+      class="review-avatar"
+      :src="getImageUrl(review.userAvatar)"
+      mode="aspectFill"
+      role="img"
+      :aria-label="`${review.userNickname || '匿名用户'}的头像`"
+      @error="avatarOk = false"
+    />
+    <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${review.userNickname || '匿名用户'}的头像`">
       <IconSvg name="user" :size="32" color="var(--text-tertiary)" />
     </view>
     <view class="review-body">
       <view class="review-head">
         <view class="review-head-left">
           <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
-          <!-- 机检中间态小标已于 2026-09-15 随「取消人工复核」删除（机检 pass/review 均直接放行、
-               仅 risky 拒绝，端上不存在中间态）。「已被隐藏」标注属事后处置口径，仅在「我的评价」页呈现 -->
         </view>
-        <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet -->
-        <view v-if="!hideReport || canDelete" class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
+        <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
+        <view class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
           <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
         </view>
       </view>
@@ -61,22 +67,8 @@
           </view>
         </view>
       </view>
-      <!-- footer 操作组：仅「有用」（举报/删除已上移右上角）。
-           评价卡片不展示点赞/评论类互动组件（UGC 互动仅保留「有用」）。
-           「有用」是公开评价列表「按有用数置顶」排序口径的唯一入口（§7.14 第 2 条），必须常驻。 -->
-      <view class="review-footer">
-        <view class="review-ops">
-          <text class="review-op" :class="{ active: usefulActive }" role="button" aria-label="标记有用" @tap.stop="onLike">
-            <IconSvg
-              name="thumb"
-              :size="26"
-              :color="usefulActive ? 'var(--color-like)' : 'var(--text-tertiary)'"
-            />
-            <text class="review-op-label">有用</text>
-            <text v-if="likeCount > 0" class="review-op-count">{{ likeCount }}</text>
-          </text>
-        </view>
-      </view>
+      <!-- 评价卡片不展示任何互动按钮（原「有用」按钮与计数已全链下线，2026-09-20）：
+           操作仅保留右上角三点菜单（本人删除 / 他人举报）。 -->
     </view>
   </view>
 </template>
@@ -86,29 +78,21 @@ import { computed, ref, watch } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { getImageUrl } from '@/utils/image'
 import { formatDateTime } from '@/utils/time'
-import { toggleUseful } from '@/api/review'
-import { SurfacedError } from '@/api/http'
-import { useUserStore } from '@/stores/user'
 import type { Review } from '@/types/review'
 
 defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
   review: Review
-  // 原 `usefulActive` prop（外部注入已赞态）已于 2026-09-14 删除：零消费（无调用点传入），
-  // 且已赞态唯一真源为后端 `review.useful`（见下方 usefulActive computed），PR-05 不留悬空 prop。
-  /** 隐藏举报（右上角）：我的评价页无需举报自己的评价 */
-  hideReport?: boolean
-  /** 当前登录用户 ID：用于判定本人评价（本人可删、隐藏举报） */
+  /** 当前登录用户 ID：用于判定本人评价（本人可删、他人可举报） */
   currentUserId?: number
-  /** 显式允许删除（个人管理页独立开关，不依赖 currentUserId） */
-  deletable?: boolean
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
 }>()
+// 2026-09-20（任务 6.3 零消费扫描）：原 `hideReport` / `deletable` 两个 prop 全仓零传入
+// （「我的评价」页自持卡片、不再复用本组件），按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
 const emit = defineEmits<{
-  (e: 'like', review: Review): void
   (e: 'report', review: Review): void
   (e: 'delete', review: Review): void
   (e: 'more', review: Review): void
@@ -116,65 +100,12 @@ const emit = defineEmits<{
 
 const pressed = ref(false)
 const avatarOk = ref(true)
-const userStore = useUserStore()
 
-// 有用计数直接用后端 usefulCount（语义已含当前用户：toggleUseful 切换 ±1 均反映在计数中），
-// 不再另加本地计数偏移。usefulActive 仅控制填充态显示。
-const likeCount = computed(() => props.review.usefulCount || 0)
-/**
- * 「有用」已赞态：**唯一真源 = 后端 `review.useful`**（`GET /reviews` 登录态逐条回写），
- * 不另造本地状态字段；乐观更新/回滚/成功均写回该字段本身，故与后端始终一致
- * （forceLogout → store.resetUserScopedData 清 `useful` 后本态自动跟随复位）。
- */
-const usefulActive = computed(() => !!props.review.useful)
-// pending 锁防连点（防重复提交 / 计数漂移）
-const pendingUseful = ref(false)
-
-/**
- * 评价「有用」：乐观更新 + 失败回滚 + 连点锁 + 已赞不重复提交。
- * 准入：**只需登录**（点赞不产生公开内容、不涉机检）——未登录给登录引导；
- * 其余准入（`4031` 需邮箱认证 / `403` 需微信登录 / 网络异常）由请求层统一提示，
- * 本组件 catch 到已提示错误（SurfacedError）时只回滚，不重复 Toast。
- */
-function onLike() {
-  if (!userStore.isLoggedIn()) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
-    void userStore.silentLogin()
-    return
-  }
-  if (pendingUseful.value) return
-  pendingUseful.value = true
-  const prevActive = usefulActive.value
-  const prevCount = likeCount.value
-  // 乐观更新：计数 + 已赞态同步翻转
-  props.review.useful = !prevActive
-  props.review.usefulCount = prevActive ? Math.max(0, prevCount - 1) : prevCount + 1
-  toggleUseful(props.review.id)
-    .then((res) => {
-      // 以后端返回为准（useful / usefulCount 同一响应写回，避免两端口径漂移）
-      props.review.useful = res.useful
-      props.review.usefulCount = res.usefulCount
-    })
-    .catch((e: unknown) => {
-      // 回滚到点击前状态
-      props.review.useful = prevActive
-      props.review.usefulCount = prevCount
-      // 请求层已提示过的错误（4031 认证引导 / 403 / 网络）不再重复弹
-      if (!(e instanceof SurfacedError)) {
-        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
-      }
-    })
-    .finally(() => {
-      pendingUseful.value = false
-    })
-}
-
-// 本人评价：当前登录用户 ID 命中即本人
+// 本人评价：当前登录用户 ID 命中即本人（本人可删、他人可举报）
 const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
-// 可删除：显式 deletable（个人管理页）或本人评价（详情页）
-const canDelete = computed(() => !!props.deletable || isOwn.value)
+const canDelete = computed(() => isOwn.value)
 
-/* ===== 配图展示（2026-09 恢复 UGC 配图）：≤3 张 COS URL，点击预览大图 ===== */
+/* ===== 配图展示（≤3 张 COS URL，点击预览大图） ===== */
 const reviewImages = computed(() =>
   Array.isArray(props.review.images) ? props.review.images.filter(Boolean) : [],
 )
@@ -208,13 +139,12 @@ function onReport(r: Review) { emit('report', r) }
 function onMore() {
   emit('more', props.review)
 }
-
 </script>
 
 <style scoped>
 /* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
-   三处评价区共用（菜品详情 / 全部评价 / 我的评价），打磨一处即统一全部。
-   口碑层扁平：不设评论/回复入口，互动仅「有用」标记。
+   当前唯一消费方 = 菜品详情评价区（DishReviewSection）；「我的评价」页自持卡片。
+   口碑层扁平：不设评论/回复/点赞入口，互动仅右上角三点菜单（删除 / 举报）。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
 .review-item {
   display: flex;
@@ -238,11 +168,11 @@ function onMore() {
 }
 .review-item--flat:last-child { border-bottom: none; }
 .review-item--flat.review-item-pressed { opacity: 0.5; }
-/* 轻反馈：整卡由 scale 改为 opacity，避免整块塌陷感。
-   类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（scale !important）同名冲突。 */
+/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言，spec §4.9）。
+   类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：圆形浅灰底（content-flow-visual-polish 5.2；dish-detail-visual-polish 对齐 64rpx） */
+/* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx） */
 .review-avatar {
   width: 64rpx;
   height: 64rpx;
@@ -286,8 +216,6 @@ function onMore() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 机检中间态小标（.review-sec-badge / .review-sec-badge-text，warning 浅底胶囊）于 2026-09-15
-   随「取消人工复核」删除：机检 pass/review 均直接放行、仅 risky 拒绝，端上不存在中间态，样式一并收敛 */
 /* 第二行：评分（星星+数字）与发布时间小间隙同行（不推右）；间距由 review-body gap 提供，不叠加 margin */
 .review-meta {
   display: flex;
@@ -306,7 +234,8 @@ function onMore() {
 .review-star { display: inline-block; }
 .review-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 
-/* 右上角竖三点：绝对定位于头行右上，不参与行高（否则 64rpx 会撑开昵称与第二行的间距） */
+/* 右上角竖三点：绝对定位于头行右上，不参与行高（否则会撑开昵称与第二行的间距）。
+   a11y：视觉 64rpx，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限）。 */
 .review-more {
   position: absolute;
   top: 50%;
@@ -320,6 +249,15 @@ function onMore() {
   flex-shrink: 0;
   transition: opacity var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
+}
+.review-more::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  transform: translate(-50%, -50%);
 }
 .review-more:active { opacity: 0.5; }
 
@@ -369,24 +307,4 @@ function onMore() {
   align-items: center;
   justify-content: center;
 }
-
-/* footer：操作组（有用·举报·删除，纯文字链无背景） */
-.review-footer { margin-top: var(--spacing-xs); }
-.review-ops { display: inline-flex; align-items: center; gap: var(--spacing-lg); }
-.review-op {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-2xs);
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  font-weight: var(--weight-medium);
-  padding: var(--spacing-2xs) var(--spacing-xs);
-  border-radius: var(--radius-card);
-  transition: opacity var(--duration-fast) ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.review-op:active { opacity: 0.6; }
-.review-op.active { color: var(--color-like); }
-.review-op-label { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); }
-.review-op.active .review-op-label { color: var(--color-like); }
 </style>

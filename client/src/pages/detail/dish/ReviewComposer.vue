@@ -1,12 +1,13 @@
 <template>
-  <!-- 写评价底部抽屉（component-org-sheet-unify 2.4）：骨架统一复用 BaseSheet（遮罩/grabber/下滑关闭/安全区/焦点还原），
-       本组件只承载「写评价」表单语义（星级 + 正文 + 提交状态），不再自持第二套 sheet 骨架/CSS。
-       头部标题「写评价」由 BaseSheet title 渲染，右上 X 由 closable 提供；菜名作为表单首行置于内容区。
+  <!-- 写评价 / 重新评价底部抽屉（component-org-sheet-unify 2.4）：骨架统一复用 BaseSheet（遮罩/grabber/下滑关闭/安全区/焦点还原），
+       本组件只承载表单语义（星级 + 正文 + 配图 + 提交状态），不再自持第二套 sheet 骨架/CSS。
+       头部标题由 BaseSheet title 渲染（写评价 / 重新评价），右上 X 由 closable 提供；菜名作为表单首行置于内容区。
        注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。
-      小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。 -->
+       小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。
+       重新评价（2026-09-20）：传 `reviewId` + `prefill` 时进入覆盖式重评（PUT /reviews/{id}），表单预填旧评分/文字/配图。 -->
   <BaseSheet
     :visible="visible"
-    title="写评价"
+    :title="isEdit ? '重新评价' : '写评价'"
     closable
     scroll-body
     z-token="--z-actionsheet"
@@ -67,32 +68,48 @@
         :aria-disabled="(!rating || submitting) ? 'true' : 'false'"
         @tap="onSubmit"
       >
-        <text class="rc-submit-text">{{ submitting ? '提交中…' : '发布评价' }}</text>
+        <text class="rc-submit-text">{{ submitting ? '提交中…' : submitText }}</text>
       </view>
     </view>
   </BaseSheet>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
-import { createReview } from '@/api/review'
+import { createReview, updateReview } from '@/api/review'
+// 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
+import type { ReviewSubmittedPayload } from '@/types/review'
 
-const props = defineProps<{
+/** 重评预填值（来自「我的评价」GET /my/reviews?dishId=） */
+interface ReviewPrefill {
+  rating: number
+  content: string
+  images: string[]
+}
+
+const props = withDefaults(defineProps<{
   /** 受控显隐（由 BaseSheet close 驱动父级更新后回写） */
   visible: boolean
-  /** 菜品 ID（提交目标） */
+  /** 菜品 ID（首次发表提交目标） */
   dishId: number
   /** 菜名（标题下展示） */
   dishName: string
-}>()
+  /** 重评目标评价 ID；非空时走覆盖式 PUT /reviews/{id} */
+  reviewId?: number | null
+  /** 重评预填（评分 / 文字 / 配图）；未评价时为空 */
+  prefill?: ReviewPrefill | null
+}>(), {
+  reviewId: null,
+  prefill: null,
+})
 
 const emit = defineEmits<{
   (e: 'close'): void
-  /** 提交成功后通知父级刷新（父级重拉评价列表 + 综合评分） */
-  (e: 'submitted'): void
+  /** 提交成功后通知父级刷新（父级重拉评价列表 + 综合评分 + 本地写回「我的评价」态） */
+  (e: 'submitted', payload: ReviewSubmittedPayload): void
 }>()
 
 /* 表单状态 */
@@ -102,14 +119,17 @@ const content = ref('')
 const images = ref<string[]>([])
 const submitting = ref(false)
 
-// 每次打开重置表单（BaseSheet 常驻挂载，由 visible 驱动开合）
+const isEdit = computed(() => props.reviewId != null)
+const submitText = computed(() => (isEdit.value ? '保存修改' : '发布评价'))
+
+// 每次打开重置表单：重评态用 prefill 预填旧值，首次发表态清空
 watch(
   () => props.visible,
   (v) => {
     if (v) {
-      rating.value = 0
-      content.value = ''
-      images.value = []
+      rating.value = props.prefill?.rating ?? 0
+      content.value = props.prefill?.content ?? ''
+      images.value = props.prefill?.images ? [...props.prefill.images] : []
       submitting.value = false
     }
   },
@@ -128,15 +148,25 @@ async function onSubmit() {
   }
   submitting.value = true
   try {
-    await createReview({
-      dishId: props.dishId,
+    const payload = {
       rating: rating.value,
       content: content.value.trim() || undefined,
       // 配图（≤3 张 COS URL）；违规文本/图片后端 400 message 经此处 toast 直透
       images: images.value.length ? [...images.value] : undefined,
+    }
+    if (props.reviewId != null) {
+      await updateReview(props.reviewId, payload)
+      uni.showToast({ title: '已更新评价', icon: 'success' })
+    } else {
+      await createReview(props.dishId, payload)
+      uni.showToast({ title: '评价成功', icon: 'success' })
+    }
+    emit('submitted', {
+      mode: props.reviewId != null ? 'update' : 'create',
+      rating: rating.value,
+      content: content.value.trim(),
+      images: images.value.length ? [...images.value] : [],
     })
-    uni.showToast({ title: '评价成功', icon: 'success' })
-    emit('submitted')
     onClose()
   } catch (e: any) {
     uni.showToast({ title: e.message || '发布失败，请稍后重试', icon: 'none' })
@@ -166,7 +196,8 @@ async function onSubmit() {
 
 .rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) 0; }
 .rc-stars { display: flex; align-items: center; }
-.rc-star { padding: 0 var(--spacing-2xs); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* 单星命中区 ≥88rpx：56rpx 图标 + 上下/side --spacing-sm(16rpx) 内边距 = 88×88rpx（视觉尺寸不变） */
+.rc-star { padding: var(--spacing-sm); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .rc-star:active { opacity: 0.6; }
 .rc-star-tip { font-size: var(--font-small); color: var(--text-tertiary); }
 
@@ -179,7 +210,8 @@ async function onSubmit() {
 /* 配图区：正文与提交之间留档位间距（ImagePicker 自身网格） */
 .rc-field-images { margin-top: var(--spacing-md); }
 
-.rc-submit { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: var(--spacing-lg); border-radius: 24rpx; background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
+/* 圆角统一到全局主按钮档位 token（--radius-btn，与 AppButton 一致），不再裸 24rpx */
+.rc-submit { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
 .rc-submit.disabled { opacity: 0.5; }
-.rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--color-on-primary); }
+.rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--color-on-primary); }
 </style>

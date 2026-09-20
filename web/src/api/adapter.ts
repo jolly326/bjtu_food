@@ -7,29 +7,9 @@ export function pageRecords<T>(data: PageLike<T>): T[] {
   return Array.isArray(data) ? data : data.records || data.list || []
 }
 
-/**
- * dish.tags 统一读写格式：CSV 逗号分隔串（权威契约）。
- * 依据：schema.sql「标签，逗号分隔」、DishPublishReq.tags 为 String、
- * DishMapper FIND_IN_SET / DishServiceImpl split(",")、DishAdminController 示例 "tags": "recommended"。
- * parseTags 容错兼容历史脏数据（旧实现曾误写 JSON 数组串），展示时自动归一。
- */
-export function parseTags(tags: unknown): string[] {
-  if (Array.isArray(tags)) return tags.map(t => String(t).trim()).filter(Boolean)
-  const s = typeof tags === 'string' ? tags.trim() : ''
-  if (!s) return []
-  if (s.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(s)
-      if (Array.isArray(parsed)) return parsed.map(t => String(t).trim()).filter(Boolean)
-    } catch { /* 非合法 JSON，按 CSV 继续解析 */ }
-  }
-  return s.split(',').map(t => t.trim()).filter(Boolean)
-}
-
-/** string[] → CSV 逗号分隔串（写库格式，写侧统一出口） */
-export function formatTags(tags: string[]): string {
-  return tags.map(t => t.trim()).filter(Boolean).join(',')
-}
+/* 注（2026-09-20 §7.29 / §7.28）：原 `dish.tags` 标签字段全链下线，原 parseTags / formatTags
+ * 两个导出随之零消费删除。新的多值机器字段（ingredients / flavorTags，CSV 逗号分隔）读写格式
+ * 收敛到 `constants/index.ts` 的 parseCsv / formatCsv（与四维选项字典同处，写侧统一出口）。 */
 
 /**
  * 图片字段容错解析：string[] / JSON 数组串 / ||| 分隔串 → string[]（绝对 URL）。
@@ -141,32 +121,30 @@ export function stallToApi(data: Partial<Stall>) {
 }
 
 export function dishToLegacy(raw: any): Dish {
-  const priceInCents = raw.price ?? 0
   return {
     id: raw.id,
     stall_id: raw.stallId ?? raw.stall_id,
     name: raw.name,
     image: imagesToLegacy(raw.images ?? raw.image),
-    price: Math.round(priceInCents) / 100,
-    tags: raw.tags || '',
+    price: Math.round(raw.price ?? 0) / 100,
     description: raw.description || '',
     alias: raw.alias || '',
     avg_rating: raw.avgRating ?? raw.avg_rating ?? 0,
     rating_count: raw.ratingCount ?? raw.rating_count ?? 0,
-    view_count: raw.viewCount ?? raw.view_count ?? 0,
     status: raw.status === 'on' ? 'active' : 'inactive',
-    spiceLevel: raw.spiceLevel ?? 0,
-    region: raw.region || '',
     stallName: raw.stallName || raw.stall_name || '',
     canteenName: raw.canteenName || raw.canteen_name || '',
     // 注（§7.23 第 4 条，2026-09-15）：dish.audit_status / reject_reason 已随「菜品审核 UI 下线」
     // 从前端契约移除（后端列为退役历史列，DishAdminVO 不再返回，业务代码不再读写）。
+    // 原价（§7.26）：promoPrice 已删除，展示值恒取 price，originalPrice > price 时才划线。
     originalPrice: raw.originalPrice == null && raw.original_price == null
       ? undefined
-      : Math.round((raw.originalPrice ?? raw.original_price)) / 100,
-    promoPrice: raw.promoPrice == null && raw.promo_price == null
-      ? undefined
-      : Math.round((raw.promoPrice ?? raw.promo_price)) / 100,
+      : Math.round(raw.originalPrice ?? raw.original_price) / 100,
+    // 描述四维（§7.28，2026-09-20）：替代原 spice_level / region（两字段已删）。
+    dietType: raw.dietType || raw.diet_type || '',
+    ingredients: raw.ingredients || '',
+    flavorTags: raw.flavorTags || raw.flavor_tags || '',
+    serveTemp: raw.serveTemp || raw.serve_temp || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
@@ -184,22 +162,18 @@ export function dishToApi(data: Partial<Dish>) {
     description: data.description,
     alias: data.alias,
     images: data.image === undefined ? undefined : legacyToImageList(data.image),
-    tags: data.tags,
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
-    spiceLevel: data.spiceLevel,
-    region: data.region,
+    // 描述四维（§7.28）：机器值 CSV / 单选值原样提交（空串 = 清空该维）
+    dietType: data.dietType,
+    ingredients: data.ingredients,
+    flavorTags: data.flavorTags,
+    serveTemp: data.serveTemp,
     // null 显式携带 = 清空原价（WEB-102 折扣清空契约；0 分语义由 null 表达，禁止落 0）
     originalPrice: data.originalPrice === undefined
       ? undefined
       : data.originalPrice === null || Number(data.originalPrice) <= 0
         ? null
         : Math.round(Number(data.originalPrice) * 100),
-    // null 显式携带 = 清空折扣（WEB-102）；undefined = 不修改（部分更新路径，禁止误清空）
-    promoPrice: data.promoPrice === undefined
-      ? undefined
-      : data.promoPrice === null || Number(data.promoPrice) <= 0
-        ? null
-        : Math.round(Number(data.promoPrice) * 100),
   })
 }
 

@@ -91,7 +91,7 @@ async function submit() {
       <input
         ref="inputRef"
         v-model="name"
-        :placeholder="`如：${kind === 'canteen' ? '一食堂' : '川湘风味'}`"
+        :placeholder="`如：${kind === 'canteen' ? '一食堂' : '面食窗口'}`"
         @keydown.enter.prevent="submit"
       />
       <p v-if="error" class="field-error">{{ error }}</p>

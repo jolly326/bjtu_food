@@ -112,8 +112,6 @@ import { ref, computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { useLocationStore } from '@/stores/location'
-import { getUserLocation } from '@/utils/location'
 import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import IconSvg from '@/components/IconSvg.vue'
@@ -126,7 +124,6 @@ import FindResults from './FindResults.vue'
 import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 const dishStore = useDishStore()
-const locationStore = useLocationStore()
 
 /* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
 
@@ -213,7 +210,7 @@ interface MixedResult {
   id?: number
   name: string
   image?: string
-  /** 副信息：菜品→「档口 · 食堂」（B8 档口名）；档口/食堂→位置 */
+  /** 副信息：菜品→「食堂 · 档口」（B8 档口名）；档口/食堂→位置 */
   sub?: string
   /** 菜品专属：价格（元，api 层已转） */
   price?: number
@@ -221,25 +218,14 @@ interface MixedResult {
   rating?: number
   /** 菜品专属：评价数 */
   ratingCount?: number
-  /** 菜品专属：所属档口名（B8；副信息展示「档口 · 食堂」） */
+  /** 菜品专属：所属档口名（B8；副信息展示「食堂 · 档口」） */
   stall?: string
-  /** 菜品专属：属性标签原始逗号串 */
-  tags?: string
-  /** 菜品专属：属性标签中文映射（最多取前 2 个） */
-  tagLabels?: string[]
-  /** 菜品专属：促销价（元，非空时展示促销角标） */
-  promoPrice?: number
-  /** 菜品专属：原价（元，promoPrice 非空时划线展示） */
+  /** 菜品专属：原价（元，> price 时划线展示表示折扣） */
   originalPrice?: number
-  /** 食堂坐标（GCJ-02），来自 suggest 联表，前端本地 Haversine 算「距你 Xm」 */
-  lat?: number
-  lng?: number
-  /** 距用户距离（米）：前端基于定位本地算；未定位/坐标缺失回退校区中心，恒有值 */
-  distance?: number
 }
 const mixedResults = ref<MixedResult[]>([])
 
-/** 搜索结果（仅菜品单列；距离已在 doMixedSearch 经 withLocalDistance 写回，未定位回退校区中心，恒有值） */
+/** 搜索结果（仅菜品单列） */
 const filteredMixed = computed(() => mixedResults.value)
 
 /** 确认/回车搜索（AppHeader search variant 的 @search） */
@@ -284,15 +270,11 @@ async function doMixedSearch(kw?: string) {
     })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
-    // 本地算距离（用户坐标 + Haversine；未定位/坐标缺失回退校区中心，保证「距你」恒有值，与首页一致）；
-    // 只写回距离不重排——顺序为后端返回口径（PR-02）
-    const decorated = dishStore.withLocalDistance(list)
-    mixedResults.value = decorated
+    // 结果顺序即后端返回口径（PR-02：端上不排序、不算距离）
+    mixedResults.value = list
       .map(d => {
-        // B8 副信息：档口名 + 食堂名
-        const sub = [d.stallName, d.canteen].filter(Boolean).join(' · ')
-        // B9 标签（Dish.tags 已是中文数组，最多取前 2 个）
-        const tagLabels = (d.tags || []).slice(0, 2)
+        // B8 副信息：食堂名 + 档口名（顺序与首页 DishCard 的「食堂 · 档口」一致）
+        const sub = [d.canteen, d.stallName].filter(Boolean).join(' · ')
         return {
           type: 'dish' as const,
           id: d.id,
@@ -303,13 +285,7 @@ async function doMixedSearch(kw?: string) {
           rating: d.rating,
           ratingCount: d.ratingCount,
           stall: d.stallName,
-          tags: (d.tags || []).join(','),
-          tagLabels,
-          promoPrice: d.promoPrice,
           originalPrice: d.originalPrice,
-          lat: d.latitude != null ? Number(d.latitude) : undefined,
-          lng: d.longitude != null ? Number(d.longitude) : undefined,
-          distance: d.distance,
         }
       })
       .filter(r => r.name)
@@ -373,20 +349,9 @@ async function loadDiscover() {
 
 onMounted(() => {
   loadHistory()
-  ensureLocation()
   loadDiscover()
 })
 
-/** 确保拿到用户坐标（会话级缓存，避免重复授权）；失败静默降级（距你显 -） */
-async function ensureLocation() {
-  if (locationStore.location) return
-  try {
-    const loc = await getUserLocation()
-    if (loc) locationStore.setLocation(loc)
-  } catch (e) {
-    // 用户拒绝授权 / 定位不可用：静默，距离降级
-  }
-}
 onShareAppMessage(() => buildSharePayload())
 // 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容
 onShow(() => clearShareState())

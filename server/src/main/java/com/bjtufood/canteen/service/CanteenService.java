@@ -18,7 +18,7 @@ public interface CanteenService {
     /**
      * 获取食堂列表（首页用于展示）
      * <p>
-     * 服务端不接收 lat/lng（用户位置不出本机）：坐标随 VO 返回，距离由前端本地 Haversine 计算。
+     * 坐标与距离已全链下线（2026-09-20 拍板）：VO 不含坐标，服务端不计算也不下发距离。
      * 全量返回（无停业语义，不再按 status 过滤），按 sort_order 排序。
      *
      * @return 食堂展示列表

@@ -17,8 +17,8 @@
               <text class="dish-name">{{ r.dishName || '菜品' }}</text>
               <!-- 状态小标（仅余单一语义）：isHidden=true → 「已被隐藏」
                    （管理员隐藏，不再对外展示，仅作者本人可见，避免「评价凭空消失」的误解）
-                   注：原机检中间态小标已于 2026-09-15 随「取消人工复核」删除——机检 pass/review
-                   均直接放行、仅 risky 拒绝，端上不存在中间态 -->
+                   注：原微信内容安全检测中间态小标已于 2026-09-15 随「取消人工复核」删除——
+                   检测 pass/review 均直接放行、仅 risky 拒绝，端上不存在中间态 -->
               <view v-if="r.isHidden" class="sec-badge">
                 <text class="sec-badge-text">已被隐藏</text>
               </view>
@@ -241,7 +241,7 @@ onShow(() => {
   white-space: nowrap;
 }
 /* 「已被隐藏」（isHidden，§7.14）唯一状态小标：中性灰胶囊——隐藏是事后处置终态而非警示，
-   语气客观不指责。（原本另有 warning 浅底的机检中间态小标，随 2026-09-15「取消人工复核」删除，
+   语气客观不指责。（原本另有 warning 浅底的微信内容安全检测中间态小标，随 2026-09-15「取消人工复核」删除，
    其 --warning 变体样式同步收敛，不留死样式） */
 .sec-badge {
   flex-shrink: 0;

@@ -11,7 +11,10 @@ import java.time.LocalDateTime;
  * 菜品实体类
  * <p>
  * 对应数据库表：dish
- * 价格以"分"为单位存储（如 12.00 元 = 1200 分），避免浮点精度问题
+ * 价格以"分"为单位存储（如 12.00 元 = 1200 分），避免浮点精度问题。
+ * 价格口径（2026-09-20 拍板 §7.26）：唯一数据源为 {@code price}（现价，已含折扣），
+ * {@code originalPrice} 为可空原价；原「促销价」promoPrice 与列已全链删除。
+ * 描述维度（2026-09-20 拍板 §7.28）：四维 dietType/ingredients/flavorTags/serveTemp 替换原 spiceLevel/region。
  */
 @Data
 @TableName("dish")
@@ -34,17 +37,13 @@ public class Dish {
     @Schema(description = "搜索别名（逗号分隔，管理员配置，可空）", example = "拉面,牛肉面")
     private String alias;
 
-    /** 价格（单位：分） */
-    @Schema(description = "价格（分）", example = "1200")
+    /** 现价（单位：分，已含折扣） */
+    @Schema(description = "现价（分，已含折扣）", example = "1200")
     private Integer price;
 
-    /** 原价（折扣前，单位：分）；promoPrice 非空视为有折扣 */
-    @Schema(description = "原价（分，折扣前）", example = "1500")
+    /** 原价（可空，单位：分）；originalPrice > price 视为有折扣 */
+    @Schema(description = "原价（分，可空）", example = "1500")
     private Integer originalPrice;
-
-    /** 促销价（单位：分，可空）；非空视为有折扣 */
-    @Schema(description = "促销价（分，可空；非空视为有折扣）", example = "1200")
-    private Integer promoPrice;
 
     /** 菜品描述 */
     @Schema(description = "菜品描述")
@@ -54,17 +53,21 @@ public class Dish {
     @Schema(description = "菜品多图JSON")
     private String images;
 
-    /** 标签，逗号分隔（recommended=必吃, signature=招牌） */
-    @Schema(description = "标签", example = "recommended,signature")
-    private String tags;
+    /** 荤素/饮食属性（§7.28）：meat=荤 / half=半荤 / veg=素 / halal=清真（单选，可空） */
+    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
+    private String dietType;
 
-    /** 辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣 */
-    @Schema(description = "辣度枚举：0=不辣 1=微辣 2=中辣 3=重辣", example = "0")
-    private Integer spiceLevel;
+    /** 主料/食材：逗号分隔机器值（§7.28，可空） */
+    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "chicken,rice")
+    private String ingredients;
 
-    /** 风味/菜系：如 清真/川湘/西北/粤式/东北 等，与食堂位置无关 */
-    @Schema(description = "风味/菜系，如 清真/川湘/西北/粤式/东北", example = "清真")
-    private String region;
+    /** 口味：逗号分隔机器值（§7.28，吸收原辣度语义，可空） */
+    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "spicy,sour")
+    private String flavorTags;
+
+    /** 冷热（§7.28）：hot=热食 / room=常温 / ice=冰（单选，可空） */
+    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
+    private String serveTemp;
 
     /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */
     @Schema(description = "状态", example = "on")

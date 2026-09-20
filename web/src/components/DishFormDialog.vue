@@ -2,7 +2,7 @@
 /**
  * DishFormDialog：菜品新增/编辑弹窗（后台菜品管理页唯一入口）。
  * 提交走 adminStore.addDish / updateDish（api 层 dishToApi 自动转分）。
- * 价格/原价/促销价均以「元」编辑。
+ * 价格 / 原价均以「元」编辑（§7.26：原价高于现价时端上划线；原 `promoPrice` 已删除）。
  *
  * 归属区（§7.23 第 1 条，2026-09-15 蓝图 v1）：**食堂 → 档口两级联动 + 直接输入新名称**
  *  - 下拉选既有字典值；也支持直接输入新名称，提交时随菜品保存，后端按名 upsert 自动建档
@@ -21,8 +21,14 @@ import { useCanteenStore } from '@/stores/canteenStore'
 import { useStallStore } from '@/stores/stallStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { parseTags, formatTags } from '@/api/adapter'
-import { TAG_OPTIONS } from '@/api/tags'
+import {
+  parseCsv,
+  formatCsv,
+  DIET_TYPE_OPTIONS,
+  SERVE_TEMP_OPTIONS,
+  INGREDIENT_OPTIONS,
+  FLAVOR_TAG_OPTIONS,
+} from '@/constants'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import RenameEntityDialog from '@/components/RenameEntityDialog.vue'
@@ -47,14 +53,6 @@ const stallStore = useStallStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
-const SPICE_OPTIONS = [
-  { label: '不辣', value: 0 },
-  { label: '微辣', value: 1 },
-  { label: '中辣', value: 2 },
-  { label: '重辣', value: 3 },
-]
-/** 风味/菜系权威值域（project_spec §7.9；空选项 = 未填，不提交空串） */
-const REGION_OPTIONS = ['东北', '川湘', '粤式', '西北', '清真', '其他']
 /** 后端 upsert 空值语义名称（DishServiceImpl.EMPTY_NAME_VALUES 同源）：视为未传、不建档 */
 const UPSET_EMPTY_NAMES = ['其他', '其它', '无', '未知']
 
@@ -62,7 +60,6 @@ const form = ref({
   name: '',
   price: 0,
   originalPrice: 0,
-  promoPrice: 0,
   /** 所属食堂：number = 既有食堂 id；string = 直接输入的新名称（后端按名 upsert） */
   canteenValue: '' as string | number,
   /** 所属档口：number = 既有档口 id；string = 直接输入的新名称（后端按名 upsert） */
@@ -70,10 +67,12 @@ const form = ref({
   image: '',
   description: '',
   alias: '',
-  tags: '',
   status: 'active' as 'active' | 'inactive',
-  spiceLevel: 0,
-  region: '' as string,
+  /** 描述四维（§7.28）：单选维（荤素 / 冷热）存机器值；多值维（主料 / 口味）存 CSV 机器值 */
+  dietType: '',
+  ingredients: '',
+  flavorTags: '',
+  serveTemp: '',
 })
 const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
@@ -151,27 +150,27 @@ watch(
           name: d.name,
           price: Number(d.price) || 0,
           originalPrice: d.originalPrice ? Number(d.originalPrice) : 0,
-          promoPrice: d.promoPrice ? Number(d.promoPrice) : 0,
           canteenValue: canteenIdOfStall(d.stall_id) || d.canteenName || '',
           stallValue: Number(d.stall_id ?? 0) || d.stallName || '',
           image: d.image || '',
           description: d.description || '',
           alias: d.alias || '',
-          tags: d.tags || '',
           status: d.status as 'active' | 'inactive',
-          spiceLevel: d.spiceLevel ?? 0,
-          region: d.region || '',
+          dietType: d.dietType || '',
+          ingredients: d.ingredients || '',
+          flavorTags: d.flavorTags || '',
+          serveTemp: d.serveTemp || '',
         }
       }
     } else {
       editBaselineUpdatedAt.value = ''
       const presetStall = props.defaultStallId != null ? String(props.defaultStallId) : ''
       form.value = {
-        name: '', price: 0, originalPrice: 0, promoPrice: 0,
+        name: '', price: 0, originalPrice: 0,
         canteenValue: canteenIdOfStall(presetStall),
         stallValue: presetStall,
-        image: '', description: '', alias: '', tags: '', status: 'active',
-        spiceLevel: 0, region: '',
+        image: '', description: '', alias: '', status: 'active',
+        dietType: '', ingredients: '', flavorTags: '', serveTemp: '',
       }
     }
   },
@@ -203,22 +202,24 @@ function validate() {
   // 产品定型：菜品首图必填（无图不录入 / 不上架）
   if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
   if (Number(form.value.originalPrice) < 0) errs.originalPrice = '原价不能为负'
-  if (Number(form.value.promoPrice) < 0) errs.promoPrice = '促销价不能为负'
-  if (Number(form.value.promoPrice) > 0) {
-    const base = Number(form.value.originalPrice) > 0 ? Number(form.value.originalPrice) : Number(form.value.price)
-    if (Number(form.value.promoPrice) >= base) errs.promoPrice = '促销价须低于原价/常规价'
+  // 原价（§7.26）：判据 originalPrice > price 才划线；≤ 现价划不出折扣，提示纠正
+  if (Number(form.value.originalPrice) > 0 && Number(form.value.originalPrice) <= Number(form.value.price)) {
+    errs.originalPrice = '原价须高于现价（否则不显示划线）'
   }
   formErrors.value = errs
   return Object.keys(errs).length === 0
 }
 
-function toggleTag(tag: string) {
-  // tags 统一 CSV 格式（WEB-101）：读走 parseTags（兼容历史 JSON 脏数据），写走 formatTags
-  const arr = parseTags(form.value.tags)
-  const i = arr.indexOf(tag)
-  if (i === -1) arr.push(tag)
+/** 多值维（主料 / 口味）chips 切换：CSV 读入 → 切换 → CSV 写回（写侧统一出口） */
+function toggleMulti(key: 'ingredients' | 'flavorTags', value: string) {
+  const arr = parseCsv(form.value[key])
+  const i = arr.indexOf(value)
+  if (i === -1) arr.push(value)
   else arr.splice(i, 1)
-  form.value.tags = formatTags(arr)
+  form.value[key] = formatCsv(arr)
+}
+function isMultiOn(key: 'ingredients' | 'flavorTags', value: string): boolean {
+  return parseCsv(form.value[key]).includes(value)
 }
 
 /** 归属 payload（§7.23 第 1 条 DishAdminReq 契约）：stallName 有效时优先；canteenName 随新档口成对提供 */
@@ -261,15 +262,16 @@ async function submit() {
     description: form.value.description,
     // 搜索别名：后端 DishAdminReq.alias（逗号分隔，trim 后总长 ≤255）。显式传串（含空串=清空别名）
     alias: form.value.alias.trim(),
-    tags: formatTags(parseTags(form.value.tags)),
     status: form.value.status,
-    spiceLevel: Number(form.value.spiceLevel) || 0,
-    region: form.value.region,
+    // 描述四维（§7.28）：单选维传机器值 / 空串；多值维传 CSV（空串 = 清空该维）
+    dietType: form.value.dietType,
+    ingredients: formatCsv(parseCsv(form.value.ingredients)),
+    flavorTags: formatCsv(parseCsv(form.value.flavorTags)),
+    serveTemp: form.value.serveTemp,
   }
-  // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价/促销价
+  // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价
   // （api 层 dishToApi 0 → 分、null 直传）
   payload.originalPrice = Number(form.value.originalPrice) > 0 ? Number(form.value.originalPrice) : null
-  payload.promoPrice = Number(form.value.promoPrice) > 0 ? Number(form.value.promoPrice) : null
   try {
     if (props.editingId != null) {
       await store.updateDish(Number(props.editingId), payload)
@@ -374,29 +376,8 @@ async function submit() {
 
       <div class="df-row">
         <div class="field flex-1"><label>原价（元，选填）</label>
-          <input v-model.number="form.originalPrice" type="number" min="0" step="0.5" />
+          <input v-model.number="form.originalPrice" type="number" min="0" step="0.5" placeholder="高于现价时端上划线" />
           <p v-if="formErrors.originalPrice" class="field-error">{{ formErrors.originalPrice }}</p>
-        </div>
-        <div class="field flex-1"><label>促销价（元，选填）</label>
-          <input v-model.number="form.promoPrice" type="number" min="0" step="0.5" placeholder="留空=无折扣" />
-          <p v-if="formErrors.promoPrice" class="field-error">{{ formErrors.promoPrice }}</p>
-        </div>
-      </div>
-
-      <div class="df-row">
-        <div class="field flex-1"><label>辣度</label>
-          <select v-model.number="form.spiceLevel">
-            <option v-for="s in SPICE_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="df-row">
-        <div class="field flex-1"><label>风味 / 菜系</label>
-          <select v-model="form.region">
-            <option value="">未填写</option>
-            <option v-for="r in REGION_OPTIONS" :key="r" :value="r">{{ r }}</option>
-          </select>
         </div>
         <div class="field flex-1"><label>状态</label>
           <select v-model="form.status">
@@ -406,11 +387,33 @@ async function submit() {
         </div>
       </div>
 
-      <div class="field"><label>标签（点击切换）</label>
-        <div class="tag-group">
-          <button v-for="t in TAG_OPTIONS" :key="t.value" type="button"
-            class="tag-opt" :class="{ on: parseTags(form.tags).includes(t.value) }"
-            @click="toggleTag(t.value)">{{ t.label }}</button>
+      <!-- 描述四维（§7.28）：荤素 / 冷热单选，主料 / 口味多选（机器值经 constants 字典映射） -->
+      <div class="df-row">
+        <div class="field flex-1"><label>荤素</label>
+          <select v-model="form.dietType">
+            <option v-for="o in DIET_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </div>
+        <div class="field flex-1"><label>冷热</label>
+          <select v-model="form.serveTemp">
+            <option v-for="o in SERVE_TEMP_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field"><label>主料（点击切换，可多选）</label>
+        <div class="chip-group">
+          <button v-for="o in INGREDIENT_OPTIONS" :key="o.value" type="button"
+            class="chip-opt" :class="{ on: isMultiOn('ingredients', o.value) }"
+            @click="toggleMulti('ingredients', o.value)">{{ o.label }}</button>
+        </div>
+      </div>
+
+      <div class="field"><label>口味（点击切换，可多选）</label>
+        <div class="chip-group">
+          <button v-for="o in FLAVOR_TAG_OPTIONS" :key="o.value" type="button"
+            class="chip-opt" :class="{ on: isMultiOn('flavorTags', o.value) }"
+            @click="toggleMulti('flavorTags', o.value)">{{ o.label }}</button>
         </div>
       </div>
 
@@ -454,8 +457,8 @@ async function submit() {
 .required { color: var(--color-error); }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
 .field-hint { font-size: var(--font-xs); color: var(--text-light); margin-top: var(--space-1); }
-.tag-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.tag-opt {
+.chip-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.chip-opt {
   padding: var(--space-1) var(--space-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
@@ -465,7 +468,7 @@ async function submit() {
   color: var(--text-secondary);
   transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
-.tag-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
-.tag-opt:active { transform: scale(var(--press-scale)); }
+.chip-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
+.chip-opt:active { transform: scale(var(--press-scale)); }
 .w-full { width: 100%; }
 </style>

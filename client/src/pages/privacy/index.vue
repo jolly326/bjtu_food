@@ -19,12 +19,12 @@
       <view class="doc">
         <template v-if="current === 'privacy'">
           <text class="doc-title">知行食记隐私政策</text>
-          <text class="doc-meta">生效日期：2026 年 9 月 12 日</text>
+          <text class="doc-meta">生效日期：2026 年 9 月 20 日</text>
 
           <text class="doc-h">一、我们收集哪些信息</text>
           <text class="doc-p">1. 微信登录信息：昵称、头像与 openid，用于创建并识别你的账号。我们不收集你的手机号。</text>
           <text class="doc-p">2. 校园身份信息：@bjtu.edu.cn 校园邮箱。仅用于发送验证码、核验在校身份并记录认证关系。</text>
-          <text class="doc-p">3. 你主动提交的内容：菜品评价、意见反馈与举报内容（均为纯文本），以及你主动设置的头像图片（仅用于头像展示，不做其他用途）。</text>
+          <text class="doc-p">3. 你主动提交的内容：菜品评价、意见反馈与举报内容及其配图（评价与反馈各 ≤3 张，提交前均经内容安全检测，检测通过后存储），以及你主动设置的头像图片（仅用于头像展示，不做其他用途）。</text>
           <text class="doc-p">4. 使用过程信息：菜品浏览足迹，仅用于菜品浏览量统计与当日重复浏览去重。</text>
 
           <text class="doc-h">二、我们如何使用这些信息</text>
@@ -51,7 +51,7 @@
 
           <text class="doc-h">二、账号与认证</text>
           <text class="doc-p">1. 使用微信打开本应用即自动创建账号（未认证状态），可浏览公开内容并提交意见反馈。</text>
-          <text class="doc-p">2. 完成校园邮箱认证后，可发表评价、标记「有用」等。</text>
+          <text class="doc-p">2. 完成校园邮箱认证后，可发表评价、上传配图等。</text>
           <text class="doc-p">3. 请勿将账号交由他人使用，或使用他人身份进行认证。</text>
 
           <text class="doc-h">三、内容规范</text>

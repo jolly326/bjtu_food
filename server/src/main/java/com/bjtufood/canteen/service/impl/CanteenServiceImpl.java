@@ -35,7 +35,7 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     public List<CanteenInfoVO> listCanteens() {
-        // 注：本接口不接收 lat/lng——坐标随食堂 VO 返回，距离由前端本地 Haversine 算（用户位置不出本机）
+        // 注：坐标与距离已全链下线（2026-09-20 拍板）：食堂 VO 不再暴露坐标，端上不申请定位权限、不算距离。
         // 食堂已去实体化（2026-09-14）：无停业语义，不再按 status 过滤，全量字典按 sort_order 返回
         List<Canteen> canteens = canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
                 .orderByAsc(Canteen::getSortOrder));
@@ -47,9 +47,6 @@ public class CanteenServiceImpl implements CanteenService {
                     vo.setLocation(canteen.getLocation());
                     vo.setDescription(canteen.getDescription());
                     vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-                    // 仅暴露坐标，距离交给前端本地算
-                    vo.setLatitude(canteen.getLatitude());
-                    vo.setLongitude(canteen.getLongitude());
                     return vo;
                 })
                 .collect(Collectors.toList());

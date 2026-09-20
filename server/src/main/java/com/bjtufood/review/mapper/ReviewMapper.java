@@ -19,25 +19,24 @@ import java.util.List;
 public interface ReviewMapper extends BaseMapper<Review> {
 
     /**
-     * 按菜品查询评价列表（含可见性过滤）。
+     * 按菜品查询评价列表（公开列表；时间倒序、可见性过滤、可选只看有图）。
      * <p>
      * 可见性规则（2026-09-15 用户拍板取消人工复核、sec_state 全链退役）：唯一判据 is_hidden=0。
-     * 原 sec_state='pass' 过滤与「作者本人（viewerId）放行 review 态」分支同批删除，
-     * 故 {@code viewerId} 入参失去用途并一并移除。
+     * 排序唯一为 created_at DESC（2026-09-20 拍板：废除「按有用数置顶」第二口径与 sort 参数）。
+     * 公开出参不含 dishId / dishName / isHidden（三者仅在「我的评价」返回），故本查询不选这三列。
+     *
+     * @param hasImage 1=仅带图评价（images 非空且不为空数组）；其余值不过滤
      */
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("sort") String sort);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("hasImage") Integer hasImage);
 
     /**
      * 按用户查询「我的评价」列表（本人视角）。
      * <p>
      * 可见性（2026-09-14 §7.14 C）：<b>不过滤 is_hidden</b> —— 被管理员隐藏的评价作者本人仍可见，
      * 并返回 is_hidden 供端上标注「已被隐藏」。
-     * 排序：sort=latest 时时间倒序（service 固定传入，本人评价按时间更自然）。
+     * 排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
      */
-    IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("sort") String sort);
-
-    // selectReviewPageByStallId / selectReviewPageByCanteenId 已随 GET /reviews 的
-    // stallId / canteenId 维度参数退役（2026-09-16 用户拍板「端点零消费即删除」，三端零调用）。
+    IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("dishId") Long dishId);
 
     /**
      * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。
@@ -48,14 +47,5 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * @return 每行含 stallId、avgRating（可能为 null）
      */
     List<StallAvgRatingVO> selectAvgRatingByStallIds(@Param("stallIds") Collection<Long> stallIds);
-
-    /**
-     * 评价「有用」计数原子增减（并发安全：SET useful_count = useful_count ± delta，最小值 0）
-     *
-     * @param id    评价ID
-     * @param delta +1 标记 / -1 取消
-     * @return 影响行数
-     */
-    int changeUsefulCount(@Param("id") Long id, @Param("delta") int delta);
 
 }

@@ -21,9 +21,7 @@ import com.bjtufood.common.utils.JwtUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.review.entity.Review;
-import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.mapper.ReviewMapper;
-import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.history.entity.ViewLog;
@@ -53,7 +51,6 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final WechatService wechatService;
     private final ReviewMapper reviewMapper;
-    private final ReviewUsefulMapper reviewUsefulMapper;
     private final FeedbackMapper feedbackMapper;
     private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
@@ -400,7 +397,7 @@ public class AuthServiceImpl implements AuthService {
      * <p>
      * 仅在 {@link #verifyEmail}（已标注 @Transactional）内部被同实例调用，属自调用，
      * 不单独开启事务，统一并入外层事务回滚边界。若被外部 Bean 调用需自行加事务。
-     * 对带唯一键的表（review 的 user+dish、各 useful 表）先清理新账号已存在的冲突行（保留新账号记录），
+     * 对带唯一键的表（review 的 user+dish）先清理新账号已存在的冲突行（保留新账号记录），
      * 再执行归属改写，避免 DuplicateKey 中断事务。
      */
     protected void migrateOwnership(Long fromUserId, Long toUserId) {
@@ -408,26 +405,12 @@ public class AuthServiceImpl implements AuthService {
             return;
         }
         // review：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）。
-        // 级联口径与 ReviewServiceImpl.deleteReview 一致：删除评价前先清 review_useful 中引用这些评价的行，
-        // 否则唯一键冲突行被物理删除后 review_useful 残留孤儿行（P2-04）。
-        reviewUsefulMapper.delete(new LambdaUpdateWrapper<ReviewUseful>()
-                .inSql(ReviewUseful::getReviewId,
-                        "SELECT id FROM review WHERE user_id = " + fromUserId
-                                + " AND dish_id IN (SELECT dish_id FROM review WHERE user_id = " + toUserId + ")"));
         reviewMapper.delete(new LambdaUpdateWrapper<Review>()
                 .eq(Review::getUserId, fromUserId)
                 .inSql(Review::getDishId, "SELECT dish_id FROM review WHERE user_id = " + toUserId));
         reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
                 .eq(Review::getUserId, fromUserId)
                 .set(Review::getUserId, toUserId));
-
-        // review_useful：先清冲突后转移
-        reviewUsefulMapper.delete(new LambdaUpdateWrapper<ReviewUseful>()
-                .eq(ReviewUseful::getUserId, fromUserId)
-                .inSql(ReviewUseful::getReviewId, "SELECT review_id FROM review_useful WHERE user_id = " + toUserId));
-        reviewUsefulMapper.update(null, new LambdaUpdateWrapper<ReviewUseful>()
-                .eq(ReviewUseful::getUserId, fromUserId)
-                .set(ReviewUseful::getUserId, toUserId));
 
         // 无唯一键约束的直接归属改写
         // （dish.created_by 已随列退役（2026-09-16 零消费删除），归属迁移不再覆盖 dish 表）

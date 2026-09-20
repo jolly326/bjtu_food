@@ -119,7 +119,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* ========== 按压反馈（client-ui-motion 拍板：仅 opacity / bg-soft，禁 transform scale） ==========
    hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
-   取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-row.pressed）。
+   取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-link.pressed）。
    页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */
 .pressed { opacity: 0.7; }
 

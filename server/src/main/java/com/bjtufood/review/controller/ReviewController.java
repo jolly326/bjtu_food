@@ -7,7 +7,6 @@ import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
-import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,7 +19,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "05. 评价", description = "菜品评价列表、提交评价、修改评价、删除评价。提交/修改/删除需要登录。")
+/**
+ * 评价与浏览端点。
+ * <p>
+ * RESTful 子资源路径（2026-09-20 拍板）：
+ * <ul>
+ *   <li>评价列表 {@code GET /dishes/{id}/reviews}；</li>
+ *   <li>发表评价 {@code POST /dishes/{id}/reviews}（请求体不再携带菜品 ID，归属由路径锁定）；</li>
+ *   <li>重新评价（覆盖式）{@code PUT /reviews/{id}}；</li>
+ *   <li>删除本人评价 {@code DELETE /reviews/{id}}；</li>
+ *   <li>我的评价 {@code GET /my/reviews}（支持 dishId 过滤）。</li>
+ * </ul>
+ */
+@Tag(name = "05. 评价", description = "菜品评价列表、提交/重新评价、删除评价。提交/重新评价/删除需要登录且已邮箱认证。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -28,17 +39,24 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "评价列表（契约路径）", description = "用途：遵循 spec §3.x.5 契约路径 /reviews?dishId=。仅支持按菜品维度查询（dishId 必填）。此前提供的 stallId（档口）/ canteenId（食堂）维度参数已随 2026-09-16 用户拍板「端点零消费即删除」退役——三端审计确认零调用。只返回未隐藏评价。排序 sort=useful（默认，按有用数置顶）/latest。测试示例：/reviews?dishId=1&page=1&pageSize=20")
-    @GetMapping("/reviews")
+    @Operation(
+            summary = "菜品评价列表（时间倒序）",
+            description = """
+                    用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
+                    排序唯一为发表时间倒序，不提供排序参数。
+                    hasImage=1 时只返回带图评价，total 按该口径统计；缺省或 0 不过滤。
+                    只返回未隐藏（is_hidden=0）的评价。
+                    测试示例：/dishes/1/reviews?page=1&pageSize=20
+                    """)
+    @GetMapping("/dishes/{id}/reviews")
     public Result<PageResult<ReviewVO>> listReviews(
-            @Parameter(description = "菜品ID（必填）", example = "1")
-            @RequestParam Long dishId,
+            @Parameter(description = "菜品ID", example = "1")
+            @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
-            @Parameter(description = "排序：useful（最有用的，默认）/ latest（最新）", example = "useful")
-            @RequestParam(defaultValue = "useful") String sort) {
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        return Result.success(toPageResult(reviewService.listByDishId(dishId, page, pageSize, sort, userId)));
+            @Parameter(description = "只看有图：1=仅带图评价；缺省/0=不过滤", example = "1")
+            @RequestParam(required = false) Integer hasImage) {
+        return Result.success(toPageResult(reviewService.listByDishId(id, page, pageSize, hasImage)));
     }
 
     /**
@@ -52,34 +70,60 @@ public class ReviewController {
                 (int) result.getCurrent(), (int) result.getSize());
     }
 
-    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价，按发表时间倒序，含菜品名 dishName。测试示例：/my/reviews?page=1&pageSize=20", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价，按发表时间倒序，含 dishId/dishName/isHidden。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @GetMapping("/my/reviews")
     public Result<PageResult<ReviewVO>> listMyReviews(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize,
+            @Parameter(description = "菜品ID（可选，仅返回当前用户对该菜品的评价）", example = "1")
+            @RequestParam(required = false) Long dishId) {
         Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(toPageResult(reviewService.listByUserId(userId, page, pageSize)));
+        return Result.success(toPageResult(reviewService.listByUserId(userId, page, pageSize, dishId)));
     }
 
     @Operation(
             summary = "提交评价",
-            description = "用途：用户对菜品评分和评论。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。",
+            description = "用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
-                      "dishId": 1,
                       "rating": 5,
                       "content": "味道不错，分量也足。"
                     }
                     """)))
     )
     @RequireVerified
-    @PostMapping("/reviews")
-    public Result<Void> submitReview(@Valid @RequestBody ReviewReq req) {
+    @PostMapping("/dishes/{id}/reviews")
+    public Result<Void> submitReview(
+            @Parameter(description = "菜品ID", example = "1")
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
-        reviewService.submitReview(userId, req);
+        reviewService.submitReview(userId, id, req);
+        return Result.success();
+    }
+
+    @Operation(
+            summary = "重新评价（覆盖式）",
+            description = "用途：作者本人修改自己的评价。覆盖同一行（评分/文字/配图），发表时间刷新为当前（时间倒序列表置顶），隐藏标记重置为未隐藏，并重算菜品评分。需已完成学号邮箱认证；非作者 403。不限次数。",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "rating": 4,
+                      "content": "重新评一次：味道还行，就是有点咸。"
+                    }
+                    """)))
+    )
+    @RequireVerified
+    @PutMapping("/reviews/{id}")
+    public Result<Void> updateReview(
+            @Parameter(description = "评价ID", example = "1")
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewReq req) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        reviewService.updateReview(id, userId, req);
         return Result.success();
     }
 
@@ -92,20 +136,6 @@ public class ReviewController {
         Long userId = SecurityUtil.getCurrentUserId();
         reviewService.deleteReview(id, userId);
         return Result.success();
-    }
-
-    @Operation(
-            summary = "评价「有用」切换（幂等）",
-            description = "用途：用户对评价标记/取消「有用」。未标记→标记并返回 useful=true；已标记→取消并返回 useful=false。重复点击即取消，不抛错。每人每条评价一票。",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @RequireVerified
-    @PostMapping("/reviews/{id}/useful")
-    public Result<UsefulResult> toggleUseful(
-            @Parameter(description = "评价ID", example = "1")
-            @PathVariable Long id) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        return Result.success(reviewService.toggleUseful(userId, id));
     }
 
 }

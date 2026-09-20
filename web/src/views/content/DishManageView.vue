@@ -66,7 +66,6 @@ watch(
 )
 
 const statusFilter = ref<string>('')
-const typeFilter = ref<string>('')
 
 // ===== 食堂 / 档口筛选（食堂与档口是菜品的「筛选条件」，非独立实体页） =====
 const canteenFilter = ref<string | number>('')
@@ -101,8 +100,6 @@ function canteenIdOfStall(stallId: number | bigint): number {
 const rows = computed(() => {
   let list = store.dishes
   if (statusFilter.value) list = list.filter(r => r.status === statusFilter.value)
-  if (typeFilter.value === 'discount') list = list.filter(r => !!r.promoPrice)
-  else if (typeFilter.value === 'normal') list = list.filter(r => !r.promoPrice)
   // 档口优先（更精确）；仅选食堂时按其下全部档口过滤
   if (stallFilter.value) list = list.filter(r => Number(r.stall_id) === Number(stallFilter.value))
   else if (canteenFilter.value) list = list.filter(r => canteenIdOfStall(r.stall_id) === Number(canteenFilter.value))
@@ -116,11 +113,7 @@ const statusOptions = [
   { label: '在售', value: 'active' },
   { label: '已下架', value: 'inactive' },
 ]
-const typeOptions = [
-  { label: '全部类型', value: '' },
-  { label: '折扣菜品', value: 'discount' },
-  { label: '常规菜品', value: 'normal' },
-]
+
 
 // ===== 三态（WEB-02：store 不再顶层自动加载，进页显式加载本页所需域并暴露 loading/error） =====
 const loading = ref(true)
@@ -188,9 +181,14 @@ async function handleDelete(row: any) {
   }
 }
 
+/** 展示值恒取现价 price（§7.26：禁止双源切换；原 promoPrice 已删除） */
 function formatPrice(row: any): string {
-  if (row.promoPrice) return `¥${row.promoPrice.toFixed(2)}`
-  return `¥${Number(row.price).toFixed(2)}`
+  return `¥${Number(row.price ?? 0).toFixed(2)}`
+}
+
+/** 有折扣（§7.26）：原价有值且高于现价 → 端上原价划线 */
+function hasPromo(row: any): boolean {
+  return row.originalPrice != null && Number(row.originalPrice) > Number(row.price)
 }
 
 // ===== 行内状态快捷切换（上架/下架，无需进弹窗） =====
@@ -300,7 +298,6 @@ async function batchDelete() {
           :placeholder="stallFilterDisabled ? '请先选食堂' : '全部档口'"
         />
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
-        <FilterSelect v-model="typeFilter" label="类型" :options="typeOptions" :width="150" />
       </template>
       <template #actions>
         <!-- 批量动作仅在选中时出现（数量只在此处出现一次） -->
@@ -337,7 +334,6 @@ async function batchDelete() {
       </template>
       <template #cell-name="{ row }">
         <span class="cell-title" :title="row.name">{{ row.name }}</span>
-        <span v-if="row.promoPrice" class="promo-flag">折扣</span>
       </template>
       <!-- 位置：所属食堂 · 所属档口（DishAdminVO 联表直读，§7.23 第 1 条；两列合并为一列降噪） -->
       <template #cell-location="{ row }">
@@ -346,8 +342,9 @@ async function batchDelete() {
         </span>
       </template>
       <template #cell-price="{ row }">
-        <span class="price-cell" :class="{ promo: !!row.promoPrice }">{{ formatPrice(row) }}</span>
-        <span v-if="row.promoPrice && row.originalPrice" class="origin">¥{{ row.originalPrice.toFixed(2) }}</span>
+        <span class="price-cell">{{ formatPrice(row) }}</span>
+        <span v-if="hasPromo(row)" class="origin">¥{{ Number(row.originalPrice).toFixed(2) }}</span>
+        <span v-if="hasPromo(row)" class="promo-flag">折扣</span>
       </template>
       <template #cell-rating="{ row }">
         <span v-if="row.avg_rating" class="rating"><el-icon class="star"><Star /></el-icon>{{ Number(row.avg_rating).toFixed(1) }}</span>
@@ -390,7 +387,6 @@ async function batchDelete() {
 .cell-sub { font-size: var(--font-sm); color: var(--text-secondary); }
 .promo-flag { margin-left: var(--space-2); background: var(--color-error); color: var(--text-white); font-size: var(--font-xs); padding: 0 var(--space-2); border-radius: var(--radius-sm); vertical-align: 1px; }
 .price-cell { color: var(--color-price); font-weight: var(--weight-bold); }
-.price-cell.promo { color: var(--color-error); }
 .origin { color: var(--text-light); text-decoration: line-through; font-size: var(--font-xs); margin-left: var(--space-1); }
 .rating { display: inline-flex; align-items: center; gap: 2px; font-size: var(--font-sm); color: var(--color-star); font-weight: var(--weight-medium); }
 .star { width: 13px; height: 13px; }

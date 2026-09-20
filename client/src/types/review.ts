@@ -1,35 +1,44 @@
 /**
- * 评价类型（project_spec.md §3.x.6.4 / ARCH §1.3）
- * 语义统一：原 likeCount 语义统一重命名为 usefulCount（「有用」计数）。
- * 原因：后端 ReviewVO 新增 `usefulCount`，且「有用」走 /reviews/{id}/useful 幂等切换，
- * 与详情页底栏「喜欢」（likeCount）为两个独立概念，禁止混用（§0.6 红线 3）。
+ * 评价类型（`specs/review-api-contract` · 2026-09-20 dish-detail-remediation）
+ *
+ * 公开评价行恰含 8 字段：id / userId / userNickname / userAvatar / rating / content /
+ * images / createdAt（端上映射为 `createTime`）；`dishId` / `dishName` / `isHidden`
+ * **仅「我的评价」**（GET /my/reviews）返回，公开列表（GET /dishes/{id}/reviews）不含。
+ *
+ * 已全链删除（SHALL NOT 回流）：「有用」计数 `usefulCount` 与已赞态 `useful`
+ * （投票端点、字段、排序口径、端上按钮一并下线）。
  */
 export interface Review {
   id: number
   userId: number
   userNickname: string
   userAvatar: string
-  dishId: number
-  /** 关联菜品名称（我的评价列表由后端联表返回；菜品维度列表可不含） */
-  dishName?: string
   rating: number
   content: string
+  /** 评价发表时间（后端 createdAt；重新评价后取新时间） */
   createTime: string
-  /** 「有用」计数（后端 usefulCount） */
-  usefulCount?: number
-  /** 当前登录用户是否已标记「有用」（仅登录态返回，可选） */
-  useful?: boolean
-  /** 评价配图（COS URL，≤3 张；2026-09 恢复 UGC 配图，后端 /upload/images 安检后回传 URL） */
+  /** 评价配图（COS URL，≤3 张；无图统一空数组） */
   images?: string[]
-  /** 管理侧隐藏标记（§7.14，后端 isHidden）：仅 /my/reviews 对作者本人返回。
-   *  语义：已被隐藏 = 事后处置（管理员判定违规后不再对外展示），与「已删除」区分，
-   *  避免作者误以为评价凭空消失。
-   *  退役（2026-09-15，取消人工复核）：原内容机检中间态字段及对应 UI 已随本决策删除——
-   *  机检 pass/review 均直接放行、仅 risky 拒绝，端上不存在中间态。 */
+  /** ===== 以下三字段仅「我的评价」（GET /my/reviews）返回 ===== */
+  /** 关联菜品 ID */
+  dishId?: number
+  /** 关联菜品名称（后端联表返回） */
+  dishName?: string
+  /** 管理侧隐藏标记：仅 /my/reviews 对作者本人返回（事后处置口径，非「已删除」） */
   isHidden?: boolean
-  // 评价扁平化（2026-08-18 决策）：移除楼中楼回复字段 parentId/replyToNickname/replies/repliesHasMore，
-  // 菜品评价保留 评分+文字+图片+有用 的口碑形态
 }
-// 原 `ReviewSort`（latest|useful）已于 2026-09-14 删除：评价列表排序口径唯一权威方是后端
-// （spec §7.14 第 2 条 / §7.18 第 3 条「默认按有用数置顶、不提供排序切换」），
+/**
+ * 评价提交成功回调载荷（写评价 / 重新评价共用的 UI 事件契约，唯一声明处）。
+ * 由 `useDishPage.onReviewSubmitted` 与 `ReviewComposer` 共同消费：
+ * - `mode`：`create` 首次发表 / `update` 覆盖式重评（决定是否本地写回「我的评价」态）；
+ * - `rating` / `content` / `images`：提交后的最新值，供底栏态与预填本地写回。
+ */
+export interface ReviewSubmittedPayload {
+  mode: 'create' | 'update'
+  rating: number
+  content: string
+  images: string[]
+}
+
+// 原 `ReviewSort`（latest|useful）已于 2026-09-14 删除：评价排序唯一为时间倒序（新评价在前），
 // 端上不持有排序状态、不传 sort（PR-02 / PR-05：零消费类型不留存）。

@@ -1,25 +1,21 @@
 package com.bjtufood.review.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.review.constant.ReviewConst;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
-import com.bjtufood.review.dto.UsefulResult;
 import com.bjtufood.review.entity.Review;
-import com.bjtufood.review.entity.ReviewUseful;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
 import com.bjtufood.review.mapper.ReviewMapper;
-import com.bjtufood.review.mapper.ReviewUsefulMapper;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.entity.User;
@@ -32,7 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,7 +41,6 @@ import java.util.stream.Collectors;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
-    private final ReviewUsefulMapper reviewUsefulMapper;
     private final UserMapper userMapper;
     private final DishMapper dishMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -54,152 +49,55 @@ public class ReviewServiceImpl implements ReviewService {
     private final ContentSecurityService contentSecurityService;
 
     /**
-     * 菜品评价公开列表。
-     * <p>
-     * 排序（2026-09-14 §7.14 B）：sort 缺省/sort=useful 按「有用数」置顶，sort=latest 按时间倒序。
+     * 菜品评价公开列表：时间倒序唯一口径（created_at DESC），可选「只看有图」筛选。
      */
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, String sort, Long userId) {
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer hasImage) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        sort = normalizeSort(sort);
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, sort);
-        // 评价扁平化：列表接口直接返回扁平顶层评价（无楼中楼），见 project_spec 决策
-        if (userId != null) {
-            markUseful(pageResult.getRecords(), userId);
-        }
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, hasImage);
         fillImages(pageResult.getRecords());
         return pageResult;
     }
 
-    // listByStallId / listByCanteenId 已随 GET /reviews 的 stallId / canteenId 维度参数退役
-    //（2026-09-16 用户拍板「端点零消费即删除」），selectReviewPageByStallId / ByCanteenId SQL 同批删除。
-
     @Override
-    public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize) {
+    public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // 我的评价（2026-09-14 §7.14 C）：本人视角，公开列表的 is_hidden 过滤不适用——
-        // 被管理员隐藏（is_hidden=1）的评价作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」）。
-        // 排序固定按发表时间倒序（sort=latest 显式传入，本人评价按时间更自然；与公开列表默认「有用数置顶」解耦）
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, "latest");
+        // 我的评价：本人视角，公开列表的 is_hidden 过滤不适用——被管理员隐藏（is_hidden=1）的评价
+        // 作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」）。排序固定时间倒序。
+        // dishId 可选过滤：详情页判定「我是否已评价」并取回评价 ID（避免分页边界丢失）。
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, dishId);
         fillImages(pageResult.getRecords());
         return pageResult;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UsefulResult toggleUseful(Long userId, Long reviewId) {
-        Review review = reviewMapper.selectById(reviewId);
-        if (review == null) {
-            throw new BusinessException("评价不存在");
-        }
-        // L2 修复：对已被管理端隐藏（is_hidden=1）的评价不可再点「有用」，保持对外可见口径一致
-        if (Integer.valueOf(1).equals(review.getIsHidden())) {
-            throw new BusinessException("该评价不可标记");
-        }
-        ReviewUseful exist = reviewUsefulMapper.selectOne(new LambdaQueryWrapper<ReviewUseful>()
-                .eq(ReviewUseful::getUserId, userId)
-                .eq(ReviewUseful::getReviewId, reviewId));
-        UsefulResult result = new UsefulResult();
-        if (exist != null) {
-            // 已标记 → 取消：删除记录 + 计数原子 -1。
-            // 并发取消守卫：仅当真正删除到 1 行才减计数，避免两请求同时读到 exist、
-            // 都 deleteById（第二个 0 行 no-op）却各减一次计数导致 useful_count 漂移。
-            int deleted = reviewUsefulMapper.deleteById(exist.getId());
-            if (deleted > 0) {
-                reviewMapper.changeUsefulCount(reviewId, -1);
-            }
-            result.setUseful(false);
-        } else {
-            // 未标记 → 标记：插入记录 + 计数原子 +1（uk_useful_user_review 唯一键防并发重复）
-            ReviewUseful useful = new ReviewUseful();
-            useful.setUserId(userId);
-            useful.setReviewId(reviewId);
-            try {
-                reviewUsefulMapper.insert(useful);
-            } catch (DuplicateKeyException e) {
-                // 并发下同一用户重复提交：唯一键已拦截，视为「已标记」幂等返回，不再重复加计数
-                throw new BusinessException("你已经标记过这条评价");
-            }
-            reviewMapper.changeUsefulCount(reviewId, 1);
-            result.setUseful(true);
-        }
-        // 原子增减后回读最新计数（避免返回过期的读-改-写值）
-        Review latest = reviewMapper.selectById(reviewId);
-        result.setUsefulCount(latest == null ? 0 : (latest.getUsefulCount() == null ? 0 : latest.getUsefulCount()));
-        return result;
-    }
-
-    /**
-     * 排序入参白名单校验与归一化（P2-01 / PR-06）。
-     * <p>
-     * 公开列表 sort 值域仅 {@code useful} / {@code latest}：null/空白视为未传（走缺省 useful 口径），
-     * 非法值抛 400，不再静默落 useful 分支（掩盖入参错误）。
-     */
-    private String normalizeSort(String sort) {
-        String normalized = ParamValidator.optionalInWhitelist(sort, ReviewConst.SORT_WHITELIST, "排序方式");
-        return normalized == null ? ReviewConst.SORT_USEFUL : normalized;
-    }
-
-    /**
-     * 回写当前用户对评价列表的「有用」标记状态（避免泄露给非登录用户）
-     */
-    private void markUseful(List<ReviewVO> records, Long userId) {
-        if (records == null || records.isEmpty()) {
-            return;
-        }
-        List<Long> ids = records.stream().map(ReviewVO::getId).toList();
-        Set<Long> markedIds = reviewUsefulMapper.selectList(new LambdaQueryWrapper<ReviewUseful>()
-                        .eq(ReviewUseful::getUserId, userId)
-                        .in(ReviewUseful::getReviewId, ids))
-                .stream()
-                .map(ReviewUseful::getReviewId)
-                .collect(Collectors.toSet());
-        records.forEach(r -> r.setUseful(markedIds.contains(r.getId())));
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Long submitReview(Long userId, ReviewReq req) {
+    public Long submitReview(Long userId, Long dishId, ReviewReq req) {
         // 防御性拦截：评论内容为空或超长（@Valid 已做基础校验，此处兜底防止绕过）
         if (req.getContent() != null && req.getContent().length() > 500) {
             throw new BusinessException("评论内容不能超过500字");
         }
         if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
-                .eq(Review::getDishId, req.getDishId())) > 0) {
+                .eq(Review::getDishId, dishId)) > 0) {
             throw new BusinessException("您已评价过该菜品");
         }
         Review review = new Review();
         review.setUserId(userId);
-        review.setDishId(req.getDishId());
+        review.setDishId(dishId);
         review.setRating(req.getRating());
         String filteredContent = sensitiveFilter.filter(req.getContent());
         review.setContent(filteredContent);
         review.setIsHidden(0);
 
         // ---- UGC 准入门槛（project_spec §7.5 / §7.7：verified=1 且 openid 非空）----
-        // 仅约束「公开可见的评价内容」：微信 msgSecCheck v2 必填 openid，而 checkUgcText 在
-        // openid 为 NULL 时会走「跳过机审放行」分支，故必须在机检之前前置双约束，否则口子敞开。
-        // 反馈 / 投稿 / 举报按 §7.7 免认证，不受此约束。
-        User reviewUser = userMapper.selectById(userId);
-        if (reviewUser == null
-                || reviewUser.getVerified() == null
-                || reviewUser.getVerified() != 1) {
-            // 4031 = 邮箱未认证（细分业务码，前端据此弹认证引导，区别于普通 403）
-            throw new BusinessException(4031, "请先完成学号邮箱认证");
-        }
-        if (!StringUtils.hasText(reviewUser.getOpenid())) {
-            // 已认证但无 openid（邮箱验证码登录账号）：msgSecCheck v2 无法调用，须先微信登录
-            throw new BusinessException(403, "请使用微信登录后再发布评价");
-        }
+        // 微信 msgSecCheck v2 必填 openid，故必须在机检之前前置双约束，否则口子敞开。
+        User reviewUser = requireUgcAuthorizedUser(userId);
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
-        // 文本 msgSecCheck v2（scene=2 评论）：risky 由 checkText 统一拦截（400）；
-        // 机检 review（疑似）已归一为放行（2026-09-15 用户拍板取消人工复核），不再落库任何安全态。
-        // 注：openid 为 NULL 的情形已由上方准入校验拦截，此处不会走到「跳过机审放行」分支。
-        checkUgcText(userId, filteredContent, 2);
+        checkUgcText(reviewUser, filteredContent, 2);
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
         review.setImages(UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil));
@@ -210,12 +108,70 @@ public class ReviewServiceImpl implements ReviewService {
         } catch (DuplicateKeyException e) {
             throw new BusinessException("您已评价过该菜品");
         }
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, req.getDishId(), req.getRating()));
+        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, dishId, req.getRating()));
         return review.getId();
     }
 
     /**
-     * UGC 文本机检公共入口：取当前用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
+     * 重新评价（覆盖式）：覆盖同一行（评分/文字/配图），不新建行。
+     * <p>
+     * 覆盖语义（2026-09-20 拍板 D4）：created_at 刷新为当前（时间倒序下置顶）、is_hidden 重置 0、
+     * 内容安全检测与首次发表同口径（违规 400 且原内容不变）、发既有 ReviewSubmittedEvent 重算聚合。
+     * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateReview(Long id, Long userId, ReviewReq req) {
+        if (req.getContent() != null && req.getContent().length() > 500) {
+            throw new BusinessException("评论内容不能超过500字");
+        }
+        Review review = reviewMapper.selectById(id);
+        if (review == null) {
+            // 错误码口径：仅 200/400/401/403/4031/500，资源不存在按 400 业务校验返回
+            throw new BusinessException(400, "评价不存在");
+        }
+        if (!review.getUserId().equals(userId)) {
+            throw new BusinessException(403, "只能修改自己的评价");
+        }
+        String filteredContent = sensitiveFilter.filter(req.getContent());
+        // 与首次发表同口径：认证 + openid 准入 + 文本走微信内容安全检测 msgSecCheck（图片已在 /upload/images 链路过 imgSecCheck）
+        User reviewUser = requireUgcAuthorizedUser(userId);
+        checkUgcText(reviewUser, filteredContent, 2);
+        String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);
+
+        // 覆盖同一行：显式 set（含置 NULL / 重置 0 / 刷新 created_at），不新建行、唯一占位不变
+        reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
+                .eq(Review::getId, id)
+                .set(Review::getRating, req.getRating())
+                .set(Review::getContent, filteredContent)
+                .set(Review::getImages, imagesJson)
+                .set(Review::getIsHidden, 0)
+                .set(Review::getCreatedAt, LocalDateTime.now()));
+        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), req.getRating()));
+    }
+
+    /**
+     * UGC 作者准入：verified=1 且 openid 非空（msgSecCheck v2 必填 openid）。
+     *
+     * @return 通过准入校验的用户实体
+     */
+    private User requireUgcAuthorizedUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null
+                || user.getVerified() == null
+                || user.getVerified() != 1) {
+            // 4031 = 邮箱未认证（细分业务码，前端据此弹认证引导，区别于普通 403）
+            throw new BusinessException(4031, "请先完成学号邮箱认证");
+        }
+        if (!StringUtils.hasText(user.getOpenid())) {
+            // 已认证但无 openid（邮箱验证码登录账号）：msgSecCheck v2 无法调用，须先微信登录
+            throw new BusinessException(403, "请使用微信登录后再发布评价");
+        }
+        return user;
+    }
+
+    /**
+     * UGC 文本机检公共入口：取用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
      * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
      * pass 与机检 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
@@ -223,12 +179,11 @@ public class ReviewServiceImpl implements ReviewService {
      * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
      * 2. 微信凭据未配置（本地开发环境）→ 跳过机审放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
      */
-    private void checkUgcText(Long userId, String content, int scene) {
+    private void checkUgcText(User user, String content, int scene) {
         if (!StringUtils.hasText(content)) {
             // 纯图评价/反馈：无文本可检，直接放行
             return;
         }
-        User user = userMapper.selectById(userId);
         String openid = user == null ? null : user.getOpenid();
         contentSecurityService.checkText(openid, content, scene);
     }
@@ -259,10 +214,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (!review.getUserId().equals(userId)) {
             throw new BusinessException(403, "只能删除自己的评价");
         }
-        // 评价扁平化：评价无楼中楼后代，物理删除自身并清理「有用」关联即可（无需 BFS 后代收集）
         reviewMapper.deleteById(id);
-        reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
-                .eq(ReviewUseful::getReviewId, id));
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
     }
 
@@ -270,18 +222,15 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
-        // 显式指定查询列，排除 useful_count（该列由末尾 ALTER / review_useful 表聚合维护，
-        // 在仅建了原始 review 表的旧库上不存在，selectPage 全列查询会命中 Unknown column → 500）。
-        // 管理端评价列表当前不展示 usefulCount（见 ReviewReviewView.vue 列定义），排除无功能损失。
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
-                        .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
-                                Review::getContent, Review::getImages, Review::getIsHidden,
-                                Review::getCreatedAt, Review::getUpdatedAt)
-                        .eq(isHidden != null, Review::getIsHidden, isHidden)
-                        .eq(userId != null, Review::getUserId, userId)
-                        // 关键词模糊匹配评价正文，仅当显式传入时生效
-                        .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
-                        .orderByDesc(Review::getCreatedAt));
+                .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
+                        Review::getContent, Review::getImages, Review::getIsHidden,
+                        Review::getCreatedAt, Review::getUpdatedAt)
+                .eq(isHidden != null, Review::getIsHidden, isHidden)
+                .eq(userId != null, Review::getUserId, userId)
+                // 关键词模糊匹配评价正文，仅当显式传入时生效
+                .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
+                .orderByDesc(Review::getCreatedAt));
         List<ReviewAdminVO> vos = enrichAdminBatch(pageResult.getRecords());
         IPage<ReviewAdminVO> result = new Page<>(pageResult.getCurrent(), pageResult.getSize(), pageResult.getTotal());
         result.setRecords(vos);
@@ -336,9 +285,6 @@ public class ReviewServiceImpl implements ReviewService {
         Review review = reviewMapper.selectById(id);
         if (review != null) {
             reviewMapper.deleteById(id);
-            // 清理「有用」关联孤儿行，避免 review_useful 堆积并与 useful_count 长期不一致
-            reviewUsefulMapper.delete(new LambdaQueryWrapper<ReviewUseful>()
-                    .eq(ReviewUseful::getReviewId, id));
             eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         }
     }
