@@ -22,7 +22,8 @@
          高度由页面按滚动量内联驱动（无 transition），故这里只留插槽位、不写任何高度/动效口径。 -->
     <slot />
 
-    <view class="home-search-row">
+    <!-- 搜索行：position:relative 使其绘制在 Banner 绝对图层（slot 注入）之上 -->
+    <view class="home-search-row" style="position: relative;">
       <view
         class="home-search"
         role="search"

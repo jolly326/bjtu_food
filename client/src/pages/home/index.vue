@@ -8,7 +8,9 @@
          Banner 不再放滚动内容里，而是落在头部内（标题行与搜索行之间），由滚动量驱动折叠收起 ——
          几何上等价于「Banner 随手势滚出」（推导见脚本区 BANNER_* 段注释）。 -->
     <view class="home-top">
-      <!-- 头部：标题「知行食记」+ Banner（默认 slot 注入）+ 通栏搜索框（内含右侧「筛选」）+ 透明底 -->
+      <!-- 头部：标题「知行食记」+ 通栏搜索框（内含右侧「筛选」）+ 大类标签栏，三行**恒定吸顶不位移**。
+           Banner（默认 slot 注入）为**绝对定位图层**，垫在头部行背后：随内容 1:1 上滑，
+           下缘抵达头部底缘后定格（home-scroll-interaction；观感同详情页顶部大图）。 -->
       <AppHeader
         variant="home"
         title="知行食记"
@@ -18,33 +20,31 @@
         @search="goToSearch"
         @filter="toggleFilterPanel"
       >
-        <!-- Banner（静态运营位）：**通栏整块背景**（左右无间隙、上移至导航行顶），
-             作为「知行食记」标题的背景 —— 标题由 AppHeader 以叠加层绘制在本 Banner 之上。
-             背景图用 `<image>` **单独加载**（勿用组件手绘；未配置 / 加载失败回退渐变底）。
-             裁剪窗口高度随滚动收缩，内部内容等量上移被裁掉 → 视觉即「Banner 滚出」，
-             收起后不可见且不吃高度（吸顶态不显示）。 -->
-        <view class="home-banner-wrap" :style="{ height: bannerViewportH }">
-          <view class="home-banner" :style="{ transform: bannerShift }">
-            <image
-              v-if="bannerBgSrc !== '' && !bannerBgFailed"
-              class="banner-bg"
-              :src="bannerBgSrc"
-              mode="aspectFill"
-              @error="bannerBgFailed = true"
-            />
-            <!-- 占位图（2026-09-21 用户要求：无图必须占位，与菜品卡占位同款——灰底 + 餐具图标），
-                 未配置 / 加载失败时显示；禁止只留渐变底 -->
-            <view v-else class="banner-ph">
-              <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
-              <text class="banner-ph-text">Banner 占位图</text>
-            </view>
-            <view class="hb-copy">
-              <text class="hb-title">今日推荐</text>
-              <text class="hb-sub">发现食堂里的美味搭配</text>
-            </view>
+        <!-- Banner 图层 = **纯图片**（或无图时的占位块），无任何文案层（2026-09-21 定稿：那个位置就是一张图）。
+             背景图用 `<image>` **单独加载**；未配置 / 加载失败 → 占位块（灰底 + 餐具图标，与菜品占位同款）。 -->
+        <view class="home-banner-layer" :style="{ height: bannerLayerH, transform: bannerShift }">
+          <image
+            v-if="bannerBgSrc !== '' && !bannerBgFailed"
+            class="banner-bg"
+            :src="bannerBgSrc"
+            mode="aspectFill"
+            @error="bannerBgFailed = true"
+          />
+          <view v-else class="banner-ph">
+            <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+            <text class="banner-ph-text">Banner 占位图</text>
           </view>
         </view>
       </AppHeader>
+
+      <!-- 横向大类标签栏：吸顶头部的一部分（恒定）；标签文案与顺序完全来自字典响应（GET /dishes/meal-types），
+           字典不可用时降级为仅「全部」。 -->
+      <HomeMealTabs
+        class="home-tabs"
+        :items="dishStore.mealTypeList"
+        :active-key="dishStore.filterMealType"
+        @select="onMealTypeSelect"
+      />
 
       <!-- 筛选面板：白底、锚定「筛选」按钮正下方，含「全部」+ 各食堂 + 价格区间；
            与大类标签栏**可叠加**（三维度互不清除）；点击面板外关闭。 -->
@@ -58,15 +58,6 @@
         @price-select="onPriceSelect"
       />
     </view>
-
-    <!-- ===== 横向大类标签栏（吸顶头部的一部分） =====
-         标签文案与顺序**完全**来自字典响应（GET /dishes/meal-types）；字典不可用时降级为仅「全部」。 -->
-    <HomeMealTabs
-      class="home-tabs"
-      :items="dishStore.mealTypeList"
-      :active-key="dishStore.filterMealType"
-      @select="onMealTypeSelect"
-    />
 
     <scroll-view
       class="scroll-wrap"
@@ -93,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onShow, onReady, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
@@ -125,42 +116,60 @@ const refresherTriggered = ref(false)
    为何不写 transition/动效：折叠量必须与滚动量严格 1:1 同步（B + P ≡ H）。任何缓动都会让 Banner
    落后于手势，在过渡期露出瞬时空白带；滚动位移本身已是连续量，故本方案无 CSS 动画/过渡，
    也就不存在需要 prefers-reduced-motion 降级的离散动效。
-   ⚠️ H 的口径 = 状态栏高（--status-h）+ 标题行高（--nav-h，均 px）+ 内容区 284rpx：Banner 以负 margin
-   上移「状态栏 + 标题行」两个带高、垫到**屏幕最顶**（占据页面最顶部区域、含状态栏背后，2026-09-21 定稿），
-   故窗口高必须把两带计入；标题行以 z-index 叠加绘制、不占布局高。
-   改内容区高度须同步本常量与 .home-banner 的 min-height（两者同源）。 */
-   const BANNER_CONTENT_RPX = 284
-   /** 状态栏高（px）：与 AppHeader 同源（--status-h 同值），计入折叠上限与窗口高 */
-   const statusBarPx = ref(20)
-   /** 标题行高（px）：与 AppHeader 的 navBarHeight 同源换算（navMetrics 真源），用于折叠上限与窗口高 */
-   const navBarHeightPx = ref(56)
-   onMounted(() => {
-   // 与 AppHeader 同口径：兼容老基础库取 statusBarHeight，微信端按胶囊位置换算导航行高
-   // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
-   const win = (typeof wx !== 'undefined')
-     // @ts-ignore
-     ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
-     : null
-   const sb = (win && win.statusBarHeight) || 20
-   statusBarPx.value = sb
-   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）
-   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-   navBarHeightPx.value = getNavBarHeight(sb, mb)
-   })
-   /** Banner 整块高（px）= 状态栏高 + 标题行高 + 内容区高：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
-   const bannerHeightPx = computed(() => statusBarPx.value + navBarHeightPx.value + uni.upx2px(BANNER_CONTENT_RPX))
+   ⚠️ Banner 图层（2026-09-21 定稿，详情页大图同款观感）：**绝对定位**垫在头部行背后（z:0），
+  随滚动 1:1 上移（transform 由本段驱动）；**定格位移 s\* = 图层高 − 吸顶头部实测高**——
+  上滑至 s* 后图层底缘恰抵头部底缘，此后定格为头部背景层，仅菜品列表继续滚动。
+  头部行（标题 / 搜索卡 / 标签栏）恒定吸顶不位移。改内容区高度须同步 BANNER_CONTENT_RPX。 */
+  const BANNER_CONTENT_RPX = 284
+  /** 状态栏高（px）：与 AppHeader 同源（--status-h 同值），计入图层高 */
+  const statusBarPx = ref(20)
+  /** 标题行高（px）：与 AppHeader 的 navBarHeight 同源换算（navMetrics 真源），计入图层高 */
+  const navBarHeightPx = ref(56)
+  onMounted(() => {
+  // 与 AppHeader 同口径：兼容老基础库取 statusBarHeight，微信端按胶囊位置换算导航行高
+  // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
+  const win = (typeof wx !== 'undefined')
+    // @ts-ignore
+    ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
+    : null
+  const sb = (win && win.statusBarHeight) || 20
+  statusBarPx.value = sb
+  // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）
+  const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
+  navBarHeightPx.value = getNavBarHeight(sb, mb)
+  })
+  /** Banner 图层高（px）= 状态栏高 + 标题行高 + 内容区高：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
+  const bannerHeightPx = computed(() => statusBarPx.value + navBarHeightPx.value + uni.upx2px(BANNER_CONTENT_RPX))
+  /** 图层高样式值 */
+  const bannerLayerH = computed(() => toPx(bannerHeightPx.value))
 
-   /** Banner 背景图（**单独加载**，用户 2026-09-21 要求：勿用组件手绘背景）：
-     正式资产到位后把 URL / 本地路径填入本常量即可；为空或加载失败时回退渐变底（.home-banner 的 background）。 */
-   const BANNER_BG_SRC = ''
-   const bannerBgFailed = ref(false)
+  /** Banner 背景图（**单独加载**）：正式资产到位后把 URL / 本地路径填入本常量即可；
+    为空或加载失败时显示占位块（灰底 + 餐具图标，与菜品占位同款）。 */
+  const BANNER_BG_SRC = ''
+  const bannerBgFailed = ref(false)
 
 /** 滚动位移（px，负值/回弹一律归零）——页面侧唯一滚动真源，只驱动 Banner 折叠，不参与列表分页 */
 const scrollTop = ref(0)
 
-/** 折叠量（px）：夹在 [0, H]，滚过 Banner 自身高度即完全收起（吸顶态） */
+/** 吸顶头部总高（px）：onReady 实测 .home-top（标题行 + 搜索卡 + 标签栏），定格线真源 */
+const headerHpx = ref(0)
+onReady(() => {
+  uni.createSelectorQuery()
+    .select('.home-top')
+    .boundingClientRect((rect: { height?: number } | null) => {
+      if (rect && rect.height) headerHpx.value = rect.height
+    })
+    .exec()
+})
+
+/** 定格位移（px）= 图层高 − 头部实测高：上滑至此，图层底缘恰抵头部底缘，此后定格为头部背景层。
+    headerH 未实测前用估算值（状态栏 + 标题行 + 搜索卡/标签栏 ≈ 176rpx）兜底 */
+const bannerStopPx = computed(() =>
+  Math.max(bannerHeightPx.value - (headerHpx.value || statusBarPx.value + navBarHeightPx.value + uni.upx2px(176)), 0),
+)
+/** 上移量（px）：夹在 [0, 定格位移] —— 越过定格线后 Banner 保持定格，仅菜品列表继续滚动 */
 const bannerCollapsedPx = computed(() =>
-  Math.min(Math.max(scrollTop.value, 0), bannerHeightPx),
+  Math.min(Math.max(scrollTop.value, 0), bannerStopPx.value),
 )
 
 /** px → 样式值（2 位小数）：避免浮点长尾进入内联样式，并让重复值不触发无谓的 setData */
@@ -168,12 +177,10 @@ function toPx(value: number): string {
   return `${Math.round(value * 100) / 100}px`
 }
 
-/** Banner 裁剪窗口高度：H → 0 连续收窄（收起后不吃高度 = 吸顶态不可见） */
-const bannerViewportH = computed(() => toPx(Math.max(bannerHeightPx - bannerCollapsedPx.value, 0)))
-/** Banner 卡片上移量：与裁剪窗口同量 → 卡片底边与窗口底边同速上移、上缘被裁掉（视觉即「随手势滚出」） */
+/** Banner 图层上移量：随滚动 1:1 刚体上移（详情页大图观感），至定格线停止 */
 const bannerShift = computed(() => `translateY(${toPx(-bannerCollapsedPx.value)})`)
-/** 滚动内容顶部补偿：与折叠量等量（无此补偿则内容会以 2 倍速上移 → 跳变） */
-const contentPadTop = computed(() => toPx(bannerCollapsedPx.value))
+/** 滚动内容顶部留白：= 定格位移 —— 初始态下网格恰从 Banner 底缘起排，上滑后随内容 1:1 同步上移 */
+const contentPadTop = computed(() => toPx(bannerStopPx.value))
 
 /** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段（MP-08 口径，替代裸 any） */
 function onScroll(e: { detail?: { scrollTop?: number } }) {
@@ -367,6 +374,8 @@ onShareAppMessage(() => {
 /* 大类标签栏：属于吸顶头部的一部分（常驻），落在渐变底色区、与白色搜索卡明度可区分；
    z-index 低于 .home-top，使展开的筛选面板盖在标签栏之上。 */
 .home-tabs {
+  /* 相对定位：绘制层级高于 Banner 绝对图层（图层垫在头部行背后） */
+  position: relative;
   position: relative;
   z-index: 20;
 }
@@ -380,42 +389,32 @@ onShareAppMessage(() => {
 }
 .home-content {
   padding: 0;
-  /* 顶部补偿（padding-top）由脚本按滚动量内联，与 Banner 折叠量等量，见脚本区 BANNER_H_RPX 段 */
+  /* 顶部留白（padding-top）= 定格位移（脚本常量内联）：初始态网格恰从 Banner 底缘起排，
+     上滑后随内容 1:1 同步上移（home-scroll-interaction：详情页大图同款观感） */
 }
-/* ===== Banner（静态运营位；位于头部内「标题行 / 搜索行」之间，随滚动折叠收起） =====
-   三层明度可区分（任务 5.2）：Banner 淡橙渐变块 > 白色搜索卡 > 页面浅米白底。
-   折叠几何（窗口高 / 卡片位移 / 内容补偿）全部由脚本内联且同源 1:1，本处只提供静态几何与表面语言：
-     · 裁剪窗口：高由内联给出（脚本 BANNER_H_RPX = 24 顶留白 + 244 卡片 + 16 投影余量 = 284rpx）
-     · 卡片本体：自然高 244rpx = 内边距 --spacing-lg×2 + 插画 180rpx；底部留白供卡片投影，避免被裁剪
-   ⚠️ 窗口**不得带 padding**（D3）：padding 在 border-box 下压不到 0，内联 height:0 时仍占位，
-     会使吸顶态残留空带、且 s ∈ (244, 284] 段头部被夹住不再收缩；三段留白因此改由卡片自身 margin 承担。 */
-.home-banner-wrap {
-  box-sizing: border-box;
-  padding: 0;
+/* ===== Banner 图层（静态运营位；绝对定位垫在头部行背后，随滚动 1:1 刚体上移） =====
+   · 图层：absolute 顶到屏幕最顶（.header-wrap 定位上下文的盒顶），高 = 状态栏 + 标题行 + 284rpx（脚本同源）；
+     transform 位移由脚本内联（夹在 [0, 定格位移]），下缘抵达头部底缘（.home-top 盒底）后定格为头部背景层；
+   · 头部行（标题 / 搜索卡 / 标签栏）position:relative 且后于图层绘制 → 恒在图层之上；
+   · **纯图片 / 占位块，无文案层**（2026-09-21 定稿：那个位置就是一张图）。 */
+.home-banner-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
   overflow: hidden;
-  /* 2026-09-21 定稿：上移「状态栏 + 标题行」两个带高 —— Banner 顶到屏幕最顶（占据页面最顶部区域、
-     含状态栏背后）、成为「知行食记」标题的背景（标题行以 z-index 叠加绘制其上）；
-     窗口高度公式（status-h + nav-h + 284rpx − s）已把两带计入 */
-  margin-top: calc(-1 * (var(--status-h) + var(--nav-h)));
-}
-.home-banner {
-  position: relative;
-  width: 100%;
-  /* 2026-09-21 走查回退：**通栏无间隙**（左右 margin 与圆角归零）；内容区自标题行下缘起排，
-     与窗口高公式（nav-h + 284rpx）同源 */
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  min-height: calc(var(--status-h) + var(--nav-h) + 284rpx);
-  padding: var(--spacing-lg);
-  padding-top: calc(var(--status-h) + var(--nav-h) + var(--spacing-md));
-  box-sizing: border-box;
-  /* 兜底占位（2026-09-21 定稿）：背景图未配置 / 加载失败时显示占位块（与菜品卡占位同款灰底），
-     不再使用渐变兜底 */
   background: var(--bg-soft);
 }
-/* Banner 占位块：居中餐具图标 + 说明文字（与 DishCard.image-placeholder 同语言，尺寸放大适配 Banner） */
+/* 背景图层：绝对定位铺满（单独加载，非组件手绘） */
+.banner-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+/* 占位块：居中餐具图标 + 说明文字（与 DishCard.image-placeholder 同语言，尺寸放大适配 Banner） */
 .banner-ph {
   position: absolute;
   left: 0;
@@ -432,37 +431,8 @@ onShareAppMessage(() => {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
 }
-/* 背景图层：绝对定位铺满 Banner，文字内容叠加其上（单独加载，非组件手绘） */
-.banner-bg {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-}
-.hb-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-/* 减少动态效果（既有约定）：去掉「卡片随手上移」的位移分量，只保留裁剪窗口收窄 ——
-   两态结果与几何口径不变（补偿仍在，故仍无跳变），只是内容不再滑动 */
+/* 减少动态效果（既有约定）：去掉「图层随手上移」的位移分量 —— 图层定格于初始位（头部背后），两态结果不变 */
 @media (prefers-reduced-motion: reduce) {
-  .home-banner { transform: none !important; }
-}
-
-.hb-title {
-  font-size: var(--font-h2);
-  font-weight: var(--weight-bold);
-  line-height: 1.15;
-  letter-spacing: var(--tracking-h2);
-  color: var(--text-primary);
-}
-.hb-sub {
-  font-size: var(--font-small);
-  color: var(--text-secondary);
-  line-height: 1.4;
+  .home-banner-layer { transform: none !important; }
 }
 </style>
