@@ -262,8 +262,12 @@ function onSearchConfirm() {
      position: sticky（home-page-presentation 明令禁用 sticky）。
    高度：比单行的搜索页 / 二级页头部多一行标题行 —— 属两态结构的既定差异；
      search / default variant 的行高口径（--capsule-h + --nav-h + --spacing-sm）不变。 */
+/* 2026-09-21 走查：home 头部容器**不得有任何实心 / 渐变底**——
+   基类 .header-wrap 的 `--color-primary` 实心底与本变体的渐变一并置为透明；
+   顶部视觉由 Banner 图层（图片 / 占位卡片）承担，搜索卡、标签栏自持表面语言。 */
 .header-wrap.home {
-  background-image: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
+  background: transparent;
+  background-image: none;
   position: relative;
   top: auto;
 }

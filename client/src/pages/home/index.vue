@@ -31,9 +31,11 @@
             mode="aspectFill"
             @error="bannerBgFailed = true"
           />
+          <!-- 无图 → 占位卡片（与首页菜品卡预览区占位同款：白卡 + 圆角 + 投影 + 餐具图标） -->
           <view v-else class="banner-ph">
-            <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
-            <text class="banner-ph-text">Banner 占位图</text>
+            <view class="banner-ph-card">
+              <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+            </view>
           </view>
         </view>
       </AppHeader>
@@ -391,6 +393,10 @@ onShareAppMessage(() => {
 .home-tabs {
   /* 相对定位：绘制层级高于 Banner 绝对图层（图层垫在头部行背后） */
   position: relative;
+  z-index: 20;
+}
+/* 吸顶组包裹层：承载「搜索卡 + 标签栏」的同源位移（初始态位于 Banner 下方 → 随页面刚体上移 → 锁定） */
+.home-sticky-group {
   position: relative;
   z-index: 20;
 }
@@ -419,7 +425,8 @@ onShareAppMessage(() => {
   right: 0;
   z-index: 0;
   overflow: hidden;
-  background: var(--bg-soft);
+  /* 无实心 / 渐变底：有图时铺图，无图时由内部**占位卡片**承担表面（2026-09-21 走查） */
+  background: transparent;
 }
 /* 背景图层：绝对定位铺满（单独加载，非组件手绘） */
 .banner-bg {
@@ -429,22 +436,32 @@ onShareAppMessage(() => {
   width: 100%;
   height: 100%;
 }
-/* 占位块：居中餐具图标 + 说明文字（与 DishCard.image-placeholder 同语言，尺寸放大适配 Banner） */
+/* 占位块 = **占位卡片**：与首页菜品卡「预览图区域占位」同款表面语言
+   （白卡 --bg-card + 卡片圆角 --radius-card + 柔和投影 --shadow-card），卡内居中餐具图标；
+   无说明文字（2026-09-21 走查：那个位置就是一张图 / 一张占位卡）。 */
 .banner-ph {
   position: absolute;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
+  /* 卡片内缩：与页面级 gutter 同轴（搜索行 / 菜品网格同为 --spacing-md） */
+  padding: var(--spacing-sm) var(--spacing-md);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
 }
-.banner-ph-text {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
+.banner-ph-card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 /* 注：Banner 图层与吸顶组的位移均为「滚动位置驱动」的几何跟随（非装饰性动画），
    故不对 prefers-reduced-motion 做降级——禁用位移会让头部与滚动内容脱节。 */
