@@ -368,17 +368,6 @@ export const useDishStore = defineStore('dish', () => {
     })
   }
 
-  /**
-   * 清除全部首页筛选（食堂 + 价格）→ **只发一次**列表请求（MP-03）。
-   * 此前页面侧连续调用 setHomePrice({}) → onCanteenSelect(null)，
-   * 二者各触发一次 fetchFilterDishes，一次「清除筛选」打出多次请求，
-   * 且中间两帧 filterList 被清空重建（列表区闪白）。
-   */
-  async function clearHomeFilter() {
-    filterPrice.value = {}
-    await fetchFilterDishes(defaultFilterTab(), true)
-  }
-
   return {
     currentDish, reviewList, detailError,
     canteenList,
@@ -389,7 +378,7 @@ export const useDishStore = defineStore('dish', () => {
     // 零外部消费，收敛为模块私有（不再出现在 store 返回对象）。
     isLoading,
     filterTab, filterList, filterLoadingMore, filterPageLimited, filterPrice, filterError,
-    setHomePrice, clearHomeFilter, defaultFilterTab,
+    setHomePrice, defaultFilterTab,
     fetchCanteens, refreshCanteensIfStale, search, fetchDetail, resetDishDetail, fetchReviews, clearReviews,
     fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes,

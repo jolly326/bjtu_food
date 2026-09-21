@@ -173,10 +173,10 @@ function onScroll(e: { detail?: { scrollTop?: number } }) {
   scrollTop.value = top > 0 ? top : 0
 }
 
-/* ===== 内容区回顶（筛选条件变更时，D6） =====
-   切换大类 / 食堂 / 价格（或清除筛选）后结果集整体替换，若沿用旧滚动偏移，用户看到的是「新列表的
-   中段」且头部仍处于折叠态 → 极易误判为「点了没反应」。故筛选变更一律回到初始态：内容回顶 + 折叠量归 0。
-   ⚠️ 同条件的分页加载（loadMore）与下拉刷新（refresher）**不**回顶，否则会打断连续浏览。
+/* ===== 下拉刷新回顶（change home-scroll-interaction；取代原 D6「筛选变更回顶」） =====
+   定稿交互（功能文档 §5 边界 4）：下拉刷新强制重置滚动位置到顶部，回到【初始态，Banner 完整展示】。
+   相应地，筛选变更（大类 / 食堂 / 价格）**不再回顶**——仅刷新列表，当前吸顶 / 初始态保持不变
+   （原「筛选变更一律回顶」约定随本 change 废止）。
 
    实现：scroll-view 没有对外 scrollTo 方法，只能用受控 `scroll-top` 属性驱动，且该属性「值不变即不滚动」，
    故回顶是一枚脉冲：0 → 1 →（下一帧）0。用常量 1 而非「当前滚动位置」是有意的——
@@ -188,6 +188,7 @@ function onScroll(e: { detail?: { scrollTop?: number } }) {
    代价仅是一帧内头部已展开而内容尚未到位（无缓动、无闪烁，人眼不可辨）。 */
 const scrollTopProp = ref(0)
 
+/** 下拉刷新回顶：滚动位置归零 + 折叠量立即归 0 → 回到初始态（仅下拉刷新一个消费方） */
 function resetScrollToTop() {
   scrollTop.value = 0
   scrollTopProp.value = 1
@@ -201,20 +202,18 @@ const filterOpen = ref(false)
 
 /**
  * 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约）。
- * D6：筛选条件变更 → 先回到初始态（内容回顶 + Banner 展开），再拉新结果集。
+ * home-scroll-interaction：筛选变更**不重置滚动位置**——保持当前吸顶 / 初始态，仅换结果集。
  */
 async function onPriceSelect(range: { min?: number; max?: number }) {
-  resetScrollToTop()
   await dishStore.setHomePrice(range)
 }
 
 /**
  * 切换菜品大类标签（任务 3.3）：store 内重置分页并刷新当前筛选流；
  * 食堂 / 价格两个维度原样保留（叠加生效，互不清除）。
- * D6：筛选条件变更 → 回顶（同条件分页加载不回顶）。
+ * home-scroll-interaction：点标签仅刷新列表，**不重置滚动位置**（吸顶态保持吸顶）。
  */
 async function onMealTypeSelect(key: string | null) {
-  resetScrollToTop()
   await dishStore.setHomeMealType(key)
 }
 
@@ -266,8 +265,7 @@ watch(
  */
 function onCanteenSelect(id: number | null) {
   const tab = id == null ? dishStore.defaultFilterTab() : canteenTab(id, canteenNameOf(id) || '食堂')
-  resetScrollToTop() // D6：换食堂 = 换结果集，回顶后再拉取
-  dishStore.fetchFilterDishes(tab, true)
+  dishStore.fetchFilterDishes(tab, true) // 筛选变更不回顶（home-scroll-interaction）
 }
 
 /** 展开 / 收起筛选面板；展开时若食堂字典尚未就绪则先补拉（spec：面板展开前补拉） */
@@ -302,8 +300,10 @@ function onScrollToLower() {
   dishStore.loadMoreFilterDishes()
 }
 
+/** 下拉刷新：刷新数据的同时强制回顶（home-scroll-interaction 边界 4）→ 回到初始态、Banner 完整展示 */
 async function onRefresh() {
   refresherTriggered.value = true
+  resetScrollToTop()
   await retryWaterfall()
   refresherTriggered.value = false
 }
