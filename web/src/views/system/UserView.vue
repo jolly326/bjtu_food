@@ -67,6 +67,18 @@ const verifiedOptions = [
   { label: '未认证', value: '0' },
 ]
 
+/**
+ * 游客短标识：由账号 `id` 现算「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
+ * 2026-09-21 spec §7.32：该值是 `id` 的纯派生，不再由接口出参，管理端与小程序端各自现算
+ * （规则同服务端建号默认昵称，三处口径一致）。
+ */
+function guestLabelOf(u: { id?: unknown }): string {
+  const id = u?.id
+  if (id === null || id === undefined || id === '') return ''
+  const s = String(id)
+  return `食客${s.length > 4 ? s.slice(-4) : s}`
+}
+
 const filteredStudents = computed(() => {
   let list = students.value
   if (statusFilter.value) list = list.filter(u => u.status === statusFilter.value)
@@ -76,7 +88,7 @@ const filteredStudents = computed(() => {
   return list.filter(u =>
     u.username.toLowerCase().includes(q) ||
     (u.nickname || '').toLowerCase().includes(q) ||
-    (u.guestShortId || '').toLowerCase().includes(q)
+    guestLabelOf(u).toLowerCase().includes(q)
   )
 })
 
@@ -180,7 +192,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         <span class="avatar-circle">{{ (row.nickname || row.username)[0] }}</span>
       </template>
       <template #cell-userInfo="{ row }">
-        <div class="user-name">{{ row.nickname || row.guestShortId || row.username }}</div>
+        <div class="user-name">{{ row.nickname || guestLabelOf(row) || row.username }}</div>
         <div class="user-meta">
           <span class="user-username">@{{ row.username }}</span>
         </div>

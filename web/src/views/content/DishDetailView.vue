@@ -25,6 +25,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useDishStore } from '@/stores/dishStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useUserStore } from '@/stores/userStore'
+import { useMealTypeStore } from '@/stores/mealTypeStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { dietTypeText, serveTempText, ingredientsText, flavorTagsText } from '@/constants'
@@ -44,6 +45,7 @@ const store = useAdminStore()
 const dishStore = useDishStore()
 const reviewStore = useReviewStore()
 const userStore = useUserStore()
+const mealTypeStore = useMealTypeStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -61,9 +63,10 @@ const dish = computed(() => store.dishes.find(d => Number(d.id) === dishId.value
 const loading = ref(true)
 const loadError = ref('')
 onMounted(async () => {
-  // 域间独立容错：菜品为主域，失败即页面级错误；评价 / 用户字典为附属域，失败只影响各自的降级显示
+  // 域间独立容错：菜品为主域，失败即页面级错误；评价 / 用户 / 大类字典为附属域，失败只影响各自的降级显示
   reviewStore.loadAll().catch(() => {})
   userStore.loadAll().catch(() => {})
+  mealTypeStore.ensureLoaded().catch(() => {})
   try {
     await dishStore.loadAll()
   } catch (e: any) {
@@ -198,6 +201,11 @@ async function handleDeleteReview(id: number) {
         <div class="info-item">
           <dt>状态</dt>
           <dd><StatusTag :type="dish.status === 'active' ? 'success' : 'gray'" :text="dish.status === 'active' ? '在售' : '已下架'" /></dd>
+        </div>
+        <!-- 菜品大类（§7.34）：单值分类维度，文案取自后端字典（端上零硬编码中文）；缺项显示「—」 -->
+        <div class="info-item">
+          <dt>大类</dt>
+          <dd :class="{ muted: !dish.mealType }">{{ mealTypeStore.labelOf(dish.mealType) }}</dd>
         </div>
         <!-- 描述四维（§7.28 描述维度替换，2026-09-20）：荤素 / 主料 / 口味 / 冷热；缺项显示「—」 -->
         <div class="info-item">

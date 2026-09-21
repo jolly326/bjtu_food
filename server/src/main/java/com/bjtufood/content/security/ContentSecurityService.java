@@ -19,7 +19,7 @@ public interface ContentSecurityService {
      * <p>
      * 内部完成 risky 统一拦截：判定为 risky 时抛
      * {@code BusinessException(400, "内容包含违规信息，请修改后重试")}。
-     * 返回值仅 PASS（放行）：机检 review（疑似）已归一为放行（2026-09-15 用户拍板取消人工复核），
+     * 返回值仅 PASS（放行）：内容安全检测 review（疑似）已归一为放行（2026-09-15 用户拍板取消人工复核），
      * 不再产生「待复核」语义与任何落库安全态。
      *
      * @param openid  当前用户的微信 openid（msgSecCheck v2 必填）；null 时跳过检测放行并返回 PASS
@@ -35,7 +35,7 @@ public interface ContentSecurityService {
      * 文本检测原语（不拦截，返回放行/拒绝）。
      * <p>
      * 供测试与特殊场景使用；常规 UGC 链路请用 {@link #checkText}（含统一拦截）。
-     * 机检 review（疑似）在此同样已归一为 PASS（放行），故实际返回 PASS / RISKY 二态。
+     * 内容安全检测 review（疑似）在此同样已归一为 PASS（放行），故实际返回 PASS / RISKY 二态。
      *
      * @param openid  微信 openid（null 时跳过检测返回 PASS）
      * @param content 待检测文本
@@ -79,7 +79,7 @@ public interface ContentSecurityService {
     /**
      * 微信凭据（appid/secret）是否已配置。
      * <p>
-     * 未配置（本地开发/测试环境）时调用方应跳过机审放行；生产云托管必须配置
+     * 未配置（本地开发/测试环境）时调用方应跳过内容安全检测放行；生产云托管必须配置
      * WECHAT_APPID / WECHAT_SECRET，否则内容安全检测整体失效（部署检查项，报告已备案）。
      */
     boolean isConfigured();

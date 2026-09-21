@@ -53,7 +53,7 @@ public class UploadServiceImpl implements UploadService {
      */
     private static final int MAX_IMAGE_DIMENSION = 4000;
 
-    /** 云存储配图下载超时（毫秒）：拉临时链接后从微信云存储 CDN 下载，较机检接口放宽 */
+    /** 云存储配图下载超时（毫秒）：拉临时链接后从微信云存储 CDN 下载，较内容安全检测接口放宽 */
     private static final int CLOUD_DOWNLOAD_TIMEOUT_MS = 10_000;
 
     private static final String BATCH_DOWNLOAD_URL = "https://api.weixin.qq.com/tcb/batchdownloadfile";

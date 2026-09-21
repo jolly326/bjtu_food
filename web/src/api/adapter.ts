@@ -1,10 +1,15 @@
 import type { Canteen, Dish, Review, Stall, User } from '@/types'
 import { API_BASE_URL } from './config'
 
-type PageLike<T> = T[] | { records?: T[]; list?: T[] }
+type PageLike<T> = T[] | { records?: T[] }
 
+/**
+ * 提取分页行数据。
+ * 2026-09-21 契约精简（§7.33）：服务端 `PageResult` 只输出 `records`，原 `list` 兼容字段已删除，
+ * 故此处不再保留 `data.list` 兜底分支。
+ */
 export function pageRecords<T>(data: PageLike<T>): T[] {
-  return Array.isArray(data) ? data : data.records || data.list || []
+  return Array.isArray(data) ? data : data.records || []
 }
 
 /* 注（2026-09-20 §7.29 / §7.28）：原 `dish.tags` 标签字段全链下线，原 parseTags / formatTags
@@ -145,6 +150,9 @@ export function dishToLegacy(raw: any): Dish {
     ingredients: raw.ingredients || '',
     flavorTags: raw.flavorTags || raw.flavor_tags || '',
     serveTemp: raw.serveTemp || raw.serve_temp || '',
+    // 菜品大类（2026-09-21 §7.34 / change home-ui-refresh）：DishAdminVO 出参透传枚举键。
+    // 中文标签的真源是后端字典 GET /dishes/meal-types（本层与视图层均不做 key→中文 映射）。
+    mealType: raw.mealType || raw.meal_type || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }
@@ -168,6 +176,9 @@ export function dishToApi(data: Partial<Dish>) {
     ingredients: data.ingredients,
     flavorTags: data.flavorTags,
     serveTemp: data.serveTemp,
+    // 菜品大类（§7.34）：枚举键原样提交（不在此做校验，后端白名单非法值即 400）；
+    // undefined（如行内上下架的部分更新）经 compactPayload 剔除 → 后端语义为「不修改」。
+    mealType: data.mealType,
     // null 显式携带 = 清空原价（WEB-102 折扣清空契约；0 分语义由 null 表达，禁止落 0）
     originalPrice: data.originalPrice === undefined
       ? undefined
@@ -178,7 +189,7 @@ export function dishToApi(data: Partial<Dish>) {
 }
 
 /**
- * 2026-09-15（取消人工复核）：原「安检状态归一化 / 筛选白名单」两个导出函数随内容机检策略调整退役
+ * 2026-09-15（取消人工复核）：原「安检状态归一化 / 筛选白名单」两个导出函数随内容安全检测策略调整退役
  * （pass/review 均放行、仅 risky 拒绝，后台不再读取该字段，后端字段同源移除）。
  */
 export function reviewToLegacy(raw: any): Review {
@@ -207,7 +218,6 @@ export function userToLegacy(raw: any): User {
     verified: raw.verified ?? 0,
     wechatBound: raw.wechatBound ?? (raw.openid ? true : false),
     bindEmail: (raw.bindEmail ?? raw.bind_email) || '',
-    guestShortId: (raw.guestShortId ?? raw.guest_short_id) || '',
     created_at: toDate(raw.createdAt || raw.created_at),
     updated_at: toDate(raw.updatedAt || raw.updated_at),
   }

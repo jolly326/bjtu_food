@@ -68,7 +68,7 @@
       </view>
 
       <view class="bottom-note">
-        <IconSvg name="lock" :size="24" color="var(--text-tertiary)" />
+        <IconSvg name="lock" :size="24" :color="COLOR_MAP['text-tertiary']" />
         <text class="note-text">{{ NOTE_PRIVACY }}</text>
       </view>
     </view>
@@ -83,6 +83,7 @@ import IconSvg from './IconSvg.vue'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const authSheetStore = useAuthSheetStore()
 const userStore = useUserStore()
@@ -207,7 +208,7 @@ watch(
 .group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-control { flex: 1; height: 90rpx; font-size: var(--font-small); color: var(--text-primary); min-width: 0; }
-.code-action { flex-shrink: 0; min-width: 154rpx; height: 90rpx; padding: 0 0 0 var(--spacing-sm); display: flex; align-items: center; justify-content: flex-end; color: var(--color-primary); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
+.code-action { flex-shrink: 0; min-width: 154rpx; height: 90rpx; padding: 0 0 0 var(--spacing-sm); display: flex; align-items: center; justify-content: flex-end; color: var(--color-primary-text); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
 .code-action.disabled { color: var(--text-tertiary); }
 .email-hint { padding: 0 var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 

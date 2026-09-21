@@ -33,7 +33,7 @@
 | A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 |
 | A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 自动（接口需登录） |
 | A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 |
-| A-07 | 评价「有用」 | [client-评价有用.md](./client-评价有用.md) | 🔐 |
+| ~~A-07~~ | ~~评价「有用」~~ **⛔ 已于 2026-09-20 全链下线**（spec §7.30 清单 #1） | [client-评价有用.md](./client-评价有用.md)（历史留痕） | — |
 | A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 |
 | A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 |
 | A-10 | 我的评价 | [client-我的评价.md](./client-我的评价.md) | 🔐 |
@@ -97,7 +97,7 @@
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginResp` | 登录 / 认证响应（`token` + `userInfo`） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `CanteenInfoVO` | `GET /canteens` | [client-首页菜品浏览](./client-首页菜品浏览.md) |
-| `CanteenWithStallsVO` / `StallDetailVO` | `GET /canteens/all` | [client-意见反馈](./client-意见反馈.md) |
+| `CanteenWithStallsVO` / `StallDetailVO` | `GET /canteens?include=stalls`（原 `GET /canteens/all` 已删除） | [client-意见反馈](./client-意见反馈.md) |
 | `FeedbackReq` | `POST /feedback` | [client-意见反馈](./client-意见反馈.md) |
 | `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
 | `ReviewAdminVO` | `GET /admin/reviews` | [web-评价管理](./web-评价管理.md) |
@@ -122,13 +122,13 @@
 
 | # | 事项 | 建议 | 影响面 | 详见 |
 |---|---|---|---|---|
-| 1 | 删除评价「有用」 | **已拍板：删除**（2026-09-17）；**先由技术负责人改 spec §7.14/§7.18 与 api-design §2.3 的默认排序口径，再动代码** | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | [client-评价有用](./client-评价有用.md#答疑) |
-| 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md#答疑) |
-| 3 | 浏览计数去掉当日去重 | **建议不改**（改前须定：含游客？风控？`view_log` 存废？） | 后端 + `view_log` + 热度排序口径（须先改 spec） | [client-浏览计数](./client-浏览计数.md#答疑) |
-| 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md#答疑) |
-| 5 | 注销入口 UI 重设计 | **同意重设计**，转 UI/UX 设计师出稿（不动接口） | 小程序页面内布局 / 交互 | [client-注销账号](./client-注销账号.md#答疑) |
-| 6 | 隐私政策是否保留 | **建议保留**（改善呈现 + 文案与数据面对齐） | 无（静态文案） | [client-隐私政策与用户协议](./client-隐私政策与用户协议.md#答疑) |
-| 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword 含 alias + 服务端分页），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md#答疑) |
+| 1 | 删除评价「有用」 | **已拍板：删除**（2026-09-17）；**先由技术负责人改 spec §7.14/§7.18 与 api-design §2.3 的默认排序口径，再动代码** | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | [client-评价有用](./client-评价有用.md) |
+| 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md) |
+| 3 | 浏览计数去掉当日去重 | **建议不改**（改前须定：含游客？风控？`view_log` 存废？） | 后端 + `view_log` + 热度排序口径（须先改 spec） | [client-浏览计数](./client-浏览计数.md) |
+| 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md) |
+| 5 | 注销入口 UI 重设计 | **同意重设计**，转 UI/UX 设计师出稿（不动接口） | 小程序页面内布局 / 交互 | [client-注销账号](./client-注销账号.md) |
+| 6 | 隐私政策是否保留 | **建议保留**（改善呈现 + 文案与数据面对齐） | 无（静态文案） | [client-隐私政策与用户协议](./client-隐私政策与用户协议.md) |
+| 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword 含 alias + 服务端分页），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md) |
 | 8 | 学生行为弹窗是否展示浏览记录 | 需先新增管理端端点（当前 `view_log` 无查询接口），否则只展示评价 / 反馈 | 后端新增端点（须技术负责人登记） | [web-学生账号管理](./web-学生账号管理.md) |
 | 9 | 评价「只看有图」筛选（`GET /reviews?hasImage=1`） | **已拍板：做**（2026-09-17）；曾登记「`isWithImage` 不恢复」，属推翻既有口径，**须技术负责人登记后再开发** | 后端 mapper 一条筛选条件 + 端上一个开关（切换须重置分页） | [client-菜品详情](./client-菜品详情.md#已拍板待实现清单) |
 | 10 | 评价更新机制（重新评价） | **已拍板（最终口径）**：不做追评；评论区按**时间倒序**（`created_at DESC`，新评价在前）；重新评价 = `PUT /reviews/{id}` 覆盖 `rating/content/images` 并**刷新 `created_at`**（重评即新发布）、`is_hidden` 重置 0；一人一菜一评不变；不限次数 | 仅 1 个端点 + 端上「修改评价」入口（`ReviewComposer` 预填）；评分聚合重算一次；**聚合口径不改** | [client-菜品详情](./client-菜品详情.md#已拍板待实现清单) |

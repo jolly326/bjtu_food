@@ -173,6 +173,21 @@ UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
 UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
 UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
 
+-- -------------------- 菜品大类回填（新列 meal_type，2026-09-21 §7.34 / change home-ui-refresh） --------------------
+-- 口径：**一个菜品只属一个大类**（单值枚举）；判定按「菜名与做法形态」，不看主料与口味
+--       （形态映射与逐菜归属见 `docs/feature/client-首页菜品浏览.md` H3 / H4）。
+-- 本列为后续新增列，按本文件「新增列后回填」惯例以幂等 UPDATE 赋值（可重复执行，不引入第二处来源）。
+UPDATE dish SET meal_type = 'set_meal'   WHERE id IN (8, 10, 11);                        -- 套餐盖饭
+UPDATE dish SET meal_type = 'stir_fry'   WHERE id IN (1, 2, 3, 4, 5, 9, 17, 28, 29);     -- 家常小炒
+UPDATE dish SET meal_type = 'noodle'     WHERE id IN (6, 20, 24, 25);                    -- 面食粉类
+UPDATE dish SET meal_type = 'dry_pot'    WHERE id IN (12, 13, 16);                       -- 香锅干锅
+UPDATE dish SET meal_type = 'snack'      WHERE id IN (7, 15, 18, 19, 21, 26, 27, 30, 31);-- 风味小吃
+UPDATE dish SET meal_type = 'soup_drink' WHERE id IN (14, 22, 23);                       -- 汤饮甜品
+
+-- 数据修正（2026-09-21 §7.34）：珍珠奶茶 / 杨枝甘露 的 ingredients 原误标为 'rice'（米），与「饮品」语义不符
+--      → 清空该维（四维逐维渲染，空值不渲染该列），不新增 ingredients 枚举值（避免扩维度）。
+UPDATE dish SET ingredients = '' WHERE id IN (22, 23);
+
 -- 菜品：描述四维（diet_type / ingredients / flavor_tags / serve_temp）示例值已在上方 `INSERT INTO dish` 内
 -- 直接写入（英文机器值，§7.28），此处不再以 UPDATE 二次赋值，避免双处维护漂移。
 -- 注（2026-09-20 拍板）：原 spice_level（辣度）与 region（风味/菜系）两列已整链下线，本脚本不再引用

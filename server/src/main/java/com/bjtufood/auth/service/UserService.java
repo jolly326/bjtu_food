@@ -41,6 +41,19 @@ public interface UserService {
     User getByOpenid(String openid);
 
     /**
+     * 新建微信游客账号（verified=0）。
+     * <p>
+     * <b>语义</b>：建号是「INSERT 占位昵称 + 按自增 id 回填最终昵称」两步写库，必须原子完成——
+     * 任一步失败都不得留下昵称为占位值的账号。因此本方法声明为**独立 Bean 上的事务方法**
+     * （而非在调用方 {@code AuthServiceImpl} 内的同类私有方法上标注：自调用绕过代理，事务不生效），
+     * 同时使远程 {@code code2Session} 调用留在事务之外。
+     *
+     * @param openid 微信 openid（已由 {@code code2Session} 换取）
+     * @return 新建的游客账号；若并发下已被同 openid 抢先建号则返回既有账号
+     */
+    User createWechatGuest(String openid);
+
+    /**
      * 根据已认证绑定邮箱查询用户（bind_email 唯一认证绑定）。
      *
      * @param bindEmail 认证绑定邮箱

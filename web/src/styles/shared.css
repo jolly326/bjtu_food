@@ -240,7 +240,9 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .btn-warn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-sm { padding: var(--space-1) var(--space-4); font-size: var(--font-sm); }
 
-.link { background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: var(--font-sm); padding: var(--space-1) 0; }
+/* 行内文字链接（改名 / 重试 / 跳转）：文字角色 → 走「文字档」（C1）。
+   填充档作文字时对深色卡片仅 3.18:1、对表格行 hover #2A2A2A 仅 2.77:1（不达 4.5:1）。 */
+.link { background: none; border: none; color: var(--color-primary-text); cursor: pointer; font-size: var(--font-sm); padding: var(--space-1) 0; }
 .link:hover { opacity: .8; }
 .link.danger, .danger { color: var(--color-error) !important; }
 .link.primary-text, .primary-text { color: var(--color-success) !important; }
@@ -328,7 +330,10 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
  * ============================================================ */
 :root {
   --el-color-primary: var(--color-primary);
-  --el-color-primary-light-3: var(--color-primary-light);
+  /* EP 的 light-3 在本项目只被当**文字色**消费（`el-button--text:hover` / `el-link--primary:hover`
+     的文本色；无 el-button/el-link 使用，填充侧无实际消费者，见 node_modules/element-plus/dist/index.css），
+     故与「主色文字」同口径指向文字档（填充底仍是 --el-color-primary，不改）。 */
+  --el-color-primary-light-3: var(--color-primary-text);
   --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, #fff);
   --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, #fff);
   --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, #fff);
@@ -361,7 +366,9 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 @media (prefers-color-scheme: light) {
   :root {
     --el-color-primary: var(--color-primary);
-    --el-color-primary-light-3: color-mix(in srgb, var(--color-primary) 70%, #fff);
+    /* 原 color-mix(70% 主色, #fff) 作文字仅 3.13:1（且作填充底白字同样 3.13:1）→ 指向文字档：
+       作文字 = #B93A0A 对白卡 5.72:1；作填充底 = 其上白字 5.72:1，两种角色均 ≥4.5:1 */
+    --el-color-primary-light-3: var(--color-primary-text);
     --el-color-primary-light-5: color-mix(in srgb, var(--color-primary) 50%, #fff);
     --el-color-primary-light-7: color-mix(in srgb, var(--color-primary) 30%, #fff);
     --el-color-primary-light-8: color-mix(in srgb, var(--color-primary) 20%, #fff);

@@ -3,16 +3,19 @@ package com.bjtufood.canteen.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 /**
- * 档口详情视图对象（VO）
+ * 档口节点视图对象（VO）
  * <p>
- * 前端档口详情页展示信息
+ * 仅用于 {@code GET /canteens?include=stalls} 的档口树节点。端上（反馈页位置两级联动）
+ * **只读 id / name**，故出参收敛为 {id, name} 最小集（2026-09-21，见 docs/project_spec.md §7.33）。
+ * <p>
+ * 已下线字段：{@code dishCount} / {@code topDishes} / {@code perCapita}（2026-09-15 三端零消费）、
+ * {@code images} / {@code location} / {@code floor} / {@code windowNo} / {@code description} /
+ * {@code avgRating}（2026-09-21 零消费收敛——其中 avgRating 连带删除 CanteenServiceImpl 的
+ * batchAvgRating 批查，属出参收敛后的白算）。
  */
 @Data
-@Schema(description = "档口详情展示信息")
+@Schema(description = "档口节点展示信息")
 public class StallDetailVO {
 
     @Schema(description = "档口ID")
@@ -20,26 +23,4 @@ public class StallDetailVO {
 
     @Schema(description = "档口名称", example = "面面俱到")
     private String name;
-
-    @Schema(description = "档口展示图片列表")
-    private List<String> images;
-
-    @Schema(description = "档口位置", example = "第一食堂")
-    private String location;
-
-    @Schema(description = "楼层（如 1F/2F）", example = "1F")
-    private String floor;
-
-    @Schema(description = "窗口号", example = "3号窗口")
-    private String windowNo;
-
-    @Schema(description = "档口描述", example = "第一食堂·面面俱到，为您提供美味的校园餐饮体验。")
-    private String description;
-
-    @Schema(description = "档口平均评分（取该档口下所有菜品评价的平均值，1-5星，无评价为 0.00）", example = "4.50")
-    private BigDecimal avgRating;
-
-    // 2026-09-15 字段下线：dishCount / topDishes / perCapita 三端零消费
-    //（client 侧档口节点仅消费 name；端上档口卡不展示菜品数/招牌菜/人均），
-    // 连带删除 CanteenServiceImpl 的白算逻辑（含每次 /canteens/all 的「在售菜品批量 IN 查询」）。
 }

@@ -14,7 +14,7 @@
       <IconSvg
         :name="item.key === activeTab ? `${item.icon}-filled` : item.icon"
         :size="48"
-        :color="item.key === activeTab ? 'var(--color-primary)' : 'var(--text-tertiary)'"
+        :color="item.key === activeTab ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']"
       />
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -25,6 +25,7 @@
 import IconSvg from './IconSvg.vue'
 import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
 import { TAB_URL_BY_KEY } from '@/utils/routes'
+import { COLOR_MAP } from '@/theme/tokens'
 
 
 const tabs = [
@@ -93,7 +94,7 @@ syncRoute()
   color: var(--text-tertiary);
 }
 .tab-item.active .tab-label {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-weight: var(--weight-semibold);
 }
 </style>

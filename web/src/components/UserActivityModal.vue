@@ -161,7 +161,8 @@ function countOf(key: string): number {
 .ua-tabs { display: inline-flex; gap: 2px; padding: 3px; background: var(--agg-tabs-bg); border-radius: var(--radius-pill); margin: var(--space-4) 0; }
 .ua-tab { padding: var(--space-2) var(--space-4); border: none; background: transparent; border-radius: var(--radius-pill); font-size: var(--font-base); color: var(--text-secondary); cursor: pointer; transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out); }
 .ua-tab:hover { color: var(--text-primary); }
-.ua-tab.on { background: var(--agg-tab-active-bg); color: var(--color-primary); font-weight: var(--weight-semibold); box-shadow: var(--agg-tab-active-shadow); }
+/* 主色作文字：一律用文字档（填充档在 agg-tab-active-bg #2E2E2E 上仅 2.62:1） */
+.ua-tab.on { background: var(--agg-tab-active-bg); color: var(--color-primary-text); font-weight: var(--weight-semibold); box-shadow: var(--agg-tab-active-shadow); }
 .ua-tab:active { transform: scale(var(--press-scale)); }
 
 .ua-list { display: flex; flex-direction: column; }

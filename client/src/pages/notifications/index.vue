@@ -12,7 +12,7 @@
           hover-class="pressed"
           @tap="onReadAll"
         >
-          <IconSvg name="check" :size="26" :color="hasUnread ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+          <IconSvg name="check" :size="26" :color="hasUnread ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
           <text class="read-all-text">全部已读</text>
         </view>
       </template>
@@ -65,6 +65,7 @@ import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
@@ -233,7 +234,7 @@ onShow(() => {
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 .msg-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
 .msg-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-.msg-item.unread .msg-title { color: var(--color-primary); }
+.msg-item.unread .msg-title { color: var(--color-primary-text); }
 /* 时间收进标题行右侧（次级灰小字），通知只剩「标题 + 内容 + 时间」三要素 */
 .msg-time { flex-shrink: 0; font-size: var(--font-tiny); color: var(--text-tertiary); }
 .msg-content {

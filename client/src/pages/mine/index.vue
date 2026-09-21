@@ -18,17 +18,17 @@
           <view class="avatar-wrap">
             <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
             <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="60" color="var(--text-tertiary)" />
+              <IconSvg name="user" :size="60" :color="COLOR_MAP['text-tertiary']" />
             </view>
           </view>
           <view class="user-meta">
             <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
               {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
             </text>
-            <text v-if="isVerified && (bindEmail || userInfo?.email)" class="user-id">
-              {{ bindEmail || userInfo?.email }}
+            <text v-if="isVerified && bindEmail" class="user-id">
+              {{ bindEmail }}
             </text>
-            <text v-else-if="!isVerified" class="user-id">游客 {{ guestShortId }}</text>
+            <text v-else-if="!isVerified" class="user-id">游客 {{ guestLabel }}</text>
           </view>
           <!-- 未认证：主色文字按钮「去认证」——把状态提示转为行动引导（点击弹认证） -->
           <view
@@ -40,7 +40,7 @@
           >
             <text class="verify-action-text">去认证</text>
           </view>
-          <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="card-arrow" />
+          <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
         </view>
       </view>
 
@@ -56,7 +56,7 @@
           @tap="cell.action"
         >
           <view class="grid-cell-icon">
-            <IconSvg :name="cell.icon" :size="44" color="var(--color-primary)" />
+            <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
             <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
             <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
           </view>
@@ -110,9 +110,9 @@ import { useUserStore } from '@/stores/user'
 import { useAuthSheetStore } from '@/stores/auth-sheet'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
-import { getGuestShortId as getLocalGuestShortId } from '@/utils/guest'
+import { getLocalGuestLabel } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
-import { MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
+import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
 const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
@@ -121,8 +121,17 @@ const userInfo = computed(() => userStore.userInfo)
 /** 已认证（verified=true）——微信静默登录后恒有登录态，游客/认证用 verified 区分（§5.y） */
 const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
-/** 游客展示短 ID：优先后端 guestShortId（食客+ID 尾 4 位），未提供回退本地游客 ID */
-const guestShortId = computed(() => userInfo.value?.guestShortId || getLocalGuestShortId())
+/**
+ * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
+ * 2026-09-21 spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
+ * `id` 不可得（静默登录未完成 / 失败）时回退本地游客 ID 兜底，保证不空白。
+ */
+const guestLabel = computed(() => {
+  const id = userInfo.value?.id
+  if (!id) return getLocalGuestLabel()
+  const s = String(id)
+  return `食客${s.length > 4 ? s.slice(-4) : s}`
+})
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
@@ -250,7 +259,7 @@ const gridCells: GridCell[] = [
   -webkit-tap-highlight-color: transparent;
 }
 .verify-action:active { opacity: 0.7; }
-.verify-action-text { font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); }
+.verify-action-text { font-size: var(--font-aux); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
 /* 功能宫格：一行三列等宽等高圆角白卡，格间间距均匀，每格整格热区 */
@@ -302,7 +311,7 @@ const gridCells: GridCell[] = [
 .app-footer-link {
   padding: var(--spacing-2xs) var(--spacing-sm);
   font-size: var(--font-tiny);
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   border: 1rpx solid var(--color-primary);
   border-radius: var(--radius-pill);
   -webkit-tap-highlight-color: transparent;

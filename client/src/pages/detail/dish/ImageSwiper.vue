@@ -15,7 +15,7 @@
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
       <view v-else class="image-swiper-placeholder" :style="{ background: placeholderBackground }">
-        <IconSvg name="empty" :size="placeholderSize" color="var(--text-tertiary)" class="placeholder-icon" />
+        <IconSvg name="empty" :size="placeholderSize" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
       </view>
     </swiper-item>
   </swiper>
@@ -26,7 +26,7 @@ import { ref, computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 theme/tokens.ts 注释），必须用真实色值
-import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
+import { COLOR_MAP, SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   images: string[]

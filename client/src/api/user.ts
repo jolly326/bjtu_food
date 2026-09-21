@@ -2,29 +2,20 @@ import type { UserInfo } from '@/types/user'
 import { get, post, put, del } from './http'
 import type { RawRow } from './shared'
 
-/** 判断学号是否为纯数字（校园身份学号），仅此才用 {学号}@bjtu.edu.cn 推导校园邮箱 */
-function isStudentNumber(s: string): boolean {
-  return /^\d+$/.test(s.trim())
-}
-
 function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
-  // 后端 LoginResp 透传 userId/username/nickname/avatar/verified/bindEmail/guestShortId（见 auth/dto/LoginResp；
-  // role 字段已随 user.role 列退役移除，2026-09-15）
-  const username = String(user.username || resp?.username || '')
-  // 微信登录体系：游客态 username 为 'wx_'+openid 尾 16 位，非学号 → 不推导校园邮箱（email 留空）
-  const email = user.email || resp?.email || (isStudentNumber(username) ? deriveCampusEmail(username) : '')
+  // 后端四条账号信息链路透传 id/username/nickname/avatar/verified/bindEmail（恰 6 字段，2026-09-21 spec §7.32；
+  // role 字段已随 user.role 列退役移除，2026-09-15）。
+  // 已删字段端上不再读取：email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、guestShortId（端上按 id 现算）。
   return {
     // 后端恒返回 userId；0 仅作防御性兜底（不伪造有效用户 ID）
     id: Number(user.id ?? resp?.userId ?? fallbackId),
-    username,
-    email,
+    username: String(user.username || resp?.username || ''),
     nickname: user.nickname || resp?.nickname || '食客',
     avatar: user.avatar || resp?.avatar || '',
-    // 微信登录体系（§5.y）：verified / bindEmail / guestShortId 由后端 wechat-login / verify-email 返回
+    // 微信登录体系（§5.y）：verified / bindEmail 由后端 wechat-login / verify-email / profile 返回
     verified: !!(user.verified ?? resp?.verified),
     bindEmail: user.bindEmail || resp?.bindEmail || user.bind_email || undefined,
-    guestShortId: user.guestShortId || resp?.guestShortId || undefined,
   }
 }
 
@@ -61,7 +52,7 @@ export async function verifyEmail(code: string): Promise<AuthResult> {
   }
 }
 
-/** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 verified/bindEmail/guestShortId） */
+/** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 verified/bindEmail） */
 export async function getProfile(): Promise<UserInfo> {
   const resp = await get<RawRow>('/auth/profile')
   return toUserInfo(resp)

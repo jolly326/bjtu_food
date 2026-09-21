@@ -6,11 +6,22 @@
    * 状态色（成功/警告/错误）与星级金为功能语义色，深色下提亮保对比。
    * ============================================================ */
 
-  /* ===== 主色系 — 品牌朱砂红（与小程序端对齐，UX-003） ===== */
-  --color-primary: #A13F35;              /* 深色主题主色（与小程序端 tokens.ts primary 同色相加深，白字对比 6.4:1） */
-  --color-primary-light: #B5483C;        /* hover 提亮（同色相 +6% 亮度） */
-  --color-primary-dark: #82332B;         /* active 加深 */
-  --color-primary-bg: rgba(161, 63, 53, 0.12);
+  /* ===== 主色系 — 品牌橙（与小程序端同色系，UX-003；2026-09-21 §7.34 定稿） =====
+     端上取「白字承载档」#C2410C（其上白字对比 4.81:1 ≥4.5；同时 ≥3:1 可作图形色）；
+     hover 提亮用小程序图形档 #EA580C，active 加深用 #9A3412。 */
+  --color-primary: #C2410C;
+  --color-primary-light: #EA580C;        /* hover 提亮（图形档橙） */
+  --color-primary-dark: #9A3412;         /* active 加深 */
+  --color-primary-bg: rgba(194, 65, 12, 0.12);
+  /* ===== 主色「文字档」（浅底 / 深底上的主色文字；与小程序端同名 token）=====
+     分工口径（与端上一致）：**填充底（承载白字）用 --color-primary**；
+     **浅底 / 深底上的主色文字一律用 --color-primary-text**（禁止再用填充档当文字色）。
+     Web 默认主题为深色：主色 #C2410C 作文压在 --color-primary-bg 上仅 **2.90:1**，
+     故本档须**提亮**（深底上更亮才够对比；实测若沿用端上浅色档 #B93A0A 反而降至 2.63:1）。
+     取值 #F97316 实测：对 --bg-card #1F1F1F **5.88:1**、对 --color-primary-bg（叠于 card）**5.36:1**、
+     对 primary-bg 叠最亮底（--bg-soft #2B2B2B）**4.63:1** —— 各底均 ≥4.5:1。
+     命名与 --color-primary-light / -dark 同风格。 */
+  --color-primary-text: #F97316;
   --color-on-primary: #FFFFFF;           /* 主色上的文字（白字，保证深朱砂红底对比） */
   --color-star: #FBBF24;                 /* 星级（语义色） */
 
@@ -157,10 +168,13 @@
  * ============================================================ */
 @media (prefers-color-scheme: light) {
   :root {
-    --color-primary: #C45549;            /* 浅色主题主色（spec §4.2 / tokens.ts primary 权威值） */
-    --color-primary-light: #B0463A;      /* hover 加深（同色相 -6% 亮度） */
-    --color-primary-dark: #A13F35;       /* active 加深 */
-    --color-primary-bg: rgba(196, 85, 73, 0.10);
+    --color-primary: #C2410C;            /* 浅色主题主色（2026-09-21 §7.34 定稿：白字承载档） */
+    --color-primary-light: #EA580C;      /* hover 提亮（图形档橙） */
+    --color-primary-dark: #9A3412;       /* active 加深 */
+    --color-primary-bg: rgba(194, 65, 12, 0.10);
+    /* 文字档（浅色主题，与小程序端同值）：对白卡 #FFFFFF 5.72:1 /
+       对 --color-primary-bg（叠于白卡）4.95:1 / 对页底 #F5F5F5 5.24:1，均 ≥4.5:1 */
+    --color-primary-text: #B93A0A;
     --color-on-primary: #FFFFFF;
 
     --text-primary: #1F1F1F;

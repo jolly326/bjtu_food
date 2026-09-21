@@ -100,6 +100,7 @@
         d.ingredients,
         d.flavor_tags,
         d.serve_temp,
+        d.meal_type,
         s.name AS stall_name,
         c.name AS canteen_name
     </sql>
@@ -123,45 +124,23 @@
         <if test="req.canteenId != null">
             AND c.id = #{req.canteenId}
         </if>
-        <if test="req.stallId != null">
-            AND s.id = #{req.stallId}
-        </if>
         <if test="req.minPrice != null">
             AND d.price &gt;= #{req.minPrice}
         </if>
         <if test="req.maxPrice != null">
             AND d.price &lt;= #{req.maxPrice}
         </if>
-        <choose>
-            <when test="req.sortBy == 'heat'">
-                ORDER BY <include refid="heatScoreExpr"/> DESC
-            </when>
-            <when test="req.sortBy == 'rating'">
-                ORDER BY d.avg_rating
-                <choose>
-                    <when test="req.sortOrder == 'asc'">ASC</when>
-                    <otherwise>DESC</otherwise>
-                </choose>
-            </when>
-            <when test="req.sortBy == 'price'">
-                ORDER BY d.price
-                <choose>
-                    <when test="req.sortOrder == 'desc'">DESC</when>
-                    <otherwise>ASC</otherwise>
-                </choose>
-            </when>
-            <!-- collects（收藏）排序已随收藏模块移除（BCNF 清理：favorite_count 删除），改用 rating_count 作为热度次级键 -->
-            <when test="req.sortBy == 'created_at'">
-                ORDER BY d.created_at
-                <choose>
-                    <when test="req.sortOrder == 'asc'">ASC</when>
-                    <otherwise>DESC</otherwise>
-                </choose>
-            </when>
-            <otherwise>
-                ORDER BY d.rating_count DESC, d.avg_rating DESC
-            </otherwise>
-        </choose>
+        <!-- 菜品大类筛选（2026-09-21 §7.34）：单值等值匹配；白名单校验在 Service 层，非法值 400 不静默降级 -->
+        <if test="req.mealType != null and req.mealType != ''">
+            AND d.meal_type = #{req.mealType}
+        </if>
+        <!--
+            排序口径唯一（2026-09-21 契约精简，见 docs/project_spec.md §7.33）：
+            原 sortBy / sortOrder 的 <choose> 分支已删除（前者零消费、后者对 heat 分支无效），
+            查询恒按热度表达式倒序——消除「首页默认流传 heat、筛选 / 搜索流不传参数而落到
+            rating_count DESC」的口径分裂（合 §7.17 第 2 条「热度优先、不设排序入口」）。
+        -->
+        ORDER BY <include refid="heatScoreExpr"/> DESC
     </select>
 
     <!-- 菜品详情 -->
@@ -186,6 +165,7 @@
         <result property="ingredients" column="ingredients"/>
         <result property="flavorTags" column="flavor_tags"/>
         <result property="serveTemp" column="serve_temp"/>
+        <result property="mealType" column="meal_type"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称）。
@@ -201,7 +181,7 @@
     <!--
         评分分布。
         计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入——
-        sec_state 已随「取消人工复核」全链退役（机检 pass/review 一律放行、risky 直接拒绝不入库），
+        sec_state 已随「取消人工复核」全链退役（内容安全检测 pass/review 一律放行、risky 直接拒绝不入库），
         故不再存在安全态过滤条件（与 recalcRatingBySubquery 同口径）。
     -->
     <select id="selectRatingDistribution" resultType="com.bjtufood.dish.dto.RatingDistributionVO">
@@ -249,5 +229,18 @@
                                 AND r.is_hidden = 0)
         WHERE d.id = #{dishId}
     </update>
+
+    <!--
+        在售菜品覆盖的大类枚举键（去重）——GET /dishes/meal-types 的字典数据源（2026-09-21 §7.34）。
+        只回答「哪些类目下当前有在售菜品」：空类自动隐藏、有菜自动出现；
+        标签文案与顺序由 MealTypeConst 提供（单一真源），端上零硬编码。
+    -->
+    <select id="selectInStockMealTypes" resultType="java.lang.String">
+        SELECT DISTINCT d.meal_type
+        FROM dish d
+        WHERE d.status = 'on'
+          AND d.meal_type IS NOT NULL
+          AND d.meal_type &lt;&gt; ''
+    </select>
 
 </mapper>

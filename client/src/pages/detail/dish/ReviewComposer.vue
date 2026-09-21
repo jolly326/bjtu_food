@@ -29,10 +29,12 @@
             :aria-checked="rating === i ? 'true' : 'false'"
             @tap="rating = i"
           >
+            <!-- 取色走 COLOR_MAP 真源实色（D1）：IconSvg 的 SVG data-uri 解析不了 var()，
+                 传 var() 会一律渲染成近黑的兜底色 -->
             <IconSvg
               :name="i <= rating ? 'star-filled' : 'star'"
               :size="56"
-              :color="i <= rating ? 'var(--color-primary)' : 'var(--border-bold)'"
+              :color="i <= rating ? COLOR_MAP.star : COLOR_MAP['border-bold']"
             />
           </view>
         </view>
@@ -79,6 +81,7 @@ import { ref, computed, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 import { createReview, updateReview } from '@/api/review'
 // 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
 import type { ReviewSubmittedPayload } from '@/types/review'

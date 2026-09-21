@@ -76,6 +76,17 @@ public class DishServiceImpl implements DishService {
         if (req == null) {
             req = new DishQueryReq();
         }
+        // 菜品大类筛选（2026-09-21 §7.34）：白名单校验，非法值 400（PR-06：绝不静默降级为「不筛选」）
+        if (req.getMealType() != null) {
+            String mealType = req.getMealType().trim();
+            if (mealType.isEmpty()) {
+                req.setMealType(null);
+            } else if (!com.bjtufood.dish.constant.MealTypeConst.isValid(mealType)) {
+                throw new BusinessException(400, "菜品大类不合法：" + mealType);
+            } else {
+                req.setMealType(mealType);
+            }
+        }
         // 统一走 PageUtil.normalize（null 先兜底为 0 交由工具类归一化），与其他分页入口保持一致
         int[] norm = PageUtil.normalize(
                 req.getPage() == null ? 0 : req.getPage(),
@@ -110,6 +121,22 @@ public class DishServiceImpl implements DishService {
     @Cacheable(cacheNames = CacheConfig.CACHE_DISH_HOT_SEARCH, key = "'all'")
     public List<HotSearchVO> hotSearch() {
         return dishMapper.selectHotSearch();
+    }
+
+    /**
+     * 菜品大类字典（{@code GET /dishes/meal-types}，2026-09-21 §7.34）。
+     * <p>
+     * 数据源 = 「在售菜品覆盖的大类键」（{@code selectInStockMealTypes}）× 常量表
+     * {@code MealTypeConst}（标签文案 + 顺序的唯一真源）；二者交集即下发项——
+     * 空类自动隐藏、有菜自动出现。不加缓存：标签集合需随上下架即时反映（查询为一条 DISTINCT，成本极低）。
+     */
+    @Override
+    public List<com.bjtufood.dish.dto.MealTypeVO> listMealTypes() {
+        Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
+        return com.bjtufood.dish.constant.MealTypeConst.ALL.stream()
+                .filter(t -> inStock.contains(t.key()))
+                .map(t -> new com.bjtufood.dish.dto.MealTypeVO(t.key(), t.label(), t.order()))
+                .toList();
     }
 
     /**
@@ -263,7 +290,7 @@ public class DishServiceImpl implements DishService {
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
         // 计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
-        // 机检 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
+        // 内容安全检测 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
         // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
     }
@@ -394,6 +421,19 @@ public class DishServiceImpl implements DishService {
 
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
+
+        // 菜品大类（2026-09-21 §7.34）：后台下拉录入，白名单校验（非法值 400，PR-06）。
+        // null / 空串 = 不修改（对齐本方法「null=不修改」的部分更新语义；updateById 的 NOT_NULL 策略会跳过 null）。
+        if (req.getMealType() != null) {
+            String mealType = req.getMealType().trim();
+            if (mealType.isEmpty()) {
+                dish.setMealType(null);
+            } else if (!com.bjtufood.dish.constant.MealTypeConst.isValid(mealType)) {
+                throw new BusinessException(400, "菜品大类不合法：" + mealType);
+            } else {
+                dish.setMealType(mealType);
+            }
+        }
 
         // 描述四维（§7.28 定型）：荤素 / 主料 / 口味 / 冷热（原辣度 spice_level、风味 region 已下线）
         dish.setDietType(req.getDietType());

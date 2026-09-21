@@ -10,9 +10,9 @@
           <view class="avatar-wrap">
             <image v-if="avatar" :src="getImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
             <view v-else class="avatar avatar-empty" :class="{ uploading: avatarUploading }">
-              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
+              <IconSvg name="user" :size="52" :color="COLOR_MAP['text-tertiary']" />
             </view>
-            <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="row-arrow" />
+            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="row-arrow" />
           </view>
         </view>
 
@@ -28,10 +28,10 @@
           <text class="info-value">{{ userInfo?.username || '--' }}</text>
         </view>
 
-        <!-- 校园邮箱（只读） -->
+        <!-- 校园邮箱（只读）：唯一来源 bindEmail（2026-09-21 spec §7.32，原 email 双源兜底已删除） -->
         <view class="info-row">
           <text class="info-label">校园邮箱</text>
-          <text class="info-value info-value-email">{{ userInfo?.email || '--' }}</text>
+          <text class="info-value info-value-email">{{ bindEmail || '--' }}</text>
         </view>
       </view>
     </scroll-view>
@@ -53,9 +53,12 @@ import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
+/** 校园邮箱展示值：唯一来源 bindEmail（未认证为空，行内以 '--' 占位，不空白） */
+const bindEmail = computed(() => userInfo.value?.bindEmail || '')
 
 // N07/审计#2 修复：userInfo 在 setup 时可能仍为 null（静默登录异步回填），
 // 直接用快照会导致头像/昵称永久空白且回写空值。改为响应式派生 + watch immediate 回填。

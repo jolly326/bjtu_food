@@ -8,7 +8,7 @@
  *
  * 端上定型说明：
  * - `canteenName` → 端上别名 `canteen`（历史消费点沿用），`avgRating` → `rating`；
- * - `image`（首图封面）由 `images[0]` 派生，属端上展示便利字段、非后端出参；
+ * - 封面首图**直接取 `images[0]`**（2026-09-21 §7.33：原端上派生字段 `image` 与 `images[0]` 同值重复，已删除）；
  * - `dietType` / `serveTemp` 等四维在 API 层已由机器值映射为中文展示值（见 api/dish.ts），
  *   视图层直取渲染，禁止二次映射。
  *
@@ -23,8 +23,7 @@ export interface Dish {
   price: number
   /** 原价（元，可空）；有值且大于 price 时端上在原价加删除线表示折扣 */
   originalPrice?: number
-  /** 封面首图（= images[0]，端上派生字段） */
-  image: string
+  /** 菜品图片数组（首图作封面：消费方取 `images[0]`） */
   images?: string[]
   /** 平均评分（后端 avgRating，口径 = 仅未隐藏评价） */
   rating: number
@@ -56,20 +55,37 @@ export interface DishDetail extends Dish {
   ratingDistribution: RatingDistribution[]
 }
 
-export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at'
-
 export interface DishQuery {
   keyword?: string
   /** 食堂 ID（多维筛选） */
   canteenId?: number
+  /**
+   * 菜品大类枚举键（2026-09-21 §7.34；单值、互斥）。
+   * 合法值域由后端白名单定义（非法值后端 400，端上不降级）；
+   * 端上**不维护**枚举键 → 中文标签的映射，标签文案一律来自 `getMealTypes()` 响应。
+   */
+  mealType?: string
   /** 价格区间（前端「元」，API 层转分提交） */
   minPrice?: number
   maxPrice?: number
-  /** 排序维度（ARCH §3.1：heat/rating/price/created_at；端上默认不传） */
-  sortBy?: DishSortBy
-  sortOrder?: 'asc' | 'desc'
   page?: number
   pageSize?: number
+}
+
+/**
+ * 菜品大类字典项（`GET /dishes/meal-types` 出参，2026-09-21 §7.34）。
+ *
+ * 端上标签栏渲染源：第一项「全部」由端上固定渲染（对应**不传** `mealType`），
+ * 其余项**完全**按本结构渲染（`label` 文案 + `order` 顺序）——
+ * 端上**禁止**硬编码任何大类中文名或标签清单（见 `dish-meal-category` spec）。
+ */
+export interface MealType {
+  /** 大类枚举键（筛选用，透传 `mealType` 查询参数） */
+  key: string
+  /** 中文标签（展示文案，唯一真源在后端常量） */
+  label: string
+  /** 展示顺序（后端已按 order 升序下发，端上不再重排） */
+  order: number
 }
 
 /** 热搜词（GET /dishes/hot-search；一期为菜品热度派生的热门词条） */

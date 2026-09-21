@@ -42,7 +42,7 @@
           @tap="pick(opt)"
         >
           <template v-if="opt.icon">
-            <view class="lp-lead lp-lead--icon"><IconSvg :name="opt.icon" :size="plainIconSize" color="var(--text-tertiary)" /></view>
+            <view class="lp-lead lp-lead--icon"><IconSvg :name="opt.icon" :size="plainIconSize" :color="COLOR_MAP['text-tertiary']" /></view>
           </template>
           <template v-else-if="opt.image">
             <image class="lp-lead-img" :class="{ 'lp-lead-img--plain': rowStyle === 'plain' }" :src="opt.image" mode="aspectFill" />
@@ -75,6 +75,7 @@
 import { ref, watch, computed } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
 interface PickerOption {
   /** 稳定唯一 key（用于高亮/去重） */

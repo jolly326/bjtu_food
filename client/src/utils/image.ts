@@ -7,8 +7,8 @@ import { API_BASE_URL } from '@/api/config'
  *   再拼 API_BASE_URL（其本身含 /api），避免双重 /api/api/uploads 前缀导致 404。
  *
  * 档口图片（P0 client-stall-img）根因说明：
- *   - 后端 `/canteens/all` 的 StallDetailVO.images 已是**后端拼好的绝对 URL 数组**
- *     （见 server CanteenService），前端透传即可；绝对 URL 一律原样返回，不会二次拼接。
+ *   - 后端食堂 / 档口字典出参自 2026-09-21（§7.33）已收敛为 id / name，**不再返回 images**；
+ *     本条保留的是「绝对 URL 一律原样返回、不二次拼接」的判定口径（仍适用于菜品图等绝对地址）。
  *   - 此处用 new URL() 解析做权威绝对地址判定兜底：凡可解析为绝对地址者（含 http(s)/data/blob）
  *     直接返回，彻底规避"绝对 URL 但路径段以 /images/、/uploads/ 开头"被误判为相对路径、
  *     导致双重前缀 /api/api 或错误改写绝对地址的边界问题。

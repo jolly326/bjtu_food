@@ -35,7 +35,7 @@
          文案随筛选上下文切换「同节点换文案」，不做整卡条件重建，避免切换闪烁与位移跳动。 -->
       <view class="contribute-card" role="button" aria-label="推荐菜品" hover-class="pressed" @tap="goContribute">
         <view class="cc-icon">
-          <IconSvg :name="scopeEmpty ? 'search' : 'plus'" :size="40" color="var(--color-primary)" />
+          <IconSvg :name="scopeEmpty ? 'search' : 'plus'" :size="40" :color="COLOR_MAP['primary']" />
         </view>
         <view class="cc-copy">
           <text class="cc-title">{{ scopeEmpty ? '这个范围还没录菜品' : '想吃啥没找到？告诉我们' }}</text>
@@ -51,7 +51,7 @@
           aria-label="清除筛选"
           @tap.stop="emit('clear-filter')"
         >清除筛选</text>
-        <IconSvg v-else name="arrow" :size="28" color="var(--text-tertiary)" />
+        <IconSvg v-else name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" />
       </view>
     </template>
   </view>
@@ -70,6 +70,7 @@ import {
 } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
 import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{
   /** 当前是否处于筛选中（食堂 / 价格任一生效）——由页面下发，驱动卡片上下文文案 */
@@ -194,7 +195,7 @@ function goContribute() {
   flex-shrink: 0;
   padding: var(--spacing-2xs) var(--spacing-sm);
   font-size: var(--font-aux);
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   border: 1rpx solid var(--color-primary);
   border-radius: var(--radius-pill);
 }
@@ -212,7 +213,7 @@ function goContribute() {
   text-align: center;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .contribute-card { transition: none; }
-}
+/* D11：原 `@media (prefers-reduced-motion){ .contribute-card { transition: none } }` 已删——
+   .contribute-card 全程无 transition（按压反馈走 hover-class 的 bg-soft 瞬时切换），
+   该声明无对应过渡元素，属死代码（§4.9 只对真实动效做降级）。 */
 </style>

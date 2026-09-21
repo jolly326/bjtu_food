@@ -27,7 +27,7 @@
 --          （由文件末尾 drop_zero_consumer_columns 幂等段清理）；review / user_feedback 的审核类列见第 5 条。
 --   5. UGC 内容安全（2026-09-13 产品定稿 + 2026-09-15 用户拍板「取消人工复核」）：
 --      review / user_feedback 支持配图（images JSON，配图经 COS 转存后以 COS 绝对 URL 存库）；
---      内容安全机检结果（sec_state：pass/review/rejected）**已全链退役**——机检 pass/review 一律放行、
+--      内容安全内容安全检测结果（sec_state：pass/review/rejected）**已全链退役**——内容安全检测 pass/review 一律放行、
 --      risky 直接拒绝（不入库），无人工复核队列，故 CREATE TABLE 不再创建该列，
 --      存量库由文件末尾 drop_sec_state_columns 幂等段清理（可重跑）。
 --   6. 菜品品类整链退役（2026-09-15 用户拍板）：category 表与 dish.category_id 列（含单列索引
@@ -148,6 +148,8 @@ CREATE TABLE IF NOT EXISTS `dish`
     `ingredients`    VARCHAR(255) NULL     DEFAULT NULL COMMENT '主料/食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice',
     `flavor_tags`    VARCHAR(128) NULL     DEFAULT NULL COMMENT '口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy',
     `serve_temp`     VARCHAR(16)  NULL     DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰',
+    -- 菜品大类（2026-09-21 拍板 §7.34）：单值枚举，取值白名单见后端常量 MealTypeConst；不进公开 DishVO 出参
+    `meal_type`      VARCHAR(16)  NULL     DEFAULT NULL COMMENT '菜品大类：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
     -- 已于 2026-09-16 用户拍板「零消费即删除」退役：CREATE TABLE 不再创建，
@@ -773,7 +775,7 @@ DROP PROCEDURE IF EXISTS `drop_category_chain`;
 
 -- 字段下线（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
 --   review.sec_state 与 user_feedback.sec_state 同批退役。
---   背景：机检 pass/review 一律直接放行、仅 risky 拒绝（不落库），不再有「待人工复核」语义，
+--   背景：内容安全检测 pass/review 一律直接放行、仅 risky 拒绝（不落库），不再有「待人工复核」语义，
 --   该列恒为单值、属死重；后端同批移除实体字段（Review/Feedback）、VO 字段
 --   （ReviewVO/ReviewAdminVO/FeedbackAdminVO）、Mapper 过滤条件与查询列、SecStateConst、
 --   管理端复核端点 PUT /admin/reviews/{id}/sec-state 及其 Service 方法、
@@ -1099,5 +1101,25 @@ END$$
 DELIMITER ;
 CALL `drop_review_useful_chain`();
 DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
+
+-- 4.6 新增菜品大类列（2026-09-21 §7.34 / change home-ui-refresh）：幂等 ADD COLUMN `dish.meal_type`
+--     单值枚举（set_meal / stir_fry / noodle / dry_pot / snack / soup_drink），仅用于「大类筛选 + 字典下发」，
+--     **不进公开 DishVO 出参**；取值由后端常量 MealTypeConst 定义（单一真源），存量/新库回填见 seed_data.sql。
+--     幂等：先判 INFORMATION_SCHEMA 是否存在该列，再 ADD COLUMN（禁直连 ALTER）。
+DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_meal_type`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'meal_type'
+    ) THEN
+        ALTER TABLE `dish` ADD COLUMN `meal_type` VARCHAR(16) NULL
+            COMMENT '菜品大类（单值枚举：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_meal_type`();
+DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -2,7 +2,7 @@
   <view class="image-fallback">
     <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
       <view v-else class="placeholder">
-        <IconSvg name="empty" :size="64" color="var(--text-tertiary)" class="placeholder-icon" />
+        <IconSvg name="empty" :size="64" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
       </view>
   </view>
 </template>
@@ -11,6 +11,7 @@
 import { computed, ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   src?: string

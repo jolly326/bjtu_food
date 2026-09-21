@@ -10,7 +10,8 @@
       @clear="clearKeyword"
     />
 
-    <!-- 结果态筛选条：仅出搜索结果时渲染，与首页共用同一 FilterBar（client-filter-bar-consolidation） -->
+    <!-- 结果态筛选条：仅出搜索结果时渲染，走本页私有 FilterBar（client-filter-bar-consolidation；
+         2026-09-21 home-ui-refresh 后首页改用自有白底「筛选」面板，本组件已下沉为 find 页私有） -->
     <view v-if="inFilter" class="find-filter-row">
       <!-- 胶囊高度不再传硬编码：FilterBar 组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017） -->
       <FilterBar
@@ -51,7 +52,7 @@
               >
                 <text class="history-chip-text">{{ kw }}</text>
                 <view class="history-chip-del" @tap.stop="removeHistory(i)">
-                  <IconSvg name="close" :size="24" color="var(--text-tertiary)" />
+                  <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
                 </view>
               </view>
             </view>
@@ -95,7 +96,7 @@
            未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
       <view v-else-if="inFilter && searchDone" class="find-empty">
         <view class="fe-icon">
-          <IconSvg name="search" :size="48" color="var(--text-tertiary)" />
+          <IconSvg name="search" :size="48" :color="COLOR_MAP['text-tertiary']" />
         </view>
         <text class="fe-title">没搜到「{{ keyword }}」相关的菜</text>
         <text class="fe-desc">把它报给我们，让更多同学也能找到</text>
@@ -118,10 +119,10 @@ import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import FilterBar from '@/components/FilterBar.vue'
+import FilterBar from './FilterBar.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import FindResults from './FindResults.vue'
-import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 const dishStore = useDishStore()
 
@@ -193,7 +194,7 @@ function onFindCanteenSelect(id: number | null) {
   doMixedSearch(keyword.value.trim())
 }
 
-// ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时红底） =====
+// ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时主色填充底） =====
 // 搜索结果排序：端上不持有排序状态、不传 sortBy——排序口径唯一由后端决定（PR-02；
 // §7.17 第 2 条「热度优先、不设排序入口」）。
 /** 当前价格区间（元）；回显由 FilterBar 直显元，提交直接透传（api 层统一元→分，禁止二次换算） */
@@ -216,8 +217,6 @@ interface MixedResult {
   price?: number
   /** 菜品专属：平均评分 */
   rating?: number
-  /** 菜品专属：评价数 */
-  ratingCount?: number
   /** 菜品专属：所属档口名（B8；副信息展示「食堂 · 档口」） */
   stall?: string
   /** 菜品专属：原价（元，> price 时划线展示表示折扣） */
@@ -279,11 +278,10 @@ async function doMixedSearch(kw?: string) {
           type: 'dish' as const,
           id: d.id,
           name: d.name,
-          image: d.image,
+          image: d.images?.[0] || '',
           sub,
           price: d.price,
           rating: d.rating,
-          ratingCount: d.ratingCount,
           stall: d.stallName,
           originalPrice: d.originalPrice,
         }
@@ -472,5 +470,5 @@ onShow(() => clearShareState())
 .history-chip-del:active { opacity: 0.5; }
 /* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
 .history-chip-hot { background: var(--color-primary-soft); }
-.history-chip-hot .history-chip-text { color: var(--color-primary); }
+.history-chip-hot .history-chip-text { color: var(--color-primary-text); }
 </style>

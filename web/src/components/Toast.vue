@@ -59,7 +59,8 @@ const icons: Record<string, any> = {
 }
 .toast.info {
   background: var(--color-primary-bg);
-  color: var(--color-primary);
+  /* 主色作文字：一律用文字档（填充档在 primary-bg 上仅 2.90:1） */
+  color: var(--color-primary-text);
   border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 .toast-icon { display: inline-flex; align-items: center; flex-shrink: 0; }

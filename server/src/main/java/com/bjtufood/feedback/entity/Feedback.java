@@ -47,7 +47,7 @@ public class Feedback {
 
     /*
      * 内容安全状态 sec_state 已随「取消人工复核」（2026-09-15 用户拍板）全链退役：
-     * 机检 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
+     * 内容安全检测 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
      */
 
     // user_feedback.contact 已于 2026-09-16 用户拍板「产品定型不收集联系方式」退役：

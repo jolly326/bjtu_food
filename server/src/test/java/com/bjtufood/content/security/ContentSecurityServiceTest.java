@@ -28,7 +28,7 @@ import static org.springframework.http.HttpMethod.POST;
  * 1. msgSecCheck v2 按 result.suggest 判定（pass/review → 放行，risky → 拒绝），不只看 errcode；
  * 2. risky 统一抛 400「内容包含违规信息，请修改后重试」；
  * 3. imgSecCheck 87014 → 400「图片包含违规内容，无法上传」；
- * 4. stable_token 缓存：同一 token 有效期内两次机检仅请求一次 stable_token；
+ * 4. stable_token 缓存：同一 token 有效期内两次内容安全检测仅请求一次 stable_token；
  * 5. openid 为空（历史学号账号边界）跳过检测放行；
  * 6. 图片超 1MB 大小兜底。
  */
@@ -145,11 +145,11 @@ class ContentSecurityServiceTest {
     }
 
     @Test
-    @DisplayName("stable_token 缓存：两次机检仅请求一次 stable_token（缓存至过期前 5 分钟）")
+    @DisplayName("stable_token 缓存：两次内容安全检测仅请求一次 stable_token（缓存至过期前 5 分钟）")
     void shouldCacheStableTokenAcrossCalls() {
         // token 请求仅一次
         expectStableToken();
-        // msg_sec_check 两次（每次机检一次）
+        // msg_sec_check 两次（每次内容安全检测一次）
         server.expect(once(), requestTo(startsWith(MSG_SEC_CHECK_URL)))
                 .andExpect(method(POST))
                 .andRespond(withSuccess("{\"errcode\":0,\"result\":{\"suggest\":\"pass\"}}", MediaType.TEXT_PLAIN));
@@ -220,7 +220,7 @@ class ContentSecurityServiceTest {
     }
 
     @Test
-    @DisplayName("未配置 appid/secret（本地开发环境）→ 跳过机审放行 PASS，isConfigured=false")
+    @DisplayName("未配置 appid/secret（本地开发环境）→ 跳过内容安全检测放行 PASS，isConfigured=false")
     void shouldSkipWhenNotConfigured() {
         ReflectionTestUtils.setField(contentSecurityService, "appid", "");
         ReflectionTestUtils.setField(contentSecurityService, "secret", "");

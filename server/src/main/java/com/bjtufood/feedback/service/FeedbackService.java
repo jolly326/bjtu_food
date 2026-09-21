@@ -14,7 +14,7 @@ public interface FeedbackService {
     /**
      * 提交反馈（学生），status=pending。
      * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），
-     * 机检 pass/review 一律放行；images 入库。
+     * 内容安全检测 pass/review 一律放行；images 入库。
      * （sec_state 落库已随「取消人工复核」全链退役，2026-09-15 用户拍板。）
      */
     void submit(Long userId, FeedbackReq req);

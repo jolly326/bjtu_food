@@ -56,7 +56,7 @@ public interface AuthService {
      * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
      *
      * @param userId 用户ID
-     * @return 用户信息 Map（id/username/email/nickname/avatar/status/verified/bindEmail/guestShortId）
+     * @return 用户信息 Map（id/username/nickname/avatar/verified/bindEmail —— 与登录链路字段集一致）
      */
     Map<String, Object> getProfile(Long userId);
 
@@ -94,7 +94,7 @@ public interface AuthService {
      * 将 User 实体转换为小程序端用户信息 VO。
      *
      * @param user 用户实体
-     * @return 用户信息 VO（camelCase，含 verified/bindEmail/guestShortId）
+     * @return 用户信息 VO（camelCase，恰 6 字段：id/username/nickname/avatar/verified/bindEmail）
      */
     UserInfoVO toUserInfo(User user);
 }

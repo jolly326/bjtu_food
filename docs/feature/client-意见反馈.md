@@ -38,7 +38,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/feedback` | 🔓 公开 | 提交反馈（三类共用） |
-| GET | `/canteens/all` | 🔓 公开 | 食堂含档口树，供「推荐菜品」的位置两级联动（端上只读 `id` / `name`） |
+| GET | `/canteens?include=stalls` | 🔓 公开 | 食堂含档口树，供「推荐菜品」的位置两级联动（端上只读食堂与档口的 `id` / `name`）。**2026-09-21 决议：原 `GET /canteens/all` 已删除并合入 `GET /canteens`，端上仅改调用方式**（`get('/canteens', { include: 'stalls' })`，映射逻辑不变） |
 
 ## 字段
 
@@ -73,16 +73,16 @@
 |---|---|---|
 | `data` | null | 无载荷；成功即 `code=200` |
 
-### 响应 · `GET /canteens/all`（`List<CanteenWithStallsVO>`）
+### 响应 · `GET /canteens?include=stalls`（`List<CanteenWithStallsVO>`）
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `id` | number | 食堂 ID（**端上位置选择器消费**） |
 | `name` | string | 食堂名称（**端上消费**） |
-| `location` | string | 食堂位置（端上不透传） |
-| `description` | string | 食堂简介（端上不透传） |
-| `images` | string[] | 食堂图片（端上不透传） |
-| `stalls` | object[] | 下属**档口列表**；每项含 `id`、`name`（端上只读 `name` 做二级联动）、`location`、`floor`、`windowNo`、`description`、`images`、`avgRating` |
+| `stalls` | object[] | 下属**档口列表**；每项仅 `id`、`name`（端上只读 `name` 做二级联动） |
+
+> **已删除出参（2026-09-21 决议）**：食堂层 `location` / `description` / `images`（全端零消费，端上不透传）；档口层 `location` / `floor` / `windowNo` / `description` / `images` / `avgRating`（端上只读 `id` / `name`）→ 一并收敛，并连带删除 `CanteenServiceImpl.listWithStalls()` 的 `batchAvgRating` 批查（白算）。
+> ⚠️ **代码同步状态**：字段仍在 `CanteenWithStallsVO` / `StallDetailVO` 中，随契约变更落地。
 
 ## 数据（落库）
 
@@ -90,13 +90,3 @@
 |---|---|---|
 | `user_feedback` | INSERT | `user_id`（游客 null）、`type`、`sub`、`content`、`images`、`related_type`、`related_id`、`status='pending'` |
 | `notification` | 管理员处理后异步 INSERT | 已认证提交人收 `feedback_handle` 回执；游客不投递（提交页文案已明示「无法单独通知你」） |
-
-## 答疑
-
-### Q：这个板块应该和举报融合进同一个板块，都是需要人来处理的，先不做拆分，你的看法如何？
-
-**A：同意，而且现状已经就是这样了——不需要「融合」，因为它本来就是同一个板块。**
-
-已核实三点：① **数据层唯一入口**：举报与反馈都写 `user_feedback`（举报 = `type=report` + `relatedType=review` + `relatedId`；纠错 = `type=error` + `relatedType=dish`）；② **后台唯一处理页**：`/dashboard/feedback`，处理动作同为 `PUT /admin/feedbacks/{id}`；③ **端上已收口**：本页类型卡片只有 3 项（提个想法 / 推荐菜品 / 信息不对），**`report` 不在页内**，举报只从评价卡三点菜单进入（就地、最小填写）。
-
-因此「同一张表 + 同一个后台处理页 + 同一套处置动作」已经成立，你那句「先不做拆分」我完全赞成，**不建议**再做任何入口合并——理由是举报必须保持「就地一键触发、最小填写」的低摩擦形态；若要求先到本页选类型再去找评价，举报量会明显下降，反而弱化了「发现问题 → 回流修正」这条主通道（定型支柱④）。**本条结论：保持现状，文档无需改。**

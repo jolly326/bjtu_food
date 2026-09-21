@@ -12,12 +12,15 @@ import { getImageUrl } from '@/utils/image'
  */
 export type RawRow = Record<string, any>
 
-/** 后端分页返回形态：可能是平铺数组，或 { records | list, total } */
-type PageLike<T> = T[] | { records?: T[]; list?: T[]; total?: number }
+/** 后端分页返回形态：可能是平铺数组，或 { records, total } */
+type PageLike<T> = T[] | { records?: T[]; total?: number }
 
-/** 分页响应统一结构（{ list | records, total, page, pageSize }；F2 收敛自 notify 等模块私有定义） */
+/**
+ * 分页响应统一结构（{ records, total, page, pageSize }）。
+ * 注（2026-09-21 契约精简，见 docs/project_spec.md §7.33）：原过渡期兼容字段 `list`
+ * 已随后端 `PageResult` 一并删除——服务端只输出 `records`，消费方只读 `records`。
+ */
 export interface PageResult<T> {
-  list?: T[]
   records?: T[]
   total?: number
   page?: number
@@ -25,7 +28,7 @@ export interface PageResult<T> {
 }
 
 /**
- * API 层 `get<T>` 的**定型分页载体**（MP-08）：裸数组或 { list | records, total } 二选一。
+ * API 层 `get<T>` 的**定型分页载体**（MP-08）：裸数组或 { records, total } 二选一。
  * 取代各 api 模块里的 `get<any>` / `recordsOf<any>`——后端 JSON 未按 OpenAPI 逐字段建模，
  * 但「响应是分页结构」这一层是确定的，足以定型，不必退到 any。
  */
@@ -35,7 +38,7 @@ export type RawPage = PageResult<RawRow> | RawRow[]
 export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   if (!value) return []
   if (Array.isArray(value)) return value
-  return value.records || value.list || []
+  return value.records || []
 }
 
 /** 从分页响应提取总数（缺省回退列表长度） */

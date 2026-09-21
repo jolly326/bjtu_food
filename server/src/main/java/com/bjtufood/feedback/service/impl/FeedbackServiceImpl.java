@@ -101,21 +101,21 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
-        // 2026-09-15 用户拍板「取消人工复核」：机检 review（疑似）归一为放行，
+        // 2026-09-15 用户拍板「取消人工复核」：内容安全检测 review（疑似）归一为放行，
         // 不再落库 sec_state（该列已全链退役），故此处只保留拦截语义。
         // 边界（报告备案）：游客反馈（userId=null，PUB 接口）与 openid 为 NULL 的账号无法调 v2 接口
-        // （msgSecCheck v2 openid 必填），按服务内既有口径跳过机检放行；微信凭据未配置（本地开发）同。
+        // （msgSecCheck v2 openid 必填），按服务内既有口径跳过内容安全检测放行；微信凭据未配置（本地开发）同。
         checkUgcText(userId, feedback.getContent());
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackMapper.insert(feedback);
     }
 
     /**
-     * 文本机检：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
+     * 文本内容安全检测：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
      * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
-     * pass 与机检 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
-     * 边界：游客（userId=null）与无 openid 账号无 openid 可用，机检内部按既有口径跳过放行。
+     * pass 与内容安全检测 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
+     * 边界：游客（userId=null）与无 openid 账号无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
     private void checkUgcText(Long userId, String content) {
         if (!StringUtils.hasText(content)) {

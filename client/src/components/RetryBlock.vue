@@ -13,7 +13,7 @@
     hover-class="pressed"
     @tap="emit('retry')"
   >
-    <IconSvg name="report" :size="44" color="var(--text-tertiary)" />
+    <IconSvg name="report" :size="44" :color="COLOR_MAP['text-tertiary']" />
     <text class="retry-title">{{ title }}</text>
     <text class="retry-hint">网络似乎不太顺畅 · 点击重试</text>
   </view>
@@ -32,6 +32,7 @@
  * 仅承载失败态展示与 retry 上抛；重拉路径（含竞态 / 失败态复位）由各消费方自行持有，行为与迁移前一致。
  */
 import IconSvg from './IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
 withDefaults(defineProps<{
   /** 主标题（默认「加载失败」；find 页用「搜索加载失败」区分语义） */

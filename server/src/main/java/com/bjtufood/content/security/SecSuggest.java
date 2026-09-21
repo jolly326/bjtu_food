@@ -11,15 +11,15 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * <p>
  * 生效语义（2026-09-15 用户拍板「取消人工复核」）：
  * <ul>
- *   <li>{@link #PASS} = <b>放行</b>（含机检 review 疑似态归一）；</li>
+ *   <li>{@link #PASS} = <b>放行</b>（含内容安全检测 review 疑似态归一）；</li>
  *   <li>{@link #RISKY} = <b>拒绝</b>（违规）。</li>
  * </ul>
- * 机检 review（疑似）不再产生「待复核」语义：由 {@link #fromValue} 在判定入口归一为 PASS，
+ * 内容安全检测 review（疑似）不再产生「待复核」语义：由 {@link #fromValue} 在判定入口归一为 PASS，
  * 故本枚举对外实际只有「放行 / 拒绝」二态。{@link #REVIEW} 保留仅用于对应微信原始三态值域。
  */
 public enum SecSuggest {
 
-    /** 放行（含机检 review 态归一；无人工复核、无落库安全态） */
+    /** 放行（含内容安全检测 review 态归一；无人工复核、无落库安全态） */
     PASS("pass"),
 
     /**
@@ -46,7 +46,7 @@ public enum SecSuggest {
      * 微信 suggest 字符串 → 生效语义（2026-09-15 归一：{@code review} 视为放行）。
      * <p>
      * <ul>
-     *   <li>{@code pass} / {@code review} → {@link #PASS}（放行；review 为机检疑似，取消人工复核后直接放行）；</li>
+     *   <li>{@code pass} / {@code review} → {@link #PASS}（放行；review 为内容安全检测疑似，取消人工复核后直接放行）；</li>
      *   <li>{@code risky} 及微信未来新增的未知/缺失态 → {@link #RISKY}（拒绝，fail-closed，宁可误拦不放行）。</li>
      * </ul>
      */

@@ -22,8 +22,11 @@
 <script setup lang="ts">
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
-/** 动作项：颜色可用 iconColor/textColor 显式指定（默认次级浅灰） */
+/** 动作项：颜色可用 iconColor/textColor 显式指定（默认次级浅灰；
+ *  ⚠️ iconColor 喂给 IconSvg 的 :color → SVG data-uri 解析不了 var()，必须是真源实色；
+ *     textColor 落 CSS color，仍用 var() 语义 token） */
 interface ActionSheetItem {
   key: string
   label: string
@@ -43,7 +46,8 @@ const emit = defineEmits<{
 }>()
 
 function iconColor(item: ActionSheetItem): string {
-  return item.iconColor || 'var(--text-secondary)'
+  // D1：IconSvg 的取色不吃 var()（data-uri 内解析不到 CSS 变量），默认值必须是真源实色
+  return item.iconColor || COLOR_MAP['text-secondary']
 }
 function rowStyle(item: ActionSheetItem) {
   return { color: item.textColor || 'var(--text-secondary)' }

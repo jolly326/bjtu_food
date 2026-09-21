@@ -33,8 +33,8 @@ import java.util.function.Supplier;
  *       （归一发生在 {@link SecSuggest#fromValue} 判定入口，业务侧只需按 RISKY 判拒绝）；</li>
  *   <li>图片以 errcode 判定：0=通过，87014=违规，其余=调用失败 fail-closed；</li>
  *   <li>risky 统一在本服务拦截为 400「内容包含违规信息，请修改后重试」，文案不散落调用方；</li>
- *   <li>上游不可达/调用失败 fail-closed（500），保证入库内容必过机审（产品定稿「全部 UGC 过检」）；</li>
- *   <li>未配置 appid/secret（本地开发环境）跳过机审放行，生产必须配置（部署检查项）。</li>
+ *   <li>上游不可达/调用失败 fail-closed（500），保证入库内容必过内容安全检测（产品定稿「全部 UGC 过检」）；</li>
+ *   <li>未配置 appid/secret（本地开发环境）跳过内容安全检测放行，生产必须配置（部署检查项）。</li>
  * </ul>
  */
 @Service
@@ -228,14 +228,14 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
 
     @Override
     public SecSuggest detectText(String openid, String content, int scene) {
-        // 边界 1：微信凭据未配置（本地开发/测试环境）→ 跳过机审放行（生产必须配置，部署检查项）
+        // 边界 1：微信凭据未配置（本地开发/测试环境）→ 跳过内容安全检测放行（生产必须配置，部署检查项）
         if (!isConfigured()) {
-            log.debug("微信内容安全检测未配置，跳过文本机审（scene={}）", scene);
+            log.debug("微信内容安全检测未配置，跳过文本内容安全检测（scene={}）", scene);
             return SecSuggest.PASS;
         }
-        // 边界 2：历史学号账号无 openid，msgSecCheck v2 无法调用 → 跳过机审放行（产品登记边界）
+        // 边界 2：历史学号账号无 openid，msgSecCheck v2 无法调用 → 跳过内容安全检测放行（产品登记边界）
         if (!StringUtils.hasText(openid)) {
-            log.debug("当前用户无 openid（历史学号账号），跳过文本机审（scene={}）", scene);
+            log.debug("当前用户无 openid（历史学号账号），跳过文本内容安全检测（scene={}）", scene);
             return SecSuggest.PASS;
         }
         if (!StringUtils.hasText(content)) {
@@ -253,7 +253,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
                 "content", content);
 
         // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
-        // token 失效（40001/42001）时清空缓存重取一次，避免机检持续失败最长 2 小时。
+        // token 失效（40001/42001）时清空缓存重取一次，避免内容安全检测持续失败最长 2 小时。
         Map<String, Object> resp = callWithTokenRetry(() -> {
             String body = postJson(MSG_SEC_CHECK_URL + "?access_token=" + getStableAccessToken(), reqBody);
             Map<String, Object> r = parseJson(body, "msg_sec_check");
@@ -294,12 +294,12 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
         }
         if (!isConfigured()) {
-            log.debug("微信内容安全检测未配置，跳过图片机审");
+            log.debug("微信内容安全检测未配置，跳过图片内容安全检测");
             return;
         }
 
         // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
-        // token 失效（40001/42001）时清空缓存重取一次，避免图片机检持续失败最长 2 小时。
+        // token 失效（40001/42001）时清空缓存重取一次，避免图片内容安全检测持续失败最长 2 小时。
         callWithTokenRetry(() -> {
             doImgSecCheck(image);
             return null;

@@ -69,7 +69,8 @@ const emit = defineEmits<{ back: [] }>()
   transition: transform 160ms var(--ease-out), background 0.2s var(--ease-out), color 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
 }
 @media (hover: hover) {
-  .ph-back:hover { color: var(--color-primary); border-color: var(--color-primary); }
+  /* 图标（前景）走文字档；边框属图形、按 3:1 门槛压 card 3.18:1，保留填充档 */
+  .ph-back:hover { color: var(--color-primary-text); border-color: var(--color-primary); }
 }
 .ph-back:active { transform: scale(var(--press-scale)); }
 /* 菜单牌标记：标题左侧朱砂红竖条 */
@@ -106,7 +107,8 @@ const emit = defineEmits<{ back: [] }>()
   padding: 1px var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--color-primary-bg);
-  color: var(--color-primary);
+  /* 主色作文字：一律用文字档（填充档在 primary-bg 上仅 2.90:1） */
+  color: var(--color-primary-text);
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
 }

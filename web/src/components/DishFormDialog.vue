@@ -19,6 +19,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useDishStore } from '@/stores/dishStore'
 import { useCanteenStore } from '@/stores/canteenStore'
 import { useStallStore } from '@/stores/stallStore'
+import { useMealTypeStore } from '@/stores/mealTypeStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import {
@@ -50,6 +51,7 @@ const store = useAdminStore()
 const dishStore = useDishStore()
 const canteenStore = useCanteenStore()
 const stallStore = useStallStore()
+const mealTypeStore = useMealTypeStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -73,6 +75,8 @@ const form = ref({
   ingredients: '',
   flavorTags: '',
   serveTemp: '',
+  /** 菜品大类（§7.34）：单值枚举键，选项完全由后端字典下发（仅可选择、禁自由输入） */
+  mealType: '',
 })
 const formErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
@@ -80,12 +84,14 @@ const submitting = ref(false)
 const stallHint = ref('')
 
 // WEB-02：打开弹窗时若归属字典尚未加载（如直接深链进入），兜底拉一次（静默）
+// 大类字典（§7.34）同属该兜底链路：失败只影响大类字段（字段内可重试），不阻塞弹窗其它内容
 watch(
   () => props.show,
   (v) => {
     if (!v) return
     if (!store.canteens.length) canteenStore.loadAll().catch(() => {})
     if (!store.stalls.length) stallStore.loadAll().catch(() => {})
+    mealTypeStore.ensureLoaded().catch(() => {})
   },
 )
 
@@ -127,6 +133,48 @@ const stallOptions = computed(() => {
 const stallDisabled = computed(() => !form.value.canteenValue)
 const stallPlaceholder = computed(() => (form.value.canteenValue ? '选择或输入新档口名' : '请先选择食堂'))
 
+// ===== 菜品大类（§7.34）：选项仅来自后端字典，端上零硬编码中文 =====
+/** 字典选项（单一真源 = 后端 `GET /dishes/meal-types`，端上零硬编码中文） */
+const mealTypeDictOptions = computed(() =>
+  mealTypeStore.list.map(t => ({ label: t.label, value: t.key })),
+)
+/**
+ * 下拉选项 = 字典项 +「当前值兜底项」（与列表筛选 `DishManageView.mealTypeFilterOptions` 的 extras 同口径）。
+ * 成因：字典**只含当前有在售菜品**的大类，而管理端菜品含已下架 → 编辑某下架菜品时其大类可能不在字典集合内，
+ * 此时无匹配 option，el-select 会直接显示裸枚举键、看着像「没选中」（列表/详情已有 labelOf 兜底，表单此前没有）。
+ * 标签走 store.labelOf（字典命中用后端标签，未覆盖回落键本身），仅用于回显，提交值不变（保存正确性不受影响）。
+ */
+const mealTypeOptions = computed(() => {
+  const opts = mealTypeDictOptions.value
+  const cur = form.value.mealType
+  if (!cur || opts.some(o => o.value === cur)) return opts
+  return [...opts, { label: mealTypeStore.labelOf(cur), value: cur }]
+})
+/** 选项不可用（加载中 / 加载失败）时给出明确占位文案，避免「空下拉」被误读为无数据 */
+const mealTypePlaceholder = computed(() => {
+  if (mealTypeStore.loading) return '大类加载中…'
+  if (mealTypeStore.error) return '大类选项加载失败'
+  return '请选择菜品大类'
+})
+/**
+ * 字典「加载完成且成功、但为空」——库中尚无任何在售菜品，大类选项不存在（唯一放行空选的态）。
+ * 与「加载中 / 加载失败」区分：后两者有恢复路径（等待 / 重试），必须继续按必填拦截。
+ * 判定口径取**字典本身**（mealTypeDictOptions），不取含「当前值兜底项」的 mealTypeOptions，
+ * 否则字典为空时会被回显兜底项掩盖（误判为已有选项、必填/hint 口径失真）。
+ */
+const mealTypeDictEmpty = computed(() =>
+  !mealTypeStore.loading && !mealTypeStore.error && !mealTypeDictOptions.value.length,
+)
+/** 字典为空时说明成因与当下可行动作，避免「下拉点不开、又不知为何」 */
+const mealTypeHint = computed(() =>
+  mealTypeDictEmpty.value
+    ? '暂无可选大类：选项随「有在售菜品」的大类出现，本次可先保存、稍后补选'
+    : '按菜名与做法形态选择（不看主料与口味）',
+)
+function reloadMealTypes() {
+  mealTypeStore.loadAll().catch(() => {})
+}
+
 /** 由档口 id 反查其所属食堂 id（编辑回显 / defaultStallId 预选共用） */
 function canteenIdOfStall(stallId: number | string | bigint | null | undefined): number | '' {
   if (stallId === '' || stallId === null || stallId === undefined) return ''
@@ -160,6 +208,8 @@ watch(
           ingredients: d.ingredients || '',
           flavorTags: d.flavorTags || '',
           serveTemp: d.serveTemp || '',
+          // 编辑态回填大类（§7.34）：原样取 DishAdminVO 的枚举键（不做 key → 中文 反查）
+          mealType: d.mealType || '',
         }
       }
     } else {
@@ -171,6 +221,7 @@ watch(
         stallValue: presetStall,
         image: '', description: '', alias: '', status: 'active',
         dietType: '', ingredients: '', flavorTags: '', serveTemp: '',
+        mealType: '',
       }
     }
   },
@@ -199,6 +250,12 @@ function validate() {
   if (typeof form.value.canteenValue === 'string' && typeof form.value.stallValue === 'number') {
     errs.stallValue = '新食堂暂无既有档口，请直接输入新档口名称'
   }
+  // 菜品大类必选（§7.34）：口径为「每个菜品恰属一个大类（单值互斥、全量覆盖）」，
+  // 后台是菜品唯一录入源 → 不选会让新菜品落在 NULL，破坏该不变量，故必填（不选即拦截保存）。
+  // 唯一例外：**字典加载完成且成功、但为空**（库中尚无在售菜品）时无从选择，若仍强制必填则
+  // 「菜品 → 大类」互相依赖成死锁（一道菜都录不进来）——该态放行保存（大类留空），就绪后补选。
+  // 加载中 / 加载失败**不属于**该例外（各有恢复路径），仍按必填拦截（此时保存请求本身也到不了后端）。
+  if (!form.value.mealType && !mealTypeDictEmpty.value) errs.mealType = '请选择菜品大类'
   // 产品定型：菜品首图必填（无图不录入 / 不上架）
   if (!form.value.image) errs.image = '请至少上传 1 张菜品图'
   if (Number(form.value.originalPrice) < 0) errs.originalPrice = '原价不能为负'
@@ -268,6 +325,8 @@ async function submit() {
     ingredients: formatCsv(parseCsv(form.value.ingredients)),
     flavorTags: formatCsv(parseCsv(form.value.flavorTags)),
     serveTemp: form.value.serveTemp,
+    // 菜品大类（§7.34）：枚举键原样提交（api 层透传，非法值由后端白名单 400）
+    mealType: form.value.mealType,
   }
   // 折扣清空契约（WEB-102）：留空时显式携带 null（而非省略字段），确保编辑可撤销已有原价
   // （api 层 dishToApi 0 → 分、null 直传）
@@ -387,6 +446,31 @@ async function submit() {
         </div>
       </div>
 
+      <!--
+        菜品大类（§7.34）：单值互斥的分类维度（**不属于**下方描述四维）。
+        选项完全来自后端字典 GET /dishes/meal-types —— 仅可选择、不可自由输入，端上零硬编码中文标签。
+      -->
+      <div class="df-row">
+        <div class="field flex-1">
+          <label>菜品大类 <span class="required">*</span></label>
+          <el-select
+            v-model="form.mealType"
+            :placeholder="mealTypePlaceholder"
+            :loading="mealTypeStore.loading"
+            :disabled="!mealTypeOptions.length"
+            :no-data-text="mealTypeStore.loading ? '加载中…' : '暂无可选大类'"
+            class="w-full"
+          >
+            <el-option v-for="o in mealTypeOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <p class="field-hint">{{ mealTypeHint }}</p>
+          <p v-if="mealTypeStore.error" class="field-error">
+            大类选项加载失败，<button class="link retry-link" v-press type="button" @click="reloadMealTypes">重试</button>
+          </p>
+          <p v-else-if="formErrors.mealType" class="field-error">{{ formErrors.mealType }}</p>
+        </div>
+      </div>
+
       <!-- 描述四维（§7.28）：荤素 / 冷热单选，主料 / 口味多选（机器值经 constants 字典映射） -->
       <div class="df-row">
         <div class="field flex-1"><label>荤素</label>
@@ -457,6 +541,8 @@ async function submit() {
 .required { color: var(--color-error); }
 .field-error { font-size: var(--font-sm); color: var(--color-error); margin-top: var(--space-1); }
 .field-hint { font-size: var(--font-xs); color: var(--text-light); margin-top: var(--space-1); }
+/* 大类字典加载失败时的字段内重试入口（样式沿用全站 .link，仅补与前置文案的间距） */
+.retry-link { margin-left: var(--space-1); }
 .chip-group { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .chip-opt {
   padding: var(--space-1) var(--space-4);
@@ -468,7 +554,8 @@ async function submit() {
   color: var(--text-secondary);
   transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
-.chip-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--weight-medium); }
+/* 选中态：浅底 + 主色边框，但**文字走「文字档」**（C1：填充档作文字时深色主题仅 2.90:1） */
+.chip-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 .chip-opt:active { transform: scale(var(--press-scale)); }
 .w-full { width: 100%; }
 </style>

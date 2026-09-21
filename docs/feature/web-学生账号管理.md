@@ -68,7 +68,7 @@
 | `verified` | number | 认证状态：**`0`=游客未认证 / `1`=已邮箱认证**（注意：小程序端同名字段是 **Boolean**，此处为库值 0/1） |
 | `wechatBound` | boolean | 是否已绑定微信（**仅布尔标识，不返回 openid 明文**，规避隐私泄露） |
 | `bindEmail` | string \| null | 已认证绑定的校园邮箱 |
-| `guestShortId` | string | 游客短标识（「食客 + ID 后 4 位」） |
+| ~~`guestShortId`~~ | string | 游客短标识（「食客 + ID 后 4 位」）——**2026-09-21 §7.32：已删除**（`id` 的纯派生值不作接口出参，判据不因端而异）；管理端的**关键词过滤与昵称兜底展示改由 `id` 现算**同一规则（`UserView` 内局部函数），行为等价 |
 | `createdAt` | string | 注册时间 |
 
 > **无 `role`**（该列已退役）；**无 `openid`**（隐私）。

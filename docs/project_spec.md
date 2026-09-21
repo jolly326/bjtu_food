@@ -242,11 +242,12 @@
 - 八原则：Purpose / Agency / Responsibility / Familiarity / Flexibility / Simplicity / Craft / Delight；流体交互四要素：即时响应、1:1 直接操控、可中断、速度 / 动量接力。
 
 ### 4.2 视觉 Token（基线）
-- 品牌主色：暖砖红 `#C45549`（**2026-09-06 复核，由朱砂红 `#9B2A1D` 定调为 `#C45549`**，更明快亲和、与故宫红墙同色相）。**（2026-09-15 S4-04 对齐现状：项目无深色模式，原「深色模式主色见 `tokens.ts` 的 `primary-dark`」引用删除。）**小程序按钮统一 `AppButton`（primary 取 `#C45549`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）。**色值为全站唯一事实源（2026-09-15 PM 拍板登记，原 UI 收敛设计文档已随过程性文档清理）**：`client/src/theme/tokens.ts` 是**唯一**事实源；`App.vue` 的 `page{}` 颜色块由 `gen:tokens` 脚本（`client/scripts/gen-css-vars.ts` → `theme/generated-colors.css` 生成物，受版本控制）**生成**，**禁止手工编辑**生成物与该颜色块；CI 以「生成物与仓库副本 diff 一致」校验（`npm run gen:tokens` 挂 type-check 前置）。原废弃快照 `client/uni.scss` 已清除（登记见 §8「已修复」），不得再据其取值。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
+- 品牌主色：**橙色**（**2026-09-21 §7.34 定稿**，取代 2026-09-06 定调的暖砖红 `#C45549`）——**两档同色系**：**填充档** `--color-primary` `#C2410C`（全站主力用途：品牌填充底 / 图标 / 标签下划线 / 星标 / TabBar 激活图标，兼作承载白色文字的底色——**其上白字 5.18:1** ✅、对白底 5.18:1 / 对页底 4.69:1 ✅）、**文字档** `--color-primary-text` `#B93A0A`（浅底上的主色文字与价格 `--color-price`：对白卡 5.72:1 / 对页底 5.18:1 / 对主色浅底 `#FCE8D6` 4.81:1 ✅）。**适用边界**：填充档**不得**作主色浅底上的文字（该组合仅 **4.35:1**，此类文字一律用文字档）。`--color-primary-soft` `#FCE8D6`；含品牌色通道的阴影通道随主色 = `194, 65, 12`（`rgba(194, 65, 12, α)`）。**为何不取更亮的橙**：`#EA580C` 作填充底时白字仅 3.56:1、作浅底文字亦仅 3.56:1（两门槛均不达），而全站 21 处以主色作「填充底 + 白字」。页面顶部渐变 `--bg-page-grad-from` `#FFF9F3` → `--bg-page-grad-to` `#FFEFE0`；`--bg-page` `#F7F3EF` / `--bg-card` `#FFFFFF` 取值不变。**（2026-09-15 S4-04 对齐现状：项目无深色模式，原「深色模式主色见 `tokens.ts` 的 `primary-dark`」引用删除。）**小程序按钮统一 `AppButton`（primary 取 `#C2410C`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）；**Web 管理端另有深色主题**：其文字档取提亮值 `#F97316`（深底需提亮，实测 ≥4.63:1；`#B93A0A` 压深底仅 2.63:1）。**色值为全站唯一事实源（2026-09-15 PM 拍板登记，原 UI 收敛设计文档已随过程性文档清理）**：`client/src/theme/tokens.ts` 是**唯一**事实源；`App.vue` 的 `page{}` 颜色块由 `gen:tokens` 脚本（`client/scripts/gen-css-vars.ts` → `theme/generated-colors.css` 生成物，受版本控制）**生成**，**禁止手工编辑**生成物与该颜色块；CI 以「生成物与仓库副本 diff 一致」校验（`npm run gen:tokens` 挂 type-check 前置）。原废弃快照 `client/uni.scss` 已清除（登记见 §8「已修复」），不得再据其取值。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
+- 评分星级：独立 token `--color-star` `#FBBF24`（**黄色实心星**，与 Web 管理端既有 `--color-star` 对齐；`--color-star-empty` `#E5E5EA` 为未选 / 空星）——**2026-09-21 拍板撤销** `content-flow-visual-polish` 的「星级填充语义收敛到 primary」：星色属评价语义色，SHALL NOT 随主色换肤。
 - 圆角 / 阴影（**2026-09-15 S4-03 对齐现状：一律引用 token 名，token 值为唯一事实源**）：卡片圆角 `--radius-card`（client `32rpx` / web `variables.css` `16px`）；弹层圆角 `--radius-modal: 48rpx`、弹层阴影 `--shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18)`（client `App.vue` page{} / `theme/tokens.ts` 登记）。**原「底部弹层 `20px 20px 0 0`」与 web `--radius-sheet` 引用作废（`--radius-sheet` 在 `web/src/styles/variables.css` 中不存在）**。材质模糊 `blur(20px) saturate(180%)`（适用范围见 §4.5）；按压反馈为 bg-soft/opacity（**scale 按压已废止**，见 §4.9；Web 端 `scale(var(--press-scale))` 为登记豁免，同见 §4.9）。
 - 小程序自研组件（新页面必须复用）：公共 `components/`（**实况 11 个（2026-09-15 S4-06 对齐；`TagLabel` 已于 2026-09-20 随 `dish.tags` 删除）：`AppButton/AppHeader/AuthSheet/BaseSheet/CardSection/FilterBar/IconSvg/ImagePicker/RetryBlock/SectionTitle/TabBar`**；原清单中的 `ActionSheet`/`ListPickerSheet`/`ReportModal` 已下沉为页包内私有组件，不在公共清单）与页内私有组件（按 §2「前端组件组织原则」下沉，如 `pages/home/DishCard.vue`、`pages/home/HomeContent.vue`、`pages/feedback/ListPickerSheet.vue`、`pages/detail/dish/ReportModal.vue`）；**`ImagePicker`（UGC 多图选择 / `wx.compressImage` 压缩 / 预览 / 删除，上限 3 张）与 `RetryBlock`（「加载失败 · 点击重试」失败态块）为公共在册组件**（UGC 配图随 2026-09-13 拍板恢复建设，作为「写评价弹层」与「意见反馈表单」共享组件，落位遵循 §2 组件组织原则），图片上传另有用户头像与后台菜品图两条独立链路；`TabBar` 实况路径 `components/TabBar.vue`。（社区板块的卡片与图片墙组件已于 2026-09-12 随板块下线删除；**`CategoryTabs`、`Loading` 已于清理提交 f9560c6 删除**——筛选切换由 `FilterBar`/筛选条替代；**2026-09-15 品类维度整链删除后，三端不存在任何品类页 / 品类组件 / 品类宫格（见 §7.22 第 1 条）**；**`EmptyState`、`StateView` 已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不设空态占位，**失败态按 MP-012 呈现「加载失败 · 点击重试」块（登记见 `openspec/specs/client-page-structure`）**；页面细则以本文件 §4 为准）。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`（原 `docs/web-ui.md` 已删除，勿再引用）。
-- **小程序图标统一使用 SVG 矢量图标（2026-09-15 S4-05 对齐现状）**：图标**内联注册于 `IconSvg` 组件的 `ICONS` 键表**（`client/src/components/IconSvg.vue`，**无本地 `assets/icons` 目录**，原「Iconfont 经 MCP 拉取」链路不再适用）：位置=location、有用/点赞=thumb、评分=star、发布=plus、举报=report 等，全量键以 `ICONS` 注册表为准。**兜底键 = `empty` 中性占位**：未注册键渲染 `empty`（空盒），不回退语义图标；`heart`（喜欢）键已删除，**无「喜欢」语义图标**。语义唯一：`thumb`=有用/点赞；**收藏功能已移除，无收藏图标**。**禁止 emoji 字符充当图标**。
+- **小程序图标统一使用 SVG 矢量图标（2026-09-15 S4-05 对齐现状）**：图标**内联注册于 `IconSvg` 组件的 `ICONS` 键表**（`client/src/components/IconSvg.vue`，**无本地 `assets/icons` 目录**，原「Iconfont 经 MCP 拉取」链路不再适用）：位置=location、评分=star、发布=plus、举报=report 等，全量键以 `ICONS` 注册表为准。**兜底键 = `empty` 中性占位**：未注册键渲染 `empty`（空盒），不回退语义图标；`heart`（喜欢）键已删除，**无「喜欢」语义图标**。**`thumb`（有用/点赞）键已随「评价有用」全链下线删除（2026-09-21 资产专项，PR-05）**；**收藏功能已移除，无收藏图标**。**禁止 emoji 字符充当图标**。
 
 ### 4.3 动效系统（Motion）
 > **MVP 动效边界（已拍板，权威口径 `openspec/specs/client-ui-motion`，2026-09 归档 capability）**：① 内容立即可见、不依赖动画显现；② **不引入装饰性入场动效**（列表/卡片静态呈现，无上浮淡入/交错延迟/滑入）；③ **弹层/弹窗开合去 transition，瞬开瞬关**；④ 按压反馈仅 `:active` opacity 弱化、不缩放。下表 spring 参数**不作为当前实现要求**，仅作为未来恢复动效时的参数基线留存，不构成双重口径。
@@ -283,7 +284,7 @@
 ### 4.9 小程序 MVP 红线（布局 / 动效 / 图标 / 组件渲染）
 - **布局（750rpx 视口）**：根容器视为 750rpx；横向用 `flex` + `flex-wrap`/`flex:1`/`min-width:0` 防溢出；图片 / 卡片 `width:100%` + `box-sizing:border-box`；禁止横向滚动条；长文本 `-webkit-line-clamp` 截断。每页须通过「真机 750rpx 无横向滚动 / 无裁切」。
 - **动效（从简）**：仅 uni-app `<transition>`（位移 ≤8rpx）与简单 CSS `transition`（opacity/transform 轻量）；禁止 `@keyframes` 长动画、大位移、`scale>1` 入场；手势 Sheet / 抽屉仍走 §4.4，入场不做复杂 keyframe。
-- **图标（SVG 矢量）**：按 §4.2 映射（**内联注册于 `IconSvg` 的 `ICONS` 键表**，无本地 `assets/icons` 目录；**兜底渲染 `empty` 中性占位键**）；新增语义须在 `ICONS` 登记图标键，禁止 emoji 字符当图标，不得私自引入未登记图标。语义唯一：`thumb`=有用/点赞（`heart` 键已删除，无「喜欢」语义图标），互不混用。
+- **图标（SVG 矢量）**：按 §4.2 映射（**内联注册于 `IconSvg` 的 `ICONS` 键表**，无本地 `assets/icons` 目录；**兜底渲染 `empty` 中性占位键**）；新增语义须在 `ICONS` 登记图标键，禁止 emoji 字符当图标，不得私自引入未登记图标。**`thumb`（有用/点赞）键与 `--color-like` token 已随「评价有用」全链下线删除（2026-09-21）**；`heart` 键已删除，无「喜欢」语义图标；各键语义互不混用。
 - **组件渲染（禁止 wx:for 内具名 slot 分发，原则泛化保留）**：小程序多列 / 瀑布流组件**禁止**在父组件用 `<template #x>` 向子组件同名 `<slot name="x">` 分发——uni-app 编译 mp-weixin 后父组件 N 个同名 slot 片段无法正确映射，子组件不消费该 slot 时整块**空白不渲染**（实测阻断级 bug，2026-07-31）。**瀑布流现状（2026-09-15 S4-02 对齐）**：双列瀑布流由页面侧 `HomeContent` / `FindResults` 按**奇偶序分列**（数据级分列，每列渲染自身 `DishCard` 列表），**不依赖 `WaterfallList` 的 slot 分发**；原「`WaterfallList` 内部 `import DishCard` 直接渲染、禁止向其传具名 slot」条款泛化为「**列表类组件一律数据驱动渲染，禁止具名 slot 分发内容**」的原则保留。
 - **小程序页面级 / 组件级 UI 设计细则（三态强制、AppButton 类型白名单、表单页 scroll-view 强制、emoji 登记前置、未生效设置禁虚假控制、金额 api 层统一、关联对象走正式 API、负向操作弱化、Sheet/SegmentTabs/ReviewItem/FeedbackForm 等组件抽取契约等 28 条）由小程序开发工程师按优先级落地；本文件仅定最高红线。**
 - **UI 全量审计红线（2026-08-02 补充，BLOCKER 级，违反即阻断）**：以下规则自 2026-08-02 全量审计结果提炼，**与上方四条红线同属强制，新增/整改页面不得回退**：
@@ -358,7 +359,7 @@
 - **新微信替换**：同一邮箱已被另一微信认证过 → 新微信认证时替换该邮箱绑定，旧微信账号下该邮箱的历史数据归属跟到新微信（旧微信变回游客态，其 `bind_email` 清空 / `verified` 置 0）。
 
 #### 5.y.4 游客态语义与权限矩阵
-- **游客态** = 已登录的未认证账号（`verified=false`）。前端「游客」标识用 `getGuestShortId()`（=「食客+ID 尾 4 位」）。
+- **游客态** = 已登录的未认证账号（`verified=false`）。前端「游客」标识用 `getGuestShortId()`（=「食客+ID 尾 4 位」）。**（2026-09-21 §7.32 修订：该短标识改由端上按 `id` 派生，`UserInfoVO` 不再出参 `guestShortId`。）**
 - **权限矩阵**：
   - 浏览全部公开数据（菜品 / 评价 / 食堂 / 档口）→ 游客可。
   - `POST /feedback`（基础反馈提交）→ **公开，无需认证**。
@@ -371,7 +372,7 @@
 - `POST /auth/wechat-login`（公开）— 入参 `{ code }`（微信 `wx.login` 临时凭证）；后端 `code2Session` → 按 `openid` 取号 / 自动建号 → 返回 `LoginResp{ token, userInfo(含 verified/绑定的 bind_email/昵称) }`。JWT 7 天。（实现约束，不改契约语义：微信 `jscode2session` 响应为 `Content-Type: text/plain`，后端须以「先取 String 再 JSON 解析」或等价方式处理，**禁止依赖 `MappingJackson2HttpMessageConverter` 自动转换**；见 `docs/architecture.md` §3.3）。
 - `POST /auth/email-code`（公开，改造）— 入参 `{ username(学号), email(可空，自动推导 {学号}@bjtu.edu.cn), purpose }`；`purpose` 改为 `verify`（认证用途，替代旧 `login`/`register`/`reset`）；60s 限频、10min 有效。
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 置 `verified=1`、写 `bind_email`/`verified_at` → 返回更新后 `LoginResp`。
-- `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像、`guestShortId`。
+- `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `verified`、`bindEmail`（是否已认证 / 绑定邮箱）、昵称、头像~~、`guestShortId`~~ **（2026-09-21 §7.32 修订：`guestShortId`、`email`、`status` 三字段不再出参；校园邮箱唯一来源为 `bindEmail`。）**
 - `DELETE /auth/account`（登录，新增，2026-09-13 合规）— **注销账号（匿名化，非物理删除）**：事务内将 user 行置为 `nickname='已注销用户'`、`username=deleted_{id}`、avatar/email→NULL（~~password→NULL~~ **`password` 列已于 2026-09-16 删除，注销无需处置**）、**openid→NULL（解绑，允许同一微信重新静默登录创建新游客号；~~unionid~~ 列已删除、无需处置）**、verified→0、bind_email/verified_at→NULL、status→'deleted'；评价/反馈/通知/浏览记录**保留**（展示昵称经 join 自然匿名化，评分聚合不破坏）；email_verification_code 按邮箱清理；当前 token 经 TokenBlacklist（token+userId 双维度）立即失效 + status=deleted 持久兜底；幂等（重复调用 400「账号已注销」）；~~@AuditLog 埋点~~（**该埋点已于 2026-09-15 随操作日志全链删除移除，注销动作不再留痕，见 §7.25 第 1 条**）。前端：底部合规区「注销账号」→ 二次确认 → 成功后 forceLogout（skipAuthRetry 防 401 重试误删新游客号）。
 - 鉴权：UGC 写操作改为**校验 `verified`**（准入失败按 §7.7 第 1 条分码：`4031` / `403`）；**系统通知 `/my/notifications/*` 属认证专属，服务端按 `verified=true` 校验（游客请求被拒、个人通知恒空；前端不拉取未读数，入口游客直达见 §5.y.4）**。
 - **管理后台鉴权（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）**：管理端**无登录体系**，`/auth/admin/login` 端点**不存在**（`AuthServiceImpl.adminLogin` 已随账号体系移除；残留的 `SecurityConfig` / `SwaggerConfig` / `AuthService` 注释为待清理的历史描述）；`/admin/**` **不校验 `ADMIN` / `SUPER_ADMIN`**，改由 `AdminTokenFilter` 校验环境变量口令（请求头 `X-Admin-Token` == `ADMIN_TOKEN`），未配置即 fail-closed 403。原「管理端 token 12 小时短期过期（`ADMIN_TOKEN_EXPIRATION_MS`）」策略随登录体系一并作废；学生端 JWT 维持 7 天（`application.yml`）。
@@ -391,7 +392,7 @@
 ### 5.x 三端一致性红线（强制，违反即阻断级缺陷）
 - **字段命名**：对外 JSON 一律 camelCase；跳转目标类字段统一 `targetType`/`targetId`/`targetUrl`（原 Banner/广播契约，二者均已移除后保留为通用跳转字段规范）；评价状态 `isHidden`(0/1) 非 `isDeleted`；UGC 配图字段统一 `images`（字符串数组，≤3 项 COS URL）（评价 / 反馈 VO 与提交请求标准字段，见 §5.a）；**安检态字段 `secState` 已随 2026-09-15「取消人工复核」全链退役，三端不得再出现该字段**；Web `snake_case` 仅允许 `api/adapter.ts` 内部，禁止进入 `types/` 或视图层。**（`favoriteCount`/`isFavorited` 已随收藏模块移除而废弃，不再作为字段命名约束）**。
 - **错误码统一**：成功 200 / 参数 400 / 未登录 401 / 无权限 403 / 服务器 500（**4031 邮箱未认证例外见 §3 与 §7.7 第 1 条**：`4031`=需邮箱认证（弹认证引导）、`403`=无权限或需微信登录（提示 message，不弹引导））；**401 统一处理**（2026-08-19 更新）：小程序 `http.ts` 对 401 先确保静默登录再自动重试一次，仍失败才 `handleUnauthorized`（清 token + Toast + 重新微信静默登录），`handleUnauthorized` 有并发去重防登录风暴；**不再用 `uni.$emit('auth:unauthorized')` 事件总线**（规避 HMR 重复订阅泄漏）；**web `http.ts`（管理后台）** 的鉴权失败（401/403）统一提示口令无效（`VITE_ADMIN_TOKEN` 配置错误）——**管理端无登录页**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废：不再跳转 `/login`、不再清 `localStorage.token`）。
-- **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/mine/index.vue` 的「我的收藏」、`pages/detail/dish/index.vue` 底部收藏按钮、`my-favorites` 页），统一移除。语义仅保留 `thumb`=有用/点赞（点赞语义，非收藏；`heart` 键已删除、无「喜欢」语义图标，见 §4.2 S4-05）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
+- **喜欢 / 收藏单一概念（收藏全量移除，2026-08-12 复核）**：原 `favorite`/`/favorites` 端点、表、字段（`favoriteCount`、`isFavorited`）已彻底删除；**前端不得保留任何「收藏」入口或按钮**（含 `pages/mine/index.vue` 的「我的收藏」、`pages/detail/dish/index.vue` 底部收藏按钮、`my-favorites` 页），统一移除。**原 `thumb`（有用/点赞）键已随「评价有用」全链下线删除（2026-09-21 资产专项）**（`heart` 键亦已删除、无「喜欢」语义图标，见 §4.2 S4-05）；禁止 `like`/`favorite` 双体系、禁止 `like_count`。`DishVO` 不再含 `favoriteCount`/`isFavorited`（历史口径混淆已废）。
 - **状态枚举**：Dish `status` on/off（**`audit_status` 列与索引已于 2026-09-15 阶段4 全量删除，见 §7.23 第 4 条：菜品无独立审核**）；**Canteen/Stall 无 `status` 枚举**（停业/实体审核语义已随去实体化下线，2026-09-14 Q-119，见 §7.22 第 3 条）；Web 内部 `active/inactive` 须经 adapter 映射回后端枚举（仅用于菜品）。（Banner 及 Broadcast/Activity 已随公告/活动下线移除）
 - **User 无 stall**：`UserVO` 不含 `stallId`；web `userToLegacy` 的 `stall_id` 映射须删除。
 - **学生 UGC 路径**：学生端**无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 均已于 2026-09-13 全部下线，客户端零消费）；**菜品由管理员录入**（`/admin/dishes/**`），学生提交菜品需求走意见反馈 `add` 类型（`POST /feedback`）由后台处理。学生端保留的 UGC 写操作 = 写评价 / 评价点赞 / 删本人评价——均需 `verified=true`（见 §5.y 权限矩阵）；反馈与举报公开免认证；`POST /dishes/{id}/view`（浏览埋点）与全部 GET 接口保留。严禁 `/stall-owner/**`。（学生提交档口/食堂 `POST /my/stalls` 已随功能移除，2026-08-18）
@@ -741,7 +742,7 @@
 - **种子脚本**：`seed_data.sql` 的「菜品折扣」段删除 `promo_price` 赋值（保留 `original_price`）；`INSERT` 行的 `price` 已是折扣后现价。
 - 对应 PR-05（冗余边界：无业务增量的字段删除）与 PR-07（字段生命周期成对处置）。
 
-#### 3. 影响面（文档层已修订，代码待落地）
+#### 3. 影响面（已落地）
 
 - **server**：`DishVO` / `DishAdminVO` / `DishAdminReq` 删字段；`DishMapper.xml` resultMap 与 SELECT 列删 `promo_price`；`schema.sql` / `seed_data.sql` 按上。
 - **client**：`types/dish.ts`、`api/dish.ts`、`pages/detail/dish/DishInfoCard.vue`（`hasPromo` 改判 `originalPrice > price`）、`pages/find/FindResults.vue`（促销角标改判或移除）。
@@ -772,7 +773,7 @@
 - **`viewCount` 口径定论（2026-09-18）：一直累计（现状）**——`dish.view_count` 列不清零、`POST /dishes/{id}/view` 的「同一用户同一菜每日只计 1 次」去重口径不变；`view_count` **仅作热度排序与热搜派生输入，不对外出参**。
 - 其余字段（`id` / `name` / `price` / `originalPrice` / `description` / `images` / `stallName` / `canteenName` / `floor` / `avgRating` / `ratingCount`）均有端上消费，保留。~~`spiceLevel` / `region`~~ **已于 2026-09-20 替换为「荤素 / 主料 / 口味 / 冷热」（见 §7.28）**；~~`tags`~~ **已删除（见 §7.29）**；~~`windowNo` / `updatedAt`~~ **已删除（见 §7.30）**；~~`latitude` / `longitude`~~ **已删除（坐标 / 距离概念全链下线，见 §7.31）**；**公开 `DishVO` 由 24 → 15 字段。**
 
-#### 3. 影响面（文档层已修订，代码待落地）
+#### 3. 影响面（已落地）
 
 - **server**：`DishVO` 删 6 字段、`DishAdminVO` 删 `viewCount`；`DishMapper.xml` 公开查询 SELECT 列同步收窄（`d.status` / `d.created_at` / `d.view_count` 不再映射进公开 VO，**WHERE 过滤与热度 `heatScoreExpr` 不变**）。
 - **client**：`types/dish.ts` 删 `stallId`（`status` / `createdAt` / `canteenId` / `promoPrice` / `viewCount` 本就未建模）；`api/dish.ts` 删对应映射；`utils/share-state.ts` 的 `ShareDish.stallId` 与 `useDishPage.ts` 的写入点一并清理（只写不读）。
@@ -813,7 +814,7 @@
 - 相应删除 `GET /dishes` 的 `spiceLevel` 查询参数（`DishQueryReq`）；一期**不为新四维提供筛选**（详情展示即可，避免重蹈 PR-01「有筛选无录入」）。
 - 触发修订：**§7.9 第 1 条（`region` 定型）、§7.18 第 1 条（辣度筛选）原地作废**并已标注。
 
-#### 3. 影响面（文档层已修订，代码待落地）
+#### 3. 影响面（已落地）
 
 - **server**：`schema.sql` 幂等迁移——删 `spice_level` / `region`、加 `diet_type` / `ingredients` / `flavor_tags` / `serve_temp`（先判存在、可重复执行，**禁止直连 ALTER**）；`seed_data.sql` 同步；`Dish` 实体 / `DishVO` / `DishAdminVO` / `DishAdminReq` / `DishQueryReq` / `DishMapper.xml`。
 - **client**：`types/dish.ts`、`api/dish.ts`（映射真源）、`DishInfoCard`（信息卡维度）、`FilterBar` + `stores/dish.ts`（**删辣度筛选**）、`pages/home`。
@@ -845,7 +846,7 @@
 - **口径**：§7.9 第 6 条（`dish.tags` 值域定型）**原地作废**并已标注。
 - 恢复须**重新拍板**（PR-04 / PR-05）。
 
-#### 3. 影响面汇总（文档层已修订，代码待落地）
+#### 3. 影响面汇总（已落地）
 
 - **文档（本批已改）**：`project_spec.md` / `api-design.md` / `database.md` / `architecture.md` / `CODEBUDDY.md` / `feature/client-首页菜品浏览.md` / `feature/client-搜索.md` / `feature/client-菜品详情.md` / `feature/web-菜品管理.md` / `feature/web-菜品详情查看.md`。
 - **公开 `DishVO` 字段数：20 → 19**。
@@ -874,7 +875,7 @@
 | `PUT /admin/reviews/{id}/hide` | `PATCH /admin/reviews/{id}`（`{ isHidden }`） | 待落地（管理端批次） |
 | `PUT /admin/users/{id}/status` | `PATCH /admin/users/{id}`（`{ status }`） | 待落地（管理端批次） |
 | `GET /dishes/hot-search` | `GET /dishes/hot-keywords` | 待拍板 |
-| `GET /canteens/all` | `GET /canteens?include=stalls` | 待拍板 |
+| `GET /canteens/all` | `GET /canteens?include=stalls` | **已采纳（2026-09-21 落地，change `api-slimming`）**：`/canteens/all` 已删除并合入 `include=stalls` |
 | `POST /upload/images` / `POST /upload/image` | `POST /images` | 待拍板 |
 | `/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/auth/profile`、`/auth/account` | `POST /auth/sessions`、`POST /auth/email-verifications`、`PUT /auth/email`、`GET｜PUT /users/me`、`DELETE /users/me` | 待拍板（登录域整体收敛，影响三端） |
 
@@ -892,7 +893,7 @@
 6. **重评内容安检口径（2026-09-20 技术评审裁决，方案 A）**：`PUT /reviews/{id}` 的**文本在请求内经 `msgSecCheck` v2 送检**；**图片沿用 `POST /upload/images` 转存链路的 `imgSecCheck`**（**同一张图不重复送检**，重评仅校验图片为受信 COS 地址）。即「与首次发表同口径」的口径为：**进入系统的每张图都已过检**，PUT 内不重复复检（避免重复计费）。若将来要求 PUT 内显式复检，须**重新拍板**。
 5. 以上为**目标态**；代码落地前实现仍为现状，差异不作为回退依据（PR-04）。
 
-#### 4. 影响面（文档已改，代码待落地）
+#### 4. 影响面（已落地）
 
 - **server**：`ReviewController`（评价列表 / 创建改嵌套路径 + 公开列表 VO 收敛三字段）、`DishController`（`/views`）、`DishVO` 删 `windowNo` / `updatedAt`、`DishMapper.xml`、`ReviewMapper.xml`（公开列表不 select 三字段）。
 - **client**：`api/review.ts` / `api/dish.ts`（路径）、`useDishPage.ts`（加 `GET /my/reviews?dishId=`、`/views`）、`DishInfoCard`（去评分/评价列与「信息更新于 X」）、`types/dish.ts`（删 `windowNo` / `updatedAt`）。
@@ -922,7 +923,7 @@
 - **种子脚本**：`seed_data.sql` 的 `canteen` INSERT 删除 `latitude` / `longitude` 两列赋值。
 - 对应 PR-05（冗余边界：无业务增量的字段删除）与 PR-07（字段生命周期成对处置）。
 
-#### 3. 影响面（文档层已修订，代码待落地）
+#### 3. 影响面（已落地）
 
 - **server**：`Canteen` 实体 / `CanteenInfoVO` / `CanteenServiceImpl` / `DishVO` 删坐标字段；`DishMapper.xml` 删 `c_lat` / `c_lng` 映射与 SELECT 列（含 `COALESCE` 兜底）；`schema.sql` / `seed_data.sql` 按上。
 - **client**：`types/dish.ts`（`distance` / `latitude` / `longitude`）、`api/dish.ts` 映射、`utils/location.ts`（Haversine + `CAMPUS_CENTER`）、`utils/format.ts` 的 `formatDistance`、`stores/location.ts`（整体删除）、`pages/home/geo-prompt.ts`（整体删除）、`pages/home/index.vue`（静默定位与一次性提示调用）、`stores/dish.ts`（`writeLocalDistance` / `withLocalDistance` / `refreshLocalDistance`）、`pages/home/DishCard.vue`（卡片距离）、`pages/find/index.vue` 与 `pages/find/FindResults.vue`（搜索距离）、`pages/detail/dish/DishInfoCard.vue` + `useDishPage.ts`（位置行右侧距离与 `onDistTap` 引导）。
@@ -934,6 +935,89 @@
 #### 4. 恢复须重新拍板
 
 恢复坐标列 / 距离展示 / 定位能力（含 `scope.userLocation` 权限声明），均须**重新拍板**，不得静默重建（PR-04 / PR-05）。
+
+---
+
+### 7.32 登录出参精简：删 `email` / `guestShortId` / `status`（2026-09-21 用户拍板）
+
+> 决策来源：用户 2026-09-21 要求对本域做冗余清理后拍板。定性依据（均已核实实现，非推测）：`user.email` 在微信体系下**无任何写入点**（登录与认证只写 `bind_email`；该列仅旧密码体系遗留、注销时置 NULL 释放 `uk_user_email`）→ 出参**恒为 NULL**；`guestShortId` 后端实现即「食客 + `id` 尾 4 位」→ **纯派生**；`status` 端上**零消费**（禁用 / 注销在登录侧 400 与 UGC 写操作侧 403 拦截，端上无分支渲染）。对应 PR-05（冗余边界）。
+> 与本章冲突的历史表述（§5.y.4 游客标识、§5.y.5 `GET /auth/profile` 出参清单）**已在本文件就地修订并标注来源**。
+
+#### 1. 口径定型
+
+- **`UserInfoVO`（登录 / profile 出参）删除三字段**：`email`、`guestShortId`、`status`。
+- **校园邮箱的唯一出参来源 = `bindEmail`**；端上禁止再以 `email` 或「由 `username` 推导」作为第二来源（PR-02 口径单一真源）。
+- **游客短标识改由端上派生**：「食客 + `id` 尾 4 位」；无 `id` 时回退既有的本地游客 ID（`utils/guest.ts`），**不再由接口出参**。
+- **`status` 不再对端出参**；账号可用性判定维持服务端权威（登录 400 / 写操作 403）。
+- **`guestShortId` 在学生端与管理端**一律不出参**（判据不因端而异：`id` 的纯派生值不作为出参）。管理端 `UserView` 的关键词过滤与昵称兜底展示改为**由 `id` 现算**同一规则，行为等价（2026-09-21 用户拍板：管理端曾"在读"不构成保留理由，可无损替代即删）。
+- **管理端 `UserVO` 的 `status` / `email` 保留**（管理端需展示与操作账号状态、展示校园邮箱），本决议不涉及；其 `guestShortId` 按上一条同批删除。
+- **`buildGuestShortId` 的规则保留但不再有任何出参消费方**：仍作为建号默认昵称「食客 + ID 尾 4 位」的服务端私有实现。
+
+#### 2. 影响面（文档层已修订；**代码已于 2026-09-21 落地**，change `auth-response-slimming`）
+
+- **server**：`UserInfoVO` 删三字段；`AuthServiceImpl.toUserInfo` 与 `getProfile` 的 map 同步去 `email` / `status` / `guestShortId`，并移除 `buildGuestShortId` 的调用（方法本身若无其它消费方则一并删除）。
+- **client**：`types/user.ts` 去三字段；`api/user.ts` 去 `email` 映射与 `deriveCampusEmail` 的邮箱推导（认证表单发码所需推导保留）；`pages/profile/index.vue`、`pages/mine/index.vue` 改读 `bindEmail`；游客短标识改由 `id` 派生。
+- **web / 管理端**：`UserVO` 删 `guestShortId`（`status` / `email` 保留）；`types/index.ts` 与 `api/adapter.ts` 同步去声明与映射；`UserView` 的关键词过滤与昵称兜底展示改为按行 `id` 现算「食客 + ID 尾 4 位」（局部函数，复用点 2 < 3 不上提共享层）。
+- **文档（本批已改）**：`project_spec.md`（本条 + §5.y.4 / §5.y.5 就地修订）、`api-design.md`（§8 差异登记册）、`feature/client-微信静默登录与游客态.md`（字段表 + 「出参精简落地状态」节；该文档原「答疑」章节已删除）。
+- **`feature/client-微信静默登录与游客态.md` 同批补齐的说明性内容**（非契约变更）：JWT 载荷为**明文非密文**、服务端**不存 JWT / 无绑定表**、token 换新的五种时机、签名防伪机制、三条已知边界（多实例黑名单不共享 / 读路径兜底弱于写路径 / 密钥轮换等于全站 token 失效）。
+
+#### 3. 恢复须重新拍板
+
+恢复被删出参（或以任何形式重建「邮箱双源」「服务端出参游客短标识」），均须**重新拍板**（PR-04）。
+
+---
+
+### 7.33 公开契约精简：分页壳去 `list` + 菜品列表参数收敛 + 食堂端点合并（2026-09-21 用户拍板）
+
+#### 1. 口径定型
+
+- **分页壳删 `list` 兼容字段**：`PageResult.list` 与 `records` 恒等值、且参与序列化导致**同一数组被输出两次（列表响应体积≈翻倍）**；两个消费端（client `recordsOf` / web `pageRecords`）均**优先读 `records`** → 该分支永不命中。`getList()` **删除**，分页壳收敛为 `records` / `total` / `page` / `pageSize`。
+- **`GET /dishes` 参数收敛**：删 `stallId`（筛选无档口入口、端上零发送）、`sortBy` / `sortOrder`（四值中仅 `heat` 被首页默认流使用，且 `heat` 分支内部固定 `DESC`，`sortOrder` 对任何取值均无效果）；**排序口径收敛为服务端恒热度**——`DishMapper.xml` 去排序 `<choose>`，原 `<otherwise>`（`rating_count DESC, avg_rating DESC`）一并作废，消除「首页传 `heat`、筛选 / 搜索不传参数则落到非热度」的**口径分裂**（合 §7.17 第 2 条「热度优先、不设排序入口」）。
+- **食堂端点合并**：`GET /canteens/all` **删除**，合入 `GET /canteens` 的可选参数 `include=stalls`（唯一合法值 `stalls`，非法值按缺省处理）；`CanteenInfoVO` 收敛为 `id` / `name`，`include=stalls` 出参收敛为 `id` / `name` / `stalls[]`（档口项仅 `id` / `name`）；连带删除 `listCanteens()` 的图片绝对 URL 拼接与 `listWithStalls()` 的 `batchAvgRating` 批查（均属出参收敛后的白算）。`api-design.md` §8 已登记的 RESTful 收敛项（`GET /canteens/all` → `GET /canteens?include=stalls`）由「待拍板」转为**采纳**。
+- **端上实现层死字段清理**：`MixedResult.ratingCount`（只写不读）、`Dish.image`（与 `images[0]` 同值派生）删除；两处 `recordsOf` / `pageRecords` 的 `list` 兜底移除。
+
+#### 2. 保留项（明确不删）
+
+`total` / `page` / `pageSize` **保留**：分页元数据语义正当（`total` 在评价链路仍为结束判据），仅更正文档定性——首页列表的结束判据是「**本页返回条数 < `pageSize`**」，不是 `total`。公开 `DishVO` 列表 / 详情**共用**（登记为「有意过度下发」，不拆 VO）。
+
+#### 3. 影响面（文档已修订；代码与本条同批落地，change `api-slimming`）
+
+- **server**：`common/result/PageResult`、`dish/dto/DishQueryReq`、`resources/mapper/DishMapper.xml`、`canteen/controller/CanteenController`、`canteen/service/impl/CanteenServiceImpl`、`canteen/dto/CanteenInfoVO` / `CanteenWithStallsVO` / `StallDetailVO`。
+- **client**：`api/shared.ts`、`types/dish.ts`、`api/dish.ts`、`api/canteen.ts`、`types/canteen.ts`、`utils/image.ts`、`pages/home/DishCard.vue`、`pages/find/index.vue`、`pages/find/FindResults.vue`。
+- **web**：`api/adapter.ts`。
+- **文档**：`docs/api-design.md`（§1.4 / §2.1 / §8）、`docs/feature/client-首页菜品浏览.md`、`client-意见反馈.md`、`docs/feature/README.md` 契约表。
+- **无库表变更、无数据迁移**；三端同仓同批发布，不保留过渡期。
+
+#### 4. 恢复须重新拍板
+
+恢复 `list` 兼容字段、`stallId` / `sortBy` / `sortOrder` 参数、`GET /canteens/all` 端点或食堂字典扩展出参（`location` / `description` / `images` / 档口层字段），均须**重新拍板**（PR-04 / PR-05）。**注**：`GET /dishes` 的**筛选维度增补**（如后续 change 的菜品大类 `mealType`）不属于本条的恢复项，按其自身决议与 capability 引入。
+
+---
+
+### 7.34 首页 UI 重构：两态结构 + 全站主色改橙 + 菜品大类（2026-09-21 用户拍板）
+
+#### 1. 口径定型
+
+- **首页两态结构**：初始态 = 标题「知行食记」+ Banner「今日推荐」（副标题 + 插画）+ 通栏搜索框（占位「搜索菜品、食堂、套餐」，右侧内含「筛选」按钮）+ **横向大类标签栏** + 双列卡片网格；**吸顶态**（上滑后）= 标题 + **完整搜索框** + 大类标签栏**整体粘性吸顶**，Banner 完全滚出。**搜索框不得消失**。
+- **卡片四段固定排版**：图（约 52%）→ 菜名（黑色加粗、卡片最大字号）→ `食堂名称 | 档口名称`（浅灰**纯文字**，禁彩色标签块）→ 星+评分（左）/ 价格（右，主色橙）。**明确不引入「月售 XXX 份」**（项目无订单 / 销量数据源）。
+- **全站主色由暖砖红 `#C45549` 改为橙色**（**token 层变更，含小程序 + Web 管理端**）——**2026-09-21 定稿为两档取色**：**填充档** `--color-primary` = `#C2410C`（全站主力用途：填充底 / 图标 / 标签下划线 / 星标 / TabBar 激活图标；兼作承载白字的底色——**其上白字 5.18:1** ✅、对白卡 5.18:1 / 对页底 4.69:1 ✅ ≥3:1）；**文字档** `--color-primary-text` = `#B93A0A`（价格 `--color-price` / TabBar 激活文字 / 选中态文字 / **主色浅底上的文字**：对白卡 5.72:1 / 对页底 5.18:1 / 对 `#FCE8D6` 4.81:1 ✅）；`--color-primary-soft` = `#FCE8D6`，含品牌色通道的阴影通道随主色 = `194, 65, 12`（`rgba(194, 65, 12, α)`）。**适用边界：填充档不得作主色浅底上的文字（该组合仅 4.35:1）**。**取色理由：更亮的橙 `#EA580C` 作填充底白字仅 3.56:1、作浅底文字亦仅 3.56:1（文字级与图形级两门槛均不达），而全站 21 处以主色作「填充底 + 白字」**（Web 管理端同取 `#C2410C`，hover `#EA580C` / active `#9A3412` 为瞬时态；Web **深色主题**文字档取提亮值 `#F97316`）。页面底色改「浅米白 → 淡橙顶部渐变」（`--bg-page-grad-from` `#FFF9F3` → `--bg-page-grad-to` `#FFEFE0`）；`--bg-page` / `--bg-card` 取值不变。
+- **新增「菜品大类」维度**：`dish` 新增**单值枚举列** `meal_type`（`set_meal` 套餐盖饭 / `stir_fry` 家常小炒 / `noodle` 面食粉类 / `dry_pot` 香锅干锅 / `snack` 风味小吃 / `soup_drink` 汤饮甜品）。**基数口径：一个菜品恰属一个大类，一个大类可含多个菜品（1:N）**；**大类与属性维度（荤素 / 主料 / 口味 / 冷热）不是一类字段、不得混用**——属性为多值横切，大类为单值互斥且需全量覆盖。**判定口径：按菜名与做法形态判定，不看主料与口味**（形态映射与 31 道种子归属见 `docs/feature/client-首页菜品浏览.md` H3 / H4）。
+- **大类筛选与字典**：`GET /dishes` 新增单值参数 `mealType`（**白名单校验，非法值 400**，不静默降级），可与 `canteenId` / `keyword` / 价格区间叠加；**新增只读端点 `GET /dishes/meal-types`**（公开）下发 `[{ key, label, order }]`，**只含当前有在售菜品的大类**（空类自动隐藏）。**端上不得写死任何标签文案或标签清单**。分层：公开 `DishVO` **不加** `mealType`（卡片不展示 → 零消费即删）；后台 `DishAdminReq` / `DishAdminVO` 增加（录入下拉 + 编辑回填 + 列表筛选）。
+- **不引入「人气推荐」标签**：默认流已为热度序，再加一个热度标签与「全部」重复；若改为第二排序口径则违反 §7.33 的「排序唯一口径 = 热度」。要做运营精选须走「新增 `is_recommended` 字段」而非排序分支。
+- **与品类删除决议的边界（重要）**：本次新增的是 `dish` 上的**单值大类字段**，**不是**恢复品类维度——`category` 表、`dish.category_id`、`/admin/categories`、后台品类维护页**均不存在且不得新建**，§7.22 第 1 条「菜品按食堂 / 档口归属，不存在分类维度」**继续有效**。大类目录由后端常量（`MealTypeConst`）定义，**不建字典表、不设外键**；代价是新增大类需改常量并发版（低频变更，用户已接受）；若将来要后台自助增删大类，须另立 change 并先撤销 §7.22 第 1 条。
+- **筛选入口形态**：搜索框右侧「筛选」按钮展开既有食堂 / 价格筛选面板（**筛选维度不变**），与大类标签栏**可叠加**；原「搜索框一行 + 筛选按钮一行」的两行头部作废。
+
+#### 2. 影响面（文档已修订；代码随本批落地，change `home-ui-refresh`）
+
+- **server**：`dish` 新增 `meal_type` 列（`schema.sql` 幂等**存储过程** ADD COLUMN，禁直连 ALTER；`seed_data.sql` 按「新增列后回填」惯例幂等 UPDATE 全量赋值，并修正珍珠奶茶 / 杨枝甘露 的 `ingredients` 误标）、`Dish` 实体 / `DishAdminReq` / `DishAdminVO`（+`mealType`）、`DishQueryReq`（+`mealType` 白名单）、`DishMapper.xml`（大类筛选条件 + 在售大类查询）、**新增 `GET /dishes/meal-types`**（Controller / Service / `MealTypeVO`）、大类常量 `MealTypeConst`；`DishVO` **不加**该字段。
+- **client**：首页 `pages/home/**`（两态、吸顶、搜索框 + 筛选按钮、大类标签栏、卡片四段、flex 双列）、新增大类字典 api/store、`api/dish.ts`（`mealType` 透传）、`theme/tokens.ts` + `App.vue`（换橙 + 渐变底，双份声明同步）、Banner 插画**本期为占位实现**（首页私有组件 `pages/home/HomeBannerArt.vue`：内联 SVG → `image` data-uri，与 `IconSvg` 同机制）。
+- **web**：`variables.css`（主色换橙）、菜品表单大类下拉、菜品列表大类筛选、`api/adapter.ts` 映射。
+- **文档**：`docs/feature/client-首页菜品浏览.md`（G / H 决议）、`docs/feature/web-菜品管理.md`、`docs/api-design.md`（`/dishes` 参数 + 新端点 + §8 差异册）。
+- **无表结构重建**（仅新增一列，可空）；`meal_type` 为可空列，回滚不影响旧逻辑。
+
+#### 3. 恢复须重新拍板
+
+恢复暖砖红主色、恢复「红色顶栏 / 两行头部」形态、引入「月售」或「人气推荐」标签、把大类改为字典表 / 后台可维护（即恢复品类表形态），均须**重新拍板**（PR-04 / PR-05）。
 
 ---
 
@@ -964,12 +1048,16 @@
 - **待收尾（2026-09-15 品类维度整链删除，见 §7.22 第 1 条；执行由用户 / 后续任务承担）**：整链删除已覆盖三端与后台（Java 品类包、`/admin/categories`、Web 品类维护页与首页配置入口、菜品表单分类下拉、菜品列表品类筛选与分类列、端上 `api/category.ts`），**尚余一项未收口**：**建库脚本**——`server/src/main/resources/db/schema.sql` 仍含 `category` 建表与 `dish.category_id` 列 / `idx_dish_category` 索引、`seed_data.sql` 仍含品类种子数据与 `dish.category_id` 赋值，须按幂等口径移除（先判存在再 DROP、可重复执行、**禁止直连 ALTER**，存量库同批清理）。~~原第 ② 项「操作日志动作值」~~ **已注销（2026-09-15）**——`OperationLogConst` 随「操作日志」全链删除整体移除，`category_*` 四值问题不复存在（见 §7.25 第 1 条）。**该项完成前，`docs/database.md` 与建库脚本存在已知差异，以其头部对账注为准。**
 - **管理端操作日志全链删除 + Web IA 扁平化（2026-09-15 用户拍板，见 §7.25；本次变更留痕）**：① **操作日志全链删除**——删 `@AuditLog` 注解 / `AuditLogAspect` 切面 / `OperationLogConst` / `OperationLogAdminController` / `OperationLogVO` / `OperationLog` 实体 / `OperationLogMapper` / `OperationLogService`(+`Impl`) 与 4 处 `@AuditLog` 调用点；`operation_log` 表不再创建（`schema.sql` 末尾幂等段 `drop_operation_log_table` 清理存量库，**表基线 11 → 10**）；Web 删 `OperationLogView.vue` / `api/operationLog.ts` / `OPERATION_*` 常量，`GET /admin/operation-logs` 端点条目从 `docs/api-design.md` 移除。**保留**：`ClientIpUtil`（仅服务 `RequestLoggingFilter`）、`view_log` 浏览足迹（**不动**）。连带注销 §8「待收尾」原第 ② 项与 §7.10 第 2 条的 `operation_log.admin_id` retired 口径（**2026-09-16 修订：`user_feedback.handler_id` 列亦已随零消费清理删除**）；§7.21 第 6 条 ④ 操作日志时间区间筛选随之作废。② **Web IA 扁平化**——一级导航 4 项与路由 1:1（菜品 `/dashboard/content`（**默认落地页**）/ 评价 `/dashboard/reviews` / 反馈 `/dashboard/feedback` / 学生账号 `/dashboard/system`）；删原「信息管理」聚合壳 `ContentManageView`、原「用户与系统」分类卡层 `SystemManageView` 与其下 `AccountView` 透传壳（路由直指 `DishManageView` / `UserView`）；页面层级统一 ≤2 层，全站删 `.stat-inline` 只读统计、页头解释句与只读提示块；菜品详情删 `detail-tabs` / 「数据统计」分区与 2×StatCard / 页内 inline 编辑（统一走 `DishFormDialog`），评价详情抽屉抽公共组件 `ReviewDetailDialog`（两页共用、删除入口只保留一处）；反馈页举报类关联评价改主色文本链接「评价 #id →」（`?rid=` 深链）；旧 `/dashboard/audit` 兜底重定向保留并扩为 `tab=feedback*` / `apply*` → 反馈页、其余 → 评价页（整份保留 query）；删 `StatCard.vue` / `PageSection.vue` 与 `shared.css` 的 `.tabs` / `.tab` / `.tab-count` / `.agg-tabs` / `.sec-*` / `.stat-inline`。对应 PR-04（被否决项留痕：恢复操作日志或聚合层须重新拍板）、PR-05（死资产清理）、PR-13（单人运营工具，无需留痕）。
 - **v1 基线冻结（2026-09-16 用户拍板，见 §7.23 第 6 条；本次变更留痕）**：① **6 个零消费列删除**（数据库层 DROP 归入 `schema.sql` 幂等段，见 `docs/database.md` 文首对账注）——`user.password`（管理端口令制 + 学生无密码体系，零校验零写入）、`user.unionid`（单应用，撤销多应用预留）、`dish.reject_reason`（菜品无审核，历史退役列零消费）、`dish.created_by`（只写不读）、`user_feedback.handler_id`（单口令无身份，retired 口径终止）、`user_feedback.contact`（产品定型「不收集联系方式」，列 / `FeedbackReq` 入参 / `FeedbackAdminVO` 展示全删）；**表基线仍 10 张**（纯列级变更）。② **`GET /reviews` 维度收敛**——`stallId` / `canteenId` 参数删除（三端零消费，撤销 2026-09-15 CT-04「按优先级取一」口径），`dishId` 必填（缺失 → `400`）；`docs/api-design.md` 同步。③ **术语正名**——「机检 / 机审」统一表述为「微信内容安全检测（`msgSecCheck`/`imgSecCheck`）」，用户原话口径：「评价的文本与图片通过微信内容安全检测即收录发布，不通过即拒绝；无任何人工环节」（全文替换并登记于 §0.0 支柱④ / §5.a）。④ **BCNF 声明**（database.md 增注）——库设计满足 BCNF，唯一注册反规范化为 `dish.avg_rating/rating_count/view_count`（及 `review.useful_count`）异步事件维护计数列，单一数据源为 review/view_log；恢复纯 BCNF 须重新拍板。⑤ **评分口径定稿（「通过即收录」）**——评分聚合仅 `is_hidden=0` 的评价、无其他过滤；**一次性重算 SQL 已交付用户（部署时可选执行，非必做；不执行则个别菜品均分在下次评价写入时自然纠正）**。⑥ **《定稿速览对账单》归档**至 `docs/loop/_archive/定稿速览对账单-2026-09-16.md`（git mv 留痕）；**自本条起 v1 基线冻结，任何改动（含 AI）必须先修订 §7.23 并在 §8 留痕再动代码，违反即流程违规**。对应 PR-04（被否决项留痕）与 PR-07（字段生命周期成对处置）。
-- **菜品价格字段精简——删除「折扣价」`promo_price`（2026-09-18 用户拍板，见 §7.26；文档层已修订、代码待落地）**：`price`（现价，已含折扣）+ `original_price`（原价，可空）两态表达折扣，判据 `original_price > price`；`schema.sql` 幂等段先 `UPDATE dish SET price = promo_price WHERE promo_price IS NOT NULL` 再 DROP 列，`seed_data.sql` 删除 `promo_price` 赋值；影响 server / client / web 三端与 `api-design.md` / `database.md` / ~~`product-blueprint.md`~~（已于 2026-09-20 删除）/ 4 份 feature 文档。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
-- **公开菜品 `DishVO` 出参精简（2026-09-18 用户拍板，见 §7.27；文档层已修订、代码待落地）**：删出参 `status`（公开接口恒只返回在售、服务端已过滤）/ `createdAt`（端上只用 `updatedAt`）/ `canteenId`（端上用食堂名 + 字典）/ `stallId`（只写不读）/ `viewCount`（**只为热度服务，不出参；口径定论 = 一直累计、不清零**）＋ §7.26 的 `promoPrice`，公开 VO **24 → 18 字段**；`DishAdminVO` 的 `status` / `stallId` / `createdAt` 保留、`viewCount` 同步删（Web 无展示消费）；**页面 UI 本批不动**。对应 PR-05（冗余边界）。
-- **菜品描述维度替换（2026-09-20 用户拍板，见 §7.28；文档层已修订、代码待落地）**：删 `spice_level`（辣度）/ `region`（风味 / 菜系），新增 `diet_type`（荤 / 半荤 / 素 / 清真）/ `ingredients`（主料）/ `flavor_tags`（口味，吸收辣度）/ `serve_temp`（冷热）；**首页「辣度」筛选与 `DishQueryReq.spiceLevel` 一并删除**；公开 `DishVO` → 20 字段；`schema.sql` 幂等迁移（先加新列、后 DROP 旧列），`region='清真'` → `diet_type='halal'` 的存量转换由用户执行；影响 server / client / web 三端与 `api-design.md` / `database.md` / ~~`product-blueprint.md`~~（已于 2026-09-20 删除）/ 5 份 feature 文档。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
-- **删除产品蓝图文档 + 删除菜品标签 `tags`（2026-09-20 用户拍板，见 §7.29；文档层已修订、代码待落地）**：① `docs/product-blueprint.md`（《产品定型总纲 v1.0》）**删除**，功能口径统一参照 `docs/feature/`；② `dish.tags`（必吃推荐 / 招牌菜）全链删除——列 / 三端 VO·DTO·映射 / `DishQueryReq.tag` / `TagLabel` 公共组件 / Web `TAG_OPTIONS`；公开 `DishVO` 20 → **19 字段**；`schema.sql` 幂等 DROP `dish.tags`。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
-- **接口 RESTful 化 + 菜品详情模块优化（2026-09-20 用户拍板，见 §7.30；文档层已修订、代码待落地）**：① **RESTful 原则写入 §3**（资源导向 / 方法表达动作 / 子资源嵌套 / 禁查询参数表归属 / 禁路径动词）；**本批改「评价 + 浏览」两域**——`GET /dishes/{id}/reviews`、`POST /dishes/{id}/reviews`、`POST /dishes/{id}/views`、`GET /my/reviews?dishId=` 加过滤；管理端 / 登录域 / 热搜 / 上传等**登记待拍板**。② **详情页「我是否已评价」定死方案 (a)**：额外调 `GET /my/reviews?dishId=` 判定并取回我的评价 id（修分页边界 bug）。③ **零消费字段删除**：公开评价列表不再返回 `dishId` / `dishName` / `isHidden`；公开 `DishVO` 删 `windowNo` / `updatedAt`（**20 → 17 字段**）。④ **UI 收敛**：信息卡指标条去「评分 / 评价」两列（归评分区）、去掉「信息更新于 X」。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
-- **坐标与距离概念全链下线（2026-09-20 用户拍板，见 §7.31；文档层已修订、代码待落地）**：`canteen.latitude` / `canteen.longitude` 两列幂等 DROP（并删除 `add_canteen_location` 迁移段与 `seed_data.sql` 两列赋值）、`DishVO` / `CanteenInfoVO` 删坐标出参（`DishMapper.xml` 去 `COALESCE` 兜底）；端上删 `distance` / `utils/location.ts` / `CAMPUS_CENTER` / `formatDistance` / `location` store / `geo-prompt` 与首页·搜索·详情三处距离展示；`manifest.json` 撤 `scope.userLocation` 与 `requiredPrivateInfos` 的 `getLocation`；**公开 `DishVO` 17 → 15 字段**。位置表达收敛为「食堂 · 楼层 · 档口名」。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
-- **菜品详情模块审计整改批（2026-09-20 审计产出，用户拍板「P0 先修、其余按推荐处理」；文档已改、代码待落地）**：① **P0-1 价格展示双源修复**（`hasPromo` 改判 `originalPrice > price`、展示值恒取 `price`，见 §7.26 补注）；② **P0-3 分页结束判据改用 `total`**（见 §7.30 第 5 条）；③ **P0-2 已评价态入口**（底栏「写评价 / 重新评价」双态 + 提交成功后就地保持，见 §7.30 第 1 条补注）；④ 一致性清理——死代码（零消费 `loading` prop / 死 emit / 空壳 `onShow` / 只写不读 `sharedDish.stallId`）、术语正名（「机检」→ 微信内容安全检测）、token 收敛（硬编码圆角 / 冗余 fallback）、触控目标 ≥88rpx 与 `aria-expanded`、详情页大图关自动轮播、页面失败 / 不存在态文案（加载态遵守既有「不设骨架」红线）、四维逐维渲染不占位。影响面：`client/src/pages/detail/dish/**`、`api/review.ts`、`types/review.ts`，**无库表变更**。对应 PR-05（冗余边界）与 §4 UI 红线。
+- **菜品价格字段精简——删除「折扣价」`promo_price`（2026-09-18 用户拍板，见 §7.26；文档层已修订，代码已于 2026-09-20 落地）**：`price`（现价，已含折扣）+ `original_price`（原价，可空）两态表达折扣，判据 `original_price > price`；`schema.sql` 幂等段先 `UPDATE dish SET price = promo_price WHERE promo_price IS NOT NULL` 再 DROP 列，`seed_data.sql` 删除 `promo_price` 赋值；影响 server / client / web 三端与 `api-design.md` / `database.md` / ~~`product-blueprint.md`~~（已于 2026-09-20 删除）/ 4 份 feature 文档。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **公开菜品 `DishVO` 出参精简（2026-09-18 用户拍板，见 §7.27；文档层已修订，代码已于 2026-09-20 落地）**：删出参 `status`（公开接口恒只返回在售、服务端已过滤）/ `createdAt`（端上只用 `updatedAt`）/ `canteenId`（端上用食堂名 + 字典）/ `stallId`（只写不读）/ `viewCount`（**只为热度服务，不出参；口径定论 = 一直累计、不清零**）＋ §7.26 的 `promoPrice`，公开 VO **24 → 18 字段**；`DishAdminVO` 的 `status` / `stallId` / `createdAt` 保留、`viewCount` 同步删（Web 无展示消费）；**页面 UI 本批不动**。对应 PR-05（冗余边界）。
+- **菜品描述维度替换（2026-09-20 用户拍板，见 §7.28；文档层已修订，代码已于 2026-09-20 落地）**：删 `spice_level`（辣度）/ `region`（风味 / 菜系），新增 `diet_type`（荤 / 半荤 / 素 / 清真）/ `ingredients`（主料）/ `flavor_tags`（口味，吸收辣度）/ `serve_temp`（冷热）；**首页「辣度」筛选与 `DishQueryReq.spiceLevel` 一并删除**；公开 `DishVO` → 20 字段；`schema.sql` 幂等迁移（先加新列、后 DROP 旧列），`region='清真'` → `diet_type='halal'` 的存量转换由用户执行；影响 server / client / web 三端与 `api-design.md` / `database.md` / ~~`product-blueprint.md`~~（已于 2026-09-20 删除）/ 5 份 feature 文档。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **删除产品蓝图文档 + 删除菜品标签 `tags`（2026-09-20 用户拍板，见 §7.29；文档层已修订，代码已于 2026-09-20 落地）**：① `docs/product-blueprint.md`（《产品定型总纲 v1.0》）**删除**，功能口径统一参照 `docs/feature/`；② `dish.tags`（必吃推荐 / 招牌菜）全链删除——列 / 三端 VO·DTO·映射 / `DishQueryReq.tag` / `TagLabel` 公共组件 / Web `TAG_OPTIONS`；公开 `DishVO` 20 → **19 字段**；`schema.sql` 幂等 DROP `dish.tags`。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **接口 RESTful 化 + 菜品详情模块优化（2026-09-20 用户拍板，见 §7.30；文档层已修订，代码已于 2026-09-20 落地）**：① **RESTful 原则写入 §3**（资源导向 / 方法表达动作 / 子资源嵌套 / 禁查询参数表归属 / 禁路径动词）；**本批改「评价 + 浏览」两域**——`GET /dishes/{id}/reviews`、`POST /dishes/{id}/reviews`、`POST /dishes/{id}/views`、`GET /my/reviews?dishId=` 加过滤；管理端 / 登录域 / 热搜 / 上传等**登记待拍板**。② **详情页「我是否已评价」定死方案 (a)**：额外调 `GET /my/reviews?dishId=` 判定并取回我的评价 id（修分页边界 bug）。③ **零消费字段删除**：公开评价列表不再返回 `dishId` / `dishName` / `isHidden`；公开 `DishVO` 删 `windowNo` / `updatedAt`（**20 → 17 字段**）。④ **UI 收敛**：信息卡指标条去「评分 / 评价」两列（归评分区）、去掉「信息更新于 X」。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **坐标与距离概念全链下线（2026-09-20 用户拍板，见 §7.31；文档层已修订，代码已于 2026-09-20 落地）**：`canteen.latitude` / `canteen.longitude` 两列幂等 DROP（并删除 `add_canteen_location` 迁移段与 `seed_data.sql` 两列赋值）、`DishVO` / `CanteenInfoVO` 删坐标出参（`DishMapper.xml` 去 `COALESCE` 兜底）；端上删 `distance` / `utils/location.ts` / `CAMPUS_CENTER` / `formatDistance` / `location` store / `geo-prompt` 与首页·搜索·详情三处距离展示；`manifest.json` 撤 `scope.userLocation` 与 `requiredPrivateInfos` 的 `getLocation`；**公开 `DishVO` 17 → 15 字段**。位置表达收敛为「食堂 · 楼层 · 档口名」。对应 PR-05（冗余边界）与 PR-07（字段生命周期成对处置）。
+- **登录出参精简（2026-09-21 用户拍板，见 §7.32；文档层已修订，代码已于 2026-09-21 落地——change `auth-response-slimming`）**：`UserInfoVO`（`POST /auth/wechat-login` 与 `GET /auth/profile` 共用）删 `email`（微信体系下无写入点、**恒为 NULL** 的死字段）、`guestShortId`（后端实现即「食客 + `id` 尾 4 位」，**纯派生**）、`status`（端上零消费，禁用 / 注销由登录侧 400 与 UGC 写操作侧 403 拦截）；校园邮箱唯一出参来源收敛为 `bindEmail`（端上 `bindEmail || email` 双源兜底与 `deriveCampusEmail` 推导一并去掉）；游客短标识改由消费端按 `id` 派生（**小程序与管理端一视同仁**，无 `id` 时回退本地游客 ID）；**管理端 `UserVO` 同批删 `guestShortId`**（`status` / `email` 保留）。**契约回归**：`SmokeApiTest` 新增 2 条断言（登录链路 `userInfo` 键集合精确等于 6 字段、资料链路字段集与登录链路完全相同，并断言 `email` / `status` / `guestShortId` 均 `doesNotExist`），`23/23` 通过，契约层纳入 CI。同批在该域功能文档补齐说明性内容：JWT 载荷为明文非密文、服务端不存 JWT 且无绑定表、token 换新的五种时机、签名防伪机制、三条已知边界（多实例黑名单不共享 / 读路径兜底弱于写路径 / 密钥轮换等于全站 token 失效）。对应 PR-02（口径单一真源）与 PR-05（冗余边界）。
+- **术语专项收口 + 设计资产零消费清理（2026-09-21，`dish-detail-remediation` 归档前置处置；**执行既有决议、无新增决策**）**：① **术语正名全文归零**——按 §7.23 第 6 条既定口径（统一「微信内容安全检测（`msgSecCheck`/`imgSecCheck`）」），把 `server/src`（main 33 处 + 测试若干）、`web/src`（7 处）残留的「机检 / 机审」共 **53 处 / 23 文件**统一替换（均为注释 / 文档字符串，无逻辑与常量变更）；`docs/` 侧遗漏的 3 处裸旧词（`feature/client-写评价.md`、`client-个人资料.md`、`web-评价管理.md`）一并正名；**仅保留定义该映射的留痕**（「旧称『机检』废止」类表述）。② **设计资产零消费清理**——按 PR-05「零消费即删」删除 `COLOR_MAP.like` 与 `--color-like` 变量映射（`theme/generated-colors.css` 由 `gen:tokens` 重生成）及零引用图标键 `thumb`（有用/点赞）/ `clock` / `fire`，并同步更新 §4.2 / §4.9 / §3 的图标与色值语义登记、`IconSvg.vue` 用法示例与零消费注释、`dead-export-scan.md` 登记（**恢复须重新拍板，PR-04**）。③ **文档对账**——`dish-detail-remediation` 各决议（§7.26–§7.31）的「影响面（文档层已修订，代码待落地）」与 §8 留痕条目、`feature/client-菜品详情.md` 已拍板清单 #5 / #9 的「待三端 + 库表代码落地」共 15 处过期标注改为**已落地**；`feature/client-评价有用.md` 加「已全链下线」横幅、`feature/README.md` A-07 行同步（该文档仅作历史留痕）。④ **门禁复核**：`client npm run type-check` EXIT 0、`web npm run build` EXIT 0、`server mvn -q test` EXIT 0（`SmokeApiTest` 实跑，覆盖 4031 / 内容安全检测 400 拒绝 / 资源不存在 400 无 404）。**仍待用户执行**：真机 + 真库端到端冒烟、存量库幂等迁移段（`schema.sql` 4.1–4.5 与 `migrate_region_to_diet_type.sql`）。对应 PR-05（冗余边界）与 PR-12（枚举 / 语义展示与后端常量同源）。
+- **菜品详情模块审计整改批（2026-09-20 审计产出，用户拍板「P0 先修、其余按推荐处理」；文档已改，代码已落地）**：① **P0-1 价格展示双源修复**（`hasPromo` 改判 `originalPrice > price`、展示值恒取 `price`，见 §7.26 补注）；② **P0-3 分页结束判据改用 `total`**（见 §7.30 第 5 条）；③ **P0-2 已评价态入口**（底栏「写评价 / 重新评价」双态 + 提交成功后就地保持，见 §7.30 第 1 条补注）；④ 一致性清理——死代码（零消费 `loading` prop / 死 emit / 空壳 `onShow` / 只写不读 `sharedDish.stallId`）、术语正名（「机检」→ 微信内容安全检测）、token 收敛（硬编码圆角 / 冗余 fallback）、触控目标 ≥88rpx 与 `aria-expanded`、详情页大图关自动轮播、页面失败 / 不存在态文案（加载态遵守既有「不设骨架」红线）、四维逐维渲染不占位。影响面：`client/src/pages/detail/dish/**`、`api/review.ts`、`types/review.ts`，**无库表变更**。对应 PR-05（冗余边界）与 §4 UI 红线。
+- **公开契约精简批（2026-09-21 用户拍板，见 §7.33；文档已修订，代码已于 2026-09-21 落地——change `api-slimming`）**：① **`PageResult` 删 `list` 兼容字段**（两个消费端均优先读 `records` → 零读取；且该字段派生自 `records` 并参与序列化，使同一数组被输出两次、列表响应体积≈翻倍），分页壳收敛为 `records` / `total` / `page` / `pageSize`；② **`DishQueryReq` 删 `stallId` / `sortBy` / `sortOrder`**，`DishMapper.xml` 去掉排序 `<choose>` 分支、查询恒按 `heatScoreExpr` 倒序——消除「首页默认流传 `heat`、筛选 / 搜索流不传参数而落到 `rating_count DESC, avg_rating DESC`」的口径分裂（合 §7.17 第 2 条）；③ **`GET /canteens/all` 删除并合入 `GET /canteens?include=stalls`**（`api-design.md` §8 登记的 RESTful 收敛项由「待拍板」转为采纳），`CanteenInfoVO` 收敛为 `id` / `name`、含档口树出参收敛为 `id` / `name` / `stalls[]`（档口项仅 `id` / `name`），`listCanteens()` 的图片绝对 URL 拼接与 `listWithStalls()` 的 `batchAvgRating` 批查随出参收敛删除；④ **端上死字段清理**（`pages/find` 的 `MixedResult.ratingCount` 只写不读、`api/dish.ts` 的 `Dish.image` 与 `images[0]` 同值派生），两处 `recordsOf` / `pageRecords` 的 `list` 兜底一并移除；⑤ **保留项**：`total` / `page` / `pageSize` 保留（分页元数据语义正当，仅更正文档定性：首页结束判据 = 「本页返回条数 < `pageSize`」）、公开 `DishVO` 列表 / 详情继续共用（登记为有意过度下发）。**无库表变更**。对应 PR-05（冗余边界）与 PR-02（口径单一真源）。
+- **首页 UI 重构批（2026-09-21 用户拍板，见 §7.34；文档已修订，代码随本批落地——change `home-ui-refresh`）**：① **首页两态结构**——初始态为标题 + Banner「今日推荐」+ 通栏搜索框（含右侧「筛选」）+ 横向大类标签栏 + 双列卡片网格，吸顶态保留「标题 + 完整搜索框 + 标签栏」并让 Banner 滚出（固定头部 + 既有滚动壳实现，不用 `position: sticky`）；② **卡片改四段排版**（图 → 菜名 → `食堂 | 档口` 浅灰纯文字 → 星+评分居左 / 价格居右橙），**不引入「月售」**；③ **全站主色暖砖红 → 橙色**（token 层，含 Web 管理端）+ 页面底色改「浅米白 → 淡橙渐变」；④ **新增菜品大类 `dish.meal_type`（单值枚举，6 类）**——**一个菜品恰属一个大类、一个大类含多个菜品**，与属性维度分开，判定按「菜名与做法形态」；配套 `GET /dishes?mealType=`（白名单，非法 400）与只读字典端点 `GET /dishes/meal-types`（只含有在售菜品的大类，端上零硬编码）；公开 `DishVO` 不加该字段，后台 DTO 增加；⑤ **不引入「人气推荐」**（保持排序唯一口径 = 热度，见 §7.33）；⑥ **不构成品类复活**——无 `category` 表 / 无 `/admin/categories` / 无后台品类页，§7.22 第 1 条继续有效。对应 PR-05（冗余边界：公开出参不含零消费大类字段）与 §4 UI 规范落地。
 - ~~**待运维执行（本轮登记，一次性，执行前须技术负责人与用户确认）**：**评分历史数据一次性重算**~~ ——**本一次性任务已取消（2026-09-15 用户拍板「取消人工复核」，见 §7.24）**：`sec_state` 列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），评分聚合口径收敛为**仅 `is_hidden=0` 单一判据**（见 §7.21 第 4 条），且**前提脚本 `server/src/main/resources/db/fix_rating_by_sec_state.sql` 已删除**（前提列不存在，比照 `normalize_dish_audit_status.sql` 先例），**不再存在任何人工数据重算动作**；原「先备份 `dish` 表、由用户执行重算 UPDATE」的执行要求随之作废。
 - ~~**待运维执行（2026-09-15 蓝图 v1 登记，一次性，见 §7.23 第 4 条）**：**存量 `dish.audit_status` 归一为 `approved`**~~ ——**本一次性任务已取消（2026-09-15 阶段4 用户批准「归一后清理」改为直接退役）**：`dish.audit_status` **列与索引已直接 DROP**，由 `schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 承载（`CALL` 在 `schema.sql` 内，随建库 / 升级自动执行，但**仍不由 agent 代跑**——建库动作由用户执行），**存量的 `pending` / `rejected` 随列删除自然消除**；归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql` **已删除**，**不再存在任何人工数据归一动作**，原「先备份 `dish` 表、由用户执行归一 UPDATE」的执行要求随之作废。

@@ -28,7 +28,7 @@
               @load="loadedSet.add(thumbSrc(item.image))"
             />
             <view v-else class="mixed-thumb-ph">
-              <IconSvg name="dish" :size="48" color="var(--text-tertiary)" />
+              <IconSvg name="dish" :size="48" :color="COLOR_MAP['text-tertiary']" />
             </view>
           </view>
           <view class="mixed-info">
@@ -42,7 +42,7 @@
                   >{{ seg.text }}</text>
                 </text>
                 <view v-if="item.rating != null" class="mixed-rating-group">
-                  <IconSvg name="star-filled" :size="26" color="var(--color-primary)" class="mixed-rating-star" />
+                  <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" class="mixed-rating-star" />
                   <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
                 </view>
               </view>
@@ -74,6 +74,7 @@ import { reactive } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { formatPrice } from '@/utils/money'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
+import { COLOR_MAP } from '@/theme/tokens'
 
 /** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */
 interface MixedResultItem {
@@ -85,7 +86,6 @@ interface MixedResultItem {
   price?: number
   originalPrice?: number
   rating?: number
-  ratingCount?: number
   stall?: string
 }
 

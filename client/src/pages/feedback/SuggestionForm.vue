@@ -81,7 +81,7 @@ const subs = [
 }
 .sub-chip.active { background: var(--color-primary-soft); border-color: var(--color-primary); }
 .sub-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
-.sub-chip.active .sub-text { color: var(--color-primary); font-weight: var(--weight-semibold); }
+.sub-chip.active .sub-text { color: var(--color-primary-text); font-weight: var(--weight-semibold); }
 
 .counter { display: block; text-align: right; font-size: var(--font-aux); color: var(--text-tertiary); margin-top: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 </style>

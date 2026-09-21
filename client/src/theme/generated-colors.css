@@ -5,28 +5,32 @@
  * ======================================================================== */
 
 page {
-  --color-primary: #C45549;
+  --color-primary: #C2410C;
   --color-on-primary: #FFFFFF;
-  --color-primary-soft: #F8E8E5;
-  --color-accent: #C45A3C;
-  --color-accent-soft: #F5E6E3;
+  --color-primary-soft: #FCE8D6;
+  --color-primary-text: #B93A0A;
+  --color-accent: #B93A0A;
+  --color-accent-soft: #FAE0CE;
   --color-error: #FF3B30;
   --color-error-soft: #FFECEB;
   --color-warning: #F5A623;
   --color-warning-soft: #FFF8E1;
-  --color-price: #C45549;
+  --color-price: #B93A0A;
+  --color-star: #FBBF24;
   --color-star-empty: #E5E5EA;
-  --color-like: #9E3B2E;
   --text-white: #FFFFFF;
   --text-primary: #262626;
   --text-secondary: #595959;
   --text-tertiary: #999999;
   --bg-page: #F7F3EF;
+  --bg-page-grad-from: #FFF9F3;
+  --bg-page-grad-to: #FFEFE0;
   --bg-warm: #FAF6F0;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
   --bg-placeholder: #F0ECE8;
+  --grad-fade-white: rgba(255,255,255,0);
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
   --shadow-card: 0 2px 12px rgba(0,0,0,0.04);
@@ -34,7 +38,7 @@ page {
   --shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18);
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(196, 85, 73, 0.28);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(194, 65, 12, 0.28);
   --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
   --text-white-edge: rgba(255,255,255,0.24);
   --overlay-dark-strong: rgba(0,0,0,0.6);

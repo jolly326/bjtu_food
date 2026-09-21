@@ -48,8 +48,6 @@ export interface User {
   wechatBound?: boolean;
   /** 绑定校园邮箱（仅认证过才有；管理端可展示，不公开给小程序） */
   bindEmail?: string;
-  /** 游客短标识「食客+ID 尾 4 位」，昵称展示辅助 */
-  guestShortId?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -94,6 +92,14 @@ export interface Dish {
   flavorTags?: string;
   /** 冷热（单选）：hot=热食 / room=常温 / ice=冰 */
   serveTemp?: string;
+  /**
+   * 菜品大类（单值枚举，2026-09-21 §7.34 / change `home-ui-refresh`）：
+   * `set_meal` / `stir_fry` / `noodle` / `dry_pot` / `snack` / `soup_drink`。
+   * **单值互斥**（一个菜品恰属一个大类），与上方描述四维（多值横切）**不是一类字段**、不得混用。
+   * 中文标签 / 顺序 / 集合的唯一真源在后端字典 `GET /dishes/meal-types`，Web 端不得硬编码映射。
+   * 分层：后台 `DishAdminVO` 出参 / `DishAdminReq` 入参含此字段；公开 `DishVO` 不含。
+   */
+  mealType?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -116,6 +122,6 @@ export interface Review {
 }
 
 // 注（2026-09-15 拍板：取消人工复核）：评价 / 反馈的「内容安检状态」字段及其「安检态 / 复核动作」
-// 两个联合类型已随人工复核职责取消一并删除——内容机检放行态与待复核态均放行、仅风险项拒绝，
+// 两个联合类型已随人工复核职责取消一并删除——内容安全检测放行态与待复核态均放行、仅风险项拒绝，
 // 后台不再读取或写入该字段（后端契约同源移除），前端不再保留其类型与字段映射。
 

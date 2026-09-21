@@ -72,4 +72,15 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return 影响行数
      */
     int recalcRatingBySubquery(@Param("dishId") Long dishId);
+
+    /**
+     * 查询「当前存在在售菜品」的菜品大类枚举键（去重）。
+     * <p>
+     * 供 {@code GET /dishes/meal-types} 字典下发使用（2026-09-21 §7.34）：
+     * **空类自动隐藏**——某大类在售菜品数为 0 时不下发；重新有菜后自动出现。
+     * 标签文案与顺序由 {@code MealTypeConst} 提供（单一真源），本查询只回答「哪些类目下当前有菜」。
+     *
+     * @return 在售菜品覆盖的大类枚举键（去重）
+     */
+    List<String> selectInStockMealTypes();
 }

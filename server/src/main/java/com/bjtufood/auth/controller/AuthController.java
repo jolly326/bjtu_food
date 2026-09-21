@@ -115,7 +115,7 @@ public class AuthController {
 
     @Operation(
             summary = "获取当前用户资料",
-            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、角色、认证状态（verified）、绑定邮箱（bindEmail）、游客短标识（guestShortId）。",
+            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（verified）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 6 项，2026-09-21 spec §7.32）。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/auth/profile")

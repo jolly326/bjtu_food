@@ -70,13 +70,12 @@
 |---|---|---|
 | `id` | number | 用户 ID（数据库自增主键） |
 | `username` | string | 学号 / 账号（微信游客为 `wx_` + openid 后 16 位） |
-| `email` | string \| null | 校园邮箱（微信游客为 null） |
 | `nickname` | string | 昵称 |
 | `avatar` | string \| null | 头像地址（已转成可访问的绝对 URL） |
-| `status` | string | 账号状态：`active`=正常 / `disabled`=已禁用 / `deleted`=已注销 |
 | `verified` | boolean | 是否已完成学号邮箱认证：**本接口返回必为 `true`**（认证成功后才走本响应） |
-| `bindEmail` | string \| null | 已认证绑定的校园邮箱：**本接口返回已写入的绑定邮箱** |
-| `guestShortId` | string | 游客短标识（「食客 + ID 后 4 位」，端上展示用） |
+| `bindEmail` | string \| null | 已认证绑定的校园邮箱：**本接口返回已写入的绑定邮箱**（校园邮箱唯一出参来源） |
+
+> **已删除出参（2026-09-21 §7.32，已落地）**：~~`email`~~（恒为 NULL 死字段）、~~`status`~~（端上零消费）、~~`guestShortId`~~（纯派生，改由端上按 `id` 派生）。本接口与 `POST /auth/wechat-login` 共用 `UserInfoVO`，字段集须保持一致。
 
 ### 错误码
 

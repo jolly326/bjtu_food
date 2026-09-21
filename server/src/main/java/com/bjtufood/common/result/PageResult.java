@@ -17,7 +17,6 @@ import java.util.List;
  *   "message": "成功",
  *   "data": {
  *     "records": [ ... ],  // 当前页数据（契约字段）
- *     "list":    [ ... ],  // 历史字段，过渡期保留，与 records 恒等值
  *     "total":   100,      // 总记录数
  *     "page":    1,        // 实际生效页码（经 PageUtil.normalize 归一化）
  *     "pageSize": 10       // 实际生效每页条数（经 PageUtil.normalize 归一化）
@@ -25,15 +24,16 @@ import java.util.List;
  * }
  * </pre>
  * <p>
- * <b>兼容策略</b>：{@code list} 为过渡期保留的历史字段，其值由 {@link #getList()} 直接派生自
- * {@code records}（只读、无 setter），因此二者在序列化结果中<b>恒为同值</b>，不存在写入分叉的可能。
- * 待全部消费方切换到 {@code records} 后可移除 {@code list}。
+ * <b>字段集</b>：分页壳恒为 {@code records} / {@code total} / {@code page} / {@code pageSize} 四项。
+ * 原过渡期字段 {@code list} 已于 2026-09-21 删除（见 docs/project_spec.md §7.33）：两端消费方
+ * （client {@code recordsOf} / web {@code pageRecords}）均只读 {@code records}，而 {@code list}
+ * 派生自 {@code records} 并参与序列化会让同一数组被 JSON 输出两次、列表响应体积≈翻倍。
  *
  * @param <T> 列表项类型
  */
 @Data
 @NoArgsConstructor
-@JsonPropertyOrder({"records", "list", "total", "page", "pageSize"})
+@JsonPropertyOrder({"records", "total", "page", "pageSize"})
 @Schema(description = "分页响应结果")
 public class PageResult<T> {
 
@@ -52,16 +52,6 @@ public class PageResult<T> {
     /** 实际生效每页条数（归一化后） */
     @Schema(description = "每页条数", example = "10")
     private int pageSize;
-
-    /**
-     * 历史字段：当前页数据列表。
-     * <p>
-     * 只读派生自 {@link #records}，保证与 records 恒等值；过渡期继续输出，不提供 setter。
-     */
-    @Schema(description = "数据列表（历史字段，等同于 records）")
-    public List<T> getList() {
-        return records;
-    }
 
     /**
      * 创建分页结果（推荐入口）。

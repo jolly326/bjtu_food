@@ -55,7 +55,7 @@
 
 | 环节 | 判定 | 中文解释 |
 |---|---|---|
-| 文本 `msgSecCheck` v2（`scene=2`） | `pass` / `review` → **放行**；`risky`（含未知/缺失态）→ **400 拦截、不落库** | 机检即终局，**无人工复核** |
+| 文本 `msgSecCheck` v2（`scene=2`） | `pass` / `review` → **放行**；`risky`（含未知/缺失态）→ **400 拦截、不落库** | 内容安全检测即终局，**无人工复核** |
 | 图片 `imgSecCheck` | 违规（微信码 `87014`）→ 400 | 单张失败只跳过该张，不中断其余图片上传 |
 
 ### 错误码
@@ -72,12 +72,3 @@
 |---|---|---|
 | `review` | INSERT | 写入 `user_id`（当前登录用户，**禁止信任前端**）、`dish_id`、`rating`、`content`、`images`（JSON 数组，COS URL） |
 | `dish.avg_rating` / `dish.rating_count` | **异步** UPDATE | 通过 `ReviewSubmittedEvent` → `RatingUpdateListener`（`@Async` AFTER_COMMIT）重算；**口径：仅计 `is_hidden=0` 的评价** |
-
-## 答疑
-
-### Q：评价先发不用审核，微信内容安全检测通过直接发布即可，之后有人反馈举报再处理
-
-**A：与现状完全一致，无需改动。**
-代码已是你要的语义：提交时文本过 `msgSecCheck` v2（`scene=2`）、图片过 `imgSecCheck`；**`pass` 与 `review` 一律放行落库，仅 `risky`（含未知/缺失态 fail-closed）返回 400 拦截**；**无人工复核、无 `sec_state` 落库**；管理端只保留事后处置（B-03）；用户举报走反馈 `report` 类型（A-09）。
-
-**一处已核实、请放心**：管理员隐藏/删除评价后会触发评分重算——`ReviewServiceImpl.setHidden()` 与 `deleteByAdmin()` 均会 `publishEvent(new ReviewSubmittedEvent(...))`，因此聚合口径「仅计 `is_hidden=0`」成立，`dish.avg_rating/rating_count` 不会残留脏值。

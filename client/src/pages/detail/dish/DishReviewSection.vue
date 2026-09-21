@@ -147,7 +147,7 @@ const emit = defineEmits<{
   transform: translate(-50%, -50%);
 }
 .image-only-text { font-size: var(--font-aux); color: var(--text-secondary); font-weight: var(--weight-medium); white-space: nowrap; }
-.image-only.on .image-only-text { color: var(--color-primary); }
+.image-only.on .image-only-text { color: var(--color-primary-text); }
 /* 关态轨道可见性：底色改 --border-bold（中性灰轨道，与白卡形成可辨层次），
    不再用近白填充（--bg-placeholder #F0ECE8 对白卡对比 ≈1.17:1 不可辨）。
    尺寸放大到接近系统开关比例（原 60×34rpx 约为其一半）；命中区仍由 ::after 保证 ≥88rpx。 */

@@ -50,7 +50,7 @@
             @tap="emit('open-location', 'canteen')"
           >
             <text class="picker-value" :class="{ placeholder: !displayCanteen }">{{ displayCanteen || '选择食堂' }}</text>
-            <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
+            <IconSvg name="arrow" :size="26" :color="COLOR_MAP['text-tertiary']" />
           </view>
         </view>
         <view class="col">
@@ -66,7 +66,7 @@
             @tap="emit('stall-tap')"
           >
             <text class="picker-value" :class="{ placeholder: !displayStall }">{{ displayStall || (displayCanteen ? '选择档口' : '先选食堂') }}</text>
-            <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
+            <IconSvg name="arrow" :size="26" :color="COLOR_MAP['text-tertiary']" />
           </view>
         </view>
       </view>
@@ -84,7 +84,7 @@
         @tap="emit('open-floor')"
       >
         <text class="picker-value" :class="{ placeholder: !model.floor }">{{ model.floor ? `${model.floor} 楼` : '选择' }}</text>
-        <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
+        <IconSvg name="arrow" :size="26" :color="COLOR_MAP['text-tertiary']" />
       </view>
       <text v-if="errors['add.floor']" class="field-error">{{ errors['add.floor'] }}</text>
     </view>
@@ -119,6 +119,7 @@
 import { computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 
 /** AddForm（feedback 包内私有）：「推荐菜品」字段区（基本信息 + 位置 + 描述 + 配图） */
 const props = defineProps<{

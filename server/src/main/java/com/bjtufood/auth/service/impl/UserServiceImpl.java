@@ -1,6 +1,7 @@
 package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserVO;
@@ -10,13 +11,18 @@ import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+
+    /** 建号占位昵称：`nickname` 列为 NOT NULL，须先写占位值，拿到自增 id 后再于同一事务内回填 */
+    private static final String NICKNAME_PLACEHOLDER = "食客新友";
 
     private final UserMapper userMapper;
     private final ImageUrlUtil imageUrlUtil;
@@ -45,6 +51,40 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getByBindEmail(String bindEmail) {
         return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getBindEmail, bindEmail));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public User createWechatGuest(String openid) {
+        User user = new User();
+        user.setOpenid(openid);
+        // 游客建号：username = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
+        String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
+        user.setUsername("wx_" + tail);
+        // 最终昵称含自增 id 尾 4 位，而本列 NOT NULL → 先写占位值，插入后回填（同事务）
+        user.setNickname(NICKNAME_PLACEHOLDER);
+        user.setStatus("active");
+        user.setVerified(0);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException e) {
+            // 并发下 openid 唯一键兜底：重新查询已被抢先创建的账号（本方法整体回滚，不留半成品行）
+            User existed = getByOpenid(openid);
+            if (existed != null) {
+                return existed;
+            }
+            throw new BusinessException("微信登录创建账号失败，请重试");
+        }
+        // 回填前判等（D5）：仅当昵称仍为占位值时才回填，避免覆盖任何已存在的用户昵称
+        User fresh = userMapper.selectById(user.getId());
+        if (fresh != null && NICKNAME_PLACEHOLDER.equals(fresh.getNickname())) {
+            String nickname = buildGuestNickname(user.getId());
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, user.getId())
+                    .set(User::getNickname, nickname));
+            fresh.setNickname(nickname);
+        }
+        return fresh != null ? fresh : user;
     }
 
     @Override
@@ -85,13 +125,17 @@ public class UserServiceImpl implements UserService {
         vo.setStatus(user.getStatus());
         vo.setVerified(user.getVerified());
         vo.setBindEmail(user.getBindEmail());
-        vo.setGuestShortId(buildGuestShortId(user.getId()));
         vo.setCreatedAt(user.getCreatedAt());
         return vo;
     }
 
-    /** 游客短标识：食客 + ID 尾 4 位 */
-    private String buildGuestShortId(Long userId) {
+    /**
+     * 游客默认昵称：食客 + ID 尾 4 位（id 不足 4 位时取全量）。
+     * <p>
+     * 「游客短标识」不再作为任何接口出参（2026-09-21 spec §7.32）：该值是 `id` 的纯派生，
+     * 学生端与管理端各自按同一规则现算；此处仅用于**建号默认昵称**这一处服务端写入。
+     */
+    private String buildGuestNickname(Long userId) {
         String id = String.valueOf(userId);
         String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
         return "食客" + tail;

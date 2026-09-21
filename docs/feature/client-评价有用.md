@@ -1,6 +1,11 @@
-# 评价「有用」（A-07）
+# 评价「有用」（A-07）—— ⛔ 已全链下线
 
-> 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔐 认证**（需学号邮箱认证）
+> **本功能已于 2026-09-20 全链下线（用户拍板，权威 `project_spec.md` §7.30 清单 #1 与 `review-api-contract` spec）**：
+> 端点 `POST /reviews/{id}/useful`、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount`、
+> `review_useful` 表与 `review.useful_count` 列、三端展示（含小程序评价卡按钮与 Web 评价列）**均已删除**；
+> 评价排序唯一口径为**时间倒序**。**本文档仅作历史留痕，不得据以实现或反向推导「仍存在该能力」；恢复须重新拍板（PR-04）。**
+>
+> 所属端：**学生端（微信小程序）** ｜ 鉴权：~~🔐 认证~~（功能已下线）
 > 返回：[功能总览](./README.md)
 
 ## 干什么
@@ -60,24 +65,3 @@
 |---|---|---|
 | `review_useful` | INSERT / DELETE | 一人一评一票（唯一索引约束），记录「谁给哪条评价点了有用」 |
 | `review.useful_count` | 异步 UPDATE | 评价的有用总数（冗余计数，与 `review_useful` 行数同口径） |
-
-## 答疑
-
-### Q：去除这个功能，评价不允许互动，没有点击有用无用的功能，相关数据链路和数据库全部删掉
-
-**A：技术上可行、能删干净；但我的建议是「不建议删」，请你拍一下。**
-
-**【不建议删的理由】** ① 「有用」是评价列表唯一的轻量质量信号：删掉后只能按时间倒序，长列表里低质评价会淹没高质评价，而本项目定位正是「吃什么不踩雷」，口碑排序是核心体验；② 它不构成社区互动（无评论 / 无回复 / 无关注 / 无跟帖），只是单向聚合排序，与「轻社区边界（UGC 仅评价一种形态）」不冲突，删它并不换来定位上的收益；③ 保留成本≈0，删除代价是跨三端 + 库表 + **评分排序口径重置**。
-
-**【若确认删，这是完整下线清单（按代码实况列全）】**
-
-- **后端**：`POST /reviews/{id}/useful` 端点（`ReviewController.toggleUseful`）、`ReviewService.toggleUseful`、`UsefulResult` DTO、`ReviewUseful` 实体 + `ReviewUsefulMapper`、`ReviewServiceImpl` 的切换/计数逻辑、`ReviewVO.usefulCount/useful`、`ReviewAdminVO.usefulCount`、`ReviewConst` 相关常量、`AuthServiceImpl.migrateOwnership` 的两段 `review_useful` 归属迁移、`deleteReview/deleteByAdmin/deleteDish` 中清理 `review_useful` 的段。
-- **排序口径（最易漏）**：`GET /reviews` 默认 `sort=useful` 的 `ORDER BY useful_count DESC, created_at DESC` 必须改为 `created_at DESC`；而「按有用数置顶」被 `spec §7.14 第 2 条 / §7.18 第 3 条`写为唯一权威口径 → **必须先改 spec 再动代码**。
-- **库表**：`review_useful` 表（`schema.sql` 的 CREATE 段 + 存量库幂等 DROP 段）、`review.useful_count` 列与其索引（按「零消费即删除」口径一并清）。
-- **小程序**：`api/review.ts toggleUseful`、`types/review.ts` 的 `usefulCount/useful`、评价卡「有用」按钮与计数、未认证 `AuthSheet` 分支、详情页乐观更新/回滚逻辑。
-- **Web**：评价列表/详情「有用数」列、`adapter` 映射、以及依赖有用数的任何展示统计。
-
-**【需要你回复的】** 回复「确认删除有用」我就按清单拆任务并提醒技术负责人先改 spec；否则本条按「保留」处理，本文档不改。
-
-**（2026-09-17 更新）** 用户已表态：**确认删除**——理由「只是给用户做参考的信息，没必要徒增运营成本，按时间先后排序就好」。结论改为「**已拍板：删除**」；执行**前置条件不变**：先由技术负责人改 `spec §7.14 第 2 条 / §7.18 第 3 条` 与 `api-design §2.3` 的默认排序口径（`useful_count DESC` → `created_at DESC`），再动代码。
-同时新增「**只看有图**」筛选（`GET /reviews?hasImage=1`）作为替代质量信号，设计口径见 [client-菜品详情](./client-菜品详情.md#已拍板待实现清单)。

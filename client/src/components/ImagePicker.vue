@@ -26,7 +26,7 @@
           @error="onImageError(i)"
         />
         <view v-else class="ip-thumb ip-thumb-fallback">
-          <IconSvg name="empty" :size="36" color="var(--text-tertiary)" />
+          <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
         </view>
         <view
           class="ip-remove"
@@ -35,7 +35,7 @@
           :aria-label="`删除第 ${i + 1} 张图片`"
           @tap.stop="onRemove(i)"
         >
-          <IconSvg name="close" :size="22" color="var(--text-white)" />
+          <IconSvg name="close" :size="22" :color="COLOR_MAP['text-white']" />
         </view>
       </view>
     </view>
@@ -50,7 +50,7 @@
         @tap="onAdd"
       >
         <view v-if="uploading" class="ip-loading" />
-        <IconSvg v-else name="image" :size="48" color="var(--text-tertiary)" />
+        <IconSvg v-else name="image" :size="48" :color="COLOR_MAP['text-tertiary']" />
         <text class="ip-add-text">{{ uploading ? '上传中…' : '添加图片' }}</text>
       </view>
     </view>
@@ -67,6 +67,7 @@
 import { ref, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { uploadUgcImage } from '@/api/upload'
+import { COLOR_MAP } from '@/theme/tokens'
 
 defineOptions({ name: 'ImagePicker' })
 

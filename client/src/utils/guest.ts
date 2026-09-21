@@ -24,7 +24,11 @@ function getGuestId(): string {
   return id
 }
 
-/** 展示用短 ID：取首 6 位大写（如 8F3A2C） */
-export function getGuestShortId(): string {
+/**
+ * 本地游客标识：取本地游客 ID 首 6 位大写（如 8F3A2C）。
+ * 仅作**兜底**——账号短标识由账号 `id` 派生「食客 + ID 尾 4 位」（2026-09-21 spec §7.32）；
+ * 无 `id`（静默登录未完成 / 失败）时才回退本值，保证展示不空白。
+ */
+export function getLocalGuestLabel(): string {
   return getGuestId().replace(/-/g, '').slice(0, 6).toUpperCase()
 }

@@ -69,6 +69,15 @@ public class Dish {
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
     private String serveTemp;
 
+    /**
+     * 菜品大类（2026-09-21 §7.34，单值枚举）：set_meal 套餐盖饭 / stir_fry 家常小炒 /
+     * noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品（可空）。
+     * 口径：一个菜品恰属一个大类；与属性维度（dietType/ingredients/flavorTags/serveTemp）分开；
+     * 判定按「菜名与做法形态」。取值白名单见 {@code MealTypeConst}；**不进公开 DishVO 出参**。
+     */
+    @Schema(description = "菜品大类（单值）：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品", example = "noodle")
+    private String mealType;
+
     /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */
     @Schema(description = "状态", example = "on")
     private String status;

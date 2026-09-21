@@ -38,7 +38,7 @@ public class ReviewAdminController {
     }
 
     // 内容安全复核端点 PUT /{id}/sec-state 已随 sec_state 全链退役删除（2026-09-15 用户拍板取消人工复核）：
-    // 机检 pass/review 直接放行、risky 直接拒绝，无待复核队列；事后处置保留 /hide 与 DELETE。
+    // 内容安全检测 pass/review 直接放行、risky 直接拒绝，无待复核队列；事后处置保留 /hide 与 DELETE。
 
     @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。")
     @PutMapping("/{id}/hide")

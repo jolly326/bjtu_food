@@ -120,6 +120,7 @@
 | ingredients | VARCHAR(255) | 可 | NULL | **主料 / 食材**（逗号分隔机器值，同 `tags` 模式）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice |
 | flavor_tags | VARCHAR(128) | 可 | NULL | **口味**（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy（**吸收原「辣度」语义**） |
 | serve_temp | VARCHAR(16) | 可 | NULL | **冷热**：`hot`=热食 / `room`=常温 / `ice`=冰 |
+| meal_type | VARCHAR(16) | 可 | NULL | **菜品大类**（2026-09-21 新增，`project_spec.md` §7.34）：单值枚举 `set_meal` / `stir_fry` / `noodle` / `dry_pot` / `snack` / `soup_drink`；取值白名单 = 后端常量 `MealTypeConst`（标签文案与顺序的唯一真源）；**不进公开 `DishVO` 出参**（仅参与筛选与字典下发），后台 `DishAdminReq` / `DishAdminVO` 使用 |
 | status | VARCHAR(32) | 否 | 'on' | 上架：on/off（**菜品唯一的运营开关**） |
 | view_count | INT | 否 | 0 | 浏览量（**口径定论（2026-09-18）：一直累计、不清零**；**仅作热度排序与热搜派生输入，不对外出参**，见 `project_spec.md` §7.27） |
 | avg_rating | DECIMAL(3,2) | 可 | NULL | 平均评分 |
@@ -128,6 +129,8 @@
 
 **索引/约束**：PK(`id`)；KEY `idx_dish_stall`(`stall_id`)；KEY `idx_dish_heat`(`status`,`view_count`,`rating_count`,`avg_rating`)（热度/推荐/榜单排序覆盖索引）。**`idx_dish_category`(`category_id`) 已随品类维度整链删除一并移除（2026-09-15，见 §2 说明与 `project_spec.md` §7.22 第 1 条）**。**`idx_dish_audit`(`audit_status`) 已随 `audit_status` 列退役一并删除（2026-09-15 阶段4）**；`idx_dish_heat` 同步退化为上述四列，与 CREATE TABLE 定义一致（DROP COLUMN 连带删索引，无需重建）。
 
+> **2026-09-21 菜品大类对账（用户拍板，权威 `project_spec.md` §7.34）**：`dish` 新增 `meal_type` 列（`schema.sql` 幂等段 `add_dish_meal_type` = 先判 `INFORMATION_SCHEMA` 存在再 `ADD COLUMN`；`seed_data.sql` 按「新增列后回填」惯例幂等 UPDATE 全量赋值 31 条）——**禁止直连 ALTER**。**纯列级变更，表基线仍 10 张**。见下方字段表。
+>
 > **已下线列**：`promo_price`（折扣价）已于 2026-09-18 随「菜品价格字段精简」删除（`project_spec.md` §7.26）——存量库由 `schema.sql` 末尾幂等段先 `UPDATE dish SET price = promo_price WHERE promo_price IS NOT NULL` 再 DROP（先判存在再 DROP、可重复执行）；**折扣由 `price`（现价，已含折扣）与 `original_price`（原价，可空）两态表达**。
 >
 > **（2026-09-20 追加）**：`spice_level`（辣度）/ `region`（风味 / 菜系）两列随「描述维度替换」删除（`project_spec.md` §7.28）——`schema.sql` 幂等段**先加** `diet_type` / `ingredients` / `flavor_tags` / `serve_temp`、**后 DROP** 旧列（先判存在再 DROP、可重复执行；**禁止直连 ALTER**）。

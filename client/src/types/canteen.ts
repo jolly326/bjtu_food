@@ -6,9 +6,10 @@ export interface CanteenInfo {
 }
 
 /**
- * 食堂树中的档口节点（GET /canteens/all）。
+ * 食堂树中的档口节点（GET /canteens?include=stalls；2026-09-21 §7.33 端点合并后不再有 /canteens/all）。
  * 反馈页位置选择器只消费 `name`（两级联动：食堂 → 档口），故仅定型到实际读取的最小字段集；
- * 其余后端字段不透传、不建模（P2-11 / PR-12：跨端 DTO 须显式定型，禁止 `any` 逃逸）。
+ * 其余后端字段不透传、不建模（P2-11 / PR-12：跨端 DTO 须显式定型，禁止 `any` 逃逸）——
+ * 服务端档口节点出参本身也已收敛为 id / name（§7.33）。
  */
 export interface StallNode {
   id?: number
@@ -16,7 +17,7 @@ export interface StallNode {
 }
 
 /**
- * 食堂含档口树（GET /canteens/all）：食堂 → stalls[]。
+ * 食堂含档口树（GET /canteens?include=stalls）：食堂 → stalls[]。
  * 反馈页「推荐菜品」位置选择用它做食堂 / 档口两级联动，唯一消费方为
  * `pages/feedback/useFeedback.ts`。
  */

@@ -1,26 +1,30 @@
 <template>
-  <!-- 筛选栏（client-filter-bar-consolidation 合并版）：
+  <!-- 筛选栏（find 搜索结果页私有组件）：
        单行 = 「全部食堂」+「全部价格」两颗真控件（均为可点胶囊）。
-       表单互斥：由单一 activePanel 驱动，任意时刻最多一个展开、最多一个按钮激活（红）。
+       表单互斥：由单一 activePanel 驱动，任意时刻最多一个展开、最多一个按钮激活（主色底白字）。
        原最右「筛选」胶囊为无动作假控件，已按 P0-05 / PR-11 移除（不留死语义）；
-       「辣度」筛选胶囊已随辣度维度下线删除（2026-09-20 dish-detail-remediation，辣度入口 SHALL NOT 存在）。 -->
+       「辣度」筛选胶囊已随辣度维度下线删除（2026-09-20 dish-detail-remediation，辣度入口 SHALL NOT 存在）。
+       归属（2026-09-21 home-ui-refresh）：首页头部改两态后用**自己的**白底「筛选」面板
+       （pages/home/HomeFilterPanel.vue），本组件随之仅剩 find 单一消费方，
+       按 `client-components-org` 第 1/4 条从 `components/` 下沉到本页面包（行为未变）。 -->
   <view
     class="fb-row"
     :style="{ '--capsule-h': capsuleH + 'px' }"
   >
     <!-- 胶囊组：食堂 + 价格（独占整行、按行均分可收缩，长文案以 … 省略） -->
     <view class="fb-chips">
-      <!-- 食堂按钮：单击切换（展开 / 再次单击收起）；仅展开时红底，箭头随之翻转 -->
+      <!-- 食堂按钮：单击切换（展开 / 再次单击收起）；仅展开时主色底，箭头随之翻转 -->
       <view
         class="fb-chip"
         :class="{ active: activePanel === 'canteen' }"
         @tap="onChipTap('canteen')"
         role="button"
         :aria-label="canteenLabel"
+        hover-class="pressed"
       >
-        <IconSvg class="fb-chip-icon" name="canteen" :size="'18px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <IconSvg class="fb-chip-icon" name="canteen" :size="'18px'" :color="activePanel === 'canteen' ? COLOR_MAP['on-primary'] : COLOR_MAP['text-secondary']" />
         <text class="fb-chip-text">{{ canteenLabel }}</text>
-        <IconSvg class="fb-chip-icon" :name="activePanel === 'canteen' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'canteen' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <IconSvg class="fb-chip-icon" :name="activePanel === 'canteen' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'canteen' ? COLOR_MAP['on-primary'] : COLOR_MAP['text-secondary']" />
       </view>
 
       <!-- 价格按钮：与食堂按钮同款交互；收起后文案回显所选区间（元） -->
@@ -30,10 +34,11 @@
         @tap="onChipTap('price')"
         role="button"
         :aria-label="`价格：${priceLabel}`"
+        hover-class="pressed"
       >
-        <IconSvg class="fb-chip-icon" name="price" :size="'18px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <IconSvg class="fb-chip-icon" name="price" :size="'18px'" :color="activePanel === 'price' ? COLOR_MAP['on-primary'] : COLOR_MAP['text-secondary']" />
         <text class="fb-chip-text">{{ priceLabel }}</text>
-        <IconSvg class="fb-chip-icon" :name="activePanel === 'price' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'price' ? 'var(--color-on-primary)' : 'var(--text-secondary)'" />
+        <IconSvg class="fb-chip-icon" :name="activePanel === 'price' ? 'arrow-up' : 'arrow-down'" :size="'16px'" :color="activePanel === 'price' ? COLOR_MAP['on-primary'] : COLOR_MAP['text-secondary']" />
       </view>
 
     </view>
@@ -43,7 +48,7 @@
          排序不另设切换入口（§7.17 第 2 条「热度优先、不加排序入口」），故整体删除，
          筛选行由「食堂 / 价格」两颗真控件均分整行（justify-content 已不依赖右侧常驻件）。 -->
 
-    <!-- ===== 食堂下拉：红色背景面板，与 header 同一红色块；点击面板外遮罩关闭 ===== -->
+    <!-- ===== 食堂下拉：中性面板（--bg-page），紧贴筛选行向下展开；点击面板外遮罩关闭 ===== -->
     <view v-if="activePanel === 'canteen'" class="cf-mask" @tap="closePanel">
       <view class="cf-panel" @tap.stop>
         <view class="cf-title">选择食堂</view>
@@ -55,7 +60,7 @@
             @tap="selectCanteen(null)"
           >
             <text class="cf-name">全部</text>
-            <IconSvg v-if="selectedCanteenId === null" name="check" :size="32" color="var(--color-on-primary)" />
+            <IconSvg v-if="selectedCanteenId === null" name="check" :size="32" :color="COLOR_MAP['on-primary']" />
           </view>
           <view
             v-for="c in canteens"
@@ -66,7 +71,7 @@
             @tap="selectCanteen(c.id ?? null)"
           >
             <text class="cf-name">{{ c.name }}</text>
-            <IconSvg v-if="selectedCanteenId === c.id" name="check" :size="32" color="var(--color-on-primary)" />
+            <IconSvg v-if="selectedCanteenId === c.id" name="check" :size="32" :color="COLOR_MAP['on-primary']" />
           </view>
         </scroll-view>
       </view>
@@ -77,7 +82,7 @@
     <view v-if="activePanel === 'price'" class="ps-root">
       <!-- 遮罩：自筛选条底部向下铺满，承接面板外点击关闭；下方内容轻微压暗 -->
       <view class="ps-mask" :class="{ show: maskShow }" @tap="closePanel" />
-      <!-- 米色面板：紧贴筛选条向下展开（非红非白，与筛选区/页面统一） -->
+      <!-- 中性面板：紧贴筛选条向下展开（与筛选区/页面同面，非白卡） -->
       <view class="ps-panel" :class="{ open: panelOpen }">
         <view class="ps-title">价格区间</view>
 
@@ -91,7 +96,7 @@
             @tap="pickPreset(opt.key)"
           >
             <text class="ps-name">{{ opt.label }}</text>
-            <IconSvg v-if="activeKey === opt.key" name="check" :size="28" color="var(--color-on-primary)" />
+            <IconSvg v-if="activeKey === opt.key" name="check" :size="28" :color="COLOR_MAP['on-primary']" />
           </view>
         </view>
 
@@ -134,9 +139,18 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 
-import IconSvg from './IconSvg.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import type { CanteenInfo } from '@/types/canteen'
 import { getCapsuleHeight, type MenuButtonRect } from '@/utils/navMetrics'
+import { COLOR_MAP } from '@/theme/tokens'
+import {
+  PRICE_PRESETS,
+  matchPresetKey,
+  normalizeRange,
+  priceRangeLabel,
+  toYuan,
+  type PricePresetKey,
+} from '@/utils/price-filter'
 
 const props = withDefaults(defineProps<{
   /** 食堂列表（下拉数据源，同时用于按 id 回显食堂名） */
@@ -210,21 +224,12 @@ const selectedCanteenName = computed(
 )
 const canteenLabel = computed(() => selectedCanteenName.value || '全部食堂')
 
-/** 金额展示归一：最多两位小数、去掉整数的多余尾零（10 显示「10」，4.5 显示「4.5」）；空值兜底空串 */
-function formatYuan(v: number | null | undefined): string {
-  if (v == null) return ''
-  return String(Math.round(v * 100) / 100)
-}
-
-/** 价格胶囊文案：priceRange 单位为「元」，直接以元回显（红线：禁止裸算 /100、禁止二次换算） */
-const priceLabel = computed(() => {
-  const min = props.priceRange.min
-  const max = props.priceRange.max
-  if (min == null && max == null) return '全部价格'
-  if (min != null && max == null) return `${formatYuan(min)} 元以上`
-  if (min == null && max != null) return `${formatYuan(max)} 元以下`
-  return `${formatYuan(min)}-${formatYuan(max)} 元`
-})
+/**
+ * 价格胶囊文案：priceRange 单位为「元」，直接以元回显
+ * （红线：禁止裸算 /100、禁止二次换算）。文案口径与首页「筛选」面板共享同一真源
+ * `utils/price-filter.priceRangeLabel`（2026-09-21 home-ui-refresh：两处回显不得各自维护）。
+ */
+const priceLabel = computed(() => priceRangeLabel(props.priceRange))
 
 // ===== 食堂下拉 =====
 
@@ -251,21 +256,13 @@ watch(activePanel, (v) => {
 })
 
 // 预设：不限 / 0–10 / 10–20 / 20 元以上（单位：元，与 priceRange / emit 同为元口径，禁止换算）
-const presets = [
-  { key: 'all', label: '不限', min: undefined, max: undefined },
-  { key: '0-10', label: '0–10 元', min: 0, max: 10 },
-  { key: '10-20', label: '10–20 元', min: 10, max: 20 },
-  { key: '20+', label: '20 元以上', min: 20, max: undefined },
-] as const
+// ——清单与匹配口径统一由 `utils/price-filter` 提供（首页「筛选」面板共用同一真源）
+const presets = PRICE_PRESETS
 
-type PresetKey = (typeof presets)[number]['key']
+type PresetKey = PricePresetKey
 
 // 当前选中预设（按区间匹配；自定义不匹配任何预设 → activeKey=''）
-const activeKey = computed<PresetKey | ''>(() => {
-  const v = props.priceRange
-  const hit = presets.find((p) => p.min === v.min && p.max === v.max)
-  return hit ? hit.key : ''
-})
+const activeKey = computed<PresetKey | ''>(() => matchPresetKey(props.priceRange))
 
 // 自定义草稿（元，字符串态避免输入过程抖动）
 const draftMin = ref(vModelMin())
@@ -299,23 +296,9 @@ function pickPreset(key: PresetKey) {
   emit('price-select', { min: opt.min, max: opt.max })
 }
 
-/** 输入串（元）→ 元数值：空串 / 非法值返回 undefined（表示不限）。单位即元，禁止任何 ×/÷ 换算。 */
-function toYuan(v: string): number | undefined {
-  if (v === '') return undefined
-  const n = Number(v)
-  if (!Number.isFinite(n)) return undefined
-  return n
-}
-
 function onConfirm() {
-  let min = toYuan(draftMin.value)
-  let max = toYuan(draftMax.value)
-  // 边界：min>max 时自动纠正为区间（取较小值为下界）
-  if (min !== undefined && max !== undefined && min > max) {
-    const t = min
-    min = max
-    max = t
-  }
+  // 边界纠正口径（min>max 交换）与首页「筛选」面板共用 `utils/price-filter.normalizeRange`
+  const { min, max } = normalizeRange(toYuan(draftMin.value), toYuan(draftMax.value))
   closePanel()
   emit('price-select', { min, max })
 }
@@ -334,9 +317,9 @@ function onReset() {
 .fb-row {
   display: flex;
   align-items: center;
-  /* ⚠️ 本组件在小程序中是一个真实节点（<filter-bar>），其父 .filter-bar / .find-filter-row 为 flex 容器时，
+  /* ⚠️ 本组件在小程序中是一个真实节点（<filter-bar>），其父 .find-filter-row 为 flex 容器时，
      flex item 是宿主节点而非本行；宿主的撑满由**父级**的 .fb-host { flex:1; min-width:0 } 负责
-     （见 home/index.vue 与 find/index.vue 的 .fb-host 规则），组件自身无法越权控制宿主。
+     （见 pages/find/index.vue 的 .fb-host 规则），组件自身无法越权控制宿主。
      在此之上，flex:1 覆盖宿主为 flex 容器的情形、width:100% 覆盖宿主为 block 的情形，二者共同保证本行撑满宿主宽度，
      使 .fb-chips 的 flex:1 有整行宽度可均分（行不撑满时两颗胶囊会按内容宽收缩）。 */
   flex: 1;
@@ -386,6 +369,11 @@ function onReset() {
 .fb-chip-icon { flex-shrink: 0; }
 /* 展开态：主色底白字（收起后即恢复白底，选中值只由文案回显） */
 .fb-chip.active { background: var(--color-primary); }
+/* 按压反馈（D4，此前两颗胶囊整体无反馈）：收起态 → 浅底；展开态 → 保持主色底 + 轻微降透明度。
+   与下方 .cf-item / .ps-preset 的既有按压语言 100% 一致（不引入第二种反馈语言）。
+   本组声明的特异性高于 App.vue 全局 `.pressed{opacity:.7}`，故收起态以 bg-soft 呈现、不叠加全局透明度。 */
+.fb-chip.pressed { background: var(--bg-soft); opacity: 1; }
+.fb-chip.active.pressed { background: var(--color-primary); opacity: 0.85; }
 .fb-chip.active .fb-chip-text { color: var(--color-on-primary); }
 .fb-chip-text {
   font-size: var(--font-body);
@@ -408,7 +396,7 @@ function onReset() {
   z-index: var(--z-filter-dropdown);
 }
 /* 面板：紧贴筛选条向下展开的下拉片，**不是浮空的孤立卡片**。
-   - 满宽（无左右外边距）+ 顶边方角：与 .filter-bar / .find-filter-row 底边无缝衔接，
+   - 满宽（无左右外边距）+ 顶边方角：与 .find-filter-row 底边无缝衔接，
      视觉上从筛选条底部「长出来」，而不是一张漂在页面上的 card。
    - 底色与筛选条同面（--bg-page）、接缝处无任何 border：表单与 FilterBar 连成一体。
    - 底边圆角 + 极淡柔阴影：表达「向下展开的下拉片」，层级主要由下方 scrim 压暗提供。
@@ -448,18 +436,18 @@ function onReset() {
   border-radius: var(--radius-card);
   -webkit-tap-highlight-color: transparent;
 }
-/* 选中项：纯红底 + 反白文字/对勾，与顶部胶囊选中态 100% 同语言 */
+/* 选中项：主色底 + 反白文字/对勾，与顶部胶囊选中态 100% 同语言 */
 .cf-item.active {
   background: var(--color-primary);
 }
 .cf-item.active .cf-name {
   color: var(--color-on-primary);
 }
-/* 未选中项点击反馈：极浅灰，中性不碰红系 */
+/* 未选中项点击反馈：极浅灰，中性不碰主色系 */
 .cf-item:active {
   background: var(--bg-soft);
 }
-/* 选中项点击反馈：保持纯红，仅轻微降透明度（特异性高于 .cf-item:active，不会回退成灰） */
+/* 选中项点击反馈：保持主色底，仅轻微降透明度（特异性高于 .cf-item:active，不会回退成灰） */
 .cf-item.active:active {
   background: var(--color-primary);
   opacity: 0.85;
@@ -531,18 +519,18 @@ function onReset() {
   border-radius: var(--radius-card);
   -webkit-tap-highlight-color: transparent;
 }
-/* 选中预设：纯红底 + 反白文字/对勾，与食堂面板、顶部胶囊完全同一选中语言 */
+/* 选中预设：主色底 + 反白文字/对勾，与食堂面板、顶部胶囊完全同一选中语言 */
 .ps-preset.active {
   background: var(--color-primary);
 }
 .ps-preset.active .ps-name {
   color: var(--color-on-primary);
 }
-/* 未选中项点击反馈：极浅灰，中性不碰红系 */
+/* 未选中项点击反馈：极浅灰，中性不碰主色系 */
 .ps-preset:active {
   background: var(--bg-soft);
 }
-/* 选中项点击反馈：保持纯红，仅轻微降透明度 */
+/* 选中项点击反馈：保持主色底，仅轻微降透明度 */
 .ps-preset.active:active {
   background: var(--color-primary);
   opacity: 0.85;

@@ -19,7 +19,7 @@
           @tap="type = t.value"
         >
           <view class="type-icon">
-            <IconSvg :name="t.icon" :size="36" :color="type === t.value ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+            <IconSvg :name="t.icon" :size="36" :color="type === t.value ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
           </view>
           <view class="type-copy">
             <text class="type-line">{{ t.label }}</text>
@@ -170,6 +170,7 @@ import SuggestionForm from './SuggestionForm.vue'
 import AddForm from './AddForm.vue'
 import ErrorForm from './ErrorForm.vue'
 import { useFeedback } from './useFeedback'
+import { COLOR_MAP } from '@/theme/tokens'
 
 const {
   goBack,
@@ -231,7 +232,7 @@ const {
   box-sizing: border-box;
 }
 
-/* ===== 顶部类型入口：三枚等宽大胶囊（Q 版满圆；选中浅红底主色，未选中白底浅灰细边） ===== */
+/* ===== 顶部类型入口：三枚等宽大胶囊（Q 版满圆；选中主色浅底 + 主色文字档，未选中白底浅灰细边） ===== */
 .type-row {
   display: flex;
   gap: var(--spacing-sm);
@@ -274,8 +275,8 @@ const {
 .type-card.active .type-icon { background: var(--bg-card); }
 .type-copy { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2xs); }
 .type-line { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.3; white-space: nowrap; }
-.type-card.active .type-line { color: var(--color-primary); }
-.type-desc { font-size: var(--font-tiny); color: var(--color-primary); line-height: 1.3; }
+.type-card.active .type-line { color: var(--color-primary-text); }
+.type-desc { font-size: var(--font-tiny); color: var(--color-primary-text); line-height: 1.3; }
 
 /* ===== 来源承接行：由贡献入口带参进入时出现（三级灰小字，只读，不与表单字段耦合） ===== */
 .source-hint { padding: 0 var(--spacing-lg) var(--spacing-xs); }

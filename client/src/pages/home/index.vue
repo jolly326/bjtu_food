@@ -1,39 +1,73 @@
 <template>
   <view class="page home-page">
-    <!-- 首页头部容器：暖砖红底，仅承载搜索框（与微信导航栏同高） -->
+    <!-- ===== 常驻吸顶头部（两态结构：初始态 / 吸顶态**共用同一块**头部） =====
+         实现口径（home-page-presentation）：**固定头部 + 既有 .scroll-wrap**，
+         初始态顺序 = 标题「知行食记」→ 渐变 Banner（今日推荐）→ 通栏搜索框 → 大类标签栏 → 双列网格；
+         吸顶态 = 标题 + 完整搜索框 + 大类标签栏常驻可见，Banner 不可见。
+         ⚠️ 禁用 position: sticky（小程序基础库行为不一致），故全部定位走「固定头部 + 内部滚动」。
+         Banner 不再放滚动内容里，而是落在头部内（标题行与搜索行之间），由滚动量驱动折叠收起 ——
+         几何上等价于「Banner 随手势滚出」（推导见脚本区 BANNER_* 段注释）。 -->
     <view class="home-top">
-      <Header
+      <!-- 头部：标题「知行食记」+ Banner（默认 slot 注入）+ 通栏搜索框（内含右侧「筛选」）+ 透明底 -->
+      <AppHeader
         variant="home"
-        search-placeholder="搜索你想吃的..."
+        title="知行食记"
+        search-placeholder="搜索菜品、食堂、套餐"
+        :filter-label="filterButtonLabel"
+        :filter-open="filterOpen"
         @search="goToSearch"
-      />
-    </view>
+        @filter="toggleFilterPanel"
+      >
+        <!-- Banner（静态运营位，无后端取数）：裁剪窗口高度随滚动收缩，内部卡片等量上移被裁掉
+             → 视觉即「Banner 滚出」，收起后不可见且不吃高度（吸顶态不显示） -->
+        <view class="home-banner-wrap" :style="{ height: bannerViewportH }">
+          <view class="home-banner" :style="{ transform: bannerShift }">
+            <view class="hb-copy">
+              <text class="hb-title">今日推荐</text>
+              <text class="hb-sub">发现食堂里的美味搭配</text>
+            </view>
+            <!-- 占位插画（2026-09-21 G6）：线性风格内联 SVG → image data-uri，替换正式资产时只改该组件 -->
+            <HomeBannerArt :size="180" />
+          </view>
+        </view>
+      </AppHeader>
 
-    <!-- 筛选行：左=全部食堂 / 全部价格（仅展开时红底），最右=筛选图标（常驻，暂不挂跳转） -->
-    <view class="filter-bar">
-      <!-- 胶囊高度不再传硬编码：FilterBar 组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017） -->
-      <FilterBar
-        class="fb-host"
+      <!-- 筛选面板：白底、锚定「筛选」按钮正下方，含「全部」+ 各食堂 + 价格区间；
+           与大类标签栏**可叠加**（三维度互不清除）；点击面板外关闭。 -->
+      <HomeFilterPanel
+        v-if="filterOpen"
         :canteens="dishStore.canteenList"
         :selected-canteen-id="selectedCanteenId"
         :price-range="dishStore.filterPrice"
+        @close="closeFilterPanel"
         @canteen-select="onCanteenSelect"
         @price-select="onPriceSelect"
       />
     </view>
 
+    <!-- ===== 横向大类标签栏（吸顶头部的一部分） =====
+         标签文案与顺序**完全**来自字典响应（GET /dishes/meal-types）；字典不可用时降级为仅「全部」。 -->
+    <HomeMealTabs
+      class="home-tabs"
+      :items="dishStore.mealTypeList"
+      :active-key="dishStore.filterMealType"
+      @select="onMealTypeSelect"
+    />
+
     <scroll-view
-      ref="scrollView"
       class="scroll-wrap"
       scroll-y
+      :scroll-top="scrollTopProp"
       :scroll-with-animation="false"
       refresher-enabled
       :refresher-triggered="refresherTriggered"
+      @scroll="onScroll"
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <view class="home-content">
-        <!-- 瀑布流：按所选食堂过滤；未选 = 全部。末尾贡献卡片由 HomeContent 承载（含筛选无结果脱困动作） -->
+      <!-- 顶部补偿：与 Banner 折叠量等量（内联），抵消「头部变矮」带来的额外位移 → 两态切换无跳变 -->
+      <view class="home-content" :style="{ paddingTop: contentPadTop }">
+        <!-- 瀑布流：按所选食堂 / 大类 / 价格过滤；未选 = 全部。末尾贡献卡片由 HomeContent 承载 -->
         <HomeContent :filtered="hasFilter" @clear-filter="onClearFilter" @retry="retryWaterfall" />
       </view>
     </scroll-view>
@@ -44,15 +78,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
-import Header from '@/components/AppHeader.vue'
-import FilterBar from '@/components/FilterBar.vue'
+import AppHeader from '@/components/AppHeader.vue'
+import HomeMealTabs from './HomeMealTabs.vue'
+import HomeFilterPanel from './HomeFilterPanel.vue'
 import HomeContent from './HomeContent.vue'
+import HomeBannerArt from './HomeBannerArt.vue'
 import TabBar from '@/components/TabBar.vue'
 import type { FilterTab } from '@/types/filter-tab'
 
@@ -60,9 +96,97 @@ const dishStore = useDishStore()
 
 const refresherTriggered = ref(false)
 
-/** 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约） */
+/* ===== 两态结构：Banner 折叠（初始态 / 吸顶态） =====
+   spec 要求初始态顺序 = 标题 → Banner → 搜索框 → 标签栏 → 网格，吸顶态 = 标题 + 完整搜索框 + 标签栏常驻、
+   Banner 不可见，且禁用 position: sticky。Banner 因此被放进常驻头部（标题行与搜索行之间），
+   由 scroll-view 滚动位移 s 驱动「折叠收起」，并把滚动内容顶部同量下移补偿：
+
+     · 头部内 Banner 可视高度 = H − s（H = Banner 整块高，夹在 [0, H]）
+     · Banner 卡片本体 translateY(−s)，被上述视口裁掉上缘 → 与「Banner 随手势滚出」逐像素等价
+     · 滚动内容 padding-top = s → 抵消「头部变矮」多出来的位移；因「高度 + 补偿 ≡ H」，
+       任意 s 下内容区屏幕位置 = Banner 放在滚动流里时的位置 → 两态切换连续、无跳变，回滚对称还原
+
+   为何不写 transition/动效：折叠量必须与滚动量严格 1:1 同步（B + P ≡ H）。任何缓动都会让 Banner
+   落后于手势，在过渡期露出瞬时空白带；滚动位移本身已是连续量，故本方案无 CSS 动画/过渡，
+   也就不存在需要 prefers-reduced-motion 降级的离散动效。
+   ⚠️ H 的口径（rpx）= 顶部留白 --spacing-md(24) + 卡片高 244 + 投影余量 --spacing-sm(16) = 284，
+   三段留白**全部由 .home-banner 自身 margin 承担**（.home-banner-wrap 的 padding 必须为 0）：
+   折叠窗口本身就是动画容器，border-box 下 padding 压不到 0 —— 内联 height:0 时窗口仍占 padding 高度，
+   造成 ① 吸顶态标题与搜索卡之间残留一条空带；② s ∈ (244, 284] 时头部高度被 padding 夹住不再收缩、
+   滚动内容停住（破坏 1:1）。改留白值须同步本常量与 .home-banner 的 margin（两者同源）。 */
+const BANNER_H_RPX = 284
+/** Banner 整块高（px）：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
+const bannerHeightPx = uni.upx2px(BANNER_H_RPX)
+
+/** 滚动位移（px，负值/回弹一律归零）——页面侧唯一滚动真源，只驱动 Banner 折叠，不参与列表分页 */
+const scrollTop = ref(0)
+
+/** 折叠量（px）：夹在 [0, H]，滚过 Banner 自身高度即完全收起（吸顶态） */
+const bannerCollapsedPx = computed(() =>
+  Math.min(Math.max(scrollTop.value, 0), bannerHeightPx),
+)
+
+/** px → 样式值（2 位小数）：避免浮点长尾进入内联样式，并让重复值不触发无谓的 setData */
+function toPx(value: number): string {
+  return `${Math.round(value * 100) / 100}px`
+}
+
+/** Banner 裁剪窗口高度：H → 0 连续收窄（收起后不吃高度 = 吸顶态不可见） */
+const bannerViewportH = computed(() => toPx(Math.max(bannerHeightPx - bannerCollapsedPx.value, 0)))
+/** Banner 卡片上移量：与裁剪窗口同量 → 卡片底边与窗口底边同速上移、上缘被裁掉（视觉即「随手势滚出」） */
+const bannerShift = computed(() => `translateY(${toPx(-bannerCollapsedPx.value)})`)
+/** 滚动内容顶部补偿：与折叠量等量（无此补偿则内容会以 2 倍速上移 → 跳变） */
+const contentPadTop = computed(() => toPx(bannerCollapsedPx.value))
+
+/** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段（MP-08 口径，替代裸 any） */
+function onScroll(e: { detail?: { scrollTop?: number } }) {
+  const top = e?.detail?.scrollTop ?? 0
+  scrollTop.value = top > 0 ? top : 0
+}
+
+/* ===== 内容区回顶（筛选条件变更时，D6） =====
+   切换大类 / 食堂 / 价格（或清除筛选）后结果集整体替换，若沿用旧滚动偏移，用户看到的是「新列表的
+   中段」且头部仍处于折叠态 → 极易误判为「点了没反应」。故筛选变更一律回到初始态：内容回顶 + 折叠量归 0。
+   ⚠️ 同条件的分页加载（loadMore）与下拉刷新（refresher）**不**回顶，否则会打断连续浏览。
+
+   实现：scroll-view 没有对外 scrollTo 方法，只能用受控 `scroll-top` 属性驱动，且该属性「值不变即不滚动」，
+   故回顶是一枚脉冲：0 → 1 →（下一帧）0。用常量 1 而非「当前滚动位置」是有意的——
+   结果集变短时 scroll-view 会自行把位置夹到顶部且**不一定派发 @scroll**，此时页面侧 scrollTop 可能仍是旧值，
+   用它当跳板反而会把列表滚下去。
+
+   折叠量则**立即**归 0（不依赖 @scroll 回调）：同样因为上述「不派发回调」的场景，
+   若只靠回调，短列表下头部会卡在折叠态；立即归零让「头部展开」与「内容回顶」两个信号必定同时生效。
+   代价仅是一帧内头部已展开而内容尚未到位（无缓动、无闪烁，人眼不可辨）。 */
+const scrollTopProp = ref(0)
+
+function resetScrollToTop() {
+  scrollTop.value = 0
+  scrollTopProp.value = 1
+  nextTick(() => {
+    scrollTopProp.value = 0
+  })
+}
+
+/** 筛选面板展开态（页面侧唯一真源；面板本身受控，不自行持态） */
+const filterOpen = ref(false)
+
+/**
+ * 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约）。
+ * D6：筛选条件变更 → 先回到初始态（内容回顶 + Banner 展开），再拉新结果集。
+ */
 async function onPriceSelect(range: { min?: number; max?: number }) {
+  resetScrollToTop()
   await dishStore.setHomePrice(range)
+}
+
+/**
+ * 切换菜品大类标签（任务 3.3）：store 内重置分页并刷新当前筛选流；
+ * 食堂 / 价格两个维度原样保留（叠加生效，互不清除）。
+ * D6：筛选条件变更 → 回顶（同条件分页加载不回顶）。
+ */
+async function onMealTypeSelect(key: string | null) {
+  resetScrollToTop()
+  await dishStore.setHomeMealType(key)
 }
 
 /**
@@ -83,6 +207,12 @@ function canteenNameOf(id: number | null): string {
 }
 const selectedCanteenName = computed(() => canteenNameOf(selectedCanteenId.value))
 
+/**
+ * 「筛选」按钮文案：已选食堂时回显食堂名（省略号只作用于该按钮），未选时为「筛选」。
+ * 见 home-filter spec「长食堂名完整显示」：按钮文案不得挤压搜索框占位文案。
+ */
+const filterButtonLabel = computed(() => selectedCanteenName.value || '筛选')
+
 function canteenTab(id: number, name: string): FilterTab {
   return { key: `canteen-${id}`, label: name, type: 'canteen', canteenId: id }
 }
@@ -101,28 +231,43 @@ watch(
 )
 
 /**
- * 食堂筛选：只按该食堂刷新筛选流（表单显隐由 FilterBar 自持）。
+ * 食堂筛选：只按该食堂刷新筛选流（面板显隐由页面 filterOpen 受控，面板内选择即关闭）。
  * MP-03：选中态不再写页面本地 ref —— fetchFilterDishes 会同步写入 filterTab，
- * 上面的 selectedCanteenId 由它派生，胶囊回显与列表条件天然同源。
+ * 上面的 selectedCanteenId 由它派生，按钮回显与列表条件天然同源。
  */
 function onCanteenSelect(id: number | null) {
   const tab = id == null ? dishStore.defaultFilterTab() : canteenTab(id, canteenNameOf(id) || '食堂')
+  resetScrollToTop() // D6：换食堂 = 换结果集，回顶后再拉取
   dishStore.fetchFilterDishes(tab, true)
 }
 
-/** 是否存在生效的筛选条件（食堂 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
+/** 展开 / 收起筛选面板；展开时若食堂字典尚未就绪则先补拉（spec：面板展开前补拉） */
+function toggleFilterPanel() {
+  filterOpen.value = !filterOpen.value
+  if (filterOpen.value && dishStore.canteenList.length === 0) {
+    void dishStore.fetchCanteens()
+  }
+}
+
+function closeFilterPanel() {
+  filterOpen.value = false
+}
+
+/** 是否存在生效的筛选条件（食堂 / 大类 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
 const hasFilter = computed(
   () =>
     selectedCanteenId.value != null ||
+    dishStore.filterMealType != null ||
     dishStore.filterPrice.min != null ||
     dishStore.filterPrice.max != null,
 )
 
 /**
- * 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间并回到「全部」食堂。
+ * 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间 + 大类回「全部」+ 回到「全部」食堂。
  * MP-03：改为 store 的 clearHomeFilter —— 一次交互只发一次列表请求。
  */
 function onClearFilter() {
+  resetScrollToTop() // D6：清除筛选同样是「换结果集」，回到初始态
   dishStore.clearHomeFilter()
 }
 
@@ -130,7 +275,9 @@ function goToSearch() {
   uni.navigateTo({ url: PATH.find })
 }
 
-/** 重试当前筛选流：下拉刷新复用同一条重拉路径（食堂列表缺失时先补拉） */
+/** 重试当前筛选流：下拉刷新复用同一条重拉路径（食堂列表缺失时先补拉）。
+ *  ⚠️ 本路径**不回顶**（D6 例外）：下拉刷新 / 失败重试属于「同条件重拉」，
+ *  用户此刻正停在顶部下拉，若再回顶会打断手势；回顶只发生在筛选条件变更时。 */
 async function retryWaterfall() {
   if (dishStore.canteenList.length === 0) {
     await dishStore.fetchCanteens()
@@ -139,8 +286,6 @@ async function retryWaterfall() {
   const tab = dishStore.filterTab ?? dishStore.defaultFilterTab()
   dishStore.fetchFilterDishes(tab, true)
 }
-
-const scrollView = ref()
 
 function onScrollToLower() {
   dishStore.loadMoreFilterDishes()
@@ -153,8 +298,10 @@ async function onRefresh() {
 }
 
 function loadData() {
-  // 首页仅加载食品列表；确保食堂列表就绪（红色筛选下拉依赖 canteenList）
+  // 首页仅加载食品列表；确保食堂列表就绪（筛选面板依赖 canteenList）
   if (dishStore.canteenList.length === 0) dishStore.fetchCanteens()
+  // 大类字典：**不 await**（失败降级为仅「全部」），保证首屏列表不被字典阻塞（任务 3.1）
+  void dishStore.fetchMealTypes()
 }
 
 onLoad(() => {
@@ -168,6 +315,8 @@ onShow(() => {
   clearShareState()
   // 兜底：若首屏因遮挡/竞态未拉起，再次确保
   if (!bootstrapped) ensureBoot()
+  // 大类字典兜底重试：仅「从未成功」时才发请求（store 内自带守卫），失败不阻塞首屏
+  void dishStore.fetchMealTypes()
   // 食堂字典最小失效机制：进程常驻期间回首页按节流窗口后台重拉（失败保留旧列表），
   // 保证管理端改食堂/档口名后最终可见（spec §7.7 附加核查）；内部自带节流与去重，onShow 高频触发安全
   void dishStore.refreshCanteensIfStale()
@@ -179,37 +328,28 @@ onShareAppMessage(() => {
 </script>
 
 <style scoped lang="scss">
+/* 页面：顶部「浅米白 → 淡橙」渐变（token: --bg-page-grad-*，2026-09-21 §7.34 G5），
+   渐变仅覆盖首屏高度，其余回落页面底色（--bg-page）。 */
 .home-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--bg-page);
+  background-color: var(--bg-page);
+  background-image: linear-gradient(180deg, var(--bg-page-grad-from) 0%, var(--bg-page-grad-to) 420rpx, var(--bg-page) 720rpx);
   position: relative;
   overflow: hidden;
 }
-/* 头部容器：仅承载朱砂红 header，相对定位供可能的下拉锚定 */
+/* 常驻头部容器：承载 Header（标题 + 搜索框）与「筛选」面板。
+   z-index 必须高于下方大类标签栏，面板（绝对定位挂在本容器下）才能盖住标签栏。 */
 .home-top {
   position: relative;
-  z-index: 20;
+  z-index: 30;
 }
-/* 筛选条：定位在红头之下、瀑布流之上，承载筛选/排序胶囊 + 最右筛选图标。
-   tab-pages-visual-unify：筛选栏落在页面底色（--bg-page 浅米灰）区，
-   与上方白色悬浮搜索卡形成明度分层，二者层级可辨。 */
-.filter-bar {
+/* 大类标签栏：属于吸顶头部的一部分（常驻），落在渐变底色区、与白色搜索卡明度可区分；
+   z-index 低于 .home-top，使展开的筛选面板盖在标签栏之上。 */
+.home-tabs {
   position: relative;
   z-index: 20;
-  display: flex;
-  align-items: center;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  /* 表面统一：筛选条与内容区同为凹陷面（--bg-page）且无分隔线，与下方 scroll-view 视觉一体 */
-  background: var(--bg-page);
-}
-/* ⚠️ 关键：自定义组件在小程序里是一个真实节点（<filter-bar>），.filter-bar 的 flex item 是宿主而非组件内的 .fb-row。
-   宿主默认 flex:0 1 auto → 宽度按内容收缩、不撑满；此时组件内 .fb-row 的 width:100%/flex:1 只是「撑满一个内容宽的宿主」，
-   没有任何剩余空间可分配，筛选 icon 会紧贴两颗按钮而不是靠右。必须让宿主撑满，icon 才能贴筛选行最右。 */
-.fb-host {
-  flex: 1;
-  min-width: 0;
 }
 .scroll-wrap {
   flex: 1;
@@ -221,7 +361,58 @@ onShareAppMessage(() => {
 }
 .home-content {
   padding: 0;
+  /* 顶部补偿（padding-top）由脚本按滚动量内联，与 Banner 折叠量等量，见脚本区 BANNER_H_RPX 段 */
+}
+/* ===== Banner（静态运营位；位于头部内「标题行 / 搜索行」之间，随滚动折叠收起） =====
+   三层明度可区分（任务 5.2）：Banner 淡橙渐变块 > 白色搜索卡 > 页面浅米白底。
+   折叠几何（窗口高 / 卡片位移 / 内容补偿）全部由脚本内联且同源 1:1，本处只提供静态几何与表面语言：
+     · 裁剪窗口：高由内联给出（脚本 BANNER_H_RPX = 24 顶留白 + 244 卡片 + 16 投影余量 = 284rpx）
+     · 卡片本体：自然高 244rpx = 内边距 --spacing-lg×2 + 插画 180rpx；底部留白供卡片投影，避免被裁剪
+   ⚠️ 窗口**不得带 padding**（D3）：padding 在 border-box 下压不到 0，内联 height:0 时仍占位，
+     会使吸顶态残留空带、且 s ∈ (244, 284] 段头部被夹住不再收缩；三段留白因此改由卡片自身 margin 承担。 */
+.home-banner-wrap {
+  box-sizing: border-box;
+  /* 动画容器：无 padding / 无 margin，折叠量 0 时高度真正为 0（留白见 .home-banner 的 margin） */
+  padding: 0;
+  overflow: hidden;
+}
+.home-banner {
+  /* 三段留白（= 脚本 BANNER_H_RPX 的构成）：上 24 + 左右 24 + 下 16（下留白给卡片投影，避免被裁剪）；
+     必须与 BANNER_H_RPX 同源改动，否则折叠量与头部高度不再相等（1:1 破坏） */
+  margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-height: 244rpx;
+  padding: var(--spacing-lg);
+  box-sizing: border-box;
+  background-image: linear-gradient(120deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-warm);
+}
+.hb-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+/* 减少动态效果（既有约定）：去掉「卡片随手上移」的位移分量，只保留裁剪窗口收窄 ——
+   两态结果与几何口径不变（补偿仍在，故仍无跳变），只是内容不再滑动 */
+@media (prefers-reduced-motion: reduce) {
+  .home-banner { transform: none !important; }
 }
 
-
+.hb-title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-bold);
+  line-height: 1.15;
+  letter-spacing: var(--tracking-h2);
+  color: var(--text-primary);
+}
+.hb-sub {
+  font-size: var(--font-small);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
 </style>

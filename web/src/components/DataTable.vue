@@ -378,7 +378,8 @@ watch(
   white-space: nowrap;
   transition: color 0.15s var(--ease-out);
 }
-.th-sort:hover { color: var(--color-primary); background: var(--table-row-hover); }
+/* 主色作文字：一律用文字档（填充档在 table-row-hover #2A2A2A 上仅 2.77:1） */
+.th-sort:hover { color: var(--color-primary-text); background: var(--table-row-hover); }
 .th-sort:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .sort-arrow {
   /* UI-10：裸 10px 回落 --font-xs 标度，保留 opacity 弱化 */
@@ -387,7 +388,8 @@ watch(
   opacity: .55;
   transition: color 0.15s var(--ease-out), opacity 0.15s var(--ease-out);
 }
-.sort-arrow.on { color: var(--color-primary); opacity: 1; }
+/* 排序箭头（图形）：填充档压在表头 #2A2A2A 上仅 2.77:1，低于图形 3:1 门槛，故同样切文字档 */
+.sort-arrow.on { color: var(--color-primary-text); opacity: 1; }
 /* 长文本列默认单行截断（列加 ellipsis:true 启用），保持行高统一 */
 .cell-ellipsis {
   max-width: 240px;
@@ -461,7 +463,8 @@ watch(
 /* ===== 可点击行箭头引导 ===== */
 .row-arrow-cell { width: 40px; text-align: center; }
 .row-arrow { width: 16px; height: 16px; color: var(--text-light); opacity: 0; transition: opacity 0.15s var(--ease-out), color 0.15s var(--ease-out); }
-.table tbody tr:hover .row-arrow { opacity: 1; color: var(--color-primary); }
+/* 行箭头（图形）：填充档压在 table-row-hover #2A2A2A 上仅 2.77:1，同切文字档 */
+.table tbody tr:hover .row-arrow { opacity: 1; color: var(--color-primary-text); }
 /* ===== 分页栏 ===== */
 .table-footer {
   display: flex;
@@ -474,7 +477,8 @@ watch(
 }
 .table-footer-min { justify-content: flex-end; }
 .tf-count { font-size: var(--font-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.tf-count b { color: var(--color-primary); font-weight: var(--weight-semibold); margin: 0 2px; }
+/* 主色作文字：一律用文字档（填充档压 bg-card 仅 3.18:1） */
+.tf-count b { color: var(--color-primary-text); font-weight: var(--weight-semibold); margin: 0 2px; }
 .tf-pager :deep(.el-pagination) { justify-content: flex-end; }
 .tf-pager :deep(.el-pagination.is-background .el-pager li) { border-radius: var(--radius-sm); }
 .tf-pager :deep(.el-pagination__sizes .el-select__wrapper) { min-height: 28px; }

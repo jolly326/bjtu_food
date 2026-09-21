@@ -50,9 +50,6 @@ public class UserVO {
     @Schema(description = "已认证绑定邮箱（可空）", example = "20240001@bjtu.edu.cn")
     private String bindEmail;
 
-    @Schema(description = "游客短标识（=「食客+ID 尾 4 位」）", example = "食客0001")
-    private String guestShortId;
-
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 }

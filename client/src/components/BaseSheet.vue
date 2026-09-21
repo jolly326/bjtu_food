@@ -27,12 +27,12 @@
       <view v-if="closable || title || backable" class="bs-head">
         <view class="bs-head-left">
           <view v-if="backable" class="bs-back" role="button" aria-label="返回" @tap.stop="emit('back')">
-            <IconSvg name="arrow" :size="30" color="var(--text-secondary)" />
+            <IconSvg name="arrow" :size="30" :color="COLOR_MAP['text-secondary']" />
           </view>
           <text v-if="title" class="bs-title">{{ title }}</text>
         </view>
         <view v-if="closable" class="bs-close" role="button" aria-label="关闭" @tap.stop="emitClose">
-          <IconSvg name="close" :size="36" color="var(--text-tertiary)" />
+          <IconSvg name="close" :size="36" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
       <scroll-view v-if="scrollBody" class="bs-body bs-body--scroll" scroll-y>
@@ -49,6 +49,7 @@
 import { ref, watch, nextTick, computed } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { useSheetFocus } from '@/composables/useSheetFocus'
+import { COLOR_MAP } from '@/theme/tokens'
 
 /**
  * 受控底部弹层骨架：visible 驱动开合动画；不接管挂载策略（常驻/懒挂载由父级决定，

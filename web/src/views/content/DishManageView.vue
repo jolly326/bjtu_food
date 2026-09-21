@@ -12,6 +12,11 @@
  *  - 列合并：所属食堂 + 所属档口 → 位置（食堂 · 档口），少一列视觉噪音；
  *  - 顶部统计/搜索与筛选保持一行。
  *
+ * 菜品大类（2026-09-21 §7.34 / change home-ui-refresh）：新增「大类」筛选 + 展示列。
+ * 筛选项 / 展示文案均取自后端字典 `GET /dishes/meal-types`（端上零硬编码中文）；
+ * 筛选为**前端本地过滤**（与食堂 / 档口 / 状态 / 关键词一致——`GET /admin/dishes` 只有
+ * page / pageSize 两个参数，未擅自扩展服务端接口）。
+ *
  * 深链兼容（本站旧书签 / 各页跳转）：
  *  - `?q=<菜名>`：反馈页「关联菜品 →」跳转预填搜索（FeedbackView.goDishEdit）；
  *  - `?tab=dish`：旧「信息管理」tab 参数，本页无多视图，读取时忽略（不报错、不改写 URL）。
@@ -22,6 +27,7 @@ import { useAdminStore } from '@/stores/adminStore'
 import { useDishStore } from '@/stores/dishStore'
 import { useCanteenStore } from '@/stores/canteenStore'
 import { useStallStore } from '@/stores/stallStore'
+import { useMealTypeStore } from '@/stores/mealTypeStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { dishApi } from '@/api'
@@ -37,6 +43,7 @@ const store = useAdminStore()
 const dishStore = useDishStore()
 const canteenStore = useCanteenStore()
 const stallStore = useStallStore()
+const mealTypeStore = useMealTypeStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const router = useRouter()
@@ -97,8 +104,34 @@ function canteenIdOfStall(stallId: number | bigint): number {
   return s ? Number(s.canteen_id) : 0
 }
 
+// ===== 菜品大类筛选（§7.34）=====
+/**
+ * 说明（现状如实登记）：`GET /admin/dishes` 只有 page / pageSize 两个参数，本页全部筛选
+ * （食堂 / 档口 / 状态 / 关键词）均为**前端本地过滤**——大类筛选沿用同一风格（不擅自扩展服务端接口）。
+ */
+const mealTypeFilter = ref<string>('')
+
+/**
+ * 大类筛选项：文案与顺序来自后端字典（单一真源，端上零硬编码中文）。
+ * 字典只含「当前有在售菜品」的大类，而管理端列表**含已下架**菜品 →
+ * 追加「列表中实际出现、字典未覆盖」的枚举键（标签回落键本身，原样透出），
+ * 否则该类菜品筛不出来（出现死数据 / 漏筛）。
+ */
+const mealTypeFilterOptions = computed(() => {
+  const covered = new Set(mealTypeStore.list.map(t => t.key))
+  const extras = Array.from(new Set(
+    store.dishes.map(d => d.mealType).filter((key): key is string => !!key && !covered.has(key)),
+  )).sort()
+  return [
+    { label: '全部大类', value: '' },
+    ...mealTypeStore.list.map(t => ({ label: t.label, value: t.key })),
+    ...extras.map(key => ({ label: key, value: key })),
+  ]
+})
+
 const rows = computed(() => {
   let list = store.dishes
+  if (mealTypeFilter.value) list = list.filter(r => r.mealType === mealTypeFilter.value)
   if (statusFilter.value) list = list.filter(r => r.status === statusFilter.value)
   // 档口优先（更精确）；仅选食堂时按其下全部档口过滤
   if (stallFilter.value) list = list.filter(r => Number(r.stall_id) === Number(stallFilter.value))
@@ -122,6 +155,9 @@ async function refresh() {
   loading.value = true
   error.value = ''
   // 本页域：菜品（列表）+ 食堂/档口（筛选字典）
+  // 大类字典（§7.34）为「筛选选项 + 标签映射」附属域：**不并入下方 allSettled**——
+  // 其失败只会让筛选项 / 展示退化为原始枚举键，不应把已加载成功的菜品主列表打成页面级错误（WEB-09 口径）。
+  mealTypeStore.ensureLoaded().catch(() => {})
   // 域间独立容错（WEB-09 口径）：字典域失败不拖垮菜品主列表
   const results = await Promise.allSettled([
     dishStore.loadAll(),
@@ -282,6 +318,7 @@ async function batchDelete() {
 
     <FilterBar v-model="searchQuery">
       <template #default>
+        <FilterSelect v-model="mealTypeFilter" label="大类" :options="mealTypeFilterOptions" :width="150" />
         <FilterSelect
           v-model="canteenFilter"
           label="食堂"
@@ -318,6 +355,7 @@ async function batchDelete() {
       :columns="[
         { prop: 'image', label: '图片', width: '72px', align: 'center' },
         { prop: 'name', label: '菜品名称', sortable: true },
+        { prop: 'mealType', label: '大类', width: '104px' },
         { prop: 'location', label: '位置' },
         { prop: 'price', label: '价格', width: '120px', align: 'center', sortable: true },
         { prop: 'rating', label: '评分', width: '80px', align: 'center', sortable: true },
@@ -334,6 +372,13 @@ async function batchDelete() {
       </template>
       <template #cell-name="{ row }">
         <span class="cell-title" :title="row.name">{{ row.name }}</span>
+      </template>
+      <!-- 大类（§7.34）：纯文字展示（分类维度不加彩标签，避免与状态语义抢色）；文案取自后端字典 -->
+      <template #cell-mealType="{ row }">
+        <span v-if="row.mealType" class="cell-sub" :title="mealTypeStore.labelOf(row.mealType)">
+          {{ mealTypeStore.labelOf(row.mealType) }}
+        </span>
+        <span v-else class="text-muted">—</span>
       </template>
       <!-- 位置：所属食堂 · 所属档口（DishAdminVO 联表直读，§7.23 第 1 条；两列合并为一列降噪） -->
       <template #cell-location="{ row }">

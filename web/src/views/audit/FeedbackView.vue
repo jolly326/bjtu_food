@@ -5,7 +5,7 @@
  * （路由 /dashboard/feedback，一级导航「反馈处理」），职责不变：
  * 列表（状态 / 类型 / 关键词服务端过滤）+ 处理闭环（采纳 / 不采纳 + 不采纳原因必填 + 回执文案）。
  *
- * 2026-09-15 取消人工复核：内容机检改为 pass/review 均放行、仅 risky 拒绝，
+ * 2026-09-15 取消人工复核：内容安全检测改为 pass/review 均放行、仅 risky 拒绝，
  * 反馈不再有「安检状态」筛选 / 列 / 展示项（后端该字段同步退役，前端不再读写）。
  *
  * 2026-09-15（本轮精简）：删除已处理态的 .handled-tip 只读提示（信息与列表状态列重复）；
@@ -496,7 +496,8 @@ function goReviewManage(reviewId?: number) {
    （页内 tab 切换早随分类卡收敛删除、模板已无引用）已清理，避免误导后续维护。 */
 
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
-.type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
+/* 文字走「文字档」（C1）：填充档 --color-primary 作浅底文字时深色主题仅 2.90:1、浅色主题 4.48:1 */
+.type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary-text); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
 /* .related（红色 pill）已删除：举报类关联评价改用既有 .link 体系——
    红色在本后台是「危险 / 删除」语义，用在小跳转链接上易被误读为风险提示，且 pill 与 .link 两套视觉并存易漂移。 */
 /**
@@ -564,10 +565,12 @@ function goReviewManage(reviewId?: number) {
   cursor: pointer; user-select: none;
   transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), color 0.2s var(--ease-out), transform 160ms var(--ease-out);
 }
-.outcome-opt:hover { border-color: var(--color-primary); color: var(--color-primary); }
+/* hover / 选中态：边框为图形用途（3:1 门槛，继续用填充档），**文字改走文字档**（C1：
+   填充档作「深底文字」时深色主题 3.18:1、作「primary-bg 上文字」2.90:1，均不达 4.5:1） */
+.outcome-opt:hover { border-color: var(--color-primary); color: var(--color-primary-text); }
 .outcome-opt:active { transform: scale(var(--press-scale)); }
 .outcome-opt:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.outcome-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary); }
+.outcome-opt.on { background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary-text); }
 .outcome-ico { width: 13px; height: 13px; }
 
 /* 不采纳原因回显：与错误色语义一致的弱化背景，便于一眼识别 */
