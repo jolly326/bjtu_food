@@ -22,8 +22,9 @@
          高度由页面按滚动量内联驱动（无 transition），故这里只留插槽位、不写任何高度/动效口径。 -->
     <slot />
 
-    <!-- 搜索行：position:relative 使其绘制在 Banner 绝对图层（slot 注入）之上 -->
-    <view class="home-search-row" style="position: relative;">
+    <!-- 搜索行：position:relative 使其绘制在 Banner 绝对图层（slot 注入）之上；
+         transform 由页面下发（初始态位于 Banner 下方，随页面刚体上移至锁定） -->
+    <view class="home-search-row" :style="{ position: 'relative', transform: searchShift }">
       <view
         class="home-search"
         role="search"
@@ -122,6 +123,12 @@ const props = withDefaults(defineProps<{
   filterLabel?: string
   /** home variant 专用：筛选面板是否展开（驱动箭头方向与展开态底色，不改变按钮行为） */
   filterOpen?: boolean
+  /**
+   * home variant 专用：搜索行位移（CSS transform 字符串，由页面按滚动量下发）。
+   * 首页滚动交互（home-scroll-interaction）：初始态搜索框位于 Banner 下方、随页面刚体上移，
+   * 跨阈值后锁定在标题行之下；继承位移即等于「与页面刚体同步滚动」。其他 variant 忽略。
+   */
+  searchShift?: string
 }>(), {
   variant: 'default',
   title: '',
@@ -130,6 +137,7 @@ const props = withDefaults(defineProps<{
   showBack: true,
   filterLabel: '筛选',
   filterOpen: false,
+  searchShift: '',
 })
 
 const emit = defineEmits<{

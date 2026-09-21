@@ -17,6 +17,7 @@
         search-placeholder="搜索菜品、食堂、套餐"
         :filter-label="filterButtonLabel"
         :filter-open="filterOpen"
+        :search-shift="stickyShift"
         @search="goToSearch"
         @filter="toggleFilterPanel"
       >
@@ -37,14 +38,17 @@
         </view>
       </AppHeader>
 
-      <!-- 横向大类标签栏：吸顶头部的一部分（恒定）；标签文案与顺序完全来自字典响应（GET /dishes/meal-types），
-           字典不可用时降级为仅「全部」。 -->
-      <HomeMealTabs
-        class="home-tabs"
-        :items="dishStore.mealTypeList"
-        :active-key="dishStore.filterMealType"
-        @select="onMealTypeSelect"
-      />
+      <!-- 横向大类标签栏：与搜索卡同属**吸顶组**——初始态位于 Banner 下方，随页面刚体上移，
+           跨锁定线后锁定在标题行之下（位移与搜索卡同源下发）；
+           标签文案与顺序完全来自字典响应（GET /dishes/meal-types），字典不可用时降级为仅「全部」。 -->
+      <view class="home-sticky-group" :style="{ transform: stickyShift }">
+        <HomeMealTabs
+          class="home-tabs"
+          :items="dishStore.mealTypeList"
+          :active-key="dishStore.filterMealType"
+          @select="onMealTypeSelect"
+        />
+      </view>
 
       <!-- 筛选面板：白底、锚定「筛选」按钮正下方，含「全部」+ 各食堂 + 价格区间；
            与大类标签栏**可叠加**（三维度互不清除）；点击面板外关闭。 -->
@@ -162,10 +166,12 @@ onReady(() => {
     .exec()
 })
 
+/** 标题带高（px）= 状态栏 + 标题行：吸顶组（搜索卡 + 标签栏）的锁定位置真源 */
+const titleBandPx = computed(() => statusBarPx.value + navBarHeightPx.value)
 /** 定格位移（px）= 图层高 − 头部实测高：上滑至此，图层底缘恰抵头部底缘，此后定格为头部背景层。
-    headerH 未实测前用估算值（状态栏 + 标题行 + 搜索卡/标签栏 ≈ 176rpx）兜底 */
+    headerH 未实测前用估算值（标题带 + 搜索卡/标签栏 ≈ 176rpx）兜底 */
 const bannerStopPx = computed(() =>
-  Math.max(bannerHeightPx.value - (headerHpx.value || statusBarPx.value + navBarHeightPx.value + uni.upx2px(176)), 0),
+  Math.max(bannerHeightPx.value - (headerHpx.value || titleBandPx.value + uni.upx2px(176)), 0),
 )
 /** 上移量（px）：夹在 [0, 定格位移] —— 越过定格线后 Banner 保持定格，仅菜品列表继续滚动 */
 const bannerCollapsedPx = computed(() =>
@@ -179,8 +185,17 @@ function toPx(value: number): string {
 
 /** Banner 图层上移量：随滚动 1:1 刚体上移（详情页大图观感），至定格线停止 */
 const bannerShift = computed(() => `translateY(${toPx(-bannerCollapsedPx.value)})`)
-/** 滚动内容顶部留白：= 定格位移 —— 初始态下网格恰从 Banner 底缘起排，上滑后随内容 1:1 同步上移 */
-const contentPadTop = computed(() => toPx(bannerStopPx.value))
+
+/** 吸顶组锁定位移（px）= 图层高 − 标题带高：上滑至此，搜索卡 / 标签栏升到锁定位置（标题行之下） */
+const stickyLockPx = computed(() => Math.max(bannerHeightPx.value - titleBandPx.value, 0))
+/**
+ * 吸顶组（搜索卡 + 标签栏）位移：**初始态整组位于 Banner 下方**（下移 stickyLockPx），
+ * 随页面刚体上移（与 Banner、列表同步 1:1），跨锁定线后归零并锁定在标题行之下 ——
+ * 即文档 §5「初始态四者属页面正常流、滑动时整体刚体同步上移、跨阈值后组合成粘性吸顶容器」。
+ */
+const stickyShift = computed(() => toPx(Math.max(stickyLockPx.value - Math.max(scrollTop.value, 0), 0)))
+/** 滚动内容顶部留白：= 锁定位移 —— 初始态网格恰从标签栏底缘起排，上滑后随内容 1:1 同步上移 */
+const contentPadTop = computed(() => toPx(stickyLockPx.value))
 
 /** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段（MP-08 口径，替代裸 any） */
 function onScroll(e: { detail?: { scrollTop?: number } }) {
@@ -431,8 +446,6 @@ onShareAppMessage(() => {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
 }
-/* 减少动态效果（既有约定）：去掉「图层随手上移」的位移分量 —— 图层定格于初始位（头部背后），两态结果不变 */
-@media (prefers-reduced-motion: reduce) {
-  .home-banner-layer { transform: none !important; }
-}
+/* 注：Banner 图层与吸顶组的位移均为「滚动位置驱动」的几何跟随（非装饰性动画），
+   故不对 prefers-reduced-motion 做降级——禁用位移会让头部与滚动内容脱节。 */
 </style>
