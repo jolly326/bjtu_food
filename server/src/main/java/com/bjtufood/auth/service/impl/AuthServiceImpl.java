@@ -249,16 +249,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserInfoVO toUserInfo(User user) {
+        // 字段集恰为 6 个（2026-09-21 §7.32 / auth-api-contract）：id/username/nickname/avatar/verified/bindEmail；
+        // email/status/guestShortId 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
-        vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        vo.setStatus(user.getStatus());
         vo.setVerified(Integer.valueOf(1).equals(user.getVerified()));
         vo.setBindEmail(user.getBindEmail());
-        vo.setGuestShortId(buildGuestShortId(user.getId()));
         return vo;
     }
 

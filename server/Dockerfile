@@ -1,6 +1,8 @@
 # ===== 构建阶段 =====
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
+# Maven 镜像源：云构建直连 Maven Central 会被限流（HTTP 429），改走腾讯云内网镜像
+COPY settings.xml /root/.m2/settings.xml
 # 先拷 pom 拉依赖，利用缓存
 COPY pom.xml .
 RUN mvn dependency:go-offline -B || true

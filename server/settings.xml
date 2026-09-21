@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- =============================================================
+     仅 Docker 云构建使用（见 Dockerfile：COPY 到 /root/.m2/settings.xml）；
+     本地开发不受影响（本地 mvn 读本机默认 ~/.m2/settings.xml）。
+     背景：云构建环境直连 Maven Central 高峰期被限流（HTTP 429 Too Many Requests），
+     依赖下载极慢甚至失败 → 改走腾讯云内网镜像（与构建机同机房，秒级拉取）。
+     ============================================================= -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>tencent-maven</id>
+      <name>Tencent Cloud Maven Mirror</name>
+      <url>https://mirrors.cloud.tencent.com/nexus/repository/maven-public/</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
