@@ -197,4 +197,18 @@ INSERT INTO notification (user_id, type, title, content, related_id, is_read, cr
 (2, 'dish_audit', '菜品审核通过', '您提交的菜品「牛肉拉面」已通过审核，可以在对应档口查看。', 6, 0, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
 (4, 'dish_audit', '菜品审核通过', '您提交的菜品「珍珠奶茶」已通过审核，可以在对应档口查看。', 22, 1, DATE_SUB(NOW(), INTERVAL 2 DAY));
 
+-- -------------------- 菜品大类赋值（2026-09-21 §7.34 / H4 归属清单，幂等 UPDATE 按菜名） --------------------
+-- 判定口径：按「菜名与做法形态」判（H3），不看主料、不看口味；31 道菜全量覆盖、无空类。
+-- 幂等：按菜名 UPDATE，可重复执行；新增大类须改后端 MealTypeConst 并发版（H1：枚举列，无字典表）。
+UPDATE dish SET meal_type = 'set_meal'   WHERE name IN ('黄焖鸡米饭', '招牌烤肉饭', '咖喱鸡排饭');
+UPDATE dish SET meal_type = 'stir_fry'   WHERE name IN ('宫保鸡丁', '水煮牛肉', '回锅肉', '番茄炒蛋', '土豆烧牛肉', '香辣虾', '糖醋里脊', '鱼香茄子', '宫保虾球');
+UPDATE dish SET meal_type = 'noodle'     WHERE name IN ('牛肉拉面', '兰州牛肉面', '羊肉泡馍', '炒粉');
+UPDATE dish SET meal_type = 'dry_pot'    WHERE name IN ('干锅花菜', '骨汤麻辣烫', '冒脑花');
+UPDATE dish SET meal_type = 'snack'      WHERE name IN ('鲜肉小笼', '广式肠粉', '烤五花肉', '烤茄子', '烤冷面', '羊肉串', '烤馕', '鲜虾烧卖', '叉烧包');
+UPDATE dish SET meal_type = 'soup_drink' WHERE name IN ('皮蛋瘦肉粥', '珍珠奶茶', '杨枝甘露');
+
+-- H5-6 数据修正（同批）：珍珠奶茶 / 杨枝甘露 的 ingredients 曾误标 'rice'（米）——
+-- 修正为 NULL（汤饮甜品无主料语义），否则详情页「主料」会显示「米」。
+UPDATE dish SET ingredients = NULL WHERE name IN ('珍珠奶茶', '杨枝甘露') AND ingredients = 'rice';
+
 SET FOREIGN_KEY_CHECKS = 1;

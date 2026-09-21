@@ -1100,4 +1100,31 @@ DELIMITER ;
 CALL `drop_review_useful_chain`();
 DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
 
+-- 4.6 菜品大类：幂等 ADD dish.meal_type（2026-09-21 §7.34 / change home-ui-refresh，H5-1）
+--     单值枚举列（VARCHAR，可空），值域由后端 MealTypeConst 定义（唯一真源，不建字典表/外键——§7.22 第 1 条继续有效）。
+--     语义：每个菜品恰属一个大类（单值互斥）；大类不进公开 DishVO，仅供筛选（GET /dishes?mealType=，
+--     白名单校验非法值 400）与字典下发（GET /dishes/meal-types，空类自动隐藏）。
+--     写法兼容 MySQL 5.7（information_schema 判列 + PREPARE 动态 ALTER；目标库 TDSQL-C 为 5.7 兼容版）。
+DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
+DELIMITER $$
+CREATE PROCEDURE `add_dish_meal_type`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'meal_type'
+    ) THEN
+        -- 注意：MySQL 5.7 默认 sql_mode 下 `||` 是逻辑 OR 而非字符串拼接（8.0 才支持），
+        -- 必须用 CONCAT()（目标库 TDSQL-C 为 5.7 兼容版）
+        SET @ddl = CONCAT('ALTER TABLE `dish` ADD COLUMN `meal_type` VARCHAR(20) NULL ',
+                  'COMMENT ''菜品大类（单值枚举，键=MealTypeConst；可空；筛选与字典下发用，不进公开出参）'' ',
+                  'AFTER `serve_temp`');
+        PREPARE stmt FROM @ddl;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+DELIMITER ;
+CALL `add_dish_meal_type`();
+DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
+
 SET FOREIGN_KEY_CHECKS = 1;
