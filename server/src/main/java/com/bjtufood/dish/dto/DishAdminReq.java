@@ -70,6 +70,9 @@ public class DishAdminReq {
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰（可空）", example = "hot")
     private String serveTemp;
 
+    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/meal-types；可空；服务端白名单校验非法值 400）", example = "noodle")
+    private String mealType;
+
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;
 }

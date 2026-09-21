@@ -97,6 +97,7 @@
         d.created_at,
         d.updated_at,
         d.diet_type,
+        d.meal_type,
         d.ingredients,
         d.flavor_tags,
         d.serve_temp,
@@ -123,8 +124,9 @@
         <if test="req.canteenId != null">
             AND c.id = #{req.canteenId}
         </if>
-        <if test="req.stallId != null">
-            AND s.id = #{req.stallId}
+        <!-- 菜品大类筛选（2026-09-21 §7.34）：单值精确匹配；白名单校验在 Service 层（非法值 400，不落 SQL） -->
+        <if test="req.mealType != null and req.mealType != ''">
+            AND d.meal_type = #{req.mealType}
         </if>
         <if test="req.minPrice != null">
             AND d.price &gt;= #{req.minPrice}
@@ -132,36 +134,10 @@
         <if test="req.maxPrice != null">
             AND d.price &lt;= #{req.maxPrice}
         </if>
-        <choose>
-            <when test="req.sortBy == 'heat'">
-                ORDER BY <include refid="heatScoreExpr"/> DESC
-            </when>
-            <when test="req.sortBy == 'rating'">
-                ORDER BY d.avg_rating
-                <choose>
-                    <when test="req.sortOrder == 'asc'">ASC</when>
-                    <otherwise>DESC</otherwise>
-                </choose>
-            </when>
-            <when test="req.sortBy == 'price'">
-                ORDER BY d.price
-                <choose>
-                    <when test="req.sortOrder == 'desc'">DESC</when>
-                    <otherwise>ASC</otherwise>
-                </choose>
-            </when>
-            <!-- collects（收藏）排序已随收藏模块移除（BCNF 清理：favorite_count 删除），改用 rating_count 作为热度次级键 -->
-            <when test="req.sortBy == 'created_at'">
-                ORDER BY d.created_at
-                <choose>
-                    <when test="req.sortOrder == 'asc'">ASC</when>
-                    <otherwise>DESC</otherwise>
-                </choose>
-            </when>
-            <otherwise>
-                ORDER BY d.rating_count DESC, d.avg_rating DESC
-            </otherwise>
-        </choose>
+        <!-- 排序口径收敛（2026-09-21 §7.33）：删除 sortBy/sortOrder 的 <choose> 分支（原 <otherwise> =
+             ORDER BY d.rating_count DESC, d.avg_rating DESC 一并移除），默认流 / 筛选流 / 搜索流
+             三路统一为唯一热度口径 -->
+        ORDER BY <include refid="heatScoreExpr"/> DESC
     </select>
 
     <!-- 菜品详情 -->
@@ -186,6 +162,7 @@
         <result property="ingredients" column="ingredients"/>
         <result property="flavorTags" column="flavor_tags"/>
         <result property="serveTemp" column="serve_temp"/>
+        <result property="mealType" column="meal_type"/>
     </resultMap>
 
     <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称）。
@@ -220,6 +197,15 @@
         WHERE d.status = 'on'
         ORDER BY heat DESC
         LIMIT 10
+    </select>
+
+    <!-- 菜品大类字典下发（2026-09-21 §7.34）：只回答「哪些大类当前有在售菜品」（空类自动隐藏）；
+         标签文案与顺序由 MealTypeConst 唯一定义，本查询不涉及（单一真源不漂移） -->
+    <select id="selectInStockMealTypes" resultType="string">
+        SELECT DISTINCT d.meal_type
+        FROM dish d
+        WHERE d.status = 'on'
+          AND d.meal_type IS NOT NULL
     </select>
 
     <!-- 浏览量原子自增（并发安全：读-改-写 → SET view_count = view_count + 1） -->

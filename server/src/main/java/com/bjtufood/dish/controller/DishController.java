@@ -41,7 +41,7 @@ public class DishController {
             description = """
                     用途：菜品列表页、搜索页、筛选页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    常用参数：keyword、canteenId、stallId、minPrice、maxPrice、sortBy、sortOrder。
+                    常用参数：keyword、canteenId、mealType、minPrice、maxPrice（排序恒为服务端热度倒序，无排序入口）。
                     """
     )
     @GetMapping("/dishes")
@@ -50,6 +50,20 @@ public class DishController {
         // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
         return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize()));
+    }
+
+    @Operation(
+            summary = "菜品大类字典",
+            description = """
+                    用途：首页横向大类标签栏数据源（2026-09-21 §7.34）。
+                    只下发「当前有在售菜品」的大类（空类自动隐藏）；文案与顺序由后端 MealTypeConst 唯一定义，
+                    端上不得维护任何标签中文映射。公开接口。
+                    测试示例：/dishes/meal-types
+                    """
+    )
+    @GetMapping("/dishes/meal-types")
+    public Result<List<com.bjtufood.dish.dto.MealTypeVO>> listMealTypes() {
+        return Result.success(dishService.listMealTypes());
     }
 
     @Operation(

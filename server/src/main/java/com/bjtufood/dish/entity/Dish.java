@@ -69,6 +69,11 @@ public class Dish {
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
     private String serveTemp;
 
+    /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：键域由 MealTypeConst 唯一定义；
+     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开 DishVO，仅供筛选与字典下发 */
+    @Schema(description = "菜品大类枚举键（MealTypeConst）", example = "noodle")
+    private String mealType;
+
     /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */
     @Schema(description = "状态", example = "on")
     private String status;

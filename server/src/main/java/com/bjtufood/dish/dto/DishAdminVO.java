@@ -82,4 +82,7 @@ public class DishAdminVO {
 
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
     private String serveTemp;
+
+    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/meal-types；管理端录入下拉 + 编辑回填 + 列表筛选）", example = "noodle")
+    private String mealType;
 }

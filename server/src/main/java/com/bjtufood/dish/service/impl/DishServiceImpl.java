@@ -14,6 +14,7 @@ import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.dish.config.ViewRateLimiter;
+import com.bjtufood.dish.constant.MealTypeConst;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
@@ -21,6 +22,7 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.MealTypeVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
@@ -42,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -82,8 +85,23 @@ public class DishServiceImpl implements DishService {
                 req.getPageSize() == null ? 0 : req.getPageSize());
         req.setPage(norm[0]);
         req.setPageSize(norm[1]);
+        // 菜品大类白名单校验（PR-06 / §7.34）：非法值 400 报错，不静默降级；空值=「全部」，不进 SQL 条件
+        if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
+            throw new BusinessException("菜品大类不合法：" + req.getMealType());
+        }
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
                 .convert(this::enrichImages);
+    }
+
+    @Override
+    public List<MealTypeVO> listMealTypes() {
+        // 空类过滤（§7.34）：常量清单（唯一真源）∩「当前有在售菜品」的大类集合——
+        // 某类暂时没有 status='on' 的菜品即不下发，重新有菜自动出现；顺序 = 常量声明序（order 升序）
+        Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
+        return MealTypeConst.ALL.stream()
+                .filter(mt -> inStock.contains(mt.key()))
+                .map(mt -> new MealTypeVO(mt.key(), mt.label(), mt.order()))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -400,6 +418,13 @@ public class DishServiceImpl implements DishService {
         dish.setIngredients(req.getIngredients());
         dish.setFlavorTags(req.getFlavorTags());
         dish.setServeTemp(req.getServeTemp());
+
+        // 菜品大类（§7.34）：白名单校验（PR-06，非法值 400）；null=不修改
+        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过 null 字段，「仅传 status 的行内部分更新」不会误清大类）
+        if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
+            throw new BusinessException("菜品大类不合法：" + req.getMealType());
+        }
+        dish.setMealType(req.getMealType());
 
         dish.setStatus(req.getStatus());
     }

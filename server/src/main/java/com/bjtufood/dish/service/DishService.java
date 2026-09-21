@@ -20,18 +20,28 @@ public interface DishService {
     // ==================== 公开接口 ====================
 
     /**
-     * 菜品列表查询（分页+筛选+排序）
+     * 菜品列表查询（分页+筛选，排序恒为服务端热度倒序）
      * <p>
-     * 支持参数：keyword, canteenId, stallId, minPrice, maxPrice, sortBy, sortOrder
-     * 排序：sortBy=heat 时按综合热度（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20）降序；
-     * 热度口径唯一真源见 DishMapper.xml 的 heatScoreExpr 片段（Q-109：Java 侧权重常量已删除，调整请直接改该 SQL）；
-     * 未传 sortBy 时按评价数、评分降序
+     * 支持参数：keyword, canteenId, mealType, minPrice, maxPrice（2026-09-21 §7.33：
+     * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，排序唯一口径 =
+     * DishMapper.xml 的 heatScoreExpr 倒序）。
+     * {@code mealType} 白名单校验（MealTypeConst），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
      * @return 分页菜品列表（DishVO 含档口/食堂名称）
      */
     IPage<DishVO> listDishes(DishQueryReq req);
+
+    /**
+     * 菜品大类字典（2026-09-21 §7.34）：{@code GET /dishes/meal-types} 出参。
+     * <p>
+     * 标签文案与顺序来自 {@link com.bjtufood.dish.constant.MealTypeConst}（唯一真源），
+     * 只下发「当前有在售菜品」的大类（空类自动隐藏，有菜自动出现）。
+     *
+     * @return 按 order 升序的大类字典项
+     */
+    List<com.bjtufood.dish.dto.MealTypeVO> listMealTypes();
 
     /**
      * 获取菜品详情
