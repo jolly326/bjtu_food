@@ -29,30 +29,6 @@
       <view v-else-if="loadingMore" class="feed-foot">
         <text class="feed-foot-text">正在加载更多…</text>
       </view>
-
-      <!-- 贡献卡片：内容流末尾的**独立兄弟节点**（全宽单列，不进双列高度计算，规避瀑布流具名 slot 塌缩与列高断层）。
-         卡片常驻于网格整体之下：内容非空时为末尾一项，内容为空时即为内容区唯一元素（空态显式例外，见 spec contribution-entry）。
-         文案随筛选上下文切换「同节点换文案」，不做整卡条件重建，避免切换闪烁与位移跳动。 -->
-      <view class="contribute-card" role="button" aria-label="推荐菜品" hover-class="pressed" @tap="goContribute">
-        <view class="cc-icon">
-          <IconSvg :name="scopeEmpty ? 'search' : 'plus'" :size="40" :color="COLOR_MAP['primary']" />
-        </view>
-        <view class="cc-copy">
-          <text class="cc-title">{{ scopeEmpty ? '这个范围还没录菜品' : '想吃啥没找到？告诉我们' }}</text>
-          <text class="cc-desc">
-            {{ scopeEmpty ? '把你吃到的菜报给我们，也可以扩大范围再找找' : '补录一道菜，让更多同学找到它' }}
-          </text>
-        </view>
-        <!-- 次级动作：仅在「筛选后无结果」时出现，帮助用户脱困（子元素显隐，不重建整卡） -->
-        <text
-          v-if="scopeEmpty"
-          class="cc-clear"
-          role="button"
-          aria-label="清除筛选"
-          @tap.stop="emit('clear-filter')"
-        >清除筛选</text>
-        <IconSvg v-else name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" />
-      </view>
     </template>
   </view>
 </template>
@@ -60,7 +36,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
-import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import {
   useDishStore,
@@ -69,16 +44,9 @@ import {
   FILTER_MAX_PAGES,
 } from '@/stores/dish'
 import type { Dish } from '@/types/dish'
-import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
-import { COLOR_MAP } from '@/theme/tokens'
-
-const props = defineProps<{
-  /** 当前是否处于筛选中（食堂 / 价格任一生效）——由页面下发，驱动卡片上下文文案 */
-  filtered: boolean
-}>()
+import { dishDetailUrl } from '@/utils/routes'
 
 const emit = defineEmits<{
-  (e: 'clear-filter'): void
   /** 筛选流加载失败后点击重试（MP-012）：上抛页面走与下拉刷新同一条重拉路径 */
   (e: 'retry'): void
 }>()
@@ -99,12 +67,6 @@ const maxDishes = FILTER_MAX_PAGES * FILTER_PAGE_SIZE
 
 /** 筛选流最近一次请求失败且当前无数据（MP-012）：渲染错误重试块，失败 ≠ 无数据 */
 const loadFailed = computed(() => dishStore.filterError && dishStore.filterList.length === 0)
-
-/** 当前筛选范围内是否无菜品（筛选生效且结果为空且**非失败态** → 说明原因并给「清除筛选」脱困动作）；
-    失败态不能宣称「还没录菜品」（数据未知），由上方重试块接管 */
-const scopeEmpty = computed(
-  () => props.filtered && dishStore.filterList.length === 0 && !dishStore.filterError,
-)
 
 /** 瀑布流按图片原始比例排列（不再为错落刻意拉伸图片高度）；列分配保持奇偶分列。
  *  key 仅由稳定业务主键 id 构成（id 唯一），不附加列内序号 idx，
@@ -128,11 +90,6 @@ const splitList = computed(() => {
 /** 菜品卡片点击 → 独立详情页（pages/detail/dish） */
 function goToDetail(dish: { id: number }) {
   uni.navigateTo({ url: dishDetailUrl(dish.id) })
-}
-
-/** 贡献入口（首页卡片）→ 意见反馈页并预选「推荐菜品」空表单（落点由唯一构造函数拼装） */
-function goContribute() {
-  uni.navigateTo({ url: feedbackEntryUrl({ type: 'add', from: 'home' }) })
 }
 </script>
 
@@ -165,41 +122,6 @@ function goContribute() {
 
 /* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
-/* 贡献卡片：与列表卡同一表面语言（白底 + 大圆角 + 柔和投影），全宽单列 */
-.contribute-card {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  -webkit-tap-highlight-color: transparent;
-  box-sizing: border-box;
-}
-.contribute-card.pressed { background-color: var(--bg-soft); }
-.cc-icon {
-  flex-shrink: 0;
-  width: 88rpx;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-soft);
-}
-.cc-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.cc-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.cc-desc { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.4; }
-.cc-clear {
-  flex-shrink: 0;
-  padding: var(--spacing-2xs) var(--spacing-sm);
-  font-size: var(--font-aux);
-  color: var(--color-primary-text);
-  border: 1rpx solid var(--color-primary);
-  border-radius: var(--radius-pill);
-}
-
 /* 触底 / 加载更多提示（MP-05）：居中次级灰小字，不抢内容焦点 */
 .feed-foot {
   display: flex;
@@ -212,8 +134,4 @@ function goContribute() {
   color: var(--text-tertiary);
   text-align: center;
 }
-
-/* D11：原 `@media (prefers-reduced-motion){ .contribute-card { transition: none } }` 已删——
-   .contribute-card 全程无 transition（按压反馈走 hover-class 的 bg-soft 瞬时切换），
-   该声明无对应过渡元素，属死代码（§4.9 只对真实动效做降级）。 */
 </style>

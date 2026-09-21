@@ -23,10 +23,11 @@
       <view class="card-stall">
         <text class="stall-text">{{ dish.canteen }} | {{ dish.stallName }}</text>
       </view>
-      <!-- 第四段：左 = 黄色实心五角星 + 数字评分；右 = 价格（橙色突出）。同一行 -->
+      <!-- 第四段：左 = 黄色实心五角星 + 数字评分；右 = 价格（橙色突出）。同一行。
+           星尺寸 30rpx：24px 网格的星形自带视觉留白，30rpx 与 24rpx 评分文本视觉等高（光学补偿） -->
       <view class="card-meta">
         <view class="card-rating">
-          <IconSvg name="star-filled" :size="24" :color="COLOR_MAP.star" class="star-icon" />
+          <IconSvg name="star-filled" :size="30" :color="COLOR_MAP.star" class="star-icon" />
           <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
         </view>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>

@@ -75,8 +75,8 @@
     >
       <!-- 顶部补偿：与 Banner 折叠量等量（内联），抵消「头部变矮」带来的额外位移 → 两态切换无跳变 -->
       <view class="home-content" :style="{ paddingTop: contentPadTop }">
-        <!-- 瀑布流：按所选食堂 / 大类 / 价格过滤；未选 = 全部。末尾贡献卡片由 HomeContent 承载 -->
-        <HomeContent :filtered="hasFilter" @clear-filter="onClearFilter" @retry="retryWaterfall" />
+        <!-- 瀑布流：按所选食堂 / 大类 / 价格过滤；未选 = 全部（2026-09-21 走查：末尾贡献卡片已删除） -->
+        <HomeContent @retry="retryWaterfall" />
       </view>
     </scroll-view>
 
@@ -280,24 +280,6 @@ function toggleFilterPanel() {
 
 function closeFilterPanel() {
   filterOpen.value = false
-}
-
-/** 是否存在生效的筛选条件（食堂 / 大类 / 价格任一）——驱动首页贡献卡片的上下文文案（见 contribution-entry） */
-const hasFilter = computed(
-  () =>
-    selectedCanteenId.value != null ||
-    dishStore.filterMealType != null ||
-    dishStore.filterPrice.min != null ||
-    dishStore.filterPrice.max != null,
-)
-
-/**
- * 清除全部筛选（贡献卡片「清除筛选」次级动作）：清空价格区间 + 大类回「全部」+ 回到「全部」食堂。
- * MP-03：改为 store 的 clearHomeFilter —— 一次交互只发一次列表请求。
- */
-function onClearFilter() {
-  resetScrollToTop() // D6：清除筛选同样是「换结果集」，回到初始态
-  dishStore.clearHomeFilter()
 }
 
 function goToSearch() {
