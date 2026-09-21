@@ -10,9 +10,9 @@
           <view class="avatar-wrap">
             <image v-if="avatar" :src="getImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
             <view v-else class="avatar avatar-empty" :class="{ uploading: avatarUploading }">
-              <IconSvg name="user" :size="52" :color="COLOR_MAP['text-tertiary']" />
+              <IconSvg name="user" :size="52" color="var(--text-tertiary)" />
             </view>
-            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="row-arrow" />
+            <IconSvg name="arrow" :size="28" color="var(--text-tertiary)" class="row-arrow" />
           </view>
         </view>
 
@@ -53,7 +53,6 @@ import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import { COLOR_MAP } from '@/theme/tokens'
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)

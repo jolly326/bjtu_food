@@ -18,16 +18,24 @@
         @search="goToSearch"
         @filter="toggleFilterPanel"
       >
-        <!-- Banner（静态运营位，无后端取数）：裁剪窗口高度随滚动收缩，内部卡片等量上移被裁掉
-             → 视觉即「Banner 滚出」，收起后不可见且不吃高度（吸顶态不显示） -->
+        <!-- Banner（静态运营位）：**通栏整块背景**（左右无间隙、上移至导航行顶），
+             作为「知行食记」标题的背景 —— 标题由 AppHeader 以叠加层绘制在本 Banner 之上。
+             背景图用 `<image>` **单独加载**（勿用组件手绘；未配置 / 加载失败回退渐变底）。
+             裁剪窗口高度随滚动收缩，内部内容等量上移被裁掉 → 视觉即「Banner 滚出」，
+             收起后不可见且不吃高度（吸顶态不显示）。 -->
         <view class="home-banner-wrap" :style="{ height: bannerViewportH }">
           <view class="home-banner" :style="{ transform: bannerShift }">
+            <image
+              v-if="bannerBgSrc !== '' && !bannerBgFailed"
+              class="banner-bg"
+              :src="bannerBgSrc"
+              mode="aspectFill"
+              @error="bannerBgFailed = true"
+            />
             <view class="hb-copy">
               <text class="hb-title">今日推荐</text>
               <text class="hb-sub">发现食堂里的美味搭配</text>
             </view>
-            <!-- 占位插画（2026-09-21 G6）：线性风格内联 SVG → image data-uri，替换正式资产时只改该组件 -->
-            <HomeBannerArt :size="180" />
           </view>
         </view>
       </AppHeader>
@@ -78,17 +86,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
+import { getNavBarHeight } from '@/utils/navMetrics'
 import AppHeader from '@/components/AppHeader.vue'
 import HomeMealTabs from './HomeMealTabs.vue'
 import HomeFilterPanel from './HomeFilterPanel.vue'
 import HomeContent from './HomeContent.vue'
-import HomeBannerArt from './HomeBannerArt.vue'
 import TabBar from '@/components/TabBar.vue'
 import type { FilterTab } from '@/types/filter-tab'
 
@@ -97,26 +105,47 @@ const dishStore = useDishStore()
 const refresherTriggered = ref(false)
 
 /* ===== 两态结构：Banner 折叠（初始态 / 吸顶态） =====
-   spec 要求初始态顺序 = 标题 → Banner → 搜索框 → 标签栏 → 网格，吸顶态 = 标题 + 完整搜索框 + 标签栏常驻、
-   Banner 不可见，且禁用 position: sticky。Banner 因此被放进常驻头部（标题行与搜索行之间），
+   spec 要求初始态顺序 = 标题（**叠加于 Banner 背景之上**）→ Banner → 搜索框 → 标签栏 → 网格，吸顶态 = 标题 + 完整搜索框 + 标签栏常驻、
+   Banner 不可见，且禁用 position: sticky。Banner 因此被放进常驻头部并**上移一个标题行高、垫在标题背后**，
    由 scroll-view 滚动位移 s 驱动「折叠收起」，并把滚动内容顶部同量下移补偿：
 
-     · 头部内 Banner 可视高度 = H − s（H = Banner 整块高，夹在 [0, H]）
-     · Banner 卡片本体 translateY(−s)，被上述视口裁掉上缘 → 与「Banner 随手势滚出」逐像素等价
+     · 头部内 Banner 可视高度 = H − s（H = Banner 整块高 = 标题行高 + 内容区高，夹在 [0, H]）
+     · Banner 内容 translateY(−s)，被上述视口裁掉上缘 → 与「Banner 随手势滚出」逐像素等价
      · 滚动内容 padding-top = s → 抵消「头部变矮」多出来的位移；因「高度 + 补偿 ≡ H」，
        任意 s 下内容区屏幕位置 = Banner 放在滚动流里时的位置 → 两态切换连续、无跳变，回滚对称还原
 
    为何不写 transition/动效：折叠量必须与滚动量严格 1:1 同步（B + P ≡ H）。任何缓动都会让 Banner
    落后于手势，在过渡期露出瞬时空白带；滚动位移本身已是连续量，故本方案无 CSS 动画/过渡，
    也就不存在需要 prefers-reduced-motion 降级的离散动效。
-   ⚠️ H 的口径（rpx）= 顶部留白 --spacing-md(24) + 卡片高 244 + 投影余量 --spacing-sm(16) = 284，
-   三段留白**全部由 .home-banner 自身 margin 承担**（.home-banner-wrap 的 padding 必须为 0）：
-   折叠窗口本身就是动画容器，border-box 下 padding 压不到 0 —— 内联 height:0 时窗口仍占 padding 高度，
-   造成 ① 吸顶态标题与搜索卡之间残留一条空带；② s ∈ (244, 284] 时头部高度被 padding 夹住不再收缩、
-   滚动内容停住（破坏 1:1）。改留白值须同步本常量与 .home-banner 的 margin（两者同源）。 */
-const BANNER_H_RPX = 284
-/** Banner 整块高（px）：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
-const bannerHeightPx = uni.upx2px(BANNER_H_RPX)
+   ⚠️ H 的口径 = 状态栏高（--status-h）+ 标题行高（--nav-h，均 px）+ 内容区 284rpx：Banner 以负 margin
+   上移「状态栏 + 标题行」两个带高、垫到**屏幕最顶**（占据页面最顶部区域、含状态栏背后，2026-09-21 定稿），
+   故窗口高必须把两带计入；标题行以 z-index 叠加绘制、不占布局高。
+   改内容区高度须同步本常量与 .home-banner 的 min-height（两者同源）。 */
+   const BANNER_CONTENT_RPX = 284
+   /** 状态栏高（px）：与 AppHeader 同源（--status-h 同值），计入折叠上限与窗口高 */
+   const statusBarPx = ref(20)
+   /** 标题行高（px）：与 AppHeader 的 navBarHeight 同源换算（navMetrics 真源），用于折叠上限与窗口高 */
+   const navBarHeightPx = ref(56)
+   onMounted(() => {
+   // 与 AppHeader 同口径：兼容老基础库取 statusBarHeight，微信端按胶囊位置换算导航行高
+   // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
+   const win = (typeof wx !== 'undefined')
+     // @ts-ignore
+     ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
+     : null
+   const sb = (win && win.statusBarHeight) || 20
+   statusBarPx.value = sb
+   // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）
+   const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
+   navBarHeightPx.value = getNavBarHeight(sb, mb)
+   })
+   /** Banner 整块高（px）= 状态栏高 + 标题行高 + 内容区高：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
+   const bannerHeightPx = computed(() => statusBarPx.value + navBarHeightPx.value + uni.upx2px(BANNER_CONTENT_RPX))
+
+   /** Banner 背景图（**单独加载**，用户 2026-09-21 要求：勿用组件手绘背景）：
+     正式资产到位后把 URL / 本地路径填入本常量即可；为空或加载失败时回退渐变底（.home-banner 的 background）。 */
+   const BANNER_BG_SRC = ''
+   const bannerBgFailed = ref(false)
 
 /** 滚动位移（px，负值/回弹一律归零）——页面侧唯一滚动真源，只驱动 Banner 折叠，不参与列表分页 */
 const scrollTop = ref(0)
@@ -372,23 +401,36 @@ onShareAppMessage(() => {
      会使吸顶态残留空带、且 s ∈ (244, 284] 段头部被夹住不再收缩；三段留白因此改由卡片自身 margin 承担。 */
 .home-banner-wrap {
   box-sizing: border-box;
-  /* 动画容器：无 padding / 无 margin，折叠量 0 时高度真正为 0（留白见 .home-banner 的 margin） */
   padding: 0;
   overflow: hidden;
+  /* 2026-09-21 定稿：上移「状态栏 + 标题行」两个带高 —— Banner 顶到屏幕最顶（占据页面最顶部区域、
+     含状态栏背后）、成为「知行食记」标题的背景（标题行以 z-index 叠加绘制其上）；
+     窗口高度公式（status-h + nav-h + 284rpx − s）已把两带计入 */
+  margin-top: calc(-1 * (var(--status-h) + var(--nav-h)));
 }
 .home-banner {
-  /* 三段留白（= 脚本 BANNER_H_RPX 的构成）：上 24 + 左右 24 + 下 16（下留白给卡片投影，避免被裁剪）；
-     必须与 BANNER_H_RPX 同源改动，否则折叠量与头部高度不再相等（1:1 破坏） */
-  margin: var(--spacing-md) var(--spacing-md) var(--spacing-sm);
+  position: relative;
+  width: 100%;
+  /* 2026-09-21 走查回退：**通栏无间隙**（左右 margin 与圆角归零）；内容区自标题行下缘起排，
+     与窗口高公式（nav-h + 284rpx）同源 */
+  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  min-height: 244rpx;
+  min-height: calc(var(--status-h) + var(--nav-h) + 284rpx);
   padding: var(--spacing-lg);
+  padding-top: calc(var(--status-h) + var(--nav-h) + var(--spacing-md));
   box-sizing: border-box;
-  background-image: linear-gradient(120deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-warm);
+  /* 兜底渐变：背景图（单独加载，见脚本 BANNER_BG_SRC）未配置 / 加载失败时可见 */
+  background-image: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
+}
+/* 背景图层：绝对定位铺满 Banner，文字内容叠加其上（单独加载，非组件手绘） */
+.banner-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
 }
 .hb-copy {
   flex: 1;

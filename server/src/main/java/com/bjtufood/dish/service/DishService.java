@@ -6,7 +6,6 @@ import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MealTypeVO;
 
 import java.util.List;
 
@@ -23,9 +22,10 @@ public interface DishService {
     /**
      * 菜品列表查询（分页+筛选+排序）
      * <p>
-     * 支持参数：keyword, canteenId, minPrice, maxPrice（2026-09-21 §7.33：stallId / sortBy / sortOrder 已删除）
-     * 排序：唯一口径 = 综合热度降序（恒按热度，不因是否携带参数而改变）；
-     * 热度口径唯一真源见 DishMapper.xml 的 heatScoreExpr 片段（Q-109：Java 侧权重常量已删除，调整请直接改该 SQL）
+     * 支持参数：keyword, canteenId, stallId, minPrice, maxPrice, sortBy, sortOrder
+     * 排序：sortBy=heat 时按综合热度（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20）降序；
+     * 热度口径唯一真源见 DishMapper.xml 的 heatScoreExpr 片段（Q-109：Java 侧权重常量已删除，调整请直接改该 SQL）；
+     * 未传 sortBy 时按评价数、评分降序
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
@@ -73,17 +73,6 @@ public interface DishService {
      * @return 热搜词条列表（keyword=菜品名, heat=热度分）
      */
     List<HotSearchVO> hotSearch();
-
-    /**
-     * 菜品大类字典（{@code GET /dishes/meal-types}，2026-09-21 §7.34）
-     * <p>
-     * 返回按 order 升序的 {@code [{key,label,order}]}，**只含当前有在售菜品的大类**
-     * （空类自动隐藏、有菜自动出现）。标签文案与顺序的唯一真源为 {@code MealTypeConst}；
-     * 端上不得维护任何标签中文映射或清单。
-     *
-     * @return 大类字典项列表（可能为空数组）
-     */
-    List<MealTypeVO> listMealTypes();
 
     // ==================== 管理端接口（管理员） ====================
 

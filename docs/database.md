@@ -115,7 +115,7 @@
 | original_price | INT | 可 | NULL | 原价（分，折扣前）；**「有折扣」判据 = `original_price > price`**（2026-09-18 §7.26） |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
-| alias | VARCHAR(255) | 可 | NULL | 搜索别名（逗号分隔，管理员配置；搜索 keyword 同时命中 name 与 alias；旧库经 schema.sql 幂等迁移块补齐） |
+| alias | VARCHAR(255) | 可 | NULL | ~~搜索别名~~ **已决议删除（2026-09-21 拍板，搜索契约精简）**：关键词直接硬匹配菜名 / 档口名 / 食堂名，不再需要别名层；存量库将由 `schema.sql` 幂等段 DROP（**代码待落地**，落地前列与匹配路仍在） |
 | diet_type | VARCHAR(16) | 可 | NULL | **荤素 / 饮食属性**（2026-09-20 §7.28）：`meat`=荤 / `half`=半荤 / `veg`=素 / `halal`=清真（原 `region='清真'` 迁入） |
 | ingredients | VARCHAR(255) | 可 | NULL | **主料 / 食材**（逗号分隔机器值，同 `tags` 模式）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice |
 | flavor_tags | VARCHAR(128) | 可 | NULL | **口味**（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy（**吸收原「辣度」语义**） |

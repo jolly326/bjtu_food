@@ -25,19 +25,18 @@ public class DishQueryReq {
     @Schema(description = "食堂ID筛选", example = "1")
     private Long canteenId;
 
+    @Schema(description = "档口ID筛选", example = "1")
+    private Long stallId;
+
     @Schema(description = "最低价格，单位：分", example = "1000")
     private Integer minPrice;
 
     @Schema(description = "最高价格，单位：分", example = "2000")
     private Integer maxPrice;
 
-    /**
-     * 菜品大类筛选（2026-09-21 §7.34）：单值，取值 = 大类枚举键
-     * （set_meal / stir_fry / noodle / dry_pot / snack / soup_drink）。
-     * 白名单校验在 Service 层完成，非法值 → 400（PR-06：不静默降级）。
-     * 与 canteenId / keyword / 价格区间可叠加，且不改变排序口径（仍热度倒序）。
-     */
-    @Schema(description = "菜品大类筛选（单值）：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品", example = "noodle")
-    private String mealType;
+    @Schema(description = "排序字段：heat（热度）、rating、price、created_at", example = "heat")
+    private String sortBy;
 
+    @Schema(description = "排序方向：asc、desc", example = "desc")
+    private String sortOrder;
 }

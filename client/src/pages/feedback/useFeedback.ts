@@ -152,7 +152,7 @@ export function useFeedback() {
       key: String(d.id),
       label: d.name,
       sub: [d.canteen, d.stallName].filter(Boolean).join(' · '),
-      image: d.images?.[0] || '',
+      image: d.image || '',
     })),
   )
 

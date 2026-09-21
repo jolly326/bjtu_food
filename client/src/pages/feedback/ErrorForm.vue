@@ -31,9 +31,9 @@
         aria-label="搜索选择菜品"
         @tap="emit('open-dish')"
       >
-        <IconSvg name="search-fill" :size="30" :color="COLOR_MAP['primary']" />
+        <IconSvg name="search-fill" :size="30" color="var(--color-primary)" />
         <text class="picker-value placeholder">搜索选择菜品</text>
-        <IconSvg name="arrow" :size="26" :color="COLOR_MAP['text-tertiary']" />
+        <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
       </view>
 
       <text v-if="errors['error.dish']" class="field-error">{{ errors['error.dish'] }}</text>
@@ -61,10 +61,10 @@
             @tap="emit('toggle', c.key)"
           >
             <view class="point-option-icon">
-              <IconSvg :name="c.icon" :size="28" :color="model.points.includes(c.key) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
+              <IconSvg :name="c.icon" :size="28" :color="model.points.includes(c.key) ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
             </view>
             <text class="point-option-text">{{ c.label }}</text>
-            <IconSvg v-if="model.points.includes(c.key)" name="check" :size="24" :color="COLOR_MAP['primary']" />
+            <IconSvg v-if="model.points.includes(c.key)" name="check" :size="24" color="var(--color-primary)" />
           </view>
 
           <!-- 右侧：编辑区（选中后出现；正确信息直接写入响应式 form.error.correctValues） -->
@@ -118,7 +118,6 @@ import { ref, computed } from 'vue'
 import type { Dish } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
-import { COLOR_MAP } from '@/theme/tokens'
 
 /** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本/配图） */
 const props = defineProps<{
@@ -230,7 +229,7 @@ const dishMeta = computed(() => {
   justify-content: center;
 }
 .point-option-text { font-size: var(--font-small); color: var(--text-tertiary); font-weight: var(--weight-regular); white-space: nowrap; }
-.point-option.active .point-option-text { font-size: var(--font-body); color: var(--color-primary-text); font-weight: var(--weight-semibold); }
+.point-option.active .point-option-text { font-size: var(--font-body); color: var(--color-primary); font-weight: var(--weight-semibold); }
 .point-edit { flex: 1; min-width: 0; }
 .edit-input {
   width: 100%;

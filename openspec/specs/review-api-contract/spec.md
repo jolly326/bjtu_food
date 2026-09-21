@@ -74,7 +74,7 @@
 
 ### Requirement: 公开评价列表字段范围
 
-公开评价行 SHALL 仅包含：`id`、`userId`、`userNickname`、`userAvatar`、`rating`、`content`、`images`、`createdAt`。它 SHALL NOT 返回 `dishId`、`dishName`、`isHidden`（菜品归属由路径决定、菜品名联表冗余、隐藏态在公开列表恒为未隐藏）——三者仅在「我的评价」响应中返回。分页壳 SHALL 为 `records` / `total` / `page` / `pageSize`。
+公开评价行 SHALL 仅包含：`id`、`userId`、`userNickname`、`userAvatar`、`rating`、`content`、`images`、`createdAt`。它 SHALL NOT 返回 `dishId`、`dishName`、`isHidden`（菜品归属由路径决定、菜品名联表冗余、隐藏态在公开列表恒为未隐藏）——三者仅在「我的评价」响应中返回。分页壳 SHALL 遵循 `pagination-contract` 的统一约定（`records` / `total` / `page` / `pageSize`，不含 `list` 兼容字段），本能力不再单独声明分页壳字段集。
 
 #### Scenario: 公开列表字段收敛
 
@@ -85,6 +85,11 @@
 
 - **WHEN** 检查 `GET /my/reviews` 的单行字段
 - **THEN** 在公开 8 字段之外包含 `dishId` / `dishName` / `isHidden`
+
+#### Scenario: 分页壳归口统一约定
+
+- **WHEN** 检查 `GET /dishes/{id}/reviews` 与 `GET /my/reviews` 的响应壳
+- **THEN** 壳字段与 `pagination-contract` 一致（`records` / `total` / `page` / `pageSize`，无 `list`）
 
 ### Requirement: 「有用」能力下线
 

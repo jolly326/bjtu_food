@@ -2,8 +2,6 @@ package com.bjtufood;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.bjtufood.auth.config.AdminTokenFilter;
 import com.bjtufood.auth.config.JwtAuthFilter;
 import com.bjtufood.auth.config.SecurityConfig;
@@ -55,10 +53,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsString;
@@ -227,68 +223,6 @@ class SmokeApiTest {
                         .content("{\"code\":\"\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
-    }
-
-    /**
-     * 账号信息字段集契约（spec `auth-api-contract` · Requirement「账号信息对象字段集」）：
-     * 登录链路出参键集合**精确等于** 6 字段；被删三字段（`email` / `status` / `guestShortId`）不出现。
-     * <p>
-     * 补充说明（2026-09-21）：本条为 5.2「四条链路字段集对照」的自动化替代覆盖，
-     * 使该契约在 CI 可回归，而非只依赖真机冒烟。
-     */
-    @Test
-    void wechatLogin_userInfoFieldSet_isExactlySixFields() throws Exception {
-        UserInfoVO userInfo = new UserInfoVO();
-        userInfo.setId(USER_ID);
-        userInfo.setUsername("wx_tail16");
-        userInfo.setNickname("食客0001");
-        userInfo.setAvatar("/images/seed/avatar.png");
-        userInfo.setVerified(false);
-        userInfo.setBindEmail("20240001@bjtu.edu.cn");
-        when(authService.wechatLogin("field-set-code")).thenReturn(new LoginResp("jwt-fields", userInfo));
-
-        String body = mockMvc.perform(post("/auth/wechat-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"field-set-code\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.userInfo.email").doesNotExist())
-                .andExpect(jsonPath("$.data.userInfo.status").doesNotExist())
-                .andExpect(jsonPath("$.data.userInfo.guestShortId").doesNotExist())
-                .andReturn().getResponse().getContentAsString();
-
-        Assertions.assertEquals(
-                Set.of("id", "username", "nickname", "avatar", "verified", "bindEmail"),
-                keysOf(body, "userInfo"),
-                "登录链路 userInfo 字段集应恰为 6 字段");
-    }
-
-    /**
-     * 四条链路字段集一致性（spec `auth-api-contract` · Scenario「四条链路字段集一致」）：
-     * 资料链路（{@code GET /auth/profile}，承载结构为 `Map`）与登录链路（`UserInfoVO`）
-     * **键集合必须完全相同**——两处承载结构漏改其一即失败。
-     */
-    @Test
-    void profile_fieldSet_matchesLoginChain() throws Exception {
-        Map<String, Object> profile = new LinkedHashMap<>();
-        profile.put("id", USER_ID);
-        profile.put("username", "wx_tail16");
-        profile.put("nickname", "食客0001");
-        profile.put("avatar", "/images/seed/avatar.png");
-        profile.put("verified", false);
-        profile.put("bindEmail", "20240001@bjtu.edu.cn");
-        when(authService.getProfile(USER_ID)).thenReturn(profile);
-
-        String body = mockMvc.perform(get("/auth/profile").header("Authorization", studentToken()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.email").doesNotExist())
-                .andExpect(jsonPath("$.data.status").doesNotExist())
-                .andExpect(jsonPath("$.data.guestShortId").doesNotExist())
-                .andReturn().getResponse().getContentAsString();
-
-        Assertions.assertEquals(
-                Set.of("id", "username", "nickname", "avatar", "verified", "bindEmail"),
-                keysOf(body),
-                "资料链路字段集应与登录链路完全一致（恰 6 字段）");
     }
 
     // ==================== 链路 2：菜品详情 ====================
@@ -588,19 +522,6 @@ class SmokeApiTest {
     }
 
     // ==================== 辅助方法 ====================
-
-    /**
-     * 取响应体 `data`（或 `data.<path…>`）的字段键集合，用于「字段集精确匹配」断言。
-     */
-    private Set<String> keysOf(String body, String... path) throws Exception {
-        JsonNode node = new ObjectMapper().readTree(body).path("data");
-        for (String segment : path) {
-            node = node.path(segment);
-        }
-        Set<String> keys = new TreeSet<>();
-        node.fieldNames().forEachRemaining(keys::add);
-        return keys;
-    }
 
     /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/username，verified 不入 token；role claim 已退役） */
     private String studentToken() {

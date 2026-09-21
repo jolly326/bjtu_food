@@ -93,7 +93,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setIsHidden(0);
 
         // ---- UGC 准入门槛（project_spec §7.5 / §7.7：verified=1 且 openid 非空）----
-        // 微信 msgSecCheck v2 必填 openid，故必须在内容安全检测之前前置双约束，否则口子敞开。
+        // 微信 msgSecCheck v2 必填 openid，故必须在机检之前前置双约束，否则口子敞开。
         User reviewUser = requireUgcAuthorizedUser(userId);
 
         // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
@@ -171,13 +171,13 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * UGC 文本内容安全检测公共入口：取用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
+     * UGC 文本机检公共入口：取用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
      * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
-     * pass 与内容安全检测 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
+     * pass 与机检 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
      * 边界（报告备案）：
-     * 1. openid 为 NULL（历史学号账号）→ 跳过内容安全检测放行（msgSecCheck v2 openid 必填）；
-     * 2. 微信凭据未配置（本地开发环境）→ 跳过内容安全检测放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
+     * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
+     * 2. 微信凭据未配置（本地开发环境）→ 跳过机审放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
      */
     private void checkUgcText(User user, String content, int scene) {
         if (!StringUtils.hasText(content)) {

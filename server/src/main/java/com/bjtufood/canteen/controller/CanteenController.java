@@ -1,5 +1,6 @@
 package com.bjtufood.canteen.controller;
 
+import com.bjtufood.canteen.dto.CanteenInfoVO;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -7,7 +8,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "02. 食堂与档口", description = "公开查询接口，无需登录。用于首页 / 搜索的食堂筛选（默认返回 id / name 字典）与反馈页位置两级联动（include=stalls）。")
+import java.util.List;
+
+@Tag(name = "02. 食堂与档口", description = "公开查询接口，无需登录。用于首页、食堂页、档口详情页。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -15,21 +18,15 @@ public class CanteenController {
 
     private final CanteenService canteenService;
 
-    /**
-     * 食堂字典 —— **唯一公开食堂端点**（2026-09-21 端点合并，见 docs/project_spec.md §7.33）。
-     * <p>
-     * 不传 {@code include} → {@code List<CanteenInfoVO>}（恰为 id / name）；
-     * {@code include=stalls} → {@code List<CanteenWithStallsVO>}（id / name / stalls[]，档口项恰为 id / name）。
-     * 非法 {@code include} 值按缺省处理（不报错）。
-     * <p>
-     * 原 {@code GET /canteens/all} 已删除并合入本端点（调用方仅需改调用方式）。
-     */
-    @Operation(summary = "食堂字典", description = "用途：首页 / 搜索的食堂筛选（不传 include，返回 id / name 最小字典）；反馈页位置两级联动（include=stalls，返回含档口树）。位置表达 = 食堂 · 楼层 · 档口名；不返回坐标、不涉及距离。")
+    @Operation(summary = "食堂列表", description = "用途：首页/食堂页展示全部食堂（筛选属性字典）；位置表达 = 食堂 · 楼层 · 档口名；不返回坐标、不涉及距离。返回图片已拼接完整访问地址。")
     @GetMapping("/canteens")
-    public Result<?> listCanteens(@RequestParam(name = "include", required = false) String include) {
-        if ("stalls".equalsIgnoreCase(include)) {
-            return Result.success(canteenService.listWithStalls());
-        }
+    public Result<List<CanteenInfoVO>> listCanteens() {
         return Result.success(canteenService.listCanteens());
+    }
+
+    @Operation(summary = "食堂列表（含档口）", description = "用途：需要一次性渲染食堂和下属档口时使用。测试：直接调用即可。")
+    @GetMapping("/canteens/all")
+    public Result<?> listCanteensWithStalls() {
+        return Result.success(canteenService.listWithStalls());
     }
 }

@@ -14,7 +14,7 @@
             <IconSvg
               name="arrow-left"
               :size="'22px'"
-              :color="COLOR_MAP['nav-back-icon']"
+              color="var(--nav-back-icon)"
               class="dish-back-icon"
             />
           </view>
@@ -36,7 +36,7 @@
       :style="{ paddingTop: `${pinLine}px` }"
     >
       <!-- 失败态示意图标复用 name="report"（唯一近似语义键；§4.9 图标语义唯一，此处登记复用口径：非举报，仅作「打不开」中性示意，不新增图标键） -->
-      <IconSvg name="report" :size="96" :color="COLOR_MAP['text-tertiary']" />
+      <IconSvg name="report" :size="96" color="var(--text-tertiary)" />
       <text class="detail-fail-title">这道菜暂时打不开</text>
       <text class="detail-fail-desc">可能已下架，或网络暂时不可用</text>
       <view class="detail-fail-actions">
@@ -176,7 +176,6 @@ import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
 import { useDishPage } from './useDishPage'
-import { COLOR_MAP } from '@/theme/tokens'
 
 const {
   dish,
@@ -379,5 +378,5 @@ const {
 .bar-btn--write .bar-btn-text { color: var(--color-on-primary); }
 /* 分享 = 次操作（白底 + 主色细边/文字，弱于实底主钮） */
 .bar-btn--share { background: var(--bg-card); border: 2rpx solid var(--color-primary); }
-.bar-btn--share .bar-btn-text { color: var(--color-primary-text); }
+.bar-btn--share .bar-btn-text { color: var(--color-primary); }
 </style>

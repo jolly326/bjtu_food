@@ -10,14 +10,14 @@
       <view class="summary-right">
         <view class="dist-item" v-for="item in distribution" :key="item.star">
           <view class="dist-stars">
-            <!-- 已选星用实心键（star-filled）、未选用线性键：以 name 区分实心/空心（评分弹层同口径）；
-                 取色走 COLOR_MAP 真源实色 —— IconSvg 的 SVG data-uri 解析不了 var()（D1） -->
+            <!-- 已选星用实心键（star-filled）、未选用线性键：IconSvg 对 `var(...)` 统一落到兜底常量色，
+                 仅靠颜色无法区分实心/空心，故以 name 区分（评分弹层同口径） -->
             <IconSvg
               v-for="n in 5"
               :key="n"
               :name="n <= item.star ? 'star-filled' : 'star'"
               :size="20"
-              :color="n <= item.star ? COLOR_MAP.star : COLOR_MAP['star-empty']"
+              :color="n <= item.star ? 'var(--color-primary)' : 'var(--color-star-empty)'"
             />
           </view>
           <text class="dist-star-num">{{ item.star }}</text>
@@ -39,7 +39,6 @@ import { computed } from 'vue'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import { COLOR_MAP } from '@/theme/tokens'
 
 interface RatingDistItem {
   star: number

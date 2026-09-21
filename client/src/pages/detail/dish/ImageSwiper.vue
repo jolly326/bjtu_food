@@ -26,7 +26,7 @@ import { ref, computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import IconSvg from '@/components/IconSvg.vue'
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 theme/tokens.ts 注释），必须用真实色值
-import { COLOR_MAP, SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
+import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   images: string[]

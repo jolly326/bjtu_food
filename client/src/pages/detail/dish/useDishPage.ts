@@ -29,7 +29,7 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
 import { dishDetailUrl } from '@/utils/routes'
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 /** 评价分页每页条数（详情页固定 10） */
 const REVIEW_PAGE_SIZE = 10
@@ -126,7 +126,7 @@ export function useDishPage() {
   const heroImages = computed(() => {
     const d = dish.value
     if (!d) return []
-    return d.images && d.images.length > 0 ? d.images : []
+    return (d.images && d.images.length > 0) ? d.images : [d.image]
   })
 
   /* ===== dish-detail-visual-polish：覆盖导航 + 滚动渐显菜名 ===== */
@@ -383,10 +383,8 @@ export function useDishPage() {
   const reviewMoreItems = computed(() => {
     if (!reviewMoreTarget.value) return []
     return reviewMoreIsOwn.value
-      // iconColor 走 IconSvg 的 :color → SVG data-uri 无法解析 var()，必须是真源实色（D1）；
-      // textColor 落 CSS color 属性，var() 正常生效，保持语义 token 形态。
-      ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: COLOR_MAP.error, textColor: 'var(--color-error)' }]
-      : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: COLOR_MAP.error, textColor: 'var(--color-error)' }]
+      ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
+      : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
   })
 
   function onReviewMoreSelect(key: string) {

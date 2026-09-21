@@ -82,11 +82,4 @@ public class DishAdminVO {
 
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
     private String serveTemp;
-
-    /**
-     * 菜品大类（2026-09-21 §7.34）：管理端需要（列表筛选 + 编辑回填）。
-     * **公开 {@code DishVO} 不含该字段**（列表卡片不展示，筛选由服务端完成）。
-     */
-    @Schema(description = "菜品大类（单值）：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品", example = "stir_fry")
-    private String mealType;
 }

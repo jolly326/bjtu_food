@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Dish, DishDetail, DishQuery, HotSearch, MealType } from '@/types/dish'
+import type { Dish, DishDetail, DishQuery, HotSearch } from '@/types/dish'
 import type { Review } from '@/types/review'
 import type { CanteenInfo } from '@/types/canteen'
 import * as dishApi from '@/api/dish'
@@ -106,22 +106,6 @@ export const useDishStore = defineStore('dish', () => {
    */
   const filterError = ref(false)
 
-  /**
-   * 菜品大类字典（`GET /dishes/meal-types`，2026-09-21 §7.34）。
-   * **标签文案与顺序的唯一来源**：端上不写死任何大类中文名；
-   * 数组为空 = 字典不可用（未加载 / 加载失败 / 后端无在售大类）→ 标签栏降级为仅「全部」。
-   */
-  const mealTypeList = ref<MealType[]>([])
-  /**
-   * 当前选中的大类枚举键（null = 不限大类，对应标签栏第一项「全部」）。
-   * 与 `filterPrice` / `filterTab` 并列的第三个筛选维度：三者**叠加**生效、互不清除。
-   */
-  const filterMealType = ref<string | null>(null)
-  /** 字典是否已成功拉取过（失败不置位 → 允许下次进入首页重试；成功后再进不重复拉） */
-  let mealTypesFetched = false
-  /** 字典请求进行中标志：onShow 与首屏可能并发触发，防重复请求 */
-  let mealTypesFetching = false
-
   /** task-02 榜单数据 */
   const hotSearchList = ref<HotSearch[]>([])
 
@@ -166,42 +150,6 @@ export const useDishStore = defineStore('dish', () => {
     } finally {
       canteensRefreshing = false
     }
-  }
-
-  /**
-   * 菜品大类字典拉取（`GET /dishes/meal-types`，2026-09-21 §7.34）。
-   *
-   * 降级契约（任务 3.1）：**失败不阻塞首屏** —— 不抛错、不置任何错误态，
-   * 仅在失败时保留空字典（标签栏由组件降级为只渲染第一项「全部」，列表仍展示全部菜品）；
-   * 失败不置 `mealTypesFetched`，下次进首页可自动重试。
-   * 并发守卫：首次与 onShow 兜底可能并发触发，进行中直接跳过。
-   */
-  async function fetchMealTypes(): Promise<void> {
-    if (mealTypesFetching) return
-    if (mealTypesFetched) return
-    mealTypesFetching = true
-    try {
-      mealTypeList.value = await dishApi.getMealTypes()
-      mealTypesFetched = true
-    } catch (e) {
-      console.error('加载菜品大类字典失败', e)
-      // 降级：保持/回落为空字典 → 标签栏仅「全部」，首屏内容不受影响（不阻塞、不报错态）
-      mealTypeList.value = []
-    } finally {
-      mealTypesFetching = false
-    }
-  }
-
-  /**
-   * 切换菜品大类标签：写回选中键并**重置分页**刷新当前筛选流（任务 3.3）。
-   * 与食堂 / 价格**叠加**：只改大类维度，不清除另两个维度（`filterTab` / `filterPrice` 原样保留）。
-   * 传入 null = 回到「全部」（不传 `mealType`）。
-   * MP-03 口径：一次交互只发一次列表请求。
-   */
-  async function setHomeMealType(key: string | null) {
-    filterMealType.value = key
-    const tab = filterTab.value ?? defaultFilterTab()
-    await fetchFilterDishes(tab, true)
   }
 
   async function search(query: DishQuery): Promise<Dish[]> {
@@ -337,13 +285,12 @@ export const useDishStore = defineStore('dish', () => {
         let rows: Dish[] = []
         // 端上不传 sortBy/sortOrder：列表顺序唯一由后端排序口径决定（§7.17 第 2 条「热度优先」；PR-02）
         if (tab.type === 'canteen' && tab.canteenId != null) {
-          // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序由后端决定；
-          // 大类（mealType）与价格区间叠加在同一请求上（§7.34：三维度互不清除）
-          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, mealType: filterMealType.value ?? undefined })
+          // 按食堂过滤：canteenId → 后端 /dishes?canteenId=，顺序由后端决定
+          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
           rows = res.list
         } else {
           // 默认流：热度优先（后端口径）
-          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, filterMealType.value ?? undefined)
+          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
           rows = res.list
         }
         // 过期响应（期间又切换了筛选条件）直接丢弃，不覆盖新列表
@@ -392,10 +339,10 @@ export const useDishStore = defineStore('dish', () => {
         let rows: Dish[] = []
         // 与 fetchFilterDishes 一致：端上不传 sortBy，顺序由后端口径决定（PR-02）
         if (tab.type === 'canteen' && tab.canteenId != null) {
-          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max, mealType: filterMealType.value ?? undefined })
+          const res = await dishApi.searchDishesPage({ canteenId: tab.canteenId, page: filterPage.value, pageSize, minPrice: filterPrice.value.min, maxPrice: filterPrice.value.max })
           rows = res.list
         } else {
-          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value, filterMealType.value ?? undefined)
+          const res = await dishApi.getHotDishesPage(filterPage.value, pageSize, filterPrice.value)
           rows = res.list
         }
         // 过期响应（期间又切换了筛选条件）丢弃，不混入新列表
@@ -429,8 +376,6 @@ export const useDishStore = defineStore('dish', () => {
    */
   async function clearHomeFilter() {
     filterPrice.value = {}
-    // 大类维度一并回到「全部」（§7.34）：标签栏选中态由 filterMealType 派生，清筛选后同步取消高亮
-    filterMealType.value = null
     await fetchFilterDishes(defaultFilterTab(), true)
   }
 
@@ -444,10 +389,8 @@ export const useDishStore = defineStore('dish', () => {
     // 零外部消费，收敛为模块私有（不再出现在 store 返回对象）。
     isLoading,
     filterTab, filterList, filterLoadingMore, filterPageLimited, filterPrice, filterError,
-    // 菜品大类（§7.34）：字典（标签栏渲染源）+ 选中键（筛选维度，与食堂 / 价格叠加）
-    mealTypeList, filterMealType,
-    setHomePrice, setHomeMealType, clearHomeFilter, defaultFilterTab,
-    fetchCanteens, refreshCanteensIfStale, fetchMealTypes, search, fetchDetail, resetDishDetail, fetchReviews, clearReviews,
+    setHomePrice, clearHomeFilter, defaultFilterTab,
+    fetchCanteens, refreshCanteensIfStale, search, fetchDetail, resetDishDetail, fetchReviews, clearReviews,
     fetchHotSearch,
     fetchFilterDishes, loadMoreFilterDishes,
   }

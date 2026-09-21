@@ -19,22 +19,22 @@ import { computed } from 'vue'
  *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
  *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
  *
- * 用法：<IconSvg name="search" :size="26" color="currentColor" />
+ * 用法：<IconSvg name="thumb" :size="26" color="currentColor" />
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
 // 2026-09-14（P3-05 / PR-05「零消费即删」）：'heart-filled' / 'heart' / 'send-simple' 三键已删除——
 // 逐一核查确认端上零 `name="..."` 引用（收藏功能全量移除、评价发送键未启用）；
-// 'thumb-filled' 亦零引用（'thumb' 线性键已于 2026-09-21 随「评价有用」下线一并删除，见下条）。
-// 2026-09-21（资产专项，承接「评价有用」全链下线）：「有用」按钮全链退出后，'thumb'（有用/点赞）、
-// 'clock'、'fire' 三键在端上零 `name=` 引用（含字符串字面量 diff 核查，非静态 grep 误判）；
-// 按 PR-05「零消费即删」**已删除**，不再作为设计资产保留——配套 `--color-like` token 同批删除
-// （见 `theme/tokens.ts`），语义表登记同步移除（`project_spec.md` §4.2 / §4.9 / §3）。
+// 'thumb-filled' 亦零引用（仅保留 'thumb' 线性键）。
+// 2026-09-20（dish-detail-remediation）：「有用」按钮随该能力全链下线，'thumb' / 'clock' / 'fire'
+// 三键在端上已无 `name=` 引用；按设计资产口径**保留并登记**（见 tasks 6.3 零消费扫描产出），
+// 不做删除——避免与 Web 端/文档的图标语义表脱节。
 // 同批删除的其余零消费键：'send'（评价发送，改用文本提交）、'up'（原回顶按钮已移除）、
 // 'lightbulb'（线性灯泡，实色 lightbulb-fill 在用）、'contact'（联系开发者独立入口已下线）。
 // ⚠️ 'home-filled' / 'profile-filled' 必须保留：TabBar.vue 以 `${icon}-filled` 动态拼接选中态图标，
 //    静态 grep 会误判为零消费（P0-06 点赞图标同类陷阱）。
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
+  thumb: { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'] },
   search: { path: ['M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
@@ -49,6 +49,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'star-filled': { path: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'], fill: true },
   home: { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'] },
   profile: { path: ['M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', 'M4 21a8 8 0 0 1 16 0'] },
+  fire: { path: ['M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 1-3-2 1-4 3-4 6a7 7 0 0 0 14 0c0-5-7-11-7-11z'] },
+  clock: { path: ['M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0', 'M12 7v5l3 2'] },
   price: { path: ['M12 1v22', 'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'] },
   edit: { path: ['M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7', 'M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z'] },
   delete: { path: ['M3 6h18', 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M10 11v6', 'M14 11v6'] },

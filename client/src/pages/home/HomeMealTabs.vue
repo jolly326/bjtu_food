@@ -136,13 +136,14 @@ function onSelect(key: string | null) {
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
-/* 橙色短下划线：宽度固定（≈文字宽的短横），选中显现 */
+/* 橙色短下划线：宽度固定（≈文字宽的短横），选中显现；
+   取「图形档亮橙」——用户走查反馈 #C2410C 偏红，#EA580C 为明确橙色（图形级 ≥3:1 达标） */
 .mt-underline {
   width: 40rpx;
   height: 6rpx;
   margin-top: var(--spacing-xs);
   border-radius: var(--radius-pill);
-  background: var(--color-primary);
+  background: var(--color-primary-bright);
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-out);
 }

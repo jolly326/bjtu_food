@@ -72,11 +72,4 @@ public class DishAdminReq {
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;
-
-    /**
-     * 菜品大类（2026-09-21 §7.34；单值枚举，后台以**下拉选择**录入，不允许自由输入）。
-     * null = 不修改（编辑路径部分更新语义）；取值须命中 {@code MealTypeConst} 白名单。
-     */
-    @Schema(description = "菜品大类（单值）：set_meal 套餐盖饭 / stir_fry 家常小炒 / noodle 面食粉类 / dry_pot 香锅干锅 / snack 风味小吃 / soup_drink 汤饮甜品（可空）", example = "stir_fry")
-    private String mealType;
 }

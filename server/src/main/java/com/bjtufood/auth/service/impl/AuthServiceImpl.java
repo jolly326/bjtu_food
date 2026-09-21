@@ -29,6 +29,7 @@ import com.bjtufood.history.mapper.ViewLogMapper;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,8 +71,7 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userService.getByOpenid(openid);
         if (user == null) {
-            // 建号（INSERT + 回填昵称）为独立 Bean 上的事务方法：原子完成，且远程 code2Session 已在本行之前返回
-            user = userService.createWechatGuest(openid);
+            user = createWechatGuest(session);
         }
         if ("disabled".equals(user.getStatus())) {
             throw new BusinessException("账号已被禁用");
@@ -161,7 +161,7 @@ public class AuthServiceImpl implements AuthService {
             }
             // 内容安全检测（产品定稿 2026-09-13：昵称变更 msgSecCheck v2，scene=1 资料）。
             // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
-            // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过内容安全检测放行（与评价口径一致，报告备案）。
+            // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
             contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
             updater.set(User::getNickname, req.getNickname());
         }
@@ -252,10 +252,13 @@ public class AuthServiceImpl implements AuthService {
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
+        vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
+        vo.setStatus(user.getStatus());
         vo.setVerified(Integer.valueOf(1).equals(user.getVerified()));
         vo.setBindEmail(user.getBindEmail());
+        vo.setGuestShortId(buildGuestShortId(user.getId()));
         return vo;
     }
 
@@ -271,11 +274,23 @@ public class AuthServiceImpl implements AuthService {
         Map<String, Object> map = new HashMap<>();
         map.put("id", user.getId());
         map.put("username", user.getUsername());
+        map.put("email", user.getEmail());
         map.put("nickname", user.getNickname());
         map.put("avatar", imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
+        map.put("status", user.getStatus());
         map.put("verified", Integer.valueOf(1).equals(user.getVerified()));
         map.put("bindEmail", user.getBindEmail());
+        map.put("guestShortId", buildGuestShortId(user.getId()));
         return map;
+    }
+
+    /**
+     * 游客短标识：食客 + ID 尾 4 位（spec §5.y.4 游客标识）。
+     */
+    private String buildGuestShortId(Long userId) {
+        String id = String.valueOf(userId);
+        String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
+        return "食客" + tail;
     }
 
     /**
@@ -284,6 +299,38 @@ public class AuthServiceImpl implements AuthService {
      * 管理端凭据泄露面小但危害大，短期过期降低风险；
      * 学生端静默登录保持长期（见 toLoginResp），两者策略分离。
      */
+
+    /**
+     * 新建微信游客账号（verified=0）。
+     * <p>
+     * unionid 不再落库（user.unionid 列已随 2026-09-16 零消费退役），仅消费 openid。
+     */
+    private User createWechatGuest(WechatService.WechatSession session) {
+        String openid = session.openid();
+        User user = new User();
+        user.setOpenid(openid);
+        // 游客建号：username = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
+        String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
+        user.setUsername("wx_" + tail);
+        user.setNickname("食客新友");
+        // role 列已退役（2026-09-15）：全量用户即学生，无需写入角色
+        user.setStatus("active");
+        user.setVerified(0);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException e) {
+            // 并发下 openid 唯一键兜底：重新查询已有账号
+            User existed = userService.getByOpenid(openid);
+            if (existed != null) {
+                return existed;
+            }
+            throw new BusinessException("微信登录创建账号失败，请重试");
+        }
+        // 默认昵称可用后置为短标识（用建号后自增 ID）
+        user.setNickname(buildGuestShortId(user.getId()));
+        userMapper.updateById(user);
+        return user;
+    }
 
     /**
      * 消费验证码并推导绑定邮箱。

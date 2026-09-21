@@ -7,12 +7,14 @@
        本块位于滚动区**之外**常驻（吸顶实现 = 固定头部 + 既有 .scroll-wrap，禁用 position: sticky）；
        Banner 由滚动量驱动「折叠收起」（页面侧实现，不动本组件高度口径），收起后不吃高度 →
        吸顶态只剩「标题 + 完整搜索框」（+ 紧随其后的标签栏），Banner 不可见。
-       胶囊避让：标题行右侧按 navMetrics 真源避让微信原生胶囊；Banner 与搜索行均在标题行**下方**、
-       与胶囊不同行，故不重叠（无需也不得再叠加一份胶囊留白）。 -->
-  <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
-    <view class="home-title-row" :style="{ height: navBarHeight + 'px', paddingRight: navPadRight }">
-      <text v-if="title" class="home-title">{{ title }}</text>
-    </view>
+       2026-09-21 走查回退：标题行以**叠加层**绘制在 Banner 背景之上（Banner 通栏上移一个标题行高、
+       垫在标题背后 = 标题的背景，用户要求），故标题行需 position:relative + z-index 抬升层级，
+       否则后绘制的 Banner 裁剪窗口会盖住标题文字。
+       胶囊避让：标题行右侧按 navMetrics 真源避让微信原生胶囊；标题与胶囊同行但分居左右，不重叠。 -->
+       <view v-if="variant === 'home'" class="header-wrap home" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--status-h': statusBarHeight + 'px', '--nav-h': navBarHeight + 'px', '--capsule-h': capsuleHeight + 'px' }">
+       <view class="home-title-row" :style="{ height: navBarHeight + 'px', paddingRight: navPadRight }">
+       <text v-if="title" class="home-title">{{ title }}</text>
+       </view>
     <!-- 默认 slot：首页把渐变 Banner 注入「标题行」与「搜索行」之间
          （home-page-presentation 初始态顺序 = 标题 → Banner → 搜索框 → 标签栏 → 网格）。
          ⚠️ 本组件仅此**一个未命名 slot**：微信小程序单 slot 模式即够用，无需 `multipleSlots`，
@@ -244,14 +246,15 @@ function onSearchConfirm() {
 }
 
 /* ===== 首页头部（两态常驻头部）：标题行 + 搜索行 =====
-   底色：**取消暖砖红**（2026-09-21 §7.34 / home-ui-refresh 任务 5.2）——容器透明，
-     露出页面顶部「浅米白 → 淡橙」渐变（--bg-page-grad-*，声明于 pages/home/index.vue）。
+   底色（2026-09-21 走查回退）：整个头部 = **Banner 渐变分区**——「知行食记」标题、今日推荐模块
+     同处一个「浅橙 → 淡橙」连续渐变内（用户要求：标题在 Banner 区块内部左上角，不得独立成条）；
+     滚动时今日推荐内容折叠滑出，标题 + 搜索框 + 标签栏在此渐变上常驻吸顶。
    吸顶：本块是滚动区**之外**的常驻节点（固定头部 + 内部滚动壳），故就地取消基类的
      position: sticky（home-page-presentation 明令禁用 sticky）。
    高度：比单行的搜索页 / 二级页头部多一行标题行 —— 属两态结构的既定差异；
      search / default variant 的行高口径（--capsule-h + --nav-h + --spacing-sm）不变。 */
 .header-wrap.home {
-  background: transparent;
+  background-image: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
   position: relative;
   top: auto;
 }
@@ -264,6 +267,11 @@ function onSearchConfirm() {
   align-items: center;
   padding: 0 var(--spacing-md);
   box-sizing: border-box;
+  /* 2026-09-21 走查回退：标题叠加绘制在 Banner 背景之上（Banner 通栏上移一个标题行高垫底，
+     见 pages/home 的 .home-banner-wrap 负 margin）——后绘制的 Banner 会盖住先绘制的标题，
+     故本行必须抬升层级 */
+  position: relative;
+  z-index: 2;
 }
 /* 页面标题「知行食记」：比导航标题档（--font-h3）更高一档，作为首页唯一的一级标题 */
 .home-title {

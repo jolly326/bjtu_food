@@ -7,7 +7,6 @@ import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.DishVO;
 import com.bjtufood.dish.dto.HotSearchVO;
-import com.bjtufood.dish.dto.MealTypeVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,25 +37,11 @@ public class DishController {
     }
 
     @Operation(
-            summary = "菜品大类字典",
-            description = """
-                    用途：首页横向大类标签栏的数据源（2026-09-21 §7.34）。
-                    返回 [{key,label,order}]（按 order 升序），**只含当前有在售菜品的大类**（空类自动隐藏）。
-                    公开接口；端上不得硬编码标签文案或清单。筛选入口为 /dishes?mealType=<key>。
-                    测试示例：/dishes/meal-types
-                    """
-    )
-    @GetMapping("/dishes/meal-types")
-    public Result<List<MealTypeVO>> mealTypes() {
-        return Result.success(dishService.listMealTypes());
-    }
-
-    @Operation(
             summary = "菜品分页查询",
             description = """
                     用途：菜品列表页、搜索页、筛选页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    常用参数：keyword、canteenId、minPrice、maxPrice（2026-09-21 §7.33：stallId / sortBy / sortOrder 已删除；排序口径唯一 = 热度倒序）。
+                    常用参数：keyword、canteenId、stallId、minPrice、maxPrice、sortBy、sortOrder。
                     """
     )
     @GetMapping("/dishes")

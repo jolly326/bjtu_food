@@ -45,7 +45,7 @@
 - 「我的反馈列表」**定型不恢复**：反馈处理结果经站内通知回执闭环，历史不可查（保持轻量）。
 - **账号注销本期落地**（合规硬需求，微信平台账号删除要求）：「我的」页底部注销入口 → 二次确认 → 匿名化（nickname→'已注销用户'、openid 解绑——`unionid` 列已于 2026-09-16 零消费清理删除、status=deleted），评价/反馈保留但去身份化；token 立即失效（详见 §5.y）。
 - 菜品下架（status=off）= **客户端完全不可见、评价保留**（现状登记为定型口径；恢复上架时重现）。
-- dish.alias **别名搜索本期落地**（管理员配置，搜索命中 name 或 alias）。
+- ~~dish.alias 别名搜索本期落地~~ **2026-09-21 拍板：`dish.alias` 字段整体删除**（不再需要别名层，关键词直接硬匹配菜名 / 档口名 / 食堂名；见 §7.35，代码待落地）。
 - **蓝图 v1 增补（2026-09-15 用户拍板，权威见 §7.23）**：① **菜品是唯一核心实体**——食堂 / 档口是菜品的**属性**（`dish.canteen` / `dish.stall`），不独立成页、不独立建档、无删除，录入菜品时名字不存在由**后端 upsert** 自动入库；② **菜品无独立审核**——管理员录入即生效，客户端与后台都不出现「菜品审核」概念；③ **反馈处理是唯一的运营闭环**——处理 = 标记已处理 + 回执（已认证用户收站内通知），不采纳 / 退回 = 必填 `reject_reason`。
 
 **详细设计基线**：`docs/feature/`（**功能文档集**，一人一功能）——每个功能的页面 / 流程 / 接口 / 请求响应字段 / 数据落库的权威口径。**原则以本页为准，功能细节以 `docs/feature/` 为准**。（原 `docs/product-blueprint.md`《产品定型总纲 v1.0》**已于 2026-09-20 用户拍板删除**，其内容由本文件 + `docs/feature/` 承接，见 §7.29。）
@@ -1021,6 +1021,14 @@
 
 ---
 
+### 7.35 搜索契约精简：删搜索别名字段与热搜 heat 出参（2026-09-21 用户拍板）
+
+1. **删除 `dish.alias`（搜索别名字段）全链**：`schema.sql` 幂等 DROP 列（存量库）+ `CREATE TABLE` 移除、`Dish` 实体 / `DishAdminReq` / `DishAdminVO` 字段、后台表单「搜索别名」输入、`DishMapper` 的 alias 匹配路与列映射——关键词**直接硬匹配菜名 / 档口名 / 食堂名**三处（匹配语义维持现有 LIKE 模糊；后台「alias ≤255」校验与「alias 超长」错误码随之作废）。
+2. **删除 `HotSearchVO.heat` 出参**：`GET /dishes/hot-search` 收敛为仅 `keyword`（端上 `HotSearch` 本就只读 `keyword`，MP-03）；`ORDER BY heat` 保留在 SQL 内（`heatScoreExpr` 计算不变）。
+3. **动机**：别名层增加后台录入负担且从未成为端上依赖（PR-05 零消费即删）；`heat` 为纯留痕字段。
+4. **影响面**：server（mapper / DTO / 实体 / 校验）、web（表单输入 + adapter 映射）、client（**无感**——搜索请求不变）；文档（A-01 / A-03 / web-菜品管理 / web-菜品详情查看 / api-design / database / 本条）。
+5. **状态**：已决议，**代码待落地**（建议新开 change 承载）；§8 已留痕。
+
 ## 8. 技术债登记（2026-09-14）
 
 > 用途：承载「已知问题 / 待清理项」的**书面留痕**，避免其被误当作在册能力或被静默重启（呼应 PR-04 / PR-05 / PR-07）。本节分「已修复（本轮）」与「待运维执行」两段：已完成项登记为已修复以留痕，未完成项登记事实与结论。**本节只记录事实与结论，不新增决议**；执行排期另行拍板（若涉及新决策，须回到 §7 拍板）。
@@ -1060,4 +1068,5 @@
 - **公开契约精简批（2026-09-21 用户拍板，见 §7.33；文档已修订，代码已于 2026-09-21 落地——change `api-slimming`）**：① **`PageResult` 删 `list` 兼容字段**（两个消费端均优先读 `records` → 零读取；且该字段派生自 `records` 并参与序列化，使同一数组被输出两次、列表响应体积≈翻倍），分页壳收敛为 `records` / `total` / `page` / `pageSize`；② **`DishQueryReq` 删 `stallId` / `sortBy` / `sortOrder`**，`DishMapper.xml` 去掉排序 `<choose>` 分支、查询恒按 `heatScoreExpr` 倒序——消除「首页默认流传 `heat`、筛选 / 搜索流不传参数而落到 `rating_count DESC, avg_rating DESC`」的口径分裂（合 §7.17 第 2 条）；③ **`GET /canteens/all` 删除并合入 `GET /canteens?include=stalls`**（`api-design.md` §8 登记的 RESTful 收敛项由「待拍板」转为采纳），`CanteenInfoVO` 收敛为 `id` / `name`、含档口树出参收敛为 `id` / `name` / `stalls[]`（档口项仅 `id` / `name`），`listCanteens()` 的图片绝对 URL 拼接与 `listWithStalls()` 的 `batchAvgRating` 批查随出参收敛删除；④ **端上死字段清理**（`pages/find` 的 `MixedResult.ratingCount` 只写不读、`api/dish.ts` 的 `Dish.image` 与 `images[0]` 同值派生），两处 `recordsOf` / `pageRecords` 的 `list` 兜底一并移除；⑤ **保留项**：`total` / `page` / `pageSize` 保留（分页元数据语义正当，仅更正文档定性：首页结束判据 = 「本页返回条数 < `pageSize`」）、公开 `DishVO` 列表 / 详情继续共用（登记为有意过度下发）。**无库表变更**。对应 PR-05（冗余边界）与 PR-02（口径单一真源）。
 - **首页 UI 重构批（2026-09-21 用户拍板，见 §7.34；文档已修订，代码随本批落地——change `home-ui-refresh`）**：① **首页两态结构**——初始态为标题 + Banner「今日推荐」+ 通栏搜索框（含右侧「筛选」）+ 横向大类标签栏 + 双列卡片网格，吸顶态保留「标题 + 完整搜索框 + 标签栏」并让 Banner 滚出（固定头部 + 既有滚动壳实现，不用 `position: sticky`）；② **卡片改四段排版**（图 → 菜名 → `食堂 | 档口` 浅灰纯文字 → 星+评分居左 / 价格居右橙），**不引入「月售」**；③ **全站主色暖砖红 → 橙色**（token 层，含 Web 管理端）+ 页面底色改「浅米白 → 淡橙渐变」；④ **新增菜品大类 `dish.meal_type`（单值枚举，6 类）**——**一个菜品恰属一个大类、一个大类含多个菜品**，与属性维度分开，判定按「菜名与做法形态」；配套 `GET /dishes?mealType=`（白名单，非法 400）与只读字典端点 `GET /dishes/meal-types`（只含有在售菜品的大类，端上零硬编码）；公开 `DishVO` 不加该字段，后台 DTO 增加；⑤ **不引入「人气推荐」**（保持排序唯一口径 = 热度，见 §7.33）；⑥ **不构成品类复活**——无 `category` 表 / 无 `/admin/categories` / 无后台品类页，§7.22 第 1 条继续有效。对应 PR-05（冗余边界：公开出参不含零消费大类字段）与 §4 UI 规范落地。
 - ~~**待运维执行（本轮登记，一次性，执行前须技术负责人与用户确认）**：**评分历史数据一次性重算**~~ ——**本一次性任务已取消（2026-09-15 用户拍板「取消人工复核」，见 §7.24）**：`sec_state` 列已全链退役（存量库由 `schema.sql` 末尾幂等段 `drop_sec_state_columns` 清理），评分聚合口径收敛为**仅 `is_hidden=0` 单一判据**（见 §7.21 第 4 条），且**前提脚本 `server/src/main/resources/db/fix_rating_by_sec_state.sql` 已删除**（前提列不存在，比照 `normalize_dish_audit_status.sql` 先例），**不再存在任何人工数据重算动作**；原「先备份 `dish` 表、由用户执行重算 UPDATE」的执行要求随之作废。
+- **搜索契约精简批（2026-09-21 用户拍板，见 §7.35；文档已修订，代码待落地——建议新开 change）**：① **删除 `dish.alias`**（列 / `Dish` 实体 / `DishAdminReq` / `DishAdminVO` / 后台表单输入 / `DishMapper` 匹配路与列映射全链）——关键词直接硬匹配菜名 / 档口名 / 食堂名三处；② **删除 `HotSearchVO.heat` 出参**（收敛为仅 `keyword`，`ORDER BY heat` 保留在 SQL 内）。动机：别名层增加后台录入负担且端上从未依赖（`HotSearch` 端上只读 `keyword`，MP-03）；对应 PR-05（零消费即删）。**状态：已决议，代码待落地**。
 - ~~**待运维执行（2026-09-15 蓝图 v1 登记，一次性，见 §7.23 第 4 条）**：**存量 `dish.audit_status` 归一为 `approved`**~~ ——**本一次性任务已取消（2026-09-15 阶段4 用户批准「归一后清理」改为直接退役）**：`dish.audit_status` **列与索引已直接 DROP**，由 `schema.sql` 末尾幂等段 `drop_dish_audit_status_column` 承载（`CALL` 在 `schema.sql` 内，随建库 / 升级自动执行，但**仍不由 agent 代跑**——建库动作由用户执行），**存量的 `pending` / `rejected` 随列删除自然消除**；归一脚本 `server/src/main/resources/db/normalize_dish_audit_status.sql` **已删除**，**不再存在任何人工数据归一动作**，原「先备份 `dish` 表、由用户执行归一 UPDATE」的执行要求随之作废。

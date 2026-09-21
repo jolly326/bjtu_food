@@ -12,6 +12,9 @@ export const COLOR_MAP = {
      而全站 21 处以 primary 作「填充底 + 白字」（按钮 / 胶囊 / 徽标），故 primary 必须取填充安全档。 */
   primary: '#C2410C',
   'primary-text': '#B93A0A',
+  /* 图形档亮橙（2026-09-21 走查反馈「下划线 / 激活色偏红」）：仅用于纯图形——标签下划线、TabBar 激活图标；
+     对白卡 3.56:1 / 对页底 3.22:1（图形级 ≥3:1 ✅）；SHALL NOT 用于文字（#EA580C 作文字仅 3.56:1，不达 4.5:1） */
+  'primary-bright': '#EA580C',
   'on-primary': '#FFFFFF',
   'primary-soft': '#FCE8D6',
   accent: '#B93A0A',
@@ -89,6 +92,8 @@ export const CSS_VARS: Record<string, string> = {
   '--color-primary-soft': COLOR_MAP['primary-soft'],
   /* 主色「文字档」（浅底上的主色文字 / 价格；填充与图形用 --color-primary） */
   '--color-primary-text': COLOR_MAP['primary-text'],
+  /* 主色「图形档亮橙」（下划线 / TabBar 激活图标等纯图形） */
+  '--color-primary-bright': COLOR_MAP['primary-bright'],
   /* 强调色（热卖/热搜/新品） */
   '--color-accent': COLOR_MAP.accent,
   '--color-accent-soft': COLOR_MAP['accent-soft'],

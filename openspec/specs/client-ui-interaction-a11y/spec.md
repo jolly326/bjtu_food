@@ -15,30 +15,37 @@
 - **点击态**：沿用已统一的 `<Pressable>` 缩放（`transform: scale`），不新增换色型点击态（规避合成层圆角裁切失效色块）。
 
 #### Scenario: 加载态不阻塞感知
+
 - **WHEN** 列表/详情进入加载
 - **THEN** 内容区保持空白，不出现骨架屏或 loading 指示，不标记 `aria-busy`
 
 #### Scenario: 禁用态可辨认
+
 - **WHEN** 控件处于 disabled
 - **THEN** 视觉降饱和/降透明且不可触发，与可点态明显区分
 
 #### Scenario: 错误以 ARIA 暴露
+
 - **WHEN** 输入校验失败
 - **THEN** 错误文本就近以 `--color-error` 呈现，输入元素标记 `aria-invalid="true"`
 
 #### Scenario: 列表首屏失败给出可重试路径
+
 - **WHEN** 数据型列表首屏或下拉刷新请求失败
 - **THEN** 呈现极简「加载失败 · 点击重试」块（`role="button"` 且有 `aria-label`），点击后重拉；不呈现空态文案
 
 #### Scenario: 列表分页失败保持静默
+
 - **WHEN** 数据型列表触底加载下一页失败
 - **THEN** 列表保持原样静默，不呈现错误块或 Toast，用户可再次触底重试
 
 #### Scenario: 详情评价区首屏失败呈现可重试块
+
 - **WHEN** 菜品详情页评价列表首屏或刷新请求失败
 - **THEN** 评价区呈现「加载失败 · 点击重试」块（失败 ≠ 零评价），点击后按同一路径重拉
 
 #### Scenario: 点击态仅缩放不换色
+
 - **WHEN** 元素被点击
 - **THEN** 仅有 `transform: scale` 反馈，无背景色切换（与既有 `<Pressable>` 一致）
 

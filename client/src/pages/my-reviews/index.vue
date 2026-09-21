@@ -24,7 +24,7 @@
               </view>
             </view>
             <view class="rating">
-              <IconSvg name="star-filled" :size="24" :color="COLOR_MAP['star']" />
+              <IconSvg name="star-filled" :size="24" :color="COLOR_MAP['primary']" />
               <text class="rating-num">{{ (r.rating || 0).toFixed(1) }}</text>
             </view>
           </view>
@@ -93,7 +93,7 @@ import type { Review } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import { backToHome } from '@/utils/nav'
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 const list = ref<Review[]>([])
 const loading = ref(false)

@@ -22,7 +22,7 @@
       role="group"
       :aria-label="`位置：${locationText}；信息有误？可点击前往反馈纠错`"
     >
-      <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
+      <IconSvg name="location" :size="26" color="var(--color-primary)" class="loc-icon" />
       <text class="loc-text">{{ locationText }}</text>
       <text
         class="correct-link"
@@ -62,7 +62,6 @@ import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { formatPrice } from '@/utils/money'
 import { feedbackEntryUrl } from '@/utils/routes'
-import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{
   dish: Dish
@@ -115,7 +114,7 @@ function goCorrect() {
 .loc-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .loc-text { flex: 1 1 auto; min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 纠错入口：与「简介展开」同档轻量文本（主色 / 同字号字重），非按钮 / chip；命中区 ::after 扩至 ≥88rpx */
-.correct-link { position: relative; flex: 0 0 auto; margin-left: var(--spacing-sm); font-size: var(--font-aux); color: var(--color-primary-text); font-weight: var(--weight-medium); line-height: 1.4; padding: 2rpx var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
+.correct-link { position: relative; flex: 0 0 auto; margin-left: var(--spacing-sm); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); line-height: 1.4; padding: 2rpx var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
 .correct-link::after {
   content: '';
   position: absolute;
@@ -131,7 +130,7 @@ function goCorrect() {
 .desc-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); }
 .desc-content { flex: 1 1 auto; min-width: 0; font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 .desc-content--collapsed { -webkit-line-clamp: 2; }
-.desc-toggle { position: relative; flex: 0 0 auto; align-self: flex-start; font-size: var(--font-aux); color: var(--color-primary-text); font-weight: var(--weight-medium); padding: 2rpx var(--spacing-xs); line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+.desc-toggle { position: relative; flex: 0 0 auto; align-self: flex-start; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); padding: 2rpx var(--spacing-xs); line-height: 1.4; -webkit-tap-highlight-color: transparent; }
 .desc-toggle::after {
   content: '';
   position: absolute;

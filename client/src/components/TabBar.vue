@@ -14,7 +14,7 @@
       <IconSvg
         :name="item.key === activeTab ? `${item.icon}-filled` : item.icon"
         :size="48"
-        :color="item.key === activeTab ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']"
+        :color="item.key === activeTab ? COLOR_MAP['primary-bright'] : COLOR_MAP['text-tertiary']"
       />
       <text class="tab-label">{{ item.label }}</text>
     </view>

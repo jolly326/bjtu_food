@@ -135,7 +135,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 .is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
 /* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显）。
    fix：文本输入类（input / textarea）聚焦时 SHALL NOT 呈现主色描边——移动端/小程序点击输入框
-   即命中 :focus-visible，主色（暖橙）描边会被读成「彩色边框」。输入态由各输入容器自身样式表达
+   即命中 :focus-visible，主色（暖砖红）描边会被读成「红色边框」。输入态由各输入容器自身样式表达
    （如评论栏 .comment-input-box.focused），不复用全局 outline。 */
 :focus-visible:not(input):not(textarea) {
   outline: 3rpx solid var(--color-primary);

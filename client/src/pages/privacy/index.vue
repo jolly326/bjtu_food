@@ -101,7 +101,7 @@ const current = ref<DocKey>('privacy')
 }
 .tab.active { background: var(--color-primary-soft); border-color: transparent; }
 .tab-text { font-size: var(--font-aux); color: var(--text-secondary); }
-.tab.active .tab-text { color: var(--color-primary-text); font-weight: var(--weight-medium); }
+.tab.active .tab-text { color: var(--color-primary); font-weight: var(--weight-medium); }
 
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
