@@ -32,6 +32,12 @@
               mode="aspectFill"
               @error="bannerBgFailed = true"
             />
+            <!-- 占位图（2026-09-21 用户要求：无图必须占位，与菜品卡占位同款——灰底 + 餐具图标），
+                 未配置 / 加载失败时显示；禁止只留渐变底 -->
+            <view v-else class="banner-ph">
+              <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+              <text class="banner-ph-text">Banner 占位图</text>
+            </view>
             <view class="hb-copy">
               <text class="hb-title">今日推荐</text>
               <text class="hb-sub">发现食堂里的美味搭配</text>
@@ -93,6 +99,8 @@ import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
 import { getNavBarHeight } from '@/utils/navMetrics'
+import IconSvg from '@/components/IconSvg.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 import AppHeader from '@/components/AppHeader.vue'
 import HomeMealTabs from './HomeMealTabs.vue'
 import HomeFilterPanel from './HomeFilterPanel.vue'
@@ -403,8 +411,26 @@ onShareAppMessage(() => {
   padding: var(--spacing-lg);
   padding-top: calc(var(--status-h) + var(--nav-h) + var(--spacing-md));
   box-sizing: border-box;
-  /* 兜底渐变：背景图（单独加载，见脚本 BANNER_BG_SRC）未配置 / 加载失败时可见 */
-  background-image: linear-gradient(180deg, var(--color-primary-soft) 0%, var(--bg-page-grad-to) 100%);
+  /* 兜底占位（2026-09-21 定稿）：背景图未配置 / 加载失败时显示占位块（与菜品卡占位同款灰底），
+     不再使用渐变兜底 */
+  background: var(--bg-soft);
+}
+/* Banner 占位块：居中餐具图标 + 说明文字（与 DishCard.image-placeholder 同语言，尺寸放大适配 Banner） */
+.banner-ph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+.banner-ph-text {
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
 }
 /* 背景图层：绝对定位铺满 Banner，文字内容叠加其上（单独加载，非组件手绘） */
 .banner-bg {
