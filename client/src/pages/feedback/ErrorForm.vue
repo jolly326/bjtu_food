@@ -6,7 +6,7 @@
 
       <!-- 已选中：菜品摘要卡 -->
       <view v-if="model.dish" class="dish-linked">
-        <image class="dish-thumb" :src="model.dish.images?.[0] || ''" mode="aspectFill" />
+        <image class="dish-thumb" :src="model.dish.coverImage || ''" mode="aspectFill" />
         <view class="dish-info">
           <text class="dish-name">{{ model.dish.name }}</text>
           <text class="dish-meta">{{ dishMeta }}</text>
@@ -115,14 +115,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Dish } from '@/types/dish'
+import type { DishListItem } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
 
 /** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本/配图） */
 const props = defineProps<{
   model: {
-    dish: Dish | null
+    dish: DishListItem | null
     points: string[]
     correctValues: Record<string, string>
     evidenceText: string

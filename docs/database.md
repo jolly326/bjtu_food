@@ -30,7 +30,7 @@
 | 多图/列表 | JSON 字符串存储（如 `["url1","url2"]`，用于菜品/食堂/档口图；**2026-09-13 起 UGC 评价/反馈恢复 `images` 列**：同为 JSON 数组字符串，≤3 项 COS URL，见 §3.5 / §3.9） |
 | 内容安检 | UGC（评价/反馈）文本与配图**提交时**过**微信内容安全检测**（`msgSecCheck` v2 / `imgSecCheck`；**2026-09-16 术语正名：旧称「机检」废止**）——**`pass` 与 `review`（疑似）一律放行，仅 `risky`（含未知 / 缺失态 fail-closed 同按 risky）拒绝且不落库**。**用户原话口径（2026-09-16 定稿）：「评价的文本与图片通过微信内容安全检测即收录发布，不通过即拒绝；无任何人工环节」**（2026-09-15 用户拍板「取消人工复核」，见 `project_spec.md` §7.24）；**安检态无落库列**——`review.sec_state` / `user_feedback.sec_state` 两列已全链退役；评价可见性唯一判据 = `is_hidden=0` |
 | 审核流 | **2026-09-15 蓝图 v1（`project_spec.md` §7.23 第 4 条）+ 阶段4 全量退役：菜品无独立审核**——`dish.audit_status` **列与索引已删除**（公开查询不再按该列过滤，`status='on'` 即公开展示），`dish.reject_reason` **列已删除（2026-09-16 零消费清理，原「退役历史列、列保留」口径作废）**，后台无审核入口、端上无「菜品审核」概念，管理员录入 / 编辑即直接生效；`stall` / `canteen` 的 `audit_status` / `reject_reason` 已于 2026-09-14 随去实体化 DROP。**唯一有待处理态的运营对象是 `user_feedback`**（`status` pending/handled + `reply` 回执；不采纳 / 退回写 `reject_reason`） |
-| 角色 | **`user.role` 列已于 2026-09-15 冗余清理删除**（写入点唯一且恒 `STUDENT`、admin 值无生产者）——**user 表仅承载学生、无角色字段**；管理端无账号体系（环境变量口令制）既有口径不变。`verified` 仅表示邮箱认证态，**不进 JWT**，后端实时判定 |
+| 角色 | **`user.role` 列已于 2026-09-15 冗余清理删除**（写入点唯一且恒 `STUDENT`、admin 值无生产者）——**user 表仅承载学生、无角色字段**；管理端无账号体系（环境变量口令制）既有口径不变。邮箱认证态**唯一判据 = `bind_email` 非空**（`user.verified` / `user.verified_at` 两列已于 2026-09-22 退役——与 `bind_email` 同源冗余，历史写入恒成对写）；认证态**不进 JWT**，后端实时判定 |
 | 外键 | 逻辑外键为主（`user_id`/`stall_id`/`dish_id` 等建普通索引）；脚本中 `SET FOREIGN_KEY_CHECKS` 用于迁移幂等，业务层以应用级关联为主 |
 | 幂等迁移 | MySQL 不支持 `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`，旧库升级通过存储过程 + `INFORMATION_SCHEMA` 判断补齐 |
 
@@ -56,9 +56,9 @@
 | avatar | VARCHAR(512) | 可 | NULL | 头像URL |
 | status | VARCHAR(32) | 否 | 'active' | active/disabled/deleted |
 | openid | VARCHAR(64) | 可 | NULL | 微信 openid（静默登录取号依据，唯一） |
-| verified | TINYINT | 否 | 0 | 认证态：0=游客 / 1=已邮箱认证 |
-| bind_email | VARCHAR(128) | 可 | NULL | 已认证绑定邮箱（仅存关系，可空） |
-| verified_at | DATETIME | 可 | NULL | 认证时间 |
+| bind_email | VARCHAR(128) | 可 | NULL | 已认证绑定邮箱（仅存关系，可空）；**非空即已认证 = 认证状态唯一真源**（原 `verified` / `verified_at` 两列已退役，见下行说明） |
+| ~~verified~~ | ~~TINYINT~~ | — | — | **已退役（2026-09-22）**：与 `bind_email` 同源冗余（布尔镜像），判据统一为 `bind_email` 非空；由 `schema.sql` 末尾 `drop_verified_columns` 幂等段 DROP |
+| ~~verified_at~~ | ~~DATETIME~~ | — | — | **已退役（2026-09-22）**：只写不读（三端零读取），同批 DROP |
 | created_at | DATETIME | 否 | NOW | 创建时间 |
 | updated_at | DATETIME | 否 | NOW | 更新时间 |
 
@@ -115,7 +115,7 @@
 | original_price | INT | 可 | NULL | 原价（分，折扣前）；**「有折扣」判据 = `original_price > price`**（2026-09-18 §7.26） |
 | description | VARCHAR(512) | 可 | NULL | 描述 |
 | images | VARCHAR(1024) | 可 | NULL | 多图 JSON |
-| alias | VARCHAR(255) | 可 | NULL | ~~搜索别名~~ **已决议删除（2026-09-21 拍板，搜索契约精简）**：关键词直接硬匹配菜名 / 档口名 / 食堂名，不再需要别名层；存量库将由 `schema.sql` 幂等段 DROP（**代码待落地**，落地前列与匹配路仍在） |
+| ~~alias~~ | — | — | — | **已删除（2026-09-22 落地，change `search-page-refresh`）**：菜品无需昵称 → 搜索别名全链退役——CREATE TABLE 不再创建、存量库由 `schema.sql` 幂等段 `drop_dish_alias_column` DROP（先判存在再 DROP，可重跑）、关键词匹配收敛为菜名 / 档口名 / 食堂名三处 |
 | diet_type | VARCHAR(16) | 可 | NULL | **荤素 / 饮食属性**（2026-09-20 §7.28）：`meat`=荤 / `half`=半荤 / `veg`=素 / `halal`=清真（原 `region='清真'` 迁入） |
 | ingredients | VARCHAR(255) | 可 | NULL | **主料 / 食材**（逗号分隔机器值，同 `tags` 模式）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice |
 | flavor_tags | VARCHAR(128) | 可 | NULL | **口味**（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy（**吸收原「辣度」语义**） |

@@ -118,7 +118,7 @@ const userStore = useUserStore()
 const authSheetStore = useAuthSheetStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-/** 已认证（verified=true）——微信静默登录后恒有登录态，游客/认证用 verified 区分（§5.y） */
+/** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
 const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
 /**

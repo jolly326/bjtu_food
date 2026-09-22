@@ -1,8 +1,10 @@
 /**
- * 用户信息 —— 恰 6 字段（2026-09-21 spec §7.32 / `auth-api-contract`）。
+ * 用户信息 —— 恰 5 字段（2026-09-22 spec §7.32 修订 / `auth-api-contract`）。
  *
  * 与登录 / 资料四条链路（`POST /auth/wechat-login`、`POST /auth/verify-email`、
  * `GET|PUT /auth/profile`）一一对应。已删除且不得回流：
+ * - `verified`（`bindEmail` 非空的派生布尔，属同源冗余：认证判据统一为 `bindEmail != null`，
+ *   端上经 `useUserStore().isVerified()` 单点派生；服务端同批删除 DB 列 `user.verified/verified_at`）
  * - `email`（微信体系下恒为 NULL，校园邮箱唯一来源 = `bindEmail`）
  * - `status`（端上零消费，禁用 / 注销由服务端 400 / 403 拦截）
  * - `guestShortId`（`id` 的纯派生值，改由展示层按 `id` 现算）
@@ -15,8 +17,6 @@ export interface UserInfo {
   username: string
   nickname: string
   avatar: string
-  /** 是否已邮箱认证（微信登录体系 §5.y）：true 解锁 UGC 写操作 */
-  verified: boolean
-  /** 已认证绑定邮箱（bind_email）；校园邮箱唯一来源，未认证为 undefined */
+  /** 已认证绑定邮箱（bind_email）；**认证状态的唯一判据**（非空即已认证），游客态为 undefined */
   bindEmail?: string
 }

@@ -1,15 +1,15 @@
 import type {
-  Dish, DishDetail, DishQuery,
-  HotSearch,
+  DishListItem, DishDetail, DishQuery,
+  GuessLike,
 } from '@/types/dish'
 import { get, post } from './http'
-import { fenToYuan, yuanToFen } from '@/utils/money'
+import { fenToYuan } from '@/utils/money'
 import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from './shared'
 
 /**
  * 描述四维机器值 → 中文展示值映射（**唯一真源**，`project_spec.md` §7.28）。
  *
- * 后端出参（公开 DishVO 与 `seed_data.sql`）一律为**英文机器值**，中文仅作展示：
+ * 后端出参（公开 `DishDetailVO` 与 `seed_data.sql`）一律为**英文机器值**，中文仅作展示：
  * - `dietType`：meat 荤 / half 半荤 / veg 素 / halal 清真
  * - `ingredients`（逗号分隔）：pork 猪 / beef 牛 / lamb 羊 / chicken 鸡 / duck 鸭 / fish 鱼虾 /
  *   egg 蛋 / tofu 豆制品 / mushroom 菌菇 / veg 青菜 / noodle 面 / rice 米
@@ -17,9 +17,8 @@ import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from '
  *   umami 鲜 / light 清淡 / heavy 重口（吸收原「辣度」语义）
  * - `serveTemp`：hot 热食 / room 常温 / ice 冰
  *
- * 映射只在本 API 层完成一次（沿用原 `TAG_MAP` 模式），视图层（DishInfoCard）
- * 一律直取 `Dish` 上的中文串，**禁止在页面/组件层再做二次映射**。
- * 未命中映射的值按原样透传（兼容后端未来新增取值，不会丢维度）。
+ * 映射只在本 API 层完成一次，视图层（`DishInfoCard`）一律直取 `DishDetail` 上的中文串，
+ * **禁止在页面/组件层再做二次映射**；未命中映射的值按原样透传（兼容后端新增取值）。
  */
 const DIET_TYPE_MAP: Record<string, string> = { meat: '荤', half: '半荤', veg: '素', halal: '清真' }
 const SERVE_TEMP_MAP: Record<string, string> = { hot: '热食', room: '常温', ice: '冰' }
@@ -47,23 +46,39 @@ function toDisplayList(raw: unknown, map: Record<string, string>): string {
 }
 
 /**
- * 后端行 → 端上 Dish 归一化（模块私有，2026-09-20 任务 6.3 零消费扫描确认外部零引用，
- * 唯一消费方为本文件 `searchDishesPage` / `getDishDetail`，故收敛为模块私有，PR-05）。
+ * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
+ * <p>
+ * 2026-09-22 列表 / 详情出参拆分：列表**只有 `coverImage` 单值**（不再有 `images` 数组，
+ * 也不再派生 `image`）；`description` / `floor` / `ratingCount` / 四维等详情专属字段**不再映射**。
  */
-function toDish(raw: RawRow): Dish {
+function toDishListItem(raw: RawRow): DishListItem {
+  return {
+    id: Number(raw.id),
+    name: raw.name || '',
+    // 价格唯一数据源：展示值恒取 price（现价，已含折扣）；分 → 元
+    price: fenToYuan(raw.price),
+    // 原价（分→元）：空值不产出字段；是否折扣由展示层按 originalPrice > price 判定
+    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
+    coverImage: raw.coverImage || '',
+    rating: raw.avgRating ?? raw.rating ?? 0,
+    canteen: raw.canteenName || raw.canteen || '',
+    stallName: raw.stallName || '',
+  }
+}
+
+/** 详情归一化（后端 `DishDetailVO` 15 字段 + 评分分布 → 端上 `DishDetail`） */
+function toDishDetail(raw: RawRow): DishDetail {
   const images = normalizeImages(raw.images ?? raw.image)
   return {
     id: Number(raw.id),
     name: raw.name || '',
-    // 价格唯一数据源：展示值恒取 price（现价，已含折扣）
     price: fenToYuan(raw.price),
-    // 原价（分→元）：空值不产出字段；是否折扣由展示层按 originalPrice > price 判定
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
-    image: images[0] || '',
+    description: raw.description || '',
     images,
+    image: images[0] || '',
     rating: raw.avgRating ?? raw.rating ?? 0,
     ratingCount: raw.ratingCount ?? raw.rating_count ?? 0,
-    description: raw.description || '',
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',
@@ -72,42 +87,33 @@ function toDish(raw: RawRow): Dish {
     ingredients: toDisplayList(raw.ingredients, INGREDIENT_MAP),
     flavorTags: toDisplayList(raw.flavorTags, FLAVOR_TAG_MAP),
     serveTemp: SERVE_TEMP_MAP[String(raw.serveTemp || '')] || '',
-  }
-}
-
-function toDishDetail(raw: RawRow): DishDetail {
-  return {
-    ...toDish(raw),
     ratingDistribution: raw.ratingDistribution || [],
   }
 }
 
 /**
- * 通用菜品检索（筛选结果页 + 首页无限加载）
- * 复用 GET /dishes，支持 keyword / canteenId / minPrice / maxPrice / sortBy / sortOrder / page / pageSize。
- * 金额 minPrice/maxPrice 由前端「元」在 API 层转「分」提交（§3.x 金额红线）。
- * 返回分页结果（list + total），供瀑布流无限加载去重与触底判断。
+ * 通用菜品检索（首页网格无限加载 + 搜索结果）。
+ * <p>
+ * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize`**（2026-09-22 起
+ * 食堂 / 价格 / 排序筛选全量下线，端上不再传 `canteenId` / `minPrice` / `maxPrice` / `sortBy`；
+ * 排序恒为服务端热度倒序）。返回分页结果供瀑布流去重与「本页条数 < pageSize」判到底。
  */
-export async function searchDishesPage(query: DishQuery): Promise<{ list: Dish[]; total: number }> {
+export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[]; total: number }> {
   const params: Record<string, unknown> = {
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 20,
   }
   if (query.keyword) params.keyword = query.keyword
-  if (query.canteenId != null) params.canteenId = query.canteenId
-  if (query.minPrice != null) params.minPrice = yuanToFen(query.minPrice)
-  if (query.maxPrice != null) params.maxPrice = yuanToFen(query.maxPrice)
-  if (query.sortBy) params.sortBy = query.sortBy
-  if (query.sortOrder) params.sortOrder = query.sortOrder
+  if (query.mealType) params.mealType = query.mealType
 
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
   const res = await get<RawPage>('/dishes', params)
-  const list = recordsOf<RawRow>(res).map(toDish)
+  const list = recordsOf<RawRow>(res).map(toDishListItem)
   return { list, total: totalOf(res) }
 }
 
-/** 兼容旧调用：返回平铺 Dish[]（find 搜索流消费） */
-export async function searchDishes(query: DishQuery): Promise<Dish[]> {
+/** 兼容旧调用：返回平铺 `DishListItem[]`（find 搜索流消费） */
+export async function searchDishes(query: DishQuery): Promise<DishListItem[]> {
   return (await searchDishesPage(query)).list
 }
 
@@ -130,25 +136,26 @@ export async function addView(id: number): Promise<void> {
   }
 }
 
-/** 热搜 TOP10（GET /dishes/hot-search，一期为菜品热度派生的热门词条） */
-export async function getHotSearch(): Promise<HotSearch[]> {
-  // MP-08：热搜是裸数组响应，定型为 RawRow[]
-  const raw = await get<RawRow[]>('/dishes/hot-search')
-  // MP-03：HotSearch 收敛为 { keyword }——唯一消费方（find 热搜 chip）只读 keyword
+/**
+ * 猜你喜欢（`GET /dishes/for-you`）。
+ * 2026-09-22 change search-page-refresh：原 `/dishes/hot-search` 改名 + 语义变更为
+ * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）。
+ */
+export async function getGuessLike(): Promise<GuessLike[]> {
+  // 裸数组响应，定型为 RawRow[]
+  const raw = await get<RawRow[]>('/dishes/for-you')
+  // 唯一消费方（find 页「猜你喜欢」chip）只读 keyword
   return (raw || []).map((item: RawRow) => ({
     keyword: item.keyword || '',
   }))
 }
 
-/**
- * 首页热门瀑布流：无限加载分页走 /dishes?sortBy=heat&sortOrder=desc；
- * price 为可选价格区间（元），透传既有 minPrice/maxPrice。
- * 辣度筛选项已随「辣度维度」下线（标签/辣度筛选入口 SHALL NOT 存在）。
- */
-export async function getHotDishesPage(
-  page: number,
-  pageSize = 20,
-  price?: { min?: number; max?: number },
-): Promise<{ list: Dish[]; total: number }> {
-  return searchDishesPage({ sortBy: 'heat', sortOrder: 'desc', page, pageSize, minPrice: price?.min, maxPrice: price?.max })
+/** 菜品大类字典（GET /dishes/meal-types）：首页横向标签栏数据源，文案与顺序全由后端下发 */
+export async function getMealTypes(): Promise<{ key: string; label: string; order: number }[]> {
+  const raw = await get<RawRow[]>('/dishes/meal-types')
+  return (raw || []).map((item: RawRow) => ({
+    key: String(item.key || ''),
+    label: String(item.label || ''),
+    order: Number(item.order ?? 0),
+  }))
 }

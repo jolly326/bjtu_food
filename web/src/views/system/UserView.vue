@@ -59,9 +59,10 @@ const statusOptions = [
   { label: '已禁用', value: 'disabled' },
 ]
 
-// 认证状态筛选（task-02：微信登录体系落地后的新字段）
-const verifiedFilter = ref<string>('')
-const verifiedOptions = [
+// 认证状态筛选：选项值仅表达「筛哪一类」，认证态本身由 bindEmail 非空派生
+// （2026-09-22 契约收敛：出参不再含 verified 字段，判据唯一真源 = bindEmail）
+const authFilter = ref<string>('')
+const authOptions = [
   { label: '全部认证', value: '' },
   { label: '已认证', value: '1' },
   { label: '未认证', value: '0' },
@@ -82,7 +83,10 @@ function guestLabelOf(u: { id?: unknown }): string {
 const filteredStudents = computed(() => {
   let list = students.value
   if (statusFilter.value) list = list.filter(u => u.status === statusFilter.value)
-  if (verifiedFilter.value !== '') list = list.filter(u => Number(u.verified ?? 0) === Number(verifiedFilter.value))
+  if (authFilter.value !== '') {
+    const wantVerified = authFilter.value === '1'
+    list = list.filter(u => !!u.bindEmail === wantVerified)
+  }
   const q = searchQuery.value
   if (!q) return list
   return list.filter(u =>
@@ -163,7 +167,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
     <FilterBar v-model="searchQuery">
       <template #default>
         <FilterSelect v-model="statusFilter" label="状态" :options="statusOptions" :width="150" />
-        <FilterSelect v-model="verifiedFilter" label="认证" :options="verifiedOptions" :width="150" />
+        <FilterSelect v-model="authFilter" label="认证" :options="authOptions" :width="150" />
       </template>
       <template #actions>
         <template v-if="selectedIds.length">
@@ -179,7 +183,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
       :columns="[
         { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
         { prop: 'userInfo', label: '用户信息' },
-        { prop: 'verified', label: '认证', width: '90px', align: 'center' },
+        { prop: 'authState', label: '认证', width: '90px', align: 'center' },
         { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
       ]"
@@ -203,8 +207,9 @@ async function batchSetStatus(status: 'active' | 'disabled') {
           <span v-if="row.bindEmail" class="user-email">{{ row.bindEmail }}</span>
         </div>
       </template>
-      <template #cell-verified="{ row }">
-        <StatusTag :type="Number(row.verified) === 1 ? 'success' : 'gray'" :text="Number(row.verified) === 1 ? '已认证' : '未认证'" />
+      <template #cell-authState="{ row }">
+        <!-- 认证态派生自 bindEmail 非空（唯一判据）；出参已无 verified 字段 -->
+        <StatusTag :type="row.bindEmail ? 'success' : 'gray'" :text="row.bindEmail ? '已认证' : '未认证'" />
       </template>
       <template #cell-created="{ row }">{{ row.created_at.toLocaleDateString('zh-CN') }}</template>
       <template #cell-status="{ row }">

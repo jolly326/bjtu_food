@@ -111,12 +111,14 @@ function onSelect(key: string | null) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  /* 命中区：高 88rpx（文字行 + 下划线位）；宽 = 标签文字 + 左右各 24rpx。
-     最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅，
-     故删掉轨道 padding 后无需 ::after 补足命中区，横向也不会出现 <44px 的窄目标。 */
+  /* 文字**行内上偏置**（§2 光学间距，2026-09-22）：文字下沿留给下划线 4px + 行底余量，
+     使「搜索区→标签文字」≈20px 与「下划线→卡片首行」≈24px 近似均衡（旧口径 18 / 26–33 偏不对称）。
+     ⚠️ 下划线不得吸到行底（margin-top:auto）——那会让它离文字 ≈16px、与标签脱开。 */
+  justify-content: flex-start;
+  /* 命中区：高 88rpx（触达下限，不得压低；= 上偏置 24 + 文字行 ≈34 + 下划线位 14 + 行底余量）；
+     宽 = 标签文字 + 左右各 24rpx。最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅。 */
   height: 88rpx;
-  padding: 0 var(--spacing-md);
+  padding: 24rpx var(--spacing-md) 0;
   box-sizing: border-box;
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;

@@ -50,12 +50,12 @@ com.bjtufood/
 
 ### 2.1 微信登录（游客态）
 - `POST /auth/wechat-login`：`code` → 微信 code2Session → openid 唯一取号
-- 新 openid 自动建号（`username=wx_+openid尾16位`，`verified=0`）
+- 新 openid 自动建号（`username=wx_+openid尾16位`，游客态 = `bind_email` 为 NULL）
 - token 有效期 **7 天**（`application.yml` `jwt.expiration=604800000ms`，2026-09-15 DOC-08 修订，原「长期有效（不设超时）」表述有误）；注销/禁用走 `TokenBlacklist`
 
 ### 2.2 邮箱认证（解锁写操作）
 - `POST /auth/email-code` → 发 `@bjtu.edu.cn` 验证码（60s 限频、6 位、10 分钟有效）
-- `POST /auth/verify-email` → 校验验证码、绑定邮箱、`verified→1`
+- `POST /auth/verify-email` → 校验验证码、写 `bind_email`（认证态唯一写入点；已认证判据 = 该列非空）
 - 写操作接口用 `@RequireVerified` 切面（未认证抛 `4031`）
 
 ### 2.3 角色与权限

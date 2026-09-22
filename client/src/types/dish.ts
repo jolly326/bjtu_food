@@ -1,41 +1,62 @@
 /**
- * 菜品类型（公开 DishVO 契约，15 字段 · 2026-09-20 dish-detail-remediation 收敛）
+ * 菜品类型（2026-09-22 列表 / 详情出参拆分，见 docs/feature/client-首页菜品浏览.md D 项）
  *
- * 公开菜品契约字段集恰为 15 个（`specs/dish-field-contract`）：
- * id / name / price / originalPrice / description / images /
- * stallName / canteenName / floor / avgRating / ratingCount /
- * dietType / ingredients / flavorTags / serveTemp。
+ * **列表行 `DishListItem`**（`GET /dishes`，`DishListItemVO` **恰为 8 字段**）：
+ *   id / name / coverImage / price / originalPrice / avgRating / canteenName / stallName
+ * **详情 `DishDetail`**（`GET /dishes/{id}`，`DishDetailVO` 15 字段 + `ratingDistribution`）：
+ *   id / name / price / originalPrice / description / images / stallName / canteenName /
+ *   floor / avgRating / ratingCount / dietType / ingredients / flavorTags / serveTemp
  *
  * 端上定型说明：
- * - `canteenName` → 端上别名 `canteen`（历史消费点沿用），`avgRating` → `rating`；
- * - `image`（首图封面）由 `images[0]` 派生，属端上展示便利字段、非后端出参；
- * - `dietType` / `serveTemp` 等四维在 API 层已由机器值映射为中文展示值（见 api/dish.ts），
+ * - 金额一律「元」：API 层由分转元（`fenToYuan`），视图层直取展示；
+ * - `canteenName` → 端上别名 `canteen`，`avgRating` → `rating`；
+ * - 列表**不含**详情专属字段（`description` / `images` / `floor` / `ratingCount` / 四维）；
+ *   列表图片只给 `coverImage`（后端首图绝对 URL；无图空串）——列表**不得回流** `images` 数组；
+ * - `dietType` / `serveTemp` 等四维在 API 层已由机器值映射为中文展示值（见 `api/dish.ts`），
  *   视图层直取渲染，禁止二次映射。
  *
  * 已全链删除（SHALL NOT 回流）：promoPrice / status / createdAt / canteenId / stallId /
  * viewCount / tags / spiceLevel / region / windowNo / updatedAt / latitude / longitude /
  * distance（坐标与距离随「计算距离」概念整体下线）。
  */
-export interface Dish {
+export interface DishListItem {
   id: number
   name: string
   /** 现价（元；API 层已由分转元）。**价格展示唯一数据源** */
   price: number
   /** 原价（元，可空）；有值且大于 price 时端上在原价加删除线表示折扣 */
   originalPrice?: number
-  /** 封面首图（= images[0]，端上派生字段） */
-  image: string
-  images?: string[]
+  /** 封面首图（后端 `coverImage`，列表唯一图片字段；无图空串） */
+  coverImage: string
   /** 平均评分（后端 avgRating，口径 = 仅未隐藏评价） */
   rating: number
-  /** 评价数（同上口径） */
-  ratingCount: number
-  description: string
   /** 食堂名称（后端 canteenName） */
   canteen: string
   /** 档口名称 */
   stallName: string
-  /** 档口所属楼层（如 1F/2F） */
+}
+
+interface RatingDistribution {
+  star: number
+  count: number
+}
+
+/** 详情（`GET /dishes/{id}`）：列表 8 字段之外，额外含详情专属字段与评分分布 */
+export interface DishDetail {
+  id: number
+  name: string
+  price: number
+  originalPrice?: number
+  description: string
+  /** 多图 URL 数组（详情专属） */
+  images: string[]
+  /** 首图派生字段（= images[0]，详情图集展示便利；非后端出参） */
+  image: string
+  rating: number
+  ratingCount: number
+  canteen: string
+  stallName: string
+  /** 档口所属楼层（如 1F/2F；详情专属） */
   floor?: string
   /** 描述四维·荤素（中文展示值：荤 / 半荤 / 素 / 清真） */
   dietType?: string
@@ -45,34 +66,39 @@ export interface Dish {
   flavorTags?: string
   /** 描述四维·冷热（中文展示值：热食 / 常温 / 冰） */
   serveTemp?: string
-}
-
-interface RatingDistribution {
-  star: number
-  count: number
-}
-
-export interface DishDetail extends Dish {
   ratingDistribution: RatingDistribution[]
 }
 
-export type DishSortBy = 'heat' | 'rating' | 'price' | 'created_at'
-
+/**
+ * 列表查询参数（`GET /dishes`，**完整参数集恰为 4 项**：page / pageSize / keyword / mealType）。
+ * <p>
+ * 2026-09-22：`canteenId` / `minPrice` / `maxPrice` 随「食堂 / 价格筛选全量下线」删除
+ * （SHALL NOT 回流）；`sortBy` / `sortOrder` 已于 2026-09-21 收敛（排序恒为服务端热度倒序）。
+ */
 export interface DishQuery {
   keyword?: string
-  /** 食堂 ID（多维筛选） */
-  canteenId?: number
-  /** 价格区间（前端「元」，API 层转分提交） */
-  minPrice?: number
-  maxPrice?: number
-  /** 排序维度（ARCH §3.1：heat/rating/price/created_at；端上默认不传） */
-  sortBy?: DishSortBy
-  sortOrder?: 'asc' | 'desc'
+  /** 菜品大类筛选（首页横向标签栏；值为大类枚举键；不传 = 全部） */
+  mealType?: string
   page?: number
   pageSize?: number
 }
 
-/** 热搜词（GET /dishes/hot-search；一期为菜品热度派生的热门词条） */
-export interface HotSearch {
+/**
+ * 猜你喜欢词（GET /dishes/for-you）。
+ * 2026-09-22 change search-page-refresh：由原「热搜词」类型改名——语义由
+ * 「热度派生热搜词」变为「**随机抽取在售菜品名**」（不看热度、不排序、不做个性化，故不缓存）；
+ * **契约留扩展位**：将来升级为个性化 / 推荐算法时仍为 `keyword` 列表，端上无需改造。
+ */
+export interface GuessLike {
   keyword: string
+}
+
+/**
+ * 菜品大类字典项（`GET /dishes/meal-types`）：
+ * 文案 / 顺序 / 子集全由后端下发（空类自动隐藏），**端上不得维护任何中文映射**。
+ */
+export interface MealType {
+  key: string
+  label: string
+  order: number
 }

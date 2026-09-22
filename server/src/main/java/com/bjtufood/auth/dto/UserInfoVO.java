@@ -8,18 +8,24 @@ import lombok.Data;
  * <p>
  * 作为 {@link LoginResp#getUserInfo()} 的小程序端账号信息返回体，
  * 也复用为 {@code GET /auth/profile} 的用户信息主体。
- * 字段均 camelCase；`verified`/`bindEmail` 为微信登录体系新增语义。
+ * 字段均 camelCase；已认证状态由 {@code bindEmail} 派生（见下）。
  * <p>
- * <b>字段集恰为 6 个</b>（2026-09-21 spec §7.32 / `auth-api-contract`）：{@code id}、{@code username}、
- * {@code nickname}、{@code avatar}、{@code verified}、{@code bindEmail}。以下字段已删除且不得回流：
- * {@code email}（微信体系下无写入点、恒为 NULL）、{@code status}（端上零消费）、
- * {@code guestShortId}（`id` 的纯派生值，改由消费端按 `id` 现算）。
+ * <b>字段集恰为 5 个</b>（2026-09-22 spec §7.32 修订 / {@code auth-api-contract}）：{@code id}、
+ * {@code username}、{@code nickname}、{@code avatar}、{@code bindEmail}。以下字段已删除且不得回流：
+ * <ul>
+ *   <li>{@code verified}——`bindEmail` 非空的派生布尔，属同源冗余（2026-09-22 用户拍板删；
+ *       端上判据统一为 {@code bindEmail != null}，DB 列 user.verified/verified_at 同批退役）；</li>
+ *   <li>{@code email}——微信体系下无写入点、恒为 NULL；</li>
+ *   <li>{@code status}——端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
+ *   <li>{@code guestShortId}——`id` 的纯派生值，改由消费端按 `id` 现算。</li>
+ * </ul>
  * <p>
  * 与 {@link UserVO}（管理端用户列表）字段高度相似但<b>不可合并</b>，差异登记如下：
  * <ul>
- *   <li>{@code verified} 类型不同：本类为 {@code Boolean}（true=已认证 / false=游客态，端上语义）；
- *       {@link UserVO} 为 {@code Integer}（0/1 原始库值）。</li>
- *   <li>{@link UserVO} 额外含 {@code createdAt}（注册时间）与 {@code wechatBound}（是否绑定微信），本类无。</li>
+ *   <li>{@link UserVO} 额外汇总 {@code createdAt}（注册时间）与 {@code wechatBound}（是否绑定微信）、
+ *       {@code status}（账号状态，管理端需展示与操作），本类无。</li>
+ *   <li>两类的认证状态均<b>不作出参字段</b>：小程序端按 {@code bindEmail != null} 派生，
+ *       管理端同口径派生（管理端需原始 0/1 时可自行判空）。</li>
  *   <li>消费方：{@code POST /auth/wechat-login}、{@code POST /auth/verify-email}、{@code GET /auth/profile}；
  *       {@link UserVO} 消费方为 {@code GET /admin/users}。</li>
  * </ul>
@@ -40,10 +46,7 @@ public class UserInfoVO {
     @Schema(description = "头像URL")
     private String avatar;
 
-    @Schema(description = "认证状态：true=已邮箱认证 / false=游客态", example = "false")
-    private Boolean verified;
-
-    /** 校园邮箱的唯一出参来源（未认证为 null） */
-    @Schema(description = "已认证绑定邮箱（可空；仅存认证关系）", example = "20240001@bjtu.edu.cn")
+    /** 校园邮箱的唯一出参来源（未认证为 null）；**同时是认证状态的唯一判据**（非空即已认证） */
+    @Schema(description = "已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）", example = "20240001@bjtu.edu.cn")
     private String bindEmail;
 }

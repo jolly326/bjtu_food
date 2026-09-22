@@ -11,6 +11,7 @@
 | `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 6 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
 
 > 阅读约定：每份文档固定为 **干什么 → UI → 操作 → 接口 → 字段（字段名 + 中文解释）→ 数据** 六段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（QA 工作流见 `.codebuddy/rules/feature-doc-qa-workflow.md`）。
+> **正文只保留最终设计形态（2026-09-22 定稿）**：正文不写落地状态（「待实现 / 已落地 / 当前实现为 …」等一律不写）；**与现有代码不一致的条目一律集中在文末「与当前代码的差异」板块**，差异清零时该板块保留标题并写「无（文档与代码一致）」。
 > **UI 段已拆出（2026-09-22）**：各页面的 UI 设计稿统一维护在 [`docs/ui/`](../ui/)（与功能文档**同名一一对应**），本目录六段中 `## UI` 位置仅保留指向该文件的指针；**UI 设计口径以 `docs/ui/` 为唯一真源**，功能流程 / 接口 / 字段 / 数据口径仍以本目录为准。
 > 字段口径：字段名以**接口实况**为准（后端 Java DTO/VO 出参，统一 camelCase）；类型列的 `number / string / boolean / array / object / null` 为 JSON 侧类型。
 
@@ -19,31 +20,33 @@
 | 标记 | 含义 | 适用 |
 |---|---|---|
 | 🔓 公开 | 免登录即可调用 | 学生端浏览、搜索、反馈提交等 |
-| 🔐 认证 | 需学号邮箱认证（`verified=true`），未认证返回 **4031** | 学生端 UGC 写操作（评价、评价点赞） |
+| 🔐 认证 | 需学号邮箱认证（**已认证判据 = `bindEmail` 非空**），未认证返回 **4031** | 学生端 UGC 写操作（评价、评价点赞） |
 | 🔑 口令 | 管理端 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403） | 全部 `/admin/**` 与 `/upload/image` |
 
 ---
 
 ## client- · 学生端（微信小程序，16 个）
 
-| 编号 | 功能 | 文档 | 鉴权 |
-|---|---|---|---|
-| A-01 | 微信静默登录 / 游客态 | [client-微信静默登录与游客态.md](./client-微信静默登录与游客态.md) | 🔓 |
-| A-02 | 首页菜品浏览 | [client-首页菜品浏览.md](./client-首页菜品浏览.md) | 🔓 |
-| A-03 | 搜索 | [client-搜索.md](./client-搜索.md) | 🔓 |
-| A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 |
-| A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 自动（接口需登录） |
-| A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 |
-| ~~A-07~~ | ~~评价「有用」~~ **⛔ 已于 2026-09-20 全链下线**（spec §7.30 清单 #1） | [client-评价有用.md](./client-评价有用.md)（历史留痕） | — |
-| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 |
-| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 |
-| A-10 | 我的评价 | [client-我的评价.md](./client-我的评价.md) | 🔐 |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 |
-| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 |
-| A-13 | 个人资料 | [client-个人资料.md](./client-个人资料.md) | 🔓 |
-| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 |
-| A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 🔓 |
-| A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 |
+| 编号 | 功能 | 文档 | 鉴权 | 状态 |
+|---|---|---|---|---|
+| A-01 | 微信静默登录 / 游客态 | [client-微信静默登录与游客态.md](./client-微信静默登录与游客态.md) | 🔓 | ✅ **已完成**（2026-09-22 审阅） |
+| A-02 | 首页菜品浏览 | [client-首页菜品浏览.md](./client-首页菜品浏览.md) | 🔓 | ✅ **已完成**（2026-09-22 审阅） |
+| A-03 | 搜索 | [client-搜索.md](./client-搜索.md) | 🔓 | — |
+| A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 | — |
+| A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 自动（接口需登录） | — |
+| A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 | — |
+| ~~A-07~~ | ~~评价「有用」~~ **⛔ 已于 2026-09-20 全链下线**（spec §7.30 清单 #1） | [client-评价有用.md](./client-评价有用.md)（历史留痕） | — | — |
+| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | — |
+| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | — |
+| A-10 | 我的评价 | [client-我的评价.md](./client-我的评价.md) | 🔐 | — |
+| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | — |
+| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | — |
+| A-13 | 个人资料 | [client-个人资料.md](./client-个人资料.md) | 🔓 | — |
+| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | — |
+| A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 🔓 | — |
+| A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | — |
+
+> **「状态」列口径（2026-09-22 起）**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**（登记日见括号），后续变更须按变更流程重开；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
 
 ## web- · 管理端（Web 后台，6 个）
 
@@ -88,17 +91,16 @@
 
 | 结构名 | 用于哪些接口 | 完整字段表 |
 |---|---|---|
-| `DishVO` | `GET /dishes` | [client-首页菜品浏览](./client-首页菜品浏览.md#响应--dishvo单行菜品) |
-| `DishDetailVO` | `GET /dishes/{id}` | [client-菜品详情](./client-菜品详情.md#响应--get-dishesid-data--dishdetailvo) |
+| `DishListItemVO` | `GET /dishes`（列表 / 搜索共用，**8 字段**） | [client-首页菜品浏览](./client-首页菜品浏览.md) |
+| `DishDetailVO` | `GET /dishes/{id}`（详情，15 字段 + `ratingDistribution`） | [client-菜品详情](./client-菜品详情.md) |
 | `RatingDistributionVO` | 同上（评分分布项） | [client-菜品详情](./client-菜品详情.md#响应--get-dishesid-data--dishdetailvo) |
-| `HotSearchVO` | `GET /dishes/hot-search` | [client-搜索](./client-搜索.md#响应--get-disheshot-searchlisthotsearchvo) |
+| `GuessLikeVO` | `GET /dishes/for-you`（**2026-09-22 改名 + 语义变更**：原 `HotSearchVO` / `GET /dishes/hot-search`；现为随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
 | `ReviewVO` | `GET /reviews`、`GET /my/reviews` | [client-菜品详情](./client-菜品详情.md#响应--get-reviews-data--page-resultreviewvo) ／ [client-我的评价](./client-我的评价.md) |
 | `UsefulResult` | `POST /reviews/{id}/useful` | [client-评价有用](./client-评价有用.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginResp` | 登录 / 认证响应（`token` + `userInfo`） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
-| `CanteenInfoVO` | `GET /canteens` | [client-首页菜品浏览](./client-首页菜品浏览.md) |
-| `CanteenWithStallsVO` / `StallDetailVO` | `GET /canteens?include=stalls`（原 `GET /canteens/all` 已删除） | [client-意见反馈](./client-意见反馈.md) |
+| ~~`CanteenInfoVO` / `CanteenWithStallsVO` / `StallDetailVO`~~ | ~~`GET /canteens`（含 `?include=stalls`）~~ **端点已整体删除**（2026-09-22 随食堂 / 价格筛选全量下线，见 [client-首页菜品浏览](./client-首页菜品浏览.md) K4） | — |
 | `FeedbackReq` | `POST /feedback` | [client-意见反馈](./client-意见反馈.md) |
 | `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
 | `ReviewAdminVO` | `GET /admin/reviews` | [web-评价管理](./web-评价管理.md) |
@@ -123,14 +125,14 @@
 
 | # | 事项 | 建议 | 影响面 | 详见 |
 |---|---|---|---|---|
-| 1 | 删除评价「有用」 | **已拍板：删除**（2026-09-17）；**先由技术负责人改 spec §7.14/§7.18 与 api-design §2.3 的默认排序口径，再动代码** | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | [client-评价有用](./client-评价有用.md) |
+| 1 | 删除评价「有用」 | **已落地（2026-09-20）**：原拍板「删除」（2026-09-17），spec §7.14/§7.18 与 api-design §2.3 已同步 | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | [client-评价有用](./client-评价有用.md) |
 | 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md) |
 | 3 | 浏览计数去掉当日去重 | **建议不改**（改前须定：含游客？风控？`view_log` 存废？） | 后端 + `view_log` + 热度排序口径（须先改 spec） | [client-浏览计数](./client-浏览计数.md) |
 | 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md) |
 | 5 | 注销入口 UI 重设计 | **同意重设计**，转 UI/UX 设计师出稿（不动接口） | 小程序页面内布局 / 交互 | [client-注销账号](./client-注销账号.md) |
 | 6 | 隐私政策是否保留 | **建议保留**（改善呈现 + 文案与数据面对齐） | 无（静态文案） | [client-隐私政策与用户协议](./client-隐私政策与用户协议.md) |
-| 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword 含 alias + 服务端分页），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md) |
+| 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword + 服务端分页；原「含 alias」已随 2026-09-22 别名删除作废），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md) |
 | 8 | 学生行为弹窗是否展示浏览记录 | 需先新增管理端端点（当前 `view_log` 无查询接口），否则只展示评价 / 反馈 | 后端新增端点（须技术负责人登记） | [web-学生账号管理](./web-学生账号管理.md) |
-| 9 | 评价「只看有图」筛选（`GET /reviews?hasImage=1`） | **已拍板：做**（2026-09-17）；曾登记「`isWithImage` 不恢复」，属推翻既有口径，**须技术负责人登记后再开发** | 后端 mapper 一条筛选条件 + 端上一个开关（切换须重置分页） | [client-菜品详情](./client-菜品详情.md#已拍板待实现清单) |
-| 10 | 评价更新机制（重新评价） | **已拍板（最终口径）**：不做追评；评论区按**时间倒序**（`created_at DESC`，新评价在前）；重新评价 = `PUT /reviews/{id}` 覆盖 `rating/content/images` 并**刷新 `created_at`**（重评即新发布）、`is_hidden` 重置 0；一人一菜一评不变；不限次数 | 仅 1 个端点 + 端上「修改评价」入口（`ReviewComposer` 预填）；评分聚合重算一次；**聚合口径不改** | [client-菜品详情](./client-菜品详情.md#已拍板待实现清单) |
-| 11 | 低样本均分失真 | **建议采纳**：`ratingCount < 3` 不展示均分，显示「暂无评分 · N 条评价」（大众点评「达 10 条才计算星级」的思路） | 端上按 `ratingCount` 分支，后端不改 | [client-菜品详情](./client-菜品详情.md#已拍板待实现清单) |
+| 9 | 评价「只看有图」筛选（`GET /reviews?hasImage=1`） | **已落地（2026-09-20）**：原拍板「做」（2026-09-17）；曾登记「`isWithImage` 不恢复」，属推翻既有口径 | 后端 mapper 一条筛选条件 + 端上一个开关（切换须重置分页） | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |
+| 10 | 评价更新机制（重新评价） | **已落地（2026-09-20）**，最终口径：不做追评；评论区按**时间倒序**（`created_at DESC`，新评价在前）；重新评价 = `PUT /reviews/{id}` 覆盖 `rating/content/images` 并**刷新 `created_at`**（重评即新发布）、`is_hidden` 重置 0；一人一菜一评不变；不限次数 | 仅 1 个端点 + 端上「修改评价」入口（`ReviewComposer` 预填）；评分聚合重算一次；**聚合口径不改** | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |
+| 11 | 低样本均分失真 | **建议采纳**：`ratingCount < 3` 不展示均分，显示「暂无评分 · N 条评价」（大众点评「达 10 条才计算星级」的思路） | 端上按 `ratingCount` 分支，后端不改 | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |

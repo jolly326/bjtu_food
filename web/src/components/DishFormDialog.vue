@@ -68,7 +68,6 @@ const form = ref({
   stallValue: '' as string | number,
   image: '',
   description: '',
-  alias: '',
   status: 'active' as 'active' | 'inactive',
   /** 描述四维（§7.28）：单选维（荤素 / 冷热）存机器值；多值维（主料 / 口味）存 CSV 机器值 */
   dietType: '',
@@ -202,7 +201,6 @@ watch(
           stallValue: Number(d.stall_id ?? 0) || d.stallName || '',
           image: d.image || '',
           description: d.description || '',
-          alias: d.alias || '',
           status: d.status as 'active' | 'inactive',
           dietType: d.dietType || '',
           ingredients: d.ingredients || '',
@@ -219,7 +217,7 @@ watch(
         name: '', price: 0, originalPrice: 0,
         canteenValue: canteenIdOfStall(presetStall),
         stallValue: presetStall,
-        image: '', description: '', alias: '', status: 'active',
+        image: '', description: '', status: 'active',
         dietType: '', ingredients: '', flavorTags: '', serveTemp: '',
         mealType: '',
       }
@@ -317,8 +315,6 @@ async function submit() {
     ...ownershipPayload(),
     image: form.value.image,
     description: form.value.description,
-    // 搜索别名：后端 DishAdminReq.alias（逗号分隔，trim 后总长 ≤255）。显式传串（含空串=清空别名）
-    alias: form.value.alias.trim(),
     status: form.value.status,
     // 描述四维（§7.28）：单选维传机器值 / 空串；多值维传 CSV（空串 = 清空该维）
     dietType: form.value.dietType,
@@ -504,13 +500,6 @@ async function submit() {
       <div class="field"><label>描述</label>
         <textarea v-model="form.description" rows="2" placeholder="菜品描述"></textarea>
           <p v-if="formErrors.description" class="field-error">{{ formErrors.description }}</p>
-      </div>
-
-      <div class="df-row">
-        <div class="field flex-1"><label>搜索别名（选填，逗号分隔）</label>
-          <input v-model="form.alias" placeholder="如：麻小,小龙虾" />
-          <p class="field-hint">学生搜索这些词也能找到本菜品</p>
-        </div>
       </div>
 
       <div class="field"><label>图片 <span class="required">*</span></label>

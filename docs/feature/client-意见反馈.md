@@ -31,7 +31,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/feedback` | 🔓 公开 | 提交反馈（三类共用） |
-| GET | `/canteens?include=stalls` | 🔓 公开 | 食堂含档口树，供「推荐菜品」的位置两级联动（端上只读食堂与档口的 `id` / `name`）。**2026-09-21 决议：原 `GET /canteens/all` 已删除并合入 `GET /canteens`，端上仅改调用方式**（`get('/canteens', { include: 'stalls' })`，映射逻辑不变） |
+| ~~`GET /canteens`（含 `?include=stalls`）~~ | — | **端点已于 2026-09-22 整体删除**（随食堂 / 价格筛选全量下线，见 [client-首页菜品浏览](./client-首页菜品浏览.md) K4）——「推荐菜品」的「位置」字段因此失去字典数据源，**其最终形态后续单独修订本文档**（本次不改表单结构与提交门禁） |
 
 ## 字段
 
@@ -66,16 +66,10 @@
 |---|---|---|
 | `data` | null | 无载荷；成功即 `code=200` |
 
-### 响应 · `GET /canteens?include=stalls`（`List<CanteenWithStallsVO>`）
+### 响应 · ~~`GET /canteens?include=stalls`（`List<CanteenWithStallsVO>`）~~ **已随端点删除作废（2026-09-22）**
 
-| 字段名 | 类型 | 中文解释 |
-|---|---|---|
-| `id` | number | 食堂 ID（**端上位置选择器消费**） |
-| `name` | string | 食堂名称（**端上消费**） |
-| `stalls` | object[] | 下属**档口列表**；每项仅 `id`、`name`（端上只读 `name` 做二级联动） |
-
-> **已删除出参（2026-09-21 决议）**：食堂层 `location` / `description` / `images`（全端零消费，端上不透传）；档口层 `location` / `floor` / `windowNo` / `description` / `images` / `avgRating`（端上只读 `id` / `name`）→ 一并收敛，并连带删除 `CanteenServiceImpl.listWithStalls()` 的 `batchAvgRating` 批查（白算）。
-> ⚠️ **代码同步状态**：字段仍在 `CanteenWithStallsVO` / `StallDetailVO` 中，随契约变更落地。
+> 该端点的历史出参（食堂 `id` / `name` + 档口树 `stalls[].id` / `name`）**随端点整体删除一并退役**（先按 2026-09-21 决议收敛掉 `location` / `description` / `images` / `floor` / `windowNo` / `avgRating` 等零消费出参，再由 2026-09-22 K4 删除端点本体）。
+> **「推荐菜品」的「位置」字段**因此失去字典数据源——**其最终形态（如食堂 / 档口改自由文本）后续单独修订本文档**；**本次不改其表单结构与提交门禁**（提交仍把结构化信息拼进 `content`，见「字段」节）。
 
 ## 数据（落库）
 
@@ -83,3 +77,9 @@
 |---|---|---|
 | `user_feedback` | INSERT | `user_id`（游客 null）、`type`、`sub`、`content`、`images`、`related_type`、`related_id`、`status='pending'` |
 | `notification` | 管理员处理后异步 INSERT | 已认证提交人收 `feedback_handle` 回执；游客不投递（提交页文案已明示「无法单独通知你」） |
+
+## 与当前代码的差异
+
+**待办一项**：`GET /canteens`（含 `?include=stalls`）端点已于 2026-09-22 整体删除，「推荐菜品」的「位置」字段因此失去数据源——**其改造（表单结构与提交门禁）后续单独修订本文档**，本次仅登记现状；除该项外，本文档其余契约已在三端落地。
+
+> 本节按 2026-09-22 定稿规则设立：**正文只写最终设计形态，与现有代码的差异一律写在本节**（含「已拍板未落地」条目）；差异清零时保留标题并写「无」。

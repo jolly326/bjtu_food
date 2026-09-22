@@ -1,67 +1,32 @@
 <template>
   <view class="page home-page">
-    <!-- ===== 常驻吸顶头部（两态结构：初始态 / 吸顶态**共用同一块**头部） =====
-         实现口径（home-page-presentation）：**固定头部 + 既有 .scroll-wrap**，
-         初始态顺序 = 标题「知行食记」→ 渐变 Banner（今日推荐）→ 通栏搜索框 → 大类标签栏 → 双列网格；
-         吸顶态 = 标题 + 完整搜索框 + 大类标签栏常驻可见，Banner 不可见。
-         ⚠️ 禁用 position: sticky（小程序基础库行为不一致），故全部定位走「固定头部 + 内部滚动」。
-         Banner 不再放滚动内容里，而是落在头部内（标题行与搜索行之间），由滚动量驱动折叠收起 ——
-         几何上等价于「Banner 随手势滚出」（推导见脚本区 BANNER_* 段注释）。 -->
-    <view class="home-top">
-      <!-- 头部：标题「知行食记」+ 通栏搜索框（内含右侧「筛选」）+ 大类标签栏，三行**恒定吸顶不位移**。
-           Banner（默认 slot 注入）为**绝对定位图层**，垫在头部行背后：随内容 1:1 上滑，
-           下缘抵达头部底缘后定格（home-scroll-interaction；观感同详情页顶部大图）。 -->
-      <AppHeader
-        variant="home"
-        title="知行食记"
-        search-placeholder="搜索菜品、食堂、套餐"
-        :filter-label="filterButtonLabel"
-        :filter-open="filterOpen"
-        :search-shift="stickyShift"
-        @search="goToSearch"
-        @filter="toggleFilterPanel"
-      >
-        <!-- Banner 图层 = **纯图片**（或无图时的占位块），无任何文案层（2026-09-21 定稿：那个位置就是一张图）。
-             背景图用 `<image>` **单独加载**；未配置 / 加载失败 → 占位块（灰底 + 餐具图标，与菜品占位同款）。 -->
-        <view class="home-banner-layer" :style="{ height: bannerLayerH, transform: bannerShift }">
-          <image
-            v-if="bannerBgSrc !== '' && !bannerBgFailed"
-            class="banner-bg"
-            :src="bannerBgSrc"
-            mode="aspectFill"
-            @error="bannerBgFailed = true"
-          />
-          <!-- 无图 → 占位卡片（与首页菜品卡预览区占位同款：白卡 + 圆角 + 投影 + 餐具图标） -->
-          <view v-else class="banner-ph">
-            <view class="banner-ph-card">
-              <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
-            </view>
-          </view>
-        </view>
-      </AppHeader>
+    <!-- ===== 固定标题带（跨页统一，2026-09-22 定稿：docs/ui/client-首页菜品浏览.md §1.0） =====
+         · `position: fixed` **永久固定在页面左上角**，不随页面滚动移动、不随 Banner 滚出；
+         · 与微信右上角**原生胶囊同一条水平线**（行高 = 胶囊高、垂直中心对齐），右侧按胶囊避让；
+         · 文案**按页配置**（首页 = 「知行食记」，搜索页等各填自己的），位置 / 高度 / 对齐 / 配色跨页一致；
+         · 纯文本、无点击行为；层叠高于 Banner 与吸顶容器 → 任意滚动位置都可读。 -->
+    <AppTitleBand title="知行食记" :veil-opacity="titleVeilAlpha" />
 
-      <!-- 横向大类标签栏：与搜索卡同属**吸顶组**——初始态位于 Banner 下方，随页面刚体上移，
-           跨锁定线后锁定在标题行之下（位移与搜索卡同源下发）；
-           标签文案与顺序完全来自字典响应（GET /dishes/meal-types），字典不可用时降级为仅「全部」。 -->
-      <view class="home-sticky-group" :style="{ transform: stickyShift }">
-        <HomeMealTabs
-          class="home-tabs"
-          :items="dishStore.mealTypeList"
-          :active-key="dishStore.filterMealType"
-          @select="onMealTypeSelect"
-        />
-      </view>
+    <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏，2026-09-22 定稿） =====
+         · 固定层，`top` = 固定标题带下沿（锁定位置**不得压到标题带**）；
+         · 初始态整体下移一个 Banner 高（坐在 Banner 之下）；滚动满「Banner 高 − 标题带高」后归零 → 锁定；
+         · 内部间距由本容器 padding 承担（§1.2 间距表）：上 padding = Banner→搜索区，下 padding = 标签栏→网格；
+         · 背后**无任何图片**（Banner 是页面正常流首块，滚出即消失、不定格为背景）。
+         ⚠️ 禁用 position: sticky（小程序基础库行为不一致），故走「固定层 + 内部滚动」。 -->
+    <view class="home-sticky" :class="{ 'is-surface': stickySurfaceOn }" :style="stickyStyle">
+      <!-- 搜索行：与搜索页同源（`SearchBar`，2026-09-22 抽公共组件）
+           —— 左搜索胶囊 + 右独立「搜索」按钮，均为进搜索页的入口 -->
+      <SearchBar mode="entry" @tap="goToSearch" />
 
-      <!-- 筛选面板：白底、锚定「筛选」按钮正下方，含「全部」+ 各食堂 + 价格区间；
-           与大类标签栏**可叠加**（三维度互不清除）；点击面板外关闭。 -->
-      <HomeFilterPanel
-        v-if="filterOpen"
-        :canteens="dishStore.canteenList"
-        :selected-canteen-id="selectedCanteenId"
-        :price-range="dishStore.filterPrice"
-        @close="closeFilterPanel"
-        @canteen-select="onCanteenSelect"
-        @price-select="onPriceSelect"
+      <!-- 横向大类标签栏：与搜索区同属吸顶容器；标签集合与文案完全来自字典（GET /dishes/meal-types）。
+           下 padding 归零（内联，优先级确定）→「标签栏→网格」间距的唯一来源 = 容器 padding-bottom（§1.2），
+           避免与组件自带下 padding 叠加成 32rpx。 -->
+      <HomeMealTabs
+        class="home-tabs"
+        :style="{ paddingBottom: '0' }"
+        :items="dishStore.mealTypeList"
+        :active-key="dishStore.filterMealType"
+        @select="onMealTypeSelect"
       />
     </view>
 
@@ -72,155 +37,229 @@
       :scroll-with-animation="false"
       refresher-enabled
       :refresher-triggered="refresherTriggered"
+      :lower-threshold="LOWER_THRESHOLD_PX"
       @scroll="onScroll"
       @refresherrefresh="onRefresh"
       @scrolltolower="onScrollToLower"
     >
-      <!-- 顶部补偿：与 Banner 折叠量等量（内联），抵消「头部变矮」带来的额外位移 → 两态切换无跳变 -->
-      <view class="home-content" :style="{ paddingTop: contentPadTop }">
-        <!-- 瀑布流：按所选食堂 / 大类 / 价格过滤；未选 = 全部（2026-09-21 走查：末尾贡献卡片已删除） -->
+      <view class="home-scroll-body">
+        <!-- ===== Banner：页面正常流首块（自 y=0 起、含状态栏背后），整块 16:10 =====
+             · 图片清单来自 `GET /banners`（服务端已按 sort_order 升序、只返回启用项）；
+               端上按返回顺序渲染、不排序、不写死 URL 与张数；
+             · 多张自动轮播 + 指示点；单张不轮播不显示指示点；
+             · 空数组 / 请求失败 / 单张失败 →「灰底 + 菜品 icon」空态（与菜品卡图片占位同款，无文字）；
+             · 块高恒定按 BANNER_ASPECT 定高，加载态不改变块高（否则吸顶阈值漂移）；
+             · 固定标题带叠在其上（Banner 滚动时从标题带下方滑过）。 -->
+        <view class="home-banner" :style="{ height: bannerHeightStyle }">
+          <swiper
+            v-if="bannerList.length > 0"
+            class="banner-swiper"
+            :autoplay="bannerList.length > 1"
+            :interval="BANNER_AUTOPLAY_INTERVAL"
+            circular
+            :indicator-dots="bannerList.length > 1"
+            indicator-color="rgba(255, 255, 255, 0.45)"
+            indicator-active-color="#FFFFFF"
+          >
+            <swiper-item v-for="b in bannerList" :key="b.id">
+              <image
+                v-if="b.imageUrl && !failedBannerIds.includes(b.id)"
+                class="banner-img"
+                :src="b.imageUrl"
+                mode="aspectFill"
+                @error="onBannerError(b.id)"
+              />
+              <view v-else class="banner-ph">
+                <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+              </view>
+            </swiper-item>
+          </swiper>
+          <view v-else class="banner-ph">
+            <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+          </view>
+        </view>
+
+        <!-- 吸顶容器在内容流中的站位（高 = 固定容器实测高，含其上下 padding）：
+             保证初始态容器恰好坐在 Banner 之下、且网格从容器下沿起排 -->
+        <view class="home-sticky-hold" :style="{ height: stickyHoldH }"></view>
+
+        <!-- 双列瀑布流（当前大类下的热度流，未选 = 全部） -->
         <HomeContent @retry="retryWaterfall" />
       </view>
     </scroll-view>
 
-    <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页 / 我的 两主区切换（仅主根页显示） -->
     <TabBar />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { onLoad, onShow, onReady, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
+import * as bannerApi from '@/api/banner'
+import type { Banner } from '@/types/banner'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
-import { getNavBarHeight } from '@/utils/navMetrics'
+import { useNavMetrics } from '@/utils/useNavMetrics'
 import IconSvg from '@/components/IconSvg.vue'
+import AppTitleBand from '@/components/AppTitleBand.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import { COLOR_MAP } from '@/theme/tokens'
-import AppHeader from '@/components/AppHeader.vue'
 import HomeMealTabs from './HomeMealTabs.vue'
-import HomeFilterPanel from './HomeFilterPanel.vue'
 import HomeContent from './HomeContent.vue'
 import TabBar from '@/components/TabBar.vue'
-import type { FilterTab } from '@/types/filter-tab'
 
 const dishStore = useDishStore()
-
 const refresherTriggered = ref(false)
 
-/* ===== 两态结构：Banner 折叠（初始态 / 吸顶态） =====
-   spec 要求初始态顺序 = 标题（**叠加于 Banner 背景之上**）→ Banner → 搜索框 → 标签栏 → 网格，吸顶态 = 标题 + 完整搜索框 + 标签栏常驻、
-   Banner 不可见，且禁用 position: sticky。Banner 因此被放进常驻头部并**上移一个标题行高、垫在标题背后**，
-   由 scroll-view 滚动位移 s 驱动「折叠收起」，并把滚动内容顶部同量下移补偿：
+/** Banner 宽高比锁定 **16:10**（UI 文档 §1.1）：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
+const BANNER_ASPECT_RATIO = 10 / 16
+/** 多图自动轮播间隔（ms；仅一张时不自动轮播） */
+const BANNER_AUTOPLAY_INTERVAL = 4000
+/** 运营内容最小可视高（px）：保证「状态栏 + 标题带」之下仍有空间放主文案 / 插画 */
+const BANNER_MIN_CONTENT_PX = 120
+/**
+ * 吸顶容器未实测前的兜底高度（rpx）：上 padding 32 + 搜索行 64（= 胶囊高 32px）
+ * + 标签栏上 padding 16 + 标签行 88 + 下 padding 32 = 232rpx（与 §1.2 间距表同源）。
+ */
+const STICKY_FALLBACK_RPX = 232
+/**
+ * 触底提前量（px）：距底部还有该距离时就触发加载更多。
+ * 默认 50px 会让用户「滚到底再等」，提前量把网络时延藏进滚动过程里（无限滚动更顺）。
+ */
+const LOWER_THRESHOLD_PX = 300
 
-     · 头部内 Banner 可视高度 = H − s（H = Banner 整块高 = 标题行高 + 内容区高，夹在 [0, H]）
-     · Banner 内容 translateY(−s)，被上述视口裁掉上缘 → 与「Banner 随手势滚出」逐像素等价
-     · 滚动内容 padding-top = s → 抵消「头部变矮」多出来的位移；因「高度 + 补偿 ≡ H」，
-       任意 s 下内容区屏幕位置 = Banner 放在滚动流里时的位置 → 两态切换连续、无跳变，回滚对称还原
+/* ===== 顶部度量（跨页统一实现，2026-09-22 抽 `useNavMetrics`）=====
+   状态栏高 / 导航行高 / 胶囊高 / 胶囊避让量一律从该 composable 取——**页面不再自算**
+   （`client-page-structure`：页面 SHALL NOT 各自计算导航尺寸）。本页只消费 `titleBandPx`：
+   Banner 总高与吸顶阈值都要用它；标题带内部的居中与避让由 `AppTitleBand` 自持、搜索行高度由 `SearchBar` 自持。 */
+const { titleBandPx } = useNavMetrics()
+/** 窗口宽（px）：Banner 16:10 定高用（页面自持，与胶囊度量无关） */
+const windowWidthPx = ref(375)
 
-   为何不写 transition/动效：折叠量必须与滚动量严格 1:1 同步（B + P ≡ H）。任何缓动都会让 Banner
-   落后于手势，在过渡期露出瞬时空白带；滚动位移本身已是连续量，故本方案无 CSS 动画/过渡，
-   也就不存在需要 prefers-reduced-motion 降级的离散动效。
-   ⚠️ Banner 图层（2026-09-21 定稿，详情页大图同款观感）：**绝对定位**垫在头部行背后（z:0），
-  随滚动 1:1 上移（transform 由本段驱动）；**定格位移 s\* = 图层高 − 吸顶头部实测高**——
-  上滑至 s* 后图层底缘恰抵头部底缘，此后定格为头部背景层，仅菜品列表继续滚动。
-  头部行（标题 / 搜索卡 / 标签栏）恒定吸顶不位移。改内容区高度须同步 BANNER_CONTENT_RPX。 */
-  const BANNER_CONTENT_RPX = 284
-  /** 状态栏高（px）：与 AppHeader 同源（--status-h 同值），计入图层高 */
-  const statusBarPx = ref(20)
-  /** 标题行高（px）：与 AppHeader 的 navBarHeight 同源换算（navMetrics 真源），计入图层高 */
-  const navBarHeightPx = ref(56)
-  onMounted(() => {
-  // 与 AppHeader 同口径：兼容老基础库取 statusBarHeight，微信端按胶囊位置换算导航行高
+onMounted(() => {
   // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
   const win = (typeof wx !== 'undefined')
     // @ts-ignore
     ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
     : null
-  const sb = (win && win.statusBarHeight) || 20
-  statusBarPx.value = sb
-  // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）
-  const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  navBarHeightPx.value = getNavBarHeight(sb, mb)
-  })
-  /** Banner 图层高（px）= 状态栏高 + 标题行高 + 内容区高：与滚动位移同单位（uni.upx2px 按窗口宽折算，随设备自适应） */
-  const bannerHeightPx = computed(() => statusBarPx.value + navBarHeightPx.value + uni.upx2px(BANNER_CONTENT_RPX))
-  /** 图层高样式值 */
-  const bannerLayerH = computed(() => toPx(bannerHeightPx.value))
+  windowWidthPx.value = (win && win.windowWidth) || 375
+})
 
-  /** Banner 背景图（**单独加载**）：正式资产到位后把 URL / 本地路径填入本常量即可；
-    为空或加载失败时显示占位块（灰底 + 餐具图标，与菜品占位同款）。 */
-  const BANNER_BG_SRC = ''
-  const bannerBgFailed = ref(false)
+/**
+ * Banner 总高（px）= `max(屏宽 × 10/16, 标题带高 + 运营内容最小可视高)`。
+ * ⚠️ 兜底项**不得**再加 `statusBarPx`：`titleBandPx` 已含状态栏高，重复计会凭空多出 ≈44px
+ * → 主流机型（iPhone X 类 375×812）会从 16:10 变成 ≈1.49:1，导致**按 16:10 出的素材被裁掉两侧**。
+ * 去掉重复计后：375 宽 = max(234, 88 + 120 = 208) = **234**（正是 16:10）；仅窄屏（如 320）才由兜底生效。
+ */
+const bannerHeightPx = computed(() => Math.max(
+  Math.round(windowWidthPx.value * BANNER_ASPECT_RATIO),
+  titleBandPx.value + BANNER_MIN_CONTENT_PX,
+))
+const bannerHeightStyle = computed(() => `${bannerHeightPx.value}px`)
 
-/** 滚动位移（px，负值/回弹一律归零）——页面侧唯一滚动真源，只驱动 Banner 折叠，不参与列表分页 */
+/* ===== Banner 数据（接口下发；空 / 失败 → 灰底 + 菜品 icon 空态） ===== */
+const bannerList = ref<Banner[]>([])
+/** 单张加载失败的 banner id（该张退化为空态，其余张不受影响、轮播继续） */
+const failedBannerIds = ref<number[]>([])
+function onBannerError(id: number) {
+  if (!failedBannerIds.value.includes(id)) failedBannerIds.value = [...failedBannerIds.value, id]
+}
+async function loadBanners() {
+  try {
+    bannerList.value = await bannerApi.getBanners()
+  } catch (e) {
+    console.error('加载首页轮播图失败', e)
+    bannerList.value = []
+  }
+}
+
+/* ===== 吸顶：滚动量驱动吸顶容器位移（1:1 跟手、无过渡动画） =====
+   · 阈值 = Banner 总高 − 标题带高（§5：Banner 下缘抵达标题带下沿时锁定）；
+   · 位移 = max(阈值 − scrollTop, 0)；位移为 0 时容器锁定在标题带下沿；
+   · 容器自身 padding 承担「Banner→搜索区」「标签栏→网格」的间距，故容器顶边 = bannerH 时视觉间隙已正确。 */
 const scrollTop = ref(0)
 
-/** 吸顶头部总高（px）：onReady 实测 .home-top（标题行 + 搜索卡 + 标签栏），定格线真源 */
-const headerHpx = ref(0)
+/** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段 */
+function onScroll(e: { detail?: { scrollTop?: number } }) {
+  const raw = e?.detail?.scrollTop ?? 0
+  // 量化到整数 px + 「值未变则不写」：避免亚像素抖动触发无意义的 computed 重算与 style 下发
+  const top = raw > 0 ? Math.round(raw) : 0
+  if (top === scrollTop.value) return
+  scrollTop.value = top
+}
+
+/** 吸顶容器当前位移量（px）：夹在 [0, Banner 总高 − 标题带高]，1:1 跟手、无过渡 */
+const stickyOffsetPx = computed(() => {
+  const lockStart = Math.max(bannerHeightPx.value - titleBandPx.value, 0)
+  return Math.max(lockStart - Math.max(scrollTop.value, 0), 0)
+})
+
+/** 吸顶容器位移的整数量化值（px）：避免亚像素重绘，也减少 style 字符串抖动 */
+const stickyOffsetPxRounded = computed(() => Math.round(stickyOffsetPx.value))
+
+/* ===== 顶部两层的「表面」开关（2026-09-22）=====
+   目标：**滑动前两层真透明**（Banner 完整占满顶部、不被任何表面遮挡）；
+         **滑动后在「零内容窗口」内切成「页面底切片」**——切片与身后的页面底逐像素一致，
+         因此切换本身**不可见**，同时把滚上来的网格内容挡住。
+   窗口依据（375 宽 iPhone X 类：H_t≈88 / H_b≈234 / H_s≈116，与 UI 文档 §1.3 同源）：
+     · 容器：scrollTop = H_b − H_t ≈ 146 时锁定（此刻网格首行**恰好贴到**容器下沿，背后仍是空站位）；
+     · 标题带：scrollTop = H_b ≈ 234 时 Banner 完全滚出（内容要到 ≈262 才抵达标题带下沿）。
+   提前量 SURFACE_SWITCH_LEAD_PX 用于规避 1px 舍入造成的临界抖动（窗口内有富余，不会露出内容）。 */
+const SURFACE_SWITCH_LEAD_PX = 8
+
+/* ===== 纱式淡出（方案 C，UI 文档 §1.3）：标题带的表面不做硬切，改为随滚动渐显 =====
+   · 区间 [H_b − TITLE_VEIL_PX, H_b] 内，纱（= 与页面底同源的渐变切片）透明度 0 → 1 线性渐显；
+   · Banner 尾部因此「融入页面底色」；区间结束（H_b）时纱已 100%，而网格要到 H_b + H_s − H_t ≈ 262 才抵达标题带下沿
+     → 有 ≈28px 富余，绝不会出现「内容透出半透明纱」；
+   · 进度**只由 scrollTop 推导**（不用计时器 / CSS 时长动画）→ 猛滑时纱的进度与位置严格同步，不会穿帮；
+   · 反向滚动自动对称：纱按 scrollTop 反算，Banner 重新滚入时尾部由「已柔化」逐步回到「完整」。 */
+const TITLE_VEIL_PX = 60
+/** 纱的透明度（0..1）：线性映射，超出区间自动夹紧 */
+const titleVeilAlpha = computed(() => {
+  const start = bannerHeightPx.value - TITLE_VEIL_PX
+  const p = (scrollTop.value - start) / TITLE_VEIL_PX
+  return p <= 0 ? 0 : (p >= 1 ? 1 : Math.round(p * 1000) / 1000)
+})
+/** 吸顶容器是否改为「页面底切片」表面（即将/已经锁定，背后即将有网格内容进入） */
+const stickySurfaceOn = computed(() => {
+  const lockStart = Math.max(bannerHeightPx.value - titleBandPx.value, 0)
+  return scrollTop.value >= lockStart - SURFACE_SWITCH_LEAD_PX
+})
+const stickyStyle = computed(() => {
+  const offset = stickyOffsetPxRounded.value
+  return {
+    // `top` = 固定标题带下沿（锁定位置，§1.2）；缺它 → fixed 会落到 `top: auto` 的静态位置（屏幕顶），
+    // 搜索条会「飘出顶部」——故本 computed 的每个字段都是**必需**的，改动前必须确认常量来源存在。
+    top: `${titleBandPx.value}px`,
+    // translate3d：① 整数量化避免亚像素重绘；② 抬升为合成层，滚动时容器只做合成、不重绘（低端机更跟手）
+    transform: `translate3d(0, ${offset}px, 0)`,
+    // 背景切片对齐（容器是不透明的吸顶面，须与静止的页面顶部渐变逐像素对齐，否则出现色带接缝）：
+    // 传入「容器顶边在页面坐标中的位置」，CSS 用它把同一段渐变位移到正确切片。
+    '--home-band-top': `${titleBandPx.value + offset}px`,
+    // 注：`--capsule-h` 已不再由本容器下发（2026-09-22 组件化）——搜索行高度由 `SearchBar`
+    // 内部按 `useNavMetrics` 的真实胶囊高内联设定，避免「页面算一份、组件算一份」两处漂移。
+  }
+})
+
+/** 吸顶容器实测高（px）：onReady 实测 .home-sticky（含其上下 padding），作为内容流站位高 */
+const stickyHpx = ref(0)
 onReady(() => {
   uni.createSelectorQuery()
-    .select('.home-top')
+    .select('.home-sticky')
     .boundingClientRect((rect: { height?: number } | null) => {
-      if (rect && rect.height) headerHpx.value = rect.height
+      if (rect && rect.height) stickyHpx.value = rect.height
     })
     .exec()
 })
+/** 内容流站位高：未实测前用 232rpx 兜底（与 §1.2 间距表同源） */
+const stickyHoldH = computed(() => `${stickyHpx.value || uni.upx2px(STICKY_FALLBACK_RPX)}px`)
 
-/** 标题带高（px）= 状态栏 + 标题行：吸顶组（搜索卡 + 标签栏）的锁定位置真源 */
-const titleBandPx = computed(() => statusBarPx.value + navBarHeightPx.value)
-/** 定格位移（px）= 图层高 − 头部实测高：上滑至此，图层底缘恰抵头部底缘，此后定格为头部背景层。
-    headerH 未实测前用估算值（标题带 + 搜索卡/标签栏 ≈ 176rpx）兜底 */
-const bannerStopPx = computed(() =>
-  Math.max(bannerHeightPx.value - (headerHpx.value || titleBandPx.value + uni.upx2px(176)), 0),
-)
-/** 上移量（px）：夹在 [0, 定格位移] —— 越过定格线后 Banner 保持定格，仅菜品列表继续滚动 */
-const bannerCollapsedPx = computed(() =>
-  Math.min(Math.max(scrollTop.value, 0), bannerStopPx.value),
-)
-
-/** px → 样式值（2 位小数）：避免浮点长尾进入内联样式，并让重复值不触发无谓的 setData */
-function toPx(value: number): string {
-  return `${Math.round(value * 100) / 100}px`
-}
-
-/** Banner 图层上移量：随滚动 1:1 刚体上移（详情页大图观感），至定格线停止 */
-const bannerShift = computed(() => `translateY(${toPx(-bannerCollapsedPx.value)})`)
-
-/** 吸顶组锁定位移（px）= 图层高 − 标题带高：上滑至此，搜索卡 / 标签栏升到锁定位置（标题行之下） */
-const stickyLockPx = computed(() => Math.max(bannerHeightPx.value - titleBandPx.value, 0))
-/**
- * 吸顶组（搜索卡 + 标签栏）位移：**初始态整组位于 Banner 下方**（下移 stickyLockPx），
- * 随页面刚体上移（与 Banner、列表同步 1:1），跨锁定线后归零并锁定在标题行之下 ——
- * 即文档 §5「初始态四者属页面正常流、滑动时整体刚体同步上移、跨阈值后组合成粘性吸顶容器」。
- */
-const stickyShift = computed(() => toPx(Math.max(stickyLockPx.value - Math.max(scrollTop.value, 0), 0)))
-/** 滚动内容顶部留白：= 锁定位移 —— 初始态网格恰从标签栏底缘起排，上滑后随内容 1:1 同步上移 */
-const contentPadTop = computed(() => toPx(stickyLockPx.value))
-
-/** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段（MP-08 口径，替代裸 any） */
-function onScroll(e: { detail?: { scrollTop?: number } }) {
-  const top = e?.detail?.scrollTop ?? 0
-  scrollTop.value = top > 0 ? top : 0
-}
-
-/* ===== 下拉刷新回顶（change home-scroll-interaction；取代原 D6「筛选变更回顶」） =====
-   定稿交互（功能文档 §5 边界 4）：下拉刷新强制重置滚动位置到顶部，回到【初始态，Banner 完整展示】。
-   相应地，筛选变更（大类 / 食堂 / 价格）**不再回顶**——仅刷新列表，当前吸顶 / 初始态保持不变
-   （原「筛选变更一律回顶」约定随本 change 废止）。
-
-   实现：scroll-view 没有对外 scrollTo 方法，只能用受控 `scroll-top` 属性驱动，且该属性「值不变即不滚动」，
-   故回顶是一枚脉冲：0 → 1 →（下一帧）0。用常量 1 而非「当前滚动位置」是有意的——
-   结果集变短时 scroll-view 会自行把位置夹到顶部且**不一定派发 @scroll**，此时页面侧 scrollTop 可能仍是旧值，
-   用它当跳板反而会把列表滚下去。
-
-   折叠量则**立即**归 0（不依赖 @scroll 回调）：同样因为上述「不派发回调」的场景，
-   若只靠回调，短列表下头部会卡在折叠态；立即归零让「头部展开」与「内容回顶」两个信号必定同时生效。
-   代价仅是一帧内头部已展开而内容尚未到位（无缓动、无闪烁，人眼不可辨）。 */
+/* ===== 下拉刷新：强制回顶（scroll-view 无 scrollTo，用受控 scroll-top 脉冲） =====
+   回到初始静止态（Banner 完整展示）；固定标题带始终可见、不受刷新影响。 */
 const scrollTopProp = ref(0)
-
-/** 下拉刷新回顶：滚动位置归零 + 折叠量立即归 0 → 回到初始态（仅下拉刷新一个消费方） */
 function resetScrollToTop() {
   scrollTop.value = 0
   scrollTopProp.value = 1
@@ -229,140 +268,46 @@ function resetScrollToTop() {
   })
 }
 
-/** 筛选面板展开态（页面侧唯一真源；面板本身受控，不自行持态） */
-const filterOpen = ref(false)
-
-/**
- * 选择价格区间：写回 store 并刷新当前筛选流（区间单位为元，透传 api 层统一转分，无新契约）。
- * home-scroll-interaction：筛选变更**不重置滚动位置**——保持当前吸顶 / 初始态，仅换结果集。
- */
-async function onPriceSelect(range: { min?: number; max?: number }) {
-  await dishStore.setHomePrice(range)
-}
-
-/**
- * 切换菜品大类标签（任务 3.3）：store 内重置分页并刷新当前筛选流；
- * 食堂 / 价格两个维度原样保留（叠加生效，互不清除）。
- * home-scroll-interaction：点标签仅刷新列表，**不重置滚动位置**（吸顶态保持吸顶）。
- */
+/** 切换大类：写回 store（内部重置分页并刷新列表）；**不重置滚动位置**，保持当前吸顶 / 初始态 */
 async function onMealTypeSelect(key: string | null) {
   await dishStore.setHomeMealType(key)
 }
 
-/**
- * 当前选中食堂 id（null = 全部）——MP-03：**由 store 的 filterTab 派生**，页面不再自持一份。
- * 此前页面 selectedCanteenId 与 store filterTab.canteenId 是两个真源：
- * 下拉选项选中态读前者、列表请求读后者，二者在「清除筛选 / 首屏 ensureBoot」等路径上会不一致
- * （如 filterTab 已被换掉而页面 ref 未同步 → 胶囊回显与内容不匹配）。
- */
-const selectedCanteenId = computed<number | null>(() => {
-  const tab = dishStore.filterTab
-  return tab && tab.type === 'canteen' && tab.canteenId != null ? tab.canteenId : null
-})
-
-/** 按 id 取食堂名（选中态派生后，构造 canteen tab 时不能再读「尚未更新的派生值」） */
-function canteenNameOf(id: number | null): string {
-  if (id == null) return ''
-  return dishStore.canteenList.find((c) => c.id === id)?.name || ''
-}
-const selectedCanteenName = computed(() => canteenNameOf(selectedCanteenId.value))
-
-/**
- * 「筛选」按钮文案：已选食堂时回显食堂名（省略号只作用于该按钮），未选时为「筛选」。
- * 见 home-filter spec「长食堂名完整显示」：按钮文案不得挤压搜索框占位文案。
- */
-const filterButtonLabel = computed(() => selectedCanteenName.value || '筛选')
-
-function canteenTab(id: number, name: string): FilterTab {
-  return { key: `canteen-${id}`, label: name, type: 'canteen', canteenId: id }
-}
-
-/** 首拉：食品列表就绪后默认加载「全部」（热度流）；返回 Promise 供「首屏渲染后」时机串接 */
-let bootstrapped = false
-async function ensureBoot() {
-  if (bootstrapped) return
-  bootstrapped = true
-  await dishStore.fetchFilterDishes(dishStore.defaultFilterTab(), true)
-}
-watch(
-  () => dishStore.canteenList.length,
-  () => ensureBoot(),
-  { immediate: true },
-)
-
-/**
- * 食堂筛选：只按该食堂刷新筛选流（面板显隐由页面 filterOpen 受控，面板内选择即关闭）。
- * MP-03：选中态不再写页面本地 ref —— fetchFilterDishes 会同步写入 filterTab，
- * 上面的 selectedCanteenId 由它派生，按钮回显与列表条件天然同源。
- */
-function onCanteenSelect(id: number | null) {
-  const tab = id == null ? dishStore.defaultFilterTab() : canteenTab(id, canteenNameOf(id) || '食堂')
-  dishStore.fetchFilterDishes(tab, true) // 筛选变更不回顶（home-scroll-interaction）
-}
-
-/** 展开 / 收起筛选面板；展开时若食堂字典尚未就绪则先补拉（spec：面板展开前补拉） */
-function toggleFilterPanel() {
-  filterOpen.value = !filterOpen.value
-  if (filterOpen.value && dishStore.canteenList.length === 0) {
-    void dishStore.fetchCanteens()
-  }
-}
-
-function closeFilterPanel() {
-  filterOpen.value = false
-}
-
+/** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A-03） */
 function goToSearch() {
   uni.navigateTo({ url: PATH.find })
 }
 
-/** 重试当前筛选流：下拉刷新复用同一条重拉路径（食堂列表缺失时先补拉）。
- *  ⚠️ 本路径**不回顶**（D6 例外）：下拉刷新 / 失败重试属于「同条件重拉」，
- *  用户此刻正停在顶部下拉，若再回顶会打断手势；回顶只发生在筛选条件变更时。 */
+/** 列表失败重试：走与首屏同一条重拉路径 */
 async function retryWaterfall() {
-  if (dishStore.canteenList.length === 0) {
-    await dishStore.fetchCanteens()
-  }
-  // 重试当前生效的筛选流：filterTab 是唯一真源，缺失时退回默认热度流（MP-03）
-  const tab = dishStore.filterTab ?? dishStore.defaultFilterTab()
-  dishStore.fetchFilterDishes(tab, true)
+  await dishStore.fetchHomeDishes(true)
 }
 
 function onScrollToLower() {
-  dishStore.loadMoreFilterDishes()
+  dishStore.loadMoreHomeDishes()
 }
 
-/** 下拉刷新：刷新数据的同时强制回顶（home-scroll-interaction 边界 4）→ 回到初始态、Banner 完整展示 */
+/** 下拉刷新：Banner 与列表并行重拉 + 强制回顶 */
 async function onRefresh() {
   refresherTriggered.value = true
   resetScrollToTop()
-  await retryWaterfall()
+  await Promise.all([loadBanners(), dishStore.fetchHomeDishes(true)])
   refresherTriggered.value = false
 }
 
-function loadData() {
-  // 首页仅加载食品列表；确保食堂列表就绪（筛选面板依赖 canteenList）
-  if (dishStore.canteenList.length === 0) dishStore.fetchCanteens()
-  // 大类字典：**不 await**（失败降级为仅「全部」），保证首屏列表不被字典阻塞（任务 3.1）
-  void dishStore.fetchMealTypes()
-}
-
 onLoad(() => {
-  loadData()
+  // Banner 与列表**并行**发起：Banner 失败不阻塞首屏网格
+  void loadBanners()
+  // 大类字典：不 await（失败降级为仅「全部」），保证首屏列表不被字典阻塞
+  void dishStore.fetchMealTypes()
+  void dishStore.fetchHomeDishes(true)
 })
 
 onShow(() => {
-  // 锚定底部菜单栏：首页始终显示并高亮（页面已就绪，最可靠时机）
   showTab('home')
-  // 返回首页清理分享态，避免无限循环（uni 分享机制硬限制）
   clearShareState()
-  // 兜底：若首屏因遮挡/竞态未拉起，再次确保
-  if (!bootstrapped) ensureBoot()
   // 大类字典兜底重试：仅「从未成功」时才发请求（store 内自带守卫），失败不阻塞首屏
   void dishStore.fetchMealTypes()
-  // 食堂字典最小失效机制：进程常驻期间回首页按节流窗口后台重拉（失败保留旧列表），
-  // 保证管理端改食堂/档口名后最终可见（spec §7.7 附加核查）；内部自带节流与去重，onShow 高频触发安全
-  void dishStore.refreshCanteensIfStale()
 })
 
 onShareAppMessage(() => {
@@ -371,98 +316,95 @@ onShareAppMessage(() => {
 </script>
 
 <style scoped lang="scss">
-/* 页面：顶部「浅米白 → 淡橙」渐变（token: --bg-page-grad-*，2026-09-21 §7.34 G5），
-   渐变仅覆盖首屏高度，其余回落页面底色（--bg-page）。 */
+/* 页面：顶部「浅米白 → 淡橙」渐变（token: --bg-page-grad-*），仅覆盖首屏高度，其余回落页面底色 */
 .home-page {
+  /* 页面底渐变 = 顶部两层「隐形表面」的唯一真源：切片复用同一变量，保证拼接 / 切换逐像素一致 */
+  --home-page-grad: linear-gradient(180deg, var(--bg-page-grad-from) 0%, var(--bg-page-grad-to) 420rpx, var(--bg-page) 720rpx);
   display: flex;
   flex-direction: column;
   height: 100vh;
   background-color: var(--bg-page);
-  background-image: linear-gradient(180deg, var(--bg-page-grad-from) 0%, var(--bg-page-grad-to) 420rpx, var(--bg-page) 720rpx);
+  background-image: var(--home-page-grad);
   position: relative;
   overflow: hidden;
 }
-/* 常驻头部容器：承载 Header（标题 + 搜索框）与「筛选」面板。
-   z-index 必须高于下方大类标签栏，面板（绝对定位挂在本容器下）才能盖住标签栏。 */
-.home-top {
-  position: relative;
-  z-index: 30;
+
+/* 固定标题带 / 纱 / 标题样式已抽入公共组件 `components/AppTitleBand.vue`（2026-09-22 change `search-page-refresh`）——
+   首页与搜索页共用同一实现，避免两套样式漂移；纱层仍由本页按 `titleVeilAlpha` 驱动。 */
+
+/* ===== 吸顶容器（搜索区 + 标签栏）：固定层，top / transform / 背景切片由脚本内联下发 =====
+   padding 承担 §1.2 间距表里的两条**块间**纵向间距（均为 --spacing-lg）：
+     · padding-top    = Banner 下缘 → 搜索区上沿
+     · padding-bottom = 标签栏下沿 → 网格首行
+   背景：**必须不透明**——吸顶态网格要从它背后滚过（否则卡片会透出）；
+        用与页面顶栏同一段渐变 + 位移切片（--home-band-top）实现「无缝、无图片背景」的页底表面。 */
+.home-sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: var(--z-header);
+  box-sizing: border-box;
+  /* 块间距（§1.2）：块**之间**用 --spacing-lg（Banner↔吸顶块、吸顶块↔内容），块**内部**用 --spacing-sm
+     （搜索↔标签栏）——保证「块间 > 块内」「块间 > 卡片间距(--spacing-md)」，视觉上才有分组感 */
+  padding-top: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  /* 初始态：**完全透明**（容器与 Banner 从不重叠——它恒贴 Banner 下缘，
+     透明既满足「Banner 占满顶部」，也比切片更稳妥：1px 舍入也绝不盖住 Banner 末行像素） */
 }
-/* 大类标签栏：属于吸顶头部的一部分（常驻），落在渐变底色区、与白色搜索卡明度可区分；
-   z-index 低于 .home-top，使展开的筛选面板盖在标签栏之上。 */
+/* 即将 / 已经锁定：切为「页面底切片」。切片基准 --home-band-top = 容器顶边在页面坐标中的位置，
+   与身后页面底逐像素一致 → 切换不可见；此后网格从它背后滚过被干净裁切（不会透出）。 */
+.home-sticky.is-surface {
+  background-image: var(--home-page-grad);
+  background-repeat: no-repeat;
+  background-size: 100% 720rpx;
+  background-position-y: calc(-1 * var(--home-band-top, 0px));
+}
+/* 搜索行样式（搜索胶囊 / 「搜索」按钮 / 命中区扩张）已抽入公共组件 `components/SearchBar.vue`
+   （2026-09-22 change `search-page-refresh`）——首页与搜索页共用同一实现（含高度 = 本机真实胶囊高）。 */
+/* 标签栏：与搜索区的间距（块内）由组件自带 padding-top（--spacing-sm）承担（§1.2）；
+   下 padding 由模板内联归零 → 容器下 padding（--spacing-lg）成为「标签栏→网格」的唯一来源 */
 .home-tabs {
-  /* 相对定位：绘制层级高于 Banner 绝对图层（图层垫在头部行背后） */
   position: relative;
-  z-index: 20;
 }
-/* 吸顶组包裹层：承载「搜索卡 + 标签栏」的同源位移（初始态位于 Banner 下方 → 随页面刚体上移 → 锁定） */
-.home-sticky-group {
-  position: relative;
-  z-index: 20;
-}
+
 .scroll-wrap {
   flex: 1;
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
-  /* 预留底部菜单栏高度，避免内容被 TabBar 遮挡；不再叠加 spacing-lg（否则最后卡片/触底加载区会悬空在 TabBar 上方，与 dynamic 页口径统一为 tabbar-height + env） */
+  /* 预留底部菜单栏高度，避免内容被 TabBar 遮挡 */
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
 }
-.home-content {
+.home-scroll-body {
   padding: 0;
-  /* 顶部留白（padding-top）= 定格位移（脚本常量内联）：初始态网格恰从 Banner 底缘起排，
-     上滑后随内容 1:1 同步上移（home-scroll-interaction：详情页大图同款观感） */
 }
-/* ===== Banner 图层（静态运营位；绝对定位垫在头部行背后，随滚动 1:1 刚体上移） =====
-   · 图层：absolute 顶到屏幕最顶（.header-wrap 定位上下文的盒顶），高 = 状态栏 + 标题行 + 284rpx（脚本同源）；
-     transform 位移由脚本内联（夹在 [0, 定格位移]），下缘抵达头部底缘（.home-top 盒底）后定格为头部背景层；
-   · 头部行（标题 / 搜索卡 / 标签栏）position:relative 且后于图层绘制 → 恒在图层之上；
-   · **纯图片 / 占位块，无文案层**（2026-09-21 定稿：那个位置就是一张图）。 */
-.home-banner-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 0;
+
+/* ===== Banner（正常流首块；整块 16:10，自 y=0 含状态栏背后） =====
+   图片铺满（aspectFill）；无图 / 失败 → 灰底 + 菜品 icon 空态（与菜品卡图片占位同款，无文字）。 */
+.home-banner {
+  position: relative;
+  width: 100%;
   overflow: hidden;
-  /* 无实心 / 渐变底：有图时铺图，无图时由内部**占位卡片**承担表面（2026-09-21 走查） */
-  background: transparent;
+  background: var(--bg-soft);
 }
-/* 背景图层：绝对定位铺满（单独加载，非组件手绘） */
-.banner-bg {
-  position: absolute;
-  left: 0;
-  top: 0;
+.banner-swiper {
   width: 100%;
   height: 100%;
 }
-/* 占位块 = **占位卡片**：与首页菜品卡「预览图区域占位」同款表面语言
-   （白卡 --bg-card + 卡片圆角 --radius-card + 柔和投影 --shadow-card），卡内居中餐具图标；
-   无说明文字（2026-09-21 走查：那个位置就是一张图 / 一张占位卡）。 */
+.banner-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 .banner-ph {
-  position: absolute;
-  left: 0;
-  top: 0;
   width: 100%;
   height: 100%;
-  box-sizing: border-box;
-  /* 卡片内缩：与页面级 gutter 同轴（搜索行 / 菜品网格同为 --spacing-md） */
-  padding: var(--spacing-sm) var(--spacing-md);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.banner-ph-card {
+/* 吸顶容器在内容流中的站位（高由脚本内联下发，= 容器实测高） */
+.home-sticky-hold {
   width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
 }
-/* 注：Banner 图层与吸顶组的位移均为「滚动位置驱动」的几何跟随（非装饰性动画），
-   故不对 prefers-reduced-motion 做降级——禁用位移会让头部与滚动内容脱节。 */
 </style>

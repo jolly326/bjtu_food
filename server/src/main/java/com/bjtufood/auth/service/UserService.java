@@ -41,7 +41,7 @@ public interface UserService {
     User getByOpenid(String openid);
 
     /**
-     * 新建微信游客账号（verified=0）。
+     * 新建微信游客账号（游客态 = bind_email 为 NULL；认证态无布尔列，判据见 AuthStateUtil）。
      * <p>
      * <b>语义</b>：建号是「INSERT 占位昵称 + 按自增 id 回填最终昵称」两步写库，必须原子完成——
      * 任一步失败都不得留下昵称为占位值的账号。因此本方法声明为**独立 Bean 上的事务方法**

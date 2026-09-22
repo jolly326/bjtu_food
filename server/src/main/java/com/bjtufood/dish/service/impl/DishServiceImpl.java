@@ -8,7 +8,6 @@ import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
-import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -18,10 +17,10 @@ import com.bjtufood.dish.constant.MealTypeConst;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
+import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
-import com.bjtufood.dish.dto.DishVO;
-import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.dto.MealTypeVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
@@ -33,8 +32,6 @@ import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,11 +47,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
 
-    /** 搜索别名最大长度（与 schema.sql dish.alias VARCHAR(255) 对齐，含逗号分隔符） */
-    private static final int ALIAS_MAX_LENGTH = 255;
-
     /** view_log.target_type 值：菜品（与 ViewLog 实体注释 / HistoryServiceImpl 写入口径一致） */
     private static final String VIEW_TARGET_TYPE_DISH = "dish";
+
+    /**
+     * 猜你喜欢返回条数（2026-09-22 change search-page-refresh）。
+     * 端上不写死条数、按返回渲染；取值以「一屏 chip 数」为准（建议 6–10，先定 8）。
+     */
+    private static final int GUESS_LIKE_SIZE = 8;
 
     /**
      * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。
@@ -75,7 +75,7 @@ public class DishServiceImpl implements DishService {
     private final ViewRateLimiter viewRateLimiter;
 
     @Override
-    public IPage<DishVO> listDishes(DishQueryReq req) {
+    public IPage<DishListItemVO> listDishes(DishQueryReq req) {
         if (req == null) {
             req = new DishQueryReq();
         }
@@ -89,8 +89,9 @@ public class DishServiceImpl implements DishService {
         if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
             throw new BusinessException("菜品大类不合法：" + req.getMealType());
         }
+        // 列表出参为 DishListItemVO（8 字段）：图片只下发首图 coverImage，由 enrichCoverImage 从 imagesJson 解析
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
-                .convert(this::enrichImages);
+                .convert(this::enrichCoverImage);
     }
 
     @Override
@@ -105,7 +106,7 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public DishVO getDishDetail(Long id) {
+    public DishDetailVO getDishDetail(Long id) {
         DishDetailVO vo = dishMapper.selectDishDetail(id);
         if (vo == null) {
             throw new BusinessException("菜品不存在");
@@ -124,10 +125,13 @@ public class DishServiceImpl implements DishService {
         return vo;
     }
 
+    /**
+     * 猜你喜欢（原「热搜词条」）：每次请求**随机**取在售菜品名，故**不加缓存**
+     * （响应缓存会让「每次随机」退化为「全站同一份」，2026-09-22 change search-page-refresh）。
+     */
     @Override
-    @Cacheable(cacheNames = CacheConfig.CACHE_DISH_HOT_SEARCH, key = "'all'")
-    public List<HotSearchVO> hotSearch() {
-        return dishMapper.selectHotSearch();
+    public List<GuessLikeVO> guessLike() {
+        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE);
     }
 
     /**
@@ -180,7 +184,6 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void addDish(DishAdminReq req) {
         // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
         if (!StringUtils.hasText(req.getName())) {
@@ -215,7 +218,6 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void updateDish(Long id, DishAdminReq req) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
@@ -238,25 +240,15 @@ public class DishServiceImpl implements DishService {
         // 契约约定：null/0 表示清空可空的原价（applyReq 已把 0 归一为 null 并写回实体）；
         // updateById 默认 NOT_NULL 策略不落 null，需显式置空
         boolean clearOriginalPrice = dish.getOriginalPrice() == null;
-        // alias 契约与原价不同：null=不修改（保护「仅传 status 的行内部分更新」不误清别名）；
-        // 传了字段（含空串/纯空白）但规范化后为空 = 清空别名，updateById 不落 null，需显式置空。
-        boolean clearAlias = req.getAlias() != null
-                && !StringUtils.hasText(normalizeAlias(req.getAlias()));
-        if (clearOriginalPrice || clearAlias) {
+        if (clearOriginalPrice) {
             LambdaUpdateWrapper<Dish> clearWrapper = new LambdaUpdateWrapper<Dish>().eq(Dish::getId, id);
-            if (clearOriginalPrice) {
-                clearWrapper.set(Dish::getOriginalPrice, null);
-            }
-            if (clearAlias) {
-                clearWrapper.set(Dish::getAlias, null);
-            }
+            clearWrapper.set(Dish::getOriginalPrice, null);
             dishMapper.update(null, clearWrapper);
         }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
     public void deleteDish(Long id) {
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
@@ -274,10 +266,8 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，
-    // evict 发生在本方法写库完成之后（@CacheEvict 默认 afterInvocation），
-    // 不会出现「先清缓存、后写库」导致旧评分被回填的窗口
-    @CacheEvict(cacheNames = {CacheConfig.CACHE_DISH_HOT_SEARCH}, allEntries = true)
+    // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
+    // （原注释关于 @CacheEvict 失效时序的说明已随 2026-09-22 缓存设施整包退役删除）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
         // 计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
@@ -394,11 +384,6 @@ public class DishServiceImpl implements DishService {
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
         dish.setName(req.getName());
-        String alias = normalizeAlias(req.getAlias());
-        if (alias != null && alias.length() > ALIAS_MAX_LENGTH) {
-            throw new BusinessException("搜索别名过长（含逗号分隔符最多 " + ALIAS_MAX_LENGTH + " 字符）");
-        }
-        dish.setAlias(alias);
 
         // 金额值域校验与归一化（P1-05）：单位仍为「分」，仅加值域约束，不改量纲。
         // price 为必填价格：非 null 时必须 > 0，0/负数 → 400。
@@ -447,34 +432,27 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 搜索别名规范化：支持中英文逗号分隔，逐项 trim、去空项、去重（保持首次出现顺序）。
-     *
-     * @param raw 原始输入（可空）
-     * @return null=未传（不修改）；空串=清空；非空=逗号分隔的规范化别名
-     */
-    private static String normalizeAlias(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        java.util.LinkedHashSet<String> parts = new java.util.LinkedHashSet<>();
-        for (String part : raw.split("[,，]")) {
-            String trimmed = part.trim();
-            if (!trimmed.isEmpty()) {
-                parts.add(trimmed);
-            }
-        }
-        return parts.isEmpty() ? "" : String.join(",", parts);
-    }
-
-    /**
      * 将数据库原始的 imagesJson 解析为绝对 URL 列表并回填到 images。
-     * DishVO 与 DishAdminVO 共用同一套转换逻辑，故统一方法名 enrichImages，以重载区分。
+     * DishDetailVO 与 DishAdminVO 共用同一套转换逻辑，故统一方法名 enrichImages，以重载区分。
      */
     private List<String> resolveImages(String imagesJson) {
         return imageUrlUtil.parseAndToAbsoluteUrls(imagesJson);
     }
 
-    private DishVO enrichImages(DishVO vo) {
+    /**
+     * 列表行封面图（2026-09-22 D 项拆分）：从 imagesJson 解析出**首图**填入 {@code coverImage}；
+     * 无图时为空串（列表不再下发图片数组，故只解析首图、不做多图回填）。
+     */
+    private DishListItemVO enrichCoverImage(DishListItemVO vo) {
+        if (vo == null) {
+            return null;
+        }
+        List<String> urls = resolveImages(vo.getImagesJson());
+        vo.setCoverImage(urls.isEmpty() ? "" : urls.get(0));
+        return vo;
+    }
+
+    private DishDetailVO enrichImages(DishDetailVO vo) {
         if (vo == null) {
             return null;
         }

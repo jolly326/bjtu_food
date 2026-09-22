@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
+import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
-import com.bjtufood.dish.dto.DishVO;
-import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import org.apache.ibatis.annotations.Param;
@@ -25,12 +25,13 @@ public interface DishMapper extends BaseMapper<Dish> {
     /**
      * 分页查询菜品（联表：dish + stall + canteen）
      * <p>
-     * 支持关键词、食堂ID、档口ID、价格区间、排序等筛选条件
+     * 出参为**列表专用** {@link DishListItemVO}（8 字段，2026-09-22 D 项拆分）；
+     * 支持 keyword / mealType 两个条件，排序恒为服务端热度倒序。
      */
-    IPage<DishVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
+    IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
 
     /**
-     * 查询菜品详情（联表）
+     * 查询菜品详情（联表）——详情专用 {@link DishDetailVO}（15 字段 + 评分分布）
      */
     DishDetailVO selectDishDetail(@Param("id") Long id);
 
@@ -49,11 +50,12 @@ public interface DishMapper extends BaseMapper<Dish> {
     IPage<DishAdminVO> selectAllForAdmin(Page<DishAdminVO> page);
 
     /**
-     * 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点）
+     * 猜你喜欢：随机抽取在售菜品名（原「热搜词条」，2026-09-22 改名 + 语义变更）
      *
-     * @return 热搜词条列表（HotSearchVO{keyword,heat}）
+     * @param limit 返回条数（由 Service 侧常量传入，避免 SQL 内硬编码）
+     * @return 猜你喜欢词条列表（GuessLikeVO{keyword}）
      */
-    List<HotSearchVO> selectHotSearch();
+    List<GuessLikeVO> selectGuessLike(@Param("limit") int limit);
 
     /**
      * 浏览量原子自增（并发安全：UPDATE ... SET view_count = view_count + 1）

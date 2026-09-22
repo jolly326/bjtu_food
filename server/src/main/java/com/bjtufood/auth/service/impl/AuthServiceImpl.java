@@ -104,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
         // 已认证的微信绑定（bind_email = 邮箱）
         User verifiedBinding = userService.getByBindEmail(email);
         if (verifiedBinding != null && !verifiedBinding.getId().equals(current.getId())) {
-            // 替换绑定：旧微信 verified=0 / bind_email=NULL / verified_at=NULL；业务数据归属迁移到当前微信
+            // 替换绑定：旧微信 bind_email=NULL（认证态判据即该列非空，清空后自然回落游客态）；业务数据归属迁移到当前微信
             releaseVerifiedBinding(verifiedBinding);
             migrateOwnership(verifiedBinding.getId(), current.getId());
         }
@@ -123,10 +123,8 @@ public class AuthServiceImpl implements AuthService {
                     .set(User::getEmail, null));
         }
 
-        // 置当前微信为已认证
-        current.setVerified(1);
+        // 置当前微信为已认证：**认证态唯一写入点 = bind_email**（无布尔列，派生判据见 AuthStateUtil）
         current.setBindEmail(email);
-        current.setVerifiedAt(DateTimeUtil.now());
         userMapper.updateById(current);
 
         return toLoginResp(current);
@@ -151,8 +149,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
-        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 password 哈希、verified 等）
-        // 重新写回，与「邮箱认证置 verified」等并发写操作产生 lost update（整行覆盖会回滚并发已提交的字段）。
+        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 bind_email、status 等）
+        // 重新写回，与「邮箱认证写 bind_email」等并发写操作产生 lost update（整行覆盖会回滚并发已提交的字段）。
         LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
         updater.eq(User::getId, userId);
         if (StringUtils.hasText(req.getNickname())) {
@@ -203,8 +201,8 @@ public class AuthServiceImpl implements AuthService {
         // · openid → NULL：解绑微信身份，允许同一微信重新建号。
         //   （user.password / user.unionid 列已于 2026-09-16 零消费退役，无需再置空。）
         // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
-        // · bind_email/verified_at → NULL、verified → 0：解绑认证关系，避免 verifyEmail 的
-        //   getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
+        // · bind_email → NULL：解绑认证关系（认证态判据即该列非空，清空即回落游客态），
+        //   避免 verifyEmail 的 getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
         // · nickname → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
         //   历史内容自然匿名化，评分聚合不破坏。
         // · status → 'deleted'：与 wechatLogin/adminLogin 的登录拦截、RequireVerifiedAspect 的
@@ -216,9 +214,7 @@ public class AuthServiceImpl implements AuthService {
                 .set(User::getAvatar, null)
                 .set(User::getEmail, null)
                 .set(User::getOpenid, null)
-                .set(User::getVerified, 0)
                 .set(User::getBindEmail, null)
-                .set(User::getVerifiedAt, null)
                 .set(User::getStatus, "deleted"));
 
         // email_verification_code 按该用户邮箱删除（表无 user_id 列，以 email 匹配）；
@@ -249,14 +245,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserInfoVO toUserInfo(User user) {
-        // 字段集恰为 6 个（2026-09-21 §7.32 / auth-api-contract）：id/username/nickname/avatar/verified/bindEmail；
-        // email/status/guestShortId 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
+        // 字段集恰为 5 个（2026-09-22 §7.32 修订 / auth-api-contract）：
+        // id/username/nickname/avatar/bindEmail；verified（bindEmail 派生冗余）、email/status/guestShortId
+        // 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        vo.setVerified(Integer.valueOf(1).equals(user.getVerified()));
         vo.setBindEmail(user.getBindEmail());
         return vo;
     }
@@ -270,16 +266,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private Map<String, Object> buildProfileMap(User user) {
+        // 字段集与 toUserInfo **严格同构**（5 字段）：verified（派生冗余）/email/status/guestShortId
+        // 均不得出参（2026-09-22 §7.32 修订，端上判据统一为 bindEmail != null）
         Map<String, Object> map = new HashMap<>();
         map.put("id", user.getId());
         map.put("username", user.getUsername());
-        map.put("email", user.getEmail());
         map.put("nickname", user.getNickname());
         map.put("avatar", imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        map.put("status", user.getStatus());
-        map.put("verified", Integer.valueOf(1).equals(user.getVerified()));
         map.put("bindEmail", user.getBindEmail());
-        map.put("guestShortId", buildGuestShortId(user.getId()));
         return map;
     }
 
@@ -300,7 +294,7 @@ public class AuthServiceImpl implements AuthService {
      */
 
     /**
-     * 新建微信游客账号（verified=0）。
+     * 新建微信游客账号（游客态 = bind_email 为 NULL，无布尔列）。
      * <p>
      * unionid 不再落库（user.unionid 列已随 2026-09-16 零消费退役），仅消费 openid。
      */
@@ -314,7 +308,6 @@ public class AuthServiceImpl implements AuthService {
         user.setNickname("食客新友");
         // role 列已退役（2026-09-15）：全量用户即学生，无需写入角色
         user.setStatus("active");
-        user.setVerified(0);
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
@@ -378,17 +371,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 释放已被他微信绑定的邮箱：旧微信 verified=0、bind_email=NULL、verified_at=NULL。
+     * 释放已被他微信绑定的邮箱：旧微信 bind_email=NULL（认证态判据即该列非空，清空即回落游客态）。
      * <p>
      * 必须走 LambdaUpdateWrapper 显式 set NULL：updateById 对 null 字段默认不写列，
-     * bind_email/verified_at 无法被清空，会导致唯一键占用不释放、替换绑定失效。
+     * bind_email 无法被清空，会导致唯一键占用不释放、替换绑定失效。
      */
     private void releaseVerifiedBinding(User binding) {
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, binding.getId())
-                .set(User::getVerified, 0)
-                .set(User::getBindEmail, null)
-                .set(User::getVerifiedAt, null));
+                .set(User::getBindEmail, null));
     }
 
     /**

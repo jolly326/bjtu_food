@@ -57,14 +57,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Dish } from '@/types/dish'
+import type { DishDetail } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { formatPrice } from '@/utils/money'
 import { feedbackEntryUrl } from '@/utils/routes'
 
 const props = defineProps<{
-  dish: Dish
+  dish: DishDetail
   locationText: string
 }>()
 

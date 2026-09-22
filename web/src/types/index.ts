@@ -42,11 +42,12 @@ export interface User {
   nickname?: string;
   avatar?: string;
   status: string;
-  /** 是否已邮箱认证（0=游客未认证 / 1=已认证） */
-  verified?: number;
   /** 是否微信绑定（管理端展示绑定关系，不泄露 openid） */
   wechatBound?: boolean;
-  /** 绑定校园邮箱（仅认证过才有；管理端可展示，不公开给小程序） */
+  /**
+   * 绑定校园邮箱（仅认证过才有；不公开给小程序）——**认证状态的唯一判据**：
+   * 非空即已认证（2026-09-22 起 `verified` 字段已删，管理端按本字段派生，见 UserView）。
+   */
   bindEmail?: string;
   created_at: Date;
   updated_at: Date;
@@ -61,8 +62,6 @@ export interface Dish {
   /** 现价（元，API 层已由分转元；已含折扣）——价格展示的唯一数据源（§7.26） */
   price: number;
   description?: string;
-  /** 搜索别名（逗号分隔，管理员配置；搜索命中 name 或 alias） */
-  alias?: string;
   avg_rating: number;
   rating_count: number;
   status: string;

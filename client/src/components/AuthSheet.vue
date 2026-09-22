@@ -183,7 +183,7 @@ function hide() {
   authSheetStore.hide()
 }
 
-// 认证成功（verified=true）后关闭弹层并执行认证前记录的待办（跳转到目标功能，§5.y）
+// 认证成功（bindEmail 落库）后关闭弹层并执行认证前记录的待办（跳转到目标功能，§5.y）
 watch(
   () => userStore.isVerified(),
   (v) => {

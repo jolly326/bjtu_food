@@ -19,6 +19,7 @@ import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.entity.User;
+import com.bjtufood.common.utils.AuthStateUtil;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.entity.Dish;
 import lombok.RequiredArgsConstructor;
@@ -151,15 +152,14 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * UGC 作者准入：verified=1 且 openid 非空（msgSecCheck v2 必填 openid）。
+     * UGC 作者准入：已认证（bind_email 非空，判据唯一真源 {@link AuthStateUtil}）且 openid 非空
+     * （msgSecCheck v2 必填 openid）。
      *
      * @return 通过准入校验的用户实体
      */
     private User requireUgcAuthorizedUser(Long userId) {
         User user = userMapper.selectById(userId);
-        if (user == null
-                || user.getVerified() == null
-                || user.getVerified() != 1) {
+        if (user == null || !AuthStateUtil.isVerified(user.getBindEmail())) {
             // 4031 = 邮箱未认证（细分业务码，前端据此弹认证引导，区别于普通 403）
             throw new BusinessException(4031, "请先完成学号邮箱认证");
         }

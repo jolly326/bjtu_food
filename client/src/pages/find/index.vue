@@ -1,33 +1,26 @@
 <template>
-  <view class="page find-page">
-    <!-- 顶部固定搜索头：复用 AppHeader search variant（client-page-structure-header-consolidation：消除自绘 header 漂移） -->
-    <AppHeader
-      variant="search"
-      v-model="keyword"
-      :show-back="true"
-      @back="inFilter ? exitFilter() : backToHome()"
-      @search="onSearchConfirm"
-      @clear="clearKeyword"
-    />
-
-    <!-- 结果态筛选条：仅出搜索结果时渲染，走本页私有 FilterBar（client-filter-bar-consolidation；
-         2026-09-21 home-ui-refresh 后首页改用自有白底「筛选」面板，本组件已下沉为 find 页私有） -->
-    <view v-if="inFilter" class="find-filter-row">
-      <!-- 胶囊高度不再传硬编码：FilterBar 组件内按 navMetrics.getCapsuleHeight 自取（与 AppHeader 同一真源，MP-017） -->
-      <FilterBar
-        class="fb-host"
-        :canteens="dishStore.canteenList"
-        :selected-canteen-id="findCanteenId"
-        :price-range="findPrice"
-        @canteen-select="onFindCanteenSelect"
-        @price-select="onFindPriceSelect"
+  <view class="page find-page" :style="{ paddingTop: `${titleBandPx}px` }">
+    <!-- 顶部两段式（2026-09-22 change search-page-refresh：原 `AppHeader` search variant 已退役）：
+         ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
+         ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
+         两段常驻固定（根层不滚动，滚动只发生在内容区 / FindResults 内部）。 -->
+    <AppTitleBand back @back="onBack" />
+    <view class="find-search-row">
+      <SearchBar
+        mode="input"
+        v-model="keyword"
+        @search="onSearchConfirm"
+        @clear="clearKeyword"
       />
     </view>
+
+    <!-- 结果态筛选条已整体删除（2026-09-22 K2）：食堂 / 价格筛选全量下线——
+         搜索页头部回到「输入框 + 结果」，不再有筛选胶囊与下拉面板。 -->
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
          发现态 = 静态区块（无页面级 scroll/下拉刷新）；结果态 = 滚动随 FindResults 内容区 -->
     <view class="find-body">
-      <!-- ============ 发现主页（未进入结果态）：历史 + 猜你想搜，静态展示 ============ -->
+      <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢，静态展示 ============ -->
       <view v-if="!inFilter" class="discover-body">
         <template>
           <!-- 搜索记录（首位） -->
@@ -58,12 +51,13 @@
             </view>
           </CardSection>
 
-          <!-- 热搜词（GET /dishes/hot-search，由后端派生；点击直接搜索） -->
-          <CardSection v-if="hotSearchList.length > 0">
-            <SectionTitle title="猜你想搜" />
+          <!-- 猜你喜欢（GET /dishes/for-you）：后端**每次随机**推送在售菜品名（不看热度、不排序、
+               不做个性化）；端上按返回渲染、不写死条数与文案；空数组 / 请求失败 → 整块不渲染 -->
+          <CardSection v-if="guessLikeList.length > 0">
+            <SectionTitle title="猜你喜欢" />
             <view class="history-chips">
               <view
-                v-for="(kw) in hotSearchList"
+                v-for="(kw) in guessLikeList"
                 :key="kw.keyword"
                 class="history-chip history-chip-hot"
                 @tap="goKeyword(kw.keyword)"
@@ -119,12 +113,22 @@ import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import FilterBar from './FilterBar.vue'
-import AppHeader from '@/components/AppHeader.vue'
+import AppTitleBand from '@/components/AppTitleBand.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import FindResults from './FindResults.vue'
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { useNavMetrics } from '@/utils/useNavMetrics'
 
 const dishStore = useDishStore()
+
+/** 固定标题带高（px）：带为 `position: fixed`，页面根层须用等量 padding 顶开内容 */
+const { titleBandPx } = useNavMetrics()
+
+/** 返回：结果态先退回发现态，否则回首页（沿用既有行为） */
+function onBack() {
+  if (inFilter.value) exitFilter()
+  else backToHome()
+}
 
 /* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
 
@@ -142,8 +146,8 @@ const HISTORY_KEY = 'find_search_history'
 const HISTORY_MAX = 4
 const historyList = ref<string[]>([])
 
-/** 热搜词列表（来源：后端 GET /dishes/hot-search，由 loadDiscover → fetchHotSearch 拉取，无前端 mock） */
-const hotSearchList = computed(() => dishStore.hotSearchList)
+/** 猜你喜欢词列表（来源：后端 GET /dishes/for-you，由 loadDiscover → fetchGuessLike 拉取） */
+const guessLikeList = computed(() => dishStore.guessLikeList)
 
 function loadHistory() {
   try {
@@ -186,30 +190,16 @@ const searchDone = ref(false)
 /** 最近一次已完成搜索是否失败（MP-012）：失败 ≠ 无结果，失败渲染重试块而非「没搜到」空态 */
 const searchFailed = ref(false)
 
-// 食堂筛选（find 页独立状态，与首页 selectedCanteenId 隔离）
-const findCanteenId = ref<number | null>(null)
-function onFindCanteenSelect(id: number | null) {
-  findCanteenId.value = id && id > 0 ? id : null
-  // 切换食堂即按当前关键词（可空）+ 食堂重新检索
-  doMixedSearch(keyword.value.trim())
-}
+// ===== 结果态筛选（食堂 / 价格）已全量下线（2026-09-22 K2） =====
+// 搜索页不再持有任何筛选状态：不传 canteenId / minPrice / maxPrice，也不传排序参数
+// （排序口径唯一由后端决定：热度优先、不设排序入口）。
 
-// ===== 结果态筛选（仅 inFilter 渲染，与首页共用 FilterBar：食堂 / 价格，仅展开时主色填充底） =====
-// 搜索结果排序：端上不持有排序状态、不传 sortBy——排序口径唯一由后端决定（PR-02；
-// §7.17 第 2 条「热度优先、不设排序入口」）。
-/** 当前价格区间（元）；回显由 FilterBar 直显元，提交直接透传（api 层统一元→分，禁止二次换算） */
-const findPrice = ref<{ min?: number; max?: number }>({})
-
-function onFindPriceSelect(range: { min?: number; max?: number }) {
-  findPrice.value = range
-  doMixedSearch(keyword.value.trim())
-}
-
-/** 混合搜索结果：复用菜品检索接口返回 Dish[]（搜索仅针对菜品） */
+/** 混合搜索结果：复用菜品检索接口返回 DishListItem[]（搜索仅针对菜品） */
 interface MixedResult {
   type: 'dish'
   id?: number
   name: string
+  /** 列表唯一图片字段（后端 coverImage；无图空串 → 结果卡占位空态） */
   image?: string
   /** 副信息：菜品→「食堂 · 档口」（B8 档口名）；档口/食堂→位置 */
   sub?: string
@@ -217,8 +207,6 @@ interface MixedResult {
   price?: number
   /** 菜品专属：平均评分 */
   rating?: number
-  /** 菜品专属：所属档口名（B8；副信息展示「食堂 · 档口」） */
-  stall?: string
   /** 菜品专属：原价（元，> price 时划线展示表示折扣） */
   originalPrice?: number
 }
@@ -227,7 +215,7 @@ const mixedResults = ref<MixedResult[]>([])
 /** 搜索结果（仅菜品单列） */
 const filteredMixed = computed(() => mixedResults.value)
 
-/** 确认/回车搜索（AppHeader search variant 的 @search） */
+/** 确认/回车搜索（SearchBar input 模式的 @search：回车 / 点「搜索」按钮） */
 function onSearchConfirm() {
   const kw = keyword.value.trim()
   if (!kw) return
@@ -249,8 +237,8 @@ function goKeyword(kw: string) {
 // C13 竞态守卫：慢请求结果不得覆盖后发的快请求（参照 review.vue searchSeq 模式）
 let mixedSearchSeq = 0
 async function doMixedSearch(kw?: string) {
-  // 无关键词但选中了食堂时，仍按食堂浏览（searchDishesPage 支持空 keyword + canteenId）
-  if (!kw && !findCanteenId.value) return
+  // 搜索页唯一入口 = 关键词（食堂 / 价格筛选已下线，不再支持「无关键词按食堂浏览」）
+  if (!kw) return
   // 竞态守卫（mixedSearchSeq）已保证后发请求覆盖先发结果；此处不设防重入锁，
   // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
   const seq = ++mixedSearchSeq
@@ -258,31 +246,29 @@ async function doMixedSearch(kw?: string) {
   searchDone.value = false
   searchFailed.value = false
   try {
-    // 复用 store.search（GET /dishes?keyword，返回平铺 Dish[]），金额/图片已在 api 层归一
+    // 复用 store.search（GET /dishes?keyword，返回平铺 DishListItem[]），金额/图片已在 api 层归一；
+    // 端上不传任何筛选 / 排序参数（2026-09-22 K2/K3）
     const list = await dishStore.search({
       keyword: kw,
       page: 1,
       pageSize: 50,
-      canteenId: findCanteenId.value ?? undefined,
-      minPrice: findPrice.value.min,
-      maxPrice: findPrice.value.max,
     })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
     // 结果顺序即后端返回口径（PR-02：端上不排序、不算距离）
     mixedResults.value = list
       .map(d => {
-        // B8 副信息：食堂名 + 档口名（顺序与首页 DishCard 的「食堂 · 档口」一致）
+        // B8 副信息：食堂名 + 档口名（顺序与首页 DishCard 的「食堂 | 档口」一致）
         const sub = [d.canteen, d.stallName].filter(Boolean).join(' · ')
         return {
           type: 'dish' as const,
           id: d.id,
           name: d.name,
-          image: d.images?.[0] || '',
+          // 列表唯一图片字段 coverImage（2026-09-22 D 项拆分；原 images[0] 已随列表 VO 收敛）
+          image: d.coverImage || '',
           sub,
           price: d.price,
           rating: d.rating,
-          stall: d.stallName,
           originalPrice: d.originalPrice,
         }
       })
@@ -326,19 +312,14 @@ function exitFilter() {
   mixedResults.value = []
   searchDone.value = false
   searchFailed.value = false
-  // 退出结果态：重置筛选条件，下次进入结果态从默认开始
-  findCanteenId.value = null
-  findPrice.value = {}
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
 }
 
 async function loadDiscover() {
   try {
-    await Promise.all([
-      dishStore.fetchHotSearch(),
-      dishStore.fetchCanteens(),
-    ])
+    // 发现态数据源只剩「猜你喜欢」词条（食堂字典端点已随筛选功能下线删除，K4）
+    await dishStore.fetchGuessLike()
   } catch (e) {
     // 静默：发现态加载失败不呈现任何占位，异常仅记录
     console.error('[find] 发现页加载失败', e)
@@ -356,7 +337,10 @@ onShow(() => clearShareState())
 </script>
 
 <style scoped>
-.find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; }
+.find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; box-sizing: border-box; }
+/* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
+   搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
+.find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
 /* 内容区：占满 header/筛选行之外的剩余高度；滚动职责随分支（发现态静态/结果态 FindResults） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 /* 发现态：普通内容容器 + 无下拉刷新的高度兜底（搜索记录上限 4 条内容短；异常超高时可内部滚动兜底，不提供下拉刷新） */
@@ -408,22 +392,7 @@ onShow(() => clearShareState())
 .fe-btn.pressed { opacity: 0.85; }
 .fe-btn-text { font-size: var(--font-small); color: var(--text-white); font-weight: var(--weight-medium); }
 
-/* 食堂筛选行（header 下方独立一行，与首页共用 FilterBar） */
-.find-filter-row {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  /* 下缘留白收窄（find-result-card-polish 5.1：避免与首卡叠加成大 gap） */
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-xs);
-  /* 表面统一：与首页筛选条一致，使用页面凹陷面且无分隔线，与下方结果列表视觉一体 */
-  background: var(--bg-page);
-}
-/* 同首页：让 <filter-bar> 宿主撑满筛选行，组件内 .fb-row 才有剩余空间把 icon 顶到最右 */
-.fb-host {
-  flex: 1;
-  min-width: 0;
-}
+/* 筛选行 / FilterBar 宿主样式已随「食堂 / 价格筛选全量下线」删除（2026-09-22 K2）；搜索页头部回到「输入框 + 结果」 */
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }
@@ -468,7 +437,8 @@ onShow(() => clearShareState())
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
-/* 高频搜索 vs 搜索记录层级区分：推荐词主色软底，个人记录保持中性灰 */
-.history-chip-hot { background: var(--color-primary-soft); }
-.history-chip-hot .history-chip-text { color: var(--color-primary-text); }
+/* 「猜你喜欢」词条 vs 搜索记录层级区分：推荐词 = 暖橙黄色板的**浅黄底 + 深棕字**（content-flow-visual）；
+   新色板 token 尚未随色板 change 落地时用 fallback 回落到现状 token，避免出现「无底色」 */
+.history-chip-hot { background: var(--bg-soft-yellow, var(--bg-soft)); }
+.history-chip-hot .history-chip-text { color: var(--text-body, var(--text-secondary)); }
 </style>

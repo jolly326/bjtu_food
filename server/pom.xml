@@ -78,12 +78,9 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- Caffeine 进程内缓存（P1-9）：推荐位读接口 60s TTL 缓存，写操作触发失效；
-             版本由 Spring Boot 3.2 依赖管理托管 -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
+        <!-- Caffeine 进程内缓存已于 2026-09-22 整包退役（change search-page-refresh 扩展项）：
+             唯一读缓存「热搜词条」随「猜你喜欢」去缓存（随机推送语义与缓存冲突）后零消费，
+             `CacheConfig` + `@EnableCaching` + 本依赖同批删除；如需恢复读缓存，须重新论证并登记。 -->
 
         <!-- 腾讯云对象存储 COS Java SDK：UGC 配图最终存储（wx.cloud 中转 → 内容安全检测 → COS 转存）。
              5.6.x 线性版本，依赖 httpclient 由 SDK 自带传递引入 -->

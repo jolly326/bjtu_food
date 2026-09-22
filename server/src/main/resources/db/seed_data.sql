@@ -211,4 +211,12 @@ UPDATE dish SET meal_type = 'soup_drink' WHERE name IN ('皮蛋瘦肉粥', '珍�
 -- 修正为 NULL（汤饮甜品无主料语义），否则详情页「主料」会显示「米」。
 UPDATE dish SET ingredients = NULL WHERE name IN ('珍珠奶茶', '杨枝甘露') AND ingredients = 'rice';
 
+-- -------------------- 首页顶部轮播图（2026-09-22 新增；公开 GET /banners） --------------------
+-- 注：本段采用先清后插（可重复执行）；素材统一 **16:10**（宽高比锁定，见 docs/ui/client-首页菜品浏览.md §1.1）。
+--     image_url 暂为空串 = 「待补正式素材」——端上会退化为「灰底 + 菜品 icon」空态（同菜品卡图片占位），
+--     不会裂图；正式素材到位后替换 image_url，或增行以启用多图轮播（>1 条时端上自动轮播并显示指示点）。
+DELETE FROM banner;
+INSERT INTO banner (image_url, sort_order, status) VALUES
+('', 1, 'on');
+
 SET FOREIGN_KEY_CHECKS = 1;

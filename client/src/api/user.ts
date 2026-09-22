@@ -4,17 +4,17 @@ import type { RawRow } from './shared'
 
 function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
-  // 后端四条账号信息链路透传 id/username/nickname/avatar/verified/bindEmail（恰 6 字段，2026-09-21 spec §7.32；
+  // 后端四条账号信息链路透传 id/username/nickname/avatar/bindEmail（恰 5 字段，2026-09-22 spec §7.32 修订；
   // role 字段已随 user.role 列退役移除，2026-09-15）。
-  // 已删字段端上不再读取：email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、guestShortId（端上按 id 现算）。
+  // 已删字段端上不再读取：verified（bindEmail 派生冗余，端上经 useUserStore().isVerified() 单点派生）、
+  // email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、guestShortId（端上按 id 现算）。
   return {
     // 后端恒返回 userId；0 仅作防御性兜底（不伪造有效用户 ID）
     id: Number(user.id ?? resp?.userId ?? fallbackId),
     username: String(user.username || resp?.username || ''),
     nickname: user.nickname || resp?.nickname || '食客',
     avatar: user.avatar || resp?.avatar || '',
-    // 微信登录体系（§5.y）：verified / bindEmail 由后端 wechat-login / verify-email / profile 返回
-    verified: !!(user.verified ?? resp?.verified),
+    // 微信登录体系（§5.y）：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
     bindEmail: user.bindEmail || resp?.bindEmail || user.bind_email || undefined,
   }
 }
@@ -43,7 +43,7 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
   }
 }
 
-/** 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → verified=true */
+/** 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → 落库 bindEmail（认证态唯一写入点） */
 export async function verifyEmail(code: string): Promise<AuthResult> {
   const resp = await post<RawRow>('/auth/verify-email', { code })
   return {
@@ -52,7 +52,7 @@ export async function verifyEmail(code: string): Promise<AuthResult> {
   }
 }
 
-/** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 verified/bindEmail） */
+/** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 bindEmail —— 认证判据来源） */
 export async function getProfile(): Promise<UserInfo> {
   const resp = await get<RawRow>('/auth/profile')
   return toUserInfo(resp)

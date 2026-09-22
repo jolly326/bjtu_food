@@ -33,8 +33,9 @@ import java.nio.charset.StandardCharsets;
  * 公开接口白名单（无需登录）：
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
- * - GET /canteens（食堂查询；/stalls/** 幽灵白名单已于 2026-09-15 CT-05 删除）
+ * - GET /banners（首页顶部轮播图，2026-09-22 新增；/** 无写接口）
  * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
+ * - 注：GET /canteens 白名单已于 2026-09-22 删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
  * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
@@ -69,18 +70,20 @@ public class SecurityConfig {
     };
 
     /**
-     * 仅 GET 放行的公开浏览接口（覆盖全部 dish/canteen 只读路径，
+     * 仅 GET 放行的公开浏览接口（覆盖全部 dish / banner 只读路径，
      * 使用 method-scoped 匹配，避免误放行 POST 等写操作）。
      * <p>
      * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
      * 本条仅约束 GET 只读浏览，POST /dishes/{id}/views（浏览量上报）与 GET 系列仍保留。
      * /stalls/** 白名单已于 2026-09-15 CT-05 删除：无公开 StallController 端点（幽灵路由）。
+     * /canteens/** 白名单已于 2026-09-22 删除：食堂字典端点（原 GET /canteens）随食堂 / 价格筛选
+     * 全量下线整体删除（K4），公开侧不再有食堂字典接口。
      * 评价只读路径已 RESTful 化为 /dishes/{id}/reviews（由 /dishes/** 覆盖，2026-09-20 拍板）；
      * 原 GET /reviews 白名单条目随该路径删除一并移除；GET /my/reviews 需登录，不在白名单内。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
             "/dishes/**", "/api/dishes/**",
-            "/canteens/**", "/api/canteens/**",
+            "/banners/**", "/api/banners/**",
             "/images/**", "/api/images/**",
     };
 

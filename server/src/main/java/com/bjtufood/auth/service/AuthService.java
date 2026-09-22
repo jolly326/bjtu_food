@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * 认证服务接口（微信登录体系，spec §5.y）
  * <p>
- * 小程序端无账号密码：微信静默登录（wechat-login）→ 游客态（verified=0）；
+ * 小程序端无账号密码：微信静默登录（wechat-login）→ 游客态（bind_email 为 NULL）；
  * 邮箱验证码认证（verify-email）解锁 UGC 写操作。管理端无登录体系（/admin/** 由 AdminTokenFilter 口令校验，方案 C 已作废）。
  */
 public interface AuthService {
@@ -31,7 +31,7 @@ public interface AuthService {
      * 微信静默登录（spec §5.y.1 / task-01 1.1）。
      * <p>
      * 后端 code2Session 换 openid → 按 user.openid 取号：
-     * 存在则返回原账号；不存在则自动建号（游客态 verified=0）。
+     * 存在则返回原账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
      * （user.unionid 已随列退役，2026-09-16 零消费删除，不再回写/补全。）
      *
      * @param code 微信 wx.login 临时凭证
@@ -43,7 +43,8 @@ public interface AuthService {
     /**
      * 学号邮箱认证（spec §5.y.3 / task-01 1.3）。
      * <p>
-     * 校验验证码 → 按邮箱执行数据迁移合并 / 绑定替换 → 置 verified=1、写 bind_email/verified_at → 返回更新后 LoginResp。
+     * 校验验证码 → 按邮箱执行数据迁移合并 / 绑定替换 → 写 bind_email（**认证态唯一写入点**，
+     * 非空即已认证）→ 返回更新后 LoginResp。
      * 邮箱是唯一迁移 / 绑定凭证；不设解绑入口。
      *
      * @param code   邮箱验证码（对应记录推导绑定邮箱）
@@ -56,7 +57,7 @@ public interface AuthService {
      * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
      *
      * @param userId 用户ID
-     * @return 用户信息 Map（id/username/nickname/avatar/verified/bindEmail —— 与登录链路字段集一致）
+     * @return 用户信息 Map（id/username/nickname/avatar/bindEmail —— 与登录链路字段集严格同构，恰 5 字段）
      */
     Map<String, Object> getProfile(Long userId);
 
@@ -74,8 +75,8 @@ public interface AuthService {
      * <p>
      * 匿名化范围（事务内）：
      * <ul>
-     *   <li>user 行：nickname→'已注销用户'；avatar/email/openid/bind_email→NULL；
-     *       verified→0；verified_at→NULL；status→'deleted'；username 改写为 deleted_{id}
+     *   <li>user 行：nickname→'已注销用户'；avatar/email/openid/bind_email→NULL（bind_email 清空即
+     *       认证态回落为游客态）；status→'deleted'；username 改写为 deleted_{id}
      *       （释放 uk_user_username，保证同一微信可重新静默登录建新游客号）；</li>
      *   <li>review / user_feedback / notification / view_log：保留（内容价值 + 评分聚合不破坏），
      *       展示昵称经 join user 自然变为「已注销用户」；</li>
@@ -94,7 +95,7 @@ public interface AuthService {
      * 将 User 实体转换为小程序端用户信息 VO。
      *
      * @param user 用户实体
-     * @return 用户信息 VO（camelCase，恰 6 字段：id/username/nickname/avatar/verified/bindEmail）
+     * @return 用户信息 VO（camelCase，恰 5 字段：id/username/nickname/avatar/bindEmail）
      */
     UserInfoVO toUserInfo(User user);
 }

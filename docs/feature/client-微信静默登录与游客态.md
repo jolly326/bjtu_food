@@ -16,7 +16,7 @@
 1. 小程序启动 → 检查本地是否已有 token：
    - **有** → 直接复用，仅调 `GET /auth/profile` 刷新资料（**不换取新 token**）；
    - **无** → 端上 `wx.login` 拿一次性 code → 调 `POST /auth/wechat-login`。
-2. 后端 `code2Session` 换 openid → 查号：无则建游客号（`verified=0`），有则直接返回。
+2. 后端 `code2Session` 换 openid → 查号：无则建游客号（**游客态 = `bind_email` 为 NULL**），有则直接返回。
 3. 端上保存 token，后续请求自动带 `Authorization: Bearer <token>`。
 4. 用户无感知；**游客态是默认已登录状态**，不需要用户做任何操作。
 
@@ -59,13 +59,13 @@
 | `username` | string | 学号 / 账号；**微信游客为 `wx_` + openid 后 16 位**（不含完整 openid，避免泄露） |
 | `nickname` | string | 昵称；新建游客号默认「食客 + ID 后 4 位」 |
 | `avatar` | string \| null | 头像地址（已转成可访问的绝对 URL） |
-| `verified` | boolean | **是否已完成学号邮箱认证**：`true`=已认证（可写 UGC）/ `false`=游客态 |
-| `bindEmail` | string \| null | 已认证绑定的校园邮箱（仅存认证关系，未认证为 null）。**校园邮箱的唯一出参来源** |
+| `bindEmail` | string \| null | 已认证绑定的校园邮箱（仅存认证关系，游客态为 null）。**校园邮箱的唯一出参来源，同时是认证状态的唯一判据**——非空即已认证（可写 UGC），null 即游客态 |
 
-#### 已删除的冗余出参（2026-09-21 判定并落地）
+#### 已删除的冗余出参（2026-09-21 / 2026-09-22 判定并落地）
 
 | 删除字段 | 冗余性质（已核实） | 端上替代 |
 |---|---|---|
+| `verified` | **派生冗余**：`bindEmail` 非空的布尔镜像（服务端历史写入路径「邮箱认证 / 释放绑定替换 / 注销」三处恒成对写，无独立语义）；DB 列 `user.verified` / `user.verified_at` 已同批 DROP | 端上 `useUserStore().isVerified()` 单点派生（`!!bindEmail`），页面 / 组件不得散写判空 |
 | `email` | **恒为 NULL 的死字段**：微信体系下 `user.email` 无任何写入点（登录与认证只写 `bind_email`），该列仅为旧密码体系遗留、注销时置 NULL 释放唯一键 | 用 `bindEmail` 单源（端上 `bindEmail \|\| email` 双源兜底一并去掉） |
 | `guestShortId` | **纯派生字段**：后端实现即「食客 + `id` 尾 4 位」，而 `id` 本就出参；建号时默认 `nickname` 也等于它 | 端上由 `id` 派生（无 `id` 时回退既有的本地游客 ID） |
 | `status` | **端上零消费**：禁用 / 注销在登录侧（400）与 UGC 写操作侧（403）拦截，端上不做任何分支渲染 | 无需替代（管理端 `UserVO.status` 不受影响） |
@@ -78,7 +78,7 @@
 | `username` | 账号，仅用于日志/展示 |
 | `iat` / `exp` | 签发时间 / 过期时间 |
 
-⚠️ **`verified` 不进 JWT**（后端按 `user.verified` 实时查库判定）；**`role` 字段已随 `user.role` 列退役**，JWT 不含角色。
+⚠️ **认证态不进 JWT**（后端按 `user.bind_email` 非空实时查库判定，判据唯一真源 `AuthStateUtil`）；**`role` 字段已随 `user.role` 列退役**，JWT 不含角色。
 
 ⚠️ **载荷是明文（base64url 编码），不是密文**：任何人拿到 token 都能解出上述字段——所以载荷里**不得放任何敏感信息**（openid、邮箱、手机号均不在其中）。签名只保证「改不了」，不保证「看不见」。
 
@@ -88,7 +88,7 @@
 
 | 对象 | 操作 | 中文解释 |
 |---|---|---|
-| `user` 表（建号新行） | INSERT | 写入 `openid`（唯一）、`username`（`wx_`+尾16位）、`nickname`（**先写占位值「食客新友」**）、`status='active'`、`verified=0` |
+| `user` 表（建号新行） | INSERT | 写入 `openid`（唯一）、`username`（`wx_`+尾16位）、`nickname`（**先写占位值「食客新友」**）、`status='active'`（游客态无需额外标记：`bind_email` 保持 NULL 即游客） |
 | 同一行的 `nickname` 列 | UPDATE（建号流程第二步） | 最终昵称依赖建号后的自增 `id`，故 INSERT 拿到 `id` 后再回填为「食客 + ID 后 4 位」 |
 
 > **为什么是两步**：最终昵称含自增主键尾 4 位（`id` 由数据库在 INSERT 时生成），而 `nickname` 列为 `NOT NULL`、INSERT 时必须给值 → 只能「先插占位值，拿到 `id` 后 UPDATE 回填」。
@@ -96,14 +96,9 @@
 
 **边界**：账号被 `disabled` → 400「账号已被禁用」；已 `deleted` → 400「账号已注销」。
 
-## 出参精简落地状态（2026-09-21 已落地）
+## 与当前代码的差异
 
-> 本节与 `project_spec.md` §7.32 决议、`api-design.md` §8 差异登记册一致（该行已置「已对齐」）；落地由 change `auth-response-slimming` 承载。
+**无（文档与代码一致）**——截至 2026-09-22，本文档六段所述口径（含 5 字段出参、`bindEmail` 单源认证判据、`user.verified` / `user.verified_at` 两列退役）已在三端落地。
 
-| 项 | 服务端（已落地） | 客户端（已落地） |
-|---|---|---|
-| 删 `email` | `UserInfoVO` 去 `email`；`AuthServiceImpl.toUserInfo` 与 `buildProfileMap` **两处承载结构**同步去除 | `types/user.ts` 去 `email`；`api/user.ts` 去 `email` 映射与账号信息侧的邮箱推导（认证表单发码所需推导保留）；`pages/profile` / `pages/mine` 改读 `bindEmail` 单源 |
-| 删 `guestShortId` | `UserInfoVO` 与**管理端 `UserVO`** 均去 `guestShortId`（判据不因端而异），`UserServiceImpl.toVO` 同步；`buildGuestShortId` 无出参消费方，规则仅保留为**建号默认昵称**的私有实现 | 小程序 `pages/mine` 由 `id` 派生「食客 + ID 尾 4 位」，`id` 不可得时回退本地游客标识；**web** `types/index.ts` / `api/adapter.ts` 去声明与映射，`UserView` 的过滤与昵称兜底展示改由 `id` 现算（局部函数） |
-| 删 `status` | `UserInfoVO` 去 `status`（管理端 `UserVO.status` 保留——管理端需展示与操作账号状态） | `types/user.ts` 去 `status`（端上无消费点） |
-
-**门禁**：`mvn -q compile -DskipTests` / `client npm run type-check` / `web npm run build` 均 EXIT 0（2026-09-21）。**运行时冒烟**（四条链路字段集对照）仍需起服务后由用户执行，见 change `auth-response-slimming` 任务 5.2。
+> 本节按 2026-09-22 定稿规则设立：**正文只写最终设计形态，与现有代码的差异一律写在本节**（含「已拍板未落地」条目）；差异清零时保留标题并写「无」，使「本节为空」本身成为可读信息。
+> 最近一次清零：2026-09-22（change `auth-verified-field-removal`——`verified` 出参 + `user.verified` / `user.verified_at` 两列全链下线，认证判据统一为 `bindEmail` 非空；`email` / `status` / `guestShortId` 的收敛此前已落地）。

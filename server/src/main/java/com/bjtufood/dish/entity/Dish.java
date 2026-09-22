@@ -33,10 +33,6 @@ public class Dish {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
-    /** 搜索别名（逗号分隔，管理员配置，可空）；搜索关键词命中别名也能找到该菜品 */
-    @Schema(description = "搜索别名（逗号分隔，管理员配置，可空）", example = "拉面,牛肉面")
-    private String alias;
-
     /** 现价（单位：分，已含折扣） */
     @Schema(description = "现价（分，已含折扣）", example = "1200")
     private Integer price;
@@ -70,7 +66,7 @@ public class Dish {
     private String serveTemp;
 
     /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：键域由 MealTypeConst 唯一定义；
-     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开 DishVO，仅供筛选与字典下发 */
+     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选与字典下发 */
     @Schema(description = "菜品大类枚举键（MealTypeConst）", example = "noodle")
     private String mealType;
 

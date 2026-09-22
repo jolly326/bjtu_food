@@ -3,9 +3,10 @@ package com.bjtufood.dish.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAdminVO;
+import com.bjtufood.dish.dto.DishDetailVO;
+import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
-import com.bjtufood.dish.dto.DishVO;
-import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.GuessLikeVO;
 
 import java.util.List;
 
@@ -22,16 +23,17 @@ public interface DishService {
     /**
      * 菜品列表查询（分页+筛选，排序恒为服务端热度倒序）
      * <p>
-     * 支持参数：keyword, canteenId, mealType, minPrice, maxPrice（2026-09-21 §7.33：
+     * 支持参数：keyword / mealType（2026-09-22 K3：{@code canteenId} / {@code minPrice} /
+     * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除；2026-09-21 §7.33：
      * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，排序唯一口径 =
      * DishMapper.xml 的 heatScoreExpr 倒序）。
      * {@code mealType} 白名单校验（MealTypeConst），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
-     * @return 分页菜品列表（DishVO 含档口/食堂名称）
+     * @return 分页菜品列表（**列表专用 {@link DishListItemVO} 8 字段**：2026-09-22 D 项拆分）
      */
-    IPage<DishVO> listDishes(DishQueryReq req);
+    IPage<DishListItemVO> listDishes(DishQueryReq req);
 
     /**
      * 菜品大类字典（2026-09-21 §7.34）：{@code GET /dishes/meal-types} 出参。
@@ -51,10 +53,10 @@ public interface DishService {
      * （端点路径与响应结构零变化，未登录/登录返回完全一致）。
      *
      * @param id 菜品ID
-     * @return 菜品详情
+     * @return 菜品详情（**详情专用 {@link DishDetailVO}**：15 字段 + `ratingDistribution`）
      * @throws com.bjtufood.common.exception.BusinessException 菜品不存在
      */
-    DishVO getDishDetail(Long id);
+    DishDetailVO getDishDetail(Long id);
 
     /**
      * 增加菜品浏览量
@@ -74,15 +76,15 @@ public interface DishService {
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
 
     /**
-     * 热搜词条 TOP10
+     * 猜你喜欢（原「热搜词条 TOP10」，2026-09-22 change search-page-refresh 改名 + 语义变更）
      * <p>
-     * 一期限定：无真实搜索词埋点，基于菜品综合热度派生热门词条；
-     * heat 为该词条的热度分（d.view_count*1 + d.rating_count*5*20 + COALESCE(d.avg_rating,0)*20），
-     * 与列表 heat 排序共用 DishMapper.xml 的 heatScoreExpr 片段（等价口径）。
+     * 当前实现：**每次请求随机抽取在售菜品名**下发——不看热度、不排序、不做个性化推荐算法；
+     * 因此**不加缓存**（响应缓存会让「每次随机」退化为「全站同一份」）。出参仅 {@code keyword}。
+     * 契约留扩展位：将来升级为个性化 / 推荐算法时端上契约不变（仅换服务端取数逻辑）。
      *
-     * @return 热搜词条列表（keyword=菜品名, heat=热度分）
+     * @return 猜你喜欢词条列表（仅 keyword=在售菜品名）
      */
-    List<HotSearchVO> hotSearch();
+    List<GuessLikeVO> guessLike();
 
     // ==================== 管理端接口（管理员） ====================
 

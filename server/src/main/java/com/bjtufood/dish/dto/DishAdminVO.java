@@ -29,9 +29,6 @@ public class DishAdminVO {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
-    @Schema(description = "搜索别名（逗号分隔，管理员配置，可空）", example = "拉面,牛肉面")
-    private String alias;
-
     @Schema(description = "现价（分，已含折扣）", example = "1200")
     private Integer price;
 

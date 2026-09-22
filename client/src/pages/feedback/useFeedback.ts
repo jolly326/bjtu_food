@@ -19,9 +19,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import type { FeedbackSubmit } from '@/types/feedback'
 import { searchDishes, getDishDetail } from '@/api/dish'
-import type { Dish } from '@/types/dish'
-import { getCanteensWithStalls } from '@/api/canteen'
-import type { CanteenWithStalls } from '@/types/canteen'
+import type { DishListItem, DishDetail } from '@/types/dish'
 import { backToHome } from '@/utils/nav'
 import { useUserStore } from '@/stores/user'
 
@@ -71,7 +69,7 @@ export function useFeedback() {
       images: [] as string[],
     },
     error: {
-      dish: null as Dish | null,
+      dish: null as DishListItem | null,
       points: [] as string[],
       correctValues: {} as Record<string, string>,
       evidenceText: '',
@@ -120,7 +118,7 @@ export function useFeedback() {
   // ---- ③ 信息不对：关联菜品搜索（底部弹窗） ----
   const dishSheetOpen = ref(false)
   const dishKeyword = ref('')
-  const dishCandidates = ref<Dish[]>([])
+  const dishCandidates = ref<DishListItem[]>([])
   const dishSearched = ref(false)
   /** 成功态自动返回定时器（⑨ scheduleAutoBack） */
   let backTimer: ReturnType<typeof setTimeout> | null = null
@@ -152,7 +150,8 @@ export function useFeedback() {
       key: String(d.id),
       label: d.name,
       sub: [d.canteen, d.stallName].filter(Boolean).join(' · '),
-      image: d.image || '',
+      // 列表行唯一图片字段 coverImage（2026-09-22 D 项拆分；原 image/images 已随列表 VO 收敛）
+      image: d.coverImage || '',
     })),
   )
 
@@ -190,7 +189,7 @@ export function useFeedback() {
     if (d) selectDish(d)
   }
 
-  function selectDish(d: Dish) {
+  function selectDish(d: DishListItem) {
     cancelAutoBack()
     form.error.dish = d
     dishKeyword.value = ''
@@ -251,14 +250,17 @@ export function useFeedback() {
     out.price = d.price > 0 ? `¥${d.price}` : ''
     out.name = d.name || ''
     out.location = [d.canteen, d.stallName].filter(Boolean).join(' · ')
-    const n = d.images?.length || 0
-    out.attr = n > 0 ? `${n} 张图片` : ''
+    // 列表行只有封面图（coverImage），拿不到张数 → 「图片 / 属性」预填改为有无配图判定
+    out.attr = d.coverImage ? '有配图' : ''
     return out
   })
 
   // ---- ⑤ 位置选择：ListPickerSheet 单实例两级联动（食堂 → 档口，含「其他」自定义） ----
-  // P2-11 / PR-12：原 `ref<any[]>` 逃逸已消除，改用 API 层定型 DTO（CanteenWithStalls）
-  const canteenTree = ref<CanteenWithStalls[]>([])
+  // 2026-09-22（K4）：食堂字典端点（原 GET /canteens，含 ?include=stalls）已随「食堂 / 价格筛选
+  // 全量下线」整体删除 → 位置选择器**不再有字典数据源**，当前仅保留「其他」自定义输入；
+  // 位置字段的最终形态（自由文本等）后续单独修订 docs/feature/client-意见反馈.md——
+  // 本次不改其表单结构与提交门禁（文档口径），也不阻塞反馈提交。
+  const canteenTree = ref<{ name: string; stalls: { name: string }[] }[]>([])
   const locSheetOpen = ref(false)
   const locStep = ref<'canteen' | 'stall'>('canteen')
 
@@ -307,12 +309,12 @@ export function useFeedback() {
     else pickStall(opt.key)
   }
 
+  /**
+   * 位置字典加载（2026-09-22 K4 起为空实现）：食堂字典端点已整体删除，无字典可拉——
+   * 位置选择器仅剩「其他」自定义项；形态待单独修订意见反馈文档（本次不改表单与门禁）。
+   */
   async function loadCanteens() {
-    try {
-      canteenTree.value = await getCanteensWithStalls()
-    } catch {
-      canteenTree.value = []
-    }
+    canteenTree.value = []
   }
 
   function openLocationSheet(step: 'canteen' | 'stall') {
@@ -614,8 +616,21 @@ export function useFeedback() {
     if (t === 'error' && dishId) {
       try {
         const d = await getDishDetail(dishId)
-        // 注入形态契约：必须落成完整 Dish 对象（提交使能 canSubmit 依赖 form.error.dish 非空）
-        if (d) form.error.dish = d
+        // 注入形态契约：必须落成完整**列表行**对象（提交使能 canSubmit 依赖 form.error.dish 非空）。
+        // 2026-09-22 D 项拆分后详情为 DishDetail（无 coverImage），故此处按列表行字段投影一次，
+        // 保证 form.error.dish 与搜索结果选中项（DishListItem）形态完全一致。
+        if (d) {
+          form.error.dish = {
+            id: d.id,
+            name: d.name,
+            price: d.price,
+            originalPrice: d.originalPrice,
+            coverImage: d.image || '',
+            rating: d.rating,
+            canteen: d.canteen,
+            stallName: d.stallName,
+          }
+        }
       } catch { /* 忽略：详情拉取失败则回退为手动搜索选择菜品 */ }
     }
   })

@@ -216,10 +216,6 @@ async function handleDeleteReview(id: number) {
           <dt>冷热</dt>
           <dd :class="{ muted: !dish.serveTemp }">{{ serveTempText(dish.serveTemp) }}</dd>
         </div>
-        <div class="info-item">
-          <dt>搜索别名</dt>
-          <dd :class="{ muted: !dish.alias }">{{ dish.alias || '—' }}</dd>
-        </div>
         <div class="info-item info-item-wide">
           <dt>介绍</dt>
           <dd class="desc" :class="{ muted: !dish.description }">{{ dish.description || '暂无介绍' }}</dd>

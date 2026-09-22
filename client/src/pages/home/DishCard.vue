@@ -1,5 +1,5 @@
 <template>
-  <view class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" @tap="handleClick" role="button" tabindex="0">
+  <view class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" hover-class="dish-card-pressed" @tap="handleClick" role="button" tabindex="0">
     <view class="card-image">
       <image
         v-if="imgSrc && imgOk"
@@ -24,10 +24,10 @@
         <text class="stall-text">{{ dish.canteen }} | {{ dish.stallName }}</text>
       </view>
       <!-- 第四段：左 = 黄色实心五角星 + 数字评分；右 = 价格（橙色突出）。同一行。
-           星尺寸 30rpx：24px 网格的星形自带视觉留白，30rpx 与 24rpx 评分文本视觉等高（光学补偿） -->
+           星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿（2026-09-22 同批升档） -->
       <view class="card-meta">
         <view class="card-rating">
-          <IconSvg name="star-filled" :size="30" :color="COLOR_MAP.star" class="star-icon" />
+          <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
           <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
         </view>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
@@ -38,25 +38,28 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Dish } from '@/types/dish'
+import type { DishListItem } from '@/types/dish'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
 import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{
-  dish: Dish
+  /** 列表行（`GET /dishes` → `DishListItemVO` 8 字段；2026-09-22 拆分后列表不含详情专属字段） */
+  dish: DishListItem
 }>()
 
 // 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
 // 父组件 @click 编译为原生 bindclick，emit 参数丢失。
 const emit = defineEmits<{
-  select: [dish: Dish]
+  select: [dish: DishListItem]
 }>()
 
-/** 图片 URL：通过 getImageUrl 处理（兼容相对路径与完整 URL） */
-// C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降
-const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.image)))
+/**
+ * 图片 URL：列表**唯一图片字段** `coverImage`（后端已给绝对 URL；无图空串 → 占位空态）。
+ * C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降。
+ */
+const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.coverImage)))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
@@ -88,6 +91,9 @@ function handleClick() {
   transition: opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
+/* 按压反馈（§4.9 统一按压语言：小程序端「透明度微降」，与 mt-tab / 搜索卡同族；
+   不用 transform: scale，避免与卡片内图片淡入的合成层叠加抖动） */
+.dish-card-pressed { opacity: 0.88; }
 .card-image {
   position: relative;
   width: 100%;
@@ -124,7 +130,8 @@ function handleClick() {
 }
 .rating-text {
   color: var(--text-secondary);
-  font-size: var(--font-small);
+  /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限（§3 第 4 段） */
+  font-size: var(--font-body);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
@@ -145,10 +152,11 @@ function handleClick() {
   color: var(--text-primary);
   min-width: 0;
 }
-/* 第三段：食堂 | 档口（浅灰纯文字，无图标；超长省略） */
+/* 第三段：食堂 | 档口（浅灰纯文字，无图标；超长省略）
+   组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px）；字号升到 --font-body(14px)（§3 第 3 段） */
 .card-stall {
-  margin-top: var(--spacing-sm);
-  font-size: var(--font-small);
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-body);
   font-weight: var(--weight-regular);
   color: var(--text-tertiary);
   min-width: 0;

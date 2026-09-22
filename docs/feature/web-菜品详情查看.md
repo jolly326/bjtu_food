@@ -49,7 +49,7 @@
 | `id` | number | 菜品 ID |
 | `stallId` | number | 所属档口 ID |
 | `name` | string | 菜品名称（本页页头主标题） |
-| `alias` | string \| null | 搜索别名（逗号分隔，管理员配置；与菜名同权命中） |
+| ~~`alias`~~ | — | **已删除（2026-09-22 用户拍板：菜品无需昵称）**——`dish.alias` 全局删除，菜品出参不再含搜索别名（**已落地 2026-09-22，change `search-page-refresh`**） |
 | `price` | number | 现价（单位：分，已含折扣） |
 | `originalPrice` | number \| null | 原价（单位：分，折扣前）；`originalPrice > price` 时端上划线 |
 | `description` | string | 菜品描述 |

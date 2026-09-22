@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
  * <p>
  * 与 {@link UserInfoVO}（小程序端登录/资料体）字段高度相似但<b>不可合并</b>，差异登记如下：
  * <ul>
- *   <li>{@code verified} 类型不同：本类为 {@code Integer}（0/1，直接暴露库值，管理端展示原始态）；
- *       {@link UserInfoVO} 为 {@code Boolean}（true=已认证 / false=游客态，端上语义）。</li>
- *   <li>本类额外汇总 {@code createdAt}（管理端需要展示注册时间）、{@code wechatBound}
- *       （是否已绑定微信，仅布尔标识不暴露 openid 明文）——{@link UserInfoVO} 均无。</li>
+ *   <li>本类额外汇总 {@code status}（账号状态，管理端需展示与操作）、{@code createdAt}（注册时间）、
+ *       {@code wechatBound}（是否已绑定微信，仅布尔标识不暴露 openid 明文）——{@link UserInfoVO} 均无。</li>
+ *   <li>认证状态<b>不作出参字段</b>：管理端与小程序端同口径，按 {@code bindEmail} 非空派生
+ *       （2026-09-22 用户拍板：verified/verified_at 与 bind_email 同源冗余，DB 两列已退役）。</li>
  *   <li>消费方：{@code GET /admin/users}（UserAdminController）；{@link UserInfoVO} 消费方为
  *       {@code POST /auth/wechat-login}、{@code POST /auth/verify-email}、{@code GET /auth/profile}。</li>
  * </ul>
@@ -41,13 +41,10 @@ public class UserVO {
     @Schema(description = "状态", example = "active")
     private String status;
 
-    @Schema(description = "认证状态：0=游客未认证 / 1=已邮箱认证", example = "0")
-    private Integer verified;
-
     @Schema(description = "是否微信绑定（仅布尔标识，不返回 openid 明文，规避隐私泄露）", example = "false")
     private Boolean wechatBound;
 
-    @Schema(description = "已认证绑定邮箱（可空）", example = "20240001@bjtu.edu.cn")
+    @Schema(description = "已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）", example = "20240001@bjtu.edu.cn")
     private String bindEmail;
 
     @Schema(description = "创建时间")

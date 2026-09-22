@@ -7,7 +7,7 @@
 
 ### Requirement: 账号信息对象字段集
 
-登录与账号资料接口返回的账号信息对象 SHALL 恰为 6 个字段：`id`、`username`、`nickname`、`avatar`、`verified`、`bindEmail`。该对象 SHALL NOT 返回 `email`、`status`、`guestShortId` 任一字段。
+登录与账号资料接口返回的账号信息对象 SHALL 恰为 5 个字段：`id`、`username`、`nickname`、`avatar`、`bindEmail`。该对象 SHALL NOT 返回 `verified`、`email`、`status`、`guestShortId` 任一字段。
 
 以下四条链路 SHALL 返回同一字段集（承载结构差异不影响字段集的一致性）：`POST /auth/wechat-login`、`POST /auth/verify-email`、`GET /auth/profile`、`PUT /auth/profile`。
 
@@ -16,7 +16,7 @@
 #### Scenario: 新游客登录的响应字段集
 
 - **WHEN** 端上以新 openid 调用 `POST /auth/wechat-login`
-- **THEN** 响应中账号信息对象的字段恰为 `id`、`username`、`nickname`、`avatar`、`verified`、`bindEmail` 六项，不出现 `email`、`status`、`guestShortId`
+- **THEN** 响应中账号信息对象的字段恰为 `id`、`username`、`nickname`、`avatar`、`bindEmail` 五项，不出现 `verified`、`email`、`status`、`guestShortId`
 
 #### Scenario: 四条链路字段集一致
 
@@ -26,7 +26,40 @@
 #### Scenario: 被删字段不出参
 
 - **WHEN** 检查任一登录 / 资料链路响应
-- **THEN** 响应中不存在 `email`、`status`、`guestShortId` 任一字段
+- **THEN** 响应中不存在 `verified`、`email`、`status`、`guestShortId` 任一字段
+
+#### Scenario: 管理端用户列表同样不出参认证布尔
+
+- **WHEN** 检查 `GET /admin/users` 的响应行
+- **THEN** 行内不存在 `verified` 字段；管理端展示认证态时 SHALL 由 `bindEmail` 非空派生
+
+### Requirement: 认证态判据单一真源
+
+系统的「是否已完成学号邮箱认证」SHALL 由 `bindEmail`（库列 `user.bind_email`）非空与否唯一决定：非空即已认证（可写 UGC），为 `null` 即游客态。系统 SHALL NOT 保留任何与之并存的认证布尔字段或认证时间字段作为判据来源（`user.verified` / `user.verified_at` 已退役且不得回流）。
+
+服务端 SHALL 经单一工具方法派生该判据（`AuthStateUtil#isVerified`），小程序端 SHALL 经 `useUserStore().isVerified()` 单点派生；消费方 SHALL NOT 各自散写等价判断。
+
+认证态 SHALL NOT 进入 JWT，服务端 SHALL 在请求时按实时读取的 `user.bind_email` 判定。
+
+#### Scenario: 游客触发需认证的写操作
+
+- **WHEN** 未认证（`bind_email` 为 `NULL`）账号请求需认证的 UGC 写接口
+- **THEN** 服务端返回细分业务码 `4031` 与「请先完成学号邮箱认证」，不进入业务逻辑
+
+#### Scenario: 认证成功后立即生效
+
+- **WHEN** 账号完成邮箱验证码认证（写入 `bind_email`）
+- **THEN** 该账号随后的需认证写操作被放行，无需等待 token 更新（认证态不入 JWT、实时查库）
+
+#### Scenario: 解绑或注销后回落游客态
+
+- **WHEN** 账号的 `bind_email` 被清空（替换绑定释放旧账号、账号注销）
+- **THEN** 该账号立即被视为游客态（需认证接口返回 `4031`），不存在残留的「已认证」判据
+
+#### Scenario: 两列退役后不得回流
+
+- **WHEN** 检查库表结构、实体、VO 与接口响应
+- **THEN** `user` 表无 `verified` / `verified_at` 列，实体与 VO 无对应字段，任一响应无 `verified` 出参
 
 ### Requirement: 校园邮箱唯一来源
 

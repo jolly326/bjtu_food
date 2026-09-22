@@ -15,17 +15,24 @@
     - count___：计数操作
     - update___：更新操作
 
-    字段口径（2026-09-20 拍板）：
-    - 公开查询仅选 DishVO 15 字段所需列（status/view_count/created_at/updated_at/alias 等不出参也不查询）；
-    - 管理端查询（adminDishColumns）额外选 status/stall_id/alias/timestamps（管理端维护用）；
+    字段口径（2026-09-22 拍板：列表 / 详情出参拆分）：
+    - 列表查询仅选 DishListItemVO 8 字段所需列（listDishColumns），详情查询选 DishDetailVO 15 字段所需列（detailDishColumns）；
+    - 两者均不选 status/view_count/created_at/updated_at 等不出参列；
+    - 管理端查询（adminDishColumns）额外选 status/stall_id/timestamps（管理端维护用）；
     - 坐标兜底 COALESCE 与 canteen 坐标列同批下线（位置表达收敛为 食堂 · 楼层 · 档口名）；
     - 标签 FIND_IN_SET(tag) 条件与 d.tags 模糊匹配随 tags 整链下线删除；
     - 辣度 spice_level 筛选条件随维度替换删除（§7.28）。
     ============================================================
     -->
 
-    <!-- DishVO / DishDetailVO 结果映射（仅声明下划线列名与属性名不同者；其余按 mapUnderscoreToCamelCase 自动映射） -->
-    <resultMap id="dishVOMap" type="com.bjtufood.dish.dto.DishVO">
+    <!-- 列表行映射（DishListItemVO，8 字段；2026-09-22 列表 / 详情出参拆分 D 项）。
+         仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
+    <resultMap id="dishListItemMap" type="com.bjtufood.dish.dto.DishListItemVO">
+        <id property="id" column="id"/>
+    </resultMap>
+
+    <!-- 详情映射（DishDetailVO，15 字段 + ratingDistribution） -->
+    <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO">
         <id property="id" column="id"/>
         <result property="floor" column="floor"/>
         <result property="dietType" column="diet_type"/>
@@ -33,9 +40,6 @@
         <result property="flavorTags" column="flavor_tags"/>
         <result property="serveTemp" column="serve_temp"/>
     </resultMap>
-
-    <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO"
-               extends="dishVOMap"/>
 
     <!--
     综合热度分表达式（**热度权重的唯一真源**）：
@@ -58,35 +62,40 @@
     </sql>
 
     <!--
-        公开查询列（DishVO 15 字段）：id/name/price/originalPrice/description/images/
-        stallName/canteenName/floor/avgRating/ratingCount/dietType/ingredients/flavorTags/serveTemp。
-        公开出参不含 status/view_count/created_at/updated_at/alias/stall_id/canteen_id/window_no/坐标，
-        故此处不选这些列（列收窄）。WHERE/ORDER BY 中引用的 d.status/d.created_at 等为 FROM 子句列，无需出现在 SELECT 列表。
+        列表查询列（DishListItemVO 8 字段所需列，2026-09-22 D 项拆分）：
+        id/name/price/originalPrice/images(仅供 Service 解析首图 coverImage)/avgRating/stallName/canteenName。
+        **列表不选**详情专属列（description/rating_count/diet_type/ingredients/flavor_tags/serve_temp/floor）；
+        两场景均不选 status/view_count/created_at/updated_at/stall_id/canteen_id/window_no/坐标（列收窄）。
+        WHERE/ORDER BY 中引用的 d.status/d.view_count 等为 FROM 子句列，无需出现在 SELECT 列表。
     -->
-    <sql id="publicDishColumns">
+    <sql id="listDishColumns">
         d.id,
         d.name,
         d.price,
         d.original_price,
-        d.description,
         d.images  AS images_json,
         d.avg_rating,
+        s.name AS stall_name,
+        c.name AS canteen_name
+    </sql>
+
+    <!-- 详情查询列（DishDetailVO 15 字段）= 列表列 + 详情专属列 -->
+    <sql id="detailDishColumns">
+        <include refid="listDishColumns"/>,
+        d.description,
         d.rating_count,
         d.diet_type,
         d.ingredients,
         d.flavor_tags,
         d.serve_temp,
-        s.name AS stall_name,
-        s.floor,
-        c.name AS canteen_name
+        s.floor
     </sql>
 
-    <!-- 管理端查询列（DishAdminVO）：公开不出参的 status/stall_id/alias/timestamps 管理端需要；不含坐标。 -->
+    <!-- 管理端查询列（DishAdminVO）：公开不出参的 status/stall_id/timestamps 管理端需要；不含坐标。 -->
     <sql id="adminDishColumns">
         d.id,
         d.stall_id,
         d.name,
-        d.alias,
         d.price,
         d.original_price,
         d.description,
@@ -105,45 +114,34 @@
         c.name AS canteen_name
     </sql>
 
-    <!-- 分页查询菜品 -->
-    <select id="selectDishPage" resultMap="dishVOMap">
+    <!-- 分页查询菜品（列表专用 8 字段，2026-09-22 D 项拆分；仅 status='on'） -->
+    <select id="selectDishPage" resultMap="dishListItemMap">
         SELECT
-        <include refid="publicDishColumns"/>
+        <include refid="listDishColumns"/>
         <include refid="dishFromJoin"/>
         <!-- 档口/食堂已去实体化（§7.14）：无停业语义，原 s.status/c.status='open' 过滤已移除（列同批 DROP） -->
         <!-- 菜品审核语义已整体退役（2026-09-15 阶段4）：公开可见性唯一判据为上架状态 status='on' -->
         WHERE d.status = 'on'
         <if test="req.keyword != null and req.keyword != ''">
-            -- 菜品名或别名命中即返回（alias 为管理员配置的逗号分隔别名，NULL 行 LIKE 恒 false 不影响 OR 短路）；
-            -- tags 模糊匹配已随标签整链下线删除（2026-09-20）
-            AND ((d.name LIKE CONCAT('%', #{req.keyword}, '%')
-            OR d.alias LIKE CONCAT('%', #{req.keyword}, '%'))
+            -- 关键词三路模糊匹配：菜名 / 档口名 / 食堂名（2026-09-22 用户拍板：菜品无搜索别名，
+            -- 原 d.alias LIKE 分支随 dish.alias 列全链删除；tags 模糊匹配已于 2026-09-20 随标签整链下线）
+            AND (d.name LIKE CONCAT('%', #{req.keyword}, '%')
             OR s.name LIKE CONCAT('%', #{req.keyword}, '%')
             OR c.name LIKE CONCAT('%', #{req.keyword}, '%'))
-        </if>
-        <if test="req.canteenId != null">
-            AND c.id = #{req.canteenId}
         </if>
         <!-- 菜品大类筛选（2026-09-21 §7.34）：单值精确匹配；白名单校验在 Service 层（非法值 400，不落 SQL） -->
         <if test="req.mealType != null and req.mealType != ''">
             AND d.meal_type = #{req.mealType}
         </if>
-        <if test="req.minPrice != null">
-            AND d.price &gt;= #{req.minPrice}
-        </if>
-        <if test="req.maxPrice != null">
-            AND d.price &lt;= #{req.maxPrice}
-        </if>
-        <!-- 排序口径收敛（2026-09-21 §7.33）：删除 sortBy/sortOrder 的 <choose> 分支（原 <otherwise> =
-             ORDER BY d.rating_count DESC, d.avg_rating DESC 一并移除），默认流 / 筛选流 / 搜索流
-             三路统一为唯一热度口径 -->
+        <!-- 食堂 / 价格筛选条件已随 2026-09-22 K3「筛选全量下线」删除（原 canteenId / minPrice / maxPrice 三个
+             <if> 分支移除）；排序口径收敛（2026-09-21 §7.33）：默认流 / 搜索流统一为唯一热度口径 -->
         ORDER BY <include refid="heatScoreExpr"/> DESC
     </select>
 
-    <!-- 菜品详情 -->
+    <!-- 菜品详情（详情专用 15 字段，2026-09-22 D 项拆分） -->
     <select id="selectDishDetail" resultMap="dishDetailMap">
         SELECT
-        <include refid="publicDishColumns"/>
+        <include refid="detailDishColumns"/>
         <include refid="dishFromJoin"/>
         <!-- 公开详情可见性判据同上：仅 status='on'（audit_status 列已退役） -->
         WHERE d.id = #{id}
@@ -156,7 +154,6 @@
         <id property="id" column="id"/>
         <result property="stallId" column="stall_id"/>
         <result property="name" column="name"/>
-        <result property="alias" column="alias"/>
         <result property="originalPrice" column="original_price"/>
         <result property="dietType" column="diet_type"/>
         <result property="ingredients" column="ingredients"/>
@@ -189,14 +186,18 @@
         GROUP BY rating
     </select>
 
-    <!-- 热搜词条 TOP10（基于菜品综合热度派生的热门词条，无真实搜索词埋点） -->
-    <select id="selectHotSearch" resultType="com.bjtufood.dish.dto.HotSearchVO">
-        SELECT d.name AS keyword,
-               CAST(<include refid="heatScoreExpr"/> AS SIGNED) AS heat
+    <!--
+        猜你喜欢（原「热搜词条 TOP10」，2026-09-22 change search-page-refresh：改名 + 语义变更 + 去缓存）：
+        每次请求**随机**抽取在售菜品名——不看热度、不排序、不做个性化（「完全随机」即需求本身）。
+        出参仅 keyword；条数由调用方传入（DishMapper#selectGuessLike(@Param limit)，Service 侧常量）。
+        注意：本查询**不得**再走 heatScoreExpr（热度排序已与语义无关）。
+    -->
+    <select id="selectGuessLike" resultType="com.bjtufood.dish.dto.GuessLikeVO">
+        SELECT d.name AS keyword
         FROM dish d
         WHERE d.status = 'on'
-        ORDER BY heat DESC
-        LIMIT 10
+        ORDER BY RAND()
+        LIMIT #{limit}
     </select>
 
     <!-- 菜品大类字典下发（2026-09-21 §7.34）：只回答「哪些大类当前有在售菜品」（空类自动隐藏）；

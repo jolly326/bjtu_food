@@ -57,7 +57,7 @@
 | `id` | number | 菜品 ID |
 | `stallId` | number | 所属档口 ID |
 | `name` | string | 菜品名称 |
-| `alias` | string \| null | **搜索别名**（逗号分隔，管理员配置；搜索时与菜名同权命中） |
+| ~~`alias`~~ | — | **已删除（2026-09-22 用户拍板：菜品无需昵称，`dish.alias` 全局删除）**——搜索命中收敛为「菜名 / 档口名 / 食堂名」三处；本表不再收录该字段（**已落地 2026-09-22，change `search-page-refresh`**：实体 / DTO / mapper 匹配路 / 表单 / 校验 / 错误码全链删除） |
 | `price` | number | 现价，**单位：分** |
 | `originalPrice` | number \| null | 原价（折扣前），单位分；**`originalPrice > price` 即视为有折扣**（2026-09-18 §7.26，`promoPrice` 已删除） |
 | `description` | string | 菜品描述 |
@@ -73,7 +73,7 @@
 | `ingredients` | string | 主料 / 食材（逗号分隔**英文机器值**，管理端展示层映射中文）：`pork` 猪 / `beef` 牛 / `lamb` 羊 / `chicken` 鸡 / `duck` 鸭 / `fish` 鱼虾 / `egg` 蛋 / `tofu` 豆制品 / `mushroom` 菌菇 / `veg` 青菜 / `noodle` 面 / `rice` 米（见 `project_spec.md` §7.28） |
 | `flavorTags` | string | 口味（逗号分隔**英文机器值**）：`spicy` 辣 / `numbing` 麻 / `sour` 酸 / `sweet` 甜 / `salty` 咸 / `umami` 鲜 / `light` 清淡 / `heavy` 重口 |
 | `serveTemp` | string | 冷热：`hot`=热食 / `room`=常温 / `ice`=冰 |
-| `mealType` | string \| null | **菜品大类（2026-09-21 新增）**：枚举键 `set_meal` 套餐盖饭 / `stir_fry` 家常小炒 / `noodle` 面食粉类 / `dry_pot` 香锅干锅 / `snack` 风味小吃 / `soup_drink` 汤饮甜品。**中文标签由 `GET /dishes/meal-types` 下发，管理端不得硬编码**；该字段**不进公开 `DishVO`**（卡片不展示） |
+| `mealType` | string \| null | **菜品大类（2026-09-21 新增）**：枚举键 `set_meal` 套餐盖饭 / `stir_fry` 家常小炒 / `noodle` 面食粉类 / `dry_pot` 香锅干锅 / `snack` 风味小吃 / `soup_drink` 汤饮甜品。**中文标签由 `GET /dishes/meal-types` 下发，管理端不得硬编码**；该字段**不进公开菜品出参**（`DishListItemVO` / `DishDetailVO`，卡片不展示） |
 
 > **无审核态字段**（菜品无独立审核，`audit_status` 列已退役）；`imagesJson`（图片原文）为内部字段，不出参。**`viewCount`（浏览量）已删出参（2026-09-18 §7.27）**——仅作热度排序服务，Web 无展示消费，`api/adapter.ts` 的 `view_count` 映射同步删。
 
@@ -85,7 +85,7 @@
 | `stallName` | string | 否 | **档口名（按名 upsert）**：字典有同名 → 复用其 ID；没有 → **自动建档**；「其他」等空值语义名称不建档 |
 | `canteenName` | string | 否 | **食堂名（按名 upsert）**：**仅当 `stallName` 触发新建档口时才消费**，作为新档口的所属食堂；不传则新档口不挂食堂 |
 | `name` | string | 新增必填 | 菜品名称 |
-| `alias` | string | 否 | 搜索别名，中英文逗号分隔，总长 ≤255（超限 400）；后端保存前 trim、去空项、去重。**`null`=不修改；空串=清空别名** |
+| ~~`alias`~~ | — | — | **已删除（2026-09-22 用户拍板）**：菜品不再有搜索别名——后台表单「搜索别名」输入项、`总长 ≤255` 校验、「alias 超长」错误码与「`null`=不修改 / 空串=清空」语义**一并退役**；`seed_data.sql` 经核对本就不含该列、`schema.sql` 以幂等段 `drop_dish_alias_column` DROP 列（**已落地 2026-09-22**） |
 | `price` | number | 新增必填 | 现价，**单位：分**（12 元传 1200） |
 | `originalPrice` | number | 否 | 原价（折扣前），单位分；`originalPrice > price` 即端上原价划线（`promoPrice` 已删除，2026-09-18 §7.26） |
 | `description` | string | 否 | 菜品描述 |
@@ -109,7 +109,7 @@
 
 | code | 含义 | 中文解释 |
 |---|---|---|
-| 400 | 档口不存在 / 请指定所属档口 / alias 超长 / 名称非法 / **菜品大类不合法** | 参数与业务校验失败（**注意**：本项目业务错误统一为 HTTP 200 + 响应体 `code` 字段，前端据 `body.code` 分流）|
+| 400 | 档口不存在 / 请指定所属档口 / 名称非法 / **菜品大类不合法**（原「alias 超长」已随别名删除退役，2026-09-22） | 参数与业务校验失败（**注意**：本项目业务错误统一为 HTTP 200 + 响应体 `code` 字段，前端据 `body.code` 分流）|
 | 403 | 口令缺失或错误 | `X-Admin-Token` 校验失败（fail-closed） |
 
 ## 数据（落库）

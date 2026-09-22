@@ -11,7 +11,7 @@ onLaunch(() => {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
   // #endif
-  // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（verified=false）；有 token 则刷新资料
+  // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
   // 失败（如后端不可达）仅打点，不阻断浏览与菜单栏渲染
   useUserStore().silentLogin().catch(() => {})
 });
@@ -93,7 +93,6 @@ page {
   --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
   --z-detail-bar: 70;      /* 详情页空态/加载承接条（no-dish-bar，固定顶部） */
   --z-detail-nav: 80;      /* 详情页覆盖导航（dish-nav，固定顶部） */
-  --z-filter-dropdown: 90; /* 首页/搜索页筛选下拉（FilterBar 食堂下拉遮罩与价格弹层根） */
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
   --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */

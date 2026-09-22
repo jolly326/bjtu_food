@@ -133,7 +133,6 @@ export function dishToLegacy(raw: any): Dish {
     image: imagesToLegacy(raw.images ?? raw.image),
     price: Math.round(raw.price ?? 0) / 100,
     description: raw.description || '',
-    alias: raw.alias || '',
     avg_rating: raw.avgRating ?? raw.avg_rating ?? 0,
     rating_count: raw.ratingCount ?? raw.rating_count ?? 0,
     status: raw.status === 'on' ? 'active' : 'inactive',
@@ -168,7 +167,6 @@ export function dishToApi(data: Partial<Dish>) {
     name: data.name,
     price: data.price === undefined ? undefined : Math.round(Number(data.price) * 100),
     description: data.description,
-    alias: data.alias,
     images: data.image === undefined ? undefined : legacyToImageList(data.image),
     status: data.status === undefined ? undefined : (data.status === 'inactive' ? 'off' : 'on'),
     // 描述四维（§7.28）：机器值 CSV / 单选值原样提交（空串 = 清空该维）
@@ -214,8 +212,8 @@ export function userToLegacy(raw: any): User {
     nickname: raw.nickname || '',
     avatar: raw.avatar || '',
     status: raw.status,
-    // task-02 新增：微信登录体系字段（snake_case 仅在 adapter 内部兜底）
-    verified: raw.verified ?? 0,
+    // 微信登录体系字段（snake_case 仅在 adapter 内部兜底）：
+    // verified 已随 2026-09-22 契约收敛删除，认证态由 bindEmail 非空派生（判据唯一真源）
     wechatBound: raw.wechatBound ?? (raw.openid ? true : false),
     bindEmail: (raw.bindEmail ?? raw.bind_email) || '',
     created_at: toDate(raw.createdAt || raw.created_at),

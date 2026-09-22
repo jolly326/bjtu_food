@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
-import com.bjtufood.dish.dto.DishVO;
-import com.bjtufood.dish.dto.HotSearchVO;
+import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,25 +28,27 @@ public class DishController {
     private final DishService dishService;
 
     @Operation(
-            summary = "热搜榜单 TOP10",
-            description = "用途：搜索/发现页热搜榜。一期限定：无真实搜索词埋点，基于菜品综合热度派生热门词条。公开接口。"
+            summary = "猜你喜欢",
+            description = "用途：搜索页「猜你喜欢」区块。当前实现 = 每次随机抽取在售菜品名"
+                    + "（不看热度、不排序、不做个性化推荐算法），故不缓存；出参仅 keyword，契约留个性化扩展位。公开接口。"
     )
-    @GetMapping("/dishes/hot-search")
-    public Result<List<HotSearchVO>> hotSearch() {
-        return Result.success(dishService.hotSearch());
+    @GetMapping("/dishes/for-you")
+    public Result<List<GuessLikeVO>> guessLike() {
+        return Result.success(dishService.guessLike());
     }
 
     @Operation(
             summary = "菜品分页查询",
             description = """
-                    用途：菜品列表页、搜索页、筛选页。
+                    用途：首页网格、搜索页（2026-09-22 起食堂 / 价格筛选已全量下线，无筛选入口）。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    常用参数：keyword、canteenId、mealType、minPrice、maxPrice（排序恒为服务端热度倒序，无排序入口）。
+                    参数集恰为 4 项：page、pageSize、keyword、mealType（排序恒为服务端热度倒序，无排序入口）。
+                    出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )
     @GetMapping("/dishes")
-    public Result<PageResult<DishVO>> listDishes(@ModelAttribute DishQueryReq req) {
-        IPage<DishVO> result = dishService.listDishes(req);
+    public Result<PageResult<DishListItemVO>> listDishes(@ModelAttribute DishQueryReq req) {
+        IPage<DishListItemVO> result = dishService.listDishes(req);
         // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
         return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize()));

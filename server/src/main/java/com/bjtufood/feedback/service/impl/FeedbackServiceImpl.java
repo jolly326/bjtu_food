@@ -7,6 +7,7 @@ import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.AuthStateUtil;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
@@ -298,7 +299,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         try {
             User user = userMapper.selectById(userId);
-            if (user == null || user.getVerified() == null || user.getVerified() != 1) {
+            // 仅对已认证用户投递回执（判据 = bind_email 非空，唯一真源 AuthStateUtil）
+            if (user == null || !AuthStateUtil.isVerified(user.getBindEmail())) {
                 return;
             }
             Notification n = new Notification();

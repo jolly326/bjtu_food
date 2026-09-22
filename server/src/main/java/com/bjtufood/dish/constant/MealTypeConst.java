@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
  * 判定口径（后台录入与数据回填的唯一判据）：**按菜名与做法形态判定，不看主料与口味**。
  * <p>
  * 分层：本常量仅供「大类筛选（{@code GET /dishes?mealType=}）」与「大类字典下发
- * （{@code GET /dishes/meal-types}）」使用；**大类不进入公开 {@code DishVO} 出参**，
+ * （{@code GET /dishes/meal-types}）」使用；**大类不进入公开菜品出参（{@code DishListItemVO} / {@code DishDetailVO}）**，
  * 后台 {@code DishAdminReq} / {@code DishAdminVO} 需要（录入下拉 + 编辑回填 + 列表筛选）。
  * <p>
  * 边界：本枚举**不构成品类复活**——无 {@code category} 表、无 {@code /admin/categories}、

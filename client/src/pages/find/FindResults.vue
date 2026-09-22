@@ -85,8 +85,6 @@ interface MixedResultItem {
   price?: number
   originalPrice?: number
   rating?: number
-  ratingCount?: number
-  stall?: string
 }
 
 const props = defineProps<{

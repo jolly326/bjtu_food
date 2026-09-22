@@ -93,7 +93,7 @@ async function handleUnauthorized(): Promise<void> {
 
 /**
  * 统一「邮箱未认证」处理（4031）：
- * UGC 写操作需 verified=true，游客触发时后端返回 4031（细分业务码）→
+ * UGC 写操作需已认证（bindEmail 非空），游客触发时后端返回 4031（细分业务码）→
  * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
  * 与普通 403 严格分流：4031 弹认证表单，403 不弹（避免误导用户去改邮箱）。
  */
@@ -109,7 +109,7 @@ async function handleUnverified(): Promise<void> {
 
 /**
  * 统一「需微信登录」处理（403 且 message 指向微信登录，spec §7.5 / §7.7 第 1 条）：
- * 已认证（verified=1）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
+ * 已认证（bindEmail 非空）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
  * message「请使用微信登录后再发布评价」。端上处置 = 「提示 + 用户主动确认」
  * （依据 spec §7.7 第 1 条，2026-09-14 裁决，禁止自动重登换登录态）：
  * 弹窗说明 + 用户点「重新登录」确认后，才重跑微信静默登录（wx.login → POST /auth/wechat-login）
@@ -280,7 +280,7 @@ async function request<T>(
   }
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需 verified 的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    // 游客触发需认证的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
     void handleUnverified()
     throw new SurfacedError(body.message || '请先完成学号邮箱认证')
   }

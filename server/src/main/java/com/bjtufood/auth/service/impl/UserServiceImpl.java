@@ -64,7 +64,6 @@ public class UserServiceImpl implements UserService {
         // 最终昵称含自增 id 尾 4 位，而本列 NOT NULL → 先写占位值，插入后回填（同事务）
         user.setNickname(NICKNAME_PLACEHOLDER);
         user.setStatus("active");
-        user.setVerified(0);
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
@@ -123,7 +122,6 @@ public class UserServiceImpl implements UserService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setStatus(user.getStatus());
-        vo.setVerified(user.getVerified());
         vo.setBindEmail(user.getBindEmail());
         vo.setCreatedAt(user.getCreatedAt());
         return vo;

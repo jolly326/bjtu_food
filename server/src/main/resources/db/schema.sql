@@ -60,8 +60,12 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- -------------------- 用户 --------------------
 -- 认证模型（2026-08 微信登录体系，spec §5.y）：
---   · 微信自动静默登录为游客态（verified=0），openid 为登录取号依据（唯一）。
---   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ verified=1、写 bind_email/verified_at，解锁 UGC 写操作。
+--   · 微信自动静默登录为游客态（bind_email 为 NULL），openid 为登录取号依据（唯一）。
+--   · @bjtu.edu.cn 邮箱验证码认证（purpose=verify）→ 写 bind_email（**认证态唯一真源**：非空即已认证），
+--     解锁 UGC 写操作。
+--   · user.verified / user.verified_at 已于 2026-09-22 用户拍板退役（与 bind_email 同源冗余：三列表达同一事实，
+--     历史写入路径「认证 / 释放绑定替换 / 注销」恒成对写，无独立语义）：CREATE TABLE 不再创建，
+--     存量库由下方 drop_verified_columns 幂等段清理（先建后删无意义，故 add_user_wechat_auth 段亦不补齐）。
 --   · username 语义：游客建号 'wx_'+openid 尾 16 位；旧邮箱注册用户保留学号。
 --   · email 列保留作为历史迁移凭证。
 --   · user.password 已于 2026-09-16 用户拍板「零消费即删除」退役：三端零读（唯一写点=注销置 NULL），
@@ -81,9 +85,7 @@ CREATE TABLE IF NOT EXISTS `user`
     -- CREATE TABLE 均不再创建，存量库由文件末尾幂等 DROP 段清理。
     `status`       VARCHAR(32)  NOT NULL DEFAULT 'active' COMMENT '状态：active / disabled / deleted',
     `openid`       VARCHAR(64)  NULL     DEFAULT NULL COMMENT '微信 openid（静默登录取号依据，唯一；仅微信游客/已认证账号有值，历史学号账号为 NULL）',
-    `verified`     TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）',
-    `bind_email`   VARCHAR(128) NULL     DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）',
-    `verified_at`  DATETIME     NULL     DEFAULT NULL COMMENT '认证时间',
+    `bind_email`   VARCHAR(128) NULL     DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空；非空即已认证 = 认证状态唯一真源）',
     `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -138,7 +140,9 @@ CREATE TABLE IF NOT EXISTS `dish`
     `id`             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '菜品ID',
     `stall_id`       BIGINT       NOT NULL DEFAULT 0 COMMENT '所属档口ID',
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '菜品名称',
-    `alias`          VARCHAR(255) NULL     DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）',
+    -- dish.alias（搜索别名）已于 2026-09-22 用户拍板「菜品无需昵称」退役：
+    -- CREATE TABLE 不再创建；存量库由文件末尾 drop_dish_alias_column 幂等段清理（可重跑）。
+    -- 同批：Dish / DishAdminReq / DishAdminVO 去字段、DishMapper.xml 去别名匹配路与列映射（change search-page-refresh）。
     `price`          INT          NOT NULL DEFAULT 0 COMMENT '现价（单位：分，已含折扣；唯一价格数据源）',
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（单位：分，可空）；original_price > price 视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
@@ -337,6 +341,28 @@ CREATE TABLE IF NOT EXISTS `view_log`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（用途：浏览量统计与当日去重，无推荐用途）';
 
+-- 首页顶部轮播图 banner（2026-09-22 新增，change「首页 Banner 接口化」）：
+--   · status 取 on / off（与 dish.status 同风格；**不复活**已随下线删除的 enabled/disabled 枚举），
+--     服务端按 status='on' 过滤，该列不出参；
+--   · sort_order 为展示顺序（升序），服务端排序用、不出参；
+--   · image_url 与菜品图片同口径（库内可存相对路径，出参经 ImageUrlUtil 转绝对 URL），素材统一 16:10；
+--   · 本期仅只读（GET /banners），无管理端写入口，素材由 seed_data.sql 维护。
+-- CREATE TABLE IF NOT EXISTS 本身幂等，存量库重复执行安全（无需存储过程防护）。
+CREATE TABLE IF NOT EXISTS `banner`
+(
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Banner ID',
+    `image_url`  VARCHAR(500) NOT NULL DEFAULT '' COMMENT '轮播图URL（16:10 素材；可存相对路径，出参转绝对URL）',
+    `sort_order` INT          NOT NULL DEFAULT 0 COMMENT '展示顺序（升序，数字越小越靠前）',
+    `status`     VARCHAR(10)  NOT NULL DEFAULT 'on' COMMENT '状态：on=启用 / off=停用（服务端过滤用，不出参）',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    -- 公开查询唯一条件 + 排序：WHERE status='on' ORDER BY sort_order ASC
+    KEY `idx_banner_status_sort` (`status`, `sort_order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='首页顶部轮播图（公开只读，本期无管理端入口）';
+
 -- 浏览足迹判重复合索引 idx_view_user_target_time（2026-09-15）：
 -- 后端浏览量判重（POST /dishes/{id}/views，spec §7.14 第 1 条）已改用 updated_at 判定，
 -- 需 (user_id, target_type, target_id, updated_at) 覆盖判重查询。
@@ -387,8 +413,9 @@ CALL `add_dish_heat_index`();
 DROP PROCEDURE IF EXISTS `add_dish_heat_index`;
 
 -- 微信登录体系 user 表新列幂等迁移（task-01，spec §5.y.2）：
--- 旧库（尚无 openid/verified/bind_email/verified_at）补齐列与唯一索引，不破坏既有数据。
--- 注：unionid 不再补齐——该列已于 2026-09-16 零消费退役，由末尾 drop_zero_consumer_columns 段 DROP。
+-- 旧库（尚无 openid/bind_email）补齐列与唯一索引，不破坏既有数据。
+-- 注：unionid 不再补齐——该列已于 2026-09-16 零消费退役，由末尾 drop_zero_consumer_columns 段 DROP；
+--     verified / verified_at 已于 2026-09-22 退役，本段不再补齐（补齐后即被 drop_verified_columns 删掉）。
 DROP PROCEDURE IF EXISTS `add_user_wechat_auth`;
 DELIMITER $$
 CREATE PROCEDURE `add_user_wechat_auth`()
@@ -403,26 +430,10 @@ BEGIN
 
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified'
-    ) THEN
-        ALTER TABLE `user`
-            ADD COLUMN `verified`   TINYINT      NOT NULL DEFAULT 0 COMMENT '认证状态：0=游客未认证 / 1=已邮箱认证（不进 JWT，后端实时判定）';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'bind_email'
     ) THEN
         ALTER TABLE `user`
             ADD COLUMN `bind_email` VARCHAR(128) NULL DEFAULT NULL COMMENT '已认证绑定邮箱（仅存认证关系，可空）';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified_at'
-    ) THEN
-        ALTER TABLE `user`
-            ADD COLUMN `verified_at` DATETIME    NULL DEFAULT NULL COMMENT '认证时间';
     END IF;
 
     IF NOT EXISTS (
@@ -526,24 +537,10 @@ DELIMITER ;
 CALL `add_feedback_sub`();
 DROP PROCEDURE IF EXISTS `add_feedback_sub`;
 
--- 菜品搜索别名（2026-09-13 需求：搜索命中别名也能找到菜品；管理员经后台配置）：
--- dish 补齐 alias 列（CREATE TABLE 已含，列定义以 CREATE 为准：alias VARCHAR(255) NULL）；
--- 旧库幂等补齐（MySQL 不支持 ADD COLUMN IF NOT EXISTS，用存储过程防护，与上方迁移惯例一致）。
-DROP PROCEDURE IF EXISTS `add_dish_alias`;
-DELIMITER $$
-CREATE PROCEDURE `add_dish_alias`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'alias'
-    ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `alias` VARCHAR(255) NULL DEFAULT NULL COMMENT '搜索别名（逗号分隔，管理员配置）';
-    END IF;
-END$$
-DELIMITER ;
-CALL `add_dish_alias`();
-DROP PROCEDURE IF EXISTS `add_dish_alias`;
+-- 菜品搜索别名（2026-09-13 引入 → 2026-09-22 退役）：
+-- 原 add_dish_alias 迁移段已整段删除——菜品无搜索别名（用户拍板「菜品无需昵称」），
+-- CREATE TABLE 不再创建该列，存量库由文件末尾 drop_dish_alias_column 幂等段清理
+-- （先建后删无意义，与 add_canteen_location 整段删除的既有惯例一致）。
 
 -- 字段下线（2026-09-14 §7.9 用户拍板）：
 --   serve_period（餐段）与 limited（限量）在端上/后台/代码中均为零消费，整体下线。
@@ -598,7 +595,7 @@ DROP PROCEDURE IF EXISTS `drop_review_tags_column`;
 
 -- 字段下线（2026-09-14 §7.14 D 用户拍板）：
 --   stall.business_hours（营业时间）——用户明确「不需要营业时间」，端上零消费（无展示/无读取），
---   实体（Stall）/VO（StallDetailVO、StallAdminVO、DishVO）与 Mapper 映射同批移除。
+--   实体（Stall）/VO（StallDetailVO、StallAdminVO、公开菜品 VO）与 Mapper 映射同批移除。
 --   CREATE TABLE 已同步移除该列定义；旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
 --   注意：同批保留 stall.floor（楼层）与 stall.window_no（窗口号）——端上有消费（档口卡展示位置）。
 DROP PROCEDURE IF EXISTS `drop_stall_business_hours`;
@@ -618,7 +615,7 @@ DROP PROCEDURE IF EXISTS `drop_stall_business_hours`;
 
 -- 字段下线（2026-09-14 §7.14 · Q-114 用户拍板）：
 --   dish.portion（分量）——用户拍板「彻底下线」，连后台录入一并移除（PR-07：字段引入与下线成对处置）。
---   实体（Dish）/DTO（DishAdminReq）/VO（DishVO、DishAdminVO、DishDetailVO）/Mapper XML 列映射与查询列
+--   实体（Dish）/DTO（DishAdminReq）/VO（公开菜品 VO、DishAdminVO、DishDetailVO）/Mapper XML 列映射与查询列
 --   已同批移除，后台录入写入与值域校验亦删除；CREATE TABLE 已同步移除该列定义。
 --   旧库在此幂等 DROP，重复执行安全（先判存在再 DROP），不影响既有数据。
 --   注意：同批保留 dish.spice_level（辣度）——用户拍板要保留的维度，端上有消费。
@@ -884,6 +881,36 @@ DELIMITER ;
 CALL `drop_user_redundant_columns`();
 DROP PROCEDURE IF EXISTS `drop_user_redundant_columns`;
 
+-- 字段下线（2026-09-22 用户拍板 A 方案）：user 两列退役——
+--   · user.verified    —— 与 bind_email 同源冗余：同一事实的布尔镜像，历史写入路径
+--                         「邮箱认证 / 释放绑定替换 / 注销」三处恒成对写，无任何独立语义；
+--   · user.verified_at —— 只写不读（三端零读取，仅认证事务内写入一次）。
+-- 判据统一为「bind_email 非空」（服务端 AuthStateUtil 唯一真源；端上 bindEmail != null）。
+-- CREATE TABLE 已同步移除两列定义，实体 / UserInfoVO / UserVO / Service 写入点同批移除；
+-- 存量库在此幂等 DROP（先判 INFORMATION_SCHEMA.COLUMNS 存在再 DROP COLUMN，可重跑；
+-- 两列均无索引成员，无连带对象），不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_verified_columns`;
+DELIMITER $$
+CREATE PROCEDURE `drop_verified_columns`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `verified`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'verified_at'
+    ) THEN
+        ALTER TABLE `user` DROP COLUMN `verified_at`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_verified_columns`();
+DROP PROCEDURE IF EXISTS `drop_verified_columns`;
+
 -- 字段下线（2026-09-16 用户拍板「数据库重设计：零消费列全部删除，满足 BCNF」）：
 --   共 6 列，逐列三端 grep 复核零消费后退役：
 --   · user.password          —— 零读（唯一写点=注销置 NULL，AuthService 已同步删除该置空逻辑）；
@@ -1102,7 +1129,7 @@ DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
 
 -- 4.6 菜品大类：幂等 ADD dish.meal_type（2026-09-21 §7.34 / change home-ui-refresh，H5-1）
 --     单值枚举列（VARCHAR，可空），值域由后端 MealTypeConst 定义（唯一真源，不建字典表/外键——§7.22 第 1 条继续有效）。
---     语义：每个菜品恰属一个大类（单值互斥）；大类不进公开 DishVO，仅供筛选（GET /dishes?mealType=，
+--     语义：每个菜品恰属一个大类（单值互斥）；大类不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选（GET /dishes?mealType=，
 --     白名单校验非法值 400）与字典下发（GET /dishes/meal-types，空类自动隐藏）。
 --     写法兼容 MySQL 5.7（information_schema 判列 + PREPARE 动态 ALTER；目标库 TDSQL-C 为 5.7 兼容版）。
 DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
@@ -1126,5 +1153,27 @@ END$$
 DELIMITER ;
 CALL `add_dish_meal_type`();
 DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
+
+-- 4.7 菜品搜索别名下线：幂等 DROP dish.alias（2026-09-22 用户拍板「菜品无需昵称」，change search-page-refresh）
+--     背景：别名层只增后台录入负担，端上从未消费；关键词匹配收敛为菜名 / 档口名 / 食堂名三处。
+--     同批：Dish 实体 / DishAdminReq / DishAdminVO 去字段；DishMapper.xml 去别名匹配路与列映射；
+--           后台表单去「搜索别名」输入与 ≤255 校验；seed_data.sql 经核对本就不含该列。
+--     CREATE TABLE 已不再创建该列（原 add_dish_alias 段已整段删除）；本段仅清理存量库。
+--     幂等：先判 INFORMATION_SCHEMA.COLUMNS 存在再 DROP，可重跑、不影响既有数据
+--     （该列无索引成员，DROP COLUMN 无连带对象）。
+DROP PROCEDURE IF EXISTS `drop_dish_alias_column`;
+DELIMITER $$
+CREATE PROCEDURE `drop_dish_alias_column`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'alias'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `alias`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_dish_alias_column`();
+DROP PROCEDURE IF EXISTS `drop_dish_alias_column`;
 
 SET FOREIGN_KEY_CHECKS = 1;

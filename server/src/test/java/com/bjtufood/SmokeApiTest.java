@@ -22,7 +22,7 @@ import com.bjtufood.common.utils.JwtUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.dish.controller.DishController;
-import com.bjtufood.dish.dto.DishVO;
+import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
@@ -98,7 +98,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>鉴权走<b>真实</b> {@link SecurityConfig} + {@link JwtAuthFilter} + {@link AdminTokenFilter}；
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
  *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
- *       user.verified 经 {@link UserMapper} 打桩注入，不查库；</li>
+ *       user.bind_email（认证态唯一判据）经 {@link UserMapper} 打桩注入，不查库；</li>
  *   <li>反馈入参校验（type 白名单 / sub 严格模式）在 Service 层，故导入真实 {@link FeedbackServiceImpl}，
  *       仅打桩其依赖的 Mapper / 工具类；</li>
  *   <li>所有桩数据在各用例内建立，避免 Mockito 严格模式判定为多余桩。</li>
@@ -167,7 +167,7 @@ class SmokeApiTest {
     private UploadService uploadService;
     @MockBean
     private IpRateLimiter ipRateLimiter;
-    /** @RequireVerified 切面按 user.verified 实时判定，打桩避免查库 */
+    /** @RequireVerified 切面按 user.bind_email（认证态唯一判据）实时判定，打桩避免查库 */
     @MockBean
     private UserMapper userMapper;
     @MockBean
@@ -201,7 +201,6 @@ class SmokeApiTest {
         UserInfoVO userInfo = new UserInfoVO();
         userInfo.setId(USER_ID);
         userInfo.setUsername("wx_tail16");
-        userInfo.setVerified(false);
         when(authService.wechatLogin("wx-login-code")).thenReturn(new LoginResp("minted-jwt", userInfo));
 
         mockMvc.perform(post("/auth/wechat-login")
@@ -211,7 +210,9 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.token").value("minted-jwt"))
                 .andExpect(jsonPath("$.data.userInfo.id").value(USER_ID))
-                .andExpect(jsonPath("$.data.userInfo.verified").value(false));
+                // 字段集契约回归：verified 已删除（认证态由 bindEmail 非空派生），不得回流
+                .andExpect(jsonPath("$.data.userInfo.verified").doesNotExist())
+                .andExpect(jsonPath("$.data.userInfo.bindEmail").doesNotExist());
 
         verify(authService).wechatLogin("wx-login-code");
     }
@@ -229,7 +230,7 @@ class SmokeApiTest {
 
     @Test
     void dishDetail_success_returnsKeyFields() throws Exception {
-        DishVO vo = new DishVO();
+        DishDetailVO vo = new DishDetailVO();
         vo.setId(1L);
         vo.setName("牛肉拉面");
         vo.setPrice(1200);
@@ -271,8 +272,8 @@ class SmokeApiTest {
 
     @Test
     void submitReview_unverifiedUser_returns4031() throws Exception {
-        // verified=0（游客态）：@RequireVerified 必须给出 4031 细分码而非普通 403
-        when(userMapper.selectById(USER_ID)).thenReturn(user(0));
+        // bind_email=NULL（游客态）：@RequireVerified 必须给出 4031 细分码而非普通 403
+        when(userMapper.selectById(USER_ID)).thenReturn(user(false));
 
         mockMvc.perform(post("/dishes/1/reviews")
                         .header("Authorization", studentToken())
@@ -285,7 +286,7 @@ class SmokeApiTest {
 
     @Test
     void submitReview_verifiedUser_returns200() throws Exception {
-        when(userMapper.selectById(USER_ID)).thenReturn(user(1));
+        when(userMapper.selectById(USER_ID)).thenReturn(user(true));
 
         mockMvc.perform(post("/dishes/1/reviews")
                         .header("Authorization", studentToken())
@@ -301,7 +302,7 @@ class SmokeApiTest {
     @Test
     void updateReview_unverifiedUser_returns4031() throws Exception {
         // 重新评价（PUT /reviews/{id}）同口径要求认证：未认证 → 4031，不进入 Service
-        when(userMapper.selectById(USER_ID)).thenReturn(user(0));
+        when(userMapper.selectById(USER_ID)).thenReturn(user(false));
 
         mockMvc.perform(put("/reviews/8")
                         .header("Authorization", studentToken())
@@ -313,7 +314,7 @@ class SmokeApiTest {
 
     @Test
     void updateReview_verifiedUser_returns200() throws Exception {
-        when(userMapper.selectById(USER_ID)).thenReturn(user(1));
+        when(userMapper.selectById(USER_ID)).thenReturn(user(true));
 
         mockMvc.perform(put("/reviews/8")
                         .header("Authorization", studentToken())
@@ -523,16 +524,20 @@ class SmokeApiTest {
 
     // ==================== 辅助方法 ====================
 
-    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/username，verified 不入 token；role claim 已退役） */
+    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/username，认证态不入 token；role claim 已退役） */
     private String studentToken() {
         return "Bearer " + jwtUtil.createToken(USER_ID, "smoke");
     }
 
-    private User user(int verified) {
+    /**
+     * 构造按认证态区分的用户桩：认证态唯一判据 = bind_email 非空（见 AuthStateUtil），
+     * 已认证注入校园邮箱、游客态留 NULL。
+     */
+    private User user(boolean verified) {
         User user = new User();
         user.setId(USER_ID);
         user.setStatus("active");
-        user.setVerified(verified);
+        user.setBindEmail(verified ? "20240001@bjtu.edu.cn" : null);
         return user;
     }
 

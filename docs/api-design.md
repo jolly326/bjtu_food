@@ -20,8 +20,8 @@
 ### 1.2 认证模型（微信登录 + 邮箱认证）
 | 概念 | 说明 |
 |---|---|
-| 游客态 | 微信静默登录建号，`verified=0`；可浏览公开内容，不可写用户内容（评价 / 评价点赞等 UGC；菜品贡献走公开反馈 `POST /feedback`） |
-| 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后 `verified=1`，解锁写操作 |
+| 游客态 | 微信静默登录建号，**`bind_email` 为 NULL**；可浏览公开内容，不可写用户内容（评价 / 评价点赞等 UGC；菜品贡献走公开反馈 `POST /feedback`） |
+| 已认证 | 绑定 `@bjtu.edu.cn` 邮箱（验证码）后写入 `bind_email`，**该列非空即已认证**，解锁写操作 |
 | 角色 | **`user.role` 列已于 2026-09-15 冗余清理删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制；JWT 仅含 `userId` claim，与 spec §7.10 对齐） |
 | 状态 | `active` / `disabled` / `deleted` |
 
@@ -53,18 +53,18 @@
 ### 2.1 食堂与档口（CanteenController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/canteens` | — | `List<CanteenInfoVO>` | 全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；**不接收 `lat`/`lng` 参数**（2026-09-15 DOC-05/CT-01 删「兼容保留」描述）。**（2026-09-20 §7.31 修订：`CanteenInfoVO` 不再返回 `latitude` / `longitude`——「坐标 + 端上算距离」能力全链下线；服务端不出参坐标、不做距离排序，位置表达收敛为「食堂 · 楼层 · 档口名」。**（2026-09-21 决议：出参收敛为 `id` / `name` 最小字典——`location` / `description` / `images` 三字段**全端零消费**（小程序只读 `id` / `name`；管理端走 `/admin/canteens` 的 `CanteenAdminVO`，不经此 VO）。注意 §7.31 保留的是 `canteen.location` **列**，与「是否作为公开出参」是两件事。**（2026-09-21 决议：保留本端点，并合并 `/canteens/all`）**——它是首页 / 搜索 `FilterBar` 食堂下拉的唯一数据源（含 5 分钟节流后台刷新 `refreshCanteensIfStale`）；随出参收敛的落地项：`CanteenServiceImpl.listCanteens()` 的图片绝对 URL 拼接成为白算（应删）、`CanteenController` 的 Swagger 用途描述里「食堂页 / 档口详情页」已随「食堂档口独立页」下线、须订正为「首页 / 搜索筛选条 + 反馈页位置联动」。**（2026-09-21 决议：本端点定为唯一公开食堂字典端点，新增可选参数 `include=stalls`——不传返回 `id` / `name` 字典，传则返回含档口树；`GET /canteens/all` 删除并合入，见下行。）** **状态：已对齐（2026-09-21 落地，change `api-slimming`）**——`include=stalls` 已实现、出参收敛为 `id`/`name`（不含档口树）与 `id`/`name`/`stalls[]`（含档口树，档口项仅 `id`/`name`）。）** |
+| ~~GET~~ | ~~`/canteens`~~ | ~~—~~ | ~~`List<CanteenInfoVO>`~~ | **⚠️ 该端点已于 2026-09-22 整体删除**（随食堂 / 价格筛选全量下线，见 [client-首页菜品浏览](./feature/client-首页菜品浏览.md) K4：`CanteenController` 公开方法 + `CanteenInfoVO` + `SecurityConfig` 白名单 + 端上 `api/canteen.ts` / `types/canteen.ts` 全删；期间曾短暂重命名为 `GET /filters`，随删除一并作废，**公开侧不再有食堂字典端点**）。以下为**删除前的历史留痕**：全部食堂（筛选属性字典，**无 open/closed 过滤**——`status` 列已随 2026-09-14 Q-119 去实体化删除）；**不接收 `lat`/`lng` 参数**（2026-09-15 DOC-05/CT-01 删「兼容保留」描述）。**（2026-09-20 §7.31 修订：`CanteenInfoVO` 不再返回 `latitude` / `longitude`——「坐标 + 端上算距离」能力全链下线；服务端不出参坐标、不做距离排序，位置表达收敛为「食堂 · 楼层 · 档口名」。**（2026-09-21 决议：出参收敛为 `id` / `name` 最小字典——`location` / `description` / `images` 三字段**全端零消费**（小程序只读 `id` / `name`；管理端走 `/admin/canteens` 的 `CanteenAdminVO`，不经此 VO）。注意 §7.31 保留的是 `canteen.location` **列**，与「是否作为公开出参」是两件事。**（2026-09-21 决议：保留本端点，并合并 `/canteens/all`）**——它是首页 / 搜索 `FilterBar` 食堂下拉的唯一数据源（含 5 分钟节流后台刷新 `refreshCanteensIfStale`）；随出参收敛的落地项：`CanteenServiceImpl.listCanteens()` 的图片绝对 URL 拼接成为白算（应删）、`CanteenController` 的 Swagger 用途描述里「食堂页 / 档口详情页」已随「食堂档口独立页」下线、须订正为「首页 / 搜索筛选条 + 反馈页位置联动」。**（2026-09-21 决议：本端点定为唯一公开食堂字典端点，新增可选参数 `include=stalls`——不传返回 `id` / `name` 字典，传则返回含档口树；`GET /canteens/all` 删除并合入，见下行。）** **状态：已对齐（2026-09-21 落地，change `api-slimming`）**——`include=stalls` 已实现、出参收敛为 `id`/`name`（不含档口树）与 `id`/`name`/`stalls[]`（含档口树，档口项仅 `id`/`name`）。）** |
 | ~~GET~~ | ~~`/canteens/all`~~ | ~~—~~ | ~~`List<食堂含档口树>`~~ | **已删除（2026-09-21 决议）**：合入 `GET /canteens?include=stalls`（spec §8 登记的 RESTful 收敛项由「待拍板」转为「采纳」）。服务端删 `CanteenController.listCanteensWithStalls()`；端上反馈页仅改调用方式（`get('/canteens', { include: 'stalls' })`）。**状态：已对齐（2026-09-21 已删除，change `api-slimming`）**。 |
 
 ### 2.2 菜品（DishController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| GET | `/dishes/hot-search` | — | `List<HotSearchVO>` | 热搜 TOP10。**（2026-09-21 拍板：出参删 `heat`，收敛为仅 `keyword`**——排序仍在 SQL 内完成；见 §7.35，代码待落地。）** |
+| GET | `/dishes/for-you`（原 `/dishes/hot-search`） | — | `List<GuessLikeVO>`（原 `HotSearchVO`） | **猜你喜欢（2026-09-22 用户拍板：路径改名 + 语义升级）**：当前实现 = **每次随机抽取在售菜品名**下发（`[{ keyword }]`）——不看热度、不排序、无推荐算法；**契约留扩展位**（将来升级为个性化 / 推荐算法时端上契约不变）。⚠️ **须去掉 `@Cacheable(CACHE_DISH_HOT_SEARCH)` 响应缓存**，否则「每次随机」退化为「全站同一份」。出参仅 `keyword`（`heat` 已于 2026-09-22 删除，见 §7.35）。**状态：已对齐（2026-09-22 落地，change `search-page-refresh`）**——`HotSearchVO` → `GuessLikeVO`、`DishMapper.xml` 的 `selectGuessLike` 改 `ORDER BY RAND() LIMIT #{limit}`、控制器路径 `/dishes/for-you`（旧路径删除）、`@Cacheable` 已移除、缓存名常量退役、端上 `types` / `api` / `store` 全量改名（`GuessLike` / `getGuessLike()` / `guessLikeList` / `fetchGuessLike`） |
 | GET | `/dishes/meal-types` | — | `List<MealTypeVO>` | **菜品大类字典（2026-09-21 新增，change `home-ui-refresh`）**：`[{ key, label, order }]` 按 `order` 升序，**只含当前有在售菜品的大类**（空类自动隐藏）；首页横向标签栏的唯一数据源，端上**不得硬编码标签文案或清单**。**状态：已对齐（2026-09-21 落地）**，实测 6 项、order 1→6 升序 |
-| GET | `/dishes` | `DishQueryReq`（keyword/canteenId/**mealType**/minPrice/maxPrice/page/pageSize） | `PageResult<DishVO>` | 菜品分页搜索 / 筛选（keyword 直接匹配**菜名 / 档口名 / 食堂名**三处；**2026-09-21 拍板：`dish.alias` 别名字段整体删除、不再参与匹配**——见 §7.35，代码待落地）。**（2026-09-21 决议：删 `stallId` / `sortBy` / `sortOrder` 三个参数——`stallId` 端上零发送（筛选条只有食堂 / 价格）、`sortBy`/`sortOrder` 端上零消费（仅 `heat` 被使用且 `heat` 分支固定 `DESC`，`sortOrder` 对任何取值均无效果）；排序口径收敛为服务端恒热度，消除「首页传 heat、筛选 / 搜索不传而落 `rating_count` 分支」的口径分裂。**状态：已对齐（2026-09-21 落地，change `api-slimming`）**——三参数与 `DishMapper.xml` 的排序 `<choose>` 均已删除，查询恒按 `heatScoreExpr` 倒序（实测：默认流 / `?canteenId=` / `?keyword=` 三路均为同一热度序的子序列）。）** **（2026-09-21 新增参数 `mealType`，change `home-ui-refresh`）**：单值大类筛选（`set_meal` / `stir_fry` / `noodle` / `dry_pot` / `snack` / `soup_drink`），**白名单校验、非法值 → 响应体 `code=400`（不静默降级）**，可与 `canteenId` / `keyword` / 价格区间叠加且不改变排序口径。**状态：已对齐（2026-09-21 落地）**，实测六类 `total` = 3/9/4/3/9/3、与 `canteenId` 叠加生效、`mealType=foobar` 返回 `code=400` |
+| GET | `/dishes` | `DishQueryReq`（**恰为 4 项**：`page` / `pageSize` / `keyword` / `mealType`——`canteenId` / `minPrice` / `maxPrice` / `stallId` / `sortBy` / `sortOrder` 均已删除） | `PageResult<DishListItemVO>`（列表专用 8 字段） | 菜品分页搜索 / 筛选（keyword 直接匹配**菜名 / 档口名 / 食堂名**三处；**2026-09-21 拍板：`dish.alias` 别名字段整体删除、不再参与匹配**——见 §7.35。**状态：已对齐（2026-09-22 落地，change `search-page-refresh`）**——`dish.alias` 列（`schema.sql` 幂等段 `drop_dish_alias_column` DROP）、实体 / DTO / `DishMapper.xml` 匹配路、后台表单与 `≤255` 校验全链删除，关键词匹配收敛为**菜名 / 档口名 / 食堂名三处**）。**（2026-09-21 决议：删 `stallId` / `sortBy` / `sortOrder` 三个参数——`stallId` 端上零发送（筛选条只有食堂 / 价格）、`sortBy`/`sortOrder` 端上零消费（仅 `heat` 被使用且 `heat` 分支固定 `DESC`，`sortOrder` 对任何取值均无效果）；排序口径收敛为服务端恒热度，消除「首页传 heat、筛选 / 搜索不传而落 `rating_count` 分支」的口径分裂。**状态：已对齐（2026-09-21 落地，change `api-slimming`）**——三参数与 `DishMapper.xml` 的排序 `<choose>` 均已删除，查询恒按 `heatScoreExpr` 倒序（实测：默认流 / `?keyword=` 等路径均为同一热度序的子序列；`?canteenId=` 已于 2026-09-22 删除、不再存在）。）** **（2026-09-21 新增参数 `mealType`，change `home-ui-refresh`）**：单值大类筛选（`set_meal` / `stir_fry` / `noodle` / `dry_pot` / `snack` / `soup_drink`），**白名单校验、非法值 → 响应体 `code=400`（不静默降级）**，可与 `keyword` 叠加（`mealType` 为独立维度）且不改变排序口径；**`canteenId` / 价格区间已于 2026-09-22 删除，不再存在**。**状态：已对齐（2026-09-21 落地）**，实测六类 `total` = 3/9/4/3/9/3、与 `canteenId` 叠加生效、`mealType=foobar` 返回 `code=400` |
 | GET | `/dishes/{id}` | `id` | `DishDetailVO` | 详情（含评分分布）。**2026-09-15 阶段 2 剪枝**：`DishDetailVO.hasReviewed` 已删除（连带详情接口内的一次 review 计数查询），`getDishDetail` **不再接收 `userId` 参数**——登录 / 游客返回结构完全一致，无用户态分支 |
 
-> **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页瀑布流与筛选）、`GET /dishes/{id}`、`POST /dishes/{id}/view`（§3.2）、`GET /dishes/hot-search`（首页热搜在用）。~~菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。~~ **（2026-09-18 修订：删除「折扣价」`promo_price`；`dish.price` = 现价（已含折扣）、`dish.original_price` = 原价（可空），「有折扣」判据 = `original_price > price`；`DishVO`/`DishAdminVO`/`DishAdminReq` 与三端表单同步删除该字段，见 `project_spec.md` §7.26。）**
+> **2026-09-14 端上零消费接口下线（spec §7.10 第 1 条）**：`GET /dishes/hot`、`GET /dishes/new`、`GET /dishes/promotions`、`GET /dishes/rising`、`GET /dishes/recommend` 已从 `DishController` 整体删除（端上零消费，连带 service / mapper / 缓存清理）。保留：`GET /dishes`（首页网格 + 搜索，2026-09-22 起参数恰为 4 项、返回 `PageResult<DishListItemVO>`）、`GET /dishes/{id}`、`POST /dishes/{id}/views`（§3.2；路径已 RESTful 化，旧 `/view` 已废）、`GET /dishes/hot-search`（**搜索页「猜你想搜」在用**——2026-09-22 起语义 = 随机推送在售菜品名，出参仅 `keyword`）。~~菜品促销价与划线原价字段（`promo_price`/`original_price`）保留不变。~~ **（2026-09-18 修订：删除「折扣价」`promo_price`；`dish.price` = 现价（已含折扣）、`dish.original_price` = 原价（可空），「有折扣」判据 = `original_price > price`；`DishListItemVO` / `DishDetailVO` / `DishAdminVO` / `DishAdminReq` 与三端表单同步删除该字段，见 `project_spec.md` §7.26。）**
 
 ### 2.3 评价（ReviewController）
 | 方法 | 路径 | 参数 | 返回 | 说明 |
@@ -87,9 +87,9 @@
 ### 3.1 认证与账号（AuthController / UserController）
 | 方法 | 路径 | 认证 | 参数 | 说明 |
 |---|---|---|---|---|
-| POST | `/auth/wechat-login` | 公开 | `{ code }` | 微信静默登录，新 openid 自动建号（verified=0），返回 token |
+| POST | `/auth/wechat-login` | 公开 | `{ code }` | 微信静默登录，新 openid 自动建号（游客态 = `bind_email` 为 NULL），返回 token |
 | POST | `/auth/email-code` | **公开**（2026-09-15 DOC-06 对齐 `SecurityConfig` 白名单；同邮箱 60s 限频 + 同 IP 每分钟 ≤3 次/每小时 ≤10 次） | `{ username, email(可空，传学号自动推导 {username}@bjtu.edu.cn), purpose }` | 发学号邮箱验证码（6 位 10 分钟有效） |
-| POST | `/auth/verify-email` | 登录 | `{ code }` | 验证码认证，绑定邮箱，verified→1，返回新 token |
+| POST | `/auth/verify-email` | 登录 | `{ code }` | 验证码认证，写 `bind_email`（认证态唯一写入点），返回新 token |
 | GET | `/auth/profile` | 登录 | — | 用户资料（**不含 openid**） |
 | PUT | `/auth/profile` | 登录 | `{ nickname, avatar }` | 更新资料（avatar 仅允许站内 `/images/`、`/uploads/`、`cloud://`） |
 | DELETE | `/auth/account` | 登录 | — | **注销账号（匿名化，非物理删除）**：nickname→'已注销用户'、openid→NULL（解绑，允许重新登录建新游客号；~~unionid~~ 该列已于 2026-09-16 删除、无需处置）、status→'deleted'；评价/反馈保留但去身份化；token 立即失效（TokenBlacklist token+userId 双维度）；幂等（重复调用 400「账号已注销」） |
@@ -118,7 +118,7 @@
 >
 > **安检（2026-09-13 立；2026-09-15「取消人工复核」修订，见 spec §7.24）**：提交时文本过 `msgSecCheck` v2（`scene=2` 评价场景）——`suggest=pass` **与 `review`（疑似）一律正常落库放行**（`review` 不再落任何安检态、不进复核队列），`suggest=risky`（含未知 / 缺失态 fail-closed 同按 risky）返回 `400` 拦截、不落库。配图须先经 `POST /upload/images` 逐张安检转存（单张接口，违规该张 400、前端跳过不中断），再把返回的 COS URL 随 `images` 提交。
 >
-> **`GET /my/reviews` 契约注记（2026-09-13 核实，AUD-BE-06 / AUD-BE-07；2026-09-14 更新）**：① 返回形态已随 `PageResult` 4 参统一化收敛（spec §7.11 第 2 条）——现经 `PageResult.of(records, total, page, pageSize)` 返回 **`{ records, total, page, pageSize }`**（`page`/`pageSize` 为归一化实际生效值），原「`PageResult{list, total}` 两参形态」注记作废；前端 `recordsOf()` 双形态兼容兜底暂予保留（收敛另行排期）。② 除 `@RequireVerified`（切面按 `user.verified` 实时判定）外，另挂方法级 `@PreAuthorize("hasRole('STUDENT')")` 纵深防御——小程序端用户默认 `STUDENT` 角色，不影响正常调用；该双重校验口径与文档描述一致（`ReviewController.java:70-80`）。
+> **`GET /my/reviews` 契约注记（2026-09-13 核实，AUD-BE-06 / AUD-BE-07；2026-09-14 更新）**：① 返回形态已随 `PageResult` 4 参统一化收敛（spec §7.11 第 2 条）——现经 `PageResult.of(records, total, page, pageSize)` 返回 **`{ records, total, page, pageSize }`**（`page`/`pageSize` 为归一化实际生效值），原「`PageResult{list, total}` 两参形态」注记作废；前端 `recordsOf()` 双形态兼容兜底暂予保留（收敛另行排期）。② 除 `@RequireVerified`（切面按 `user.bind_email` 非空实时判定）外，另挂方法级 `@PreAuthorize("hasRole('STUDENT')")` 纵深防御——小程序端用户默认 `STUDENT` 角色，不影响正常调用；该双重校验口径与文档描述一致（`ReviewController.java:70-80`）。
 
 ### 3.5 通知（需邮箱认证 `@RequireVerified`）
 > 通知 `type`：`feedback_handle`（反馈/举报处理结果回执，仅已认证提交人可收到）；`dish_audit`（菜品审核结果）为**仅存量兼容**类型——2026-09-14 实体审核链路删除（spec §7.21 第 2 条 Q-107）后不再产生新通知，历史数据保留可读。
@@ -131,7 +131,7 @@
 | PUT | `/my/notifications/read-all` | 全部已读（**2026-09-14 恢复**） |
 
 > **全部已读 `PUT /my/notifications/read-all`（2026-09-14 恢复该能力，此前契约清理时曾被移除；依据 `project_spec.md` §7.18 第 2 条）**：
-> ① 鉴权：需登录（同 `/my/notifications` 系列口径——`@RequireVerified` 按 `user.verified` 实时判定 + 方法级 `hasRole('STUDENT')`）；
+> ① 鉴权：需登录（同 `/my/notifications` 系列口径——`@RequireVerified` 按 `user.bind_email` 非空实时判定 + 方法级 `hasRole('STUDENT')`）；
 > ② 语义：一次性将该用户**全部未读**通知置为已读，**幂等**——无未读时返回 0，不报错；重复调用结果一致；
 > ③ 返回：`Result<Integer>`，`data` = 本次置为已读的条数（无未读时为 `0`）。
 
@@ -152,7 +152,7 @@
 
 | 方法 | 路径 | 参数 | 返回 | 说明 |
 |---|---|---|---|---|
-| POST | `/upload/images` | JSON `{ fileId: string }`（**单张**，小程序 `wx.cloud.uploadFile` 产生的云存储 fileID，形如 `cloud://env.bucket/path`） | `{ url: string }`（该张 COS 永久 URL） | **UGC 配图上传（2026-09-13 新增；单张契约）**：后端经 tcb `batchdownloadfile` 从云开发云存储拉取 → `imgSecCheck` 送检（违规 code `87014` 返回 400）→ 转存 COS。多张配图由前端**逐张调用**本接口（每张独立送检转存，**单张失败该张返回 400、前端提示后跳过，不中断其余图片**）。需登录（游客亦可，无 `verified` 门槛）；评价 / 反馈提交前先逐张调本接口取 COS URL |
+| POST | `/upload/images` | JSON `{ fileId: string }`（**单张**，小程序 `wx.cloud.uploadFile` 产生的云存储 fileID，形如 `cloud://env.bucket/path`） | `{ url: string }`（该张 COS 永久 URL） | **UGC 配图上传（2026-09-13 新增；单张契约）**：后端经 tcb `batchdownloadfile` 从云开发云存储拉取 → `imgSecCheck` 送检（违规 code `87014` 返回 400）→ 转存 COS。多张配图由前端**逐张调用**本接口（每张独立送检转存，**单张失败该张返回 400、前端提示后跳过，不中断其余图片**）。需登录（游客亦可，无认证门槛）；评价 / 反馈提交前先逐张调本接口取 COS URL |
 | POST | `/upload/image` | `file`（multipart，jpg/jpeg/png/webp） | `{ url, relativeUrl }` | **保留**：web 管理端菜品图 / H5 回退链路，不承载 UGC 配图（小程序端头像走微信云存储 `cloud://` 直存不经此端点）。**已纳入 `AdminTokenFilter` 口令守卫（2026-09-15 B4）**：不在 `permitAll` 白名单，`X-Admin-Token` 校验通过后置 `ROLE_ADMIN` 授权放行，口令缺失/无效 403 |
 
 - `/upload/images` 单张校验：fileId 属本小程序云环境（`cloud://` 前缀）+ 扩展名白名单 + 大小 ≤1MB（`imgSecCheck` 硬限制）+ `imgSecCheck` 通过才转存；任一不通过该张返回 400 与明确提示（违规 / 文件获取失败 / 存储未配置），不影响其他张。
@@ -315,6 +315,7 @@ GET /dishes/{id} → addViewCount(+1，按用户×菜品×自然日去重) + rec
 | **activity / broadcast 全链路下线（2026-09-13）** | spec 曾列 `/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口与 activity/broadcast 实体 | 接口 / 实体 / 库表 / Web 管理页 / 小程序页面（`pages/activity/` 分包）与「最新活动」宫格全部删除，数据库基线 14 → 12 张表 | 本文档 §2.5 / §5.5 已删除相关行；spec §0.5 已登记下线拍板 |
 | 页面数量 | 9 页（spec §2.1，2026-09-13 随 activity 下线由 11 收敛） | 9 页（pages.json：主包 3 + 分包 detail/me，共 9 页） | 已对齐（spec §2.1 与 pages.json 一致） |
 | 4031 错误码 | 禁止非标码（例外豁免制） | 使用 4031 细分 | 已在 spec §3 登记豁免（2026-08-19） |
+| **`verified` 出参 + `user.verified` / `user.verified_at` 两列退役**（2026-09-22 用户拍板，spec §7.36） | 认证态判据唯一 = `bind_email` 非空（无布尔列、无认证时间列）；`UserInfoVO` 恰 5 字段（不含 `verified`）；管理端 `UserVO` 同批删除 `verified`（按 `bindEmail` 派生展示） | **已对齐（2026-09-22，change `auth-verified-field-removal`）**：`AuthStateUtil` 判据唯一真源 + 3 处调用点改判（切面 / 评价 / 反馈）；实体、两个 VO、4 处写入点已删；`schema.sql` 幂等段 `drop_verified_columns` 就位；client（`isVerified()` 单点派生）与 web（认证列 / 筛选派生）改造完成 | **已对齐**（存量库去列随用户执行 `schema.sql` 幂等段完成） |
 | view_log | 要求唯一键+upsert | 无唯一键，应用层 upsert | 已实现写入，唯一键可选增强 |
 | ~~`GET /my/reviews` 分页形态~~ | IPage `{records,total,...}`（§1.4 通用） | **已消除（2026-09-14）**：经 `PageResult.of(...)` 统一为 4 参 `{records,total,page,pageSize}`（+`list` 派生过渡字段） | 原「`PageResult{list,total}` 两参形态」差异不复存在；§1.4 / §3.3 注记已同步更新，前端 `recordsOf()` 兜底暂保留 |
 | `GET /my/reviews` 权限 | 仅 `@RequireVerified` | 额外 `@PreAuthorize("hasRole('STUDENT')")`（`ReviewController.java:71`） | 已在 §3.3 加注（不影响小程序，默认 STUDENT） |
