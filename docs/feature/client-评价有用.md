@@ -1,4 +1,4 @@
-# 评价「有用」（A-07）—— ⛔ 已全链下线
+﻿# 评价「有用」（A-07）—— ⛔ 已全链下线
 
 > **本功能已于 2026-09-20 全链下线（用户拍板，权威 `project_spec.md` §7.30 清单 #1 与 `review-api-contract` spec）**：
 > 端点 `POST /reviews/{id}/useful`、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount`、
@@ -14,8 +14,7 @@
 
 ## UI
 
-- 评价卡片上的「有用」按钮（图标 `ic-thumb`）＋ 计数。
-- 已点过时按钮呈选中态；未认证用户点击 → 弹 `AuthSheet` 认证引导（入口不置灰）。
+> 📐 页面 UI 设计稿已拆出 → [client-评价有用.md（docs/ui）](../ui/client-评价有用.md)（2026-09-22 拆分；**UI 口径以该文件为唯一真源**）
 
 ## 操作
 
