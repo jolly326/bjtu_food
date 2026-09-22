@@ -48,7 +48,7 @@ find 搜索结果单条菜品卡 SHALL 按本规范收敛色彩层级、排版�
 
 - **色彩层级**：菜名 SHALL 为一级深灰 + 600 字重的第一阅读落点；关键词命中 SHALL NOT 以主色红呈现于菜名（或位置行）上，页内高饱和强调色 SHALL 仅用于价格；价格 SHALL 沿用价格专用主色/红 + 600 字重并作为第二视觉重心，「¥」符号 SHALL 缩小并与数字顶部对齐；评分星级 SHALL 主色填充、数字为二级灰小号紧跟菜名；底部档口·食堂 SHALL 为三级浅灰小号弱化信息，**SHALL NOT 呈现「距你」距离**。
 - **排版与对齐**：顶部核心行 SHALL 以「菜名（左）+ 评分（紧随）+ 价格（右）」单行呈现且基线对齐；**结果卡 SHALL NOT 呈现标签行**；底部信息行 SHALL 单端左对齐呈现「食堂 · 档口」，**SHALL NOT 呈现右端「距你」**；左侧缩略图区与文字区 SHALL 保持固定间距。
-- **结构与表面**：结果单卡渲染 SHALL 由 `FindResults` 自身承担（不再依赖独立 `DishResultRow` 文件）；对外接口收敛为 `items`/`keyword`/`refresherTriggered` 入参与 `select`/`refresh` 事件（`loading`/`failed`/`retry` 已随状态占位一并移除）；卡片圆角/阴影 SHALL 与首页菜品卡一致；卡内边距与内部间距 SHALL 对齐 8 基网格；卡片内图标 SHALL 保持全局 2px 线宽圆角端点规范。
+- **结构与表面**：结果单卡渲染 SHALL 由 `FindResults` 自身承担（不再依赖独立 `DishResultRow` 文件）；对外接口收敛为 `items`/`keyword` 入参与 `select` 事件（`loading`/`failed`/`retry` 已随状态占位一并移除；**`refresherTriggered` 入参与 `refresh` 事件已于 2026-09-22 随页面级下拉刷新下线移除**，见 change `remove-pull-to-refresh`）；卡片圆角/阴影 SHALL 与首页菜品卡一致；卡内边距与内部间距 SHALL 对齐 8 基网格；卡片内图标 SHALL 保持全局 2px 线宽圆角端点规范。
 - **顶部衔接与评分保留**：结果列表首张卡片 SHALL 与上方筛选条保持紧凑纵向间距（按 8 基网格取就近小值，单条态同步折算，不得出现明显空档）；搜索卡 SHALL 保留评分展示（星级主色填充、数字紧随菜名），评分不因本规范移除。
 
 #### Scenario: 页内仅价格保留高饱和强调
@@ -65,7 +65,7 @@ find 搜索结果单条菜品卡 SHALL 按本规范收敛色彩层级、排版�
 
 #### Scenario: 行渲染由 FindResults 内联承担
 - **WHEN** 检索 find 结果卡渲染实现
-- **THEN** 单卡逻辑/样式内联于 `pages/find/FindResults.vue`，不存在 `pages/find/DishResultRow.vue` 独立文件，宿主 find 页调用接口为 `items`/`keyword`/`refresherTriggered`/`select`/`refresh`
+- **THEN** 单卡逻辑/样式内联于 `pages/find/FindResults.vue`，不存在 `pages/find/DishResultRow.vue` 独立文件，宿主 find 页调用接口为 `items`/`keyword`/`select`（不含 `refresherTriggered` 与 `refresh`）
 
 #### Scenario: 卡片表面对齐
 - **WHEN** 对照首页菜品卡与 find 结果卡

@@ -18,7 +18,9 @@
       </template>
     </Header>
 
-    <scroll-view class="scroll-wrap" scroll-y refresher-enabled :refresher-triggered="refresherTriggered" @refresherrefresh="onRefresh" @scrolltolower="loadMore">
+    <!-- 滚动容器（2026-09-22：页面级手动刷新手势已下线，change `remove-pull-to-refresh`）：
+         数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器恢复为普通滚动容器。 -->
+    <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
         <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
         <view
@@ -40,7 +42,7 @@
       </view>
 
       <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
-           先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap 或下拉刷新。
+           先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap。
            C1 修复：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态（client-auth-boundary）。 -->
       <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
@@ -74,12 +76,11 @@ const list = ref<Notification[]>([])
 /** 全部已读进行中（并发守卫 + 行内禁用态） */
 const readAllBusy = ref(false)
 const loading = ref(false)
-const refresherTriggered = ref(false)
 /** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
 const loaded = ref(false)
-/** 首屏/下拉刷新是否失败（MP-012）：失败 ≠ 无通知，失败渲染重试块而非空态；分页失败保持静默可再触底 */
+/** 首屏是否失败（MP-012）：失败 ≠ 无通知，失败渲染重试块而非空态；分页失败保持静默可再触底 */
 const loadFailed = ref(false)
-// 分页与防重复加载（onShow / 下拉刷新）
+// 分页与防重复加载（onShow / 重试块）
 let page = 1
 const pageSize = 20
 const finished = ref(false)
@@ -109,7 +110,7 @@ async function load() {
   }
 }
 
-/** 重试块 @tap：从第 1 页重拉（与下拉刷新同路径，仅无下拉动画）（MP-012） */
+/** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
 function onRetryLoad() {
   load()
 }
@@ -130,12 +131,6 @@ async function loadMore() {
   } finally {
     loading.value = false
   }
-}
-
-async function onRefresh() {
-  refresherTriggered.value = true
-  await load()
-  refresherTriggered.value = false
 }
 
 /** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
@@ -164,7 +159,7 @@ async function onReadAll() {
 /**
  * onShow 重拉闸门（MP-07）：首次进入必拉；之后从二级页（如菜品详情）返回时，
  * 30s 内且本页无「写失败遗留」则跳过重拉，避免列表被无谓重置、浏览位置丢失。
- * 下拉刷新与失败重试块不经过闸门（用户显式意图 → 直接 load）。
+ * 失败重试块不经过闸门（用户显式意图 → 直接 load）。
  */
 const { markDirty, refreshOnShow } = useOnShowRefresh(load)
 

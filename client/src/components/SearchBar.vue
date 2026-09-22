@@ -47,7 +47,7 @@
       role="button"
       aria-label="搜索"
       hover-class="search-btn-pressed"
-      @tap="emit('search')"
+      @tap="onButtonTap"
     >
       <text class="search-btn-text">{{ buttonText }}</text>
     </view>
@@ -91,6 +91,15 @@ const capsuleH = computed(() => `${capsuleHeightPx.value}px`)
 function onPillTap() {
   // entry：整颗胶囊是入口；input：交给原生 input 聚焦，不额外处理
   if (props.mode === 'entry') emit('tap')
+}
+/**
+ * 右侧「搜索」按钮：**`entry` 模式与胶囊同义**（进搜索页 → 发 `tap`），
+ * 只有 `input` 模式才是提交语义（发 `search`）。
+ * 若 entry 也发 `search`，首页（只监听 `@tap`）的按钮会「点了没反应」。
+ */
+function onButtonTap() {
+  if (props.mode === 'entry') emit('tap')
+  else emit('search')
 }
 // 平台例外：uni input 事件对象未纳入项目 TS 类型，取 e.detail.value
 function onInput(e: any) {

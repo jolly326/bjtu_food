@@ -79,11 +79,13 @@ function onSelect(key: string | null) {
 </script>
 
 <style scoped lang="scss">
-/* 标签栏落在页面渐变底色区（与上方白色搜索卡在明度上可区分，见 client-visual-language） */
+/* 标签栏落在页面渐变底色区（与上方白色搜索卡在明度上可区分，见 client-visual-language）。
+   自身上下 padding **归零**（2026-09-22 间距收口）：与搜索区、与网格的间距各由
+   `.mt-tab` 的行内上偏置 / 吸顶容器 padding 单独承担 —— 两处叠加会把间隙撑到 20px+。 */
 .mt-bar {
   width: 100%;
   box-sizing: border-box;
-  padding: var(--spacing-sm) 0 var(--spacing-xs);
+  padding: 0;
 }
 .mt-scroll {
   width: 100%;
@@ -111,8 +113,10 @@ function onSelect(key: string | null) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  /* 文字**行内上偏置**（§2 光学间距，2026-09-22）：文字下沿留给下划线 4px + 行底余量，
-     使「搜索区→标签文字」≈20px 与「下划线→卡片首行」≈24px 近似均衡（旧口径 18 / 26–33 偏不对称）。
+  /* 文字**行内上偏置**（§2 光学间距，2026-09-22 修订）：行内偏置 24rpx 即「搜索区 → 标签文字」
+     间距的**全部来源**（≈12px，`.mt-bar` 已不再补 padding）；「下划线 → 卡片首行」由吸顶容器
+     padding-bottom + 本行行底余量共同构成（≈16px）。两侧都较旧口径（20 / 24）收紧，
+     仍保持「下行距 ≥ 上行距」，分组感不丢。
      ⚠️ 下划线不得吸到行底（margin-top:auto）——那会让它离文字 ≈16px、与标签脱开。 */
   justify-content: flex-start;
   /* 命中区：高 88rpx（触达下限，不得压低；= 上偏置 24 + 文字行 ≈34 + 下划线位 14 + 行底余量）；

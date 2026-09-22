@@ -18,7 +18,7 @@
          搜索页头部回到「输入框 + 结果」，不再有筛选胶囊与下拉面板。 -->
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
-         发现态 = 静态区块（无页面级 scroll/下拉刷新）；结果态 = 滚动随 FindResults 内容区 -->
+         发现态 = 静态区块（无页面级滚动容器）；结果态 = 滚动随 FindResults 内容区 -->
     <view class="find-body">
       <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢，静态展示 ============ -->
       <view v-if="!inFilter" class="discover-body">
@@ -76,9 +76,7 @@
         class="results-host"
         :items="filteredMixed"
         :keyword="keyword"
-        :refresher-triggered="refresherTriggered"
         @select="goToMixed"
-        @refresh="onResultsRefresh"
       />
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
@@ -138,7 +136,6 @@ function openDishDetail(id: number) {
   uni.navigateTo({ url: dishDetailUrl(id) })
 }
 const keyword = ref('')
-const refresherTriggered = ref(false)
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
 const HISTORY_KEY = 'find_search_history'
@@ -276,7 +273,7 @@ async function doMixedSearch(kw?: string) {
     searchDone.value = true
   } catch (err) {
     // MP-012：失败不再伪装成空结果——置 searchFailed 渲染「加载失败 · 点击重试」块，
-    // 与「没搜到」空态区分；恢复走重试块 @tap（onRetrySearch）或结果态下拉刷新
+    // 与「没搜到」空态区分；结果态恢复走重试块 @tap（onRetrySearch）或重新提交搜索
     console.error('[find] 搜索失败', err)
     if (seq !== mixedSearchSeq) return
     mixedResults.value = []
@@ -285,7 +282,7 @@ async function doMixedSearch(kw?: string) {
   }
 }
 
-/** 重试当前检索：结果态下拉刷新与恢复均走此路径（按当前关键词/食堂重跑） */
+/** 重试当前检索：结果态失败恢复走此路径（重试块 @tap；按当前关键词重跑，竞态守卫在 doMixedSearch 内） */
 function onRetrySearch() {
   return doMixedSearch(keyword.value.trim())
 }
@@ -293,13 +290,6 @@ function onRetrySearch() {
 /** 搜索无结果引导 → 反馈页预选「推荐菜品」空表单（落点唯一构造函数，from=find，见 contribution-entry） */
 function goContributeNotFound() {
   uni.navigateTo({ url: feedbackEntryUrl({ type: 'add', from: 'find' }) })
-}
-
-/** 结果态下拉刷新：FindResults 内容区滚动内置 refresher，上抛到 index 重跑当前检索 */
-function onResultsRefresh() {
-  if (refresherTriggered.value) return
-  refresherTriggered.value = true
-  onRetrySearch().finally(() => { refresherTriggered.value = false })
 }
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
@@ -343,7 +333,7 @@ onShow(() => clearShareState())
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
 /* 内容区：占满 header/筛选行之外的剩余高度；滚动职责随分支（发现态静态/结果态 FindResults） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-/* 发现态：普通内容容器 + 无下拉刷新的高度兜底（搜索记录上限 4 条内容短；异常超高时可内部滚动兜底，不提供下拉刷新） */
+/* 发现态：普通内容容器 + 高度兜底（搜索记录上限 4 条内容短；内容超高时由内容区自身滚动兜底） */
 .discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }

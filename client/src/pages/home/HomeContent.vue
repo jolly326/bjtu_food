@@ -45,7 +45,7 @@ import type { DishListItem } from '@/types/dish'
 import { dishDetailUrl } from '@/utils/routes'
 
 const emit = defineEmits<{
-  /** 列表加载失败后点击重试：上抛页面走与下拉刷新同一条重拉路径 */
+  /** 列表加载失败后点击重试：上抛页面按与首屏同一条重拉路径重拉 */
   (e: 'retry'): void
 }>()
 

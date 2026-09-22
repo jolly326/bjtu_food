@@ -1,13 +1,12 @@
 <template>
   <view class="filter-result">
     <!-- 结果态滚动容器：find-page-layout-restructure —— 滚动随结果内容区（FindResults）走，
-         不再由 find/index 页根层包裹两态共用滚动。结果为空或请求失败时静默（无占位） -->
+         不再由 find/index 页根层包裹两态共用滚动。结果为空或请求失败时静默（无占位）。
+         页面级手动刷新手势已于 2026-09-22 下线（change `remove-pull-to-refresh`）：容器恢复为
+         普通滚动容器；结果态的恢复路径 = 失败重试块 @tap / 重新提交搜索（宿主页持有）。 -->
     <scroll-view
       class="results-scroll"
       scroll-y
-      refresher-enabled
-      :refresher-triggered="refresherTriggered"
-      @refresherrefresh="emit('refresh')"
     >
       <!-- 搜索结果：一行一个菜品（find-result-card-polish：单卡内联于 FindResults，DishResultRow 已合并） -->
       <view class="mixed-list" :class="{ single: items.length === 1 }">
@@ -87,17 +86,15 @@ interface MixedResultItem {
   rating?: number
 }
 
+/* 对外接口（2026-09-22 收敛，change `remove-pull-to-refresh`）：入参仅 `items` / `keyword`，
+   事件仅 `select`；原手动刷新手势所需的触发态 prop 与重跑事件已随之下线一并删除。 */
 const props = defineProps<{
   items: MixedResultItem[]
   keyword?: string
-  /** 结果态下拉刷新触发态：由宿主页面维护并复位 */
-  refresherTriggered?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'select', id: number): void
-  /** 结果态下拉刷新：宿主页面据此重跑当前搜索/筛选 */
-  (e: 'refresh'): void
 }>()
 
 /** 图片淡入去重集合（key = 缩略图 url） */

@@ -118,7 +118,7 @@ export const useDishStore = defineStore('dish', () => {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
       const seq = ++homeFetchSeq
       if (reset) {
-        // `keepList`（切大类）= 旧列表留在屏上，只重置分页状态；其余场景（首屏 / 重试 / 下拉刷新）清列表
+        // `keepList`（切大类）= 旧列表留在屏上，只重置分页状态；其余场景（首屏 / 重试）清列表
         if (!keepList) homeList.value = []
         homePage.value = 1
         homeFinished.value = false

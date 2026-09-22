@@ -48,7 +48,7 @@ withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  /** 整块点击：消费方走与下拉刷新同一条重拉路径 */
+  /** 整块点击：消费方按与首屏同一条重拉路径重拉 */
   (e: 'retry'): void
 }>()
 </script>

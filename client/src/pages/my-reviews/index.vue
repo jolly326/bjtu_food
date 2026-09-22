@@ -2,12 +2,11 @@
   <view class="page my-reviews-page">
     <Header title="我的评价" @back="backToHome" />
 
+    <!-- 滚动容器（2026-09-22：页面级手动刷新手势已下线，change `remove-pull-to-refresh`）：
+         数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器恢复为普通滚动容器 -->
     <scroll-view
       class="scroll-wrap"
       scroll-y
-      refresher-enabled
-      :refresher-triggered="refresherTriggered"
-      @refresherrefresh="onRefresh"
       @scrolltolower="loadMore"
     >
       <view class="list">
@@ -62,7 +61,7 @@
       </view>
 
       <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无评价——
-           先于空态渲染，避免网络失败被误读；恢复走重试块 @tap 或下拉刷新 -->
+           先于空态渲染，避免网络失败被误读；恢复走重试块 @tap -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
       <!-- 空态：首次进入无评价保持静默；仅「删除最后一条」触发时给轻提示，避免被误解为加载异常（见 my-reviews） -->
       <view v-else-if="emptiedByDelete" class="empty-tip">
@@ -79,7 +78,7 @@
  * - 状态小标（§7.14）：作者本人可见自己的全部评价，isHidden=true 标「已被隐藏」，
  *   避免「评价凭空消失」；排序由后端默认控制（不传 sort）
  * - 空态双口径：首次进入静默；删除导致清空时给轻提示（见 spec my-reviews）
- * - 失败态（MP-012）：首屏/刷新失败渲染「加载失败 · 点击重试」块，与静默空态区分；
+ * - 失败态（MP-012）：首屏失败渲染「加载失败 · 点击重试」块，与静默空态区分；
  *   分页失败保持静默，可再触底重试
  */
 import { ref } from 'vue'
@@ -93,14 +92,13 @@ import type { Review } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import { backToHome } from '@/utils/nav'
-import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 const list = ref<Review[]>([])
 const loading = ref(false)
-const refresherTriggered = ref(false)
 /** 仅「删除导致列表清空」时为 true，驱动空态轻提示 */
 const emptiedByDelete = ref(false)
-/** 首屏/下拉刷新是否失败（MP-012）：失败 ≠ 无评价，失败渲染重试块而非空态 */
+/** 首屏是否失败（MP-012）：失败 ≠ 无评价，失败渲染重试块而非空态 */
 const loadFailed = ref(false)
 let page = 1
 const pageSize = 20
@@ -118,7 +116,7 @@ async function load() {
     finished.value = res.list.length < pageSize
     emptiedByDelete.value = false
   } catch (err) {
-    // MP-012：首屏失败不再静默吞——置 loadFailed 渲染「加载失败 · 点击重试」块，恢复走重试块或下拉刷新
+    // MP-012：首屏失败不再静默吞——置 loadFailed 渲染「加载失败 · 点击重试」块，恢复走重试块 @tap
     console.error('[my-reviews] 加载评价失败', err)
     loadFailed.value = true
   } finally {
@@ -126,7 +124,7 @@ async function load() {
   }
 }
 
-/** 重试块 @tap：从第 1 页重拉（与下拉刷新同路径，仅无下拉动画）（MP-012） */
+/** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
 function onRetryLoad() {
   load()
 }
@@ -145,12 +143,6 @@ async function loadMore() {
   } finally {
     loading.value = false
   }
-}
-
-async function onRefresh() {
-  refresherTriggered.value = true
-  await load()
-  refresherTriggered.value = false
 }
 
 /* ===== 配图展示（2026-09 恢复 UGC 配图）：≤3 张 COS URL，点击预览大图 ===== */
@@ -202,7 +194,7 @@ function onDelete(r: Review) {
 /**
  * onShow 重拉闸门（MP-07）：首次进入必拉；之后 30s 内返回本页不再全量重拉第 1 页、
  * 也不重置分页（本页无跨页写操作入口，删除已在本地移除条目）。
- * 下拉刷新与失败重试块不经过闸门（用户显式意图 → 直接 load）。
+ * 失败重试块不经过闸门（用户显式意图 → 直接 load）。
  */
 const { refreshOnShow } = useOnShowRefresh(load)
 

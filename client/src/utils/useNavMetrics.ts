@@ -20,17 +20,19 @@ export function useNavMetrics() {
   const navPadRight = ref('180rpx')
 
   onMounted(() => {
+    // 跨端兼容（H5 无 wx，退化为固定值）：只在**这一行**触碰全局 `wx`，
+    // 之后一律经 `wxApi`（any 句柄）访问——避免逐行 `@ts-ignore`（漏一行就报 TS2304）。
+    // @ts-ignore - 全局 wx 未在项目 TS 类型中声明（平台例外，MP-08 同口径）
+    const wxApi: any = typeof wx !== 'undefined' ? wx : null
     // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync
-    // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
-    const win = (typeof wx !== 'undefined')
-      // @ts-ignore
-      ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
+    const win = wxApi
+      ? (wxApi.getWindowInfo ? wxApi.getWindowInfo() : (wxApi.getSystemInfoSync ? wxApi.getSystemInfoSync() : null))
       : null
     statusBarPx.value = (win && win.statusBarHeight) || 20
     const widthPx = (win && win.windowWidth) || 375
-    // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）
-    const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect)
-      ? wx.getMenuButtonBoundingClientRect()
+    // 微信胶囊按钮位置（右上角原生组件）
+    const mb = (wxApi && wxApi.getMenuButtonBoundingClientRect)
+      ? wxApi.getMenuButtonBoundingClientRect()
       : null
     if (mb && mb.height) {
       // navBarHeight = (胶囊.top − 状态栏高) × 2 + 胶囊高 —— 只有取该值，胶囊才在行内垂直居中
