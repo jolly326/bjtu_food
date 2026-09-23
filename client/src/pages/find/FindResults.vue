@@ -27,7 +27,7 @@
               @load="loadedSet.add(thumbSrc(item.image))"
             />
             <view v-else class="mixed-thumb-ph">
-              <IconSvg name="dish" :size="48" color="var(--text-tertiary)" />
+              <IconSvg name="dish" :size="48" :color="COLOR_MAP['text-tertiary']" />
             </view>
           </view>
           <view class="mixed-info">
@@ -42,9 +42,10 @@
                   >{{ seg.text }}</text>
                 </text>
                 <view v-if="item.rating != null" class="mixed-rating-group">
-                  <!-- 星色 = 独立语义 token `--color-star`（黄 #FBBF24），**不随主色换肤**
-                       （project_spec.md §4.2 / §7.39 第 2 条）。旧实现传 `--color-primary` 属缺陷。 -->
-                  <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="mixed-rating-star" />
+                  <!-- 星色 = 独立语义色（黄 #FBBF24），**不随主色换肤**（project_spec.md §4.2 / §7.39 第 2 条）。
+                       ⚠️ 必须传**实色** `COLOR_MAP['star']`：IconSvg 的 color 不解析 var()（data-uri 内为字面量）
+                       —— 此前改 'var(--color-star)' 看似合规，实测恒落 ICON_FALLBACK_COLOR（近黑），属**假阳性修复**。 -->
+                  <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" class="mixed-rating-star" />
                   <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
                 </view>
               </view>
@@ -75,6 +76,8 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
+import { COLOR_MAP } from '@/theme/tokens'
 import { formatPrice } from '@/utils/money'
 import { getImageUrl, getThumbUrl } from '@/utils/image'
 

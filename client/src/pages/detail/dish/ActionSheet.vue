@@ -31,7 +31,15 @@ interface ActionSheetItem {
   key: string
   label: string
   icon?: string
-  iconColor?: string
+  /**
+   * 图标色：类型收紧为 **`COLOR_MAP` 的色值联合**（实色）。
+   * <p>
+   * 收紧缘由（2026-09-23 缺陷复盘）：此前为 `string`，调用方可传 `'var(--color-error)'` 而**编译通过**，
+   * 但 IconSvg 走 SVG data-uri、解析不了 `var()` → 恒落 `ICON_FALLBACK_COLOR`（近黑），
+   * 表现为「弹层文字红、图标近黑」。收紧后**传 `var(...)` 直接编译报错**，以编译器替代 grep 兜回归。
+   */
+  iconColor?: (typeof COLOR_MAP)[keyof typeof COLOR_MAP]
+  /** 文本色：走 CSS `color` 绑定，用 `var(--x)` 语义 token（**与 iconColor 口径不同，勿混用**） */
   textColor?: string
 }
 

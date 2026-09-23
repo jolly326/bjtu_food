@@ -12,9 +12,10 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
-import com.bjtufood.dish.config.ViewRateLimiter;
+import com.bjtufood.dish.constant.DishAttributeConst;
 import com.bjtufood.dish.constant.MealTypeConst;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishAttributeVO;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -37,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -76,7 +78,6 @@ public class DishServiceImpl implements DishService {
     private final ViewLogMapper viewLogMapper;
     private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
-    private final ViewRateLimiter viewRateLimiter;
 
     @Override
     public IPage<DishListItemVO> listDishes(DishQueryReq req) {
@@ -93,7 +94,7 @@ public class DishServiceImpl implements DishService {
         if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
             throw new BusinessException("菜品大类不合法：" + req.getMealType());
         }
-        // 列表出参为 DishListItemVO（8 字段）：图片只下发首图 coverImage，由 enrichCoverImage 从 imagesJson 解析
+        // 列表出参为 DishListItemVO（8 字段）：图片只下发首图 coverImage，由 enrichCoverImage 从 imageUrls 取首图
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
                 .convert(this::enrichCoverImage);
     }
@@ -109,19 +110,42 @@ public class DishServiceImpl implements DishService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 菜品描述四维字典（2026-09-23 §7.40 R4 / R13）：{@code GET /dishes/attributes} 出参。
+     * <p>
+     * 内容取自 {@link DishAttributeConst}（唯一真源），**不查库、不做在售过滤** ——
+     * 四维是描述属性，管理端录入表单需要完整选项（与 meal-types「只下发有在售菜品的大类」策略不同）。
+     */
+    @Override
+    public List<DishAttributeVO> listAttributes() {
+        return DishAttributeConst.ALL.stream()
+                .map(a -> new DishAttributeVO(a.field(), a.value(), a.label(), a.order()))
+                .collect(Collectors.toList());
+    }
+
     @Override
     public DishDetailVO getDishDetail(Long id) {
+        // 不存在与已下架**同款处理**（2026-09-23 change dish-detail-contract-hardening R8）：
+        // SQL 已按 status='on' 过滤，故「已下架」在此同样落为 vo == null —— 对公开接口而言
+        // 「下架」等价于「不存在」，不设专用字段 / 专用分支。
+        // 4001 = 资源不存在（细分业务码，端上据此直接给恢复路径，无需解析 message 文本；
+        // 与 4031「邮箱未认证」同为细分码，2026-09-23 拍板见 project_spec.md §7.40 R8）
         DishDetailVO vo = dishMapper.selectDishDetail(id);
         if (vo == null) {
-            throw new BusinessException("菜品不存在");
+            throw new BusinessException(4001, "菜品不存在");
         }
 
         // 从 images_json 解析 images（避免二次查数据库）
         enrichImages(vo);
 
-        // 查询评分分布
+        // 查询评分分布（SQL 侧已按 rating DESC；再经 fillRatingDistribution 补齐为恒 5 项、顺序 5→1）
         List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
-        vo.setRatingDistribution(fillRatingDistribution(distribution));
+        List<RatingDistributionVO> filledDistribution = fillRatingDistribution(distribution);
+        vo.setRatingDistribution(filledDistribution);
+
+        // 评分摘要三数同源（2026-09-23 R1）：合计与均分改由**同一次实时聚合**产出，
+        // 覆盖 dish.rating_count / dish.avg_rating 缓存列 —— 避免缓存漂移时卡内数字自相矛盾
+        applyRatingSummaryFromDistribution(vo, filledDistribution);
 
         // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）；
         // 2026-09-16：详情已无任何登录态字段，userId 入参随之收口（Controller 不再解析登录态，
@@ -139,32 +163,26 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 浏览量上报（2026-09-14 §7.14 A：同一用户对同一菜品每天只计 1 次）。
+     * 浏览量上报（**2026-09-23 §7.41：PV 口径 —— 每次调用均 +1**）。
      * <p>
-     * 去重真源为 view_log 表（user_id + target_type='dish' + target_id 的 updated_at 落在
-     * 「当天」，自然日按 Asia/Shanghai 切分），与原 5 分钟内存窗口
-     * （{@link ViewRateLimiter}，多用于吸收短时间内的刷新抖动）叠加生效：
+     * 口径变更（原 §7.14 A「同一用户对同一菜品每自然日只计 1 次」**已作废**）：
      * <ol>
-     *   <li>5 分钟窗口命中 → 立即返回（省去一次 DB 查询）；</li>
-     *   <li>当日已存在浏览记录 → 幂等返回成功：<b>不自增 view_count，也不重复插记录</b>；</li>
-     *   <li>否则写入/刷新一条 view_log 并执行原子自增（足迹行即「当日已计」的判据）。</li>
+     *   <li><b>不做人员与时间限制</b>：不再有 5 分钟内存窗口（原 {@code ViewRateLimiter}，
+     *       已整体退役）与「当日去重」（原 {@code HistoryService.existsTodayDishView}，已删除）；</li>
+     *   <li><b>游客亦计</b>：{@code userId} 可为 null（端点已转公开），仅影响是否写浏览足迹；</li>
+     *   <li><b>唯一防护在接入层</b>：{@code DishController#addView} 的 IP 维度限频（不在此方法内）。</li>
      * </ol>
-     * 并发说明（已登记、不修）：第 2 步「先查后插」存在极小竞态窗口——两个并发首次请求可能
-     * 同时查不到当日记录，导致当日最多多计 1 次（insert 无唯一键约束，view_log 表结构不变）。
-     * 该偏差对热度排序无实质影响，故按用户拍板不加唯一键。
+     * 本方法职责收敛为：**写浏览足迹（可识别用户时）+ 原子自增**。
+     * <p>
+     * 并发安全：自增走 SQL 原子 {@code UPDATE ... SET view_count = view_count + 1}，避免读-改-写丢计数；
+     * 足迹 upsert 无唯一键（表结构不变）——并发下最多多插一行足迹，**不影响计数正确性**
+     * （计数以自增次数为准，已不再依赖任何足迹判据）。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addViewCount(Long dishId, Long userId) {
-        // 防刷（P1-5）：同一用户对同一菜品 5 分钟窗口内只计 1 次（内存去重，窗口内重复直接忽略）
-        if (!viewRateLimiter.tryAcquire(userId, dishId)) {
-            return;
-        }
-        // 当日去重（§7.14 A）：当天已计过则幂等返回，不自增、不重复插记录
-        if (historyService.existsTodayDishView(userId, dishId)) {
-            return;
-        }
-        // 写入/刷新浏览足迹（upsert：已存在则刷新 updated_at，作为次日起的新判据）；游客不记录（内部判空）
+        // 写入/刷新浏览足迹（upsert：已存在则刷新 updated_at）；游客不记录（内部判空）。
+        // 注：足迹**不再参与计数判定**，仅作为「谁看过这道菜」的行为记录保留（管理端行为查看用）。
         historyService.recordDishView(userId, dishId);
         // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
         int affected = dishMapper.increaseViewCount(dishId);
@@ -436,22 +454,24 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 将数据库原始的 imagesJson 解析为绝对 URL 列表并回填到 images。
-     * DishDetailVO 与 DishAdminVO 共用同一套转换逻辑，故统一方法名 enrichImages，以重载区分。
+     * 图片相对路径 → 绝对 URL（2026-09-23 R5）。
+     * <p>
+     * 「JSON 串 ↔ List」的转换已下沉到持久层（{@code StringListTypeHandler}），本方法只负责
+     * **业务转换**（相对路径 → 可访问绝对 URL）；空值归一为空列表。
      */
-    private List<String> resolveImages(String imagesJson) {
-        return imageUrlUtil.parseAndToAbsoluteUrls(imagesJson);
+    private List<String> toAbsoluteImages(List<String> images) {
+        return images == null || images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images);
     }
 
     /**
-     * 列表行封面图（2026-09-22 D 项拆分）：从 imagesJson 解析出**首图**填入 {@code coverImage}；
-     * 无图时为空串（列表不再下发图片数组，故只解析首图、不做多图回填）。
+     * 列表行封面图（2026-09-22 D 项拆分）：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
+     * 无图时为空串（列表不再下发图片数组，故只取首图、不做多图回填）。
      */
     private DishListItemVO enrichCoverImage(DishListItemVO vo) {
         if (vo == null) {
             return null;
         }
-        List<String> urls = resolveImages(vo.getImagesJson());
+        List<String> urls = toAbsoluteImages(vo.getImageUrls());
         vo.setCoverImage(urls.isEmpty() ? "" : urls.get(0));
         return vo;
     }
@@ -460,7 +480,7 @@ public class DishServiceImpl implements DishService {
         if (vo == null) {
             return null;
         }
-        vo.setImages(resolveImages(vo.getImagesJson()));
+        vo.setImages(toAbsoluteImages(vo.getImages()));
         return vo;
     }
 
@@ -468,7 +488,7 @@ public class DishServiceImpl implements DishService {
         if (vo == null) {
             return null;
         }
-        vo.setImages(resolveImages(vo.getImagesJson()));
+        vo.setImages(toAbsoluteImages(vo.getImages()));
         return vo;
     }
 
@@ -488,5 +508,35 @@ public class DishServiceImpl implements DishService {
             result.add(new RatingDistributionVO(star, count));
         }
         return result;
+    }
+
+    /**
+     * 评分摘要三数同源（2026-09-23 change {@code dish-detail-contract-hardening} R1）。
+     * <p>
+     * 把详情页的「N 人评分」与「均分」改由**与评分分布同一次实时聚合**的结果产出：
+     * 合计 = Σcount，均分 = Σ(star × count) / 合计。三者同源同刻，卡内数字恒自洽 ——
+     * 不再出现「各星占比之和 100%，但同卡『N 人评分』是另一个数」这类自相矛盾
+     * （缓存列 {@code dish.rating_count} / {@code dish.avg_rating} 由异步聚合刷新，存在漂移窗口）。
+     * <p>
+     * <b>取舍</b>：两个缓存列**保留**（列表页排序与卡片展示继续使用），仅详情页的评分摘要改用实时值 ——
+     * 「同一卡片内自洽」优先于「跨页面一致」，后者在缓存重算后自然收敛（design D6）。
+     * 入参应为已补齐为 5 项的分布（缺失星级 count 为 0，不影响合计与加权和）。
+     */
+    private void applyRatingSummaryFromDistribution(DishDetailVO vo, List<RatingDistributionVO> distribution) {
+        long total = 0L;
+        long weighted = 0L;
+        if (distribution != null) {
+            for (RatingDistributionVO item : distribution) {
+                long count = item.getCount() == null ? 0L : item.getCount();
+                int star = item.getStar() == null ? 0 : item.getStar();
+                total += count;
+                weighted += count * star;
+            }
+        }
+        vo.setRatingCount((int) total);
+        // 保留一位小数，与既有 avgRating 展示口径一致；无评价时为 null（端上不渲染评分卡）
+        vo.setAvgRating(total == 0L
+                ? null
+                : BigDecimal.valueOf(weighted).divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP));
     }
 }

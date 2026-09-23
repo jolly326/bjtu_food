@@ -25,6 +25,22 @@ interface ApiResponse<T = unknown> {
  */
 export class SurfacedError extends Error {}
 
+/**
+ * 「资源不存在」错误（业务码 `4001`，2026-09-23 §7.40 R8 新增，首期 `GET /dishes/{id}` 落地）。
+ *
+ * 与网络故障 / 其它业务错误的区别（**必须区别对待**）：本错误表示**请求的对象本身不存在**
+ * （已被删除，或已下架 —— 下架对外等价于不存在），**重试无意义**：消费方应给「不存在」文案 +
+ * **返回路径**；而网络故障应给**可重试**的失败态。
+ *
+ * 请求层**不**为本码弹 toast —— 文案由页面按自身版式渲染，以便与「打不开」的重试态在视觉上区分。
+ */
+export class ResourceNotFoundError extends Error {}
+
+/** 类型守卫：判断异常是否为「资源不存在」（4001） */
+export function isResourceNotFound(e: unknown): boolean {
+  return e instanceof ResourceNotFoundError
+}
+
 /** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
 export type RequestData = string | object | ArrayBuffer | undefined
 
@@ -297,6 +313,11 @@ async function request<T>(
       uni.showToast({ title: msg, icon: 'none' })
     }
     throw new SurfacedError(msg)
+  }
+  if (body.code === 4001) {
+    // 4001 = 资源不存在（细分业务码，2026-09-23 §7.40 R8）：抛**可识别**类型、不在此提示 ——
+    // 由页面渲染「不存在」文案 + 返回路径（与网络故障的可重试态区别对待）
+    throw new ResourceNotFoundError(body.message || '内容不存在')
   }
   if (body.code !== 200) {
     // 业务错误：由调用方决定提示方式，这里统一抛出 message

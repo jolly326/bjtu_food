@@ -1,7 +1,11 @@
-import type { Review } from '@/types/review'
+import type { Review, MyReview } from '@/types/review'
 import { get, post, put, del } from './http'
 import { recordsOf, totalOf, type RawRow, type RawPage } from './shared'
 
+/**
+ * 公开视角行映射（`GET /dishes/{id}/reviews`，8 字段）。
+ * 2026-09-23 R9 拆型：本函数**不再**读取 `dishId` / `dishName` / `isHidden`（那三者属本人视角）。
+ */
 function toReview(raw: RawRow): Review {
   return {
     id: Number(raw.id),
@@ -10,16 +14,26 @@ function toReview(raw: RawRow): Review {
     userAvatar: raw.userAvatar || '',
     rating: Number(raw.rating || 0),
     content: raw.content || '',
-    // 后端 ReviewVO 字段为 createdAt（LocalDateTime→JSON），兼容旧 createTime
-    createTime: raw.createdAt || raw.createTime || '',
+    // 时间字段统一 createdAt（2026-09-23 R10）：原「映射为 createTime」的别名已删除，SHALL NOT 回流
+    createdAt: raw.createdAt || '',
     // 配图（COS URL，≤3 张；后端未返回时缺省空数组，消费方按 length 渲染）
     images: Array.isArray(raw.images)
       ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
       : [],
-    // ===== 以下三字段仅「我的评价」返回（公开列表不含，缺省 undefined 不透传） =====
-    dishId: raw.dishId != null ? Number(raw.dishId) : undefined,
+  }
+}
+
+/**
+ * 本人视角行映射（`GET /my/reviews`，11 字段）= 公开 8 + `dishId` / `dishName` / `isHidden`。
+ * 后端出参类型为 `MyReviewVO`（2026-09-23 R9）；三字段为**本人视角必然返回**，故端上定型为非可选。
+ */
+function toMyReview(raw: RawRow): MyReview {
+  return {
+    ...toReview(raw),
+    dishId: Number(raw.dishId ?? 0),
     dishName: raw.dishName || '',
-    isHidden: raw.isHidden != null ? !!raw.isHidden : undefined,
+    // 管理侧隐藏标记：0=正常 / 1=已隐藏（端上据此标注「已被隐藏」）
+    isHidden: Number(raw.isHidden ?? 0) === 1,
   }
 }
 
@@ -50,12 +64,13 @@ export async function deleteReview(reviewId: number): Promise<void> {
 
 /**
  * 我的评价列表（GET /my/reviews，需邮箱认证）。
- * 行字段 = 本人视角（公开 8 字段 + dishId / dishName / isHidden），删除仍走 DELETE /reviews/{id}。
+ * 行字段 = **本人视角 11 字段**（公开 8 + `dishId` / `dishName` / `isHidden`，端上类型 `MyReview`）；
+ * 删除仍走 DELETE /reviews/{id}。
  * 传 `dishId` 时仅返回该菜本人评价——详情页据此判定「我是否已评价」并取回评价 ID（供预填 / 重评）。
  */
 export async function getMyReviews(
   options?: { page?: number; pageSize?: number; dishId?: number },
-): Promise<{ list: Review[]; total: number }> {
+): Promise<{ list: MyReview[]; total: number }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 20,
@@ -63,7 +78,7 @@ export async function getMyReviews(
   if (options?.dishId != null) params.dishId = options.dishId
   // MP-08：同 getDishReviews，响应定型为 RawPage / RawRow
   const res = await get<RawPage>('/my/reviews', params)
-  return { list: recordsOf<RawRow>(res).map(toReview), total: totalOf(res) }
+  return { list: recordsOf<RawRow>(res).map(toMyReview), total: totalOf(res) }
 }
 
 /** 评价提交/重评入参（不含 dishId：菜品归属由路径锁定） */

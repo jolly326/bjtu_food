@@ -14,7 +14,7 @@
             <IconSvg
               name="arrow-left"
               :size="'22px'"
-              color="var(--nav-back-icon)"
+              :color="COLOR_MAP['nav-back-icon']"
               class="dish-back-icon"
             />
           </view>
@@ -31,17 +31,19 @@
          加载期间（!dish && 未失败）保持空白静默，不新增骨架屏 / loading 指示。
          缺 ID 无重试意义，仅给「返回」。 -->
     <view
-      v-if="!dish && (detailFailed || missingDishId)"
+      v-if="!dish && (detailFailed || detailNotFound || missingDishId)"
       class="detail-fail"
       :style="{ paddingTop: `${pinLine}px` }"
     >
       <!-- 失败态示意图标复用 name="report"（唯一近似语义键；§4.9 图标语义唯一，此处登记复用口径：非举报，仅作「打不开」中性示意，不新增图标键） -->
-      <IconSvg name="report" :size="96" color="var(--text-tertiary)" />
-      <text class="detail-fail-title">这道菜暂时打不开</text>
-      <text class="detail-fail-desc">可能已下架，或网络暂时不可用</text>
+      <IconSvg name="report" :size="96" :color="COLOR_MAP['text-tertiary']" />
+      <!-- 文案分流（2026-09-23 R8）：不存在（4001）/ 缺 ID → 不可重试，只给「返回」；
+           网络故障 → 可重试，给「重新加载 + 返回」。 -->
+      <text class="detail-fail-title">{{ detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开' }}</text>
+      <text class="detail-fail-desc">{{ detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用' }}</text>
       <view class="detail-fail-actions">
         <view
-          v-if="!missingDishId"
+          v-if="!missingDishId && !detailNotFound"
           class="detail-fail-btn detail-fail-btn--primary"
           role="button"
           aria-label="重新加载"
@@ -176,6 +178,8 @@ import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
 import { useDishPage } from './useDishPage'
+// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+import { COLOR_MAP } from '@/theme/tokens'
 
 const {
   dish,
@@ -199,6 +203,7 @@ const {
   reviewFailed,
   reviewPending,
   detailFailed,
+  detailNotFound,
   missingDishId,
   imageOnly,
   currentUserId,

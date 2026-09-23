@@ -23,7 +23,7 @@
               </view>
             </view>
             <view class="rating">
-              <IconSvg name="star-filled" :size="24" :color="COLOR_MAP['primary']" />
+              <IconSvg name="star-filled" :size="24" :color="COLOR_MAP['star']" />
               <text class="rating-num">{{ (r.rating || 0).toFixed(1) }}</text>
             </view>
           </view>
@@ -49,7 +49,7 @@
             </view>
           </view>
           <view class="card-foot">
-            <text class="review-time">{{ formatDateTime(r.createTime) }}</text>
+            <text class="review-time">{{ formatDateTime(r.createdAt) }}</text>
             <text
               class="delete-link"
               role="button"
@@ -88,13 +88,13 @@ import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getMyReviews, deleteReview } from '@/api/review'
-import type { Review } from '@/types/review'
+import type { MyReview } from '@/types/review'
 import { formatDateTime } from '@/utils/time'
 import { getImageUrl } from '@/utils/image'
 import { backToHome } from '@/utils/nav'
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
-const list = ref<Review[]>([])
+const list = ref<MyReview[]>([])
 const loading = ref(false)
 /** 仅「删除导致列表清空」时为 true，驱动空态轻提示 */
 const emptiedByDelete = ref(false)
@@ -146,7 +146,7 @@ async function loadMore() {
 }
 
 /* ===== 配图展示（2026-09 恢复 UGC 配图）：≤3 张 COS URL，点击预览大图 ===== */
-function imagesOf(r: Review): string[] {
+function imagesOf(r: MyReview): string[] {
   return Array.isArray(r.images) ? r.images.filter(Boolean) : []
 }
 /** 破图下标记录（按评价 id 分桶）：error 后切 empty 中性占位；重拉列表后按 id 天然重置 */
@@ -161,7 +161,7 @@ function markBroken(id: number, i: number) {
   brokenMap.value = { ...brokenMap.value, [key]: next }
 }
 /** 预览大图（current 定位到点击那张；破图不计入预览列表） */
-function onPreviewImage(r: Review, i: number) {
+function onPreviewImage(r: MyReview, i: number) {
   const imgs = imagesOf(r)
   const okIdx = imgs.map((_, idx) => idx).filter((idx) => !isBroken(r.id, idx))
   const okUrls = okIdx.map((idx) => getImageUrl(imgs[idx]))
@@ -171,7 +171,7 @@ function onPreviewImage(r: Review, i: number) {
 }
 
 /** 删除本人评价：二次确认 → 删除 → 列表移除（删空后给轻提示） */
-function onDelete(r: Review) {
+function onDelete(r: MyReview) {
   uni.showModal({
     title: '删除评价',
     content: '确定删除这条评价吗？删除后不可恢复。',

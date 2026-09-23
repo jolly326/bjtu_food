@@ -20,11 +20,32 @@
 
     可见性口径（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
     - 公开列表唯一判据为 is_hidden=0；本人视角（我的评价）不过滤 is_hidden。
-    - images_json 列为配图 URL 列表 JSON 原文（review.images），由 service 层解析为 images 数组，不在 SQL 层转换。
+    - images 列为配图 URL 列表 JSON 原文（review.images），由 StringListTypeHandler 在**持久层**完成
+      「列 ↔ List<String>」转换（2026-09-23 R5）；图片相对路径 → 绝对 URL 的转换仍由 service 层完成。
     ============================================================
     -->
 
-    <select id="selectReviewPageByDishId" resultType="com.bjtufood.review.dto.ReviewVO">
+    <!-- 评价行映射（2026-09-23 R5）：images 列 → List<String> 由 TypeHandler 完成；
+         其余下划线列（user_nickname / dish_name / is_hidden / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
+    <resultMap id="reviewMap" type="com.bjtufood.review.dto.ReviewVO">
+        <id property="id" column="id"/>
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
+    </resultMap>
+
+    <!--
+        本人视角行映射（2026-09-23 R9 拆类）：MyReviewVO 承载公开 8 字段 + dish_id / dish_name / is_hidden。
+        与 reviewMap 的差异仅在类型（属性名同名，映射体一致）——但**类型不同**正是本项要义：
+        两条链路各自绑定自己的 VO，消费端据此定义两个类型（不再靠「调哪个接口」区分字段集）。
+    -->
+    <resultMap id="myReviewMap" type="com.bjtufood.review.dto.MyReviewVO">
+        <id property="id" column="id"/>
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
+    </resultMap>
+
+    <!-- 公开列表：按菜品，联表补齐作者昵称 / 头像，时间倒序，可选「只看有图」 -->
+    <select id="selectReviewPageByDishId" resultMap="reviewMap">
         SELECT
             r.id,
             r.user_id,
@@ -32,15 +53,19 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
+            r.images,
             r.created_at
         FROM review r
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
         <if test="hasImage != null and hasImage == 1">
-            -- 只看有图：images 非空且不为空数组（空串/[] 视为无图）
-            AND r.images IS NOT NULL AND r.images &lt;&gt; '' AND r.images &lt;&gt; '[]'
+            -- 只看有图（2026-09-23 R4 重写为 JSON 语义）：images 列为 JSON 数组串，按「数组长度 > 0」判非空
+            --   · JSON 合法（如 [] / ["a.jpg"]）→ 取 JSON_LENGTH：空数组判无图、非空判有图
+            --   · 非 JSON（历史逗号分隔串，JsonListUtil 兼容形态）→ 归为「有图」，与原行为一致
+            --   CASE 保证 JSON_LENGTH 仅在 JSON_VALID 为真时求值（避免对非法 JSON 求值报错）
+            AND r.images IS NOT NULL AND r.images &lt;&gt; ''
+            AND (CASE WHEN JSON_VALID(r.images) THEN JSON_LENGTH(r.images) ELSE 1 END) &gt; 0
         </if>
         ORDER BY r.created_at DESC
     </select>
@@ -51,7 +76,7 @@
         可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见。
         排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
     -->
-    <select id="selectReviewPageByUserId" resultType="com.bjtufood.review.dto.ReviewVO">
+    <select id="selectReviewPageByUserId" resultMap="myReviewMap">
         SELECT
             r.id,
             r.user_id,
@@ -61,7 +86,7 @@
             u.avatar AS user_avatar,
             r.rating,
             r.content,
-            r.images AS images_json,
+            r.images,
             r.is_hidden AS is_hidden,
             r.created_at
         FROM review r

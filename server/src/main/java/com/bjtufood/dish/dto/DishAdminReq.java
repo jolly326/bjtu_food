@@ -52,11 +52,11 @@ public class DishAdminReq {
     @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真（可空）", example = "half")
     private String dietType;
 
-    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（可空）", example = "chicken,rice")
-    private String ingredients;
+    @Schema(description = "主料/食材（数组，2026-09-23 R4 改数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（可空）", example = "[\"chicken\",\"veg\"]")
+    private List<String> ingredients;
 
-    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy（可空）", example = "spicy,sour")
-    private String flavorTags;
+    @Schema(description = "口味（数组，2026-09-23 R4 改数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy（可空）", example = "[\"spicy\",\"sour\"]")
+    private List<String> flavorTags;
 
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰（可空）", example = "hot")
     private String serveTemp;

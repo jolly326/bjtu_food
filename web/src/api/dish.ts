@@ -77,6 +77,41 @@ export async function listMealTypes(): Promise<MealTypeDictItem[]> {
     .sort((a, b) => a.order - b.order)
 }
 
+/** 菜品描述四维字典项（`GET /dishes/attributes` 单行出参，2026-09-23 §7.40 R4）。 */
+export interface DishAttributeDictItem {
+  /** 维度字段名（**恒等于菜品出参字段名**：dietType / ingredients / flavorTags / serveTemp，R13） */
+  field: string
+  /** 机器值（菜品出参里出现的值，**也是表单提交值**） */
+  value: string
+  /** 中文标签（端上直接渲染，**端上不得另行维护任何 value → 中文 映射**） */
+  label: string
+  /** 组内展示顺序（后端已按升序下发） */
+  order: number
+}
+
+/**
+ * 菜品描述四维字典（公开端点 `GET /dishes/attributes`，2026-09-23 §7.40 R4）。
+ *
+ * - 四维（荤素 / 主料 / 口味 / 冷热）的**取值与中文标签唯一真源在后端**（`DishAttributeConst`）
+ *   → Web 端与小程序端**零硬编码映射表**：展示与**表单选项**均直接渲染本响应
+ *   （改动前 Web 端在 `constants/index.ts` 硬编码 4 张表、且同时兼作表单选项，与 client 端构成两套前端真源）；
+ * - 与 `listMealTypes` 的差异：本字典**下发全部取值、不做在售过滤** ——
+ *   四维是「描述属性」，管理端录入表单需要**完整**选项（大类是「筛选维度」，才按在售过滤）；
+ * - 出参字段本身即 camelCase，故此处只做形状与空值归一，不做下划线→驼峰映射。
+ */
+export async function listDishAttributes(): Promise<DishAttributeDictItem[]> {
+  const data: any = await get<any[]>('/dishes/attributes')
+  const rows = Array.isArray(data) ? data : []
+  return rows
+    .map(raw => ({
+      field: String(raw?.field ?? ''),
+      value: String(raw?.value ?? ''),
+      label: String(raw?.label ?? ''),
+      order: Number(raw?.order ?? 0),
+    }))
+    .filter(item => item.field && item.value)
+}
+
 /**
  * 原 `getById(id)` 封装（公开端点 GET /dishes/{id}）已于 DEV-04 收口移除：
  * Web 后台只经 /admin/**，且该公开端点只返回在售菜品 → 已下架菜品取不到名。

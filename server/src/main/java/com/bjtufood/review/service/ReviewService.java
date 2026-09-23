@@ -1,6 +1,7 @@
 package com.bjtufood.review.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -41,7 +42,7 @@ public interface ReviewService {
      * @param dishId   菜品ID（可选，仅返回对该菜品的评价，用于详情页判定「我是否已评价」）
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId);
+    IPage<MyReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId);
 
     // ==================== 需登录接口（学生） ====================
 

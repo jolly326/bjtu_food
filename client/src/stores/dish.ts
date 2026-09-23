@@ -4,6 +4,7 @@ import type { DishListItem, DishDetail, DishQuery, GuessLike, MealType } from '@
 import type { Review } from '@/types/review'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
+import { isResourceNotFound } from '@/api/http'
 
 /**
  * 首页列表单页条数（`fetchHomeDishes` / `loadMoreHomeDishes` 共用，防口径漂移）。
@@ -42,6 +43,12 @@ export const useDishStore = defineStore('dish', () => {
    * 供详情页区分「静默加载中（空白）」与「请求失败（明确文案 + 重试/返回）」两种态。
    */
   const detailError = ref(false)
+  /**
+   * 菜品**不存在**（后端 `4001`，2026-09-23 §7.40 R8）—— 与「请求失败」**区别对待**：
+   * 不存在（含已下架，下架对外等价于不存在）**不可重试**，页面应只给「返回」路径；
+   * 网络 / 服务端故障才给「重新加载」。二者**互斥**（同一时刻至多一个为 true）。
+   */
+  const detailNotFound = ref(false)
   /**
    * 在途请求登记：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
    * 必须是**响应式 Set**，否则 `computed(() => inFlight.size > 0)` 取不到依赖。
@@ -206,10 +213,13 @@ export const useDishStore = defineStore('dish', () => {
     return withLoading('fetchDetail', async () => {
       currentDish.value = await dishApi.getDishDetail(id)
       detailError.value = false
+      detailNotFound.value = false
     }).catch((e) => {
       console.error('加载菜品详情失败', e)
       currentDish.value = null
-      detailError.value = true
+      // 4001（资源不存在，R8）→ 不存在态（不可重试）；其余（网络 / 5xx）→ 失败态（可重试）
+      detailNotFound.value = isResourceNotFound(e)
+      detailError.value = !detailNotFound.value
     })
   }
 
@@ -219,6 +229,7 @@ export const useDishStore = defineStore('dish', () => {
     reviewFetchSeq++
     currentDish.value = null
     detailError.value = false
+    detailNotFound.value = false
     reviewList.value = []
     reviewTotal.value = 0
     reviewError.value = false
@@ -294,7 +305,7 @@ export const useDishStore = defineStore('dish', () => {
     fetchMealTypes, setHomeMealType, fetchHomeDishes, loadMoreHomeDishes,
     // 搜索 / 详情 / 评价 / 热搜
     search,
-    currentDish, detailError, fetchDetail, resetDishDetail,
+    currentDish, detailError, detailNotFound, fetchDetail, resetDishDetail,
     reviewList, reviewTotal, reviewError, fetchReviews, clearReviews,
     guessLikeList, fetchGuessLike,
   }

@@ -22,7 +22,7 @@
       role="group"
       :aria-label="`位置：${locationText}；信息有误？可点击前往反馈纠错`"
     >
-      <IconSvg name="location" :size="26" color="var(--color-primary)" class="loc-icon" />
+      <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
       <text class="loc-text">{{ locationText }}</text>
       <text
         class="correct-link"
@@ -56,10 +56,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { DishDetail } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
+// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+import { COLOR_MAP } from '@/theme/tokens'
+import { useDishAttributeStore } from '@/stores/dish-attribute'
 import { formatPrice } from '@/utils/money'
 import { feedbackEntryUrl } from '@/utils/routes'
 
@@ -78,14 +81,28 @@ const hasPromo = computed(() => {
   return op != null && op > props.dish.price
 })
 
-/** 描述四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热 */
+/**
+ * 描述四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
+ *
+ * 菜品出参下发**机器值**，中文一律由**四维字典**翻译（2026-09-23 §7.40 R4）——
+ * 端上零硬编码映射表；字典未就绪 / 未命中时该维**不渲染**（沿用「缺项不占位」口径）。
+ */
+const dishAttr = useDishAttributeStore()
+onMounted(() => {
+  dishAttr.ensureLoaded()
+})
+
 const dims = computed(() => {
   const d = props.dish
   const list: { label: string; value: string }[] = []
-  if (d.dietType) list.push({ label: '荤素', value: d.dietType })
-  if (d.ingredients) list.push({ label: '主料', value: d.ingredients })
-  if (d.flavorTags) list.push({ label: '口味', value: d.flavorTags })
-  if (d.serveTemp) list.push({ label: '冷热', value: d.serveTemp })
+  const diet = dishAttr.labelOf('dietType', d.dietType)
+  const ing = dishAttr.labelsOf('ingredients', d.ingredients)
+  const fla = dishAttr.labelsOf('flavorTags', d.flavorTags)
+  const serve = dishAttr.labelOf('serveTemp', d.serveTemp)
+  if (diet) list.push({ label: '荤素', value: diet })
+  if (ing.length) list.push({ label: '主料', value: ing.join('、') })
+  if (fla.length) list.push({ label: '口味', value: fla.join('、') })
+  if (serve) list.push({ label: '冷热', value: serve })
   return list
 })
 

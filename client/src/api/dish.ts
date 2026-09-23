@@ -7,42 +7,22 @@ import { fenToYuan } from '@/utils/money'
 import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from './shared'
 
 /**
- * 描述四维机器值 → 中文展示值映射（**唯一真源**，`project_spec.md` §7.28）。
+ * 多值维**机器值**归一：数组 / 逗号分隔串 → `string[]`。
  *
- * 后端出参（公开 `DishDetailVO` 与 `seed_data.sql`）一律为**英文机器值**，中文仅作展示：
- * - `dietType`：meat 荤 / half 半荤 / veg 素 / halal 清真
- * - `ingredients`（逗号分隔）：pork 猪 / beef 牛 / lamb 羊 / chicken 鸡 / duck 鸭 / fish 鱼虾 /
- *   egg 蛋 / tofu 豆制品 / mushroom 菌菇 / veg 青菜 / noodle 面 / rice 米
- * - `flavorTags`（逗号分隔）：spicy 辣 / numbing 麻 / sour 酸 / sweet 甜 / salty 咸 /
- *   umami 鲜 / light 清淡 / heavy 重口（吸收原「辣度」语义）
- * - `serveTemp`：hot 热食 / room 常温 / ice 冰
+ * 为何需要归一：R4 把 `dish.ingredients` / `dish.flavor_tags` 列改为 JSON 数组存储（后端出参随之
+ * 由「逗号分隔串」变为 JSON 数组），而端上改造（本节）与库表改造分属两批 —— 本函数**同时兼容两种形态**，
+ * 使端上无需随库表批次再改一次。
  *
- * 映射只在本 API 层完成一次，视图层（`DishInfoCard`）一律直取 `DishDetail` 上的中文串，
- * **禁止在页面/组件层再做二次映射**；未命中映射的值按原样透传（兼容后端新增取值）。
+ * 注意：本层**不做「机器值 → 中文」映射** —— 中文一律由四维字典端点提供
+ * （`stores/dish-attribute` 的 `labelsOf`），端上零硬编码映射表（2026-09-23 §7.40 R4）。
  */
-const DIET_TYPE_MAP: Record<string, string> = { meat: '荤', half: '半荤', veg: '素', halal: '清真' }
-const SERVE_TEMP_MAP: Record<string, string> = { hot: '热食', room: '常温', ice: '冰' }
-const INGREDIENT_MAP: Record<string, string> = {
-  pork: '猪', beef: '牛', lamb: '羊', chicken: '鸡', duck: '鸭', fish: '鱼虾',
-  egg: '蛋', tofu: '豆制品', mushroom: '菌菇', veg: '青菜', noodle: '面', rice: '米',
-}
-const FLAVOR_TAG_MAP: Record<string, string> = {
-  spicy: '辣', numbing: '麻', sour: '酸', sweet: '甜',
-  salty: '咸', umami: '鲜', light: '清淡', heavy: '重口',
-}
-
-/**
- * 多值字段（`ingredients` / `flavorTags`，逗号分隔英文机器值）→ 端上展示串（顿号分隔中文）。
- * 逐项查表映射，未命中按原样透传；入参为空/非字符串时返回空串，由消费方按「空则该维不渲染」处理。
- */
-function toDisplayList(raw: unknown, map: Record<string, string>): string {
-  if (raw == null) return ''
+function toMachineList(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean)
+  if (raw == null) return []
   return String(raw)
     .split(/[,，]/)
     .map((s) => s.trim())
     .filter(Boolean)
-    .map((s) => map[s] || s)
-    .join('、')
 }
 
 /**
@@ -82,11 +62,11 @@ function toDishDetail(raw: RawRow): DishDetail {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',
-    // ===== 描述四维（英文机器值 → 中文展示值；视图层直取，禁二次映射） =====
-    dietType: DIET_TYPE_MAP[String(raw.dietType || '')] || '',
-    ingredients: toDisplayList(raw.ingredients, INGREDIENT_MAP),
-    flavorTags: toDisplayList(raw.flavorTags, FLAVOR_TAG_MAP),
-    serveTemp: SERVE_TEMP_MAP[String(raw.serveTemp || '')] || '',
+    // ===== 描述四维：**下发机器值**（中文由四维字典端点提供，端上零硬编码映射表，§7.40 R4） =====
+    dietType: String(raw.dietType || ''),
+    ingredients: toMachineList(raw.ingredients),
+    flavorTags: toMachineList(raw.flavorTags),
+    serveTemp: String(raw.serveTemp || ''),
     ratingDistribution: raw.ratingDistribution || [],
   }
 }
@@ -125,8 +105,10 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
 
 /**
  * 上报菜品浏览（POST /dishes/{id}/views，供 view_count / 热度排序派生使用）。
- * 后端 addView 通过 token 取当前用户（SecurityUtil.getCurrentUserId），无需 body；
- * 需登录态（/dishes/** 仅 GET 公开）。浏览埋点属非关键链路，失败静默。
+ * **公开端点（游客亦计）**：2026-09-23 §7.41 起不做人员与时间限制，每次进入详情页即 +1（PV 口径）；
+ * 端点已转公开，故端上**无需**区分登录态（本就是同一调用）。后端若有 token 则额外写一条浏览足迹。
+ * 无需 body（用户身份由 token 解析，游客无 token）。滥用防护在服务端 IP 维度限频。
+ * 浏览埋点属非关键链路，失败静默。
  */
 export async function addView(id: number): Promise<void> {
   try {

@@ -87,6 +87,22 @@ public class SecurityConfig {
             "/images/**", "/api/images/**",
     };
 
+    /**
+     * 仅 POST 放行的公开写接口（**例外白名单，逐条登记**）。
+     * <p>
+     * 当前唯一成员：{@code POST /dishes/{id}/views}（浏览量上报）。2026-09-23 §7.41 拍板
+     * 「不做人员与时间限制，load 一次即 +1」→ 端点**转公开以覆盖游客**。
+     * <p>
+     * <b>这是匿名写接口</b>：其滥用防护**不在本类**，而由 {@code DishController#addView} 内的
+     * {@code IpRateLimiter}（IP 维度限频）承担 —— 见该方法注释与 §7.41 第 3 条。
+     * <p>
+     * ⚠️ <b>必须用单段通配 {@code *} 而非 {@code /**}</b>：后者会一并放行
+     * {@code POST /dishes/{id}/reviews}（同为菜品 POST 子资源，但**需登录 + 需认证**）。
+     */
+    private static final String[] PUBLIC_POST_PREFIXES = {
+            "/dishes/*/views", "/api/dishes/*/views",
+    };
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -103,6 +119,9 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ANY_METHOD).permitAll()
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES).permitAll()
+                        // 仅 POST 放行的公开写接口（例外白名单：浏览量上报，2026-09-23 §7.41；
+                        // 其滥用防护由 DishController#addView 的 IP 限频承担，不在本类）
+                        .requestMatchers(HttpMethod.POST, PUBLIC_POST_PREFIXES).permitAll()
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers("/admin/**").permitAll()

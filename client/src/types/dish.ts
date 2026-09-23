@@ -12,8 +12,9 @@
  * - `canteenName` → 端上别名 `canteen`，`avgRating` → `rating`；
  * - 列表**不含**详情专属字段（`description` / `images` / `floor` / `ratingCount` / 四维）；
  *   列表图片只给 `coverImage`（后端首图绝对 URL；无图空串）——列表**不得回流** `images` 数组；
- * - `dietType` / `serveTemp` 等四维在 API 层已由机器值映射为中文展示值（见 `api/dish.ts`），
- *   视图层直取渲染，禁止二次映射。
+ * - 描述四维**下发机器值**（`dietType` / `serveTemp` 单值，`ingredients` / `flavorTags` 为数组）；
+ *   中文展示值由**四维字典端点**提供（见 `api/dish-attribute.ts` + `stores/dish-attribute.ts`），
+ *   端上 SHALL NOT 硬编码「机器值 → 中文」映射表（2026-09-23 §7.40 R4）。
  *
  * 已全链删除（SHALL NOT 回流）：promoPrice / status / createdAt / canteenId / stallId /
  * viewCount / tags / spiceLevel / region / windowNo / updatedAt / latitude / longitude /
@@ -58,13 +59,13 @@ export interface DishDetail {
   stallName: string
   /** 档口所属楼层（如 1F/2F；详情专属） */
   floor?: string
-  /** 描述四维·荤素（中文展示值：荤 / 半荤 / 素 / 清真） */
+  /** 描述四维·荤素（**机器值**：meat / half / veg / halal；中文由字典提供） */
   dietType?: string
-  /** 描述四维·主料（中文展示值，顿号分隔） */
-  ingredients?: string
-  /** 描述四维·口味（中文展示值，顿号分隔；吸收原「辣度」语义） */
-  flavorTags?: string
-  /** 描述四维·冷热（中文展示值：热食 / 常温 / 冰） */
+  /** 描述四维·主料（**机器值数组**：如 `['chicken','rice']`；中文由字典提供） */
+  ingredients?: string[]
+  /** 描述四维·口味（**机器值数组**：如 `['spicy','sour']`；吸收原「辣度」语义，中文由字典提供） */
+  flavorTags?: string[]
+  /** 描述四维·冷热（**机器值**：hot / room / ice；中文由字典提供） */
   serveTemp?: string
   ratingDistribution: RatingDistribution[]
 }

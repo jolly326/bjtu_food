@@ -22,14 +22,14 @@ import { useStallStore } from '@/stores/stallStore'
 import { useMealTypeStore } from '@/stores/mealTypeStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
+import { parseCsv } from '@/constants'
 import {
-  parseCsv,
-  formatCsv,
-  DIET_TYPE_OPTIONS,
-  SERVE_TEMP_OPTIONS,
-  INGREDIENT_OPTIONS,
-  FLAVOR_TAG_OPTIONS,
-} from '@/constants'
+  useDishAttributeStore,
+  ATTR_DIET_TYPE,
+  ATTR_INGREDIENTS,
+  ATTR_FLAVOR_TAGS,
+  ATTR_SERVE_TEMP,
+} from '@/stores/dishAttributeStore'
 import FormDialog from '@/components/FormDialog.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
 import RenameEntityDialog from '@/components/RenameEntityDialog.vue'
@@ -52,6 +52,7 @@ const dishStore = useDishStore()
 const canteenStore = useCanteenStore()
 const stallStore = useStallStore()
 const mealTypeStore = useMealTypeStore()
+const attrStore = useDishAttributeStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -71,8 +72,10 @@ const form = ref({
   status: 'active' as 'active' | 'inactive',
   /** 描述四维（§7.28）：单选维（荤素 / 冷热）存机器值；多值维（主料 / 口味）存 CSV 机器值 */
   dietType: '',
-  ingredients: '',
-  flavorTags: '',
+  /** 主料（**机器值数组**；2026-09-23 R4 数组化后表单内部亦直接用数组，不再以 CSV 串中转） */
+  ingredients: [] as string[],
+  /** 口味（**机器值数组**） */
+  flavorTags: [] as string[],
   serveTemp: '',
   /** 菜品大类（§7.34）：单值枚举键，选项完全由后端字典下发（仅可选择、禁自由输入） */
   mealType: '',
@@ -91,6 +94,8 @@ watch(
     if (!store.canteens.length) canteenStore.loadAll().catch(() => {})
     if (!store.stalls.length) stallStore.loadAll().catch(() => {})
     mealTypeStore.ensureLoaded().catch(() => {})
+    // 描述四维字典（§7.40 R4）：附属域，失败只让该维选项为空（不阻塞表单其余字段）
+    attrStore.ensureLoaded().catch(() => {})
   },
 )
 
@@ -131,6 +136,28 @@ const stallOptions = computed(() => {
 })
 const stallDisabled = computed(() => !form.value.canteenValue)
 const stallPlaceholder = computed(() => (form.value.canteenValue ? '选择或输入新档口名' : '请先选择食堂'))
+
+// ===== 描述四维（§7.40 R4）：选项仅来自后端字典 `GET /dishes/attributes`，端上零硬编码 =====
+/**
+ * 四维录入选项（**单一真源 = 后端 `DishAttributeConst`**，端上零硬编码中文与选项清单）。
+ *
+ * 设计说明：
+ *  - 与 `mealType` 的差异：四维字典**下发全部取值、不做在售过滤**（描述属性，表单需完整选项）
+ *    → **无需**像大类那样追加「列表兜底项」；
+ *  - 单选维（荤素 / 冷热）前置一个空值项「未填写」= 不提交该维（与迁移前 `*_OPTIONS` 同口径）；
+ *  - 多选维（主料 / 口味）无空值项：未选即留空；
+ *  - 字典加载失败时选项为空 → 表单该维**无法选择但不阻塞提交**（其余字段照常保存）。
+ */
+const dietTypeOptions = computed(() => [
+  { value: '', label: '未填写' },
+  ...attrStore.optionsOf(ATTR_DIET_TYPE),
+])
+const serveTempOptions = computed(() => [
+  { value: '', label: '未填写' },
+  ...attrStore.optionsOf(ATTR_SERVE_TEMP),
+])
+const ingredientOptions = computed(() => attrStore.optionsOf(ATTR_INGREDIENTS))
+const flavorTagOptions = computed(() => attrStore.optionsOf(ATTR_FLAVOR_TAGS))
 
 // ===== 菜品大类（§7.34）：选项仅来自后端字典，端上零硬编码中文 =====
 /** 字典选项（单一真源 = 后端 `GET /dishes/meal-types`，端上零硬编码中文） */
@@ -203,8 +230,9 @@ watch(
           description: d.description || '',
           status: d.status as 'active' | 'inactive',
           dietType: d.dietType || '',
-          ingredients: d.ingredients || '',
-          flavorTags: d.flavorTags || '',
+          // 多值维（R4）：后端已是 string[]；parseCsv 同时兼容历史逗号串 / JSON 串
+          ingredients: parseCsv(d.ingredients),
+          flavorTags: parseCsv(d.flavorTags),
           serveTemp: d.serveTemp || '',
           // 编辑态回填大类（§7.34）：原样取 DishAdminVO 的枚举键（不做 key → 中文 反查）
           mealType: d.mealType || '',
@@ -218,7 +246,7 @@ watch(
         canteenValue: canteenIdOfStall(presetStall),
         stallValue: presetStall,
         image: '', description: '', status: 'active',
-        dietType: '', ingredients: '', flavorTags: '', serveTemp: '',
+        dietType: '', ingredients: [], flavorTags: [], serveTemp: '',
         mealType: '',
       }
     }
@@ -265,16 +293,16 @@ function validate() {
   return Object.keys(errs).length === 0
 }
 
-/** 多值维（主料 / 口味）chips 切换：CSV 读入 → 切换 → CSV 写回（写侧统一出口） */
+/** 多值维（主料 / 口味）chips 切换：**直接操作数组**（R4 数组化后不再经 CSV 串中转） */
 function toggleMulti(key: 'ingredients' | 'flavorTags', value: string) {
-  const arr = parseCsv(form.value[key])
+  const arr = [...form.value[key]]
   const i = arr.indexOf(value)
   if (i === -1) arr.push(value)
   else arr.splice(i, 1)
-  form.value[key] = formatCsv(arr)
+  form.value[key] = arr
 }
 function isMultiOn(key: 'ingredients' | 'flavorTags', value: string): boolean {
-  return parseCsv(form.value[key]).includes(value)
+  return form.value[key].includes(value)
 }
 
 /** 归属 payload（§7.23 第 1 条 DishAdminReq 契约）：stallName 有效时优先；canteenName 随新档口成对提供 */
@@ -316,10 +344,11 @@ async function submit() {
     image: form.value.image,
     description: form.value.description,
     status: form.value.status,
-    // 描述四维（§7.28）：单选维传机器值 / 空串；多值维传 CSV（空串 = 清空该维）
+    // 描述四维（§7.28）：单选维传机器值 / 空串；多值维传**数组**（R4 数组化后后端直接收 string[]；
+    // 空数组 = 清空该维，与「null / undefined = 不修改」的部分更新语义互补）
     dietType: form.value.dietType,
-    ingredients: formatCsv(parseCsv(form.value.ingredients)),
-    flavorTags: formatCsv(parseCsv(form.value.flavorTags)),
+    ingredients: form.value.ingredients,
+    flavorTags: form.value.flavorTags,
     serveTemp: form.value.serveTemp,
     // 菜品大类（§7.34）：枚举键原样提交（api 层透传，非法值由后端白名单 400）
     mealType: form.value.mealType,
@@ -467,23 +496,25 @@ async function submit() {
         </div>
       </div>
 
-      <!-- 描述四维（§7.28）：荤素 / 冷热单选，主料 / 口味多选（机器值经 constants 字典映射） -->
+      <!-- 描述四维（§7.28）：荤素 / 冷热单选，主料 / 口味多选。
+           选项与中文标签均由后端字典下发（§7.40 R4，`GET /dishes/attributes`）——
+           本层零硬编码映射表与选项清单（原 constants 的 4 组 *_OPTIONS 已退役）。 -->
       <div class="df-row">
         <div class="field flex-1"><label>荤素</label>
           <select v-model="form.dietType">
-            <option v-for="o in DIET_TYPE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in dietTypeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </div>
         <div class="field flex-1"><label>冷热</label>
           <select v-model="form.serveTemp">
-            <option v-for="o in SERVE_TEMP_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+            <option v-for="o in serveTempOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </div>
       </div>
 
       <div class="field"><label>主料（点击切换，可多选）</label>
         <div class="chip-group">
-          <button v-for="o in INGREDIENT_OPTIONS" :key="o.value" type="button"
+          <button v-for="o in ingredientOptions" :key="o.value" type="button"
             class="chip-opt" :class="{ on: isMultiOn('ingredients', o.value) }"
             @click="toggleMulti('ingredients', o.value)">{{ o.label }}</button>
         </div>
@@ -491,7 +522,7 @@ async function submit() {
 
       <div class="field"><label>口味（点击切换，可多选）</label>
         <div class="chip-group">
-          <button v-for="o in FLAVOR_TAG_OPTIONS" :key="o.value" type="button"
+          <button v-for="o in flavorTagOptions" :key="o.value" type="button"
             class="chip-opt" :class="{ on: isMultiOn('flavorTags', o.value) }"
             @click="toggleMulti('flavorTags', o.value)">{{ o.label }}</button>
         </div>

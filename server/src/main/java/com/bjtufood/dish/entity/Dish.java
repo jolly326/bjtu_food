@@ -1,11 +1,13 @@
 package com.bjtufood.dish.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.bjtufood.common.handler.StringListTypeHandler;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 菜品实体类
@@ -53,13 +55,20 @@ public class Dish {
     @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
     private String dietType;
 
-    /** 主料/食材：逗号分隔机器值（§7.28，可空） */
-    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "chicken,rice")
-    private String ingredients;
+    /**
+     * 主料/食材：机器值数组（§7.28；**2026-09-23 R4 由逗号分隔串改 JSON 数组存储**，可空）。
+     * 列 ↔ List 转换由 {@link StringListTypeHandler} 在持久层完成（解析兼容历史逗号串）。
+     */
+    @TableField(typeHandler = StringListTypeHandler.class)
+    @Schema(description = "主料/食材（数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
+    private List<String> ingredients;
 
-    /** 口味：逗号分隔机器值（§7.28，吸收原辣度语义，可空） */
-    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "spicy,sour")
-    private String flavorTags;
+    /**
+     * 口味：机器值数组（§7.28，吸收原辣度语义；**2026-09-23 R4 改 JSON 数组**，可空）。
+     */
+    @TableField(typeHandler = StringListTypeHandler.class)
+    @Schema(description = "口味（数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
+    private List<String> flavorTags;
 
     /** 冷热（§7.28）：hot=热食 / room=常温 / ice=冰（单选，可空） */
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")

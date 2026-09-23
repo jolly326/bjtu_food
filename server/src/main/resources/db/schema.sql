@@ -149,8 +149,11 @@ CREATE TABLE IF NOT EXISTS `dish`
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
     -- 描述四维（2026-09-20 拍板 §7.28）：荤素 / 主料 / 口味 / 冷热；替换原 spice_level（辣度）与 region（风味/菜系）
     `diet_type`      VARCHAR(16)  NULL     DEFAULT NULL COMMENT '荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真',
-    `ingredients`    VARCHAR(255) NULL     DEFAULT NULL COMMENT '主料/食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice',
-    `flavor_tags`    VARCHAR(128) NULL     DEFAULT NULL COMMENT '口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy',
+    -- 多值维存储形态（2026-09-23 §7.40 R4 / change dish-detail-contract-hardening）：**JSON 数组串**
+    -- （如 ["chicken","veg"]），由 StringListTypeHandler 完成「列 ↔ List<String>」转换；
+    -- 存量逗号分隔串由文件末尾 migrate_dish_multivalue_json 幂等段转换为 JSON 数组。
+    `ingredients`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '主料/食材（JSON 数组机器值）：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]',
+    `flavor_tags`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '口味（JSON 数组机器值）：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]',
     `serve_temp`     VARCHAR(16)  NULL     DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
@@ -184,7 +187,11 @@ CREATE TABLE IF NOT EXISTS `review`
     -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    -- review.updated_at 已于 2026-09-23 用户拍板退役（§7.40 R6 / change dish-detail-contract-hardening）：
+    -- 重评时与 created_at **同批刷新** → 两者恒等，该列对评价无独立语义，且端上与管理端双双零消费
+    -- （web/src/views 对 updated_at 零命中）；Review 实体字段同批移除。
+    -- 存量库由文件末尾 drop_review_updated_at 幂等段清理。
+    -- ⚠️ dish.updated_at **保留**（DishMapper 排序 + DishFormDialog 的 Q-112「他人已修改」轻提示依赖）。
     PRIMARY KEY (`id`),
     KEY `idx_review_dish` (`dish_id`),
     KEY `idx_review_user` (`user_id`),
@@ -1175,5 +1182,86 @@ END$$
 DELIMITER ;
 CALL `drop_dish_alias_column`();
 DROP PROCEDURE IF EXISTS `drop_dish_alias_column`;
+
+-- =============================================================
+-- 菜品详情契约加固（2026-09-23 用户拍板，change dish-detail-contract-hardening）
+-- 本段为**破坏批**库结构变更：多值维 JSON 化（§7.40 R4）+ review.updated_at 下线（R6）。
+-- 全部幂等、可重复执行；**禁止直连 ALTER**，库结构变更统一走本段。
+-- =============================================================
+
+-- 5.1 多值维 JSON 化（§7.40 R4）：dish.ingredients / dish.flavor_tags 由「逗号分隔串」改「JSON 数组串」
+--     语义不变（仍为机器值集合），仅**存储形态**规范化 —— 消除「存储形态泄漏进契约」
+--     （此前 hasImage 的 SQL 条件写死 '[]' 即此类泄漏的例证；本批已改按 JSON 语义判非空）。
+--     幂等口径（三重防护）：
+--       ① 列不存在 → 先 ADD（新库 CREATE 已含，此处仅对旧库补齐）；
+--       ② 列存在但宽度不足 → MODIFY 扩宽（JSON 串长于逗号串，255/128 需扩到 512）；
+--       ③ 值为「非空且非合法 JSON」→ 转换（逗号串 → JSON 数组，兼容单值 'fish' → ["fish"]）。
+--     重复执行安全：第 ③ 步以 JSON_VALID(...) = 0 为前置条件，已是 JSON 的行**不再触碰**。
+DROP PROCEDURE IF EXISTS `migrate_dish_multivalue_json`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_dish_multivalue_json`()
+BEGIN
+    -- ① 建列（仅旧库缺列时生效）
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'ingredients'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `ingredients` VARCHAR(512) NULL DEFAULT NULL COMMENT '主料/食材（JSON 数组机器值）';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'flavor_tags'
+    ) THEN
+        ALTER TABLE `dish`
+            ADD COLUMN `flavor_tags` VARCHAR(512) NULL DEFAULT NULL COMMENT '口味（JSON 数组机器值）';
+    END IF;
+
+    -- ② 扩宽 + 统一列注释（MODIFY 本身幂等：重复执行等价）
+    ALTER TABLE `dish`
+        MODIFY COLUMN `ingredients` VARCHAR(512) NULL DEFAULT NULL
+            COMMENT '主料/食材（JSON 数组机器值）：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]';
+    ALTER TABLE `dish`
+        MODIFY COLUMN `flavor_tags` VARCHAR(512) NULL DEFAULT NULL
+            COMMENT '口味（JSON 数组机器值）：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]';
+
+    -- ③ 旧值转换：逗号分隔串 → JSON 数组
+    --    用 REPLACE 构造（先吞掉「逗号 + 空格」，再把逗号换成 '","'），单值同样包成单元素数组。
+    --    仅处理「非空 且 非合法 JSON」的行 → 可重复执行（第二次全部命中 JSON_VALID，UPDATE 0 行）。
+    UPDATE `dish`
+    SET `ingredients` = CONCAT('["', REPLACE(REPLACE(TRIM(`ingredients`), ', ', ','), ',', '","'), '"]')
+    WHERE `ingredients` IS NOT NULL AND `ingredients` <> '' AND JSON_VALID(`ingredients`) = 0;
+
+    UPDATE `dish`
+    SET `flavor_tags` = CONCAT('["', REPLACE(REPLACE(TRIM(`flavor_tags`), ', ', ','), ',', '","'), '"]')
+    WHERE `flavor_tags` IS NOT NULL AND `flavor_tags` <> '' AND JSON_VALID(`flavor_tags`) = 0;
+END$$
+DELIMITER ;
+CALL `migrate_dish_multivalue_json`();
+DROP PROCEDURE IF EXISTS `migrate_dish_multivalue_json`;
+
+-- 5.2 review.updated_at 下线（§7.40 R6）：幂等 DROP
+--     退役依据：重评时与 created_at **同批刷新** → 两者恒等，该列对评价无独立语义；
+--     消费方核实（2026-09-23）：端上与 web/src/views **双双零命中**（仅 adapter/types 有映射声明）。
+--     ⚠️ 落地前建议人工核对一次「不存在 updated_at <> created_at 的行」（历史值即将丢失、不可逆）：
+--        SELECT COUNT(*) FROM review WHERE updated_at <> created_at;
+--        —— 预期为 0；若不为 0，请先确认这些差值无业务含义再执行本段。
+--     ⚠️ 只删**评价侧**：dish.updated_at 有真实消费（DishMapper 列表排序 + DishFormDialog 的
+--        Q-112「他人已修改」轻提示基线），**不得**据此误删。
+DROP PROCEDURE IF EXISTS `drop_review_updated_at`;
+DELIMITER $$
+CREATE PROCEDURE `drop_review_updated_at`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'updated_at'
+    ) THEN
+        ALTER TABLE `review` DROP COLUMN `updated_at`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_review_updated_at`();
+DROP PROCEDURE IF EXISTS `drop_review_updated_at`;
 
 SET FOREIGN_KEY_CHECKS = 1;

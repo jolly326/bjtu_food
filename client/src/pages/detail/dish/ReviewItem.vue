@@ -19,7 +19,7 @@
       @error="avatarOk = false"
     />
     <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${review.userNickname || '匿名用户'}的头像`">
-      <IconSvg name="user" :size="32" color="var(--text-tertiary)" />
+      <IconSvg name="user" :size="32" :color="COLOR_MAP['text-tertiary']" />
     </view>
     <view class="review-body">
       <view class="review-head">
@@ -28,7 +28,7 @@
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
         <view class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
-          <IconSvg name="more-v" :size="28" color="var(--text-tertiary)" />
+          <IconSvg name="more-v" :size="28" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
       <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
@@ -39,12 +39,12 @@
             :key="n"
             name="star-filled"
             :size="22"
-            color="var(--color-primary)"
+            :color="COLOR_MAP['star']"
             class="review-star"
           />
           <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
         </view>
-        <text class="review-time">{{ formatDateTime(review.createTime) }}</text>
+        <text class="review-time">{{ formatDateTime(review.createdAt) }}</text>
       </view>
       <text class="review-content">{{ review.content }}</text>
       <!-- 配图行（≤3 张 COS URL）：等比小方图，点击预览大图；破图兜底 empty 中性占位 -->
@@ -62,7 +62,7 @@
               @error="onImageError(i)"
             />
             <view v-else class="review-image-fallback" @tap="onPreviewImage(i)">
-              <IconSvg name="empty" :size="36" color="var(--text-tertiary)" />
+              <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
             </view>
           </view>
         </view>
@@ -76,6 +76,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+// 星色须传**实色**：IconSvg 的 color 不解析 var()（走 data-uri，见 IconSvg.vue 的 resolveColor），
+// 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
+import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl } from '@/utils/image'
 import { formatDateTime } from '@/utils/time'
 import type { Review } from '@/types/review'

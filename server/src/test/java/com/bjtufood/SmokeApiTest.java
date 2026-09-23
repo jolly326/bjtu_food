@@ -61,7 +61,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -249,13 +251,24 @@ class SmokeApiTest {
     }
 
     @Test
-    void dishDetail_notFound_returnsCode400() throws Exception {
-        // 真实口径：Service 抛 BusinessException（默认 code=400），统一响应由 HTTP 200 承载 body.code
-        when(dishService.getDishDetail(999L)).thenThrow(new BusinessException("菜品不存在"));
+    void dishDetail_notFoundAndOffShelf_returnsCode4001() throws Exception {
+        // 契约（2026-09-23 §7.40 R8）：资源不存在用**专属业务码 4001**（原「统一 400」口径已作废）。
+        // 统一响应由 HTTP 200 承载 body.code。
+        when(dishService.getDishDetail(999L)).thenThrow(new BusinessException(4001, "菜品不存在"));
 
         mockMvc.perform(get("/dishes/999"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.code").value(4001))
+                .andExpect(jsonPath("$.message").value("菜品不存在"));
+
+        // 已下架（status='off'）在 Service 层因 SQL `AND d.status = 'on'` 过滤而同样查不到 →
+        // **与「不存在」同款 4001**（契约面最小：下架对外等价于不存在，不设专用字段 / 专用码）。
+        // 注：本切片打桩 Service，故两种场景在 Controller 层表现为同一异常；此处锁住「同一码值」。
+        when(dishService.getDishDetail(2L)).thenThrow(new BusinessException(4001, "菜品不存在"));
+
+        mockMvc.perform(get("/dishes/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(4001))
                 .andExpect(jsonPath("$.message").value("菜品不存在"));
     }
 
@@ -418,6 +431,39 @@ class SmokeApiTest {
                 "旧路径 /reviews 应随 RESTful 化删除；实际映射：" + patterns);
         Assertions.assertFalse(patterns.contains("/dishes/{id}/view"),
                 "旧浏览量路径 /dishes/{id}/view 应删除；实际映射：" + patterns);
+    }
+
+    // ==================== 防回归：浏览量上报转公开（2026-09-23 §7.41 / change view-count-pv） ====================
+
+    /**
+     * 防回归：{@code POST /dishes/{id}/views} **转为公开端点**（游客亦计）——
+     * {@code SecurityConfig.PUBLIC_POST_PREFIXES} 白名单放行，故无 token 应返回 200 而非 401。
+     * <p>
+     * <b>与 {@link #submitReview_anonymous_returns401()} 成对阅读</b>：二者同为菜品 POST 子资源，
+     * 但前者在 POST 白名单内、后者**不在**。两条并置即可证明白名单用的是**单段通配**
+     * （以 {@code /dishes/} 起、中间恰好一段、以 {@code /views} 收），而非**深度通配** ——
+     * 若被误放大为深度通配，本用例仍绿、而 reviews 那条会红。
+     */
+    @Test
+    void addView_anonymous_returns200_publicEndpoint() throws Exception {
+        mockMvc.perform(post("/dishes/1/views"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+    }
+
+    /**
+     * 防回归：PV 口径下**没有**「当日幂等」分支 —— 连续两次调用均应成功（每次计数）。
+     * <p>
+     * 本用例只覆盖 Controller 层每次都委托 Service（判定「是否真的 +1」需 DB，见
+     * {@code dish-detail-contract-hardening} / {@code view-count-pv} 的实测记录）；
+     * 其价值在于锁住「不再提前 return」这一行为特征 —— 打桩后每次调用必须命中 Service。
+     */
+    @Test
+    void addView_anonymous_repeatedCalls_bothDelegateToService() throws Exception {
+        mockMvc.perform(post("/dishes/1/views")).andExpect(status().isOk());
+        mockMvc.perform(post("/dishes/1/views")).andExpect(status().isOk());
+
+        verify(dishService, times(2)).addViewCount(eq(1L), isNull());
     }
 
     // ==================== 链路 5：上传（管理端口令守卫） ====================

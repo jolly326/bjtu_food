@@ -29,7 +29,9 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
 import { dishDetailUrl } from '@/utils/routes'
-import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+// COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
+// 传 'var(--color-error)' 曾导致「举报 / 删除」弹层文字红、图标近黑）
+import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 /** 评价分页每页条数（详情页固定 10） */
 const REVIEW_PAGE_SIZE = 10
@@ -45,8 +47,14 @@ export function useDishPage() {
   const currentUserId = computed(() => userStore.userInfo?.id)
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
   const reviewFailed = computed(() => dishStore.reviewError)
-  /** 详情请求失败态（失败 ≠ 加载中 ≠ 不存在）：驱动页面失败 / 不存在文案与恢复路径 */
+  /** 详情请求失败态（网络 / 服务端故障，**可重试**）：驱动「重新加载 + 返回」恢复路径 */
   const detailFailed = computed(() => dishStore.detailError)
+  /**
+   * 菜品不存在态（后端 `4001`，2026-09-23 §7.40 R8，**不可重试**）：与失败态互斥。
+   * 区别对待的缘由：不存在（含已下架）重试也还是不存在，「重新加载」是无效安慰 ——
+   * 故只给「返回」，文案明确指出菜品不可见，避免用户反复点重试。
+   */
+  const detailNotFound = computed(() => dishStore.detailNotFound)
   /** onLoad 缺少 / 非法菜品 id：同样按失败态呈现（不留纯空白页） */
   const missingDishId = ref(false)
 
@@ -220,12 +228,14 @@ export function useDishPage() {
     return nodes.join(' · ') || '未知位置'
   })
 
-  /** 评分分布：按星级 5→1 排序（供综合评分卡） */
-  const ratingDistribution = computed(() => {
-    const list = (dish.value?.ratingDistribution || []).slice()
-    list.sort((a, b) => b.star - a.star)
-    return list
-  })
+  /**
+   * 评分分布（供综合评分卡）：**直接透传后端顺序，端上不再排序**。
+   *
+   * 2026-09-23 R11：契约已约定后端**按 `star` 降序（5 → 1）**下发（与页面展示顺序一致）——
+   * 端上此前自行 `sort((a, b) => b.star - a.star)` 属**口径权威方跑到端上**（违反 PR-02：
+   * 同一业务口径的权威方固定为后端），且换端 / 换排序算法时表现会不一致。
+   */
+  const ratingDistribution = computed(() => dish.value?.ratingDistribution || [])
 
   onLoad((query) => {
     const id = Number(query?.id)
@@ -379,12 +389,17 @@ export function useDishPage() {
     reviewMoreOpen.value = true
   }
 
-  /** 动作项：本人删除 / 他人举报（危险操作警示色） */
+  /**
+   * 动作项：本人删除 / 他人举报（危险操作警示色）。
+   * <p>
+   * ⚠️ `iconColor` 必须传**实色** `COLOR_MAP['error']`（ActionSheet 的契约：IconSvg 的 color 不解析 var()）；
+   * `textColor` 走 CSS 绑定、`var()` **合法**，故保持 `var(--color-error)` 以随主题。
+   */
   const reviewMoreItems = computed(() => {
     if (!reviewMoreTarget.value) return []
     return reviewMoreIsOwn.value
-      ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
-      : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: 'var(--color-error)', textColor: 'var(--color-error)' }]
+      ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: COLOR_MAP['error'], textColor: 'var(--color-error)' }]
+      : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: COLOR_MAP['error'], textColor: 'var(--color-error)' }]
   })
 
   function onReviewMoreSelect(key: string) {
@@ -425,6 +440,7 @@ export function useDishPage() {
     reviewFailed,
     reviewPending,
     detailFailed,
+    detailNotFound,
     missingDishId,
     imageOnly,
     currentUserId,

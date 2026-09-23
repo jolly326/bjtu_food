@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * 菜品列表行视图对象（**列表专用，恰为 8 个字段**）
@@ -32,10 +33,16 @@ public class DishListItemVO {
     @Schema(description = "菜品名称", example = "牛肉拉面")
     private String name;
 
-    /** 数据库原始 images JSON 字符串，由 Service 层解析出首图后填充 coverImage（不出参） */
+    /**
+     * 该行图片数组（列 ↔ List 转换由 StringListTypeHandler 在持久层完成）。
+     * <p>
+     * **仅供 Service 派生首图 {@code coverImage}，不出参** —— 列表契约只有 {@code coverImage} 单值
+     * （2026-09-22 列表 / 详情出参拆分）。与旧 {@code String imagesJson} 的区别：后者是**存储形态**
+     * （JSON 串）泄漏进 VO，本字段是语义正确的数据（图片数组），只是不对外输出（2026-09-23 R5）。
+     */
     @JsonIgnore
     @Schema(hidden = true)
-    private String imagesJson;
+    private List<String> imageUrls;
 
     /** 封面图（绝对 URL；无图为空串）——列表只渲染首图 */
     @Schema(description = "封面图URL（原 images[0]，无图为空串）")

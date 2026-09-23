@@ -17,7 +17,7 @@
               :key="n"
               :name="n <= item.star ? 'star-filled' : 'star'"
               :size="20"
-              :color="n <= item.star ? 'var(--color-primary)' : 'var(--color-star-empty)'"
+              :color="n <= item.star ? COLOR_MAP['star'] : COLOR_MAP['star-empty']"
             />
           </view>
           <text class="dist-star-num">{{ item.star }}</text>
@@ -39,6 +39,8 @@ import { computed } from 'vue'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
+import { COLOR_MAP } from '@/theme/tokens'
 
 interface RatingDistItem {
   star: number
@@ -74,6 +76,7 @@ function distPct(count: number): string {
 .dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 .dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill); background: var(--color-star-empty); overflow: hidden; }
-.dist-fill { height: 100%; border-radius: var(--radius-pill); background: var(--color-primary) }
+/* 分布条为「星级分布」可视化 → 与星标同族用独立星色 token（§4.2 / §7.39），不随主色换肤 */
+.dist-fill { height: 100%; border-radius: var(--radius-pill); background: var(--color-star); }
 .dist-count { flex: 0 0 auto; width: 48rpx; text-align: left; font-size: var(--font-aux); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 </style>

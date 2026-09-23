@@ -10,6 +10,7 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.SensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.content.security.ContentSecurityService;
+import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -62,13 +63,14 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public IPage<ReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId) {
+    public IPage<MyReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         // 我的评价：本人视角，公开列表的 is_hidden 过滤不适用——被管理员隐藏（is_hidden=1）的评价
-        // 作者本人仍可见（VO 的 isHidden 供端上标注「已被隐藏」）。排序固定时间倒序。
+        // 作者本人仍可见（MyReviewVO 的 isHidden 供端上标注「已被隐藏」）。排序固定时间倒序。
         // dishId 可选过滤：详情页判定「我是否已评价」并取回评价 ID（避免分页边界丢失）。
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, dishId);
+        // 2026-09-23 R9：返回类型由 ReviewVO 改 MyReviewVO（本人视角 11 字段），与公开链路分型。
+        IPage<MyReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, dishId);
         fillImages(pageResult.getRecords());
         return pageResult;
     }
@@ -128,7 +130,9 @@ public class ReviewServiceImpl implements ReviewService {
         }
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            // 错误码口径：仅 200/400/401/403/4031/500，资源不存在按 400 业务校验返回
+            // 错误码口径：200/400/401/403/4031/4001/500（4001 = 资源不存在，2026-09-23 新增，
+            // 见 project_spec.md §7.40 R8）。本端点沿用既有 400 口径未改 —— 4001 首期仅在
+            // GET /dishes/{id} 落地，其余端点随各自变更渐进对齐。
             throw new BusinessException(400, "评价不存在");
         }
         if (!review.getUserId().equals(userId)) {
@@ -189,17 +193,17 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * VO 配图填充：images_json（mapper 直填的 JSON 原文）解析为 images 数组。
-     * COS 绝对地址原样返回（toAbsoluteUrl 对 http(s) 无损），历史空值归一为空列表。
+     * VO 配图绝对化（2026-09-23 R5）：{@code images} 已由 StringListTypeHandler 在持久层从
+     * {@code review.images} 列直出为 {@code List<String>}，本方法只做「相对路径 → 绝对 URL」的业务转换。
+     * COS 绝对地址原样返回（toAbsoluteUrl 对 http(s) 无损）；历史空值由 TypeHandler 归一为空列表。
      */
-    private void fillImages(List<ReviewVO> records) {
+    private void fillImages(List<? extends ReviewVO> records) {
         if (records == null) {
             return;
         }
         for (ReviewVO vo : records) {
-            List<String> images = JsonListUtil.parseStringList(vo.getImagesJson());
-            vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-            vo.setImagesJson(null);
+            List<String> images = vo.getImages();
+            vo.setImages(images == null || images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
         }
     }
 
@@ -208,7 +212,8 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long id, Long userId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            // 错误码口径：仅 200/400/401/403/4031/500，资源不存在按 400 业务校验返回
+            // 错误码口径：200/400/401/403/4031/4001/500（4001 = 资源不存在，2026-09-23 新增）；
+            // 本端点沿用既有 400 口径未改（4001 首期仅在 GET /dishes/{id} 落地）
             throw new BusinessException(400, "评价不存在");
         }
         if (!review.getUserId().equals(userId)) {
@@ -223,9 +228,10 @@ public class ReviewServiceImpl implements ReviewService {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
+                // 2026-09-23 R6：Review::getUpdatedAt 已随 review.updated_at 列下线移除（该列不再存在）
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
-                        Review::getCreatedAt, Review::getUpdatedAt)
+                        Review::getCreatedAt)
                 .eq(isHidden != null, Review::getIsHidden, isHidden)
                 .eq(userId != null, Review::getUserId, userId)
                 // 关键词模糊匹配评价正文，仅当显式传入时生效

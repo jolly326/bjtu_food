@@ -29,15 +29,26 @@
          仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
     <resultMap id="dishListItemMap" type="com.bjtufood.dish.dto.DishListItemVO">
         <id property="id" column="id"/>
+        <!-- 图片列 → List<String>（2026-09-23 R5，替换原 String imagesJson 中转字段）：
+             仅供 Service 派生首图 coverImage，不出参（列表契约只有 coverImage 单值） -->
+        <result property="imageUrls" column="images"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
     </resultMap>
 
     <!-- 详情映射（DishDetailVO，15 字段 + ratingDistribution） -->
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO">
         <id property="id" column="id"/>
+        <!-- 图片列 → List<String>（2026-09-23 R5，替换原 String imagesJson 中转字段）；
+             绝对 URL 转换仍由 Service 层完成（TypeHandler 不掺业务逻辑） -->
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
         <result property="floor" column="floor"/>
         <result property="dietType" column="diet_type"/>
-        <result property="ingredients" column="ingredients"/>
-        <result property="flavorTags" column="flavor_tags"/>
+        <!-- 四维多值列 → List<String>（2026-09-23 R4：列改 JSON 数组存储；TypeHandler 解析兼容历史逗号串） -->
+        <result property="ingredients" column="ingredients"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
+        <result property="flavorTags" column="flavor_tags"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
         <result property="serveTemp" column="serve_temp"/>
     </resultMap>
 
@@ -73,22 +84,25 @@
         d.name,
         d.price,
         d.original_price,
-        d.images  AS images_json,
+        d.images,
         d.avg_rating,
-        s.name AS stall_name,
-        c.name AS canteen_name
+        <!-- 字符串类字段空串兜底（2026-09-23 R12）：出参不出现 null，消费端无需兜底分支 -->
+        COALESCE(s.name, '') AS stall_name,
+        COALESCE(c.name, '') AS canteen_name
     </sql>
 
     <!-- 详情查询列（DishDetailVO 15 字段）= 列表列 + 详情专属列 -->
     <sql id="detailDishColumns">
         <include refid="listDishColumns"/>,
-        d.description,
+        <!-- 字符串类字段空串兜底（2026-09-23 R12）：仅 originalPrice 可为 null，其余描述类字段出空串 -->
+        COALESCE(d.description, '') AS description,
         d.rating_count,
-        d.diet_type,
-        d.ingredients,
-        d.flavor_tags,
-        d.serve_temp,
-        s.floor
+        COALESCE(d.diet_type, '') AS diet_type,
+        -- 多值列（2026-09-23 R4 起为 JSON 数组）：缺省兜底 '[]'（TypeHandler 解析为空列表）——空串对 JSON 列无意义
+        COALESCE(d.ingredients, '[]') AS ingredients,
+        COALESCE(d.flavor_tags, '[]') AS flavor_tags,
+        COALESCE(d.serve_temp, '') AS serve_temp,
+        COALESCE(s.floor, '') AS floor
     </sql>
 
     <!-- 管理端查询列（DishAdminVO）：公开不出参的 status/stall_id/timestamps 管理端需要；不含坐标。 -->
@@ -98,20 +112,22 @@
         d.name,
         d.price,
         d.original_price,
-        d.description,
-        d.images  AS images_json,
+        <!-- 字符串类字段空串兜底（2026-09-23 R12，与公开列表 / 详情同口径） -->
+        COALESCE(d.description, '') AS description,
+        d.images,
         d.status,
         d.avg_rating,
         d.rating_count,
         d.created_at,
         d.updated_at,
-        d.diet_type,
-        d.meal_type,
-        d.ingredients,
-        d.flavor_tags,
-        d.serve_temp,
-        s.name AS stall_name,
-        c.name AS canteen_name
+        COALESCE(d.diet_type, '') AS diet_type,
+        COALESCE(d.meal_type, '') AS meal_type,
+        -- 多值列（2026-09-23 R4 起为 JSON 数组）：缺省兜底 '[]'
+        COALESCE(d.ingredients, '[]') AS ingredients,
+        COALESCE(d.flavor_tags, '[]') AS flavor_tags,
+        COALESCE(d.serve_temp, '') AS serve_temp,
+        COALESCE(s.name, '') AS stall_name,
+        COALESCE(c.name, '') AS canteen_name
     </sql>
 
     <!-- 分页查询菜品（列表专用 8 字段，2026-09-22 D 项拆分；仅 status='on'） -->
@@ -152,12 +168,18 @@
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
+        <!-- 图片列 → List<String>（2026-09-23 R5，替换原 String imagesJson 中转字段） -->
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
         <result property="stallId" column="stall_id"/>
         <result property="name" column="name"/>
         <result property="originalPrice" column="original_price"/>
         <result property="dietType" column="diet_type"/>
-        <result property="ingredients" column="ingredients"/>
-        <result property="flavorTags" column="flavor_tags"/>
+        <!-- 四维多值列 → List<String>（2026-09-23 R4） -->
+        <result property="ingredients" column="ingredients"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
+        <result property="flavorTags" column="flavor_tags"
+                typeHandler="com.bjtufood.common.handler.StringListTypeHandler"/>
         <result property="serveTemp" column="serve_temp"/>
         <result property="mealType" column="meal_type"/>
     </resultMap>
@@ -184,6 +206,9 @@
         WHERE dish_id = #{dishId}
           AND is_hidden = 0
         GROUP BY rating
+        <!-- 顺序契约（2026-09-23 R11）：按星级降序（5→1）下发，端上直接按序渲染、不再自行排序。
+             注：Service 侧 fillRatingDistribution 恒按 5→1 装配，本 ORDER BY 为 SQL 层同口径防御。 -->
+        ORDER BY rating DESC
     </select>
 
     <!--

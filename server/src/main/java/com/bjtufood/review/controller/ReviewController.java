@@ -6,6 +6,7 @@ import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.review.dto.ReviewReq;
+import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,16 +66,16 @@ public class ReviewController {
      * current/size 为 Service 内 PageUtil.normalize 后的实际生效值，故 page/pageSize 取之，
      * 而非 Controller 原始入参，避免越界/超限入参污染响应。
      */
-    private PageResult<ReviewVO> toPageResult(IPage<ReviewVO> result) {
+    private <T> PageResult<T> toPageResult(IPage<T> result) {
         return PageResult.of(result.getRecords(), result.getTotal(),
                 (int) result.getCurrent(), (int) result.getSize());
     }
 
-    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价，按发表时间倒序，含 dishId/dishName/isHidden。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 11 字段 = 公开 8 + dishId/dishName/isHidden，2026-09-23 R9 拆类），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @GetMapping("/my/reviews")
-    public Result<PageResult<ReviewVO>> listMyReviews(
+    public Result<PageResult<MyReviewVO>> listMyReviews(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "菜品ID（可选，仅返回当前用户对该菜品的评价）", example = "1")

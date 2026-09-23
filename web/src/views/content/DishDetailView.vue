@@ -27,7 +27,13 @@ import { useReviewStore } from '@/stores/reviewStore'
 import { useUserStore } from '@/stores/userStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
-import { dietTypeText, serveTempText, ingredientsText, flavorTagsText } from '@/constants'
+import {
+  useDishAttributeStore,
+  ATTR_DIET_TYPE,
+  ATTR_INGREDIENTS,
+  ATTR_FLAVOR_TAGS,
+  ATTR_SERVE_TEMP,
+} from '@/stores/dishAttributeStore'
 import PageContainer from '@/components/layout/PageContainer.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import DataTable from '@/components/DataTable.vue'
@@ -44,6 +50,7 @@ const store = useAdminStore()
 const dishStore = useDishStore()
 const reviewStore = useReviewStore()
 const userStore = useUserStore()
+const attrStore = useDishAttributeStore()
 const toast = useToastStore()
 const confirm = useConfirmStore()
 
@@ -64,6 +71,8 @@ onMounted(async () => {
   // 域间独立容错：菜品为主域，失败即页面级错误；评价 / 用户字典为附属域，失败只影响各自的降级显示
   reviewStore.loadAll().catch(() => {})
   userStore.loadAll().catch(() => {})
+  // 描述四维字典（§7.40 R4）：附属域——失败只让四维退化为「原样透出枚举键」，不拖垮菜品主域（WEB-09 口径）
+  attrStore.ensureLoaded().catch(() => {})
   try {
     await dishStore.loadAll()
   } catch (e: any) {
@@ -199,22 +208,24 @@ async function handleDeleteReview(id: number) {
           <dt>状态</dt>
           <dd><StatusTag :type="dish.status === 'active' ? 'success' : 'gray'" :text="dish.status === 'active' ? '在售' : '已下架'" /></dd>
         </div>
-        <!-- 描述四维（§7.28 描述维度替换，2026-09-20）：荤素 / 主料 / 口味 / 冷热；缺项显示「—」 -->
+        <!-- 描述四维（§7.28 描述维度替换，2026-09-20）：荤素 / 主料 / 口味 / 冷热；缺项显示「—」。
+             中文标签由后端字典下发（§7.40 R4，`GET /dishes/attributes`）——本层零硬编码映射；
+             字段名与字典 field 一一对应（R13），故直接传维度常量。 -->
         <div class="info-item">
           <dt>荤素</dt>
-          <dd :class="{ muted: !dish.dietType }">{{ dietTypeText(dish.dietType) }}</dd>
+          <dd :class="{ muted: !dish.dietType }">{{ attrStore.labelOf(ATTR_DIET_TYPE, dish.dietType) }}</dd>
         </div>
         <div class="info-item">
           <dt>主料</dt>
-          <dd :class="{ muted: !dish.ingredients }">{{ ingredientsText(dish.ingredients) }}</dd>
+          <dd :class="{ muted: !dish.ingredients }">{{ attrStore.labelsText(ATTR_INGREDIENTS, dish.ingredients) }}</dd>
         </div>
         <div class="info-item">
           <dt>口味</dt>
-          <dd :class="{ muted: !dish.flavorTags }">{{ flavorTagsText(dish.flavorTags) }}</dd>
+          <dd :class="{ muted: !dish.flavorTags }">{{ attrStore.labelsText(ATTR_FLAVOR_TAGS, dish.flavorTags) }}</dd>
         </div>
         <div class="info-item">
           <dt>冷热</dt>
-          <dd :class="{ muted: !dish.serveTemp }">{{ serveTempText(dish.serveTemp) }}</dd>
+          <dd :class="{ muted: !dish.serveTemp }">{{ attrStore.labelOf(ATTR_SERVE_TEMP, dish.serveTemp) }}</dd>
         </div>
         <div class="info-item info-item-wide">
           <dt>介绍</dt>

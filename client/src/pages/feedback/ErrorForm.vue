@@ -31,9 +31,9 @@
         aria-label="搜索选择菜品"
         @tap="emit('open-dish')"
       >
-        <IconSvg name="search-fill" :size="30" color="var(--color-primary)" />
+        <IconSvg name="search-fill" :size="30" :color="COLOR_MAP['primary']" />
         <text class="picker-value placeholder">搜索选择菜品</text>
-        <IconSvg name="arrow" :size="26" color="var(--text-tertiary)" />
+        <IconSvg name="arrow" :size="26" :color="COLOR_MAP['text-tertiary']" />
       </view>
 
       <text v-if="errors['error.dish']" class="field-error">{{ errors['error.dish'] }}</text>
@@ -61,10 +61,10 @@
             @tap="emit('toggle', c.key)"
           >
             <view class="point-option-icon">
-              <IconSvg :name="c.icon" :size="28" :color="model.points.includes(c.key) ? 'var(--color-primary)' : 'var(--text-tertiary)'" />
+              <IconSvg :name="c.icon" :size="28" :color="model.points.includes(c.key) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
             </view>
             <text class="point-option-text">{{ c.label }}</text>
-            <IconSvg v-if="model.points.includes(c.key)" name="check" :size="24" color="var(--color-primary)" />
+            <IconSvg v-if="model.points.includes(c.key)" name="check" :size="24" :color="COLOR_MAP['primary']" />
           </view>
 
           <!-- 右侧：编辑区（选中后出现；正确信息直接写入响应式 form.error.correctValues） -->
@@ -118,6 +118,8 @@ import { ref, computed } from 'vue'
 import type { DishListItem } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
+// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+import { COLOR_MAP } from '@/theme/tokens'
 
 /** ErrorForm（feedback 包内私有）：「信息不对」字段区（关联菜品 + 纠错选项 + 作证文本/配图） */
 const props = defineProps<{

@@ -23,7 +23,8 @@
              · 图片清单来自 `GET /banners`（服务端已按 sort_order 升序、只返回启用项）；
                端上按返回顺序渲染、不排序、不写死 URL 与张数；
              · 多张自动轮播 + 指示点；单张不轮播不显示指示点；
-             · 空数组 / 请求失败 / 单张失败 →「灰底 + 菜品 icon」空态（与菜品卡图片占位同款，无文字）；
+             · 空数组 / 请求失败 / 单张失败 →「灰底 + **中性 empty 图标**」空态（灰底样式与菜品卡图片占位同款，
+               但**图标键取中性 `empty`** —— Banner 是运营位轮播，容器语义 ≠ 菜品，依 §4.9 不得用 `dish` 冒充中性占位）；
              · 块高恒定按 BANNER_ASPECT 定高，加载态不改变块高（否则吸顶阈值漂移）；
              · 固定标题带叠在其上（Banner 滚动时从标题带下方滑过）。 -->
         <view class="home-banner" :style="{ height: bannerHeightStyle }">
@@ -46,12 +47,12 @@
                 @error="onBannerError(b.id)"
               />
               <view v-else class="banner-ph">
-                <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+                <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
               </view>
             </swiper-item>
           </swiper>
           <view v-else class="banner-ph">
-            <IconSvg name="dish" :size="120" :color="COLOR_MAP['text-tertiary']" />
+            <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
           </view>
         </view>
 
@@ -153,7 +154,7 @@ const bannerHeightPx = computed(() => Math.max(
 ))
 const bannerHeightStyle = computed(() => `${bannerHeightPx.value}px`)
 
-/* ===== Banner 数据（接口下发；空 / 失败 → 灰底 + 菜品 icon 空态） ===== */
+/* ===== Banner 数据（接口下发；空 / 失败 → 灰底 + 中性 empty 空态，§4.9） ===== */
 const bannerList = ref<Banner[]>([])
 /** 单张加载失败的 banner id（该张退化为空态，其余张不受影响、轮播继续） */
 const failedBannerIds = ref<number[]>([])
@@ -333,7 +334,8 @@ onShareAppMessage(() => {
 }
 
 /* ===== Banner（正常流首块；整块 16:10，自 y=0 含状态栏背后） =====
-   图片铺满（aspectFill）；无图 / 失败 → 灰底 + 菜品 icon 空态（与菜品卡图片占位同款，无文字）。 */
+   图片铺满（aspectFill）；无图 / 失败 → 灰底 + **中性 empty 图标**空态（灰底同菜品卡占位，图标取 `empty`，
+   非 `dish` —— Banner 为运营位轮播，容器语义 ≠ 菜品，§4.9）。 */
 .home-banner {
   position: relative;
   width: 100%;

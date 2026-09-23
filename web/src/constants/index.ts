@@ -59,12 +59,17 @@ export const FEEDBACK_STATUS_META: Record<string, { type: 'warning' | 'success';
 }
 
 /* ============================================================
- * 菜品「描述四维」（§7.28 描述维度替换，2026-09-20）
+ * 菜品「描述四维」的**读写形态工具**（§7.28 描述维度替换，2026-09-20）
  *
- * 权威依据：project_spec.md §7.28 / docs/database.md dish 表四列注释。
- * 四维替代原「辣度（spice_level）」与「风味/菜系（region）」——机器值 → 中文映射
- * 唯一真源集中在此（Web 端），表单录入与详情展示均经此处，视图层禁止二次映射。
- * 机器值必须与后端契约 / client 映射一致（写入错误值会导致端上无法识别）。
+ * ⚠️ 2026-09-23 迁移（§7.40 R4）：四维的「机器值 → 中文」**映射表与表单选项数组已整体删除**，
+ * 改由后端字典端点 `GET /dishes/attributes`（`DishAttributeConst`）下发，Web 端消费方为
+ * `stores/dishAttributeStore.ts` —— 展示走 `labelOf` / `labelsText`，录入走 `optionsOf`。
+ * **本文件与任何视图均不得再硬编码四维的 `value → 中文` 映射或选项清单**（PR-12）。
+ * 迁移缘由：改动前 Web 端在此硬编码 4 张 `*_META` + 4 组 `*_OPTIONS`（同时兼作表单选项），
+ * 与 client 端 `api/dish.ts` 的 4 张表构成**两套前端真源**（连同后端常量表共三套）。
+ *
+ * 下方 `parseCsv` / `formatCsv` 是**读写格式工具**（多值字段的 CSV / 数组归一），
+ * 与「映射真源」无关，故保留（R4 数组化后仍可复用）。
  * ============================================================ */
 
 /** 多值机器字段（ingredients / flavorTags）读写格式：CSV 逗号分隔串（同原 tags 模式） */
@@ -87,79 +92,16 @@ export function formatCsv(list: string[]): string {
   return list.map(v => v.trim()).filter(Boolean).join(',')
 }
 
-/** 荤素 / 饮食属性（单选）：机器值 → 中文 */
-export const DIET_TYPE_META: Record<string, string> = {
-  meat: '荤',
-  half: '半荤',
-  veg: '素',
-  halal: '清真',
-}
-/** 荤素下拉选项（含「未填写」空值项，不提交时该维留空） */
-export const DIET_TYPE_OPTIONS = [
-  { value: '', label: '未填写' },
-  ...Object.entries(DIET_TYPE_META).map(([value, label]) => ({ value, label })),
-]
-/** 荤素 → 中文（空值回落「—」，未知值原样透出，不吞不译） */
-export function dietTypeText(v?: string): string {
-  if (!v) return '—'
-  return DIET_TYPE_META[v] ?? v
-}
+/*
+ * 已删除（2026-09-23 §7.40 R4）：DIET_TYPE_META / DIET_TYPE_OPTIONS / dietTypeText /
+ * SERVE_TEMP_META / SERVE_TEMP_OPTIONS / serveTempText / INGREDIENT_META / INGREDIENT_OPTIONS /
+ * ingredientsText / FLAVOR_TAG_META / FLAVOR_TAG_OPTIONS / flavorTagsText。
+ *
+ * 上述 4 张「机器值 → 中文」映射表与 4 组表单选项数组**整体退役** —— 其内容与后端
+ * `DishAttributeConst` 经 `GET /dishes/attributes` 下发的字典完全重复，属**前端自建枚举真源**
+ * （违反 PR-12）。消费方迁移：
+ *   - 展示（`DishDetailView.vue` 描述四维）→ `useDishAttributeStore().labelOf / labelsText`
+ *   - 录入（`DishFormDialog.vue` 下拉与 chips）→ `useDishAttributeStore().optionsOf`
+ * 退役后如需追溯旧值域，见 `project_spec.md` §7.28（值域真源）与 git 历史。
+ */
 
-/** 冷热（单选）：机器值 → 中文 */
-export const SERVE_TEMP_META: Record<string, string> = {
-  hot: '热食',
-  room: '常温',
-  ice: '冰',
-}
-/** 冷热下拉选项（含「未填写」空值项） */
-export const SERVE_TEMP_OPTIONS = [
-  { value: '', label: '未填写' },
-  ...Object.entries(SERVE_TEMP_META).map(([value, label]) => ({ value, label })),
-]
-/** 冷热 → 中文 */
-export function serveTempText(v?: string): string {
-  if (!v) return '—'
-  return SERVE_TEMP_META[v] ?? v
-}
-
-/** 主料 / 食材（多选）：机器值 → 中文 */
-export const INGREDIENT_META: Record<string, string> = {
-  pork: '猪',
-  beef: '牛',
-  lamb: '羊',
-  chicken: '鸡',
-  duck: '鸭',
-  fish: '鱼虾',
-  egg: '蛋',
-  tofu: '豆制品',
-  mushroom: '菌菇',
-  veg: '青菜',
-  noodle: '面',
-  rice: '米',
-}
-/** 主料多选项（无空值项；未选即不提交 / 留空） */
-export const INGREDIENT_OPTIONS = Object.entries(INGREDIENT_META).map(([value, label]) => ({ value, label }))
-/** 主料 CSV → 中文「 · 」连接（空 = 「—」） */
-export function ingredientsText(csv?: string): string {
-  const arr = parseCsv(csv)
-  return arr.length ? arr.map(v => INGREDIENT_META[v] ?? v).join(' · ') : '—'
-}
-
-/** 口味（多选）：机器值 → 中文 */
-export const FLAVOR_TAG_META: Record<string, string> = {
-  spicy: '辣',
-  numbing: '麻',
-  sour: '酸',
-  sweet: '甜',
-  salty: '咸',
-  umami: '鲜',
-  light: '清淡',
-  heavy: '重口',
-}
-/** 口味多选项 */
-export const FLAVOR_TAG_OPTIONS = Object.entries(FLAVOR_TAG_META).map(([value, label]) => ({ value, label }))
-/** 口味 CSV → 中文「 · 」连接（空 = 「—」） */
-export function flavorTagsText(csv?: string): string {
-  const arr = parseCsv(csv)
-  return arr.length ? arr.map(v => FLAVOR_TAG_META[v] ?? v).join(' · ') : '—'
-}

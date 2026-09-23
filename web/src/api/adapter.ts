@@ -1,4 +1,5 @@
 import type { Canteen, Dish, Review, Stall, User } from '@/types'
+import { parseCsv } from '@/constants'
 import { API_BASE_URL } from './config'
 
 type PageLike<T> = T[] | { records?: T[] }
@@ -13,8 +14,11 @@ export function pageRecords<T>(data: PageLike<T>): T[] {
 }
 
 /* 注（2026-09-20 §7.29 / §7.28）：原 `dish.tags` 标签字段全链下线，原 parseTags / formatTags
- * 两个导出随之零消费删除。新的多值机器字段（ingredients / flavorTags，CSV 逗号分隔）读写格式
- * 收敛到 `constants/index.ts` 的 parseCsv / formatCsv（与四维选项字典同处，写侧统一出口）。 */
+ * 两个导出随之零消费删除。
+ *
+ * 2026-09-23（§7.40 R4 / change dish-detail-contract-hardening）：`ingredients` / `flavorTags`
+ * 的存储由「CSV 逗号分隔串」改为 **JSON 数组**，后端出参随之改为 `string[]` →
+ * 读侧经 `parseCsv` 归一（**兼容两种形态**，历史脏值不炸），写侧**直接提交数组**（不再 `formatCsv`）。 */
 
 /**
  * 图片字段容错解析：string[] / JSON 数组串 / ||| 分隔串 → string[]（绝对 URL）。
@@ -145,9 +149,10 @@ export function dishToLegacy(raw: any): Dish {
       ? undefined
       : Math.round(raw.originalPrice ?? raw.original_price) / 100,
     // 描述四维（§7.28，2026-09-20）：替代原 spice_level / region（两字段已删）。
+    // 多值维（2026-09-23 R4）：后端已改为 string[] 直出；parseCsv 归一兼容历史逗号串 / JSON 串。
     dietType: raw.dietType || raw.diet_type || '',
-    ingredients: raw.ingredients || '',
-    flavorTags: raw.flavorTags || raw.flavor_tags || '',
+    ingredients: parseCsv(raw.ingredients ?? raw.ingredients_json),
+    flavorTags: parseCsv(raw.flavorTags ?? raw.flavor_tags),
     serveTemp: raw.serveTemp || raw.serve_temp || '',
     // 菜品大类（2026-09-21 §7.34 / change home-ui-refresh）：DishAdminVO 出参透传枚举键。
     // 中文标签的真源是后端字典 GET /dishes/meal-types（本层与视图层均不做 key→中文 映射）。
@@ -200,7 +205,7 @@ export function reviewToLegacy(raw: any): Review {
     images: imagesToList(raw.images),
     is_hidden: raw.isHidden ?? raw.is_hidden ?? 0,
     created_at: toDate(raw.createdAt || raw.created_at),
-    updated_at: toDate(raw.updatedAt || raw.updated_at),
+    // 2026-09-23 R6：review.updated_at 已随后端列下线删除 —— 不再读取 raw.updatedAt（该键已不存在）
   }
 }
 

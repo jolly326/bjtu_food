@@ -1,6 +1,5 @@
 package com.bjtufood.dish.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -38,11 +37,7 @@ public class DishAdminVO {
     @Schema(description = "菜品描述")
     private String description;
 
-    @JsonIgnore
-    @Schema(hidden = true)
-    private String imagesJson;
-
-    @Schema(description = "菜品多图URL列表")
+    @Schema(description = "菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5）")
     private List<String> images;
 
     @Schema(description = "状态（on/off）", example = "on")
@@ -71,11 +66,11 @@ public class DishAdminVO {
     @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
     private String dietType;
 
-    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "chicken,rice")
-    private String ingredients;
+    @Schema(description = "主料/食材（数组，2026-09-23 R4 由逗号分隔串改数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
+    private List<String> ingredients;
 
-    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "spicy,sour")
-    private String flavorTags;
+    @Schema(description = "口味（数组，2026-09-23 R4 改数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
+    private List<String> flavorTags;
 
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
     private String serveTemp;

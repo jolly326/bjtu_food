@@ -85,10 +85,10 @@ export interface Dish {
    */
   /** 荤素 / 饮食属性（单选）：meat=荤 / half=半荤 / veg=素 / halal=清真 */
   dietType?: string;
-  /** 主料 / 食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice */
-  ingredients?: string;
-  /** 口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy */
-  flavorTags?: string;
+  /** 主料 / 食材（**机器值数组**，2026-09-23 §7.40 R4 由逗号分隔串改数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice */
+  ingredients?: string[];
+  /** 口味（**机器值数组**，2026-09-23 §7.40 R4 改数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy */
+  flavorTags?: string[];
   /** 冷热（单选）：hot=热食 / room=常温 / ice=冰 */
   serveTemp?: string;
   /**
@@ -117,7 +117,9 @@ export interface Review {
   images?: string[];
   is_hidden: number;
   created_at: Date;
-  updated_at: Date;
+  // updated_at 已于 2026-09-23 下线（§7.40 R6）：后端 review.updated_at 列删除 ——
+  // 它对评价无独立语义（重评时与 created_at 同批刷新），且管理端渲染零消费。
+  // ⚠️ 不要据此删除 Dish.updated_at —— 它有真实消费（Q-112「他人已修改」轻提示基线）。
 }
 
 // 注（2026-09-15 拍板：取消人工复核）：评价 / 反馈的「内容安检状态」字段及其「安检态 / 复核动作」

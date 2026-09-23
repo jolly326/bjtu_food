@@ -62,9 +62,8 @@ desktop.ini
 # Codex local agent config (not project source)
 .codex/
 
-# OpenSpec：changes 为本地规划/归档产物（不入库）；specs 为 project_spec.md 引用的现行能力规格（权威依据），纳入版本控制
-openspec/changes/
-openspec/config.yaml
+# OpenSpec
+openspec/*
 
 # Editor directories and files
 .idea/

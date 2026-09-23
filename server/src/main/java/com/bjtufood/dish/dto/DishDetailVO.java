@@ -1,6 +1,5 @@
 package com.bjtufood.dish.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -47,12 +46,7 @@ public class DishDetailVO {
     @Schema(description = "菜品描述")
     private String description;
 
-    /** 数据库原始 images JSON 字符串，由 Service 层解析为 List */
-    @JsonIgnore
-    @Schema(hidden = true)
-    private String imagesJson;
-
-    @Schema(description = "菜品多图URL列表")
+    @Schema(description = "菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5）")
     private List<String> images;
 
     @Schema(description = "档口名称", example = "面食窗口")
@@ -77,13 +71,13 @@ public class DishDetailVO {
     @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
     private String dietType;
 
-    /** 主料/食材：逗号分隔机器值 */
-    @Schema(description = "主料/食材（逗号分隔）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "chicken,rice")
-    private String ingredients;
+    /** 主料/食材：机器值数组（**2026-09-23 R4 由逗号分隔串改数组**；中文标签见 `GET /dishes/attributes`） */
+    @Schema(description = "主料/食材（数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
+    private List<String> ingredients;
 
-    /** 口味：逗号分隔机器值（吸收原辣度语义） */
-    @Schema(description = "口味（逗号分隔）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "spicy,sour")
-    private String flavorTags;
+    /** 口味：机器值数组（吸收原辣度语义；**2026-09-23 R4 改数组**） */
+    @Schema(description = "口味（数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
+    private List<String> flavorTags;
 
     /** 冷热：hot=热食 / room=常温 / ice=冰 */
     @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")

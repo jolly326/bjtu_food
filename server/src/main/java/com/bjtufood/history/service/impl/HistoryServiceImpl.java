@@ -1,6 +1,5 @@
 package com.bjtufood.history.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bjtufood.history.entity.ViewLog;
 import com.bjtufood.history.mapper.ViewLogMapper;
@@ -9,26 +8,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Date;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 /**
  * 浏览足迹服务实现
+ * <p>
+ * <b>2026-09-23 §7.41</b>：浏览量去重取消（改 PV 口径）后，足迹**不再参与计数判定**，
+ * 仅作为「谁看过这道菜」的行为记录保留。原 `existsTodayDishView`（当日去重判据，含
+ * Asia/Shanghai 自然日切分与 updated_at 判据说明）随之删除，其专属的
+ * `Date` / `LocalDate` / `ZoneId` / `LambdaQueryWrapper` import 与 `VIEW_DEDUP_ZONE` 常量一并清理。
  */
 @Service
 @RequiredArgsConstructor
 public class HistoryServiceImpl implements HistoryService {
-
-    /**
-     * 自然日判定时区（浏览量去重口径）。
-     * <p>
-     * 与 JVM 默认时区解耦：服务器可能部署在 UTC 容器中，直接用 {@code CURDATE()} 会按 UTC 切天，
-     * 导致北京时间 08:00 前的浏览被算作「前一天」而重复计数。此处以「今日零点（Asia/Shanghai）」
-     * 作为时间下界显式下推给 SQL，保证口径与业务（校园本地时区）一致。
-     */
-    private static final ZoneId VIEW_DEDUP_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final ViewLogMapper viewLogMapper;
 
@@ -40,7 +32,7 @@ public class HistoryServiceImpl implements HistoryService {
             return;
         }
         // 去重 upsert：同 userId+targetType=dish+targetId 已存在则仅刷新 updated_at（不新增行），
-        // 不存在则插入一条（「猜你喜欢」已下线，本表现仅作为浏览量当日去重的判据真源）。
+        // 不存在则插入一条（本表现仅作浏览足迹，**不再作计数判据**）。
         // 时钟统一（2026-09-15）：update 分支显式传 JVM 时钟值（LocalDateTime.now()）作为参数，
         // 不再用 SQL NOW()（DB 时区）——DB 与 JVM 时区不一致时凌晨存在切天偏差；
         // insert 分支由 MybatisMetaObjectHandler 以同一 JVM 时钟填充 created_at/updated_at，二者同源。
@@ -57,23 +49,5 @@ public class HistoryServiceImpl implements HistoryService {
             log.setTargetId(dishId);
             viewLogMapper.insert(log);
         }
-    }
-
-    @Override
-    public boolean existsTodayDishView(Long userId, Long dishId) {
-        if (userId == null || dishId == null) {
-            // 游客不做当日去重（浏览量上报接口本身要求登录，此处仅为防御性兜底）
-            return false;
-        }
-        // 当天零点（Asia/Shanghai）→ java.sql.Date（时区无关的字面日期），由数据库按 DATETIME 比较
-        Date todayStart = Date.valueOf(LocalDate.now(VIEW_DEDUP_ZONE));
-        // BE-02：判据必须用 updated_at 而非 created_at。
-        // recordDishView 的 upsert 只刷新 updated_at、不刷新 created_at，若按 created_at 判重，
-        // 「今天首次浏览之后」的每一次浏览都查不到今日记录 → 判据恒 false → view_count 可被反复刷。
-        return viewLogMapper.selectCount(new LambdaQueryWrapper<ViewLog>()
-                .eq(ViewLog::getUserId, userId)
-                .eq(ViewLog::getTargetType, "dish")
-                .eq(ViewLog::getTargetId, dishId)
-                .ge(ViewLog::getUpdatedAt, todayStart)) > 0;
     }
 }

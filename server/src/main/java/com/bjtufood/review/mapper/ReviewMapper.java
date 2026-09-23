@@ -3,6 +3,7 @@ package com.bjtufood.review.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.StallAvgRatingVO;
 import com.bjtufood.review.entity.Review;
@@ -36,7 +37,7 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * 并返回 is_hidden 供端上标注「已被隐藏」。
      * 排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
      */
-    IPage<ReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("dishId") Long dishId);
+    IPage<MyReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("dishId") Long dishId);
 
     /**
      * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。

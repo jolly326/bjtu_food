@@ -46,6 +46,21 @@ public interface DishService {
     List<com.bjtufood.dish.dto.MealTypeVO> listMealTypes();
 
     /**
+     * 菜品描述四维字典（2026-09-23 §7.40 R4 / R13）：{@code GET /dishes/attributes} 出参。
+     * <p>
+     * 四维（{@code dietType} / {@code ingredients} / {@code flavorTags} / {@code serveTemp}）的
+     * 取值与中文标签唯一真源为 {@link com.bjtufood.dish.constant.DishAttributeConst}；
+     * 小程序端与管理端**共用同一份字典**（端上映射展示、管理端渲染表单选项），
+     * 两端 SHALL NOT 再硬编码映射表。
+     * <p>
+     * 与 {@link #listMealTypes()} 的差异：本字典**下发全部取值、不做在售过滤** ——
+     * 四维是「描述属性」，管理端录入表单需要完整选项（大类是「筛选维度」，才按在售过滤）。
+     *
+     * @return 四维字典项（按维度分组、组内 order 升序）
+     */
+    List<com.bjtufood.dish.dto.DishAttributeVO> listAttributes();
+
+    /**
      * 获取菜品详情
      * <p>
      * 2026-09-15：原「登录时附加 hasReviewed（是否已评价）」已下线（三端零消费）；
@@ -63,13 +78,14 @@ public interface DishService {
      * <p>
      * 防刷机制（2026-09-14 §7.14 A）：
      * <ol>
-     *   <li>同一用户同一菜品 5 分钟内只计 1 次；</li>
-     *   <li>同一用户同一菜品<b>每天（自然日，Asia/Shanghai）只计 1 次</b>，
-     *       当日重复上报幂等返回成功，既不自增 view_count 也不重复写 view_log。</li>
+     *   <li><b>不做人员与时间限制</b>：每次调用均自增（PV 口径）—— 原「5 分钟窗口」与
+     *       「每自然日只计 1 次」两道去重已随 §7.41 于 2026-09-23 作废；</li>
+     *   <li><b>游客亦计</b>：{@code userId} 可为 null（端点已转公开），仅影响是否写浏览足迹；</li>
+     *   <li>唯一防护为接入层 IP 维度限频（见 {@code DishController#addView}）。</li>
      * </ol>
      *
      * @param dishId 菜品ID
-     * @param userId 当前用户ID
+     * @param userId 当前用户ID（**可为 null** = 游客；非 null 时额外写浏览足迹）
      */
     void addViewCount(Long dishId, Long userId);
 

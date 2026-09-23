@@ -12,7 +12,7 @@
         @error="imgOk = false"
       />
       <view v-else class="image-placeholder">
-        <IconSvg name="dish" :size="56" color="var(--text-tertiary)" class="placeholder-icon" />
+        <IconSvg name="dish" :size="56" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
       </view>
     </view>
     <view class="card-info">

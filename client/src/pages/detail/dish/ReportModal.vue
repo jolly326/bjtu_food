@@ -110,7 +110,7 @@ function submit() {
 </script>
 
 <style scoped>
-.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); opacity: 0; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.modal-mask { position: fixed; inset: 0; background: var(--overlay-scrim); display: flex; align-items: center; justify-content: center; z-index: var(--z-modal); opacity: 0; }
 .modal-mask.show { opacity: 1; }
 .report-modal { position: fixed; left: 50%; top: 50%; width: 600rpx; max-width: 86vw; background: var(--bg-card); border-radius: var(--radius-modal); padding: var(--spacing-xl); padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom)); box-shadow: var(--shadow-modal); z-index: calc(var(--z-modal) + 1); opacity: 0; transform: translate(-50%, -46%); }
 .report-modal.open { transform: translate(-50%, -50%); opacity: 1; }
