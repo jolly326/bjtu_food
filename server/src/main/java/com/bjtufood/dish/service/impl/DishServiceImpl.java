@@ -51,10 +51,14 @@ public class DishServiceImpl implements DishService {
     private static final String VIEW_TARGET_TYPE_DISH = "dish";
 
     /**
-     * 猜你喜欢返回条数（2026-09-22 change search-page-refresh）。
-     * 端上不写死条数、按返回渲染；取值以「一屏 chip 数」为准（建议 6–10，先定 8）。
+     * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
+     * <p>
+     * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
+     * 收为 6 的理由（见 docs/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
+     * （无推荐算法），8 条会占满发现态首屏（实测排成 3 行 chips），把「搜索记录」这个
+     * 真正的个性化入口挤出可视区。
      */
-    private static final int GUESS_LIKE_SIZE = 8;
+    private static final int GUESS_LIKE_SIZE = 6;
 
     /**
      * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。

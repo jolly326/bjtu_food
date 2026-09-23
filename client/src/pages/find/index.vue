@@ -9,6 +9,7 @@
       <SearchBar
         mode="input"
         v-model="keyword"
+        :searching="searching"
         @search="onSearchConfirm"
         @clear="clearKeyword"
       />
@@ -41,6 +42,7 @@
                 v-for="(kw, i) in historyList"
                 :key="kw"
                 class="history-chip"
+                hover-class="history-chip-pressed"
                 @tap="goKeyword(kw)"
               >
                 <text class="history-chip-text">{{ kw }}</text>
@@ -60,6 +62,7 @@
                 v-for="(kw) in guessLikeList"
                 :key="kw.keyword"
                 class="history-chip history-chip-hot"
+                hover-class="history-chip-pressed"
                 @tap="goKeyword(kw.keyword)"
               >
                 <text class="history-chip-text">{{ kw.keyword }}</text>
@@ -184,6 +187,9 @@ function clearHistory() {
 const inFilter = ref(false)
 /** 搜索请求是否已完成（成功/失败均置真，过期请求不置）：用于区分「静默加载中」与「无结果引导」，避免空态闪现 */
 const searchDone = ref(false)
+/** 提交中（驱动「搜索」按钮禁用态；skill §2 `loading-buttons` / §8 `submit-feedback`）：
+    仅**最新一次**请求可清除——过期请求返回时不得复位，否则会提前解除新请求的禁用态 */
+const searching = ref(false)
 /** 最近一次已完成搜索是否失败（MP-012）：失败 ≠ 无结果，失败渲染重试块而非「没搜到」空态 */
 const searchFailed = ref(false)
 
@@ -242,6 +248,7 @@ async function doMixedSearch(kw?: string) {
   inFilter.value = true
   searchDone.value = false
   searchFailed.value = false
+  searching.value = true
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 DishListItem[]），金额/图片已在 api 层归一；
     // 端上不传任何筛选 / 排序参数（2026-09-22 K2/K3）
@@ -279,6 +286,9 @@ async function doMixedSearch(kw?: string) {
     mixedResults.value = []
     searchDone.value = true
     searchFailed.value = true
+  } finally {
+    // 仅最新一次请求可解除「提交中」：过期请求返回时不得复位，否则新请求的禁用态会被提前清掉
+    if (seq === mixedSearchSeq) searching.value = false
   }
 }
 
@@ -335,6 +345,11 @@ onShow(() => clearShareState())
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 /* 发现态：普通内容容器 + 高度兜底（搜索记录上限 4 条内容短；内容超高时由内容区自身滚动兜底） */
 .discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
+/* 首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`）；
+   归零 CardSection 自带的上下 margin，消除旧实现「搜索行 16px + 首卡 12px = 28px」的双重叠加。 */
+.discover-body :deep(.card-section) { margin-top: 0; margin-bottom: 0; }
+/* 两卡之间显式 `--spacing-lg`(16px)：不依赖 CardSection 默认 margin 的折叠结果（旧实际仅 8px）。 */
+.discover-body :deep(.card-section + .card-section) { margin-top: var(--spacing-lg); }
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }
 
@@ -389,7 +404,9 @@ onShow(() => clearShareState())
 
 /* 历史搜索 */
 /* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
-.history-clear { position: relative; font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+/* 「清空」是**破坏性操作**，需可被发现（UI 文档 §2）：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
+   视觉仍远弱于分组标题（不抢层级），命中区继续由下方 ::after 扩至 ≥88rpx。 */
+.history-clear { position: relative; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-clear::after {
   content: '';
   position: absolute;
@@ -412,7 +429,13 @@ onShow(() => clearShareState())
   border-radius: var(--radius-pill);
   transition: background var(--duration-fast) ease;
   -webkit-tap-highlight-color: transparent;
+  /* skill §2 `tap-delay`：消除移动端点击延迟 */
+  touch-action: manipulation;
 }
+/* 按压反馈（skill §2 `press-feedback`，CRITICAL 级）：可点元素必须有点按反馈。
+   旧实现只声明了 `transition: background` 却**没有任何按压态** —— 等于「点了完全没反应」。 */
+.history-chip-pressed { background: var(--bg-placeholder); }
+.history-chip-hot.history-chip-pressed { background: var(--bg-soft-orange); }
 .history-chip-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-chip-del {
   font-size: var(--font-aux);
@@ -427,8 +450,9 @@ onShow(() => clearShareState())
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
-/* 「猜你喜欢」词条 vs 搜索记录层级区分：推荐词 = 暖橙黄色板的**浅黄底 + 深棕字**（content-flow-visual）；
-   新色板 token 尚未随色板 change 落地时用 fallback 回落到现状 token，避免出现「无底色」 */
+/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**（UI 文档 §3）：推荐词 = 暖黄底 + 深棕字。
+   fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（§7.39）后区分自动生效；
+   ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款，用户 2026-09-23 走查已指出）。 */
 .history-chip-hot { background: var(--bg-soft-yellow, var(--bg-soft)); }
 .history-chip-hot .history-chip-text { color: var(--text-body, var(--text-secondary)); }
 </style>

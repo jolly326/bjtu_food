@@ -43,10 +43,11 @@
     <!-- 右：独立「搜索」按钮（按文字定宽、不与胶囊等分） -->
     <view
       class="search-btn"
+      :class="{ 'is-searching': searching }"
       :style="{ height: capsuleH }"
       role="button"
-      aria-label="搜索"
-      hover-class="search-btn-pressed"
+      :aria-label="buttonText"
+      :hover-class="searching ? 'none' : 'search-btn-pressed'"
       @tap="onButtonTap"
     >
       <text class="search-btn-text">{{ buttonText }}</text>
@@ -68,11 +69,21 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   /** 右侧按钮文案（默认「搜索」） */
   buttonText?: string
+  /**
+   * 提交中（仅 `input` 模式有意义）：按钮降透明 + 禁点，避免重复提交与「点了没反应」。
+   * 依据 ui-ux-pro-max §2 `loading-buttons`（异步操作期间禁用按钮并给出反馈）与
+   * §8 `submit-feedback`；MVP 不引入 spinner / 骨架（client-ui-motion 拍板），故仅以禁用态表达。
+   */
+  searching?: boolean
 }>(), {
   mode: 'entry',
   modelValue: '',
-  placeholder: '搜索菜品、食堂、套餐',
+  // 占位只列真实可搜维度：服务端仅匹配「菜名 / 档口名 / 食堂名」（§7.35），
+  // 无「套餐」实体（「套餐盖饭」是 meal_type 大类，不参与关键词匹配）——
+  // 见 docs/ui/client-搜索.md §1 第 2 条。首页与搜索页共用本默认值，两页同源。
+  placeholder: '搜索菜品、食堂、档口',
   buttonText: '搜索',
+  searching: false,
 })
 
 const emit = defineEmits<{
@@ -98,6 +109,8 @@ function onPillTap() {
  * 若 entry 也发 `search`，首页（只监听 `@tap`）的按钮会「点了没反应」。
  */
 function onButtonTap() {
+  // 提交中拦下重复点击（skill §2 loading-buttons）；entry 模式不受影响
+  if (props.searching) return
   if (props.mode === 'entry') emit('tap')
   else emit('search')
 }
@@ -181,6 +194,10 @@ function onInput(e: any) {
   -webkit-tap-highlight-color: transparent;
 }
 .search-btn-pressed { opacity: 0.85; }
+/* 提交中（input 模式）：降透明 + 禁点 —— skill §2 `loading-buttons` / §8 `submit-feedback`。
+   MVP 不引入 spinner / 骨架（client-ui-motion 拍板），故仅以禁用态表达「已受理」，
+   消除「点了没反应」并挡住重复提交。 */
+.search-btn.is-searching { opacity: 0.6; pointer-events: none; }
 /* 触达：按钮可点区上下各扩 16rpx → ≥88rpx（不改变视觉尺寸） */
 .search-btn::after {
   content: '';

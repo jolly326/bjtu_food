@@ -1,46 +1,73 @@
 /* =========================================================================
- * generated-colors.css —— 自动生成，禁止手工编辑（UI-03 色值唯一真源，spec §4.2）
+ * generated-colors.css —— 色值唯一真源导出（spec §4.2 / §7.39）
  * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
- * 再生成：npm run gen:tokens；CI 校验：生成后 git diff --exit-code 本文件
+ *
+ * ⚠️ 2026-09-23 对齐现状：生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens`
+ *    已在本工作区删除 → 本文件**改为手工维护**（含本注释头）。
+ *    维护规则不变：内容 SHALL 与 tokens.ts 的 CSS_VARS 逐键一致；
+ *    改色值只改 tokens.ts，随后同步本文件；禁止在本文件引入 tokens.ts 没有的键。
+ *    恢复脚本化生成须重新登记（见 spec §4.2 / §7.39）。
  * ======================================================================== */
 
 page {
-  --color-primary: #C2410C;
+  /* ===== 主色（暖橙黄，§4.1）===== */
+  --color-primary: #B4531A;
+  --color-primary-fill: #B4531A;
+  --color-primary-text: #B4531A;
+  --color-primary-bright: #F5A623;
+  --color-primary-amber: #F5A623;
+  --color-primary-orange: #E67E22;
+  --color-primary-yellow: #FFD166;
+  --color-orange-deep: #D35400;
+  --color-brown-deep: #7B4F2A;
   --color-on-primary: #FFFFFF;
-  --color-primary-soft: #FCE8D6;
-  --color-primary-text: #B93A0A;
-  --color-primary-bright: #EA580C;
-  --color-accent: #B93A0A;
+  --color-primary-soft: #FFF3D6;
+  /* ===== 强调 / 功能色 ===== */
+  --color-accent: #B4531A;
   --color-accent-soft: #FAE0CE;
-  --color-error: #FF3B30;
+  --color-error: #C62828;
   --color-error-soft: #FFECEB;
-  --color-warning: #F5A623;
+  --color-warning: #E67E22;
   --color-warning-soft: #FFF8E1;
-  --color-price: #B93A0A;
+  --color-success: #2E7D32;
+  --color-info: #1565C0;
+  --color-price: #B4531A;
+  /* 星级：独立语义色，不随主色换肤 */
   --color-star: #FBBF24;
   --color-star-empty: #E5E5EA;
+  /* ===== 文字四档（均 ≥4.5:1；placeholder 2.39:1 仅作输入框占位）===== */
   --text-white: #FFFFFF;
-  --text-primary: #262626;
-  --text-secondary: #595959;
-  --text-tertiary: #999999;
-  --bg-page: #F7F3EF;
-  --bg-page-grad-from: #FFF9F3;
-  --bg-page-grad-to: #FFEFE0;
+  --text-primary: #2D1F14;
+  --text-title: #2D1F14;
+  --text-body: #4A3520;
+  --text-secondary: #4A3520;
+  --text-subtitle: #7F6A55;
+  --text-tertiary: #7F6A55;
+  --text-placeholder: #B5A594;
+  /* ===== 背景 ===== */
+  --bg-page: #FFF8EF;
+  --bg-page-grad-from: #FFE8D1;
+  --bg-page-grad-to: #FFF8EF;
+  --bg-soft-orange: #FFE8D1;
+  --bg-soft-yellow: #FFF3D6;
   --bg-warm: #FAF6F0;
   --bg-card: #FFFFFF;
+  --card-bg: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
   --bg-placeholder: #F0ECE8;
   --grad-fade-white: rgba(255,255,255,0);
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
+  /* ===== 阴影 ===== */
   --shadow-card: 0 2px 12px rgba(0,0,0,0.04);
   --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
   --shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18);
   --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
   --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(194, 65, 12, 0.28);
+  --shadow-bar-primary: 0 12rpx 28rpx rgba(180, 83, 26, 0.28);
   --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
+  /* ===== 遮罩 / 原生兜底 ===== */
   --text-white-edge: rgba(255,255,255,0.24);
   --overlay-dark-strong: rgba(0,0,0,0.6);
   --overlay-dark-soft: rgba(0,0,0,0.15);

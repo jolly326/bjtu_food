@@ -1,7 +1,7 @@
 # UGC Media & Security Specification
 
 ## Purpose
-约束评价与反馈两类 UGC 的**配图能力**与**微信内容安全检测**：配图张数与压缩规格、图片上传链路（微信云开发云存储中转 → `imgSecCheck` 送检 → COS 永久转存）、文本 `msgSecCheck` v2 **判定口径（2026-09-15 起为二态：`pass` / `review` 一律放行、仅 `risky` 拒绝）**、平台可迁移性。本 capability 为评价（`content-flow-visual` 写评价 / 评价区）与反馈（`feedback-forms-ux`）共用的横向能力；各 UX capability 只约束入口与展示形态，链路、规格与判定口径以本 capability 为唯一权威。
+约束评价与反馈两类 UGC 的**配图能力**与**微信内容安全检测**：配图张数与压缩规格、图片上传链路（微信云开发云存储中转 → `imgSecCheck` 送检 → COS 永久转存）、文本 `msgSecCheck` v2 **判定口径（2026-09-15 起为二态：`pass` / `review` 一律放行、仅 `risky` 拒绝）**、平台可迁移性。本 capability 为评价（`dish-detail` 写评价 / 评价区）与反馈（`feedback-forms-ux`）共用的横向能力；各 UX capability 只约束入口与展示形态，链路、规格与判定口径以本 capability 为唯一权威。
 
 > **拍板来源（2026-09-13，防回退）**：本 capability 恢复评价/反馈配图并叠加内容安检，**推翻** 2026-09 `prelaunch-loop-closure` 期间「UGC 图片全量下线、评价区与反馈表单均无图片入口」的临时口径；相关旧条款已在各 spec 作废改写。
 >

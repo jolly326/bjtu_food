@@ -2,11 +2,12 @@
 
 > **基础规范基线（最高权威）**。所有 agent 与协作者必须服从本文件；冲突时以本文件为准。
 > **文档为唯一权威，代码只在 UI 实现层提供指导**：规范/契约冲突一律以本文件裁定，**不得据代码现状反向推翻文档**（代码未实现的部分按本文件补齐，而非删改文档）；开发实现只需改代码消除静态错误，**编译与运行由用户执行**，不由 agent 代跑。
-> 本文件只规定「不会轻易变、且所有端必须遵守」的基础规范。**多 agent 协作流程与角色权限见 `CODEBUDDY.md` 与 `.codebuddy/agents/`（原 `docs/WORKFLOW.md` 已删除，勿再引用）**。
+> 本文件只规定「不会轻易变、且所有端必须遵守」的基础规范。**多 agent 协作流程与角色权限见 `.codebuddy/agents/`**（`CODEBUDDY.md` 与 `docs/WORKFLOW.md` 均已删除，勿再引用）。
 > **唯一可修改者：技术负责人**（需求梳理师 + 架构师合并角色）。其余角色不得改动本文件，发现冲突须提技术负责人，不得自行绕过。
 > **产品蓝图定版决议见 §7（2026-09-14 用户拍板）**：与前文冲突时以 §7 为准。
 > **项目框架与蓝图 v1 见 §7.23（2026-09-15 用户拍板）**：五条框架原则（菜品为唯一核心实体 / UGC 只有评价与反馈两种形态 / 学生诉求即反馈 / 菜品无独立审核 / 反馈处理是唯一运营闭环）。**与 §7.23 冲突的历史表述已就地修订并标注变更来源**；后续改动若与 §7.23 冲突，须先修订 §7.23（重新拍板）再动代码。
 > **取消人工复核见 §7.24（2026-09-15 用户拍板）**：内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝；内容安全态 `sec_state` 列与全链能力**已退役**，管理端不设内容复核队列（评价管理 + 反馈处理双页、一级导航 4 项）。**与 §7.24 冲突的历史表述已就地修订并标注来源**。
+> **支持文档已收敛（2026-09-22）**：`docs/api-design.md` / `docs/database.md` / `docs/architecture.md` / `CODEBUDDY.md` **四份文档已删除**，其口径**全部收敛至本文件**。本文件**生效条款**中对其的引用已就地改指本文件；**§7 历史决议内的引用属留痕**（记录当时同步过哪些文档），不再指向现存文件，勿据其查找。
 
 ---
 
@@ -87,7 +88,7 @@
   - **~~近期操作~~ → 已删除（2026-09-15 用户拍板，见 §7.25 第 1 条）**：原「操作日志页 `/dashboard/system`」**整体不存在**——操作日志全链删除，「近期操作」承接方案随之作废；后台**不提供任何操作留痕 / 近期动作列表**。
 - **设计口径（强制）**：**后台无「全局聚合看板」**——不设总览页、不设 ECharts 图表、不做跨模块聚合统计、**不设任何分类卡 / 聚合壳中间层**（2026-09-15 IA 扁平化，见 §0.4.2）；待办与规模信息的可见性**只由「反馈」入口徽标 + 各业务页表格 footer 统计承担**，并**禁止 `.stat-inline` 式只读统计块**。恢复任何形式的聚合看板 / 总览页 / 中间层须**重新拍板**（PR-04）。
 - **与「数据看板 / 统计报表」边界**：图表看板 / 统计报表**非本期交付且现无载体**（报表导出 `ReportExportView` 早于 2026-08-18 移除；今回聚合看板一并归零）；`GET /admin/dashboard`、`GET /admin/stats/**` **均不存在**（后者历史上即为幽灵端点，其复用载体亦已删除）。
-- **范围约束**：本项为**删减**，不新增任何页面或端点；契约层面见 `docs/api-design.md` §5.1。
+- **范围约束**：本项为**删减**，不新增任何页面或端点；契约层面见本文件 §3 与 §5.y。
 
 > **原 §0.4.1 条文（2026-08-18 工作台契约：单次 `GET /admin/dashboard?range=week`、1 项待办卡 + 5 项规模指标、`DashboardVO` 统计口径 / 待办明细 5 条 / 近期操作 10 条 / 独立容错、`range=week/month/all`）全部作废，不再适用。**
 
@@ -128,7 +129,7 @@
   - **`portion` 分量字段**（2026-09-14 Q-114，见 §7.21 第 8 条）：连同后台录入全链路下线（DTO / 实体 / VO / Mapper / 后台表单 / 端上映射 / 建表脚本，存量库幂等 DROP）。
   - **食堂 / 档口的实体语义**（2026-09-14 Q-113，见 §7.21 第 7 条与 §7.20 PR-14）：停业（`status`）、营业时间（`business_hours`）、实体审核（`audit_status` / `reject_reason`）等实体语义**一律不设**；食堂 / 档口仅为**菜品筛选属性字典**，生命周期只有「新增 / 改名」。——**本条已涵盖「停业 / 营业时间 / 实体审核」三类实体语义**（对应列 `canteen.status` / `canteen.audit_status` / `canteen.reject_reason` / `stall.status` / `stall.audit_status` / `stall.reject_reason` 与 `stall.business_hours`，均已下线，见 §7.22 第 3 条）。
   - **食堂 / 档口的「删除」能力**（2026-09-14 Q-115，见 §7.22 第 5 条）：食堂 / 档口字典**不提供删除**（用户拍板：不保留删除，只能改名纠错）；录入侧仅「新增 / 改名 / 列表查看」。
-  - **菜品独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条；2026-09-15 阶段4 用户批准全量退役）**：**`dish.audit_status` 列与索引已删除**（不再作为运营处理入口）；~~`dish.reject_reason` 退役为历史列（列保留、恒 NULL，不写入）~~ **（2026-09-16 修订：`dish.reject_reason` 与 `dish.created_by` 两列已随零消费清理删除，见 `docs/database.md` 文首对账注）**；两项均**不再作为运营处理入口**（后台无审核列 / 无审核模块、客户端无「菜品审核」概念）；学生的菜品诉求走反馈闭环。恢复须重新拍板。
+  - **菜品独立审核（2026-09-15 蓝图 v1，见 §7.23 第 4 条；2026-09-15 阶段4 用户批准全量退役）**：**`dish.audit_status` 列与索引已删除**（不再作为运营处理入口）；~~`dish.reject_reason` 退役为历史列（列保留、恒 NULL，不写入）~~ **（2026-09-16 修订：`dish.reject_reason` 与 `dish.created_by` 两列已随零消费清理删除，见 §7.23 第 1 条框架原则与 `server/src/main/resources/db/schema.sql`）**；两项均**不再作为运营处理入口**（后台无审核列 / 无审核模块、客户端无「菜品审核」概念）；学生的菜品诉求走反馈闭环。恢复须重新拍板。
   - **反馈类型 `bug` / `other`（2026-09-15 蓝图 v1，见 §7.23 第 3 条）**：历史遗留枚举位、无生产者、**禁止新增**；「系统 bug」归 `suggestion` 的二级 `sub=problem`，不升为一级类型。仅保留在查询白名单以筛存量数据。
 - **执行口径**：本文件一经同步即为唯一权威；后续实现若与本文档冲突，**改代码、不改文档**（代码只在 UI 实现层提供指导）。开发交付以「静态错误清零」为准，编译 / 构建 / 真机运行由用户执行。
 
@@ -227,7 +228,7 @@
 ## 3. API 基础规范
 - 统一响应：`{ code: number, message: string, data: T }`；成功 `code=200`；异常由 `GlobalExceptionHandler` 统一包装，Controller 不得裸抛。
 - 错误码：`200` 成功 / `400` 参数 / `401` 未登录 / `403` 无权限 / `500` 服务器错误；**禁止自定义非标错误码**（如 1001/600）。**例外（2026-08-19 登记豁免，2026-09-14 收口）**：`4031` = **邮箱未认证**（`@RequireVerified` 触发，端上弹认证引导），与 `403` 区分，供前端「需先认证 vs 无权限」分流提示；`403` 覆盖 **普通无权限（越权 / 非本人资源 / 账号禁用）+ 需微信登录（`verified=1` 但 `openid` 空）**，端上提示后端 message 但不弹认证引导。UGC 准入失败的分码口径见 §7.7 第 1 条。
-- **内容安全安检（2026-09-13 立；2026-09-15「取消人工复核」修订，见 §7.24）**：全部 UGC（评价 / 反馈的文本与配图）须经微信内容安检（文本 `msgSecCheck` v2 / 图片 `imgSecCheck`）；安检**违规一律以 `400` 返回**（文本 `suggest=risky`、未知 / 缺失态 fail-closed 同按 risky；图片微信 code `87014`），**不新增错误码**；**内容安全检测 `review`（疑似）与 `pass` 一律放行，无人工复核、无安检态落库**（`sec_state` 列已全链退役；契约细则见 §5.a 与 `docs/api-design.md` §4）。
+- **内容安全安检（2026-09-13 立；2026-09-15「取消人工复核」修订，见 §7.24）**：全部 UGC（评价 / 反馈的文本与配图）须经微信内容安检（文本 `msgSecCheck` v2 / 图片 `imgSecCheck`）；安检**违规一律以 `400` 返回**（文本 `suggest=risky`、未知 / 缺失态 fail-closed 同按 risky；图片微信 code `87014`），**不新增错误码**；**内容安全检测 `review`（疑似）与 `pass` 一律放行，无人工复核、无安检态落库**（`sec_state` 列已全链退役；契约细则见 §5.a）。
 - 认证：JWT 经 `JwtAuthFilter`；白名单（实际 `SecurityConfig`，同路径已含 `/api` 前缀）为任意方法放行：`/auth/wechat-login`、`/auth/email-code`、`/auth/verify-email`、`/feedback`（公开提交）；`GET` 仅放行公开浏览：`/dishes/**`、`/canteens/**`、静态图片 `/images/**`（**2026-09-20 §7.30：原 `/reviews` 公开白名单项随评价列表 RESTful 化为 `/dishes/{id}/reviews` 一并移除——已由 `/dishes/**` 覆盖**）（**2026-09-15 CT-05 对齐 `SecurityConfig` 现状**：`/stalls/**` 幽灵白名单已删除（无公开 StallController 端点）、**`/categories` 已从公开白名单移除（DOC-01）；2026-09-15 品类维度整链删除后 `/admin/categories` 亦不存在——三端与后台均无品类端点（见 §7.22 第 1 条）**）；学生 UGC 写操作需已认证（判据 = `bind_email` 非空，见 §5 认证与鉴权与 §7.36），不再依赖 `STUDENT` 角色。**`/admin/**` 不由 JWT/角色把关**（2026-09-14 与 §7.10 对齐，原方案 C 描述作废）：`SecurityConfig` 放行后由 `AdminTokenFilter` 以环境变量口令（`X-Admin-Token`）校验，未配置 fail-closed 403；**无 `/auth/admin/login` 白名单项**（该端点不存在）。**移除 `/auth/login`、`/auth/register`、`/auth/password/reset`（废除账号密码登录）**；`PUT /auth/password` **已删除**（2026-09-14 Q-108 用户确认：端点 / Service / DTO / 端上声明全部移除，学生端无密码体系，见 §5.y.1 与 §7.21 第 3 条）。
 - 分页：`PageResult<T>{ records, total, page, pageSize }`，用 MP 分页插件；单页非分页接口返回 `List<T>`。
 - 金额：存储与传输一律「分」（int/Long）；分↔元转换必须在 api 层统一（`utils/money` 的 `fenToYuan`/`yuanToFen`），**禁止页面/组件层裸算**；前端统一展示已为元的 `price`（不得再在模板 `/100`）。
@@ -242,10 +243,13 @@
 - 八原则：Purpose / Agency / Responsibility / Familiarity / Flexibility / Simplicity / Craft / Delight；流体交互四要素：即时响应、1:1 直接操控、可中断、速度 / 动量接力。
 
 ### 4.2 视觉 Token（基线）
-- 品牌主色：**橙色**（**2026-09-21 §7.34 定稿**，取代 2026-09-06 定调的暖砖红 `#C45549`）——**两档同色系**：**填充档** `--color-primary` `#C2410C`（全站主力用途：品牌填充底 / 图标 / 标签下划线 / 星标 / TabBar 激活图标，兼作承载白色文字的底色——**其上白字 5.18:1** ✅、对白底 5.18:1 / 对页底 4.69:1 ✅）、**文字档** `--color-primary-text` `#B93A0A`（浅底上的主色文字与价格 `--color-price`：对白卡 5.72:1 / 对页底 5.18:1 / 对主色浅底 `#FCE8D6` 4.81:1 ✅）。**适用边界**：填充档**不得**作主色浅底上的文字（该组合仅 **4.35:1**，此类文字一律用文字档）。`--color-primary-soft` `#FCE8D6`；含品牌色通道的阴影通道随主色 = `194, 65, 12`（`rgba(194, 65, 12, α)`）。**为何不取更亮的橙**：`#EA580C` 作填充底时白字仅 3.56:1、作浅底文字亦仅 3.56:1（两门槛均不达），而全站 21 处以主色作「填充底 + 白字」。页面顶部渐变 `--bg-page-grad-from` `#FFF9F3` → `--bg-page-grad-to` `#FFEFE0`；`--bg-page` `#F7F3EF` / `--bg-card` `#FFFFFF` 取值不变。**（2026-09-15 S4-04 对齐现状：项目无深色模式，原「深色模式主色见 `tokens.ts` 的 `primary-dark`」引用删除。）**小程序按钮统一 `AppButton`（primary 取 `#C2410C`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）；**Web 管理端另有深色主题**：其文字档取提亮值 `#F97316`（深底需提亮，实测 ≥4.63:1；`#B93A0A` 压深底仅 2.63:1）。**色值为全站唯一事实源（2026-09-15 PM 拍板登记，原 UI 收敛设计文档已随过程性文档清理）**：`client/src/theme/tokens.ts` 是**唯一**事实源；`App.vue` 的 `page{}` 颜色块由 `gen:tokens` 脚本（`client/scripts/gen-css-vars.ts` → `theme/generated-colors.css` 生成物，受版本控制）**生成**，**禁止手工编辑**生成物与该颜色块；CI 以「生成物与仓库副本 diff 一致」校验（`npm run gen:tokens` 挂 type-check 前置）。原废弃快照 `client/uni.scss` 已清除（登记见 §8「已修复」），不得再据其取值。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
+- **⚠️ 色值真源（2026-09-23 §7.39）：以 `docs/ui/client-首页菜品浏览.md` §4.1「全站色板（暖橙黄）」为唯一真源，且已落地。** 其后的暖砖红橙档（2026-09-21 §7.34）**已整体退役**，作为留痕保留原文，勿再据其取值。
+- **现行色值（2026-09-23，真源 = §4.1）**：主色**填充 / 文字档** —— `--color-primary` = `--color-primary-fill` = `--color-primary-text` = `--color-price` = `--color-accent` = **`#B4531A`**（白字 on 它 **5.01:1** ✅；作 `#FFF8EF` 上文字 **4.75:1** ✅）；**图形档** `--color-primary-bright` = `--color-primary-amber` = **`#F5A623`**（标签下划线 / TabBar 激活图标）；另立 `--color-primary-orange` **`#E67E22`**（关键图标——**不得**作填充底或正文，白字仅 2.85:1）、`--color-primary-yellow` **`#FFD166`**（只作浅底 / 装饰）、`--color-orange-deep` **`#D35400`**（点击态 / 图形，白字 3.88:1 仅够图形级）、`--color-brown-deep` **`#7B4F2A`**。页底 `--bg-page` **`#FFF8EF`**、顶部渐变 **`#FFE8D1 → #FFF8EF`**（`--bg-soft-orange` → `--bg-page`）；浅底 `--bg-soft-yellow` **`#FFF3D6`**；文字四档 `--text-title` **`#2D1F14`** / `--text-body` **`#4A3520`** / `--text-subtitle`（= `--text-tertiary`）**`#7F6A55`** / `--text-placeholder` **`#B5A594`**（仅输入框占位）；含品牌色通道的阴影 = **`rgba(180, 83, 26, α)`**；星色 `--color-star` **`#FBBF24`**（独立语义色）。**Web 端仅主色系同步**（文字 / 背景 / 状态色保持其深色控制台体系）。
+- **退役留痕（2026-09-21 §7.34 原口径）**：品牌主色：**橙色**
+- 品牌主色：**橙色**（**2026-09-21 §7.34 定稿**，取代 2026-09-06 定调的暖砖红 `#C45549`）——**两档同色系**：**填充档** `--color-primary` `#C2410C`（全站主力用途：品牌填充底 / 图标 / 标签下划线 / 星标 / TabBar 激活图标，兼作承载白色文字的底色——**其上白字 5.18:1** ✅、对白底 5.18:1 / 对页底 4.69:1 ✅）、**文字档** `--color-primary-text` `#B93A0A`（浅底上的主色文字与价格 `--color-price`：对白卡 5.72:1 / 对页底 5.18:1 / 对主色浅底 `#FCE8D6` 4.81:1 ✅）。**适用边界**：填充档**不得**作主色浅底上的文字（该组合仅 **4.35:1**，此类文字一律用文字档）。`--color-primary-soft` `#FCE8D6`；含品牌色通道的阴影通道随主色 = `194, 65, 12`（`rgba(194, 65, 12, α)`）。**为何不取更亮的橙**：`#EA580C` 作填充底时白字仅 3.56:1、作浅底文字亦仅 3.56:1（两门槛均不达），而全站 21 处以主色作「填充底 + 白字」。页面顶部渐变 `--bg-page-grad-from` `#FFF9F3` → `--bg-page-grad-to` `#FFEFE0`；`--bg-page` `#F7F3EF` / `--bg-card` `#FFFFFF` 取值不变。**（2026-09-15 S4-04 对齐现状：项目无深色模式，原「深色模式主色见 `tokens.ts` 的 `primary-dark`」引用删除。）**小程序按钮统一 `AppButton`（primary 取 `#C2410C`，outline/text 沿用）/ 管理端侧栏同步改用同色（替代旧深红 `#6B1010`）；**Web 管理端另有深色主题**：其文字档取提亮值 `#F97316`（深底需提亮，实测 ≥4.63:1；`#B93A0A` 压深底仅 2.63:1）。**色值为全站唯一事实源（2026-09-15 PM 拍板登记，原 UI 收敛设计文档已随过程性文档清理）**：`client/src/theme/tokens.ts` 是**唯一**事实源；`App.vue` 仅 `@import` 生成的 `theme/generated-colors.css`（受版本控制），**禁止手工编辑**生成物与颜色变量块。**（2026-09-23 对齐现状：生成脚本 `client/scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 已在本工作区删除，故「生成物与仓库副本 diff 一致」的 CI 校验、以及 `gen:tokens` 的 `type-check` 前置绑定**均已失效** —— 当前 `npm run type-check` 无法运行，须直接执行 `npx vue-tsc --noEmit`；生成物改为**手工维护**，但其内容仍须与 `tokens.ts` 的 `COLOR_MAP` / `CSS_VARS` 保持一致。恢复脚本化生成须重新登记。）** 原废弃快照 `client/uni.scss` 已清除（登记见 §8「已修复」），不得再据其取值。裸 hex 例外（`<swiper>` 指示点）须在 `tokens.ts` 的 `SWIPER_INDICATOR_*` 登记，主色变更须同步（原 `web-view` progressbar 例外 `WEBVIEW_PROGRESSBAR_COLOR` 已随活动下线、`web-view` 退出小程序移除）。
 - 评分星级：独立 token `--color-star` `#FBBF24`（**黄色实心星**，与 Web 管理端既有 `--color-star` 对齐；`--color-star-empty` `#E5E5EA` 为未选 / 空星）——**2026-09-21 拍板撤销** `content-flow-visual-polish` 的「星级填充语义收敛到 primary」：星色属评价语义色，SHALL NOT 随主色换肤。
 - 圆角 / 阴影（**2026-09-15 S4-03 对齐现状：一律引用 token 名，token 值为唯一事实源**）：卡片圆角 `--radius-card`（client `32rpx` / web `variables.css` `16px`）；弹层圆角 `--radius-modal: 48rpx`、弹层阴影 `--shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18)`（client `App.vue` page{} / `theme/tokens.ts` 登记）。**原「底部弹层 `20px 20px 0 0`」与 web `--radius-sheet` 引用作废（`--radius-sheet` 在 `web/src/styles/variables.css` 中不存在）**。材质模糊 `blur(20px) saturate(180%)`（适用范围见 §4.5）；按压反馈为 bg-soft/opacity（**scale 按压已废止**，见 §4.9；Web 端 `scale(var(--press-scale))` 为登记豁免，同见 §4.9）。
-- 小程序自研组件（新页面必须复用）：公共 `components/`（**实况 11 个（2026-09-15 S4-06 对齐；`TagLabel` 已于 2026-09-20 随 `dish.tags` 删除）：`AppButton/AppHeader/AuthSheet/BaseSheet/CardSection/FilterBar/IconSvg/ImagePicker/RetryBlock/SectionTitle/TabBar`**；原清单中的 `ActionSheet`/`ListPickerSheet`/`ReportModal` 已下沉为页包内私有组件，不在公共清单）与页内私有组件（按 §2「前端组件组织原则」下沉，如 `pages/home/DishCard.vue`、`pages/home/HomeContent.vue`、`pages/feedback/ListPickerSheet.vue`、`pages/detail/dish/ReportModal.vue`）；**`ImagePicker`（UGC 多图选择 / `wx.compressImage` 压缩 / 预览 / 删除，上限 3 张）与 `RetryBlock`（「加载失败 · 点击重试」失败态块）为公共在册组件**（UGC 配图随 2026-09-13 拍板恢复建设，作为「写评价弹层」与「意见反馈表单」共享组件，落位遵循 §2 组件组织原则），图片上传另有用户头像与后台菜品图两条独立链路；`TabBar` 实况路径 `components/TabBar.vue`。（社区板块的卡片与图片墙组件已于 2026-09-12 随板块下线删除；**`CategoryTabs`、`Loading` 已于清理提交 f9560c6 删除**——筛选切换由 `FilterBar`/筛选条替代；**2026-09-15 品类维度整链删除后，三端不存在任何品类页 / 品类组件 / 品类宫格（见 §7.22 第 1 条）**；**`EmptyState`、`StateView` 已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不设空态占位，**失败态按 MP-012 呈现「加载失败 · 点击重试」块（登记见 `openspec/specs/client-page-structure`）**；页面细则以本文件 §4 为准）。
+- 小程序自研组件（新页面必须复用）：公共 `components/`（**实况 12 个（2026-09-23 对齐：`FilterBar` 已于 2026-09-22 随食堂 / 价格筛选全量下线删除；新增 `AppTitleBand`、`SearchBar`；`TagLabel` 已于 2026-09-20 随 `dish.tags` 删除）：`AppButton/AppHeader/AppTitleBand/AuthSheet/BaseSheet/CardSection/IconSvg/ImagePicker/RetryBlock/SearchBar/SectionTitle/TabBar`**；原清单中的 `ActionSheet`/`ListPickerSheet`/`ReportModal` 已下沉为页包内私有组件，不在公共清单）与页内私有组件（按 §2「前端组件组织原则」下沉，如 `pages/home/DishCard.vue`、`pages/home/HomeContent.vue`、`pages/feedback/ListPickerSheet.vue`、`pages/detail/dish/ReportModal.vue`）；**`ImagePicker`（UGC 多图选择 / `wx.compressImage` 压缩 / 预览 / 删除，上限 3 张）与 `RetryBlock`（「加载失败 · 点击重试」失败态块）为公共在册组件**（UGC 配图随 2026-09-13 拍板恢复建设，作为「写评价弹层」与「意见反馈表单」共享组件，落位遵循 §2 组件组织原则），图片上传另有用户头像与后台菜品图两条独立链路；`TabBar` 实况路径 `components/TabBar.vue`。（社区板块的卡片与图片墙组件已于 2026-09-12 随板块下线删除；**`CategoryTabs`、`Loading` 已于清理提交 f9560c6 删除**——筛选切换由 `FilterBar`/筛选条替代；**2026-09-15 品类维度整链删除后，三端不存在任何品类页 / 品类组件 / 品类宫格（见 §7.22 第 1 条）**；**`EmptyState`、`StateView` 已于 2026-09-06 随状态占位清理变更删除**——列表/信息流不设空态占位，**失败态按 MP-012 呈现「加载失败 · 点击重试」块（登记见 `openspec/specs/client-page-structure`）**；页面细则以本文件 §4 为准）。
 - 管理端：Element Plus + 自封装 `DataTable/FormDialog/ConfirmDialog/StatusTag/ImageUpload`；**`SearchInput` 组件已于清理提交 f9560c6 删除**，管理端搜索统一用 `el-input`（原 `docs/web-ui.md` 已删除，勿再引用）。
 - **小程序图标统一使用 SVG 矢量图标（2026-09-15 S4-05 对齐现状）**：图标**内联注册于 `IconSvg` 组件的 `ICONS` 键表**（`client/src/components/IconSvg.vue`，**无本地 `assets/icons` 目录**，原「Iconfont 经 MCP 拉取」链路不再适用）：位置=location、评分=star、发布=plus、举报=report 等，全量键以 `ICONS` 注册表为准。**兜底键 = `empty` 中性占位**：未注册键渲染 `empty`（空盒），不回退语义图标；`heart`（喜欢）键已删除，**无「喜欢」语义图标**。**`thumb`（有用/点赞）键已随「评价有用」全链下线删除（2026-09-21 资产专项，PR-05）**；**收藏功能已移除，无收藏图标**。**禁止 emoji 字符充当图标**。
 
@@ -330,7 +334,7 @@
 - **错误码与合规**：安检违规一律 `400`，不新增错误码；《隐私政策》采集类型须覆盖 UGC 文本与配图（见 `openspec/specs/privacy-compliance`）。
 - **面向未来（不绑定云托管）**：COS / 安检 / 上传接口均不与云托管耦合，后端可整体迁移独立服务器；届时小程序上传域名改走**备案域名白名单**，链路结构不变。
 - **管理后台（Web）**：**不设内容复核队列**（2026-09-15 取消人工复核）——评价管理页（`/dashboard/reviews`）只做**事后处置**（隐藏 / 显示 / 删除，`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`），反馈处理页展示反馈配图（详情 ≤3 张可放大）。
-- **环境变量**：新增 `COS_BUCKET` / `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_REGION`（见 `docs/architecture.md` §3.2 与 README 环境变量清单）。
+- **环境变量**：新增 `COS_BUCKET` / `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_REGION`（见 `server/.env.example` 与 README 环境变量清单）。
 
 ### 5.y 认证与鉴权（微信登录体系，2026-08 拍板，强制）
 
@@ -369,7 +373,7 @@
 - 昵称保持「食客+ID 尾号」；`bind_email`（学号邮箱）**仅存认证关系、不公开**，可在「我的」页展示绑定邮箱。
 
 #### 5.y.5 接口契约
-- `POST /auth/wechat-login`（公开）— 入参 `{ code }`（微信 `wx.login` 临时凭证）；后端 `code2Session` → 按 `openid` 取号 / 自动建号 → 返回 `LoginResp{ token, userInfo(含 verified/绑定的 bind_email/昵称) }`。JWT 7 天。（实现约束，不改契约语义：微信 `jscode2session` 响应为 `Content-Type: text/plain`，后端须以「先取 String 再 JSON 解析」或等价方式处理，**禁止依赖 `MappingJackson2HttpMessageConverter` 自动转换**；见 `docs/architecture.md` §3.3）。
+- `POST /auth/wechat-login`（公开）— 入参 `{ code }`（微信 `wx.login` 临时凭证）；后端 `code2Session` → 按 `openid` 取号 / 自动建号 → 返回 `LoginResp{ token, userInfo(含 verified/绑定的 bind_email/昵称) }`。JWT 7 天。（实现约束，不改契约语义：微信 `jscode2session` 响应为 `Content-Type: text/plain`，后端须以「先取 String 再 JSON 解析」或等价方式处理，**禁止依赖 `MappingJackson2HttpMessageConverter` 自动转换**）。
 - `POST /auth/email-code`（公开，改造）— 入参 `{ username(学号), email(可空，自动推导 {学号}@bjtu.edu.cn), purpose }`；`purpose` 改为 `verify`（认证用途，替代旧 `login`/`register`/`reset`）；60s 限频、10min 有效。
 - `POST /auth/verify-email`（公开，新增）— 入参 `{ code }` + 从当前微信账号上下文绑定：校验验证码 → 绑定邮箱 → 触发数据迁移合并（见 5.y.3）→ 写 `bind_email`（认证态唯一写入点，§7.36）→ 返回更新后 `LoginResp`。
 - `GET /auth/profile`（登录即游客可读）— 返回当前账号信息含 `bindEmail`（唯一邮箱来源；非空即已认证，§7.36）、昵称、头像~~、`guestShortId`~~ **（2026-09-21 §7.32 修订：`guestShortId`、`email`、`status` 三字段不再出参；校园邮箱唯一来源为 `bindEmail`。）**
@@ -400,7 +404,7 @@
 - **整改影响面清单（谁改什么）以本文件各红线条款为准，不再另立文档。**
 
 ## 6. 协作纪律
-- 本文件为**唯一权威基础规范**；多 agent 协作流程与角色权限见 `CODEBUDDY.md` 与 `.codebuddy/agents/`（原 `docs/WORKFLOW.md` 已删除，勿再引用）。
+- 本文件为**唯一权威基础规范**；多 agent 协作流程与角色权限见 `.codebuddy/agents/`（`CODEBUDDY.md` 与 `docs/WORKFLOW.md` 均已删除，勿再引用）。
 - **仅技术负责人可修改本文件**；其余角色（后端 / 小程序 / Web / 质量把控工程师）发现与本文件或代码冲突时，须提技术负责人裁定，不得自行绕过或改本文件。
 - 踩坑经验回流：实测证伪的方案（如 §4.9 组件渲染红线）由技术负责人提炼进本文件红线。
 
@@ -663,7 +667,7 @@
    - **举报类反馈（`report`，`relatedType=review`）处置直达（2026-09-15）**：反馈页的「关联对象」对举报类显示为**可点链接**（**2026-09-15 呈现定型：由红色 pill 改为**主色文本链接「评价 #id →」**，见 §7.25 第 2 条**），点击跳转「评价」页并携带 `?rid=<id>` → 目标页**自动翻至该行所在页 + 滚入视口 + 高亮**（`DataTable.highlightRowKey`，行左侧主色标，无动画）；目标评价不存在（已删除）时提示「该评价不存在或已删除」且不高亮。**处置动作仍在「评价」页执行（隐藏 / 删除）**，反馈页不新增写操作，两页分工为「反馈 = 诉求与回执 / 评价 = 内容事后处置」。
 
 6. **v1 基线冻结（2026-09-16 用户拍板，最高优先级）**：
-   - **定案内容**：用户已逐条确认《定稿速览对账单》（归档于 `docs/loop/_archive/定稿速览对账单-2026-09-16.md`，仅作历史留痕）全文——① **5 条框架原则**全部确认（= 本章第 1~5 条）；② **数据模型按「零消费即删」重设计定案**：10 张表最终字段清单（同批删除 6 个零消费列：`user.password`、`user.unionid`、`dish.reject_reason`、`dish.created_by`、`user_feedback.handler_id`、`user_feedback.contact`；详见 `docs/database.md` 文首 2026-09-16 对账注），库设计满足 BCNF、唯一注册反规范化为异步维护计数列（见 database.md 增注）；③ **端点按「零消费即删」定案：38 端点清单**（同批收敛 `GET /reviews` 维度：`stallId`/`canteenId` 参数删除、`dishId` 必填）；④ **Web 后台 4 页 IA 确认**（菜品 / 评价 / 反馈 / 学生账号，层级 ≤2）；⑤ **已下线 8 项再次确认「都不要」**（品类 / 人工复核 / 操作日志 / 看板 / 收藏 / 社区 / 食堂档口独立页 / 营业时间等）；⑥ **评分口径定稿为「通过即收录」**（聚合仅 `is_hidden=0`，无其他过滤）。
+   - **定案内容**：用户已逐条确认《定稿速览对账单》（原归档于 `docs/loop/_archive/定稿速览对账单-2026-09-16.md`，**该文件已随 `docs/loop/` 目录一并删除**，此处仅作历史留痕）全文——① **5 条框架原则**全部确认（= 本章第 1~5 条）；② **数据模型按「零消费即删」重设计定案**：10 张表最终字段清单（同批删除 6 个零消费列：`user.password`、`user.unionid`、`dish.reject_reason`、`dish.created_by`、`user_feedback.handler_id`、`user_feedback.contact`；详见 `docs/database.md` 文首 2026-09-16 对账注），库设计满足 BCNF、唯一注册反规范化为异步维护计数列（见 database.md 增注）；③ **端点按「零消费即删」定案：38 端点清单**（同批收敛 `GET /reviews` 维度：`stallId`/`canteenId` 参数删除、`dishId` 必填）；④ **Web 后台 4 页 IA 确认**（菜品 / 评价 / 反馈 / 学生账号，层级 ≤2）；⑤ **已下线 8 项再次确认「都不要」**（品类 / 人工复核 / 操作日志 / 看板 / 收藏 / 社区 / 食堂档口独立页 / 营业时间等）；⑥ **评分口径定稿为「通过即收录」**（聚合仅 `is_hidden=0`，无其他过滤）。
    - **冻结规则（强制）**：自本条起，**v1 基线冻结**——任何改动（含 AI 协作）**必须先修订本决策章（§7.23）并在 §8 留痕，再动代码**；**违反即流程违规**，一眼可查。
    - **恢复 / 解冻**：任何被冻结状态的更改（包括恢复已删除列 / 端点 / 页面）均须重新拍板并走上述流程（PR-04 留痕路径）。
 
@@ -998,7 +1002,7 @@
 
 #### 1. 口径定型
 
-- **首页两态结构**：初始态 = 标题「知行食记」+ Banner「今日推荐」（副标题 + 插画）+ 通栏搜索框（占位「搜索菜品、食堂、套餐」，右侧内含「筛选」按钮）+ **横向大类标签栏** + 双列卡片网格；**吸顶态**（上滑后）= 标题 + **完整搜索框** + 大类标签栏**整体粘性吸顶**，Banner 完全滚出。**搜索框不得消失**。
+- **首页两态结构**：初始态 = 标题「知行食记」+ Banner「今日推荐」（副标题 + 插画）+ 通栏搜索框（占位「搜索菜品、食堂、套餐」，右侧内含「筛选」按钮）+ **横向大类标签栏** + 双列卡片网格；**吸顶态**（上滑后）= 标题 + **完整搜索框** + 大类标签栏**整体粘性吸顶**，Banner 完全滚出。**搜索框不得消失**。**（2026-09-23 标注：本句已成历史——①「右侧内含『筛选』按钮」：筛选于 2026-09-22 全量下线，头部现为「左搜索胶囊 + 右独立『搜索』按钮」两件；②占位文案「套餐」改为「档口」，理由见 §7.39 第 3 条。现行形态以 `docs/ui/client-首页菜品浏览.md` §1 / §1.2 为准。）**
 - **卡片四段固定排版**：图（约 52%）→ 菜名（黑色加粗、卡片最大字号）→ `食堂名称 | 档口名称`（浅灰**纯文字**，禁彩色标签块）→ 星+评分（左）/ 价格（右，主色橙）。**明确不引入「月售 XXX 份」**（项目无订单 / 销量数据源）。
 - **全站主色由暖砖红 `#C45549` 改为橙色**（**token 层变更，含小程序 + Web 管理端**）——**2026-09-21 定稿为两档取色**：**填充档** `--color-primary` = `#C2410C`（全站主力用途：填充底 / 图标 / 标签下划线 / 星标 / TabBar 激活图标；兼作承载白字的底色——**其上白字 5.18:1** ✅、对白卡 5.18:1 / 对页底 4.69:1 ✅ ≥3:1）；**文字档** `--color-primary-text` = `#B93A0A`（价格 `--color-price` / TabBar 激活文字 / 选中态文字 / **主色浅底上的文字**：对白卡 5.72:1 / 对页底 5.18:1 / 对 `#FCE8D6` 4.81:1 ✅）；`--color-primary-soft` = `#FCE8D6`，含品牌色通道的阴影通道随主色 = `194, 65, 12`（`rgba(194, 65, 12, α)`）。**适用边界：填充档不得作主色浅底上的文字（该组合仅 4.35:1）**。**取色理由：更亮的橙 `#EA580C` 作填充底白字仅 3.56:1、作浅底文字亦仅 3.56:1（文字级与图形级两门槛均不达），而全站 21 处以主色作「填充底 + 白字」**（Web 管理端同取 `#C2410C`，hover `#EA580C` / active `#9A3412` 为瞬时态；Web **深色主题**文字档取提亮值 `#F97316`）。页面底色改「浅米白 → 淡橙顶部渐变」（`--bg-page-grad-from` `#FFF9F3` → `--bg-page-grad-to` `#FFEFE0`）；`--bg-page` / `--bg-card` 取值不变。
 - **新增「菜品大类」维度**：`dish` 新增**单值枚举列** `meal_type`（`set_meal` 套餐盖饭 / `stir_fry` 家常小炒 / `noodle` 面食粉类 / `dry_pot` 香锅干锅 / `snack` 风味小吃 / `soup_drink` 汤饮甜品）。**基数口径：一个菜品恰属一个大类，一个大类可含多个菜品（1:N）**；**大类与属性维度（荤素 / 主料 / 口味 / 冷热）不是一类字段、不得混用**——属性为多值横切，大类为单值互斥且需全量覆盖。**判定口径：按菜名与做法形态判定，不看主料与口味**（形态映射与 31 道种子归属见 `docs/feature/client-首页菜品浏览.md` H3 / H4）。
@@ -1050,11 +1054,31 @@
 
 ### 7.38 首页吸顶容器位移改「原生粘性定位」+ 标签栏纵向间距二次收口（2026-09-22 用户拍板）
 
-1. **问题与决策（位移）**：上滑时「搜索区 + 标签栏」表现为「位置像临时算出来的、容易闪现」——根因是旧实现用 `position: fixed` + `@scroll` 回调**每帧 `setData` 下发 `transform: translate3d(0, offset)`** 模拟吸顶位移，而**小程序逻辑层与渲染层跨线程通信有延迟**，容器恒比内容慢半拍。**决策：位移改由渲染层原生粘性定位承担** —— `.home-sticky` 从「滚动容器**外**的固定层」移入**滚动容器内部的内容流**（Banner 之后、网格之前），改 `position: -webkit-sticky; position: sticky` + 内联 `top` = 固定标题带下沿；其流内自然落点紧贴 Banner 下缘，滚动满「Banner 总高 − 标题带高」时**恰好粘住**，与 §5 锁定阈值同源、无需任何 JS 位移补偿。**连带删除**：位移量 computed、`onReady` 的 `.home-sticky` 高度实测、`.home-sticky-hold` 站位块与 `STICKY_FALLBACK_RPX` 兜底（粘性元素自身占流内高度，不再需要站位块）。**§7.34 第 ① 条「不用 `position: sticky`」的实现口径由本条取代**（其页面结构口径亦已由 2026-09-22 顶部结构定稿取代，见 `docs/ui/client-首页菜品浏览.md` §1.0 / §5）。
+1. **问题与决策（位移）**：上滑时「搜索区 + 标签栏」表现为「位置像临时算出来的、容易闪现」——根因是旧实现用 `position: fixed` + `@scroll` 回调**每帧 `setData` 下发 `transform: translate3d(0, offset)`** 模拟吸顶位移，而**小程序逻辑层与渲染层跨线程通信有延迟**，容器恒比内容慢半拍。**决策：位移改由渲染层原生粘性定位承担** —— `.home-sticky` 从「滚动容器**外**的固定层」移入**滚动容器内部的内容流**（Banner 之后、网格之前），改 `position: -webkit-sticky; position: sticky` + 内联 `top` = 固定标题带下沿；其流内自然落点紧贴 Banner 下缘，滚动满「Banner 总高 − 标题带高」时**恰好粘住**，与 §5 锁定阈值同源、无需任何 JS 位移补偿。**连带删除**：位移量 computed、`onReady` 的 `.home-sticky` 高度实测、`.home-sticky-hold` 站位块与 `STICKY_FALLBACK_RPX` 兜底（粘性元素自身占流内高度，不再需要站位块）。**§7.34 第 ① 条「不用 `position: sticky`」的实现口径由本条取代**（其页面结构口径亦已由 2026-09-22 顶部结构定稿取代，见 `docs/ui/client-首页菜品浏览.md` §1.0 / §5）。**change `home-scroll-interaction`（2026-09-21，已归档）的吸顶实现一并由本条取代**——其「Banner 绝对定位图层 + `stickyShift` / `searchShift` 位移 + 常量 `stickyLockPx` 留白」机制已随本条改为原生粘性定位而整体删除（位移量 computed、`.home-sticky` 高度实测、`.home-sticky-hold` 站位块与 `STICKY_FALLBACK_RPX` 兜底同批移除）；**不得据该 change 的 `tasks.md` / delta spec 恢复旧方案**。
 2. **表面过渡改「恒同源切片」（去硬切）**：吸顶容器在流中**永远紧贴 Banner 下缘、从不与 Banner 重叠**，故没有「必须真透明」的约束。容器表面恒为 `--home-page-grad` 切片，基准 `--home-band-top = max(H_b − scrollTop, H_t)`（未吸顶随滚动连续跟随、吸顶后夹紧为标题带下沿）→ **任何滚动位置都与身后页底逐像素一致**，既等价于「永远透明」、又天然不透出滚上来的网格。**删除**旧口径的「`L − 8px` 预量把容器由透明切成切片」硬切（预量窗口在猛滑时可能漏帧，反而引入新的穿帮）。**标题带的纱式淡出（§1.3 方案 C）不变**；`scrollTop` 只剩两个用途 —— 纱的 opacity 与切片基准（后者滞后 1–2 帧在整条渐变上仅约 1/255 色阶，不可辨）。
 3. **标签栏纵向间距二次收口（gap 偏大，尤以下部为甚）**：根因 = **标签行内外各叠了一层 padding** —— `HomeMealTabs` 的 `.mt-bar` 自带上下 padding，吸顶容器又给上下 `--spacing-lg`，叠加后「搜索区 → 标签文字」实为 ≈20px、「下划线 → 卡片首行」≈24px。**改为各承担一次**：`.mt-bar` 上下 padding 归零（纵向留白只由标签行内偏置承担）、容器 `padding-bottom` 由 `--spacing-lg` 降为 `--spacing-sm` → 实测 **≈12px / ≈16px**。标签行高 88rpx（触达下限、不得压低）与「下划线紧随文字 4px、不得吸底」口径不变。
 4. **影响面**：**仅小程序端** —— `client/src/pages/home/index.vue`、`client/src/pages/home/HomeMealTabs.vue`；**不改**服务端（`server/`）、Web 管理端（`web/`）、数据库（`schema.sql` / `seed_data.sql`）、**接口契约**（本批无接口变更）。文档 = `docs/project_spec.md`（本条）、`docs/ui/client-首页菜品浏览.md`（§1.2 / §1.3 / §2 / §5 / §6 同步）。对应 PR-05（冗余边界：位移补偿、站位块等死机制清理）。
 5. **状态**：**已落地（2026-09-22）** —— `npx vue-tsc --noEmit` **0 error**（`npm run type-check` 的前置 `gen:tokens` 脚本在本工作区已被删除，故直接调用 `vue-tsc`）。**已知待验**：`position: sticky` 在微信小程序 `scroll-view` 内的真机表现须在 iOS / Android 各验一次（若某机型失效，表现为容器随内容滚走、不吸顶）；恢复「`fixed` + 滚动回调下发位移」**须重新拍板**。
+
+### 7.39 全站色板改「暖橙黄」+ 搜索页 UI 走查收口（2026-09-23 用户拍板）
+
+**背景**：`docs/ui/client-首页菜品浏览.md` §4.1「全站色板（暖橙黄）」自 2026-09-22 标注「全面生效」，但**未走 §7 决议流程、未回写本文件、未落地代码**，导致与 §4.2 形成**两个互相冲突的色值真源**（§4.2 记 `#C2410C`，§4.1 记 `#B4531A`）；同时搜索页 UI 文档引用的 10 个 token 在代码中并不存在。
+
+1. **色板裁决（真源归一）**：**以 `docs/ui/client-首页菜品浏览.md` §4.1 为全站色板唯一真源**（UI 形态听 `docs/ui`，2026-09-22 真源分级规则）；§4.2 的暖砖红橙档（`#C2410C` / `#B93A0A` / `#EA580C` / 页底 `#F7F3EF` / 渐变 `#FFF9F3 → #FFEFE0` / 文字 `#262626` 三阶）**整体退役**（不做并存、不留兼容别名）。
+   - **落地批次须同步**：`client/src/theme/tokens.ts` → `theme/generated-colors.css` → `web/src/styles/variables.css`（含品牌阴影通道 `rgba(180, 83, 26, α)`），并回写 §4.2 色值登记。
+   - **落地前口径**：页面文档引用 §4.1 token 处为**目标口径**；代码侧以 §4.2 现值为实况，不得据未落地的 token 名认为功能已实现。
+2. **星色独立（红线重申）**：评分星 SHALL 用独立语义 token `--color-star`（黄 **`#FBBF24`**），**SHALL NOT** 归入主色档、**SHALL NOT 随主色换肤**（§4.2 既有口径不变）。
+   - **现存缺陷**：`client/src/pages/find/FindResults.vue` 结果卡星标传 `var(--color-primary)`，属违规。
+   - **订正**：§4.1 旧记录误写 `--color-star` 为 `#F5A623`（并称「归入 amber 档」），已订正为 `#FBBF24` 且明确独立语义色。
+3. **搜索页 UI 走查收口**（用户 2026-09-23 走查；权威细则 = `docs/ui/client-搜索.md`）：
+   - **返回 icon 过小（根因）**：`AppTitleBand.vue` 传 `:size="22"`，而 `IconSvg` 的 `size` 数字单位是 **rpx** → 实际画布 22rpx（11px）；`arrow-left` 路径在 24 网格中纵向仅占 12/24 → **绘制高仅 11rpx（5.5px）**，不足标题字号（`--font-title` 44rpx）的 1/4，故观感「比标题小一大截」。**口径**：画布改 **88rpx**（绘制高 44rpx = 标题字号，光学尺寸与标题相仿）。
+   - **搜索结果星色**：同第 2 条（黄色 `--color-star`）。
+   - **占位文案**：「搜索菜品、食堂、**套餐**」→「搜索菜品、食堂、**档口**」（`components/SearchBar.vue` 的默认 `placeholder`，首页与搜索页共用，须两页同批改）。理由：搜索只匹配**菜名 / 档口名 / 食堂名**（§7.35 第 1 条），**「套餐」不是可搜维度**——项目无套餐实体，「套餐盖饭」只是 `meal_type` 大类，而**大类不参与关键词匹配**。
+   - **搜索页其余收口**（间距 / 字号 / 状态 / 色板引用）：两区块 chip 须可区分（猜你喜欢 = 暖黄底）、块间间距 SHALL 单一来源（旧实现「搜索行 padding + 首卡 margin」叠加为 28px）、两卡间距显式 16px（旧依赖 `CardSection` 默认值折叠为 8px）、结果卡内边距回 8 基网格（旧 28rpx）、价格降档至 `--font-h3`（旧与菜名同为 `--font-title`，焦点竞争）、命中片段加字重（旧无任何反馈）、少量结果垂直居中（旧悬顶）、无结果引导（**订正**：旧文档写「静默」，而代码实为全站两处空态例外之二）、「清空」权重提升（旧 `--font-aux` + `--text-tertiary`）、「猜你喜欢」后端限 ≤ 6 条（旧无上限、实测 8 条占 3 行）。**逐条落地状态见 `docs/ui/client-搜索.md` §6。**
+4. **影响面**：**本轮仅文档**（`docs/ui/client-首页菜品浏览.md`、`docs/ui/client-搜索.md`、本文件）——**代码未改动**（用户明确「**先不改代码**」）。代码批次涉及：`theme/tokens.ts`、`theme/generated-colors.css`、`web/src/styles/variables.css`、`AppTitleBand.vue`、`SearchBar.vue`、`FindResults.vue`、`pages/find/index.vue`、`pages/find/FindResults.vue`、后端 `GET /dishes/for-you`（限 ≤6 条）。
+5. **状态**：**已全部落地（2026-09-23）** —— 文档（本文件 §4.2 指向、两个页面 UI 稿）与代码（`theme/tokens.ts` → `generated-colors.css` → Web `variables.css` 主色系；搜索页 13 项局部改动；后端 `for-you` 条数 8→6）同批完成，`npx vue-tsc --noEmit` **EXIT 0**。
+   - **已知待真机复核（三项）**：① 首页吸顶容器在新渐变下的**锁定点逐像素对齐**（本条第 1 项改变了 `--bg-page-grad-from`，虽与容器共用同一变量、无需另改，但须实测）；② 单条结果**垂直居中**在 `scroll-view` 内 `min-height:100%` 的表现；③ 返回 icon **88rpx** 的实际观感。
+   - **Web 适用范围**：仅同步**主色系**；Web 文字 / 背景 / 状态色保持其深色控制台体系，深色主题的文字档继续取提亮值（套用本表浅色档在深底不达标）。
 
 ## 8. 技术债登记（2026-09-14）
 

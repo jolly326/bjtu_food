@@ -7,10 +7,10 @@
 
 | 文件名前缀 | 板块 | 代码目录 | 说明 |
 |---|---|---|---|
-| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 16 个功能；业务数据的唯一产生源 |
+| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **15 个在线功能**（A-07 评价「有用」已于 2026-09-20 全链下线，编号留痕不重排）；业务数据的唯一产生源 |
 | `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 6 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
 
-> 阅读约定：每份文档固定为 **干什么 → UI → 操作 → 接口 → 字段（字段名 + 中文解释）→ 数据** 六段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（QA 工作流见 `.codebuddy/rules/feature-doc-qa-workflow.md`）。
+> 阅读约定：每份文档固定为 **干什么 → UI → 操作 → 接口 → 字段（字段名 + 中文解释）→ 数据** 六段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（讨论期「不动代码 + 持续设计审视」义务见 `.codebuddy/rules/doc-discussion-no-code-and-review.md`，文档 / 代码同步口径见 `.codebuddy/rules/docs-first-sync-and-db-direct.md`）。
 > **正文只保留最终设计形态（2026-09-22 定稿）**：正文不写落地状态（「待实现 / 已落地 / 当前实现为 …」等一律不写）；**与现有代码不一致的条目一律集中在文末「与当前代码的差异」板块**，差异清零时该板块保留标题并写「无（文档与代码一致）」。
 > **UI 段已拆出（2026-09-22）**：各页面的 UI 设计稿统一维护在 [`docs/ui/`](../ui/)（与功能文档**同名一一对应**），本目录六段中 `## UI` 位置仅保留指向该文件的指针；**UI 设计口径以 `docs/ui/` 为唯一真源**，功能流程 / 接口 / 字段 / 数据口径仍以本目录为准。
 > 字段口径：字段名以**接口实况**为准（后端 Java DTO/VO 出参，统一 camelCase）；类型列的 `number / string / boolean / array / object / null` 为 JSON 侧类型。
@@ -20,12 +20,12 @@
 | 标记 | 含义 | 适用 |
 |---|---|---|
 | 🔓 公开 | 免登录即可调用 | 学生端浏览、搜索、反馈提交等 |
-| 🔐 认证 | 需学号邮箱认证（**已认证判据 = `bindEmail` 非空**），未认证返回 **4031** | 学生端 UGC 写操作（评价、评价点赞） |
+| 🔐 认证 | 需学号邮箱认证（**已认证判据 = `bindEmail` 非空**），未认证返回 **4031** | 学生端 UGC 写操作（发表 / 修改 / 删除本人评价、查看「我的评价」） |
 | 🔑 口令 | 管理端 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403） | 全部 `/admin/**` 与 `/upload/image` |
 
 ---
 
-## client- · 学生端（微信小程序，16 个）
+## client- · 学生端（微信小程序，15 个在线功能）
 
 | 编号 | 功能 | 文档 | 鉴权 | 状态 |
 |---|---|---|---|---|
@@ -35,7 +35,7 @@
 | A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 | — |
 | A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 自动（接口需登录） | — |
 | A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 | — |
-| ~~A-07~~ | ~~评价「有用」~~ **⛔ 已于 2026-09-20 全链下线**（spec §7.30 清单 #1） | [client-评价有用.md](./client-评价有用.md)（历史留痕） | — | — |
+| ~~A-07~~ | ~~评价「有用」~~ **⛔ 已于 2026-09-20 全链下线**（spec §7.30 清单 #1） | —（**文档已删除**，编号留痕不指向文件） | — | — |
 | A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | — |
 | A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | — |
 | A-10 | 我的评价 | [client-我的评价.md](./client-我的评价.md) | 🔐 | — |
@@ -79,7 +79,6 @@
 | `total` | number | 符合条件总条数 |
 | `page` | number | 实际生效页码（服务端归一化后的值，非原始入参） |
 | `pageSize` | number | 实际生效每页条数（同上） |
-| `list` | T[] | 过渡期兼容字段，**恒等于 `records`**，新代码勿用 |
 
 ### 金额约定
 
@@ -96,7 +95,6 @@
 | `RatingDistributionVO` | 同上（评分分布项） | [client-菜品详情](./client-菜品详情.md#响应--get-dishesid-data--dishdetailvo) |
 | `GuessLikeVO` | `GET /dishes/for-you`（**2026-09-22 改名 + 语义变更**：原 `HotSearchVO` / `GET /dishes/hot-search`；现为随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
 | `ReviewVO` | `GET /reviews`、`GET /my/reviews` | [client-菜品详情](./client-菜品详情.md#响应--get-reviews-data--page-resultreviewvo) ／ [client-我的评价](./client-我的评价.md) |
-| `UsefulResult` | `POST /reviews/{id}/useful` | [client-评价有用](./client-评价有用.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginResp` | 登录 / 认证响应（`token` + `userInfo`） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
@@ -111,12 +109,12 @@
 
 ## QA 工作流（提问 → 答复 → 拍板 → 更新）
 
-> 规则已固化为 `.codebuddy/rules/feature-doc-qa-workflow.md`，对 `docs/feature/` 下所有功能文档生效。
+> 规则已固化为 `.codebuddy/rules/doc-discussion-no-code-and-review.md`（讨论期不动代码 + 持续设计审视）与 `.codebuddy/rules/docs-first-sync-and-db-direct.md`（文档优先 / 同步口径），对 `docs/feature/` 下所有功能文档生效。
 
 1. **提问**：在对应功能文档末尾追加一行 `Q:你的问题`（无需管格式）。
 2. **答复**：我把 `Q:` 归一为 `### Q：` 标题、紧随补 `**A：**` 答复（先核实代码实况 / 平台规则再作答），并同步更新本 README 的「需拍板的待办清单」。
 3. **拍板**：你在后续 `Q:` 中确认结论（如「确定下来了」）。
-4. **更新**：我把拍板结论写回该文档正文六段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，先由技术负责人修订 `project_spec.md` / `api-design.md` 再动代码。
+4. **更新**：我把拍板结论写回该文档正文六段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，先修订 `project_spec.md` 再动代码（`docs/api-design.md` / `docs/database.md` / `docs/architecture.md` 三份已于 2026-09-22 删除，口径统一收敛至 `docs/project_spec.md`）。
 5. 全部功能核验通过 = 产品验收完成。
 
 ---
@@ -125,7 +123,7 @@
 
 | # | 事项 | 建议 | 影响面 | 详见 |
 |---|---|---|---|---|
-| 1 | 删除评价「有用」 | **已落地（2026-09-20）**：原拍板「删除」（2026-09-17），spec §7.14/§7.18 与 api-design §2.3 已同步 | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | [client-评价有用](./client-评价有用.md) |
+| 1 | 删除评价「有用」 | **已落地（2026-09-20）**：原拍板「删除」（2026-09-17），spec §7.14/§7.18 已同步 | 跨三端 + `review_useful` 表 + `review.useful_count` + 评价默认排序改为 `created_at DESC` | ✅ 已闭环（功能文档已删除） |
 | 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md) |
 | 3 | 浏览计数去掉当日去重 | **建议不改**（改前须定：含游客？风控？`view_log` 存废？） | 后端 + `view_log` + 热度排序口径（须先改 spec） | [client-浏览计数](./client-浏览计数.md) |
 | 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md) |

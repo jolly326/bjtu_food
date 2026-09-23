@@ -53,7 +53,7 @@
 ### Requirement: 处理动作触发用户回执
 
 管理员将反馈标记为已处理（含回复内容）时，后台 SHALL 一并触发面向提交人的回执投递（细则见 `feedback-receipt`）。处理结果 SHALL 以管理员回复为回执正文；无回复时 SHALL 仍可标记处理并给出通用回执文案。
-（**2026-09-15 收紧**：`reply` 恒必填——1~1000 字、纯空白视为未填写 → `400`；「不采纳 / 退回」`outcome='rejected'` 时另需必填 `reject_reason`，见 `project_spec.md` §7.23 第 5 条与 `docs/api-design.md` §5.4。）
+（**2026-09-15 收紧**：`reply` 恒必填——1~1000 字、纯空白视为未填写 → `400`；「不采纳 / 退回」`outcome='rejected'` 时另需必填 `reject_reason`，权威口径见 `docs/project_spec.md` §7.23 第 5 条。）
 
 #### Scenario: 处理后回执已投递
 

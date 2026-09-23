@@ -35,11 +35,11 @@
 - **THEN** 跳转至 home 根页，「首页」项高亮，导航栈同样被重置
 
 ### Requirement: 视觉与交互规范
-菜单栏 SHALL 使用 `--bg-card` 表面色（白底卡片）；每项由 `IconSvg`（home / profile）图标 + 文字标签组成，active 项以对比色 `--color-primary` 区分，且 active 项图标 SHALL 切换为**填充样式**，与未选中项的线性样式形成区分，图标与文字 SHALL 同步变为主色；交互使用 `@tap`、按压反馈 `scale(var(--press-scale))`，颜色一律走设计 token（禁裸 hex），并支持 `prefers-reduced-motion` 降级（关闭按压位移/弹性）。
+菜单栏 SHALL 使用 `--bg-card` 表面色（白底卡片）；每项由 `IconSvg`（home / profile）图标 + 文字标签组成，active 项以对比色 `--color-primary` 区分，且 active 项图标 SHALL 切换为**填充样式**，与未选中项的线性样式形成区分，图标与文字 SHALL 同步变为主色；交互使用 `@tap`，颜色一律走设计 token（禁裸 hex）。按压反馈 SHALL 走全局 `.pressed` 的 **opacity 弱化**（`hover-class="pressed"`，与 `client-ui-motion`「动效全部删除、按压仅 opacity」一致）；SHALL NOT 使用 `transform: scale()` —— 按压缩放令牌 `--press-scale` 与 `<Pressable>` 组件均已删除、全站 0 引用。
 
-#### Scenario: 减少动效偏好开启
-- **WHEN** 系统开启 `prefers-reduced-motion`
-- **THEN** 菜单栏项按压时不产生 `scale` 位移过冲，仅保留必要透明度过渡
+#### Scenario: 按压反馈为 opacity 弱化
+- **WHEN** 用户按压任一菜单项
+- **THEN** 该项以全局 `.pressed` 的透明度弱化反馈，不产生 `scale` 缩放或位移
 
 #### Scenario: 选中态图标填充
 - **WHEN** 用户切换到某一主根页

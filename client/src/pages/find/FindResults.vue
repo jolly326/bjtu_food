@@ -38,10 +38,13 @@
                   <text
                     v-for="(seg, si) in splitHighlight(item.name)"
                     :key="si"
+                    :class="{ hit: seg.hit }"
                   >{{ seg.text }}</text>
                 </text>
                 <view v-if="item.rating != null" class="mixed-rating-group">
-                  <IconSvg name="star-filled" :size="26" color="var(--color-primary)" class="mixed-rating-star" />
+                  <!-- 星色 = 独立语义 token `--color-star`（黄 #FBBF24），**不随主色换肤**
+                       （project_spec.md §4.2 / §7.39 第 2 条）。旧实现传 `--color-primary` 属缺陷。 -->
+                  <IconSvg name="star-filled" :size="26" color="var(--color-star)" class="mixed-rating-star" />
                   <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
                 </view>
               </view>
@@ -58,6 +61,7 @@
                 <text
                   v-for="(seg, si) in splitHighlight(item.sub || '')"
                   :key="si"
+                  :class="{ hit: seg.hit }"
                 >{{ seg.text }}</text>
               </text>
             </view>
@@ -145,11 +149,23 @@ function selectRow(item: MixedResultItem) {
   min-height: 0;
   padding-bottom: var(--spacing-lg);
 }
-/* 搜索结果列表（仅菜品，一行一个，左图右信息）
-   顶部间距收紧：首卡贴近 FilterBar，不再叠加 md 大留白（find-result-card-polish 5.1） */
+/* 搜索结果列表（仅菜品，一行一个，左图右信息）。
+   顶部间距的**唯一来源 = 宿主页搜索行的下 padding**（UI 文档 §2：块间 `--spacing-lg`），
+   本组件不再叠加任何 margin-top（旧注释「贴近 FilterBar」所指的筛选条已于 2026-09-22 全量下线，
+   该口径一并作废）。 */
 .mixed-list { margin: 0 var(--spacing-md) var(--spacing-md); }
-/* 单条结果视觉平衡：保留适度顶部空间但不产生过大空档 */
-.mixed-list.single { margin-top: var(--spacing-md); }
+/* 单条结果：结果区**垂直居中**，把留白分到卡片上下两侧（UI 文档 §4「少量结果」）。
+   旧实现 `margin-top: 12px` → 卡片悬顶、下方约 70% 屏高空白，读作「还没加载完」。
+   ⚠️ 依赖 scroll-view 有确定高度（宿主 `.results-scroll` 为 `flex:1; min-height:0`）；
+   `min-height:100%` 在 mp-weixin 的表现须随真机走查复核。 */
+.mixed-list.single {
+  margin-top: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
 
 /* ===== 单卡样式（原 DishResultRow 内联，find-result-card-polish） ===== */
 .mixed-item {
@@ -158,8 +174,9 @@ function selectRow(item: MixedResultItem) {
   gap: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  /* 卡内边距：上下 28rpx(≈14px)、左右 32rpx(=16px)，对齐 8 基网格 */
-  padding: 28rpx var(--spacing-lg);
+  /* 卡内边距（UI 文档 §2）：上下 `--spacing-md`(24rpx/12px)、左右 `--spacing-lg`(32rpx/16px)。
+     旧值 28rpx = 3.5×8 **不在 8 基网格上**（与当时注释自称「对齐 8 基网格」自相矛盾），已收口。 */
+  padding: var(--spacing-md) var(--spacing-lg);
   box-shadow: var(--shadow-card);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -194,11 +211,17 @@ function selectRow(item: MixedResultItem) {
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-/* 命中片段不再上主色：红仅保留给价格（find-result-card-polish） */
+/* 命中片段：仅**字重加深**，不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。
+   修复「搜什么、结果就叫什么」时命中零反馈、无从扫读的问题。 */
+.mixed-name .hit { font-weight: var(--weight-heavy); }
+.mixed-sub-text .hit { font-weight: var(--weight-heavy); }
+/* 划线原价：辅助档三级灰（旧注释「命中片段不再上主色」与本行无关，属错位，已更正） */
 .mixed-original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 .mixed-price-group { display: flex; align-items: baseline; gap: var(--spacing-2xs); flex-shrink: 0; }
-/* 价格：专用主色 + 600，卡片唯一高饱和强调 */
-.mixed-price { font-size: var(--font-title); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+/* 价格：专用主色 + 600，卡片唯一高饱和强调。
+   字号 = `--font-h3`(36rpx)，**低于菜名一档**（菜名 `--font-title` 44rpx）——
+   旧口径与菜名同档，两个最高权重元素并列造成焦点竞争，且与 UI 文档 §4「价格作**第二**视觉重心」相悖。 */
+.mixed-price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
 .mixed-rating-group { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
 .mixed-rating-star { flex-shrink: 0; }

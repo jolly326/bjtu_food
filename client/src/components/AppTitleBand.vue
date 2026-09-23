@@ -11,7 +11,11 @@
       :style="{ opacity: veilOpacity }"
     ></view>
 
-    <!-- 二级页：返回 icon。容器左缘与页面级 gutter 同轴、命中区 88×88rpx（≥44px） -->
+    <!-- 二级页：返回 icon。容器左缘与页面级 gutter 同轴、命中区 88×88rpx（≥44px）。
+         ⚠️ size=88（rpx 单位，= 44px 画布）：`arrow-left` 路径在 24 网格中纵向仅占 12/24，
+         故其**绘制高 = 44rpx = `--font-title`（标题字号）** —— 光学尺寸与标题相仿。
+         旧值 size=22（22rpx 画布 → 绘制高仅 11rpx/5.5px）不足标题 1/4，用户走查判「过小」
+         （docs/ui/client-搜索.md §2 / §7.39 第 3 条）。 -->
     <view
       v-if="back"
       class="title-back"
@@ -20,7 +24,7 @@
       hover-class="title-back-pressed"
       @tap="emit('back')"
     >
-      <IconSvg name="arrow-left" :size="22" :color="COLOR_MAP['text-primary']" class="title-back-icon" />
+      <IconSvg name="arrow-left" :size="88" :color="COLOR_MAP['text-primary']" class="title-back-icon" />
     </view>
     <!-- 主 Tab 页：页面标题（黑色粗体大号；不做白字 / 不描边 / 不加遮罩） -->
     <text v-else class="title-text">{{ title }}</text>

@@ -19,9 +19,11 @@ onLaunch(() => {
 <style>
 /* ========== 全局设计 Token（Apple Design 风格） ==========
    设计 Token 值以 theme/tokens.ts 为单一事实源。
-   UI-03（spec §4.2）：颜色变量块由 scripts/gen-css-vars.ts 从 tokens.ts 的 CSS_VARS
-   生成至 theme/generated-colors.css，此处 @import 引入（构建期由 vite/postcss 内联进 app.wxss）。
-   **颜色块由 gen:tokens 生成，禁止手工编辑**；改色值只改 tokens.ts 后运行 npm run gen:tokens。
+   UI-03（spec §4.2）：颜色变量块集中于 theme/generated-colors.css，此处 @import 引入
+   （构建期由 vite/postcss 内联进 app.wxss）。
+   **色值只改 tokens.ts 的 COLOR_MAP / CSS_VARS**；2026-09-23 起生成脚本
+   `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 已删除，generated-colors.css
+   改为**手工同步**（内容须与 CSS_VARS 逐键一致），见 spec §4.2 / §7.39。
    本文件仅保留非颜色 token（圆角/间距/字号/高度/动效/层级）与 var() 派生引用（不含裸色值）。
    - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须落在 App.vue；
    - 微信小程序 WXSS 不支持 :root 选择器，故必须以 page 承载；

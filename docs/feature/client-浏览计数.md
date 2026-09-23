@@ -27,9 +27,9 @@
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
-| `id` | number | **是** | 菜品 ID（路径参数，如 `/dishes/1/view`）。**无请求体**；用户身份从 JWT 取，端上不传 userId |
+| `id` | number | **是** | 菜品 ID（路径参数，如 `/dishes/1/views`）。**无请求体**；用户身份从 JWT 取，端上不传 userId |
 
-### 响应 · `POST /dishes/{id}/view`（`data` = `null`）
+### 响应 · `POST /dishes/{id}/views`（`data` = `null`）
 
 统一信封 `{ code, message, data }`，本接口 `data` 恒为 `null`：
 
