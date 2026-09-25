@@ -1,11 +1,9 @@
 <template>
-  <!-- 说明（2026-09-22 change `search-page-refresh`）：本组件只承载**二级页**「返回箭头 + 居中标题」。
-       原 `home` variant（首页头部）与 `search` variant（搜索页头）均已退役——
+  <!-- 本组件只承载**二级页**「返回箭头 + 居中标题」。
        首页头部在 `pages/home/index.vue` 自持（固定标题带 + 吸顶容器），
-       搜索页顶部改由「`AppTitleBand`（返回 icon）+ `SearchBar`（首页同款搜索行）」两段式承载。 -->
+       搜索页顶部由「`AppTitleBand`（返回 icon）+ `SearchBar`（首页同款搜索行）」两段式承载。 -->
 
-  <!-- 二级页：返回箭头 + 居中标题 + 右上角留空。
-       2026-09-22 change `search-page-refresh`：`search` variant **已退役**——搜索页顶部改由
+  <!-- 二级页：返回箭头 + 居中标题 + 右上角留空；搜索页顶部由
        「`AppTitleBand`（返回 icon 占标题位）+ `SearchBar`（与首页同款搜索行）」两段式承载。 -->
   <view class="header-wrap" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
@@ -119,7 +117,5 @@ function handleBack() {
   white-space: nowrap;
 }
 
-/* `.header-wrap.home` / `.home-search*`（首页头部）与 `.search-nav` / `.search-box*`（搜索页头部）
-   的样式已随两个 variant 退役一并删除（2026-09-22 change `search-page-refresh`）——
-   首页头部在 `pages/home/index.vue`、搜索页顶部在 `AppTitleBand` + `SearchBar`。 */
+/* 首页头部样式在 `pages/home/index.vue`、搜索页顶部在 `AppTitleBand` + `SearchBar`；本组件仅承载二级页头部。 */
 </style>

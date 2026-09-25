@@ -2,80 +2,57 @@
   <view class="page feedback-page">
     <Header title="意见反馈" @back="goBack" />
 
-    <!-- 轻量单视图 · 动态表单（三类型等宽卡片 + 结构化字段） -->
-    <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
-      <!-- 类型图标卡片（三列等宽：左侧 icon + 右侧一行标题） -->
-      <view class="type-row">
+    <!-- 顶部双模式切换：分段控件，两段等宽 -->
+    <view class="seg-wrap">
+      <view class="seg" role="tablist" aria-label="反馈模式切换">
         <view
-          v-for="t in types"
-          :key="t.value"
-          class="type-card"
-          :class="{ active: type === t.value }"
-          hover-class="pressed"
+          v-for="m in modes"
+          :key="m.value"
+          class="seg-item"
+          :class="{ active: mode === m.value }"
+          hover-class="seg-pressed"
           hover-stay-time="80"
-          role="radio"
-          :aria-checked="type === t.value"
-          :aria-label="t.label"
-          @tap="type = t.value"
+          role="tab"
+          :aria-selected="mode === m.value ? 'true' : 'false'"
+          :aria-label="m.label"
+          @tap="mode = m.value"
         >
-          <view class="type-icon">
-            <IconSvg :name="t.icon" :size="36" :color="type === t.value ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
-          </view>
-          <view class="type-copy">
-            <text class="type-line">{{ t.label }}</text>
-            <text v-if="type === t.value" class="type-desc">{{ t.desc }}</text>
-          </view>
+          <text class="seg-text">{{ m.label }}</text>
         </view>
       </view>
+    </view>
 
-      <!-- 来源承接行：仅由贡献入口带参进入时出现，说明「我从哪来」；切换类型后消失 -->
-      <view v-if="sourceHint" class="source-hint">
-        <text class="source-hint-text">{{ sourceHint }}</text>
-      </view>
-
-      <!-- 动态字段区 -->
+    <!-- 轻量单视图 · 动态表单（两模式各自独立子树，切换互不清空、保留各自草稿） -->
+    <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view class="q-card">
-        <!-- 三套表单字段区：由包内私有组件承载（feedback-form-component-split，一级拆分）；
-             submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1） -->
-        <SuggestionForm
-          v-if="type === 'suggestion'"
-          :model="form.suggestion"
+        <!-- 两套表单字段区：由包内私有组件承载（一级拆分，就近组织）；
+             submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
+        <IssueForm
+          v-if="mode === 'issue'"
+          :model="issue"
           :errors="fieldErrors"
           :submitting="submitting"
           @clear="clearError"
         />
-        <AddForm
-          v-else-if="type === 'add'"
-          :model="form.add"
-          :errors="fieldErrors"
-          :submitting="submitting"
-          @clear="clearError"
-          @open-location="openLocationSheet"
-          @open-floor="openFloorSheet"
-          @stall-tap="onStallRowTap"
-        />
-        <ErrorForm
-          v-else-if="type === 'error'"
-          :model="form.error"
-          :points="correctionPoints"
+        <UpdateForm
+          v-else
+          :model="update"
+          :detail-loading="update.detailLoading"
           :errors="fieldErrors"
           :submitting="submitting"
           @clear="clearError"
           @open-dish="openDishSheet"
           @reset-dish="resetDish"
-          @toggle="togglePoint"
         />
       </view>
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
            外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
       <view class="submit-area" @tap="onSubmitAreaTap">
-        <!-- 处理说明：仅投稿类目（add / error）展示（spec §7.7 第 2 条） -->
-        <text v-if="submitPendingHint" class="submit-note">{{ submitPendingHint }}</text>
-        <!-- 处理承诺：48 小时内处理（spec §7.8 第 4 条） -->
-        <text class="submit-note">我们会在 48 小时内处理你的反馈，处理结果将通过站内通知告知</text>
+        <!-- 处理承诺：issue 沿用 48 小时口径；update 强调管理员核实后更新（不得暗示提交即生效） -->
+        <text class="submit-note">{{ submitNote }}</text>
         <AppButton
-          :text="submitting ? '提交中…' : '提交反馈'"
+          :text="submitButtonText"
           :disabled="!canSubmit"
           :loading="submitting"
           @press="submit"
@@ -83,49 +60,12 @@
       </view>
     </scroll-view>
 
-    <!-- ===== 底部选择器：位置（食堂 → 档口 两级联动，ListPickerSheet 单实例 locStep 切换） ===== -->
-    <ListPickerSheet
-      :open="locSheetOpen"
-      :title="locStep === 'canteen' ? '选择食堂' : '选择档口'"
-      :backable="locStep === 'stall'"
-      :options="locOptions"
-      row-style="plain"
-      :selected-key="locSelectedKey"
-      @close="closeLocationSheet"
-      @back="locStep = 'canteen'"
-      @select="onLocSelect"
-    >
-      <!-- 尾部「其他」自定义输入（仅选中「其他」时由默认槽承载） -->
-      <view v-if="locCustomShown" class="pick-custom">
-        <input
-          :value="locCustomValue"
-          class="pick-custom-input"
-          :placeholder="locStep === 'canteen' ? '写一下食堂名' : '写一下档口名'"
-          maxlength="50"
-          :cursor-spacing="40"
-          :adjust-position="true"
-          @input="onLocCustomInput"
-        />
-      </view>
-    </ListPickerSheet>
-
-    <!-- ===== 底部选择器：楼层（1/2/3） ===== -->
-    <ListPickerSheet
-      :open="floorSheetOpen"
-      title="选择楼层"
-      :options="floorPickerOptions"
-      row-style="plain"
-      :selected-key="form.add.floor || null"
-      @close="closeFloorSheet"
-      @select="onFloorSelect"
-    />
-
-    <!-- ===== 底部选择器：菜品（搜索 + 列表 + 空态去补录） ===== -->
+    <!-- ===== 底部选择器：菜品（搜索 + 简洁结果列表：名称 + 档口） ===== -->
     <ListPickerSheet
       :open="dishSheetOpen"
       title="选择菜品"
       searchable
-      search-placeholder="搜菜名 / 食堂"
+      search-placeholder="搜菜名"
       :search-initial="dishKeyword"
       :options="dishPickerOptions"
       row-style="plain"
@@ -133,23 +73,14 @@
       @search="onDishSearchKw"
       @select="onDishPick"
     >
-      <!-- 列表区内空态：无关键词引导 / 无结果「去补录一道」CTA -->
+      <!-- 列表区内空态：无关键词引导 / 无结果提示 -->
       <template #empty>
-        <view v-if="dishSearched && !dishPickerOptions.length" class="pick-empty">
-          <text class="pick-empty-text">没搜到「{{ dishKeyword }}」</text>
-          <view
-            class="pick-goto-add"
-            hover-class="pressed"
-            hover-stay-time="80"
-            role="button"
-            aria-label="去推荐菜品补录"
-            @tap="gotoAdd"
-          ><text class="pick-goto-add-text">去补录一道</text></view>
+        <view v-if="dishKeyword && dishSearched && !dishPickerOptions.length" class="pick-empty">
+          <text class="pick-empty-text">没搜到「{{ dishKeyword }}」，换个关键词试试</text>
         </view>
         <view v-else-if="!dishKeyword" class="pick-empty">
           <text class="pick-empty-text">输入关键词搜索菜品</text>
         </view>
-        <!-- 搜索进行中（防抖未回）/ 已有关键词但无结果外：留空 -->
       </template>
     </ListPickerSheet>
   </view>
@@ -157,31 +88,25 @@
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页（页面入口：mine 宫格；首页「反馈菜品」入口带 object/name/id 预选）
- * - 三类型（suggestion/add/error）单视图动态切换，编排逻辑抽包内私有 `useFeedback.ts`；
- *   包内子件：SuggestionForm / AddForm / ErrorForm / useFeedback（一级拆分/就近组织）。
+ * feedback —— 意见反馈页（入口：mine 宫格缺省 issue / 菜品详情「信息有误？」带 update+dishId）
+ * - 顶部双模式分段控件（issue 反馈问题 / update 更新信息），两段等宽；
+ * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件：IssueForm / UpdateForm / ListPickerSheet（一级拆分）；
  * - 本文件仅保留模板贴片组装与子件引用；生命周期 / 提交门禁 / 弹层联动见 useFeedback。
  */
+import { computed } from 'vue'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
-import IconSvg from '@/components/IconSvg.vue'
 import ListPickerSheet from './ListPickerSheet.vue'
-import SuggestionForm from './SuggestionForm.vue'
-import AddForm from './AddForm.vue'
-import ErrorForm from './ErrorForm.vue'
+import IssueForm from './IssueForm.vue'
+import UpdateForm from './UpdateForm.vue'
 import { useFeedback } from './useFeedback'
-import { COLOR_MAP } from '@/theme/tokens'
 
 const {
   goBack,
-  types,
-  type,
-  sourceHint,
-  submitPendingHint,
-  form,
-  canSubmit,
-  gateHint,
-  onSubmitAreaTap,
+  modes,
+  mode,
+  issue,
+  update,
   dishSheetOpen,
   dishKeyword,
   dishPickerOptions,
@@ -190,99 +115,74 @@ const {
   closeDishSheet,
   onDishSearchKw,
   onDishPick,
-  gotoAdd,
   resetDish,
-  correctionPoints,
-  togglePoint,
-  locSheetOpen,
-  locStep,
-  locOptions,
-  locSelectedKey,
-  locCustomShown,
-  locCustomValue,
-  openLocationSheet,
-  closeLocationSheet,
-  onLocCustomInput,
-  onLocSelect,
-  onStallRowTap,
-  floorSheetOpen,
-  floorPickerOptions,
-  openFloorSheet,
-  closeFloorSheet,
-  onFloorSelect,
   fieldErrors,
   scrollIntoView,
   submitting,
   clearError,
+  canSubmit,
+  gateHint,
+  onSubmitAreaTap,
   submit,
 } = useFeedback()
+
+/** 提交按钮文案：直白具体（issue 提交反馈 / update 提交更新），不用模糊统称 */
+const submitButtonText = computed(() =>
+  submitting.value ? '提交中…' : mode.value === 'issue' ? '提交反馈' : '提交更新',
+)
+
+/** 处理说明：按模式区分（spec 反馈处理预期口径；update 不得暗示提交即生效） */
+const submitNote = computed(() =>
+  mode.value === 'issue'
+    ? '我们会在 48 小时内处理你的反馈，处理结果将通过站内通知告知'
+    : '提交后由管理员核实，确认无误后更新菜品信息',
+)
 </script>
 
 <style scoped>
-/* Q 版暖调：页面底用奶油米白 --bg-warm（feedback-forms-ux-polish） */
+/* Q 版暖调：页面底用奶油米白 --bg-warm（沿用 feedback-forms-ux-polish） */
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-warm); }
 
-/* 主滚动区：底部预留固定底栏高度 + safe-area（防遮挡） */
+/* 主滚动区：底部 safe-area 避让（提交区随内容滚动，无固定底栏） */
 .scroll-wrap {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* 底部安全区避让：滚动到底时不遮挡提交区 */
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
 }
 
-/* ===== 顶部类型入口：三枚等宽大胶囊（Q 版满圆；选中主色浅底 + 主色文字档，未选中白底浅灰细边） ===== */
-.type-row {
+/* ===== 顶部双模式分段控件：等宽两段（轨道浅底 + 选中白卡浮起，iOS 分段观感） ===== */
+.seg-wrap { padding: var(--spacing-md) var(--spacing-md) var(--spacing-xs); }
+.seg {
   display: flex;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xs);
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs);
+  background: var(--bg-soft);
+  border-radius: var(--radius-pill);
 }
-.type-card {
+.seg-item {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
+  height: 76rpx;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-2xs);
-  padding: var(--spacing-sm) var(--spacing-xs);
-  background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-warm);
-  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.type-card.active {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary);
+.seg-item.active {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-warm);
 }
-/* 按压反馈：统一 bg-soft 语言（与 mine 宫格一致）；选中态按下保持主色浅底，避免翻灰 */
-.type-card.pressed { background-color: var(--bg-soft); }
-.type-card.active.pressed { background: var(--color-primary-soft); }
-.type-icon {
-  width: 72rpx;
-  height: 72rpx;
-  flex-shrink: 0;
-  border-radius: var(--radius-circle);
-  background: var(--bg-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.type-card.active .type-icon { background: var(--bg-card); }
-.type-copy { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-2xs); }
-.type-line { font-size: var(--font-small); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1.3; white-space: nowrap; }
-.type-card.active .type-line { color: var(--color-primary-text); }
-.type-desc { font-size: var(--font-tiny); color: var(--color-primary-text); line-height: 1.3; }
+/* 按压反馈：统一 opacity（与全站按压语言一致）；选中态按下保持白卡不翻灰 */
+.seg-pressed { opacity: 0.7; }
+.seg-text { font-size: var(--font-body); font-weight: var(--weight-medium); color: var(--text-secondary); }
+.seg-item.active .seg-text { color: var(--color-primary-text); font-weight: var(--weight-semibold); }
 
-/* ===== 来源承接行：由贡献入口带参进入时出现（三级灰小字，只读，不与表单字段耦合） ===== */
-.source-hint { padding: 0 var(--spacing-lg) var(--spacing-xs); }
-.source-hint-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.5; }
-
-/* ===== 表单外层 Q 卡（替代 CardSection 观感：大圆角 + 暖调柔和阴影，内部模块靠间距分层） ===== */
+/* ===== 表单外层 Q 卡（大圆角 + 暖调柔和阴影，内部模块靠间距分层） ===== */
 .q-card {
   margin: var(--spacing-xs) var(--spacing-md) 0;
   padding: var(--spacing-lg);
@@ -291,42 +191,15 @@ const {
   box-shadow: var(--shadow-warm);
 }
 
-/* ===== ListPickerSheet 尾部「其他」自定义输入（默认槽承载） ===== */
-.pick-custom { padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md); box-sizing: border-box; }
-.pick-custom-input {
-  width: 100%;
-  height: 76rpx;
-  background: var(--bg-input);
-  border-radius: var(--radius-icon);
-  padding: 0 var(--spacing-md);
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  box-sizing: border-box;
-  border: 2rpx solid var(--color-primary);
-}
-
-/* ===== ListPickerSheet 列表空态（菜品搜索引导 / 无结果去补录 CTA） ===== */
+/* ===== ListPickerSheet 列表空态 ===== */
 .pick-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-md); }
 .pick-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-.pick-goto-add {
-  min-width: 200rpx;
-  height: 68rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--spacing-lg);
-  background: var(--color-primary);
-  border-radius: var(--radius-pill);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-.pick-goto-add-text { font-size: var(--font-small); color: var(--bg-card); font-weight: var(--weight-semibold); }
 
 /* ===== 提交反馈（表单最下方，随内容滚动，非固定） ===== */
 .submit-area {
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 }
-/* 提交区说明行（处理说明 / 48h 处理承诺）：三级灰小字，只读，不参与交互 */
+/* 提交区说明行（处理承诺 / 核实说明）：三级灰小字，只读，不参与交互 */
 .submit-note {
   display: block;
   margin-bottom: var(--spacing-xs);
@@ -335,7 +208,4 @@ const {
   line-height: 1.5;
   text-align: center;
 }
-/* 滚动区底部留白（配合固定底栏） */
-
-
 </style>

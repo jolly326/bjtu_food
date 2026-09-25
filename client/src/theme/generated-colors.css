@@ -2,8 +2,7 @@
  * generated-colors.css —— 色值唯一真源导出（spec §4.2 / §7.39）
  * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
  *
- * ⚠️ 2026-09-23 对齐现状：生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens`
- *    已在本工作区删除 → 本文件**改为手工维护**（含本注释头）。
+ * 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不在本工作区，本文件**手工维护**（含本注释头）。
  *    维护规则不变：内容 SHALL 与 tokens.ts 的 CSS_VARS 逐键一致；
  *    改色值只改 tokens.ts，随后同步本文件；禁止在本文件引入 tokens.ts 没有的键。
  *    恢复脚本化生成须重新登记（见 spec §4.2 / §7.39）。

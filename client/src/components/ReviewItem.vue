@@ -46,6 +46,8 @@
         </view>
         <text class="review-time">{{ formatDateTime(review.createdAt) }}</text>
       </view>
+      <!-- 菜名行（可选，本人视角列表用）：辨识是哪道菜的评价 -->
+      <text v-if="dishName" class="review-dish">{{ dishName }}</text>
       <text class="review-content">{{ review.content }}</text>
       <!-- 配图行（≤3 张 COS URL）：等比小方图，点击预览大图；破图兜底 empty 中性占位 -->
       <view v-if="reviewImages.length" class="review-images">
@@ -67,7 +69,7 @@
           </view>
         </view>
       </view>
-      <!-- 评价卡片不展示任何互动按钮（原「有用」按钮与计数已全链下线，2026-09-20）：
+      <!-- 评价卡片不展示任何互动按钮（无「有用」按钮与计数）：
            操作仅保留右上角三点菜单（本人删除 / 他人举报）。 -->
     </view>
   </view>
@@ -91,9 +93,11 @@ const props = defineProps<{
   currentUserId?: number
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
+  /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
+  dishName?: string
 }>()
-// 2026-09-20（任务 6.3 零消费扫描）：原 `hideReport` / `deletable` 两个 prop 全仓零传入
-// （「我的评价」页自持卡片、不再复用本组件），按 PR-05 删除；三点菜单收敛为常驻唯一入口。
+// `hideReport` / `deletable` 两个 prop 全仓零传入（「我的评价」页复用本组件、经 `dishName` prop 注入菜名），
+// 按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
 const emit = defineEmits<{
   (e: 'report', review: Review): void
@@ -192,6 +196,16 @@ function onMore() {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-2xs);
+}
+
+/* 菜名行（本人视角列表）：次级加粗小字，辨识评价所属菜品 */
+.review-dish {
+  font-size: var(--font-small);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 头部：昵称（左）+ 竖三点（右，绝对定位不撑高头行，保证昵称与第二行间距紧凑） */

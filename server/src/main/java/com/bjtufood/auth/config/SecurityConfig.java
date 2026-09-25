@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets;
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
  * - GET /banners（首页顶部轮播图，2026-09-22 新增；/** 无写接口）
- * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）
+ * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
  * - 注：GET /canteens 白名单已于 2026-09-22 删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
  * - Swagger UI (SpringDoc) 相关路径
  */
@@ -63,6 +63,10 @@ public class SecurityConfig {
             "/auth/verify-email", "/api/auth/verify-email",
             // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback", "/api/feedback",
+            // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
+            "/feedback/report-reasons", "/api/feedback/report-reasons",
+            // 菜品信息纠错提交（PUB：匿名允许，对齐 feedback 提交口径；IP 限频在 Controller 层）
+            "/dishes/*/correction", "/api/dishes/*/correction",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**", "/api/swagger-ui/**",
             "/v3/api-docs/**", "/api/v3/api-docs/**",
@@ -87,22 +91,6 @@ public class SecurityConfig {
             "/images/**", "/api/images/**",
     };
 
-    /**
-     * 仅 POST 放行的公开写接口（**例外白名单，逐条登记**）。
-     * <p>
-     * 当前唯一成员：{@code POST /dishes/{id}/views}（浏览量上报）。2026-09-23 §7.41 拍板
-     * 「不做人员与时间限制，load 一次即 +1」→ 端点**转公开以覆盖游客**。
-     * <p>
-     * <b>这是匿名写接口</b>：其滥用防护**不在本类**，而由 {@code DishController#addView} 内的
-     * {@code IpRateLimiter}（IP 维度限频）承担 —— 见该方法注释与 §7.41 第 3 条。
-     * <p>
-     * ⚠️ <b>必须用单段通配 {@code *} 而非 {@code /**}</b>：后者会一并放行
-     * {@code POST /dishes/{id}/reviews}（同为菜品 POST 子资源，但**需登录 + 需认证**）。
-     */
-    private static final String[] PUBLIC_POST_PREFIXES = {
-            "/dishes/*/views", "/api/dishes/*/views",
-    };
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -119,9 +107,6 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ANY_METHOD).permitAll()
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES).permitAll()
-                        // 仅 POST 放行的公开写接口（例外白名单：浏览量上报，2026-09-23 §7.41；
-                        // 其滥用防护由 DishController#addView 的 IP 限频承担，不在本类）
-                        .requestMatchers(HttpMethod.POST, PUBLIC_POST_PREFIXES).permitAll()
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers("/admin/**").permitAll()

@@ -4,8 +4,8 @@ import { WX_CLOUD_ENV } from './config'
 /**
  * 头像图片上传（**仅限头像等本人非公开用途**）。
  *
- * ⚠️ 合规红线（spec §5.a）：本函数**不做任何内容安检**，且命名曾为泛化的 `uploadImage`，
- * 极易被新页面误用于 UGC 公开内容而绕过微信内容安检。
+ * ⚠️ 合规红线（spec §5.a）：本函数**不做任何内容安检**，仅限头像等本人非公开用途，
+ * 禁止用于 UGC 公开内容而绕过微信内容安检。
  *   → **禁止用于 UGC 公开内容**（评价配图 / 反馈配图等一切他人可见的图）。
  *   → UGC 必须走 `uploadUgcImage`（云存储 fileID → POST /upload/images，含 imgSecCheck 安检 + COS 转存）。
  * 当前唯一合法调用点：pages/profile（本人头像）。
@@ -27,7 +27,7 @@ const UGC_UPLOAD_TIMEOUT_MS = 15000
 /**
  * UGC 配图上传（评价 / 反馈共用）。
  *
- * 流程（后端契约 2026-09，POST /api/upload/images）：
+ * 流程（后端契约 POST /api/upload/images）：
  * 1. wx.cloud.uploadFile 上传到微信云存储（cloudPath: ugc/{yyyyMMdd}/{时间戳+随机}.jpg）拿 fileID；
  * 2. POST /upload/images { fileId }，由后端做内容安检并转存 COS，返回正式 URL；
  * 3. 违规图片后端返回 400「图片包含违规内容，无法上传」，经 http 层统一抛 message，

@@ -1,5 +1,5 @@
 /**
- * 菜品类型（2026-09-22 列表 / 详情出参拆分，见 docs/feature/client-首页菜品浏览.md D 项）
+ * 菜品类型（列表 / 详情出参拆分，见 docs/feature/client-首页菜品浏览.md D 项）
  *
  * **列表行 `DishListItem`**（`GET /dishes`，`DishListItemVO` **恰为 8 字段**）：
  *   id / name / coverImage / price / originalPrice / avgRating / canteenName / stallName
@@ -14,11 +14,11 @@
  *   列表图片只给 `coverImage`（后端首图绝对 URL；无图空串）——列表**不得回流** `images` 数组；
  * - 描述四维**下发机器值**（`dietType` / `serveTemp` 单值，`ingredients` / `flavorTags` 为数组）；
  *   中文展示值由**四维字典端点**提供（见 `api/dish-attribute.ts` + `stores/dish-attribute.ts`），
- *   端上 SHALL NOT 硬编码「机器值 → 中文」映射表（2026-09-23 §7.40 R4）。
+ *   端上 SHALL NOT 硬编码「机器值 → 中文」映射表（§7.40 R4）。
  *
- * 已全链删除（SHALL NOT 回流）：promoPrice / status / createdAt / canteenId / stallId /
+ * DishDetailVO 不含以下字段（契约之外不出现）：promoPrice / status / createdAt / canteenId /
  * viewCount / tags / spiceLevel / region / windowNo / updatedAt / latitude / longitude /
- * distance（坐标与距离随「计算距离」概念整体下线）。
+ * distance / stallId。
  */
 export interface DishListItem {
   id: number
@@ -73,8 +73,8 @@ export interface DishDetail {
 /**
  * 列表查询参数（`GET /dishes`，**完整参数集恰为 4 项**：page / pageSize / keyword / mealType）。
  * <p>
- * 2026-09-22：`canteenId` / `minPrice` / `maxPrice` 随「食堂 / 价格筛选全量下线」删除
- * （SHALL NOT 回流）；`sortBy` / `sortOrder` 已于 2026-09-21 收敛（排序恒为服务端热度倒序）。
+ * `canteenId` / `minPrice` / `maxPrice` 不纳入查询参数（食堂 / 价格筛选不提供）；
+ * `sortBy` / `sortOrder` 不传（排序恒为服务端热度倒序）。
  */
 export interface DishQuery {
   keyword?: string
@@ -86,8 +86,7 @@ export interface DishQuery {
 
 /**
  * 猜你喜欢词（GET /dishes/for-you）。
- * 2026-09-22 change search-page-refresh：由原「热搜词」类型改名——语义由
- * 「热度派生热搜词」变为「**随机抽取在售菜品名**」（不看热度、不排序、不做个性化，故不缓存）；
+ * 猜你喜欢词（GET /dishes/for-you）：语义为「**随机抽取在售菜品名**」（不看热度、不排序、不做个性化，故不缓存）；
  * **契约留扩展位**：将来升级为个性化 / 推荐算法时仍为 `keyword` 列表，端上无需改造。
  */
 export interface GuessLike {

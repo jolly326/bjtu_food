@@ -28,7 +28,7 @@
           <text class="info-value">{{ userInfo?.username || '--' }}</text>
         </view>
 
-        <!-- 校园邮箱（只读）：唯一来源 bindEmail（2026-09-21 spec §7.32，原 email 双源兜底已删除） -->
+        <!-- 校园邮箱（只读）：唯一来源 bindEmail（spec §7.32） -->
         <view class="info-row">
           <text class="info-label">校园邮箱</text>
           <text class="info-value info-value-email">{{ bindEmail || '--' }}</text>

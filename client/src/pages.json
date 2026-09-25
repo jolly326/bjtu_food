@@ -36,24 +36,36 @@
 			]
 		},
 		{
-			"root": "pages/notifications/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "系统通知",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
 			"root": "pages/profile/",
 			"pages": [
 				{
 					"path": "index",
 					"style": {
 						"navigationBarTitleText": "个人信息",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/auth/",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "身份认证",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
+			"root": "pages/notifications/",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "系统通知",
 						"navigationStyle": "custom"
 					}
 				}

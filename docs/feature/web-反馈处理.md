@@ -1,11 +1,18 @@
-﻿# 反馈处理（唯一运营闭环）（B-04）
+﻿# 反馈处理（B-04）
 
 > 所属板块：**web（管理后台）** ｜ 鉴权：**🔑 口令**（`X-Admin-Token`）
 > 返回：[功能总览](./README.md)
 
 ## 介绍
 
-处理学生的**全部诉求**（建议 / 投稿 / 纠错 / 举报）：**采纳**（据此录入、修改或下架菜品）或**不采纳（必填原因）**，标记处理后向已认证提交人投递站内回执。这是全项目**唯一有待处理态的运营对象**。进页默认停在「待处理」列表；点「处理」抽屉查看内容、配图与关联对象；**采纳 / 已处理**填回复（必填）→ 标记 `handled`；**不采纳 / 退回**填回复（必填）+ 不采纳原因（必填）→ 同样落到 `handled` 终态（反馈无「退回重提」链路）。处理动作需人工完成实体操作，**没有「一键转菜品」**：投稿类据此人工录入菜品后再标记处理；纠错类点「菜品名 →」定位修改；举报类点「评价 #id →」走评价管理深链（`?rid=`）定位隐藏 / 删除。
+处理学生**问题反馈（`issue`）**并回看存量历史类型数据的运营闭环。进页默认停在「待处理」列表；列表按状态 / 类型 / 关键词服务端过滤。
+
+处理动作为人工处理：
+
+- **已处理**：填回复（必填）→ 标记 `handled`；
+- **不采纳 / 退回**：填回复（必填）+ 不采纳原因（必填）→ 同样落到 `handled` 终态（结论差异由 `outcome=rejected` 承载；反馈无「退回重提」链路）。
+
+实体操作人工完成：如据此修改菜品（经菜品管理）、存量举报类点「评价 #id →」走评价管理深链（`?rid=`）定位隐藏 / 删除。处理结果经站内通知回执（`feedback_handle`，仅已认证提交人；游客不投递）。
 
 ## UI
 
@@ -25,7 +32,7 @@
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
 | `status` | string | 否 | 处理状态：`pending`=待处理 / `handled`=已处理；不传 = 全部 |
-| `type` | string | 否 | 反馈类型：`suggestion` / `add` / `error` / `report`（`bug` / `other` 存量数据可筛选）；**非法值 400** |
+| `type` | string | 否 | 反馈类型：`issue`；存量历史类型 `suggestion` / `add` / `error` / `bug` / `report` / `other` 保留筛选项（仅存量查询）；**非法值 400** |
 | `userId` | number | 否 | 按提交用户过滤 |
 | `keyword` | string | 否 | 关键词，对**反馈内容 / 管理员回复**模糊匹配 |
 | `page` | number | 否 | 页码，默认 1 |
@@ -49,13 +56,13 @@
 | `id` | number | 反馈 ID |
 | `userId` | number \| null | 提交人用户 ID；**游客提交为 null**（页面显示「游客」） |
 | `userNickname` | string | 提交人昵称 |
-| `type` | string | 反馈类型：`suggestion` 提个想法 / `add` 推荐菜品 / `error` 信息不对 / `report` 举报（存量数据可能为 `bug`/`other`） |
-| `sub` | string \| null | **二级分类，仅 `suggestion` 有值**：`idea`=想法 / `problem`=问题（后台展示为「建议·想法 / 建议·问题」，**仅展示、不作筛选维度**） |
-| `content` | string | 反馈内容（三类均把结构化字段拼在本字段） |
+| `type` | string | 反馈类型：`issue` 问题反馈；存量历史类型 `suggestion` / `add` / `error` / `bug` / `report` / `other` 仍可能出现于老数据（未登记值类型列回落原值展示） |
+| `sub` | string \| null | **二级分类，仅存量类型有值**：`suggestion` → `idea`=想法 / `problem`=问题；`report` → 举报原因机器值（经字典端点 `GET /feedback/report-reasons` 翻译为原因文案，如「举报 · 垃圾广告 / 营销刷屏」；**仅展示、不作筛选维度**）。`issue` 恒为 null |
+| `content` | string | 反馈正文；存量 `report` 可空 |
 | `images` | string[] | 反馈配图 URL 数组（COS 绝对地址，≤3 张） |
-| `relatedType` | string \| null | 关联对象类型：纠错 = `dish`；举报 = `review`；其他为 null |
-| `relatedId` | number \| null | 关联对象 ID：纠错 = 菜品 ID；举报 = 评价 ID；其他为 null |
-| `relatedDishName` | string \| null | **关联菜品名称**：仅 `relatedType='dish'` 时由服务端批量回填，**不区分上/下架、含已下架菜品**；其他关联类型 / 菜品已物理删除 → null（页面退回「菜品#id」占位，**不发起二次请求**） |
+| `relatedType` | string \| null | 关联对象类型，仅存量数据携带（存量举报 = `review`）；`issue` 恒为 null |
+| `relatedId` | number \| null | 关联对象 ID，仅存量数据携带（存量举报 = 评价 ID）；`issue` 恒为 null |
+| `relatedDishName` | string \| null | 关联菜品名称（仅存量 `relatedType=dish` 时填充，含已下架菜品；其余为 null；web 据此外显关联菜品名并支持深链检索） |
 | `status` | string | 处理状态：`pending`=待处理 / `handled`=已处理 |
 | `outcome` | string \| null | 处理结论：`handled`=通过/已处理（缺省）/ `rejected`=不采纳/退回；**未处理为 null**（由 status + rejectReason 派生，非物理列） |
 | `reply` | string \| null | 管理员回复内容（学生收到的回执正文） |
@@ -84,7 +91,7 @@
 
 | code | 含义 | 中文解释 |
 |---|---|---|
-| 400 | 回复为空 / 超长；rejected 未填原因；type 非法；反馈不存在 | 参数与业务校验 |
+| 400 | 回复为空 / 超长；rejected 未填原因；type 非法；反馈不存在；重复处理（已 handled） | 参数与业务校验 |
 | 403 | 口令缺失或错误 | `X-Admin-Token` 校验失败 |
 
 ## 数据（落库）
@@ -95,7 +102,7 @@
 | `user_feedback.reply` | 写入 | 管理员回复（回执正文） |
 | `user_feedback.reject_reason` | 写入 / 保持 NULL | 不采纳原因；`handled` 结论时恒 NULL（结论差异由此列是否非空承载） |
 | `user_feedback.handled_at` | 写入当前时间 | 处理时间 |
-| `notification` | INSERT（异步） | 向**已认证**提交人投递 `feedback_handle` 回执（含回复；不采纳时含原因）；游客不投递、不阻塞 |
+| `notification` | INSERT（异步） | 向**已认证**提交人投递回执：`feedback_handle`（含回复；不采纳时含原因）；游客不投递、不阻塞 |
 
 ## 与当前代码的差异
 

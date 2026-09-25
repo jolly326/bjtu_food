@@ -12,7 +12,9 @@ import com.bjtufood.feedback.dto.FeedbackReq;
 public interface FeedbackService {
 
     /**
-     * 提交反馈（学生），status=pending。
+     * 提交反馈（学生/游客），status=pending。
+     * 写入类型值域 = {@code FeedbackConst.WRITABLE_TYPES}（issue / report）：
+     * issue 为 content（≤1000 字）+ images（≤3 张）；report 为结构化举报原因（sub）+ 关联评价。
      * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），
      * 内容安全检测 pass/review 一律放行；images 入库。
      * （sec_state 落库已随「取消人工复核」全链退役，2026-09-15 用户拍板。）

@@ -37,7 +37,7 @@
     >
       <!-- 失败态示意图标复用 name="report"（唯一近似语义键；§4.9 图标语义唯一，此处登记复用口径：非举报，仅作「打不开」中性示意，不新增图标键） -->
       <IconSvg name="report" :size="96" :color="COLOR_MAP['text-tertiary']" />
-      <!-- 文案分流（2026-09-23 R8）：不存在（4001）/ 缺 ID → 不可重试，只给「返回」；
+      <!-- 文案分流（R8）：不存在（4001）/ 缺 ID → 不可重试，只给「返回」；
            网络故障 → 可重试，给「重新加载 + 返回」。 -->
       <text class="detail-fail-title">{{ detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开' }}</text>
       <text class="detail-fail-desc">{{ detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用' }}</text>
@@ -68,7 +68,7 @@
          当页面滚动量达到 pinStart 后，浏览器/微信把大图钉在 top:-(heroBase-pinLine)（其底边恰落承接线 pinLine），
          不再逐帧改写 transform——消除"实时计算"造成的偶发闪帧；此后仅下方卡片继续上滑。
          内容未溢出剩余区域时页面本身不滚动，也就没有多余滚动区。
-         2026-09-20：详情页大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
+         详情页大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
     <view
       v-if="dish"
       class="hero-slot"
@@ -113,7 +113,7 @@
       </view>
     </template>
 
-    <!-- 底部固定操作栏：左「写评价 / 重新评价」（随已评价态切换）右「去分享」（open-type=share），等宽双按钮 -->
+    <!-- 底部固定操作栏：左「写评价」（会话内判定为已评价或提交成功后本地切「重新评价」）右「去分享」（open-type=share），等宽双按钮 -->
     <view class="action-bar" v-if="dish">
       <button class="bar-btn bar-btn--write" :aria-label="reviewButtonText" hover-class="pressed" @tap="onOpenReviewComposer">
         <text class="bar-btn-text">{{ reviewButtonText }}</text>
@@ -136,12 +136,9 @@
       @submitted="onReviewSubmitted"
     />
 
-    <!-- 举报弹窗（共享组件） -->
+    <!-- 举报底部弹层：原因单选（字典下发） -->
     <ReportModal
       :open="reportOpen"
-      title="举报评价"
-      placeholder="请描述举报原因…"
-      confirm-text="提交举报"
       :submitting="reportSubmitting"
       @update:open="reportOpen = $event"
       @submit="submitReport"
@@ -156,7 +153,6 @@
     />
 
     <!-- 认证弹层：评价等需认证入口统一底部弹出 -->
-    <AuthSheet />
   </view>
 </template>
 
@@ -170,8 +166,7 @@
  */
 import IconSvg from '@/components/IconSvg.vue'
 import ReportModal from './ReportModal.vue'
-import ActionSheet from './ActionSheet.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import ImageSwiper from './ImageSwiper.vue'
 import ReviewComposer from './ReviewComposer.vue'
 import DishInfoCard from './DishInfoCard.vue'
@@ -267,7 +262,7 @@ const {
   -webkit-tap-highlight-color: transparent;
 }
 /* 返回钮：底色对齐微信右上角自带胶囊（中性浅灰透底 + #1A1A1A 黑箭头、细边），
-   icon 依赖显式 import 的 IconSvg 渲染（此前未 import 导致页面全部图标不可见） */
+   icon 依赖显式 import 的 IconSvg 渲染 */
 .dish-back-chip {
   display: flex;
   align-items: center;

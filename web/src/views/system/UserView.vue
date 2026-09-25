@@ -31,7 +31,7 @@ const searchQuery = ref('')
 const activityUser = ref<any>(null)
 
 // 三态（WEB-108）：进入页面显式刷新，供 DataTable 展示 loading/error
-// WEB-02：本页仅依赖「学生用户」一个域，按需加载（此前经 adminStore.loadAll 触发 5 域全量请求）
+// WEB-02：本页仅依赖「学生用户」一个域，按需加载。
 const loading = ref(true)
 const error = ref('')
 async function refresh() {
@@ -47,10 +47,10 @@ async function refresh() {
 }
 onMounted(refresh)
 
-// user.role 列已退役（2026-09-15）：全量用户即学生，列表无需再按角色过滤
+// 全量用户即学生，列表无需按角色过滤
 const students = computed(() => store.users)
 
-// 计数不再页内自算：数量只由 DataTable footer「共 N 条」承担（原 stat-inline 与筛选条争位，已删）
+// 计数不再页内自算：数量只由 DataTable footer「共 N 条」承担
 
 const statusFilter = ref<string>('')
 const statusOptions = [
@@ -60,7 +60,7 @@ const statusOptions = [
 ]
 
 // 认证状态筛选：选项值仅表达「筛哪一类」，认证态本身由 bindEmail 非空派生
-// （2026-09-22 契约收敛：出参不再含 verified 字段，判据唯一真源 = bindEmail）
+// （出参不含 verified 字段，判据唯一真源 = bindEmail）
 const authFilter = ref<string>('')
 const authOptions = [
   { label: '全部认证', value: '' },
@@ -70,7 +70,7 @@ const authOptions = [
 
 /**
  * 游客短标识：由账号 `id` 现算「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
- * 2026-09-21 spec §7.32：该值是 `id` 的纯派生，不再由接口出参，管理端与小程序端各自现算
+ * spec §7.32：该值是 `id` 的纯派生，不再由接口出参，管理端与小程序端各自现算
  * （规则同服务端建号默认昵称，三处口径一致）。
  */
 function guestLabelOf(u: { id?: unknown }): string {
@@ -119,7 +119,7 @@ const batchRunning = ref(false)
 async function batchSetStatus(status: 'active' | 'disabled') {
   if (!selectedIds.value.length || batchRunning.value) return
   const action = status === 'active' ? '启用' : '禁用'
-  // 后台无操作人身份（§7.10 A），且全量用户即学生（user.role 列已退役），不存在误封管理员的风险
+  // 后台无操作人身份（§7.10 A），且全量用户即学生，不存在误封管理员的风险
   const targets = students.value.filter(u => selectedIds.value.includes(Number(u.id)) && u.status !== status)
   if (!targets.length) {
     toast.error('所选用户中无可操作的账号')

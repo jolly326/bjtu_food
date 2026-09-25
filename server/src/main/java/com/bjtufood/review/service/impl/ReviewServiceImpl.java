@@ -66,10 +66,10 @@ public class ReviewServiceImpl implements ReviewService {
     public IPage<MyReviewVO> listByUserId(Long userId, int page, int pageSize, Long dishId) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // 我的评价：本人视角，公开列表的 is_hidden 过滤不适用——被管理员隐藏（is_hidden=1）的评价
-        // 作者本人仍可见（MyReviewVO 的 isHidden 供端上标注「已被隐藏」）。排序固定时间倒序。
+        // 我的评价：对评价全集按用户过滤拆分（is_hidden=0，与公开列表同口径——被隐藏的评价
+        // 不对客户端含作者本人返回）。排序固定时间倒序。
         // dishId 可选过滤：详情页判定「我是否已评价」并取回评价 ID（避免分页边界丢失）。
-        // 2026-09-23 R9：返回类型由 ReviewVO 改 MyReviewVO（本人视角 11 字段），与公开链路分型。
+        // R9：返回类型由 ReviewVO 改 MyReviewVO（本人视角 10 字段），与公开链路分型。
         IPage<MyReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, dishId);
         fillImages(pageResult.getRecords());
         return pageResult;

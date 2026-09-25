@@ -1,7 +1,7 @@
 import { onBeforeUnmount } from 'vue'
 
 /**
- * 弹层焦点管理（client-ui-comprehensive-upgrade 2.3 + UI-OPT-01 Tab 焦点循环陷阱）。
+ * 弹层焦点管理（Tab 焦点循环陷阱）。
  * 打开时记录触发焦点，关闭后还原到触发处（H5/桌面可达；小程序无 DOM 焦点 API，
  * 函数体内用平台条件编译块守卫，mini-program 编译时剔除，对本端为 no-op，不引入回归）。
  *
@@ -12,7 +12,7 @@ import { onBeforeUnmount } from 'vue'
  * 注意：本文件注释中不得出现条件编译指令字面量 —— uni-app 预处理器会扫描注释内的
  * 指令词并要求配对，误写将导致构建失败（会报指令缺少配对的结束符）。
  *
- * 使用频次 ≥3（BaseSheet 骨架及其 AuthSheet / 选择器 / 写评价等派生弹层），故抽为独立组合式，
+ * 使用频次 ≥3（BaseSheet 骨架及选择器 / 写评价等派生弹层），故抽为独立组合式，
  * 符合「仅高频复用才抽取」的抽象阈值（避免过度抽象）。
  */
 

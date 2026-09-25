@@ -24,7 +24,7 @@
         <text class="stall-text">{{ dish.canteen }} | {{ dish.stallName }}</text>
       </view>
       <!-- 第四段：左 = 黄色实心五角星 + 数字评分；右 = 价格（橙色突出）。同一行。
-           星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿（2026-09-22 同批升档） -->
+           星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿 -->
       <view class="card-meta">
         <view class="card-rating">
           <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
@@ -45,7 +45,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{
-  /** 列表行（`GET /dishes` → `DishListItemVO` 8 字段；2026-09-22 拆分后列表不含详情专属字段） */
+  /** 列表行（`GET /dishes` → `DishListItemVO` 8 字段；列表不含详情专属字段） */
   dish: DishListItem
 }>()
 

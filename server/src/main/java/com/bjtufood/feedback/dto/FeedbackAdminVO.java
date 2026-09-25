@@ -22,10 +22,10 @@ public class FeedbackAdminVO {
     @Schema(description = "用户昵称")
     private String userNickname;
 
-    @Schema(description = "反馈类型：suggestion/add/error/bug/report/other")
+    @Schema(description = "反馈类型：issue/report（历史可含 suggestion/add/error/bug/other）")
     private String type;
 
-    @Schema(description = "二级分类（仅 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
+    @Schema(description = "二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
     private String sub;
 
     @Schema(description = "反馈内容")

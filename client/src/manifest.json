@@ -57,8 +57,7 @@
         "usingComponents" : true,
         /* 隐私合规：开启微信隐私接口检查（MP-002），相册声明见公众平台《用户隐私保护指引》 */
         "__usePrivacyCheck__" : true,
-        /* 定位权限声明已随「坐标 + 距离」概念全链下线删除（2026-09-20 §7.31）：
-           端上不再申请 scope.userLocation、不再声明 requiredPrivateInfos 的 getLocation。 */
+        /* 定位权限声明不提供（端上不申请 scope.userLocation、不声明 requiredPrivateInfos 的 getLocation）。 */
         /* 按需注入（MP-019）：仅注入当前页面声明的自定义组件脚本，降低启动注入开销；
            项目组件均为静态引用（无动态 addGlobalDynamics），无风险。 */
         "lazyCodeLoading" : "requiredComponents"

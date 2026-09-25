@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle（dish_audit 已随审核语义退役，历史存量可能残留）',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle / correction_handle（dish_audit 已随审核语义退役，历史存量可能残留）',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
     `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
@@ -258,6 +258,34 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
+
+-- -------------------- 菜品信息纠错 --------------------
+-- 独立资源（区别于 user_feedback 意见反馈）：用户在菜品详情页提交的七字段信息纠错快照，
+-- 管理端采纳后整体写回 dish（两段式档口确认），拒绝则留存不采纳原因。
+CREATE TABLE IF NOT EXISTS `dish_correction`
+(
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '纠错ID',
+    `dish_id`       BIGINT       NOT NULL COMMENT '目标菜品ID（逻辑关联 dish，不设外键，与项目现状一致）',
+    `user_id`       BIGINT       NULL DEFAULT NULL COMMENT '提交人用户ID（匿名提交为 NULL）',
+    `name`          VARCHAR(64)  NOT NULL COMMENT '提交的菜品名称',
+    `price`         INT          NOT NULL COMMENT '提交的现价（单位：分）',
+    `canteen_name`  VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '提交的食堂名称（自由文本，无字典端点）',
+    `stall_name`    VARCHAR(64)  NOT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档）',
+    `flavor_tags`   JSON         NULL DEFAULT NULL COMMENT '提交的口味标签（JSON 数组机器值：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]）',
+    `ingredients`   JSON         NULL DEFAULT NULL COMMENT '提交的主料/食材（JSON 数组机器值：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]）',
+    `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤9 张）',
+    `status`        VARCHAR(16)  NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/adopted/rejected',
+    `reply`         VARCHAR(512) NULL DEFAULT NULL COMMENT '处理回复（采纳时固定「已采纳，菜品信息已更新」）',
+    `reject_reason` VARCHAR(200) NULL DEFAULT NULL COMMENT '不采纳原因（status=rejected 时必填，1~200 字）',
+    `handled_at`    DATETIME     NULL DEFAULT NULL COMMENT '处理时间',
+    `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_correction_dish` (`dish_id`),
+    KEY `idx_correction_status` (`status`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品信息纠错';
 
 -- =============================================================
 -- 一期扩展字段（追加，不改动既有列）
@@ -328,25 +356,23 @@ CREATE TABLE IF NOT EXISTS `email_verification_code`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='邮箱验证码记录';
 
--- 浏览足迹 view_log（用途：菜品浏览量统计与当日重复浏览去重）
+-- 访问日志 view_log（append-only：每次菜品浏览 INSERT 一行；游客 user_id=0）
+-- 用途：① 时间窗口聚合最热菜品（近一个月 / 任意窗口，按 idx_view_target_time 扫描）；
+--       ② dish.view_count 为全历史累计聚合列（详情成功路径原子自增），与本日志并存不混用。
 CREATE TABLE IF NOT EXISTS `view_log`
 (
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '足迹ID',
-    `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览者用户ID',
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+    `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览者用户ID（0 = 游客）',
     `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '浏览对象类型：dish / stall / canteen',
     `target_id`   BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览对象ID',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '浏览时间',
-    `updated_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '访问时间',
     PRIMARY KEY (`id`),
-    -- idx_view_user_time / idx_view_target 两个冗余索引已于 2026-09-15 用户拍板退役
-    -- （审计确认零查询使用；判重查询唯一依赖下方 idx_view_user_target_time）。
-    -- CREATE TABLE 不再创建，存量库由文件末尾 drop_view_log_redundant_indexes 幂等段清理。
-    -- 判重复合索引（2026-09-15）：后端浏览量判重已改用 updated_at（同 userId+targetType+targetId
-    -- 按时间判定），该四列组合索引覆盖判重查询的过滤列与时间列
-    KEY `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`)
+    -- 窗口聚合索引：按「对象 + 时间窗」扫描（近 N 天最热菜品 = WHERE target_type/target_id
+    -- AND created_at >= 窗口起点 GROUP BY target_id）；管理端「学生行为查看」按 user 维度查询时另建索引
+    KEY `idx_view_target_time` (`target_type`, `target_id`, `created_at`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='浏览足迹（用途：浏览量统计与当日去重，无推荐用途）';
+  COLLATE = utf8mb4_general_ci COMMENT ='访问日志（append-only，每次浏览一行；游客 user_id=0）';
 
 -- 首页顶部轮播图 banner（2026-09-22 新增，change「首页 Banner 接口化」）：
 --   · status 取 on / off（与 dish.status 同风格；**不复活**已随下线删除的 enabled/disabled 枚举），
@@ -1263,5 +1289,48 @@ END$$
 DELIMITER ;
 CALL `drop_review_updated_at`();
 DROP PROCEDURE IF EXISTS `drop_review_updated_at`;
+
+-- =============================================================
+-- 浏览计数载体迁移（用户拍板 A 方案：GET 详情顺带计数 + view_log 访问日志）
+-- view_log 由「浏览足迹 upsert」改「append-only 访问日志」，本段幂等、可重复执行：
+--   ① 判重索引 idx_view_user_target_time（upsert 语义专属）删除；
+--   ② updated_at 列删除（append-only 后无更新语义，恒等于 created_at）；
+--   ③ 窗口聚合索引 idx_view_target_time 补建（CREATE TABLE 已含，此处仅对存量库补齐）。
+-- ⚠️ 索引判断走 INFORMATION_SCHEMA.STATISTICS（INDEX_NAME + TABLE_NAME）。
+-- =============================================================
+DROP PROCEDURE IF EXISTS `migrate_view_log_access_log`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_view_log_access_log`()
+BEGIN
+    -- ① 删判重索引（upsert 专属；append-only 后无判重查询）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log'
+          AND INDEX_NAME = 'idx_view_user_target_time'
+    ) THEN
+        ALTER TABLE `view_log` DROP INDEX `idx_view_user_target_time`;
+    END IF;
+
+    -- ② 删 updated_at 列（append-only 后无更新语义）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND COLUMN_NAME = 'updated_at'
+    ) THEN
+        ALTER TABLE `view_log` DROP COLUMN `updated_at`;
+    END IF;
+
+    -- ③ 补建窗口聚合索引（仅存量库缺列时生效）
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log'
+          AND INDEX_NAME = 'idx_view_target_time'
+    ) THEN
+        ALTER TABLE `view_log`
+            ADD INDEX `idx_view_target_time` (`target_type`, `target_id`, `created_at`);
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_view_log_access_log`();
+DROP PROCEDURE IF EXISTS `migrate_view_log_access_log`;
 
 SET FOREIGN_KEY_CHECKS = 1;

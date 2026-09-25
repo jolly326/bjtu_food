@@ -8,7 +8,7 @@ import { isResourceNotFound } from '@/api/http'
 
 /**
  * 首页列表单页条数（`fetchHomeDishes` / `loadMoreHomeDishes` 共用，防口径漂移）。
- * 2026-09-22：原「筛选流」已随食堂 / 价格筛选全量下线（K1/K2/K3），本常量即首页唯一列表流的分页口径。
+ * 本常量即首页唯一列表流的分页口径（食堂 / 价格筛选不提供）。
  */
 export const HOME_PAGE_SIZE = 10
 /**
@@ -30,8 +30,7 @@ const LOADING_KEY_HOME_MORE = 'homeMore'
  */
 const LOADING_KEY_HOME_SWAP = 'homeSwap'
 /**
- * 评价列表在途登记 key（模块私有）：
- * 原导出的 `LOADING_KEY_REVIEWS` 唯一外部消费方（详情页评价区骨架态）已随「不设加载骨架」红线删除。
+ * 评价列表在途登记 key（模块私有）。
  */
 const REVIEWS_LOADING_KEY = 'fetchReviews'
 
@@ -44,7 +43,7 @@ export const useDishStore = defineStore('dish', () => {
    */
   const detailError = ref(false)
   /**
-   * 菜品**不存在**（后端 `4001`，2026-09-23 §7.40 R8）—— 与「请求失败」**区别对待**：
+   * 菜品**不存在**（后端 `4001`，§7.40 R8）—— 与「请求失败」**区别对待**：
    * 不存在（含已下架，下架对外等价于不存在）**不可重试**，页面应只给「返回」路径；
    * 网络 / 服务端故障才给「重新加载」。二者**互斥**（同一时刻至多一个为 true）。
    */
@@ -70,7 +69,7 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  // ==================== 首页列表流（2026-09-22：食堂 / 价格筛选已全量下线） ====================
+  // ==================== 首页列表流（食堂 / 价格筛选不提供） ====================
 
   /** 菜品大类字典（`GET /dishes/meal-types`）：文案 / 顺序 / 子集全由后端下发，端上零写死 */
   const mealTypeList = ref<MealType[]>([])
@@ -119,7 +118,7 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页）。
-   * 端上**不传排序参数**（排序恒为服务端热度倒序），也不传任何食堂 / 价格条件（已下线）。
+   * 端上**不传排序参数**（排序恒为服务端热度倒序），也不传任何食堂 / 价格条件。
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {

@@ -6,8 +6,8 @@
 
 | 文件名前缀 | 板块 | 代码目录 | 说明 |
 |---|---|---|---|
-| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **16 个在线功能**；业务数据的唯一产生源 |
-| `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 6 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
+| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **15 个在线功能**；业务数据的唯一产生源 |
+| `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 7 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
 
 > 阅读约定：每份文档固定为 **介绍 → UI → 接口 → 字段（字段名 + 中文解释）→ 数据** 五段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（文档 / 代码同步口径见 `.codebuddy/rules/docs-first-sync-and-db-direct.md`）。
 > **feature 按功能拆分**：每个功能一份独立文档、**独立自洽**，不得写跨板块关联表述（如「本页调用、但不归属本功能的端点」「本页面还涉及 X 功能」「页面路径 / 组件名」）——页面归属信息见 [`docs/ui/`](../ui/)。
@@ -25,7 +25,7 @@
 
 ---
 
-## client- · 学生端（微信小程序，16 个在线功能）
+## client- · 学生端（微信小程序，15 个在线功能）
 
 | 编号 | 功能 | 文档 | 鉴权 | 状态 |
 |---|---|---|---|---|
@@ -33,31 +33,31 @@
 | A-02 | 首页菜品浏览 | [client-首页菜品浏览.md](./client-首页菜品浏览.md) | 🔓 | ✅ **已完成** |
 | A-03 | 搜索 | [client-搜索.md](./client-搜索.md) | 🔓 | ✅ **已完成** |
 | A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 | ✅ **已完成** |
-| A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 🔓 **公开**（游客亦计） | — |
-| A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 | — |
-| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | — |
-| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | — |
-| A-10 | 我的评价 | [client-我的评价.md](./client-我的评价.md) | 🔐 | — |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | — |
+| A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 🔓 **公开**（游客亦计） | ✅ **已完成** |
+| A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 | ✅ **已完成** |
+| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | ✅ **已完成** |
+| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | ✅ **已完成** |
+| A-10 | 我的评价（承载于「我的主页」评价区） | [client-我的评价.md](./client-我的评价.md) | 🔐 | ✅ **已完成**（2026-09-24） |
+| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | ✅ **已完成**（2026-09-25） |
 | A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | — |
-| A-13 | 个人资料 | [client-个人资料.md](./client-个人资料.md) | 🔓 | — |
+| A-13 | 个人资料（查看于「我的主页」信息卡 / 编辑于个人信息编辑页） | [client-个人资料.md](./client-个人资料.md) | 🔓 | — |
 | A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | — |
 | A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 🔓 | — |
 | A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | — |
-| A-17 | **我的页**（个人中心入口聚合） | [client-我的页.md](./client-我的页.md) | 🔓 | — |
 
 > **「状态」列口径**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
 
-## web- · 管理端（Web 后台，6 个）
+## web- · 管理端（Web 后台，7 个）
 
 | 编号 | 功能 | 文档 | 鉴权 |
 |---|---|---|---|
 | B-01 | 菜品管理（核心） | [web-菜品管理.md](./web-菜品管理.md) | 🔑 |
 | B-02 | 菜品详情查看 | [web-菜品详情查看.md](./web-菜品详情查看.md) | 🔑 |
 | B-03 | 评价管理（事后处置） | [web-评价管理.md](./web-评价管理.md) | 🔑 |
-| B-04 | 反馈处理（唯一运营闭环） | [web-反馈处理.md](./web-反馈处理.md) | 🔑 |
+| B-04 | 反馈处理 | [web-反馈处理.md](./web-反馈处理.md) | 🔑 |
 | B-05 | 学生账号管理 | [web-学生账号管理.md](./web-学生账号管理.md) | 🔑 |
 | B-06 | 图片上传（表单内） | [web-图片上传.md](./web-图片上传.md) | 🔑 / 需登录 |
+| B-07 | 信息纠错处理 | [web-信息纠错.md](./web-信息纠错.md) | 🔑 |
 
 ---
 
@@ -67,7 +67,7 @@
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `code` | number | 业务状态码：`200` 成功；`400` 参数/业务校验失败（含内容安检违规）；`401` 未登录/token 失效；`403` 无权限；**`4001` 资源不存在**（不存在与已下架均返回它，端上据此给恢复路径）；**`4031` 邮箱未认证**（前端据此弹 `AuthSheet`）；`500` 服务器异常 |
+| `code` | number | 业务状态码：`200` 成功；`400` 参数/业务校验失败（含内容安检违规）；`401` 未登录/token 失效；`403` 无权限；**`4001` 资源不存在**（不存在与已下架均返回它，端上据此给恢复路径）；**`4031` 邮箱未认证**（前端据此跳转身份认证页 `pages/auth/index`）；`500` 服务器异常 |
 | `message` | string | 提示信息（失败时给用户看的文案） |
 | `data` | T \| null | 业务载荷；写操作类接口通常为 `null` |
 
@@ -95,11 +95,12 @@
 | `RatingDistributionVO` | 同上（评分分布项） | [client-菜品详情](./client-菜品详情.md#响应--get-dishesid-data--dishdetailvo) |
 | `GuessLikeVO` | `GET /dishes/for-you`（随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
 | `ReviewVO` | `GET /dishes/{id}/reviews`（**公开视角，8 字段**） | [client-菜品详情](./client-菜品详情.md) |
-| `MyReviewVO` | `GET /my/reviews`（**本人视角，11 字段** = 公开 8 + `dishId` / `dishName` / `isHidden`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
+| `MyReviewVO` | `GET /my/reviews`（**本人视角，10 字段** = 公开 8 + `dishId` / `dishName`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginResp` | 登录 / 认证响应（`token` + `userInfo`） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
-| `FeedbackReq` | `POST /feedback` | [client-意见反馈](./client-意见反馈.md) |
+| `FeedbackReq` | `POST /feedback`（`issue` 问题反馈）、`GET /admin/feedbacks` 出参 | [client-意见反馈](./client-意见反馈.md) |
+| `CorrectionReq` / `CorrectionAdminVO` | `POST /dishes/{id}/correction`、`/admin/corrections*` | [client-意见反馈](./client-意见反馈.md) / [web-信息纠错](./web-信息纠错.md) |
 | `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
 | `ReviewAdminVO` | `GET /admin/reviews` | [web-评价管理](./web-评价管理.md) |
 | `FeedbackAdminVO` / `FeedbackHandleReq` | `/admin/feedbacks*` | [web-反馈处理](./web-反馈处理.md) |

@@ -12,21 +12,21 @@
 
     命名规则：
     - selectReviewPageByDishId：公开列表（按菜品，联表补齐作者昵称/头像，时间倒序，可选只看有图）
-    - selectReviewPageByUserId：我的评价（本人视角，含 dishId/dishName/isHidden）
+    - selectReviewPageByUserId：我的评价（按用户过滤的本人评价，含 dishId/dishName）
     - selectAvgRatingByStallIds：批量统计多个档口平均分
 
     排序口径（2026-09-20 拍板）：评价列表排序唯一为 created_at DESC，
     原「按有用数置顶」第二口径与 sort 入参已随「有用」全链下线一并删除。
 
     可见性口径（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
-    - 公开列表唯一判据为 is_hidden=0；本人视角（我的评价）不过滤 is_hidden。
+    - 客户端可达评价唯一判据为 is_hidden=0，公开列表与我的评价同口径——被隐藏的评价不对客户端返回。
     - images 列为配图 URL 列表 JSON 原文（review.images），由 StringListTypeHandler 在**持久层**完成
       「列 ↔ List<String>」转换（2026-09-23 R5）；图片相对路径 → 绝对 URL 的转换仍由 service 层完成。
     ============================================================
     -->
 
     <!-- 评价行映射（2026-09-23 R5）：images 列 → List<String> 由 TypeHandler 完成；
-         其余下划线列（user_nickname / dish_name / is_hidden / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
+         其余下划线列（user_nickname / dish_name / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
     <resultMap id="reviewMap" type="com.bjtufood.review.dto.ReviewVO">
         <id property="id" column="id"/>
         <result property="images" column="images"
@@ -34,7 +34,7 @@
     </resultMap>
 
     <!--
-        本人视角行映射（2026-09-23 R9 拆类）：MyReviewVO 承载公开 8 字段 + dish_id / dish_name / is_hidden。
+        本人视角行映射（2026-09-23 R9 拆类）：MyReviewVO 承载公开 8 字段 + dish_id / dish_name（本人视角专属两字段）。
         与 reviewMap 的差异仅在类型（属性名同名，映射体一致）——但**类型不同**正是本项要义：
         两条链路各自绑定自己的 VO，消费端据此定义两个类型（不再靠「调哪个接口」区分字段集）。
     -->
@@ -71,9 +71,8 @@
     </select>
 
     <!--
-        我的评价：本人视角，返回 images 供作者本人查看，并返回作者视角字段
-        dish_id/dish_name/is_hidden（公开列表不返回这三者）。
-        可见性（2026-09-14 §7.14 C）：本人视角不过滤 is_hidden，被管理员隐藏的评价作者仍可见。
+        我的评价：当前用户的全部有效评价（对评价全集按 user_id 过滤拆分，联表补齐菜品名与作者昵称/头像）。
+        可见性与公开列表同口径：仅返回 is_hidden=0——被管理员隐藏的评价不对客户端（含作者本人）返回。
         排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
     -->
     <select id="selectReviewPageByUserId" resultMap="myReviewMap">
@@ -87,12 +86,12 @@
             r.rating,
             r.content,
             r.images,
-            r.is_hidden AS is_hidden,
             r.created_at
         FROM review r
                  JOIN user u ON r.user_id = u.id
                  JOIN dish d ON r.dish_id = d.id
         WHERE r.user_id = #{userId}
+          AND r.is_hidden = 0
         <if test="dishId != null">
             AND r.dish_id = #{dishId}
         </if>

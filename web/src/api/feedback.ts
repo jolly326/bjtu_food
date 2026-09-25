@@ -6,16 +6,36 @@ import { imagesToList, pageRecords } from './adapter'
  * 列表 GET /admin/feedbacks（status/type 过滤）；
  * 处理 PUT /admin/feedbacks/{id}（status=handled + reply）。
  * 后端出参 camelCase：FeedbackAdminVO{ id, userId, userNickname, type, sub, content, images, status, reply, createdAt, handledAt, relatedType, relatedId, relatedDishName }。
- * 2026-09-16（产品定型）：不再收集联系方式，user_feedback 联系方式列随服务端删列退役，前端同步移除读写。
+ * 不再收集联系方式，user_feedback 联系方式列不提供，前端同步移除读写。
  * sub（DEV-01）：建议二级类型 idea/problem，仅 type=suggestion 有值；可选字段，缺省不展示。
  * relatedType/relatedId 用于举报类反馈（report）关联被举报评价（review）；信息纠错（error）关联菜品（dish）。
  * relatedDishName（DEV-04 收口）：仅 relatedType='dish' 时由后端批量回填（含已下架菜品），
  * 前端不再走公开端点 GET /dishes/{id} 取名（Web 只经 /admin/**，且公开端点查不到下架菜品）。
  * images 为用户上传配图（COS 公网地址数组）。
  *
- * 2026-09-15（取消人工复核）：内容安全检测放行态与待复核态均放行、仅风险项拒绝，
+ * 取消人工复核：内容安全检测放行态与待复核态均放行、仅风险项拒绝，
  * 反馈的安检状态不再由后台消费，出参字段与本模块的查询参数一并移除。
+ *
+ * 拆分信息纠错：「信息更新」类型（快照载荷 + 采纳端点）拆出为独立资源
+ * /admin/corrections（见 api/corrections.ts + views/audit/CorrectionView.vue）——
+ * 本模块回归**纯问题反馈**：VO 删提交快照 / 目标菜品名字段与采纳封装，
+ * type 值域 = issue（现写）+ 历史存量（suggestion/add/error/bug/report/other，筛选兼容）。
  */
+
+/**
+ * 举报原因字典项（GET /feedback/report-reasons；真源 = 后端 FeedbackConst，管理端零硬编码——PR-12）。
+ * 用于反馈列表把 report 类型的 sub 机器值翻译为原因文案。
+ */
+export interface ReportReason {
+  value: string
+  label: string
+  order: number
+}
+
+/** 举报原因字典（PUB 端点，管理端同样可读） */
+export function getReportReasons(): Promise<ReportReason[]> {
+  return get<ReportReason[]>('/feedback/report-reasons')
+}
 
 export interface FeedbackAdminVO {
   id: number
@@ -24,10 +44,10 @@ export interface FeedbackAdminVO {
   userNickname: string
   type: string
   /**
-   * 二级类型（DEV-01）：仅 type='suggestion'（功能建议）有值 —— idea=想法 / problem=问题。
-   * 后端字段为可选（历史数据、其他类型均无值），故前端一律按可选字段容错：缺省/非法值 → undefined（UI 不展示）。
+   * 二级分类（按 type 分流）：suggestion → idea/problem；report → 举报原因机器值
+   * （label 经 `GET /feedback/report-reasons` 字典翻译）。可选字段，缺省不展示。
    */
-  sub?: 'idea' | 'problem'
+  sub?: string
   content: string
   /** 用户上传配图（adapter 归一为 string[]，COS 公网地址可直接展示） */
   images: string[]

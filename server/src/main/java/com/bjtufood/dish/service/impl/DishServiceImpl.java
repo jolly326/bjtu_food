@@ -4,10 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bjtufood.canteen.entity.Canteen;
-import com.bjtufood.canteen.entity.Stall;
-import com.bjtufood.canteen.mapper.CanteenMapper;
-import com.bjtufood.canteen.mapper.StallMapper;
+import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -62,18 +59,8 @@ public class DishServiceImpl implements DishService {
      */
     private static final int GUESS_LIKE_SIZE = 6;
 
-    /**
-     * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。
-     * 命中即回退 stallId 逻辑，绝不以其为名新建食堂/档口。
-     */
-    private static final Set<String> EMPTY_NAME_VALUES = Set.of("其他", "其它", "无", "未知");
-
-    /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
-    private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
-
     private final DishMapper dishMapper;
-    private final StallMapper stallMapper;
-    private final CanteenMapper canteenMapper;
+    private final StallService stallService;
     private final ReviewMapper reviewMapper;
     private final ViewLogMapper viewLogMapper;
     private final HistoryService historyService;
@@ -123,17 +110,38 @@ public class DishServiceImpl implements DishService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 菜品详情（含**浏览计数副作用**）。
+     * <p>
+     * 计数口径（PV）：本方法**成功取到详情后**执行 {@code view_count + 1}（SQL 原子自增，
+     * 避免读-改-写丢计数）并写入一条访问日志（view_log，append-only；游客 userId=null 记 0）。
+     * 菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数、不写日志。
+     * <p>
+     * 事务：查询与两个写操作同处一个事务 —— 任一写失败则详情一并失败，
+     * 保证「返回 200 的响应必然已计数 + 已记日志」的口径自洽。
+     */
     @Override
-    public DishDetailVO getDishDetail(Long id) {
-        // 不存在与已下架**同款处理**（2026-09-23 change dish-detail-contract-hardening R8）：
+    @Transactional(rollbackFor = Exception.class)
+    public DishDetailVO getDishDetail(Long id, Long userId) {
+        // 不存在与已下架**同款处理**（change dish-detail-contract-hardening R8）：
         // SQL 已按 status='on' 过滤，故「已下架」在此同样落为 vo == null —— 对公开接口而言
         // 「下架」等价于「不存在」，不设专用字段 / 专用分支。
         // 4001 = 资源不存在（细分业务码，端上据此直接给恢复路径，无需解析 message 文本；
-        // 与 4031「邮箱未认证」同为细分码，2026-09-23 拍板见 project_spec.md §7.40 R8）
+        // 与 4031「邮箱未认证」同为细分码）
         DishDetailVO vo = dishMapper.selectDishDetail(id);
         if (vo == null) {
             throw new BusinessException(4001, "菜品不存在");
         }
+
+        // ===== 浏览计数副作用（先于返回值组装，成功路径恒执行）=====
+        // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1）；
+        // vo 已确认存在，affected 恒为 1（若为 0 属并发删除，视同不存在）
+        int affected = dishMapper.increaseViewCount(id);
+        if (affected == 0) {
+            throw new BusinessException(4001, "菜品不存在");
+        }
+        // 访问日志：append-only 每次一条；游客记 user_id=0（recordDishView 内部归一）
+        historyService.recordDishView(userId, id);
 
         // 从 images_json 解析 images（避免二次查数据库）
         enrichImages(vo);
@@ -154,41 +162,12 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 猜你喜欢（原「热搜词条」）：每次请求**随机**取在售菜品名，故**不加缓存**
-     * （响应缓存会让「每次随机」退化为「全站同一份」，2026-09-22 change search-page-refresh）。
+     * 猜你喜欢：每次请求**随机**取在售菜品名，故**不加缓存**
+     * （响应缓存会让「每次随机」退化为「全站同一份」，change search-page-refresh）。
      */
     @Override
     public List<GuessLikeVO> guessLike() {
         return dishMapper.selectGuessLike(GUESS_LIKE_SIZE);
-    }
-
-    /**
-     * 浏览量上报（**2026-09-23 §7.41：PV 口径 —— 每次调用均 +1**）。
-     * <p>
-     * 口径变更（原 §7.14 A「同一用户对同一菜品每自然日只计 1 次」**已作废**）：
-     * <ol>
-     *   <li><b>不做人员与时间限制</b>：不再有 5 分钟内存窗口（原 {@code ViewRateLimiter}，
-     *       已整体退役）与「当日去重」（原 {@code HistoryService.existsTodayDishView}，已删除）；</li>
-     *   <li><b>游客亦计</b>：{@code userId} 可为 null（端点已转公开），仅影响是否写浏览足迹；</li>
-     *   <li><b>唯一防护在接入层</b>：{@code DishController#addView} 的 IP 维度限频（不在此方法内）。</li>
-     * </ol>
-     * 本方法职责收敛为：**写浏览足迹（可识别用户时）+ 原子自增**。
-     * <p>
-     * 并发安全：自增走 SQL 原子 {@code UPDATE ... SET view_count = view_count + 1}，避免读-改-写丢计数；
-     * 足迹 upsert 无唯一键（表结构不变）——并发下最多多插一行足迹，**不影响计数正确性**
-     * （计数以自增次数为准，已不再依赖任何足迹判据）。
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void addViewCount(Long dishId, Long userId) {
-        // 写入/刷新浏览足迹（upsert：已存在则刷新 updated_at）；游客不记录（内部判空）。
-        // 注：足迹**不再参与计数判定**，仅作为「谁看过这道菜」的行为记录保留（管理端行为查看用）。
-        historyService.recordDishView(userId, dishId);
-        // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1），避免读-改-写丢计数
-        int affected = dishMapper.increaseViewCount(dishId);
-        if (affected == 0) {
-            throw new BusinessException("菜品不存在");
-        }
     }
 
     @Override
@@ -314,82 +293,22 @@ public class DishServiceImpl implements DishService {
      * @return 解析后的档口 ID；null 仅在「无有效 stallName 且 stallId 未传」时出现（新增路径上游已拦截为 400）
      */
     private Long resolveStallId(DishAdminReq req) {
-        String stallName = normalizeUpsetName(req.getStallName());
-        if (stallName != null) {
-            return upsertStallByName(stallName, req.getCanteenName());
+        String stallName = req.getStallName() == null ? null : req.getStallName().trim();
+        if (StringUtils.hasText(stallName) && !isEmptySemanticName(stallName)) {
+            return stallService.upsertStallByName(stallName, req.getCanteenName());
         }
-        if (req.getStallId() != null && stallMapper.selectById(req.getStallId()) == null) {
+        if (req.getStallId() != null && !stallService.existsById(req.getStallId())) {
             throw new BusinessException("档口不存在");
         }
         return req.getStallId();
     }
 
     /**
-     * 按名 upsert 档口：同名不重复建档（精确匹配，名称列无唯一键，并发双写极端情况由调用方幂等容忍）。
-     * <p>
-     * 新建档口必须有可解析的有效所属食堂（canteenName 有效），否则 400「请选择所属食堂」——
-     * 不允许落 canteen_id=0（未挂食堂）：joinDishSql 对 stall/canteen 为 INNER JOIN，
-     * canteen_id=0 的菜品会被列表/详情查询静默剔除（2026-09-15 收口，与 web 端「食堂必填」契约一致）。
+     * 空值语义名称判断（§7.23 第 1 条：「其他/其它/无/未知」视为未填，回退 stallId 逻辑）。
+     * 判据与 {@code StallServiceImpl#upsertStallByName} 内部的名称归一化同源。
      */
-    private Long upsertStallByName(String stallName, String rawCanteenName) {
-        Stall existing = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
-                .eq(Stall::getName, stallName)
-                .last("LIMIT 1"));
-        if (existing != null) {
-            // 同名档口已存在：直接复用（canteenName 仅在新建档口时消费，不迁移既有档口归属）
-            return existing.getId();
-        }
-        Long canteenId = upsertCanteenIdByName(rawCanteenName);
-        if (canteenId == null) {
-            // 新建档口必须挂有效食堂：拦截在写入前，杜绝 canteen_id=0 的不可见脏数据
-            throw new BusinessException(MSG_CANTEEN_REQUIRED);
-        }
-        Stall stall = new Stall();
-        stall.setName(stallName);
-        stall.setCanteenId(canteenId);
-        stallMapper.insert(stall);
-        return stall.getId();
-    }
-
-    /**
-     * 按名 upsert 食堂（仅当新建档口时消费）：有效名称查字典命中则复用，未命中自动建档。
-     * <p>
-     * 空白/「其他」等空值语义名称 <b>不建档也不落 0</b>，返回 null 由调用方 400 拦截
-     * （2026-09-15 收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
-     * joinDishSql 的 INNER JOIN 静默剔除，属隐性数据丢失）。
-     *
-     * @return 食堂 ID；null=无可解析的有效食堂名（调用方必须 400，不得写库）
-     */
-    private Long upsertCanteenIdByName(String rawCanteenName) {
-        String canteenName = normalizeUpsetName(rawCanteenName);
-        if (canteenName == null) {
-            return null;
-        }
-        Canteen existing = canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getName, canteenName)
-                .last("LIMIT 1"));
-        if (existing != null) {
-            return existing.getId();
-        }
-        Canteen canteen = new Canteen();
-        canteen.setName(canteenName);
-        canteenMapper.insert(canteen);
-        return canteen.getId();
-    }
-
-    /**
-     * upsert 名称规范化：trim 后为空白或命中 {@link #EMPTY_NAME_VALUES}（「其他」等空值语义）返回 null（不建档）；
-     * 其余返回 trim 后的名称。
-     */
-    private static String normalizeUpsetName(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String trimmed = raw.trim();
-        if (trimmed.isEmpty() || EMPTY_NAME_VALUES.contains(trimmed)) {
-            return null;
-        }
-        return trimmed;
+    private static boolean isEmptySemanticName(String trimmedName) {
+        return Set.of("其他", "其它", "无", "未知").contains(trimmedName);
     }
 
     /**

@@ -1,17 +1,16 @@
 /**
  * 反馈表单「字段级」共享样式（feedback 包内私有，不对外）
  *
- * 背景：SuggestionForm / AddForm / ErrorForm 三个包内表单子件各自复刻了同一套字段样式
- * （.field / .field-label / .req / .field-error / .content-input / .input-error / .picker-row /
- *  .picker-value），逐字重复、改一处漏两处。此文件为三者唯一真源。
+ * 背景：包内表单子件（IssueForm / UpdateForm 为唯二消费方）
+ * 复用同一套字段样式（.field / .field-label / .req / .field-error / .content-input /
+ * .input-error / .picker-row / .picker-value），避免逐字重复、改一处漏两处。此文件为唯一真源。
  *
- * 用法：三个子件在 `<style scoped lang="scss">` 顶部 `@use './form-shared';`。
+ * 用法：子件在 `<style scoped lang="scss">` 顶部 `@use './form-shared';`。
  * 说明：sass 在 vue 的 scoped 转换之前内联本文件，故其中规则照常带上 scoped 作用域，
  *      不会泄漏到其他页面；这与「CSS 原生 @import 不被 scoped 处理」不同，故必须走 scss。
  *
- * 约束：仅收敛三处逐字一致的规则，视觉零变化（属性值与书写顺序均按原文）。
- *      各表单自身特有规则（.row-fields / .field-input / .edit-input / .dish-* / .point-* /
- *      .evidence-* / .sub-* / .counter / .field-gap 等）仍留在各自组件内。
+ * 约束：仅收敛逐字一致的规则；各子件自身特有规则（.chip-* / .line-input / .dish-* / .counter 等）
+ *      仍留在各自组件内。
  */
 
 /* ---------- 字段块与标签 ---------- */

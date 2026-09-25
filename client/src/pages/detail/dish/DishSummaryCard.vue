@@ -63,7 +63,7 @@ function distPct(count: number): string {
 </script>
 
 <style scoped>
-/* 分区标题已改用 SectionTitle（§4.9），手写 .summary-head 样式随之删除 */
+/* 分区标题改用 SectionTitle（§4.9），无手写 .summary-head 样式 */
 /* dish-detail-visual-polish：紧凑平衡（左评分区收窄、行距收紧） */
 .summary-body { display: flex; align-items: center; gap: var(--spacing-md); }
 .summary-left { flex: 0 0 132rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--spacing-2xs); }

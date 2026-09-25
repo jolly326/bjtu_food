@@ -1,19 +1,25 @@
 package com.bjtufood.auth.controller;
 
 import com.bjtufood.common.config.IpRateLimiter;
+import com.bjtufood.common.constant.FeedbackConst;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.feedback.dto.FeedbackReq;
+import com.bjtufood.feedback.dto.ReportReasonVO;
 import com.bjtufood.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 用户反馈接口（task-09 升级：路径不变，DTO 规范化）
@@ -44,6 +50,21 @@ public class FeedbackController {
         Long userId = SecurityUtil.getCurrentUserIdOrNull();
         feedbackService.submit(userId, req);
         return Result.success();
+    }
+
+    /**
+     * 举报原因字典（PUB：举报免认证，弹层打开时端上实时拉取）。
+     * 值域与文案唯一真源 = {@code FeedbackConst.REPORT_REASONS}，端上与管理端零硬编码（PR-12）。
+     */
+    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签 + order 展示顺序）；提交举报时选中的 value 作为 sub 上送。端上与管理端零硬编码。测试示例：/feedback/report-reasons")
+    @GetMapping("/feedback/report-reasons")
+    public Result<List<ReportReasonVO>> reportReasons() {
+        List<FeedbackConst.ReportReason> reasons = FeedbackConst.REPORT_REASONS;
+        List<ReportReasonVO> result = new ArrayList<>(reasons.size());
+        for (int i = 0; i < reasons.size(); i++) {
+            result.add(new ReportReasonVO(reasons.get(i).value(), reasons.get(i).label(), i + 1));
+        }
+        return Result.success(result);
     }
 
     /**

@@ -73,7 +73,7 @@ async function onHiddenChange() {
 }
 
 // 计数展示统一交 DataTable footer（共 N 条）承担。
-// 原 statItems / loadStats（每进页 2 次额外 total 请求，且与筛选条争位）已删除——
+// 进页统计行已移除（原 statItems / loadStats 每进页 2 次额外 total 请求，且与筛选条争位）——
 // 列表 total 本就是「当前筛选条件下的条数」，与 footer「共 N 条」同口径，无需双重展示。
 
 const route = useRoute()
@@ -295,5 +295,5 @@ function getDishName(dishId: number | bigint): string {
 /* 内容列文本（截断 + 悬停看全文；不再是「隐形按钮」） */
 .cell-text { display: inline-block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 
-/* 评价详情弹窗内的展示样式（配图缩略图 / 定义列表）已随实现下沉至公共组件 ReviewDetailDialog */
+/* 评价详情弹窗内的展示样式（配图缩略图 / 定义列表）下沉至公共组件 ReviewDetailDialog */
 </style>

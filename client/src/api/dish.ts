@@ -2,7 +2,7 @@ import type {
   DishListItem, DishDetail, DishQuery,
   GuessLike,
 } from '@/types/dish'
-import { get, post } from './http'
+import { get } from './http'
 import { fenToYuan } from '@/utils/money'
 import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from './shared'
 
@@ -14,7 +14,7 @@ import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from '
  * 使端上无需随库表批次再改一次。
  *
  * 注意：本层**不做「机器值 → 中文」映射** —— 中文一律由四维字典端点提供
- * （`stores/dish-attribute` 的 `labelsOf`），端上零硬编码映射表（2026-09-23 §7.40 R4）。
+ * （`stores/dish-attribute` 的 `labelsOf`），端上零硬编码映射表（§7.40 R4）。
  */
 function toMachineList(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean)
@@ -28,7 +28,7 @@ function toMachineList(raw: unknown): string[] {
 /**
  * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
  * <p>
- * 2026-09-22 列表 / 详情出参拆分：列表**只有 `coverImage` 单值**（不再有 `images` 数组，
+ * 列表**只有 `coverImage` 单值**（不再有 `images` 数组，
  * 也不再派生 `image`）；`description` / `floor` / `ratingCount` / 四维等详情专属字段**不再映射**。
  */
 function toDishListItem(raw: RawRow): DishListItem {
@@ -74,8 +74,8 @@ function toDishDetail(raw: RawRow): DishDetail {
 /**
  * 通用菜品检索（首页网格无限加载 + 搜索结果）。
  * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize`**（2026-09-22 起
- * 食堂 / 价格 / 排序筛选全量下线，端上不再传 `canteenId` / `minPrice` / `maxPrice` / `sortBy`；
+ * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize`**（
+ * 食堂 / 价格 / 排序筛选不提供，端上不传 `canteenId` / `minPrice` / `maxPrice` / `sortBy`；
  * 排序恒为服务端热度倒序）。返回分页结果供瀑布流去重与「本页条数 < pageSize」判到底。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[]; total: number }> {
@@ -104,23 +104,7 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
 }
 
 /**
- * 上报菜品浏览（POST /dishes/{id}/views，供 view_count / 热度排序派生使用）。
- * **公开端点（游客亦计）**：2026-09-23 §7.41 起不做人员与时间限制，每次进入详情页即 +1（PV 口径）；
- * 端点已转公开，故端上**无需**区分登录态（本就是同一调用）。后端若有 token 则额外写一条浏览足迹。
- * 无需 body（用户身份由 token 解析，游客无 token）。滥用防护在服务端 IP 维度限频。
- * 浏览埋点属非关键链路，失败静默。
- */
-export async function addView(id: number): Promise<void> {
-  try {
-    await post<void>(`/dishes/${id}/views`)
-  } catch {
-    /* 静默失败：浏览统计不应阻塞详情展示 */
-  }
-}
-
-/**
  * 猜你喜欢（`GET /dishes/for-you`）。
- * 2026-09-22 change search-page-refresh：原 `/dishes/hot-search` 改名 + 语义变更为
  * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）。
  */
 export async function getGuessLike(): Promise<GuessLike[]> {

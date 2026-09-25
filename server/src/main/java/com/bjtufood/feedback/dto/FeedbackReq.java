@@ -15,25 +15,23 @@ import java.util.List;
 public class FeedbackReq {
 
     /**
-     * 反馈类型写入值域（P3-10 收敛，单一真源 {@code FeedbackConst.WRITABLE_TYPES}）：
-     * suggestion / add / error / report。
-     * bug / other 为历史遗留类型（端上已无生产者），禁止新增，非法值由 Service 层返回 400。
+     * 反馈类型写入值域（单一真源 {@code FeedbackConst.WRITABLE_TYPES}）：
+     * issue（我要反馈问题）/ report（举报）。
+     * suggestion/add/error/bug/other 为历史遗留类型（端上已无生产者），禁止新增，非法值由 Service 层返回 400。
      */
-    @Schema(description = "反馈类型：suggestion/add/error/report（bug/other 为历史遗留、禁新增）", example = "suggestion")
+    @Schema(description = "反馈类型：issue=我要反馈问题 / report=举报（历史类型禁新增）", example = "issue")
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 
     /**
-     * 二级分类（DEV-01 补全落库）：仅 {@code type=suggestion} 有效，值域 idea/problem
-     * （单一真源 {@code FeedbackConst.SUB_WRITE_WHITELIST}）。
-     * type 非 suggestion 时该值无效：未提供（null/空白）按未填处理（落库 NULL）；
-     * 一旦提供（非空白）即 400（严格模式）；suggestion 场景下 provided 但值域非法同样 400。
+     * 二级分类（按 type 分流，单一真源 {@code FeedbackConst}）：
+     * report → 举报原因（**必选**，值域 = {@code REPORT_REASON_VALUES}，
+     * 字典端点 {@code GET /feedback/report-reasons} 下发）；其他类型禁带（提供即 400）。
      */
-    @Schema(description = "二级分类：仅 suggestion 类型有效，值域 idea/problem（其他类型传值将 400）", example = "idea")
+    @Schema(description = "二级分类：report 传举报原因 value（必选，见 GET /feedback/report-reasons）；其他类型禁带", example = "spam")
     private String sub;
 
-    @Schema(description = "反馈内容", example = "希望增加更多素食档口")
-    @NotBlank(message = "反馈内容不能为空")
+    @Schema(description = "反馈内容（report 类型可空——举报以结构化原因单选为准）", example = "希望增加更多素食档口")
     @Size(max = 1000, message = "反馈内容不能超过1000字")
     private String content;
 

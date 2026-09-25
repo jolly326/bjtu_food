@@ -1,5 +1,6 @@
 package com.bjtufood.common.result;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -24,10 +25,9 @@ import java.util.List;
  * }
  * </pre>
  * <p>
- * <b>字段集</b>：分页壳恒为 {@code records} / {@code total} / {@code page} / {@code pageSize} 四项。
- * 原过渡期字段 {@code list} 已于 2026-09-21 删除（见 docs/project_spec.md §7.33）：两端消费方
- * （client {@code recordsOf} / web {@code pageRecords}）均只读 {@code records}，而 {@code list}
- * 派生自 {@code records} 并参与序列化会让同一数组被 JSON 输出两次、列表响应体积≈翻倍。
+ * <b>字段集</b>：分页壳恒为 {@code records} / {@code total} / {@code page} / {@code pageSize} 四项；
+ * 两端消费方（client {@code recordsOf} / web {@code pageRecords}）均只读 {@code records}，
+ * 故不输出任何与 {@code records} 恒等派生的兼容字段（派生字段会让同一数组被 JSON 输出两次、响应体积翻倍）。
  *
  * @param <T> 列表项类型
  */
@@ -71,5 +71,16 @@ public class PageResult<T> {
         result.setPage(page);
         result.setPageSize(pageSize);
         return result;
+    }
+
+    /**
+     * 分页结果转换（分页端点统一入口）。
+     * <p>
+     * {@code page} / {@code pageSize} 取 {@code IPage} 的 current/size —— 二者由 Service 内
+     * {@code PageUtil.normalize} 归一化，即「实际生效值」；直接取 Controller 原始入参会
+     * 把越界 / 超限的入参写进响应，端上无从得知服务端真正用了什么。
+     */
+    public static <T> PageResult<T> of(IPage<T> page) {
+        return of(page.getRecords(), page.getTotal(), (int) page.getCurrent(), (int) page.getSize());
     }
 }

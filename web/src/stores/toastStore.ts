@@ -29,7 +29,7 @@ export const useToastStore = defineStore('toast', () => {
     messages.value = messages.value.filter(m => m.id !== id)
   }
 
-  // 仅保留 success / error：info 与 clear 在全仓无消费方（阶段1 死代码清理），已删除。
+  // 仅保留 success / error（info 与 clear 无消费方）。
   function success(msg: string) { add('success', msg) }
   function error(msg: string) { add('error', msg, 4000) }  // 错误信息停留更久，方便阅读
 

@@ -156,18 +156,25 @@ INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
 --     本脚本不再灌入该表种子数据、不再回填 useful_count（否则新库报 Unknown table / Unknown column）；
 --     存量库由 schema.sql 末尾 drop_review_useful_chain 幂等段清理（表基线 10 → 9）。
 
--- -------------------- 用户反馈（含建议/纠错/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
--- sub（二级分类，DEV-01）仅 type=suggestion 有效：示例数据给 suggestion 行补 'idea' 便于联调可见，
--- 其余类型（error/report/other/bug/add）该列按 NULL 写入（严格模式下其他类型传 sub 会被后端 400 拒绝）。
--- user_feedback.contact 已于 2026-09-16 用户拍板退役（产品定型「不收集联系方式」），列清单已移除。
+-- -------------------- 用户反馈（意见反馈/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
+-- sub（二级分类）：report 行传举报原因机器值（GET /feedback/report-reasons 字典下发项）；
+-- 其他类型该列按 NULL 写入。user_feedback.contact 已于 2026-09-16 用户拍板退役（产品定型「不收集联系方式」）。
 DELETE FROM user_feedback;
 INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, related_id, created_at) VALUES
-(1, 'suggestion', 'idea', '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
-(2, 'error',      NULL,   '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(3, 'report',     NULL,   '有评价内容疑似广告引流，建议管理员审核处理', 'pending', 'review', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
-(4, 'other',      NULL,   '账号无法收到登录验证码，邮箱没有新邮件，求帮助', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, 'bug',        NULL,   '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR)),
-(1, 'add',        NULL,   '【新增菜品】香煎鸡排饭\n位置：二食堂二楼 3 号窗口\n特色：外酥里嫩，配时蔬', 'pending', 'dish', NULL, DATE_SUB(NOW(), INTERVAL 1 HOUR));
+(1, 'issue',  NULL,   '希望菜品详情页能标注过敏原信息，方便有忌口的同学选择', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 30 MINUTE)),
+(2, 'issue',  NULL,   '明湖烧烤的营业时间写的是 10:00-22:00，实际下午才开门，麻烦修正一下', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(3, 'report', 'spam', '有评价内容疑似广告引流，建议管理员审核处理', 'pending', 'review', 1, DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(4, 'issue',  NULL,   '账号无法收到登录验证码，邮箱没有新邮件，求帮助', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2, 'issue',  NULL,   '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR));
+
+-- -------------------- 菜品信息纠错（测试纠错采纳/拒绝流；先清后插保证可重复执行） --------------------
+-- 覆盖三种处理路径：#1 档口名精确命中既有档口（可直接采纳）；#2 档口名未命中（触发两段式档口确认，
+-- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）。
+DELETE FROM dish_correction;
+INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, flavor_tags, ingredients, images, status, reply, reject_reason, created_at) VALUES
+(4,  1,    '番茄炒蛋盖饭', 800, '学一食堂', '学一基本伙食', '["sour","sweet"]', '["egg","rice"]', NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '["salty"]',       '["beef","noodle"]', NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(1,  NULL,  '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '["spicy","sour"]', '["chicken","veg"]', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）

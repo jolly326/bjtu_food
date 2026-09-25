@@ -2,8 +2,7 @@
   <view class="filter-result">
     <!-- 结果态滚动容器：find-page-layout-restructure —— 滚动随结果内容区（FindResults）走，
          不再由 find/index 页根层包裹两态共用滚动。结果为空或请求失败时静默（无占位）。
-         页面级手动刷新手势已于 2026-09-22 下线（change `remove-pull-to-refresh`）：容器恢复为
-         普通滚动容器；结果态的恢复路径 = 失败重试块 @tap / 重新提交搜索（宿主页持有）。 -->
+         容器为普通滚动容器；结果态的恢复路径 = 失败重试块 @tap / 重新提交搜索（宿主页持有）。 -->
     <scroll-view
       class="results-scroll"
       scroll-y
@@ -42,15 +41,13 @@
                   >{{ seg.text }}</text>
                 </text>
                 <view v-if="item.rating != null" class="mixed-rating-group">
-                  <!-- 星色 = 独立语义色（黄 #FBBF24），**不随主色换肤**（project_spec.md §4.2 / §7.39 第 2 条）。
-                       ⚠️ 必须传**实色** `COLOR_MAP['star']`：IconSvg 的 color 不解析 var()（data-uri 内为字面量）
-                       —— 此前改 'var(--color-star)' 看似合规，实测恒落 ICON_FALLBACK_COLOR（近黑），属**假阳性修复**。 -->
+                  <!-- 星色 = 独立语义色（黄 #FBBF24），不随主色换肤（project_spec.md §4.2 / §7.39 第 2 条）。
+                       必须传实色 `COLOR_MAP['star']`：IconSvg 的 color 不解析 var()（data-uri 内为字面量）。 -->
                   <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" class="mixed-rating-star" />
                   <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
                 </view>
               </view>
-              <!-- 价格：展示唯一数据源 = price（现价）；originalPrice 有值且大于 price 时并列划线原价。
-                   标签行与距离文案已随「菜品标签 / 坐标距离」全链下线删除（design D8/D9）。 -->
+              <!-- 价格：展示唯一数据源 = price（现价）；originalPrice 有值且大于 price 时并列划线原价。 -->
               <view v-if="item.price != null" class="mixed-price-group">
                 <text class="mixed-price"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
                 <text v-if="hasDiscount(item)" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
@@ -93,8 +90,7 @@ interface MixedResultItem {
   rating?: number
 }
 
-/* 对外接口（2026-09-22 收敛，change `remove-pull-to-refresh`）：入参仅 `items` / `keyword`，
-   事件仅 `select`；原手动刷新手势所需的触发态 prop 与重跑事件已随之下线一并删除。 */
+/* 对外接口：入参仅 `items` / `keyword`，事件仅 `select`。 */
 const props = defineProps<{
   items: MixedResultItem[]
   keyword?: string
@@ -154,8 +150,7 @@ function selectRow(item: MixedResultItem) {
 }
 /* 搜索结果列表（仅菜品，一行一个，左图右信息）。
    顶部间距的**唯一来源 = 宿主页搜索行的下 padding**（UI 文档 §2：块间 `--spacing-lg`），
-   本组件不再叠加任何 margin-top（旧注释「贴近 FilterBar」所指的筛选条已于 2026-09-22 全量下线，
-   该口径一并作废）。 */
+   本组件不再叠加任何 margin-top（筛选条不提供，间距口径以宿主页搜索行下 padding 为准）。 */
 .mixed-list { margin: 0 var(--spacing-md) var(--spacing-md); }
 /* 单条结果：结果区**垂直居中**，把留白分到卡片上下两侧（UI 文档 §4「少量结果」）。
    旧实现 `margin-top: 12px` → 卡片悬顶、下方约 70% 屏高空白，读作「还没加载完」。
@@ -170,7 +165,7 @@ function selectRow(item: MixedResultItem) {
   box-sizing: border-box;
 }
 
-/* ===== 单卡样式（原 DishResultRow 内联，find-result-card-polish） ===== */
+/* ===== 单卡样式（find-result-card-polish） ===== */
 .mixed-item {
   display: flex;
   align-items: center;

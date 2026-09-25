@@ -19,7 +19,7 @@ import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
   text: string
-  /** 按钮型（当前仅实底主色一种；danger/outline 变体零使用已删除） */
+  /** 按钮型（当前仅实底主色一种；danger/outline 变体不提供） */
   type?: 'primary'
   disabled?: boolean
   loading?: boolean

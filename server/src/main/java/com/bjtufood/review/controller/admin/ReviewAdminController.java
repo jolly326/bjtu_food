@@ -1,6 +1,5 @@
 package com.bjtufood.review.controller.admin;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -31,14 +30,11 @@ public class ReviewAdminController {
             @RequestParam(required = false) Long userId,
             @Parameter(description = "评价正文关键词（可选，模糊匹配）")
             @RequestParam(required = false) String keyword) {
-        IPage<ReviewAdminVO> result = reviewService.listAllForAdmin(page, pageSize, isHidden, userId, keyword);
-        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
-        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
-                (int) result.getCurrent(), (int) result.getSize()));
+        return Result.success(PageResult.of(reviewService.listAllForAdmin(page, pageSize, isHidden, userId, keyword)));
     }
 
-    // 内容安全复核端点 PUT /{id}/sec-state 已随 sec_state 全链退役删除（2026-09-15 用户拍板取消人工复核）：
-    // 内容安全检测 pass/review 直接放行、risky 直接拒绝，无待复核队列；事后处置保留 /hide 与 DELETE。
+    // 评价事后处置只保留「隐藏/显示」与「删除」两个动作：内容安全检测 pass/review 直接放行、risky 直接拒绝，
+    // 不存在待复核队列，故无内容安全态处置端点。
 
     @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。")
     @PutMapping("/{id}/hide")

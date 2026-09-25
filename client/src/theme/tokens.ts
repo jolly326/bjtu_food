@@ -1,7 +1,7 @@
 // 主题->颜色 token 映射（唯一事实源）。
 // WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
 //
-// ===== 2026-09-23 全站色板改「暖橙黄」（§7.39 裁决，真源 = docs/ui/client-首页菜品浏览.md §4.1）=====
+// ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/ui/client-首页菜品浏览.md §4.1）=====
 // 旧「暖砖红橙档」（primary #C2410C / primary-text #B93A0A / primary-bright #EA580C /
 // 页底 #F7F3EF / 渐变 #FFF9F3→#FFEFE0 / 文字 #262626 三阶）**整体退役**。
 // 主色由「单档」细分为语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），并补齐 §4.1 的全部 token 名
@@ -109,12 +109,12 @@ export type IconColorName = keyof typeof COLOR_MAP
  * 由 `scripts/gen-css-vars.ts` 遍历生成 `src/theme/generated-colors.css` 的 `page{…}` 颜色块，
  * App.vue 仅 `@import` 该生成物，禁止手工维护颜色变量。
  *
- * ⚠️ **2026-09-23 对齐现状**：生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 已删除，
- * `generated-colors.css` 改为**手工维护**（内容仍须与本表保持一致）；`npm run type-check` 的前置
- * 绑定随之失效，须直接执行 `npx vue-tsc --noEmit`（见 spec §4.2 / §7.39）。
+ * ⚠️ 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不再存在，
+ * `generated-colors.css` 须**手工维护**（内容与本表逐键一致）；类型检查直接执行
+ * `npx vue-tsc --noEmit`（见 spec §4.2 / §7.39）。
  *
  * 收录口径：仅收录「以 CSS 变量形态被 WXSS 消费」的色值 token；
- * 仅原生 API 兜底直取实色的键（如 success 历史键已删）不在页面级声明，不收录。
+ * 仅原生 API 兜底直取实色的键（如 success 历史键）不在页面级声明，不收录。
  * 派生引用（--text-hint 等值为 var() 组合、不含裸色值）不属色值真源范畴，仍手写在 App.vue 派生区。
  */
 export const CSS_VARS: Record<string, string> = {
@@ -134,7 +134,7 @@ export const CSS_VARS: Record<string, string> = {
   '--color-accent': COLOR_MAP.accent,
   '--color-accent-soft': COLOR_MAP['accent-soft'],
   /* 语义色（error/warning/success/info/price/star 深浅对称）。
-     原 `--color-like` 已随「评价有用」全链下线删除（2026-09-21 资产专项，PR-05） */
+     不含 `--color-like`（「评价有用」能力不提供，PR-05） */
   '--color-error': COLOR_MAP.error,
   '--color-error-soft': COLOR_MAP['error-soft'],
   '--color-warning': COLOR_MAP.warning,
@@ -204,5 +204,5 @@ export const MODAL_CONFIRM_DANGER_COLOR = '#C62828'
 export const MODAL_CONFIRM_PRIMARY_COLOR = '#B4531A'
 // pages.json globalStyle 导航栏/窗口底色（JSON 无法引用 TS 常量，此处登记为色值事实源，改动须与 pages.json 同步）
 export const NAVIGATION_BAR_BACKGROUND = '#F5F5F7'
-// IconSvg 描边唯一兜底/兜底色（MP-11：resolveColor/COLOR_MAP 死机制删除后，var() 形态与空值统一落到本常量；见 components/IconSvg.vue）
+// IconSvg 描边兜底色：var() 形态与空值统一落到本常量（见 components/IconSvg.vue）
 export const ICON_FALLBACK_COLOR = '#1C1C1E'

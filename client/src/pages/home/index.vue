@@ -1,6 +1,6 @@
 <template>
   <view class="page home-page">
-    <!-- ===== 固定标题带（跨页统一，2026-09-22 定稿：docs/ui/client-首页菜品浏览.md §1.0） =====
+    <!-- ===== 固定标题带（跨页统一，docs/ui/client-首页菜品浏览.md §1.0） =====
          · `position: fixed` **永久固定在页面左上角**，不随页面滚动移动、不随 Banner 滚出；
          · 与微信右上角**原生胶囊同一条水平线**（行高 = 胶囊高、垂直中心对齐），右侧按胶囊避让；
          · 文案**按页配置**（首页 = 「知行食记」，搜索页等各填自己的），位置 / 高度 / 对齐 / 配色跨页一致；
@@ -8,9 +8,8 @@
     <AppTitleBand title="知行食记" :veil-opacity="titleVeilAlpha" />
 
     <!-- 滚动容器：**不受控**（无 `:scroll-top` / `:scroll-with-animation`）。
-         页面级手动刷新手势已于 2026-09-22 下线（change `remove-pull-to-refresh`）——数据更新走
-         「首屏拉取（onLoad）+ onShow 兜底重拉 + 失败重试块（HomeContent 内）」三条既有路径；
-         原「受控 `scroll-top` 脉冲」仅服务该手势后的强制回顶，随之下线（不再强制回顶）。 -->
+         数据更新走「首屏拉取（onLoad）+ onShow 兜底重拉 + 失败重试块（HomeContent 内）」三条既有路径；
+         不强制回顶。 -->
     <scroll-view
       class="scroll-wrap"
       scroll-y
@@ -56,7 +55,7 @@
           </view>
         </view>
 
-        <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏，2026-09-22 定稿） =====
+        <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏） =====
              · **原生粘性定位**（`position: sticky`）：位移完全由渲染层原生滚动驱动，
                **不走滚动回调 + setData** —— 上滑时位置与内容 1:1 跟手，不会「像临时算出来的」那样滞后 / 闪现；
              · 流内落点紧贴 Banner 下缘（自然位置），滚动满「Banner 高 − 标题带高」时恰好粘在
@@ -67,7 +66,7 @@
              · 内部间距由本容器 padding 承担（§1.2）：上 padding = Banner→搜索区，下 padding = 标签栏→网格；
              · 背后无任何图片（Banner 是正常流首块，滚出即消失、不定格为背景）。 -->
         <view class="home-sticky" :style="stickyStyle">
-          <!-- 搜索行：与搜索页同源（`SearchBar`，2026-09-22 抽公共组件）
+          <!-- 搜索行：与搜索页同源（`SearchBar`）
                —— 左搜索胶囊 + 右独立「搜索」按钮，均为进搜索页的入口 -->
           <SearchBar mode="entry" @tap="goToSearch" />
 
@@ -124,7 +123,7 @@ const BANNER_MIN_CONTENT_PX = 120
  */
 const LOWER_THRESHOLD_PX = 300
 
-/* ===== 顶部度量（跨页统一实现，2026-09-22 抽 `useNavMetrics`）=====
+/* ===== 顶部度量（跨页统一实现，`useNavMetrics`）=====
    状态栏高 / 导航行高 / 胶囊高 / 胶囊避让量一律从该 composable 取——**页面不再自算**
    （`client-page-structure`：页面 SHALL NOT 各自计算导航尺寸）。本页只消费 `titleBandPx`：
    Banner 总高、容器吸顶的 `top` 与表面切片基准都要用它；标题带内部的居中与避让由 `AppTitleBand` 自持、
@@ -170,13 +169,10 @@ async function loadBanners() {
   }
 }
 
-/* ===== 滚动量：只服务「表面切片对齐」，**不再驱动任何位移**（2026-09-22 重构） =====
-   ⚠️ 历史问题（本次修复）：吸顶容器曾走 `position: fixed` + `transform: translate3d(0, offset)`，
-   offset 由本回调每帧 setData 下发。小程序逻辑层与渲染层跨线程通信有延迟，上滑时容器总比内容
-   慢半拍，读起来「像临时算出来的位置」、易闪现 —— 该位移实现已废弃。
-   现在**位移完全交给渲染层原生粘性定位**（见模板 `.home-sticky` 的 `position: sticky`），
+/* ===== 滚动量：只服务「表面切片对齐」，**不驱动位移** =====
+   位移完全交给渲染层原生粘性定位（模板 `.home-sticky` 的 `position: sticky`），
    本回调只用来对齐容器表面（背景切片）的渐变基准：该基准滞后 1–2 帧在整条渐变上仅约 1/255 色阶，
-   肉眼不可辨，故不会重现「闪现」。 */
+   肉眼不可辨，不会闪现。 */
 const scrollTop = ref(0)
 
 /** 平台例外：uni scroll-view 滚动回调未纳入项目 TS 类型，只声明真正读取的字段 */
@@ -281,10 +277,10 @@ onShareAppMessage(() => {
   overflow: hidden;
 }
 
-/* 固定标题带 / 纱 / 标题样式已抽入公共组件 `components/AppTitleBand.vue`（2026-09-22 change `search-page-refresh`）——
+/* 固定标题带 / 纱 / 标题样式已抽入公共组件 `components/AppTitleBand.vue`——
    首页与搜索页共用同一实现，避免两套样式漂移；纱层仍由本页按 `titleVeilAlpha` 驱动。 */
 
-/* ===== 吸顶容器（搜索区 + 标签栏）：**原生粘性定位**（2026-09-22 重构） =====
+/* ===== 吸顶容器（搜索区 + 标签栏）：**原生粘性定位** =====
    · `position: sticky` + 内联 `top`（= 固定标题带下沿）→ 位移完全由渲染层原生滚动驱动，
      **不经过滚动回调 / setData**：上滑时与内容 1:1 跟手，不会「慢半拍」闪现；
    · 流内自然落点紧贴 Banner 下缘，滚动满「Banner 高 − 标题带高」时恰好粘住 ——
@@ -313,8 +309,7 @@ onShareAppMessage(() => {
   background-size: 100% 720rpx;
   background-position-y: calc(-1 * var(--home-band-top, 0px));
 }
-/* 搜索行样式（搜索胶囊 / 「搜索」按钮 / 命中区扩张）已抽入公共组件 `components/SearchBar.vue`
-   （2026-09-22 change `search-page-refresh`）——首页与搜索页共用同一实现（含高度 = 本机真实胶囊高）。 */
+/* 搜索行样式已抽入公共组件 `components/SearchBar.vue`——首页与搜索页共用同一实现（含高度 = 本机真实胶囊高）。 */
 /* 标签栏：上下间距全部外置 —— 与搜索区由 `.mt-tab` 自身 padding-top 承担、
    与网格由容器 padding-bottom 承担（两处均不再叠加组件 padding） */
 .home-tabs {

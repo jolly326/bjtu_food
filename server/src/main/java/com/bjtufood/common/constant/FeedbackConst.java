@@ -1,16 +1,20 @@
 package com.bjtufood.common.constant;
 
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 用户反馈相关常量（类型/状态值域单一真源）。
  */
 public interface FeedbackConst {
 
-    /** 反馈类型：功能建议 / 内容纠错 / 系统问题 / 其他 / 举报 */
+    /** 反馈类型：我要反馈问题（textarea 内容 + 配图） */
+    String TYPE_ISSUE = "issue";
+    /** 反馈类型：功能建议 / 内容纠错 / 系统问题 / 其他 / 举报（suggestion/add/error 为历史遗留类型、禁新增） */
     String TYPE_SUGGESTION = "suggestion";
     String TYPE_ERROR = "error";
-    /** 新增菜品（2026-08-17：从「内容纠错」二级细分提升为一级类型，承载 UGC 补录） */
+    /** 新增菜品（历史遗留类型、禁新增） */
     String TYPE_ADD = "add";
     /** 系统问题（bug：加载失败/闪退/数据异常等）。<b>历史遗留类型、禁新增</b>：端上已无生产者（P3-10） */
     String TYPE_BUG = "bug";
@@ -19,40 +23,57 @@ public interface FeedbackConst {
     String TYPE_REPORT = "report";
 
     /**
-     * 反馈类型写入白名单（单一真源，P3-10 收敛）。
+     * 反馈类型写入白名单（单一真源）。
      * <p>
-     * 仅端上真实产出的 4 类：{@code suggestion}（提个想法页）/ {@code add}（推荐菜品页）/
-     * {@code error}（信息不对页）/ {@code report}（菜品详情页举报）。
-     * {@code bug} / {@code other} 已下线、无任何生产者，禁止新增写入（历史数据仍可读、可筛选）。
+     * 仅端上真实产出的 2 类：{@code issue}（我要反馈问题）/ {@code report}（菜品详情页举报）。
+     * suggestion/add/error/bug/other 为历史遗留类型、端上已无生产者，禁止新增写入
+     * （历史数据仍可读、可筛选）。
      */
-    Set<String> WRITABLE_TYPES = Set.of(TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_REPORT);
+    Set<String> WRITABLE_TYPES = Set.of(TYPE_ISSUE, TYPE_REPORT);
 
     /**
      * 反馈类型查询白名单（含全部历史类型，供后台筛选存量数据，P2-01 兼容要求）。
      * <p>
-     * 比 {@link #WRITABLE_TYPES} 多出历史遗留的 {@code bug} / {@code other}，
+     * 比 {@link #WRITABLE_TYPES} 多出历史遗留类型（suggestion/add/error/bug/other），
      * 保证后台按历史类型筛选仍能查到老数据（不因收紧写入口而让老数据显示异常）。
      */
-    Set<String> QUERY_TYPES = Set.of(TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_BUG, TYPE_OTHER, TYPE_REPORT);
+    Set<String> QUERY_TYPES = Set.of(
+            TYPE_ISSUE, TYPE_REPORT,
+            TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_BUG, TYPE_OTHER);
 
     /**
-     * 反馈二级分类（sub，DEV-01 补全落库）：<b>仅</b> {@code type=suggestion}（提个想法）有效。
-     * <p>
-     * 端上「提个想法」页存在「想法 / 问题」二选一，此前该值仅在请求中出现、未落库（假字段）；
-     * 现收敛为服务端白名单并落库 {@code user_feedback.sub}，供管理端按二级分类查看。
-     * type 非 suggestion 时该值无效：未提供（null/空白）按未填处理、落库 NULL；
+     * 反馈二级分类（sub，DEV-01 补全落库）：当前写入侧仅 {@code type=report}（举报原因）消费 sub；
+     * {@code type=suggestion}（提个想法，历史遗留、禁新增）存量数据的 idea/problem 值仍可读、可筛选。
+     * type 与 sub 不匹配时：未提供（null/空白）按未填处理、落库 NULL；
      * 一旦提供（非空白）即 400（严格模式，2026-09-15 用户拍板，不静默忽略），避免跨类型污染。
      */
-    String SUB_IDEA = "idea";
-    String SUB_PROBLEM = "problem";
+    // ==================== 举报原因（type=report 的二级分类，字典下发给端上单选） ====================
+
+    /** 举报原因项（value = 机器值，label = 中文标签；经 {@code GET /feedback/report-reasons} 字典下发） */
+    record ReportReason(String value, String label) {}
+
+    String REPORT_SPAM = "spam";
+    String REPORT_ABUSE = "abuse";
+    String REPORT_PORN = "porn";
+    String REPORT_ILLEGAL = "illegal";
+    String REPORT_FAKE = "fake";
+    String REPORT_OTHER = "other";
 
     /**
-     * 反馈二级分类写入白名单（单一真源）：仅 {@code idea} / {@code problem}。
-     * <p>
-     * provided 且不在白名单 → 400（PR-06：非法入参必须报错，不静默降级）；
-     * 未提供（null/空白）→ 按未填处理（落库 NULL），由 Service 归一化。
+     * 举报原因字典（**唯一真源**，List.of 保序 = 下发展示顺序）：端上单选弹层与管理端原因翻译
+     * 均消费 {@code GET /feedback/report-reasons} 下发的同一份，**零硬编码**（PR-12）。
      */
-    Set<String> SUB_WRITE_WHITELIST = Set.of(SUB_IDEA, SUB_PROBLEM);
+    List<ReportReason> REPORT_REASONS = List.of(
+            new ReportReason(REPORT_SPAM, "垃圾广告 / 营销刷屏"),
+            new ReportReason(REPORT_ABUSE, "辱骂攻击"),
+            new ReportReason(REPORT_PORN, "色情低俗"),
+            new ReportReason(REPORT_ILLEGAL, "违法违规"),
+            new ReportReason(REPORT_FAKE, "虚假信息 / 虚假评价"),
+            new ReportReason(REPORT_OTHER, "其他问题"));
+
+    /** 举报原因写入白名单（report 类型 sub **必选**其一，PR-06：非法 / 缺失即 400） */
+    Set<String> REPORT_REASON_VALUES = REPORT_REASONS.stream()
+            .map(ReportReason::value).collect(Collectors.toUnmodifiableSet());
 
     /** 举报关联类型（举报对象：菜品评价） */
     String RELATED_REVIEW = "review";

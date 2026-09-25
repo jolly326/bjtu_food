@@ -1,5 +1,5 @@
 <template>
-  <!-- 首页横向「菜品大类」标签栏（2026-09-21 §7.34 / home-page-presentation）：
+  <!-- 首页横向「菜品大类」标签栏（§7.34 / home-page-presentation）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
        ⚠️ 标签集合与文案**完全**来自字典响应（`GET /dishes/meal-types`）——
        本组件不维护任何大类中文映射；唯一由端上渲染的固定项是第一项「全部」（= 不传 mealType）。
@@ -80,7 +80,7 @@ function onSelect(key: string | null) {
 
 <style scoped lang="scss">
 /* 标签栏落在页面渐变底色区（与上方白色搜索卡在明度上可区分，见 client-visual-language）。
-   自身上下 padding **归零**（2026-09-22 间距收口）：与搜索区、与网格的间距各由
+   自身上下 padding **归零**：与搜索区、与网格的间距各由
    `.mt-tab` 的行内上偏置 / 吸顶容器 padding 单独承担 —— 两处叠加会把间隙撑到 20px+。 */
 .mt-bar {
   width: 100%;
@@ -113,7 +113,7 @@ function onSelect(key: string | null) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  /* 文字**行内上偏置**（§2 光学间距，2026-09-22 修订）：行内偏置 24rpx 即「搜索区 → 标签文字」
+  /* 文字**行内上偏置**（§2 光学间距）：行内偏置 24rpx 即「搜索区 → 标签文字」
      间距的**全部来源**（≈12px，`.mt-bar` 已不再补 padding）；「下划线 → 卡片首行」由吸顶容器
      padding-bottom + 本行行底余量共同构成（≈16px）。两侧都较旧口径（20 / 24）收紧，
      仍保持「下行距 ≥ 上行距」，分组感不丢。

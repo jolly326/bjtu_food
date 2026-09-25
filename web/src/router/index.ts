@@ -38,7 +38,9 @@ const router = createRouter({
         { path: 'reviews', name: 'reviewManage', component: () => import('@/views/audit/ReviewManageView.vue') },
         // 反馈：处理闭环（采纳回复 / 不采纳必填原因）
         { path: 'feedback', name: 'feedbackManage', component: () => import('@/views/audit/FeedbackView.vue') },
-        // 学生账号：直接渲染学生账号视图（原「用户与系统」聚合页与其分类卡层已删除）
+        // 信息纠错：独立处理页（自反馈拆分，/admin/corrections；采纳两段式 / 拒绝必填原因）
+        { path: 'corrections', name: 'correctionManage', component: () => import('@/views/audit/CorrectionView.vue') },
+        // 学生账号：直接渲染学生账号视图
         { path: 'system', name: 'studentAccount', component: () => import('@/views/system/UserView.vue') },
         // 旧书签兼容：原「内容审核」聚合页地址（拆分后不再有该页，仅重定向；整份保留 query）
         {
@@ -49,8 +51,7 @@ const router = createRouter({
             return { path: toFeedback ? '/dashboard/feedback' : '/dashboard/reviews', query: to.query }
           },
         },
-        // 独立的食堂/档口管理页已删除（2026-09-14 §7.15：食堂与档口随菜品一起维护，
-        // 归属选择收敛到 DishFormDialog，见 project_spec §7.15）。
+        // 食堂与档口随菜品一起维护（§7.15：归属选择收敛到 DishFormDialog，见 project_spec §7.15）。
         // 旧书签（含旧的食堂/档口下钻详情链接）按下方兜底重定向到菜品列表，避免白屏。
         { path: 'canteens/:pathMatch(.*)*', redirect: DISH_LIST_PATH },
       ],

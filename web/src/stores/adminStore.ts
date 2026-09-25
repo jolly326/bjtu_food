@@ -10,13 +10,8 @@ import type { Canteen, Stall, Dish, Review, User } from '@/types'
 /**
  * adminStore：后台聚合层（跨 store 统一 loadAll + 常用写操作转发）。
  *
- * 2026-09-14 P3-08 清理：移除零消费死成员
- *  - `activeCanteens` / `activeStalls` / `activeDishes`（派生自各 store 的 `activeList`，三链一并下沉）；
- *  - `stats` / `todayOrders`（`todayOrders` 恒为 0，与本项目「无下单」定位相悖）。
- *
- * 2026-09-14 Q-113/Q-115 → 2026-09-15 §7.23 第 1 条：食堂/档口是**菜品筛选属性字典**，
- * 生命周期只有「按名 upsert（随菜品）/ 改名」，独立新增端点已删除，
- * 故此处只保留 `updateCanteen` / `updateStall`（改名），**不提供 addCanteen / addStall / delete***。
+ * 食堂/档口是**菜品筛选属性字典**（Q-113/Q-115 → §7.23 第 1 条）：
+ * 生命周期只有「按名 upsert（随菜品）/ 改名」，**不提供 addCanteen / addStall / delete***。
  */
 export const useAdminStore = defineStore('admin', () => {
   const canteen = useCanteenStore()

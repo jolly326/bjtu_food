@@ -18,15 +18,15 @@ interface ApiResponse<T = unknown> {
 
 /**
  * 「已由请求层提示过」的错误标记。
- * 请求层对网络异常 / 401 / 4031 / 403 已各自提示（4031 另弹 AuthSheet 认证引导；
+ * 请求层对网络异常 / 401 / 4031 / 403 已各自提示（4031 另跳独立认证页；
  * 403 且 message 指向「微信登录」时另弹窗说明 + 用户确认后才重跑微信静默登录补 openid，
- * 依据 spec §7.7 第 1 条（2026-09-14 裁决）：提示 + 用户主动确认，禁止自动重登换登录态），
+ * 依据 spec §7.7 第 1 条：提示 + 用户主动确认，禁止自动重登换登录态），
  * 调用方 catch 到本类型时应只做状态回滚，不再重复提示（避免同一失败弹两条提示）。
  */
 export class SurfacedError extends Error {}
 
 /**
- * 「资源不存在」错误（业务码 `4001`，2026-09-23 §7.40 R8 新增，首期 `GET /dishes/{id}` 落地）。
+ * 「资源不存在」错误（业务码 `4001`，§7.40 R8）：首期落地于 `GET /dishes/{id}`。
  *
  * 与网络故障 / 其它业务错误的区别（**必须区别对待**）：本错误表示**请求的对象本身不存在**
  * （已被删除，或已下架 —— 下架对外等价于不存在），**重试无意义**：消费方应给「不存在」文案 +
@@ -41,10 +41,10 @@ export function isResourceNotFound(e: unknown): boolean {
   return e instanceof ResourceNotFoundError
 }
 
-/** 请求体：兼容对象 / 纯字符串 / 二进制（原 any 边界收窄为可命名联合；接口类型通过 object 收录） */
+/** 请求体：兼容对象 / 纯字符串 / 二进制（可命名联合；接口类型通过 object 收录） */
 export type RequestData = string | object | ArrayBuffer | undefined
 
-/** 请求选项：header 收窄为字符串表（原 any；MP-09：仅本模块消费，收敛为模块私有） */
+/** 请求选项：header 收窄为字符串表（MP-09：仅本模块消费，收敛为模块私有） */
 interface RequestOptions {
   header?: Record<string, string>
   hideLoading?: boolean
@@ -110,14 +110,14 @@ async function handleUnauthorized(): Promise<void> {
 /**
  * 统一「邮箱未认证」处理（4031）：
  * UGC 写操作需已认证（bindEmail 非空），游客触发时后端返回 4031（细分业务码）→
- * 前端提示「请先完成学号邮箱认证」并弹认证引导（AuthSheet）。
- * 与普通 403 严格分流：4031 弹认证表单，403 不弹（避免误导用户去改邮箱）。
+ * 前端提示「请先完成身份认证」并跳转独立认证页（pages/auth/index）。
+ * 与普通 403 严格分流：4031 跳认证页，403 不跳（避免误导用户去改邮箱）。
  */
 async function handleUnverified(): Promise<void> {
-  uni.showToast({ title: '请先完成学号邮箱认证', icon: 'none' })
+  uni.showToast({ title: '请先完成身份认证', icon: 'none' })
   try {
-    const { useAuthSheetStore } = await import('@/stores/auth-sheet')
-    useAuthSheetStore().show()
+    const { useAuthStore } = await import('@/stores/auth')
+    useAuthStore().requestAuth()
   } catch {
     // 兜底：极端情况忽略，仅提示
   }
@@ -127,7 +127,7 @@ async function handleUnverified(): Promise<void> {
  * 统一「需微信登录」处理（403 且 message 指向微信登录，spec §7.5 / §7.7 第 1 条）：
  * 已认证（bindEmail 非空）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
  * message「请使用微信登录后再发布评价」。端上处置 = 「提示 + 用户主动确认」
- * （依据 spec §7.7 第 1 条，2026-09-14 裁决，禁止自动重登换登录态）：
+ * （依据 spec §7.7 第 1 条，禁止自动重登换登录态）：
  * 弹窗说明 + 用户点「重新登录」确认后，才重跑微信静默登录（wx.login → POST /auth/wechat-login）
  * 补齐 openid；**禁止自动重登**——对「无 openid 的历史学号账号」自动重登会静默切到新游客号
  * （登录态无感知互换，且新号 verified=false，重试仍撞 4031），顺滑收益≈0，静默换号代价真实。
@@ -303,9 +303,9 @@ async function request<T>(
   if (body.code === 403) {
     // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
     // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
-    //   （2026-09-14 裁决：提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
+    //   （提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
     // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
-    // 两种情形都不弹 AuthSheet（邮箱认证引导），避免把「需微信登录」误导成「需邮箱认证」。
+    // 两种情形都不跳独立认证页，避免把「需微信登录」误导成「需身份认证」。
     const msg = body.message || '无权限访问该内容'
     if (isWechatLoginRequired(msg)) {
       void handleWechatLoginRequired(msg)
@@ -315,7 +315,7 @@ async function request<T>(
     throw new SurfacedError(msg)
   }
   if (body.code === 4001) {
-    // 4001 = 资源不存在（细分业务码，2026-09-23 §7.40 R8）：抛**可识别**类型、不在此提示 ——
+    // 4001 = 资源不存在（细分业务码，§7.40 R8）：抛**可识别**类型、不在此提示 ——
     // 由页面渲染「不存在」文案 + 返回路径（与网络故障的可重试态区别对待）
     throw new ResourceNotFoundError(body.message || '内容不存在')
   }

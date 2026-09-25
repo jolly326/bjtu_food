@@ -5,7 +5,7 @@
        语义扩展（feedback 位置/楼层/菜品三处弹层复用，向后兼容）：
        - option.icon（IconSvg name）→ 行左 icon 方块；无 icon 且有 image 渲染图片；均无则空位占位；
        - backable → 头部标题左侧返回箭头（复用 IconSvg arrow + scaleX(-1)），点击 emit('back')，与 closable 并存；
-       - rowStyle='plain' 复刻 feedback 原 .sheet-item 通栏行观感（分隔线/icon/文字/右侧 check）；默认 'card'（发布页不变）；
+       - rowStyle='plain' 复刻 feedback 通栏行观感（分隔线/icon/文字/右侧 check）；默认 'card'（发布页不变）；
        - 默认槽渲染于滚动列表之后、底部按钮区之前（承载「其他」自定义输入等尾部内容）；
        - 具名 #empty 槽渲染于列表区内当无任何项时（承载「无关键词引导 / 无结果去补录 CTA」，由父级条件供内容），
          未提供时回退到 searchable 的「输入关键词搜索」内置提示（发布页等旧行为不变）。
@@ -96,7 +96,7 @@ const props = withDefaults(defineProps<{
   options: PickerOption[]
   /** 当前高亮 key（null 表示未选中任何项，如「不关联」语义由父级自行表达） */
   selectedKey?: string | null
-  /** 行样式：'card'（默认，发布页）| 'plain'（feedback 原 .sheet-item 通栏行观感） */
+  /** 行样式：'card'（默认，发布页）| 'plain'（feedback 通栏行观感） */
   rowStyle?: 'card' | 'plain'
   /** 头部标题左侧返回箭头（层级回退），与 closable 关闭钮并存 */
   backable?: boolean
@@ -179,7 +179,7 @@ watch(
 .lp-lead--empty { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
 .lp-lead-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-tag); background: var(--bg-page); flex-shrink: 0; }
 
-/* ===== 行：plain（feedback 原 .sheet-item 通栏分隔观感） ===== */
+/* ===== 行：plain（feedback 通栏分隔观感） ===== */
 .lp-wrap--plain .lp-list { padding: 0 var(--spacing-md) var(--spacing-sm); }
 .lp-item--plain { min-height: 0; padding: var(--spacing-sm) 0; margin-bottom: 0; border-radius: 0; border-bottom: 2rpx solid var(--border-color); }
 .lp-item--plain:last-child { border-bottom: none; }

@@ -2,6 +2,7 @@ package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.canteen.dto.StallAdminVO;
+import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
@@ -19,10 +20,20 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class StallServiceImpl implements StallService {
+
+    /**
+     * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。
+     * 命中即回退 stallId 逻辑，绝不以其为名新建食堂/档口。
+     */
+    private static final Set<String> EMPTY_NAME_VALUES = Set.of("其他", "其它", "无", "未知");
+
+    /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
+    private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
 
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
@@ -76,6 +87,73 @@ public class StallServiceImpl implements StallService {
         if (stall.getId() == null || stallMapper.updateById(stall) == 0) {
             throw new BusinessException("Stall not found");
         }
+    }
+
+    @Override
+    public Long upsertStallByName(String stallName, String rawCanteenName) {
+        Stall existing = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getName, stallName)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            // 同名档口已存在：直接复用（canteenName 仅在新建档口时消费，不迁移既有档口归属）
+            return existing.getId();
+        }
+        Long canteenId = upsertCanteenIdByName(rawCanteenName);
+        if (canteenId == null) {
+            // 新建档口必须挂有效食堂：拦截在写入前，杜绝 canteen_id=0 的不可见脏数据
+            throw new BusinessException(MSG_CANTEEN_REQUIRED);
+        }
+        Stall stall = new Stall();
+        stall.setName(stallName);
+        stall.setCanteenId(canteenId);
+        stallMapper.insert(stall);
+        return stall.getId();
+    }
+
+    @Override
+    public boolean existsById(Long stallId) {
+        return stallId != null && stallMapper.selectById(stallId) != null;
+    }
+
+    /**
+     * 按名 upsert 食堂（仅当新建档口时消费）：有效名称查字典命中则复用，未命中自动建档。
+     * <p>
+     * 空白/「其他」等空值语义名称 <b>不建档也不落 0</b>，返回 null 由调用方 400 拦截
+     * （2026-09-15 收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
+     * joinDishSql 的 INNER JOIN 静默剔除，属隐性数据丢失）。
+     *
+     * @return 食堂 ID；null=无可解析的有效食堂名（调用方必须 400，不得写库）
+     */
+    private Long upsertCanteenIdByName(String rawCanteenName) {
+        String canteenName = normalizeUpsetName(rawCanteenName);
+        if (canteenName == null) {
+            return null;
+        }
+        Canteen existing = canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getName, canteenName)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            return existing.getId();
+        }
+        Canteen canteen = new Canteen();
+        canteen.setName(canteenName);
+        canteenMapper.insert(canteen);
+        return canteen.getId();
+    }
+
+    /**
+     * upsert 名称规范化：trim 后为空白或命中 {@link #EMPTY_NAME_VALUES}（「其他」等空值语义）返回 null（不建档）；
+     * 其余返回 trim 后的名称。
+     */
+    private static String normalizeUpsetName(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty() || EMPTY_NAME_VALUES.contains(trimmed)) {
+            return null;
+        }
+        return trimmed;
     }
 
     private StallAdminVO toAdminVO(Stall stall, BigDecimal avgRating) {

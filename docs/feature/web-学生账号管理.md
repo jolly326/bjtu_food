@@ -50,13 +50,11 @@
 |---|---|---|
 | `id` | number | 用户 ID |
 | `username` | string | 学号 / 账号（已注销账号为 `deleted_{id}`） |
-| `email` | string \| null | 校园邮箱（游客 / 已注销为 null） |
 | `nickname` | string | 昵称（已注销显示「已注销用户」） |
 | `avatar` | string \| null | 头像 URL |
 | `status` | string | 账号状态：`active`=正常 / `disabled`=已禁用 / `deleted`=已注销 |
-| `verified` | number | 认证状态：**`0`=游客未认证 / `1`=已邮箱认证**（注意：小程序端同名字段是 **Boolean**，此处为库值 0/1） |
 | `wechatBound` | boolean | 是否已绑定微信（**仅布尔标识，不返回 openid 明文**，规避隐私泄露） |
-| `bindEmail` | string \| null | 已认证绑定的校园邮箱 |
+| `bindEmail` | string \| null | 已认证绑定的校园邮箱（**非空即已认证**，认证状态唯一真源，管理端与小程序端同口径派生） |
 | `createdAt` | string | 注册时间 |
 
 > **无 `role`**（角色仅服务端会话内判定）；**无 `openid`**（隐私）；**无 `guestShortId`**（`id` 的纯派生值不作接口出参，判据不因端而异）——管理端的**关键词过滤与昵称兜底展示由 `id` 现算**同一规则（「食客 + ID 后 4 位」，`UserView` 内局部函数）。
@@ -96,8 +94,8 @@
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `id` | number | 反馈 ID |
-| `type` | string | 反馈类型：`suggestion`=提个想法 / `add`=推荐菜品 / `error`=信息不对 / `report`=举报（存量数据可能为 `bug`/`other`） |
-| `sub` | string \| null | 二级分类（仅 `suggestion` 有值）：`idea`=想法 / `problem`=问题 |
+| `type` | string | 反馈类型：`issue`=问题反馈（存量历史类型 `suggestion` / `add` / `error` / `bug` / `report` / `other` 仍可能出现于老数据） |
+| `sub` | string \| null | 二级分类（仅存量 `suggestion` 有值）：`idea`=想法 / `problem`=问题 |
 | `content` | string | 反馈内容 |
 | `status` | string | 处理状态：`pending`=待处理 / `handled`=已处理 |
 | `createdAt` | string | 提交时间 |

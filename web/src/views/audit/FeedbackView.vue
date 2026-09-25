@@ -14,6 +14,11 @@
  * 列表「提交人」次行的旧联系方式信息（7 列 → 6 列）。
  * 2026-09-16（产品定型）：不再收集联系方式，列表与详情中的联系方式展示全部移除（后端列同步删除）。
  * 处理动作、回复与不采纳原因（reject_reason）必填校验一律未动。
+ *
+ * 拆分信息纠错：「信息更新」类型的菜品信息纠错拆出为独立资源
+ * /admin/corrections + 独立处理页（views/audit/CorrectionView.vue，一级导航「信息纠错」）——
+ * 本页回归**纯问题反馈**：删提交快照对比卡 / 一键采纳 / 对应筛选项；
+ * 类型筛选保留历史存量值兼容（未登记值回落原值展示）。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -29,6 +34,7 @@ import FilterSelect from '@/components/layout/FilterSelect.vue'
 import { useAsyncGuard } from '@/composables/useAsyncGuard'
 import { ChatDotRound, EditPen, CircleCheck, CircleClose, Picture } from '@element-plus/icons-vue'
 import { FEEDBACK_STATUS_META, FEEDBACK_PENDING, FEEDBACK_HANDLED, FEEDBACK_TYPE_META } from '@/constants'
+import { getReportReasons } from '@/api/feedback'
 import type { FeedbackAdminVO } from '@/api/feedback'
 
 const toast = useToastStore()
@@ -42,17 +48,33 @@ const searchQuery = ref('')
 const typeLabel = FEEDBACK_TYPE_META
 
 /**
- * 二级类型展示（DEV-01）：仅「功能建议」（type=suggestion）有值，idea=想法 / problem=问题。
- * 与一级类型同格拼为「功能建议 · 想法」，避免出现「建议」与二级类型两处口径不一致。
+ * 二级分类展示（按 type 分流）：suggestion → idea/problem（想法/问题）；
+ * report → 举报原因（机器值经字典端点 `GET /feedback/report-reasons` 翻译——PR-12 零硬编码）。
+ * 与一级类型同格拼为「功能建议 · 想法」/「举报 · 垃圾广告」。
  * 后端字段可选（历史数据 / 其他类型均无值）→ 缺省不展示，不产生占位符。
- * 列表 type 列宽相应由 120px 调至 170px（容纳拼合后的最长文案，12px 字 + 两侧单元格内边距）。
  */
 const FEEDBACK_SUGGESTION = 'suggestion'
+const FEEDBACK_REPORT = 'report'
 const SUB_LABEL: Record<'idea' | 'problem', string> = { idea: '想法', problem: '问题' }
-function typeText(v: { type: string; sub?: 'idea' | 'problem' }): string {
+const reportReasonLabels = ref<Record<string, string>>({})
+onMounted(() => {
+  getReportReasons()
+    .then((rows) => {
+      const map: Record<string, string> = {}
+      for (const r of rows) map[r.value] = r.label
+      reportReasonLabels.value = map
+    })
+    .catch(() => {
+      /* 字典翻译失败降级为不展示原因（类型名仍可见），不阻塞列表 */
+    })
+})
+function typeText(v: { type: string; sub?: string }): string {
   const base = typeLabel[v.type] || v.type
-  const sub = v.type === FEEDBACK_SUGGESTION ? v.sub : undefined
-  return sub ? `${base} · ${SUB_LABEL[sub]}` : base
+  if (v.type === FEEDBACK_SUGGESTION && v.sub) return `${base} · ${SUB_LABEL[v.sub as 'idea' | 'problem']}`
+  if (v.type === FEEDBACK_REPORT && v.sub && reportReasonLabels.value[v.sub]) {
+    return `${base} · ${reportReasonLabels.value[v.sub]}`
+  }
+  return base
 }
 // 状态展示元数据（tag 类型 + 文案）统一收敛至 constants/index.ts（RF13）
 
@@ -65,9 +87,11 @@ const statusOptions = [
 ]
 const activeStatus = ref(FEEDBACK_PENDING)
 
-// 类型筛选（§5 举报处理：可筛 type=report 等；2026-08-17 新增 add/bug）
+// 类型筛选：issue 为现写值；历史存量类型（suggestion/add/error/bug/report/other）保留供筛选兼容，
+// 未登记值在类型列回落原值展示（「信息更新」类型归独立「信息纠错」页）。
 const typeOptions = [
   { value: '', label: '全部类型' },
+  { value: 'issue', label: typeLabel['issue'] ?? '问题反馈' },
   { value: 'suggestion', label: '功能建议' },
   { value: 'add', label: '新增菜品' },
   { value: 'error', label: '内容纠错' },
@@ -94,7 +118,7 @@ function onPageChange() {
   loadList()
 }
 
-// 关键词检索已改为服务端 keyword 过滤（后端按 content/userNickname 模糊；联系方式已随产品定型下线），
+// 关键词检索为服务端 keyword 过滤（后端按 content/userNickname 模糊；联系方式不收集），
 // 翻页/改类型会重新请求后端对应页，不再本地截断当前页子集。
 const filtered = computed(() => rows.value)
 
@@ -116,8 +140,7 @@ async function loadList() {
 
 /**
  * 单条反馈深链直达：`/dashboard/feedback?fid=<id>`（P1-03）。
- * 注（2026-09-15）：原「内容审核」聚合页遗留的 `/dashboard/audit?...` 兜底跳转已随路由精简删除，
- * 只有现行 `/dashboard/feedback?fid=<id>` 形式可用（工作台「待办明细」入口早已下线）。
+ * 仅现行 `/dashboard/feedback?fid=<id>` 形式可用（旧 audit 兜底跳转已移除）。
  * 复用既有详情抽屉（本页无独立 /feedbacks/:id 路由，也无 GET /admin/feedbacks/{id} 单查接口），
  * 故在列表落地后按 id 定位该行并自动打开抽屉；若不在当前页则回退为「关键词=该条摘要」服务端检索，
  * 保证「看得到是哪一条 → 点进就能处理」闭环，且不改后端契约、不新增页面。
@@ -284,13 +307,13 @@ function dishLabel(id?: number, name?: string): string {
 }
 
 /**
- * 关联菜品一键直达：菜品详情独立页已随「食堂/档口随菜品一起维护」收敛而删除
+ * 关联菜品一键直达：菜品详情独立页不再提供
  * （project_spec §7.15），
  * 故改为跳到菜品列表（`/dashboard/content?tab=dish`）由管理员在列表内检索编辑。
  * 检索词优先用服务端回填的菜品名（含已下架菜品），无名字时退回菜品 id。
  */
 function goDishEdit(dishId?: number, dishName?: string) {
-  if (dishId == null) return
+  if (dishId == null && !dishName) return
   router.push({
     path: '/dashboard/content',
     query: { tab: 'dish', q: dishName || String(dishId) },
@@ -338,7 +361,9 @@ function goReviewManage(reviewId?: number) {
       empty-text="暂无反馈"
     >
       <template #cell-type="{ row }">
-        <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeText(row) }}</span>
+        <div class="type-cell">
+          <span class="type-pill"><el-icon class="type-ico"><ChatDotRound /></el-icon>{{ typeText(row) }}</span>
+        </div>
       </template>
       <template #cell-related="{ row }">
         <!-- 举报类关联评价：主色文本链接（原红色 pill 易被读成「危险/错误」），箭头提示去向 -->
@@ -392,8 +417,8 @@ function goReviewManage(reviewId?: number) {
       @confirm="submitHandle"
     >
       <div v-if="detail" class="detail">
-        <!-- 元信息内联压缩：类型 / 提交人 / 联系方式 / 提交时间 / 关联对象
-             由原来的 5 行合为 1 块，窄屏自动折行；不再逐字段占一行 -->
+        <!-- 元信息内联压缩：类型 / 提交人 / 提交时间 / 关联对象
+             由原来的多行合为 1 块，窄屏自动折行；不再逐字段占一行 -->
         <div class="meta">
           <span class="type-pill">{{ typeText(detail) }}</span>
           <span class="meta-item">提交人<span class="mv">{{ submitterLabel(detail) }}</span></span>
@@ -418,6 +443,7 @@ function goReviewManage(reviewId?: number) {
           </span>
         </div>
         <div class="detail-row detail-row-desc"><span class="dl">内容</span><span class="dv text-desc">{{ detail.content || '（无）' }}</span></div>
+
         <div class="detail-row detail-row-desc" v-if="(detail.images || []).length">
           <span class="dl">配图</span>
           <div class="dv">
@@ -484,6 +510,7 @@ function goReviewManage(reviewId?: number) {
           </template>
         </div>
       </div>
+      <!-- 已处理：只读回看 -->
       <template v-if="detail?.status === FEEDBACK_HANDLED" #actions>
         <button class="btn-cancel" v-press @click="closeDetail">关闭</button>
       </template>
@@ -492,13 +519,12 @@ function goReviewManage(reviewId?: number) {
 </template>
 
 <style scoped>
-/* 注（2026-09-15）：原聚合页遗留的 .status-tabs / .status-tab / .tab-count 三条死样式
-   （页内 tab 切换早随分类卡收敛删除、模板已无引用）已清理，避免误导后续维护。 */
+/* 原聚合页遗留的 .status-tabs / .status-tab / .tab-count 三条样式（模板已无引用）已清理，避免误导后续维护。 */
 
 /* nowrap：DEV-01 后文案可能带二级类型（功能建议 · 想法），避免窄格内折行破坏行高 */
 /* 文字走「文字档」（C1）：填充档 --color-primary 作浅底文字时深色主题仅 2.90:1、浅色主题 4.48:1 */
 .type-pill { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--color-primary-bg); color: var(--color-primary-text); font-size: var(--font-xs); font-weight: var(--weight-medium); white-space: nowrap; }
-/* .related（红色 pill）已删除：举报类关联评价改用既有 .link 体系——
+/* 举报类关联评价改用既有 .link 体系——
    红色在本后台是「危险 / 删除」语义，用在小跳转链接上易被误读为风险提示，且 pill 与 .link 两套视觉并存易漂移。 */
 /**
  * 关联菜品名（DEV-04）：列宽 140px（减两侧 --space-4 内边距 ≈ 108px 可用），
@@ -512,6 +538,9 @@ function goReviewManage(reviewId?: number) {
 
 /* 列表「提交人」格：仅展示昵称/游客（2026-09-16 起不再收集联系方式） */
 .sub-name { color: var(--text-primary); }
+
+/* 类型格：类型标（含二级类型文案）纵排 */
+.type-cell { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
 
 .detail { display: flex; flex-direction: column; gap: var(--space-3); }
 /* 元信息块：单块内联排布（替代「一字段一行」），标签弱化、取值走主文本色，窄屏自动折行 */

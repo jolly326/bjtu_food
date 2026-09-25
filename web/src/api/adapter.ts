@@ -6,17 +6,15 @@ type PageLike<T> = T[] | { records?: T[] }
 
 /**
  * 提取分页行数据。
- * 2026-09-21 契约精简（§7.33）：服务端 `PageResult` 只输出 `records`，原 `list` 兼容字段已删除，
- * 故此处不再保留 `data.list` 兜底分支。
+ * 契约精简（§7.33）：服务端 `PageResult` 只输出 `records`，故此处不再保留 `data.list` 兜底分支。
  */
 export function pageRecords<T>(data: PageLike<T>): T[] {
   return Array.isArray(data) ? data : data.records || []
 }
 
-/* 注（2026-09-20 §7.29 / §7.28）：原 `dish.tags` 标签字段全链下线，原 parseTags / formatTags
- * 两个导出随之零消费删除。
+/* 注（§7.29 / §7.28）：`dish.tags` 标签字段不提供，parseTags / formatTags 随之移除。
  *
- * 2026-09-23（§7.40 R4 / change dish-detail-contract-hardening）：`ingredients` / `flavorTags`
+ * （§7.40 R4 / change dish-detail-contract-hardening）：`ingredients` / `flavorTags`
  * 的存储由「CSV 逗号分隔串」改为 **JSON 数组**，后端出参随之改为 `string[]` →
  * 读侧经 `parseCsv` 归一（**兼容两种形态**，历史脏值不炸），写侧**直接提交数组**（不再 `formatCsv`）。 */
 
@@ -65,9 +63,9 @@ function stripImageBaseUrl(url: string): string {
 }
 
 /**
- * 食堂 → 前端模型（2026-09-14 Q-113 / PR-14 契约收紧）：
- * 食堂是**菜品筛选属性字典**，后端已移除 status / auditStatus / rejectReason（列即将 DROP），
- * 故不再做 status 映射（原 `active/inactive` 派生意已随契约作废）。
+ * 食堂 → 前端模型（Q-113 / PR-14 契约收紧）：
+ * 食堂是**菜品筛选属性字典**，后端已移除 status / auditStatus / rejectReason，
+ * 故不再做 status 映射（无 `active/inactive` 派生意）。
  */
 export function canteenToLegacy(raw: any): Canteen {
   return {
@@ -94,8 +92,8 @@ export function canteenToApi(data: Partial<Canteen>) {
 }
 
 /**
- * 档口 → 前端模型（2026-09-14 Q-113 / PR-14 契约收紧）：档口同为**菜品筛选属性字典**，
- * 后端已移除 status / auditStatus / rejectReason（列即将 DROP），故不再做 status 映射；
+ * 档口 → 前端模型（Q-113 / PR-14 契约收紧）：档口同为**菜品筛选属性字典**，
+ * 后端已移除 status / auditStatus / rejectReason，故不再做 status 映射；
  * floor（楼层）/ windowNo（窗口号）保留（端上有消费）。
  */
 export function stallToLegacy(raw: any): Stall {
@@ -142,19 +140,19 @@ export function dishToLegacy(raw: any): Dish {
     status: raw.status === 'on' ? 'active' : 'inactive',
     stallName: raw.stallName || raw.stall_name || '',
     canteenName: raw.canteenName || raw.canteen_name || '',
-    // 注（§7.23 第 4 条，2026-09-15）：dish.audit_status / reject_reason 已随「菜品审核 UI 下线」
-    // 从前端契约移除（后端列为退役历史列，DishAdminVO 不再返回，业务代码不再读写）。
-    // 原价（§7.26）：promoPrice 已删除，展示值恒取 price，originalPrice > price 时才划线。
+    // 注（§7.23 第 4 条）：dish.audit_status / reject_reason 从前端契约移除（后端列为历史列，
+    // DishAdminVO 不再返回，业务代码不再读写）。
+    // 原价（§7.26）：展示值恒取 price，originalPrice > price 时才划线。
     originalPrice: raw.originalPrice == null && raw.original_price == null
       ? undefined
       : Math.round(raw.originalPrice ?? raw.original_price) / 100,
-    // 描述四维（§7.28，2026-09-20）：替代原 spice_level / region（两字段已删）。
-    // 多值维（2026-09-23 R4）：后端已改为 string[] 直出；parseCsv 归一兼容历史逗号串 / JSON 串。
+    // 描述四维（§7.28）：替代 spice_level / region（两字段不提供）。
+    // 多值维（§7.40 R4）：后端已改为 string[] 直出；parseCsv 归一兼容历史逗号串 / JSON 串。
     dietType: raw.dietType || raw.diet_type || '',
     ingredients: parseCsv(raw.ingredients ?? raw.ingredients_json),
     flavorTags: parseCsv(raw.flavorTags ?? raw.flavor_tags),
     serveTemp: raw.serveTemp || raw.serve_temp || '',
-    // 菜品大类（2026-09-21 §7.34 / change home-ui-refresh）：DishAdminVO 出参透传枚举键。
+    // 菜品大类（§7.34 / change home-ui-refresh）：DishAdminVO 出参透传枚举键。
     // 中文标签的真源是后端字典 GET /dishes/meal-types（本层与视图层均不做 key→中文 映射）。
     mealType: raw.mealType || raw.meal_type || '',
     created_at: toDate(raw.createdAt || raw.created_at),
@@ -192,8 +190,8 @@ export function dishToApi(data: Partial<Dish>) {
 }
 
 /**
- * 2026-09-15（取消人工复核）：原「安检状态归一化 / 筛选白名单」两个导出函数随内容安全检测策略调整退役
- * （pass/review 均放行、仅 risky 拒绝，后台不再读取该字段，后端字段同源移除）。
+ * 无「安检状态归一化 / 筛选白名单」导出函数（取消人工复核：pass/review 均放行、仅 risky 拒绝，
+ * 后台不再读取该字段，后端字段同源移除）。
  */
 export function reviewToLegacy(raw: any): Review {
   return {
@@ -205,7 +203,7 @@ export function reviewToLegacy(raw: any): Review {
     images: imagesToList(raw.images),
     is_hidden: raw.isHidden ?? raw.is_hidden ?? 0,
     created_at: toDate(raw.createdAt || raw.created_at),
-    // 2026-09-23 R6：review.updated_at 已随后端列下线删除 —— 不再读取 raw.updatedAt（该键已不存在）
+    // review.updated_at 后端列不返回 —— 不读取 raw.updatedAt（该键已不存在）
   }
 }
 
@@ -218,7 +216,7 @@ export function userToLegacy(raw: any): User {
     avatar: raw.avatar || '',
     status: raw.status,
     // 微信登录体系字段（snake_case 仅在 adapter 内部兜底）：
-    // verified 已随 2026-09-22 契约收敛删除，认证态由 bindEmail 非空派生（判据唯一真源）
+    // verified 不在出参，认证态由 bindEmail 非空派生（判据唯一真源）
     wechatBound: raw.wechatBound ?? (raw.openid ? true : false),
     bindEmail: (raw.bindEmail ?? raw.bind_email) || '',
     created_at: toDate(raw.createdAt || raw.created_at),

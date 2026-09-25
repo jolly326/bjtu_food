@@ -33,8 +33,8 @@ public interface ReviewService {
     /**
      * 获取当前用户的评价列表（我的评价）
      * <p>
-     * 只返回该用户本人的评价（不过滤 is_hidden，被隐藏的评价作者仍可见），按发表时间倒序；
-     * 返回项含 {@code dishId} / {@code dishName} / {@code isHidden}（作者视角字段）。
+     * 对评价全集按用户过滤拆分：只返回该用户本人、且未被隐藏（is_hidden=0）的评价，按发表时间倒序；
+     * 被管理员隐藏的评价不对客户端（含作者本人）返回。返回项含 {@code dishId} / {@code dishName}。
      *
      * @param userId   当前登录用户ID
      * @param page     页码

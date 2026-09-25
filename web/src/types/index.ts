@@ -67,15 +67,14 @@ export interface Dish {
   status: string;
   /**
    * 档口名称（DishAdminVO 联表返回；列表/详情直读，不再经 store.stalls 反查）。
-   * 注（§7.23 第 4 条，2026-09-15）：菜品无独立审核，原 audit_status / reject_reason
-   * 已随「菜品审核 UI 下线」从前端契约移除（后端列为退役历史列，不再读写）。
+   * 菜品无独立审核，`audit_status` / `reject_reason` 从前端契约移除（对应后端列为历史列，不再读写）。
    */
   stallName?: string;
   /** 所属食堂名称（DishAdminVO 联表返回） */
   canteenName?: string;
   /**
    * 原价（元，可空，折扣前）。判据 `originalPrice > price` 时端上呈现删除线（§7.26）——
-   * 原 `promoPrice`（促销价）已删除，展示值恒取 `price`，禁止双源切换。
+   * 展示值恒取 `price`，禁止双源切换（无独立促销价）。
    */
   originalPrice?: number;
   /**
@@ -100,13 +99,15 @@ export interface Dish {
    */
   mealType?: string;
   created_at: Date;
+  /** 真实消费：菜品编辑弹窗的「他人已修改」轻提示基线（Q-112 ①），删它会让并发覆盖提示失效 */
   updated_at: Date;
 }
 
-// 注：AuditVO（UGC 审核记录：菜品 / 档口 / 食堂）已于 2026-09-14 随审核中心死代码删除（Q-107 / P1-01）：
-// /admin/audit/** 三条接口前端零消费（管理员录入即 approved，pending 无新来源），无任何页面消费该类型。
-
 // review 评价表
+// web 端评价列表 / 详情**不消费**服务端 enrich 的昵称 / 头像 / 菜名：
+// 用户与菜品名一律按 user_id / dish_id 本地查 users / dishes 字典展示
+// （ReviewManageView.getUserName / getDishName，WEB-03 降级显示；已注销用户兜底），
+// 故本类型不声明这些字段（避免 stale 的「优先用它、不要退化本地查表」误导）。
 export interface Review {
   id: bigint;
   user_id: bigint;
@@ -117,12 +118,8 @@ export interface Review {
   images?: string[];
   is_hidden: number;
   created_at: Date;
-  // updated_at 已于 2026-09-23 下线（§7.40 R6）：后端 review.updated_at 列删除 ——
-  // 它对评价无独立语义（重评时与 created_at 同批刷新），且管理端渲染零消费。
-  // ⚠️ 不要据此删除 Dish.updated_at —— 它有真实消费（Q-112「他人已修改」轻提示基线）。
 }
 
-// 注（2026-09-15 拍板：取消人工复核）：评价 / 反馈的「内容安检状态」字段及其「安检态 / 复核动作」
-// 两个联合类型已随人工复核职责取消一并删除——内容安全检测放行态与待复核态均放行、仅风险项拒绝，
-// 后台不再读取或写入该字段（后端契约同源移除），前端不再保留其类型与字段映射。
+// 评价 / 反馈无「内容安检状态」字段与复核动作——内容安全检测放行态与待复核态均放行、仅风险项拒绝，
+// 后台不读写该字段（后端契约同源），前端不保留其类型与字段映射。
 

@@ -1,7 +1,7 @@
 <template>
   <!-- 评价卡：整卡一张（卡头 + flat 条目）；三态齐全（加载中静默 / 失败可重试 / 零评价鼓励态）
        P3-01：卡头改用 SectionTitle（§4.9「分区标题一律 SectionTitle」），评价数与综合评分标题同档。
-       2026-09-20：标题行加「只看有图」开关；评价卡删除「有用」按钮；排序唯一时间倒序、无切换入口。 -->
+       标题行含「只看有图」开关；评价卡无「有用」按钮；排序唯一时间倒序、无切换入口。 -->
   <view class="review-section" id="review-section">
     <view class="review-card">
       <!-- 评价数 +「只看有图」开关经 SectionTitle 具名 slot 承载（纯展示，不跨组件分发具名 slot 到深层） -->
@@ -32,7 +32,7 @@
       <!-- ① spec §4.8 / a11y 红线：不设加载骨架/loading 指示。首屏拉取与「只看有图」切换的在途期
            （pending）本区块不渲染任何内容，保持空白静默——不得误闪空态文案。 -->
 
-      <!-- ② 失败态：可重试（此前静默吞成「暂无评价」，用户误以为确实没人评；§7.20 PR-03 失败态必备） -->
+      <!-- ② 失败态：可重试（§7.20 PR-03 失败态必备，避免误闪空态误导用户） -->
       <RetryBlock v-if="loadFailed" :margin="false" @retry="emit('retry')" />
 
       <!-- ③ 有数据 / ④ 只看有图无结果 / ⑤ 零评价鼓励态（在途期整体不渲染） -->
@@ -58,7 +58,7 @@
         </view>
 
         <!-- 零评价鼓励态：明确「还没有人评」+ 给出可执行入口（写评价，不新增页面；
-             未认证点击由页面侧 requireAuth 弹既有 AuthSheet 引导） -->
+             未认证点击由页面侧 requireAuth 跳独立认证页） -->
         <view v-else class="review-empty">
           <text class="review-empty-title">还没有人评价这道菜</text>
           <text class="review-empty-desc">你的第一条评价，能帮同学避雷，也能帮食堂改进</text>
@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import ReviewItem from './ReviewItem.vue'
+import ReviewItem from '@/components/ReviewItem.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import type { Review } from '@/types/review'

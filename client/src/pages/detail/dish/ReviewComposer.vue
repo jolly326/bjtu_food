@@ -4,7 +4,7 @@
        头部标题由 BaseSheet title 渲染（写评价 / 重新评价），右上 X 由 closable 提供；菜名作为表单首行置于内容区。
        注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。
        小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。
-       重新评价（2026-09-20）：传 `reviewId` + `prefill` 时进入覆盖式重评（PUT /reviews/{id}），表单预填旧评分/文字/配图。 -->
+       重新评价：传 `reviewId` + `prefill` 时进入覆盖式重评（PUT /reviews/{id}），表单预填旧评分/文字/配图。 -->
   <BaseSheet
     :visible="visible"
     :title="isEdit ? '重新评价' : '写评价'"
@@ -16,6 +16,9 @@
     <view class="rc-body">
       <!-- 菜名副标题：BaseSheet 头部之下、星级之上 -->
       <text class="rc-dish">{{ dishName }}</text>
+
+      <!-- 重评提示：判定为已评价（重评模式）时明示覆盖语义，避免用户误以为在发新评价 -->
+      <text v-if="isEdit" class="rc-overwrite-tip">你已评价过此菜，本次提交将覆盖原评价</text>
 
       <!-- 星级：1-5 必填；未选 outline 浅灰、已选填充主色 -->
       <view class="rc-field">
@@ -156,15 +159,19 @@ async function onSubmit() {
       // 配图（≤3 张 COS URL）；违规文本/图片后端 400 message 经此处 toast 直透
       images: images.value.length ? [...images.value] : undefined,
     }
+    let submittedReviewId: number
     if (props.reviewId != null) {
       await updateReview(props.reviewId, payload)
+      submittedReviewId = props.reviewId
       uni.showToast({ title: '已更新评价', icon: 'success' })
     } else {
-      await createReview(props.dishId, payload)
+      // 首次发表：POST 出参返回新评价 ID，随载荷上抛（父级本地写回底栏态，无须回读接口）
+      submittedReviewId = await createReview(props.dishId, payload)
       uni.showToast({ title: '评价成功', icon: 'success' })
     }
     emit('submitted', {
       mode: props.reviewId != null ? 'update' : 'create',
+      reviewId: submittedReviewId,
       rating: rating.value,
       content: content.value.trim(),
       images: images.value.length ? [...images.value] : [],
@@ -194,6 +201,16 @@ async function onSubmit() {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding-top: var(--spacing-2xs);
+}
+/* 重评覆盖提示：浅底圆角条，明示「覆盖原评价」语义（仅重评模式呈现） */
+.rc-overwrite-tip {
+  display: block;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  font-size: var(--font-small);
+  color: var(--text-body);
+  background: var(--bg-soft);
+  border-radius: 8rpx;
 }
 
 .rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) 0; }

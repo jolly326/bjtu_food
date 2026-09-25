@@ -16,7 +16,7 @@ app.use(createPinia())
 app.use(router)
 setupPress(app)
 
-// 管理端无登录体系（2026-09-13 定型）：接口由 X-Admin-Token 口令校验，401/403 语义为「口令无效/未授权」，
+// 管理端无登录体系：接口由 X-Admin-Token 口令校验，401/403 语义为「口令无效/未授权」，
 // 由 api/http.ts 的提示文案承担，不再做路由跳转。
-// （原实现 401 时 push('/login')，而 /login 路由已随登录体系一并删除且无 catch-all → 会跳空白页）
+// （原实现 401 时 push('/login')，而 /login 路由不存在且无 catch-all → 会跳空白页）
 app.mount('#app')

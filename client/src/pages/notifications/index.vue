@@ -18,8 +18,7 @@
       </template>
     </Header>
 
-    <!-- 滚动容器（2026-09-22：页面级手动刷新手势已下线，change `remove-pull-to-refresh`）：
-         数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器恢复为普通滚动容器。 -->
+    <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
         <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
@@ -165,8 +164,8 @@ const { markDirty, refreshOnShow } = useOnShowRefresh(load)
 
 /**
  * 点击通知：仅标记已读（不删除该能力）。
- * 跳转口径（2026-09-15）：feedback_handle 停留本页（回执正文已在内容区展示，不做跳转）；
- * 未知类型（含历史存量通知的已退役类型）同样不跳转——端上不为未知类型臆测目标页。
+ * 跳转口径：feedback_handle 停留本页（回执正文已在内容区展示，不做跳转）；
+ * 未知类型（含历史存量通知的退役类型）同样不跳转——端上不为未知类型臆测目标页。
  */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {
@@ -180,7 +179,7 @@ async function onTap(n: Notification) {
       markDirty()
     }
   }
-  // 无跳转分支：feedback_handle 与未知类型一律停留本页（原「已退役类型 → 菜品详情」分支随该类型退役一并删除）
+  // 无跳转分支：feedback_handle 与未知类型一律停留本页（不臆测目标页）
 }
 
 onShow(() => {
@@ -256,8 +255,7 @@ onShow(() => {
 
 /* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
-/* 「全部已读」胶囊（MP-06 补齐）：模板注释承诺「与下方通知卡同一表面语言」，此前样式区零规则，
-   胶囊裸文字无外观；按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
+/* 「全部已读」胶囊：按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
    （App.vue 全局注释明确允许页面 scoped 覆盖）；禁用态复用全局 .is-disabled */
 .read-all {
   display: flex;

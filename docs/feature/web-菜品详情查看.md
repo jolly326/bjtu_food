@@ -58,7 +58,7 @@
 | `flavorTags` | string[] | 口味，**机器值数组**：`spicy` 辣 / `numbing` 麻 / `sour` 酸 / `sweet` 甜 / `salty` 咸 / `umami` 鲜 / `light` 清淡 / `heavy` 重口 |
 | `serveTemp` | string | 冷热，**下发机器值**：`hot`=热食 / `room`=常温 / `ice`=冰；展示中文由**四维字典端点**下发 |
 
-### 响应 · 评价侧（`ReviewAdminVO` 单行字段，12 个）
+### 响应 · 评价侧（`ReviewAdminVO` 单行字段，11 个）
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -73,8 +73,6 @@
 | `images` | string[] | 评价配图 URL 数组（≤3 张） |
 | `createdAt` | string | 评价时间 |
 | `isHidden` | number | 是否被隐藏：0=正常 / 1=已隐藏（**本页可见隐藏评价**） |
-
-> 评价出参不含任何「有用」字段（无点赞 / 有用语义）。
 
 ## 数据（读取）
 

@@ -1,7 +1,7 @@
 <template>
   <view class="page mine-page">
     <!-- 「我的」是 TabBar 主根页（TabBar 经 reLaunch 切换，无带参跳转），恒不需要返回箭头：
-         showBack 显式传 false（AppHeader 默认值为 true，不能省略）；原 `?from=home` 死分支已删（P2-11） -->
+         showBack 显式传 false（AppHeader 默认值为 true，不能省略） -->
     <Header title="我的" :show-back="false" />
 
     <view class="mine-content">
@@ -11,7 +11,7 @@
         class="user-card"
         :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
         role="button"
-        :aria-label="isVerified ? '查看或编辑个人资料' : '游客身份'"
+        aria-label="查看我的评价"
         @tap="onUserCardTap"
       >
         <view class="user-card-head">
@@ -30,21 +30,12 @@
             </text>
             <text v-else-if="!isVerified" class="user-id">游客 {{ guestLabel }}</text>
           </view>
-          <!-- 未认证：主色文字按钮「去认证」——把状态提示转为行动引导（点击弹认证） -->
-          <view
-            v-if="!isVerified"
-            class="verify-action"
-            role="button"
-            aria-label="去认证"
-            @tap.stop="onVerifyTap"
-          >
-            <text class="verify-action-text">去认证</text>
-          </view>
           <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
         </view>
       </view>
 
-      <!-- 功能宫格：一行三列（意见反馈 / 系统通知 / 我的评价），三格等宽等高，每格整格热区 -->
+      <!-- 功能宫格：2×2 四格（意见反馈 / 系统通知 / 身份认证 / 我的浏览菜品记录），每格整格热区；
+           个人信息编辑已并入「我的评价」页（用户卡点击直接进入，无认证拦截） -->
       <view class="grid">
         <view
           v-for="cell in gridCells"
@@ -59,38 +50,37 @@
             <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
             <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
             <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
+            <!-- 身份认证：已认证时右上主色圆点（状态徽章） -->
+            <view v-else-if="cell.key === 'cert' && isVerified" class="badge badge-dot badge-cert" aria-hidden="true" />
           </view>
           <text class="grid-cell-label">{{ cell.label }}</text>
         </view>
       </view>
 
-      <!-- 底部信息区：两行纯展示（版本 / 学校，aria-hidden）+ 一行可点合规入口。
-           合规入口是该区域内唯一可点元素，做可点性最小差异化（主色 + 描边胶囊），
-           故不能再把 aria-hidden 挂在整个容器上（否则可点元素对辅助技术不可见）。 -->
-      <view class="app-footer">
-        <view class="app-footer-lines" aria-hidden="true">
-          <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
-          <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
-        </view>
-        <view class="app-footer-links">
-          <text
-            class="app-footer-link"
-            role="button"
-            aria-label="隐私政策与用户协议"
-            @tap="goPrivacy"
-          >隐私政策 · 用户协议</text>
-          <text
-            class="app-footer-link app-footer-link--danger"
-            role="button"
-            aria-label="注销账号"
-            @tap="onAccountDelete"
-          >注销账号</text>
+      <!-- 「其他」分组列表：三行独立入口（用户协议 / 隐私政策 / 注销账号），行间细分隔线；
+           每行整行热区（role="button"），注销行为危险弱化色 -->
+      <view class="more-group">
+        <view
+          v-for="row in moreRows"
+          :key="row.key"
+          class="more-row"
+          :class="{ 'more-row--danger': row.danger }"
+          role="button"
+          :aria-label="row.label"
+          hover-class="pressed"
+          @tap="row.action"
+        >
+          <text class="more-row-text">{{ row.label }}</text>
+          <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="more-row-arrow" />
         </view>
       </view>
-    </view>
 
-    <!-- 认证弹层：游客点击用户卡或需认证功能时弹出 -->
-    <AuthSheet />
+      <!-- 版本行：纯展示（aria-hidden），独立于列表之外居中 -->
+      <view class="app-footer" aria-hidden="true">
+        <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
+        <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
+      </view>
+    </view>
 
     <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示） -->
     <TabBar />
@@ -103,11 +93,10 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import ImageFallback from './ImageFallback.vue'
-import AuthSheet from '@/components/AuthSheet.vue'
+import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
-import { useAuthSheetStore } from '@/stores/auth-sheet'
+import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
 import { getLocalGuestLabel } from '@/utils/guest'
@@ -115,7 +104,7 @@ import { deleteAccount } from '@/api/user'
 import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
 const userStore = useUserStore()
-const authSheetStore = useAuthSheetStore()
+const authStore = useAuthStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 /** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
@@ -123,7 +112,7 @@ const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
 /**
  * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
- * 2026-09-21 spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
+ * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
  * `id` 不可得（静默登录未完成 / 失败）时回退本地游客 ID 兜底，保证不空白。
  */
 const guestLabel = computed(() => {
@@ -137,7 +126,7 @@ const appVersion = __APP_VERSION__
 
 onLoad(() => {
   // 进入「我的」确保静默登录已就绪（游客态才有认证前提）；
-  // 原 `showBack = q?.from === 'home'` 分支已删（P2-11 / PR-05）：全仓无任何带 ?from=home 跳转
+  // 全仓无任何带 ?from=home 跳转
   // 到本页的调用点（TabBar 经 reLaunch 切换、无参数），该状态恒为 false，属死状态。
   userStore.silentLogin()
 })
@@ -149,32 +138,31 @@ onShow(() => {
   if (userStore.isVerified()) notifyStore.fetchUnread()
 })
 
-/** 「去认证」：与用户卡点击同源，复用底部认证弹层（不单独写认证页） */
-function onVerifyTap() {
-  authSheetStore.show()
+/** 用户卡点击：查看我的评价（游客直接进入——页内信息条与空态自洽，认证要求仅在评论操作时） */
+function onUserCardTap() {
+  uni.navigateTo({ url: PATH.myReviews })
 }
 
-/** 用户卡点击二分：游客整卡直接唤起认证弹层；已认证点击进个人信息编辑页（/pages/profile/index） */
-function onUserCardTap() {
+/** 身份认证格（认证动作的**单一入口**）：未认证跳转独立认证页；已认证轻提示 */
+function onCertTap() {
   if (!userStore.isVerified()) {
-    authSheetStore.show()
+    authStore.requestAuth()
     return
   }
-  uni.navigateTo({ url: PATH.profile })
+  uni.showToast({ title: '已完成身份认证', icon: 'none' })
 }
 
-/** 功能宫格数据（一行三列，顺序固定：意见反馈 / 系统通知 / 我的评价）；每格整格热区 */
+/** 「我的浏览菜品记录」格：功能未上线占位——点击仅轻提示，不跳转 */
+function onBrowseHistoryTap() {
+  uni.showToast({ title: '暂未实现', icon: 'none' })
+}
+
+/** 功能宫格数据（2×2 四格，顺序固定：意见反馈 / 系统通知 / 身份认证 / 我的浏览菜品记录）；每格整格热区 */
 interface GridCell {
   key: string
   icon: string
   label: string
   action: () => void
-}
-
-/** 「我的评价」：需认证入口（未认证弹 AuthSheet，认证成功后自动续跑进入本页） */
-function goMyReviews() {
-  if (!userStore.requireAuth(goMyReviews)) return
-  uni.navigateTo({ url: PATH.myReviews })
 }
 
 /** 底部合规入口：隐私政策与用户协议（应用内页面，不依赖外部域名） */
@@ -204,9 +192,17 @@ function onAccountDelete() {
 }
 
 const gridCells: GridCell[] = [
-  { key: 'feedback', icon: 'report', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
+  { key: 'feedback', icon: 'lightbulb-fill', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
   { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
-  { key: 'myReviews', icon: 'star', label: '我的评价', action: goMyReviews },
+  { key: 'cert', icon: 'badge-check', label: '身份认证', action: onCertTap },
+  { key: 'browse', icon: 'clock', label: '浏览记录', action: onBrowseHistoryTap },
+]
+
+/** 「其他」分组列表（三行固定：合规两行 + 账号危险操作一行；注销为 danger 弱化） */
+const moreRows = [
+  { key: 'agreement', label: '用户协议', danger: false, action: goPrivacy },
+  { key: 'privacy', label: '隐私政策', danger: false, action: goPrivacy },
+  { key: 'deleteAccount', label: '注销账号', danger: true, action: onAccountDelete },
 ]
 </script>
 
@@ -247,26 +243,11 @@ const gridCells: GridCell[] = [
 .nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 「去认证」行动按钮：主色文字 + 细边框轻量胶囊 */
-.verify-action {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-pill);
-  border: 1rpx solid var(--color-primary);
-  background: transparent;
-  -webkit-tap-highlight-color: transparent;
-}
-.verify-action:active { opacity: 0.7; }
-.verify-action-text { font-size: var(--font-aux); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 .card-arrow { flex-shrink: 0; }
 
-/* 功能宫格：一行三列等宽等高圆角白卡，格间间距均匀，每格整格热区 */
-.grid { display: flex; align-items: stretch; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
-.grid-cell {
-  flex: 1;
-  min-width: 0;
+/* 功能宫格：2×2 两列等宽等高圆角白卡（flex-wrap 换行），每格整格热区 */
+.grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
+.grid-cell { flex: 0 0 calc((100% - var(--spacing-md)) / 2); min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -295,33 +276,48 @@ const gridCells: GridCell[] = [
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
 .badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-error); }
+/* 身份认证已认证徽章：主色圆点（区别于通知红点） */
+.badge-cert { background: var(--color-primary); }
 
-/* 底部信息区：与宫格之间留大片留白，位于 TabBar 之上。
-   两行纯展示（版本 / 学校）走 aria-hidden 子容器；合规入口为该区域唯一可点元素 */
+/* 「其他」分组列表：白底分组卡 + 三行独立列表项（细分隔线），行内文字 + 右箭头 */
+.more-group {
+  margin: var(--spacing-lg) var(--spacing-md) 0;
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.more-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88rpx;
+  padding: 0 var(--spacing-md);
+  border-bottom: 2rpx solid var(--border-color);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.more-row.pressed { background-color: var(--bg-soft); }
+.more-row:last-child { border-bottom: none; }
+.more-row-text { font-size: var(--font-body); color: var(--text-body); }
+.more-row--danger .more-row-text { color: var(--color-error); }
+.more-row-arrow { flex-shrink: 0; }
+
+/* 版本行：独立于列表之外的居中纯展示 */
 .app-footer {
+  padding: var(--spacing-xl) 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--spacing-md));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: calc(var(--spacing-xl) + var(--spacing-xl)) var(--spacing-md) var(--spacing-lg);
+  gap: var(--spacing-2xs);
 }
-.app-footer-lines { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs); }
-.app-footer-line { font-size: var(--font-tiny); color: var(--text-tertiary); line-height: 1.5; }
-/* 合规入口可点性最小差异化：主色 + 描边胶囊（与浅灰纯展示行明确区分） */
-.app-footer-link {
-  padding: var(--spacing-2xs) var(--spacing-sm);
+.app-footer-line {
   font-size: var(--font-tiny);
-  color: var(--color-primary-text);
-  border: 1rpx solid var(--color-primary);
-  border-radius: var(--radius-pill);
-  -webkit-tap-highlight-color: transparent;
+  color: var(--text-tertiary);
+  line-height: 1.5;
 }
-.app-footer-link:active { opacity: 0.7; }
-.app-footer-links { display: flex; align-items: center; gap: var(--spacing-md); }
-/* 注销账号：danger 弱化（合规入口但非主行动），与隐私胶囊同行 */
-.app-footer-link--danger { color: var(--color-error); border-color: var(--color-error); opacity: 0.8; }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .grid-cell { transition: none; }
+  .user-card, .grid-cell, .more-row { transition: none; }
 }
 </style>

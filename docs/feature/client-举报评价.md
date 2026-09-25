@@ -5,7 +5,7 @@
 
 ## 介绍
 
-举报违规评价，交给管理员处置（隐藏或删除）。**举报与意见反馈共用同一条提交接口与同一张表**——举报是 `type=report` 的一种反馈。流程：评价卡三点菜单「举报」→ 填举报理由（必填）→ 提交；成功后提示处理预期，若举报人是已认证用户，管理员处理后收到站内回执。
+举报违规评价，交给管理员处置（隐藏或删除）。举报写入 `user_feedback`，是 `type=report` 的反馈记录。流程：评价卡三点菜单「举报评价」→ **底部弹出原因单选弹层**（选项实时取自后端字典，端上零硬编码）→ 点选原因 → 提交；成功后提示处理预期，举报人是已认证用户时，管理员处理后收到站内回执。**不要求填写文本**——举报结论以结构化原因为准，管理员据此直接处置。
 
 ## UI
 
@@ -15,26 +15,35 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| POST | `/feedback` | 🔓 公开（游客可提交） | 提交反馈/举报；举报场景固定 `type=report` + `relatedType=review` |
+| GET | `/feedback/report-reasons` | 🔓 公开 | **举报原因字典**：`[{ value, label, order }]`，弹层打开时实时拉取；值域与文案唯一真源 = 后端常量，端上与管理端**零硬编码**（PR-12） |
+| POST | `/feedback` | 🔓 公开（游客可提交） | 提交举报：固定 `type=report` + `relatedType=review` + `relatedId`（被举报评价 ID），`sub` = 选中的原因机器值 |
 
 ## 字段
 
-### 请求（`FeedbackReq`，举报场景）
+### 请求 · `GET /feedback/report-reasons`（响应）
+
+| 字段名 | 类型 | 中文解释 |
+|---|---|---|
+| `value` | string | 原因机器值（提交时作为 `sub` 上送） |
+| `label` | string | 中文标签（弹层直接渲染） |
+| `order` | number | 展示顺序（从 1 起，后端已按序下发） |
+
+### 请求 · `POST /feedback`（举报场景）
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
-| `type` | string | **是** | 反馈类型，**举报固定传 `report`**（可写值域：`suggestion` / `add` / `error` / `report`） |
-| `content` | string | **是** | **举报理由**，最长 1000 字（纯空白 → 400） |
-| `relatedType` | string | 否 | 关联对象类型：**举报必须为 `review`**（被举报的评价） |
-| `relatedId` | number | 否 | **被举报的评价 ID**（举报场景必填，否则管理员无法定位） |
-| `sub` | string | 否 | 二级分类，**仅 `type=suggestion` 有效**；举报场景**不传**（传了会 400） |
-| `images` | string[] | 否 | 举报佐证配图 URL 数组，≤3 张（经 `POST /upload/images` 转存后的 COS 地址） |
+| `type` | string | **是** | **举报固定传 `report`** |
+| `sub` | string | **是** | **举报原因机器值**（单选，值域 = 字典端点下发项；非法 / 缺失 → 400） |
+| `relatedType` | string | **是** | **必须为 `review`**（被举报的评价） |
+| `relatedId` | number | **是** | **被举报的评价 ID** |
+| `content` | string | 否 | **可空**——举报结论以结构化原因为准，文本仅作补充说明；若填写仍过内容安检，≤1000 字 |
+| `images` | string[] | 否 | 佐证配图 URL 数组，≤3 张（经 `POST /upload/images` 转存后的 COS 地址） |
 
 ### 响应
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `data` | null | 无载荷；成功即 `code=200` |
+| `data` | null | 两端点均无载荷；成功即 `code=200` |
 
 ### 限频（同 IP）
 
@@ -46,14 +55,14 @@
 
 | code | 含义 | 中文解释 |
 |---|---|---|
-| 400 | 参数/业务校验失败 | 理由为空、超长、`type` 非法、超频等 |
-| 400 | 内容安检违规 | 文本 `msgSecCheck` `risky`（含未知/缺失态）→ 拦截，提示违规文案 |
+| 400 | 参数/业务校验失败 | 原因缺失 / 非法、`type` 非法、关联对象缺失、重复举报、超频等 |
+| 400 | 内容安检违规 | 填写了补充文本时文本 `msgSecCheck` `risky`（含未知/缺失态）→ 拦截 |
 
 ## 数据（落库）
 
 | 表 | 变化 | 中文解释 |
 |---|---|---|
-| `user_feedback` | INSERT | 写入 `user_id`（**游客为 null**，后台显示为游客）、`type='report'`、`content`、`images`、`related_type='review'`、`related_id`（评价 ID）、`status='pending'` |
+| `user_feedback` | INSERT | 写入 `user_id`（**游客为 null**，后台显示为游客）、`type='report'`、`sub`（举报原因机器值）、`content`（可空）、`images`、`related_type='review'`、`related_id`（评价 ID）、`status='pending'` |
 | `notification` | 管理员处理后异步 INSERT | 仅当举报人是**已认证用户**时投递 `feedback_handle` 回执；游客不投递、不阻塞 |
 
 ## 与当前代码的差异

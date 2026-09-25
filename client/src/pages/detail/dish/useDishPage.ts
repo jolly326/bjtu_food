@@ -11,17 +11,17 @@
  *   评价三点菜单、举报（useReport，游客免认证）；
  * - 底栏「写评价 / 重新评价」双态与 ReviewComposer 预填（design D3）。
  *
- * 坐标与距离（utils/location、distance、CAMPUS_CENTER）已于 2026-09-20 全链下线，本文件不再持有定位逻辑。
+ * 本文件不持有定位逻辑（坐标与距离能力不提供）。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useDishPage()，
  * 使 store 获取与 onLoad/onPageScroll/onReachBottom/onShareAppMessage/onMounted
  * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
-import { addView } from '@/api/dish'
+import { useAuthStore } from '@/stores/auth'
 import { deleteReview, getMyReviews } from '@/api/review'
 import type { Review, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
@@ -30,7 +30,7 @@ import { backToHome } from '@/utils/nav'
 import { getNavBarHeight } from '@/utils/navMetrics'
 import { dishDetailUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
-// 传 'var(--color-error)' 曾导致「举报 / 删除」弹层文字红、图标近黑）
+// 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
 /** 评价分页每页条数（详情页固定 10） */
@@ -39,6 +39,15 @@ const REVIEW_PAGE_SIZE = 10
 export function useDishPage() {
   const dishStore = useDishStore()
   const userStore = useUserStore()
+  const authStore = useAuthStore()
+
+  /**
+   * 认证页返回续跑（§5.y）：requireAuth 记录的待办（写评价 / 删除评价）
+   * 在认证成功返回本页的 onShow 中续接；无待办时为空操作。首次进入（onLoad 后）pending 恒为空，无副作用。
+   */
+  onShow(() => {
+    authStore.consumePending()
+  })
 
   const dishId = ref(0)
   const dish = computed(() => dishStore.currentDish)
@@ -50,7 +59,7 @@ export function useDishPage() {
   /** 详情请求失败态（网络 / 服务端故障，**可重试**）：驱动「重新加载 + 返回」恢复路径 */
   const detailFailed = computed(() => dishStore.detailError)
   /**
-   * 菜品不存在态（后端 `4001`，2026-09-23 §7.40 R8，**不可重试**）：与失败态互斥。
+   * 菜品不存在态（后端 `4001`，§7.40 R8，**不可重试**）：与失败态互斥。
    * 区别对待的缘由：不存在（含已下架）重试也还是不存在，「重新加载」是无效安慰 ——
    * 故只给「返回」，文案明确指出菜品不可见，避免用户反复点重试。
    */
@@ -217,7 +226,7 @@ export function useDishPage() {
     }
   })
 
-  /** 位置文案：食堂 · 楼层 · 档口名（窗口号与距离已下线） */
+  /** 位置文案：食堂 · 楼层 · 档口名 */
   const locationText = computed(() => {
     const d = dish.value
     if (!d) return ''
@@ -231,9 +240,8 @@ export function useDishPage() {
   /**
    * 评分分布（供综合评分卡）：**直接透传后端顺序，端上不再排序**。
    *
-   * 2026-09-23 R11：契约已约定后端**按 `star` 降序（5 → 1）**下发（与页面展示顺序一致）——
-   * 端上此前自行 `sort((a, b) => b.star - a.star)` 属**口径权威方跑到端上**（违反 PR-02：
-   * 同一业务口径的权威方固定为后端），且换端 / 换排序算法时表现会不一致。
+   * 契约约定后端**按 `star` 降序（5 → 1）**下发（与页面展示顺序一致）；
+   * 业务口径的权威方固定为后端，端上不重复排序，避免换端 / 换排序算法时表现不一致。
    */
   const ratingDistribution = computed(() => dish.value?.ratingDistribution || [])
 
@@ -253,22 +261,21 @@ export function useDishPage() {
     void loadDishData()
   })
 
-  /** 进入页面并行取数：详情 + 公开评价 + 我的评价（判定底栏态），并上报浏览 */
+  /** 进入页面并行取数：详情 + 公开评价 + 我的评价（判定底栏态）；浏览计数由详情接口在服务端完成 */
   async function loadDishData() {
     if (!dishId.value) return
     resetReviewPaging()
-    addView(dishId.value)
+    // 详情页首屏零用户态请求：仅详情 + 公开评价并行（游客与登录行为完全一致）；
+    // 「我是否已评价」的判定推迟到用户点击「写评价」时（见 onOpenReviewComposer）
     const tasks: Promise<unknown>[] = [
       dishStore.fetchDetail(dishId.value),
       fetchReviewsReset(),
     ]
-    // 已认证用户才判定「我是否已评价」：未认证（游客）跳过，底栏按「未评价」呈现
-    if (userStore.isVerified()) tasks.push(loadMyReview())
     await Promise.all(tasks)
     syncSharedDish()
   }
 
-  /** 拉取「我的评价（按菜过滤）」：判定底栏双态并取回评价 ID 供重评预填 */
+  /** 拉取「我的评价（按菜过滤）」：判定是否已评价，取回评价 ID 与旧值供重评预填 */
   async function loadMyReview() {
     if (!dishId.value) return
     try {
@@ -340,29 +347,36 @@ export function useDishPage() {
   /** 重评目标评价 ID；未评价为 null（走首次发表 POST） */
   const composerReviewId = computed(() => myReview.value?.id ?? null)
 
-  function onOpenReviewComposer() {
+  /**
+   * 打开评价表单：**「我是否已评价」的判定时机在此**（表单打开前）——
+   * 已认证用户先调「我的评价（按菜过滤）」：已评价则以重评模式（预填旧值）打开，未评价打开空表单。
+   * 判定失败静默按未评价处理（此时提交若命中唯一键冲突 → 400 提示兜底）。
+   * 与删除同款：未认证跳独立认证页，认证成功返回本页后由 onShow 续接（consumePending）。
+   */
+  async function onOpenReviewComposer() {
     if (!dish.value) return
-    // 与删除/举报同款：未认证先弹认证（AuthSheet），认证完成后回调重进本函数
-    if (!userStore.requireAuth(() => onOpenReviewComposer())) return
+    if (!userStore.requireAuth(() => void onOpenReviewComposer())) return
+    await loadMyReview()
     composerOpen.value = true
   }
 
   /**
-   * 提交成功：
-   * - 重评：**本地写回** myReview（新值），底栏就地保持「重新评价」，不重新判定（design D3）；
-   * - 首次发表：回读「我的评价」取回 id，使后续入口切为「重新评价」；
+   * 提交成功：两种模式均**本地写回** myReview（底栏就地切为/保持「重新评价」，不回读接口）——
+   * - 重评：载荷携带本人评价 ID，原行更新新值；
+   * - 首次发表：载荷携带 POST 出参返回的新评价 ID，本地构造「我的评价」；
    * 两种情况均重置分页并按当前「只看有图」口径重拉评价 + 刷新综合评分。
    */
   function onReviewSubmitted(payload: ReviewSubmittedPayload) {
-    if (payload.mode === 'update' && myReview.value) {
-      myReview.value = {
-        ...myReview.value,
-        rating: payload.rating,
-        content: payload.content,
-        images: payload.images,
-      }
-    } else {
-      void loadMyReview()
+    const user = userStore.userInfo
+    myReview.value = {
+      id: payload.reviewId,
+      userId: user?.id ?? 0,
+      userNickname: user?.nickname ?? '',
+      userAvatar: user?.avatar ?? '',
+      rating: payload.rating,
+      content: payload.content,
+      createdAt: new Date().toISOString(),
+      images: payload.images,
     }
     resetReviewPaging()
     void fetchReviewsReset()

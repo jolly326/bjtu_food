@@ -2,10 +2,10 @@
 
 > 所属端：管理端（Web 后台） ｜ 归属功能文档：[web-评价管理.md](../feature/web-评价管理.md)
 > **口径分工**：**页面 UI 设计口径以本文件为唯一真源**，功能流程 / 接口 / 字段 / 数据落库口径以功能文档为准。
-> 落点：`/dashboard/reviews`（`ReviewManageView`）；导航名为「**评价**」——仅**事后处置**（隐藏 / 显示 / 删除），后台无复核队列（见 `openspec/specs/web-admin-feedback-loop`）。
+> 落点：`/dashboard/reviews`（`ReviewManageView`）；导航名为「**评价**」——仅**事后处置**（隐藏 / 显示 / 删除），后台无复核队列。
 
 
-- 导航「评价」→ `/dashboard/reviews`（一级导航 4 项之一）。
+- 导航「评价」→ `/dashboard/reviews`（一级导航 5 项之一）。
 - 筛选：显示状态（全部 / 正常 / 已隐藏）+ 关键词搜索。
 - 表格列：用户 / 评分 / 内容 / 菜品 / 时间 / 显隐开关。
 - 统计：footer「共 N 条 · 已隐藏 K 条」。

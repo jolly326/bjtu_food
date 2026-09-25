@@ -2,12 +2,11 @@ import { ref, computed, onMounted } from 'vue'
 import { getNavBarHeight, getCapsuleHeight } from '@/utils/navMetrics'
 
 /**
- * 顶部导航度量（跨页统一实现，2026-09-22 change `search-page-refresh`）
+ * 顶部导航度量（跨页统一实现）
  *
  * **唯一真源**：状态栏高 / 导航行高 / 胶囊高 / 右侧胶囊避让量只能从这里取。
  * `client-page-structure` 明确要求「页面 SHALL NOT 各自计算状态栏高度、导航行高或胶囊避让量」，
- * 故首页与搜索页的固定标题带、搜索行一律经本 composable 取值（此前首页内联一份、AppHeader 内联一份，
- * 已出现「标题带取了 capsuleHeight 而非 navBarHeight → 标题比胶囊高 6px」这类漂移）。
+ * 故首页与搜索页的固定标题带、搜索行一律经本 composable 取值（避免各页自行计算导致 header 高度漂移）。
  *
  * 消费方：`components/AppTitleBand.vue`（标题带 / 返回 icon）、`components/SearchBar.vue`（胶囊高）。
  */

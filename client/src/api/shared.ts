@@ -17,8 +17,8 @@ type PageLike<T> = T[] | { records?: T[]; total?: number }
 
 /**
  * 分页响应统一结构（{ records, total, page, pageSize }）。
- * 注（2026-09-21 契约精简，见 docs/project_spec.md §7.33）：原过渡期兼容字段 `list`
- * 已随后端 `PageResult` 一并删除——服务端只输出 `records`，消费方只读 `records`。
+ * 注（契约精简，见 docs/project_spec.md §7.33）：服务端只输出 `records`，消费方只读 `records`
+ * （过渡期兼容字段 `list` 已不输出）。
  */
 export interface PageResult<T> {
   records?: T[]

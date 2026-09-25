@@ -1,5 +1,5 @@
 <template>
-  <!-- 搜索行（跨页唯一实现，2026-09-22 change `search-page-refresh`）
+  <!-- 搜索行（跨页唯一实现）
        结构恒为「左搜索胶囊 + 右独立『搜索』按钮」——两者同高、间距 `--spacing-sm`、同为 `--radius-pill`：
        · `mode="entry"`（首页）：胶囊与按钮均为「进搜索页」入口（`@tap`）；
        · `mode="input"`（搜索页）：胶囊内为可输入框（点击即聚焦），按钮提交（`@search`），有值时可清除。
@@ -72,7 +72,7 @@ const props = withDefaults(defineProps<{
   /**
    * 提交中（仅 `input` 模式有意义）：按钮降透明 + 禁点，避免重复提交与「点了没反应」。
    * 依据 ui-ux-pro-max §2 `loading-buttons`（异步操作期间禁用按钮并给出反馈）与
-   * §8 `submit-feedback`；MVP 不引入 spinner / 骨架（client-ui-motion 拍板），故仅以禁用态表达。
+   * §8 `submit-feedback`；MVP 不引入 spinner / 骨架，故仅以禁用态表达。
    */
   searching?: boolean
 }>(), {
@@ -195,7 +195,7 @@ function onInput(e: any) {
 }
 .search-btn-pressed { opacity: 0.85; }
 /* 提交中（input 模式）：降透明 + 禁点 —— skill §2 `loading-buttons` / §8 `submit-feedback`。
-   MVP 不引入 spinner / 骨架（client-ui-motion 拍板），故仅以禁用态表达「已受理」，
+   MVP 不引入 spinner / 骨架，故仅以禁用态表达「已受理」，
    消除「点了没反应」并挡住重复提交。 */
 .search-btn.is-searching { opacity: 0.6; pointer-events: none; }
 /* 触达：按钮可点区上下各扩 16rpx → ≥88rpx（不改变视觉尺寸） */

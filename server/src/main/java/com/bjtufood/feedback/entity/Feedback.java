@@ -24,18 +24,18 @@ public class Feedback {
     private Long userId;
 
     /**
-     * 反馈类型：写入口径仅 suggestion / add / error / report（FeedbackConst.WRITABLE_TYPES）；
-     * 历史存量数据可含 bug / other（已下线，读取与后台筛选保持兼容）。
+     * 反馈类型：写入口径仅 issue / report（FeedbackConst.WRITABLE_TYPES）；
+     * 历史存量数据可含 suggestion / add / error / bug / other（已下线，读取与后台筛选保持兼容）。
      */
-    @Schema(description = "反馈类型：suggestion/add/error/report（历史可含 bug/other）")
+    @Schema(description = "反馈类型：issue/report（历史可含 suggestion/add/error/bug/other）")
     private String type;
 
     /**
      * 二级分类（DEV-01 补全落库，映射列 {@code user_feedback.sub}）：
-     * 仅 {@code type=suggestion} 有效，值域 idea/problem（FeedbackConst.SUB_WRITE_WHITELIST）；
+     * 仅历史 {@code type=suggestion} 存量数据可能含 idea / problem 值（suggestion 已禁新增写入）；
      * 其他 type 或不填时为 NULL。
      */
-    @Schema(description = "二级分类（仅 suggestion 有效）：idea/problem，其余为 null")
+    @Schema(description = "二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
     private String sub;
 
     @Schema(description = "反馈内容")

@@ -20,7 +20,7 @@ export const tabVisible = ref<boolean>(true)
 const routeMap: Record<string, string> = ROUTE_KEY_BY_URL
 
 /** 直接设定 TabBar 显隐与高亮（主根页 onShow 锚定，最稳定，不依赖页面栈时序）
- *  2026-09-07：无外部消费（外部经 showTab/ensureTabForUrl/syncRoute 调用），收敛为模块私有 */
+ *  无外部消费（外部经 showTab/ensureTabForUrl/syncRoute 调用），收敛为模块私有 */
 function setTab(key: string | null) {
   activeTab.value = key || ''
   tabVisible.value = key !== null

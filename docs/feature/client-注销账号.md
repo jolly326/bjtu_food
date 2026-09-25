@@ -40,9 +40,7 @@
 | `avatar` | NULL | 清空头像 |
 | `email` | NULL | 清空邮箱（NULL 不占唯一索引，允许原邮箱再次认证） |
 | `openid` | NULL | **解绑微信**，允许同一微信重新静默登录建新游客号 |
-| `bind_email` | NULL | 解绑认证关系 |
-| `verified_at` | NULL | 清认证时间 |
-| `verified` | 0 | 认证状态复位 |
+| `bind_email` | NULL | **解绑认证关系**（认证状态唯一真源复位为游客态） |
 | `status` | `'deleted'` | 与登录拦截、UGC 写拦截形成持久化兜底 |
 
 ### 副作用 · 其他表

@@ -21,9 +21,9 @@ onLaunch(() => {
    设计 Token 值以 theme/tokens.ts 为单一事实源。
    UI-03（spec §4.2）：颜色变量块集中于 theme/generated-colors.css，此处 @import 引入
    （构建期由 vite/postcss 内联进 app.wxss）。
-   **色值只改 tokens.ts 的 COLOR_MAP / CSS_VARS**；2026-09-23 起生成脚本
-   `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 已删除，generated-colors.css
-   改为**手工同步**（内容须与 CSS_VARS 逐键一致），见 spec §4.2 / §7.39。
+   **色值只改 tokens.ts 的 COLOR_MAP / CSS_VARS**；生成脚本
+   `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不再存在，generated-colors.css
+   须**手工同步**（内容与 CSS_VARS 逐键一致），见 spec §4.2 / §7.39。
    本文件仅保留非颜色 token（圆角/间距/字号/高度/动效/层级）与 var() 派生引用（不含裸色值）。
    - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须落在 App.vue；
    - 微信小程序 WXSS 不支持 :root 选择器，故必须以 page 承载；
@@ -44,7 +44,7 @@ page {
   --radius-modal: 48rpx;
   --radius-btn: 16rpx;
   --radius-icon: 24rpx;
-  /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签）；原 16px 名实不符，已修正为全圆角 */
+  /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */
   --radius-pill: 999rpx;
   /* 正圆（头像 / 圆点 / 指示器） */
   --radius-circle: 50%;
@@ -118,20 +118,18 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   padding-bottom: calc(var(--tabbar-height) + 24rpx + env(safe-area-inset-bottom));
 }
 
-/* ========== 按压反馈（client-ui-motion 拍板：仅 opacity / bg-soft，禁 transform scale） ==========
+/* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========
    hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
    取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-link.pressed）。
    页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */
 .pressed { opacity: 0.7; }
 
-/* 注：装饰性入场动效（原 .enter-up / enterFade）已于 client-mvp-strip-entrance-anim 剥离，
-   MVP 阶段内容一律静态直接呈现，可见性不依赖动画。 */
+/* 注：MVP 阶段内容一律静态直接呈现，可见性不依赖动画（装饰性入场动效不启用）。 */
 
-/* 减少动态效果媒体查询已移除：全站动效已于 client-ui-motion-removal-tokens-consolidation 剥离，无需降级。 */
+/* 全站动效统一呈现，不提供「减少动态效果」降级分支。 */
 
-/* ========== 交互状态工具类（client-ui-comprehensive-upgrade 1.2/1.4/1.6/2.2/4.1） ==========
-   统一禁用态与键盘焦点、hover，避免各组件散落重复实现。
-   （.glass / .is-loading / .has-error 死工具类已于 UI-03 清理删除。） */
+/* ========== 交互状态工具类 ==========
+   统一禁用态与键盘焦点、hover，避免各组件散落重复实现。 */
 /* 禁用态：弱化 + 禁点 */
 .is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
 /* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显）。
@@ -149,9 +147,8 @@ input:focus-visible,
 textarea:focus-visible {
   outline: none;
 }
-/* .hoverable 缩放已移除（client-ui-motion-removal-tokens-consolidation）：MVP 仅保留 :active opacity 反馈。 */
-/* 宽屏适配（4.1）：主滚动区在宽屏居中限宽，避免内容被无限拉伸（仅 H5/桌面生效；
-   原 .app-container 死工具类已于 UI-03 删除） */
+/* MVP 仅保留 :active opacity 反馈（无 .hoverable 缩放）。 */
+/* 宽屏适配：主滚动区在宽屏居中限宽，避免内容被无限拉伸（仅 H5/桌面生效）。 */
 @media (min-width: 768px) {
   .scroll-wrap { max-width: 720px; margin: 0 auto; }
 }

@@ -11,7 +11,7 @@ const AUTH_UNAUTHORIZED = 'auth:unauthorized'
 /**
  * 鉴权失效统一广播：通知监听者（不跳转，管理端无登录页）。
  * 导出供 upload.ts 等独立 fetch 通道共用同一失效链路（WEB-107）。
- * WEB-05：onUnauthorized 订阅链路全仓零消费、已删除；emitUnauthorized 仅保留事件广播。
+ * WEB-05：onUnauthorized 订阅链路全仓零消费；emitUnauthorized 仅保留事件广播。
  */
 export function emitUnauthorized() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_UNAUTHORIZED))
@@ -40,7 +40,7 @@ async function request<T>(
       method,
       headers: {
         'Content-Type': 'application/json',
-        // 管理端无登录体系（2026-09-13 定型）：携带环境变量里的管理端口令，由后端 AdminTokenFilter 校验。
+        // 管理端无登录体系：携带环境变量里的管理端口令，由后端 AdminTokenFilter 校验。
         // 口令配置在 web/.env.local 的 VITE_ADMIN_TOKEN（与后端 ADMIN_TOKEN 一致）；仅本地使用，不入库。
         'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN || '',
       },

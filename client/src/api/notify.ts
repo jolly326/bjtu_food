@@ -10,12 +10,8 @@ import { get, put } from './http'
 import { recordsOf, type PageResult, type RawRow } from './shared'
 
 /**
- * 通知类型（原值透传，不做字面量收窄）。
- * 2026-09-07：无外部消费，收敛为模块私有（仅本文件 toNotification/Notification 使用）。
- * 2026-09-12：新增 feedback_handle（反馈处理结果回执），与后端 NotificationConst 对齐。
- * 2026-09-15：类型收敛为仅 feedback_handle（后端 NotificationConst 现只产生该值）。
- *   历史存量通知可能含已退役类型，端上按未知类型容错（不跳转、不崩溃），
- *   故此处保留原值透传而非收敛为字面量联合。
+ * 通知类型（原值透传，不做字面量收窄）：后端现只产生 feedback_handle（反馈处理结果回执），
+ * 历史存量通知可能含已退役类型，端上按未知类型容错（不跳转、不崩溃）。
  */
 type NotificationType = string
 
@@ -36,8 +32,7 @@ function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    // 2026-09-15：原默认值指向已退役类型，已删除（未知类型不得兜底成已退役类型）。
-    // 缺省/未知类型一律原值透传（缺失时为空串），端上按未知类型容错，绝不兜底成已退役类型。
+    // 缺省/未知类型一律原值透传（缺失时为空串），端上按未知类型容错，不兜底成退役类型。
     type: (raw.type as NotificationType) || '',
     title: raw.title || '',
     content: raw.content || '',

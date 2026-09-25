@@ -4,8 +4,6 @@
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:mp-weixin": "uni build -p mp-weixin",
-    "gen:tokens": "node scripts/gen-css-vars.ts",
-    "pretype-check": "npm run gen:tokens",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {

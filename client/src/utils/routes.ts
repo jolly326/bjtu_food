@@ -1,11 +1,11 @@
 /**
- * 页面路由集中注册表（R2：2026-09-06 第二轮审计收敛）。
+ * 页面路由集中注册表（R2）。
  *
- * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落（此前 14 文件 30+ 处），
+ * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落，
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（9 页：主包 3 + 分包 6，其中 pages/detail/ 1、
- * 个人中心域拆为 5 个独立分包 root：pages/profile/、pages/notifications/、pages/feedback/、
- * pages/my-reviews/、pages/privacy/，各含 1 页）。
+ * 与 `client/src/pages.json` 严格一致（10 页：主包 3 + 分包 7，其中 pages/detail/ 1、
+ * 个人中心域拆为 6 个独立分包 root：pages/profile/、pages/auth/、pages/notifications/、
+ * pages/feedback/、pages/my-reviews/、pages/privacy/，各含 1 页）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
  */
 
@@ -17,8 +17,9 @@ export const PATH = {
   find: '/pages/find/index',
   // 分包 pages/detail/（内容阅读域）
   dishDetail: '/pages/detail/dish/index',
-  // 个人中心域：5 个独立分包（各自为 subPackage root，禁止再合并为单包）
+  // 个人中心域：6 个独立分包（各自为 subPackage root，禁止再合并为单包）
   profile: '/pages/profile/index',
+  auth: '/pages/auth/index',
   notifications: '/pages/notifications/index',
   feedback: '/pages/feedback/index',
   myReviews: '/pages/my-reviews/index',
@@ -44,27 +45,19 @@ export function dishDetailUrl(id: number | string): string {
   return `${PATH.dishDetail}?id=${id}`
 }
 
-/* ===== 贡献入口统一落点（唯一构造函数，禁止各入口手拼参数；见 spec contribution-entry） ===== */
+/* ===== 意见反馈页落点（唯一构造函数，禁止调用点手拼 URL） ===== */
 
-/** 落点来源：首页内容流末尾卡片 / 搜索无结果引导 / 菜品详情页纠错入口 */
-export type ContributionSource = 'home' | 'find' | 'dish'
-
-/** 目标反馈表单类型：推荐菜品（add）/ 信息不对（error） */
-export type ContributionType = 'add' | 'error'
+/** 反馈页双模式：我要反馈问题（issue，缺省）/ 我要更新信息（update） */
+export type FeedbackMode = 'issue' | 'update'
 
 /**
- * 意见反馈页落点 URL：
- * - 首页卡片 / 搜索无结果 → type=add（推荐菜品，空表单）
- * - 菜品详情页纠错 → type=error + dishId + dishName（自动关联该菜品）
+ * 意见反馈页 URL（双模式口径）：
+ * - 「我的」宫格等默认入口 → feedbackUrl()（缺省 issue）；
+ * - 菜品详情页「信息有误？」入口 → feedbackUrl('update', dishId)
+ *   （update 模式带 dishId 时跳过搜索步骤，进页即拉详情预填表单）。
  */
-export function feedbackEntryUrl(options: {
-  type: ContributionType
-  from: ContributionSource
-  dishId?: number | string
-  dishName?: string
-}): string {
-  const params = [`type=${options.type}`, `from=${options.from}`]
-  if (options.dishId != null) params.push(`dishId=${options.dishId}`)
-  if (options.dishName) params.push(`dishName=${encodeURIComponent(options.dishName)}`)
+export function feedbackUrl(mode: FeedbackMode = 'issue', dishId?: number | string): string {
+  const params = [`mode=${mode}`]
+  if (dishId != null) params.push(`dishId=${dishId}`)
   return `${PATH.feedback}?${params.join('&')}`
 }

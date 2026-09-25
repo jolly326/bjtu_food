@@ -3,10 +3,10 @@ import { computed, ref } from 'vue'
 import { getDishAttributes, type DishAttribute } from '@/api/dish-attribute'
 
 /**
- * 菜品描述四维字典 store（2026-09-23 `project_spec.md` §7.40 R4）。
+ * 菜品描述四维字典 store（`project_spec.md` §7.40 R4）。
  *
  * 职责：一次性拉取后端字典并**会话级缓存**，供视图层把菜品出参的**机器值**翻译为中文展示值。
- * 端上因此**零硬编码映射表**（原 `api/dish.ts` 的 4 张 `*_MAP` 已退役）。
+ * 端上因此**零硬编码映射表**。
  *
  * 失败策略：字典拉取失败**静默**（`items` 保持空）—— 四维整块按「缺项不占位」口径不渲染，
  * 不阻塞详情页主体；下次进入页面会重试（`loaded` 仅在成功后置真）。

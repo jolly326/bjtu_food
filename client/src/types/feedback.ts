@@ -1,23 +1,49 @@
-/** 提交反馈（project_spec.md §3.x.5：POST /feedback，公开可提交，无需登录）
- * 2026-08-17 重设计：type 支持 add（新增菜品）一级枚举。
- * 2026-09-15 收口（spec §7.23）：写入口径四类 suggestion / add / error / report。
- * bug / other 为历史遗留枚举，**禁止新增写入**（后端对历史数据兼容读展示），
- * 故从可写类型中移除；纠错子项「其他」走 error + content 结构化文本承载，不占用独立枚举。
- * 「新增菜品」为独立一级类型 add（对应 content 结构化文本）；纠错/举报的二级信息走 content/related 字段。
- * 反馈支持配图（≤3 张 COS URL，2026-09-13 拍板恢复，见 spec §0.5 与 images 字段）。 */
-export interface FeedbackSubmit {
-  type: 'suggestion' | 'add' | 'error' | 'report'
-  content: string
-  /**
-   * 二级选项（2026-09-15 DEV-01 补齐）：仅 type=suggestion 时上送，
-   * 承载「提建议 idea / 报问题 problem」的二级语义（此前仅端上选中、提交时被丢弃）。
-   * 契约：仅 suggestion 携带；其他类型不传（后端按 type 走白名单校验，非法值 400）。
-   */
-  sub?: 'idea' | 'problem'
-  /** 反馈对象细分类型（error 信息纠错为 'dish'；type=report 举报为 'review'（评价）；未选实体可不传） */
-  relatedType?: string
-  /** 关联对象 ID（用户未选实体可不传；type=report 举报时按需填） */
-  relatedId?: number
-  /** 配图（COS URL，≤3 张；2026-09 恢复反馈配图，经 ImagePicker → /upload/images 安检后回传） */
-  images?: string[]
+/**
+ * 提交反馈（project_spec.md §3.x.5）。
+ *
+ * 意见反馈页收敛为两段式：「我要反馈问题（issue）」+「我要更新信息（update）」。
+ * - issue：`POST /feedback`，纯文本 + 配图（≤3 张）。
+ * - update：`POST /dishes/{id}/correction`，请求体七字段平铺（无 type、无 dishId 字段，dishId 在路径）；
+ *   档口 / 食堂均为自由文本（不依赖字典端点）。
+ *
+ * type=report 为评价举报链路（详情页 useReport）专用写入口径，不在意见反馈页内。
+ */
+
+/** 菜品纠错 payload（`POST /dishes/{id}/correction` 请求体；七字段平铺，字段值为用户改后的差异项） */
+export interface DishCorrectionPayload {
+  /** 菜品名称（预填详情当前值，用户可改；敏感词由后端 400 message 直透） */
+  name: string
+  /** 价格，单位 = **分**（端上以元填写，提交前经 yuanToFen 转分，金额红线） */
+  price: number
+  /** 食堂名（自由文本，预填详情 canteenName） */
+  canteenName: string
+  /** 档口名（自由文本，预填详情 stallName；无 stallId） */
+  stallName: string
+  /** 口味标签（预填详情机器值 + 用户自由输入项，可增删） */
+  flavorTags: string[]
+  /** 食材（预填详情机器值 + 用户自由输入项，可增删） */
+  ingredients: string[]
+  /** 图片 URL（预填菜品现有图 + 用户新增，经 ImagePicker → /upload/images 安检） */
+  images: string[]
 }
+
+export type FeedbackSubmit =
+  /** 我要反馈问题：纯文本 + 配图（≤3 张 COS URL） */
+  | {
+      type: 'issue'
+      /** 反馈内容（必填） */
+      content: string
+      /** 配图（COS URL，≤3 张；经 ImagePicker → /upload/images 安检后回传） */
+      images?: string[]
+    }
+  /** 评价举报（菜品详情页举报弹层，非意见反馈页）：以结构化原因单选为准（sub），content 可空 */
+  | {
+      type: 'report'
+      content?: string
+      /** 举报原因机器值（字典端点 `GET /feedback/report-reasons` 下发） */
+      sub?: string
+      /** 举报对象类型：'review'（评价） */
+      relatedType?: string
+      /** 关联对象 ID */
+      relatedId?: number
+    }

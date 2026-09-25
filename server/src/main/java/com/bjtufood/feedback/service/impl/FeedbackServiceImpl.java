@@ -54,8 +54,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
-        // 类型写入白名单（P2-01 / P3-10）：仅端上真实产出的 4 类可写，
-        // bug/other 为历史遗留、禁新增；非法值 400（不再原样落库）。
+        // 类型写入白名单（P2-01 / P3-10）：仅端上真实产出的 2 类可写（issue / report），
+        // suggestion/add/error/bug/other 为历史遗留、禁新增；非法值 400（不再原样落库）。
         String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
         if (FeedbackConst.TYPE_REPORT.equals(type)) {
             // 举报必须关联被举报对象（当前举报对象为菜品详情的评价，复用 user_feedback 表）
@@ -74,27 +74,35 @@ public class FeedbackServiceImpl implements FeedbackService {
                 throw new BusinessException("你已举报过该内容，我们会尽快处理，请勿重复提交");
             }
         }
-        // 二级分类 sub（DEV-01 补全落库）：仅 type=suggestion（提个想法）有效——
-        // 端上「想法/问题」二选一此前仅在请求中出现、未落库，现收敛为白名单并落库。
-        // 1. type=suggestion：provided 但不在 SUB_WRITE_WHITELIST → 400（ParamValidator 统一口径，不静默降级）；
-        //    未提供（null/空白）→ 按未填处理，落库 NULL。
-        // 2. type != suggestion（2026-09-15 用户拍板，严格模式）：该值无效——
-        //    未提供（null/空白）零影响（其他类型本就不传 sub，存量调用行为不变）；
-        //    一旦提供（非空白）即 400，不再静默忽略，避免端上误传被吞掉而不自知。
+        // 二级分类 sub 按 type 分流（值域单一真源 FeedbackConst，PR-06：非法/缺失即 400，不静默降级）：
+        // 1. report → 举报原因（**必选**：端上底部弹层单选字典下发项 `GET /feedback/report-reasons`，
+        //    选中值作为 sub 上送——举报结论结构化，后台直接按原因处置，不再依赖文本描述）；
+        // 2. 其他类型（issue）→ 禁带（提供即 400，严格模式）。
         String sub;
-        if (FeedbackConst.TYPE_SUGGESTION.equals(type)) {
-            sub = ParamValidator.optionalInWhitelist(req.getSub(), FeedbackConst.SUB_WRITE_WHITELIST, "反馈二级分类");
+        if (FeedbackConst.TYPE_REPORT.equals(type)) {
+            sub = ParamValidator.requiredInWhitelist(req.getSub(), FeedbackConst.REPORT_REASON_VALUES, "举报原因");
         } else {
             if (StringUtils.hasText(req.getSub())) {
-                throw new BusinessException(400, "反馈二级分类仅「提个想法」(suggestion) 类型有效");
+                throw new BusinessException(400, "反馈二级分类仅「举报」(report) 类型有效");
             }
             sub = null;
+        }
+        // 内容按 type 分流必填：report 走结构化原因单选，不再强制文本（content 可空，落空串）；
+        // 其余类型仍必填（提示文案维持原口径）。
+        String content;
+        if (FeedbackConst.TYPE_REPORT.equals(type)) {
+            content = StringUtils.hasText(req.getContent()) ? sensitiveFilter.filter(req.getContent()) : "";
+        } else {
+            if (!StringUtils.hasText(req.getContent())) {
+                throw new BusinessException(400, "反馈内容不能为空");
+            }
+            content = sensitiveFilter.filter(req.getContent());
         }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(type);
         feedback.setSub(sub);
-        feedback.setContent(sensitiveFilter.filter(req.getContent()));
+        feedback.setContent(content);
         // contact 落库点已随 user_feedback.contact 列退役删除（2026-09-16 产品定型「不收集联系方式」）
         feedback.setRelatedType(req.getRelatedType());
         feedback.setRelatedId(req.getRelatedId());
@@ -104,9 +112,12 @@ public class FeedbackServiceImpl implements FeedbackService {
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
         // 2026-09-15 用户拍板「取消人工复核」：内容安全检测 review（疑似）归一为放行，
         // 不再落库 sec_state（该列已全链退役），故此处只保留拦截语义。
+        // 空文本（report 仅选原因、无补充说明）跳过送检。
         // 边界（报告备案）：游客反馈（userId=null，PUB 接口）与 openid 为 NULL 的账号无法调 v2 接口
         // （msgSecCheck v2 openid 必填），按服务内既有口径跳过内容安全检测放行；微信凭据未配置（本地开发）同。
-        checkUgcText(userId, feedback.getContent());
+        if (StringUtils.hasText(feedback.getContent())) {
+            checkUgcText(userId, feedback.getContent());
+        }
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackMapper.insert(feedback);
     }

@@ -23,14 +23,11 @@ import { computed } from 'vue'
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
-// 2026-09-14（P3-05 / PR-05「零消费即删」）：'heart-filled' / 'heart' / 'send-simple' 三键已删除——
-// 逐一核查确认端上零 `name="..."` 引用（收藏功能全量移除、评价发送键未启用）；
-// 'thumb-filled' 亦零引用（仅保留 'thumb' 线性键）。
-// 2026-09-20（dish-detail-remediation）：「有用」按钮随该能力全链下线，'thumb' / 'clock' / 'fire'
-// 三键在端上已无 `name=` 引用；按设计资产口径**保留并登记**（见 tasks 6.3 零消费扫描产出），
-// 不做删除——避免与 Web 端/文档的图标语义表脱节。
-// 同批删除的其余零消费键：'send'（评价发送，改用文本提交）、'up'（原回顶按钮已移除）、
-// 'lightbulb'（线性灯泡，实色 lightbulb-fill 在用）、'contact'（联系开发者独立入口已下线）。
+// 图标键登记口径（零消费即不登记）：收藏 'heart' / 'heart-filled'、评价发送 'send-simple' / 'send'、
+// 回顶 'up'、联系入口 'contact'、线性灯泡 'lightbulb' 不在注册表（端上零 `name=` 引用）；
+// 'thumb-filled' 亦不在（仅 'thumb' 线性键在用）。
+// 'thumb' / 'clock' / 'fire' 虽无 `name=` 引用，但按设计资产口径保留并登记，
+// 与 Web 端 / 文档的图标语义表保持一致。
 // ⚠️ 'home-filled' / 'profile-filled' 必须保留：TabBar.vue 以 `${icon}-filled` 动态拼接选中态图标，
 //    静态 grep 会误判为零消费（P0-06 点赞图标同类陷阱）。
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
@@ -38,8 +35,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   search: { path: ['M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
-  // 原 `filter`（漏斗）键已于 2026-09-14 删除：唯一消费点 FilterBar 的假控件胶囊已按 P0-05 移除，
-  // 成为零消费键（PR-05：零消费图标不留存）。
+  // `filter`（漏斗）键不在注册表：唯一消费点 FilterBar 已移除，成为零消费键（PR-05：零消费图标不留存）。
   comment: { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'] },
   report: { path: ['M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z', 'M12 9v4', 'M12 17h.01'] },
   plus: { path: ['M12 5v14', 'M5 12h14'] },
@@ -84,6 +80,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'home-filled': { path: ['M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'], fill: true },
   // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
   'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
+  'badge-check': { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['m8.2 12.3 2.6 2.6 5-5.2'] },
   // ── feedback-forms-ux-polish：圆润填充（胖）glyph（意见反馈页顶部/选项等使用；SVG data-uri，禁 emoji） ──
   // 灯泡实心（提个想法）：圆润灯身 + 灯座
   'lightbulb-fill': { path: ['M12 3.4a6.6 6.6 0 0 0-4.7 11.3c1 1 1.6 2 1.8 3.1h5.8c.2-1.1.8-2.1 1.8-3.1A6.6 6.6 0 0 0 12 3.4z', 'M9.4 20h5.2c.1.9 0 1.5-.6 1.8-.7.4-3.3.4-4 0-.6-.3-.7-.9-.6-1.8z'], fill: true },
@@ -95,7 +92,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   'search-fill': { circle: [{ cx: 10.5, cy: 10.5, r: 6, fill: 'currentColor' }], path: ['M14.8 14.8l5.7 5.7'], fill: false },
 }
 
-// 描边色兜底常量（theme/tokens.ts 登记；MP-11 删除 resolveColor/COLOR_MAP 死机制后唯一色源）
+// 描边色兜底常量（theme/tokens.ts 登记；当前唯一色源）
 import { ICON_FALLBACK_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
@@ -120,9 +117,8 @@ if (props.name && !ICONS[props.name]) {
   }
 }
 const icon = computed(() => ICONS[props.name] || ICONS.empty)
-// MP-11：resolveColor/COLOR_MAP 死机制已删除——COLOR_MAP 键无 `--` 前缀，var() 查找从未命中，
-// var() 形态实际恒走 currentColor 兜底。SVG data-uri 无法解析 var()，var() 形态统一落到
-// 登记的兜底常量 ICON_FALLBACK_COLOR（与删除前的兜底同为中性近黑，渲染行为不变）；
+// 颜色解析：COLOR_MAP 键无 `--` 前缀，var() 查找从未命中，var() 形态实际恒走 currentColor 兜底。
+// SVG data-uri 无法解析 var()，var() 形态统一落到兜底常量 ICON_FALLBACK_COLOR（中性近黑）；
 // 其余形态（currentColor / 真实色值）原样透传。
 const stroke = computed(() => {
   const c = props.color

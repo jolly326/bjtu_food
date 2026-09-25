@@ -33,8 +33,8 @@ public interface ReviewMapper extends BaseMapper<Review> {
     /**
      * 按用户查询「我的评价」列表（本人视角）。
      * <p>
-     * 可见性（2026-09-14 §7.14 C）：<b>不过滤 is_hidden</b> —— 被管理员隐藏的评价作者本人仍可见，
-     * 并返回 is_hidden 供端上标注「已被隐藏」。
+     * 对评价全集按 user_id 过滤拆分；可见性与公开列表同口径：仅返回 is_hidden=0——
+     * 被管理员隐藏的评价不对客户端（含作者本人）返回。
      * 排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
      */
     IPage<MyReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("dishId") Long dishId);

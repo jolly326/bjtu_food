@@ -1,8 +1,7 @@
 /**
  * 举报逻辑 hook（useReport）——菜品详情页包内私有编排（仅本页使用，就近置于页面包）。
  *
- * 原 openReport 前置 requireAuth（举报被挡在认证后），client-auth-boundary 修订：
- * 举报属免认证行为，游客可直接填写提交，不再弹 AuthSheet。
+ * 举报属免认证行为，游客可直接填写提交。
  */
 import { ref, type Ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
@@ -24,8 +23,8 @@ export interface UseReportReturn {
   reportTargetId: Ref<number | null>
   /** 打开举报弹窗（游客可直达，无需认证） */
   openReport: (targetId: number) => void
-  /** 提交举报；text 为空时提示并中断 */
-  submitReport: (text: string) => Promise<void>
+  /** 提交举报：reasonValue = 弹层单选的举报原因机器值（字典下发项），作为 sub 上送 */
+  submitReport: (reasonValue: string) => Promise<void>
 }
 
 export function useReport(options: UseReportOptions): UseReportReturn {
@@ -38,18 +37,18 @@ export function useReport(options: UseReportOptions): UseReportReturn {
     reportOpen.value = true
   }
 
-  async function submitReport(text: string) {
+  async function submitReport(reasonValue: string) {
     const targetId = reportTargetId.value
     if (targetId == null) return
-    if (!text) {
-      uni.showToast({ title: '请填写举报原因', icon: 'none' })
+    if (!reasonValue) {
+      uni.showToast({ title: '请选择举报原因', icon: 'none' })
       return
     }
     reportSubmitting.value = true
     try {
       await submitFeedback({
         type: 'report',
-        content: text,
+        sub: reasonValue,
         relatedType: options.type,
         relatedId: targetId,
       })

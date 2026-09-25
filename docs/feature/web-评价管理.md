@@ -49,7 +49,7 @@
 | `id` | number | 评价 ID |
 | `userId` | number | 评价者用户 ID |
 | `dishId` | number | 关联菜品 ID |
-| `dishName` | string | 关联菜品名称（联表补齐） |
+| `dishName` | string | 关联菜品名称（服务端可 enrich 返回；web 端按 `dishId` 本地查表展示，不读此字段） |
 | `userNickname` | string | 评价者昵称 |
 | `userAvatar` | string | 评价者头像 URL |
 | `rating` | number | 评分（1~5 星） |
@@ -58,9 +58,10 @@
 | `createdAt` | string | 评价时间 |
 | `isHidden` | number | 是否被隐藏：`0`=正常 / `1`=已隐藏 |
 
-> **评价出参不含任何「有用」字段**（无点赞 / 有用语义）。
+> 评价出参**无内容安全状态字段**——内容安全由微信检测在提交闸门前置把关，管理端无复核队列。
 
-> **无 `secState`**（无人工复核队列，内容安全由微信检测前置把关）。
+> **web 端消费说明**：服务端 `ReviewAdminVO` 可 enrich 返回 `dishName` / `userNickname` / `userAvatar`，但 **web 管理端评价列表 / 详情不读取这三项**——用户昵称与菜品名一律按 `userId` / `dishId` 本地查 `users` / `dishes` 字典展示（`ReviewManageView.getUserName` / `getDishName`，WEB-03 降级显示；已注销用户兜底），避免依赖服务端 enrich 带来的降级与 N+1。故 web 的 `Review` 模型不声明这三项字段。
+> 注意：web 端 `Review` 模型字段为 **snake_case**（`user_id` / `dish_id` / `created_at` / `is_hidden`），由 `api/adapter.ts` 的 `reviewToLegacy` 从服务端 camelCase 归一。
 
 ### 请求 · `PUT /admin/reviews/{id}/hide`
 

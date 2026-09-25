@@ -4,32 +4,26 @@
  */
 
 /**
- * 注（2026-09-15，后台精简）：原「操作日志」动作 / 对象元数据（OPERATION_ACTION_META、
- * OPERATION_ACTION_OPTIONS、OPERATION_TARGET_META、OPERATION_TARGET_OPTIONS、
- * operationActionText / operationTargetText / operationTargetLabel）已整体删除——
- * 操作日志页（views/system/OperationLogView.vue）与其 API 层（api/operationLog.ts）同轮下线，
- * 全站零消费（grep 复核通过）。后端 AOP 埋点与存量日志数据均不受影响，仅前端不再展示。
- * 退役后如需恢复，可从 git 历史取回本文件对应段落。
+ * 操作日志：后端 AOP 埋点仍照常写，前端不再展示（无操作日志页 / API）。
  */
 /**
- * 注（§7.23 第 4 条，2026-09-15）：原 AUDIT_PENDING / AUDIT_APPROVED / AUDIT_REJECTED /
- * AUDIT_STATUS_META 已随「菜品审核 UI 下线」删除——菜品无独立审核，管理员录入即生效，
- * 客户端与后台均不出现「菜品审核」概念。dish.audit_status / reject_reason 为退役历史列，
- * 前端契约不再读写（types/Dish 与 api/adapter 已同步移除映射）。
+ * 菜品无独立审核（§7.23 第 4 条）：管理员录入即生效，客户端与后台均不出现「菜品审核」概念。
+ * dish.audit_status / reject_reason 为后端历史列，前端契约不再读写。
  */
 
 /**
- * 注（2026-09-15 拍板：取消人工复核）：原「内容安检状态」三态常量（正常 / 待复核 / 已驳回）、
- * 其展示元数据与筛选下拉选项已整体删除——内容安全检测的放行态与待复核态均对客户端放行、
- * 仅风险项拒绝，后台已无人工复核动作，评价管理 / 反馈处理两页均不展示、不筛选安检状态
- * （后端字段同源移除）。保留在此会形成「恒空筛选项」误导排查，故不留空壳映射。
+ * 评价 / 反馈无「内容安检状态」字段与复核动作：内容安全检测放行态与待复核态均对客户端放行、
+ * 仅风险项拒绝，评价管理 / 反馈处理两页均不展示、不筛选安检状态（后端字段同源移除）。
  */
 
 /**
  * 反馈类型展示文案（唯一真源，反馈列表消费）。
- * 与后端 FeedbackService 类型白名单同源：suggestion/add/error/report（历史类型 bug/other 亦可读存量）。
+ * 拆分信息纠错：「信息更新」类型拆出为独立资源
+ * /admin/corrections，本表不再登记该值（web 域 grep 该类型机器值应为 0）；
+ * 现值域 = issue（现写）+ 历史存量类型（筛选兼容，未登记值回落原始串）。
  */
 export const FEEDBACK_TYPE_META: Record<string, string> = {
+  issue: '问题反馈',
   suggestion: '功能建议',
   add: '新增菜品',
   error: '内容纠错',
@@ -59,14 +53,33 @@ export const FEEDBACK_STATUS_META: Record<string, { type: 'warning' | 'success';
 }
 
 /* ============================================================
- * 菜品「描述四维」的**读写形态工具**（§7.28 描述维度替换，2026-09-20）
+ * 信息纠错（自反馈拆分，独立处理页 CorrectionView 消费）
+ * ============================================================ */
+
+/** 纠错状态：待处理 */
+export const CORRECTION_PENDING = 'pending'
+/** 纠错状态：已采纳（快照已写回目标菜品） */
+export const CORRECTION_ADOPTED = 'adopted'
+/** 纠错状态：已拒绝（回复 + 拒绝原因必填） */
+export const CORRECTION_REJECTED = 'rejected'
+
+/**
+ * 纠错状态展示元数据（StatusTag 类型 + 文案）。
+ * 与后端 CorrectionAdminVO.status 契约一致（pending / adopted / rejected）。
+ */
+export const CORRECTION_STATUS_META: Record<string, { type: 'warning' | 'success' | 'danger'; text: string }> = {
+  [CORRECTION_PENDING]: { type: 'warning', text: '待处理' },
+  [CORRECTION_ADOPTED]: { type: 'success', text: '已采纳' },
+  [CORRECTION_REJECTED]: { type: 'danger', text: '已拒绝' },
+}
+
+/* ============================================================
+ * 菜品「描述四维」的**读写形态工具**（§7.28 描述维度替换）
  *
- * ⚠️ 2026-09-23 迁移（§7.40 R4）：四维的「机器值 → 中文」**映射表与表单选项数组已整体删除**，
- * 改由后端字典端点 `GET /dishes/attributes`（`DishAttributeConst`）下发，Web 端消费方为
- * `stores/dishAttributeStore.ts` —— 展示走 `labelOf` / `labelsText`，录入走 `optionsOf`。
+ * 四维的「机器值 → 中文」映射表与表单选项数组由后端字典端点 `GET /dishes/attributes`
+ * （`DishAttributeConst`）下发，Web 端消费方为 `stores/dishAttributeStore.ts` ——
+ * 展示走 `labelOf` / `labelsText`，录入走 `optionsOf`。
  * **本文件与任何视图均不得再硬编码四维的 `value → 中文` 映射或选项清单**（PR-12）。
- * 迁移缘由：改动前 Web 端在此硬编码 4 张 `*_META` + 4 组 `*_OPTIONS`（同时兼作表单选项），
- * 与 client 端 `api/dish.ts` 的 4 张表构成**两套前端真源**（连同后端常量表共三套）。
  *
  * 下方 `parseCsv` / `formatCsv` 是**读写格式工具**（多值字段的 CSV / 数组归一），
  * 与「映射真源」无关，故保留（R4 数组化后仍可复用）。
@@ -93,15 +106,10 @@ export function formatCsv(list: string[]): string {
 }
 
 /*
- * 已删除（2026-09-23 §7.40 R4）：DIET_TYPE_META / DIET_TYPE_OPTIONS / dietTypeText /
- * SERVE_TEMP_META / SERVE_TEMP_OPTIONS / serveTempText / INGREDIENT_META / INGREDIENT_OPTIONS /
- * ingredientsText / FLAVOR_TAG_META / FLAVOR_TAG_OPTIONS / flavorTagsText。
- *
- * 上述 4 张「机器值 → 中文」映射表与 4 组表单选项数组**整体退役** —— 其内容与后端
- * `DishAttributeConst` 经 `GET /dishes/attributes` 下发的字典完全重复，属**前端自建枚举真源**
- * （违反 PR-12）。消费方迁移：
+ * 四维「机器值 → 中文」映射表与表单选项数组（DIET_TYPE / SERVE_TEMP / INGREDIENT / FLAVOR_TAG
+ * 的 `*_META` / `*_OPTIONS` / `*Text`）不再内置，统一由后端字典端点 `GET /dishes/attributes`
+ * 下发（PR-12，违反则构成前端自建枚举真源）。消费方：
  *   - 展示（`DishDetailView.vue` 描述四维）→ `useDishAttributeStore().labelOf / labelsText`
  *   - 录入（`DishFormDialog.vue` 下拉与 chips）→ `useDishAttributeStore().optionsOf`
- * 退役后如需追溯旧值域，见 `project_spec.md` §7.28（值域真源）与 git 历史。
  */
 

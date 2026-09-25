@@ -1,7 +1,7 @@
 import { get } from './http'
 
 /**
- * 菜品描述四维字典项（`GET /dishes/attributes`，2026-09-23 `project_spec.md` §7.40 R4）。
+ * 菜品描述四维字典项（`GET /dishes/attributes`，`project_spec.md` §7.40 R4）。
  *
  * - `field` **恒等于菜品出参字段名**（`dietType` / `ingredients` / `flavorTags` / `serveTemp`），
  *   消费方据此**直接匹配**渲染，不得另建「字典 field → VO 字段」的第二套映射（R13）；

@@ -1,6 +1,5 @@
 package com.bjtufood.feedback.controller.admin;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
@@ -39,10 +38,8 @@ public class FeedbackAdminController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        IPage<FeedbackAdminVO> result = feedbackService.listForAdmin(status, type, userId, keyword, page, pageSize);
-        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
-        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
-                (int) result.getCurrent(), (int) result.getSize()));
+        return Result.success(PageResult.of(
+                feedbackService.listForAdmin(status, type, userId, keyword, page, pageSize)));
     }
 
     @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/处理结论/handled_at。仅接受 JSON body（{reply, outcome, rejectReason}）："

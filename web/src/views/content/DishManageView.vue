@@ -217,7 +217,7 @@ async function handleDelete(row: any) {
   }
 }
 
-/** 展示值恒取现价 price（§7.26：禁止双源切换；原 promoPrice 已删除） */
+/** 展示值恒取现价 price（§7.26：禁止双源切换，无促销价） */
 function formatPrice(row: any): string {
   return `¥${Number(row.price ?? 0).toFixed(2)}`
 }

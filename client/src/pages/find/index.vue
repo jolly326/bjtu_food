@@ -1,6 +1,6 @@
 <template>
   <view class="page find-page" :style="{ paddingTop: `${titleBandPx}px` }">
-    <!-- 顶部两段式（2026-09-22 change search-page-refresh：原 `AppHeader` search variant 已退役）：
+    <!-- 顶部两段式（搜索页头部由 `AppTitleBand` + `SearchBar` 承载）：
          ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
          两段常驻固定（根层不滚动，滚动只发生在内容区 / FindResults 内部）。 -->
@@ -15,7 +15,7 @@
       />
     </view>
 
-    <!-- 结果态筛选条已整体删除（2026-09-22 K2）：食堂 / 价格筛选全量下线——
+    <!-- 结果态无筛选条：食堂 / 价格筛选不提供——
          搜索页头部回到「输入框 + 结果」，不再有筛选胶囊与下拉面板。 -->
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
@@ -108,7 +108,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { dishDetailUrl, feedbackEntryUrl } from '@/utils/routes'
+import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
@@ -183,7 +183,7 @@ function clearHistory() {
   })
 }
 
-// 搜索模式（2026-08-03：结果页改为复合型混合列表，无排序/筛选）
+// 搜索模式：结果页为复合型混合列表，无排序/筛选
 const inFilter = ref(false)
 /** 搜索请求是否已完成（成功/失败均置真，过期请求不置）：用于区分「静默加载中」与「无结果引导」，避免空态闪现 */
 const searchDone = ref(false)
@@ -193,7 +193,7 @@ const searching = ref(false)
 /** 最近一次已完成搜索是否失败（MP-012）：失败 ≠ 无结果，失败渲染重试块而非「没搜到」空态 */
 const searchFailed = ref(false)
 
-// ===== 结果态筛选（食堂 / 价格）已全量下线（2026-09-22 K2） =====
+// ===== 结果态筛选（食堂 / 价格）不提供 =====
 // 搜索页不再持有任何筛选状态：不传 canteenId / minPrice / maxPrice，也不传排序参数
 // （排序口径唯一由后端决定：热度优先、不设排序入口）。
 
@@ -236,11 +236,11 @@ function goKeyword(kw: string) {
   doMixedSearch(kw)
 }
 
-// ===== 复合型搜索（2026-08-03 重构：直接复用菜品检索接口） =====
+// ===== 复合型搜索（直接复用菜品检索接口） =====
 // C13 竞态守卫：慢请求结果不得覆盖后发的快请求（参照 review.vue searchSeq 模式）
 let mixedSearchSeq = 0
 async function doMixedSearch(kw?: string) {
-  // 搜索页唯一入口 = 关键词（食堂 / 价格筛选已下线，不再支持「无关键词按食堂浏览」）
+  // 搜索页唯一入口 = 关键词（不提供食堂 / 价格筛选，无关键词则不发起检索）
   if (!kw) return
   // 竞态守卫（mixedSearchSeq）已保证后发请求覆盖先发结果；此处不设防重入锁，
   // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
@@ -251,7 +251,7 @@ async function doMixedSearch(kw?: string) {
   searching.value = true
   try {
     // 复用 store.search（GET /dishes?keyword，返回平铺 DishListItem[]），金额/图片已在 api 层归一；
-    // 端上不传任何筛选 / 排序参数（2026-09-22 K2/K3）
+    // 端上不传任何筛选 / 排序参数
     const list = await dishStore.search({
       keyword: kw,
       page: 1,
@@ -268,7 +268,7 @@ async function doMixedSearch(kw?: string) {
           type: 'dish' as const,
           id: d.id,
           name: d.name,
-          // 列表唯一图片字段 coverImage（2026-09-22 D 项拆分；原 images[0] 已随列表 VO 收敛）
+          // 列表唯一图片字段 coverImage（列表 VO 不含 images 数组）
           image: d.coverImage || '',
           sub,
           price: d.price,
@@ -297,9 +297,9 @@ function onRetrySearch() {
   return doMixedSearch(keyword.value.trim())
 }
 
-/** 搜索无结果引导 → 反馈页预选「推荐菜品」空表单（落点唯一构造函数，from=find，见 contribution-entry） */
+/** 搜索无结果引导 → 反馈页（落默认 issue 模式；落点唯一构造函数） */
 function goContributeNotFound() {
-  uni.navigateTo({ url: feedbackEntryUrl({ type: 'add', from: 'find' }) })
+  uni.navigateTo({ url: feedbackUrl() })
 }
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
@@ -318,7 +318,7 @@ function exitFilter() {
 
 async function loadDiscover() {
   try {
-    // 发现态数据源只剩「猜你喜欢」词条（食堂字典端点已随筛选功能下线删除，K4）
+    // 发现态数据源只剩「猜你喜欢」词条（无食堂字典端点）
     await dishStore.fetchGuessLike()
   } catch (e) {
     // 静默：发现态加载失败不呈现任何占位，异常仅记录
@@ -397,7 +397,7 @@ onShow(() => clearShareState())
 .fe-btn.pressed { opacity: 0.85; }
 .fe-btn-text { font-size: var(--font-small); color: var(--text-white); font-weight: var(--weight-medium); }
 
-/* 筛选行 / FilterBar 宿主样式已随「食堂 / 价格筛选全量下线」删除（2026-09-22 K2）；搜索页头部回到「输入框 + 结果」 */
+/* 搜索页头部为「输入框 + 结果」，无筛选行 / FilterBar 样式 */
 
 /* 区块通用 */
 .section-extra { flex-shrink: 0; }
@@ -452,7 +452,7 @@ onShow(() => clearShareState())
 .history-chip-del:active { opacity: 0.5; }
 /* 「猜你喜欢」词条 vs 搜索记录**必须可区分**（UI 文档 §3）：推荐词 = 暖黄底 + 深棕字。
    fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（§7.39）后区分自动生效；
-   ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款，用户 2026-09-23 走查已指出）。 */
+   ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款）。 */
 .history-chip-hot { background: var(--bg-soft-yellow, var(--bg-soft)); }
 .history-chip-hot .history-chip-text { color: var(--text-body, var(--text-secondary)); }
 </style>

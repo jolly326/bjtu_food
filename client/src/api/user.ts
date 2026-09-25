@@ -4,8 +4,8 @@ import type { RawRow } from './shared'
 
 function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
-  // 后端四条账号信息链路透传 id/username/nickname/avatar/bindEmail（恰 5 字段，2026-09-22 spec §7.32 修订；
-  // role 字段已随 user.role 列退役移除，2026-09-15）。
+  // 后端四条账号信息链路透传 id/username/nickname/avatar/bindEmail（恰 5 字段，spec §7.32 修订；
+  // role 字段不纳入出参）。
   // 已删字段端上不再读取：verified（bindEmail 派生冗余，端上经 useUserStore().isVerified() 单点派生）、
   // email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、guestShortId（端上按 id 现算）。
   return {

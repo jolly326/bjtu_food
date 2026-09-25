@@ -45,10 +45,10 @@ export async function getAll(): Promise<User[]> {
   return all
 }
 
-// getProfile / updateProfile（GET|PUT /auth/profile）已于 2026-09-15 删除（WEB-05）：
+// getProfile / updateProfile（GET|PUT /auth/profile）不提供（WEB-05）：
 // 端点属学生端 JWT 体系，管理端走 X-Admin-Token 口令、必然 401，且全仓零消费。
 
-// updatePassword（PUT /auth/password）已于 2026-09-14 删除（Q-108 / G-13 / spec §5.y.1）：
+// updatePassword（PUT /auth/password）不提供（Q-108 / G-13 / spec §5.y.1）：
 // 该端点后端已移除；学生侧无密码体系（user.password 恒 NULL），管理员语义亦随单口令模型失效。
 
 /**

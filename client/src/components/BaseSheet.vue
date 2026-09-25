@@ -2,7 +2,7 @@
   <!-- 底部弹层骨架唯一真源（component-org-sheet-unify）：
        半透明遮罩（点击关闭）/ 顶部 grabber / translateY 上滑开合 / 下拉关闭手势 /
        env(safe-area-inset-bottom) 底部安全区 / 可选头部与内容区滚动。
-       挂载策略由父级决定：AuthSheet 用 v-show 常驻传 visible，其余父级 v-if 懒挂载后传 visible。 -->
+       挂载策略由父级决定：需要跨开关保持状态的弹层用 v-show 常驻传 visible，其余父级 v-if 懒挂载后传 visible。 -->
   <view
     v-show="visible"
     class="bs-root"
@@ -53,7 +53,7 @@ import { COLOR_MAP } from '@/theme/tokens'
 
 /**
  * 受控底部弹层骨架：visible 驱动开合动画；不接管挂载策略（常驻/懒挂载由父级决定，
- * 以保证 AuthSheet 的 v-show 常驻与发码冷却跨关闭续接等既有时序不被破坏）。
+ * 以保证需要跨开关保持状态的弹层时序不被破坏）。
  */
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -200,7 +200,7 @@ function onTouchEnd() {
 .bs-close { padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .bs-close:active { opacity: 0.5; }
 
-/* 内容区：普通容器（默认无额外横留白，由各调用方内容决定）或滚动容器（复用 AuthSheet 口径留白） */
+/* 内容区：普通容器（默认无额外横留白，由各调用方内容决定）或滚动容器（横留白对齐身份认证弹层口径） */
 .bs-body { flex: 1; min-height: 0; }
 .bs-body--scroll { box-sizing: border-box; padding: var(--spacing-md) var(--spacing-lg) calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 </style>

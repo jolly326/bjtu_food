@@ -63,31 +63,19 @@ public interface DishService {
     /**
      * 获取菜品详情
      * <p>
-     * 2026-09-15：原「登录时附加 hasReviewed（是否已评价）」已下线（三端零消费）；
-     * 2026-09-16：因已无任何字段依赖登录态，随之下线已空转的 userId 入参
-     * （端点路径与响应结构零变化，未登录/登录返回完全一致）。
+     * 2026-09-15：原「登录时附加 hasReviewed（是否已评价）」已下线（三端零消费）。
+     *
+     * <p><b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**执行
+     * {@code view_count + 1}（原子 UPDATE）并写入一条访问日志（view_log，append-only；
+     * 游客 {@code userId=null} 记 {@code user_id=0}）。菜品不存在（含已下架）抛
+     * {@code BusinessException(4001)}，**不计数、不写日志**。
      *
      * @param id 菜品ID
+     * @param userId 当前用户ID（**可为 null** = 游客；仅决定日志行的 user_id 取值，不影响计数）
      * @return 菜品详情（**详情专用 {@link DishDetailVO}**：15 字段 + `ratingDistribution`）
-     * @throws com.bjtufood.common.exception.BusinessException 菜品不存在
+     * @throws com.bjtufood.common.exception.BusinessException 菜品不存在（4001）
      */
-    DishDetailVO getDishDetail(Long id);
-
-    /**
-     * 增加菜品浏览量
-     * <p>
-     * 防刷机制（2026-09-14 §7.14 A）：
-     * <ol>
-     *   <li><b>不做人员与时间限制</b>：每次调用均自增（PV 口径）—— 原「5 分钟窗口」与
-     *       「每自然日只计 1 次」两道去重已随 §7.41 于 2026-09-23 作废；</li>
-     *   <li><b>游客亦计</b>：{@code userId} 可为 null（端点已转公开），仅影响是否写浏览足迹；</li>
-     *   <li>唯一防护为接入层 IP 维度限频（见 {@code DishController#addView}）。</li>
-     * </ol>
-     *
-     * @param dishId 菜品ID
-     * @param userId 当前用户ID（**可为 null** = 游客；非 null 时额外写浏览足迹）
-     */
-    void addViewCount(Long dishId, Long userId);
+    DishDetailVO getDishDetail(Long id, Long userId);
 
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
 

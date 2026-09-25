@@ -1,21 +1,9 @@
 <template>
-  <!-- 认证表单已并入本文件（原私有子件合入唯一消费者，公共面收窄）。
-       N08 修复：v-show 保持 AuthSheet 常驻挂载（由 BaseSheet 根节点 v-show 承接），关闭弹层不清空发码倒计时，
-       冷却由本层单一 codeCooldown 持有并持续递减，重开时续接（前端不辅助绕过 60s 冷却）。
-       骨架（遮罩/grabber/下拉关闭/安全区/焦点还原）统一复用 BaseSheet，本层承载认证语义与表单。 -->
-  <BaseSheet
-    :visible="visible"
-    z-token="--z-auth"
-    scroll-body
-    @close="hide"
-  >
-    <!-- ===== 学号邮箱认证表单（模板并入自原私有子件） ===== -->
-    <view class="auth-shell">
-      <view class="form-head">
-        <text class="form-title">学号邮箱认证</text>
-        <text class="form-note">{{ NOTE_SUBTITLE }}</text>
-      </view>
+  <view class="page auth-page">
+    <Header title="身份认证" @back="leaveWithoutVerify" />
 
+    <scroll-view class="scroll-wrap" scroll-y>
+      <!-- 表单错误（role=alert 即时播报，点击即清） -->
       <view v-if="formError" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
         <text class="form-error-text">{{ formError }}</text>
       </view>
@@ -67,47 +55,49 @@
         <text class="primary-action-text">{{ primaryText }}</text>
       </view>
 
+      <view class="form-note-wrap">
+        <text class="form-note">{{ NOTE_SUBTITLE }}</text>
+      </view>
+
       <view class="bottom-note">
         <IconSvg name="lock" :size="24" :color="COLOR_MAP['text-tertiary']" />
         <text class="note-text">{{ NOTE_PRIVACY }}</text>
       </view>
-    </view>
-  </BaseSheet>
+    </scroll-view>
+  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+/**
+ * 身份认证独立页：
+ * 学号 + 邮箱验证码两字段表单；发码冷却由 authStore 持有（跨进出页面持久，前端不辅助绕过 60s 冷却）。
+ * 认证成功（bindEmail 落库）→ Toast → 返回原页；若进入本页前记录了待办（requireAuth 守卫），
+ * 原页 onShow 经 authStore.consumePending() 续接（如重新打开写评价表单）。
+ * 未完成认证离开本页（Header 返回 / 手势返回）→ 清除待办，避免过期动作误执行。
+ */
+import { ref, computed } from 'vue'
+import { onUnload } from '@dcloudio/uni-app'
 import { storeToRefs } from 'pinia'
-import BaseSheet from './BaseSheet.vue'
-import IconSvg from './IconSvg.vue'
-import { useAuthSheetStore } from '@/stores/auth-sheet'
+import Header from '@/components/AppHeader.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
 import { COLOR_MAP } from '@/theme/tokens'
 
-const authSheetStore = useAuthSheetStore()
+const authStore = useAuthStore()
 const userStore = useUserStore()
+// 冷却必须用 storeToRefs 保持响应性（跨页面持有，重进页面续接剩余秒数）
+const { codeCooldown } = storeToRefs(authStore)
 
-// 必须用 storeToRefs 保持响应性（直接解构会丢失更新，弹层永不显示）
-const { visible } = storeToRefs(authSheetStore)
-
-// ---- 发码冷却（N08）：本层单一持有，弹层 v-show 常驻不清空，重开回填续接 ----
-const codeCooldown = ref(0)
-let countdownTimer: ReturnType<typeof setInterval> | null = null
-
-// ---- 认证表单状态（并入自原私有子件） ----
+// ---- 认证表单状态 ----
 const form = ref({ username: '', code: '' })
 const formError = ref('')
 function setError(msg: string) { formError.value = msg }
 function clearError() { formError.value = '' }
 
-/** 发码请求进行中（防连点重复发码） */
-const sendingCode = ref(false)
-const isBusy = computed(() => userStore.loading)
-
-/** 文案常量（spec 契约基线，去除斜杠缩写） */
-// AUD-PM-18：客户端已无「发布菜品」流程（菜品新增走反馈 add 由后台处理），文案对齐真实解锁能力
-const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成认证后即可使用评价、点赞等功能'
+/** 文案常量（spec 契约基线） */
+const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成身份认证后即可使用评价等功能'
 const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前微信账号绑定，不会用于其他用途'
 
 /** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */
@@ -117,6 +107,8 @@ const codeActionEnabled = computed(() => usernameValid.value && codeCooldown.val
 /** 认证钮可用性：学号合法非空 && 验证码非空 && 无请求在途 */
 const submitEnabled = computed(() => usernameValid.value && form.value.code.trim() !== '' && !isBusy.value)
 
+const isBusy = ref(false)
+const sendingCode = ref(false)
 const primaryText = computed(() => (isBusy.value ? '认证中…' : '认证'))
 /** 发码钮文案：发送在途 / 倒计时 / 常态三分支 */
 const codeButtonText = computed(() =>
@@ -142,16 +134,6 @@ function onCodeInput(e: any) {
   clearError()
 }
 
-function startCountdown() {
-  // 若已有剩余冷却（重开弹层续接），不重置为 60，沿用当前剩余值
-  if (codeCooldown.value <= 0) codeCooldown.value = 60
-  if (countdownTimer) clearInterval(countdownTimer)
-  countdownTimer = setInterval(() => {
-    codeCooldown.value -= 1
-    if (codeCooldown.value <= 0 && countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
-  }, 1000)
-}
-
 async function sendCode() {
   // 前置状态锁：不满足可用性时静默返回（按钮已置灰，不产生错误提示）
   if (!codeActionEnabled.value) return
@@ -161,61 +143,59 @@ async function sendCode() {
   try {
     await sendEmailCode(username, 'verify')
     uni.showToast({ title: '验证码已发送', icon: 'success' })
-    startCountdown()
+    authStore.startCooldown()
   } catch (e: any) { setError(e.message || '验证码发送失败') } finally { sendingCode.value = false }
 }
+
+/** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */
+let verified = false
 
 async function submit() {
   // 前置状态锁：任一条件不满足（字段空/学号非法/在途）静默返回
   if (!submitEnabled.value) return
   clearError()
+  isBusy.value = true
   try {
     await userStore.verifyEmail(form.value.code.trim())
+    verified = true
     uni.showToast({ title: '认证成功', icon: 'success' })
-  } catch (e: any) { setError(e.message || '认证失败') }
+    // 返回原页：待办由原页 onShow 经 consumePending 续接
+    setTimeout(() => uni.navigateBack(), 600)
+  } catch (e: any) { setError(e.message || '认证失败') } finally { isBusy.value = false }
 }
 
-onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
-
-// 用户主动关闭（点击遮罩 / 下滑 / 关闭钮）未完成认证：清除待办，避免过期动作在后续认证成功后误执行
-function hide() {
-  authSheetStore.clearPending()
-  authSheetStore.hide()
+/** 未完成认证即离开（Header 返回）——与手势返回同语义，onUnload 统一清待办 */
+function leaveWithoutVerify() {
+  uni.navigateBack()
 }
 
-// 认证成功（bindEmail 落库）后关闭弹层并执行认证前记录的待办（跳转到目标功能，§5.y）
-watch(
-  () => userStore.isVerified(),
-  (v) => {
-    if (v) authSheetStore.runPending()
-  },
-)
+onUnload(() => {
+  if (!verified) authStore.clearPending()
+})
 </script>
 
 <style scoped>
-/* 认证弹层（表单 scoped 样式并入本文件） */
-.auth-shell { padding: 0 var(--spacing-xs); box-sizing: border-box; }
-
-/* 表单标题：简洁单行 + 一行小说明 */
-.form-head { margin-bottom: var(--spacing-md); }
-.form-title { display: block; font-size: var(--font-h3); line-height: 1.2; font-weight: var(--weight-heavy); color: var(--text-primary); }
-.form-note { display: block; margin-top: var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
+.auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
+.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .form-error { margin-bottom: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .form-error-text { font-size: var(--font-aux); color: var(--color-error); font-weight: var(--weight-semibold); }
 
 /* 输入项：与全站表单同款浅底无边框字段 */
 .group-card { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-card); box-sizing: border-box; }
+.input-field { min-height: 92rpx; display: flex; align-items: center; gap: var(--spacing-sm); padding: 0 var(--spacing-md); background: var(--bg-card); border-radius: var(--radius-card); box-sizing: border-box; }
 .input-control { flex: 1; height: 90rpx; font-size: var(--font-small); color: var(--text-primary); min-width: 0; }
 .code-action { flex-shrink: 0; min-width: 154rpx; height: 90rpx; padding: 0 0 0 var(--spacing-sm); display: flex; align-items: center; justify-content: flex-end; color: var(--color-primary-text); font-size: var(--font-small); font-weight: var(--weight-semibold); white-space: nowrap; }
 .code-action.disabled { color: var(--text-tertiary); }
 .email-hint { padding: 0 var(--spacing-xs); font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 
-/* 主按钮：与全站主操作同款（radius-btn + shadow-bar-primary + 按压缩放） */
+/* 主按钮：与全站主操作同款（radius-btn + shadow-bar-primary） */
 .primary-action { height: 92rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-bar-primary); display: flex; align-items: center; justify-content: center; transition: opacity var(--duration-fast) var(--ease-out); }
 .primary-action.disabled { opacity: 0.58; }
 .primary-action-text { color: var(--color-on-primary); font-size: var(--font-subtitle); font-weight: var(--weight-bold); }
+
+.form-note-wrap { margin-top: var(--spacing-md); text-align: center; }
+.form-note { font-size: var(--font-aux); line-height: 1.5; color: var(--text-tertiary); }
 
 /* 底部安全说明：锁图标 + 简短文案（认证即绑定，不公开传播） */
 .bottom-note { display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); margin-top: var(--spacing-md); }

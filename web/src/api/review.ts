@@ -10,8 +10,8 @@ import { pageRecords, reviewToLegacy } from './adapter'
  * 故此处收窄为 0 | 1 传数值——传布尔会被序列化成 `isHidden=true` 触发后端类型转换失败（400）。
  * 用途：按显隐 / 关键词 / 用户过滤的受控分页查询（pageSize=1 时只取 total，可用于计数）。
  *
- * 2026-09-15（取消人工复核）：原「安检状态」查询参数随内容安全检测策略调整退役——放行态与待复核态
- * 均对客户端放行、仅风险项拒绝，后台不再消费该字段（后端字段同源移除）。
+ * 无「安检状态」查询参数（取消人工复核：放行态与待复核态
+ * 均对客户端放行、仅风险项拒绝，后台不再消费该字段，后端字段同源移除）。
  */
 export async function listReviews(params: {
   userId?: number
@@ -74,9 +74,8 @@ export async function deleteById(id: number) {
  * 避免默认分页硬上限导致超出部分漏搜（如关键词检索场景）。
  * isHidden 取 0 | 1（与 listReviews 同源：后端字段为 Integer，布尔会导致类型转换失败 400）。
  *
- * 2026-09-14（Q-107）：原 `api/audit.ts` 模块随审核中心死代码一并删除，
  * 本函数（唯一仍被消费的成员）迁入 review 模块——它只打 `/admin/reviews`，归属评价域。
- * 2026-09-15：原「安检状态」入参随人工复核取消一并移除。
+ * 无「安检状态」入参（人工复核已取消）。
  */
 export async function listAllReviews(isHidden?: 0 | 1, keyword?: string): Promise<Review[]> {
   const PAGE_SIZE = 100

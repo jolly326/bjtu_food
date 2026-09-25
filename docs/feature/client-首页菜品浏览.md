@@ -87,9 +87,9 @@
 
 | 表 | 读什么 | 中文解释 |
 |---|---|---|
-| `dish` | **列表按 `listDishColumns`（`DishListItemVO` 8 字段所需列）、详情按 `detailDishColumns`**（双列清单）；`meal_type` 只用于筛选与字典下发；`status='on'` 仅用于 WHERE 过滤、不出参 | 菜品主体。**列表不选**详情专属列（`description` / `images` 全量 / `diet_type` / `ingredients` / `flavor_tags` / `serve_temp` / `rating_count` 等——只在详情查询里取）；两场景均**不选** `status` / `view_count` / `created_at` / `updated_at` / `alias` / `stall_id` / `canteen_id` / `window_no` / 坐标（`DishMapper.xml` 的公开列清单注释明示）。**`meal_type` 不进公开出参**（见「菜品大类字段」节） |
-| `stall` | 列表仅 `name`；详情加 `floor` | 档口名（列表卡片第 3 段）；楼层 `floor` **仅详情 `DishDetailVO` 需要**（列表不读）。**公开出参不含 `window_no`**（见 `project_spec.md` §7.30），`DishMapper.xml` 的公开查询列不选该列（注释明示「公开出参不含 …window_no…故此处不选」） |
-| `canteen` | `name`（菜品列表 join 取食堂名） | 食堂名（**位置表达 = 食堂名 + 档口楼层，不读坐标列**，见 §7.31）；**公开侧无食堂字典端点** |
+| `dish` | **列表按 `listDishColumns`（`DishListItemVO` 8 字段所需列）、详情按 `detailDishColumns`**（双列清单）；`meal_type` 只用于筛选与字典下发；`status='on'` 仅用于 WHERE 过滤、不出参 | 菜品主体。**列表不选**详情专属列（`description` / `images` 全量 / `diet_type` / `ingredients` / `flavor_tags` / `serve_temp` / `rating_count` 等——只在详情查询里取）；两场景均**不选** `status` / `view_count` / `created_at` / `updated_at` / `stall_id` / `canteen_id`（`DishMapper.xml` 的公开列清单注释明示）。**`meal_type` 不进公开出参**（见「菜品大类字段」节） |
+| `stall` | 列表仅 `name`；详情加 `floor` | 档口名（列表卡片第 3 段）；楼层 `floor` **仅详情 `DishDetailVO` 需要**（列表不读），公开查询列不选窗口号 |
+| `canteen` | `name`（菜品列表 join 取食堂名） | 食堂名（**位置表达 = 食堂名 + 档口楼层，不读坐标列**）；**公开侧无食堂字典端点** |
 | `banner` | `id`、`image_url`（仅启用项） | **首页顶部轮播图**：`SELECT id, image_url ... WHERE status='on' ORDER BY sort_order ASC`；`sort_order` / `status` 仅用于排序与过滤、**不出参**；`image_url` 与菜品图片同口径（库内可存相对路径，出参转绝对 URL）。表结构见 `server/src/main/resources/db/schema.sql`（**库表基线共 11 张表**） |
 
 ## 设计决议（现行口径）
@@ -130,7 +130,7 @@
 **D1 存储形态：单值枚举列**
 
 - `dish` 表为 **`meal_type`** 单值枚举列（`VARCHAR`），值域由**后端常量**定义（与 `heatScoreExpr` 同风格：口径只留一处真源）；
-- **不新建字典表、不建外键**——§7.22 第 1 条（**无品类链路**：无 `category` 表 / `dish.category_id` / `admin/categories` / 后台品类页）继续有效，`meal_type` 只是 dish 的一个字段；
+- **不新建字典表、不建外键**——`meal_type` 只是 dish 的一个字段；
 - 新增 / 修改大类需改后端常量并**发版**（大类为低频变更，可接受）；若将来要后台自助增删，可升级为「字典表 + 外键」形态（另立 change，需先调整 §7.22 第 1 条）。
 
 **D2 枚举值（键 → 中文标签）**
@@ -180,7 +180,7 @@
 4. **出参**：**公开菜品出参（`DishListItemVO` / `DishDetailVO`）不含 `mealType`**（卡片不展示 → 零消费即删）；后台 `DishAdminReq` / `DishAdminVO` 含（录入下拉 + 编辑回填 + 列表筛选）；
 5. **端上**：标签栏完全由字典端点驱动（不写死任何标签与中文映射），单选，切换即重置分页；
 6. **种子数据**：珍珠奶茶、杨枝甘露 的 `ingredients` 不标注 `rice`（米），避免详情页「主料」显示「米」；
-7. **合规登记**：`meal_type` 的分类语义登记于 `project_spec.md` §7.23（单值大类字段，**非品类维度**）。
+7. **合规登记**：`meal_type` 的分类语义登记于 `project_spec.md` §7.23（单值大类字段）。
 
 ### E. 首页 Banner 轮播接口化决议
 
@@ -192,7 +192,7 @@
 | E2 | **首屏结构：Banner 为正常流首块，吸顶容器只含搜索区 + 标签栏** | Banner 整块（含状态栏背后与左上角标题）**随页面滚出即消失**——**不折叠、不定格、不作为吸顶容器背景**；吸顶态顶端**不重复渲染**「知行食记」标题。硬性约束：搜索区 + 标签栏同组吸顶（UI 文档 §6 第 3 条）、「Banner 滚出后不残留图片背景」、「吸顶态不重复渲染标题」 |
 | E3 | **宽高比锁定 16:10** | Banner 总高 = 屏宽 × 10/16（375 宽 ≈234px）+ 最小高度兜底（≥ 状态栏 + 标题带 + 运营内容最小可视高 ≈120px）；**素材一律 16:10 出图**（混比例会导致轮播切换时块高抖动、吸顶阈值漂移）；加载中 / 失败使用**同高占位图**。完整论证见 UI 文档 §1.1 |
 | E4 | **库：`banner` 表（库表基线 11 张之一）** | `banner(id, image_url, sort_order, status, created_at, updated_at)`；`status` 取 `on` / `off`（与 `dish.status` 同风格）。落库口径：**只改 `server/src/main/resources/db/schema.sql`（幂等段，判表 / 判列存在再建）与 `seed_data.sql`，禁直连 ALTER** |
-| E5 | **管理端录入本期不做** | `/admin/banners` CRUD 与后台页面**本期不落地**（小程序为唯一消费端、运营位数量级极小），素材由 `seed_data.sql` 维护；需要运营自助录入时**另立 change**（届时新增 `/admin/banners` 并同步 `docs/feature` 相应文档）。**本期不产生任何小程序端写接口** |
+| E5 | **管理端无 Banner 录入入口** | Banner 素材由 `seed_data.sql` 维护（运营位数量级极小，小程序为唯一消费端）；管理端如需自助录入，须另立 change 新增 `/admin/banners` 并同步 `docs/feature` 相应文档。**小程序端无任何 Banner 写接口** |
 | E6 | **契约红线对齐** | 出参仅 `id`（轮播 key）+ `imageUrl`；`sort_order` / `status` 服务端内部用、不出参；**无跳转字段**（端上零点击交互）；空集合返回 `[]`（非 404 / null）；Banner 请求与菜品列表**并行**、Banner 失败不阻塞首屏；统一响应 `{ code, message, data }` / camelCase / 错误码沿用 `project_spec.md` §3 |
 | E7 | **`GET /dishes` 及 `GET /dishes/meal-types` 契约不受 Banner 模块影响** | Banner 模块只新增一个只读端点与一张表 |
 

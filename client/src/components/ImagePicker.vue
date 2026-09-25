@@ -1,8 +1,8 @@
 <template>
   <!--
-    ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件（2026-09 恢复 UGC 配图）。
+    ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件。
     复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
-    写评价（ReviewComposer）/ 提个想法（SuggestionForm）/ 推荐菜品（AddForm）/ 信息不对（ErrorForm）。
+    写评价（ReviewComposer）/ 我要反馈问题（IssueForm）/ 我要更新信息（UpdateForm，预填菜品现有图）。
 
     流程（微信端）：wx.chooseMedia(count≤max, image) → 逐张 wx.compressImage(quality 80) 压缩
     → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）

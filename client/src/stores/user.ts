@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfo } from '@/types/user'
 import * as userApi from '@/api/user'
-import { useAuthSheetStore } from '@/stores/auth-sheet'
+import { useAuthStore } from '@/stores/auth'
 
 const STORAGE_KEY_TOKEN = 'token'
 const STORAGE_KEY_USER = 'userInfo'
@@ -79,7 +79,7 @@ export const useUserStore = defineStore('user', () => {
         // 非微信端（H5 联调）：无 code 静默登录，保留本地游客态（无 token 亦可浏览）
         // #endif
       } catch (e) {
-        // 静默登录失败：保留本地登录态（若此前存在），不阻断浏览；记录原因供上层提示/排障（AUD-BE-02）
+        // 静默登录失败：保留本地登录态（若已存在），不阻断浏览；记录原因供上层提示/排障（AUD-BE-02）
         lastLoginError.value = (e as Error)?.message || '微信登录失败'
         console.error('静默登录失败', e)
       } finally {
@@ -95,7 +95,7 @@ export const useUserStore = defineStore('user', () => {
     // 兜底：认证需微信登录态，若静默登录未就绪（如启动竞态）或失败，先补一次。
     // 透传真实失败原因（如「微信登录未配置」/「凭证无效」），避免误导为网络问题。
     if (!isLoggedIn()) {
-      // silentLogin 本身不 reject（上文 catch），故原 try/catch 是死代码；改为读取 lastLoginError 透出真实原因
+      // silentLogin 本身不 reject（上文 catch），故此处 try/catch 无实际捕获；改为读取 lastLoginError 透出真实原因
       lastLoginError.value = ''
       await silentLogin()
       if (!isLoggedIn()) {
@@ -124,7 +124,7 @@ export const useUserStore = defineStore('user', () => {
   /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂。
    * 同时联动重置各业务 store 的「用户态数据」（通知红点等），避免换用户后串数据（§5.x 登录态一致性）。
    * 用动态 import 避免 store 间的循环依赖。
-   * 注：原「评价列表有用标记」重置已随「有用」能力下线删除（评价行不含任何用户维度字段）。 */
+   * 注：评价行不含任何用户维度字段（无用标记重置）。 */
   function forceLogout() {
     token.value = ''
     userInfo.value = null
@@ -144,7 +144,7 @@ export const useUserStore = defineStore('user', () => {
   /**
    * 是否已邮箱认证（§5.y 权限矩阵）：true 解锁 UGC 写操作；false = 游客态。
    * <p>
-   * **唯一判据 = `bindEmail` 非空**（2026-09-22 spec §7.32 修订）：出参已不再含 `verified` 布尔
+   * **唯一判据 = `bindEmail` 非空**（spec §7.32 修订）：出参不含量 `verified` 布尔
    * （与 bindEmail 同源冗余、服务端列同批退役），故全端判定收敛在本方法一处；
    * 页面 / 组件一律调用本方法，不得各自散写 `!!userInfo.bindEmail` 造成判据分裂。
    */
@@ -153,17 +153,13 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * 需认证入口守卫（§5.y 权限矩阵）：未认证（bindEmail 为空）时弹出认证引导（AuthSheet）并返回 false，
+   * 需认证入口守卫（§5.y 权限矩阵）：未认证（bindEmail 为空）时跳转独立认证页并返回 false，
    * 已认证（bindEmail 非空）返回 true 直接执行 action。
-   * 传入 action 时：认证成功后由 AuthSheet 自动执行该动作（游客操作 → 认证 → 自动继续原动作）。
+   * 传入 action 时：认证成功返回原页后由原页 onShow 续接该动作（游客操作 → 认证页 → 返回 → 继续原动作）。
    */
   function requireAuth(action?: () => void): boolean {
     if (!isVerified()) {
-      if (action) {
-        useAuthSheetStore().requireAuth(action)
-      } else {
-        useAuthSheetStore().show()
-      }
+      useAuthStore().requestAuth(action)
       return false
     }
     return true

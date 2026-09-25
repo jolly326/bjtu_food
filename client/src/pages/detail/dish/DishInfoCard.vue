@@ -1,8 +1,8 @@
 <template>
   <CardSection>
     <!-- 信息卡条目顺序（spec contribution-entry 权威）：① 名称 + 价格 → ② 位置行（右侧并入「信息有误？」
-         纠错入口，**不新增整行**）→ ③ 描述 → ④ 描述四维。卡内分隔线语言统一为一条（段落间 border-top）。
-         已删除：标签 chips、信息更新时间、评分 / 评价数、窗口号、距离、独立纠错行（2026-09-20 dish-detail-remediation）。 -->
+         纠错入口，**不新增整行**）→ ③ 描述 → ④ 描述四维。卡内分隔线统一为一条（段落间 border-top）。
+         卡内仅含上述四项，不含标签 chips、信息更新时间、评分 / 评价数、窗口号、距离、独立纠错行。 -->
 
     <!-- ① 名称 + 价格：展示唯一数据源 = price（常显现价）；originalPrice > price 时并列划线原价 -->
     <view class="title-row">
@@ -20,17 +20,23 @@
     <view
       class="card-block loc-row"
       role="group"
-      :aria-label="`位置：${locationText}；信息有误？可点击前往反馈纠错`"
+      :aria-label="`位置：${locationText}；信息有误？可点击前往更新菜品信息`"
     >
       <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
       <text class="loc-text">{{ locationText }}</text>
-      <text
+      <!-- 「信息有误？」入口：视觉低调（三级灰小字 + arrow 图标），
+           整体一行热区（::after 扩至 ≥88rpx），按压反馈与全站一致（opacity）；落点 = 反馈页 update 模式 -->
+      <view
         class="correct-link"
         role="button"
-        aria-label="信息有误，点击前往反馈纠错"
+        aria-label="信息有误，点击前往更新菜品信息"
         hover-class="pressed"
+        hover-stay-time="80"
         @tap="goCorrect"
-      >信息有误？</text>
+      >
+        <text class="correct-link-text">信息有误？</text>
+        <IconSvg name="arrow" :size="20" :color="COLOR_MAP['text-tertiary']" />
+      </view>
     </view>
 
     <!-- ③ 描述（默认两行 + 展开 / 收起） -->
@@ -64,7 +70,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
 import { formatPrice } from '@/utils/money'
-import { feedbackEntryUrl } from '@/utils/routes'
+import { feedbackUrl } from '@/utils/routes'
 
 const props = defineProps<{
   dish: DishDetail
@@ -84,7 +90,7 @@ const hasPromo = computed(() => {
 /**
  * 描述四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
  *
- * 菜品出参下发**机器值**，中文一律由**四维字典**翻译（2026-09-23 §7.40 R4）——
+ * 菜品出参下发**机器值**，中文一律由**四维字典**翻译（§7.40 R4）——
  * 端上零硬编码映射表；字典未就绪 / 未命中时该维**不渲染**（沿用「缺项不占位」口径）。
  */
 const dishAttr = useDishAttributeStore()
@@ -106,10 +112,10 @@ const dims = computed(() => {
   return list
 })
 
-/** 纠错入口 → 反馈页预选「信息不对」并关联本菜品（落点唯一构造函数，from=dish，见 contribution-entry） */
+/** 纠错入口 → 反馈页「更新信息」模式并预选本菜品（跳过搜索，进页即拉详情预填；落点唯一构造函数） */
 function goCorrect() {
   uni.navigateTo({
-    url: feedbackEntryUrl({ type: 'error', from: 'dish', dishId: props.dish.id, dishName: props.dish.name }),
+    url: feedbackUrl('update', props.dish.id),
   })
 }
 </script>
@@ -130,8 +136,10 @@ function goCorrect() {
 .loc-row { display: flex; align-items: center; gap: var(--spacing-xs); }
 .loc-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
 .loc-text { flex: 1 1 auto; min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 纠错入口：与「简介展开」同档轻量文本（主色 / 同字号字重），非按钮 / chip；命中区 ::after 扩至 ≥88rpx */
-.correct-link { position: relative; flex: 0 0 auto; margin-left: var(--spacing-sm); font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); line-height: 1.4; padding: 2rpx var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
+/* 纠错入口：视觉低调 = 三级灰小字 + arrow 图标（非主色、非按钮 / chip），
+   横排 icon+文字居中；命中区 ::after 扩至 ≥88rpx（Apple 44pt 触达下限模式），按压 opacity 与全站一致 */
+.correct-link { position: relative; flex: 0 0 auto; margin-left: var(--spacing-sm); display: flex; align-items: center; gap: 2rpx; padding: 2rpx var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
+.correct-link-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); line-height: 1.4; }
 .correct-link::after {
   content: '';
   position: absolute;

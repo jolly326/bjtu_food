@@ -1,6 +1,5 @@
 package com.bjtufood.dish.controller.admin;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishAdminReq;
@@ -29,10 +28,7 @@ public class DishAdminController {
     @GetMapping
     public Result<PageResult<DishAdminVO>> listMyDishes(@RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "20") int pageSize) {
-        IPage<DishAdminVO> result = dishService.listAllForAdmin(page, pageSize);
-        // current/size 为 Service 内 PageUtil.normalize 后的实际生效值，契约要求以归一化值为准
-        return Result.success(PageResult.of(result.getRecords(), result.getTotal(),
-                (int) result.getCurrent(), (int) result.getSize()));
+        return Result.success(PageResult.of(dishService.listAllForAdmin(page, pageSize)));
     }
 
     @Operation(
