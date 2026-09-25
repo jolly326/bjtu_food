@@ -97,8 +97,8 @@ function handleClick() {
 .card-image {
   position: relative;
   width: 100%;
-  /* 固定 3:2 比例容器（tab-pages-visual-unify：由 4:3 收矮，把视觉重心让给文字信息）；
-     未加载（占位）与加载后（图片）高度一致，消除瀑布流滚动重排卡顿（CLS=0） */
+  /* 固定 3:2 比例容器（由 4:3 收矮，把视觉重心让给文字信息；§6.2 第 1 段：占卡片高 ≈52–55%，
+     介于设计建议的 4:3 与 16:10 之间）；未加载（占位）与加载后（图片）高度一致，消除瀑布流重排卡顿（CLS=0） */
   aspect-ratio: 3 / 2;
   background: var(--bg-soft);
   overflow: hidden;
@@ -129,8 +129,9 @@ function handleClick() {
   flex-shrink: 0;
 }
 .rating-text {
-  color: var(--text-secondary);
-  /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限（§3 第 4 段） */
+  /* 评分文字：正文档（#4A3520），层级低于其右侧价格（§6.2 第 4 段） */
+  color: var(--text-body);
+  /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限 */
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
@@ -139,7 +140,7 @@ function handleClick() {
   padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
   min-width: 0;
 }
-/* 菜名：黑色加粗、卡片内最大字号（表格第 2 行） */
+/* 菜名：标题档加粗（#2D1F14）、卡片文字层级第一级（§6.2 第 2 段；食堂行 / 评分行不得抢菜名） */
 .card-name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -149,16 +150,16 @@ function handleClick() {
   font-weight: var(--weight-semibold);
   line-height: 1.3;
   letter-spacing: var(--tracking-h3);
-  color: var(--text-primary);
+  color: var(--text-title);
   min-width: 0;
 }
-/* 第三段：食堂 | 档口（浅灰纯文字，无图标；超长省略）
-   组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px）；字号升到 --font-body(14px)（§3 第 3 段） */
+/* 第三段：食堂 | 档口（辅助档 #7F6A55 纯文字，无图标；超长单行省略，§6.2 第 3 段）
+   组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px） */
 .card-stall {
   margin-top: var(--spacing-xs);
   font-size: var(--font-body);
   font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
+  color: var(--text-subtitle);
   min-width: 0;
 }
 .stall-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

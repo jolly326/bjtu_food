@@ -113,7 +113,7 @@ function onSelect(value: string | null) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  /* 文字**行内上偏置**（§2 光学间距）：行内偏置 24rpx 即「搜索区 → 标签文字」
+  /* 文字**行内上偏置**（§5.2 光学间距）：行内偏置 24rpx 即「搜索区 → 标签文字」
      间距的**全部来源**（≈12px，`.mt-bar` 已不再补 padding）；「下划线 → 卡片首行」由吸顶容器
      padding-bottom + 本行行底余量共同构成（≈16px）。两侧都较旧口径（20 / 24）收紧，
      仍保持「下行距 ≥ 上行距」，分组感不丢。
@@ -131,25 +131,26 @@ function onSelect(value: string | null) {
 .mt-tab-pressed {
   opacity: 0.6;
 }
+/* 未选中：正文档深灰棕（#4A3520）常规字 —— 层级低于选中项、仍不抢搜索区（§5.1 / §8） */
 .mt-label {
   font-size: var(--font-body);
   font-weight: var(--weight-regular);
-  /* 未选中 = 黑色常规字 */
-  color: var(--text-primary);
+  color: var(--text-body);
   line-height: 1.2;
 }
+/* 选中：标题档（#2D1F14）+ 半粗 —— 与未选中拉开层级（区分不靠颜色，靠字重 + 下划线） */
 .mt-tab.active .mt-label {
   font-weight: var(--weight-semibold);
-  color: var(--text-primary);
+  color: var(--text-title);
 }
-/* 橙色短下划线：宽度固定（≈文字宽的短横），选中显现；
-   取「图形档亮橙」——用户走查反馈 #C2410C 偏红，#EA580C 为明确橙色（图形级 ≥3:1 达标） */
+/* 橙色短下划线：**长度贴合文字宽度**（width: 100% = 标签内容宽）、紧随文字 4px、选中显现；
+   取「图形档」--color-primary-amber（#F5A623）——纯图形装饰，选中语义另由字重承载（§5.1 / §10.1） */
 .mt-underline {
-  width: 40rpx;
+  width: 100%;
   height: 6rpx;
   margin-top: var(--spacing-xs);
   border-radius: var(--radius-pill);
-  background: var(--color-primary-bright);
+  background: var(--color-primary-amber);
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-out);
 }

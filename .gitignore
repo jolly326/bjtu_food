@@ -62,6 +62,9 @@ desktop.ini
 # Codex local agent config (not project source)
 .codex/
 
+# docs files (not project source)
+docs/*
+
 # OpenSpec
 openspec/*
 

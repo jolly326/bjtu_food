@@ -179,7 +179,9 @@ function onInput(e: any) {
   -webkit-tap-highlight-color: transparent;
 }
 .search-pill-clear:active { opacity: 0.55; }
-/* 「搜索」按钮：填充档主色 + 白字（对比度 5.18:1 ✅）；与胶囊同高 / 同圆角 / 按文字定宽 */
+/* 「搜索」按钮：**填充档**主色 + 白字（实测 5.01:1 ✅，见 UI 文档 §4.4 / §10.2 取色边界）；
+   与胶囊同高 / 同圆角 / 按文字定宽。
+   ⚠️ 不得改用 --color-primary-orange #E67E22 —— 白字 on 它仅 2.85:1，不达 4.5:1 */
 .search-btn {
   flex-shrink: 0;
   position: relative;
@@ -188,7 +190,7 @@ function onInput(e: any) {
   justify-content: center;
   /* 左右内距 --spacing-lg：按钮宽 ≈60px，胶囊形更饱满、更好点 */
   padding: 0 var(--spacing-lg);
-  background: var(--color-primary);
+  background: var(--color-primary-fill);
   border-radius: var(--radius-pill);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

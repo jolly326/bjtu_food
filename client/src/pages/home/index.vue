@@ -1,6 +1,6 @@
 <template>
   <view class="page home-page">
-    <!-- ===== 固定标题带（跨页统一，docs/ui/client-首页菜品浏览.md §1.0） =====
+    <!-- ===== 固定标题带（跨页统一，docs/ui/client-首页菜品浏览.md §1） =====
          · `position: fixed` **永久固定在页面左上角**，不随页面滚动移动、不随 Banner 滚出；
          · 与微信右上角**原生胶囊同一条水平线**（行高 = 胶囊高、垂直中心对齐），右侧按胶囊避让；
          · 文案**按页配置**（首页 = 「知行食记」，搜索页等各填自己的），位置 / 高度 / 对齐 / 配色跨页一致；
@@ -19,51 +19,20 @@
     >
       <view class="home-scroll-body">
         <!-- ===== Banner：页面正常流首块（自 y=0 起、含状态栏背后），整块 16:10 =====
-             · 图片清单来自 `GET /banners`（服务端已按 sort_order 升序、只返回启用项）；
-               端上按返回顺序渲染、不排序、不写死 URL 与张数；
-             · 多张自动轮播 + 指示点；单张不轮播不显示指示点；
-             · 空数组 / 请求失败 / 单张失败 →「灰底 + **中性 empty 图标**」空态（灰底样式与菜品卡图片占位同款，
-               但**图标键取中性 `empty`** —— Banner 是运营位轮播，容器语义 ≠ 菜品，依 §4.9 不得用 `dish` 冒充中性占位）；
-             · 块高恒定按 BANNER_ASPECT 定高，加载态不改变块高（否则吸顶阈值漂移）；
-             · 固定标题带叠在其上（Banner 滚动时从标题带下方滑过）。 -->
-        <view class="home-banner" :style="{ height: bannerHeightStyle }">
-          <swiper
-            v-if="bannerList.length > 0"
-            class="banner-swiper"
-            :autoplay="bannerList.length > 1"
-            :interval="BANNER_AUTOPLAY_INTERVAL"
-            circular
-            :indicator-dots="bannerList.length > 1"
-            indicator-color="rgba(255, 255, 255, 0.45)"
-            indicator-active-color="#FFFFFF"
-          >
-            <swiper-item v-for="b in bannerList" :key="b.id">
-              <image
-                v-if="b.imageUrl && !failedBannerIds.includes(b.id)"
-                class="banner-img"
-                :src="b.imageUrl"
-                mode="aspectFill"
-                @error="onBannerError(b.id)"
-              />
-              <view v-else class="banner-ph">
-                <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
-              </view>
-            </swiper-item>
-          </swiper>
-          <view v-else class="banner-ph">
-            <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
-          </view>
-        </view>
+             实现已抽入 `pages/home/HomeBanner.vue`（UI 文档 §12 组件拆分）：
+             `GET /banners` 数据加载 / 多张自动轮播 + 指示点 / 空与单张失败「灰底 + 中性 empty」空态。
+             块高由本页下发（与吸顶阈值、纱区间同源）；固定标题带叠在其上（Banner 从标题带下方滑过）。 -->
+        <HomeBanner :height-px="bannerHeightPx" />
 
         <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏） =====
              · **原生粘性定位**（`position: sticky`）：位移完全由渲染层原生滚动驱动，
                **不走滚动回调 + setData** —— 上滑时位置与内容 1:1 跟手，不会「像临时算出来的」那样滞后 / 闪现；
              · 流内落点紧贴 Banner 下缘（自然位置），滚动满「Banner 高 − 标题带高」时恰好粘在
-               固定标题带下沿（= §5 锁定位置，两值同源、不需要任何 JS 位移）；
+               固定标题带下沿（= §11 锁定位置，两值同源、不需要任何 JS 位移）；
              · 表面 = 与页面底**同源**的渐变切片，切片基准 `--home-band-top` = 容器顶边在页面
                坐标中的位置（未吸顶随滚动连续变化、吸顶后夹紧为标题带下沿）→ 与身后页面底逐像素
                一致，故可**恒不透明**（无透明↔不透明硬切，也就没有切换瞬间的穿帮）；
-             · 内部间距由本容器 padding 承担（§1.2）：上 padding = Banner→搜索区，下 padding = 标签栏→网格；
+             · 内部间距由本容器 padding 承担（§7.1）：上 padding = Banner→搜索区，下 padding = 标签栏→网格；
              · 背后无任何图片（Banner 是正常流首块，滚出即消失、不定格为背景）。 -->
         <view class="home-sticky" :style="stickyStyle">
           <!-- 搜索行：与搜索页同源（`SearchBar`）
@@ -96,25 +65,20 @@ import { ref, computed, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
-import * as bannerApi from '@/api/banner'
-import type { Banner } from '@/types/banner'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
 import { useNavMetrics } from '@/utils/useNavMetrics'
-import IconSvg from '@/components/IconSvg.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import SearchBar from '@/components/SearchBar.vue'
-import { COLOR_MAP } from '@/theme/tokens'
+import HomeBanner from './HomeBanner.vue'
 import HomeMealTabs from './HomeMealTabs.vue'
 import HomeContent from './HomeContent.vue'
 import TabBar from '@/components/TabBar.vue'
 
 const dishStore = useDishStore()
 
-/** Banner 宽高比锁定 **16:10**（UI 文档 §1.1）：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
+/** Banner 宽高比锁定 **16:10**（UI 文档 §3.3）：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
 const BANNER_ASPECT_RATIO = 10 / 16
-/** 多图自动轮播间隔（ms；仅一张时不自动轮播） */
-const BANNER_AUTOPLAY_INTERVAL = 4000
 /** 运营内容最小可视高（px）：保证「状态栏 + 标题带」之下仍有空间放主文案 / 插画 */
 const BANNER_MIN_CONTENT_PX = 120
 /**
@@ -151,23 +115,7 @@ const bannerHeightPx = computed(() => Math.max(
   Math.round(windowWidthPx.value * BANNER_ASPECT_RATIO),
   titleBandPx.value + BANNER_MIN_CONTENT_PX,
 ))
-const bannerHeightStyle = computed(() => `${bannerHeightPx.value}px`)
-
-/* ===== Banner 数据（接口下发；空 / 失败 → 灰底 + 中性 empty 空态，§4.9） ===== */
-const bannerList = ref<Banner[]>([])
-/** 单张加载失败的 banner id（该张退化为空态，其余张不受影响、轮播继续） */
-const failedBannerIds = ref<number[]>([])
-function onBannerError(id: number) {
-  if (!failedBannerIds.value.includes(id)) failedBannerIds.value = [...failedBannerIds.value, id]
-}
-async function loadBanners() {
-  try {
-    bannerList.value = await bannerApi.getBanners()
-  } catch (e) {
-    console.error('加载首页轮播图失败', e)
-    bannerList.value = []
-  }
-}
+/* ===== Banner 数据由其自身组件 `HomeBanner.vue` 拉取（§12 组件拆分）；本页只下发块高 ===== */
 
 /* ===== 滚动量：只服务「表面切片对齐」，**不驱动位移** =====
    位移完全交给渲染层原生粘性定位（模板 `.home-sticky` 的 `position: sticky`），
@@ -196,7 +144,7 @@ const bandTopPx = computed(() => Math.max(
 /** 基准的整数量化值（px）：避免亚像素重绘，也减少 style 字符串抖动 */
 const bandTopPxRounded = computed(() => Math.round(bandTopPx.value))
 
-/* ===== 纱式淡出（方案 C，UI 文档 §1.3）：标题带的表面不做硬切，改为随滚动渐显 =====
+/* ===== 纱式淡出（UI 文档 §11.2）：标题带的表面不做硬切，改为随滚动渐显 =====
    · 区间 [H_b − TITLE_VEIL_PX, H_b] 内，纱（= 与页面底同源的渐变切片）透明度 0 → 1 线性渐显；
    · Banner 尾部因此「融入页面底色」；区间结束（H_b）时纱已 100%，而网格要到 H_b + H_s − H_t 才抵达标题带下沿
      → 有余量，绝不会出现「内容透出半透明纱」；
@@ -212,7 +160,7 @@ const titleVeilAlpha = computed(() => {
 
 /**
  * 吸顶容器内联样式：
- * · `top` = 固定标题带下沿（§1.2 锁定位置）——`position: sticky` 的粘住阈值，缺它容器不会吸顶；
+ * · `top` = 固定标题带下沿（§11 锁定位置）——`position: sticky` 的粘住阈值，缺它容器不会吸顶；
  * · `--home-band-top` = 容器顶边在页面坐标中的位置，CSS 用它把「页面底同源渐变」位移到正确切片，
  *   使容器表面与身后页底逐像素一致。
  * 位移本身**不在这里**（0 跨线程通信、0 延迟）：由渲染层原生粘性定位承担。
@@ -243,8 +191,7 @@ function onScrollToLower() {
 }
 
 onLoad(() => {
-  // Banner 与列表**并行**发起：Banner 失败不阻塞首屏网格
-  void loadBanners()
+  // Banner 自持数据加载（`HomeBanner.vue` 挂载时发起），与列表**并行**：Banner 失败不阻塞首屏网格
   // 大类字典：不 await（失败降级为仅「全部」），保证首屏列表不被字典阻塞
   void dishStore.fetchMealTypes()
   void dishStore.fetchHomeDishes(true)
@@ -284,8 +231,8 @@ onShareAppMessage(() => {
    · `position: sticky` + 内联 `top`（= 固定标题带下沿）→ 位移完全由渲染层原生滚动驱动，
      **不经过滚动回调 / setData**：上滑时与内容 1:1 跟手，不会「慢半拍」闪现；
    · 流内自然落点紧贴 Banner 下缘，滚动满「Banner 高 − 标题带高」时恰好粘住 ——
-     与 UI 文档 §5 的锁定阈值同源，页面不需要任何 JS 位移补偿（fixed + transform 方案已废弃）；
-   · 纵向间距（§1.2）：
+     与 UI 文档 §11 的锁定阈值同源，页面不需要任何 JS 位移补偿（fixed + transform 方案已废弃）；
+   · 纵向间距（§7.1）：
        padding-top    = Banner 下缘 → 搜索区上沿 = --spacing-lg（16px）；
        padding-bottom = 标签栏下沿 → 网格首行 = --spacing-sm（8px）**+ 标签行自带的 ≈8px 行底余量**
                         = 视觉 ≈16px —— 与「块间 = 16px」的意图一致（旧值 --spacing-lg 会让实际间距
@@ -328,29 +275,5 @@ onShareAppMessage(() => {
   padding: 0;
 }
 
-/* ===== Banner（正常流首块；整块 16:10，自 y=0 含状态栏背后） =====
-   图片铺满（aspectFill）；无图 / 失败 → 灰底 + **中性 empty 图标**空态（灰底同菜品卡占位，图标取 `empty`，
-   非 `dish` —— Banner 为运营位轮播，容器语义 ≠ 菜品，§4.9）。 */
-.home-banner {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  background: var(--bg-soft);
-}
-.banner-swiper {
-  width: 100%;
-  height: 100%;
-}
-.banner-img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.banner-ph {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* Banner 及其空态样式已随组件抽入 `pages/home/HomeBanner.vue`（§12）。 */
 </style>
