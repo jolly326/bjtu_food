@@ -5,7 +5,6 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
-import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
@@ -13,7 +12,6 @@ import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.service.DishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -21,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "03. 菜品浏览", description = "公开菜品分页查询、热搜榜单、菜品详情、浏览量记录。")
+@Tag(name = "03. 菜品浏览", description = "公开菜品分页查询、猜你喜欢、菜品详情、浏览量记录。")
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -95,8 +93,7 @@ public class DishController {
             summary = "菜品详情",
             description = """
                     用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-                    **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）view_count +1，
-                    并写入一条访问日志（view_log，append-only；游客 user_id=0）；
+                    **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）view_count +1；
                     4001（菜品不存在）与请求失败不计数。
                     滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
                     测试示例：/dishes/1

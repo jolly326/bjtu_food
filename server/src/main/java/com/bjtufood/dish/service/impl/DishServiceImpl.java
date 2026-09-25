@@ -144,7 +144,7 @@ public class DishServiceImpl implements DishService {
         applyRatingSummaryFromDistribution(vo, filledDistribution);
 
         // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）。
-        // 注：详情出参仍无任何登录态字段；userId 入参保留，仅用于本方法前半段的 view_log 浏览日志写入。
+        // 注：详情出参仍无任何登录态字段；原 userId 入参与 view_log 浏览日志写入已随该链整表退役移除。
         return vo;
     }
 
