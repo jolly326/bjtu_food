@@ -139,7 +139,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(403, "只能修改自己的评价");
         }
         String filteredContent = sensitiveFilter.filter(req.getContent());
-        // 与首次发表同口径：认证 + openid 准入 + 文本走微信内容安全检测 msgSecCheck（图片已在 /upload/images 链路过 imgSecCheck）
+        // 与首次发表同口径：认证 + openid 准入 + 文本走微信内容安全检测 msgSecCheck（图片已在 /upload/cloud-image 链路过 imgSecCheck）
         User reviewUser = requireUgcAuthorizedUser(userId);
         checkUgcText(reviewUser, filteredContent, 2);
         String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);

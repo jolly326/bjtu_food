@@ -48,9 +48,9 @@ export async function deleteById(id: number) {
 
 /** 菜品大类字典项（`GET /dishes/meal-types` 单行出参，2026-09-21 §7.34）。 */
 export interface MealTypeDictItem {
-  /** 大类枚举键（写入 `DishAdminReq.mealType` 用的值） */
-  key: string
-  /** 中文标签（端上直接渲染，**端上不得另行维护任何 key → 中文 映射**） */
+  /** 大类枚举值（写入 `DishAdminReq.mealType` 用的值） */
+  value: string
+  /** 中文标签（端上直接渲染，**端上不得另行维护任何 值 → 中文 映射**） */
   label: string
   /** 展示顺序（后端已按升序下发） */
   order: number
@@ -69,11 +69,11 @@ export async function listMealTypes(): Promise<MealTypeDictItem[]> {
   const rows = Array.isArray(data) ? data : []
   return rows
     .map(raw => ({
-      key: String(raw?.key ?? ''),
+      value: String(raw?.value ?? ''),
       label: String(raw?.label ?? ''),
       order: Number(raw?.order ?? 0),
     }))
-    .filter(item => item.key && item.label)
+    .filter(item => item.value && item.label)
     .sort((a, b) => a.order - b.order)
 }
 

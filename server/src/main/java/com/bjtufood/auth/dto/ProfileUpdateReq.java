@@ -12,6 +12,6 @@ public class ProfileUpdateReq {
     @Schema(description = "新的昵称", example = "新的昵称")
     private String nickname;
 
-    @Schema(description = "头像图片路径。建议先调用 /upload/image 获取 URL。", example = "/images/seed/dishes/tomato-egg.jpg")
+    @Schema(description = "头像图片路径。小程序端先调用 /upload/cloud-image 获取 URL。", example = "/images/seed/dishes/tomato-egg.jpg")
     private String avatar;
 }

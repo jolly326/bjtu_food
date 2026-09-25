@@ -10,18 +10,18 @@ import { get, put } from './http'
 import { recordsOf, type PageResult, type RawRow } from './shared'
 
 /**
- * 通知类型（原值透传，不做字面量收窄）：后端现只产生 feedback_handle（反馈处理结果回执），
- * 历史存量通知可能含已退役类型，端上按未知类型容错（不跳转、不崩溃）。
+ * 通知类型（原值透传，不做字面量收窄）：后端现产生 feedback_handle（反馈处理结果回执）与
+ * correction_handle（菜品信息纠错回执）；端上对未知类型容错（不跳转、不崩溃）。
  */
 type NotificationType = string
 
 export interface Notification {
   id: number
-  /** 通知类型：feedback_handle=反馈处理结果回执；其他值＝未知类型（含历史存量已退役类型） */
+  /** 通知类型：feedback_handle=反馈处理结果回执 / correction_handle=菜品信息纠错回执；其他值＝未知类型（端上容错） */
   type: NotificationType
   title: string
   content: string
-  /** 关联对象 ID（按 type 解释：feedback_handle=反馈 ID；未知类型不做解释、不用于跳转） */
+  /** 关联对象 ID（按 type 解释：feedback_handle=反馈 ID / correction_handle=纠错 ID；未知类型不做解释、不用于跳转） */
   relatedId?: number | null
   /** 是否已读：0=未读 1=已读 */
   isRead: number
@@ -32,7 +32,7 @@ function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    // 缺省/未知类型一律原值透传（缺失时为空串），端上按未知类型容错，不兜底成退役类型。
+    // 缺省/未知类型一律原值透传（缺失时为空串），端上按未知类型容错。
     type: (raw.type as NotificationType) || '',
     title: raw.title || '',
     content: raw.content || '',

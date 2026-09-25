@@ -6,7 +6,7 @@
 
     流程（微信端）：wx.chooseMedia(count≤max, image) → 逐张 wx.compressImage(quality 80) 压缩
     → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）
-    → uploadUgcImage（云存储 fileID → POST /upload/images 后端安检转存 COS）→ 追加 COS URL 至 v-model。
+    → uploadUgcImage（云存储 fileID → POST /upload/cloud-image 后端安检转存 COS）→ 追加 COS URL 至 v-model。
     违规图片后端 400「图片包含违规内容，无法上传」由 http 层抛 message，此处逐张 toast 透出。
 
     UI 红线（spec §4.9）：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；

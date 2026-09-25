@@ -5,7 +5,7 @@
 
 ## 介绍
 
-用**学号邮箱**（`{学号}@bjtu.edu.cn`）做身份认证，认证通过后解锁 UGC 写操作（写评价、重新评价、删除本人评价）。仅限校内邮箱域名，**无密码、无注册**。流程：跳转**身份认证页** `pages/auth/index`（学号 + 邮箱验证码表单）→ 填**学号**（端上自动推导校园邮箱）→ 发码 → 输入验证码核验 → 成功后返回新 token + 账号信息（`bindEmail` 已写入），返回原页、由原页 onShow 续接待办动作，UGC 入口解锁。
+用**学号邮箱**（`{学号}@bjtu.edu.cn`）做身份认证，认证通过后解锁 UGC 写操作（写评价、重新评价、删除本人评价）。仅限校内邮箱域名，**无密码、无注册**。流程：跳转**身份认证页** `pages/auth/index`（学号 + 邮箱验证码表单）→ 填**学号**（端上自动推导校园邮箱）→ 发码 → 输入验证码核验 → 成功后返回账号信息（`bindEmail` 已写入）；JWT 不含 `bind_email`、后端实时查库判定，**无需重发 token**，返回原页、由原页 onShow 续接待办动作，UGC 入口解锁。
 
 ## UI
 
@@ -16,7 +16,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | POST | `/auth/email-code` | 🔓 公开 | 发送学号邮箱验证码（6 位，10 分钟有效） |
-| POST | `/auth/verify-email` | 需登录（当前微信账号） | 校验验证码 → 写入 `bind_email`（认证判据唯一真源），返回**新 token** |
+| POST | `/auth/verify-email` | 需登录（当前微信账号） | 校验验证码 → 写入 `bind_email`（认证判据唯一真源），返回账号信息（`UserInfoVO`，`bindEmail` 已写入） |
 
 ## 字段
 
@@ -24,9 +24,7 @@
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
-| `username` | string | 否（二选一） | **学号**；填它即自动推导邮箱 `{username}@bjtu.edu.cn`，无需再传 email |
-| `email` | string | 否（二选一） | 校园邮箱；不传时由 `username` 推导。格式非法 → 400 |
-| `purpose` | string | 否 | 验证码用途，当前**仅支持 `verify`**（学号邮箱认证）；为空时默认 `verify` |
+| `username` | string | 是 | **学号**；校园邮箱自动推导为 `{username}@bjtu.edu.cn`，无需传 email |
 
 ### 响应 · `POST /auth/email-code`
 
@@ -48,14 +46,13 @@
 |---|---|---|---|
 | `code` | string | **是** | 6 位邮箱验证码（纯空白 → 400）。**绑定邮箱由验证码记录推导**，用户无需再传邮箱 |
 
-### 响应 · `POST /auth/verify-email`（`data` = `LoginResp`）
+### 响应 · `POST /auth/verify-email`（`data` = `UserInfoVO`）
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `token` | string | **新的 JWT**（认证后换取；端上需替换本地 token） |
 | `userInfo` | object | 账号信息对象（`UserInfoVO`，字段见下方「`userInfo` 字段」表） |
 
-**`userInfo` 字段（`UserInfoVO`，5 个）**：
+**`userInfo` 字段（`UserInfoVO`，6 个，含 `createdAt` 注册时间）**：
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -65,7 +62,7 @@
 | `avatar` | string \| null | 头像地址（已转成可访问的绝对 URL） |
 | `bindEmail` | string \| null | 已认证绑定的校园邮箱：**本接口返回已写入的绑定邮箱**（校园邮箱唯一出参来源，**同时是认证状态的唯一判据**——非空即已认证） |
 
-> 本接口与 `POST /auth/wechat-login` 共用 `UserInfoVO`，**字段集须保持一致**（仅上表字段；`status` 端上零消费——禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生）。
+> 本接口直接返回 `UserInfoVO`（与 `POST /auth/wechat-login` 的 `LoginVO.userInfo` 同字段集），**字段集须保持一致**（仅上表字段；`status` 端上零消费——禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生）。
 
 ### 错误码
 

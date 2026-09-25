@@ -89,7 +89,7 @@
 				{
 					"path": "index",
 					"style": {
-						"navigationBarTitleText": "我的评价",
+						"navigationBarTitleText": "我的主页",
 						"navigationStyle": "custom"
 					}
 				}
@@ -101,7 +101,14 @@
 				{
 					"path": "index",
 					"style": {
-						"navigationBarTitleText": "隐私政策与用户协议",
+						"navigationBarTitleText": "隐私政策",
+						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "agreement",
+					"style": {
+						"navigationBarTitleText": "用户协议",
 						"navigationStyle": "custom"
 					}
 				}

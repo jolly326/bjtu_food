@@ -107,9 +107,8 @@ public class DishController {
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id) {
         checkViewIpRateLimit();
-        // 计数与访问日志随详情成功响应发生（service 内成功路径执行）；游客为 null，日志记 user_id=0
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        return Result.success(dishService.getDishDetail(id, userId));
+        // 计数随详情成功响应发生（service 内成功路径执行）
+        return Result.success(dishService.getDishDetail(id));
     }
 
     /**

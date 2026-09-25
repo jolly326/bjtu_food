@@ -38,7 +38,7 @@
 
 ### 响应 · `GET /admin/corrections`（`data` = `PageResult<CorrectionAdminVO>`）
 
-**分页壳字段**：`records` / `total` / `page` / `pageSize`（口径见 [README 通用结构](./README.md)）。
+**分页壳字段**：`records` / `total`（口径见 [README 通用结构](./README.md)）。
 
 ### 响应 · `CorrectionAdminVO` 单行字段
 

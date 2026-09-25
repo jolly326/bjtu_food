@@ -21,7 +21,7 @@
 |---|---|---|
 | 🔓 公开 | 免登录即可调用 | 学生端浏览、搜索、反馈提交等 |
 | 🔐 认证 | 需学号邮箱认证（**已认证判据 = `bindEmail` 非空**），未认证返回 **4031** | 学生端 UGC 写操作（发表 / 修改 / 删除本人评价、查看「我的评价」） |
-| 🔑 口令 | 管理端 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403） | 全部 `/admin/**` 与 `/upload/image` |
+| 🔑 口令 | 管理端 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403） | 全部 `/admin/**`（含 `/admin/upload/image`） |
 
 ---
 
@@ -39,11 +39,11 @@
 | A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | ✅ **已完成** |
 | A-10 | 我的评价（承载于「我的主页」评价区） | [client-我的评价.md](./client-我的评价.md) | 🔐 | ✅ **已完成**（2026-09-24） |
 | A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | ✅ **已完成**（2026-09-25） |
-| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | — |
-| A-13 | 个人资料（查看于「我的主页」信息卡 / 编辑于个人信息编辑页） | [client-个人资料.md](./client-个人资料.md) | 🔓 | — |
-| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | — |
-| A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 🔓 | — |
-| A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | — |
+| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | ✅ **已完成**（2026-09-25） |
+| A-13 | 个人资料（查看于「我的主页」信息卡 / 编辑于个人信息编辑页） | [client-个人资料.md](./client-个人资料.md) | 🔓 | ✅ **已完成**（2026-09-25） |
+| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | ✅ **已完成**（2026-09-25） |
+| A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 需登录（游客态亦可） | ✅ **已完成**（2026-09-25） |
+| A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | ✅ **已完成**（2026-09-25） |
 
 > **「状态」列口径**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
 
@@ -77,8 +77,6 @@
 |---|---|---|
 | `records` | T[] | **当前页数据行**（消费方以此为准） |
 | `total` | number | 符合条件总条数 |
-| `page` | number | 实际生效页码（服务端归一化后的值，非原始入参） |
-| `pageSize` | number | 实际生效每页条数（同上） |
 
 ### 金额约定
 
@@ -98,7 +96,7 @@
 | `MyReviewVO` | `GET /my/reviews`（**本人视角，10 字段** = 公开 8 + `dishId` / `dishName`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
-| `LoginResp` | 登录 / 认证响应（`token` + `userInfo`） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
+| `LoginVO` | 登录响应（`token` + `userInfo`，仅 `POST /auth/wechat-login` 出参） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `FeedbackReq` | `POST /feedback`（`issue` 问题反馈）、`GET /admin/feedbacks` 出参 | [client-意见反馈](./client-意见反馈.md) |
 | `CorrectionReq` / `CorrectionAdminVO` | `POST /dishes/{id}/correction`、`/admin/corrections*` | [client-意见反馈](./client-意见反馈.md) / [web-信息纠错](./web-信息纠错.md) |
 | `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
@@ -127,7 +125,6 @@
 | 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md) |
 | 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md) |
 | 5 | 注销入口 UI 重设计 | **同意重设计**，转 UI/UX 设计师出稿（不动接口） | 小程序页面内布局 / 交互 | [client-注销账号](./client-注销账号.md) |
-| 6 | 隐私政策是否保留 | **建议保留**（改善呈现 + 文案与数据面对齐） | 无（静态文案） | [client-隐私政策与用户协议](./client-隐私政策与用户协议.md) |
 | 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword + 服务端分页），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md) |
-| 8 | 学生行为弹窗是否展示浏览记录 | 需先新增管理端端点（当前 `view_log` 无查询接口），否则只展示评价 / 反馈 | 后端新增端点（须技术负责人登记） | [web-学生账号管理](./web-学生账号管理.md) |
+| 8 | 学生行为弹窗是否展示浏览记录 | **已闭环**：系统不采集浏览足迹（行为日志无读取方 → 数据最小化停采），弹窗只展示评价 / 反馈 | 无 | [web-学生账号管理](./web-学生账号管理.md) |
 | 11 | 低样本均分失真 | **建议采纳**：`ratingCount < 3` 不展示均分，显示「暂无评分 · N 条评价」（大众点评「达 10 条才计算星级」的思路） | 端上按 `ratingCount` 分支，后端不改 | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |

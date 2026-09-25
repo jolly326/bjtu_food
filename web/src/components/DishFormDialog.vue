@@ -162,7 +162,7 @@ const flavorTagOptions = computed(() => attrStore.optionsOf(ATTR_FLAVOR_TAGS))
 // ===== 菜品大类（§7.34）：选项仅来自后端字典，端上零硬编码中文 =====
 /** 字典选项（单一真源 = 后端 `GET /dishes/meal-types`，端上零硬编码中文） */
 const mealTypeDictOptions = computed(() =>
-  mealTypeStore.list.map(t => ({ label: t.label, value: t.key })),
+  mealTypeStore.list.map(t => ({ label: t.label, value: t.value })),
 )
 /**
  * 下拉选项 = 字典项 +「当前值兜底项」（与列表筛选 `DishManageView.mealTypeFilterOptions` 的 extras 同口径）。

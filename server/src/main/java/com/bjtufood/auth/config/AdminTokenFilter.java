@@ -32,7 +32,7 @@ import java.util.List;
  * <ul>
  *   <li>未配置 {@code ADMIN_TOKEN} → **fail-closed 拒绝全部 /admin 请求**（403），避免遗忘配置导致管理端裸奔；</li>
  *   <li>口令比对使用等时比较（MessageDigest.isEqual），降低时序侧信道风险；</li>
- *   <li>仅作用 {@code /admin/**} 与 {@code /upload/image}（后台图片上传，2026-09-15 B4 纳入口令守卫），
+ *   <li>仅作用 {@code /admin/**}（含管理端图片上传 {@code /admin/upload/image}），
  *       小程序端接口不受任何影响；校验通过后设置 ROLE_ADMIN 认证供授权层使用。</li>
  * </ul>
  */
@@ -54,13 +54,9 @@ public class AdminTokenFilter extends OncePerRequestFilter {
         if (uri == null) {
             return true;
         }
-        // 1) /admin/** 全量受口令保护；
-        // 2) /upload/image 是**管理后台**的图片上传入口（web 端只带 X-Admin-Token、没有学生 JWT），
-        //    若不在本过滤器范围内会落到 anyRequest().authenticated() 而返回 401，导致后台上传必然失败。
-        //    注意必须用 endsWith 精确匹配："/upload/image" 是学生端 "/upload/images" 的子串，
-        //    用 contains 会把小程序链路一并拖进口令校验（小程序走 JWT，会 403）。
-        boolean isAdminUpload = uri.endsWith("/upload/image");
-        return !uri.contains("/admin/") && !isAdminUpload;
+        // /admin/** 全量受口令保护（含管理端图片上传 /admin/upload/image）；
+        // 学生端上传 /upload/cloud-image 走 JWT，不在本过滤器范围内。
+        return !uri.contains("/admin/");
     }
 
     @Override

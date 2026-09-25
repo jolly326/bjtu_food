@@ -36,10 +36,6 @@
 |---|---|---|
 | `records` | MyReviewVO[] | 当前页评价行数组 |
 | `total` | number | 本人评价总条数 |
-| `page` | number | 实际生效页码（归一化后） |
-| `pageSize` | number | 实际生效每页条数（归一化后） |
-
-> **`page` / `pageSize` 归一化规则（R11）**：回传经 `PageUtil.normalize` 归一化后的**实际生效值**（`page < 1 → 1`；`pageSize < 1 → 10`；`pageSize > 100 → 100`）—— 入参越界 / 超限时端上据此得知服务端真正用了什么。
 
 ### 响应 · `MyReviewVO` 单行字段（**本人视角，10 字段**）
 

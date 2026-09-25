@@ -37,7 +37,7 @@
 | `relatedType` | string | **是** | **必须为 `review`**（被举报的评价） |
 | `relatedId` | number | **是** | **被举报的评价 ID** |
 | `content` | string | 否 | **可空**——举报结论以结构化原因为准，文本仅作补充说明；若填写仍过内容安检，≤1000 字 |
-| `images` | string[] | 否 | 佐证配图 URL 数组，≤3 张（经 `POST /upload/images` 转存后的 COS 地址） |
+| `images` | string[] | 否 | 佐证配图 URL 数组，≤3 张（经 `POST /upload/cloud-image` 转存后的 COS 地址） |
 
 ### 响应
 

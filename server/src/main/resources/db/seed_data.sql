@@ -26,7 +26,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- 现于各「无前置清理」的插入段之前统一清空并**重置自增** —— 下方各行以固定 id 互相引用
 -- （dish.stall_id 1..14 / review.dish_id 1..29 / user_id 1..4），TRUNCATE 会一并重置自增，
 -- 使重跑后的引用关系与首次执行完全一致（若改用 DELETE，自增继续增长会导致引用错位）。
--- 顺序按引用依赖倒序：review → dish → stall → canteen → user；view_log 一并清空
+-- 顺序按引用依赖倒序：review → dish → stall → canteen → user
 -- （其残留会让「同一用户对同一菜品当天只计一次」的判定误判为已浏览）。
 -- 尾部 `user_feedback` / `notification` / `banner` 三段本就有 DELETE，无需重复处理。
 -- ============================================================
@@ -35,7 +35,6 @@ TRUNCATE TABLE `dish`;
 TRUNCATE TABLE `stall`;
 TRUNCATE TABLE `canteen`;
 TRUNCATE TABLE `user`;
-TRUNCATE TABLE `view_log`;
 
 -- -------------------- 用户（评价/通知/反馈等均依赖） --------------------
 -- 【2026-09-16 用户拍板「零消费即删除」口径】
@@ -214,13 +213,6 @@ UPDATE dish SET price=2000, original_price=2400 WHERE id=10;  -- 招牌烤肉饭
 UPDATE dish SET price=1100, original_price=1300 WHERE id=21;  -- 烤冷面 原价 13.00 / 现价 11.00
 UPDATE dish SET price=1000, original_price=1200 WHERE id=22;  -- 珍珠奶茶 原价 12.00 / 现价 10.00
 UPDATE dish SET price=2000, original_price=2400 WHERE id=26;  -- 羊肉串 原价 24.00 / 现价 20.00
-
--- -------------------- 消息通知（演示个人中心红点与通知列表；无唯一键，先清后插保证可重复执行） --------------------
--- 类型 dish_audit / feedback_handle 与后端 NotificationConst 一致；related_id 指向真实菜品 / 反馈 ID。
-DELETE FROM notification;
-INSERT INTO notification (user_id, type, title, content, related_id, is_read, created_at) VALUES
-(2, 'dish_audit', '菜品审核通过', '您提交的菜品「牛肉拉面」已通过审核，可以在对应档口查看。', 6, 0, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(4, 'dish_audit', '菜品审核通过', '您提交的菜品「珍珠奶茶」已通过审核，可以在对应档口查看。', 22, 1, DATE_SUB(NOW(), INTERVAL 2 DAY));
 
 -- -------------------- 菜品大类赋值（2026-09-21 §7.34 / H4 归属清单，幂等 UPDATE 按菜名） --------------------
 -- 判定口径：按「菜名与做法形态」判（H3），不看主料、不看口味；31 道菜全量覆盖、无空类。

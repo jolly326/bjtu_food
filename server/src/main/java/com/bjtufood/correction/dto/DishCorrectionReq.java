@@ -47,6 +47,6 @@ public class DishCorrectionReq {
     @Schema(description = "主料/食材（机器值数组，可选）", example = "[\"chicken\",\"veg\"]")
     private List<String> ingredients;
 
-    @Schema(description = "菜品图片 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤9 张，可选）")
+    @Schema(description = "菜品图片 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤9 张，可选）")
     private List<String> images;
 }

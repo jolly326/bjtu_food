@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/admin/corrections")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminToken")
 public class CorrectionAdminController {
 
     private final CorrectionService correctionService;

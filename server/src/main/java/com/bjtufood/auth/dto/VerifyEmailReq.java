@@ -15,6 +15,6 @@ import lombok.Data;
 public class VerifyEmailReq {
 
     @NotBlank(message = "验证码不能为空")
-    @Schema(description = "邮箱验证码（经 /auth/email-code purpose=verify 发送至校园邮箱）", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "邮箱验证码（经 /auth/email-code 发送至校园邮箱）", example = "123456", requiredMode = Schema.RequiredMode.REQUIRED)
     private String code;
 }

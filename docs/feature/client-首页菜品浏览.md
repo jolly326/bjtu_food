@@ -16,7 +16,7 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | GET | `/dishes` | 🔓 公开 | 菜品分页列表：首页网格、搜索共用同一端点，**返回 `PageResult<DishListItemVO>`（列表专用 8 字段，见「字段」节）**；**只返回 `status='on'`（在售）菜品**；支持 `mealType` 大类筛选；**参数集恰为 4 项**（`page` / `pageSize` / `keyword` / `mealType`） |
-| GET | `/dishes/meal-types` | 🔓 公开 | **菜品大类字典**：下发标签栏数据源 `[{ key, label, order }]`，只含当前有在售菜品的大类 |
+| GET | `/dishes/meal-types` | 🔓 公开 | **菜品大类字典**：下发标签栏数据源 `[{ value, label, order }]`，只含当前有在售菜品的大类 |
 | GET | `/banners` | 🔓 公开 | **首页顶部轮播图**：下发启用中的 Banner 清单 `[{ id, imageUrl }]`（服务端按 `sort_order` 升序），供首页顶部 16:10 轮播；**无请求参数** |
 
 ## 字段
@@ -26,7 +26,7 @@
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
 | `page` | number | 否 | 页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数，默认 10；**端上首页固定传 10**（`HOME_PAGE_SIZE`）；**服务端归一化上限 100**（`PageUtil.MAX_PAGE_SIZE`，超限截断为 100；`<=0` 回退 10），**实际生效值以响应 `page` / `pageSize` 为准** |
+| `pageSize` | number | 否 | 每页条数，默认 10；**端上首页固定传 10**（`HOME_PAGE_SIZE`）；**服务端归一化上限 100**（`PageUtil.MAX_PAGE_SIZE`，超限截断为 100；`<=0` 回退 10） |
 | `keyword` | string | 否 | 关键词，**同时匹配菜名 `name` / 档口名 `stall.name` / 食堂名 `canteen.name`**（三处模糊匹配；**关键词搜食堂名仍然可用**） |
 | `mealType` | string | 否 | **菜品大类筛选**：单值，值域 = 大类枚举键（`set_meal` / `stir_fry` / `noodle` / `dry_pot` / `snack` / `soup_drink`）；**白名单校验，非法值 → 400**（PR-06），不静默降级 |
 
@@ -38,16 +38,14 @@
 |---|---|---|
 | `records` | DishListItemVO[] | **当前页数据行**（前端以它为准；**不含详情专属字段**，见下） |
 | `total` | number | 符合条件的总条数（服务端同口径统计）。**⚠️ 本列表链路端上零读取**——结束判据是「本页返回条数 < `pageSize`」 |
-| `page` | number | 实际生效的页码（服务端归一化后的值） |
-| `pageSize` | number | 实际生效的每页条数（同上） |
 
-> `total` / `page` / `pageSize` **予以保留**：`total` 是 `PageResult` 全局共用字段，且「服务端同口径统计」本身有语义；`page` / `pageSize` 为自描述元数据，排障有价值。
+> 分页壳恒为 `records` / `total` 两项（口径见 `pagination-contract`）；页码 / 每页条数由请求侧掌握，不回传。
 
 ### 响应 · `GET /dishes/meal-types`（`List<MealTypeVO>`）
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `key` | string | 大类枚举键（用于 `GET /dishes?mealType=` 筛选） |
+| `value` | string | 大类枚举值（用于 `GET /dishes?mealType=` 筛选） |
 | `label` | string | 中文标签（**端上直接渲染，不得在前端维护映射表**） |
 | `order` | number | 标签栏展示顺序（升序） |
 
@@ -176,7 +174,7 @@
 
 1. **库**：`schema.sql` 幂等段以**存储过程**（先判列存在再 `ADD COLUMN`）维护 `meal_type`，**禁直连 ALTER**；`seed_data.sql` 为全部菜品赋值（上表）；
 2. **筛选**：`GET /dishes?mealType=<枚举键>`，**白名单校验、非法值 400**（PR-06），精确等值匹配（单值列）；
-3. **字典**：只读端点 `GET /dishes/meal-types`，返回 `[{ key, label, order }]`，**只含当前有在售菜品的大类**（空类自动隐藏）；
+3. **字典**：只读端点 `GET /dishes/meal-types`，返回 `[{ value, label, order }]`，**只含当前有在售菜品的大类**（空类自动隐藏）；
 4. **出参**：**公开菜品出参（`DishListItemVO` / `DishDetailVO`）不含 `mealType`**（卡片不展示 → 零消费即删）；后台 `DishAdminReq` / `DishAdminVO` 含（录入下拉 + 编辑回填 + 列表筛选）；
 5. **端上**：标签栏完全由字典端点驱动（不写死任何标签与中文映射），单选，切换即重置分页；
 6. **种子数据**：珍珠奶茶、杨枝甘露 的 `ingredients` 不标注 `rice`（米），避免详情页「主料」显示「米」；

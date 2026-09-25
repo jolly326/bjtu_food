@@ -39,7 +39,7 @@
 |---|---|---|---|
 | `type` | string | **是** | 模式类型，写入口径 **`issue`**（写入白名单，非法值 → 400）；`report` 经同一端点提交，归属[举报评价（A-09）](./client-举报评价.md)，不在本页范围内 |
 | `content` | string | **是** | 反馈正文，最长 **1000 字**（纯空白视为未填 → 400）；服务端敏感词过滤，命中词替换后入库 |
-| `images` | string[] | 否 | 配图 URL 数组，**≤3 张**（经 `POST /upload/images` 安检转存的 COS 地址） |
+| `images` | string[] | 否 | 配图 URL 数组，**≤3 张**（经 `POST /upload/cloud-image` 安检转存的 COS 地址） |
 
 ### 请求 · `POST /dishes/{id}/correction`（`CorrectionReq`，七字段平铺）
 
@@ -51,7 +51,7 @@
 | `stallName` | string | **是** | 档口名称（文本），非空 ≤**64 字** |
 | `flavorTags` | string[] | 否 | 口味标签机器值数组（端上预填详情值 + 用户自由输入项） |
 | `ingredients` | string[] | 否 | 食材机器值数组 |
-| `images` | string[] | 否 | 菜品图片 URL 数组（COS 绝对地址，**≤9 张**，经 `POST /upload/images` 安检转存；与 `issue` 配图 ≤3 张口径区分） |
+| `images` | string[] | 否 | 菜品图片 URL 数组（COS 绝对地址，**≤9 张**，经 `POST /upload/cloud-image` 安检转存；与 `issue` 配图 ≤3 张口径区分） |
 
 > `dishId` 为路径参数，不在请求体；表单提交即全部内容（无文字说明字段）。
 

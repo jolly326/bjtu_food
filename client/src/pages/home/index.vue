@@ -76,7 +76,7 @@
           <HomeMealTabs
             class="home-tabs"
             :items="dishStore.mealTypeList"
-            :active-key="dishStore.filterMealType"
+            :active-value="dishStore.filterMealType"
             @select="onMealTypeSelect"
           />
         </view>
@@ -224,8 +224,8 @@ const stickyStyle = computed(() => ({
 }))
 
 /** 切换大类：写回 store（内部重置分页并刷新列表）；**不重置滚动位置**，保持当前吸顶 / 初始态 */
-async function onMealTypeSelect(key: string | null) {
-  await dishStore.setHomeMealType(key)
+async function onMealTypeSelect(value: string | null) {
+  await dishStore.setHomeMealType(value)
 }
 
 /** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A-03） */

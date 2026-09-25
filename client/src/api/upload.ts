@@ -7,11 +7,11 @@ import { WX_CLOUD_ENV } from './config'
  * ⚠️ 合规红线（spec §5.a）：本函数**不做任何内容安检**，仅限头像等本人非公开用途，
  * 禁止用于 UGC 公开内容而绕过微信内容安检。
  *   → **禁止用于 UGC 公开内容**（评价配图 / 反馈配图等一切他人可见的图）。
- *   → UGC 必须走 `uploadUgcImage`（云存储 fileID → POST /upload/images，含 imgSecCheck 安检 + COS 转存）。
+ *   → UGC 必须走 `uploadUgcImage`（云存储 fileID → POST /upload/cloud-image，含 imgSecCheck 安检 + COS 转存）。
  * 当前唯一合法调用点：pages/profile（本人头像）。
  *
  * - 微信小程序端：微信云存储 wx.cloud.uploadFile，返回 cloud:// 文件 ID
- * - 其他端（H5 等）：POST /api/upload/image (multipart/form-data)，返回后端绝对 URL
+ * - 其他端（H5 等）：无可用上传链路（管理端 /admin/upload/image 不接受学生 JWT）
  *
  * @param tempFilePath 本地临时文件路径（从 uni.chooseImage 获取）
  * @returns 上传后可直接存储/展示的图片地址（cloud:// 或 http(s)）
@@ -27,9 +27,9 @@ const UGC_UPLOAD_TIMEOUT_MS = 15000
 /**
  * UGC 配图上传（评价 / 反馈共用）。
  *
- * 流程（后端契约 POST /api/upload/images）：
+ * 流程（后端契约 POST /api/upload/cloud-image）：
  * 1. wx.cloud.uploadFile 上传到微信云存储（cloudPath: ugc/{yyyyMMdd}/{时间戳+随机}.jpg）拿 fileID；
- * 2. POST /upload/images { fileId }，由后端做内容安检并转存 COS，返回正式 URL；
+ * 2. POST /upload/cloud-image { fileId }，由后端做内容安检并转存 COS，返回正式 URL；
  * 3. 违规图片后端返回 400「图片包含违规内容，无法上传」，经 http 层统一抛 message，
  *    由调用方（ImagePicker）toast 透出。
  *
@@ -81,11 +81,11 @@ export function uploadUgcImage(tempFilePath: string): Promise<{ url: string }> {
     })
     if (!fileId) throw new Error('上传失败，请重试')
     // 后端安检 + 转存 COS：违规返回 400「图片包含违规内容，无法上传」（http 层抛 message）
-    return post<{ url: string }>('/upload/images', { fileId })
+    return post<{ url: string }>('/upload/cloud-image', { fileId })
   })()
   // #endif
 
-  // ===== 其他端（H5 等）：无 wx.cloud，回退 multipart 直传后端（/upload/image，返回后端 URL） =====
+  // ===== 其他端（H5 等）：无可用上传链路（管理端 multipart /admin/upload/image 不接受学生 JWT） =====
   // #ifndef MP-WEIXIN
   result = uploadFile(tempFilePath)
   // #endif

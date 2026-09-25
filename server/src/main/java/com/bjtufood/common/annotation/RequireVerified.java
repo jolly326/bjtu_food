@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 要求当前用户已完成学号邮箱认证（user.verified=1，spec §5.y）。
+ * 要求当前用户已完成学号邮箱认证（判据 = {@code user.bind_email} 非空，spec §5.y）。
  * <p>
  * 用于需认证的 UGC 写操作（写评价、点赞等）。
  * <p>

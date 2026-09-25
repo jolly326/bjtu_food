@@ -1,6 +1,6 @@
 ﻿# 图片上传（表单内）（B-06）
 
-> 所属板块：**web（管理后台）** ｜ 鉴权：**🔑 口令**（`X-Admin-Token`，`/upload/image` 受口令守卫）
+> 所属板块：**web（管理后台）** ｜ 鉴权：**🔑 口令**（`X-Admin-Token`，`/admin/upload/image` 受口令守卫）
 > 返回：[功能总览](./README.md)
 
 ## 介绍
@@ -9,8 +9,8 @@
 
 | 链路 | 端点 | 用途 | 是否过内容安检 |
 |---|---|---|---|
-| UGC 配图链路 | `POST /upload/images` | 评价 / 反馈配图（小程序端主链路） | **是**（`imgSecCheck`） |
-| multipart 直传链路 | `POST /upload/image` | Web 后台菜品图 / H5 回退 / 头像 | 否 |
+| UGC 配图链路 | `POST /upload/cloud-image` | 评价 / 反馈配图（小程序端主链路） | **是**（`imgSecCheck`） |
+| multipart 直传链路 | `POST /admin/upload/image` | Web 后台菜品图 | 否 |
 
 流程：表单内点选图 → 自动压缩 → 调上传接口取回 URL → 回填到表单字段（菜品 `images[]` / 头像 `avatar`）随表单保存；失败（类型 / 大小 / 安检不通过）→ 提示 `message`，表单不提交。
 
@@ -22,18 +22,18 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| POST | `/upload/images` | 需登录（游客亦可） | **UGC 配图主链路**：云存储 fileId → 安检 → 转存 COS，返回 COS URL。**单张调用**（多图由前端逐张调） |
-| POST | `/upload/image` | 🔑 口令守卫 | multipart 直传（Web 菜品图 / H5 回退） |
+| POST | `/upload/cloud-image` | 需登录（游客亦可） | **UGC 配图主链路**：云存储 fileId → 安检 → 转存 COS，返回 COS URL。**单张调用**（多图由前端逐张调） |
+| POST | `/admin/upload/image` | 🔑 口令守卫 | multipart 直传（Web 菜品图） |
 
 ## 字段
 
-### 请求 · `POST /upload/images`（`CloudImageUploadReq`，JSON）
+### 请求 · `POST /upload/cloud-image`（`CloudImageUploadReq`，JSON）
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
 | `fileId` | string | **是** | 微信云存储文件标识（`wx.cloud.uploadFile` 返回，形如 `cloud://env.bucket/path`）；后端据此从云开发拉取原图 |
 
-### 响应 · `POST /upload/images`
+### 响应 · `POST /upload/cloud-image`
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -42,13 +42,13 @@
 **单张校验**：`cloud://` 前缀属本小程序云环境 + 扩展名白名单（jpg/png/webp）+ 大小 ≤1MB（`imgSecCheck` 硬限制）+ `imgSecCheck` 通过才转存；任一不通过 → 该张 400（违规 / 文件获取失败 / 存储未配置），**不影响其他张**。
 **≤3 张总量约束不在本接口**：由评价 / 反馈提交载荷（`ReviewReq.images` / 反馈 `images`）兜底校验。
 
-### 请求 · `POST /upload/image`（multipart/form-data）
+### 请求 · `POST /admin/upload/image`（multipart/form-data）
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
 | `file` | file | **是** | 图片文件，支持 jpg / jpeg / png / webp（字段名必须为 `file`） |
 
-### 响应 · `POST /upload/image`
+### 响应 · `POST /admin/upload/image`
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -64,7 +64,7 @@
 | 400 | 文件类型/大小不合法 | 非白名单格式或超限 |
 | 400 | 图片包含违规内容，无法上传 | `imgSecCheck` 判定违规（微信码 `87014`） |
 | 400 | 图片存储未配置 | COS 未配置（UGC 链路不走本地降级） |
-| 403 | 口令缺失或错误 | `/upload/image` 受 `AdminTokenFilter` 守卫 |
+| 403 | 口令缺失或错误 | `/admin/upload/image` 受 `AdminTokenFilter` 守卫 |
 
 ## 数据（落库）
 

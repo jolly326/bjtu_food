@@ -89,7 +89,7 @@ bjtu_food/
 | review / review_useful | 评价（含配图 images ≤3 张、安检态 sec_state）/ 评价「有用」标记 |
 | notification | 消息通知 |
 | user_feedback | 用户反馈（含举报/纠错/推荐菜品；配图 images ≤3 张、安检态 sec_state） |
-| view_log | 浏览足迹（个性化推荐用） |
+| dish.view_count | 菜品浏览量（PV 口径，热度排序输入） |
 
 > 原 `broadcast`（广播条）与 `activity`（最新活动）两表已于 2026-09-13 随活动/公告全链路下线删除（基线 14 → 12）。
 

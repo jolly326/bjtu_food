@@ -5,13 +5,14 @@
     <Header title="我的" :show-back="false" />
 
     <view class="mine-content">
-      <!-- 用户卡：游客（未认证）显示食客短 ID +「去认证」；已认证显示昵称 + 绑定邮箱。
-           点击行为二分：游客整卡唤起认证弹层（不进入编辑页）；认证态进入个人信息编辑页（/pages/profile/index） -->
+      <!-- 用户卡：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
+           整卡点击进入「我的主页」（游客与认证态同达，无认证拦截）；
+           认证动作的单一入口为宫格「身份认证」格，用户卡不放「去认证」按钮 -->
       <view
         class="user-card"
         :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
         role="button"
-        aria-label="查看我的评价"
+        aria-label="查看我的主页"
         @tap="onUserCardTap"
       >
         <view class="user-card-head">
@@ -25,8 +26,8 @@
             <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
               {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
             </text>
-            <text v-if="isVerified && bindEmail" class="user-id">
-              {{ bindEmail }}
+            <text v-if="isVerified && userInfo?.username" class="user-id">
+              {{ userInfo.username }}
             </text>
             <text v-else-if="!isVerified" class="user-id">游客 {{ guestLabel }}</text>
           </view>
@@ -34,8 +35,8 @@
         </view>
       </view>
 
-      <!-- 功能宫格：2×2 四格（意见反馈 / 系统通知 / 身份认证 / 我的浏览菜品记录），每格整格热区；
-           个人信息编辑已并入「我的评价」页（用户卡点击直接进入，无认证拦截） -->
+      <!-- 功能宫格：一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；
+           个人信息编辑已并入「我的主页」页（用户卡点击直接进入，无认证拦截） -->
       <view class="grid">
         <view
           v-for="cell in gridCells"
@@ -109,7 +110,6 @@ const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 /** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
 const isVerified = computed(() => userStore.isVerified())
-const bindEmail = computed(() => userStore.userInfo?.bindEmail || '')
 /**
  * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
  * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
@@ -152,12 +152,7 @@ function onCertTap() {
   uni.showToast({ title: '已完成身份认证', icon: 'none' })
 }
 
-/** 「我的浏览菜品记录」格：功能未上线占位——点击仅轻提示，不跳转 */
-function onBrowseHistoryTap() {
-  uni.showToast({ title: '暂未实现', icon: 'none' })
-}
-
-/** 功能宫格数据（2×2 四格，顺序固定：意见反馈 / 系统通知 / 身份认证 / 我的浏览菜品记录）；每格整格热区 */
+/** 功能宫格数据（一行 3 格，顺序固定：意见反馈 / 系统通知 / 身份认证）；每格整格热区 */
 interface GridCell {
   key: string
   icon: string
@@ -165,16 +160,21 @@ interface GridCell {
   action: () => void
 }
 
-/** 底部合规入口：隐私政策与用户协议（应用内页面，不依赖外部域名） */
+/** 合规入口：隐私政策（应用内页面，不依赖外部域名） */
 function goPrivacy() {
   uni.navigateTo({ url: PATH.privacy })
+}
+
+/** 合规入口：用户协议（与隐私政策各自独立页面，入口分叉） */
+function goAgreement() {
+  uni.navigateTo({ url: PATH.agreement })
 }
 
 /** 注销账号（合规硬需求）：二次确认 → 后端匿名化 → 清本地态（旧 token 已被后端拉黑，静默登录建新游客号） */
 function onAccountDelete() {
   uni.showModal({
     title: '注销账号',
-    content: '注销后账号将匿名化且不可恢复：你的评价与反馈会保留，但不再关联你的身份；注销后需重新登录。',
+    content: '注销后账号将匿名化且不可恢复：重新登录将创建全新账号，你的评价与反馈会保留但不再关联身份，也不会回到新账号。',
     confirmText: '确认注销',
     confirmColor: MODAL_CONFIRM_PRIMARY_COLOR,
     success: async (res) => {
@@ -195,12 +195,11 @@ const gridCells: GridCell[] = [
   { key: 'feedback', icon: 'lightbulb-fill', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
   { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
   { key: 'cert', icon: 'badge-check', label: '身份认证', action: onCertTap },
-  { key: 'browse', icon: 'clock', label: '浏览记录', action: onBrowseHistoryTap },
 ]
 
 /** 「其他」分组列表（三行固定：合规两行 + 账号危险操作一行；注销为 danger 弱化） */
 const moreRows = [
-  { key: 'agreement', label: '用户协议', danger: false, action: goPrivacy },
+  { key: 'agreement', label: '用户协议', danger: false, action: goAgreement },
   { key: 'privacy', label: '隐私政策', danger: false, action: goPrivacy },
   { key: 'deleteAccount', label: '注销账号', danger: true, action: onAccountDelete },
 ]
@@ -214,7 +213,7 @@ const moreRows = [
 
 /* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
    与首页卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
-   （昵称/绑定邮箱、游客态的「去认证」引导）表达，不再用「透明 vs 白底」区分。 */
+   （昵称/绑定邮箱、游客态副行）表达，不再用「透明 vs 白底」区分。 */
 .user-card {
   display: flex; flex-direction: column; gap: var(--spacing-md);
   margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
@@ -230,7 +229,7 @@ const moreRows = [
 .user-card--verified {
   border-top-color: var(--color-primary-soft);
 }
-/* 游客：无条纹（表面与认证态一致，引导由「去认证」按钮承担） */
+/* 游客：无条纹（表面与认证态一致；认证入口为宫格「身份认证」格） */
 .user-card--guest {
   border-top-color: transparent;
 }
@@ -245,9 +244,9 @@ const moreRows = [
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-arrow { flex-shrink: 0; }
 
-/* 功能宫格：2×2 两列等宽等高圆角白卡（flex-wrap 换行），每格整格热区 */
+/* 功能宫格：一行 3 格等宽等高圆角白卡，每格整格热区 */
 .grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
-.grid-cell { flex: 0 0 calc((100% - var(--spacing-md)) / 2); min-width: 0;
+.grid-cell { flex: 0 0 calc((100% - 2 * var(--spacing-md)) / 3); min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

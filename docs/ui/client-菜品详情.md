@@ -24,3 +24,33 @@
 - 底栏：左侧固定按钮「**写评价**」（会话内判定为已评价或提交成功后，本地写回态就地切「**重新评价**」）。未认证 → 跳转身份认证页 `pages/auth/index`（认证成功返回本页后由 onShow 续接，自动重新打开写评价表单）。
   - **判定时机**：用户点击「写评价」时（表单打开前）调 `GET /my/reviews?dishId=`——已评价打开**预填旧值**的弹层（提交走 `PUT /reviews/{id}`）；**详情页首屏零用户态请求**。
   - 右侧「**去分享**」按钮保留（`open-type="share"`，配 `onShareAppMessage` 分享菜名 + 现价 + 本页路径）。两钮等宽、主次分明（写评价 / 重新评价 = 主色实底，去分享 = 白底主色描边）。
+
+---
+
+## 接口数据字段（UI 精修用）
+
+**页面**：`pages/detail/dish/index`（+ 本页私有弹层 `ReviewComposer` / `ReportModal`）
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /dishes/{id}`（`DishDetailVO`） | `id` / `name` / `price` / `originalPrice` | 主键 / 菜名 / 现价 / 划线原价（`> price` 才展示） |
+| | `images` / `image` | 轮播多图 / 首图派生（端上由 `images[0]` 现算） |
+| | `description` / `canteen` / `stallName` / `floor` | 描述（2 行展开）/ 位置行三段 |
+| | `dietType` / `ingredients` / `flavorTags` / `serveTemp` | 四维机器值 → 经 `GET /dishes/attributes` 译中文 |
+| | `rating` / `ratingCount` / `ratingDistribution[]`（`star` / `count`） | 评分区均分 / 人数 / 分布条（三者同源实时聚合） |
+| `GET /dishes/{id}/reviews`（`PageResult<ReviewVO>`） | `records[].id` / `userId` / `userNickname` / `userAvatar` / `rating` / `content` / `images` / `createdAt` | 评价卡全字段 / 本人判定（决定三点菜单给「删除」还是「举报」） |
+| `GET /dishes/attributes` | `field` / `value` / `label` / `order` | 四维字典翻译（端上零硬编码映射） |
+| `GET /my/reviews?dishId=` | `records[0].id` / `rating` / `content` / `images` | 写评价弹层「是否已评价」判定 + 重评预填 |
+| `GET /feedback/report-reasons` | `value` / `label` / `order` | 举报原因单选列表（提交用 `value`） |
+
+**入参提交**
+| 接口 | 字段 |
+|---|---|
+| `POST /dishes/{id}/reviews` / `PUT /reviews/{id}` | `rating` / `content` / `images`（≤3） |
+| `POST /feedback`（举报） | `type='report'` / `sub`（原因 value）/ `relatedType='review'` / `relatedId`（评价 id） |
+| `GET /dishes/{id}/reviews` | `page` / `pageSize=10` / `hasImage`（只看有图） |
+| `GET /my/reviews` | `dishId` / `page=1` / `pageSize=1` |
+
+**UI 组件**：公共 `IconSvg` / `ActionSheet` / `CardSection` / `SectionTitle` / `ReviewItem` / `RetryBlock` / `BaseSheet` / `ImagePicker`；页内私有 `ImageSwiper` / `DishInfoCard` / `DishSummaryCard` / `DishReviewSection` / `ReviewComposer` / `ReportModal`
+**控件类型**：页面级滚动 + `position: sticky` hero、`onReachBottom` 触底分页、`onPageScroll`、`BaseSheet` 底部抽屉、三点 `ActionSheet`、开关（只看有图）、`textarea`、星级选择、`open-type="share"`

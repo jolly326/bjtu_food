@@ -4,6 +4,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.content.security.ContentSecurityService;
 import com.bjtufood.content.security.impl.ContentSecurityServiceImpl;
+import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.upload.service.CosStorageService;
 import com.bjtufood.upload.service.UploadService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -81,7 +82,7 @@ public class UploadServiceImpl implements UploadService {
     // ==================== 链路一：multipart 直传（保留，H5/独立服务器场景） ====================
 
     @Override
-    public Map<String, String> uploadImage(MultipartFile file) {
+    public UploadResultVO uploadImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("文件不能为空");
         }
@@ -119,7 +120,7 @@ public class UploadServiceImpl implements UploadService {
             // 管理端 web（api/upload.ts）约定：上传结果必须同时含 url 与 relativeUrl，否则前端抛
             // 「上传接口返回缺少图片地址」。COS 场景下二者同为绝对 URL——落库用 relativeUrl，
             // 两端展示层（web toAbsoluteImageUrl / 小程序 getImageUrl）对 http(s) 绝对地址原样返回。
-            return Map.of("url", cosUrl, "relativeUrl", cosUrl);
+            return new UploadResultVO(cosUrl, cosUrl);
         }
 
         // COS 未配置：降级本地磁盘存储（开发环境无 COS 仍可用）
@@ -155,16 +156,13 @@ public class UploadServiceImpl implements UploadService {
         String relativeUrl = trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
         String absoluteUrl = imageUrlUtil.toAbsoluteUrl(relativeUrl);
 
-        Map<String, String> result = new HashMap<>();
-        result.put("url", absoluteUrl);
-        result.put("relativeUrl", relativeUrl);
-        return result;
+        return new UploadResultVO(absoluteUrl, relativeUrl);
     }
 
     // ==================== 链路二：小程序云存储 fileID 转存（UGC 配图主链路） ====================
 
     @Override
-    public Map<String, String> uploadCloudImage(String fileId) {
+    public UploadResultVO uploadCloudImage(String fileId) {
         if (!StringUtils.hasText(fileId) || !fileId.startsWith("cloud://")) {
             throw new BusinessException("fileId 不合法，必须为微信云存储 cloud:// 文件标识");
         }
@@ -188,7 +186,7 @@ public class UploadServiceImpl implements UploadService {
 
         // 6. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
         String url = cosStorageService.upload(data, ext);
-        return Map.of("url", url);
+        return new UploadResultVO(url, null);
     }
 
     /**

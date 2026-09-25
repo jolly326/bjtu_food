@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets;
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
  * - GET /banners（首页顶部轮播图，2026-09-22 新增；/** 无写接口）
- * - GET /dishes, GET /dishes/hot-search, GET /dishes/{id}（菜品浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
+ * - GET /dishes、GET /dishes/{id}、GET /dishes/meal-types、GET /dishes/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
  * - 注：GET /canteens 白名单已于 2026-09-22 删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
  * - Swagger UI (SpringDoc) 相关路径
  */
@@ -78,7 +78,7 @@ public class SecurityConfig {
      * 使用 method-scoped 匹配，避免误放行 POST 等写操作）。
      * <p>
      * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
-     * 本条仅约束 GET 只读浏览，POST /dishes/{id}/views（浏览量上报）与 GET 系列仍保留。
+     * 本条仅约束 GET 只读浏览（浏览量计数为 GET /dishes/{id} 的响应副作用，无独立上报端点）。
      * /stalls/** 白名单已于 2026-09-15 CT-05 删除：无公开 StallController 端点（幽灵路由）。
      * /canteens/** 白名单已于 2026-09-22 删除：食堂字典端点（原 GET /canteens）随食堂 / 价格筛选
      * 全量下线整体删除（K4），公开侧不再有食堂字典接口。
@@ -110,10 +110,8 @@ public class SecurityConfig {
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers("/admin/**").permitAll()
-                        // 管理端图片上传 /upload/image（2026-09-15 B4）已不在 permitAll 白名单：
-                        // 由 AdminTokenFilter 校验 X-Admin-Token，校验通过后其设置 ROLE_ADMIN 认证，
-                        // 落入 anyRequest().authenticated() 通过授权；口令缺失/无效时由过滤器 403 拦截。
-                        // 注意：学生端 /upload/images 仍走 JWT。
+                        // 管理端图片上传已归入 /admin/**（POST /admin/upload/image），随上行放行并由过滤器口令把关；
+                        // 学生端上传 /upload/cloud-image 走 JWT。
                         // 其他接口需要登录
                         .anyRequest().authenticated()
                 )

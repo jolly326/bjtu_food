@@ -36,7 +36,7 @@ public class FeedbackReq {
     private String content;
 
     @Size(max = 3, message = "反馈配图最多 3 张")
-    @Schema(description = "反馈配图 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤3 张）")
+    @Schema(description = "反馈配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张）")
     private List<String> images;
 
     // contact 字段已于 2026-09-16 产品定型「不收集联系方式」删除：user_feedback.contact 列、

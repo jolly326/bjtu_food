@@ -12,7 +12,7 @@
 ### 1. 用户信息卡
 
 - 形态：**白底一级身份卡**（`--bg-card` + `--shadow-card` + `--radius-card`），顶部 **6rpx 主色软条纹**（`--color-primary-soft`，**仅认证态显示**；游客态透明）。两态**表面语言一致**，差异只由条纹与内容表达。
-- 内容（一行）：头像（120rpx 圆形；无头像时 `IconSvg name="user"` 灰底占位）→ 昵称 + 副行（**认证态 = 绑定邮箱** / **游客态 = `游客 {食客XXXX}`**）→ 右侧「**编辑个人信息**」主色描边胶囊（`--font-tiny`，触控目标 ≥ 88rpx）。
+- 内容（一行）：头像（120rpx 圆形；无头像时 `IconSvg name="user"` 灰底占位）→ 昵称 + 副行（**认证态 = 学号（username）** / **游客态 = `游客 {食客XXXX}`**）→ 右侧「**编辑个人信息**」主色描边胶囊（`--font-tiny`，触控目标 ≥ 88rpx）。
 - 交互：**胶囊为唯一热区**（`role="button"`、`aria-label="编辑个人信息"`），点击 → 个人信息编辑页 `pages/profile/index`（见 [client-个人信息编辑.md](./client-个人信息编辑.md)）；**卡片本体不可点**（避免与编辑入口语义重叠）。按压反馈 = `--bg-soft` 底色（**非** scale）。
 - 认证动作**单一入口 = 「我的」页宫格「身份认证」格**，信息卡不放「去认证」按钮。
 
@@ -38,12 +38,33 @@
 |---|---|---|
 | 头像 | `UserInfoVO.avatar` | 信息卡头像；无值时 `IconSvg name="user"` 灰底占位 |
 | 昵称 | `UserInfoVO.nickname` | 信息卡主标题 |
-| 绑定邮箱 | `UserInfoVO.bindEmail` | 认证态信息卡副行（**校园邮箱唯一出参来源**） |
+| 学号 | `UserInfoVO.username` | 认证态信息卡副行（校园身份标识，**只读展示**，编辑见 `client-个人信息编辑.md`） |
 | 游客短标识 | **端上派生** = 「食客 + `id` 尾 4 位」 | 游客态信息卡副行 |
 | 认证态判据 | `bindEmail` 非空（单点收敛） | 决定信息卡主色条纹与副行内容 |
-| 本人评价列表 | `GET /my/reviews` 的 `PageResult<MyReviewVO>`（`records` / `total` / `page` / `pageSize`） | 评价区数据源（`MyReviewVO` 字段口径见功能文档） |
+| 本人评价列表 | `GET /my/reviews` 的 `PageResult<MyReviewVO>`（`records` / `total`） | 评价区数据源（`MyReviewVO` 字段口径见功能文档） |
 
 ### 5. 动效
 
 - `prefers-reduced-motion: reduce` 下取消胶囊行的 `background-color` 过渡（按压反馈退化为**直接换色**）。
 - 不引入装饰性入场动效；进入页面内容立即可见。
+
+### 6. 接口数据字段（UI 精修用）
+
+**页面**：`pages/my-reviews/index`
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /my/reviews`（`PageResult<MyReviewVO>`） | `records[].id` | 卡片 key / 删除目标 |
+| | `records[].rating` / `content` / `images` / `createdAt` | 星级 / 正文 / 配图 ≤3 / 时间 |
+| | `records[].userNickname` / `userAvatar` | 昵称 / 头像（ReviewItem 可选 props） |
+| | `records[].dishName` | 菜名行（本人视角专属） |
+| | `records[].userId` | 本人判定 |
+| | `records[].dishId` | **零界面消费**（仅用于详情页 `?dishId` 过滤入参） |
+| | `total` | 触底判断（分页壳仅 `records` / `total`；页码由请求侧掌握） |
+| `UserInfoVO`（经 `stores/user`） | `avatar` / `nickname` / `username` / `bindEmail` / `id` | 信息卡头像 / 昵称 / 学号副行 / 认证判据 / 游客短标识派生 |
+
+**入参提交**：`GET /my/reviews` → `page` / `pageSize=20`（仅认证态发起）；`DELETE /reviews/{id}` → 无请求体
+
+**UI 组件**：公共 `AppHeader`(标题「我的主页」) / `ReviewItem` / `ActionSheet` / `RetryBlock` / `IconSvg` / `ImageFallback`
+**控件类型**：自然文档滚动（`onReachBottom` 分页）、`ActionSheet` 底部动作菜单、`uni.showModal`（删除二次确认）

@@ -5,6 +5,7 @@ import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.utils.SecurityUtil;
 import com.bjtufood.notify.dto.NotificationVO;
+import com.bjtufood.notify.dto.UnreadCountVO;
 import com.bjtufood.notify.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,8 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 /**
  * 消息通知接口（task-09，STU）
@@ -47,9 +46,9 @@ public class NotificationController {
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @GetMapping("/my/notifications/unread-count")
-    public Result<Map<String, Long>> unreadCount() {
+    public Result<UnreadCountVO> unreadCount() {
         long count = notificationService.countUnread(SecurityUtil.getCurrentUserId());
-        return Result.success(Map.of("count", count));
+        return Result.success(new UnreadCountVO(count));
     }
 
     /**
@@ -71,7 +70,7 @@ public class NotificationController {
         return Result.success(notificationService.markAllRead(SecurityUtil.getCurrentUserId()));
     }
 
-    @Operation(summary = "单条已读", description = "STU（需邮箱认证）归属校验。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "单条已读", description = "STU（需邮箱认证）。通知不存在或非本人时静默成功（不报错、不暴露他人通知存在性）。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @PutMapping("/my/notifications/{id}/read")

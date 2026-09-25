@@ -14,19 +14,19 @@
       <view class="mt-track">
         <view
           v-for="tab in tabs"
-          :key="tab.key ?? 'all'"
-          :id="idOf(tab.key)"
+          :key="tab.value ?? 'all'"
+          :id="idOf(tab.value)"
           class="mt-tab"
-          :class="{ active: tab.key === activeKey }"
+          :class="{ active: tab.value === activeValue }"
           role="button"
           :aria-label="`筛选大类：${tab.label}`"
           hover-class="mt-tab-pressed"
-          @tap="onSelect(tab.key)"
+          @tap="onSelect(tab.value)"
         >
           <text class="mt-label">{{ tab.label }}</text>
           <!-- 选中态橙色短下划线：常驻节点 + 透明度切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
-          <view class="mt-underline" :class="{ show: tab.key === activeKey }" aria-hidden="true" />
+          <view class="mt-underline" :class="{ show: tab.value === activeValue }" aria-hidden="true" />
         </view>
       </view>
     </scroll-view>
@@ -37,21 +37,21 @@
 import { computed } from 'vue'
 import type { MealType } from '@/types/dish'
 
-/** 标签项：`key === null` 表示端上固定的第一项「全部」（不传 mealType） */
+/** 标签项：`value === null` 表示端上固定的第一项「全部」（不传 mealType） */
 interface MealTab {
-  key: string | null
+  value: string | null
   label: string
 }
 
 const props = defineProps<{
   /** 大类字典（`store.mealTypeList`，后端已按 order 升序）；空数组合法 = 降级为仅「全部」 */
   items: MealType[]
-  /** 当前选中大类键（null = 全部） */
-  activeKey: string | null
+  /** 当前选中大类值（null = 全部） */
+  activeValue: string | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'select', key: string | null): void
+  (e: 'select', value: string | null): void
 }>()
 
 /**
@@ -59,22 +59,22 @@ const emit = defineEmits<{
  * 空类隐藏由后端完成，端上不做二次判断，保证「一处真源」）。
  */
 const tabs = computed<MealTab[]>(() => [
-  { key: null, label: '全部' },
-  ...props.items.map((item) => ({ key: item.key, label: item.label })),
+  { value: null, label: '全部' },
+  ...props.items.map((item) => ({ value: item.value, label: item.label })),
 ])
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
-const scrollIntoId = computed(() => (props.activeKey ? idOf(props.activeKey) : 'mt-tab-all'))
+const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-all'))
 
 /** 稳定 id：小程序 `scroll-into-view` 要求 id 以字母开头、且不含特殊字符 */
-function idOf(key: string | null): string {
-  return key ? `mt-tab-${key}` : 'mt-tab-all'
+function idOf(value: string | null): string {
+  return value ? `mt-tab-${value}` : 'mt-tab-all'
 }
 
-function onSelect(key: string | null) {
+function onSelect(value: string | null) {
   // 点击已选中项不重复发请求（避免无谓的列表重置与闪烁）
-  if (key === props.activeKey) return
-  emit('select', key)
+  if (value === props.activeValue) return
+  emit('select', value)
 }
 </script>
 

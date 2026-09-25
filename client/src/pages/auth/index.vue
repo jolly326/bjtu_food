@@ -141,7 +141,7 @@ async function sendCode() {
   clearError()
   sendingCode.value = true
   try {
-    await sendEmailCode(username, 'verify')
+    await sendEmailCode(username)
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     authStore.startCooldown()
   } catch (e: any) { setError(e.message || '验证码发送失败') } finally { sendingCode.value = false }

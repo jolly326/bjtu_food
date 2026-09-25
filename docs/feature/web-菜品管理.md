@@ -37,10 +37,7 @@
 |---|---|---|
 | `records` | DishAdminVO[] | 当前页菜品行数组 |
 | `total` | number | 菜品总条数 |
-| `page` | number | 实际生效页码（归一化后） |
-| `pageSize` | number | 实际生效每页条数（归一化后） |
-
-> 分页壳恒为 `records` / `total` / `page` / `pageSize`（本页涉及的全部管理端列表接口统一口径）。
+> 分页壳恒为 `records` / `total`（本页涉及的全部管理端列表接口统一口径）。
 
 ### 响应 · `DishAdminVO` 单行字段
 

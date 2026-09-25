@@ -26,7 +26,7 @@
 |---|---|---|---|
 | `keyword` | string | 否 | 关键词，**同时匹配菜名 `dish.name` / 档口名 / 食堂名**（`DishMapper.xml` 三处模糊匹配；空则不筛选） |
 | `page` | number | 否 | 页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数（**搜索页固定传 50**）；服务端归一化上限 **100**（`PageUtil.MAX_PAGE_SIZE`，超限截断），实际生效值以响应 `page` / `pageSize` 为准 |
+| `pageSize` | number | 否 | 每页条数（**搜索页固定传 50**）；服务端归一化上限 **100**（`PageUtil.MAX_PAGE_SIZE`，超限截断） |
 
 > **`GET /dishes` 完整参数集 = `page` / `pageSize` / `keyword` / `mealType`**（`mealType` 为菜品大类筛选参数，搜索页不传）；排序为服务端固定热度口径，端上不传排序参数。
 
@@ -38,7 +38,6 @@
 |---|---|---|
 | `records` | DishListItemVO[] | 当前页命中菜品行数组（端上以它为准） |
 | `total` | number | 命中总条数（服务端同口径统计）。**端上零读取**——搜索结果态判据 = 本次返回条数 / 结果数组是否为空 |
-| `page` / `pageSize` | number | 服务端归一化后的实际页码 / 每页条数 |
 
 **行字段 `DishListItemVO`（列表专用 8 字段）**：
 

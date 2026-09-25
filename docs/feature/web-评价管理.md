@@ -39,8 +39,6 @@
 |---|---|---|
 | `records` | ReviewAdminVO[] | 当前页评价行数组（端上以它为准） |
 | `total` | number | 符合条件的评价总条数 |
-| `page` | number | 服务端归一化后的实际页码 |
-| `pageSize` | number | 服务端归一化后的实际每页条数 |
 
 ### 响应 · `ReviewAdminVO` 单行字段
 

@@ -127,3 +127,22 @@
 
 **无（文档与代码一致）**。
 
+---
+
+## 7. 接口数据字段（UI 精修用）
+
+**页面**：`pages/find/index`
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /dishes/for-you` | `keyword` | 「猜你喜欢」chip 文案（端上不排序、不截断） |
+| `GET /dishes`（`PageResult<DishListItemVO>`） | `records[].id` / `name` / `coverImage` / `canteen` / `stallName` / `price` / `rating` | 结果行：主键 / 菜名（命中片段加粗）/ 缩略图 / 位置行两段 / 价格 / 均分 |
+| | `records[].originalPrice` | 判折扣（`originalPrice > price` → 划线） |
+| | `total` | 结果计数/空态判定（分页壳仅 `records` / `total`；页码由请求侧掌握） |
+
+**入参提交**：`GET /dishes` → `keyword` / `page=1` / `pageSize=50`
+
+**UI 组件**：公共 `AppTitleBand`(返回) / `SearchBar`(input) / `IconSvg` / `RetryBlock` / `SectionTitle` / `CardSection`；页内私有 `FindResults`
+**控件类型**：`scroll-view`（结果区内）、`input` 搜索框、chip（记录 / 推荐两套样式）、`uni.showModal`（清空记录确认）
+

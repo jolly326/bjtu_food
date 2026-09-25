@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/admin/feedbacks")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminToken")
 public class FeedbackAdminController {
 
     private final FeedbackService feedbackService;

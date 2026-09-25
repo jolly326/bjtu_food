@@ -11,12 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * IP 维度滑动窗口限频（进程内内存实现：ConcurrentHashMap + 容量上限 + @Scheduled 定时清理）。
  * <p>
- * <b>2026-09-23 §7.41</b>：原「dish 包 ViewRateLimiter」（用户维度去重；命中则**跳过计数**、
- * 不拒绝请求）已随浏览量改 PV 口径**整体退役** → 本类现为项目内**唯一的进程内限频实现**，
- * 同时是「浏览量上报」这一匿名写接口的**唯一防护**（见 {@code DishController#addView}）。
+ * 本类为项目内**唯一的进程内限频实现**。
  * <p>
- * 适用 permitAll 公开写入口的滥用防护（如 POST /feedback 灌库、/auth/email-code
- * 换邮箱刷码、POST /dishes/{id}/views 刷浏览量）：同一客户端 IP 在窗口内的请求次数受多条规则共同约束（如
+ * 适用 permitAll 公开写入口的滥用防护（如 POST /feedback 灌库、POST /auth/email-code
+ * 换邮箱刷码、POST /dishes/{id}/correction 刷纠错）：同一客户端 IP 在窗口内的请求次数受多条规则共同约束（如
  * 每分钟 ≤2 条 + 每小时 ≤10 条）。状态仅存 JVM 内存、重启清零（可接受：
  * 限频为攻防止损，不要求跨实例强一致）。
  * <p>

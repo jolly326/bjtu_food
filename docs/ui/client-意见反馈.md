@@ -19,3 +19,26 @@
   - 提交区（表单最下方，随内容滚动）：处理承诺小字（issue「我们会在 48 小时内处理你的反馈，处理结果将通过站内通知告知」/ update「提交后由管理员核实，确认无误后更新菜品信息」）+ `AppButton`（文案「提交反馈」/「提交更新」；提交中「提交中…」+ loading）；`canSubmit` 门禁，置灰点击由外层热区 toast 缺失项；提交中防重复提交。
   - 成功：Toast「已提交，感谢反馈」+ 2 秒无操作自动返回；两模式表单统一重置。
 - 落点参数：`mode=issue|update`（缺省 issue）、`dishId`（update 模式深链预选，直接拉详情预填）。
+
+## 接口数据字段（UI 精修用）
+
+**页面**：`pages/feedback/index`（`mode=issue|update` 双模式）
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /dishes`（`PageResult<DishListItemVO>`） | `records[].id` / `name` / `canteen` / `stallName` / `coverImage` | 菜品选择弹层：主键 / 菜名 / 位置副行 / 缩略图 |
+| `GET /dishes/{id}`（`DishDetailVO`） | `name` / `price` / `originalPrice` / `canteen` / `stallName` / `flavorTags` / `ingredients` / `images` / `image` / `rating` | update 模式**预填全量表单**（价格按元展示、图可增删） |
+| `GET /dishes/attributes` | `field` / `value` / `label` | 口味 / 食材 chips 中文（机器值 → 中文，未命中回落原值） |
+
+**入参提交**
+| 接口 | 字段 |
+|---|---|
+| `POST /feedback`（issue） | `type='issue'` / `content`（≤1000 字）/ `images`（≤3） |
+| `POST /dishes/{id}/correction`（update） | `name` / `price`（**整数分**）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]` |
+| `GET /dishes`（搜索候选） | `keyword` / `page` / `pageSize` |
+
+**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 菜品名称不能为空 / 价格必须为大于 0 的整数（单位：分）/ 菜品图片最多 N 张 / 图片地址不合法 / IP 限频「提交过于频繁」｜`4001` 菜品不存在（纠错）
+
+**UI 组件**：公共 `AppHeader` / `AppButton` / `ImagePicker` / `IconSvg` / `BaseSheet`（经 ListPickerSheet）；页内私有 `IssueForm` / `UpdateForm` / `ListPickerSheet`
+**控件类型**：`scroll-view`、分段控件 `seg`（互不清空草稿）、`textarea`、`input`（名称 / 价格 digit / chips 自由输入）、chips 增删、菜品选择弹层（搜索 + 列表 + 空态）、字段级错误滚动定位

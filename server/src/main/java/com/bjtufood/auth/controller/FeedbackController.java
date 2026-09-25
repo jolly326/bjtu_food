@@ -23,8 +23,7 @@ import java.util.List;
 
 /**
  * 用户反馈接口（task-09 升级：路径不变，DTO 规范化）
- * 2026-09-07：学生端「我的反馈列表」GET /feedback/my 随前端 getMyFeedback 删除（反馈中心已下线），
- * 提交反馈 POST /feedback 与 admin 端 /admin/feedbacks 保留（Web 后台 FeedbackView 消费）。
+ * 学生端仅保留提交反馈 POST /feedback；admin 端 /admin/feedbacks 由 Web 后台 FeedbackView 消费。
  */
 @Tag(name = "用户反馈", description = "用户通过联系开发者页面提交反馈")
 @RestController

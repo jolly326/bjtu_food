@@ -27,6 +27,7 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 
     private static final long SEND_INTERVAL_SECONDS = 60;
     private static final long CODE_EXPIRE_MINUTES = 10;
+    private static final String PURPOSE = "verify";
 
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
     private final PasswordEncoder passwordEncoder;
@@ -37,12 +38,11 @@ public class EmailCodeServiceImpl implements EmailCodeService {
     private String mailFrom;
 
     @Override
-    public void sendCode(String username, String email, String purpose) {
-        String normalizedEmail = resolveEmail(username, email);
+    public void sendCode(String username) {
+        String normalizedEmail = resolveEmail(username);
         validateCampusEmail(normalizedEmail);
-        String normalizedPurpose = normalizePurpose(purpose);
 
-        checkRateLimit(normalizedEmail, normalizedPurpose);
+        checkRateLimit(normalizedEmail, PURPOSE);
 
         String code = String.format("%06d", secureRandom.nextInt(1_000_000));
 
@@ -50,36 +50,32 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         EmailVerificationCode record = new EmailVerificationCode();
         record.setEmail(normalizedEmail);
         record.setCodeHash(passwordEncoder.encode(code));
-        record.setPurpose(normalizedPurpose);
+        record.setPurpose(PURPOSE);
         record.setExpiresAt(DateTimeUtil.now().plusMinutes(CODE_EXPIRE_MINUTES));
         emailVerificationCodeMapper.insert(record);
 
         try {
-            sendEmail(normalizedEmail, code, normalizedPurpose);
+            sendEmail(normalizedEmail, code);
         } catch (Exception e) {
             // 发邮件失败 → 回滚已落库记录，避免留下孤儿验证码（用户不可用但占用限流窗口）
             emailVerificationCodeMapper.deleteById(record.getId());
             throw e;
         }
 
-        log.info("Email verification code sent to {}, purpose={}", normalizedEmail, normalizedPurpose);
+        log.info("Email verification code sent to {}", normalizedEmail);
     }
 
     /**
-     * 校园邮箱规则：邮箱 = {学号}@bjtu.edu.cn。
-     * email 显式传入则优先使用（仍校验 @bjtu.edu.cn 后缀）；否则由学号推导。
+     * 校园邮箱规则：邮箱 = {学号}@bjtu.edu.cn，由学号推导。
      */
-    private String resolveEmail(String username, String email) {
-        if (StringUtils.hasText(email)) {
-            return normalizeEmail(email);
+    private String resolveEmail(String username) {
+        if (!StringUtils.hasText(username)) {
+            throw new BusinessException("请填写学号");
         }
-        if (StringUtils.hasText(username)) {
-            return username.trim().toLowerCase(Locale.ROOT) + "@bjtu.edu.cn";
-        }
-        throw new BusinessException("请填写学号或校园邮箱");
+        return username.trim().toLowerCase(Locale.ROOT) + "@bjtu.edu.cn";
     }
 
-    private void sendEmail(String to, String code, String purpose) {
+    private void sendEmail(String to, String code) {
         if (!StringUtils.hasText(mailFrom)) {
             throw new BusinessException("SMTP 发件邮箱未配置，请设置 MAIL_USERNAME");
         }
@@ -127,18 +123,6 @@ public class EmailCodeServiceImpl implements EmailCodeService {
             long remainingSeconds = Duration.between(DateTimeUtil.now(), nextAllowedAt).getSeconds();
             throw new BusinessException("发送太频繁，请 " + Math.max(1, remainingSeconds) + " 秒后重试");
         }
-    }
-
-    private String normalizeEmail(String email) {
-        if (!StringUtils.hasText(email)) {
-            throw new BusinessException("邮箱不能为空");
-        }
-        return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String normalizePurpose(String purpose) {
-        // purpose 收窄为 verify（spec §5.y.5）：旧 login/register/reset 一律归一为 verify
-        return "verify";
     }
 
     private void validateCampusEmail(String email) {

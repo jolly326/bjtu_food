@@ -118,13 +118,13 @@ const mealTypeFilter = ref<string>('')
  * 否则该类菜品筛不出来（出现死数据 / 漏筛）。
  */
 const mealTypeFilterOptions = computed(() => {
-  const covered = new Set(mealTypeStore.list.map(t => t.key))
+  const covered = new Set(mealTypeStore.list.map(t => t.value))
   const extras = Array.from(new Set(
     store.dishes.map(d => d.mealType).filter((key): key is string => !!key && !covered.has(key)),
   )).sort()
   return [
     { label: '全部大类', value: '' },
-    ...mealTypeStore.list.map(t => ({ label: t.label, value: t.key })),
+    ...mealTypeStore.list.map(t => ({ label: t.label, value: t.value })),
     ...extras.map(key => ({ label: key, value: key })),
   ]
 })

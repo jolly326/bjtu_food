@@ -165,7 +165,7 @@ const { markDirty, refreshOnShow } = useOnShowRefresh(load)
 /**
  * 点击通知：仅标记已读（不删除该能力）。
  * 跳转口径：feedback_handle 停留本页（回执正文已在内容区展示，不做跳转）；
- * 未知类型（含历史存量通知的退役类型）同样不跳转——端上不为未知类型臆测目标页。
+ * 未知类型同样不跳转——端上不为未知类型臆测目标页。
  */
 async function onTap(n: Notification) {
   if (n.isRead === 0) {

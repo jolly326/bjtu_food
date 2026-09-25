@@ -71,7 +71,7 @@ public class ImageUrlUtil {
     /**
      * 校验 UGC 配图 URL 是否为受信任的 COS 绝对地址。
      * <p>
-     * UGC 配图（评价/反馈）只允许走 {@code POST /upload/images} 链路产出：
+     * UGC 配图（评价/反馈）只允许走 {@code POST /upload/cloud-image} 链路产出：
      * fileID → 内容安全检测 → COS 转存，返回形如
      * {@code https://{bucket}.cos.{region}.myqcloud.com/{key}} 的绝对地址。
      * 校验规则：https 协议 + 腾讯云 COS 固定域名格式（.cos.{region}.myqcloud.com），

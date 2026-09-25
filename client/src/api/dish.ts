@@ -117,10 +117,10 @@ export async function getGuessLike(): Promise<GuessLike[]> {
 }
 
 /** 菜品大类字典（GET /dishes/meal-types）：首页横向标签栏数据源，文案与顺序全由后端下发 */
-export async function getMealTypes(): Promise<{ key: string; label: string; order: number }[]> {
+export async function getMealTypes(): Promise<{ value: string; label: string; order: number }[]> {
   const raw = await get<RawRow[]>('/dishes/meal-types')
   return (raw || []).map((item: RawRow) => ({
-    key: String(item.key || ''),
+    value: String(item.value || ''),
     label: String(item.label || ''),
     order: Number(item.order ?? 0),
   }))

@@ -118,10 +118,11 @@ public class UserServiceImpl implements UserService {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
-        vo.setEmail(user.getEmail());
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setStatus(user.getStatus());
+        // 是否绑定微信：由 openid 非空派生（不暴露 openid 明文），管理端用户列表消费
+        vo.setWechatBound(user.getOpenid() != null);
         vo.setBindEmail(user.getBindEmail());
         vo.setCreatedAt(user.getCreatedAt());
         return vo;

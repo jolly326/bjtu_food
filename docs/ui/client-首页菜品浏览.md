@@ -131,7 +131,7 @@
 ### 2. 横向大类标签栏
 
 - **标签集合（7 项）**：`全部` ｜ `套餐盖饭` ｜ `家常小炒` ｜ `面食粉类` ｜ `香锅干锅` ｜ `风味小吃` ｜ `汤饮甜品`
-- 由 `GET /dishes/meal-types` 下发（`[{ key, label, order }]`）：文案、顺序、子集、增删**全由后端决定，端上一个不写死**；首项「全部」= 不传 `mealType`，端上固定渲染；
+- 由 `GET /dishes/meal-types` 下发（`[{ value, label, order }]`）：文案、顺序、子集、增删**全由后端决定，端上一个不写死**；首项「全部」= 不传 `mealType`，端上固定渲染；
 - **空类自动隐藏**：后端只下发当前有在售菜品的大类（某类空了隐藏、有菜自动出现），端上零改动；
 - 横向可滑动；**UI 为单选模式**，同一时间仅选中一个大类标签（菜品归属大类由后端定义）；**选中 / 未选中字色同为 `--text-primary` 黑色**，区分靠**字重（选中 `--weight-semibold`）+ 橙色短下划线**（`--color-primary-bright`）；点击切换 → 列表刷新；v1 不显示计数。
 - **光学间距**：标签行高 **88rpx（触达下限，不得压低）**；标签文字在行内**上偏置 24rpx**（`padding-top`），下划线紧随文字 **4px**（`--spacing-xs`）。行内偏置是「搜索区 → 标签文字」间距的**唯一来源**（≈ **12px**）；「下划线 → 卡片首行」= 容器下 padding（`--spacing-sm` 8px）+ 行底余量（≈8px）≈ **16px**。两者满足「下行距 ≥ 上行距」，且**不与标签行外 padding 叠加**。**下划线不得吸到行底**——那会让它离文字 ≈16px、与标签脱开。标签栏行高不变 → §1.3 的 `H_s` 不受影响。
@@ -338,3 +338,23 @@
 18. **字号 / 间距刻度**：① 卡片三段字号固定为「菜名 `--font-subtitle` 32rpx > 位置行 = 评分 `--font-body` 28rpx > 」（价格 `--font-h3` 36rpx）；② 任何正文级文本**不得低于 12px**（`--font-small` 24rpx 已是下限，窄屏场景须按 §3 用 `--font-body`）；③ 搜索区控件内距按 §1.2（图标↔文字 8px、按钮左右 16px）；④ 标签栏光学间距按 §2（上行距 ≈12px / 下行距 ≈16px，下划线紧随文字 4px、**不得吸底**）。
 
 > **图片占位策略（本期所有图片先占位，禁止无限空转加载）**：① 菜品图——失败立即回退**灰底 + 菜品 icon** 空态（`var(--bg-soft)` + `IconSvg name="dish"`，**菜品图占位口径**唯一真源 = `pages/home/DishCard.vue`）；② Banner 轮播图——`GET /banners` 返回空 / 请求失败 / 单张加载失败 → **复用同一灰底 + 中性 `empty` 图标**（见 §1，**不写文字说明**），**占位块高仍按 16:10**；③ 列表请求失败 → 失败重试块（`RetryBlock`）。**预览排查**：若标签栏只剩「全部」或不出现 → 字典请求失败，依次检查：后端是否在线（`GET /dishes/meal-types` 应返回 6 项）、开发者工具是否勾选「不校验合法域名」、是否使用了最新构建产物（`dist/build/mp-weixin`）；若 Banner 恒为占位图 → 检查 `GET /banners` 是否返回非空数组、图片 URL 是否可达。
+
+---
+
+## 接口数据字段（UI 精修用）
+
+**页面**：`pages/home/index`（TabBar 主根页）
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /banners` | `id` / `imageUrl` | 轮播 key / 图片渲染（无跳转字段） |
+| `GET /dishes/meal-types` | `value` / `label` / `order` | 筛选参数 / 标签文案 / 后端顺序（端上不排序） |
+| `GET /dishes`（`PageResult<DishListItemVO>`） | `records[].id` / `name` / `price` / `coverImage` / `rating` / `canteen` / `stallName` | 卡片主键 / 菜名 / 价格 / 图 / 均分 / 位置行两段 |
+| | `records[].originalPrice` | **零消费**（首页卡片不展示划线原价，仅搜索页结果行消费） |
+| | `total` | 触底判断（分页壳仅 `records` / `total`；页码由请求侧掌握） |
+
+**入参提交**：`GET /dishes` → `mealType`（首项「全部」不传）/ `page` / `pageSize`
+
+**UI 组件**：公共 `AppTitleBand` / `SearchBar`(entry) / `TabBar` / `IconSvg` / `RetryBlock`；页内私有 `HomeMealTabs` / `HomeContent` / `DishCard`
+**控件类型**：`scroll-view`(scroll-y + scrolltolower)、`swiper` 轮播、`position: sticky` 吸顶容器、固定标题带

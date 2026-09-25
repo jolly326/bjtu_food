@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
  * 所有 Controller 接口统一使用此类作为响应体，格式：
  * <pre>
  * {
- *   "code": 200,       // HTTP 状态码
+ *   "code": 200,       // 业务状态码（除 403 类授权错误 / 参数校验 / 过滤器层外，HTTP 恒 200）
  *   "message": "成功",  // 提示信息
  *   "data": { ... }    // 业务数据
  * }
@@ -25,7 +25,9 @@ import lombok.NoArgsConstructor;
 @Schema(description = "统一响应结果")
 public class Result<T> {
 
-    /** HTTP 状态码（200=成功, 400=参数错误, 401=未登录, 403=无权限, 500=服务器错误） */
+    /** 业务状态码（200=成功, 400=参数/业务错误, 401=未登录, 403=无权限,
+     *  4031=未完成学号邮箱认证, 4001=资源不存在, 500=服务器错误）。
+     *  注：除 403 类授权错误与参数校验 / 过滤器层外，业务码统一挂在 HTTP 200 响应上，端上以 body.code 为准。 */
     @Schema(description = "状态码", example = "200")
     private int code;
 

@@ -23,7 +23,7 @@ export interface DishCorrectionPayload {
   flavorTags: string[]
   /** 食材（预填详情机器值 + 用户自由输入项，可增删） */
   ingredients: string[]
-  /** 图片 URL（预填菜品现有图 + 用户新增，经 ImagePicker → /upload/images 安检） */
+  /** 图片 URL（预填菜品现有图 + 用户新增，经 ImagePicker → /upload/cloud-image 安检） */
   images: string[]
 }
 
@@ -33,7 +33,7 @@ export type FeedbackSubmit =
       type: 'issue'
       /** 反馈内容（必填） */
       content: string
-      /** 配图（COS URL，≤3 张；经 ImagePicker → /upload/images 安检后回传） */
+      /** 配图（COS URL，≤3 张；经 ImagePicker → /upload/cloud-image 安检后回传） */
       images?: string[]
     }
   /** 评价举报（菜品详情页举报弹层，非意见反馈页）：以结构化原因单选为准（sub），content 可空 */

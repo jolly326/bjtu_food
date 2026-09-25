@@ -30,6 +30,6 @@ public class ReviewReq {
     private String content;
 
     @Size(max = 3, message = "评价配图最多 3 张")
-    @Schema(description = "评价配图 URL 列表（经 POST /upload/images 转存的 COS 绝对地址，≤3 张）")
+    @Schema(description = "评价配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张）")
     private List<String> images;
 }

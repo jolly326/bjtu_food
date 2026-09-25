@@ -7,7 +7,7 @@
 
 - 入口：**「我的主页」用户信息卡右侧「编辑个人信息」**（游客态与认证态同达，无认证拦截）。宿主主页见 [client-我的主页.md](./client-我的主页.md)。
 - 页面形态：**独立页面**，`AppHeader` 页头标题「**个人信息**」+ 可滚动表单区；返回箭头 = `navigateBack`。二级页，**无 TabBar**。
-- 构成（自上而下）：页头 → **头像行**（可改）→ **昵称行**（可改）→ **学号 / 校园邮箱**（只读）→ 页面底部主按钮「**保存**」。
+- 构成（自上而下）：页头 → **头像行**（可改）→ **昵称行**（可改）→ **学号 / 校园邮箱 / 注册时间**（只读）→ 页面底部主按钮「**保存**」。
 
 ### 1. 字段区
 
@@ -19,6 +19,7 @@
 | 昵称 | 标签「昵称」 | `input`，占位「请输入昵称」，`maxlength=20` | **是** |
 | 学号 | 标签「学号」 | 只读文本（`--text-secondary`） | 否 |
 | 校园邮箱 | 标签「校园邮箱」 | 只读：认证态 = `bindEmail`；游客态 = 「未绑定校园邮箱」（`--text-tertiary`） | 否 |
+| 注册时间 | 标签「注册时间」 | 只读：`createdAt`（`yyyy-MM-dd HH:mm:ss`）；游客态同显示 | 否 |
 
 - 只读行**不放任何跳转入口**（身份认证动作单一入口 = 「我的」页宫格「身份认证」格）。
 
@@ -42,3 +43,25 @@
 
 - 头像行 `role="button"` + `aria-label="更换头像"`；昵称输入带 `aria-label="昵称"`；右侧 `arrow` 图标 `aria-hidden="true"`。
 - `prefers-reduced-motion: reduce` 下取消可点行的 `background-color` 过渡（按压反馈退化为**直接换色**）；按压取 `--bg-soft`，**非** scale。
+
+### 6. 接口数据字段（UI 精修用）
+
+**页面**：`pages/profile/index`
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `GET /auth/profile`（`UserInfoVO`） | `avatar` / `nickname` | 可编辑两行的回填 |
+| | `username` / `bindEmail` / `createdAt` | 学号 / 校园邮箱 / 注册时间三只读行 |
+| | `id` | 本页不展示（不参与渲染） |
+
+**入参提交**
+| 接口 | 字段 |
+|---|---|
+| `PUT /auth/profile` | `nickname` / `avatar`（**至少一项**；`avatar` 须为站内 `/images/`、`/uploads/` 或 `cloud://`） |
+| 头像上传链路 | `wx.cloud.uploadFile` 得 `fileID` → `POST /upload/cloud-image`（`fileId`）→ 取回绝对 URL 暂存，随保存写入 |
+
+**错误码**：`400` 昵称和头像至少填写一项 / 昵称包含敏感内容 / 头像地址不合法｜`401` 未登录｜`4031` 不适用（本页免认证）
+
+**UI 组件**：公共 `AppHeader` / `AppButton` / `IconSvg`
+**控件类型**：`scroll-view`、`input`（`maxlength=20` 昵称）、`uni.chooseImage` 选图、`ActionSheet`（拍照 / 相册）、固定底部 `submit-bar`、`RetryBlock` 失败态

@@ -104,11 +104,11 @@ export const useUserStore = defineStore('user', () => {
     }
     loading.value = true
     try {
-      const res = await userApi.verifyEmail(code)
-      token.value = res.token
-      userInfo.value = res.userInfo
-      saveAuth(res.token, res.userInfo)
-      return res.userInfo
+      const info = await userApi.verifyEmail(code)
+      // 仅刷新 userInfo：JWT 不含 bind_email、后端实时查库判定认证态，无需（也不应）替换 token
+      userInfo.value = info
+      uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
+      return info
     } finally {
       loading.value = false
     }

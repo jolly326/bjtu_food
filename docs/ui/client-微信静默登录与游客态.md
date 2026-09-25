@@ -8,3 +8,21 @@
 - 全局生效，**没有登录页**。
 - 未认证用户点击「写评价」「重新评价」时，跳转身份认证页 `pages/auth/index`（入口不置灰）。
 - 「我的」页用户卡展示昵称 / 头像 / 游客短标识；**游客短标识由 `id` 端上派生**（「食客 + ID 尾 4 位」），非接口出参（见「字段」节）。
+
+## 接口数据字段（UI 精修用）
+
+**页面**：无独立页面（全局登录态，存于 `stores/user`）
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `POST /auth/wechat-login`（`LoginVO`） | `token` | 写入本地 storage，后续请求 `Authorization: Bearer` |
+| | `userInfo`（`UserInfoVO` 6 字段） | 全局用户态：`id` / `username` / `nickname` / `avatar` / `bindEmail`（认证判据）/ `createdAt` |
+| `GET /auth/profile` | 同上 6 字段 | 已有 token 时的资料刷新（`silentLogin` 分支） |
+
+**入参提交**：`POST /auth/wechat-login` → `code`（`wx.login` 换得，端上不传 openid）
+
+**错误码**：`400` 微信登录未配置 / 凭证无效或已过期 / 账号已被禁用 / 账号已注销 / 创建账号失败｜`500` 微信登录服务暂不可用
+
+**UI 组件**：无（全局 store，无专属界面；用户卡视觉归「我的」页与「我的主页」）
+**控件类型**：无

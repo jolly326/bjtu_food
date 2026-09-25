@@ -54,7 +54,7 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 - **认证态不进 JWT**：JWT claims 仅含 `userId`（7 天），后端按 `bind_email` 实时判定。
 - **绑定与迁移**：邮箱是唯一迁移 / 绑定凭证；同一邮箱被新微信认证时直接替换旧绑定（历史数据归属随迁）；不设解绑入口。
 - **权限矩阵**：游客可浏览全部公开数据 + `POST /feedback` / `POST /dishes/{id}/correction`（公开免认证）；UGC 写操作需已认证（`4031` 跳转身份认证页 `pages/auth/index`，**入口不置灰**）；已认证但缺 openid → `403` 提示微信登录（**禁止自动换号**，须用户确认）；系统通知 `/my/notifications/*` 服务端认证专属、前端游客直达且静默处理。
-- **注销**：`DELETE /auth/account` 匿名化（nickname→「已注销用户」、openid 解绑、bind_email 清空、status=deleted），评价 / 反馈保留去身份化；token 立即失效；幂等。
+- **注销**：`DELETE /auth/account` 匿名化（nickname→「已注销用户」、openid 解绑、bind_email 清空、status=deleted），评价 / 反馈保留去身份化；系统通知随注销删除；token 立即失效（内存黑名单、7 天窗口，服务重启后由 status=deleted 持久兜底）；重复注销 400（终态保护）。**不可恢复**：openid 解绑后同一微信重新登录创建全新账号，旧数据不归属新账号（无冷静期 / 撤回）。
 
 ### 2.3 管理端鉴权（无登录体系）
 
@@ -90,7 +90,7 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 - 分层职责：`api/`（HTTP 契约薄层）、`types/`（共享 DTO）、`stores/`（全局状态）、`composables/`（跨页逻辑编排，页面一次性编排就近放页面包）、`utils/`（纯函数）、`theme/`（设计令牌）、`components/`（仅 ≥2 页使用的公用组件）、`pages/`（分包根按功能域组织；页面内复用模块抽**包内私有组件**且只做一级拆分）。
 - 组件组织：components 与 pages 双向定期治理；迁移不改变行为，type-check + mp-weixin 构建全绿（细则见 `.codebuddy/rules/client-components-org.md`）。
 - import 风格：同目录 `./X`、跨层 `@/…`，**禁止 `../` 跨层逃逸**；不引入 barrel 重导出。
-- 页面共 **10 个**——主包 3：`home`（首页）/ `mine`（我的）/ `find`（搜索，首页搜索框进入的二级页，留主包）；分包 7：`detail/dish`（菜品详情，唯一预载分包）/ `auth`（身份认证）/ `notifications`（系统通知）/ `feedback`（意见反馈）/ `my-reviews`（**我的主页**：用户信息卡 + 名下评价列表）/ `profile`（个人信息编辑）/ `privacy`（隐私政策与用户协议）。TabBar 固定 2 页（home / mine）。
+- 页面共 **11 个**——主包 3：`home`（首页）/ `mine`（我的）/ `find`（搜索，首页搜索框进入的二级页，留主包）；分包 8（7 个 root）：`detail/dish`（菜品详情，唯一预载分包）/ `auth`（身份认证）/ `notifications`（系统通知）/ `feedback`（意见反馈）/ `my-reviews`（**我的主页**：用户信息卡 + 名下评价列表）/ `profile`（个人信息编辑）/ `privacy/index`（隐私政策）、`privacy/agreement`（用户协议）。TabBar 固定 2 页（home / mine）。
 - 公共组件 11 个：`AppButton / AppHeader / AppTitleBand / BaseSheet / CardSection / IconSvg / ImagePicker / RetryBlock / SearchBar / SectionTitle / TabBar`；其余为页包内私有组件。
 - 认证承载于**独立认证页** `pages/auth/index`（页头「身份认证」+ 学号 / 邮箱验证码表单 + 主按钮「认证」+ 隐私说明，复用全站表单字段语言：浅底无边框输入项、主色实底主按钮）；所有需认证入口（「我的」页身份认证格、详情页写评价 / 删除评价守卫、请求层 `4031`）经 `uni.navigateTo` 跳转认证页，认证成功返回原页后由原页 `onShow` 续接待办动作，未完成认证离开认证页即清除待办；发码 60s 冷却由 `stores/auth` 持有（跨进出页面持久）；软键盘弹起时输入区须上推且提交按钮不被遮挡。
 
@@ -127,12 +127,24 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 **认证域**：`POST /auth/wechat-login` / `email-code`（60s 限频、10min 有效）/ `verify-email`；`GET|PUT /auth/profile`；`DELETE /auth/account`。
 **UGC（需认证）**：`POST /dishes/{id}/reviews`、`PUT /reviews/{id}`（覆盖重评，刷新 `created_at`）、`DELETE /reviews/{id}`；`GET /my/reviews`（本人视角，`dishId` 可选过滤）。
 **通知（需认证）**：`GET /my/notifications` / `unread-count`；`PUT /my/notifications/read-all` / `{id}/read`。
-**上传**：`POST /upload/images`（云存储 fileID → `imgSecCheck` → COS 转存，单张契约，需登录）；`POST /upload/image`（multipart，管理端口令守卫）；小程序头像走微信云存储 `cloud://` 直存。
+**上传**：`POST /upload/cloud-image`（云存储 fileID → `imgSecCheck` → COS 转存，单张契约，需登录）；`POST /admin/upload/image`（multipart，管理端口令守卫）；小程序头像走微信云存储 `cloud://` 直存。
+
+**统一响应与错误码（唯一真源）**：所有接口以 `Result{code,message,data}` 返回，**业务码为唯一判据**——端上只读 `body.code`，不依赖 HTTP 状态码。HTTP 状态仅用于四类：正常 `200`；`BusinessException(code=403)` / `AccessDeniedException` / 管理端口令与 Origin 校验失败 → `403`；参数校验类 → `400`；过滤器层未认证 → `401`；兜底异常 → `500`。**其余业务错误（含 `400` / `401` / `4031` / `4001` / `500`）一律挂在 HTTP 200 响应上**。
+
+| code | 含义 | 触发场景 | 端上动作 |
+|---|---|---|---|
+| `200` | 成功 | 正常返回 | 取 `data` |
+| `400` | 参数 / 业务错误 | 入参校验失败、IP 限频、业务规则拒绝（`message` 给出原因） | Toast `message` |
+| `401` | 未登录 / 登录态失效 | 无 token、token 过期、账号被拉黑（含已注销） | 清本地态 + 静默登录（注销链路禁用重试） |
+| `403` | 无权限 | 非本人资源、账号被禁用、`@PreAuthorize` 拒绝 | Toast `message` |
+| `4031` | 未完成学号邮箱认证 | UGC 写操作时 `bind_email` 为空 | 提示 + 跳身份认证页 `pages/auth/index` |
+| `4001` | 资源不存在 | 菜品不存在 / 已下架 | 提示并返回 |
+| `500` | 服务端错误 | 上游（微信）异常、存储未配置等 | Toast「服务异常，请稍后重试」 |
 **管理端（口令）**：`GET|PUT /admin/canteens`、`GET|PUT /admin/stalls`（字典仅新增[随菜品 upsert]/改名/查看，**无删除**）、`GET|POST|PUT|DELETE /admin/dishes`、`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`、`GET /admin/feedbacks`、`PUT /admin/feedbacks/{id}`、`GET /admin/corrections`、`POST /admin/corrections/{id}/adopt`（**两段式档口确认**：带 `stallId` ＞ `stallName` 精确匹配 ＞ `createIfMissing` 按名新建；均未命中返回候选 `{needStallConfirm, candidates}` 不执行采纳；采纳 = 七字段写回目标菜品，可空快照字段不覆盖既有值）、`PUT /admin/corrections/{id}`（拒绝：回复 + 不采纳原因必填）、`PUT /admin/users/{id}/status`。
 
 ### 4.4 通用规范
 
-- **分页**：`PageResult<T>{ records, total, page, pageSize }`（无 `list` 字段）；归一化 `page<1→1`、`pageSize<1→10`、`pageSize>100→100`；单页非分页返回 `List<T>`。结束判据：首页 / 搜索 = 本页返回条数 < pageSize；评价区 = 已加载条数 ≥ total；分页请求失败静默且不得推进页码。
+- **分页**：`PageResult<T>{ records, total }`（无 `list` 字段，无页码 / 每页条数回传——请求侧已知，回传即零消费冗余）；入参归一化 `page<1→1`、`pageSize<1→10`、`pageSize>100→100`；单页非分页返回 `List<T>`。结束判据：首页 / 搜索 = 本页返回条数 < 请求 pageSize；评价区 = 已加载条数 ≥ total；分页请求失败静默且不得推进页码。
 - **金额**：存储与传输一律「分」，分↔元转换只在 api 层（`utils/money`），禁止页面裸算。
 - **命名**：对外 JSON 一律 camelCase；跳转字段统一 `targetType/targetId/targetUrl`；UGC 配图字段统一 `images`（string[]，≤3 项 COS URL）；评价状态 `isHidden`(0/1)；Web `snake_case` 仅限 `api/adapter.ts`。
 - **枚举与字典（PR-12）**：枚举 / 常量展示与后端常量表同源，唯一合规模式 = **后端下发字典 `{value, label, order}`，前端零硬编码映射**；判定同源须三端同时盘点硬编码点。
@@ -161,7 +173,7 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 - **菜品大类**：`meal_type` 单值枚举（set_meal/stir_fry/noodle/dry_pot/snack/soup_drink），1:N（一菜品恰属一大类）；筛选参数白名单校验非法 400；字典端点只含在售大类；大类与四维不得混用；判定按菜名与做法形态。
 - **价格两态**：`price`（现价，已含折扣）+ `originalPrice`（原价，可空）；折扣判据 `originalPrice > price`（端上判定为经拍板例外）；禁止双源取价。
 - **公开 VO 精简**：列表 `DishListItemVO` 8 字段 / 详情 `DishDetailVO` 16 字段（15 基础字段 + `ratingDistribution`；仅 `originalPrice` 可为 null；位置仅出参 `canteenName` / `stallName` 名称文本，无 `stallId`）；`viewCount` 只为热度排序服务、不出参、一直累计；`status` 不出参（公开恒在售）。
-- **浏览计数（PV 口径）**：计数内聚于 `GET /dishes/{id}` 的成功响应路径——每次成功获取详情 `view_count +1` 并**写入一条访问日志**（`view_log`，append-only、游客亦记 `user_id=0`）；无幂等语义；`4001` 与请求失败不计数；`view_log` 兼作时间窗口聚合（近一个月等最热菜品）的数据基础，窗口查询端点另行拍板；`dish.view_count`（全历史累计）与窗口聚合并存不混用；IP 限频（30/分 + 300/时）为唯一防刷兜底；热度权重 `heatScoreExpr = view_count×1 + rating_count×100 + avg_rating×20`（唯一真源 = `DishMapper.xml` 的 SQL 片段）。
+- **浏览计数（PV 口径）**：计数内聚于 `GET /dishes/{id}` 的成功响应路径——每次成功获取详情 `view_count +1`；无幂等语义；`4001` 与请求失败不计数；IP 限频（30/分 + 300/时）为唯一防刷兜底；热度权重 `heatScoreExpr = view_count×1 + rating_count×100 + avg_rating×20`（唯一真源 = `DishMapper.xml` 的 SQL 片段）。
 - **Banner**：首页顶部 16:10 多图轮播；`GET /banners` 公开出参仅 `id`/`imageUrl`（启用项按 `sort_order` 升序）；无跳转能力、无管理端录入入口（素材走种子脚本）。
 - **搜索**：关键词硬匹配菜名 / 档口名 / 食堂名；搜索历史为端上本地存储（可清空 / 单条删除）；「猜你喜欢」= 随机在售菜品名 ≤6 条。
 
@@ -169,9 +181,9 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 
 ## 5. 数据模型
 
-### 5.1 表基线（11 张）
+### 5.1 表基线（10 张）
 
-`user`、`canteen`、`stall`、`dish`、`review`、`notification`、`user_feedback`、`dish_correction`、`email_verification_code`、`view_log`、`banner`。
+`user`、`canteen`、`stall`、`dish`、`review`、`notification`、`user_feedback`、`dish_correction`、`email_verification_code`、`banner`。
 
 - `user`：openid（唯一索引、可空）、username、nickname、avatar、bind_email（认证唯一判据）、status；无 role / password / unionid / verified 列。
 - `dish`：归属 stall_id（外键必填）；price / original_price；四维（diet_type 单值、ingredients / flavor_tags JSON 数组、serve_temp 单值）；meal_type；view_count / avg_rating / rating_count（异步维护）；status(on/off) 为唯一运营开关；无 audit_status / reject_reason / created_by。
@@ -179,8 +191,8 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 - `review`：唯一键 `uk_review_user_dish`；is_hidden 唯一可见性开关；images JSON 数组；无 updated_at（重评刷新 created_at）；无 sec_state。
 - `user_feedback`：type 写入白名单 `issue`（我要反馈问题），存量旧值 `suggestion` / `add` / `error` / `bug` / `report` / `other` 仅管理端查询筛选、禁止新增；`issue` = content（≤1000 字，敏感词替换后入库）+ images（≤3 张）；处理 = status(pending → handled) + reply 必填 + 回执通知（`feedback_handle`），不采纳必填 reject_reason（`outcome=rejected` 派生，非物理列）；无 payload / contact / handler_id / sec_state。
 - `dish_correction`：**菜品信息纠错独立表**——`dish_id`（外键）+ 七字段拆列快照（`name` / `price`（分）/ `canteen_name` / `stall_name` / `flavor_tags` JSON / `ingredients` JSON / `images` JSON ≤9 张）+ status(pending / adopted / rejected) + reply / reject_reason / handled_at + user_id（可空，游客匿名提交）；索引 `idx_correction_dish` / `idx_correction_status`；处理 = 采纳（两段式档口确认后七字段写回 `dish`，可空快照字段不覆盖既有值）/ 拒绝（reply 必填 ≤1000 + reject_reason 必填 1~200）；回执通知 `correction_handle`「菜品信息更新」，采纳 / 拒绝均投递、仅已认证提交人。
-- `view_log`：**访问日志**（append-only，每次浏览 INSERT 一行；`user_id=0` 表示游客；按 `target_type + target_id + created_at` 索引支撑时间窗口聚合）；无更新语义。
 - 库设计满足 BCNF；唯一反规范化 = dish 三个聚合计数列（异步事件维护）。
+- **不采集浏览足迹**：行为日志类数据无读取方，按数据最小化原则不予采集（浏览量由 `dish.view_count` 承载）。
 
 ### 5.2 库表变更纪律
 

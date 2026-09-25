@@ -13,3 +13,23 @@
 - 隐私说明：认证后可用哪些能力（写评价等），以及验证码有效期；仅使用校内邮箱域名，无密码、无注册。
 - 步骤：输入学号 → 点「发送验证码」→ 输入 6 位验证码 → 点「认证」提交。
 - 待办续接：由需认证入口跳入时记录的动作（如自动重新打开写评价表单），在**认证成功返回原页后由原页 onShow 续接**；未完成认证离开认证页 → 待办清除。
+
+## 接口数据字段（UI 精修用）
+
+**页面**：`pages/auth/index`
+
+**出参消费**
+| 接口 | 字段 | 端上用途 |
+|---|---|---|
+| `POST /auth/verify-email` | `UserInfoVO` 全 6 字段（`id` / `username` / `nickname` / `avatar` / `bindEmail` / `createdAt`） | 成功即整体写回 `stores/user`（页面本身仅取成功态，**不单独渲染字段**） |
+
+**入参提交**
+| 接口 | 字段 | 说明 |
+|---|---|---|
+| `POST /auth/email-code` | `username` | 学号（端上 `deriveCampusEmail` 推导 `{学号}@bjtu.edu.cn`，**不传 email**） |
+| `POST /auth/verify-email` | `code` | 6 位验证码 |
+
+**错误码**：`400` 验证码错误 / 不存在或已过期 / 账号状态异常｜`401` 未登录｜发码限频 `400`（同邮箱 60s 冷却、同 IP 3/分 + 10/时）
+
+**UI 组件**：公共 `AppHeader` / `IconSvg`
+**控件类型**：`scroll-view`、`input`（学号 number / 验证码）、发码冷却按钮、主色实底主按钮、`role="alert"` 错误行

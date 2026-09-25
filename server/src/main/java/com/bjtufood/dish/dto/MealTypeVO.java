@@ -20,8 +20,8 @@ import lombok.NoArgsConstructor;
 @Schema(description = "菜品大类字典项")
 public class MealTypeVO {
 
-    @Schema(description = "大类枚举键（用于 GET /dishes?mealType= 筛选）", example = "noodle")
-    private String key;
+    @Schema(description = "大类枚举值（用于 GET /dishes?mealType= 筛选）", example = "noodle")
+    private String value;
 
     @Schema(description = "中文标签（端上直接渲染）", example = "面食粉类")
     private String label;

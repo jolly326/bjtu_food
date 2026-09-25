@@ -24,9 +24,6 @@ import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
-import com.bjtufood.history.entity.ViewLog;
-import com.bjtufood.history.mapper.ViewLogMapper;
-import com.bjtufood.history.service.HistoryService;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +43,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
 
-    /** view_log.target_type 值：菜品（与 ViewLog 实体注释 / HistoryServiceImpl 写入口径一致） */
-    private static final String VIEW_TARGET_TYPE_DISH = "dish";
-
     /**
      * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
      * <p>
@@ -62,8 +56,6 @@ public class DishServiceImpl implements DishService {
     private final DishMapper dishMapper;
     private final StallService stallService;
     private final ReviewMapper reviewMapper;
-    private final ViewLogMapper viewLogMapper;
-    private final HistoryService historyService;
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
@@ -92,8 +84,8 @@ public class DishServiceImpl implements DishService {
         // 某类暂时没有 status='on' 的菜品即不下发，重新有菜自动出现；顺序 = 常量声明序（order 升序）
         Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
         return MealTypeConst.ALL.stream()
-                .filter(mt -> inStock.contains(mt.key()))
-                .map(mt -> new MealTypeVO(mt.key(), mt.label(), mt.order()))
+                .filter(mt -> inStock.contains(mt.value()))
+                .map(mt -> new MealTypeVO(mt.value(), mt.label(), mt.order()))
                 .collect(Collectors.toList());
     }
 
@@ -114,15 +106,14 @@ public class DishServiceImpl implements DishService {
      * 菜品详情（含**浏览计数副作用**）。
      * <p>
      * 计数口径（PV）：本方法**成功取到详情后**执行 {@code view_count + 1}（SQL 原子自增，
-     * 避免读-改-写丢计数）并写入一条访问日志（view_log，append-only；游客 userId=null 记 0）。
-     * 菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数、不写日志。
+     * 避免读-改-写丢计数）。菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数。
      * <p>
-     * 事务：查询与两个写操作同处一个事务 —— 任一写失败则详情一并失败，
-     * 保证「返回 200 的响应必然已计数 + 已记日志」的口径自洽。
+     * 事务：查询与计数写操作同处一个事务 —— 计数失败则详情一并失败，
+     * 保证「返回 200 的响应必然已计数」的口径自洽。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DishDetailVO getDishDetail(Long id, Long userId) {
+    public DishDetailVO getDishDetail(Long id) {
         // 不存在与已下架**同款处理**（change dish-detail-contract-hardening R8）：
         // SQL 已按 status='on' 过滤，故「已下架」在此同样落为 vo == null —— 对公开接口而言
         // 「下架」等价于「不存在」，不设专用字段 / 专用分支。
@@ -140,9 +131,6 @@ public class DishServiceImpl implements DishService {
         if (affected == 0) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        // 访问日志：append-only 每次一条；游客记 user_id=0（recordDishView 内部归一）
-        historyService.recordDishView(userId, id);
-
         // 从 images_json 解析 images（避免二次查数据库）
         enrichImages(vo);
 
@@ -155,9 +143,8 @@ public class DishServiceImpl implements DishService {
         // 覆盖 dish.rating_count / dish.avg_rating 缓存列 —— 避免缓存漂移时卡内数字自相矛盾
         applyRatingSummaryFromDistribution(vo, filledDistribution);
 
-        // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）；
-        // 2026-09-16：详情已无任何登录态字段，userId 入参随之收口（Controller 不再解析登录态，
-        // 端点路径与响应结构零变化）。
+        // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）。
+        // 注：详情出参仍无任何登录态字段；userId 入参保留，仅用于本方法前半段的 view_log 浏览日志写入。
         return vo;
     }
 
@@ -257,11 +244,6 @@ public class DishServiceImpl implements DishService {
         }
         // 级联清理该菜品下的全部评价（BE-108）
         reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
-        // 级联清理浏览足迹（P2-04）：target_type='dish' + target_id 的 view_log 行，
-        // 否则菜品物理删除后残留孤儿行（且「猜你喜欢」按已删菜品 ID 读取恒空）。与评价级联同属本事务。
-        viewLogMapper.delete(new LambdaQueryWrapper<ViewLog>()
-                .eq(ViewLog::getTargetType, VIEW_TARGET_TYPE_DISH)
-                .eq(ViewLog::getTargetId, id));
         dishMapper.deleteById(id);
     }
 

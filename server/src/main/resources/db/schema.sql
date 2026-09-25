@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle / correction_handle（dish_audit 已随审核语义退役，历史存量可能残留）',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle=反馈处理回执 / correction_handle=菜品信息纠错回执',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
     `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
@@ -356,23 +356,10 @@ CREATE TABLE IF NOT EXISTS `email_verification_code`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='邮箱验证码记录';
 
--- 访问日志 view_log（append-only：每次菜品浏览 INSERT 一行；游客 user_id=0）
--- 用途：① 时间窗口聚合最热菜品（近一个月 / 任意窗口，按 idx_view_target_time 扫描）；
---       ② dish.view_count 为全历史累计聚合列（详情成功路径原子自增），与本日志并存不混用。
-CREATE TABLE IF NOT EXISTS `view_log`
-(
-    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '日志ID',
-    `user_id`     BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览者用户ID（0 = 游客）',
-    `target_type` VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '浏览对象类型：dish / stall / canteen',
-    `target_id`   BIGINT       NOT NULL DEFAULT 0 COMMENT '浏览对象ID',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '访问时间',
-    PRIMARY KEY (`id`),
-    -- 窗口聚合索引：按「对象 + 时间窗」扫描（近 N 天最热菜品 = WHERE target_type/target_id
-    -- AND created_at >= 窗口起点 GROUP BY target_id）；管理端「学生行为查看」按 user 维度查询时另建索引
-    KEY `idx_view_target_time` (`target_type`, `target_id`, `created_at`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='访问日志（append-only，每次浏览一行；游客 user_id=0）';
+-- 访问日志 view_log：**整链退役**（只写不读的行为数据 → 按数据最小化原则停止采集）——
+-- 本文件不再创建该表；实体 / Mapper / 写入点（详情计数日志、注销清理、归属迁移、菜品级联）同批移除；
+-- 浏览量由 dish.view_count 独立承载（GET /dishes/{id} 成功路径原子自增）。
+-- 存量库由文件末尾 drop_view_log_table 幂等段清理。
 
 -- 首页顶部轮播图 banner（2026-09-22 新增，change「首页 Banner 接口化」）：
 --   · status 取 on / off（与 dish.status 同风格；**不复活**已随下线删除的 enabled/disabled 枚举），
@@ -395,29 +382,6 @@ CREATE TABLE IF NOT EXISTS `banner`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='首页顶部轮播图（公开只读，本期无管理端入口）';
-
--- 浏览足迹判重复合索引 idx_view_user_target_time（2026-09-15）：
--- 后端浏览量判重（POST /dishes/{id}/views，spec §7.14 第 1 条）已改用 updated_at 判定，
--- 需 (user_id, target_type, target_id, updated_at) 覆盖判重查询。
--- CREATE TABLE 已含该 KEY；旧库幂等补建（MySQL 8 不支持 CREATE INDEX IF NOT EXISTS，
--- 用存储过程防护，与上方 idx_dish_heat 迁移惯例一致），重复执行安全、不影响既有数据。
-DROP PROCEDURE IF EXISTS `add_view_log_dedup_index`;
-DELIMITER $$
-CREATE PROCEDURE `add_view_log_dedup_index`()
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = 'view_log'
-          AND INDEX_NAME = 'idx_view_user_target_time'
-    ) THEN
-        ALTER TABLE `view_log`
-            ADD INDEX `idx_view_user_target_time` (`user_id`, `target_type`, `target_id`, `updated_at`);
-    END IF;
-END$$
-DELIMITER ;
-CALL `add_view_log_dedup_index`();
-DROP PROCEDURE IF EXISTS `add_view_log_dedup_index`;
 
 -- 操作日志 operation_log：**整链退役**（2026-09-15 用户拍板「管理端不需要操作日志」）——
 -- 原 CREATE TABLE 段（含 idx_op_admin_time / idx_op_target 两索引）已删除，本文件不再创建该表；
@@ -859,34 +823,6 @@ DELIMITER ;
 CALL `drop_operation_log_table`();
 DROP PROCEDURE IF EXISTS `drop_operation_log_table`;
 
--- 索引下线（2026-09-15 用户拍板）：view_log 两个冗余索引退役——
---   idx_view_user_time(user_id, created_at) / idx_view_target(target_type, target_id)，
---   审计确认零查询使用；判重查询唯一依赖保留的 idx_view_user_target_time（与 PK 一并保留）。
--- CREATE TABLE 已同步移除两 KEY 定义；存量库在此幂等 DROP。
--- 注意：MySQL 8 不支持 DROP INDEX IF NOT EXISTS，须 ALTER TABLE ... DROP INDEX，
---       并先查 INFORMATION_SCHEMA.STATISTICS 判索引存在（与上方建索引迁移惯例一致），可重跑、不影响既有数据。
-DROP PROCEDURE IF EXISTS `drop_view_log_redundant_indexes`;
-DELIMITER $$
-CREATE PROCEDURE `drop_view_log_redundant_indexes`()
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND INDEX_NAME = 'idx_view_user_time'
-    ) THEN
-        ALTER TABLE `view_log` DROP INDEX `idx_view_user_time`;
-    END IF;
-
-    IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND INDEX_NAME = 'idx_view_target'
-    ) THEN
-        ALTER TABLE `view_log` DROP INDEX `idx_view_target`;
-    END IF;
-END$$
-DELIMITER ;
-CALL `drop_view_log_redundant_indexes`();
-DROP PROCEDURE IF EXISTS `drop_view_log_redundant_indexes`;
-
 -- 字段下线（2026-09-15 用户拍板）：user 两列退役——
 --   · user.role：收敛为恒 student（全量用户即学生，管理端走口令体系），列与角色语义一并退役；
 --   · user.last_login_at：只写不读、零消费。
@@ -1291,46 +1227,24 @@ CALL `drop_review_updated_at`();
 DROP PROCEDURE IF EXISTS `drop_review_updated_at`;
 
 -- =============================================================
--- 浏览计数载体迁移（用户拍板 A 方案：GET 详情顺带计数 + view_log 访问日志）
--- view_log 由「浏览足迹 upsert」改「append-only 访问日志」，本段幂等、可重复执行：
---   ① 判重索引 idx_view_user_target_time（upsert 语义专属）删除；
---   ② updated_at 列删除（append-only 后无更新语义，恒等于 created_at）；
---   ③ 窗口聚合索引 idx_view_target_time 补建（CREATE TABLE 已含，此处仅对存量库补齐）。
--- ⚠️ 索引判断走 INFORMATION_SCHEMA.STATISTICS（INDEX_NAME + TABLE_NAME）。
+-- 表退役：view_log（只写不读的行为数据 → 数据最小化，停止采集）
+--   ① 本文件不再创建该表，实体 / Mapper / 全部写入点同批移除；
+--   ② 浏览量由 dish.view_count 独立承载（GET /dishes/{id} 成功路径原子自增）；
+--   ③ 存量库在此幂等 DROP（先判 TABLE 存在再删，可重跑）。
 -- =============================================================
-DROP PROCEDURE IF EXISTS `migrate_view_log_access_log`;
+DROP PROCEDURE IF EXISTS `drop_view_log_table`;
 DELIMITER $$
-CREATE PROCEDURE `migrate_view_log_access_log`()
+CREATE PROCEDURE `drop_view_log_table`()
 BEGIN
-    -- ① 删判重索引（upsert 专属；append-only 后无判重查询）
     IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log'
-          AND INDEX_NAME = 'idx_view_user_target_time'
     ) THEN
-        ALTER TABLE `view_log` DROP INDEX `idx_view_user_target_time`;
-    END IF;
-
-    -- ② 删 updated_at 列（append-only 后无更新语义）
-    IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log' AND COLUMN_NAME = 'updated_at'
-    ) THEN
-        ALTER TABLE `view_log` DROP COLUMN `updated_at`;
-    END IF;
-
-    -- ③ 补建窗口聚合索引（仅存量库缺列时生效）
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'view_log'
-          AND INDEX_NAME = 'idx_view_target_time'
-    ) THEN
-        ALTER TABLE `view_log`
-            ADD INDEX `idx_view_target_time` (`target_type`, `target_id`, `created_at`);
+        DROP TABLE `view_log`;
     END IF;
 END$$
 DELIMITER ;
-CALL `migrate_view_log_access_log`();
-DROP PROCEDURE IF EXISTS `migrate_view_log_access_log`;
+CALL `drop_view_log_table`();
+DROP PROCEDURE IF EXISTS `drop_view_log_table`;
 
 SET FOREIGN_KEY_CHECKS = 1;

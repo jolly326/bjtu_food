@@ -25,7 +25,7 @@ export async function uploadImage(file: File): Promise<UploadImageResult> {
   const timeout = setTimeout(() => controller.abort(), 30000)
 
   try {
-    const res = await fetch(`${API_BASE_URL}/upload/image`, {
+    const res = await fetch(`${API_BASE_URL}/admin/upload/image`, {
       method: 'POST',
       headers: {
         'X-Admin-Token': import.meta.env.VITE_ADMIN_TOKEN || '',

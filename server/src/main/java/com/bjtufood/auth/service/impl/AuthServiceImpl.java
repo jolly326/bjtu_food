@@ -2,7 +2,7 @@ package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.LoginVO;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
 import com.bjtufood.auth.entity.EmailVerificationCode;
@@ -24,8 +24,6 @@ import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
-import com.bjtufood.history.entity.ViewLog;
-import com.bjtufood.history.mapper.ViewLogMapper;
 import com.bjtufood.notify.entity.Notification;
 import com.bjtufood.notify.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +48,6 @@ public class AuthServiceImpl implements AuthService {
     private final WechatService wechatService;
     private final ReviewMapper reviewMapper;
     private final FeedbackMapper feedbackMapper;
-    private final ViewLogMapper viewLogMapper;
     private final NotificationMapper notificationMapper;
     private final ImageUrlUtil imageUrlUtil;
     private final SensitiveFilter sensitiveFilter;
@@ -60,12 +55,12 @@ public class AuthServiceImpl implements AuthService {
     private final TokenBlacklist tokenBlacklist;
 
     @Override
-    public void createEmailCode(String username, String email, String purpose) {
-        emailCodeService.sendCode(username, email, purpose);
+    public void createEmailCode(String username) {
+        emailCodeService.sendCode(username);
     }
 
     @Override
-    public LoginResp wechatLogin(String code) {
+    public LoginVO wechatLogin(String code) {
         WechatService.WechatSession session = wechatService.code2Session(code);
         String openid = session.openid();
 
@@ -81,12 +76,12 @@ public class AuthServiceImpl implements AuthService {
         }
         // last_login_at 写入点已随列退役（2026-09-15 用户拍板「只写不读零消费，删列」）
         // user.unionid 已随列退役（2026-09-16 用户拍板「零消费即删除」），微信登录仅消费 openid，无需回写
-        return toLoginResp(user);
+        return toLoginVO(user);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LoginResp verifyEmail(String code, Long userId) {
+    public UserInfoVO verifyEmail(String code, Long userId) {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
         }
@@ -127,21 +122,21 @@ public class AuthServiceImpl implements AuthService {
         current.setBindEmail(email);
         userMapper.updateById(current);
 
-        return toLoginResp(current);
+        return toUserInfo(current);
     }
 
     @Override
-    public Map<String, Object> getProfile(Long userId) {
+    public UserInfoVO getProfile(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
-        return buildProfileMap(user);
+        return toUserInfo(user);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> updateProfile(Long userId, ProfileUpdateReq req) {
+    public UserInfoVO updateProfile(Long userId, ProfileUpdateReq req) {
         if (!StringUtils.hasText(req.getNickname()) && !StringUtils.hasText(req.getAvatar())) {
             throw new BusinessException("昵称和头像至少填写一项");
         }
@@ -171,7 +166,7 @@ public class AuthServiceImpl implements AuthService {
         }
         userMapper.update(updater);
         User updated = userMapper.selectById(userId);
-        return buildProfileMap(updated);
+        return toUserInfo(updated);
     }
 
     @Override
@@ -184,7 +179,7 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException(401, "请先登录");
         }
-        // 幂等保护：已注销用户重复调用返回 400「账号已注销」
+        // 终态保护：已注销用户重复调用返回 400「账号已注销」
         // （场景：服务重启后 TokenBlacklist 清空，同用户其他有效 token 再次到达；正常场景已被过滤器 401 拦截）
         if ("deleted".equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
@@ -222,6 +217,10 @@ public class AuthServiceImpl implements AuthService {
         deleteVerifyCodesByEmail(user.getEmail());
         deleteVerifyCodesByEmail(user.getBindEmail());
 
+        // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
+        // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。
+        notificationMapper.delete(new LambdaQueryWrapper<Notification>().eq(Notification::getUserId, userId));
+
         // token 立即失效（复用 TokenBlacklist，与管理员禁用同一机制）：
         // · token 维度：精确拉黑当前请求 token，JwtAuthFilter 命中后 401「账号已注销，请重新登录」；
         // · userId 维度：兜底拉黑同用户其余设备的历史 token（注销者拿不到那些 token 明文）。
@@ -245,8 +244,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserInfoVO toUserInfo(User user) {
-        // 字段集恰为 5 个（2026-09-22 §7.32 修订 / auth-api-contract）：
-        // id/username/nickname/avatar/bindEmail；verified（bindEmail 派生冗余）、email/status/guestShortId
+        // 字段集（含 createdAt 注册时间共 6 个，2026-09-22 §7.32 修订 / auth-api-contract）：
+        // id/username/nickname/avatar/bindEmail/createdAt；verified（bindEmail 派生冗余）、email/status/guestShortId
         // 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
@@ -254,27 +253,16 @@ public class AuthServiceImpl implements AuthService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setBindEmail(user.getBindEmail());
+        vo.setCreatedAt(user.getCreatedAt());
         return vo;
     }
 
     // ============================ 私有方法 ============================
 
-    private LoginResp toLoginResp(User user) {
+    private LoginVO toLoginVO(User user) {
         // JWT 载荷不含 role（role 列已退役）：学生态 authorities 由 JwtAuthFilter 固定授予
         String token = jwtUtil.createToken(user.getId(), user.getUsername());
-        return new LoginResp(token, toUserInfo(user));
-    }
-
-    private Map<String, Object> buildProfileMap(User user) {
-        // 字段集与 toUserInfo **严格同构**（5 字段）：verified（派生冗余）/email/status/guestShortId
-        // 均不得出参（2026-09-22 §7.32 修订，端上判据统一为 bindEmail != null）
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", user.getId());
-        map.put("username", user.getUsername());
-        map.put("nickname", user.getNickname());
-        map.put("avatar", imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        map.put("bindEmail", user.getBindEmail());
-        return map;
+        return new LoginVO(token, toUserInfo(user));
     }
 
     /**
@@ -290,7 +278,7 @@ public class AuthServiceImpl implements AuthService {
      * 管理后台 Token 过期时长：12 小时（毫秒）。
      * <p>
      * 管理端凭据泄露面小但危害大，短期过期降低风险；
-     * 学生端静默登录保持长期（见 toLoginResp），两者策略分离。
+     * 学生端静默登录保持长期（见 toLoginVO），两者策略分离。
      */
 
     /**
@@ -407,9 +395,6 @@ public class AuthServiceImpl implements AuthService {
         feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
                 .eq(Feedback::getUserId, fromUserId)
                 .set(Feedback::getUserId, toUserId));
-        viewLogMapper.update(null, new LambdaUpdateWrapper<ViewLog>()
-                .eq(ViewLog::getUserId, fromUserId)
-                .set(ViewLog::getUserId, toUserId));
         notificationMapper.update(null, new LambdaUpdateWrapper<Notification>()
                 .eq(Notification::getUserId, fromUserId)
                 .set(Notification::getUserId, toUserId));

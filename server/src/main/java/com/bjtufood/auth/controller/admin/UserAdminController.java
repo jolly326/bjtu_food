@@ -19,7 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminToken")
 public class UserAdminController {
 
     private final UserService userService;

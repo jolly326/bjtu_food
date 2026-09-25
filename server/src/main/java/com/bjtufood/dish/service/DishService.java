@@ -63,19 +63,15 @@ public interface DishService {
     /**
      * 获取菜品详情
      * <p>
-     * 2026-09-15：原「登录时附加 hasReviewed（是否已评价）」已下线（三端零消费）。
-     *
-     * <p><b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**执行
-     * {@code view_count + 1}（原子 UPDATE）并写入一条访问日志（view_log，append-only；
-     * 游客 {@code userId=null} 记 {@code user_id=0}）。菜品不存在（含已下架）抛
-     * {@code BusinessException(4001)}，**不计数、不写日志**。
+     * <b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**执行
+     * {@code view_count + 1}（原子 UPDATE）。菜品不存在（含已下架）抛
+     * {@code BusinessException(4001)}，**不计数**。
      *
      * @param id 菜品ID
-     * @param userId 当前用户ID（**可为 null** = 游客；仅决定日志行的 user_id 取值，不影响计数）
      * @return 菜品详情（**详情专用 {@link DishDetailVO}**：15 字段 + `ratingDistribution`）
      * @throws com.bjtufood.common.exception.BusinessException 菜品不存在（4001）
      */
-    DishDetailVO getDishDetail(Long id, Long userId);
+    DishDetailVO getDishDetail(Long id);
 
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
 

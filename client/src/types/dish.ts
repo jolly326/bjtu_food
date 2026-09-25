@@ -98,7 +98,7 @@ export interface GuessLike {
  * 文案 / 顺序 / 子集全由后端下发（空类自动隐藏），**端上不得维护任何中文映射**。
  */
 export interface MealType {
-  key: string
+  value: string
   label: string
   order: number
 }

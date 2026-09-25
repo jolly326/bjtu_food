@@ -97,7 +97,7 @@ export const useDishStore = defineStore('dish', () => {
   async function fetchMealTypes() {
     try {
       mealTypeList.value = await dishApi.getMealTypes()
-      if (filterMealType.value && !mealTypeList.value.some((m) => m.key === filterMealType.value)) {
+      if (filterMealType.value && !mealTypeList.value.some((m) => m.value === filterMealType.value)) {
         filterMealType.value = null
       }
     } catch (e) {
@@ -111,8 +111,8 @@ export const useDishStore = defineStore('dish', () => {
    * **不重置页面滚动位置**（UI 文档 §5 边界行为）：因此走 `keepList = true` —— 新数据到手前
    * 旧列表留在屏上（stale-while-revalidate），避免内容塌陷把滚动位置钳到顶部。
    */
-  async function setHomeMealType(key: string | null) {
-    filterMealType.value = key
+  async function setHomeMealType(value: string | null) {
+    filterMealType.value = value
     await fetchHomeDishes(true, true)
   }
 

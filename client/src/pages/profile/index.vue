@@ -33,6 +33,12 @@
           <text class="info-label">校园邮箱</text>
           <text class="info-value info-value-email">{{ bindEmail || '--' }}</text>
         </view>
+
+        <!-- 注册时间（只读）：createdAt（后端透传 yyyy-MM-dd HH:mm:ss） -->
+        <view class="info-row">
+          <text class="info-label">注册时间</text>
+          <text class="info-value">{{ userInfo?.createdAt || '--' }}</text>
+        </view>
       </view>
     </scroll-view>
 

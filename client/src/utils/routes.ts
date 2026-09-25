@@ -3,9 +3,9 @@
  *
  * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落，
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（10 页：主包 3 + 分包 7，其中 pages/detail/ 1、
+ * 与 `client/src/pages.json` 严格一致（11 页：主包 3 + 分包 8，其中 pages/detail/ 1、
  * 个人中心域拆为 6 个独立分包 root：pages/profile/、pages/auth/、pages/notifications/、
- * pages/feedback/、pages/my-reviews/、pages/privacy/，各含 1 页）。
+ * pages/feedback/、pages/my-reviews/ 各含 1 页，pages/privacy/ 含 2 页——隐私政策与用户协议）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
  */
 
@@ -24,6 +24,7 @@ export const PATH = {
   feedback: '/pages/feedback/index',
   myReviews: '/pages/my-reviews/index',
   privacy: '/pages/privacy/index',
+  agreement: '/pages/privacy/agreement',
 } as const
 
 /** tab key → 主根页路径（TabBar 渲染与跳转共用） */

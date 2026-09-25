@@ -4,7 +4,7 @@ import type { RawRow } from './shared'
 
 function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
   const user = resp?.userInfo || resp?.user || resp || {}
-  // 后端四条账号信息链路透传 id/username/nickname/avatar/bindEmail（恰 5 字段，spec §7.32 修订；
+  // 后端四条账号信息链路透传 id/username/nickname/avatar/bindEmail/createdAt（恰 6 字段，含 createdAt 注册时间；
   // role 字段不纳入出参）。
   // 已删字段端上不再读取：verified（bindEmail 派生冗余，端上经 useUserStore().isVerified() 单点派生）、
   // email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、guestShortId（端上按 id 现算）。
@@ -16,6 +16,8 @@ function toUserInfo(resp: RawRow, fallbackId = 0): UserInfo {
     avatar: user.avatar || resp?.avatar || '',
     // 微信登录体系（§5.y）：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
     bindEmail: user.bindEmail || resp?.bindEmail || user.bind_email || undefined,
+    // 注册时间（只读展示）：后端透传 LocalDateTime，已由 Jackson 序列化为 yyyy-MM-dd HH:mm:ss 字符串
+    createdAt: user.createdAt || resp?.createdAt || undefined,
   }
 }
 
@@ -29,9 +31,9 @@ export function deriveCampusEmail(username: string): string {
   return `${username.trim().toLowerCase()}@bjtu.edu.cn`
 }
 
-/** 发送认证验证码（§5.y.5：purpose 收窄为 verify 认证用途） */
-export async function sendEmailCode(username: string, purpose: 'verify'): Promise<void> {
-  await post('/auth/email-code', { username, purpose })
+/** 发送认证验证码（§5.y.5：校园邮箱由学号推导，仅需学号） */
+export async function sendEmailCode(username: string): Promise<void> {
+  await post('/auth/email-code', { username })
 }
 
 /** 微信静默登录（§5.y.5 POST /auth/wechat-login）：wx.login code → 游客态账号 token+userInfo */
@@ -43,13 +45,10 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
   }
 }
 
-/** 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → 落库 bindEmail（认证态唯一写入点） */
-export async function verifyEmail(code: string): Promise<AuthResult> {
+/** 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → 落库 bindEmail（认证态唯一写入点）；JWT 不含 bind_email、实时查库，不重发 token */
+export async function verifyEmail(code: string): Promise<UserInfo> {
   const resp = await post<RawRow>('/auth/verify-email', { code })
-  return {
-    token: resp.token,
-    userInfo: toUserInfo(resp),
-  }
+  return toUserInfo(resp)
 }
 
 /** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 bindEmail —— 认证判据来源） */

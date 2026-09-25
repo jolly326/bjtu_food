@@ -118,8 +118,8 @@ wechat:
   cloud-env: ${WECHAT_CLOUD_ENV:}
 
 # ---------- 腾讯云 COS 对象存储（UGC 配图最终存储） ----------
-# 四项均从环境变量注入；任一缺失视为「COS 未配置」，/upload/images 返回 400「图片存储未配置」，
-# 旧 multipart /upload/image 降级本地磁盘存储（开发环境无 COS 仍可用）。
+# 四项均从环境变量注入；任一缺失视为「COS 未配置」，/upload/cloud-image 返回 400「图片存储未配置」，
+# 管理端 multipart /admin/upload/image 降级本地磁盘存储（开发环境无 COS 仍可用）。
 cos:
   bucket: ${COS_BUCKET:}
   secret-id: ${COS_SECRET_ID:}

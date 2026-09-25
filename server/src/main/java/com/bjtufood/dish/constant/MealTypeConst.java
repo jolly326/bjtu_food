@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
  */
 public final class MealTypeConst {
 
-    /** 单个大类定义：枚举键 / 中文标签 / 展示顺序。 */
-    public record MealType(String key, String label, int order) {
+    /** 单个大类定义：枚举值 / 中文标签 / 展示顺序。 */
+    public record MealType(String value, String label, int order) {
     }
 
     /** 全部大类（按 order 升序即声明顺序）。 */
@@ -38,7 +38,7 @@ public final class MealTypeConst {
 
     /** 合法枚举键集合（白名单校验用，PR-06：非法值一律 400，不静默降级）。 */
     public static final Set<String> KEYS = ALL.stream()
-            .map(MealType::key)
+            .map(MealType::value)
             .collect(Collectors.toUnmodifiableSet());
 
     /** 是否为合法大类枚举键。 */

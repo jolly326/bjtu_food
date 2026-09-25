@@ -8,8 +8,10 @@ import com.bjtufood.auth.config.SecurityConfig;
 import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.controller.AuthController;
 import com.bjtufood.auth.controller.FeedbackController;
-import com.bjtufood.auth.dto.LoginResp;
+import com.bjtufood.auth.dto.LoginVO;
 import com.bjtufood.auth.dto.UserInfoVO;
+import com.bjtufood.upload.controller.AdminUploadController;
+import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AuthService;
@@ -83,7 +85,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）、
  *       {@code PUT /reviews/{id}}（重新评价，4031 分流）与路径防回归（旧 {@code /reviews} 不再注册）；</li>
  *   <li>反馈：{@code POST /feedback}（sub 严格模式 400、类型白名单 400、issue 正常落库 200）；</li>
- *   <li>上传：{@code POST /upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
+ *   <li>上传：{@code POST /admin/upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
  *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
  *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
  *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
@@ -115,6 +117,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ReviewController.class,
         FeedbackController.class,
         UploadController.class,
+        AdminUploadController.class,
         FeedbackAdminController.class,
         // 后台评价管理（用于 sec-state 端点退役的映射表回归断言）
         ReviewAdminController.class,
@@ -203,7 +206,7 @@ class SmokeApiTest {
         UserInfoVO userInfo = new UserInfoVO();
         userInfo.setId(USER_ID);
         userInfo.setUsername("wx_tail16");
-        when(authService.wechatLogin("wx-login-code")).thenReturn(new LoginResp("minted-jwt", userInfo));
+        when(authService.wechatLogin("wx-login-code")).thenReturn(new LoginVO("minted-jwt", userInfo));
 
         mockMvc.perform(post("/auth/wechat-login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -238,7 +241,7 @@ class SmokeApiTest {
         vo.setPrice(1200);
         vo.setAvgRating(new BigDecimal("4.5"));
         vo.setRatingCount(20);
-        when(dishService.getDishDetail(eq(1L), isNull())).thenReturn(vo);
+        when(dishService.getDishDetail(eq(1L))).thenReturn(vo);
 
         mockMvc.perform(get("/dishes/1"))
                 .andExpect(status().isOk())
@@ -254,7 +257,7 @@ class SmokeApiTest {
     void dishDetail_notFoundAndOffShelf_returnsCode4001() throws Exception {
         // 契约（2026-09-23 §7.40 R8）：资源不存在用**专属业务码 4001**（原「统一 400」口径已作废）。
         // 统一响应由 HTTP 200 承载 body.code。
-        when(dishService.getDishDetail(eq(999L), isNull())).thenThrow(new BusinessException(4001, "菜品不存在"));
+        when(dishService.getDishDetail(eq(999L))).thenThrow(new BusinessException(4001, "菜品不存在"));
 
         mockMvc.perform(get("/dishes/999"))
                 .andExpect(status().isOk())
@@ -264,7 +267,7 @@ class SmokeApiTest {
         // 已下架（status='off'）在 Service 层因 SQL `AND d.status = 'on'` 过滤而同样查不到 →
         // **与「不存在」同款 4001**（契约面最小：下架对外等价于不存在，不设专用字段 / 专用码）。
         // 注：本切片打桩 Service，故两种场景在 Controller 层表现为同一异常；此处锁住「同一码值」。
-        when(dishService.getDishDetail(eq(2L), isNull())).thenThrow(new BusinessException(4001, "菜品不存在"));
+        when(dishService.getDishDetail(eq(2L))).thenThrow(new BusinessException(4001, "菜品不存在"));
 
         mockMvc.perform(get("/dishes/2"))
                 .andExpect(status().isOk())
@@ -485,7 +488,7 @@ class SmokeApiTest {
     @Test
     void uploadImage_withoutAdminToken_returns403() throws Exception {
         // 403 由 AdminTokenFilter 直接写出（口令缺失/无效失败的 fail-closed 行为）
-        mockMvc.perform(multipart("/upload/image").file(jpegFile()))
+        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
@@ -493,7 +496,7 @@ class SmokeApiTest {
 
     @Test
     void uploadImage_wrongAdminToken_returns403() throws Exception {
-        mockMvc.perform(multipart("/upload/image").file(jpegFile())
+        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile())
                         .header(ADMIN_TOKEN_HEADER, "wrong-token"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
@@ -503,14 +506,34 @@ class SmokeApiTest {
     @Test
     void uploadImage_withAdminToken_returnsUrl() throws Exception {
         when(uploadService.uploadImage(any()))
-                .thenReturn(Map.of("url", "http://localhost:8080/api/images/2026/05/a.jpg",
-                        "relativeUrl", "/images/2026/05/a.jpg"));
+                .thenReturn(new UploadResultVO("http://localhost:8080/api/images/2026/05/a.jpg",
+                        "/images/2026/05/a.jpg"));
 
-        mockMvc.perform(multipart("/upload/image").file(jpegFile())
+        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile())
                         .header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.url").value("http://localhost:8080/api/images/2026/05/a.jpg"));
+    }
+
+    /**
+     * 防回归：上传端点命名去混淆后，学生端 {@code /upload/cloud-image} 与管理端
+     * {@code /admin/upload/image} 应在册，旧路径 {@code /upload/images}、{@code /upload/image} 不得残留。
+     */
+    @Test
+    void uploadEndpoints_renamedPathsRegistered_legacyPathsRemoved() {
+        Set<String> patterns = handlerMapping.getHandlerMethods().keySet().stream()
+                .flatMap(info -> info.getPatternValues().stream())
+                .collect(Collectors.toSet());
+
+        Assertions.assertTrue(patterns.contains("/upload/cloud-image"),
+                "学生端上传路径 /upload/cloud-image 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/upload/image"),
+                "管理端上传路径 /admin/upload/image 应在册；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.contains("/upload/images"),
+                "旧学生端路径 /upload/images 应删除；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.contains("/upload/image"),
+                "旧管理端路径 /upload/image 应删除；实际映射：" + patterns);
     }
 
     // ==================== 链路 6：管理端 ====================
@@ -535,8 +558,9 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.records").isArray())
                 .andExpect(jsonPath("$.data.total").value(0))
-                .andExpect(jsonPath("$.data.page").value(1))
-                .andExpect(jsonPath("$.data.pageSize").value(10));
+                // 分页壳契约：仅 records / total（页码与每页条数为请求侧已知，不回传）
+                .andExpect(jsonPath("$.data.page").doesNotExist())
+                .andExpect(jsonPath("$.data.pageSize").doesNotExist());
     }
 
     /**

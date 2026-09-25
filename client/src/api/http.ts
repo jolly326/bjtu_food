@@ -399,35 +399,12 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   })
   // #endif
 
-  // ===== 其他端（H5 等）：上传到后端 =====
+  // ===== 其他端：无图片上传能力 =====
   // #ifndef MP-WEIXIN
-  result = new Promise<{ url: string }>((resolve, reject) => {
-    uni.uploadFile({
-      url: `${API_BASE_URL}/upload/image`,
-      filePath: tempFilePath,
-      name: 'file',
-      // MP-003：与小程序端一致的上传超时保护
-      timeout: UPLOAD_TIMEOUT_MS,
-      header: {
-        Authorization: `Bearer ${token}`,
-      },
-      success(res) {
-        try {
-          const body = JSON.parse(res.data) as ApiResponse<{ url: string }>
-          if (body.code === 200) {
-            resolve(body.data)
-          } else {
-            reject(new Error(body.message || '上传失败'))
-          }
-        } catch {
-          reject(new Error('上传响应格式错误'))
-        }
-      },
-      fail(err) {
-        // 超时体现在 errMsg（request:fail timeout），区分给出可读文案
-        reject(new Error(/timeout/i.test(err?.errMsg || '') ? '上传超时，请重试' : '上传失败，请重试'))
-      },
-    })
+  // 小程序为唯一交付端。管理端上传入口 `/admin/upload/image` 由口令 X-Admin-Token 保护（学生 JWT 不可调用），
+  // 其他端（H5 等）没有可用上传链路 → 显式失败，避免发出必然 403 的请求。
+  result = new Promise<{ url: string }>((_resolve, reject) => {
+    reject(new Error('当前运行端不支持图片上传'))
   })
   // #endif
 

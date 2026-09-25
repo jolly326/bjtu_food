@@ -45,7 +45,7 @@ export const useMealTypeStore = defineStore('mealType', () => {
   /** 大类枚举键 → 展示文案（字典命中用后端标签；未覆盖的键原样透出；空值回落「—」） */
   function labelOf(key?: string | null): string {
     if (!key) return '—'
-    return list.value.find(t => t.key === key)?.label || key
+    return list.value.find(t => t.value === key)?.label || key
   }
 
   return { list, loading, error, loadAll, ensureLoaded, labelOf }

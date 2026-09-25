@@ -1,5 +1,5 @@
 /**
- * 用户信息 —— 恰 5 字段（spec §7.32 修订 / `auth-api-contract`）。
+ * 用户信息 —— 恰 6 字段（含 createdAt 注册时间，spec §7.32 修订 / `auth-api-contract`）。
  *
  * 与登录 / 资料四条链路（`POST /auth/wechat-login`、`POST /auth/verify-email`、
  * `GET|PUT /auth/profile`）一一对应。契约不含以下字段：
@@ -19,4 +19,6 @@ export interface UserInfo {
   avatar: string
   /** 已认证绑定邮箱（bind_email）；**认证状态的唯一判据**（非空即已认证），游客态为 undefined */
   bindEmail?: string
+  /** 注册时间（后端透传，格式 yyyy-MM-dd HH:mm:ss；只读展示，不参与编辑） */
+  createdAt?: string
 }
