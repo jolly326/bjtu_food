@@ -1,5 +1,7 @@
 <template>
   <view class="page dish-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下，接入无需改动既有层级） -->
+    <PageWallpaper fixed />
     <!-- dish-detail-visual-polish：页面内覆盖导航（顶部透明 → 滚动渐显菜名与底白），大图全幅出血 -->
     <view
       class="dish-nav"
@@ -165,6 +167,7 @@
  *   DishInfoCard / DishSummaryCard / DishReviewSection / useDishPage）；生命周期见 useDishPage。
  */
 import IconSvg from '@/components/IconSvg.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import ReportModal from './ReportModal.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import ImageSwiper from './ImageSwiper.vue'

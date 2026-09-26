@@ -13,6 +13,8 @@
           v-for="item in items"
           :key="`${item.type}-${item.id}`"
           class="mixed-item"
+          role="button"
+          :aria-label="`查看 ${item.name}`"
           @tap="selectRow(item)"
         >
           <view class="mixed-thumb">

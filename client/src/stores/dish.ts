@@ -108,7 +108,7 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 切换大类标签：写回选中键并重置分页刷新列表。
-   * **不重置页面滚动位置**（UI 文档 §5 边界行为）：因此走 `keepList = true` —— 新数据到手前
+   * **不重置页面滚动位置**（UI 文档 §11.3 边界行为）：因此走 `keepList = true` —— 新数据到手前
    * 旧列表留在屏上（stale-while-revalidate），避免内容塌陷把滚动位置钳到顶部。
    */
   async function setHomeMealType(value: string | null) {

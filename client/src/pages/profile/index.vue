@@ -1,5 +1,7 @@
 <template>
   <view class="page profile-edit-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="个人信息" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -57,6 +59,7 @@ import { getImageUrl } from '@/utils/image'
 import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）

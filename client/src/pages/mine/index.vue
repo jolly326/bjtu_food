@@ -1,5 +1,7 @@
 <template>
   <view class="page mine-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <!-- 「我的」是 TabBar 主根页（TabBar 经 reLaunch 切换，无带参跳转），恒不需要返回箭头：
          showBack 显式传 false（AppHeader 默认值为 true，不能省略） -->
     <Header title="我的" :show-back="false" />
@@ -84,7 +86,7 @@
     </view>
 
     <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示） -->
-    <TabBar />
+    <TabBar wallpaper />
   </view>
 </template>
 
@@ -93,6 +95,7 @@ import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'

@@ -64,19 +64,14 @@ const maxDishes = HOME_MAX_PAGES * HOME_PAGE_SIZE
 /** 列表最近一次请求失败且当前无数据：渲染错误重试块，失败 ≠ 无数据 */
 const loadFailed = computed(() => dishStore.homeError && dishStore.homeList.length === 0)
 
-/** 瀑布流按图片原始比例排列；列分配保持奇偶分列。
- *  key 仅由稳定业务主键 id 构成（id 唯一），不附加列内序号 idx，
- *  避免加载更多时列内序号重排导致 key 变化、已渲染卡片整列重建（闪烁/掉帧）。 */
+/** 双列分列：奇偶分列（右列绝不空）。卡片图为**固定 3:2 容器**，故无需按图片比例做列内等高平衡。
+ *  key 仅由稳定业务主键 `id` 构成（`DishListItem.id: number` 为必填）——**不附加列内序号 idx**，
+ *  避免加载更多时列内序号重排导致 key 变化、已渲染卡片整列重建（闪烁 / 掉帧）。 */
 const splitList = computed(() => {
   const left: { item: DishListItem; key: string }[] = []
   const right: { item: DishListItem; key: string }[] = []
   dishStore.homeList.forEach((item, idx) => {
-    const rawKey = item.id
-    const key =
-      rawKey !== undefined && rawKey !== null
-        ? `wf-${rawKey}`
-        : `wf-idx-${idx}`
-    const entry = { item, key }
+    const entry = { item, key: `wf-${item.id}` }
     if (idx % 2 === 0) left.push(entry)
     else right.push(entry)
   })

@@ -30,16 +30,20 @@ export async function submitDishCorrection(
   await post(`/dishes/${dishId}/correction`, payload)
 }
 
-/** 举报原因字典项（`GET /feedback/report-reasons` 单行出参；真源 = 后端 FeedbackConst，端上零硬编码） */
+/**
+ * 举报原因字典项（`GET /feedback/report-reasons` 单行出参；真源 = 后端 FeedbackConst，端上零硬编码）。
+ *
+ * ⚠️ 端上类型**恰 2 字段**：`order` 是服务端排序用字段（后端已按升序下发，端上按返回顺序渲染）
+ * → 零消费，按「零消费即删」不进入本类型。
+ */
 export interface ReportReason {
   value: string
   label: string
-  order: number
 }
 
 /**
  * 举报原因字典（PUB）：举报弹层单选项，打开时实时拉取。
- * 展示顺序 = 后端下发顺序（order 升序）。
+ * 展示顺序 = **后端下发顺序**（端上不排序）；本函数**整体透传**后端数组，不做逐字段映射。
  */
 export async function getReportReasons(): Promise<ReportReason[]> {
   const rows = await get<ReportReason[]>('/feedback/report-reasons')

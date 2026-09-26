@@ -50,21 +50,43 @@
 
 ### 6. 接口数据字段（UI 精修用）
 
-**页面**：`pages/my-reviews/index`
+**页面**：`pages/my-reviews/index`（分包 `pages/my-reviews/`；二级页，**无 TabBar**）
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `GET /my/reviews`（`PageResult<MyReviewVO>`） | `records[].id` | 卡片 key / 删除目标 |
-| | `records[].rating` / `content` / `images` / `createdAt` | 星级 / 正文 / 配图 ≤3 / 时间 |
-| | `records[].userNickname` / `userAvatar` | 昵称 / 头像（ReviewItem 可选 props） |
-| | `records[].dishName` | 菜名行（本人视角专属） |
-| | `records[].userId` | 本人判定 |
-| | `records[].dishId` | **零界面消费**（仅用于详情页 `?dishId` 过滤入参） |
-| | `total` | 触底判断（分页壳仅 `records` / `total`；页码由请求侧掌握） |
-| `UserInfoVO`（经 `stores/user`） | `avatar` / `nickname` / `username` / `bindEmail` / `id` | 信息卡头像 / 昵称 / 学号副行 / 认证判据 / 游客短标识派生 |
+#### 组件清单（本界面需要哪些组件）
 
-**入参提交**：`GET /my/reviews` → `page` / `pageSize=20`（仅认证态发起）；`DELETE /reviews/{id}` → 无请求体
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「我的主页」+ 返回箭头（`@back` → `backToHome`） |
+| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 信息卡头像（加载失败回退 `empty` 中性占位，禁裂图） |
+| 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时的 `user` 灰底占位 |
+| 4 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡（**与菜品详情评价区同一实现**）；本人视角专属菜名经 `dish-name` prop 注入；`@more` 上抛三点动作 |
+| 5 | `ActionSheet` | 公共 `components/ActionSheet.vue` | 三点菜单「删除评价」（危险红动作项） |
+| 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 首屏加载失败「加载失败 · 点击重试」 |
+| 7 | 信息卡 `.profile-strip` / 区块标题（页内内联） | `pages/my-reviews/index.vue` 内联 | 头像 + 昵称 / 副行 + 「编辑个人信息」胶囊；「我的评价」标题（**有数据才渲染**） |
+| 8 | 列表容器 `.list`（页内内联） | 页内内联 | 评价卡纵向排列（间距由容器 `gap` 承担） |
+| — | 自然文档滚动（`onReachBottom`）+ `uni.showModal` | uni 内置 | 触底分页 + 删除二次确认 |
 
-**UI 组件**：公共 `AppHeader`(标题「我的主页」) / `ReviewItem` / `ActionSheet` / `RetryBlock` / `IconSvg` / `ImageFallback`
-**控件类型**：自然文档滚动（`onReachBottom` 分页）、`ActionSheet` 底部动作菜单、`uni.showModal`（删除二次确认）
+#### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `avatar` | `UserInfoVO`（`stores/user`，源自登录 / `GET /auth/profile`） | 头像地址 | 信息卡头像位 | 120rpx 圆形；空 / 失败 → `IconSvg name="user"` 灰底 |
+| 2 | `nickname` | 同上 | 昵称 | 信息卡主标题 `.strip-nickname` | 空值时游客显「游客」、认证态显「食客」 |
+| 3 | `bindEmail` | 同上 | 绑定校园邮箱 | 信息卡副行 `.strip-sub`（**认证态**） | 空值回落 `--` |
+| 4 | 游客短标识 | 端上由 `id` 派生「食客 + id 尾 4 位」 | 游客标识 | 信息卡副行（**游客态**） | 次级灰小字 |
+| 5 | `bindEmail` 非空 | 同上 | 认证判据（单点收敛） | 信息卡顶部**主色软条纹** `.is-verified` | 仅认证态显示 |
+| 6 | `records[].id` | `GET /my/reviews`（`PageResult<MyReviewVO>`） | 评价 ID | `ReviewItem` 列表 `key` / 删除目标 | 零可见 UI |
+| 7 | `records[].dishName` | 同上（本人视角专属） | 关联菜品名 | `ReviewItem` 菜名行 `.review-dish` | 次级加粗小字，单行省略 |
+| 8 | `records[].rating` | 同上 | 评分 | `ReviewItem` 星级行（1~5 实心黄星 + 数值） | 1 位小数 |
+| 9 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 | 二级灰，`pre-wrap` |
+| 10 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 `empty` 占位 |
+| 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDateTime` |
+| 12 | `records[].userNickname` / `userAvatar` | 同上 | 昵称 / 头像 | `ReviewItem` 昵称与头像位 | 昵称空 → 「匿名用户」 |
+| 13 | `records[].userId` | 同上 | 评价者用户 ID | `ReviewItem` 动作显隐判定（与当前用户 `id` 比对 → 本人「删除评价」） | 零可见 UI |
+| 14 | `records[].dishId` | 同上 | 关联菜品 ID | **零界面消费**（仅供详情页 `GET /my/reviews?dishId=` 过滤入参） | — |
+| 15 | `records` / `total` | 分页壳 | 当前页行 / 本人评价总条数 | 列表渲染 + `onReachBottom` 加载更多（时间倒序） | 端上以 `records` 为准 |
+| 16 | 空态 / 失败态 | 端上 `isGuest` / `loadFailed` / `emptiedByDelete` | 空 / 失败 / 删空 | 空态 `.empty-tip`（游客「暂无评价，完成身份认证后可发表评价」/ 删空「暂无评价，去菜品详情写一条吧」）· `RetryBlock` | 失败先于空态；游客**无认证拦截** |
+
+**入参提交**：`GET /my/reviews` → `page` / `pageSize=20`（**仅认证态发起**）｜`DELETE /reviews/{id}` → 无请求体（归属由 token 判定）
+**错误码**：`401` 未登录（请求层静默重登重试一次）｜`4031` 邮箱未认证（游客**静默**：不渲染失败态，仅渲染引导空态）｜`403` 非本人｜`400` 评价不存在
+**控件类型**：自然文档滚动（`onReachBottom` 分页）、`ActionSheet` 底部动作菜单、`uni.showModal` 删除二次确认、胶囊行热区（`pressed` = `--bg-soft`，非 scale）

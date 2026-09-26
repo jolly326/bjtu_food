@@ -70,19 +70,48 @@
 
 ### 8. 接口数据字段（UI 精修用）
 
-**页面**：`pages/mine/index`（TabBar 主根页）
+**页面**：`pages/mine/index`（**TabBar 主根页**，经 `reLaunch` 切换、无参数）
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `POST /auth/wechat-login` / `GET /auth/profile`（`UserInfoVO`，经 `stores/user`） | `id` | 派生猪标识「食客 + id 尾 4 位」 |
-| | `username` | 认证态用户卡副行（学号） |
-| | `nickname` / `avatar` | 用户卡主标题 / 头像 |
-| | `bindEmail` | `isVerified()` 认证判据（两态与条纹、认证徽章） |
-| | `createdAt` | 本页不展示（仅个人信息编辑页展示） |
-| `GET /my/notifications/unread-count` | `count` | 宫格「系统通知」红点（仅认证态且 > 0） |
+#### 组件清单（本界面需要哪些组件）
 
-**入参提交**：`DELETE /auth/account` → 无请求体
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示返回箭头） |
+| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 用户卡头像（加载失败回退 `empty` 中性占位） |
+| 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 头像空态 `user`、行右箭头 `arrow`、宫格图标（`lightbulb-fill` / `bell` / `badge-check`） |
+| 4 | `TabBar` | 公共 `components/TabBar.vue` | 底部常驻菜单（首页 / 我的，本页高亮 `showTab('profile')`） |
+| 5 | 用户卡 `.user-card`（页内内联） | `pages/mine/index.vue` 内联 | 头像 + 昵称 / 副行 + 右箭头；整卡热区 → 「我的主页」 |
+| 6 | 功能宫格 `.grid`（页内内联） | 页内内联 | 一行 3 格：意见反馈 / 系统通知 / 身份认证（含角标） |
+| 7 | 「其他」分组列表 `.more-group`（页内内联） | 页内内联 | 三行：用户协议 / 隐私政策 / 注销账号（危险弱化） |
+| 8 | 版本行 `.app-footer`（页内内联） | 页内内联 | 「知行食记 v{version}」+ 副文案（`aria-hidden`） |
+| 9 | `useNotifyStore` | `stores/notify` | 未读通知数（宫格红点真源；`onShow` 时仅认证态刷新） |
+| — | `uni.showModal` / `uni.navigateTo` / `uni.reLaunch` | uni 内置 | 注销二次确认 / 各入口跳转 / TabBar 切页 |
 
-**UI 组件**：公共 `AppHeader`(show-back=false) / `IconSvg` / `ImageFallback` / `TabBar`
-**控件类型**：整卡热区、宫格 `grid-cell`、分组列表行、`uni.showModal`（注销二次确认）
+> 本页为**静态短内容页**：**不设常驻 `scroll-view`**，以自然文档滚动承载超高内容（大字体 / 小屏）。
+
+#### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `nickname` | `UserInfoVO`（`stores/user`，源自 `POST /auth/wechat-login` / `GET /auth/profile`） | 昵称 | 用户卡主标题 `.nickname` | 认证态 = 昵称；空值时游客显「游客」、认证态显「食客」 |
+| 2 | `avatar` | 同上 | 头像地址 | 用户卡头像位（`ImageFallback`；空 / 失败 → `IconSvg name="user"` 灰底） | 120rpx 圆形 |
+| 3 | `username` | 同上 | 学号 | 用户卡副行 `.user-id`（**仅认证态**） | 次级灰小字 |
+| 4 | 游客短标识 | **端上派生** = 「食客 + `id` 尾 4 位」（`id` 不可得回退 `getLocalGuestLabel()`） | 游客标识 | 用户卡副行（**仅游客态**） | 「游客 食客XXXX」 |
+| 5 | `bindEmail` | 同上 | 已绑定校园邮箱 | **认证判据**：用户卡顶部 6rpx 主色软条纹（认证态显示）+ 宫格「身份认证」主色徽章 | 非空 = 已认证 |
+| 6 | `count` | `GET /my/notifications/unread-count`（经 `stores/notify`） | 未读通知总数 | 宫格「系统通知」右上**红点** | 仅认证态且 `> 0` 显示 |
+| 7 | 版本号 `appVersion` | **构建期注入** `__APP_VERSION__`（源自 `manifest.json` 的 `versionName`，运行时读不到 manifest） | 版本号 | 版本行 `.app-footer` | 「知行食记 v{version}」+「北京交通大学 · 校园美食分享圈」 |
+| 8 | `createdAt` | `UserInfoVO` | 注册时间 | **本页不展示**（仅「个人信息编辑」页只读展示） | — |
+
+**静态入口（无接口数据）**
+| 区域 | 条目 | 点击行为 | 附加 |
+|---|---|---|---|
+| 用户卡 | 查看我的主页 | `navigateTo(pages/my-reviews/index)`（**游客直接进入**，无认证拦截） | 认证动作**不放这里** |
+| 宫格 | 意见反馈 | → `pages/feedback/index` | — |
+| 宫格 | 系统通知 | → `pages/notifications/index` | 未读红点 |
+| 宫格 | 身份认证 | 未认证 → `requestAuth()` 跳 `pages/auth/index`；已认证 → Toast「已完成身份认证」 | 已认证主色圆点（认证动作**单一入口**） |
+| 其他 | 用户协议 / 隐私政策 | → `pages/privacy/agreement` / `pages/privacy/index` | — |
+| 其他 | 注销账号 | 二次确认 → `DELETE /auth/account` | 危险弱化色（`--color-error`） |
+
+**入参提交**：`DELETE /auth/account`（注销账号行）→ 无请求体、无参数（对象 = JWT 当前用户；随后 `forceLogout()` 清本地态）
+**错误码**：`400` 账号已注销 / 账号已被禁用，无法注销｜`401` 请先登录
+**控件类型**：自然文档滚动（无常驻 `scroll-view`）、整卡热区、宫格格（`role="button"` + `aria-label`）、分组列表行（≥88rpx）、`uni.showModal` 二次确认（注销确认钮取**主色实值**，与删除类危险操作口径不同）

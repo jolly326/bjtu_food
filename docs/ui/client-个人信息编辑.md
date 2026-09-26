@@ -46,22 +46,48 @@
 
 ### 6. 接口数据字段（UI 精修用）
 
-**页面**：`pages/profile/index`
+**页面**：`pages/profile/index`（分包 `pages/profile/`；二级页，**无 TabBar**）
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `GET /auth/profile`（`UserInfoVO`） | `avatar` / `nickname` | 可编辑两行的回填 |
-| | `username` / `bindEmail` / `createdAt` | 学号 / 校园邮箱 / 注册时间三只读行 |
-| | `id` | 本页不展示（不参与渲染） |
+#### 组件清单（本界面需要哪些组件）
+
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「个人信息」+ 返回箭头（`@back` → `backToHome`） |
+| 2 | `AppButton` | 公共 `components/AppButton.vue` | 固定底部 `submit-bar` 内「**保存**」主按钮（`loading` = 保存中；无改动 / 提交中禁用） |
+| 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时 `user` 灰底占位 + 头像行右箭头 `arrow` |
+| 4 | 分组信息卡 `.info-card` + 行 `.info-row`（页内内联） | `pages/profile/index.vue` 内联 | 五行结构：头像 / 昵称 / 学号 / 校园邮箱 / 注册时间 |
+| 5 | `scroll-view`(scroll-y) | uni 内置控件 | 表单滚动区（底部留 `--action-bar-height` + 安全区避让） |
+| 6 | `input`（昵称） | uni 内置控件 | 昵称录入（占位「请输入昵称」） |
+| 7 | `uni.chooseImage` | uni 内置控件 | 头像选图（单张、压缩；`album` + `camera`，由系统自带选择面板承载） |
+| 8 | `uploadAvatarImage` | `client/src/api/upload.ts` | 头像上传链路：取回站内地址 → 本地暂存（**随「保存」才落库**） |
+
+> **无** `ActionSheet`、**无** `RetryBlock`、**无** 独立弹层：本页为单一分组卡 + 固定底栏结构（口径差异见文末）。
+
+#### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `avatar` | `GET /auth/profile`（`UserInfoVO`，经 `stores/user`） | 头像地址 | 头像行右侧（`image` + `getImageUrl`） | 104rpx 圆角方图；空 / 失败 → `IconSvg name="user"` 灰底；上传中半透明 |
+| 2 | `nickname` | 同上 | 昵称 | 昵称行 `input`（**回填**） | 右对齐输入；占位「请输入昵称」 |
+| 3 | `username` | 同上 | 学号 / 账号 | 学号行右侧只读文本 `.info-value` | 空值回落 `--` |
+| 4 | `bindEmail` | 同上 | 校园邮箱 | 校园邮箱行右侧只读文本（`.info-value-email`） | 唯一来源；空值回落 `--`，长文本可换行不溢出 |
+| 5 | `createdAt` | 同上 | 注册时间 | 注册时间行右侧只读文本 | `yyyy-MM-dd HH:mm:ss`；空值回落 `--` |
+| 6 | `id` | 同上 | 用户 ID | **不渲染**（本页零消费） | — |
+| 7 | 上传结果 `url` | `POST /upload/cloud-image`（经云存储中转） | 头像新地址 | 头像行**就地刷新预览**（本地暂存，未落库） | Toast「上传成功，请点击保存」 |
+| 8 | 保存中态 | 端上 `saving` | 提交在途 | `AppButton`（`loading`） | 防重复提交 |
+| 9 | 失败提示 | `400` / `401` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「保存失败」） | 停留本页并保留已填内容 |
 
 **入参提交**
 | 接口 | 字段 |
 |---|---|
 | `PUT /auth/profile` | `nickname` / `avatar`（**至少一项**；`avatar` 须为站内 `/images/`、`/uploads/` 或 `cloud://`） |
-| 头像上传链路 | `wx.cloud.uploadFile` 得 `fileID` → `POST /upload/cloud-image`（`fileId`）→ 取回绝对 URL 暂存，随保存写入 |
+| 头像上传链路 | `wx.cloud.uploadFile` 得 `fileID` → `POST /upload/cloud-image`（入参 `fileId`）→ 取回绝对 URL 暂存，随保存写入 |
 
 **错误码**：`400` 昵称和头像至少填写一项 / 昵称包含敏感内容 / 头像地址不合法｜`401` 未登录｜`4031` 不适用（本页免认证）
+**控件类型**：`scroll-view`、`input`、`uni.chooseImage` 单张选图、固定底部 `submit-bar` + `AppButton`
 
-**UI 组件**：公共 `AppHeader` / `AppButton` / `IconSvg`
-**控件类型**：`scroll-view`、`input`（`maxlength=20` 昵称）、`uni.chooseImage` 选图、`ActionSheet`（拍照 / 相册）、固定底部 `submit-bar`、`RetryBlock` 失败态
+> **⚠️ 与当前代码的差异（待对齐）**
+> ① 昵称 `input` 代码为 `maxlength="16"`，本文档正文口径与后端契约均为**20 字**；
+> ② 头像更换当前**直接调 `uni.chooseImage`**（系统自带拍照 / 相册选择），**未使用 `ActionSheet`「拍照 / 从相册选择」**；
+> ③ 资料回填由全局 `stores/user`（静默登录 / 资料刷新）承担，页面本身**不发 `GET /auth/profile`**，故**无加载失败 `RetryBlock` 态**；
+> ④ 保存成功文案为 Toast「已保存」+ 延迟 `navigateBack`，返回「我的主页」由其 `onShow` 刷新信息卡。

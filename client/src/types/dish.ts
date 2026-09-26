@@ -96,9 +96,11 @@ export interface GuessLike {
 /**
  * 菜品大类字典项（`GET /dishes/meal-types`）：
  * 文案 / 顺序 / 子集全由后端下发（空类自动隐藏），**端上不得维护任何中文映射**。
+ *
+ * ⚠️ 端上类型**恰 2 字段**：`order` 是服务端排序用的内部字段，端上按返回顺序渲染、零消费
+ * （`web` 端需要排序，故其 DTO 保留）→ 按「零消费即删」不进入本类型。
  */
 export interface MealType {
   value: string
   label: string
-  order: number
 }

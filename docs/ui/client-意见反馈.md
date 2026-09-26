@@ -22,23 +22,47 @@
 
 ## 接口数据字段（UI 精修用）
 
-**页面**：`pages/feedback/index`（`mode=issue|update` 双模式）
+**页面**：`pages/feedback/index`（`mode=issue|update` 双模式；分包 `pages/feedback/`；二级页，**无 TabBar**）
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `GET /dishes`（`PageResult<DishListItemVO>`） | `records[].id` / `name` / `canteen` / `stallName` / `coverImage` | 菜品选择弹层：主键 / 菜名 / 位置副行 / 缩略图 |
-| `GET /dishes/{id}`（`DishDetailVO`） | `name` / `price` / `originalPrice` / `canteen` / `stallName` / `flavorTags` / `ingredients` / `images` / `image` / `rating` | update 模式**预填全量表单**（价格按元展示、图可增删） |
-| `GET /dishes/attributes` | `field` / `value` / `label` | 口味 / 食材 chips 中文（机器值 → 中文，未命中回落原值） |
+### 组件清单（本界面需要哪些组件）
+
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「意见反馈」+ 返回箭头（有返回栈则 `navigateBack`，否则回首页） |
+| 2 | 分段控件 `.seg`（页内内联） | `pages/feedback/index.vue` 内联 | 「反馈问题 / 更新信息」两段等宽切换（选中白卡浮起；**切换互不清空、各自保留草稿**） |
+| 3 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | issue 字段区：「想说啥」textarea（≤1000 字，超 800 字显 `n/1000`）+ 配图 |
+| 4 | `UpdateForm` | 页内私有 `pages/feedback/UpdateForm.vue` | update 字段区：菜品选择行 / 已选菜品卡 + 名称 / 价格 / 食堂名 / 档口 + 口味 chips / 食材 chips + 图片 |
+| 5 | `ListPickerSheet` | 页内私有 `pages/feedback/ListPickerSheet.vue`（骨架 = `BaseSheet`） | 菜品选择弹层：搜索框（内部防抖） + 候选行（缩略图 + 菜名 + 「食堂 · 档口」）+ `#empty` 空态 |
+| 6 | `ImagePicker` | 公共 `components/ImagePicker.vue` | issue 配图（≤3）/ update 菜品图（≤9，预填现有图可增删） |
+| 7 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交反馈」/「提交更新」/「提交中…」；`disabled` = 门禁不通过） |
+| 8 | `IconSvg` | 公共 `components/IconSvg.vue` | 选择行箭头 `arrow` / chips 删除叉 `close` |
+| 9 | 提交说明行 `.submit-note` + 外层热区 `.submit-area`（页内内联） | 页内内联 | 处理承诺文案 + 承接「置灰态点击」的缺失项 Toast |
+| 10 | `useFeedback.ts` | 页内私有编排 | 双模式状态、草稿、`canSubmit` 门禁、搜索竞态守卫、提交与 2 秒自动返回 |
+
+### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `records[].id` | `GET /dishes?keyword=`（搜索候选） | 菜品 ID | `ListPickerSheet` 选项 `key` / 提交路径 `{id}` | 零可见 UI |
+| 2 | `records[].name` | 同上（端上 `DishListItem.name`） | 菜名 | `ListPickerSheet` 行主文案 + 已选菜品卡名称 | 单行省略 |
+| 3 | `records[].canteenName` / `records[].stallName` | 同上（端上别名 `canteen` / `stallName`） | 食堂 / 档口 | `ListPickerSheet` 行副文案（`sub` = 「食堂 · 档口」）+ 已选菜品卡位置行 | 次级灰小字 |
+| 4 | `records[].coverImage` | 同上 | 封面图 | `ListPickerSheet` 行左侧缩略图（`plain` 行样式） | 72rpx 圆角图；空则不渲染 |
+| 5 | `name` / `price` / `canteenName` / `stallName` | `GET /dishes/{id}`（`DishDetailVO`） | 菜品名称 / 现价 / 食堂名 / 档口名 | `UpdateForm` 名称行 / 价格行 / 食堂名行 / 档口行（**预填**） | 价格：分 → 元展示（`fenToYuan`），digit 键盘，占位「如 12.5」 |
+| 6 | `flavorTags` / `ingredients` | 同上（**机器值数组**） | 口味 / 主料 | `UpdateForm` chips（预填 + 用户增删） | 机器值经四维字典译中文；未命中回落原值 |
+| 7 | `images` | 同上 | 菜品现有图 | `ImagePicker` 网格（update 模式，≤9） | 可增删，经安检上传 |
+| 8 | `field` / `value` / `label` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `UpdateForm` chips 中文文案 | 端上零硬编码映射 |
+| 9 | `text` / `images`（本地草稿） | 用户输入 / `ImagePicker` | issue 正文与配图 | `IssueForm` textarea + 字数计数 + 图片网格 | 切换模式不清空 |
+| 10 | 字段错误 `errors` | 端上门禁（`canSubmit` / 字段校验） | 缺失或非法项 | 对应字段下方 `.field-error` + 错误边框 | 首个错误字段 `scroll-into-view` 定位 |
+| 11 | 提交说明 | 端内静态文案 | 处理承诺 | `.submit-note` | issue：「我们会在 48 小时内处理你的反馈，处理结果将通过站内通知告知」；update：「提交后由管理员核实，确认无误后更新菜品信息」（**不暗示提交即生效**） |
+| 12 | 提交结果 | `POST /feedback` / `POST /dishes/{id}/correction` 成功（`data` = null） | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；两模式表单统一重置） | — |
+| 13 | 失败提示 | `400` / `4001` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「没发出去，再试一次」） | 停留本页保留草稿 |
 
 **入参提交**
 | 接口 | 字段 |
 |---|---|
 | `POST /feedback`（issue） | `type='issue'` / `content`（≤1000 字）/ `images`（≤3） |
-| `POST /dishes/{id}/correction`（update） | `name` / `price`（**整数分**）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]` |
-| `GET /dishes`（搜索候选） | `keyword` / `page` / `pageSize` |
+| `POST /dishes/{id}/correction`（update） | `name` / `price`（**整数分**，端上 `yuanToFen`）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]`（≤9） |
+| `GET /dishes`（候选搜索） | `keyword` / `page` / `pageSize` |
 
-**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 菜品名称不能为空 / 价格必须为大于 0 的整数（单位：分）/ 菜品图片最多 N 张 / 图片地址不合法 / IP 限频「提交过于频繁」｜`4001` 菜品不存在（纠错）
-
-**UI 组件**：公共 `AppHeader` / `AppButton` / `ImagePicker` / `IconSvg` / `BaseSheet`（经 ListPickerSheet）；页内私有 `IssueForm` / `UpdateForm` / `ListPickerSheet`
+**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 菜品名称不能为空或超 64 字 / 含敏感词 / 价格必须为大于 0 的整数（单位：分）/ 菜品图片最多 N 张 / 图片地址不合法 / IP 限频「提交过于频繁」（提示剩余秒数）/ 文本安检 `risky`（含未知 / 缺失态）｜`4001` 菜品不存在（纠错）
 **控件类型**：`scroll-view`、分段控件 `seg`（互不清空草稿）、`textarea`、`input`（名称 / 价格 digit / chips 自由输入）、chips 增删、菜品选择弹层（搜索 + 列表 + 空态）、字段级错误滚动定位

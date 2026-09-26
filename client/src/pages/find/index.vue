@@ -1,5 +1,7 @@
 <template>
   <view class="page find-page" :style="{ paddingTop: `${titleBandPx}px` }">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下，接入无需改动既有层级） -->
+    <PageWallpaper fixed />
     <!-- 顶部两段式（搜索页头部由 `AppTitleBand` + `SearchBar` 承载）：
          ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
@@ -10,6 +12,7 @@
         mode="input"
         v-model="keyword"
         :searching="searching"
+        :disabled="!keyword.trim()"
         @search="onSearchConfirm"
         @clear="clearKeyword"
       />
@@ -42,11 +45,18 @@
                 v-for="(kw, i) in historyList"
                 :key="kw"
                 class="history-chip"
+                role="button"
+                :aria-label="`搜索 ${kw}`"
                 hover-class="history-chip-pressed"
                 @tap="goKeyword(kw)"
               >
                 <text class="history-chip-text">{{ kw }}</text>
-                <view class="history-chip-del" @tap.stop="removeHistory(i)">
+                <view
+                  class="history-chip-del"
+                  role="button"
+                  :aria-label="`删除记录 ${kw}`"
+                  @tap.stop="removeHistory(i)"
+                >
                   <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
                 </view>
               </view>
@@ -62,6 +72,8 @@
                 v-for="(kw) in guessLikeList"
                 :key="kw.keyword"
                 class="history-chip history-chip-hot"
+                role="button"
+                :aria-label="`搜索 ${kw.keyword}`"
                 hover-class="history-chip-pressed"
                 @tap="goKeyword(kw.keyword)"
               >
@@ -115,6 +127,7 @@ import RetryBlock from '@/components/RetryBlock.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import FindResults from './FindResults.vue'
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
@@ -125,10 +138,14 @@ const dishStore = useDishStore()
 /** 固定标题带高（px）：带为 `position: fixed`，页面根层须用等量 padding 顶开内容 */
 const { titleBandPx } = useNavMetrics()
 
-/** 返回：结果态先退回发现态，否则回首页（沿用既有行为） */
+/**
+ * 返回：**恒退出本页**（首页 → 本页为 `navigateTo`，返回即回首页）。
+ *
+ * 结果态的退出**不由返回键承担**：改由搜索框右侧「清空 X」承担（清词 + 回发现态，见 `clearKeyword`）。
+ * 理由：返回键在结果态「先退状态、再退页」的两段语义**不可见**，用户会读作「按了返回却没退页」。
+ */
 function onBack() {
-  if (inFilter.value) exitFilter()
-  else backToHome()
+  backToHome()
 }
 
 /* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
@@ -226,13 +243,25 @@ function onSearchConfirm() {
   doMixedSearch(kw)
 }
 
+/**
+ * 清空关键词 = 「重新开始」：清词 **并** 退出结果态回发现态。
+ *
+ * ⚠️ 只清 `keyword` 会留下两个坑：① 输入框已空、列表仍是旧结果（状态与内容不一致）；
+ * ② 此后点「搜索」无词可搜 —— 旧实现静默 return，用户读作「点了没反应」。
+ */
 function clearKeyword() {
   keyword.value = ''
+  if (inFilter.value) exitFilter()
 }
 
+/**
+ * 词条点击（搜索记录 / 猜你喜欢）：以该词发起搜索，**不写入搜索记录**。
+ *
+ * 依据：记录上限仅 4 条 —— 推荐词若写入，会把用户真实搜过的词挤出去（随机词覆盖个人资产）；
+ * 历史词条本就在记录内，重搜无需再置顶。写入口径唯一 = 用户**显式提交**（见 `onSearchConfirm`）。
+ */
 function goKeyword(kw: string) {
   keyword.value = kw
-  pushHistory(kw)
   doMixedSearch(kw)
 }
 

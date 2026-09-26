@@ -1,5 +1,7 @@
 <template>
   <view class="page my-reviews-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="我的主页" @back="backToHome" />
 
     <view class="scroll-wrap">
@@ -69,6 +71,7 @@
 import { ref, computed } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import RetryBlock from '@/components/RetryBlock.vue'

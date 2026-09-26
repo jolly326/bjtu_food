@@ -43,11 +43,12 @@
     <!-- 右：独立「搜索」按钮（按文字定宽、不与胶囊等分） -->
     <view
       class="search-btn"
-      :class="{ 'is-searching': searching }"
+      :class="{ 'is-searching': searching, 'is-disabled': disabled }"
       :style="{ height: capsuleH }"
       role="button"
       :aria-label="buttonText"
-      :hover-class="searching ? 'none' : 'search-btn-pressed'"
+      :aria-disabled="disabled ? 'true' : 'false'"
+      :hover-class="searching || disabled ? 'none' : 'search-btn-pressed'"
       @tap="onButtonTap"
     >
       <text class="search-btn-text">{{ buttonText }}</text>
@@ -75,6 +76,12 @@ const props = withDefaults(defineProps<{
    * §8 `submit-feedback`；MVP 不引入 spinner / 骨架，故仅以禁用态表达。
    */
   searching?: boolean
+  /**
+   * 空关键词禁用态（仅 `input` 模式有意义）：置灰 + 禁点，**不让点击静默失效**。
+   * 依据 ui-ux-pro-max §8 `submit-feedback`：不可执行的动作必须给出可见状态，
+   * 而非「点了没反应」。输入框本身 **不禁用**（始终可输入）。
+   */
+  disabled?: boolean
 }>(), {
   mode: 'entry',
   modelValue: '',
@@ -84,6 +91,7 @@ const props = withDefaults(defineProps<{
   placeholder: '搜索菜品、食堂、档口',
   buttonText: '搜索',
   searching: false,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -109,8 +117,9 @@ function onPillTap() {
  * 若 entry 也发 `search`，首页（只监听 `@tap`）的按钮会「点了没反应」。
  */
 function onButtonTap() {
-  // 提交中拦下重复点击（skill §2 loading-buttons）；entry 模式不受影响
-  if (props.searching) return
+  // 提交中拦下重复点击（skill §2 loading-buttons）；空词禁用态同样不提交（禁用必须可见，见 disabled 注释）；
+  // entry 模式（首页）不受两者影响
+  if (props.searching || props.disabled) return
   if (props.mode === 'entry') emit('tap')
   else emit('search')
 }
@@ -200,6 +209,9 @@ function onInput(e: any) {
    MVP 不引入 spinner / 骨架，故仅以禁用态表达「已受理」，
    消除「点了没反应」并挡住重复提交。 */
 .search-btn.is-searching { opacity: 0.6; pointer-events: none; }
+/* 空关键词禁用态：置灰 + 禁点（与 .is-searching 同一禁用语言、更弱一档）。
+   `pointer-events: none` 同时去掉按压态 —— 不可执行的动作不给按压反馈。 */
+.search-btn.is-disabled { opacity: 0.5; pointer-events: none; }
 /* 触达：按钮可点区上下各扩 16rpx → ≥88rpx（不改变视觉尺寸） */
 .search-btn::after {
   content: '';

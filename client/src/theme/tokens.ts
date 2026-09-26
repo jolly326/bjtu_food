@@ -75,9 +75,6 @@ export const COLOR_MAP = {
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
   'bg-placeholder': '#F0ECE8',
-  /* 白卡底部渐隐端色（home-ui-refresh D9：首页筛选面板食堂列表溢出提示）：
-     白色 0 透明度端，必须与 --bg-card 配对使用，避免渐隐端出现灰边；端色值集中登记于此，样式侧只引 var() */
-  'grad-fade-white': 'rgba(255,255,255,0)',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',
   'overlay-dark-strong': 'rgba(0,0,0,0.6)',
@@ -166,7 +163,6 @@ export const CSS_VARS: Record<string, string> = {
   '--bg-input': COLOR_MAP['bg-input'],
   '--bg-soft': COLOR_MAP['bg-soft'],
   '--bg-placeholder': COLOR_MAP['bg-placeholder'],
-  '--grad-fade-white': COLOR_MAP['grad-fade-white'],
   '--border-color': COLOR_MAP['border-color'],
   '--border-bold': COLOR_MAP['border-bold'],
   /* 阴影（卡片 / 底栏 / 浮层） */

@@ -1,5 +1,7 @@
 <template>
   <view class="page auth-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="身份认证" @back="leaveWithoutVerify" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -79,6 +81,7 @@ import { ref, computed } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { storeToRefs } from 'pinia'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'

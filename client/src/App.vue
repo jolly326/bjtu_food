@@ -35,6 +35,22 @@ page {
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
 
+  /* ========== 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色，无分段）==========
+     · 由 `components/PageWallpaper.vue` 以 `background-color` 消费；全站只有**页面级一处**壁纸层
+       （`fixed` 视口锚定；2026-09-26 起不再有任何「横条切片」）—— 因此处处同源，
+       不会出现「某条横带颜色不一样」的突变；
+     · 口径（2026-09-26 三次修正）：**整张壁纸统一压一层**。此前只在顶部一条，会在画面中段留下
+       一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）；
+     · 作用 = 「降低背景突出度」：壁纸仍可见，但不抢内容 → 标题 / 标签 / 卡片间隙都落在同一层纱上；
+     · **α 是唯一旋钮**：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚。0.8 为当前平衡点；
+     · 色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写字面量 rgba）。 */
+  --page-wash: rgba(255, 248, 239, 0.6);
+
+  /* 注：曾经的「横条表面色 `--bg-wallpaper`」已于 2026-09-27 随**结构性决议**删除：
+     首页改为「常驻工具栏 + 收缩滚动区」（§11）后，任何横条背后都没有内容经过 ⇒
+     全站不需要任何表面 / 切片 / 纯色底。若未来某页必须让内容从横条背后穿过，
+     口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」（实测法见 UI 文档 §11.1 历史记录）。 */
+
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
   --radius-none: 0;
@@ -119,7 +135,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 }
 
 /* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========
-   hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
+   hover-class="pressed" 的全局兜底反馈（TabBar / 反馈表单 / 列表行等引用，UX-004 空引用修复）；
    取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-link.pressed）。
    页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */
 .pressed { opacity: 0.7; }

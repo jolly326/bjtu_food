@@ -12,7 +12,7 @@
         @error="imgOk = false"
       />
       <view v-else class="image-placeholder">
-        <IconSvg name="dish" :size="56" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
+        <IconSvg name="dish" :size="56" :color="COLOR_MAP['text-tertiary']" />
       </view>
     </view>
     <view class="card-info">
@@ -119,21 +119,19 @@ function handleClick() {
   align-items: center;
   justify-content: center;
 }
-.placeholder-icon {
-  font-size: var(--icon-2xl);
-  line-height: 1;
-}
-/* 星：黄色实心（--color-star，星色不随主色换肤）；取色走 COLOR_MAP 真源实色（data-uri 不解析 var） */
+/* 星：黄色实心（--color-star，星色不随主色换肤）；取色走 COLOR_MAP 真源实色（data-uri 不解析 var）。
+   `flex-shrink: 0` 必须有（flex 行内不被压缩）；图标尺寸/行高由 IconSvg 自持，此处不再重复声明。 */
 .star-icon {
-  line-height: 1;
   flex-shrink: 0;
 }
 .rating-text {
-  /* 评分文字：正文档（#4A3520），层级低于其右侧价格（§6.2 第 4 段） */
+  /* 评分文字：正文档（#4A3520）**常规字重**——§8「评分 28rpx 常规」。
+     本卡**重字重只留两处**（菜名 --weight-semibold / 价格 --weight-bold）：一屏 4 行文字若 3 行都在加深加粗，
+     第一眼就不知道该看什么（设计稿「信息密度偏高」那条）；评分语义已由暖黄星形承担，数字无需再加粗。 */
   color: var(--text-body);
   /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限 */
   font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular);
   font-variant-numeric: tabular-nums;
 }
 .card-info {

@@ -29,28 +29,65 @@
 
 ## 接口数据字段（UI 精修用）
 
-**页面**：`pages/detail/dish/index`（+ 本页私有弹层 `ReviewComposer` / `ReportModal`）
+**页面**：`pages/detail/dish/index`（分包 `pages/detail/`；二级页，**无 TabBar**）+ 本页私有弹层 `ReviewComposer` / `ReportModal`
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `GET /dishes/{id}`（`DishDetailVO`） | `id` / `name` / `price` / `originalPrice` | 主键 / 菜名 / 现价 / 划线原价（`> price` 才展示） |
-| | `images` / `image` | 轮播多图 / 首图派生（端上由 `images[0]` 现算） |
-| | `description` / `canteen` / `stallName` / `floor` | 描述（2 行展开）/ 位置行三段 |
-| | `dietType` / `ingredients` / `flavorTags` / `serveTemp` | 四维机器值 → 经 `GET /dishes/attributes` 译中文 |
-| | `rating` / `ratingCount` / `ratingDistribution[]`（`star` / `count`） | 评分区均分 / 人数 / 分布条（三者同源实时聚合） |
-| `GET /dishes/{id}/reviews`（`PageResult<ReviewVO>`） | `records[].id` / `userId` / `userNickname` / `userAvatar` / `rating` / `content` / `images` / `createdAt` | 评价卡全字段 / 本人判定（决定三点菜单给「删除」还是「举报」） |
-| `GET /dishes/attributes` | `field` / `value` / `label` / `order` | 四维字典翻译（端上零硬编码映射） |
-| `GET /my/reviews?dishId=` | `records[0].id` / `rating` / `content` / `images` | 写评价弹层「是否已评价」判定 + 重评预填 |
-| `GET /feedback/report-reasons` | `value` / `label` / `order` | 举报原因单选列表（提交用 `value`） |
+### 组件清单（本界面需要哪些组件）
+
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `ImageSwiper` | 页内私有 `pages/detail/dish/ImageSwiper.vue` | 顶部大图轮播（`autoplay=false` 仅手动滑动；多图显示指示点、单图不显示；无图 / 破图 → `empty` 中性占位，块高不变） |
+| 2 | `DishInfoCard` | 页内私有 | 信息卡四段：① 名称 + 价格 → ② 位置行（右侧并入「信息有误？」） → ③ 描述（2 行 + 展开 / 收起） → ④ 四维指标 |
+| 3 | `DishSummaryCard` | 页内私有 | 综合评分卡：均分 + 评价人数 + 5 条评分分布条 |
+| 4 | `DishReviewSection` | 页内私有 | 评价卡：`SectionTitle`「评价」+ 数量 + 「只看有图」开关 + 评价列表 / 空态 / 失败态 |
+| 5 | `ReviewComposer` | 页内私有 | 写评价 / 重新评价底部弹层（字段与呈现见 [client-写评价.md](./client-写评价.md)） |
+| 6 | `ReportModal` | 页内私有 | 举报评价底部弹层（见 [client-举报评价.md](./client-举报评价.md)） |
+| 7 | `CardSection` | 公共 `components/CardSection.vue` | 三张卡外壳（信息 / 评分 / 评价） |
+| 8 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 「综合评分」「评价」标题；评价卡经 `#extra` 槽承载数量 + 开关 |
+| 9 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 单条评价卡（头像 / 昵称 / 星级 / 时间 / 正文 / 配图 / 三点） |
+| 10 | `ActionSheet` | 公共 `components/ActionSheet.vue` | 评价三点菜单：本人「删除评价」/ 他人「举报评价」（危险红） |
+| 11 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 评价首屏 / 刷新失败「加载失败 · 点击重试」 |
+| 12 | `ImagePicker` | 公共（经 `ReviewComposer`） | 评价配图 ≤3 张 |
+| 13 | `IconSvg` | 公共 `components/IconSvg.vue` | 导航返回 `arrow-left` / 定位 `location` / 星（`star` 线性 · `star-filled`）/ 三点 `more-v` / 空态与失败示意 `empty` · `report` |
+| 14 | 覆盖导航 `.dish-nav`、大图容器 `.hero-slot` + 承接条 `.hero-carry`、失败块 `.detail-fail`、底部操作栏 `.action-bar`（页内内联） | `pages/detail/dish/index.vue` 内联 | 透明→实底导航（滚动渐显菜名）、`position: sticky` 两阶段定格、详情失败 / 不存在态、写评价 + 分享双钮 |
+| — | `swiper`（`ImageSwiper` 内）/ `textarea` / `open-type="share"` button | uni 内置控件 | 图片轮播 / 评价输入 / 分享 |
+
+### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `id` | `GET /dishes/{id}`（`DishDetailVO`） | 菜品 ID | 无界面（页面 `key` / 请求路径 / 分享路径） | 零可见 UI |
+| 2 | `name` | 同上 | 菜名 | ① `DishInfoCard` 名称行 ② 覆盖导航标题 `.dish-nav-title`（滚动后渐显） ③ `ReviewComposer` 副标题 ④ 分享标题 | 导航标题按滚动量淡入 |
+| 3 | `price` | 同上（元） | 现价 | `DishInfoCard` 价格行 `.price-text` | **唯一价格数据源**（主色）；不以第三字段判折扣 |
+| 4 | `originalPrice` | 同上 | 原价 | `DishInfoCard` 价格行 `.origin-price` | 仅 `originalPrice > price` 渲染，三级灰 + 删除线 |
+| 5 | `images` | 同上 | 菜品图集 | `ImageSwiper`（页面派生 `heroImages`） | `aspectFill`，加载完成淡入；空数组 → 占位 |
+| 6 | `description` | 同上 | 菜品描述 | `DishInfoCard` 描述行 `.desc-content` + 展开 / 收起入口 | 默认 2 行截断；换菜时复位收起 |
+| 7 | `canteenName` / `floor` / `stallName` | 同上（端上别名 `canteen`） | 食堂 / 楼层 / 档口 | `DishInfoCard` 位置行 `.loc-text`（页面派生 `locationText`） | 「食堂 · 楼层 · 档口」；缺项兜底「未知位置」；右侧「信息有误？」→ 反馈页 `update` 模式 |
+| 8 | `dietType` / `ingredients` / `flavorTags` / `serveTemp` | 同上（**机器值**：单值 / 数组 / 数组 / 单值） | 荤素 / 主料 / 口味 / 冷热 | `DishInfoCard` 四维区 `.dim-col`（`dim-val` + `dim-label`） | **逐维渲染、缺项不占位**；多值以 `、` 连接，长值 2 行收起 |
+| 9 | `field` / `value` / `label` / `order` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `DishInfoCard` 四维维度名与中文值 | 端上零硬编码映射；未命中 → 该维不渲染 |
+| 10 | `avgRating` / `ratingCount` | 同上（端上别名 `rating`） | 均分 / 评价人数 | `DishSummaryCard` 左侧（`.summary-score` / `.summary-count`） | 均分 1 位小数；`ratingCount = 0` → 「还没有评分」空态（不靠字段缺失判断） |
+| 11 | `ratingDistribution[].star` / `.count` | 同上 | 星级 / 该星级条数 | `DishSummaryCard` 右侧 5 条分布行 | 星图标 + 星级数字 + 分布条（宽 = `count / ratingCount`）+ 条数；恒 5 项、**按 star 降序、端上不排序** |
+| 12 | `records[].id` | `GET /dishes/{id}/reviews`（`PageResult<ReviewVO>`） | 评价 ID | `ReviewItem` 列表 `key` / 删除与举报目标 | 零可见 UI |
+| 13 | `records[].userAvatar` | 同上 | 评价者头像 | `ReviewItem` 头像位 | 空 / 破图 → `IconSvg name="user"` 灰底 |
+| 14 | `records[].userNickname` | 同上 | 评价者昵称 | `ReviewItem` 昵称行 | 空 → 「匿名用户」（注销账号显示「已注销用户」） |
+| 15 | `records[].rating` | 同上 | 评分（1~5） | `ReviewItem` meta 行（实心黄星 + 数值） | 最低渲染 1 颗星 |
+| 16 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行右侧 `.review-time` | `formatDateTime`；重评后取新时间（自然置顶） |
+| 17 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 `.review-content` | 二级灰、`pre-wrap` |
+| 18 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 `empty` 占位 |
+| 19 | `records[].userId` | 同上 | 评价者用户 ID | `ActionSheet` 动作项显隐（与 `userInfo.id` 比对：本人「删除评价」/ 他人「举报评价」） | 服务端另有「非本人 → 403」兜底 |
+| 20 | `total` | 同上 | 可见评价总条数 | `DishReviewSection` 标题右侧 `.review-count` | 全量 = 「N」；「只看有图」开启 = 「有图 N」；在途期与失败态不显示 |
+| 21 | `records` / `total` / `page` / `pageSize` | 分页壳 | 分页信息 | 触底加载结束判据（已加载条数 ≥ `total`） | `page` / `pageSize` 为服务端归一化值，**端上零渲染** |
+| 22 | `records[0].id` / `.rating` / `.content` / `.images` | `GET /my/reviews?dishId=&page=1&pageSize=1` | 本人评价 | 底栏双态（「写评价」/「重新评价」）+ `ReviewComposer` 预填（`reviewId` + `prefill`） | 判定失败**静默按未评价**处理 |
+| 23 | 加载 / 失败 / 不存在态 | 端上 `detailError` / `detailNotFound`（`4001` / 缺 id） | — | `.detail-fail` 块 | 不存在 → 「这道菜已不在了」+「它可能已被下架或移除」+ **仅「返回」**；网络失败 → 「这道菜暂时打不开」+「重新加载」+「返回」；加载中**静默空白**（无骨架屏） |
+| 24 | 评价三态 | 端上 `reviewPending` / `reviewFailed` / 列表长度 | 在途 / 失败 / 空 | `DishReviewSection` | 在途 **整块不渲染**（不误闪空态）；失败 → `RetryBlock`；「只看有图」无结果 → 「暂无带图评价」；零评价 → 鼓励态 + 「写第一条评价」 |
 
 **入参提交**
 | 接口 | 字段 |
 |---|---|
-| `POST /dishes/{id}/reviews` / `PUT /reviews/{id}` | `rating` / `content` / `images`（≤3） |
-| `POST /feedback`（举报） | `type='report'` / `sub`（原因 value）/ `relatedType='review'` / `relatedId`（评价 id） |
-| `GET /dishes/{id}/reviews` | `page` / `pageSize=10` / `hasImage`（只看有图） |
+| `GET /dishes/{id}/reviews` | `page` / `pageSize=10` / `hasImage`（「只看有图」） |
 | `GET /my/reviews` | `dishId` / `page=1` / `pageSize=1` |
+| `POST /dishes/{id}/reviews` · `PUT /reviews/{id}` | `rating` / `content` / `images`（≤3；详见 [client-写评价.md](./client-写评价.md)） |
+| `POST /feedback`（举报） | `type='report'` / `sub` / `relatedType='review'` / `relatedId` |
+| `DELETE /reviews/{id}` | 无请求体（详见 [client-删除本人评价.md](./client-删除本人评价.md)） |
 
-**UI 组件**：公共 `IconSvg` / `ActionSheet` / `CardSection` / `SectionTitle` / `ReviewItem` / `RetryBlock` / `BaseSheet` / `ImagePicker`；页内私有 `ImageSwiper` / `DishInfoCard` / `DishSummaryCard` / `DishReviewSection` / `ReviewComposer` / `ReportModal`
-**控件类型**：页面级滚动 + `position: sticky` hero、`onReachBottom` 触底分页、`onPageScroll`、`BaseSheet` 底部抽屉、三点 `ActionSheet`、开关（只看有图）、`textarea`、星级选择、`open-type="share"`
+**错误码**：`4001` 菜品不存在 / 已下架（专属文案 + 仅返回，**不可重试**）｜网络 / `5xx`（可重试：重新加载 + 返回）｜`400` 评价参数或安检失败｜`403` 非本人｜`4031` 邮箱未认证（跳身份认证页 `pages/auth/index`，返回后由 onShow 续接原动作）
+**控件类型**：页面级滚动 + `position: sticky` 大图两阶段定格（位移全由原生滚动承担）、`onReachBottom` 触底分页、`onPageScroll`（导航透明度 / 承接条）、`BaseSheet` 底部抽屉 ×2、`ActionSheet` 三点菜单、「只看有图」开关（`role="switch"`）、`textarea`、星级单选、`open-type="share"` 分享按钮

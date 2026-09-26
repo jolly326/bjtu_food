@@ -61,7 +61,8 @@
 - **UGC 配图列（2026-09-13，以列扩展落地、不加表，基线 10 张）**：`review.images` / `user_feedback.images`（JSON 数组 ≤3 项 COS URL）；`review.sec_state` / `user_feedback.sec_state` 已于 2026-09-15 随「取消人工复核」全链退役；改库必须改 `server/src/main/resources/db/schema.sql`（幂等 ALTER），禁止直连库。
 
 ### 前端架构要点
-- **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me)、`components/`、`theme/tokens.ts`、`uni.scss`、`assets/icons`。
+- **小程序 `client/src`**：`api/`(含 `http.ts`、`shared.ts`)、`types/`、`stores/`(Pinia: user/dish/theme/location/notify/review)、`pages/`(主包 home/mine/find + 分包 detail/me)、`components/`、`theme/tokens.ts`、`uni.scss`、`static/images/`（本地图片素材**唯一落位**；**无 `assets/icons` 副本**——图标统一走 `<IconSvg>` 内联 SVG data-uri）。
+  - 本地图片引用写 `/static/images/xxx.jpg`（uni-app 构建把 `src/static/` 原样拷到 `dist/<platform>/static/`）。⚠️ 小程序 WXSS 的 `background-image: url()` **不支持包内本地路径**：本地背景图必须用绝对定位的 `<image>` 层（或 base64 / 网络 URL），页顶渐变一律用 `linear-gradient`。
   - `http.ts`：401 先静默登录重试一次，仍失败 `handleUnauthorized`（清 token+Toast+重登，并发去重），**不用事件总线**；403/4031 分级提示。
   - 图片：**UGC 配图（2026-09-13 恢复）**走 `wx.cloud.uploadFile` 传云开发云存储（中转）→ `POST /api/upload/images`（后端 imgSecCheck → COS 转存，返回 COS URL），配图组件（≤3 张、`wx.compressImage` 压缩 ≤1MB、≤750×1334）供评价弹层与反馈表单复用；头像仍走既有单图链路；图标统一 `<IconSvg>`（本地 `assets/icons`，语义唯一 ic-heart=喜欢、ic-thumb=有用/点赞、无收藏）。
 - **Web `web/src`**：`api/`(含 `adapter.ts` 做 snake_case→camelCase 映射，**禁止视图层直处字段名**)、`views/`、`components/`、`router/`、`api/dashboard.ts`；登录首屏 `/dashboard`（工作台=待办+数据总览，**非 ECharts 看板**）。

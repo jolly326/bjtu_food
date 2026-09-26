@@ -1,5 +1,7 @@
 <template>
   <view class="page feedback-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下；本页原 `--bg-warm` 底由它取代） -->
+    <PageWallpaper fixed />
     <Header title="意见反馈" @back="goBack" />
 
     <!-- 顶部双模式切换：分段控件，两段等宽 -->
@@ -95,6 +97,7 @@
  */
 import { computed } from 'vue'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import ListPickerSheet from './ListPickerSheet.vue'
 import IssueForm from './IssueForm.vue'

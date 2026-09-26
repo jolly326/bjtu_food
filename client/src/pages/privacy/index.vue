@@ -1,5 +1,7 @@
 <template>
   <view class="page privacy-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="隐私政策" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -37,6 +39,7 @@
  * 入口位于「我的」页「其他」分组列表，与「用户协议」各自独立页面（见 spec privacy-compliance）。
  */
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import { backToHome } from '@/utils/nav'
 </script>
 

@@ -1,6 +1,6 @@
 import type {
   DishListItem, DishDetail, DishQuery,
-  GuessLike,
+  GuessLike, MealType,
 } from '@/types/dish'
 import { get } from './http'
 import { fenToYuan } from '@/utils/money'
@@ -117,11 +117,12 @@ export async function getGuessLike(): Promise<GuessLike[]> {
 }
 
 /** 菜品大类字典（GET /dishes/meal-types）：首页横向标签栏数据源，文案与顺序全由后端下发 */
-export async function getMealTypes(): Promise<{ value: string; label: string; order: number }[]> {
+export async function getMealTypes(): Promise<MealType[]> {
   const raw = await get<RawRow[]>('/dishes/meal-types')
+  // 只映射端上真实消费的 2 字段（`value` / `label`）；`order` 是服务端排序用字段，
+  // 端上按返回顺序渲染 → 零消费，按「零消费即删」不映射
   return (raw || []).map((item: RawRow) => ({
     value: String(item.value || ''),
     label: String(item.label || ''),
-    order: Number(item.order ?? 0),
   }))
 }
