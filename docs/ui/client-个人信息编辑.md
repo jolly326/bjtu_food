@@ -5,7 +5,7 @@
 
 
 - 入口：**「我的主页」用户信息卡右侧「编辑个人信息」**（游客态与认证态同达，无认证拦截）。宿主主页见 [client-我的主页.md](./client-我的主页.md)。
-- 页面形态：**独立页面**，`AppHeader` 页头标题「**个人信息**」+ 可滚动表单区；返回箭头 = `navigateBack`。二级页，**无 TabBar**。
+- 页面形态：**独立页面**，`AppHeader` 页头标题「**个人信息**」+ 可滚动表单区；**返回**（文字） = `navigateBack`。二级页，**无 TabBar**。
 - 构成（自上而下）：页头 → **头像行**（可改）→ **昵称行**（可改）→ **学号 / 校园邮箱 / 注册时间**（只读）→ 页面底部主按钮「**保存**」。
 
 ### 1. 字段区
@@ -51,7 +51,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「个人信息」+ 返回箭头（`@back` → `backToHome`） |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「个人信息」+ **返回**（文字）（`@back` → `backToHome`） |
 | 2 | `AppButton` | 公共 `components/AppButton.vue` | 固定底部 `submit-bar` 内「**保存**」主按钮（`loading` = 保存中；无改动 / 提交中禁用） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时 `user` 灰底占位 + 头像行右箭头 `arrow` |
 | 4 | 分组信息卡 `.info-card` + 行 `.info-row`（页内内联） | `pages/profile/index.vue` 内联 | 五行结构：头像 / 昵称 / 学号 / 校园邮箱 / 注册时间 |

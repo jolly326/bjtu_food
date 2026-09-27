@@ -5,7 +5,7 @@
 
 
 - 入口：「我的」页**用户卡点击**（**游客直接进入**，无认证拦截；认证要求仅在发表 / 删除评价时给出）。
-- 页面构成（自上而下，**页头 + 用户信息卡 + 评价区**）：`AppHeader`（标题「**我的主页**」+ 返回箭头）→ **用户信息卡** → **评价区**（区块标题「我的评价」+ 本人评价列表）。
+- 页面构成（自上而下，**页头 + 用户信息卡 + 评价区**）：`AppHeader`（标题「**我的主页**」+ **返回**（文字））→ **用户信息卡** → **评价区**（区块标题「我的评价」+ 本人评价列表）。
 - 滚动承载：不设常驻 `scroll-view`，以自然文档滚动承载内容，触底触发评价列表加载更多；底部留 `env(safe-area-inset-bottom)` 安全区留白。二级页，**无 TabBar**。
 
 ### 1. 用户信息卡
@@ -55,7 +55,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「我的主页」+ 返回箭头（`@back` → `backToHome`） |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「我的主页」+ **返回**（文字）（`@back` → `backToHome`） |
 | 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 信息卡头像（加载失败回退统一占位 `ImagePlaceholder`，禁裂图） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时的 `user` 灰底占位 |
 | 4 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡（**与菜品详情评价区同一实现**）；本人视角专属菜名经 `dish-name` prop 注入；`@more` 上抛三点动作 |

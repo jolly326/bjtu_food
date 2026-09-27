@@ -1,6 +1,6 @@
 # 功能总览（按板块 + 功能拆分）
 
-> ⚠️ **口径来源变更（2026-09-27）**：原 `docs/project_spec.md`（含 `api-design.md` / `database.md`）已删除，本目录与其 `README` 的「通用结构」段**承接其接口契约与通用约定**；仓库红线 / 产品定型 / 协作纪律见 [`CODEBUDDY.md`](../../CODEBUDDY.md)。旧文与代码里 `project_spec.md §X` 形式的引用，按删除前版本解读（`git show 58eadad:docs/project_spec.md`）。
+> ⚠️ **口径来源变更（2026-09-27）**：原 `docs/project_spec.md`（含 `api-design.md` / `database.md`）已删除，本目录与其 `README` 的「通用结构」段**承接其接口契约与通用约定**；仓库红线 / 产品定型 / 协作纪律见本文末「项目约定与红线」段（原 `CODEBUDDY.md` 已于同日删除，内容承接至该段）。旧文与代码里 `project_spec.md §X` 形式的引用，按删除前版本解读（`git show 58eadad:docs/project_spec.md`）。
 > 本目录是「功能文档」的唯一真源：**每个功能一份独立文档**，文件名以板块前缀开头。
 
 ## 板块与命名规则
@@ -109,6 +109,85 @@
 
 ---
 
+## 项目约定与红线（原 `CODEBUDDY.md` 承接，2026-09-27）
+
+> 原仓库根文件 `CODEBUDDY.md` 已按用户拍板删除，其**仍生效**的红线 / 边界 / 防回退决策承接至本节。
+> **效力**：任何新功能 / 改动若与本节冲突，**必须先修订本节（重新拍板）再动代码**；**代码不得反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。
+
+### 三端定位与数据链路
+
+| 端 | 定位 | 约束 |
+|---|---|---|
+| `client/`（小程序） | **用户端**：业务数据**唯一产生源**（浏览 / 评价 / 反馈 / 纠错） | **无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全量下线，防回退） |
+| `server/`（Spring Boot） | **数据服务**：唯一存储与业务规则 | 小程序与 Web **共用同一套契约**（`/` 用户接口、`/admin/**` 管理接口） |
+| `web/`（管理后台） | **辅助管理工具（非用户端）** | 只经 `/admin/**` 读取 / 管理；`X-Admin-Token` 口令鉴权、无独立登录态；无看板 / 无操作日志 |
+
+数据流向：小程序产生 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提。
+
+### 后端分层与契约
+
+- 包结构 `com.bjtufood.<模块>`，严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁跨层调用**（Controller 不得直调 Mapper）；ORM = MyBatis-Plus。
+- 统一响应 `{ code, message, data }`；错误码仅 **`200 / 400 / 401 / 403 / 4031 / 500`**（**禁自定义非标码**）；对外 JSON 一律 camelCase；分页 `PageResult<T>{ records, total }`。
+- **金额一律「分」**，分↔元转换只在 `utils/money`，**禁页面 / 组件裸算**。
+- 用户身份只从 `SecurityUtil.getCurrentUserId()` 取，**禁信任前端传 userId**；UGC `created_by = 当前用户`。
+- 写操作加 `@Transactional`；评分类计数走 `@Async` AFTER_COMMIT，禁主流程内联重算。
+- Controller 不得裸抛，统一由 `GlobalExceptionHandler` 包装。
+
+### 认证与鉴权
+
+- **无账号密码体系**（小程序侧）：打开即 `POST /auth/wechat-login` 静默建号 → **游客态**（默认已登录，无登录页 / 无登录按钮）。
+- UGC 写操作（写评价 / 删本人评价 / 举报 / 反馈 / 纠错）需 **`@bjtu.edu.cn` 邮箱认证**；未认证返回 **`4031`**（与 `403` 分流）；认证判据 = `bindEmail` 非空；`verified` **不进 JWT**（后端按 userId 实时查）。
+- 角色**仅 `STUDENT` / `ADMIN`**（禁 `STALL_OWNER` / `/stall-owner/**`）。
+- 管理端鉴权 = `X-Admin-Token == ADMIN_TOKEN`（未配置即 fail-closed `403`）。
+
+### 数据库（库结构唯一真源 = `server/src/main/resources/db/`）
+
+- **红线：库结构变更只改初始化 / 种子脚本**（`schema.sql` / `seed_data.sql`）**，绝不能直连数据库 `ALTER`**；脚本须自包含、可重跑。
+- 表清单以 `server/src/main/resources/db/schema.sql` 为唯一真源（历史基线 14 → 12 → … → 10 张，逐次下线见下方「已下线能力」）。
+
+### UI 实现红线（改 `client/` 必查）
+
+- 事件统一 **`@tap`**（禁 `@click`）。
+- 按压反馈统一 `background: var(--color-bg-soft)` / `opacity` 微降，**小程序侧禁 `transform: scale` 按压**（`web/` 登记豁免）。
+- 颜色全走语义 token（`var(--color-*)`），**禁裸 hex**（原生 API 不接受 `var()` 的常量须集中登记）。
+- **图片占位统一 `ImagePlaceholder`**（灰底 `--bg-placeholder` + `image-broken`；头像例外用 `user`）；图标统一 `IconSvg`，禁 emoji / 文本 / `content:'+'` 当图标。
+- 含固定底栏页面的滚动区必须 `padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom))`，禁内容被遮挡。
+- 瀑布流 `WaterfallList` 内直渲染 `DishCard`，**禁向子组件具名 slot 分发**（mp-weixin 下同名 slot 塌缩成空白）。
+- 底部 Sheet 统一下拉关闭手势（阈值 ≈120px）+ `prefers-reduced-motion` 降级；分区标题复用 `SectionTitle`。
+
+### 已下线能力（防回退，恢复须重新拍板）
+
+| 已下线 | 时间 | 说明 |
+|---|---|---|
+| 社区 / 动态信息流 | 2026-09-12 | 页面 / 接口 / 表 / 文档全量删除；评价不再同步社区 |
+| 活动 + 公告（`activity` / `broadcast`） | 2026-09-13 | 含 `web-view` 与「最新活动」宫格；库表删除 |
+| 贡献链路 `apply_action` | 2026-09-12 | 新增菜品 / 推荐 / 纠错诉求改走反馈与纠错独立页，无独立申请链路 |
+| 品类维度 `category` 表 | 2026-09-15 | 整链删除 |
+| 操作日志 `operation_log` + 管理端看板 | 2026-09-15 | 管理端不需要操作日志 |
+| 学生端菜品写接口 | 2026-09-13 | 三端点 + DTO + 客户端长按删除链路；菜品由管理员录入 |
+| 菜品独立审核（`audit_status` 列） | 2026-09-15 | 公开查询仅按 `status='on'`；管理员录入即生效 |
+| 评价有用（端上控件与消费链） | 2026-09-27 | 端上零控件；概念见 [`client-评价有用.md`](./client-评价有用.md)（历史留痕） |
+| 人工复核（`sec_state` 列 + 队列） | 2026-09-15 | 仅 `risky` 拦截 400，`pass` / `review` 一律放行 |
+| 收藏功能 | — | 无入口 / 字段 / 图标；喜欢语义仅 `ic-heart`（历史文档中「收藏」为措辞残留） |
+
+> **UGC 配图（现行有效）**：评价与反馈支持配图（各 ≤3 张，压缩 ≤1MB / ≤750×1334），全链路走微信内容安检 + COS 转存；曾于 2026-09-12 全量下线、2026-09-13 拍板恢复，**「无图片入口」类旧口径作废**。
+
+### 产品定型（一页纸，防跑偏）
+
+- **一句话**：交大人的「吃什么不踩雷」—— 校园菜品信息展示与检索平台，用户反馈经安检与审核回流为高质量信息。
+- **五支柱**：① 信息展示优先（「售罄 / 今日供应」一期不做）；② 轻社区边界（UGC 仅「评价」一种形态，不做动态 / 关注 / 私聊 / 收藏）；③ UGC 通道唯一（菜品共建走反馈 / 纠错 → 管理员录入）；④ 合规底线（全部 UGC 过微信内容安检，仅 `risky` 拦截）；⑤ 轻运营（无运营位）。
+- **平台边界**：游客可浏览 / 搜索一切，评价 / 反馈 / 纠错须认证；通知仅站内通知中心、**不做任何推送**；热度 = 浏览 + 评分聚合；北极星 = 周活 / 留存。
+- **演进预留（做之前须重新拍板）**：Excel 批量导入 → OCR 菜单识别、微信订阅消息推送、「售罄 / 今日供应」即时状态、推荐算法演进。
+- **不属于上述主线的需求一律不投入**（「开发招募自荐」等暂缓项见下方待办清单）。
+
+### 改动前注意
+
+1. 口径冲突先问技术负责人；**本目录 + [`docs/ui/`](../ui/) 为现行权威**。
+2. 加表 / 改字段 → 改 `server/src/main/resources/db/schema.sql`（及 seed），**不直连库**。
+3. 新增接口先对齐本目录对应功能文档的契约与错误码（统一响应 / 分页结构见上「通用结构」）。
+4. `client/` 改动后跑 `npm run type-check`（`vue-tsc --noEmit`）+ UI 红线 grep 自检（裸 `scale` / 裸 hex / `@click`）。
+5. 常用命令：`server/` → `mvn spring-boot:run` / `mvn clean package`（可选 `-DskipTests`）；`client/` → `npm run dev:mp-weixin` / `npm run build:mp-weixin` / `npm run type-check`；`web/` → `npm run dev` / `npm run build` / `npm run lint`。质量以「静态错误清零」为准，编译 / 构建 / 真机由用户执行。
+
 ## QA 工作流（提问 → 答复 → 拍板 → 更新）
 
 > 规则已固化为 `.codebuddy/rules/doc-discussion-no-code-and-review.md`（讨论期不动代码 + 持续设计审视）与 `.codebuddy/rules/docs-first-sync-and-db-direct.md`（文档优先 / 同步口径），对 `docs/feature/` 下所有功能文档生效。
@@ -116,7 +195,7 @@
 1. **提问**：在对应功能文档末尾追加一行 `Q:你的问题`（无需管格式）。
 2. **答复**：我把 `Q:` 归一为 `### Q：` 标题、紧随补 `**A：**` 答复（先核实代码实况 / 平台规则再作答），并同步更新本 README 的「需拍板的待办清单」。
 3. **拍板**：你在后续 `Q:` 中确认结论（如「确定下来了」）。
-4. **更新**：我把拍板结论写回该文档正文五段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，**先修订本目录对应功能文档**再动代码（接口 / 库表口径统一收敛至 `docs/feature/`；仓库红线见 `CODEBUDDY.md`）。
+4. **更新**：我把拍板结论写回该文档正文五段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，**先修订本目录对应功能文档**再动代码（接口 / 库表口径统一收敛至 `docs/feature/`；仓库红线见本文「项目约定与红线」段）。
 5. 全部功能核验通过 = 产品验收完成。
 
 ---

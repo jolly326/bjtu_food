@@ -157,7 +157,7 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |------|------|
-| [CODEBUDDY.md](CODEBUDDY.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界（原 `docs/project_spec.md` 已删除，2026-09-27） |
+| [docs/feature/README.md](docs/feature/README.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界 —— 见该文档「项目约定与红线」段（原 `CODEBUDDY.md`、`docs/project_spec.md` 均已于 2026-09-27 删除，内容承接至此） |
 | `db/` 初始化与种子脚本 | 数据库结构 **唯一真源**（原 `docs/database.md` 已删除，2026-09-27） |
 | [docs/feature/](docs/feature/) | 功能与接口契约总览（含认证模型 / 错误码 / 分页约定）—— 入口 [README](docs/feature/README.md)（原 `docs/api-design.md` 已删除，2026-09-27） |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |

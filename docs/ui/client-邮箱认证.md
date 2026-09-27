@@ -22,7 +22,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「身份认证」+ 返回箭头（返回即 `uni.navigateBack`，未完成认证则清待办） |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「身份认证」+ **返回**（文字）（返回即 `uni.navigateBack`，未完成认证则清待办） |
 | 2 | `IconSvg` | 公共 `components/IconSvg.vue` | 底部隐私说明行锁图标 `lock` |
 | 3 | 表单错误行 `.form-error`（`role="alert"`） | `pages/auth/index.vue` 内联 | 即时播报错误（点击清除） |
 | 4 | 输入行 ×2（`.input-field`）+ `input` | 页内内联 + uni 内置 | 学号输入（`type="number"`）/ 验证码输入（6 位） |

@@ -16,8 +16,8 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「系统通知」+ 返回箭头；**右侧动作区承载「全部已读」胶囊**（`check` 图标 + 文字，无未读时置灰常驻）⚠️ 见文末差异 |
-| 2 | `IconSvg` | 公共 `components/IconSvg.vue` | 返回箭头 / 「全部已读」勾选图标 `check` |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「系统通知」+ **返回**（文字）；**右侧动作区承载「全部已读」胶囊**（`check` 图标 + 文字，无未读时置灰常驻）⚠️ 见文末差异 |
+| 2 | `IconSvg` | 公共 `components/IconSvg.vue` | **返回**（文字） / 「全部已读」勾选图标 `check` |
 | 3 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 首屏加载失败的「加载失败 · 点击重试」块（**仅认证态渲染**） |
 | 4 | `scroll-view`(scroll-y + `@scrolltolower`) | uni 内置控件 | 通知列表滚动容器 + 触底分页 |
 | 5 | 通知行 `.msg-item`（页内内联结构） | `pages/notifications/index.vue` 内联 | 未读竖条 / 圆点 + 标题 + 时间 + 正文（2 行截断）；整行热区 |

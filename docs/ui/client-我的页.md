@@ -3,7 +3,7 @@
 > 所属端：学生端（微信小程序） ｜ 页面：`pages/mine/index`
 > 「我的」页为**入口聚合页**（非独立功能）——四个入口指向的功能（我的评价 / 系统通知 / 意见反馈 / 个人资料）与「注销账号」各有其功能文档；本稿为该页面的**构成、交互与展示内容的唯一真源**。
 
-- 页面：`pages/mine/index`（**TabBar 主根页**，经 `reLaunch` 切换、无参数，故**恒不显示返回箭头**）。
+- 页面：`pages/mine/index`（**TabBar 主根页**，经 `reLaunch` 切换、无参数，故**恒不显示**返回**（文字）**）。
 - 页面构成（自上而下，**四块 + TabBar**）：固定标题带「我的」→ **用户卡** → **功能宫格（一行 3 格）** → **「其他」分组列表** → 版本行 → `TabBar`。
 - 静态短内容页：**不设常驻 `scroll-view`**，以自然文档滚动承载超高内容（超大字体 / 小屏），并保留 TabBar 避让留白（`padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom))`）。
 
@@ -94,7 +94,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示返回箭头） |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示**返回**（文字）） |
 | 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 用户卡头像（加载失败回退统一占位 `ImagePlaceholder`） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 头像空态 `user`、行右箭头 `arrow`、宫格图标（`lightbulb-fill` / `bell` / `badge-check`） |
 | 4 | `TabBar` | 公共 `components/TabBar.vue` | 底部常驻菜单（首页 / 我的，本页高亮 `showTab('profile')`） |

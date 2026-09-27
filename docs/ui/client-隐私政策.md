@@ -17,7 +17,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「隐私政策」+ 左侧返回箭头（`@back` → `backToHome`） |
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「隐私政策」+ 左侧**返回**（文字）（`@back` → `backToHome`） |
 | 2 | `scroll-view`(scroll-y) | uni 内置控件 | 整页纵向滚动容器 |
 | 3 | 文档卡（`.doc` / `.doc-title` / `.doc-meta` / `.doc-h` / `.doc-p`） | `pages/privacy/index.vue` 页内内联结构 | 承载单份静态文本（标题 + 生效日期 + 分节标题 + 正文） |
 
