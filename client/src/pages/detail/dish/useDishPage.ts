@@ -92,7 +92,7 @@ export function useDishPage() {
   /** 当前用户对本菜的评价（判定底栏双态 + 重评预填）；游客 / 未认证恒为 null */
   const myReview = ref<Review | null>(null)
 
-  /** 「只看有图」开关（服务端过滤：total 与分页同口径） */
+  /** 「有图」筛选（服务端过滤 `hasImage`：total 与分页同口径） */
   const imageOnly = ref(false)
 
   /** detail-modular-review-cleanup：评价卡内触底分页 */

@@ -44,7 +44,9 @@
           />
           <text class="review-rating-num">{{ formatRating(review.rating) }}</text>
         </view>
-        <text class="review-time">{{ formatDateTime(review.createdAt) }}</text>
+        <!-- 时间：仅到日（YYYY-MM-DD，UI 统一 Loop Round 24）—— 菜品评价时效性弱，
+             第二行要同时容纳「星级 + 分值 + 时间」，去掉时分显著降噪 -->
+        <text class="review-time">{{ formatDate(review.createdAt) }}</text>
       </view>
       <!-- 菜名行（可选，本人视角列表用）：辨识是哪道菜的评价 -->
       <text v-if="dishName" class="review-dish">{{ dishName }}</text>
@@ -83,7 +85,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl } from '@/utils/image'
 import { formatRating } from '@/utils/dish'
-import { formatDateTime } from '@/utils/time'
+import { formatDate } from '@/utils/time'
 import type { Review } from '@/types/review'
 
 defineOptions({ name: 'ReviewItem' })
@@ -160,15 +162,15 @@ function onMore() {
   touch-action: manipulation;
   transition: opacity var(--duration-fast) var(--ease-out);
 }
-/* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，保留条目结构 + 分隔线 */
+/* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，只保留条目结构。
+   Round 24：**去掉条目分割线**（原 border-bottom）与上下内边距 —— 条目之间由上层列表容器的
+   `--spacing-lg` **纯留白**分隔（用户口径「不加分割线」）。 */
 .review-item--flat {
   background: transparent;
   border-radius: var(--radius-none);
   box-shadow: none;
-  padding: var(--spacing-md) 0;
-  border-bottom: 2rpx solid var(--border-color);
+  padding: 0;
 }
-.review-item--flat:last-child { border-bottom: none; }
 .review-item--flat.review-item-pressed { opacity: 0.5; }
 /* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言，spec §4.9）。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */

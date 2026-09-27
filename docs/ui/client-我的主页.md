@@ -80,7 +80,7 @@
 | 8 | `records[].rating` | 同上 | 评分 | `ReviewItem` 星级行（1~5 实心黄星 + 数值） | 1 位小数 |
 | 9 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 | 二级灰，`pre-wrap` |
 | 10 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 `empty` 占位 |
-| 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDateTime` |
+| 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDate`（仅 `YYYY-MM-DD` —— 评价条目口径随 `ReviewItem` 全站统一，Round 24） |
 | 12 | `records[].userNickname` / `userAvatar` | 同上 | 昵称 / 头像 | `ReviewItem` 昵称与头像位 | 昵称空 → 「匿名用户」 |
 | 13 | `records[].userId` | 同上 | 评价者用户 ID | `ReviewItem` 动作显隐判定（与当前用户 `id` 比对 → 本人「删除评价」） | 零可见 UI |
 | 14 | `records[].dishId` | 同上 | 关联菜品 ID | **零界面消费**（仅供详情页 `GET /my/reviews?dishId=` 过滤入参） | — |
