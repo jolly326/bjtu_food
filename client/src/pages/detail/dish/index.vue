@@ -85,13 +85,16 @@
     </template>
     </scroll-view>
 
-    <!-- 底部固定操作栏：左「写评价」（会话内判定为已评价或提交成功后本地切「重新评价」）右「去分享」（open-type=share），等宽双按钮 -->
+    <!-- 底部固定操作栏：左「写评价 / 重新评价」（会话内判定为已评价或提交成功后本地切文案）
+         右「反馈错误」（→ 反馈页「更新信息」模式并预选本菜品），等宽双按钮。
+         Round 25：**「去分享」按钮已撤出底栏** —— 分享按既有口径由**微信右上角原生菜单**承担
+         （`onShareAppMessage` 保留，分享能力不弱化），底栏这一位让给纠错入口（原在信息卡/抽屉内，入口唯一化）。 -->
     <view class="action-bar" v-if="dish">
       <button class="bar-btn bar-btn--write" :aria-label="reviewButtonText" hover-class="pressed" @tap="onOpenReviewComposer">
         <text class="bar-btn-text">{{ reviewButtonText }}</text>
       </button>
-      <button class="bar-btn bar-btn--share" open-type="share" aria-label="去分享" hover-class="pressed">
-        <text class="bar-btn-text">去分享</text>
+      <button class="bar-btn bar-btn--correct" aria-label="反馈错误，前往更新菜品信息" hover-class="pressed" @tap="onCorrectDishInfo">
+        <text class="bar-btn-text">反馈错误</text>
       </button>
     </view>
 
@@ -200,6 +203,7 @@ const {
   onReviewReport,
   onReviewMore,
   onReviewMoreSelect,
+  onCorrectDishInfo,
   onOpenReviewComposer,
   onReviewSubmitted,
   onRetryReviews,
@@ -274,7 +278,8 @@ const {
 /* 写评价 / 重新评价 = 主操作（主色实底 + 白字 + 极淡下投影） */
 .bar-btn--write { background: var(--color-primary); box-shadow: var(--shadow-float); }
 .bar-btn--write .bar-btn-text { color: var(--color-on-primary); }
-/* 分享 = 次操作（白底 + 主色细边/文字，弱于实底主钮） */
-.bar-btn--share { background: var(--bg-card); border: 2rpx solid var(--color-primary); }
-.bar-btn--share .bar-btn-text { color: var(--color-primary); }
+/* 纠错 = 次操作（白底 + 主色细边/文字，弱于实底主钮）。
+   Round 25：原 `.bar-btn--share` 随「去分享」按钮一并替换（分享走微信原生菜单，不再占底栏位）。 */
+.bar-btn--correct { background: var(--bg-card); border: 2rpx solid var(--color-primary); }
+.bar-btn--correct .bar-btn-text { color: var(--color-primary); }
 </style>

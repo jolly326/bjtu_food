@@ -29,7 +29,7 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getWindowInfo } from '@/utils/device'
 import { toastError } from '@/utils/error'
-import { dishDetailUrl } from '@/utils/routes'
+import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
@@ -328,6 +328,20 @@ export function useDishPage() {
   }
 
   /**
+   * 底栏「反馈错误」：跳反馈页「更新信息」模式并**预选本菜品**
+   * （`update` 模式带 dishId ⇒ 进页即拉详情预填七字段表单，跳过搜索步骤）。
+   *
+   * 落点用唯一构造函数 `feedbackUrl`（禁止手拼 URL）；**免认证** ——
+   * `POST /dishes/{id}/correction` 属公开写，游客同样可直达，故不经 `requireAuth`。
+   */
+  function onCorrectDishInfo() {
+    if (!dishId.value) return
+    uni.navigateTo({
+      url: feedbackUrl('update', dishId.value),
+    })
+  }
+
+  /**
    * 提交成功：两种模式均**本地写回** myReview（底栏就地切为/保持「重新评价」，不回读接口）——
    * - 重评：载荷携带本人评价 ID，原行更新新值；
    * - 首次发表：载荷携带 POST 出参返回的新评价 ID，本地构造「我的评价」；
@@ -430,6 +444,7 @@ export function useDishPage() {
     onReviewReport,
     onReviewMore,
     onReviewMoreSelect,
+    onCorrectDishInfo,
     onOpenReviewComposer,
     onReviewSubmitted,
     onRetryReviews,

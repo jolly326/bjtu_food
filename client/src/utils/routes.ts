@@ -54,7 +54,7 @@ export type FeedbackMode = 'issue' | 'update'
 /**
  * 意见反馈页 URL（双模式口径）：
  * - 「我的」宫格等默认入口 → feedbackUrl()（缺省 issue）；
- * - 菜品详情页「信息有误？」入口 → feedbackUrl('update', dishId)
+ * - 菜品详情页**底栏「反馈错误」** → feedbackUrl('update', dishId)
  *   （update 模式带 dishId 时跳过搜索步骤，进页即拉详情预填表单）。
  */
 export function feedbackUrl(mode: FeedbackMode = 'issue', dishId?: number | string): string {

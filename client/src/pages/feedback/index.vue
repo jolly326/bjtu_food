@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页（入口：mine 宫格缺省 issue / 菜品详情「信息有误？」带 update+dishId）
+ * feedback —— 意见反馈页（入口：mine 宫格缺省 issue / 菜品详情**底栏「反馈错误」**带 update+dishId）
  * - 顶部双模式分段控件（issue 反馈问题 / update 更新信息），两段等宽；
  * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件：IssueForm / UpdateForm / ListPickerSheet（一级拆分）；
  * - 本文件仅保留模板贴片组装与子件引用；生命周期 / 提交门禁 / 弹层联动见 useFeedback。
