@@ -58,9 +58,9 @@
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「意见反馈」+ 返回（有返回栈则 `navigateBack`，否则回首页） |
-| 2 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | 类型竖排单选 +（非纠错类型时）具体描述（600 字 + 右上角计数）+ 单图截图 + 小字提示 |
+| 2 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | 类型竖排单选 + 具体描述（600 字 + 右上角计数 + 动态占位）+ 单图截图 |
 
-| 5 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 图片上传（单图形态：`single` 单图虚线框 + `max=1`）；**纠错类型复用同一件，同为 ≤1 张** |
+| 3 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 截图上传（单图形态：`single` 单图虚线框 + `max=1`） |
 | 6 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交反馈」/「提交中…」；`disabled` = 门禁不通过） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 类型选中勾 `check` / 选择行箭头 `arrow` / chips 删除叉 `close` |
 | 8 | 提交区 `.submit-area`（页内内联） | 页内内联 | 承接「置灰态点击」的缺失项 Toast |
@@ -76,7 +76,7 @@
 | 3 | `images`（本地表单态） | `ImagePicker`（安检上传） | 截图 | `IssueForm` 单图虚线框 | ≤1 张；破图走统一占位 |
 | 4 | 草稿（`type` + `content`） | `uni.getStorageSync('feedback_draft')` | 本地草稿 | 进页回填类型与描述 | 图片不缓存 |
 | 8 | 字段错误 `errors` | 端上门禁 | 缺失或非法项 | 对应字段下方 `.field-error` + 错误边框 | 首个可定位错误字段 `scroll-into-view` |
-| 9 | 提交结果 | `POST /feedback` / `POST /dishes/{id}/correction` 成功 | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；表单重置、草稿清除） | — |
+| 6 | 提交结果 | `POST /feedback` 成功（`data` = null） | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；表单重置、草稿清除） | — |
 | 10 | 失败提示 | `400` / `4001` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「没发出去，再试一次」） | 停留本页保留草稿 |
 
 **入参提交**
