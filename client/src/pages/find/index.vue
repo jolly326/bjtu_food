@@ -35,60 +35,69 @@
            ⇒ 复用同一个已测量实例，不再重建、不再丢内容。 -->
       <scroll-view v-show="!inFilter" class="discover-body" scroll-y>
         <template>
-          <!-- 搜索记录（首位） -->
-          <CardSection v-if="historyList.length > 0" class="discover-card" flush>
-            <SectionTitle title="搜索记录">
-              <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
-              <text
-                slot="extra"
-                class="section-extra history-clear"
-                role="button"
-                aria-label="清空搜索历史"
-                @tap="clearHistory"
-              >清空</text>
-            </SectionTitle>
-            <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
-            <view class="history-chips">
-              <view
-                v-for="(kw, i) in historyList"
-                :key="kw"
-                class="history-chip"
-                role="button"
-                :aria-label="`搜索 ${kw}`"
-                hover-class="history-chip-pressed"
-                @tap="goKeyword(kw)"
-              >
-                <text class="history-chip-text">{{ kw }}</text>
-                <view
-                  class="history-chip-del"
+          <!-- 搜索记录（首位）
+               ⚠️ Round 27c（间距真因修复）：分组卡的外间距**必须落在页面自己的节点上**。
+               直接给组件传 class（`<CardSection class="discover-card">`）时，小程序端该 class 落进的是
+               **组件宿主节点**，而宿主默认**不是块级盒** ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢）
+               ⇒ 卡片左右贴屏幕边、两张卡还相贴（页面 wxss 里那条规则看似生效、实际不产生布局）。
+               故改为「外层 `view.discover-card` 承担间距 + 卡壳 `flush` 把自身外边距归零」。 -->
+          <view v-if="historyList.length > 0" class="discover-card">
+            <CardSection flush>
+              <SectionTitle title="搜索记录">
+                <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
+                <text
+                  slot="extra"
+                  class="section-extra history-clear"
                   role="button"
-                  :aria-label="`删除记录 ${kw}`"
-                  @tap.stop="removeHistory(i)"
+                  aria-label="清空搜索历史"
+                  @tap="clearHistory"
+                >清空</text>
+              </SectionTitle>
+              <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
+              <view class="history-chips">
+                <view
+                  v-for="(kw, i) in historyList"
+                  :key="kw"
+                  class="history-chip"
+                  role="button"
+                  :aria-label="`搜索 ${kw}`"
+                  hover-class="history-chip-pressed"
+                  @tap="goKeyword(kw)"
                 >
-                  <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
+                  <text class="history-chip-text">{{ kw }}</text>
+                  <view
+                    class="history-chip-del"
+                    role="button"
+                    :aria-label="`删除记录 ${kw}`"
+                    @tap.stop="removeHistory(i)"
+                  >
+                    <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
+                  </view>
                 </view>
               </view>
-            </view>
-          </CardSection>
+            </CardSection>
+          </view>
 
           <!-- 猜你喜欢（GET /dishes/for-you）：后端**每次随机**推送在售菜品名（不看热度、不排序、
                不做个性化）；端上按返回渲染、不写死条数与文案；空数组 / 请求失败 → 整块不渲染 -->
-          <CardSection v-if="guessLikeList.length > 0" class="discover-card" flush>
-            <SectionTitle title="猜你喜欢" />
-            <view class="history-chips">
-              <view
-                v-for="(kw) in guessLikeList"
-                :key="kw.keyword"
-                class="history-chip history-chip-hot"
-                role="button"
-                :aria-label="`搜索 ${kw.keyword}`"
-                hover-class="history-chip-pressed"
-                @tap="goKeyword(kw.keyword)"
-              >
-                <text class="history-chip-text">{{ kw.keyword }}</text>
+          <view v-if="guessLikeList.length > 0" class="discover-card">
+            <CardSection flush>
+              <SectionTitle title="猜你喜欢" />
+              <view class="history-chips">
+                <view
+                  v-for="(kw) in guessLikeList"
+                  :key="kw.keyword"
+                  class="history-chip history-chip-hot"
+                  role="button"
+                  :aria-label="`搜索 ${kw.keyword}`"
+                  hover-class="history-chip-pressed"
+                  @tap="goKeyword(kw.keyword)"
+                >
+                  <text class="history-chip-text">{{ kw.keyword }}</text>
+                </view>
               </view>
-            </view>
-          </CardSection>
+            </CardSection>
+          </view>
 
         </template>
       </scroll-view>
@@ -399,17 +408,16 @@ onShow(() => {
    （滚动由组件内部实现，外挂 CSS 会在 H5 叠出第二根滚动条）。
    `flex: 1 + min-height: 0` ⇒ 容器定高 ⇒ 内容未超高时既不出现滚动条、也没有可滚的空白。 */
 .discover-body { flex: 1; min-height: 0; padding-bottom: var(--spacing-lg); }
-/* 首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`）；
-   UI 统一 Loop Round 14：卡壳改传 `flush`（自带 margin 归零，不再反向覆写组件内部类 ——
-   `:deep(.card-section)` 属跨组件边界样式，在小程序端不可靠，R4 已踩坑），
-   块间距改由**本类自身的下外边距**给出（每卡一份，末卡的余量由 `.discover-body` 的 padding-bottom 吸收）。
+/* 分组卡外壳（**页面自有节点**，不是组件宿主）：承担每张卡的左右 gutter + 纵向块间距。
+   ⚠️ Round 27c（真因，此前两版都没修对）：间距**必须落在页面自己的节点上** ——
+   曾把本类直接传给 `<CardSection>`：小程序端该类落进**组件宿主节点**，而宿主默认**不是块级盒**
+   ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢 ⇒ 「卡片左右贴屏幕边 + 两张卡相贴」）。
+   现由外层 `<view>` 承担，卡壳只传 `flush`（把自身外边距归零，避免双层）。
+   首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`），故本类上外边距为 0。
    ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
-/* ⚠️ Round 26b 修复：`flush` 会把卡壳的**全部**外边距归零（含左右），R14 只补回了纵向 ⇒
-   两张分组卡**左右贴屏幕边**（与结果态 `.mixed-list` 的 24rpx gutter 不同轴）。
-   现补齐**左右 `--spacing-md`**（UI 文档 §2「左右 gutter = 24rpx，与首页同轴」）+ 纵向 `--spacing-lg`。 */
-.discover-card { margin: 0 var(--spacing-md) var(--spacing-lg); }
+.discover-card { display: block; margin: 0 var(--spacing-md) var(--spacing-lg); }
 /* 结果态滚动容器（Round 21b：FindResults 并入本页）：
    flex 链占满剩余高度；底部留白（原 FindResults .results-scroll）随容器自带 */
 .results-host {
