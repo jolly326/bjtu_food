@@ -30,8 +30,10 @@
       <!-- 标题：有返回 ⇒ 绝对居中；无返回 ⇒ 靠左（与 `AppTitleBand` 同位置） -->
       <text class="title" :class="{ 'title--left': !showBack }">{{ title }}</text>
 
-      <!-- 右：页面级操作（可选），右边界 = 胶囊避让量 -->
-      <view class="nav-actions"><slot /></view>
+      <!-- 右：页面级操作（可选），右边界 = 胶囊避让量。
+           同时提供 `action` **具名插槽**：消费方以 `<template #action>` 传入右侧操作
+           （如通知页「全部已读」胶囊）—— 只有默认插槽时该内容会被静默丢弃（Round 31 修复）。 -->
+      <view class="nav-actions"><slot /><slot name="action" /></view>
     </view>
   </view>
 </template>

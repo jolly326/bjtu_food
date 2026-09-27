@@ -8,8 +8,9 @@
  * 5 项 = 菜品 / 评价 / 反馈 / 信息纠错 / 学生账号。
  * 默认落点仍为菜品页。
  */
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { FEEDBACK_PENDING, CORRECTION_PENDING } from '@/constants'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { Food, Star, ChatDotRound, EditPen, User, UserFilled } from '@element-plus/icons-vue'
@@ -31,10 +32,41 @@ const DISH_LIST_PATH = '/dashboard/content?tab=dish'
 const navItems = [
   { key: 'content', label: '菜品', path: '/dashboard/content', icon: Food },
   { key: 'reviews', label: '评价', path: '/dashboard/reviews', icon: Star },
-  { key: 'feedback', label: '反馈', path: '/dashboard/feedback', icon: ChatDotRound },
-  { key: 'corrections', label: '信息纠错', path: '/dashboard/corrections', icon: EditPen },
+  { key: 'feedback', label: '反馈', path: '/dashboard/feedback', icon: ChatDotRound, badgeKey: 'feedback' },
+  { key: 'corrections', label: '信息纠错', path: '/dashboard/corrections', icon: EditPen, badgeKey: 'corrections' },
   { key: 'system', label: '学生账号', path: '/dashboard/system', icon: User },
 ]
+
+// ===== 待处理徽标（导航项右侧；仅在 > 0 时显示） =====
+/**
+ * 取数复用既有分页端点（`pageSize=1` 读 `total`），不新增统计接口、不改后端契约。
+ * 徽标属**辅助信息**：请求失败静默（吞掉异常不影响导航可用），处理完回到列表页会随路由变化刷新。
+ */
+const pendingCounts = ref<Record<string, number>>({})
+
+async function loadPendingCounts() {
+  try {
+    const { feedbackApi, correctionApi } = await import('@/api')
+    const [fb, cr] = await Promise.all([
+      feedbackApi
+        .listFeedbacks({ status: FEEDBACK_PENDING, page: 1, pageSize: 1 })
+        .catch(() => null),
+      correctionApi
+        .listCorrections({ status: CORRECTION_PENDING, page: 1, pageSize: 1 })
+        .catch(() => null),
+    ])
+    pendingCounts.value = {
+      feedback: fb?.total ?? 0,
+      corrections: cr?.total ?? 0,
+    }
+  } catch {
+    /* 徽标失败静默：导航本身不依赖它 */
+  }
+}
+
+onMounted(loadPendingCounts)
+// 页内处理完（如采纳 / 不采纳）回列表时刷新计数；同实例路由变化不重建布局
+watch(() => route.path, loadPendingCounts)
 
 /**
  * 导航激活判断：聚合页内的子路由归属对应一级入口
@@ -78,6 +110,11 @@ const currentRoleLabel = ref('管理员')
         >
           <el-icon class="nav-ico" aria-hidden="true"><component :is="n.icon" /></el-icon>
           <span>{{ n.label }}</span>
+          <span
+            v-if="n.badgeKey && (pendingCounts[n.badgeKey] ?? 0) > 0"
+            class="nav-badge"
+            :aria-label="`${pendingCounts[n.badgeKey]} 条待处理`"
+          >{{ pendingCounts[n.badgeKey] }}</span>
         </button>
       </nav>
 
@@ -97,6 +134,20 @@ const currentRoleLabel = ref('管理员')
 </template>
 
 <style scoped>
+/* 待处理徽标（导航项右侧）：仅在 > 0 时渲染，数字 = 服务端待处理条数 */
+.nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: var(--el-color-danger, #f56c6c);
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
 .admin-shell {
   display: flex;
   flex-direction: column;
