@@ -33,7 +33,7 @@
   - 交互与无障碍（本模块强制）：可点元素触控目标 **≥ 88rpx（44pt）**（筛选胶囊视觉紧凑 ≈48rpx，命中区经 `::after` **仅纵向**扩至 88rpx —— 横向不扩，避免左右两项热区互相窃取点击）；展开 / 收起控件带 `aria-expanded`；筛选胶囊为 `role="tablist"` / `role="tab"` + `aria-selected`；轮播容器与评价头像带 `aria-label`；`prefers-reduced-motion` 下动效降级为直接显示。
 - 底栏：左侧固定按钮「**写评价**」（会话内判定为已评价或提交成功后，本地写回态就地切「**重新评价**」）。未认证 → 跳转身份认证页 `pages/auth/index`（认证成功返回本页后由 onShow 续接，自动重新打开写评价表单）。
   - **判定时机**：用户点击「写评价」时（表单打开前）调 `GET /my/reviews?dishId=`——已评价打开**预填旧值**的弹层（提交走 `PUT /reviews/{id}`）；**详情页首屏零用户态请求**。
-  - 右侧「**反馈错误**」按钮（**Round 25：替换原「去分享」**）—— 跳意见反馈页「更新信息」模式并**预选当前菜品**（落点唯一构造函数 `feedbackUrl('update', dishId)`，禁止手拼 URL）；`POST /dishes/{id}/correction` 属**公开写** ⇒ **免认证**，游客可直达（不经 `requireAuth`）。两钮等宽、主次分明（写评价 / 重新评价 = 主色实底，反馈错误 = 白底主色描边）。
+  - 右侧「**反馈错误**」按钮（**Round 25：替换原「去分享」**）—— 跳**独立菜品纠错页**并携带当前菜品（落点唯一构造函数 `correctionUrl(dishId)`，禁止手拼 URL；2026-09-27 纠错已自意见反馈页迁出，见 [`client-菜品纠错.md`](./client-菜品纠错.md)）；`POST /dishes/{id}/correction` 属**公开写** ⇒ **免认证**，游客可直达（不经 `requireAuth`）。两钮等宽、主次分明（写评价 / 重新评价 = 主色实底，反馈错误 = 白底主色描边）。
   - **全页纠错入口唯一**（Round 25）：信息卡内无入口（R23 已移出）、写评价抽屉内亦无 —— 唯一落点即底栏本按钮，避免同一纠错表单出现两个入口。
   - **分享**：底栏不再占位 —— 由**微信右上角原生菜单**承担（`onShareAppMessage` 保留：分享菜名 + 现价 + 本页路径），分享能力不弱化。
 
@@ -73,7 +73,7 @@
 | 4 | `originalPrice` | 同上 | 原价 | `DishInfoCard` 价格行 `.origin-price` | 仅 `originalPrice > price` 渲染，三级灰 + 删除线 |
 | 5 | `images` | 同上 | 菜品图集 | `ImageSwiper`（页面派生 `heroImages`） | `aspectFill`，加载完成淡入；空数组 → 占位 |
 | 6 | `description` | 同上 | 菜品描述 | `DishInfoCard` 描述行 `.desc-content` + 展开 / 收起入口 | 默认 2 行截断；换菜时复位收起 |
-| 7 | `canteenName` / `floor` / `stallName` | 同上（端上别名 `canteen`） | 食堂 / 楼层 / 档口 | `DishInfoCard` 位置行 `.loc-text`（页面派生 `locationText`） | 「食堂 · 楼层 · 档口」；缺项兜底「未知位置」（**Round 23：本行右侧不再挂纠错入口**，入口已移至 `ReviewComposer` 菜名行右侧） |
+| 7 | `canteenName` / `floor` / `stallName` | 同上（端上别名 `canteen`） | 食堂 / 楼层 / 档口 | `DishInfoCard` 位置行 `.loc-text`（页面派生 `locationText`） | 「食堂 · 楼层 · 档口」；缺项兜底「未知位置」（**本行右侧不挂任何入口**；纠错入口**唯一落点 = 底栏「反馈错误」**） |
 | 8 | `dietType` / `ingredients` / `flavorTags` / `serveTemp` | 同上（**机器值**：单值 / 数组 / 数组 / 单值） | 荤素 / 主料 / 口味 / 冷热 | `DishInfoCard` 四维区 `.dim-col`（`dim-val` + `dim-label`） | **逐维渲染、缺项不占位**；多值以 `、` 连接，长值 2 行收起 |
 | 9 | `field` / `value` / `label` / `order` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `DishInfoCard` 四维维度名与中文值 | 端上零硬编码映射；未命中 → 该维不渲染 |
 | 10 | `avgRating` / `ratingCount` | 同上（端上别名 `rating`） | 均分 / 评价人数 | `DishInfoCard` 第二行左侧（`.rating-group` / `.rating-empty`） | 均分 1 位小数（`utils/dish.formatRating`）；`ratingCount = 0` → 隐藏星、示浅灰「暂无评分」（不靠字段缺失判断）；**评价人数不渲染**（Round 22） |

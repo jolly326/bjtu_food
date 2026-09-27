@@ -95,8 +95,8 @@ TabBar（fixed，透明底）
 - 整块 = 一个 `<swiper>`，每项 `<image mode="aspectFill">`；**严格按返回顺序渲染**（服务端已按 `sort_order` 升序、只返回启用项），端上不排序、不写死 URL；
 - **多张**：自动轮播（`AUTOPLAY_INTERVAL = 4000ms`）+ 循环 + 底部居中指示点 + 可手滑；
 - **仅一张**：不自动轮播、**不显示指示点**（避免「只有一个点」的假轮播）；
-- **空数组 / 请求失败**：整块退化为灰底空态 —— `var(--bg-soft)` + 居中**中性 `empty` 图标**（`--text-tertiary`，尺寸建议 120）；**不写任何文字说明、不加白卡 / 投影 / 渐变**；图标键**取中性 `empty`，不得用 `dish`**；
-- Banner 请求与列表**并行**，失败**不阻塞**首屏网格；**单张图加载失败**只该张降级为灰底 + `empty`，其余张不受影响。
+- **空数组 / 请求失败**：整块退化为灰底空态 —— `var(--bg-soft)` + 居中**统一占位 `ImagePlaceholder`**（`--text-tertiary`，尺寸建议 120）；**不写任何文字说明、不加白卡 / 投影 / 渐变**；占位图标**由 `ImagePlaceholder` 统一承载（`image-broken`）**，SHALL NOT 再写 `empty` / `dish` 键；
+- Banner 请求与列表**并行**，失败**不阻塞**首屏网格；**单张图加载失败**只该张降级为**统一占位 `ImagePlaceholder`**，其余张不受影响。
 
 ---
 
@@ -225,7 +225,7 @@ TabBar（fixed，透明底）
 | 达顶表现 | 「已展示前 100 个结果，切换大类可查看更多」（不静默截断） |
 | 触底提前量 | `LOWER_THRESHOLD_PX = 300` |
 
-**③ 图片懒加载**：`<image lazy-load>` + `getThumbImageUrl(coverImage)`（`_thumb` 规格 + 相对→绝对，详情页大图才用原图）；`@load` → `opacity` 淡入（`--duration-slow`）；`@error` → 灰底 + `dish` 图标（禁裂图）；容器**固定 3:2 等比盒** ⇒ 加载前后块高一致（CLS = 0）。
+**③ 图片懒加载**：`<image lazy-load>` + `getThumbImageUrl(coverImage)`（`_thumb` 规格 + 相对→绝对，详情页大图才用原图）；`@load` → `opacity` 淡入（`--duration-slow`）；`@error` → **统一占位 `ImagePlaceholder`**（禁裂图）；容器**固定 3:2 等比盒** ⇒ 加载前后块高一致（CLS = 0）。
 
 **④ 价格**：API 层 `fenToYuan` 转元；展示恒 `¥{formatPrice(price)}`（`utils/money`）；**页面 / 组件内禁止裸算金额**；**本卡不展示划线原价**（`originalPrice` 首页零消费，仅搜索页结果行消费）。
 
@@ -384,7 +384,7 @@ TabBar（fixed，透明底）
 
 ### 11.3 图片占位策略（禁止无限空转）
 
-① 菜品图失败 → 灰底 + `dish` 图标（唯一真源 `pages/home/DishCard.vue`）；② Banner 空 / 失败 / 单张失败 → 灰底 + 中性 `empty`，块高仍 16:10；③ 列表请求失败 → `RetryBlock`。
+① 菜品图失败 → **统一占位 `ImagePlaceholder`**（唯一真源 `pages/home/DishCard.vue`）；② Banner 空 / 失败 / 单张失败 → **统一占位 `ImagePlaceholder`**，块高仍 16:10；③ 列表请求失败 → `RetryBlock`。
 **预览排查**：标签栏只剩「全部」或不出现 → 字典请求失败（查后端 `GET /dishes/meal-types`、开发者工具「不校验合法域名」、是否最新构建产物）；Banner 恒为占位 → 查 `GET /banners` 是否非空、图片 URL 是否可达。
 
 ---
