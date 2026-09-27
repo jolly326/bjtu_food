@@ -157,11 +157,11 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |------|------|
-| [docs/project_spec.md](docs/project_spec.md) | **技术规范基线**：技术栈 / 目录 / 跨端边界 / 不可违背的设计与实现红线 |
-| [docs/database.md](docs/database.md) | 数据库设计（10 张表 + ER 图，与 schema.sql 一致） |
-| [docs/api-design.md](docs/api-design.md) | 功能/接口设计总览：全部接口契约、认证模型、错误码、分页约定 |
+| [CODEBUDDY.md](CODEBUDDY.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界（原 `docs/project_spec.md` 已删除，2026-09-27） |
+| `db/` 初始化与种子脚本 | 数据库结构 **唯一真源**（原 `docs/database.md` 已删除，2026-09-27） |
+| [docs/feature/](docs/feature/) | 功能与接口契约总览（含认证模型 / 错误码 / 分页约定）—— 入口 [README](docs/feature/README.md)（原 `docs/api-design.md` 已删除，2026-09-27） |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
-| [docs/architecture.md](docs/architecture.md) | 架构设计 / 部署说明（微信云托管）/ 本地快速上手 / 前端状态管理 |
+| [docs/ui/](docs/ui/) | 页面 UI 设计稿与跨页通用口径 —— 入口 [README](docs/ui/README.md)（含 **UI 修正完成度台账**）（原 `docs/architecture.md` 已删除，2026-09-27） |
 | [docs/testing.md](docs/testing.md) | 接口测试文档：自动化可测项 + 需人工验证项清单与步骤 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | 开发协作流程：需求 → 定样 → 拆任务 → 开发 → 质量门禁 → 经验回流 |
 | server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |

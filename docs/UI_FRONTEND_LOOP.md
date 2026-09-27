@@ -703,6 +703,29 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 32 改动文件**：`pages/home/{HomeMealTabs.vue,index.vue}`、`stores/dish.ts`、`docs/{feature,ui}/client-首页菜品浏览.md`。
 
+### Round 33（2026-09-27）—— 删除四份总纲文档（用户拍板 **(c) 全删**）+ 引用改指
+
+> 来源：用户对上一轮给出的 (a) 保留 / (b) 收敛成 1 份 / (c) 全删 选择 **(c)**（`architecture.md` / `api-design.md` / `database.md` / `project_spec.md`）。
+> 执行前已量化连带面（**234 处引用 / 110 个文件**：7 份 agent 定义、项目规则、`CODEBUDDY.md`、openspec 72 处、源码注释 12 处），用户确认后执行。
+
+| 步骤 | 内容 | 结果 |
+|---|---|---|
+| ① 新权威模型 | 四分法写入 `CODEBUDDY.md`：① `CODEBUDDY.md`（仓库红线 / 产品定型 / 协作纪律）② `docs/feature/` + 其 README（功能契约 / 通用结构）③ `docs/ui/` + 其 README（页面 UI / 跨页口径 / 完成度台账）④ `db/` 初始化脚本（库结构唯一真源） | 无「无主」内容 |
+| ② 归档兜底 | `CODEBUDDY.md` 记载**归档提交号与取回命令**（`git show 58eadad:docs/<file>`），并声明：旧文与代码里 `project_spec.md §X` 形式的条号引用**按删除前版本解读** ⇒ 334 处历史引用**无需逐个改写**（openspec 归档与源码注释保持原样） | 引用不断链 |
+| ③ 机械改指 | 7 份 `.codebuddy/agents/*.md` + `.codebuddy/rules/docs-first-sync-and-db-direct.md`：按「§7 → `CODEBUDDY.md`（产品定型）／§4 → `docs/ui/README.md`／§3·§5 → `docs/feature/README.md`」批量改指（脚本 + 2 处人工收口） | `.codebuddy/**` 内 `project_spec` 残留 **0** |
+| ④ 显式改写 | `CODEBUDDY.md` 权威块 + 5 条款（字段命名 / 产品定型自持 / 裁决规则 / 权威口径 / 权限与接口契约）、`README.md` 文档目录 4 行、`docs/feature/README.md` 与 `docs/ui/README.md` 顶部「口径来源变更」说明 | 新手入口不再是死链 |
+| ⑤ 删除 | `git rm` 四份（git 历史保留，`HEAD` 版本可 `git show` 取回） | 文件数 4 → 0 |
+
+**闸门**：`.codebuddy/**` 内 `project_spec` 残留 0；四份文档 `git show HEAD:<file>` 可取回；本次未触碰业务代码（`client` 侧维持 Round 32 状态）
+
+> #### ⚠️ 已知取舍（(c) 的直接后果，登记备查 —— 需要时可从归档取回）
+> ① **§7 业务硬原则（PR-01~PR-14）不再有独立承载文档**：仍生效的部分已体现在 `CODEBUDDY.md` 产品定型一页纸 + 各功能 / UI 文档正文；完整清单见 `git show 58eadad:docs/project_spec.md`；
+> ② **架构 / 微信云托管部署 / 前端状态管理**（原 `architecture.md`）离开文档区 —— README 快速开始仍可用，部署细节现仅存 git 归档；
+> ③ **库结构**改以 `db/` 脚本为唯一真源（不再有 ER / 表结构文档）；
+> ④ **openspec 归档与源码注释中的 `project_spec.md §X` 保持原样**（按 ② 的归档解读规则处理，不逐个改写）。
+
+**Round 33 改动文件**：删除 `docs/{project_spec,architecture,api-design,database}.md`；`CODEBUDDY.md`、`README.md`、`docs/feature/README.md`、`docs/ui/README.md`、`.codebuddy/agents/*.md`(7)、`.codebuddy/rules/docs-first-sync-and-db-direct.md`。
+
 **Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
 `pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
 `pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、

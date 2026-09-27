@@ -1,5 +1,6 @@
 # 功能总览（按板块 + 功能拆分）
 
+> ⚠️ **口径来源变更（2026-09-27）**：原 `docs/project_spec.md`（含 `api-design.md` / `database.md`）已删除，本目录与其 `README` 的「通用结构」段**承接其接口契约与通用约定**；仓库红线 / 产品定型 / 协作纪律见 [`CODEBUDDY.md`](../../CODEBUDDY.md)。旧文与代码里 `project_spec.md §X` 形式的引用，按删除前版本解读（`git show 58eadad:docs/project_spec.md`）。
 > 本目录是「功能文档」的唯一真源：**每个功能一份独立文档**，文件名以板块前缀开头。
 
 ## 板块与命名规则

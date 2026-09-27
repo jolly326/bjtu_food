@@ -3,11 +3,17 @@
 「知行食记 / 食在交大」—— 校园美食发现与分享圈（微信小程序 + Spring Boot 后端 + Web 管理后台）。
 
 ## 权威文档层级（必读顺序）
-1. **`docs/project_spec.md`** —— 最高权威基线（不可违背的红线、跨端边界、命名/错误码/状态机、UI 视觉规范 §4）。**仅技术负责人可修改**；发现冲突须提技术负责人，不得自行绕过或改它。
-2. **本文件（`CODEBUDDY.md`）与 `.codebuddy/agents/*.md`** —— 多 Agent 协作流程、角色权限与交接（原 `docs/WORKFLOW.md` 已删除，勿再引用）。
-3. 其余 `docs/`（仅此三份）：`architecture.md`(部署/状态管理)、`database.md`(12 表 ER)、`api-design.md`(接口契约/错误码)。原 `ui-design.md`/`testing.md`/`web-ui.md` 已删除——视觉规范唯一权威为 spec §4，勿再引用。
-4. **冲突裁决**：一切以 `project_spec.md` 为准，README/架构文档若与其不符以 spec 为准。
-5. 多 Agent 模式角色权限在 `.codebuddy/agents/*.md`；本文档面向单实例 CodeBuddy，改动代码前先通读 `project_spec.md`。
+
+> **文档体系（2026-09-27 重构）**：原 `docs/project_spec.md`、`docs/architecture.md`、`docs/api-design.md`、`docs/database.md` **已删除**（用户拍板：其内容由功能文档 + UI 设计稿承接）。历史版本可 `git show 58eadad:docs/project_spec.md`（同名替换文件名）取回。现权威分工：
+
+1. **`CODEBUDDY.md`（本文件）** —— 仓库红线 / 产品定型一页纸 / 协作纪律与交付门禁；跨端边界与「不可违背」类条款的**唯一现行真源**。改动前先说明理由，改后同步本节。
+2. **`docs/feature/`** —— 功能 / 接口契约 / 字段 / 数据口径真源；跨功能通用结构（统一响应信封 `Result<T>`、分页 `PageResult<T>`、金额以「分」传输、鉴权标记）见 [`docs/feature/README.md`](docs/feature/README.md)。
+3. **`docs/ui/`** —— 页面 UI 设计稿与跨页通用口径真源（视觉 / 交互 / 三态 / 控件），跨页口径见 [`docs/ui/README.md`](docs/ui/README.md)，**UI 修正完成度台账**同在该 README。
+4. **`db/` 初始化与种子脚本** —— 库结构**唯一真源**：库结构变更只改脚本（禁直连 `ALTER`）。
+5. `.codebuddy/agents/*.md`（多 Agent 角色权限与交接）+ `.codebuddy/rules/*.md`（自动生效的协作规则）。
+
+> **历史条号引用**：代码 / 旧文档中出现的 `project_spec.md §X.X`、`api-design.md §X`、`database.md` 等引用，**按删除前版本解读**（`git show 58eadad:docs/<file>`），不再作为现行权威来源。
+> **冲突裁决**：以本文件 + `docs/feature/` + `docs/ui/` 的真源为准；README 若与其不符以真源为准。**代码不得反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。
 
 ## 常用命令
 ### 后端（server/，Spring Boot 3.2 + Java 21 + Maven + MyBatis-Plus）
@@ -66,7 +72,7 @@
   - `http.ts`：401 先静默登录重试一次，仍失败 `handleUnauthorized`（清 token+Toast+重登，并发去重），**不用事件总线**；403/4031 分级提示。
   - 图片：**UGC 配图（2026-09-13 恢复）**走 `wx.cloud.uploadFile` 传云开发云存储（中转）→ `POST /api/upload/images`（后端 imgSecCheck → COS 转存，返回 COS URL），配图组件（≤3 张、`wx.compressImage` 压缩 ≤1MB、≤750×1334）供评价弹层与反馈表单复用；头像仍走既有单图链路；图标统一 `<IconSvg>`（本地 `assets/icons`，语义唯一 ic-heart=喜欢、ic-thumb=有用/点赞、无收藏）。
 - **Web `web/src`**：`api/`(含 `adapter.ts` 做 snake_case→camelCase 映射，**禁止视图层直处字段名**)、`views/`、`components/`、`router/`、`api/dashboard.ts`；登录首屏 `/dashboard`（工作台=待办+数据总览，**非 ECharts 看板**）。
-- 两前端**无共享代码**，各自独立 `api/` 层；字段命名约定靠 `project_spec.md` §5.x 对齐。
+- 两前端**无共享代码**，各自独立 `api/` 层；字段命名约定靠 `docs/feature/` 各功能文档的字段表对齐。
 
 ### UI 实现红线（spec §4.9，BLOCKER 级，改 client 必查）
 - 小程序可点元素事件统一 **`@tap`**（禁 `@click`）。
@@ -78,15 +84,15 @@
 - 底部 Sheet 统一下拉关闭手势（阈值 ~120px）+ `prefers-reduced-motion` 降级；分区标题复用 `SectionTitle`。
 
 ### 已拍板关键决策（避免回退）
-- **产品定型一页纸（2026-09-13，防跑偏宪法；完整版见 `project_spec.md` §0.0，效力最高）**：
+- **产品定型一页纸（2026-09-13 定版，防跑偏宪法；**本节即完整版**，效力最高）**：
   - **一句话**：交大人的「吃什么不踩雷」——校园菜品信息展示与检索平台，用户反馈经安检与审核回流为高质量信息。
   - **五支柱**：① 信息展示优先（「售罄 / 今日供应」即时状态一期不做）；② 轻社区边界（UGC 仅「评价」一种形态，终局已定；不做动态 / 关注 / 私聊 / 收藏）；③ UGC 通道唯一（菜品共建走反馈表单 → 管理员录入，不恢复学生直建菜卡接口）；④ 合规底线（全部 UGC 过微信内容安检：**仅 `risky` 拦截 400，`pass`/`review` 一律放行，无人工复核**）；⑤ 轻运营（无运营位，Excel 批量导入推二期并预留导入通道抽象）。
   - **平台边界**：游客可浏览 / 搜索一切、评价 / 反馈须 `@bjtu.edu.cn` 认证；通知仅站内通知中心、不做任何推送；热度算法保持「浏览 + 评分聚合」（**无收藏维度——产品无收藏功能，历史文档 / 代码注释中的「收藏」为措辞残留，2026-09-13 勘误登记**）；北极星 = 周活 / 留存。
   - **演进预留（做之前须重新拍板）**：Excel 批量导入 → OCR 菜单识别（同一导入通道）、微信订阅消息推送、「售罄 / 今日供应」即时状态、推荐算法演进。
   - **定型增补（第二轮 PM 问答，2026-09-13）**：「我的反馈列表」**不恢复**（回执通知即闭环）；**账号注销本期落地**（合规硬需求，匿名化 + token 失效，入口在「我的」页底部）；菜品下架 = 客户端**完全不可见、评价保留**；dish.alias **别名搜索**本期落地（搜索命中 name 或 alias）。
   - **详细设计基线**：`docs/feature/`（功能文档集，一人一功能）——每个功能的页面 / 流程 / 接口 / 请求响应字段 / 数据落库权威口径；**原则以 §0.0 为准、功能细节以 `docs/feature/` 为准**。（原 `docs/product-blueprint.md` 已于 2026-09-20 用户拍板删除。）
-  - **裁决规则**：任何新功能 / 改动若与本页冲突，**必须先修订 `project_spec.md` §0.0（重新拍板）再动代码**。
-- **权威口径（2026-09-12 校正）**：`docs/project_spec.md` 为唯一权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
+  - **裁决规则**：任何新功能 / 改动若与本页冲突，**必须先修订本节（重新拍板）再动代码**。
+- **权威口径（2026-09-12 校正）**：本文档 + `docs/feature/` + `docs/ui/` 为现行权威；**代码只在 UI 实现层提供指导，不得据代码反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。开发交付以「静态错误清零」为准，**编译 / 构建 / 真机运行由用户执行**。
 - **学生端菜品写接口全量下线（2026-09-13 拍板，防回退）**：`POST /dishes`（发布）、`PUT /dishes/{id}`（编辑重提）、`DELETE /dishes/{id}`（删本人菜品）三者已从 controller/service/impl 全量删除，DTO `dish/dto/DishPublishReq.java` 一并删除；客户端 `api/dish.ts` 的 `deleteDish`、详情页长按删除链路（`onDishLongPress`/`navTimer`/`onUnload`/`DishInfoCard` 的 `@longpress`）同步移除。**学生端无菜品写接口 = 学生只有评价类 UGC 写能力**；菜品由管理员经 `/admin/dishes/**` 录入，学生菜品需求走反馈 `add` 类型。**保留**：`POST /dishes/{id}/view`（浏览埋点）、全部 `GET /dishes*`、管理端 `/admin/dishes/**` 全部能力。恢复须重新拍板。
 - **产品定位（2026-09-13 定稿）**：**校园菜品信息展示与检索平台**——信息展示 + 搜索 + 认证评价 + 反馈驱动的**轻 UGC 信息共建**；不做重社区。菜品 UGC 通道 = **反馈表单（可配图）→ 管理员审阅录入/修改/上下架**；不恢复学生直建菜卡接口（`POST /dishes` 维持已下线）。
 - **产品聚焦四条主线（2026-09-12 拍板，最高优先级）**：① 菜品信息展示；② 搜索与查找（`find` 二级页）；③ 用户 UGC —— **评价类**（菜品评价，唯一评价形态，支持配图 ≤3 张）；④ 用户 UGC —— **反馈 / 贡献类**（意见反馈 + 举报 / 纠错 / 申请下架 / 推荐 / 新增菜品等反馈入口，支持配图 ≤3 张；菜品提交经反馈 `add` 由后台录入，学生端无菜品写接口）。**不属于这四条的一律不投入**；恢复已下线能力须重新拍板。
@@ -108,7 +114,7 @@
 - **按压语言改用 bg-soft（2026-09-12 拍板；适用范围 = 小程序端）**：废止 `scale(0.97)` 按压（小程序侧 `--press-scale` token 作废）；mp-weixin 下 `transform: scale` 按压易致卡片边缘溢出/裁剪，`client/` 统一 `background: var(--color-bg-soft)`/`opacity` 作按压反馈；`grep` 范围限 `client/` 应 0 处裸 `scale(...)`。**Web 端登记豁免**：DOM 端无 mp-weixin 溢出问题，`web/` 的 `scale(var(--press-scale))` 维持使用，不受本条约束。
 
 ## 改动前注意
-- 任何 spec 冲突先问技术负责人，**不要改 `project_spec.md`**（除非你就是技术负责人角色）。
+- 任何口径冲突先问技术负责人，**不要自行改 `CODEBUDDY.md`**（除非你就是技术负责人角色）。
 - 后端加表/改字段 → 改 `server/src/main/resources/db/schema.sql`（及 seed），不要直连库。
-- 新增接口先确认 `api-design.md` 契约与错误码，复用统一响应与分页结构。
+- 新增接口先确认 `docs/feature/` 的契约与错误码，复用统一响应与分页结构（见 `docs/feature/README.md` 通用结构）。
 - 小程序改动后用 `npm run type-check` 校验；改样式/组件须过 §4.9 UI 红线 grep 自检（裸 scale / 裸 hex / `@click`）。
