@@ -6,7 +6,7 @@
 
     <scroll-view class="scroll-wrap" scroll-y>
       <!-- 用户信息卡：主页的身份版面（头像 / 昵称 / 邮箱），右侧「编辑个人信息」→ 独立个人信息编辑页 -->
-      <view class="profile-strip" :class="{ 'is-verified': isVerified }">
+      <CardSection class="profile-strip" :class="{ 'is-verified': isVerified }" flush>
         <view class="strip-avatar-wrap">
           <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="strip-avatar" />
           <view v-else class="strip-avatar strip-avatar-empty">
@@ -20,7 +20,7 @@
         <view class="strip-edit" role="button" aria-label="编辑个人信息" hover-class="pressed" @tap="goProfileEdit">
           <text class="strip-edit-text">编辑个人信息</text>
         </view>
-      </view>
+      </CardSection>
 
       <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题）。
            区块标题一律用公共 `SectionTitle`（§4.9 红线）——UI 统一 Loop Round 1：收敛此处手写副本 -->
@@ -70,6 +70,7 @@ import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import CardSection from '@/components/CardSection.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
@@ -233,15 +234,13 @@ onReachBottom(() => loadMore())
 
 /* 用户信息卡：头像 + 昵称/副行 + 「编辑个人信息」，白底一级卡（与评价卡同语言） */
 /* 区块标题已改用公共 `SectionTitle`（§4.9 红线）——此处不再保留手写副本样式 */
+/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
+   （原 `--spacing-sm --spacing-md`）；`flush` ⇒ 本处自管块间距。 */
 .profile-strip {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
 }
 /* 认证态顶部 6rpx 主色软条纹（UI 稿：仅认证态显示；游客态透明） */
 .profile-strip.is-verified { border-top: 6rpx solid var(--color-primary-soft); }

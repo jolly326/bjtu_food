@@ -24,11 +24,12 @@
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
         <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
-        <view
+        <CardSection
           v-for="n in list"
           :key="n.id"
           class="msg-item"
           :class="{ unread: n.isRead === 0 }"
+          flush
           @tap="onTap(n)"
         >
           <view class="msg-dot" :class="{ read: n.isRead === 1 }" />
@@ -39,7 +40,7 @@
             </view>
             <text class="msg-content">{{ n.content }}</text>
           </view>
-        </view>
+        </CardSection>
       </view>
 
       <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
@@ -199,15 +200,14 @@ onShow(() => {
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
+   （原 `--spacing-lg`）；`flush` ⇒ 块间距由 `.list` 的 `gap` 统管；
+   未读态由下方 `.msg-item.unread` 覆写（强调态用 `shadow-warm`）。 */
 .msg-item {
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;

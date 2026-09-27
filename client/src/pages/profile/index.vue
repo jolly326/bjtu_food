@@ -142,11 +142,13 @@ async function save() {
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .profile-edit-page { display: flex; flex-direction: column; height: 100vh; }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
-/* 信息卡：inset 分组卡（Apple 列表分组风格：更大圆角 + 柔和阴影） */
+/* 信息卡：inset 分组卡（Apple 列表分组风格）
+   UI 统一 Loop Round 14（裁决 5A）：圆角由 `--radius-modal`(48rpx) 归档到**全站卡片档** `--radius-card`(32rpx)
+   —— 此前它是全站唯一用 modal 档圆角的卡片，与其它卡片不同族。 */
 .info-card {
   margin: 0 var(--spacing-md);
   background: var(--bg-card);
-  border-radius: var(--radius-modal);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }

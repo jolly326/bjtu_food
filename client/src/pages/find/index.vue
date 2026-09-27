@@ -28,7 +28,7 @@
       <view v-if="!inFilter" class="discover-body">
         <template>
           <!-- 搜索记录（首位） -->
-          <CardSection v-if="historyList.length > 0">
+          <CardSection v-if="historyList.length > 0" class="discover-card" flush>
             <SectionTitle title="搜索记录">
               <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
               <text
@@ -65,7 +65,7 @@
 
           <!-- 猜你喜欢（GET /dishes/for-you）：后端**每次随机**推送在售菜品名（不看热度、不排序、
                不做个性化）；端上按返回渲染、不写死条数与文案；空数组 / 请求失败 → 整块不渲染 -->
-          <CardSection v-if="guessLikeList.length > 0">
+          <CardSection v-if="guessLikeList.length > 0" class="discover-card" flush>
             <SectionTitle title="猜你喜欢" />
             <view class="history-chips">
               <view
@@ -380,10 +380,13 @@ onShow(() => clearShareState())
 /* 发现态：普通内容容器 + 高度兜底（搜索记录上限 4 条内容短；内容超高时由内容区自身滚动兜底） */
 .discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
 /* 首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`）；
-   归零 CardSection 自带的上下 margin，消除旧实现「搜索行 16px + 首卡 12px = 28px」的双重叠加。 */
-.discover-body :deep(.card-section) { margin-top: 0; margin-bottom: 0; }
-/* 两卡之间显式 `--spacing-lg`(16px)：不依赖 CardSection 默认 margin 的折叠结果（旧实际仅 8px）。 */
-.discover-body :deep(.card-section + .card-section) { margin-top: var(--spacing-lg); }
+   UI 统一 Loop Round 14：卡壳改传 `flush`（自带 margin 归零，不再反向覆写组件内部类 ——
+   `:deep(.card-section)` 属跨组件边界样式，在小程序端不可靠，R4 已踩坑），
+   块间距改由**本类自身的下外边距**给出（每卡一份，末卡的余量由 `.discover-body` 的 padding-bottom 吸收）。
+   ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
+   —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
+   且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
+.discover-card { margin-bottom: var(--spacing-lg); }
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }
 
