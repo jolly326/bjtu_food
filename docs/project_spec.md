@@ -206,7 +206,7 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 
 - 八原则：Purpose / Agency / Responsibility / Familiarity / Flexibility / Simplicity / Craft / Delight；流体交互四要素：即时响应、1:1 直接操控、可中断、动量接力。
 - **MVP 动效边界**：内容立即可见不依赖动画；不引入装饰性入场动效；弹层/弹窗开合瞬开瞬关（Web DOM 弹窗豁免：保留 220ms scale+opacity）；按压反馈仅 `:active` opacity / bg-soft 弱化、不缩放（Web 端 `scale(var(--press-scale))` 为登记豁免）；`prefers-reduced-motion` 降级。
-- 列表不设加载骨架；失败态 = `RetryBlock`「加载失败 · 点击重试」；空态仅首页贡献卡与搜索无结果两处例外；长耗时操作（上传 / 提交）必须给进行时反馈，禁止静默等待。
+- 列表不设加载骨架；**失败态 = `RetryBlock`**（两种形态：整块可点「加载失败 · 点击重试」/ 双 CTA「重新加载 + 返回」）；**空态 = `EmptyState`**（区块内轻量态 / 整屏卡片变体）；**加载态 = 静默空白**（首屏 / 切筛选不渲染任何指示），**唯一例外 = 用户主动点击重试**时可在 `RetryBlock` 内给**转圈**在途反馈（UI 统一 Loop Round 13 裁决）；长耗时操作（上传 / 提交）必须给进行时反馈，禁止静默等待。
 
 ### 6.2 视觉 Token
 

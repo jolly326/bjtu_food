@@ -27,7 +27,7 @@ import type { Review, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
-import { getNavBarHeight } from '@/utils/navMetrics'
+import { useNavMetrics } from '@/utils/useNavMetrics'
 import { dishDetailUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
@@ -147,16 +147,14 @@ export function useDishPage() {
   })
 
   /* ===== dish-detail-visual-polish：覆盖导航 + 滚动渐显菜名 ===== */
-  const statusBarHeight = ref(20)
-  const navBarHeight = ref(56)
+  /* 顶部度量：一律走跨页统一实现 `useNavMetrics()`（UI 统一 Loop Round 8 收口、Round 12 完成最后一项）。
+     · 状态栏高 / 导航行高：与 `AppTitleBand` / `AppHeader` / `SearchBar` / `home` / `find` 同源；
+     · **胶囊避让**（Round 12 并入，用户裁定）：本页原自持 `rightPad`（纯 `screenW − 胶囊.left + 8px`）
+       与派生 computed 已删除，改用 `useNavMetrics().navPadRight`（额外叠加 `env(safe-area-inset-right)`
+       ⇒ 与全站口径一致；差异只在带右侧安全区的机型上生效）。 */
+  const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight, navPadRight } = useNavMetrics()
   const scrollTop = ref(0)
-  /** 右上角原生胶囊避让：与 AppHeader 同款计算（screenW − menuBtn.left + 8px），仅微信端生效 */
-  const rightPad = ref(0)
   const topPad = computed(() => `max(${statusBarHeight.value}px, env(safe-area-inset-top))`)
-  /** 导航行右侧安全留白：避让微信胶囊，长菜名省略于胶囊左侧 */
-  const navPadRight = computed(() =>
-    rightPad.value > 0 ? `calc(env(safe-area-inset-right, 0px) + ${rightPad.value}px)` : '0px',
-  )
   /** 视口尺寸（px，onMounted 取真值；缺省兜底） */
   const windowHeight = ref(800)
   const windowWidth = ref(375)
@@ -205,25 +203,17 @@ export function useDishPage() {
     onReviewsReachBottom()
   })
   onMounted(() => {
-    // 与 AppHeader 同款导航尺寸计算（自定义导航 + 右上角胶囊避让）
+    // 状态栏高 / 导航行高已由 `useNavMetrics()` 统一实测（见上方声明）；本处只取视口尺寸与胶囊避让。
     // 平台例外：wx 全局仅存在于微信运行时，H5 分支由 w 判空兜底
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w: any = (globalThis as any).wx
     const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
-    const sb = (win && win.statusBarHeight) || 20
-    statusBarHeight.value = sb
     // dish-hero-scroll-model：大图满高取视口高度 26%（px），与滚动量同单位
     windowHeight.value = (win && win.windowHeight) || 800
     windowWidth.value = (win && win.windowWidth) || 375
     // --spacing-sm（16rpx）折算 px：承接线需与其它页 AppHeader 底部留白对齐
     spacingSmPx.value = (16 * windowWidth.value) / 750
-    const mb = w && w.getMenuButtonBoundingClientRect ? w.getMenuButtonBoundingClientRect() : null
-    if (mb && mb.height) {
-      navBarHeight.value = getNavBarHeight(sb, mb)
-      // 胶囊避让：screenW − 胶囊.left + 8px（px，不随屏宽缩放），与 AppHeader 一致
-      const screenW = (win && win.windowWidth) || 375
-      rightPad.value = Math.max(screenW - mb.left + 8, 0)
-    }
+    // 胶囊避让 / 状态栏 / 导航行高均已由 `useNavMetrics()` 统一实测（见上方声明），本处不再自算
   })
 
   /** 位置文案：食堂 · 楼层 · 档口名 */
@@ -287,10 +277,11 @@ export function useDishPage() {
     }
   }
 
-  /** 详情请求失败后重试（与进入页面同路径，仅重拉详情） */
+  /** 详情请求失败后重试（与进入页面同路径，仅重拉详情）
+   *  ⚠️ UI 统一 Loop Round 13：**返回该 Promise**，供页面等待真实落地后关闭「重新加载」的在途转圈。 */
   function onRetryDetail() {
     if (!dishId.value) return
-    dishStore.fetchDetail(dishId.value)
+    return dishStore.fetchDetail(dishId.value)
   }
 
   /** 写回分享态（供 onShareAppMessage 读取菜名 + 现价） */

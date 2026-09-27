@@ -210,7 +210,7 @@ async function onSubmit() {
   font-size: var(--font-small);
   color: var(--text-body);
   background: var(--bg-soft);
-  border-radius: 8rpx;
+  border-radius: var(--radius-2xs);
 }
 
 .rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) 0; }

@@ -218,7 +218,8 @@ function onMore() {
 .review-head-left {
   flex: 1;
   min-width: 0;
-  padding-right: 64rpx;
+  /* 64rpx 走 `--spacing-2xl`（同值）—— UI 统一 Loop Round 6：为右上「竖三点」留出的避让位 */
+  padding-right: var(--spacing-2xl);
   display: flex;
   align-items: center;
 }
@@ -247,7 +248,7 @@ function onMore() {
 }
 
 /* 评分：黄色实星（1-5 颗，最低 1 颗）+ 右侧分值数字 */
-.review-stars { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.review-stars { display: inline-flex; align-items: center; gap: var(--spacing-3xs); flex-shrink: 0; }
 .review-star { display: inline-block; }
 .review-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 
@@ -291,7 +292,7 @@ function onMore() {
 .review-images {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: var(--spacing-sm);
   margin-top: var(--spacing-2xs);
 }
 .review-image-cell {

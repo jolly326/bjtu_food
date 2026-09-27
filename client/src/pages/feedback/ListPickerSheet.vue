@@ -7,8 +7,8 @@
        - backable → 头部标题左侧返回箭头（复用 IconSvg arrow + scaleX(-1)），点击 emit('back')，与 closable 并存；
        - rowStyle='plain' 复刻 feedback 通栏行观感（分隔线/icon/文字/右侧 check）；默认 'card'（发布页不变）；
        - 默认槽渲染于滚动列表之后、底部按钮区之前（承载「其他」自定义输入等尾部内容）；
-       - 具名 #empty 槽渲染于列表区内当无任何项时（承载「无关键词引导 / 无结果去补录 CTA」，由父级条件供内容），
-         未提供时回退到 searchable 的「输入关键词搜索」内置提示（发布页等旧行为不变）。
+       - 具名 #empty 槽渲染于列表区内当无任何项时（承载「无关键词引导 / 无结果提示」；UI 统一 Loop Round 4 起
+         由父级用公共 `components/EmptyState.vue` 提供 —— 原内置回退提示已按「零消费即删」移除）；
        注意：不得反向依赖其它分包组件。 -->
   <BaseSheet
     :visible="open"
@@ -53,11 +53,11 @@
           </view>
           <view class="lp-radio" :class="{ on: isOn(opt) }" />
         </view>
-        <!-- 列表区内空态：无任何项时由父级 #empty 槽承载引导/去补录，未提供则回退内置提示 -->
+        <!-- 列表区内空态：无任何项时**由父级 #empty 槽承载**（唯一消费方 feedback 恒提供该槽）。
+             UI 统一 Loop Round 4：内置回退提示（原「输入关键词搜索」）已按「零消费即删」移除 ——
+             空态统一由父级用公共 `EmptyState` 提供，本组件不再内置任何文案与排版。 -->
         <view v-if="options.length === 0" class="lp-empty">
-          <slot name="empty">
-            <text v-if="searchable" class="lp-empty-text">输入关键词搜索</text>
-          </slot>
+          <slot name="empty" />
         </view>
       </scroll-view>
       <!-- 默认槽：滚动列表之后、底部按钮区之前（承载「其他」自定义输入等尾部内容） -->
@@ -158,8 +158,8 @@ watch(
 .lp-search-input { height: 72rpx; padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-btn); font-size: var(--font-small); color: var(--text-primary); box-sizing: border-box; }
 .lp-search-ph { color: var(--text-tertiary); }
 .lp-list { flex: 1; min-height: 0; padding: 0 var(--spacing-md); box-sizing: border-box; }
+/* 空态容器：只做居中占位，文案与排版由父级经 #empty 槽用公共 `EmptyState` 提供 */
 .lp-empty { padding: var(--spacing-xl) 0; text-align: center; }
-.lp-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
 .lp-tail { flex-shrink: 0; }
 
 /* 圆形单选指示：每行常驻，未选浅灰空心圆 / 选中主色实心带内白点 */
@@ -181,11 +181,11 @@ watch(
 
 /* ===== 行：plain（feedback 通栏分隔观感） ===== */
 .lp-wrap--plain .lp-list { padding: 0 var(--spacing-md) var(--spacing-sm); }
-.lp-item--plain { min-height: 0; padding: var(--spacing-sm) 0; margin-bottom: 0; border-radius: 0; border-bottom: 2rpx solid var(--border-color); }
+.lp-item--plain { min-height: 0; padding: var(--spacing-sm) 0; margin-bottom: 0; border-radius: var(--radius-none); border-bottom: 2rpx solid var(--border-color); }
 .lp-item--plain:last-child { border-bottom: none; }
 .lp-item--plain .lp-lead--icon { width: 64rpx; height: 64rpx; border-radius: var(--radius-icon); background: var(--bg-soft); }
 .lp-item--plain .lp-lead--empty { width: 64rpx; height: 64rpx; border-radius: var(--radius-icon); background: var(--bg-soft); }
-.lp-item--plain .lp-lead-img { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--bg-placeholder); }
+.lp-item--plain .lp-lead-img { width: 72rpx; height: 72rpx; border-radius: var(--radius-circle); background: var(--bg-placeholder); }
 .lp-item--plain .lp-item-name { font-size: var(--font-body); font-weight: var(--weight-medium); }
 .lp-item--plain.on { background: var(--bg-soft); }
 

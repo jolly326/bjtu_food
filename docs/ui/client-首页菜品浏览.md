@@ -77,7 +77,7 @@
 
 - **四周留白**：左右各 `--spacing-md`（12px，与搜索行 / 标签栏 / 网格同轴）、**上缘距固定标题带下沿** `--spacing-md`（12px，由滚动区 `padding-top` 承担）、**下缘距搜索区** `--spacing-lg`（16px，由吸顶容器 `padding-top` 承担）；**四角圆角** `--radius-card`（32rpx）——它是滚动区首块**一张「浮起来」的图片卡**（随页面上滑、在标题带下沿被裁），不是通栏满屏图；
 - **它不在固定标题带背后**：固定标题带（§1）在其**上方**独立一行（与微信胶囊同一水平带）；Banner 顶部不再承载标题，**素材无需再为标题留浅色带**；
-- **上滑时**，Banner 尾部与下方卡片从固定标题带**下方滑过**（被标题带切片遮住属预期；遮盖方式 = 不透明壁纸切片，见 §11.2，**不再是纱式淡出**）；
+- **上滑时**，Banner 尾部在固定标题带下沿被**裁掉**（不从其背后经过 ⇒ 标题带恒透明、无表面，§11.2）；
 - **那个位置就是一张图，无任何文案层**（端上不渲染「今日推荐」等硬编码文本；素材里的「今日推荐 / 副标题 / 菜品插画」均为**图片素材自身内容**，由设计出图，端上零文本）；
 - **Banner 上无点击交互**（v1 纯展示、无跳转；出参无 `targetType` / `targetId` / `targetUrl`；要做跳转须先在本文件定义交互并另立 change）。
 
@@ -505,7 +505,7 @@
 **触发规则**：本页**只有一种布局状态**（不再有「未吸顶 / 已吸顶」两态）。垂直滑动只让滚动区内部滚动；
 标签栏横向拖动、Banner 轮播左右滑动都不改变任何布局状态。
 
-**滚动阈值**：不再有「锁定点 / 吸顶阈值」（历史常量 `L`、`B_b` 的吸顶语义随之作废）。
+**滚动阈值**：吸顶态由**离散开关** `pinned` 驱动 —— 滚动量跨过**锁定点**（= Banner 下缘 − 标题带高）时**翻转一次**，不做逐帧对齐（历史常量 `L` 的吸顶语义随切片方案恢复；UI 统一 Loop Round 10 同步）。
 
 ### 11.1 背景：全站**唯一**的 `fixed` 页底壁纸（零表面）
 
@@ -518,22 +518,22 @@
 
 | 层 | 内容 | 落位 / 实现 |
 |---|---|---|
-| ① **壁纸** | 本地图 `client/src/static/images/home-bg.jpg`（750×1501、≈115KB） | 公共组件 `components/PageWallpaper.vue` 的 `<image mode="aspectFill">`。**本地图必须走 `<image>`**：小程序 WXSS 的 `background-image: url()` **取不到包内本地路径**（真机报「本地资源图片无法通过 WXSS 获取」，开发工具却可能正常预览）。盒子 = 满宽 × **实测视口高**（内联 `heightPx`，由页面 / TabBar 用 `wx.getWindowInfo().windowHeight` 实测下发；**不用 `vh`**）—— 全站**只有这一处**壁纸层，不再有需要「同尺寸对齐」的其它实例（切片已全部取消，2026-09-26） |
-| ② **纱**（wash） | **全站 token `--page-wash`** = `rgba(255,248,239,0.4)`（唯一定义处 = `App.vue` 的 `page{}`） | 同组件内一个 `<view>` 的 `background-color`（纯色，**不受** WXSS 本地图限制）。**铺满整张壁纸、处处相同**（无分段、无渐变）—— 这是「降低背景突出度」的唯一手段。⚠️ **2026-09-26 三次修正**：① 删去原先铺到页底的 `0.9 / 0.62 / 0.5` 三段白纱（Banner 底部读作「发白 + 白色渐变」）；② 顶部 α=1 → 浅纱（让壁纸铺到屏幕最顶端）；③ **由「只盖顶部一条」改为「整张统一」** —— 只盖顶部那版会在画面中段留下一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）。**α 是「背景突出度 ↔ 文字可读性」的唯一旋钮，改 `App.vue` 一处即全站生效** |
-| ③ **内容** | 常驻工具栏（搜索 + 标签）/ 滚动区（Banner + 网格） | flex 列：工具栏 `flex: none`、滚动区 `flex: 1`。层级：`.home-page-bg` z-index 0 ＜ `.scroll-wrap` z-index 1（**绝对定位层默认画在流内内容之上，必须显式压回**） |
+| ① **壁纸** | 本地图 `client/src/static/images/home-bg.jpg`（750×1501、≈115KB） | 公共组件 `components/PageWallpaper.vue` 的 `<image mode="aspectFill">`。**本地图必须走 `<image>`**：小程序 WXSS 的 `background-image: url()` **取不到包内本地路径**（真机报「本地资源图片无法通过 WXSS 获取」，开发工具却可能正常预览）。盒子 = 满宽 × **实测视口高**（内联 `heightPx`，由页面 / TabBar 用 `wx.getWindowInfo().windowHeight` 实测下发；**不用 `vh`**）—— 页面级壁纸层**只有一处**；吸顶态切片**复用同一 `src`**（同 `heightPx` ⇒ `aspectFill` 裁剪与页底逐像素同源，见下方同源机制表） |
+| ② **纱**（wash） | **全站 token `--page-wash`** = `rgba(255,248,239,0.6)`（唯一定义处 = `App.vue` 的 `page{}`；Loop Round 12 对齐：代码 0.6 / 原注释 0.8 / 原文档 0.4 三处不一致 ⇒ 以代码 0.6 为唯一真源） | 同组件内一个 `<view>` 的 `background-color`（纯色，**不受** WXSS 本地图限制）。**铺满整张壁纸、处处相同**（无分段、无渐变）—— 这是「降低背景突出度」的唯一手段。⚠️ **2026-09-26 三次修正**：① 删去原先铺到页底的 `0.9 / 0.62 / 0.5` 三段白纱（Banner 底部读作「发白 + 白色渐变」）；② 顶部 α=1 → 浅纱（让壁纸铺到屏幕最顶端）；③ **由「只盖顶部一条」改为「整张统一」** —— 只盖顶部那版会在画面中段留下一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）。**α 是「背景突出度 ↔ 文字可读性」的唯一旋钮，改 `App.vue` 一处即全站生效** |
+| ③ **内容** | 常驻工具栏（搜索 + 标签）/ 滚动区（Banner + 网格） | flex 列：工具栏 `flex: none`、滚动区 `flex: 1`。层级：壁纸层 `z-index: var(--z-page-bg)`（**−1**，UI 统一 Loop Round 5 token 化）—— 负层级天然画在流内内容**之下**，内容无需再补 `z-index`（吸顶切片的 `z-index: -1` 相对 `.home-sticky` 自身层叠上下文，与本层**互不影响**，Round 9 已核对） |
 
 **同源机制（全站仅一处渲染、零表面）** —— `fixed` 页底壁纸即整屏背景；**标题带 / 工具栏 / TabBar 一律不铺表面**（2026-09-27 结构性决议）：
 
 | 渲染处 | 与视口坐标的对齐方式 |
 |---|---|
-| **页面底** `<PageWallpaper class="home-page-bg" fixed />` | 偏移 **0**（视口坐标原点）；`fixed` 铺满视口 ⇒ 连标题带 / 工具栏 / 菜单栏那几条也一并覆盖，**壁纸天然铺满整屏**（旧「切片」就是为了补这几条，现已确认完全多余） |
+| **页面底** `<PageWallpaper fixed />` | 偏移 **0**（视口坐标原点）；`fixed` 铺满视口 ⇒ 连标题带 / 工具栏 / 菜单栏那几条也一并覆盖，**壁纸天然铺满整屏**（旧「切片」就是为了补这几条，现已确认完全多余） |
 | **标题带 / TabBar** | **无表面**：滚动区起点在标题带下沿、终点在菜单栏上沿 ⇒ **内容不从它们背后经过**（都不需要任何表面） |
 | **吸顶容器**（唯一有表面的一条） | **背景图原样切片**：`v-if="pinned"` 只在吸顶态渲染；外层 `overflow: hidden` 裁切 + 内层**页底同款壁纸**（同 `src`（命中缓存）、同实测盒高），按 **实测基准**上移贴回视口原点 ⇒ 显示的就是"背景图去掉顶部标题带那一段"里本容器所在的那一条，**与页底逐像素同源**。未吸顶时完全透明（背后即页底壁纸本体） |
 
 > ##### 历史留痕（全部已废止，勿回退）
 > 曾经的思路是「让横条表面假装成透明的」，共试过六种做法，**全部失败**——根因是：只要内容从横条背后滚过，横条就必须"自己画一块东西"，而任何"复制/近似/渐变"都会在某个时刻被看见。
 > ① **渐变切片**：逐帧基准经「滚动回调 → setData」下发滞后 1–2 帧 → 位图**撕裂** ✗；② **提前 24px 铺位图** → 「突变成切片」✗；③ **提前 12px 渐显** → 「上滑仍看到渐显切片」✗；④ **恰在锁定点硬切换**（像素零误差）→ 仍被判「组件背景不透明就有割裂感」✗；⑤ **纯色底 `--bg-wallpaper`**（壁纸纯底色 × 纱，与页底同色）→ 平坦区不可辨，但插画经过处会露出"被擦掉"的边界 ✗；⑥ **页底壁纸的原样切片**（视口对齐、常量偏移）→ 理论上最正确，但 1–2px 的对齐误差仍被肉眼读出接缝 ✗。
-> **2026-09-27 结论**：不继续"把表面做得更像"，而是**改结构让内容压根不到横条背后**（常驻工具栏 + 收缩滚动区）。问题从根上消失：**零表面、零切片、零滚动监听、零状态**。
+> **2026-09-27 结论**：不继续"把表面做得更像"，而是**改结构让内容尽量不进横条背后**（常驻工具栏 + 收缩滚动区 ⇒ 标题带 / 菜单栏背后**零内容**，二者恒零表面）；**唯一例外 = 吸顶容器**（卡片会从它背后滚过）⇒ 吸顶态铺**背景图切片**（复用页底同 `src`）、由**离散开关** `pinned` 控制（只在跨锁定点翻转，不做逐帧对齐）。
 
 **接入方式与范围（全站）**
 
@@ -541,9 +541,9 @@
 
 - **页面级**：根节点第一行加 `<PageWallpaper fixed />` 即可 —— 组件自带 `z-index: -1`（只压在页底之上、同层内容之下），因此接入新页面**不需要调整该页任何既有层级**；组件未收 `heightPx` 时**自测**视口高，故这行无需任何 prop；
 - **已接入：全部 11 页（2026-09-26 决议「方案 C」）**
-  - 主包 3 页：`pages/home`（页面底**一处** `<PageWallpaper fixed />` + `<TabBar wallpaper />`，均无切片）、`pages/find`、`pages/mine`（含 `<TabBar wallpaper />`）；
+  - 主包 3 页：`pages/home`（页面底 `<PageWallpaper fixed />` + **吸顶态切片**复用同一 `src` + `<TabBar />`）、`pages/find`、`pages/mine`（`<TabBar />`）—— `TabBar` 的 `wallpaper` prop 已按「零消费即删」移除，透明底为唯一行为（UI 统一 Loop Round 7）；
   - 分包 8 页：`detail/dish`、`profile`、`auth`、`notifications`、`feedback`、`my-reviews`、`privacy`、`privacy/agreement`（各一行 `<PageWallpaper fixed />`）；
-- **横条口径**：分包页的固定横条（`AppHeader`、详情页 `dish-nav` / `action-bar`、个人信息页 `submit-bar`）**一律保持原样（实底）** —— 页面底见壁纸、横条不受影响；首页的标题带 / 工具栏 / TabBar **一律透明、不铺表面**（2026-09-27 结构性决议：滚动区不与它们重叠）。
+- **横条口径**：分包页的固定横条（`AppHeader`、详情页 `dish-nav` / `action-bar`、个人信息页 `submit-bar`）**一律保持原样（实底）** —— 页面底见壁纸、横条不受影响；首页的**标题带 / TabBar 恒透明**，**工具栏（吸顶容器）未吸顶透明、吸顶态铺切片**（§11.1 硬性要求 3）。
 
 **硬性要求**：
 
@@ -553,7 +553,7 @@
 4. 滚动区**背后无定格图片**（Banner 是滚动区首块、滚出即消失；壁纸是**页面级静态层**，不属于内容流、不随内容滚动）；
 5. **滚动区 SHALL `flex: 1`**、页面 SHALL 用 `padding-top`（= 标题带高）与 `padding-bottom`（= 菜单栏 + 安全区）界定其上下边界 —— **SHALL NOT** 让滚动区在标题带 / 工具栏 / 菜单栏之下延伸；
 6. 壁纸**体积 ≤300KB、宽度 ≥750**（= `750rpx` 的 2x，主包上限 2MB）；换壁纸 = 换文件（或改 `PageWallpaper.vue` 的 `src` 默认值），**不改任何布局代码**；
-7. **可读性取舍**：整站只有**一层**统一纱（`--page-wash`，α **0.4**），它同时负责「背景不抢内容」与「标题 / 标签 / TabBar 文字可读」。若素材偏暗 / 过花 → **调大 `--page-wash` 的 α**（唯一旋钮，全站生效）；**不要**给某条横条单独加底色、也不要加第二层纱（会立刻产生可见突变 —— 这正是 2026-09-26 三次修正的原因）。
+7. **可读性取舍**：整站只有**一层**统一纱（`--page-wash`，α **0.6**），它同时负责「背景不抢内容」与「标题 / 标签 / TabBar 文字可读」。若素材偏暗 / 过花 → **调大 `--page-wash` 的 α**（唯一旋钮，全站生效）；**不要**给某条横条单独加底色、也不要加第二层纱（会立刻产生可见突变 —— 这正是 2026-09-26 三次修正的原因）。
 
 ### 11.2 标题带的遮盖：**不需要遮盖**（滚动区不在它背后）
 
@@ -634,7 +634,7 @@
 | 组件 | 文件 | 职责 |
 |---|---|---|
 | `AppTitleBand` | `components/AppTitleBand.vue` | 固定标题带（跨页统一：主 Tab 页标题 / 二级页返回 icon；含首页纱层） |
-| `PageWallpaper` | `components/PageWallpaper.vue` | **全站**背景图层：本地壁纸（`<image mode="aspectFill">`）+ 纱（`--page-wash`）。页面级用法 `<PageWallpaper fixed />`（视口锚定）；容器内用法用默认 `absolute`（由容器 `overflow: hidden` 裁切）。⚠️ 2026-09-27 起**全站只此一处**（`fixed` 视口锚定）：横条一律透明、不铺表面（结构性决议，§11.1）；组件的 `absolute` 模式无消费方 |
+| `PageWallpaper` | `components/PageWallpaper.vue` | **全站**背景图层：本地壁纸（`<image mode="aspectFill">`）+ 纱（`--page-wash`）。页面级用法 `<PageWallpaper fixed />`（视口锚定，`z-index` 走 `--z-page-bg`）；**容器内 `absolute` 用法的唯一消费方 = 首页吸顶态切片**（复用同 `src`，§11.1） |
 | `HomeBanner` | `pages/home/HomeBanner.vue` | 16:10 轮播 Banner：数据加载（`GET /banners`）、多张自动轮播 + 指示点、灰底 + 中性 `empty` 空态、单张失败降级 |
 | `SearchBar` | `components/SearchBar.vue` | 搜索胶囊 + 独立「搜索」按钮（`entry` / `input` 两模式，首页与搜索页共用） |
 | `HomeMealTabs` | `pages/home/HomeMealTabs.vue` | 大类标签栏：横向滑动 + 单选 + 短下划线（文案 / 顺序全来自字典） |
@@ -667,7 +667,7 @@
 17. **吸顶容器的位移 SHALL 由原生粘性定位承担**（`position: sticky` + `top: 0`，写在滚动区内部的内容流里）；**SHALL NOT** 用「滚动回调 + `setData` 下发 `transform` / `top`」模拟位移——跨线程延迟会让容器比内容慢半拍，读作「位置是临时算出来的」并易闪现；其**表面 SHALL 用常量偏移的切片层**，**SHALL NOT** 逐帧下发偏移（会滞后 1–2 帧 ⇒ 撕裂）；
 18. **字号 / 间距刻度**：① 卡片字号固定为「菜名 32rpx（半粗）＞ 位置行 = 评分 28rpx（**两行均常规**）；价格 36rpx（粗体，强调档、允许大于菜名）」；② 任何正文级文本**不得低于 12px**；③ 搜索区控件内距按 §4（图标↔文字 8px、按钮左右 16px）；④ 标签栏光学间距按 §5.2（上行距 ≈12px / 下行距 ≈16px，下划线紧随文字 4px、**不得吸底**）；
 19. **色彩必须语义分档**（§10.1 三条硬规则）：价格不得用 `#E67E22`、星不得用 `#F5A623`、「搜索」按钮填充底不得用 `#E67E22`（白字对比度不足）；
-20. **背景 = 本地壁纸 + 纱（§11.1，全站）**：壁纸 SHALL 由 `<image>`（`components/PageWallpaper.vue` → `/static/images/home-bg.jpg`）渲染，**不得**写成 WXSS `background-image: url(/static/…)`；**页面级**统一用 `<PageWallpaper fixed />`（自带 `z-index: -1`，接入不得要求页面改层级）；**页面级**壁纸层**有且仅有一处**（`fixed` 视口锚定；`heightPx` 用实测 `windowHeight`，禁 `vh`）——**不得复制第二份**（横条一律透明，§11.1）；纱 SHALL 由**全站 token `--page-wash`**（`App.vue` 的 `page{}`）**单点**承载；壁纸 ≤300KB、宽度 ≥750，换图不改布局代码；
+20. **背景 = 本地壁纸 + 纱（§11.1，全站）**：壁纸 SHALL 由 `<image>`（`components/PageWallpaper.vue` → `/static/images/home-bg.jpg`）渲染，**不得**写成 WXSS `background-image: url(/static/…)`；**页面级**统一用 `<PageWallpaper fixed />`（自带 `z-index: -1`，接入不得要求页面改层级）；**页面级**壁纸层**有且仅有一处**（`fixed` 视口锚定；`heightPx` 用实测 `windowHeight`，禁 `vh`）——**不得复制第二份壁纸源**（吸顶态切片**复用同一 `src`**，不引入第二份素材/第二处页面级壁纸，§11.1）；纱 SHALL 由**全站 token `--page-wash`**（`App.vue` 的 `page{}`）**单点**承载；壁纸 ≤300KB、宽度 ≥750，换图不改布局代码；
 21. **全站接入范围**：**全部 11 页 SHALL 已接入**（主包 home / find / mine；分包 detail/dish、profile、auth、notifications、feedback、my-reviews、privacy、privacy/agreement），每页一行 `<PageWallpaper fixed />`；分包页的固定横条（`AppHeader` / `dish-nav` / `action-bar` / `submit-bar`）按 2026-09-26 决议**保持实底**；新增页面 SHALL 同样在根节点第一行接入；
 
 > **图片占位策略（本期所有图片先占位，禁止无限空转加载）**：① 菜品图——失败立即回退**灰底 + 菜品 icon** 空态（`var(--bg-soft)` + `IconSvg name="dish"`，唯一真源 = `pages/home/DishCard.vue`）；② Banner 轮播图——`GET /banners` 返回空 / 请求失败 / 单张加载失败 → **复用同一灰底 + 中性 `empty` 图标**（不写文字说明），**占位块高仍按 16:10**；③ 列表请求失败 → 失败重试块（`RetryBlock`）。**预览排查**：若标签栏只剩「全部」或不出现 → 字典请求失败，依次检查：后端是否在线（`GET /dishes/meal-types` 应返回 6 项）、开发者工具是否勾选「不校验合法域名」、是否使用了最新构建产物（`dist/build/mp-weixin`）；若 Banner 恒为占位图 → 检查 `GET /banners` 是否返回非空数组、图片 URL 是否可达。
@@ -720,7 +720,7 @@
 
 | 层 | 组件 | 来源 | 在首页做什么 |
 |---|---|---|---|
-| 背景 | `PageWallpaper` | 公共 `components/PageWallpaper.vue` | 壁纸 + 纱；本页 **2 处**（页面底 `fixed` / 标题带切片）+ TabBar 内 1 处（§11.1） |
+| 背景 | `PageWallpaper` | 公共 `components/PageWallpaper.vue` | 壁纸 + 纱；本页 **2 处**（页面底 `fixed` + 吸顶态切片，同 `src` 复用，§11.1） |
 | 顶栏 | `AppTitleBand` | 公共 `components/AppTitleBand.vue` | 固定标题带「知行食记」；**恒透明、无表面**（原纱层能力已删，§1 / §11.2） |
 | 顶栏 | `SearchBar`(`entry`) | 公共 `components/SearchBar.vue` | 搜索行（左胶囊 + 右「搜索」按钮），整行进搜索页 |
 | 顶部 | `HomeBanner` | 页内私有 `pages/home/HomeBanner.vue` | 16:10 轮播（自持 `GET /banners`；多张自动轮播 + 指示点；空 / 单张失败 → 灰底 + 中性 `empty`） |
@@ -731,4 +731,4 @@
 | 通用 | `IconSvg` / `RetryBlock` | 公共 | 图标（`dish` 占位 / `empty` / `star-filled` / `arrow`）/ 列表失败重试块 |
 | 编排 | `useNavMetrics` / `stores/dish` | `utils/useNavMetrics` / `stores/dish.ts` | 顶部度量（标题带高）/ 列表流、字典、分页、loading key、竞态守卫 |
 
-**控件类型**：`scroll-view`(scroll-y + `scrolltolower` + `lower-threshold=300`)、`swiper` 轮播、`position: sticky` 吸顶容器（`top` = 标题带下沿）、`fixed` 标题带 + 标题带切片、`fixed` 壁纸层、`scroll-x` 标签栏
+**控件类型**：`scroll-view`(scroll-y + `scrolltolower` + `lower-threshold=300`)、`swiper` 轮播、`position: sticky` 吸顶容器（`top` = 标题带下沿；吸顶态铺背景图切片，§11.1）、`fixed` 标题带、`fixed` 壁纸层、`scroll-x` 标签栏

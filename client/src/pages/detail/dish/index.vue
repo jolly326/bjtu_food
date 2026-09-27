@@ -34,36 +34,24 @@
          缺 ID 无重试意义，仅给「返回」。 -->
     <view
       v-if="!dish && (detailFailed || detailNotFound || missingDishId)"
-      class="detail-fail"
+      class="detail-fail-host"
       :style="{ paddingTop: `${pinLine}px` }"
     >
-      <!-- 失败态示意图标复用 name="report"（唯一近似语义键；§4.9 图标语义唯一，此处登记复用口径：非举报，仅作「打不开」中性示意，不新增图标键） -->
-      <IconSvg name="report" :size="96" :color="COLOR_MAP['text-tertiary']" />
-      <!-- 文案分流（R8）：不存在（4001）/ 缺 ID → 不可重试，只给「返回」；
-           网络故障 → 可重试，给「重新加载 + 返回」。 -->
-      <text class="detail-fail-title">{{ detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开' }}</text>
-      <text class="detail-fail-desc">{{ detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用' }}</text>
-      <view class="detail-fail-actions">
-        <view
-          v-if="!missingDishId && !detailNotFound"
-          class="detail-fail-btn detail-fail-btn--primary"
-          role="button"
-          aria-label="重新加载"
-          hover-class="pressed"
-          @tap="onRetryDetail"
-        >
-          <text class="detail-fail-btn-text detail-fail-btn-text--primary">重新加载</text>
-        </view>
-        <view
-          class="detail-fail-btn"
-          role="button"
-          aria-label="返回"
-          hover-class="pressed"
-          @tap="backToHome"
-        >
-          <text class="detail-fail-btn-text">返回</text>
-        </view>
-      </view>
+      <!-- 统一失败块（UI 统一 Loop Round 13 裁决 9B）：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
+           文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
+           文案与图标（`name="report"`，唯一近似语义键、非举报语义）由 `RetryBlock` 统一承载。
+           在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈，
+           不是页面级 loading 指示（§4.8 口径已按裁决调整）。 -->
+      <RetryBlock
+        strong
+        :title="detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
+        :hint="detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用'"
+        :loading="detailReloading"
+        :primary-text="!missingDishId && !detailNotFound ? '重新加载' : ''"
+        secondary-text="返回"
+        @retry="onRetryDetailClick"
+        @secondary="backToHome"
+      />
     </view>
 
     <!-- 大图（.hero-slot）：内容流首块，页面级滚动 + CSS position:sticky 原生实现"两阶段定格"。
@@ -178,6 +166,22 @@ import DishReviewSection from './DishReviewSection.vue'
 import { useDishPage } from './useDishPage'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
+import RetryBlock from '@/components/RetryBlock.vue'
+import { ref } from 'vue'
+
+/** 详情重拉在途（UI 统一 Loop Round 13 裁决 9B）：驱动 `RetryBlock` 的旋转环。
+ *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（§4.8 口径已按裁决调整）。
+ *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `onRetryDetail`（闭包调用期解析）。 */
+const detailReloading = ref(false)
+async function onRetryDetailClick() {
+  if (detailReloading.value) return
+  detailReloading.value = true
+  try {
+    await onRetryDetail()
+  } finally {
+    detailReloading.value = false
+  }
+}
 
 const {
   dish,
@@ -232,7 +236,8 @@ const {
    内容溢出时由微信原生页面滚动承接（配合下方 hero 的 position:sticky）。
    底部只预留操作栏高度，防止固定操作栏遮挡最后内容。 */
 /* QA-04 修复：底部避让由裸 160rpx 改为 token 组合（与 me/profile 同源写法） */
-.dish-page { min-height: 100vh; background: var(--bg-page); padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.dish-page { min-height: 100vh; padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
 
 /* ===== dish-detail-visual-polish：覆盖导航 ===== */
 /* 覆盖导航层全程透明、不自持实底/描边/阴影——导航区背景：有图态由大图本身覆盖承接区（无空窗），
@@ -272,7 +277,7 @@ const {
   justify-content: center;
   width: 56rpx;
   height: 56rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: var(--bg-nav-back-chip);
   box-shadow: inset 0 0 0 1rpx var(--border-nav-back-chip);
 }
@@ -309,37 +314,19 @@ const {
   pointer-events: none;
 }
 
-/* ===== 详情失败 / 不存在态：视口内垂直居中文案 + 明确恢复路径（加载中不渲染本块，保持空白静默）。
+/* ===== 详情失败 / 不存在态：**宿主只做整屏居中与导航让位**，视觉全部由公共 `RetryBlock` 承担
+   （UI 统一 Loop Round 13 裁决 9B 并入；原自绘图标 / 文案 / 按钮样式已删）。
    min-height 100vh + 顶部留白（= pinLine，内联）使内容在导航条之下的剩余区域内居中，不留大片空白。 ===== */
-.detail-fail {
+.detail-fail-host {
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
   min-height: 100vh;
-  gap: var(--spacing-sm);
   padding-left: var(--spacing-xl);
   padding-right: var(--spacing-xl);
   padding-bottom: var(--spacing-2xl);
   box-sizing: border-box;
 }
-.detail-fail-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); text-align: center; }
-.detail-fail-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
-.detail-fail-actions { display: flex; align-items: center; gap: var(--spacing-md); margin-top: var(--spacing-sm); }
-.detail-fail-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 88rpx;
-  padding: 0 var(--spacing-xl);
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  -webkit-tap-highlight-color: transparent;
-}
-.detail-fail-btn--primary { background: var(--color-primary); box-shadow: var(--shadow-float); }
-.detail-fail-btn.pressed { opacity: 0.85; }
-.detail-fail-btn-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-.detail-fail-btn-text--primary { color: var(--color-on-primary); }
 
 /* 大图容器：内容流首块 + position:sticky（top 由内联 -pinStart 动态给定）。
    滚动越过 pinStart 后由滚动引擎把大图钉在 top:-pinStart（其底边恰落承接线 pinLine），
@@ -348,6 +335,7 @@ const {
    底部圆角全程恒定由 overflow 裁切，任何态不丢圆角。 */
 .hero-slot {
   position: sticky;
+  /* z-index: 2 = **局部层叠**（非全局层级）：定格大图盖住下方继续上滑的卡片 —— 故意用裸值，不并入 --z-* */
   z-index: 2;
   width: 100%;
   overflow: hidden;

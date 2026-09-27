@@ -45,13 +45,12 @@ page {
   --text-placeholder: #B5A594;
   /* ===== 背景 ===== */
   --bg-page: #FFF8EF;
-  --bg-page-grad-from: #FFE8D1;
-  --bg-page-grad-to: #FFF8EF;
+  /* --bg-page-grad-from / --bg-page-grad-to 已移除（原「页面顶部渐变」随切片方案废止、零引用；见 tokens.ts） */
   --bg-soft-orange: #FFE8D1;
   --bg-soft-yellow: #FFF3D6;
-  --bg-warm: #FAF6F0;
+  /* --bg-warm 已移除（零消费，见 theme/tokens.ts 注释；手工同步保持一致） */
   --bg-card: #FFFFFF;
-  --card-bg: #FFFFFF;
+  /* --card-bg 已移除（与 --bg-card 同值的重复键、零引用；见 tokens.ts） */
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
   --bg-placeholder: #F0ECE8;

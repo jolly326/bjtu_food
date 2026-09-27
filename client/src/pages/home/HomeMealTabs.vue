@@ -122,7 +122,8 @@ function onSelect(value: string | null) {
   /* 命中区：高 88rpx（触达下限，不得压低；= 上偏置 24 + 文字行 ≈34 + 下划线位 14 + 行底余量）；
      宽 = 标签文字 + 左右各 24rpx。最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅。 */
   height: 88rpx;
-  padding: 24rpx var(--spacing-md) 0;
+  /* 上内距 = `--spacing-md`（24rpx，同值）：UI 统一 Loop Round 6，由裸 24rpx 改为 token */
+  padding: var(--spacing-md) var(--spacing-md) 0;
   box-sizing: border-box;
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;

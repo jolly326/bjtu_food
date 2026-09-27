@@ -31,6 +31,12 @@ onLaunch(() => {
 @import './theme/generated-colors.css';
 
 page {
+  /* ===== 全站页面底色（**唯一承载处**）=====
+     放在小程序最低层 `page{}`：它天然在所有内容与壁纸层**之下** ⇒ 既兜底防白屏，
+     又不会像「页面根 `.page` 的 background」那样把 `z-index: var(--z-page-bg)`（−1）的壁纸层盖住。
+     ⚠️ 页面级 / 组件级 SHALL NOT 再声明页面底色（UI 统一 Loop Round 11 根因修复）。 */
+  background: var(--bg-page);
+
   /* ========== 派生颜色引用（var 组合，非色值真源；真源见 tokens.ts） ========== */
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
@@ -42,7 +48,8 @@ page {
      · 口径（2026-09-26 三次修正）：**整张壁纸统一压一层**。此前只在顶部一条，会在画面中段留下
        一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）；
      · 作用 = 「降低背景突出度」：壁纸仍可见，但不抢内容 → 标题 / 标签 / 卡片间隙都落在同一层纱上；
-     · **α 是唯一旋钮**：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚。0.8 为当前平衡点；
+     · **α 是唯一旋钮**：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚。**当前 0.6**（UI 统一 Loop Round 12
+       对齐：原注释写 0.8、UI 文档写 0.4，三处不一致 ⇒ 以本值为唯一真源）；
      · 色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写字面量 rgba）。 */
   --page-wash: rgba(255, 248, 239, 0.6);
 
@@ -54,6 +61,7 @@ page {
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
   --radius-none: 0;
+  --radius-2xs: 8rpx;
   --radius-xs: 16rpx;
   --radius-tag: 16rpx;
   --radius-card: 32rpx;
@@ -65,6 +73,7 @@ page {
   /* 正圆（头像 / 圆点 / 指示器） */
   --radius-circle: 50%;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
+  --spacing-3xs: 2rpx;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
@@ -107,7 +116,10 @@ page {
   --action-bar-height: 120rpx;
   /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
      两段式：页面骨架层（50~999，内容之上、弹层之下）→ 弹层级（2000+）。
-     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。 */
+     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。
+     另有**底层** `--z-page-bg`（−1）：页底壁纸层，不属于骨架层、不参与上述排序。 */
+  --z-page-bg: -1;         /* 页底壁纸层（PageWallpaper）：负层级 = 压在父级背景之上、流内内容之下，
+                              故接入新页面无需给内容加 z-index（UI 统一 Loop Round 5 token 化） */
   --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
   --z-detail-bar: 70;      /* 详情页空态/加载承接条（no-dish-bar，固定顶部） */
   --z-detail-nav: 80;      /* 详情页覆盖导航（dish-nav，固定顶部） */
@@ -122,16 +134,21 @@ page {
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
-/* ========== 页面基础壳 ========== */
+/* ========== 页面基础壳 ==========
+   ⚠️ **页面根不得再有底色**（UI 统一 Loop Round 11 修复）：根层叠上下文中的绘制顺序为
+   ① 负层级子层（`PageWallpaper` 的 `z-index: var(--z-page-bg)` = −1）→ ② 流内块背景。
+   若 `.page`（页面根）自带不透明底色，它会在 ② 把 ① 的壁纸层**整块盖住** ⇒ 全站表现为「奶黄底、
+   壁纸不可见」。故底色下沉到小程序最低层 `page{}`（见上方 token 块内的 `background`）——
+   它天然在所有内容与壁纸之下，仍能兜底防白屏。 */
 .page {
   min-height: 100vh;
-  background: var(--bg-page);
 }
 
 /* 主滚动区底部安全留白，避免内容被固定底栏遮挡 */
 .scroll-wrap {
   min-height: 0;
-  padding-bottom: calc(var(--tabbar-height) + 24rpx + env(safe-area-inset-bottom));
+  /* 24rpx 走 `--spacing-md`（同值）—— UI 统一 Loop Round 6：全局不留裸间距值 */
+  padding-bottom: calc(var(--tabbar-height) + var(--spacing-md) + env(safe-area-inset-bottom));
 }
 
 /* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========

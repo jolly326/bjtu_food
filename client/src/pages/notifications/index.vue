@@ -48,10 +48,12 @@
       <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
            空态不含重试按钮、错误提示与认证引导。 -->
-      <view v-else-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
-        <text class="empty-title">暂无通知</text>
-        <text class="empty-desc">反馈处理结果会在这里通知你</text>
-      </view>
+      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
+      <EmptyState
+        v-else-if="loaded && !list.length && userStore.isVerified()"
+        title="暂无通知"
+        desc="反馈处理结果会在这里通知你"
+      />
     </scroll-view>
   </view>
 </template>
@@ -63,6 +65,7 @@ import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
@@ -191,7 +194,8 @@ onShow(() => {
 </script>
 
 <style scoped>
-.notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
@@ -209,23 +213,16 @@ onShow(() => {
   box-sizing: border-box;
 }
 .msg-item.pressed { background-color: var(--bg-soft); }
-/* 未读：白卡 + 左侧主色竖条 + 淡主色标题字（不再整卡铺色，卡片观感更清爽） */
+/* 未读：白卡 + **红点** + 淡主色标题字（UI 统一 Loop Round 13 裁决 7A：左侧主色竖条已删，
+   与右上红点语义重复；红点更轻、与「我的」页角标同语言。`shadow-warm` 保留 = 未读属「强调」态） */
 .msg-item.unread {
   background: var(--bg-card);
   box-shadow: var(--shadow-warm);
 }
-.msg-item.unread::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: var(--spacing-lg);
-  bottom: var(--spacing-lg);
-  width: 6rpx;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-}
+/* （已删除原 `.msg-item.unread::before` 左侧竖条 —— 与红点语义重复） */
 
-.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: 10rpx; }
+/* 未读红点：上偏置走 `--spacing-xs`（8rpx）—— 6A 归档：原裸 10rpx 不在 4pt 栅格 */
+.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: var(--spacing-xs); }
 .msg-dot.read { background: transparent; }
 
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
@@ -244,19 +241,8 @@ onShow(() => {
   overflow: hidden;
 }
 
-/* 空态（仅已认证用户）：轻提示，无重试按钮 / 错误提示 / 认证引导 */
-.empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-2xl) var(--spacing-lg);
-}
-.empty-title { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
-.empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
-
-/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
+/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2）；
+   失败态为 components/RetryBlock.vue（P3-03）—— 两者样式随之收敛，此处不再保留副本 */
 
 /* 「全部已读」胶囊：按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
    （App.vue 全局注释明确允许页面 scoped 覆盖）；禁用态复用全局 .is-disabled */

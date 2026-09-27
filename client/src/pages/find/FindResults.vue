@@ -223,7 +223,7 @@ function selectRow(item: MixedResultItem) {
    旧口径与菜名同档，两个最高权重元素并列造成焦点竞争，且与 UI 文档 §4「价格作**第二**视觉重心」相悖。 */
 .mixed-price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
-.mixed-rating-group { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.mixed-rating-group { display: inline-flex; align-items: center; gap: var(--spacing-3xs); flex-shrink: 0; }
 .mixed-rating-star { flex-shrink: 0; }
 .mixed-rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); }

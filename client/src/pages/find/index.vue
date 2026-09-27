@@ -101,15 +101,18 @@
       </view>
       <!-- 搜索无结果引导（search-no-result-guidance）：请求**已完成**且结果为空才呈现；
            未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
-      <view v-else-if="inFilter && searchDone" class="find-empty">
-        <view class="fe-icon">
-          <IconSvg name="search" :size="48" :color="COLOR_MAP['text-tertiary']" />
-        </view>
-        <text class="fe-title">没搜到「{{ keyword }}」相关的菜</text>
-        <text class="fe-desc">把它报给我们，让更多同学也能找到</text>
-        <view class="fe-btn" role="button" aria-label="推荐这道菜" hover-class="pressed" @tap="goContributeNotFound">
-          <text class="fe-btn-text">推荐这道菜</text>
-        </view>
+      <!-- 统一空态组件（UI 统一 Loop Round 3）：卡片变体；`.find-empty-host` 只承担整屏居中占位，
+           视觉全在公共 `EmptyState` 内（与失败态宿主 `.find-retry-host` 同语言） -->
+      <view v-else-if="inFilter && searchDone" class="find-empty-host">
+        <EmptyState
+          card
+          icon="search"
+          :icon-size="48"
+          :title="`没搜到「${keyword}」相关的菜`"
+          desc="把它报给我们，让更多同学也能找到"
+          action-text="推荐这道菜"
+          @action="goContributeNotFound"
+        />
       </view>
     </view>
   </view>
@@ -124,6 +127,7 @@ import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
@@ -366,7 +370,8 @@ onShow(() => clearShareState())
 </script>
 
 <style scoped>
-.find-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); overflow: hidden; box-sizing: border-box; }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.find-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; box-sizing: border-box; }
 /* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
    搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
@@ -382,16 +387,15 @@ onShow(() => clearShareState())
 /* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
 .results-host { flex: 1; min-height: 0; }
 
-/* 搜索无结果引导：居中静态卡片（白底 + 大圆角 + 柔和投影），与列表卡同表面语言 */
-.find-empty {
+/* 搜索无结果（空态）宿主（UI 统一 Loop Round 3）：仅承担整屏居中占位与边距，
+   视觉全在公共 `EmptyState`（卡片变体）内 —— 与下方失败态宿主同语言 */
+.find-empty-host {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xl) var(--spacing-lg);
+  margin: var(--spacing-lg);
   box-sizing: border-box;
 }
 /* 搜索失败态宿主（P3-03）：仅承担整屏居中占位与边距，视觉全在公共 RetryBlock 内 */
@@ -404,28 +408,6 @@ onShow(() => clearShareState())
   margin: var(--spacing-lg);
   box-sizing: border-box;
 }
-.fe-icon {
-  width: 112rpx;
-  height: 112rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  margin-bottom: var(--spacing-xs);
-}
-.fe-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); text-align: center; }
-.fe-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
-.fe-btn {
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-xl);
-  background: var(--color-primary);
-  border-radius: var(--radius-pill);
-  -webkit-tap-highlight-color: transparent;
-}
-.fe-btn.pressed { opacity: 0.85; }
-.fe-btn-text { font-size: var(--font-small); color: var(--text-white); font-weight: var(--weight-medium); }
-
 /* 搜索页头部为「输入框 + 结果」，无筛选行 / FilterBar 样式 */
 
 /* 区块通用 */

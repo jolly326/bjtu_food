@@ -3,7 +3,10 @@
        P3-01：卡头改用 SectionTitle（§4.9「分区标题一律 SectionTitle」），评价数与综合评分标题同档。
        标题行含「只看有图」开关；评价卡无「有用」按钮；排序唯一时间倒序、无切换入口。 -->
   <view class="review-section" id="review-section">
-    <view class="review-card">
+    <!-- 卡片壳改用公共 `CardSection`（UI 统一 Loop Round 13 裁决 2B）：
+         `flush` = 去掉自身外边距（块间距由外层 `.review-section` 统管），
+         内距随即统一到 `--spacing-md`（原先本卡 16/24rpx 与同页另两卡 24rpx 不同轴）。 -->
+    <CardSection flush>
       <!-- 评价数 +「只看有图」开关经 SectionTitle 具名 slot 承载（纯展示，不跨组件分发具名 slot 到深层） -->
       <SectionTitle title="评价" no-margin>
         <template #extra>
@@ -52,28 +55,24 @@
         </view>
 
         <!-- 「只看有图」下无带图评价：明确文案，不给「写评价」动作（该菜可能已有无图评价） -->
-        <view v-else-if="imageOnly" class="review-empty">
-          <text class="review-empty-title">暂无带图评价</text>
-          <text class="review-empty-desc">关掉「只看有图」可查看全部评价</text>
-        </view>
+        <!-- 统一空态组件（UI 统一 Loop Round 3）：轻量形态（区块内空态，无底色） -->
+        <EmptyState
+          v-else-if="imageOnly"
+          title="暂无带图评价"
+          desc="关掉「只看有图」可查看全部评价"
+        />
 
         <!-- 零评价鼓励态：明确「还没有人评」+ 给出可执行入口（写评价，不新增页面；
              未认证点击由页面侧 requireAuth 跳独立认证页） -->
-        <view v-else class="review-empty">
-          <text class="review-empty-title">还没有人评价这道菜</text>
-          <text class="review-empty-desc">你的第一条评价，能帮同学避雷，也能帮食堂改进</text>
-          <view
-            class="review-empty-action"
-            role="button"
-            aria-label="写第一条评价"
-            hover-class="pressed"
-            @tap="emit('write')"
-          >
-            <text class="review-empty-action-text">写第一条评价</text>
-          </view>
-        </view>
+        <EmptyState
+          v-else
+          title="还没有人评价这道菜"
+          desc="你的第一条评价，能帮同学避雷，也能帮食堂改进"
+          action-text="写第一条评价"
+          @action="emit('write')"
+        />
       </template>
-    </view>
+    </CardSection>
   </view>
 </template>
 
@@ -81,7 +80,9 @@
 import { computed } from 'vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import CardSection from '@/components/CardSection.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import type { Review } from '@/types/review'
 
 const props = defineProps<{
@@ -116,14 +117,8 @@ const emit = defineEmits<{
 </script>
 
 <style scoped>
-/* 纵向间距与信息卡 / 综合评分卡（CardSection: margin 上下 --spacing-sm）对齐，避免 16/24rpx 混用 */
+/* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页三卡内距由此统一到 `--spacing-md` */
 .review-section { margin: var(--spacing-sm) var(--spacing-md) 0; }
-.review-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  padding: var(--spacing-sm) var(--spacing-md);
-}
 .review-list { display: flex; flex-direction: column; }
 
 /* ===== 标题行右位：评价数 +「只看有图」开关 ===== */
@@ -178,30 +173,9 @@ const emit = defineEmits<{
   .image-only-track, .image-only-knob { transition: none; }
 }
 
-/* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
-.review-card :deep(.retry-block) { margin: var(--spacing-sm) 0; }
+/* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 =====
+   （选择器随 2B 收敛调整：卡壳已改 `CardSection`，`.review-card` 不复存在 ⇒ 改挂外层 `.review-section`） */
+.review-section :deep(.retry-block) { margin: var(--spacing-sm) 0; }
 
-/* ===== 空态（零评价 / 只看有图无结果）：居中轻量文案 + 主色胶囊动作（不抢占列表主视觉） ===== */
-.review-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-md);
-}
-.review-empty-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-secondary); text-align: center; }
-.review-empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; line-height: 1.5; }
-.review-empty-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 88rpx;
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-xl);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  -webkit-tap-highlight-color: transparent;
-}
-.review-empty-action.pressed { opacity: 0.85; }
-.review-empty-action-text { font-size: var(--font-small); color: var(--color-on-primary); font-weight: var(--weight-semibold); }
+/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 3），此处不再保留副本 */
 </style>

@@ -318,7 +318,7 @@ function onPreview(i: number) {
 .ip-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: var(--spacing-sm);
 }
 .ip-cell {
   width: calc((100% - 32rpx) / 3);

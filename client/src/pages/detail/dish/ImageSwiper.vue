@@ -15,7 +15,7 @@
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
       <view v-else class="image-swiper-placeholder" :style="{ background: placeholderBackground }">
-        <IconSvg name="empty" :size="placeholderSize" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
+        <IconSvg name="empty" :size="placeholderSize" :color="COLOR_MAP['text-tertiary']" />
       </view>
     </swiper-item>
   </swiper>
@@ -97,8 +97,6 @@ function onImgLoad(idx: number) {
   justify-content: center;
   background: var(--bg-page);
 }
-.placeholder-icon {
-  font-size: var(--icon-3xl);
-  line-height: 1;
-}
+/* 图标尺寸由 `IconSvg` 的 `size` prop 控制（`:size="placeholderSize"`）⇒ 原 `.placeholder-icon`
+   的 font-size 规则对宿主节点无效 —— UI 统一 Loop Round 5 按死样式移除 */
 </style>

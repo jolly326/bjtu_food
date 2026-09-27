@@ -1,6 +1,6 @@
 <template>
   <!-- 底部菜单栏：区分「首页 / 我的」两主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
-  <view v-if="tabVisible" class="tab-bar" :class="{ 'is-wallpaper': wallpaper }">
+  <view v-if="tabVisible" class="tab-bar">
     <view
       v-for="item in tabs"
       :key="item.key"
@@ -27,17 +27,11 @@ import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/rout
 import { TAB_URL_BY_KEY } from '@/utils/routes'
 import { COLOR_MAP } from '@/theme/tokens'
 
-defineProps<{
-  /**
-   * `true` = **透明底**（首页传）：菜单栏自身不铺底色、也不铺任何壁纸切片 —— 背后就是 `fixed` 页底壁纸，
-   * 壁纸天然铺满到底部（2026-09-26 决议：切片与页底像素同源，纯属多余的一层拷贝）。
-   * 不传（如「我的」页）= 原样：白底菜单栏。⚠️ 本开关只解决「背景」；图标 / 文案配色不变。
-   */
-  wallpaper?: boolean
-}>()
-
-/* ⚠️ 已删除「壁纸切片」与其视口高测量（2026-09-26）：切片曾用于裁出一条同源壁纸、并挡住从菜单栏背后
-   滚上来的卡片；现改为**全部不铺** —— 代价是卡片会从菜单栏背后滚过并被看见（与标题带 / 吸顶容器同一取舍）。 */
+/* ⚠️ 本组件**无 props**（UI 统一 Loop Round 5 收敛）：
+   · 已删除「壁纸切片」与其视口高测量（2026-09-26）—— 切片曾用于裁出一条同源壁纸并挡住滚上来的卡片，
+     现改为**全部不铺**：菜单栏恒透明，背后即 `fixed` 页底壁纸；
+   · 已删除 `wallpaper` prop 与其白底分支：两个主根页（home / mine）均传 `true` ⇒ 白底分支**零消费**，
+     按「零消费即删」移除，透明底成为唯一行为（调用方简化为 `<TabBar />`）。 */
 
 const tabs = [
   { key: 'home', label: '首页', icon: 'home', url: TAB_URL_BY_KEY.home },
@@ -82,14 +76,11 @@ syncRoute()
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   align-items: center;
-  background: var(--bg-card);
+  /* 恒透明（唯一行为）：背后即 `fixed` 页底壁纸；保留上边框与投影做「材质」分层 */
+  background: transparent;
   border-top: 1rpx solid var(--border-color);
   box-shadow: var(--shadow-bar);
   z-index: var(--z-tabbar);
-}
-/* 透明底模式（首页）：菜单栏自身无底色 —— 背后即 `fixed` 页底壁纸；保留上边框与投影做「材质」分层 */
-.tab-bar.is-wallpaper {
-  background: transparent;
 }
 .tab-item {
   /* `position: relative` 保留：与 `fixed` 页底壁纸（`z-index: -1`）分层，确保图标恒在最上 */

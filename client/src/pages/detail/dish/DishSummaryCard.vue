@@ -28,9 +28,8 @@
         </view>
       </view>
     </view>
-    <view v-else class="summary-empty">
-      <text class="summary-empty-text">还没有评分</text>
-    </view>
+    <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本组件手写 `.summary-empty` -->
+    <EmptyState v-else title="还没有评分" />
   </CardSection>
 </template>
 
@@ -39,6 +38,7 @@ import { computed } from 'vue'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
+import EmptyState from '@/components/EmptyState.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -70,10 +70,9 @@ function distPct(count: number): string {
 .summary-score { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
 .summary-count { font-size: var(--font-aux); color: var(--text-tertiary); }
 .summary-right { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-xs); }
-.summary-empty { padding: var(--spacing-md) 0; text-align: center; }
-.summary-empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
+/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2），此处不再保留副本 */
 .dist-item { display: flex; align-items: center; gap: var(--spacing-sm); min-height: 36rpx; }
-.dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: 2rpx; }
+.dist-stars { flex: 0 0 auto; display: flex; align-items: center; gap: var(--spacing-3xs); }
 .dist-star-num { flex: 0 0 auto; width: 28rpx; text-align: right; font-size: var(--font-aux); color: var(--text-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
 .dist-bar { flex: 1; min-width: 0; height: 12rpx; border-radius: var(--radius-pill); background: var(--color-star-empty); overflow: hidden; }
 /* 分布条为「星级分布」可视化 → 与星标同族用独立星色 token（§4.2 / §7.39），不随主色换肤 */

@@ -139,7 +139,8 @@ async function save() {
 </script>
 
 <style scoped>
-.profile-edit-page { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page); }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.profile-edit-page { display: flex; flex-direction: column; height: 100vh; }
 .scroll-wrap { flex: 1; overflow-y: auto; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
 /* 信息卡：inset 分组卡（Apple 列表分组风格：更大圆角 + 柔和阴影） */
 .info-card {
@@ -161,7 +162,8 @@ async function save() {
 .info-row.info-tappable:active { background-color: var(--bg-soft); }
 .info-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); flex-shrink: 0; }
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
-/* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像（112rpx/24rpx）一致。
+/* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像**同语言**（尺寸按各自区块定：本页 104rpx /
+   「我的」页 120rpx —— UI 统一 Loop Round 6 修正：原注释写 112rpx 与实现不符）。
    可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
 .avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
 .avatar.uploading { opacity: 0.55; }

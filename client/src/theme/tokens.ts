@@ -5,7 +5,7 @@
 // 旧「暖砖红橙档」（primary #C2410C / primary-text #B93A0A / primary-bright #EA580C /
 // 页底 #F7F3EF / 渐变 #FFF9F3→#FFEFE0 / 文字 #262626 三阶）**整体退役**。
 // 主色由「单档」细分为语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），并补齐 §4.1 的全部 token 名
-// （`--color-primary-fill` / `--card-bg` / `--text-title` / `--text-body` / `--bg-soft-yellow` …），
+// （`--color-primary-fill` / `--color-primary-text` / `--text-title` / `--text-body` / `--bg-soft-yellow` …），
 // 使页面文档可直接引用。
 export const COLOR_MAP = {
   /* ===== 主色（暖橙黄）=====
@@ -62,16 +62,14 @@ export const COLOR_MAP = {
   'text-placeholder': '#B5A594',
   /* ===== 背景（§4.1）===== */
   'bg-page': '#FFF8EF',
-  /* 页面顶部渐变（真源）：顶部 `--bg-soft-orange`（淡橙）→ 页底 `--bg-page`。
-     ⚠️ 该渐变是**首页吸顶容器背景切片的唯一真源**（§7.38），改值后容器表面自动跟随、无需另改。 */
-  'bg-page-grad-from': '#FFE8D1',
-  'bg-page-grad-to': '#FFF8EF',
+  /* ⚠️ 原「页面顶部渐变」`bg-page-grad-from/to` 已随「切片方案全部废止」退役并删除
+     （UI 统一 Loop Round 5：零 `var()` 引用、零文档引用）。装饰色按需取下方 `--bg-soft-*` 档。 */
   'bg-soft-orange': '#FFE8D1',
   'bg-soft-yellow': '#FFF3D6',
-  /* feedback-forms-ux-polish：意见反馈页奶油米白底（Q 版暖调表面） */
-  'bg-warm': '#FAF6F0',
+  /* 注：`bg-warm`（#FAF6F0）已移除 —— 原本只有意见反馈页消费，UI 统一 Loop Round 1 后该页
+     随全局 `--bg-page`，此 token 零消费（零消费即删）。页面底一律 `.page { background: var(--bg-page) }`
+     + 全站壁纸层，不再允许页面私有底色。 */
   'bg-card': '#FFFFFF',
-  'card-bg': '#FFFFFF',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
   'bg-placeholder': '#F0ECE8',
@@ -81,7 +79,8 @@ export const COLOR_MAP = {
   'overlay-dark-soft': 'rgba(0,0,0,0.15)',
   'overlay-scrim': 'rgba(0,0,0,0.4)',
   'shadow-card': '0 2px 12px rgba(0,0,0,0.04)',
-  /* feedback-forms-ux-polish：Q 版暖调柔和投影（卡片暖调分层；中性阴影仍走 shadow-card） */
+  /* 暖调柔和投影：**仅用于「选中 / 强调」态**（段控件选中项、未读通知卡）；
+     普通卡片一律 `shadow-card`（UI 统一 Loop Round 13 裁决 5A 收口，勿再扩散到普通卡） */
   'shadow-warm': '0 4rpx 12rpx rgba(180, 140, 120, 0.08)',
   'shadow-modal': '0 18rpx 54rpx rgba(0,0,0,0.18)',
   /* 详情页返回钮胶囊（微信右上角原生胶囊同款：中性浅灰透底 + 细边；原散落 App.vue，UI-03 收口） */
@@ -153,13 +152,9 @@ export const CSS_VARS: Record<string, string> = {
   '--text-placeholder': COLOR_MAP['text-placeholder'],
   /* 背景 / 边框 */
   '--bg-page': COLOR_MAP['bg-page'],
-  '--bg-page-grad-from': COLOR_MAP['bg-page-grad-from'],
-  '--bg-page-grad-to': COLOR_MAP['bg-page-grad-to'],
   '--bg-soft-orange': COLOR_MAP['bg-soft-orange'],
   '--bg-soft-yellow': COLOR_MAP['bg-soft-yellow'],
-  '--bg-warm': COLOR_MAP['bg-warm'],
   '--bg-card': COLOR_MAP['bg-card'],
-  '--card-bg': COLOR_MAP['card-bg'],
   '--bg-input': COLOR_MAP['bg-input'],
   '--bg-soft': COLOR_MAP['bg-soft'],
   '--bg-placeholder': COLOR_MAP['bg-placeholder'],

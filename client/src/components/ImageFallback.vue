@@ -2,7 +2,7 @@
   <view class="image-fallback">
     <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
       <view v-else class="placeholder">
-        <IconSvg name="empty" :size="64" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
+        <IconSvg name="empty" :size="64" :color="COLOR_MAP['text-tertiary']" />
       </view>
   </view>
 </template>
@@ -43,8 +43,6 @@ const imgOk = ref(true)
   justify-content: center;
   background: var(--bg-page);
 }
-.placeholder-icon {
-  font-size: 64rpx !important;
-  line-height: 1 !important;
-}
+/* 图标尺寸由 `IconSvg` 的 `size` prop 内联控制（组件内部为 `<image>`，font-size 对宿主节点无效）
+   ⇒ 原 `.placeholder-icon { font-size: 64rpx !important }` 为死样式 —— UI 统一 Loop Round 5 移除 */
 </style>

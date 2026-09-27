@@ -1,6 +1,8 @@
 <template>
   <view class="page feedback-page">
-    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下；本页原 `--bg-warm` 底由它取代） -->
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下）。
+         本页底色随全局 `.page { background: var(--bg-page) }`（UI 统一 Loop Round 1：
+         原先私有的 `--bg-warm` 是全项目唯一消费点，且已被壁纸层完全覆盖 ⇒ 移除，与其它 10 页一致） -->
     <PageWallpaper fixed />
     <Header title="意见反馈" @back="goBack" />
 
@@ -77,12 +79,12 @@
     >
       <!-- 列表区内空态：无关键词引导 / 无结果提示 -->
       <template #empty>
-        <view v-if="dishKeyword && dishSearched && !dishPickerOptions.length" class="pick-empty">
-          <text class="pick-empty-text">没搜到「{{ dishKeyword }}」，换个关键词试试</text>
-        </view>
-        <view v-else-if="!dishKeyword" class="pick-empty">
-          <text class="pick-empty-text">输入关键词搜索菜品</text>
-        </view>
+        <!-- 统一空态组件（UI 统一 Loop Round 3）：不再本页手写 `.pick-empty` -->
+        <EmptyState
+          v-if="dishKeyword && dishSearched && !dishPickerOptions.length"
+          :title="`没搜到「${dishKeyword}」，换个关键词试试`"
+        />
+        <EmptyState v-else-if="!dishKeyword" title="输入关键词搜索菜品" />
       </template>
     </ListPickerSheet>
   </view>
@@ -100,6 +102,7 @@ import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import ListPickerSheet from './ListPickerSheet.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import IssueForm from './IssueForm.vue'
 import UpdateForm from './UpdateForm.vue'
 import { useFeedback } from './useFeedback'
@@ -143,8 +146,9 @@ const submitNote = computed(() =>
 </script>
 
 <style scoped>
-/* Q 版暖调：页面底用奶油米白 --bg-warm（沿用 feedback-forms-ux-polish） */
-.feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-warm); }
+/* 页面底不再声明私有底色：壁纸层（`<PageWallpaper fixed />`）铺满视口，
+   底色回退到全局 `.page { background: var(--bg-page) }`（UI 统一 Loop Round 1） */
+.feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 /* 主滚动区：底部 safe-area 避让（提交区随内容滚动，无固定底栏） */
 .scroll-wrap {
@@ -185,18 +189,18 @@ const submitNote = computed(() =>
 .seg-text { font-size: var(--font-body); font-weight: var(--weight-medium); color: var(--text-secondary); }
 .seg-item.active .seg-text { color: var(--color-primary-text); font-weight: var(--weight-semibold); }
 
-/* ===== 表单外层 Q 卡（大圆角 + 暖调柔和阴影，内部模块靠间距分层） ===== */
+/* ===== 表单外层 Q 卡（大圆角 + 标准卡阴影，内部模块靠间距分层）=====
+   UI 统一 Loop Round 13（裁决 5A）：卡片阴影一律 `shadow-card`；
+   `shadow-warm` 仅保留给**选中 / 强调**态（段控件选中、未读通知卡）。 */
 .q-card {
   margin: var(--spacing-xs) var(--spacing-md) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-warm);
+  box-shadow: var(--shadow-card);
 }
 
-/* ===== ListPickerSheet 列表空态 ===== */
-.pick-empty { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-md); }
-.pick-empty-text { font-size: var(--font-aux); color: var(--text-tertiary); }
+/* 列表空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 3），此处不再保留副本 */
 
 /* ===== 提交反馈（表单最下方，随内容滚动，非固定） ===== */
 .submit-area {

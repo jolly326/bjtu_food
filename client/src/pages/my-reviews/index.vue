@@ -4,7 +4,7 @@
     <PageWallpaper fixed />
     <Header title="我的主页" @back="backToHome" />
 
-    <view class="scroll-wrap">
+    <scroll-view class="scroll-wrap" scroll-y>
       <!-- 用户信息卡：主页的身份版面（头像 / 昵称 / 邮箱），右侧「编辑个人信息」→ 独立个人信息编辑页 -->
       <view class="profile-strip" :class="{ 'is-verified': isVerified }">
         <view class="strip-avatar-wrap">
@@ -22,10 +22,9 @@
         </view>
       </view>
 
-      <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题） -->
-      <view v-if="list.length" class="section-title">
-        <text class="section-title-text">我的评价</text>
-      </view>
+      <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题）。
+           区块标题一律用公共 `SectionTitle`（§4.9 红线）——UI 统一 Loop Round 1：收敛此处手写副本 -->
+      <SectionTitle v-if="list.length" title="我的评价" />
       <view class="list">
         <!-- 评价卡 = 公共组件 ReviewItem（与菜品详情评价区**同一实现**）：
              本人视角专属信息经 dishName 可选 prop 注入 -->
@@ -43,14 +42,11 @@
            先于空态渲染，避免网络失败被误读；恢复走重试块 @tap -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
       <!-- 游客空态：游客可自由进入本页（用户卡直进、无认证拦截），列表空给认证引导 -->
-      <view v-else-if="isGuest" class="empty-tip">
-        <text class="empty-text">暂无评价，完成身份认证后可发表评价</text>
-      </view>
+      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
+      <EmptyState v-else-if="isGuest" title="暂无评价" desc="完成身份认证后可发表评价" />
       <!-- 空态：首次进入无评价保持静默；仅「删除最后一条」触发时给轻提示，避免被误解为加载异常 -->
-      <view v-else-if="emptiedByDelete" class="empty-tip">
-        <text class="empty-text">暂无评价，去菜品详情写一条吧</text>
-      </view>
-    </view>
+      <EmptyState v-else-if="emptiedByDelete" title="暂无评价" desc="去菜品详情写一条吧" />
+    </scroll-view>
 
     <!-- 三点菜单（与菜品详情评价区同款交互）：「删除评价」危险红动作项 -->
     <ActionSheet :open="moreOpen" :items="moreItems" @close="moreOpen = false" @select="onSelect" />
@@ -72,6 +68,8 @@ import { ref, computed } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
+import SectionTitle from '@/components/SectionTitle.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
@@ -224,16 +222,17 @@ onReachBottom(() => loadMore())
 </script>
 
 <style scoped>
-.my-reviews-page { background: var(--bg-page); }
-.scroll-wrap { padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口（Round 12-A，用户裁决）：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
+   内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
+.my-reviews-page { display: flex; flex-direction: column; height: 100vh; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
 /* 列表容器：卡片间距由容器 gap 承担；卡片本体样式（头像/昵称/星级/正文/配图/三点）由 ReviewItem 统一 */
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
 
 /* 用户信息卡：头像 + 昵称/副行 + 「编辑个人信息」，白底一级卡（与评价卡同语言） */
-/* 区块标题：区别「身份版面」与「名下的评价」两段内容；无评价时不渲染 */
-.section-title { margin: var(--spacing-sm) 0 var(--spacing-2xs); }
-.section-title-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); }
+/* 区块标题已改用公共 `SectionTitle`（§4.9 红线）——此处不再保留手写副本样式 */
 .profile-strip {
   display: flex;
   align-items: center;
@@ -249,13 +248,12 @@ onReachBottom(() => loadMore())
 .strip-avatar-wrap { flex-shrink: 0; }
 .strip-avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); background: var(--bg-soft); }
 .strip-avatar-empty { display: flex; align-items: center; justify-content: center; }
-.strip-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
+.strip-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-3xs); }
 .strip-nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .strip-sub { font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .strip-edit { flex-shrink: 0; padding: var(--spacing-2xs) var(--spacing-md); border-radius: var(--radius-pill); border: 1rpx solid var(--color-primary); }
 .strip-edit.pressed { background-color: var(--bg-soft); }
 .strip-edit-text { font-size: var(--font-tiny); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 
-.empty-tip { padding: var(--spacing-xl) 0; display: flex; justify-content: center; }
-.empty-text { font-size: var(--font-small); color: var(--text-tertiary); }
+/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2），此处不再保留副本 */
 </style>

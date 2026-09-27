@@ -10,10 +10,10 @@
     <!-- ===== 壁纸层（UI 文档 §11.1）：本地壁纸 + 纱，`fixed` **视口锚定**、铺满整屏、不随内容滚动 =====
          实现 = 公共组件 `components/PageWallpaper.vue`（§12）：本地图必须由 `<image>` 渲染
          （小程序 WXSS `background-image` 取不到包内本地路径）。
-         ⚠️ **全页只有这一处壁纸层**（2026-09-26 决议）：它 `fixed` 铺满视口 ⇒ 连顶部标题带那一条也已覆盖，
-         所以**标题带 / 吸顶容器 / TabBar 一律不再铺「切片」**——切片与它像素完全相同（同 src、同 `heightPx`、
-         同视口锚点），本来只是多一层不透明拷贝；去掉后壁纸天然处处连续、零接缝、零割裂。 -->
-    <PageWallpaper class="home-page-bg" fixed :height-px="viewportHeightPx" />
+         · 这是**页面级**壁纸层（`fixed`、铺满视口、不随内容滚动）；
+         · ⚠️ 本页另有一处**容器内切片**（吸顶容器里的 `.home-sticky-slice`，见下方）：它**不是**多余拷贝，
+           而是"卡片会从吸顶容器背后滚过"时唯一能遮挡的表面；未吸顶时该切片不渲染 ⇒ 与页底天然连续。 -->
+    <PageWallpaper fixed :height-px="viewportHeightPx" />
 
     <!-- ===== 固定标题带（跨页统一，docs/ui/client-首页菜品浏览.md §1） =====
          · `position: fixed` **永久固定在页面左上角**，不随页面滚动移动、不随 Banner 滚出；
@@ -91,9 +91,9 @@
     </scroll-view>
 
     <!-- 底部常驻菜单栏：首页 / 我的 两主区切换（仅主根页显示）。
-         `wallpaper` = **透明底**：菜单栏不铺底色 / 切片，背后就是 `fixed` 页底壁纸；
+         菜单栏**恒透明**（背后即 `fixed` 页底壁纸；UI 统一 Loop Round 5 起为唯一行为，不再有 `wallpaper` 开关）；
          滚动区底边已在它**上沿**（页面 `padding-bottom` 让出）⇒ 卡片不会从它背后滚过。 -->
-    <TabBar wallpaper />
+    <TabBar />
   </view>
 </template>
 
@@ -143,7 +143,8 @@ const { titleBandPx } = useNavMetrics()
 /** 窗口宽（px）：Banner 16:10 定高用（页面自持，与胶囊度量无关） */
 const windowWidthPx = ref(375)
 /**
- * 视口高（px）：页底壁纸层的盒子高度（全站只此一处 `PageWallpaper`，2026-09-26 起不再有任何切片）。
+ * 视口高（px）：**页面级**壁纸层的盒子高度（另有一处吸顶容器内的切片复用同一 `src` 与同一个值，
+ * 以保证两边的 `aspectFill` 裁剪逐像素同源）。
  * ⚠️ 用**实测值**而不是 `vh`：`vh` 在部分机型上取整偏差会让壁纸铺不满 / 与视口对不齐。
  */
 const viewportHeightPx = ref(812)
@@ -303,19 +304,22 @@ onShareAppMessage(() => {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  background-color: var(--bg-page);
-  /* 页面底**不再**用 background-image：壁纸 + 纱由 `.home-page-bg`（PageWallpaper 两层）承担（§11.1） */
+  /* 页面根**不带底色**（UI 统一 Loop Round 11 修复）：根层叠上下文里「流内块背景」晚于「负层级子层」绘制，
+     页面根若有底色会把 `z-index: var(--z-page-bg)`（−1）的壁纸层整块盖住 ⇒ 表现为「奶黄底、壁纸不可见」。
+     底色已下沉到全局 `page{}`（App.vue），它天然在壁纸与所有内容之下。
+     页面底**不再**用 background-image：壁纸 + 纱由 `PageWallpaper`（两层）承担（§11.1） */
   position: relative;
   overflow: hidden;
 }
 
 /* ===== 页面底壁纸层（§11.1）=====
-   全站**唯一**的壁纸层：`fixed` 视口锚定 + 偏移 0，铺满整个视口 —— 连顶部标题带那一条也已覆盖，
-   故标题带 / 工具栏 / TabBar 都**不需要（也不允许）**再铺任何表面。
-   `z-index: 0` 与 `.scroll-wrap` 的 `z-index: 1` 配对：绝对定位层默认画在流内内容之上，必须靠层级压回。 */
-.home-page-bg {
-  z-index: 0;
-}
+   **页面级**壁纸层：`fixed` 视口锚定 + 偏移 0，铺满整个视口 —— 连顶部标题带那一条也已覆盖。
+   层级由组件自身的 `--z-page-bg`（−1）承担：负层级压在本页背景之上、流内内容之下 ⇒ **本页不再覆写 z-index**
+   （旧实现曾把它抬到 0、并把下面 `.scroll-wrap` 抬到 1，二者互为补丁；组件 token 化后全站同一机制，
+   首页无需例外 —— UI 统一 Loop Round 5）。
+   ⚠️ 与「吸顶容器切片」的关系（UI 统一 Loop Round 9 核对结论）：切片的 `z-index: -1` 是**相对于
+   `.home-sticky` 自己的层叠上下文**（该容器 `position: sticky` + `z-index: var(--z-header)` ⇒ 自成上下文），
+   与本层的 `--z-page-bg` **互不影响** ⇒ 页底壁纸层与吸顶切片可并存、**无层叠冲突**。 */
 
 /* 固定标题带 / 标题样式已抽入公共组件 `components/AppTitleBand.vue`——
    首页与搜索页共用同一实现，避免两套样式漂移。
@@ -363,16 +367,18 @@ onShareAppMessage(() => {
 /* 搜索行样式已抽入公共组件 `components/SearchBar.vue`——首页与搜索页共用同一实现（含高度 = 本机真实胶囊高）。 */
 
 /* ===== 滚动区：`flex: 1` ⇒ 顶边 = 标签栏下沿、底边 = 菜单栏上沿（页面 padding-bottom 让出）=====
-   只有网格在它内部滚动 ⇒ **不会经过任何横条背后** ⇒ 全页零表面、零切片、零滚动监听。 */
+   网格在它内部滚动；**吸顶容器是例外**：卡片会从其背后滚过 ⇒ 吸顶态铺一层**背景图切片**
+   （`.home-sticky-slice`，2026-09-27 决议），并由滚动监听驱动一个**离散开关** `pinned`
+   （只在跨过锁定点翻转一次，不做逐帧对齐）。除该处外，本页无其它表面 ——
+   （UI 统一 Loop Round 9 修正：原注释"全页零表面、零切片、零滚动监听"已与实现不符）。 */
 .scroll-wrap {
   /* 抬到页面底壁纸层之上：绝对定位层默认画在流内内容之上 */
   position: relative;
-  z-index: 1;
   flex: 1;
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
-  /* ⚠️ 显式覆盖 `App.vue` 的全局 `.scroll-wrap { padding-bottom: calc(--tabbar-height + 24rpx + safe) }`：
+  /* ⚠️ 显式覆盖 `App.vue` 的全局 `.scroll-wrap { padding-bottom: calc(--tabbar-height + --spacing-md + safe) }`：
      本页的菜单栏留白已由**页面 `padding-bottom`** 在结构上让出（滚动区底边 = 菜单栏上沿，§11），
      若再叠加全局那条 ≈62px（iPhone X 约 96px），列表末尾就会出现一大块死空白。
      其它页（滚动区满屏）仍需要全局那条，故只在首页覆盖。 */
