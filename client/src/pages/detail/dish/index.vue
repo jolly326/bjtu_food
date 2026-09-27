@@ -1,33 +1,13 @@
 <template>
-  <view class="page dish-page">
+  <view class="page dish-page" :style="{ paddingTop: `${titleBandPx}px` }">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下，接入无需改动既有层级） -->
     <PageWallpaper fixed />
-    <!-- dish-detail-visual-polish：页面内覆盖导航（顶部透明 → 滚动渐显菜名与底白），大图全幅出血 -->
-    <view
-      class="dish-nav"
-      :class="{ solid: navSolid }"
-      :style="{ paddingTop: topPad, '--nav-h': navBarHeight + 'px', '--nav-pad-right': navPadRight }"
-    >
-      <view class="dish-nav-row">
-        <view class="dish-nav-back" role="button" aria-label="返回" @tap="backToHome">
-          <!-- 返回钮＝显式 chip + 黑箭头（微信原生同款配色）：不再用 ::before 伪元素画底，
-               避免伪元素层级盖住箭头导致“看不到 icon” -->
-          <view class="dish-back-chip">
-            <IconSvg
-              name="arrow-left"
-              :size="'22px'"
-              :color="COLOR_MAP['nav-back-icon']"
-              class="dish-back-icon"
-            />
-          </view>
-        </view>
-        <text class="dish-nav-title" :style="{ opacity: dish ? navOpacity : 1 }">{{ dishName }}</text>
-      </view>
-    </view>
-
-    <!-- 空态/加载/不存在承接条：dish 缺失时固定实底承接返回钮/标题（z 介于滚动内容与覆盖导航之间）；
-         有图态无需此条——大图自身持续盖住承接区，定格后由内容流内 .hero-carry 平滑承接 -->
-    <view v-if="!dish" class="no-dish-bar" :style="{ height: `${pinLine}px` }" />
+    <!-- 顶部标题带（公共 `AppTitleBand`，与首页 / 搜索页**同源**）：
+         左区「返回」（文字）+ 居中区菜名（**随滚动淡入**，`titleOpacity` 只作用于文字）。
+         UI 统一 Loop Round 16（2026-09-27 裁决 c）：本页改为与首页 §11 **同构** ——
+         标题带恒透明、其下滚动区 ⇒ **没有内容从带背后经过** ⇒ 零切片 / 零实底切换 / 零承接条
+         （原自绘 `.dish-nav` 的"透明→实底/渐显"与 `.no-dish-bar` 承接条已退役）。 -->
+    <AppTitleBand back :title="dishName" :title-opacity="navOpacity" @back="backToHome" />
 
     <!-- 详情拉取失败 / 菜品不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页。
          加载期间（!dish && 未失败）保持空白静默，不新增骨架屏 / loading 指示。
@@ -35,7 +15,6 @@
     <view
       v-if="!dish && (detailFailed || detailNotFound || missingDishId)"
       class="detail-fail-host"
-      :style="{ paddingTop: `${pinLine}px` }"
     >
       <!-- 统一失败块（UI 统一 Loop Round 13 裁决 9B）：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
            文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
@@ -54,32 +33,35 @@
       />
     </view>
 
-    <!-- 大图（.hero-slot）：内容流首块，页面级滚动 + CSS position:sticky 原生实现"两阶段定格"。
-         当页面滚动量达到 pinStart 后，浏览器/微信把大图钉在 top:-(heroBase-pinLine)（其底边恰落承接线 pinLine），
-         不再逐帧改写 transform——消除"实时计算"造成的偶发闪帧；此后仅下方卡片继续上滑。
-         内容未溢出剩余区域时页面本身不滚动，也就没有多余滚动区。
-         详情页大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
-    <view
+    <!-- ===== 滚动区（与首页 §11 同构）=====
+         `scroll-view` + `flex: 1`：顶边 = 标题带下沿（页面 padding-top 让出）、底边 = 底部操作栏上沿；
+         内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。
+         `@scroll` 只驱动菜名淡入；`@scrolltolower` 承接评价分页（原页面级 onReachBottom 退役）。 -->
+    <scroll-view
       v-if="dish"
-      class="hero-slot"
-      :style="{ height: `${heroBase}px`, top: `-${pinStart}px` }"
+      class="dish-scroll"
+      scroll-y
+      @scroll="onScroll"
+      @scrolltolower="onReviewsReachBottom"
     >
-      <ImageSwiper
-        :images="heroImages"
-        :height="`${heroBase}px`"
-        :autoplay="false"
-        label="菜品图片"
-        :placeholder-size="96"
-        placeholder-background="var(--bg-card)"
-      />
-      <view class="hero-carry" :style="{ height: `${pinLine}px`, opacity: carryOpacity }" />
-    </view>
+      <!-- hero 卡（滚动区首块）：四周留白 12px + 圆角 + 16:10 —— 与首页 Banner **同语言**；
+           随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"，与首页 Banner 逐字一致）。
+           大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
+      <view class="hero-card" :style="{ height: `${heroHeightPx}px` }">
+        <ImageSwiper
+          :images="heroImages"
+          :height="`${heroHeightPx}px`"
+          :autoplay="false"
+          label="菜品图片"
+          :placeholder-size="96"
+          placeholder-background="var(--bg-card)"
+        />
+      </view>
 
     <template v-if="dish">
       <!-- 私有组件编排：信息卡（五段）/ 综合评分（只读）/ 评价（卡内触底加载）。
-           内容块最小高度（dishBodyMin）保证：即使内容不足一屏，页面也可滚动 ≥ pinStart，
-           「无论如何」都能把顶部大图滑到 header 定格位 -->
-      <view class="dish-body" :style="{ minHeight: dishBodyMin + 'px' }">
+           ⚠️ 原 `dishBodyMin`（保证页面可滚动 ≥ pinStart，好让大图定格）已随定格方案退役（R16 口径 c） -->
+      <view class="dish-body">
         <DishInfoCard :dish="dish" :location-text="locationText" />
         <DishSummaryCard
           :rating="dish.rating || 0"
@@ -102,6 +84,7 @@
         />
       </view>
     </template>
+    </scroll-view>
 
     <!-- 底部固定操作栏：左「写评价」（会话内判定为已评价或提交成功后本地切「重新评价」）右「去分享」（open-type=share），等宽双按钮 -->
     <view class="action-bar" v-if="dish">
@@ -167,7 +150,12 @@ import { useDishPage } from './useDishPage'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import RetryBlock from '@/components/RetryBlock.vue'
+import AppTitleBand from '@/components/AppTitleBand.vue'
+import { useNavMetrics } from '@/utils/useNavMetrics'
 import { ref } from 'vue'
+
+/** 标题带高（px）：页面根 `padding-top` 让出（fixed 标题带不占流内高度）—— 与首页 / 搜索页同源 */
+const { titleBandPx } = useNavMetrics()
 
 /** 详情重拉在途（UI 统一 Loop Round 13 裁决 9B）：驱动 `RetryBlock` 的旋转环。
  *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（§4.8 口径已按裁决调整）。
@@ -187,17 +175,10 @@ const {
   dish,
   dishId,
   dishName,
-  dishBodyMin,
   heroImages,
-  heroBase,
-  pinLine,
-  pinStart,
-  carryOpacity,
+  heroHeightPx,
   navOpacity,
-  navSolid,
-  topPad,
-  navPadRight,
-  navBarHeight,
+  onScroll,
   locationText,
   ratingDistribution,
   reviewList,
@@ -227,6 +208,7 @@ const {
   onOpenReviewComposer,
   onReviewSubmitted,
   onRetryReviews,
+  onReviewsReachBottom,
   submitReport,
 } = useDishPage()
 </script>
@@ -237,123 +219,47 @@ const {
    底部只预留操作栏高度，防止固定操作栏遮挡最后内容。 */
 /* QA-04 修复：底部避让由裸 160rpx 改为 token 组合（与 me/profile 同源写法） */
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
-.dish-page { min-height: 100vh; padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom)); }
+.dish-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom));
+}
 
-/* ===== dish-detail-visual-polish：覆盖导航 ===== */
-/* 覆盖导航层全程透明、不自持实底/描边/阴影——导航区背景：有图态由大图本身覆盖承接区（无空窗），
-   定格后由内容流内 .hero-carry 实底承接；dish 缺失态由 .no-dish-bar 固定实底承接。
-   返回钮使用恒定高对比圆形浮层（见 .dish-nav-back::before），不随背景切换而“隐身”。 */
-.dish-nav {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  z-index: var(--z-detail-nav);
+/* ===== 滚动区（与首页 §11 同构）=====
+   `flex: 1` ⇒ 顶边 = 标题带下沿（页面 `padding-top` 让出）、底边 = 底部操作栏上沿。
+   内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。 */
+.dish-scroll {
+  flex: 1;
+  min-height: 0;
 }
-/* 顶部渐变 scrim 已移除（方案 C→常驻固定 hero header 替代） */
-.dish-nav-row {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  height: var(--nav-h);
-}
-.dish-nav-back {
-  position: absolute;
-  left: var(--spacing-sm);
-  top: 0;
-  bottom: 0;
-  width: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-}
-/* 返回钮：底色对齐微信右上角自带胶囊（中性浅灰透底 + #1A1A1A 黑箭头、细边），
-   icon 依赖显式 import 的 IconSvg 渲染 */
-.dish-back-chip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: var(--radius-circle);
-  background: var(--bg-nav-back-chip);
-  box-shadow: inset 0 0 0 1rpx var(--border-nav-back-chip);
-}
-.dish-back-icon { line-height: 1; }
-.dish-nav-title {
-  position: absolute;
-  /* 渐渐显现的标题：以视口水平居中（原生导航标题一致），非在 [返回钮, 胶囊] 之间偏移居中；
-     长菜名由 max-width + 省略号收口，避免伸入返回钮 / 右侧胶囊区 */
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 60%;
-  font-size: var(--font-h3);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  text-align: center;
+
+/* ===== hero 卡（滚动区首块）=====
+   与首页 Banner **同语言**：四周留白 `--spacing-md`(12px) + `--radius-card` 圆角 + 16:10 定高（高由内联下发）；
+   随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"）。 */
+.hero-card {
+  margin: var(--spacing-md);
+  border-radius: var(--radius-card);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: opacity var(--duration-base) var(--ease-out);
+  line-height: 0;
 }
 
-/* 空态/加载/不存在承接条：固定于屏幕顶端、高 pinLine（内联）、实底 --bg-card，保证返回钮可读可用；
-   pointer-events:none 不拦手势；底部圆角与卡片一致（走 --radius-card token）。 */
-.no-dish-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: var(--z-detail-bar);
-  width: 100%;
-  background: var(--bg-card);
-  border-bottom-left-radius: var(--radius-card);
-  border-bottom-right-radius: var(--radius-card);
-  pointer-events: none;
-}
-
-/* ===== 详情失败 / 不存在态：**宿主只做整屏居中与导航让位**，视觉全部由公共 `RetryBlock` 承担
+/* ===== 详情失败 / 不存在态：**宿主只做剩余区域内居中**，视觉全部由公共 `RetryBlock` 承担
    （UI 统一 Loop Round 13 裁决 9B 并入；原自绘图标 / 文案 / 按钮样式已删）。
-   min-height 100vh + 顶部留白（= pinLine，内联）使内容在导航条之下的剩余区域内居中，不留大片空白。 ===== */
+   `flex: 1` ⇒ 在「标题带下沿 ↔ 底部操作栏上沿」之间垂直居中（不再用 min-height: 100vh 硬撑）。 ===== */
 .detail-fail-host {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 100vh;
   padding-left: var(--spacing-xl);
   padding-right: var(--spacing-xl);
   padding-bottom: var(--spacing-2xl);
   box-sizing: border-box;
 }
 
-/* 大图容器：内容流首块 + position:sticky（top 由内联 -pinStart 动态给定）。
-   滚动越过 pinStart 后由滚动引擎把大图钉在 top:-pinStart（其底边恰落承接线 pinLine），
-   原生接管“定格”，不逐帧改写 transform → 消除实时计算导致的偶发闪帧；
-   此后仅下方卡片继续上滑并被 z-index:2 的大图盖于其上。
-   底部圆角全程恒定由 overflow 裁切，任何态不丢圆角。 */
-.hero-slot {
-  position: sticky;
-  /* z-index: 2 = **局部层叠**（非全局层级）：定格大图盖住下方继续上滑的卡片 —— 故意用裸值，不并入 --z-* */
-  z-index: 2;
-  width: 100%;
-  overflow: hidden;
-  line-height: 0;
-  border-bottom-left-radius: var(--radius-card);
-  border-bottom-right-radius: var(--radius-card);
-}
-/* 承接条：锚于大图容器底部 pinLine 高，定格后按 carryOpacity 连续淡入 --bg-card 实底（无空窗/阶跃）；
-   opacity 由滚动量驱动，非 CSS transition */
-.hero-carry {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-card);
-  opacity: 0;
-  pointer-events: none;
-}
+/* 原 `.hero-slot`（sticky 两阶段定格）与 `.hero-carry`（承接条）已随口径 c 退役：
+   hero 现为滚动区首块 `.hero-card`（见上），随滚动 1:1 移出、在标题带下沿被裁。 */
 
 /* 底部固定操作栏：左写评价 / 重新评价（主色实底）+ 右分享给同学（白底主色描边次按钮），等宽双按钮，与全局主按钮同高/圆角/字重 */
 .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar); display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }

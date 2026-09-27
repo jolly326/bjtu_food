@@ -18,7 +18,7 @@
  * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onLoad, onShow, onShareAppMessage, onPageScroll, onReachBottom } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
@@ -27,7 +27,6 @@ import type { Review, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
-import { useNavMetrics } from '@/utils/useNavMetrics'
 import { dishDetailUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
@@ -146,74 +145,49 @@ export function useDishPage() {
     return (d.images && d.images.length > 0) ? d.images : [d.image]
   })
 
-  /* ===== dish-detail-visual-polish：覆盖导航 + 滚动渐显菜名 ===== */
-  /* 顶部度量：一律走跨页统一实现 `useNavMetrics()`（UI 统一 Loop Round 8 收口、Round 12 完成最后一项）。
-     · 状态栏高 / 导航行高：与 `AppTitleBand` / `AppHeader` / `SearchBar` / `home` / `find` 同源；
-     · **胶囊避让**（Round 12 并入，用户裁定）：本页原自持 `rightPad`（纯 `screenW − 胶囊.left + 8px`）
-       与派生 computed 已删除，改用 `useNavMetrics().navPadRight`（额外叠加 `env(safe-area-inset-right)`
-       ⇒ 与全站口径一致；差异只在带右侧安全区的机型上生效）。 */
-  const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight, navPadRight } = useNavMetrics()
+  /* ===== 顶部与滚动模型（UI 统一 Loop Round 16，2026-09-27 裁决 c：hero 移出屏幕 + 菜名渐显）=====
+     与首页 §11 **同构**：顶部 = 公共 `AppTitleBand`（透明；左「返回」+ 居中菜名**随滚动淡入**），
+     其下为**滚动区**（页内 `scroll-view`，`flex: 1`）——滚动区自标题带下沿开始，
+     故 hero 卡随滚动 **1:1 上移、在带下沿被裁**（"移出屏幕"，与首页 Banner 逐字一致），
+     **不会从标题带背后经过** ⇒ 标题带恒透明、**零切片 / 零实底切换 / 零承接条**。
+     已退役（原 sticky 两阶段定格方案的全部几何）：`pinLine / heroBase / pinStart / dishBodyMin /
+     carryOpacity / navSolid / topPad / navPadRight / spacingSmPx / windowHeight`，
+     以及页面级 `onPageScroll` / `onReachBottom`（改由滚动区的 `@scroll` / `@scrolltolower` 承接）。 */
   const scrollTop = ref(0)
-  const topPad = computed(() => `max(${statusBarHeight.value}px, env(safe-area-inset-top))`)
-  /** 视口尺寸（px，onMounted 取真值；缺省兜底） */
-  const windowHeight = ref(800)
   const windowWidth = ref(375)
-
-  /** AppHeader 底部留白 --spacing-sm（16rpx）折算 px：承接线口径含它，与其它二级页 AppHeader 底边对齐 */
-  const spacingSmPx = ref(8)
-  /** 承接线 = 状态栏 + 导航行 + AppHeader 底部留白（与其他二级页 AppHeader 底边同高的水平线） */
-  const pinLine = computed(() => statusBarHeight.value + navBarHeight.value + spacingSmPx.value)
-  /** 大图满高：≈ 屏高 1/4（沿用 26vh 口径，px 与滚动量同单位）；恒大于承接线，保证有定格区间 */
-  const heroBase = computed(() => Math.max(Math.round(windowHeight.value * 0.26), pinLine.value + 20))
-  /** 大图底边到达承接线所需滚动量 = 满高 − 承接线（sticky top 取 -pinStart，阶段 A/B 分界） */
-  const pinStart = computed(() => Math.max(heroBase.value - pinLine.value, 1))
-  /** 内容块最小高度（px）：即使菜品内容不足一屏，也让页面可滚动量 ≥ pinStart，
-   *  保证"无论如何"都能把顶部大图滑到 header 定格位（内容较多时该下限自动失效）。 */
-  const dishBodyMin = computed(() => Math.max(0, windowHeight.value + pinStart.value - heroBase.value))
-  /** 承接条淡入位移：越过承接线后 48px 内淡入完成（先于标题渐显，避免浅条下出现标题） */
-  const CARRY_FADE_PX = 48
-  /** 承接条不透明度：大图定格后 .hero-carry 在 pinLine 高淡入实底（连续映射，无阶跃/空窗）；dish==null 由固定条承接 */
-  const carryOpacity = computed(() => {
-    if (dish.value == null) return 1
-    const overscroll = scrollTop.value - pinStart.value
-    return Math.min(1, Math.max(0, overscroll / CARRY_FADE_PX))
-  })
-  /** 实底态：驱动返回图标色（实底黑 / 图片态白）与 .dish-nav-back::before 深色圆底显隐 */
-  const navSolid = computed(() => dish.value == null || carryOpacity.value >= 1)
-
-  /* ===== D1e 标题渐显公式：卡片菜名滚出导航条下沿后才渐显，避免同屏两份菜名 ===== */
-  /** 渐显起点：大图底边定格于承接线后，信息卡菜名滚出承接线才渐显 */
-  const NAME_EXIT_SLACK = 40
-  /** 沿用既有 96px 淡入区间 */
+  /** hero 卡左右留白（px）：与首页 Banner 同口径（四周 12px + 圆角卡） */
+  const HERO_GUTTER_PX = 12
+  /** hero 卡高度（px）：可用宽按 16:10 —— 与首页 Banner 同口径 */
+  const heroHeightPx = computed(() => Math.round(((windowWidth.value - HERO_GUTTER_PX * 2) * 10) / 16))
+  /* ===== 菜名渐显（口径 c，R16）：hero 卡完全滚出后再淡入，避免与信息卡菜名同屏重复 ===== */
+  /** 渐显起点缓冲（px）：hero 滚出标题带下沿后再留这么多才开始淡入 */
+  const TITLE_FADE_START_PX = 16
+  /** 淡入区间（px） */
   const TITLE_FADE_SPAN = 96
-  const titleFadeStart = computed(() => pinStart.value + NAME_EXIT_SLACK)
   const navOpacity = computed(() => {
     if (dish.value == null) return 1
-    const p = (scrollTop.value - titleFadeStart.value) / TITLE_FADE_SPAN
+    const start = heroHeightPx.value + TITLE_FADE_START_PX
+    const p = (scrollTop.value - start) / TITLE_FADE_SPAN
     return Math.min(1, Math.max(0, p))
   })
   const dishName = computed(() => (dish.value ? dish.value.name : '菜品详情'))
-  /** 页面级滚动同步（原内层 scroll-view @scroll 移除）：只驱动承接条/标题的 opacity，不再参与布局/位移。
+  /** 滚动区滚动回调（页内 `scroll-view` 的 `@scroll`）：**只驱动菜名淡入**，不参与布局 / 位移。
+   *  量化到整数 px + 值未变则不写，避免亚像素抖动触发无意义重算。
    *  平台例外：uni 滚动回调只声明本组件真正读取的字段（MP-08，替代裸 any） */
-  onPageScroll((e: { scrollTop?: number }) => {
-    scrollTop.value = e?.scrollTop || 0
-  })
-  /** 页面滚动到底（原 scroll-view @scrolltolower）：评价触底加载下一页 */
-  onReachBottom(() => {
-    onReviewsReachBottom()
-  })
+  function onScroll(e: { detail?: { scrollTop?: number } }) {
+    const raw = e?.detail?.scrollTop ?? 0
+    const top = raw > 0 ? Math.round(raw) : 0
+    if (top === scrollTop.value) return
+    scrollTop.value = top
+  }
   onMounted(() => {
-    // 状态栏高 / 导航行高已由 `useNavMetrics()` 统一实测（见上方声明）；本处只取视口尺寸与胶囊避让。
+    // 只取**视口宽**（hero 卡按 16:10 定高用）。状态栏 / 导航行高 / 胶囊避让均由公共 `AppTitleBand` 自持
+    // （UI 统一 Loop Round 16：本页不再消费任何顶部度量）；`windowHeight` 随定格方案一并退役。
     // 平台例外：wx 全局仅存在于微信运行时，H5 分支由 w 判空兜底
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w: any = (globalThis as any).wx
     const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
-    // dish-hero-scroll-model：大图满高取视口高度 26%（px），与滚动量同单位
-    windowHeight.value = (win && win.windowHeight) || 800
     windowWidth.value = (win && win.windowWidth) || 375
-    // --spacing-sm（16rpx）折算 px：承接线需与其它页 AppHeader 底部留白对齐
-    spacingSmPx.value = (16 * windowWidth.value) / 750
-    // 胶囊避让 / 状态栏 / 导航行高均已由 `useNavMetrics()` 统一实测（见上方声明），本处不再自算
   })
 
   /** 位置文案：食堂 · 楼层 · 档口名 */
@@ -427,17 +401,10 @@ export function useDishPage() {
     dish,
     dishId,
     dishName,
-    dishBodyMin,
     heroImages,
-    heroBase,
-    pinLine,
-    pinStart,
-    carryOpacity,
+    heroHeightPx,
     navOpacity,
-    navSolid,
-    topPad,
-    navPadRight,
-    navBarHeight,
+    onScroll,
     locationText,
     ratingDistribution,
     reviewList,
@@ -468,6 +435,7 @@ export function useDishPage() {
     onOpenReviewComposer,
     onReviewSubmitted,
     onRetryReviews,
+    onReviewsReachBottom,
     submitReport,
   }
 }
