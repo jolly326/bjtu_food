@@ -9,7 +9,7 @@
 
 ## UI
 
-> 📐 页面 UI 设计稿已拆出 → [client-隐私政策.md（docs/ui）](../ui/client-隐私政策.md)、[client-用户协议.md（docs/ui）](../ui/client-用户协议.md)（**UI 口径以 `docs/ui/` 为唯一真源**）
+> 🖥 **UI 表现**：见 [`docs/ui/`](../ui/)（页面视觉 / 交互口径统一维护在该目录；**两套文档体系解耦**，命名与粒度不强制对应）。
 
 ## 接口
 

@@ -9,7 +9,7 @@
 
 ## UI
 
-> 📐 页面 UI 设计稿已拆出 → 编辑页见 [client-个人信息编辑.md（docs/ui）](../ui/client-个人信息编辑.md)；信息卡承载形态见 [client-我的主页.md（docs/ui）](../ui/client-我的主页.md)。**UI 口径以 `docs/ui/` 为唯一真源**
+> 🖥 **UI 表现**：见 [`docs/ui/`](../ui/)（页面视觉 / 交互口径统一维护在该目录；**两套文档体系解耦**，命名与粒度不强制对应）。
 
 ## 接口
 
@@ -41,7 +41,7 @@
 | `bindEmail` | string \| null | 否（只读展示） | 已认证绑定的校园邮箱（**校园邮箱唯一出参来源**；**「是否已认证」的唯一判据 = 本字段非空**） |
 | `createdAt` | string | 否（只读展示） | 注册时间（后端透传，格式 `yyyy-MM-dd HH:mm:ss`；不参与编辑） |
 
-> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `username` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参）。其中 `username`（学号）与 `bindEmail`（校园邮箱）的只读展示同时见于编辑页（`docs/ui/client-个人信息编辑.md`）与「我的主页」信息卡（`docs/ui/client-我的主页.md`）。
+> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `username` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参）。其中 `username`（学号）与 `bindEmail`（校园邮箱）的只读展示同时见于编辑页与「我的主页」信息卡（页面视觉口径见 `docs/ui/`，与本目录解耦）。
 
 > **出参仅上表 6 字段（含 `createdAt` 注册时间）**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生，见 `project_spec.md` §7.36）。
 > 「校园邮箱」只读展示项仅读 `bindEmail`；禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生（「食客 + `id` 尾 4 位」）。

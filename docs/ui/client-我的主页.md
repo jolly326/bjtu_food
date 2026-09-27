@@ -1,7 +1,6 @@
 # 我的主页 — 页面 UI 设计稿
 
 > 所属端：学生端（微信小程序） ｜ 页面：`pages/my-reviews/index`（分包 `pages/my-reviews/`）
-> 归属功能文档：评价列表 → [client-我的评价.md](../feature/client-我的评价.md)；信息卡「编辑个人信息」 → [client-个人资料.md](../feature/client-个人资料.md)
 > **口径分工**：**页面 UI 设计口径以本文件为唯一真源**，功能流程 / 接口 / 字段 / 数据落库口径以功能文档为准。
 
 

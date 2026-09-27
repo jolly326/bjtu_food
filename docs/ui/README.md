@@ -1,16 +1,17 @@
 # UI 设计稿总览（按页面拆分）
 
-> 本目录是「**有界面的**页面 UI 设计稿」唯一真源：每个页面（或页内承载物）一份独立文档，文件名以板块前缀开头，与 [`docs/feature/`](../feature/) **同名一一对应**（例外登记见文末）。
+> 本目录是「**有界面的**页面 UI 设计稿」唯一真源：每个页面（或页内承载物）一份独立文档，文件名以板块前缀开头。
+> **与功能文档解耦（2026-09-27 用户口径）**：本目录与 [`docs/feature/`](../feature/)（功能 / 接口 / 字段 / 数据）**各按自身标准分层** —— 分类标准、命名、粒度均可以不同。**不强制 1:1 对应，也不互相内部链接**；看功能流程 / 接口口径去 `docs/feature/`，看页面视觉 / 交互口径看本目录。
 > ⚠️ **口径来源变更（2026-09-27）**：原 `docs/project_spec.md`（含 §4 UI 规范）已删除 —— 跨端 UI 口径以**本目录 + 各页设计稿**为准；仓库红线 / 协作纪律见 [`CODEBUDDY.md`](../../CODEBUDDY.md)。
 > **本目录只写「当前口径」**：逐轮变更过程不再维护；各页**修订轮次**保留在下表「历史轮次」列，作为事实留痕。
-> **范围**：只收**有对应界面**的设计稿 —— **无页面 / 无弹层的能力（全局登录态、静默上报、已下线功能）不在此建文档**（2026-09-27 起，已删 3 份，见文末「本轮删除」）。
+> **范围**：只收**有对应界面**的设计稿 —— **无页面 / 无弹层的能力（全局登录态、静默上报、已下线功能）不在此建文档**（2026-09-27 起，已删 3 份）；**粒度以「一个界面单元」为准**，页内承载物不另立文件（见文末「已合并」）。
 
 ## 板块与命名规则
 
 | 文件名前缀 | 板块 | 代码目录 | 说明 |
 |---|---|---|---|
-| `client-` | **学生端（微信小程序）** | `client/` | 15 份设计稿 |
-| `web-` | **管理端（Web 后台）** | `web/` | 7 份，**当前为要点级骨架，尚未细化** |
+| `client-` | **学生端（微信小程序）** | `client/` | 14 份设计稿（12 个页面 + 2 份页面内承载物稿） |
+| `web-` | **管理端（Web 后台）** | `web/` | 6 份，**当前为要点级骨架，尚未细化** |
 
 ## 修正状态标记（用户验收口径）
 
@@ -18,48 +19,44 @@
 |---|---|
 | ✅ **已完成** | 该页 UI 修正**已通过用户验收**（当前仅 3 页：首页菜品浏览 · 菜品详情 · 搜索） |
 | ⛔ **未完成** | **尚未完成 UI 修正**（可能已改过多轮，事实记在「历史轮次」列） |
-| 🖥 **页内承载物** | 非独立页面（抽屉 / 弹层 / 列表行 / 危险操作确认），**归属宿主页面**，规格与宿主页同批维护 |
+| 🖥 **页内承载物** | 非独立页面（抽屉 / 弹层 / 列表行 / 危险操作确认），**规格与宿主页同批维护** |
 | ▫️ **未细化** | web 端要点级骨架（有落点与页面要点，无交互 / 三态 / 组件清单 / 数据映射） |
 
 > 本列只反映**修正完成度**，不代表代码落地状态（代码侧以 `vue-tsc` / 构建产物 / 真机为准）。
 
 ---
 
-## client- · 学生端（微信小程序，15 份）
+## client- · 学生端（微信小程序，14 份）
 
-| 编号 | 页面 / 承载物 | UI 设计稿 | 代码落点 | 归属功能文档 | 历史轮次（事实） | UI 修正（验收） |
-|---|---|---|---|---|---|---|
-| A-02 | **首页菜品浏览**（全站基准稿） | [client-首页菜品浏览.md](./client-首页菜品浏览.md) | `pages/home/index.vue` | [client-首页菜品浏览.md](../feature/client-首页菜品浏览.md) | R1·R5·R6·R9·R10·R12·R15·R18·R20·R26·R28·R29 | ✅ **已完成** |
-| A-03 | **搜索** | [client-搜索.md](./client-搜索.md) | `pages/find/index.vue`、`pages/find/DishResultCard.vue` | [client-搜索.md](../feature/client-搜索.md) | R18·R20·R21·R26–R27c·R28·R31 | ✅ **已完成** |
-| A-04 | **菜品详情** | [client-菜品详情.md](./client-菜品详情.md) | `pages/detail/dish/index.vue` | [client-菜品详情.md](../feature/client-菜品详情.md) | R19·R22–R25·R31 | ✅ **已完成** |
-| A-06 | 写评价 / 重新评价 | [client-写评价.md](./client-写评价.md) | `pages/detail/dish/ReviewComposer.vue` | [client-写评价.md](../feature/client-写评价.md) | R13·R23·R25 | 🖥 页内承载物（属 A-04 详情页）· ⛔ 未完成 |
-| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | `pages/detail/dish/index.vue`（`ActionSheet`） | [client-删除本人评价.md](../feature/client-删除本人评价.md) | R17 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
-| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | `pages/detail/dish/ReportModal.vue` | [client-举报评价.md](../feature/client-举报评价.md) | R7·R13 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
-| A-10 | 我的评价（承载于「我的主页」） | [client-我的主页.md](./client-我的主页.md) | `pages/my-reviews/index.vue` | [client-我的评价.md](../feature/client-我的评价.md) | R12·R14·R17·R24 | ⛔ 未完成 |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md) | R1–R3·R13·R17·R25·R34–R37·**R38 解耦（3 类型 + 单一通用表单）** | ⛔ 未完成（新形态待验收） |
-| A-17 | **菜品信息纠错**（独立页，入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | `pages/correction/index.vue` | [client-菜品纠错.md](../feature/client-菜品纠错.md) | **R38 自反馈页迁出** | ⛔ 未完成 |
-| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | `pages/notifications/index.vue` | [client-系统通知.md](../feature/client-系统通知.md) | R1–R3·R12·R13·R17 | ⛔ 未完成 |
-| A-13 | 个人资料（编辑于个人信息编辑页） | [client-个人信息编辑.md](./client-个人信息编辑.md) | `pages/profile/index.vue` | [client-个人资料.md](../feature/client-个人资料.md) | R1·R6·R12·R14·R17 | ⛔ 未完成 |
-| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | `pages/auth/index.vue` | [client-邮箱认证.md](../feature/client-邮箱认证.md) | R1·R12·R17·R26 | ⛔ 未完成 |
-| A-15 | 注销账号（入口在「我的」页） | [client-注销账号.md](./client-注销账号.md) | `pages/mine/index.vue`（危险弱化行 + `showModal`） | [client-注销账号.md](../feature/client-注销账号.md) | — | 🖥 页内承载物（属下方「我的页」）· ⛔ 未完成（待重设计） |
-| A-16 | 隐私政策 / 用户协议 | [client-隐私政策.md](./client-隐私政策.md) · [client-用户协议.md](./client-用户协议.md) | `pages/privacy/{index,agreement}.vue`、`pages/privacy/DocPage.vue` | [client-隐私政策与用户协议.md](../feature/client-隐私政策与用户协议.md) | R4 | ⛔ 未完成 |
-| — | 我的页（TabBar 主页，非功能页） | [client-我的页.md](./client-我的页.md) | `pages/mine/index.vue` | —（导航壳 + 入口聚合） | R1·R5·R12·R17 | ⛔ 未完成 |
+| 编号 | 页面 / 承载物 | UI 设计稿 | 代码落点 | 历史轮次（事实） | UI 修正（验收） |
+|---|---|---|---|---|---|
+| — | **首页菜品浏览**（全站基准稿） | [client-首页菜品浏览.md](./client-首页菜品浏览.md) | `pages/home/index.vue` | R1·R5·R6·R9·R10·R12·R15·R18·R20·R26·R28·R29 | ✅ **已完成** |
+| — | **搜索** | [client-搜索.md](./client-搜索.md) | `pages/find/index.vue`、`pages/find/DishResultCard.vue` | R18·R20·R21·R26–R27c·R28·R31 | ✅ **已完成** |
+| — | **菜品详情** | [client-菜品详情.md](./client-菜品详情.md) | `pages/detail/dish/index.vue` | R19·R22–R25·R31 | ✅ **已完成** |
+| — | **菜品详情 · 页内承载物**（写评价 / 重新评价 · 删除本人评价 · 举报评价） | [client-菜品详情-页内承载物.md](./client-菜品详情-页内承载物.md) | `pages/detail/dish/ReviewComposer.vue`、`pages/detail/dish/index.vue`（`ActionSheet`）、`pages/detail/dish/ReportModal.vue` | R7·R13·R17·R23·R25 | 🖥 页内承载物（宿主 = 菜品详情）· ⛔ 未完成 |
+| — | **我的主页**（含「我的评价」评价区） | [client-我的主页.md](./client-我的主页.md) | `pages/my-reviews/index.vue` | R12·R14·R17·R24 | ⛔ 未完成 |
+| — | **意见反馈** | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | R1–R3·R13·R17·R25·R34–R37·**R38 解耦（3 类型 + 单一通用表单）** | ⛔ 未完成（新形态待验收） |
+| — | **菜品信息纠错**（独立页，入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | `pages/correction/index.vue` | **R38 自反馈页迁出** | ⛔ 未完成 |
+| — | **系统通知**（处理回执） | [client-系统通知.md](./client-系统通知.md) | `pages/notifications/index.vue` | R1–R3·R12·R13·R17 | ⛔ 未完成 |
+| — | **个人信息编辑** | [client-个人信息编辑.md](./client-个人信息编辑.md) | `pages/profile/index.vue` | R1·R6·R12·R14·R17 | ⛔ 未完成 |
+| — | **邮箱认证** | [client-邮箱认证.md](./client-邮箱认证.md) | `pages/auth/index.vue` | R1·R12·R17·R26 | ⛔ 未完成 |
+| — | **隐私政策** / **用户协议**（两个独立页面） | [client-隐私政策.md](./client-隐私政策.md) · [client-用户协议.md](./client-用户协议.md) | `pages/privacy/{index,agreement}.vue`、`pages/privacy/DocPage.vue` | R4 | ⛔ 未完成 |
+| — | **我的页**（TabBar 主页；含注销账号承载物 §3.1） | [client-我的页.md](./client-我的页.md) | `pages/mine/index.vue` | R1·R5·R12·R17 | ⛔ 未完成 |
 
 > `client-首页菜品预览.png` 为首页设计参考图（静态资源，非文档）。
 
-## web- · 管理端（Web 后台，7 份）
+## web- · 管理端（Web 后台，6 份）
 
-| 编号 | 页面 / 承载物 | UI 设计稿 | 代码落点 | 归属功能文档 | UI 修正 |
-|---|---|---|---|---|---|
-| B-01 | 菜品管理（默认落地页 `/dashboard/content`） | [web-菜品管理.md](./web-菜品管理.md) | `web/src/views/content/DishManageView.vue` | [web-菜品管理.md](../feature/web-菜品管理.md) | ▫️ 未细化 |
-| B-02 | 菜品详情查看 | [web-菜品详情查看.md](./web-菜品详情查看.md) | `web/src/views/content/DishDetailView.vue` | [web-菜品详情查看.md](../feature/web-菜品详情查看.md) | ▫️ 未细化 |
-| B-03 | 评价管理（事后处置） | [web-评价管理.md](./web-评价管理.md) | `web/src/views/audit/ReviewManageView.vue` | [web-评价管理.md](../feature/web-评价管理.md) | ▫️ 未细化 |
-| B-04 | 反馈处理 | [web-反馈处理.md](./web-反馈处理.md) | `web/src/views/audit/FeedbackView.vue` | [web-反馈处理.md](../feature/web-反馈处理.md) | ▫️ 未细化 |
-| B-05 | 学生账号管理 | [web-学生账号管理.md](./web-学生账号管理.md) | `web/src/views/system/UserView.vue` | [web-学生账号管理.md](../feature/web-学生账号管理.md) | ▫️ 未细化 |
-| B-06 | 图片上传（表单内，无独立页面） | [web-图片上传.md](./web-图片上传.md) | 各表单弹窗内 | [web-图片上传.md](../feature/web-图片上传.md) | ▫️ 未细化 |
-| B-07 | 信息纠错处理 | [web-信息纠错.md](./web-信息纠错.md) | `web/src/views/audit/CorrectionView.vue` | [web-信息纠错.md](../feature/web-信息纠错.md) | ▫️ 未细化 |
+| 编号 | 页面 / 承载物 | UI 设计稿 | 代码落点 | UI 修正 |
+|---|---|---|---|---|
+| — | 菜品管理（默认落地页 `/dashboard/content`；**含表单内图片上传**） | [web-菜品管理.md](./web-菜品管理.md) | `web/src/views/content/DishManageView.vue` | ▫️ 未细化 |
+| — | 菜品详情查看 | [web-菜品详情查看.md](./web-菜品详情查看.md) | `web/src/views/content/DishDetailView.vue` | ▫️ 未细化 |
+| — | 评价管理（事后处置） | [web-评价管理.md](./web-评价管理.md) | `web/src/views/audit/ReviewManageView.vue` | ▫️ 未细化 |
+| — | 反馈处理 | [web-反馈处理.md](./web-反馈处理.md) | `web/src/views/audit/FeedbackView.vue` | ▫️ 未细化 |
+| — | 学生账号管理 | [web-学生账号管理.md](./web-学生账号管理.md) | `web/src/views/system/UserView.vue` | ▫️ 未细化 |
+| — | 信息纠错处理 | [web-信息纠错.md](./web-信息纠错.md) | `web/src/views/audit/CorrectionView.vue` | ▫️ 未细化 |
 
-> **web 端未细化的统一口径**：管理后台 7 份目前只有「落点 + 页面要点」，缺少管理端 UI 规范（表格 / 表单 / 弹窗 / 反馈）与三态定义 —— 细化前，**管理端视觉与交互无唯一真源**。
+> **web 端未细化的统一口径**：管理后台 6 份目前只有「落点 + 页面要点」，缺少管理端 UI 规范（表格 / 表单 / 弹窗 / 反馈）与三态定义 —— 细化前，**管理端视觉与交互无唯一真源**（导航壳 `AdminLayout.vue` 归全局，不单列设计稿）。
 
 ---
 
@@ -77,41 +74,39 @@
 - 消费方：`ImageFallback`（头像）、`DishCard`、`DishResultCard`、`ImageSwiper`、`ImagePicker`、`ReviewItem`、`HomeBanner`。
 - **SHALL NOT** 各页自绘占位、**SHALL NOT** 再用 `dish` / `empty` 等图标顶替、**SHALL NOT** 自定义占位底色。
 
-## 与功能文档的对应关系（例外登记）
+## 与功能文档的关系（解耦）
 
-绝大多数为 **1:1 同名对应**（`docs/ui/X.md` ↔ `docs/feature/X.md`），以下为例外：
+- 两套体系**各自独立**：本目录 = 页面视觉 / 交互；[`docs/feature/`](../feature/) = 功能流程 / 接口 / 字段 / 数据。**分类标准、命名、粒度互不约束，文档间不互相内部链接**。
+- **粒度差异是正常的**（差异源于「一个界面单元」vs「一个功能/端点数」），当前三处：
 
-| UI 设计稿 | 归属功能文档 | 关系 |
+| 功能侧（`docs/feature/`） | UI 侧（本目录） | 差异原因 |
 |---|---|---|
-| `client-隐私政策.md` · `client-用户协议.md` | `client-隐私政策与用户协议.md` | **1 功能 : 2 页面**（两页共用 `DocPage` 外壳） |
-| `client-个人信息编辑.md` | `client-个人资料.md` | 同一功能；**页面名与功能名不同**（查看在「我的主页」信息卡） |
-| `client-我的主页.md` | `client-我的评价.md` | 功能「我的评价」**承载于**「我的主页」评价区 |
-| `client-写评价.md` · `client-删除本人评价.md` · `client-举报评价.md` | 同名功能文档 | 均为**页面内承载物**（抽屉 / ActionSheet / 弹层），宿主页 = `client-菜品详情.md` |
-| ~~`client-菜品纠错.md`~~ | `client-菜品纠错.md`（A-17） | **已补齐同名功能文档**（2026-09-27 自 A-11 拆出）⇒ 不再是例外，1:1 对应 |
-| `client-注销账号.md` | `client-注销账号.md` | **页面内承载物**（「我的」页危险弱化行 + `showModal`），宿主页 = `client-我的页.md` |
-| `client-我的页.md` | — | TabBar 主页，**无独立功能文档**（导航壳 + 入口聚合） |
+| 写评价 / 删除本人评价 / 举报评价 = **3 份** | **1 份**「菜品详情 · 页内承载物」 | 功能各有独立端点与校验；UI 上是同一宿主页的三个承载物 |
+| 隐私政策与用户协议 = **1 份** | **2 份**（隐私政策 / 用户协议） | UI 上是两个真实页面（共用 `DocPage` 外壳） |
+| 图片上传 = **1 份** | 并入 `web-菜品管理.md` 表单章节 | UI 上无独立路由，是表单弹窗内的组件 |
 
-### 已删除（无界面者不设设计稿）
+### 已删除 / 已合并（无界面者不设设计稿；粒度过细者合并）
 
-| 已删文档 | 原因 | 原能力现在何处 |
-|---|---|---|
-| `client-微信静默登录与游客态.md` | 全局登录态，**无页面 / 无弹层** | 功能文档 [`client-微信静默登录与游客态.md`](../feature/client-微信静默登录与游客态.md)；游客态标识见「我的页 / 我的主页」设计稿 |
-| `client-浏览计数.md` | **进详情页即上报**的静默行为，无展示 / 无交互 | 功能文档 [`client-浏览计数.md`](../feature/client-浏览计数.md) |
-| `client-评价有用.md` | 能力**已全链下线**（端点 / 字段 / 表列 / 三端展示均删） | 功能文档 [`client-评价有用.md`](../feature/client-评价有用.md)（历史留痕） |
-
-> 上述三份功能文档的 `## UI` 段指针已同步改为「**无独立 UI 界面**」说明（不再指向已删文件）。
+| 文档 | 处置 | 原因 | 现在何处 |
+|---|---|---|---|
+| `client-微信静默登录与游客态.md` | 已删 | 全局登录态，**无页面 / 无弹层** | 功能侧文档（游客态标识落在「我的页 / 我的主页」设计稿） |
+| `client-浏览计数.md` | 已删 | **进详情页即上报**的静默行为，无展示 / 无交互 | 功能侧文档 |
+| `client-评价有用.md` | 已删 | 能力**已全链下线**（端点 / 字段 / 表列 / 三端展示均删） | 功能侧文档（历史留痕） |
+| `client-写评价.md` · `client-删除本人评价.md` · `client-举报评价.md` | **已合并** | 三份同属菜品详情页，粒度偏细 | [client-菜品详情-页内承载物.md](./client-菜品详情-页内承载物.md) |
+| `client-注销账号.md` | **已合并** | 仅是「我的」页一行 + 系统弹窗，粒度偏细 | [client-我的页.md](./client-我的页.md) §3.1 |
+| `web-图片上传.md` | **已合并** | **无独立路由**，只是表单内组件 | [web-菜品管理.md](./web-菜品管理.md)「表单内组件」 |
 
 ## 待办 / 未决清单
 
 | # | 事项 | 现状 | 影响面 |
 |---|---|---|---|
-| 1 | **除首页 / 搜索 / 菜品详情外的 12 份设计稿修正** | ⛔ 未完成（用户口径）；历史轮次见上表 | 「我的页」「我的主页」「意见反馈」「系统通知」「个人信息编辑」「邮箱认证」「隐私政策 / 用户协议」等 |
-| 2 | **注销入口 UI 重设计** | 待 UI/UX 出稿（`docs/feature/README.md` 待办 #5） | 「我的」页内布局 |
-| 3 | **web- 7 份设计稿细化** | 要点级骨架 | 管理后台 7 个页面 |
+| 1 | **除首页 / 搜索 / 菜品详情外的 11 份设计稿修正** | ⛔ 未完成（用户口径）；历史轮次见上表 | 「我的页」「我的主页」「意见反馈」「系统通知」「个人信息编辑」「邮箱认证」「隐私政策 / 用户协议」「菜品详情承载物」等 |
+| 2 | **注销入口 UI 重设计** | 待 UI/UX 出稿（功能侧待办 #5） | 「我的」页内布局 |
+| 3 | **web- 6 份设计稿细化** | 要点级骨架 | 管理后台 6 个页面 |
 | 4 | 两类 UI 口径待拍板 | 白卡壳收敛范围 / 圆角裸值定档 / 阴影三选一 / 通知未读双指示器 / `AppTitleBand` 与 `AppHeader` 是否合并 | 历史归档 |
 
 ## 与其它文档的关系
 
-- [`docs/feature/`](../feature/)：功能 / 接口 / 字段 / 数据（其每份文档的 `## UI` 段是指向本目录的**指针**）。
+- [`docs/feature/`](../feature/)：功能 / 接口 / 字段 / 数据 —— **与解耦**，互不约束、互不互链。
 - [`CODEBUDDY.md`](../../CODEBUDDY.md)：仓库红线 / 产品定型 / 协作纪律。
 - 逐轮变更历史（含被推翻方案与失败尝试）**不再维护**；如需回溯，从 git 历史查找对应提交。
