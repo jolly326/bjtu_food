@@ -96,6 +96,17 @@ onUnload(() => {
   navTimer = null
 })
 
+/**
+ * 头像选图（单张、压缩）+ 上传。
+ *
+ * ⚠️ 为何不复用 `components/ImagePicker.vue`（UI 统一 Loop Round 17 评估结论 —— **有意保留差异**）：
+ * · ImagePicker = **多图**选择 + 逐张压缩 / 尺寸校验 + UGC 上传链路（云存储 → 后端安检转存 COS），
+ *   其 `pick()` 为组件内私有；
+ * · 头像是**单图**，且走专用接口 `uploadAvatarImage`（本人非公开用途、不做 UGC 安检），
+ *   绑定本页「仅写本地态、需点『保存』才落库」的流程；
+ * · 故此处保留 `uni.chooseImage`（`sizeType: 'compressed'` 已等价压缩口径），
+ *   不强行为「API 一致」改写 —— `chooseMedia` 在 H5 端支持度不确定，改写净收益为负。
+ */
 function changeAvatar() {
   if (avatarUploading.value) return
   uni.chooseImage({
