@@ -67,9 +67,9 @@ async function submit() {
     toast.success(`${kindLabel()}已改名`)
     emit('renamed', { id: props.targetId, name: next })
     emit('close')
-  } catch (e: any) {
+  } catch (e: unknown) {
     // 失败保持打开 + 保留已输入名称（重名等），文案以后端 message 优先
-    toast.error(e?.message || '改名失败，请稍后重试')
+    toast.error((e as Error)?.message || '改名失败，请稍后重试')
   } finally {
     submitting.value = false
   }

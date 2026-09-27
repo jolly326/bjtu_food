@@ -366,9 +366,9 @@ async function submit() {
     }
     emit('saved')
     emit('close')
-  } catch (e: any) {
+  } catch (e: unknown) {
     // 失败恢复路径：弹窗保留、表单数据保留；若归属档口已失效则清空重选并刷新归属字典
-    toast.error(e?.message || '保存失败')
+    toast.error((e as Error)?.message || '保存失败')
     const sid = Number(form.value.stallValue)
     if (sid && !store.stalls.some(s => Number(s.id) === sid)) {
       form.value.stallValue = ''

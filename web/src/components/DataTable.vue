@@ -147,8 +147,7 @@ const displayRows = computed(() => {
   }
   if (!props.pagination) return { rows: sortedRows.value, total: sortedRows.value.length }
   const total = sortedRows.value.length
-  const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
-  if (page.value > maxPage) page.value = maxPage
+  // 页码越界修正**不在此处**做（computed 内不得有副作用）—— 由下方 watch 统一修正
   const start = (page.value - 1) * pageSize.value
   return { rows: sortedRows.value.slice(start, start + pageSize.value), total }
 })

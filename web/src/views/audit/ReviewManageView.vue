@@ -141,8 +141,8 @@ async function setHidden(r: any, hidden: boolean) {
     await reviewApi.updateById(Number(r.id), { is_hidden: hidden })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
     await loadList()
-  } catch (e: any) {
-    toast.error(e.message || '操作失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '操作失败')
   }
 }
 async function toggleHidden(r: any, hidden: boolean) { await setHidden(r, hidden) }
@@ -187,8 +187,8 @@ async function removeReview(r: any) {
     await reviewApi.deleteById(Number(r.id))
     toast.success('评价已删除')
     await loadList()
-  } catch (e: any) {
-    toast.error(e.message || '删除失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '删除失败')
   }
 }
 

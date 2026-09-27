@@ -75,8 +75,8 @@ onMounted(async () => {
   attrStore.ensureLoaded().catch(() => {})
   try {
     await dishStore.loadAll()
-  } catch (e: any) {
-    loadError.value = e?.message || '加载菜品失败'
+  } catch (e: unknown) {
+    loadError.value = (e as Error)?.message || '加载菜品失败'
   }
   loading.value = false
 })

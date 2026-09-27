@@ -11,7 +11,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { FEEDBACK_PENDING, CORRECTION_PENDING } from '@/constants'
-import Toast from '@/components/Toast.vue'
+import AppToast from '@/components/AppToast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { Food, Star, ChatDotRound, EditPen, User, UserFilled } from '@element-plus/icons-vue'
 
@@ -88,7 +88,7 @@ const currentRoleLabel = ref('管理员')
 
 <template>
   <div class="admin-shell">
-    <Toast />
+    <AppToast />
     <ConfirmDialog />
 
     <!-- ===== 顶部导航 ===== -->

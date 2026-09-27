@@ -38,9 +38,9 @@ export const useDishAttributeStore = defineStore('dishAttribute', () => {
     error.value = ''
     try {
       list.value = await dishApi.listDishAttributes()
-    } catch (e: any) {
+    } catch (e: unknown) {
       // 失败不落库脏数据：保留上一次的列表（若有），仅置错误态供调用方展示与重试
-      error.value = e?.message || '加载菜品描述四维失败'
+      error.value = (e as Error)?.message || '加载菜品描述四维失败'
       throw e
     } finally {
       loading.value = false

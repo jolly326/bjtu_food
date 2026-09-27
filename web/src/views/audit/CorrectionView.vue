@@ -287,8 +287,8 @@ async function doAdopt(options: { stallId?: number; createIfMissing?: boolean })
     toast.success('已采纳，菜品信息已更新')
     await loadList()
     closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '采纳失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '采纳失败')
   } finally {
     adoptingId.value = null
   }
@@ -347,8 +347,8 @@ async function submitReject() {
     toast.success('纠错已拒绝')
     await loadList()
     closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '处理失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '处理失败')
   } finally {
     processingId.value = null
   }

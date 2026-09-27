@@ -71,9 +71,9 @@ async function request<T>(
       throw new Error(body.message || '请求失败')
     }
     return body.data
-  } catch (e: any) {
+  } catch (e: unknown) {
     clearTimeout(timeout)
-    throw new Error(e.message || '网络异常')
+    throw new Error((e as Error).message || '网络异常')
   }
 }
 

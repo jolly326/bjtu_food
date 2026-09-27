@@ -39,8 +39,8 @@ async function refresh() {
   error.value = ''
   try {
     await userStore.loadAll()
-  } catch (e: any) {
-    error.value = e.message || '加载学生列表失败'
+  } catch (e: unknown) {
+    error.value = (e as Error).message || '加载学生列表失败'
   } finally {
     loading.value = false
   }
@@ -106,8 +106,8 @@ async function toggleStatus(row: any, active: boolean) {
   try {
     await store.toggleUserStatus(Number(row.id), active ? 'active' : 'disabled')
     toast.success(`学生「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
-  } catch (e: any) {
-    toast.error(e.message || '状态更新失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '状态更新失败')
   } finally {
     switchId.value = null
   }

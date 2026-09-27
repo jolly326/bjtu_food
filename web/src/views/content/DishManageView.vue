@@ -212,8 +212,8 @@ async function handleDelete(row: any) {
   try {
     await store.deleteDish(Number(row.id))
     toast.success('菜品已删除')
-  } catch (e: any) {
-    toast.error(e.message || '删除失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '删除失败')
   }
 }
 
@@ -235,8 +235,8 @@ async function toggleStatus(row: any, active: boolean) {
   try {
     await store.updateDish(Number(row.id), { status: next })
     toast.success(`「${row.name}」已${active ? '上架' : '下架'}`)
-  } catch (e: any) {
-    toast.error(e.message || '状态更新失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '状态更新失败')
   } finally {
     switchId.value = null
   }
