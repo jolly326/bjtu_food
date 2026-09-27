@@ -69,9 +69,10 @@
 | 记录卡片 ↔ 猜你喜欢卡片 | **`--spacing-lg`（32rpx / 16px）** | 两个分组。本页 SHALL **显式指定**两卡间距 = 16px（不得依赖卡片容器 `CardSection` 的默认 margin） |
 | 分组标题 → 其 chips | `--spacing-sm`（16rpx / 8px） | 组内 |
 | chip 之间（横向 / 换行） | `--spacing-sm`（16rpx / 8px） | 组内 |
-| 左右 gutter（标题带 icon / 搜索行 / chips / 结果卡） | `--spacing-md`（24rpx / 12px） | 与首页同轴 |
-| 结果行之间 | `--spacing-sm`（16rpx / 8px） | 沿用 `FindResults` 既有口径 |
-| 结果卡内边距 | 上下 **`--spacing-md`**（24rpx / 12px）、左右 `--spacing-lg`（32rpx / 16px） | 对齐 8 基网格 |
+| 左右 gutter（标题带 icon / 搜索行 / **发现态分组卡** / 结果卡） | `--spacing-md`（24rpx / 12px） | **与首页同轴**（= 卡片/控件**边缘**对齐 24rpx）。⚠️ Round 26b 修复：发现态两张分组卡传 `flush` 时曾被连同左右外边距一起归零 ⇒ **卡片左右贴屏幕边**，现已补回 |
+| 结果行之间 | `--spacing-sm`（16rpx / 8px） | 沿用 `FindResults` 既有口径（与通知列表卡间距同档） |
+| 结果卡内边距 | **四边统一 `--spacing-md`**（24rpx / 12px） | Round 21 规格化：取代旧版「上下 md / 左右 lg」的**不对称内距**（原表此行为历史值，已按实现更正） |
+| 分组卡内 chips 的水平位置 | 卡 gutter `--spacing-md` + 卡内距 `--spacing-md` = **48rpx** | chips 位于分组卡**内部** ⇒ 与全站卡片正文同轴（卡片**边缘**才是 24rpx） |
 
 **字号**
 

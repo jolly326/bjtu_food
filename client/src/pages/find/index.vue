@@ -390,7 +390,10 @@ onShow(() => clearShareState())
    ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
-.discover-card { margin-bottom: var(--spacing-lg); }
+/* ⚠️ Round 26b 修复：`flush` 会把卡壳的**全部**外边距归零（含左右），R14 只补回了纵向 ⇒
+   两张分组卡**左右贴屏幕边**（与结果态 `.mixed-list` 的 24rpx gutter 不同轴）。
+   现补齐**左右 `--spacing-md`**（UI 文档 §2「左右 gutter = 24rpx，与首页同轴」）+ 纵向 `--spacing-lg`。 */
+.discover-card { margin: 0 var(--spacing-md) var(--spacing-lg); }
 /* 结果态滚动容器（Round 21b：FindResults 并入本页）：
    flex 链占满剩余高度；底部留白（原 FindResults .results-scroll）随容器自带 */
 .results-host {
