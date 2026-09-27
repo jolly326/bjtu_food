@@ -5,9 +5,9 @@
        · 左图：固定 160rpx 正方形，aspectFill 铺满（即容器内居中），无图 → 餐具占位图标（dish）；
        · 右信息：flex:1 且 align-self:stretch（上下边界与左图对齐），三行**垂直居中**（justify-content:center），
          行距 --spacing-sm ——
-         ① 标题行：菜名弹性（两行省略、命中**加粗**）+ 评分（★ + 数字）紧贴菜名后方，无评分不渲染不占位；
-         ② 价格行：整行靠右；现价主色带 ¥；仅 originalPrice > price 追加灰色删除线原价，无折扣只展示现价；
-         ③ 位置行：靠左；食堂 · 档口（utils/dish.joinLocation 单点拼接），弱灰小字单行省略，命中加粗；
+         ① 菜名（两行省略、命中**加粗**）；
+         ② 档口位置（小字号、弱灰、单行省略、命中加粗）；
+         ③ 底行：左侧评分（★ + 数字，与价格**同字号**）—— 右侧价格（主色带 ¥，仅 originalPrice > price 追加灰色删除线原价）；
        · `id` 仅用于 key / 跳转，零渲染；**不渲染**标签、描述、评价数等详情页字段；
        · 命中片段只**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。
        ⚠️ 卡间纵向间距由列表容器（find/index 的 .mixed-list）用 flex gap 承担 —— 本组件不用 `+` 兄弟选择器
@@ -36,29 +36,16 @@
     </view>
 
     <view class="info">
-      <!-- ① 标题行：菜名 + 评分（紧贴菜名后方，不 space-between 拉到右端；无评分不渲染不占位） -->
-      <view class="title-row">
-        <text class="name">
-          <text
-            v-for="(seg, si) in splitHighlight(item.name)"
-            :key="si"
-            :class="{ hit: seg.hit }"
-          >{{ seg.text }}</text>
-        </text>
-        <view v-if="item.rating != null" class="rating-group">
-          <!-- 星色 = 独立语义色（黄），不随主色换肤（§4.2 / §7.39）；必须传实色（data-uri 不解析 var()） -->
-          <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" />
-          <text class="rating-num">{{ formatRating(item.rating) }}</text>
-        </view>
-      </view>
+      <!-- ① 菜名（两行省略，命中加粗） -->
+      <text class="name">
+        <text
+          v-for="(seg, si) in splitHighlight(item.name)"
+          :key="si"
+          :class="{ hit: seg.hit }"
+        >{{ seg.text }}</text>
+      </text>
 
-      <!-- ② 价格行：整行靠右；展示唯一数据源 = price（现价）；判据恒为 originalPrice > price（§7.26） -->
-      <view v-if="item.price != null" class="price-row">
-        <text class="price"><text class="price-sym">¥</text>{{ formatPrice(item.price) }}</text>
-        <text v-if="hasDiscount(item.price, item.originalPrice)" class="original">¥{{ formatPrice(item.originalPrice) }}</text>
-      </view>
-
-      <!-- ③ 位置行：靠左；食堂 · 档口（与首页 DishCard 同序），三级浅灰小字单行省略，命中加粗 -->
+      <!-- ② 位置：食堂 · 档口（joinLocation 单点拼接），小字号弱灰、单行省略、命中加粗 -->
       <view class="loc-row">
         <text class="sub-text">
           <text
@@ -67,6 +54,20 @@
             :class="{ hit: seg.hit }"
           >{{ seg.text }}</text>
         </text>
+      </view>
+
+      <!-- ③ 底行：左 = 评分（★ + 数字，与价格同字号）；右 = 价格（主色带 ¥，仅 originalPrice > price 追加划线原价）。
+           无评分时评分组不渲染，价格仍靠右（price-group margin-left:auto）。 -->
+      <view class="meta-row">
+        <view v-if="item.rating != null" class="rating-group">
+          <!-- 星色 = 独立语义色（黄），不随主色换肤（§4.2 / §7.39）；必须传实色（data-uri 不解析 var()） -->
+          <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" />
+          <text class="rating-num">{{ formatRating(item.rating) }}</text>
+        </view>
+        <view v-if="item.price != null" class="price-group">
+          <text class="price"><text class="price-sym">¥</text>{{ formatPrice(item.price) }}</text>
+          <text v-if="hasDiscount(item.price, item.originalPrice)" class="original">¥{{ formatPrice(item.originalPrice) }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -166,10 +167,8 @@ function onTap() {
   gap: var(--spacing-sm);
 }
 
-/* ① 标题行：菜名（弹性收缩、两行省略、命中加粗）+ 评分紧贴其后（不 space-between 拉到右端） */
-.title-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
+/* ① 菜名：两行省略，命中加粗 */
 .name {
-  flex: 0 1 auto;
   min-width: 0;
   font-size: var(--font-title);
   font-weight: var(--weight-semibold);
@@ -183,17 +182,18 @@ function onTap() {
 }
 /* 命中片段：仅字重加深，不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条） */
 .name .hit, .sub-text .hit { font-weight: var(--weight-heavy); }
-.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-3xs); }
-.rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
-/* ② 价格行：整行靠右；价格 = 卡片唯一高饱和强调（--color-price + 600），字号低于菜名一档（36 < 44，
-   避免「两个最高权重元素并列」的焦点竞争 —— UI 文档 §4「价格作第二视觉重心」） */
-.price-row { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--spacing-2xs); }
+/* ② 位置行：小字号弱灰、单行省略 */
+.loc-row { display: flex; justify-content: flex-start; min-width: 0; }
+.sub-text { flex: 1; min-width: 0; font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ③ 底行：左评分 / 右价格 —— 两者**同字号**（--font-h3 36rpx，星画布 36rpx）；
+   评分组不渲染时价格仍靠右（price-group margin-left:auto） */
+.meta-row { display: flex; align-items: center; gap: var(--spacing-sm); }
+.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+.rating-num { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.price-group { margin-left: auto; display: flex; align-items: baseline; gap: var(--spacing-2xs); }
 .price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
 .original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
-
-/* ③ 位置行：靠左；食堂 · 档口，三级浅灰小字单行省略 */
-.loc-row { display: flex; justify-content: flex-start; min-width: 0; }
-.sub-text { flex: 1; min-width: 0; font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
