@@ -2,14 +2,14 @@
 
 > 所属端：学生端（微信小程序） ｜ 归属功能文档：[client-意见反馈.md](../feature/client-意见反馈.md)
 > **口径分工**：**页面 UI 设计口径以本文件为唯一真源**，功能流程 / 接口 / 字段 / 数据落库口径以功能文档为准。
-> **2026-09-27 改版**：原「顶部分段控件 + 双模式（反馈问题 / 更新信息）」改为**单表单**；页面**无页签、无模式切换入口**（见下「两种形态」）。
+> **2026-09-27 改版**：原「顶部分段控件 + 双模式（反馈问题 / 更新信息）」改为**单表单** —— 全页**只有一张表单**（类型 4 选 1 + 具体描述 + 截图 ≤1 张），无页签、无模式切换；**两种进入方式只差一个默认值**（见下「入口」与形态说明）。
 
 - 入口（**两种进入方式决定形态，页面上不暴露切换**）：
   - 「我的」页宫格「意见反馈」→ `feedbackUrl()`（缺省）⇒ **单表单形态**；
-  - 菜品详情页**底栏「反馈错误」按钮** → `feedbackUrl('update', dishId)` ⇒ **纠错形态**（进页即预选菜品、跳过搜索）。
+  - 菜品详情页**底栏「反馈错误」按钮** → `feedbackUrl('update', dishId)` ⇒ **同一张表单**，仅把「反馈类型」**默认勾成「菜品信息纠错」**（描述框占位随之切换；**不拉菜品详情、不预填**，菜品由用户按占位提示自行写明）。
 - 页面：`pages/feedback/index`（页底随全局 `page{}` 底色 = 奶油米白 + `PageWallpaper` 壁纸层；页头 `AppHeader`「意见反馈」+ 返回）
 
-## 形态一 · 单表单（默认，「我的」页进入）
+## 单表单（全页唯一形态）
 
 白色圆角表单卡（`--radius-card` + `--shadow-card`，内距 `--spacing-lg`）自上而下：
 
@@ -33,9 +33,9 @@
 
 **本地草稿**：仅缓存「类型 + 描述文本」（`uni.setStorageSync('feedback_draft')`，键内结构 `{ type, content }`）；图片是 COS 地址、重进可能失效，**不缓存**；提交成功后清除。进入页面时若有草稿则回填。
 
-## 形态二 · 纠错表单（仅 `mode=update`，菜品详情页跳入）
-
-与改版前**一致**（只是页面上不再有页签）：菜品选择弹层（`ListPickerSheet`）→ 按 `GET /dishes/{id}` 预填七字段（名称 / 价格 / 食堂名 / 档口 / 口味 chips / 食材 chips / 图片 ≤9）→ 用户只改差异项 → 提交 `POST /dishes/{id}/correction`；预填未完成禁止提交；提交区说明行「提交后由管理员核实，确认无误后更新菜品信息」（不暗示提交即生效）。
+> **`mode=update` 的唯一作用**：把类型默认勾成「菜品信息纠错」。`dishId` 仅作落点参数保留（当前不用于预填）——
+> 原「结构化纠错表单（选菜 + 七字段预填 + `POST /dishes/{id}/correction`）」已于 2026-09-27 退休，
+> 端上不再调用该端点（服务端端点与存量数据不动）。
 
 ## 接口数据字段（UI 精修用）
 
@@ -47,9 +47,7 @@
 |---|---|---|---|
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「意见反馈」+ 返回箭头（有返回栈则 `navigateBack`，否则回首页） |
 | 2 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | **单表单字段区**：类型竖排单选（`.type-list` / `.type-row` / `.type-check`）+ 描述 textarea + 单图截图 + 小字提示 |
-| 3 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 截图上传（`single` 单图形态 + `max=1`）；**纠错形态**复用同一件（≤9 张） |
-| 4 | `UpdateForm` | 页内私有 `pages/feedback/UpdateForm.vue` | 纠错形态字段区（选菜行 / 名称 / 价格 / 食堂名 / 档口 / 口味·食材 chips / 图片） |
-| 5 | `ListPickerSheet` | 页内私有 `pages/feedback/ListPickerSheet.vue`（骨架 = `BaseSheet`） | 纠错形态的菜品选择弹层（搜索 + 候选行 + `#empty` 空态） |
+| 3 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 截图上传（`single` 单图形态 + `max=1`） |
 | 6 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交反馈」/「提交更新」/「提交中…」；`disabled` = 门禁不通过） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 类型选中勾 `check` / 选择行箭头 `arrow` / chips 删除叉 `close` |
 | 8 | 提交区 `.submit-area`（页内内联） | 页内内联 | 承接「置灰态点击」的缺失项 Toast；说明行仅纠错形态显示 |
@@ -64,20 +62,15 @@
 | 2 | `content`（本地表单态） | 用户输入 | 具体描述 | `IssueForm` textarea + 字数计数 | 超 800 字显示 `n/1000` |
 | 3 | `images`（本地表单态） | `ImagePicker`（安检上传） | 截图 | `IssueForm` 单图虚线框 | ≤1 张；破图走统一占位 |
 | 4 | 草稿（`type` + `content`） | `uni.getStorageSync('feedback_draft')` | 本地草稿 | 进入页面时回填类型与描述 | 图片不缓存 |
-| 5 | `name` / `price` / `canteenName` / `stallName` | `GET /dishes/{id}`（`DishDetailVO`） | 纠错形态预填字段 | `UpdateForm` 各行 | 价格：分 → 元（`fenToYuan`），digit 键盘 |
-| 6 | `flavorTags` / `ingredients` | 同上（**机器值数组**） | 口味 / 主料 | `UpdateForm` chips | 机器值经四维字典译中文；未命中回落原值 |
-| 7 | `field` / `value` / `label` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `UpdateForm` chips 中文文案 | 端上零硬编码映射（**仅纠错形态加载**） |
-| 8 | 字段错误 `errors` | 端上门禁（`canSubmit` / 字段校验） | 缺失或非法项 | 对应字段下方 `.field-error` + 错误边框 | 首个可定位错误字段 `scroll-into-view` |
-| 9 | 提交结果 | `POST /feedback` / `POST /dishes/{id}/correction` 成功（`data` = null） | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；表单重置、草稿清除） | — |
-| 10 | 失败提示 | `400` / `4001` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「没发出去，再试一次」） | 停留本页保留草稿 |
+| 5 | 字段错误 `errors` | 端上门禁（`canSubmit` / 字段校验） | 缺失或非法项 | 对应字段下方 `.field-error` + 错误边框 | 描述缺失时 `scroll-into-view` 定位到 textarea |
+| 6 | 提交结果 | `POST /feedback` 成功（`data` = null） | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；表单重置、草稿清除） | — |
+| 7 | 失败提示 | `400` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「没发出去，再试一次」） | 停留本页保留草稿 |
 
 **入参提交**
 | 接口 | 字段 |
 |---|---|
-| `POST /feedback`（单表单） | `type` = `bug` / `suggestion` / `error` / `other`（服务端写入白名单校验）/ `content`（≤1000 字）/ `images`（**≤1**） |
-| `POST /dishes/{id}/correction`（纠错形态） | `name` / `price`（**整数分**，端上 `yuanToFen`）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]`（≤9） |
-| `GET /dishes`（纠错形态候选搜索） | `keyword` / `page` / `pageSize` |
+| `POST /feedback` | `type` = `bug` / `suggestion` / `error` / `other`（服务端写入白名单校验）/ `content`（≤1000 字）/ `images`（**≤1**） |
 
-**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 含敏感词 / IP 限频「提交过于频繁」（提示剩余秒数）/ 文本安检 `risky`；纠错形态另有 `400` 菜品名称超 64 字 / 价格必须为大于 0 的整数（单位：分）/ 图片地址不合法 与 `4001` 菜品不存在
+**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 含敏感词 / IP 限频「提交过于频繁」（提示剩余秒数）/ 文本安检 `risky`
 
-**控件类型**：`scroll-view`、竖排单选（`role="radiogroup"` + `role="radio"` + `aria-checked`）、`textarea`（动态占位 + 字数计数）、`ImagePicker`（单图虚线框形态）、`input`（纠错形态：名称 / 价格 digit / chips 自由输入）、菜品选择弹层（纠错形态）、字段级错误滚动定位
+**控件类型**：`scroll-view`、竖排单选（`role="radiogroup"` + `role="radio"` + `aria-checked`）、`textarea`（动态占位 + 字数计数）、`ImagePicker`（单图虚线框形态）、字段级错误滚动定位

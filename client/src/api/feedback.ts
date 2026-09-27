@@ -1,11 +1,11 @@
 /**
  * 反馈接口模块（project_spec.md §3.x.5：POST /feedback）
  *
- * 写入口径收敛为 issue（反馈问题）+ report（评价举报链路）。
- * 「更新信息」走独立纠错端点 `POST /dishes/{id}/correction`（公开可提交，匿名允许，无需登录守卫）。
+ * 写入口径：意见反馈页 4 类型（bug / suggestion / error / other）+ report（评价举报链路）。
+ * 菜品纠错端点 `POST /dishes/{id}/correction` 端上已不再调用（2026-09-27 改版退休，端点保留）。
  */
 import { get, post } from './http'
-import type { FeedbackSubmit, DishCorrectionPayload } from '@/types/feedback'
+import type { FeedbackSubmit } from '@/types/feedback'
 
 /**
  * 提交反馈：payload 整体透传（不逐字段映射），字段契约由 `FeedbackSubmit` 承载。
@@ -17,18 +17,8 @@ export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
 }
 
-/**
- * 提交菜品纠错（意见反馈页「我要更新信息」）：`POST /dishes/{id}/correction`。
- * - dishId 在路径中；请求体七字段平铺（无 payload 包裹、无 type、无 dishId 字段）；
- * - price 单位 = 分（端上以元填写，提交前经 yuanToFen 转分，金额红线）；
- * - 公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 message 直透。
- */
-export async function submitDishCorrection(
-  dishId: number,
-  payload: DishCorrectionPayload,
-): Promise<void> {
-  await post(`/dishes/${dishId}/correction`, payload)
-}
+/* 菜品纠错端点 `POST /dishes/{id}/correction` 端上已**不再调用**（2026-09-27 意见反馈页改单表单，
+   「菜品信息纠错」改为反馈类型之一，走 `POST /feedback`）—— 端点本身保留（服务端与存量数据不动）。 */
 
 /**
  * 举报原因字典项（`GET /feedback/report-reasons` 单行出参；真源 = 后端 FeedbackConst，端上零硬编码）。

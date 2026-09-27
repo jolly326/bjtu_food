@@ -127,7 +127,7 @@ page {
 
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
-  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
+  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列选择器，走 BaseSheet 默认 z-token） */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
 
 }

@@ -749,6 +749,22 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 34 改动文件**：`pages/feedback/{index.vue,useFeedback.ts,IssueForm.vue}`、`components/ImagePicker.vue`、`types/feedback.ts`、`server/.../{FeedbackConst.java,FeedbackReq.java}`、`docs/{ui,feature}/client-意见反馈.md`。
 
+### Round 35（2026-09-27）—— 用户纠正：意见反馈页**只有一张表单**（详情页进入仅默认选中「菜品信息纠错」）
+
+> 来源：用户纠正上一轮的理解错位 ——「不是为什么只有一张表单呢？…只不过从菜品详情页面进入后默认选中菜品信息纠错的，你明白吗」。
+
+| 项 | 内容 |
+|---|---|
+| 纠正 | R34 把用户早先的答复理解成「详情页保留结构化纠错表单」⇒ 页面上实际有**两张**表单。用户澄清：**全页只有一张表单**（类型 4 选 1 + 描述 + 截图）；详情页「反馈错误」进入的是**同一张表单**，唯一差别 = 类型**默认勾成「菜品信息纠错」** |
+| 端上收敛 | `useFeedback.ts` 重写（删 `isUpdateMode` / `update` 态 / 菜品搜索与竞态守卫 / 纠错提交分支；`onLoad` 遇 `mode=update` 仅 `form.type = 'error'`，仍先恢复草稿）；`index.vue` 删 `UpdateForm` / `ListPickerSheet` 块与 import、表单改为无条件渲染、提交区说明行与按钮文案收敛；**删除** `pages/feedback/{UpdateForm,ListPickerSheet}.vue`；`api/feedback.ts` 退休 `submitDishCorrection`；`types/feedback.ts` 退休 `DishCorrectionPayload`、`issue` 标注为历史值 |
+| 连带清理 | `pages/privacy/DocPage.vue` 注释改指 `find/DishResultCard.vue`（原指向已删文件）；`App.vue` `--z-sheet` 注释去掉已删组件名；`ImagePicker` 头注释消费方同步 |
+| 端点 | `POST /dishes/{id}/correction` **端点保留**（服务端与存量数据不动），端上不再调用 ⇒ Web「信息纠错处理」页此后无新数据（用户口径：Web 暂不管） |
+| 文档 | `docs/ui/client-意见反馈.md` 收敛为单形态（删「纠错表单」段 / 组件表两行 / 数据映射三行 / 入参 / 错误码 / 控件类型）；`docs/feature/client-意见反馈.md` 同步介绍段 / 模式表 / 入口 / 流程 / 端点说明 |
+
+**闸门**：`read_lints`（本轮改完复跑）；`vue-tsc` / 构建 / 真机由**用户执行**
+
+**Round 35 改动文件**：`pages/feedback/{index.vue,useFeedback.ts,IssueForm.vue}`、`components/ImagePicker.vue`、`api/feedback.ts`、`types/feedback.ts`、`pages/privacy/DocPage.vue`、`App.vue`、**删除** `pages/feedback/{UpdateForm.vue,ListPickerSheet.vue}`、`docs/{ui,feature}/client-意见反馈.md`、`docs/ui/README.md`。
+
 **Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
 `pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
 `pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、

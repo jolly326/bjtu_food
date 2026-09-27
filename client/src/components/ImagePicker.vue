@@ -2,7 +2,7 @@
   <!--
     ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件。
     复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
-    写评价（ReviewComposer）/ 我要反馈问题（IssueForm）/ 我要更新信息（UpdateForm，预填菜品现有图）。
+    写评价（ReviewComposer）/ 意见反馈（IssueForm，单图形态 `single` + `max=1`）。
 
     流程（微信端）：wx.chooseMedia(count≤max, image) → 逐张 wx.compressImage(quality 80) 压缩
     → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）

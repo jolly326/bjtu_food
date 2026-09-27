@@ -13,7 +13,6 @@
              纠错表单（`mode=update`：菜品详情底栏「反馈错误」带 dishId 跳入）—— 自动填好这道菜，只改差异项。
              submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
         <IssueForm
-          v-if="!isUpdateMode"
           :model="form"
           :errors="fieldErrors"
           :submitting="submitting"
@@ -21,23 +20,13 @@
           @clear="clearError"
           @pick="onPickType"
         />
-        <UpdateForm
-          v-else
-          :model="update"
-          :detail-loading="update.detailLoading"
-          :errors="fieldErrors"
-          :submitting="submitting"
-          @clear="clearError"
-          @open-dish="openDishSheet"
-          @reset-dish="resetDish"
-        />
+
       </view>
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
            外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
       <view class="submit-area" @tap="onSubmitAreaTap">
         <!-- 处理承诺：issue 沿用 48 小时口径；update 强调管理员核实后更新（不得暗示提交即生效） -->
-        <text v-if="submitNote" class="submit-note">{{ submitNote }}</text>
         <AppButton
           :text="submitButtonText"
           :disabled="!canSubmit"
@@ -47,67 +36,31 @@
       </view>
     </scroll-view>
 
-    <!-- ===== 底部选择器：菜品（搜索 + 简洁结果列表：名称 + 档口） ===== -->
-    <ListPickerSheet
-      :open="dishSheetOpen"
-      title="选择菜品"
-      searchable
-      search-placeholder="搜菜名"
-      :search-initial="dishKeyword"
-      :options="dishPickerOptions"
-      @close="closeDishSheet"
-      @search="onDishSearchKw"
-      @select="onDishPick"
-    >
-      <!-- 列表区内空态：无关键词引导 / 无结果提示 -->
-      <template #empty>
-        <!-- 统一空态组件（UI 统一 Loop Round 3）：不再本页手写 `.pick-empty` -->
-        <EmptyState
-          v-if="dishKeyword && dishSearched && !dishPickerOptions.length"
-          :title="`没搜到「${dishKeyword}」，换个关键词试试`"
-        />
-        <EmptyState v-else-if="!dishKeyword" title="输入关键词搜索菜品" />
-      </template>
-    </ListPickerSheet>
+
   </view>
 </template>
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页
- * - 默认（「我的」页宫格进入）：**单表单** —— 反馈类型 4 选 1（竖排单选）+ 具体描述（占位随类型切换）+ 截图（≤1 张）
- *   + 本地草稿（仅类型与描述）；提交 `POST /feedback`（type ∈ bug/suggestion/error/other）；
- * - `mode=update`（菜品详情**底栏「反馈错误」**带 dishId 跳入）：自动填好这道菜的纠错表单，提交纠错端点；
- * - 页面**无页签、无模式切换入口**（形态由进入方式决定，2026-09-27 改版）；
- * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件：IssueForm / UpdateForm / ListPickerSheet（一级拆分）；
- * - 本文件仅保留模板贴片组装与子件引用；生命周期 / 提交门禁 / 弹层联动见 useFeedback。
+ * feedback —— 意见反馈页（**全页只有一张表单**，2026-09-27 改版）
+ * - 反馈类型 4 选 1（竖排单选，选中项左侧橙色勾）+ 具体描述（占位随类型切换）+ 截图（≤1 张）+ 本地草稿；
+ * - 提交 `POST /feedback`（type ∈ bug/suggestion/error/other）；
+ * - **两种进入方式只差一个默认值**：「我的」页宫格进入 ⇒ 类型待用户选；
+ *   菜品详情页「反馈错误」进入 ⇒ 类型**默认勾选「菜品信息纠错」**（同一张表单、无页签、无模式切换）；
+ * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件仅 `IssueForm`（一级拆分，就近组织）。
  */
 import { computed } from 'vue'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
-import ListPickerSheet from './ListPickerSheet.vue'
-import EmptyState from '@/components/EmptyState.vue'
 import IssueForm from './IssueForm.vue'
-import UpdateForm from './UpdateForm.vue'
 import { useFeedback } from './useFeedback'
 
 const {
   goBack,
-  isUpdateMode,
   form,
   typePlaceholder,
   onPickType,
-  update,
-  dishSheetOpen,
-  dishKeyword,
-  dishPickerOptions,
-  dishSearched,
-  openDishSheet,
-  closeDishSheet,
-  onDishSearchKw,
-  onDishPick,
-  resetDish,
   fieldErrors,
   scrollIntoView,
   submitting,
@@ -118,19 +71,11 @@ const {
   submit,
 } = useFeedback()
 
-/** 提交按钮文案：直白具体（单表单「提交反馈」/ 纠错形态「提交更新」），不用模糊统称 */
-const submitButtonText = computed(() =>
-  submitting.value ? '提交中…' : isUpdateMode.value ? '提交更新' : '提交反馈',
-)
+/** 提交按钮文案：直白具体，不用模糊统称 */
+const submitButtonText = computed(() => (submitting.value ? '提交中…' : '提交反馈'))
 
-/**
- * 提交区说明行：**仅纠错形态**保留（不得暗示提交即生效）。
- * 单表单形态的说明已改到表单内小字「提交内容将由项目维护者查看」（2026-09-27 改版）——
- * 原「48 小时内处理 + 站内通知」属对外承诺，随本轮文案降级一并撤下（用户拍板）。
- */
-const submitNote = computed(() =>
-  isUpdateMode.value ? '提交后由管理员核实，确认无误后更新菜品信息' : '',
-)
+/* 提交区说明行已删除（2026-09-27 改版）：说明改为表单内小字「提交内容将由项目维护者查看」；
+   原「48 小时内处理 + 站内通知」属对外承诺，随本轮文案降级一并撤下（用户拍板）。 */
 </script>
 
 <style scoped>
@@ -168,13 +113,5 @@ const submitNote = computed(() =>
 .submit-area {
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 }
-/* 提交区说明行（处理承诺 / 核实说明）：三级灰小字，只读，不参与交互 */
-.submit-note {
-  display: block;
-  margin-bottom: var(--spacing-xs);
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-  line-height: 1.5;
-  text-align: center;
-}
+/* 提交区说明行样式已随该行删除退役（2026-09-27）—— 说明改为表单内小字 `.form-note`（IssueForm 内）。 */
 </style>

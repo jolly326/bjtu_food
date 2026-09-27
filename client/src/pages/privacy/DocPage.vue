@@ -2,7 +2,7 @@
   <!-- 文档页外壳（UI 统一 Loop Round 4 上提）
        背景：隐私政策 / 用户协议两页**逐字节重复**同一套外壳 —— 壁纸层 + `AppHeader` + 滚动容器 + 文档白卡，
        仅顶栏标题 / 文档标题 / 生效日期 / 正文不同。按 §2「就近组织」收敛为**包内**共享组件
-       （与 `pages/feedback/ListPickerSheet.vue` 同款做法：仅本包两页消费，不上提 `components/`）。
+       （与 `pages/find/DishResultCard.vue` 同款做法：仅本包两页消费，不上提 `components/`）。
 
        ⚠️ 为什么正文用 **`sections` 数据**而不是「默认插槽」：
        槽内容在小程序端由**父页 wxml** 承载，而父页/组件的 `scoped` 作用域类**不会**加到槽节点上

@@ -1,12 +1,12 @@
 /**
- * 提交反馈（project_spec.md §3.x.5）。
+ * 提交反馈（`POST /feedback`）。
  *
- * 意见反馈页收敛为两段式：「我要反馈问题（issue）」+「我要更新信息（update）」。
- * - issue：`POST /feedback`，纯文本 + 配图（≤3 张）。
- * - update：`POST /dishes/{id}/correction`，请求体七字段平铺（无 type、无 dishId 字段，dishId 在路径）；
- *   档口 / 食堂均为自由文本（不依赖字典端点）。
+ * 意见反馈页（2026-09-27 改版）为**单表单**：反馈类型 4 选 1（bug / suggestion / error / other）
+ * + 具体描述 + 截图（≤1 张，选填）。
  *
- * type=report 为评价举报链路（详情页 useReport）专用写入口径，不在意见反馈页内。
+ * `type=report` 为评价举报链路（详情页 useReport）专用写入口径，不在意见反馈页内；
+ * `type=issue` 为历史写入值（端上已无生产者，存量仍可读）。
+ * 菜品纠错端点 `POST /dishes/{id}/correction` 端上已不再调用（端点本身保留）。
  */
 
 /**
@@ -47,23 +47,7 @@ export const FEEDBACK_TYPES = [
 /** 反馈类型机器值（取自 {@link FEEDBACK_TYPES}，与后端写入值域同源） */
 export type FeedbackType = (typeof FEEDBACK_TYPES)[number]['value']
 
-/** 菜品纠错 payload（`POST /dishes/{id}/correction` 请求体；七字段平铺，字段值为用户改后的差异项） */
-export interface DishCorrectionPayload {
-  /** 菜品名称（预填详情当前值，用户可改；敏感词由后端 400 message 直透） */
-  name: string
-  /** 价格，单位 = **分**（端上以元填写，提交前经 yuanToFen 转分，金额红线） */
-  price: number
-  /** 食堂名（自由文本，预填详情 canteenName） */
-  canteenName: string
-  /** 档口名（自由文本，预填详情 stallName；无 stallId） */
-  stallName: string
-  /** 口味标签（预填详情机器值 + 用户自由输入项，可增删） */
-  flavorTags: string[]
-  /** 食材（预填详情机器值 + 用户自由输入项，可增删） */
-  ingredients: string[]
-  /** 图片 URL（预填菜品现有图 + 用户新增，经 ImagePicker → /upload/cloud-image 安检） */
-  images: string[]
-}
+/* 菜品纠错 payload（`POST /dishes/{id}/correction`）已于 2026-09-27 退休 —— 端上不再调用该端点。 */
 
 export type FeedbackSubmit =
   /**
@@ -77,12 +61,10 @@ export type FeedbackSubmit =
       /** 配图（COS URL，≤1 张；经上传安检后回传） */
       images?: string[]
     }
-  /** 我要反馈问题（历史写入值）：纯文本 + 配图（≤3 张 COS URL） */
+  /** 我要反馈问题（历史写入值）：纯文本 + 配图（≤3 张 COS URL）——端上已无生产者，仅存量可读 */
   | {
       type: 'issue'
-      /** 反馈内容（必填） */
       content: string
-      /** 配图（COS URL，≤3 张；经 ImagePicker → /upload/cloud-image 安检后回传） */
       images?: string[]
     }
   /** 评价举报（菜品详情页举报弹层，非意见反馈页）：以结构化原因单选为准（sub），content 可空 */

@@ -38,7 +38,7 @@
 | A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | `pages/detail/dish/index.vue`（`ActionSheet`） | [client-删除本人评价.md](../feature/client-删除本人评价.md) | R17 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
 | A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | `pages/detail/dish/ReportModal.vue` | [client-举报评价.md](../feature/client-举报评价.md) | R7·R13 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
 | A-10 | 我的评价（承载于「我的主页」） | [client-我的主页.md](./client-我的主页.md) | `pages/my-reviews/index.vue` | [client-我的评价.md](../feature/client-我的评价.md) | R12·R14·R17·R24 | ⛔ 未完成 |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md) | R1–R3·R13·R17·R25·**R34 改版（单表单 + 4 类型）** | ⛔ 未完成（新形态待验收） |
+| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md) | R1–R3·R13·R17·R25·**R34–R35 改版（单表单 + 4 类型）** | ⛔ 未完成（新形态待验收） |
 | A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | `pages/notifications/index.vue` | [client-系统通知.md](../feature/client-系统通知.md) | R1–R3·R12·R13·R17 | ⛔ 未完成 |
 | A-13 | 个人资料（编辑于个人信息编辑页） | [client-个人信息编辑.md](./client-个人信息编辑.md) | `pages/profile/index.vue` | [client-个人资料.md](../feature/client-个人资料.md) | R1·R6·R12·R14·R17 | ⛔ 未完成 |
 | A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | `pages/auth/index.vue` | [client-邮箱认证.md](../feature/client-邮箱认证.md) | R1·R12·R17·R26 | ⛔ 未完成 |
