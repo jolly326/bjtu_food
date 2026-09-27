@@ -186,7 +186,7 @@ onShow(() => {
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
    结构化收口（Round 12-A，用户裁决）：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
    内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
-.my-reviews-page { display: flex; flex-direction: column; height: 100vh; }
+.my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
 /* 列表容器：卡片间距由容器 gap 承担；卡片本体样式（头像/昵称/星级/正文/配图/三点）由 ReviewItem 统一 */

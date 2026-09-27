@@ -113,7 +113,8 @@ watch(
 </script>
 
 <style scoped>
-.lp-wrap { display: flex; flex-direction: column; height: 70vh; max-height: 82vh; }
+/* Round 26：vh + dvh 双声明（同 BaseSheet 口径）—— H5 地址栏伸缩时 vh 大于真实可视高 ⇒ 弹层超高 */
+.lp-wrap { display: flex; flex-direction: column; height: 70vh; height: 70dvh; max-height: 82vh; max-height: 82dvh; }
 .lp-search { padding: var(--spacing-md); flex-shrink: 0; }
 .lp-search-input { height: 72rpx; padding: 0 var(--spacing-md); background: var(--bg-page); border-radius: var(--radius-btn); font-size: var(--font-small); color: var(--text-primary); box-sizing: border-box; }
 .lp-search-ph { color: var(--text-tertiary); }

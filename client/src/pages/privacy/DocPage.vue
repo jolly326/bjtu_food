@@ -73,7 +73,8 @@ defineProps<{
 .scroll-wrap {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* Round 26：去掉 `overflow-y: auto` —— 本容器是 `scroll-view`（滚动由组件实现），
+     外挂 CSS 在 H5 会叠出第二根滚动条。 */
   padding: 0 var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg));
   box-sizing: border-box;
 }

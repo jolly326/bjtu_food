@@ -153,7 +153,8 @@ const submitNote = computed(() =>
 .scroll-wrap {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* Round 26：去掉 `overflow-y: auto` —— 本容器是 `scroll-view`，滚动由组件内部实现，
+     外挂 CSS 只会在 H5 叠出第二根滚动条（"多余滚动机制"）。 */
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
 }

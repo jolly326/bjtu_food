@@ -303,6 +303,11 @@ onShareAppMessage(() => {
      改纱的浓淡 = 改 `App.vue` 里那一处（全站生效，不要在本页另立色值）。 */
   display: flex;
   flex-direction: column;
+  /* 显式定高（Round 26）：原先只靠全局 `.page { min-height: 100vh }` 兜底，现改为页面自持声明，
+     与其它页根同口径（vh + dvh 双声明）。`box-sizing: border-box`（全局重置）⇒ padding 含在高度内
+     ⇒ 页根恰好一屏；滚动区 = 一屏 − 标题带 − 菜单栏，短内容不越界 ⇒ 无滚动条、无空白可滚区。 */
+  height: 100vh;
+  height: 100dvh;
   box-sizing: border-box;
   /* 页面根**不带底色**（UI 统一 Loop Round 11 修复）：根层叠上下文里「流内块背景」晚于「负层级子层」绘制，
      页面根若有底色会把 `z-index: var(--z-page-bg)`（−1）的壁纸层整块盖住 ⇒ 表现为「奶黄底、壁纸不可见」。
@@ -378,10 +383,9 @@ onShareAppMessage(() => {
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
-  /* ⚠️ 显式覆盖 `App.vue` 的全局 `.scroll-wrap { padding-bottom: calc(--tabbar-height + --spacing-md + safe) }`：
-     本页的菜单栏留白已由**页面 `padding-bottom`** 在结构上让出（滚动区底边 = 菜单栏上沿，§11），
-     若再叠加全局那条 ≈62px（iPhone X 约 96px），列表末尾就会出现一大块死空白。
-     其它页（滚动区满屏）仍需要全局那条，故只在首页覆盖。 */
+  /* 底部留白**恒为 0**：本页菜单栏留白已由**页根 `padding-bottom`** 在结构上让出（滚动区底边 = 菜单栏上沿，§11）。
+     Round 26：全局 `.scroll-wrap` 的 tabbar 兜底 padding 已**删除**（它会让非 Tab 页凭空多出
+     ≈ tabbar(50px) + 安全区(≈34px) 的死留白）；本行保留为显式声明，防将来有人再往全局加兜底。 */
   padding-bottom: 0;
 }
 .home-scroll-body {

@@ -181,7 +181,10 @@ function onTouchEnd() {
   transform: translateY(100%);
   display: flex;
   flex-direction: column;
+  /* Round 26：vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
+     弹层会被顶到屏幕外、内容区滚动范围也跟着失真（同页面根口径） */
   max-height: 88vh;
+  max-height: 88dvh;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom);
   will-change: transform;

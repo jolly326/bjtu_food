@@ -222,6 +222,8 @@ const {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Round 26：补 dvh（移动端 H5 地址栏伸缩时 vh > 真实可视高 ⇒ 页根超高 ⇒ 页面自身多出一段可滚区 / 底部露白） */
+  height: 100dvh;
   /* 底部让位**精确等于**固定操作栏高度（token 已按「8 + 44 + 8 = 60px」定档）——
      不再叠加 `--spacing-lg`（那会在滚动区下沿与操作栏之间留出一条可见空档）。
      内容末端的呼吸感由卡片自身 margin 提供，不靠这里补。 */

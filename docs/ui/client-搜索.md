@@ -172,8 +172,8 @@
 | 5 | `DishResultCard` | 页内私有 `pages/find/DishResultCard.vue` | 结果卡（布局规格见 §2「结果行布局」）：整卡可点跳菜品详情、`role="button"` + `:aria-label="查看 {菜名}"`；结果态滚动容器与列表由 `find/index` 内联（Round 21b 原 `FindResults` 并入） |
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 菜品占位 `dish` / 星 `star-filled` |
-| 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏） |
-| — | `scroll-view`（在 `FindResults` 内）/ `input` / `uni.showModal` | uni 内置控件 | 结果滚动 / 关键词输入 / 清空记录二次确认 |
+| 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏）。**Round 26：`.discover-body` 由 `<view>` 改为 `scroll-view`（`flex: 1 + min-height: 0`）—— 小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓不可靠** |
+| — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | uni 内置控件 | 两态各自滚动 / 关键词输入 / 清空记录二次确认 |
 
 ### 有哪些数据要显示、显示在哪个组件
 

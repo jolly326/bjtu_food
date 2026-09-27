@@ -210,9 +210,11 @@ const moreRows = [
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
    结构化收口（Round 12-A，用户裁决）：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
    —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
-.mine-page { display: flex; flex-direction: column; height: 100vh; }
+.mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .mine-scroll { flex: 1; min-height: 0; }
-.mine-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+/* Round 26：容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
+   `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
+   且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
 /* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
    与首页卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容

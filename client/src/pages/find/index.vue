@@ -24,10 +24,12 @@
          搜索页头部回到「输入框 + 结果」，不再有筛选胶囊与下拉面板。 -->
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
-         发现态 = 静态区块（无页面级滚动容器）；结果态 = 滚动随本页 results-host 容器 -->
+         发现态 = 搜索记录 + 猜你喜欢；结果态 = 结果列表。
+         两态**各自**用 `scroll-view` 承载滚动（Round 26 复核）：页面根 `height: 100vh/100dvh + overflow: hidden`
+         ⇒ 页面自身不滚动；容器 `flex: 1 + min-height: 0` ⇒ 定高 ⇒ 内容未超高时既无滚动条、也无空白可滚区。 -->
     <view class="find-body">
-      <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢，静态展示 ============ -->
-      <view v-if="!inFilter" class="discover-body">
+      <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢 ============ -->
+      <scroll-view v-if="!inFilter" class="discover-body" scroll-y>
         <template>
           <!-- 搜索记录（首位） -->
           <CardSection v-if="historyList.length > 0" class="discover-card" flush>
@@ -85,7 +87,7 @@
           </CardSection>
 
         </template>
-      </view>
+      </scroll-view>
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
            Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
@@ -369,14 +371,18 @@ onShow(() => clearShareState())
 
 <style scoped>
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
-.find-page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; box-sizing: border-box; }
+.find-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; box-sizing: border-box; }
 /* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
    搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
-/* 内容区：占满 header 之外的剩余高度；滚动职责随分支（发现态静态区块 / 结果态本页滚动容器） */
+/* 内容区：占满 header 之外的剩余高度；两个分支**各自**自带滚动容器（发现态 discover-body / 结果态 results-host） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-/* 发现态：普通内容容器 + 高度兜底（搜索记录上限 4 条内容短；内容超高时由内容区自身滚动兜底） */
-.discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
+/* 发现态滚动容器（Round 26）：由 `<view>` + `overflow-y:auto` 改为 `scroll-view` ——
+   小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓上不可靠，内容超高会被
+   `overflow: hidden` 的页根裁掉且不可达。⚠️ `scroll-view` 自身**不写** `overflow-y`
+   （滚动由组件内部实现，外挂 CSS 会在 H5 叠出第二根滚动条）。
+   `flex: 1 + min-height: 0` ⇒ 容器定高 ⇒ 内容未超高时既不出现滚动条、也没有可滚的空白。 */
+.discover-body { flex: 1; min-height: 0; padding-bottom: var(--spacing-lg); }
 /* 首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`）；
    UI 统一 Loop Round 14：卡壳改传 `flush`（自带 margin 归零，不再反向覆写组件内部类 ——
    `:deep(.card-section)` 属跨组件边界样式，在小程序端不可靠，R4 已踩坑），

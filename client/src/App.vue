@@ -145,14 +145,26 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
    壁纸不可见」。故底色下沉到小程序最低层 `page{}`（见上方 token 块内的 `background`）——
    它天然在所有内容与壁纸之下，仍能兜底防白屏。 */
 .page {
+  /* 页面根兜底高度：**vh + dvh 双声明**（同一属性名，后者在支持 dvh 的环境生效）。
+     ⚠️ 为什么必须写 dvh（Round 26 缺陷修复）：移动端 H5 地址栏伸缩时 `100vh` = **最大可视高**，
+     比真实可视区高 ⇒ 页面根比屏幕高出一截 ⇒ ① 页面自身多出一段可滚区（"多余滚动"）；
+     ② 固定底栏被顶到屏幕外/底部露出空白。
+     ⚠️ 为什么必须是 `min-height` 而不是 `height`：本类与各页根的 `height: 100vh; height: 100dvh`
+     **共存** —— 若这里写死 `min-height: 100vh`，会把页根的 `100dvh` **顶回 100vh**（min 大于 height 时 min 获胜），
+     使 dvh 修复静默失效（这正是修复前的状态）。 */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
-/* 主滚动区底部安全留白，避免内容被固定底栏遮挡 */
+/* ===== 主滚动区尺寸口径（全站唯一真源，Round 26 复核）=====
+   ① `min-height: 0` **必需**：flex 子项默认 `min-height: auto`，不收缩 ⇒ 内容把滚动容器撑高 ⇒
+      容器超出页根 ⇒ 页面与滚动区**双层滚动**（多余滚动 + 底部空白）。各页 `.scroll-wrap` 亦各自声明（双保险）。
+   ② 底部留白**不再全局兜底**（原 `padding-bottom: calc(--tabbar-height + --spacing-md + safe)` 已删）：
+      只有自带**自绘 TabBar** 的页（home / mine）需要让出菜单栏，且由页面自身承担（home = 页根 `padding-bottom`、
+      mine = 页脚 `padding-bottom`）。全局兜底会让**非 Tab 页**凭空多出 ≈ tabbar(50px) + 安全区(≈34px) 的死留白，
+      短内容也被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 .scroll-wrap {
   min-height: 0;
-  /* 24rpx 走 `--spacing-md`（同值）—— UI 统一 Loop Round 6：全局不留裸间距值 */
-  padding-bottom: calc(var(--tabbar-height) + var(--spacing-md) + env(safe-area-inset-bottom));
 }
 
 /* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========
