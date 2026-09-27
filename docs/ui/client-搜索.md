@@ -174,7 +174,8 @@
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 菜品占位 `dish` / 星 `star-filled` |
 | 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏）。**Round 26：`.discover-body` 由 `<view>` 改为 `scroll-view`（`flex: 1 + min-height: 0`）—— 小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓不可靠** |
-| — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | uni 内置控件 | 两态各自滚动 / 关键词输入 / 清空记录二次确认 |
+| — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | uni 内置控件 | 两态各自滚动 / 关键词输入 / 清空记录二次确认。⚠️ **发现态容器用 `v-show` 常驻、结果态用 `v-if`**（Round 27 修复）：若两态都用 `v-if`，点「清空 X」回发现态时会**重建** `scroll-view`，小程序下新实例可能在父级布局完成前完成测量 ⇒ 高度按 0 计算 ⇒ 发现态整块不可见（返回首页重进才恢复） |
+| — | 搜索历史（本地存储 `find_search_history`，上限 4 条） | `uni.getStorageSync` / `setStorageSync` | **存储为唯一真源**：挂载、`onShow`、**退出结果态**三处重读（Round 27）⇒ 页面被页面栈缓存（onMounted 不再执行）时「刚搜过的词」也能立即出现在搜索记录里 |
 
 ### 有哪些数据要显示、显示在哪个组件
 

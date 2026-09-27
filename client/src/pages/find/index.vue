@@ -28,8 +28,12 @@
          两态**各自**用 `scroll-view` 承载滚动（Round 26 复核）：页面根 `height: 100vh/100dvh + overflow: hidden`
          ⇒ 页面自身不滚动；容器 `flex: 1 + min-height: 0` ⇒ 定高 ⇒ 内容未超高时既无滚动条、也无空白可滚区。 -->
     <view class="find-body">
-      <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢 ============ -->
-      <scroll-view v-if="!inFilter" class="discover-body" scroll-y>
+      <!-- ============ 发现主页（搜索记录 + 猜你喜欢）============
+           ⚠️ 用 `v-show` 而非 `v-if`（Round 27 缺陷修复）：`v-if` 会在「点 X 回发现态」时**重建** `scroll-view`
+           —— 小程序下新建实例的测量可能早于父级布局完成 ⇒ 高度按 0 计算 ⇒ **整块内容不可见**
+           （正是用户报的「回搜索界面看不到搜索记录、返回首页重进才显示」）。常驻 + display 切换
+           ⇒ 复用同一个已测量实例，不再重建、不再丢内容。 -->
+      <scroll-view v-show="!inFilter" class="discover-body" scroll-y>
         <template>
           <!-- 搜索记录（首位） -->
           <CardSection v-if="historyList.length > 0" class="discover-card" flush>
@@ -93,7 +97,7 @@
            Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
            单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/ui/client-搜索.md §2「结果行布局」）。 -->
       <scroll-view
-        v-else-if="mixedResults.length > 0"
+        v-if="inFilter && mixedResults.length > 0"
         class="results-host"
         scroll-y
       >
@@ -190,7 +194,10 @@ function loadHistory() {
   try {
     const raw = uni.getStorageSync(HISTORY_KEY)
     if (Array.isArray(raw)) historyList.value = raw.slice(0, HISTORY_MAX)
-  } catch { historyList.value = [] }
+  } catch {
+    /* 读取异常：**保留内存副本**，不清空 —— 本函数自 Round 27 起会在「回发现态 / onShow」时多次调用，
+       瞬时读取失败不应把用户已看到的搜索记录清掉 */
+  }
 }
 function saveHistory() {
   try { uni.setStorageSync(HISTORY_KEY, historyList.value) } catch { /* ignore */ }
@@ -347,6 +354,10 @@ function exitFilter() {
   searchFailed.value = false
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
+  // Round 27 缺陷修复：回发现态时**重读搜索历史**（以存储为唯一真源）。
+  // 此前只在 onMounted 读一次 —— 本页被页面栈缓存（返回再进不重新挂载）时，内存副本一旦滞后于存储，
+  // 搜索记录就不会更新（用户报的「刚搜过的词回发现态看不到」）。
+  loadHistory()
 }
 
 async function loadDiscover() {
@@ -365,8 +376,13 @@ onMounted(() => {
 })
 
 onShareAppMessage(() => buildSharePayload())
-// 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容
-onShow(() => clearShareState())
+// 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容；
+// Round 27：同时重读搜索历史 —— 本页被页面栈缓存时 onMounted 不再执行，以存储为真源重读
+// 可保证「搜索记录」始终最新（与 exitFilter 时的重读互为兜底）。
+onShow(() => {
+  clearShareState()
+  loadHistory()
+})
 </script>
 
 <style scoped>
