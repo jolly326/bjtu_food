@@ -1,5 +1,5 @@
 <template>
-  <!-- 搜索结果菜品卡（页内私有；UI 统一 Loop Round 21 按用户规格重新设计，并从 FindResults 抽出）：
+  <!-- 搜索结果菜品卡（页内私有；UI 统一 Loop Round 21 按用户规格设计，Round 21b 由 DishResultRow 更名）：
        横向 flex = 左「正方形图片」+ 右「纵向三行信息」，整卡可点跳菜品详情。
        · 卡片：白底 --bg-card + 大圆角 --radius-card + 柔和轻阴影 --shadow-card，内边距统一 --spacing-md；
        · 左图：固定 160rpx 正方形，aspectFill 铺满（即容器内居中），无图 → 餐具占位图标（dish）；
@@ -9,12 +9,14 @@
          ② 价格行：整行靠右；现价主色带 ¥；仅 originalPrice > price 追加灰色删除线原价，无折扣只展示现价；
          ③ 位置行：靠左；食堂 · 档口（utils/dish.joinLocation 单点拼接），弱灰小字单行省略，命中加粗；
        · `id` 仅用于 key / 跳转，零渲染；**不渲染**标签、描述、评价数等详情页字段；
-       · 命中片段只**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。 -->
+       · 命中片段只**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。
+       ⚠️ 卡间纵向间距由列表容器（find/index 的 .mixed-list）用 flex gap 承担 —— 本组件不用 `+` 兄弟选择器
+       （mp-weixin WXSS 不保证支持，见 find/index 样式区登记）。 -->
   <view
-    class="dish-result-row"
+    class="dish-result-card"
     role="button"
     :aria-label="`查看 ${item.name}`"
-    hover-class="row-pressed"
+    hover-class="card-pressed"
     hover-stay-time="80"
     @tap="onTap"
   >
@@ -88,8 +90,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  /** 整卡点击 → 宿主页跳转菜品详情 */
-  (e: 'select'): void
+  /** 整卡点击 → 宿主页跳转菜品详情（载荷 = 菜品 id；id 缺失时不派发） */
+  (e: 'select', id: number): void
 }>()
 
 /** 图片加载完成 → 淡入（每行自持；行以 item 为 key 稳定复用，无需跨行去重集合） */
@@ -116,14 +118,14 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
 
 /** 整卡点击：id 缺失（脏数据）时不派发，避免宿主跳进「菜品不存在」 */
 function onTap() {
-  if (props.item.id != null) emit('select')
+  if (props.item.id != null) emit('select', props.item.id)
 }
 </script>
 
 <style scoped>
 /* 卡片：白底 + 大圆角 + 柔和轻阴影；内边距统一 --spacing-md（Round 21 规格化，
    取代旧版「上下 md / 左右 lg」的不对称内距） */
-.dish-result-row {
+.dish-result-card {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
@@ -136,9 +138,9 @@ function onTap() {
   touch-action: manipulation;
 }
 /* 整卡按压反馈：底色加深一档（bg-soft），与全站按压语言一致 */
-.dish-result-row.row-pressed { background: var(--bg-soft); }
-/* 相邻卡纵向间距（列表内唯一来源） */
-.dish-result-row + .dish-result-row { margin-top: var(--spacing-sm); }
+.dish-result-card.card-pressed { background: var(--bg-soft); }
+/* 注：卡间纵向间距由列表容器（find/index .mixed-list）的 flex gap 承担 ——
+   本组件不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，见 find/index 样式区登记）。 */
 
 /* 左：固定正方形图片容器（aspectFill 铺满即容器内居中；无图 → 餐具占位） */
 .thumb {

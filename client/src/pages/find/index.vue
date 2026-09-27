@@ -5,7 +5,7 @@
     <!-- 顶部两段式（搜索页头部由 `AppTitleBand` + `SearchBar` 承载）：
          ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
-         两段常驻固定（根层不滚动，滚动只发生在内容区 / FindResults 内部）。 -->
+         两段常驻固定（根层不滚动，滚动只发生在内容区内部）。 -->
     <!-- 标题带（UI 统一 Loop Round 15 两区版）：有返回 ⇒ 左区「返回」+ 居中区页面名称。
          ⚠️ 页面名称暂定「搜索」（本页语义见 docs/ui/client-搜索.md），如需改文案告诉我。 -->
     <AppTitleBand back title="搜索" @back="onBack" />
@@ -24,7 +24,7 @@
          搜索页头部回到「输入框 + 结果」，不再有筛选胶囊与下拉面板。 -->
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
-         发现态 = 静态区块（无页面级滚动容器）；结果态 = 滚动随 FindResults 内容区 -->
+         发现态 = 静态区块（无页面级滚动容器）；结果态 = 滚动随本页 results-host 容器 -->
     <view class="find-body">
       <!-- ============ 发现主页（未进入结果态）：搜索记录 + 猜你喜欢，静态展示 ============ -->
       <view v-if="!inFilter" class="discover-body">
@@ -87,14 +87,24 @@
         </template>
       </view>
 
-      <!-- ============ 搜索混合结果态：滚动容器在 FindResults 内容区内（仅结果态渲染） ============ -->
-      <FindResults
+      <!-- ============ 搜索结果态（仅结果态渲染）============
+           Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
+           单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/ui/client-搜索.md §2「结果行布局」）。 -->
+      <scroll-view
         v-else-if="mixedResults.length > 0"
         class="results-host"
-        :items="mixedResults"
-        :keyword="keyword"
-        @select="goToMixed"
-      />
+        scroll-y
+      >
+        <view class="mixed-list" :class="{ single: mixedResults.length === 1 }">
+          <DishResultCard
+            v-for="item in mixedResults"
+            :key="`${item.type}-${item.id}`"
+            :item="item"
+            :keyword="keyword"
+            @select="goToMixed"
+          />
+        </view>
+      </scroll-view>
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
            find-retry-host 仅负责整屏居中占位（页面内部滚动容器需撑满剩余高度），视觉全在 RetryBlock 内。 -->
@@ -137,7 +147,7 @@ import CardSection from '@/components/CardSection.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import SearchBar from '@/components/SearchBar.vue'
-import FindResults from './FindResults.vue'
+import DishResultCard from './DishResultCard.vue'
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import { useNavMetrics } from '@/utils/useNavMetrics'
 
@@ -363,7 +373,7 @@ onShow(() => clearShareState())
 /* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
    搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
-/* 内容区：占满 header/筛选行之外的剩余高度；滚动职责随分支（发现态静态/结果态 FindResults） */
+/* 内容区：占满 header 之外的剩余高度；滚动职责随分支（发现态静态区块 / 结果态本页滚动容器） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 /* 发现态：普通内容容器 + 高度兜底（搜索记录上限 4 条内容短；内容超高时由内容区自身滚动兜底） */
 .discover-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: var(--spacing-lg); }
@@ -375,8 +385,30 @@ onShow(() => clearShareState())
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
 .discover-card { margin-bottom: var(--spacing-lg); }
-/* 结果态宿主：让 FindResults 内容区（filter-result/results-scroll flex 链）填满剩余高度 */
-.results-host { flex: 1; min-height: 0; }
+/* 结果态滚动容器（Round 21b：FindResults 并入本页）：
+   flex 链占满剩余高度；底部留白（原 FindResults .results-scroll）随容器自带 */
+.results-host {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: var(--spacing-lg);
+}
+/* 结果列表：左右 gutter + 底部间距；卡间纵向间距用 **flex gap** ——
+   不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，本文件上方有登记） */
+.mixed-list {
+  margin: 0 var(--spacing-md) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+/* 单条结果：结果区垂直居中，把留白分到卡片上下两侧（UI 文档 §4「少量结果」）。
+   ⚠️ 依赖 scroll-view 有确定高度（.results-host 为 flex:1; min-height:0）；
+   `min-height:100%` 在 mp-weixin 的表现须随真机走查复核。 */
+.mixed-list.single {
+  margin-top: 0;
+  min-height: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
 
 /* 搜索无结果（空态）宿主（UI 统一 Loop Round 3）：仅承担整屏居中占位与边距，
    视觉全在公共 `EmptyState`（卡片变体）内 —— 与下方失败态宿主同语言 */

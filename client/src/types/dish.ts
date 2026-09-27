@@ -73,7 +73,7 @@ export interface DishDetail {
 /**
  * 搜索结果项（**页面视图模型**，非接口出参）
  *
- * 搜索页把 `GET /dishes` 的行投影成它，`FindResults` 组件按它渲染。
+ * 搜索页把 `GET /dishes` 的行投影成它，`DishResultCard` 组件按它渲染（由 find/index 编排）。
  * ⚠️ 与 `DishListItem` 的区别：字段按**展示语义**收敛（`coverImage → image`），且只含结果卡用到的字段。
  * 单一来源：原先 find 页 `MixedResult` 与 `FindResults` 内 `MixedResultItem` 是逐字段重复的两份定义
  * （UI 统一 Loop Round 17 合并）。
@@ -121,10 +121,11 @@ export interface GuessLike {
  * 菜品大类字典项（`GET /dishes/meal-types`）：
  * 文案 / 顺序 / 子集全由后端下发（空类自动隐藏），**端上不得维护任何中文映射**。
  *
- * ⚠️ 端上类型**恰 2 字段**：`order` 是服务端排序用的内部字段，端上按返回顺序渲染、零消费
- * （`web` 端需要排序，故其 DTO 保留）→ 按「零消费即删」不进入本类型。
+ * ⚠️ 方案 B 契约：首项由后端下发 `{ value: null, label: "为你推荐" }`，
+ * 故 `value` 允许为 `string | null`（`null` 表示不传 mealType，拉取推荐流）。
+ * `order` 是服务端排序用的内部字段，端上按返回顺序渲染 → 按「零消费即删」不进入本类型。
  */
 export interface MealType {
-  value: string
+  value: string | null
   label: string
 }

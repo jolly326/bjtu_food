@@ -82,7 +82,7 @@ export function getThumbUrl(path?: string | null): string {
  * 列表 / 卡片的最终图片地址 = **缩略图推导 + 绝对化**，一次到位。
  *
  * 为什么值得抽（UI 统一 Loop Round 17）：`getImageUrl(getThumbUrl(x))` 这对组合原先在
- * 首页 `DishCard` 与搜索结果 `FindResults` 各写一份（后者还自带空值守卫，前者没有），
+ * 首页 `DishCard` 与搜索结果卡 `DishResultCard` 各写一份（后者还自带空值守卫，前者没有），
  * 顺序写反或漏写一处就会「有的地方走缩略图、有的地方走原图」（C14 旧问题）。
  * 现统一从这里取；空值／空串一律返回 `''`（调用方据此走占位图）。
  */
