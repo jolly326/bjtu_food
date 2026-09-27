@@ -59,11 +59,14 @@
       </view>
 
     <template v-if="dish">
-      <!-- 私有组件编排：信息卡（五段）/ 综合评分（只读）/ 评价（卡内触底加载）。
+      <!-- 私有组件编排：信息卡（含评分行）/ 评价（卡内触底加载）。
+           UI 统一 Loop Round 19：原「综合评分」独立卡**取消** ——
+           均分 + 人数 + 分布并入信息卡一行（同源同刻），减少一块版面与一次视觉重复。
            ⚠️ 原 `dishBodyMin`（保证页面可滚动 ≥ pinStart，好让大图定格）已随定格方案退役（R16 口径 c） -->
       <view class="dish-body">
-        <DishInfoCard :dish="dish" :location-text="locationText" />
-        <DishSummaryCard
+        <DishInfoCard
+          :dish="dish"
+          :location-text="locationText"
           :rating="dish.rating || 0"
           :rating-count="dish.ratingCount || 0"
           :distribution="ratingDistribution"
@@ -132,7 +135,7 @@
  * - 编排逻辑抽包内私有 `useDishPage.ts`（数据流 / 顶部大图滚动几何 / 评价分页与删除 /
  *   写评价 / 重新评价弹层 / 三点菜单 / 举报 / 分享）。
  * - 本文件仅保留模板贴片组装与包内子件引用（ImageSwiper / ReviewComposer /
- *   DishInfoCard / DishSummaryCard / DishReviewSection / useDishPage）；生命周期见 useDishPage。
+ *   DishInfoCard（含评分行）/ DishReviewSection / useDishPage）；生命周期见 useDishPage。
  */
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import ReportModal from './ReportModal.vue'
@@ -140,8 +143,9 @@ import ActionSheet from '@/components/ActionSheet.vue'
 import ImageSwiper from './ImageSwiper.vue'
 import ReviewComposer from './ReviewComposer.vue'
 import DishInfoCard from './DishInfoCard.vue'
-import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
+/* ⚠️ 原 `DishSummaryCard.vue`（综合评分独立卡）已于 UI 统一 Loop Round 19 删除：
+   均分 / 人数 / 分布并入 `DishInfoCard` 的评分行（同源同刻，减少一块版面与一次视觉重复）。 */
 import { useDishPage } from './useDishPage.js'
 import RetryBlock from '@/components/RetryBlock.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'

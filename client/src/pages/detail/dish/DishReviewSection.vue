@@ -114,7 +114,8 @@ const emit = defineEmits<{
 </script>
 
 <style scoped>
-/* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页三卡内距由此统一到 `--spacing-md` */
+/* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页两卡内距由此统一到 `--spacing-md`
+   （UI 统一 Loop Round 19：原「综合评分」卡并入信息卡 ⇒ 同页三卡 → 两卡） */
 .review-section { margin: var(--spacing-sm) var(--spacing-md) 0; }
 .review-list { display: flex; flex-direction: column; }
 

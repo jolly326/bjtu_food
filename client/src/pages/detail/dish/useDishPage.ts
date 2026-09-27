@@ -2,8 +2,8 @@
  * useDishPage —— 菜品详情页（pages/detail/dish/index.vue）编排逻辑
  *
  * 页面私有编排（仅本页使用，就近置于页面包，不驻留 composables/）：
- * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard /
- * DishSummaryCard / DishReviewSection）引用。职责：
+ * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard（含评分行）/
+ * DishReviewSection）引用。职责：
  * - 数据流：onLoad 解析 id → resetDishDetail → 并行取详情 / 公开评价 / 我的评价（判定底栏双态）
  *   + 上报浏览；
  * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量；
