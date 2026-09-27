@@ -82,6 +82,7 @@ import { getMyReviews, deleteReview } from '@/api/review'
 import type { MyReview } from '@/types/review'
 import { backToHome } from '@/utils/nav'
 import { PATH } from '@/utils/routes'
+import { deriveGuestLabel } from '@/utils/guest'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
@@ -89,13 +90,8 @@ const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userInfo.value?.bindEmail || '')
-/** 游客短标识：端上派生 = 「食客 + id 尾 4 位」（与「我的」页同口径） */
-const guestLabel = computed(() => {
-  const id = userInfo.value?.id
-  if (!id) return '食客'
-  const s = String(id)
-  return `食客${s.length > 4 ? s.slice(-4) : s}`
-})
+/** 游客短标识：端上派生 =「食客 + id 尾 4 位」（与「我的」页同口径，走公共 `utils/guest.deriveGuestLabel`） */
+const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id))
 /** 游客态（列表空态分支 + 跳过需登录请求）；认证成功返回本页时 onShow 重拉自动切换为真实列表 */
 const isGuest = computed(() => !userStore.isVerified())
 

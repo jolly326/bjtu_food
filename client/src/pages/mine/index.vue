@@ -103,7 +103,7 @@ import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
-import { getLocalGuestLabel } from '@/utils/guest'
+import { deriveGuestLabel, getLocalGuestLabel } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
 import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
@@ -118,12 +118,7 @@ const isVerified = computed(() => userStore.isVerified())
  * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
  * `id` 不可得（静默登录未完成 / 失败）时回退本地游客 ID 兜底，保证不空白。
  */
-const guestLabel = computed(() => {
-  const id = userInfo.value?.id
-  if (!id) return getLocalGuestLabel()
-  const s = String(id)
-  return `食客${s.length > 4 ? s.slice(-4) : s}`
-})
+const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id, getLocalGuestLabel()))
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 

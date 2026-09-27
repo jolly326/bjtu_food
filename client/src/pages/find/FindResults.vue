@@ -46,13 +46,13 @@
                   <!-- 星色 = 独立语义色（黄 #FBBF24），不随主色换肤（project_spec.md §4.2 / §7.39 第 2 条）。
                        必须传实色 `COLOR_MAP['star']`：IconSvg 的 color 不解析 var()（data-uri 内为字面量）。 -->
                   <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" class="mixed-rating-star" />
-                  <text class="mixed-rating-num">{{ Number(item.rating).toFixed(1) }}</text>
+                  <text class="mixed-rating-num">{{ formatRating(item.rating) }}</text>
                 </view>
               </view>
               <!-- 价格：展示唯一数据源 = price（现价）；originalPrice 有值且大于 price 时并列划线原价。 -->
               <view v-if="item.price != null" class="mixed-price-group">
                 <text class="mixed-price"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
-                <text v-if="hasDiscount(item)" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
+                <text v-if="hasDiscount(item.price, item.originalPrice)" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
               </view>
             </view>
             <!-- 底部：位置（食堂 · 档口名，与首页 DishCard 同序），三级浅灰弱化 -->
@@ -78,7 +78,10 @@ import IconSvg from '@/components/IconSvg.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { formatPrice } from '@/utils/money'
-import { getImageUrl, getThumbUrl } from '@/utils/image'
+// `getThumbImageUrl` 以本地别名 `thumbSrc` 引入：模板内既有调用点无需改动
+// （原本地 `thumbSrc()` 与首页 `DishCard` 的组合逻辑重复 —— UI 统一 Loop Round 17 上提为公共函数）
+import { getThumbImageUrl as thumbSrc } from '@/utils/image'
+import { hasDiscount, formatRating } from '@/utils/dish'
 
 /** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */
 interface MixedResultItem {
@@ -104,14 +107,9 @@ const emit = defineEmits<{
 
 /** 图片淡入去重集合（key = 缩略图 url） */
 const loadedSet = reactive(new Set<string>())
-function thumbSrc(src?: string): string {
-  return src ? getImageUrl(getThumbUrl(src)) : ''
-}
+/* 缩略图地址组合已上提为公共 `utils/image.getThumbImageUrl`（此处以别名 `thumbSrc` 引入） */
 
-/** 「有折扣」判据：originalPrice 有值且大于 price（唯一口径，不引入第三个价格字段） */
-function hasDiscount(item: MixedResultItem): boolean {
-  return item.originalPrice != null && item.price != null && item.originalPrice > item.price
-}
+/* 「有折扣」判据已上提为公共 `utils/dish.hasDiscount`（UI 统一 Loop Round 17），此处不再保留副本 */
 
 /** 关键词拆段：find-result-card-polish 后命中片段不再上主色（红只给价格），保留分段语义以备未来弱化 */
 function splitHighlight(text: string): { text: string; hit: boolean }[] {

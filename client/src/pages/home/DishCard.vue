@@ -28,7 +28,7 @@
       <view class="card-meta">
         <view class="card-rating">
           <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
-          <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
+          <text class="rating-text">{{ formatRating(dish.rating) }}</text>
         </view>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
       </view>
@@ -39,8 +39,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { DishListItem } from '@/types/dish'
-import { getImageUrl, getThumbUrl } from '@/utils/image'
+import { getThumbImageUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
+import { formatRating } from '@/utils/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -59,17 +60,14 @@ const emit = defineEmits<{
  * 图片 URL：列表**唯一图片字段** `coverImage`（后端已给绝对 URL；无图空串 → 占位空态）。
  * C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降。
  */
-const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.coverImage)))
+const imgSrc = computed(() => getThumbImageUrl(props.dish.coverImage))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
 /** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
 const imgLoaded = ref(false)
 
-/** 评分统一保留一位小数（与详情页 toFixed(1) 一致，避免 4 / 4.5 显示不一致） */
-function fmtRating(r: number): string {
-  return Number(r || 0).toFixed(1)
-}
+/* 评分格式化（恒一位小数）已上提为公共 `utils/dish.formatRating`（UI 统一 Loop Round 17） */
 
 function handleClick() {
   emit('select', props.dish)

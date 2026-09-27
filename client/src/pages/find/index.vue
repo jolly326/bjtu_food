@@ -127,6 +127,7 @@ import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
+import { joinLocation } from '@/utils/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -297,8 +298,8 @@ async function doMixedSearch(kw?: string) {
     // 结果顺序即后端返回口径（PR-02：端上不排序、不算距离）
     mixedResults.value = list
       .map(d => {
-        // B8 副信息：食堂名 + 档口名（顺序与首页 DishCard 的「食堂 | 档口」一致）
-        const sub = [d.canteen, d.stallName].filter(Boolean).join(' · ')
+        // B8 副信息：食堂名 + 档口名（口径统一走 `utils/dish.joinLocation`）
+        const sub = joinLocation(d.canteen, d.stallName)
         return {
           type: 'dish' as const,
           id: d.id,

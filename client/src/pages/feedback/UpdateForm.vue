@@ -209,6 +209,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
 import type { DishListItem } from '@/types/dish'
+import { joinLocation } from '@/utils/dish'
 
 const props = defineProps<{
   /** 选定菜品（列表行；选择器行展示 + 提交路径 dishId 由父页持有） */
@@ -243,7 +244,7 @@ function attrLabel(field: 'flavorTags' | 'ingredients', value: string): string {
 }
 
 const dishLocation = computed(() =>
-  [props.model.dish?.canteen, props.model.dish?.stallName].filter(Boolean).join(' · '),
+  joinLocation(props.model.dish?.canteen, props.model.dish?.stallName),
 )
 
 /**

@@ -33,7 +33,7 @@
       </view>
       <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
       <view class="review-meta">
-        <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${(review.rating || 0).toFixed(1)} 分`">
+        <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${formatRating(review.rating)} 分`">
           <IconSvg
             v-for="n in Math.min(Math.max(Math.round(review.rating || 0), 1), 5)"
             :key="n"
@@ -42,7 +42,7 @@
             :color="COLOR_MAP['star']"
             class="review-star"
           />
-          <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
+          <text class="review-rating-num">{{ formatRating(review.rating) }}</text>
         </view>
         <text class="review-time">{{ formatDateTime(review.createdAt) }}</text>
       </view>
@@ -82,6 +82,7 @@ import IconSvg from '@/components/IconSvg.vue'
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl } from '@/utils/image'
+import { formatRating } from '@/utils/dish'
 import { formatDateTime } from '@/utils/time'
 import type { Review } from '@/types/review'
 

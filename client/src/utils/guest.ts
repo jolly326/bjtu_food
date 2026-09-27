@@ -32,3 +32,19 @@ function getGuestId(): string {
 export function getLocalGuestLabel(): string {
   return getGuestId().replace(/-/g, '').slice(0, 6).toUpperCase()
 }
+
+/**
+ * 账号短标识（spec §7.32）：由账号 `id` 派生「食客 + ID 尾 4 位」（不足 4 位取全量）。
+ *
+ * `id` 不可得（静默登录未完成 / 失败）时回退 `fallback` —— 由调用方按展示语境决定：
+ * · 「我的」页 → 传 `getLocalGuestLabel()`（本地游客 ID 兜底，保证不空白）；
+ * · 「我的主页」→ 用默认「食客」。
+ * **不伪造有效用户 ID**（回退值只保证展示非空）。
+ *
+ * UI 统一 Loop Round 17：该派生原先在两页各写一份（且回退分支不一致），现统一到此处。
+ */
+export function deriveGuestLabel(id?: number | null, fallback = '食客'): string {
+  if (!id) return fallback
+  const s = String(id)
+  return `食客${s.length > 4 ? s.slice(-4) : s}`
+}

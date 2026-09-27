@@ -22,6 +22,7 @@ import { searchDishes, getDishDetail } from '@/api/dish'
 import type { DishListItem } from '@/types/dish'
 import { backToHome } from '@/utils/nav'
 import { yuanToFen } from '@/utils/money'
+import { joinLocation } from '@/utils/dish'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
 
 export type FeedbackPageMode = 'issue' | 'update'
@@ -97,7 +98,7 @@ export function useFeedback() {
     dishCandidates.value.map((d) => ({
       key: String(d.id),
       label: d.name,
-      sub: [d.canteen, d.stallName].filter(Boolean).join(' · '),
+      sub: joinLocation(d.canteen, d.stallName),
       image: d.coverImage || '',
     })),
   )

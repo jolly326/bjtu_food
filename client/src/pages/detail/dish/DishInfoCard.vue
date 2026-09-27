@@ -71,6 +71,7 @@ import { COLOR_MAP } from '@/theme/tokens'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
 import { formatPrice } from '@/utils/money'
 import { feedbackUrl } from '@/utils/routes'
+import { hasDiscount } from '@/utils/dish'
 
 const props = defineProps<{
   dish: DishDetail
@@ -81,11 +82,8 @@ const props = defineProps<{
 const descExpanded = ref(false)
 watch(() => props.dish.name, () => { descExpanded.value = false })
 
-/** 「有折扣」唯一判据：originalPrice 有值且大于 price（不引入第三个价格字段） */
-const hasPromo = computed(() => {
-  const op = props.dish.originalPrice
-  return op != null && op > props.dish.price
-})
+/** 划线原价显隐：判据统一走 `utils/dish.hasDiscount`（UI 统一 Loop Round 17，与 find 结果同口径） */
+const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.originalPrice))
 
 /**
  * 描述四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
