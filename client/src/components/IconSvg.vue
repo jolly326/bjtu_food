@@ -23,10 +23,13 @@ import { computed } from 'vue'
  *
  * **尺寸与颜色的契约（UI 统一 Loop Round 20 明确）**：
  *  - `size`：数字 = **rpx**（`:size="40"` → 40rpx），也可传带单位字符串（`size="20px"`）。
- *    宿主为 `inline-flex` 且 `flex: none` ⇒ 在 flex 父级里**不会被压缩**，包一层容器也能改大小。
  *  - `color`：**必须传实色**（`COLOR_MAP['xxx']` 或 `#RRGGBB`）。`var(--x)` 与 `currentColor`
  *    都会被回退为兜底近黑色 —— 因为 SVG data-uri 是独立文档，解析不了 `var()`、也继承不到父级文字色。
- *  - 居中：宿主自行 `inline-flex + center`（图标恒在组件盒子正中），**无需**外层再写 flex 居中。
+ *  - **居中 / 防压缩**：根节点 inline-flex + 居中 + `flex: none` **内联自持**（不依赖消费方样式）。
+ *    ⚠️ 组件**未开启** `virtualHost` —— 当前 uni-app 版本两种写法（`defineOptions({ options })` /
+ *    显式 `<script>` 块）都不会把 `virtualHost` 写入产物 json，且双 `<script>` 会触发 `@/` 别名解析失败
+ *    （Round 20c 两次实证，勿盲目重试）。⇒ 组件在 flex 父级里多一层**宿主节点**；若发现图标垂直不居中，
+ *    用消费方 class 把宿主定为 flex 盒即可（示例见 `SearchBar` 的 `.search-bar-icon`）。
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
@@ -180,6 +183,8 @@ const rootStyle = computed(() => ({
   display: 'inline-flex',
   'align-items': 'center',
   'justify-content': 'center',
+  // 内联自持 `flex: none`：任何 flex 父级下都不被压缩 —— 消费方**无需**再写任何包装样式
+  flex: 'none',
   color: props.color,
 }))
 
@@ -194,12 +199,6 @@ const imgStyle = computed(() => ({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* ⚠️ `flex: none`（不缩不放）：图标在 flex 父级里若允许收缩，兄弟节点一多就会被压扁
-     ⇒「size prop 明明传了、看上去还是变小 / 变形」的根因之一（UI 统一 Loop Round 20 修复）。 */
-  flex: none;
-  /* `vertical-align: middle`：父级用 `align-items: baseline`（如详情页标题行）时，
-     inline-flex 宿主默认按基线对齐会**偏上**；本行保证图标相对行盒垂直居中。 */
-  vertical-align: middle;
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
 }
