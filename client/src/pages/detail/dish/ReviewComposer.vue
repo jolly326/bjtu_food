@@ -85,6 +85,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview, updateReview } from '@/api/review'
+import { toastError } from '@/utils/error'
 // 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
 import type { ReviewSubmittedPayload } from '@/types/review'
 
@@ -177,8 +178,8 @@ async function onSubmit() {
       images: images.value.length ? [...images.value] : [],
     })
     onClose()
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '发布失败，请稍后重试', icon: 'none' })
+  } catch (e) {
+    toastError(e, '发布失败，请稍后重试')
   } finally {
     submitting.value = false
   }

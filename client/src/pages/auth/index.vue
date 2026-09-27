@@ -86,6 +86,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
+import { errorMessage } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const authStore = useAuthStore()
@@ -147,7 +148,7 @@ async function sendCode() {
     await sendEmailCode(username)
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     authStore.startCooldown()
-  } catch (e: any) { setError(e.message || '验证码发送失败') } finally { sendingCode.value = false }
+  } catch (e) { setError(errorMessage(e, '验证码发送失败')) } finally { sendingCode.value = false }
 }
 
 /** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */
@@ -164,7 +165,7 @@ async function submit() {
     uni.showToast({ title: '认证成功', icon: 'success' })
     // 返回原页：待办由原页 onShow 经 consumePending 续接
     setTimeout(() => uni.navigateBack(), 600)
-  } catch (e: any) { setError(e.message || '认证失败') } finally { isBusy.value = false }
+  } catch (e) { setError(errorMessage(e, '认证失败')) } finally { isBusy.value = false }
 }
 
 /** 未完成认证即离开（Header 返回）——与手势返回同语义，onUnload 统一清待办 */

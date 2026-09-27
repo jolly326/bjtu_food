@@ -28,6 +28,7 @@ import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getWindowInfo } from '@/utils/device'
+import { toastError } from '@/utils/error'
 import { dishDetailUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
@@ -292,8 +293,8 @@ export function useDishPage() {
           resetReviewPaging()
           await fetchReviewsReset()
           dishStore.fetchDetail(dishId.value)
-        } catch (e: any) {
-          uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+        } catch (e) {
+          toastError(e, '删除失败')
         }
       },
     })

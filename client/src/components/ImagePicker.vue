@@ -67,7 +67,9 @@
 import { ref, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { uploadUgcImage } from '@/api/upload'
+import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
+import { getWxApi } from '@/utils/device'
 
 defineOptions({ name: 'ImagePicker' })
 
@@ -113,7 +115,7 @@ const MAX_SIZE = 1024 * 1024
 function pick(count: number): Promise<{ path: string; size: number }[]> {
   // #ifdef MP-WEIXIN
   return new Promise((resolve, reject) => {
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.chooseMedia) {
       reject(new Error('当前环境不支持选择图片'))
       return
@@ -164,7 +166,7 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
 function compressImage(src: string, opts: { quality?: number; compressedWidth?: number; compressedHeight?: number }): Promise<string> {
   return new Promise((resolve, reject) => {
     // 平台例外：同上
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.compressImage) {
       reject(new Error('当前环境不支持图片压缩'))
       return
@@ -195,7 +197,7 @@ function getImageInfo(src: string): Promise<{ width: number; height: number }> {
 function getFileSize(filePath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     // 平台例外：同上
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.getFileSystemManager) {
       reject(new Error('无法读取文件大小'))
       return
@@ -284,13 +286,13 @@ async function onAdd() {
           urls.value = [...urls.value, url]
           emit('update:modelValue', [...urls.value])
         }
-      } catch (e: any) {
+      } catch (e) {
         // 违规图片（后端 400「图片包含违规内容，无法上传」）/ 过大 / 网络失败：toast 透出，跳过该张
-        uni.showToast({ title: e?.message || '图片上传失败', icon: 'none' })
+        toastError(e, '图片上传失败')
       }
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '选择图片失败', icon: 'none' })
+  } catch (e) {
+    toastError(e, '选择图片失败')
   } finally {
     uploading.value = false
   }

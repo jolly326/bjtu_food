@@ -56,6 +56,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
+import { toastError } from '@/utils/error'
 import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/nav'
 import Header from '@/components/AppHeader.vue'
@@ -129,9 +130,9 @@ async function save() {
     uni.showToast({ title: '已保存', icon: 'success' })
     if (navTimer) clearTimeout(navTimer)
     navTimer = setTimeout(() => uni.navigateBack(), 400)
-  } catch (e: any) {
+  } catch (e) {
     // 后端业务 400 message 直透（如昵称违规「内容包含违规信息，请修改后重试」），网络失败回落固定文案
-    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+    toastError(e, '保存失败')
   } finally {
     saving.value = false
   }

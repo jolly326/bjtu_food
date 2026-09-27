@@ -2,11 +2,12 @@
 import { onLaunch } from "@dcloudio/uni-app";
 import { useUserStore } from "@/stores/user";
 import { WX_CLOUD_ENV } from "@/api/config";
+import { getWxApi } from "@/utils/device";
 onLaunch(() => {
   // 初始化微信云开发/云托管环境（小程序端 callContainer 调用依赖；H5 等平台跳过）
   // #ifdef MP-WEIXIN
-  // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（与 http.ts / useDishPage 同款说明）
-  const wxApi: any = (globalThis as any).wx;
+  // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
+  const wxApi = getWxApi();
   if (wxApi && wxApi.cloud) {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }

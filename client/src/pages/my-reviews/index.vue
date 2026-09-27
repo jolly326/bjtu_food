@@ -82,6 +82,7 @@ import type { MyReview } from '@/types/review'
 import { backToHome } from '@/utils/nav'
 import { PATH } from '@/utils/routes'
 import { deriveGuestLabel } from '@/utils/guest'
+import { toastError } from '@/utils/error'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
@@ -195,8 +196,8 @@ function onDelete(r: MyReview) {
         list.value = list.value.filter(item => item.id !== r.id)
         uni.showToast({ title: '评价已删除', icon: 'none' })
         emptiedByDelete.value = list.value.length === 0
-      } catch (e: any) {
-        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+      } catch (e) {
+        toastError(e, '删除失败')
       }
     },
   })

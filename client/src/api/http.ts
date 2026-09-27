@@ -8,6 +8,7 @@
  */
 
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE } from './config'
+import { getWxApi } from '@/utils/device'
 
 /** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
 interface ApiResponse<T = unknown> {
@@ -211,8 +212,8 @@ async function request<T>(
           fn()
         }
       }
-      // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（与 navMetrics 同款说明）
-      const wxApi: any = (globalThis as any).wx
+      // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
+      const wxApi = getWxApi()
       if (!wxApi || !wxApi.cloud) {
         done(() => reject(new Error('当前环境不支持 wx.cloud')))
         return
@@ -361,8 +362,8 @@ export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
   // ===== 微信小程序端：微信云存储 =====
   // #ifdef MP-WEIXIN
   result = new Promise<{ url: string }>((resolve, reject) => {
-    // 平台例外：wx 句柄为微信运行时对象（同 request 说明）
-    const wxApi: any = (globalThis as any).wx
+    // 平台句柄统一经 utils/device 取（同 request 说明）
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.cloud) {
       reject(new Error('当前环境不支持 wx.cloud'))
       return

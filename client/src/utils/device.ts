@@ -39,6 +39,21 @@ function platform(): any {
 }
 
 /**
+ * 取微信运行时句柄（`wx` 对象本身），供 `wx.cloud.*` / `wx.chooseMedia` 等**平台专有能力**使用。
+ *
+ * ⚠️ 本仓**唯一**允许触碰全局 `wx` 的入口（UI 统一 Loop Round 17）：原先在
+ * `App.vue` / `api/http.ts`（×2）/ `api/upload.ts` / `components/ImagePicker.vue`（×3）
+ * 各自写 `const wxApi: any = (globalThis as any).wx` 并附一份重复的「平台例外」说明 ——
+ * 现统一从此处取，调用方只需判 `null`（H5 / 非微信端退化为不支持）。
+ *
+ * 返回 `any`：`wx` 的平台 API 面极大且随基础库演进，逐项声明收益低、维护成本高；
+ * 收敛到**单一出口**后平台例外的影响范围可控（若日后要正式声明 `wx`，只改本文件即可）。
+ */
+export function getWxApi(): any {
+  return platform()
+}
+
+/**
  * 取窗口信息。
  * 兼容老基础库：`getWindowInfo` 不存在时回退 `getSystemInfoSync`；两者都无则返回 `null`。
  */
