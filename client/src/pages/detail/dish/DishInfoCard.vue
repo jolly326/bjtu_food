@@ -1,88 +1,70 @@
 <template>
   <CardSection>
-    <!-- 信息卡条目顺序（UI 统一 Loop Round 19 起为**五段**）：① 名称 + 价格 → ①b 评分行
-         （均分 / 人数 / 迷你分布条；原「综合评分」独立卡已取消）→ ② 位置行（右侧并入「信息有误？」纠错入口，
-         **不新增整行**，权威条款见 spec contribution-entry）→ ③ 描述 → ④ 描述四维。
-         卡内分隔线统一为一条（段落间 border-top）；仍不含：标签 chips、信息更新时间、窗口号、距离、独立纠错行。 -->
-
-    <!-- ① 名称 + 价格：展示唯一数据源 = price（常显现价）；originalPrice > price 时并列划线原价 -->
-    <view class="title-row">
-      <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
-      <view class="price-row">
-        <text class="price-text">¥{{ formatPrice(dish.price) }}</text>
-        <text v-if="hasPromo" class="origin-price">¥{{ formatPrice(dish.originalPrice) }}</text>
+    <!-- 菜品信息卡（UI 统一 Loop Round 22 按用户规格重排）：
+         ① 名称 + 价格组 → ② 评分（左）/ 位置（右）同行 → ③ 简介（`description` 为空则整块隐藏）
+         → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
+         → ⑤ 属性标签容器（浅米色底 + 4 列均分，右上角「信息有误？」入口）。
+         · 模块之间**靠垂直留白区分**（`--spacing-md`），除第 ④ 条外**不加任何分隔线**；
+         · 交互文字（展开 / 信息有误？）只用文字配色，**禁止实色填充按钮**；
+         · 卡片内不做分享按钮（复用微信原生右上角分享）；
+         · **不绘制评分进度条、不展示评价人数**（`ratingCount` 仍参与「有无评分」判定，仅不渲染）。 -->
+    <view class="dish-info">
+      <!-- ① 名称 + 价格组：价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
+      <view class="title-row">
+        <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
+        <view class="price-group">
+          <text class="price-text">¥{{ formatPrice(dish.price) }}</text>
+          <text v-if="hasPromo" class="origin-price">¥{{ formatPrice(dish.originalPrice) }}</text>
+        </view>
       </view>
-    </view>
 
-    <!-- ①b 评分行（UI 统一 Loop Round 19：原「综合评分」独立卡**取消**，均分 / 人数 / 分布并入信息卡一行）：
-         均分 + 人数 + 5 段迷你分布条，三者**同源同刻**（均取实时聚合，一次查询算出）；
-         分布条只表达「形状」（各星占比），不逐星列数字，避免再占一块版面。
-         零评价（`ratingCount = 0`）→ 轻文案一行「暂无评分」，不占位成块、不误报为 0 分。 -->
-    <view
-      class="card-block rate-row"
-      v-if="ratingCount > 0"
-      role="group"
-      :aria-label="`评分 ${ratingText} 分，${ratingCount} 人评分`"
-    >
-      <view class="rate-score">
-        <IconSvg name="star-filled" :size="24" :color="COLOR_MAP['star']" class="rate-star" />
-        <text class="rate-num">{{ ratingText }}</text>
+      <!-- ② 评分（左）+ 位置（右）同行：有评分 → 黄星 + 均分；零评价 → 隐藏星、浅灰「暂无评分」 -->
+      <view class="meta-row">
+        <view v-if="ratingCount > 0" class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
+          <!-- 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑 -->
+          <IconSvg name="star-filled" :size="30" :color="COLOR_MAP['star']" class="rating-star" />
+          <text class="rating-num">{{ ratingText }}</text>
+        </view>
+        <text v-else class="rating-empty">暂无评分</text>
+        <view class="loc-group" role="group" :aria-label="`位置：${locationText}`">
+          <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
+          <text class="loc-text">{{ locationText }}</text>
+        </view>
       </view>
-      <text class="rate-count">{{ ratingCount }} 人评</text>
-      <view class="rate-bar" role="img" :aria-label="`评分分布：${distAriaLabel}`">
+
+      <!-- ③ 简介：默认两行 + 右下角「展开 / 收起」；`description` 为空则整块不渲染（不占页面空间） -->
+      <view v-if="dish.description" class="desc-row">
+        <text class="desc-content" :class="{ 'desc-content--collapsed': !descExpanded }">{{ dish.description }}</text>
+        <text
+          class="desc-toggle"
+          role="button"
+          aria-label="展开或收起简介"
+          :aria-expanded="descExpanded ? 'true' : 'false'"
+          @tap="descExpanded = !descExpanded"
+        >{{ descExpanded ? '收起' : '展开' }}</text>
+      </view>
+
+      <!-- ④ 全卡**唯一**一条浅灰分隔线：只在简介存在时渲染（简介隐藏 → 这条线一并消失） -->
+      <view v-if="dish.description" class="divider" />
+
+      <!-- ⑤ 属性标签容器：浅米色底 + 4 列均分（每列「标签在上、值在下」），右上角「信息有误？」入口 -->
+      <view v-if="dims.length > 0" class="attrs">
+        <view class="dim-col" v-for="d in dims" :key="d.label">
+          <text class="dim-label">{{ d.label }}</text>
+          <text class="dim-val">{{ d.value }}</text>
+        </view>
+        <!-- 纠错入口：**纯文字**链接（不填充、不描边），落点 = 反馈页 update 模式并预选本菜品 -->
         <view
-          v-for="seg in distSegments"
-          :key="seg.star"
-          class="rate-seg"
-          :style="{ flexGrow: seg.count, opacity: seg.opacity }"
-        />
-      </view>
-    </view>
-    <text v-else class="card-block rate-empty">暂无评分</text>
-
-    <!-- ② 位置行：食堂 · 楼层 · 档口名（左）+「信息有误？」纠错入口（右，并入同一信息行）。
-         纠错采用与「简介展开」同档的轻量文本样式（主色 / 同字号字重），非按钮 / chip / 独立卡片；
-         位置文案恒有（`未知位置` 兜底），故该行恒在、入口恒可达。
-         行 aria-label 同时覆盖「位置」与「信息有误？」两个语义。 -->
-    <view
-      class="card-block loc-row"
-      role="group"
-      :aria-label="`位置：${locationText}；信息有误？可点击前往更新菜品信息`"
-    >
-      <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
-      <text class="loc-text">{{ locationText }}</text>
-      <!-- 「信息有误？」入口：视觉低调（三级灰小字 + arrow 图标），
-           整体一行热区（::after 扩至 ≥88rpx），按压反馈与全站一致（opacity）；落点 = 反馈页 update 模式 -->
-      <view
-        class="correct-link"
-        role="button"
-        aria-label="信息有误，点击前往更新菜品信息"
-        hover-class="pressed"
-        hover-stay-time="80"
-        @tap="goCorrect"
-      >
-        <text class="correct-link-text">信息有误？</text>
-        <IconSvg name="arrow" :size="20" :color="COLOR_MAP['text-tertiary']" />
-      </view>
-    </view>
-
-    <!-- ③ 描述（默认两行 + 展开 / 收起） -->
-    <view class="card-block desc-row" v-if="dish.description">
-      <text class="desc-content" :class="{ 'desc-content--collapsed': !descExpanded }">{{ dish.description }}</text>
-      <text
-        class="desc-toggle"
-        role="button"
-        aria-label="展开或收起简介"
-        :aria-expanded="descExpanded ? 'true' : 'false'"
-        @tap="descExpanded = !descExpanded"
-      >{{ descExpanded ? '收起' : '展开' }}</text>
-    </view>
-
-    <!-- ④ 描述四维（荤素 / 主料 / 口味 / 冷热）：逐维渲染，缺项不占位，不用 `-` 凑列 -->
-    <view class="card-block dims" v-if="dims.length > 0">
-      <view class="dim-col" v-for="d in dims" :key="d.label">
-        <text class="dim-val">{{ d.value }}</text>
-        <text class="dim-label">{{ d.label }}</text>
+          class="correct-link"
+          role="button"
+          aria-label="信息有误，点击前往更新菜品信息"
+          hover-class="pressed"
+          hover-stay-time="80"
+          @tap="goCorrect"
+        >
+          <text class="correct-link-text">信息有误？</text>
+          <IconSvg name="arrow" :size="20" :color="COLOR_MAP['text-tertiary']" class="correct-arrow" />
+        </view>
       </view>
     </view>
   </CardSection>
@@ -96,41 +78,22 @@ import IconSvg from '@/components/IconSvg.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
-import type { RatingDistribution } from '@/types/dish'
 import { formatPrice } from '@/utils/money'
 import { feedbackUrl } from '@/utils/routes'
 import { hasDiscount, formatRating } from '@/utils/dish'
 
 const props = defineProps<{
   dish: DishDetail
+  /** 位置文案（页面派生：「食堂 · 楼层 · 档口」，缺项兜底「未知位置」） */
   locationText: string
-  /** 平均评分（实时聚合口径；零评价时为 0）—— 与 `ratingCount` / `distribution` **同源同刻** */
+  /** 平均评分（实时聚合；零评价时为 0）—— 与 `ratingCount` 同源同刻 */
   rating: number
-  /** 评价人数（实时聚合；恒 = 分布各星条数之和） */
+  /** 评价人数：**仅用于判定「有无评分」**，按规格不渲染（Round 22） */
   ratingCount: number
-  /** 评分分布（固定 5 项、按 `star` 降序下发，端上不排序）—— 渲染为「一行迷你分布条」 */
-  distribution: RatingDistribution[]
 }>()
 
 /** 均分文案（恒一位小数；走公共口径 `utils/dish.formatRating`） */
 const ratingText = computed(() => formatRating(props.rating))
-
-/**
- * 迷你分布条分段：按条数比例分宽（`flexGrow = count`），5★→1★ 由深到浅。
- * 深浅只在**透明度**上分档（0.3 ~ 1.0）—— 星色恒为 `--color-star`，不引入任何裸色值。
- */
-const distSegments = computed(() =>
-  props.distribution.map((item) => ({
-    star: item.star,
-    count: item.count,
-    opacity: [1, 0.8, 0.62, 0.45, 0.3][5 - item.star] ?? 0.3,
-  })),
-)
-
-/** 分布条无障碍描述（条数逐星读出，纯视觉条本身不携带数字） */
-const distAriaLabel = computed(() =>
-  props.distribution.map((d) => `${d.star} 星 ${d.count} 条`).join('，'),
-)
 
 /** 简介展开/收起（换菜品时复位） */
 const descExpanded = ref(false)
@@ -140,7 +103,7 @@ watch(() => props.dish.name, () => { descExpanded.value = false })
 const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.originalPrice))
 
 /**
- * 描述四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
+ * 属性四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
  *
  * 菜品出参下发**机器值**，中文一律由**四维字典**翻译（§7.40 R4）——
  * 端上零硬编码映射表；字典未就绪 / 未命中时该维**不渲染**（沿用「缺项不占位」口径）。
@@ -173,63 +136,81 @@ function goCorrect() {
 </script>
 
 <style scoped>
-/* ① 名称 + 价格（同一行、基线对齐） */
+/* ===== 模块垂直节奏（唯一来源）：除简介下方那条分隔线外，全部用留白区分 —— 不加任何额外分割线 ===== */
+
+/* ① 名称 + 价格组（同一行、基线对齐）：菜名是卡片内最大字号 */
 .title-row { display: flex; align-items: baseline; gap: var(--spacing-sm); }
-/* 菜名 / 价格字重按 content-flow-visual delta 统一 600 档（--weight-semibold，与卡片菜名同档） */
-.dish-name { font-size: var(--font-title); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-h2); line-height: 1.2; color: var(--text-primary); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.price-row { display: flex; align-items: baseline; gap: var(--spacing-xs); flex: 0 0 auto; }
+.dish-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-title);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-h2);
+  line-height: 1.2;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.price-group { flex: 0 0 auto; display: flex; align-items: baseline; gap: var(--spacing-xs); }
 .price-text { font-size: var(--font-h2); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 
-/* ①b 评分行（信息卡内一行，替代原「综合评分」独立卡）：
-   均分（主色数字）+ 人数（三级灰）+ 迷你分布条（占满剩余宽度，按条数比例分段） */
-.rate-row { display: flex; align-items: center; gap: var(--spacing-xs); }
-.rate-score { flex: 0 0 auto; display: flex; align-items: center; gap: var(--spacing-3xs); }
-.rate-star { width: 24rpx; height: 24rpx; line-height: 1; }
-.rate-num { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
-.rate-count { flex: 0 0 auto; font-size: var(--font-aux); color: var(--text-tertiary); }
-/* 迷你分布条：底槽 = 星级空槽色，5 段以 flexGrow（= 条数）比例分宽；段间 2rpx 细缝（--spacing-3xs） */
-.rate-bar {
+/* ② 评分（左）/ 位置（右）同行：左评分靠左、右位置靠右，单行不折 */
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+/* 星图标宿主（<icon-svg> 自定义组件）显式定为 30rpx 方形 flex 盒 ⇒ 与数字精确同行居中
+   （同 Round 20b / 21d 的方案；否则星会随继承字体度量上下错位） */
+.rating-star {
+  flex: none;
+  width: 30rpx;
+  height: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+/* 零评价：隐藏星，仅浅灰文案（不误报 0 分） */
+.rating-empty { flex: none; font-size: var(--font-small); color: var(--text-placeholder); }
+
+/* 右侧位置：定位图标 + 「食堂 · 楼层 · 档口」，超长省略 */
+.loc-group { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-xs); }
+.loc-icon {
+  flex: none;
+  width: 26rpx;
+  height: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loc-text { min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ③ 简介：默认两行 + 右下角「展开 / 收起」（纯文字，无填充） */
+.desc-row { display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.desc-content {
   flex: 1 1 auto;
   min-width: 0;
-  height: 12rpx;
-  display: flex;
-  gap: var(--spacing-3xs);
-  border-radius: var(--radius-pill);
-  background: var(--color-star-empty);
+  font-size: var(--font-small);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-all;
 }
-.rate-seg { flex-grow: 0; flex-basis: 0; background: var(--color-star); }
-/* 零评价：轻文案一行（不占位成块、不误报 0 分） */
-.rate-empty { display: block; font-size: var(--font-aux); color: var(--text-tertiary); }
-
-/* 统一分隔线语言：段落之间仅用 border-top（一条语义），不再混用竖线 / border-bottom */
-.card-block { margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 2rpx solid var(--border-color); }
-
-/* ② 位置行（右侧并入纠错入口） */
-.loc-row { display: flex; align-items: center; gap: var(--spacing-xs); }
-.loc-icon { width: 26rpx; height: 26rpx; line-height: 1; flex-shrink: 0; }
-.loc-text { flex: 1 1 auto; min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 纠错入口：视觉低调 = 三级灰小字 + arrow 图标（非主色、非按钮 / chip），
-   横排 icon+文字居中；命中区 ::after 扩至 ≥88rpx（Apple 44pt 触达下限模式），按压 opacity 与全站一致 */
-.correct-link { position: relative; flex: 0 0 auto; margin-left: var(--spacing-sm); display: flex; align-items: center; gap: var(--spacing-3xs); padding: var(--spacing-3xs) var(--spacing-xs); -webkit-tap-highlight-color: transparent; }
-.correct-link-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); line-height: 1.4; }
-.correct-link::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 88rpx;
-  height: 88rpx;
-  transform: translate(-50%, -50%);
+.desc-content--collapsed { -webkit-line-clamp: 2; line-clamp: 2; }
+.desc-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: flex-end;
+  font-size: var(--font-aux);
+  color: var(--color-primary);
+  font-weight: var(--weight-medium);
+  padding: var(--spacing-3xs) var(--spacing-xs);
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
 }
-.correct-link.pressed { opacity: 0.7; }
-
-/* ③ 描述（默认两行 + 展开 / 收起；展开钮命中区经 ::after 扩至 ≥88rpx） */
-.desc-row { display: flex; align-items: flex-start; gap: var(--spacing-sm); }
-.desc-content { flex: 1 1 auto; min-width: 0; font-size: var(--font-small); color: var(--text-secondary); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
-.desc-content--collapsed { -webkit-line-clamp: 2; }
-.desc-toggle { position: relative; flex: 0 0 auto; align-self: flex-start; font-size: var(--font-aux); color: var(--color-primary); font-weight: var(--weight-medium); padding: var(--spacing-3xs) var(--spacing-xs); line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+/* 触达：展开钮命中区经 ::after 扩至 ≥88rpx（不改变视觉尺寸） */
 .desc-toggle::after {
   content: '';
   position: absolute;
@@ -240,11 +221,56 @@ function goCorrect() {
   transform: translate(-50%, -50%);
 }
 
-/* ④ 四维：逐维渲染（缺项不渲染该列），水平等分、单行不折行、无竖线分隔 */
-.dims { display: flex; align-items: stretch; }
-/* 标签贴底对齐（justify-content: flex-end）：长值换行时各列标签仍在同一基线上 */
-.dim-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--spacing-xs); padding: 0 var(--spacing-sm); }
-/* 数字 500 档（--weight-medium）、标签三级浅灰；长值不硬截断——最多两行自动换行收起 */
-.dim-val { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--text-primary); line-height: 1.2; text-align: center; max-width: 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; word-break: break-word; }
-.dim-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
+/* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间（简述在上留 --spacing-sm、下方留 --spacing-md） */
+.divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 var(--spacing-md); }
+
+/* ⑤ 属性标签容器：浅米色底（--bg-page）+ 4 列均分 + 每列「标签在上、值在下」；**只用底色、不加边框** */
+.attrs {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--bg-page);
+  border-radius: var(--radius-icon);
+  box-sizing: border-box;
+}
+.dim-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-3xs); }
+/* 上一行：弱灰固定小字标题；下一行：字段值（多值已用「、」拼接） */
+.dim-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.2; }
+.dim-val {
+  font-size: var(--font-small);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* 容器右上角纠错入口：**纯文字**（三级灰小字 + arrow 图标），不填充、不描边 */
+.correct-link {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3xs);
+  padding: var(--spacing-3xs) var(--spacing-xs);
+  margin: calc(-1 * var(--spacing-3xs)) calc(-1 * var(--spacing-xs));
+  -webkit-tap-highlight-color: transparent;
+}
+.correct-link-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); line-height: 1.4; white-space: nowrap; }
+.correct-arrow { flex: none; }
+.correct-link::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  transform: translate(-50%, -50%);
+}
+.correct-link.pressed { opacity: 0.7; }
 </style>

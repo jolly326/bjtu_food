@@ -69,7 +69,6 @@
           :location-text="locationText"
           :rating="dish.rating || 0"
           :rating-count="dish.ratingCount || 0"
-          :distribution="ratingDistribution"
         />
         <DishReviewSection
           :reviews="reviewList"
@@ -178,7 +177,6 @@ const {
   navOpacity,
   onScroll,
   locationText,
-  ratingDistribution,
   reviewList,
   reviewTotal,
   reviewFailed,

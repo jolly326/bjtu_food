@@ -208,7 +208,8 @@ export function useDishPage() {
    * 契约约定后端**按 `star` 降序（5 → 1）**下发（与页面展示顺序一致）；
    * 业务口径的权威方固定为后端，端上不重复排序，避免换端 / 换排序算法时表现不一致。
    */
-  const ratingDistribution = computed(() => dish.value?.ratingDistribution || [])
+  /* 注：原 `ratingDistribution` 派生值随「评分分布条」一同移除（UI 统一 Loop Round 22，用户规格：
+     不绘制评分进度条）—— 字段仍在接口契约中，端上不再消费。 */
 
   onLoad((query) => {
     const id = Number(query?.id)
@@ -406,7 +407,6 @@ export function useDishPage() {
     navOpacity,
     onScroll,
     locationText,
-    ratingDistribution,
     reviewList,
     reviewTotal,
     reviewFailed,
