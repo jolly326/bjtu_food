@@ -225,6 +225,8 @@ function getDishName(dishId: number | bigint): string {
 
     <!-- 评价列表（事后处置：隐藏 / 取消隐藏 / 删除） -->
     <DataTable
+      retryable
+      @retry="loadList"
       selectable
       v-model:selectedIds="selectedIds"
       :columns="[

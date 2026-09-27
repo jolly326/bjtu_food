@@ -41,6 +41,8 @@ const props = withDefaults(
     rowClickable?: boolean
     /** 空态主图标（组件对象，如 Document / Element Plus 图标） */
     emptyIcon?: Component | null
+    /** 失败态是否显示「重试」按钮（消费方需监听 retry 事件重新取数） */
+    retryable?: boolean
     /** 操作列宽度（px 或字符串），默认 160px */
     actionsWidth?: string
     /** 是否启用分页（默认开启；行数小于每页条数时自动隐藏分页栏） */
@@ -69,13 +71,15 @@ const props = withDefaults(
   {
     loading: false, error: '', emptyText: '暂无数据', selectable: false, rowKey: 'id',
     selectedIds: () => [], rowClickable: false, emptyIcon: null, actionsWidth: '160px',
-    pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10,
+    pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10, retryable: false,
     serverMode: false, serverTotal: 0, serverPage: 1, serverPageSize: 20, highlightRowKey: null,
   },
 )
 
 const emit = defineEmits<{
   'row-click': [row: T]
+  /** 失败态「重试」：仅在 retryable 为 true 时渲染按钮 */
+  retry: []
   'update:selectedIds': [ids: number[]]
   /** serverMode 下当前页码双向同步（v-model:serverPage） */
   'update:serverPage': [page: number]
@@ -212,7 +216,13 @@ watch(
   <div class="table-wrap" ref="wrapRef">
     <!-- 三态 -->
     <div v-if="loading" class="state-box"><span class="spin" />加载中…</div>
-    <div v-else-if="error" class="state-box state-err">{{ error }}，请刷新页面重试</div>
+    <!-- 失败态：文案 + 可选「重试」（消费方传 retryable 并监听 retry —— 避免只说「请刷新页面」却没有动作） -->
+    <div v-else-if="error" class="state-box state-err">
+      <span>{{ error }}</span>
+      <button v-if="retryable" class="btn-secondary btn-sm retry-btn" v-press type="button" @click="emit('retry')">
+        重试
+      </button>
+    </div>
     <!-- 空态：大图标 + 文案 + 可选 CTA（视觉引导，不靠一行小字） -->
     <div v-else-if="!rows.length" class="empty-state">
       <div v-if="emptyIcon" class="empty-icon"><el-icon><component :is="emptyIcon" /></el-icon></div>
@@ -440,6 +450,11 @@ watch(
   gap: var(--space-2);
 }
 /* 三态盒（.state-box/.state-err/.spin）已收敛至 shared.css 全局唯一实现（UI-04），此处不再持副本 */
+/* 失败态重试按钮（与三态盒同处一行，留出左间距） */
+.retry-btn {
+  margin-left: 12px;
+}
+
 /* ===== 空态（视觉引导：图标 + 文案 + CTA） ===== */
 .empty-state {
   display: flex;

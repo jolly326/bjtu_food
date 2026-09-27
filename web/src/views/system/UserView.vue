@@ -179,6 +179,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
     </FilterBar>
 
     <DataTable
+      retryable
+      @retry="refresh"
       selectable
       v-model:selectedIds="selectedIds"
       :columns="[

@@ -349,6 +349,8 @@ async function batchDelete() {
     </FilterBar>
 
     <DataTable
+      retryable
+      @retry="refresh"
       selectable
       row-clickable
       v-model:selectedIds="selectedIds"
@@ -397,7 +399,8 @@ async function batchDelete() {
         <span v-else class="text-muted">—</span>
       </template>
       <template #cell-status="{ row }">
-        <div class="status-cell">
+        <!-- 阻止冒泡：整行可点跳详情，点开关只应切换上下架（否则会误跳详情页） -->
+        <div class="status-cell" @click.stop>
           <el-switch
             :model-value="row.status === 'active'"
             :loading="switchId === Number(row.id)"
