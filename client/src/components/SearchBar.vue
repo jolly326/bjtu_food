@@ -15,7 +15,7 @@
       :hover-class="mode === 'entry' ? 'search-pill-pressed' : 'none'"
       @tap="onPillTap"
     >
-      <IconSvg name="search" :size="18" :color="COLOR_MAP['text-tertiary']" class="search-pill-icon" />
+      <IconSvg name="search" :size="18" :color="COLOR_MAP['text-placeholder']" class="search-pill-icon" />
       <input
         v-if="mode === 'input'"
         class="search-pill-input"
@@ -36,7 +36,7 @@
         aria-label="清除关键词"
         @tap.stop="emit('clear')"
       >
-        <IconSvg name="close" :size="16" :color="COLOR_MAP['text-tertiary']" />
+        <IconSvg name="close" :size="16" :color="COLOR_MAP['text-placeholder']" />
       </view>
     </view>
 
@@ -150,7 +150,10 @@ function onInput(e: any) {
   padding: 0 var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-float);
+  /* 极轻阴影（UI 统一 Loop Round 18 视觉微调）：原用 `--shadow-float`（0 6rpx 16rpx / 12% 黑）偏"浮起"，
+     在暖底上显得比输入区本身更抢眼；`--shadow-card`（4% 黑）只做「与底色分离」的最小提示，
+     让输入区（白底 + 文字）成为视觉主体 —— 贴图/底色只做氛围。 */
+  box-shadow: var(--shadow-card);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -166,18 +169,20 @@ function onInput(e: any) {
 }
 .search-pill.is-input::after { content: none; }
 .search-pill-icon { flex-shrink: 0; line-height: 1; }
+/* 文案分三档（UI 统一 Loop Round 18）：占位 = `--text-placeholder`（#B5A594，轻）／
+   已输入 = `--text-primary`（#2D1F14，深）—— 输入前后文字色差即「已输入」的第一视觉信号。 */
 .search-pill-placeholder,
 .search-pill-input {
   flex: 1;
   min-width: 0;
   font-size: var(--font-body);
-  color: var(--text-tertiary);
+  color: var(--text-placeholder);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .search-pill-input { color: var(--text-primary); }
-.search-pill-ph { color: var(--text-tertiary); }
+.search-pill-ph { color: var(--text-placeholder); }
 .search-pill-clear {
   flex-shrink: 0;
   display: flex;
@@ -209,9 +214,15 @@ function onInput(e: any) {
    MVP 不引入 spinner / 骨架，故仅以禁用态表达「已受理」，
    消除「点了没反应」并挡住重复提交。 */
 .search-btn.is-searching { opacity: 0.6; pointer-events: none; }
-/* 空关键词禁用态：置灰 + 禁点（与 .is-searching 同一禁用语言、更弱一档）。
+/* 空关键词禁用态：**灰底 + 灰字**（UI 统一 Loop Round 18）。
+   原先仅 `opacity: 0.5`，在暖底上仍偏「橙色半透明」，与「主色但没点」易混；
+   改为中性灰底（`--bg-input`）+ 中性灰字（`--text-tertiary`）⇒「不可执行」一眼可辨（skill §8 submit-feedback）。
    `pointer-events: none` 同时去掉按压态 —— 不可执行的动作不给按压反馈。 */
-.search-btn.is-disabled { opacity: 0.5; pointer-events: none; }
+.search-btn.is-disabled {
+  background: var(--bg-input);
+  pointer-events: none;
+}
+.search-btn.is-disabled .search-btn-text { color: var(--text-tertiary); }
 /* 触达：按钮可点区上下各扩 16rpx → ≥88rpx（不改变视觉尺寸） */
 .search-btn::after {
   content: '';
