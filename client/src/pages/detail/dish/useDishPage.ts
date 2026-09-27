@@ -27,6 +27,7 @@ import type { Review, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
+import { getWindowInfo } from '@/utils/device'
 import { dishDetailUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
@@ -182,11 +183,9 @@ export function useDishPage() {
   }
   onMounted(() => {
     // 只取**视口宽**（hero 卡按 16:10 定高用）。状态栏 / 导航行高 / 胶囊避让均由公共 `AppTitleBand` 自持
-    // （UI 统一 Loop Round 16：本页不再消费任何顶部度量）；`windowHeight` 随定格方案一并退役。
-    // 平台例外：wx 全局仅存在于微信运行时，H5 分支由 w 判空兜底
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w: any = (globalThis as any).wx
-    const win = w ? (w.getWindowInfo ? w.getWindowInfo() : (w.getSystemInfoSync ? w.getSystemInfoSync() : null)) : null
+    // （UI 统一 Loop Round 16：本页不再消费任何顶部度量）。
+    // 平台取值统一走 `utils/device`（Round 17：本文件不再触碰全局 `wx`，故无 `any` / `eslint-disable`）
+    const win = getWindowInfo()
     windowWidth.value = (win && win.windowWidth) || 375
   })
 
@@ -389,8 +388,7 @@ export function useDishPage() {
   }
 
   /* ===== 评价举报（收敛到 useReport hook） ===== */
-  const { reportOpen, reportSubmitting, openReport, submitReport } =
-    useReport({ type: 'review', title: '举报评价', placeholder: '请描述举报原因…' })
+  const { reportOpen, reportSubmitting, openReport, submitReport } = useReport({ type: 'review' })
 
   function onReviewReport(rv: Review) {
     openReport(rv.id)
@@ -416,7 +414,6 @@ export function useDishPage() {
     missingDishId,
     imageOnly,
     currentUserId,
-    myReview,
     reviewButtonText,
     composerPrefill,
     composerReviewId,

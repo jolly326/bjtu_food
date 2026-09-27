@@ -1,8 +1,9 @@
 <template>
   <view class="section-title" :class="{ 'no-margin': noMargin }">
     <text class="section-text">{{ title }}</text>
-    <!-- 右侧附加信息：优先文案 prop（extraText，免具名 slot 跨组件分发），其次具名 slot（复杂内容用） -->
-    <text v-if="extraText" class="section-extra">{{ extraText }}</text>
+    <!-- 右侧附加信息：经具名 slot 承载（纯文本计数如「N 条」、或可点件如 find 页「清空」）。
+         ⚠️ UI 统一 Loop Round 17：原 `extraText` 文案 prop 全仓零传入，按「零消费即删」移除；
+         消费方均为本组件的**直接**使用方（不涉及跨层具名 slot 分发），故 slot 方案无塌缩风险。 -->
     <slot name="extra" />
   </view>
 </template>
@@ -13,21 +14,15 @@
  * 全站分区/模块标题为无竖线纯文本标题，层级由字号/字重承担，
  * 不再渲染左侧品牌色竖条（旧 bar 装饰已移除）。
  *
- * 右侧附加信息两种承载方式：
- * - `extraText`（推荐，纯文本计数/单位）：**不经具名 slot**，避免「组件 → 共享组件」跨层具名 slot
- *   在 mp-weixin 下的分发风险（uni-app 对同名 slot 有塌缩历史，见 §4.9 瀑布流红线）；
- * - `#extra` 具名 slot（保留给需要可点/富内容右位的页面，如 find 页「清空」）。
+ * 右侧附加信息经 `#extra` 具名 slot 承载（如评价数、find 页「清空」）。
  */
 withDefaults(defineProps<{
   /** 标题文案 */
   title: string
   /** 是否去掉左右外边距（用于已自带 padding 的容器内部） */
   noMargin?: boolean
-  /** 右侧附加纯文本（如评价数）；与具名 slot 二选一，同时给时两者都渲染 */
-  extraText?: string
 }>(), {
   noMargin: false,
-  extraText: '',
 })
 </script>
 
@@ -49,11 +44,6 @@ withDefaults(defineProps<{
   flex: 1;
   min-width: 0;
 }
-/* 右侧附加纯文本：小字 + 三级灰（次级信息，不与标题争层级） */
-.section-extra {
-  flex-shrink: 0;
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
+/* 右侧附加内容（`#extra` 槽）的排版由消费方自持：本组件不再内置 `.section-extra`
+   （随 `extraText` prop 一并移除 —— UI 统一 Loop Round 17） */
 </style>

@@ -9,10 +9,6 @@ import { submitFeedback } from '@/api/feedback'
 export interface UseReportOptions {
   /** 举报对象类型：现网为 'review'（菜品详情的评价），随 submitFeedback.relatedType 使用 */
   type: 'review' | string
-  /** 举报弹窗标题，如「举报评价」 */
-  title?: string
-  /** 举报弹窗占位提示 */
-  placeholder?: string
   /** 提交成功后的 Toast 文案 */
   successText?: string
 }
@@ -20,7 +16,6 @@ export interface UseReportOptions {
 export interface UseReportReturn {
   reportOpen: Ref<boolean>
   reportSubmitting: Ref<boolean>
-  reportTargetId: Ref<number | null>
   /** 打开举报弹窗（游客可直达，无需认证） */
   openReport: (targetId: number) => void
   /** 提交举报：reasonValue = 弹层单选的举报原因机器值（字典下发项），作为 sub 上送 */
@@ -54,12 +49,12 @@ export function useReport(options: UseReportOptions): UseReportReturn {
       })
       uni.showToast({ title: options.successText || '举报已提交', icon: 'success' })
       reportOpen.value = false
-    } catch (e: any) {
-      uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+    } catch (e) {
+      uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
     } finally {
       reportSubmitting.value = false
     }
   }
 
-  return { reportOpen, reportSubmitting, reportTargetId, openReport, submitReport }
+  return { reportOpen, reportSubmitting, openReport, submitReport }
 }

@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { getWindowInfo } from '@/utils/device'
 
 const props = withDefaults(defineProps<{
   /** `true` = 页面级（`position: fixed`，视口锚定、不随页面滚动）；默认 `absolute`（供容器裁切） */
@@ -41,11 +42,8 @@ const resolvedHeightPx = computed(() => (props.heightPx > 0 ? props.heightPx : m
 
 onMounted(() => {
   if (props.heightPx > 0) return
-  // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
-  const win = (typeof wx !== 'undefined')
-    // @ts-ignore
-    ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
-    : null
+  // 平台取值统一走 `utils/device`（本文件不再触碰全局 `wx`，故无 `@ts-ignore`）
+  const win = getWindowInfo()
   measuredHeightPx.value = (win && win.windowHeight) || 812
 })
 </script>

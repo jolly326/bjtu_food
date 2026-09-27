@@ -96,7 +96,8 @@ export const COLOR_MAP = {
   'badge-dark-bg': 'rgba(0, 0, 0, 0.5)',
 } as const
 
-export type IconColorName = keyof typeof COLOR_MAP
+/* 注：原 `export type IconColorName = keyof typeof COLOR_MAP` 已按「零消费即删」移除
+   （UI 统一 Loop Round 17：全仓零 import —— IconSvg 的 color 收的是实色字符串）。 */
 
 /**
  * CSS 变量注册表（UI-03 色值唯一真源，spec §4.2）。

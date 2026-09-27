@@ -137,7 +137,6 @@
  * - 本文件仅保留模板贴片组装与包内子件引用（ImageSwiper / ReviewComposer /
  *   DishInfoCard / DishSummaryCard / DishReviewSection / useDishPage）；生命周期见 useDishPage。
  */
-import IconSvg from '@/components/IconSvg.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import ReportModal from './ReportModal.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
@@ -147,8 +146,6 @@ import DishInfoCard from './DishInfoCard.vue'
 import DishSummaryCard from './DishSummaryCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
 import { useDishPage } from './useDishPage'
-// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
-import { COLOR_MAP } from '@/theme/tokens'
 import RetryBlock from '@/components/RetryBlock.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import { useNavMetrics } from '@/utils/useNavMetrics'

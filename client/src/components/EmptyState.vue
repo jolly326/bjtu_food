@@ -7,7 +7,7 @@
        ⚠️ 与 `RetryBlock` 的分工：RetryBlock = **失败态**（凹陷卡 + 整块可点 + 固定重试语义）；
        本组件 = **空态**（无数据但一切正常，通常不可点，仅在传 `actionText` 时提供 CTA）。
        无障碍：CTA 为 role="button" + aria-label；纯展示态不带交互语义。 -->
-  <view class="empty-state" :class="{ 'has-margin': margin, 'is-card': card }">
+  <view class="empty-state" :class="{ 'is-card': card }">
     <IconSvg v-if="icon" :name="icon" :size="iconSize" :color="COLOR_MAP['text-tertiary']" />
     <text v-if="title" class="es-title">{{ title }}</text>
     <text v-if="desc" class="es-desc">{{ desc }}</text>
@@ -51,8 +51,6 @@ withDefaults(defineProps<{
   iconSize?: number
   /** CTA 文案（可选；传了才渲染主色胶囊按钮） */
   actionText?: string
-  /** 是否带上方外边距（与上一区块拉开时使用） */
-  margin?: boolean
   /**
    * 卡片变体：白底 + 大圆角 + 柔和投影（与列表卡同表面语言）。
    * 仅用于**整屏居中的主空态**（如搜索无结果）；区块内的小空态保持无底色的最简形态。
@@ -60,7 +58,6 @@ withDefaults(defineProps<{
   card?: boolean
 }>(), {
   iconSize: 44,
-  margin: false,
   card: false,
 })
 
@@ -81,7 +78,6 @@ const emit = defineEmits<{
   padding: var(--spacing-xl) 0;
   box-sizing: border-box;
 }
-.empty-state.has-margin { margin-top: var(--spacing-lg); }
 /* 卡片变体：整屏居中的主空态保留白卡表面（与列表卡同语言），区块内小空态不用 */
 .empty-state.is-card {
   padding: var(--spacing-xl) var(--spacing-lg);

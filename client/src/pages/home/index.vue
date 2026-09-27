@@ -105,6 +105,7 @@ import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH } from '@/utils/routes'
 import { useNavMetrics } from '@/utils/useNavMetrics'
+import { getWindowInfo } from '@/utils/device'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import HomeBanner from './HomeBanner.vue'
@@ -150,11 +151,8 @@ const windowWidthPx = ref(375)
 const viewportHeightPx = ref(812)
 
 onMounted(() => {
-  // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
-  const win = (typeof wx !== 'undefined')
-    // @ts-ignore
-    ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
-    : null
+  // 平台取值统一走 `utils/device`（Round 17：本文件不再触碰全局 `wx`，故无 `@ts-ignore`）
+  const win = getWindowInfo()
   windowWidthPx.value = (win && win.windowWidth) || 375
   viewportHeightPx.value = (win && win.windowHeight) || 812
 })

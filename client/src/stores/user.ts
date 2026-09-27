@@ -169,7 +169,6 @@ export const useUserStore = defineStore('user', () => {
   // lastLoginError 供本 store 内静默登录失败透传），不再出现在 store 返回对象。
   return {
     userInfo,
-    loading,
     silentLogin,
     verifyEmail,
     updateProfile,

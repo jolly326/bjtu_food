@@ -4,7 +4,7 @@
     <PageWallpaper fixed />
     <Header title="我的主页" @back="backToHome" />
 
-    <scroll-view class="scroll-wrap" scroll-y>
+    <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <!-- 用户信息卡：主页的身份版面（头像 / 昵称 / 邮箱），右侧「编辑个人信息」→ 独立个人信息编辑页 -->
       <CardSection class="profile-strip" :class="{ 'is-verified': isVerified }" flush>
         <view class="strip-avatar-wrap">
@@ -65,7 +65,7 @@
  * - 失败态（MP-012）：首屏失败渲染「加载失败 · 点击重试」块；分页失败保持静默，可再触底重试
  */
 import { ref, computed } from 'vue'
-import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
@@ -218,8 +218,9 @@ onShow(() => {
   refreshOnShow()
 })
 
-/** 自然文档滚动触底：加载更多本人评价（替换 scroll-view 的 @scrolltolower，贴合 UI 稿自然滚动口径） */
-onReachBottom(() => loadMore())
+/* 触底加载更多：由模板上 `scroll-view` 的 `@scrolltolower="loadMore"` 触发。
+   ⚠️ Round 17 修复缺陷：本页自 Round 12-A 起为「顶栏 + `scroll-view`（`flex: 1`）+ 页面 `height: 100vh`」
+   ⇒ **页面自身不再滚动**，原先的页面级 `onReachBottom` 永远不会触发（触底分页失效）；现统一走滚动区事件。 */
 </script>
 
 <style scoped>
