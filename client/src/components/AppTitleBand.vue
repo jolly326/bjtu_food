@@ -147,8 +147,10 @@ const centerFontSize = computed(() => props.centerSize || 'var(--font-title)')
   -webkit-tap-highlight-color: transparent;
 }
 .band-back-pressed { opacity: 0.55; }
+/* 「返回」与页面名**完全同级**（同字号 + 同字重）：2026-09-27 用户裁决 —— 三处（左页面名 /
+   左「返回」/ 居中页面名）默认均取 `--font-title` + **粗体**，与首页「知行食记」一致。 */
 .band-back-text {
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-bold);
   line-height: 1.1;
   color: var(--text-primary);
 }

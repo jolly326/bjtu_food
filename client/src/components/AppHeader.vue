@@ -105,10 +105,11 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .back-area.pressed { opacity: 0.6; }
-/* 「返回」文字：与标题同族深浅（深棕），替代原白箭头（白字在浅壁纸上不可读） */
+/* 「返回」文字：与标题**完全同级**（同字号 + 同字重）—— 2026-09-27 裁决「各页统一成首页大小」：
+   字号 `--font-title`(44rpx) + 粗体，与 `AppTitleBand` / 首页「知行食记」一致。 */
 .back-text {
-  font-size: var(--font-body);
-  font-weight: var(--weight-medium);
+  font-size: var(--font-title);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
 }
 /* 标题（有返回 ⇒ 居中）：相对导航行真正水平居中，不受左侧返回宽度影响 */
@@ -117,9 +118,9 @@ function handleBack() {
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
-  /* 导航标题档（36rpx / 600）——client-visual-language R3 五档映射 */
-  font-size: var(--font-h3);
-  font-weight: var(--weight-semibold);
+  /* 2026-09-27 裁决「各页统一成首页大小」：字号 `--font-title`(44rpx) + 粗体，与首页「知行食记」同档 */
+  font-size: var(--font-title);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
   max-width: 56%;
   overflow: hidden;

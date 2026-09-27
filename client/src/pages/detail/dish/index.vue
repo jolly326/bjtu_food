@@ -223,7 +223,10 @@ const {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding-bottom: calc(var(--action-bar-height) + var(--spacing-lg) + env(safe-area-inset-bottom));
+  /* 底部让位**精确等于**固定操作栏高度（token 已按「8 + 44 + 8 = 60px」定档）——
+     不再叠加 `--spacing-lg`（那会在滚动区下沿与操作栏之间留出一条可见空档）。
+     内容末端的呼吸感由卡片自身 margin 提供，不靠这里补。 */
+  padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom));
 }
 
 /* ===== 滚动区（与首页 §11 同构）=====
@@ -261,8 +264,11 @@ const {
 /* 原 `.hero-slot`（sticky 两阶段定格）与 `.hero-carry`（承接条）已随口径 c 退役：
    hero 现为滚动区首块 `.hero-card`（见上），随滚动 1:1 移出、在标题带下沿被裁。 */
 
-/* 底部固定操作栏：左写评价 / 重新评价（主色实底）+ 右分享给同学（白底主色描边次按钮），等宽双按钮，与全局主按钮同高/圆角/字重 */
-.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar); display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: var(--bg-card); box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
+/* 底部固定操作栏：左写评价 / 重新评价（主色实底）+ 右分享给同学（白底主色描边次按钮），等宽双按钮。
+   表面口径（2026-09-27 裁决「与背景相适应」）：**透明底** + 上边框 + 柔投影 ——
+   与 `TabBar` 完全同款「材质分层」写法（`.tab-bar`：transparent + border-top + shadow）；
+   滚动区在该栏上沿**精确结束** ⇒ 没有内容从它背后经过 ⇒ 透明是安全的（背后即页底壁纸）。 */
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar); display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md) calc(var(--spacing-sm) + env(safe-area-inset-bottom)); background: transparent; box-shadow: var(--shadow-bar-soft); border-top: 2rpx solid var(--border-color); }
 /* 按钮基线（圆角统一到全局主按钮档位 token --radius-btn、600 字重、88rpx 高；图标 + 文字同行居中）。
    按压反馈显式 :active（不依赖平台默认 hover），与全站 bg-soft/opacity 按压语言一致。 */
 .bar-btn { flex: 1; min-width: 0; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); border-radius: var(--radius-btn); border: none; padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent; }
