@@ -56,10 +56,10 @@ const props = withDefaults(defineProps<{
   back?: boolean
   /**
    * 左区字号（CSS 长度，如 `'44rpx'` / `'var(--font-title)'`）。
-   * 不传 ⇒ 按有无返回自动取档：有返回 `--font-body`（文字「返回」）、无返回 `--font-title`（页面名）。
+   * 不传 ⇒ **`--font-title`**（与首页「知行食记」同档，2026-09-27 用户裁决）——「返回」与页面名同字号。
    */
   leftSize?: string
-  /** 居中区字号（CSS 长度）。不传 ⇒ `--font-h3`（导航标题档） */
+  /** 居中区字号（CSS 长度）。不传 ⇒ **`--font-title`**（与首页「知行食记」同档） */
   centerSize?: string
 }>(), {
   title: '',
@@ -76,10 +76,10 @@ const bandStyle = computed(() => ({
   paddingTop: 'max(' + statusBarPx.value + 'px, env(safe-area-inset-top))',
 }))
 
-/** 左区字号：显式传参优先；否则按「有返回（返回二字）/ 无返回（页面名）」分档 */
-const leftFontSize = computed(() => props.leftSize || (props.back ? 'var(--font-body)' : 'var(--font-title)'))
-/** 居中区字号：显式传参优先；默认导航标题档 */
-const centerFontSize = computed(() => props.centerSize || 'var(--font-h3)')
+/** 左区字号：显式传参优先；**默认与首页「知行食记」同档**（`--font-title`），有返回时「返回」同字号 */
+const leftFontSize = computed(() => props.leftSize || 'var(--font-title)')
+/** 居中区字号：显式传参优先；**默认与首页「知行食记」同档**（`--font-title`） */
+const centerFontSize = computed(() => props.centerSize || 'var(--font-title)')
 </script>
 
 <style scoped>
@@ -99,7 +99,10 @@ const centerFontSize = computed(() => props.centerSize || 'var(--font-h3)')
   pointer-events: none;
 }
 
-/* ===== 左区：与左边缘的间距在此（`--spacing-md`，页面级 gutter 同轴） ===== */
+/* ===== 左区：与**最左侧的 gap 由本区 `padding-left` 产生** =====
+   `--spacing-md`（24rpx = 12px）= 页面级 gutter —— 与卡片左边线**同轴对齐**，
+   即「标题左缘 = 内容左缘」。⚠️ gap 只允许由 padding / border 产生（不得用 margin 或定位偏移，
+   否则会连带平移居中区基准）。如需更大，改这一个值即可。 */
 .band-left {
   display: flex;
   align-items: center;
@@ -145,7 +148,8 @@ const centerFontSize = computed(() => props.centerSize || 'var(--font-h3)')
   transform: translateX(-50%);
   z-index: 1;
   text-align: center;
-  font-weight: var(--weight-semibold);
+  /* 与首页「知行食记」同档（字号走内联 `--font-title`；字重同为粗体 ⇒ 三处视觉完全同级） */
+  font-weight: var(--weight-bold);
   line-height: 1.1;
   color: var(--text-primary);
   /* 右端不侵入微信原生胶囊（胶囊宽 ≈ 87px，居中标题限宽 56% ≈ 210px 内安全） */
