@@ -40,27 +40,30 @@
       <text v-if="errors['form.type']" class="field-error">{{ errors['form.type'] }}</text>
     </view>
 
-    <!-- ② 具体描述：占位文案随选中类型切换（未选类型时给通用引导） -->
-    <view class="field">
-      <text class="field-label">具体描述<text class="req">*</text></text>
+    <!-- ② 具体描述（非纠错类型）：上限 600 字、字数**常显在标题行右上角**；占位随选中类型切换。
+         类型 = 「菜品信息纠错」时本块不渲染（改由页面侧的预填纠错表单承载，用户口径 v2）。 -->
+    <view v-if="!isCorrection" class="field">
+      <view class="field-head">
+        <text class="field-label">具体描述<text class="req">*</text></text>
+        <text class="counter">{{ model.content.length }}/{{ CONTENT_MAX }}</text>
+      </view>
       <textarea
         id="f-form-content"
         :value="model.content"
         class="content-input"
         :class="{ 'input-error': errors['form.content'] }"
         :placeholder="placeholder"
-        maxlength="1000"
+        :maxlength="CONTENT_MAX"
         :auto-height="true"
         :cursor-spacing="40"
         :adjust-position="true"
         @input="onTextInput"
       />
-      <text v-if="model.content.length > 800" class="counter">{{ model.content.length }}/1000</text>
       <text v-if="errors['form.content']" class="field-error">{{ errors['form.content'] }}</text>
     </view>
 
-    <!-- ③ 上传截图（选填，最多 1 张）：单图虚线框形态；破图走统一 ImagePlaceholder -->
-    <view class="field">
+    <!-- ③ 上传截图（非纠错类型；选填，最多 1 张）：单图虚线框形态；破图走统一 ImagePlaceholder -->
+    <view v-if="!isCorrection" class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
         single
@@ -78,10 +81,17 @@
 
 <script setup lang="ts">
 /** IssueForm（feedback 包内私有）：意见反馈页单表单字段区（类型 + 描述 + 截图 + 提示） */
+import { computed } from 'vue'
 import ImagePicker from '@/components/ImagePicker.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
+
+/** 描述上限（与编排层同源常量；值 = 用户口径 v2 的 600 字） */
+const CONTENT_MAX = 600
+
+/** 类型 = 「菜品信息纠错」⇒ 字段区换成预填纠错表单（描述与截图本组件不渲染） */
+const isCorrection = computed(() => props.model.type === 'error')
 
 const props = defineProps<{
   model: { type: FeedbackType | ''; content: string; images: string[] }
@@ -188,13 +198,18 @@ function onImagesChange(urls: string[]) {
   line-height: 1.4;
 }
 
-/* 字数计数（>800 才显示，等宽数字避免跳动） */
+/* 字段标题行：左标题 + 右计数（计数与标题同基线，不占额外高度） */
+.field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+/* 字数计数：常显在标题行**右上角**（等宽数字避免跳动） */
 .counter {
-  display: block;
-  text-align: right;
+  flex: none;
   font-size: var(--font-aux);
   color: var(--text-tertiary);
-  margin-top: var(--spacing-xs);
   font-variant-numeric: tabular-nums;
 }
 

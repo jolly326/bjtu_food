@@ -21,6 +21,18 @@
           @pick="onPickType"
         />
 
+        <!-- 类型 = 「菜品信息纠错」⇒ 字段区换成**预填纠错表单**（用户口径 v2）：
+             选菜 → 拉详情预填（名称 / 价格 / 食堂 / 档口 / 口味 / 食材 / 图片）→ 只改错的地方提交 -->
+        <UpdateForm
+          v-if="isCorrection"
+          :model="update"
+          :detail-loading="update.detailLoading"
+          :errors="fieldErrors"
+          :submitting="submitting"
+          @clear="clearError"
+          @open-dish="openDishSheet"
+          @reset-dish="resetDish"
+        />
       </view>
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
@@ -36,31 +48,65 @@
       </view>
     </scroll-view>
 
-
+    <!-- 纠错字段区的菜品选择弹层（仅类型 = 菜品信息纠错时可用） -->
+    <ListPickerSheet
+      :open="dishSheetOpen"
+      title="选择菜品"
+      searchable
+      search-placeholder="搜菜名"
+      :search-initial="dishKeyword"
+      :options="dishPickerOptions"
+      @close="closeDishSheet"
+      @search="onDishSearchKw"
+      @select="onDishPick"
+    >
+      <template #empty>
+        <EmptyState
+          v-if="dishKeyword && dishSearched && !dishPickerOptions.length"
+          :title="`没搜到「${dishKeyword}」，换个关键词试试`"
+        />
+        <EmptyState v-else-if="!dishKeyword" title="输入关键词搜索菜品" />
+      </template>
+    </ListPickerSheet>
   </view>
 </template>
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页（**全页只有一张表单**，2026-09-27 改版）
- * - 反馈类型 4 选 1（竖排单选，选中项左侧橙色勾）+ 具体描述（占位随类型切换）+ 截图（≤1 张）+ 本地草稿；
- * - 提交 `POST /feedback`（type ∈ bug/suggestion/error/other）；
- * - **两种进入方式只差一个默认值**：「我的」页宫格进入 ⇒ 类型待用户选；
- *   菜品详情页「反馈错误」进入 ⇒ 类型**默认勾选「菜品信息纠错」**（同一张表单、无页签、无模式切换）；
- * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件仅 `IssueForm`（一级拆分，就近组织）。
+ * feedback —— 意见反馈页（**一张表单、无页签**，字段区随所选类型切换，2026-09-27 用户口径 v2）
+ * - 反馈类型 4 选 1（竖排单选，选中项左侧橙色勾）；
+ * - 类型 ≠ 「菜品信息纠错」⇒ 具体描述（≤600 字、占位随类型切换、字数常显右上角）+ 截图（选填 ≤1 张）；
+ *   类型 = 「菜品信息纠错」⇒ **预填纠错表单**（选菜 → 详情预填 → 只改错的地方，提交纠错端点）；
+ * - 提交 `POST /feedback`（type ∈ bug/suggestion/error/other）或 `POST /dishes/{id}/correction`；
+ * - 进入方式：「我的」页宫格 ⇒ 类型待用户选；菜品详情页「反馈错误」⇒ 类型默认「菜品信息纠错」**并按 dishId 自动预填**；
+ * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件：IssueForm / UpdateForm / ListPickerSheet（一级拆分）。
  */
 import { computed } from 'vue'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import IssueForm from './IssueForm.vue'
+import UpdateForm from './UpdateForm.vue'
+import ListPickerSheet from './ListPickerSheet.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useFeedback } from './useFeedback'
 
 const {
   goBack,
   form,
+  isCorrection,
   typePlaceholder,
   onPickType,
+  update,
+  dishSheetOpen,
+  dishKeyword,
+  dishPickerOptions,
+  dishSearched,
+  openDishSheet,
+  closeDishSheet,
+  onDishSearchKw,
+  onDishPick,
+  resetDish,
   fieldErrors,
   scrollIntoView,
   submitting,
