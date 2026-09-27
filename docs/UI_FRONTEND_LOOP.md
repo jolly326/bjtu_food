@@ -726,6 +726,29 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 33 改动文件**：删除 `docs/{project_spec,architecture,api-design,database}.md`；`CODEBUDDY.md`、`README.md`、`docs/feature/README.md`、`docs/ui/README.md`、`.codebuddy/agents/*.md`(7)、`.codebuddy/rules/docs-first-sync-and-db-direct.md`。
 
+### Round 34（2026-09-27）—— 意见反馈页改「单表单 + 4 类型」（用户设计稿）+ 服务端放开类型值域
+
+> 来源：用户给出重构方案（**无页签、单表单**、4 类型竖排单选、描述占位随类型切换、截图 ≤1、本地草稿）；经一轮评估确认 4 项决策（详情页入口保留「自动填好这道菜」的纠错表单 / Web 暂不管 / 类型用服务端已有历史词 / 截图收紧 1 张）后实施。
+
+| 项 | 内容 |
+|---|---|
+| 服务端 | `FeedbackConst.WRITABLE_TYPES` 由 `issue/report` 放开为 **`bug` / `suggestion` / `error` / `other` / `issue` / `report`**（`add` 仍禁新增）；`FeedbackReq` 的 schema 与 javadoc 同步 |
+| 端上类型 | `types/feedback.ts` 新增 **`FEEDBACK_TYPES`** 常量（`value`/`label`/`hint`/`placeholder` 四元组，值域与服务端同源）+ `FeedbackType` 类型 + `FeedbackSubmit` 联合增加值域 |
+| 单表单 | `IssueForm.vue` 重写：**类型竖排单选**（整行可点、行高 ≥88rpx、左侧橙色勾、`role=radio`+`aria-checked`）+ **描述**（占位随类型切换、>800 字显示 `n/1000`）+ **截图**（`ImagePicker single` 单图虚线框）+ 小字提示「提交内容将由项目维护者查看」 |
+| 上传件 | `ImagePicker` 新增 **`single`** 形态：格放大 200rpx、满额不渲染 `n/n` 计数格；添加框沿用既有 `2rpx dashed --border-bold` 描边（未重复声明） |
+| 编排 | `useFeedback.ts` 重写：`mode`（双模式）→ **`isUpdateMode`**（形态由**进入方式**决定）；新增单表单态 + **本地草稿**（仅类型与描述，图片不缓存 —— COS 地址重进可能失效）；`canSubmit` / `gateHint` / `submit` 按形态分支；纠错形态逻辑与改版前逐字一致 |
+| 页面 | `index.vue`：删分段控件与其样式、`q-card` 上边距回归 `--spacing-md`；提交区说明行**仅纠错形态**显示、按钮文案按形态切换（提交反馈 / 提交更新）；**页面无页签、无切换入口** |
+| 文案降级 | 撤下「48 小时内处理 + 站内通知」承诺（用户拍板），改为表单内小字「提交内容将由项目维护者查看」 |
+| 文档 | `docs/ui/client-意见反馈.md` 按新形态重写（含类型表 / 草稿 / 上传件 / 纠错形态）；`docs/feature/client-意见反馈.md` 同步 5 处（介绍段 / 模式表 / 流程 / `type` 值域 / `images` 上限） |
+
+**闸门**：`read_lints` **0 诊断**；`vue-tsc` / 构建 / 真机由**用户执行**（用户明确口径）
+
+> #### ⚠️ 两点已登记
+> ① **微信原生大图预览无法接管**：点缩略图看大图走 `uni.previewImage`，其加载中 / 失败样式由微信控制；端上可控的是**缩略图破图 → 统一 `ImagePlaceholder`**、且点它不进入预览。若要「大图也用我们的占位」，需自写全屏预览层（另评估）。
+> ② **类型文案目前在端上**（`FEEDBACK_TYPES`），**值域**由服务端白名单校验；若后续要「改文案不发版」，改为服务端字典端点下发即可（渲染结构不变）。
+
+**Round 34 改动文件**：`pages/feedback/{index.vue,useFeedback.ts,IssueForm.vue}`、`components/ImagePicker.vue`、`types/feedback.ts`、`server/.../{FeedbackConst.java,FeedbackReq.java}`、`docs/{ui,feature}/client-意见反馈.md`。
+
 **Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
 `pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
 `pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、

@@ -25,11 +25,16 @@ public interface FeedbackConst {
     /**
      * 反馈类型写入白名单（单一真源）。
      * <p>
-     * 仅端上真实产出的 2 类：{@code issue}（我要反馈问题）/ {@code report}（菜品详情页举报）。
-     * suggestion/add/error/bug/other 为历史遗留类型、端上已无生产者，禁止新增写入
-     * （历史数据仍可读、可筛选）。
+     * 2026-09-27 起（意见反馈页改单表单 + 4 类型单选）端上真实产出的 5 类：
+     * {@code bug}（小程序功能 Bug）/ {@code suggestion}（产品功能建议）/ {@code error}（菜品信息纠错）
+     * / {@code other}（其他平台相关问题）/ {@code issue}（我要反馈问题，历史写入值、存量仍在）,
+     * 外加 {@code report}（菜品详情页举报）。
+     * <p>
+     * {@code add}（新增菜品）仍为历史遗留类型、禁新增（历史数据仍可读、可筛选）。
      */
-    Set<String> WRITABLE_TYPES = Set.of(TYPE_ISSUE, TYPE_REPORT);
+    Set<String> WRITABLE_TYPES = Set.of(
+            TYPE_BUG, TYPE_SUGGESTION, TYPE_ERROR, TYPE_OTHER,
+            TYPE_ISSUE, TYPE_REPORT);
 
     /**
      * 反馈类型查询白名单（含全部历史类型，供后台筛选存量数据，P2-01 兼容要求）。
