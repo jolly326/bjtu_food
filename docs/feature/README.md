@@ -7,7 +7,7 @@
 
 | 文件名前缀 | 板块 | 代码目录 | 说明 |
 |---|---|---|---|
-| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **15 个在线功能**；业务数据的唯一产生源 |
+| `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **16 个在线功能**；业务数据的唯一产生源 |
 | `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 7 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
 
 > 阅读约定：每份文档固定为 **介绍 → UI → 接口 → 字段（字段名 + 中文解释）→ 数据** 五段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（文档 / 代码同步口径见 `.codebuddy/rules/docs-first-sync-and-db-direct.md`）。
@@ -26,7 +26,7 @@
 
 ---
 
-## client- · 学生端（微信小程序，15 个在线功能）
+## client- · 学生端（微信小程序，16 个在线功能）
 
 | 编号 | 功能 | 文档 | 鉴权 | 状态 |
 |---|---|---|---|---|
@@ -45,6 +45,7 @@
 | A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | ✅ **已完成**（2026-09-25） |
 | A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 需登录（游客态亦可） | ✅ **已完成**（2026-09-25） |
 | A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | ✅ **已完成**（2026-09-25） |
+| A-17 | **菜品信息纠错**（2026-09-27 自 [A-11](./client-意见反馈.md) 拆出；入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | 🔓 | — |
 
 > **「状态」列口径**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
 
@@ -98,8 +99,8 @@
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
 | `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginVO` | 登录响应（`token` + `userInfo`，仅 `POST /auth/wechat-login` 出参） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
-| `FeedbackReq` | `POST /feedback`（`issue` 问题反馈）、`GET /admin/feedbacks` 出参 | [client-意见反馈](./client-意见反馈.md) |
-| `CorrectionReq` / `CorrectionAdminVO` | `POST /dishes/{id}/correction`、`/admin/corrections*` | [client-意见反馈](./client-意见反馈.md) / [web-信息纠错](./web-信息纠错.md) |
+| `FeedbackReq` | `POST /feedback`（3 类型：`bug` / `suggestion` / `other`） | [client-意见反馈](./client-意见反馈.md) |
+| `CorrectionReq` / `CorrectionAdminVO` | `POST /dishes/{id}/correction`、`/admin/corrections*` | [client-菜品纠错](./client-菜品纠错.md) / [web-信息纠错](./web-信息纠错.md) |
 | `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
 | `ReviewAdminVO` | `GET /admin/reviews` | [web-评价管理](./web-评价管理.md) |
 | `FeedbackAdminVO` / `FeedbackHandleReq` | `/admin/feedbacks*` | [web-反馈处理](./web-反馈处理.md) |
@@ -114,7 +115,7 @@
 1. **提问**：在对应功能文档末尾追加一行 `Q:你的问题`（无需管格式）。
 2. **答复**：我把 `Q:` 归一为 `### Q：` 标题、紧随补 `**A：**` 答复（先核实代码实况 / 平台规则再作答），并同步更新本 README 的「需拍板的待办清单」。
 3. **拍板**：你在后续 `Q:` 中确认结论（如「确定下来了」）。
-4. **更新**：我把拍板结论写回该文档正文五段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，先修订 `project_spec.md` 再动代码（接口 / 库表口径统一收敛至 `docs/project_spec.md`）。
+4. **更新**：我把拍板结论写回该文档正文五段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，**先修订本目录对应功能文档**再动代码（接口 / 库表口径统一收敛至 `docs/feature/`；仓库红线见 `CODEBUDDY.md`）。
 5. 全部功能核验通过 = 产品验收完成。
 
 ---

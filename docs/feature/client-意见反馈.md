@@ -2,34 +2,37 @@
 
 > 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔓 公开**（免认证；游客可提交）
 > 返回：[功能总览](./README.md)
+> **2026-09-27 拆分**：菜品信息纠错已自本功能拆出为**[独立功能 A-17](./client-菜品纠错.md)**（独立页面、独立端点、独立表）。
+> 本功能自此**只管「面向小程序本身的通用反馈」**：Bug / 产品建议 / 其他问题 + 描述 + 截图。
 
 ## 介绍
 
-学生诉求提交入口。页面**一张表单、无页签**（2026-09-27 用户口径 v2）：反馈类型 4 选 1（`bug` / `suggestion` / `error` / `other`），**字段区随类型切换**：
+学生诉求提交入口：**一张表单、无页签**，反馈类型 **3 选 1**（`bug` / `suggestion` / `other`），字段固定一套 —— 具体描述 + 截图。
 
-| 类型 | 字段区 | 端点 | 提交内容 |
-|---|---|---|---|
-| `bug` / `suggestion` / `other` | 具体描述（**≤600 字**，占位随类型切换）+ 截图（选填 ≤1 张） | `POST /feedback` | `type` + `content` + `images`（≤1） |
-| ~~`error`（菜品信息纠错）~~ | **已迁出本页**（2026-09-27）：独立页面 `pages/correction/`，入口仅菜品详情页底栏「反馈错误」；UI 口径见 [client-菜品纠错.md](../ui/client-菜品纠错.md) | `POST /dishes/{id}/correction` | 七字段平铺（`price` 单位分；`images` 端上 **≤1**） |
+| 项 | 口径 |
+|---|---|
+| 反馈类型 | `bug`（程序功能Bug）/ `suggestion`（产品功能建议）/ `other`（其他相关问题）；**决定描述框占位文案** |
+| 具体描述 | 必填；端上 ≤**600 字**（服务端上限 1000） |
+| 截图 | 选填，**≤1 张**（端上收紧；服务端上限 3 张） |
+| 本地草稿 | 仅缓存「类型 + 描述」（图片是 COS 地址、重进可能失效，不缓存）；提交成功后清除 |
 
 入口：
 
-- 「我的」页宫格「意见反馈」→ 3 类型待用户选（恢复本地草稿）；搜索页「没搜到 → 推荐这道菜」复用本页；
-- 菜品纠错**已迁出**为独立页面 `pages/correction/`（入口 = 菜品详情页底栏「反馈错误」）——本页不再有该类型与该表单。
+- 「我的」页宫格「意见反馈」；
+- 搜索页「没搜到 → 推荐这道菜」复用本页（同为公开提交）。
 
-流程：选类型 →（非纠错）填描述 + 可选 1 张截图 /（纠错）预填表单只改差异项 → 提交。提交门禁 `canSubmit`（类型未选、描述为空或纠错表单未填完即置灰），置灰点击 toast 缺失项；成功 Toast「已提交，感谢反馈」+ 自动返回；另存**本地草稿**（仅类型与描述，图片不缓存），提交成功后清除。处理结果经站内通知回执（仅已认证提交人）。
+流程：选类型（占位随之切换）→ 填描述 → 可选 1 张截图 → 提交。提交门禁：类型未选 / 描述为空即置灰（置灰点击 toast 缺失项）；提交中禁用防重复；成功 Toast「已提交，感谢反馈」+ 2 秒自动返回。处理结果经站内通知回执（仅已认证提交人）。
 
 ## UI
 
 > 📐 页面 UI 设计稿已拆出 → [client-意见反馈.md（docs/ui）](../ui/client-意见反馈.md)（**UI 口径以该文件为唯一真源**）
+> 拆出的纠错页设计稿见 [client-菜品纠错.md（docs/ui）](../ui/client-菜品纠错.md)。
 
 ## 接口
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| POST | `/feedback` | 🔓 公开 | 提交反馈（`type` ∈ `bug` / `suggestion` / `error` / `other`）；公开匿名，IP 限频 |
-| POST | `/dishes/{id}/correction` | 🔓 公开 | 提交菜品信息纠错（**类型 =「菜品信息纠错」时调用**；`dishId` 在路径）；公开匿名，IP 限频 2 条/分钟、10 条/小时 |
-| GET | `/dishes/{id}` | 🔓 公开 | 菜品详情（纠错表单的预填数据源；字段口径见 [client-菜品详情](./client-菜品详情.md)） |
+| POST | `/feedback` | 🔓 公开 | 提交反馈（`type` ∈ `bug` / `suggestion` / `other`）；公开匿名，IP 限频 |
 
 ## 字段
 
@@ -37,47 +40,25 @@
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
-| `type` | string | **是** | 反馈类型，写入口径 = 服务端白名单 `FeedbackConst.WRITABLE_TYPES`：**`bug`（小程序功能Bug）/ `suggestion`（产品功能建议）/ `error`（菜品信息纠错）/ `other`（其他平台相关问题）**（非法值 → 400）；`issue` 为历史写入值、存量仍在；`report` 经同一端点提交但归属[举报评价（A-09）](./client-举报评价.md)，不在本页范围内 |
-| `content` | string | **是** | 反馈正文，最长 **1000 字**（纯空白视为未填 → 400）；服务端敏感词过滤，命中词替换后入库 |
-| `images` | string[] | 否 | 配图 URL 数组，**端上收紧为 ≤1 张**（2026-09-27 改版；服务端上限仍为 3 张）（经 `POST /upload/cloud-image` 安检转存的 COS 地址） |
+| `type` | string | **是** | 反馈类型，写入口径 = 服务端白名单 `FeedbackConst.WRITABLE_TYPES`：**`bug`（程序功能Bug）/ `suggestion`（产品功能建议）/ `other`（其他相关问题）**（非法值 → 400）；`issue` 为历史写入值、存量仍在；`report` 经同一端点提交但归属[举报评价（A-09）](./client-举报评价.md)，不在本页范围内 |
+| `content` | string | **是** | 反馈正文，端上 ≤**600 字**（服务端 ≤1000 字）；纯空白视为未填 → 400；服务端敏感词过滤，命中词替换后入库 |
+| `images` | string[] | 否 | 配图 URL 数组，**端上 ≤1 张**（服务端上限 3 张）（经 `POST /upload/cloud-image` 安检转存的 COS 地址） |
 
-### 请求 · `POST /dishes/{id}/correction`（`CorrectionReq`，七字段平铺）
-
-| 字段名 | 类型 | 必填 | 中文解释 |
-|---|---|---|---|
-| `name` | string | **是** | 菜品名称，非空 ≤**64 字**；服务端敏感词过滤（命中 → 400） |
-| `price` | number | **是** | 现价，**单位「分」**、整数 >0（端上以元填写，提交前经 `utils/money` 的 `yuanToFen` 转分） |
-| `canteenName` | string | **是** | 食堂名称（文本），非空 ≤**64 字** |
-| `stallName` | string | **是** | 档口名称（文本），非空 ≤**64 字** |
-| `flavorTags` | string[] | 否 | 口味标签机器值数组（端上预填详情值 + 用户自由输入项） |
-| `ingredients` | string[] | 否 | 食材机器值数组 |
-| `images` | string[] | 否 | 菜品图片 URL 数组（COS 绝对地址，**≤9 张**，经 `POST /upload/cloud-image` 安检转存；与 `issue` 配图 ≤3 张口径区分） |
-
-> `dishId` 为路径参数，不在请求体；表单提交即全部内容（无文字说明字段）。
+> 菜品信息纠错的请求体（`CorrectionReq`，七字段平铺）见 [client-菜品纠错](./client-菜品纠错.md)。
 
 ### 校验规则（严格模式，一律不静默降级）
 
-**`POST /feedback`（`issue`）**：
+**`POST /feedback`（3 类型：`bug` / `suggestion` / `other`）**：
 
 | 规则 | 结果 | 中文解释 |
 |---|---|---|
-| `content` 空白或 >1000 字 | 400 | 内容必填 |
+| `type` 不在写入白名单 | 400 | 反馈类型非法 |
+| `content` 空白或 >1000 字 | 400 | 内容必填与长度 |
 | `images` >3 张或含非 COS 地址 | 400 | 配图上限与白名单 |
 | 同 IP >2 条/分钟 或 >10 条/小时 | 400 | 限频，提示剩余秒数 |
 | 文本安检 `risky`（含未知 / 缺失态） | 400 | 拦截、不落库；`pass`/`review` 放行（游客无 openid 时跳过文本安检放行） |
 
-**`POST /dishes/{id}/correction`（`update`）**：
-
-| 规则 | 结果 | 中文解释 |
-|---|---|---|
-| 菜品不存在或已下架 | **4001** | 资源不存在码 |
-| `name` / `canteenName` / `stallName` 空或 >64 字 | 400 | 文本字段必填与长度 |
-| `name` 含敏感词 | 400 | 名称校验 |
-| `price` 空 / ≤0 | 400 | 价格必须为 >0 整数（分） |
-| `images` >9 张或含非 COS 地址 | 400 | 快照图片上限与白名单 |
-| 同 IP >2 条/分钟 或 >10 条/小时 | 400 | 限频，提示剩余秒数 |
-
-### 响应 · 两个提交端点
+### 响应 · 提交端点
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -89,11 +70,8 @@
 
 | 表 | 变化 | 中文解释 |
 |---|---|---|
-| `user_feedback` | INSERT（`issue`） | `type='issue'`、`content`、`images`（JSON 串）、`status='pending'` |
-| `dish_correction` | INSERT（`update`） | 七字段拆列快照（`name` / `price`（分）/ `canteen_name` / `stall_name` / `flavor_tags` JSON / `ingredients` JSON / `images` JSON）+ `dish_id` + `user_id`（游客 null，匿名提交）+ `status='pending'` |
-| `dish` | 读 | `GET /dishes/{id}` 详情预填表单（出参含 `canteenName` / `stallName` 名称文本；字段口径见 [client-菜品详情](./client-菜品详情.md)） |
-| `dish` | 写 | 仅管理端采纳纠错时由服务端七字段写回；学生端提交纠错不直接改动菜品 |
-| `notification` | 管理员处理后异步 INSERT | 已认证提交人收 `correction_handle`（标题「菜品信息更新」）回执；游客不投递（提交页文案已明示「无法单独通知你」） |
+| `user_feedback` | INSERT | `type` = 三类之一、`sub`（无）、`content`、`images`（JSON 串）、`related_type` / `related_id`（无）、`status='pending'` |
+| `notification` | 管理员处理后异步 INSERT | 已认证提交人收 `feedback_handle` 回执；游客不投递 |
 
 ## 与当前代码的差异
 
