@@ -95,7 +95,7 @@
         class="results-host"
         scroll-y
       >
-        <view class="mixed-list" :class="{ single: mixedResults.length === 1 }">
+        <view class="mixed-list">
           <DishResultCard
             v-for="item in mixedResults"
             :key="`${item.type}-${item.id}`"
@@ -393,21 +393,15 @@ onShow(() => clearShareState())
   padding-bottom: var(--spacing-lg);
 }
 /* 结果列表：左右 gutter + 底部间距；卡间纵向间距用 **flex gap** ——
-   不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，本文件上方有登记） */
+   不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，本文件上方有登记）。
+   Round 21e（用户拍板）：结果**顶部对齐**、自上而下自然阅读 —— 原「单条结果垂直居中」
+   （.mixed-list.single，为修「悬顶读作没加载完」而设）已移除；空白读感由「搜索行常驻 +
+   结果态与发现态/空态/失败态互斥」缓解，不再用居中补偿。 */
 .mixed-list {
   margin: 0 var(--spacing-md) var(--spacing-md);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-}
-/* 单条结果：结果区垂直居中，把留白分到卡片上下两侧（UI 文档 §4「少量结果」）。
-   ⚠️ 依赖 scroll-view 有确定高度（.results-host 为 flex:1; min-height:0）；
-   `min-height:100%` 在 mp-weixin 的表现须随真机走查复核。 */
-.mixed-list.single {
-  margin-top: 0;
-  min-height: 100%;
-  justify-content: center;
-  box-sizing: border-box;
 }
 
 /* 搜索无结果（空态）宿主（UI 统一 Loop Round 3）：仅承担整屏居中占位与边距，
