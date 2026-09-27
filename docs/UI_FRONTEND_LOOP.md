@@ -765,6 +765,27 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 35 改动文件**：`pages/feedback/{index.vue,useFeedback.ts,IssueForm.vue}`、`components/ImagePicker.vue`、`api/feedback.ts`、`types/feedback.ts`、`pages/privacy/DocPage.vue`、`App.vue`、**删除** `pages/feedback/{UpdateForm.vue,ListPickerSheet.vue}`、`docs/{ui,feature}/client-意见反馈.md`、`docs/ui/README.md`。
 
+### Round 36（2026-09-27）—— 意见反馈页 v2 口径落地（描述 600 字 + 菜品纠错回预填表单）
+
+> 来源：用户给出完整 v2 规格（「现在文档都是错的」）—— 在 R35「一张表单」基础上补两处：描述上限 600 字且字数常显右上角；**「菜品信息纠错」不再是纯文本**，而是**预填好的纠错表单**（只改错的地方）。
+
+| 项 | 内容 |
+|---|---|
+| ① 描述字段 | 上限 1000 → **600**；字数从「超 800 才在右下角显示」改为 **常显在「具体描述」标题行右上角**（`.field-head` + `.counter` 等宽数字）；`maxlength=600` |
+| ② 纠错类型 | 类型 = `error` ⇒ `IssueForm` **不渲染**描述与截图，页面改渲染**预填纠错表单** `UpdateForm`（选菜 → 拉详情预填七字段 → 只改差异项）；从菜品详情页「反馈错误」进入时**自动按下发 `dishId` 预填**（用户只改错的地方） |
+| ③ 实现方式 | 从 `79ad76c` 取回 `UpdateForm.vue` / `ListPickerSheet.vue` / `api.submitDishCorrection` / `types.DishCorrectionPayload`（R35 误删）；`useFeedback` 由 `isUpdateMode` 改为**类型驱动** `isCorrection`，两条提交路径按类型分流（`POST /feedback` vs `POST /dishes/{id}/correction`） |
+| ④ 闸门教训 | R35 的「白色横条」根因 = 漏 `FEEDBACK_TYPES` 值导入（TS2304）→ 运行时崩、整块表单不渲染；**已改为提交前必跑 `vue-tsc`**（此前只跑 IDE lint，返回 0 诊断但漏了 TS 错误） |
+| ⑤ 文档 | `docs/ui/client-意见反馈.md` 按 v2 重写（600 字 / 计数位置 / 字段区二选一 / 纠错预填表单 / 组件与数据映射恢复）；`docs/feature/client-意见反馈.md` 同步介绍段 / 形态表 / 流程 / 端点表 |
+
+**闸门**：`vue-tsc 0` / `build DONE` / 产物核对：`update-form` 宿主 ✅、`list-picker-sheet` ✅、`type-list` ✅
+
+> #### ⚠️ 两项保留（与 v2 文字不同，等你一句话）
+> ① **页头仍是文字「返回」**（v2 写「返回箭头」）—— `AppHeader` 是 7 个二级页共用骨架，2026-09-27 已按裁决把箭头改为文字「返回」；要改回箭头，我改 1 处（7 页同时生效）。
+> ② **表单内保留了小字「提交内容将由项目维护者查看」**（v2 未提及）—— 若不要，删 1 行。
+> ③ 纠错表单里的图片沿用原口径 **≤9 张**（预填菜品现有图）；若要一律收成 1 张，说一句。
+
+**Round 36 改动文件**：`pages/feedback/{index.vue,useFeedback.ts,IssueForm.vue,UpdateForm.vue,ListPickerSheet.vue}`、`api/feedback.ts`、`types/feedback.ts`、`docs/{ui,feature}/client-意见反馈.md`。
+
 **Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
 `pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
 `pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、
