@@ -1,6 +1,6 @@
 ﻿# 评价「有用」（A-07）—— ⛔ 已全链下线
 
-> **本功能已于 2026-09-20 全链下线（用户拍板，权威 `project_spec.md` §7.30 清单 #1 与 `review-api-contract` spec）**：
+> **本功能已于 2026-09-20 全链下线（用户拍板）**：
 > 端点 `POST /reviews/{id}/useful`、`ReviewVO.useful` / `usefulCount`、`ReviewAdminVO.usefulCount`、
 > `review_useful` 表与 `review.useful_count` 列、三端展示（含小程序评价卡按钮与 Web 评价列）**均已删除**；
 > 评价排序唯一口径为**时间倒序**。**本文档仅作历史留痕，不得据以实现或反向推导「仍存在该能力」；恢复须重新拍板（PR-04）。**

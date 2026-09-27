@@ -53,7 +53,7 @@
 | `updatedAt` | string | 更新时间 |
 | `stallName` | string | 档口名称（联表） |
 | `canteenName` | string | 食堂名称（联表） |
-| `dietType` | string | 荤素 / 饮食属性，**下发机器值**：`meat`=荤 / `half`=半荤 / `veg`=素 / `halal`=清真；展示中文由**四维字典端点**下发，**管理端不得硬编码映射表**（见 `project_spec.md` §7.40 第 4 项） |
+| `dietType` | string | 荤素 / 饮食属性，**下发机器值**：`meat`=荤 / `half`=半荤 / `veg`=素 / `halal`=清真；展示中文由**四维字典端点**下发，**管理端不得硬编码映射表** |
 | `ingredients` | string[] | 主料 / 食材，**机器值数组**：`pork` 猪 / `beef` 牛 / `lamb` 羊 / `chicken` 鸡 / `duck` 鸭 / `fish` 鱼虾 / `egg` 蛋 / `tofu` 豆制品 / `mushroom` 菌菇 / `veg` 青菜 / `noodle` 面 / `rice` 米（值域真源见 `project_spec.md` §7.28） |
 | `flavorTags` | string[] | 口味，**机器值数组**：`spicy` 辣 / `numbing` 麻 / `sour` 酸 / `sweet` 甜 / `salty` 咸 / `umami` 鲜 / `light` 清淡 / `heavy` 重口 |
 | `serveTemp` | string | 冷热，**下发机器值**：`hot`=热食 / `room`=常温 / `ice`=冰；展示中文由**四维字典端点**下发 |

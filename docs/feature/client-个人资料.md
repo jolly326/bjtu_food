@@ -34,7 +34,7 @@
 
 | 字段名 | 类型 | 可编辑 | 中文解释 |
 |---|---|---|---|
-| `id` | number | 否（只读展示） | 用户 ID。**游客短标识由本字段端上派生**（见 `project_spec.md` §7.32） |
+| `id` | number | 否（只读展示） | 用户 ID。**游客短标识由本字段端上派生** |
 | `username` | string | 否（只读展示） | 学号 / 账号（游客为 `wx_` + openid 后 16 位） |
 | `nickname` | string | 是 | 昵称 |
 | `avatar` | string \| null | 是（可空） | 头像地址（已转可访问的绝对 URL） |
@@ -43,7 +43,7 @@
 
 > **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `username` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参）。其中 `username`（学号）与 `bindEmail`（校园邮箱）的只读展示同时见于编辑页与「我的主页」信息卡（页面视觉口径见 `docs/ui/`，与本目录解耦）。
 
-> **出参仅上表 6 字段（含 `createdAt` 注册时间）**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生，见 `project_spec.md` §7.36）。
+> **出参仅上表 6 字段（含 `createdAt` 注册时间）**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生）。
 > 「校园邮箱」只读展示项仅读 `bindEmail`；禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生（「食客 + `id` 尾 4 位」）。
 
 > **不含 `openid`**（隐私：不下发微信标识）；**不含 `role`**。

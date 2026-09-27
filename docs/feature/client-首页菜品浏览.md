@@ -188,7 +188,7 @@
 4. **出参**：**公开菜品出参（`DishListItemVO` / `DishDetailVO`）不含 `mealType`**（卡片不展示 → 零消费即删）；后台 `DishAdminReq` / `DishAdminVO` 含（录入下拉过滤 `value == null` + 编辑回填 + 列表筛选）；
 5. **端上**：标签栏 100% 由字典端点直出渲染（端上不前置拼接、**不写任何兜底项**），单选，切换即重置分页；**字典未到位 / 失败 ⇒ 标签栏整体不渲染**（不留空栏），列表仍按「不传 `mealType`」的默认流加载 —— 标签文案（含「为你推荐」虚拟项）是**服务端资产**，端上零文案（Round 32）；
 6. **种子数据**：珍珠奶茶、杨枝甘露 的 `ingredients` 不标注 `rice`（米），避免详情页「主料」显示「米」；
-7. **合规登记**：`meal_type` 的分类语义登记于 `project_spec.md` §7.23（单值大类字段）。
+7. **合规登记**：`meal_type` 的分类语义为**单值大类字段**（非多值标签，与 `flavorTags` / `ingredients` 的数组形态区分）。
 8. **虚拟项扩展位（2026-09-28 产品拍板：逛 / 找 / 买 / 试四位一体）**：将来新增「折扣菜品」等筛选栏虚拟项时，**同「为你推荐」款处理**——在 `listMealTypes()` 出口处拼装（`value` 另定、不可进 `MealTypeConst.ALL`），不改菜的分类字段、不进白名单、不进管理端录入下拉；其列表排序另定口径（折扣位按折扣力度×热度、非随机），与本节物理大类（热度序）与推荐流（种子伪随机序）互不干扰。
 
 ### E. 首页 Banner 轮播接口化决议
@@ -202,7 +202,7 @@
 | E3 | **宽高比锁定 16:10** | Banner 总高 = 屏宽 × 10/16（375 宽 ≈234px）+ 最小高度兜底（≥ 状态栏 + 标题带 + 运营内容最小可视高 ≈120px）；**素材一律 16:10 出图**（混比例会导致轮播切换时块高抖动、吸顶阈值漂移）；加载中 / 失败使用**同高占位图**。完整论证见 UI 文档 §3.3 |
 | E4 | **库：`banner` 表（库表基线 11 张之一）** | `banner(id, image_url, sort_order, status, created_at, updated_at)`；`status` 取 `on` / `off`（与 `dish.status` 同风格）。落库口径：**只改 `server/src/main/resources/db/schema.sql`（幂等段，判表 / 判列存在再建）与 `seed_data.sql`，禁直连 ALTER** |
 | E5 | **管理端无 Banner 录入入口** | Banner 素材由 `seed_data.sql` 维护（运营位数量级极小，小程序为唯一消费端）；管理端如需自助录入，须另立 change 新增 `/admin/banners` 并同步 `docs/feature` 相应文档。**小程序端无任何 Banner 写接口** |
-| E6 | **契约红线对齐** | 出参仅 `id`（轮播 key）+ `imageUrl`；`sort_order` / `status` 服务端内部用、不出参；**无跳转字段**（端上零点击交互）；空集合返回 `[]`（非 404 / null）；Banner 请求与菜品列表**并行**、Banner 失败不阻塞首屏；统一响应 `{ code, message, data }` / camelCase / 错误码沿用 `project_spec.md` §3 |
+| E6 | **契约红线对齐** | 出参仅 `id`（轮播 key）+ `imageUrl`；`sort_order` / `status` 服务端内部用、不出参；**无跳转字段**（端上零点击交互）；空集合返回 `[]`（非 404 / null）；Banner 请求与菜品列表**并行**、Banner 失败不阻塞首屏；统一响应 `{ code, message, data }` / camelCase / 错误码沿用全站统一口径（`200` / `400` / `401` / `403` / `4031` / `500`） |
 | E7 | **`GET /dishes` 及 `GET /dishes/meal-types` 契约不受 Banner 模块影响** | Banner 模块只新增一个只读端点与一张表 |
 
 ## 与当前代码的差异

@@ -57,7 +57,7 @@
 | `updatedAt` | string | 更新时间（判断信息新鲜度） |
 | `stallName` | string | 档口名称（联表） |
 | `canteenName` | string | 食堂名称（联表） |
-| `dietType` | string | 荤素 / 饮食属性，**下发机器值**（`meat` / `half` / `veg` / `halal`）；展示中文由**四维字典端点**下发，**管理端不得硬编码映射表**（见 `project_spec.md` §7.40 第 4 项） |
+| `dietType` | string | 荤素 / 饮食属性，**下发机器值**（`meat` / `half` / `veg` / `halal`）；展示中文由**四维字典端点**下发，**管理端不得硬编码映射表** |
 | `ingredients` | string[] | 主料 / 食材，**机器值数组**（如 `["chicken","rice"]`）；展示中文由字典下发 |
 | `flavorTags` | string[] | 口味，**机器值数组**（如 `["spicy","sour"]`）；展示中文由字典下发 |
 | `serveTemp` | string | 冷热，**下发机器值**（`hot` / `room` / `ice`）；展示中文由**四维字典端点**下发 |

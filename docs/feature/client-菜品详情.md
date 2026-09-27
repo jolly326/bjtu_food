@@ -54,9 +54,9 @@
 | `flavorTags` | string[] | 口味，**机器值数组**（如 `["spicy","sour"]`），展示中文由**后端字典**提供 |
 | `serveTemp` | string | 冷热，**下发机器值**（`hot` / `room` / `ice`），展示中文由**后端字典**提供 |
 
-> **R4**：四维**下发机器值**（保留筛选 / 统计锚点），**展示中文由后端只读字典端点 `GET /dishes/attributes` 下发**（真源 `DishAttributeConst`，模式对齐 `GET /dishes/meal-types`，见 `project_spec.md` §7.34）——client 与 web **共用同一份字典**，端上**不维护硬编码映射表**；字典须同时服务 client 展示与 web 表单选项（下拉 / chips 必须有选项列表），故中文由后端统一提供（见 `project_spec.md` §7.40 第 4 项与 PR-12 的「全端盘点」机制）。
+> **R4**：四维**下发机器值**（保留筛选 / 统计锚点），**展示中文由后端只读字典端点 `GET /dishes/attributes` 下发**（真源 `DishAttributeConst`，模式对齐 `GET /dishes/meal-types`）——client 与 web **共用同一份字典**，端上**不维护硬编码映射表**；字典须同时服务 client 展示与 web 表单选项（下拉 / chips 必须有选项列表），故中文由后端统一提供。
 > **多值数组化**：`ingredients` / `flavorTags` 出参为 `string[]`（落库为 JSON 数组，幂等迁移 `migrate_dish_multivalue_json`），消除两端 CSV 解析。
-> 英文机器值与中文的完整对应关系见 `project_spec.md` §7.28（**值域真源**，映射载体为字典端点）。
+> 英文机器值与中文的完整对应关系**值域真源 = 字典端点 `GET /dishes/attributes`**。
 > **字典项 `field` 命名约束（R13）**：字典项的 `field` 取值 **MUST 等于本 VO 的字段名**（`dietType` / `ingredients` / `flavorTags` / `serveTemp`）—— 端上 / 管理端据此**直接匹配**渲染，**SHALL NOT** 另建「字典 `field` → VO 字段」的第二套映射。
 > **持久层形态**：`images` / `ingredients` / `flavorTags` 由 `StringListTypeHandler` 在持久层直出 `List<String>`（无 JSON 原文中转出参）；绝对 URL 转换在 Service 层完成。
 
@@ -158,7 +158,7 @@
 2. 在本人视角（`GET /my/reviews`）中 `isMine` **恒为 `true`** —— 恒真字段，属零信息冗余；
 3. `userId` 是公开列表**本就该下发**的作者标识（头像 / 昵称归属所需），端上做一次比对不引入新真源。
 
-详见 `project_spec.md` §7.40 第 14 条。
+详见本目录对应功能文档。
 
 ## 与当前代码的差异
 
