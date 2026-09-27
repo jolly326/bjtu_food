@@ -40,12 +40,8 @@
 
 2.2 **上传截图**（选填，**最多 1 张**）：`ImagePicker` 单图形态（`single`）—— 空态 = **虚线方框**（200rpx 见方，`2rpx dashed --border-bold`）+ 加号；有图 = 缩略图 + 右上角删除叉，点图看大图（微信原生预览）；**破图 → 统一 `ImagePlaceholder`（灰底 + `image-broken`）**，点它不进入预览。
 
-**B. 类型 =「菜品信息纠错」⇒ 预填纠错表单**（`UpdateForm`）
-
-1. 「要更新哪道菜」选择行 → `ListPickerSheet` 菜品选择弹层（搜索防抖 + 竞态守卫 + 空态）；
-2. 选定后按 `GET /dishes/{id}` **预填**七字段：名称 / 价格（元，digit 键盘）/ 食堂名 / 档口 / 口味 chips / 食材 chips（机器值经四维字典译中文）/ 图片（**≤1**，预填首图、可替换）；
-3. **用户只改错的地方**提交；预填未完成禁止提交；字段错误 = 错误边框 + 行内文案（首错 `scroll-into-view` 定位）。
-   （从菜品详情页「反馈错误」进入时，第 1 步自动完成 —— 进页即按 `dishId` 预填。）
+> **菜品纠错**（选菜 + 七字段预填那套）**已迁出为独立页面** → [client-菜品纠错.md](./client-菜品纠错.md)；
+> 本页只保留上面这一套通用反馈字段，**不再有第二套表单、不再随类型切换结构**。
 
 ### 3. 【提交反馈】按钮
 
@@ -63,8 +59,7 @@
 |---|---|---|---|
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「意见反馈」+ 返回（有返回栈则 `navigateBack`，否则回首页） |
 | 2 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | 类型竖排单选 +（非纠错类型时）具体描述（600 字 + 右上角计数）+ 单图截图 + 小字提示 |
-| 3 | `UpdateForm` | 页内私有 `pages/feedback/UpdateForm.vue` | **纠错类型**的预填字段区（选菜行 / 名称 / 价格 / 食堂名 / 档口 / 口味·食材 chips / 图片） |
-| 4 | `ListPickerSheet` | 页内私有 `pages/feedback/ListPickerSheet.vue`（骨架 = `BaseSheet`） | 纠错类型的菜品选择弹层（搜索 + 候选行 + `#empty` 空态） |
+
 | 5 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 图片上传（单图形态：`single` 单图虚线框 + `max=1`）；**纠错类型复用同一件，同为 ≤1 张** |
 | 6 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交反馈」/「提交中…」；`disabled` = 门禁不通过） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 类型选中勾 `check` / 选择行箭头 `arrow` / chips 删除叉 `close` |
@@ -80,9 +75,6 @@
 | 2 | `content`（本地表单态） | 用户输入 | 具体描述 | `IssueForm` textarea + 计数 | **上限 600 字**，`n/600` 常显标题行右上角 |
 | 3 | `images`（本地表单态） | `ImagePicker`（安检上传） | 截图 | `IssueForm` 单图虚线框 | ≤1 张；破图走统一占位 |
 | 4 | 草稿（`type` + `content`） | `uni.getStorageSync('feedback_draft')` | 本地草稿 | 进页回填类型与描述 | 图片不缓存 |
-| 5 | `name` / `price` / `canteenName` / `stallName` | `GET /dishes/{id}`（`DishDetailVO`） | 纠错类型预填字段 | `UpdateForm` 各行 | 价格：分 → 元（`fenToYuan`），digit 键盘 |
-| 6 | `flavorTags` / `ingredients` | 同上（**机器值数组**） | 口味 / 主料 | `UpdateForm` chips | 机器值经四维字典译中文；未命中回落原值 |
-| 7 | `field` / `value` / `label` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `UpdateForm` chips 文案 | 端上零硬编码映射（仅纠错类型加载） |
 | 8 | 字段错误 `errors` | 端上门禁 | 缺失或非法项 | 对应字段下方 `.field-error` + 错误边框 | 首个可定位错误字段 `scroll-into-view` |
 | 9 | 提交结果 | `POST /feedback` / `POST /dishes/{id}/correction` 成功 | 成功 | 无界面（Toast「已提交，感谢反馈」+ 2 秒自动返回；表单重置、草稿清除） | — |
 | 10 | 失败提示 | `400` / `4001` 响应 `message` | 失败原因 | 无界面（Toast 直透，兜底「没发出去，再试一次」） | 停留本页保留草稿 |
@@ -90,10 +82,9 @@
 **入参提交**
 | 接口 | 字段 |
 |---|---|
-| `POST /feedback`（非纠错类型） | `type` = `bug` / `suggestion` / `other`（服务端白名单校验）/ `content`（端上 ≤600 字、服务端 ≤1000）/ `images`（**≤1**） |
-| `POST /dishes/{id}/correction`（纠错类型） | `name` / `price`（**整数分**，端上 `yuanToFen`）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]`（**≤1**，服务端上限仍为 9） |
-| `GET /dishes`（纠错类型候选搜索） | `keyword` / `page` / `pageSize` |
+| `POST /feedback` | `type` = `bug` / `suggestion` / `other`（服务端白名单校验）/ `content`（端上 ≤600 字、服务端 ≤1000）/ `images`（**≤1**） |
 
-**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 含敏感词 / IP 限频「提交过于频繁」/ 文本安检 `risky`；纠错类型另有 `400` 菜品名称超 64 字 / 价格必须为大于 0 的整数（单位：分）/ 图片地址不合法 与 `4001` 菜品不存在
+**错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 含敏感词 / IP 限频「提交过于频繁」/ 文本安检 `risky`
+（菜品纠错的错误码见 [client-菜品纠错.md](./client-菜品纠错.md)）
 
-**控件类型**：`scroll-view`、竖排单选（`role="radiogroup"` + `role="radio"` + `aria-checked`）、`textarea`（600 字 + 右上角计数 + 动态占位）、`ImagePicker`（单图虚线框形态）、`input`（纠错类型：名称 / 价格 digit / chips 自由输入）、菜品选择弹层（纠错类型）、字段级错误滚动定位
+**控件类型**：`scroll-view`、竖排单选（`role="radiogroup"` + `role="radio"` + `aria-checked`）、`textarea`（600 字 + 右上角计数 + 动态占位）、`ImagePicker`（单图虚线框形态）、字段级错误滚动定位

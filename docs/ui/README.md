@@ -36,7 +36,8 @@
 | A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | `pages/detail/dish/index.vue`（`ActionSheet`） | [client-删除本人评价.md](../feature/client-删除本人评价.md) | R17 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
 | A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | `pages/detail/dish/ReportModal.vue` | [client-举报评价.md](../feature/client-举报评价.md) | R7·R13 | 🖥 页内承载物（属 A-04）· ⛔ 未完成 |
 | A-10 | 我的评价（承载于「我的主页」） | [client-我的主页.md](./client-我的主页.md) | `pages/my-reviews/index.vue` | [client-我的评价.md](../feature/client-我的评价.md) | R12·R14·R17·R24 | ⛔ 未完成 |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md) | R1–R3·R13·R17·R25·**R34–R37 改版（单表单 + 4 类型 + 纠错预填表单 + 图片统一 1 张）** | ⛔ 未完成（新形态待验收） |
+| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | `pages/feedback/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md) | R1–R3·R13·R17·R25·R34–R37·**R38 解耦（3 类型 + 单一通用表单）** | ⛔ 未完成（新形态待验收） |
+| — | **菜品信息纠错**（独立页，入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | `pages/correction/index.vue` | [client-意见反馈.md](../feature/client-意见反馈.md)（A-11 的纠错子链路） | **R38 自反馈页迁出** | ⛔ 未完成 |
 | A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | `pages/notifications/index.vue` | [client-系统通知.md](../feature/client-系统通知.md) | R1–R3·R12·R13·R17 | ⛔ 未完成 |
 | A-13 | 个人资料（编辑于个人信息编辑页） | [client-个人信息编辑.md](./client-个人信息编辑.md) | `pages/profile/index.vue` | [client-个人资料.md](../feature/client-个人资料.md) | R1·R6·R12·R14·R17 | ⛔ 未完成 |
 | A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | `pages/auth/index.vue` | [client-邮箱认证.md](../feature/client-邮箱认证.md) | R1·R12·R17·R26 | ⛔ 未完成 |
@@ -86,6 +87,7 @@
 | `client-个人信息编辑.md` | `client-个人资料.md` | 同一功能；**页面名与功能名不同**（查看在「我的主页」信息卡） |
 | `client-我的主页.md` | `client-我的评价.md` | 功能「我的评价」**承载于**「我的主页」评价区 |
 | `client-写评价.md` · `client-删除本人评价.md` · `client-举报评价.md` | 同名功能文档 | 均为**页面内承载物**（抽屉 / ActionSheet / 弹层），宿主页 = `client-菜品详情.md` |
+| `client-菜品纠错.md` | `client-意见反馈.md` | **独立页面但无同名功能文档**：属 A-11 的**纠错子链路**（入口仅菜品详情页底栏） |
 | `client-注销账号.md` | `client-注销账号.md` | **页面内承载物**（「我的」页危险弱化行 + `showModal`），宿主页 = `client-我的页.md` |
 | `client-我的页.md` | — | TabBar 主页，**无独立功能文档**（导航壳 + 入口聚合） |
 
