@@ -1,0 +1,197 @@
+<template>
+  <!-- 搜索结果菜品卡（页内私有；UI 统一 Loop Round 21 按用户规格重新设计，并从 FindResults 抽出）：
+       横向 flex = 左「正方形图片」+ 右「纵向三行信息」，整卡可点跳菜品详情。
+       · 卡片：白底 --bg-card + 大圆角 --radius-card + 柔和轻阴影 --shadow-card，内边距统一 --spacing-md；
+       · 左图：固定 160rpx 正方形，aspectFill 铺满（即容器内居中），无图 → 餐具占位图标（dish）；
+       · 右信息：flex:1 且 align-self:stretch（上下边界与左图对齐），三行**垂直居中**（justify-content:center），
+         行距 --spacing-sm ——
+         ① 标题行：菜名弹性（两行省略、命中**加粗**）+ 评分（★ + 数字）紧贴菜名后方，无评分不渲染不占位；
+         ② 价格行：整行靠右；现价主色带 ¥；仅 originalPrice > price 追加灰色删除线原价，无折扣只展示现价；
+         ③ 位置行：靠左；食堂 · 档口（utils/dish.joinLocation 单点拼接），弱灰小字单行省略，命中加粗；
+       · `id` 仅用于 key / 跳转，零渲染；**不渲染**标签、描述、评价数等详情页字段；
+       · 命中片段只**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。 -->
+  <view
+    class="dish-result-row"
+    role="button"
+    :aria-label="`查看 ${item.name}`"
+    hover-class="row-pressed"
+    hover-stay-time="80"
+    @tap="onTap"
+  >
+    <view class="thumb">
+      <image
+        v-if="item.image"
+        :src="thumbSrc(item.image)"
+        mode="aspectFill"
+        class="thumb-img"
+        :class="{ loaded }"
+        lazy-load
+        @load="loaded = true"
+      />
+      <view v-else class="thumb-ph">
+        <IconSvg name="dish" :size="48" :color="COLOR_MAP['text-tertiary']" />
+      </view>
+    </view>
+
+    <view class="info">
+      <!-- ① 标题行：菜名 + 评分（紧贴菜名后方，不 space-between 拉到右端；无评分不渲染不占位） -->
+      <view class="title-row">
+        <text class="name">
+          <text
+            v-for="(seg, si) in splitHighlight(item.name)"
+            :key="si"
+            :class="{ hit: seg.hit }"
+          >{{ seg.text }}</text>
+        </text>
+        <view v-if="item.rating != null" class="rating-group">
+          <!-- 星色 = 独立语义色（黄），不随主色换肤（§4.2 / §7.39）；必须传实色（data-uri 不解析 var()） -->
+          <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" />
+          <text class="rating-num">{{ formatRating(item.rating) }}</text>
+        </view>
+      </view>
+
+      <!-- ② 价格行：整行靠右；展示唯一数据源 = price（现价）；判据恒为 originalPrice > price（§7.26） -->
+      <view v-if="item.price != null" class="price-row">
+        <text class="price"><text class="price-sym">¥</text>{{ formatPrice(item.price) }}</text>
+        <text v-if="hasDiscount(item.price, item.originalPrice)" class="original">¥{{ formatPrice(item.originalPrice) }}</text>
+      </view>
+
+      <!-- ③ 位置行：靠左；食堂 · 档口（与首页 DishCard 同序），三级浅灰小字单行省略，命中加粗 -->
+      <view class="loc-row">
+        <text class="sub-text">
+          <text
+            v-for="(seg, si) in splitHighlight(item.sub || '')"
+            :key="si"
+            :class="{ hit: seg.hit }"
+          >{{ seg.text }}</text>
+        </text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import IconSvg from '@/components/IconSvg.vue'
+// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
+import { COLOR_MAP } from '@/theme/tokens'
+import { formatPrice } from '@/utils/money'
+import { getThumbImageUrl as thumbSrc } from '@/utils/image'
+import { hasDiscount, formatRating } from '@/utils/dish'
+import type { MixedResultItem } from '@/types/dish'
+
+const props = defineProps<{
+  /** 单条结果（image = coverImage；sub = 食堂 · 档口；id 仅用于跳转） */
+  item: MixedResultItem
+  /** 搜索关键词：命中片段**加粗**（不带上色，主色留给价格） */
+  keyword?: string
+}>()
+
+const emit = defineEmits<{
+  /** 整卡点击 → 宿主页跳转菜品详情 */
+  (e: 'select'): void
+}>()
+
+/** 图片加载完成 → 淡入（每行自持；行以 item 为 key 稳定复用，无需跨行去重集合） */
+const loaded = ref(false)
+
+/** 关键词拆段：命中片段仅**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条） */
+function splitHighlight(text: string): { text: string; hit: boolean }[] {
+  const kw = (props.keyword || '').trim()
+  if (!text || !kw) return [{ text, hit: false }]
+  const segs: { text: string; hit: boolean }[] = []
+  const lowerText = text.toLowerCase()
+  const lowerKw = kw.toLowerCase()
+  let start = 0
+  let idx = lowerText.indexOf(lowerKw, start)
+  while (idx !== -1) {
+    if (idx > start) segs.push({ text: text.slice(start, idx), hit: false })
+    segs.push({ text: text.slice(idx, idx + kw.length), hit: true })
+    start = idx + kw.length
+    idx = lowerText.indexOf(lowerKw, start)
+  }
+  if (start < text.length) segs.push({ text: text.slice(start), hit: false })
+  return segs
+}
+
+/** 整卡点击：id 缺失（脏数据）时不派发，避免宿主跳进「菜品不存在」 */
+function onTap() {
+  if (props.item.id != null) emit('select')
+}
+</script>
+
+<style scoped>
+/* 卡片：白底 + 大圆角 + 柔和轻阴影；内边距统一 --spacing-md（Round 21 规格化，
+   取代旧版「上下 md / 左右 lg」的不对称内距） */
+.dish-result-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* 整卡按压反馈：底色加深一档（bg-soft），与全站按压语言一致 */
+.dish-result-row.row-pressed { background: var(--bg-soft); }
+/* 相邻卡纵向间距（列表内唯一来源） */
+.dish-result-row + .dish-result-row { margin-top: var(--spacing-sm); }
+
+/* 左：固定正方形图片容器（aspectFill 铺满即容器内居中；无图 → 餐具占位） */
+.thumb {
+  width: 160rpx;
+  height: 160rpx;
+  flex-shrink: 0;
+  border-radius: var(--radius-icon);
+  overflow: hidden;
+  background: var(--bg-page);
+}
+.thumb-img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.32s var(--ease-out); }
+.thumb-img.loaded { opacity: 1; }
+.thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+/* 右：纵向信息容器 —— flex:1 + align-self:stretch（上下边界与左图对齐）+ 三行垂直居中；行距 --spacing-sm */
+.info {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+/* ① 标题行：菜名（弹性收缩、两行省略、命中加粗）+ 评分紧贴其后（不 space-between 拉到右端） */
+.title-row { display: flex; align-items: center; gap: var(--spacing-sm); min-width: 0; }
+.name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--font-title);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: 1.3;
+  letter-spacing: var(--tracking-h3);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+/* 命中片段：仅字重加深，不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条） */
+.name .hit, .sub-text .hit { font-weight: var(--weight-heavy); }
+.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-3xs); }
+.rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* ② 价格行：整行靠右；价格 = 卡片唯一高饱和强调（--color-price + 600），字号低于菜名一档（36 < 44，
+   避免「两个最高权重元素并列」的焦点竞争 —— UI 文档 §4「价格作第二视觉重心」） */
+.price-row { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--spacing-2xs); }
+.price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+.price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
+.original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+
+/* ③ 位置行：靠左；食堂 · 档口，三级浅灰小字单行省略 */
+.loc-row { display: flex; justify-content: flex-start; min-width: 0; }
+.sub-text { flex: 1; min-width: 0; font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>

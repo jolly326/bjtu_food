@@ -7,88 +7,30 @@
       class="results-scroll"
       scroll-y
     >
-      <!-- 搜索结果：一行一个菜品（find-result-card-polish：单卡内联于 FindResults，DishResultRow 已合并） -->
+      <!-- 结果列表：一行一个菜品卡（UI 统一 Loop Round 21 抽出为页内私有 `DishResultRow`，
+           卡片结构 / 状态 / 命中高亮全部内聚在该组件，本组件只负责列表编排与单结果居中） -->
       <view class="mixed-list" :class="{ single: items.length === 1 }">
-        <view
+        <DishResultRow
           v-for="item in items"
           :key="`${item.type}-${item.id}`"
-          class="mixed-item"
-          role="button"
-          :aria-label="`查看 ${item.name}`"
-          @tap="selectRow(item)"
-        >
-          <view class="mixed-thumb">
-            <image
-              v-if="item.image"
-              :src="thumbSrc(item.image)"
-              mode="aspectFill"
-              class="mixed-thumb-img"
-              :class="{ loaded: loadedSet.has(thumbSrc(item.image)) }"
-              lazy-load
-              @load="loadedSet.add(thumbSrc(item.image))"
-            />
-            <view v-else class="mixed-thumb-ph">
-              <IconSvg name="dish" :size="48" :color="COLOR_MAP['text-tertiary']" />
-            </view>
-          </view>
-          <view class="mixed-info">
-            <!-- 第一行：菜名（命中不再上红，主色仅留给价格）+ 评分 + 价格，基线对齐 -->
-            <view class="mixed-title-row">
-              <view class="mixed-name-group">
-                <text class="mixed-name">
-                  <text
-                    v-for="(seg, si) in splitHighlight(item.name)"
-                    :key="si"
-                    :class="{ hit: seg.hit }"
-                  >{{ seg.text }}</text>
-                </text>
-                <view v-if="item.rating != null" class="mixed-rating-group">
-                  <!-- 星色 = 独立语义色（黄 #FBBF24），不随主色换肤（project_spec.md §4.2 / §7.39 第 2 条）。
-                       必须传实色 `COLOR_MAP['star']`：IconSvg 的 color 不解析 var()（data-uri 内为字面量）。 -->
-                  <IconSvg name="star-filled" :size="26" :color="COLOR_MAP['star']" class="mixed-rating-star" />
-                  <text class="mixed-rating-num">{{ formatRating(item.rating) }}</text>
-                </view>
-              </view>
-              <!-- 价格：展示唯一数据源 = price（现价）；originalPrice 有值且大于 price 时并列划线原价。 -->
-              <view v-if="item.price != null" class="mixed-price-group">
-                <text class="mixed-price"><text class="mixed-price-sym">¥</text>{{ formatPrice(item.price) }}</text>
-                <text v-if="hasDiscount(item.price, item.originalPrice)" class="mixed-original">¥{{ formatPrice(item.originalPrice) }}</text>
-              </view>
-            </view>
-            <!-- 底部：位置（食堂 · 档口名，与首页 DishCard 同序），三级浅灰弱化 -->
-            <view class="mixed-sub">
-              <text class="mixed-sub-text">
-                <text
-                  v-for="(seg, si) in splitHighlight(item.sub || '')"
-                  :key="si"
-                  :class="{ hit: seg.hit }"
-                >{{ seg.text }}</text>
-              </text>
-            </view>
-          </view>
-        </view>
+          :item="item"
+          :keyword="keyword"
+          @select="selectRow(item)"
+        />
       </view>
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
-// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
-import { COLOR_MAP } from '@/theme/tokens'
-import { formatPrice } from '@/utils/money'
-// `getThumbImageUrl` 以本地别名 `thumbSrc` 引入：模板内既有调用点无需改动
-// （原本地 `thumbSrc()` 与首页 `DishCard` 的组合逻辑重复 —— UI 统一 Loop Round 17 上提为公共函数）
-import { getThumbImageUrl as thumbSrc } from '@/utils/image'
-import { hasDiscount, formatRating } from '@/utils/dish'
+import DishResultRow from './DishResultRow.vue'
 import type { MixedResultItem } from '@/types/dish'
 
 /* 结果项类型来自公共 `@/types/dish.MixedResultItem`（UI 统一 Loop Round 17：
    原组件内定义与 find 页 `MixedResult` 逐字段重复，已合并为单一来源）。 */
 
 /* 对外接口：入参仅 `items` / `keyword`，事件仅 `select`。 */
-const props = defineProps<{
+defineProps<{
   items: MixedResultItem[]
   keyword?: string
 }>()
@@ -97,31 +39,7 @@ const emit = defineEmits<{
   (e: 'select', id: number): void
 }>()
 
-/** 图片淡入去重集合（key = 缩略图 url） */
-const loadedSet = reactive(new Set<string>())
-/* 缩略图地址组合已上提为公共 `utils/image.getThumbImageUrl`（此处以别名 `thumbSrc` 引入） */
-
-/* 「有折扣」判据已上提为公共 `utils/dish.hasDiscount`（UI 统一 Loop Round 17），此处不再保留副本 */
-
-/** 关键词拆段：find-result-card-polish 后命中片段不再上主色（红只给价格），保留分段语义以备未来弱化 */
-function splitHighlight(text: string): { text: string; hit: boolean }[] {
-  const kw = (props.keyword || '').trim()
-  if (!text || !kw) return [{ text, hit: false }]
-  const segs: { text: string; hit: boolean }[] = []
-  const lowerText = text.toLowerCase()
-  const lowerKw = kw.toLowerCase()
-  let start = 0
-  let idx = lowerText.indexOf(lowerKw, start)
-  while (idx !== -1) {
-    if (idx > start) segs.push({ text: text.slice(start, idx), hit: false })
-    segs.push({ text: text.slice(idx, idx + kw.length), hit: true })
-    start = idx + kw.length
-    idx = lowerText.indexOf(lowerKw, start)
-  }
-  if (start < text.length) segs.push({ text: text.slice(start), hit: false })
-  return segs
-}
-
+/** 行组件已做 id 判空；此处只负责把选中项上抛给宿主页（跳转菜品详情） */
 function selectRow(item: MixedResultItem) {
   if (item.id != null) emit('select', item.id)
 }
@@ -140,7 +58,7 @@ function selectRow(item: MixedResultItem) {
   min-height: 0;
   padding-bottom: var(--spacing-lg);
 }
-/* 搜索结果列表（仅菜品，一行一个，左图右信息）。
+/* 搜索结果列表（仅菜品，一行一个卡片）。
    顶部间距的**唯一来源 = 宿主页搜索行的下 padding**（UI 文档 §2：块间 `--spacing-lg`），
    本组件不再叠加任何 margin-top（筛选条不提供，间距口径以宿主页搜索行下 padding 为准）。 */
 .mixed-list { margin: 0 var(--spacing-md) var(--spacing-md); }
@@ -156,67 +74,4 @@ function selectRow(item: MixedResultItem) {
   justify-content: center;
   box-sizing: border-box;
 }
-
-/* ===== 单卡样式（find-result-card-polish） ===== */
-.mixed-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  /* 卡内边距（UI 文档 §2）：上下 `--spacing-md`(24rpx/12px)、左右 `--spacing-lg`(32rpx/16px)。
-     旧值 28rpx = 3.5×8 **不在 8 基网格上**（与当时注释自称「对齐 8 基网格」自相矛盾），已收口。 */
-  padding: var(--spacing-md) var(--spacing-lg);
-  box-shadow: var(--shadow-card);
-  transition: background-color var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.mixed-item + .mixed-item { margin-top: var(--spacing-sm); }
-.mixed-thumb {
-  width: 160rpx;
-  height: 160rpx;
-  flex-shrink: 0;
-  border-radius: var(--radius-icon);
-  overflow: hidden;
-  background: var(--bg-page);
-}
-.mixed-thumb-img { width: 100%; height: 100%; opacity: 0; transition: opacity 0.32s var(--ease-out); }
-.mixed-thumb-img.loaded { opacity: 1; }
-.mixed-thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-.mixed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-xs); min-height: 160rpx; justify-content: center; }
-.mixed-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
-.mixed-name-group { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-sm); }
-.mixed-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-size: var(--font-title);
-  /* 菜名：600 一级深灰第一阅读落点（find-result-card-polish） */
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  line-height: 1.3;
-  letter-spacing: var(--tracking-h3);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-/* 命中片段：仅**字重加深**，不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条）。
-   修复「搜什么、结果就叫什么」时命中零反馈、无从扫读的问题。 */
-.mixed-name .hit { font-weight: var(--weight-heavy); }
-.mixed-sub-text .hit { font-weight: var(--weight-heavy); }
-/* 划线原价：辅助档三级灰（旧注释「命中片段不再上主色」与本行无关，属错位，已更正） */
-.mixed-original { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
-.mixed-price-group { display: flex; align-items: baseline; gap: var(--spacing-2xs); flex-shrink: 0; }
-/* 价格：专用主色 + 600，卡片唯一高饱和强调。
-   字号 = `--font-h3`(36rpx)，**低于菜名一档**（菜名 `--font-title` 44rpx）——
-   旧口径与菜名同档，两个最高权重元素并列造成焦点竞争，且与 UI 文档 §4「价格作**第二**视觉重心」相悖。 */
-.mixed-price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
-.mixed-price-sym { font-size: var(--font-body); font-weight: var(--weight-medium); }
-.mixed-rating-group { display: inline-flex; align-items: center; gap: var(--spacing-3xs); flex-shrink: 0; }
-.mixed-rating-star { flex-shrink: 0; }
-.mixed-rating-num { font-size: var(--font-small); font-weight: var(--weight-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.mixed-sub { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-xs); font-size: var(--font-aux); }
-/* 底部位置统一三级浅灰弱化（find-result-card-polish） */
-.mixed-sub-text { flex: 1; min-width: 0; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

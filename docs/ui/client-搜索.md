@@ -58,6 +58,14 @@
 | 状态栏 → 标题带内（返回 icon 行） | 标题带自带状态栏内边距 | 带高 = 状态栏 + `navBarHeight`；**icon 与胶囊同中心线** |
 | **标题带下沿 → 搜索行上沿** | `--spacing-md`（24rpx / 12px） | 标题带与搜索行**同属一个「头部单元」**，故小于块间呼吸值（`--spacing-lg`） |
 | **搜索行下沿 → 内容首块（记录 / 猜你喜欢 / 结果）** | **`--spacing-lg`（32rpx / 16px），且为「唯一来源」** | 块间距。搜索行 `padding-bottom` **与** 内容首块 `margin-top` SHALL **只保留一处**（搜索行下 padding 归零、由内容首块 margin-top 承担，或反之），实测须 = **16px** |
+
+> **结果行布局（UI 统一 Loop Round 21，用户拍板规格；实现 = 页内私有 `DishResultRow.vue`）**：
+> 结果卡 = 横向 flex——左「**160rpx 正方形图片**」（`aspectFill`，圆角由容器裁切；无图 → `dish` 餐具占位图标）
+> + 右「**纵向三行信息**」（`flex:1` + `align-self:stretch` 与左图等高对齐、内容**垂直居中**，行距 `--spacing-sm`）：
+> ① **标题行**（`align-items:center`）：菜名弹性（最多两行溢出省略、命中关键词**加粗**）；★评分（`--color-star` + 数字）**紧贴菜名后方**，无评分不渲染不占位；
+> ② **价格行**（整行 `flex-end` 靠右）：现价 `--color-price` 带 ¥；仅 `originalPrice > price` 在现价右侧追加灰色删除线原价，无折扣只展示现价；
+> ③ **位置行**（靠左）：食堂 · 档口（`utils/dish.joinLocation`），弱灰小字单行省略、命中加粗。
+> 卡片 = 白底 `--bg-card` + `--radius-card` + `--shadow-card` + **内边距统一 `--spacing-md`**；整卡可点跳菜品详情、带按压反馈（`bg-soft`）；`id` 仅用于 key / 跳转**零渲染**；**SHALL NOT** 渲染标签、描述、评价数等详情页字段。
 | 记录卡片 ↔ 猜你喜欢卡片 | **`--spacing-lg`（32rpx / 16px）** | 两个分组。本页 SHALL **显式指定**两卡间距 = 16px（不得依赖卡片容器 `CardSection` 的默认 margin） |
 | 分组标题 → 其 chips | `--spacing-sm`（16rpx / 8px） | 组内 |
 | chip 之间（横向 / 换行） | `--spacing-sm`（16rpx / 8px） | 组内 |
@@ -161,7 +169,7 @@
 | 2 | `SearchBar`（`mode="input"`） | 公共 `components/SearchBar.vue` | 搜索行：**单个搜索胶囊**（左放大镜 40rpx 垂直居中 + 可输入 + 有值时清除 ✕ + **右端内嵌「搜索」按钮**）；`searching` 提交中降透明禁用 / `disabled` **空词灰底灰字禁用**；**无下拉箭头** |
 | 3 | `CardSection` | 公共 `components/CardSection.vue` | 白卡外壳（「搜索记录」/「猜你喜欢」两区块） |
 | 4 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 区块标题「搜索记录」（`#extra` 槽承载「清空」）/「猜你喜欢」（无右侧） |
-| 5 | `FindResults` | 页内私有 `pages/find/FindResults.vue` | 结果态滚动容器 + 单列结果行（缩略图 / 菜名 + 评分 / 价格 / 位置行）；每行 `role="button"` + `:aria-label="查看 {菜名}"` |
+| 5 | `FindResults` + 页内私有 `pages/find/DishResultRow.vue` | `pages/find/` | 结果态滚动容器 + 单列结果卡（布局规格见 §2「结果行布局」）；每行 `role="button"` + `:aria-label="查看 {菜名}"` |
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 菜品占位 `dish` / 星 `star-filled` |
 | 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏） |
