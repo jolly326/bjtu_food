@@ -19,7 +19,14 @@ import { computed } from 'vue'
  *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
  *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
  *
- * 用法：<IconSvg name="thumb" :size="26" color="currentColor" />
+ * 用法：<IconSvg name="thumb" :size="26" :color="COLOR_MAP['text-tertiary']" />
+ *
+ * **尺寸与颜色的契约（UI 统一 Loop Round 20 明确）**：
+ *  - `size`：数字 = **rpx**（`:size="40"` → 40rpx），也可传带单位字符串（`size="20px"`）。
+ *    宿主为 `inline-flex` 且 `flex: none` ⇒ 在 flex 父级里**不会被压缩**，包一层容器也能改大小。
+ *  - `color`：**必须传实色**（`COLOR_MAP['xxx']` 或 `#RRGGBB`）。`var(--x)` 与 `currentColor`
+ *    都会被回退为兜底近黑色 —— 因为 SVG data-uri 是独立文档，解析不了 `var()`、也继承不到父级文字色。
+ *  - 居中：宿主自行 `inline-flex + center`（图标恒在组件盒子正中），**无需**外层再写 flex 居中。
  */
 
 // 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
@@ -117,13 +124,21 @@ if (props.name && !ICONS[props.name]) {
   }
 }
 const icon = computed(() => ICONS[props.name] || ICONS.empty)
-// 颜色解析：COLOR_MAP 键无 `--` 前缀，var() 查找从未命中，var() 形态实际恒走 currentColor 兜底。
-// SVG data-uri 无法解析 var()，var() 形态统一落到兜底常量 ICON_FALLBACK_COLOR（中性近黑）；
-// 其余形态（currentColor / 真实色值）原样透传。
+/**
+ * 颜色解析（UI 统一 Loop Round 20 补正）：
+ * SVG 走 data-uri ⇒ 它是一份**独立文档**，既**解析不了 `var()`**，也**继承不到父级文字色**
+ * —— 故 `var(...)` 与 `currentColor`（默认值）都统一落到兜底常量 `ICON_FALLBACK_COLOR`（中性近黑）。
+ * 需要语义色时**必须传实色**（如 `COLOR_MAP['text-placeholder']`，见 theme/tokens.ts）。
+ */
 const stroke = computed(() => {
   const c = props.color
-  return !c || c.startsWith('var(') ? ICON_FALLBACK_COLOR : c
+  return !c || c === 'currentColor' || c.startsWith('var(') ? ICON_FALLBACK_COLOR : c
 })
+
+// 开发期告警：传 `var(...)` 是最常见的误用（静默变近黑、难排查），仅 DEV 提示，生产保持静默
+if (import.meta.env?.DEV && props.color?.startsWith('var(')) {
+  console.warn('[IconSvg] color 不支持 var()（SVG data-uri 是独立文档），已回退兜底色；请传实色（COLOR_MAP）:', props.name)
+}
 
 // 动态拼接 SVG 字符串并编码为 data-uri，供 <image> 渲染。
 // MP-019：模块级缓存（icon name + 颜色 → data-uri）——百级卡片列表（瀑布流点赞星标等）
@@ -177,6 +192,12 @@ const imgStyle = computed(() => ({
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* ⚠️ `flex: none`（不缩不放）：图标在 flex 父级里若允许收缩，兄弟节点一多就会被压扁
+     ⇒「size prop 明明传了、看上去还是变小 / 变形」的根因之一（UI 统一 Loop Round 20 修复）。 */
+  flex: none;
+  /* `vertical-align: middle`：父级用 `align-items: baseline`（如详情页标题行）时，
+     inline-flex 宿主默认按基线对齐会**偏上**；本行保证图标相对行盒垂直居中。 */
+  vertical-align: middle;
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
 }

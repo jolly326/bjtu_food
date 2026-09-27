@@ -113,6 +113,9 @@ page {
   --weight-heavy: 800;
   /* 布局：主滚动区底部安全留白（.scroll-wrap 消费；命名沿用历史 tabbar 高度，非字面 TabBar） */
   --tabbar-height: 100rpx;
+  /* 搜索栏高度（SearchBar 单胶囊；UI 统一 Loop Round 20：由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
+     ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
+  --search-bar-height: 96rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
   /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
