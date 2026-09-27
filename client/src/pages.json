@@ -84,6 +84,18 @@
 			]
 		},
 		{
+			"root": "pages/correction/",
+			"pages": [
+				{
+					"path": "index",
+					"style": {
+						"navigationBarTitleText": "菜品信息纠错",
+						"navigationStyle": "custom"
+					}
+				}
+			]
+		},
+		{
 			"root": "pages/my-reviews/",
 			"pages": [
 				{

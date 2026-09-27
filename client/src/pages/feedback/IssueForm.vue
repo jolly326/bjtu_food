@@ -1,10 +1,9 @@
 <template>
-  <!-- 意见反馈 · 单表单字段区（2026-09-27 改版）：
+  <!-- 意见反馈 · 表单字段区（2026-09-27 与菜品纠错解耦后：**只有一套字段**）：
        ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
-       ② 具体描述（必填，≤1000 字、超 800 显示计数，占位文案随类型切换）
+       ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
        ③ 上传截图（选填，最多 1 张，虚线框）
-       ④ 小字提示（提交内容由维护者查看）
-       表单自身不带卡片壳（白卡由页面 .q-card 提供，与详情页写评价抽屉同构）。 -->
+       表单自身不带卡片壳（白卡由页面 .q-card 提供）。 -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
     <view class="field">
@@ -40,9 +39,8 @@
       <text v-if="errors['form.type']" class="field-error">{{ errors['form.type'] }}</text>
     </view>
 
-    <!-- ② 具体描述（非纠错类型）：上限 600 字、字数**常显在标题行右上角**；占位随选中类型切换。
-         类型 = 「菜品信息纠错」时本块不渲染（改由页面侧的预填纠错表单承载，用户口径 v2）。 -->
-    <view v-if="!isCorrection" class="field">
+    <!-- ② 具体描述：上限 600 字、字数常显在标题行右上角；占位随选中类型切换 -->
+    <view class="field">
       <view class="field-head">
         <text class="field-label">具体描述<text class="req">*</text></text>
         <text class="counter">{{ model.content.length }}/{{ CONTENT_MAX }}</text>
@@ -62,8 +60,8 @@
       <text v-if="errors['form.content']" class="field-error">{{ errors['form.content'] }}</text>
     </view>
 
-    <!-- ③ 上传截图（非纠错类型；选填，最多 1 张）：单图虚线框形态；破图走统一 ImagePlaceholder -->
-    <view v-if="!isCorrection" class="field">
+    <!-- ③ 上传截图（选填，最多 1 张）：单图虚线框形态；破图走统一 ImagePlaceholder -->
+    <view class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
         single
@@ -73,23 +71,18 @@
         @update:model-value="onImagesChange"
       />
     </view>
-
   </view>
 </template>
 
 <script setup lang="ts">
-/** IssueForm（feedback 包内私有）：意见反馈页单表单字段区（类型 + 描述 + 截图 + 提示） */
-import { computed } from 'vue'
+/** IssueForm（feedback 包内私有）：意见反馈页表单字段区（类型 + 描述 + 截图） */
 import ImagePicker from '@/components/ImagePicker.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 
-/** 描述上限（与编排层同源常量；值 = 用户口径 v2 的 600 字） */
+/** 描述上限（与编排层同源常量；值 = 用户口径 600 字） */
 const CONTENT_MAX = 600
-
-/** 类型 = 「菜品信息纠错」⇒ 字段区换成预填纠错表单（描述与截图本组件不渲染） */
-const isCorrection = computed(() => props.model.type === 'error')
 
 const props = defineProps<{
   model: { type: FeedbackType | ''; content: string; images: string[] }
@@ -196,20 +189,18 @@ function onImagesChange(urls: string[]) {
   line-height: 1.4;
 }
 
-/* 字段标题行：左标题 + 右计数（计数与标题同基线，不占额外高度） */
+/* ===== ② 描述：标题行（左标题 + 右计数） ===== */
 .field-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--spacing-sm);
 }
-/* 字数计数：常显在标题行**右上角**（等宽数字避免跳动） */
+/* 字数计数：常显在标题行右上角（等宽数字避免跳动） */
 .counter {
   flex: none;
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-
-/* 小字提示行已按用户口径删除（2026-09-27）—— 本组件不再有 `.form-note`。 */
 </style>

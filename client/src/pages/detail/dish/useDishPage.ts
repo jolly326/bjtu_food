@@ -29,7 +29,7 @@ import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/nav'
 import { getWindowInfo } from '@/utils/device'
 import { toastError } from '@/utils/error'
-import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
+import { dishDetailUrl, correctionUrl } from '@/utils/routes'
 // COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
 // 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
@@ -341,7 +341,7 @@ export function useDishPage() {
   function onCorrectDishInfo() {
     if (!dishId.value) return
     uni.navigateTo({
-      url: feedbackUrl('update', dishId.value),
+      url: correctionUrl(dishId.value),
     })
   }
 

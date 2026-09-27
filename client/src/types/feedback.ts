@@ -31,16 +31,10 @@ export const FEEDBACK_TYPES = [
     placeholder: '描述你希望新增或改动的功能想法',
   },
   {
-    value: 'error',
-    label: '菜品信息纠错',
-    hint: '菜名、价格、口味、配图修正',
-    placeholder: '写明菜品名称、错误内容以及正确信息',
-  },
-  {
     value: 'other',
     label: '其他相关问题',
     hint: '其余平台相关问题反馈',
-    placeholder: '描述你遇到的平台相关问题',
+    placeholder: '描述你遇到的平台相关问题。若发现菜品资料有误，请前往对应菜品详情页提交纠错',
   },
 ] as const
 
@@ -71,7 +65,7 @@ export type FeedbackSubmit =
    * 值域 = 服务端 `FeedbackConst.WRITABLE_TYPES` 的子集，非法值 400。
    */
   | {
-      type: 'bug' | 'suggestion' | 'error' | 'other'
+      type: 'bug' | 'suggestion' | 'other'
       /** 反馈内容（必填，≤1000 字） */
       content: string
       /** 配图（COS URL，≤1 张；经上传安检后回传） */

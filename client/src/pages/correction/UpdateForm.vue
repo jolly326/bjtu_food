@@ -303,7 +303,9 @@ function removeChip(field: 'flavorTags' | 'ingredients', index: number) {
 
 <style scoped lang="scss">
 /* 字段级样式（.field / .field-label / .req / .field-error / .picker-row / .picker-value / .input-error）统一来自共享 partial */
-@use './form-shared';
+/* 字段级共享样式仍由 feedback 包持有（`_form-shared.scss`）：两页共用同一份、只在**编译期内联**，
+   不产生运行时跨分包依赖（改一处两页同步；需彻底解耦时可上提到 src/styles/）。 */
+@use '../feedback/form-shared';
 
 /* 按压反馈：统一 hover-class + opacity（与全站按压语言一致） */
 .row-pressed { opacity: 0.7; }
