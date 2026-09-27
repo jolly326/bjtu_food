@@ -37,7 +37,7 @@ export interface DishListItem {
   stallName: string
 }
 
-interface RatingDistribution {
+export interface RatingDistribution {
   star: number
   count: number
 }
@@ -68,6 +68,30 @@ export interface DishDetail {
   /** 描述四维·冷热（**机器值**：hot / room / ice；中文由字典提供） */
   serveTemp?: string
   ratingDistribution: RatingDistribution[]
+}
+
+/**
+ * 搜索结果项（**页面视图模型**，非接口出参）
+ *
+ * 搜索页把 `GET /dishes` 的行投影成它，`FindResults` 组件按它渲染。
+ * ⚠️ 与 `DishListItem` 的区别：字段按**展示语义**收敛（`coverImage → image`），且只含结果卡用到的字段。
+ * 单一来源：原先 find 页 `MixedResult` 与 `FindResults` 内 `MixedResultItem` 是逐字段重复的两份定义
+ * （UI 统一 Loop Round 17 合并）。
+ */
+export interface MixedResultItem {
+  type: 'dish'
+  id?: number
+  name: string
+  /** 列表唯一图片字段（后端 coverImage；无图空串 → 结果卡占位空态） */
+  image?: string
+  /** 副信息：菜品 →「食堂 · 档口」（`utils/dish.joinLocation`） */
+  sub?: string
+  /** 价格（元，api 层已转） */
+  price?: number
+  /** 平均评分 */
+  rating?: number
+  /** 原价（元，> price 时划线展示表示折扣，判据 `utils/dish.hasDiscount`） */
+  originalPrice?: number
 }
 
 /**

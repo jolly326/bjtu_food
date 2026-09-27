@@ -53,7 +53,8 @@ export function useDishPage() {
   const dish = computed(() => dishStore.currentDish)
   const reviewList = computed(() => dishStore.reviewList)
   const reviewTotal = computed(() => dishStore.reviewTotal)
-  const currentUserId = computed(() => userStore.userInfo?.id)
+  /* 注：原 `currentUserId` 派生值随 `ReviewItem.currentUserId` prop 一并移除（UI 统一 Loop Round 17）
+     —— 它只用于把「是否本人评价」下传组件，而该判定改由页面在 `ActionSheet` 侧完成。 */
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
   const reviewFailed = computed(() => dishStore.reviewError)
   /** 详情请求失败态（网络 / 服务端故障，**可重试**）：驱动「重新加载 + 返回」恢复路径 */
@@ -413,7 +414,6 @@ export function useDishPage() {
     detailNotFound,
     missingDishId,
     imageOnly,
-    currentUserId,
     reviewButtonText,
     composerPrefill,
     composerReviewId,

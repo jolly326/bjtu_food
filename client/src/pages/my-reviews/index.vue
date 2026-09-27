@@ -32,7 +32,6 @@
           v-for="r in list"
           :key="r.id"
           :review="r"
-          :current-user-id="userStore.userInfo?.id"
           :dish-name="r.dishName"
           @more="onMore(r)"
         />

@@ -46,10 +46,7 @@
             v-for="rv in reviews"
             :key="rv.id"
             :review="rv"
-            :current-user-id="currentUserId"
             flat
-            @delete="emit('delete', $event)"
-            @report="emit('report', $event)"
             @more="emit('more', $event)"
           />
         </view>
@@ -88,7 +85,6 @@ import type { Review } from '@/types/review'
 const props = defineProps<{
   reviews: Review[]
   total: number
-  currentUserId?: number
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价，渲染可重试失败态） */
   loadFailed?: boolean
   /** 「只看有图」开关选中态（服务端过滤，切换由页面重置分页并清空列表后重拉） */
@@ -103,9 +99,10 @@ const props = defineProps<{
 /** 评价数口径文案：全量 = 纯数字；「只看有图」下为筛选口径「有图 N」 */
 const totalLabel = computed(() => (props.imageOnly ? `有图 ${props.total}` : String(props.total)))
 
+/* `delete` / `report` 两个转发事件已移除（UI 统一 Loop Round 17）：
+   其唯一来源是 `ReviewItem` 的同名事件，而该事件在组件内从未触发 ⇒ 转发链整体为死代码；
+   删除 / 举报现由页面 `ActionSheet`（经 `more` 事件）统一处理。 */
 const emit = defineEmits<{
-  (e: 'delete', review: Review): void
-  (e: 'report', review: Review): void
   (e: 'more', review: Review): void
   /** 失败态点击重试：页面侧重拉评价列表（与进入页面同路径） */
   (e: 'retry'): void

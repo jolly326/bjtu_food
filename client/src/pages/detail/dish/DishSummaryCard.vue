@@ -41,16 +41,15 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import EmptyState from '@/components/EmptyState.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
+import type { RatingDistribution } from '@/types/dish'
 
-interface RatingDistItem {
-  star: number
-  count: number
-}
+/* 分布项类型来自公共 `@/types/dish.RatingDistribution`（UI 统一 Loop Round 17：
+   原先本组件内 `RatingDistItem` 与接口层 `RatingDistribution` 是逐字段重复的两份定义）。 */
 
 const props = defineProps<{
   rating: number
   ratingCount: number
-  distribution: RatingDistItem[]
+  distribution: RatingDistribution[]
 }>()
 
 const scoreText = computed(() => (props.rating > 0 ? props.rating.toFixed(1) : '-'))

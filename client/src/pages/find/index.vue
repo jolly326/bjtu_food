@@ -89,9 +89,9 @@
 
       <!-- ============ 搜索混合结果态：滚动容器在 FindResults 内容区内（仅结果态渲染） ============ -->
       <FindResults
-        v-else-if="filteredMixed.length > 0"
+        v-else-if="mixedResults.length > 0"
         class="results-host"
-        :items="filteredMixed"
+        :items="mixedResults"
         :keyword="keyword"
         @select="goToMixed"
       />
@@ -128,6 +128,7 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/nav'
 import { joinLocation } from '@/utils/dish'
+import type { MixedResultItem } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -221,26 +222,10 @@ const searchFailed = ref(false)
 // 搜索页不再持有任何筛选状态：不传 canteenId / minPrice / maxPrice，也不传排序参数
 // （排序口径唯一由后端决定：热度优先、不设排序入口）。
 
-/** 混合搜索结果：复用菜品检索接口返回 DishListItem[]（搜索仅针对菜品） */
-interface MixedResult {
-  type: 'dish'
-  id?: number
-  name: string
-  /** 列表唯一图片字段（后端 coverImage；无图空串 → 结果卡占位空态） */
-  image?: string
-  /** 副信息：菜品→「食堂 · 档口」（B8 档口名）；档口/食堂→位置 */
-  sub?: string
-  /** 菜品专属：价格（元，api 层已转） */
-  price?: number
-  /** 菜品专属：平均评分 */
-  rating?: number
-  /** 菜品专属：原价（元，> price 时划线展示表示折扣） */
-  originalPrice?: number
-}
-const mixedResults = ref<MixedResult[]>([])
+/* 搜索结果项类型来自公共 `@/types/dish.MixedResultItem`（UI 统一 Loop Round 17：
+   原先本页 `MixedResult` 与 FindResults 内 `MixedResultItem` 是逐字段重复的两份定义） */
+const mixedResults = ref<MixedResultItem[]>([])
 
-/** 搜索结果（仅菜品单列） */
-const filteredMixed = computed(() => mixedResults.value)
 
 /** 确认/回车搜索（SearchBar input 模式的 @search：回车 / 点「搜索」按钮） */
 function onSearchConfirm() {

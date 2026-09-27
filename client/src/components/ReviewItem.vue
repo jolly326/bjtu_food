@@ -90,8 +90,6 @@ defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
   review: Review
-  /** 当前登录用户 ID：用于判定本人评价（本人可删、他人可举报） */
-  currentUserId?: number
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
@@ -100,18 +98,18 @@ const props = defineProps<{
 // `hideReport` / `deletable` 两个 prop 全仓零传入（「我的评价」页复用本组件、经 `dishName` prop 注入菜名），
 // 按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
+/* 事件**只有一个出口**：`more`（右上角竖三点）。
+   UI 统一 Loop Round 17：原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
+   —— 本人删除 / 他人举报统一由父页 `ActionSheet` 处理 ⇒ 按「零消费即删」移除。 */
 const emit = defineEmits<{
-  (e: 'report', review: Review): void
-  (e: 'delete', review: Review): void
   (e: 'more', review: Review): void
 }>()
 
 const pressed = ref(false)
 const avatarOk = ref(true)
 
-// 本人评价：当前登录用户 ID 命中即本人（本人可删、他人可举报）
-const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
-const canDelete = computed(() => isOwn.value)
+/* 注：原 `isOwn` / `canDelete` 两个派生值只服务于已删除的 `delete` 事件（UI 统一 Loop Round 17）；
+   「是否本人评价」的判定现由父页（我的评价 / 菜品详情）自行完成，组件不再重复持有。 */
 
 /* ===== 配图展示（≤3 张 COS URL，点击预览大图） ===== */
 const reviewImages = computed(() =>
@@ -138,11 +136,6 @@ function onPreviewImage(i: number) {
   uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
 }
 
-function onDelete() {
-  if (!canDelete.value) return
-  emit('delete', props.review)
-}
-function onReport(r: Review) { emit('report', r) }
 /** 右上角三点菜单：操作由父页面以 ActionSheet 呈现（举报他人 / 删除本人） */
 function onMore() {
   emit('more', props.review)

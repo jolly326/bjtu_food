@@ -82,18 +82,10 @@ import { formatPrice } from '@/utils/money'
 // （原本地 `thumbSrc()` 与首页 `DishCard` 的组合逻辑重复 —— UI 统一 Loop Round 17 上提为公共函数）
 import { getThumbImageUrl as thumbSrc } from '@/utils/image'
 import { hasDiscount, formatRating } from '@/utils/dish'
+import type { MixedResultItem } from '@/types/dish'
 
-/** 搜索混合结果项（仅菜品）；与 find 页 MixedResult 结构兼容 */
-interface MixedResultItem {
-  type: 'dish'
-  id?: number
-  name: string
-  image?: string
-  sub?: string
-  price?: number
-  originalPrice?: number
-  rating?: number
-}
+/* 结果项类型来自公共 `@/types/dish.MixedResultItem`（UI 统一 Loop Round 17：
+   原组件内定义与 find 页 `MixedResult` 逐字段重复，已合并为单一来源）。 */
 
 /* 对外接口：入参仅 `items` / `keyword`，事件仅 `select`。 */
 const props = defineProps<{

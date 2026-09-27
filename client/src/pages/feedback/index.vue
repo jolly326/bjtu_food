@@ -72,7 +72,6 @@
       search-placeholder="搜菜名"
       :search-initial="dishKeyword"
       :options="dishPickerOptions"
-      row-style="plain"
       @close="closeDishSheet"
       @search="onDishSearchKw"
       @select="onDishPick"

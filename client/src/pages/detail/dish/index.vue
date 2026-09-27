@@ -71,12 +71,9 @@
         <DishReviewSection
           :reviews="reviewList"
           :total="reviewTotal"
-          :current-user-id="currentUserId"
           :load-failed="reviewFailed"
           :image-only="imageOnly"
           :pending="reviewPending"
-          @delete="onDeleteReview"
-          @report="onReviewReport"
           @more="onReviewMore"
           @retry="onRetryReviews"
           @write="onOpenReviewComposer"
@@ -186,7 +183,6 @@ const {
   detailNotFound,
   missingDishId,
   imageOnly,
-  currentUserId,
   reviewButtonText,
   composerPrefill,
   composerReviewId,
