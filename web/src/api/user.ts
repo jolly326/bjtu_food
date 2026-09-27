@@ -1,7 +1,7 @@
 import type { User } from '@/types'
 import { get, put } from './http'
 import { pageRecords, userToLegacy } from './adapter'
-import type { PageEnvelope } from './adapter'
+import type { PageEnvelope, RawUser } from './adapter'
 
 /**
  * 用户列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。
@@ -19,7 +19,7 @@ export async function listUsers(params: {
   if (params.status) query.status = params.status
   // WEB-08：后端 GET /admin/users 不接收 keyword（模糊检索参数不存在），
   // 关键词搜索为前端本地过滤（UserView.filteredStudents），此处禁止透传该参数。
-  const data = await get<PageEnvelope<unknown>>('/admin/users', query)
+  const data = await get<PageEnvelope<RawUser>>('/admin/users', query)
   return {
     list: pageRecords(data).map(userToLegacy),
     total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,

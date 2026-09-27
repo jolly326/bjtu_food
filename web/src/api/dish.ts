@@ -1,7 +1,7 @@
 import type { Dish } from '@/types'
 import { del, get, post, put } from './http'
 import { dishToApi, dishToLegacy, pageRecords } from './adapter'
-import type { PageEnvelope } from './adapter'
+import type { PageEnvelope, RawDish } from './adapter'
 
 /**
  * 菜品全量采集（聚合页 / 详情页联查等需要完整集合的场景）。
@@ -13,7 +13,7 @@ export async function getAll(): Promise<Dish[]> {
   let page = 1
   const pageSize = 100
   for (let guard = 0; guard < 1000; guard++) {
-    const data = await get<PageEnvelope<unknown>>('/admin/dishes', { page, pageSize })
+    const data = await get<PageEnvelope<RawDish>>('/admin/dishes', { page, pageSize })
     const records = pageRecords(data).map(dishToLegacy)
     if (!records.length) break
     all.push(...records)
