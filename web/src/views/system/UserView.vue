@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { User } from '@/types'
 /**
  * UserView：学生账号页（一级入口 /dashboard/system）。
  * 2026-09-15（本轮精简）：原「用户与系统」聚合页（账号 / 操作日志两张分类卡）删除后，
@@ -28,7 +29,7 @@ const confirm = useConfirmStore()
 
 const searchQuery = ref('')
 // 用户行为聚合弹窗
-const activityUser = ref<any>(null)
+const activityUser = ref<User | null>(null)
 
 // 三态（WEB-108）：进入页面显式刷新，供 DataTable 展示 loading/error
 // WEB-02：本页仅依赖「学生用户」一个域，按需加载。
@@ -100,7 +101,7 @@ const filteredStudents = computed(() => {
 
 // ===== 行内状态快捷切换（正常/禁用） =====
 const switchId = ref<number | null>(null)
-async function toggleStatus(row: any, active: boolean) {
+async function toggleStatus(row: User, active: boolean) {
   if (row.status === (active ? 'active' : 'disabled')) return
   switchId.value = Number(row.id)
   try {
@@ -219,7 +220,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
             :model-value="row.status === 'active'"
             :loading="switchId === Number(row.id)"
             :disabled="switchId === Number(row.id)"
-            @change="(v: any) => toggleStatus(row, !!v)"
+            @change="(v: string | number | boolean) => toggleStatus(row, !!v)"
           />
           <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '正常' : '已禁用' }}</span>
         </div>

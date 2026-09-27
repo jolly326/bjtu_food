@@ -13,6 +13,7 @@
  * WEB-03：用户名降级显示（getUserName 读 store.users）——本页 onMounted 显式拉取 users / dishes 字典，
  * 不依赖 store setup 顶层自动加载（WEB-02）。
  */
+import type { Review } from '@/types'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
@@ -39,7 +40,7 @@ const userStore = useUserStore()
 // 请求竞态守卫（UI-05 收敛为 useAsyncGuard）：显隐/关键词快速切换时仅接受最新一次请求结果，
 // listAllReviews 多页循环无法中途取消，落地前校验 alive 丢弃过期响应。
 const { loading, error, run } = useAsyncGuard()
-const reviews = ref<any[]>([])
+const reviews = ref<Review[]>([])
 const selectedIds = ref<number[]>([])
 const searchQuery = ref('')
 /**
@@ -131,10 +132,10 @@ const detailUserName = computed(() =>
 const detailDishName = computed(() =>
   detailReview.value ? getDishName(detailReview.value.dish_id) : '',
 )
-function openReviewDetail(r: any) { detailReview.value = r }
+function openReviewDetail(r: Review) { detailReview.value = r }
 function closeDetail() { detailReview.value = null }
 
-async function setHidden(r: any, hidden: boolean) {
+async function setHidden(r: Review, hidden: boolean) {
   if (!await confirm.confirm(hidden ? '确定隐藏该评价？' : '确定显示该评价？')) return
   try {
     const { reviewApi } = await import('@/api')
@@ -145,7 +146,7 @@ async function setHidden(r: any, hidden: boolean) {
     toast.error((e as Error).message || '操作失败')
   }
 }
-async function toggleHidden(r: any, hidden: boolean) { await setHidden(r, hidden) }
+async function toggleHidden(r: Review, hidden: boolean) { await setHidden(r, hidden) }
 
 async function batchReviews(hidden: boolean | null) {
   if (!selectedIds.value.length || batchRunning.value) return
@@ -180,7 +181,7 @@ async function batchReviews(hidden: boolean | null) {
     selectedIds.value = failedIds
   }
 }
-async function removeReview(r: any) {
+async function removeReview(r: Review) {
   if (!await confirm.confirm('确定删除该评价？此操作不可恢复。')) return
   try {
     const { reviewApi } = await import('@/api')
@@ -231,7 +232,7 @@ function getDishName(dishId: number | bigint): string {
         { prop: 'rating', label: '评分', width: '120px', align: 'center', sortable: true, sortValue: (row) => row.rating },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'dish', label: '菜品' },
-        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
+        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at.getTime() },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
       ]"
       :rows="reviews"
@@ -249,7 +250,7 @@ function getDishName(dishId: number | bigint): string {
       <template #cell-content="{ row }">
         <span class="cell-text" :title="row.content || '（无文字内容）'">{{ row.content || '（无文字内容）' }}</span>
         <span v-if="(row.images || []).length" class="img-flag" title="该评价附有配图">
-          <el-icon><Picture /></el-icon>{{ row.images.length }}
+          <el-icon><Picture /></el-icon>{{ (row.images || []).length }}
         </span>
       </template>
       <template #cell-dish="{ row }">{{ getDishName(row.dish_id) }}</template>
@@ -260,7 +261,7 @@ function getDishName(dishId: number | bigint): string {
             :model-value="!row.is_hidden"
             :loading="false"
             :disabled="false"
-            @change="(v: any) => toggleHidden(row, !v)"
+            @change="(v: string | number | boolean) => toggleHidden(row, !v)"
           />
           <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
         </div>

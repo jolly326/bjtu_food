@@ -85,26 +85,27 @@ const emit = defineEmits<{
   'page-change': [page: number, pageSize: number]
 }>()
 
-function rowKeyValue(row: any) {
-  return row?.[props.rowKey]
+function rowKeyValue(row: T): number {
+  // T 非索引签名：按 rowKey 取值经 Record 窄化，并按主键类型返回
+  return (row as Record<string, unknown>)?.[props.rowKey] as number
 }
-function isSelected(row: any) {
+function isSelected(row: T) {
   return props.selectedIds.includes(rowKeyValue(row))
 }
-function toggleSelect(row: any) {
+function toggleSelect(row: T) {
   const key = rowKeyValue(row)
   const set = new Set(props.selectedIds)
   if (set.has(key)) set.delete(key)
   else set.add(key)
   emit('update:selectedIds', [...set])
 }
-function onRowClick(row: any) {
+function onRowClick(row: T) {
   emit('row-click', row)
 }
 
 // ===== 表头排序 =====
 const sortState = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
-function compareValues(va: any, vb: any): number {
+function compareValues(va: string | number | null | undefined, vb: string | number | null | undefined): number {
   if (va == null && vb == null) return 0
   if (va == null) return 1
   if (vb == null) return -1

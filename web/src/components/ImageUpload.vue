@@ -72,8 +72,8 @@ async function handleFileChange(e: Event) {
     const next = props.single ? [result.relativeUrl] : [...images.value, result.relativeUrl]
     sync(next)
     toast.success('图片上传成功')
-  } catch (err: any) {
-    toast.error(err.message || '图片上传失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '图片上传失败')
   } finally {
     uploading.value = false
     input.value = ''

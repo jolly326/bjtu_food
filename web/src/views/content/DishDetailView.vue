@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Dish, Review } from '@/types'
 /**
  * DishDetailView：菜品详情（扁平两层结构）。
  *
@@ -93,12 +94,12 @@ const headerSubtitle = computed(() => {
 
 // ===== 信息卡字段（只读；编辑一律走 DishFormDialog） =====
 /** 展示值恒取现价 price（§7.26：禁止双源切换，无促销价） */
-function formatPrice(d: any): string {
+function formatPrice(d: Dish): string {
   return `¥${Number(d?.price ?? 0).toFixed(2)}`
 }
 
 /** 有折扣（§7.26）：原价有值且高于现价 → 端上原价划线 */
-function hasPromo(d: any): boolean {
+function hasPromo(d: Dish): boolean {
   return d?.originalPrice != null && Number(d.originalPrice) > Number(d.price)
 }
 
@@ -126,8 +127,8 @@ async function deleteDish() {
     toast.success('菜品已删除')
     // 删除后回菜品列表（本页已无对应实体）
     router.push(DISH_LIST_PATH)
-  } catch (err: any) {
-    toast.error(err.message || '菜品删除失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '菜品删除失败')
   }
 }
 
@@ -144,16 +145,16 @@ const reviewDetail = ref<any | null>(null)
 const reviewDetailUserName = computed(() =>
   reviewDetail.value ? getUserName(reviewDetail.value.user_id) : '',
 )
-function openReviewDetail(r: any) { reviewDetail.value = r }
+function openReviewDetail(r: Review) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
 
 /** 行内显隐（评价的唯一显隐入口；详情弹窗为只读，不再提供第二个开关） */
-async function toggleReviewHidden(r: any, hidden: boolean) {
+async function toggleReviewHidden(r: Review, hidden: boolean) {
   try {
     await store.updateReview(Number(r.id), { is_hidden: hidden ? 1 : 0 })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
-  } catch (err: any) {
-    toast.error(err.message || '操作失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '操作失败')
   }
 }
 
@@ -163,8 +164,8 @@ async function handleDeleteReview(id: number) {
   try {
     await store.deleteReview(id)
     toast.success('评价已删除')
-  } catch (err: any) {
-    toast.error(err.message || '评价删除失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '评价删除失败')
   }
 }
 </script>
@@ -261,7 +262,7 @@ async function handleDeleteReview(id: number) {
         <div class="status-cell">
           <el-switch
             :model-value="!row.is_hidden"
-            @change="(v: any) => toggleReviewHidden(row, !v)"
+            @change="(v: string | number | boolean) => toggleReviewHidden(row, !v)"
           />
           <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
         </div>

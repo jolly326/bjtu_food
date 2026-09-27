@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Dish } from '@/types'
 /**
  * DishManageView：菜品管理（扁平两层结构）。
  *
@@ -171,11 +172,11 @@ async function refresh() {
 onMounted(refresh)
 
 // ===== 进入菜品详情（整行点击 = 唯一详情入口；编辑走弹窗） =====
-function onRowClick(row: any) {
+function onRowClick(row: Dish) {
   router.push(`/dashboard/content/dishes/${Number(row.id)}`)
 }
 
-function dishImage(row: any): string {
+function dishImage(row: Dish): string {
   return (row.image || '').split('|||')[0] || ''
 }
 
@@ -187,7 +188,7 @@ function openAddDish() {
   editingDishId.value = null
   dishModal.value = true
 }
-function openEditDish(row: any) {
+function openEditDish(row: Dish) {
   editingDishId.value = Number(row.id)
   dishModal.value = true
 }
@@ -199,7 +200,7 @@ function onDishSaved() {
  * 删除影响说明（Q-112 ②）：删除菜品将连带使其评价不可见。
  * 列表接口已带 rating_count，能取到具体条数就带上；取不到则用通用文案（不为取数新增接口，PR-13）。
  */
-function deleteImpactText(row: any): string {
+function deleteImpactText(row: Dish): string {
   const n = Number(row?.rating_count ?? 0)
   const reviewLine = n > 0
     ? `该菜品下的 ${n} 条评价将一并删除、不可恢复。`
@@ -207,7 +208,7 @@ function deleteImpactText(row: any): string {
   return `确定删除菜品「${row.name}」？删除后不可恢复。${reviewLine}`
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: Dish) {
   if (!await confirm.confirm(deleteImpactText(row))) return
   try {
     await store.deleteDish(Number(row.id))
@@ -218,18 +219,18 @@ async function handleDelete(row: any) {
 }
 
 /** 展示值恒取现价 price（§7.26：禁止双源切换，无促销价） */
-function formatPrice(row: any): string {
+function formatPrice(row: Dish): string {
   return `¥${Number(row.price ?? 0).toFixed(2)}`
 }
 
 /** 有折扣（§7.26）：原价有值且高于现价 → 端上原价划线 */
-function hasPromo(row: any): boolean {
+function hasPromo(row: Dish): boolean {
   return row.originalPrice != null && Number(row.originalPrice) > Number(row.price)
 }
 
 // ===== 行内状态快捷切换（上架/下架，无需进弹窗） =====
 const switchId = ref<number | null>(null)
-async function toggleStatus(row: any, active: boolean) {
+async function toggleStatus(row: Dish, active: boolean) {
   const next = active ? 'active' : 'inactive'
   switchId.value = Number(row.id)
   try {
@@ -401,7 +402,7 @@ async function batchDelete() {
             :model-value="row.status === 'active'"
             :loading="switchId === Number(row.id)"
             :disabled="switchId === Number(row.id)"
-            @change="(v: any) => toggleStatus(row, !!v)"
+            @change="(v: string | number | boolean) => toggleStatus(row, !!v)"
           />
           <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '在售' : '已下架' }}</span>
         </div>
