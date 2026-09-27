@@ -91,18 +91,38 @@ export const useDishStore = defineStore('dish', () => {
   let homeFetchSeq = 0
 
   /**
+   * 大类字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
+   * 用于 `fetchMealTypes` 去重：字典是静态字典，成功拉到后无需再拉；
+   * **失败不置位** ⇒ 页面 onShow 的「兜底重试」仍会重试（与既有注释语义一致）。
+   * 本 store 内部状态，不对外暴露。
+   */
+  const mealTypeLoaded = ref(false)
+  /**
+   * 大类字典请求是否**在途**（同上）：`onLoad` 与 `onShow` 会在首次进入时先后触发同一次拉取，
+   * 仅靠「已成功」标记挡不住并发重复 ⇒ 补在途标记，二者共同去重。
+   */
+  const mealTypeLoading = ref(false)
+
+  /**
    * 拉取菜品大类字典（失败降级为空数组 → 标签栏只剩「全部」，不阻塞首屏列表）。
    * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「全部」，避免请求一个空类。
    */
   async function fetchMealTypes() {
+    // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
+    // 失败路径不置位 ⇒ 页面 onShow 的兜底重试仍会重试（与原注释语义一致）。
+    if (mealTypeLoaded.value || mealTypeLoading.value) return
+    mealTypeLoading.value = true
     try {
       mealTypeList.value = await dishApi.getMealTypes()
+      mealTypeLoaded.value = true
       if (filterMealType.value && !mealTypeList.value.some((m) => m.value === filterMealType.value)) {
         filterMealType.value = null
       }
     } catch (e) {
       console.error('加载菜品大类失败', e)
       mealTypeList.value = []
+    } finally {
+      mealTypeLoading.value = false
     }
   }
 

@@ -280,9 +280,8 @@ onLoad(() => {
 onShow(() => {
   showTab('home')
   clearShareState()
-  // 大类字典：每次 onShow 各请求一次（字典很小、失败不阻塞首屏；重复请求代价可忽略）。
-  // ⚠️ Round 17 修正注释：原文写「仅从未成功时才发请求（store 内自带守卫）」与实现**不符** ——
-  // `fetchMealTypes` 目前没有 loaded 守卫，每次 onShow 都会真发一次请求（已登记为待评估项）。
+  // 大类字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `mealTypeLoaded` 守卫），失败不阻塞首屏。
+  // Round 17：先前注释承诺的守卫并不存在（每次 onShow 都真发一次请求），本轮已在 store 内补齐 ⇒ 注释与实现一致。
   void dishStore.fetchMealTypes()
 })
 

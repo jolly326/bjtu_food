@@ -92,6 +92,9 @@ const pageSize = 20
 const finished = ref(false)
 
 async function load() {
+  // 重入守卫（UI 统一 Loop Round 17）：onShow 与重试块可能在上一次请求仍在途时再次触发，
+  // 重入会并发两次「第 1 页」请求、互相覆盖列表（`loadMore` 早有同款守卫，此处补齐）。
+  if (loading.value) return
   loading.value = true
   try {
     const res = await getNotifications({ page: 1, pageSize })

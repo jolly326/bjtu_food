@@ -96,6 +96,10 @@ const brokenImages = ref<Set<number>>(new Set())
 watch(
   () => props.modelValue,
   (v) => {
+    // 上传在途时不回灌（UI 统一 Loop Round 17 竞态修复）：本轮追加写在本地镜像 `urls` 上，
+    // 若此刻用外部值覆盖，可能丢掉「已上传完成、但尚未随父级值回来」的那几张。
+    // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
+    if (uploading.value) return
     urls.value = [...(v || [])]
     brokenImages.value = new Set()
   },
