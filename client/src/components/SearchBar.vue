@@ -150,8 +150,18 @@ function onInput(e: Event) {
 }
 .search-bar-pressed { background: var(--bg-soft); }
 
-/* ① 放大镜：左侧、行内垂直居中（`align-items: center` 已保证），宿主 `flex: none` 由 IconSvg 自持 */
-.search-bar-icon { flex: none; }
+/* ① 放大镜：**宿主节点**（`<icon-svg>` 自定义组件，未开 virtualHost）显式定为 40rpx 方形 flex 盒。
+   原因（Round 20 实测）：flex 行的子项是宿主节点而非内部 `.icon-svg` view，宿主无布局样式时
+   内部图标按「文本行盒 + 基线」排 ⇒ 随继承字体度量垂直偏移（真机读作"偏下"）。
+   宿主自身成为 flex 容器后，内部图标在其内**精确居中**，与行盒/基线彻底解耦。 */
+.search-bar-icon {
+  flex: none;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ② 文案：占位更轻（`--text-placeholder`）、已输入更深（`--text-primary`）—— 色差即「已输入」的第一信号 */
 .search-bar-placeholder,
