@@ -10,18 +10,18 @@
   - 菜品详情页**底栏「反馈错误」按钮** → `feedbackUrl('update', dishId)` ⇒ 类型**默认「菜品信息纠错」**并按 `dishId` **自动拉详情预填**（用户只改错的地方）。
 - 页面：`pages/feedback/index`（页底随全局 `page{}` 底色 = 奶油米白 + `PageWallpaper` 壁纸层；页头 `AppHeader`「意见反馈」+ 返回）
 
-## 表单卡（白色圆角 `--radius-card` + `--shadow-card`，内距 `--spacing-lg`）自上而下
+## 表单卡（白色大卡片：圆角 **16rpx**（`--radius-btn`）+ `--shadow-card`，内距 `--spacing-lg`，页面左右 `--spacing-md` 留边）自上而下
 
 ### 1. 反馈类型（必填，竖排单选；整行可点、行高 ≥88rpx）
 
 选中项**左侧橙色勾**（`.type-check` 圆形描边 → 选中填 `--color-primary` + 白 `check` 图标；纯图形，对读屏隐藏，选中语义由 `role="radio"` + `aria-checked` 表达）。四项（`label` 后括号内为 `hint`，缺省不渲染）：
 
-| 顺序 | `value`（提交值） | `label` | `hint` |
+| 顺序 | `value`（提交值） | `label` | `hint`（卡片副标题） |
 |---|---|---|---|
-| 1 | `bug` | 小程序功能Bug | 页面报错、图片加载、评价展示/提交异常等程序问题 |
-| 2 | `suggestion` | 产品功能建议 | —（无） |
-| 3 | `error` | 菜品信息纠错 | 菜品名称、价格、档口、配图等资料错误 |
-| 4 | `other` | 其他平台相关问题 | —（无） |
+| 1 | `bug` | 程序功能Bug | 页面、图片、评价等程序异常 |
+| 2 | `suggestion` | 产品功能建议 | 新功能、交互优化好点子 |
+| 3 | `error` | 菜品信息纠错 | 菜名、价格、口味、配图修正 |
+| 4 | `other` | 其他相关问题 | 其余平台相关问题反馈 |
 
 > `value` 必须落在服务端写入白名单内（非法值 400）；文案常量在端上（`types/feedback.ts` 的 `FEEDBACK_TYPES`），若后续要「改文案不发版」，改为服务端下发即可、渲染结构不变。
 

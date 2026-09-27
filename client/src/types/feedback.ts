@@ -20,26 +20,26 @@
 export const FEEDBACK_TYPES = [
   {
     value: 'bug',
-    label: '小程序功能Bug',
-    hint: '页面报错、图片加载、评价展示/提交异常等程序问题',
+    label: '程序功能Bug',
+    hint: '页面、图片、评价等程序异常',
     placeholder: '请描述bug现象、复现步骤，有截图可以附上',
   },
   {
     value: 'suggestion',
     label: '产品功能建议',
-    hint: '',
+    hint: '新功能、交互优化好点子',
     placeholder: '描述你希望新增或改动的功能想法',
   },
   {
     value: 'error',
     label: '菜品信息纠错',
-    hint: '菜品名称、价格、档口、配图等资料错误',
+    hint: '菜名、价格、口味、配图修正',
     placeholder: '写明菜品名称、错误内容以及正确信息',
   },
   {
     value: 'other',
-    label: '其他平台相关问题',
-    hint: '',
+    label: '其他相关问题',
+    hint: '其余平台相关问题反馈',
     placeholder: '描述你遇到的平台相关问题',
   },
 ] as const

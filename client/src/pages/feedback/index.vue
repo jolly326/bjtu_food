@@ -149,7 +149,8 @@ const submitButtonText = computed(() => (submitting.value ? '提交中…' : '�
   margin: var(--spacing-md) var(--spacing-md) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
-  border-radius: var(--radius-card);
+  /* 大卡片圆角 = 16rpx（用户口径 v3；走既有圆角档 `--radius-btn` = 16rpx，不新立 token） */
+  border-radius: var(--radius-btn);
   box-shadow: var(--shadow-card);
 }
 
