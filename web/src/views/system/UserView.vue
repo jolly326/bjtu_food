@@ -184,7 +184,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
         { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
         { prop: 'userInfo', label: '用户信息' },
         { prop: 'authState', label: '认证', width: '90px', align: 'center' },
-        { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
+        // 排序取值须为可比标量（string | number）：Date 取时间戳
+        { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at.getTime() },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
       ]"
       :rows="filteredStudents"

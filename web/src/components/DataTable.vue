@@ -1,6 +1,12 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
+import { ref, computed, watch, nextTick } from 'vue'
+import type { Component } from 'vue'
+import { ArrowRight } from '@element-plus/icons-vue'
+
 /**
  * DataTable：通用数据表格（§4.2 自封装组件）。
+ * 泛型 `T` = 行数据类型（`Dish` / `Review` / `User` / `CorrectionAdminVO` …），
+ * 使 `rows` / `sortValue` / `row-click` 全程带类型，替代此前的 `any`。
  * - 三态齐全：loading / error / empty / 正常
  * - 列定义驱动（prop / label / width / slot），单元格用 #cell-{prop} 槽自定义
  * - 可选 selectable 多选（#selection 槽或内置复选）
@@ -8,7 +14,7 @@
  * - 自动分页：行数超过 pageSize 时显示分页栏（共 N 条 / 每页条数 / 页码）
  * - 圆角/阴影走 Token（§4.2）
  */
-export interface DataTableColumn {
+export interface DataTableColumn<T = unknown> {
   prop: string
   label: string
   width?: string | number
@@ -18,13 +24,13 @@ export interface DataTableColumn {
   /** 可排序列：点击表头循环 升序→降序→取消 */
   sortable?: boolean
   /** 自定义排序取值（默认取 row[prop]；派生列如「档口/菜品」用此计算） */
-  sortValue?: (row: any) => number | string | null | undefined
+  sortValue?: (row: T) => number | string | null | undefined
 }
 
 const props = withDefaults(
   defineProps<{
-    columns: DataTableColumn[]
-    rows: any[]
+    columns: DataTableColumn<T>[]
+    rows: T[]
     loading?: boolean
     error?: string
     emptyText?: string
@@ -33,8 +39,8 @@ const props = withDefaults(
     selectedIds?: number[]
     /** 整行可点击（row-click 生效）：显示 pointer 光标 + 行尾箭头引导 */
     rowClickable?: boolean
-    /** 空态主图标（组件名，如 Document） */
-    emptyIcon?: any
+    /** 空态主图标（组件对象，如 Document / Element Plus 图标） */
+    emptyIcon?: Component | null
     /** 操作列宽度（px 或字符串），默认 160px */
     actionsWidth?: string
     /** 是否启用分页（默认开启；行数小于每页条数时自动隐藏分页栏） */
@@ -68,11 +74,8 @@ const props = withDefaults(
   },
 )
 
-import { ref, computed, watch, nextTick } from 'vue'
-import { ArrowRight } from '@element-plus/icons-vue'
-
 const emit = defineEmits<{
-  'row-click': [row: any]
+  'row-click': [row: T]
   'update:selectedIds': [ids: number[]]
   /** serverMode 下当前页码双向同步（v-model:serverPage） */
   'update:serverPage': [page: number]
@@ -134,7 +137,11 @@ const sortedRows = computed(() => {
   const s = sortState.value
   if (!s) return props.rows
   const col = props.columns.find(c => c.prop === s.prop)
-  const getVal = col?.sortValue ?? ((row: any) => row?.[s.prop])
+  // 未提供 sortValue 时按 prop 取值：行数据非索引签名，故经 Record 窄化后按可比类型返回
+  const getVal =
+    col?.sortValue ??
+    ((row: T) =>
+      (row as Record<string, unknown>)?.[s.prop] as number | string | null | undefined)
   return [...props.rows].sort((a, b) => {
     const r = compareValues(getVal(a), getVal(b))
     return s.order === 'asc' ? r : -r
@@ -269,9 +276,9 @@ watch(
               :key="col.prop"
               :class="{ 'cell-ellipsis': col.ellipsis && !$slots[`cell-${col.prop}`] }"
               :style="{ textAlign: col.align || 'left' }"
-              :title="col.ellipsis && !$slots[`cell-${col.prop}`] ? String(row[col.prop] ?? '') : undefined"
+              :title="col.ellipsis && !$slots[`cell-${col.prop}`] ? String((row as Record<string, unknown>)[col.prop] ?? '') : undefined"
             >
-              <slot :name="`cell-${col.prop}`" :row="row">{{ row[col.prop] }}</slot>
+              <slot :name="`cell-${col.prop}`" :row="row">{{ (row as Record<string, unknown>)[col.prop] }}</slot>
             </td>
             <!-- 可点击行：右侧箭头引导 -->
             <td v-if="rowClickable" class="row-arrow-cell" @click.stop>
