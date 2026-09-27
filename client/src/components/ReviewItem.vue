@@ -35,7 +35,7 @@
       <view class="review-meta">
         <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${formatRating(review.rating)} 分`">
           <IconSvg
-            v-for="n in Math.min(Math.max(Math.round(review.rating || 0), 1), 5)"
+            v-for="n in starCount"
             :key="n"
             name="star-filled"
             :size="22"
@@ -112,6 +112,11 @@ const avatarOk = ref(true)
 
 /* 注：原 `isOwn` / `canDelete` 两个派生值只服务于已删除的 `delete` 事件（UI 统一 Loop Round 17）；
    「是否本人评价」的判定现由父页（我的评价 / 菜品详情）自行完成，组件不再重复持有。 */
+
+/**
+ * 星级渲染颗数（1–5，最低 1 颗）：Round 28 —— 原为**模板内表达式**（每次渲染重算），改 `computed` 缓存。
+ */
+const starCount = computed(() => Math.min(Math.max(Math.round(props.review.rating || 0), 1), 5))
 
 /* ===== 配图展示（≤3 张 COS URL，点击预览大图） ===== */
 const reviewImages = computed(() =>

@@ -39,7 +39,7 @@ import { computed } from 'vue'
 import type { MealType } from '@/types/dish'
 
 /** 标签项：`value === null` 表示首项「为你推荐」（不传 mealType） */
-export interface MealTab {
+interface MealTab {
   value: string | null
   label: string
 }

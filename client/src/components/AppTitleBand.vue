@@ -24,10 +24,10 @@
         hover-class="band-back-pressed"
         @tap="emit('back')"
       >
-        <text class="band-back-text" :style="{ fontSize: leftFontSize }">返回</text>
+        <text class="band-back-text">返回</text>
       </view>
       <!-- 无返回：页面名称（左对齐；黑色粗体大号，不做白字 / 不描边 / 不加遮罩） -->
-      <text v-else class="band-title-left" :style="{ fontSize: leftFontSize }">{{ title }}</text>
+      <text v-else class="band-title-left">{{ title }}</text>
     </view>
 
     <!-- ===== 居中区（仅「有返回」时显示页面名称） =====
@@ -36,7 +36,7 @@
     <text
       v-if="back"
       class="band-title-center"
-      :style="{ fontSize: centerFontSize, opacity: titleOpacity }"
+      :style="{ opacity: titleOpacity }"
     >{{ title }}</text>
   </view>
 </template>
@@ -50,7 +50,7 @@
  * 布局口径：
  * · 本组件**自身不带左右内距**（否则会平移「绝对居中」的基准）——左区负责与左边缘的间距，
  *   居中区以整条带为基准取 `left: 50%` 真正居中；右端由 `max-width` 约束、不侵入微信原生胶囊。
- * · 字号档位由消费方按页覆盖（`left-size` / `center-size`），默认按「有无返回」自动取档。
+ * · 三处文字（左页面名 / 左「返回」/ 居中页面名）字号**统一 `--font-title`**，不再提供按页覆盖。
  */
 import { computed } from 'vue'
 import { useNavMetrics } from '@/utils/useNavMetrics'
@@ -60,13 +60,6 @@ const props = withDefaults(defineProps<{
   title?: string
   /** 是否显示返回（文字「返回」，居中区随之显示页面名称） */
   back?: boolean
-  /**
-   * 左区字号（CSS 长度，如 `'44rpx'` / `'var(--font-title)'`）。
-   * 不传 ⇒ **`--font-title`**（与首页「知行食记」同档，2026-09-27 用户裁决）——「返回」与页面名同字号。
-   */
-  leftSize?: string
-  /** 居中区字号（CSS 长度）。不传 ⇒ **`--font-title`**（与首页「知行食记」同档） */
-  centerSize?: string
   /**
    * 居中标题的**文字透明度**（0–1）。用于「滚下去才出现标题」的页面（菜品详情页菜名淡入）。
    * ⚠️ 只作用于文字，**不是**表面透明度：带体恒透明、不得借此做纱 / 蒙版。
@@ -88,10 +81,9 @@ const bandStyle = computed(() => ({
   paddingTop: 'max(' + statusBarPx.value + 'px, env(safe-area-inset-top))',
 }))
 
-/** 左区字号：显式传参优先；**默认与首页「知行食记」同档**（`--font-title`），有返回时「返回」同字号 */
-const leftFontSize = computed(() => props.leftSize || 'var(--font-title)')
-/** 居中区字号：显式传参优先；**默认与首页「知行食记」同档**（`--font-title`） */
-const centerFontSize = computed(() => props.centerSize || 'var(--font-title)')
+/* 三处字号统一 `--font-title`（与首页「知行食记」同档）：原 `leftSize` / `centerSize` 两个
+   覆盖 prop 全仓零传入（PR-05 零消费即删），改为在样式里声明一次（`.band-back-text,
+   .band-title-left, .band-title-center`），不再经内联 style 下发。 */
 </script>
 
 <style scoped>
@@ -121,6 +113,9 @@ const centerFontSize = computed(() => props.centerSize || 'var(--font-title)')
   min-width: 0;
   padding-left: var(--spacing-md);
 }
+/* 三处文字（左页面名 / 左「返回」/ 居中页面名）**字号唯一来源**：`--font-title`
+   （与首页「知行食记」同档，2026-09-27 用户裁决；三处视觉完全同级） */
+.band-back-text, .band-title-left, .band-title-center { font-size: var(--font-title); }
 /* 左区 · 页面名称（无返回）：粗体大号 —— 与文档 §1「标题档」同源 */
 .band-title-left {
   position: relative;

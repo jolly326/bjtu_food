@@ -199,8 +199,6 @@ const {
   backToHome,
   onRetryDetail,
   onToggleImageOnly,
-  onDeleteReview,
-  onReviewReport,
   onReviewMore,
   onReviewMoreSelect,
   onCorrectDishInfo,

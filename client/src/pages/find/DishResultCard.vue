@@ -39,7 +39,7 @@
       <!-- ① 菜名（两行省略，命中加粗） -->
       <text class="name">
         <text
-          v-for="(seg, si) in splitHighlight(item.name)"
+          v-for="(seg, si) in nameSegs"
           :key="si"
           :class="{ hit: seg.hit }"
         >{{ seg.text }}</text>
@@ -49,7 +49,7 @@
       <view class="loc-row">
         <text class="sub-text">
           <text
-            v-for="(seg, si) in splitHighlight(item.sub || '')"
+            v-for="(seg, si) in subSegs"
             :key="si"
             :class="{ hit: seg.hit }"
           >{{ seg.text }}</text>
@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
@@ -117,6 +117,11 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   return segs
 }
 
+/** 菜名 / 位置行的命中拆段结果（Round 28）：原为**模板内调用** —— 每次渲染都重跑拆段与
+    `toLowerCase`；改 `computed` 缓存，仅在 `item` / `keyword` 变化时重算（行以 item 为 key 稳定复用）。 */
+const nameSegs = computed(() => splitHighlight(props.item.name))
+const subSegs = computed(() => splitHighlight(props.item.sub || ''))
+
 /** 整卡点击：id 缺失（脏数据）时不派发，避免宿主跳进「菜品不存在」 */
 function onTap() {
   if (props.item.id != null) emit('select', props.item.id)
@@ -152,7 +157,8 @@ function onTap() {
   overflow: hidden;
   background: var(--bg-page);
 }
-.thumb-img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.32s var(--ease-out); }
+/* 淡入时长走 token（原裸值 0.32s）—— 与 DishCard 缩略图淡入同档（--duration-slow） */
+.thumb-img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
 .thumb-img.loaded { opacity: 1; }
 .thumb-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 

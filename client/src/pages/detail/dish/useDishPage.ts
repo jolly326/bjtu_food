@@ -440,8 +440,6 @@ export function useDishPage() {
     backToHome,
     onRetryDetail,
     onToggleImageOnly,
-    onDeleteReview,
-    onReviewReport,
     onReviewMore,
     onReviewMoreSelect,
     onCorrectDishInfo,

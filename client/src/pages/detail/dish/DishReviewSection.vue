@@ -154,7 +154,7 @@ function onFilter(kind: 'all' | 'image') {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  padding: 4rpx;
+  padding: var(--spacing-2xs);
   border-radius: var(--radius-pill);
   /* 槽底色须**明显浅于白卡**：选中项是「白底浮起」块，槽若近白则选中态不可辨
      （同 R14 开关轨道教训 —— --bg-placeholder 对白卡 ≈1.17:1）。取 --bg-soft（暖灰）保证层次。 */

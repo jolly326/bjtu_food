@@ -122,15 +122,15 @@
       </scroll-view>
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
-           find-retry-host 仅负责整屏居中占位（页面内部滚动容器需撑满剩余高度），视觉全在 RetryBlock 内。 -->
-      <view v-else-if="inFilter && searchDone && searchFailed" class="find-retry-host">
+           Round 28：与空态**共用 `.state-host`**（原 `.find-retry-host` / `.find-empty-host` 两条规则逐字相同）。 -->
+      <view v-else-if="inFilter && searchDone && searchFailed" class="state-host">
         <RetryBlock title="搜索加载失败" aria-label="搜索失败，点击重试" :margin="false" @retry="onRetrySearch" />
       </view>
       <!-- 搜索无结果引导（search-no-result-guidance）：请求**已完成**且结果为空才呈现；
            未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
-      <!-- 统一空态组件（UI 统一 Loop Round 3）：卡片变体；`.find-empty-host` 只承担整屏居中占位，
-           视觉全在公共 `EmptyState` 内（与失败态宿主 `.find-retry-host` 同语言） -->
-      <view v-else-if="inFilter && searchDone" class="find-empty-host">
+      <!-- 统一空态组件（UI 统一 Loop Round 3）：卡片变体；`.state-host` 只承担整屏居中占位，
+           视觉全在公共 `EmptyState` 内（与失败态同语言） -->
+      <view v-else-if="inFilter && searchDone" class="state-host">
         <EmptyState
           card
           icon="search"
@@ -146,7 +146,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
@@ -183,11 +184,6 @@ function onBack() {
 
 /* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
 
-/** 菜品详情：跳转独立页（pages/detail/dish） */
-function openDishDetail(id: number) {
-  if (!id) return
-  uni.navigateTo({ url: dishDetailUrl(id) })
-}
 const keyword = ref('')
 
 // ===== 搜索历史（本地缓存，预留接口位） =====
@@ -196,8 +192,9 @@ const HISTORY_KEY = 'find_search_history'
 const HISTORY_MAX = 4
 const historyList = ref<string[]>([])
 
-/** 猜你喜欢词列表（来源：后端 GET /dishes/for-you，由 loadDiscover → fetchGuessLike 拉取） */
-const guessLikeList = computed(() => dishStore.guessLikeList)
+/** 猜你喜欢词列表（来源：后端 GET /dishes/for-you，由 loadDiscover → fetchGuessLike 拉取）。
+    Round 28：改用 `storeToRefs` —— 原先对 store getter 再包一层 `computed`，属冗余包装。 */
+const { guessLikeList } = storeToRefs(dishStore)
 
 function loadHistory() {
   try {
@@ -351,9 +348,11 @@ function goContributeNotFound() {
   uni.navigateTo({ url: feedbackUrl() })
 }
 
-/** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口/食堂结果/详情页） */
+/** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口 / 食堂结果 / 详情页）。
+    Round 28：原 `openDishDetail` 仅此一处调用，且与本函数重复判空 ⇒ 合并为单点守卫。 */
 function goToMixed(id: number) {
-  if (id) openDishDetail(id)
+  if (!id) return
+  uni.navigateTo({ url: dishDetailUrl(id) })
 }
 
 function exitFilter() {
@@ -437,19 +436,9 @@ onShow(() => {
   gap: var(--spacing-sm);
 }
 
-/* 搜索无结果（空态）宿主（UI 统一 Loop Round 3）：仅承担整屏居中占位与边距，
-   视觉全在公共 `EmptyState`（卡片变体）内 —— 与下方失败态宿主同语言 */
-.find-empty-host {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin: var(--spacing-lg);
-  box-sizing: border-box;
-}
-/* 搜索失败态宿主（P3-03）：仅承担整屏居中占位与边距，视觉全在公共 RetryBlock 内 */
-.find-retry-host {
+/* 空态 / 失败态**共用宿主**（Round 28 合并：两条规则原先逐字重复，仅注释不同）：
+   只承担整屏居中占位与边距，视觉分别由公共 `EmptyState`（卡片变体）/ `RetryBlock` 承担。 */
+.state-host {
   flex: 1;
   min-height: 0;
   display: flex;
