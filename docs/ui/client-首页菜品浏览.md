@@ -5,8 +5,7 @@
 > 落点：`pages/home/index`（主包 · **TabBar 页**，`reLaunch` 切换，恒不显示返回箭头）。
 > 预览图：`docs/ui/client-首页菜品预览.png`（仅观感对照，实现以本文正文为准）。
 >
-> ⚠️ **本文件只写「当前口径」**。逐轮变更、被推翻的方案、失败尝试与历史决议，一律记录在
-> [`docs/UI_FRONTEND_LOOP.md`](../UI_FRONTEND_LOOP.md)（含「为什么试过六种表面方案都失败」的完整记录）。
+> ⚠️ **本文件只写「当前口径」**。逐轮变更、被推翻的方案与失败尝试**不再单独维护**（原 `docs/UI_FRONTEND_LOOP.md` 已于 2026-09-27 删除，历史可用 `git show bea8564:docs/UI_FRONTEND_LOOP.md` 取回）。
 
 **一页速查（当前口径）**
 

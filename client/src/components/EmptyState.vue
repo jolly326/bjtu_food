@@ -30,7 +30,7 @@
 /**
  * EmptyState —— 「暂无数据」空态展示块
  *
- * 消费方（Round 2 首批迁移 3 处，其余见 docs/UI_FRONTEND_LOOP.md 候选池）：
+ * 消费方（Round 2 首批迁移 3 处，其余见各页设计稿 `docs/ui/**`）：
  * - pages/notifications/index.vue（暂无通知）
  * - pages/my-reviews/index.vue（游客态 / 删空后的提示）
  * （原 `pages/detail/dish/DishSummaryCard.vue`「还没有评分」消费方已随该卡移除 —— UI 统一 Loop Round 19；

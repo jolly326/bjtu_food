@@ -12,7 +12,7 @@
  * · 触底统一走 `loadMore()`（`scroll-view` 的 `@scrolltolower` 或页面 `onReachBottom`）。
  *
  * ⚠️ 约定：把页面滚动容器改为 `scroll-view` / 固定高度布局时，触底事件必须由滚动区承载
- * （页面级 `onReachBottom` 不再触发 —— 见 docs/UI_FRONTEND_LOOP.md Round 17 踩坑记录）。
+ * （页面级 `onReachBottom` 不再触发 —— Round 17 踩坑记录；历史见 git 归档）。
  */
 import { ref, type Ref } from 'vue'
 
