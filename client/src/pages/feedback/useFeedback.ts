@@ -16,7 +16,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
-import type { FeedbackType } from '@/types/feedback'
+import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { backToHome } from '@/utils/nav'
 
 /** 「菜品信息纠错」类型值（详情页「反馈错误」跳入时的默认选中项） */
