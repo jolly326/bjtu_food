@@ -76,7 +76,7 @@ export const useDishStore = defineStore('dish', () => {
   /** 当前选中大类键（`null` = 全部 = 不传 `mealType`）；端上唯一保留的筛选维度 */
   const filterMealType = ref<string | null>(null)
 
-  /** 首页列表（未选大类 = 推荐流·会话种子伪随机序；选中大类 = 该类热度序） */
+  /** 首页列表（未选大类 = 推荐流·会话种子伪随机序（逛）；选中大类 = 该类热度序（找），2026-09-28 产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -202,6 +202,10 @@ export const useDishStore = defineStore('dish', () => {
    */
   async function loadMoreHomeDishes(): Promise<boolean> {
     if (homeLoadingMore.value || homeFinished.value) return false
+    // 竞态修复（Round 31）：首刷 / 切大类的**重置式请求**在途时禁止翻页 ——
+    // 二者与 loadMore 共用 `homeFetchSeq`，loadMore 推进序号会让在途的重置响应被判过期丢弃，
+    // 而第 2 页却按**新筛选**拼到**旧列表**上 ⇒ 列表内容错乱（大类与数据不匹配）。
+    if (isLoading(LOADING_KEY_HOME) || isLoading(LOADING_KEY_HOME_SWAP)) return false
     if (homePage.value >= HOME_MAX_PAGES) {
       homeFinished.value = true
       homePageLimited.value = true

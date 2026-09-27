@@ -107,6 +107,10 @@ export function useDishPage() {
 
   /** 触底加载下一页评价（D6：结束判据 = 已加载条数 ≥ total） */
   async function onReviewsReachBottom() {
+    // 竞态修复（Round 31）：重置式请求（首屏 / 切「全部 ⇄ 有图」）在途时**禁止**追加下一页——
+    // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
+    // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容与 total 口径错乱）。
+    if (reviewPending.value) return
     if (!dish.value || reviewLoadingMore.value || reviewFinished.value) return
     // 已加载条数 ≥ 服务端 total：直接判定结束，不再多发一次空请求（末页恰好满页场景）
     if (reviewList.value.length >= reviewTotal.value) {

@@ -28,12 +28,12 @@
           @error="onError(b.id)"
         />
         <view v-else class="banner-ph">
-          <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
+          <ImagePlaceholder :size="120" />
         </view>
       </swiper-item>
     </swiper>
     <view v-else class="banner-ph">
-      <IconSvg name="empty" :size="120" :color="COLOR_MAP['text-tertiary']" />
+      <ImagePlaceholder :size="120" />
     </view>
   </view>
 </template>
@@ -42,9 +42,9 @@
 import { ref, onMounted } from 'vue'
 import * as bannerApi from '@/api/banner'
 import type { Banner } from '@/types/banner'
-import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+// 微信原生 <swiper> 的指示点色不接受 var()（同 ImageSwiper 的原生属性限制例外），必须用真实色值
 import {
-  COLOR_MAP,
   SWIPER_INDICATOR_ACTIVE_COLOR,
   SWIPER_INDICATOR_COLOR,
 } from '@/theme/tokens'

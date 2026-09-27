@@ -57,7 +57,7 @@
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「我的主页」+ 返回箭头（`@back` → `backToHome`） |
-| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 信息卡头像（加载失败回退 `empty` 中性占位，禁裂图） |
+| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 信息卡头像（加载失败回退统一占位 `ImagePlaceholder`，禁裂图） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时的 `user` 灰底占位 |
 | 4 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡（**与菜品详情评价区同一实现**）；本人视角专属菜名经 `dish-name` prop 注入；`@more` 上抛三点动作 |
 | 5 | `ActionSheet` | 公共 `components/ActionSheet.vue` | 三点菜单「删除评价」（危险红动作项） |
@@ -79,7 +79,7 @@
 | 7 | `records[].dishName` | 同上（本人视角专属） | 关联菜品名 | `ReviewItem` 菜名行 `.review-dish` | 次级加粗小字，单行省略 |
 | 8 | `records[].rating` | 同上 | 评分 | `ReviewItem` 星级行（1~5 实心黄星 + 数值） | 1 位小数 |
 | 9 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 | 二级灰，`pre-wrap` |
-| 10 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 `empty` 占位 |
+| 10 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 → 统一占位 `ImagePlaceholder` |
 | 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDate`（仅 `YYYY-MM-DD` —— 评价条目口径随 `ReviewItem` 全站统一，Round 24） |
 | 12 | `records[].userNickname` / `userAvatar` | 同上 | 昵称 / 头像 | `ReviewItem` 昵称与头像位 | 昵称空 → 「匿名用户」 |
 | 13 | `records[].userId` | 同上 | 评价者用户 ID | `ReviewItem` 动作显隐判定（与当前用户 `id` 比对 → 本人「删除评价」） | 零可见 UI |

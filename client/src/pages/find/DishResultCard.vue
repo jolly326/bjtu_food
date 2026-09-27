@@ -31,7 +31,7 @@
         @load="loaded = true"
       />
       <view v-else class="thumb-ph">
-        <IconSvg name="dish" :size="48" :color="COLOR_MAP['text-tertiary']" />
+        <ImagePlaceholder :size="48" />
       </view>
     </view>
 
@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { formatPrice } from '@/utils/money'
@@ -148,14 +149,15 @@ function onTap() {
 /* 注：卡间纵向间距由列表容器（find/index .mixed-list）的 flex gap 承担 ——
    本组件不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，见 find/index 样式区登记）。 */
 
-/* 左：固定正方形图片容器（aspectFill 铺满即容器内居中；无图 → 餐具占位） */
+/* 左：固定正方形图片容器（aspectFill 铺满即容器内居中；无图 → 统一占位 `ImagePlaceholder`）。
+   底色与占位同源（`--bg-placeholder`，Round 31 统一）—— 图片未就绪的一瞬也是同一灰底，不闪白。 */
 .thumb {
   width: 160rpx;
   height: 160rpx;
   flex-shrink: 0;
   border-radius: var(--radius-icon);
   overflow: hidden;
-  background: var(--bg-page);
+  background: var(--bg-placeholder);
 }
 /* 淡入时长走 token（原裸值 0.32s）—— 与 DishCard 缩略图淡入同档（--duration-slow） */
 .thumb-img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }

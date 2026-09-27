@@ -19,7 +19,8 @@
       @error="avatarOk = false"
     />
     <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${review.userNickname || '匿名用户'}的头像`">
-      <IconSvg name="user" :size="32" :color="COLOR_MAP['text-tertiary']" />
+      <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
+      <ImagePlaceholder name="user" :size="32" />
     </view>
     <view class="review-body">
       <view class="review-head">
@@ -66,7 +67,7 @@
               @error="onImageError(i)"
             />
             <view v-else class="review-image-fallback" @tap="onPreviewImage(i)">
-              <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
+              <ImagePlaceholder :size="36" aria-label="图片已失效" />
             </view>
           </view>
         </view>
@@ -80,6 +81,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（走 data-uri，见 IconSvg.vue 的 resolveColor），
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'

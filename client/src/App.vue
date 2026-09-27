@@ -95,8 +95,7 @@ page {
   --font-h2: 40rpx;
   --font-title: 44rpx;
   /* 图标尺寸 */
-  --icon-2xl: 64rpx;
-  --icon-3xl: 80rpx;
+
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -125,14 +124,12 @@ page {
   --z-page-bg: -1;         /* 页底壁纸层（PageWallpaper）：负层级 = 压在父级背景之上、流内内容之下，
                               故接入新页面无需给内容加 z-index（UI 统一 Loop Round 5 token 化） */
   --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
-  --z-detail-bar: 70;      /* 详情页空态/加载承接条（no-dish-bar，固定顶部） */
-  --z-detail-nav: 80;      /* 详情页覆盖导航（dish-nav，固定顶部） */
+
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
   --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
-  --z-modal: 5000;        /* 居中弹窗（ReportModal） */
-  --z-auth: 6000;         /* 登录网关，最高层级 */
+
 }
 
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */

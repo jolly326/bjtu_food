@@ -12,7 +12,7 @@
         @error="imgOk = false"
       />
       <view v-else class="image-placeholder">
-        <IconSvg name="dish" :size="56" :color="COLOR_MAP['text-tertiary']" />
+        <ImagePlaceholder :size="56" />
       </view>
     </view>
     <view class="card-info">
@@ -43,6 +43,7 @@ import { getThumbImageUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
 import { formatRating } from '@/utils/dish'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{

@@ -54,11 +54,10 @@
           :autoplay="false"
           label="菜品图片"
           :placeholder-size="96"
-          placeholder-background="var(--bg-card)"
         />
       </view>
 
-    <template v-if="dish">
+    <template>
       <!-- 私有组件编排：信息卡（含评分行）/ 评价（卡内触底加载）。
            UI 统一 Loop Round 19：原「综合评分」独立卡**取消** ——
            均分 + 人数 + 分布并入信息卡一行（同源同刻），减少一块版面与一次视觉重复。
@@ -148,7 +147,7 @@ import DishInfoCard from './DishInfoCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
 /* ⚠️ 原 `DishSummaryCard.vue`（综合评分独立卡）已于 UI 统一 Loop Round 19 删除：
    均分 / 人数 / 分布并入 `DishInfoCard` 的评分行（同源同刻，减少一块版面与一次视觉重复）。 */
-import { useDishPage } from './useDishPage.js'
+import { useDishPage } from './useDishPage'
 import RetryBlock from '@/components/RetryBlock.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import { useNavMetrics } from '@/utils/useNavMetrics'
@@ -273,7 +272,6 @@ const {
 .bar-btn { flex: 1; min-width: 0; height: 88rpx; display: flex; align-items: center; justify-content: center; gap: var(--spacing-xs); border-radius: var(--radius-btn); border: none; padding: 0; line-height: 1; -webkit-tap-highlight-color: transparent; }
 .bar-btn::after { border: none; }
 .bar-btn:active { opacity: 0.85; }
-.bar-btn-icon { flex-shrink: 0; }
 .bar-btn-text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 写评价 / 重新评价 = 主操作（主色实底 + 白字 + 极淡下投影） */
 .bar-btn--write { background: var(--color-primary); box-shadow: var(--shadow-float); }

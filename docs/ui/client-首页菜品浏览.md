@@ -138,7 +138,7 @@ TabBar（fixed，透明底）
 
 | 项 | 设计值 |
 |---|---|
-| 数据来源 | `GET /dishes/meal-types` → `[{ value, label, order }]`：首项由后端下发 `{ value: null, label: "为你推荐" }`，后续为在售分类；**端上只消费 `value` / `label`**，按返回顺序**全量直出**（不前置硬编码「全部」） |
+| 数据来源 | `GET /dishes/meal-types` → `[{ value, label, order }]`：首项由后端下发 `{ value: null, label: "为你推荐" }`，后续为在售分类；**字典顺序 = 后端返回顺序（推荐首项 + 常量声明序），与热度无关**——热度只决定各流内菜品顺序，不决定标签顺序；**端上只消费 `value` / `label`**，按返回顺序**全量直出**（不前置硬编码「全部」） |
 | 空类自动隐藏 | 后端只下发当前有在售菜品的大类，端上零改动 |
 | 标签样式 | **纯文字导航**——无胶囊底、无边框、无背景块 |
 | 未选中 / 选中 | 字色 `--text-body` / `--text-title`；字重 `--weight-regular` / `--weight-semibold` |
@@ -329,7 +329,7 @@ TabBar（fixed，透明底）
 
 **落地**：`client/src/theme/tokens.ts`（`COLOR_MAP` / `CSS_VARS` 真源）→ `theme/generated-colors.css` → `App.vue` `@import`（Web 端只同步主色系）。
 
-- **背景**：`--bg-page` `#FFF8EF` ｜ `--bg-card` `#FFFFFF` ｜ `--bg-soft` `#EDE9E5`（图片占位灰底）｜ `--bg-soft-orange` `#FFE8D1` ｜ `--bg-soft-yellow` `#FFF3D6`；
+- **背景**：`--bg-page` `#FFF8EF` ｜ `--bg-card` `#FFFFFF` ｜ `--bg-soft` `#EDE9E5`（chip / 分段槽底色；**图片占位灰底为 `--bg-placeholder`**，Round 31）｜ `--bg-soft-orange` `#FFE8D1` ｜ `--bg-soft-yellow` `#FFF3D6`；
 - **文字四档**：`--text-title` `#2D1F14`（15.1:1）｜ `--text-body` `#4A3520`（10.9:1）｜ `--text-subtitle` `#7F6A55`（4.86:1）｜ `--text-placeholder` `#B5A594`（2.39:1，**仅作输入占位**）；
 - **功能色**：success `#2E7D32` ｜ warning `#E67E22` ｜ error `#C62828` ｜ info `#1565C0`。
 
@@ -403,7 +403,7 @@ TabBar（fixed，透明底）
 | `DishCard` | `pages/home/DishCard.vue` | 单张菜品卡（四段排版 + 懒加载图 + 整卡点击） |
 | `HomeContent` | `pages/home/HomeContent.vue` | 双列网格（奇偶分列 + 触底提示 + 失败重试块）；**纯展示组件** |
 | `TabBar` | `components/TabBar.vue` | 底部导航（首页 / 我的） |
-| 通用 | `IconSvg` / `RetryBlock` | 图标（`dish` 占位 / `empty` / `star-filled` / `arrow`）/ 失败重试块 |
+| 通用 | `IconSvg` / `RetryBlock` | 图标（`star-filled` / `arrow` 等）；**图片占位统一由 `ImagePlaceholder` 承载**（`image-broken`/ 失败重试块 |
 | 编排 | `utils/useNavMetrics` / `stores/dish.ts` | 顶部度量 / 列表流 · 字典 · 分页 · loading key · 竞态守卫 |
 
 > 页面 `pages/home/index.vue` 只负责：flex 骨架与页面内距、Banner 高度、壁纸层高度下发、数据编排。**滚动 JS 只有一处**：`@scroll` → 离散开关 `pinned`。
@@ -423,7 +423,7 @@ TabBar（fixed，透明底）
 9. **固定标题带**是顶部唯一由端上渲染的文本（位置 / 高度 / 对齐 / 配色跨页一致）；Banner 图上不得出现端上文本；
 10. **Banner 比例锁定 16:10**（含最小高度兜底；左右各 12px + `--radius-card` 圆角 + 上距标题带 12px）；定高取宽**必须与 `App.vue` 宽屏限宽 720px 同源**；
 11. Banner 是正常流首块：滚出后**不得**在任何横条背后残留图片 / 不得做定格背景；标题带独立固定层；
-12. Banner 加载中 / 失败**块高不变**；空 / 失败占位用灰底 + **中性 `empty`**（**不得用 `dish` 冒充中性占位**）；
+12. Banner 加载中 / 失败**块高不变**；空 / 失败 / 破图占位一律走公共 **`ImagePlaceholder`**（灰底 `--bg-placeholder` + **图片破损图标 `image-broken`**，Round 31 全站统一 —— SHALL NOT 各页自绘占位、SHALL NOT 再用 `dish` / `empty` 顶替）；
 13. 首页**不得存在任何筛选入口**；搜索页无食堂 / 价格筛选胶囊；
 14. **搜索区为单颗胶囊**（内嵌「搜索」按钮）：**不得改回「左胶囊 + 右独立按钮」两件结构、不得等分为两块**；
 15. 顶部各块间距以 **§7** 为唯一真源，**不得裸值近似**；纵向间距不得在标签行内外各叠一层；

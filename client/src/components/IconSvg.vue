@@ -65,6 +65,9 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   check: { path: ['M20 6 9 17l-5-5'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
   image: { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'm21 15-5-5L5 21'] },
+  // 图片破损（UI 统一 Loop Round 31）：`image` 画框 + 山线 + 一条对角断线 ⇒ 读作「图片不可用」。
+  // 全站图片缺失 / 加载失败的标准占位图标（经 `ImagePlaceholder` 消费），SHALL NOT 再用 `empty` / `dish` 顶替。
+  'image-broken': { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'm21 15-5-5L5 21', 'M3 3 21 21'] },
   // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
   // 返回（左箭头，区别于 back 的右箭头）
   'arrow-left': { path: ['m15 18-6-6 6-6'] },

@@ -669,6 +669,29 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 30 改动文件**：`docs/ui/README.md`（新增）、`docs/UI_FRONTEND_LOOP.md`（本轮记录）。
 
+### Round 31（2026-09-27）—— 用户四问：搜索历史补记 / 统一图片占位 / 文档收口 / client 全面清扫
+
+> 来源：用户一次性提四个问题（搜索记录、图片占位、UI 文档与进度、代码清扫）。先由子代理对 `client/src` 做**只读五维审计**（无用代码 / 重复逻辑 / 结构规范 / 已知缺陷），再按「缺陷优先、零行为变化优先」执行。
+
+| 任务 | 内容 | 结果 |
+|---|---|---|
+| **① 搜索记录补记**（缺陷） | 根因：`goKeyword()` 对「搜索记录」与「猜你喜欢」两类 chip **共用一个不写入分支**（原注释理由：4 条上限、随机词会挤掉真实词）⇒ 点「猜你喜欢」搜完**没有记录**，用户读作「搜过却没留下」。修法：`goKeyword(kw, record = false)` —— **猜你喜欢传 `true`（写入）**、历史词条仍不写（已在记录内，重写只会打乱顺序） | 猜你喜欢点击可回溯；文档 6 处口径 + 功能文档同步改为「用户主动发起的搜索都写入」 |
+| **② 统一图片占位** | 此前 **7 处各自实现、3 套图标（`empty`/`dish`/`user`）、4 种底色（`--bg-page`/`--bg-card`/`--bg-soft`/`--bg-placeholder`）**。新建 **`components/ImagePlaceholder.vue`**（灰底 `--bg-placeholder` + 居中图标）+ `IconSvg` 新增 **`image-broken`**（画框 + 山线 + 对角断线）；7 处消费方全部改为 `<ImagePlaceholder>`；退役 `ImageSwiper.placeholderBackground` prop（详情页原传白卡色）与 3 处自绘占位样式 | 占位视觉**单点真源**；消费点 **9 处**；产物实测旧图标残留 **0** |
+| **③ 文档收口 + 进度重记** | 删除 **3 份无界面设计稿**（`client-微信静默登录与游客态`＝全局态 / `client-浏览计数`＝静默上报 / `client-评价有用`＝已下线），并同步三份功能文档的 `## UI` 指针为「无独立 UI 界面」；`docs/ui/README.md` 按**用户验收口径**重记：仅 **首页 / 搜索 / 菜品详情 = ✅ 已完成**，其余 12 份 ⛔ 未完成（loop 已改轮次保留在「loop 轮次」事实列）；新增「跨页通用口径 → 图片占位」章节 | 索引不再把「loop 改过」等同于「修正完成」 |
+| **④ 代码清扫** | **P0 缺陷 ×2**：① `onReviewsReachBottom` 补 `reviewPending` 门控 —— 重置式请求在途时 append 会推进 `reviewFetchSeq`，使 reset 响应被丢弃 ⇒ **列表只剩第 2 页**；② `loadMoreHomeDishes` 补 `isLoading(LOADING_KEY_HOME/_SWAP)` 门控 —— 与首刷/切大类共用序号，翻页会让 reset 响应作废、第 2 页按**新筛选拼到旧列表** ⇒ 内容错乱。**清理**：零消费 token ×6（`--icon-2xl/3xl`、`--z-detail-bar/nav`、`--z-modal`、`--z-auth`，经 var() 全仓复核为 0）、死 class ×2（`mine-content`、`home-search` 类）、死样式 ×1（`.bar-btn-icon`）、重复注释 ×1、恒真 `v-if` ×1、`.js` 后缀 import ×1、随占位改造失效的 import ×4 | `vue-tsc 0 / build DONE / 主包 0.40MB`；`empty` 图标残留 0 |
+
+**闸门**：vue-tsc 0 / build DONE / lint 0 / 主包 **0.40MB** / 产物核对：`ImagePlaceholder` 消费 9 处、旧占位图标与死 class 残留均 0、6 个 token `var()` 消费 0
+
+> #### 📋 审计产出但**本轮未做**（已入候选池，避免一次动太多）
+> P1：`ratingDistribution` 端上零消费（**但 R22 明确「契约保留、端上不消费」** ⇒ 不动，仅在类型注释标注）；`useBrokenImages`（`ReviewItem` ↔ `ImagePicker` 逐字重复的破图集合）抽 composable；删除评价二次确认（详情页 ↔ 我的主页逐字重复）抽公共函数；`SegmentedControl`（详情页分段 ↔ 反馈页分段）抽公共组件 —— 三者皆**近似重复**，按 R28 口径「不为统一制造坏抽象」先评估再动。
+> P2：`ActionSheet` / `CardSection` 使用 `:first-child` / `> `（未登记选择器）；9 处页面根壳 `display:flex + height:100vh/100dvh` 逐字重复（可收 `.page--fill` 工具类）；`auth` 的 `setTimeout` 与 `ListPickerSheet` 的 `searchTimer` 未清理；`http.ts` 超时回调引用后置 `const task`（平台同步抛错时 TDZ 风险）；`stores/dish-attribute.ensureLoaded` 无在途去重。
+
+**Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
+`pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
+`pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、
+`docs/ui/{README.md,client-搜索.md,client-首页菜品浏览.md,client-菜品详情.md,client-我的主页.md,client-我的页.md}`、
+`docs/feature/client-{搜索,微信静默登录与游客态,浏览计数,评价有用}.md`、删除 `docs/ui/client-{微信静默登录与游客态,浏览计数,评价有用}.md`。
+
 **Round 28 改动文件**：`components/{AppTitleBand,ReviewItem}.vue`、`pages/home/{index,HomeMealTabs}.vue`、
 `pages/find/{index,DishResultCard}.vue`、`pages/detail/dish/{index.vue,useDishPage.ts,DishReviewSection.vue}`、
 `docs/ui/client-首页菜品浏览.md`。

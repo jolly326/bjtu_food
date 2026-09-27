@@ -6,7 +6,7 @@
          showBack 显式传 false（AppHeader 默认值为 true，不能省略） -->
     <Header title="我的" :show-back="false" />
 
-    <scroll-view class="mine-content mine-scroll" scroll-y>
+    <scroll-view class="mine-scroll" scroll-y>
       <!-- 用户卡：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
            整卡点击进入「我的主页」（游客与认证态同达，无认证拦截）；
            认证动作的单一入口为宫格「身份认证」格，用户卡不放「去认证」按钮 -->
@@ -123,9 +123,7 @@ const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id, getLocalG
 const appVersion = __APP_VERSION__
 
 onLoad(() => {
-  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）；
-  // 全仓无任何带 ?from=home 跳转
-  // 到本页的调用点（TabBar 经 reLaunch 切换、无参数），该状态恒为 false，属死状态。
+  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
   userStore.silentLogin()
 })
 
@@ -206,7 +204,6 @@ const moreRows = [
 <style scoped>
 /* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
    页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
    结构化收口（Round 12-A，用户裁决）：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
    —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */

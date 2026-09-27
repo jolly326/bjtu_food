@@ -91,7 +91,7 @@
                   role="button"
                   :aria-label="`搜索 ${kw.keyword}`"
                   hover-class="history-chip-pressed"
-                  @tap="goKeyword(kw.keyword)"
+                  @tap="goKeyword(kw.keyword, true)"
                 >
                   <text class="history-chip-text">{{ kw.keyword }}</text>
                 </view>
@@ -272,13 +272,17 @@ function clearKeyword() {
 }
 
 /**
- * 词条点击（搜索记录 / 猜你喜欢）：以该词发起搜索，**不写入搜索记录**。
+ * 词条点击（搜索记录 / 猜你喜欢）：以该词发起搜索。
  *
- * 依据：记录上限仅 4 条 —— 推荐词若写入，会把用户真实搜过的词挤出去（随机词覆盖个人资产）；
- * 历史词条本就在记录内，重搜无需再置顶。写入口径唯一 = 用户**显式提交**（见 `onSearchConfirm`）。
+ * **写入口径（Round 31 用户口径变更）**：
+ * · **「猜你喜欢」词条 → 写入搜索记录**（`record = true`）—— 它同样是一次**用户主动发起的搜索**，
+ *   与「打字后提交」在用户心智里等价，理应可回溯（此前不写入造成「搜过却没有记录」的困惑）；
+ * · **「搜索记录」词条 → 不写入**（`record = false`）—— 该词本就在记录内，重搜无需再置顶；
+ *   上限仅 4 条，重复写入只会打乱既有顺序。
  */
-function goKeyword(kw: string) {
+function goKeyword(kw: string, record = false) {
   keyword.value = kw
+  if (record) pushHistory(kw)
   doMixedSearch(kw)
 }
 

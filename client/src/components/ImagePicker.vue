@@ -26,7 +26,7 @@
           @error="onImageError(i)"
         />
         <view v-else class="ip-thumb ip-thumb-fallback">
-          <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
+          <ImagePlaceholder :size="36" aria-label="图片已失效" />
         </view>
         <view
           class="ip-remove"
@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
+import ImagePlaceholder from './ImagePlaceholder.vue'
 import { uploadUgcImage } from '@/api/upload'
 import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'

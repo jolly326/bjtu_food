@@ -33,14 +33,14 @@
 3. **搜索记录**（未输入关键词时显示）：
    - 数据**纯本地**（`uni.setStorageSync`，键 `find_search_history`），**不上服务端、不做跨设备同步**；
    - 上限 **4 条**（`HISTORY_MAX`），**去重、最新在前**，超过后淘汰最旧；
-   - **写入口径（唯一）**：**只有用户显式提交的搜索词**（输入后回车 / 点「搜索」按钮）写入记录并置顶；点「猜你喜欢」词条、点历史词条重搜**均 SHALL NOT 写入**（上限仅 4 条 —— 随机推荐词写入会把用户真实搜索词挤出，历史是页面唯一的个性化资产）；
+   - **写入口径（唯一）**：**用户主动发起的搜索都写入**记录并置顶 —— 含 ① 显式提交（输入后回车 / 点「搜索」按钮）、② **点「猜你喜欢」词条**（Round 31 用户口径变更：它与「打字提交」在用户心智里等价，理应可回溯）；**仅「搜索记录」自身词条重搜不写入**（该词本就在记录内，重复写入只会打乱既有顺序）。上限仍 4 条；
    - 交互：点条目 → 以该词发起搜索；提供**清空**动作（**破坏性操作走二次确认弹窗**：`uni.showModal`「清空搜索历史」+ 危险色确认钮，不做裸清空）；无记录时**整块不渲染**（不显示空标题）；
    - **按压反馈（两组 chip 通用）**：chip SHALL 有点按反馈（`hover-class` → 底色加深一档：记录 chip → `--bg-placeholder`、推荐 chip → `--bg-soft-orange`），并 SHALL 声明 `touch-action: manipulation`（消除移动端点击延迟）。依据 `ui-ux-pro-max` §2 `press-feedback`（**CRITICAL** 级）：可点元素必须有点按反馈；
 4. **猜你喜欢**（未输入关键词时显示，位于搜索记录之下）：
-   - 数据来自 **`GET /dishes/for-you`**（语义为「**猜你喜欢**」）——**每次随机推送在售菜品名**（无推荐算法、无热度排序、无个性化，**完全随机**）；**契约与取数解耦**：取数逻辑升级为个性化 / 推荐算法时，**端上契约不变**（仍为 `keyword` 列表）；
+   - 数据来自 **`GET /dishes/for-you`**（语义为「**猜你喜欢**」）——**每次随机推送在售菜品名**（无推荐算法、无热度排序、无个性化，**完全随机，2026-09-28 产品拍板确认保持**）；**契约与取数解耦**：取数逻辑升级为个性化 / 推荐算法时，**端上契约不变**（仍为 `keyword` 列表）；
    - 形态：**chip 组**（换行排列）；chip 文案 = 返回的 `keyword`，**端上不写死词条、不排序**（按返回渲染）；
    - **条数上限**：**由后端固定返回 6 条**。理由：该接口为**纯随机**推送（无推荐算法），超过 6 条会占满发现态首屏、把「搜索记录」这个真正的个性化入口挤出可视区；端上仍**不截断、不排序**（条数是数据源职责，端上零逻辑）；
-   - 交互：点 chip → 以该词发起搜索（**不写入本地记录**，见第 3 条写入口径）；
+   - 交互：点 chip → 以该词发起搜索，并**写入本地搜索记录**（Round 31，见第 3 条写入口径）；
    - 返回空数组 / 请求失败 → **整块不渲染**（不显示标题、不做骨架）；
 5. **结果列表**（输入关键词并搜索后显示）：单列结果行（`FindResults`），左缩略图 + 右信息（菜名 / 评分 / 价格 / 位置行），复用首页菜品视觉语言；
    - **命中片段弱强调**：菜名 / 位置行中与关键词命中的片段 SHALL 以**字重加深**（`--weight-heavy`）区分，**SHALL NOT 上主色**——主色是价格专用强调色（见 §3）。理由：用户搜「糖醋里脊」、结果菜名恰为「糖醋里脊」时，若完全不标记命中位置则**扫读性为零**。命中标记由端上分段逻辑（`FindResults` 的 `splitHighlight`）实现；
@@ -60,7 +60,7 @@
 | **搜索行下沿 → 内容首块（记录 / 猜你喜欢 / 结果）** | **`--spacing-lg`（32rpx / 16px），且为「唯一来源」** | 块间距。搜索行 `padding-bottom` **与** 内容首块 `margin-top` SHALL **只保留一处**（搜索行下 padding 归零、由内容首块 margin-top 承担，或反之），实测须 = **16px** |
 
 > **结果行布局（UI 统一 Loop Round 21，用户拍板规格；实现 = 页内私有 `DishResultCard.vue`，由 `find/index` 直接编排 —— Round 21b 原 `FindResults` 已并入 index）**：
-> 结果卡 = 横向 flex——左「**160rpx 正方形图片**」（`aspectFill`，圆角由容器裁切；无图 → `dish` 餐具占位图标）
+> 结果卡 = 横向 flex——左「**160rpx 正方形图片**」（`aspectFill`，圆角由容器裁切；无图 / 破图 → **统一占位**（`ImagePlaceholder`：灰底 + `image-broken`，Round 31））
 > + 右「**纵向三行信息**」（`flex:1` + `align-self:stretch` 与左图等高对齐、内容**垂直居中**，行距 `--spacing-sm`）：
 > ① **菜名**：最多两行溢出省略、命中关键词**加粗**；
 > ② **档口位置**：小字号（`--font-aux`）弱灰、单行省略、命中加粗；
@@ -127,7 +127,7 @@
 | 动作 | 从 | 到 | 口径 |
 |---|---|---|---|
 | 提交搜索（回车 / 点「搜索」） | 任意 | 结果态 | 空词时按钮**已置灰**，不产生"提交了没反应"；提交词写入搜索记录 |
-| 点历史词条 / 推荐词条 | 发现态 | 结果态 | 可点即切换；**均不写入搜索记录**（§1 第 3 条） |
+| 点历史词条 / 推荐词条 | 发现态 | 结果态 | 可点即切换；**推荐词条写入搜索记录、历史词条不写入**（§1 第 3 条，Round 31） |
 | 点搜索框右侧 **清空 X** | 结果态 | **发现态** | **清空 = 「重新开始」**：清关键词 **并** 退出结果态 —— SHALL NOT 出现「输入框已空、列表仍是旧结果」的错位 |
 | **左上角返回 icon / 系统返回手势** | 任意 | **退出本页** | 返回键**恒退出页面**；SHALL NOT 在结果态"先退回发现态、再退页"（两段语义不可见，用户读作「按了返回却没退页」）。**退出结果态的唯一入口 = 清空 X** |
 
@@ -148,7 +148,7 @@
 9. **每一处块间间距 SHALL 只有一个来源**（不得「外层 padding + 内层 margin」各出一层，见 §2 间距表）——实测值须与该表一致；
 10. 结果区**顶部对齐**（Round 21e，用户拍板：阅读顺序自上而下，**不做垂直居中**）、在**无结果**时呈现引导（见 §4）——**SHALL NOT** 追加结果计数或填充内容；
 11. **进 / 出结果态必须由可见控件驱动**（见 §4.1）：① 空词时「搜索」按钮 SHALL 置灰（不得静默失效）；② 清空 X SHALL 同时退出结果态；③ 左上角返回 SHALL **恒退出本页**；
-12. **搜索记录只记用户显式提交的词**：点推荐 / 历史词条 SHALL NOT 写入记录（4 条上限不给随机词留位）。
+12. **搜索记录只记「用户主动发起的搜索」**：**点「猜你喜欢」词条写入记录**（Round 31 用户口径）、**点「搜索记录」自身词条不写入**（已在记录内）；4 条上限内去重、最新在前。
 
 ---
 
@@ -172,7 +172,7 @@
 | 4 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 区块标题「搜索记录」（`#extra` 槽承载「清空」）/「猜你喜欢」（无右侧） |
 | 5 | `DishResultCard` | 页内私有 `pages/find/DishResultCard.vue` | 结果卡（布局规格见 §2「结果行布局」）：整卡可点跳菜品详情、`role="button"` + `:aria-label="查看 {菜名}"`；结果态滚动容器与列表由 `find/index` 内联（Round 21b 原 `FindResults` 并入） |
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
-| 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 菜品占位 `dish` / 星 `star-filled` |
+| 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 图片占位经公共 `ImagePlaceholder`（`image-broken`） / 星 `star-filled` |
 | 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏）。**Round 26：`.discover-body` 由 `<view>` 改为 `scroll-view`（`flex: 1 + min-height: 0`）—— 小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓不可靠** |
 | — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | uni 内置控件 | 两态各自滚动 / 关键词输入 / 清空记录二次确认。⚠️ **发现态容器用 `v-show` 常驻、结果态用 `v-if`**（Round 27 修复）：若两态都用 `v-if`，点「清空 X」回发现态时会**重建** `scroll-view`，小程序下新实例可能在父级布局完成前完成测量 ⇒ 高度按 0 计算 ⇒ 发现态整块不可见（返回首页重进才恢复） |
 | — | 搜索历史（本地存储 `find_search_history`，上限 4 条） | `uni.getStorageSync` / `setStorageSync` | **存储为唯一真源**：挂载、`onShow`、**退出结果态**三处重读（Round 27）⇒ 页面被页面栈缓存（onMounted 不再执行）时「刚搜过的词」也能立即出现在搜索记录里 |
@@ -181,11 +181,11 @@
 
 | # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
 |---|---|---|---|---|---|
-| 1 | `keyword` | `GET /dishes/for-you`（`List<GuessLikeVO>`） | 猜你喜欢词条（随机在售菜名） | `CardSection` + `SectionTitle` 内 `.history-chip-hot` | 暖黄底深棕字 chip；按返回渲染、**端上不排序 / 不截断**；空数组 → 整块不渲染；点击发起搜索但**不写入搜索记录** |
-| 2 | 搜索记录（≤4 条） | **端上本地存储**（非接口） | 历史关键词 | 同区块 `.history-chip` | 浅底 chip + 每词删除叉；**只有显式提交的词写入**（词条点击不写）；标题右侧「清空」（`uni.showModal` 危险色确认） |
+| 1 | `keyword` | `GET /dishes/for-you`（`List<GuessLikeVO>`） | 猜你喜欢词条（随机在售菜名） | `CardSection` + `SectionTitle` 内 `.history-chip-hot` | 暖黄底深棕字 chip；按返回渲染、**端上不排序 / 不截断**；空数组 → 整块不渲染；点击发起搜索并**写入搜索记录**（Round 31） |
+| 2 | 搜索记录（≤4 条） | **端上本地存储**（非接口） | 历史关键词 | 同区块 `.history-chip` | 浅底 chip + 每词删除叉；**用户提交的词与「猜你喜欢」点击词写入**（仅历史词条点击不写，Round 31）；标题右侧「清空」（`uni.showModal` 危险色确认） |
 | 3 | `records[].id` | `GET /dishes?keyword=`（`PageResult<DishListItemVO>`） | 菜品 ID | `FindResults` 行 `key` + 跳菜品详情 | 零可见 UI |
 | 4 | `records[].name` | 同上 | 菜名 | `FindResults` 行第一行 `.mixed-name` | 命中片段**仅字重加深**（不上主色），最多 2 行 |
-| 5 | `records[].coverImage` | 同上 | 封面图 | `FindResults` 行左缩略图 `.mixed-thumb` | 160rpx 方图；空 → `IconSvg name="dish"` 灰底占位 |
+| 5 | `records[].coverImage` | 同上 | 封面图 | `FindResults` 行左缩略图 `.mixed-thumb` | 160rpx 方图；空 / 破图 → 统一占位 `ImagePlaceholder`（灰底 + `image-broken`） |
 | 6 | `records[].avgRating` | 同上（端上别名 `rating`） | 平均评分 | `FindResults` 行菜名右侧 `.mixed-rating-group` | `star-filled` 图标 + 1 位小数；`null` 时整组不渲染 |
 | 7 | `records[].price` | 同上（元） | 现价 | `FindResults` 行右上 `.mixed-price` | 主色 + `¥` 前缀（全行唯一强调色） |
 | 8 | `records[].originalPrice` | 同上 | 原价 | 价格组内 `.mixed-original` | 仅 `originalPrice > price` 时渲染，三级灰 + 删除线 |

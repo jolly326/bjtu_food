@@ -77,7 +77,7 @@
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示返回箭头） |
-| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 用户卡头像（加载失败回退 `empty` 中性占位） |
+| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 用户卡头像（加载失败回退统一占位 `ImagePlaceholder`） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 头像空态 `user`、行右箭头 `arrow`、宫格图标（`lightbulb-fill` / `bell` / `badge-check`） |
 | 4 | `TabBar` | 公共 `components/TabBar.vue` | 底部常驻菜单（首页 / 我的，本页高亮 `showTab('profile')`） |
 | 5 | 用户卡 `.user-card`（页内内联） | `pages/mine/index.vue` 内联 | 头像 + 昵称 / 副行 + 右箭头；整卡热区 → 「我的主页」 |

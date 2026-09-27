@@ -14,9 +14,9 @@
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
-      <view v-else class="image-swiper-placeholder" :style="{ background: placeholderBackground }">
-        <IconSvg name="empty" :size="placeholderSize" :color="COLOR_MAP['text-tertiary']" />
-      </view>
+      <!-- 无图 / 空位：走**全站统一占位**（灰底 + 图片破损图标，UI 统一 Loop Round 31）。
+           原先本处可传 `placeholderBackground`（详情页曾传白卡色 `--bg-card`）⇒ 同屏出现两种占位底色；已收敛为唯一灰底。 -->
+      <ImagePlaceholder v-else :size="placeholderSize" />
     </swiper-item>
   </swiper>
 </template>
@@ -24,9 +24,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { getImageUrl } from '@/utils/image'
-import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 theme/tokens.ts 注释），必须用真实色值
-import { COLOR_MAP, SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
+import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
   images: string[]
@@ -38,8 +38,6 @@ const props = withDefaults(defineProps<{
   circular?: boolean
   /** 占位图标尺寸（dish-detail-visual-polish：无图大图位放大占位） */
   placeholderSize?: number
-  /** 占位底色（默认同页面浅色，可传白卡等做轻微区分） */
-  placeholderBackground?: string
   /** 轮播容器可访问标签（a11y：读屏可识别图片区域，默认「菜品图片」） */
   label?: string
 }>(), {
@@ -50,7 +48,6 @@ const props = withDefaults(defineProps<{
   interval: 4000,
   circular: true,
   placeholderSize: 64,
-  placeholderBackground: 'var(--bg-page)',
   label: '菜品图片',
 })
 
@@ -89,14 +86,6 @@ function onImgLoad(idx: number) {
 @media (prefers-reduced-motion: reduce) {
   .image-swiper-img { opacity: 1; filter: none; transform: none; transition: none; }
 }
-.image-swiper-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-page);
-}
-/* 图标尺寸由 `IconSvg` 的 `size` prop 控制（`:size="placeholderSize"`）⇒ 原 `.placeholder-icon`
-   的 font-size 规则对宿主节点无效 —— UI 统一 Loop Round 5 按死样式移除 */
+/* 占位视觉已收敛到公共 `ImagePlaceholder`（灰底 + 图片破损图标，UI 统一 Loop Round 31）——
+   原 `.image-swiper-placeholder`（`--bg-page` 底色 + 居中）随之退役，本文件不再自绘占位。 */
 </style>

@@ -47,7 +47,7 @@
 
 | # | 组件 | 来源 | 在本页做什么 |
 |---|---|---|---|
-| 1 | `ImageSwiper` | 页内私有 `pages/detail/dish/ImageSwiper.vue` | 顶部大图轮播（`autoplay=false` 仅手动滑动；多图显示指示点、单图不显示；无图 / 破图 → `empty` 中性占位，块高不变） |
+| 1 | `ImageSwiper` | 页内私有 `pages/detail/dish/ImageSwiper.vue` | 顶部大图轮播（`autoplay=false` 仅手动滑动；多图显示指示点、单图不显示；无图 / 破图 → 统一占位 `ImagePlaceholder`（灰底 + `image-broken`，Round 31），块高不变） |
 | 2 | `DishInfoCard` | 页内私有 | 信息卡（Round 22 重排 + Round 23 属性块还原）：① 名称 + 价格组 → ② 评分 / 位置同行 → ③ 简介（2 行 + 展开 / 收起）→ ④ **唯一分隔线**（简介存在时）→ ⑤ 描述四维（无底色 4 列等分居中、值在上 / 标签在下；**卡内无纠错入口**） |
 | 3 | `DishReviewSection` | 页内私有 | 评价卡：`SectionTitle`「评价」+ 总数（经 `count`）+ **「全部 / 有图」两段式筛选胶囊** + 评价条目列表 / 空态 / 失败态 |
 | 4 | `ReviewComposer` | 页内私有 | 写评价 / 重新评价底部弹层（字段与呈现见 [client-写评价.md](./client-写评价.md)）—— **只承载评价表单，不含纠错入口**（纠错在底栏「反馈错误」，Round 25） |
@@ -84,7 +84,7 @@
 | 15 | `records[].rating` | 同上 | 评分（1~5） | `ReviewItem` meta 行（实心黄星 + 数值） | 最低渲染 1 颗星 |
 | 16 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 `.review-time` | **`formatDate`（仅 `YYYY-MM-DD`，Round 24 起评价条目不含时分）**；重评后取新时间（自然置顶） |
 | 17 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 `.review-content` | 二级灰、`pre-wrap` |
-| 18 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 `empty` 占位 |
+| 18 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 → 统一占位 `ImagePlaceholder` |
 | 19 | `records[].userId` | 同上 | 评价者用户 ID | `ActionSheet` 动作项显隐（与 `userInfo.id` 比对：本人「删除评价」/ 他人「举报评价」） | 服务端另有「非本人 → 403」兜底 |
 | 20 | `total` | 同上 | 可见评价总条数 | `DishReviewSection` 标题块内 `.section-count`（经 `SectionTitle` 的 `count`） | **恒为 total 纯数字**（与标题同色、小半号、等宽；**SHALL NOT 用灰字**）；**不再有「有图 N」变体**（Round 24）；在途期与失败态不渲染 |
 | 21 | `records` / `total` / `page` / `pageSize` | 分页壳 | 分页信息 | 触底加载结束判据（已加载条数 ≥ `total`） | `page` / `pageSize` 为服务端归一化值，**端上零渲染** |
