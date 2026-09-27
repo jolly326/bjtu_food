@@ -6,7 +6,9 @@
          ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
          两段常驻固定（根层不滚动，滚动只发生在内容区 / FindResults 内部）。 -->
-    <AppTitleBand back @back="onBack" />
+    <!-- 标题带（UI 统一 Loop Round 15 两区版）：有返回 ⇒ 左区「返回」+ 居中区页面名称。
+         ⚠️ 页面名称暂定「搜索」（本页语义见 docs/ui/client-搜索.md），如需改文案告诉我。 -->
+    <AppTitleBand back title="搜索" @back="onBack" />
     <view class="find-search-row">
       <SearchBar
         mode="input"
