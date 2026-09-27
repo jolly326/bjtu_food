@@ -61,7 +61,7 @@
       <view class="meta-row">
         <view v-if="item.rating != null" class="rating-group">
           <!-- 星色 = 独立语义色（黄），不随主色换肤（§4.2 / §7.39）；必须传实色（data-uri 不解析 var()） -->
-          <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" />
+          <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ formatRating(item.rating) }}</text>
         </view>
         <view v-if="item.price != null" class="price-group">
@@ -191,6 +191,17 @@ function onTap() {
    评分组不渲染时价格仍靠右（price-group margin-left:auto） */
 .meta-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+/* 星图标宿主节点（<icon-svg> 自定义组件，未开 virtualHost）显式定为 36rpx 方形 flex 盒 ⇒
+   内部图标在宿主内精确居中，与行盒/基线解耦（同 SearchBar .search-bar-icon 的 Round 20b 方案；
+   否则星与数字会随继承字体度量上下错位 —— Round 21c 实测）。 */
+.rating-star {
+  flex: none;
+  width: 36rpx;
+  height: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .rating-num { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .price-group { margin-left: auto; display: flex; align-items: baseline; gap: var(--spacing-2xs); }
 .price { font-size: var(--font-h3); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
