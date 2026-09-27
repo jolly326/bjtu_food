@@ -1,6 +1,6 @@
 import { API_BASE_URL } from './config'
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
@@ -17,10 +17,13 @@ export function emitUnauthorized() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_UNAUTHORIZED))
 }
 
+/** 请求载荷：查询参数 / JSON body 均为「键 → 标量」字典（不用 any） */
+export type RequestData = Record<string, unknown>
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
-  data?: any,
+  data?: RequestData,
 ): Promise<T> {
   let requestUrl = url
   if (method === 'GET' && data && Object.keys(data).length > 0) {
@@ -77,15 +80,15 @@ async function request<T>(
   }
 }
 
-export async function get<T>(url: string, data?: any): Promise<T> {
+export async function get<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('GET', url, data)
 }
 
-export async function post<T>(url: string, data?: any): Promise<T> {
+export async function post<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('POST', url, data)
 }
 
-export async function put<T>(url: string, data?: any): Promise<T> {
+export async function put<T>(url: string, data?: RequestData): Promise<T> {
   return request<T>('PUT', url, data)
 }
 

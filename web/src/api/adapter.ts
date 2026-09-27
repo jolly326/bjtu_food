@@ -2,13 +2,17 @@ import type { Canteen, Dish, Review, Stall, User } from '@/types'
 import { parseCsv } from '@/constants'
 import { API_BASE_URL } from './config'
 
-type PageLike<T> = T[] | { records?: T[] }
+/**
+ * 分页信封（管理端列表接口统一形态）：`records` 行 + `total` 总数；
+ * 兼容后端直接返回裸数组的形态（契约精简 §7.33：PageResult 只输出 records）。
+ * 用 `unknown` 而非 `any`：行数据在适配层（`xxxToLegacy`）内做逐字段归一，此处不必放行 any。
+ */
+export type PageEnvelope<T> = T[] | { records?: T[]; total?: number }
 
 /**
- * 提取分页行数据。
- * 契约精简（§7.33）：服务端 `PageResult` 只输出 `records`，故此处不再保留 `data.list` 兜底分支。
+ * 提取分页行数据（信封 / 裸数组均可）。
  */
-export function pageRecords<T>(data: PageLike<T>): T[] {
+export function pageRecords<T>(data: PageEnvelope<T>): T[] {
   return Array.isArray(data) ? data : data.records || []
 }
 

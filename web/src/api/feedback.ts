@@ -1,5 +1,6 @@
 import { get, put } from './http'
 import { imagesToList, pageRecords } from './adapter'
+import type { PageEnvelope } from './adapter'
 
 /**
  * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
@@ -117,10 +118,10 @@ export async function listFeedbacks(params: {
   if (params.type) query.type = params.type
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
-  const data: any = await get('/admin/feedbacks', query)
+  const data = await get<PageEnvelope<unknown>>('/admin/feedbacks', query)
   return {
     list: pageRecords(data).map(feedbackToLegacy),
-    total: (data as any)?.total ?? pageRecords(data).length,
+    total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,
   }
 }
 

@@ -1,5 +1,6 @@
 import { get, post, put } from './http'
 import { imagesToList, pageRecords } from './adapter'
+import type { PageEnvelope } from './adapter'
 import { parseCsv } from '@/constants'
 
 /**
@@ -114,10 +115,10 @@ export async function listCorrections(params: {
     pageSize: params.pageSize ?? 20,
   }
   if (params.status) query.status = params.status
-  const data: any = await get('/admin/corrections', query)
+  const data = await get<PageEnvelope<unknown>>('/admin/corrections', query)
   return {
     list: pageRecords(data).map(toVO),
-    total: (data as any)?.total ?? pageRecords(data).length,
+    total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,
   }
 }
 

@@ -1,6 +1,7 @@
 import type { Dish } from '@/types'
 import { del, get, post, put } from './http'
 import { dishToApi, dishToLegacy, pageRecords } from './adapter'
+import type { PageEnvelope } from './adapter'
 
 /**
  * 菜品全量采集（聚合页 / 详情页联查等需要完整集合的场景）。
@@ -12,7 +13,7 @@ export async function getAll(): Promise<Dish[]> {
   let page = 1
   const pageSize = 100
   for (let guard = 0; guard < 1000; guard++) {
-    const data: any = await get<any>('/admin/dishes', { page, pageSize })
+    const data = await get<PageEnvelope<unknown>>('/admin/dishes', { page, pageSize })
     const records = pageRecords(data).map(dishToLegacy)
     if (!records.length) break
     all.push(...records)
@@ -65,8 +66,15 @@ export interface MealTypeDictItem {
  *   已下架菜品所在的大类，由调用方按需用列表数据兜底（见 `stores/mealTypeStore.ts` 口径说明）。
  * - 出参字段本身即 camelCase，故此处只做形状与空值归一，不做下划线→驼峰映射。
  */
+/** 大类字典的原始行（服务端出参形状，取值可能为 null） */
+interface RawMealType {
+  value?: string | number | null
+  label?: string
+  order?: number
+}
+
 export async function listMealTypes(): Promise<MealTypeDictItem[]> {
-  const data: any = await get<any[]>('/dishes/meal-types')
+  const data = await get<RawMealType[]>('/dishes/meal-types')
   const rows = Array.isArray(data) ? data : []
   return rows
     .filter(raw => raw && raw.value != null && String(raw.value).trim() !== '')
@@ -101,8 +109,16 @@ export interface DishAttributeDictItem {
  *   四维是「描述属性」，管理端录入表单需要**完整**选项（大类是「筛选维度」，才按在售过滤）；
  * - 出参字段本身即 camelCase，故此处只做形状与空值归一，不做下划线→驼峰映射。
  */
+/** 四维字典的原始行（服务端出参形状，字段可能缺失） */
+interface RawDishAttribute {
+  field?: string
+  value?: string
+  label?: string
+  order?: number
+}
+
 export async function listDishAttributes(): Promise<DishAttributeDictItem[]> {
-  const data: any = await get<any[]>('/dishes/attributes')
+  const data = await get<RawDishAttribute[]>('/dishes/attributes')
   const rows = Array.isArray(data) ? data : []
   return rows
     .map(raw => ({
