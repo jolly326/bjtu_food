@@ -141,7 +141,7 @@ function getUserName(userId: number | bigint): string {
 }
 
 // 评价详情（只读弹窗：公共组件 ReviewDetailDialog，本页与「评价管理」页共用）
-const reviewDetail = ref<any | null>(null)
+const reviewDetail = ref<Review | null>(null)
 const reviewDetailUserName = computed(() =>
   reviewDetail.value ? getUserName(reviewDetail.value.user_id) : '',
 )

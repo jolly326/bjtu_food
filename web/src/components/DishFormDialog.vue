@@ -23,6 +23,7 @@ import { useMealTypeStore } from '@/stores/mealTypeStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { parseCsv } from '@/constants'
+import type { DishSavePayload } from '@/api/dish'
 import {
   useDishAttributeStore,
   ATTR_DIET_TYPE,
@@ -107,7 +108,7 @@ watch(
  */
 const editBaselineUpdatedAt = ref<string>('')
 function updatedAtKey(v: unknown): string {
-  return v ? new Date(v as any).getTime().toString() : ''
+  return v ? new Date(v as string | number | Date).getTime().toString() : ''
 }
 
 // 改名（Q-113/Q-115）：属性字典唯一的编辑动作，无删除
@@ -337,7 +338,7 @@ async function submit() {
     }
   }
   submitting.value = true
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     name: form.value.name.trim(),
     price: Number(form.value.price),
     ...ownershipPayload(),
@@ -361,7 +362,8 @@ async function submit() {
       await store.updateDish(Number(props.editingId), payload)
       toast.success('菜品已更新')
     } else {
-      await store.addDish(payload)
+      // payload 为「键 → 值」字典（含可选的 originalPrice: null 清空语义），按保存契约收窄
+      await store.addDish(payload as unknown as DishSavePayload)
       toast.success('菜品已添加')
     }
     emit('saved')

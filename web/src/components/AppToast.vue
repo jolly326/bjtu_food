@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useToastStore } from '@/stores/toastStore'
 import { SuccessFilled, CircleCloseFilled, InfoFilled } from '@element-plus/icons-vue'
+import type { Component } from 'vue'
 
 const toast = useToastStore()
 
 // 全局消息提示组件：SVG 图标（与全站图标语言一致，对齐稳定）
-const icons: Record<string, any> = {
+// 图标值即组件对象（Element Plus 图标），用 Component 而非 any
+const icons: Record<string, Component> = {
   success: SuccessFilled,
   error: CircleCloseFilled,
   info: InfoFilled,

@@ -9,9 +9,9 @@ import StatusTag from '@/components/StatusTag.vue'
 import StarRating from '@/components/StarRating.vue'
 import { listFeedbacks, type FeedbackAdminVO } from '@/api/feedback'
 import { getAll } from '@/api/review'
-import type { Review } from '@/types'
+import type { Review, User } from '@/types'
 
-const props = defineProps<{ show: boolean; user: any }>()
+const props = defineProps<{ show: boolean; user: User }>()
 const emit = defineEmits<{ close: [] }>()
 
 const section = ref<'review' | 'feedback'>('review')

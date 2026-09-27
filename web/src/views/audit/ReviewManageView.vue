@@ -125,7 +125,7 @@ watch(() => route.query.rid, (v) => {
  * 评价详情（只读弹窗，公共组件 ReviewDetailDialog，与「菜品详情」页共用唯一实现）。
  * 动作（显隐开关 / 删除）一律只留在列表行内一处入口，弹窗内不再放第二个开关或删除按钮。
  */
-const detailReview = ref<any | null>(null)
+const detailReview = ref<Review | null>(null)
 const detailUserName = computed(() =>
   detailReview.value ? getUserName(detailReview.value.user_id) : '',
 )

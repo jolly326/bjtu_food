@@ -232,7 +232,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
       </template>
     </DataTable>
 
-    <UserActivityModal :show="!!activityUser" :user="activityUser" @close="activityUser = null" />
+    <!-- activityUser 非空即弹窗打开（show 已由 !!activityUser 表达），故此处可安全断言非空 -->
+    <UserActivityModal :show="!!activityUser" :user="activityUser!" @close="activityUser = null" />
   </PageContainer>
 </template>
 
