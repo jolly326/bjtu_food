@@ -653,6 +653,22 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 
 **Round 29 改动文件**：`docs/ui/client-首页菜品浏览.md`（重写）、`docs/project_spec.md`、`docs/UI_FRONTEND_LOOP.md`（入库）。
 
+### Round 30（2026-09-27）—— 新建 `docs/ui/README.md`（UI 设计稿索引 + 修正状态总表）
+
+> 来源：用户指出「`docs/ui` 应该也有一个 README 用于标记哪些页面的修正完成了，类似 `docs/feature/README.md`」。
+> 此前 `docs/ui/` 有 25 份文档却**零索引** —— 「哪页改过、改到第几轮、还差哪页」只能靠翻本文档轮次记录反推。
+
+| 项 | 内容 |
+|---|---|
+| ① 新增索引 | `docs/ui/README.md`：板块与命名规则 → **修正状态标记（✅ 已完成 · ⚠️ 待重设计 · ▫️ 未细化 · ⛔ 已下线）** → client 18 份 + web 7 份总表（编号沿用功能编号 `A-xx`/`B-xx`，含**代码落点**与**最近修订轮次**）→ 与功能文档的对应例外 → 待办清单 → 与其它文档的关系 |
+| ② 状态来源 | 逐条取自本文档 §4 轮次记录（R1–R29），**无自创状态**。两处纠正了初判：`评价有用`（A-07）是**已下线留痕**（非「未修订」）；`client-注销账号` 文档其实**内容完整**（组件清单 / 数据映射 / 错误码齐全），只是入口**待重设计**（走 `docs/feature/README.md` 待办 #5） |
+| ③ 登记发现 | ① **web 端 7 份为要点级骨架**（仅落点 + 页面要点，无交互 / 三态 / 组件清单 / 数据映射）⇒ **管理端视觉与交互当前无唯一真源**；② `评价有用` 未出现在 `docs/feature/README.md` 索引表（该表 A-06 直达 A-08，**待核是否有意省略**）；③ 功能 ↔ UI 文档的 5 类命名例外已登记（1:2 / 名称不同 / 承载 / 无功能文档 / 已下线） |
+| ④ 入库 | `docs/ui/README.md` 被 `.gitignore:66 docs/*` 命中 ⇒ 以 `git add -f` 纳入版本库（与 R29 的 loop 文档同法） |
+
+**闸门**：索引与 §4 轮次记录**逐条对账一致**；`docs/ui/` 全部文档均在表内（18 client + 7 web + 1 png 说明）；新增文件已入库 ✅
+
+**Round 30 改动文件**：`docs/ui/README.md`（新增）、`docs/UI_FRONTEND_LOOP.md`（本轮记录）。
+
 **Round 28 改动文件**：`components/{AppTitleBand,ReviewItem}.vue`、`pages/home/{index,HomeMealTabs}.vue`、
 `pages/find/{index,DishResultCard}.vue`、`pages/detail/dish/{index.vue,useDishPage.ts,DishReviewSection.vue}`、
 `docs/ui/client-首页菜品浏览.md`。
