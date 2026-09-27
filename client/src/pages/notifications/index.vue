@@ -74,72 +74,36 @@ import { getNotifications, readNotification, readAllNotifications, type Notifica
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/nav'
 import { COLOR_MAP } from '@/theme/tokens'
+import { usePagedList } from '@/composables/usePagedList'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 
-const list = ref<Notification[]>([])
 /** 全部已读进行中（并发守卫 + 行内禁用态） */
 const readAllBusy = ref(false)
-const loading = ref(false)
 /** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
 const loaded = ref(false)
-/** 首屏是否失败（MP-012）：失败 ≠ 无通知，失败渲染重试块而非空态；分页失败保持静默可再触底 */
-const loadFailed = ref(false)
-// 分页与防重复加载（onShow / 重试块）
-let page = 1
-const pageSize = 20
-const finished = ref(false)
 
-async function load() {
-  // 重入守卫（UI 统一 Loop Round 17）：onShow 与重试块可能在上一次请求仍在途时再次触发，
-  // 重入会并发两次「第 1 页」请求、互相覆盖列表（`loadMore` 早有同款守卫，此处补齐）。
-  if (loading.value) return
-  loading.value = true
-  try {
-    const res = await getNotifications({ page: 1, pageSize })
-    // 成功即清失败态（重试成功后错误块消失）
-    loadFailed.value = false
-    list.value = res.list
-    page = 1
-    // 本页不足 pageSize 即到底
-    finished.value = res.list.length < pageSize
-    // 刷新后重拉未读数，保持红点同步
-    notifyStore.fetchUnread()
-  } catch (err) {
-    // MP-012：首屏失败不再静默吞成空态——置 loadFailed 渲染「加载失败 · 点击重试」块，
-    // 与「暂无通知」区分；游客免认证口径不变（请求成功时游客照常得到空列表走空态）。
-    // C1：未认证（游客）请求被拒（4031/403）属正常业务边界，SHALL 静默——
-    // 置位后由模板 isVerified() 门控，游客不渲染失败块也不弹认证引导（client-auth-boundary）。
-    console.error('[notifications] 加载通知失败', err)
-    loadFailed.value = true
-  } finally {
-    loading.value = false
-    loaded.value = true
-  }
-}
+/**
+ * 分页列表（公共 composable，UI 统一 Loop Round 17 抽取）。
+ *
+ * 首屏失败语义（MP-012）与认证边界（C1）保持不变：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，
+ * 与「暂无通知」区分；游客请求成功时照常得到空列表走空态，未认证被拒（4031/403）由模板 `isVerified()` 门控，
+ * 不渲染失败块也不弹认证引导（client-auth-boundary）。
+ *
+ * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`、游客不触发触底加载。
+ */
+const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<Notification>({
+  fetchPage: async (page, pageSize) => (await getNotifications({ page, pageSize })).list,
+  canLoadMore: () => userStore.isVerified(),
+  onLoadSuccess: () => { notifyStore.fetchUnread() },
+  onLoadSettled: () => { loaded.value = true },
+  loadFailLabel: '[notifications] 加载通知失败',
+})
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
 function onRetryLoad() {
   load()
-}
-
-/** #4 触底加载下一页（游客无个人数据，列表为空时不会触发） */
-async function loadMore() {
-  if (finished.value || loading.value || !userStore.isVerified()) return
-  loading.value = true
-  try {
-    page += 1
-    const res = await getNotifications({ page, pageSize })
-    // 去重（极端情况下分页跳号），避免重复
-    const existIds = new Set(list.value.map(n => n.id))
-    list.value = list.value.concat(res.list.filter(n => !existIds.has(n.id)))
-    if (res.list.length < pageSize) finished.value = true
-  } catch {
-    page -= 1 // 失败回退页码
-  } finally {
-    loading.value = false
-  }
 }
 
 /** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */

@@ -82,6 +82,7 @@ import type { MyReview } from '@/types/review'
 import { backToHome } from '@/utils/nav'
 import { PATH } from '@/utils/routes'
 import { deriveGuestLabel } from '@/utils/guest'
+import { usePagedList } from '@/composables/usePagedList'
 import { toastError } from '@/utils/error'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
@@ -100,62 +101,24 @@ function goProfileEdit() {
   uni.navigateTo({ url: PATH.profile })
 }
 
-const list = ref<MyReview[]>([])
-const loading = ref(false)
 /** 仅「删除导致列表清空」时为 true，驱动空态轻提示 */
 const emptiedByDelete = ref(false)
-/** 首屏是否失败（MP-012）：失败 ≠ 无评价，失败渲染重试块而非空态 */
-const loadFailed = ref(false)
-let page = 1
-const pageSize = 20
-const finished = ref(false)
 
-async function load() {
-  if (loading.value) return
-  // 游客不发起「我的评价」请求（端点需登录，游客调必 401）：直接落空列表，走游客空态引导
-  if (!userStore.isVerified()) {
-    list.value = []
-    loadFailed.value = false
-    finished.value = true
-    return
-  }
-  loading.value = true
-  try {
-    const res = await getMyReviews({ page: 1, pageSize })
-    // 成功即清失败态（重试成功后错误块消失）
-    loadFailed.value = false
-    list.value = res.list
-    page = 1
-    finished.value = res.list.length < pageSize
-    emptiedByDelete.value = false
-  } catch (err) {
-    // MP-012：首屏失败不再静默吞——置 loadFailed 渲染「加载失败 · 点击重试」块，恢复走重试块 @tap
-    console.error('[my-reviews] 加载评价失败', err)
-    loadFailed.value = true
-  } finally {
-    loading.value = false
-  }
-}
+/**
+ * 分页列表（公共 composable，UI 统一 Loop Round 17 抽取）：
+ * 第 1 页重拉 / 触底加载更多 / 去重追加 / 失败回退页码 / `loading` 重入守卫 —— 全站一套语义。
+ * 本页差异经选项注入：游客跳过（端点需登录，调必 401）、成功后复位「删除导致空列表」标记。
+ */
+const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyReview>({
+  fetchPage: async (page, pageSize) => (await getMyReviews({ page, pageSize })).list,
+  canLoad: () => userStore.isVerified(),
+  onLoadSuccess: () => { emptiedByDelete.value = false },
+  loadFailLabel: '[my-reviews] 加载评价失败',
+})
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
 function onRetryLoad() {
   load()
-}
-
-async function loadMore() {
-  if (finished.value || loading.value) return
-  loading.value = true
-  try {
-    page += 1
-    const res = await getMyReviews({ page, pageSize })
-    const existIds = new Set(list.value.map(r => r.id))
-    list.value = list.value.concat(res.list.filter(r => !existIds.has(r.id)))
-    if (res.list.length < pageSize) finished.value = true
-  } catch {
-    page -= 1
-  } finally {
-    loading.value = false
-  }
 }
 
 /* ===== 三点菜单（ReviewItem @more → 页面级 ActionSheet）：删除本人评价的唯一入口 ===== */
