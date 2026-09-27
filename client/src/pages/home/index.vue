@@ -73,12 +73,11 @@
 
           <!-- 搜索行：与搜索页同源（`SearchBar`）
                —— 左搜索胶囊 + 右独立「搜索」按钮，均为进搜索页的入口 -->
-          <SearchBar class="home-search" mode="entry" @tap="goToSearch" />
+          <SearchBar mode="entry" @tap="goToSearch" />
 
           <!-- 横向大类标签栏：与搜索区同属本吸顶容器（一个组件）；
                标签集合与文案完全来自字典（GET /dishes/meal-types）。 -->
           <HomeMealTabs
-            class="home-tabs"
             :items="dishStore.mealTypeList"
             :active-value="dishStore.filterMealType"
             @select="onMealTypeSelect"

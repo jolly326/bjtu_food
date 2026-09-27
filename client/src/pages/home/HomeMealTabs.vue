@@ -1,11 +1,12 @@
 <template>
-  <!-- 首页横向「菜品大类」标签栏（§7.34 / 方案 B 运营化解耦）：
+  <!-- 首页横向「菜品大类」标签栏（§7.34 运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
-       ⚠️ 标签集合与文案**完全由后端下发直出**（`GET /dishes/meal-types`）——
-       首项固定为后端下发的「为你推荐」（value 为 null，对应不传 mealType 拉取推荐流）；
-       端上不再前置硬编码拼接「全部」，彻底实现端上零硬编码。
-       字典不可用（未加载 / 失败）时由 store 回退仅「为你推荐」，列表仍展示推荐菜品。 -->
-  <view class="mt-bar">
+       ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/meal-types`）——
+       含首位「为你推荐」这类**虚拟导航项**（`value: null` ⇒ 不传 mealType 拉默认流），
+       端上**零文案、零拼接、零兜底项**（Round 32 用户口径）：改文案 / 加虚拟项（如「折扣菜品」）
+       只在服务端 `listMealTypes()` 出口处拼装，端上无需发版。
+       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按默认流加载。 -->
+  <view v-if="tabs.length > 0" class="mt-bar">
     <scroll-view
       class="mt-scroll"
       scroll-x
@@ -38,16 +39,16 @@
 import { computed } from 'vue'
 import type { MealType } from '@/types/dish'
 
-/** 标签项：`value === null` 表示首项「为你推荐」（不传 mealType） */
+/** 标签项：`value === null` 表示首位虚拟项（默认流，不传 mealType）；文案一律来自服务端 */
 interface MealTab {
   value: string | null
   label: string
 }
 
 const props = defineProps<{
-  /** 大类字典（`store.mealTypeList`，后端已包含首项「为你推荐」及在售大类） */
+  /** 大类字典（`store.mealTypeList`）——**后端已含首位虚拟项（「为你推荐」等）及在售大类**，端上原样渲染 */
   items: MealType[]
-  /** 当前选中大类值（null = 为你推荐） */
+  /** 当前选中大类值（`null` = 首位虚拟项，即不传 mealType 的默认流） */
   activeValue: string | null
 }>()
 
@@ -56,15 +57,13 @@ const emit = defineEmits<{
 }>()
 
 /**
- * 方案 B：渲染项完全直出后端响应（不再在前端前置写入「全部」）。
- * 兜底守卫：若 items 尚未加载完成或异常为空，回退单项「为你推荐」。
+ * 渲染项**完全直出后端响应**：端上**不前置拼接、不补兜底项**（Round 32）。
+ * 字典未到位（未加载 / 失败 / 后端返回空）⇒ 返回空数组 ⇒ 标签栏整体不渲染（不留空栏）。
+ * 这样「首位虚拟项文案」「将来新增的虚拟项」全部是服务端资产，端上零文案。
  */
-const tabs = computed<MealTab[]>(() => {
-  if (!props.items || props.items.length === 0) {
-    return [{ value: null, label: '为你推荐' }]
-  }
-  return props.items.map((item) => ({ value: item.value, label: item.label }))
-})
+const tabs = computed<MealTab[]>(() =>
+  (props.items ?? []).map((item) => ({ value: item.value, label: item.label })),
+)
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
 const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-recommend'))

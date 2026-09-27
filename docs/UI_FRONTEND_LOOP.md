@@ -686,6 +686,23 @@ Step5 审计 → 候选池 → 提出下一轮方向（需讨论同意）
 > P1：`ratingDistribution` 端上零消费（**但 R22 明确「契约保留、端上不消费」** ⇒ 不动，仅在类型注释标注）；`useBrokenImages`（`ReviewItem` ↔ `ImagePicker` 逐字重复的破图集合）抽 composable；删除评价二次确认（详情页 ↔ 我的主页逐字重复）抽公共函数；`SegmentedControl`（详情页分段 ↔ 反馈页分段）抽公共组件 —— 三者皆**近似重复**，按 R28 口径「不为统一制造坏抽象」先评估再动。
 > P2：`ActionSheet` / `CardSection` 使用 `:first-child` / `> `（未登记选择器）；9 处页面根壳 `display:flex + height:100vh/100dvh` 逐字重复（可收 `.page--fill` 工具类）；`auth` 的 `setTimeout` 与 `ListPickerSheet` 的 `searchTimer` 未清理；`http.ts` 超时回调引用后置 `const task`（平台同步抛错时 TDZ 风险）；`stores/dish-attribute.ensureLoaded` 无在途去重。
 
+### Round 32（2026-09-27）—— 首页大类标签栏「端上零文案」（移除「为你推荐」端上兜底）
+
+> 来源：用户指出「**为你推荐也不能写在客户端，应该写在服务端；整个 HomeMealTabs 都应该来自服务端才合理，方便后期随时拓展**」。
+
+| 项 | 内容 |
+|---|---|
+| 事实核对 | **服务端本来就直出**：`DishServiceImpl.listMealTypes()` 在出口拼 `new MealTypeVO(null, "为你推荐", 0)` + `MealTypeConst.ALL`（当前有在售菜的大类）⇒ 标签集合与文案已是服务端资产（虚拟项**不进** `MealTypeConst.ALL` / 不参与白名单，见 D5 第 8 条） |
+| 端上残留（本轮消除） | 2 处**兜底硬编码**：① `stores/dish.ts` 字典失败时 `mealTypeList = [{ value: null, label: '为你推荐' }]`；② `HomeMealTabs.vue` 的 `tabs` 在 `items` 为空时回退同一单项 ⇒ 「改文案 / 加虚拟项（如折扣菜品）」又要**端上发版**，与「服务端可随时拓展」冲突 |
+| 改法 | ① store 失败路径**不写任何兜底项**（仅记录日志、保留上一次结果）；② `tabs` 直出 `items`（空 ⇒ 空数组）；③ `.mt-bar` 加 `v-if="tabs.length > 0"` —— 字典未到位 / 失败 ⇒ **整体不渲染**（不留空栏、不占位）；列表仍按「不传 `mealType`」的默认流加载，功能不受影响 |
+| 效果 | 端上「为你推荐」**字符串字面量 0 处**（仅注释中作为服务端契约说明）；将来新增虚拟项只在 `listMealTypes()` 出口拼装，端上零改动 |
+| 顺手 | 清掉 `index.vue` 两个无规则死 class（`home-search` / `home-tabs`，Round 31 审计项） |
+| 文档 | `docs/feature/client-首页菜品浏览.md` D5 第 5 条 + `docs/ui/client-首页菜品浏览.md`「字典可用性」两处，由「兜底回退单项」改为「**端上零兜底 + 判空不渲染**」 |
+
+**闸门**：vue-tsc 0 / build DONE / lint 0 / 主包 **0.40MB** / 产物 `<view wx:if="{{a}}" class="mt-bar">` 判空分支已编译、wxml 内无硬编码文案、端上字面量 0
+
+**Round 32 改动文件**：`pages/home/{HomeMealTabs.vue,index.vue}`、`stores/dish.ts`、`docs/{feature,ui}/client-首页菜品浏览.md`。
+
 **Round 31 改动文件**：`components/{ImagePlaceholder.vue(新增),IconSvg.vue,ImageFallback.vue,ImagePicker.vue,ReviewItem.vue}`、
 `pages/home/{index.vue(DishCard),HomeBanner.vue}`（占位）、`pages/find/{index.vue,DishResultCard.vue}`、
 `pages/detail/dish/{index.vue,ImageSwiper.vue,useDishPage.ts}`、`stores/dish.ts`、`pages/mine/index.vue`、`App.vue`、

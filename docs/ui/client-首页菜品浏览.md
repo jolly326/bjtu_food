@@ -168,7 +168,7 @@ TabBar（fixed，透明底）
 | ⑦ 在途 | 切类**不触发**「静默加载中」（`HomeContent` 只订阅 `LOADING_KEY_HOME`）⇒ 旧列表继续在屏、无闪白 |
 | ⑧ 结果 | 新数据到达替换列表；失败 → `homeError=true`，有数据则静默保留，空才渲染 `RetryBlock` |
 
-**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchMealTypes()`）⇒ 字典失败不阻塞列表（降级为 `[{ value: null, label: "为你推荐" }]`）；`onShow` 兜底重试（**仅「从未成功」时**）；`fetchMealTypes` 内顺带校正选中项（所选大类已不在字典 → 自动回落「为你推荐」）。
+**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchMealTypes()`）⇒ 字典失败不阻塞列表，**标签栏判空整体不渲染**（端上不留任何兜底标签 —— 文案是服务端资产，Round 32）；`onShow` 重试（**仅「从未成功」时**）；`fetchMealTypes` 内顺带校正选中项（所选大类已不在字典 → 自动回落首位虚拟项即「不传 `mealType`」）。
 
 ### 5.4 排序口径（端上无排序入口）
 

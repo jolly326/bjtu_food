@@ -121,8 +121,8 @@ export const useDishStore = defineStore('dish', () => {
   const mealTypeLoading = ref(false)
 
   /**
-   * 拉取菜品大类字典（方案 B：首项为后端下发的「为你推荐」；失败回退仅「为你推荐」，不阻塞首屏列表）。
-   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「为你推荐」，避免请求一个空类。
+   * 拉取菜品大类字典（**标签栏 100% 服务端直出，端上零文案**）。
+   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「不传 mealType」的默认流，避免请求一个空类。
    */
   async function fetchMealTypes() {
     // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
@@ -130,15 +130,19 @@ export const useDishStore = defineStore('dish', () => {
     if (mealTypeLoaded.value || mealTypeLoading.value) return
     mealTypeLoading.value = true
     try {
-      mealTypeList.value = await dishApi.getMealTypes()
+      const list = await dishApi.getMealTypes()
+      mealTypeList.value = list
       mealTypeLoaded.value = true
-      if (filterMealType.value && !mealTypeList.value.some((m) => m.value === filterMealType.value)) {
+      if (filterMealType.value && !list.some((m) => m.value === filterMealType.value)) {
         filterMealType.value = null
       }
     } catch (e) {
+      // 失败**不写任何端上兜底项**（Round 32 用户口径）：标签文案是**服务端资产**
+      // （含「为你推荐」这类虚拟导航项 —— 将来加「折扣菜品」等也在服务端拼装），
+      // 端上拼一个同名字符串 ⇒ 改文案 / 加虚拟项又要发版，违背「标签栏全量服务端直出」。
+      // 故此处只记录：保留上一次结果（若有），标签栏由 `HomeMealTabs` 判空**整体不渲染**；
+      // 列表仍按「不传 mealType」的默认流加载，功能不受影响。
       console.error('加载菜品大类失败', e)
-      // 方案 B：接口失败时优雅回退首项单项
-      mealTypeList.value = [{ value: null, label: '为你推荐' }]
     } finally {
       mealTypeLoading.value = false
     }
