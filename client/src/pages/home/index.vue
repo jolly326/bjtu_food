@@ -85,7 +85,7 @@
           />
         </view>
 
-        <!-- 双列瀑布流（当前大类下的热度流，未选 = 全部） -->
+        <!-- 双列瀑布流（未选大类 = 推荐流·会话种子伪随机序；选中大类 = 该类热度序） -->
         <HomeContent @retry="retryWaterfall" />
       </view>
     </scroll-view>

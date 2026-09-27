@@ -76,7 +76,7 @@ export const useDishStore = defineStore('dish', () => {
   /** 当前选中大类键（`null` = 全部 = 不传 `mealType`）；端上唯一保留的筛选维度 */
   const filterMealType = ref<string | null>(null)
 
-  /** 首页列表（当前大类下的热度流；未选大类 = 全部） */
+  /** 首页列表（未选大类 = 推荐流·会话种子伪随机序；选中大类 = 该类热度序） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -89,6 +89,23 @@ export const useDishStore = defineStore('dish', () => {
 
   /** 列表请求序号：快速切换大类时丢弃过期响应，避免旧请求晚到覆盖新列表 */
   let homeFetchSeq = 0
+
+  /**
+   * 生成一个推荐流会话随机种子（时间戳 base36 + 随机串 base36，约 15 字符）。
+   * 服务端只把它当**稳定哈希的输入**（`CRC32(CONCAT(seed,'-',id))`），不做格式校验。
+   */
+  function genHomeSeed(): string {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+  }
+
+  /**
+   * 推荐流会话随机种子（2026-09-27 方案 C）——**仅「为你推荐」流（未选大类）下发**。
+   * - 每次列表 reset 重掷（首屏 onLoad / 切回「为你推荐」/ 失败重试）⇒ 每次进入整体重洗（新鲜度）；
+   * - 同一次浏览内翻页沿用同一值 ⇒ 服务端全序恒定，触底加载不跨页重复 / 漏项；
+   * - 选中大类时**不传**（大类 / 搜索流维持热度倒序）。
+   * 模块级 let（非 ref）：纯请求内部态，无需响应式，不对外暴露。
+   */
+  let homeSeed = genHomeSeed()
 
   /**
    * 大类字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
@@ -104,8 +121,8 @@ export const useDishStore = defineStore('dish', () => {
   const mealTypeLoading = ref(false)
 
   /**
-   * 拉取菜品大类字典（失败降级为空数组 → 标签栏只剩「全部」，不阻塞首屏列表）。
-   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「全部」，避免请求一个空类。
+   * 拉取菜品大类字典（方案 B：首项为后端下发的「为你推荐」；失败回退仅「为你推荐」，不阻塞首屏列表）。
+   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「为你推荐」，避免请求一个空类。
    */
   async function fetchMealTypes() {
     // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
@@ -120,7 +137,8 @@ export const useDishStore = defineStore('dish', () => {
       }
     } catch (e) {
       console.error('加载菜品大类失败', e)
-      mealTypeList.value = []
+      // 方案 B：接口失败时优雅回退首项单项
+      mealTypeList.value = [{ value: null, label: '为你推荐' }]
     } finally {
       mealTypeLoading.value = false
     }
@@ -137,8 +155,10 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页）。
-   * 端上**不传排序参数**（排序恒为服务端热度倒序），也不传任何食堂 / 价格条件。
+   * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页，并**重掷推荐流种子**）。
+   * 不传任何食堂 / 价格条件，也不传 `sortBy` / `sortOrder`（排序由服务端唯一决定）；
+   * **仅「为你推荐」流**（未选大类）随请求下发会话种子 `seed`（方案 C），
+   * 选中大类时不传（该流为服务端热度倒序）。
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
@@ -151,11 +171,14 @@ export const useDishStore = defineStore('dish', () => {
         homePageLimited.value = false
         // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
         homeError.value = false
+        // 方案 C：每次 reset 重掷种子 ⇒ 每次进入 / 切回「为你推荐」都有新鲜度
+        homeSeed = genHomeSeed()
       }
       try {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
           mealType: filterMealType.value ?? undefined,
+          seed: filterMealType.value ? undefined : homeSeed,
           page: homePage.value,
           pageSize,
         })
@@ -175,6 +198,7 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 首页列表触底加载更多：页数达 `HOME_MAX_PAGES` 后不再 concat（置 `homePageLimited`）。
+   * 方案 C：与首刷**沿用同一 `homeSeed`**（不在此重掷）⇒ 服务端全序恒定，翻页不重不漏。
    */
   async function loadMoreHomeDishes(): Promise<boolean> {
     if (homeLoadingMore.value || homeFinished.value) return false
@@ -190,6 +214,7 @@ export const useDishStore = defineStore('dish', () => {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
           mealType: filterMealType.value ?? undefined,
+          seed: filterMealType.value ? undefined : homeSeed,
           page: homePage.value,
           pageSize,
         })

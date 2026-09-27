@@ -122,7 +122,7 @@ Excel 批量导入（二期）→ OCR 菜单识别（同一导入通道）；微
 
 ### 4.3 端点清单（当前全集）
 
-**公开读**：`GET /dishes`（keyword / mealType，恒热度降序）、`GET /dishes/{id}`（**副作用：每次成功响应浏览量 +1 并写入访问日志**，IP 限频 30/分 + 300/时）、`GET /dishes/{id}/reviews`（pageSize 归一 20）、`GET /dishes/meal-types`（在售大类字典）、`GET /dishes/attributes`（描述四维字典）、`GET /dishes/for-you`（随机在售菜品名 ≤6）、`GET /banners`、`GET /images/**`。
+**公开读**：`GET /dishes`（keyword / mealType / seed；「为你推荐」流按会话种子伪随机序，带 `keyword` / `mealType` 或未传 seed 时恒热度降序）、`GET /dishes/{id}`（**副作用：每次成功响应浏览量 +1 并写入访问日志**，IP 限频 30/分 + 300/时）、`GET /dishes/{id}/reviews`（pageSize 归一 20）、`GET /dishes/meal-types`（在售大类字典）、`GET /dishes/attributes`（描述四维字典）、`GET /dishes/for-you`（随机在售菜品名 ≤6）、`GET /banners`、`GET /images/**`。
 **公开写**：`POST /feedback`（免认证，问题反馈 `issue`）；`POST /dishes/{id}/correction`（免认证，菜品信息纠错七字段快照，菜品不存在 / 未上架 → `4001`，IP 限频 2/分 + 10/时）。
 **认证域**：`POST /auth/wechat-login` / `email-code`（60s 限频、10min 有效）/ `verify-email`；`GET|PUT /auth/profile`；`DELETE /auth/account`。
 **UGC（需认证）**：`POST /dishes/{id}/reviews`、`PUT /reviews/{id}`（覆盖重评，刷新 `created_at`）、`DELETE /reviews/{id}`；`GET /my/reviews`（本人视角，`dishId` 可选过滤）。

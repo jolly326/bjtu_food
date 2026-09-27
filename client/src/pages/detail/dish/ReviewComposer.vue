@@ -4,7 +4,9 @@
        头部标题由 BaseSheet title 渲染（写评价 / 重新评价），右上 X 由 closable 提供；菜名作为表单首行置于内容区。
        注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。
        小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。
-       重新评价：传 `reviewId` + `prefill` 时进入覆盖式重评（PUT /reviews/{id}），表单预填旧评分/文字/配图。 -->
+       重新评价：传 `reviewId` + `prefill` 时进入覆盖式重评（PUT /reviews/{id}），表单预填旧评分/文字/配图。
+      纠错入口（Round 23）：菜名行右侧「信息有误？」= 从菜品信息卡迁入的纠错落点（跳反馈页 update 模式），
+       与评价表单职责分离（纯文字链接，非按钮；不参与表单提交）。 -->
   <BaseSheet
     :visible="visible"
     :title="isEdit ? '重新评价' : '写评价'"
@@ -14,8 +16,23 @@
     @close="onClose"
   >
     <view class="rc-body">
-      <!-- 菜名副标题：BaseSheet 头部之下、星级之上 -->
-      <text class="rc-dish">{{ dishName }}</text>
+      <!-- 菜名行（BaseSheet 头部之下、星级之上）：左菜名、右「信息有误？」纠错入口。
+           Round 23：该入口从菜品信息卡**迁入本抽屉** —— UI（三级灰纯文字 + arrow，非按钮/非填充）
+           与功能（跳反馈页 update 模式并预选本菜品）一并接续。 -->
+      <view class="rc-head-row">
+        <text class="rc-dish">{{ dishName }}</text>
+        <view
+          class="rc-correct"
+          role="button"
+          aria-label="信息有误，点击前往更新菜品信息"
+          hover-class="pressed"
+          hover-stay-time="80"
+          @tap="goCorrect"
+        >
+          <text class="rc-correct-text">信息有误？</text>
+          <IconSvg name="arrow" :size="20" :color="COLOR_MAP['text-tertiary']" class="rc-correct-arrow" />
+        </view>
+      </view>
 
       <!-- 重评提示：判定为已评价（重评模式）时明示覆盖语义，避免用户误以为在发新评价 -->
       <text v-if="isEdit" class="rc-overwrite-tip">你已评价过此菜，本次提交将覆盖原评价</text>
@@ -86,6 +103,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview, updateReview } from '@/api/review'
 import { toastError } from '@/utils/error'
+import { feedbackUrl } from '@/utils/routes'
 // 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
 import type { ReviewSubmittedPayload } from '@/types/review'
 
@@ -146,6 +164,20 @@ function onClose() {
   emit('close')
 }
 
+/**
+ * 「信息有误？」纠错入口（Round 23 从菜品信息卡迁入本抽屉）。
+ *
+ * 行为：**先关抽屉、再跳转** —— 落到反馈页「更新信息」模式并预选本菜品
+ * （落点唯一构造函数 `feedbackUrl`，禁止手拼 URL；update 模式带 dishId 时进页即拉详情预填）。
+ * 先关的原因：避免返回本页时抽屉仍悬开、与页面栈视觉叠加。
+ */
+function goCorrect() {
+  onClose()
+  uni.navigateTo({
+    url: feedbackUrl('update', props.dishId),
+  })
+}
+
 async function onSubmit() {
   if (submitting.value) return
   if (rating.value < 1) {
@@ -193,16 +225,42 @@ async function onSubmit() {
 .rc-body {
   padding-top: var(--spacing-2xs);
 }
+/* 菜名行：左菜名（超长省略）+ 右「信息有误？」纠错入口 */
+.rc-head-row { display: flex; align-items: center; gap: var(--spacing-sm); padding-top: var(--spacing-2xs); }
 /* 菜名副标题：次级浅灰小字，单行省略 */
 .rc-dish {
-  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--font-small);
   color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-top: var(--spacing-2xs);
 }
+/* 纠错入口：**纯文字**（三级灰小字 + arrow 图标），不填充、不描边；
+   命中区经 ::after 扩至 ≥88rpx（Apple 44pt 触达下限模式），右内边距负外边距抵消以贴齐容器 */
+.rc-correct {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3xs);
+  padding: var(--spacing-3xs) var(--spacing-xs);
+  margin-right: calc(-1 * var(--spacing-xs));
+  -webkit-tap-highlight-color: transparent;
+}
+.rc-correct-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); line-height: 1.4; white-space: nowrap; }
+.rc-correct-arrow { flex: none; }
+.rc-correct::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 88rpx;
+  height: 88rpx;
+  transform: translate(-50%, -50%);
+}
+.rc-correct.pressed { opacity: 0.7; }
 /* 重评覆盖提示：浅底圆角条，明示「覆盖原评价」语义（仅重评模式呈现） */
 .rc-overwrite-tip {
   display: block;

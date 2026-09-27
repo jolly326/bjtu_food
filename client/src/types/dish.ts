@@ -95,15 +95,22 @@ export interface MixedResultItem {
 }
 
 /**
- * 列表查询参数（`GET /dishes`，**完整参数集恰为 4 项**：page / pageSize / keyword / mealType）。
+ * 列表查询参数（`GET /dishes`，**完整参数集恰为 5 项**：page / pageSize / keyword / mealType / seed）。
  * <p>
  * `canteenId` / `minPrice` / `maxPrice` 不纳入查询参数（食堂 / 价格筛选不提供）；
- * `sortBy` / `sortOrder` 不传（排序恒为服务端热度倒序）。
+ * `sortBy` / `sortOrder` 不传（排序由服务端唯一决定：推荐流按 `seed` 伪随机序、其余热度倒序）。
  */
 export interface DishQuery {
   keyword?: string
   /** 菜品大类筛选（首页横向标签栏；值为大类枚举键；不传 = 全部） */
   mealType?: string
+  /**
+   * 推荐流会话随机种子（2026-09-27 方案 C）：仅首页「为你推荐」流（不传 keyword/mealType）下发。
+   * 服务端按 `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序——同 seed 全序恒定（翻页不重不漏），
+   * 端上在每次列表 reset 时重掷（首屏 / 切回「为你推荐」/ 失败重试），翻页沿用同一值。
+   * 大类 / 搜索流不传（维持热度倒序）。
+   */
+  seed?: string
   page?: number
   pageSize?: number
 }

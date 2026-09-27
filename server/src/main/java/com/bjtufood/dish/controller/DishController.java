@@ -49,7 +49,7 @@ public class DishController {
             description = """
                     用途：首页网格、搜索页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    参数集恰为 4 项：page、pageSize、keyword、mealType（排序恒为服务端热度倒序，无排序入口）。
+                    参数集恰为 5 项：page、pageSize、keyword、mealType、seed（排序由服务端决定：推荐流无 keyword/mealType 且带 seed 时按 CRC32(seed:ID) 会话伪随机序，其余热度倒序；无排序入口）。
                     出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )

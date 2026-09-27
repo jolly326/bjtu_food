@@ -1,12 +1,13 @@
 <template>
   <CardSection>
-    <!-- 菜品信息卡（UI 统一 Loop Round 22 按用户规格重排）：
+    <!-- 菜品信息卡（UI 统一 Loop Round 22 重排 + Round 23 属性块还原）：
          ① 名称 + 价格组 → ② 评分（左）/ 位置（右）同行 → ③ 简介（`description` 为空则整块隐藏）
          → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
-         → ⑤ 属性标签容器（浅米色底 + 4 列均分，右上角「信息有误？」入口）。
+         → ⑤ 描述四维（**Round 23 还原 Round 22 之前的样式**：无底色 / 无边框 / 四列等分居中）。
          · 模块之间**靠垂直留白区分**（`--spacing-md`），除第 ④ 条外**不加任何分隔线**；
-         · 交互文字（展开 / 信息有误？）只用文字配色，**禁止实色填充按钮**；
+         · 交互文字（本卡仅「展开 / 收起」）只用文字配色，**禁止实色填充按钮**；
          · 卡片内不做分享按钮（复用微信原生右上角分享）；
+         · **「信息有误？」纠错入口已从本卡移除**（Round 23）—— 改由写评价抽屉（ReviewComposer）承载；
          · **不绘制评分进度条、不展示评价人数**（`ratingCount` 仍参与「有无评分」判定，仅不渲染）。 -->
     <view class="dish-info">
       <!-- ① 名称 + 价格组：价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
@@ -47,23 +48,14 @@
       <!-- ④ 全卡**唯一**一条浅灰分隔线：只在简介存在时渲染（简介隐藏 → 这条线一并消失） -->
       <view v-if="dish.description" class="divider" />
 
-      <!-- ⑤ 属性标签容器：浅米色底 + 4 列均分（每列「标签在上、值在下」），右上角「信息有误？」入口 -->
-      <view v-if="dims.length > 0" class="attrs">
+      <!-- ⑤ 描述四维（荤素 / 主料 / 口味 / 冷热）：**还原 Round 22 之前的样式** ——
+           无底色 / 无边框 / 无入口，四列水平等分居中；上：字段值（主字号），下：固定标签（浅灰小字）；
+           逐维渲染、缺项不占位，多值已用「、」拼接。
+           纠错入口（原右上角「信息有误？」）已移出本卡 —— 新落点见写评价抽屉（Round 23）。 -->
+      <view v-if="dims.length > 0" class="dims">
         <view class="dim-col" v-for="d in dims" :key="d.label">
-          <text class="dim-label">{{ d.label }}</text>
           <text class="dim-val">{{ d.value }}</text>
-        </view>
-        <!-- 纠错入口：**纯文字**链接（不填充、不描边），落点 = 反馈页 update 模式并预选本菜品 -->
-        <view
-          class="correct-link"
-          role="button"
-          aria-label="信息有误，点击前往更新菜品信息"
-          hover-class="pressed"
-          hover-stay-time="80"
-          @tap="goCorrect"
-        >
-          <text class="correct-link-text">信息有误？</text>
-          <IconSvg name="arrow" :size="20" :color="COLOR_MAP['text-tertiary']" class="correct-arrow" />
+          <text class="dim-label">{{ d.label }}</text>
         </view>
       </view>
     </view>
@@ -79,7 +71,6 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { useDishAttributeStore } from '@/stores/dish-attribute'
 import { formatPrice } from '@/utils/money'
-import { feedbackUrl } from '@/utils/routes'
 import { hasDiscount, formatRating } from '@/utils/dish'
 
 const props = defineProps<{
@@ -127,12 +118,8 @@ const dims = computed(() => {
   return list
 })
 
-/** 纠错入口 → 反馈页「更新信息」模式并预选本菜品（跳过搜索，进页即拉详情预填；落点唯一构造函数） */
-function goCorrect() {
-  uni.navigateTo({
-    url: feedbackUrl('update', props.dish.id),
-  })
-}
+/* 注：「信息有误？」纠错入口已从本卡移除（Round 23）—— 连同其跳转（反馈页 update 模式 + 预选菜品）
+   一并移出；该能力的新承载位置见写评价抽屉（ReviewComposer）。 */
 </script>
 
 <style scoped>
@@ -221,56 +208,42 @@ function goCorrect() {
   transform: translate(-50%, -50%);
 }
 
-/* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间（简述在上留 --spacing-sm、下方留 --spacing-md） */
-.divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 var(--spacing-md); }
+/* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间。
+   下侧不再留白（Round 23）：分隔线 → 属性块的 --spacing-md 间距改由 `.dims` 自持，
+   这样「简介缺失、分隔线同步消失」时同样的间距仍然成立（不会少掉一段留白）。 */
+.divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 0; }
 
-/* ⑤ 属性标签容器：浅米色底（--bg-page）+ 4 列均分 + 每列「标签在上、值在下」；**只用底色、不加边框** */
-.attrs {
+/* ⑤ 描述四维（**Round 23 还原 Round 22 之前的样式**）：水平等分、逐维渲染（缺项不渲染该列）、
+   无竖线分隔；**无底色 / 无边框 / 无内边距**（「浅米色标签容器」方案已退役）。
+   顶部留白由本块自持（`--spacing-md`）⇒ 简介缺失（分隔线同步消失）时仍有正确间距。 */
+.dims { display: flex; align-items: stretch; margin-top: var(--spacing-md); }
+/* 标签贴底对齐（justify-content: flex-end）：长值换行时各列标签仍在同一基线上 */
+.dim-col {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  background: var(--bg-page);
-  border-radius: var(--radius-icon);
-  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-sm);
 }
-.dim-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-3xs); }
-/* 上一行：弱灰固定小字标题；下一行：字段值（多值已用「、」拼接） */
-.dim-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.2; }
+/* 上一行：字段值（主字号 500 档，多值已用「、」拼接）；下一行：三级浅灰固定标签
+   长值不硬截断 —— 最多两行自动换行收起 */
 .dim-val {
-  font-size: var(--font-small);
+  font-size: var(--font-subtitle);
   font-weight: var(--weight-medium);
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+  white-space: normal;
   word-break: break-word;
 }
-
-/* 容器右上角纠错入口：**纯文字**（三级灰小字 + arrow 图标），不填充、不描边 */
-.correct-link {
-  position: relative;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3xs);
-  padding: var(--spacing-3xs) var(--spacing-xs);
-  margin: calc(-1 * var(--spacing-3xs)) calc(-1 * var(--spacing-xs));
-  -webkit-tap-highlight-color: transparent;
-}
-.correct-link-text { font-size: var(--font-aux); color: var(--text-tertiary); font-weight: var(--weight-medium); line-height: 1.4; white-space: nowrap; }
-.correct-arrow { flex: none; }
-.correct-link::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 88rpx;
-  height: 88rpx;
-  transform: translate(-50%, -50%);
-}
-.correct-link.pressed { opacity: 0.7; }
+.dim-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
 </style>

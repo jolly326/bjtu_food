@@ -1,9 +1,10 @@
 <template>
-  <!-- 首页横向「菜品大类」标签栏（§7.34 / home-page-presentation）：
+  <!-- 首页横向「菜品大类」标签栏（§7.34 / 方案 B 运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
-       ⚠️ 标签集合与文案**完全**来自字典响应（`GET /dishes/meal-types`）——
-       本组件不维护任何大类中文映射；唯一由端上渲染的固定项是第一项「全部」（= 不传 mealType）。
-       字典不可用（未加载 / 加载失败 / 返回空数组）时降级为仅「全部」，列表仍展示全部菜品。 -->
+       ⚠️ 标签集合与文案**完全由后端下发直出**（`GET /dishes/meal-types`）——
+       首项固定为后端下发的「为你推荐」（value 为 null，对应不传 mealType 拉取推荐流）；
+       端上不再前置硬编码拼接「全部」，彻底实现端上零硬编码。
+       字典不可用（未加载 / 失败）时由 store 回退仅「为你推荐」，列表仍展示推荐菜品。 -->
   <view class="mt-bar">
     <scroll-view
       class="mt-scroll"
@@ -14,7 +15,7 @@
       <view class="mt-track">
         <view
           v-for="tab in tabs"
-          :key="tab.value ?? 'all'"
+          :key="tab.value ?? 'recommend'"
           :id="idOf(tab.value)"
           class="mt-tab"
           :class="{ active: tab.value === activeValue }"
@@ -24,7 +25,7 @@
           @tap="onSelect(tab.value)"
         >
           <text class="mt-label">{{ tab.label }}</text>
-          <!-- 选中态橙色短下划线：常驻节点 + 透明度切换（避免显隐引起行高跳动）；
+          <!-- 选中态橙色短下划线：常驻节点 + opacity 切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
           <view class="mt-underline" :class="{ show: tab.value === activeValue }" aria-hidden="true" />
         </view>
@@ -37,16 +38,16 @@
 import { computed } from 'vue'
 import type { MealType } from '@/types/dish'
 
-/** 标签项：`value === null` 表示端上固定的第一项「全部」（不传 mealType） */
-interface MealTab {
+/** 标签项：`value === null` 表示首项「为你推荐」（不传 mealType） */
+export interface MealTab {
   value: string | null
   label: string
 }
 
 const props = defineProps<{
-  /** 大类字典（`store.mealTypeList`，后端已按 order 升序）；空数组合法 = 降级为仅「全部」 */
+  /** 大类字典（`store.mealTypeList`，后端已包含首项「为你推荐」及在售大类） */
   items: MealType[]
-  /** 当前选中大类值（null = 全部） */
+  /** 当前选中大类值（null = 为你推荐） */
   activeValue: string | null
 }>()
 
@@ -55,20 +56,22 @@ const emit = defineEmits<{
 }>()
 
 /**
- * 渲染项 = 端上固定「全部」+ 字典响应**原序**展开（不再排序 / 不再过滤；
- * 空类隐藏由后端完成，端上不做二次判断，保证「一处真源」）。
+ * 方案 B：渲染项完全直出后端响应（不再在前端前置写入「全部」）。
+ * 兜底守卫：若 items 尚未加载完成或异常为空，回退单项「为你推荐」。
  */
-const tabs = computed<MealTab[]>(() => [
-  { value: null, label: '全部' },
-  ...props.items.map((item) => ({ value: item.value, label: item.label })),
-])
+const tabs = computed<MealTab[]>(() => {
+  if (!props.items || props.items.length === 0) {
+    return [{ value: null, label: '为你推荐' }]
+  }
+  return props.items.map((item) => ({ value: item.value, label: item.label }))
+})
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
-const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-all'))
+const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-recommend'))
 
 /** 稳定 id：小程序 `scroll-into-view` 要求 id 以字母开头、且不含特殊字符 */
 function idOf(value: string | null): string {
-  return value ? `mt-tab-${value}` : 'mt-tab-all'
+  return value ? `mt-tab-${value}` : 'mt-tab-recommend'
 }
 
 function onSelect(value: string | null) {

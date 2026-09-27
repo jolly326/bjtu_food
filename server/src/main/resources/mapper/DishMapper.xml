@@ -150,8 +150,20 @@
             AND d.meal_type = #{req.mealType}
         </if>
         <!-- 食堂 / 价格筛选条件已随 2026-09-22 K3「筛选全量下线」删除（原 canteenId / minPrice / maxPrice 三个
-             <if> 分支移除）；排序口径收敛（2026-09-21 §7.33）：默认流 / 搜索流统一为唯一热度口径 -->
-        ORDER BY <include refid="heatScoreExpr"/> DESC
+             <if> 分支移除）；排序双分支（2026-09-27 方案 C 会话种子）：
+             ① 无 keyword、无 mealType 且 seed 非空（首页「为你推荐」流）→ ORDER BY CRC32(CONCAT(seed,'-',id)), id
+                —— 稳定伪随机序：同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（新鲜度）；
+                d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序；
+             ② 其余（大类 tab / 搜索 / 未带 seed）→ heatScoreExpr DESC（2026-09-21 §7.33 热度口径不变）。
+             seed 走 #{} 预编译参数（防注入）；端上仍无排序入口（sortBy/sortOrder 已删） -->
+        <choose>
+            <when test="(req.keyword == null or req.keyword == '') and (req.mealType == null or req.mealType == '') and req.seed != null and req.seed != ''">
+                ORDER BY CRC32(CONCAT(#{req.seed}, '-', d.id)), d.id
+            </when>
+            <otherwise>
+                ORDER BY <include refid="heatScoreExpr"/> DESC
+            </otherwise>
+        </choose>
     </select>
 
     <!-- 菜品详情（详情专用 15 字段，2026-09-22 D 项拆分） -->

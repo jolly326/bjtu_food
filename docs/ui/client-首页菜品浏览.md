@@ -159,8 +159,8 @@
 
 | 项 | 设计值 |
 |---|---|
-| 标签集合（7 项） | `全部` ｜ `套餐盖饭` ｜ `家常小炒` ｜ `面食粉类` ｜ `香锅干锅` ｜ `风味小吃` ｜ `汤饮甜品` |
-| 数据来源 | `GET /dishes/meal-types` 下发（接口形状 `[{ value, label, order }]`）：文案、顺序、子集、增删**全由后端决定，端上一个不写死**；首项「全部」= 不传 `mealType`，端上固定渲染。⚠️ **端上只消费 `value` / `label` 两字段**：`order` 是服务端排序用字段（`web` 端需要），端上按返回顺序渲染 → 已按「零消费即删」从 `types/dish.ts` 的 `MealType` 与 `api/dish.ts` 映射中**移除** |
+| 标签集合（7 项） | `为你推荐` ｜ `套餐盖饭` ｜ `家常小炒` ｜ `面食粉类` ｜ `香锅干锅` ｜ `风味小吃` ｜ `汤饮甜品` |
+| 数据来源 | `GET /dishes/meal-types` 下发（接口形状 `[{ value, label, order }]`）：首项由后端统一下发 `{ value: null, label: "为你推荐", order: 0 }`，后续为各在售分类。文案、顺序、子集、增删**全由后端决定，端上直接全量直出、不前置硬编码「全部」**。⚠️ **端上只消费 `value` / `label` 两字段**：`order` 是服务端排序用字段（`web` 端需要），端上按返回顺序渲染 → 已按「零消费即删」从 `types/dish.ts` 的 `MealType` 与 `api/dish.ts` 映射中**移除** |
 | 空类自动隐藏 | 后端只下发当前有在售菜品的大类（某类空了隐藏、有菜自动出现），端上零改动 |
 | 标签样式 | **纯文字导航**——无胶囊底色、无边框、无背景块 |
 | 未选中 | 字色 `--text-body` **`#4A3520`**、`--weight-regular` |
@@ -182,15 +182,15 @@
 - **首页**：**无任何筛选入口**（无「筛选」按钮、无筛选面板），**唯一筛选维度是大类标签栏**（§5.1）；
 - **搜索页（find）**：头部为「输入框 + 结果」，**无食堂 / 价格筛选胶囊**；
 - **保留项**：搜索关键词**同时匹配菜名 / 档口名 / 食堂名**；卡片上的 `食堂名 | 档口名` 展示不变；
-- **接口侧**（详见功能文档）：`GET /dishes` 参数集恰为 `page` / `pageSize` / `keyword` / `mealType`；
+- **接口侧**（详见功能文档）：`GET /dishes` 参数集恰为 `page` / `pageSize` / `keyword` / `mealType` / `seed`（`seed` 仅推荐流下发）；
 - **防回退**：首页不得出现筛选入口，搜索页不得出现食堂 / 价格筛选胶囊（§13 第 13 条）。
 
 ### 5.5 分类的展示与切换逻辑（实现口径，逐条对齐代码）
 
 **展示**
 
-1. 渲染项 = **端上固定第一项「全部」**（`value = null` ⇒ 不传 `mealType`）+ **字典响应原序展开**（`mealTypeList`，后端已按 `order` 升序且只含有在售菜品的大类）；**端上不排序、不过滤、不写死任何中文**（`HomeMealTabs.tabs`）；
-2. 横向可滑动（`scroll-view scroll-x`，隐藏滚动条）；**选中项自动滚入视口**（`scroll-into-view` → `mt-tab-{value}` / `mt-tab-all`，稳定 id 规则）；
+1. 渲染项 = **后端响应直出展开**（`mealTypeList`，后端首项下发 `{ value: null, label: "为你推荐" }`，后续紧跟在售分类；空类自动隐藏；**端上不前置拼接「全部」，直接全量渲染**）；
+2. 横向可滑动（`scroll-view scroll-x`，隐藏滚动条）；**选中项自动滚入视口**（`scroll-into-view` → `mt-tab-{value}` / `mt-tab-recommend`，稳定 id 规则）；
 3. 选中下划线为**常驻节点 + opacity 切换**（不做 v-if 显隐）→ 避免行高跳动；下划线纯装饰（`aria-hidden`），选中语义由字重 + `aria-label="筛选大类：{label}"` 表达。
 
 **切换（一次点击的完整链路）**
@@ -204,22 +204,23 @@
 | ⑤ 竞态守卫 | `homeFetchSeq++`；**过期响应一律丢弃**（快速连点多个大类时，先发的旧请求晚到不会覆盖新列表） | 同上 |
 | ⑥ 不重置滚动 | 页面**不**调用任何回顶 / 恢复滚动位置的逻辑（保持当前滚动位置） | `onMealTypeSelect` |
 | ⑦ 在途表现 | 切类**不触发**「静默加载中」判定（`HomeContent` 只订阅 `LOADING_KEY_HOME`）→ 旧列表继续在屏，无闪白、无骨架屏 | `HomeContent.loading` |
-| ⑧ 结果 | 新页数据到达后替换列表（同一热度序的子序列）；失败 → `homeError=true`，列表有数据则**静默保留**，列表为空才渲染 `RetryBlock` | `HomeContent.loadFailed` |
+| ⑧ 结果 | 新页数据到达后替换列表（**大类流** = 该类热度序的子序列；**切回「为你推荐」** = 新 seed 重洗的推荐序）；失败 → `homeError=true`，列表有数据则**静默保留**，列表为空才渲染 `RetryBlock` | `HomeContent.loadFailed` |
 
 **字典自身的可用性**
 
-- 首屏 `onLoad` **不 await** 字典（`void fetchMealTypes()`）→ 字典失败**不阻塞**列表；降级表现 = 标签栏只剩「全部」，列表仍展示全部菜品；
+- 首屏 `onLoad` **不 await** 字典（`void fetchMealTypes()`）→ 字典失败**不阻塞**列表；降级表现 = 自动兜底回退 `[{ value: null, label: "为你推荐" }]`，列表仍展示推荐菜品；
 - `onShow` 兜底重试（**仅「从未成功」时**发请求，store 内自带守卫）；
-- `fetchMealTypes` 内**顺带校正选中项**：所选大类已不在字典（该类当前无在售菜）→ 自动回落「全部」，避免请求一个空类。
+- `fetchMealTypes` 内**顺带校正选中项**：所选大类已不在字典（该类当前无在售菜）→ 自动回落「为你推荐」，避免请求一个空类。
 
-### 5.6 排序口径（唯一：服务端热度倒序；端上**无**排序入口）
+### 5.6 排序口径（双分支：推荐流按会话种子伪随机序；大类 / 搜索 = 热度倒序；端上**无**排序入口）
 
 | 项 | 口径 |
 |---|---|
-| **默认排序** | **服务端固定热度倒序**：`heatScoreExpr = view_count × 1 + rating_count × 100 + avg_rating × 20`（`project_spec.md` §7.27） |
-| **可选排序** | **无**。首页**没有**「排序」按钮 / 面板 / 下拉 / 胶囊，**不传任何排序参数** |
-| **传参** | `GET /dishes` 的参数集**恰 4 项**：`page` / `pageSize` / `keyword` / `mealType`（`sortBy` / `sortOrder` / `canteenId` / 价格区间**已全部删除**，见 `api-slimming`） |
-| **翻页一致性** | 每一页都是**同一热度序**的下一段 ⇒ 触底加载不会出现「第 2 页比第 1 页更热」的错乱 |
+| **默认排序（「为你推荐」流）** | **会话种子稳定伪随机序（2026-09-27 方案 C）**：`ORDER BY CRC32(CONCAT(seed,'-',id)), id`——`seed` 由端上在每次列表 reset（首屏 / 切回「为你推荐」/ 失败重试）**重掷**、翻页沿用 ⇒ 每次进入整体重洗（新鲜度），同一次浏览顺序稳定（翻页不重不漏） |
+| **大类 / 搜索流排序** | **服务端固定热度倒序**：`heatScoreExpr = view_count × 1 + rating_count × 100 + avg_rating × 20`（`project_spec.md` §7.27）；带 `mealType` / `keyword` 的请求 `seed` 不参与排序 |
+| **可选排序** | **无**。首页**没有**「排序」按钮 / 面板 / 下拉 / 胶囊，**不传任何排序参数**（`seed` 是数据顺序种子，非排序参数，无 UI 呈现） |
+| **传参** | `GET /dishes` 的参数集**恰 5 项**：`page` / `pageSize` / `keyword` / `mealType` / `seed`（`seed` 仅「为你推荐」流下发；`sortBy` / `sortOrder` / `canteenId` / 价格区间**已全部删除**，见 `api-slimming`） |
+| **翻页一致性** | 推荐流每页都是**同一 seed 全序**的下一段（`id` 决胜键防哈希碰撞并列）；大类 / 搜索每页都是**同一热度序**的下一段 ⇒ 触底加载不会出现「第 2 页比第 1 页更热」或跨页重复的错乱 |
 | **防回退** | **不得**新增「综合 / 最新 / 价格↑↓ / 距离」排序入口（距离能力已下线，无坐标字段）；如确需恢复，须**另立 change** 并同步后端参数与 `project_spec.md`（PR-04 恢复须重新拍板） |
 
 ---
@@ -693,7 +694,7 @@
 | 接口 | 用途 | 何时调用 |
 |---|---|---|
 | `GET /banners` | 顶部 16:10 轮播图（`[{ id, imageUrl }]`；服务端已按 `sort_order` 升序、只返回启用项；**无跳转字段**） | `HomeBanner` 自身 `onMounted`（与列表**并行**；失败不阻塞首屏网格 → 退化为灰底 + 中性 `empty`） |
-| `GET /dishes/meal-types` | 大类标签栏字典（`[{ value, label, order }]`；**端上只消费 `value` / `label`**） | 页面 `onLoad`（`void`，**不 await**）+ `onShow` 仅「从未成功」时兜底重试（§5.5） |
+| `GET /dishes/meal-types` | 大类标签栏字典（`[{ value, label, order }]`；**首项下发「为你推荐」，端上只消费 `value` / `label`，全量直出渲染**） | 页面 `onLoad`（`void`，**不 await**）+ `onShow` 仅「从未成功」时兜底重试（§5.5） |
 | `GET /dishes` | 双列网格主数据（`PageResult<DishListItemVO>`；只含 `status='on'` 在售菜品） | `onLoad` 首拉（`fetchHomeDishes(true)`）、切大类、`RetryBlock` 重试、触底加载更多 |
 
 **字段定义（`DishListItemVO` 8 字段 ↔ 端上 `DishListItem`）**
@@ -724,7 +725,7 @@
 | 顶栏 | `AppTitleBand` | 公共 `components/AppTitleBand.vue` | 固定标题带「知行食记」；**恒透明、无表面**（原纱层能力已删，§1 / §11.2） |
 | 顶栏 | `SearchBar`(`entry`) | 公共 `components/SearchBar.vue` | 搜索行（左胶囊 + 右「搜索」按钮），整行进搜索页 |
 | 顶部 | `HomeBanner` | 页内私有 `pages/home/HomeBanner.vue` | 16:10 轮播（自持 `GET /banners`；多张自动轮播 + 指示点；空 / 单张失败 → 灰底 + 中性 `empty`） |
-| 分类 | `HomeMealTabs` | 页内私有 `pages/home/HomeMealTabs.vue` | 横向大类标签栏（「全部」+ 字典原序；单选 + 下划线；§5） |
+| 分类 | `HomeMealTabs` | 页内私有 `pages/home/HomeMealTabs.vue` | 横向大类标签栏（后端字典直出「为你推荐」+ 在售分类；单选 + 下划线；§5） |
 | 内容 | `HomeContent` | 页内私有 `pages/home/HomeContent.vue` | 双列网格（奇偶分列 + 触底态）；**纯展示组件**（数据 / 分页在 store） |
 | 内容 | `DishCard` | 页内私有 `pages/home/DishCard.vue` | 单张菜品卡（四段排版 + 懒加载图 + 整卡点击） |
 | 底栏 | `TabBar` | 公共 `components/TabBar.vue` | 底部菜单（首页 / 我的）+ `wallpaper` 切片 |

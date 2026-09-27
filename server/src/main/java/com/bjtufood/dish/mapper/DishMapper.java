@@ -26,7 +26,8 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 分页查询菜品（联表：dish + stall + canteen）
      * <p>
      * 出参为**列表专用** {@link DishListItemVO}（8 字段，2026-09-22 D 项拆分）；
-     * 支持 keyword / mealType 两个条件，排序恒为服务端热度倒序。
+     * 支持 keyword / mealType 两个条件 + 可选 seed；排序双分支（2026-09-27 方案 C）：
+     * 无 keyword/mealType 且 seed 非空 → CRC32(seed:ID) 会话伪随机序，其余 → 热度倒序。
      */
     IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
 

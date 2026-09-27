@@ -31,7 +31,7 @@
 | `page` | number | 否 | 页码，默认 1 |
 | `pageSize` | number | 否 | 每页条数（**搜索页固定传 50**）；服务端归一化上限 **100**（`PageUtil.MAX_PAGE_SIZE`，超限截断） |
 
-> **`GET /dishes` 完整参数集 = `page` / `pageSize` / `keyword` / `mealType`**（`mealType` 为菜品大类筛选参数，搜索页不传）；排序为服务端固定热度口径，端上不传排序参数。
+> **`GET /dishes` 完整参数集 = `page` / `pageSize` / `keyword` / `mealType` / `seed`**（`mealType` 为菜品大类筛选参数，搜索页不传；`seed` 为推荐流会话随机种子，**搜索页不传**——传了也仅在**无 `keyword` 时**参与排序，搜索流恒为服务端热度口径）；搜索结果排序不传参、无排序入口。
 
 ### 响应 · `GET /dishes`（`data` = `PageResult<DishListItemVO>`）
 

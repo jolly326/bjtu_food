@@ -74,9 +74,10 @@ function toDishDetail(raw: RawRow): DishDetail {
 /**
  * 通用菜品检索（首页网格无限加载 + 搜索结果）。
  * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize`**（
+ * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize` / `seed`**（
  * 食堂 / 价格 / 排序筛选不提供，端上不传 `canteenId` / `minPrice` / `maxPrice` / `sortBy`；
- * 排序恒为服务端热度倒序）。返回分页结果供瀑布流去重与「本页条数 < pageSize」判到底。
+ * 排序由服务端唯一决定：`seed` 非空且无 keyword/mealType 时按会话种子伪随机序，
+ * 其余热度倒序）。返回分页结果供瀑布流去重与「本页条数 < pageSize」判到底。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[]; total: number }> {
   const params: Record<string, unknown> = {
@@ -85,6 +86,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: DishLi
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.mealType) params.mealType = query.mealType
+  if (query.seed) params.seed = query.seed
 
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
   const res = await get<RawPage>('/dishes', params)
@@ -119,10 +121,9 @@ export async function getGuessLike(): Promise<GuessLike[]> {
 /** 菜品大类字典（GET /dishes/meal-types）：首页横向标签栏数据源，文案与顺序全由后端下发 */
 export async function getMealTypes(): Promise<MealType[]> {
   const raw = await get<RawRow[]>('/dishes/meal-types')
-  // 只映射端上真实消费的 2 字段（`value` / `label`）；`order` 是服务端排序用字段，
-  // 端上按返回顺序渲染 → 零消费，按「零消费即删」不映射
+  // 方案 B：首项后端下发 value=null（为你推荐）；其余项为枚举字符串
   return (raw || []).map((item: RawRow) => ({
-    value: String(item.value || ''),
+    value: item.value != null && String(item.value).trim() !== '' ? String(item.value) : null,
     label: String(item.label || ''),
   }))
 }

@@ -46,7 +46,7 @@ export async function deleteById(id: number) {
   await del<void>(`/admin/dishes/${id}`)
 }
 
-/** 菜品大类字典项（`GET /dishes/meal-types` 单行出参，2026-09-21 §7.34）。 */
+/** 菜品大类字典项（`GET /dishes/meal-types` 单行出参，2026-09-21 §7.34 / 方案 B）。 */
 export interface MealTypeDictItem {
   /** 大类枚举值（写入 `DishAdminReq.mealType` 用的值） */
   value: string
@@ -60,6 +60,7 @@ export interface MealTypeDictItem {
  * 菜品大类字典（公开端点 `GET /dishes/meal-types`）。
  *
  * - 标签文案 / 顺序 / 集合的**唯一真源在后端**（`MealTypeConst`）→ Web 端零硬编码中文，选项直接渲染本响应；
+ * - 方案 B：接口首项下发的「为你推荐」（value 为 null）属学生端首页导航项，管理端通过 filter 排除，只保留具体录入大类；
  * - 端点只下发**当前有在售菜品**的大类（空类自动隐藏、有菜自动出现）→ 管理端下拉 / 筛选若需覆盖
  *   已下架菜品所在的大类，由调用方按需用列表数据兜底（见 `stores/mealTypeStore.ts` 口径说明）。
  * - 出参字段本身即 camelCase，故此处只做形状与空值归一，不做下划线→驼峰映射。
@@ -68,10 +69,11 @@ export async function listMealTypes(): Promise<MealTypeDictItem[]> {
   const data: any = await get<any[]>('/dishes/meal-types')
   const rows = Array.isArray(data) ? data : []
   return rows
+    .filter(raw => raw && raw.value != null && String(raw.value).trim() !== '')
     .map(raw => ({
-      value: String(raw?.value ?? ''),
-      label: String(raw?.label ?? ''),
-      order: Number(raw?.order ?? 0),
+      value: String(raw.value),
+      label: String(raw.label ?? ''),
+      order: Number(raw.order ?? 0),
     }))
     .filter(item => item.value && item.label)
     .sort((a, b) => a.order - b.order)

@@ -82,11 +82,15 @@ public class DishServiceImpl implements DishService {
     public List<MealTypeVO> listMealTypes() {
         // 空类过滤（§7.34）：常量清单（唯一真源）∩「当前有在售菜品」的大类集合——
         // 某类暂时没有 status='on' 的菜品即不下发，重新有菜自动出现；顺序 = 常量声明序（order 升序）
+        // 方案 B：首项固定下发「为你推荐」（value=null, order=0），供学生端直出渲染、端上零硬编码
         Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
-        return MealTypeConst.ALL.stream()
+        List<MealTypeVO> result = new ArrayList<>();
+        result.add(new MealTypeVO(null, "为你推荐", 0));
+        MealTypeConst.ALL.stream()
                 .filter(mt -> inStock.contains(mt.value()))
                 .map(mt -> new MealTypeVO(mt.value(), mt.label(), mt.order()))
-                .collect(Collectors.toList());
+                .forEach(result::add);
+        return result;
     }
 
     /**

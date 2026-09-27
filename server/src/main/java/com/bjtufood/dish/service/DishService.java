@@ -21,12 +21,14 @@ public interface DishService {
     // ==================== 公开接口 ====================
 
     /**
-     * 菜品列表查询（分页+筛选，排序恒为服务端热度倒序）
+     * 菜品列表查询（分页+筛选；排序由服务端决定：推荐流按 seed 伪随机序，其余热度倒序）
      * <p>
-     * 支持参数：keyword / mealType（2026-09-22 K3：{@code canteenId} / {@code minPrice} /
+     * 支持参数：keyword / mealType / seed（2026-09-22 K3：{@code canteenId} / {@code minPrice} /
      * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除；2026-09-21 §7.33：
-     * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，排序唯一口径 =
-     * DishMapper.xml 的 heatScoreExpr 倒序）。
+     * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，端上无排序入口）。
+     * 排序双分支（2026-09-27 方案 C 会话种子）：无 keyword / mealType 且 {@code seed} 非空 →
+     * DishMapper.xml 的 {@code CRC32(CONCAT(seed,'-',id)), id} 稳定伪随机序（同 seed 全序恒定，
+     * 翻页不重不漏）；其余情形 → heatScoreExpr 倒序（热度口径不变）。
      * {@code mealType} 白名单校验（MealTypeConst），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *

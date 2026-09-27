@@ -59,12 +59,12 @@
 | **标题带下沿 → 搜索行上沿** | `--spacing-md`（24rpx / 12px） | 标题带与搜索行**同属一个「头部单元」**，故小于块间呼吸值（`--spacing-lg`） |
 | **搜索行下沿 → 内容首块（记录 / 猜你喜欢 / 结果）** | **`--spacing-lg`（32rpx / 16px），且为「唯一来源」** | 块间距。搜索行 `padding-bottom` **与** 内容首块 `margin-top` SHALL **只保留一处**（搜索行下 padding 归零、由内容首块 margin-top 承担，或反之），实测须 = **16px** |
 
-> **结果行布局（UI 统一 Loop Round 21，用户拍板规格；实现 = 页内私有 `DishResultRow.vue`）**：
+> **结果行布局（UI 统一 Loop Round 21，用户拍板规格；实现 = 页内私有 `DishResultCard.vue`，由 `find/index` 直接编排 —— Round 21b 原 `FindResults` 已并入 index）**：
 > 结果卡 = 横向 flex——左「**160rpx 正方形图片**」（`aspectFill`，圆角由容器裁切；无图 → `dish` 餐具占位图标）
 > + 右「**纵向三行信息**」（`flex:1` + `align-self:stretch` 与左图等高对齐、内容**垂直居中**，行距 `--spacing-sm`）：
-> ① **标题行**（`align-items:center`）：菜名弹性（最多两行溢出省略、命中关键词**加粗**）；★评分（`--color-star` + 数字）**紧贴菜名后方**，无评分不渲染不占位；
-> ② **价格行**（整行 `flex-end` 靠右）：现价 `--color-price` 带 ¥；仅 `originalPrice > price` 在现价右侧追加灰色删除线原价，无折扣只展示现价；
-> ③ **位置行**（靠左）：食堂 · 档口（`utils/dish.joinLocation`），弱灰小字单行省略、命中加粗。
+> ① **菜名**：最多两行溢出省略、命中关键词**加粗**；
+> ② **档口位置**：小字号（`--font-aux`）弱灰、单行省略、命中加粗；
+> ③ **底行**：左 = ★评分（`--color-star` + 数字，与价格**同字号** `--font-h3`）—— 右 = 价格（`--color-price` 带 ¥；仅 `originalPrice > price` 追加灰色删除线原价）；无评分时评分组不渲染、价格仍靠右。
 > 卡片 = 白底 `--bg-card` + `--radius-card` + `--shadow-card` + **内边距统一 `--spacing-md`**；整卡可点跳菜品详情、带按压反馈（`bg-soft`）；`id` 仅用于 key / 跳转**零渲染**；**SHALL NOT** 渲染标签、描述、评价数等详情页字段。
 | 记录卡片 ↔ 猜你喜欢卡片 | **`--spacing-lg`（32rpx / 16px）** | 两个分组。本页 SHALL **显式指定**两卡间距 = 16px（不得依赖卡片容器 `CardSection` 的默认 margin） |
 | 分组标题 → 其 chips | `--spacing-sm`（16rpx / 8px） | 组内 |
@@ -114,7 +114,7 @@
 | 未输入（发现态） | 搜索记录（有则显示）+ 猜你喜欢（有则显示）；**两者都空 → 内容区留空**（不显示空文案、不做骨架） |
 | 输入中 | 仅结果区变化；搜索行文案不截断（超长省略） |
 | 结果态（有结果） | 单列结果行列表 |
-| **结果态（少量结果，如仅 1 条）** | **结果区垂直居中**，使留白分布于首卡上下两侧；**SHALL NOT 追加任何填充内容 / 结果计数 / 引导文案**（沿用「内容组件不承载空态」口径） |
+| **结果态（少量结果，如仅 1 条）** | **顶部对齐**（UI 统一 Loop Round 21e，用户拍板：搜索结果自上而下自然阅读，**不做垂直居中**）；**SHALL NOT 追加任何填充内容 / 结果计数 / 引导文案**（沿用「内容组件不承载空态」口径） |
 | 结果态（无结果） | **呈现「无结果引导」**（**非静默**）：图标 + 「没搜到「{关键词}」相关的菜」+ 副文案 + 「推荐这道菜」按钮（跳意见反馈页，落缺省「反馈问题」模式）。该引导属全站**两处显式空态例外之二**（`openspec/specs/client-page-structure`），亦见 `search-result-presentation`「成功且无结果时呈现静态换词引导」 |
 | 失败态 | 结果区渲染「加载失败 · 点击重试」块（`searchFailed`，MP-012），与「没搜到」区分 |
 | 猜你喜欢请求失败 | **整块不渲染**（不阻塞搜索能力） |
@@ -145,7 +145,7 @@
 7. 顶部**不做纱式淡出 / 不做吸顶切换**（本页没有可滚出屏幕的顶部大图）；
 8. **两个区块的 chip 必须可区分**（搜索记录 = 中性底、猜你喜欢 = 暖黄底，见 §3）——**SHALL NOT** 出现两区块 chip 完全同款；
 9. **每一处块间间距 SHALL 只有一个来源**（不得「外层 padding + 内层 margin」各出一层，见 §2 间距表）——实测值须与该表一致；
-10. 结果区在**少量结果**时垂直居中、在**无结果**时呈现引导（见 §4）——**SHALL NOT** 追加结果计数或填充内容；
+10. 结果区**顶部对齐**（Round 21e，用户拍板：阅读顺序自上而下，**不做垂直居中**）、在**无结果**时呈现引导（见 §4）——**SHALL NOT** 追加结果计数或填充内容；
 11. **进 / 出结果态必须由可见控件驱动**（见 §4.1）：① 空词时「搜索」按钮 SHALL 置灰（不得静默失效）；② 清空 X SHALL 同时退出结果态；③ 左上角返回 SHALL **恒退出本页**；
 12. **搜索记录只记用户显式提交的词**：点推荐 / 历史词条 SHALL NOT 写入记录（4 条上限不给随机词留位）。
 
@@ -169,7 +169,7 @@
 | 2 | `SearchBar`（`mode="input"`） | 公共 `components/SearchBar.vue` | 搜索行：**单个搜索胶囊**（左放大镜 40rpx 垂直居中 + 可输入 + 有值时清除 ✕ + **右端内嵌「搜索」按钮**）；`searching` 提交中降透明禁用 / `disabled` **空词灰底灰字禁用**；**无下拉箭头** |
 | 3 | `CardSection` | 公共 `components/CardSection.vue` | 白卡外壳（「搜索记录」/「猜你喜欢」两区块） |
 | 4 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 区块标题「搜索记录」（`#extra` 槽承载「清空」）/「猜你喜欢」（无右侧） |
-| 5 | `FindResults` + 页内私有 `pages/find/DishResultRow.vue` | `pages/find/` | 结果态滚动容器 + 单列结果卡（布局规格见 §2「结果行布局」）；每行 `role="button"` + `:aria-label="查看 {菜名}"` |
+| 5 | `DishResultCard` | 页内私有 `pages/find/DishResultCard.vue` | 结果卡（布局规格见 §2「结果行布局」）：整卡可点跳菜品详情、`role="button"` + `:aria-label="查看 {菜名}"`；结果态滚动容器与列表由 `find/index` 内联（Round 21b 原 `FindResults` 并入） |
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 菜品占位 `dish` / 星 `star-filled` |
 | 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏） |
