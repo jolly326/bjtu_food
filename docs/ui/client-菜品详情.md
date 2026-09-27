@@ -48,7 +48,7 @@
 | 11 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 评价首屏 / 刷新失败「加载失败 · 点击重试」 |
 | 12 | `ImagePicker` | 公共（经 `ReviewComposer`） | 评价配图 ≤3 张 |
 | 13 | `IconSvg` | 公共 `components/IconSvg.vue` | 导航返回 `arrow-left` / 定位 `location` / 星（`star` 线性 · `star-filled`）/ 三点 `more-v` / 空态与失败示意 `empty` · `report` |
-| 14 | 覆盖导航 `.dish-nav`、大图容器 `.hero-slot` + 承接条 `.hero-carry`、失败块 `.detail-fail`、底部操作栏 `.action-bar`（页内内联） | `pages/detail/dish/index.vue` 内联 | 透明→实底导航（滚动渐显菜名）、`position: sticky` 两阶段定格、详情失败 / 不存在态、写评价 + 分享双钮 |
+| 14 | 顶部改用公共 **`AppTitleBand`**（透明；左「返回」+ 居中**菜名随滚动淡入**）、**hero 卡**（滚动区首块）、底部操作栏 `.action-bar`（页内内联） | 公共 + `pages/detail/dish/index.vue` 内联 | 与首页 §11 **同构**（UI 统一 Loop Round 16，2026-09-27 裁决 c）：标题带**恒透明**、滚动区从带下沿开始 ⇒ 无内容从带背后经过（**零切片 / 零实底切换 / 零承接条**）；hero **随滚动 1:1 上移、在标题带下沿被裁**（"移出屏幕"，与首页 Banner 同语言）；滚动 JS **只保留菜名淡入 1 项** |
 | — | `swiper`（`ImageSwiper` 内）/ `textarea` / `open-type="share"` button | uni 内置控件 | 图片轮播 / 评价输入 / 分享 |
 
 ### 有哪些数据要显示、显示在哪个组件
@@ -56,7 +56,7 @@
 | # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
 |---|---|---|---|---|---|
 | 1 | `id` | `GET /dishes/{id}`（`DishDetailVO`） | 菜品 ID | 无界面（页面 `key` / 请求路径 / 分享路径） | 零可见 UI |
-| 2 | `name` | 同上 | 菜名 | ① `DishInfoCard` 名称行 ② 覆盖导航标题 `.dish-nav-title`（滚动后渐显） ③ `ReviewComposer` 副标题 ④ 分享标题 | 导航标题按滚动量淡入 |
+| 2 | `name` | 同上 | 菜名 | ① `DishInfoCard` 名称行 ② `AppTitleBand` 居中标题（滚动后渐显） ③ `ReviewComposer` 副标题 ④ 分享标题 | 导航标题按滚动量淡入 |
 | 3 | `price` | 同上（元） | 现价 | `DishInfoCard` 价格行 `.price-text` | **唯一价格数据源**（主色）；不以第三字段判折扣 |
 | 4 | `originalPrice` | 同上 | 原价 | `DishInfoCard` 价格行 `.origin-price` | 仅 `originalPrice > price` 渲染，三级灰 + 删除线 |
 | 5 | `images` | 同上 | 菜品图集 | `ImageSwiper`（页面派生 `heroImages`） | `aspectFill`，加载完成淡入；空数组 → 占位 |
@@ -90,4 +90,4 @@
 | `DELETE /reviews/{id}` | 无请求体（详见 [client-删除本人评价.md](./client-删除本人评价.md)） |
 
 **错误码**：`4001` 菜品不存在 / 已下架（专属文案 + 仅返回，**不可重试**）｜网络 / `5xx`（可重试：重新加载 + 返回）｜`400` 评价参数或安检失败｜`403` 非本人｜`4031` 邮箱未认证（跳身份认证页 `pages/auth/index`，返回后由 onShow 续接原动作）
-**控件类型**：页面级滚动 + `position: sticky` 大图两阶段定格（位移全由原生滚动承担）、`onReachBottom` 触底分页、`onPageScroll`（导航透明度 / 承接条）、`BaseSheet` 底部抽屉 ×2、`ActionSheet` 三点菜单、「只看有图」开关（`role="switch"`）、`textarea`、星级单选、`open-type="share"` 分享按钮
+**控件类型**：页面级滚动（顶部 `AppTitleBand` + 滚动区 `flex: 1`，与首页 §11 同构）、**hero 卡随滚动移出（无 sticky 定格、无承接条）**、`onReachBottom` 触底分页、`onPageScroll`（**仅**驱动居中菜名淡入）、`BaseSheet` 底部抽屉 ×2、`ActionSheet` 三点菜单、「只看有图」开关（`role="switch"`）、`textarea`、星级单选、`open-type="share"` 分享按钮

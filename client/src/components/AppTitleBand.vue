@@ -30,8 +30,14 @@
       <text v-else class="band-title-left" :style="{ fontSize: leftFontSize }">{{ title }}</text>
     </view>
 
-    <!-- ===== 居中区（仅「有返回」时显示页面名称） ===== -->
-    <text v-if="back" class="band-title-center" :style="{ fontSize: centerFontSize }">{{ title }}</text>
+    <!-- ===== 居中区（仅「有返回」时显示页面名称） =====
+         `titleOpacity` 只控**文字**透明度（用于「滚下去才出现标题」的页面，如菜品详情页的菜名淡入），
+         与本组件的**表面**无关 —— 带体始终透明、不做任何表面 / 蒙版。 -->
+    <text
+      v-if="back"
+      class="band-title-center"
+      :style="{ fontSize: centerFontSize, opacity: titleOpacity }"
+    >{{ title }}</text>
   </view>
 </template>
 
@@ -61,9 +67,15 @@ const props = withDefaults(defineProps<{
   leftSize?: string
   /** 居中区字号（CSS 长度）。不传 ⇒ **`--font-title`**（与首页「知行食记」同档） */
   centerSize?: string
+  /**
+   * 居中标题的**文字透明度**（0–1）。用于「滚下去才出现标题」的页面（菜品详情页菜名淡入）。
+   * ⚠️ 只作用于文字，**不是**表面透明度：带体恒透明、不得借此做纱 / 蒙版。
+   */
+  titleOpacity?: number
 }>(), {
   title: '',
   back: false,
+  titleOpacity: 1,
 })
 
 const emit = defineEmits<{ (e: 'back'): void }>()
