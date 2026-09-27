@@ -44,15 +44,11 @@
 **B. 类型 =「菜品信息纠错」⇒ 预填纠错表单**（`UpdateForm`）
 
 1. 「要更新哪道菜」选择行 → `ListPickerSheet` 菜品选择弹层（搜索防抖 + 竞态守卫 + 空态）；
-2. 选定后按 `GET /dishes/{id}` **预填**七字段：名称 / 价格（元，digit 键盘）/ 食堂名 / 档口 / 口味 chips / 食材 chips（机器值经四维字典译中文）/ 图片（≤9）；
+2. 选定后按 `GET /dishes/{id}` **预填**七字段：名称 / 价格（元，digit 键盘）/ 食堂名 / 档口 / 口味 chips / 食材 chips（机器值经四维字典译中文）/ 图片（**≤1**，预填首图、可替换）；
 3. **用户只改错的地方**提交；预填未完成禁止提交；字段错误 = 错误边框 + 行内文案（首错 `scroll-into-view` 定位）。
    （从菜品详情页「反馈错误」进入时，第 1 步自动完成 —— 进页即按 `dishId` 预填。）
 
-### 3. 小字提示（只读）
-
-**「提交内容将由项目维护者查看」**（原「48 小时内处理 + 站内通知」承诺已撤下）。
-
-### 4. 【提交反馈】按钮
+### 3. 【提交反馈】按钮
 
 未选类型 / 描述为空（或纠错表单未填完）⇒ 置灰（置灰点击由外层热区 toast 缺失项）；提交中禁用防重复；成功 Toast「已提交，感谢反馈」+ 2 秒自动返回上一页。
 
@@ -70,7 +66,7 @@
 | 2 | `IssueForm` | 页内私有 `pages/feedback/IssueForm.vue` | 类型竖排单选 +（非纠错类型时）具体描述（600 字 + 右上角计数）+ 单图截图 + 小字提示 |
 | 3 | `UpdateForm` | 页内私有 `pages/feedback/UpdateForm.vue` | **纠错类型**的预填字段区（选菜行 / 名称 / 价格 / 食堂名 / 档口 / 口味·食材 chips / 图片） |
 | 4 | `ListPickerSheet` | 页内私有 `pages/feedback/ListPickerSheet.vue`（骨架 = `BaseSheet`） | 纠错类型的菜品选择弹层（搜索 + 候选行 + `#empty` 空态） |
-| 5 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 截图上传（`single` 单图形态 + `max=1`）；纠错类型复用同一件（≤9 张） |
+| 5 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 图片上传（单图形态：`single` 单图虚线框 + `max=1`）；**纠错类型复用同一件，同为 ≤1 张** |
 | 6 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交反馈」/「提交中…」；`disabled` = 门禁不通过） |
 | 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 类型选中勾 `check` / 选择行箭头 `arrow` / chips 删除叉 `close` |
 | 8 | 提交区 `.submit-area`（页内内联） | 页内内联 | 承接「置灰态点击」的缺失项 Toast |
@@ -96,7 +92,7 @@
 | 接口 | 字段 |
 |---|---|
 | `POST /feedback`（非纠错类型） | `type` = `bug` / `suggestion` / `other`（服务端白名单校验）/ `content`（端上 ≤600 字、服务端 ≤1000）/ `images`（**≤1**） |
-| `POST /dishes/{id}/correction`（纠错类型） | `name` / `price`（**整数分**，端上 `yuanToFen`）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]`（≤9） |
+| `POST /dishes/{id}/correction`（纠错类型） | `name` / `price`（**整数分**，端上 `yuanToFen`）/ `canteenName` / `stallName` / `flavorTags[]` / `ingredients[]` / `images[]`（**≤1**，服务端上限仍为 9） |
 | `GET /dishes`（纠错类型候选搜索） | `keyword` / `page` / `pageSize` |
 
 **错误码**：`400` 反馈类型非法 / 反馈内容不能为空 / 含敏感词 / IP 限频「提交过于频繁」/ 文本安检 `risky`；纠错类型另有 `400` 菜品名称超 64 字 / 价格必须为大于 0 的整数（单位：分）/ 图片地址不合法 与 `4001` 菜品不存在

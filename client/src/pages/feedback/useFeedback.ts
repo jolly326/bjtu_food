@@ -223,7 +223,8 @@ export function useFeedback() {
       update.stallName = d.stallName || ''
       update.flavorTags = [...(d.flavorTags || [])]
       update.ingredients = [...(d.ingredients || [])]
-      update.images = [...(d.images || [])]
+      // 图片上限统一为 1 张（用户口径）：预填只取首图，用户可替换
+      update.images = [...(d.images || [])].slice(0, 1)
       clearError('update.dish')
     } catch (err) {
       // 预填失败：保留已选菜品行（可重选），其余字段保持空

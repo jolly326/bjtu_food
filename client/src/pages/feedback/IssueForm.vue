@@ -74,8 +74,6 @@
       />
     </view>
 
-    <!-- ④ 小字提示（只读，不参与交互） -->
-    <text class="form-note">提交内容将由项目维护者查看</text>
   </view>
 </template>
 
@@ -213,12 +211,5 @@ function onImagesChange(urls: string[]) {
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== ④ 小字提示 ===== */
-.form-note {
-  display: block;
-  margin-top: var(--spacing-md);
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-  line-height: 1.5;
-}
+/* 小字提示行已按用户口径删除（2026-09-27）—— 本组件不再有 `.form-note`。 */
 </style>

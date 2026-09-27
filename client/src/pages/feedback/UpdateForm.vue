@@ -189,10 +189,10 @@
         </view>
       </view>
 
-      <!-- 图片（预填菜品现有图，可增删；ImagePicker 安检上传，提交中禁选） -->
+      <!-- 图片（最多 1 张：预填菜品首图，可替换；ImagePicker 安检上传，提交中禁选） -->
       <view class="field">
         <text class="field-label">图片</text>
-        <ImagePicker :model-value="model.images" :max="9" :disabled="submitting" @update:model-value="onImagesChange" />
+        <ImagePicker :model-value="model.images" :max="1" :disabled="submitting" @update:model-value="onImagesChange" />
       </view>
     </template>
   </view>
