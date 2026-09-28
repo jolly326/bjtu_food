@@ -153,6 +153,8 @@ async function sendCode() {
 
 /** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */
 let verified = false
+/** 成功返回定时器句柄：离开页面时清理，避免返回打到已销毁页 */
+let navTimer: ReturnType<typeof setTimeout> | null = null
 
 async function submit() {
   // 前置状态锁：任一条件不满足（字段空/学号非法/在途）静默返回
@@ -164,7 +166,8 @@ async function submit() {
     verified = true
     uni.showToast({ title: '认证成功', icon: 'success' })
     // 返回原页：待办由原页 onShow 经 consumePending 续接
-    setTimeout(() => uni.navigateBack(), 600)
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => uni.navigateBack(), 600)
   } catch (e) { setError(errorMessage(e, '认证失败')) } finally { isBusy.value = false }
 }
 
@@ -174,6 +177,7 @@ function leaveWithoutVerify() {
 }
 
 onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
   if (!verified) authStore.clearPending()
 })
 </script>

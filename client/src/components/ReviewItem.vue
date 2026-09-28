@@ -86,6 +86,7 @@ import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl } from '@/utils/image'
+import { useBrokenImages } from '@/composables/useBrokenImages'
 import { formatRating } from '@/utils/dish'
 import { formatDate } from '@/utils/time'
 import type { Review } from '@/types/review'
@@ -125,16 +126,11 @@ const reviewImages = computed(() =>
   Array.isArray(props.review.images) ? props.review.images.filter(Boolean) : [],
 )
 /** 破图下标集合：error 后切 empty 中性占位；images 变化（列表重拉）时重置 */
-const brokenImages = ref<Set<number>>(new Set())
+const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
 watch(
   () => props.review.images,
-  () => { brokenImages.value = new Set() },
+  () => clear(),
 )
-function onImageError(i: number) {
-  const next = new Set(brokenImages.value)
-  next.add(i)
-  brokenImages.value = next
-}
 /** 预览大图（仅未破图可进入；current 定位到点击那张） */
 function onPreviewImage(i: number) {
   if (brokenImages.value.has(i)) return

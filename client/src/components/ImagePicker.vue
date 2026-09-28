@@ -69,6 +69,7 @@
 import { ref, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
 import ImagePlaceholder from './ImagePlaceholder.vue'
+import { useBrokenImages } from '@/composables/useBrokenImages'
 import { uploadUgcImage } from '@/api/upload'
 import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
@@ -101,7 +102,7 @@ const emit = defineEmits<{
 /* 本地镜像为唯一写者：避免同一轮上传循环内多次 emit 时读到未刷新的 props 造成丢张 */
 const urls = ref<string[]>([...props.modelValue])
 /** 破图下标集合（评审 m4）：error 后切 empty 占位 + 预览过滤；urls 变化（外部重置/删增）时清空 */
-const brokenImages = ref<Set<number>>(new Set())
+const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
 watch(
   () => props.modelValue,
   (v) => {
@@ -110,14 +111,9 @@ watch(
     // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
     if (uploading.value) return
     urls.value = [...(v || [])]
-    brokenImages.value = new Set()
+    clear()
   },
 )
-function onImageError(i: number) {
-  const next = new Set(brokenImages.value)
-  next.add(i)
-  brokenImages.value = next
-}
 
 /* ===== 校验常量（后端契约：最长边 ≤1334px；文件 ≤1MB） ===== */
 const MAX_EDGE = 1334

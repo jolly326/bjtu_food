@@ -12,7 +12,7 @@
  * 使 onLoad/onUnload 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitDishCorrection } from '@/api/feedback'
 import { searchDishes, getDishDetail } from '@/api/dish'
 import type { DishListItem } from '@/types/dish'
@@ -29,6 +29,12 @@ export function useCorrection() {
     if (getCurrentPages().length > 1) uni.navigateBack()
     else backToHome()
   }
+
+  /** 提交成功自动返回定时器句柄：离开页面时清理，避免返回打到已销毁页 */
+  let goBackTimer: ReturnType<typeof setTimeout> | null = null
+  onUnload(() => {
+    if (goBackTimer) clearTimeout(goBackTimer)
+  })
 
   // ---- ① 表单字段（预填后只改差异项） ----
   /**
@@ -254,7 +260,8 @@ export function useCorrection() {
         images: form.images.filter(Boolean),
       })
       uni.showToast({ title: '已提交，感谢反馈', icon: 'none' })
-      setTimeout(goBack, 1500)
+      if (goBackTimer) clearTimeout(goBackTimer)
+      goBackTimer = setTimeout(goBack, 1500)
     } catch (e) {
       uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
     } finally {

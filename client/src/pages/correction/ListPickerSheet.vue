@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 
 interface PickerOption {
@@ -110,6 +110,11 @@ watch(
     if (v) keyword.value = props.searchInitial || ''
   },
 )
+
+// 页面销毁时清理防抖定时器，避免离场后误触发 emit('search')
+onUnmounted(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
 </script>
 
 <style scoped>
