@@ -94,10 +94,22 @@ export function usePagedList<T extends { id: number }>(
     try {
       page += 1
       const rows = await fetchPage(page, pageSize)
+      if (rows.length < pageSize) finished.value = true
+      // 空页处理（2026-09-29 修复 P2）：
+      // 「本页不足 pageSize」是唯一的到底判据（后端 PageResult 只有 records，不下发 total），
+      // 故当总条数恰为 pageSize 整数倍时，本页会返回**满页**、被误判为「还有下一页」，
+      // 用户继续下拉 → 下一请求返回 0 条 → 列表尾部会**闪过一下空态**。
+      //
+      // 修法：0 条即视为「无新增」，回退页码并**不触碰 list**（list 长度不变 ⇒
+      // 页面 v-if="list.length" 的空态判定天然不触发），同时置 finished 彻底封口。
+      if (rows.length === 0) {
+        page -= 1
+        finished.value = true
+        return
+      }
       // 去重（极端情况下分页跳号），避免重复行
       const existIds = new Set(list.value.map((it) => it.id))
       list.value = list.value.concat(rows.filter((it) => !existIds.has(it.id)))
-      if (rows.length < pageSize) finished.value = true
     } catch {
       // 失败回退页码（保持静默：不打断滚动；再次触底会重试同一页）
       page -= 1

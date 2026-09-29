@@ -21,6 +21,6 @@ public class LoginVO {
     @Schema(description = "JWT Token（有效期7天）", example = "eyJhbGciOiJIUzI1NiJ9...")
     private String token;
 
-    @Schema(description = "用户信息（恰 6 字段：id/username/nickname/avatar/bindEmail/createdAt）")
+    @Schema(description = "用户信息（字段集见 UserInfoVO，与 profile / verify-email 同源）")
     private UserInfoVO userInfo;
 }

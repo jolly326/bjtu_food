@@ -10,19 +10,18 @@ import { get, put } from './http'
 import { recordsOf, type PageResult, type RawRow } from './shared'
 
 /**
- * 通知类型（原值透传，不做字面量收窄）：后端现产生 feedback_handle（反馈处理结果回执）与
- * correction_handle（菜品信息纠错回执）；端上对未知类型容错（不跳转、不崩溃）。
+ * 通知行（`NotificationVO`，**5 字段**：id / title / content / isRead / createdAt）。
+ *
+ * 契约不含 `type` / `relatedId`：端上通知卡只渲染「标题 + 正文 + 时间 + 未读态」，
+ * **从不按类型分支、不做类型相关跳转**，故两个字段按「零消费即删」不出参。
+ * 将来要做「按类型跳转」，须先由 UI 文档定义交互再扩字段。
  */
-type NotificationType = string
-
 export interface Notification {
   id: number
-  /** 通知类型：feedback_handle=反馈处理结果回执 / correction_handle=菜品信息纠错回执；其他值＝未知类型（端上容错） */
-  type: NotificationType
   title: string
   content: string
-  /** 是否已读：0=未读 1=已读 */
-  isRead: number
+  /** 是否已读：`true`=已读 / `false`=未读（**布尔契约**；2026-09-29 由 0/1 数字改） */
+  isRead: boolean
   createdAt?: string
 }
 
@@ -30,11 +29,10 @@ function toNotification(raw: RawRow): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    // 缺省/未知类型一律原值透传（缺失时为空串），端上按未知类型容错。
-    type: (raw.type as NotificationType) || '',
     title: raw.title || '',
     content: raw.content || '',
-    isRead: Number(raw.isRead ?? 0),
+    // 契约已是布尔；兼容历史 0/1 形态（仅显式 true / 1 视为已读）
+    isRead: raw.isRead === true || raw.isRead === 1,
     createdAt: raw.createdAt,
   }
 }
@@ -44,7 +42,8 @@ function toNotification(raw: RawRow): Notification | null {
  * 分页壳只有 `records`：结束判据 = 本页返回条数 < 请求的 `pageSize`。
  */
 export async function getNotifications(params: {
-  isRead?: 0 | 1
+  /** 已读过滤：`true`=仅已读 / `false`=仅未读；不传 = 全部（端上当前恒不传） */
+  isRead?: boolean
   page?: number
   pageSize?: number
 }): Promise<{ list: Notification[] }> {

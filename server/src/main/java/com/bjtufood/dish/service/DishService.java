@@ -24,15 +24,39 @@ public interface DishService {
     // ==================== 公开接口 ====================
 
     /**
+     * 菜品描述属性<b>全量维度定义</b>（公开只读端点 {@code GET /dishes/attributes} 出参）。
+     * <p>
+     * <b>2026-09-29 新增（修真 bug）</b>：web 端 {@code listDishAttributes()} 此前调用的
+     * {@code GET /dishes/attributes} <b>后端从未存在</b>（只有按单菜的
+     * {@code /dishes/{id}/attributes}），故管理后台的「描述四维录入选项」长期 404。
+     * 本方法补齐该缺口。
+     * <p>
+     * <b>为何是公开只读端点而非管理端专属</b>：数据为非敏感的公开枚举（维度名 + 已用参考值），
+     * 两端复用符合业界主流（一个 API + 两种鉴权），无需为 web 复制一份 admin 出口。
+     * 管理端的<b>写操作</b>仍全部走 {@code /admin/**}（口令保护），隔离边界在那里。
+     * <p>
+     * <b>与 {@link #listDishAttributes(Long)} 的差异</b>：后者按<b>单菜现有维度</b>下发编辑候选
+     * （该菜用到的几个维度）；本方法下发字典表中<b>全部维度</b>，供管理端录入表单与筛选器使用。
+     * <p>
+     * <b>数据来源</b>：维度定义来自 {@code dish_attribute_dimension}；{@code options} 为
+     * 「全库已用中文值」去重的参考候选（<b>无独立取值字典表</b>，加值零登记），仅参考不构成约束。
+     *
+     * @return 维度定义列表（按 order 升序，每项含 id/fieldKey/name/valueType/order/options）
+     */
+    List<com.bjtufood.dish.dto.DishAttributeDefVO> listAllAttributeDefs();
+
+
+    /**
      * 菜品列表查询（分页+筛选；排序由服务端决定：推荐流按 seed 伪随机序，其余热度倒序）
      * <p>
-     * 支持参数：keyword / mealType / seed（2026-09-22 K3：{@code canteenId} / {@code minPrice} /
+     * 支持参数：keyword / view / seed（2026-09-22 K3：{@code canteenId} / {@code minPrice} /
      * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除；2026-09-21 §7.33：
      * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，端上无排序入口）。
-     * 排序双分支（2026-09-27 方案 C 会话种子）：无 keyword / mealType 且 {@code seed} 非空 →
-     * DishMapper.xml 的 {@code CRC32(CONCAT(seed,'-',id)), id} 稳定伪随机序（同 seed 全序恒定，
-     * 翻页不重不漏）；其余情形 → heatScoreExpr 倒序（热度口径不变）。
-     * {@code mealType} 白名单校验（MealTypeConst），非法值抛 BusinessException(400)。
+     * <b>2026-09-29 更名</b>：原 {@code mealType} 参数改为通用筛选视图 {@code view}。
+     * 筛选条件与排序口径由所选<b>视图</b>决定（{@code DishViewResolver} 解析 {@code view} 键）：
+     * 推荐视图走 {@code CRC32(CONCAT(seed,'-',id)), id} 稳定伪随机序（同 seed 全序恒定，翻页不重不漏）；
+     * 大类视图走 heatScoreExpr 倒序（热度口径不变）。
+     * {@code view} 白名单校验（{@code DishViewConst}），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
@@ -41,22 +65,22 @@ public interface DishService {
     IPage<DishListItemVO> listDishes(DishQueryReq req);
 
     /**
-     * 菜品大类字典（2026-09-21 §7.34）：{@code GET /dishes/meal-types} 出参。
+     * 首页筛选视图字典（{@code GET /dishes/views} 出参）。
      * <p>
-     * 标签文案与顺序来自 {@link com.bjtufood.dish.constant.MealTypeConst}（唯一真源），
-     * 只下发「当前有在售菜品」的大类（空类自动隐藏，有菜自动出现）。
+     * 标签文案与顺序来自 {@link com.bjtufood.dish.view.DishViewConst}（唯一真源）；
+     * <b>空类自动隐藏只对「按大类取数」的视图生效</b>（该大类当前无在售菜品即不下发，有菜自动出现），
+     * 其余视图（「为你推荐」等聚合视角）恒下发。
      *
-     * @return 按 order 升序的大类字典项
+     * @return 按声明序（即标签栏展示序）的筛选视图字典项
      */
-    List<com.bjtufood.dish.dto.MealTypeVO> listMealTypes();
+    List<com.bjtufood.dish.view.DishViewVO> listDishViews();
 
     /**
-     * 菜品描述属性编辑态选项（{@code GET /dishes/{id}/attributes} 出参，**按需**）。
+     * 菜品描述属性编辑态候选（{@code GET /dishes/{id}/attributes} 出参，**按需**）。
      * <p>
      * 只返回该菜<b>现有维度</b>（由 {@code dish.attributes} 的键集合 ∩ 维度字典得出，按维度 {@code order} 升序），
-     * 且只补编辑要用的 {@code valueType} + 该维度全部候选 {@code options}
-     * （维度名与当前值在 {@code GET /dishes/{id}} 里已有，本端点不重复下发）。
-     * {@code options} 为空数组 = 自由文本维度。
+     * 且只补编辑要用的 {@code valueType} + 参考候选 {@code options}
+     * （候选 = 该维度「全库已用中文值」去重、按使用频次倒序；仅为参考、不构成约束）。
      *
      * @param dishId 菜品ID
      * @return 编辑态属性项列表（按维度 order 升序）
@@ -72,7 +96,7 @@ public interface DishService {
      * {@code BusinessException(4001)}，**不计数**。
      * <p>
      * {@code avgRating} 读缓存列 {@code dish.avg_rating}（零评价为 null），不做实时聚合；
-     * {@code attributes} 由 {@code dish.attributes} JSON + 字典两表整理为「机器值 + 中文」。
+     * {@code attributes} 直接取 {@code dish.attributes} JSON（**值即中文**）。
      *
      * @param id 菜品ID
      * @return 菜品详情（**详情专用 {@link DishDetailVO}**：11 字段）

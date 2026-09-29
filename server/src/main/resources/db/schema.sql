@@ -172,8 +172,11 @@ CREATE TABLE IF NOT EXISTS `dish`
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品（audit_status 列已退役，2026-09-15 阶段4）';
 
--- -------------------- 菜品描述属性（动态属性模型，两表字典） --------------------
--- 维度与取值由表驱动，免发版即可增维度；维度键 `field_key` 恒等于 `dish.attributes` JSON 的键（camelCase）。
+-- -------------------- 菜品描述属性（动态属性模型，单表维度，值即中文） --------------------
+-- 维度由表驱动（免发版增维度）；维度键 `field_key` 恒等于 `dish.attributes` JSON 的键（camelCase）。
+-- **无取值字典表**：取值就是中文文本本身；编辑候选由「全库已用值」去重得出，加值零登记。
+-- 旧「取值字典」dish_attribute_value（机器值 → 中文）由文件末尾 `migrate_attribute_values_to_text`
+-- 幂等段迁移 dish.attributes / dish_correction.attributes 后 DROP（方案 A：值即中文）。
 CREATE TABLE IF NOT EXISTS `dish_attribute_dimension`
 (
     `id`         BIGINT      NOT NULL AUTO_INCREMENT COMMENT '维度ID',
@@ -186,20 +189,6 @@ CREATE TABLE IF NOT EXISTS `dish_attribute_dimension`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性维度';
-
--- 取值：dimension_id + value_key 唯一（组内按 order 升序下发）
-CREATE TABLE IF NOT EXISTS `dish_attribute_value`
-(
-    `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '取值ID',
-    `dimension_id` BIGINT      NOT NULL DEFAULT 0 COMMENT '所属维度ID',
-    `value_key`    VARCHAR(32) NOT NULL DEFAULT '' COMMENT '机器值（如 spicy）',
-    `label`        VARCHAR(32) NOT NULL DEFAULT '' COMMENT '中文标签（如 辣）',
-    `order`        INT         NOT NULL DEFAULT 0 COMMENT '组内展示顺序（升序）',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_value_dimension_key` (`dimension_id`, `value_key`)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值';
 
 -- -------------------- 评价 --------------------
 CREATE TABLE IF NOT EXISTS `review`
@@ -1091,10 +1080,10 @@ DELIMITER ;
 CALL `migrate_dish_attributes_json`();
 DROP PROCEDURE IF EXISTS `migrate_dish_attributes_json`;
 
--- 4.3.1 属性字典收敛：dish_attribute_def / dish_attribute_option → dish_attribute_dimension / dish_attribute_value
---       顺序：建新两表 → 迁移数据 → DROP 旧两表（先迁后删）。
---       dish_attribute_value 旧形态为「可筛索引」（dish_id/def_id/value_key，无消费、无数据），
---       故以「是否存在 dish_id 列」判定旧形态，命中则 DROP 后按新形态重建。
+-- 4.3.1 属性字典遗留收敛（方案 A 起：取值字典退役，仅保留维度表）
+--   遗留 dish_attribute_def（维度定义）→ 并入 dish_attribute_dimension 后 DROP；
+--   遗留 dish_attribute_value（旧形态：含 dish_id 列、无数据）→ DROP；
+--   遗留 dish_attribute_option（机器值→中文映射）→ 临时并入 dish_attribute_value，供 4.3.3 迁移使用后 DROP。
 DROP PROCEDURE IF EXISTS `migrate_dish_attribute_dictionary`;
 DELIMITER $$
 CREATE PROCEDURE `migrate_dish_attribute_dictionary`()
@@ -1107,33 +1096,20 @@ BEGIN
         SELECT `id`, `field_key`, `name`, `value_type`, `order` FROM `dish_attribute_def`
         ON DUPLICATE KEY UPDATE `field_key` = VALUES(`field_key`), `name` = VALUES(`name`),
                                 `value_type` = VALUES(`value_type`), `order` = VALUES(`order`);
+        DROP TABLE `dish_attribute_def`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_value' AND COLUMN_NAME = 'dish_id'
+    ) THEN
+        DROP TABLE `dish_attribute_value`;
     END IF;
 
     IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.TABLES
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_option'
     ) THEN
-        INSERT INTO `dish_attribute_value` (`dimension_id`, `value_key`, `label`, `order`)
-        SELECT `def_id`, `value_key`, `label`, `order` FROM `dish_attribute_option`
-        ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `order` = VALUES(`order`);
-    END IF;
-
-    DROP TABLE IF EXISTS `dish_attribute_def`;
-    DROP TABLE IF EXISTS `dish_attribute_option`;
-END$$
-DELIMITER ;
-CALL `migrate_dish_attribute_dictionary`();
-DROP PROCEDURE IF EXISTS `migrate_dish_attribute_dictionary`;
-
-DROP PROCEDURE IF EXISTS `rebuild_dish_attribute_value_if_legacy`;
-DELIMITER $$
-CREATE PROCEDURE `rebuild_dish_attribute_value_if_legacy`()
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_value' AND COLUMN_NAME = 'dish_id'
-    ) THEN
-        DROP TABLE `dish_attribute_value`;
         CREATE TABLE IF NOT EXISTS `dish_attribute_value`
         (
             `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '取值ID',
@@ -1145,12 +1121,16 @@ BEGIN
             UNIQUE KEY `uk_value_dimension_key` (`dimension_id`, `value_key`)
         ) ENGINE = InnoDB
           DEFAULT CHARSET = utf8mb4
-          COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值';
+          COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值（方案 A 迁移用临时表，随后 DROP）';
+        INSERT INTO `dish_attribute_value` (`dimension_id`, `value_key`, `label`, `order`)
+        SELECT `def_id`, `value_key`, `label`, `order` FROM `dish_attribute_option`
+        ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `order` = VALUES(`order`);
+        DROP TABLE `dish_attribute_option`;
     END IF;
 END$$
 DELIMITER ;
-CALL `rebuild_dish_attribute_value_if_legacy`();
-DROP PROCEDURE IF EXISTS `rebuild_dish_attribute_value_if_legacy`;
+CALL `migrate_dish_attribute_dictionary`();
+DROP PROCEDURE IF EXISTS `migrate_dish_attribute_dictionary`;
 
 -- 4.3.2 纠错表：属性快照改 attributes JSON；局部提交（patch）下四项快照列改为可空
 DROP PROCEDURE IF EXISTS `migrate_dish_correction_attributes`;
@@ -1194,6 +1174,90 @@ END$$
 DELIMITER ;
 CALL `migrate_dish_correction_attributes`();
 DROP PROCEDURE IF EXISTS `migrate_dish_correction_attributes`;
+
+-- 4.3.3 属性取值「机器值 → 中文」迁移（方案 A：值即中文，去取值字典）
+--   存量 dish.attributes / dish_correction.attributes 存的是机器值；用 dish_attribute_value 的
+--   (维度, 机器值)→中文 映射就地替换为中文，随后 DROP 取值表（dish_attribute_value）。
+--   维度感知（同机器值在不同维度中文不同：veg 在「饮食属性」=素、在「食材」=青菜）。
+--   幂等：取值表不存在（新库 / 已迁移）时整段跳过。
+DROP PROCEDURE IF EXISTS `migrate_attribute_values_to_text`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_attribute_values_to_text`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_value'
+    ) THEN
+        -- 单值维度（JSON_SET 标量）：dietType(1) / serveTemp(4)
+        UPDATE `dish` d JOIN `dish_attribute_value` v
+            ON v.`dimension_id` = 1 AND v.`value_key` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."dietType"'))
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."dietType"', v.`label`)
+        WHERE d.`attributes` IS NOT NULL;
+        UPDATE `dish` d JOIN `dish_attribute_value` v
+            ON v.`dimension_id` = 4 AND v.`value_key` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."serveTemp"'))
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."serveTemp"', v.`label`)
+        WHERE d.`attributes` IS NOT NULL;
+        UPDATE `dish_correction` d JOIN `dish_attribute_value` v
+            ON v.`dimension_id` = 1 AND v.`value_key` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."dietType"'))
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."dietType"', v.`label`)
+        WHERE d.`attributes` IS NOT NULL;
+        UPDATE `dish_correction` d JOIN `dish_attribute_value` v
+            ON v.`dimension_id` = 4 AND v.`value_key` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."serveTemp"'))
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."serveTemp"', v.`label`)
+        WHERE d.`attributes` IS NOT NULL;
+
+        -- 多值维度（重建数组，未命中字典的保留原值）：ingredients(2) / flavorTags(3)
+        UPDATE `dish` d JOIN (
+            SELECT d2.`id` AS did,
+                   CONCAT('[', GROUP_CONCAT(CONCAT('"', COALESCE(v.`label`, jt.k), '"') ORDER BY jt.ord SEPARATOR ','), ']') AS newarr
+            FROM `dish` d2,
+                 JSON_TABLE(d2.`attributes`, '$."ingredients"[*]' COLUMNS (ord FOR ORDINALITY, k VARCHAR(64) PATH '$')) jt
+            LEFT JOIN `dish_attribute_value` v ON v.`dimension_id` = 2 AND v.`value_key` = jt.k
+            WHERE d2.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."ingredients"')) = 'ARRAY'
+            GROUP BY d2.`id`
+        ) t ON t.did = d.`id`
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."ingredients"', CAST(t.newarr AS JSON));
+        UPDATE `dish` d JOIN (
+            SELECT d2.`id` AS did,
+                   CONCAT('[', GROUP_CONCAT(CONCAT('"', COALESCE(v.`label`, jt.k), '"') ORDER BY jt.ord SEPARATOR ','), ']') AS newarr
+            FROM `dish` d2,
+                 JSON_TABLE(d2.`attributes`, '$."flavorTags"[*]' COLUMNS (ord FOR ORDINALITY, k VARCHAR(64) PATH '$')) jt
+            LEFT JOIN `dish_attribute_value` v ON v.`dimension_id` = 3 AND v.`value_key` = jt.k
+            WHERE d2.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."flavorTags"')) = 'ARRAY'
+            GROUP BY d2.`id`
+        ) t ON t.did = d.`id`
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."flavorTags"', CAST(t.newarr AS JSON));
+        UPDATE `dish_correction` d JOIN (
+            SELECT d2.`id` AS did,
+                   CONCAT('[', GROUP_CONCAT(CONCAT('"', COALESCE(v.`label`, jt.k), '"') ORDER BY jt.ord SEPARATOR ','), ']') AS newarr
+            FROM `dish_correction` d2,
+                 JSON_TABLE(d2.`attributes`, '$."ingredients"[*]' COLUMNS (ord FOR ORDINALITY, k VARCHAR(64) PATH '$')) jt
+            LEFT JOIN `dish_attribute_value` v ON v.`dimension_id` = 2 AND v.`value_key` = jt.k
+            WHERE d2.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."ingredients"')) = 'ARRAY'
+            GROUP BY d2.`id`
+        ) t ON t.did = d.`id`
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."ingredients"', CAST(t.newarr AS JSON));
+        UPDATE `dish_correction` d JOIN (
+            SELECT d2.`id` AS did,
+                   CONCAT('[', GROUP_CONCAT(CONCAT('"', COALESCE(v.`label`, jt.k), '"') ORDER BY jt.ord SEPARATOR ','), ']') AS newarr
+            FROM `dish_correction` d2,
+                 JSON_TABLE(d2.`attributes`, '$."flavorTags"[*]' COLUMNS (ord FOR ORDINALITY, k VARCHAR(64) PATH '$')) jt
+            LEFT JOIN `dish_attribute_value` v ON v.`dimension_id` = 3 AND v.`value_key` = jt.k
+            WHERE d2.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."flavorTags"')) = 'ARRAY'
+            GROUP BY d2.`id`
+        ) t ON t.did = d.`id`
+        SET d.`attributes` = JSON_SET(d.`attributes`, '$."flavorTags"', CAST(t.newarr AS JSON));
+
+        DROP TABLE IF EXISTS `dish_attribute_value`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_attribute_values_to_text`();
+DROP PROCEDURE IF EXISTS `migrate_attribute_values_to_text`;
 
 -- 4.4 坐标下线：幂等 DROP canteen.latitude / canteen.longitude（D8；位置表达收敛为 食堂 · 楼层 · 档口名）
 --     原 add_canteen_location 迁移存储过程（含逐食堂坐标回填）已从本文件删除，建列与回填逻辑一并退役。
@@ -1245,9 +1309,9 @@ CALL `drop_review_useful_chain`();
 DROP PROCEDURE IF EXISTS `drop_review_useful_chain`;
 
 -- 4.6 菜品大类：幂等 ADD dish.meal_type（2026-09-21 §7.34 / change home-ui-refresh，H5-1）
---     单值枚举列（VARCHAR，可空），值域由后端 MealTypeConst 定义（唯一真源，不建字典表/外键——§7.22 第 1 条继续有效）。
---     语义：每个菜品恰属一个大类（单值互斥）；大类不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选（GET /dishes?mealType=，
---     白名单校验非法值 400）与字典下发（GET /dishes/meal-types，空类自动隐藏）。
+--     单值枚举列（VARCHAR，可空），值域由后端 DishViewConst 派生（唯一真源，不建字典表/外键——§7.22 第 1 条继续有效）。
+--     语义：每个菜品恰属一个大类（单值互斥）；大类不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选（GET /dishes?view=，
+--     白名单校验非法值 400）与视图字典下发（GET /dishes/views，空类自动隐藏）。
 --     写法兼容 MySQL 5.7（information_schema 判列 + PREPARE 动态 ALTER；目标库 TDSQL-C 为 5.7 兼容版）。
 DROP PROCEDURE IF EXISTS `add_dish_meal_type`;
 DELIMITER $$
@@ -1260,7 +1324,7 @@ BEGIN
         -- 注意：MySQL 5.7 默认 sql_mode 下 `||` 是逻辑 OR 而非字符串拼接（8.0 才支持），
         -- 必须用 CONCAT()（目标库 TDSQL-C 为 5.7 兼容版）
         SET @ddl = CONCAT('ALTER TABLE `dish` ADD COLUMN `meal_type` VARCHAR(20) NULL ',
-                  'COMMENT ''菜品大类（单值枚举，键=MealTypeConst；可空；筛选与字典下发用，不进公开出参）'' ',
+                  'COMMENT ''菜品大类（单值枚举，键域由 DishViewConst 派生；可空；筛选与字典下发用，不进公开出参）'' ',
                   'AFTER `serve_temp`');
         PREPARE stmt FROM @ddl;
         EXECUTE stmt;

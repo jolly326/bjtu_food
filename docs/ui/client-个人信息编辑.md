@@ -68,8 +68,7 @@
 |---|---|---|---|---|---|
 | 1 | `avatar` | `GET /auth/profile`（`UserInfoVO`，经 `stores/user`） | 头像地址 | 头像行右侧（`image` + `getImageUrl`） | 104rpx 圆角方图；空 / 失败 → `IconSvg name="user"` 灰底；上传中半透明 |
 | 2 | `nickname` | 同上 | 昵称 | 昵称行 `input`（**回填**） | 右对齐输入；占位「请输入昵称」 |
-| 3 | `username` | 同上 | 学号 / 账号 | 学号行右侧只读文本 `.info-value` | 空值回落 `--` |
-| 4 | `bindEmail` | 同上 | 校园邮箱 | 校园邮箱行右侧只读文本（`.info-value-email`） | 唯一来源；空值回落 `--`，长文本可换行不溢出 |
+| 3 | `bindEmail` | 同上 | 校园邮箱 | 校园邮箱行右侧只读文本（`.info-value-email`） | 唯一来源；空值回落 `--`，长文本可换行不溢出 |
 | 5 | `createdAt` | 同上 | 注册时间 | 注册时间行右侧只读文本 | `yyyy-MM-dd HH:mm:ss`；空值回落 `--` |
 | 6 | `id` | 同上 | 用户 ID | **不渲染**（本页零消费） | — |
 | 7 | 上传结果 `url` | `POST /upload/cloud-image`（经云存储中转） | 头像新地址 | 头像行**就地刷新预览**（本地暂存，未落库） | Toast「上传成功，请点击保存」 |

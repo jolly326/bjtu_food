@@ -21,13 +21,16 @@ import java.nio.charset.StandardCharsets;
  * 远端微信机审（{@link ContentSecurityService}）是<b>主防线</b>，覆盖评价、反馈、昵称与上传图片；
  * 但它有<b>三个够不到的场景</b>，本类正是这些场景的兜底：
  * <ol>
- *   <li><b>游客 / 无 openid 账号</b>：{@code msgSecCheck v2} 的 {@code openid} 是<b>必填</b>，
- *       故 {@code checkText(null, …)} 只能跳过机审放行（见 {@code FeedbackServiceImpl#checkUgcText}）
- *       ——游客提交的意见反馈/举报<b>完全不经微信</b>，只靠本类；</li>
+ *   <li><b>登录态缺失</b>（微信静默登录失败 / 非微信端 H5 联调，{@code userId=null}）：
+ *       {@code msgSecCheck v2} 的 {@code openid} 是<b>必填</b>，取不到即只能跳过机审放行
+ *       ——这部分 UGC 仅经本类；</li>
  *   <li><b>历史学号账号</b>：openid 为 NULL，同上跳过机审；</li>
- *   <li><b>菜品纠错</b>（{@code CorrectionServiceImpl}）：<b>整条链路不走微信机审</b>，
- *       仅由本类把关用户填写的菜品名称。</li>
+ *   <li><b>微信凭据未配置</b>（本地开发）：{@code ContentSecurityService} 跳过机审。</li>
  * </ol>
+ * <p>
+ * 2026-09-29 补齐：<b>菜品纠错链路已于当日接入 {@code msgSecCheck v2}</b>
+ * （{@code CorrectionServiceImpl#submit} 合并四类自由文本字段为单次调用送检），
+ * 故纠错不再是本类独自兜底的链路。
  * <p>
  * 典型调用顺序见 {@code FeedbackServiceImpl.submit}：先 {@code localSensitiveFilter.filter(...)}
  * 落库前脱敏，再 {@code contentSecurityService.checkText(...)} 过权威审核。

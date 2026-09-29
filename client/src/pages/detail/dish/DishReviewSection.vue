@@ -105,7 +105,7 @@ const props = defineProps<{
   count: number
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价，渲染可重试失败态） */
   loadFailed?: boolean
-  /** 「有图」筛选选中态（服务端过滤 `hasImage=1`；切换由页面重置分页并清空列表后重拉） */
+  /** 「有图」筛选选中态（服务端过滤 `hasImage=true`；切换由页面重置分页并清空列表后重拉） */
   imageOnly: boolean
   /**
    * 重置式评价请求在途（首屏 / 只看有图切换 / 重试 / 提交后刷新）：
@@ -132,7 +132,7 @@ const emit = defineEmits<{
 }>()
 
 /**
- * 两段式筛选（Round 24）：`全部` → `hasImage=0`；`有图` → `hasImage=1`。
+ * 两段式筛选（Round 24）：`全部` → `hasImage=false`；`有图` → `hasImage=true`。
  *
  * **仅在筛选结果口径真的发生变化时上抛**（重复点已选中项 = 无操作）——
  * 否则会给页面送去一次无谓的「重拉第 1 页」，列表在途闪白且浪费一次请求。

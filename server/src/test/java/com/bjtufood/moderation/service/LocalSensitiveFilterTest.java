@@ -16,9 +16,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  * <b>为何这条链路必须有测试（2026-09-29 架构评审）</b>：本类<b>不是</b>微信机审的冗余副本，
  * 而是它<b>够不到的场景</b>的唯一兜底——
  * <ul>
- *   <li>{@code msgSecCheck v2} 的 {@code openid} <b>必填</b>，故游客与历史无 openid 账号
- *       一律跳过机审（{@code FeedbackServiceImpl#checkUgcText} 传 null → 放行）；</li>
- *   <li>菜品纠错链路（{@code CorrectionServiceImpl}）<b>整条不走微信机审</b>。</li>
+ *   <li>{@code msgSecCheck v2} 的 {@code openid} <b>必填</b>，故登录态缺失
+ *       （静默登录失败 / 非微信端 H5 联调）与历史无 openid 账号一律跳过机审；</li>
+ *   <li>微信凭据未配置（本地开发）同样跳过机审。</li>
  * </ul>
  * 这些场景全靠本类把关。而词库 {@code sensitive_words.txt} 曾在仓库中<b>仅 6 条</b>，
  * {@code init()} 对「文件缺失 / 解析出 0 条」又只 {@code log.warn} 后静默 {@code return}

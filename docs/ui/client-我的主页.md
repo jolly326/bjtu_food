@@ -37,7 +37,7 @@
 |---|---|---|
 | 头像 | `UserInfoVO.avatar` | 信息卡头像；无值时 `IconSvg name="user"` 灰底占位 |
 | 昵称 | `UserInfoVO.nickname` | 信息卡主标题 |
-| 绑定邮箱 | `UserInfoVO.bindEmail` | 认证态信息卡副行（**本页渲染完整邮箱**；「我的」页用户卡渲染 `username` 裸学号 —— 两者信息等价，但字符串不同，各自以代码为准）。非副行的**只读展示**见 `client-个人信息编辑.md` |
+| 绑定邮箱 | `UserInfoVO.bindEmail` | 认证态信息卡副行（**本页渲染完整邮箱**；「我的」页用户卡同样渲染 `bindEmail`，两页同源同字符串；`username` 已移出出参）。非副行的**只读展示**见 `client-个人信息编辑.md` |
 | 游客短标识 | **端上派生** = 「食客 + `id` 尾 4 位」 | 游客态信息卡副行 |
 | 认证态判据 | `bindEmail` 非空（单点收敛） | 决定信息卡主色条纹与副行内容 |
 | 本人评价列表 | `GET /my/reviews` 的 `PageResult<MyReviewVO>`（`records` / `total`） | 评价区数据源（`MyReviewVO` 字段口径见功能文档） |

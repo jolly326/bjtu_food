@@ -30,6 +30,7 @@ import com.bjtufood.dish.dto.DishAttributeItem;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.controller.FeedbackController;
+import com.bjtufood.feedback.controller.ReportController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
@@ -88,7 +89,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>菜品详情：{@code GET /dishes/{id}}（200 + 关键字段；不存在 → body code=400 口径）；</li>
  *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）、
  *       {@code PUT /reviews/{id}}（重新评价，4031 分流）与路径防回归（旧 {@code /reviews} 不再注册）；</li>
- *   <li>反馈：{@code POST /feedback}（sub 严格模式 400、类型白名单 400、issue 正常落库 200）；</li>
+ *   <li>反馈：{@code POST /feedback}（类型白名单 400、other 正常落库 200）、
+ *       举报：{@code POST /reviews/{id}/report}（原因缺失/非法 400、评价不存在 4001）；</li>
  *   <li>上传：{@code POST /admin/upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
  *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
  *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
@@ -122,6 +124,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         DishController.class,
         ReviewController.class,
         FeedbackController.class,
+        ReportController.class,
         UploadController.class,
         AdminUploadController.class,
         FeedbackAdminController.class,
@@ -145,7 +148,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // auth 域真实实现：切面经 UserService.requireUgcAuthorized 判定准入（判据与错误码收敛在 auth），
         // 同时供 FeedbackServiceImpl（昵称投影 / 回执认证判据）消费；其 UserMapper 仍打桩，故不查库
         UserServiceImpl.class,
-        // 反馈入参校验（type 白名单 / sub 严格模式）的真实实现
+        // 反馈 / 举报入参校验（type 白名单 / 举报原因白名单）的真实实现
         FeedbackServiceImpl.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
         SmokeApiTest.AopTestConfig.class
@@ -217,7 +220,6 @@ class SmokeApiTest {
     void wechatLogin_success_returnsTokenAndUserInfo() throws Exception {
         UserInfoVO userInfo = new UserInfoVO();
         userInfo.setId(USER_ID);
-        userInfo.setUsername("wx_tail16");
         when(authService.wechatLogin("wx-login-code")).thenReturn(new LoginVO("minted-jwt", userInfo));
 
         mockMvc.perform(post("/auth/wechat-login")
@@ -229,7 +231,9 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.userInfo.id").value(USER_ID))
                 // 字段集契约回归：verified 已删除（认证态由 bindEmail 非空派生），不得回流
                 .andExpect(jsonPath("$.data.userInfo.verified").doesNotExist())
-                .andExpect(jsonPath("$.data.userInfo.bindEmail").doesNotExist());
+                .andExpect(jsonPath("$.data.userInfo.bindEmail").doesNotExist())
+                // username 端上零消费，不得回流（账号标识保留在 user 表与 JWT 载荷）
+                .andExpect(jsonPath("$.data.userInfo.username").doesNotExist());
 
         verify(authService).wechatLogin("wx-login-code");
     }
@@ -252,9 +256,9 @@ class SmokeApiTest {
         vo.setName("牛肉拉面");
         vo.setPrice(1200);
         vo.setAvgRating(new BigDecimal("4.5"));
-        // 描述属性（动态属性模型）：机器值 + 中文一并下发，端上零翻译
+        // 描述属性（动态属性模型）：值即中文，端上零翻译
         vo.setAttributes(List.of(new DishAttributeItem("flavorTags", "口味",
-                List.of("spicy", "sour"), List.of("辣", "酸"))));
+                List.of("辣", "酸"))));
         when(dishService.getDishDetail(eq(1L))).thenReturn(vo);
 
         mockMvc.perform(get("/dishes/1"))
@@ -267,7 +271,7 @@ class SmokeApiTest {
                 // 契约回归：ratingCount 已从详情出参删除（零消费），不得回流
                 .andExpect(jsonPath("$.data.ratingCount").doesNotExist())
                 .andExpect(jsonPath("$.data.attributes[0].fieldKey").value("flavorTags"))
-                .andExpect(jsonPath("$.data.attributes[0].label[0]").value("辣"));
+                .andExpect(jsonPath("$.data.attributes[0].value[0]").value("辣"));
     }
 
     @Test
@@ -364,14 +368,14 @@ class SmokeApiTest {
     // ==================== 链路 4：反馈 ====================
 
     @Test
-    void submitFeedback_nonReportWithSub_returns400() throws Exception {
-        // sub 严格模式（Service 层真实校验）：非 report 类型携带 sub 一律 400，不静默忽略
+    void submitFeedback_historicalType_returns400() throws Exception {
+        // 方案 B（2026-09-29）后 /feedback 仅接受纯反馈三类（bug/suggestion/other）；
+        // 历史遗留类型 issue（及 report/error/add）均不在写白名单 → 400
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"issue\",\"sub\":\"idea\",\"content\":\"推荐一道菜\"}"))
+                        .content("{\"type\":\"issue\",\"content\":\"历史类型禁新增\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message", containsString("举报")));
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     @Test
@@ -400,7 +404,7 @@ class SmokeApiTest {
 
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"issue\",\"content\":\"违规内容\"}"))
+                        .content("{\"type\":\"other\",\"content\":\"违规内容\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("内容包含违规信息，请修改后重试"));
@@ -410,21 +414,21 @@ class SmokeApiTest {
     }
 
     @Test
-    void submitFeedback_guestIssue_persistsAndReturns200() throws Exception {
+    void submitFeedback_guestOther_persistsAndReturns200() throws Exception {
         when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // 请求体故意携带已退役的 contact 字段（2026-09-16 产品定型「不收集联系方式」）：
         // FeedbackReq.contact 已删除，Jackson 忽略未知字段，请求应正常落库且不含联系方式语义
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"issue\",\"content\":\"希望增加素食档口\",\"contact\":\"2024001@bjtu.edu.cn\"}"))
+                        .content("{\"type\":\"other\",\"content\":\"希望增加素食档口\",\"contact\":\"2024001@bjtu.edu.cn\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
         ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
         verify(feedbackMapper).insert(captor.capture());
         Feedback saved = captor.getValue();
-        Assertions.assertEquals("issue", saved.getType());
+        Assertions.assertEquals("other", saved.getType());
         // 游客反馈：不信任前端 userId，登录态缺失即 null
         Assertions.assertNull(saved.getUserId());
     }
@@ -435,10 +439,12 @@ class SmokeApiTest {
      * 断言：合法原因正常落库，`sub` 精确落列、`content` 归一为空串。
      */
     @Test
-    void submitFeedback_report_withReason_persistsSubAndEmptyContent() throws Exception {
-        mockMvc.perform(post("/feedback")
+    void reportReview_withReason_persistsSubAndEmptyContent() throws Exception {
+        // 举报为独立子资源端点（方案 B）：POST /reviews/{id}/report，reason = 结构化原因
+        when(reviewService.existsVisibleById(3L)).thenReturn(true);
+        mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"report\",\"sub\":\"spam\",\"relatedType\":\"review\",\"relatedId\":3}"))
+                        .content("{\"reason\":\"spam\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -453,25 +459,36 @@ class SmokeApiTest {
     }
 
     @Test
-    void submitFeedback_report_missingReason_returns400() throws Exception {
-        // 举报原因**必选**（端上单选；缺失 / 空白 → 400，不静默落库 NULL）
-        mockMvc.perform(post("/feedback")
+    void reportReview_missingReason_returns400() throws Exception {
+        // 举报原因**必选**：DTO @NotBlank 在进入 Controller 方法体前拦截 → HTTP 400 + body code=400
+        mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"report\",\"relatedType\":\"review\",\"relatedId\":3}"))
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void reportReview_illegalReason_returns400() throws Exception {
+        // 原因值不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
+        when(reviewService.existsVisibleById(3L)).thenReturn(true);
+        mockMvc.perform(post("/reviews/3/report")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"hacking\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message", containsString("举报原因")));
     }
 
     @Test
-    void submitFeedback_report_illegalReason_returns400() throws Exception {
-        // 原因值不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
-        mockMvc.perform(post("/feedback")
+    void reportReview_reviewNotFound_returns4001() throws Exception {
+        // 被举报评价不存在 / 不可见 → 4001（RESTful 子资源：父资源缺失即 4001）
+        when(reviewService.existsVisibleById(3L)).thenReturn(false);
+        mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"report\",\"sub\":\"hacking\",\"relatedType\":\"review\",\"relatedId\":3}"))
+                        .content("{\"reason\":\"spam\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message", containsString("举报原因")));
+                .andExpect(jsonPath("$.code").value(4001));
     }
 
     // ==================== 防回归：评价端点 RESTful 化 + 浏览计数内聚详情 ====================

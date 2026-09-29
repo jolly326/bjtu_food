@@ -32,20 +32,20 @@
 | 2 | `records[].title` | 同上 | 通知标题 | 通知行 `.msg-title` | 未读时取淡主色字 |
 | 3 | `records[].createdAt` | 同上 | 生成时间 | 通知行 `.msg-time`（标题行右侧） | `formatDateTime` 格式化，次级灰小字 |
 | 4 | `records[].content` | 同上 | 正文（处理回执内容） | 通知行 `.msg-content` | 2 行截断 |
-| 5 | `records[].isRead` | 同上 | 是否已读（`0` 未读 / `1` 已读） | 通知行未读态：圆点 + 左侧竖条 + 标题色 | `0` → 未读视觉；`1` → 圆点透明 |
-| 6 | `records[].type` | 同上 | 类型键（`feedback_handle` / `correction_handle`） | **无界面**（端上容错：不跳转、不崩溃） | 零可见 UI |
-| 7 | `records[].relatedId` | 同上 | 关联对象 ID（反馈 ID） | **无界面**（零消费，当前无落地页） | 零可见 UI |
-| 8 | `records` / `total` | 分页壳 | 当前页行数组 / 总条数 | 列表渲染 + 触底结束判定 | 端上以 `records` 为准 |
-| 9 | `count` | `GET /my/notifications/unread-count` | 未读总数 | 「全部已读」可用性（`hasUnread`）+「我的」页宫格红点 | `> 0` 才可点 |
-| 10 | 置读条数（`data`） | `PUT /my/notifications/read-all` | 本次置为已读的条数 | 无界面（成功即整列表转已读态，`0` 亦为成功） | 幂等 |
-| 11 | 空态 / 失败态 | 端上 `loaded` / `loadFailed` | 无通知 / 加载失败 | 空态 `.empty-tip` / `RetryBlock` | 失败**先于**空态渲染；游客（4031/403）**静默无态** |
+| 5 | `records[].isRead` | 同上 | 是否已读（`true` 已读 / `false` 未读） | 通知行未读态：圆点 + 左侧竖条 + 标题色 | `false` → 未读视觉；`true` → 圆点透明 |
+| 6 | `records` / `total` | 分页壳 | 当前页行数组 / 总条数 | 列表渲染 + 触底结束判定 | 端上以 `records` 为准 |
+| 7 | `count` | `GET /my/notifications/unread-count` | 未读总数 | 「全部已读」可用性（`hasUnread`）+「我的」页宫格红点 | `> 0` 才可点 |
+| 8 | — | `PUT /my/notifications/read-all` | 无载荷（`data = null`） | 成功即整列表转已读态 | 幂等 |
+| 9 | 空态 / 失败态 | 端上 `loaded` / `loadFailed` | 无通知 / 加载失败 | 空态 `.empty-tip` / `RetryBlock` | 失败**先于**空态渲染；游客（4031/403）**静默无态** |
+
+> **不出参字段（零消费即删）**：`type`（通知类型键，服务端内部使用）与 `relatedId`（关联反馈 ID，当前无落地页）——端上从不读取，故不下发。上一版本 UI 稿曾登记二者为「无界面」，现已按契约彻底移出出参。
 
 **入参提交**
 | 接口 | 字段 |
 |---|---|
 | `GET /my/notifications` | `page` / `pageSize=20`（端上**不传 `isRead`**，恒取全部） |
 | `PUT /my/notifications/{id}/read` | 无请求体；非本人或不存在**静默成功** |
-| `PUT /my/notifications/read-all` | 无请求体；出参 `number` = 本次置读条数 |
+| `PUT /my/notifications/read-all` | 无请求体；**出参 `data = null`**（成功即 200，幂等） |
 
 **错误码**：`401` 未登录｜`403` 账号已禁用 / 无权限｜`4031` 未完成学号邮箱认证（**游客静默**：不渲染失败态、不渲染空态、不渲染重试块）
 **控件类型**：`scroll-view`(scroll-y + scrolltolower)、列表行（整行热区）、空态、失败重试块、页头胶囊按钮

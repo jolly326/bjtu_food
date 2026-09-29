@@ -192,7 +192,7 @@
 | 10 | `total` | 分页壳 | 命中总条数 | **端上零读取**（结果态判据 = `records` 是否为空） | — |
 | 11 | 三态 | 端上 `searching` / `searchDone` / `searchFailed` | 搜索中 / 已完成 / 已失败 | 结果区 | 在途静默；**失败先于空态**渲染 `RetryBlock`（避免网络失败被误读为「没搜到」） |
 
-**入参提交**：`GET /dishes` → `keyword` / `page=1` / `pageSize=50`（搜索页固定 50；`mealType` 不传）
+**入参提交**：`GET /dishes` → `keyword` / `page=1` / `pageSize=50`（搜索页固定 50；`view` 不传）
 **错误码**：本页无按码分支（失败统一收敛为 `RetryBlock` 点击重试；**空结果 ≠ 失败**，两者视觉分离）
 **控件类型**：`scroll-view`（结果区内）、`input` 搜索框、chip（记录 / 推荐两套样式）、`uni.showModal`（清空记录确认）、「搜索」按钮三态（可用 / **空词禁用** / 提交中禁用）、结果行与词条的 `role="button"` 可访问语义
 

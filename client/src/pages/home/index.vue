@@ -75,16 +75,16 @@
                —— 左搜索胶囊 + 右独立「搜索」按钮，均为进搜索页的入口 -->
           <SearchBar mode="entry" @tap="goToSearch" />
 
-          <!-- 横向大类标签栏：与搜索区同属本吸顶容器（一个组件）；
-               标签集合与文案完全来自字典（GET /dishes/meal-types）。 -->
+          <!-- 横向筛选视图标签栏：与搜索区同属本吸顶容器（一个组件）；
+               标签集合与文案完全来自字典（GET /dishes/views）。 -->
           <HomeMealTabs
-            :items="dishStore.mealTypeList"
-            :active-value="dishStore.filterMealType"
-            @select="onMealTypeSelect"
+            :items="dishStore.viewList"
+            :active-key="dishStore.filterView"
+            @select="onViewSelect"
           />
         </view>
 
-        <!-- 双列瀑布流（未选大类 = 推荐流·会话种子伪随机序；选中大类 = 该类热度序） -->
+        <!-- 双列瀑布流（默认视图 = 推荐流·会话种子伪随机序；大类视图 = 该类热度序） -->
         <HomeContent @retry="retryWaterfall" />
       </view>
     </scroll-view>
@@ -250,9 +250,9 @@ const sliceStyle = computed(() => {
   }
 })
 
-/** 切换大类：写回 store（内部重置分页并刷新列表）；**不重置滚动位置**，保持当前吸顶 / 初始态 */
-async function onMealTypeSelect(value: string | null) {
-  await dishStore.setHomeMealType(value)
+/** 切换筛选视图：写回 store（内部重置分页并刷新列表）；**不重置滚动位置**，保持当前吸顶 / 初始态 */
+async function onViewSelect(key: string) {
+  await dishStore.setHomeView(key)
 }
 
 /** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A-03） */
@@ -272,17 +272,17 @@ function onScrollToLower() {
 
 onLoad(() => {
   // Banner 自持数据加载（`HomeBanner.vue` 挂载时发起），与列表**并行**：Banner 失败不阻塞首屏网格
-  // 大类字典：不 await（失败降级为仅「全部」），保证首屏列表不被字典阻塞
-  void dishStore.fetchMealTypes()
+  // 视图字典：不 await（失败降级为默认视图），保证首屏列表不被字典阻塞
+  void dishStore.fetchDishViews()
   void dishStore.fetchHomeDishes(true)
 })
 
 onShow(() => {
   showTab('home')
   clearShareState()
-  // 大类字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `mealTypeLoaded` 守卫），失败不阻塞首屏。
+  // 视图字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `viewLoaded` 守卫），失败不阻塞首屏。
   // Round 17：先前注释承诺的守卫并不存在（每次 onShow 都真发一次请求），本轮已在 store 内补齐 ⇒ 注释与实现一致。
-  void dishStore.fetchMealTypes()
+  void dishStore.fetchDishViews()
 })
 
 onShareAppMessage(() => {

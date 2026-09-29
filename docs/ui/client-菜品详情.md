@@ -17,7 +17,7 @@
     - **卡片内不再有任何纠错入口**（R23 移出本卡）—— 全页唯一纠错落点为**底栏「反馈错误」按钮**（Round 25，见下「底栏」）。
     - **不显示**：评价人数（`ratingCount` 正常请求、端上丢弃不展示）、评分进度条 / 分布条、标签 chips、「信息更新于 X」、窗口号、距离。
   - 四维指标（**描述四维**）渲染口径：**逐维渲染，缺项不占位**——某维无值时不渲染该列（**不得**出现 `-` 空列凑满四列）；维度名与数据必须一致（「荤素」=`dietType`、「主料」=`ingredients`、「口味」=`flavorTags`、「冷热」=`serveTemp`）。**容器呈现（Round 23 还原 Round 22 之前的样式）**：**无底色 / 无边框 / 无内边距**，4 列水平等分居中，每列「**值在上、标签在下**」，标签贴底对齐（长值换行时各列标签仍在同一基线）；SHALL NOT 用输入框样式粗边框、SHALL NOT 用底色块包裹（「浅米色标签容器」方案已退役）。
-    - **取值形态（R4）**：四维**下发机器值**（`dietType` / `serveTemp` 为单值，`ingredients` / `flavorTags` 为**数组**），**展示中文由后端字典端点下发**（模式对齐 `GET /dishes/meal-types`）——端上 SHALL NOT 硬编码「机器值 → 中文」映射表，亦 SHALL NOT 由后端直出中文（**web 端同样消费四维且需要表单选项**，直出中文只能解决一端、且会与 `mealType` 的字典模式形成两套并列）。多值以 `、` 连接后单行展示，超长按既有 `-webkit-line-clamp: 2` 换行收起。依据 PR-12（枚举展示须与后端常量表同源 + **全端盘点**）。详见功能文档 §6 R4 与 `project_spec.md` §7.40 第 4 项。
+    - **取值形态（R4）**：四维**下发机器值**（`dietType` / `serveTemp` 为单值，`ingredients` / `flavorTags` 为**数组**），**展示中文由后端字典端点下发**（模式对齐 `GET /dishes/views`）——端上 SHALL NOT 硬编码「机器值 → 中文」映射表，亦 SHALL NOT 由后端直出中文（**web 端同样消费四维且需要表单选项**，直出中文只能解决一端、且会与视图字典的模式形成两套并列）。多值以 `、` 连接后单行展示，超长按既有 `-webkit-line-clamp: 2` 换行收起。依据 PR-12（枚举展示须与后端常量表同源 + **全端盘点**）。详见功能文档 §6 R4 与 `project_spec.md` §7.40 第 4 项。
   - 价格口径：**展示唯一数据源 = `price`（常显现价）**；`originalPrice` 有值时并列**原价划线**；**不以任何第三个字段判折扣**（禁止双源写法——会导致不同步行展示过期价、折扣丢失），判据恒为 `originalPrice > price`。
   - 不展示独立「折扣价」——是否有折扣由「原价 × 现价」两态表达，无需第三个价格字段。
   - 评分口径（**Round 22 收敛后仍不放松**）：**均分与「有无评分」判定（`ratingCount`）MUST 同源同刻** —— 两者统一取**实时聚合**（一次查询同刻算出）。
@@ -86,8 +86,8 @@
 | 17 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 `.review-content` | 二级灰、`pre-wrap` |
 | 18 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 → 统一占位 `ImagePlaceholder` |
 | 19 | `records[].userId` | 同上 | 评价者用户 ID | `ActionSheet` 动作项显隐（与 `userInfo.id` 比对：本人「删除评价」/ 他人「举报评价」） | 服务端另有「非本人 → 403」兜底 |
-| 20 | `total` | 同上 | 可见评价总条数 | `DishReviewSection` 标题块内 `.section-count`（经 `SectionTitle` 的 `count`） | **恒为 total 纯数字**（与标题同色、小半号、等宽；**SHALL NOT 用灰字**）；**不再有「有图 N」变体**（Round 24）；在途期与失败态不渲染 |
-| 21 | `records` / `total` / `page` / `pageSize` | 分页壳 | 分页信息 | 触底加载结束判据（已加载条数 ≥ `total`） | `page` / `pageSize` 为服务端归一化值，**端上零渲染** |
+| 20 | ~~`total`~~ → **`records[].length` 派生** | 同上 | 已加载评价条数 | `DishReviewSection` 标题块内 `.section-count`（经 `SectionTitle` 的 `count`，页面传 `:count="reviewList.length"`） | **恒为纯数字**（与标题同色、小半号、等宽；**SHALL NOT 用灰字**）；**不再有「有图 N」变体**（Round 24）；在途期与失败态不渲染。<br>⚠️ **2026-09-29 修正**：分页壳已精简为只下发 `records`（`total` 不再返回），端上原读 `total` 的写法不存在；现取**已加载条数**。翻页后该数字随加载增长（如 20 → 30），非服务端总数。 |
+| 21 | `records`（**分页壳唯一字段**） | 分页壳 | 当前页数据行 | 触底加载结束判据：**本页返回条数 < 请求的 `pageSize`**（`page` / `pageSize` / `total` 服务端**均不回传**） | 整页条数时需再取一页才判到底（见 `usePagedList` 空页处理：空页不触碰列表、不闪空态） |
 | 22 | `records[0].id` / `.rating` / `.content` / `.images` | `GET /my/reviews?dishId=&page=1&pageSize=1` | 本人评价 | 底栏双态（「写评价」/「重新评价」）+ `ReviewComposer` 预填（`reviewId` + `prefill`） | 判定失败**静默按未评价**处理 |
 | 23 | 加载 / 失败 / 不存在态 | 端上 `detailError` / `detailNotFound`（`4001` / 缺 id） | — | `.detail-fail` 块 | 不存在 → 「这道菜已不在了」+「它可能已被下架或移除」+ **仅「返回」**；网络失败 → 「这道菜暂时打不开」+「重新加载」+「返回」；加载中**静默空白**（无骨架屏） |
 | 24 | 评价三态 | 端上 `reviewPending` / `reviewFailed` / 列表长度 | 在途 / 失败 / 空 | `DishReviewSection` | **头部（标题 + 数字 + 筛选胶囊）恒渲染**；在途 **列表区整块不渲染**（不误闪空态，数字亦不渲染）；失败 → `RetryBlock`；「有图」筛选无结果 → 「暂无带图评价」+ 副文案「切换到「全部」查看所有评价」；零评价 → 「还没有人评价这道菜」+ 副文案「你的第一条评价，能帮同学避雷」+ 「写第一条评价」 |
@@ -95,7 +95,7 @@
 **入参提交**
 | 接口 | 字段 |
 |---|---|
-| `GET /dishes/{id}/reviews` | `page` / `pageSize=10` / `hasImage`（筛选口径：**全部 = 0 / 有图 = 1**） |
+| `GET /dishes/{id}/reviews` | `page` / `pageSize=10` / `hasImage`（筛选口径：**全部 = false / 有图 = true**） |
 | `GET /my/reviews` | `dishId` / `page=1` / `pageSize=1` |
 | `POST /dishes/{id}/reviews` · `PUT /reviews/{id}` | `rating` / `content` / `images`（≤3；详见 [client-写评价.md](./client-写评价.md)） |
 | `POST /feedback`（举报） | `type='report'` / `sub` / `relatedType='review'` / `relatedId` |

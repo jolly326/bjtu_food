@@ -105,6 +105,32 @@ class ApiVersionPrefixTest {
         }
     }
 
+    @Test
+    @DisplayName("小程序 callContainer 的 path 不得再硬编码 /api 前缀（须经 buildContainerPath 从 API_BASE_URL 推导）")
+    void miniProgramPath_neverHardcodesApiPrefix() {
+        Path http = ROOT.resolve("client/src/api/http.ts");
+        String content = readString(http);
+
+        // 回归形态：path: url.startsWith('/api') ? url : `/api${url}`
+        // 该写法在小程序分支自行拼 /api，完全不读 API_BASE_URL；后端 context-path 升为 /api/v1 后
+        // 小程序侧全部请求落到 /api/xxx → 云托管网关直接 404，且后端日志收不到该请求，极难定位。
+        var hardcoded = Pattern.compile("path\\s*:\\s*url\\.startsWith\\(\\s*['\"]/?api").matcher(content);
+        assertThat(hardcoded.find())
+                .as("client/src/api/http.ts 的 callContainer 又出现了硬编码 /api 前缀："
+                        + "小程序端将丢失版本段导致全站 404。须改用 buildContainerPath(url)。")
+                .isFalse();
+
+        // 正向：必须经由 config.ts 的推导函数取路径
+        assertThat(content)
+                .as("callContainer 的 path 应改用 buildContainerPath(url) 从 API_BASE_URL 推导")
+                .contains("buildContainerPath(url)");
+
+        Path config = ROOT.resolve("client/src/api/config.ts");
+        assertThat(readString(config))
+                .as("config.ts 应导出 buildContainerPath 供 http.ts 使用")
+                .contains("export function buildContainerPath");
+    }
+
     private static List<String> readLines(Path file) {
         return readString(file).lines().toList();
     }

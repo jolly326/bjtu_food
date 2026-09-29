@@ -24,7 +24,7 @@ import type { PageEnvelope } from './adapter'
  */
 
 /**
- * 举报原因字典项（GET /feedback/report-reasons；真源 = 后端 FeedbackConst，管理端零硬编码——PR-12）。
+ * 举报原因字典项（GET /feedback/report-reasons；真源 = 后端 FeedbackConst，Web 端零硬编码——PR-12）。
  * 用于反馈列表把 report 类型的 sub 机器值翻译为原因文案。
  */
 export interface ReportReason {
@@ -33,7 +33,13 @@ export interface ReportReason {
   order: number
 }
 
-/** 举报原因字典（PUB 端点，管理端同样可读） */
+/**
+ * 举报原因字典（公开只读端点 `GET /feedback/report-reasons`，学生端与管理端共用）。
+ * 用于反馈列表把 report 类型的 sub 机器值翻译为原因文案。
+ *
+ * 该端点在后端 `SecurityConfig` 内是 `permitAll`、数据为非敏感公开枚举，两端复用符合业界主流。
+ * 管理端的**写操作**端点仍全部走 `/admin/**`（口令保护），隔离边界在那里，不在只读字典上。
+ */
 export function getReportReasons(): Promise<ReportReason[]> {
   return get<ReportReason[]>('/feedback/report-reasons')
 }

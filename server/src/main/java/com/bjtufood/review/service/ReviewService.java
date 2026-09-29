@@ -17,18 +17,29 @@ public interface ReviewService {
     // ==================== 公开接口 ====================
 
     /**
+     * 评价是否存在且公开可见（{@code is_hidden=0}）——跨域只读契约。
+     * <p>
+     * 供 feedback 域「举报目标校验」等消费：已隐藏 / 已删除的评价对外不可见，
+     * 故不可被举报（等价于不存在）。调用方 SHALL NOT 直连评价表。
+     *
+     * @param id 评价ID（可空）
+     * @return true=存在且未隐藏
+     */
+    boolean existsVisibleById(Long id);
+
+    /**
      * 获取菜品评价列表
      * <p>
      * 只返回 is_hidden=0 的评价；排序唯一为发表时间倒序（created_at DESC），不提供排序参数。
-     * hasImage=1 时仅返回带图评价（images 非空且不为空数组），total 按该筛选口径统计。
+     * hasImage=true 时仅返回带图评价（images 非空且不为空数组），total 按该筛选口径统计。
      *
      * @param dishId   菜品ID
      * @param page     页码
      * @param pageSize 每页条数
-     * @param hasImage 只看有图：1=仅带图；缺省/其他值=不过滤
+     * @param hasImage 只看有图：true=仅带图；false=不过滤
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer hasImage);
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, boolean hasImage);
 
     /**
      * 获取当前用户的评价列表（我的评价）

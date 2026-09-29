@@ -56,6 +56,23 @@ project.private.config.json
 # 真正的模板见 client/.env.example（含 /api/v1 版本段与局域网示例）。
 !client/.env.development
 !client/.env.production
+# ⚠️ 关键前提：.gitignore **只对「未跟踪」文件生效**。上面这两个文件已入库，
+#    不受本节任何规则保护 —— 它们永远不得写入任何凭据（目前只有公开 API 地址，安全）。
+#    同理，已入库的 application-*.yml 也一律不得出现明文口令，只能写 ${ENV_VAR:默认值}。
+
+# ---------- 凭据 / 密钥类文件（兜底防误提交） ----------
+# 本节是「万一」防线：当前仓库不存在这些文件，新增证书/令牌时无需再改本文件。
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.secret
+id_rsa
+.npmrc
+.yarnrc
+service-account*.json
 
 # OS files
 .DS_Store

@@ -1,9 +1,15 @@
 package com.bjtufood.feedback.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
+import com.bjtufood.feedback.dto.ReportReq;
+import com.bjtufood.feedback.dto.ReportReasonVO;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 用户反馈服务接口
@@ -12,14 +18,56 @@ import com.bjtufood.feedback.dto.FeedbackReq;
 public interface FeedbackService {
 
     /**
-     * 提交反馈（学生/游客），status=pending。
-     * 写入类型值域 = {@code FeedbackConst.WRITABLE_TYPES}（issue / report）：
-     * issue 为 content（≤1000 字）+ images（≤3 张）；report 为结构化举报原因（sub）+ 关联评价。
-     * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），
-     * 内容安全检测 pass/review 一律放行；images 入库。
-     * （sec_state 落库已随「取消人工复核」全链退役，2026-09-15 用户拍板。）
+     * 提交意见反馈（学生/游客），status=pending。
+     * <p>
+     * 写入类型值域 = {@code FeedbackConst.WRITABLE_TYPES}（{@code bug} / {@code suggestion} / {@code other}）；
+     * {@code content} 必填（≤1000 字）+ {@code images}（≤3 张）。
+     * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），pass/review 一律放行。
+     *
+     * @param userId 当前用户ID（游客为 null）
+     * @param req    反馈内容
      */
     void submit(Long userId, FeedbackReq req);
+
+    /**
+     * 提交评价举报（{@code POST /reviews/{id}/report}），status=pending。
+     * <p>
+     * 结论以结构化原因（{@code reason}）为准（必选，值域 = {@code FeedbackConst.REPORT_REASON_VALUES}）；
+     * 文本 {@code content} 可空（填写则过内容安检）；同用户对同一评价重复举报 → 400。
+     * 落库为 {@code user_feedback} 的 {@code type='report'} 记录
+     * （{@code sub=reason}、{@code related_type=review}、{@code related_id=reviewId}）。
+     *
+     * @param userId   当前用户ID（游客为 null，不做去重）
+     * @param reviewId 被举报的评价ID（路径参数）
+     * @param req      举报内容
+     * @throws com.bjtufood.common.exception.BusinessException 原因缺失/非法、评价不存在（4001）、重复举报（400）
+     */
+    void report(Long userId, Long reviewId, ReportReq req);
+
+    /**
+     * 举报原因字典（<b>两端各自暴露</b>，数据同源）。
+     * <p>
+     * <b>为何两个端点而不是合并为一个</b>：小程序走 {@code /api/v1/**} + JWT，
+     * 管理后台走 {@code /api/v1/admin/**} + {@code X-Admin-Token}，<b>鉴权体系互不通</b>。
+     * 2026-09-29 审计发现 web 曾直接调用学生端 {@code GET /feedback/report-reasons}
+     * （属「一个接口两端调用」）。该端点在学生端白名单内是 {@code permitAll} 故当时能跑，
+     * 但一旦学生端接口纳入 JWT 鉴权，管理后台会立刻 401 失效。
+     * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦。
+     * <p>
+     * <b>数据仍然同源</b>：两端出参均由 {@code FeedbackConst.REPORT_REASONS} 构造，
+     * 构造逻辑下沉到 {@link #reportReasons()} 供两个 Controller 复用，
+     * 避免「复制两份常量遍历」导致日后口径漂移（曾在前端发生过同类问题）。
+     *
+     * @return 举报原因字典项（value 机器值 + label 中文标签，按声明序）
+     */
+    default List<ReportReasonVO> reportReasons() {
+        List<FeedbackConst.ReportReason> reasons = FeedbackConst.REPORT_REASONS;
+        List<ReportReasonVO> result = new ArrayList<>(reasons.size());
+        for (FeedbackConst.ReportReason reason : reasons) {
+            result.add(new ReportReasonVO(reason.value(), reason.label()));
+        }
+        return result;
+    }
 
     /**
      * 反馈列表（管理端，按状态/类型/用户过滤）

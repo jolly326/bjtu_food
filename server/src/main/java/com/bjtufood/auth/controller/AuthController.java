@@ -23,8 +23,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @Tag(name = "01. 认证与用户", description = "微信静默登录、学号邮箱认证、个人资料、用户统计。登录成功后将 data.token 填入 Swagger UI Authorize。")
 @RestController
 @RequestMapping
@@ -49,6 +47,7 @@ public class AuthController {
                     校园邮箱 = {学号}@bjtu.edu.cn，传 username（学号）即可自动推导邮箱，无需填 email。
                     规则：同一邮箱 60 秒内不能重复发送，验证码 10 分钟有效。验证码经邮件发送，不会在响应中返回。
                     同 IP 每分钟 ≤3 次、每小时 ≤10 次。
+                    出参：data 为 null（无载荷，成功即 code=200）。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -57,10 +56,11 @@ public class AuthController {
                     """)))
     )
     @PostMapping("/auth/email-code")
-    public Result<Map<String, String>> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
+    public Result<Void> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
         checkEmailCodeIpRateLimit();
         authService.createEmailCode(req.getUsername());
-        return Result.success(Map.of("message", "验证码已发送"));
+        // 无载荷：成功文案由统一响应壳 message 承担（原 data={message} 是第二条消息通道，端上零消费）
+        return Result.success();
     }
 
     /**

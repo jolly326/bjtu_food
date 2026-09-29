@@ -28,11 +28,11 @@
           v-for="n in list"
           :key="n.id"
           class="msg-item"
-          :class="{ unread: n.isRead === 0 }"
+          :class="{ unread: !n.isRead }"
           flush
           @tap="onTap(n)"
         >
-          <view class="msg-dot" :class="{ read: n.isRead === 1 }" />
+          <view class="msg-dot" :class="{ read: n.isRead }" />
           <view class="msg-body">
             <view class="msg-title-row">
               <text class="msg-title">{{ n.title }}</text>
@@ -107,7 +107,7 @@ function onRetryLoad() {
 }
 
 /** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
-const hasUnread = computed(() => list.value.some(n => n.isRead === 0))
+const hasUnread = computed(() => list.value.some(n => !n.isRead))
 
 /**
  * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
@@ -137,14 +137,14 @@ async function onReadAll() {
 const { markDirty, refreshOnShow } = useOnShowRefresh(load)
 
 /**
- * 点击通知：仅标记已读（不删除该能力）。
- * 跳转口径：feedback_handle 停留本页（回执正文已在内容区展示，不做跳转）；
- * 未知类型同样不跳转——端上不为未知类型臆测目标页。
+ * 点击通知：仅标记已读。
+ * 跳转口径：**一律停留本页**（回执正文已在内容区展示，无落地页）——
+ * 端上不读取通知类型、不臆测目标页（`type` 已按「零消费即删」不出参）。
  */
 async function onTap(n: Notification) {
-  if (n.isRead === 0) {
+  if (!n.isRead) {
     // 乐观更新已读态
-    n.isRead = 1
+    n.isRead = true
     notifyStore.fetchUnread()
     try {
       await readNotification(n.id)
@@ -153,7 +153,7 @@ async function onTap(n: Notification) {
       markDirty()
     }
   }
-  // 无跳转分支：feedback_handle 与未知类型一律停留本页（不臆测目标页）
+  // 无跳转分支：一律停留本页（端上不读取通知类型）
 }
 
 onShow(() => {

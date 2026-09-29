@@ -13,7 +13,7 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| POST | `/upload/cloud-image` | 需登录（游客亦可） | **前置调用**：配图逐张转存（微信内容安检 + 转存 COS） |
+| POST | `/upload/cloud-image` | 🔑 需登录 | **前置调用**：配图逐张转存（微信内容安检 + 转存 COS） |
 | POST | `/dishes/{id}/reviews` | **🔐 认证**（`@RequireVerified`；未认证 → 4031） | **首次提交**（新建评价；路径 `{id}` = 菜品 ID，body 不收 `dishId`）。每人对同一菜品仅一条评价（唯一键 `uk_review_user_dish`）；`risky` 内容 → 400 |
 | PUT | `/reviews/{id}` | **🔐 认证**（`@RequireVerified`；**作者本人**，非本人 → 403） | **重新评价（覆盖式）**：路径 `{id}` = 本人评价 ID，**归属锁定不可换菜**。除 §字段「差异表」外与首次提交完全同逻辑 |
 

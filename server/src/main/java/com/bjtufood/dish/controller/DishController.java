@@ -5,12 +5,14 @@ import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
+import com.bjtufood.dish.dto.DishAttributeDefVO;
 import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.dish.view.DishViewVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,7 +52,7 @@ public class DishController {
             description = """
                     用途：首页网格、搜索页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    参数集恰为 5 项：page、pageSize、keyword、mealType、seed（排序由服务端决定：推荐流无 keyword/mealType 且带 seed 时按 CRC32(seed:ID) 会话伪随机序，其余热度倒序；无排序入口）。
+                    参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：推荐视图按 CRC32(seed:ID) 会话伪随机序，大类视图热度倒序；无排序入口）。
                     出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )
@@ -60,17 +62,18 @@ public class DishController {
     }
 
     @Operation(
-            summary = "菜品大类字典",
+            summary = "首页筛选视图字典",
             description = """
-                    用途：首页横向大类标签栏数据源。
-                    只下发「当前有在售菜品」的大类（空类自动隐藏）；文案与顺序由后端 MealTypeConst 唯一定义，
-                    端上不得维护任何标签中文映射。公开接口。
-                    测试示例：/dishes/meal-types
+                    用途：首页横向筛选栏数据源。
+                    下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端 DishViewConst 唯一定义，
+                    端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
+                    「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
+                    公开接口。测试示例：/dishes/views
                     """
     )
-    @GetMapping("/dishes/meal-types")
-    public Result<List<com.bjtufood.dish.dto.MealTypeVO>> listMealTypes() {
-        return Result.success(dishService.listMealTypes());
+    @GetMapping("/dishes/views")
+    public Result<List<DishViewVO>> listDishViews() {
+        return Result.success(dishService.listDishViews());
     }
 
     @Operation(
@@ -91,6 +94,27 @@ public class DishController {
         // 计数随详情成功响应发生（service 内成功路径执行）
         return Result.success(dishService.getDishDetail(id));
     }
+    @Operation(
+            summary = "菜品描述属性维度字典（全量）",
+            description = """
+                    用途：管理端录入表单 / 筛选器的维度与参考选项数据源。
+                    2026-09-29 新增：web 端此前调用的 `/dishes/attributes` **后端从未存在**
+                    （本域只有按单菜的 `/dishes/{id}/attributes`），故管理后台的「描述四维录入选项」
+                    长期 404，本次补齐。
+                    与 `GET /dishes/{id}/attributes` 的差异：后者按**单菜现有维度**下发编辑候选；
+                    本端点下发字典表中**全部维度** + 该维度全库已用值去重的**参考候选**
+                    （仅为参考、不构成约束；空数组表示暂无参考值，端上仍可自由输入）。
+                    公开只读端点（学生端与管理端共用，符合业界「一个 API + 两种鉴权」惯例）；
+                    管理端写操作仍全部走 `/admin/**`。端上零硬编码映射。
+                    测试示例：/dishes/attributes
+                    """
+    )
+    @GetMapping("/dishes/attributes")
+    public Result<List<DishAttributeDefVO>> listAllDishAttributes() {
+        return Result.success(dishService.listAllAttributeDefs());
+    }
+
+
 
     @Operation(
             summary = "菜品描述属性编辑态选项（按菜现有维度）",

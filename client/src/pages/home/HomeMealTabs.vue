@@ -1,11 +1,10 @@
 <template>
-  <!-- 首页横向「菜品大类」标签栏（§7.34 运营化解耦）：
+  <!-- 首页横向「筛选视图」标签栏（§7.34 运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
-       ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/meal-types`）——
-       含首位「为你推荐」这类**虚拟导航项**（`value: null` ⇒ 不传 mealType 拉默认流），
-       端上**零文案、零拼接、零兜底项**（Round 32 用户口径）：改文案 / 加虚拟项（如「折扣菜品」）
-       只在服务端 `listMealTypes()` 出口处拼装，端上无需发版。
-       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按默认流加载。 -->
+       ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/views`）——
+       含「为你推荐」这类**聚合视图**，端上**零文案、零拼接、零兜底项**（Round 32 用户口径）：
+       改文案 / 加视图（如「折扣」）只在服务端 `DishViewConst` + `listDishViews()` 出口处装配，端上无需发版。
+       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按默认视图加载。 -->
   <view v-if="tabs.length > 0" class="mt-bar">
     <scroll-view
       class="mt-scroll"
@@ -16,19 +15,19 @@
       <view class="mt-track">
         <view
           v-for="tab in tabs"
-          :key="tab.value ?? 'recommend'"
-          :id="idOf(tab.value)"
+          :key="tab.key"
+          :id="idOf(tab.key)"
           class="mt-tab"
-          :class="{ active: tab.value === activeValue }"
+          :class="{ active: tab.key === activeKey }"
           role="button"
-          :aria-label="`筛选大类：${tab.label}`"
+          :aria-label="`筛选：${tab.label}`"
           hover-class="mt-tab-pressed"
-          @tap="onSelect(tab.value)"
+          @tap="onSelect(tab.key)"
         >
           <text class="mt-label">{{ tab.label }}</text>
           <!-- 选中态橙色短下划线：常驻节点 + opacity 切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
-          <view class="mt-underline" :class="{ show: tab.value === activeValue }" aria-hidden="true" />
+          <view class="mt-underline" :class="{ show: tab.key === activeKey }" aria-hidden="true" />
         </view>
       </view>
     </scroll-view>
@@ -37,46 +36,46 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MealType } from '@/types/dish'
+import type { DishView } from '@/types/dish'
 
-/** 标签项：`value === null` 表示首位虚拟项（默认流，不传 mealType）；文案一律来自服务端 */
-interface MealTab {
-  value: string | null
+/** 标签项：`key` 原样回传（无 null 特例：默认视图「为你推荐」也是普通 key）；文案一律来自服务端 */
+interface ViewTab {
+  key: string
   label: string
 }
 
 const props = defineProps<{
-  /** 大类字典（`store.mealTypeList`）——**后端已含首位虚拟项（「为你推荐」等）及在售大类**，端上原样渲染 */
-  items: MealType[]
-  /** 当前选中大类值（`null` = 首位虚拟项，即不传 mealType 的默认流） */
-  activeValue: string | null
+  /** 筛选视图字典（`store.viewList`）——**后端已含「为你推荐」等聚合视图及大类视图**，端上原样渲染 */
+  items: DishView[]
+  /** 当前选中视图键（`null` = 字典尚未加载） */
+  activeKey: string | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'select', value: string | null): void
+  (e: 'select', key: string): void
 }>()
 
 /**
  * 渲染项**完全直出后端响应**：端上**不前置拼接、不补兜底项**（Round 32）。
  * 字典未到位（未加载 / 失败 / 后端返回空）⇒ 返回空数组 ⇒ 标签栏整体不渲染（不留空栏）。
- * 这样「首位虚拟项文案」「将来新增的虚拟项」全部是服务端资产，端上零文案。
+ * 这样「「为你推荐」文案」「将来新增的视图」全部是服务端资产，端上零文案。
  */
-const tabs = computed<MealTab[]>(() =>
-  (props.items ?? []).map((item) => ({ value: item.value, label: item.label })),
+const tabs = computed<ViewTab[]>(() =>
+  (props.items ?? []).map((item) => ({ key: item.key, label: item.label })),
 )
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
-const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-recommend'))
+const scrollIntoId = computed(() => (props.activeKey ? idOf(props.activeKey) : ''))
 
 /** 稳定 id：小程序 `scroll-into-view` 要求 id 以字母开头、且不含特殊字符 */
-function idOf(value: string | null): string {
-  return value ? `mt-tab-${value}` : 'mt-tab-recommend'
+function idOf(key: string): string {
+  return `mt-tab-${key}`
 }
 
-function onSelect(value: string | null) {
+function onSelect(key: string) {
   // 点击已选中项不重复发请求（避免无谓的列表重置与闪烁）
-  if (value === props.activeValue) return
-  emit('select', value)
+  if (key === props.activeKey) return
+  emit('select', key)
 }
 </script>
 

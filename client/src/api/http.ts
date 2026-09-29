@@ -7,7 +7,7 @@
  * show an empty state or an error message.
  */
 
-import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE } from './config'
+import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE, buildContainerPath } from './config'
 import { getWxApi } from '@/utils/device'
 
 /** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
@@ -57,6 +57,50 @@ interface RequestOptions {
 interface RawResponse {
   data?: unknown
 }
+
+/**
+ * 「被限频」错误（2026-09-29 新增）。
+ *
+ * <p>后端对写入口做了 IP 限频（反馈 / 纠错 2 次每分钟、浏览 30 次每分钟等），
+ * 超限返回 {@code 400} 且 message 含「提交过于频繁」/「操作过于频繁」并附剩余秒数。
+ *
+ * <p><b>为何要单独识别</b>：这是<b>可恢复</b>错误——等几秒就能重试，与「参数非法」这类
+ * 不可恢复错误混在一起会让调用方用错策略（无脑重试反而延长封锁）。
+ * 抛可识别类型后，调用方可据此：① 禁用提交按钮 N 秒；② 展示倒计时；③ 到点自动重试。
+ *
+ * <p>对应后端 {@code IpRateLimiter} + 各 Controller 的 {@code checkIpRateLimit}。
+ */
+export class RateLimitedError extends Error {
+  /** 建议等待秒数（后端 message 里带「请 N 秒后再试」；解析不出时为 undefined） */
+  readonly retryAfterSeconds?: number
+
+  constructor(message: string, retryAfterSeconds?: number) {
+    super(message)
+    this.name = 'RateLimitedError'
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+/** 类型守卫：判断异常是否为「被限频」（可恢复，等 retryAfterSeconds 后可重试） */
+export function isRateLimited(e: unknown): e is RateLimitedError {
+  return e instanceof RateLimitedError
+}
+
+/**
+ * 从后端 message 解析「请 N 秒后再试」中的 N。
+ *
+ * <p>后端文案形如「提交过于频繁，请 42 秒后再试」（IpRateLimiter 拼装）。
+ * 用正则而非固定切分，避免后端改文案就解析失败。
+ */
+function parseRetryAfter(message: string): number | undefined {
+  const m = message.match(/(\d+)\s*秒/)
+  if (!m) return undefined
+  const n = Number(m[1])
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+/** 限频文案特征（与后端 IpRateLimiter / Controller 限频抛出的文案对齐） */
+const RATE_LIMIT_PATTERNS = ['过于频繁', '操作频繁', '稍后再试']
 
 /** 401 处理进行中标志：避免并发 401（如首页多请求同时失效）重复触发登出+重登+Toast 风暴 */
 let _authHandling = false
@@ -225,7 +269,9 @@ async function request<T>(
       const clearTimer = () => { clearTimeout(timeoutTimer) }
       wxApi.cloud.callContainer({
         config: { env: WX_CLOUD_ENV },
-        path: url.startsWith('/api') ? url : `/api${url}`,
+        // 2026-09-29 修复：原先硬拼 `/api${url}`，后端 context-path 升为 /api/v1 后小程序全站 404。
+        // 现统一由 buildContainerPath 从 API_BASE_URL 推导前缀（详见 config.ts 的说明）。
+        path: buildContainerPath(url),
         method,
         data,
         header: {
@@ -321,8 +367,16 @@ async function request<T>(
     throw new ResourceNotFoundError(body.message || '内容不存在')
   }
   if (body.code !== 200) {
+    // 限频（400 + 「过于频繁」类文案）：**可恢复**错误，抛可识别类型让调用方能做退避
+    // （禁用按钮 + 倒计时），而不是与「参数非法」共用普通 Error 导致无脑重试、延长封锁。
+    // 本层已弹 toast，故不继承 SurfacedError 语义之外的额外提示——调用方只需 catch 后做 UI 退避。
+    const msg = body.message || '请求失败'
+    if (body.code === 400 && RATE_LIMIT_PATTERNS.some((p) => msg.includes(p))) {
+      uni.showToast({ title: msg, icon: 'none' })
+      throw new RateLimitedError(msg, parseRetryAfter(msg))
+    }
     // 业务错误：由调用方决定提示方式，这里统一抛出 message
-    throw new Error(body.message || '请求失败')
+    throw new Error(msg)
   }
 
   return body.data as T

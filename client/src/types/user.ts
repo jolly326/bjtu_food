@@ -1,5 +1,5 @@
 /**
- * 用户信息 —— 恰 5 字段（口径见 docs/feature/client-微信静默登录与游客态.md）。
+ * 用户信息 —— 恰 4 字段（口径见 docs/feature/client-微信静默登录与游客态.md）。
  *
  * 与登录 / 资料四条链路（`POST /auth/wechat-login`、`POST /auth/verify-email`、
  * `GET|PUT /auth/profile`）一一对应。契约不含以下字段：
@@ -9,14 +9,13 @@
  * - `email`（微信体系下恒为 NULL，校园邮箱唯一来源 = `bindEmail`）
  * - `status`（端上零消费，禁用 / 注销由服务端 400 / 403 拦截）
  * - `guestShortId`（`id` 的纯派生值，改由展示层按 `id` 现算）
+ * - `username`（**2026-09-29 按「零消费即删」移出出参**：两处身份副行统一渲染 `bindEmail`，
+ *   不再渲染裸学号；账号标识保留在 user 表与 JWT 载荷，属服务端内部字段）
  *
  * user.role 列不纳入契约，类型不含 role 字段（全量用户即学生）。
  */
 export interface UserInfo {
   id: number
-  /** 学号/工号（校园身份，等于邮箱前缀）；游客态为 'wx_'+openid 尾 16 位。
-   *  **仅作账号标识出参，端上不展示**（游客态它是 `wx_` 内部号，展示无意义） */
-  username: string
   nickname: string
   avatar: string
   /** 已认证绑定邮箱（bind_email）；**认证状态的唯一判据**（非空即已认证） */

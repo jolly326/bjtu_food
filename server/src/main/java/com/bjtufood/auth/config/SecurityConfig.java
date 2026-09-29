@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
  * - GET /banners（首页顶部轮播图，2026-09-22 新增；/** 无写接口）
- * - GET /dishes、GET /dishes/{id}、GET /dishes/meal-types、GET /dishes/{id}/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
+ * - GET /dishes、GET /dishes/{id}、GET /dishes/views、GET /dishes/{id}/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
  * - 注：GET /canteens 白名单已于 2026-09-22 删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
  * - Swagger UI (SpringDoc) 相关路径
  */
@@ -86,6 +86,8 @@ public class SecurityConfig {
             "/feedback",
             // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
             "/feedback/report-reasons",
+            // 评价举报提交（PUB：举报免认证，游客可提交；RESTful 子资源）
+            "/reviews/*/report",
             // 菜品信息纠错提交（PUB：匿名允许，对齐 feedback 提交口径；IP 限频在 Controller 层）
             "/dishes/*/correction",
             // SpringDoc Swagger UI 文档

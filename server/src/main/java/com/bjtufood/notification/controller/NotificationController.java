@@ -34,8 +34,8 @@ public class NotificationController {
     @RequireVerified
     @GetMapping("/my/notifications")
     public Result<PageResult<NotificationVO>> list(
-            @Parameter(description = "已读过滤：0/1（可空=全部）")
-            @RequestParam(required = false) Integer isRead,
+            @Parameter(description = "已读过滤：true=仅已读 / false=仅未读（可空=全部）")
+            @RequestParam(required = false) Boolean isRead,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         return Result.success(

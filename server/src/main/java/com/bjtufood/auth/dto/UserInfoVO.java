@@ -10,7 +10,7 @@ import lombok.Data;
  * 也复用为 {@code GET /auth/profile} 的用户信息主体。
  * 字段均 camelCase；已认证状态由 {@code bindEmail} 派生（见下）。
  * <p>
- * <b>字段集恰 5 个</b>：{@code id}、{@code username}、{@code nickname}、{@code avatar}、{@code bindEmail}。
+ * <b>字段集恰 4 个</b>：{@code id}、{@code nickname}、{@code avatar}、{@code bindEmail}。
  * 以下字段已删除且不得回流：
  * <ul>
  *   <li>{@code verified}——`bindEmail` 非空的派生布尔，属同源冗余；
@@ -18,7 +18,12 @@ import lombok.Data;
  *   <li>{@code email}——微信体系下无写入点、恒为 NULL；</li>
  *   <li>{@code status}——端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
  *   <li>{@code guestShortId}——`id` 的纯派生值，改由消费端按 `id` 现算；</li>
- *   <li>{@code createdAt}——端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）。</li>
+ *   <li>{@code createdAt}——端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）；</li>
+ *   <li>{@code username}——**2026-09-29 按「零消费即删」移出出参**：端上两处身份展示
+ *       （「我的」页用户卡副行、「我的主页」信息卡 / 编辑页）均已统一渲染
+ *       {@code bindEmail}（完整校园邮箱），不再渲染裸学号；`username` 出参端上零消费。
+ *       账号标识本身仍保留在 {@code user} 表与 JWT 载荷（{@code username}，仅供日志），
+ *       属服务端内部字段，不进公开出参。</li>
  * </ul>
  * <p>
  * 与 {@link UserVO}（管理端用户列表）字段高度相似但<b>不可合并</b>，差异登记如下：
@@ -37,9 +42,6 @@ public class UserInfoVO {
 
     @Schema(description = "用户ID", example = "1")
     private Long id;
-
-    @Schema(description = "学号/工号（游客建号为 wx_+openid 尾 16 位）", example = "20240001")
-    private String username;
 
     @Schema(description = "昵称", example = "食客0001")
     private String nickname;

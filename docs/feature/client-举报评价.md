@@ -12,33 +12,34 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | GET | `/feedback/report-reasons` | 🔓 公开 | **举报原因字典**：`[{ value, label }]`（服务端按序下发），弹层打开时实时拉取；值域与文案唯一真源 = 后端常量，端上**零硬编码** |
-| POST | `/feedback` | 🔓 公开（游客可提交） | 提交举报：固定 `type=report` + `relatedType=review` + `relatedId`（被举报评价 ID），`sub` = 选中的原因机器值 |
+| POST | `/reviews/{id}/report` | 🔓 公开（游客可提交） | **提交举报**：`{id}` = 被举报评价 ID（RESTful 子资源）；请求体见下 |
+| POST | `/upload/cloud-image` | 🔑 需登录 | **前置调用**（选填）：佐证配图逐张转存（微信内容安检 + 转存 COS） |
 
 ## 字段
 
-### 请求 · `GET /feedback/report-reasons`（响应）
+### 响应 · `GET /feedback/report-reasons`
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `value` | string | 原因机器值（提交时作为 `sub` 上送） |
+| `value` | string | 原因机器值（提交时作为 `reason` 上送） |
 | `label` | string | 中文标签（弹层直接渲染） |
 
-### 请求 · `POST /feedback`（举报场景）
+### 请求 · `POST /reviews/{id}/report`（`ReportReq`）
 
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
-| `type` | string | **是** | **举报固定传 `report`** |
-| `sub` | string | **是** | **举报原因机器值**（单选，值域 = 字典端点下发项；非法 / 缺失 → 400） |
-| `relatedType` | string | **是** | **必须为 `review`**（被举报的评价） |
-| `relatedId` | number | **是** | **被举报的评价 ID** |
+| `id` | number | **是** | 被举报的评价 ID（**路径参数**） |
+| `reason` | string | **是** | 举报原因机器值（单选，值域 = 字典端点下发项；非法 / 缺失 → 400） |
 | `content` | string | 否 | **可空**——举报结论以结构化原因为准，文本仅作补充说明；若填写仍过内容安检，≤1000 字 |
 | `images` | string[] | 否 | 佐证配图 URL 数组，≤3 张（经 `POST /upload/cloud-image` 转存后的 COS 地址） |
 
-### 响应
+> 请求体**无 `type`、无 `relatedType` / `relatedId`**——被举报对象由路径 `{id}` 表达，类型固定为「评价举报」。
+
+### 响应 · `POST /reviews/{id}/report`
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `data` | null | 两端点均无载荷；成功即 `code=200` |
+| `data` | null | 无载荷；成功即 `code=200` |
 
 ### 限频（同 IP）
 
@@ -50,8 +51,9 @@
 
 | code | 含义 | 中文解释 |
 |---|---|---|
-| 400 | 参数/业务校验失败 | 原因缺失 / 非法、`type` 非法、关联对象缺失、重复举报、超频等 |
+| 400 | 参数/业务校验失败 | 原因缺失 / 非法、重复举报、超频等 |
 | 400 | 内容安检违规 | 填写了补充文本时文本 `msgSecCheck` `risky`（含未知/缺失态）→ 拦截 |
+| **4001** | 评价不存在 | 被举报的评价不存在（含已隐藏 / 已删除） |
 
 ## 数据（落库）
 

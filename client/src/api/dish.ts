@@ -1,6 +1,6 @@
 import type {
   DishListItem, DishDetail, DishQuery,
-  DishAttributeItem, GuessLike, MealType,
+  DishAttributeItem, GuessLike, DishView,
 } from '@/types/dish'
 import { get } from './http'
 import { fenToYuan } from '@/utils/money'
@@ -28,13 +28,12 @@ function toDishListItem(raw: RawRow): DishListItem {
   }
 }
 
-/** 详情描述属性项归一化：机器值与中文**原样透出**（后端已整理，端上零翻译） */
+/** 详情描述属性项归一化：中文值**原样透出**（值即中文，端上零翻译） */
 function toDishAttributeItem(raw: RawRow): DishAttributeItem {
   return {
     fieldKey: String(raw.fieldKey || ''),
     name: String(raw.name || ''),
     value: raw.value ?? '',
-    label: raw.label ?? '',
   }
 }
 
@@ -52,7 +51,7 @@ function toDishDetail(raw: RawRow): DishDetail {
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',
-    // ===== 描述属性：后端已整理（机器值 + 中文）⇒ 端上直渲 `label`，零映射表（R4） =====
+    // ===== 描述属性：值即中文 ⇒ 端上直渲 `value`，零映射表（R4） =====
     attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttributeItem) : [],
   }
 }
@@ -60,8 +59,8 @@ function toDishDetail(raw: RawRow): DishDetail {
 /**
  * 通用菜品检索（首页网格无限加载 + 搜索结果）。
  * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize` / `seed`**
- * （食堂 / 价格 / 排序筛选不提供；排序由服务端唯一决定）。
+ * 复用 `GET /dishes`，**仅支持 `keyword` / `view` / `page` / `pageSize` / `seed`**
+ * （食堂 / 价格 / 排序筛选不提供；筛选与排序由服务端按所选视图唯一决定）。
  * 分页壳只有 `records`：调用方以「本页返回条数 < `pageSize`」判到底。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
@@ -70,7 +69,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: DishLi
     pageSize: query.pageSize ?? 20,
   }
   if (query.keyword) params.keyword = query.keyword
-  if (query.mealType) params.mealType = query.mealType
+  if (query.view) params.view = query.view
   if (query.seed) params.seed = query.seed
 
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
@@ -102,12 +101,12 @@ export async function getGuessLike(): Promise<GuessLike[]> {
   }))
 }
 
-/** 菜品大类字典（GET /dishes/meal-types）：首页横向标签栏数据源，文案与顺序全由后端下发 */
-export async function getMealTypes(): Promise<MealType[]> {
-  const raw = await get<RawRow[]>('/dishes/meal-types')
-  // 方案 B：首项后端下发 value=null（为你推荐）；其余项为枚举字符串
+/** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
+export async function getDishViews(): Promise<DishView[]> {
+  const raw = await get<RawRow[]>('/dishes/views')
+  // 端上只认 key + label（无 null 特例：默认视图「为你推荐」也是普通 key）
   return (raw || []).map((item: RawRow) => ({
-    value: item.value != null && String(item.value).trim() !== '' ? String(item.value) : null,
+    key: String(item.key ?? ''),
     label: String(item.label || ''),
   }))
 }
@@ -115,7 +114,7 @@ export async function getMealTypes(): Promise<MealType[]> {
 /**
  * 编辑态属性维度项（`GET /dishes/{id}/attributes` 出参）。
  *
- * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的可选项
+ * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的参考候选
  * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
  */
 export interface DishEditAttribute {
@@ -123,13 +122,13 @@ export interface DishEditAttribute {
   fieldKey: string
   /** 取值类型：`single`（单值）｜ `multi`（多值，值取数组） */
   valueType: 'single' | 'multi'
-  /** 该维度全部候选值（后端按序下发，端上按序渲染）；**空数组 = 自由文本维度** */
-  options: { valueKey: string; label: string }[]
+  /** 该维度参考候选值（中文文本，按频次倒序）；端上按序渲染 chips，亦可自由输入新值 */
+  options: string[]
 }
 
 /**
- * 编辑态属性选项（`GET /dishes/{id}/attributes`）。
- * 失败由调用方静默处理（展示原始机器值），不阻塞编辑。
+ * 编辑态属性候选（`GET /dishes/{id}/attributes`）。
+ * 失败由调用方静默处理（仍可自由填写），不阻塞编辑。
  */
 export async function getDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
   const raw = await get<RawRow[]>(`/dishes/${dishId}/attributes`)
@@ -137,10 +136,7 @@ export async function getDishEditAttributes(dishId: number): Promise<DishEditAtt
     fieldKey: String(item.fieldKey || ''),
     valueType: item.valueType === 'multi' ? 'multi' : 'single',
     options: Array.isArray(item.options)
-      ? (item.options as RawRow[]).map((o) => ({
-          valueKey: String(o.valueKey || ''),
-          label: String(o.label || o.valueKey || ''),
-        }))
+      ? (item.options as unknown[]).map((o) => String(o ?? '')).filter(Boolean)
       : [],
   }))
 }

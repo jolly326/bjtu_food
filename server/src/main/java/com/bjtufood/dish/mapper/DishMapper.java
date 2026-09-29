@@ -6,9 +6,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
-import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.view.DishListQuery;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -25,10 +25,10 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 分页查询菜品（联表：dish + stall + canteen）
      * <p>
      * 出参为**列表专用** {@link DishListItemVO}（8 字段，2026-09-22 D 项拆分）；
-     * 支持 keyword / mealType 两个条件 + 可选 seed；排序双分支（2026-09-27 方案 C）：
-     * 无 keyword/mealType 且 seed 非空 → CRC32(seed:ID) 会话伪随机序，其余 → 热度倒序。
+     * 取数条件与排序口径均由 {@link DishListQuery}（视图解析结果）决定：
+     * keyword 三路模糊 / mealType 等值 / discountOnly 折扣，以及 sortKind 决定的 ORDER BY。
      */
-    IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
+    IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("q") DishListQuery q);
 
     /**
      * 查询菜品详情（联表）——详情专用 {@link DishDetailVO}（11 字段，含 {@code attributes} JSON 原文）
@@ -42,6 +42,14 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return JSON 串；菜品不存在或无属性时为 null
      */
     String selectAttributesJson(@Param("id") Long id);
+
+    /**
+     * 查询全部在售菜品的描述属性 JSON 原文（{@code dish.attributes}）——供编辑候选值
+     * 「按维度汇总全库已用中文值」用（{@code GET /dishes/{id}/attributes} / 管理端维度字典）。
+     *
+     * @return 在售菜品 attributes JSON 串列表（NULL 行不返回）
+     */
+    List<String> selectAttributesJsonOnSale();
 
     /**
      * 查询全部菜品列表（含已下架），联表档口和食堂名称
@@ -79,9 +87,9 @@ public interface DishMapper extends BaseMapper<Dish> {
     /**
      * 查询「当前存在在售菜品」的菜品大类枚举键（去重）。
      * <p>
-     * 供 {@code GET /dishes/meal-types} 字典下发使用（2026-09-21 §7.34）：
+     * 供 {@code GET /dishes/views} 字典下发使用（2026-09-21 §7.34）：
      * **空类自动隐藏**——某大类在售菜品数为 0 时不下发；重新有菜后自动出现。
-     * 标签文案与顺序由 {@code MealTypeConst} 提供（单一真源），本查询只回答「哪些类目下当前有菜」。
+     * 标签文案与顺序由 {@code DishViewConst} 提供（单一真源），本查询只回答「哪些类目下当前有菜」。
      *
      * @return 在售菜品覆盖的大类枚举键（去重）
      */
