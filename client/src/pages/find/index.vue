@@ -105,10 +105,13 @@
       <!-- ============ 搜索结果态（仅结果态渲染）============
            Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
            单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/ui/client-搜索.md §2「结果行布局」）。 -->
+      <!-- ⚠️ 触底事件必须由本 scroll-view 承载：页面根 overflow:hidden + 定高容器下，
+           页面级 onReachBottom 不会触发（踩坑记录见 usePagedList 注释） -->
       <scroll-view
         v-if="inFilter && mixedResults.length > 0"
         class="results-host"
         scroll-y
+        @scrolltolower="onLoadMoreResults"
       >
         <view class="mixed-list">
           <DishResultCard
@@ -154,7 +157,7 @@ import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/back'
 import { joinLocation } from '@/utils/dish'
-import type { MixedResultItem } from '@/types/dish'
+import type { DishListItem, MixedResultItem } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -251,6 +254,37 @@ const searchFailed = ref(false)
    原先本页 `MixedResult` 与 FindResults 内 `MixedResultItem` 是逐字段重复的两份定义） */
 const mixedResults = ref<MixedResultItem[]>([])
 
+/**
+ * 结果分页（2026-09-29 性能修正）：
+ * 原实现一次性 `pageSize=50` 全量拉取 + 整列渲染 —— 命中多时首屏渲染节点数过大。
+ * 改为与首页 / 我的评价一致的**触底增量加载**：首屏只拉 20 条，触底再取下一页。
+ * ⚠️ 到底判据只能是「本页返回条数 < pageSize」：后端 `PageResult` 只下发 `records`，无 `total`。
+ */
+const RESULT_PAGE_SIZE = 20
+/** 触底加载是否在途（与首屏 `searching` 分离：分页失败静默回退页码，不打断滚动） */
+const loadingMore = ref(false)
+/** 结果是否已到底 */
+const resultsFinished = ref(false)
+/** 当前已加载到的页码（新搜索重置为 1，触底 +1） */
+let resultPage = 1
+
+/** 菜品行 → 结果卡行（唯一映射口径：图片取列表字段 coverImage，位置行走 utils/dish.joinLocation） */
+function toResults(list: DishListItem[]): MixedResultItem[] {
+  return list
+    .map(d => ({
+      type: 'dish' as const,
+      id: d.id,
+      name: d.name,
+      // 列表唯一图片字段 coverImage（列表 VO 不含 images 数组）
+      image: d.coverImage || '',
+      // B8 副信息：食堂名 + 档口名（口径统一走 `utils/dish.joinLocation`）
+      sub: joinLocation(d.canteen, d.stallName),
+      price: d.price,
+      rating: d.rating,
+      originalPrice: d.originalPrice,
+    }))
+    .filter(r => r.name)
+}
 
 /** 确认/回车搜索（SearchBar input 模式的 @search：回车 / 点「搜索」按钮） */
 function onSearchConfirm() {
@@ -305,28 +339,14 @@ async function doMixedSearch(kw?: string) {
     const list = await dishStore.search({
       keyword: kw,
       page: 1,
-      pageSize: 50,
+      pageSize: RESULT_PAGE_SIZE,
     })
     // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
     // 结果顺序即后端返回口径（PR-02：端上不排序、不算距离）
-    mixedResults.value = list
-      .map(d => {
-        // B8 副信息：食堂名 + 档口名（口径统一走 `utils/dish.joinLocation`）
-        const sub = joinLocation(d.canteen, d.stallName)
-        return {
-          type: 'dish' as const,
-          id: d.id,
-          name: d.name,
-          // 列表唯一图片字段 coverImage（列表 VO 不含 images 数组）
-          image: d.coverImage || '',
-          sub,
-          price: d.price,
-          rating: d.rating,
-          originalPrice: d.originalPrice,
-        }
-      })
-      .filter(r => r.name)
+    mixedResults.value = toResults(list)
+    resultPage = 1
+    resultsFinished.value = list.length < RESULT_PAGE_SIZE
     searchDone.value = true
   } catch (err) {
     // MP-012：失败不再伪装成空结果——置 searchFailed 渲染「加载失败 · 点击重试」块，
@@ -334,6 +354,8 @@ async function doMixedSearch(kw?: string) {
     console.error('[find] 搜索失败', err)
     if (seq !== mixedSearchSeq) return
     mixedResults.value = []
+    resultPage = 1
+    resultsFinished.value = false
     searchDone.value = true
     searchFailed.value = true
   } finally {
@@ -345,6 +367,41 @@ async function doMixedSearch(kw?: string) {
 /** 重试当前检索：结果态失败恢复走此路径（重试块 @tap；按当前关键词重跑，竞态守卫在 doMixedSearch 内） */
 function onRetrySearch() {
   return doMixedSearch(keyword.value.trim())
+}
+
+/**
+ * 触底加载下一页结果（结果态 `scroll-view` 的 @scrolltolower）。
+ * 口径与首页 / 我的评价一致：按 id 去重追加；**失败静默**回退页码（不置失败态、
+ * 不打断滚动，再次触底即重试同一页）。
+ */
+async function onLoadMoreResults() {
+  // 到底 / 分页在途 / 首屏在途 均跳过（首屏在途时页码尚未落定，避免错位）
+  if (resultsFinished.value || loadingMore.value || searching.value) return
+  const kw = keyword.value.trim()
+  if (!kw) return
+  const seq = mixedSearchSeq
+  loadingMore.value = true
+  try {
+    const list = await dishStore.search({
+      keyword: kw,
+      page: resultPage + 1,
+      pageSize: RESULT_PAGE_SIZE,
+    })
+    // 期间若发起了新搜索或退出结果态，丢弃本次过期结果
+    if (seq !== mixedSearchSeq) return
+    if (list.length === 0) {
+      resultsFinished.value = true
+      return
+    }
+    resultPage += 1
+    const existIds = new Set(mixedResults.value.map(r => r.id))
+    mixedResults.value = mixedResults.value.concat(toResults(list).filter(r => !existIds.has(r.id)))
+    resultsFinished.value = list.length < RESULT_PAGE_SIZE
+  } catch (err) {
+    console.error('[find] 结果分页加载失败', err)
+  } finally {
+    loadingMore.value = false
+  }
 }
 
 /** 搜索无结果引导 → 反馈页（落默认 issue 模式；落点唯一构造函数） */
@@ -364,6 +421,8 @@ function exitFilter() {
   mixedResults.value = []
   searchDone.value = false
   searchFailed.value = false
+  resultsFinished.value = false
+  resultPage = 1
   // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
   mixedSearchSeq += 1
   // Round 27 缺陷修复：回发现态时**重读搜索历史**（以存储为唯一真源）。

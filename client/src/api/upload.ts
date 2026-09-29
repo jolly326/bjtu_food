@@ -1,6 +1,17 @@
 import { uploadFile, post } from './http'
 import { WX_CLOUD_ENV } from './config'
 import { getWxApi } from '@/utils/device'
+import type { UploadResultVO } from './shared'
+
+/**
+ * UGC 配图上传结果（**只暴露 `url`**）。
+ *
+ * <p>服务端出参为 `UploadResultVO{ url, relativeUrl }`，但本函数**只透出 `url`**：
+ * `relativeUrl` 仅本地磁盘降级链路返回（COS 链路恒空），
+ * 端上展示一律用 `url`（后端已按 `app.public-base-url` 拼好的绝对地址），
+ * 故 `relativeUrl` 按「零消费即删」不透出到端上模型——但**类型来源仍是契约**。
+ */
+type UploadedImage = Pick<UploadResultVO, 'url'>
 
 /**
  * 头像图片上传（**仅限头像等本人非公开用途**）。
@@ -39,8 +50,8 @@ const UGC_UPLOAD_TIMEOUT_MS = 15000
  * @param tempFilePath 本地临时文件路径（chooseMedia/compressImage 产物）
  * @returns 后端 COS 正式 URL（提交评价/反馈时随 images 数组上送）
  */
-export function uploadUgcImage(tempFilePath: string): Promise<{ url: string }> {
-  let result!: Promise<{ url: string }>
+export function uploadUgcImage(tempFilePath: string): Promise<UploadedImage> {
+  let result!: Promise<UploadedImage>
 
   // ===== 微信小程序端：云存储 fileID → 后端安检转存 COS =====
   // #ifdef MP-WEIXIN
@@ -82,7 +93,8 @@ export function uploadUgcImage(tempFilePath: string): Promise<{ url: string }> {
     })
     if (!fileId) throw new Error('上传失败，请重试')
     // 后端安检 + 转存 COS：违规返回 400「图片包含违规内容，无法上传」（http 层抛 message）
-    return post<{ url: string }>('/upload/cloud-image', { fileId })
+    // 出参用契约 `UploadResultVO`（含 relativeUrl；COS 链路恒空，仅本地磁盘降级链路有值）
+    return post<UploadResultVO>('/upload/cloud-image', { fileId })
   })()
   // #endif
 
