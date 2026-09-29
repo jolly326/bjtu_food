@@ -147,11 +147,12 @@ CREATE TABLE IF NOT EXISTS `dish`
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（单位：分，可空）；original_price > price 视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
-    -- 描述属性（动态属性模型）：JSON 对象，键 = 维度 field_key（camelCase：dietType/ingredients/flavorTags/serveTemp），
-    -- 值 = 机器值（single 维度为字符串 / multi 维度为字符串数组）；仅含该菜实际拥有的维度。
-    -- 字典真源 = dish_attribute_dimension + dish_attribute_value（数据驱动，新增维度免 ALTER、免发版）。
+    -- 描述属性（动态属性模型，方案 A：值即中文）：JSON 对象，键 = 维度 field_key（camelCase：dietType/ingredients/flavorTags/serveTemp），
+    -- 值 = **中文文本**（single 维度为字符串 / multi 维度为字符串数组）；仅含该菜实际拥有的维度。
+    -- 维度真源 = dish_attribute_dimension（表驱动，新增维度免 ALTER、免发版）；
+    -- **无取值字典表**——取值就是中文本身，编辑候选由「全库已用值」去重得出（旧 dish_attribute_value 已退役）。
     -- 存量四维列（diet_type/ingredients/flavor_tags/serve_temp）由文件末尾 migrate_dish_attributes_json 幂等段回填后 DROP。
-    `attributes`     JSON         NULL     DEFAULT NULL COMMENT '描述属性（JSON：键=维度 field_key，值=机器值/数组）',
+    `attributes`     JSON         NULL     DEFAULT NULL COMMENT '描述属性（JSON：键=维度 field_key，值=中文文本/数组）',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
     -- 已于 2026-09-16 用户拍板「零消费即删除」退役：CREATE TABLE 不再创建，
@@ -208,8 +209,10 @@ CREATE TABLE IF NOT EXISTS `review`
     -- 存量库由文件末尾 drop_review_updated_at 幂等段清理。
     -- ⚠️ dish.updated_at **保留**（DishMapper 排序 + DishFormDialog 的 Q-112「他人已修改」轻提示依赖）。
     PRIMARY KEY (`id`),
-    KEY `idx_review_dish` (`dish_id`),
-    KEY `idx_review_user` (`user_id`),
+    -- 2026-09-29 性能修正：列表查询为「dish_id/user_id + is_hidden 过滤 + created_at 倒序」，
+    -- 复合索引把过滤列与排序列一次覆盖，消除 filesort；两者前缀已取代原单列 idx_review_dish / idx_review_user。
+    KEY `idx_review_dish_visible` (`dish_id`, `is_hidden`, `created_at`),
+    KEY `idx_review_user_visible` (`user_id`, `is_hidden`, `created_at`),
     UNIQUE KEY `uk_review_user_dish` (`user_id`, `dish_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -236,7 +239,10 @@ CREATE TABLE IF NOT EXISTS `notification`
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_notification_user` (`user_id`)
+    -- 2026-09-29 性能修正：列表按 (user_id, created_at 倒序)、未读数按 (user_id, is_read) 过滤；
+    -- 复合索引前缀已取代原单列 idx_notification_user。
+    KEY `idx_notification_user_created` (`user_id`, `created_at`),
+    KEY `idx_notification_user_read` (`user_id`, `is_read`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='消息通知';
@@ -269,7 +275,9 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `created_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_feedback_user` (`user_id`)
+    KEY `idx_feedback_user` (`user_id`),
+    -- 2026-09-29 性能修正：管理端按 status 筛选 + created_at 倒序列表
+    KEY `idx_feedback_status_created` (`status`, `created_at`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
@@ -286,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `dish_correction`
     `price`         INT          NULL DEFAULT NULL COMMENT '提交的现价（单位：分；未改动为 NULL）',
     `canteen_name`  VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的食堂名称（自由文本，无字典端点；未改动为 NULL）',
     `stall_name`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档；未改动为 NULL）',
-    `attributes`    JSON         NULL DEFAULT NULL COMMENT '提交的描述属性（JSON：键=维度 field_key，值=机器值/数组；仅含改动维度）',
+    `attributes`    JSON         NULL DEFAULT NULL COMMENT '提交的描述属性（JSON：键=维度 field_key，值=中文文本/数组；仅含改动维度）',
     `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤3 张）',
     `status`        VARCHAR(16)  NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/adopted/rejected',
     `reply`         VARCHAR(512) NULL DEFAULT NULL COMMENT '处理回复（采纳时固定「已采纳，菜品信息已更新」）',
@@ -296,7 +304,8 @@ CREATE TABLE IF NOT EXISTS `dish_correction`
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_correction_dish` (`dish_id`),
-    KEY `idx_correction_status` (`status`)
+    -- 2026-09-29 性能修正：管理端按 status 筛选 + created_at 倒序列表；前缀已取代原单列 idx_correction_status
+    KEY `idx_correction_status_created` (`status`, `created_at`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品信息纠错';
@@ -1406,5 +1415,63 @@ END$$
 DELIMITER ;
 CALL `drop_view_log_table`();
 DROP PROCEDURE IF EXISTS `drop_view_log_table`;
+
+-- =============================================================
+-- 索引补齐（2026-09-29 性能修正）：消除列表 / 未读数 / 管理端筛选的 filesort
+--   · review(dish_id, is_hidden, created_at)      ← 公开评价列表
+--   · review(user_id, is_hidden, created_at)      ← 「我的评价」列表
+--   · notification(user_id, created_at)           ← 通知列表（时间倒序）
+--   · notification(user_id, is_read)              ← 未读数统计
+--   · user_feedback(status, created_at)           ← 管理端反馈筛选
+--   · dish_correction(status, created_at)         ← 管理端纠错筛选
+-- 新库由上述 CREATE TABLE 直接建成；存量库由本段补建。
+-- 幂等：先查 INFORMATION_SCHEMA.STATISTICS 再 ADD INDEX，重复执行安全（可重跑）。
+-- 注意：本段**不**DROP 既有单列索引（idx_review_dish / idx_review_user / idx_notification_user /
+--   idx_correction_status），避免对存量库做非必要破坏性变更；新库的 CREATE TABLE 已按
+--   「复合索引取代同前缀单列索引」定义，无冗余。
+-- =============================================================
+DROP PROCEDURE IF EXISTS `ensure_perf_indexes`;
+DELIMITER $$
+CREATE PROCEDURE `ensure_perf_indexes`()
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review'
+                     AND INDEX_NAME = 'idx_review_dish_visible') THEN
+        ALTER TABLE `review` ADD INDEX `idx_review_dish_visible` (`dish_id`, `is_hidden`, `created_at`);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review'
+                     AND INDEX_NAME = 'idx_review_user_visible') THEN
+        ALTER TABLE `review` ADD INDEX `idx_review_user_visible` (`user_id`, `is_hidden`, `created_at`);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification'
+                     AND INDEX_NAME = 'idx_notification_user_created') THEN
+        ALTER TABLE `notification` ADD INDEX `idx_notification_user_created` (`user_id`, `created_at`);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification'
+                     AND INDEX_NAME = 'idx_notification_user_read') THEN
+        ALTER TABLE `notification` ADD INDEX `idx_notification_user_read` (`user_id`, `is_read`);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_feedback'
+                     AND INDEX_NAME = 'idx_feedback_status_created') THEN
+        ALTER TABLE `user_feedback` ADD INDEX `idx_feedback_status_created` (`status`, `created_at`);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.STATISTICS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction'
+                     AND INDEX_NAME = 'idx_correction_status_created') THEN
+        ALTER TABLE `dish_correction` ADD INDEX `idx_correction_status_created` (`status`, `created_at`);
+    END IF;
+END$$
+DELIMITER ;
+CALL `ensure_perf_indexes`();
+DROP PROCEDURE IF EXISTS `ensure_perf_indexes`;
 
 SET FOREIGN_KEY_CHECKS = 1;

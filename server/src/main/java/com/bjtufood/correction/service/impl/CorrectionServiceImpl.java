@@ -51,6 +51,14 @@ import java.util.Map;
 public class CorrectionServiceImpl implements CorrectionService {
 
     private final DishCorrectionMapper correctionMapper;
+    /**
+     * 落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * {@code submit} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）
+     * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * 现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 必须是**独立 Bean**：Spring 事务靠代理生效，同类自调用不会开启事务。
+     */
+    private final CorrectionPersister correctionPersister;
     /** 跨域契约：菜品存在性/在售判定、菜品名投影、采纳写回（P0-1，替代 DishMapper 直连） */
     private final DishService dishService;
     /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
@@ -65,8 +73,13 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     // ==================== 提交（POST /dishes/{id}/correction） ====================
 
+    /**
+     * 提交纠错。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link CorrectionPersister#insert}），使微信机审的外呼期间不占用数据库连接。
+     * <p>
+     * 注：{@code adopt} / {@code reject} 不含外部 HTTP 调用，事务边界保持原样。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
         // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
         // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：correction 不再 import Dish 实体/DishConst/DishMapper）
@@ -144,7 +157,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setAttributes(JsonMapUtil.toJson(attributes));
         correction.setImages(images);
         correction.setStatus(CorrectionConst.STATUS_PENDING);
-        correctionMapper.insert(correction);
+        correctionPersister.insert(correction);
     }
 
     /**

@@ -179,9 +179,9 @@ INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, re
 -- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）。
 DELETE FROM dish_correction;
 INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, attributes, images, status, reply, reject_reason, created_at) VALUES
-(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '{"dietType":"half","ingredients":["egg","rice"],"flavorTags":["sour","sweet"]}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '{"dietType":"halal","ingredients":["beef","noodle"],"flavorTags":["salty"]}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '{"dietType":"meat","ingredients":["chicken","veg"],"flavorTags":["spicy","sour"]}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
+(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '{"dietType":"半荤","ingredients":["蛋","米"],"flavorTags":["酸","甜"],"serveTemp":"热食"}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '{"dietType":"清真","ingredients":["牛","面"],"flavorTags":["咸"],"serveTemp":"热食"}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '{"dietType":"荤","ingredients":["鸡","青菜"],"flavorTags":["辣","酸"],"serveTemp":"热食"}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）

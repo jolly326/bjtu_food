@@ -115,7 +115,7 @@ public class AuthController {
 
     @Operation(
             summary = "获取当前用户资料",
-            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 5 项：id / username / nickname / avatar / bindEmail）。",
+            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/auth/profile")
@@ -126,7 +126,7 @@ public class AuthController {
 
     @Operation(
             summary = "修改当前用户资料",
-            description = "用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/images（返回 URL）后作为 avatar 保存。",
+            description = "用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/cloud-image（返回 URL）后作为 avatar 保存。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {

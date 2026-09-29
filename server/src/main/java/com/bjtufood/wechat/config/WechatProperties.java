@@ -19,7 +19,8 @@ import org.springframework.util.StringUtils;
  * {@code WechatService} 与 {@code WechatAccessTokenProviderImpl} <b>各自 @Value 绑定一次</b>，
  * 「是否已配置」的判据也分裂成两处独立实现。现统一由本类持有，{@link #isConfigured()} 为唯一判据。
  * <p>
- * 注册方式：启动类 {@code @ConfigurationPropertiesScan}（见 {@code BjtuFoodApplication}）。
+ * 注册方式：启动类 {@code @EnableConfigurationProperties} 显式列举（见 {@code BjtuFoodApplication}；
+ * 刻意**不用** {@code @ConfigurationPropertiesScan}，原因见该处注释——切片测试下扫描式注册不生效）。
  */
 @ConfigurationProperties(prefix = "wechat")
 public class WechatProperties {

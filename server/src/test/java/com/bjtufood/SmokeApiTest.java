@@ -34,6 +34,7 @@ import com.bjtufood.feedback.controller.ReportController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.feedback.service.impl.FeedbackPersister;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
@@ -150,6 +151,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserServiceImpl.class,
         // 反馈 / 举报入参校验（type 白名单 / 举报原因白名单）的真实实现
         FeedbackServiceImpl.class,
+        // 反馈落库事务 Bean（2026-09-29：事务边界收窄为本类，主 Service 依赖它，切片需一并登记）
+        FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
         SmokeApiTest.AopTestConfig.class
 })

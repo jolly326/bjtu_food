@@ -68,8 +68,10 @@ class ReviewServiceImplTest {
 
     /** 构造器参数顺序须与 {@code ReviewServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor） */
     private ReviewServiceImpl service() {
-        return new ReviewServiceImpl(reviewMapper, userService, dishService, eventPublisher,
-                imageUrlUtil, localSensitiveFilter, contentSecurityService);
+        // 落库 Bean 用**真实实现**包裹 mock 的 mapper 与事件发布器：事务边界收窄（机审移出事务）后，
+        // 本类断言仍原样落在 reviewMapper.insert / update 与 eventPublisher 上 —— 即「可见行为未变」的直接证据。
+        return new ReviewServiceImpl(reviewMapper, new ReviewPersister(reviewMapper, eventPublisher),
+                userService, dishService, eventPublisher, imageUrlUtil, localSensitiveFilter, contentSecurityService);
     }
 
     private static Review review(Long id, Long userId, Long dishId, int rating) {

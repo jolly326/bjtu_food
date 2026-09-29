@@ -73,8 +73,8 @@ class CorrectionModerationTest {
         notificationService = mock(NotificationService.class);
         imageUrlUtil = mock(ImageUrlUtil.class);
 
-        svc = new CorrectionServiceImpl(correctionMapper, dishService, stallService, userService,
-                localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
+        svc = new CorrectionServiceImpl(correctionMapper, new CorrectionPersister(correctionMapper), dishService,
+                stallService, userService, localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
 
         when(dishService.existsOnSale(1L)).thenReturn(true);
         when(localSensitiveFilter.containsSensitive(anyString())).thenReturn(false);

@@ -41,6 +41,16 @@ import java.util.stream.Collectors;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
+    /**
+     * 落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * {@code submitReview} / {@code updateReview} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的
+     * HTTP 外呼 ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * 现改为「先机审（无事务）→ 再落库（开事务）」。
+     * <p>
+     * 本类同时承载「写库 + 发 {@code ReviewSubmittedEvent}」：监听器为 AFTER_COMMIT 相位，
+     * 事件必须发布在事务内，否则评分永不重算（详见 {@link ReviewPersister} 类注释）。
+     */
+    private final ReviewPersister reviewPersister;
     /** 跨域只读契约：UGC 准入上下文 + 管理端列表作者投影（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     /** 跨域只读契约：管理端列表菜品名（P0-1，替代 DishMapper 直连） */
@@ -86,8 +96,11 @@ public class ReviewServiceImpl implements ReviewService {
         return pageResult;
     }
 
+    /**
+     * 首次发表评价。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link ReviewPersister#insertAndPublish}），使微信机审的外呼期间不占用数据库连接。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Long submitReview(Long userId, Long dishId, ReviewReq req) {
         // 防御性拦截：评论内容为空或超长（@Valid 已做基础校验，此处兜底防止绕过）
         if (req.getContent() != null && req.getContent().length() > 500) {
@@ -116,13 +129,8 @@ public class ReviewServiceImpl implements ReviewService {
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
         review.setImages(UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil));
 
-        try {
-            // uk_review_user_dish 唯一键兜底并发竞态：前置 selectCount 通过但插入瞬间已被他人抢先落库
-            reviewMapper.insert(review);
-        } catch (DuplicateKeyException e) {
-            throw new BusinessException("您已评价过该菜品");
-        }
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, dishId, req.getRating()));
+        // 落库 + 发布重算事件，一并收窄为单一事务（机审已在无事务状态下完成）
+        reviewPersister.insertAndPublish(review, dishId, req.getRating());
         return review.getId();
     }
 
@@ -133,8 +141,11 @@ public class ReviewServiceImpl implements ReviewService {
      * 内容安全检测与首次发表同口径（违规 400 且原内容不变）、发既有 ReviewSubmittedEvent 重算聚合。
      * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
      */
+    /**
+     * 重新评价。<b>本方法刻意不加 {@code @Transactional}</b>：与 {@link #submitReview} 同理，
+     * 归属校验与机审均在无事务状态下完成，仅落库一步开事务。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void updateReview(Long id, Long userId, ReviewReq req) {
         if (req.getContent() != null && req.getContent().length() > 500) {
             throw new BusinessException("评论内容不能超过500字");
@@ -155,15 +166,8 @@ public class ReviewServiceImpl implements ReviewService {
         checkUgcText(reviewUser, filteredContent, 2);
         String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);
 
-        // 覆盖同一行：显式 set（含置 NULL / 重置 0 / 刷新 created_at），不新建行、唯一占位不变
-        reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
-                .eq(Review::getId, id)
-                .set(Review::getRating, req.getRating())
-                .set(Review::getContent, filteredContent)
-                .set(Review::getImages, imagesJson)
-                .set(Review::getIsHidden, 0)
-                .set(Review::getCreatedAt, LocalDateTime.now()));
-        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), req.getRating()));
+        // 覆盖同一行 + 发布重算事件，一并收窄为单一事务（机审已在无事务状态下完成）
+        reviewPersister.updateAndPublish(id, req.getRating(), filteredContent, imagesJson, review.getDishId());
     }
 
     /**

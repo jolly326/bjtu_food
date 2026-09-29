@@ -83,6 +83,7 @@
     -->
     <select id="selectReviewPageByUserId" resultMap="myReviewMap">
         SELECT
+            r.id,
             r.dish_id,
             d.name AS dish_name,
             r.rating,
