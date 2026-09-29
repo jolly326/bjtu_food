@@ -12,19 +12,17 @@ import { getImageUrl } from '@/utils/image'
  */
 export type RawRow = Record<string, any>
 
-/** 后端分页返回形态：可能是平铺数组，或 { records, total } */
-type PageLike<T> = T[] | { records?: T[]; total?: number }
+/** 后端分页返回形态：可能是平铺数组，或 `{ records }` */
+type PageLike<T> = T[] | { records?: T[] }
 
 /**
- * 分页响应统一结构（{ records, total, page, pageSize }）。
- * 注（契约精简，见 docs/project_spec.md §7.33）：服务端只输出 `records`，消费方只读 `records`
- * （过渡期兼容字段 `list` 已不输出）。
+ * 分页响应统一结构 **只有 `records` 一项**（`PageResult<T>{ records }`）。
+ *
+ * 页码 / 每页条数由**请求侧掌握、不回传**；分页列表的结束判据 =
+ * **本页返回条数 < `pageSize`**，故端上不读取任何总数型字段。
  */
 export interface PageResult<T> {
   records?: T[]
-  total?: number
-  page?: number
-  pageSize?: number
 }
 
 /**
@@ -39,13 +37,6 @@ export function recordsOf<T>(value: PageLike<T> | undefined | null): T[] {
   if (!value) return []
   if (Array.isArray(value)) return value
   return value.records || []
-}
-
-/** 从分页响应提取总数（缺省回退列表长度） */
-export function totalOf(value: PageLike<any> | undefined | null): number {
-  if (!value) return 0
-  if (Array.isArray(value)) return value.length
-  return typeof value.total === 'number' ? value.total : recordsOf(value).length
 }
 
 /**

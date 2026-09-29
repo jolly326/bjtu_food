@@ -3,7 +3,7 @@
  *
  * 页面定位（2026-09-27 与菜品纠错解耦后）：**面向小程序本身的通用反馈** ——
  * 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题）+ 具体描述（≤600 字、占位随类型切换）
- * + 截图（选填 ≤1 张）+ 本地草稿；提交 `POST /feedback`（type ∈ bug / suggestion / other）。
+ * + 截图（选填 ≤3 张）+ 本地草稿；提交 `POST /feedback`（type ∈ bug / suggestion / other）。
  *
  * 「菜品信息纠错」**已迁出**为独立页面 `pages/correction/`（仅菜品详情页底栏「反馈错误」进入），
  * 本页因此**只有一套字段**、无表单形态切换。
@@ -15,7 +15,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 
 /** 描述字数上限（用户口径：600 字；服务端上限仍为 1000，端上更严） */
 export const CONTENT_MAX = 600
@@ -36,7 +36,7 @@ export function useFeedback() {
     type: '' as FeedbackType | '',
     /** 具体描述（必填，≤600 字） */
     content: '',
-    /** 截图（选填，≤1 张 COS URL） */
+    /** 截图（选填，≤3 张 COS URL） */
     images: [] as string[],
   })
 

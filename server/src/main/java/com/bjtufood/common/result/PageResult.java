@@ -11,48 +11,41 @@ import java.util.List;
 /**
  * 分页响应封装
  * <p>
- * 列表接口统一使用此类返回分页数据，契约字段（见 docs/project_spec.md §5）：
+ * 列表接口统一使用此类返回分页数据，契约字段（见 docs/feature/README.md「通用结构」）：
  * <pre>
  * {
  *   "code": 200,
  *   "message": "成功",
  *   "data": {
- *     "records": [ ... ],  // 当前页数据（契约字段）
- *     "total":   100       // 总记录数
+ *     "records": [ ... ]   // 当前页数据（分页壳唯一字段）
  *   }
  * }
  * </pre>
  * <p>
- * <b>字段集</b>：分页壳恒为 {@code records} / {@code total} 两项；两端消费方
- * （client {@code recordsOf} / web {@code pageRecords}）均只读 {@code records}，
- * 故不输出任何零消费字段（页码 / 每页条数由请求侧自行掌握，回传即零消费冗余）。
+ * <b>字段集</b>：分页壳<b>恒为 {@code records} 一项</b>；结束判据 = 本页返回条数 &lt; 请求的 {@code pageSize}
+ * ——页码 / 每页条数由请求侧掌握、不回传，总数亦不下发（其唯一用途是算「还有没有下一页」，
+ * 而该语义已由「本页条数 &lt; pageSize」完整表达，下发即零消费冗余）。
  *
  * @param <T> 列表项类型
  */
 @Data
 @NoArgsConstructor
-@JsonPropertyOrder({"records", "total"})
+@JsonPropertyOrder({"records"})
 @Schema(description = "分页响应结果")
 public class PageResult<T> {
 
-    /** 当前页数据列表（契约字段） */
+    /** 当前页数据列表（分页壳唯一字段） */
     @Schema(description = "当前页数据列表")
     private List<T> records;
-
-    /** 总记录数 */
-    @Schema(description = "总记录数", example = "100")
-    private long total;
 
     /**
      * 创建分页结果（推荐入口）。
      *
      * @param records 当前页数据
-     * @param total   总记录数
      */
-    public static <T> PageResult<T> of(List<T> records, long total) {
+    public static <T> PageResult<T> of(List<T> records) {
         PageResult<T> result = new PageResult<>();
         result.setRecords(records);
-        result.setTotal(total);
         return result;
     }
 
@@ -60,6 +53,6 @@ public class PageResult<T> {
      * 分页结果转换（分页端点统一入口）。
      */
     public static <T> PageResult<T> of(IPage<T> page) {
-        return of(page.getRecords(), page.getTotal());
+        return of(page.getRecords());
     }
 }

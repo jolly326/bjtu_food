@@ -1,6 +1,6 @@
 import type { Review, MyReview } from '@/types/review'
 import { get, post, put, del } from './http'
-import { recordsOf, totalOf, type RawRow, type RawPage } from './shared'
+import { recordsOf, type RawRow, type RawPage } from './shared'
 
 /**
  * 公开视角行映射（`GET /dishes/{id}/reviews`，8 字段）。
@@ -24,12 +24,20 @@ function toReview(raw: RawRow): Review {
 }
 
 /**
- * 本人视角行映射（`GET /my/reviews`，10 字段）= 公开 8 + `dishId` / `dishName`。
- * 后端出参类型为 `MyReviewVO`；两字段为**本人视角必然返回**，故端上定型为非可选。
+ * 本人视角行映射（`GET /my/reviews`，**7 字段**）。
+ *
+ * 后端出参类型为 `MyReviewVO`：公开 5 字段（`id` / `rating` / `content` / `images` / `createdAt`）
+ * + `dishId` / `dishName`；**不含 `userId` / `userNickname` / `userAvatar`**（恒等于本人、零信息）。
  */
 function toMyReview(raw: RawRow): MyReview {
   return {
-    ...toReview(raw),
+    id: Number(raw.id),
+    rating: Number(raw.rating || 0),
+    content: raw.content || '',
+    createdAt: raw.createdAt || '',
+    images: Array.isArray(raw.images)
+      ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
+      : [],
     dishId: Number(raw.dishId ?? 0),
     dishName: raw.dishName || '',
   }
@@ -39,12 +47,13 @@ function toMyReview(raw: RawRow): MyReview {
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
  * - 菜品归属由路径表达（不再用查询参数）；
  * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
- * - `hasImage=true` 时仅返回带图评价（后端 `hasImage=1`），`total` 按筛选口径统计。
+ * - `hasImage=true` 时仅返回带图评价（后端 `hasImage=1`）；
+ * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  */
 export async function getDishReviews(
   dishId: number,
   options?: { page?: number; pageSize?: number; hasImage?: boolean },
-): Promise<{ list: Review[]; total: number }> {
+): Promise<{ list: Review[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 20,
@@ -52,23 +61,26 @@ export async function getDishReviews(
   if (options?.hasImage) params.hasImage = 1
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
   const res = await get<RawPage>(`/dishes/${dishId}/reviews`, params)
-  return { list: recordsOf<RawRow>(res).map(toReview), total: totalOf(res) }
+  return { list: recordsOf<RawRow>(res).map(toReview) }
 }
 
-/** 删除本人评价（STU 仅本人；后端 DELETE /reviews/{id}） */
+/**
+ * 删除本人评价（STU 仅本人；后端 DELETE /reviews/{id}）。
+ * 评价不存在（含已被删除）后端返回 **4001**，由请求层抛 `ResourceNotFoundError`
+ * （不弹 toast），消费方据此给「评价已不存在」的收尾处置。
+ */
 export async function deleteReview(reviewId: number): Promise<void> {
   await del<void>(`/reviews/${reviewId}`)
 }
 
 /**
  * 我的评价列表（GET /my/reviews，需邮箱认证）。
- * 行字段 = **本人视角 10 字段**（公开 8 + `dishId` / `dishName`，端上类型 `MyReview`）；
- * 删除仍走 DELETE /reviews/{id}。
+ * 行字段 = **本人视角 7 字段**；删除仍走 DELETE /reviews/{id}。
  * 传 `dishId` 时仅返回该菜本人评价——详情页据此判定「我是否已评价」并取回评价 ID（供预填 / 重评）。
  */
 export async function getMyReviews(
   options?: { page?: number; pageSize?: number; dishId?: number },
-): Promise<{ list: MyReview[]; total: number }> {
+): Promise<{ list: MyReview[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 20,
@@ -76,7 +88,7 @@ export async function getMyReviews(
   if (options?.dishId != null) params.dishId = options.dishId
   // MP-08：同 getDishReviews，响应定型为 RawPage / RawRow
   const res = await get<RawPage>('/my/reviews', params)
-  return { list: recordsOf<RawRow>(res).map(toMyReview), total: totalOf(res) }
+  return { list: recordsOf<RawRow>(res).map(toMyReview) }
 }
 
 /** 评价提交/重评入参（不含 dishId：菜品归属由路径锁定） */

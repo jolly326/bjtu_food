@@ -11,7 +11,7 @@ public class ImageUrlUtil {
 
     private final String publicBaseUrl;
 
-    public ImageUrlUtil(@Value("${app.public-base-url:http://localhost:8080/api}") String publicBaseUrl) {
+    public ImageUrlUtil(@Value("${app.public-base-url:http://localhost:8080/api/v1}") String publicBaseUrl) {
         this.publicBaseUrl = trimEnd(publicBaseUrl, "/");
     }
 

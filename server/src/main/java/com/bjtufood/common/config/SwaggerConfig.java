@@ -48,6 +48,12 @@ public class SwaggerConfig {
                         .description("""
                                 校园食堂菜品展示与互动后端接口。
 
+                                ## 接口版本
+                                本文档对应 **v1** 契约，前缀 `/api/v1`（由 `server.servlet.context-path` 统一挂载，
+                                各端点路径本身不含版本段）。破坏性变更将发布 `/api/v2` 并保留 v1 一段过渡期。
+                                本文档未硬编码 servers 地址——由 SpringDoc 依实际请求 URL 自动推导，
+                                故本地 / 局域网 / 云托管各环境均正确。
+
                                 ## Swagger UI 测试步骤（微信登录体系，spec §5.y）
                                 1. 小程序端微信静默登录：POST /auth/wechat-login 传 `{ "code": "wx.login 临时凭证" }`，自动建号返回游客态。
                                 2. 学号邮箱认证：先 POST /auth/email-code 传 `{ "username": "20240001" }` 获取验证码（发至校园邮箱，

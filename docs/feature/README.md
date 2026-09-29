@@ -1,6 +1,6 @@
-# 功能总览（按板块 + 功能拆分）
+﻿# 功能总览（按板块 + 功能拆分）
 
-> ⚠️ **口径来源变更（2026-09-27）**：原 `docs/project_spec.md`（含 `api-design.md` / `database.md`）已删除，本目录与其 `README` 的「通用结构」段**承接其接口契约与通用约定**；仓库红线 / 产品定型 / 协作纪律见本文末「项目约定与红线」段（原 `CODEBUDDY.md` 已于同日删除，内容承接至该段）。旧文与代码里 `project_spec.md §X` 形式的引用，按删除前版本解读（`git show 58eadad:docs/project_spec.md`）。
+> 本目录的「通用结构」段承载跨功能复用的接口契约与通用约定；仓库红线 / 产品定型 / 协作纪律见本文末「项目约定与红线」段。
 > 本目录是「功能文档」的唯一真源：**每个功能一份独立文档**，文件名以板块前缀开头。
 
 ## 板块与命名规则
@@ -8,12 +8,11 @@
 | 文件名前缀 | 板块 | 代码目录 | 说明 |
 |---|---|---|---|
 | `client-` | **学生端（微信小程序）** | `client/` | 面向学生的 **16 个在线功能**；业务数据的唯一产生源 |
-| `web-` | **管理端（Web 后台）** | `web/` | 面向管理员的 7 个功能；只经 `/admin/**` 读取与管理，不产生业务数据 |
 
-> 阅读约定：每份文档固定为 **介绍 → UI → 接口 → 字段（字段名 + 中文解释）→ 数据** 五段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（文档 / 代码同步口径见 `.codebuddy/rules/docs-first-sync-and-db-direct.md`）。
+> 阅读约定：每份文档固定为 **介绍 → 接口 → 字段（字段名 + 中文解释）→ 数据** 四段；讨论期可临时带「答疑」段，**拍板后结论并入正文、答疑清空**（文档 / 代码同步口径见 `.codebuddy/rules/docs-first-sync-and-db-direct.md`）。
 > **feature 按功能拆分**：每个功能一份独立文档、**独立自洽**，不得写跨板块关联表述（如「本页调用、但不归属本功能的端点」「本页面还涉及 X 功能」「页面路径 / 组件名」）——页面归属信息见 [`docs/ui/`](../ui/)。
 > **正文只保留最终设计形态**：正文不写落地状态（「待实现 / 已落地 / 当前实现为 …」等一律不写）；**与现有代码不一致的条目一律集中在文末「与当前代码的差异」板块**，差异清零时该板块保留标题并写「无（文档与代码一致）」。
-> **两套文档体系解耦（2026-09-27 用户口径）**：本目录（功能 / 接口 / 字段 / 数据）与 [`docs/ui/`](../ui/)（页面视觉 / 交互）**各按自身标准分层** —— 分类标准、命名、粒度均可以不同（如功能侧「写评价 / 删除本人评价 / 举报评价」仍是三份，UI 侧已合并为一份「菜品详情 · 页内承载物」；功能侧「隐私政策与用户协议」一份，UI 侧按两个真实页面分两份）。**不强制 1:1 对应，也不互相内部链接**。本目录五段中 `## UI` 段只说明本功能的**界面形态**（独立页面 / 页内承载物 / 无界面）与视觉口径的归属；**页面视觉口径以 `docs/ui/` 为唯一真源**。
+> **两套文档体系解耦（2026-09-27 用户口径）**：本目录（功能 / 接口 / 字段 / 数据）与 [`docs/ui/`](../ui/)（页面视觉 / 交互）**各按自身标准分层** —— 分类标准、命名、粒度均可以不同（如功能侧「写评价 / 删除本人评价 / 举报评价」仍是三份，UI 侧已合并为一份「菜品详情 · 页内承载物」；功能侧「隐私政策与用户协议」一份，UI 侧按两个真实页面分两份）。**不强制 1:1 对应，也不互相内部链接**。**本目录只承载功能 / 接口 / 字段 / 数据口径；页面形态与视觉口径以 [`docs/ui/`](../ui/) 为唯一真源。**
 > 字段口径：字段名以**接口实况**为准（后端 Java DTO/VO 出参，统一 camelCase）；类型列的 `number / string / boolean / array / object / null` 为 JSON 侧类型。
 
 ## 鉴权标记
@@ -22,7 +21,6 @@
 |---|---|---|
 | 🔓 公开 | 免登录即可调用 | 学生端浏览、搜索、反馈提交等 |
 | 🔐 认证 | 需学号邮箱认证（**已认证判据 = `bindEmail` 非空**），未认证返回 **4031** | 学生端 UGC 写操作（发表 / 修改 / 删除本人评价、查看「我的评价」） |
-| 🔑 口令 | 管理端 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置即 fail-closed 403） | 全部 `/admin/**`（含 `/admin/upload/image`） |
 
 ---
 
@@ -36,33 +34,18 @@
 | A-04 | 菜品详情 | [client-菜品详情.md](./client-菜品详情.md) | 🔓 | ✅ **已完成** |
 | A-05 | 浏览计数 | [client-浏览计数.md](./client-浏览计数.md) | 🔓 **公开**（游客亦计） | ✅ **已完成** |
 | A-06 | 写评价 | [client-写评价.md](./client-写评价.md) | 🔐 | ✅ **已完成** |
-| A-07 | 评价有用（**已全链下线**，历史留痕） | [client-评价有用.md](./client-评价有用.md) | — | — |
-| A-08 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | ✅ **已完成** |
-| A-09 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | ✅ **已完成** |
-| A-10 | 我的评价（承载于「我的主页」评价区） | [client-我的评价.md](./client-我的评价.md) | 🔐 | ✅ **已完成**（2026-09-24） |
-| A-11 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | ✅ **已完成**（2026-09-25） |
-| A-12 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | ✅ **已完成**（2026-09-25） |
-| A-13 | 个人资料（查看于「我的主页」信息卡 / 编辑于个人信息编辑页） | [client-个人资料.md](./client-个人资料.md) | 🔓 | ✅ **已完成**（2026-09-25） |
-| A-14 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | ✅ **已完成**（2026-09-25） |
-| A-15 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 需登录（游客态亦可） | ✅ **已完成**（2026-09-25） |
-| A-16 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | ✅ **已完成**（2026-09-25） |
-| A-17 | **菜品信息纠错**（2026-09-27 自 [A-11](./client-意见反馈.md) 拆出；入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | 🔓 | — |
+| A-07 | 删除本人评价 | [client-删除本人评价.md](./client-删除本人评价.md) | 🔐 | ✅ **已完成** |
+| A-08 | 举报评价 | [client-举报评价.md](./client-举报评价.md) | 🔓 | ✅ **已完成** |
+| A-09 | 我的评价（承载于「我的主页」评价区） | [client-我的评价.md](./client-我的评价.md) | 🔐 | ✅ **已完成**（2026-09-24） |
+| A-10 | 意见反馈 | [client-意见反馈.md](./client-意见反馈.md) | 🔓 | ✅ **已完成**（2026-09-25） |
+| A-11 | 系统通知（处理回执） | [client-系统通知.md](./client-系统通知.md) | 🔐 | ✅ **已完成**（2026-09-25） |
+| A-12 | 个人资料（查看于「我的主页」信息卡 / 编辑于个人信息编辑页） | [client-个人资料.md](./client-个人资料.md) | 🔓 | ✅ **已完成**（2026-09-25） |
+| A-13 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验需登录 | ✅ **已完成**（2026-09-25） |
+| A-14 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 需登录（游客态亦可） | ✅ **已完成**（2026-09-25） |
+| A-15 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | ✅ **已完成**（2026-09-25） |
+| A-16 | **菜品信息纠错**（入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | 🔓 | ✅ **已完成**（2026-09-28） |
 
 > **「状态」列口径**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
-
-## web- · 管理端（Web 后台，7 个）
-
-| 编号 | 功能 | 文档 | 鉴权 |
-|---|---|---|---|
-| B-01 | 菜品管理（核心） | [web-菜品管理.md](./web-菜品管理.md) | 🔑 |
-| B-02 | 菜品详情查看 | [web-菜品详情查看.md](./web-菜品详情查看.md) | 🔑 |
-| B-03 | 评价管理（事后处置） | [web-评价管理.md](./web-评价管理.md) | 🔑 |
-| B-04 | 反馈处理 | [web-反馈处理.md](./web-反馈处理.md) | 🔑 |
-| B-05 | 学生账号管理 | [web-学生账号管理.md](./web-学生账号管理.md) | 🔑 |
-| B-06 | 图片上传（表单内） | [web-图片上传.md](./web-图片上传.md) | 🔑 / 需登录 |
-| B-07 | 信息纠错处理 | [web-信息纠错.md](./web-信息纠错.md) | 🔑 |
-
----
 
 ## 通用结构（跨功能复用，只在此处定义一次）
 
@@ -78,8 +61,7 @@
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `records` | T[] | **当前页数据行**（消费方以此为准） |
-| `total` | number | 符合条件总条数 |
+| `records` | T[] | **当前页数据行**（消费方以此为准）；**分页壳仅此一项**，结束判据 = 本页返回条数 < 请求的 `pageSize`（页码 / 每页条数由请求侧掌握，不回传） |
 
 ### 金额约定
 
@@ -92,20 +74,15 @@
 | 结构名 | 用于哪些接口 | 完整字段表 |
 |---|---|---|
 | `DishListItemVO` | `GET /dishes`（列表 / 搜索共用，**8 字段**） | [client-首页菜品浏览](./client-首页菜品浏览.md) |
-| `DishDetailVO` | `GET /dishes/{id}`（详情，**共 16 字段** = 15 基础 + `ratingDistribution`） | [client-菜品详情](./client-菜品详情.md) |
-| `RatingDistributionVO` | 同上（评分分布项） | [client-菜品详情](./client-菜品详情.md#响应--get-dishesid-data--dishdetailvo) |
+| `DishDetailVO` | `GET /dishes/{id}`（详情，**共 11 字段**） | [client-菜品详情](./client-菜品详情.md) |
 | `GuessLikeVO` | `GET /dishes/for-you`（随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
 | `ReviewVO` | `GET /dishes/{id}/reviews`（**公开视角，8 字段**） | [client-菜品详情](./client-菜品详情.md) |
-| `MyReviewVO` | `GET /my/reviews`（**本人视角，10 字段** = 公开 8 + `dishId` / `dishName`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
+| `MyReviewVO` | `GET /my/reviews`（**本人视角，7 字段** = 公开 5（不含 `userId` / `userNickname` / `userAvatar`）+ `dishId` / `dishName`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |
-| `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET|PUT /auth/profile` | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
+| `UserInfoVO` | `POST /auth/wechat-login`、`POST /auth/verify-email`、`GET` / `PUT /auth/profile`（**5 字段**） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `LoginVO` | 登录响应（`token` + `userInfo`，仅 `POST /auth/wechat-login` 出参） | [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) |
 | `FeedbackReq` | `POST /feedback`（3 类型：`bug` / `suggestion` / `other`） | [client-意见反馈](./client-意见反馈.md) |
-| `CorrectionReq` / `CorrectionAdminVO` | `POST /dishes/{id}/correction`、`/admin/corrections*` | [client-菜品纠错](./client-菜品纠错.md) / [web-信息纠错](./web-信息纠错.md) |
-| `DishAdminVO` / `DishAdminReq` | `/admin/dishes*` | [web-菜品管理](./web-菜品管理.md) |
-| `ReviewAdminVO` | `GET /admin/reviews` | [web-评价管理](./web-评价管理.md) |
-| `FeedbackAdminVO` / `FeedbackHandleReq` | `/admin/feedbacks*` | [web-反馈处理](./web-反馈处理.md) |
-| `UserVO` | `GET /admin/users` | [web-学生账号管理](./web-学生账号管理.md) |
+| `DishCorrectionReq` | `POST /dishes/{id}/correction` | [client-菜品纠错](./client-菜品纠错.md) |
 
 ---
 
@@ -114,20 +91,19 @@
 > 原仓库根文件 `CODEBUDDY.md` 已按用户拍板删除，其**仍生效**的红线 / 边界 / 防回退决策承接至本节。
 > **效力**：任何新功能 / 改动若与本节冲突，**必须先修订本节（重新拍板）再动代码**；**代码不得反向推翻文档**（文档已同步的部分，冲突时改代码不改文档）。
 
-### 三端定位与数据链路
+### 端定位与数据链路
 
 | 端 | 定位 | 约束 |
 |---|---|---|
 | `client/`（小程序） | **用户端**：业务数据**唯一产生源**（浏览 / 评价 / 反馈 / 纠错） | **无菜品写接口**（`POST`/`PUT`/`DELETE /dishes` 已于 2026-09-13 全量下线，防回退） |
-| `server/`（Spring Boot） | **数据服务**：唯一存储与业务规则 | 小程序与 Web **共用同一套契约**（`/` 用户接口、`/admin/**` 管理接口） |
-| `web/`（管理后台） | **辅助管理工具（非用户端）** | 只经 `/admin/**` 读取 / 管理；`X-Admin-Token` 口令鉴权、无独立登录态；无看板 / 无操作日志 |
+| `server/`（Spring Boot） | **数据服务**：唯一存储与业务规则 | 提供统一契约（`/` 用户接口） |
 
-数据流向：小程序产生 → MySQL → Web 经 `/admin/**` 管理 → 小程序即时反映。Web 新增能力必须以小程序已有数据对象为前提。
+数据流向：小程序产生 → MySQL → 小程序即时反映。
 
 ### 后端分层与契约
 
 - 包结构 `com.bjtufood.<模块>`，严格四层 **controller / service(+impl) / mapper / entity / dto**；**禁跨层调用**（Controller 不得直调 Mapper）；ORM = MyBatis-Plus。
-- 统一响应 `{ code, message, data }`；错误码仅 **`200 / 400 / 401 / 403 / 4031 / 500`**（**禁自定义非标码**）；对外 JSON 一律 camelCase；分页 `PageResult<T>{ records, total }`。
+- 统一响应 `{ code, message, data }`；错误码仅 **`200 / 400 / 401 / 403 / 4001 / 4031 / 500`**（**禁自定义非标码**；`4001` = 资源不存在，与 `4031` 同为细分码）；对外 JSON 一律 camelCase；分页 `PageResult<T>{ records }`。
 - **金额一律「分」**，分↔元转换只在 `utils/money`，**禁页面 / 组件裸算**。
 - 用户身份只从 `SecurityUtil.getCurrentUserId()` 取，**禁信任前端传 userId**；UGC `created_by = 当前用户`。
 - 写操作加 `@Transactional`；评分类计数走 `@Async` AFTER_COMMIT，禁主流程内联重算。
@@ -136,19 +112,18 @@
 ### 认证与鉴权
 
 - **无账号密码体系**（小程序侧）：打开即 `POST /auth/wechat-login` 静默建号 → **游客态**（默认已登录，无登录页 / 无登录按钮）。
-- UGC 写操作（写评价 / 删本人评价 / 举报 / 反馈 / 纠错）需 **`@bjtu.edu.cn` 邮箱认证**；未认证返回 **`4031`**（与 `403` 分流）；认证判据 = `bindEmail` 非空；`verified` **不进 JWT**（后端按 userId 实时查）。
+- UGC 写操作中**需认证的仅**：写评价 / 重新评价 / 删除本人评价 / 查看「我的评价」 / 系统通知；**举报 / 反馈 / 纠错为 🔓 公开**（游客可提交）。未认证返回 **`4031`**（与 `403` 分流）；认证判据 = `bindEmail` 非空；`verified` **不进 JWT**（后端按 userId 实时查）。
 - 角色**仅 `STUDENT` / `ADMIN`**（禁 `STALL_OWNER` / `/stall-owner/**`）。
-- 管理端鉴权 = `X-Admin-Token == ADMIN_TOKEN`（未配置即 fail-closed `403`）。
 
 ### 数据库（库结构唯一真源 = `server/src/main/resources/db/`）
 
 - **红线：库结构变更只改初始化 / 种子脚本**（`schema.sql` / `seed_data.sql`）**，绝不能直连数据库 `ALTER`**；脚本须自包含、可重跑。
-- 表清单以 `server/src/main/resources/db/schema.sql` 为唯一真源（历史基线 14 → 12 → … → 10 张，逐次下线见下方「已下线能力」）。
+- 表清单以 `server/src/main/resources/db/schema.sql` 为唯一真源（**不在文档内写死表张数**，避免随演进失准；历史逐次下线见下方「已下线能力」）。
 
 ### UI 实现红线（改 `client/` 必查）
 
 - 事件统一 **`@tap`**（禁 `@click`）。
-- 按压反馈统一 `background: var(--color-bg-soft)` / `opacity` 微降，**小程序侧禁 `transform: scale` 按压**（`web/` 登记豁免）。
+- 按压反馈统一 `background: var(--color-bg-soft)` / `opacity` 微降，**禁 `transform: scale` 按压**。
 - 颜色全走语义 token（`var(--color-*)`），**禁裸 hex**（原生 API 不接受 `var()` 的常量须集中登记）。
 - **图片占位统一 `ImagePlaceholder`**（灰底 `--bg-placeholder` + `image-broken`；头像例外用 `user`）；图标统一 `IconSvg`，禁 emoji / 文本 / `content:'+'` 当图标。
 - 含固定底栏页面的滚动区必须 `padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom))`，禁内容被遮挡。
@@ -166,11 +141,11 @@
 | 操作日志 `operation_log` + 管理端看板 | 2026-09-15 | 管理端不需要操作日志 |
 | 学生端菜品写接口 | 2026-09-13 | 三端点 + DTO + 客户端长按删除链路；菜品由管理员录入 |
 | 菜品独立审核（`audit_status` 列） | 2026-09-15 | 公开查询仅按 `status='on'`；管理员录入即生效 |
-| 评价有用（端上控件与消费链） | 2026-09-27 | 端上零控件；概念见 [`client-评价有用.md`](./client-评价有用.md)（历史留痕） |
+| 评价有用（端上控件与消费链） | 2026-09-27 | 端上零控件，评价不含「有用」语义 |
 | 人工复核（`sec_state` 列 + 队列） | 2026-09-15 | 仅 `risky` 拦截 400，`pass` / `review` 一律放行 |
 | 收藏功能 | — | 无入口 / 字段 / 图标；喜欢语义仅 `ic-heart`（历史文档中「收藏」为措辞残留） |
 
-> **UGC 配图（现行有效）**：评价与反馈支持配图（各 ≤3 张，压缩 ≤1MB / ≤750×1334），全链路走微信内容安检 + COS 转存；曾于 2026-09-12 全量下线、2026-09-13 拍板恢复，**「无图片入口」类旧口径作废**。
+> **UGC 配图（现行有效）**：评价与反馈支持配图（各 ≤3 张，压缩 ≤1MB / ≤750×1334），全链路走微信内容安检 + COS 转存。
 
 ### 产品定型（一页纸，防跑偏）
 
@@ -186,7 +161,7 @@
 2. 加表 / 改字段 → 改 `server/src/main/resources/db/schema.sql`（及 seed），**不直连库**。
 3. 新增接口先对齐本目录对应功能文档的契约与错误码（统一响应 / 分页结构见上「通用结构」）。
 4. `client/` 改动后跑 `npm run type-check`（`vue-tsc --noEmit`）+ UI 红线 grep 自检（裸 `scale` / 裸 hex / `@click`）。
-5. 常用命令：`server/` → `mvn spring-boot:run` / `mvn clean package`（可选 `-DskipTests`）；`client/` → `npm run dev:mp-weixin` / `npm run build:mp-weixin` / `npm run type-check`；`web/` → `npm run dev` / `npm run build` / `npm run lint`。质量以「静态错误清零」为准，编译 / 构建 / 真机由用户执行。
+5. 常用命令：`server/` → `mvn spring-boot:run` / `mvn clean package`（可选 `-DskipTests`）；`client/` → `npm run dev:mp-weixin` / `npm run build:mp-weixin` / `npm run type-check`。质量以「静态错误清零」为准，编译 / 构建 / 真机由用户执行。
 
 ## QA 工作流（提问 → 答复 → 拍板 → 更新）
 
@@ -195,7 +170,7 @@
 1. **提问**：在对应功能文档末尾追加一行 `Q:你的问题`（无需管格式）。
 2. **答复**：我把 `Q:` 归一为 `### Q：` 标题、紧随补 `**A：**` 答复（先核实代码实况 / 平台规则再作答），并同步更新本 README 的「需拍板的待办清单」。
 3. **拍板**：你在后续 `Q:` 中确认结论（如「确定下来了」）。
-4. **更新**：我把拍板结论写回该文档正文五段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，**先修订本目录对应功能文档**再动代码（接口 / 库表口径统一收敛至 `docs/feature/`；仓库红线见本文「项目约定与红线」段）。
+4. **更新**：我把拍板结论写回该文档正文四段，**并清空答疑段**——文档只保留当前有效口径；未落地的进「已拍板待实现清单」；涉及接口 / 库表的，**先修订本目录对应功能文档**再动代码（接口 / 库表口径统一收敛至 `docs/feature/`；仓库红线见本文「项目约定与红线」段）。
 5. 全部功能核验通过 = 产品验收完成。
 
 ---
@@ -211,8 +186,6 @@
 | # | 事项 | 建议 | 影响面 | 详见 |
 |---|---|---|---|---|
 | 2 | 删除系统通知 | **建议保留**（可降级为「我的」页内列表） | 跨三端 + `notification` 表 + 4 个端点 | [client-系统通知](./client-系统通知.md) |
-| 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + spec §5.a 增补 | [client-个人资料](./client-个人资料.md) |
+| 4 | 头像送 `imgSecCheck` | **建议补**（后端 `cloud://` 校验链路内送检，复用 `stable_token`） | 后端一处 + 对应文档增补 | [client-个人资料](./client-个人资料.md) |
 | 5 | 注销入口 UI 重设计 | **同意重设计**，转 UI/UX 设计师出稿（不动接口） | 小程序页面内布局 / 交互 | [client-注销账号](./client-注销账号.md) |
-| 7 | `/admin/dishes` 增加筛选/搜索参数 | **建议做**（keyword + 服务端分页），并默认按更新时间倒序 | 后端既有端点加参数 + Web 对接 | [web-菜品管理](./web-菜品管理.md) |
-| 8 | 学生行为弹窗是否展示浏览记录 | **已闭环**：系统不采集浏览足迹（行为日志无读取方 → 数据最小化停采），弹窗只展示评价 / 反馈 | 无 | [web-学生账号管理](./web-学生账号管理.md) |
-| 11 | 低样本均分失真 | **建议采纳**：`ratingCount < 3` 不展示均分，显示「暂无评分 · N 条评价」（大众点评「达 10 条才计算星级」的思路） | 端上按 `ratingCount` 分支，后端不改 | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |
+| 11 | 低样本均分失真 | **建议采纳**：`ratingCount < 3` 不展示均分，显示「暂无评分 · N 条评价」（大众点评「达 10 条才计算星级」的思路）。**注：`ratingCount` 已从详情出参删除** → 若采纳，改由**后端**在 `ratingCount < 3` 时把 `avgRating` 置 `null` | 后端按条数阈值置 `avgRating = null`，端上不改（仍以判空呈现） | [client-菜品详情](./client-菜品详情.md#与当前代码的差异) |

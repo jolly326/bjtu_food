@@ -32,6 +32,7 @@
           v-for="r in list"
           :key="r.id"
           :review="r"
+          mine
           :dish-name="r.dishName"
           @more="onMore(r)"
         />
@@ -78,8 +79,9 @@ import ImageFallback from '@/components/ImageFallback.vue'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { useUserStore } from '@/stores/user'
 import { getMyReviews, deleteReview } from '@/api/review'
-import type { MyReview } from '@/types/review'
-import { backToHome } from '@/utils/nav'
+import { isResourceNotFound } from '@/api/http'
+import type { Review, MyReview } from '@/types/review'
+import { backToHome } from '@/utils/back'
 import { PATH } from '@/utils/routes'
 import { deriveGuestLabel } from '@/utils/guest'
 import { usePagedList } from '@/composables/usePagedList'
@@ -125,7 +127,9 @@ function onRetryLoad() {
 const moreOpen = ref(false)
 const moreTarget = ref<MyReview | null>(null)
 
-function onMore(r: MyReview) {
+/** 本页列表恒为本人视角行（含 `dishId`）；公共评价卡按两视角并集上抛，此处收窄回本人视角 */
+function onMore(r: Review | MyReview) {
+  if (!('dishId' in r)) return
   moreTarget.value = r
   moreOpen.value = true
 }
@@ -145,7 +149,12 @@ function onSelect(key: string) {
   if (key === 'delete') onDelete(r)
 }
 
-/** 删除本人评价：二次确认 → 删除 → 列表移除（删空后给轻提示） */
+/**
+ * 删除本人评价：二次确认 → 删除 → 列表移除（删空后给轻提示）。
+ *
+ * **4001（评价不存在）**：该评价已在别处删除 ⇒ 重试无意义，
+ * 按「已不存在」收尾（本地移除 + 提示），不落到通用「删除失败」误导用户重试。
+ */
 function onDelete(r: MyReview) {
   uni.showModal({
     title: '删除评价',
@@ -160,6 +169,12 @@ function onDelete(r: MyReview) {
         uni.showToast({ title: '评价已删除', icon: 'none' })
         emptiedByDelete.value = list.value.length === 0
       } catch (e) {
+        if (isResourceNotFound(e)) {
+          list.value = list.value.filter(item => item.id !== r.id)
+          uni.showToast({ title: '评价已不存在', icon: 'none' })
+          emptiedByDelete.value = list.value.length === 0
+          return
+        }
         toastError(e, '删除失败')
       }
     },

@@ -8,7 +8,7 @@
          · 交互文字（本卡仅「展开 / 收起」）只用文字配色，**禁止实色填充按钮**；
          · 卡片内不做分享按钮（复用微信原生右上角分享）；
          · **纠错入口已从本卡移除**（R23 移出本卡 → R25 定为**底栏「反馈错误」**，全页入口唯一）；
-         · **不绘制评分进度条、不展示评价人数**（`ratingCount` 仍参与「有无评分」判定，仅不渲染）。 -->
+         · **不绘制评分进度条、不展示评价人数**（「有无评分」的唯一判据 = `avgRating` 是否为 `null`）。 -->
     <view class="dish-info">
       <!-- ① 名称 + 价格组：价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
       <view class="title-row">
@@ -19,9 +19,9 @@
         </view>
       </view>
 
-      <!-- ② 评分（左）+ 位置（右）同行：有评分 → 黄星 + 均分；零评价 → 隐藏星、浅灰「暂无评分」 -->
+      <!-- ② 评分（左）+ 位置（右）同行：`avgRating` 非空 → 黄星 + 均分；**为 null（零评价）→ 隐藏星、浅灰「暂无评分」** -->
       <view class="meta-row">
-        <view v-if="ratingCount > 0" class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
+        <view v-if="rating != null" class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
           <!-- 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑 -->
           <IconSvg name="star-filled" :size="30" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ ratingText }}</text>
@@ -48,14 +48,14 @@
       <!-- ④ 全卡**唯一**一条浅灰分隔线：只在简介存在时渲染（简介隐藏 → 这条线一并消失） -->
       <view v-if="dish.description" class="divider" />
 
-      <!-- ⑤ 描述四维（荤素 / 主料 / 口味 / 冷热）：**还原 Round 22 之前的样式** ——
-           无底色 / 无边框 / 无入口，四列水平等分居中；上：字段值（主字号），下：固定标签（浅灰小字）；
-           逐维渲染、缺项不占位，多值已用「、」拼接。
+      <!-- ⑤ 描述属性（`dish.attributes`）：**后端已整理（机器值 + 中文）⇒ 端上直渲 `label`** ——
+           无底色 / 无边框 / 无入口，各列水平等分居中；上：中文值（主字号），下：维度名（浅灰小字）；
+           按后端返回顺序逐维渲染、缺项不占位，多值维已用「、」拼接。
            纠错入口（原本卡右上角）已移出 —— 全页唯一落点为**底栏「反馈错误」**（Round 25）。 -->
       <view v-if="dims.length > 0" class="dims">
-        <view class="dim-col" v-for="d in dims" :key="d.label">
+        <view class="dim-col" v-for="d in dims" :key="d.name">
           <text class="dim-val">{{ d.value }}</text>
-          <text class="dim-label">{{ d.label }}</text>
+          <text class="dim-label">{{ d.name }}</text>
         </view>
       </view>
     </view>
@@ -63,13 +63,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { DishDetail } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
-import { useDishAttributeStore } from '@/stores/dish-attribute'
 import { formatPrice } from '@/utils/money'
 import { hasDiscount, formatRating } from '@/utils/dish'
 
@@ -77,10 +76,11 @@ const props = defineProps<{
   dish: DishDetail
   /** 位置文案（页面派生：「食堂 · 楼层 · 档口」，缺项兜底「未知位置」） */
   locationText: string
-  /** 平均评分（实时聚合；零评价时为 0）—— 与 `ratingCount` 同源同刻 */
-  rating: number
-  /** 评价人数：**仅用于判定「有无评分」**，按规格不渲染（Round 22） */
-  ratingCount: number
+  /**
+   * 平均评分（`DishDetailVO.avgRating`，口径 = 仅未隐藏评价）。
+   * **该菜品零评价时为 `null`** —— 端上据此呈现「暂无评分」（不落 0.0 误导）。
+   */
+  rating: number | null
 }>()
 
 /** 均分文案（恒一位小数；走公共口径 `utils/dish.formatRating`） */
@@ -94,27 +94,19 @@ watch(() => props.dish.name, () => { descExpanded.value = false })
 const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.originalPrice))
 
 /**
- * 属性四维（逐维渲染，缺项不占位）：荤素 / 主料 / 口味 / 冷热。
+ * 描述属性列（按后端返回顺序逐维渲染，缺项不占位）。
  *
- * 菜品出参下发**机器值**，中文一律由**四维字典**翻译（§7.40 R4）——
- * 端上零硬编码映射表；字典未就绪 / 未命中时该维**不渲染**（沿用「缺项不占位」口径）。
+ * **R4（后端整理、端上零翻译）**：`DishDetailVO.attributes` 已把机器值与**中文 `label`** 一并下发，
+ * 端上**直接渲染 `label`、不拉字典、不做「机器值 → 中文」映射** —— 中文只在后端一处维护。
+ * `label` 与 `value` 同构：`single` 维为字符串、`multi` 维为字符串数组（多值以「、」拼接）。
  */
-const dishAttr = useDishAttributeStore()
-onMounted(() => {
-  dishAttr.ensureLoaded()
-})
-
 const dims = computed(() => {
-  const d = props.dish
-  const list: { label: string; value: string }[] = []
-  const diet = dishAttr.labelOf('dietType', d.dietType)
-  const ing = dishAttr.labelsOf('ingredients', d.ingredients)
-  const fla = dishAttr.labelsOf('flavorTags', d.flavorTags)
-  const serve = dishAttr.labelOf('serveTemp', d.serveTemp)
-  if (diet) list.push({ label: '荤素', value: diet })
-  if (ing.length) list.push({ label: '主料', value: ing.join('、') })
-  if (fla.length) list.push({ label: '口味', value: fla.join('、') })
-  if (serve) list.push({ label: '冷热', value: serve })
+  const list: { name: string; value: string }[] = []
+  for (const item of props.dish.attributes || []) {
+    const label = Array.isArray(item.label) ? item.label.filter(Boolean).join('、') : String(item.label || '')
+    if (!label) continue
+    list.push({ name: item.name, value: label })
+  }
   return list
 })
 

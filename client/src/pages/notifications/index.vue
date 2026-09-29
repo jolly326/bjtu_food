@@ -72,7 +72,7 @@ import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 import { usePagedList } from '@/composables/usePagedList'
 

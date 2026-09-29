@@ -87,47 +87,102 @@ export async function listMealTypes(): Promise<MealTypeDictItem[]> {
     .sort((a, b) => a.order - b.order)
 }
 
-/** 菜品描述四维字典项（`GET /dishes/attributes` 单行出参，2026-09-23 §7.40 R4）。 */
-export interface DishAttributeDictItem {
-  /** 维度字段名（**恒等于菜品出参字段名**：dietType / ingredients / flavorTags / serveTemp，R13） */
-  field: string
+/** 菜品描述属性维度定义项（`GET /dishes/attributes` 出参，2026-09-28 数据驱动迁移）。 */
+export interface DishAttributeDef {
+  /** 维度定义ID */
+  id: number
+  /** 维度键（**恒等于菜品 attributes 的键**：dietType / ingredients / flavorTags / serveTemp，R13） */
+  fieldKey: string
+  /** 维度中文名（饮食属性 / 口味 / 食材 / 冷热） */
+  name: string
+  /** 取值类型：single=单值 / multi=多值 */
+  valueType: 'single' | 'multi'
+  /** 录入模式：closed=枚举受限 / open=自由文本 */
+  inputMode: 'closed' | 'open'
+  /** 适用品类（* = 全品类；否则品类数组） */
+  appliesTo: string[]
+  /** 维度展示顺序（升序） */
+  order: number
+  /** 是否可筛维度 */
+  filterable: boolean
+  /** 取值列表（仅 closed 维度） */
+  options: DishAttributeOption[]
+}
+
+/** 维度取值项（closed 维度）：id / valueKey（机器值） / label（中文） / order */
+export interface DishAttributeOption {
+  id: number
   /** 机器值（菜品出参里出现的值，**也是表单提交值**） */
-  value: string
+  valueKey: string
   /** 中文标签（端上直接渲染，**端上不得另行维护任何 value → 中文 映射**） */
   label: string
-  /** 组内展示顺序（后端已按升序下发） */
+  /** 组内展示顺序（升序） */
   order: number
 }
 
 /**
- * 菜品描述四维字典（公开端点 `GET /dishes/attributes`，2026-09-23 §7.40 R4）。
+ * 菜品描述属性维度字典（公开端点 `GET /dishes/attributes`，2026-09-23 §7.40 R4，2026-09-28 数据驱动迁移）。
  *
- * - 四维（荤素 / 主料 / 口味 / 冷热）的**取值与中文标签唯一真源在后端**（`DishAttributeConst`）
+ * - 四维（荤素 / 主料 / 口味 / 冷热）的**维度定义与取值/中文标签唯一真源在后端**
+ *   （`dish_attribute_def` + `dish_attribute_option` 表，取代原 `DishAttributeConst` 常量真源）
  *   → Web 端与小程序端**零硬编码映射表**：展示与**表单选项**均直接渲染本响应
  *   （改动前 Web 端在 `constants/index.ts` 硬编码 4 张表、且同时兼作表单选项，与 client 端构成两套前端真源）；
  * - 与 `listMealTypes` 的差异：本字典**下发全部取值、不做在售过滤** ——
  *   四维是「描述属性」，管理端录入表单需要**完整**选项（大类是「筛选维度」，才按在售过滤）；
- * - 出参字段本身即 camelCase，故此处只做形状与空值归一，不做下划线→驼峰映射。
+ * - 出参字段本身即 camelCase，故此处只做形状与空值归一（含 appliesTo 空串→['*']），不做下划线→驼峰映射。
  */
-/** 四维字典的原始行（服务端出参形状，字段可能缺失） */
-interface RawDishAttribute {
-  field?: string
-  value?: string
+interface RawDishAttributeDef {
+  id?: number
+  fieldKey?: string
+  name?: string
+  valueType?: string
+  inputMode?: string
+  appliesTo?: string | string[] | null
+  order?: number
+  filterable?: boolean | number
+  options?: RawDishAttributeOption[]
+}
+interface RawDishAttributeOption {
+  id?: number
+  valueKey?: string
   label?: string
   order?: number
 }
 
-export async function listDishAttributes(): Promise<DishAttributeDictItem[]> {
-  const data = await get<RawDishAttribute[]>('/dishes/attributes')
+function normalizeAppliesTo(v: string | string[] | null | undefined): string[] {
+  if (Array.isArray(v)) return v.length ? v.map(String) : ['*']
+  const s = typeof v === 'string' ? v.trim() : ''
+  if (!s) return ['*']
+  return s.split(',').map(x => x.trim()).filter(Boolean)
+}
+
+export async function listDishAttributes(category?: string): Promise<DishAttributeDef[]> {
+  const data = await get<RawDishAttributeDef[]>('/dishes/attributes', category ? { category } : undefined)
   const rows = Array.isArray(data) ? data : []
   return rows
-    .map(raw => ({
-      field: String(raw?.field ?? ''),
-      value: String(raw?.value ?? ''),
-      label: String(raw?.label ?? ''),
-      order: Number(raw?.order ?? 0),
+    .filter(r => r && r.fieldKey)
+    .map(r => ({
+      id: Number(r.id ?? 0),
+      fieldKey: String(r.fieldKey),
+      name: String(r.name ?? ''),
+      valueType: (r.valueType === 'multi' ? 'multi' : 'single') as 'single' | 'multi',
+      inputMode: (r.inputMode === 'open' ? 'open' : 'closed') as 'closed' | 'open',
+      appliesTo: normalizeAppliesTo(r.appliesTo),
+      order: Number(r.order ?? 0),
+      filterable: r.filterable === true || r.filterable === 1,
+      options: Array.isArray(r.options)
+        ? r.options
+            .filter(o => o && o.valueKey != null)
+            .map(o => ({
+              id: Number(o.id ?? 0),
+              valueKey: String(o.valueKey),
+              label: String(o.label ?? ''),
+              order: Number(o.order ?? 0),
+            }))
+            .sort((a, b) => a.order - b.order)
+        : [],
     }))
-    .filter(item => item.field && item.value)
+    .sort((a, b) => a.order - b.order)
 }
 
 /**

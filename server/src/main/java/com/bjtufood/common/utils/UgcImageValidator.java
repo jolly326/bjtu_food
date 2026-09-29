@@ -44,9 +44,6 @@ public final class UgcImageValidator {
         if (images == null || images.isEmpty()) {
             return null;
         }
-        if (images.size() > MAX_IMAGES) {
-            throw new BusinessException(subject + "配图最多 " + MAX_IMAGES + " 张");
-        }
         List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
         if (normalized.isEmpty()) {
             return null;

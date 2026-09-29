@@ -1,10 +1,10 @@
 package com.bjtufood.correction.controller;
 
-import com.bjtufood.common.config.IpRateLimiter;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
-import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.service.CorrectionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,16 +35,17 @@ public class CorrectionController {
 
     /**
      * 提交菜品信息纠错（PUB：游客与登录用户均可，匿名允许——对齐 feedback 提交口径）。
-     * 七字段快照落库 status=pending；采纳与拒绝走管理端 /admin/corrections。
+     * 局部提交（patch）：只落库用户改动的字段，未改动列留 NULL；采纳与拒绝走管理端 /admin/corrections。
      */
     @Operation(summary = "提交菜品信息纠错", description = "PUB。游客与登录用户均可提交（dishId 在路径上）；"
-            + "菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。"
+            + "局部提交——只传改动项（name / price(分) / canteenName / stallName / attributes / images，均为选填）；"
+            + "空请求体返回 400「未提交任何改动」。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。"
             + "同 IP 每分钟 ≤2 条、每小时 ≤10 条。")
     @PostMapping("/dishes/{id}/correction")
     public Result<Void> submitCorrection(
             @Parameter(description = "目标菜品ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "七字段纠错快照 {name,price(分),canteenName,stallName,flavorTags[],ingredients[],images[]}；校验失败返回 400")
+            @Parameter(description = "改动项 {name,price(分),canteenName,stallName,attributes,images}；均为选填，传入即校验")
             @Valid @RequestBody DishCorrectionReq req) {
         checkIpRateLimit();
         Long userId = SecurityUtil.getCurrentUserIdOrNull();

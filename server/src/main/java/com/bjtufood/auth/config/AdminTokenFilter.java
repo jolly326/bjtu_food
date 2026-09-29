@@ -13,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -44,32 +43,66 @@ public class AdminTokenFilter extends OncePerRequestFilter {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Value("${admin.token:}")
-    private String adminToken;
+    /**
+     * 管理端口令配置（类型化绑定，2026-09-28 架构收口 P2；替代原先的 {@code @Value}）。
+     * <p>
+     * 「未配置即 fail-closed」的判据现由 {@link AdminProperties#isConfigured()} 承载，
+     * 与「是否配置」成为同一份事实，不再是过滤器方法内联的判空逻辑。
+     */
+    private final AdminProperties adminProperties;
+
+    public AdminTokenFilter(AdminProperties adminProperties) {
+        this.adminProperties = adminProperties;
+    }
+
+    /**
+     * 管理端路径前缀（应用内路径口径，<b>不含 context-path</b>）。
+     * <p>
+     * <b>为何手写而不用 {@code AntPathRequestMatcher} / {@code getServletPath()}</b>（均为实测踩坑）：
+     * <ol>
+     *   <li>{@code request.getServletPath()}：MockMvc 的 {@code MockHttpServletRequest} <b>不填 servletPath</b>
+     *       （为 {@code null}），据此判断会让切片测试整体跳过过滤器——本次改造实测 3 个 admin 用例失守；</li>
+     *   <li>{@code new AntPathRequestMatcher("/admin/**)}：Spring Security 6.2.0 的单参构造未注入
+     *       {@code UrlPathHelper}，内部回退到 {@code getServletPath()}，同样在 MockMvc 下失效
+     *       （实测 DIAG 显示 {@code getPathWithinApplication} 已正确得到 {@code /admin/feedbacks}，
+     *       但 {@code matches()} 仍返回 false）；</li>
+     *   <li>{@code getRequestURI().contains("/admin/")}（原实现）：<b>安全缺陷</b>——它匹配的是含
+     *       context-path 的全量 URI，且用 {@code contains} 子串判断；context-path 升版为 {@code /api/v1}
+     *       或路径形态变化即可能漏检，导致 {@code /admin/**} 绕过口令校验。</li>
+     * </ol>
+     * 现采用显式「URI 减 contextPath」——语义与 {@code SecurityConfig} 的白名单口径一致，
+     * 且在真实容器与 MockMvc 下<b>行为完全相同</b>；该等价性由
+     * {@code AdminTokenFilterTest} 在多种 context-path 下锁定。
+     */
+    private static final String ADMIN_PATH_PREFIX = "/admin/";
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // context-path 可能为 /api，统一用包含判断，避免前后缀差异导致漏检/误检
+        // 取「应用内路径」：getRequestURI() 含 context-path，减去 request.getContextPath() 即为应用内路径。
         String uri = request.getRequestURI();
         if (uri == null) {
             return true;
         }
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
         // /admin/** 全量受口令保护（含管理端图片上传 /admin/upload/image）；
         // 学生端上传 /upload/cloud-image 走 JWT，不在本过滤器范围内。
-        return !uri.contains("/admin/");
+        return !uri.startsWith(ADMIN_PATH_PREFIX);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!StringUtils.hasText(adminToken)) {
+        if (!adminProperties.isConfigured()) {
             // fail-closed：未配置口令即拒绝，防止公网环境下的管理端裸奔
             writeJson(response, HttpStatus.FORBIDDEN.value(),
                     Result.forbidden("管理端未配置 ADMIN_TOKEN，已拒绝访问（fail-closed）"));
             return;
         }
         String provided = request.getHeader(ADMIN_TOKEN_HEADER);
-        if (!constantTimeEquals(adminToken, provided)) {
+        if (!constantTimeEquals(adminProperties.getToken(), provided)) {
             writeJson(response, HttpStatus.FORBIDDEN.value(), Result.forbidden("管理端口令无效"));
             return;
         }

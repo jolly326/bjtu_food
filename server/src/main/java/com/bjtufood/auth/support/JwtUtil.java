@@ -1,0 +1,195 @@
+package com.bjtufood.auth.support;
+
+import com.bjtufood.auth.config.JwtProperties;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * JWT 工具类
+ * <p>
+ * 负责 JWT Token 的生成、校验和解析。
+ * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除，2026-09-15）。
+ * <p>
+ * 流程说明：
+ * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
+ * 2. 前端每次请求在 Header 中携带 Authorization: Bearer <token>
+ * 3. JwtAuthFilter 调用 validateToken() 校验 → 通过则放行
+ */
+@Component
+@Slf4j
+public class JwtUtil {
+
+    /** JWT 配置（类型化绑定，2026-09-28 架构收口 P2；替代原先两个散落的 {@code @Value}） */
+    private final JwtProperties jwtProperties;
+
+    /**
+     * 缓存的 HMAC 签名密钥。
+     * <p>
+     * 原实现每次 {@code validateToken}/{@code getUserIdFromToken}/{@code getUsernameFromToken}
+     * 都各自 {@code Keys.hmacShaKeyFor} 重建 Key 并完整验签一次（每请求 3 次 HMAC 验签）。
+     * 改为启动时构建一次并复用，避免每请求重复重建与多次验签的固定开销。
+     */
+    private volatile SecretKey cachedKey;
+
+    /** 开发期默认弱密钥（仅用于本地调试，生产必须覆盖） */
+    private static final String DEV_DEFAULT_SECRET = "BjtuFoodDevSecretKey2024ChangeMe";
+
+    public JwtUtil(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
+
+    /**
+     * 启动期 fail-fast（BE-11）：密钥缺失/过短/仍是仓库内置默认弱密钥时阻断启动，
+     * 防止误用默认密钥导致任意 userId 的 Token 可被伪造。
+     * <p>
+     * 口径（2026-09-15 裁决 B，全 profile 一致）：
+     * <ul>
+     *   <li>缺失或长度 &lt; 32 字节：HMAC-SHA 算法的硬要求（{@code Keys.hmacShaKeyFor} 会直接抛
+     *       WeakKeyException），<b>所有 profile 一律拒绝启动</b>；</li>
+     *   <li>等于仓库内置默认密钥：<b>所有 profile 一律拒绝启动</b>（与 README「禁止默认值」口径字面一致），
+     *       dev 不再放行——本地开发必须通过环境变量 JWT_SECRET 注入自己的密钥。</li>
+     * </ul>
+     * 配置层另有一道闸门：application-prod.yml 将 {@code jwt.secret} 覆盖为无默认值的
+     * {@code ${JWT_SECRET}}，prod 漏注入时占位符解析失败、启动直接终止。
+     */
+    @PostConstruct
+    public void validateSecretOnStartup() {
+        String secret = jwtProperties.getSecret();
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT 签名密钥强度不足：请通过环境变量 JWT_SECRET 注入 >=32 字节的强随机密钥，" +
+                            "禁止使用默认/弱密钥启动。"
+            );
+        }
+        if (DEV_DEFAULT_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                    "检测到仓库内置默认 JWT 密钥：所有环境（含 dev）均禁止使用默认密钥启动，" +
+                            "请通过环境变量 JWT_SECRET 注入 >=32 字节的强随机密钥。"
+            );
+        }
+        // 启动时预构建并缓存签名密钥，供后续所有签发/验签复用
+        this.cachedKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 获取缓存的签名密钥（懒加载兜底，正常由 {@link #validateSecretOnStartup} 预热）。
+     */
+    private SecretKey getKey() {
+        SecretKey key = cachedKey;
+        if (key == null) {
+            synchronized (this) {
+                key = cachedKey;
+                if (key == null) {
+                    key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+                    cachedKey = key;
+                }
+            }
+        }
+        return key;
+    }
+
+    /**
+     * 创建 JWT Token
+     *
+     * @param userId   用户 ID
+     * @param username 用户名
+     * @return 签发的 JWT 字符串（如：eyJhbGciOiJIUzI1NiJ9.xxx）
+     */
+    public String createToken(Long userId, String username) {
+        return createToken(userId, username, jwtProperties.getExpiration());
+    }
+
+    /**
+     * 创建 JWT Token（指定过期时长，毫秒）
+     * <p>
+     * 用于签发与全局策略不同的短期 Token（如管理后台 12 小时），
+     * 由业务侧自行持有过期策略，避免全局统一时长一刀切。
+     *
+     * @param userId          用户 ID
+     * @param username        用户名
+     * @param expirationMillis 过期时长（毫秒）
+     * @return 签发的 JWT 字符串
+     */
+    public String createToken(Long userId, String username, long expirationMillis) {
+        // 设置载荷（Payload）。注：role claim 已随 user.role 列退役移除——
+        // 学生态 authorities 由 JwtAuthFilter 固定授予（学生接口鉴权依赖 @RequireVerified + userId，不依赖角色）
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("username", username);
+
+        // 生成签名密钥（复用缓存 Key）
+        SecretKey key = getKey();
+
+        return Jwts.builder()
+                .claims(claims)                          // 设置自定义载荷
+                .issuedAt(new Date())                    // 签发时间
+                .expiration(new Date(System.currentTimeMillis() + expirationMillis))  // 过期时间
+                .signWith(key)                           // 签名
+                .compact();
+    }
+
+    /**
+     * 验证并解析 Token
+     *
+     * @param token JWT 字符串
+     * @return 解析后的 Claims（包含 userId、username），
+     *         如果 token 无效/过期返回 null
+     */
+    public Claims parseToken(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(getKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception e) {
+            // Token 过期、签名错误、格式错误均返回 null
+            return null;
+        }
+    }
+
+    /**
+     * 一次性校验并解析 Token，返回 Claims。
+     * <p>
+     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次（原实现在 filter 内分别调用
+     * {@link #validateToken}、{@link #getUserIdFromToken} 等多个方法，
+     * 触发 3 次独立验签）。调用方应先判非空，再读取 userId/username，避免重复解析。
+     *
+     * @param token JWT 字符串
+     * @return 有效则返回 Claims，否则返回 null
+     */
+    public Claims parseAndValidate(String token) {
+        return parseToken(token);
+    }
+
+    /**
+     * 判断 Token 是否有效
+     *
+     * @param token JWT 字符串
+     * @return true=有效, false=无效或已过期
+     */
+    public boolean validateToken(String token) {
+        return parseToken(token) != null;
+    }
+
+    /**
+     * 从 Token 中获取用户 ID
+     *
+     * @param token JWT 字符串
+     * @return 用户 ID，无效 token 返回 null
+     */
+    public Long getUserIdFromToken(String token) {
+        Claims claims = parseToken(token);
+        return claims != null ? claims.get("userId", Long.class) : null;
+    }
+}

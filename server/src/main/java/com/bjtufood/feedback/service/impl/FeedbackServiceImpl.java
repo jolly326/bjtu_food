@@ -1,37 +1,35 @@
 package com.bjtufood.feedback.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bjtufood.auth.entity.User;
-import com.bjtufood.auth.mapper.UserMapper;
-import com.bjtufood.common.constant.FeedbackConst;
+import com.bjtufood.auth.dto.UserAuthContextVO;
+import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.AuthStateUtil;
+import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
-import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
-import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
-import com.bjtufood.notify.constant.NotificationConst;
-import com.bjtufood.notify.entity.Notification;
-import com.bjtufood.notify.service.NotificationService;
+import com.bjtufood.notification.constant.NotificationConst;
+import com.bjtufood.notification.dto.NotificationCmd;
+import com.bjtufood.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,10 +41,11 @@ import java.util.Map;
 public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
-    private final UserMapper userMapper;
-    /** 管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
-    private final DishMapper dishMapper;
-    private final SensitiveFilter sensitiveFilter;
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递的认证判据（P0-1，替代 UserMapper 直连） */
+    private final UserService userService;
+    /** 跨域只读契约：管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
+    private final DishService dishService;
+    private final LocalSensitiveFilter localSensitiveFilter;
     private final NotificationService notificationService;
     private final ContentSecurityService contentSecurityService;
     private final ImageUrlUtil imageUrlUtil;
@@ -91,12 +90,12 @@ public class FeedbackServiceImpl implements FeedbackService {
         // 其余类型仍必填（提示文案维持原口径）。
         String content;
         if (FeedbackConst.TYPE_REPORT.equals(type)) {
-            content = StringUtils.hasText(req.getContent()) ? sensitiveFilter.filter(req.getContent()) : "";
+            content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
         } else {
             if (!StringUtils.hasText(req.getContent())) {
                 throw new BusinessException(400, "反馈内容不能为空");
             }
-            content = sensitiveFilter.filter(req.getContent());
+            content = localSensitiveFilter.filter(req.getContent());
         }
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
@@ -133,7 +132,9 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (!StringUtils.hasText(content)) {
             return;
         }
-        User user = userId == null ? null : userMapper.selectById(userId);
+        // 只取 openid 判定要素（P0-1：feedback 不再 import auth 实体/Mapper；
+        // 用户不存在 ⇔ getAuthContext 返回 null ⇔ openid 为空，与原实现同效）
+        UserAuthContextVO user = userService.getAuthContext(userId);
         String openid = user == null ? null : user.getOpenid();
         contentSecurityService.checkText(openid, content, 2);
     }
@@ -169,11 +170,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .filter(id -> id != null)
                 .distinct()
                 .toList();
-        Map<Long, String> userMap = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
-                    .forEach(u -> userMap.put(u.getId(), u.getNickname()));
-        }
+        // 昵称投影经 auth 域只读契约下发（P0-1：不再注入 UserMapper；空集合返回空 Map，不发起查询）
+        Map<Long, String> userMap = userService.mapNicknameByIds(userIds);
 
         // 关联菜品名（DEV-04）：一次 IN 查询取回本页全部 dish 关联 id → name（消除 N+1）。
         // 口径：不过滤 status/上架态——信息纠错的对象可能已被下架，管理端仍需看到菜品名回看纠错内容；
@@ -199,13 +197,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (dishIds.isEmpty()) {
             return Map.of();
         }
-        Map<Long, String> map = new HashMap<>(dishIds.size());
-        // 只取 id/name 两列，避免拉取整行（含 images 等大字段）
-        dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .select(Dish::getId, Dish::getName)
-                        .in(Dish::getId, dishIds))
-                .forEach(d -> map.put(d.getId(), d.getName()));
-        return map;
+        // 菜品名经 dish 域只读契约下发（P0-1：不再注入 DishMapper；口径=不过滤上架态，见接口注释）
+        return dishService.mapNameByIds(dishIds);
     }
 
     /** 管理端 VO 转换：补齐昵称、配图（JSON→数组）、关联菜品名（DEV-04）；内容安全态已随 sec_state 退役 */
@@ -309,25 +302,38 @@ public class FeedbackServiceImpl implements FeedbackService {
             return;
         }
         try {
-            User user = userMapper.selectById(userId);
-            // 仅对已认证用户投递回执（判据 = bind_email 非空，唯一真源 AuthStateUtil）
-            if (user == null || !AuthStateUtil.isVerified(user.getBindEmail())) {
+            // 仅对已认证用户投递回执（判据 = bind_email 非空，唯一真源在 auth，
+            // 经只读契约折算为布尔下发；用户不存在亦为 false，与原实现同效）
+            if (!userService.isVerifiedById(userId)) {
                 return;
             }
-            Notification n = new Notification();
-            n.setUserId(userId);
-            n.setType(NotificationConst.TYPE_FEEDBACK_HANDLE);
-            n.setRelatedId(feedback.getId());
-            n.setIsRead(0);
-            n.setTitle(rejected ? "反馈未采纳" : "反馈已处理");
+            // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
             // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文；
             // §7.23 第 5 条：不采纳结论时回执必须带不采纳原因（handle 已保证非空白）。
-            n.setContent(rejected
-                    ? "你提交的反馈未采纳：" + rejectReason + "。处理说明：" + reply
-                    : "你提交的反馈已处理：" + reply);
-            notificationService.notify(n);
+            notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_FEEDBACK_HANDLE,
+                    feedback.getId(), rejected ? "反馈未采纳" : "反馈已处理",
+                    rejected
+                            ? "你提交的反馈未采纳：" + rejectReason + "。处理说明：" + reply
+                            : "你提交的反馈已处理：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理
         }
+    }
+
+    // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================
+
+    /**
+     * 账号归属迁移（原实现为 {@code AuthServiceImpl.migrateOwnership} 内的
+     * {@code feedbackMapper.update(...)}，仅改 {@code user_feedback.user_id}，SQL 与语义逐字保留）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int migrateOwnership(Long fromUserId, Long toUserId) {
+        if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
+            return 0;
+        }
+        return feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
+                .eq(Feedback::getUserId, fromUserId)
+                .set(Feedback::getUserId, toUserId));
     }
 }

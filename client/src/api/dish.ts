@@ -1,35 +1,16 @@
 import type {
   DishListItem, DishDetail, DishQuery,
-  GuessLike, MealType,
+  DishAttributeItem, GuessLike, MealType,
 } from '@/types/dish'
 import { get } from './http'
 import { fenToYuan } from '@/utils/money'
-import { recordsOf, totalOf, normalizeImages, type RawRow, type RawPage } from './shared'
-
-/**
- * 多值维**机器值**归一：数组 / 逗号分隔串 → `string[]`。
- *
- * 为何需要归一：R4 把 `dish.ingredients` / `dish.flavor_tags` 列改为 JSON 数组存储（后端出参随之
- * 由「逗号分隔串」变为 JSON 数组），而端上改造（本节）与库表改造分属两批 —— 本函数**同时兼容两种形态**，
- * 使端上无需随库表批次再改一次。
- *
- * 注意：本层**不做「机器值 → 中文」映射** —— 中文一律由四维字典端点提供
- * （`stores/dish-attribute` 的 `labelsOf`），端上零硬编码映射表（§7.40 R4）。
- */
-function toMachineList(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw.map((v) => String(v).trim()).filter(Boolean)
-  if (raw == null) return []
-  return String(raw)
-    .split(/[,，]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
+import { recordsOf, normalizeImages, type RawRow, type RawPage } from './shared'
 
 /**
  * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
  * <p>
- * 列表**只有 `coverImage` 单值**（不再有 `images` 数组，
- * 也不再派生 `image`）；`description` / `floor` / `ratingCount` / 四维等详情专属字段**不再映射**。
+ * 列表**只有 `coverImage` 单值**（无 `images` 数组、也不派生 `image`）；
+ * `description` / `floor` / `attributes` 等详情专属字段**不再映射**。
  */
 function toDishListItem(raw: RawRow): DishListItem {
   return {
@@ -38,48 +19,52 @@ function toDishListItem(raw: RawRow): DishListItem {
     // 价格唯一数据源：展示值恒取 price（现价，已含折扣）；分 → 元
     price: fenToYuan(raw.price),
     // 原价（分→元）：空值不产出字段；是否折扣由展示层按 originalPrice > price 判定
-    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
+    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : null,
     coverImage: raw.coverImage || '',
-    rating: raw.avgRating ?? raw.rating ?? 0,
+    // 零评价 → null（消费方据此不渲染评分区）
+    rating: raw.avgRating != null && raw.avgRating !== '' ? Number(raw.avgRating) : null,
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
   }
 }
 
-/** 详情归一化（后端 `DishDetailVO` 15 字段 + 评分分布 → 端上 `DishDetail`） */
+/** 详情描述属性项归一化：机器值与中文**原样透出**（后端已整理，端上零翻译） */
+function toDishAttributeItem(raw: RawRow): DishAttributeItem {
+  return {
+    fieldKey: String(raw.fieldKey || ''),
+    name: String(raw.name || ''),
+    value: raw.value ?? '',
+    label: raw.label ?? '',
+  }
+}
+
+/** 详情归一化（后端 `DishDetailVO` 11 字段 → 端上 `DishDetail`） */
 function toDishDetail(raw: RawRow): DishDetail {
-  const images = normalizeImages(raw.images ?? raw.image)
   return {
     id: Number(raw.id),
     name: raw.name || '',
     price: fenToYuan(raw.price),
-    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : undefined,
+    originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : null,
     description: raw.description || '',
-    images,
-    image: images[0] || '',
-    rating: raw.avgRating ?? raw.rating ?? 0,
-    ratingCount: raw.ratingCount ?? raw.rating_count ?? 0,
+    images: normalizeImages(raw.images),
+    // 零评价 → null（消费方据此呈现「暂无评分」）
+    rating: raw.avgRating != null && raw.avgRating !== '' ? Number(raw.avgRating) : null,
     canteen: raw.canteenName || raw.canteen || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',
-    // ===== 描述四维：**下发机器值**（中文由四维字典端点提供，端上零硬编码映射表，§7.40 R4） =====
-    dietType: String(raw.dietType || ''),
-    ingredients: toMachineList(raw.ingredients),
-    flavorTags: toMachineList(raw.flavorTags),
-    serveTemp: String(raw.serveTemp || ''),
-    ratingDistribution: raw.ratingDistribution || [],
+    // ===== 描述属性：后端已整理（机器值 + 中文）⇒ 端上直渲 `label`，零映射表（R4） =====
+    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttributeItem) : [],
   }
 }
 
 /**
  * 通用菜品检索（首页网格无限加载 + 搜索结果）。
  * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize` / `seed`**（
- * 食堂 / 价格 / 排序筛选不提供，端上不传 `canteenId` / `minPrice` / `maxPrice` / `sortBy`；
- * 排序由服务端唯一决定：`seed` 非空且无 keyword/mealType 时按会话种子伪随机序，
- * 其余热度倒序）。返回分页结果供瀑布流去重与「本页条数 < pageSize」判到底。
+ * 复用 `GET /dishes`，**仅支持 `keyword` / `mealType` / `page` / `pageSize` / `seed`**
+ * （食堂 / 价格 / 排序筛选不提供；排序由服务端唯一决定）。
+ * 分页壳只有 `records`：调用方以「本页返回条数 < `pageSize`」判到底。
  */
-export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[]; total: number }> {
+export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
   const params: Record<string, unknown> = {
     page: query.page ?? 1,
     pageSize: query.pageSize ?? 20,
@@ -90,8 +75,7 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: DishLi
 
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
   const res = await get<RawPage>('/dishes', params)
-  const list = recordsOf<RawRow>(res).map(toDishListItem)
-  return { list, total: totalOf(res) }
+  return { list: recordsOf<RawRow>(res).map(toDishListItem) }
 }
 
 /** 兼容旧调用：返回平铺 `DishListItem[]`（find 搜索流消费） */
@@ -107,14 +91,14 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
 
 /**
  * 猜你喜欢（`GET /dishes/for-you`）。
- * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）。
+ * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）；出参只有 `name`。
  */
 export async function getGuessLike(): Promise<GuessLike[]> {
   // 裸数组响应，定型为 RawRow[]
   const raw = await get<RawRow[]>('/dishes/for-you')
-  // 唯一消费方（find 页「猜你喜欢」chip）只读 keyword
+  // 唯一消费方（find 页「猜你喜欢」chip）只读 name
   return (raw || []).map((item: RawRow) => ({
-    keyword: item.keyword || '',
+    name: String(item.name || ''),
   }))
 }
 
@@ -125,5 +109,38 @@ export async function getMealTypes(): Promise<MealType[]> {
   return (raw || []).map((item: RawRow) => ({
     value: item.value != null && String(item.value).trim() !== '' ? String(item.value) : null,
     label: String(item.label || ''),
+  }))
+}
+
+/**
+ * 编辑态属性维度项（`GET /dishes/{id}/attributes` 出参）。
+ *
+ * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的可选项
+ * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
+ */
+export interface DishEditAttribute {
+  /** 维度键（camelCase），与详情 `attributes[].fieldKey` 对齐 */
+  fieldKey: string
+  /** 取值类型：`single`（单值）｜ `multi`（多值，值取数组） */
+  valueType: 'single' | 'multi'
+  /** 该维度全部候选值（后端按序下发，端上按序渲染）；**空数组 = 自由文本维度** */
+  options: { valueKey: string; label: string }[]
+}
+
+/**
+ * 编辑态属性选项（`GET /dishes/{id}/attributes`）。
+ * 失败由调用方静默处理（展示原始机器值），不阻塞编辑。
+ */
+export async function getDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
+  const raw = await get<RawRow[]>(`/dishes/${dishId}/attributes`)
+  return (raw || []).map((item: RawRow) => ({
+    fieldKey: String(item.fieldKey || ''),
+    valueType: item.valueType === 'multi' ? 'multi' : 'single',
+    options: Array.isArray(item.options)
+      ? (item.options as RawRow[]).map((o) => ({
+          valueKey: String(o.valueKey || ''),
+          label: String(o.label || o.valueKey || ''),
+        }))
+      : [],
   }))
 }

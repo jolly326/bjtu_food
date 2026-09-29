@@ -1,4 +1,4 @@
-﻿# 邮箱认证（A-14）
+﻿# 邮箱认证（A-13）
 
 > 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔓 发码公开 / 核验需登录**
 > 返回：[功能总览](./README.md)
@@ -6,10 +6,6 @@
 ## 介绍
 
 用**学号邮箱**（`{学号}@bjtu.edu.cn`）做身份认证，认证通过后解锁 UGC 写操作（写评价、重新评价、删除本人评价）。仅限校内邮箱域名，**无密码、无注册**。流程：跳转**身份认证页** `pages/auth/index`（学号 + 邮箱验证码表单）→ 填**学号**（端上自动推导校园邮箱）→ 发码 → 输入验证码核验 → 成功后返回账号信息（`bindEmail` 已写入）；JWT 不含 `bind_email`、后端实时查库判定，**无需重发 token**，返回原页、由原页 onShow 续接待办动作，UGC 入口解锁。
-
-## UI
-
-> 🖥 **UI 表现**：见 [`docs/ui/`](../ui/)（页面视觉 / 交互口径统一维护在该目录；**两套文档体系解耦**，命名与粒度不强制对应）。
 
 ## 接口
 
@@ -48,16 +44,14 @@
 
 ### 响应 · `POST /auth/verify-email`（`data` = `UserInfoVO`）
 
-| 字段名 | 类型 | 中文解释 |
-|---|---|---|
-| `userInfo` | object | 账号信息对象（`UserInfoVO`，字段见下方「`userInfo` 字段」表） |
+`data` 直接为 `UserInfoVO`（**无 `userInfo` 外层包装**）；字段集与 `POST /auth/wechat-login` 的 `LoginVO.userInfo` 一致。
 
-**`userInfo` 字段（`UserInfoVO`，6 个，含 `createdAt` 注册时间）**：
+**`UserInfoVO` 字段（5 个）**：
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `id` | number | 用户 ID（数据库自增主键） |
-| `username` | string | 学号 / 账号（微信游客为 `wx_` + openid 后 16 位） |
+| `username` | string | 学号 / 账号（微信游客为 `wx_` + openid 后 16 位）；**仅作账号标识，端上不展示** |
 | `nickname` | string | 昵称 |
 | `avatar` | string \| null | 头像地址（已转成可访问的绝对 URL） |
 | `bindEmail` | string \| null | 已认证绑定的校园邮箱：**本接口返回已写入的绑定邮箱**（校园邮箱唯一出参来源，**同时是认证状态的唯一判据**——非空即已认证） |

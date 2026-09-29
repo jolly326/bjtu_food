@@ -283,18 +283,23 @@ export const useDishStore = defineStore('dish', () => {
     detailError.value = false
     detailNotFound.value = false
     reviewList.value = []
-    reviewTotal.value = 0
     reviewError.value = false
   }
 
-  /** 清空评价列表与总数：供「只看有图」切换时先清后拉（避免旧口径结果短暂残留） */
+  /** 清空评价列表：供「只看有图」切换时先清后拉（避免旧口径结果短暂残留） */
   function clearReviews() {
     reviewList.value = []
-    reviewTotal.value = 0
+  }
+
+  /**
+   * 本地移除一条评价（删除成功后对齐列表，避免为一行变化重拉整页）。
+   * 「评价已不存在」（后端 4001）时同样走它 —— 该码重试无意义，按已删除收尾。
+   */
+  function removeReview(id: number) {
+    reviewList.value = reviewList.value.filter((x) => x.id !== id)
   }
 
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价）；过期响应不修改本状态 */
-  const reviewTotal = ref(0)
   const reviewError = ref(false)
 
   /** 评价请求序号：翻页 / 进新菜品时丢弃过期响应，防触底 append 与 reset 交错 */
@@ -302,13 +307,15 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 评价区分页（RESTful 子资源 `GET /dishes/{id}/reviews`）。
-   * 排序唯一为时间倒序；`hasImage=true` 走服务端「只看有图」筛选（total 同口径统计）。
+   * 排序唯一为时间倒序；`hasImage=true` 走服务端「只看有图」筛选（同口径分页）。
+   *
    * **契约（唯一）**：过期 / 失败一律返回 `null` —— 调用方据此跳过分页推进（避免永久跳过该页）。
+   * 分页壳只有 `records`，**到底判据 = 本页返回条数 < `pageSize`**（由调用方判定）。
    */
   async function fetchReviews(
     dishId: number,
     options?: { page?: number; pageSize?: number; append?: boolean; hasImage?: boolean },
-  ): Promise<{ list: Review[]; total: number } | null> {
+  ): Promise<{ list: Review[] } | null> {
     const seq = ++reviewFetchSeq
     const page = options?.page ?? 1
     const pageSize = options?.pageSize ?? 20
@@ -322,7 +329,6 @@ export const useDishStore = defineStore('dish', () => {
       } else {
         reviewList.value = res.list
       }
-      reviewTotal.value = res.total
       reviewError.value = false
       return res
     } catch (e) {
@@ -330,7 +336,6 @@ export const useDishStore = defineStore('dish', () => {
       if (seq !== reviewFetchSeq) return null
       if (!options?.append) {
         reviewList.value = []
-        reviewTotal.value = 0
         reviewError.value = true
       }
       return null
@@ -358,7 +363,7 @@ export const useDishStore = defineStore('dish', () => {
     // 搜索 / 详情 / 评价 / 热搜
     search,
     currentDish, detailError, detailNotFound, fetchDetail, resetDishDetail,
-    reviewList, reviewTotal, reviewError, fetchReviews, clearReviews,
+    reviewList, reviewError, fetchReviews, clearReviews, removeReview,
     guessLikeList, fetchGuessLike,
   }
 })

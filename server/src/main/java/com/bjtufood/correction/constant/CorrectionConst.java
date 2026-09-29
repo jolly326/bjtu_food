@@ -29,8 +29,8 @@ public interface CorrectionConst {
     /** 提交的档口名称最大长度（字，与 stall.name VARCHAR(64) 一致） */
     int STALL_NAME_MAX_LENGTH = 64;
 
-    /** 纠错配图上限（张，快照为全量图片集） */
-    int IMAGE_MAX = 9;
+    /** 纠错配图上限（张；与评价 / 反馈的 UGC 配图口径一致） */
+    int IMAGE_MAX = 3;
 
     /** 不采纳原因最大长度（schema dish_correction.reject_reason VARCHAR(200)，与 feedback 口径一致） */
     int REJECT_REASON_MAX_LENGTH = 200;

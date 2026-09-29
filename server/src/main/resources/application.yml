@@ -6,7 +6,13 @@ server:
   port: 8080                    # 服务端口
   address: 0.0.0.0
   servlet:
-    context-path: /api          # 所有接口统一前缀（如 /api/dishes）
+    # 统一接口前缀 = /api + 版本段。
+    # 2026-09-28 起启用版本段（业界标准做法）：v1 为首个契约版本。
+    # 破坏性变更时新增 v2 并保留 v1 一段过渡期，双份并行、端上逐步迁移后再摘除 v1。
+    # 注意：版本段写在此处（context-path）而非各 Controller 的 @RequestMapping，
+    # 故 38 个端点映射零改动；SecurityConfig 白名单与 AdminTokenFilter 作用域
+    # 均按「应用内路径」（已剥离 context-path）判定，升版不影响二者。
+    context-path: /api/v1
 
 # ---------- 管理端（Web 后台）口令 ----------
 # 2026-09-13 定型：Web 后台为本地数据操作工具、无登录体系；管理端接口（/admin/**）
@@ -64,6 +70,12 @@ spring:
 
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
+  # ---------- XML 映射文件扫描路径 ----------
+  # 2026-09-28 架构收口 P2：资源目录与 Java 侧分包对齐——XML 按业务域下沉到
+  # mapper/<域>/XxxMapper.xml（与 src/main/java/com/bjtufood/<域>/mapper 对称），
+  # 不再是扁平的单层 mapper/。通配 `**` 同时覆盖下层目录与未来新增的域。
+  # 注：显式声明而非依赖默认值，使目录约定可被本文件直接读出。
+  mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     # 默认（生产）不打印 SQL；本地开发由 application-dev.yml 覆盖为 StdOutImpl
     log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
@@ -97,7 +109,8 @@ cors:
 # ---------- 应用公共基础 URL ----------
 app:
   # 供上传模块拼接完整图片 URL（局域网调试改为本机 IP）
-  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080/api}
+  # 必须含版本段，与 server.servlet.context-path 保持一致，否则上传返回的图片 URL 会 404
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080/api/v1}
 
 # ---------- 文件上传存储路径 ----------
 upload:

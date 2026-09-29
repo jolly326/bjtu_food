@@ -1,14 +1,23 @@
 package com.bjtufood.auth.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.auth.dto.UserAuthContextVO;
+import com.bjtufood.auth.dto.UserBriefVO;
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * 用户管理服务接口
  * <p>
  * 供系统管理员操作，位于 auth 模块中。
  * 管理用户的状态，不依赖其他模块（角色筛选/角色管理已随 user.role 列退役移除，2026-09-15）。
+ * <p>
+ * <b>下半区的「跨域只读契约」是 P0-1 分层修复的收口点</b>：review / feedback / correction /
+ * 切面等原先直接注入 {@code UserMapper}、读 {@code auth.entity.User}（跨域实体 + 绕过
+ * UserVO 的 isVerified 派生 getter 属 P0-1 违规），一律改为消费本接口的方法与 auth 自有 DTO。
  */
 public interface UserService {
 
@@ -72,4 +81,48 @@ public interface UserService {
      */
     void updateStatus(Long id, String status);
 
+    // ==================== 跨域只读契约（P0-1 分层修复） ====================
+
+    /**
+     * UGC 准入判定（供 {@code auth.aspect.RequireVerifiedAspect} 消费）。
+     * <p>
+     * 判据与错误码逐字沿用切面原实现（401 未登录 / 403 账号非 active / 4031 未认证），
+     * 使「切面拦截」与「提交评价时的前置校验」保持同码同语义；判定逻辑收敛到 auth 一处。
+     *
+     * @param userId 当前登录用户ID（可空：未登录直接 401）
+     * @throws com.bjtufood.common.exception.BusinessException 401 / 403 / 4031
+     */
+    void requireUgcAuthorized(Long userId);
+
+    /**
+     * 取 UGC 准入上下文（是否存在 + 认证态 + openid），供 review 域提交/重评前置校验。
+     *
+     * @param userId 用户ID
+     * @return 准入上下文；用户不存在返回 null
+     */
+    UserAuthContextVO getAuthContext(Long userId);
+
+    /**
+     * 是否已邮箱认证（管理端回执投递判据：仅对已认证用户投递）。
+     *
+     * @param userId 用户ID（可空，空值返回 false）
+     * @return true=已认证；用户不存在亦为 false
+     */
+    boolean isVerifiedById(Long userId);
+
+    /**
+     * 批量取昵称（管理端列表补齐「提交人」用，一次 IN 查询消除 N+1）。
+     *
+     * @param userIds 用户ID集合（null/空集合返回空 Map，不发起查询）
+     * @return userId → nickname 映射（昵称缺失的账号不入图，与旧实现 put(null) 后 VO 留空等价）
+     */
+    Map<Long, String> mapNicknameByIds(Collection<Long> userIds);
+
+    /**
+     * 批量取作者展示快照（昵称 + 头像绝对 URL），供 review 管理端列表补齐。
+     *
+     * @param userIds 用户ID集合（null/空集合返回空 Map，不发起查询）
+     * @return userId → {@link UserBriefVO} 映射
+     */
+    Map<Long, UserBriefVO> mapBriefByIds(Collection<Long> userIds);
 }

@@ -41,10 +41,7 @@ public class DishAdminController {
                       "price": 1200,
                       "description": "Swagger UI 测试新增菜品",
                       "images": ["/images/seed/dishes/tomato-egg.jpg"],
-                      "dietType": "half",
-                      "ingredients": "egg,rice",
-                      "flavorTags": "sour,sweet",
-                      "serveTemp": "hot",
+                      "attributes": {"dietType": "half", "ingredients": ["egg", "rice"], "flavorTags": ["sour", "sweet"], "serveTemp": "hot"},
                       "status": "on"
                     }
                     """)))

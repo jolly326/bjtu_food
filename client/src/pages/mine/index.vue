@@ -28,10 +28,10 @@
             <text class="nickname">
               {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
             </text>
-            <text v-if="isVerified && userInfo?.username" class="user-id">
-              {{ userInfo.username }}
-            </text>
-            <text v-else-if="!isVerified" class="user-id">游客 {{ guestLabel }}</text>
+            <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示派生短标识。
+                 `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
+            <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
+            <text v-else class="user-id">游客 {{ guestLabel }}</text>
           </view>
           <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
         </view>
@@ -113,6 +113,8 @@ const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 /** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
 const isVerified = computed(() => userStore.isVerified())
+/** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
+const bindEmail = computed(() => userInfo.value?.bindEmail || '')
 /**
  * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
  * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；

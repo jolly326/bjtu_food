@@ -8,7 +8,6 @@ import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.dto.GuessLikeVO;
-import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
 import org.apache.ibatis.annotations.Param;
 
@@ -32,16 +31,17 @@ public interface DishMapper extends BaseMapper<Dish> {
     IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("req") DishQueryReq req);
 
     /**
-     * 查询菜品详情（联表）——详情专用 {@link DishDetailVO}（15 字段 + 评分分布）
+     * 查询菜品详情（联表）——详情专用 {@link DishDetailVO}（11 字段，含 {@code attributes} JSON 原文）
      */
     DishDetailVO selectDishDetail(@Param("id") Long id);
 
     /**
-     * 查询菜品评分分布
-     * <p>
-     * 按星级分组，统计各星级人数
+     * 查询菜品的描述属性 JSON 原文（{@code dish.attributes}），供编辑态按需取候选维度。
+     *
+     * @param id 菜品ID
+     * @return JSON 串；菜品不存在或无属性时为 null
      */
-    List<RatingDistributionVO> selectRatingDistribution(@Param("dishId") Long dishId);
+    String selectAttributesJson(@Param("id") Long id);
 
     /**
      * 查询全部菜品列表（含已下架），联表档口和食堂名称

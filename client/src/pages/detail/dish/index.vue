@@ -66,12 +66,11 @@
         <DishInfoCard
           :dish="dish"
           :location-text="locationText"
-          :rating="dish.rating || 0"
-          :rating-count="dish.ratingCount || 0"
+          :rating="dish.rating"
         />
         <DishReviewSection
           :reviews="reviewList"
-          :total="reviewTotal"
+          :count="reviewList.length"
           :load-failed="reviewFailed"
           :image-only="imageOnly"
           :pending="reviewPending"
@@ -180,7 +179,6 @@ const {
   onScroll,
   locationText,
   reviewList,
-  reviewTotal,
   reviewFailed,
   reviewPending,
   detailFailed,

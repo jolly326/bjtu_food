@@ -1,9 +1,9 @@
 <template>
   <!-- 评价卡：整卡一张（卡头 + flat 条目）；三态齐全（加载中静默 / 失败可重试 / 零评价鼓励态）
        P3-01：卡头改用 SectionTitle（§4.9「分区标题一律 SectionTitle」）。
-       Round 24 重排：标题行 = 左「评价 + 总数」（合并为一个标题块，数字同色 / 小半号 / 等宽）
+       Round 24 重排：标题行 = 左「评价 + 条数」（合并为一个标题块，数字同色 / 小半号 / 等宽）
        + 右**两段式筛选胶囊「全部 / 有图」**（替换原自定义 switch —— 视图过滤 ≠ 常驻偏好）；
-       数字口径恒为 total；在途 / 失败态不渲染数字。
+       数字口径 = **已加载条数**（分页壳只有 `records`，服务端不回传总数）；在途 / 失败态不渲染数字。
        评价卡无「有用」按钮；排序唯一时间倒序、无切换入口；条目之间纯留白、不画分割线。 -->
   <view class="review-section" id="review-section">
     <!-- 卡片壳改用公共 `CardSection`（UI 统一 Loop Round 13 裁决 2B）：
@@ -16,7 +16,7 @@
                 在途 / 失败态不渲染数字（避免 0 值误导，失败 ≠ 零评价）。
            右 = **两段式筛选胶囊「全部 / 有图」**（替换原自定义 switch）：
                 「只看有图」是**视图过滤**（看完即走），不是常驻偏好设置 ⇒ tab 语义比 switch 准确。 -->
-      <SectionTitle title="评价" :count="(!pending && !loadFailed) ? total : null" no-margin>
+      <SectionTitle title="评价" :count="(!pending && !loadFailed) ? count : null" no-margin>
         <template #extra>
           <view class="seg" role="tablist" aria-label="评价筛选">
             <view
@@ -93,11 +93,16 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import type { Review } from '@/types/review'
+import type { Review, MyReview } from '@/types/review'
 
 const props = defineProps<{
   reviews: Review[]
-  total: number
+  /**
+   * 标题行展示的评价条数 = **已加载条数**。
+   * 分页壳只有 `records`（服务端不回传总数），故「总数」口径退化为当前已加载量；
+   * 触底加载更多时该数字随之上浮，属契约既定形态。
+   */
+  count: number
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价，渲染可重试失败态） */
   loadFailed?: boolean
   /** 「有图」筛选选中态（服务端过滤 `hasImage=1`；切换由页面重置分页并清空列表后重拉） */
@@ -109,15 +114,15 @@ const props = defineProps<{
   pending: boolean
 }>()
 
-/* 评价数口径（Round 24 收敛）：**恒为 total** —— 不再随筛选显示「有图 N」
-   （随口径变形的数字会让用户以为「评价总数」在跳变）；数字经 `SectionTitle` 的 `count`
+/* 评价条数口径：**恒为已加载条数** —— 不再随筛选显示「有图 N」
+   （随口径变形的数字会让用户以为「评价条数」在跳变）；数字经 `SectionTitle` 的 `count`
    与标题合并渲染为「评价 12」（同色 / 小半号 / 等宽）。 */
 
 /* `delete` / `report` 两个转发事件已移除（UI 统一 Loop Round 17）：
    其唯一来源是 `ReviewItem` 的同名事件，而该事件在组件内从未触发 ⇒ 转发链整体为死代码；
    删除 / 举报现由页面 `ActionSheet`（经 `more` 事件）统一处理。 */
 const emit = defineEmits<{
-  (e: 'more', review: Review): void
+  (e: 'more', review: Review | MyReview): void
   /** 失败态点击重试：页面侧重拉评价列表（与进入页面同路径） */
   (e: 'retry'): void
   /** 零评价空态 → 写评价（页面侧走 requireAuth → ReviewComposer） */

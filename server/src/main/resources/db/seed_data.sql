@@ -35,6 +35,9 @@ TRUNCATE TABLE `dish`;
 TRUNCATE TABLE `stall`;
 TRUNCATE TABLE `canteen`;
 TRUNCATE TABLE `user`;
+-- 描述属性字典（维度 / 取值）：先清后插（与 review/banner 同口径，保证可重复执行）
+TRUNCATE TABLE `dish_attribute_value`;
+TRUNCATE TABLE `dish_attribute_dimension`;
 
 -- -------------------- 用户（评价/通知/反馈等均依赖） --------------------
 -- 【2026-09-16 用户拍板「零消费即删除」口径】
@@ -87,46 +90,83 @@ INSERT INTO stall (canteen_id, name, location, description, sort_order) VALUES
 -- -------------------- 菜品（stall_id 对应上面档口；价格单位：分） --------------------
 -- 注：dish.audit_status 列已退役（2026-09-15 阶段4，无独立菜品审核、公开可见性只看 status），不再写入（否则新库报 Unknown column）
 -- 注：dish.category_id 列已随品类整链退役（2026-09-15 用户拍板），列清单与各行值已同步移除（否则新库报 Unknown column）
--- 注：dish.tags（标签）列与 promo_price（促销价）列已于 2026-09-20 拍板整链下线，列清单与各行值已同步移除
---     （否则新库报 Unknown column）；四维示例值随本 INSERT 一并写入。
--- 四维机器值（§7.28，**英文机器值**，中文仅由端上展示层映射；兼容值域见下方注释）：
---   diet_type：meat=荤 / half=半荤 / veg=素 / halal=清真
---   ingredients：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（**JSON 数组**，2026-09-23 R4 起）
---   flavor_tags：spicy/numbing/sour/sweet/salty/umami/light/heavy（**JSON 数组**；辣度语义并入口味）
---   serve_temp：hot=热食 / room=常温 / ice=冰
+-- 注：dish.tags（标签）列与 promo_price（促销价）列已于 2026-09-20 拍板整链下线，列清单与各行值已同步移除。
+-- 描述属性经 `attributes` JSON 一次性写入（键 = 维度 field_key，值 = 机器值 / 数组；
+-- 仅含该菜实际拥有的维度；中文标签由 dish_attribute_dimension / dish_attribute_value 两表字典下发）。
 INSERT INTO dish (stall_id, name, price, description, images, status, view_count, avg_rating, rating_count,
-                  diet_type, ingredients, flavor_tags, serve_temp) VALUES
-(1,  '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'on', 560, 4.7, 120, 'meat',  '["chicken","veg"]',  '["spicy","sour"]',    'hot'),
-(1,  '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'on', 720, 4.8,  98, 'meat',  '["beef","veg"]',     '["spicy","numbing"]', 'hot'),
-(1,  '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'on', 430, 4.6,  76, 'meat',  '["pork","veg"]',     '["spicy"]',           'hot'),
-(1,  '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'on', 610, 4.5, 150, 'half',  '["egg"]',            '["sour","sweet"]',    'hot'),
-(1,  '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, 'on', 380, 4.4,  64, 'meat',  '["beef"]',           '["salty"]',           'hot'),
-(11, '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'on', 880, 4.7, 200, 'halal', '["beef","noodle"]',  '["salty"]',           'hot'),
-(2,  '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'on', 760, 4.8, 180, 'meat',  '["pork","noodle"]',  '["salty"]',           'hot'),
-(4,  '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'on', 690, 4.6, 140, 'meat',  '["chicken","rice"]', '["salty"]',           'hot'),
-(4,  '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'on', 320, 4.5,  55, 'meat',  '["fish"]',           '["spicy"]',           'hot'),
-(4,  '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'on', 700, 4.7, 130, 'meat',  '["pork","rice"]',    '["salty"]',           'hot'),
-(4,  '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, 'on', 410, 4.4,  88, 'meat',  '["chicken","rice"]', '["salty"]',           'hot'),
-(5,  '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'on', 820, 4.6, 160, 'meat',  '["noodle","veg"]',   '["spicy","numbing"]', 'hot'),
-(5,  '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'on', 260, 4.3,  42, 'meat',  '["pork"]',           '["spicy","numbing"]', 'hot'),
-(6,  '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'on', 520, 4.5, 110, 'half',  '["egg","rice"]',     '["light"]',           'hot'),
-(6,  '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, 'on', 470, 4.6,  95, 'half',  '["rice"]',           '["light"]',           'hot'),
-(7,  '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'on', 390, 4.5,  70, 'veg',   '["veg"]',            '["spicy"]',           'hot'),
-(7,  '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'on', 640, 4.7, 120, 'meat',  '["pork"]',           '["sour","sweet"]',    'hot'),
-(8,  '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'on', 780, 4.8, 140, 'meat',  '["pork"]',           '["salty"]',           'hot'),
-(8,  '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, 'on', 300, 4.4,  60, 'veg',   '["veg"]',            '["salty"]',           'hot'),
-(9,  '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'on', 700, 4.6, 150, 'meat',  '["noodle","veg"]',   '["salty"]',           'hot'),
-(9,  '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'on', 560, 4.5, 130, 'half',  '["noodle","egg"]',   '["sour","sweet"]',    'hot'),
-(10, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'on', 980, 4.7, 220, 'veg',   NULL,                 '["sweet"]',           'ice'),
-(10, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'on', 840, 4.8, 190, 'veg',   NULL,                 '["sweet"]',           'ice'),
-(11, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'on', 900, 4.8, 210, 'halal', '["beef","noodle"]',  '["salty"]',           'hot'),
-(11, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'on', 460, 4.6,  80, 'halal', '["lamb","noodle"]',  '["salty"]',           'hot'),
-(12, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'on', 720, 4.7, 160, 'halal', '["lamb"]',           '["spicy"]',           'hot'),
-(12, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, 'on', 320, 4.5,  70, 'halal', '["noodle"]',         '["salty"]',           'hot'),
-(13, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'on', 500, 4.5,  90, 'veg',   '["veg"]',            '["spicy","sour"]',    'hot'),
-(13, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'on', 360, 4.6,  60, 'meat',  '["fish"]',           '["spicy","sour"]',    'hot'),
-(14, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'on', 580, 4.7, 110, 'meat',  '["fish","noodle"]',  '["salty"]',           'hot'),
-(14, '叉烧包',     1000, '松软甜香，广式经典',           NULL, 'on', 520, 4.6, 100, 'meat',  '["pork","noodle"]',  '["sweet"]',           'hot');
+                  attributes) VALUES
+(1,  '宫保鸡丁',   1600, '酸甜微辣，下饭神器',           NULL, 'on', 560, 4.7, 120, '{"dietType":"meat","ingredients":["chicken","veg"],"flavorTags":["spicy","sour"],"serveTemp":"hot"}'),
+(1,  '水煮牛肉',   2800, '麻辣鲜香，分量十足',           NULL, 'on', 720, 4.8,  98, '{"dietType":"meat","ingredients":["beef","veg"],"flavorTags":["spicy","numbing"],"serveTemp":"hot"}'),
+(1,  '回锅肉',     1800, '肥而不腻，川味经典',           NULL, 'on', 430, 4.6,  76, '{"dietType":"meat","ingredients":["pork","veg"],"flavorTags":["spicy"],"serveTemp":"hot"}'),
+(1,  '番茄炒蛋',    900, '家常味道，酸甜可口',           NULL, 'on', 610, 4.5, 150, '{"dietType":"half","ingredients":["egg"],"flavorTags":["sour","sweet"],"serveTemp":"hot"}'),
+(1,  '土豆烧牛肉', 2200, '软烂入味，暖心暖胃',           NULL, 'on', 380, 4.4,  64, '{"dietType":"meat","ingredients":["beef"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(11, '牛肉拉面',   1500, '筋道爽滑，汤头浓郁',           NULL, 'on', 880, 4.7, 200, '{"dietType":"halal","ingredients":["beef","noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(2,  '鲜肉小笼',   1200, '皮薄汁多，一口爆汁',           NULL, 'on', 760, 4.8, 180, '{"dietType":"meat","ingredients":["pork","noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(4,  '黄焖鸡米饭', 1800, '酱香浓郁，鸡肉嫩滑',           NULL, 'on', 690, 4.6, 140, '{"dietType":"meat","ingredients":["chicken","rice"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(4,  '香辣虾',     3200, '鲜香麻辣，弹牙爽口',           NULL, 'on', 320, 4.5,  55, '{"dietType":"meat","ingredients":["fish"],"flavorTags":["spicy"],"serveTemp":"hot"}'),
+(4,  '招牌烤肉饭', 2000, '肉香四溢，粒粒分明',           NULL, 'on', 700, 4.7, 130, '{"dietType":"meat","ingredients":["pork","rice"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(4,  '咖喱鸡排饭', 1900, '咖喱醇厚，外酥里嫩',           NULL, 'on', 410, 4.4,  88, '{"dietType":"meat","ingredients":["chicken","rice"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(5,  '骨汤麻辣烫', 1700, '自选食材，麻辣鲜香',           NULL, 'on', 820, 4.6, 160, '{"dietType":"meat","ingredients":["noodle","veg"],"flavorTags":["spicy","numbing"],"serveTemp":"hot"}'),
+(5,  '冒脑花',     1500, '嫩滑入味，辣得过瘾',           NULL, 'on', 260, 4.3,  42, '{"dietType":"meat","ingredients":["pork"],"flavorTags":["spicy","numbing"],"serveTemp":"hot"}'),
+(6,  '皮蛋瘦肉粥',  800, '绵密温润，暖胃首选',           NULL, 'on', 520, 4.5, 110, '{"dietType":"half","ingredients":["egg","rice"],"flavorTags":["light"],"serveTemp":"hot"}'),
+(6,  '广式肠粉',   1000, '晶莹剔透，酱香清爽',           NULL, 'on', 470, 4.6,  95, '{"dietType":"half","ingredients":["rice"],"flavorTags":["light"],"serveTemp":"hot"}'),
+(7,  '干锅花菜',   1600, '爽脆下饭，锅气十足',           NULL, 'on', 390, 4.5,  70, '{"dietType":"veg","ingredients":["veg"],"flavorTags":["spicy"],"serveTemp":"hot"}'),
+(7,  '糖醋里脊',   2100, '外酥里嫩，酸甜开胃',           NULL, 'on', 640, 4.7, 120, '{"dietType":"meat","ingredients":["pork"],"flavorTags":["sour","sweet"],"serveTemp":"hot"}'),
+(8,  '烤五花肉',   2500, '滋滋冒油，焦香四溢',           NULL, 'on', 780, 4.8, 140, '{"dietType":"meat","ingredients":["pork"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(8,  '烤茄子',     1200, '蒜香浓郁，软糯鲜甜',           NULL, 'on', 300, 4.4,  60, '{"dietType":"veg","ingredients":["veg"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(9,  '炒粉',       1300, '镬气十足，宵夜之王',           NULL, 'on', 700, 4.6, 150, '{"dietType":"meat","ingredients":["noodle","veg"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(9,  '烤冷面',     1100, '酸甜筋道，东北风味',           NULL, 'on', 560, 4.5, 130, '{"dietType":"half","ingredients":["noodle","egg"],"flavorTags":["sour","sweet"],"serveTemp":"hot"}'),
+(10, '珍珠奶茶',   1000, 'Q弹珍珠，奶香醇厚',            NULL, 'on', 980, 4.7, 220, '{"dietType":"veg","flavorTags":["sweet"],"serveTemp":"ice"}'),
+(10, '杨枝甘露',   1400, '芒果西米，清甜解腻',           NULL, 'on', 840, 4.8, 190, '{"dietType":"veg","flavorTags":["sweet"],"serveTemp":"ice"}'),
+(11, '兰州牛肉面', 1500, '一清二白，汤鲜面劲',           NULL, 'on', 900, 4.8, 210, '{"dietType":"halal","ingredients":["beef","noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(11, '羊肉泡馍',   2000, '馍香肉烂，汤浓味厚',           NULL, 'on', 460, 4.6,  80, '{"dietType":"halal","ingredients":["lamb","noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(12, '羊肉串',     2000, '孜然飘香，外焦里嫩',           NULL, 'on', 720, 4.7, 160, '{"dietType":"halal","ingredients":["lamb"],"flavorTags":["spicy"],"serveTemp":"hot"}'),
+(12, '烤馕',        900, '金黄酥脆，麦香十足',           NULL, 'on', 320, 4.5,  70, '{"dietType":"halal","ingredients":["noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(13, '鱼香茄子',   1400, '咸鲜微甜，超级下饭',           NULL, 'on', 500, 4.5,  90, '{"dietType":"veg","ingredients":["veg"],"flavorTags":["spicy","sour"],"serveTemp":"hot"}'),
+(13, '宫保虾球',   3000, '荔枝口型，弹嫩鲜香',           NULL, 'on', 360, 4.6,  60, '{"dietType":"meat","ingredients":["fish"],"flavorTags":["spicy","sour"],"serveTemp":"hot"}'),
+(14, '鲜虾烧卖',   1300, '皮薄馅大，鲜香多汁',           NULL, 'on', 580, 4.7, 110, '{"dietType":"meat","ingredients":["fish","noodle"],"flavorTags":["salty"],"serveTemp":"hot"}'),
+(14, '叉烧包',     1000, '松软甜香，广式经典',           NULL, 'on', 520, 4.6, 100, '{"dietType":"meat","ingredients":["pork","noodle"],"flavorTags":["sweet"],"serveTemp":"hot"}');
+
+-- -------------------- 菜品描述属性字典（维度 + 取值，两表驱动） --------------------
+-- 维度键 field_key 恒等于 dish.attributes JSON 的键（camelCase）；中文标签由本表下发，端上零翻译。
+INSERT INTO dish_attribute_dimension (id, field_key, name, value_type, `order`) VALUES
+(1, 'dietType',    '饮食属性', 'single', 1),
+(2, 'ingredients', '食材',     'multi',  2),
+(3, 'flavorTags',  '口味',     'multi',  3),
+(4, 'serveTemp',   '冷热',     'single', 4);
+
+INSERT INTO dish_attribute_value (dimension_id, value_key, label, `order`) VALUES
+-- dietType（饮食属性，单选）
+(1, 'meat',  '荤',   1),
+(1, 'half',  '半荤', 2),
+(1, 'veg',   '素',   3),
+(1, 'halal', '清真', 4),
+-- ingredients（食材，多值）
+(2, 'pork',     '猪',     1),
+(2, 'beef',     '牛',     2),
+(2, 'lamb',     '羊',     3),
+(2, 'chicken',  '鸡',     4),
+(2, 'duck',     '鸭',     5),
+(2, 'fish',     '鱼虾',   6),
+(2, 'egg',      '蛋',     7),
+(2, 'tofu',     '豆制品', 8),
+(2, 'mushroom', '菌菇',   9),
+(2, 'veg',      '青菜',   10),
+(2, 'noodle',   '面',     11),
+(2, 'rice',     '米',     12),
+-- flavorTags（口味，多值；辣度语义已并入）
+(3, 'spicy',   '辣',   1),
+(3, 'numbing', '麻',   2),
+(3, 'sour',    '酸',   3),
+(3, 'sweet',   '甜',   4),
+(3, 'salty',   '咸',   5),
+(3, 'umami',   '鲜',   6),
+(3, 'light',   '清淡', 7),
+(3, 'heavy',   '重口', 8),
+-- serveTemp（冷热，单选）
+(4, 'hot',  '热食', 1),
+(4, 'room', '常温', 2),
+(4, 'ice',  '冰',   3);
 
 -- -------------------- 评价（为部分菜品填充评价，丰富详情页；与 dish.avg_rating/rating_count 大致对应） --------------------
 INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
@@ -170,10 +210,10 @@ INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, re
 -- 覆盖三种处理路径：#1 档口名精确命中既有档口（可直接采纳）；#2 档口名未命中（触发两段式档口确认，
 -- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）。
 DELETE FROM dish_correction;
-INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, flavor_tags, ingredients, images, status, reply, reject_reason, created_at) VALUES
-(4,  1,    '番茄炒蛋盖饭', 800, '学一食堂', '学一基本伙食', '["sour","sweet"]', '["egg","rice"]', NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '["salty"]',       '["beef","noodle"]', NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(1,  NULL,  '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '["spicy","sour"]', '["chicken","veg"]', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
+INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, attributes, images, status, reply, reject_reason, created_at) VALUES
+(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '{"dietType":"half","ingredients":["egg","rice"],"flavorTags":["sour","sweet"]}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '{"dietType":"halal","ingredients":["beef","noodle"],"flavorTags":["salty"]}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '{"dietType":"meat","ingredients":["chicken","veg"],"flavorTags":["spicy","sour"]}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）
@@ -197,10 +237,8 @@ UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
 UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
 UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
 
--- 菜品：描述四维（diet_type / ingredients / flavor_tags / serve_temp）示例值已在上方 `INSERT INTO dish` 内
--- 直接写入（英文机器值，§7.28），此处不再以 UPDATE 二次赋值，避免双处维护漂移。
--- 注（2026-09-20 拍板）：原 spice_level（辣度）与 region（风味/菜系）两列已整链下线，本脚本不再引用
---     （否则新库报 Unknown column）；存量库由 schema.sql 末尾 drop_dish_description_dimensions 幂等段清理。
+-- 菜品：描述属性（dish.attributes JSON）示例值已在上方 `INSERT INTO dish` 内直接写入，
+-- 此处不再以 UPDATE 二次赋值，避免双处维护漂移。
 -- 注：餐段 serve_period 与限量 limited 两列已于 2026-09-14 §7.9 整体下线（drop_dish_unused_fields）；
 --     分量 portion 列已于 2026-09-14 §7.14（Q-114）整体下线（drop_dish_portion），本脚本自始未对其赋值。
 
@@ -223,13 +261,6 @@ UPDATE dish SET meal_type = 'noodle'     WHERE name IN ('牛肉拉面', '兰州�
 UPDATE dish SET meal_type = 'dry_pot'    WHERE name IN ('干锅花菜', '骨汤麻辣烫', '冒脑花');
 UPDATE dish SET meal_type = 'snack'      WHERE name IN ('鲜肉小笼', '广式肠粉', '烤五花肉', '烤茄子', '烤冷面', '羊肉串', '烤馕', '鲜虾烧卖', '叉烧包');
 UPDATE dish SET meal_type = 'soup_drink' WHERE name IN ('皮蛋瘦肉粥', '珍珠奶茶', '杨枝甘露');
-
--- H5-6 数据修正（同批）：珍珠奶茶 / 杨枝甘露 的 ingredients 曾误标 'rice'（米）——
--- 修正为 NULL（汤饮甜品无主料语义），否则详情页「主料」会显示「米」。
--- 注（2026-09-23 R4 JSON 化）：上方 INSERT 已直接写 NULL，故本行对新库为空跑；
---     保留以兼容「曾按旧形态写入」的存量库，故两种形态的条件并列。
-UPDATE dish SET ingredients = NULL
-WHERE name IN ('珍珠奶茶', '杨枝甘露') AND (ingredients = 'rice' OR ingredients = '["rice"]');
 
 -- -------------------- 首页顶部轮播图（2026-09-22 新增；公开 GET /banners） --------------------
 -- 注：本段采用先清后插（可重复执行）；素材统一 **16:10**（宽高比锁定，见 docs/ui/client-首页菜品浏览.md §1.1）。

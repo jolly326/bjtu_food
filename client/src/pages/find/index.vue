@@ -86,14 +86,14 @@
               <view class="history-chips">
                 <view
                   v-for="(kw) in guessLikeList"
-                  :key="kw.keyword"
+                  :key="kw.name"
                   class="history-chip history-chip-hot"
                   role="button"
-                  :aria-label="`搜索 ${kw.keyword}`"
+                  :aria-label="`搜索 ${kw.name}`"
                   hover-class="history-chip-pressed"
-                  @tap="goKeyword(kw.keyword, true)"
+                  @tap="goKeyword(kw.name, true)"
                 >
-                  <text class="history-chip-text">{{ kw.keyword }}</text>
+                  <text class="history-chip-text">{{ kw.name }}</text>
                 </view>
               </view>
             </CardSection>
@@ -152,7 +152,7 @@ import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 import { joinLocation } from '@/utils/dish'
 import type { MixedResultItem } from '@/types/dish'
 import IconSvg from '@/components/IconSvg.vue'
@@ -182,7 +182,7 @@ function onBack() {
   backToHome()
 }
 
-/* 返回回首页：统一复用 utils/nav.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
+/* 返回回首页：统一复用 utils/back.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
 
 const keyword = ref('')
 

@@ -23,10 +23,11 @@ import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { deleteReview, getMyReviews } from '@/api/review'
-import type { Review, ReviewSubmittedPayload } from '@/types/review'
+import { isResourceNotFound } from '@/api/http'
+import type { Review, MyReview, ReviewSubmittedPayload } from '@/types/review'
 import { useReport } from './useReport'
 import { sharedDish } from '@/utils/share-state'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 import { getWindowInfo } from '@/utils/device'
 import { toastError } from '@/utils/error'
 import { dishDetailUrl, correctionUrl } from '@/utils/routes'
@@ -53,7 +54,6 @@ export function useDishPage() {
   const dishId = ref(0)
   const dish = computed(() => dishStore.currentDish)
   const reviewList = computed(() => dishStore.reviewList)
-  const reviewTotal = computed(() => dishStore.reviewTotal)
   /* 注：原 `currentUserId` 派生值随 `ReviewItem.currentUserId` prop 一并移除（UI 统一 Loop Round 17）
      —— 它只用于把「是否本人评价」下传组件，而该判定改由页面在 `ActionSheet` 侧完成。 */
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
@@ -90,9 +90,9 @@ export function useDishPage() {
   }
 
   /** 当前用户对本菜的评价（判定底栏双态 + 重评预填）；游客 / 未认证恒为 null */
-  const myReview = ref<Review | null>(null)
+  const myReview = ref<MyReview | null>(null)
 
-  /** 「有图」筛选（服务端过滤 `hasImage`：total 与分页同口径） */
+  /** 「有图」筛选（服务端过滤 `hasImage`：分页与筛选同口径） */
   const imageOnly = ref(false)
 
   /** detail-modular-review-cleanup：评价卡内触底分页 */
@@ -105,18 +105,13 @@ export function useDishPage() {
     reviewLoadingMore.value = false
   }
 
-  /** 触底加载下一页评价（D6：结束判据 = 已加载条数 ≥ total） */
+  /** 触底加载下一页评价（**结束判据 = 本页返回条数 < `pageSize`**） */
   async function onReviewsReachBottom() {
     // 竞态修复（Round 31）：重置式请求（首屏 / 切「全部 ⇄ 有图」）在途时**禁止**追加下一页——
     // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
-    // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容与 total 口径错乱）。
+    // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容错乱）。
     if (reviewPending.value) return
     if (!dish.value || reviewLoadingMore.value || reviewFinished.value) return
-    // 已加载条数 ≥ 服务端 total：直接判定结束，不再多发一次空请求（末页恰好满页场景）
-    if (reviewList.value.length >= reviewTotal.value) {
-      reviewFinished.value = true
-      return
-    }
     reviewLoadingMore.value = true
     try {
       // 排序唯一时间倒序，端上不传 sort（PR-02）
@@ -129,8 +124,8 @@ export function useDishPage() {
       // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
       if (!res) return
       reviewPage.value += 1
-      // 结束判据：已加载条数 ≥ 服务端同口径 total（末页恰好满页时不再多发空请求）
-      if (reviewList.value.length >= res.total) reviewFinished.value = true
+      // 结束判据（分页壳只有 records）：本页条数 < 每页条数 ⇒ 已到末页，不再多发空请求
+      if (res.list.length < REVIEW_PAGE_SIZE) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
   }
 
@@ -145,12 +140,8 @@ export function useDishPage() {
     void fetchReviewsReset()
   }
 
-  /** 大图列表：优先 images，回退单图 */
-  const heroImages = computed(() => {
-    const d = dish.value
-    if (!d) return []
-    return (d.images && d.images.length > 0) ? d.images : [d.image]
-  })
+  /** 大图列表：详情 `images`（恒为数组；无图为空数组 ⇒ 由 ImageSwiper 出占位） */
+  const heroImages = computed(() => dish.value?.images ?? [])
 
   /* ===== 顶部与滚动模型（UI 统一 Loop Round 16，2026-09-27 裁决 c：hero 移出屏幕 + 菜名渐显）=====
      与首页 §11 **同构**：顶部 = 公共 `AppTitleBand`（透明；左「返回」+ 居中菜名**随滚动淡入**），
@@ -206,14 +197,8 @@ export function useDishPage() {
     return nodes.join(' · ') || '未知位置'
   })
 
-  /**
-   * 评分分布（供综合评分卡）：**直接透传后端顺序，端上不再排序**。
-   *
-   * 契约约定后端**按 `star` 降序（5 → 1）**下发（与页面展示顺序一致）；
-   * 业务口径的权威方固定为后端，端上不重复排序，避免换端 / 换排序算法时表现不一致。
-   */
-  /* 注：原 `ratingDistribution` 派生值随「评分分布条」一同移除（UI 统一 Loop Round 22，用户规格：
-     不绘制评分进度条）—— 字段仍在接口契约中，端上不再消费。 */
+  /* 注：评分分布（`ratingDistribution`）已随「评分进度条」一并从契约与端上移除
+     （UI 统一 Loop Round 22，用户规格：不绘制评分进度条）；「有无评分」改由 `avgRating` 判空表达。 */
 
   onLoad((query) => {
     const id = Number(query?.id)
@@ -279,10 +264,16 @@ export function useDishPage() {
     path: dishDetailUrl(dishId.value),
   }))
 
-  /** 删除本人评价：成功后重拉列表 + 刷新综合评分 */
-  function onDeleteReview(rv: Review) {
+  /**
+   * 删除本人评价：成功后重拉列表 + 刷新评分。
+   *
+   * **4001（评价不存在）**：已在别处删除 / 评价 ID 失效 ⇒ 重试无意义，
+   * 按「已不存在」收尾（本地移除 + 提示），不再走通用失败文案。
+   */
+  function onDeleteReview(rv: Review | MyReview) {
     if (!userStore.requireAuth(() => onDeleteReview(rv))) return
-    if (userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
+    // 公开视角行才带作者标识（本人视角 MyReviewVO 不含 userId，列表内恒为本人）
+    if ('userId' in rv && userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
     uni.showModal({
       title: '删除评价',
       content: '确定删除这条评价吗？删除后不可恢复。',
@@ -299,6 +290,13 @@ export function useDishPage() {
           await fetchReviewsReset()
           dishStore.fetchDetail(dishId.value)
         } catch (e) {
+          if (isResourceNotFound(e)) {
+            // 评价已不存在：本地移除并复位底栏态即可（不提示「删除失败」误导可重试）
+            dishStore.removeReview(rv.id)
+            if (myReview.value?.id === rv.id) myReview.value = null
+            uni.showToast({ title: '评价已不存在', icon: 'none' })
+            return
+          }
           toastError(e, '删除失败')
         }
       },
@@ -352,16 +350,15 @@ export function useDishPage() {
    * 两种情况均重置分页并按当前「只看有图」口径重拉评价 + 刷新综合评分。
    */
   function onReviewSubmitted(payload: ReviewSubmittedPayload) {
-    const user = userStore.userInfo
     myReview.value = {
       id: payload.reviewId,
-      userId: user?.id ?? 0,
-      userNickname: user?.nickname ?? '',
-      userAvatar: user?.avatar ?? '',
       rating: payload.rating,
       content: payload.content,
       createdAt: new Date().toISOString(),
       images: payload.images,
+      // 本人视角专属两字段（本地写回沿用当前菜品上下文）
+      dishId: dishId.value,
+      dishName: dish.value?.name ?? '',
     }
     resetReviewPaging()
     void fetchReviewsReset()
@@ -377,13 +374,15 @@ export function useDishPage() {
 
   /* ===== 评价三点菜单（ReviewItem @more → 页面级通用 ActionSheet） ===== */
   const reviewMoreOpen = ref(false)
-  const reviewMoreTarget = ref<Review | null>(null)
+  const reviewMoreTarget = ref<Review | MyReview | null>(null)
   const reviewMoreIsOwn = computed(() => {
     const rv = reviewMoreTarget.value
-    return rv != null && userStore.userInfo?.id != null && rv.userId === userStore.userInfo.id
+    if (rv == null || userStore.userInfo?.id == null) return false
+    // 公开视角行带作者标识；本人视角（MyReviewVO 无 userId）列表内恒为本人评价
+    return 'userId' in rv ? rv.userId === userStore.userInfo.id : true
   })
 
-  function onReviewMore(rv: Review) {
+  function onReviewMore(rv: Review | MyReview) {
     reviewMoreTarget.value = rv
     reviewMoreOpen.value = true
   }
@@ -411,7 +410,7 @@ export function useDishPage() {
   /* ===== 评价举报（收敛到 useReport hook） ===== */
   const { reportOpen, reportSubmitting, openReport, submitReport } = useReport({ type: 'review' })
 
-  function onReviewReport(rv: Review) {
+  function onReviewReport(rv: Review | MyReview) {
     openReport(rv.id)
   }
 
@@ -426,7 +425,6 @@ export function useDishPage() {
     onScroll,
     locationText,
     reviewList,
-    reviewTotal,
     reviewFailed,
     reviewPending,
     detailFailed,

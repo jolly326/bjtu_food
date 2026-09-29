@@ -52,7 +52,7 @@ public interface ReviewService {
      * 处理流程：
      * 1. 校验菜品是否存在且上架
      * 2. 校验是否已评价过该菜（每人每菜只能评价一次）
-     * 3. 敏感词过滤（调用 SensitiveFilter）
+     * 3. 敏感词过滤（调用 LocalSensitiveFilter）
      * 4. 保存评价到数据库
      * 5. 发布 ReviewSubmittedEvent（触发评分重算）
      *
@@ -117,4 +117,32 @@ public interface ReviewService {
      * @param id 评价ID
      */
     void deleteByAdmin(Long id);
+
+    // ==================== 跨域写契约（P0-1：由本域 event 监听器消费，不对外暴露给业务域） ====================
+
+    /**
+     * 级联清理某菜品的全部评价（BE-108）。
+     * <p>
+     * 调用方 = {@code review.event.ReviewDishCascadeListener}（订阅 dish 域发布的
+     * {@code DishDeletedEvent}）。原先由 {@code DishServiceImpl} 直接注入 ReviewMapper 硬删，
+     * 属跨域写他域表；改为事件后 dish 域不再持有 review 的表知识。
+     *
+     * @param dishId 菜品ID
+     * @return 删除条数（供日志）
+     */
+    int deleteByDishId(Long dishId);
+
+    /**
+     * 账号归属迁移：把 fromUserId 的评价改挂到 toUserId。
+     * <p>
+     * 调用方 = {@code review.event.ReviewOwnershipListener}（订阅 auth 域发布的
+     * {@code UserOwnershipMigratedEvent}）。唯一键 {@code uk_review_user_dish} 要求
+     * <b>先删冲突行（to 已评价过的同菜品，保留 to 的记录）再改归属</b>，该顺序知识属 review 域，
+     * 故原先散落在 auth 侧的两条 UPDATE 一并收敛到此。
+     *
+     * @param fromUserId 迁出账号ID
+     * @param toUserId   迁入账号ID
+     * @return 改挂条数（供日志；冲突删除条数计入日志不在此返回）
+     */
+    int migrateOwnership(Long fromUserId, Long toUserId);
 }

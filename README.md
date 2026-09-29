@@ -45,21 +45,29 @@
 
 ```
 bjtu_food/
-├── server/                   # Spring Boot 后端
+├── server/                   # Spring Boot 后端（模块化单体，按业务域分包）
 │   ├── src/main/java/com/bjtufood/
 │   │   ├── auth/              # 认证授权（JWT + Spring Security + 微信登录/邮箱认证）
 │   │   ├── canteen/           # 食堂/档口
-│   │   ├── dish/              # 菜品（评分/推荐/热度）
+│   │   ├── dish/              # 菜品（评分/推荐/搜索 + 描述属性字典/删除级联）
 │   │   ├── review/            # 评价（含「有用」标记）
-│   │   ├── content/           # 内容审核（菜品/档口/食堂）
-│   │   ├── feedback/          # 用户反馈
-│   │   ├── notify/            # 消息通知
-│   │   ├── upload/            # 文件上传
-│   │   └── common/            # 公共模块（配置/异常/响应/工具）
-│   ├── uploads/               # 上传图片存储
-│   └── sensitive_words.txt    # 敏感词库
+│   │   ├── moderation/        # UGC 内容审核（微信 msgSecCheck/imgSecCheck + 本地 DFA 词库）
+│   │   ├── wechat/            # 微信平台集成（jscode2Session + stable_token，叶子域）
+│   │   ├── banner/            # 首页轮播图
+│   │   ├── feedback/          # 用户反馈（含举报）
+│   │   ├── correction/        # 菜品信息纠错
+│   │   ├── notification/      # 站内通知
+│   │   ├── upload/            # 文件上传（云存储 + 本地两条链路）
+│   │   └── common/            # 跨域共享层（零业务依赖）
+│   ├── src/main/resources/
+│   │   ├── db/                # schema.sql / seed_data.sql（建库建表唯一真源）
+│   │   ├── mapper/<域>/       # MyBatis XML，与 Java 侧分包对称
+│   │   └── sensitive_words.txt # 本地敏感词库（须置于 resources 根下才进 classpath）
+│   ├── uploads/               # 上传图片本地存储（仅开发用）
+│   └── .env.example           # 后端环境变量模板（唯一一份）
 ├── client/                  # 微信小程序端（uni-app）
-└── web/                       # 管理后台端（Vue 3 + Element Plus）
+├── web/                     # 管理后台端（Vue 3 + Element Plus）
+└── docs/                    # 架构与契约文档（architecture.md 为后端架构真源）
 ```
 
 ---
@@ -117,11 +125,18 @@ mysql -u root -p < server/src/main/resources/db/seed_data.sql
 
 - `SPRING_DATASOURCE_URL / USERNAME / PASSWORD`：数据库连接
 - `JWT_SECRET`：JWT 密钥（**≥32 字节**，否则后端启动 fail-fast 报错）
+- `ADMIN_TOKEN`：管理端口令（与 `web/.env.local` 的 `VITE_ADMIN_TOKEN` 一致；未配置则全部 `/admin` 返回 403）
 - `WECHAT_APPID / WECHAT_SECRET`：微信小程序凭证（微信登录与内容安检 stable_token 必填）
 - `COS_BUCKET / COS_SECRET_ID / COS_SECRET_KEY / COS_REGION`：腾讯云 COS 对象存储（**UGC 评价/反馈配图永久存储必填**，2026-09-13 起启用）
 - `SPRING_MAIL_USERNAME / SPRING_MAIL_PASSWORD`：163 邮箱 + 授权码（邮箱认证必填）
 - `CORS_ALLOWED_ORIGINS`：管理后台域名白名单
-- `APP_PUBLIC_BASE_URL`：图片绝对地址前缀（默认 `http://localhost:8080/api`）
+- `APP_PUBLIC_BASE_URL`：图片绝对地址前缀（默认 `http://localhost:8080/api/v1`，**须与接口版本前缀一致**）
+
+> ⚠️ **API base 的版本段**：后端 `server.servlet.context-path = /api/v1`，故三端配置
+> （`client/.env.development`、`client/.env.production`、`web/.env.local`）与源码默认值
+> （`client/src/api/config.ts`、`web/src/api/config.ts`）**都必须以 `/api/v1` 结尾**，
+> 否则端上表现为「全站 404」且后端日志收不到该请求，极难自查。
+> 后端升 v2 时需同步这几处；`ApiVersionPrefixTest` 会在 `mvn test` 阶段拦截遗漏。
 
 > 云托管部署时直接在云托管环境变量中配置同名变量，无需 `.env` 文件。
 
@@ -130,7 +145,7 @@ mysql -u root -p < server/src/main/resources/db/seed_data.sql
 ```bash
 # 1. 启动后端
 cd server && mvn spring-boot:run
-# → 访问 http://localhost:8080/api/swagger-ui/index.html（接口文档）
+# → 访问 http://localhost:8080/api/v1/swagger-ui/index.html（接口文档）
 
 # 2. 启动管理后台
 cd web && pnpm install && pnpm dev
@@ -159,6 +174,7 @@ cd client && npm install && npm run dev:mp-weixin
 |------|------|
 | [docs/feature/README.md](docs/feature/README.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界 —— 见该文档「项目约定与红线」段（原 `CODEBUDDY.md`、`docs/project_spec.md` 均已于 2026-09-27 删除，内容承接至此） |
 | `db/` 初始化与种子脚本 | 数据库结构 **唯一真源**（原 `docs/database.md` 已删除，2026-09-27） |
+| [docs/architecture.md](docs/architecture.md) | **后端架构说明**：分包模型、跨域依赖规则（ArchTests 强制）、事件机制、事务边界、配置与密钥、可观测性、测试策略、**已知技术债** |
 | [docs/feature/](docs/feature/) | 功能与接口契约总览（含认证模型 / 错误码 / 分页约定）—— 入口 [README](docs/feature/README.md)（原 `docs/api-design.md` 已删除，2026-09-27） |
 | [docs/ui-design.md](docs/ui-design.md) | UI 设计规范：设计 Token、深色模式、15 页页面地图、组件与一致性红线 |
 | [docs/ui/](docs/ui/) | 页面 UI 设计稿与跨页通用口径 —— 入口 [README](docs/ui/README.md)（含 **UI 修正完成度台账**）（原 `docs/architecture.md` 已删除，2026-09-27） |

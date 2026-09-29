@@ -6,6 +6,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 后台菜品列表展示信息（管理端专用）。
@@ -61,19 +62,10 @@ public class DishAdminVO {
     @Schema(description = "所属食堂名称", example = "第一食堂")
     private String canteenName;
 
-    // ==================== 描述四维（§7.28） ====================
-
-    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
-    private String dietType;
-
-    @Schema(description = "主料/食材（数组，2026-09-23 R4 由逗号分隔串改数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
-    private List<String> ingredients;
-
-    @Schema(description = "口味（数组，2026-09-23 R4 改数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
-    private List<String> flavorTags;
-
-    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
-    private String serveTemp;
+    /** 描述属性（动态属性模型）：键 = 维度 fieldKey，值 = 机器值 / 数组；无属性为 null */
+    @Schema(description = "描述属性（键=维度 fieldKey，值=机器值/数组）",
+            example = "{\"dietType\":\"half\",\"ingredients\":[\"egg\"],\"flavorTags\":[\"sour\",\"sweet\"],\"serveTemp\":\"hot\"}")
+    private Map<String, Object> attributes;
 
     @Schema(description = "菜品大类枚举键（值域见 GET /dishes/meal-types；管理端录入下拉 + 编辑回填 + 列表筛选）", example = "noodle")
     private String mealType;

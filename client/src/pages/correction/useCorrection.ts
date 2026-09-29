@@ -1,12 +1,13 @@
 /**
  * useCorrection —— 菜品信息纠错页（pages/correction/index.vue）编排逻辑
  *
- * **独立页面**（2026-09-27 从意见反馈页迁出，与反馈体系解耦）：
- * 入口只有一处 —— 菜品详情页底栏「反馈错误」；进页即按 `dishId` 拉详情**预填**，
- * 用户只改错的地方，提交走独立端点 `POST /dishes/{id}/correction`（落 `dish_correction` 表）。
+ * **独立页面**（与「意见反馈」解耦）：入口**唯一** —— 菜品详情页底栏「反馈错误」；
+ * 进页即按导航参数 `dishId` **预绑定该菜品**（表单内不允许切换），拉详情预填全部字段，
+ * 用户只改错的地方 → **只提交改动过的项**（局部提交 / patch），未改动的不上传。
  *
- * 与「意见反馈」的边界：本页是**依附某条菜品数据**的专项修正（自带 dishId、字段结构化）；
- * 意见反馈是脱离菜品上下文的通用反馈（纯文本 + 截图）。
+ * 描述属性走**动态属性模型**：编辑态候选值按需取 `GET /dishes/{id}/attributes`
+ * （只含该菜现有维度）；提交经 `attributes` 对象（键 = 维度 `fieldKey`）。
+ * 展示侧中文由 `GET /dishes/{id}` 的 `attributes[].label` 直出，**端上零翻译**。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useCorrection()，
  * 使 onLoad/onUnload 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
@@ -14,16 +15,31 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitDishCorrection } from '@/api/feedback'
-import { searchDishes, getDishDetail } from '@/api/dish'
-import type { DishListItem } from '@/types/dish'
-import { backToHome } from '@/utils/nav'
+import { getDishDetail, getDishEditAttributes } from '@/api/dish'
+import { isResourceNotFound } from '@/api/http'
+import type { DishCorrectionPayload } from '@/types/feedback'
+import { backToHome } from '@/utils/back'
 import { yuanToFen } from '@/utils/money'
 import { joinLocation } from '@/utils/dish'
-import { useDishAttributeStore } from '@/stores/dish-attribute'
+
+/** 图片张数上限（预填菜品首图，可增删；端上 / 服务端同口径） */
+export const IMAGE_MAX = 3
+
+/** 描述属性编辑项（表单内一个维度的可编辑模型） */
+export interface AttributeEditor {
+  /** 维度键（camelCase）＝ 提交时 `attributes` 的键 */
+  fieldKey: string
+  /** 维度中文名（来自详情 `attributes[].name`） */
+  name: string
+  /** 取值类型：`single`（单值）｜ `multi`（多值） */
+  valueType: 'single' | 'multi'
+  /** 候选值（后端按序下发）；**空数组 = 自由文本维**（可自由输入） */
+  options: { valueKey: string; label: string }[]
+  /** 当前选中的机器值（`single` 至多 1 项） */
+  selected: string[]
+}
 
 export function useCorrection() {
-  const dishAttr = useDishAttributeStore()
-
   /** 全页唯一返回实现：有返回栈时 navigateBack；无返回栈才 reLaunch 首页 */
   function goBack() {
     if (getCurrentPages().length > 1) uni.navigateBack()
@@ -36,138 +52,132 @@ export function useCorrection() {
     if (goBackTimer) clearTimeout(goBackTimer)
   })
 
-  // ---- ① 表单字段（预填后只改差异项） ----
+  // ---- ① 绑定菜品与表单字段 ----
+  /** 进页即由导航参数预绑定（表单内不可切换） */
+  const dishId = ref(0)
+  /** 预填数据源（`GET /dishes/{id}`）；预填未完成时禁止提交 */
+  const loading = ref(false)
+  /** 菜品不存在 / 已下架（后端 4001）：与网络失败区别对待，只给返回 */
+  const notFound = ref(false)
+  /** 预填请求失败（网络 / 服务端故障，可重试） */
+  const loadFailed = ref(false)
+  /** 已绑定菜品的展示信息（名称 + 位置，取自详情，只读） */
+  const dishName = ref('')
+  const dishLocation = ref('')
+
   /**
    * 金额口径：`price` 为**元字符串**（input 展示/编辑），提交时经 yuanToFen 转分（金额红线）。
    * 食堂名 / 档口：自由文本（预填详情值，可改）。
    */
   const form = reactive({
-    /** 搜索选定的菜品（列表行，用于选择器行展示 + 提交路径 dishId） */
-    dish: null as DishListItem | null,
-    /** 详情拉取中（预填未完成时禁止提交） */
-    detailLoading: false,
     name: '',
     price: '',
     canteenName: '',
     stallName: '',
-    /** 口味标签 / 食材：预填详情机器值 + 用户自由输入项（chips 增删） */
-    flavorTags: [] as string[],
-    ingredients: [] as string[],
-    /** 图片：最多 1 张（预填菜品首图，可替换） */
+    /** 图片（预填菜品首图，可增删，≤3 张） */
     images: [] as string[],
+    /** 描述属性编辑项（维度顺序 = 详情返回顺序） */
+    attributes: [] as AttributeEditor[],
   })
 
-  // ---- ② 菜品选择弹层（用于换一道菜 / 深链失败后手动选） ----
-  const dishSheetOpen = ref(false)
-  const dishKeyword = ref('')
-  const dishCandidates = ref<DishListItem[]>([])
-  const dishSearched = ref(false)
-  /** 搜索请求序号：丢弃过期响应（竞态守卫） */
-  let searchSeq = 0
+  /** 预填快照：判「有无改动」的基线（改动项 = 当前值 ≠ 基线值） */
+  const baseline = reactive({
+    name: '',
+    price: '',
+    canteenName: '',
+    stallName: '',
+    images: [] as string[],
+    attributes: {} as Record<string, string[]>,
+  })
 
-  function openDishSheet() {
-    dishSheetOpen.value = true
-  }
-
-  function closeDishSheet() {
-    dishSheetOpen.value = false
-  }
-
-  const dishPickerOptions = computed(() =>
-    dishCandidates.value.map((d) => ({
-      key: String(d.id),
-      label: d.name,
-      sub: joinLocation(d.canteen, d.stallName),
-      image: d.coverImage || '',
-    })),
-  )
-
-  function onDishSearchKw(kw: string) {
-    dishKeyword.value = kw
-    if (!kw.trim()) {
-      dishSearched.value = false
-      dishCandidates.value = []
-      searchSeq++
-      return
-    }
-    const seq = ++searchSeq
-    dishSearched.value = true
-    searchDishes({ keyword: kw.trim(), page: 1, pageSize: 8 })
-      .then((list) => {
-        if (seq !== searchSeq) return
-        dishCandidates.value = list
-      })
-      .catch((err) => {
-        if (seq !== searchSeq) return
-        console.error('[correction] 搜索菜品失败', err)
-        dishCandidates.value = []
-      })
-  }
-
-  function onDishPick(opt: { key: string }) {
-    const d = dishCandidates.value.find((x) => String(x.id) === opt.key)
-    if (d) selectDish(d)
-  }
-
-  /** 选中菜品：关闭弹窗 → 拉详情预填 */
-  function selectDish(d: DishListItem) {
-    form.dish = d
-    dishKeyword.value = ''
-    dishCandidates.value = []
-    dishSearched.value = false
-    dishSheetOpen.value = false
-    void loadDishDetail(d.id)
-  }
-
-  /** 重选：回到选择步骤（清空预填） */
-  function resetDish() {
-    form.dish = null
-    form.name = ''
-    form.price = ''
-    form.canteenName = ''
-    form.stallName = ''
-    form.flavorTags = []
-    form.ingredients = []
-    form.images = []
-    dishKeyword.value = ''
-    dishCandidates.value = []
-    dishSearched.value = false
-    clearError('form.dish')
-  }
-
-  /** 拉详情并预填（字段值来自 `GET /dishes/{id}`）；菜品行由本函数统一投影补齐 */
-  async function loadDishDetail(id: number) {
-    form.detailLoading = true
+  // ---- ② 进页预填（详情 + 编辑态属性选项并行） ----
+  async function loadDish(id: number) {
+    loading.value = true
+    loadFailed.value = false
+    notFound.value = false
     try {
-      const d = await getDishDetail(id)
-      form.dish = {
-        id: d.id,
-        name: d.name,
-        price: d.price,
-        originalPrice: d.originalPrice,
-        coverImage: d.image || '',
-        rating: d.rating,
-        canteen: d.canteen,
-        stallName: d.stallName,
-      }
-      form.name = d.name || ''
-      form.price = d.price > 0 ? String(d.price) : '' // 详情 price 已由 API 层分→元
-      form.canteenName = d.canteen || ''
-      form.stallName = d.stallName || ''
-      form.flavorTags = [...(d.flavorTags || [])]
-      form.ingredients = [...(d.ingredients || [])]
-      // 图片上限统一 1 张：预填只取首图，用户可替换
-      form.images = [...(d.images || [])].slice(0, 1)
-      clearError('form.dish')
-    } catch (err) {
-      console.error('[correction] 菜品详情加载失败', err)
-      uni.showToast({ title: '菜品信息加载失败，请重选', icon: 'none' })
+      const [detail, attrDefs] = await Promise.all([
+        getDishDetail(id),
+        // 编辑态候选值**按需**取；失败静默（维度退化为自由文本，不阻塞纠错）
+        getDishEditAttributes(id).catch(() => []),
+      ])
+      dishName.value = detail.name
+      dishLocation.value = joinLocation(detail.canteen, detail.stallName)
+
+      form.name = detail.name
+      // 详情 price 已由 API 层分 → 元
+      form.price = detail.price > 0 ? String(detail.price) : ''
+      form.canteenName = detail.canteen
+      form.stallName = detail.stallName
+      form.images = detail.images.slice(0, IMAGE_MAX)
+
+      // 描述属性：维度与当前值取自详情；候选值取自编辑端点（按 fieldKey 对齐）
+      form.attributes = (detail.attributes || [])
+        .filter((item) => !!item.fieldKey)
+        .map((item) => {
+          const def = attrDefs.find((x) => x.fieldKey === item.fieldKey)
+          const initial = Array.isArray(item.value)
+            ? item.value.map(String)
+            : String(item.value ?? '') ? [String(item.value)] : []
+          return {
+            fieldKey: item.fieldKey,
+            name: item.name,
+            valueType: def?.valueType ?? (Array.isArray(item.value) ? 'multi' : 'single'),
+            options: def?.options ?? [],
+            selected: initial,
+          }
+        })
+
+      baseline.name = form.name
+      baseline.price = form.price
+      baseline.canteenName = form.canteenName
+      baseline.stallName = form.stallName
+      baseline.images = [...form.images]
+      baseline.attributes = {}
+      for (const ed of form.attributes) baseline.attributes[ed.fieldKey] = [...ed.selected]
+    } catch (e) {
+      console.error('[correction] 菜品详情加载失败', e)
+      // 4001（菜品不存在 / 已下架）不可重试；其余按可重试失败态呈现
+      notFound.value = isResourceNotFound(e)
+      loadFailed.value = !notFound.value
     } finally {
-      form.detailLoading = false
+      loading.value = false
     }
   }
 
-  // ---- ③ 提交门禁 ----
+  function retryLoad() {
+    if (!dishId.value) return
+    return loadDish(dishId.value)
+  }
+
+  // ---- ③ 改动项（局部提交口径）：只上传「当前值 ≠ 预填值」的字段 ----
+  function sameList(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false
+    return a.every((x, i) => x === b[i])
+  }
+
+  /** 与基线逐项比对得出的**改动集合**（即提交请求体；空对象 = 无改动） */
+  const diff = computed<DishCorrectionPayload>(() => {
+    const payload: DishCorrectionPayload = {}
+    if (!dishName.value) return payload
+    if (form.name.trim() !== baseline.name) payload.name = form.name.trim()
+    if (form.price.trim() !== baseline.price) payload.price = yuanToFen(Number(form.price.trim() || 0))
+    if (form.canteenName.trim() !== baseline.canteenName) payload.canteenName = form.canteenName.trim()
+    if (form.stallName.trim() !== baseline.stallName) payload.stallName = form.stallName.trim()
+    if (!sameList(form.images, baseline.images)) payload.images = form.images.filter(Boolean)
+    const attrs: Record<string, string | string[]> = {}
+    for (const ed of form.attributes) {
+      if (sameList(ed.selected, baseline.attributes[ed.fieldKey] ?? [])) continue
+      attrs[ed.fieldKey] = ed.valueType === 'multi' ? ed.selected : (ed.selected[0] ?? '')
+    }
+    if (Object.keys(attrs).length) payload.attributes = attrs
+    return payload
+  })
+
+  /** 是否有改动（无改动 ⇒ 禁用提交：局部提交下无可提交内容，后端也会 400「未提交任何改动」） */
+  const hasChange = computed(() => Object.keys(diff.value).length > 0)
+
+  // ---- ④ 提交门禁 ----
   const PRICE_PATTERN = /^(?:\d+)(?:\.\d{1,2})?$/
 
   function priceValid(): boolean {
@@ -179,21 +189,23 @@ export function useCorrection() {
 
   const canSubmit = computed(
     () =>
-      !!form.dish &&
-      !form.detailLoading &&
+      !!dishId.value &&
+      !loading.value &&
       !!form.name.trim() &&
       priceValid() &&
       !!form.canteenName.trim() &&
-      !!form.stallName.trim(),
+      !!form.stallName.trim() &&
+      hasChange.value,
   )
 
   const gateHint = computed(() => {
-    if (!form.dish) return '先选一道菜'
-    if (form.detailLoading) return '菜品信息加载中'
+    if (!dishId.value) return '缺少菜品信息'
+    if (loading.value) return '菜品信息加载中'
     if (!form.name.trim()) return '菜名叫啥？填一下'
     if (!priceValid()) return '价格要像 12.5 这样'
     if (!form.canteenName.trim()) return '填一下食堂名'
     if (!form.stallName.trim()) return '填一下档口'
+    if (!hasChange.value) return '你还没有改动任何信息'
     return ''
   })
 
@@ -202,7 +214,7 @@ export function useCorrection() {
     if (!canSubmit.value) uni.showToast({ title: gateHint.value, icon: 'none' })
   }
 
-  // ---- ④ 字段级错误 + 提交 ----
+  // ---- ⑤ 字段级错误 + 提交 ----
   const fieldErrors = reactive<Record<string, string>>({})
   const scrollIntoView = ref('')
   const submitting = ref(false)
@@ -217,7 +229,6 @@ export function useCorrection() {
     if (!keys.length) return
     keys.forEach((k) => { fieldErrors[k] = errs[k] })
     const idMap: Record<string, string> = {
-      'form.dish': 'f-c-dish',
       'form.name': 'f-c-name',
       'form.price': 'f-c-price',
       'form.canteenName': 'f-c-canteenName',
@@ -232,33 +243,25 @@ export function useCorrection() {
     if (submitting.value) return
 
     const errs: Record<string, string> = {}
-    if (!form.dish) errs['form.dish'] = '先选一道菜'
-    else if (form.detailLoading) errs['form.dish'] = '菜品信息加载中'
+    if (!dishId.value) errs['form.name'] = '缺少菜品信息'
+    else if (loading.value) errs['form.name'] = '菜品信息加载中'
     else {
       if (!form.name.trim()) errs['form.name'] = '菜名叫啥？填一下'
       if (!priceValid()) errs['form.price'] = '价格要像 12.5 这样'
       if (!form.canteenName.trim()) errs['form.canteenName'] = '填一下食堂名'
       if (!form.stallName.trim()) errs['form.stallName'] = '填一下档口'
+      if (!hasChange.value) errs['form.name'] = '你还没有改动任何信息'
     }
     if (Object.keys(errs).length) {
       markErrors(errs)
-      uni.showToast({ title: `还有 ${Object.keys(errs).length} 项没填`, icon: 'none' })
+      uni.showToast({ title: Object.values(errs)[0], icon: 'none' })
       return
     }
 
     submitting.value = true
     try {
-      // dishId 在路径中，请求体七字段平铺；price 元 → 分（金额红线）；
-      // 公开可提交（匿名允许）；菜品不存在 → 4001，敏感词 → 400 message 直透。
-      await submitDishCorrection(form.dish!.id, {
-        name: form.name.trim(),
-        price: yuanToFen(Number(form.price.trim())),
-        canteenName: form.canteenName.trim(),
-        stallName: form.stallName.trim(),
-        flavorTags: form.flavorTags.filter(Boolean),
-        ingredients: form.ingredients.filter(Boolean),
-        images: form.images.filter(Boolean),
-      })
+      // 局部提交：只上传改动项（dishId 在路径；price 元 → 分，金额红线）
+      await submitDishCorrection(dishId.value, diff.value)
       uni.showToast({ title: '已提交，感谢反馈', icon: 'none' })
       if (goBackTimer) clearTimeout(goBackTimer)
       goBackTimer = setTimeout(goBack, 1500)
@@ -269,36 +272,36 @@ export function useCorrection() {
     }
   }
 
-  // ---- ⑤ 落点参数：`dishId` 必带（详情页跳入），进页即预填 ----
+  // ---- ⑥ 落点参数：`dishId` 必带（详情页底栏跳入），进页即预填 ----
   onLoad((opts?: Record<string, string>) => {
-    void dishAttr.ensureLoaded() // chips 展示机器值 → 中文字典（失败静默，展示原始值）
-    const dishId = Number(opts?.dishId ?? 0)
-    if (dishId > 0) {
-      loadDishDetail(dishId).catch((err) => {
-        console.error('[correction] 预填菜品详情失败', err)
-        uni.showToast({ title: '菜品信息加载失败，可手动选择菜品', icon: 'none' })
-      })
+    const id = Number(opts?.dishId ?? 0)
+    if (id > 0) {
+      dishId.value = id
+      void loadDish(id)
+      return
     }
+    // 缺 dishId：本页不提供跨菜品选择（入口唯一），直接提示并返回
+    uni.showToast({ title: '缺少菜品信息', icon: 'none' })
+    goBack()
   })
 
   return {
     goBack,
+    dishId,
+    dishName,
+    dishLocation,
+    loading,
+    notFound,
+    loadFailed,
+    retryLoad,
     form,
-    dishSheetOpen,
-    dishKeyword,
-    dishPickerOptions,
-    dishSearched,
-    openDishSheet,
-    closeDishSheet,
-    onDishSearchKw,
-    onDishPick,
-    resetDish,
     fieldErrors,
     scrollIntoView,
     submitting,
     clearError,
     canSubmit,
     gateHint,
+    hasChange,
     onSubmitAreaTap,
     submit,
   }

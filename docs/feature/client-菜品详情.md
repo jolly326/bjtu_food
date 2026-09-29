@@ -7,11 +7,7 @@
 
 ## 介绍
 
-看一道菜的**完整信息**（图、价、原价删除线、描述、荤素 / 主料 / 口味 / 冷热、食堂 · 楼层 · 档口名、**平均评分**）与**全部可见评价**。评价区**按时间倒序展示（新评价在前，唯一排序）**，支持「只看有图」筛选（**端上筛选入口为两段式胶囊「全部 / 有图」** —— UI 统一 Loop Round 24 由开关改为 tab）；支持**重新评价**——旧评价作废、留下最新，新评价时间取当前、排到最前。评价分页加载的结束判据 = **已加载条数 ≥ `total`**（末页恰好满页时避免多发一次空请求）；切换筛选口径时**重置 `page=1` 并清空列表**再拉取。
-
-## UI
-
-> 🖥 **UI 表现**：见 [`docs/ui/`](../ui/)（页面视觉 / 交互口径统一维护在该目录；**两套文档体系解耦**，命名与粒度不强制对应）。
+看一道菜的**完整信息**（图、价、原价删除线、描述、荤素 / 主料 / 口味 / 冷热、食堂 · 楼层 · 档口名、**平均评分**）与**全部可见评价**。评价区**按时间倒序展示（新评价在前，唯一排序）**，支持「只看有图」筛选（**端上筛选入口为两段式胶囊「全部 / 有图」**）；支持**重新评价**——旧评价作废、留下最新，新评价时间取当前、排到最前。评价分页加载的结束判据 = **本页返回条数 < `pageSize`**；切换筛选口径时**重置 `page=1` 并清空列表**再拉取。
 
 ## 接口
 
@@ -30,11 +26,11 @@
 
 ### 响应 · `GET /dishes/{id}`（`data` = `DishDetailVO`）
 
-`DishDetailVO`（**详情专用**，**共 16 字段** = 15 基础字段 + `ratingDistribution` 评分分布）。
+`DishDetailVO`（**详情专用**，**共 11 字段**）。
 
-> **列表 / 详情出参拆分**：`GET /dishes` 列表返回**列表专用 8 字段** `DishListItemVO`（`id` / `name` / `coverImage` / `price` / `originalPrice` / `avgRating` / `canteenName` / `stallName`）；下表 15 字段即**详情专属字段集**，由 `GET /dishes/{id}` 独占下发。
+> **列表 / 详情出参拆分**：`GET /dishes` 列表返回**列表专用 8 字段** `DishListItemVO`（`id` / `name` / `coverImage` / `price` / `originalPrice` / `avgRating` / `canteenName` / `stallName`）；下表 11 字段即**详情专属字段集**，由 `GET /dishes/{id}` 独占下发。
 
-`DishDetailVO` 单行字段（15 个；不含坐标字段，见「位置与距离口径」）：
+`DishDetailVO` 单行字段（11 个；不含坐标字段，见「位置与距离口径」）：
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
@@ -47,27 +43,14 @@
 | `stallName` | string | 档口名称 |
 | `canteenName` | string | 食堂名称 |
 | `floor` | string | 档口所在楼层（如 1F / 2F） |
-| `avgRating` | number \| null | 平均评分（**详情页为实时聚合值**，口径 = 仅未隐藏评价）；**该菜品零评价时为 `null`**（端上按「暂无评分」呈现）—— 见下文「可空性约定（R12）」 |
-| `ratingCount` | number | 评价数（同上口径）；**端上不展示**（仅用于判定「有无评分」，UI 统一 Loop Round 22） |
-| `dietType` | string | 荤素 / 饮食属性，**下发机器值**（`meat` / `half` / `veg` / `halal`），展示中文由**后端字典**提供（见 §6 R4） |
-| `ingredients` | string[] | 主料 / 食材，**机器值数组**（如 `["chicken","rice"]`），展示中文由**后端字典**提供 |
-| `flavorTags` | string[] | 口味，**机器值数组**（如 `["spicy","sour"]`），展示中文由**后端字典**提供 |
-| `serveTemp` | string | 冷热，**下发机器值**（`hot` / `room` / `ice`），展示中文由**后端字典**提供 |
+| `avgRating` | number \| null | 平均评分（读缓存列 `dish.avg_rating`，口径 = 仅未隐藏评价，由评价写操作异步重算）；**该菜品零评价时为 `null`** —— 端上**以本字段是否 `null` 判「有无评分」**并按「暂无评分」呈现（见下文「可空性约定（R12）」） |
+| `attributes` | object[] | **该菜品的描述属性（后端已整理：机器值 + 中文一并下发）**，按维度展示顺序排列；每项：`fieldKey`（维度键）/ `name`（维度中文名）/ `value`（机器值：`single`→字符串、`multi`→字符串数组）/ `label`（中文，与 `value` 同构）。仅含该菜品实际拥有的维度（自描述）。示例：`[{"fieldKey":"dietType","name":"饮食属性","value":"veg","label":"素"},{"fieldKey":"flavorTags","name":"口味","value":["spicy","sour"],"label":["辣","酸"]}]` |
 
-> **R4**：四维**下发机器值**（保留筛选 / 统计锚点），**展示中文由后端只读字典端点 `GET /dishes/attributes` 下发**（真源 `DishAttributeConst`，模式对齐 `GET /dishes/meal-types`）——client 与 web **共用同一份字典**，端上**不维护硬编码映射表**；字典须同时服务 client 展示与 web 表单选项（下拉 / chips 必须有选项列表），故中文由后端统一提供。
-> **多值数组化**：`ingredients` / `flavorTags` 出参为 `string[]`（落库为 JSON 数组，幂等迁移 `migrate_dish_multivalue_json`），消除两端 CSV 解析。
-> 英文机器值与中文的完整对应关系**值域真源 = 字典端点 `GET /dishes/attributes`**。
-> **字典项 `field` 命名约束（R13）**：字典项的 `field` 取值 **MUST 等于本 VO 的字段名**（`dietType` / `ingredients` / `flavorTags` / `serveTemp`）—— 端上 / 管理端据此**直接匹配**渲染，**SHALL NOT** 另建「字典 `field` → VO 字段」的第二套映射。
-> **持久层形态**：`images` / `ingredients` / `flavorTags` 由 `StringListTypeHandler` 在持久层直出 `List<String>`（无 JSON 原文中转出参）；绝对 URL 转换在 Service 层完成。
-
-| 字段名 | 类型 | 中文解释 |
-|---|---|---|
-| `ratingDistribution` | object[] | 评分分布数组，固定 5 项（每星级一条）；**端上不再渲染**（UI 统一 Loop Round 22：用户规格「不绘制评分进度条」）—— 字段保留在契约中供后续改版 / web 端使用；口径 = 仅未隐藏评价 |
-
-`ratingDistribution` 数组项（`RatingDistributionVO`）：`star`（星级 1~5）、`count`（该星级评价条数）。
-
-> **数组顺序（R11）**：SHALL **按 `star` 降序（5 → 1）** 下发 —— 与页面展示顺序**一致**；端上**直接按序渲染，SHALL NOT 自行排序**。
-> **可空性**：本字段**恒在**（不为 `null`）；无任何评价时为 5 条 `count: 0`。Round 22 起端上**不再消费该字段**（「有无评分」由 `ratingCount` 判定，**不靠字段缺失判断**）。
+> **R4（后端整理、端上零翻译）**：菜品描述属性由**后端**把机器值与其**中文标签**一并整理下发（`value` + `label`），端上**直接渲染、不拉字典、不做「机器值 → 中文」映射** —— client / web 共用的中文只在后端一处维护。
+> **自描述 + 有序**：`attributes` 只含**该菜品实际拥有的维度**、按维度展示顺序排列；某维度无值则不出现、不占位。
+> **`label` 与 `value` 同构**：`single` 维度为字符串、`multi` 维度为字符串数组（形态 A）。
+> **编辑与展示分离**：编辑（改属性）是**另一个界面**，进入时按需取「该菜现有维度」的**可选项**（见 [client-菜品纠错](./client-菜品纠错.md)）—— 详情响应**不携带**全量选项，端上也不缓存字典。
+> **字典未命中**：菜品 `attributes` 里的值若在字典中找不到（旧数据 / 脏值）→ 后端**原样透出机器值**（不丢弃、不报错）。
 
 > **「我是否已评价」不在本 VO 出参中，详情页首屏也不做该判定** —— 判定时机 = 用户**点击「写评价」时**（表单打开前调「我的评价（按菜过滤）」）：已评价打开预填旧值的重评弹层，未评价打开空表单。首屏对游客与登录用户**完全一致、零用户态请求**；`updatedAt` 不出参。
 > 价格展示只消费 `price`（现价）与 `originalPrice`（原价），折扣由 `originalPrice > price` 表达，**无独立「折扣价」字段**。
@@ -75,8 +58,8 @@
 > **位置与距离口径**：服务端不出参坐标、端上不算距离、不申请定位权限（manifest 不声明 `scope.userLocation`）；位置表达仅用 **食堂名 · 楼层 · 档口名**（`canteenName` / `floor` / `stallName`）。
 > **可空性约定（R12）**：本 VO 的 `null` 边界**共两处** ——
 > ① **`originalPrice`**：无折扣时为 `null`（端上判 `originalPrice > price` 决定划线）；
-> ② **`avgRating`**：该菜品**评价数为 0** 时后端返回 `null`（`DishServiceImpl.applyRatingSummaryFromDistribution` 在 `total == 0` 时置 `null`，端上以 `?? 0` 兜底并呈现「暂无评分」）。
-> 其余字段的边界：`images` / `ratingDistribution` **恒为数组**（无图 / 无评价时为空数组或 5 条 `count: 0`，**不为 `null`**）；`description` / `floor` / `stallName` / `canteenName` 由后端以**空串**兜底（`DishMapper.xml` 的 `COALESCE`），端上可去掉 `|| ''` 兜底。
+> ② **`avgRating`**：该菜品**评价数为 0** 时（缓存列 `dish.avg_rating` 为 NULL）出参 `null`，端上以 `?? 0` 兜底并呈现「暂无评分」。
+> 其余字段的边界：`images` **恒为数组**（无图时为空数组，**不为 `null`**）；`description` / `floor` / `stallName` / `canteenName` 由后端以**空串**兜底（`DishMapper.xml` 的 `COALESCE`），端上可去掉 `|| ''` 兜底。
 
 ### 请求 · `GET /dishes/{id}/reviews`
 
@@ -85,7 +68,7 @@
 | `id` | number | **是** | 菜品 ID（**路径参数**，RESTful 子资源，如 `/dishes/1/reviews`） |
 | `page` | number | 否 | 页码，默认 1 |
 | `pageSize` | number | 否 | 每页条数，默认 20（**详情页固定传 10**） |
-| `hasImage` | number | 否 | **「只看有图」筛选**：`1` = 只看有图 / `0` 或缺省 = 不限。**语义 = 仅返回配图非空的评价**（`total` 按该筛选口径统计）。**端上切换筛选时必须重置 `page=1` 并清空列表** |
+| `hasImage` | number | 否 | **「只看有图」筛选**：`1` = 只看有图 / `0` 或缺省 = 不限。**语义 = 仅返回配图非空的评价**。**端上切换筛选时必须重置 `page=1` 并清空列表** |
 
 > **实现注（R12）**：`hasImage` 的存储层判定基于 JSON 语义（`JSON_VALID` + `JSON_LENGTH`）——属实现细节；**契约语义（「配图非空」）不变**。
 
@@ -98,12 +81,8 @@
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `records` | ReviewVO[] | 当前页评价行数组（端上以它为准） |
-| `total` | number | 该菜品可见评价总条数 |
-| `page` | number | 服务端归一化后的实际页码 |
-| `pageSize` | number | 服务端归一化后的实际每页条数 |
 
-> **分页壳恒为 `records` / `total` / `page` / `pageSize` 四项**，SHALL NOT 输出 `list` 或任何与 `records` 恒等派生的兼容字段（见 `pagination-contract`）。
-> **`page` / `pageSize` 的归一化规则（R11）**：回传的是经 `PageUtil.normalize` 归一化后的**实际生效值**（`page < 1 → 1`；`pageSize < 1 → 10`；**`pageSize > 100 → 100`**），且取的是 `IPage.getCurrent()` / `getSize()` 而**非 Controller 原始入参**。**这正是这两个字段存在的意义** —— 入参越界 / 超限时，端上只能从这里得知服务端**真正用了什么**（否则它们才是冗余字段）。
+> **分页壳恒为 `records` 一项**（全站统一，见 `pagination-contract`），SHALL NOT 输出 `list` 或任何与 `records` 恒等派生的兼容字段；页码 / 每页条数由请求侧掌握、不回传。
 
 `ReviewVO` 单行字段（**公开视角，8 字段**）：
 
@@ -114,7 +93,7 @@
 | `id` | number | 评价 ID |
 | `userId` | number | 评价者用户 ID（端上据此判定是否本人，决定「删除 / 举报」入口的**显隐**）。**（R7：鉴权仍由服务端把关「非本人 → 403」；ID 非敏感。此为有意的双重判定权衡，非冗余，见文末 R14）** |
 | `userNickname` | string | 评价者昵称（账号注销后为「已注销用户」） |
-| `userAvatar` | string | 评价者头像 URL |
+| `userAvatar` | string \| null | 评价者头像 URL（作者无头像时为 `null`，端上以占位图兜底） |
 | `rating` | number | 评分（1~5 星） |
 | `content` | string | 评价文字内容 |
 | `images` | string[] | 评价配图 URL 数组（COS 绝对地址，≤3 张，无图空数组） |
@@ -130,13 +109,13 @@
 | 网络 / 服务端故障 | 传输层错误或 `5xx` | 展示**可重试**的失败态（与「不存在」**区别对待**） |
 
 > **`4001` = 资源不存在（通用细分码）**：与 `4031`（邮箱未认证）**同源的细分码思路** —— 让端上**不必解析 `message` 文本**即可给出差异化引导（「不存在」→ 恢复路径；「参数非法」→ 提示）。
-> **下架口径**：公开接口恒只返回在售（见 §7.27）→ 「下架」对外**等价于不存在**，不设专用码、**不新增字段**（`DishDetailVO` 仍为 16 字段）。
+> **下架口径**：公开接口恒只返回在售 → 「下架」对外**等价于不存在**，不设专用码、**不新增字段**（`DishDetailVO` 仍为 12 字段）。
 
 ## 数据（读取 / 落库）
 
 | 表 | 变化 | 中文解释 |
 |---|---|---|
-| `dish` | 读全字段 | 菜品主体信息 |
+| `dish` | 读全字段 | 菜品主体信息；动态描述属性经 `attributes` JSON 列承载 |
 | `stall` / `canteen` | 读名称、楼层 | 归属位置（食堂 / 楼层 / 档口名）；**不读坐标、不算距离**（见「位置与距离口径」） |
 | `review` | 读（过滤 `is_hidden=0`）；「重新评价」会 UPDATE 同一行（`created_at` 刷新为新时间） | 可见评价列表 |
 | `dish.view_count` | 写 | 浏览量 +1（PV 口径，口径见 [client-浏览计数](./client-浏览计数.md)） |
@@ -145,7 +124,7 @@
 
 **「我是否已评价」的判定时机：用户点击「写评价」时（表单打开前）。**
 
-- **详情页首屏零用户态请求**：仅「详情 + 公开评价」并行，游客与登录行为完全一致；「我的评价」数据只在**我的评价**一处下发（单一真源）——详情 VO 不含用户态字段，评价列表响应**不**外挂 `myReview`（分页壳恒为 `records`/`total` 两项，不挂业务字段）；
+- **详情页首屏零用户态请求**：仅「详情 + 公开评价」并行，游客与登录行为完全一致；「我的评价」数据只在**我的评价**一处下发（单一真源）——详情 VO 不含用户态字段，评价列表响应**不**外挂 `myReview`（分页壳恒为 `records` 单项，不挂业务字段）；
 - **判定动作**：已认证用户点击「写评价」→ 端上先调 `GET /my/reviews?dishId=` → **已评价**则以重评模式打开弹层（预填本人旧值 + 明示「本次提交将覆盖原评价」，提交走 `PUT /reviews/{id}`）；**未评价**打开空表单。判定失败静默按未评价处理（此时提交若命中唯一键冲突 → 400「您已评价过该菜品」提示兜底）；
 - **底栏文案为会话内双态**：由端上本地「我的评价」态驱动——初始「写评价」；判定为已评价或提交成功后（本地写回，POST 出参返回新评价 ID）就地切「重新评价」；
 - **评价作者标识 `userId`**：公开评价出参携带，端上据此决定评价卡「删除 / 举报」入口显隐（服务端另有「非本人 → 403」鉴权）——**保留 `userId`，不引入 `isMine`**：`isMine` 须由服务端按请求者计算，会让公开评价列表变为「半用户态」；本人视角下恒真属零信息冗余。**有意的双重判定权衡。**

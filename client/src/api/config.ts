@@ -7,11 +7,14 @@
  * 1. 环境变量 VITE_API_BASE_URL（可在 .env.development / .env.production 或命令行注入）
  * 2. 下方 DEFAULT_API_BASE_URL（本地联调默认 127.0.0.1:8080）
  *
+ * ⚠️ base **必须含版本段 /api/v1**，与后端 application.yml 的
+ *    `server.servlet.context-path = /api/v1` 一致；缺版本段 → 全站 404。
+ *
  * 用法示例：
- * - 真机预览（手机与电脑同一 WiFi）：VITE_API_BASE_URL=http://<电脑局域网IP>:8080/api
- * - 部署上线：VITE_API_BASE_URL=https://<你的域名>/api
+ * - 真机预览（手机与电脑同一 WiFi）：VITE_API_BASE_URL=http://<电脑局域网IP>:8080/api/v1
+ * - 部署上线：VITE_API_BASE_URL=https://<你的域名>/api/v1
  */
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api'
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api/v1'
 
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL

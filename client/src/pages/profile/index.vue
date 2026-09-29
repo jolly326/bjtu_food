@@ -24,22 +24,10 @@
           <input v-model="nickname" class="nickname-input" placeholder="请输入昵称" maxlength="16" placeholder-class="input-placeholder" />
         </view>
 
-        <!-- 学号（校园身份，只读） -->
-        <view class="info-row">
-          <text class="info-label">学号</text>
-          <text class="info-value">{{ userInfo?.username || '--' }}</text>
-        </view>
-
-        <!-- 校园邮箱（只读）：唯一来源 bindEmail（spec §7.32） -->
+        <!-- 校园邮箱（只读）：唯一来源 bindEmail（认证判据同源；未认证以 '--' 占位） -->
         <view class="info-row">
           <text class="info-label">校园邮箱</text>
           <text class="info-value info-value-email">{{ bindEmail || '--' }}</text>
-        </view>
-
-        <!-- 注册时间（只读）：createdAt（后端透传 yyyy-MM-dd HH:mm:ss） -->
-        <view class="info-row">
-          <text class="info-label">注册时间</text>
-          <text class="info-value">{{ userInfo?.createdAt || '--' }}</text>
         </view>
       </view>
     </scroll-view>
@@ -58,7 +46,7 @@ import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
 import { toastError } from '@/utils/error'
 import { uploadAvatarImage } from '@/api/upload'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'

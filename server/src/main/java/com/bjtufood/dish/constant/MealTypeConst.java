@@ -19,6 +19,9 @@ import java.util.stream.Collectors;
  * <p>
  * 边界：本枚举**不构成品类复活**——无 {@code category} 表、无 {@code /admin/categories}、
  * 无后台品类维护页（§7.22 第 1 条继续有效）。新增大类须改本常量并发版（低频变更，用户已接受）。
+ * <p>
+ * 虚拟导航项（「为你推荐」及将来的「折扣菜品」等）**永不进入本常量**：它们不是菜的入库属性，
+ * 而是在 {@code listMealTypes()} 出口处拼装的聚合视角（2026-09-28 产品拍板：逛 / 找 / 买 / 试四位一体）。
  */
 public final class MealTypeConst {
 

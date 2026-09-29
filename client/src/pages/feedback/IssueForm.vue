@@ -2,7 +2,7 @@
   <!-- 意见反馈 · 表单字段区（2026-09-27 与菜品纠错解耦后：**只有一套字段**）：
        ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
        ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
-       ③ 上传截图（选填，最多 1 张，虚线框）
+       ③ 上传截图（选填，≤3 张）
        表单自身不带卡片壳（白卡由页面 .q-card 提供）。 -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
@@ -60,13 +60,12 @@
       <text v-if="errors['form.content']" class="field-error">{{ errors['form.content'] }}</text>
     </view>
 
-    <!-- ③ 上传截图（选填，最多 1 张）：单图虚线框形态；破图走统一 ImagePlaceholder -->
+    <!-- ③ 上传截图（选填，**≤3 张**，端上 / 服务端同口径）；破图走统一 ImagePlaceholder -->
     <view class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
-        single
         :model-value="model.images"
-        :max="1"
+        :max="3"
         :disabled="submitting"
         @update:model-value="onImagesChange"
       />
@@ -80,9 +79,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
-
-/** 描述上限（与编排层同源常量；值 = 用户口径 600 字） */
-const CONTENT_MAX = 600
+import { CONTENT_MAX } from './useFeedback'
 
 const props = defineProps<{
   model: { type: FeedbackType | ''; content: string; images: string[] }

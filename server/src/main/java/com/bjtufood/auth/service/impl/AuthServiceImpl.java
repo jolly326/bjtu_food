@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bjtufood.auth.dto.LoginVO;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
 import com.bjtufood.auth.dto.UserInfoVO;
+import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
@@ -12,22 +13,18 @@ import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.auth.service.WechatService;
+import com.bjtufood.wechat.service.WechatService;
 import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.JwtUtil;
-import com.bjtufood.common.utils.SensitiveFilter;
-import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.review.entity.Review;
-import com.bjtufood.review.mapper.ReviewMapper;
-import com.bjtufood.feedback.entity.Feedback;
-import com.bjtufood.feedback.mapper.FeedbackMapper;
-import com.bjtufood.notify.entity.Notification;
-import com.bjtufood.notify.mapper.NotificationMapper;
+import com.bjtufood.auth.support.JwtUtil;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.auth.event.UserAccountClosedEvent;
+import com.bjtufood.auth.event.UserOwnershipMigratedEvent;
+import com.bjtufood.moderation.service.ContentSecurityService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,11 +43,16 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final WechatService wechatService;
-    private final ReviewMapper reviewMapper;
-    private final FeedbackMapper feedbackMapper;
-    private final NotificationMapper notificationMapper;
+    /**
+     * 跨域写侧出口（P0-1 架构收口）：auth 不再注入 review / feedback / notify 的 Mapper 直改他域表，
+     * 改为在事务内发布领域事件，各域监听器自理本域表。
+     * <p>
+     * 监听器均为同步 {@code @EventListener}（非 AFTER_COMMIT）→ 仍在调用方事务内执行，
+     * 任一环节失败整体回滚，与原内联写库的事务边界逐字一致。
+     */
+    private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    private final SensitiveFilter sensitiveFilter;
+    private final LocalSensitiveFilter localSensitiveFilter;
     private final ContentSecurityService contentSecurityService;
     private final TokenBlacklist tokenBlacklist;
 
@@ -66,12 +68,12 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userService.getByOpenid(openid);
         if (user == null) {
-            user = createWechatGuest(session);
+            user = userService.createWechatGuest(openid);
         }
-        if ("disabled".equals(user.getStatus())) {
+        if (UserConst.STATUS_DISABLED.equals(user.getStatus())) {
             throw new BusinessException("账号已被禁用");
         }
-        if ("deleted".equals(user.getStatus())) {
+        if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
         // last_login_at 写入点已随列退役（2026-09-15 用户拍板「只写不读零消费，删列」）
@@ -89,7 +91,7 @@ public class AuthServiceImpl implements AuthService {
         if (current == null) {
             throw new BusinessException("用户不存在");
         }
-        if ("disabled".equals(current.getStatus()) || "deleted".equals(current.getStatus())) {
+        if (UserConst.STATUS_DISABLED.equals(current.getStatus()) || UserConst.STATUS_DELETED.equals(current.getStatus())) {
             throw new BusinessException("账号状态异常，无法认证");
         }
 
@@ -114,7 +116,7 @@ public class AuthServiceImpl implements AuthService {
             // NULL 不占用 uk_user_email 唯一索引，空串则会与其它置 '' 的账号冲突。
             userMapper.update(null, new LambdaUpdateWrapper<User>()
                     .eq(User::getId, legacyAccount.getId())
-                    .set(User::getStatus, "deleted")
+                    .set(User::getStatus, UserConst.STATUS_DELETED)
                     .set(User::getEmail, null));
         }
 
@@ -149,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
         LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
         updater.eq(User::getId, userId);
         if (StringUtils.hasText(req.getNickname())) {
-            if (sensitiveFilter.containsSensitive(req.getNickname())) {
+            if (localSensitiveFilter.containsSensitive(req.getNickname())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
             }
             // 内容安全检测（产品定稿 2026-09-13：昵称变更 msgSecCheck v2，scene=1 资料）。
@@ -181,10 +183,10 @@ public class AuthServiceImpl implements AuthService {
         }
         // 终态保护：已注销用户重复调用返回 400「账号已注销」
         // （场景：服务重启后 TokenBlacklist 清空，同用户其他有效 token 再次到达；正常场景已被过滤器 401 拦截）
-        if ("deleted".equals(user.getStatus())) {
+        if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        if ("disabled".equals(user.getStatus())) {
+        if (UserConst.STATUS_DISABLED.equals(user.getStatus())) {
             throw new BusinessException("账号已被禁用，无法注销");
         }
 
@@ -210,7 +212,7 @@ public class AuthServiceImpl implements AuthService {
                 .set(User::getEmail, null)
                 .set(User::getOpenid, null)
                 .set(User::getBindEmail, null)
-                .set(User::getStatus, "deleted"));
+                .set(User::getStatus, UserConst.STATUS_DELETED));
 
         // email_verification_code 按该用户邮箱删除（表无 user_id 列，以 email 匹配）；
         // email 与 bind_email 可能不同（迁移/替换绑定场景），两批都清，避免残留验证码在他端被消费。
@@ -219,7 +221,9 @@ public class AuthServiceImpl implements AuthService {
 
         // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
         // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。
-        notificationMapper.delete(new LambdaQueryWrapper<Notification>().eq(Notification::getUserId, userId));
+        // P0-1：改为发布账号注销事件，由 notify 域监听器硬删该用户全部站内消息
+        // （发布点即原 notificationMapper.delete(...) 的位置，同步监听 → 仍在本事务内，失败整体回滚）。
+        eventPublisher.publishEvent(new UserAccountClosedEvent(userId));
 
         // token 立即失效（复用 TokenBlacklist，与管理员禁用同一机制）：
         // · token 维度：精确拉黑当前请求 token，JwtAuthFilter 命中后 401「账号已注销，请重新登录」；
@@ -239,13 +243,10 @@ public class AuthServiceImpl implements AuthService {
                 .eq(EmailVerificationCode::getEmail, email));
     }
 
-    // 管理后台登录（adminLogin）已随管理端账号体系一并移除（2026-09-13 定型：后台无登录，
-    // 管理端接口由 AdminTokenFilter 的环境变量口令 ADMIN_TOKEN 校验保护）。
-
     @Override
     public UserInfoVO toUserInfo(User user) {
-        // 字段集（含 createdAt 注册时间共 6 个，2026-09-22 §7.32 修订 / auth-api-contract）：
-        // id/username/nickname/avatar/bindEmail/createdAt；verified（bindEmail 派生冗余）、email/status/guestShortId
+        // 字段集恰 5 个：id/username/nickname/avatar/bindEmail；
+        // verified（bindEmail 派生冗余）、email/status/guestShortId/createdAt
         // 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
@@ -253,7 +254,6 @@ public class AuthServiceImpl implements AuthService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setBindEmail(user.getBindEmail());
-        vo.setCreatedAt(user.getCreatedAt());
         return vo;
     }
 
@@ -265,52 +265,6 @@ public class AuthServiceImpl implements AuthService {
         return new LoginVO(token, toUserInfo(user));
     }
 
-    /**
-     * 游客短标识：食客 + ID 尾 4 位（spec §5.y.4 游客标识）。
-     */
-    private String buildGuestShortId(Long userId) {
-        String id = String.valueOf(userId);
-        String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
-        return "食客" + tail;
-    }
-
-    /**
-     * 管理后台 Token 过期时长：12 小时（毫秒）。
-     * <p>
-     * 管理端凭据泄露面小但危害大，短期过期降低风险；
-     * 学生端静默登录保持长期（见 toLoginVO），两者策略分离。
-     */
-
-    /**
-     * 新建微信游客账号（游客态 = bind_email 为 NULL，无布尔列）。
-     * <p>
-     * unionid 不再落库（user.unionid 列已随 2026-09-16 零消费退役），仅消费 openid。
-     */
-    private User createWechatGuest(WechatService.WechatSession session) {
-        String openid = session.openid();
-        User user = new User();
-        user.setOpenid(openid);
-        // 游客建号：username = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
-        String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
-        user.setUsername("wx_" + tail);
-        user.setNickname("食客新友");
-        // role 列已退役（2026-09-15）：全量用户即学生，无需写入角色
-        user.setStatus("active");
-        try {
-            userMapper.insert(user);
-        } catch (DuplicateKeyException e) {
-            // 并发下 openid 唯一键兜底：重新查询已有账号
-            User existed = userService.getByOpenid(openid);
-            if (existed != null) {
-                return existed;
-            }
-            throw new BusinessException("微信登录创建账号失败，请重试");
-        }
-        // 默认昵称可用后置为短标识（用建号后自增 ID）
-        user.setNickname(buildGuestShortId(user.getId()));
-        userMapper.updateById(user);
-        return user;
-    }
 
     /**
      * 消费验证码并推导绑定邮箱。
@@ -375,28 +329,16 @@ public class AuthServiceImpl implements AuthService {
      * <p>
      * 仅在 {@link #verifyEmail}（已标注 @Transactional）内部被同实例调用，属自调用，
      * 不单独开启事务，统一并入外层事务回滚边界。若被外部 Bean 调用需自行加事务。
-     * 对带唯一键的表（review 的 user+dish）先清理新账号已存在的冲突行（保留新账号记录），
-     * 再执行归属改写，避免 DuplicateKey 中断事务。
+     * <p>
+     * P0-1 架构收口：本方法不再持有 review / feedback / notify 的 Mapper，改为发布
+     * {@link UserOwnershipMigratedEvent}，由各域监听器自理本域表（review 独有的
+     * 「先清理 to 已存在的同 dish 冲突行、再改归属」知识一并收敛回 review 域实现）。
+     * 监听器为同步 {@code @EventListener} → 仍在 verifyEmail 事务内执行，失败整体回滚。
      */
     protected void migrateOwnership(Long fromUserId, Long toUserId) {
         if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
             return;
         }
-        // review：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）。
-        reviewMapper.delete(new LambdaUpdateWrapper<Review>()
-                .eq(Review::getUserId, fromUserId)
-                .inSql(Review::getDishId, "SELECT dish_id FROM review WHERE user_id = " + toUserId));
-        reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
-                .eq(Review::getUserId, fromUserId)
-                .set(Review::getUserId, toUserId));
-
-        // 无唯一键约束的直接归属改写
-        // （dish.created_by 已随列退役（2026-09-16 零消费删除），归属迁移不再覆盖 dish 表）
-        feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
-                .eq(Feedback::getUserId, fromUserId)
-                .set(Feedback::getUserId, toUserId));
-        notificationMapper.update(null, new LambdaUpdateWrapper<Notification>()
-                .eq(Notification::getUserId, fromUserId)
-                .set(Notification::getUserId, toUserId));
+        eventPublisher.publishEvent(new UserOwnershipMigratedEvent(fromUserId, toUserId));
     }
 }

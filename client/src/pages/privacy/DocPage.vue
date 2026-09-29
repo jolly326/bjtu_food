@@ -41,7 +41,7 @@
  */
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 
 /** 正文章节：`h` = 小节标题（可省略）；`ps` = 段落文本（按序渲染） */
 export interface DocSection {

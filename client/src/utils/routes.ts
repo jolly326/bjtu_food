@@ -60,7 +60,8 @@ export function feedbackUrl(): string {
 
 /**
  * 菜品纠错页 URL（独立页面，**仅**菜品详情页底栏「反馈错误」触发）：
- * 进页即按 `dishId` 拉详情预填（名称 / 价格 / 食堂名 / 档口 / 口味 / 食材 / 图片），用户只改错的地方。
+ * 进页即按 `dishId` 预绑定该菜品并拉详情预填（名称 / 价格 / 食堂名 / 档口 / 描述属性 / 图片），
+ * 表单内不可切换菜品，提交**只传改动项**。
  */
 export function correctionUrl(dishId: number | string): string {
   return `${PATH.correction}?dishId=${dishId}`

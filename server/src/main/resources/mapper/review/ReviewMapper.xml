@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bjtufood.review.mapper.ReviewMapper">
+
+    <!--
+    ============================================================
+    评价模块 - 自定义 SQL 映射
+
+    基础 CRUD 由 MyBatis-Plus 自动生成。
+    自定义查询（如：评价列表关联用户表）在此编写。
+
+    命名规则：
+    - selectReviewPageByDishId：公开列表（按菜品，联表补齐作者昵称/头像，时间倒序，可选只看有图）
+    - selectReviewPageByUserId：我的评价（按用户过滤的本人评价，含 dishId/dishName）
+    - selectAvgRatingByStallIds：批量统计多个档口平均分
+
+    排序口径（2026-09-20 拍板）：评价列表排序唯一为 created_at DESC，
+    原「按有用数置顶」第二口径与 sort 入参已随「有用」全链下线一并删除。
+
+    可见性口径（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+    - 客户端可达评价唯一判据为 is_hidden=0，公开列表与我的评价同口径——被隐藏的评价不对客户端返回。
+    - images 列为配图 URL 列表 JSON 原文（review.images），由 StringListTypeHandler 在**持久层**完成
+      「列 ↔ List<String>」转换（2026-09-23 R5）；图片相对路径 → 绝对 URL 的转换仍由 service 层完成。
+    ============================================================
+    -->
+
+    <!-- 评价行映射（2026-09-23 R5）：images 列 → List<String> 由 TypeHandler 完成；
+         其余下划线列（user_nickname / dish_name / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
+    <resultMap id="reviewMap" type="com.bjtufood.review.dto.ReviewVO">
+        <id property="id" column="id"/>
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
+    </resultMap>
+
+    <!--
+        本人视角行映射：MyReviewVO 恰 7 字段（id / rating / content / images / createdAt + dishId / dishName），
+        不含作者标识三项（userId / userNickname / userAvatar）——本人视角下三者恒等于本人，属零信息，不下发。
+        两条链路各自绑定自己的 VO，消费端据此定义两个类型（不再靠「调哪个接口」区分字段集）。
+    -->
+    <resultMap id="myReviewMap" type="com.bjtufood.review.dto.MyReviewVO">
+        <id property="id" column="id"/>
+        <result property="images" column="images"
+                typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
+    </resultMap>
+
+    <!-- 公开列表：按菜品，联表补齐作者昵称 / 头像，时间倒序，可选「只看有图」 -->
+    <select id="selectReviewPageByDishId" resultMap="reviewMap">
+        SELECT
+            r.id,
+            r.user_id,
+            u.nickname AS user_nickname,
+            u.avatar AS user_avatar,
+            r.rating,
+            r.content,
+            r.images,
+            r.created_at
+        FROM review r
+                 JOIN user u ON r.user_id = u.id
+        WHERE r.dish_id = #{dishId}
+          AND r.is_hidden = 0
+        <if test="hasImage != null and hasImage == 1">
+            -- 只看有图（2026-09-23 R4 重写为 JSON 语义）：images 列为 JSON 数组串，按「数组长度 > 0」判非空
+            --   · JSON 合法（如 [] / ["a.jpg"]）→ 取 JSON_LENGTH：空数组判无图、非空判有图
+            --   · 非 JSON（历史逗号分隔串，JsonListUtil 兼容形态）→ 归为「有图」，与原行为一致
+            --   CASE 保证 JSON_LENGTH 仅在 JSON_VALID 为真时求值（避免对非法 JSON 求值报错）
+            AND r.images IS NOT NULL AND r.images &lt;&gt; ''
+            AND (CASE WHEN JSON_VALID(r.images) THEN JSON_LENGTH(r.images) ELSE 1 END) &gt; 0
+        </if>
+        ORDER BY r.created_at DESC
+    </select>
+
+    <!--
+        我的评价：当前用户的全部有效评价（对评价全集按 user_id 过滤拆分，联表补齐菜品名）。
+        本人视角 7 字段：id / rating / content / images / createdAt + dish_id / dish_name；
+        作者昵称 / 头像 / userId 本视角零信息，故既不 SELECT 也不 JOIN user。
+        可见性与公开列表同口径：仅返回 is_hidden=0——被管理员隐藏的评价不对客户端（含作者本人）返回。
+        排序：固定时间倒序。dishId 可选过滤（详情页判定「我是否已评价」）。
+    -->
+    <select id="selectReviewPageByUserId" resultMap="myReviewMap">
+        SELECT
+            r.id,
+            r.dish_id,
+            d.name AS dish_name,
+            r.rating,
+            r.content,
+            r.images,
+            r.created_at
+        FROM review r
+                 JOIN dish d ON r.dish_id = d.id
+        WHERE r.user_id = #{userId}
+          AND r.is_hidden = 0
+        <if test="dishId != null">
+            AND r.dish_id = #{dishId}
+        </if>
+        ORDER BY r.created_at DESC
+    </select>
+
+    <!--
+        批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
+        计入口径（2026-09-15 归一）：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径）。
+    -->
+    <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
+        SELECT d.stall_id     AS stallId,
+               AVG(r.rating)  AS avgRating
+        FROM review r
+                 JOIN dish d ON r.dish_id = d.id
+        WHERE d.stall_id IN
+        <foreach collection="stallIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+          AND r.is_hidden = 0
+        GROUP BY d.stall_id
+    </select>
+
+</mapper>

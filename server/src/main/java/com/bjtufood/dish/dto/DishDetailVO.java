@@ -1,5 +1,6 @@
 package com.bjtufood.dish.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -7,26 +8,27 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 菜品详情视图对象（VO）——**详情专用**，15 个字段 + {@code ratingDistribution}
+ * 菜品详情视图对象（VO）——**详情专用**，恰 11 个字段
  * <p>
- * 2026-09-22 用户拍板「列表 / 详情出参拆分」（docs/feature/client-首页菜品浏览.md D 项）：
- * 本类不再作为列表出参（原共享 {@code DishVO} 及其 {@code extends} 形态均已废止、该类已删除），只服务 {@code GET /dishes/{id}}；
- * 列表改由 {@link DishListItemVO}（8 字段）承载，本类的详情专属字段不得回流到列表。
+ * 只服务 {@code GET /dishes/{id}}；列表由 {@link DishListItemVO}（8 字段）承载，
+ * 本类的详情专属字段不得回流到列表。
  * <p>
- * 字段集（15）：{@code id}、{@code name}、{@code price}、{@code originalPrice}、{@code description}、
- * {@code images}、{@code stallName}、{@code canteenName}、{@code floor}、{@code avgRating}、
- * {@code ratingCount}、{@code dietType}、{@code ingredients}、{@code flavorTags}、{@code serveTemp}。
+ * 字段集（11）：{@code id}、{@code name}、{@code price}、{@code originalPrice}、{@code description}、
+ * {@code images}、{@code stallName}、{@code canteenName}、{@code floor}、{@code avgRating}、{@code attributes}。
  * <p>
  * 以下字段已从公开响应删除且不得回流：{@code status}（公开接口恒只返回在售）、{@code createdAt}、
  * {@code canteenId}、{@code stallId}、{@code viewCount}、{@code promoPrice}、{@code tags}、
  * {@code spiceLevel}、{@code region}、{@code windowNo}、{@code updatedAt}、{@code latitude}、
- * {@code longitude}、{@code mealType}（大类只参与筛选与字典下发，不进公开出参）。
+ * {@code longitude}、{@code mealType}（大类只参与筛选与字典下发，不进公开出参）、
+ * {@code ratingCount}（零消费）、{@code ratingDistribution}（零消费）、
+ * {@code dietType} / {@code ingredients} / {@code flavorTags} / {@code serveTemp}
+ * （四维已收敛为 {@code attributes} 动态属性）。
  * <p>
- * 价格口径（D2）：{@code price} = 现价（唯一数据源）；{@code originalPrice} = 原价（可空）；
+ * 价格口径：{@code price} = 现价（唯一数据源）；{@code originalPrice} = 原价（可空）；
  * 「有折扣」判据为 {@code originalPrice} 有值且大于 {@code price}。
  */
 @Data
-@Schema(description = "菜品详情展示信息（公开 15 字段 + 评分分布）")
+@Schema(description = "菜品详情展示信息（公开 11 字段）")
 public class DishDetailVO {
 
     @Schema(description = "菜品ID")
@@ -46,7 +48,7 @@ public class DishDetailVO {
     @Schema(description = "菜品描述")
     private String description;
 
-    @Schema(description = "菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5）")
+    @Schema(description = "菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成）")
     private List<String> images;
 
     @Schema(description = "档口名称", example = "面食窗口")
@@ -59,32 +61,22 @@ public class DishDetailVO {
     @Schema(description = "档口楼层（如 1F/2F）", example = "1F")
     private String floor;
 
-    @Schema(description = "平均评分", example = "4.5")
+    /**
+     * 平均评分：<b>读缓存列 {@code dish.avg_rating}</b>（口径 = 仅未隐藏评价，由评价写操作异步重算）；
+     * 该菜品零评价时为 {@code null}——端上以本字段是否 null 判「有无评分」。
+     */
+    @Schema(description = "平均评分（读缓存列 dish.avg_rating；零评价为 null）", example = "4.5")
     private BigDecimal avgRating;
 
-    @Schema(description = "评价数", example = "20")
-    private Integer ratingCount;
+    /** 该菜品实际拥有的描述属性（后端已整理：机器值 + 中文），按维度展示顺序排列 */
+    @Schema(description = "菜品描述属性（仅含该菜实际拥有的维度，按维度顺序；value/label 同构：single=字符串 / multi=数组）")
+    private List<DishAttributeItem> attributes;
 
-    // ==================== 描述四维（§7.28） ====================
-
-    /** 荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真 */
-    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
-    private String dietType;
-
-    /** 主料/食材：机器值数组（**2026-09-23 R4 由逗号分隔串改数组**；中文标签见 `GET /dishes/attributes`） */
-    @Schema(description = "主料/食材（数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
-    private List<String> ingredients;
-
-    /** 口味：机器值数组（吸收原辣度语义；**2026-09-23 R4 改数组**） */
-    @Schema(description = "口味（数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
-    private List<String> flavorTags;
-
-    /** 冷热：hot=热食 / room=常温 / ice=冰 */
-    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
-    private String serveTemp;
-
-    // ==================== 详情专属附加 ====================
-
-    @Schema(description = "评分分布（1-5星各一个）")
-    private List<RatingDistributionVO> ratingDistribution;
+    /**
+     * {@code dish.attributes} 列的 JSON 原文，**仅供 Service 解析 {@link #attributes}，不出参**
+     * （存储形态不泄漏进契约；展示项由 {@link #attributes} 承载）。
+     */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private String attributesJson;
 }

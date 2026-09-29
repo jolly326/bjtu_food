@@ -9,23 +9,26 @@
     @mouseup="pressed = false"
     @mouseleave="pressed = false"
   >
-    <image
-      v-if="avatarOk && review.userAvatar"
-      class="review-avatar"
-      :src="getImageUrl(review.userAvatar)"
-      mode="aspectFill"
-      role="img"
-      :aria-label="`${review.userNickname || '匿名用户'}的头像`"
-      @error="avatarOk = false"
-    />
-    <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${review.userNickname || '匿名用户'}的头像`">
-      <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
-      <ImagePlaceholder name="user" :size="32" />
-    </view>
+    <!-- 作者头像：**仅公开视角**（`MyReviewVO` 不含 `userAvatar`）——本人视角变体不渲染头像列 -->
+    <template v-if="!mine">
+      <image
+        v-if="avatarOk && authorAvatar"
+        class="review-avatar"
+        :src="getImageUrl(authorAvatar)"
+        mode="aspectFill"
+        role="img"
+        :aria-label="`${authorNickname}的头像`"
+        @error="avatarOk = false"
+      />
+      <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${authorNickname}的头像`">
+        <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
+        <ImagePlaceholder name="user" :size="32" />
+      </view>
+    </template>
     <view class="review-body">
-      <view class="review-head">
-        <view class="review-head-left">
-          <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
+      <view class="review-head" :class="{ 'review-head--mine': mine }">
+        <view v-if="!mine" class="review-head-left">
+          <text class="review-nickname">{{ authorNickname }}</text>
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
         <view class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
@@ -89,14 +92,24 @@ import { getImageUrl } from '@/utils/image'
 import { useBrokenImages } from '@/composables/useBrokenImages'
 import { formatRating } from '@/utils/dish'
 import { formatDate } from '@/utils/time'
-import type { Review } from '@/types/review'
+import type { Review, MyReview } from '@/types/review'
 
 defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
-  review: Review
+  /**
+   * 评价行：**两种视角两个类型**（R9）——
+   * 公开视角 `Review`（`GET /dishes/{id}/reviews`，含作者标识）｜
+   * 本人视角 `MyReview`（`GET /my/reviews`，含 `dishId` / `dishName`、无作者标识）。
+   */
+  review: Review | MyReview
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
+  /**
+   * **本人视角变体**（「我的评价」页）：`MyReviewVO` 不含 `userId` / `userNickname` / `userAvatar`
+   * ⇒ 不渲染头像与昵称（恒为本人，渲染即冗余）。
+   */
+  mine?: boolean
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
   dishName?: string
 }>()
@@ -107,7 +120,7 @@ const props = defineProps<{
    UI 统一 Loop Round 17：原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
    —— 本人删除 / 他人举报统一由父页 `ActionSheet` 处理 ⇒ 按「零消费即删」移除。 */
 const emit = defineEmits<{
-  (e: 'more', review: Review): void
+  (e: 'more', review: Review | MyReview): void
 }>()
 
 const pressed = ref(false)
@@ -115,6 +128,16 @@ const avatarOk = ref(true)
 
 /* 注：原 `isOwn` / `canDelete` 两个派生值只服务于已删除的 `delete` 事件（UI 统一 Loop Round 17）；
    「是否本人评价」的判定现由父页（我的评价 / 菜品详情）自行完成，组件不再重复持有。 */
+
+/**
+ * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
+ * 用 `in` 收窄并集：公开视角行含 `userId`，本人视角行含 `dishId`。
+ */
+const authorAvatar = computed(() => ('userAvatar' in props.review ? props.review.userAvatar : ''))
+const authorNickname = computed(() => {
+  const name = 'userNickname' in props.review ? props.review.userNickname : ''
+  return name || '匿名用户'
+})
 
 /**
  * 星级渲染颗数（1–5，最低 1 颗）：Round 28 —— 原为**模板内表达式**（每次渲染重算），改 `computed` 缓存。
@@ -214,6 +237,8 @@ function onMore() {
   display: flex;
   align-items: center;
 }
+/* 本人视角变体：无昵称行时头行仍须有高度承载右上「竖三点」（该钮为绝对定位、不参与行高） */
+.review-head--mine { min-height: 64rpx; }
 /* 头部第一行：昵称，右侧预留三点按钮空间 */
 .review-head-left {
   flex: 1;

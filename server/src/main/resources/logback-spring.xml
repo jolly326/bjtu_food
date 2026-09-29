@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  日志配置（2026-09-28 架构收口 D：可观测性）。
+
+  改造前：仓库内无任何 logback 配置，Spring Boot 走默认策略 —— 仅控制台输出、
+  无级别区分（业务与框架同级）、无文件归档、无 traceId 贯穿。生产部署后无法定位
+  单次请求的完整链路，也无法做容量/故障后的日志留存。
+
+  改造后按 profile 分环境：
+  - dev / test：控制台 + 可读格式，不落文件（避免污染工作区）。
+  - prod：文件归档（按天 + 按大小滚动，保留 30 天）+ JSON 行格式，便于日志平台采集。
+  两者均接入 MDC 的 traceId（由 RequestTraceIdFilter 写入），使一次请求内的
+  跨域调用日志可通过同一 traceId 串联。
+-->
+<configuration>
+
+  <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="bjtu-food"/>
+  <springProperty scope="context" name="LOG_DIR" source="logging.file.path" defaultValue="./logs"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] [trace=%X{traceId:-N/A}] %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <!-- 按天 + 单文件超 100MB 触发滚动，保留 30 天，总量上限 10GB -->
+      <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>100MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>10GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [trace=%X{traceId:-N/A}] %logger{40} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>1024</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <appender-ref ref="FILE"/>
+  </appender>
+
+  <!-- 开发/测试：仅控制台 -->
+  <springProfile name="!prod">
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <!-- 生产：控制台 + 异步文件归档（异步避免日志 IO 阻塞业务线程） -->
+  <springProfile name="prod">
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="ASYNC_FILE"/>
+    </root>
+  </springProfile>
+
+  <!-- 降噪：健康检查与文档端点不产生业务日志噪音 -->
+  <logger name="org.springframework.web.servlet.mvc.method.annotation" level="WARN"/>
+
+</configuration>

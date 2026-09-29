@@ -56,7 +56,7 @@ public class User {
 
     /**
      * 已认证绑定邮箱（仅存认证关系，可空）——**认证状态的唯一真源**：非空即已认证（可写 UGC），
-     * NULL 即游客态；判据见 {@link com.bjtufood.common.utils.AuthStateUtil#isVerified(String)}。
+     * NULL 即游客态；判据见 {@link com.bjtufood.auth.support.AuthStateUtil#isVerified(String)}。
      * <p>
      * user.verified / user.verified_at 两列已于 2026-09-22 用户拍板退役（与 bind_email 同源冗余、
      * 历史写入路径恒成对写）；CREATE TABLE 已移除列定义，存量库由 schema.sql 末尾

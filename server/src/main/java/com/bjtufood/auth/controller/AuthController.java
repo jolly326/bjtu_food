@@ -7,11 +7,11 @@ import com.bjtufood.auth.dto.UserInfoVO;
 import com.bjtufood.auth.dto.VerifyEmailReq;
 import com.bjtufood.auth.dto.WechatLoginReq;
 import com.bjtufood.auth.service.AuthService;
-import com.bjtufood.common.config.IpRateLimiter;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
-import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.auth.support.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -115,7 +115,7 @@ public class AuthController {
 
     @Operation(
             summary = "获取当前用户资料",
-            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）、注册时间（createdAt）。字段集与登录 / 认证链路一致（恰 6 项：id / username / nickname / avatar / bindEmail / createdAt，2026-09-22 spec §7.32 修订）。",
+            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 5 项：id / username / nickname / avatar / bindEmail）。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/auth/profile")
