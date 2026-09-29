@@ -1,5 +1,7 @@
 <template>
   <view class="page notifications-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="系统通知" @back="backToHome">
       <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
            无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
@@ -22,11 +24,12 @@
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
         <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
-        <view
+        <CardSection
           v-for="n in list"
           :key="n.id"
           class="msg-item"
           :class="{ unread: n.isRead === 0 }"
+          flush
           @tap="onTap(n)"
         >
           <view class="msg-dot" :class="{ read: n.isRead === 1 }" />
@@ -37,7 +40,7 @@
             </view>
             <text class="msg-content">{{ n.content }}</text>
           </view>
-        </view>
+        </CardSection>
       </view>
 
       <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
@@ -46,10 +49,12 @@
       <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
            空态不含重试按钮、错误提示与认证引导。 -->
-      <view v-else-if="loaded && !list.length && userStore.isVerified()" class="empty-tip">
-        <text class="empty-title">暂无通知</text>
-        <text class="empty-desc">反馈处理结果会在这里通知你</text>
-      </view>
+      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
+      <EmptyState
+        v-else-if="loaded && !list.length && userStore.isVerified()"
+        title="暂无通知"
+        desc="反馈处理结果会在这里通知你"
+      />
     </scroll-view>
   </view>
 </template>
@@ -58,78 +63,47 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
-import { backToHome } from '@/utils/nav'
+import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
+import { usePagedList } from '@/composables/usePagedList'
 
 const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 
-const list = ref<Notification[]>([])
 /** 全部已读进行中（并发守卫 + 行内禁用态） */
 const readAllBusy = ref(false)
-const loading = ref(false)
 /** 首屏是否已加载完成（用于空态判断，避免加载前闪现空态） */
 const loaded = ref(false)
-/** 首屏是否失败（MP-012）：失败 ≠ 无通知，失败渲染重试块而非空态；分页失败保持静默可再触底 */
-const loadFailed = ref(false)
-// 分页与防重复加载（onShow / 重试块）
-let page = 1
-const pageSize = 20
-const finished = ref(false)
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await getNotifications({ page: 1, pageSize })
-    // 成功即清失败态（重试成功后错误块消失）
-    loadFailed.value = false
-    list.value = res.list
-    page = 1
-    // 本页不足 pageSize 即到底
-    finished.value = res.list.length < pageSize
-    // 刷新后重拉未读数，保持红点同步
-    notifyStore.fetchUnread()
-  } catch (err) {
-    // MP-012：首屏失败不再静默吞成空态——置 loadFailed 渲染「加载失败 · 点击重试」块，
-    // 与「暂无通知」区分；游客免认证口径不变（请求成功时游客照常得到空列表走空态）。
-    // C1：未认证（游客）请求被拒（4031/403）属正常业务边界，SHALL 静默——
-    // 置位后由模板 isVerified() 门控，游客不渲染失败块也不弹认证引导（client-auth-boundary）。
-    console.error('[notifications] 加载通知失败', err)
-    loadFailed.value = true
-  } finally {
-    loading.value = false
-    loaded.value = true
-  }
-}
+/**
+ * 分页列表（公共 composable，UI 统一 Loop Round 17 抽取）。
+ *
+ * 首屏失败语义（MP-012）与认证边界（C1）保持不变：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，
+ * 与「暂无通知」区分；游客请求成功时照常得到空列表走空态，未认证被拒（4031/403）由模板 `isVerified()` 门控，
+ * 不渲染失败块也不弹认证引导（client-auth-boundary）。
+ *
+ * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`、游客不触发触底加载。
+ */
+const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<Notification>({
+  fetchPage: async (page, pageSize) => (await getNotifications({ page, pageSize })).list,
+  canLoadMore: () => userStore.isVerified(),
+  onLoadSuccess: () => { notifyStore.fetchUnread() },
+  onLoadSettled: () => { loaded.value = true },
+  loadFailLabel: '[notifications] 加载通知失败',
+})
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
 function onRetryLoad() {
   load()
-}
-
-/** #4 触底加载下一页（游客无个人数据，列表为空时不会触发） */
-async function loadMore() {
-  if (finished.value || loading.value || !userStore.isVerified()) return
-  loading.value = true
-  try {
-    page += 1
-    const res = await getNotifications({ page, pageSize })
-    // 去重（极端情况下分页跳号），避免重复
-    const existIds = new Set(list.value.map(n => n.id))
-    list.value = list.value.concat(res.list.filter(n => !existIds.has(n.id)))
-    if (res.list.length < pageSize) finished.value = true
-  } catch {
-    page -= 1 // 失败回退页码
-  } finally {
-    loading.value = false
-  }
 }
 
 /** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
@@ -188,41 +162,34 @@ onShow(() => {
 </script>
 
 <style scoped>
-.notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
+   （原 `--spacing-lg`）；`flush` ⇒ 块间距由 `.list` 的 `gap` 统管；
+   未读态由下方 `.msg-item.unread` 覆写（强调态用 `shadow-warm`）。 */
 .msg-item {
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
 .msg-item.pressed { background-color: var(--bg-soft); }
-/* 未读：白卡 + 左侧主色竖条 + 淡主色标题字（不再整卡铺色，卡片观感更清爽） */
+/* 未读：白卡 + **红点** + 淡主色标题字（UI 统一 Loop Round 13 裁决 7A：左侧主色竖条已删，
+   与右上红点语义重复；红点更轻、与「我的」页角标同语言。`shadow-warm` 保留 = 未读属「强调」态） */
 .msg-item.unread {
   background: var(--bg-card);
   box-shadow: var(--shadow-warm);
 }
-.msg-item.unread::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: var(--spacing-lg);
-  bottom: var(--spacing-lg);
-  width: 6rpx;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-}
+/* （已删除原 `.msg-item.unread::before` 左侧竖条 —— 与红点语义重复） */
 
-.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: 10rpx; }
+/* 未读红点：上偏置走 `--spacing-xs`（8rpx）—— 6A 归档：原裸 10rpx 不在 4pt 栅格 */
+.msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: var(--spacing-xs); }
 .msg-dot.read { background: transparent; }
 
 .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-2xs); }
@@ -241,19 +208,8 @@ onShow(() => {
   overflow: hidden;
 }
 
-/* 空态（仅已认证用户）：轻提示，无重试按钮 / 错误提示 / 认证引导 */
-.empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-2xl) var(--spacing-lg);
-}
-.empty-title { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); }
-.empty-desc { font-size: var(--font-aux); color: var(--text-tertiary); text-align: center; }
-
-/* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
+/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2）；
+   失败态为 components/RetryBlock.vue（P3-03）—— 两者样式随之收敛，此处不再保留副本 */
 
 /* 「全部已读」胶囊：按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
    （App.vue 全局注释明确允许页面 scoped 覆盖）；禁用态复用全局 .is-disabled */

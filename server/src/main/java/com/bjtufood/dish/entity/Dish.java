@@ -1,22 +1,20 @@
 package com.bjtufood.dish.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.bjtufood.common.handler.StringListTypeHandler;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 菜品实体类
  * <p>
  * 对应数据库表：dish
  * 价格以"分"为单位存储（如 12.00 元 = 1200 分），避免浮点精度问题。
- * 价格口径（2026-09-20 拍板 §7.26）：唯一数据源为 {@code price}（现价，已含折扣），
+ * 价格口径：唯一数据源为 {@code price}（现价，已含折扣），
  * {@code originalPrice} 为可空原价；原「促销价」promoPrice 与列已全链删除。
- * 描述维度（2026-09-20 拍板 §7.28）：四维 dietType/ingredients/flavorTags/serveTemp 替换原 spiceLevel/region。
+ * 描述属性：由 {@code attributes} JSON 列承载（动态属性模型，两表字典驱动）。
  */
 @Data
 @TableName("dish")
@@ -51,28 +49,14 @@ public class Dish {
     @Schema(description = "菜品多图JSON")
     private String images;
 
-    /** 荤素/饮食属性（§7.28）：meat=荤 / half=半荤 / veg=素 / halal=清真（单选，可空） */
-    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真", example = "half")
-    private String dietType;
-
     /**
-     * 主料/食材：机器值数组（§7.28；**2026-09-23 R4 由逗号分隔串改 JSON 数组存储**，可空）。
-     * 列 ↔ List 转换由 {@link StringListTypeHandler} 在持久层完成（解析兼容历史逗号串）。
+     * 描述属性（动态属性模型，JSON 对象）：键 = 维度 {@code fieldKey}（camelCase），
+     * 值 = 机器值（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）；
+     * 仅含该菜品实际拥有的维度。字典真源 = {@code dish_attribute_dimension} + {@code dish_attribute_value}。
+     * 列 ↔ 展示项的整理（机器值 + 中文标签）由 Service 层完成，本字段只持存储形态。
      */
-    @TableField(typeHandler = StringListTypeHandler.class)
-    @Schema(description = "主料/食材（数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice", example = "[\"chicken\",\"veg\"]")
-    private List<String> ingredients;
-
-    /**
-     * 口味：机器值数组（§7.28，吸收原辣度语义；**2026-09-23 R4 改 JSON 数组**，可空）。
-     */
-    @TableField(typeHandler = StringListTypeHandler.class)
-    @Schema(description = "口味（数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy", example = "[\"spicy\",\"sour\"]")
-    private List<String> flavorTags;
-
-    /** 冷热（§7.28）：hot=热食 / room=常温 / ice=冰（单选，可空） */
-    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰", example = "hot")
-    private String serveTemp;
+    @Schema(description = "描述属性（JSON：键=维度 fieldKey，值=机器值/数组）", example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\"]}")
+    private String attributes;
 
     /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：键域由 MealTypeConst 唯一定义；
      *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选与字典下发 */

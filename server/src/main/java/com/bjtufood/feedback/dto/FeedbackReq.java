@@ -16,10 +16,11 @@ public class FeedbackReq {
 
     /**
      * 反馈类型写入值域（单一真源 {@code FeedbackConst.WRITABLE_TYPES}）：
-     * issue（我要反馈问题）/ report（举报）。
-     * suggestion/add/error/bug/other 为历史遗留类型（端上已无生产者），禁止新增，非法值由 Service 层返回 400。
+     * bug（小程序功能 Bug）/ suggestion（产品功能建议）/ error（菜品信息纠错）/ other（其他平台相关问题）
+     * / issue（我要反馈问题，历史写入值）/ report（举报）。
+     * {@code add}（新增菜品）为历史遗留类型、禁止新增，非法值由 Service 层返回 400。
      */
-    @Schema(description = "反馈类型：issue=我要反馈问题 / report=举报（历史类型禁新增）", example = "issue")
+    @Schema(description = "反馈类型：bug=小程序功能Bug / suggestion=产品功能建议 / error=菜品信息纠错 / other=其他平台相关问题 / issue=我要反馈问题 / report=举报（add 为历史类型禁新增）", example = "bug")
     @NotBlank(message = "反馈类型不能为空")
     private String type;
 

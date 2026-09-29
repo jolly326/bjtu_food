@@ -2,26 +2,43 @@ package com.bjtufood.review.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
- * 「我的评价」视图对象（VO）—— **本人视角，10 字段**。
+ * 「我的评价」视图对象（VO）—— **本人视角，恰 7 字段**。
  * <p>
- * <b>拆类</b>（§7.40 R9 / change {@code dish-detail-contract-hardening}）：
- * 公开列表与本人视角**不共用 {@link ReviewVO}**，字段集由**类型**表达：
- * 本人视角 = 公开视角 8 字段 **+** 本类新增 2 字段。
+ * <b>与公开视角分型</b>（docs/feature/README.md R9）：同一契约的两视角 MUST 是两个类型，
+ * 端上 SHALL NOT 用单一 interface 复用，故本类<b>不继承</b> {@link ReviewVO}
+ * （继承会让类型系统宣称「我的评价也有 userId / userNickname / userAvatar」，
+ * 而这三个字段在本人视角恒等于本人、属零信息，不得下发）。
  * <p>
- * <b>继承而非复制</b>：本人视角在语义上就是「公开视角 + 作者视角 2 字段」，故 extends
- * {@link ReviewVO}（公开字段只定义一次）。消费端（小程序 / 管理端）**MUST 各定义两个类型**，
- * SHALL NOT 用单一 interface 复用（详见 {@code docs/feature/client-我的评价.md}）。
+ * 字段构成 = 公开视角 {@link ReviewVO} 8 字段中去掉作者标识三项
+ * （{@code userId} / {@code userNickname} / {@code userAvatar}）后的 5 项
+ * （{@code id} / {@code rating} / {@code content} / {@code images} / {@code createdAt}）
+ * + 本人视角专属 2 项（{@code dishId} / {@code dishName}）。
  * <p>
- * 新增 2 字段（仅 {@code GET /my/reviews} 返回）：
- * {@code dishId}（关联菜品，供详情页预填定位）、{@code dishName}（联表补齐，列表行展示）。
+ * 逐字段口径以 {@code docs/feature/client-菜品详情.md} 的公开评价字段表为唯一真源。
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
-@Schema(description = "我的评价展示信息（本人视角，10 字段 = 公开 8 + dishId / dishName）")
-public class MyReviewVO extends ReviewVO {
+@Schema(description = "我的评价展示信息（本人视角，7 字段）")
+public class MyReviewVO {
+
+    @Schema(description = "评价ID")
+    private Long id;
+
+    @Schema(description = "评分（1-5星）")
+    private Integer rating;
+
+    @Schema(description = "评价内容")
+    private String content;
+
+    @Schema(description = "评价配图 URL 列表（COS 绝对地址，≤3 张；无图返回空列表）")
+    private List<String> images;
+
+    @Schema(description = "评价时间（重新评价后取新时间）")
+    private LocalDateTime createdAt;
 
     /** 关联菜品ID（本人视角专属；公开列表不返回 —— 归属已由路径 / 列表上下文表达） */
     @Schema(description = "关联菜品ID（仅「我的评价」返回）")

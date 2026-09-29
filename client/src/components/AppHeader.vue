@@ -1,35 +1,60 @@
 <template>
-  <!-- 本组件只承载**二级页**「返回箭头 + 居中标题」。
-       首页头部在 `pages/home/index.vue` 自持（固定标题带 + 吸顶容器），
-       搜索页顶部由「`AppTitleBand`（返回 icon）+ `SearchBar`（首页同款搜索行）」两段式承载。 -->
-
-  <!-- 二级页：返回箭头 + 居中标题 + 右上角留空；搜索页顶部由
-       「`AppTitleBand`（返回 icon 占标题位）+ `SearchBar`（与首页同款搜索行）」两段式承载。 -->
-  <view class="header-wrap" :style="{ paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))', '--nav-h': navBarHeight + 'px' }">
+  <!-- 本组件承载**带返回的二级页**顶栏：**左「返回」（文字）+ 居中页面名**（2026-09-27 决议）。
+       与 `AppTitleBand` 的分工（用户裁定：**两个组件、按需显示**，不合并）：
+       · 有返回 ⇒ 用本组件：左「返回」文字、标题**居中**（相对导航行真正水平居中）；
+       · 无返回 ⇒ 用 `AppTitleBand`：标题**居左**，无返回控件、无右操作。
+       ⚠️ 本组件在 `show-back=false` 时退化为「无返回」形态（标题居左），供 TabBar 主根页使用。
+       表面：**恒透明**（2026-09-27 结构性决议）——背后即 `fixed` 页底壁纸；不得加实底 / 蒙版。
+       右操作：默认插槽（如通知页「全部已读」），自动避让微信右上角原生胶囊（`navPadRight`）。 -->
+  <view
+    class="header-wrap"
+    :style="{
+      paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))',
+      '--nav-h': navBarHeight + 'px',
+      '--nav-pr': navPadRight,
+    }"
+  >
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
+      <!-- 左：返回（**文字「返回」**，替换原箭头 icon；触达区撑满导航行高 ≥88rpx） -->
       <view
         v-if="showBack"
         class="back-area"
-        @tap="handleBack"
         role="button"
         aria-label="返回"
+        hover-class="pressed"
+        @tap="handleBack"
       >
-        <IconSvg name="arrow-left" :size="'22px'" :color="COLOR_MAP['text-white']" class="back-arrow" />
+        <text class="back-text">返回</text>
       </view>
-      <text class="title">{{ title }}</text>
+
+      <!-- 标题：有返回 ⇒ 绝对居中；无返回 ⇒ 靠左（与 `AppTitleBand` 同位置） -->
+      <text class="title" :class="{ 'title--left': !showBack }">{{ title }}</text>
+
+      <!-- 右：页面级操作（可选），右边界 = 胶囊避让量。
+           同时提供 `action` **具名插槽**：消费方以 `<template #action>` 传入右侧操作
+           （如通知页「全部已读」胶囊）—— 只有默认插槽时该内容会被静默丢弃（Round 31 修复）。 -->
+      <view class="nav-actions"><slot /><slot name="action" /></view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import IconSvg from './IconSvg.vue'
-import { getNavBarHeight } from '@/utils/navMetrics'
-import { COLOR_MAP } from '@/theme/tokens'
+/**
+ * AppHeader —— 带返回的二级页顶栏（透明 + 左「返回」文字 + 居中页面名）
+ *
+ * 消费方（7 处）：`profile` / `privacy/DocPage` / `notifications`（带右操作槽） / `my-reviews` /
+ * `feedback` / `auth`，以及 `mine`（`show-back=false` ⇒ 标题居左的退化形态）。
+ *
+ * 表面口径：恒透明（不含任何底色 / 蒙版）——背后即 `fixed` 页底壁纸（UI 文档 §11.1 / 循环 R12）。
+ */
+import { useNavMetrics } from '@/utils/useNavMetrics'
 
 withDefaults(defineProps<{
   title?: string
-  /** 是否显示返回箭头；从首页头像 navigateTo 进入二级页时传 true，TabBar 直入时传 false */
+  /**
+   * 是否显示返回（渲染为文字「返回」）；从首页头像 navigateTo 进入二级页时传 true，TabBar 直入时传 false。
+   * ⚠️ `false` ⇒ 标题改为**居左**（与 `AppTitleBand` 一致），不再是「无控件的居中标题」。
+   */
   showBack?: boolean
 }>(), {
   title: '',
@@ -40,24 +65,9 @@ const emit = defineEmits<{
   (e: 'back'): void
 }>()
 
-const statusBarHeight = ref(20)
-const navBarHeight = ref(56)
-
-onMounted(() => {
-  // 兼容老基础库：getWindowInfo 不存在时回退 getSystemInfoSync（避免拿不到 statusBarHeight 导致刘海遮挡）
-  // @ts-ignore - 跨端兼容（H5 无 wx，退化为固定值）
-  const win = (typeof wx !== 'undefined')
-    // @ts-ignore
-    ? (wx.getWindowInfo ? wx.getWindowInfo() : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : null))
-    : null
-  const sb = (win && win.statusBarHeight) || 20
-  statusBarHeight.value = sb
-  // @ts-ignore - 微信胶囊按钮位置（右上角原生组件）：用于「返回 + 居中标题」行高对齐
-  const mb = (typeof wx !== 'undefined' && wx.getMenuButtonBoundingClientRect) ? wx.getMenuButtonBoundingClientRect() : null
-  if (mb && mb.height) {
-    navBarHeight.value = getNavBarHeight(sb, mb)
-  }
-})
+/* 顶部度量：一律走跨页统一实现 `useNavMetrics`（UI 统一 Loop Round 7 收口）。
+   本组件消费三项：状态栏高（顶部安全区）、导航行高（胶囊所在行）、右侧胶囊避让量（右操作槽用）。 */
+const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight, navPadRight } = useNavMetrics()
 
 function handleBack() {
   emit('back')
@@ -65,57 +75,78 @@ function handleBack() {
 </script>
 
 <style scoped>
+/* 恒透明（2026-09-27 结构性决议）：不再有实心主色底 —— 背后即 `fixed` 页底壁纸；
+   保留 sticky + `--z-header` 与底部留白（留白 = 全站 header 总高基准 `--spacing-sm`）。 */
 .header-wrap {
   width: 100%;
   box-sizing: border-box;
-  background: var(--color-primary);
+  background: transparent;
   border-bottom: none;
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  /* 底部留白：全站 header 总高以「搜索页(find)」为基准，其 .search-nav 带此留白，
-     故此处必须以同一 token（--spacing-sm）复刻，否则搜索页会比其余所有页面高 16rpx。
-     ⚠️ 改此值必须同步改 find/index.vue 的 .search-nav —— 两者共用 --spacing-sm，
-     只要都引用该 token 就不会漂移；真正要防的是其中一方整条留白被删。
-     胶囊居中只由 paddingTop + 行高(--nav-h) 决定，本留白不影响胶囊对齐。 */
   padding-bottom: var(--spacing-sm);
 }
 
-/* ===== 通用/二级页：返回 + 居中标题 ===== */
+/* ===== 导航行：左「返回」 + 标题 + 右操作 ===== */
 .nav {
   display: flex;
   align-items: center;
   position: relative;
   box-sizing: border-box;
 }
+/* 返回：绝对定位在左，`top/bottom: 0` 撑满行高 ⇒ 触达区 = 导航行高（≥88rpx，Apple 44pt 下限） */
 .back-area {
   position: absolute;
-  left: var(--spacing-sm);
+  left: var(--spacing-md);
   top: 0;
   bottom: 0;
-  width: 44px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  padding-right: var(--spacing-sm);
   -webkit-tap-highlight-color: transparent;
 }
-.back-arrow { line-height: 1; }
-/* 标题绝对居中：无论有无返回箭头，始终相对导航行真正水平居中（不再因左侧补偿而偏右） */
+.back-area.pressed { opacity: 0.6; }
+/* 「返回」文字：与标题**完全同级**（同字号 + 同字重）—— 2026-09-27 裁决「各页统一成首页大小」：
+   字号 `--font-title`(44rpx) + 粗体，与 `AppTitleBand` / 首页「知行食记」一致。 */
+.back-text {
+  font-size: var(--font-title);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+/* 标题（有返回 ⇒ 居中）：相对导航行真正水平居中，不受左侧返回宽度影响 */
 .title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
-  /* 导航标题档（36rpx / 600）——client-visual-language R3 五档映射，与菜品名/昵称的
-     一级标题档（32rpx / 600）区分，避免同一语义出现多套字号 */
-  font-size: var(--font-h3);
-  font-weight: var(--weight-semibold);
-  color: var(--text-white);
-  max-width: 60%;
+  /* 2026-09-27 裁决「各页统一成首页大小」：字号 `--font-title`(44rpx) + 粗体，与首页「知行食记」同档 */
+  font-size: var(--font-title);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  max-width: 56%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* 首页头部样式在 `pages/home/index.vue`、搜索页顶部在 `AppTitleBand` + `SearchBar`；本组件仅承载二级页头部。 */
+/* 标题（无返回 ⇒ 居左）：与 `AppTitleBand` 的位置 / 字号 / 字重一致（44rpx 粗体大号） */
+.title--left {
+  position: static;
+  left: auto;
+  transform: none;
+  text-align: left;
+  margin-left: var(--spacing-md);
+  max-width: none;
+  font-size: var(--font-title);
+  font-weight: var(--weight-bold);
+}
+/* 右操作槽：右边界避开微信原生胶囊（`--nav-pr` = useNavMetrics 的胶囊避让量） */
+.nav-actions {
+  position: absolute;
+  right: var(--nav-pr, 180rpx);
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+}
 </style>

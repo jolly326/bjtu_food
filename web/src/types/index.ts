@@ -3,7 +3,7 @@
 // 生命周期只有「新增 / 改名」——后端已移除 status / auditStatus / rejectReason（列即将 DROP），
 // 故此处不再声明任何实体状态字段（营业/停业/审核态一律不设）。
 export interface Canteen {
-  id: bigint;
+  id: number;
   name: string;
   image?: string;
   location?: string;
@@ -18,8 +18,8 @@ export interface Canteen {
 // 后端已移除 status / auditStatus / rejectReason（列即将 DROP）。
 // floor（楼层）/ windowNo（窗口号）保留——端上有消费。
 export interface Stall {
-  id: bigint;
-  canteen_id: bigint;
+  id: number;
+  canteen_id: number;
   name: string;
   image?: string;
   location?: string;
@@ -36,7 +36,7 @@ export interface Stall {
 
 // user 用户表
 export interface User {
-  id: bigint;
+  id: number;
   username: string;
   password: string;
   nickname?: string;
@@ -55,8 +55,8 @@ export interface User {
 
 // dish 菜品表
 export interface Dish {
-  id: bigint;
-  stall_id: bigint;
+  id: number;
+  stall_id: number;
   name: string;
   image?: string;
   /** 现价（元，API 层已由分转元；已含折扣）——价格展示的唯一数据源（§7.26） */
@@ -109,9 +109,9 @@ export interface Dish {
 // （ReviewManageView.getUserName / getDishName，WEB-03 降级显示；已注销用户兜底），
 // 故本类型不声明这些字段（避免 stale 的「优先用它、不要退化本地查表」误导）。
 export interface Review {
-  id: bigint;
-  user_id: bigint;
-  dish_id: bigint;
+  id: number;
+  user_id: number;
+  dish_id: number;
   rating: number;
   content?: string;
   /** 配图列表（adapter 归一为 string[]；COS 公网地址可直接 <img> 展示） */

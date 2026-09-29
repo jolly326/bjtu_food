@@ -35,8 +35,8 @@ export function useAsyncGuard() {
     error.value = ''
     try {
       await fn(alive)
-    } catch (e: any) {
-      if (alive()) error.value = e?.message || '加载失败'
+    } catch (e: unknown) {
+      if (alive()) error.value = (e as Error)?.message || '加载失败'
     } finally {
       if (alive()) loading.value = false
     }

@@ -1,219 +1,190 @@
-# 架构设计与快速上手指南（食在交大 bjtu_food）
+# 后端架构说明（server/）
 
-> 本文档**以当前代码为准**，描述整体架构、技术栈、部署方式、前端状态管理与本地快速启动步骤。
-> 供新成员快速上手。
+> 建立于 2026-09-28。此前仓库无架构文档（`docs/architecture.md` 于 2026-09-27 删除后未补），
+> 架构约定仅散落在各类的 javadoc 与 agent 指引中。本文是**后端架构的现行真源**。
+> 各域的详细职责/依赖方向以 `server/src/main/java/com/bjtufood/*/package-info.java` 为准。
 
-## 1. 系统架构
+## 1. 技术栈与形态
+
+| 项 | 选型 |
+|---|---|
+| 运行时 | Java 21 / Spring Boot 3.2.0 |
+| 持久层 | MyBatis-Plus 3.5.5（`BaseMapper` + `resources/mapper/<域>/XxxMapper.xml`） |
+| 数据库 | MySQL 8（结构唯一真源：`server/src/main/resources/db/schema.sql`） |
+| 安全 | Spring Security 6（JWT 无状态；管理端口令 `X-Admin-Token`） |
+| 鉴权模型 | 微信静默登录建号 → 游客态；学号邮箱认证后解锁 UGC 写（异常码 `4031`） |
+| 文档 | SpringDoc OpenAPI 3（`/api/v1/swagger-ui/index.html`） |
+| 测试 | JUnit 5 + Mockito + MockMvc 切片 + ArchUnit 架构护栏 |
+
+**形态：模块化单体（modular monolith）**——单一部署单元，域间以**进程内契约**协作，不引 MQ、不拆微服务。
+拆分动议出现时，域边界即拆分线（本文的边界约定因此是强制的）。
+
+## 2. 分包：按业务域，不按技术分层
+
+顶层是**业务域**，不是 `controller/` `service/` 这类技术分层大包。
 
 ```
-┌─────────────┐      ┌──────────────────┐      ┌──────────────┐
-│  小程序端    │      │   后端服务         │      │   MySQL 8    │
-│ (client)    │ ───▶ │ (server, Spring) │ ───▶ │  bjtu_food   │
-│ uni-app+Vue3│      │  context-path:/api│      └──────────────┘
-└─────────────┘      │  JWT 认证          │
-                     └──────────────────┘
-┌─────────────┐             ▲
-│  管理后台    │  ───────────┘
-│ (web)       │  Vue3+Element Plus
-└─────────────┘
+com.bjtufood
+├── auth         认证与账号（登录、邮箱认证、资料、注销、归属迁移）
+├── dish         菜品（展示/搜索/管理/描述属性字典/删除级联）
+├── review       评价（写 + 只读查询契约）
+├── feedback     用户反馈（含举报）
+├── correction   菜品信息纠错
+├── canteen      食堂与档口
+├── notification 站内通知
+├── moderation   UGC 内容审核（微信 msgSecCheck/imgSecCheck + 本地 DFA 词库）
+├── wechat       微信平台集成（叶子域：jscode2Session + stable_token）
+├── banner       首页轮播图
+├── upload       图片上传（两条链路 + 尺寸/魔数校验）
+└── common       跨域共享层（零业务依赖）
 ```
 
-### 1.1 端
-| 端 | 目录 | 技术栈 | 说明 |
+`common` 内部按**关注点**再分一层（2026-09-28 收口；此前 `config` 一包混装三类关注点，
+读某个 `Config` 还得先判断它属于 Web 还是 DB）：
+
+| 子包 | 内容 | 判定依据 |
+|---|---|---|
+| `config` | CORS / Swagger / Jackson / Async / WebMvc / 两个 Filter | **Web 与 Spring 基础设施** |
+| `persistence` | `MybatisPlusConfig`、`MybatisMetaObjectHandler`、`StringListTypeHandler` | **持久化设施**，无业务语义 |
+| `ratelimit` | `IpRateLimiter` | 承载**业务风控知识**（各端点「该限几次」由 Controller 自定），非基础设施 |
+| `result` / `exception` / `utils` / `annotation` | 统一响应、全局异常、通用工具、注解 | — |
+
+> ⚠️ **移包的隐藏约束**：MyBatis XML 里的 type alias 用的是**全限定名字符串**，
+> 不参与编译（`mvn compile` 通过），也不被 `search_codebase` 索引。
+> 移动 `@TableField(typeHandler=…)` 对应的类时，必须同步改
+> `resources/mapper/**.xml`，否则运行期报 `Could not resolve type alias`。
+
+**为何不用技术分层**：`controller/service/mapper` 横切切开会打散 11 个内聚的业务域，
+一个「菜品」需求要横跨 5 个顶层包才能读完；且无法表达「哪些域之间不许互相调用」。
+域内仍保持五层一致：`controller`（+`controller/admin`）/ `service`(+`impl`) / `mapper` / `entity` / `dto`。
+
+## 3. 依赖规则（**由 ArchTests 在 `mvn test` 强制**）
+
+| # | 规则 | 理由 |
+|---|---|---|
+| 1 | 某域 `mapper` / `entity` 仅本域可访问 | 跨域必须走 Service 契约或事件；表结构不外泄 |
+| 2 | 某域 `service.impl` 仅本域可访问 | 依赖倒置：跨域只依赖**接口** |
+| 3 | `common` 零业务域依赖 | 通用件不拖入业务实现；业务常量/领域判定归属主域 |
+| 4 | `wechat` 零业务域依赖 | 平台集成是被三方共用的**最底层**，必须保持叶子，否则与 auth 形成包级环 |
+| 5 | `controller` 不直连 `mapper` | 绕过 Service 的业务口径与事务边界 |
+
+规则实现在 `server/src/test/java/com/bjtufood/ArchTests.java`，6 个用例。
+
+**已知豁免**：`auth.support`（`SecurityUtil`/`JwtUtil`/`AuthStateUtil`）**允许**被
+`correction`/`feedback`/`notification`/`review` 直接引用。它们是**无状态只读静态门面**
+（当前登录人 / 令牌解析 / 认证态判据），不碰库、不含编排；auth 的**有状态能力**
+（用户查询、归属迁移、注销）已全部要求经 `UserService` 契约访问并受规则 1 保护。
+理由与触发条件（若 `support` 长出有状态 Bean 则须改接口并补规则）写在 `ArchTests` 类注释里。
+
+## 4. 跨域协作的两种方式
+
+### 4.1 同步读：Service 只读契约
+跨域取数据一律经对方 Service 的**专用只读方法**（按 id 批量取投影），
+返回**只读 DTO**（如 `UserBriefVO`/`StallBriefVO`），**不返回实体**。
+典型：`UserService.mapBriefByIds`、`DishService.mapNameByIds`、`StallService.listBriefCandidates`。
+
+### 4.2 跨域写：领域事件（auth 为唯一发布方）
+写侧**不允许**跨域直连 Mapper。auth 在事务内发布事件，各域自行清理自己的表：
+
+| 事件 | 发布方 | 订阅方 |
+|---|---|---|
+| `UserOwnershipMigratedEvent` | auth（账号归属迁移） | review（先清冲突再改 user_id）、feedback、notification |
+| `UserAccountClosedEvent` | auth（账号注销） | notification |
+| `DishDeletedEvent` | dish（菜品删除） | review（级联清理评价） |
+| `ReviewSubmittedEvent` | review（评价提交） | dish（异步重算评分） |
+
+事件一律放**发布方**包内。订阅方在 `event/` 下建 Listener。
+
+> ⚠️ **已知包级环（2026-09-28 复核）**：`beFreeOfCycles()` 仍不可启用，ArchUnit 1.3 无法对其做有效豁免。
+>
+> | 环 | 性质 | 处置 |
+> |---|---|---|
+> | `dish → review → dish` | **发布/订阅**：`RatingUpdateListener` 订阅 `ReviewSubmittedEvent` 重算评分，语义单向（review 毫不知情），无技术债 | **保留**。仅因监听器签名引用了 review 的事件类型而成包级环 |
+> | ~~`canteen → review → dish → canteen`~~ | **真实技术债**：canteen（菜品属性字典）反向依赖 review 拉取派生展示值 | **已偿还**：均分上移至 `CanteenAdminController#fillAvgRatings` 编排，由 `ArchTests#canteenBusinessLayers_mustNotDependOnReview` 锁死 |
+>
+> 不把事件类挪到 `common` 来「骗过」检测——那会违背上段「事件归发布方包」的约定，属于为工具而扭曲设计。
+> 待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，即可直接加回并豁免第 1 条。
+
+**同步 vs 异步**：归属迁移/注销的监听器用同步 `@EventListener`（须与发布方事务同进同退）；
+评分重算用 `@Async` + `@TransactionalEventListener(AFTER_COMMIT)`（聚合失败只告警，不阻断 UGC 主链路）。
+
+## 5. 事务边界
+
+- 写操作 Service 方法加 `@Transactional(rollbackFor = Exception.class)`。
+- **跨域写必须整体在一个事务里**：事件用同步 `@EventListener`（非 `AFTER_COMMIT`），
+  监听器失败即整体回滚——这是「归属迁移要么全成、要么全不成」的保证。
+- 通知投递是**例外**：`@Async` + `REQUIRES_NEW` 独立事务，回执不拖累主流程。
+
+## 6. 配置管理
+
+**统一用 `@ConfigurationProperties` 类型化绑定**（`@EnableConfigurationProperties` 显式登记于启动类），
+**禁止 `@Value` 散读配置**。理由：`wechat.appid`/`wechat.secret` 曾被两个类各绑一次，
+「是否已配置」判据也分裂成两处独立实现；且类型化后单测可直接构造配置对象，
+不必反射改被测类的私有字段。
+
+配置类**随所属域走**，不集中塞进 `common`（否则会违反规则 3）：
+`wechat.config.WechatProperties`、`auth.config.JwtProperties`、`auth.config.AdminProperties`。
+
+> 新增配置类需在**启动类**与**相关测试上下文**同步登记（显式注册的代价）。
+> 本项目**不用** `@ConfigurationPropertiesScan`：切片测试用 `@ContextConfiguration` 取代主配置，
+> 扫描式注册对其无效。
+
+**密钥红线**：一切凭据由环境变量注入，仓库不存明文。`JwtUtil` 启动期 fail-fast 拒绝弱密钥/仓库默认密钥；
+`AdminTokenFilter` 未配置口令时 **fail-closed 拒绝全部 `/admin`**。
+
+## 7. 接口与路径
+
+- 统一前缀 `server.servlet.context-path = /api/v1`（版本段，破坏性变更时新增 v2 并保留 v1 过渡期）。
+  端点注解**不含版本段**——升版只改这一行配置。
+- `SecurityConfig` 白名单与 `AdminTokenFilter` 作用域判定**均按「应用内路径」**（已剥离 context-path），
+  故升版无需改动。
+- 统一响应 `Result<T>{code,message,data}` / 分页 `PageResult<T>`；错误码仅
+  `200/400/401/403/4031/500`；`GlobalExceptionHandler` 兜底，Controller 不得裸抛。
+
+## 8. 可观测性
+
+- **Actuator**（prod 暴露面收敛为 `health`/`info`，路径 `/api/v1/actuator/health`，
+  并在 `SecurityConfig` 白名单放行以支持探针）。
+- **日志**：`logback-spring.xml` 按 profile 分环境；prod 异步写文件（按天+100MB 滚动，保留 30 天/上限 10GB）。
+- **traceId**：`RequestTraceIdFilter`（`HIGHEST_PRECEDENCE+10`）为每个请求分配 `traceId`
+  写入 MDC 并回写 `X-Trace-Id` 响应头，使一次请求内跨域调用日志可串联。
+  外部传入的 `X-Trace-Id` 仅在匹配 `[A-Za-z0-9_-]{1,64}` 时复用（防日志伪造）。
+
+## 9. 测试策略
+
+| 层 | 手段 | 说明 |
+|---|---|---|
+| 架构 | `ArchTests`（ArchUnit） | 依赖规则，违规即构建失败 |
+| 接口 | `SmokeApiTest`（`@WebMvcTest` 切片） | 六链路契约；显式 `@Import` 被测 Bean，零 DB 依赖 |
+| 单测 | Mockito 打桩 | Service 边界：值域校验、权限判据、跨域契约调用 |
+| 上下文 | `BjtuFoodApplicationTests` | 装配完整性（Bean 缺失/循环依赖即红） |
+| 启动 | `mvn -o -B clean test` | 离线可跑，CI 基线 |
+
+> 架构护栏的价值已被验证：2026-09-28 曾用 ArchUnit 环检测检出 2 个真实包级环
+> （详见第 10 节）。因豁免机制对环检测无效，该规则已撤下并留档待偿还。
+
+## 10. 已知技术债（TODO）
+
+| # | 债务 | 影响 | 偿还路径 |
 |---|---|---|---|
-| 小程序 | `client/` | uni-app + Vue3 + TS + Pinia | 学生端（9 页，见 spec §2.1） |
-| 后端 | `server/` | Spring Boot + Java + MyBatis-Plus + JWT | REST API（context-path=/api） |
-| 管理后台 | `web/` | Vue3 + Vite + TS + Element Plus | 仅 ADMIN（**默认落地页 = 菜品页 `/dashboard/content`**，2026-09-15 工作台下线后取代原 `/dashboard`；**2026-09-15 IA 扁平化：一级导航 4 项 = 菜品 / 评价 / 反馈 / 学生账号，路由与导航 1:1、页面层级 ≤2，见 spec §0.4.2 / §7.25 第 2 条**；无全局聚合看板、无分类卡聚合壳） |
+| P1 | **游客 UGC 绕过微信机审**：`msgSecCheck v2` 的 `openid` 必填，游客（`userId=null`）与历史无 openid 账号一律跳过机审放行（`ContentSecurityServiceImpl` 既有口径，报告已备案）。这意味着这部分 UGC 仅经本地静态词库过滤，无语义级审核 | 游客可提交谐音/变体/语义违规内容而不被机审拦截；当前防线只有 160 条静态词表 | 三选一：① 游客提交改为「先落 pending 态 + 后台人工复核」（放弃实时拦截）；② 游客强制绑定微信身份（需产品确认会否抬高使用门槛）；③ 游客提交入口降级（如仅允许极短文本 + 更严词库） |
+| P1 | **菜品纠错链路无微信机审**：`CorrectionServiceImpl` 仅用本地词库校验菜品名称 | 纠错提交的名称无语义审核，仅靠静态词表 | 用户有 openid 时补一次 `contentSecurityService.checkText(openid, name, 2)`；无 openid 时沿用本地词库 |
+| P1 | `dish → review` 因事件订阅成包级环 | 包级环编译期不报错、只在运行时爆炸 | 语义单向，属可接受的发布/订阅形态；待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，随环检测规则一并恢复 |
+| P2 | 12 个 Service 实现中 10 个零单测 | 事务边界/权限判据等易错逻辑无回归保护 | 逐个补 Mockito 单测 |
+| P2 | `WechatAccessTokenProvider` 失败文案沿用「内容安全检测服务」措辞 | 该类同时服务 upload，上传失败场景措辞不贴切 | 统一为「微信服务」口径（会变更 API 返回文本，需评估） |
+| P2 | `web/`（管理后台）计划整体重构 | 现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文 | 重构时统一处理：超时可配置、AbortController 透传、口令改走登录态 |
 
-### 1.2 后端分层（包结构）
-```
-com.bjtufood/
-├── auth/        # 认证：微信登录/邮箱认证/JWT/Security（昵称变更过 msgSecCheck scene=1）
-├── dish/        # 菜品：列表/详情/浏览埋点/评分聚合（学生端写接口 POST·PUT·DELETE /dishes 已于 2026-09-13 全量下线，录入归 /admin/dishes）
-├── review/      # 评价 + 评分聚合事件（提交过 msgSecCheck scene=2；images；**无安检态字段**，见 §2.5）
-├── canteen/     # 食堂/档口
-├── feedback/    # 用户反馈（提交过 msgSecCheck scene=2；images；**无安检态字段**，见 §2.5）
-├── notify/      # 消息通知
-├── history/     # 浏览足迹（view_log）
-├── upload/      # 图片上传：multipart 头像/菜品图 + UGC 配图（云存储中转 → imgSecCheck → COS 转存，见 §2.5）
-└── common/      # Result/异常/JWT 切面（**操作日志已于 2026-09-15 全链删除，见 §1.3；`common/annotation/AuditLog` 与 `AuditLogAspect` 均不存在**）；**工具包唯一真源 = `common/utils`**（复数，2026-09-15 登记；原 `common/util` 单数包已合并废弃、勿再引用）；common.security.ContentSecurityService（msgSecCheck/imgSecCheck/stable_token 缓存）
-```
+> **已偿还（2026-09-29 架构评审）**：
+> - ~~`client/`、`web/` 的 API base 仍为 `/api`~~ —— 三端 5 处配置已统一为 `/api/v1`，
+>   并新增 `ApiVersionPrefixTest` 在 `mvn test` 阶段强制（后端升版时该测试会红，强制同步端上）。
+> - ~~`canteen → review → dish → canteen` 三方包级环~~ —— 已于 2026-09-28 由
+>   `CanteenAdminController#fillAvgRatings` 编排偿还，并由定向护栏锁死。
+> - ~~根目录 `.env.example` 与 `server/.env.example` 双份冲突~~ —— 过时的那份已删除，
+>   `server/.env.example` 为后端唯一模板。
 
-> **2026-09-15 品类维度整链删除（spec §7.22 第 1 条，用户撤销原 Q-117「后台保留归类用途」口径）**：原 `com.bjtufood.content.category` 包（`Category` 实体 / `CategoryMapper` / `CategoryService` / `CategoryServiceImpl` / `controller/admin/CategoryAdminController`）已整体移除，故上文包树中 **`content/`（category 品类）域不再存在**（该空目录亦应一并清除，不留残留）；`dish` 域同步去掉品类字段与 `/admin/categories` 端点。**定型口径：菜品按食堂 / 档口归属，不存在分类维度。** 待收尾项（`db/*.sql` 品类残留）见 `project_spec.md` §8「待收尾」；**原「`OperationLogConst` 的 `category_*` 四值」一项已随操作日志全链删除注销（2026-09-15，见 §1.3）。**
+## 11. 变更约束
 
-### 1.3 AOP 审计埋点已删除（2026-09-15 用户拍板，spec §7.25 第 1 条）
-- **管理端「操作日志」全链移除**：`@AuditLog` 注解（`common/annotation`）、`AuditLogAspect` 切面、`OperationLogConst`、`OperationLogAdminController`、`OperationLogVO`、`OperationLog` 实体、`OperationLogMapper`、`OperationLogService`(+`Impl`) 与 4 处 `@AuditLog` 调用点（含 `DELETE /auth/account`）**均已删除**；`operation_log` 表不再创建（`schema.sql` 末尾幂等段 `drop_operation_log_table`，**表基线 11 → 10**）；`GET /admin/operation-logs` 端点不存在。
-- **保留**：`ClientIpUtil`（仅服务 `RequestLoggingFilter` 服务端访问日志）；`view_log` 浏览足迹（`history/` 域，用户侧数据源）**不动**。
-- **口径**：管理端为单人共享口令工具，**不提供操作留痕 / 审计追溯**；恢复须重新拍板（PR-04）。详见 `docs/database.md` §3.11 与 `docs/api-design.md` §5.5。
+- 涉及表结构变更**只改 `db/schema.sql` / `seed_data.sql`**，禁直连 ALTER。
+- 改跨域依赖前先想：是该加只读契约、还是发领域事件？**不要**新增跨域 Mapper 引用。
+- 破坏性接口变更需评估端上同步（当前端上与后端独立排期）。
 
-## 2. 认证与安全模型
-
-### 2.1 微信登录（游客态）
-- `POST /auth/wechat-login`：`code` → 微信 code2Session → openid 唯一取号
-- 新 openid 自动建号（`username=wx_+openid尾16位`，游客态 = `bind_email` 为 NULL）
-- token 有效期 **7 天**（`application.yml` `jwt.expiration=604800000ms`，2026-09-15 DOC-08 修订，原「长期有效（不设超时）」表述有误）；注销/禁用走 `TokenBlacklist`
-
-### 2.2 邮箱认证（解锁写操作）
-- `POST /auth/email-code` → 发 `@bjtu.edu.cn` 验证码（60s 限频、6 位、10 分钟有效）
-- `POST /auth/verify-email` → 校验验证码、写 `bind_email`（认证态唯一写入点；已认证判据 = 该列非空）
-- 写操作接口用 `@RequireVerified` 切面（未认证抛 `4031`）
-
-### 2.3 角色与权限
-- **`user.role` 列已于 2026-09-15 冗余清理删除，user 表仅承载学生、无角色字段**（管理端无账号体系、口令制；JWT 仅含 `userId` claim，学生态 authorities 固定，spec §7.10 / §7.23）
-- Security：URL 白名单 + JWT 过滤器 + `@RequireVerified` 切面（未认证 4031）；**`/admin/**` 不走角色**——由 `AdminTokenFilter` 校验请求头 `X-Admin-Token` == 环境变量 `ADMIN_TOKEN`（未配置 fail-closed 403，校验通过后置 `ROLE_ADMIN` 授权放行）；`POST /upload/image` 亦由该口令守卫（2026-09-15 B4）
-
-### 2.4 安全加固（已落实）
-- JWT 密钥从环境变量注入，启动 fail-fast 拒绝弱密钥
-- 上传：扩展名白名单 + magic number + UUID 重命名 + 失败清理 + 缩略图白底
-- 敏感信息：VO 不返回 openid；updateProfile 仅更新昵称/头像；selectList 投影必要列
-- 分页上限统一 `PageUtil.normalize`
-
-### 2.5 UGC 内容安检与配图存储链路（2026-09-13 拍板；2026-09-15「取消人工复核」修订，契约见 spec §5.a / §7.24 / api-design.md §4）
-
-- **`ContentSecurityService`**（`common.security`）：统一封装微信内容安检——文本 `msgSecCheck` v2（`openid` + `scene` + `version=2`；scene：昵称=1、评价/反馈=2）；**`suggest` 判定归一为二态（2026-09-15）**——`pass` 与 `review`（疑似）**均放行**（`SecSuggest.fromValue("review") → PASS`），`risky` 与未知 / 缺失态（fail-closed 同按 risky）**拒绝**（业务侧抛 `400`、不落库）；图片 `imgSecCheck`（违规 code `87014` 拦截）；access_token 统一走 **`stable_token`** 并缓存。review/feedback/auth 各业务模块只调该服务，**不得自建安检调用**。
-- **无安检态落库（2026-09-15 全链退役，spec §7.24）**：`review.sec_state` / `user_feedback.sec_state` 两列、`SecStateConst`、复核端点 `PUT /admin/reviews/{id}/sec-state`、`OperationLogConst.ACTION_REVIEW_SEC_STATE`（**该常量类本体已于 2026-09-15 随操作日志全链删除，见 §1.3**）均已删除——**内容安全检测结论只作提交闸门**（`risky` / `87014` → HTTP 400 拦截、不落库），**不构成可见性闸门**；评价公开可见性判据 = `is_hidden=0`（`ReviewMapper` 过滤与 `DishMapper` 评分聚合同口径）。管理端仅事后处置：`PUT /admin/reviews/{id}/hide`、`DELETE /admin/reviews/{id}`。
-- **UGC 图片上传链路（云存储中转 → 送检 → COS 转存）**：
-
-```
-小程序                         后端                          微信/腾讯云
-─────────                     ─────────                     ─────────
-wx.cloud.uploadFile ──────▶ 微信云开发云存储（中转，免域名白名单）
-        │
-POST /upload/images ──────▶ UploadController
-  { fileId }（单张，前端逐张调用）│ tcb batchdownloadfile 拉取原图
-                              │ imgSecCheck 送检 ── 违规 87014 → 400
-                              │   （单张失败该张 400，前端跳过不中断其余图片）
-                              ▼
-                            转存 COS（永久存储，images 列存 COS URL）
-```
-
-- **平台可迁移（面向未来）**：COS / 安检 / 上传接口均不绑定云托管，后端可整体迁移独立服务器；届时小程序上传域名改走备案域名白名单，链路结构不变。
-
-### 2.6 限流 / 去重 / 吊销三组件职责边界（2026-09-15 登记，刻意不合并）
-
-三个组件**名字相近但职责正交、互不替代**，评审与重构时**不得以「重复实现」为由合并、互调或删其一**：
-
-| 组件 | 位置 | 职责 | 触发后果 |
-|---|---|---|---|
-| `IpRateLimiter` | `common/config/IpRateLimiter.java` | **请求节流**（按来源 IP 限频，如 `/auth/email-code` 同 IP 每分钟 ≤3 次、每小时 ≤10 次） | **阻断请求**，返回 `400` |
-| `ViewRateLimiter` | `dish/config/ViewRateLimiter.java` | **幂等去重**（同一用户对同一菜品按自然日只计 1 次浏览，配 `view_log` upsert） | **不阻断请求**（请求正常成功，仅不重复计数 / 不重复写库） |
-| `TokenBlacklist` | `auth/config/TokenBlacklist.java` | **JWT 吊销**（注销 / 禁用后使已签发 token 立即失效） | **鉴权失败**，返回 `401` |
-
-> 判据：三者解决的是三个不同问题——「防刷」「计数幂等」「凭证失效」，其**输入维度、判定时机、失败语义**均不相同（`400` / 成功 / `401`）。此前多次被误判为「三套重复的限流实现」，本条为**职责边界的正式登记**。
-
-## 3. 部署（微信云托管）
-
-### 3.1 环境信息
-| 项 | 值 |
-|---|---|
-| 云托管环境 | `prod-d7g2z0sge0919e273` |
-| 服务名 | `bjtu-food` |
-| 小程序访问 | `wx.cloud.callContainer`（`X-WX-SERVICE: bjtu-food`），`context-path=/api` |
-| 数据库 | MySQL 8（`bjtu_food`） |
-
-### 3.2 必需环境变量（云托管/生产）
-| 变量 | 说明 |
-|---|---|
-| `SPRING_DATASOURCE_URL` | JDBC URL |
-| `SPRING_DATASOURCE_USERNAME` / `PASSWORD` | 数据库账号 |
-| `SPRING_MAIL_USERNAME` / `PASSWORD` | 网易 163 SMTP 邮箱与授权码 |
-| `JWT_SECRET` | ≥32 字节强随机密钥（**禁止默认值**） |
-| `WECHAT_APPID` / `WECHAT_SECRET` | 微信小程序凭据（登录 + 安检 stable_token） |
-| `COS_BUCKET` / `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_REGION` | 腾讯云 COS 对象存储（**UGC 配图永久存储**，2026-09-13 起必填；见 §2.5 链路） |
-| `APP_PUBLIC_BASE_URL` | 图片完整 URL 前缀（头像 / 后台菜品图；UGC 配图为 COS URL 不经此前缀） |
-| `CORS_ALLOWED_ORIGINS` | 管理后台浏览器源（白名单） |
-| `ADMIN_TOKEN` | 管理端口令（`AdminTokenFilter` 校验请求头 `X-Admin-Token`；**未配置时 fail-closed 403**，web 侧 `VITE_ADMIN_TOKEN` 与之同值，2026-09-15 CF-01 补登记） |
-| `WECHAT_CLOUD_ENV` | 微信云开发环境 ID（UGC 配图云存储 fileID 校验 / tcb 拉取用，2026-09-15 CF-01 补登记） |
-| `UPLOAD_PATH` / `UPLOAD_URL_PREFIX` | 本地 multipart 上传目录（默认 `./uploads/images`）与图片访问前缀（默认 `/images`，web 管理端菜品图链路，2026-09-15 CF-01 补登记） |
-
-> `spring-dotenv`：本地读 `server/.env`；云托管读同名环境变量。仓库不保留任何明文凭据。
-
-### 3.3 排障注记：微信 `jscode2session` 响应为 `text/plain`
-微信 `https://api.weixin.qq.com/sns/jscode2session` 实测以 **`HTTP 200 + Content-Type: text/plain`** 返回 JSON 体（而非 `application/json`）。因此后端**禁止**用 `restTemplate.getForObject(url, Map.class)`（或任何依赖 `MappingJackson2HttpMessageConverter` 自动转换的写法）——该方法按 Content-Type 选转换器，找不到可读 `text/plain → Map` 的转换器即抛 `RestClientException`，导致**真实 code 登录同样失败**。
-
-正确做法：**先按 `String.class` 读取，再用 Jackson（`ObjectMapper`）手工反序列化**（或等价方式），使解析不依赖上游 Content-Type。锁定实现见 `server/src/main/java/com/bjtufood/auth/service/WechatService.java`（`code2Session` 内 `getForObject(url, String.class)` + `parseJsonBody`），回归用例见 `server/src/test/java/com/bjtufood/auth/WechatServiceTest.java`。
-
-> 事故记录：**2026-09-13 曾因此缺陷导致全部微信登录返回 `400「微信登录服务异常，请稍后重试」`（P0，直接阻断登录闭环）**。修改本服务或替换 HTTP 客户端时，务必保留「不依赖 Content-Type 解析」这一约束。
-
-## 4. 本地快速启动
-
-### 4.1 后端（server）
-```bash
-cd server
-# 1. 复制环境变量模板并填真实值
-cp .env.example .env
-# 2. 建库建表（MySQL 已启动）
-mysql -u root -p < src/main/resources/db/schema.sql
-# 可选：导入示例数据
-mysql -u root -p bjtu_food < src/main/resources/db/seed_data.sql
-# 3. 启动
-mvn spring-boot:run
-# 服务 http://localhost:8080/api
-```
-
-### 4.2 小程序（client）
-```bash
-cd client
-npm install
-npm run dev:mp-weixin   # 微信开发者工具导入 dist/dev/mp-weixin
-# 或 npm run dev:h5
-```
-- 本地联调：`VITE_API_BASE_URL=http://127.0.0.1:8080/api`
-- 真机预览：`VITE_API_BASE_URL=http://<局域网IP>:8080/api`
-
-### 4.3 管理后台（web）
-```bash
-cd web
-npm install
-npm run dev   # http://localhost:5173
-```
-- 无登录体系：本地 `.env.local` 配 `VITE_ADMIN_TOKEN`（与后端环境变量 `ADMIN_TOKEN` 同值）即打开即用（`AdminTokenFilter` 校验请求头 `X-Admin-Token`，未配置 fail-closed 403）
-
-### 4.4 前端目录与包管理器约定（2026-09-15 登记）
-
-- **包管理器统一为 npm（唯一）**：仓库仅保留 `client/package-lock.json` 与 `web/package-lock.json` **两个锁文件**；**禁止引入 `yarn.lock` / `pnpm-lock.yaml` / `bun.lockb` 等任何其他锁文件**（多锁并存会导致依赖树漂移与 CI / 本地不一致）。安装与运行一律 `npm install` / `npm run *`，文档命令不得写成 `yarn` / `pnpm`。
-- **Web 视图目录重组（`web/src/views/`）**：收敛为**四个目录**——`audit/`（`FeedbackView`＝**反馈**页 / `ReviewManageView`＝**评价**页，由原 `ReviewAuditView` 改名；**`AuditManageView`（原「内容审核」聚合页）已于 2026-09-15「取消人工复核」时删除**）、`content/`（`DishManageView` / `DishDetailView`；**2026-09-15 品类维度整链删除后 `CategoryManage` / `HomeConfigView` 已移除；2026-09-15 IA 扁平化后聚合壳 `ContentManageView` 亦已删除**）、`system/`（`UserView`；**`SystemManageView`（分类卡层）与 `AccountView`（透传壳）已于 2026-09-15 IA 扁平化删除，`OperationLogView` 随操作日志全链删除**）、`layout/`（`AdminLayout`）；原 **`admin/` / `canteen/` / `user/` 三目录已合并删除**（`git` 中体现为 `R` 重命名）。
-- **路由（2026-09-15 IA 扁平化后更新，与 `web/src/router/index.ts` / `AdminLayout` 一致）**：一级导航 **4 项、与路由 1:1**——**菜品** `/dashboard/content`（**默认落地**）、**评价** `/dashboard/reviews`、**反馈** `/dashboard/feedback`、**学生账号** `/dashboard/system`（四条均**直挂叶子页组件**，无中间聚合壳；路由名以 `web/src/router/index.ts` 为准）；菜品详情 `/dashboard/content/dishes/:dishId`（`dishDetail`）保持原值。**页面层级统一 ≤2 层**（页头 H1 + 主操作 → 主体 筛选 + 列表 / 表单），**已删除的中间层不得重建**：`ContentManageView`（原「信息管理」聚合壳）、`SystemManageView`（原「用户与系统」分类卡层）、`AccountView`（透传壳）、`AuditManageView`（原「内容审核」聚合页）。原 `/dashboard/audit`（`auditManage`）**已删除**，旧深链由前端兜底重定向（`tab=feedback*` / `apply*` → `/dashboard/feedback`，其余 → `/dashboard/reviews`，**整份保留 query**）。全站**禁 `.stat-inline` 只读统计块**（数量只由表格 footer 出现一次）、禁页头解释句与只读提示块；公共组件 `ReviewDetailDialog`（评价详情抽屉）供评价 / 反馈两页共用。新增页面须按业务归属放入上述四目录，**不得再新建松散目录**。
-
-## 5. 前端状态管理（Pinia store）
-
-| Store | 职责 |
-|---|---|
-| `user` | 登录态、token、profile；`forceLogout` 联动重置各 store |
-| `dish` | 菜品列表/详情/筛选/评价；竞态守卫（filterFetchSeq） |
-| `notify` | 未读红点（`reset` 供登出联动） |
-| `auth-sheet` | `AuthSheet` 认证弹层全局编排（打开/关闭、认证成功回调，2026-09-15 DOC-10 对齐实况） |
-| `route` | 跨页路由辅助（2026-09-15 DOC-10 对齐实况） |
-
-> 原表中的 `theme`（深色模式）与 `review` store 已不存在——项目无深色模式（spec §4.2 S4-04）、评价状态由页面编排承载（2026-09-15 DOC-10）。**`dish` store 的「本地距离写回（`withLocalDistance`）」与 `location` store（定位 / 距离计算）亦已于 2026-09-20 随「坐标 / 距离概念全链下线」删除（`project_spec.md` §7.31）。**
-
-### 5.1 登录态一致性
-- `forceLogout` 会联动 `dishStore.resetUserScopedData` + `notifyStore.reset`，避免换用户串数据
-- `http.ts` 401 触发静默登录重试；403/4031 分级提示；`handleUnauthorized` 并发去重
-
-## 6. 关键设计决策
-1. **评分聚合异步化**：`RatingUpdateListener` 用 `@Async("taskExecutor")` AFTER_COMMIT 重算，不阻塞提交
-2. **浏览足迹去重 upsert**：`recordDishView` 存在则更新、不存在则插入，支撑浏览量当日去重判据（HistoryService 判重）与浏览计数来源（「猜你喜欢」已下线，2026-09-15 口径修正）
-3. ~~**tags 精确匹配**：用 `FIND_IN_SET` 替代 `LIKE '%tag%'`，消除子串误匹配（tags 值域固定，未拆表）~~ ——**已于 2026-09-20 随 `dish.tags` 字段删除作废（见 `project_spec.md` §7.29）**
-4. **分页统一**：`PageUtil.normalize` 上限约束 + `IPage` 返回
-5. **activity/broadcast 全链路下线（2026-09-13）**：后端 activity/ 模块与 content 下 broadcast 能力、`/activities`、`/broadcasts`、`/admin/activities`、`/admin/broadcasts` 接口、库表两表与小程序「最新活动」入口均已删除（原「activity 接入待开放」决策作废），恢复须重新拍板
-6. **UGC 配图 + 微信内容安检（2026-09-13 拍板，QA 门禁契约校准）**：评价与反馈恢复配图（各 ≤3 张，`wx.compressImage` 压缩至最长边 ≤1334 且文件 ≤1MB）；全部 UGC（文本+图片）过微信内容安检（`ContentSecurityService`：msgSecCheck v2 scene 映射昵称=1/评价反馈=2、imgSecCheck；stable_token 缓存）；图片链路 = 云开发云存储中转 → `imgSecCheck` → COS 永久存储（新接口 `POST /upload/images` 为**单张契约** `{ fileId } → { url }`、前端逐张调用、单张失败跳过，multipart `/upload/image` 保留）；**安检判定为二态（2026-09-15 用户拍板「取消人工复核」）**——内容安全检测 `pass` / `review` 一律放行、仅 `risky` 拒绝（`400`、不落库），**`sec_state` 列与全链能力已退役**（原三态 pass/review/rejected 与后台放行 / 驳回动作一并作废，见 spec §7.24），管理端只做事后处置（隐藏 / 删除）；链路不绑定云托管、可整体迁移独立服务器（届时上传域名走备案域名白名单）。此拍板推翻 2026-09「UGC 图片全量下线、无图片入口」的临时口径（spec §4.9 已登记演进说明）
-
-## 7. 已知技术债（见 api-design.md §9）
-- ~~验证码 IP 维度限频待补~~（已解决：`/auth/email-code` 已接入 `IpRateLimiter`，2026-09-15 DOC-10 收敛）
-- `<PressCard>` 按压组件待抽取
-- ~~`NotificationController` 直调 Mapper（分层红线，建议下沉 Service）~~（已解决：逻辑已下沉 `NotificationService`，2026-09-15 DOC-10 收敛）
-- ~~4031 非标码需 spec 豁免登记~~（已在 spec §3 登记豁免）
-- ~~通知接口 verified 口径待统一~~（`@RequireVerified` 已补齐）
-
-### 7.1 测试资产登记（2026-09-15）
-
-- `server/src/test/java/` 现有 **4 个**用例：`BjtuFoodApplicationTests`（`contextLoads` 冒烟，需数据库）、`auth/WechatServiceTest`（微信 `jscode2session` 返回 `text/plain` 的解析回归，见 §3.3）、`content/security/ContentSecurityServiceTest`（内容安检服务单测）、**`SmokeApiTest`（MockMvc 六链路接口冒烟：登录 / 菜品详情 / 评价写赞含 4031 / 反馈含 `sub` 严格 400 / 上传口令 403 / 管理端口令，16 用例 58 断言，`@WebMvcTest` 切片 + 打桩，不依赖数据库，`mvn -q -Dtest=SmokeApiTest test` 可离线运行）**。
-- **更正过时描述**：不再存在「`mvn test` 仅含一个冒烟用例 / 无业务用例」的说法。
-- 前端无单测脚本，质量靠类型检查 + lint + 真机 / 模拟器验证（**由用户执行；agent 不代跑真机验证**）。
-
-### 7.2 seed 演示素材收敛（2026-09-15）
-
-- `server/uploads/images/seed/` **仅保留 `dishes/tomato-egg.jpg`**（Swagger 示例引用所需：`DishAdminReq`、`DishAdminController`、`ProfileUpdateReq`、`AuthController` 的 `@Schema` example 均引用该路径）；其余 **12 件已删除**（`canteens/` 2 件、`dishes/` 9 件、`stalls/` 1 件）。
-- `db/seed_data.sql` 不引用图片文件路径，故素材收敛**不影响建库 / 导种子**流程。
-- 后续若新增演示图，须同步更新上述 Swagger example 与本节登记。

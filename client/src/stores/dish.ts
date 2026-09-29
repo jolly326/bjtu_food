@@ -76,7 +76,7 @@ export const useDishStore = defineStore('dish', () => {
   /** 当前选中大类键（`null` = 全部 = 不传 `mealType`）；端上唯一保留的筛选维度 */
   const filterMealType = ref<string | null>(null)
 
-  /** 首页列表（当前大类下的热度流；未选大类 = 全部） */
+  /** 首页列表（未选大类 = 推荐流·会话种子伪随机序（逛）；选中大类 = 该类热度序（找），2026-09-28 产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -91,24 +91,66 @@ export const useDishStore = defineStore('dish', () => {
   let homeFetchSeq = 0
 
   /**
-   * 拉取菜品大类字典（失败降级为空数组 → 标签栏只剩「全部」，不阻塞首屏列表）。
-   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「全部」，避免请求一个空类。
+   * 生成一个推荐流会话随机种子（时间戳 base36 + 随机串 base36，约 15 字符）。
+   * 服务端只把它当**稳定哈希的输入**（`CRC32(CONCAT(seed,'-',id))`），不做格式校验。
+   */
+  function genHomeSeed(): string {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+  }
+
+  /**
+   * 推荐流会话随机种子（2026-09-27 方案 C）——**仅「为你推荐」流（未选大类）下发**。
+   * - 每次列表 reset 重掷（首屏 onLoad / 切回「为你推荐」/ 失败重试）⇒ 每次进入整体重洗（新鲜度）；
+   * - 同一次浏览内翻页沿用同一值 ⇒ 服务端全序恒定，触底加载不跨页重复 / 漏项；
+   * - 选中大类时**不传**（大类 / 搜索流维持热度倒序）。
+   * 模块级 let（非 ref）：纯请求内部态，无需响应式，不对外暴露。
+   */
+  let homeSeed = genHomeSeed()
+
+  /**
+   * 大类字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
+   * 用于 `fetchMealTypes` 去重：字典是静态字典，成功拉到后无需再拉；
+   * **失败不置位** ⇒ 页面 onShow 的「兜底重试」仍会重试（与既有注释语义一致）。
+   * 本 store 内部状态，不对外暴露。
+   */
+  const mealTypeLoaded = ref(false)
+  /**
+   * 大类字典请求是否**在途**（同上）：`onLoad` 与 `onShow` 会在首次进入时先后触发同一次拉取，
+   * 仅靠「已成功」标记挡不住并发重复 ⇒ 补在途标记，二者共同去重。
+   */
+  const mealTypeLoading = ref(false)
+
+  /**
+   * 拉取菜品大类字典（**标签栏 100% 服务端直出，端上零文案**）。
+   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「不传 mealType」的默认流，避免请求一个空类。
    */
   async function fetchMealTypes() {
+    // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
+    // 失败路径不置位 ⇒ 页面 onShow 的兜底重试仍会重试（与原注释语义一致）。
+    if (mealTypeLoaded.value || mealTypeLoading.value) return
+    mealTypeLoading.value = true
     try {
-      mealTypeList.value = await dishApi.getMealTypes()
-      if (filterMealType.value && !mealTypeList.value.some((m) => m.value === filterMealType.value)) {
+      const list = await dishApi.getMealTypes()
+      mealTypeList.value = list
+      mealTypeLoaded.value = true
+      if (filterMealType.value && !list.some((m) => m.value === filterMealType.value)) {
         filterMealType.value = null
       }
     } catch (e) {
+      // 失败**不写任何端上兜底项**（Round 32 用户口径）：标签文案是**服务端资产**
+      // （含「为你推荐」这类虚拟导航项 —— 将来加「折扣菜品」等也在服务端拼装），
+      // 端上拼一个同名字符串 ⇒ 改文案 / 加虚拟项又要发版，违背「标签栏全量服务端直出」。
+      // 故此处只记录：保留上一次结果（若有），标签栏由 `HomeMealTabs` 判空**整体不渲染**；
+      // 列表仍按「不传 mealType」的默认流加载，功能不受影响。
       console.error('加载菜品大类失败', e)
-      mealTypeList.value = []
+    } finally {
+      mealTypeLoading.value = false
     }
   }
 
   /**
    * 切换大类标签：写回选中键并重置分页刷新列表。
-   * **不重置页面滚动位置**（UI 文档 §5 边界行为）：因此走 `keepList = true` —— 新数据到手前
+   * **不重置页面滚动位置**（UI 文档 §11.3 边界行为）：因此走 `keepList = true` —— 新数据到手前
    * 旧列表留在屏上（stale-while-revalidate），避免内容塌陷把滚动位置钳到顶部。
    */
   async function setHomeMealType(value: string | null) {
@@ -117,8 +159,10 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页）。
-   * 端上**不传排序参数**（排序恒为服务端热度倒序），也不传任何食堂 / 价格条件。
+   * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页，并**重掷推荐流种子**）。
+   * 不传任何食堂 / 价格条件，也不传 `sortBy` / `sortOrder`（排序由服务端唯一决定）；
+   * **仅「为你推荐」流**（未选大类）随请求下发会话种子 `seed`（方案 C），
+   * 选中大类时不传（该流为服务端热度倒序）。
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
@@ -131,11 +175,14 @@ export const useDishStore = defineStore('dish', () => {
         homePageLimited.value = false
         // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
         homeError.value = false
+        // 方案 C：每次 reset 重掷种子 ⇒ 每次进入 / 切回「为你推荐」都有新鲜度
+        homeSeed = genHomeSeed()
       }
       try {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
           mealType: filterMealType.value ?? undefined,
+          seed: filterMealType.value ? undefined : homeSeed,
           page: homePage.value,
           pageSize,
         })
@@ -155,9 +202,14 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 首页列表触底加载更多：页数达 `HOME_MAX_PAGES` 后不再 concat（置 `homePageLimited`）。
+   * 方案 C：与首刷**沿用同一 `homeSeed`**（不在此重掷）⇒ 服务端全序恒定，翻页不重不漏。
    */
   async function loadMoreHomeDishes(): Promise<boolean> {
     if (homeLoadingMore.value || homeFinished.value) return false
+    // 竞态修复（Round 31）：首刷 / 切大类的**重置式请求**在途时禁止翻页 ——
+    // 二者与 loadMore 共用 `homeFetchSeq`，loadMore 推进序号会让在途的重置响应被判过期丢弃，
+    // 而第 2 页却按**新筛选**拼到**旧列表**上 ⇒ 列表内容错乱（大类与数据不匹配）。
+    if (isLoading(LOADING_KEY_HOME) || isLoading(LOADING_KEY_HOME_SWAP)) return false
     if (homePage.value >= HOME_MAX_PAGES) {
       homeFinished.value = true
       homePageLimited.value = true
@@ -170,6 +222,7 @@ export const useDishStore = defineStore('dish', () => {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
           mealType: filterMealType.value ?? undefined,
+          seed: filterMealType.value ? undefined : homeSeed,
           page: homePage.value,
           pageSize,
         })
@@ -230,18 +283,23 @@ export const useDishStore = defineStore('dish', () => {
     detailError.value = false
     detailNotFound.value = false
     reviewList.value = []
-    reviewTotal.value = 0
     reviewError.value = false
   }
 
-  /** 清空评价列表与总数：供「只看有图」切换时先清后拉（避免旧口径结果短暂残留） */
+  /** 清空评价列表：供「只看有图」切换时先清后拉（避免旧口径结果短暂残留） */
   function clearReviews() {
     reviewList.value = []
-    reviewTotal.value = 0
+  }
+
+  /**
+   * 本地移除一条评价（删除成功后对齐列表，避免为一行变化重拉整页）。
+   * 「评价已不存在」（后端 4001）时同样走它 —— 该码重试无意义，按已删除收尾。
+   */
+  function removeReview(id: number) {
+    reviewList.value = reviewList.value.filter((x) => x.id !== id)
   }
 
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价）；过期响应不修改本状态 */
-  const reviewTotal = ref(0)
   const reviewError = ref(false)
 
   /** 评价请求序号：翻页 / 进新菜品时丢弃过期响应，防触底 append 与 reset 交错 */
@@ -249,13 +307,15 @@ export const useDishStore = defineStore('dish', () => {
 
   /**
    * 评价区分页（RESTful 子资源 `GET /dishes/{id}/reviews`）。
-   * 排序唯一为时间倒序；`hasImage=true` 走服务端「只看有图」筛选（total 同口径统计）。
+   * 排序唯一为时间倒序；`hasImage=true` 走服务端「只看有图」筛选（同口径分页）。
+   *
    * **契约（唯一）**：过期 / 失败一律返回 `null` —— 调用方据此跳过分页推进（避免永久跳过该页）。
+   * 分页壳只有 `records`，**到底判据 = 本页返回条数 < `pageSize`**（由调用方判定）。
    */
   async function fetchReviews(
     dishId: number,
     options?: { page?: number; pageSize?: number; append?: boolean; hasImage?: boolean },
-  ): Promise<{ list: Review[]; total: number } | null> {
+  ): Promise<{ list: Review[] } | null> {
     const seq = ++reviewFetchSeq
     const page = options?.page ?? 1
     const pageSize = options?.pageSize ?? 20
@@ -269,7 +329,6 @@ export const useDishStore = defineStore('dish', () => {
       } else {
         reviewList.value = res.list
       }
-      reviewTotal.value = res.total
       reviewError.value = false
       return res
     } catch (e) {
@@ -277,7 +336,6 @@ export const useDishStore = defineStore('dish', () => {
       if (seq !== reviewFetchSeq) return null
       if (!options?.append) {
         reviewList.value = []
-        reviewTotal.value = 0
         reviewError.value = true
       }
       return null
@@ -305,7 +363,7 @@ export const useDishStore = defineStore('dish', () => {
     // 搜索 / 详情 / 评价 / 热搜
     search,
     currentDish, detailError, detailNotFound, fetchDetail, resetDishDetail,
-    reviewList, reviewTotal, reviewError, fetchReviews, clearReviews,
+    reviewList, reviewError, fetchReviews, clearReviews, removeReview,
     guessLikeList, fetchGuessLike,
   }
 })

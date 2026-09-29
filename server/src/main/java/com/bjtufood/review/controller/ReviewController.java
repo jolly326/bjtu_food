@@ -3,7 +3,7 @@ package com.bjtufood.review.controller;
 import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
-import com.bjtufood.common.utils.SecurityUtil;
+import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.review.dto.ReviewCreatedVO;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.MyReviewVO;

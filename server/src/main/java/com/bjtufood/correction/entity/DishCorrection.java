@@ -1,7 +1,7 @@
 package com.bjtufood.correction.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.bjtufood.common.handler.StringListTypeHandler;
+import com.bjtufood.common.persistence.StringListTypeHandler;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -48,19 +48,17 @@ public class DishCorrection {
     @Schema(description = "提交的档口名称", example = "学一基本伙食")
     private String stallName;
 
-    /** 提交的口味标签（JSON 数组机器值，列 ↔ List 由 StringListTypeHandler 完成） */
-    @TableField(typeHandler = StringListTypeHandler.class)
-    @Schema(description = "口味标签（机器值数组，可空）", example = "[\"spicy\",\"sour\"]")
-    private List<String> flavorTags;
+    /**
+     * 提交的描述属性（**改动项快照**：仅含用户改动的维度，未改动维度留 NULL）。
+     * JSON 对象：键 = 维度 {@code fieldKey}，值 = 机器值 / 数组。
+     */
+    @Schema(description = "提交的描述属性（JSON：键=维度 fieldKey，值=机器值/数组；仅改动维度，可空）",
+            example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
+    private String attributes;
 
-    /** 提交的主料/食材（JSON 数组机器值） */
+    /** 提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤3 张） */
     @TableField(typeHandler = StringListTypeHandler.class)
-    @Schema(description = "主料/食材（机器值数组，可空）", example = "[\"chicken\",\"veg\"]")
-    private List<String> ingredients;
-
-    /** 提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤9 张） */
-    @TableField(typeHandler = StringListTypeHandler.class)
-    @Schema(description = "菜品图片URL列表（COS 绝对地址，≤9 张，可空）")
+    @Schema(description = "菜品图片URL列表（COS 绝对地址，≤3 张，可空）")
     private List<String> images;
 
     /** 处理状态：pending / adopted / rejected */

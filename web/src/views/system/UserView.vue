@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { User } from '@/types'
 /**
  * UserView：学生账号页（一级入口 /dashboard/system）。
  * 2026-09-15（本轮精简）：原「用户与系统」聚合页（账号 / 操作日志两张分类卡）删除后，
@@ -28,7 +29,7 @@ const confirm = useConfirmStore()
 
 const searchQuery = ref('')
 // 用户行为聚合弹窗
-const activityUser = ref<any>(null)
+const activityUser = ref<User | null>(null)
 
 // 三态（WEB-108）：进入页面显式刷新，供 DataTable 展示 loading/error
 // WEB-02：本页仅依赖「学生用户」一个域，按需加载。
@@ -39,8 +40,8 @@ async function refresh() {
   error.value = ''
   try {
     await userStore.loadAll()
-  } catch (e: any) {
-    error.value = e.message || '加载学生列表失败'
+  } catch (e: unknown) {
+    error.value = (e as Error).message || '加载学生列表失败'
   } finally {
     loading.value = false
   }
@@ -100,14 +101,14 @@ const filteredStudents = computed(() => {
 
 // ===== 行内状态快捷切换（正常/禁用） =====
 const switchId = ref<number | null>(null)
-async function toggleStatus(row: any, active: boolean) {
+async function toggleStatus(row: User, active: boolean) {
   if (row.status === (active ? 'active' : 'disabled')) return
   switchId.value = Number(row.id)
   try {
     await store.toggleUserStatus(Number(row.id), active ? 'active' : 'disabled')
     toast.success(`学生「${row.nickname || row.username}」已${active ? '启用' : '禁用'}`)
-  } catch (e: any) {
-    toast.error(e.message || '状态更新失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '状态更新失败')
   } finally {
     switchId.value = null
   }
@@ -178,13 +179,16 @@ async function batchSetStatus(status: 'active' | 'disabled') {
     </FilterBar>
 
     <DataTable
+      retryable
+      @retry="refresh"
       selectable
       v-model:selectedIds="selectedIds"
       :columns="[
         { prop: 'avatar', label: '头像', width: '44px', align: 'center' },
         { prop: 'userInfo', label: '用户信息' },
         { prop: 'authState', label: '认证', width: '90px', align: 'center' },
-        { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at },
+        // 排序取值须为可比标量（string | number）：Date 取时间戳
+        { prop: 'created', label: '注册时间', width: '130px', sortable: true, sortValue: (row) => row.created_at.getTime() },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
       ]"
       :rows="filteredStudents"
@@ -218,7 +222,7 @@ async function batchSetStatus(status: 'active' | 'disabled') {
             :model-value="row.status === 'active'"
             :loading="switchId === Number(row.id)"
             :disabled="switchId === Number(row.id)"
-            @change="(v: any) => toggleStatus(row, !!v)"
+            @change="(v: string | number | boolean) => toggleStatus(row, !!v)"
           />
           <span class="status-text" :class="row.status === 'active' ? 'on' : 'off'">{{ row.status === 'active' ? '正常' : '已禁用' }}</span>
         </div>
@@ -230,7 +234,8 @@ async function batchSetStatus(status: 'active' | 'disabled') {
       </template>
     </DataTable>
 
-    <UserActivityModal :show="!!activityUser" :user="activityUser" @close="activityUser = null" />
+    <!-- activityUser 非空即弹窗打开（show 已由 !!activityUser 表达），故此处可安全断言非空 -->
+    <UserActivityModal :show="!!activityUser" :user="activityUser!" @close="activityUser = null" />
   </PageContainer>
 </template>
 

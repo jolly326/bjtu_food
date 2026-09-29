@@ -12,7 +12,7 @@
         @error="imgOk = false"
       />
       <view v-else class="image-placeholder">
-        <IconSvg name="dish" :size="56" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
+        <ImagePlaceholder :size="56" />
       </view>
     </view>
     <view class="card-info">
@@ -23,12 +23,13 @@
       <view class="card-stall">
         <text class="stall-text">{{ dish.canteen }} | {{ dish.stallName }}</text>
       </view>
-      <!-- 第四段：左 = 黄色实心五角星 + 数字评分；右 = 价格（橙色突出）。同一行。
+      <!-- 第四段：左 = 黄色实心五角星 + 数字评分（**零评价 `rating = null` ⇒ 整组不渲染**，
+           价格仍靠右）；右 = 价格（橙色突出）。同一行。
            星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿 -->
       <view class="card-meta">
-        <view class="card-rating">
+        <view v-if="dish.rating != null" class="card-rating">
           <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
-          <text class="rating-text">{{ fmtRating(dish.rating) }}</text>
+          <text class="rating-text">{{ formatRating(dish.rating) }}</text>
         </view>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
       </view>
@@ -39,9 +40,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { DishListItem } from '@/types/dish'
-import { getImageUrl, getThumbUrl } from '@/utils/image'
+import { getThumbImageUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
+import { formatRating } from '@/utils/dish'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = defineProps<{
@@ -59,17 +62,14 @@ const emit = defineEmits<{
  * 图片 URL：列表**唯一图片字段** `coverImage`（后端已给绝对 URL；无图空串 → 占位空态）。
  * C14 列表缩略图走 _thumb（仅详情大图用原图），弱网下流量/时延显著下降。
  */
-const imgSrc = computed(() => getImageUrl(getThumbUrl(props.dish.coverImage)))
+const imgSrc = computed(() => getThumbImageUrl(props.dish.coverImage))
 
 /** 图片加载状态：加载失败则回退到占位，禁止裂图 */
 const imgOk = ref(true)
 /** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
 const imgLoaded = ref(false)
 
-/** 评分统一保留一位小数（与详情页 toFixed(1) 一致，避免 4 / 4.5 显示不一致） */
-function fmtRating(r: number): string {
-  return Number(r || 0).toFixed(1)
-}
+/* 评分格式化（恒一位小数）已上提为公共 `utils/dish.formatRating`（UI 统一 Loop Round 17） */
 
 function handleClick() {
   emit('select', props.dish)
@@ -97,8 +97,8 @@ function handleClick() {
 .card-image {
   position: relative;
   width: 100%;
-  /* 固定 3:2 比例容器（tab-pages-visual-unify：由 4:3 收矮，把视觉重心让给文字信息）；
-     未加载（占位）与加载后（图片）高度一致，消除瀑布流滚动重排卡顿（CLS=0） */
+  /* 固定 3:2 比例容器（由 4:3 收矮，把视觉重心让给文字信息；§6.2 第 1 段：占卡片高 ≈52–55%，
+     介于设计建议的 4:3 与 16:10 之间）；未加载（占位）与加载后（图片）高度一致，消除瀑布流重排卡顿（CLS=0） */
   aspect-ratio: 3 / 2;
   background: var(--bg-soft);
   overflow: hidden;
@@ -119,27 +119,26 @@ function handleClick() {
   align-items: center;
   justify-content: center;
 }
-.placeholder-icon {
-  font-size: var(--icon-2xl);
-  line-height: 1;
-}
-/* 星：黄色实心（--color-star，星色不随主色换肤）；取色走 COLOR_MAP 真源实色（data-uri 不解析 var） */
+/* 星：黄色实心（--color-star，星色不随主色换肤）；取色走 COLOR_MAP 真源实色（data-uri 不解析 var）。
+   `flex-shrink: 0` 必须有（flex 行内不被压缩）；图标尺寸/行高由 IconSvg 自持，此处不再重复声明。 */
 .star-icon {
-  line-height: 1;
   flex-shrink: 0;
 }
 .rating-text {
-  color: var(--text-secondary);
-  /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限（§3 第 4 段） */
+  /* 评分文字：正文档（#4A3520）**常规字重**——§8「评分 28rpx 常规」。
+     本卡**重字重只留两处**（菜名 --weight-semibold / 价格 --weight-bold）：一屏 4 行文字若 3 行都在加深加粗，
+     第一眼就不知道该看什么（设计稿「信息密度偏高」那条）；评分语义已由暖黄星形承担，数字无需再加粗。 */
+  color: var(--text-body);
+  /* --font-body(14px)：旧口径 24rpx 在窄屏折合 ≈10px，低于 12px 可读下限 */
   font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular);
   font-variant-numeric: tabular-nums;
 }
 .card-info {
   padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
   min-width: 0;
 }
-/* 菜名：黑色加粗、卡片内最大字号（表格第 2 行） */
+/* 菜名：标题档加粗（#2D1F14）、卡片文字层级第一级（§6.2 第 2 段；食堂行 / 评分行不得抢菜名） */
 .card-name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -149,16 +148,16 @@ function handleClick() {
   font-weight: var(--weight-semibold);
   line-height: 1.3;
   letter-spacing: var(--tracking-h3);
-  color: var(--text-primary);
+  color: var(--text-title);
   min-width: 0;
 }
-/* 第三段：食堂 | 档口（浅灰纯文字，无图标；超长省略）
-   组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px）；字号升到 --font-body(14px)（§3 第 3 段） */
+/* 第三段：食堂 | 档口（辅助档 #7F6A55 纯文字，无图标；超长单行省略，§6.2 第 3 段）
+   组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px） */
 .card-stall {
   margin-top: var(--spacing-xs);
   font-size: var(--font-body);
   font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
+  color: var(--text-subtitle);
   min-width: 0;
 }
 .stall-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -176,12 +175,14 @@ function handleClick() {
   gap: var(--spacing-xs);
   min-width: 0;
 }
-/* 价格：橙色突出（--color-price = 主色文字档），第四段右端 */
+/* 价格：橙色突出（--color-price = 主色文字档），第四段右端。
+   `margin-left: auto` 保证**零评价（评分组不渲染）时价格仍靠右**（不贴到左侧） */
 .card-price {
   font-size: var(--font-h3);
   color: var(--color-price);
   font-weight: var(--weight-bold);
   flex-shrink: 0;
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
 </style>

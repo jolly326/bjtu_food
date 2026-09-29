@@ -7,7 +7,8 @@
  */
 import { ArrowLeft } from '@element-plus/icons-vue'
 
-const props = withDefaults(
+// props 仅在模板中消费（脚本内无引用）⇒ 不赋给变量，避免 @typescript-eslint/no-unused-vars
+withDefaults(
   defineProps<{
     title?: string
     count?: number | string

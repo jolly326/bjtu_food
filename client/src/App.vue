@@ -2,11 +2,12 @@
 import { onLaunch } from "@dcloudio/uni-app";
 import { useUserStore } from "@/stores/user";
 import { WX_CLOUD_ENV } from "@/api/config";
+import { getWxApi } from "@/utils/device";
 onLaunch(() => {
   // 初始化微信云开发/云托管环境（小程序端 callContainer 调用依赖；H5 等平台跳过）
   // #ifdef MP-WEIXIN
-  // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（与 http.ts / useDishPage 同款说明）
-  const wxApi: any = (globalThis as any).wx;
+  // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
+  const wxApi = getWxApi();
   if (wxApi && wxApi.cloud) {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
@@ -31,13 +32,37 @@ onLaunch(() => {
 @import './theme/generated-colors.css';
 
 page {
+  /* ===== 全站页面底色（**唯一承载处**）=====
+     放在小程序最低层 `page{}`：它天然在所有内容与壁纸层**之下** ⇒ 既兜底防白屏，
+     又不会像「页面根 `.page` 的 background」那样把 `z-index: var(--z-page-bg)`（−1）的壁纸层盖住。
+     ⚠️ 页面级 / 组件级 SHALL NOT 再声明页面底色（UI 统一 Loop Round 11 根因修复）。 */
+  background: var(--bg-page);
+
   /* ========== 派生颜色引用（var 组合，非色值真源；真源见 tokens.ts） ========== */
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
 
+  /* ========== 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色，无分段）==========
+     · 由 `components/PageWallpaper.vue` 以 `background-color` 消费；全站只有**页面级一处**壁纸层
+       （`fixed` 视口锚定；2026-09-26 起不再有任何「横条切片」）—— 因此处处同源，
+       不会出现「某条横带颜色不一样」的突变；
+     · 口径（2026-09-26 三次修正）：**整张壁纸统一压一层**。此前只在顶部一条，会在画面中段留下
+       一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）；
+     · 作用 = 「降低背景突出度」：壁纸仍可见，但不抢内容 → 标题 / 标签 / 卡片间隙都落在同一层纱上；
+     · **α 是唯一旋钮**：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚。**当前 0.6**（UI 统一 Loop Round 12
+       对齐：原注释写 0.8、UI 文档写 0.4，三处不一致 ⇒ 以本值为唯一真源）；
+     · 色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写字面量 rgba）。 */
+  --page-wash: rgba(255, 248, 239, 0.7);
+
+  /* 注：曾经的「横条表面色 `--bg-wallpaper`」已于 2026-09-27 随**结构性决议**删除：
+     首页改为「常驻工具栏 + 收缩滚动区」（§11）后，任何横条背后都没有内容经过 ⇒
+     全站不需要任何表面 / 切片 / 纯色底。若未来某页必须让内容从横条背后穿过，
+     口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」（实测法见 UI 文档 §11.1 历史记录）。 */
+
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
   --radius-none: 0;
+  --radius-2xs: 8rpx;
   --radius-xs: 16rpx;
   --radius-tag: 16rpx;
   --radius-card: 32rpx;
@@ -49,6 +74,7 @@ page {
   /* 正圆（头像 / 圆点 / 指示器） */
   --radius-circle: 50%;
   /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
+  --spacing-3xs: 2rpx;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
@@ -69,8 +95,7 @@ page {
   --font-h2: 40rpx;
   --font-title: 44rpx;
   /* 图标尺寸 */
-  --icon-2xl: 64rpx;
-  --icon-3xl: 80rpx;
+
   /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
   --duration-fast: 120ms;
   --duration-base: 200ms;
@@ -87,39 +112,60 @@ page {
   --weight-heavy: 800;
   /* 布局：主滚动区底部安全留白（.scroll-wrap 消费；命名沿用历史 tabbar 高度，非字面 TabBar） */
   --tabbar-height: 100rpx;
+  /* 搜索栏高度（SearchBar 单胶囊；UI 统一 Loop Round 20：由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
+     ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
+  --search-bar-height: 96rpx;
   /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
   /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
      两段式：页面骨架层（50~999，内容之上、弹层之下）→ 弹层级（2000+）。
-     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。 */
+     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。
+     另有**底层** `--z-page-bg`（−1）：页底壁纸层，不属于骨架层、不参与上述排序。 */
+  --z-page-bg: -1;         /* 页底壁纸层（PageWallpaper）：负层级 = 压在父级背景之上、流内内容之下，
+                              故接入新页面无需给内容加 z-index（UI 统一 Loop Round 5 token 化） */
   --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
-  --z-detail-bar: 70;      /* 详情页空态/加载承接条（no-dish-bar，固定顶部） */
-  --z-detail-nav: 80;      /* 详情页覆盖导航（dish-nav，固定顶部） */
+
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
-  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列：ListPickerSheet 等选择器，走 BaseSheet 默认 z-token） */
+  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列选择器，走 BaseSheet 默认 z-token） */
   --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
-  --z-modal: 5000;        /* 居中弹窗（ReportModal） */
-  --z-auth: 6000;         /* 登录网关，最高层级 */
+
 }
 
 /* 全局盒模型重置：防止 padding 叠加到 width 造成 scroll-view 内卡片溢出屏幕右侧 */
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
-/* ========== 页面基础壳 ========== */
+/* ========== 页面基础壳 ==========
+   ⚠️ **页面根不得再有底色**（UI 统一 Loop Round 11 修复）：根层叠上下文中的绘制顺序为
+   ① 负层级子层（`PageWallpaper` 的 `z-index: var(--z-page-bg)` = −1）→ ② 流内块背景。
+   若 `.page`（页面根）自带不透明底色，它会在 ② 把 ① 的壁纸层**整块盖住** ⇒ 全站表现为「奶黄底、
+   壁纸不可见」。故底色下沉到小程序最低层 `page{}`（见上方 token 块内的 `background`）——
+   它天然在所有内容与壁纸之下，仍能兜底防白屏。 */
 .page {
+  /* 页面根兜底高度：**vh + dvh 双声明**（同一属性名，后者在支持 dvh 的环境生效）。
+     ⚠️ 为什么必须写 dvh（Round 26 缺陷修复）：移动端 H5 地址栏伸缩时 `100vh` = **最大可视高**，
+     比真实可视区高 ⇒ 页面根比屏幕高出一截 ⇒ ① 页面自身多出一段可滚区（"多余滚动"）；
+     ② 固定底栏被顶到屏幕外/底部露出空白。
+     ⚠️ 为什么必须是 `min-height` 而不是 `height`：本类与各页根的 `height: 100vh; height: 100dvh`
+     **共存** —— 若这里写死 `min-height: 100vh`，会把页根的 `100dvh` **顶回 100vh**（min 大于 height 时 min 获胜），
+     使 dvh 修复静默失效（这正是修复前的状态）。 */
   min-height: 100vh;
-  background: var(--bg-page);
+  min-height: 100dvh;
 }
 
-/* 主滚动区底部安全留白，避免内容被固定底栏遮挡 */
+/* ===== 主滚动区尺寸口径（全站唯一真源，Round 26 复核）=====
+   ① `min-height: 0` **必需**：flex 子项默认 `min-height: auto`，不收缩 ⇒ 内容把滚动容器撑高 ⇒
+      容器超出页根 ⇒ 页面与滚动区**双层滚动**（多余滚动 + 底部空白）。各页 `.scroll-wrap` 亦各自声明（双保险）。
+   ② 底部留白**不再全局兜底**（原 `padding-bottom: calc(--tabbar-height + --spacing-md + safe)` 已删）：
+      只有自带**自绘 TabBar** 的页（home / mine）需要让出菜单栏，且由页面自身承担（home = 页根 `padding-bottom`、
+      mine = 页脚 `padding-bottom`）。全局兜底会让**非 Tab 页**凭空多出 ≈ tabbar(50px) + 安全区(≈34px) 的死留白，
+      短内容也被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 .scroll-wrap {
   min-height: 0;
-  padding-bottom: calc(var(--tabbar-height) + 24rpx + env(safe-area-inset-bottom));
 }
 
 /* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========
-   hover-class="pressed" 的全局兜底反馈（TabBar / FilterBar / 反馈表单等引用，UX-004 空引用修复）；
+   hover-class="pressed" 的全局兜底反馈（TabBar / 反馈表单 / 列表行等引用，UX-004 空引用修复）；
    取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-link.pressed）。
    页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */
 .pressed { opacity: 0.7; }

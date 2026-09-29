@@ -7,9 +7,10 @@
 import type { Stall } from '@/types'
 import { get, put } from './http'
 import { stallToApi, stallToLegacy } from './adapter'
+import type { RawStall } from './adapter'
 
 export async function getAll(): Promise<Stall[]> {
-  return (await get<any[]>('/admin/stalls')).map(stallToLegacy)
+  return (await get<RawStall[]>('/admin/stalls')).map(stallToLegacy)
 }
 
 /** 改名（属性字典唯一可用的编辑动作；新增一律走菜品按名 upsert） */

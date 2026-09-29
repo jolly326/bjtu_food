@@ -1,10 +1,11 @@
 package com.bjtufood.dish.controller;
 
-import com.bjtufood.common.config.IpRateLimiter;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
+import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
@@ -49,7 +50,7 @@ public class DishController {
             description = """
                     用途：首页网格、搜索页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    参数集恰为 4 项：page、pageSize、keyword、mealType（排序恒为服务端热度倒序，无排序入口）。
+                    参数集恰为 5 项：page、pageSize、keyword、mealType、seed（排序由服务端决定：推荐流无 keyword/mealType 且带 seed 时按 CRC32(seed:ID) 会话伪随机序，其余热度倒序；无排序入口）。
                     出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )
@@ -73,23 +74,6 @@ public class DishController {
     }
 
     @Operation(
-            summary = "菜品描述四维字典",
-            description = """
-                    用途：菜品描述四维（荤素 / 主料 / 口味 / 冷热）的**取值与中文标签唯一真源**。
-                    每项含 field（维度字段名，与菜品出参字段名逐字一致）/ value（机器值）/
-                    label（中文标签）/ order（组内顺序）。
-                    小程序端与管理端**共用同一份字典**：端上据此把菜品出参的机器值映射为中文，
-                    管理端另用它渲染表单选项——两端 SHALL NOT 再硬编码映射表或选项数组。
-                    内容取自后端常量表 DishAttributeConst，**不依赖库表数据**（库中无菜品时同样完整下发）。
-                    公开接口。测试示例：/dishes/attributes
-                    """
-    )
-    @GetMapping("/dishes/attributes")
-    public Result<List<com.bjtufood.dish.dto.DishAttributeVO>> listAttributes() {
-        return Result.success(dishService.listAttributes());
-    }
-
-    @Operation(
             summary = "菜品详情",
             description = """
                     用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
@@ -106,6 +90,25 @@ public class DishController {
         checkViewIpRateLimit();
         // 计数随详情成功响应发生（service 内成功路径执行）
         return Result.success(dishService.getDishDetail(id));
+    }
+
+    @Operation(
+            summary = "菜品描述属性编辑态选项（按菜现有维度）",
+            description = """
+                    用途：菜品纠错 / 编辑界面的属性表单（进编辑时才取，按需）。
+                    只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
+                    attributes[].fieldKey 对齐）/ valueType（single|multi）/
+                    options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
+                    **options 为空数组 = 自由文本维度**（无候选值）。
+                    维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
+                    测试示例：/dishes/1/attributes
+                    """
+    )
+    @GetMapping("/dishes/{id}/attributes")
+    public Result<List<DishAttributeEditVO>> listDishAttributes(
+            @Parameter(description = "菜品ID", example = "1")
+            @PathVariable Long id) {
+        return Result.success(dishService.listDishAttributes(id));
     }
 
     /**

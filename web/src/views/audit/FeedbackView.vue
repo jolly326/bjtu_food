@@ -283,8 +283,8 @@ async function submitHandle() {
     toast.success(outcome.value === 'rejected' ? '反馈已标记不采纳' : '反馈已标记处理')
     await loadList()
     closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '处理失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '处理失败')
   } finally {
     processingId.value = null
   }
@@ -342,6 +342,8 @@ function goReviewManage(reviewId?: number) {
     </FilterBar>
 
     <DataTable
+      retryable
+      @retry="loadList"
       server-mode
       :server-total="total"
       v-model:server-page="page"

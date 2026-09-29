@@ -9,33 +9,39 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
-import com.bjtufood.dish.constant.DishAttributeConst;
+import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.constant.MealTypeConst;
 import com.bjtufood.dish.dto.DishAdminReq;
-import com.bjtufood.dish.dto.DishAttributeVO;
+import com.bjtufood.dish.dto.DishAttributeEditVO;
+import com.bjtufood.dish.dto.DishAttributeItem;
+import com.bjtufood.dish.dto.DishAttributeOptionItem;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
+import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.dto.MealTypeVO;
-import com.bjtufood.dish.dto.RatingDistributionVO;
 import com.bjtufood.dish.entity.Dish;
+import com.bjtufood.dish.entity.DishAttributeDimension;
+import com.bjtufood.dish.entity.DishAttributeValue;
+import com.bjtufood.dish.event.DishDeletedEvent;
+import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
+import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
-import com.bjtufood.review.entity.Review;
-import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,8 +61,15 @@ public class DishServiceImpl implements DishService {
 
     private final DishMapper dishMapper;
     private final StallService stallService;
-    private final ReviewMapper reviewMapper;
+    /**
+     * 事件发布器：菜品删除后的评价级联清理改由 review 域监听器承接
+     * （P0-1 写侧解耦，dish 域不再注入 ReviewMapper / ReviewService）。
+     */
+    private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
+    /** 描述属性字典两表（维度 + 取值），数据驱动、免发版增维度 */
+    private final DishAttributeDimensionMapper dishAttributeDimensionMapper;
+    private final DishAttributeValueMapper dishAttributeValueMapper;
 
     @Override
     public IPage<DishListItemVO> listDishes(DishQueryReq req) {
@@ -82,24 +95,109 @@ public class DishServiceImpl implements DishService {
     public List<MealTypeVO> listMealTypes() {
         // 空类过滤（§7.34）：常量清单（唯一真源）∩「当前有在售菜品」的大类集合——
         // 某类暂时没有 status='on' 的菜品即不下发，重新有菜自动出现；顺序 = 常量声明序（order 升序）
+        // 方案 B + 2026-09-28 产品拍板：首项固定下发「为你推荐」虚拟导航项（value=null, order=0），
+        // 供学生端直出渲染、端上零硬编码。虚拟项不是物理大类：不进 MealTypeConst.ALL、不参与白名单校验、
+        // 不进管理端录入下拉；将来「折扣菜品」等虚拟项同款在出口处拼装。
         Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
-        return MealTypeConst.ALL.stream()
+        List<MealTypeVO> result = new ArrayList<>();
+        result.add(new MealTypeVO(null, "为你推荐"));
+        MealTypeConst.ALL.stream()
                 .filter(mt -> inStock.contains(mt.value()))
-                .map(mt -> new MealTypeVO(mt.value(), mt.label(), mt.order()))
-                .collect(Collectors.toList());
+                .map(mt -> new MealTypeVO(mt.value(), mt.label()))
+                .forEach(result::add);
+        return result;
     }
 
     /**
-     * 菜品描述四维字典（2026-09-23 §7.40 R4 / R13）：{@code GET /dishes/attributes} 出参。
+     * 菜品描述属性编辑态选项（{@code GET /dishes/{id}/attributes}，按需）。
      * <p>
-     * 内容取自 {@link DishAttributeConst}（唯一真源），**不查库、不做在售过滤** ——
-     * 四维是描述属性，管理端录入表单需要完整选项（与 meal-types「只下发有在售菜品的大类」策略不同）。
+     * 只返回该菜<b>现有维度</b>（{@code dish.attributes} 的键集合 ∩ 维度字典，按维度 {@code order} 升序），
+     * 只补编辑要用的 {@code valueType} + 该维度全部候选 {@code options}；
+     * {@code options} 为空数组 = 自由文本维度。
      */
     @Override
-    public List<DishAttributeVO> listAttributes() {
-        return DishAttributeConst.ALL.stream()
-                .map(a -> new DishAttributeVO(a.field(), a.value(), a.label(), a.order()))
-                .collect(Collectors.toList());
+    public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
+        // 不存在与已下架同款处理（与详情口径一致）
+        if (!existsOnSale(dishId)) {
+            throw new BusinessException(4001, "菜品不存在");
+        }
+        Map<String, Object> raw = JsonMapUtil.parseObject(dishMapper.selectAttributesJson(dishId));
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<DishAttributeValue>> valuesByDimension = loadValuesByDimension();
+        return loadDimensions().stream()
+                .filter(dim -> raw.containsKey(dim.getFieldKey()))
+                .map(dim -> new DishAttributeEditVO(
+                        dim.getFieldKey(),
+                        dim.getValueType(),
+                        valuesByDimension.getOrDefault(dim.getId(), List.of()).stream()
+                                .map(v -> new DishAttributeOptionItem(v.getValueKey(), v.getLabel()))
+                                .toList()))
+                .toList();
+    }
+
+    /** 维度字典（按 order 升序） */
+    private List<DishAttributeDimension> loadDimensions() {
+        return dishAttributeDimensionMapper.selectList(
+                new LambdaQueryWrapper<DishAttributeDimension>()
+                        .orderByAsc(DishAttributeDimension::getOrder));
+    }
+
+    /** 取值字典：dimensionId → 取值列表（组内按 order 升序） */
+    private Map<Long, List<DishAttributeValue>> loadValuesByDimension() {
+        return dishAttributeValueMapper.selectList(
+                        new LambdaQueryWrapper<DishAttributeValue>()
+                                .orderByAsc(DishAttributeValue::getOrder))
+                .stream()
+                .collect(Collectors.groupingBy(DishAttributeValue::getDimensionId));
+    }
+
+    /**
+     * 把 {@code dish.attributes} 的 JSON 原文整理为出参 {@code attributes[]}（R4：机器值 + 中文一并下发）。
+     * <p>
+     * 自描述：只含该菜品实际拥有的维度，按维度 {@code order} 升序；某维度无值则不出现、不占位。
+     * 字典未命中（旧数据 / 脏值）→ 原样透出机器值（不丢弃、不报错）。
+     */
+    private List<DishAttributeItem> buildAttributeItems(String attributesJson,
+                                                        List<DishAttributeDimension> dimensions,
+                                                        Map<Long, List<DishAttributeValue>> valuesByDimension) {
+        Map<String, Object> raw = JsonMapUtil.parseObject(attributesJson);
+        if (raw.isEmpty() || dimensions.isEmpty()) {
+            return List.of();
+        }
+        List<DishAttributeItem> items = new ArrayList<>();
+        for (DishAttributeDimension dim : dimensions) {
+            if (!raw.containsKey(dim.getFieldKey())) {
+                continue;
+            }
+            Object machineValue = raw.get(dim.getFieldKey());
+            if (machineValue == null) {
+                continue;
+            }
+            items.add(new DishAttributeItem(dim.getFieldKey(), dim.getName(),
+                    machineValue, toLabel(machineValue, valuesByDimension.getOrDefault(dim.getId(), List.of()))));
+        }
+        return items;
+    }
+
+    /**
+     * 机器值 → 中文标签（与 {@code value} <b>同构</b>：multi 入参为数组则出参亦为数组）。
+     * 字典未命中时原样回退机器值字符串。
+     */
+    private Object toLabel(Object machineValue, List<DishAttributeValue> options) {
+        Map<String, String> labelByKey = options.stream()
+                .collect(Collectors.toMap(DishAttributeValue::getValueKey, DishAttributeValue::getLabel, (a, b) -> a));
+        if (machineValue instanceof List<?> values) {
+            List<String> labels = new ArrayList<>(values.size());
+            for (Object v : values) {
+                String key = String.valueOf(v);
+                labels.add(labelByKey.getOrDefault(key, key));
+            }
+            return labels;
+        }
+        String key = String.valueOf(machineValue);
+        return labelByKey.getOrDefault(key, key);
     }
 
     /**
@@ -131,17 +229,13 @@ public class DishServiceImpl implements DishService {
         if (affected == 0) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        // 从 images_json 解析 images（避免二次查数据库）
+        // 多图 → 绝对 URL（图片列已由 TypeHandler 直出为 List）
         enrichImages(vo);
 
-        // 查询评分分布（SQL 侧已按 rating DESC；再经 fillRatingDistribution 补齐为恒 5 项、顺序 5→1）
-        List<RatingDistributionVO> distribution = dishMapper.selectRatingDistribution(id);
-        List<RatingDistributionVO> filledDistribution = fillRatingDistribution(distribution);
-        vo.setRatingDistribution(filledDistribution);
+        // 描述属性：JSON 原文 + 字典两表 → 「机器值 + 中文」展示项（R4，端上零翻译）
+        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), loadDimensions(), loadValuesByDimension()));
 
-        // 评分摘要三数同源（2026-09-23 R1）：合计与均分改由**同一次实时聚合**产出，
-        // 覆盖 dish.rating_count / dish.avg_rating 缓存列 —— 避免缓存漂移时卡内数字自相矛盾
-        applyRatingSummaryFromDistribution(vo, filledDistribution);
+        // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
 
         // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）。
         // 注：详情出参仍无任何登录态字段；原 userId 入参与 view_log 浏览日志写入已随该链整表退役移除。
@@ -193,7 +287,7 @@ public class DishServiceImpl implements DishService {
         applyReq(dish, req);
         // 按名 upsert 解析出的档口可能不同于 req.stallId（stallName 有效时优先），在 applyReq 之后回填
         dish.setStallId(stallId);
-        dish.setAvgRating(BigDecimal.ZERO);
+        // avg_rating 保持 NULL（零评价 → 公开出参 avgRating = null，端上按「暂无评分」呈现）
         dish.setRatingCount(0);
         dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
@@ -242,8 +336,9 @@ public class DishServiceImpl implements DishService {
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
-        // 级联清理该菜品下的全部评价（BE-108）
-        reviewMapper.delete(new LambdaQueryWrapper<Review>().eq(Review::getDishId, id));
+        // 级联清理该菜品下的全部评价（BE-108）：改为发布领域事件，由 review 域监听器删除评价，
+        // dish 域不再持有 review 表知识（P0-1）。同步监听 → 仍在本次事务内执行，失败一并回滚。
+        eventPublisher.publishEvent(new DishDeletedEvent(id));
         dishMapper.deleteById(id);
     }
 
@@ -321,11 +416,8 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
 
-        // 描述四维（§7.28 定型）：荤素 / 主料 / 口味 / 冷热（原辣度 spice_level、风味 region 已下线）
-        dish.setDietType(req.getDietType());
-        dish.setIngredients(req.getIngredients());
-        dish.setFlavorTags(req.getFlavorTags());
-        dish.setServeTemp(req.getServeTemp());
+        // 描述属性（动态属性模型）：JSON 对象，键 = 维度 fieldKey；null/空 → 列置 NULL
+        dish.setAttributes(JsonMapUtil.toJson(req.getAttributes()));
 
         // 菜品大类（§7.34）：白名单校验（PR-06，非法值 400）；null=不修改
         // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过 null 字段，「仅传 status 的行内部分更新」不会误清大类）
@@ -393,51 +485,54 @@ public class DishServiceImpl implements DishService {
         return vo;
     }
 
-    /**
-     * 补齐 1-5 星评分分布，缺失的星级补 0
-     */
-    private List<RatingDistributionVO> fillRatingDistribution(List<RatingDistributionVO> distribution) {
-        List<RatingDistributionVO> result = new ArrayList<>();
-        for (int star = 5; star >= 1; star--) {
-            long count = 0;
-            for (RatingDistributionVO rd : distribution) {
-                if (Objects.equals(rd.getStar(), star)) {
-                    count = rd.getCount() == null ? 0 : rd.getCount();
-                    break;
-                }
-            }
-            result.add(new RatingDistributionVO(star, count));
+    // ==================== 跨域契约实现（P0-1：替代 correction / review 的跨域 Mapper 直连） ====================
+
+    @Override
+    public boolean existsById(Long dishId) {
+        return dishId != null && dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getId, dishId)) > 0;
+    }
+
+    @Override
+    public boolean existsOnSale(Long dishId) {
+        return dishId != null && dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
+                .eq(Dish::getId, dishId)
+                .eq(Dish::getStatus, DishConst.STATUS_ON)) > 0;
+    }
+
+    @Override
+    public Map<Long, String> mapNameByIds(Collection<Long> dishIds) {
+        if (dishIds == null || dishIds.isEmpty()) {
+            return Map.of();
         }
-        return result;
+        Map<Long, String> map = new HashMap<>(dishIds.size());
+        // 只取 id/name 两列，避免拉取整行（含 images 等大字段）；不过滤上架态（口径见接口注释）
+        dishMapper.selectList(new LambdaQueryWrapper<Dish>()
+                        .select(Dish::getId, Dish::getName)
+                        .in(Dish::getId, dishIds))
+                .forEach(d -> map.put(d.getId(), d.getName()));
+        return map;
     }
 
     /**
-     * 评分摘要三数同源（2026-09-23 change {@code dish-detail-contract-hardening} R1）。
-     * <p>
-     * 把详情页的「N 人评分」与「均分」改由**与评分分布同一次实时聚合**的结果产出：
-     * 合计 = Σcount，均分 = Σ(star × count) / 合计。三者同源同刻，卡内数字恒自洽 ——
-     * 不再出现「各星占比之和 100%，但同卡『N 人评分』是另一个数」这类自相矛盾
-     * （缓存列 {@code dish.rating_count} / {@code dish.avg_rating} 由异步聚合刷新，存在漂移窗口）。
-     * <p>
-     * <b>取舍</b>：两个缓存列**保留**（列表页排序与卡片展示继续使用），仅详情页的评分摘要改用实时值 ——
-     * 「同一卡片内自洽」优先于「跨页面一致」，后者在缓存重算后自然收敛（design D6）。
-     * 入参应为已补齐为 5 项的分布（缺失星级 count 为 0，不影响合计与加权和）。
+     * 纠错采纳写回（原实现位于 {@code CorrectionServiceImpl.applyAdoption}，逻辑逐字保留）：
+     * 可空快照字段（flavorTags/ingredients/images）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
+     * 保护「菜品首图必填」等既有不变量；images 的 JSON 序列化形态属 dish 落库口径，故收在本域。
      */
-    private void applyRatingSummaryFromDistribution(DishDetailVO vo, List<RatingDistributionVO> distribution) {
-        long total = 0L;
-        long weighted = 0L;
-        if (distribution != null) {
-            for (RatingDistributionVO item : distribution) {
-                long count = item.getCount() == null ? 0L : item.getCount();
-                int star = item.getStar() == null ? 0 : item.getStar();
-                total += count;
-                weighted += count * star;
-            }
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean applyCorrection(DishCorrectionCmd cmd) {
+        Dish update = new Dish();
+        update.setId(cmd.getDishId());
+        update.setName(cmd.getName());
+        update.setPrice(cmd.getPrice());
+        update.setStallId(cmd.getStallId());
+        if (cmd.getAttributes() != null && !cmd.getAttributes().isEmpty()) {
+            update.setAttributes(JsonMapUtil.toJson(cmd.getAttributes()));
         }
-        vo.setRatingCount((int) total);
-        // 保留一位小数，与既有 avgRating 展示口径一致；无评价时为 null（端上不渲染评分卡）
-        vo.setAvgRating(total == 0L
-                ? null
-                : BigDecimal.valueOf(weighted).divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP));
+        if (cmd.getImages() != null && !cmd.getImages().isEmpty()) {
+            update.setImages(JsonListUtil.toJson(cmd.getImages()));
+        }
+        return dishMapper.updateById(update) > 0;
     }
 }

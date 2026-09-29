@@ -5,7 +5,7 @@
  * 调用方通过 show 控制显隐，cancel 事件关闭。
  */
 import { ref } from 'vue'
-import Modal from './Modal.vue'
+import AppModal from './AppModal.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -45,7 +45,7 @@ async function handleConfirm() {
 </script>
 
 <template>
-  <Modal :show="show" :title="title" :width="width" @close="emit('close')">
+  <AppModal :show="show" :title="title" :width="width" @close="emit('close')">
     <slot />
     <template v-if="footer">
       <div class="modal-actions">
@@ -60,7 +60,7 @@ async function handleConfirm() {
         <slot name="actions" />
       </div>
     </template>
-  </Modal>
+  </AppModal>
 </template>
 
 <style scoped>

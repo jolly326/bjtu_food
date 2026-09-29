@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 菜品纠错管理端视图对象（{@code GET /admin/corrections}）。
@@ -44,11 +45,9 @@ public class DishCorrectionAdminVO {
     @Schema(description = "提交的档口名称")
     private String stallName;
 
-    @Schema(description = "提交的口味标签（机器值数组）")
-    private List<String> flavorTags;
-
-    @Schema(description = "提交的主料/食材（机器值数组）")
-    private List<String> ingredients;
+    @Schema(description = "提交的描述属性（键=维度 fieldKey，值=机器值/数组；仅改动维度）",
+            example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
+    private Map<String, Object> attributes;
 
     @Schema(description = "提交的菜品图片 URL 列表（COS 绝对地址）")
     private List<String> images;

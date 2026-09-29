@@ -63,10 +63,10 @@ export async function uploadImage(file: File): Promise<UploadImageResult> {
       throw new Error('上传接口返回缺少图片地址')
     }
     return body.data
-  } catch (e: any) {
+  } catch (e: unknown) {
     // 超时中止的 AbortError 转可读文案；其余错误保留原始 message（无 message 时兜底中文）
-    if (e?.name === 'AbortError') throw new Error('上传超时，请稍后重试')
-    throw new Error(e?.message || '图片上传失败，请检查网络后重试')
+    if ((e as Error)?.name === 'AbortError') throw new Error('上传超时，请稍后重试')
+    throw new Error((e as Error)?.message || '图片上传失败，请检查网络后重试')
   } finally {
     clearTimeout(timeout)
   }

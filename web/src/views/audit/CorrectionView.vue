@@ -19,8 +19,8 @@
  * 颜色全部走设计 Token 禁裸 hex，图标用 Element Plus 禁 emoji，动效遵循
  * prefers-reduced-motion 降级（diff 高亮 / 缩略图 hover 均提供静态降级）。
  */
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useToastStore } from '@/stores/toastStore'
 import { useConfirmStore } from '@/stores/confirmStore'
 import { useDishStore } from '@/stores/dishStore'
@@ -46,6 +46,7 @@ import type { Dish } from '@/types'
 const toast = useToastStore()
 const confirm = useConfirmStore()
 const router = useRouter()
+const route = useRoute()
 
 // ===== 状态筛选（服务端过滤；默认「待处理」= 管理员处理待办） =====
 const statusOptions = [
@@ -86,7 +87,45 @@ async function loadList() {
     total.value = res.total
   })
 }
-onMounted(loadList)
+/**
+ * 单条纠错深链直达：`/dashboard/corrections?cid=<id>`（与反馈页 `?fid=` 同构）。
+ * 列表落地后按 id 定位该行并自动打开详情抽屉；若不在当前筛选（默认「待处理」）结果内，
+ * 回退为切到「全部状态」再定位一次 —— 保证「从待办点进来就能处理」闭环
+ * （不改后端契约、不新增页面/路由）。
+ */
+async function openCorrectionById(id: number) {
+  const hit = rows.value.find((r) => Number(r.id) === id)
+  if (hit) {
+    openDetail(hit)
+    return
+  }
+  // 不在当前筛选结果内：放宽到「全部状态」重试一次
+  if (activeStatus.value !== '') {
+    activeStatus.value = ''
+    await reloadFromFirstPage()
+    const found = rows.value.find((r) => Number(r.id) === id)
+    if (found) {
+      openDetail(found)
+      return
+    }
+  }
+  toast.error('该纠错不在当前列表中')
+}
+
+/** 消费 route.query.cid（含页内二次跳转：同实例不重建，故用 watch 而非仅 onMounted 读取） */
+async function consumeCid() {
+  const raw = route.query.cid
+  const id = typeof raw === 'string' ? Number(raw) : NaN
+  if (!Number.isFinite(id)) return
+  await loadList()
+  await openCorrectionById(id)
+}
+
+onMounted(async () => {
+  await loadList()
+  await consumeCid()
+})
+watch(() => route.query.cid, () => { consumeCid() })
 
 async function onStatusChange() {
   await reloadFromFirstPage()
@@ -248,8 +287,8 @@ async function doAdopt(options: { stallId?: number; createIfMissing?: boolean })
     toast.success('已采纳，菜品信息已更新')
     await loadList()
     closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '采纳失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '采纳失败')
   } finally {
     adoptingId.value = null
   }
@@ -308,8 +347,8 @@ async function submitReject() {
     toast.success('纠错已拒绝')
     await loadList()
     closeDetail()
-  } catch (e: any) {
-    toast.error(e.message || '处理失败')
+  } catch (e: unknown) {
+    toast.error((e as Error).message || '处理失败')
   } finally {
     processingId.value = null
   }
@@ -341,6 +380,8 @@ function goDishEdit(dishName?: string) {
     </div>
 
     <DataTable
+      retryable
+      @retry="loadList"
       server-mode
       :server-total="total"
       v-model:server-page="page"

@@ -1,5 +1,6 @@
 import { get, put } from './http'
 import { imagesToList, pageRecords } from './adapter'
+import type { PageEnvelope } from './adapter'
 
 /**
  * 反馈处理（task-09 Web · 反馈闭环 W1；prelaunch-loop-closure 收口 UGC 图片链下线）。
@@ -73,14 +74,43 @@ export interface FeedbackAdminVO {
  * 白名单收窄 idea / problem，其余（含未落库的 null、后端未就绪时的字段缺失）→ undefined，
  * 由视图层决定是否展示（UI 侧再按 type='suggestion' 限定层级归属）。
  */
-function normalizeSub(raw: any): 'idea' | 'problem' | undefined {
+/** 反馈的原始行（camel / snake 两种键名并存，值可空） */
+interface RawFeedback {
+  id?: number
+  userId?: number | null
+  user_id?: number | null
+  userNickname?: string | null
+  type?: string | null
+  sub?: string | null
+  subType?: string | null
+  sub_type?: string | null
+  content?: string | null
+  images?: unknown
+  status?: string | null
+  reply?: string | null
+  outcome?: string | null
+  rejectReason?: string | null
+  reject_reason?: string | null
+  createdAt?: string | null
+  created_at?: string | null
+  handledAt?: string | null
+  handled_at?: string | null
+  relatedType?: string | null
+  related_type?: string | null
+  relatedId?: number | null
+  related_id?: number | null
+  relatedDishName?: string | null
+  related_dish_name?: string | null
+}
+
+function normalizeSub(raw: RawFeedback): 'idea' | 'problem' | undefined {
   const v = raw.sub ?? raw.subType ?? raw.sub_type
   return v === 'idea' || v === 'problem' ? v : undefined
 }
 
-function feedbackToLegacy(raw: any): FeedbackAdminVO {
+function feedbackToLegacy(raw: RawFeedback): FeedbackAdminVO {
   return {
-    id: raw.id,
+    id: raw.id ?? 0,
     userId: raw.userId ?? raw.user_id ?? undefined,
     userNickname: raw.userNickname || '',
     type: raw.type || 'other',
@@ -117,10 +147,10 @@ export async function listFeedbacks(params: {
   if (params.type) query.type = params.type
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
-  const data: any = await get('/admin/feedbacks', query)
+  const data = await get<PageEnvelope<RawFeedback>>('/admin/feedbacks', query)
   return {
     list: pageRecords(data).map(feedbackToLegacy),
-    total: (data as any)?.total ?? pageRecords(data).length,
+    total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,
   }
 }
 

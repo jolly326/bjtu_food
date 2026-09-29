@@ -8,6 +8,7 @@
  *  - 菜品行由 `dishName` 决定是否展示：菜品详情页内该行冗余（不传），评价管理页传入。
  *  - 用户名 / 菜品名的字典降级由调用方解析后以字符串传入（本组件不持有 store，避免两页各自再实现一份）。
  */
+import type { Review } from '@/types'
 import FormDialog from '@/components/FormDialog.vue'
 import StarRating from '@/components/StarRating.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -16,7 +17,7 @@ withDefaults(
   defineProps<{
     show: boolean
     /** 评价实体（null = 未打开） */
-    review?: any | null
+    review?: Review | null
     /** 已解析好的用户名（调用方按 users 字典降级） */
     userName?: string
     /** 菜品名（传值才渲染「菜品」行） */
@@ -34,7 +35,7 @@ function openImage(url: string) {
 }
 
 function formatTime(v: unknown): string {
-  return v ? new Date(v as any).toLocaleString('zh-CN') : '—'
+  return v ? new Date(v as string | number | Date).toLocaleString('zh-CN') : '—'
 }
 </script>
 

@@ -15,9 +15,11 @@ public interface CorrectionService {
     /**
      * 提交菜品信息纠错（PUB：游客与登录用户均可，匿名允许），status=pending。
      * <p>
-     * 校验：菜品须存在且上架（否则 4001）；name 必填 ≤64 字且敏感词命中即 400
-     * （写回字段不放行替换版）；price 必填整数 &gt;0（分）；canteenName/stallName 必填 ≤64 字；
-     * images ≤9 张且逐项 COS 白名单校验（安检转存发生在上传时）。
+     * **局部提交（patch）**：只落库用户改动的字段（name / price / canteenName / stallName /
+     * attributes / images），未改动列留 NULL（采纳时不覆盖 dish 既有值）；**空请求体 → 400「未提交任何改动」**。
+     * 校验：菜品须存在且上架（否则 4001）；name 传入时非空 ≤64 字且敏感词命中即 400
+     * （写回字段不放行替换版）；price 传入时为 &gt;0 的整数（分）；canteenName/stallName 传入时非空 ≤64 字；
+     * images ≤3 张且逐项 COS 白名单校验（安检转存发生在上传时）。
      *
      * @param userId 提交人用户ID（游客为 null）
      * @param dishId 目标菜品ID（路径参数）

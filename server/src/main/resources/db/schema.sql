@@ -1,7 +1,7 @@
 -- =============================================================
 -- 食在交大 建立数据库（建表）脚本（MySQL 8）
 -- =============================================================
--- 用途：从零创建数据库与全部表结构、最终字段（含描述四维 diet_type/ingredients/flavor_tags/serve_temp 等）。
+-- 用途：从零创建数据库与全部表结构、最终字段（含描述属性 dish.attributes JSON 与属性字典两表等）。
 -- 本脚本自包含：自动建库并切换 USE bjtu_food，不依赖工具/命令行预先选中库。
 -- 重置服务器：先 DROP DATABASE bjtu_food 再执行本文件即可还原表结构（或直接执行本文件覆盖）。
 -- 配合 seed_data.sql 使用：本文件只建表不插数据。
@@ -44,8 +44,8 @@
 --        original_price 为可空原价（判据 original_price > price）；存量迁移见文件末尾
 --        migrate_dish_promo_to_price（先 UPDATE 再 DROP，幂等）。
 --      · 标签下线——dish.tags 列整链删除（含标签筛选与展示）。
---      · 描述四维替换——ADD diet_type/ingredients/flavor_tags/serve_temp、DROP spice_level/region
---        （辣度语义并入 flavor_tags、菜系放弃；region='清真' 的存量转换脚本 migrate_region_to_diet_type.sql 由用户执行）。
+--      · 描述属性动态化——ADD dish.attributes JSON 并回填旧描述列，DROP diet_type/ingredients/flavor_tags/serve_temp
+--        （属性模型改为两表字典驱动：dish_attribute_dimension + dish_attribute_value）。
 --      · 坐标下线——canteen.latitude/longitude 两列幂等 DROP；原 add_canteen_location 迁移存储过程删除。
 --      · 「有用」全链下线——review.useful_count 列与 review_useful 表幂等 DROP，**数据表基线 10 → 9**。
 --      上述清理统一由文件末尾「菜品详情模块整改」幂等段完成（禁止直连 ALTER，可重跑）。
@@ -147,14 +147,11 @@ CREATE TABLE IF NOT EXISTS `dish`
     `original_price` INT          NULL     DEFAULT NULL COMMENT '原价（单位：分，可空）；original_price > price 视为有折扣',
     `description`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '菜品描述',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '菜品多图JSON',
-    -- 描述四维（2026-09-20 拍板 §7.28）：荤素 / 主料 / 口味 / 冷热；替换原 spice_level（辣度）与 region（风味/菜系）
-    `diet_type`      VARCHAR(16)  NULL     DEFAULT NULL COMMENT '荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真',
-    -- 多值维存储形态（2026-09-23 §7.40 R4 / change dish-detail-contract-hardening）：**JSON 数组串**
-    -- （如 ["chicken","veg"]），由 StringListTypeHandler 完成「列 ↔ List<String>」转换；
-    -- 存量逗号分隔串由文件末尾 migrate_dish_multivalue_json 幂等段转换为 JSON 数组。
-    `ingredients`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '主料/食材（JSON 数组机器值）：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]',
-    `flavor_tags`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '口味（JSON 数组机器值）：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]',
-    `serve_temp`     VARCHAR(16)  NULL     DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰',
+    -- 描述属性（动态属性模型）：JSON 对象，键 = 维度 field_key（camelCase：dietType/ingredients/flavorTags/serveTemp），
+    -- 值 = 机器值（single 维度为字符串 / multi 维度为字符串数组）；仅含该菜实际拥有的维度。
+    -- 字典真源 = dish_attribute_dimension + dish_attribute_value（数据驱动，新增维度免 ALTER、免发版）。
+    -- 存量四维列（diet_type/ingredients/flavor_tags/serve_temp）由文件末尾 migrate_dish_attributes_json 幂等段回填后 DROP。
+    `attributes`     JSON         NULL     DEFAULT NULL COMMENT '描述属性（JSON：键=维度 field_key，值=机器值/数组）',
     `status`         VARCHAR(32)  NOT NULL DEFAULT 'on' COMMENT '上架状态：on / off',
     -- dish.reject_reason（恒 NULL，审核语义退役）与 dish.created_by（只写不读留痕）
     -- 已于 2026-09-16 用户拍板「零消费即删除」退役：CREATE TABLE 不再创建，
@@ -174,6 +171,35 @@ CREATE TABLE IF NOT EXISTS `dish`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品（audit_status 列已退役，2026-09-15 阶段4）';
+
+-- -------------------- 菜品描述属性（动态属性模型，两表字典） --------------------
+-- 维度与取值由表驱动，免发版即可增维度；维度键 `field_key` 恒等于 `dish.attributes` JSON 的键（camelCase）。
+CREATE TABLE IF NOT EXISTS `dish_attribute_dimension`
+(
+    `id`         BIGINT      NOT NULL AUTO_INCREMENT COMMENT '维度ID',
+    `field_key`  VARCHAR(32) NOT NULL COMMENT '维度键（= 菜品 attributes 的键，camelCase）',
+    `name`       VARCHAR(32) NOT NULL DEFAULT '' COMMENT '维度中文名（饮食属性/食材/口味/冷热）',
+    `value_type` VARCHAR(16) NOT NULL DEFAULT 'single' COMMENT '取值类型：single=单值 / multi=多值',
+    `order`      INT         NOT NULL DEFAULT 0 COMMENT '维度展示顺序（升序）',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_dimension_field_key` (`field_key`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性维度';
+
+-- 取值：dimension_id + value_key 唯一（组内按 order 升序下发）
+CREATE TABLE IF NOT EXISTS `dish_attribute_value`
+(
+    `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '取值ID',
+    `dimension_id` BIGINT      NOT NULL DEFAULT 0 COMMENT '所属维度ID',
+    `value_key`    VARCHAR(32) NOT NULL DEFAULT '' COMMENT '机器值（如 spicy）',
+    `label`        VARCHAR(32) NOT NULL DEFAULT '' COMMENT '中文标签（如 辣）',
+    `order`        INT         NOT NULL DEFAULT 0 COMMENT '组内展示顺序（升序）',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_value_dimension_key` (`dimension_id`, `value_key`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值';
 
 -- -------------------- 评价 --------------------
 CREATE TABLE IF NOT EXISTS `review`
@@ -260,20 +286,19 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
   COLLATE = utf8mb4_general_ci COMMENT ='用户反馈';
 
 -- -------------------- 菜品信息纠错 --------------------
--- 独立资源（区别于 user_feedback 意见反馈）：用户在菜品详情页提交的七字段信息纠错快照，
--- 管理端采纳后整体写回 dish（两段式档口确认），拒绝则留存不采纳原因。
+-- 独立资源（区别于 user_feedback 意见反馈）：用户在菜品详情页提交的**改动项快照**（局部提交 patch），
+-- 未改动的列留 NULL（采纳时不覆盖 dish 既有值），管理端采纳后写回 dish（两段式档口确认），拒绝则留存不采纳原因。
 CREATE TABLE IF NOT EXISTS `dish_correction`
 (
     `id`            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '纠错ID',
     `dish_id`       BIGINT       NOT NULL COMMENT '目标菜品ID（逻辑关联 dish，不设外键，与项目现状一致）',
     `user_id`       BIGINT       NULL DEFAULT NULL COMMENT '提交人用户ID（匿名提交为 NULL）',
-    `name`          VARCHAR(64)  NOT NULL COMMENT '提交的菜品名称',
-    `price`         INT          NOT NULL COMMENT '提交的现价（单位：分）',
-    `canteen_name`  VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '提交的食堂名称（自由文本，无字典端点）',
-    `stall_name`    VARCHAR(64)  NOT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档）',
-    `flavor_tags`   JSON         NULL DEFAULT NULL COMMENT '提交的口味标签（JSON 数组机器值：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]）',
-    `ingredients`   JSON         NULL DEFAULT NULL COMMENT '提交的主料/食材（JSON 数组机器值：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]）',
-    `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤9 张）',
+    `name`          VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的菜品名称（未改动为 NULL）',
+    `price`         INT          NULL DEFAULT NULL COMMENT '提交的现价（单位：分；未改动为 NULL）',
+    `canteen_name`  VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的食堂名称（自由文本，无字典端点；未改动为 NULL）',
+    `stall_name`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档；未改动为 NULL）',
+    `attributes`    JSON         NULL DEFAULT NULL COMMENT '提交的描述属性（JSON：键=维度 field_key，值=机器值/数组；仅含改动维度）',
+    `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤3 张）',
     `status`        VARCHAR(16)  NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/adopted/rejected',
     `reply`         VARCHAR(512) NULL DEFAULT NULL COMMENT '处理回复（采纳时固定「已采纳，菜品信息已更新」）',
     `reject_reason` VARCHAR(200) NULL DEFAULT NULL COMMENT '不采纳原因（status=rejected 时必填，1~200 字）',
@@ -944,11 +969,9 @@ DROP PROCEDURE IF EXISTS `drop_zero_consumer_columns`;
 -- =============================================================
 -- 菜品详情模块整改（2026-09-20 用户拍板，dish-detail-remediation）
 -- 库结构变更（列级 + 一张表删除），全部幂等、可重复执行；**禁止直连 ALTER**，统一走本段。
--- 涉及：promo_price 迁移/DROP、dish.tags DROP、四维 ADD + spice_level/region DROP、
---      canteen 坐标 DROP、review.useful_count DROP + review_useful 表 DROP（表基线 10 → 9）。
--- 存量数据转换由用户在部署前决定执行，脚本见同目录 migrate_region_to_diet_type.sql，
---      **不由本段代跑 UPDATE**：其中 region='清真' → diet_type='halal' 为自动转换（语义唯一），
---      spice_level → flavor_tags 补 'spicy' **默认不转换**（4 档坍缩为单值，取舍由用户决定）。
+-- 涉及：promo_price 迁移/DROP、dish.tags DROP、描述属性 ADD dish.attributes + 旧描述列回填后 DROP、
+--      spice_level/region DROP、canteen 坐标 DROP、
+--      review.useful_count DROP + review_useful 表 DROP（表基线 10 → 9）。
 -- =============================================================
 
 -- 4.1 价格唯一数据源：先迁移再删除 promo_price（§7.26 / D2）
@@ -988,54 +1011,75 @@ DELIMITER ;
 CALL `drop_dish_tags_column`();
 DROP PROCEDURE IF EXISTS `drop_dish_tags_column`;
 
--- 4.3 描述四维替换（§7.28 / D7：先加后删）
---     先 ADD diet_type / ingredients / flavor_tags / serve_temp（新库 CREATE 已含，此处对旧库幂等补齐），
---     再 DROP spice_level / region（辣度语义并入口味、菜系放弃；region='清真' 的存量转换由用户执行）。
---     先加后删保证中间态不存在「代码读不到列」的窗口；重复执行安全。
-DROP PROCEDURE IF EXISTS `drop_dish_description_dimensions`;
+-- 4.3 描述属性迁移（动态属性模型：**先加列、再回填、最后删旧列**）
+--     ① ADD dish.attributes JSON（新库 CREATE 已含，此处对旧库幂等补齐）；
+--     ② 由存量四维列 diet_type / ingredients / flavor_tags / serve_temp 回填 attributes（仅写入该菜实际拥有的维度，
+--        空维度不占位；四维全空的行落 NULL）；
+--     ③ 回填完成后再 DROP 四维旧列 —— 先落新结构再删旧数据，避免任何中间态丢数据；重复执行安全。
+--     另：spice_level / region 为更早的旧列（辣度语义并入口味、菜系放弃），一并幂等 DROP。
+DROP PROCEDURE IF EXISTS `migrate_dish_attributes_json`;
 DELIMITER $$
-CREATE PROCEDURE `drop_dish_description_dimensions`()
+CREATE PROCEDURE `migrate_dish_attributes_json`()
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'diet_type'
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'attributes'
     ) THEN
         ALTER TABLE `dish`
-            ADD COLUMN `diet_type` VARCHAR(16) NULL DEFAULT NULL COMMENT '荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真';
+            ADD COLUMN `attributes` JSON NULL DEFAULT NULL
+            COMMENT '描述属性（JSON：键=维度 field_key，值=机器值/数组）';
     END IF;
 
-    IF NOT EXISTS (
+    -- 回填（仅当旧四维列仍存在时执行；已迁移库跳过）
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'diet_type'
+    ) THEN
+        UPDATE `dish`
+        SET `attributes` = CONCAT('{', CONCAT_WS(',',
+            CASE WHEN `diet_type` IS NOT NULL AND `diet_type` <> ''
+                 THEN CONCAT('"dietType":"', `diet_type`, '"') END,
+            CASE WHEN `ingredients` IS NOT NULL AND `ingredients` <> '' AND `ingredients` <> '[]' AND `ingredients` <> 'null'
+                 THEN CONCAT('"ingredients":', `ingredients`) END,
+            CASE WHEN `flavor_tags` IS NOT NULL AND `flavor_tags` <> '' AND `flavor_tags` <> '[]' AND `flavor_tags` <> 'null'
+                 THEN CONCAT('"flavorTags":', `flavor_tags`) END,
+            CASE WHEN `serve_temp` IS NOT NULL AND `serve_temp` <> ''
+                 THEN CONCAT('"serveTemp":"', `serve_temp`, '"') END
+            ), '}');
+        UPDATE `dish` SET `attributes` = NULL WHERE `attributes` = '{}';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'diet_type'
+    ) THEN
+        ALTER TABLE `dish` DROP COLUMN `diet_type`;
+    END IF;
+    IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'ingredients'
     ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `ingredients` VARCHAR(255) NULL DEFAULT NULL COMMENT '主料/食材（逗号分隔机器值）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice';
+        ALTER TABLE `dish` DROP COLUMN `ingredients`;
     END IF;
-
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'flavor_tags'
     ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `flavor_tags` VARCHAR(128) NULL DEFAULT NULL COMMENT '口味（逗号分隔机器值）：spicy/numbing/sour/sweet/salty/umami/light/heavy';
+        ALTER TABLE `dish` DROP COLUMN `flavor_tags`;
     END IF;
-
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'serve_temp'
     ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `serve_temp` VARCHAR(16) NULL DEFAULT NULL COMMENT '冷热：hot=热食 / room=常温 / ice=冰';
+        ALTER TABLE `dish` DROP COLUMN `serve_temp`;
     END IF;
 
-    -- 旧列下线（先加后删：上方四维已就位再 DROP，避免中间态读不到列）
     IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'spice_level'
     ) THEN
         ALTER TABLE `dish` DROP COLUMN `spice_level`;
     END IF;
-
     IF EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'region'
@@ -1044,8 +1088,112 @@ BEGIN
     END IF;
 END$$
 DELIMITER ;
-CALL `drop_dish_description_dimensions`();
-DROP PROCEDURE IF EXISTS `drop_dish_description_dimensions`;
+CALL `migrate_dish_attributes_json`();
+DROP PROCEDURE IF EXISTS `migrate_dish_attributes_json`;
+
+-- 4.3.1 属性字典收敛：dish_attribute_def / dish_attribute_option → dish_attribute_dimension / dish_attribute_value
+--       顺序：建新两表 → 迁移数据 → DROP 旧两表（先迁后删）。
+--       dish_attribute_value 旧形态为「可筛索引」（dish_id/def_id/value_key，无消费、无数据），
+--       故以「是否存在 dish_id 列」判定旧形态，命中则 DROP 后按新形态重建。
+DROP PROCEDURE IF EXISTS `migrate_dish_attribute_dictionary`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_dish_attribute_dictionary`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_def'
+    ) THEN
+        INSERT INTO `dish_attribute_dimension` (`id`, `field_key`, `name`, `value_type`, `order`)
+        SELECT `id`, `field_key`, `name`, `value_type`, `order` FROM `dish_attribute_def`
+        ON DUPLICATE KEY UPDATE `field_key` = VALUES(`field_key`), `name` = VALUES(`name`),
+                                `value_type` = VALUES(`value_type`), `order` = VALUES(`order`);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_option'
+    ) THEN
+        INSERT INTO `dish_attribute_value` (`dimension_id`, `value_key`, `label`, `order`)
+        SELECT `def_id`, `value_key`, `label`, `order` FROM `dish_attribute_option`
+        ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `order` = VALUES(`order`);
+    END IF;
+
+    DROP TABLE IF EXISTS `dish_attribute_def`;
+    DROP TABLE IF EXISTS `dish_attribute_option`;
+END$$
+DELIMITER ;
+CALL `migrate_dish_attribute_dictionary`();
+DROP PROCEDURE IF EXISTS `migrate_dish_attribute_dictionary`;
+
+DROP PROCEDURE IF EXISTS `rebuild_dish_attribute_value_if_legacy`;
+DELIMITER $$
+CREATE PROCEDURE `rebuild_dish_attribute_value_if_legacy`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_value' AND COLUMN_NAME = 'dish_id'
+    ) THEN
+        DROP TABLE `dish_attribute_value`;
+        CREATE TABLE IF NOT EXISTS `dish_attribute_value`
+        (
+            `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '取值ID',
+            `dimension_id` BIGINT      NOT NULL DEFAULT 0 COMMENT '所属维度ID',
+            `value_key`    VARCHAR(32) NOT NULL DEFAULT '' COMMENT '机器值（如 spicy）',
+            `label`        VARCHAR(32) NOT NULL DEFAULT '' COMMENT '中文标签（如 辣）',
+            `order`        INT         NOT NULL DEFAULT 0 COMMENT '组内展示顺序（升序）',
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uk_value_dimension_key` (`dimension_id`, `value_key`)
+        ) ENGINE = InnoDB
+          DEFAULT CHARSET = utf8mb4
+          COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值';
+    END IF;
+END$$
+DELIMITER ;
+CALL `rebuild_dish_attribute_value_if_legacy`();
+DROP PROCEDURE IF EXISTS `rebuild_dish_attribute_value_if_legacy`;
+
+-- 4.3.2 纠错表：属性快照改 attributes JSON；局部提交（patch）下四项快照列改为可空
+DROP PROCEDURE IF EXISTS `migrate_dish_correction_attributes`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_dish_correction_attributes`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction' AND COLUMN_NAME = 'attributes'
+    ) THEN
+        ALTER TABLE `dish_correction`
+            ADD COLUMN `attributes` JSON NULL DEFAULT NULL
+            COMMENT '提交的描述属性（JSON：键=维度 field_key，值=机器值/数组；仅含改动维度）';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction' AND COLUMN_NAME = 'name'
+          AND IS_NULLABLE = 'NO'
+    ) THEN
+        ALTER TABLE `dish_correction`
+            MODIFY COLUMN `name` VARCHAR(64) NULL DEFAULT NULL COMMENT '提交的菜品名称（未改动为 NULL）',
+            MODIFY COLUMN `price` INT NULL DEFAULT NULL COMMENT '提交的现价（单位：分；未改动为 NULL）',
+            MODIFY COLUMN `canteen_name` VARCHAR(64) NULL DEFAULT NULL COMMENT '提交的食堂名称（自由文本，无字典端点；未改动为 NULL）',
+            MODIFY COLUMN `stall_name` VARCHAR(64) NULL DEFAULT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档；未改动为 NULL）';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction' AND COLUMN_NAME = 'flavor_tags'
+    ) THEN
+        ALTER TABLE `dish_correction` DROP COLUMN `flavor_tags`;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction' AND COLUMN_NAME = 'ingredients'
+    ) THEN
+        ALTER TABLE `dish_correction` DROP COLUMN `ingredients`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_dish_correction_attributes`();
+DROP PROCEDURE IF EXISTS `migrate_dish_correction_attributes`;
 
 -- 4.4 坐标下线：幂等 DROP canteen.latitude / canteen.longitude（D8；位置表达收敛为 食堂 · 楼层 · 档口名）
 --     原 add_canteen_location 迁移存储过程（含逐食堂坐标回填）已从本文件删除，建列与回填逻辑一并退役。
@@ -1147,63 +1295,11 @@ DROP PROCEDURE IF EXISTS `drop_dish_alias_column`;
 
 -- =============================================================
 -- 菜品详情契约加固（2026-09-23 用户拍板，change dish-detail-contract-hardening）
--- 本段为**破坏批**库结构变更：多值维 JSON 化（§7.40 R4）+ review.updated_at 下线（R6）。
+-- 本段为**破坏批**库结构变更：review.updated_at 下线（R6）。
 -- 全部幂等、可重复执行；**禁止直连 ALTER**，库结构变更统一走本段。
 -- =============================================================
 
--- 5.1 多值维 JSON 化（§7.40 R4）：dish.ingredients / dish.flavor_tags 由「逗号分隔串」改「JSON 数组串」
---     语义不变（仍为机器值集合），仅**存储形态**规范化 —— 消除「存储形态泄漏进契约」
---     （此前 hasImage 的 SQL 条件写死 '[]' 即此类泄漏的例证；本批已改按 JSON 语义判非空）。
---     幂等口径（三重防护）：
---       ① 列不存在 → 先 ADD（新库 CREATE 已含，此处仅对旧库补齐）；
---       ② 列存在但宽度不足 → MODIFY 扩宽（JSON 串长于逗号串，255/128 需扩到 512）；
---       ③ 值为「非空且非合法 JSON」→ 转换（逗号串 → JSON 数组，兼容单值 'fish' → ["fish"]）。
---     重复执行安全：第 ③ 步以 JSON_VALID(...) = 0 为前置条件，已是 JSON 的行**不再触碰**。
-DROP PROCEDURE IF EXISTS `migrate_dish_multivalue_json`;
-DELIMITER $$
-CREATE PROCEDURE `migrate_dish_multivalue_json`()
-BEGIN
-    -- ① 建列（仅旧库缺列时生效）
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'ingredients'
-    ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `ingredients` VARCHAR(512) NULL DEFAULT NULL COMMENT '主料/食材（JSON 数组机器值）';
-    END IF;
-
-    IF NOT EXISTS (
-        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish' AND COLUMN_NAME = 'flavor_tags'
-    ) THEN
-        ALTER TABLE `dish`
-            ADD COLUMN `flavor_tags` VARCHAR(512) NULL DEFAULT NULL COMMENT '口味（JSON 数组机器值）';
-    END IF;
-
-    -- ② 扩宽 + 统一列注释（MODIFY 本身幂等：重复执行等价）
-    ALTER TABLE `dish`
-        MODIFY COLUMN `ingredients` VARCHAR(512) NULL DEFAULT NULL
-            COMMENT '主料/食材（JSON 数组机器值）：["pork","beef","lamb","chicken","duck","fish","egg","tofu","mushroom","veg","noodle","rice"]';
-    ALTER TABLE `dish`
-        MODIFY COLUMN `flavor_tags` VARCHAR(512) NULL DEFAULT NULL
-            COMMENT '口味（JSON 数组机器值）：["spicy","numbing","sour","sweet","salty","umami","light","heavy"]';
-
-    -- ③ 旧值转换：逗号分隔串 → JSON 数组
-    --    用 REPLACE 构造（先吞掉「逗号 + 空格」，再把逗号换成 '","'），单值同样包成单元素数组。
-    --    仅处理「非空 且 非合法 JSON」的行 → 可重复执行（第二次全部命中 JSON_VALID，UPDATE 0 行）。
-    UPDATE `dish`
-    SET `ingredients` = CONCAT('["', REPLACE(REPLACE(TRIM(`ingredients`), ', ', ','), ',', '","'), '"]')
-    WHERE `ingredients` IS NOT NULL AND `ingredients` <> '' AND JSON_VALID(`ingredients`) = 0;
-
-    UPDATE `dish`
-    SET `flavor_tags` = CONCAT('["', REPLACE(REPLACE(TRIM(`flavor_tags`), ', ', ','), ',', '","'), '"]')
-    WHERE `flavor_tags` IS NOT NULL AND `flavor_tags` <> '' AND JSON_VALID(`flavor_tags`) = 0;
-END$$
-DELIMITER ;
-CALL `migrate_dish_multivalue_json`();
-DROP PROCEDURE IF EXISTS `migrate_dish_multivalue_json`;
-
--- 5.2 review.updated_at 下线（§7.40 R6）：幂等 DROP
+-- 5.1 review.updated_at 下线（§7.40 R6）：幂等 DROP
 --     退役依据：重评时与 created_at **同批刷新** → 两者恒等，该列对评价无独立语义；
 --     消费方核实（2026-09-23）：端上与 web/src/views **双双零命中**（仅 adapter/types 有映射声明）。
 --     ⚠️ 落地前建议人工核对一次「不存在 updated_at <> created_at 的行」（历史值即将丢失、不可逆）：

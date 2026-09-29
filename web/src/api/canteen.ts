@@ -7,9 +7,10 @@
 import type { Canteen } from '@/types'
 import { get, put } from './http'
 import { canteenToApi, canteenToLegacy } from './adapter'
+import type { RawCanteen } from './adapter'
 
 export async function getAll(): Promise<Canteen[]> {
-  return (await get<any[]>('/admin/canteens')).map(canteenToLegacy)
+  return (await get<RawCanteen[]>('/admin/canteens')).map(canteenToLegacy)
 }
 
 /** 改名（属性字典唯一可用的编辑动作；新增一律走菜品按名 upsert） */

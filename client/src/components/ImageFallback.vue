@@ -1,22 +1,24 @@
 <template>
   <view class="image-fallback">
     <image v-if="imgSrc && imgOk" :src="imgSrc" mode="aspectFill" class="fb-img" @error="imgOk = false" />
-      <view v-else class="placeholder">
-        <IconSvg name="empty" :size="64" :color="COLOR_MAP['text-tertiary']" class="placeholder-icon" />
-      </view>
+      <!-- 占位统一走 `ImagePlaceholder`（灰底 + 图标）；**头像**保留人形图标语义
+           （「无用户」≠「图片损坏」，故传 `user`，底色仍与全站占位一致） -->
+      <ImagePlaceholder v-else name="user" :size="64" :aria-label="ariaLabel" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { getImageUrl } from '@/utils/image'
-import IconSvg from '@/components/IconSvg.vue'
-import { COLOR_MAP } from '@/theme/tokens'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 
 const props = withDefaults(defineProps<{
   src?: string
+  /** 占位图的读屏标签（头像场景应带上下文，如「张同学的头像」） */
+  ariaLabel?: string
 }>(), {
   src: '',
+  ariaLabel: '头像占位',
 })
 
 const imgSrc = computed(() => getImageUrl(props.src))
@@ -35,16 +37,6 @@ const imgOk = ref(true)
   width: 100%;
   height: 100%;
 }
-.placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-page);
-}
-.placeholder-icon {
-  font-size: 64rpx !important;
-  line-height: 1 !important;
-}
+/* 占位视觉已收敛到公共 `ImagePlaceholder`（灰底 + 图标，UI 统一 Loop Round 31）——
+   原 `.placeholder` 的 `--bg-page` 底色与居中声明随之退役（本文件不再自绘占位）。 */
 </style>

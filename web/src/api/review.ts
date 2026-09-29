@@ -1,6 +1,7 @@
 import type { Review } from '@/types'
 import { del, get, put } from './http'
 import { pageRecords, reviewToLegacy } from './adapter'
+import type { PageEnvelope, RawReview } from './adapter'
 
 /**
  * 评价列表（受控分页，page+pageSize 透传后端；total 来自后端返回）。
@@ -27,10 +28,10 @@ export async function listReviews(params: {
   if (params.userId != null) query.userId = params.userId
   if (params.keyword) query.keyword = params.keyword
   if (params.isHidden !== undefined) query.isHidden = params.isHidden
-  const data: any = await get<any>('/admin/reviews', query)
+  const data = await get<PageEnvelope<RawReview>>('/admin/reviews', query)
   return {
     list: pageRecords(data).map(reviewToLegacy),
-    total: (data as any)?.total ?? pageRecords(data).length,
+    total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,
   }
 }
 
@@ -85,7 +86,7 @@ export async function listAllReviews(isHidden?: 0 | 1, keyword?: string): Promis
     const params: Record<string, unknown> = { page, pageSize: PAGE_SIZE }
     if (isHidden !== undefined) params.isHidden = isHidden
     if (keyword) params.keyword = keyword.trim()
-    const data = await get<any>('/admin/reviews', params)
+    const data = await get<PageEnvelope<RawReview>>('/admin/reviews', params)
     const records: Review[] = pageRecords(data).map(reviewToLegacy)
     all.push(...records)
     const total: number = Array.isArray(data) ? records.length : (data?.total ?? records.length)

@@ -1,5 +1,6 @@
 import { get, post, put } from './http'
 import { imagesToList, pageRecords } from './adapter'
+import type { PageEnvelope } from './adapter'
 import { parseCsv } from '@/constants'
 
 /**
@@ -71,7 +72,42 @@ export interface AdoptResult {
   candidates?: StallCandidate[]
 }
 
-function normalizeSnapshot(raw: any): CorrectionSnapshot {
+/** 纠错快照的原始行（camel / snake 两种键名并存，值可空） */
+interface RawCorrectionSnapshot {
+  name?: string | null
+  price?: number | null
+  canteenName?: string | null
+  canteen_name?: string | null
+  stallName?: string | null
+  stall_name?: string | null
+  flavorTags?: unknown
+  flavor_tags?: unknown
+  ingredients?: unknown
+  ingredients_json?: unknown
+  images?: unknown
+}
+
+/** 纠错的原始行（列表 / 详情出参） */
+interface RawCorrection {
+  id?: number
+  dishId?: number
+  dish_id?: number
+  dishName?: string | null
+  dish_name?: string | null
+  userId?: number | null
+  user_id?: number | null
+  snapshot?: RawCorrectionSnapshot | null
+  status?: string | null
+  reply?: string | null
+  rejectReason?: string | null
+  reject_reason?: string | null
+  handledAt?: string | null
+  handled_at?: string | null
+  createdAt?: string | null
+  created_at?: string | null
+}
+
+function normalizeSnapshot(raw: RawCorrection | null | undefined): CorrectionSnapshot {
   const s = raw?.snapshot ?? {}
   if (!s || typeof s !== 'object') {
     return { flavorTags: [], ingredients: [], images: [] }
@@ -88,10 +124,10 @@ function normalizeSnapshot(raw: any): CorrectionSnapshot {
   }
 }
 
-function toVO(raw: any): CorrectionAdminVO {
+function toVO(raw: RawCorrection): CorrectionAdminVO {
   return {
-    id: raw.id,
-    dishId: raw.dishId ?? raw.dish_id,
+    id: raw.id ?? 0,
+    dishId: raw.dishId ?? raw.dish_id ?? 0,
     dishName: (raw.dishName ?? raw.dish_name) || '',
     userId: raw.userId ?? raw.user_id ?? undefined,
     snapshot: normalizeSnapshot(raw),
@@ -114,10 +150,10 @@ export async function listCorrections(params: {
     pageSize: params.pageSize ?? 20,
   }
   if (params.status) query.status = params.status
-  const data: any = await get('/admin/corrections', query)
+  const data = await get<PageEnvelope<RawCorrection>>('/admin/corrections', query)
   return {
     list: pageRecords(data).map(toVO),
-    total: (data as any)?.total ?? pageRecords(data).length,
+    total: (Array.isArray(data) ? undefined : data.total) ?? pageRecords(data).length,
   }
 }
 

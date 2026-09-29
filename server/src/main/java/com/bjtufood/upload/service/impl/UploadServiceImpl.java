@@ -2,11 +2,13 @@ package com.bjtufood.upload.service.impl;
 
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.content.security.ContentSecurityService;
-import com.bjtufood.content.security.impl.ContentSecurityServiceImpl;
+import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.wechat.constant.WechatApiConst;
+import com.bjtufood.wechat.service.WechatAccessTokenProvider;
 import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.upload.service.CosStorageService;
 import com.bjtufood.upload.service.UploadService;
+import com.bjtufood.upload.support.ImageDimensionChecker;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -48,16 +50,11 @@ public class UploadServiceImpl implements UploadService {
     /** 单图大小上限 5MB（与 spring.servlet.multipart.max-file-size 一致，服务层再兜底一次） */
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
-    /**
-     * 单边像素上限 4000（P1-6）：超过视为「图像炸弹」。
-     * 小体积高分辨率图（如几 KB 的 20000×20000 PNG）会在 ImageIO 全图解码时按像素数分配内存，直接 OOM。
-     */
-    private static final int MAX_IMAGE_DIMENSION = 4000;
-
     /** 云存储配图下载超时（毫秒）：拉临时链接后从微信云存储 CDN 下载，较内容安全检测接口放宽 */
     private static final int CLOUD_DOWNLOAD_TIMEOUT_MS = 10_000;
 
-    private static final String BATCH_DOWNLOAD_URL = "https://api.weixin.qq.com/tcb/batchdownloadfile";
+    /** 云存储批量下载端点（平台常量归位 wechat 域，避免与 {@code WechatApiConst} 重复定义） */
+    private static final String BATCH_DOWNLOAD_URL = WechatApiConst.BATCH_DOWNLOAD_URL;
 
     /** 微信响应固定以 text/plain 返回，统一先取 String 再手工反序列化（不依赖 Content-Type） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -65,6 +62,15 @@ public class UploadServiceImpl implements UploadService {
     private final ImageUrlUtil imageUrlUtil;
     private final ContentSecurityService contentSecurityService;
     private final CosStorageService cosStorageService;
+
+    /**
+     * 微信 access_token 凭据提供方（2026-09-28 架构收口 P0-B）。
+     * <p>
+     * 此前本类的 token 获取/清理是经 {@code contentSecurityService.getStableAccessToken()} /
+     * {@code invalidateCachedToken()} 完成的——即「上传域」依赖「内容安全服务」来拿平台凭据，
+     * 依赖方向错误。拆分后凭据由 {@code wechat} 域独立提供，本类<b>只依赖接口</b>。
+     */
+    private final WechatAccessTokenProvider tokenProvider;
 
     /** 云存储图片下载专用 RestTemplate（实例化一次复用；仅 batchdownloadfile / 临时链接下载两个出网点） */
     private final RestTemplate cloudRestTemplate = newCloudRestTemplate();
@@ -147,7 +153,7 @@ public class UploadServiceImpl implements UploadService {
         // 图像炸弹防护（P1-6）：全图解码前先解析头部宽高，超 4000×4000 直接拒绝并清理原图，
         // 防止小体积高分辨率图片在 ImageIO 解码时耗尽堆内存（仅本地落盘链路需要，COS 链路不解码全图）
         try {
-            validateImageDimensions(target, normalizedExt);
+            ImageDimensionChecker.validate(target, normalizedExt);
         } catch (BusinessException e) {
             deleteQuietly(target);
             throw e;
@@ -174,7 +180,7 @@ public class UploadServiceImpl implements UploadService {
         byte[] data = downloadImage(downloadUrl);
 
         // 3. 大小兜底校验（imgSecCheck 硬限制 1MB；≤750×1334 尺寸由前端压缩保证）
-        if (data.length > ContentSecurityServiceImpl.MAX_IMAGE_BYTES) {
+        if (data.length > WechatApiConst.MAX_IMAGE_SEC_CHECK_BYTES) {
             throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
         }
 
@@ -192,9 +198,9 @@ public class UploadServiceImpl implements UploadService {
     /**
      * batchdownloadfile：fileID → 临时下载链接（POST JSON，env 缺省时从 fileID 解析）。
      * <p>
-     * token 失效自愈（对齐 {@code ContentSecurityServiceImpl} 的 BE-06 模式）：
+     * token 失效自愈（对齐 {@code moderation.service.impl.ContentSecurityServiceImpl} 的 BE-06 模式）：
      * 单次调用遇 40001（invalid credential）/ 42001（access_token expired）时，
-     * 先清空 stable_token 缓存再重试一次（重试时 {@code getStableAccessToken()} 会重新拉取）；
+     * 先清空 stable_token 缓存再重试一次（重试时 {@code tokenProvider.get()} 会重新拉取）；
      * 重试仍失败则 fail-closed 抛 500。
      */
     private String fetchCloudDownloadUrl(String fileId) {
@@ -208,7 +214,7 @@ public class UploadServiceImpl implements UploadService {
                     throw new BusinessException(500, "云存储服务暂不可用，请稍后重试");
                 }
                 log.warn("batchdownloadfile access_token 失效（errcode={}），清空缓存后重试一次", e.errcode);
-                contentSecurityService.invalidateCachedToken();
+                tokenProvider.invalidate();
             }
         }
         // 循环至多两轮：第二轮要么 return 要么抛出，此分支理论上不可达（防御性兜底）
@@ -217,7 +223,7 @@ public class UploadServiceImpl implements UploadService {
 
     /** 单次 batchdownloadfile 调用：取 token → 请求 → 判 errcode → 解析临时下载链接 */
     private String doFetchCloudDownloadUrl(String env, String fileId) {
-        String url = BATCH_DOWNLOAD_URL + "?access_token=" + contentSecurityService.getStableAccessToken();
+        String url = BATCH_DOWNLOAD_URL + "?access_token=" + tokenProvider.get();
 
         Map<String, Object> reqBody = Map.of(
                 "env", env,
@@ -308,7 +314,7 @@ public class UploadServiceImpl implements UploadService {
      * 「下载完成之后」才判定——攻击者只需给出一个几百 MB 的临时链接即可单请求打爆堆（OOM 面）。
      * 改为以 {@code ResponseExtractor} 直接消费响应流，边读边累计，超过 1MB 立即中断并抛 400。
      *
-     * @return 图片字节（已保证非空且 ≤ {@link ContentSecurityServiceImpl#MAX_IMAGE_BYTES}）
+     * @return 图片字节（已保证非空且 ≤ {@link WechatApiConst#MAX_IMAGE_SEC_CHECK_BYTES}）
      */
     private byte[] downloadImage(String downloadUrl) {
         try {
@@ -318,7 +324,7 @@ public class UploadServiceImpl implements UploadService {
             return cloudRestTemplate.execute(downloadUrl, HttpMethod.GET, null, response -> {
                 // try-with-resources：无论正常读完还是超限中断，都确保响应流与底层连接被关闭
                 try (ClientHttpResponse resp = response; InputStream in = resp.getBody()) {
-                    return readCapped(in, ContentSecurityServiceImpl.MAX_IMAGE_BYTES);
+                    return readCapped(in, WechatApiConst.MAX_IMAGE_SEC_CHECK_BYTES);
                 }
             });
         } catch (BusinessException e) {
@@ -417,104 +423,6 @@ public class UploadServiceImpl implements UploadService {
     }
 
     // ==================== 本地存储链路（COS 未配置降级）私有方法 ====================
-
-    /**
-     * 校验图片头部宽高（P1-6 图像炸弹防护）：超过 {@value MAX_IMAGE_DIMENSION}px 直接拒绝。
-     * <p>
-     * 只解析文件头部字节、不解码像素，成本 O(几十字节)。仅校验 jpg/jpeg/png
-     * （这三个格式会进入 ImageIO 全图解码；webp 无原生解码器，不存在该风险）。
-     * 解析失败（截断/非标头）不拦截：magic number 已在前置步骤校验，此处防刷为主。
-     */
-    private void validateImageDimensions(Path file, String ext) {
-        if (!Set.of("jpg", "jpeg", "png").contains(ext)) {
-            return;
-        }
-        int[] dims;
-        try (java.io.InputStream in = Files.newInputStream(file)) {
-            dims = "png".equals(ext) ? readPngDimensions(in) : readJpegDimensions(in);
-        } catch (IOException e) {
-            // 头部读取失败不拦截，交由后续 ImageIO 解码与既有异常处理兜底
-            return;
-        }
-        if (dims != null && (dims[0] > MAX_IMAGE_DIMENSION || dims[1] > MAX_IMAGE_DIMENSION)) {
-            throw new BusinessException(400, "图片尺寸过大，宽和高均不能超过 4000 像素");
-        }
-    }
-
-    /**
-     * PNG 宽高解析：IHDR chunk 固定位于文件头 16 字节后，宽高各占 4 字节大端序。
-     */
-    private int[] readPngDimensions(java.io.InputStream in) throws IOException {
-        byte[] head = in.readNBytes(24);
-        if (head.length < 24) {
-            return null;
-        }
-        long width = ((head[16] & 0xFFL) << 24) | ((head[17] & 0xFFL) << 16)
-                | ((head[18] & 0xFFL) << 8) | (head[19] & 0xFFL);
-        long height = ((head[20] & 0xFFL) << 24) | ((head[21] & 0xFFL) << 16)
-                | ((head[22] & 0xFFL) << 8) | (head[23] & 0xFFL);
-        return new int[]{(int) width, (int) height};
-    }
-
-    /**
-     * JPEG 宽高解析：逐段扫描 SOFn（0xFFC0~0xFFCF，排除 C4/C8/CC 非帧标记），
-     * 段内依次为精度(1B)/高(2B 大端)/宽(2B 大端)。仅在头部有限范围内扫描，不做全量解码。
-     */
-    private int[] readJpegDimensions(java.io.InputStream in) throws IOException {
-        byte[] soi = in.readNBytes(2);
-        if (soi.length < 2 || (soi[0] & 0xFF) != 0xFF || (soi[1] & 0xFF) != 0xD8) {
-            return null;
-        }
-        while (true) {
-            int b = in.read();
-            if (b == -1) {
-                return null;
-            }
-            if (b != 0xFF) {
-                continue;
-            }
-            int marker = in.read();
-            if (marker == -1) {
-                return null;
-            }
-            if (marker == 0xFF) {
-                // 编码器填充的连续 0xFF，继续找有效标记
-                continue;
-            }
-            if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD9)) {
-                // 无长度字段的独立标记（TEM/RST/SOI/EOI），跳过
-                continue;
-            }
-            int hi = in.read();
-            int lo = in.read();
-            if (hi == -1 || lo == -1) {
-                return null;
-            }
-            int segLen = (hi << 8) | lo;
-            if (segLen < 2) {
-                return null;
-            }
-            if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
-                // 命中 SOFn：跳过 1 字节精度后读高、宽
-                byte[] data = in.readNBytes(5);
-                if (data.length < 5) {
-                    return null;
-                }
-                int height = ((data[1] & 0xFF) << 8) | (data[2] & 0xFF);
-                int width = ((data[3] & 0xFF) << 8) | (data[4] & 0xFF);
-                return new int[]{width, height};
-            }
-            // 跳过非帧段载荷（长度含 2 字节长度字段自身）
-            long toSkip = segLen - 2L;
-            while (toSkip > 0) {
-                long skipped = in.skip(toSkip);
-                if (skipped <= 0) {
-                    return null;
-                }
-                toSkip -= skipped;
-            }
-        }
-    }
 
     /** 静默删除文件（拒绝超尺寸图时清理已落盘的原图，避免磁盘垃圾） */
     private void deleteQuietly(Path file) {

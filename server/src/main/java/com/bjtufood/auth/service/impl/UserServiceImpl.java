@@ -4,11 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.auth.dto.UserAuthContextVO;
+import com.bjtufood.auth.dto.UserBriefVO;
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
+import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.auth.support.AuthStateUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -16,6 +20,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +71,7 @@ public class UserServiceImpl implements UserService {
         user.setUsername("wx_" + tail);
         // 最终昵称含自增 id 尾 4 位，而本列 NOT NULL → 先写占位值，插入后回填（同事务）
         user.setNickname(NICKNAME_PLACEHOLDER);
-        user.setStatus("active");
+        user.setStatus(UserConst.STATUS_ACTIVE);
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
@@ -90,7 +98,7 @@ public class UserServiceImpl implements UserService {
     public void updateStatus(Long id, String status) {
         // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
         // 非法值（含 deleted）一律 400，避免垃圾值直接落库
-        if (!"active".equals(status) && !"disabled".equals(status)) {
+        if (!UserConst.STATUS_ACTIVE.equals(status) && !UserConst.STATUS_DISABLED.equals(status)) {
             throw new BusinessException("非法的状态：" + status);
         }
         User user = userMapper.selectById(id);
@@ -104,7 +112,7 @@ public class UserServiceImpl implements UserService {
         // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
         // 恢复 active 时解除拉黑，使其可正常登录使用。
         // （deleted 状态仅由微信账号合并流程在 AuthServiceImpl 内部写入，不经本接口）
-        if ("disabled".equals(status)) {
+        if (UserConst.STATUS_DISABLED.equals(status)) {
             tokenBlacklist.revokeUser(id);
         } else {
             tokenBlacklist.restoreUser(id);
@@ -138,5 +146,82 @@ public class UserServiceImpl implements UserService {
         String id = String.valueOf(userId);
         String tail = id.length() > 4 ? id.substring(id.length() - 4) : id;
         return "食客" + tail;
+    }
+
+    // ==================== 跨域只读契约实现（P0-1：判据唯一真源 = auth） ====================
+
+    /**
+     * UGC 准入判定（原实现位于 {@code common.aspect.RequireVerifiedAspect#checkVerified}，
+     * 迁址后判据、错误码与文案逐字保留；「非 active 一律拒绝」的口径亦不变）。
+     */
+    @Override
+    public void requireUgcAuthorized(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(401, "请先登录");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(401, "请先登录");
+        }
+        // JWT 载荷不含 status，禁用/注销账号的存量 token 在有效期内仍可被携带，
+        // 这里按 user.status 实时判定，非 active 一律拒绝 UGC 写操作。
+        if (!UserConst.STATUS_ACTIVE.equals(user.getStatus())) {
+            throw new BusinessException(403, "账号已被禁用");
+        }
+        if (!AuthStateUtil.isVerified(user.getBindEmail())) {
+            // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，
+            // 便于前端对「需先认证」与「无权限」给出不同引导（避免越权错误被误导向邮箱认证）。
+            throw new BusinessException(4031, "请先完成学号邮箱认证");
+        }
+    }
+
+    @Override
+    public UserAuthContextVO getAuthContext(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return null;
+        }
+        // 认证态在此折算为布尔值下发：bindEmail 明文不出 auth 域
+        return new UserAuthContextVO(user.getId(), AuthStateUtil.isVerified(user.getBindEmail()),
+                user.getOpenid());
+    }
+
+    @Override
+    public boolean isVerifiedById(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        User user = userMapper.selectById(userId);
+        return user != null && AuthStateUtil.isVerified(user.getBindEmail());
+    }
+
+    @Override
+    public Map<Long, String> mapNicknameByIds(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<Long, String> map = new HashMap<>();
+        userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .select(User::getId, User::getNickname)
+                        .in(User::getId, userIds))
+                .forEach(u -> map.put(u.getId(), u.getNickname()));
+        return map;
+    }
+
+    @Override
+    public Map<Long, UserBriefVO> mapBriefByIds(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<Long, UserBriefVO> map = new HashMap<>();
+        userMapper.selectList(new LambdaQueryWrapper<User>()
+                        .select(User::getId, User::getNickname, User::getAvatar)
+                        .in(User::getId, userIds))
+                .forEach(u -> map.put(u.getId(), new UserBriefVO(u.getId(), u.getNickname(),
+                        imageUrlUtil.toAbsoluteUrl(u.getAvatar()))));
+        return map;
     }
 }

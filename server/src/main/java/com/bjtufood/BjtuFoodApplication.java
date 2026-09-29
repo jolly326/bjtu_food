@@ -1,8 +1,12 @@
 package com.bjtufood;
 
+import com.bjtufood.auth.config.AdminProperties;
+import com.bjtufood.auth.config.JwtProperties;
+import com.bjtufood.wechat.config.WechatProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -17,9 +21,21 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * - review：评价模块（评价提交、审核）
  * - list：清单模块（创建清单、分享）
  * - upload：文件上传模块（图片上传）
+ * <p>
+ * {@code @EnableConfigurationProperties}（2026-09-28 架构收口 P2）：启用类型化配置绑定。
+ * 配置类随所属域走（{@code wechat.config.WechatProperties} / {@code auth.config.JwtProperties} /
+ * {@code auth.config.AdminProperties}），不集中塞进 common——避免 common 反向依赖业务域。
+ * <p>
+ * <b>为何显式列举而非 {@code @ConfigurationPropertiesScan}</b>：实测在本项目的切片测试下
+ * （{@code SmokeApiTest} 用 {@code @ContextConfiguration} <b>取代</b>主配置来屏蔽全量扫描），
+ * 扫描式注册不会生效，而被 {@code @Import} 进切片的 {@code JwtUtil} / {@code AdminTokenFilter}
+ * 仍需这两个 Bean → 上下文加载失败（25 个用例全红）。显式列举则可由各测试上下文
+ * 自行声明所需配置类，行为确定、不依赖扫描。
+ * 未来新增配置类时，请在<b>此处与相关测试上下文</b>同步登记（这是显式注册的唯一代价）。
  */
 @MapperScan("com.bjtufood.**.mapper")
 @SpringBootApplication
+@EnableConfigurationProperties({WechatProperties.class, JwtProperties.class, AdminProperties.class})
 @EnableScheduling
 public class BjtuFoodApplication {
 

@@ -1,6 +1,12 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
+import { ref, computed, watch, nextTick } from 'vue'
+import type { Component } from 'vue'
+import { ArrowRight } from '@element-plus/icons-vue'
+
 /**
  * DataTable：通用数据表格（§4.2 自封装组件）。
+ * 泛型 `T` = 行数据类型（`Dish` / `Review` / `User` / `CorrectionAdminVO` …），
+ * 使 `rows` / `sortValue` / `row-click` 全程带类型，替代此前的 `any`。
  * - 三态齐全：loading / error / empty / 正常
  * - 列定义驱动（prop / label / width / slot），单元格用 #cell-{prop} 槽自定义
  * - 可选 selectable 多选（#selection 槽或内置复选）
@@ -8,7 +14,7 @@
  * - 自动分页：行数超过 pageSize 时显示分页栏（共 N 条 / 每页条数 / 页码）
  * - 圆角/阴影走 Token（§4.2）
  */
-export interface DataTableColumn {
+export interface DataTableColumn<T = unknown> {
   prop: string
   label: string
   width?: string | number
@@ -18,13 +24,13 @@ export interface DataTableColumn {
   /** 可排序列：点击表头循环 升序→降序→取消 */
   sortable?: boolean
   /** 自定义排序取值（默认取 row[prop]；派生列如「档口/菜品」用此计算） */
-  sortValue?: (row: any) => number | string | null | undefined
+  sortValue?: (row: T) => number | string | null | undefined
 }
 
 const props = withDefaults(
   defineProps<{
-    columns: DataTableColumn[]
-    rows: any[]
+    columns: DataTableColumn<T>[]
+    rows: T[]
     loading?: boolean
     error?: string
     emptyText?: string
@@ -33,8 +39,10 @@ const props = withDefaults(
     selectedIds?: number[]
     /** 整行可点击（row-click 生效）：显示 pointer 光标 + 行尾箭头引导 */
     rowClickable?: boolean
-    /** 空态主图标（组件名，如 Document） */
-    emptyIcon?: any
+    /** 空态主图标（组件对象，如 Document / Element Plus 图标） */
+    emptyIcon?: Component | null
+    /** 失败态是否显示「重试」按钮（消费方需监听 retry 事件重新取数） */
+    retryable?: boolean
     /** 操作列宽度（px 或字符串），默认 160px */
     actionsWidth?: string
     /** 是否启用分页（默认开启；行数小于每页条数时自动隐藏分页栏） */
@@ -63,16 +71,15 @@ const props = withDefaults(
   {
     loading: false, error: '', emptyText: '暂无数据', selectable: false, rowKey: 'id',
     selectedIds: () => [], rowClickable: false, emptyIcon: null, actionsWidth: '160px',
-    pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10,
+    pagination: true, pageSizes: () => [10, 20, 50, 100], defaultPageSize: 10, retryable: false,
     serverMode: false, serverTotal: 0, serverPage: 1, serverPageSize: 20, highlightRowKey: null,
   },
 )
 
-import { ref, computed, watch, nextTick } from 'vue'
-import { ArrowRight } from '@element-plus/icons-vue'
-
 const emit = defineEmits<{
-  'row-click': [row: any]
+  'row-click': [row: T]
+  /** 失败态「重试」：仅在 retryable 为 true 时渲染按钮 */
+  retry: []
   'update:selectedIds': [ids: number[]]
   /** serverMode 下当前页码双向同步（v-model:serverPage） */
   'update:serverPage': [page: number]
@@ -82,26 +89,27 @@ const emit = defineEmits<{
   'page-change': [page: number, pageSize: number]
 }>()
 
-function rowKeyValue(row: any) {
-  return row?.[props.rowKey]
+function rowKeyValue(row: T): number {
+  // T 非索引签名：按 rowKey 取值经 Record 窄化，并按主键类型返回
+  return (row as Record<string, unknown>)?.[props.rowKey] as number
 }
-function isSelected(row: any) {
+function isSelected(row: T) {
   return props.selectedIds.includes(rowKeyValue(row))
 }
-function toggleSelect(row: any) {
+function toggleSelect(row: T) {
   const key = rowKeyValue(row)
   const set = new Set(props.selectedIds)
   if (set.has(key)) set.delete(key)
   else set.add(key)
   emit('update:selectedIds', [...set])
 }
-function onRowClick(row: any) {
+function onRowClick(row: T) {
   emit('row-click', row)
 }
 
 // ===== 表头排序 =====
 const sortState = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
-function compareValues(va: any, vb: any): number {
+function compareValues(va: string | number | null | undefined, vb: string | number | null | undefined): number {
   if (va == null && vb == null) return 0
   if (va == null) return 1
   if (vb == null) return -1
@@ -134,7 +142,11 @@ const sortedRows = computed(() => {
   const s = sortState.value
   if (!s) return props.rows
   const col = props.columns.find(c => c.prop === s.prop)
-  const getVal = col?.sortValue ?? ((row: any) => row?.[s.prop])
+  // 未提供 sortValue 时按 prop 取值：行数据非索引签名，故经 Record 窄化后按可比类型返回
+  const getVal =
+    col?.sortValue ??
+    ((row: T) =>
+      (row as Record<string, unknown>)?.[s.prop] as number | string | null | undefined)
   return [...props.rows].sort((a, b) => {
     const r = compareValues(getVal(a), getVal(b))
     return s.order === 'asc' ? r : -r
@@ -147,8 +159,7 @@ const displayRows = computed(() => {
   }
   if (!props.pagination) return { rows: sortedRows.value, total: sortedRows.value.length }
   const total = sortedRows.value.length
-  const maxPage = Math.max(1, Math.ceil(total / pageSize.value))
-  if (page.value > maxPage) page.value = maxPage
+  // 页码越界修正**不在此处**做（computed 内不得有副作用）—— 由下方 watch 统一修正
   const start = (page.value - 1) * pageSize.value
   return { rows: sortedRows.value.slice(start, start + pageSize.value), total }
 })
@@ -205,7 +216,13 @@ watch(
   <div class="table-wrap" ref="wrapRef">
     <!-- 三态 -->
     <div v-if="loading" class="state-box"><span class="spin" />加载中…</div>
-    <div v-else-if="error" class="state-box state-err">{{ error }}，请刷新页面重试</div>
+    <!-- 失败态：文案 + 可选「重试」（消费方传 retryable 并监听 retry —— 避免只说「请刷新页面」却没有动作） -->
+    <div v-else-if="error" class="state-box state-err">
+      <span>{{ error }}</span>
+      <button v-if="retryable" class="btn-secondary btn-sm retry-btn" v-press type="button" @click="emit('retry')">
+        重试
+      </button>
+    </div>
     <!-- 空态：大图标 + 文案 + 可选 CTA（视觉引导，不靠一行小字） -->
     <div v-else-if="!rows.length" class="empty-state">
       <div v-if="emptyIcon" class="empty-icon"><el-icon><component :is="emptyIcon" /></el-icon></div>
@@ -270,9 +287,9 @@ watch(
               :key="col.prop"
               :class="{ 'cell-ellipsis': col.ellipsis && !$slots[`cell-${col.prop}`] }"
               :style="{ textAlign: col.align || 'left' }"
-              :title="col.ellipsis && !$slots[`cell-${col.prop}`] ? String(row[col.prop] ?? '') : undefined"
+              :title="col.ellipsis && !$slots[`cell-${col.prop}`] ? String((row as Record<string, unknown>)[col.prop] ?? '') : undefined"
             >
-              <slot :name="`cell-${col.prop}`" :row="row">{{ row[col.prop] }}</slot>
+              <slot :name="`cell-${col.prop}`" :row="row">{{ (row as Record<string, unknown>)[col.prop] }}</slot>
             </td>
             <!-- 可点击行：右侧箭头引导 -->
             <td v-if="rowClickable" class="row-arrow-cell" @click.stop>
@@ -433,6 +450,11 @@ watch(
   gap: var(--space-2);
 }
 /* 三态盒（.state-box/.state-err/.spin）已收敛至 shared.css 全局唯一实现（UI-04），此处不再持副本 */
+/* 失败态重试按钮（与三态盒同处一行，留出左间距） */
+.retry-btn {
+  margin-left: 12px;
+}
+
 /* ===== 空态（视觉引导：图标 + 文案 + CTA） ===== */
 .empty-state {
   display: flex;

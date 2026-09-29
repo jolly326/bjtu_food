@@ -9,22 +9,26 @@
     @mouseup="pressed = false"
     @mouseleave="pressed = false"
   >
-    <image
-      v-if="avatarOk && review.userAvatar"
-      class="review-avatar"
-      :src="getImageUrl(review.userAvatar)"
-      mode="aspectFill"
-      role="img"
-      :aria-label="`${review.userNickname || '匿名用户'}的头像`"
-      @error="avatarOk = false"
-    />
-    <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${review.userNickname || '匿名用户'}的头像`">
-      <IconSvg name="user" :size="32" :color="COLOR_MAP['text-tertiary']" />
-    </view>
+    <!-- 作者头像：**仅公开视角**（`MyReviewVO` 不含 `userAvatar`）——本人视角变体不渲染头像列 -->
+    <template v-if="!mine">
+      <image
+        v-if="avatarOk && authorAvatar"
+        class="review-avatar"
+        :src="getImageUrl(authorAvatar)"
+        mode="aspectFill"
+        role="img"
+        :aria-label="`${authorNickname}的头像`"
+        @error="avatarOk = false"
+      />
+      <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${authorNickname}的头像`">
+        <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
+        <ImagePlaceholder name="user" :size="32" />
+      </view>
+    </template>
     <view class="review-body">
-      <view class="review-head">
-        <view class="review-head-left">
-          <text class="review-nickname">{{ review.userNickname || '匿名用户' }}</text>
+      <view class="review-head" :class="{ 'review-head--mine': mine }">
+        <view v-if="!mine" class="review-head-left">
+          <text class="review-nickname">{{ authorNickname }}</text>
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
         <view class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
@@ -33,18 +37,20 @@
       </view>
       <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
       <view class="review-meta">
-        <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${(review.rating || 0).toFixed(1)} 分`">
+        <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${formatRating(review.rating)} 分`">
           <IconSvg
-            v-for="n in Math.min(Math.max(Math.round(review.rating || 0), 1), 5)"
+            v-for="n in starCount"
             :key="n"
             name="star-filled"
             :size="22"
             :color="COLOR_MAP['star']"
             class="review-star"
           />
-          <text class="review-rating-num">{{ (review.rating || 0).toFixed(1) }}</text>
+          <text class="review-rating-num">{{ formatRating(review.rating) }}</text>
         </view>
-        <text class="review-time">{{ formatDateTime(review.createdAt) }}</text>
+        <!-- 时间：仅到日（YYYY-MM-DD，UI 统一 Loop Round 24）—— 菜品评价时效性弱，
+             第二行要同时容纳「星级 + 分值 + 时间」，去掉时分显著降噪 -->
+        <text class="review-time">{{ formatDate(review.createdAt) }}</text>
       </view>
       <!-- 菜名行（可选，本人视角列表用）：辨识是哪道菜的评价 -->
       <text v-if="dishName" class="review-dish">{{ dishName }}</text>
@@ -64,7 +70,7 @@
               @error="onImageError(i)"
             />
             <view v-else class="review-image-fallback" @tap="onPreviewImage(i)">
-              <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
+              <ImagePlaceholder :size="36" aria-label="图片已失效" />
             </view>
           </view>
         </view>
@@ -78,55 +84,76 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（走 data-uri，见 IconSvg.vue 的 resolveColor），
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl } from '@/utils/image'
-import { formatDateTime } from '@/utils/time'
-import type { Review } from '@/types/review'
+import { useBrokenImages } from '@/composables/useBrokenImages'
+import { formatRating } from '@/utils/dish'
+import { formatDate } from '@/utils/time'
+import type { Review, MyReview } from '@/types/review'
 
 defineOptions({ name: 'ReviewItem' })
 
 const props = defineProps<{
-  review: Review
-  /** 当前登录用户 ID：用于判定本人评价（本人可删、他人可举报） */
-  currentUserId?: number
+  /**
+   * 评价行：**两种视角两个类型**（R9）——
+   * 公开视角 `Review`（`GET /dishes/{id}/reviews`，含作者标识）｜
+   * 本人视角 `MyReview`（`GET /my/reviews`，含 `dishId` / `dishName`、无作者标识）。
+   */
+  review: Review | MyReview
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
+  /**
+   * **本人视角变体**（「我的评价」页）：`MyReviewVO` 不含 `userId` / `userNickname` / `userAvatar`
+   * ⇒ 不渲染头像与昵称（恒为本人，渲染即冗余）。
+   */
+  mine?: boolean
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
   dishName?: string
 }>()
 // `hideReport` / `deletable` 两个 prop 全仓零传入（「我的评价」页复用本组件、经 `dishName` prop 注入菜名），
 // 按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
+/* 事件**只有一个出口**：`more`（右上角竖三点）。
+   UI 统一 Loop Round 17：原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
+   —— 本人删除 / 他人举报统一由父页 `ActionSheet` 处理 ⇒ 按「零消费即删」移除。 */
 const emit = defineEmits<{
-  (e: 'report', review: Review): void
-  (e: 'delete', review: Review): void
-  (e: 'more', review: Review): void
+  (e: 'more', review: Review | MyReview): void
 }>()
 
 const pressed = ref(false)
 const avatarOk = ref(true)
 
-// 本人评价：当前登录用户 ID 命中即本人（本人可删、他人可举报）
-const isOwn = computed(() => props.currentUserId != null && props.review.userId === props.currentUserId)
-const canDelete = computed(() => isOwn.value)
+/* 注：原 `isOwn` / `canDelete` 两个派生值只服务于已删除的 `delete` 事件（UI 统一 Loop Round 17）；
+   「是否本人评价」的判定现由父页（我的评价 / 菜品详情）自行完成，组件不再重复持有。 */
+
+/**
+ * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
+ * 用 `in` 收窄并集：公开视角行含 `userId`，本人视角行含 `dishId`。
+ */
+const authorAvatar = computed(() => ('userAvatar' in props.review ? props.review.userAvatar : ''))
+const authorNickname = computed(() => {
+  const name = 'userNickname' in props.review ? props.review.userNickname : ''
+  return name || '匿名用户'
+})
+
+/**
+ * 星级渲染颗数（1–5，最低 1 颗）：Round 28 —— 原为**模板内表达式**（每次渲染重算），改 `computed` 缓存。
+ */
+const starCount = computed(() => Math.min(Math.max(Math.round(props.review.rating || 0), 1), 5))
 
 /* ===== 配图展示（≤3 张 COS URL，点击预览大图） ===== */
 const reviewImages = computed(() =>
   Array.isArray(props.review.images) ? props.review.images.filter(Boolean) : [],
 )
 /** 破图下标集合：error 后切 empty 中性占位；images 变化（列表重拉）时重置 */
-const brokenImages = ref<Set<number>>(new Set())
+const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
 watch(
   () => props.review.images,
-  () => { brokenImages.value = new Set() },
+  () => clear(),
 )
-function onImageError(i: number) {
-  const next = new Set(brokenImages.value)
-  next.add(i)
-  brokenImages.value = next
-}
 /** 预览大图（仅未破图可进入；current 定位到点击那张） */
 function onPreviewImage(i: number) {
   if (brokenImages.value.has(i)) return
@@ -137,11 +164,6 @@ function onPreviewImage(i: number) {
   uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
 }
 
-function onDelete() {
-  if (!canDelete.value) return
-  emit('delete', props.review)
-}
-function onReport(r: Review) { emit('report', r) }
 /** 右上角三点菜单：操作由父页面以 ActionSheet 呈现（举报他人 / 删除本人） */
 function onMore() {
   emit('more', props.review)
@@ -150,7 +172,8 @@ function onMore() {
 
 <style scoped>
 /* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
-   当前唯一消费方 = 菜品详情评价区（DishReviewSection）；「我的评价」页自持卡片。
+   消费方 **2 处**（UI 统一 Loop Round 14 核实修正）：`DishReviewSection`（传 `flat` ⇒ 嵌在评价卡内的条目）、
+   `my-reviews`（默认**非 flat** ⇒ 独立白卡）。两支形态均在实际使用，**均不得删除**。
    口碑层扁平：不设评论/回复/点赞入口，互动仅右上角三点菜单（删除 / 举报）。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
 .review-item {
@@ -165,15 +188,15 @@ function onMore() {
   touch-action: manipulation;
   transition: opacity var(--duration-fast) var(--ease-out);
 }
-/* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，保留条目结构 + 分隔线 */
+/* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，只保留条目结构。
+   Round 24：**去掉条目分割线**（原 border-bottom）与上下内边距 —— 条目之间由上层列表容器的
+   `--spacing-lg` **纯留白**分隔（用户口径「不加分割线」）。 */
 .review-item--flat {
   background: transparent;
   border-radius: var(--radius-none);
   box-shadow: none;
-  padding: var(--spacing-md) 0;
-  border-bottom: 2rpx solid var(--border-color);
+  padding: 0;
 }
-.review-item--flat:last-child { border-bottom: none; }
 .review-item--flat.review-item-pressed { opacity: 0.5; }
 /* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言，spec §4.9）。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
@@ -214,11 +237,14 @@ function onMore() {
   display: flex;
   align-items: center;
 }
+/* 本人视角变体：无昵称行时头行仍须有高度承载右上「竖三点」（该钮为绝对定位、不参与行高） */
+.review-head--mine { min-height: 64rpx; }
 /* 头部第一行：昵称，右侧预留三点按钮空间 */
 .review-head-left {
   flex: 1;
   min-width: 0;
-  padding-right: 64rpx;
+  /* 64rpx 走 `--spacing-2xl`（同值）—— UI 统一 Loop Round 6：为右上「竖三点」留出的避让位 */
+  padding-right: var(--spacing-2xl);
   display: flex;
   align-items: center;
 }
@@ -247,7 +273,7 @@ function onMore() {
 }
 
 /* 评分：黄色实星（1-5 颗，最低 1 颗）+ 右侧分值数字 */
-.review-stars { display: inline-flex; align-items: center; gap: 2rpx; flex-shrink: 0; }
+.review-stars { display: inline-flex; align-items: center; gap: var(--spacing-3xs); flex-shrink: 0; }
 .review-star { display: inline-block; }
 .review-rating-num { font-size: var(--font-aux); color: var(--text-secondary); margin-left: var(--spacing-xs); font-variant-numeric: tabular-nums; }
 
@@ -291,7 +317,7 @@ function onMore() {
 .review-images {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: var(--spacing-sm);
   margin-top: var(--spacing-2xs);
 }
 .review-image-cell {

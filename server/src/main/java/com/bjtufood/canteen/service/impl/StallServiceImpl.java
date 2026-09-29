@@ -2,6 +2,7 @@ package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.canteen.dto.StallAdminVO;
+import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
@@ -9,17 +10,14 @@ import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.review.dto.StallAvgRatingVO;
-import com.bjtufood.review.mapper.ReviewMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -38,7 +36,13 @@ public class StallServiceImpl implements StallService {
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
     private final ImageUrlUtil imageUrlUtil;
-    private final ReviewMapper reviewMapper;
+    // 2026-09-28 环偿还：此前注入 ReviewQueryService 以填充后台列表的档口均分，导致
+    //   canteen -> review -> dish -> canteen 形成包级循环依赖（dish 需 canteen 的档口名）。
+    //   档口均分是 review 域按 dish 聚合出的**派生展示值**，不属于 canteen 的自有知识；
+    //   由 canteen 主动拉取等于让「属性字典」反向依赖「评价」，方向本就颠倒。
+    //   现改为：canteen 只产出档口自身字段，均分由编排方（CanteenAdminController）
+    //   调用 ReviewQueryService 补齐——controller 位于依赖图顶端，不产生新包级边。
+    //   口径与出参（含无评价时按 0.00 兜底）保持不变。
 
     @Override
     public List<StallAdminVO> listAllForAdmin() {
@@ -49,28 +53,12 @@ public class StallServiceImpl implements StallService {
         if (stalls.isEmpty()) {
             return List.of();
         }
-        // BE-08：一次 IN 查询取回全部档口平均分，替代原 toAdminVO 内逐条 selectAvgRatingByStallId 的 N+1
-        Map<Long, BigDecimal> avgRatings = batchAvgRating(stalls);
+        // BE-08 原为「一次 IN 查询取回全部档口平均分」以消除逐档口 N+1；该查询属 review 域，
+        // 已上移至 CanteenAdminController#fillAvgRatings 统一编排（断开 canteen -> review 包级边）。
+        // 本方法只负责档口自身字段，均分由调用方补齐；未补齐前保持 0.00 语义。
         return stalls.stream()
-                .map(s -> toAdminVO(s, avgRatings.get(s.getId())))
+                .map(s -> toAdminVO(s, BigDecimal.ZERO))
                 .collect(java.util.stream.Collectors.toList());
-    }
-
-    /**
-     * 批量查询档口平均分，构建 stallId → avgRating 映射（BE-08：消除逐档口 N+1）。
-     * <p>
-     * 复用 {@link ReviewMapper#selectAvgRatingByStallIds}（与 CanteenServiceImpl 同口径）；
-     * 无评价的档口不会出现在结果集中，取值时按 0.00 兜底。
-     */
-    private Map<Long, BigDecimal> batchAvgRating(List<Stall> stalls) {
-        List<Long> ids = stalls.stream().map(Stall::getId).distinct().toList();
-        Map<Long, BigDecimal> map = new HashMap<>(ids.size());
-        for (StallAvgRatingVO r : reviewMapper.selectAvgRatingByStallIds(ids)) {
-            if (r.getStallId() != null) {
-                map.put(r.getStallId(), r.getAvgRating());
-            }
-        }
-        return map;
     }
 
     @Override
@@ -113,6 +101,48 @@ public class StallServiceImpl implements StallService {
     @Override
     public boolean existsById(Long stallId) {
         return stallId != null && stallMapper.selectById(stallId) != null;
+    }
+
+    @Override
+    public Long findIdByName(String stallName) {
+        if (!StringUtils.hasText(stallName)) {
+            return null;
+        }
+        // 与 upsertStallByName 同一「精确匹配、LIMIT 1、无唯一键」口径（原为 correction 侧自查语句，逐字保留）
+        Stall matched = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getName, stallName)
+                .last("LIMIT 1"));
+        return matched == null ? null : matched.getId();
+    }
+
+    @Override
+    public String getNameById(Long stallId) {
+        if (stallId == null) {
+            return null;
+        }
+        Stall stall = stallMapper.selectById(stallId);
+        return stall == null ? null : stall.getName();
+    }
+
+    @Override
+    public List<StallBriefVO> listBriefCandidates(String canteenName) {
+        // 原实现在 correction 侧直接注入 CanteenMapper/StallMapper；「按名找食堂」属 canteen 域知识，现收回本域
+        Canteen canteen = StringUtils.hasText(canteenName)
+                ? canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
+                        .eq(Canteen::getName, canteenName)
+                        .last("LIMIT 1"))
+                : null;
+        List<Stall> stalls = canteen != null
+                ? stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                        .eq(Stall::getCanteenId, canteen.getId())
+                        .orderByAsc(Stall::getSortOrder))
+                : stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                        .orderByAsc(Stall::getCanteenId)
+                        .orderByAsc(Stall::getSortOrder)
+                        .orderByDesc(Stall::getUpdatedAt));
+        return stalls.stream()
+                .map(s -> new StallBriefVO(s.getId(), s.getName()))
+                .toList();
     }
 
     /**

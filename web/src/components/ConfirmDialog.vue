@@ -8,7 +8,7 @@
  * 弹层取值（overlay 毛玻璃 / 盒圆角 / 顶部品牌条 / 220ms 过渡豁免）由 Modal 统一承载；
  * confirm 语义（role=alertdialog、隐藏右上角 X、默认聚焦「取消」、ESC 关闭）由 Modal variant="confirm" 提供。
  */
-import Modal from './Modal.vue'
+import AppModal from './AppModal.vue'
 import { useConfirmStore } from '@/stores/confirmStore'
 
 const confirm = useConfirmStore()
@@ -22,7 +22,7 @@ function onOk() {
 </script>
 
 <template>
-  <Modal
+  <AppModal
     :show="confirm.visible"
     variant="confirm"
     danger
@@ -33,7 +33,7 @@ function onOk() {
     @confirm="onOk"
   >
     <p class="confirm-msg">{{ confirm.message }}</p>
-  </Modal>
+  </AppModal>
 </template>
 
 <style scoped>

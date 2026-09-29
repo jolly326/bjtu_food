@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Dish, Review } from '@/types'
 /**
  * DishDetailView：菜品详情（扁平两层结构）。
  *
@@ -75,8 +76,8 @@ onMounted(async () => {
   attrStore.ensureLoaded().catch(() => {})
   try {
     await dishStore.loadAll()
-  } catch (e: any) {
-    loadError.value = e?.message || '加载菜品失败'
+  } catch (e: unknown) {
+    loadError.value = (e as Error)?.message || '加载菜品失败'
   }
   loading.value = false
 })
@@ -93,12 +94,12 @@ const headerSubtitle = computed(() => {
 
 // ===== 信息卡字段（只读；编辑一律走 DishFormDialog） =====
 /** 展示值恒取现价 price（§7.26：禁止双源切换，无促销价） */
-function formatPrice(d: any): string {
+function formatPrice(d: Dish): string {
   return `¥${Number(d?.price ?? 0).toFixed(2)}`
 }
 
 /** 有折扣（§7.26）：原价有值且高于现价 → 端上原价划线 */
-function hasPromo(d: any): boolean {
+function hasPromo(d: Dish): boolean {
   return d?.originalPrice != null && Number(d.originalPrice) > Number(d.price)
 }
 
@@ -126,8 +127,8 @@ async function deleteDish() {
     toast.success('菜品已删除')
     // 删除后回菜品列表（本页已无对应实体）
     router.push(DISH_LIST_PATH)
-  } catch (err: any) {
-    toast.error(err.message || '菜品删除失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '菜品删除失败')
   }
 }
 
@@ -140,20 +141,20 @@ function getUserName(userId: number | bigint): string {
 }
 
 // 评价详情（只读弹窗：公共组件 ReviewDetailDialog，本页与「评价管理」页共用）
-const reviewDetail = ref<any | null>(null)
+const reviewDetail = ref<Review | null>(null)
 const reviewDetailUserName = computed(() =>
   reviewDetail.value ? getUserName(reviewDetail.value.user_id) : '',
 )
-function openReviewDetail(r: any) { reviewDetail.value = r }
+function openReviewDetail(r: Review) { reviewDetail.value = r }
 function closeReviewDetail() { reviewDetail.value = null }
 
 /** 行内显隐（评价的唯一显隐入口；详情弹窗为只读，不再提供第二个开关） */
-async function toggleReviewHidden(r: any, hidden: boolean) {
+async function toggleReviewHidden(r: Review, hidden: boolean) {
   try {
     await store.updateReview(Number(r.id), { is_hidden: hidden ? 1 : 0 })
     toast.success(hidden ? '评价已隐藏' : '评价已显示')
-  } catch (err: any) {
-    toast.error(err.message || '操作失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '操作失败')
   }
 }
 
@@ -163,8 +164,8 @@ async function handleDeleteReview(id: number) {
   try {
     await store.deleteReview(id)
     toast.success('评价已删除')
-  } catch (err: any) {
-    toast.error(err.message || '评价删除失败')
+  } catch (err: unknown) {
+    toast.error((err as Error).message || '评价删除失败')
   }
 }
 </script>
@@ -241,7 +242,8 @@ async function handleDeleteReview(id: number) {
         { prop: 'rating', label: '评分', width: '120px', align: 'center', sortable: true, sortValue: (row) => row.rating },
         { prop: 'content', label: '内容', ellipsis: true },
         { prop: 'status', label: '状态', width: '110px', align: 'center' },
-        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at },
+        // 排序取值须为可比标量（string | number）：Date 取时间戳
+        { prop: 'time', label: '时间', width: '150px', sortable: true, sortValue: (row) => row.created_at.getTime() },
       ]"
       :rows="dishReviews"
       actions-width="160px"
@@ -253,14 +255,14 @@ async function handleDeleteReview(id: number) {
       <template #cell-content="{ row }">
         <span class="cell-text" :title="row.content || '（无文字内容）'">{{ row.content || '（无文字内容）' }}</span>
         <span v-if="(row.images || []).length" class="img-flag" title="该评价附有配图">
-          <el-icon><Picture /></el-icon>{{ row.images.length }}
+          <el-icon><Picture /></el-icon>{{ (row.images || []).length }}
         </span>
       </template>
       <template #cell-status="{ row }">
         <div class="status-cell">
           <el-switch
             :model-value="!row.is_hidden"
-            @change="(v: any) => toggleReviewHidden(row, !v)"
+            @change="(v: string | number | boolean) => toggleReviewHidden(row, !v)"
           />
           <span class="status-text" :class="!row.is_hidden ? 'on' : 'off'">{{ row.is_hidden ? '已隐藏' : '显示中' }}</span>
         </div>

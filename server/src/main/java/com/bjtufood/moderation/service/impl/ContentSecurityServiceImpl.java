@@ -1,0 +1,318 @@
+package com.bjtufood.moderation.service.impl;
+
+import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.moderation.dto.SecSuggest;
+import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.wechat.constant.WechatApiConst;
+import com.bjtufood.wechat.service.WechatAccessTokenProvider;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
+import java.util.function.Supplier;
+
+/**
+ * UGC 内容审核服务实现（msgSecCheck v2 / imgSecCheck）。
+ * <p>
+ * 判定口径（红线，全部<b>逐字沿用原实现</b>）：
+ * <ul>
+ *   <li>文本以 {@code result.suggest} 判定，不得只看 errcode（errcode=0 仅代表调用成功）；
+ *       2026-09-15 用户拍板「取消人工复核」后归一为二态：pass/review → 放行，risky → 拒绝
+ *       （归一发生在 {@link SecSuggest#fromValue} 判定入口，业务侧只需按 RISKY 判拒绝）；</li>
+ *   <li>图片以 errcode 判定：0=通过，87014=违规，其余=调用失败 fail-closed；</li>
+ *   <li>risky 统一在本服务拦截为 400「内容包含违规信息，请修改后重试」，文案不散落调用方；</li>
+ *   <li>上游不可达/调用失败 fail-closed（500），保证入库内容必过审核（产品定稿「全部 UGC 过检」）；</li>
+ *   <li>openid 为空（历史学号账号边界）跳过检测放行（报告已备案）。</li>
+ * </ul>
+ * <p>
+ * 2026-09-28 架构收口 P0-B / P1-A：
+ * <ul>
+ *   <li>stable_token 的获取 / 缓存 / 失效清理已剥离至
+ *       {@link WechatAccessTokenProvider}（微信平台凭据能力），本类只消费其 {@code get()}；</li>
+ *   <li>appid / secret 不再由本类持有，改由凭据提供方持有并决定「是否已配置」；</li>
+ *   <li>端点与 1MB 图片硬限制改引 {@link WechatApiConst}（平台常量归位，不再是本实现类的内部常量）；</li>
+ *   <li>包自 {@code content.security.impl} 迁至 {@code moderation.service.impl}。</li>
+ * </ul>
+ * BE-06 的「token 失效清缓存 + 重试一次」重试包装保留在本类（它包裹的是<b>审核调用整体</b>，
+ * 而非 token 获取本身）；清缓存动作委托给 {@code tokenProvider.invalidate()}。
+ */
+@Slf4j
+@Service
+public class ContentSecurityServiceImpl implements ContentSecurityService {
+
+    /** 连接/读取超时（毫秒）：与 WechatService 一致，防止微信接口挂起拖垮 UGC 主链路 */
+    private static final int WECHAT_TIMEOUT_MS = 5000;
+
+    /** msgSecCheck v2 内容长度上限（字） */
+    private static final int MAX_TEXT_LENGTH = 2500;
+
+    /** 微信响应固定以 text/plain 返回，统一先取 String 再手工反序列化（不依赖 Content-Type，P0 教训） */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private final RestTemplate restTemplate;
+
+    /** 微信 access_token 凭据提供方（P0-B 剥离：凭据生命周期不再由本类持有） */
+    private final WechatAccessTokenProvider tokenProvider;
+
+    /**
+     * Spring 装配入口：注入凭据提供方，RestTemplate 走默认超时配置。
+     * 保留单参构造的「可注入语义」，便于测试整体替换依赖。
+     */
+    @Autowired
+    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider) {
+        this(defaultRestTemplate(), tokenProvider);
+    }
+
+    /**
+     * 测试可注入构造：允许传入 MockRestServiceServer 绑定的 RestTemplate 与受控凭据提供方；
+     * 生产装配走 {@link #ContentSecurityServiceImpl(WechatAccessTokenProvider)}。
+     */
+    public ContentSecurityServiceImpl(RestTemplate restTemplate, WechatAccessTokenProvider tokenProvider) {
+        this.restTemplate = restTemplate;
+        this.tokenProvider = tokenProvider;
+    }
+
+    private static RestTemplate defaultRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(WECHAT_TIMEOUT_MS);
+        factory.setReadTimeout(WECHAT_TIMEOUT_MS);
+        return new RestTemplate(factory);
+    }
+
+    @Override
+    public SecSuggest detectText(String openid, String content, int scene) {
+        // 边界 1：微信凭据未配置（本地开发/测试环境）→ 跳过内容安全检测放行（生产必须配置，部署检查项）
+        if (!tokenProvider.isConfigured()) {
+            log.debug("微信内容安全检测未配置，跳过文本内容安全检测（scene={}）", scene);
+            return SecSuggest.PASS;
+        }
+        // 边界 2：历史学号账号无 openid，msgSecCheck v2 无法调用 → 跳过内容安全检测放行（产品登记边界）
+        if (!StringUtils.hasText(openid)) {
+            log.debug("当前用户无 openid（历史学号账号），跳过文本内容安全检测（scene={}）", scene);
+            return SecSuggest.PASS;
+        }
+        if (!StringUtils.hasText(content)) {
+            // 空文本无可检内容，直接放行（纯图 UGC 场景）
+            return SecSuggest.PASS;
+        }
+        if (content.length() > MAX_TEXT_LENGTH) {
+            throw new BusinessException(400, "内容不能超过" + MAX_TEXT_LENGTH + "字");
+        }
+
+        Map<String, Object> reqBody = Map.of(
+                "version", 2,
+                "scene", scene,
+                "openid", openid,
+                "content", content);
+
+        // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
+        // token 失效（40001/42001）时清空缓存重取一次，避免内容安全检测持续失败最长 2 小时。
+        Map<String, Object> resp = callWithTokenRetry(() -> {
+            String body = postJson(WechatApiConst.MSG_SEC_CHECK_URL + "?access_token=" + tokenProvider.get(), reqBody);
+            Map<String, Object> r = parseJson(body, "msg_sec_check");
+            Integer errcode = asInt(r.get("errcode"));
+            if (errcode != null && errcode != 0) {
+                if (isTokenInvalidErrcode(errcode)) {
+                    throw new TokenInvalidException(errcode);
+                }
+                // 其余 errcode：fail-closed 交由用户重试
+                log.error("msgSecCheck 调用失败 errcode={} errmsg={}", errcode, r.get("errmsg"));
+                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            }
+            return r;
+        });
+
+        // 红线：以 result.suggest 判定，不只看 errcode；review 已在 SecSuggest.fromValue 归一为 PASS（放行）
+        Object result = resp.get("result");
+        String suggest = null;
+        if (result instanceof Map<?, ?> resultMap) {
+            Object raw = resultMap.get("suggest");
+            suggest = raw == null ? null : String.valueOf(raw);
+        }
+        SecSuggest secSuggest = SecSuggest.fromValue(suggest);
+        log.info("msgSecCheck 完成 scene={} suggest={} label={}", scene, suggest,
+                result instanceof Map<?, ?> resultMap ? resultMap.get("label") : null);
+        return secSuggest;
+    }
+
+    @Override
+    public SecSuggest checkText(String openid, String content, int scene) {
+        SecSuggest suggest = detectText(openid, content, scene);
+        if (suggest == SecSuggest.RISKY) {
+            throw new BusinessException(400, "内容包含违规信息，请修改后重试");
+        }
+        return suggest;
+    }
+
+    /**
+     * token 失效自愈（BE-06）：首次失败若为 {@link TokenInvalidException}，
+     * 先清空本地 token 缓存再重试一次（重试时 {@code tokenProvider.get()} 会重新拉取）。
+     * 重试仍失败则按原 fail-closed 口径抛 500，语义与修复前一致（不放行任何未过检内容）。
+     *
+     * @param action 单次微信调用（须把「取 token → 请求 → 判 errcode」整体包进来，重试才有意义）
+     */
+    private <T> T callWithTokenRetry(Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (TokenInvalidException first) {
+            log.warn("微信 access_token 失效（errcode={}），清空缓存后重试一次", first.errcode);
+            tokenProvider.invalidate();
+            try {
+                return action.get();
+            } catch (TokenInvalidException second) {
+                log.error("刷新 access_token 后仍返回失效 errcode={}，fail-closed", second.errcode);
+                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            }
+        }
+    }
+
+    /**
+     * token 失效信号（内部标记异常，由 {@link #callWithTokenRetry} 捕获并触发重取）。
+     */
+    private static final class TokenInvalidException extends RuntimeException {
+        private final int errcode;
+
+        TokenInvalidException(int errcode) {
+            super("wechat token invalid: " + errcode);
+            this.errcode = errcode;
+        }
+    }
+
+    /** 微信 access_token 失效错误码（40001 invalid credential / 42001 timeout） */
+    private static boolean isTokenInvalidErrcode(int errcode) {
+        return errcode == 40001 || errcode == 42001;
+    }
+
+    @Override
+    public void checkImage(byte[] image) {
+        if (image == null || image.length == 0) {
+            throw new BusinessException(400, "图片内容为空");
+        }
+        // 大小兜底（imgSecCheck 硬限制 1MB）；720×1334 尺寸限制由前端压缩保证，后端不做像素级校验
+        if (image.length > WechatApiConst.MAX_IMAGE_SEC_CHECK_BYTES) {
+            throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
+        }
+        if (!tokenProvider.isConfigured()) {
+            log.debug("微信内容安全检测未配置，跳过图片内容安全检测");
+            return;
+        }
+        // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
+        // token 失效（40001/42001）时清空缓存重取一次，避免图片内容安全检测持续失败最长 2 小时。
+        callWithTokenRetry(() -> {
+            doImgSecCheck(image);
+            return null;
+        });
+    }
+
+    private void doImgSecCheck(byte[] image) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("media", new ByteArrayResource(image));
+        String respBody;
+        try {
+            respBody = restTemplate.postForObject(
+                    WechatApiConst.IMG_SEC_CHECK_URL + "?access_token=" + tokenProvider.get(),
+                    new HttpEntity<>(body, headers), String.class);
+        } catch (BusinessException e) {
+            // token 获取失败等业务异常原样传播，不在此处二次包装
+            throw e;
+        } catch (ResourceAccessException e) {
+            log.error("imgSecCheck 上游不可达", e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        } catch (Exception e) {
+            log.error("imgSecCheck 调用失败", e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        }
+        Map<String, Object> resp = parseJson(respBody, "img_sec_check");
+
+        Integer errcode = asInt(resp.get("errcode"));
+        if (errcode == null || errcode == 0) {
+            return;
+        }
+        if (errcode == 87014) {
+            // 违规图片统一拦截（非 token 问题，不触发重试）
+            throw new BusinessException(400, "图片包含违规内容，无法上传");
+        }
+        if (isTokenInvalidErrcode(errcode)) {
+            throw new TokenInvalidException(errcode);
+        }
+        // 其余 errcode（媒体格式不支持等）：fail-closed，交由用户重试或换图
+        log.error("imgSecCheck 调用失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
+        throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+    }
+
+    // ==================== HTTP / 解析工具 ====================
+
+    /** POST JSON（先按 String 读取再解析，微信响应 Content-Type 为 text/plain） */
+    private String postJson(String url, Map<String, Object> body) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            return restTemplate.postForObject(url,
+                    new HttpEntity<>(OBJECT_MAPPER.writeValueAsString(body), headers), String.class);
+        } catch (ResourceAccessException e) {
+            log.error("调用微信内容安全接口不可达（url={}）", maskUrl(url), e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用微信内容安全接口失败（url={}）", maskUrl(url), e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        }
+    }
+
+    /** 反序列化微信响应体（非 JSON 视为网关异常，fail-closed 500） */
+    private Map<String, Object> parseJson(String body, String api) {
+        if (body == null || body.isBlank()) {
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        }
+        try {
+            Map<String, Object> map = OBJECT_MAPPER.readValue(body, new TypeReference<Map<String, Object>>() {
+            });
+            if (map == null) {
+                throw new IllegalStateException("响应为空对象");
+            }
+            return map;
+        } catch (Exception e) {
+            log.error("{} 响应非 JSON：{}", api, body.length() > 200 ? body.substring(0, 200) : body);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        }
+    }
+
+    /** errcode 双态安全解析（数字/字符串，参照 WechatService.parseErrcode） */
+    private Integer asInt(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** 日志脱敏：隐藏 access_token 等查询参数 */
+    private String maskUrl(String url) {
+        if (url == null) {
+            return "";
+        }
+        return url.replaceAll("(access_token=)[^&]*", "$1***");
+    }
+}

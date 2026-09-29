@@ -1,6 +1,7 @@
 package com.bjtufood.canteen.service;
 
 import com.bjtufood.canteen.dto.StallAdminVO;
+import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.entity.Stall;
 
 import java.util.List;
@@ -48,4 +49,36 @@ public interface StallService {
      * @return true=存在
      */
     boolean existsById(Long stallId);
+
+    /**
+     * 按名取档口ID（同名多条时取一条，与 {@link #upsertStallByName} 的「精确匹配、无唯一键」口径一致）。
+     * <p>
+     * 供 correction 域采纳纠错时解析「用户填的档口名 → stallId」，替代其直接注入 StallMapper
+     * 手写查询（P0-1 跨域 Mapper 违规）。仅空白名返回 null；「其他」等空值语义名称按字面值匹配
+     * （与迁移前 correction 侧的查询行为一致，建档拦截仍由 {@link #upsertStallByName} 负责）。
+     *
+     * @param stallName 档口名（可空）
+     * @return 档口ID；未建档或名称属空值语义返回 null
+     */
+    Long findIdByName(String stallName);
+
+    /**
+     * 按ID取档口名（correction 管理端列表补齐「目标档口」用）。
+     *
+     * @param stallId 档口ID（可空）
+     * @return 档口名；不存在返回 null
+     */
+    String getNameById(Long stallId);
+
+    /**
+     * 档口确认候选列表（correction 采纳两段式确认用，替代其直接注入 StallMapper/CanteenMapper 自查）。
+     * <p>
+     * 口径不变：提交食堂名匹配现有食堂时 = 该食堂下全部档口（sort_order 升序）；
+     * 无匹配食堂时 = 全量档口（canteen_id 升序 → sort_order 升序 → updated_at 倒序）。
+     * 「按名找食堂」属 canteen 域自有知识，故一并收在本实现内。
+     *
+     * @param canteenName 提交/纠错的食堂名（可空，空则返回全量档口）
+     * @return 候选档口投影（id + name），永不为 null
+     */
+    List<StallBriefVO> listBriefCandidates(String canteenName);
 }

@@ -11,6 +11,8 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AppModal: typeof import('./components/AppModal.vue')['default']
+    AppToast: typeof import('./components/AppToast.vue')['default']
     ConfirmDialog: typeof import('./components/ConfirmDialog.vue')['default']
     DataTable: typeof import('./components/DataTable.vue')['default']
     DishFormDialog: typeof import('./components/DishFormDialog.vue')['default']
@@ -25,7 +27,6 @@ declare module 'vue' {
     FilterSelect: typeof import('./components/layout/FilterSelect.vue')['default']
     FormDialog: typeof import('./components/FormDialog.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
-    Modal: typeof import('./components/Modal.vue')['default']
     PageContainer: typeof import('./components/layout/PageContainer.vue')['default']
     PageHeader: typeof import('./components/layout/PageHeader.vue')['default']
     RenameEntityDialog: typeof import('./components/RenameEntityDialog.vue')['default']
@@ -34,7 +35,6 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     StarRating: typeof import('./components/StarRating.vue')['default']
     StatusTag: typeof import('./components/StatusTag.vue')['default']
-    Toast: typeof import('./components/Toast.vue')['default']
     UserActivityModal: typeof import('./components/UserActivityModal.vue')['default']
   }
 }

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Schema(description = "后台菜品新增/编辑请求参数")
@@ -47,19 +48,14 @@ public class DishAdminReq {
     @Schema(description = "菜品图片 URL 列表。单图时只放一个 URL。", example = "[\"/images/seed/dishes/tomato-egg.jpg\"]")
     private List<String> images;
 
-    // ==================== 描述四维（§7.28；原 tags/spiceLevel/region 已下线） ====================
-
-    @Schema(description = "荤素/饮食属性：meat=荤 / half=半荤 / veg=素 / halal=清真（可空）", example = "half")
-    private String dietType;
-
-    @Schema(description = "主料/食材（数组，2026-09-23 R4 改数组）：pork/beef/lamb/chicken/duck/fish/egg/tofu/mushroom/veg/noodle/rice（可空）", example = "[\"chicken\",\"veg\"]")
-    private List<String> ingredients;
-
-    @Schema(description = "口味（数组，2026-09-23 R4 改数组）：spicy/numbing/sour/sweet/salty/umami/light/heavy（可空）", example = "[\"spicy\",\"sour\"]")
-    private List<String> flavorTags;
-
-    @Schema(description = "冷热：hot=热食 / room=常温 / ice=冰（可空）", example = "hot")
-    private String serveTemp;
+    /**
+     * 描述属性（动态属性模型）：键 = 维度 {@code fieldKey}（camelCase），
+     * 值 = 机器值（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）。
+     * 值域由 {@code dish_attribute_dimension} / {@code dish_attribute_value} 两表字典决定。
+     */
+    @Schema(description = "描述属性（键=维度 fieldKey，值=机器值/数组；可空）",
+            example = "{\"dietType\":\"half\",\"ingredients\":[\"egg\"],\"flavorTags\":[\"sour\",\"sweet\"],\"serveTemp\":\"hot\"}")
+    private Map<String, Object> attributes;
 
     @Schema(description = "菜品大类枚举键（值域见 GET /dishes/meal-types；可空；服务端白名单校验非法值 400）", example = "noodle")
     private String mealType;

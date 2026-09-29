@@ -1,5 +1,6 @@
 import { uploadFile, post } from './http'
 import { WX_CLOUD_ENV } from './config'
+import { getWxApi } from '@/utils/device'
 
 /**
  * 头像图片上传（**仅限头像等本人非公开用途**）。
@@ -44,8 +45,8 @@ export function uploadUgcImage(tempFilePath: string): Promise<{ url: string }> {
   // ===== 微信小程序端：云存储 fileID → 后端安检转存 COS =====
   // #ifdef MP-WEIXIN
   result = (async () => {
-    // 平台例外：wx 句柄为微信运行时对象，未纳入项目 TS 类型（同 http.ts 说明）
-    const wxApi: any = (globalThis as any).wx
+    // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.cloud) {
       throw new Error('当前环境不支持 wx.cloud')
     }

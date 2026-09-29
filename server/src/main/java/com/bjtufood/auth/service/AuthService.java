@@ -53,7 +53,7 @@ public interface AuthService {
      * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
      *
      * @param userId 用户ID
-     * @return UserInfoVO（id/username/nickname/avatar/bindEmail/createdAt —— 与登录链路字段集严格同构，恰 6 字段）
+     * @return UserInfoVO（id/username/nickname/avatar/bindEmail —— 与登录链路字段集严格同构，恰 5 字段）
      */
     UserInfoVO getProfile(Long userId);
 

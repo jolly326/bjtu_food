@@ -2,12 +2,13 @@ package com.bjtufood;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.auth.config.AdminProperties;
 import com.bjtufood.auth.config.AdminTokenFilter;
 import com.bjtufood.auth.config.JwtAuthFilter;
+import com.bjtufood.auth.config.JwtProperties;
 import com.bjtufood.auth.config.SecurityConfig;
 import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.controller.AuthController;
-import com.bjtufood.auth.controller.FeedbackController;
 import com.bjtufood.auth.dto.LoginVO;
 import com.bjtufood.auth.dto.UserInfoVO;
 import com.bjtufood.upload.controller.AdminUploadController;
@@ -15,23 +16,25 @@ import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AuthService;
-import com.bjtufood.common.aspect.RequireVerifiedAspect;
-import com.bjtufood.common.config.IpRateLimiter;
+import com.bjtufood.auth.aspect.RequireVerifiedAspect;
+import com.bjtufood.auth.service.impl.UserServiceImpl;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.exception.GlobalExceptionHandler;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.JwtUtil;
-import com.bjtufood.common.utils.SensitiveFilter;
-import com.bjtufood.content.security.ContentSecurityService;
+import com.bjtufood.auth.support.JwtUtil;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.dish.controller.DishController;
+import com.bjtufood.dish.dto.DishAttributeItem;
 import com.bjtufood.dish.dto.DishDetailVO;
-import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.feedback.controller.FeedbackController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
-import com.bjtufood.notify.service.NotificationService;
+import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
 import com.bjtufood.review.controller.admin.ReviewAdminController;
 import com.bjtufood.review.service.ReviewService;
@@ -55,6 +58,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -102,7 +106,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>鉴权走<b>真实</b> {@link SecurityConfig} + {@link JwtAuthFilter} + {@link AdminTokenFilter}；
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
  *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
- *       user.bind_email（认证态唯一判据）经 {@link UserMapper} 打桩注入，不查库；</li>
+ *       判定经真实 {@link com.bjtufood.auth.service.UserService#requireUgcAuthorized(Long)}
+ *       （判据 user.bind_email = 认证态唯一真源，2026-09-27 P0-1/P0-2 起收敛在 auth 域），
+ *       UserMapper 打桩注入，不查库；</li>
  *   <li>反馈入参校验（type 白名单 / sub 严格模式）在 Service 层，故导入真实 {@link FeedbackServiceImpl}，
  *       仅打桩其依赖的 Mapper / 工具类；</li>
  *   <li>所有桩数据在各用例内建立，避免 Mockito 严格模式判定为多余桩。</li>
@@ -123,6 +129,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ReviewAdminController.class,
         // 统一异常处理（HTTP 状态码 + body.code 口径的唯一真源）
         GlobalExceptionHandler.class,
+        // 类型化配置（2026-09-28 架构收口 P2）：本切片以 @ContextConfiguration 取代主配置，
+        // 故 JwtUtil / AdminTokenFilter 所依赖的配置 Bean 需在此显式登记
+        // （主类侧由 @EnableConfigurationProperties 统一登记，两者需同步）。
+        JwtProperties.class,
+        AdminProperties.class,
         // 真实安全链路
         SecurityConfig.class,
         JwtAuthFilter.class,
@@ -131,6 +142,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         TokenBlacklist.class,
         // @RequireVerified → 4031 未认证分流
         RequireVerifiedAspect.class,
+        // auth 域真实实现：切面经 UserService.requireUgcAuthorized 判定准入（判据与错误码收敛在 auth），
+        // 同时供 FeedbackServiceImpl（昵称投影 / 回执认证判据）消费；其 UserMapper 仍打桩，故不查库
+        UserServiceImpl.class,
         // 反馈入参校验（type 白名单 / sub 严格模式）的真实实现
         FeedbackServiceImpl.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
@@ -178,9 +192,7 @@ class SmokeApiTest {
     @MockBean
     private FeedbackMapper feedbackMapper;
     @MockBean
-    private DishMapper dishMapper;
-    @MockBean
-    private SensitiveFilter sensitiveFilter;
+    private LocalSensitiveFilter localSensitiveFilter;
     @MockBean
     private NotificationService notificationService;
     @MockBean
@@ -240,7 +252,9 @@ class SmokeApiTest {
         vo.setName("牛肉拉面");
         vo.setPrice(1200);
         vo.setAvgRating(new BigDecimal("4.5"));
-        vo.setRatingCount(20);
+        // 描述属性（动态属性模型）：机器值 + 中文一并下发，端上零翻译
+        vo.setAttributes(List.of(new DishAttributeItem("flavorTags", "口味",
+                List.of("spicy", "sour"), List.of("辣", "酸"))));
         when(dishService.getDishDetail(eq(1L))).thenReturn(vo);
 
         mockMvc.perform(get("/dishes/1"))
@@ -250,7 +264,10 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.name").value("牛肉拉面"))
                 // 金额一律为「分」（int），元换算只在端上
                 .andExpect(jsonPath("$.data.price").value(1200))
-                .andExpect(jsonPath("$.data.ratingCount").value(20));
+                // 契约回归：ratingCount 已从详情出参删除（零消费），不得回流
+                .andExpect(jsonPath("$.data.ratingCount").doesNotExist())
+                .andExpect(jsonPath("$.data.attributes[0].fieldKey").value("flavorTags"))
+                .andExpect(jsonPath("$.data.attributes[0].label[0]").value("辣"));
     }
 
     @Test
@@ -359,10 +376,12 @@ class SmokeApiTest {
 
     @Test
     void submitFeedback_invalidType_returns400() throws Exception {
-        // bug/other 为历史遗留类型，写入白名单外 → 400
+        // 「新增菜品」(add) 是历史遗留类型、仍禁新增（不在 WRITABLE_TYPES）→ 400。
+        // 注（2026-09-27 顺带校正）：bug/suggestion/error/other 已随「意见反馈页改单表单 + 4 类型」放开为可写，
+        // 原用例以 bug 断言 400 的写法已随规格变更失效，改用仍禁新增的 add，保住「白名单外必须 400」的防回归意图。
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"bug\",\"content\":\"历史类型禁新增\"}"))
+                        .content("{\"type\":\"add\",\"content\":\"历史类型禁新增\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400));
     }
@@ -375,7 +394,7 @@ class SmokeApiTest {
      */
     @Test
     void submitFeedback_riskyContent_returns400AndNotPersisted() throws Exception {
-        when(sensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
         when(contentSecurityService.checkText(any(), anyString(), eq(2)))
                 .thenThrow(new BusinessException(400, "内容包含违规信息，请修改后重试"));
 
@@ -392,7 +411,7 @@ class SmokeApiTest {
 
     @Test
     void submitFeedback_guestIssue_persistsAndReturns200() throws Exception {
-        when(sensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // 请求体故意携带已退役的 contact 字段（2026-09-16 产品定型「不收集联系方式」）：
         // FeedbackReq.contact 已删除，Jackson 忽略未知字段，请求应正常落库且不含联系方式语义
@@ -557,8 +576,9 @@ class SmokeApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.records").isArray())
-                .andExpect(jsonPath("$.data.total").value(0))
-                // 分页壳契约：仅 records / total（页码与每页条数为请求侧已知，不回传）
+                // 分页壳契约：恒为 records 单项（结束判据 = 本页条数 < pageSize，
+                // 页码 / 每页条数为请求侧已知、总数亦不回传）
+                .andExpect(jsonPath("$.data.total").doesNotExist())
                 .andExpect(jsonPath("$.data.page").doesNotExist())
                 .andExpect(jsonPath("$.data.pageSize").doesNotExist());
     }

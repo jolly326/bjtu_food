@@ -27,7 +27,7 @@
       <view v-if="closable || title || backable" class="bs-head">
         <view class="bs-head-left">
           <view v-if="backable" class="bs-back" role="button" aria-label="返回" @tap.stop="emit('back')">
-            <IconSvg name="arrow" :size="30" :color="COLOR_MAP['text-secondary']" />
+            <IconSvg name="arrow-left" :size="30" :color="COLOR_MAP['text-secondary']" />
           </view>
           <text v-if="title" class="bs-title">{{ title }}</text>
         </view>
@@ -128,7 +128,7 @@ watch(
 
 /** 下拉关闭手势（1:1 跟随 + 速度投影，松手速度 >480px/s 或位移 >120rpx 关闭）。
  *  根容器 touchmove 带 stop.prevent（= catchtouchmove）：弹层区域上开始的手势不再穿透滚动背景页面；
- *  内部原生 scroll-view（scrollBody / ListPickerSheet 列表）自行承接滚动，不受影响。 */
+ *  内部原生 scroll-view（scrollBody 等列表）自行承接滚动，不受影响。 */
 let startY = 0
 let lastY = 0
 let lastTime = 0
@@ -181,7 +181,10 @@ function onTouchEnd() {
   transform: translateY(100%);
   display: flex;
   flex-direction: column;
+  /* Round 26：vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
+     弹层会被顶到屏幕外、内容区滚动范围也跟着失真（同页面根口径） */
   max-height: 88vh;
+  max-height: 88dvh;
   overflow: hidden;
   padding-bottom: env(safe-area-inset-bottom);
   will-change: transform;
@@ -194,7 +197,7 @@ function onTouchEnd() {
 /* 可选头部：标题左（如有）+ 关闭钮右 */
 .bs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
 .bs-head-left { display: flex; align-items: center; gap: var(--spacing-2xs); flex: 1; min-width: 0; }
-.bs-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; transform: scaleX(-1); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.bs-back { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .bs-back:active { opacity: 0.5; }
 .bs-title { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-close { padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }

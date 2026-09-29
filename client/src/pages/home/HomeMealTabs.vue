@@ -1,10 +1,12 @@
 <template>
-  <!-- 首页横向「菜品大类」标签栏（§7.34 / home-page-presentation）：
+  <!-- 首页横向「菜品大类」标签栏（§7.34 运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
-       ⚠️ 标签集合与文案**完全**来自字典响应（`GET /dishes/meal-types`）——
-       本组件不维护任何大类中文映射；唯一由端上渲染的固定项是第一项「全部」（= 不传 mealType）。
-       字典不可用（未加载 / 加载失败 / 返回空数组）时降级为仅「全部」，列表仍展示全部菜品。 -->
-  <view class="mt-bar">
+       ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/meal-types`）——
+       含首位「为你推荐」这类**虚拟导航项**（`value: null` ⇒ 不传 mealType 拉默认流），
+       端上**零文案、零拼接、零兜底项**（Round 32 用户口径）：改文案 / 加虚拟项（如「折扣菜品」）
+       只在服务端 `listMealTypes()` 出口处拼装，端上无需发版。
+       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按默认流加载。 -->
+  <view v-if="tabs.length > 0" class="mt-bar">
     <scroll-view
       class="mt-scroll"
       scroll-x
@@ -14,7 +16,7 @@
       <view class="mt-track">
         <view
           v-for="tab in tabs"
-          :key="tab.value ?? 'all'"
+          :key="tab.value ?? 'recommend'"
           :id="idOf(tab.value)"
           class="mt-tab"
           :class="{ active: tab.value === activeValue }"
@@ -24,7 +26,7 @@
           @tap="onSelect(tab.value)"
         >
           <text class="mt-label">{{ tab.label }}</text>
-          <!-- 选中态橙色短下划线：常驻节点 + 透明度切换（避免显隐引起行高跳动）；
+          <!-- 选中态橙色短下划线：常驻节点 + opacity 切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
           <view class="mt-underline" :class="{ show: tab.value === activeValue }" aria-hidden="true" />
         </view>
@@ -37,16 +39,16 @@
 import { computed } from 'vue'
 import type { MealType } from '@/types/dish'
 
-/** 标签项：`value === null` 表示端上固定的第一项「全部」（不传 mealType） */
+/** 标签项：`value === null` 表示首位虚拟项（默认流，不传 mealType）；文案一律来自服务端 */
 interface MealTab {
   value: string | null
   label: string
 }
 
 const props = defineProps<{
-  /** 大类字典（`store.mealTypeList`，后端已按 order 升序）；空数组合法 = 降级为仅「全部」 */
+  /** 大类字典（`store.mealTypeList`）——**后端已含首位虚拟项（「为你推荐」等）及在售大类**，端上原样渲染 */
   items: MealType[]
-  /** 当前选中大类值（null = 全部） */
+  /** 当前选中大类值（`null` = 首位虚拟项，即不传 mealType 的默认流） */
   activeValue: string | null
 }>()
 
@@ -55,20 +57,20 @@ const emit = defineEmits<{
 }>()
 
 /**
- * 渲染项 = 端上固定「全部」+ 字典响应**原序**展开（不再排序 / 不再过滤；
- * 空类隐藏由后端完成，端上不做二次判断，保证「一处真源」）。
+ * 渲染项**完全直出后端响应**：端上**不前置拼接、不补兜底项**（Round 32）。
+ * 字典未到位（未加载 / 失败 / 后端返回空）⇒ 返回空数组 ⇒ 标签栏整体不渲染（不留空栏）。
+ * 这样「首位虚拟项文案」「将来新增的虚拟项」全部是服务端资产，端上零文案。
  */
-const tabs = computed<MealTab[]>(() => [
-  { value: null, label: '全部' },
-  ...props.items.map((item) => ({ value: item.value, label: item.label })),
-])
+const tabs = computed<MealTab[]>(() =>
+  (props.items ?? []).map((item) => ({ value: item.value, label: item.label })),
+)
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
-const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-all'))
+const scrollIntoId = computed(() => (props.activeValue ? idOf(props.activeValue) : 'mt-tab-recommend'))
 
 /** 稳定 id：小程序 `scroll-into-view` 要求 id 以字母开头、且不含特殊字符 */
 function idOf(value: string | null): string {
-  return value ? `mt-tab-${value}` : 'mt-tab-all'
+  return value ? `mt-tab-${value}` : 'mt-tab-recommend'
 }
 
 function onSelect(value: string | null) {
@@ -113,7 +115,7 @@ function onSelect(value: string | null) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  /* 文字**行内上偏置**（§2 光学间距）：行内偏置 24rpx 即「搜索区 → 标签文字」
+  /* 文字**行内上偏置**（§5.2 光学间距）：行内偏置 24rpx 即「搜索区 → 标签文字」
      间距的**全部来源**（≈12px，`.mt-bar` 已不再补 padding）；「下划线 → 卡片首行」由吸顶容器
      padding-bottom + 本行行底余量共同构成（≈16px）。两侧都较旧口径（20 / 24）收紧，
      仍保持「下行距 ≥ 上行距」，分组感不丢。
@@ -122,7 +124,8 @@ function onSelect(value: string | null) {
   /* 命中区：高 88rpx（触达下限，不得压低；= 上偏置 24 + 文字行 ≈34 + 下划线位 14 + 行底余量）；
      宽 = 标签文字 + 左右各 24rpx。最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅。 */
   height: 88rpx;
-  padding: 24rpx var(--spacing-md) 0;
+  /* 上内距 = `--spacing-md`（24rpx，同值）：UI 统一 Loop Round 6，由裸 24rpx 改为 token */
+  padding: var(--spacing-md) var(--spacing-md) 0;
   box-sizing: border-box;
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;
@@ -131,25 +134,26 @@ function onSelect(value: string | null) {
 .mt-tab-pressed {
   opacity: 0.6;
 }
+/* 未选中：正文档深灰棕（#4A3520）常规字 —— 层级低于选中项、仍不抢搜索区（§5.1 / §8） */
 .mt-label {
   font-size: var(--font-body);
   font-weight: var(--weight-regular);
-  /* 未选中 = 黑色常规字 */
-  color: var(--text-primary);
+  color: var(--text-body);
   line-height: 1.2;
 }
+/* 选中：标题档（#2D1F14）+ 半粗 —— 与未选中拉开层级（区分不靠颜色，靠字重 + 下划线） */
 .mt-tab.active .mt-label {
   font-weight: var(--weight-semibold);
-  color: var(--text-primary);
+  color: var(--text-title);
 }
-/* 橙色短下划线：宽度固定（≈文字宽的短横），选中显现；
-   取「图形档亮橙」——用户走查反馈 #C2410C 偏红，#EA580C 为明确橙色（图形级 ≥3:1 达标） */
+/* 橙色短下划线：**长度贴合文字宽度**（width: 100% = 标签内容宽）、紧随文字 4px、选中显现；
+   取「图形档」--color-primary-amber（#F5A623）——纯图形装饰，选中语义另由字重承载（§5.1 / §10.1） */
 .mt-underline {
-  width: 40rpx;
+  width: 100%;
   height: 6rpx;
   margin-top: var(--spacing-xs);
   border-radius: var(--radius-pill);
-  background: var(--color-primary-bright);
+  background: var(--color-primary-amber);
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-out);
 }

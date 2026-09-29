@@ -4,14 +4,14 @@
  * 打开时并行拉取该用户的评价 / 反馈，分 tab 展示，方便管理员判断用户是否有违规内容。
  */
 import { ref, watch } from 'vue'
-import Modal from '@/components/Modal.vue'
+import AppModal from '@/components/AppModal.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import StarRating from '@/components/StarRating.vue'
 import { listFeedbacks, type FeedbackAdminVO } from '@/api/feedback'
 import { getAll } from '@/api/review'
-import type { Review } from '@/types'
+import type { Review, User } from '@/types'
 
-const props = defineProps<{ show: boolean; user: any }>()
+const props = defineProps<{ show: boolean; user: User }>()
 const emit = defineEmits<{ close: [] }>()
 
 const section = ref<'review' | 'feedback'>('review')
@@ -63,7 +63,7 @@ function countOf(key: string): number {
 </script>
 
 <template>
-  <Modal :show="show" title="用户行为" :width="640" @close="emit('close')">
+  <AppModal :show="show" title="用户行为" :width="640" @close="emit('close')">
     <!-- 用户信息 -->
     <div class="ua-user">
       <span class="ua-avatar">{{ (user?.nickname || user?.username || '?')[0] }}</span>
@@ -123,7 +123,7 @@ function countOf(key: string): number {
         <div v-if="!feedbacks.length" class="ua-empty">该用户暂无反馈</div>
       </div>
     </template>
-  </Modal>
+  </AppModal>
 </template>
 
 <style scoped>

@@ -45,9 +45,17 @@ project.private.config.json
 **/project.private.config.json
 
 # Environment files
+# 规则：本仓库只提交**占位模板**，一切含真实值的环境文件一律不入库。
 .env
 .env.*
 !.env.example
+# 例外：client（uni-app）的两个 env 文件**必须入库**。
+# 它们只含 VITE_API_BASE_URL（公开地址，非凭据），却是小程序端的唯一配置来源——
+# 缺席时 src/api/config.ts 会静默回落到 DEFAULT_API_BASE_URL(127.0.0.1:8080/api)，
+# 表现为「装好依赖却全站 404」，且无任何报错，极难自查。
+# 真正的模板见 client/.env.example（含 /api/v1 版本段与局域网示例）。
+!client/.env.development
+!client/.env.production
 
 # OS files
 .DS_Store
@@ -61,6 +69,15 @@ desktop.ini
 
 # Codex local agent config (not project source)
 .codex/
+
+# docs/ 是**项目源**（架构真源 + 接口契约 + 协作流程），必须入库：
+# docs/architecture.md 自称「后端架构的现行真源」，README 亦将其列为核心文档；
+# 若被忽略，新成员 clone 后看不到分包模型、依赖规则与全部已知技术债。
+# 仅忽略临时草稿与本地产物。
+docs/*.tmp
+docs/**/build_*.txt
+docs/**/dev_*.txt
+docs/**/check_*.txt
 
 # OpenSpec
 openspec/*

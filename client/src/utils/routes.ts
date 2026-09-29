@@ -3,7 +3,7 @@
  *
  * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落，
  * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（11 页：主包 3 + 分包 8，其中 pages/detail/ 1、
+ * 与 `client/src/pages.json` 严格一致（12 页：主包 3 + 分包 9，其中 pages/detail/ 1、pages/correction/ 1、
  * 个人中心域拆为 6 个独立分包 root：pages/profile/、pages/auth/、pages/notifications/、
  * pages/feedback/、pages/my-reviews/ 各含 1 页，pages/privacy/ 含 2 页——隐私政策与用户协议）。
  * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
@@ -22,6 +22,7 @@ export const PATH = {
   auth: '/pages/auth/index',
   notifications: '/pages/notifications/index',
   feedback: '/pages/feedback/index',
+  correction: '/pages/correction/index',
   myReviews: '/pages/my-reviews/index',
   privacy: '/pages/privacy/index',
   agreement: '/pages/privacy/agreement',
@@ -46,19 +47,22 @@ export function dishDetailUrl(id: number | string): string {
   return `${PATH.dishDetail}?id=${id}`
 }
 
-/* ===== 意见反馈页落点（唯一构造函数，禁止调用点手拼 URL） ===== */
-
-/** 反馈页双模式：我要反馈问题（issue，缺省）/ 我要更新信息（update） */
-export type FeedbackMode = 'issue' | 'update'
+/* ===== 意见反馈页 / 菜品纠错页落点（唯一构造函数，禁止调用点手拼 URL） ===== */
 
 /**
- * 意见反馈页 URL（双模式口径）：
- * - 「我的」宫格等默认入口 → feedbackUrl()（缺省 issue）；
- * - 菜品详情页「信息有误？」入口 → feedbackUrl('update', dishId)
- *   （update 模式带 dishId 时跳过搜索步骤，进页即拉详情预填表单）。
+ * 意见反馈页 URL（**单一形态**：Bug / 产品建议 / 其他问题 + 描述 + 截图）。
+ * 入口：「我的」页宫格；搜索页「没搜到 → 推荐这道菜」。
+ * ⚠️ 2026-09-27 起**菜品纠错已迁出本页**（见 `correctionUrl`），本页不再有模式参数。
  */
-export function feedbackUrl(mode: FeedbackMode = 'issue', dishId?: number | string): string {
-  const params = [`mode=${mode}`]
-  if (dishId != null) params.push(`dishId=${dishId}`)
-  return `${PATH.feedback}?${params.join('&')}`
+export function feedbackUrl(): string {
+  return PATH.feedback
+}
+
+/**
+ * 菜品纠错页 URL（独立页面，**仅**菜品详情页底栏「反馈错误」触发）：
+ * 进页即按 `dishId` 预绑定该菜品并拉详情预填（名称 / 价格 / 食堂名 / 档口 / 描述属性 / 图片），
+ * 表单内不可切换菜品，提交**只传改动项**。
+ */
+export function correctionUrl(dishId: number | string): string {
+  return `${PATH.correction}?dishId=${dishId}`
 }

@@ -112,7 +112,8 @@ function onSubmit() {
 }
 .rp-option {
   padding: var(--spacing-sm) var(--spacing-sm);
-  border-radius: 12rpx;
+  /* 6A（裁决）：圆角归档到全局档位 —— 原裸值 12rpx 不在标度内 */
+  border-radius: var(--radius-btn);
   margin-bottom: var(--spacing-2xs);
   background: var(--bg-soft);
 }
@@ -125,7 +126,7 @@ function onSubmit() {
 }
 .rp-option.on .rp-option-text {
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 /* 字典加载中 / 失败：次级浅灰提示行 */
 .rp-empty {
@@ -139,7 +140,8 @@ function onSubmit() {
 .rp-submit {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm) 0;
-  border-radius: 12rpx;
+  /* 圆角统一到全站主按钮档位 `--radius-btn`（16rpx）—— 原裸值 12rpx 与全站主钮不同档 */
+  border-radius: var(--radius-btn);
   background: var(--color-primary);
   text-align: center;
 }
@@ -147,8 +149,9 @@ function onSubmit() {
   opacity: 0.5;
 }
 .rp-submit-text {
-  color: #ffffff;
+  /* 主色底上的文字：走 --color-on-primary（不写裸 #ffffff） */
+  color: var(--color-on-primary);
   font-size: var(--font-body);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 </style>

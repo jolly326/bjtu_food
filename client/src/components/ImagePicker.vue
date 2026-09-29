@@ -2,7 +2,7 @@
   <!--
     ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件。
     复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
-    写评价（ReviewComposer）/ 我要反馈问题（IssueForm）/ 我要更新信息（UpdateForm，预填菜品现有图）。
+    写评价（ReviewComposer）/ 意见反馈（IssueForm，单图形态 `single` + `max=1`）。
 
     流程（微信端）：wx.chooseMedia(count≤max, image) → 逐张 wx.compressImage(quality 80) 压缩
     → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）
@@ -12,10 +12,10 @@
     UI 红线（spec §4.9）：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
     图标走 IconSvg（image=添加图片语义、close=删除）。
   -->
-  <view class="ip-grid">
+  <view class="ip-grid" :class="{ 'ip-grid--single': single }">
     <!-- 已上传缩略图行：点击预览大图，右上角删除重选；
          破图切 empty 中性占位（评审 m4，与展示侧 ReviewItem 同构） -->
-    <view v-for="(u, i) in urls" :key="u" class="ip-cell">
+    <view v-for="(u, i) in urls" :key="u" class="ip-cell" :class="{ 'ip-cell--single': single }">
       <view class="ip-box">
         <image
           v-if="!brokenImages.has(i)"
@@ -26,7 +26,7 @@
           @error="onImageError(i)"
         />
         <view v-else class="ip-thumb ip-thumb-fallback">
-          <IconSvg name="empty" :size="36" :color="COLOR_MAP['text-tertiary']" />
+          <ImagePlaceholder :size="36" aria-label="图片已失效" />
         </view>
         <view
           class="ip-remove"
@@ -40,8 +40,9 @@
       </view>
     </view>
 
-    <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1） -->
-    <view v-if="urls.length < max" class="ip-cell">
+    <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。
+         `single` 形态：虚线方框（意见反馈页「上传截图」），尺寸与缩略图一致。 -->
+    <view v-if="urls.length < max" class="ip-cell" :class="{ 'ip-cell--single': single }">
       <view
         class="ip-box ip-add"
         :class="{ uploading, disabled }"
@@ -54,8 +55,9 @@
         <text class="ip-add-text">{{ uploading ? '上传中…' : '添加图片' }}</text>
       </view>
     </view>
-    <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知） -->
-    <view v-else class="ip-cell">
+    <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。
+         `single` 形态上限恒为 1 ⇒ 有图即满额，该格不渲染（不占位、不留空格）。 -->
+    <view v-else-if="!single" class="ip-cell">
       <view class="ip-box ip-count" role="img" :aria-label="`已选满 ${max} 张图片`">
         <text class="ip-count-text">{{ urls.length }}/{{ max }}</text>
       </view>
@@ -66,8 +68,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import IconSvg from './IconSvg.vue'
+import ImagePlaceholder from './ImagePlaceholder.vue'
+import { useBrokenImages } from '@/composables/useBrokenImages'
 import { uploadUgcImage } from '@/api/upload'
+import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
+import { getWxApi } from '@/utils/device'
 
 defineOptions({ name: 'ImagePicker' })
 
@@ -78,9 +84,15 @@ const props = withDefaults(defineProps<{
   max?: number
   /** 禁用（如表单提交中） */
   disabled?: boolean
+  /**
+   * 单图形态（意见反馈页「上传截图」）：格放大为 200rpx 方框、添加框虚线、满额不渲染 n/n 计数格。
+   * 上限仍由 `max` 表达（本 prop 只改形态，不改张数）。
+   */
+  single?: boolean
 }>(), {
   max: 3,
   disabled: false,
+  single: false,
 })
 
 const emit = defineEmits<{
@@ -90,19 +102,18 @@ const emit = defineEmits<{
 /* 本地镜像为唯一写者：避免同一轮上传循环内多次 emit 时读到未刷新的 props 造成丢张 */
 const urls = ref<string[]>([...props.modelValue])
 /** 破图下标集合（评审 m4）：error 后切 empty 占位 + 预览过滤；urls 变化（外部重置/删增）时清空 */
-const brokenImages = ref<Set<number>>(new Set())
+const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
 watch(
   () => props.modelValue,
   (v) => {
+    // 上传在途时不回灌（UI 统一 Loop Round 17 竞态修复）：本轮追加写在本地镜像 `urls` 上，
+    // 若此刻用外部值覆盖，可能丢掉「已上传完成、但尚未随父级值回来」的那几张。
+    // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
+    if (uploading.value) return
     urls.value = [...(v || [])]
-    brokenImages.value = new Set()
+    clear()
   },
 )
-function onImageError(i: number) {
-  const next = new Set(brokenImages.value)
-  next.add(i)
-  brokenImages.value = next
-}
 
 /* ===== 校验常量（后端契约：最长边 ≤1334px；文件 ≤1MB） ===== */
 const MAX_EDGE = 1334
@@ -113,7 +124,7 @@ const MAX_SIZE = 1024 * 1024
 function pick(count: number): Promise<{ path: string; size: number }[]> {
   // #ifdef MP-WEIXIN
   return new Promise((resolve, reject) => {
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.chooseMedia) {
       reject(new Error('当前环境不支持选择图片'))
       return
@@ -164,7 +175,7 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
 function compressImage(src: string, opts: { quality?: number; compressedWidth?: number; compressedHeight?: number }): Promise<string> {
   return new Promise((resolve, reject) => {
     // 平台例外：同上
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.compressImage) {
       reject(new Error('当前环境不支持图片压缩'))
       return
@@ -195,7 +206,7 @@ function getImageInfo(src: string): Promise<{ width: number; height: number }> {
 function getFileSize(filePath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     // 平台例外：同上
-    const wxApi: any = (globalThis as any).wx
+    const wxApi = getWxApi()
     if (!wxApi || !wxApi.getFileSystemManager) {
       reject(new Error('无法读取文件大小'))
       return
@@ -284,13 +295,13 @@ async function onAdd() {
           urls.value = [...urls.value, url]
           emit('update:modelValue', [...urls.value])
         }
-      } catch (e: any) {
+      } catch (e) {
         // 违规图片（后端 400「图片包含违规内容，无法上传」）/ 过大 / 网络失败：toast 透出，跳过该张
-        uni.showToast({ title: e?.message || '图片上传失败', icon: 'none' })
+        toastError(e, '图片上传失败')
       }
     }
-  } catch (e: any) {
-    uni.showToast({ title: e?.message || '选择图片失败', icon: 'none' })
+  } catch (e) {
+    toastError(e, '选择图片失败')
   } finally {
     uploading.value = false
   }
@@ -318,11 +329,17 @@ function onPreview(i: number) {
 .ip-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: var(--spacing-sm);
 }
 .ip-cell {
   width: calc((100% - 32rpx) / 3);
 }
+/* 单图形态（`single`）：格放大为 200rpx 方框；添加框沿用 `.ip-add` 既有虚线描边
+   （`2rpx dashed var(--border-bold)`），此处只改尺寸，不再重复声明描边。 */
+.ip-cell--single {
+  width: 200rpx;
+}
+
 /* 正方形容器：padding-bottom 撑高（小程序对 aspect-ratio 支持不稳，用经典等比盒） */
 .ip-box {
   position: relative;

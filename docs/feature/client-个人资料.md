@@ -1,4 +1,4 @@
-﻿# 个人资料（A-13）
+﻿# 个人资料（A-12）
 
 > 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔓 公开**（游客态也可读 / 可改）
 > 返回：[功能总览](./README.md)
@@ -6,10 +6,6 @@
 ## 介绍
 
 修改本人的**昵称**与**头像**，并读取当前账号资料（含认证状态）。**承载形态**：个人信息分为**查看**与**编辑**两段——① **查看**：由「我的主页」顶部**用户信息卡**承载（头像 / 昵称 / 认证态副行）；② **编辑**：**独立个人信息编辑页**，由信息卡上的「编辑个人信息」入口进入（游客态与认证态同达，无认证拦截）。进编辑页调 `GET /auth/profile` 回填；点保存调 `PUT /auth/profile`（**昵称与头像至少填一项**），成功后返回「我的主页」并由主页重新读取资料刷新信息卡；头像走上传链路取回地址后再保存；昵称命中敏感内容或内容安检 `risky` → 400 提示、不保存。
-
-## UI
-
-> 📐 页面 UI 设计稿已拆出 → 编辑页见 [client-个人信息编辑.md（docs/ui）](../ui/client-个人信息编辑.md)；信息卡承载形态见 [client-我的主页.md（docs/ui）](../ui/client-我的主页.md)。**UI 口径以 `docs/ui/` 为唯一真源**
 
 ## 接口
 
@@ -30,20 +26,21 @@
 > **`nickname` 与 `avatar` 至少填一项**，两者都空 → 400「昵称和头像至少填写一项」。
 > 更新采用**按字段局部更新**（未传字段不动），避免整行覆盖导致并发写丢失。
 
-### 响应 · `GET /auth/profile` 与 `PUT /auth/profile`（同结构）
+### 响应 · `GET /auth/profile` 与 `PUT /auth/profile`（同结构，`UserInfoVO`）
+
+> 出参为 `UserInfoVO`（**5 字段**：`id` / `username` / `nickname` / `avatar` / `bindEmail`），字段口径以 [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) 为唯一真源。
 
 | 字段名 | 类型 | 可编辑 | 中文解释 |
 |---|---|---|---|
-| `id` | number | 否（只读展示） | 用户 ID。**游客短标识由本字段端上派生**（见 `project_spec.md` §7.32） |
-| `username` | string | 否（只读展示） | 学号 / 账号（游客为 `wx_` + openid 后 16 位） |
+| `id` | number | 否（只读展示） | 用户 ID。**游客短标识由本字段端上派生** |
+| `username` | string | 否（账号标识，**端上不展示**） | 学号 / 账号（游客为 `wx_` + openid 后 16 位） |
 | `nickname` | string | 是 | 昵称 |
 | `avatar` | string \| null | 是（可空） | 头像地址（已转可访问的绝对 URL） |
 | `bindEmail` | string \| null | 否（只读展示） | 已认证绑定的校园邮箱（**校园邮箱唯一出参来源**；**「是否已认证」的唯一判据 = 本字段非空**） |
-| `createdAt` | string | 否（只读展示） | 注册时间（后端透传，格式 `yyyy-MM-dd HH:mm:ss`；不参与编辑） |
 
-> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `username` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参）。其中 `username`（学号）与 `bindEmail`（校园邮箱）的只读展示同时见于编辑页（`docs/ui/client-个人信息编辑.md`）与「我的主页」信息卡（`docs/ui/client-我的主页.md`）。
+> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参），二者的展示同时见于编辑页与「我的主页」信息卡（页面视觉口径见 `docs/ui/`，与本目录解耦）。**`username` 仅作账号标识出参、端上不展示**（游客态它是 `wx_` 内部号，展示无意义）。
 
-> **出参仅上表 6 字段（含 `createdAt` 注册时间）**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生，见 `project_spec.md` §7.36）。
+> **出参仅上表 5 字段**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生）。
 > 「校园邮箱」只读展示项仅读 `bindEmail`；禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生（「食客 + `id` 尾 4 位」）。
 
 > **不含 `openid`**（隐私：不下发微信标识）；**不含 `role`**。

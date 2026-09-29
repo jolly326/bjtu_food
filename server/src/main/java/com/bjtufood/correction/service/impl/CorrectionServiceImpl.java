@@ -3,20 +3,15 @@ package com.bjtufood.correction.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.bjtufood.auth.entity.User;
-import com.bjtufood.auth.mapper.UserMapper;
-import com.bjtufood.canteen.entity.Canteen;
-import com.bjtufood.canteen.entity.Stall;
-import com.bjtufood.canteen.mapper.CanteenMapper;
-import com.bjtufood.canteen.mapper.StallMapper;
+import com.bjtufood.auth.service.UserService;
+import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.AuthStateUtil;
-import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.common.utils.SensitiveFilter;
+import com.bjtufood.common.utils.JsonMapUtil;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.correction.constant.CorrectionConst;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
 import com.bjtufood.correction.dto.DishCorrectionAdminVO;
@@ -26,12 +21,11 @@ import com.bjtufood.correction.dto.StallConfirmVO;
 import com.bjtufood.correction.entity.DishCorrection;
 import com.bjtufood.correction.mapper.DishCorrectionMapper;
 import com.bjtufood.correction.service.CorrectionService;
-import com.bjtufood.dish.constant.DishConst;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.mapper.DishMapper;
-import com.bjtufood.notify.constant.NotificationConst;
-import com.bjtufood.notify.entity.Notification;
-import com.bjtufood.notify.service.NotificationService;
+import com.bjtufood.dish.dto.DishCorrectionCmd;
+import com.bjtufood.dish.service.DishService;
+import com.bjtufood.notification.constant.NotificationConst;
+import com.bjtufood.notification.dto.NotificationCmd;
+import com.bjtufood.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,15 +33,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * 菜品信息纠错服务实现（独立资源：POST /dishes/{id}/correction + /admin/corrections）。
  * <p>
- * 提交：七字段快照落库（食堂名/档口名为自由文本，无字典端点），status=pending；
- * 采纳：两段式档口确认后七字段写回 dish；拒绝：reply + rejectReason 留痕；
+ * 提交：局部提交（patch）——只落库改动项（食堂名/档口名为自由文本，无字典端点），status=pending；
+ * 采纳：两段式档口确认后按改动项写回 dish；拒绝：reply + rejectReason 留痕；
  * 两种处理结论均向可归属提交人投递「菜品信息更新」站内回执（归属判据/投递口径同 feedback handle）。
  */
 @Slf4j
@@ -56,13 +49,13 @@ import java.util.Map;
 public class CorrectionServiceImpl implements CorrectionService {
 
     private final DishCorrectionMapper correctionMapper;
-    private final DishMapper dishMapper;
-    private final StallMapper stallMapper;
-    private final CanteenMapper canteenMapper;
-    /** 按名 upsert 档口 / 档口存在性校验（与菜品录入编辑共用同一入口，勿在此复制实现） */
+    /** 跨域契约：菜品存在性/在售判定、菜品名投影、采纳写回（P0-1，替代 DishMapper 直连） */
+    private final DishService dishService;
+    /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
     private final StallService stallService;
-    private final UserMapper userMapper;
-    private final SensitiveFilter sensitiveFilter;
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递认证判据（P0-1，替代 UserMapper 直连） */
+    private final UserService userService;
+    private final LocalSensitiveFilter localSensitiveFilter;
     private final NotificationService notificationService;
     private final ImageUrlUtil imageUrlUtil;
 
@@ -71,57 +64,74 @@ public class CorrectionServiceImpl implements CorrectionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
-        Dish dish = dishMapper.selectById(dishId);
-        // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）
-        if (dish == null || !DishConst.STATUS_ON.equals(dish.getStatus())) {
+        // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
+        // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：correction 不再 import Dish 实体/DishConst/DishMapper）
+        if (!dishService.existsOnSale(dishId)) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        // name：trim 后必填（DTO @NotBlank 为 Controller 层主拦截，此处兜底同口径 400）
-        String name = req.getName() == null ? null : req.getName().trim();
-        if (!StringUtils.hasText(name)) {
-            throw new BusinessException(400, "菜品名称不能为空");
+        // 局部提交（patch）：**仅传改动项**。未传 = 保持原值；传入即校验（不静默降级）。
+        // 空请求体（无任何改动项）→ 400「未提交任何改动」——无可提交内容时禁止落库。
+        String name = null;
+        if (req.getName() != null) {
+            name = req.getName().trim();
+            if (!StringUtils.hasText(name)) {
+                throw new BusinessException(400, "菜品名称不能为空");
+            }
+            if (name.length() > CorrectionConst.NAME_MAX_LENGTH) {
+                throw new BusinessException(400, "菜品名称不能超过" + CorrectionConst.NAME_MAX_LENGTH + "字");
+            }
+            // 敏感词命中即 400（写回字段不放行替换版，保持用户提交原词落库）
+            if (localSensitiveFilter.containsSensitive(name)) {
+                throw new BusinessException(400, "菜品名称包含违规内容，请修改后重新提交");
+            }
         }
-        if (name.length() > CorrectionConst.NAME_MAX_LENGTH) {
-            throw new BusinessException(400, "菜品名称不能超过" + CorrectionConst.NAME_MAX_LENGTH + "字");
+        // canteenName / stallName：自由文本（无字典 / 无 picker），传入即校验非空与长度
+        String canteenName = null;
+        if (req.getCanteenName() != null) {
+            canteenName = req.getCanteenName().trim();
+            if (!StringUtils.hasText(canteenName)) {
+                throw new BusinessException(400, "食堂名称不能为空");
+            }
+            if (canteenName.length() > CorrectionConst.CANTEEN_NAME_MAX_LENGTH) {
+                throw new BusinessException(400, "食堂名称不能超过" + CorrectionConst.CANTEEN_NAME_MAX_LENGTH + "字");
+            }
         }
-        // 敏感词命中即 400（写回字段不放行替换版，保持用户提交原词落库）
-        if (sensitiveFilter.containsSensitive(name)) {
-            throw new BusinessException(400, "菜品名称包含违规内容，请修改后重新提交");
+        String stallName = null;
+        if (req.getStallName() != null) {
+            stallName = req.getStallName().trim();
+            if (!StringUtils.hasText(stallName)) {
+                throw new BusinessException(400, "档口名称不能为空");
+            }
+            if (stallName.length() > CorrectionConst.STALL_NAME_MAX_LENGTH) {
+                throw new BusinessException(400, "档口名称不能超过" + CorrectionConst.STALL_NAME_MAX_LENGTH + "字");
+            }
         }
-        // canteenName / stallName：自由文本，trim 后必填（≤64 字由 DTO @Size 拦截）
-        String canteenName = req.getCanteenName() == null ? null : req.getCanteenName().trim();
-        if (!StringUtils.hasText(canteenName)) {
-            throw new BusinessException(400, "食堂名称不能为空");
-        }
-        String stallName = req.getStallName() == null ? null : req.getStallName().trim();
-        if (!StringUtils.hasText(stallName)) {
-            throw new BusinessException(400, "档口名称不能为空");
-        }
-        // price：必填整数 >0（分，DTO @NotNull/@Positive 为 Controller 层主拦截，此处兜底）
-        if (req.getPrice() == null || req.getPrice() <= 0) {
+        // price：传入即校验 >0 的整数（分）
+        Integer price = req.getPrice();
+        if (price != null && price <= 0) {
             throw new BusinessException(400, "价格必须为大于 0 的整数（单位：分）");
+        }
+        // attributes：仅含用户改动的维度；空对象视为未提供（无改动）
+        Map<String, Object> attributes = req.getAttributes() == null || req.getAttributes().isEmpty()
+                ? null : req.getAttributes();
+        List<String> images = encodeImages(req.getImages());
+
+        if (name == null && price == null && canteenName == null && stallName == null
+                && attributes == null && images == null) {
+            throw new BusinessException(400, "未提交任何改动");
         }
 
         DishCorrection correction = new DishCorrection();
         correction.setDishId(dishId);
         correction.setUserId(userId);
         correction.setName(name);
-        correction.setPrice(req.getPrice());
+        correction.setPrice(price);
         correction.setCanteenName(canteenName);
         correction.setStallName(stallName);
-        correction.setFlavorTags(normalizeStringList(req.getFlavorTags()));
-        correction.setIngredients(normalizeStringList(req.getIngredients()));
-        correction.setImages(encodeImages(req.getImages()));
+        correction.setAttributes(JsonMapUtil.toJson(attributes));
+        correction.setImages(images);
         correction.setStatus(CorrectionConst.STATUS_PENDING);
         correctionMapper.insert(correction);
-    }
-
-    /** 字符串数组归一化：逐项 trim、去空白项；null 原样返回（不强制非空） */
-    private List<String> normalizeStringList(List<String> list) {
-        if (list == null) {
-            return null;
-        }
-        return list.stream().map(String::trim).filter(StringUtils::hasText).toList();
     }
 
     /**
@@ -134,8 +144,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (images == null || images.isEmpty()) {
             return null;
         }
-        List<String> normalized = normalizeStringList(images);
-        if (normalized == null || normalized.isEmpty()) {
+        List<String> normalized = images.stream().map(String::trim).filter(StringUtils::hasText).toList();
+        if (normalized.isEmpty()) {
             return null;
         }
         if (normalized.size() > CorrectionConst.IMAGE_MAX) {
@@ -165,17 +175,14 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .orderByDesc(DishCorrection::getCreatedAt);
         IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
-        // 批量补齐提交人昵称（一次 IN 查询，消除 N+1；游客 userId=null 不参与）
+        // 批量补齐提交人昵称（一次 IN 查询，消除 N+1；游客 userId=null 不参与）——
+        // 经 auth 域只读契约下发（P0-1：不再注入 UserMapper）
         List<Long> userIds = p.getRecords().stream()
                 .map(DishCorrection::getUserId)
                 .filter(id -> id != null)
                 .distinct()
                 .toList();
-        Map<Long, String> userMap = new HashMap<>();
-        if (!userIds.isEmpty()) {
-            userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
-                    .forEach(u -> userMap.put(u.getId(), u.getNickname()));
-        }
+        Map<Long, String> userMap = userService.mapNicknameByIds(userIds);
 
         // 批量补齐目标菜品名（一次 IN 查询）：只取 id/name 两列；不过滤上架态——纠错对象可能已被下架，
         // 管理端仍需看到菜品名回看内容；菜品已物理删除时不在结果集，VO 保持 null。
@@ -198,12 +205,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (dishIds.isEmpty()) {
             return Map.of();
         }
-        Map<Long, String> map = new HashMap<>(dishIds.size());
-        dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                        .select(Dish::getId, Dish::getName)
-                        .in(Dish::getId, dishIds))
-                .forEach(d -> map.put(d.getId(), d.getName()));
-        return map;
+        // 菜品名经 dish 域只读契约下发（P0-1：不再注入 DishMapper；口径=不过滤上架态，见接口注释）
+        return dishService.mapNameByIds(dishIds);
     }
 
     /** 管理端 VO 转换：补齐菜品名、提交人昵称、配图（相对路径 → 绝对 URL） */
@@ -218,8 +221,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setPrice(c.getPrice());
         vo.setCanteenName(c.getCanteenName());
         vo.setStallName(c.getStallName());
-        vo.setFlavorTags(c.getFlavorTags() == null ? List.of() : c.getFlavorTags());
-        vo.setIngredients(c.getIngredients() == null ? List.of() : c.getIngredients());
+        vo.setAttributes(JsonMapUtil.parseObject(c.getAttributes()));
         List<String> images = c.getImages() == null ? List.of() : c.getImages();
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
         vo.setStatus(c.getStatus());
@@ -243,9 +245,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (!CorrectionConst.STATUS_PENDING.equals(correction.getStatus())) {
             throw new BusinessException(400, "该纠错已处理");
         }
-        // 目标菜品物理删除 → 4001（采纳无从写回）
-        Dish dish = dishMapper.selectById(correction.getDishId());
-        if (dish == null) {
+        // 目标菜品物理删除 → 4001（采纳无从写回）；存在性口径由 dish 域下发（P0-1）
+        if (!dishService.existsById(correction.getDishId())) {
             throw new BusinessException(4001, "菜品不存在，无法采纳");
         }
 
@@ -258,12 +259,10 @@ public class CorrectionServiceImpl implements CorrectionService {
             }
             resolvedStallId = req.getStallId();
         } else {
-            Stall matched = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
-                    .eq(Stall::getName, correction.getStallName())
-                    .last("LIMIT 1"));
-            if (matched != null) {
+            Long matchedStallId = stallService.findIdByName(correction.getStallName());
+            if (matchedStallId != null) {
                 // 提交档口名与现有档口归一化精确匹配命中 → 直接采纳
-                resolvedStallId = matched.getId();
+                resolvedStallId = matchedStallId;
             } else if (req != null && Boolean.TRUE.equals(req.getCreateIfMissing())) {
                 // 第二段（确认新建）：按提交档口名 upsert（所属食堂按提交食堂名 upsert，
                 // 空值语义名称 → 400「请选择所属食堂」，与菜品录入编辑同口径）
@@ -274,7 +273,7 @@ public class CorrectionServiceImpl implements CorrectionService {
             }
         }
 
-        applyAdoption(dish, correction, resolvedStallId);
+        applyAdoption(correction, resolvedStallId);
         // 站内回执（提交人非空且已认证时投递，失败不阻塞采纳）
         sendCorrectionReceipt(correction, true, CorrectionConst.ADOPT_REPLY, null);
         return null;
@@ -285,25 +284,17 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 可空快照字段（flavorTags/ingredients/images）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
      * 保护「菜品首图必填」等既有不变量；随后纠错记录归档（status/reply/handled_at，
      * stall_name 以实际挂靠档口名落库，管理端指定档口可能不同于提交名）。
+     * <p>
+     * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——correction
+     * 不再构造 {@code Dish} 实体、不再注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
+     * 属 dish 域落库形态，一并收回 dish 实现。
      */
-    private void applyAdoption(Dish dish, DishCorrection correction, Long resolvedStallId) {
-        Stall stall = stallMapper.selectById(resolvedStallId);
-        Dish update = new Dish();
-        update.setId(dish.getId());
-        update.setName(correction.getName());
-        update.setPrice(correction.getPrice());
-        update.setStallId(resolvedStallId);
-        if (correction.getFlavorTags() != null) {
-            update.setFlavorTags(correction.getFlavorTags());
-        }
-        if (correction.getIngredients() != null) {
-            update.setIngredients(correction.getIngredients());
-        }
-        if (correction.getImages() != null && !correction.getImages().isEmpty()) {
-            // Dish.images 为 JSON 串存储（与 Dish 实体既有口径一致）
-            update.setImages(JsonListUtil.toJson(correction.getImages()));
-        }
-        if (dishMapper.updateById(update) == 0) {
+    private void applyAdoption(DishCorrection correction, Long resolvedStallId) {
+        // 实际挂靠档口名（管理端指定档口可能不同于提交名；档口不存在时保持提交名，与原 stall==null 判定同效）
+        String resolvedStallName = stallService.getNameById(resolvedStallId);
+        if (!dishService.applyCorrection(new DishCorrectionCmd(correction.getDishId(), correction.getName(),
+                correction.getPrice(), resolvedStallId, JsonMapUtil.parseObject(correction.getAttributes()),
+                correction.getImages()))) {
             // 并发删除兜底（采纳前置已查到菜品）
             throw new BusinessException(4001, "菜品不存在，无法采纳");
         }
@@ -312,8 +303,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setReply(CorrectionConst.ADOPT_REPLY);
         correction.setRejectReason(null);
         correction.setHandledAt(LocalDateTime.now());
-        if (stall != null && !correction.getStallName().equals(stall.getName())) {
-            correction.setStallName(stall.getName());
+        if (resolvedStallName != null && !correction.getStallName().equals(resolvedStallName)) {
+            correction.setStallName(resolvedStallName);
         }
         correctionMapper.updateById(correction);
     }
@@ -323,18 +314,9 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 无匹配食堂时 = 全量档口（canteen_id 升序 → sort_order 升序，与既有档口排序口径一致）。
      */
     private List<StallConfirmVO.StallCandidate> buildCandidates(String canteenName) {
-        Canteen canteen = canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getName, canteenName)
-                .last("LIMIT 1"));
-        List<Stall> stalls = canteen != null
-                ? stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                        .eq(Stall::getCanteenId, canteen.getId())
-                        .orderByAsc(Stall::getSortOrder))
-                : stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                        .orderByAsc(Stall::getCanteenId)
-                        .orderByAsc(Stall::getSortOrder)
-                        .orderByDesc(Stall::getUpdatedAt));
-        return stalls.stream()
+        // 候选档口取数（含「按名找食堂」）经 canteen 域只读契约下发（P0-1：不再注入 CanteenMapper/StallMapper），
+        // 两分支的排序口径与原实现逐条一致；本域只负责组装自己的 VO。
+        return stallService.listBriefCandidates(canteenName).stream()
                 .map(s -> new StallConfirmVO.StallCandidate(s.getId(), s.getName()))
                 .toList();
     }
@@ -401,20 +383,17 @@ public class CorrectionServiceImpl implements CorrectionService {
             return;
         }
         try {
-            User user = userMapper.selectById(userId);
-            if (user == null || !AuthStateUtil.isVerified(user.getBindEmail())) {
+            // 归属判据与 feedback handle 同源：认证态唯一真源在 auth，经只读契约折算为布尔下发
+            // （用户不存在亦为 false，与「user == null 不投递」同效）
+            if (!userService.isVerifiedById(userId)) {
                 return;
             }
-            Notification n = new Notification();
-            n.setUserId(userId);
-            n.setType(NotificationConst.TYPE_CORRECTION_HANDLE);
-            n.setRelatedId(correction.getId());
-            n.setIsRead(0);
-            n.setTitle("菜品信息更新");
-            n.setContent(adopted
-                    ? "你提交的菜品信息纠错已采纳，菜品信息已更新。处理说明：" + reply
-                    : "你提交的菜品信息纠错未采纳：" + rejectReason + "。处理说明：" + reply);
-            notificationService.notify(n);
+            // is_read 由 notify 实现侧统一置 0（P0-1：correction 不再 import / 构造 notify 实体）
+            notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_CORRECTION_HANDLE,
+                    correction.getId(), "菜品信息更新",
+                    adopted
+                            ? "你提交的菜品信息纠错已采纳，菜品信息已更新。处理说明：" + reply
+                            : "你提交的菜品信息纠错未采纳：" + rejectReason + "。处理说明：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞纠错处理
         }

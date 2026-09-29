@@ -40,11 +40,14 @@ async function readDimensions(bitmap: ImageBitmap | HTMLImageElement): Promise<{
   return { width: bitmap.width, height: bitmap.height }
 }
 
+/** `createImageBitmap` 不在标准 Window 类型上（各浏览器可选实现）⇒ 显式声明后再断言 */
+interface WindowWithImageBitmap {
+  createImageBitmap?: (blob: Blob, options?: ImageBitmapOptions) => Promise<ImageBitmap>
+}
+
 /** 解码为可绘制源：优先带方向信息的 ImageBitmap，失败回退 HTMLImageElement */
 async function decode(file: File): Promise<{ source: CanvasImageSource; width: number; height: number } | null> {
-  const createBitmap = (window as any).createImageBitmap as
-    | ((blob: Blob, options?: ImageBitmapOptions) => Promise<ImageBitmap>)
-    | undefined
+  const createBitmap = (window as unknown as WindowWithImageBitmap).createImageBitmap
   if (typeof createBitmap === 'function') {
     try {
       const bitmap = await createBitmap(file, { imageOrientation: 'from-image' })

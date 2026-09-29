@@ -2,13 +2,17 @@ import type { Canteen, Dish, Review, Stall, User } from '@/types'
 import { parseCsv } from '@/constants'
 import { API_BASE_URL } from './config'
 
-type PageLike<T> = T[] | { records?: T[] }
+/**
+ * 分页信封（管理端列表接口统一形态）：`records` 行 + `total` 总数；
+ * 兼容后端直接返回裸数组的形态（契约精简 §7.33：PageResult 只输出 records）。
+ * 用 `unknown` 而非 `any`：行数据在适配层（`xxxToLegacy`）内做逐字段归一，此处不必放行 any。
+ */
+export type PageEnvelope<T> = T[] | { records?: T[]; total?: number }
 
 /**
- * 提取分页行数据。
- * 契约精简（§7.33）：服务端 `PageResult` 只输出 `records`，故此处不再保留 `data.list` 兜底分支。
+ * 提取分页行数据（信封 / 裸数组均可）。
  */
-export function pageRecords<T>(data: PageLike<T>): T[] {
+export function pageRecords<T>(data: PageEnvelope<T>): T[] {
   return Array.isArray(data) ? data : data.records || []
 }
 
@@ -48,6 +52,124 @@ export function legacyToImageList(image?: string): string[] {
   return (image || '').split('|||').map(item => item.trim()).filter(Boolean).map(stripImageBaseUrl)
 }
 
+/* ============================================================
+ * 后端原始行类型（替代此前的 `raw: any`）
+ * ------------------------------------------------------------
+ * · 适配层同时兼容 **camelCase（现行）** 与 **snake_case（历史响应）** 两种键名，
+ *   故两种命名都列为可选字段；未出现的键在取值侧已有 `??` 与 `||` 兜底。
+ * · 值类型放宽（可空 / 可为字符串数字），由本层做归一 —— 不放行 `any`。
+ * ============================================================ */
+// 命名与取值约定：
+// · `RawNum` —— 数值键（id / 外键 / 计数 / 评分 / 价格「分」），JSON 侧为 number；
+// · `RawText` —— 可为 null 的文本键（取值侧一律带 `|| ''` 兜底）；
+// · 直接赋给非空目标字段的键（如 name / username / status）声明为**非空**，避免额外兜底。
+type RawNum = number
+type RawText = string | null
+type RawTime = string | null
+
+export interface RawCanteen {
+  id?: RawNum
+  name?: string
+  images?: unknown
+  image?: unknown
+  location?: RawText
+  description?: RawText
+  sortOrder?: RawNum
+  sort_order?: RawNum
+  createdAt?: RawTime
+  created_at?: RawTime
+  updatedAt?: RawTime
+  updated_at?: RawTime
+}
+
+export interface RawStall {
+  id?: RawNum
+  canteenId?: RawNum
+  canteen_id?: RawNum
+  name?: string
+  images?: unknown
+  image?: unknown
+  location?: RawText
+  description?: RawText
+  avgRating?: RawNum
+  avg_rating?: RawNum
+  sortOrder?: RawNum
+  sort_order?: RawNum
+  floor?: RawText
+  windowNo?: RawText
+  createdAt?: RawTime
+  created_at?: RawTime
+  updatedAt?: RawTime
+  updated_at?: RawTime
+}
+
+export interface RawDish {
+  id?: RawNum
+  stallId?: RawNum
+  stall_id?: RawNum
+  name?: string
+  images?: unknown
+  image?: unknown
+  price?: RawNum
+  description?: RawText
+  avgRating?: RawNum
+  avg_rating?: RawNum
+  ratingCount?: RawNum
+  rating_count?: RawNum
+  status?: RawText
+  stallName?: RawText
+  stall_name?: RawText
+  canteenName?: RawText
+  canteen_name?: RawText
+  originalPrice?: RawNum
+  original_price?: RawNum
+  dietType?: RawText
+  diet_type?: RawText
+  ingredients?: unknown
+  ingredients_json?: unknown
+  flavorTags?: unknown
+  flavor_tags?: unknown
+  serveTemp?: RawText
+  serve_temp?: RawText
+  mealType?: RawText
+  meal_type?: RawText
+  createdAt?: RawTime
+  created_at?: RawTime
+  updatedAt?: RawTime
+  updated_at?: RawTime
+}
+
+export interface RawReview {
+  id?: RawNum
+  userId?: RawNum
+  user_id?: RawNum
+  dishId?: RawNum
+  dish_id?: RawNum
+  rating?: RawNum
+  content?: RawText
+  images?: unknown
+  isHidden?: RawNum
+  is_hidden?: RawNum
+  createdAt?: RawTime
+  created_at?: RawTime
+}
+
+export interface RawUser {
+  id?: RawNum
+  username?: string
+  nickname?: RawText
+  avatar?: RawText
+  status?: string
+  wechatBound?: boolean | null
+  openid?: RawText
+  bindEmail?: RawText
+  bind_email?: RawText
+  createdAt?: RawTime
+  created_at?: RawTime
+  updatedAt?: RawTime
+  updated_at?: RawTime
+}
+
 function compactPayload<T extends Record<string, unknown>>(payload: T): Partial<T> {
   return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Partial<T>
 }
@@ -67,10 +189,10 @@ function stripImageBaseUrl(url: string): string {
  * 食堂是**菜品筛选属性字典**，后端已移除 status / auditStatus / rejectReason，
  * 故不再做 status 映射（无 `active/inactive` 派生意）。
  */
-export function canteenToLegacy(raw: any): Canteen {
+export function canteenToLegacy(raw: RawCanteen): Canteen {
   return {
-    id: raw.id,
-    name: raw.name,
+    id: raw.id ?? 0,
+    name: raw.name ?? '',
     image: imagesToLegacy(raw.images ?? raw.image),
     location: raw.location || '',
     description: raw.description || '',
@@ -96,11 +218,11 @@ export function canteenToApi(data: Partial<Canteen>) {
  * 后端已移除 status / auditStatus / rejectReason，故不再做 status 映射；
  * floor（楼层）/ windowNo（窗口号）保留（端上有消费）。
  */
-export function stallToLegacy(raw: any): Stall {
+export function stallToLegacy(raw: RawStall): Stall {
   return {
-    id: raw.id,
-    canteen_id: raw.canteenId ?? raw.canteen_id,
-    name: raw.name,
+    id: raw.id ?? 0,
+    canteen_id: raw.canteenId ?? raw.canteen_id ?? 0,
+    name: raw.name ?? '',
     image: imagesToLegacy(raw.images ?? raw.image),
     location: raw.location || '',
     description: raw.description || '',
@@ -127,11 +249,11 @@ export function stallToApi(data: Partial<Stall>) {
   })
 }
 
-export function dishToLegacy(raw: any): Dish {
+export function dishToLegacy(raw: RawDish): Dish {
   return {
-    id: raw.id,
-    stall_id: raw.stallId ?? raw.stall_id,
-    name: raw.name,
+    id: raw.id ?? 0,
+    stall_id: raw.stallId ?? raw.stall_id ?? 0,
+    name: raw.name ?? '',
     image: imagesToLegacy(raw.images ?? raw.image),
     price: Math.round(raw.price ?? 0) / 100,
     description: raw.description || '',
@@ -145,7 +267,7 @@ export function dishToLegacy(raw: any): Dish {
     // 原价（§7.26）：展示值恒取 price，originalPrice > price 时才划线。
     originalPrice: raw.originalPrice == null && raw.original_price == null
       ? undefined
-      : Math.round(raw.originalPrice ?? raw.original_price) / 100,
+      : Math.round((raw.originalPrice ?? raw.original_price) ?? 0) / 100,
     // 描述四维（§7.28）：替代 spice_level / region（两字段不提供）。
     // 多值维（§7.40 R4）：后端已改为 string[] 直出；parseCsv 归一兼容历史逗号串 / JSON 串。
     dietType: raw.dietType || raw.diet_type || '',
@@ -193,12 +315,12 @@ export function dishToApi(data: Partial<Dish>) {
  * 无「安检状态归一化 / 筛选白名单」导出函数（取消人工复核：pass/review 均放行、仅 risky 拒绝，
  * 后台不再读取该字段，后端字段同源移除）。
  */
-export function reviewToLegacy(raw: any): Review {
+export function reviewToLegacy(raw: RawReview): Review {
   return {
-    id: raw.id,
-    user_id: raw.userId ?? raw.user_id,
-    dish_id: raw.dishId ?? raw.dish_id,
-    rating: raw.rating,
+    id: raw.id ?? 0,
+    user_id: raw.userId ?? raw.user_id ?? 0,
+    dish_id: raw.dishId ?? raw.dish_id ?? 0,
+    rating: raw.rating ?? 0,
     content: raw.content || '',
     images: imagesToList(raw.images),
     is_hidden: raw.isHidden ?? raw.is_hidden ?? 0,
@@ -207,14 +329,14 @@ export function reviewToLegacy(raw: any): Review {
   }
 }
 
-export function userToLegacy(raw: any): User {
+export function userToLegacy(raw: RawUser): User {
   return {
-    id: raw.id,
-    username: raw.username,
+    id: raw.id ?? 0,
+    username: raw.username ?? '',
     password: '',
     nickname: raw.nickname || '',
     avatar: raw.avatar || '',
-    status: raw.status,
+    status: raw.status ?? '',
     // 微信登录体系字段（snake_case 仅在 adapter 内部兜底）：
     // verified 不在出参，认证态由 bindEmail 非空派生（判据唯一真源）
     wechatBound: raw.wechatBound ?? (raw.openid ? true : false),

@@ -44,4 +44,19 @@ public interface FeedbackService {
      * （1~200 字，纯空白视为未填写 → 400「请填写不采纳原因」），随回执一并向提交人展示。
      */
     void handle(Long id, FeedbackHandleReq req);
+
+    /**
+     * 账号归属迁移：把 fromUserId 的反馈改挂到 toUserId（仅改 {@code user_feedback.user_id}）。
+     * <p>
+     * 调用方 = {@code feedback.event.FeedbackOwnershipListener}（订阅 auth 域发布的
+     * {@code UserOwnershipMigratedEvent}）。原先由 {@code AuthServiceImpl} 直接注入
+     * FeedbackMapper 改写，属跨域写他域表。
+     * <p>
+     * 账号注销不迁移：注销只软删 user 行，反馈行与 user_id 保持不动，昵称由 join user 实时取。
+     *
+     * @param fromUserId 迁出账号ID
+     * @param toUserId   迁入账号ID
+     * @return 改挂条数（供日志）
+     */
+    int migrateOwnership(Long fromUserId, Long toUserId);
 }

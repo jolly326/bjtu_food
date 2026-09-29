@@ -1,5 +1,7 @@
 <template>
   <view class="page auth-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <Header title="身份认证" @back="leaveWithoutVerify" />
 
     <scroll-view class="scroll-wrap" scroll-y>
@@ -79,10 +81,12 @@ import { ref, computed } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { storeToRefs } from 'pinia'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
+import { errorMessage } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const authStore = useAuthStore()
@@ -144,11 +148,13 @@ async function sendCode() {
     await sendEmailCode(username)
     uni.showToast({ title: '验证码已发送', icon: 'success' })
     authStore.startCooldown()
-  } catch (e: any) { setError(e.message || '验证码发送失败') } finally { sendingCode.value = false }
+  } catch (e) { setError(errorMessage(e, '验证码发送失败')) } finally { sendingCode.value = false }
 }
 
 /** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */
 let verified = false
+/** 成功返回定时器句柄：离开页面时清理，避免返回打到已销毁页 */
+let navTimer: ReturnType<typeof setTimeout> | null = null
 
 async function submit() {
   // 前置状态锁：任一条件不满足（字段空/学号非法/在途）静默返回
@@ -160,8 +166,9 @@ async function submit() {
     verified = true
     uni.showToast({ title: '认证成功', icon: 'success' })
     // 返回原页：待办由原页 onShow 经 consumePending 续接
-    setTimeout(() => uni.navigateBack(), 600)
-  } catch (e: any) { setError(e.message || '认证失败') } finally { isBusy.value = false }
+    if (navTimer) clearTimeout(navTimer)
+    navTimer = setTimeout(() => uni.navigateBack(), 600)
+  } catch (e) { setError(errorMessage(e, '认证失败')) } finally { isBusy.value = false }
 }
 
 /** 未完成认证即离开（Header 返回）——与手势返回同语义，onUnload 统一清待办 */
@@ -170,13 +177,15 @@ function leaveWithoutVerify() {
 }
 
 onUnload(() => {
+  if (navTimer) clearTimeout(navTimer)
   if (!verified) authStore.clearPending()
 })
 </script>
 
 <style scoped>
-.auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: var(--bg-page); }
-.scroll-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+.auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .form-error { margin-bottom: var(--spacing-sm); padding: var(--spacing-sm) var(--spacing-md); background: var(--color-error-soft); border-radius: var(--radius-card); }
 .form-error-text { font-size: var(--font-aux); color: var(--color-error); font-weight: var(--weight-semibold); }

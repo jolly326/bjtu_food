@@ -1,16 +1,18 @@
 <template>
   <view class="page mine-page">
+    <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
+    <PageWallpaper fixed />
     <!-- 「我的」是 TabBar 主根页（TabBar 经 reLaunch 切换，无带参跳转），恒不需要返回箭头：
          showBack 显式传 false（AppHeader 默认值为 true，不能省略） -->
     <Header title="我的" :show-back="false" />
 
-    <view class="mine-content">
+    <scroll-view class="mine-scroll" scroll-y>
       <!-- 用户卡：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
            整卡点击进入「我的主页」（游客与认证态同达，无认证拦截）；
            认证动作的单一入口为宫格「身份认证」格，用户卡不放「去认证」按钮 -->
       <view
         class="user-card"
-        :class="isVerified ? 'user-card--verified' : 'user-card--guest'"
+        :class="{ 'user-card--verified': isVerified }"
         role="button"
         aria-label="查看我的主页"
         @tap="onUserCardTap"
@@ -23,13 +25,13 @@
             </view>
           </view>
           <view class="user-meta">
-            <text class="nickname" :class="{ 'nickname--guest': !isVerified }">
+            <text class="nickname">
               {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
             </text>
-            <text v-if="isVerified && userInfo?.username" class="user-id">
-              {{ userInfo.username }}
-            </text>
-            <text v-else-if="!isVerified" class="user-id">游客 {{ guestLabel }}</text>
+            <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示派生短标识。
+                 `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
+            <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
+            <text v-else class="user-id">游客 {{ guestLabel }}</text>
           </view>
           <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
         </view>
@@ -81,9 +83,9 @@
         <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
         <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
       </view>
-    </view>
+    </scroll-view>
 
-    <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示） -->
+    <!-- 底部常驻菜单栏：首页/我的 两主区切换（仅主根页显示，恒透明：背后即页底壁纸） -->
     <TabBar />
   </view>
 </template>
@@ -93,6 +95,7 @@ import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
@@ -100,7 +103,7 @@ import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
-import { getLocalGuestLabel } from '@/utils/guest'
+import { deriveGuestLabel, getLocalGuestLabel } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
 import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
@@ -110,24 +113,19 @@ const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
 /** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
 const isVerified = computed(() => userStore.isVerified())
+/** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
+const bindEmail = computed(() => userInfo.value?.bindEmail || '')
 /**
  * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
  * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
  * `id` 不可得（静默登录未完成 / 失败）时回退本地游客 ID 兜底，保证不空白。
  */
-const guestLabel = computed(() => {
-  const id = userInfo.value?.id
-  if (!id) return getLocalGuestLabel()
-  const s = String(id)
-  return `食客${s.length > 4 ? s.slice(-4) : s}`
-})
+const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id, getLocalGuestLabel()))
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
 onLoad(() => {
-  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）；
-  // 全仓无任何带 ?from=home 跳转
-  // 到本页的调用点（TabBar 经 reLaunch 切换、无参数），该状态恒为 false，属死状态。
+  // 进入「我的」确保静默登录已就绪（游客态才有认证前提）
   userStore.silentLogin()
 })
 
@@ -208,8 +206,14 @@ const moreRows = [
 <style scoped>
 /* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
    页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
-.mine-page { display: flex; flex-direction: column; min-height: 100vh; background: var(--bg-page); }
-.mine-content { padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom)); }
+/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口（Round 12-A，用户裁决）：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
+   —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
+.mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.mine-scroll { flex: 1; min-height: 0; }
+/* Round 26：容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
+   `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
+   且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
 /* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
    与首页卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
@@ -229,18 +233,16 @@ const moreRows = [
 .user-card--verified {
   border-top-color: var(--color-primary-soft);
 }
-/* 游客：无条纹（表面与认证态一致；认证入口为宫格「身份认证」格） */
-.user-card--guest {
-  border-top-color: transparent;
-}
+/* 游客态**不设**额外规则：`.user-card` 的 `border-top` 本就是 transparent，
+   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖（UI 统一 Loop Round 1） */
 .user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }
 .avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
 .avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* 游客态不再加类名：昵称色两态一致（`.nickname--guest` 与基类同值，属 no-op，已删） */
 .nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nickname--guest { color: var(--text-primary); }
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-arrow { flex-shrink: 0; }
 

@@ -1,6 +1,6 @@
 # 邮箱认证 — 页面 UI 设计稿
 
-> 所属端：学生端（微信小程序） ｜ 归属功能文档：[client-邮箱认证.md](../feature/client-邮箱认证.md)
+> 所属端：学生端（微信小程序）
 > **口径分工**：**页面 UI 设计口径以本文件为唯一真源**，功能流程 / 接口 / 字段 / 数据落库口径以功能文档为准。
 > 落点：**独立页面** `pages/auth/index`（分包 `pages/auth/`）——身份认证页（学号 + 邮箱验证码）；入口 = 「我的」页宫格「身份认证」格 / 菜品详情写评价等需认证操作 / 请求层 `4031`（**不置灰、点击跳转认证页、认证成功返回原页后续接原动作**）。
 
@@ -16,20 +16,39 @@
 
 ## 接口数据字段（UI 精修用）
 
-**页面**：`pages/auth/index`
+**页面**：`pages/auth/index`（分包 `pages/auth/`；二级页，**无 TabBar**）
 
-**出参消费**
-| 接口 | 字段 | 端上用途 |
-|---|---|---|
-| `POST /auth/verify-email` | `UserInfoVO` 全 6 字段（`id` / `username` / `nickname` / `avatar` / `bindEmail` / `createdAt`） | 成功即整体写回 `stores/user`（页面本身仅取成功态，**不单独渲染字段**） |
+### 组件清单（本界面需要哪些组件）
+
+| # | 组件 | 来源 | 在本页做什么 |
+|---|---|---|---|
+| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「身份认证」+ **返回**（文字）（返回即 `uni.navigateBack`，未完成认证则清待办） |
+| 2 | `IconSvg` | 公共 `components/IconSvg.vue` | 底部隐私说明行锁图标 `lock` |
+| 3 | 表单错误行 `.form-error`（`role="alert"`） | `pages/auth/index.vue` 内联 | 即时播报错误（点击清除） |
+| 4 | 输入行 ×2（`.input-field`）+ `input` | 页内内联 + uni 内置 | 学号输入（`type="number"`）/ 验证码输入（6 位） |
+| 5 | 行内「发送验证码」热区 `.code-action` | 页内内联 | 发码动作（冷却 / 学号非法 / 在途时禁用并降级为三级灰） |
+| 6 | 主按钮「认证」`.primary-action`（页内 `view`） | 页内内联 | 提交核验（门禁不满足时禁用态 + `aria-disabled`） |
+| 7 | `useAuthStore` / `useUserStore` | `stores/auth` / `stores/user` | 发码 60s 冷却（跨进出页面持久）、待办（pending）续接、`verifyEmail` 写回用户态 |
+| 8 | `scroll-view`(scroll-y) | uni 内置控件 | 表单区滚动容器 |
+
+### 有哪些数据要显示、显示在哪个组件
+
+| # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
+|---|---|---|---|---|---|
+| 1 | `username`（本地表单态） | 用户输入 | 学号 | 学号 `input`（占位「学号」，`type="number"`） | 输入内容仅本地持有 |
+| 2 | `deriveCampusEmail(username)` | 端上派生（`api/user.ts`） | 推导出的校园邮箱 `{学号}@bjtu.edu.cn` | 提示行 `.email-hint` | 「验证码将发送至 {邮箱}」；**仅在学号合法时出现** |
+| 3 | `code`（本地表单态） | 用户输入 | 6 位验证码 | 验证码 `input`（占位「邮箱验证码」） | — |
+| 4 | `codeCooldown`（端上态） | `stores/auth`（60s 冷却） | 发码冷却剩余秒数 | 「发送验证码」按钮文案与禁用态 | 冷却中不可点（跨页面持久，重进续接） |
+| 5 | 发码结果 `message` | `POST /auth/email-code` | 「验证码已发送」 | 无界面（Toast 呈现） | 验证码**不在响应中返回** |
+| 6 | `UserInfoVO` 全字段 | `POST /auth/verify-email` | 账号信息（`bindEmail` 已写入） | **无界面**（整体写回 `stores/user`；页面不单独渲染字段） | 成功 → Toast「认证成功」+ 返回原页 |
+| 7 | 错误 `message` | `400` / `401` 响应 | 验证码错误 / 不存在或已过期 / 账号状态异常 / 发码限频 | 表单错误行（`role="alert"`） | 错误色浅底条，点击清除；`aria-invalid` 同步到两输入框 |
+| 8 | 静态说明 | 端内文案常量 | 认证后可用的能力与验证码有效期 | 表单下方说明 + 底部锁图标行 | 次级灰小字 |
 
 **入参提交**
 | 接口 | 字段 | 说明 |
 |---|---|---|
-| `POST /auth/email-code` | `username` | 学号（端上 `deriveCampusEmail` 推导 `{学号}@bjtu.edu.cn`，**不传 email**） |
-| `POST /auth/verify-email` | `code` | 6 位验证码 |
+| `POST /auth/email-code` | `username` | 学号（端上推导邮箱，**不传 email**） |
+| `POST /auth/verify-email` | `code` | 6 位验证码（邮箱由验证码记录推导） |
 
-**错误码**：`400` 验证码错误 / 不存在或已过期 / 账号状态异常｜`401` 未登录｜发码限频 `400`（同邮箱 60s 冷却、同 IP 3/分 + 10/时）
-
-**UI 组件**：公共 `AppHeader` / `IconSvg`
-**控件类型**：`scroll-view`、`input`（学号 number / 验证码）、发码冷却按钮、主色实底主按钮、`role="alert"` 错误行
+**错误码**：`400` 验证码错误 / 不存在或已过期 / 账号已被禁用 / 已注销；发码限频（同邮箱 60s 冷却、同 IP 3 次/分 + 10 次/时）｜`401` 未登录
+**控件类型**：`scroll-view`、`input`（学号 / 验证码）、行内发码按钮（冷却态）、主色实底主按钮、`role="alert"` 错误行
