@@ -3,6 +3,7 @@ package com.bjtufood.correction.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.service.StallService;
@@ -12,6 +13,7 @@ import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.correction.constant.CorrectionConst;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
 import com.bjtufood.correction.dto.DishCorrectionAdminVO;
@@ -56,6 +58,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递认证判据（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     private final LocalSensitiveFilter localSensitiveFilter;
+    /** 微信内容安全检测（2026-09-29 补齐：纠错链路此前是唯一不经微信机审的 UGC 入口） */
+    private final ContentSecurityService contentSecurityService;
     private final NotificationService notificationService;
     private final ImageUrlUtil imageUrlUtil;
 
@@ -121,6 +125,15 @@ public class CorrectionServiceImpl implements CorrectionService {
             throw new BusinessException(400, "未提交任何改动");
         }
 
+        // ---- 微信内容安全检测（2026-09-29 补齐：纠错是唯一无微信机审的 UGC 入口）----
+        // 纠错的 name / canteenName / stallName / attributes 均为**用户自由文本**，
+        // 且纠错内容会被管理员**采纳并写回 dish**（即进入公开展示），
+        // 仅靠本地静态词库不足以覆盖谐音/变体/语义违规。
+        // 口径与 feedback / review / 昵称一致：risky 由 checkText 统一拦截为 400。
+        // 合并为**单次**调用送检（见 mergeModerationText）：msgSecCheck 按调用计费且有 2500 字上限，
+        // 分字段多次送检会成倍放大微信调用额度，故拼接后一次提交。
+        checkUgcText(userId, mergeModerationText(name, canteenName, stallName, attributes));
+
         DishCorrection correction = new DishCorrection();
         correction.setDishId(dishId);
         correction.setUserId(userId);
@@ -157,6 +170,72 @@ public class CorrectionServiceImpl implements CorrectionService {
             }
         }
         return normalized;
+    }
+
+    // ==================== 微信内容安全检测（2026-09-29 补齐） ====================
+
+    /**
+     * 合并纠错中所有<b>用户自由文本</b>字段，拼接为<b>单条</b>待检文本。
+     * <p>
+     * <b>为何合并而不是逐字段送检</b>：{@code msgSecCheck} 按<b>调用次数</b>计费，
+     * 一次纠错最多可提交 name / canteenName / stallName / attributes 四类文本，
+     * 逐字段送检会把微信调用额度放大到 4 倍；合并为一次则<b>恒定 1 次</b>。
+     * <p>
+     * <b>为何用换行分隔而不是直接拼接</b>：若直接相连，两个字段的边界词可能
+     * 偶然拼出一个新词造成误判；换行是 msgSecCheck 认可的分隔符，且语义上
+     * 与「多行提交一份表单」一致，命中位置的语义也更贴近用户实际填写的内容。
+     * <p>
+     * <b>attributes 为何要展开</b>：维度值可能是自由文本（候选为空的维度允许用户自填），
+     * 用 {@code JsonMapUtil.toJson} 还原为可读 JSON 文本再送检——既覆盖了其中可能夹带的
+     * 违规文本，又不引入结构化数据给微信解析器的兼容性问题。
+     * <p>
+     * 全部字段皆空（局部提交只改了 price / images）时返回空串，由
+     * {@link #checkUgcText} 的空值判断直接跳过，不产生多余的微信调用。
+     *
+     * @return 合并后的待检文本；无任何文本字段时返回 {@code ""}
+     */
+    private String mergeModerationText(String name, String canteenName, String stallName,
+                                       Map<String, Object> attributes) {
+        StringBuilder sb = new StringBuilder();
+        appendIfPresent(sb, name);
+        appendIfPresent(sb, canteenName);
+        appendIfPresent(sb, stallName);
+        if (attributes != null && !attributes.isEmpty()) {
+            appendIfPresent(sb, JsonMapUtil.toJson(attributes));
+        }
+        return sb.toString();
+    }
+
+    /** 追加单个非空文本字段，行间以换行分隔（首个字段不引入前置换行） */
+    private void appendIfPresent(StringBuilder sb, String text) {
+        if (StringUtils.hasText(text)) {
+            if (!sb.isEmpty()) {
+                sb.append('\n');
+            }
+            sb.append(text.trim());
+        }
+    }
+
+    /**
+     * 纠错 UGC 文本机检：取提交人 openid 调 {@code msgSecCheck v2}（scene=2 评论场景）。
+     * <p>
+     * 判定口径与 feedback / review 完全一致：risky 由 {@code checkText} 统一抛 400 拦截；
+     * pass 与 review（疑似）均放行（2026-09-15 已取消人工复核，无待复核落库态）。
+     * <p>
+     * <b>边界</b>：纠错为 permitAll 公开入口，登录态缺失时 {@code userId} 为 {@code null}
+     * （如微信静默登录失败、非微信端 H5 联调），取不到 openid → {@code msgSecCheck v2}
+     * 跳过机审放行，<b>由本地词库兜底</b>（{@link LocalSensitiveFilter} 已对该 name 生效）。
+     */
+    private void checkUgcText(Long userId, String text) {
+        if (!StringUtils.hasText(text)) {
+            return;   // 纯 price / images 改动，无文本可检
+        }
+        String openid = null;
+        if (userId != null) {
+            UserAuthContextVO user = userService.getAuthContext(userId);
+            openid = user == null ? null : user.getOpenid();
+        }
+        contentSecurityService.checkText(openid, text, 2);
     }
 
     // ==================== 管理端列表（GET /admin/corrections） ====================

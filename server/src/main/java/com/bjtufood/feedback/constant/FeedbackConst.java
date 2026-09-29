@@ -26,18 +26,16 @@ public interface FeedbackConst {
     String TYPE_REPORT = "report";
 
     /**
-     * 反馈类型写入白名单（单一真源）。
+     * 反馈类型写入白名单（单一真源）：{@code POST /feedback} 仅接受三类纯反馈。
      * <p>
-     * 2026-09-27 起（意见反馈页改单表单 + 4 类型单选）端上真实产出的 5 类：
-     * {@code bug}（小程序功能 Bug）/ {@code suggestion}（产品功能建议）/ {@code error}（菜品信息纠错）
-     * / {@code other}（其他平台相关问题）/ {@code issue}（我要反馈问题，历史写入值、存量仍在）,
-     * 外加 {@code report}（菜品详情页举报）。
-     * <p>
-     * {@code add}（新增菜品）仍为历史遗留类型、禁新增（历史数据仍可读、可筛选）。
+     * 2026-09-29 方案 B（写入口拆分）后：<b>意见反馈</b>仅 {@code bug}（小程序功能 Bug）/
+     * {@code suggestion}（产品功能建议）/ {@code other}（其他平台相关问题）可写；
+     * <b>举报</b>改走独立端点 {@code POST /reviews/{id}/report}（不再经本端点写 {@code report}）；
+     * {@code error}（菜品信息纠错）早前已迁出为 {@code POST /dishes/{id}/correction}；
+     * {@code issue} / {@code add} 为历史遗留写值，<b>均禁新增</b>（历史数据仍可读、可筛选，见 {@link #QUERY_TYPES}）。
      */
     Set<String> WRITABLE_TYPES = Set.of(
-            TYPE_BUG, TYPE_SUGGESTION, TYPE_ERROR, TYPE_OTHER,
-            TYPE_ISSUE, TYPE_REPORT);
+            TYPE_BUG, TYPE_SUGGESTION, TYPE_OTHER);
 
     /**
      * 反馈类型查询白名单（含全部历史类型，供后台筛选存量数据，P2-01 兼容要求）。

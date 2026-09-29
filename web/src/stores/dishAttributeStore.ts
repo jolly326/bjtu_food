@@ -33,12 +33,18 @@ export const useDishAttributeStore = defineStore('dishAttribute', () => {
     await loadAll()
   }
 
-  /** 扁平索引 `${fieldKey}:${valueKey}` → label（渲染期查询用） */
+  /**
+   * 取值索引 `${fieldKey}:${value}` → value（恒等映射，保留接口形态）。
+   *
+   * 2026-09-29：`GET /dishes/attributes` 的 `options` 是**「该维度全库已用值」去重后的中文串**，
+   * 值即中文、无独立机器值字典（后端无取值字典表，加值零登记）。
+   * 故此处不再做「机器值 → 中文」翻译，端上零翻译即 R4 的直接体现。
+   */
   const index = computed(() => {
     const map = new Map<string, string>()
     for (const def of list.value) {
       for (const opt of def.options) {
-        map.set(`${def.fieldKey}:${opt.valueKey}`, opt.label)
+        map.set(`${def.fieldKey}:${opt}`, opt)
       }
     }
     return map
@@ -49,12 +55,12 @@ export const useDishAttributeStore = defineStore('dishAttribute', () => {
     return list.value.find(d => d.fieldKey === field)
   }
 
-  /** 某维度的取值列表（closed 维度的 options） */
+  /** 某维度的参考候选值列表（值即中文） */
   function itemsOf(field: string) {
     return defOf(field)?.options ?? []
   }
 
-  /** 单选维：机器值 → 中文标签；空值回落「—」；字典未命中原样透出 */
+  /** 单选维：取值直接渲染（值即中文）；空值回落「—」；字典未命中原样透出 */
   function labelOf(field: string, value?: string | null): string {
     if (!value) return '—'
     return index.value.get(`${field}:${value}`) ?? value
@@ -66,9 +72,15 @@ export const useDishAttributeStore = defineStore('dishAttribute', () => {
     return arr.length ? arr.map(v => index.value.get(`${field}:${v}`) ?? v).join(' · ') : '—'
   }
 
-  /** 字典选项（表单下拉 / chips）：{ value, label } 列表 —— 展示与录入同源 */
+  /**
+   * 字典选项（表单下拉 / chips）：`{ value, label }` 列表 —— 展示与录入同源。
+   *
+   * `options` 是**参考候选**（该维度全库已用值去重、按频次倒序），**不构成约束**：
+   * 消费方应把它当「建议项」渲染，同时保留用户自由输入（后端不校验取值域）。
+   * 因值即中文，`value` 与 `label` 相同。
+   */
   function optionsOf(field: string): { value: string; label: string }[] {
-    return itemsOf(field).map(it => ({ value: it.valueKey, label: it.label }))
+    return itemsOf(field).map(it => ({ value: it, label: it }))
   }
 
   return {

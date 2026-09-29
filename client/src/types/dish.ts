@@ -12,8 +12,7 @@
  * - `canteenName` → 端上别名 `canteen`，`avgRating` → `rating`；
  * - 列表**不含**详情专属字段（`description` / `images` / `floor` / `attributes`）；
  *   列表图片只给 `coverImage`（后端首图绝对 URL；无图空串）——列表**不得回流** `images` 数组；
- * - 描述属性 `attributes` 由**后端**把机器值与中文**一并整理下发**（`value` + `label`）：
- *   端上**直接渲染 `label`、零翻译、不拉字典**，SHALL NOT 维护「机器值 → 中文」映射表（R4）。
+ * - 描述属性 `attributes` 的**值即中文**（`value`）：端上**直接渲染、零翻译、不拉字典**（R4）。
  *
  * DishDetailVO 不含以下字段（契约之外不出现）：promoPrice / status / createdAt / canteenId /
  * viewCount / tags / ratingCount / ratingDistribution / dietType / ingredients / flavorTags /
@@ -38,9 +37,9 @@ export interface DishListItem {
 }
 
 /**
- * 详情描述属性项（后端已整理，端上直渲 `label`）。
+ * 详情描述属性项（值即中文，端上直渲 `value`）。
  *
- * `value` 与 `label` **同构**：`single` 维度为字符串、`multi` 维度为字符串数组。
+ * `value`：`single` 维度为字符串、`multi` 维度为字符串数组。
  * 仅含该菜品实际拥有的维度、按后端维度展示顺序排列（自描述、有序）。
  */
 export interface DishAttributeItem {
@@ -48,10 +47,8 @@ export interface DishAttributeItem {
   fieldKey: string
   /** 维度中文名（如「饮食属性」） */
   name: string
-  /** 机器值：single → 字符串；multi → 字符串数组 */
+  /** 中文值：single → 字符串；multi → 字符串数组 */
   value: string | string[]
-  /** 中文标签，与 `value` 同构（后端整理，端上零翻译） */
-  label: string | string[]
 }
 
 /** 详情（`GET /dishes/{id}`）：列表 8 字段之外，额外含详情专属字段与描述属性 */
@@ -69,7 +66,7 @@ export interface DishDetail {
   stallName: string
   /** 档口所属楼层（如 1F/2F；详情专属） */
   floor?: string
-  /** 描述属性（机器值 + 中文，后端整理下发；端上直渲 `label`） */
+  /** 描述属性（值即中文，端上直渲 `value`） */
   attributes: DishAttributeItem[]
 }
 
@@ -98,20 +95,22 @@ export interface MixedResultItem {
 }
 
 /**
- * 列表查询参数（`GET /dishes`，**完整参数集恰为 5 项**：page / pageSize / keyword / mealType / seed）。
+ * 列表查询参数（`GET /dishes`，**完整参数集恰为 5 项**：page / pageSize / keyword / view / seed）。
  * <p>
+ * `view` 是**筛选视图键**（值域由 `GET /dishes/views` 下发）——<b>不是</b>菜品字段 `mealType`：
+ * 物理大类只是视图的一种（按 `meal_type` 取数），将来「折扣」等视图按别的口径取数，端上无须改动。
  * `canteenId` / `minPrice` / `maxPrice` 不纳入查询参数（食堂 / 价格筛选不提供）；
- * `sortBy` / `sortOrder` 不传（排序由服务端唯一决定：推荐流按 `seed` 伪随机序、其余热度倒序）。
+ * `sortBy` / `sortOrder` 不传（筛选与排序由服务端按所选视图唯一决定）。
  */
 export interface DishQuery {
   keyword?: string
-  /** 菜品大类筛选（首页横向标签栏；值为大类枚举键；不传 = 全部） */
-  mealType?: string
+  /** 筛选视图键（首页横向筛选栏；值取自 `GET /dishes/views` 的 `key`；不传 = 默认视图） */
+  view?: string
   /**
-   * 推荐流会话随机种子（2026-09-27 方案 C）：仅首页「为你推荐」流（不传 keyword/mealType）下发。
-   * 服务端按 `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序——同 seed 全序恒定（翻页不重不漏），
-   * 端上在每次列表 reset 时重掷（首屏 / 切回「为你推荐」/ 失败重试），翻页沿用同一值。
-   * 大类 / 搜索流不传（维持热度倒序）。
+   * 会话随机种子（2026-09-27 方案 C）：端上每次列表 reset 重掷、翻页沿用同一值。
+   * 服务端**仅对「推荐类」视图**（sortKind=SEED_RANDOM）且无 keyword 时按
+   * `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序（同 seed 全序恒定，翻页不重不漏）；
+   * 其余视图忽略本参数（按各自排序口径）——故端上可无脑随请求下发。
    */
   seed?: string
   page?: number
@@ -131,14 +130,13 @@ export interface GuessLike {
 }
 
 /**
- * 菜品大类字典项（`GET /dishes/meal-types`）：
- * 文案 / 顺序 / 子集全由后端下发（空类自动隐藏），**端上不得维护任何中文映射**。
+ * 首页筛选视图项（`GET /dishes/views`）：
+ * 文案 / 顺序 / 子集全由后端下发，**端上不得维护任何中文映射**——端上只认 `key` + `label`。
  *
- * ⚠️ 方案 B 契约：首项由后端下发 `{ value: null, label: "为你推荐" }`，
- * 故 `value` 允许为 `string | null`（`null` 表示不传 mealType，拉取推荐流）。
- * `order` 是服务端排序用的内部字段，端上按返回顺序渲染 → 按「零消费即删」不进入本类型。
+ * `key` 原样回传为 `GET /dishes?view=<key>`；首项（如「为你推荐」）也是普通 key，端上**无 null 特例**。
+ * `order`（顺序）由服务端下发次序表达，端上按数组顺序渲染 → 按「零消费即删」不进入本类型。
  */
-export interface MealType {
-  value: string | null
+export interface DishView {
+  key: string
   label: string
 }

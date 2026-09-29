@@ -23,12 +23,13 @@ logging:
     path: ${LOG_PATH:./logs}
 
 # 关闭 OpenAPI 文档与 Swagger UI（P1-7/BE-100）：生产环境不对外暴露接口拓扑与调试入口。
-# 若需临时排障开启，可在环境变量注入 SPRINGDOC_API_DOCS_ENABLED=true / SPRINGDOC_SWAGGER_UI_ENABLED=true。
+# 与 application.yml 共用同一组环境变量，prod 只是把默认值由 true 改为 false；
+# 临时排障需开启时注入 SPRINGDOC_API_DOCS_ENABLED=true 即可，无需改本文件。
 springdoc:
   api-docs:
-    enabled: false
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
   swagger-ui:
-    enabled: false
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
 
 # JWT 签名密钥（BE-11）：生产刻意**不提供默认值**——此处写 ${JWT_SECRET}（无 :default），
 # 一旦环境变量未注入，占位符无法解析，Spring 在装配阶段即抛错终止启动（fail-fast），

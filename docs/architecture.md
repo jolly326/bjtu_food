@@ -19,6 +19,45 @@
 **形态：模块化单体（modular monolith）**——单一部署单元，域间以**进程内契约**协作，不引 MQ、不拆微服务。
 拆分动议出现时，域边界即拆分线（本文的边界约定因此是强制的）。
 
+## 1.1 两端接口边界（2026-09-29 新增，**由 `FrontendApiIsolationTest` 强制**）
+
+仓库含**两个前端**，消费**同一个后端**但走**两套互不通的鉴权**：
+
+| 端 | 路径前缀 | 鉴权方式 | 过滤器 |
+|---|---|---|---|
+| `client/`（微信小程序） | `/api/v1/**` | `Authorization: Bearer <JWT>` | `JwtAuthFilter` |
+| `web/`（管理后台） | `/api/v1/admin/**` | `X-Admin-Token: <口令>` | `AdminTokenFilter` |
+
+**采用业界惯例：安全区隔离，而非「给每个客户端复制一份端点」。**
+GitHub / Stripe / 各类 SaaS 均为「一个后端 + 一套 API + 两种鉴权」；真正的隔离在
+**承载写操作与敏感数据的 `/admin/**`**——可在一个地方统一施加 IP 白名单、限频、审计、CORS 策略。
+
+**允许共享**：**非敏感的公开只读字典/枚举端点**。它们在 `SecurityConfig` 内是 `permitAll`，
+数据本身公开，两端复用不产生安全暴露，也避免为 web 复制冗余出口：
+
+| 数据 | 端点 | 性质 |
+|---|---|---|
+| 筛选视图字典 | `GET /dishes/views` | 公开只读，**两端共用** |
+| 描述属性维度字典 | `GET /dishes/attributes` | 公开只读，**两端共用**（2026-09-29 补齐，见下） |
+| 举报原因字典 | `GET /feedback/report-reasons` | 公开只读，**两端共用** |
+| 菜品 CRUD / 审核 / 用户状态 | `/admin/dishes/**` 等 | **管理端专属**（口令保护） |
+
+> **`GET /dishes/attributes` 曾长期 404（2026-09-29 修复）**：web 端 `listDishAttributes()`
+> 一直在调这个端点，而**后端从未实现**（本域只有按单菜的 `/dishes/{id}/attributes`），
+> 导致管理后台「描述四维录入选项」始终为空。因 404 发生在网关层、后端日志收不到，该问题
+> 长期无人察觉。现已补齐，并由 `FrontendApiIsolationTest#web_calledPathsExistInBackend` 兜底。
+
+**护栏规则**（`mvn test` 阶段强制）：
+
+1. **web 禁调需鉴权的学生端路径**（`/auth/**`、`/my/**`、`/upload/**`）——web 无 JWT 必然 401，
+   且 `/my/**` 是用户私有数据，调用即越权；
+2. **web 的非 admin 路径必须是公开只读端点**——越界的须改走 `/admin/**`；
+3. **client 禁调 `/admin/**`**——管理端口令只在 web 侧配置；
+4. **web 调用的路径必须在后端真实存在**——防「前端调了个不存在的端点却长期 404」。
+
+> **维护约定**：web 需要**写操作**或**敏感数据**时，在 `/admin/**` 下另开端点；
+> 仅当数据本身是公开只读枚举时才复用学生端端点。
+
 ## 2. 分包：按业务域，不按技术分层
 
 顶层是**业务域**，不是 `controller/` `service/` 这类技术分层大包。
@@ -139,7 +178,8 @@ com.bjtufood
 - `SecurityConfig` 白名单与 `AdminTokenFilter` 作用域判定**均按「应用内路径」**（已剥离 context-path），
   故升版无需改动。
 - 统一响应 `Result<T>{code,message,data}` / 分页 `PageResult<T>`；错误码仅
-  `200/400/401/403/4031/500`；`GlobalExceptionHandler` 兜底，Controller 不得裸抛。
+  `200/400/401/403/4001/4031/500`（`4001`=资源不存在、`4031`=邮箱未认证，二者为细分码）；
+  `GlobalExceptionHandler` 兜底，Controller 不得裸抛。
 
 ## 8. 可观测性
 
@@ -167,20 +207,32 @@ com.bjtufood
 
 | # | 债务 | 影响 | 偿还路径 |
 |---|---|---|---|
-| P1 | **游客 UGC 绕过微信机审**：`msgSecCheck v2` 的 `openid` 必填，游客（`userId=null`）与历史无 openid 账号一律跳过机审放行（`ContentSecurityServiceImpl` 既有口径，报告已备案）。这意味着这部分 UGC 仅经本地静态词库过滤，无语义级审核 | 游客可提交谐音/变体/语义违规内容而不被机审拦截；当前防线只有 160 条静态词表 | 三选一：① 游客提交改为「先落 pending 态 + 后台人工复核」（放弃实时拦截）；② 游客强制绑定微信身份（需产品确认会否抬高使用门槛）；③ 游客提交入口降级（如仅允许极短文本 + 更严词库） |
-| P1 | **菜品纠错链路无微信机审**：`CorrectionServiceImpl` 仅用本地词库校验菜品名称 | 纠错提交的名称无语义审核，仅靠静态词表 | 用户有 openid 时补一次 `contentSecurityService.checkText(openid, name, 2)`；无 openid 时沿用本地词库 |
 | P1 | `dish → review` 因事件订阅成包级环 | 包级环编译期不报错、只在运行时爆炸 | 语义单向，属可接受的发布/订阅形态；待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，随环检测规则一并恢复 |
 | P2 | 12 个 Service 实现中 10 个零单测 | 事务边界/权限判据等易错逻辑无回归保护 | 逐个补 Mockito 单测 |
 | P2 | `WechatAccessTokenProvider` 失败文案沿用「内容安全检测服务」措辞 | 该类同时服务 upload，上传失败场景措辞不贴切 | 统一为「微信服务」口径（会变更 API 返回文本，需评估） |
 | P2 | `web/`（管理后台）计划整体重构 | 现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文 | 重构时统一处理：超时可配置、AbortController 透传、口令改走登录态 |
 
-> **已偿还（2026-09-29 架构评审）**：
-> - ~~`client/`、`web/` 的 API base 仍为 `/api`~~ —— 三端 5 处配置已统一为 `/api/v1`，
+> **已偿还（2026-09-29 架构评审 + 内容审核收口）**：
+> - ~~**菜品纠错链路无微信机审**~~ —— `CorrectionServiceImpl#submit` 已接入 `msgSecCheck v2`：
+>   把 `name` / `canteenName` / `stallName` / `attributes` 四类**用户自由文本**合并为
+>   **单次**调用送检（`msgSecCheck` 按调用计费，逐字段送检会放大 4 倍额度），
+>   `scene=2`；纯 `price` / `images` 改动跳过送检以省额度。
+>   由 `CorrectionModerationTest`（10 用例）锁定「合并一次 / 四字段全覆盖 / risky 拦截不落库 / 纯结构化跳过」。
+> - ~~**本词库形同虚设**~~ —— `sensitive_words.txt` 由 6 条补至 160 条，
+>   且 `LocalSensitiveFilter#init()` 改为 **fail-fast**：词库缺失或解析出 0 条即拒绝启动，
+>   杜绝「兜底静默失效」。`LocalSensitiveFilterTest` 锁定「≥100 条有效词条」。
+> - ~~`client/`、`web/` 的 API base 仍为 `/api`~~ —— 三端 7 处已统一为 `/api/v1`，
 >   并新增 `ApiVersionPrefixTest` 在 `mvn test` 阶段强制（后端升版时该测试会红，强制同步端上）。
+> - ~~根目录 `.env.example` 与 `server/.env.example` 双份冲突~~ —— 过时的那份已删除。
 > - ~~`canteen → review → dish → canteen` 三方包级环~~ —— 已于 2026-09-28 由
 >   `CanteenAdminController#fillAvgRatings` 编排偿还，并由定向护栏锁死。
-> - ~~根目录 `.env.example` 与 `server/.env.example` 双份冲突~~ —— 过时的那份已删除，
->   `server/.env.example` 为后端唯一模板。
+
+> **审核覆盖现状（2026-09-29 复核）**：四条 UGC 写链路的**文本**均已过微信 `msgSecCheck v2`
+> （评价 / 反馈 / 昵称 / **菜品纠错**），**图片**均已过 `imgSecCheck`（`/upload/cloud-image` 上传时统一执行）。
+> 唯一残留边界是「**取不到 openid 时跳过机审**」（`msgSecCheck v2` 的 openid 必填），
+> 触发条件为登录态缺失——微信静默登录失败、非微信端 H5 联调。
+> 该场景下由本地 `LocalSensitiveFilter` 词库兜底；**因小程序端强制静默登录，生产环境触发概率极低**，
+> 且产品已按既有口径备案，故不单列为债务。
 
 ## 11. 变更约束
 

@@ -1,13 +1,12 @@
 /**
- * 反馈 / 纠错写入契约。
+ * 反馈 / 举报 / 纠错写入契约（三条互不耦合的链路）。
  *
- * 两条互不耦合的写入链路：
  * - **意见反馈**（`POST /feedback`）：面向小程序本身的通用反馈，3 类型（`bug` / `suggestion` / `other`）
  *   + 具体描述 + 截图（≤3 张）；
+ * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，
+ *   请求体 `reason`（必选）+ 可选补充说明 / 配图；
  * - **菜品纠错**（`POST /dishes/{id}/correction`）：依附某条菜品数据的专项修正，
  *   **局部提交（只传改动项）**，描述属性经 `attributes` 对象提交（键 = 维度 `fieldKey`）。
- *
- * `type=report` 为评价举报链路（详情页 useReport）专用写入口径，不在意见反馈页内。
  */
 
 /**
@@ -58,32 +57,33 @@ export interface DishCorrectionPayload {
   canteenName?: string
   /** 档口名（自由文本） */
   stallName?: string
-  /** 动态描述属性：键 = 维度 `fieldKey`，值 = 机器值（single）或机器值数组（multi）；仅含改动维度 */
+  /** 动态描述属性：键 = 维度 `fieldKey`，值 = 中文文本（single）或中文数组（multi）；仅含改动维度 */
   attributes?: Record<string, string | string[]>
   /** 图片 URL 数组（≤3 张；经 ImagePicker → 上传安检） */
   images?: string[]
 }
 
-export type FeedbackSubmit =
-  /**
-   * 意见反馈（三种类型）：描述必填 + 截图选填（≤3 张）。
-   * 值域 = 服务端 `FeedbackConst.WRITABLE_TYPES`，非法值 400。
-   */
-  | {
-      type: 'bug' | 'suggestion' | 'other'
-      /** 反馈内容（必填，端上 ≤600 字 / 服务端 ≤1000 字） */
-      content: string
-      /** 截图（COS URL，≤3 张；经上传安检后回传） */
-      images?: string[]
-    }
-  /** 评价举报（菜品详情页举报弹层，非意见反馈页）：以结构化原因单选为准（sub），content 可空 */
-  | {
-      type: 'report'
-      content?: string
-      /** 举报原因机器值（字典端点 `GET /feedback/report-reasons` 下发） */
-      sub?: string
-      /** 举报对象类型：'review'（评价） */
-      relatedType?: string
-      /** 关联对象 ID（被举报的评价 ID） */
-      relatedId?: number
-    }
+/**
+ * 意见反馈提交（`POST /feedback`，纯反馈三类型）。
+ * 值域 = 服务端 `FeedbackConst.WRITABLE_TYPES`，非法 / 历史类型 400。
+ */
+export interface FeedbackSubmit {
+  type: 'bug' | 'suggestion' | 'other'
+  /** 反馈内容（必填，端上 ≤600 字 / 服务端 ≤1000 字） */
+  content: string
+  /** 截图（COS URL，≤3 张；经上传安检后回传） */
+  images?: string[]
+}
+
+/**
+ * 评价举报请求体（`POST /reviews/{id}/report`）。
+ * 举报对象（被举报评价 ID）在**路径**中；请求体无 `type` / `relatedType` / `relatedId`。
+ */
+export interface ReportPayload {
+  /** 举报原因机器值（必选，字典端点 `GET /feedback/report-reasons` 下发项） */
+  reason: string
+  /** 补充说明（可空，≤1000 字） */
+  content?: string
+  /** 佐证配图（COS URL，≤3 张） */
+  images?: string[]
+}

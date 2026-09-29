@@ -13,6 +13,7 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/bjtu-food-1.0.0.jar app.jar
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+# 堆上限按 0.5G 实例保守设置（512m 会因 JVM 额外开销被 OOMKilled）；实例规格 ≥1G 可调回 512m。
+ENV JAVA_OPTS="-Xms192m -Xmx384m"
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

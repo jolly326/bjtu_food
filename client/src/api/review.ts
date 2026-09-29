@@ -47,7 +47,7 @@ function toMyReview(raw: RawRow): MyReview {
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
  * - 菜品归属由路径表达（不再用查询参数）；
  * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
- * - `hasImage=true` 时仅返回带图评价（后端 `hasImage=1`）；
+ * - `hasImage=true` 时仅返回带图评价（后端布尔契约 `hasImage=true`）；
  * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  */
 export async function getDishReviews(
@@ -58,7 +58,8 @@ export async function getDishReviews(
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? 20,
   }
-  if (options?.hasImage) params.hasImage = 1
+  // 布尔契约（2026-09-29 由 0/1 改）：true 时服务端仅返回带图评价
+  if (options?.hasImage) params.hasImage = true
   // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
   const res = await get<RawPage>(`/dishes/${dishId}/reviews`, params)
   return { list: recordsOf<RawRow>(res).map(toReview) }

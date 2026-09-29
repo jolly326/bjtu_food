@@ -50,14 +50,14 @@ public class DishAdminReq {
 
     /**
      * 描述属性（动态属性模型）：键 = 维度 {@code fieldKey}（camelCase），
-     * 值 = 机器值（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）。
-     * 值域由 {@code dish_attribute_dimension} / {@code dish_attribute_value} 两表字典决定。
+     * 值 = **中文文本**（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）。
+     * 取值为自由文本，候选仅作提示（无独立取值字典表）。
      */
-    @Schema(description = "描述属性（键=维度 fieldKey，值=机器值/数组；可空）",
-            example = "{\"dietType\":\"half\",\"ingredients\":[\"egg\"],\"flavorTags\":[\"sour\",\"sweet\"],\"serveTemp\":\"hot\"}")
+    @Schema(description = "描述属性（键=维度 fieldKey，值=中文文本/数组；可空）",
+            example = "{\"dietType\":\"半荤\",\"ingredients\":[\"蛋\"],\"flavorTags\":[\"酸\",\"甜\"],\"serveTemp\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/meal-types；可空；服务端白名单校验非法值 400）", example = "noodle")
+    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/views 的大类视图；可空；服务端白名单校验非法值 400）", example = "noodle")
     private String mealType;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")

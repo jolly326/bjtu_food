@@ -1,20 +1,28 @@
 /**
- * 反馈接口模块（project_spec.md §3.x.5：POST /feedback）
+ * 反馈 / 举报写入口（三链路各自独立）
  *
- * 写入口径收敛为 issue（反馈问题）+ report（评价举报链路）。
- * 「更新信息」走独立纠错端点 `POST /dishes/{id}/correction`（公开可提交，匿名允许，无需登录守卫）。
+ * - 意见反馈：`POST /feedback`（纯反馈三类型 bug/suggestion/other）；
+ * - 评价举报：`POST /reviews/{id}/report`（RESTful 子资源）；
+ * - 菜品纠错：`POST /dishes/{id}/correction`（本文件下方）。
  */
 import { get, post } from './http'
-import type { FeedbackSubmit, DishCorrectionPayload } from '@/types/feedback'
+import type { FeedbackSubmit, ReportPayload, DishCorrectionPayload } from '@/types/feedback'
 
 /**
- * 提交反馈：payload 整体透传（不逐字段映射），字段契约由 `FeedbackSubmit` 承载。
- * - issue：`content` 必填 + `images`（≤3 张）；
- * - report：`sub` = 举报原因机器值（必选），`content` 可空（不再强制文本描述）。
- * 「更新信息」走 `submitDishCorrection`（本文件下方）。
+ * 提交意见反馈：payload 整体透传（不逐字段映射）。
+ * 仅纯反馈三类型（bug/suggestion/other），`content` 必填 + `images`（≤3 张）。
  */
 export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
+}
+
+/**
+ * 提交评价举报：`POST /reviews/{id}/report`（RESTful 子资源，举报对象在路径中）。
+ * - 公开可提交（游客允许）；`reason` 必选（字典 `GET /feedback/report-reasons` 下发项）；
+ * - 补充文本可空（填写则过安检）；被举报评价不存在 / 不可见 → 4001。
+ */
+export async function reportReview(reviewId: number, payload: ReportPayload): Promise<void> {
+  await post(`/reviews/${reviewId}/report`, payload)
 }
 
 /**

@@ -408,7 +408,7 @@ export function useDishPage() {
   }
 
   /* ===== 评价举报（收敛到 useReport hook） ===== */
-  const { reportOpen, reportSubmitting, openReport, submitReport } = useReport({ type: 'review' })
+  const { reportOpen, reportSubmitting, openReport, submitReport } = useReport()
 
   function onReviewReport(rv: Review | MyReview) {
     openReport(rv.id)

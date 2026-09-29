@@ -87,63 +87,62 @@
         <text v-if="errors['form.stallName']" class="field-error">{{ errors['form.stallName'] }}</text>
       </view>
 
-      <!-- 描述属性（动态维度）：有候选值 → 点选 chips（可取消）；无候选值 → 自由文本 chips（可增删） -->
+      <!-- 描述属性（动态维度）：候选值点选 chips + **恒可自由输入新值**（候选仅为提示） -->
       <view v-for="ed in model.attributes" :key="ed.fieldKey" class="field">
         <text class="field-label">{{ ed.name }}</text>
-        <!-- 受限维度：候选值点选（single = 单选替换；multi = 多选切换） -->
+        <!-- 参考候选：点选 chips（single = 单选替换；multi = 多选切换） -->
         <view v-if="ed.options.length" class="chips" role="group" :aria-label="ed.name">
           <view
             v-for="opt in ed.options"
-            :key="opt.valueKey"
+            :key="opt"
             class="chip"
-            :class="{ 'chip--off': !ed.selected.includes(opt.valueKey) }"
+            :class="{ 'chip--off': !ed.selected.includes(opt) }"
             role="button"
-            :aria-label="`${ed.name} ${opt.label}`"
-            :aria-pressed="ed.selected.includes(opt.valueKey) ? 'true' : 'false'"
+            :aria-label="`${ed.name} ${opt}`"
+            :aria-pressed="ed.selected.includes(opt) ? 'true' : 'false'"
             hover-class="row-pressed"
             hover-stay-time="80"
-            @tap="toggleOption(ed, opt.valueKey)"
+            @tap="toggleOption(ed, opt)"
           >
-            <text class="chip-text">{{ opt.label }}</text>
+            <text class="chip-text">{{ opt }}</text>
           </view>
         </view>
-        <!-- 自由文本维度：可增删 + 输入添加 -->
-        <view v-else>
-          <view v-if="ed.selected.length" class="chips">
-            <view v-for="(v, j) in ed.selected" :key="`${ed.fieldKey}-${j}-${v}`" class="chip">
-              <text class="chip-text">{{ v }}</text>
-              <view
-                class="chip-x"
-                role="button"
-                :aria-label="`删除${ed.name} ${v}`"
-                hover-class="row-pressed"
-                hover-stay-time="80"
-                @tap="removeValue(ed, j)"
-              >
-                <IconSvg name="close" :size="18" :color="COLOR_MAP['text-tertiary']" />
-              </view>
-            </view>
-          </view>
-          <view class="chip-add-row">
-            <input
-              v-model="drafts[ed.fieldKey]"
-              class="chip-input"
-              :placeholder="`加个${ed.name}`"
-              maxlength="10"
-              confirm-type="done"
-              :cursor-spacing="40"
-              :adjust-position="true"
-              @confirm="addValue(ed)"
-            />
+        <!-- 已选「候选之外」的自定义值：单独展示、可删除 -->
+        <view v-if="customValues(ed).length" class="chips">
+          <view v-for="(v, j) in customValues(ed)" :key="`${ed.fieldKey}-c-${j}-${v}`" class="chip">
+            <text class="chip-text">{{ v }}</text>
             <view
-              class="chip-add"
+              class="chip-x"
               role="button"
-              :aria-label="`添加${ed.name}`"
+              :aria-label="`删除${ed.name} ${v}`"
               hover-class="row-pressed"
               hover-stay-time="80"
-              @tap="addValue(ed)"
-            ><text class="chip-add-text">添加</text></view>
+              @tap="removeValue(ed, v)"
+            >
+              <IconSvg name="close" :size="18" :color="COLOR_MAP['text-tertiary']" />
+            </view>
           </view>
+        </view>
+        <!-- 自由输入：随时可加候选之外的新值（single 维填入即替换，multi 维追加） -->
+        <view class="chip-add-row">
+          <input
+            v-model="drafts[ed.fieldKey]"
+            class="chip-input"
+            :placeholder="`加个${ed.name}`"
+            maxlength="10"
+            confirm-type="done"
+            :cursor-spacing="40"
+            :adjust-position="true"
+            @confirm="addValue(ed)"
+          />
+          <view
+            class="chip-add"
+            role="button"
+            :aria-label="`添加${ed.name}`"
+            hover-class="row-pressed"
+            hover-stay-time="80"
+            @tap="addValue(ed)"
+          ><text class="chip-add-text">添加</text></view>
         </view>
       </view>
 
@@ -160,8 +159,8 @@
 /**
  * UpdateForm（correction 包内私有）：菜品纠错预填表单字段区。
  *
- * 描述属性按**动态属性模型**渲染：维度与候选值全由后端下发（端上零硬编码维度名 / 取值），
- * `single` 维度点选即替换、`multi` 维度可多选；候选值为空 = 自由文本维度。
+ * 描述属性按**动态属性模型**（值即中文）渲染：维度由后端下发（端上零硬编码维度名）；
+ * 候选值仅作提示（点选 chips，`single` 单选 / `multi` 多选），**恒可自由输入候选之外的新值**。
  */
 import { ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -197,28 +196,37 @@ const emit = defineEmits<{
 /** 自由文本维度的输入草稿（按维度键分组） */
 const drafts = ref<Record<string, string>>({})
 
-/** 受限维度点选：single 替换、multi 切换 */
-function toggleOption(ed: AttributeEditor, valueKey: string) {
-  if (ed.valueType === 'single') {
-    ed.selected = ed.selected[0] === valueKey ? [] : [valueKey]
-    return
-  }
-  ed.selected = ed.selected.includes(valueKey)
-    ? ed.selected.filter((x) => x !== valueKey)
-    : [...ed.selected, valueKey]
+/** 已选中但不在候选里的自定义值（用于单独展示可删除 chip） */
+function customValues(ed: AttributeEditor): string[] {
+  return ed.selected.filter((v) => !ed.options.includes(v))
 }
 
-/** 自由文本维度：添加一项（去重） */
+/** 候选点选：single 替换、multi 切换 */
+function toggleOption(ed: AttributeEditor, value: string) {
+  if (ed.valueType === 'single') {
+    ed.selected = ed.selected[0] === value ? [] : [value]
+    return
+  }
+  ed.selected = ed.selected.includes(value)
+    ? ed.selected.filter((x) => x !== value)
+    : [...ed.selected, value]
+}
+
+/** 自由输入：single 填入即替换；multi 追加（去重） */
 function addValue(ed: AttributeEditor) {
   const value = (drafts.value[ed.fieldKey] || '').trim()
   if (!value) return
-  if (!ed.selected.includes(value)) ed.selected.push(value)
+  if (ed.valueType === 'single') {
+    ed.selected = [value]
+  } else if (!ed.selected.includes(value)) {
+    ed.selected.push(value)
+  }
   drafts.value[ed.fieldKey] = ''
 }
 
-/** 自由文本维度：删除一项 */
-function removeValue(ed: AttributeEditor, index: number) {
-  ed.selected.splice(index, 1)
+/** 删除某一项（候选或自定义） */
+function removeValue(ed: AttributeEditor, value: string) {
+  ed.selected = ed.selected.filter((x) => x !== value)
 }
 
 /**

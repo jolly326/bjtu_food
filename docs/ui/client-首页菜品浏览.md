@@ -136,7 +136,7 @@ TabBar（fixed，透明底）
 
 | 项 | 设计值 |
 |---|---|
-| 数据来源 | `GET /dishes/meal-types` → `[{ value, label, order }]`：首项由后端下发 `{ value: null, label: "为你推荐" }`，后续为在售分类；**字典顺序 = 后端返回顺序（推荐首项 + 常量声明序），与热度无关**——热度只决定各流内菜品顺序，不决定标签顺序；**端上只消费 `value` / `label`**，按返回顺序**全量直出**（不前置硬编码「全部」） |
+| 数据来源 | `GET /dishes/views` → `[{ key, label }]`：按 `DishViewConst.ALL` 声明序下发（首项「为你推荐」）；**字典顺序 = 后端返回顺序，与热度无关**——热度只决定各流内菜品顺序，不决定标签顺序；**端上只消费 `key` / `label`**，按返回顺序**全量直出**（不前置硬编码「全部」） |
 | 空类自动隐藏 | 后端只下发当前有在售菜品的大类，端上零改动 |
 | 标签样式 | **纯文字导航**——无胶囊底、无边框、无背景块 |
 | 未选中 / 选中 | 字色 `--text-body` / `--text-title`；字重 `--weight-regular` / `--weight-semibold` |
@@ -151,14 +151,14 @@ TabBar（fixed，透明底）
 
 ### 5.3 展示与切换（实现口径）
 
-**展示**：① 渲染项 = 后端响应直出展开（空类自动隐藏）；② 横向可滑动（`scroll-x`，隐藏滚动条）+ **选中项自动滚入视口**（稳定 id：`mt-tab-{value}` / `mt-tab-recommend`）；③ 下划线是**常驻节点 + opacity 切换**（不做 `v-if`，避免行高跳动；纯装饰 `aria-hidden`，选中语义由字重 + `aria-label` 表达）。
+**展示**：① 渲染项 = 后端响应直出展开（大类视图空类自动隐藏）；② 横向可滑动（`scroll-x`，隐藏滚动条）+ **选中项自动滚入视口**（稳定 id：`mt-tab-{key}`）；③ 下划线是**常驻节点 + opacity 切换**（不做 `v-if`，避免行高跳动；纯装饰 `aria-hidden`，选中语义由字重 + `aria-label` 表达）。
 
 **切换链路（一次点击）**
 
 | 步骤 | 行为 |
 |---|---|
-| ① 点击 | `value === activeValue` → **直接 return，不发请求** |
-| ② 写态 | `dishStore.setHomeMealType(value)` → `filterMealType = value` + `fetchHomeDishes(true)` |
+| ① 点击 | `key === activeKey` → **直接 return，不发请求** |
+| ② 写态 | `dishStore.setHomeView(key)` → `filterView = key` + `fetchHomeDishes(true)` |
 | ③ 保留旧列表 | 重置分页但**不清空 `homeList`**（清空会让 `scroll-view` 把滚动位置钳回顶部：切标签弹回页首） |
 | ④ 分页复位 | `homePage=1` / `homeFinished=false` / `homePageLimited=false` / `homeError=false` |
 | ⑤ 竞态守卫 | `homeFetchSeq++`，**过期响应一律丢弃**（连点多个大类不串序） |
@@ -166,16 +166,16 @@ TabBar（fixed，透明底）
 | ⑦ 在途 | 切类**不触发**「静默加载中」（`HomeContent` 只订阅 `LOADING_KEY_HOME`）⇒ 旧列表继续在屏、无闪白 |
 | ⑧ 结果 | 新数据到达替换列表；失败 → `homeError=true`，有数据则静默保留，空才渲染 `RetryBlock` |
 
-**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchMealTypes()`）⇒ 字典失败不阻塞列表，**标签栏判空整体不渲染**（端上不留任何兜底标签 —— 文案是服务端资产，Round 32）；`onShow` 重试（**仅「从未成功」时**）；`fetchMealTypes` 内顺带校正选中项（所选大类已不在字典 → 自动回落首位虚拟项即「不传 `mealType`」）。
+**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchDishViews()`）⇒ 字典失败不阻塞列表，**标签栏判空整体不渲染**（端上不留任何兜底标签 —— 文案是服务端资产，Round 32）；`onShow` 重试（**仅「从未成功」时**）；`fetchDishViews` 内顺带校正选中项（所选视图已不在字典 → 自动回落**字典首项**，即服务端声明的默认视图）。
 
 ### 5.4 排序口径（端上无排序入口）
 
 | 项 | 口径 |
 |---|---|
-| 默认（「为你推荐」流） | **会话种子稳定伪随机序**：`ORDER BY CRC32(CONCAT(seed,'-',id)), id`；`seed` 在每次列表 reset 时由端上**重掷**、翻页沿用 ⇒ 每次进入整体重洗、同次浏览顺序稳定（翻页不重不漏） |
-| 大类 / 搜索流 | **服务端固定热度倒序**：`heatScoreExpr = view_count × 1 + rating_count × 100 + avg_rating × 20`；带 `mealType` / `keyword` 时 `seed` 不参与 |
+| 默认视图（「为你推荐」，`sortKind=SEED_RANDOM`） | **会话种子稳定伪随机序**：`ORDER BY CRC32(CONCAT(seed,'-',id)), id`；`seed` 在每次列表 reset 时由端上**重掷**、翻页沿用 ⇒ 每次进入整体重洗、同次浏览顺序稳定（翻页不重不漏） |
+| 大类 / 搜索流（`sortKind=HEAT`） | **服务端固定热度倒序**：`heatScoreExpr = view_count × 1 + rating_count × 100 + avg_rating × 20`；带 `keyword` 或非推荐视图时 `seed` 不参与 |
 | 可选排序 | **无**（无按钮 / 面板 / 下拉 / 胶囊，不传任何排序参数） |
-| 传参 | `GET /dishes` 恰 5 项：`page` / `pageSize` / `keyword` / `mealType` / `seed` |
+| 传参 | `GET /dishes` 恰 5 项：`page` / `pageSize` / `keyword` / `view` / `seed` |
 | 防回退 | **不得**新增「综合 / 最新 / 价格↑↓ / 距离」排序入口（距离能力已下线）；恢复须另立 change |
 
 **筛选维度**：首页**无任何筛选入口**（唯一维度 = 大类标签栏）；搜索页（find）**无食堂 / 价格筛选胶囊**。
@@ -385,7 +385,7 @@ TabBar（fixed，透明底）
 ### 11.3 图片占位策略（禁止无限空转）
 
 ① 菜品图失败 → **统一占位 `ImagePlaceholder`**（唯一真源 `pages/home/DishCard.vue`）；② Banner 空 / 失败 / 单张失败 → **统一占位 `ImagePlaceholder`**，块高仍 16:10；③ 列表请求失败 → `RetryBlock`。
-**预览排查**：标签栏只剩「全部」或不出现 → 字典请求失败（查后端 `GET /dishes/meal-types`、开发者工具「不校验合法域名」、是否最新构建产物）；Banner 恒为占位 → 查 `GET /banners` 是否非空、图片 URL 是否可达。
+**预览排查**：标签栏不出现 → 字典请求失败（查后端 `GET /dishes/views`、开发者工具「不校验合法域名」、是否最新构建产物）；Banner 恒为占位 → 查 `GET /banners` 是否非空、图片 URL 是否可达。
 
 ---
 
@@ -451,7 +451,7 @@ TabBar（fixed，透明底）
 | 接口 | 用途 | 何时调用 |
 |---|---|---|
 | `GET /banners` | 顶部 16:10 轮播（`[{ id, imageUrl }]`；已按 `sort_order` 升序、只返回启用项；**无跳转字段**） | `HomeBanner` 自身 `onMounted`（与列表**并行**；失败不阻塞首屏） |
-| `GET /dishes/meal-types` | 大类标签栏字典（`[{ value, label, order }]`；首项「为你推荐」；端上只消费 `value` / `label`） | 页面 `onLoad`（`void`，**不 await**）+ `onShow`「从未成功」时兜底重试 |
+| `GET /dishes/views` | 筛选栏字典（`[{ key, label }]`；首项「为你推荐」；端上只消费 `key` / `label`） | 页面 `onLoad`（`void`，**不 await**）+ `onShow`「从未成功」时兜底重试 |
 | `GET /dishes` | 双列网格主数据（`PageResult<DishListItemVO>`，只含在售） | `onLoad` 首拉、切大类、重试、触底加载 |
 
 **字段定义（`DishListItemVO` 8 字段 ↔ 端上 `DishListItem`）**
@@ -470,6 +470,6 @@ TabBar（fixed，透明底）
 
 > **本页不消费**：`description` / `images` / `floor` / `ratingCount` / `dietType` / `ingredients` / `flavorTags` / `serveTemp` / `mealType` / `status` / `viewCount` / 坐标与距离。
 
-**分页与入参**：`pageSize = 10`｜最多 10 页 = 100 条封顶｜触底提前量 300px｜`GET /dishes` → `mealType`（「为你推荐」不传）/ `page` / `pageSize=10`；**不传** `keyword`（首页无关键词）、**不传任何排序参数**。
+**分页与入参**：`pageSize = 10`｜最多 10 页 = 100 条封顶｜触底提前量 300px｜`GET /dishes` → `view`（选中视图键，缺省即默认视图「为你推荐」）/ `page` / `pageSize=10` / `seed`；**不传** `keyword`（首页无关键词）、**不传任何排序参数**。
 
 **控件类型**：`scroll-view`（`scroll-y` + `scrolltolower` + `lower-threshold=300`）、`swiper` 轮播、`position: sticky` 吸顶容器（吸顶态铺背景图切片）、`fixed` 标题带、`fixed` 壁纸层、`scroll-x` 标签栏。

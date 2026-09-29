@@ -58,9 +58,10 @@ public class Dish {
     @Schema(description = "描述属性（JSON：键=维度 fieldKey，值=机器值/数组）", example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\"]}")
     private String attributes;
 
-    /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：键域由 MealTypeConst 唯一定义；
-     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），仅供筛选与字典下发 */
-    @Schema(description = "菜品大类枚举键（MealTypeConst）", example = "noodle")
+    /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：值域由 DishViewConst 派生（单一真源）；
+     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），
+     *  仅供「大类视图」筛选与视图字典下发 */
+    @Schema(description = "菜品大类枚举键（值域由 DishViewConst 派生）", example = "noodle")
     private String mealType;
 
     /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */

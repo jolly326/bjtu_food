@@ -43,7 +43,7 @@ public class ReviewController {
             description = """
                     用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
                     排序唯一为发表时间倒序，不提供排序参数。
-                    hasImage=1 时只返回带图评价，total 按该口径统计；缺省或 0 不过滤。
+                    hasImage=true 时只返回带图评价，total 按该口径统计；缺省或 false 不过滤。
                     只返回未隐藏（is_hidden=0）的评价。
                     测试示例：/dishes/1/reviews?page=1&pageSize=20
                     """)
@@ -53,12 +53,12 @@ public class ReviewController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
-            @Parameter(description = "只看有图：1=仅带图评价；缺省/0=不过滤", example = "1")
-            @RequestParam(required = false) Integer hasImage) {
+            @Parameter(description = "只看有图：true=仅带图评价；缺省/false=不过滤", example = "true")
+            @RequestParam(defaultValue = "false") boolean hasImage) {
         return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize, hasImage)));
     }
 
-    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 10 字段 = 公开 8 + dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @GetMapping("/my/reviews")

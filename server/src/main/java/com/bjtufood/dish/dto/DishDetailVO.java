@@ -68,8 +68,8 @@ public class DishDetailVO {
     @Schema(description = "平均评分（读缓存列 dish.avg_rating；零评价为 null）", example = "4.5")
     private BigDecimal avgRating;
 
-    /** 该菜品实际拥有的描述属性（后端已整理：机器值 + 中文），按维度展示顺序排列 */
-    @Schema(description = "菜品描述属性（仅含该菜实际拥有的维度，按维度顺序；value/label 同构：single=字符串 / multi=数组）")
+    /** 该菜品实际拥有的描述属性（值即中文），按维度展示顺序排列 */
+    @Schema(description = "菜品描述属性（仅含该菜实际拥有的维度，按维度顺序；value：single=字符串 / multi=数组）")
     private List<DishAttributeItem> attributes;
 
     /**

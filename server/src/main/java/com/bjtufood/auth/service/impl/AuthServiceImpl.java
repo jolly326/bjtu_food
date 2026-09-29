@@ -250,7 +250,7 @@ public class AuthServiceImpl implements AuthService {
         // 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
-        vo.setUsername(user.getUsername());
+        // username 端上零消费，不出参（账号标识保留在 user 表与 JWT 载荷，供日志）
         vo.setNickname(user.getNickname());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
         vo.setBindEmail(user.getBindEmail());

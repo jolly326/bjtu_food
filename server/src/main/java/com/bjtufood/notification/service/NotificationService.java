@@ -32,11 +32,11 @@ public interface NotificationService {
      * 我的通知列表：按创建时间倒序，可选 isRead 过滤，分页归一化
      *
      * @param userId   接收用户ID（SecurityUtil 取当前用户，不信任前端）
-     * @param isRead   已读过滤：0/1（null=全部）
+     * @param isRead   已读过滤：true=仅已读 / false=仅未读（null=全部）
      * @param page     页码（&lt;1 时回退 1）
      * @param pageSize 每页条数（&lt;1 回退 10，&gt;100 截断 100）
      */
-    PageResult<NotificationVO> listMy(Long userId, Integer isRead, int page, int pageSize);
+    PageResult<NotificationVO> listMy(Long userId, Boolean isRead, int page, int pageSize);
 
     /**
      * 未读通知计数（驱动首页红点）

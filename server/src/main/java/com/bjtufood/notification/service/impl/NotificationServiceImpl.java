@@ -68,7 +68,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public PageResult<NotificationVO> listMy(Long userId, Integer isRead, int page, int pageSize) {
+    public PageResult<NotificationVO> listMy(Long userId, Boolean isRead, int page, int pageSize) {
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
@@ -77,7 +77,8 @@ public class NotificationServiceImpl implements NotificationService {
                 .eq(Notification::getUserId, userId)
                 .orderByDesc(Notification::getCreatedAt);
         if (isRead != null) {
-            wrapper.eq(Notification::getIsRead, isRead);
+            // 契约布尔 → 存储 0/1（列仍为 TINYINT，仅在 API 边界转换）
+            wrapper.eq(Notification::getIsRead, isRead ? 1 : 0);
         }
         IPage<Notification> p = notificationMapper.selectPage(new Page<>(page, pageSize), wrapper);
         List<NotificationVO> records = p.getRecords().stream().map(this::toVO).toList();
@@ -119,12 +120,13 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     private NotificationVO toVO(Notification n) {
+        // type / relatedId 端上零消费，不出参（见 NotificationVO 类注释）
         NotificationVO vo = new NotificationVO();
         vo.setId(n.getId());
-        vo.setType(n.getType());
         vo.setTitle(n.getTitle());
         vo.setContent(n.getContent());
-        vo.setIsRead(n.getIsRead());
+        // 存储 0/1 → 契约布尔（列不变，仅在 API 边界转换）
+        vo.setIsRead(n.getIsRead() != null && n.getIsRead() == 1);
         vo.setCreatedAt(n.getCreatedAt());
         return vo;
     }

@@ -18,6 +18,8 @@ import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
+import com.bjtufood.feedback.dto.ReportReq;
+import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
@@ -49,75 +51,71 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final NotificationService notificationService;
     private final ContentSecurityService contentSecurityService;
     private final ImageUrlUtil imageUrlUtil;
+    /** 跨域只读契约：举报目标（评价）存在性与可见性校验（方案 B 举报子资源） */
+    private final ReviewService reviewService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
-        // 类型写入白名单（P2-01 / P3-10）：仅端上真实产出的 2 类可写（issue / report），
-        // suggestion/add/error/bug/other 为历史遗留、禁新增；非法值 400（不再原样落库）。
+        // 类型写入白名单（方案 B 2026-09-29）：仅纯反馈三类可写（bug / suggestion / other），
+        // 非法 / 历史遗留（issue / add / error / report）→ 400（不再原样落库）；
+        // 举报已迁出为 POST /reviews/{id}/report，纠错早前迁出为 POST /dishes/{id}/correction。
         String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
-        if (FeedbackConst.TYPE_REPORT.equals(type)) {
-            // 举报必须关联被举报对象（当前举报对象为菜品详情的评价，复用 user_feedback 表）
-            if (req.getRelatedId() == null
-                    || !FeedbackConst.RELATED_REVIEW.equals(req.getRelatedType())) {
-                throw new BusinessException("举报必须指定关联对象（relatedType=review 且 relatedId 必填）");
-            }
-            // 举报去重（project_spec §7.11 第 3 条，2026-09-14 用户拍板）：
-            // 同一登录用户对同一被举报对象的重复举报不再新增记录，直接给业务提示。
-            // 边界：游客举报（userId=null）无身份标识，不做去重（已登记备查）。
-            if (userId != null && feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>()
-                    .eq(Feedback::getUserId, userId)
-                    .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
-                    .eq(Feedback::getRelatedType, req.getRelatedType())
-                    .eq(Feedback::getRelatedId, req.getRelatedId())) > 0) {
-                throw new BusinessException("你已举报过该内容，我们会尽快处理，请勿重复提交");
-            }
+        if (!StringUtils.hasText(req.getContent())) {
+            throw new BusinessException(400, "反馈内容不能为空");
         }
-        // 二级分类 sub 按 type 分流（值域单一真源 FeedbackConst，PR-06：非法/缺失即 400，不静默降级）：
-        // 1. report → 举报原因（**必选**：端上底部弹层单选字典下发项 `GET /feedback/report-reasons`，
-        //    选中值作为 sub 上送——举报结论结构化，后台直接按原因处置，不再依赖文本描述）；
-        // 2. 其他类型（issue）→ 禁带（提供即 400，严格模式）。
-        String sub;
-        if (FeedbackConst.TYPE_REPORT.equals(type)) {
-            sub = ParamValidator.requiredInWhitelist(req.getSub(), FeedbackConst.REPORT_REASON_VALUES, "举报原因");
-        } else {
-            if (StringUtils.hasText(req.getSub())) {
-                throw new BusinessException(400, "反馈二级分类仅「举报」(report) 类型有效");
-            }
-            sub = null;
-        }
-        // 内容按 type 分流必填：report 走结构化原因单选，不再强制文本（content 可空，落空串）；
-        // 其余类型仍必填（提示文案维持原口径）。
-        String content;
-        if (FeedbackConst.TYPE_REPORT.equals(type)) {
-            content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
-        } else {
-            if (!StringUtils.hasText(req.getContent())) {
-                throw new BusinessException(400, "反馈内容不能为空");
-            }
-            content = localSensitiveFilter.filter(req.getContent());
-        }
+        String content = localSensitiveFilter.filter(req.getContent());
+
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(type);
-        feedback.setSub(sub);
+        // 纯反馈无二级分类 / 无关联对象（历史列保持 NULL）
+        feedback.setSub(null);
         feedback.setContent(content);
-        // contact 落库点已随 user_feedback.contact 列退役删除（2026-09-16 产品定型「不收集联系方式」）
-        feedback.setRelatedType(req.getRelatedType());
-        feedback.setRelatedId(req.getRelatedId());
+        feedback.setRelatedType(null);
+        feedback.setRelatedId(null);
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
 
-        // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
-        // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）。
-        // 2026-09-15 用户拍板「取消人工复核」：内容安全检测 review（疑似）归一为放行，
-        // 不再落库 sec_state（该列已全链退役），故此处只保留拦截语义。
-        // 空文本（report 仅选原因、无补充说明）跳过送检。
-        // 边界（报告备案）：游客反馈（userId=null，PUB 接口）与 openid 为 NULL 的账号无法调 v2 接口
-        // （msgSecCheck v2 openid 必填），按服务内既有口径跳过内容安全检测放行；微信凭据未配置（本地开发）同。
-        if (StringUtils.hasText(feedback.getContent())) {
-            checkUgcText(userId, feedback.getContent());
-        }
+        // ---- 内容安全检测（全部 UGC 过微信内容安全检测）----
+        // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）；
+        // 边界：游客（userId=null）与无 openid 账号跳过机审放行（本地词库兜底）。
+        checkUgcText(userId, feedback.getContent());
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
+        feedbackMapper.insert(feedback);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void report(Long userId, Long reviewId, ReportReq req) {
+        // 举报目标必须存在且公开可见（已隐藏 / 已删除对外等价于不存在 → 4001）
+        if (!reviewService.existsVisibleById(reviewId)) {
+            throw new BusinessException(4001, "评价不存在");
+        }
+        // 举报原因必选（值域 = 字典白名单，PR-06：非法 / 缺失即 400，不静默降级）
+        String reason = ParamValidator.requiredInWhitelist(req.getReason(), FeedbackConst.REPORT_REASON_VALUES, "举报原因");
+        // 去重（§7.11 第 3 条）：同一登录用户对同一评价的重复举报不再新增（游客 userId=null 无身份标识，不去重）
+        if (userId != null && feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>()
+                .eq(Feedback::getUserId, userId)
+                .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
+                .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
+                .eq(Feedback::getRelatedId, reviewId)) > 0) {
+            throw new BusinessException(400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
+        }
+        // 补充文本可空；填写则过本地词库 + 微信机审（空文本跳过送检省额度）
+        String content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
+        if (StringUtils.hasText(content)) {
+            checkUgcText(userId, content);
+        }
+
+        Feedback feedback = new Feedback();
+        feedback.setUserId(userId);
+        feedback.setType(FeedbackConst.TYPE_REPORT);
+        feedback.setSub(reason);
+        feedback.setContent(content);
+        feedback.setRelatedType(FeedbackConst.RELATED_REVIEW);
+        feedback.setRelatedId(reviewId);
+        feedback.setStatus(FeedbackConst.STATUS_PENDING);
+        feedback.setImages(UgcImageValidator.encode(req.getImages(), "举报", imageUrlUtil));
         feedbackMapper.insert(feedback);
     }
 

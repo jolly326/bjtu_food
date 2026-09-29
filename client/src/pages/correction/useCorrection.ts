@@ -5,9 +5,9 @@
  * 进页即按导航参数 `dishId` **预绑定该菜品**（表单内不允许切换），拉详情预填全部字段，
  * 用户只改错的地方 → **只提交改动过的项**（局部提交 / patch），未改动的不上传。
  *
- * 描述属性走**动态属性模型**：编辑态候选值按需取 `GET /dishes/{id}/attributes`
- * （只含该菜现有维度）；提交经 `attributes` 对象（键 = 维度 `fieldKey`）。
- * 展示侧中文由 `GET /dishes/{id}` 的 `attributes[].label` 直出，**端上零翻译**。
+ * 描述属性走**动态属性模型**（值即中文）：编辑态参考候选按需取 `GET /dishes/{id}/attributes`
+ * （只含该菜现有维度；候选仅为提示，可自由输入新值）；提交经 `attributes` 对象（键 = 维度 `fieldKey`）。
+ * 展示侧中文由 `GET /dishes/{id}` 的 `attributes[].value` 直出，**端上零翻译**。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useCorrection()，
  * 使 onLoad/onUnload 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
@@ -17,6 +17,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitDishCorrection } from '@/api/feedback'
 import { getDishDetail, getDishEditAttributes } from '@/api/dish'
 import { isResourceNotFound } from '@/api/http'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
 import { yuanToFen } from '@/utils/money'
@@ -33,8 +34,8 @@ export interface AttributeEditor {
   name: string
   /** 取值类型：`single`（单值）｜ `multi`（多值） */
   valueType: 'single' | 'multi'
-  /** 候选值（后端按序下发）；**空数组 = 自由文本维**（可自由输入） */
-  options: { valueKey: string; label: string }[]
+  /** 参考候选值（中文文本，按频次倒序）；仅为提示，**恒可自由输入新值** */
+  options: string[]
   /** 当前选中的机器值（`single` 至多 1 项） */
   selected: string[]
 }
@@ -191,6 +192,8 @@ export function useCorrection() {
     () =>
       !!dishId.value &&
       !loading.value &&
+      // 退避期禁提交：后端 2 次/分钟，连点只会持续延长封锁（2026-09-29）
+      !cooling() &&
       !!form.name.trim() &&
       priceValid() &&
       !!form.canteenName.trim() &&
@@ -218,6 +221,8 @@ export function useCorrection() {
   const fieldErrors = reactive<Record<string, string>>({})
   const scrollIntoView = ref('')
   const submitting = ref(false)
+  /** 提交限频退避（2026-09-29）：后端 2 次/分钟，手滑连点会持续撞限频、越拖越长 */
+  const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 
   function clearError(key: string) {
     delete fieldErrors[key]
@@ -240,7 +245,8 @@ export function useCorrection() {
   }
 
   async function submit() {
-    if (submitting.value) return
+    // 退避期：禁重复提交（弱网手滑连点会持续撞限频、把封锁越拖越长）
+    if (submitting.value || cooling()) return
 
     const errs: Record<string, string> = {}
     if (!dishId.value) errs['form.name'] = '缺少菜品信息'
@@ -262,11 +268,15 @@ export function useCorrection() {
     try {
       // 局部提交：只上传改动项（dishId 在路径；price 元 → 分，金额红线）
       await submitDishCorrection(dishId.value, diff.value)
+      clearCooldown()
       uni.showToast({ title: '已提交，感谢反馈', icon: 'none' })
       if (goBackTimer) clearTimeout(goBackTimer)
       goBackTimer = setTimeout(goBack, 1500)
     } catch (e) {
-      uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
+      // 限频：请求层已弹过 toast（内含「请 N 秒后再试」），此处只进倒计时退避、**不再重复提示**
+      if (!handleRateLimit(e)) {
+        uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
+      }
     } finally {
       submitting.value = false
     }
@@ -298,6 +308,10 @@ export function useCorrection() {
     fieldErrors,
     scrollIntoView,
     submitting,
+    /** 限频剩余秒数（>0 时模板应禁用提交并展示倒计时） */
+    cooldownSeconds,
+    /** 是否处于限频退避期 */
+    cooling,
     clearError,
     canSubmit,
     gateHint,

@@ -57,16 +57,15 @@ public class FeedbackController {
     /**
      * 举报原因字典（PUB：举报免认证，弹层打开时端上实时拉取）。
      * 值域与文案唯一真源 = {@code FeedbackConst.REPORT_REASONS}，端上与管理端零硬编码（PR-12）。
+     * <p>
+     * <b>公开只读，两端共用</b>（方案 B：非敏感枚举无需为 web 复制出口）。管理端如需写操作走
+     * {@code /admin/**}（口令保护）。
+     * 两端数据同源，构造逻辑共用 {@code FeedbackService#reportReasons()}。
      */
-    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上与管理端零硬编码。测试示例：/feedback/report-reasons")
+    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。测试示例：/feedback/report-reasons")
     @GetMapping("/feedback/report-reasons")
     public Result<List<ReportReasonVO>> reportReasons() {
-        List<FeedbackConst.ReportReason> reasons = FeedbackConst.REPORT_REASONS;
-        List<ReportReasonVO> result = new ArrayList<>(reasons.size());
-        for (FeedbackConst.ReportReason reason : reasons) {
-            result.add(new ReportReasonVO(reason.value(), reason.label()));
-        }
-        return Result.success(result);
+        return Result.success(feedbackService.reportReasons());
     }
 
     /**

@@ -16,6 +16,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 
 /** 描述字数上限（用户口径：600 字；服务端上限仍为 1000，端上更严） */
 export const CONTENT_MAX = 600
@@ -84,9 +85,15 @@ export function useFeedback() {
   watch(() => [form.type, form.content], saveDraft)
 
   // ---- ③ 提交门禁（canSubmit 置灰；置灰点击由外层热区兜底 toast） ----
-  const canSubmit = computed(() => !!form.type && !!form.content.trim())
+  // 限频退避（2026-09-29）：后端 POST /feedback 为 2 次/分钟、10 次/小时，
+  // 弱网下手滑连点会持续撞限频、把封锁越拖越长 → 被限频后倒计时禁用并展示剩余秒数。
+  const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
+
+  const canSubmit = computed(() => !!form.type && !!form.content.trim() && !cooling())
 
   const gateHint = computed(() => {
+    // 退避优先：让用户知道「要等」，而不是看到笼统的「先选类型 / 再写两句」
+    if (cooling()) return `提交太频繁，${cooldownSeconds.value} 秒后再试`
     if (!form.type) return '先选一个反馈类型'
     if (!form.content.trim()) return '再写两句，描述一下问题'
     return ''
@@ -126,7 +133,8 @@ export function useFeedback() {
   }
 
   async function submit() {
-    if (submitting.value) return
+    // 退避期：禁重复提交（连点只会持续撞限频、延长封锁）
+    if (submitting.value || cooling()) return
 
     const errs: Record<string, string> = {}
     if (!form.type) errs['form.type'] = '先选一个反馈类型'
@@ -152,12 +160,16 @@ export function useFeedback() {
         images: images.length ? images : undefined,
       })
       clearDraft()
+      clearCooldown()
       uni.showToast({ title: '已提交，感谢反馈', icon: 'none' })
       resetForm()
       scheduleAutoBack()
     } catch (e) {
-      // Error 分支取 message（请求层抛 Error）；非 Error 兜底通用文案
-      uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
+      // 限频：请求层已弹过 toast（内含「请 N 秒后再试」），此处只进倒计时退避、**不重复提示**
+      if (!handleRateLimit(e)) {
+        // Error 分支取 message（请求层抛 Error）；非 Error 兜底通用文案
+        uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
+      }
     } finally {
       submitting.value = false
     }
@@ -195,6 +207,10 @@ export function useFeedback() {
     fieldErrors,
     scrollIntoView,
     submitting,
+    /** 限频剩余秒数（>0 时按钮禁用、gateHint 展示倒计时） */
+    cooldownSeconds,
+    /** 是否处于限频退避期 */
+    cooling,
     clearError,
     canSubmit,
     gateHint,

@@ -1,6 +1,6 @@
 ﻿# 个人资料（A-12）
 
-> 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔓 公开**（游客态也可读 / 可改）
+> 所属端：**学生端（微信小程序）** ｜ 鉴权：**🔑 需登录**（游客态可读 / 可改；未登录返回 401）
 > 返回：[功能总览](./README.md)
 
 ## 介绍
@@ -28,19 +28,18 @@
 
 ### 响应 · `GET /auth/profile` 与 `PUT /auth/profile`（同结构，`UserInfoVO`）
 
-> 出参为 `UserInfoVO`（**5 字段**：`id` / `username` / `nickname` / `avatar` / `bindEmail`），字段口径以 [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) 为唯一真源。
+> 出参为 `UserInfoVO`（**4 字段**：`id` / `nickname` / `avatar` / `bindEmail`），字段口径以 [client-微信静默登录与游客态](./client-微信静默登录与游客态.md) 为唯一真源。
 
 | 字段名 | 类型 | 可编辑 | 中文解释 |
 |---|---|---|---|
 | `id` | number | 否（只读展示） | 用户 ID。**游客短标识由本字段端上派生** |
-| `username` | string | 否（账号标识，**端上不展示**） | 学号 / 账号（游客为 `wx_` + openid 后 16 位） |
 | `nickname` | string | 是 | 昵称 |
 | `avatar` | string \| null | 是（可空） | 头像地址（已转可访问的绝对 URL） |
 | `bindEmail` | string \| null | 否（只读展示） | 已认证绑定的校园邮箱（**校园邮箱唯一出参来源**；**「是否已认证」的唯一判据 = 本字段非空**） |
 
-> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参），二者的展示同时见于编辑页与「我的主页」信息卡（页面视觉口径见 `docs/ui/`，与本目录解耦）。**`username` 仅作账号标识出参、端上不展示**（游客态它是 `wx_` 内部号，展示无意义）。
+> **可编辑字段仅 `nickname` / `avatar` 两项**；`id` / `bindEmail` 为**只读展示项**（端上仅展示，不参与 `PUT /auth/profile` 入参），二者的展示同时见于编辑页与「我的主页」信息卡（页面视觉口径见 `docs/ui/`，与本目录解耦）。**`username` 不出参**（2026-09-29）：学号 / 账号标识是服务端内部字段（保留在 `user` 表与 JWT 载荷、供日志），端上身份副行统一渲染 `bindEmail`。
 
-> **出参仅上表 5 字段**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生）。
+> **出参仅上表 4 字段**：**端上 / 后端 SHALL NOT 依赖或输出 `verified` 字段**——「是否已认证」的唯一判据 = `bindEmail` 非空（判据单点收敛，端上 `isVerified()` 亦由 `bindEmail` 非空派生）。
 > 「校园邮箱」只读展示项仅读 `bindEmail`；禁用 / 注销由登录侧 400 与写操作侧 403 拦截；游客短标识由端上按 `id` 派生（「食客 + `id` 尾 4 位」）。
 
 > **不含 `openid`**（隐私：不下发微信标识）；**不含 `role`**。

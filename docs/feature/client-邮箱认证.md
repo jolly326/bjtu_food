@@ -26,7 +26,7 @@
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
-| `message` | string | 固定文案「验证码已发送」；**验证码不会在响应中返回**（经邮件下发，服务端存哈希） |
+| `data` | null | **无载荷**（成功即 `code=200`）；成功文案由统一响应壳 `message` 承担。**验证码不会在响应中返回**（经邮件下发，服务端存哈希） |
 
 ### 限频（防刷）
 
@@ -46,12 +46,11 @@
 
 `data` 直接为 `UserInfoVO`（**无 `userInfo` 外层包装**）；字段集与 `POST /auth/wechat-login` 的 `LoginVO.userInfo` 一致。
 
-**`UserInfoVO` 字段（5 个）**：
+**`UserInfoVO` 字段（4 个）**：
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `id` | number | 用户 ID（数据库自增主键） |
-| `username` | string | 学号 / 账号（微信游客为 `wx_` + openid 后 16 位）；**仅作账号标识，端上不展示** |
 | `nickname` | string | 昵称 |
 | `avatar` | string \| null | 头像地址（已转成可访问的绝对 URL） |
 | `bindEmail` | string \| null | 已认证绑定的校园邮箱：**本接口返回已写入的绑定邮箱**（校园邮箱唯一出参来源，**同时是认证状态的唯一判据**——非空即已认证） |

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { DishListItem, DishDetail, DishQuery, GuessLike, MealType } from '@/types/dish'
+import type { DishListItem, DishDetail, DishQuery, GuessLike, DishView } from '@/types/dish'
 import type { Review } from '@/types/review'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
@@ -18,14 +18,14 @@ export const HOME_PAGE_SIZE = 10
  */
 export const HOME_MAX_PAGES = 10
 
-/** loading key：首页列表首屏 / 切大类（供 `HomeContent` 判定「静默加载中」） */
+/** loading key：首页列表首屏 / 切视图（供 `HomeContent` 判定「静默加载中」） */
 export const LOADING_KEY_HOME = 'home'
 /** loading key：首页列表触底加载更多（模块私有；对外由 `homeLoadingMore` 派生） */
 const LOADING_KEY_HOME_MORE = 'homeMore'
 /**
- * loading key：**切大类**（模块私有）。
+ * loading key：**切视图**（模块私有）。
  * 与 `LOADING_KEY_HOME` 分开登记，是为了让 `HomeContent` 的「静默加载中」判定（只订阅 `LOADING_KEY_HOME`）
- * **不被切大类触发**——切大类时**保留旧列表在屏**，否则列表被清空 + 内容塌成 0 会让
+ * **不被切视图触发**——切视图时**保留旧列表在屏**，否则列表被清空 + 内容塌成 0 会让
  * `scroll-view` 把滚动位置钳回顶部（用户可见 bug：切标签弹回首页顶部）。
  */
 const LOADING_KEY_HOME_SWAP = 'homeSwap'
@@ -71,12 +71,12 @@ export const useDishStore = defineStore('dish', () => {
 
   // ==================== 首页列表流（食堂 / 价格筛选不提供） ====================
 
-  /** 菜品大类字典（`GET /dishes/meal-types`）：文案 / 顺序 / 子集全由后端下发，端上零写死 */
-  const mealTypeList = ref<MealType[]>([])
-  /** 当前选中大类键（`null` = 全部 = 不传 `mealType`）；端上唯一保留的筛选维度 */
-  const filterMealType = ref<string | null>(null)
+  /** 筛选视图字典（`GET /dishes/views`）：文案 / 顺序 / 子集全由后端下发，端上零写死 */
+  const viewList = ref<DishView[]>([])
+  /** 当前选中视图键（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落默认视图）；端上唯一筛选维度 */
+  const filterView = ref<string | null>(null)
 
-  /** 首页列表（未选大类 = 推荐流·会话种子伪随机序（逛）；选中大类 = 该类热度序（找），2026-09-28 产品拍板确认保持） */
+  /** 首页列表（默认视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），2026-09-28 产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -87,7 +87,7 @@ export const useDishStore = defineStore('dish', () => {
   /** 列表最近一次请求是否失败（失败 ≠ 空数据）；过期响应不修改本状态 */
   const homeError = ref(false)
 
-  /** 列表请求序号：快速切换大类时丢弃过期响应，避免旧请求晚到覆盖新列表 */
+  /** 列表请求序号：快速切换视图时丢弃过期响应，避免旧请求晚到覆盖新列表 */
   let homeFetchSeq = 0
 
   /**
@@ -99,94 +99,97 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * 推荐流会话随机种子（2026-09-27 方案 C）——**仅「为你推荐」流（未选大类）下发**。
-   * - 每次列表 reset 重掷（首屏 onLoad / 切回「为你推荐」/ 失败重试）⇒ 每次进入整体重洗（新鲜度）；
-   * - 同一次浏览内翻页沿用同一值 ⇒ 服务端全序恒定，触底加载不跨页重复 / 漏项；
-   * - 选中大类时**不传**（大类 / 搜索流维持热度倒序）。
+   * 会话随机种子（2026-09-27 方案 C）——**随每次请求一起下发**（服务端仅对「推荐类」视图消费它，
+   * 其余视图忽略 ⇒ 端上无需判断视图语义）。
+   * - 每次列表 reset 重掷（首屏 onLoad / 切回默认视图 / 失败重试）⇒ 每次进入整体重洗（新鲜度）；
+   * - 同一次浏览内翻页沿用同一值 ⇒ 服务端全序恒定，触底加载不跨页重复 / 漏项。
    * 模块级 let（非 ref）：纯请求内部态，无需响应式，不对外暴露。
    */
   let homeSeed = genHomeSeed()
 
   /**
-   * 大类字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
-   * 用于 `fetchMealTypes` 去重：字典是静态字典，成功拉到后无需再拉；
+   * 视图字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
+   * 用于 `fetchDishViews` 去重：字典是静态字典，成功拉到后无需再拉；
    * **失败不置位** ⇒ 页面 onShow 的「兜底重试」仍会重试（与既有注释语义一致）。
    * 本 store 内部状态，不对外暴露。
    */
-  const mealTypeLoaded = ref(false)
+  const viewLoaded = ref(false)
   /**
-   * 大类字典请求是否**在途**（同上）：`onLoad` 与 `onShow` 会在首次进入时先后触发同一次拉取，
+   * 视图字典请求是否**在途**（同上）：`onLoad` 与 `onShow` 会在首次进入时先后触发同一次拉取，
    * 仅靠「已成功」标记挡不住并发重复 ⇒ 补在途标记，二者共同去重。
    */
-  const mealTypeLoading = ref(false)
+  const viewLoading = ref(false)
 
   /**
-   * 拉取菜品大类字典（**标签栏 100% 服务端直出，端上零文案**）。
-   * 顺带校正选中项：若所选大类已不在字典（该类当前无在售菜）→ 回落「不传 mealType」的默认流，避免请求一个空类。
+   * 拉取筛选视图字典（**标签栏 100% 服务端直出，端上零文案**）。
+   * 顺带校正选中项：选中视图不在字典（该类当前无在售菜被隐藏）或尚未选中 → 落**字典首项**
+   * （服务端声明的默认视图），避免请求一个不存在的视图。
    */
-  async function fetchMealTypes() {
+  async function fetchDishViews() {
     // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
     // 失败路径不置位 ⇒ 页面 onShow 的兜底重试仍会重试（与原注释语义一致）。
-    if (mealTypeLoaded.value || mealTypeLoading.value) return
-    mealTypeLoading.value = true
+    if (viewLoaded.value || viewLoading.value) return
+    viewLoading.value = true
     try {
-      const list = await dishApi.getMealTypes()
-      mealTypeList.value = list
-      mealTypeLoaded.value = true
-      if (filterMealType.value && !list.some((m) => m.value === filterMealType.value)) {
-        filterMealType.value = null
+      const list = await dishApi.getDishViews()
+      viewList.value = list
+      viewLoaded.value = true
+      // 字典首项 = 服务端声明的默认视图（如「为你推荐」）；端上不硬编码其 key
+      const [first] = list
+      const fallback = first ? first.key : null
+      if (!filterView.value || !list.some((v) => v.key === filterView.value)) {
+        filterView.value = fallback
       }
     } catch (e) {
       // 失败**不写任何端上兜底项**（Round 32 用户口径）：标签文案是**服务端资产**
-      // （含「为你推荐」这类虚拟导航项 —— 将来加「折扣菜品」等也在服务端拼装），
-      // 端上拼一个同名字符串 ⇒ 改文案 / 加虚拟项又要发版，违背「标签栏全量服务端直出」。
+      // （含「为你推荐」、将来「折扣」等视图都在服务端装配），端上拼一个同名字符串
+      // ⇒ 改文案 / 加视图又要发版，违背「标签栏全量服务端直出」。
       // 故此处只记录：保留上一次结果（若有），标签栏由 `HomeMealTabs` 判空**整体不渲染**；
-      // 列表仍按「不传 mealType」的默认流加载，功能不受影响。
-      console.error('加载菜品大类失败', e)
+      // 列表仍按「不传 view」的默认流加载，功能不受影响。
+      console.error('加载筛选视图失败', e)
     } finally {
-      mealTypeLoading.value = false
+      viewLoading.value = false
     }
   }
 
   /**
-   * 切换大类标签：写回选中键并重置分页刷新列表。
+   * 切换筛选视图：写回选中键并重置分页刷新列表。
    * **不重置页面滚动位置**（UI 文档 §11.3 边界行为）：因此走 `keepList = true` —— 新数据到手前
    * 旧列表留在屏上（stale-while-revalidate），避免内容塌陷把滚动位置钳到顶部。
    */
-  async function setHomeMealType(value: string | null) {
-    filterMealType.value = value
+  async function setHomeView(viewKey: string) {
+    filterView.value = viewKey
     await fetchHomeDishes(true, true)
   }
 
   /**
-   * 首页列表拉取（`reset=true` 表示切大类 / 首屏 / 重试：清列表、回到第 1 页，并**重掷推荐流种子**）。
-   * 不传任何食堂 / 价格条件，也不传 `sortBy` / `sortOrder`（排序由服务端唯一决定）；
-   * **仅「为你推荐」流**（未选大类）随请求下发会话种子 `seed`（方案 C），
-   * 选中大类时不传（该流为服务端热度倒序）。
+   * 首页列表拉取（`reset=true` 表示切视图 / 首屏 / 重试：清列表、回到第 1 页，并**重掷种子**）。
+   * 不传任何食堂 / 价格条件，也不传 `sortBy` / `sortOrder`（筛选与排序由所选视图决定）；
+   * `seed` 随每次请求一起下发——服务端仅对「推荐类」视图消费它（方案 C），其余视图忽略。
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
       const seq = ++homeFetchSeq
       if (reset) {
-        // `keepList`（切大类）= 旧列表留在屏上，只重置分页状态；其余场景（首屏 / 重试）清列表
+        // `keepList`（切视图）= 旧列表留在屏上，只重置分页状态；其余场景（首屏 / 重试）清列表
         if (!keepList) homeList.value = []
         homePage.value = 1
         homeFinished.value = false
         homePageLimited.value = false
         // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
         homeError.value = false
-        // 方案 C：每次 reset 重掷种子 ⇒ 每次进入 / 切回「为你推荐」都有新鲜度
+        // 方案 C：每次 reset 重掷种子 ⇒ 每次进入 / 切回默认视图都有新鲜度
         homeSeed = genHomeSeed()
       }
       try {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
-          mealType: filterMealType.value ?? undefined,
-          seed: filterMealType.value ? undefined : homeSeed,
+          view: filterView.value ?? undefined,
+          seed: homeSeed,
           page: homePage.value,
           pageSize,
         })
-        // 过期响应（期间又切换了大类）直接丢弃，不覆盖新列表
+        // 过期响应（期间又切换了视图）直接丢弃，不覆盖新列表
         if (seq !== homeFetchSeq) return
         homeList.value = reset ? res.list : homeList.value.concat(res.list)
         homeError.value = false
@@ -206,7 +209,7 @@ export const useDishStore = defineStore('dish', () => {
    */
   async function loadMoreHomeDishes(): Promise<boolean> {
     if (homeLoadingMore.value || homeFinished.value) return false
-    // 竞态修复（Round 31）：首刷 / 切大类的**重置式请求**在途时禁止翻页 ——
+    // 竞态修复（Round 31）：首刷 / 切视图的**重置式请求**在途时禁止翻页 ——
     // 二者与 loadMore 共用 `homeFetchSeq`，loadMore 推进序号会让在途的重置响应被判过期丢弃，
     // 而第 2 页却按**新筛选**拼到**旧列表**上 ⇒ 列表内容错乱（大类与数据不匹配）。
     if (isLoading(LOADING_KEY_HOME) || isLoading(LOADING_KEY_HOME_SWAP)) return false
@@ -221,8 +224,8 @@ export const useDishStore = defineStore('dish', () => {
       try {
         const pageSize = HOME_PAGE_SIZE
         const res = await dishApi.searchDishesPage({
-          mealType: filterMealType.value ?? undefined,
-          seed: filterMealType.value ? undefined : homeSeed,
+          view: filterView.value ?? undefined,
+          seed: homeSeed,
           page: homePage.value,
           pageSize,
         })
@@ -356,10 +359,10 @@ export const useDishStore = defineStore('dish', () => {
   return {
     // 在途态
     isLoading,
-    // 首页列表流（唯一筛选维度 = 菜品大类）
-    mealTypeList, filterMealType,
+    // 首页列表流（唯一筛选维度 = 筛选视图）
+    viewList, filterView,
     homeList, homeLoadingMore, homePageLimited, homeError,
-    fetchMealTypes, setHomeMealType, fetchHomeDishes, loadMoreHomeDishes,
+    fetchDishViews, setHomeView, fetchHomeDishes, loadMoreHomeDishes,
     // 搜索 / 详情 / 评价 / 热搜
     search,
     currentDish, detailError, detailNotFound, fetchDetail, resetDishDetail,

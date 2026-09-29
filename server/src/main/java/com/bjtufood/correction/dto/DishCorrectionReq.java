@@ -32,11 +32,11 @@ public class DishCorrectionReq {
     private String stallName;
 
     /**
-     * 动态描述属性（局部：仅含用户改动的维度项）。键 = 维度 {@code fieldKey}，值 = 机器值或数组；
-     * 有候选值的维度取值受限取值表，候选为空的维度可自由文本。
+     * 动态描述属性（局部：仅含用户改动的维度项）。键 = 维度 {@code fieldKey}，值 = **中文文本**（或文本数组）；
+     * 取值为自由文本、候选仅作提示不限制；命中内容安检则 400。
      */
-    @Schema(description = "动态描述属性（键=维度 fieldKey，值=机器值/数组；仅传改动维度）",
-            example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
+    @Schema(description = "动态描述属性（键=维度 fieldKey，值=中文文本/数组；仅传改动维度）",
+            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
     private Map<String, Object> attributes;
 
     @Schema(description = "菜品图片 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，传入时：≤3 张）")

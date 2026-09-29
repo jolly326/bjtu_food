@@ -48,7 +48,7 @@
       <!-- ④ 全卡**唯一**一条浅灰分隔线：只在简介存在时渲染（简介隐藏 → 这条线一并消失） -->
       <view v-if="dish.description" class="divider" />
 
-      <!-- ⑤ 描述属性（`dish.attributes`）：**后端已整理（机器值 + 中文）⇒ 端上直渲 `label`** ——
+      <!-- ⑤ 描述属性（`dish.attributes`）：**值即中文 ⇒ 端上直渲 `value`** ——
            无底色 / 无边框 / 无入口，各列水平等分居中；上：中文值（主字号），下：维度名（浅灰小字）；
            按后端返回顺序逐维渲染、缺项不占位，多值维已用「、」拼接。
            纠错入口（原本卡右上角）已移出 —— 全页唯一落点为**底栏「反馈错误」**（Round 25）。 -->
@@ -96,16 +96,16 @@ const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.origina
 /**
  * 描述属性列（按后端返回顺序逐维渲染，缺项不占位）。
  *
- * **R4（后端整理、端上零翻译）**：`DishDetailVO.attributes` 已把机器值与**中文 `label`** 一并下发，
- * 端上**直接渲染 `label`、不拉字典、不做「机器值 → 中文」映射** —— 中文只在后端一处维护。
- * `label` 与 `value` 同构：`single` 维为字符串、`multi` 维为字符串数组（多值以「、」拼接）。
+ * **R4（值即中文、端上零翻译）**：`DishDetailVO.attributes[].value` 就是中文文本，
+ * 端上**直接渲染、不拉字典**。
+ * `value`：`single` 维为字符串、`multi` 维为字符串数组（多值以「、」拼接）。
  */
 const dims = computed(() => {
   const list: { name: string; value: string }[] = []
   for (const item of props.dish.attributes || []) {
-    const label = Array.isArray(item.label) ? item.label.filter(Boolean).join('、') : String(item.label || '')
-    if (!label) continue
-    list.push({ name: item.name, value: label })
+    const text = Array.isArray(item.value) ? item.value.filter(Boolean).join('、') : String(item.value || '')
+    if (!text) continue
+    list.push({ name: item.name, value: text })
   }
   return list
 })

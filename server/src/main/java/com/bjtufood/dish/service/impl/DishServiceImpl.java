@@ -10,11 +10,10 @@ import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.common.utils.JsonMapUtil;
-import com.bjtufood.dish.constant.MealTypeConst;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishAttributeItem;
-import com.bjtufood.dish.dto.DishAttributeOptionItem;
+import com.bjtufood.dish.dto.DishAttributeDefVO;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -22,15 +21,16 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.GuessLikeVO;
-import com.bjtufood.dish.dto.MealTypeVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
-import com.bjtufood.dish.entity.DishAttributeValue;
 import com.bjtufood.dish.event.DishDeletedEvent;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
-import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.service.DishService;
+import com.bjtufood.dish.view.DishListQuery;
+import com.bjtufood.dish.view.DishViewConst;
+import com.bjtufood.dish.view.DishViewResolver;
+import com.bjtufood.dish.view.DishViewVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -43,7 +43,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -67,9 +66,8 @@ public class DishServiceImpl implements DishService {
      */
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    /** 描述属性字典两表（维度 + 取值），数据驱动、免发版增维度 */
+    /** 描述属性维度字典（单表），数据驱动、免发版增维度；取值候选由 dish.attributes 全库去重得出 */
     private final DishAttributeDimensionMapper dishAttributeDimensionMapper;
-    private final DishAttributeValueMapper dishAttributeValueMapper;
 
     @Override
     public IPage<DishListItemVO> listDishes(DishQueryReq req) {
@@ -82,38 +80,35 @@ public class DishServiceImpl implements DishService {
                 req.getPageSize() == null ? 0 : req.getPageSize());
         req.setPage(norm[0]);
         req.setPageSize(norm[1]);
-        // 菜品大类白名单校验（PR-06 / §7.34）：非法值 400 报错，不静默降级；空值=「全部」，不进 SQL 条件
-        if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
-            throw new BusinessException("菜品大类不合法：" + req.getMealType());
+        // 视图解析（白名单，PR-06）：空值 = 默认视图（「为你推荐」）；未登记的键 400 报错，不静默降级。
+        // 筛选条件与排序口径均由视图 Kind 决定（见 DishViewResolver），API 层不感知 meal_type 等字段。
+        DishListQuery query = DishViewResolver.resolve(req.getView(), req.getKeyword(), req.getSeed());
+        if (query == null) {
+            throw new BusinessException("筛选视图不合法：" + req.getView());
         }
         // 列表出参为 DishListItemVO（8 字段）：图片只下发首图 coverImage，由 enrichCoverImage 从 imageUrls 取首图
-        return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), req)
+        return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), query)
                 .convert(this::enrichCoverImage);
     }
 
     @Override
-    public List<MealTypeVO> listMealTypes() {
-        // 空类过滤（§7.34）：常量清单（唯一真源）∩「当前有在售菜品」的大类集合——
-        // 某类暂时没有 status='on' 的菜品即不下发，重新有菜自动出现；顺序 = 常量声明序（order 升序）
-        // 方案 B + 2026-09-28 产品拍板：首项固定下发「为你推荐」虚拟导航项（value=null, order=0），
-        // 供学生端直出渲染、端上零硬编码。虚拟项不是物理大类：不进 MealTypeConst.ALL、不参与白名单校验、
-        // 不进管理端录入下拉；将来「折扣菜品」等虚拟项同款在出口处拼装。
+    public List<DishViewVO> listDishViews() {
+        // 空类过滤（§7.34）：只对「按大类取数」的视图生效——该大类当前无 status='on' 菜品即不下发，
+        // 重新有菜自动出现；其余视图（「为你推荐」等聚合视角）恒下发。
+        // 顺序 = DishViewConst.ALL 声明序（唯一顺序真源）；端上零文案、零拼接、零兜底项。
         Set<String> inStock = Set.copyOf(dishMapper.selectInStockMealTypes());
-        List<MealTypeVO> result = new ArrayList<>();
-        result.add(new MealTypeVO(null, "为你推荐"));
-        MealTypeConst.ALL.stream()
-                .filter(mt -> inStock.contains(mt.value()))
-                .map(mt -> new MealTypeVO(mt.value(), mt.label()))
-                .forEach(result::add);
-        return result;
+        return DishViewConst.ALL.stream()
+                .filter(v -> v.kind() != DishViewConst.Kind.MEAL_TYPE || inStock.contains(v.param()))
+                .map(v -> new DishViewVO(v.key(), v.label()))
+                .toList();
     }
 
     /**
-     * 菜品描述属性编辑态选项（{@code GET /dishes/{id}/attributes}，按需）。
+     * 菜品描述属性编辑态候选（{@code GET /dishes/{id}/attributes}，按需）。
      * <p>
      * 只返回该菜<b>现有维度</b>（{@code dish.attributes} 的键集合 ∩ 维度字典，按维度 {@code order} 升序），
-     * 只补编辑要用的 {@code valueType} + 该维度全部候选 {@code options}；
-     * {@code options} 为空数组 = 自由文本维度。
+     * 只补编辑要用的 {@code valueType} + 参考候选 {@code options}
+     * （候选 = 该维度「全库已用中文值」去重、按使用频次倒序；仅为参考、不构成约束）。
      */
     @Override
     public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
@@ -125,16 +120,33 @@ public class DishServiceImpl implements DishService {
         if (raw.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<DishAttributeValue>> valuesByDimension = loadValuesByDimension();
+        Map<String, List<String>> candidates = candidateValuesByFieldKey();
         return loadDimensions().stream()
                 .filter(dim -> raw.containsKey(dim.getFieldKey()))
                 .map(dim -> new DishAttributeEditVO(
                         dim.getFieldKey(),
                         dim.getValueType(),
-                        valuesByDimension.getOrDefault(dim.getId(), List.of()).stream()
-                                .map(v -> new DishAttributeOptionItem(v.getValueKey(), v.getLabel()))
-                                .toList()))
+                        candidates.getOrDefault(dim.getFieldKey(), List.of())))
                 .toList();
+    }
+
+    // ==================== 公开只读字典（/dishes/attributes，2026-09-29 补齐） ====================
+
+    @Override
+    public List<DishAttributeDefVO> listAllAttributeDefs() {
+        List<DishAttributeDimension> dimensions = loadDimensions();
+        if (dimensions.isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<String>> candidates = candidateValuesByFieldKey();
+        List<DishAttributeDefVO> defs = new ArrayList<>(dimensions.size());
+        for (DishAttributeDimension dim : dimensions) {
+            // options 为参考候选（该维度全库已用中文值去重）；为空 = 暂无参考值（端上仍可自由输入）
+            defs.add(new DishAttributeDefVO(dim.getId(), dim.getFieldKey(), dim.getName(),
+                    dim.getValueType(), dim.getOrder(),
+                    candidates.getOrDefault(dim.getFieldKey(), List.of())));
+        }
+        return defs;
     }
 
     /** 维度字典（按 order 升序） */
@@ -144,24 +156,48 @@ public class DishServiceImpl implements DishService {
                         .orderByAsc(DishAttributeDimension::getOrder));
     }
 
-    /** 取值字典：dimensionId → 取值列表（组内按 order 升序） */
-    private Map<Long, List<DishAttributeValue>> loadValuesByDimension() {
-        return dishAttributeValueMapper.selectList(
-                        new LambdaQueryWrapper<DishAttributeValue>()
-                                .orderByAsc(DishAttributeValue::getOrder))
-                .stream()
-                .collect(Collectors.groupingBy(DishAttributeValue::getDimensionId));
+    /**
+     * 编辑候选值（数据驱动）：扫描全库在售菜品的 {@code dish.attributes}，按维度 {@code fieldKey}
+     * 汇总「已用中文值」并按使用频次倒序去重——<b>无独立取值字典表，加值零登记</b>。
+     */
+    private Map<String, List<String>> candidateValuesByFieldKey() {
+        Map<String, Map<String, Integer>> counter = new HashMap<>();
+        for (String json : dishMapper.selectAttributesJsonOnSale()) {
+            JsonMapUtil.parseObject(json).forEach((key, val) -> {
+                Map<String, Integer> perValue = counter.computeIfAbsent(key, k -> new HashMap<>());
+                if (val instanceof List<?> list) {
+                    for (Object v : list) {
+                        if (v != null) {
+                            String s = String.valueOf(v).trim();
+                            if (!s.isEmpty()) {
+                                perValue.merge(s, 1, Integer::sum);
+                            }
+                        }
+                    }
+                } else if (val != null) {
+                    String s = String.valueOf(val).trim();
+                    if (!s.isEmpty()) {
+                        perValue.merge(s, 1, Integer::sum);
+                    }
+                }
+            });
+        }
+        Map<String, List<String>> result = new HashMap<>(counter.size());
+        counter.forEach((key, perValue) -> result.put(key, perValue.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
+                .toList()));
+        return result;
     }
 
     /**
-     * 把 {@code dish.attributes} 的 JSON 原文整理为出参 {@code attributes[]}（R4：机器值 + 中文一并下发）。
+     * 把 {@code dish.attributes} 的 JSON 原文整理为出参 {@code attributes[]}（值即中文）。
      * <p>
      * 自描述：只含该菜品实际拥有的维度，按维度 {@code order} 升序；某维度无值则不出现、不占位。
-     * 字典未命中（旧数据 / 脏值）→ 原样透出机器值（不丢弃、不报错）。
      */
     private List<DishAttributeItem> buildAttributeItems(String attributesJson,
-                                                        List<DishAttributeDimension> dimensions,
-                                                        Map<Long, List<DishAttributeValue>> valuesByDimension) {
+                                                        List<DishAttributeDimension> dimensions) {
         Map<String, Object> raw = JsonMapUtil.parseObject(attributesJson);
         if (raw.isEmpty() || dimensions.isEmpty()) {
             return List.of();
@@ -171,33 +207,13 @@ public class DishServiceImpl implements DishService {
             if (!raw.containsKey(dim.getFieldKey())) {
                 continue;
             }
-            Object machineValue = raw.get(dim.getFieldKey());
-            if (machineValue == null) {
+            Object value = raw.get(dim.getFieldKey());
+            if (value == null) {
                 continue;
             }
-            items.add(new DishAttributeItem(dim.getFieldKey(), dim.getName(),
-                    machineValue, toLabel(machineValue, valuesByDimension.getOrDefault(dim.getId(), List.of()))));
+            items.add(new DishAttributeItem(dim.getFieldKey(), dim.getName(), value));
         }
         return items;
-    }
-
-    /**
-     * 机器值 → 中文标签（与 {@code value} <b>同构</b>：multi 入参为数组则出参亦为数组）。
-     * 字典未命中时原样回退机器值字符串。
-     */
-    private Object toLabel(Object machineValue, List<DishAttributeValue> options) {
-        Map<String, String> labelByKey = options.stream()
-                .collect(Collectors.toMap(DishAttributeValue::getValueKey, DishAttributeValue::getLabel, (a, b) -> a));
-        if (machineValue instanceof List<?> values) {
-            List<String> labels = new ArrayList<>(values.size());
-            for (Object v : values) {
-                String key = String.valueOf(v);
-                labels.add(labelByKey.getOrDefault(key, key));
-            }
-            return labels;
-        }
-        String key = String.valueOf(machineValue);
-        return labelByKey.getOrDefault(key, key);
     }
 
     /**
@@ -232,8 +248,8 @@ public class DishServiceImpl implements DishService {
         // 多图 → 绝对 URL（图片列已由 TypeHandler 直出为 List）
         enrichImages(vo);
 
-        // 描述属性：JSON 原文 + 字典两表 → 「机器值 + 中文」展示项（R4，端上零翻译）
-        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), loadDimensions(), loadValuesByDimension()));
+        // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）
+        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), loadDimensions()));
 
         // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
 
@@ -419,9 +435,10 @@ public class DishServiceImpl implements DishService {
         // 描述属性（动态属性模型）：JSON 对象，键 = 维度 fieldKey；null/空 → 列置 NULL
         dish.setAttributes(JsonMapUtil.toJson(req.getAttributes()));
 
-        // 菜品大类（§7.34）：白名单校验（PR-06，非法值 400）；null=不修改
+        // 菜品大类（入库字段，§7.34）：值域 = DishViewConst 派生的大类视图集合（单一真源）；
+        // 白名单校验（PR-06，非法值 400）；null=不修改
         // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过 null 字段，「仅传 status 的行内部分更新」不会误清大类）
-        if (StringUtils.hasText(req.getMealType()) && !MealTypeConst.isValid(req.getMealType())) {
+        if (StringUtils.hasText(req.getMealType()) && !DishViewConst.mealTypeValues().contains(req.getMealType())) {
             throw new BusinessException("菜品大类不合法：" + req.getMealType());
         }
         dish.setMealType(req.getMealType());

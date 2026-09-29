@@ -20,12 +20,12 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | GET | `/dishes/{id}` | 🔓 公开 | **预填数据源**（字段口径见 [client-菜品详情](./client-菜品详情.md)）；`dishId` 来自进页导航参数，即唯一绑定菜品 |
-| GET | `/dishes/{id}/attributes` | 🔓 公开 | **编辑态属性选项**（**按需**，进编辑时才取）：只返回**该菜现有维度**的候选值（`valueType` + `options`，下拉 / chips 用）；失败静默，展示原始机器值 |
+| GET | `/dishes/{id}/attributes` | 🔓 公开 | **编辑态属性候选**（**按需**，进编辑时才取）：只返回**该菜现有维度**的 `valueType` + 参考候选 `options`（该维度**全库已用中文值**去重，chips 用）；**候选仅为参考、可自由输入新值**；失败静默，仍可自由填写 |
 | POST | `/dishes/{id}/correction` | 🔓 公开 | **提交纠错**（`dishId` 在路径）；公开匿名，IP 限频 2 条/分钟、10 条/小时 |
 
 > **属性数据按需取、不预取全量**：
-> · **详情（浏览）**：`GET /dishes/{id}` 直接给该菜属性的**机器值 + 中文** —— 端上直渲，**不拉字典、不翻译**；
-> · **编辑（本功能）**：进编辑界面时才取 `GET /dishes/{id}/attributes`（契约见下「字段」）。
+> · **详情（浏览）**：`GET /dishes/{id}` 直接给该菜属性的**中文值** —— 端上直渲，**不拉字典、不翻译**；
+> · **编辑（本功能）**：进编辑界面时才取 `GET /dishes/{id}/attributes` 拿**参考候选**（契约见下「字段」）；候选只是省输入的提示，**不构成取值约束**（可自由输入候选之外的值）。
 
 ## 字段
 
@@ -39,7 +39,7 @@
 | `price` | number | > 0 的整数（分） | 价格，**单位 = 分**（端上以元填写，提交前经 `utils/money` 的 `yuanToFen` 换算 —— 金额红线） |
 | `canteenName` | string | 非空 | 食堂名（**自由文本**，预填详情 `canteenName`，无字典 / 无 picker） |
 | `stallName` | string | 非空 | 档口名（**自由文本**，预填详情 `stallName`） |
-| `attributes` | object | 键 ∈ 维度 `fieldKey`、取值为合法机器值 | 动态描述属性（键 = 维度 `fieldKey`，值 = 机器值 / 数组）；仅含**用户改动**的维度项（机器值取自详情 `attributes[].value`；读为数组、写为对象）；有候选值的维度取值受限取值表，候选为空的维度可自由文本 |
+| `attributes` | object | 键 ∈ 维度 `fieldKey`、值为**中文文本**（多值维度为文本数组） | 动态描述属性（键 = 维度 `fieldKey`，值 = **中文文本**）；仅含**用户改动**的维度项（原值取自详情 `attributes[].value`；读为数组、写为对象）；**取值为自由文本**，候选仅作提示、不限制；命中内容安检则 400 |
 | `images` | array | 地址合法、≤3 | 图片 URL 数组（预填菜品**首图**；端上 / 服务端 ≤3） |
 
 > 请求体**无 `type`、无 `dishId` 字段**（`dishId` 在路径中）；描述属性经 `attributes` 动态提交。
@@ -60,27 +60,27 @@
 
 ### 响应 · `GET /dishes/{id}/attributes`（编辑态，`data` = 属性项数组）
 
-> **编辑态专用、按需**（进编辑界面时才请求）：只返回**该菜现有维度**，且**只补编辑要用的**（`valueType` + 该维度全部候选 `options`）—— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。`options` 为**空数组**的维度即**自由文本**（无候选值）。
+> **编辑态专用、按需**（进编辑界面时才请求）：只返回**该菜现有维度**，且**只补编辑要用的**（`valueType` + 参考候选 `options`）—— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。**候选来自「该维度全库已用中文值」去重（按使用频次倒序）**，仅为省输入的提示；**端上恒允许自由输入新值**（候选为空 = 暂无参考值）。
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|
 | `fieldKey` | string | 维度键（**camelCase**）；与 `GET /dishes/{id}` 的 `attributes[].fieldKey` 对齐 |
 | `valueType` | string | `single`（单值）｜ `multi`（多值，值取数组） |
-| `options` | object[] | 该维度**全部候选值**（后端按 `order` 升序下发，端上按序渲染）；每项：`valueKey`（机器值，如 `spicy`）/ `label`（中文，如 辣）；**空数组 = 自由文本维度** |
+| `options` | string[] | 该维度**参考候选值**（中文文本，按使用频次倒序下发）；端上按序渲染 chips，并**允许自由输入候选之外的值**；**空数组 = 暂无参考值（仍可自由输入）** |
 
 ## 数据（落库）
 
 | 表 | 操作 | 说明 |
 |---|---|---|
 | `dish_correction` | INSERT | **改动项快照**：仅存用户改动的列（`name` / `price`（分）/ `canteen_name` / `stall_name` / `images` JSON，**未改动的列留 NULL**）+ `attributes` JSON（**仅改动的维度**）+ `dish_id` + `user_id`（游客为 null，匿名提交）+ `status='pending'` |
-| `dish_attribute_dimension` / `dish_attribute_value` | 读 | 动态属性维度定义 / 取值（取该菜现有维度的可选项，渲染表单） |
+| `dish_attribute_dimension` | 读 | 动态属性维度定义（渲染表单的维度名 / 单多选）；取值候选由 `dish.attributes` 全库去重得出，**无独立取值字典表** |
 
-> **属性模型（动态属性，数据驱动，两表）**：
+> **属性模型（动态属性，值即中文，单表维度）**：
 > · `dish_attribute_dimension`（维度定义）：`field_key` / `name` / `value_type`（`single`｜`multi`）/ `order`；
-> · `dish_attribute_value`（取值）：`dimension_id`（外键 → 维度 `id`）/ `value_key` / `label` / `order`；
-> · 菜品属性值存 `dish.attributes`（JSON）：键 = 维度 `fieldKey`，值 = 机器值（**形态 A**）；仅含该菜实际拥有的维度；
-> · **R13**：维度 `fieldKey` MUST 等于 `attributes` 的键（后端据此拼装 `GET /dishes/{id}` 的属性展示、并解析编辑选项）。
-> **扩展路径**：新增维度 = 插 `dish_attribute_dimension` + 必要 `dish_attribute_value` 行，**免 ALTER、免发版**。
+> · **无取值字典表**：取值就是中文文本本身；编辑候选由「全库已用值」实时去重得出，**加值无需任何登记**；
+> · 菜品属性值存 `dish.attributes`（JSON）：键 = 维度 `fieldKey`，值 = **中文文本**（`single` 为字符串 / `multi` 为字符串数组）；仅含该菜实际拥有的维度；
+> · **R13**：维度 `fieldKey` MUST 等于 `attributes` 的键（后端据此拼装 `GET /dishes/{id}` 的属性展示、并解析编辑项）。
+> **扩展路径**：新增维度 = 插 `dish_attribute_dimension` 一行，**免 ALTER、免发版**；新增取值 = 直接输入中文，**零登记**。
 
 ## 与当前代码的差异
 

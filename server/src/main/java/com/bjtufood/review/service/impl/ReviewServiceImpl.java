@@ -51,10 +51,21 @@ public class ReviewServiceImpl implements ReviewService {
     private final ContentSecurityService contentSecurityService;
 
     /**
+     * 评价是否存在且公开可见（{@code is_hidden=0}）——供 feedback 域举报目标校验消费。
+     * 已隐藏 / 已删除的评价对外等价于不存在，不可被举报。
+     */
+    @Override
+    public boolean existsVisibleById(Long id) {
+        return id != null && reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
+                .eq(Review::getId, id)
+                .eq(Review::getIsHidden, 0)) > 0;
+    }
+
+    /**
      * 菜品评价公开列表：时间倒序唯一口径（created_at DESC），可选「只看有图」筛选。
      */
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer hasImage) {
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, boolean hasImage) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, hasImage);

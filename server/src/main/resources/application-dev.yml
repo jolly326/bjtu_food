@@ -1,5 +1,5 @@
 # 开发环境配置（覆盖 application.yml）
-# 密码由 application-secret.yml 提供（已加入 .gitignore）
+# 凭据统一由 server/.env 提供（spring-dotenv 加载，.env 已加入 .gitignore），见 application.yml 顶部说明。
 
 mybatis-plus:
   configuration:
