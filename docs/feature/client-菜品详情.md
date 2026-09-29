@@ -85,7 +85,7 @@
 |---|---|---|
 | `records` | ReviewVO[] | 当前页评价行数组（端上以它为准） |
 
-> **分页壳恒为 `records` 一项**（全站统一，见 `pagination-contract`），SHALL NOT 输出 `list` 或任何与 `records` 恒等派生的兼容字段；页码 / 每页条数由请求侧掌握、不回传。
+> **分页壳恒为 `records` 一项**（全站统一，见本目录 [README](./README.md) 的「通用结构 · 分页结构」），SHALL NOT 输出 `list` 或任何与 `records` 恒等派生的兼容字段；页码 / 每页条数由请求侧掌握、不回传。
 
 `ReviewVO` 单行字段（**公开视角，8 字段**）：
 
@@ -96,7 +96,7 @@
 | `id` | number | 评价 ID |
 | `userId` | number | 评价者用户 ID（端上据此判定是否本人，决定「删除 / 举报」入口的**显隐**）。**（R7：鉴权仍由服务端把关「非本人 → 403」；ID 非敏感。此为有意的双重判定权衡，非冗余，见文末 R14）** |
 | `userNickname` | string | 评价者昵称（账号注销后为「已注销用户」） |
-| `userAvatar` | string \| null | 评价者头像 URL（作者无头像时为 `null`，端上以占位图兜底） |
+| `userAvatar` | string | 评价者头像 URL（**出参恒为非空字符串**，作者无头像时为空串，端上以占位图兜底） |
 | `rating` | number | 评分（1~5 星） |
 | `content` | string | 评价文字内容 |
 | `images` | string[] | 评价配图 URL 数组（COS 绝对地址，≤3 张，无图空数组） |

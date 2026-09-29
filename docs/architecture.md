@@ -107,7 +107,7 @@ com.bjtufood
 | 4 | `wechat` 零业务域依赖 | 平台集成是被三方共用的**最底层**，必须保持叶子，否则与 auth 形成包级环 |
 | 5 | `controller` 不直连 `mapper` | 绕过 Service 的业务口径与事务边界 |
 
-规则实现在 `server/src/test/java/com/bjtufood/ArchTests.java`，6 个用例。
+规则实现在 `server/src/test/java/com/bjtufood/ArchTests.java`，7 个用例。
 
 **已知豁免**：`auth.support`（`SecurityUtil`/`JwtUtil`/`AuthStateUtil`）**允许**被
 `correction`/`feedback`/`notification`/`review` 直接引用。它们是**无状态只读静态门面**
@@ -195,13 +195,58 @@ com.bjtufood
 | 层 | 手段 | 说明 |
 |---|---|---|
 | 架构 | `ArchTests`（ArchUnit） | 依赖规则，违规即构建失败 |
+| 契约 | `ApiVersionPrefixTest` / `FrontendApiIsolationTest` / `PageResultContractTest` | 版本前缀、前后端安全区隔离、分页壳只有 `records` |
+| 契约 | `OpenApiContractSyncTest` | **端上生成产物是否仍跟得上 VO**（见 §9.1） |
 | 接口 | `SmokeApiTest`（`@WebMvcTest` 切片） | 六链路契约；显式 `@Import` 被测 Bean，零 DB 依赖 |
 | 单测 | Mockito 打桩 | Service 边界：值域校验、权限判据、跨域契约调用 |
 | 上下文 | `BjtuFoodApplicationTests` | 装配完整性（Bean 缺失/循环依赖即红） |
 | 启动 | `mvn -o -B clean test` | 离线可跑，CI 基线 |
+| 端上 | `npm run verify`（client） | `check:contract` + `vue-tsc --noEmit`，提交前必跑 |
 
 > 架构护栏的价值已被验证：2026-09-28 曾用 ArchUnit 环检测检出 2 个真实包级环
 > （详见第 10 节）。因豁免机制对环检测无效，该规则已撤下并留档待偿还。
+
+### 9.1 契约单一真源（2026-09-29）
+
+**要防的具体事故**：端上曾以 `RawRow = Record<string, any>` 承接后端响应，
+**契约无编译期保障**——后端改字段，端上编译全绿，真机上字段变空白。
+这是此前所有数据问题的根因，其余措施都只是治标。
+
+**方案**：后端 VO 为真源 → SpringDoc 导出 `openapi.json` → `openapi-typescript`
+生成端上 TS 类型 → 端上 `toXxx` 适配器只做**有业务语义的**转换
+（分→元、字段别名、零值兜底），不再承担「猜字段存在与否」的职责。
+
+```
+后端 VO ──(运行中服务 /api/v1/v3/api-docs)──> client/openapi.json
+        ──(openapi-typescript)──> client/src/types/generated/api.d.ts
+        ──(shared.ts 逐个具名 re-export)──> client/src/api/*.ts 的强类型入参
+```
+
+**关键：生成类型本身也会过期**，故配了两道拦截（这是本方案能否成立的关键）：
+
+| 漂移场景 | 后果 | 拦截者 |
+|---|---|---|
+| 后端改 VO，未重新生成 | 端上 `type-check` 全绿（它只对着旧产物检查），真机字段变空 | `OpenApiContractSyncTest`（`mvn test` 阶段） |
+| 端上回退 `RawRow` 弱类型 | 契约保障出现缺口，且无声扩张 | 判据 3：**扫 `src/` 全树**（api / stores / composables / pages / types / utils） |
+| 契约 VO 被重复手写 | 同一份契约出现第二个真源，必然漂移 | 判据 4：手写的 interface 若与契约**字段名 + 可空性全同**即失败 |
+| re-export 名与契约脱节 | 悬空导出 / 掩盖字段改名 | 判据 2：re-export 名须在 `api.d.ts` 中有真实定义 |
+
+> **判据 4 只拦「纯镜像」**：字段名或可空性有差异的是**合法的归一化展示模型**
+> （如 `client` 的 `ReportReason`——契约字段全 `?`，端上在 api 层兜底成必填；
+> `DishListItem` 更是把 `canteenName`→`canteen`、分→元），那层适配有业务语义，
+> 拦了反而会逼人写 `as any`。
+>
+> **判据 2/4 的正则曾静默失效**：生成文件是 **TS 语法**（块尾 `};`、字段 `f?: T;` 带分号），
+> 按 JSON 形态写的正则**永不匹配**且不报错。护栏自身失效比没有护栏更危险，
+> 故每条判据都以**负向测试**（故意注入违规 → 确认为红）验收。
+>
+> **范围**：`client/` + `server/`。`web/` 处于待重构状态，**刻意不施加护栏**——
+> 对一个即将重写的目录做约束只会制造二次清理的噪音。
+
+> **TS 4.9 约束**（client 当前 `typescript@4.9` + `vue-tsc@1.8`）：
+> `type X = Y['K']` 之后**不可**用 `X.A` 点号访问（TS2713/TS2702），
+> `interface X extends Y['K']` 亦不支持（TS2499：interface 只能继承标识符）。
+> 故 `shared.ts` 采用**逐个具名 re-export**——这是 4.9 下的标准做法，非权宜之计。
 
 ## 10. 已知技术债（TODO）
 
@@ -210,7 +255,30 @@ com.bjtufood
 | P1 | `dish → review` 因事件订阅成包级环 | 包级环编译期不报错、只在运行时爆炸 | 语义单向，属可接受的发布/订阅形态；待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，随环检测规则一并恢复 |
 | P2 | 12 个 Service 实现中 10 个零单测 | 事务边界/权限判据等易错逻辑无回归保护 | 逐个补 Mockito 单测 |
 | P2 | `WechatAccessTokenProvider` 失败文案沿用「内容安全检测服务」措辞 | 该类同时服务 upload，上传失败场景措辞不贴切 | 统一为「微信服务」口径（会变更 API 返回文本，需评估） |
-| P2 | `web/`（管理后台）计划整体重构 | 现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文 | 重构时统一处理：超时可配置、AbortController 透传、口令改走登录态 |
+| P2 | `web/`（管理后台）计划整体重构 | 现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文；且未接入契约生成类型（仍是手写 `RawXxx`） | **已明确由用户后期自行重构**，本轮不介入；重构时可复用 `client/openapi.json` 生成产物 |
+| P2 | `client/src/types/generated` 未覆盖全部 41 个端点 | 契约共 160 个 schema，端上已 re-export 16 个（dish/review/user/notify/banner/feedback/upload 主链路已强类型化）；管理端专属 VO（`DishAdminVO` / `ReviewAdminVO` 等）与**入参 DTO**（`DishCorrectionReq` / `ReviewReq` 等）仍为手写 | 入参侧优先（写错会直接 400）；逐模块补 re-export，`check:contract` 已阻止 `RawRow` 回潮 |
+
+> **已偿还（2026-09-29 契约单一真源 + 历史包袱清理）**：
+> - ~~**端上契约无编译期保障（`RawRow = Record<string, any>`）**~~ —— 见 §9.1。
+>   `client` 全部 api 模块（dish / review / user / notify / banner / feedback / upload）
+>   已改用生成的强类型，`RawRow` 退为纯兜底，并由 `check:contract`（**扫 `src/` 全树**）守卫。
+> - ~~**`web/api/adapter.ts` 的 snake_case 双写死代码**~~ —— 后端 Jackson 全局 camelCase
+>   （无 `SNAKE_CASE` 配置，已实测 `GET /dishes/1` 出参确认），故 `raw.canteen_name` 一类
+>   兜底**永不命中**。client 侧 `canteenName||canteen`、`bindEmail||bind_email`、
+>   `userInfo||user` 三处历史兜底已删除。
+> - ~~**client 侧契约消费缺口**~~ —— `upload.ts` 的 `{ url: string }`、
+>   `review.ts` 的 `{ id: number }`、两端各自的 `ReportReason` 手写副本，
+>   均改为消费生成契约（`UploadResultVO` / `ReviewCreatedVO` / `ReportReasonVO`）。
+
+> **已撤回（2026-09-29，用户明确 web 后期自行重构）**：本轮曾为 web 接入契约
+> 生成类型并修正 2 处缺陷，现已全部还原（`git checkout -- web/`）：
+> - `web/api/feedback.ts` 的 `ReportReason` 多声明了后端**不存在**的 `order: number`
+>   （后端 `record ReportReason(value,label)` 只有 2 字段，运行时该值恒 `undefined`）；
+> - `web/api/dish.ts#listMealTypes` 读 `raw.order ?? 0` 得到**恒 0 假值**，
+>   其 `.sort((a,b) => a.order - b.order)` 退化为**恒返回 0 的比较器**（等于没排）。
+>
+> 二者均为**真实缺陷**，不因撤回而消失，留待 web 重构时一并处理。
+> 相应的 `web/src/api/contract.d.ts`、`web/src/api/types.ts` 与 web 端门禁判据亦已移除。
 
 > **已偿还（2026-09-29 架构评审 + 内容审核收口）**：
 > - ~~**菜品纠错链路无微信机审**~~ —— `CorrectionServiceImpl#submit` 已接入 `msgSecCheck v2`：

@@ -41,16 +41,7 @@
 
 **行字段 `DishListItemVO`（列表专用 8 字段）**：
 
-| 字段名 | 类型 | 中文解释 |
-|---|---|---|
-| `id` | number | 菜品 ID（列表 key / 跳转详情用） |
-| `name` | string | 菜品名称 |
-| `coverImage` | string | **封面图 URL**（无图为空串）——列表只渲染首图，仅下发封面单值 |
-| `price` | number | **现价**（单位：分；端上转「元」展示，已含折扣） |
-| `originalPrice` | number \| null | **原价**（单位：分，折扣前）；`originalPrice > price` 即表示有折扣、端上在原价上加删除线；无折扣为 null |
-| `avgRating` | number \| null | 平均评分（读缓存列 `dish.avg_rating`，口径 = 仅未隐藏评价）——结果卡渲染评分，**零评价时 `null`（不渲染评分区）** |
-| `canteenName` | string | 食堂名称（**结果卡底部位置行**） |
-| `stallName` | string | 档口名称（同 `canteenName`） |
+> **字段集与逐字段中文口径以 [client-首页菜品浏览](./client-首页菜品浏览.md) 的 `DishListItemVO` 表为唯一真源**（本文档不重复维护，避免同一契约出现两份措辞并漂移）。
 
 > **8 字段均全量消费**：结果卡**渲染位置行**；**不为搜索另拆 VO**（多一个 VO 即多一份契约维护成本）。
 > **详情专属字段不在列表出参中**：`description` / `images[]` / `floor` / `attributes`（`DishDetailVO` **共 11 字段**）。

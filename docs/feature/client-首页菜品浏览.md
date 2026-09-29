@@ -36,7 +36,7 @@
 |---|---|---|
 | `records` | DishListItemVO[] | **当前页数据行**（前端以它为准；**不含详情专属字段**，见下） |
 
-> 分页壳恒为 `records` 一项（口径见 `pagination-contract`）；页码 / 每页条数由请求侧掌握，不回传；结束判据 = 本页返回条数 < `pageSize`。
+> 分页壳恒为 `records` 一项（口径见本目录 [README](./README.md) 的「通用结构 · 分页结构」）；页码 / 每页条数由请求侧掌握，不回传；结束判据 = 本页返回条数 < `pageSize`。
 
 ### 响应 · `GET /dishes/views`（`List<DishViewVO>`）
 
