@@ -5,7 +5,7 @@
     数据驱动：维度名 / 当前值 / 单多选取自详情，候选取自编辑态端点（端上零硬编码维度）。
     三段结构（自上而下）：
       ① 已选中标签区（常驻，永远可见）+ 右上角删除叉；
-      ② 候选折叠面板（默认折叠；候选 ≤4 时**默认直接展开、不显示折叠按钮**；≥5 才给「查看更多候选」入口）；
+      ② 候选区：**多选组常驻平铺前 4 项常用标签**，其余收进「查看更多候选」面板；单选组不常驻平铺、仅给入口；**候选总数 ≤4 ⇒ 全部平铺、不渲染入口**（**废除**旧「≤4 自动展开」）；
          **候选为空（无参考值 / 接口失败）⇒ 整个候选入口隐藏**，仅留自定义输入；
       ③ 自定义输入（回车或「添加」入已选；自动去重、禁空 / 纯空格、≤10 字；`single` 为替换）。
 
@@ -14,12 +14,11 @@
     改为父级 `v-for` 按 index 显式传 `first`（仅首组去上边距），确定性生效、跨端一致。
   -->
   <view class="ag" :class="{ 'ag--first': first }">
-    <!-- 分组标题 + 单值维度小字说明 -->
+    <!-- 分组标题 + 右上角「单选 / 可多选」标注（文案由 valueType 驱动、两组均渲染；组内不再放操作说明） -->
     <view class="ag-head">
       <text class="ag-name">{{ name }}</text>
-      <text v-if="valueType === 'single'" class="ag-tip">仅可选择一项</text>
+      <text class="ag-tip">{{ valueType === 'single' ? '单选' : '可多选' }}</text>
     </view>
-    <text class="ag-sub">点击标签增删，支持自定义输入</text>
 
     <!-- ① 已选中标签区（常驻）：标签体**不可点**（删除只走右上角叉），故不下发 pickable -->
     <view class="ag-selected">
@@ -27,6 +26,7 @@
         v-for="v in selected"
         :key="v"
         variant="selected"
+        :selected-style="selectedStyle"
         closable
         :pickable="false"
         :label="v"
@@ -36,14 +36,28 @@
       <text v-if="!selected.length" class="ag-placeholder">暂无，可从下方选择或直接输入</text>
     </view>
 
-    <!-- ② 候选折叠面板（默认折叠 / ≤4 项直接展开；用户展开的长列表定高 240rpx 内滚） -->
-    <view v-if="hasCandidates && panelOpen" class="ag-panel-box">
-      <scroll-view class="ag-panel" :class="{ 'ag-panel--fixed': !autoExpand }" scroll-y :show-scrollbar="false">
+    <!-- ② 候选区 · 常驻平铺（≤4 项 = 全部候选；多选组 = 前 4 项常用标签；单选组不留常驻） -->
+    <view v-if="residentChips.length" class="ag-common">
+      <TagChip
+        v-for="c in residentChips"
+        :key="c"
+        :variant="selected.includes(c) ? 'selected' : 'candidate'"
+        :selected-style="selectedStyle"
+        :label="c"
+        :aria-label="`${name}「${c}」`"
+        @pick="toggleCandidate(c)"
+      />
+    </view>
+
+    <!-- ②b 候选区 · 其余候选折叠面板（仅候选 > 常驻档时存在；面板恒 240rpx 定高内滚） -->
+    <view v-if="hasMore && expanded" class="ag-panel-box">
+      <scroll-view class="ag-panel" scroll-y :show-scrollbar="false">
         <view class="ag-chips">
           <TagChip
-            v-for="c in candidates"
+            v-for="c in restChips"
             :key="c"
             :variant="selected.includes(c) ? 'selected' : 'candidate'"
+            :selected-style="selectedStyle"
             :label="c"
             :aria-label="`${name}「${c}」`"
             @pick="toggleCandidate(c)"
@@ -52,20 +66,20 @@
       </scroll-view>
     </view>
 
-    <!-- ③ 候选入口（仅候选 > 4 项时给）+ 自定义输入 -->
+    <!-- ③ 候选入口（仅候选 > 常驻档时给）+ 自定义输入 -->
     <view class="ag-entry">
       <view
-        v-if="hasCandidates && !autoExpand"
+        v-if="hasMore"
         class="ag-more"
         role="button"
-        :aria-label="panelOpen ? `收起${name}候选` : `查看更多${name}候选`"
-        :aria-expanded="panelOpen ? 'true' : 'false'"
+        :aria-label="expanded ? `收起${name}候选` : `查看更多${name}候选`"
+        :aria-expanded="expanded ? 'true' : 'false'"
         hover-class="ag-more--pressed"
         hover-stay-time="80"
         @tap="expanded = !expanded"
       >
-        <text class="ag-more-text">{{ panelOpen ? `收起候选（共 ${candidates.length} 项）` : `查看更多候选（共 ${candidates.length} 项）` }}</text>
-        <IconSvg :name="panelOpen ? 'arrow-up' : 'arrow-down'" :size="24" :color="COLOR_MAP['text-tertiary']" />
+        <text class="ag-more-text">{{ expanded ? `收起候选（共 ${candidates.length} 项）` : `查看更多候选（共 ${candidates.length} 项）` }}</text>
+        <IconSvg :name="expanded ? 'arrow-up' : 'arrow-down'" :size="24" :color="COLOR_MAP['text-tertiary']" />
       </view>
 
       <view class="ag-input-wrap" :class="{ 'ag-input-wrap--focus': focused }">
@@ -119,15 +133,19 @@ import IconSvg from '@/components/IconSvg.vue'
 import TagChip from './TagChip.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
-/** 候选数 ≤ 该值时默认直接展开（不给折叠入口）：少量候选折叠反而多一次点击 */
-const AUTO_EXPAND_MAX = 4
+/**
+ * 常驻平铺的候选上限（UI 稿「基础常用标签」口径）：取编辑端点 `options` 的**前 4 项**
+ * （后端已按频次 / `order` 倒序下发 ⇒ 前 4 项即最常用，**端上不新增「常用」字段**）。
+ * 候选总数 ≤ 该值 ⇒ 没有「其余」可藏 ⇒ 全部平铺、不渲染「查看更多候选」入口。
+ */
+const COMMON_MAX = 4
 
 const props = withDefaults(defineProps<{
   /** 维度键（camelCase）＝ 提交时 `attributes` 的键 */
   fieldKey: string
   /** 分组名（维度中文名，如「主料」） */
   name: string
-  /** `single`（单选，仅可选择一项）｜ `multi`（多选） */
+  /** `single`（单选）｜ `multi`（多选）—— 同时驱动右上角标注文案与选中态视觉档 */
   valueType: 'single' | 'multi'
   /** 当前已选（预填原始值，可增删） */
   selected: string[]
@@ -144,13 +162,24 @@ const emit = defineEmits<{
   (e: 'change', fieldKey: string, selected: string[]): void
 }>()
 
-/** 候选面板是否展开（仅 `candidates.length > AUTO_EXPAND_MAX` 时由用户控制） */
+/** 其余候选面板是否展开（仅候选数 > COMMON_MAX 时由用户控制；**不再有「≤4 自动展开」**） */
 const expanded = ref(false)
-/** 少量候选直接展开：无折叠按钮，也无需用户点开 */
-const autoExpand = computed(() => props.candidates.length > 0 && props.candidates.length <= AUTO_EXPAND_MAX)
-const panelOpen = computed(() => autoExpand.value || expanded.value)
-/** 候选为空（无参考值 / 接口失败）⇒ 候选入口整体隐藏，仅留自定义输入 */
-const hasCandidates = computed(() => props.candidates.length > 0)
+/** 是否存在「其余候选」需要折叠（候选数 > 常驻档 ⇒ 才渲染入口与面板；候选为空自然为 false ⇒ 入口整体隐藏） */
+const hasMore = computed(() => props.candidates.length > COMMON_MAX)
+/**
+ * 常驻平铺的候选（UI 稿「默认展示按组型分岔」）：
+ * · 候选 ≤ 常驻档 ⇒ **全部**平铺（单选 / 多选同此降级规则，不给入口）；
+ * · 多选组 ⇒ 常驻**前 4 项常用标签**，其余进折叠面板；
+ * · 单选组 ⇒ 不常驻平铺（保持紧凑），只给入口 + 面板。
+ */
+const residentChips = computed(() => {
+  if (!hasMore.value) return props.candidates
+  return props.valueType === 'multi' ? props.candidates.slice(0, COMMON_MAX) : []
+})
+/** 面板内的其余候选（多选组超出常驻档的部分） */
+const restChips = computed(() => (hasMore.value ? props.candidates.slice(COMMON_MAX) : []))
+/** 选中态视觉档：单选组实心（solid）、多选组浅底（soft）——**两套不得互串** */
+const selectedStyle = computed<'soft' | 'solid'>(() => (props.valueType === 'single' ? 'solid' : 'soft'))
 
 /** 自定义输入草稿 + 聚焦态（聚焦时底线切主色） */
 const draft = ref('')
@@ -206,11 +235,10 @@ function addCustom() {
 .ag { margin-top: var(--spacing-lg); }
 .ag--first { margin-top: 0; }
 
-/* 分组标题（维度名）+ 单值小字说明 */
+/* 分组标题（维度名）+ 右上角「单选 / 可多选」标注（组内不放操作说明） */
 .ag-head { display: flex; align-items: baseline; gap: var(--spacing-xs); }
 .ag-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
 .ag-tip { font-size: var(--font-tiny); color: var(--text-tertiary); }
-.ag-sub { display: block; margin-top: var(--spacing-2xs); font-size: var(--font-tiny); color: var(--text-tertiary); }
 
 /* ===== ① 已选中标签区（常驻）=====
    间距 sm(16rpx) + chip 视觉高 ≈67rpx（文字行 30.8 + 内边距 32 + 描边 4）⇒ 行节距 ≈83rpx（≥64rpx 返工口径） */
@@ -224,10 +252,19 @@ function addCustom() {
 }
 .ag-placeholder { font-size: var(--font-aux); color: var(--text-placeholder); }
 
-/* ===== ② 候选折叠面板：底比卡片略深一档、最多 240rpx 后纵向滚动 =====
-   `max-height` 在 mp-weixin 下**不保证**给 scroll-view 定高（无定高则内滚失效）：
-   故「用户展开」的长候选列表（>4 项）额外走 `.ag-panel--fixed` 定高，
-   而 ≤4 项自动展开的短列表保留 max-height（引擎不认时退化为自撑高度，内容全可见、不丢候选）。 */
+/* ===== ② 候选区 · 常驻平铺标签（多选组 = 前 4 项常用标签；≤4 项 = 全部候选）
+   与已选区同一 chip 刻度（67rpx 视觉高 + sm 节距），只是层级更弱一档（紧贴已选区下方） */
+.ag-common {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+/* ===== ②b 其余候选折叠面板：底比卡片略深一档、恒 240rpx 定高后纵向滚动 =====
+   `max-height` 在 mp-weixin 下**不保证**给 scroll-view 定高（无定高则内滚失效）⇒ 面板恒走定高；
+   常驻平铺的常用标签（`.ag-common`）在面板之外，不受定高影响。 */
 .ag-panel-box {
   margin-top: var(--spacing-xs);
   padding: var(--spacing-xs);
@@ -235,8 +272,7 @@ function addCustom() {
   border-radius: var(--radius-xs);
   box-sizing: border-box;
 }
-.ag-panel { max-height: 240rpx; }
-.ag-panel--fixed { height: 240rpx; }
+.ag-panel { height: 240rpx; }
 .ag-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); padding: var(--spacing-2xs); }
 
 /* ===== ③ 候选入口 + 自定义输入（同一行；窄屏自动换行）=====

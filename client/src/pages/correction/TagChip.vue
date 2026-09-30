@@ -2,8 +2,8 @@
   <!--
     TagChip（correction 包内私有）—— 属性标签（选中态 / 候选态）。
 
-    两态语义（UI 稿 §4 属性编辑区）：
-     · `selected`：已选中——主色浅底 + 主色描边 + 深主色文字，可挂右上角删除叉（`closable`）；
+    两态语义（UI 稿「属性编辑区」· 两套选中态由 `selectedStyle` 分流）：
+     · `selected`：已选中，可挂右上角删除叉（`closable`）；`selectedStyle='soft'`（多选组：食材 / 口味）= 主色浅底 + 主色描边 + 深主色文字，`solid`（单选组：饮食属性 / 冷热）= **实心主色底 + 白字**；
      · `candidate`：候选（未选中）——次级浅底 + 正文棕文字，无描边、无叉。
     点标签体 = 选择 / 取消（语义由父级 `AttributeGroup` 决定，本组件只上报 `pick`）；
     点删除叉 = 移除该项（`@tap.stop`，避免冒泡成一次 `pick`）。
@@ -15,7 +15,7 @@
   -->
   <view
     class="tag-chip"
-    :class="variant === 'selected' ? 'tag-chip--on' : 'tag-chip--off'"
+    :class="chipClass"
     :role="pickable ? 'button' : 'none'"
     :aria-label="ariaLabel"
     :aria-pressed="ariaPressed"
@@ -38,7 +38,7 @@
       hover-stay-time="80"
       @tap.stop="emit('remove')"
     >
-      <IconSvg name="close" :size="24" :color="COLOR_MAP['primary-text']" />
+      <IconSvg name="close" :size="24" :color="closeColor" />
     </view>
   </view>
 </template>
@@ -58,8 +58,13 @@ import { COLOR_MAP } from '@/theme/tokens'
 const props = withDefaults(defineProps<{
   /** 标签文案（后端中文值，端上零翻译） */
   label: string
-  /** `selected` = 选中态（主色浅底 + 描边）；`candidate` = 候选态（次级浅底） */
+  /** `selected` = 选中态；`candidate` = 候选态（次级浅底） */
   variant?: 'selected' | 'candidate'
+  /**
+   * 选中态视觉档（仅 `variant='selected'` 有意义，由消费方 `AttributeGroup` 按维度 `valueType` 下发）：
+   * `soft` = 多选组（浅底 + 描边 + 橙字）；`solid` = 单选组（实心主色底 + 白字）。**两套不得互串。**
+   */
+  selectedStyle?: 'soft' | 'solid'
   /** 是否展示右上角删除叉（仅选中态有意义） */
   closable?: boolean
   /** 无障碍标签（缺省按标签文案） */
@@ -71,6 +76,7 @@ const props = withDefaults(defineProps<{
   pickable?: boolean
 }>(), {
   variant: 'candidate',
+  selectedStyle: 'soft',
   closable: false,
   ariaLabel: '',
   pickable: true,
@@ -88,6 +94,19 @@ const emit = defineEmits<{
  */
 const ariaPressed = computed<boolean | undefined>(() =>
   props.pickable ? props.variant === 'selected' : undefined,
+)
+
+/** 选中态两套视觉的类名分流（候选态一律 `--off`；两套样式由消费方按 `valueType` 决定，禁互串） */
+const chipClass = computed(() => {
+  if (props.variant !== 'selected') return 'tag-chip--off'
+  return props.selectedStyle === 'solid' ? 'tag-chip--on-solid' : 'tag-chip--on'
+})
+
+/** 删除叉颜色：实心档随白字用白叉，浅底档用深主色叉 */
+const closeColor = computed(() =>
+  props.variant === 'selected' && props.selectedStyle === 'solid'
+    ? COLOR_MAP['on-primary']
+    : COLOR_MAP['primary-text'],
 )
 
 /** 仅 `pickable` 时回抛 `pick`（不可点态不留任何交互语义） */
@@ -111,9 +130,14 @@ function onPick() {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
-/* 选中态：主色浅底 + 主色细描边 + 深主色文字（与候选态一眼可辨） */
+/* 选中态（多选组档 `soft`）：主色浅底 + 主色细描边 + 深主色文字（与候选态一眼可辨） */
 .tag-chip--on {
   background: var(--color-primary-soft);
+  border: 2rpx solid var(--color-primary);
+}
+/* 选中态（单选组档 `solid`）：实心主色底 + 白字；描边取与底同色 ⇒ 不显边、仍与候选态等高（UI 稿禁止项 14） */
+.tag-chip--on-solid {
+  background: var(--color-primary);
   border: 2rpx solid var(--color-primary);
 }
 /* 候选态：次级浅底 + 正文棕文字、无描边（描边留给「选中」独占，避免两态混淆） */
@@ -132,6 +156,7 @@ function onPick() {
 /* R40：选中态文字提至 `--weight-semibold`(600)，与候选态(500)拉开层级（UI 稿 §4 诉求③）。
    ⚠️ 必须用 600 而非 500：小程序端 500 多数机型无真字重、会回落 400（与首页稿同源裁决）。 */
 .tag-chip--on .tag-chip-text { color: var(--color-primary-text); font-weight: var(--weight-semibold); }
+.tag-chip--on-solid .tag-chip-text { color: var(--color-on-primary); font-weight: var(--weight-semibold); }
 .tag-chip--off .tag-chip-text { color: var(--text-body); }
 
 /* 删除叉：命中区 64rpx×64rpx（≥64rpx 返工口径）；负外边距抵消 ⇒ chip 视觉高度不变、不越出 chip 边框。
