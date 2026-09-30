@@ -99,7 +99,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
  *       保留的 {@code /admin/reviews/{id}/hide} 仍在册作阳性对照）；</li>
  *   <li>内容安全检测口径：反馈内容安全检测 risky → 400「内容包含违规信息，请修改后重试」且不落库
- *       （2026-09-15 取消人工复核后，pass/review 一律放行）。</li>
+ *       。</li>
  * </ol>
  * 实现要点：
  * <ul>
@@ -111,7 +111,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
  *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
  *       判定经真实 {@link com.bjtufood.auth.service.UserService#requireUgcAuthorized(Long)}
- *       （判据 user.bind_email = 认证态唯一真源，2026-09-27 P0-1/P0-2 起收敛在 auth 域），
+ *       （判据 user.bind_email = 认证态唯一真源，P0-1/P0-2 起收敛在 auth 域），
  *       UserMapper 打桩注入，不查库；</li>
  *   <li>反馈入参校验（type 白名单 / sub 严格模式）在 Service 层，故导入真实 {@link FeedbackServiceImpl}，
  *       仅打桩其依赖的 Mapper / 工具类；</li>
@@ -134,7 +134,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ReviewAdminController.class,
         // 统一异常处理（HTTP 状态码 + body.code 口径的唯一真源）
         GlobalExceptionHandler.class,
-        // 类型化配置（2026-09-28 架构收口 P2）：本切片以 @ContextConfiguration 取代主配置，
+        // 类型化配置：本切片以 @ContextConfiguration 取代主配置，
         // 故 JwtUtil / AdminTokenFilter 所依赖的配置 Bean 需在此显式登记
         // （主类侧由 @EnableConfigurationProperties 统一登记，两者需同步）。
         JwtProperties.class,
@@ -152,7 +152,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserServiceImpl.class,
         // 反馈 / 举报入参校验（type 白名单 / 举报原因白名单）的真实实现
         FeedbackServiceImpl.class,
-        // 反馈落库事务 Bean（2026-09-29：事务边界收窄为本类，主 Service 依赖它，切片需一并登记）
+        // 反馈落库事务 Bean
         FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
         SmokeApiTest.AopTestConfig.class
@@ -280,7 +280,7 @@ class SmokeApiTest {
 
     @Test
     void dishDetail_notFoundAndOffShelf_returnsCode4001() throws Exception {
-        // 契约（2026-09-23 §7.40 R8）：资源不存在用**专属业务码 4001**（原「统一 400」口径已作废）。
+        // 契约：资源不存在用**专属业务码 4001**（原「统一 400」口径已作废）。
         // 统一响应由 HTTP 200 承载 body.code。
         when(dishService.getDishDetail(eq(999L))).thenThrow(new BusinessException(4001, "菜品不存在"));
 
@@ -299,10 +299,10 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(4001))
                 .andExpect(jsonPath("$.message").value("菜品不存在"));
     }
-    // ==================== 链路 2b：猜你喜欢（会话级 seed，2026-09-29） ====================
+    // ==================== 链路 2b：猜你喜欢（会话级 seed） ====================
 
     /**
-     * 2026-09-29「刷新边界 = 重进小程序」：{@code GET /dishes/for-you} 新增**可选** {@code seed}，
+     * 「刷新边界 = 重进小程序」：{@code GET /dishes/for-you} 新增**可选** {@code seed}，
      * 端上传会话级种子 ⇒ 服务端按 {@code CRC32(seed:ID)} 稳定伪随机序取数（会话内同一批词条）。
      * <p>
      * <b>判据是桩的参数匹配本身</b>：桩只对精确值 {@code "session-abc"} 生效——若控制器参数名写错、
@@ -409,7 +409,7 @@ class SmokeApiTest {
 
     @Test
     void submitFeedback_historicalType_returns400() throws Exception {
-        // 方案 B（2026-09-29）后 /feedback 仅接受纯反馈三类（bug/suggestion/other）；
+        // 方案 B后 /feedback 仅接受纯反馈三类（bug/suggestion/other）；
         // 历史遗留类型 issue（及 report/error/add）均不在写白名单 → 400
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -421,7 +421,7 @@ class SmokeApiTest {
     @Test
     void submitFeedback_invalidType_returns400() throws Exception {
         // 「新增菜品」(add) 是历史遗留类型、仍禁新增（不在 WRITABLE_TYPES）→ 400。
-        // 注（2026-09-27 顺带校正）：bug/suggestion/error/other 已随「意见反馈页改单表单 + 4 类型」放开为可写，
+        // 注：bug/suggestion/error/other 已随「意见反馈页改单表单 + 4 类型」放开为可写，
         // 原用例以 bug 断言 400 的写法已随规格变更失效，改用仍禁新增的 add，保住「白名单外必须 400」的防回归意图。
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -431,7 +431,7 @@ class SmokeApiTest {
     }
 
     /**
-     * 内容安全检测 risky → 400（2026-09-15 取消人工复核后的统一口径：仅 risky 拒绝，pass/review 一律放行）。
+     * 内容安全检测 risky → 400。
      * <p>
      * 走真实 {@link FeedbackServiceImpl}（内容安全检测调用点保留在写入路径内，删列不得顺手摘掉内容安全检测），
      * 仅打桩 {@link ContentSecurityService} 让其抛违规异常，断言 400 文案透传且内容不落库。
@@ -457,7 +457,7 @@ class SmokeApiTest {
     void submitFeedback_guestOther_persistsAndReturns200() throws Exception {
         when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // 请求体故意携带已退役的 contact 字段（2026-09-16 产品定型「不收集联系方式」）：
+        // 请求体故意携带已退役的 contact 字段：
         // FeedbackReq.contact 已删除，Jackson 忽略未知字段，请求应正常落库且不含联系方式语义
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -641,7 +641,7 @@ class SmokeApiTest {
     }
 
     /**
-     * 防回归（2026-09-15 用户拍板「品类整链删除」）：{@code GET /admin/categories} 已无任何处理器。
+     * 防回归：{@code GET /admin/categories} 已无任何处理器。
      * <p>
      * 此前带正确口令返回 200/code=200（CategoryAdminController 在线）；品类全链（Controller /
      * Service / Mapper / Entity + dish.categoryId + category 表）整体退役后，该路径必须失效。
@@ -663,7 +663,7 @@ class SmokeApiTest {
     }
 
     /**
-     * 防回归（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+     * 防回归：
      * {@code PUT /admin/reviews/{id}/sec-state} 必须不再注册（人工复核队列已无存续价值）。
      * <p>
      * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求，

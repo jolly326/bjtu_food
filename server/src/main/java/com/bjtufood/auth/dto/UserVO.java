@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  *   <li>本类额外汇总 {@code status}（账号状态，管理端需展示与操作）、{@code createdAt}（注册时间）、
  *       {@code wechatBound}（是否已绑定微信，仅布尔标识不暴露 openid 明文）——{@link UserInfoVO} 均无。</li>
  *   <li>认证状态<b>不作出参字段</b>：管理端与小程序端同口径，按 {@code bindEmail} 非空派生
- *       （2026-09-22 用户拍板：verified/verified_at 与 bind_email 同源冗余，DB 两列已退役）。</li>
+ *       。</li>
  *   <li>消费方：{@code GET /admin/users}（UserAdminController）；{@link UserInfoVO} 消费方为
  *       {@code POST /auth/wechat-login}、{@code POST /auth/verify-email}、{@code GET /auth/profile}。</li>
  * </ul>

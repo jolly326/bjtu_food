@@ -95,7 +95,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // 2. 校验并解析 Token（单次解析，避免重复验签）
             Claims claims = jwtUtil.parseAndValidate(token);
             if (claims != null) {
-                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除，2026-09-15）
+                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除）
                 Long userId = claims.get("userId", Long.class);
 
                 // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效

@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * 用户反馈服务接口
- * 2026-09-07：删除「我的反馈列表」listMy（前端 getMyFeedback 已删，反馈中心下线），保留 submit/listForAdmin/handle。
+ * 删除「我的反馈列表」listMy（前端 getMyFeedback 已删，反馈中心下线），保留 submit/listForAdmin/handle。
  */
 public interface FeedbackService {
 
@@ -49,14 +49,14 @@ public interface FeedbackService {
      * <p>
      * <b>为何两个端点而不是合并为一个</b>：小程序走 {@code /api/v1/**} + JWT，
      * 管理后台走 {@code /api/v1/admin/**} + {@code X-Admin-Token}，<b>鉴权体系互不通</b>。
-     * 2026-09-29 审计发现 web 曾直接调用学生端 {@code GET /feedback/report-reasons}
+     * 审计发现 web 曾直接调用学生端 {@code GET /feedback/report-reasons}
      * （属「一个接口两端调用」）。该端点在学生端白名单内是 {@code permitAll} 故当时能跑，
      * 但一旦学生端接口纳入 JWT 鉴权，管理后台会立刻 401 失效。
      * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦
-     * （2026-09-30 实测：该管理端字典端点尚未落地，{@code FeedbackAdminController} 当前只有
+     * （实测：该管理端字典端点尚未落地，{@code FeedbackAdminController} 当前只有
      * 列表 / 处理两个映射；web 侧原因筛选的值域仍待接，见 docs/web/feature/web-举报管理.md）。
      * <p>
-     * 2026-09-30 P2 迁址：学生端本端点由 {@code GET /feedback/report-reasons} 改为
+     * P2 迁址：学生端本端点由 {@code GET /feedback/report-reasons} 改为
      * {@code GET /report-reasons}（字典非「反馈提交」的子资源），无过渡别名。
      * <p>
      * <b>数据仍然同源</b>：两端出参均由 {@code FeedbackConst.REPORT_REASONS} 构造，
@@ -77,7 +77,7 @@ public interface FeedbackService {
     /**
      * 反馈列表（管理端，按状态/类型/用户过滤）
      * <p>
-     * 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
+     * 内容安全态筛选入参已随 sec_state 全链退役删除。
      *
      * @param keyword 关键词（可选，对反馈内容 content 或管理员回复 reply 模糊匹配）
      */
@@ -89,10 +89,10 @@ public interface FeedbackService {
      * §7.10 决议：管理端「操作人身份」降级——单口令即单人，不再追究身份，
      * 故不再取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
      * <p>
-     * §7.16（2026-09-14）：{@code reply} <b>必填</b>（trim 后非空白），落库并随回执通知发送，
+     * §7.16：{@code reply} <b>必填</b>（trim 后非空白），落库并随回执通知发送，
      * 缺失/纯空白抛 400；Service 层为 Controller {@code @NotBlank} 的兜底，两者文案一致。
      * <p>
-     * §7.23 第 5 条（2026-09-15）：支持处理结论——{@code outcome=handled}（通过/已处理，缺省）或
+     * §7.23 第 5 条：支持处理结论——{@code outcome=handled}（通过/已处理，缺省）或
      * {@code outcome=rejected}（不采纳/退回）；结论为不采纳/退回时 {@code rejectReason} 必填
      * （1~200 字，纯空白视为未填写 → 400「请填写不采纳原因」），随回执一并向提交人展示。
      */

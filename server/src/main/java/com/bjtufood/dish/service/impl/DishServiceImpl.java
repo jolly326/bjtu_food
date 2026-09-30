@@ -49,7 +49,7 @@ import java.util.Set;
 public class DishServiceImpl implements DishService {
 
     /**
-     * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
+     * 猜你喜欢返回条数。
      * <p>
      * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
      * 收为 6 的理由（见 docs/client/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
@@ -130,7 +130,7 @@ public class DishServiceImpl implements DishService {
                 .toList();
     }
 
-    // ==================== 公开只读字典（/dishes/attributes，2026-09-29 补齐） ====================
+    // ==================== 公开只读字典（/dishes/attributes，补齐） ====================
 
     @Override
     public List<DishAttributeDefVO> listAllAttributeDefs() {
@@ -253,14 +253,14 @@ public class DishServiceImpl implements DishService {
 
         // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
 
-        // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）。
+        // hasReviewed（当前用户是否已评价）已于下线（三端零消费，连带删除字段与取值查询）。
         // 注：详情出参仍无任何登录态字段；原 userId 入参与 view_log 浏览日志写入已随该链整表退役移除。
         return vo;
     }
 
     /**
      * 猜你喜欢：按端上下发的**会话级** seed 做稳定伪随机取数
-     * （2026-09-29 刷新边界收窄为「重进小程序」）。
+     * 。
      * <p>
      * 语义澄清：用户侧<b>无「主动换一批」入口</b>（全仓无下拉刷新），内容却在会话内自变 ⇒
      * 体验是「界面不稳定」而非「新鲜」；故随机性归于会话——seed 会话内恒定、冷启动才重掷，
@@ -317,7 +317,7 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
-        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，2026-09-15 阶段4）——
+        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，阶段4）——
         // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
         dishMapper.insert(dish);
     }
@@ -340,7 +340,7 @@ public class DishServiceImpl implements DishService {
         if (stallId != null) {
             dish.setStallId(stallId);
         }
-        // 同上（2026-09-15 阶段4）：审核语义退役后编辑路径不再回写审核态，
+        // 同上：审核语义退役后编辑路径不再回写审核态，
         // 「改了信息反而从端上消失」的隐患随 audit_status 列下线一并消除。
         dishMapper.updateById(dish);
         // 契约约定：null/0 表示清空可空的原价（applyReq 已把 0 归一为 null 并写回实体）；
@@ -369,10 +369,10 @@ public class DishServiceImpl implements DishService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
-    // （原注释关于 @CacheEvict 失效时序的说明已随 2026-09-22 缓存设施整包退役删除）
+    // （原注释关于 @CacheEvict 失效时序的说明已随 缓存设施整包退役删除）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
-        // 计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
+        // 计入口径（Q-110 / 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
         // 内容安全检测 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
         // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
@@ -420,7 +420,7 @@ public class DishServiceImpl implements DishService {
      * 新增路径 null 则落库列默认值（与既有 applyReq 风格一致）。
      * <p>
      * 所有值域校验集中在此（PR-06：非法入参必须 400 报错，不得静默降级落库）。
-     * 价格口径（2026-09-20 拍板 D2）：唯一数据源为 {@code price}（现价，已含折扣），
+     * 价格口径：唯一数据源为 {@code price}（现价，已含折扣），
      * {@code originalPrice} 为可空原价；不再存在 promo_price 第三价格字段。
      */
     private void applyReq(Dish dish, DishAdminReq req) {
@@ -472,7 +472,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 图片相对路径 → 绝对 URL（2026-09-23 R5）。
+     * 图片相对路径 → 绝对 URL。
      * <p>
      * 「JSON 串 ↔ List」的转换已下沉到持久层（{@code StringListTypeHandler}），本方法只负责
      * **业务转换**（相对路径 → 可访问绝对 URL）；空值归一为空列表。
@@ -482,7 +482,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 列表行封面图（2026-09-22 D 项拆分）：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
+     * 列表行封面图：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
      * 无图时为空串（列表不再下发图片数组，故只取首图、不做多图回填）。
      */
     private DishListItemVO enrichCoverImage(DishListItemVO vo) {

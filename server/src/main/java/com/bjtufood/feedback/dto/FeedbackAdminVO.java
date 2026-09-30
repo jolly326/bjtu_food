@@ -34,7 +34,7 @@ public class FeedbackAdminVO {
     @Schema(description = "反馈配图 URL 列表（COS 绝对地址，≤3 张）")
     private List<String> images;
 
-    // contact 已随 user_feedback.contact 列退役删除（2026-09-16 产品定型「不收集联系方式」）；
+    // contact 已随 user_feedback.contact 列退役删除；
     // web 管理端展示列由前端任务同步删除。
 
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")

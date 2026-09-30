@@ -22,7 +22,7 @@ import java.util.Set;
  *   <li>解析失败（截断 / 非标头）<b>不拦截</b>：magic number 已在调用方前置校验，此处以防刷为主。</li>
  * </ul>
  * <p>
- * <b>归属（2026-09-28 架构收口）</b>：自 {@code UploadServiceImpl} 抽出。本逻辑是<b>纯无状态</b>的
+ * <b>归属</b>：自 {@code UploadServiceImpl} 抽出。本逻辑是<b>纯无状态</b>的
  * （只依赖方法参数，不持有 Bean 状态、不参与上传编排），与「两条上传链路 + COS 编排 +
  * 云存储下载」这些有状态编排关注点正交，故可安全独立并以静态方法调用。
  * 抽出后 {@code UploadServiceImpl} 由 574 行降至约 479 行，职责项由 6 项降为 5 项。

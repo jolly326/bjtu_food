@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 /**
  * 用户信息摘要（跨域只读契约：userId → 昵称 + 绝对头像 URL）。
  * <p>
- * 2026-09-27 架构收口 P0-1：管理端列表（评价 / 反馈 / 纠错）此前直接 import
+ * 架构收口 P0-1：管理端列表（评价 / 反馈 / 纠错）此前直接 import
  * {@code auth.entity.User} + {@code auth.mapper.UserMapper} 批量 join 取昵称头像，
  * 属跨模块直连他域 Mapper。现由 {@code UserService.mapBriefByIds(Collection)} 下发本投影，
  * 调用方不再持有 User 实体与 UserMapper。

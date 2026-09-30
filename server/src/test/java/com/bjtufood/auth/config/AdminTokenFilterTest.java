@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * {@link AdminTokenFilter} 路径作用域与 fail-closed 行为的单元测试。
  * <p>
- * <b>存在理由（2026-09-28 架构收口）</b>：本类历史上用
+ * <b>存在理由</b>：本类历史上用
  * {@code request.getRequestURI().contains("/admin/")} 判断作用域——这在
  * {@code context-path=/api} 时属于「碰巧命中」，一旦 context-path 升版为
  * {@code /api/v1} 或出现其他前缀，就可能<b>漏检 → /admin/** 绕过口令校验（严重越权）</b>。
@@ -31,7 +31,7 @@ class AdminTokenFilterTest {
 
     private static final String TOKEN = "test-admin-token";
 
-    /** 受控配置对象（2026-09-28 架构收口 P2：配置由 AdminProperties 承载，不再是过滤器内的 @Value 字段） */
+    /** 受控配置对象 */
     private static AdminProperties props() {
         AdminProperties p = new AdminProperties();
         p.setToken(TOKEN);

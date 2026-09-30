@@ -42,7 +42,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     /**
-     * 落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * 落库事务边界：
      * {@code submitReview} / {@code updateReview} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的
      * HTTP 外呼 ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
      * 现改为「先机审（无事务）→ 再落库（开事务）」。
@@ -97,7 +97,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 发表评价（**重复提交即覆盖**，2026-09-30 简化）。
+     * 发表评价（**重复提交即覆盖**，简化）。
      * <p>
      * 同一用户对同一菜品只有一条评价：不存在则 INSERT，已存在则**覆盖同一行**
      * （评分 / 文字 / 配图 / created_at 刷新 / is_hidden 重置 0）—— 端上不再区分首评与重评，
@@ -124,7 +124,7 @@ public class ReviewServiceImpl implements ReviewService {
         // 微信 msgSecCheck v2 必填 openid，故必须在机检之前前置双约束，否则口子敞开。
         UserAuthContextVO reviewUser = requireUgcAuthorizedUser(userId);
 
-        // ---- 内容安全检测（产品定稿 2026-09-13：全部 UGC 过微信内容安全检测）----
+        // ---- 内容安全检测（产品定稿 全部 UGC 过微信内容安全检测）----
         checkUgcText(reviewUser, filteredContent, 2);
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
@@ -152,7 +152,7 @@ public class ReviewServiceImpl implements ReviewService {
     /**
      * 重新评价（覆盖式）：覆盖同一行（评分/文字/配图），不新建行。
      * <p>
-     * 覆盖语义（2026-09-20 拍板 D4）：created_at 刷新为当前（时间倒序下置顶）、is_hidden 重置 0、
+     * 覆盖语义：created_at 刷新为当前（时间倒序下置顶）、is_hidden 重置 0、
      * 内容安全检测与首次发表同口径（违规 400 且原内容不变）、发既有 ReviewSubmittedEvent 重算聚合。
      * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
      */
@@ -167,7 +167,7 @@ public class ReviewServiceImpl implements ReviewService {
         }
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            // 错误码口径：200/400/401/403/4031/4001/500（4001 = 资源不存在，2026-09-23 新增，
+            // 错误码口径：200/400/401/403/4031/4001/500（4001 = 资源不存在，，
             // 见 project_spec.md §7.40 R8）。本端点沿用既有 400 口径未改 —— 4001 首期仅在
             // GET /dishes/{id} 落地，其余端点随各自变更渐进对齐。
             throw new BusinessException(400, "评价不存在");
@@ -211,7 +211,7 @@ public class ReviewServiceImpl implements ReviewService {
     /**
      * UGC 文本机检公共入口：取用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
-     * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
+     * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
      * pass 与机检 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
      * 边界（报告备案）：
      * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
@@ -227,7 +227,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * VO 配图绝对化（2026-09-23 R5）：{@code images} 已由 StringListTypeHandler 在持久层从
+     * VO 配图绝对化：{@code images} 已由 StringListTypeHandler 在持久层从
      * {@code review.images} 列直出为 {@code List<String>}，本方法只做「相对路径 → 绝对 URL」的业务转换。
      * COS 绝对地址原样返回（toAbsoluteUrl 对 http(s) 无损）；历史空值由 TypeHandler 归一为空列表。
      */
@@ -272,7 +272,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
-                // 2026-09-23 R6：Review::getUpdatedAt 已随 review.updated_at 列下线移除（该列不再存在）
+                // R6：Review::getUpdatedAt 已随 review.updated_at 列下线移除（该列不再存在）
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
                         Review::getCreatedAt)

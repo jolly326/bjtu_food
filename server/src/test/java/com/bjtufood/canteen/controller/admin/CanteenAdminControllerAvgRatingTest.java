@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 /**
  * 包级环偿还的回归护栏：<b>档口均分由 controller 层编排，而非 canteen 域自行拉取</b>。
  * <p>
- * 背景（2026-09-28）：{@code StallServiceImpl} 曾注入 {@code ReviewQueryService} 以填充
+ * 背景：{@code StallServiceImpl} 曾注入 {@code ReviewQueryService} 以填充
  * 后台列表的档口平均分，构成
  * <pre>
  *   canteen -> review -> dish -> canteen

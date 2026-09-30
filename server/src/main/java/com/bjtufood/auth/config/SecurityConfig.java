@@ -36,9 +36,9 @@ import java.nio.charset.StandardCharsets;
  * 公开接口白名单（无需登录）：
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
- * - GET /banners（首页顶部轮播图，2026-09-22 新增；/** 无写接口）
+ * - GET /banners（首页顶部轮播图，；/** 无写接口）
  * - GET /dishes、GET /dishes/{id}、GET /dishes/views、GET /dishes/{id}/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
- * - 注：GET /canteens 白名单已于 2026-09-22 删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
+ * - 注：GET /canteens 白名单已于删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
  * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
@@ -66,7 +66,7 @@ public class SecurityConfig {
     /**
      * 任意方法放行的公开接口（鉴权/文档类，无敏感写操作）。
      * <p>
-     * <b>路径口径（2026-09-28 架构收口，重要）</b>：以下为<b>不含 context-path</b> 的应用内路径。
+     * <b>路径口径</b>：以下为<b>不含 context-path</b> 的应用内路径。
      * {@link MvcRequestMatcher} 匹配的是 {@code HandlerMapping} 解析出的「应用内路径」，
      * 即已剥离 {@code server.servlet.context-path}——因此
      * {@code server.servlet.context-path} 由 {@code /api} 改为 {@code /api/v1} 时，
@@ -85,7 +85,7 @@ public class SecurityConfig {
             // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback",
             // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
-            // 2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂在「反馈提交」写入口下语义错位）
+            // P2 迁址：原 /feedback/report-reasons（字典挂在「反馈提交」写入口下语义错位）
             "/report-reasons",
             // 评价举报提交（PUB：举报免认证，游客可提交；RESTful 子资源）
             "/reviews/*/report",
@@ -95,7 +95,7 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/webjars/**",
-            // Actuator 运维端点（2026-09-28 架构收口 D）：仅放行探活与信息，
+            // Actuator 运维端点：仅放行探活与信息，
             // 使云托管/负载均衡的存活探针无需携带任何凭据即可调用。
             // 暴露面由 application-prod.yml 的 management.endpoints.web.exposure 收敛到
             // health/info —— env/beans/heapdump 等高危端点即便被请求也匹配不到本白名单。
@@ -108,12 +108,12 @@ public class SecurityConfig {
      * 仅 GET 放行的公开浏览接口（覆盖全部 dish / banner 只读路径，
      * 使用 method-scoped 匹配，避免误放行 POST 等写操作）。
      * <p>
-     * 说明：学生端菜品写接口已于 2026-09-13 全部下线，菜品仅由管理员经 /admin/dishes 录入；
+     * 说明：学生端菜品写接口已于全部下线，菜品仅由管理员经 /admin/dishes 录入；
      * 本条仅约束 GET 只读浏览（浏览量计数为 GET /dishes/{id} 的响应副作用，无独立上报端点）。
-     * /stalls/** 白名单已于 2026-09-15 CT-05 删除：无公开 StallController 端点（幽灵路由）。
-     * /canteens/** 白名单已于 2026-09-22 删除：食堂字典端点（原 GET /canteens）随食堂 / 价格筛选
+     * /stalls/** 白名单已于CT-05 删除：无公开 StallController 端点（幽灵路由）。
+     * /canteens/** 白名单已于删除：食堂字典端点（原 GET /canteens）随食堂 / 价格筛选
      * 全量下线整体删除（K4），公开侧不再有食堂字典接口。
-     * 评价只读路径已 RESTful 化为 /dishes/{id}/reviews（由 /dishes/** 覆盖，2026-09-20 拍板）；
+     * 评价只读路径已 RESTful 化为 /dishes/{id}/reviews（由 /dishes/** 覆盖，拍板）；
      * 原 GET /reviews 白名单条目随该路径删除一并移除；GET /my/reviews 需登录，不在白名单内。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
@@ -199,7 +199,7 @@ public class SecurityConfig {
      * 使用 BCrypt 算法加密密码。
      * BCrypt 每次加密结果不同（内置 salt），安全性高。
      * <p>
-     * 2026-09-14 保留说明（BE「删除 DataInitializer」联动评估结论）：
+     * 保留说明（BE「删除 DataInitializer」联动评估结论）：
      * 管理端已无登录/密码体系（/admin/** 走 {@code AdminTokenFilter} 的 X-Admin-Token 口令），
      * 原 DataInitializer 写入的 admin/admin123 账号已随该类一并删除；
      * 但本 Bean <b>不能摘除</b>——邮箱验证码仍以 BCrypt 存/验哈希：

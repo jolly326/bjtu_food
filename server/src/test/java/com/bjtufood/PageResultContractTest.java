@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 分页契约一致性护栏（2026-09-29 架构收口 P1-3）。
+ * 分页契约一致性护栏。
  * <p>
  * <b>要防的具体事故</b>：分页壳已在「契约精简」中收敛为 {@code PageResult<T>{ records }},
  * 但文档、agent 规范与端上类型里<b>大量残留</b> {@code total / page / pageSize} 的旧描述。

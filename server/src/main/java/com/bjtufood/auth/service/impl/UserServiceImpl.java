@@ -105,7 +105,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException("User not found");
         }
-        // 说明：管理端已无登录与角色体系（2026-09-13 定型），用户状态变更不再做「禁止操作自身/越权」判定；
+        // 说明：管理端已无登录与角色体系，用户状态变更不再做「禁止操作自身/越权」判定；
         // 管理端接口整体由 AdminTokenFilter 的口令校验保护。
         user.setStatus(status);
         userMapper.updateById(user);
@@ -139,7 +139,7 @@ public class UserServiceImpl implements UserService {
     /**
      * 游客默认昵称：食客 + ID 尾 4 位（id 不足 4 位时取全量）。
      * <p>
-     * 「游客短标识」不再作为任何接口出参（2026-09-21 spec §7.32）：该值是 `id` 的纯派生，
+     * 「游客短标识」不再作为任何接口出参：该值是 `id` 的纯派生，
      * 学生端与管理端各自按同一规则现算；此处仅用于**建号默认昵称**这一处服务端写入。
      */
     private String buildGuestNickname(Long userId) {

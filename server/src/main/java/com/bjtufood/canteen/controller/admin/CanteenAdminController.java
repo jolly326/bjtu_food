@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 后台食堂/档口字典接口（2026-09-15 蓝图 v1，project_spec §7.23 第 1 条）：
+ * 后台食堂/档口字典接口：
  * 食堂/档口是菜品的属性，不独立建档——独立新增端点 {@code POST /admin/canteens}、{@code POST /admin/stalls}
  * 已删除；字典的写入入口收敛为「菜品录入按名 upsert」（DishServiceImpl，同名不重复建档）。
  * 本 Controller 仅保留只读列表与改名（编辑）能力。
@@ -39,7 +39,7 @@ public class CanteenAdminController {
     private final CanteenService canteenService;
     private final StallService stallService;
     /**
-     * 评价域只读投影（2026-09-28 包级环偿还）。
+     * 评价域只读投影。
      * <p>
      * 档口均分原本由 {@code StallServiceImpl} 自行拉取，导致
      * {@code canteen -> review -> dish -> canteen} 成环（dish 需 canteen 的档口名）。
@@ -81,7 +81,7 @@ public class CanteenAdminController {
      * BE-08：一次 IN 查询取回全部档口平均分，替代逐档口查询的 N+1。
      * 无 approved 评价的档口不会出现在结果集中，保留 {@code StallServiceImpl} 已置的 0.00 兜底。
      * <p>
-     * 2026-09-28：由 {@code StallServiceImpl} 上移至此，以断开 {@code canteen -> review} 包级边。
+     * 由 {@code StallServiceImpl} 上移至此，以断开 {@code canteen -> review} 包级边。
      */
     private void fillAvgRatings(List<StallAdminVO> stalls) {
         if (stalls == null || stalls.isEmpty()) {

@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * 微信 access_token 获取与缓存实现（stable_token）。
  * <p>
- * 2026-09-28 架构收口 P0-B：本类自 {@code content.security.impl.ContentSecurityServiceImpl}
+ * 架构收口 P0-B：本类自 {@code content.security.impl.ContentSecurityServiceImpl}
  * <b>原样抽取</b> stable_token 相关职责（appid/secret 读取、拉取、进程内缓存、失效清理）。
  * 抽取时<b>刻意保持逐字一致</b>的细节（这些是踩过坑的语义，改动即行为变更）：
  * <ul>
@@ -64,7 +64,7 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
     /**
      * 微信开放平台配置（类型化绑定，单一真源）。
      * <p>
-     * 2026-09-28 架构收口 P2：本类原以 {@code @Value} 自行绑定 {@code wechat.appid} /
+     * 架构收口 P2：本类原以 {@code @Value} 自行绑定 {@code wechat.appid} /
      * {@code wechat.secret}，与 {@code WechatService} 重复绑定同一份凭据，且「是否已配置」
      * 在两处各写一份判空逻辑。现统一由 {@link WechatProperties} 承载，
      * {@link #isConfigured()} 亦改为委托，杜绝判据分裂。

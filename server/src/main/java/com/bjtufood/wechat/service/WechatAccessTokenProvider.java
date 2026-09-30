@@ -3,7 +3,7 @@ package com.bjtufood.wechat.service;
 /**
  * 微信 access_token 获取与缓存（<b>平台凭据能力</b>，非内容安全判定）。
  * <p>
- * 2026-09-28 架构收口 P0-B（从 {@code ContentSecurityService} 拆出）：
+ * 架构收口 P0-B（从 {@code ContentSecurityService} 拆出）：
  * 原接口名为「内容安全服务」却同时暴露了 {@code getStableAccessToken()} /
  * {@code invalidateCachedToken()} / {@code isConfigured()} —— 这三个是<b>微信平台凭据与
  * token 生命周期管理</b>，与「内容是否违规」的判定是两件事。后果是

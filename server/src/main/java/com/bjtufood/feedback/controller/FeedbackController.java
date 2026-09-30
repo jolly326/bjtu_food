@@ -26,10 +26,10 @@ import java.util.List;
  * 学生端保留提交反馈 POST /feedback 与举报原因字典 GET /report-reasons；
  * admin 端 /admin/feedbacks 由 Web 后台 FeedbackView 消费。
  * <p>
- * 2026-09-27 架构收口 P1-1：自 {@code auth.controller} 迁至 {@code feedback.controller}（同模块同包，
+ * 架构收口 P1-1：自 {@code auth.controller} 迁至 {@code feedback.controller}（同模块同包，
  * 与 {@code feedback.controller.admin.FeedbackAdminController} 对位）；**路由零变化**。
  * <p>
- * 2026-09-30 P2 <b>路由变更一例</b>：举报原因字典由 {@code GET /feedback/report-reasons} 迁至
+ * P2 <b>路由变更一例</b>：举报原因字典由 {@code GET /feedback/report-reasons} 迁至
  * {@code GET /report-reasons}——字典是「举报原因」的枚举，<b>不是</b>「反馈提交」的子资源，
  * 挂在 {@code /feedback}（写入口）下语义错位。该端点唯一消费者是同仓小程序（web 已解耦），
  * 故不留过渡别名；调用点、SecurityConfig 白名单与契约产物同批更新。

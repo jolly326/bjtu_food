@@ -21,7 +21,7 @@ import java.security.MessageDigest;
 import java.util.List;
 
 /**
- * 管理端（Web 后台）口令校验过滤器（2026-09-13 定型：后台为本地数据操作工具、无登录体系）。
+ * 管理端（Web 后台）口令校验过滤器。
  * <p>
  * 背景：小程序端已无管理员登录，Web 后台不再做账号登录（登录即用 / 无感），但后端部署在公网，
  * 因此管理端接口改由**环境变量口令**保护：请求头 {@code X-Admin-Token} 必须等于环境变量
@@ -44,7 +44,7 @@ public class AdminTokenFilter extends OncePerRequestFilter {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
-     * 管理端口令配置（类型化绑定，2026-09-28 架构收口 P2；替代原先的 {@code @Value}）。
+     * 管理端口令配置（类型化绑定，架构收口 P2；替代原先的 {@code @Value}）。
      * <p>
      * 「未配置即 fail-closed」的判据现由 {@link AdminProperties#isConfigured()} 承载，
      * 与「是否配置」成为同一份事实，不再是过滤器方法内联的判空逻辑。
@@ -107,7 +107,7 @@ public class AdminTokenFilter extends OncePerRequestFilter {
             return;
         }
         // 口令校验通过后补设 Authentication（ROLE_ADMIN）：使请求能通过 SecurityConfig 的
-        // anyRequest().authenticated() 授权检查（/upload/image 已不在 permitAll 白名单，2026-09-15 B4）。
+        // anyRequest().authenticated() 授权检查（/upload/image 已不在 permitAll 白名单，B4）。
         // 否则授权层因匿名身份返回 401，即使口令正确后台上传也会失败。
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 "admin", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));

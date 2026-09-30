@@ -27,7 +27,7 @@ import static org.springframework.http.HttpMethod.POST;
 /**
  * {@link ContentSecurityService} 单元测试（MockRestServiceServer，参照 WechatServiceTest 风格）。
  * <p>
- * 覆盖（产品定稿 2026-09-13；2026-09-15 用户拍板「取消人工复核」后三态归一为「放行/拒绝」二态）：
+ * 覆盖（产品定稿 ；用户拍板「取消人工复核」后三态归一为「放行/拒绝」二态）：
  * 1. msgSecCheck v2 按 result.suggest 判定（pass/review → 放行，risky → 拒绝），不只看 errcode；
  * 2. risky 统一抛 400「内容包含违规信息，请修改后重试」；
  * 3. imgSecCheck 87014 → 400「图片包含违规内容，无法上传」；
@@ -35,7 +35,7 @@ import static org.springframework.http.HttpMethod.POST;
  * 5. openid 为空（历史学号账号边界）跳过检测放行；
  * 6. 图片超 1MB 大小兜底。
  * <p>
- * 2026-09-28 架构收口 P0-B（随包迁移 {@code content.security} → {@code moderation.service}）：
+ * 架构收口 P0-B（随包迁移 {@code content.security} → {@code moderation.service}）：
  * 本测试的<b>接线方式随之调整</b>——原先 appid/secret 与 stable_token 由被测服务自己持有
  * （{@code ReflectionTestUtils.setField(contentSecurityService, "appid", ...)}），
  * 现凭据已剥离到 {@link WechatAccessTokenProvider}，故测试改为：
@@ -110,7 +110,7 @@ class ContentSecurityServiceTest {
 
         SecSuggest suggest = contentSecurityService.detectText("oX-openid", "一份番茄炒蛋", 2);
 
-        // 2026-09-15 用户拍板「取消人工复核」：review（疑似）直接放行，仅 risky 拒绝
+        // 用户拍板「取消人工复核」：review（疑似）直接放行，仅 risky 拒绝
         assertThat(suggest).isEqualTo(SecSuggest.PASS);
         assertThat(suggest).isNotEqualTo(SecSuggest.RISKY);
         server.verify();
@@ -131,7 +131,7 @@ class ContentSecurityServiceTest {
     @DisplayName("SecSuggest.fromValue 归一：pass/review → PASS（放行）；risky/未知/缺失 → RISKY（拒绝，fail-closed）")
     void shouldNormalizeSuggestValues() {
         assertThat(SecSuggest.fromValue("pass")).isEqualTo(SecSuggest.PASS);
-        // 2026-09-15 归一：review 不再产生「待复核」态，映射即为放行
+        // 归一：review 不再产生「待复核」态，映射即为放行
         assertThat(SecSuggest.fromValue("review")).isEqualTo(SecSuggest.PASS);
         assertThat(SecSuggest.fromValue("risky")).isEqualTo(SecSuggest.RISKY);
         // 微信未来新增未知态一律拒绝（宁可误拦不放行）

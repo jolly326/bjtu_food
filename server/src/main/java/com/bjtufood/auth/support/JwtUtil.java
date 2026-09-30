@@ -18,7 +18,7 @@ import java.util.Map;
  * JWT 工具类
  * <p>
  * 负责 JWT Token 的生成、校验和解析。
- * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除，2026-09-15）。
+ * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除）。
  * <p>
  * 流程说明：
  * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
@@ -29,7 +29,7 @@ import java.util.Map;
 @Slf4j
 public class JwtUtil {
 
-    /** JWT 配置（类型化绑定，2026-09-28 架构收口 P2；替代原先两个散落的 {@code @Value}） */
+    /** JWT 配置（类型化绑定，架构收口 P2；替代原先两个散落的 {@code @Value}） */
     private final JwtProperties jwtProperties;
 
     /**
@@ -52,7 +52,7 @@ public class JwtUtil {
      * 启动期 fail-fast（BE-11）：密钥缺失/过短/仍是仓库内置默认弱密钥时阻断启动，
      * 防止误用默认密钥导致任意 userId 的 Token 可被伪造。
      * <p>
-     * 口径（2026-09-15 裁决 B，全 profile 一致）：
+     * 口径：
      * <ul>
      *   <li>缺失或长度 &lt; 32 字节：HMAC-SHA 算法的硬要求（{@code Keys.hmacShaKeyFor} 会直接抛
      *       WeakKeyException），<b>所有 profile 一律拒绝启动</b>；</li>

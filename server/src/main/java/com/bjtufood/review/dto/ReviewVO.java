@@ -13,7 +13,7 @@ import java.util.List;
  * {@code id}、{@code userId}、{@code userNickname}、{@code userAvatar}、
  * {@code rating}、{@code content}、{@code images}、{@code createdAt}。
  * <p>
- * <b>2026-09-23 拆类</b>（§7.40 R9 / change {@code dish-detail-contract-hardening}）：
+ * （§7.40 R9 / change {@code dish-detail-contract-hardening}）：
  * 本类此前**同时承载本人视角** —— 多出 {@code dishId} / {@code dishName} / {@code isHidden}
  * 三字段，靠「调用哪个接口」区分字段集，属**类型系统无法表达**的契约模糊
  * （消费端写单一 interface 时，公开场景下这 3 个字段成为「类型说有、实际没有」的不安全类型）。

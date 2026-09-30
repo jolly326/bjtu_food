@@ -22,7 +22,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * - list：清单模块（创建清单、分享）
  * - upload：文件上传模块（图片上传）
  * <p>
- * {@code @EnableConfigurationProperties}（2026-09-28 架构收口 P2）：启用类型化配置绑定。
+ * {@code @EnableConfigurationProperties}：启用类型化配置绑定。
  * 配置类随所属域走（{@code wechat.config.WechatProperties} / {@code auth.config.JwtProperties} /
  * {@code auth.config.AdminProperties}），不集中塞进 common——避免 common 反向依赖业务域。
  * <p>

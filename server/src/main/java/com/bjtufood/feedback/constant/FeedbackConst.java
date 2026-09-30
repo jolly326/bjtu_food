@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 /**
  * 用户反馈相关常量（类型/状态值域单一真源）。
  * <p>
- * 2026-09-27 架构收口 P0-2：自 {@code common.constant} 迁至 {@code feedback.constant}——
+ * 架构收口 P0-2：自 {@code common.constant} 迁至 {@code feedback.constant}——
  * 业务字面值不属于 common（common 只放跨模块通用件），避免 common 成为「业务常量垃圾场」。
  */
 public interface FeedbackConst {
@@ -28,7 +28,7 @@ public interface FeedbackConst {
     /**
      * 反馈类型写入白名单（单一真源）：{@code POST /feedback} 仅接受三类纯反馈。
      * <p>
-     * 2026-09-29 方案 B（写入口拆分）后：<b>意见反馈</b>仅 {@code bug}（小程序功能 Bug）/
+     * 方案 B（写入口拆分）后：<b>意见反馈</b>仅 {@code bug}（小程序功能 Bug）/
      * {@code suggestion}（产品功能建议）/ {@code other}（其他平台相关问题）可写；
      * <b>举报</b>改走独立端点 {@code POST /reviews/{id}/report}（不再经本端点写 {@code report}）；
      * {@code error}（菜品信息纠错）早前已迁出为 {@code POST /dishes/{id}/correction}；
@@ -51,7 +51,7 @@ public interface FeedbackConst {
      * 反馈二级分类（sub，DEV-01 补全落库）：当前写入侧仅 {@code type=report}（举报原因）消费 sub；
      * {@code type=suggestion}（提个想法，历史遗留、禁新增）存量数据的 idea/problem 值仍可读、可筛选。
      * type 与 sub 不匹配时：未提供（null/空白）按未填处理、落库 NULL；
-     * 一旦提供（非空白）即 400（严格模式，2026-09-15 用户拍板，不静默忽略），避免跨类型污染。
+     * 一旦提供（非空白）即 400（严格模式，用户拍板，不静默忽略），避免跨类型污染。
      */
     // ==================== 举报原因（type=report 的二级分类，字典下发给端上单选） ====================
 

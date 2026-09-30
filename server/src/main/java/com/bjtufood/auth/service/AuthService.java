@@ -28,7 +28,7 @@ public interface AuthService {
      * <p>
      * 后端 code2Session 换 openid → 按 user.openid 取号：
      * 存在则返回原账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
-     * （user.unionid 已随列退役，2026-09-16 零消费删除，不再回写/补全。）
+     * （user.unionid 已随列退役，零消费删除，不再回写/补全。）
      *
      * @param code 微信 wx.login 临时凭证
      * @return LoginVO{token, userInfo}

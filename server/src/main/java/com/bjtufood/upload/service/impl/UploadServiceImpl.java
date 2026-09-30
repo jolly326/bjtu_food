@@ -64,7 +64,7 @@ public class UploadServiceImpl implements UploadService {
     private final CosStorageService cosStorageService;
 
     /**
-     * 微信 access_token 凭据提供方（2026-09-28 架构收口 P0-B）。
+     * 微信 access_token 凭据提供方。
      * <p>
      * 此前本类的 token 获取/清理是经 {@code contentSecurityService.getStableAccessToken()} /
      * {@code invalidateCachedToken()} 完成的——即「上传域」依赖「内容安全服务」来拿平台凭据，

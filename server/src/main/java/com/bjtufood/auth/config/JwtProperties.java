@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * JWT 配置（类型化绑定，单一真源）。
  * <p>
- * <b>归属（2026-09-28 架构收口 P2）</b>：随 {@code auth} 域走，而非 {@code common}——
+ * <b>归属</b>：随 {@code auth} 域走，而非 {@code common}——
  * JWT 签发与校验是认证域私有的能力（配置项含密钥，不属于跨模块通用件）。
  * <p>
  * 此前 {@code jwt.secret} / {@code jwt.expiration} 由 {@code JwtUtil} 单独 {@code @Value} 读取；

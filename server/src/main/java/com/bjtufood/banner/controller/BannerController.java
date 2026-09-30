@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * 首页轮播图接口（公开只读）
  * <p>
- * 2026-09-22 新增：{@code GET /banners} —— 首页顶部 16:10 多图轮播的数据源。
+ * ：{@code GET /banners} —— 首页顶部 16:10 多图轮播的数据源。
  * 无请求参数；只返回启用项、按 sort_order 升序；出参仅 {@code id} + {@code imageUrl}（绝对 URL）。
  * 本期无管理端写入口（素材由 seed_data.sql 维护）。
  */

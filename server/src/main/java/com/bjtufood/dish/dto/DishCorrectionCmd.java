@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * 纠错采纳写回指令（跨域写契约：correction → dish）。
  * <p>
- * 2026-09-27 架构收口 P0-1：纠错采纳此前在 correction 模块内直接构造 {@code dish.entity.Dish}
+ * 架构收口 P0-1：纠错采纳此前在 correction 模块内直接构造 {@code dish.entity.Dish}
  * 并调用 {@code dishMapper.updateById(...)} 写回七字段——跨模块写他域表且绕过 dish 的写入口径。
  * 现由 {@code DishService.applyCorrection(DishCorrectionCmd)} 承接：写库动作与其字段落库形态
  * （images 的 JSON 序列化、null 字段跳过策略）回归 dish 模块唯一真源。

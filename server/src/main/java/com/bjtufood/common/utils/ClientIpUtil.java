@@ -30,7 +30,7 @@ public final class ClientIpUtil {
         }
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(forwardedFor)) {
-            // 取**末段**而非首段（2026-09-29 安全修正）：XFF 的左侧各段完全由客户端自填，
+            // 取**末段**而非首段：XFF 的左侧各段完全由客户端自填，
             // 只有「可信代理追加在链尾的那一段」才反映代理实际看到的对端地址。
             // 取首段等于把限频 key 交给调用方自选 → 一句 header 即可绕过全站 IP 限频
             // （发码 / 反馈 / 举报 / 纠错 / 浏览计数）。

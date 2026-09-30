@@ -13,7 +13,7 @@ import java.util.List;
  * 仅承载<b>纯反馈</b>（{@code type} ∈ {@code bug} / {@code suggestion} / {@code other}）：
  * 具体描述 {@code content} 必填 + 截图 {@code images}（≤3 张）。
  * <p>
- * <b>与举报 / 纠错的边界（2026-09-29 方案 B 拆分）</b>：评价举报走独立端点
+ * <b>与举报 / 纠错的边界</b>：评价举报走独立端点
  * {@code POST /reviews/{id}/report}（{@link ReportReq}）；菜品信息纠错走
  * {@code POST /dishes/{id}/correction}。故本请求体<b>不含</b> {@code sub} /
  * {@code relatedType} / {@code relatedId}（举报的关联对象已改由路径表达）。

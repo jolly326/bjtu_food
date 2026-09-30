@@ -19,7 +19,7 @@ import lombok.Data;
  *   <li>{@code status}——端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
  *   <li>{@code guestShortId}——`id` 的纯派生值，改由消费端按 `id` 现算；</li>
  *   <li>{@code createdAt}——端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）；</li>
- *   <li>{@code username}——**2026-09-29 按「零消费即删」移出出参**：端上两处身份展示
+ *   <li>{@code username}——**按「零消费即删」移出出参**：端上两处身份展示
  *       （「我的」页用户卡副行、「我的主页」信息卡 / 编辑页）均已统一渲染
  *       {@code bindEmail}（完整校园邮箱），不再渲染裸学号；`username` 出参端上零消费。
  *       账号标识本身仍保留在 {@code user} 表与 JWT 载荷（{@code username}，仅供日志），

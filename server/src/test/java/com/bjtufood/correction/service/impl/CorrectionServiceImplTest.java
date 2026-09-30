@@ -55,7 +55,7 @@ import static org.mockito.Mockito.when;
  *   <li><b>采纳幂等与前置校验</b>：非 pending 一律 400（重复点击 = 已处理），菜品物理删除 4001；</li>
  *   <li><b>两段式档口确认</b>：未命中且未确认新建 ⇒ 只返回候选、<b>不得写回 dish</b>；</li>
  *   <li><b>回执投递判据</b>：游客（userId=null）与未认证账号一律不投递；</li>
- *   <li><b>楼层纠错（2026-09-30）</b>：floor 传入即非空 / ≤16 字校验；仅改楼层也算「有改动」；
+ *   <li><b>楼层纠错</b>：floor 传入即非空 / ≤16 字校验；仅改楼层也算「有改动」；
  *       采纳时 floor 写回<b>目标档口</b>（{@code stall.floor}）而非 dish，且档口未落定前不得写。</li>
  * </ol>
  * 被测类为纯 POJO：{@code @Transactional} 依赖 Spring 代理，单测中不生效，断言的是方法体内业务逻辑。

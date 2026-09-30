@@ -6,8 +6,8 @@ import org.springframework.util.StringUtils;
 /**
  * 管理端口令配置（类型化绑定，单一真源）。
  * <p>
- * <b>归属（2026-09-28 架构收口 P2）</b>：随 {@code auth} 域走——管理端口令是
- * {@code AdminTokenFilter} 的私有配置（2026-09-13 定型：后台无登录体系，仅口令保护）。
+ * <b>归属</b>：随 {@code auth} 域走——管理端口令是
+ * {@code AdminTokenFilter} 的私有配置。
  * <p>
  * 此前 {@code admin.token} 由 {@code AdminTokenFilter} 以 {@code @Value} 读取；
  * 现改为类型化绑定并补 {@link #isConfigured()}——「未配置即 fail-closed 拒绝全部 /admin」

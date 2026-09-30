@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 /**
  * 个人资料落库（**最小化事务边界**）。
  * <p>
- * 背景（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+ * 背景：
  * 此前 {@code AuthServiceImpl#updateProfile} 直接标注 {@code @Transactional} —— 事务从**方法入口**就开始，
  * 横跨「微信内容安全检测」这一次外部 HTTP 外呼（昵称 scene=1，超时 5s）。期间数据库连接被持续占用；
  * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。

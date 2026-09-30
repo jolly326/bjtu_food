@@ -11,7 +11,7 @@ import java.util.List;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * 模块边界架构测试（2026-09-27 架构收口 P0-1 / P0-2 的自动化护栏）。
+ * 模块边界架构测试。
  * <p>
  * 本类把「模块边界」从约定升级为<b>可执行约束</b>：任何一次跨域直连 Mapper / 实体的提交都会在
  * {@code mvn test} 阶段失败，而不是等到代码评审或线上事故才被发现。
@@ -56,7 +56,7 @@ class ArchTests {
     /**
      * {@code com.bjtufood} 下的一级包（共享层 common + 各业务域 + 横切能力域）。
      * <p>
-     * 2026-09-28 变更：{@code content}（3 文件的横切能力，易与「内容管理」混淆）更名为
+     * 变更：{@code content}（3 文件的横切能力，易与「内容管理」混淆）更名为
      * {@code moderation}（UGC 内容审核）；新增 {@code wechat}（微信平台集成：凭据获取），
      * 承接自 ContentSecurityService 剥离的 token 能力。
      */
@@ -112,7 +112,7 @@ class ArchTests {
     /**
      * P0-B：任一域的 {@code service.impl} 包只允许被本域访问（跨域必须依赖接口契约）。
      * <p>
-     * 本条为 2026-09-28 收口新增的回归护栏。收口前的真实违规：
+     * 本条为 收口新增的回归护栏。收口前的真实违规：
      * {@code UploadServiceImpl} 直接 {@code import com.bjtufood.content.security.impl.ContentSecurityServiceImpl}，
      * 仅为读取 {@code MAX_IMAGE_BYTES} 常量——为一个常量跨越域边界依赖实现类，
      * 既破坏依赖倒置，也让该常量的真实归属（微信平台限制）被掩盖。
@@ -131,7 +131,7 @@ class ArchTests {
     /**
      * {@code wechat} 必须是<b>平台集成叶子域</b>：只依赖 {@code common}，不得反向依赖任何业务域。
      * <p>
-     * 2026-09-28 收口：{@code wechat} 域聚合了全部微信开放平台 API 客户端
+     * 收口：{@code wechat} 域聚合了全部微信开放平台 API 客户端
      * （{@code WechatService} jscode2Session + {@code WechatAccessTokenProvider} stable_token），
      * 被 {@code auth}（登录）、{@code moderation}（内容审核）、{@code upload}（云存储）共同依赖。
      * 正因它是三方共用的最底层，<b>必须保持叶子</b>——一旦某天它反过来引用了
@@ -151,7 +151,7 @@ class ArchTests {
     /**
      * 【已撤销的规则 · 留档】域间无环检测（ArchUnit {@code SlicesRuleDefinition#beFreeOfCycles}）。
      * <p>
-     * <b>为何撤销而非保留</b>：本规则 2026-09-28 上线即检出 <b>2 个真实包级环</b>：
+     * <b>为何撤销而非保留</b>：本规则 上线即检出 <b>2 个真实包级环</b>：
      * <ol>
      *   <li>{@code dish -> review -> dish}：{@code RatingUpdateListener} 订阅
      *       {@code ReviewSubmittedEvent} 重算评分。语义单向（review 对该订阅毫不知情），
@@ -164,7 +164,7 @@ class ArchTests {
      * 与其留一条靠失效豁免「变绿」的假护栏，不如<b>撤下规则并如实登记待办</b>——
      * 假绿的护栏比没有护栏更危险。
      * <p>
-     * <b>2026-09-28 进展</b>：第 2 条（真实技术债）<b>已偿还</b>——档口均分原本由
+     * ：第 2 条（真实技术债）<b>已偿还</b>——档口均分原本由
      * {@code StallServiceImpl} 注入 {@code ReviewQueryService} 拉取，现上移至
      * {@code CanteenAdminController#fillAvgRatings} 编排（均分是 review 按 dish 聚合的派生展示值，
      * 不属 canteen 自有知识；controller 在依赖图顶端，不产生新包级边），出参与口径不变。
@@ -175,7 +175,7 @@ class ArchTests {
      */
 
     /**
-     * 2026-09-28 环偿还回归护栏：{@code canteen} 的<b>业务层</b>不得依赖 review 域。
+     * 环偿还回归护栏：{@code canteen} 的<b>业务层</b>不得依赖 review 域。
      * <p>
      * 本条是对已偿还债务的<b>定向锁死</b>，而非全图环检测：全图 {@code beFreeOfCycles()}
      * 因 dish ↔ review 的发布/订阅边无法豁免而不可用，但这一条<b>曾经真实发生过</b>

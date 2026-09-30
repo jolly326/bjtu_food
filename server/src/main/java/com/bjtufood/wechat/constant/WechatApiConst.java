@@ -3,7 +3,7 @@ package com.bjtufood.wechat.constant;
 /**
  * 微信开放平台 API 常量（端点与平台硬限制，单一真源）。
  * <p>
- * 2026-09-28 架构收口 P0-B：原先这些常量散落在
+ * 架构收口 P0-B：原先这些常量散落在
  * {@code content.security.impl.ContentSecurityServiceImpl} 内，其中
  * {@code MAX_IMAGE_BYTES} 被 {@code UploadServiceImpl} 跨域引用
  * （为读常量而 import 实现类，违反依赖倒置）。

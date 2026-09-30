@@ -15,13 +15,13 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 接口版本前缀一致性护栏（2026-09-29 架构收口 P1-2）。
+ * 接口版本前缀一致性护栏。
  * <p>
  * <b>要防的具体事故</b>：后端 {@code application.yml} 的 {@code server.servlet.context-path}
  * 携带版本段 {@code /api/v1}，而 {@code client/} 与 {@code web/} 的 API base 曾经长期停留在
  * {@code .../api}（缺 {@code v1}）。这类不一致<b>不会编译失败、不会在服务端报错</b>，
  * 表现为端上「全站 404」，且因后端日志里根本收不到该请求而极难定位——
- * 2026-09-29 评审时实测 4 处默认值（两个 {@code config.ts} + 两个 env 文件）全部缺版本段。
+ * 评审时实测 4 处默认值（两个 {@code config.ts} + 两个 env 文件）全部缺版本段。
  * <p>
  * <b>为何不用 ArchUnit</b>：ArchUnit 分析的是编译产物中的<b>类依赖</b>，
  * 而本条约束的是<b>跨仓库的文本配置</b>（yml 与前端 env），不进入字节码。

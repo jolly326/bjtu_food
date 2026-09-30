@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 菜品描述属性<b>维度定义</b>（公开只读字典出参，{@code GET /dishes/attributes}）。
  * <p>
- * <b>2026-09-29 新增</b>：web 端此前调用的 {@code GET /dishes/attributes} <b>后端从未存在</b>
+ * ：web 端此前调用的 {@code GET /dishes/attributes} <b>后端从未存在</b>
  * （只有按单菜的 {@code /dishes/{id}/attributes}），管理后台的「描述四维录入选项」长期 404。
  * <p>
  * <b>与 {@link DishAttributeEditVO} 的差异</b>：后者按<b>单菜现有维度</b>下发编辑候选；

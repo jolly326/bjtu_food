@@ -20,9 +20,9 @@ import java.util.Map;
 /**
  * 微信登录会话服务（jscode2Session，spec §5.y.1）：用 wx.login 的 code 换 openid / session_key。
  * <p>
- * （user.unionid 已于 2026-09-16 零消费退役，微信响应中的 unionid 字段不再解析。）
+ * （user.unionid 已于零消费退役，微信响应中的 unionid 字段不再解析。）
  * <p>
- * <b>归属（2026-09-28 架构收口）</b>：自 {@code auth.service} 迁至 {@code wechat.service}。
+ * <b>归属</b>：自 {@code auth.service} 迁至 {@code wechat.service}。
  * 本类与 {@link WechatAccessTokenProvider} 同为<b>微信开放平台 API 客户端</b>（前者 jscode2Session、
  * 后者 stable_token），此前分处两域导致 {@code wechat} 域名不副实（只含 token 能力）、
  * 平台凭据读取散落两处。现在 {@code wechat} 域 = 微信平台集成，
@@ -42,7 +42,7 @@ public class WechatService {
     /**
      * 微信开放平台配置（类型化绑定）。
      * <p>
-     * 2026-09-28 架构收口 P2：原先本类以 {@code @Value} 自行绑定 {@code wechat.appid} /
+     * 架构收口 P2：原先本类以 {@code @Value} 自行绑定 {@code wechat.appid} /
      * {@code wechat.secret} / {@code wechat.code2session-url}，与
      * {@code WechatAccessTokenProviderImpl} 重复绑定同一份凭据、「是否已配置」判据也分裂两处。
      * 现统一由 {@link WechatProperties} 承载，本类只消费。
@@ -120,7 +120,7 @@ public class WechatService {
             if (openid == null || openid.isBlank()) {
                 throw new BusinessException(400, "微信登录校验失败：未返回 openid");
             }
-            // unionid 不再解析：user.unionid 列已随 2026-09-16 零消费退役（多应用预留撤销）
+            // unionid 不再解析：user.unionid 列已随 零消费退役（多应用预留撤销）
             String sessionKey = (String) resp.get("session_key");
             return new WechatSession(openid, sessionKey);
         } catch (BusinessException e) {
@@ -195,7 +195,7 @@ public class WechatService {
         }
     }
 
-    /** 微信会话结果（unionid 已随 user.unionid 列退役不再解析，2026-09-16） */
+    /** 微信会话结果（unionid 已随 user.unionid 列退役不再解析） */
     public record WechatSession(String openid, String sessionKey) {
     }
 }

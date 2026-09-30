@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  * 判定口径（红线，全部<b>逐字沿用原实现</b>）：
  * <ul>
  *   <li>文本以 {@code result.suggest} 判定，不得只看 errcode（errcode=0 仅代表调用成功）；
- *       2026-09-15 用户拍板「取消人工复核」后归一为二态：pass/review → 放行，risky → 拒绝
+ *       用户拍板「取消人工复核」后归一为二态：pass/review → 放行，risky → 拒绝
  *       （归一发生在 {@link SecSuggest#fromValue} 判定入口，业务侧只需按 RISKY 判拒绝）；</li>
  *   <li>图片以 errcode 判定：0=通过，87014=违规，其余=调用失败 fail-closed；</li>
  *   <li>risky 统一在本服务拦截为 400「内容包含违规信息，请修改后重试」，文案不散落调用方；</li>
@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  *   <li>openid 为空（历史学号账号边界）跳过检测放行（报告已备案）。</li>
  * </ul>
  * <p>
- * 2026-09-28 架构收口 P0-B / P1-A：
+ * 架构收口 P0-B / P1-A：
  * <ul>
  *   <li>stable_token 的获取 / 缓存 / 失效清理已剥离至
  *       {@link WechatAccessTokenProvider}（微信平台凭据能力），本类只消费其 {@code get()}；</li>

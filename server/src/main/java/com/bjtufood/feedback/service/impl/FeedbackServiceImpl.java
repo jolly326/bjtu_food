@@ -44,7 +44,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     /**
-     * 落库事务边界（2026-09-29 性能修正）：写路径的 {@code @Transactional} 只包住**落库**本身。
+     * 落库事务边界：写路径的 {@code @Transactional} 只包住**落库**本身。
      * 原先事务从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）⇒ 期间一直占用数据库连接；
      * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。现改为「先机审（无事务）→ 再落库（开事务）」。
      * 必须是**独立 Bean**：Spring 事务靠代理生效，同类的自调用不会开启事务。
@@ -67,7 +67,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      */
     @Override
     public void submit(Long userId, FeedbackReq req) {
-        // 类型写入白名单（方案 B 2026-09-29）：仅纯反馈三类可写（bug / suggestion / other），
+        // 类型写入白名单（方案 B ）：仅纯反馈三类可写（bug / suggestion / other），
         // 非法 / 历史遗留（issue / add / error / report）→ 400（不再原样落库）；
         // 举报已迁出为 POST /reviews/{id}/report，纠错早前迁出为 POST /dishes/{id}/correction。
         String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
@@ -135,7 +135,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     /**
      * 文本内容安全检测：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
-     * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
+     * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
      * pass 与内容安全检测 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
      * 边界：游客（userId=null）与无 openid 账号无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
@@ -157,7 +157,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
         // 兼容要求：type 白名单含历史遗留 bug/other（QUERY_TYPES），后台按历史类型筛选仍可查到老数据。
-        // 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
+        // 内容安全态筛选入参已随 sec_state 全链退役删除。
         status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
         type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
 
@@ -224,7 +224,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        // contact 已随列退役（2026-09-16），管理端 VO 不再返回联系方式
+        // contact 已随列退役，管理端 VO 不再返回联系方式
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
@@ -258,14 +258,14 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
         }
-        // §7.16（2026-09-14 用户拍板）：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
+        // §7.16：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
         // 纯空白与 null 一律视为未填写：主流仍由 DTO 的 @NotBlank 在 Controller 层拦截（400）；
         // 此处为 Service 层兜底（同口径、同错误码 400），并统一 trim 后落库。
         String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
         if (!StringUtils.hasText(trimmedReply)) {
             throw new BusinessException("请填写处理回复（学生将收到该内容）");
         }
-        // §7.23 第 5 条（2026-09-15）：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
+        // §7.23 第 5 条：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
         // 白名单外一律 400（PR-06），不再静默降级；rejectReason 仅在 rejected 结论下消费与落库。
         String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
                 ? FeedbackConst.OUTCOME_HANDLED
@@ -290,7 +290,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
         // §7.10：管理端操作人身份降级（单口令即单人），handler_id 一直未写；
-        // 该列已于 2026-09-16 零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
+        // 该列已于零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
         feedbackMapper.updateById(feedback);
         // 处理结果回执（携带处理结论与不采纳原因）：仅向「可归属」提交人（提交时为已认证登录用户）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason);

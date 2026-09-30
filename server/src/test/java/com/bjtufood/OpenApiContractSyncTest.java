@@ -15,7 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * OpenAPI 契约产物同步护栏（2026-09-29，方案 A 的<b>服务端侧</b>护栏）。
+ * OpenAPI 契约产物同步护栏。
  *
  * <p><b>要防的具体事故</b>：端上类型保障建立在
  * 「{@code client/src/types/generated/api.d.ts} 是当前 VO 的产物」这一前提上。

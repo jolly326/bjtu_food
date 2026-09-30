@@ -39,7 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final UserMapper userMapper;
     /**
-     * 资料落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * 资料落库事务边界：
      * {@code updateProfile} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼
      * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
      * 现改为「先机审（无事务）→ 再落库（开事务）」。必须是**独立 Bean**：同类自调用不会开启事务。
@@ -83,8 +83,8 @@ public class AuthServiceImpl implements AuthService {
         if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        // last_login_at 写入点已随列退役（2026-09-15 用户拍板「只写不读零消费，删列」）
-        // user.unionid 已随列退役（2026-09-16 用户拍板「零消费即删除」），微信登录仅消费 openid，无需回写
+        // last_login_at 写入点已随列退役
+        // user.unionid 已随列退役，微信登录仅消费 openid，无需回写
         return toLoginVO(user);
     }
 
@@ -161,7 +161,7 @@ public class AuthServiceImpl implements AuthService {
             if (localSensitiveFilter.containsSensitive(req.getNickname())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
             }
-            // 内容安全检测（产品定稿 2026-09-13：昵称变更 msgSecCheck v2，scene=1 资料）。
+            // 内容安全检测（产品定稿 昵称变更 msgSecCheck v2，scene=1 资料）。
             // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
             // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
             contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
@@ -201,7 +201,7 @@ public class AuthServiceImpl implements AuthService {
         //   同一微信重新静默登录会按 username='wx_'+openid 尾 16 位建新游客号，若保留旧 username
         //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
         // · openid → NULL：解绑微信身份，允许同一微信重新建号。
-        //   （user.password / user.unionid 列已于 2026-09-16 零消费退役，无需再置空。）
+        //   （user.password / user.unionid 列已于零消费退役，无需再置空。）
         // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
         // · bind_email → NULL：解绑认证关系（认证态判据即该列非空，清空即回落游客态），
         //   避免 verifyEmail 的 getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。

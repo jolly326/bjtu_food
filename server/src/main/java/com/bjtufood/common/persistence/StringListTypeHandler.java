@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * {@code List<String>} ↔ 「JSON 数组串」列的 MyBatis 类型处理器。
  * <p>
- * 用途（2026-09-23 change {@code dish-detail-contract-hardening} R5）：图片类列
+ * 用途：图片类列
  * （{@code dish.images} / {@code review.images}）以 JSON 数组串存储，此前由各出参 VO 上寄生一个
  * {@code @JsonIgnore String imagesJson} 的**存储形态中转字段**承接、再由 Service 手工解析 ——
  * 该写法让「DB 行 → VO」的转换职责落在出参 VO 上，且**靠注解兜住不出参**（漏注 / 换序列化器即泄漏）。
