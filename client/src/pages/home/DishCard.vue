@@ -53,7 +53,7 @@ const props = defineProps<{
 }>()
 
 // 注意：自定义事件不能用原生事件名（tap/click），否则 uni-app 编译到微信小程序时
-// 父组件 @click 编译为原生 bindclick，emit 参数丢失。
+// 模板侧会被编译成原生 bind 前缀绑定，emit 参数丢失。
 const emit = defineEmits<{
   select: [dish: DishListItem]
 }>()
@@ -69,7 +69,7 @@ const imgOk = ref(true)
 /** 图片淡入：load 事件触发后置 true，配合 .card-img.loaded 做 opacity 过渡（B.5 降低 CLS） */
 const imgLoaded = ref(false)
 
-/* 评分格式化（恒一位小数）已上提为公共 `utils/dish.formatRating`（UI 统一 Loop Round 17） */
+/* 评分格式化（恒一位小数）已上提为公共 `utils/dish.formatRating` */
 
 function handleClick() {
   emit('select', props.dish)

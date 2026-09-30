@@ -6,7 +6,7 @@
        ② **容器内切片**用法（`absolute`，由外层容器的 `overflow: hidden` 裁出一条）——
        当前唯一消费方：**首页吸顶容器**（`pages/home/index.vue` 的 `.home-sticky-slice`），
        只在吸顶态渲染、偏移基准与 `titleBandPx` 同源；标题带 / TabBar 则不铺任何表面。
-       详见 UI 文档 §11.1（2026-09-27 最终口径）。
+       详见 UI 文档 §11.1。
 
        ⚠️ 壁纸必须走 `<image>`：小程序 WXSS 的 `background-image: url()` **取不到包内本地路径**
        （真机报「本地资源图片无法通过 WXSS 获取」，开发工具却可能正常预览）。纱是纯渐变，不受该限制。 -->
@@ -61,7 +61,7 @@ onMounted(() => {
   top: 0;
   width: 100%;
   /* 层级走全站 token `--z-page-bg`（−1）：压在父级背景之上、流内内容之下。
-     UI 统一 Loop Round 5：由裸值 −1 改为 token，单点可调、与其它页面层级同源。 */
+     由裸值 −1 改为 token，单点可调、与其它页面层级同源。 */
   z-index: var(--z-page-bg);
   /* 纯展示层：绝不拦截任何点击 */
   pointer-events: none;

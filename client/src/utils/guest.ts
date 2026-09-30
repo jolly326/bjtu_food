@@ -41,7 +41,7 @@ export function getLocalGuestLabel(): string {
  * · 「我的主页」→ 用默认「食客」。
  * **不伪造有效用户 ID**（回退值只保证展示非空）。
  *
- * UI 统一 Loop Round 17：该派生原先在两页各写一份（且回退分支不一致），现统一到此处。
+ * 该派生原先在两页各写一份（且回退分支不一致），现统一到此处。
  */
 export function deriveGuestLabel(id?: number | null, fallback = '食客'): string {
   if (!id) return fallback

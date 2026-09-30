@@ -19,4 +19,4 @@ export function getNavBarHeight(statusBarHeight: number, menu?: MenuButtonRect |
 }
 
 /* 注：原 `getCapsuleHeight()`（胶囊高，用于与导航栏内元素对齐）已移除
-   （UI 统一 Loop Round 20）—— 搜索栏不再与原生胶囊等高，该助手全仓零消费。 */
+   —— 搜索栏不再与原生胶囊等高，该助手全仓零消费。 */

@@ -7,9 +7,9 @@
          · **整块可点**（默认，`primaryText` / `secondaryText` 都不传）：整块 role="button"，点击 emit('retry')
            —— my-reviews / notifications / HomeContent / find 沿用；
          · **双 CTA**（传 `primaryText` / `secondaryText`）：块本身不可点，改为两枚胶囊按钮
-           —— 详情页「重新加载 + 返回」场景（Round 13 并入，取代其自绘 `.detail-fail`）。
+           —— 详情页「重新加载 + 返回」场景。
 
-       ⚠️ 加载反馈（Round 13，用户裁决 9B）：`loading` 为真时**用旋转环替换图标**并在副文案位显示
+       ⚠️ 加载反馈：`loading` 为真时**用旋转环替换图标**并在副文案位显示
        「正在重新加载…」，同时**忽略点击**（防重复提交）。
        口径说明（§4.8 调整）：页面级仍**不设**骨架屏 / loading 指示；本处转圈是
        **用户主动点击后的在途反馈**，不属于页面级加载指示。
@@ -60,7 +60,7 @@
 /**
  * RetryBlock —— 加载失败块（**全站唯一实现**）
  *
- * 消费方（Round 13 起 6 处）：
+ * 消费方：
  * - pages/my-reviews/index.vue、pages/notifications/index.vue、pages/home/HomeContent.vue、pages/find/index.vue（整块可点）
  * - pages/detail/dish/index.vue（双 CTA：重新加载 + 返回；Round 13 由自绘 `.detail-fail` 并入）
  *

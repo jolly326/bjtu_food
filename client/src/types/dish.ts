@@ -76,7 +76,7 @@ export interface DishDetail {
  * 搜索页把 `GET /dishes` 的行投影成它，`DishResultCard` 组件按它渲染（由 find/index 编排）。
  * ⚠️ 与 `DishListItem` 的区别：字段按**展示语义**收敛（`coverImage → image`），且只含结果卡用到的字段。
  * 单一来源：原先 find 页 `MixedResult` 与 `FindResults` 内 `MixedResultItem` 是逐字段重复的两份定义
- * （UI 统一 Loop Round 17 合并）。
+ * 。
  */
 export interface MixedResultItem {
   type: 'dish'
@@ -107,7 +107,7 @@ export interface DishQuery {
   /** 筛选视图键（首页横向筛选栏；值取自 `GET /dishes/views` 的 `key`；不传 = 默认视图） */
   view?: string
   /**
-   * 会话随机种子（2026-09-27 方案 C；**2026-09-29 生命周期收窄为「会话级」**）：
+   * 会话随机种子：
    * 端上**冷启动生成一次、会话内恒定**（重进小程序才重掷），翻页沿用同一值。
    * 服务端**仅对「推荐类」视图**（sortKind=SEED_RANDOM）且无 keyword 时按
    * `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序（同 seed 全序恒定，翻页不重不漏）；
@@ -125,7 +125,7 @@ export interface DishQuery {
  *
  * 请求可带**会话级** `seed`（由 `stores/dish.ts` 生成、会话内恒定）：服务端按
  * `CRC32(seed:ID)` 稳定伪随机序取数 ⇒ 同一次会话内多次进入拿到同一批词条，
- * **重进小程序**才整体重洗（2026-09-29 刷新边界收窄）。不传 ⇒ 服务端退回 `ORDER BY RAND()`。
+ * **重进小程序**才整体重洗。不传 ⇒ 服务端退回 `ORDER BY RAND()`。
  *
  * 出参**只有 `name`**（随机语义下无其他消费点）；**契约留扩展位**：将来升级为个性化 /
  * 推荐算法时端上契约不变（仍为 `name` 列表），只换服务端取数逻辑。

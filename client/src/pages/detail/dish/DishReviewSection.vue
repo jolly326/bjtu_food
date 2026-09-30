@@ -6,7 +6,7 @@
        数字口径 = **已加载条数**（分页壳只有 `records`，服务端不回传总数）；在途 / 失败态不渲染数字。
        评价卡无「有用」按钮；排序唯一时间倒序、无切换入口；条目之间纯留白、不画分割线。 -->
   <view class="review-section" id="review-section">
-    <!-- 卡片壳改用公共 `CardSection`（UI 统一 Loop Round 13 裁决 2B）：
+    <!-- 卡片壳改用公共 `CardSection`：
          `flush` = 去掉自身外边距（块间距由外层 `.review-section` 统管），
          内距随即统一到 `--spacing-md`（原先本卡 16/24rpx 与同页另两卡 24rpx 不同轴）。 -->
     <CardSection flush>
@@ -53,7 +53,7 @@
         </view>
 
         <!-- 零评价空态：**纯文本「暂无评价」**（无副文案、无引导按钮 —— 写评价入口唯一落点 = 标题行右侧按钮） -->
-        <!-- 统一空态组件（UI 统一 Loop Round 3）：轻量形态（区块内空态，无底色） -->
+        <!-- 统一空态组件：轻量形态（区块内空态，无底色） -->
         <EmptyState v-else title="暂无评价" />
       </template>
     </CardSection>
@@ -90,10 +90,6 @@ defineProps<{
 
 /* 评价条数口径：**恒为已加载条数**（分页壳只有 `records`，服务端不回传总数）；
    数字经 `SectionTitle` 的 `count` 与标题合并渲染为「评价 12」（同色 / 小半号 / 等宽）。 */
-
-/* `delete` / `report` 两个转发事件已移除（UI 统一 Loop Round 17）：
-   其唯一来源是 `ReviewItem` 的同名事件，而该事件在组件内从未触发 ⇒ 转发链整体为死代码；
-   删除 / 举报现由页面 `ActionSheet`（经 `more` 事件）统一处理。 */
 const emit = defineEmits<{
   (e: 'more', review: Review | MyReview): void
   /** 失败态点击重试：页面侧重拉评价列表（与进入页面同路径） */
@@ -105,9 +101,9 @@ const emit = defineEmits<{
 
 <style scoped>
 /* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页两卡内距由此统一到 `--spacing-md`
-   （UI 统一 Loop Round 19：原「综合评分」卡并入信息卡 ⇒ 同页三卡 → 两卡） */
+    */
 .review-section { margin: var(--spacing-sm) var(--spacing-md) 0; }
-/* 条目之间**纯留白**分隔（Round 24，用户口径：不加分割线）—— 间距由列表容器统一给，
+/* 条目之间**纯留白**分隔—— 间距由列表容器统一给，
    条目自身 `--flat` 无 padding / 无 border（见 ReviewItem） */
 .review-list { display: flex; flex-direction: column; gap: var(--spacing-lg); }
 
@@ -150,9 +146,6 @@ const emit = defineEmits<{
 }
 .write-entry--pressed { opacity: 0.6; }
 
-/* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 =====
-   （选择器随 2B 收敛调整：卡壳已改 `CardSection`，`.review-card` 不复存在 ⇒ 改挂外层 `.review-section`） */
+/* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
 .review-section :deep(.retry-block) { margin: var(--spacing-sm) 0; }
-
-/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 3），此处不再保留副本 */
 </style>

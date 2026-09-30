@@ -52,7 +52,7 @@ export function dishDetailUrl(id: number | string): string {
 /**
  * 意见反馈页 URL（**单一形态**：Bug / 产品建议 / 其他问题 + 描述 + 截图）。
  * 入口：「我的」页宫格；搜索页「没搜到 → 推荐这道菜」。
- * ⚠️ 2026-09-27 起**菜品纠错已迁出本页**（见 `correctionUrl`），本页不再有模式参数。
+ * ⚠️ 起**菜品纠错已迁出本页**（见 `correctionUrl`），本页不再有模式参数。
  */
 export function feedbackUrl(): string {
   return PATH.feedback

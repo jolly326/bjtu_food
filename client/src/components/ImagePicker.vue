@@ -106,7 +106,7 @@ const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImage
 watch(
   () => props.modelValue,
   (v) => {
-    // 上传在途时不回灌（UI 统一 Loop Round 17 竞态修复）：本轮追加写在本地镜像 `urls` 上，
+    // 上传在途时不回灌：本轮追加写在本地镜像 `urls` 上，
     // 若此刻用外部值覆盖，可能丢掉「已上传完成、但尚未随父级值回来」的那几张。
     // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
     if (uploading.value) return
@@ -134,12 +134,12 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       sizeType: ['compressed'],
-      // 平台例外：微信回调透传
-      success: (r: any) => {
-        resolve((r.tempFiles || []).map((f: any) => ({ path: String(f.tempFilePath || ''), size: Number(f.size || 0) }))
+      // 平台例外：微信回调透传（wx 句柄无 TS 声明，按结构类型取所需字段）
+      success: (r: { tempFiles?: Array<{ tempFilePath?: string; size?: number }> }) => {
+        resolve((r.tempFiles || []).map((f) => ({ path: String(f.tempFilePath || ''), size: Number(f.size || 0) }))
           .filter((f: { path: string }) => f.path))
       },
-      fail: (err: any) => {
+      fail: (err: { errMsg?: string }) => {
         // 用户取消选图不算错误，静默结束
         if (/cancel/i.test(err?.errMsg || '')) { resolve([]); return }
         reject(new Error(err?.errMsg || '选择图片失败'))
@@ -155,8 +155,9 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
       sourceType: ['album', 'camera'],
       success: (res) => {
         const paths = res.tempFilePaths || []
-        // 平台例外：uni 回调 tempFiles 类型跨端不一致，仅取 size 字段
-        const files = (res.tempFiles as any[] || []).map((f: any, i: number) => ({
+        // 平台例外：uni 回调 tempFiles 类型跨端不一致，仅取 size 字段（结构类型收窄，非 any）
+        const tempFiles = (res.tempFiles ?? []) as unknown as Array<{ size?: unknown }>
+        const files = tempFiles.map((f, i) => ({
           path: paths[i] || '',
           size: Number(f?.size || 0),
         })).filter((f: { path: string }) => f.path)
@@ -185,8 +186,8 @@ function compressImage(src: string, opts: { quality?: number; compressedWidth?: 
       quality: opts.quality,
       compressedWidth: opts.compressedWidth,
       compressedHeight: opts.compressedHeight,
-      success: (r: any) => resolve(String(r?.tempFilePath || '')),
-      fail: (err: any) => reject(new Error(err?.errMsg || '图片压缩失败')),
+      success: (r: { tempFilePath?: string }) => resolve(String(r?.tempFilePath || '')),
+      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '图片压缩失败')),
     })
   })
 }
@@ -197,7 +198,7 @@ function getImageInfo(src: string): Promise<{ width: number; height: number }> {
     uni.getImageInfo({
       src,
       success: (r) => resolve({ width: r.width, height: r.height }),
-      fail: (err: any) => reject(new Error(err?.errMsg || '读取图片信息失败')),
+      fail: (err) => reject(new Error(err?.errMsg || '读取图片信息失败')),
     })
   })
 }
@@ -213,8 +214,8 @@ function getFileSize(filePath: string): Promise<number> {
     }
     wxApi.getFileSystemManager().getFileInfo({
       filePath,
-      success: (r: any) => resolve(Number(r?.size || 0)),
-      fail: (err: any) => reject(new Error(err?.errMsg || '读取文件大小失败')),
+      success: (r: { size?: number }) => resolve(Number(r?.size || 0)),
+      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '读取文件大小失败')),
     })
   })
 }

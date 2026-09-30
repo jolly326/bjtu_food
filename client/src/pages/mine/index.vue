@@ -116,7 +116,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
@@ -164,7 +164,7 @@ function onCertTap() {
     authStore.requestAuth()
     return
   }
-  uni.showToast({ title: '已完成身份认证', icon: 'none' })
+  toastSuccess('已完成身份认证')
 }
 
 /** 功能宫格数据（一行 3 格，顺序固定：意见反馈 / 系统通知 / 身份认证）；每格整格热区 */
@@ -196,7 +196,7 @@ function onAccountDelete() {
       if (!res.confirm) return
       try {
         await deleteAccount()
-        uni.showToast({ title: '账号已注销', icon: 'none' })
+        toastSuccess('账号已注销')
       } catch (e) {
         // 失败文案走统一出口 utils/error（e 为 null 时不会崩）
         toastError(e, '注销失败，请稍后重试')
@@ -224,12 +224,12 @@ const moreRows = [
 <style scoped>
 /* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
    页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
-   结构化收口（Round 12-A，用户裁决）：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
    —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
 .mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .mine-scroll { flex: 1; min-height: 0; }
-/* Round 26：容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
+/* 容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
    `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
    且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
@@ -266,7 +266,7 @@ const moreRows = [
   border-top-color: var(--color-primary-soft);
 }
 /* 游客态**不设**额外规则：`.user-card` 的 `border-top` 本就是 transparent，
-   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖（UI 统一 Loop Round 1） */
+   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖 */
 .user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }

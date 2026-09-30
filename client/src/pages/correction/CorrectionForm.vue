@@ -234,6 +234,7 @@ import AttributeGroup from './AttributeGroup.vue'
 import FloorPickerSheet from './FloorPickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
 
@@ -343,7 +344,7 @@ function onImagesChange(urls: string[]) {
  */
 function onSubmitTap() {
   if (props.submitting || props.canSubmit) return
-  uni.showToast({ title: props.gateHint || '还不能提交', icon: 'none' })
+  toastInfo(props.gateHint || '还不能提交')
 }
 </script>
 

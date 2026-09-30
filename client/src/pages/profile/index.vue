@@ -44,7 +44,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
@@ -87,7 +87,7 @@ onUnload(() => {
 /**
  * 头像选图（单张、压缩）+ 上传。
  *
- * ⚠️ 为何不复用 `components/ImagePicker.vue`（UI 统一 Loop Round 17 评估结论 —— **有意保留差异**）：
+ * ⚠️ 为何不复用 `components/ImagePicker.vue`：
  * · ImagePicker = **多图**选择 + 逐张压缩 / 尺寸校验 + UGC 上传链路（云存储 → 后端安检转存 COS），
  *   其 `pick()` 为组件内私有；
  * · 头像是**单图**，且走专用接口 `uploadAvatarImage`（本人非公开用途、不做 UGC 安检），
@@ -107,9 +107,9 @@ function changeAvatar() {
         const url = await uploadAvatarImage(res.tempFilePaths[0])
         avatar.value = url
         // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
-        uni.showToast({ title: '上传成功，请点击保存', icon: 'none' })
+        toastInfo('上传成功，请点击保存')
       } catch {
-        uni.showToast({ title: '上传失败', icon: 'none' })
+        toastInfo('上传失败')
       } finally {
         avatarUploading.value = false
       }
@@ -120,15 +120,15 @@ function changeAvatar() {
 async function save() {
   const name = nickname.value.trim()
   if (!name) {
-    uni.showToast({ title: '昵称不能为空', icon: 'none' })
+    toastInfo('昵称不能为空')
     return
   }
   saving.value = true
   try {
     await userStore.updateProfile({ nickname: name, avatar: avatar.value })
-    uni.showToast({ title: '已保存', icon: 'success' })
+    toastSuccess('已保存')
     if (navTimer) clearTimeout(navTimer)
-    navTimer = setTimeout(() => uni.navigateBack(), 400)
+    navTimer = setTimeout(backToHome, 400)
   } catch (e) {
     // 后端业务 400 message 直透（如昵称违规「内容包含违规信息，请修改后重试」），网络失败回落固定文案
     toastError(e, '保存失败')
@@ -139,7 +139,7 @@ async function save() {
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .profile-edit-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 /* Round 26 修复：① 补 `min-height: 0` —— flex 子项默认 `min-height: auto` ⇒ 不收缩 ⇒ 内容把容器撑高 ⇒
    与页根形成双层滚动（多余滚动 + 底部空白）；② 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`，

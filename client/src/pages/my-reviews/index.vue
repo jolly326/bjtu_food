@@ -23,7 +23,7 @@
       </CardSection>
 
       <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题）。
-           区块标题一律用公共 `SectionTitle`（§4.9 红线）——UI 统一 Loop Round 1：收敛此处手写副本 -->
+           区块标题一律用公共 `SectionTitle`（§4.9 红线）——收敛此处手写副本 -->
       <SectionTitle v-if="list.length" title="我的评价" />
       <view class="list">
         <!-- 评价卡 = 公共组件 ReviewItem（与菜品详情评价区**同一实现**）：
@@ -42,7 +42,7 @@
            先于空态渲染，避免网络失败被误读；恢复走重试块 @tap -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
       <!-- 游客空态：游客可自由进入本页（用户卡直进、无认证拦截），列表空给认证引导 -->
-      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
+      <!-- 统一空态组件：不再本页手写 `.empty-tip` -->
       <EmptyState v-else-if="isGuest" title="暂无评价" desc="完成身份认证后可发表评价" />
       <!-- 空态：首次进入无评价保持静默；仅「删除最后一条」触发时给轻提示，避免被误解为加载异常 -->
       <EmptyState v-else-if="emptiedByDelete" title="暂无评价" desc="去菜品详情写一条吧" />
@@ -85,7 +85,7 @@ import { backToHome } from '@/utils/back'
 import { PATH } from '@/utils/routes'
 import { deriveGuestLabel } from '@/utils/guest'
 import { usePagedList } from '@/composables/usePagedList'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
@@ -115,7 +115,6 @@ const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyR
   fetchPage: async (page, pageSize) => (await getMyReviews({ page, pageSize })).list,
   canLoad: () => userStore.isVerified(),
   onLoadSuccess: () => { emptiedByDelete.value = false },
-  loadFailLabel: '[my-reviews] 加载评价失败',
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -166,12 +165,12 @@ function onDelete(r: MyReview) {
       try {
         await deleteReview(r.id)
         list.value = list.value.filter(item => item.id !== r.id)
-        uni.showToast({ title: '评价已删除', icon: 'none' })
+        toastSuccess('评价已删除')
         emptiedByDelete.value = list.value.length === 0
       } catch (e) {
         if (isResourceNotFound(e)) {
           list.value = list.value.filter(item => item.id !== r.id)
-          uni.showToast({ title: '评价已不存在', icon: 'none' })
+          toastInfo('评价已不存在')
           emptiedByDelete.value = list.value.length === 0
           return
         }
@@ -198,8 +197,8 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
-   结构化收口（Round 12-A，用户裁决）：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
    内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
@@ -209,7 +208,7 @@ onShow(() => {
 
 /* 用户信息卡：头像 + 昵称/副行 + 「编辑个人信息」，白底一级卡（与评价卡同语言） */
 /* 区块标题已改用公共 `SectionTitle`（§4.9 红线）——此处不再保留手写副本样式 */
-/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
+/* 卡片壳走公共 `CardSection`：内距统一到 `--spacing-md`
    （原 `--spacing-sm --spacing-md`）；`flush` ⇒ 本处自管块间距。 */
 .profile-strip {
   display: flex;
@@ -229,5 +228,5 @@ onShow(() => {
 .strip-edit.pressed { background-color: var(--bg-soft); }
 .strip-edit-text { font-size: var(--font-tiny); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 
-/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2），此处不再保留副本 */
+/* 空态已上提为公共组件 components/EmptyState.vue，此处不再保留副本 */
 </style>

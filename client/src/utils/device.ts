@@ -1,7 +1,7 @@
 /**
  * 设备 / 窗口信息 —— **全仓唯一**触碰平台全局 `wx` 的取值入口
  *
- * 为什么要有这个文件（UI 统一 Loop Round 17 · 代码质量轮）：
+ * 为什么要有这个文件：
  * `getWindowInfo() → getSystemInfoSync()` 的兼容回退原先在 **4 处各写一份**
  * （`utils/useNavMetrics.ts` / `components/PageWallpaper.vue` / `pages/home/index.vue` /
  * `pages/detail/dish/useDishPage.ts`），且每处都要用 `@ts-ignore` 触碰**未在项目 TS 类型中声明**的
@@ -41,7 +41,7 @@ function platform(): any {
 /**
  * 取微信运行时句柄（`wx` 对象本身），供 `wx.cloud.*` / `wx.chooseMedia` 等**平台专有能力**使用。
  *
- * ⚠️ 本仓**唯一**允许触碰全局 `wx` 的入口（UI 统一 Loop Round 17）：原先在
+ * ⚠️ 本仓**唯一**允许触碰全局 `wx` 的入口：原先在
  * `App.vue` / `api/http.ts`（×2）/ `api/upload.ts` / `components/ImagePicker.vue`（×3）
  * 各自写 `const wxApi: any = (globalThis as any).wx` 并附一份重复的「平台例外」说明 ——
  * 现统一从此处取，调用方只需判 `null`（H5 / 非微信端退化为不支持）。

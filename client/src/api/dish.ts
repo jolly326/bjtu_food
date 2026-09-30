@@ -14,7 +14,7 @@ import {
 /**
  * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
  *
- * <p>入参用生成的强类型 {@link DishListItemVO}（2026-09-29 契约单一真源）：
+ * <p>入参用生成的强类型 {@link DishListItemVO}：
  * 后端改名/改类型会令本函数**编译期报错**，而非真机上字段变空白。
  *
  * <p>仍需归一化的原因（**不是**契约缺失，而是有意的端上适配）：
@@ -109,7 +109,7 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
  *
  * 传入**会话级** `seed`（可选）⇒ 服务端按 `CRC32(seed:ID)` 稳定伪随机序取数：
  * 同一次会话内多次进入发现态拿到同一批菜品名，**重进小程序**才整体重洗
- * （2026-09-29 刷新边界收窄）；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
+ * ；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
  * 出参只有 `name`；条数与文案由服务端决定，端上不写死、不排序。
  */
 export async function getGuessLike(seed?: string): Promise<GuessLike[]> {

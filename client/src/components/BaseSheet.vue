@@ -126,17 +126,19 @@ let startY = 0
 let lastY = 0
 let lastTime = 0
 let velocity = 0
-// 平台例外：uni touch 事件对象未纳入项目 TS 类型，取 e.touches[0].clientY（MP-08 标注例外）
-function onTouchStart(e: any) {
-  startY = e.touches?.[0]?.clientY ?? 0
+// 平台例外：uni touch 事件对象字段按结构类型收窄（MP-08）
+type TouchLike = { touches?: Array<{ clientY?: number }> }
+function onTouchStart(e: Event) {
+  const touch = (e as unknown as TouchLike).touches?.[0]
+  startY = touch?.clientY ?? 0
   lastY = startY
   lastTime = Date.now()
   velocity = 0
   dragging.value = true
 }
-function onTouchMove(e: any) {
+function onTouchMove(e: Event) {
   if (!dragging.value) return
-  const y = e.touches?.[0]?.clientY ?? 0
+  const y = (e as unknown as TouchLike).touches?.[0]?.clientY ?? 0
   const now = Date.now()
   const dt = Math.max(now - lastTime, 1)
   velocity = ((y - lastY) / dt) * 1000
@@ -174,7 +176,7 @@ function onTouchEnd() {
   transform: translateY(100%);
   display: flex;
   flex-direction: column;
-  /* Round 26：vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
+  /* vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
      弹层会被顶到屏幕外、内容区滚动范围也跟着失真（同页面根口径） */
   max-height: 88vh;
   max-height: 88dvh;

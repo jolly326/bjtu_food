@@ -15,7 +15,7 @@ export function formatDateTime(dateStr?: string): string {
  * 日期格式化（**仅**「YYYY-MM-DD」，不含时分）。
  *
  * 使用场景：**菜品评价条目**（`ReviewItem`）—— 食堂菜品评价时效性弱，到日即可定位；
- * 且条目第二行要同时容纳「星级 + 分值 + 时间」，去掉时分可显著降噪（UI 统一 Loop Round 24）。
+ * 且条目第二行要同时容纳「星级 + 分值 + 时间」，去掉时分可显著降噪。
  * 其余内容（系统通知等）仍走 `formatDateTime`：保留到分钟，便于精确回溯（产品决策不变）。
  */
 export function formatDate(dateStr?: string): string {

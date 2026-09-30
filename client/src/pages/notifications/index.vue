@@ -49,7 +49,7 @@
       <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
       <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
            空态不含重试按钮、错误提示与认证引导。 -->
-      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
+      <!-- 统一空态组件：不再本页手写 `.empty-tip` -->
       <EmptyState
         v-else-if="loaded && !list.length && userStore.isVerified()"
         title="暂无通知"
@@ -70,7 +70,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
@@ -99,7 +99,6 @@ const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<Not
   canLoadMore: () => userStore.isVerified(),
   onLoadSuccess: () => { notifyStore.fetchUnread() },
   onLoadSettled: () => { loaded.value = true },
-  loadFailLabel: '[notifications] 加载通知失败',
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -121,7 +120,7 @@ async function onReadAll() {
   try {
     await readAllNotifications()
     await load()
-    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+    toastSuccess('已全部标为已读')
   } catch (err) {
     console.error('[notifications] 全部已读失败', err)
     // 失败文案走统一出口 utils/error（默认兜底即「操作失败，请稍后重试」）
@@ -164,12 +163,12 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 .list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
+/* 卡片壳走公共 `CardSection`：内距统一到 `--spacing-md`
    （原 `--spacing-lg`）；`flush` ⇒ 块间距由 `.list` 的 `gap` 统管；
    未读态由下方 `.msg-item.unread` 覆写（强调态用 `shadow-warm`）。 */
 .msg-item {
@@ -210,7 +209,7 @@ onShow(() => {
   overflow: hidden;
 }
 
-/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2）；
+/* 空态已上提为公共组件 components/EmptyState.vue；
    失败态为 components/RetryBlock.vue（P3-03）—— 两者样式随之收敛，此处不再保留副本 */
 
 /* 「全部已读」胶囊：按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言

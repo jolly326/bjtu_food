@@ -1,12 +1,12 @@
 <template>
   <view class="page feedback-page">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下）。
-         本页底色随全局 `.page { background: var(--bg-page) }`（UI 统一 Loop Round 1：
+         本页底色随全局 `.page { background: var(--bg-page) }`（
          原先私有的 `--bg-warm` 是全项目唯一消费点，且已被壁纸层完全覆盖 ⇒ 移除，与其它 10 页一致） -->
     <PageWallpaper fixed />
     <Header title="意见反馈" @back="goBack" />
 
-    <!-- 页面无页签（2026-09-27 改版）：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
+    <!-- 页面无页签：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view class="q-card">
         <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页（**面向小程序本身的通用反馈**，2026-09-27 与菜品纠错解耦）
+ * feedback —— 意见反馈页（**面向小程序本身的通用反馈**，与菜品纠错解耦）
  * - 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题），竖排单选、选中项左侧橙色勾；
  * - 固定一套字段：具体描述（≤600 字、占位随类型切换、字数常显右上角）+ 截图（选填 ≤1 张）—— **不再有第二套表单**；
  * - 提交 `POST /feedback`（type ∈ bug / suggestion / other）；
@@ -75,25 +75,20 @@ const submitButtonText = computed(() => (submitting.value ? '提交中…' : '�
 
 <style scoped>
 /* 页面底不再声明私有底色：壁纸层（`<PageWallpaper fixed />`）铺满视口，
-   底色回退到全局 `.page { background: var(--bg-page) }`（UI 统一 Loop Round 1） */
+   底色回退到全局 `.page { background: var(--bg-page) }` */
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 /* 主滚动区：底部 safe-area 避让（提交区随内容滚动，无固定底栏） */
 .scroll-wrap {
   flex: 1;
   min-height: 0;
-  /* Round 26：去掉 `overflow-y: auto` —— 本容器是 `scroll-view`，滚动由组件内部实现，
-     外挂 CSS 只会在 H5 叠出第二根滚动条（"多余滚动机制"）。 */
+  /* 滚动由 scroll-view 组件内部实现，外挂 CSS `overflow-y` 只会叠出第二根滚动条 */
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
 }
 
-/* 顶部双模式分段控件样式已随「无页签」改版退役（2026-09-27）——
-   现「反馈类型 4 选 1」的竖排单选视觉在 IssueForm 内（.type-row / .type-check）。 */
-
 /* ===== 表单外层 Q 卡（大圆角 + 标准卡阴影，内部模块靠间距分层）=====
-   UI 统一 Loop Round 13（裁决 5A）：卡片阴影一律 `shadow-card`；
-   `shadow-warm` 仅保留给**选中 / 强调**态（段控件选中、未读通知卡）。 */
+   卡片阴影一律 `shadow-card`；`shadow-warm` 仅保留给**选中 / 强调**态。 */
 .q-card {
   margin: var(--spacing-md) var(--spacing-md) 0;
   padding: var(--spacing-lg);
@@ -103,11 +98,8 @@ const submitButtonText = computed(() => (submitting.value ? '提交中…' : '�
   box-shadow: var(--shadow-card);
 }
 
-/* 列表空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 3），此处不再保留副本 */
-
 /* ===== 提交反馈（表单最下方，随内容滚动，非固定） ===== */
 .submit-area {
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 }
-/* 提交区说明行样式已随该行删除退役（2026-09-27）—— 说明改为表单内小字 `.form-note`（IssueForm 内）。 */
 </style>

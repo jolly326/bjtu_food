@@ -1,7 +1,7 @@
 /**
  * useFeedback —— 意见反馈页（pages/feedback/index.vue）编排逻辑
  *
- * 页面定位（2026-09-27 与菜品纠错解耦后）：**面向小程序本身的通用反馈** ——
+ * 页面定位：**面向小程序本身的通用反馈** ——
  * 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题）+ 具体描述（≤600 字、占位随类型切换）
  * + 截图（选填 ≤3 张）+ 本地草稿；提交 `POST /feedback`（type ∈ bug / suggestion / other）。
  *
@@ -16,6 +16,7 @@ import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { submitFeedback } from '@/api/feedback'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 
 /** 描述字数上限（用户口径：600 字；服务端上限仍为 1000，端上更严） */
@@ -23,13 +24,10 @@ export const CONTENT_MAX = 600
 
 export function useFeedback() {
   /**
-   * 全页唯一返回实现：有返回栈时 navigateBack；无返回栈（redirectTo 直达）才 reLaunch 首页。
+   * 全页唯一返回实现 = `backToHome`（有返回栈 navigateBack；无返回栈 reLaunch 首页）。
    * 手动返回与成功态自动返回（scheduleAutoBack）共用本函数，不再各写一份栈判断。
    */
-  function goBack() {
-    if (getCurrentPages().length > 1) uni.navigateBack()
-    else backToHome()
-  }
+  const goBack = backToHome
 
   // ---- ① 表单字段（全页唯一一套） ----
   const form = reactive({
@@ -85,7 +83,7 @@ export function useFeedback() {
   watch(() => [form.type, form.content], saveDraft)
 
   // ---- ③ 提交门禁（canSubmit 置灰；置灰点击由外层热区兜底 toast） ----
-  // 限频退避（2026-09-29）：后端 POST /feedback 为 2 次/分钟、10 次/小时，
+  // 限频退避：后端 POST /feedback 为 2 次/分钟、10 次/小时，
   // 弱网下手滑连点会持续撞限频、把封锁越拖越长 → 被限频后倒计时禁用并展示剩余秒数。
   const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 
@@ -101,7 +99,7 @@ export function useFeedback() {
 
   /** 置灰态点击提示：AppButton 在 disabled 时不 emit press，由 .submit-area 外层热区兜底 */
   function onSubmitAreaTap() {
-    if (!canSubmit.value) uni.showToast({ title: gateHint.value, icon: 'none' })
+    if (!canSubmit.value) toastInfo(gateHint.value)
   }
 
   // ---- ④ 字段级错误 + 提交中状态 ----
@@ -142,7 +140,7 @@ export function useFeedback() {
 
     if (Object.keys(errs).length) {
       markErrors(errs)
-      uni.showToast({ title: `还有 ${Object.keys(errs).length} 项没填`, icon: 'none' })
+      toastInfo(`还有 ${Object.keys(errs).length} 项没填`)
       return
     }
 
@@ -150,7 +148,7 @@ export function useFeedback() {
     try {
       const content = form.content.trim()
       if (content.length > CONTENT_MAX) {
-        uni.showToast({ title: `内容不能超过${CONTENT_MAX}字`, icon: 'none' })
+        toastInfo(`内容不能超过${CONTENT_MAX}字`)
         return
       }
       const images = form.images.filter(Boolean)
@@ -161,14 +159,13 @@ export function useFeedback() {
       })
       clearDraft()
       clearCooldown()
-      uni.showToast({ title: '已提交，感谢反馈', icon: 'none' })
+      toastSuccess('已提交，感谢反馈')
       resetForm()
       scheduleAutoBack()
     } catch (e) {
       // 限频：请求层已弹过 toast（内含「请 N 秒后再试」），此处只进倒计时退避、**不重复提示**
       if (!handleRateLimit(e)) {
-        // Error 分支取 message（请求层抛 Error）；非 Error 兜底通用文案
-        uni.showToast({ title: e instanceof Error && e.message ? e.message : '没发出去，再试一次', icon: 'none' })
+        toastError(e, '没发出去，再试一次')
       }
     } finally {
       submitting.value = false

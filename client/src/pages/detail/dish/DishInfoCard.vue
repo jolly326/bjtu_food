@@ -1,6 +1,6 @@
 <template>
   <CardSection>
-    <!-- 菜品信息卡（**本稿修订 2026-09-30**）：
+    <!-- 菜品信息卡（**本稿修订 **）：
          ① **名称行**（菜名 ≤2 行 + **「信息有误?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
          → ③ 简介（**固定 ≤2 行截断、无展开**；`description` 为空则整块隐藏）
          → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
@@ -97,7 +97,7 @@ const emit = defineEmits<{
   (e: 'correct'): void
 }>()
 
-/** 划线原价显隐：判据统一走 `utils/dish.hasDiscount`（UI 统一 Loop Round 17，与 find 结果同口径） */
+/** 划线原价显隐：判据统一走 `utils/dish.hasDiscount` */
 const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.originalPrice))
 
 /**
@@ -117,7 +117,7 @@ const dims = computed(() => {
   return list
 })
 
-/* 注：「信息有误?」为本稿新增（2026-09-30）—— 点击上抛 `correct`，由页面编排
+/* 注：「信息有误?」为本稿新增—— 点击上抛 `correct`，由页面编排
    `useDishPage.onCorrectDishInfo` 跳独立纠错页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
 </script>
 
@@ -198,7 +198,7 @@ const dims = computed(() => {
 }
 .loc-text { min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ③ 简介：**固定最多 2 行截断、超出省略**（本稿修订：已删除「展开 / 收起」，文本独占卡片整宽） */
+/* ③ 简介：**固定最多 2 行截断、超出省略** */
 .desc-row { display: flex; margin-top: var(--spacing-md); }
 .desc-content {
   flex: 1 1 auto;
@@ -215,7 +215,7 @@ const dims = computed(() => {
 }
 
 /* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间。
-   下侧不再留白（Round 23）：分隔线 → 属性块的 --spacing-md 间距改由 `.dims` 自持，
+   下侧不再留白：分隔线 → 属性块的 --spacing-md 间距改由 `.dims` 自持，
    这样「简介缺失、分隔线同步消失」时同样的间距仍然成立（不会少掉一段留白）。 */
 .divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 0; }
 

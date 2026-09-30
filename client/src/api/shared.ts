@@ -3,7 +3,7 @@
  * 被 dish / review / canteen 等模块 import，避免每文件各写一份
  * recordsOf / normalizeImages（既重复又易产生行为分叉）。
  *
- * <p><b>2026-09-29 契约单一真源改造</b>：本文件顶部新增后端契约的**具名 re-export**
+ * <p>：本文件顶部新增后端契约的**具名 re-export**
  * （如 {@link DishListItemVO}，来自 `types/generated/api.d.ts`，由后端 OpenAPI 契约生成）。
  * 新代码**必须**用这些强类型而非 {@link RawRow}，
  * 使「后端改字段 → 端上 `type-check` 变红」成立。
@@ -55,7 +55,7 @@ export type ReviewCreatedVO = components['schemas']['ReviewCreatedVO']
 /**
  * 后端响应行（**归一化边界的兜底载体**）。
  *
- * <p><b>用途收窄（2026-09-29）</b>：仅供**尚无生成类型覆盖**的场景使用
+ * <p><b>用途收窄</b>：仅供**尚无生成类型覆盖**的场景使用
  * （如后端新增端点但契约未刷新）。凡有对应 VO 的，**一律用本文件 re-export 的强类型**，
  * 否则契约漂移又会无感知发生——`ApiContractTest` 会对新增的 `RawRow` 用法报警。
  *

@@ -6,7 +6,7 @@
  */
 import { ref, type Ref } from 'vue'
 import { reportReview } from '@/api/feedback'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 
 export interface UseReportReturn {
   reportOpen: Ref<boolean>
@@ -31,13 +31,13 @@ export function useReport(): UseReportReturn {
     const targetId = reportTargetId.value
     if (targetId == null) return
     if (!reasonValue) {
-      uni.showToast({ title: '请选择举报原因', icon: 'none' })
+      toastInfo('请选择举报原因')
       return
     }
     reportSubmitting.value = true
     try {
       await reportReview(targetId, { reason: reasonValue })
-      uni.showToast({ title: '举报已提交', icon: 'success' })
+      toastSuccess('举报已提交')
       reportOpen.value = false
     } catch (e) {
       // 失败提示走统一出口 utils/error（e 为 null 时不会崩）

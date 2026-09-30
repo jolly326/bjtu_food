@@ -4,7 +4,7 @@
        头部标题恒为「写评价」，右上 X 由 closable 提供；菜名作为表单首行置于内容区。
        注意：组件须挂在 scroll-view 之外（小程序 scroll-view 内 fixed 层级会被压扁/裁剪）。
        小屏适配（评审 B1-①）：BaseSheet 传 scroll-body 走 scroll-view 分支，内容超 88vh 时内部滚动，提交钮始终可达。
-       **无「重新评价」模式**（本稿修订 2026-09-30）：不做写前判定、不预填旧值，恒 `POST /dishes/{id}/reviews`，
+       **无「重新评价」模式**：不做写前判定、不预填旧值，恒 `POST /dishes/{id}/reviews`，
        同一用户对同一菜品的重复提交由服务端覆盖旧评价。 -->
   <BaseSheet
     :visible="visible"
@@ -84,7 +84,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview } from '@/api/review'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 // 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
 import type { ReviewSubmittedPayload } from '@/types/review'
 
@@ -133,7 +133,7 @@ function onClose() {
 async function onSubmit() {
   if (submitting.value) return
   if (rating.value < 1) {
-    uni.showToast({ title: '请先选择评分', icon: 'none' })
+    toastInfo('请先选择评分')
     return
   }
   submitting.value = true
@@ -146,7 +146,7 @@ async function onSubmit() {
     }
     // 恒 POST：同一用户对同一菜品的重复提交由服务端覆盖旧评价（端上不区分首评 / 重评）
     const submittedReviewId = await createReview(props.dishId, payload)
-    uni.showToast({ title: '评价成功', icon: 'success' })
+    toastSuccess('评价成功')
     emit('submitted', {
       mode: 'create',
       reviewId: submittedReviewId,

@@ -9,7 +9,7 @@ import type { UserInfoVO, LoginVO } from './shared'
  * email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、createdAt、guestShortId（端上按 id 现算）、
  * username（两处身份副行统一渲染 bindEmail，裸学号不再展示）。
  *
- * <p>入参用生成的强类型 {@link UserInfoVO}（2026-09-29 契约单一真源）。
+ * <p>入参用生成的强类型 {@link UserInfoVO}。
  */
 function toUserInfo(raw: UserInfoVO): UserInfo {
   return {

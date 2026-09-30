@@ -1,5 +1,5 @@
 <template>
-  <!-- 文档页外壳（UI 统一 Loop Round 4 上提）
+  <!-- 文档页外壳
        背景：隐私政策 / 用户协议两页**逐字节重复**同一套外壳 —— 壁纸层 + `AppHeader` + 滚动容器 + 文档白卡，
        仅顶栏标题 / 文档标题 / 生效日期 / 正文不同。按 §2「就近组织」收敛为**包内**共享组件
        （与 `pages/find/DishResultCard.vue` 同款做法：仅本包两页消费，不上提 `components/`）。
@@ -68,12 +68,12 @@ defineProps<{
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  /* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+  /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 }
 .scroll-wrap {
   flex: 1;
   min-height: 0;
-  /* Round 26：去掉 `overflow-y: auto` —— 本容器是 `scroll-view`（滚动由组件实现），
+  /* 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`（滚动由组件实现），
      外挂 CSS 在 H5 会叠出第二根滚动条。 */
   padding: 0 var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg));
   box-sizing: border-box;

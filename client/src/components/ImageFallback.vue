@@ -37,6 +37,4 @@ const imgOk = ref(true)
   width: 100%;
   height: 100%;
 }
-/* 占位视觉已收敛到公共 `ImagePlaceholder`（灰底 + 图标，UI 统一 Loop Round 31）——
-   原 `.placeholder` 的 `--bg-page` 底色与居中声明随之退役（本文件不再自绘占位）。 */
 </style>

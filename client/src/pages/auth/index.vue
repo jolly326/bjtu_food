@@ -86,7 +86,8 @@ import IconSvg from '@/components/IconSvg.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
-import { errorMessage } from '@/utils/error'
+import { errorMessage, toastSuccess } from '@/utils/error'
+import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const authStore = useAuthStore()
@@ -122,9 +123,12 @@ const codeActionLabel = computed(() =>
   sendingCode.value ? '发送中' : codeCooldown.value > 0 ? `${codeCooldown.value}s 后重发验证码` : '获取验证码',
 )
 
+/** uni input 事件：结构类型收窄 detail.value（平台事件对象未纳入项目 TS 类型） */
+type InputLike = { detail?: { value?: string } }
+
 /** 学号 @input 净化：仅保留数字并去空白，保证「纯数字」判定可靠（粘贴含空格/小数点也会被净化） */
-function onUsernameInput(e: any) {
-  form.value.username = String(e.detail?.value ?? '').replace(/\D/g, '')
+function onUsernameInput(e: Event) {
+  form.value.username = String((e as unknown as InputLike).detail?.value ?? '').replace(/\D/g, '')
   clearError()
 }
 /** 学号失焦浅提示：空 / 含非数字才提示原因，不发起任何请求 */
@@ -133,8 +137,8 @@ function onUsernameBlur() {
   if (!v) setError('请输入学号')
   else if (!/^\d+$/.test(v)) setError('学号需为纯数字')
 }
-function onCodeInput(e: any) {
-  form.value.code = String(e.detail?.value ?? '')
+function onCodeInput(e: Event) {
+  form.value.code = String((e as unknown as InputLike).detail?.value ?? '')
   clearError()
 }
 
@@ -146,7 +150,7 @@ async function sendCode() {
   sendingCode.value = true
   try {
     await sendEmailCode(username)
-    uni.showToast({ title: '验证码已发送', icon: 'success' })
+    toastSuccess('验证码已发送')
     authStore.startCooldown()
   } catch (e) { setError(errorMessage(e, '验证码发送失败')) } finally { sendingCode.value = false }
 }
@@ -164,16 +168,16 @@ async function submit() {
   try {
     await userStore.verifyEmail(form.value.code.trim())
     verified = true
-    uni.showToast({ title: '认证成功', icon: 'success' })
+    toastSuccess('认证成功')
     // 返回原页：待办由原页 onShow 经 consumePending 续接
     if (navTimer) clearTimeout(navTimer)
-    navTimer = setTimeout(() => uni.navigateBack(), 600)
+    navTimer = setTimeout(backToHome, 600)
   } catch (e) { setError(errorMessage(e, '认证失败')) } finally { isBusy.value = false }
 }
 
-/** 未完成认证即离开（Header 返回）——与手势返回同语义，onUnload 统一清待办 */
+/** 未完成认证即离开（Header 返回）——onUnload 统一清待办；无返回栈时 reLaunch 首页兜底 */
 function leaveWithoutVerify() {
-  uni.navigateBack()
+  backToHome()
 }
 
 onUnload(() => {
@@ -183,7 +187,7 @@ onUnload(() => {
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 

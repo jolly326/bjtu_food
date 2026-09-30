@@ -47,8 +47,8 @@ export function useDishHeroScroll(dish: ComputedRef<DishDetail | null | undefine
 
   onMounted(() => {
     // 只取**视口宽**（hero 卡按 16:10 定高用）。状态栏 / 导航行高 / 胶囊避让均由公共 `AppTitleBand` 自持
-    // （UI 统一 Loop Round 16：本页不再消费任何顶部度量）。
-    // 平台取值统一走 `utils/device`（Round 17：本文件不再触碰全局 `wx`，故无 `any` / `eslint-disable`）
+    // 。
+    // 平台取值统一走 `utils/device`
     const win = getWindowInfo()
     windowWidth.value = (win && win.windowWidth) || 375
   })

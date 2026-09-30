@@ -1,6 +1,6 @@
 // 主题->颜色 token 映射（唯一事实源）。
 // WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
-//
+
 // ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/client/ui/client-首页菜品浏览.md §10.2）=====
 // 旧「暖砖红橙档」（primary #C2410C / primary-text #B93A0A / primary-bright #EA580C /
 // 页底 #F7F3EF / 渐变 #FFF9F3→#FFEFE0 / 文字 #262626 三阶）**整体退役**。
@@ -63,7 +63,7 @@ export const COLOR_MAP = {
   /* ===== 背景（§4.1）===== */
   'bg-page': '#FFF8EF',
   /* ⚠️ 原「页面顶部渐变」`bg-page-grad-from/to` 已随「切片方案全部废止」退役并删除
-     （UI 统一 Loop Round 5：零 `var()` 引用、零文档引用）。装饰色按需取下方 `--bg-soft-*` 档。 */
+     。装饰色按需取下方 `--bg-soft-*` 档。 */
   'bg-soft-orange': '#FFE8D1',
   'bg-soft-yellow': '#FFF3D6',
   /* 注：`bg-warm`（#FAF6F0）已移除 —— 原本只有意见反馈页消费，UI 统一 Loop Round 1 后该页
@@ -80,7 +80,7 @@ export const COLOR_MAP = {
   'overlay-scrim': 'rgba(0,0,0,0.4)',
   'shadow-card': '0 2px 12px rgba(0,0,0,0.04)',
   /* 暖调柔和投影：**仅用于「选中 / 强调」态**（段控件选中项、未读通知卡）；
-     普通卡片一律 `shadow-card`（UI 统一 Loop Round 13 裁决 5A 收口，勿再扩散到普通卡） */
+     普通卡片一律 `shadow-card` */
   'shadow-warm': '0 4rpx 12rpx rgba(180, 140, 120, 0.08)',
   'shadow-modal': '0 18rpx 54rpx rgba(0,0,0,0.18)',
   /* 详情页返回钮胶囊（微信右上角原生胶囊同款：中性浅灰透底 + 细边；原散落 App.vue，UI-03 收口） */
@@ -97,7 +97,7 @@ export const COLOR_MAP = {
 } as const
 
 /* 注：原 `export type IconColorName = keyof typeof COLOR_MAP` 已按「零消费即删」移除
-   （UI 统一 Loop Round 17：全仓零 import —— IconSvg 的 color 收的是实色字符串）。 */
+   。 */
 
 /**
  * CSS 变量注册表（UI-03 色值唯一真源，spec §4.2）。
