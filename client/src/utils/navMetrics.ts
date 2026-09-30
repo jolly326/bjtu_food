@@ -8,11 +8,7 @@
  * （之前加 Math.max(...,54) 下限会让行比系统导航栏高，胶囊中心偏移）。
  */
 
-export interface MenuButtonRect {
-  top: number
-  height: number
-  left?: number
-}
+import type { MenuButtonRect } from './device'
 
 /** 导航栏内容区高度（px）：与系统导航栏真实高度一致 */
 export function getNavBarHeight(statusBarHeight: number, menu?: MenuButtonRect | null): number {

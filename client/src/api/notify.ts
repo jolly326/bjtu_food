@@ -7,6 +7,7 @@
  * PUT /my/notifications/read-all   全部已读（幂等，需登录）
  */
 import { get, put } from './http'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 import {
   recordsOf, type PageResult,
   type NotificationVO, type UnreadCountVO,
@@ -53,7 +54,7 @@ export async function getNotifications(params: {
 }): Promise<{ list: Notification[] }> {
   const query: Record<string, unknown> = {
     page: params.page ?? 1,
-    pageSize: params.pageSize ?? 20,
+    pageSize: params.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (params.isRead != null) query.isRead = params.isRead
   const res = await get<PageResult<NotificationVO>>('/my/notifications', query)

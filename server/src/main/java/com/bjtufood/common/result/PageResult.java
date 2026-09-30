@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 分页响应封装
  * <p>
- * 列表接口统一使用此类返回分页数据，契约字段（见 docs/feature/README.md「通用结构」）：
+ * 列表接口统一使用此类返回分页数据，契约字段（见 docs/client/feature/README.md「通用结构」）：
  * <pre>
  * {
  *   "code": 200,

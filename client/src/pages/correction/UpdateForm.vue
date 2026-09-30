@@ -149,13 +149,14 @@
       <!-- 图片（预填菜品首图，可增删，**≤3 张**；ImagePicker 安检上传，提交中禁选） -->
       <view class="field">
         <text class="field-label">图片</text>
-        <ImagePicker :model-value="model.images" :max="3" :disabled="submitting" @update:model-value="onImagesChange" />
+        <ImagePicker :model-value="model.images" :max="UGC_IMAGE_MAX" :disabled="submitting" @update:model-value="onImagesChange" />
       </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
+import { UGC_IMAGE_MAX } from '@/constants/ugc'
 /**
  * UpdateForm（correction 包内私有）：菜品纠错预填表单字段区。
  *

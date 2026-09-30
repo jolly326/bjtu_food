@@ -74,7 +74,7 @@ bjtu_food/
 
 ## 核心功能
 
-> 功能与接口契约的**唯一真源** = `docs/feature/`（16 份功能文档）；下表仅为速览。
+> 学生端功能与接口契约的**唯一真源** = `docs/client/feature/`（16 份功能文档）；下表仅为速览。
 
 | 模块 | 说明 | 状态 |
 |------|------|:----:|
@@ -111,7 +111,7 @@ bjtu_food/
 | dish_correction | 菜品信息纠错 |
 | banner | 首页轮播图 |
 
-> 已下线并删除的表：`broadcast` / `activity`（2026-09-13）、`category`（2026-09-15）、`review_useful`（2026-09-27 评价「有用」整链下线）、`dish_attribute_value`（改为「值即中文」后退役）。逐条见 `docs/feature/README.md`「已下线能力（防回退）」。
+> 已下线并删除的表：`broadcast` / `activity`（2026-09-13）、`category`（2026-09-15）、`review_useful`（2026-09-27 评价「有用」整链下线）、`dish_attribute_value`（改为「值即中文」后退役）。逐条见 `docs/client/feature/README.md`「已下线能力（防回退）」。
 
 建表与种子脚本见 `server/src/main/resources/db/schema.sql`（建表）与 `server/src/main/resources/db/seed_data.sql`（种子数据），均自包含建库选库，可直接执行。
 
@@ -220,9 +220,10 @@ npm run verify              # = check:contract（4 条判据）+ type-check（�
 
 | 文档 | 说明 |
 |------|------|
-| [docs/feature/README.md](docs/feature/README.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界 —— 见该文档「项目约定与红线」段（原 `CODEBUDDY.md`、`docs/project_spec.md` 均已于 2026-09-27 删除，内容承接至此） |
+| [docs/client/feature/README.md](docs/client/feature/README.md) | **技术规范基线**：仓库红线 / 产品定型一页纸 / 协作纪律 / 跨端边界 —— 见该文档「项目约定与红线」段（原 `CODEBUDDY.md`、`docs/project_spec.md` 均已于 2026-09-27 删除，内容承接至此） |
 | `db/` 初始化与种子脚本 | 数据库结构 **唯一真源**（原 `docs/database.md` 已删除，2026-09-27） |
 | [docs/architecture.md](docs/architecture.md) | **后端架构说明**：分包模型、跨域依赖规则（ArchTests 强制）、事件机制、事务边界、配置与密钥、可观测性、测试策略、**已知技术债** |
-| [docs/feature/](docs/feature/) | 功能与接口契约总览（含认证模型 / 错误码 / 分页约定）—— 入口 [README](docs/feature/README.md)（原 `docs/api-design.md` 已删除，2026-09-27） |
-| [docs/ui/](docs/ui/) | 页面 UI 设计稿与跨页通用口径 —— 入口 [README](docs/ui/README.md)（含 **UI 修正完成度台账**）（原 `docs/ui-design.md` 已删除，2026-09-27） |
+| [docs/client/feature/](docs/client/feature/) | **学生端**功能与接口契约总览（含认证模型 / 错误码 / 分页约定）—— 入口 [README](docs/client/feature/README.md)（原 `docs/api-design.md` 已删除，2026-09-27） |
+| [docs/client/ui/](docs/client/ui/) | **学生端**页面 UI 设计稿与跨页通用口径 —— 入口 [README](docs/client/ui/README.md)（含 **UI 修正完成度台账**）（原 `docs/ui-design.md` 已删除，2026-09-27） |
+| [docs/web/](docs/web/) | **管理后台**功能文档 —— 入口 [README](docs/web/feature/README.md)（按学生端同构风格新编，完全重写，**待审核**） |
 | server/、client/、web/ | 后端（Spring Boot）、微信小程序（uni-app）、Web 管理后台（Vue3+Element Plus）源码 |

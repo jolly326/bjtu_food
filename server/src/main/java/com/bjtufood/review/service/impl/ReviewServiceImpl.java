@@ -242,7 +242,7 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long id, Long userId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            // 4001 = 资源不存在（docs/feature/client-删除本人评价.md）：端上据此给出恢复路径，不解析 message
+            // 4001 = 资源不存在（docs/client/feature/client-删除本人评价.md）：端上据此给出恢复路径，不解析 message
             throw new BusinessException(4001, "评价不存在");
         }
         if (!review.getUserId().equals(userId)) {

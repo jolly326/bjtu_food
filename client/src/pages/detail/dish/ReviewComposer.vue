@@ -60,7 +60,7 @@
 
       <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传）；提交中禁选 -->
       <view class="rc-field-images">
-        <ImagePicker v-model="images" :max="3" :disabled="submitting" />
+        <ImagePicker v-model="images" :max="UGC_IMAGE_MAX" :disabled="submitting" />
       </view>
 
       <!-- 提交：主色实底；未选星或提交中禁用 -->
@@ -78,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { ref, computed, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'

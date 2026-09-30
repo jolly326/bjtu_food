@@ -52,7 +52,7 @@ public class DishServiceImpl implements DishService {
      * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
      * <p>
      * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
-     * 收为 6 的理由（见 docs/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
+     * 收为 6 的理由（见 docs/client/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
      * （无推荐算法），8 条会占满发现态首屏（实测排成 3 行 chips），把「搜索记录」这个
      * 真正的个性化入口挤出可视区。
      */

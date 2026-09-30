@@ -1,16 +1,14 @@
 import type {
   DishListItem, DishDetail, DishQuery,
-  DishAttributeItem, GuessLike, DishView,
+  DishAttribute, GuessLike, DishView,
 } from '@/types/dish'
 import { get } from './http'
 import { fenToYuan } from '@/utils/money'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 import {
   recordsOf, normalizeImages, type RawPage,
   type DishListItemVO, type DishDetailVO,
-  // 后端 VO 名与端上类型名同名（`DishAttributeItem`），此处以 `VO` 后缀区分：
-  // 上游 = 服务端契约类型，下游 = 端上展示模型。
-  type DishAttributeItem as DishAttributeItemVO,
-  type DishAttributeEditVO, type DishViewVO, type GuessLikeVO,
+  type DishAttributeItem, type DishAttributeEditVO, type DishViewVO, type GuessLikeVO,
 } from './shared'
 
 /**
@@ -47,7 +45,7 @@ function toDishListItem(raw: DishListItemVO): DishListItem {
  * 而降级为 {@code Record<string, never> | ...}，故此处经 {@code unknown} 收窄为
  * 端上渲染所需的两种形态。非 `string`/`string[]` 时降级为 `''`（不抛错、不裂图）。
  */
-function toDishAttributeItem(raw: DishAttributeItemVO): DishAttributeItem {
+function toDishAttribute(raw: DishAttributeItem): DishAttribute {
   const value = raw.value
   return {
     fieldKey: String(raw.fieldKey || ''),
@@ -71,7 +69,7 @@ function toDishDetail(raw: DishDetailVO): DishDetail {
     stallName: raw.stallName || '',
     floor: raw.floor || '',
     // ===== 描述属性：值即中文 ⇒ 端上直渲 `value`，零映射表（R4） =====
-    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttributeItem) : [],
+    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttribute) : [],
   }
 }
 
@@ -85,7 +83,7 @@ function toDishDetail(raw: DishDetailVO): DishDetail {
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
   const params: Record<string, unknown> = {
     page: query.page ?? 1,
-    pageSize: query.pageSize ?? 20,
+    pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.view) params.view = query.view

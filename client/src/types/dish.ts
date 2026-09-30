@@ -1,5 +1,5 @@
 /**
- * 菜品类型（列表 / 详情出参拆分，见 docs/feature/client-首页菜品浏览.md D 项）
+ * 菜品类型（列表 / 详情出参拆分，见 docs/client/feature/client-首页菜品浏览.md D 项）
  *
  * **列表行 `DishListItem`**（`GET /dishes`，`DishListItemVO` **恰为 8 字段**）：
  *   id / name / coverImage / price / originalPrice / avgRating / canteenName / stallName
@@ -42,7 +42,7 @@ export interface DishListItem {
  * `value`：`single` 维度为字符串、`multi` 维度为字符串数组。
  * 仅含该菜品实际拥有的维度、按后端维度展示顺序排列（自描述、有序）。
  */
-export interface DishAttributeItem {
+export interface DishAttribute {
   /** 维度键（camelCase；编辑态提交时即 `attributes` 的键） */
   fieldKey: string
   /** 维度中文名（如「饮食属性」） */
@@ -67,7 +67,7 @@ export interface DishDetail {
   /** 档口所属楼层（如 1F/2F；详情专属） */
   floor?: string
   /** 描述属性（值即中文，端上直渲 `value`） */
-  attributes: DishAttributeItem[]
+  attributes: DishAttribute[]
 }
 
 /**

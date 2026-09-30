@@ -398,8 +398,11 @@ export async function del<T>(url: string, data?: RequestData, options?: RequestO
   return request<T>('DELETE', url, data, options)
 }
 
-/** 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起 */
-const UPLOAD_TIMEOUT_MS = 15000
+/**
+ * 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起。
+ * <b>导出供 api/upload.ts 复用</b>——同一超时口径不存两份（此前两处各写 15000，靠注释人工同步）。
+ */
+export const UPLOAD_TIMEOUT_MS = 15000
 
 /**
  * 上传图片。

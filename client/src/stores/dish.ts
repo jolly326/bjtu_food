@@ -5,12 +5,15 @@ import type { Review } from '@/types/review'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
+import { HOME_PAGE_SIZE, REVIEW_PAGE_SIZE } from '@/constants/paging'
+import { mergePagedRows } from '@/composables/usePagedList'
 
 /**
  * 首页列表单页条数（`fetchHomeDishes` / `loadMoreHomeDishes` 共用，防口径漂移）。
- * 本常量即首页唯一列表流的分页口径（食堂 / 价格筛选不提供）。
+ * 分页口径已收敛至 `constants/paging`（单一真源）。此处保留导出，
+ * 供 `pages/home/HomeContent.vue` 等既有消费方继续引用，避免牵连改名。
  */
-export const HOME_PAGE_SIZE = 10
+export { HOME_PAGE_SIZE }
 /**
  * 首页列表最大保留页数：10 页 × 10 条 = 100 条封顶。
  * 深翻后 `homeList` 无上限增长会让 `HomeContent` 的列分配每次全量重算（低端机掉帧）；
@@ -191,7 +194,8 @@ export const useDishStore = defineStore('dish', () => {
         })
         // 过期响应（期间又切换了视图）直接丢弃，不覆盖新列表
         if (seq !== homeFetchSeq) return
-        homeList.value = reset ? res.list : homeList.value.concat(res.list)
+        // append 分支收敛到 mergePagedRows（单一真源）：与 fetchReviews 同口径，补 id 去重防分页跳号重复行
+        homeList.value = reset ? res.list : mergePagedRows(homeList.value, res.list, pageSize).rows
         homeError.value = false
         // 结束判据基于「本页返回条数 < pageSize」
         if (res.list.length < pageSize) homeFinished.value = true
@@ -233,7 +237,7 @@ export const useDishStore = defineStore('dish', () => {
           homePage.value -= 1
           return false
         }
-        homeList.value = homeList.value.concat(res.list)
+        homeList.value = mergePagedRows(homeList.value, res.list, pageSize).rows
         if (res.list.length < pageSize) {
           homeFinished.value = true
         } else if (homePage.value >= HOME_MAX_PAGES) {
@@ -321,14 +325,15 @@ export const useDishStore = defineStore('dish', () => {
   ): Promise<{ list: Review[] } | null> {
     const seq = ++reviewFetchSeq
     const page = options?.page ?? 1
-    const pageSize = options?.pageSize ?? 20
+    const pageSize = options?.pageSize ?? REVIEW_PAGE_SIZE
     try {
       const res = await withLoading(REVIEWS_LOADING_KEY, async () =>
         await reviewApi.getDishReviews(dishId, { page, pageSize, hasImage: options?.hasImage }))
       // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
       if (seq !== reviewFetchSeq) return null
       if (options?.append) {
-        reviewList.value = [...reviewList.value, ...res.list]
+        // 去重追加（单一真源 mergePagedRows）：与 usePagedList 同口径，防分页跳号重复行
+        reviewList.value = mergePagedRows(reviewList.value, res.list, pageSize).rows
       } else {
         reviewList.value = res.list
       }

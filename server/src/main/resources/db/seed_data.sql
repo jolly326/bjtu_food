@@ -231,7 +231,7 @@ UPDATE dish SET meal_type = 'snack'      WHERE name IN ('鲜肉小笼', '广式�
 UPDATE dish SET meal_type = 'soup_drink' WHERE name IN ('皮蛋瘦肉粥', '珍珠奶茶', '杨枝甘露');
 
 -- -------------------- 首页顶部轮播图（2026-09-22 新增；公开 GET /banners） --------------------
--- 注：本段采用先清后插（可重复执行）；素材统一 **16:10**（宽高比锁定，见 docs/ui/client-首页菜品浏览.md §1.1）。
+-- 注：本段采用先清后插（可重复执行）；素材统一 **16:10**（宽高比锁定，见 docs/client/ui/client-首页菜品浏览.md §1.1）。
 --     image_url 暂为空串 = 「待补正式素材」——端上会退化为「灰底 + 菜品 icon」空态（同菜品卡图片占位），
 --     不会裂图；正式素材到位后替换 image_url，或增行以启用多图轮播（>1 条时端上自动轮播并显示指示点）。
 DELETE FROM banner;

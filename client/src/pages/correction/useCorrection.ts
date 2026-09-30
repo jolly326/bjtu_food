@@ -20,11 +20,9 @@ import { isResourceNotFound } from '@/api/http'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
+import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { yuanToFen } from '@/utils/money'
 import { joinLocation } from '@/utils/dish'
-
-/** 图片张数上限（预填菜品首图，可增删；端上 / 服务端同口径） */
-export const IMAGE_MAX = 3
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
@@ -110,7 +108,7 @@ export function useCorrection() {
       form.price = detail.price > 0 ? String(detail.price) : ''
       form.canteenName = detail.canteen
       form.stallName = detail.stallName
-      form.images = detail.images.slice(0, IMAGE_MAX)
+      form.images = detail.images.slice(0, UGC_IMAGE_MAX)
 
       // 描述属性：维度与当前值取自详情；候选值取自编辑端点（按 fieldKey 对齐）
       form.attributes = (detail.attributes || [])

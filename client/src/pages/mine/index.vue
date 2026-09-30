@@ -100,6 +100,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
+import { toastError } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
@@ -181,7 +182,8 @@ function onAccountDelete() {
         await deleteAccount()
         uni.showToast({ title: '账号已注销', icon: 'none' })
       } catch (e) {
-        uni.showToast({ title: e instanceof Error && e.message ? e.message : '注销失败，请稍后重试', icon: 'none' })
+        // 失败文案走统一出口 utils/error（e 为 null 时不会崩）
+        toastError(e, '注销失败，请稍后重试')
       } finally {
         userStore.forceLogout()
       }

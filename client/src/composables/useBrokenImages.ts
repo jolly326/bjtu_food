@@ -15,14 +15,10 @@ export function useBrokenImages() {
     broken.value = next
   }
 
-  function isBroken(i: number): boolean {
-    return broken.value.has(i)
-  }
-
   /** images 变化（重拉 / 外部重设）时重置 */
   function clear() {
     broken.value = new Set()
   }
 
-  return { broken, markBroken, isBroken, clear }
+  return { broken, markBroken, clear }
 }

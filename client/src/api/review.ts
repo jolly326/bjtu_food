@@ -1,5 +1,6 @@
 import type { Review, MyReview } from '@/types/review'
 import { get, post, put, del } from './http'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 import {
   recordsOf, type RawPage,
   type ReviewVO, type MyReviewVO, type ReviewCreatedVO,
@@ -61,7 +62,7 @@ export async function getDishReviews(
 ): Promise<{ list: Review[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 20,
+    pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   // 布尔契约（2026-09-29 由 0/1 改）：true 时服务端仅返回带图评价
   if (options?.hasImage) params.hasImage = true
@@ -89,7 +90,7 @@ export async function getMyReviews(
 ): Promise<{ list: MyReview[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 20,
+    pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (options?.dishId != null) params.dishId = options.dishId
   // 强类型：同 getDishReviews，元素类型取自生成契约

@@ -6,11 +6,7 @@
  */
 import { ref, type Ref } from 'vue'
 import { reportReview } from '@/api/feedback'
-
-export interface UseReportOptions {
-  /** 提交成功后的 Toast 文案 */
-  successText?: string
-}
+import { toastError } from '@/utils/error'
 
 export interface UseReportReturn {
   reportOpen: Ref<boolean>
@@ -21,7 +17,7 @@ export interface UseReportReturn {
   submitReport: (reasonValue: string) => Promise<void>
 }
 
-export function useReport(options: UseReportOptions = {}): UseReportReturn {
+export function useReport(): UseReportReturn {
   const reportOpen = ref(false)
   const reportSubmitting = ref(false)
   const reportTargetId = ref<number | null>(null)
@@ -41,10 +37,11 @@ export function useReport(options: UseReportOptions = {}): UseReportReturn {
     reportSubmitting.value = true
     try {
       await reportReview(targetId, { reason: reasonValue })
-      uni.showToast({ title: options.successText || '举报已提交', icon: 'success' })
+      uni.showToast({ title: '举报已提交', icon: 'success' })
       reportOpen.value = false
     } catch (e) {
-      uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
+      // 失败提示走统一出口 utils/error（e 为 null 时不会崩）
+      toastError(e, '提交失败')
     } finally {
       reportSubmitting.value = false
     }

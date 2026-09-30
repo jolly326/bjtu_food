@@ -11,30 +11,11 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppModal: typeof import('./components/AppModal.vue')['default']
-    AppToast: typeof import('./components/AppToast.vue')['default']
-    ConfirmDialog: typeof import('./components/ConfirmDialog.vue')['default']
-    DataTable: typeof import('./components/DataTable.vue')['default']
-    DishFormDialog: typeof import('./components/DishFormDialog.vue')['default']
-    ElIcon: typeof import('element-plus/es')['ElIcon']
-    ElImage: typeof import('element-plus/es')['ElImage']
-    ElOption: typeof import('element-plus/es')['ElOption']
-    ElPagination: typeof import('element-plus/es')['ElPagination']
-    ElSelect: typeof import('element-plus/es')['ElSelect']
-    ElSwitch: typeof import('element-plus/es')['ElSwitch']
-    EntityImage: typeof import('./components/EntityImage.vue')['default']
-    FilterBar: typeof import('./components/layout/FilterBar.vue')['default']
-    FilterSelect: typeof import('./components/layout/FilterSelect.vue')['default']
-    FormDialog: typeof import('./components/FormDialog.vue')['default']
+    BaseModal: typeof import('./components/BaseModal.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
-    PageContainer: typeof import('./components/layout/PageContainer.vue')['default']
-    PageHeader: typeof import('./components/layout/PageHeader.vue')['default']
-    RenameEntityDialog: typeof import('./components/RenameEntityDialog.vue')['default']
-    ReviewDetailDialog: typeof import('./components/ReviewDetailDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    StarRating: typeof import('./components/StarRating.vue')['default']
+    StateBox: typeof import('./components/StateBox.vue')['default']
     StatusTag: typeof import('./components/StatusTag.vue')['default']
-    UserActivityModal: typeof import('./components/UserActivityModal.vue')['default']
   }
 }

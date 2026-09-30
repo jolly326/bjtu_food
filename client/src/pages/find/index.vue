@@ -7,7 +7,7 @@
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
          两段常驻固定（根层不滚动，滚动只发生在内容区内部）。 -->
     <!-- 标题带（UI 统一 Loop Round 15 两区版）：有返回 ⇒ 左区「返回」+ 居中区页面名称。
-         ⚠️ 页面名称暂定「搜索」（本页语义见 docs/ui/client-搜索.md），如需改文案告诉我。 -->
+         ⚠️ 页面名称暂定「搜索」（本页语义见 docs/client/ui/client-搜索.md），如需改文案告诉我。 -->
     <AppTitleBand back title="搜索" @back="onBack" />
     <view class="find-search-row">
       <SearchBar
@@ -104,7 +104,7 @@
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
            Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
-           单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/ui/client-搜索.md §2「结果行布局」）。 -->
+           单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/client/ui/client-搜索.md §2「结果行布局」）。 -->
       <!-- ⚠️ 触底事件必须由本 scroll-view 承载：页面根 overflow:hidden + 定高容器下，
            页面级 onReachBottom 不会触发（踩坑记录见 usePagedList 注释） -->
       <scroll-view
@@ -158,6 +158,7 @@ import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
 import { backToHome } from '@/utils/back'
 import { joinLocation } from '@/utils/dish'
 import type { DishListItem, MixedResultItem } from '@/types/dish'
+import { RESULT_PAGE_SIZE } from '@/constants/paging'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -169,6 +170,7 @@ import SearchBar from '@/components/SearchBar.vue'
 import DishResultCard from './DishResultCard.vue'
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import { useNavMetrics } from '@/utils/useNavMetrics'
+import { mergePagedRows } from '@/composables/usePagedList'
 
 const dishStore = useDishStore()
 
@@ -260,7 +262,6 @@ const mixedResults = ref<MixedResultItem[]>([])
  * 改为与首页 / 我的评价一致的**触底增量加载**：首屏只拉 20 条，触底再取下一页。
  * ⚠️ 到底判据只能是「本页返回条数 < pageSize」：后端 `PageResult` 只下发 `records`，无 `total`。
  */
-const RESULT_PAGE_SIZE = 20
 /** 触底加载是否在途（与首屏 `searching` 分离：分页失败静默回退页码，不打断滚动） */
 const loadingMore = ref(false)
 /** 结果是否已到底 */
@@ -389,14 +390,11 @@ async function onLoadMoreResults() {
     })
     // 期间若发起了新搜索或退出结果态，丢弃本次过期结果
     if (seq !== mixedSearchSeq) return
-    if (list.length === 0) {
-      resultsFinished.value = true
-      return
-    }
     resultPage += 1
-    const existIds = new Set(mixedResults.value.map(r => r.id))
-    mixedResults.value = mixedResults.value.concat(toResults(list).filter(r => !existIds.has(r.id)))
-    resultsFinished.value = list.length < RESULT_PAGE_SIZE
+    // 合并 + 封底（单一真源 mergePagedRows）：去重追加、0 长度封口、满页未封底
+    const merged = mergePagedRows(mixedResults.value, toResults(list), RESULT_PAGE_SIZE)
+    mixedResults.value = merged.rows
+    resultsFinished.value = merged.finished
   } catch (err) {
     console.error('[find] 结果分页加载失败', err)
   } finally {
