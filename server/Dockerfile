@@ -16,4 +16,5 @@ COPY --from=build /app/target/bjtu-food-1.0.0.jar app.jar
 # 堆上限按 0.5G 实例保守设置（512m 会因 JVM 额外开销被 OOMKilled）；实例规格 ≥1G 可调回 512m。
 ENV JAVA_OPTS="-Xms192m -Xmx384m"
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# exec：让 java 成为 PID 1，使 SIGTERM 直达 JVM（滚动升级时优雅停机，而非被杀后强退）
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

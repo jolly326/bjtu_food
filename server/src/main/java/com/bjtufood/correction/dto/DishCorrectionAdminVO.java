@@ -45,6 +45,13 @@ public class DishCorrectionAdminVO {
     @Schema(description = "提交的档口名称")
     private String stallName;
 
+    /**
+     * 提交的楼层（改动项快照；未改动为 null）。
+     * 管理端据此判断本次纠错是否含楼层改动——有值时采纳会写回<b>目标档口</b>的 {@code stall.floor}。
+     */
+    @Schema(description = "提交的楼层（归属档口 stall.floor；未改动为 null）", example = "1F")
+    private String floor;
+
     @Schema(description = "提交的描述属性（键=维度 fieldKey，值=机器值/数组；仅改动维度）",
             example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
     private Map<String, Object> attributes;

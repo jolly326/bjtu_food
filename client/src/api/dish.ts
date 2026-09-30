@@ -1,18 +1,27 @@
 import type {
   DishListItem, DishDetail, DishQuery,
-  DishAttributeItem, GuessLike, DishView,
+  DishAttribute, GuessLike, DishView,
 } from '@/types/dish'
 import { get } from './http'
 import { fenToYuan } from '@/utils/money'
-import { recordsOf, normalizeImages, type RawRow, type RawPage } from './shared'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
+import {
+  recordsOf, normalizeImages, type RawPage,
+  type DishListItemVO, type DishDetailVO,
+  type DishAttributeItem, type DishAttributeEditVO, type DishViewVO, type GuessLikeVO,
+} from './shared'
 
 /**
  * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
- * <p>
- * 列表**只有 `coverImage` 单值**（无 `images` 数组、也不派生 `image`）；
- * `description` / `floor` / `attributes` 等详情专属字段**不再映射**。
+ *
+ * <p>入参用生成的强类型 {@link DishListItemVO}（2026-09-29 契约单一真源）：
+ * 后端改名/改类型会令本函数**编译期报错**，而非真机上字段变空白。
+ *
+ * <p>仍需归一化的原因（**不是**契约缺失，而是有意的端上适配）：
+ * ① 金额分→元；② `canteenName`→`canteen`、`avgRating`→`rating` 别名；
+ * ③ 零值兜底（`''` / `0`）——后端出参可空，端上模板不做空判断。
  */
-function toDishListItem(raw: RawRow): DishListItem {
+function toDishListItem(raw: DishListItemVO): DishListItem {
   return {
     id: Number(raw.id),
     name: raw.name || '',
@@ -22,23 +31,31 @@ function toDishListItem(raw: RawRow): DishListItem {
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : null,
     coverImage: raw.coverImage || '',
     // 零评价 → null（消费方据此不渲染评分区）
-    rating: raw.avgRating != null && raw.avgRating !== '' ? Number(raw.avgRating) : null,
-    canteen: raw.canteenName || raw.canteen || '',
+    rating: raw.avgRating != null && raw.avgRating !== ('' as unknown) ? Number(raw.avgRating) : null,
+    canteen: raw.canteenName || '',
     stallName: raw.stallName || '',
   }
 }
 
-/** 详情描述属性项归一化：中文值**原样透出**（值即中文，端上零翻译） */
-function toDishAttributeItem(raw: RawRow): DishAttributeItem {
+/**
+ * 详情描述属性项归一化：中文值**原样透出**（值即中文，端上零翻译）。
+ *
+ * <p>契约说明：后端 {@code DishAttributeItem.value} 为 {@code Object}（单值为字符串、
+ * 多选为字符串数组），`openapi-typescript` 因 OpenAPI 未声明 itemSchema
+ * 而降级为 {@code Record<string, never> | ...}，故此处经 {@code unknown} 收窄为
+ * 端上渲染所需的两种形态。非 `string`/`string[]` 时降级为 `''`（不抛错、不裂图）。
+ */
+function toDishAttribute(raw: DishAttributeItem): DishAttribute {
+  const value = raw.value
   return {
     fieldKey: String(raw.fieldKey || ''),
     name: String(raw.name || ''),
-    value: raw.value ?? '',
+    value: typeof value === 'string' || Array.isArray(value) ? (value as string | string[]) : '',
   }
 }
 
 /** 详情归一化（后端 `DishDetailVO` 11 字段 → 端上 `DishDetail`） */
-function toDishDetail(raw: RawRow): DishDetail {
+function toDishDetail(raw: DishDetailVO): DishDetail {
   return {
     id: Number(raw.id),
     name: raw.name || '',
@@ -47,12 +64,12 @@ function toDishDetail(raw: RawRow): DishDetail {
     description: raw.description || '',
     images: normalizeImages(raw.images),
     // 零评价 → null（消费方据此呈现「暂无评分」）
-    rating: raw.avgRating != null && raw.avgRating !== '' ? Number(raw.avgRating) : null,
-    canteen: raw.canteenName || raw.canteen || '',
+    rating: raw.avgRating != null && raw.avgRating !== ('' as unknown) ? Number(raw.avgRating) : null,
+    canteen: raw.canteenName || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',
     // ===== 描述属性：值即中文 ⇒ 端上直渲 `value`，零映射表（R4） =====
-    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttributeItem) : [],
+    attributes: Array.isArray(raw.attributes) ? raw.attributes.map(toDishAttribute) : [],
   }
 }
 
@@ -66,15 +83,15 @@ function toDishDetail(raw: RawRow): DishDetail {
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
   const params: Record<string, unknown> = {
     page: query.page ?? 1,
-    pageSize: query.pageSize ?? 20,
+    pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (query.keyword) params.keyword = query.keyword
   if (query.view) params.view = query.view
   if (query.seed) params.seed = query.seed
 
-  // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
-  const res = await get<RawPage>('/dishes', params)
-  return { list: recordsOf<RawRow>(res).map(toDishListItem) }
+  // 强类型：元素类型取自生成契约，后端改 DishListItemVO 字段即编译期报错
+  const res = await get<RawPage<DishListItemVO>>('/dishes', params)
+  return { list: recordsOf<DishListItemVO>(res).map(toDishListItem) }
 }
 
 /** 兼容旧调用：返回平铺 `DishListItem[]`（find 搜索流消费） */
@@ -83,29 +100,33 @@ export async function searchDishes(query: DishQuery): Promise<DishListItem[]> {
 }
 
 export async function getDishDetail(id: number): Promise<DishDetail> {
-  // MP-08：详情是单行响应，定型为 RawRow
-  const raw = await get<RawRow>(`/dishes/${id}`)
+  const raw = await get<DishDetailVO>(`/dishes/${id}`)
   return toDishDetail(raw)
 }
 
 /**
  * 猜你喜欢（`GET /dishes/for-you`）。
- * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）；出参只有 `name`。
+ *
+ * 传入**会话级** `seed`（可选）⇒ 服务端按 `CRC32(seed:ID)` 稳定伪随机序取数：
+ * 同一次会话内多次进入发现态拿到同一批菜品名，**重进小程序**才整体重洗
+ * （2026-09-29 刷新边界收窄）；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
+ * 出参只有 `name`；条数与文案由服务端决定，端上不写死、不排序。
  */
-export async function getGuessLike(): Promise<GuessLike[]> {
-  // 裸数组响应，定型为 RawRow[]
-  const raw = await get<RawRow[]>('/dishes/for-you')
-  // 唯一消费方（find 页「猜你喜欢」chip）只读 name
-  return (raw || []).map((item: RawRow) => ({
+export async function getGuessLike(seed?: string): Promise<GuessLike[]> {
+  const params: Record<string, unknown> = {}
+  if (seed) params.seed = seed
+
+  const raw = await get<GuessLikeVO[]>('/dishes/for-you', params)
+  return (raw || []).map((item) => ({
     name: String(item.name || ''),
   }))
 }
 
 /** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
 export async function getDishViews(): Promise<DishView[]> {
-  const raw = await get<RawRow[]>('/dishes/views')
+  const raw = await get<DishViewVO[]>('/dishes/views')
   // 端上只认 key + label（无 null 特例：默认视图「为你推荐」也是普通 key）
-  return (raw || []).map((item: RawRow) => ({
+  return (raw || []).map((item) => ({
     key: String(item.key ?? ''),
     label: String(item.label || ''),
   }))
@@ -131,8 +152,8 @@ export interface DishEditAttribute {
  * 失败由调用方静默处理（仍可自由填写），不阻塞编辑。
  */
 export async function getDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
-  const raw = await get<RawRow[]>(`/dishes/${dishId}/attributes`)
-  return (raw || []).map((item: RawRow) => ({
+  const raw = await get<DishAttributeEditVO[]>(`/dishes/${dishId}/attributes`)
+  return (raw || []).map((item) => ({
     fieldKey: String(item.fieldKey || ''),
     valueType: item.valueType === 'multi' ? 'multi' : 'single',
     options: Array.isArray(item.options)

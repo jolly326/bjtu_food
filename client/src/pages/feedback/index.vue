@@ -9,7 +9,7 @@
     <!-- 页面无页签（2026-09-27 改版）：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view class="q-card">
-        <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 4 选 1 + 具体描述 + 截图（≤1 张）+ 本地草稿；
+        <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
              纠错表单（`mode=update`：菜品详情底栏「反馈错误」带 dishId 跳入）—— 自动填好这道菜，只改差异项。
              submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
         <IssueForm

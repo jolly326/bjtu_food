@@ -65,7 +65,7 @@
       <text class="field-label">上传截图</text>
       <ImagePicker
         :model-value="model.images"
-        :max="3"
+        :max="UGC_IMAGE_MAX"
         :disabled="submitting"
         @update:model-value="onImagesChange"
       />
@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { UGC_IMAGE_MAX } from '@/constants/ugc'
 /** IssueForm（feedback 包内私有）：意见反馈页表单字段区（类型 + 描述 + 截图） */
 import ImagePicker from '@/components/ImagePicker.vue'
 import IconSvg from '@/components/IconSvg.vue'

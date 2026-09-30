@@ -86,7 +86,7 @@ const props = withDefaults(defineProps<{
   modelValue: '',
   // 占位只列真实可搜维度：服务端仅匹配「菜名 / 档口名 / 食堂名」（§7.35），
   // 无「套餐」实体（「套餐盖饭」是 meal_type 大类，不参与关键词匹配）——
-  // 见 docs/ui/client-搜索.md §1 第 2 条。首页与搜索页共用本默认值，两页同源。
+  // 见 docs/client/ui/client-搜索.md §1 第 2 条。首页与搜索页共用本默认值，两页同源。
   placeholder: '搜索菜品、食堂、档口',
   buttonText: '搜索',
   searching: false,

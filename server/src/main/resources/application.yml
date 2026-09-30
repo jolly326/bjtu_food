@@ -35,6 +35,15 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:}
+    # 连接池显式化（2026-09-29）：此前用 Spring 默认（maximum-pool-size=10），未显式声明 ⇒
+    # 上限随框架版本漂移、出问题难以定位。配合「机审移出事务」一并收口：
+    #   · maximum-pool-size：按云托管 0.5G 实例与并发写量定为 20（写路径事务已只包住落库，占用极短）
+    #   · connection-timeout：借不到连接最多等 30s 后明确报错，避免请求无限堆积
+    #   · leak-detection-threshold：超过 60s 未归还即 WARN 并打印借用栈，用于发现「连接被长期占用」回归
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      leak-detection-threshold: 60000
 
   # ---------- 文件上传配置 ----------
   servlet:
@@ -92,13 +101,15 @@ jwt:
   expiration: 604800000
 
 # ---------- SpringDoc OpenAPI (Swagger) ----------
-# 文档默认开启供本地开发联调；生产（profile=prod，见 application-prod.yml，或环境变量
-# SPRINGDOC_API_DOCS_ENABLED=false）必须关闭，避免对外暴露接口拓扑与调试入口。
+# 默认**关闭**（2026-09-29 安全默认）：避免「部署漏设 SPRING_PROFILES_ACTIVE=prod」时
+# /swagger-ui/** 与 /v3/api-docs 仍被公网直接访问、暴露全量接口拓扑（含 /admin/** 与鉴权方案）。
+# 本地联调由 application-dev.yml（profile=dev）显式开启；临时排障亦可注入
+# SPRINGDOC_API_DOCS_ENABLED=true / SPRINGDOC_SWAGGER_UI_ENABLED=true 覆盖。
 springdoc:
   api-docs:
-    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
   swagger-ui:
-    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
 
 # ---------- CORS 受信任前端源 ----------
 # 仅放行白名单内的浏览器源（逗号分隔）；微信小程序 wx.request 不带 Origin 头，不受影响。

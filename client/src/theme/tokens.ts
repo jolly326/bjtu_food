@@ -1,7 +1,7 @@
 // 主题->颜色 token 映射（唯一事实源）。
 // WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
 //
-// ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/ui/client-首页菜品浏览.md §10.2）=====
+// ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/client/ui/client-首页菜品浏览.md §10.2）=====
 // 旧「暖砖红橙档」（primary #C2410C / primary-text #B93A0A / primary-bright #EA580C /
 // 页底 #F7F3EF / 渐变 #FFF9F3→#FFEFE0 / 文字 #262626 三阶）**整体退役**。
 // 主色由「单档」细分为语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），并补齐 §4.1 的全部 token 名
@@ -194,7 +194,5 @@ export const MODAL_CONFIRM_DANGER_COLOR = '#C62828'
 // 取「文字档」--color-primary-text 的字面量（§4.1 起两档同值 #B4531A）
 // （见 pages/mine/index.vue 注销账号确认弹窗）
 export const MODAL_CONFIRM_PRIMARY_COLOR = '#B4531A'
-// pages.json globalStyle 导航栏/窗口底色（JSON 无法引用 TS 常量，此处登记为色值事实源，改动须与 pages.json 同步）
-export const NAVIGATION_BAR_BACKGROUND = '#F5F5F7'
 // IconSvg 描边兜底色：var() 形态与空值统一落到本常量（见 components/IconSvg.vue）
 export const ICON_FALLBACK_COLOR = '#1C1C1E'

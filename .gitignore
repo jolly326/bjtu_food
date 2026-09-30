@@ -20,11 +20,8 @@ target/
 # Spring / local runtime
 uploads/
 **/uploads/
-!server/uploads/.gitkeep
-!server/uploads/
-!server/uploads/images/
-!server/uploads/images/seed/
-!server/uploads/images/seed/**
+# 注：曾为 server/uploads/images/seed/ 开白名单以提交种子图；该目录已移除，白名单已无对应路径
+# （成为死规则），故一并清理。上传目录一律不进库（运行时由 upload.path 自动创建）。
 application-local.yml
 application-*.local.yml
 application-secret.yml
@@ -128,3 +125,24 @@ mvnrun.log.err
 **/r*_tsc.txt
 **/mp_build_check.txt
 **/tsc_check.txt
+
+# ---------- OpenAPI 契约（2026-09-29 契约单一真源方案 A） ----------
+# ⚠️ 以下两个文件**必须入库**（与上方 env 规则同理，.gitignore 只约束未跟踪文件）：
+#   client/openapi.json               —— 后端 VO 契约的镜像（由 scripts/fetch-openapi.mjs 抓取）
+#   client/src/types/generated/api.d.ts —— 由 openapi.json 生成的 TS 类型
+# 缺席时新成员 clone 后 `npm run type-check` 拿不到任何接口类型保障，
+# api 层会退回 Record<string, any> 弱类型，契约漂移重新无感知发生。
+# **只含接口路径与字段结构，不含任何凭据**，可安全入库。
+# 刷新方式：启动后端后执行 `cd client && npm run gen:api:fresh`。
+
+# 根目录的 openapi.json 是抓取过程的临时副本（脚本产物在 client/ 下），不入库
+/openapi.json
+
+# 本会话脚本与日志（临时产物）
+/*.ps1
+/boot.log
+/boot-err.log
+/gen_types.ps1
+/fetch_openapi.ps1
+/mvn.txt
+/tc*.txt

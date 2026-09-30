@@ -11,7 +11,7 @@
     自定义查询（如：评价列表关联用户表）在此编写。
 
     命名规则：
-    - selectReviewPageByDishId：公开列表（按菜品，联表补齐作者昵称/头像，时间倒序，可选只看有图）
+    - selectReviewPageByDishId：公开列表（按菜品，联表补齐作者昵称/头像，时间倒序）
     - selectReviewPageByUserId：我的评价（按用户过滤的本人评价，含 dishId/dishName）
     - selectAvgRatingByStallIds：批量统计多个档口平均分
 
@@ -44,7 +44,7 @@
                 typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
     </resultMap>
 
-    <!-- 公开列表：按菜品，联表补齐作者昵称 / 头像，时间倒序，可选「只看有图」。
+    <!-- 公开列表：按菜品，联表补齐作者昵称 / 头像，时间倒序。
          字符串列一律 COALESCE 空串兜底（与菜品路径 DishMapper.xml 同口径）：
          「字符串字段恒非空」是全站不变量，故端上类型可安全声明为 string、无需逐处判空。 -->
     <select id="selectReviewPageByDishId" resultMap="reviewMap">
@@ -61,16 +61,6 @@
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
-        <!-- 只看有图（hasImage 为布尔；2026-09-29 由 0/1 改为 true/false）：
-             images 列为 JSON 数组串，按「数组长度 > 0」判非空 -->
-        <if test="hasImage">
-            -- 只看有图（2026-09-23 R4 重写为 JSON 语义）：images 列为 JSON 数组串，按「数组长度 > 0」判非空
-            --   · JSON 合法（如 [] / ["a.jpg"]）→ 取 JSON_LENGTH：空数组判无图、非空判有图
-            --   · 非 JSON（历史逗号分隔串，JsonListUtil 兼容形态）→ 归为「有图」，与原行为一致
-            --   CASE 保证 JSON_LENGTH 仅在 JSON_VALID 为真时求值（避免对非法 JSON 求值报错）
-            AND r.images IS NOT NULL AND r.images &lt;&gt; ''
-            AND (CASE WHEN JSON_VALID(r.images) THEN JSON_LENGTH(r.images) ELSE 1 END) &gt; 0
-        </if>
         ORDER BY r.created_at DESC
     </select>
 
@@ -83,6 +73,7 @@
     -->
     <select id="selectReviewPageByUserId" resultMap="myReviewMap">
         SELECT
+            r.id,
             r.dish_id,
             d.name AS dish_name,
             r.rating,

@@ -44,8 +44,8 @@ import static org.mockito.Mockito.when;
  * 本测试锁定四条契约：
  * <ol>
  *   <li><b>合并送检且只调一次</b>——msgSecCheck 按调用计费，逐字段送检会成倍放大额度；</li>
- *   <li><b>送检内容覆盖全部自由文本字段</b>（name / canteenName / stallName / attributes）
- *       ——只送 name 会让「把违规词写进食堂名」绕过；</li>
+ *   <li><b>送检内容覆盖全部自由文本字段</b>（name / canteenName / stallName / floor / attributes）
+ *       ——只送 name 会让「把违规词写进食堂名」绕过（floor 采纳后写进公开可见的 stall.floor，同理不得漏检）；</li>
  *   <li><b>risky 必须拦截且不落库</b>；</li>
  *   <li><b>纯 price / images 改动不产生多余微信调用</b>（省额度）。</li>
  * </ol>
@@ -73,8 +73,8 @@ class CorrectionModerationTest {
         notificationService = mock(NotificationService.class);
         imageUrlUtil = mock(ImageUrlUtil.class);
 
-        svc = new CorrectionServiceImpl(correctionMapper, dishService, stallService, userService,
-                localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
+        svc = new CorrectionServiceImpl(correctionMapper, new CorrectionPersister(correctionMapper), dishService,
+                stallService, userService, localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
 
         when(dishService.existsOnSale(1L)).thenReturn(true);
         when(localSensitiveFilter.containsSensitive(anyString())).thenReturn(false);
@@ -101,11 +101,12 @@ class CorrectionModerationTest {
     }
 
     @Test
-    @DisplayName("送检文本必须覆盖 name + canteenName + stallName + attributes（换行合并）")
+    @DisplayName("送检文本必须覆盖 name + canteenName + stallName + floor + attributes（换行合并）")
     void moderationTextCoversAllFreeTextFields() {
         DishCorrectionReq r = req("宫保鸡丁");
         r.setCanteenName("学一食堂");
         r.setStallName("基本伙食");
+        r.setFloor("2F");
         r.setAttributes(Map.of("dietType", "veg", "note", "微辣"));
 
         svc.submit(7L, 1L, r);
@@ -114,11 +115,27 @@ class CorrectionModerationTest {
         verify(contentSecurityService).checkText(eq("oX-openid"), captor.capture(), eq(2));
 
         assertThat(captor.getValue())
-                .as("四个自由文本字段必须全部进入送检内容——漏检任一字段即可被绕过")
+                .as("五个自由文本字段必须全部进入送检内容——漏检任一字段即可被绕过"
+                        + "（floor 采纳后会写进公开可见的 stall.floor）")
                 .contains("宫保鸡丁")
                 .contains("学一食堂")
                 .contains("基本伙食")
+                .contains("2F")
                 .contains("微辣");
+    }
+
+    @Test
+    @DisplayName("仅改楼层（自由文本，其余未改动）：仍要送检（该值采纳后进入公开展示），但恰好一次")
+    void floorOnlyChangeIsSentToModerationOnce() {
+        DishCorrectionReq r = new DishCorrectionReq();
+        r.setFloor("B1");
+
+        svc.submit(7L, 1L, r);
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(contentSecurityService, times(1)).checkText(eq("oX-openid"), captor.capture(), eq(2));
+        assertThat(captor.getValue()).isEqualTo("B1");
+        verify(correctionMapper).insert(any(DishCorrection.class));
     }
 
     @Test

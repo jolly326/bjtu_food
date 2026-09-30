@@ -215,16 +215,29 @@
 
     <!--
         猜你喜欢：
-        每次请求**随机**抽取在售菜品名——不看热度、不排序、不做个性化（「完全随机」即需求本身，
-        2026-09-28 产品拍板确认保持：搜索页迷茫时刻的试探入口，每次刷新是其价值所在）。
-        出参仅 name（随机在售菜品名）；条数由调用方传入（DishMapper#selectGuessLike(@Param limit)，Service 侧常量）。
+        抽取在售菜品名——不看热度、不排序、不做个性化（搜索页迷茫时刻的试探入口）。
+        刷新边界 = **重进小程序**（2026-09-29 收窄，推翻 2026-09-28「每次刷新」旧拍板）：
+        端上无「主动换一批」入口（全仓无下拉刷新），会话内内容自变 ⇒ 用户只会读成「界面不稳定」；
+        故端上传**会话级 seed**，本查询按 CRC32(CONCAT(seed,'-',d.id)), d.id 做稳定伪随机序
+          · 同一次会话内多次进入 ⇒ 同一批词条（内容不会自己变）；
+          · 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗（新鲜度）。
+        算法与推荐流（selectDishPage 的 SEED_RANDOM 分支）同一套：d.id 作决胜键消除 CRC32 并列乱序。
+        未传 seed（第三方 / 直连 Swagger / 旧端）⇒ 退回 ORDER BY RAND()，契约向后兼容（参数可选）。
+        出参仅 name；条数由调用方传入（DishMapper#selectGuessLike(@Param limit, @Param seed)，Service 侧常量）。
         注意：本查询**不得**再走 heatScoreExpr（热度排序已与语义无关）。
     -->
     <select id="selectGuessLike" resultType="com.bjtufood.dish.dto.GuessLikeVO">
         SELECT d.name AS name
         FROM dish d
         WHERE d.status = 'on'
-        ORDER BY RAND()
+        <choose>
+            <when test="seed != null and seed != ''">
+                ORDER BY CRC32(CONCAT(#{seed}, '-', d.id)), d.id
+            </when>
+            <otherwise>
+                ORDER BY RAND()
+            </otherwise>
+        </choose>
         LIMIT #{limit}
     </select>
 

@@ -7,7 +7,7 @@
       <text class="section-text">{{ title }}</text>
       <text v-if="count !== null" class="section-count">{{ count }}</text>
     </view>
-    <!-- 右侧附加信息：经具名 slot 承载（可点件如评价卡「全部 / 有图」筛选胶囊、find 页「清空」）。
+    <!-- 右侧附加信息：经具名 slot 承载（可点件如评价卡「写评价」轻量入口、find 页「清空」）。
          ⚠️ UI 统一 Loop Round 17：原 `extraText` 文案 prop 全仓零传入，按「零消费即删」移除；
          消费方均为本组件的**直接**使用方（不涉及跨层具名 slot 分发），故 slot 方案无塌缩风险。 -->
     <slot name="extra" />

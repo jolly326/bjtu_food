@@ -85,7 +85,8 @@ public class SecurityConfig {
             // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback",
             // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
-            "/feedback/report-reasons",
+            // 2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂在「反馈提交」写入口下语义错位）
+            "/report-reasons",
             // 评价举报提交（PUB：举报免认证，游客可提交；RESTful 子资源）
             "/reviews/*/report",
             // 菜品信息纠错提交（PUB：匿名允许，对齐 feedback 提交口径；IP 限频在 Controller 层）

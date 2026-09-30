@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
  * 评价端点（RESTful 子资源路径）。
  * <ul>
  *   <li>评价列表 {@code GET /dishes/{id}/reviews}；</li>
- *   <li>发表评价 {@code POST /dishes/{id}/reviews}（请求体不含菜品 ID，归属由路径锁定）；</li>
+ *   <li>发表评价 {@code POST /dishes/{id}/reviews}（请求体不含菜品 ID，归属由路径锁定；**重复提交即覆盖**）；</li>
  *   <li>重新评价（覆盖式）{@code PUT /reviews/{id}}；</li>
  *   <li>删除本人评价 {@code DELETE /reviews/{id}}；</li>
  *   <li>我的评价 {@code GET /my/reviews}（支持 dishId 过滤）。</li>
@@ -43,7 +43,6 @@ public class ReviewController {
             description = """
                     用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
                     排序唯一为发表时间倒序，不提供排序参数。
-                    hasImage=true 时只返回带图评价，total 按该口径统计；缺省或 false 不过滤。
                     只返回未隐藏（is_hidden=0）的评价。
                     测试示例：/dishes/1/reviews?page=1&pageSize=20
                     """)
@@ -52,10 +51,8 @@ public class ReviewController {
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize,
-            @Parameter(description = "只看有图：true=仅带图评价；缺省/false=不过滤", example = "true")
-            @RequestParam(defaultValue = "false") boolean hasImage) {
-        return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize, hasImage)));
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize)));
     }
 
     @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
@@ -73,7 +70,7 @@ public class ReviewController {
 
     @Operation(
             summary = "提交评价",
-            description = "用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。成功返回新评价 ID（data.id），端上据此本地写回「我的评价」态，无须回读。",
+            description = "用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**（2026-09-30 简化：不再返回「您已评价过该菜品」），提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {

@@ -29,6 +29,30 @@ public interface StallService {
     void update(Stall stall);
 
     /**
+     * 写回档口楼层（**跨域写契约：correction → canteen**，2026-09-30 楼层纠错新增）。
+     * <p>
+     * <b>为何是独立入口而不是复用 {@link #update(Stall)}</b>：
+     * <ol>
+     *   <li>{@code update} 的契约是「管理端提交整份档口表单」（含 canteenId 校验、全字段覆盖语义），
+     *       而纠错采纳只需要写<b>一个列</b>；复用会把「楼层纠错」耦合进后台编辑口径，</li>
+     *   <li>{@code update} 在 {@code updateById} 影响 0 行时抛「Stall not found」——
+     *       该实现依赖 MyBatis-Plus 的 NOT_NULL 跳过策略，语义是「整行整存」；本入口的语义是
+     *       「按 id 定点写 floor 列」，两者不该共用同一段防御逻辑。</li>
+     * </ol>
+     * <p>
+     * 调用方（纠错采纳）负责「是否该写」的判定（本次纠错 {@code floor} 是否非空）；
+     * 本方法负责「写到哪、写什么形态」——落库细节不外泄，与 {@code DishService.applyCorrection} 同一收口口径。
+     * <p>
+     * 楼层是<b>档口级</b>描述：写回后该档口下<b>全部菜品</b>的详情楼层一并生效。
+     *
+     * @param stallId 目标档口ID（调用方已解析/校验）
+     * @param floor   楼层自由文本（调用方保证非空白，且长度 ≤ {@code CorrectionConst.FLOOR_MAX_LENGTH}）
+     * @throws com.bjtufood.common.exception.BusinessException 楼层为空白（400「楼层不能为空」）
+     *         或目标档口不存在（400「档口不存在」，含并发删除兜底）
+     */
+    void updateFloor(Long stallId, String floor);
+
+    /**
      * 按名 upsert 档口（§7.23 第 1 条）：同名不重复建档（精确匹配，名称列无唯一键，
      * 并发双写极端情况由调用方幂等容忍）。菜品录入/编辑（DishServiceImpl#resolveStallId）
      * 与菜品纠错采纳（createIfMissing=true）共用本入口。

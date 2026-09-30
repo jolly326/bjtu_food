@@ -55,7 +55,7 @@ public interface FeedbackConst {
      */
     // ==================== 举报原因（type=report 的二级分类，字典下发给端上单选） ====================
 
-    /** 举报原因项（value = 机器值，label = 中文标签；经 {@code GET /feedback/report-reasons} 字典下发） */
+    /** 举报原因项（value = 机器值，label = 中文标签；经 {@code GET /report-reasons} 字典下发） */
     record ReportReason(String value, String label) {}
 
     String REPORT_SPAM = "spam";
@@ -67,7 +67,7 @@ public interface FeedbackConst {
 
     /**
      * 举报原因字典（**唯一真源**，List.of 保序 = 下发展示顺序）：端上单选弹层与管理端原因翻译
-     * 均消费 {@code GET /feedback/report-reasons} 下发的同一份，**零硬编码**（PR-12）。
+     * 均消费 {@code GET /report-reasons} 下发的同一份，**零硬编码**（PR-12）。
      */
     List<ReportReason> REPORT_REASONS = List.of(
             new ReportReason(REPORT_SPAM, "垃圾广告 / 营销刷屏"),

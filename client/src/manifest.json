@@ -58,9 +58,10 @@
         /* 隐私合规：开启微信隐私接口检查（MP-002），相册声明见公众平台《用户隐私保护指引》 */
         "__usePrivacyCheck__" : true,
         /* 定位权限声明不提供（端上不申请 scope.userLocation、不声明 requiredPrivateInfos 的 getLocation）。 */
-        /* 按需注入（MP-019）：仅注入当前页面声明的自定义组件脚本，降低启动注入开销；
-           项目组件均为静态引用（无动态 addGlobalDynamics），无风险。 */
-        "lazyCodeLoading" : "requiredComponents"
+        /* MP-019「按需注入」已停用：uni-app 对 lazyCodeLoading 支持不完善，
+           在「分包 / 新增模块」场景会触发 module 'xxx.js' is not defined（按需注入的模块图
+           未收录新增模块，且开发者工具清缓存也无效；见微信开放社区 & uni-app 已知问题）。
+           停用可保证分包页面可靠加载；代价为首屏注入开销略增。 */
     },
     "uniStatistics": {  
         "enable": false

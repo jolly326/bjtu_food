@@ -52,7 +52,7 @@ public class DishServiceImpl implements DishService {
      * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
      * <p>
      * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
-     * 收为 6 的理由（见 docs/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
+     * 收为 6 的理由（见 docs/client/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
      * （无推荐算法），8 条会占满发现态首屏（实测排成 3 行 chips），把「搜索记录」这个
      * 真正的个性化入口挤出可视区。
      */
@@ -259,12 +259,20 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 猜你喜欢：每次请求**随机**取在售菜品名，故**不加缓存**
-     * （响应缓存会让「每次随机」退化为「全站同一份」，change search-page-refresh）。
+     * 猜你喜欢：按端上下发的**会话级** seed 做稳定伪随机取数
+     * （2026-09-29 刷新边界收窄为「重进小程序」）。
+     * <p>
+     * 语义澄清：用户侧<b>无「主动换一批」入口</b>（全仓无下拉刷新），内容却在会话内自变 ⇒
+     * 体验是「界面不稳定」而非「新鲜」；故随机性归于会话——seed 会话内恒定、冷启动才重掷，
+     * 同一次会话内多次进入拿到同一批词条，重进小程序整体重洗。
+     * <p>
+     * 仍<b>不加响应缓存</b>：seed 已把「会话内稳定」表达在数据层；若再加 TTL 型缓存，
+     * 缓存键必须含 seed 才有意义（否则不同会话互相串味），收益与复杂度不成正比。
+     * 真随机分支（未传 seed）本就与缓存语义冲突，更不能缓存。
      */
     @Override
-    public List<GuessLikeVO> guessLike() {
-        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE);
+    public List<GuessLikeVO> guessLike(String seed) {
+        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE, seed);
     }
 
     @Override

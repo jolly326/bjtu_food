@@ -38,6 +38,13 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserService userService;
     private final UserMapper userMapper;
+    /**
+     * 资料落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * {@code updateProfile} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼
+     * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * 现改为「先机审（无事务）→ 再落库（开事务）」。必须是**独立 Bean**：同类自调用不会开启事务。
+     */
+    private final AuthProfilePersister profilePersister;
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
     private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder;
@@ -136,8 +143,11 @@ public class AuthServiceImpl implements AuthService {
         return toUserInfo(user);
     }
 
+    /**
+     * 更新昵称 / 头像。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link AuthProfilePersister#updateNicknameAndAvatar}），使微信机审的外呼期间不占用数据库连接。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public UserInfoVO updateProfile(Long userId, ProfileUpdateReq req) {
         if (!StringUtils.hasText(req.getNickname()) && !StringUtils.hasText(req.getAvatar())) {
             throw new BusinessException("昵称和头像至少填写一项");
@@ -146,10 +156,7 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
-        // 使用 LambdaUpdateWrapper 仅更新昵称/头像，避免把整行（含 bind_email、status 等）
-        // 重新写回，与「邮箱认证写 bind_email」等并发写操作产生 lost update（整行覆盖会回滚并发已提交的字段）。
-        LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
-        updater.eq(User::getId, userId);
+        // 昵称：本地敏感词 + 微信机审（均在无事务状态下完成，不占用数据库连接）
         if (StringUtils.hasText(req.getNickname())) {
             if (localSensitiveFilter.containsSensitive(req.getNickname())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
@@ -158,15 +165,13 @@ public class AuthServiceImpl implements AuthService {
             // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
             // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
             contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
-            updater.set(User::getNickname, req.getNickname());
         }
-        if (StringUtils.hasText(req.getAvatar())) {
-            if (!imageUrlUtil.isValidAvatar(req.getAvatar())) {
-                throw new BusinessException("头像地址不合法，仅支持站内资源或微信云存储");
-            }
-            updater.set(User::getAvatar, req.getAvatar());
+        // 头像：地址白名单校验（同样在无事务状态下完成）
+        if (StringUtils.hasText(req.getAvatar()) && !imageUrlUtil.isValidAvatar(req.getAvatar())) {
+            throw new BusinessException("头像地址不合法，仅支持站内资源或微信云存储");
         }
-        userMapper.update(updater);
+        // 落库收窄为单一事务：仅更新昵称/头像（局部更新，避免整行覆盖导致并发 lost update）
+        profilePersister.updateNicknameAndAvatar(userId, req.getNickname(), req.getAvatar());
         User updated = userMapper.selectById(userId);
         return toUserInfo(updated);
     }

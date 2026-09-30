@@ -38,14 +38,16 @@ public class CorrectionController {
      * 局部提交（patch）：只落库用户改动的字段，未改动列留 NULL；采纳与拒绝走管理端 /admin/corrections。
      */
     @Operation(summary = "提交菜品信息纠错", description = "PUB。游客与登录用户均可提交（dishId 在路径上）；"
-            + "局部提交——只传改动项（name / price(分) / canteenName / stallName / attributes / images，均为选填）；"
-            + "空请求体返回 400「未提交任何改动」。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。"
+            + "局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images，均为选填）；"
+            + "空请求体返回 400「未提交任何改动」（仅改楼层也算有改动）。floor 传入时非空 ≤16 字"
+            + "（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。"
+            + "菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。"
             + "同 IP 每分钟 ≤2 条、每小时 ≤10 条。")
     @PostMapping("/dishes/{id}/correction")
     public Result<Void> submitCorrection(
             @Parameter(description = "目标菜品ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "改动项 {name,price(分),canteenName,stallName,attributes,images}；均为选填，传入即校验")
+            @Parameter(description = "改动项 {name,price(分),canteenName,stallName,floor,attributes,images}；均为选填，传入即校验")
             @Valid @RequestBody DishCorrectionReq req) {
         checkIpRateLimit();
         Long userId = SecurityUtil.getCurrentUserIdOrNull();

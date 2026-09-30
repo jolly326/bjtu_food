@@ -123,7 +123,8 @@ class PageResultContractTest {
     void clientAndWebTypes_haveNoPageOrPageSize() throws IOException {
         List<Path> typeFiles = List.of(
                 ROOT.resolve("client/src/api/shared.ts"),
-                ROOT.resolve("web/src/api/adapter.ts"));
+                // web 完全重写后已移除 snake→camel 的 adapter.ts，分页/响应类型现集中于 types/common.ts
+                ROOT.resolve("web/src/types/common.ts"));
 
         var violations = new ArrayList<String>();
 

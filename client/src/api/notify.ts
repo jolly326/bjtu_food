@@ -7,7 +7,11 @@
  * PUT /my/notifications/read-all   全部已读（幂等，需登录）
  */
 import { get, put } from './http'
-import { recordsOf, type PageResult, type RawRow } from './shared'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
+import {
+  recordsOf, type PageResult,
+  type NotificationVO, type UnreadCountVO,
+} from './shared'
 
 /**
  * 通知行（`NotificationVO`，**5 字段**：id / title / content / isRead / createdAt）。
@@ -25,14 +29,15 @@ export interface Notification {
   createdAt?: string
 }
 
-function toNotification(raw: RawRow): Notification | null {
+/** 强类型入参（2026-09-29 契约单一真源）：取自生成契约，后端改字段即编译期报错 */
+function toNotification(raw: NotificationVO): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
     title: raw.title || '',
     content: raw.content || '',
-    // 契约已是布尔；兼容历史 0/1 形态（仅显式 true / 1 视为已读）
-    isRead: raw.isRead === true || raw.isRead === 1,
+    // 契约已是布尔；保留 0/1 兼容（历史数据），不改变已读判定语义
+    isRead: raw.isRead === true || (raw.isRead as unknown) === 1,
     createdAt: raw.createdAt,
   }
 }
@@ -49,17 +54,17 @@ export async function getNotifications(params: {
 }): Promise<{ list: Notification[] }> {
   const query: Record<string, unknown> = {
     page: params.page ?? 1,
-    pageSize: params.pageSize ?? 20,
+    pageSize: params.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (params.isRead != null) query.isRead = params.isRead
-  const res = await get<PageResult<RawRow>>('/my/notifications', query)
-  return { list: recordsOf(res).map(toNotification).filter(Boolean) as Notification[] }
+  const res = await get<PageResult<NotificationVO>>('/my/notifications', query)
+  return { list: recordsOf<NotificationVO>(res).map(toNotification).filter(Boolean) as Notification[] }
 }
 
 /** 未读总数（STU，驱动红点） */
 export async function getUnreadCount(): Promise<number> {
   try {
-    const res = await get<{ count?: number }>('/my/notifications/unread-count')
+    const res = await get<UnreadCountVO>('/my/notifications/unread-count')
     return Number(res?.count ?? 0)
   } catch {
     return 0

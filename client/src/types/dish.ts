@@ -1,5 +1,5 @@
 /**
- * 菜品类型（列表 / 详情出参拆分，见 docs/feature/client-首页菜品浏览.md D 项）
+ * 菜品类型（列表 / 详情出参拆分，见 docs/client/feature/client-首页菜品浏览.md D 项）
  *
  * **列表行 `DishListItem`**（`GET /dishes`，`DishListItemVO` **恰为 8 字段**）：
  *   id / name / coverImage / price / originalPrice / avgRating / canteenName / stallName
@@ -42,7 +42,7 @@ export interface DishListItem {
  * `value`：`single` 维度为字符串、`multi` 维度为字符串数组。
  * 仅含该菜品实际拥有的维度、按后端维度展示顺序排列（自描述、有序）。
  */
-export interface DishAttributeItem {
+export interface DishAttribute {
   /** 维度键（camelCase；编辑态提交时即 `attributes` 的键） */
   fieldKey: string
   /** 维度中文名（如「饮食属性」） */
@@ -67,7 +67,7 @@ export interface DishDetail {
   /** 档口所属楼层（如 1F/2F；详情专属） */
   floor?: string
   /** 描述属性（值即中文，端上直渲 `value`） */
-  attributes: DishAttributeItem[]
+  attributes: DishAttribute[]
 }
 
 /**
@@ -107,10 +107,12 @@ export interface DishQuery {
   /** 筛选视图键（首页横向筛选栏；值取自 `GET /dishes/views` 的 `key`；不传 = 默认视图） */
   view?: string
   /**
-   * 会话随机种子（2026-09-27 方案 C）：端上每次列表 reset 重掷、翻页沿用同一值。
+   * 会话随机种子（2026-09-27 方案 C；**2026-09-29 生命周期收窄为「会话级」**）：
+   * 端上**冷启动生成一次、会话内恒定**（重进小程序才重掷），翻页沿用同一值。
    * 服务端**仅对「推荐类」视图**（sortKind=SEED_RANDOM）且无 keyword 时按
    * `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序（同 seed 全序恒定，翻页不重不漏）；
    * 其余视图忽略本参数（按各自排序口径）——故端上可无脑随请求下发。
+   * 收窄理由：端上无「主动换一批」入口，会话内自变只会被读成「界面不稳定」而非「新鲜」。
    */
   seed?: string
   page?: number
@@ -119,7 +121,11 @@ export interface DishQuery {
 
 /**
  * 猜你喜欢（GET /dishes/for-you）：语义为「**随机抽取在售菜品名**」
- * （不看热度、不排序、不做个性化，故不缓存）。
+ * （不看热度、不排序、不做个性化）。
+ *
+ * 请求可带**会话级** `seed`（由 `stores/dish.ts` 生成、会话内恒定）：服务端按
+ * `CRC32(seed:ID)` 稳定伪随机序取数 ⇒ 同一次会话内多次进入拿到同一批词条，
+ * **重进小程序**才整体重洗（2026-09-29 刷新边界收窄）。不传 ⇒ 服务端退回 `ORDER BY RAND()`。
  *
  * 出参**只有 `name`**（随机语义下无其他消费点）；**契约留扩展位**：将来升级为个性化 /
  * 推荐算法时端上契约不变（仍为 `name` 列表），只换服务端取数逻辑。

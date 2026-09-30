@@ -1,6 +1,15 @@
 # 开发环境配置（覆盖 application.yml）
 # 凭据统一由 server/.env 提供（spring-dotenv 加载，.env 已加入 .gitignore），见 application.yml 顶部说明。
+# 本地启动：cd server && mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 mybatis-plus:
   configuration:
+    # 本地打印 SQL（生产由 application.yml 默认关闭）
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 本地联调开启接口文档（application.yml 已改为安全默认「关闭」，此处按 profile 显式打开）
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

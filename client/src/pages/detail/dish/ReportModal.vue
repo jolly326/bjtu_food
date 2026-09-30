@@ -49,7 +49,7 @@
 <script setup lang="ts">
 /**
  * 举报底部弹层（页包内私有组件）：**原因单选**（底部弹层形态，对齐 BaseSheet 统一骨架）。
- * 选项来自后端字典 `GET /feedback/report-reasons`（PUB，打开时实时拉取，端上零硬编码——PR-12）；
+ * 选项来自后端字典 `GET /report-reasons`（PUB，打开时实时拉取，端上零硬编码——PR-12）；
  * 选中值经 `submit` 事件上抛（`useReport` 以 sub 上送，content 可空）。
  */
 import { ref, watch } from 'vue'

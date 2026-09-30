@@ -70,6 +70,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
+import { toastError } from '@/utils/error'
 import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
@@ -123,7 +124,8 @@ async function onReadAll() {
     uni.showToast({ title: '已全部标为已读', icon: 'none' })
   } catch (err) {
     console.error('[notifications] 全部已读失败', err)
-    uni.showToast({ title: '操作失败，请稍后重试', icon: 'none' })
+    // 失败文案走统一出口 utils/error（默认兜底即「操作失败，请稍后重试」）
+    toastError(err)
   } finally {
     readAllBusy.value = false
   }

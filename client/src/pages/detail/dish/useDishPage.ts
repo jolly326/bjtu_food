@@ -3,40 +3,36 @@
  *
  * 页面私有编排（仅本页使用，就近置于页面包，不驻留 composables/）：
  * 页面仅保留模板贴片组装与包内子件（ImageSwiper / ReviewComposer / DishInfoCard（含评分行）/
- * DishReviewSection）引用。职责：
- * - 数据流：onLoad 解析 id → resetDishDetail → 并行取详情 / 公开评价 / 我的评价（判定底栏双态）
- *   + 上报浏览；
- * - 顶部大图滚动模型（dish-hero-scroll-model）：sticky 两阶段定格的全部几何量；
- * - 评价分页（触底加载，结束判据 = 已加载条数 ≥ total）、删除本人评价、写评价 / 重新评价弹层、
- *   评价三点菜单、举报（useReport，游客免认证）；
- * - 底栏「写评价 / 重新评价」双态与 ReviewComposer 预填（design D3）。
+ * DishReviewSection）引用。
  *
- * 本文件不持有定位逻辑（坐标与距离能力不提供）。
+ * 职责拆分（职责内聚、无跨文件可变状态）：
+ * - `useDishHeroScroll`：顶部大图滚动模型（sticky 两阶段定格的全部几何量）。
+ * - `useDishReviewCore`：评价分页（触底加载）、删除本人评价、失败重试。
+ * - `useDishReviewComposer`：写评价弹层（恒空表单）、纠错入口。
+ * - `useDishReviewMenu`：评价三点菜单（本人删除 / 他人举报路由）。
+ * - 本文件持有跨子模块共享的可变态（dishId / dish）与生命周期钩子
+ *   （onLoad / onShow / onShareAppMessage），并把 store 取数、上报浏览、分享态写回编排起来。
  *
- * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useDishPage()，
- * 使 store 获取与 onLoad/onPageScroll/onReachBottom/onShareAppMessage/onMounted
- * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
+ * ⚠️ 全部逻辑在函数体内同步执行：由页面在 <script setup> 中同步调用 useDishPage()，
+ * 使 store 获取与 onLoad/onShareAppMessage/onShow 均在组件实例上下文中注册
+ * （模块顶层注册会报 "no active component instance"）。各子 composable 亦由本函数同步调用，
+ * 故其内部的 onMounted / 回调同样在组件上下文中注册。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import type { ComputedRef } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
-import { deleteReview, getMyReviews } from '@/api/review'
-import { isResourceNotFound } from '@/api/http'
-import type { Review, MyReview, ReviewSubmittedPayload } from '@/types/review'
-import { useReport } from './useReport'
+import type { DishDetail } from '@/types/dish'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/back'
-import { getWindowInfo } from '@/utils/device'
-import { toastError } from '@/utils/error'
-import { dishDetailUrl, correctionUrl } from '@/utils/routes'
-// COLOR_MAP：动作项 iconColor 须传**实色**（IconSvg 的 color 不解析 var() —— ActionSheet 已声明该契约，
-// 传 'var(--color-error)' 会导致「举报 / 删除」弹层文字红、图标近黑）
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
-
-/** 评价分页每页条数（详情页固定 10） */
-const REVIEW_PAGE_SIZE = 10
+import { dishDetailUrl } from '@/utils/routes'
+import { useReport } from './useReport'
+import { useDishHeroScroll } from './useDishHeroScroll'
+import { useDishReviewCore } from './useDishReviewCore'
+import { useDishReviewComposer } from './useDishReviewComposer'
+import { useDishReviewMenu } from './useDishReviewMenu'
 
 export function useDishPage() {
   const dishStore = useDishStore()
@@ -52,13 +48,7 @@ export function useDishPage() {
   })
 
   const dishId = ref(0)
-  const dish = computed(() => dishStore.currentDish)
-  const reviewList = computed(() => dishStore.reviewList)
-  /* 注：原 `currentUserId` 派生值随 `ReviewItem.currentUserId` prop 一并移除（UI 统一 Loop Round 17）
-     —— 它只用于把「是否本人评价」下传组件，而该判定改由页面在 `ActionSheet` 侧完成。 */
-  /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
-  const reviewFailed = computed(() => dishStore.reviewError)
-  /** 详情请求失败态（网络 / 服务端故障，**可重试**）：驱动「重新加载 + 返回」恢复路径 */
+  const dish = computed<DishDetail | null | undefined>(() => dishStore.currentDish)
   const detailFailed = computed(() => dishStore.detailError)
   /**
    * 菜品不存在态（后端 `4001`，§7.40 R8，**不可重试**）：与失败态互斥。
@@ -69,121 +59,18 @@ export function useDishPage() {
   /** onLoad 缺少 / 非法菜品 id：同样按失败态呈现（不留纯空白页） */
   const missingDishId = ref(false)
 
-  /**
-   * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
-   * 覆盖首屏拉取与「只看有图」切换——先清空再拉取期间不得误闪「暂无带图评价 / 还没有人评价」；
-   * 页面上不呈现任何骨架屏 / loading 指示（§4.8 红线）。
-   * 用计数而非布尔：删除后重拉、提交后重拉可能与切换并发，计数可正确收敛。
-   */
-  const reviewPendingCount = ref(0)
-  const reviewPending = computed(() => reviewPendingCount.value > 0)
-
-  /** 重置式评价拉取（首屏 / 只看有图切换 / 重试 / 提交后与删除后刷新共用），置 pending 门控 */
-  async function fetchReviewsReset() {
-    if (!dishId.value) return
-    reviewPendingCount.value += 1
-    try {
-      await dishStore.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE, hasImage: imageOnly.value })
-    } finally {
-      reviewPendingCount.value -= 1
-    }
-  }
-
-  /** 当前用户对本菜的评价（判定底栏双态 + 重评预填）；游客 / 未认证恒为 null */
-  const myReview = ref<MyReview | null>(null)
-
-  /** 「有图」筛选（服务端过滤 `hasImage`：分页与筛选同口径） */
-  const imageOnly = ref(false)
-
-  /** detail-modular-review-cleanup：评价卡内触底分页 */
-  const reviewPage = ref(1)
-  const reviewFinished = ref(false)
-  const reviewLoadingMore = ref(false)
-  function resetReviewPaging() {
-    reviewPage.value = 1
-    reviewFinished.value = false
-    reviewLoadingMore.value = false
-  }
-
-  /** 触底加载下一页评价（**结束判据 = 本页返回条数 < `pageSize`**） */
-  async function onReviewsReachBottom() {
-    // 竞态修复（Round 31）：重置式请求（首屏 / 切「全部 ⇄ 有图」）在途时**禁止**追加下一页——
-    // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
-    // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容错乱）。
-    if (reviewPending.value) return
-    if (!dish.value || reviewLoadingMore.value || reviewFinished.value) return
-    reviewLoadingMore.value = true
-    try {
-      // 排序唯一时间倒序，端上不传 sort（PR-02）
-      const res = await dishStore.fetchReviews(dishId.value, {
-        page: reviewPage.value + 1,
-        pageSize: REVIEW_PAGE_SIZE,
-        append: true,
-        hasImage: imageOnly.value,
-      })
-      // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
-      if (!res) return
-      reviewPage.value += 1
-      // 结束判据（分页壳只有 records）：本页条数 < 每页条数 ⇒ 已到末页，不再多发空请求
-      if (res.list.length < REVIEW_PAGE_SIZE) reviewFinished.value = true
-    } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
-  }
-
-  /**
-   * 切换「只看有图」：重置分页 + 清空列表后按新口径重拉。
-   * 在途期由 reviewPending 驱动评价区空白静默（不误闪空态）；空态由评价卡按新口径渲染。
-   */
-  function onToggleImageOnly() {
-    imageOnly.value = !imageOnly.value
-    resetReviewPaging()
-    dishStore.clearReviews()
-    void fetchReviewsReset()
-  }
-
-  /** 大图列表：详情 `images`（恒为数组；无图为空数组 ⇒ 由 ImageSwiper 出占位） */
-  const heroImages = computed(() => dish.value?.images ?? [])
-
-  /* ===== 顶部与滚动模型（UI 统一 Loop Round 16，2026-09-27 裁决 c：hero 移出屏幕 + 菜名渐显）=====
-     与首页 §11 **同构**：顶部 = 公共 `AppTitleBand`（透明；左「返回」+ 居中菜名**随滚动淡入**），
-     其下为**滚动区**（页内 `scroll-view`，`flex: 1`）——滚动区自标题带下沿开始，
-     故 hero 卡随滚动 **1:1 上移、在带下沿被裁**（"移出屏幕"，与首页 Banner 逐字一致），
-     **不会从标题带背后经过** ⇒ 标题带恒透明、**零切片 / 零实底切换 / 零承接条**。
-     已退役（原 sticky 两阶段定格方案的全部几何）：`pinLine / heroBase / pinStart / dishBodyMin /
-     carryOpacity / navSolid / topPad / navPadRight / spacingSmPx / windowHeight`，
-     以及页面级 `onPageScroll` / `onReachBottom`（改由滚动区的 `@scroll` / `@scrolltolower` 承接）。 */
-  const scrollTop = ref(0)
-  const windowWidth = ref(375)
-  /** hero 卡左右留白（px）：与首页 Banner 同口径（四周 12px + 圆角卡） */
-  const HERO_GUTTER_PX = 12
-  /** hero 卡高度（px）：可用宽按 16:10 —— 与首页 Banner 同口径 */
-  const heroHeightPx = computed(() => Math.round(((windowWidth.value - HERO_GUTTER_PX * 2) * 10) / 16))
-  /* ===== 菜名渐显（口径 c，R16）：hero 卡完全滚出后再淡入，避免与信息卡菜名同屏重复 ===== */
-  /** 渐显起点缓冲（px）：hero 滚出标题带下沿后再留这么多才开始淡入 */
-  const TITLE_FADE_START_PX = 16
-  /** 淡入区间（px） */
-  const TITLE_FADE_SPAN = 96
-  const navOpacity = computed(() => {
-    if (dish.value == null) return 1
-    const start = heroHeightPx.value + TITLE_FADE_START_PX
-    const p = (scrollTop.value - start) / TITLE_FADE_SPAN
-    return Math.min(1, Math.max(0, p))
+  const hero = useDishHeroScroll(dish)
+  const reviewCore = useDishReviewCore({ dishId })
+  const composer = useDishReviewComposer({
+    dish,
+    dishId,
+    fetchReviewsReset: reviewCore.fetchReviewsReset,
+    resetReviewPaging: reviewCore.resetReviewPaging,
   })
-  const dishName = computed(() => (dish.value ? dish.value.name : '菜品详情'))
-  /** 滚动区滚动回调（页内 `scroll-view` 的 `@scroll`）：**只驱动菜名淡入**，不参与布局 / 位移。
-   *  量化到整数 px + 值未变则不写，避免亚像素抖动触发无意义重算。
-   *  平台例外：uni 滚动回调只声明本组件真正读取的字段（MP-08，替代裸 any） */
-  function onScroll(e: { detail?: { scrollTop?: number } }) {
-    const raw = e?.detail?.scrollTop ?? 0
-    const top = raw > 0 ? Math.round(raw) : 0
-    if (top === scrollTop.value) return
-    scrollTop.value = top
-  }
-  onMounted(() => {
-    // 只取**视口宽**（hero 卡按 16:10 定高用）。状态栏 / 导航行高 / 胶囊避让均由公共 `AppTitleBand` 自持
-    // （UI 统一 Loop Round 16：本页不再消费任何顶部度量）。
-    // 平台取值统一走 `utils/device`（Round 17：本文件不再触碰全局 `wx`，故无 `any` / `eslint-disable`）
-    const win = getWindowInfo()
-    windowWidth.value = (win && win.windowWidth) || 375
+  const { reportOpen, reportSubmitting, openReport, submitReport } = useReport()
+  const menu = useDishReviewMenu({
+    onDeleteReview: reviewCore.onDeleteReview,
+    onReport: (rv) => openReport(rv.id),
   })
 
   /** 位置文案：食堂 · 楼层 · 档口名 */
@@ -197,9 +84,6 @@ export function useDishPage() {
     return nodes.join(' · ') || '未知位置'
   })
 
-  /* 注：评分分布（`ratingDistribution`）已随「评分进度条」一并从契约与端上移除
-     （UI 统一 Loop Round 22，用户规格：不绘制评分进度条）；「有无评分」改由 `avgRating` 判空表达。 */
-
   onLoad((query) => {
     const id = Number(query?.id)
     if (!id) {
@@ -211,35 +95,21 @@ export function useDishPage() {
     missingDishId.value = false
     dishId.value = id
     dishStore.resetDishDetail()
-    myReview.value = null
-    imageOnly.value = false
     void loadDishData()
   })
 
   /** 进入页面并行取数：详情 + 公开评价 + 我的评价（判定底栏态）；浏览计数由详情接口在服务端完成 */
   async function loadDishData() {
     if (!dishId.value) return
-    resetReviewPaging()
+    reviewCore.resetReviewPaging()
     // 详情页首屏零用户态请求：仅详情 + 公开评价并行（游客与登录行为完全一致）；
     // 「我是否已评价」的判定推迟到用户点击「写评价」时（见 onOpenReviewComposer）
     const tasks: Promise<unknown>[] = [
       dishStore.fetchDetail(dishId.value),
-      fetchReviewsReset(),
+      reviewCore.fetchReviewsReset(),
     ]
     await Promise.all(tasks)
     syncSharedDish()
-  }
-
-  /** 拉取「我的评价（按菜过滤）」：判定是否已评价，取回评价 ID 与旧值供重评预填 */
-  async function loadMyReview() {
-    if (!dishId.value) return
-    try {
-      const res = await getMyReviews({ dishId: dishId.value, page: 1, pageSize: 1 })
-      myReview.value = res.list[0] ?? null
-    } catch {
-      // 判定失败静默降级为「未评价」，不阻塞详情展示
-      myReview.value = null
-    }
   }
 
   /** 详情请求失败后重试（与进入页面同路径，仅重拉详情）
@@ -264,191 +134,36 @@ export function useDishPage() {
     path: dishDetailUrl(dishId.value),
   }))
 
-  /**
-   * 删除本人评价：成功后重拉列表 + 刷新评分。
-   *
-   * **4001（评价不存在）**：已在别处删除 / 评价 ID 失效 ⇒ 重试无意义，
-   * 按「已不存在」收尾（本地移除 + 提示），不再走通用失败文案。
-   */
-  function onDeleteReview(rv: Review | MyReview) {
-    if (!userStore.requireAuth(() => onDeleteReview(rv))) return
-    // 公开视角行才带作者标识（本人视角 MyReviewVO 不含 userId，列表内恒为本人）
-    if ('userId' in rv && userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
-    uni.showModal({
-      title: '删除评价',
-      content: '确定删除这条评价吗？删除后不可恢复。',
-      confirmText: '删除',
-      confirmColor: MODAL_CONFIRM_DANGER_COLOR,
-      success: async (res) => {
-        if (!res.confirm) return
-        try {
-          await deleteReview(rv.id)
-          uni.showToast({ title: '评价已删除', icon: 'none' })
-          // 删除的若是本人评价：判定态回退为「未评价」
-          if (myReview.value?.id === rv.id) myReview.value = null
-          resetReviewPaging()
-          await fetchReviewsReset()
-          dishStore.fetchDetail(dishId.value)
-        } catch (e) {
-          if (isResourceNotFound(e)) {
-            // 评价已不存在：本地移除并复位底栏态即可（不提示「删除失败」误导可重试）
-            dishStore.removeReview(rv.id)
-            if (myReview.value?.id === rv.id) myReview.value = null
-            uni.showToast({ title: '评价已不存在', icon: 'none' })
-            return
-          }
-          toastError(e, '删除失败')
-        }
-      },
-    })
-  }
-
-  /* ===== 写评价 / 重新评价（底栏左钮 → ReviewComposer 底部抽屉） ===== */
-  const composerOpen = ref(false)
-  /** 底栏主按钮文案：已评价 = 重新评价，未评价 = 写评价（游客恒为「写评价」） */
-  const reviewButtonText = computed(() => (myReview.value ? '重新评价' : '写评价'))
-  /** 重评预填（评分 / 文字 / 配图）；未评价为 null */
-  const composerPrefill = computed(() => {
-    const rv = myReview.value
-    if (!rv) return null
-    return { rating: rv.rating, content: rv.content, images: rv.images ?? [] }
-  })
-  /** 重评目标评价 ID；未评价为 null（走首次发表 POST） */
-  const composerReviewId = computed(() => myReview.value?.id ?? null)
-
-  /**
-   * 打开评价表单：**「我是否已评价」的判定时机在此**（表单打开前）——
-   * 已认证用户先调「我的评价（按菜过滤）」：已评价则以重评模式（预填旧值）打开，未评价打开空表单。
-   * 判定失败静默按未评价处理（此时提交若命中唯一键冲突 → 400 提示兜底）。
-   * 与删除同款：未认证跳独立认证页，认证成功返回本页后由 onShow 续接（consumePending）。
-   */
-  async function onOpenReviewComposer() {
-    if (!dish.value) return
-    if (!userStore.requireAuth(() => void onOpenReviewComposer())) return
-    await loadMyReview()
-    composerOpen.value = true
-  }
-
-  /**
-   * 底栏「反馈错误」：跳反馈页「更新信息」模式并**预选本菜品**
-   * （`update` 模式带 dishId ⇒ 进页即拉详情预填七字段表单，跳过搜索步骤）。
-   *
-   * 落点用唯一构造函数 `feedbackUrl`（禁止手拼 URL）；**免认证** ——
-   * `POST /dishes/{id}/correction` 属公开写，游客同样可直达，故不经 `requireAuth`。
-   */
-  function onCorrectDishInfo() {
-    if (!dishId.value) return
-    uni.navigateTo({
-      url: correctionUrl(dishId.value),
-    })
-  }
-
-  /**
-   * 提交成功：两种模式均**本地写回** myReview（底栏就地切为/保持「重新评价」，不回读接口）——
-   * - 重评：载荷携带本人评价 ID，原行更新新值；
-   * - 首次发表：载荷携带 POST 出参返回的新评价 ID，本地构造「我的评价」；
-   * 两种情况均重置分页并按当前「只看有图」口径重拉评价 + 刷新综合评分。
-   */
-  function onReviewSubmitted(payload: ReviewSubmittedPayload) {
-    myReview.value = {
-      id: payload.reviewId,
-      rating: payload.rating,
-      content: payload.content,
-      createdAt: new Date().toISOString(),
-      images: payload.images,
-      // 本人视角专属两字段（本地写回沿用当前菜品上下文）
-      dishId: dishId.value,
-      dishName: dish.value?.name ?? '',
-    }
-    resetReviewPaging()
-    void fetchReviewsReset()
-    dishStore.fetchDetail(dishId.value)
-  }
-
-  /** 评价失败态点击重试（PR-03）：重置分页后从第 1 页重拉，与进入页面同路径 */
-  function onRetryReviews() {
-    if (!dishId.value) return
-    resetReviewPaging()
-    void fetchReviewsReset()
-  }
-
-  /* ===== 评价三点菜单（ReviewItem @more → 页面级通用 ActionSheet） ===== */
-  const reviewMoreOpen = ref(false)
-  const reviewMoreTarget = ref<Review | MyReview | null>(null)
-  const reviewMoreIsOwn = computed(() => {
-    const rv = reviewMoreTarget.value
-    if (rv == null || userStore.userInfo?.id == null) return false
-    // 公开视角行带作者标识；本人视角（MyReviewVO 无 userId）列表内恒为本人评价
-    return 'userId' in rv ? rv.userId === userStore.userInfo.id : true
-  })
-
-  function onReviewMore(rv: Review | MyReview) {
-    reviewMoreTarget.value = rv
-    reviewMoreOpen.value = true
-  }
-
-  /**
-   * 动作项：本人删除 / 他人举报（危险操作警示色）。
-   * <p>
-   * ⚠️ `iconColor` 必须传**实色** `COLOR_MAP['error']`（ActionSheet 的契约：IconSvg 的 color 不解析 var()）；
-   * `textColor` 走 CSS 绑定、`var()` **合法**，故保持 `var(--color-error)` 以随主题。
-   */
-  const reviewMoreItems = computed(() => {
-    if (!reviewMoreTarget.value) return []
-    return reviewMoreIsOwn.value
-      ? [{ key: 'delete', label: '删除评价', icon: 'delete', iconColor: COLOR_MAP['error'], textColor: 'var(--color-error)' }]
-      : [{ key: 'report', label: '举报评价', icon: 'report', iconColor: COLOR_MAP['error'], textColor: 'var(--color-error)' }]
-  })
-
-  function onReviewMoreSelect(key: string) {
-    const rv = reviewMoreTarget.value
-    if (!rv) return
-    if (key === 'delete') onDeleteReview(rv)
-    else if (key === 'report') onReviewReport(rv)
-  }
-
-  /* ===== 评价举报（收敛到 useReport hook） ===== */
-  const { reportOpen, reportSubmitting, openReport, submitReport } = useReport()
-
-  function onReviewReport(rv: Review | MyReview) {
-    openReport(rv.id)
-  }
-
   /** 供页面模板/模板回调使用的全部编排绑定（名称与抽取前 <script setup> 顶层保持一致） */
   return {
     dish,
     dishId,
-    dishName,
-    heroImages,
-    heroHeightPx,
-    navOpacity,
-    onScroll,
+    dishName: hero.dishName,
+    heroImages: hero.heroImages,
+    heroHeightPx: hero.heroHeightPx,
+    navOpacity: hero.navOpacity,
+    onScroll: hero.onScroll,
     locationText,
-    reviewList,
-    reviewFailed,
-    reviewPending,
+    reviewList: reviewCore.reviewList,
+    reviewFailed: reviewCore.reviewFailed,
+    reviewPending: reviewCore.reviewPending,
     detailFailed,
     detailNotFound,
     missingDishId,
-    imageOnly,
-    reviewButtonText,
-    composerPrefill,
-    composerReviewId,
-    composerOpen,
+    composerOpen: composer.composerOpen,
     reportOpen,
     reportSubmitting,
-    reviewMoreOpen,
-    reviewMoreItems,
+    reviewMoreOpen: menu.reviewMoreOpen,
+    reviewMoreItems: menu.reviewMoreItems,
     backToHome,
     onRetryDetail,
-    onToggleImageOnly,
-    onReviewMore,
-    onReviewMoreSelect,
-    onCorrectDishInfo,
-    onOpenReviewComposer,
-    onReviewSubmitted,
-    onRetryReviews,
-    onReviewsReachBottom,
+    onReviewMore: menu.onReviewMore,
+    onReviewMoreSelect: menu.onReviewMoreSelect,
+    onCorrectDishInfo: composer.onCorrectDishInfo,
+    onOpenReviewComposer: composer.onOpenReviewComposer,
+    onReviewSubmitted: composer.onReviewSubmitted,
+    onRetryReviews: reviewCore.onRetryReviews,
+    onReviewsReachBottom: reviewCore.onReviewsReachBottom,
     submitReport,
   }
 }

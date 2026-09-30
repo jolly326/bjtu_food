@@ -1,6 +1,15 @@
 import { uploadFile, post } from './http'
-import { WX_CLOUD_ENV } from './config'
-import { getWxApi } from '@/utils/device'
+import type { UploadResultVO } from './shared'
+
+/**
+ * UGC 配图上传结果（**只暴露 `url`**）。
+ *
+ * <p>服务端出参为 `UploadResultVO{ url, relativeUrl }`，但本函数**只透出 `url`**：
+ * `relativeUrl` 仅本地磁盘降级链路返回（COS 链路恒空），
+ * 端上展示一律用 `url`（后端已按 `app.public-base-url` 拼好的绝对地址），
+ * 故 `relativeUrl` 按「零消费即删」不透出到端上模型——但**类型来源仍是契约**。
+ */
+type UploadedImage = Pick<UploadResultVO, 'url'>
 
 /**
  * 头像图片上传（**仅限头像等本人非公开用途**）。
@@ -22,9 +31,6 @@ export async function uploadAvatarImage(tempFilePath: string): Promise<string> {
   return result.url
 }
 
-/** UGC 图片上传超时：对齐 http.ts UPLOAD_TIMEOUT_MS（15s），防止上传 promise 永久挂起 */
-const UGC_UPLOAD_TIMEOUT_MS = 15000
-
 /**
  * UGC 配图上传（评价 / 反馈共用）。
  *
@@ -39,50 +45,18 @@ const UGC_UPLOAD_TIMEOUT_MS = 15000
  * @param tempFilePath 本地临时文件路径（chooseMedia/compressImage 产物）
  * @returns 后端 COS 正式 URL（提交评价/反馈时随 images 数组上送）
  */
-export function uploadUgcImage(tempFilePath: string): Promise<{ url: string }> {
-  let result!: Promise<{ url: string }>
+export function uploadUgcImage(tempFilePath: string): Promise<UploadedImage> {
+  let result!: Promise<UploadedImage>
 
-  // ===== 微信小程序端：云存储 fileID → 后端安检转存 COS =====
+  // ===== 微信小程序端：复用 http.uploadFile 的云存储上传（含 MP-003 settled 超时守卫）拿到 cloud:// fileID → 后端安检转存 COS =====
   // #ifdef MP-WEIXIN
   result = (async () => {
-    // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
-    const wxApi = getWxApi()
-    if (!wxApi || !wxApi.cloud) {
-      throw new Error('当前环境不支持 wx.cloud')
-    }
-    const fileId = await new Promise<string>((resolve, reject) => {
-      // MP-003 同款 settled 模式：超时/失败及时 reject，防调用方上传中状态锁死
-      let settled = false
-      const done = (fn: () => void) => {
-        if (!settled) {
-          settled = true
-          fn()
-        }
-      }
-      const timeoutTimer = setTimeout(() => {
-        done(() => {
-          if (task && typeof task.abort === 'function') task.abort()
-          reject(new Error('上传超时，请重试'))
-        })
-      }, UGC_UPLOAD_TIMEOUT_MS)
-      const clearTimer = () => { clearTimeout(timeoutTimer) }
-      // cloudPath：ugc/YYYYMMDD/<时间戳>-<随机数>.jpg（本地时区日期，避免同名覆盖）
-      const now = new Date()
-      const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-      const rand = Math.random().toString(36).slice(2, 8)
-      const cloudPath = `ugc/${ymd}/${Date.now()}-${rand}.jpg`
-      const task = wxApi.cloud.uploadFile({
-        config: { env: WX_CLOUD_ENV },
-        cloudPath,
-        filePath: tempFilePath,
-        // 平台例外：微信回调透传，仅取其 fileID
-        success: (r: any) => { clearTimer(); done(() => resolve(String(r?.fileID || ''))) },
-        fail: (err: any) => { clearTimer(); done(() => reject(new Error(err?.errMsg || '上传失败，请重试'))) },
-      })
-    })
+    // 与 http.uploadFile 同源：微信云存储上传 + settled 超时守卫，避免两处手抄同一套 cloud 上传 + timeout 逻辑（口径漂移风险）
+    const { url: fileId } = await uploadFile(tempFilePath)
     if (!fileId) throw new Error('上传失败，请重试')
     // 后端安检 + 转存 COS：违规返回 400「图片包含违规内容，无法上传」（http 层抛 message）
-    return post<{ url: string }>('/upload/cloud-image', { fileId })
+    // 出参用契约 `UploadResultVO`（含 relativeUrl；COS 链路恒空，仅本地磁盘降级链路有值）
+    return post<UploadResultVO>('/upload/cloud-image', { fileId })
   })()
   // #endif
 

@@ -43,6 +43,13 @@ import java.util.Map;
 public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
+    /**
+     * 落库事务边界（2026-09-29 性能修正）：写路径的 {@code @Transactional} 只包住**落库**本身。
+     * 原先事务从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）⇒ 期间一直占用数据库连接；
+     * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 必须是**独立 Bean**：Spring 事务靠代理生效，同类的自调用不会开启事务。
+     */
+    private final FeedbackPersister feedbackPersister;
     /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递的认证判据（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     /** 跨域只读契约：管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
@@ -54,8 +61,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     /** 跨域只读契约：举报目标（评价）存在性与可见性校验（方案 B 举报子资源） */
     private final ReviewService reviewService;
 
+    /**
+     * 提交反馈。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link FeedbackPersister#insert}），使微信机审的外呼期间不占用数据库连接。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, FeedbackReq req) {
         // 类型写入白名单（方案 B 2026-09-29）：仅纯反馈三类可写（bug / suggestion / other），
         // 非法 / 历史遗留（issue / add / error / report）→ 400（不再原样落库）；
@@ -81,11 +91,14 @@ public class FeedbackServiceImpl implements FeedbackService {
         // 边界：游客（userId=null）与无 openid 账号跳过机审放行（本地词库兜底）。
         checkUgcText(userId, feedback.getContent());
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
-        feedbackMapper.insert(feedback);
+        feedbackPersister.insert(feedback);
     }
 
+    /**
+     * 举报评价。<b>本方法刻意不加 {@code @Transactional}</b>：与 {@link #submit} 同理，
+     * 存在性/去重/机审均在无事务状态下完成，仅落库一步开事务。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void report(Long userId, Long reviewId, ReportReq req) {
         // 举报目标必须存在且公开可见（已隐藏 / 已删除对外等价于不存在 → 4001）
         if (!reviewService.existsVisibleById(reviewId)) {
@@ -116,7 +129,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setRelatedId(reviewId);
         feedback.setStatus(FeedbackConst.STATUS_PENDING);
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "举报", imageUrlUtil));
-        feedbackMapper.insert(feedback);
+        feedbackPersister.insert(feedback);
     }
 
     /**

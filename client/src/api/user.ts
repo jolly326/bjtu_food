@@ -1,6 +1,6 @@
 import type { UserInfo } from '@/types/user'
 import { get, post, put, del } from './http'
-import type { RawRow } from './shared'
+import type { UserInfoVO, LoginVO } from './shared'
 
 /**
  * 账号信息映射（`UserInfoVO` **4 字段**：id / nickname / avatar / bindEmail）。
@@ -8,14 +8,16 @@ import type { RawRow } from './shared'
  * 已删字段端上不再读取：verified（bindEmail 派生冗余，端上经 useUserStore().isVerified() 单点派生）、
  * email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、createdAt、guestShortId（端上按 id 现算）、
  * username（两处身份副行统一渲染 bindEmail，裸学号不再展示）。
+ *
+ * <p>入参用生成的强类型 {@link UserInfoVO}（2026-09-29 契约单一真源）。
  */
-function toUserInfo(raw: RawRow): UserInfo {
+function toUserInfo(raw: UserInfoVO): UserInfo {
   return {
     id: Number(raw.id ?? 0),
     nickname: raw.nickname || '食客',
     avatar: raw.avatar || '',
     // 微信登录体系（§5.y）：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
-    bindEmail: raw.bindEmail || raw.bind_email || undefined,
+    bindEmail: raw.bindEmail || undefined,
   }
 }
 
@@ -39,11 +41,10 @@ export async function sendEmailCode(username: string): Promise<void> {
  * 出参 `data` = `LoginVO`（`token` + `userInfo`），故此处按包装结构取值。
  */
 export async function wechatLogin(code: string): Promise<AuthResult> {
-  const resp = await post<RawRow>('/auth/wechat-login', { code })
-  const user = (resp?.userInfo || resp?.user || {}) as RawRow
+  const resp = await post<LoginVO>('/auth/wechat-login', { code })
   return {
     token: String(resp.token || ''),
-    userInfo: toUserInfo(user),
+    userInfo: toUserInfo(resp.userInfo ?? ({} as UserInfoVO)),
   }
 }
 
@@ -53,18 +54,18 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
  * **出参 `data` 直接为 `UserInfoVO`（无 `userInfo` 外层包装）**。
  */
 export async function verifyEmail(code: string): Promise<UserInfo> {
-  const resp = await post<RawRow>('/auth/verify-email', { code })
+  const resp = await post<UserInfoVO>('/auth/verify-email', { code })
   return toUserInfo(resp)
 }
 
 /** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 bindEmail —— 认证判据来源） */
 export async function getProfile(): Promise<UserInfo> {
-  const resp = await get<RawRow>('/auth/profile')
+  const resp = await get<UserInfoVO>('/auth/profile')
   return toUserInfo(resp)
 }
 
 export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
-  const resp = await put<RawRow>('/auth/profile', data)
+  const resp = await put<UserInfoVO>('/auth/profile', data)
   return toUserInfo(resp)
 }
 

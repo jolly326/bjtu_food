@@ -1,16 +1,22 @@
 import type { Review, MyReview } from '@/types/review'
-import { get, post, put, del } from './http'
-import { recordsOf, type RawRow, type RawPage } from './shared'
+import { get, post, del } from './http'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
+import {
+  recordsOf, type RawPage,
+  type ReviewVO, type MyReviewVO, type ReviewCreatedVO,
+} from './shared'
 
 /**
  * 公开视角行映射（`GET /dishes/{id}/reviews`，8 字段）。
  * R9 拆型：本函数**不再**读取 `dishId` / `dishName`（二者属本人视角；`isHidden` 任何视角均不下发，客户端只接收未隐藏评价）。
+ *
+ * <p>入参用生成的强类型 {@link ReviewVO}（2026-09-29 契约单一真源）。
  */
-function toReview(raw: RawRow): Review {
+function toReview(raw: ReviewVO): Review {
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
-    userNickname: raw.userNickname ?? raw.userName ?? '匿名用户',
+    userNickname: raw.userNickname ?? '匿名用户',
     userAvatar: raw.userAvatar || '',
     rating: Number(raw.rating || 0),
     content: raw.content || '',
@@ -29,7 +35,7 @@ function toReview(raw: RawRow): Review {
  * 后端出参类型为 `MyReviewVO`：公开 5 字段（`id` / `rating` / `content` / `images` / `createdAt`）
  * + `dishId` / `dishName`；**不含 `userId` / `userNickname` / `userAvatar`**（恒等于本人、零信息）。
  */
-function toMyReview(raw: RawRow): MyReview {
+function toMyReview(raw: MyReviewVO): MyReview {
   return {
     id: Number(raw.id),
     rating: Number(raw.rating || 0),
@@ -47,22 +53,19 @@ function toMyReview(raw: RawRow): MyReview {
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
  * - 菜品归属由路径表达（不再用查询参数）；
  * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
- * - `hasImage=true` 时仅返回带图评价（后端布尔契约 `hasImage=true`）；
  * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  */
 export async function getDishReviews(
   dishId: number,
-  options?: { page?: number; pageSize?: number; hasImage?: boolean },
+  options?: { page?: number; pageSize?: number },
 ): Promise<{ list: Review[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 20,
+    pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
-  // 布尔契约（2026-09-29 由 0/1 改）：true 时服务端仅返回带图评价
-  if (options?.hasImage) params.hasImage = true
-  // MP-08：响应定型为分页载体 RawPage（行结构仍宽松 → RawRow），不再用裸 any
-  const res = await get<RawPage>(`/dishes/${dishId}/reviews`, params)
-  return { list: recordsOf<RawRow>(res).map(toReview) }
+  // 强类型：元素类型取自生成契约，后端改 ReviewVO 字段即编译期报错
+  const res = await get<RawPage<ReviewVO>>(`/dishes/${dishId}/reviews`, params)
+  return { list: recordsOf<ReviewVO>(res).map(toReview) }
 }
 
 /**
@@ -84,12 +87,12 @@ export async function getMyReviews(
 ): Promise<{ list: MyReview[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
-    pageSize: options?.pageSize ?? 20,
+    pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (options?.dishId != null) params.dishId = options.dishId
-  // MP-08：同 getDishReviews，响应定型为 RawPage / RawRow
-  const res = await get<RawPage>('/my/reviews', params)
-  return { list: recordsOf<RawRow>(res).map(toMyReview) }
+  // 强类型：同 getDishReviews，元素类型取自生成契约
+  const res = await get<RawPage<MyReviewVO>>('/my/reviews', params)
+  return { list: recordsOf<MyReviewVO>(res).map(toMyReview) }
 }
 
 /** 评价提交/重评入参（不含 dishId：菜品归属由路径锁定） */
@@ -104,18 +107,11 @@ interface ReviewSubmitPayload {
 
 /**
  * 发表评价（POST /dishes/{id}/reviews；需完成学号邮箱认证）。
- * 每个用户对同一菜品仅评价一次，评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
- * 成功返回**新评价 ID**（data.id）——调用方本地写回「我的评价」态，无须回读接口。
+ * **同一用户对同一菜品的重复提交由服务端覆盖旧评价**（端上不区分首评 / 重评，2026-09-30 简化），
+ * 故不再提供 `PUT /reviews/{id}` 的端上封装（零调用即删）。评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
+ * 成功返回评价 ID（data.id）。
  */
 export async function createReview(dishId: number, payload: ReviewSubmitPayload): Promise<number> {
-  const res = await post<{ id: number }>(`/dishes/${dishId}/reviews`, payload)
+  const res = await post<ReviewCreatedVO>(`/dishes/${dishId}/reviews`, payload)
   return Number(res.id)
-}
-
-/**
- * 重新评价（PUT /reviews/{id}；作者本人 + 需认证）。
- * **覆盖更新同一条评价**（评分 / 文字 / 配图），不新建行；发表时间刷新、隐藏标记重置、聚合重算。
- */
-export async function updateReview(reviewId: number, payload: ReviewSubmitPayload): Promise<void> {
-  await put<void>(`/reviews/${reviewId}`, payload)
 }

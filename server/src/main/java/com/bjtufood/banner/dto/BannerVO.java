@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * 首页轮播图视图对象（VO）—— **公开出参仅 2 个字段**
  * <p>
- * 契约口径（2026-09-22，见 docs/feature/client-首页菜品浏览.md I6）：
+ * 契约口径（2026-09-22，见 docs/client/feature/client-首页菜品浏览.md I6）：
  * <ul>
  *   <li>{@code id}：轮播项稳定 key（端上 swiper 列表 key）；</li>
  *   <li>{@code imageUrl}：可直接渲染的**绝对 URL**（服务端经 ImageUtil 转换，绝对地址原样返回）；</li>

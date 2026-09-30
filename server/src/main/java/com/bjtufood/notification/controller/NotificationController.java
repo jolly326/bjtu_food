@@ -71,7 +71,7 @@ public class NotificationController {
         return Result.success();
     }
 
-    @Operation(summary = "单条已读", description = "STU（需邮箱认证）。通知不存在或非本人时静默成功（不报错、不暴露他人通知存在性）。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "单条已读", description = "STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @PutMapping("/my/notifications/{id}/read")

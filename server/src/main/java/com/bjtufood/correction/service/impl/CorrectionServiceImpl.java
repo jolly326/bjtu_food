@@ -41,8 +41,9 @@ import java.util.Map;
 /**
  * 菜品信息纠错服务实现（独立资源：POST /dishes/{id}/correction + /admin/corrections）。
  * <p>
- * 提交：局部提交（patch）——只落库改动项（食堂名/档口名为自由文本，无字典端点），status=pending；
- * 采纳：两段式档口确认后按改动项写回 dish；拒绝：reply + rejectReason 留痕；
+ * 提交：局部提交（patch）——只落库改动项（食堂名/档口名/楼层为自由文本，无字典端点），status=pending；
+ * 采纳：两段式档口确认后按改动项写回 dish（{@code floor} 例外，写回<b>目标档口</b> {@code stall.floor}）；
+ * 拒绝：reply + rejectReason 留痕；
  * 两种处理结论均向可归属提交人投递「菜品信息更新」站内回执（归属判据/投递口径同 feedback handle）。
  */
 @Slf4j
@@ -51,6 +52,14 @@ import java.util.Map;
 public class CorrectionServiceImpl implements CorrectionService {
 
     private final DishCorrectionMapper correctionMapper;
+    /**
+     * 落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * {@code submit} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）
+     * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * 现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 必须是**独立 Bean**：Spring 事务靠代理生效，同类自调用不会开启事务。
+     */
+    private final CorrectionPersister correctionPersister;
     /** 跨域契约：菜品存在性/在售判定、菜品名投影、采纳写回（P0-1，替代 DishMapper 直连） */
     private final DishService dishService;
     /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
@@ -65,8 +74,13 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     // ==================== 提交（POST /dishes/{id}/correction） ====================
 
+    /**
+     * 提交纠错。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link CorrectionPersister#insert}），使微信机审的外呼期间不占用数据库连接。
+     * <p>
+     * 注：{@code adopt} / {@code reject} 不含外部 HTTP 调用，事务边界保持原样。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
         // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
         // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：correction 不再 import Dish 实体/DishConst/DishMapper）
@@ -110,6 +124,18 @@ public class CorrectionServiceImpl implements CorrectionService {
                 throw new BusinessException(400, "档口名称不能超过" + CorrectionConst.STALL_NAME_MAX_LENGTH + "字");
             }
         }
+        // floor：楼层（自由文本，归属档口），传入即校验非空与长度。
+        // 长度上限与 stall.floor VARCHAR(16) 严格一致——采纳会把提交值原样写回该列，上限不一致会静默截断/报错。
+        String floor = null;
+        if (req.getFloor() != null) {
+            floor = req.getFloor().trim();
+            if (!StringUtils.hasText(floor)) {
+                throw new BusinessException(400, "楼层不能为空");
+            }
+            if (floor.length() > CorrectionConst.FLOOR_MAX_LENGTH) {
+                throw new BusinessException(400, "楼层超长");
+            }
+        }
         // price：传入即校验 >0 的整数（分）
         Integer price = req.getPrice();
         if (price != null && price <= 0) {
@@ -120,19 +146,20 @@ public class CorrectionServiceImpl implements CorrectionService {
                 ? null : req.getAttributes();
         List<String> images = encodeImages(req.getImages());
 
-        if (name == null && price == null && canteenName == null && stallName == null
+        // floor 计入改动项：**仅改楼层**的一次提交（如 1F → 2F）也是有效纠错，不得判「未提交任何改动」
+        if (name == null && price == null && canteenName == null && stallName == null && floor == null
                 && attributes == null && images == null) {
             throw new BusinessException(400, "未提交任何改动");
         }
 
         // ---- 微信内容安全检测（2026-09-29 补齐：纠错是唯一无微信机审的 UGC 入口）----
-        // 纠错的 name / canteenName / stallName / attributes 均为**用户自由文本**，
-        // 且纠错内容会被管理员**采纳并写回 dish**（即进入公开展示），
+        // 纠错的 name / canteenName / stallName / floor / attributes 均为**用户自由文本**，
+        // 且纠错内容会被管理员**采纳并写回**（进入公开展示：菜品经 dish、楼层经 stall.floor），
         // 仅靠本地静态词库不足以覆盖谐音/变体/语义违规。
         // 口径与 feedback / review / 昵称一致：risky 由 checkText 统一拦截为 400。
         // 合并为**单次**调用送检（见 mergeModerationText）：msgSecCheck 按调用计费且有 2500 字上限，
         // 分字段多次送检会成倍放大微信调用额度，故拼接后一次提交。
-        checkUgcText(userId, mergeModerationText(name, canteenName, stallName, attributes));
+        checkUgcText(userId, mergeModerationText(name, canteenName, stallName, floor, attributes));
 
         DishCorrection correction = new DishCorrection();
         correction.setDishId(dishId);
@@ -141,10 +168,11 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setPrice(price);
         correction.setCanteenName(canteenName);
         correction.setStallName(stallName);
+        correction.setFloor(floor);
         correction.setAttributes(JsonMapUtil.toJson(attributes));
         correction.setImages(images);
         correction.setStatus(CorrectionConst.STATUS_PENDING);
-        correctionMapper.insert(correction);
+        correctionPersister.insert(correction);
     }
 
     /**
@@ -178,8 +206,8 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 合并纠错中所有<b>用户自由文本</b>字段，拼接为<b>单条</b>待检文本。
      * <p>
      * <b>为何合并而不是逐字段送检</b>：{@code msgSecCheck} 按<b>调用次数</b>计费，
-     * 一次纠错最多可提交 name / canteenName / stallName / attributes 四类文本，
-     * 逐字段送检会把微信调用额度放大到 4 倍；合并为一次则<b>恒定 1 次</b>。
+     * 一次纠错最多可提交 name / canteenName / stallName / floor / attributes 五类文本，
+     * 逐字段送检会把微信调用额度放大到 5 倍；合并为一次则<b>恒定 1 次</b>。
      * <p>
      * <b>为何用换行分隔而不是直接拼接</b>：若直接相连，两个字段的边界词可能
      * 偶然拼出一个新词造成误判；换行是 msgSecCheck 认可的分隔符，且语义上
@@ -192,14 +220,17 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 全部字段皆空（局部提交只改了 price / images）时返回空串，由
      * {@link #checkUgcText} 的空值判断直接跳过，不产生多余的微信调用。
      *
+     * @param floor 楼层（自由文本，归属档口；采纳时写回 {@code stall.floor} 进入公开展示，
+     *              故与其余自由文本字段同等待遇，一并送检）
      * @return 合并后的待检文本；无任何文本字段时返回 {@code ""}
      */
-    private String mergeModerationText(String name, String canteenName, String stallName,
+    private String mergeModerationText(String name, String canteenName, String stallName, String floor,
                                        Map<String, Object> attributes) {
         StringBuilder sb = new StringBuilder();
         appendIfPresent(sb, name);
         appendIfPresent(sb, canteenName);
         appendIfPresent(sb, stallName);
+        appendIfPresent(sb, floor);
         if (attributes != null && !attributes.isEmpty()) {
             appendIfPresent(sb, JsonMapUtil.toJson(attributes));
         }
@@ -300,6 +331,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setPrice(c.getPrice());
         vo.setCanteenName(c.getCanteenName());
         vo.setStallName(c.getStallName());
+        // 楼层：改动项快照，直接下发（未改动为 null）；管理端据此判断采纳时是否写回档口楼层
+        vo.setFloor(c.getFloor());
         vo.setAttributes(JsonMapUtil.parseObject(c.getAttributes()));
         List<String> images = c.getImages() == null ? List.of() : c.getImages();
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
@@ -367,8 +400,21 @@ public class CorrectionServiceImpl implements CorrectionService {
      * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——correction
      * 不再构造 {@code Dish} 实体、不再注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
      * 属 dish 域落库形态，一并收回 dish 实现。
+     * <p>
+     * <b>楼层纠错（2026-09-30 新增）</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
+     * （{@code stall.floor}），菜品无楼层字段。故本次纠错携带楼层时，写入上面已解析出的
+     * <b>目标档口</b>（{@code resolvedStallId}），同档口下全部菜品的详情楼层一并生效；
+     * 写动作经 {@code StallService#updateFloor} 跨域写契约下发（同 P0-1 收口口径）。
      */
     private void applyAdoption(DishCorrection correction, Long resolvedStallId) {
+        // 楼层改动项：非空即「有改动」→ 写回目标档口（同档口其他菜品一并生效）。
+        // 目标档口沿用上方**既有解析结果**（管理端显式 stallId / 提交档口名命中 / 确认新建），
+        // 本方法不重新解析档口。注意：提交档口名为空（未改动）时既有解析不会自动取「该菜当前所属档口」，
+        // 而是走两段式候选确认、由管理端选定（= 该菜当前所属档口）后再次调用——该段逻辑本次刻意未动。
+        // 写失败（档口不存在）抛 400，与下方 dish 写回同处 adopt 事务，一并回滚。
+        if (StringUtils.hasText(correction.getFloor())) {
+            stallService.updateFloor(resolvedStallId, correction.getFloor());
+        }
         // 实际挂靠档口名（管理端指定档口可能不同于提交名；档口不存在时保持提交名，与原 stall==null 判定同效）
         String resolvedStallName = stallService.getNameById(resolvedStallId);
         if (!dishService.applyCorrection(new DishCorrectionCmd(correction.getDishId(), correction.getName(),
@@ -382,7 +428,11 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setReply(CorrectionConst.ADOPT_REPLY);
         correction.setRejectReason(null);
         correction.setHandledAt(LocalDateTime.now());
-        if (resolvedStallName != null && !correction.getStallName().equals(resolvedStallName)) {
+        // 归档实际挂靠档口名（**null-safe，2026-09-30 缺陷修复**）：局部提交下 stallName 快照可为 null
+        // （用户未改动档口名），原写法 correction.getStallName().equals(...) 在该情形直接 NPE（采纳 500）。
+        // 楼层纠错让这条路径从「罕见」变成常态（仅改楼层的提交 stallName 恒为 null），故必须收口。
+        // 语义不变：resolvedStallName 非空且与快照不同（快照为 null 亦属「不同」）时，以实际挂靠档口名归档。
+        if (resolvedStallName != null && !resolvedStallName.equals(correction.getStallName())) {
             correction.setStallName(resolvedStallName);
         }
         correctionMapper.updateById(correction);

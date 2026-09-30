@@ -28,12 +28,14 @@ import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.dish.controller.DishController;
 import com.bjtufood.dish.dto.DishAttributeItem;
 import com.bjtufood.dish.dto.DishDetailVO;
+import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.controller.FeedbackController;
 import com.bjtufood.feedback.controller.ReportController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.feedback.service.impl.FeedbackPersister;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
@@ -150,6 +152,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserServiceImpl.class,
         // 反馈 / 举报入参校验（type 白名单 / 举报原因白名单）的真实实现
         FeedbackServiceImpl.class,
+        // 反馈落库事务 Bean（2026-09-29：事务边界收窄为本类，主 Service 依赖它，切片需一并登记）
+        FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
         SmokeApiTest.AopTestConfig.class
 })
@@ -295,6 +299,42 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(4001))
                 .andExpect(jsonPath("$.message").value("菜品不存在"));
     }
+    // ==================== 链路 2b：猜你喜欢（会话级 seed，2026-09-29） ====================
+
+    /**
+     * 2026-09-29「刷新边界 = 重进小程序」：{@code GET /dishes/for-you} 新增**可选** {@code seed}，
+     * 端上传会话级种子 ⇒ 服务端按 {@code CRC32(seed:ID)} 稳定伪随机序取数（会话内同一批词条）。
+     * <p>
+     * <b>判据是桩的参数匹配本身</b>：桩只对精确值 {@code "session-abc"} 生效——若控制器参数名写错、
+     * 或把它吞掉传了 {@code null}，桩不匹配 ⇒ 出参为 null ⇒ 用例变红。故不再叠加 verify 计数断言
+     * （避免与「桩调用是否计入 verify」的实现细节纠缠）。
+     */
+    @Test
+    void guessLike_seedPassedThroughToService() throws Exception {
+        when(dishService.guessLike("session-abc")).thenReturn(List.of(new GuessLikeVO("牛肉拉面")));
+
+        mockMvc.perform(get("/dishes/for-you").param("seed", "session-abc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].name").value("牛肉拉面"));
+    }
+
+    /**
+     * {@code seed} 是**可选**参数（向后兼容：旧端 / 第三方 / Swagger 直连不传 seed 时，
+     * 服务端退回 {@code ORDER BY RAND()} 真随机）。若有人把它改成 {@code required}，
+     * 本用例会以 400 变红——这正是「本次改动不是破坏性变更」的护栏。
+     */
+    @Test
+    void guessLike_seedOmitted_isNotRequired() throws Exception {
+        when(dishService.guessLike(isNull())).thenReturn(List.of(new GuessLikeVO("蛋炒饭")));
+
+        mockMvc.perform(get("/dishes/for-you"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].name").value("蛋炒饭"));
+    }
+
+
 
     // ==================== 链路 3：评价 ====================
 
@@ -435,7 +475,7 @@ class SmokeApiTest {
 
     /**
      * 举报（report）走**结构化原因单选**：`sub` = 举报原因机器值（必选，字典
-     * `GET /feedback/report-reasons` 下发项）、`content` **可空**（不再强制文本描述）。
+     * `GET /report-reasons` 下发项）、`content` **可空**（不再强制文本描述）。
      * 断言：合法原因正常落库，`sub` 精确落列、`content` 归一为空串。
      */
     @Test

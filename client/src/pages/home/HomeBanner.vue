@@ -1,5 +1,5 @@
 <template>
-  <!-- 16:10 轮播 Banner（docs/ui/client-首页菜品浏览.md §3）
+  <!-- 16:10 轮播 Banner（docs/client/ui/client-首页菜品浏览.md §3）
        · 图片清单来自 `GET /banners`（服务端已按 sort_order 升序、只返回启用项）——
          端上按返回顺序渲染、不排序、不写死任何 URL 与张数；
        · 多张：自动轮播（AUTOPLAY_INTERVAL）+ 循环 + 底部居中指示点；仅一张：不轮播、不显示指示点；

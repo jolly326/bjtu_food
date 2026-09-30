@@ -15,6 +15,7 @@
  * （页面级 `onReachBottom` 不再触发 —— Round 17 踩坑记录；历史见 git 归档）。
  */
 import { ref, type Ref } from 'vue'
+import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 
 export interface UsePagedListOptions<T extends { id: number }> {
   /** 拉取第 `page` 页（页码从 1 开始），返回本页行数组 */
@@ -50,10 +51,34 @@ export interface UsePagedListReturn<T> {
   loadMore: () => Promise<void>
 }
 
+/**
+ * 分页增量合并（单一真源）：把新一页 `incoming` 去重追加到 `current`，并判定是否到底。
+ *
+ * <p>去重：以 `id` 为唯一键，丢弃已在列表中的行（极端分页跳号防护，与 `usePagedList` 同源）。
+ * <p>封底：本页 `incoming.length === 0` 或 `< pageSize` 即到底（`finished = true`）——
+ * 后端 `PageResult` 仅下发明细、无 total，故「满页」不能判定还有下一页，必须靠 0 长度封口。
+ *
+ * <p>调用方保留自己的「竞态守卫（seq）/ 重入锁 / 失败回退页码」逻辑；本函数只负责
+ * 「合并 + 封底」这一份纯逻辑，供 find / review / 首页复用，避免各自手抄一份。
+ */
+export function mergePagedRows<T extends { id?: number }>(
+  current: T[],
+  incoming: T[],
+  pageSize: number,
+): { rows: T[]; finished: boolean } {
+  if (incoming.length === 0) {
+    // 0 长度：无新增，封口到底；不触碰 current（避免空态闪现）
+    return { rows: current, finished: true }
+  }
+  const existIds = new Set(current.map((it) => it.id))
+  const rows = current.concat(incoming.filter((it) => !existIds.has(it.id)))
+  return { rows, finished: incoming.length < pageSize }
+}
+
 export function usePagedList<T extends { id: number }>(
   options: UsePagedListOptions<T>,
 ): UsePagedListReturn<T> {
-  const { fetchPage, pageSize = 20, canLoad, canLoadMore, onLoadSuccess, onLoadSettled, loadFailLabel } = options
+  const { fetchPage, pageSize = DEFAULT_PAGE_SIZE, canLoad, canLoadMore, onLoadSuccess, onLoadSettled, loadFailLabel } = options
 
   const list = ref<T[]>([]) as Ref<T[]>
   const loading = ref(false)
@@ -94,22 +119,11 @@ export function usePagedList<T extends { id: number }>(
     try {
       page += 1
       const rows = await fetchPage(page, pageSize)
-      if (rows.length < pageSize) finished.value = true
-      // 空页处理（2026-09-29 修复 P2）：
-      // 「本页不足 pageSize」是唯一的到底判据（后端 PageResult 只有 records，不下发 total），
-      // 故当总条数恰为 pageSize 整数倍时，本页会返回**满页**、被误判为「还有下一页」，
-      // 用户继续下拉 → 下一请求返回 0 条 → 列表尾部会**闪过一下空态**。
-      //
-      // 修法：0 条即视为「无新增」，回退页码并**不触碰 list**（list 长度不变 ⇒
-      // 页面 v-if="list.length" 的空态判定天然不触发），同时置 finished 彻底封口。
-      if (rows.length === 0) {
-        page -= 1
-        finished.value = true
-        return
-      }
-      // 去重（极端情况下分页跳号），避免重复行
-      const existIds = new Set(list.value.map((it) => it.id))
-      list.value = list.value.concat(rows.filter((it) => !existIds.has(it.id)))
+      // 合并 + 封底（单一真源 mergePagedRows）：去重追加、0 长度封口、满页未封底。
+      // 0 长度即「无新增」⇒ 封口到底且 page 已 +1 不再触发后续请求（finished 守卫拦截）。
+      const merged = mergePagedRows(list.value, rows, pageSize)
+      list.value = merged.rows
+      finished.value = merged.finished
     } catch {
       // 失败回退页码（保持静默：不打断滚动；再次触底会重试同一页）
       page -= 1

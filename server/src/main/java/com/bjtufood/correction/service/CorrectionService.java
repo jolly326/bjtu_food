@@ -16,9 +16,12 @@ public interface CorrectionService {
      * 提交菜品信息纠错（PUB：游客与登录用户均可，匿名允许），status=pending。
      * <p>
      * **局部提交（patch）**：只落库用户改动的字段（name / price / canteenName / stallName /
-     * attributes / images），未改动列留 NULL（采纳时不覆盖 dish 既有值）；**空请求体 → 400「未提交任何改动」**。
+     * floor / attributes / images），未改动列留 NULL（采纳时不覆盖既有值）；**空请求体 → 400「未提交任何改动」**
+     * ——仅改楼层（如 1F → 2F）同样算「有改动」，不得被该判据拦下。
      * 校验：菜品须存在且上架（否则 4001）；name 传入时非空 ≤64 字且敏感词命中即 400
      * （写回字段不放行替换版）；price 传入时为 &gt;0 的整数（分）；canteenName/stallName 传入时非空 ≤64 字；
+     * floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」，
+     * 上限与 {@code stall.floor VARCHAR(16)} 对齐）；
      * images ≤3 张且逐项 COS 白名单校验（安检转存发生在上传时）。
      *
      * @param userId 提交人用户ID（游客为 null）
@@ -42,6 +45,12 @@ public interface CorrectionService {
      * 采纳动作：七字段写回 dish（name/price/档口挂靠/flavorTags/ingredients/images；
      * 可空快照字段不覆盖既有值，保护「菜品首图必填」不变量）→ status=adopted、
      * reply=「已采纳，菜品信息已更新」、handled_at=now → 向可归属提交人投递站内回执。
+     * <p>
+     * <b>楼层纠错</b>：{@code floor} 不写回 dish（菜品无楼层字段）——本次纠错携带楼层时，
+     * 写回上面已解析出的<b>目标档口</b> {@code stall.floor}，同档口下其他菜品一并生效。
+     * 档口解析沿用同一优先级（显式 stallId &gt; 提交档口名命中 &gt; createIfMissing 新建）；
+     * {@code stallName} 未改动（快照为 null）时目标档口即「该菜当前所属档口」，由管理端在
+     * 两段式确认里选定既有档口后落定（既有行为不变）。
      *
      * @return null = 已执行采纳（Controller 返回 Result<Void>）；
      *         非 null = 需要档口确认（未执行任何写操作），Controller 原样下发

@@ -72,5 +72,5 @@ export function useRateLimitCooldown() {
 
   onUnmounted(stopTimer)
 
-  return { cooldownSeconds, cooling, handleError, clearCooldown, DEFAULT_COOLDOWN }
+  return { cooldownSeconds, cooling, handleError, clearCooldown }
 }

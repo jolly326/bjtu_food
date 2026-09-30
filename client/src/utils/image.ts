@@ -49,7 +49,7 @@ export function getImageUrl(path?: string | null): string {
  *
  * 其它情况（`cloud://` 云存储、data:/blob:、无图片扩展名、已含处理参数）一律原样返回。
  */
-export function getThumbUrl(path?: string | null): string {
+function getThumbUrl(path?: string | null): string {
   if (!path) return ''
   // 微信云存储文件 ID：无缩略图概念，原样返回
   if (path.startsWith('cloud://')) return path

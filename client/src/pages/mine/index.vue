@@ -7,78 +7,94 @@
     <Header title="我的" :show-back="false" />
 
     <scroll-view class="mine-scroll" scroll-y>
-      <!-- 用户卡：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
-           整卡点击进入「我的主页」（游客与认证态同达，无认证拦截）；
-           认证动作的单一入口为宫格「身份认证」格，用户卡不放「去认证」按钮 -->
-      <view
-        class="user-card"
-        :class="{ 'user-card--verified': isVerified }"
-        role="button"
-        aria-label="查看我的主页"
-        @tap="onUserCardTap"
-      >
-        <view class="user-card-head">
-          <view class="avatar-wrap">
-            <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
-            <view v-else class="avatar avatar-empty">
-              <IconSvg name="user" :size="60" :color="COLOR_MAP['text-tertiary']" />
+      <!-- ===== 双卡片分组（UI 稿「双卡片定稿版」）：卡片 A（个人信息 + 快捷功能）→ 卡片 B（账号设置）
+         分组依据 = Apple HIG 语义分组：身份信息与快捷操作同组；账号协议/注销属独立设置组。
+         原「用户卡 + 3 张宫格小卡 + 设置列表卡」共 5 张独立白卡已合并为 2 张语义卡。
+         **仅容器结构与视觉** —— 业务逻辑 / 跳转 / 弹窗 / 角标 / 无障碍全部沿用原稿。 ===== -->
+      <!-- 卡片 A：个人信息 + 快捷功能 -->
+      <view class="mine-card">
+        <!-- 用户信息模块（卡片 A 内第 1 段）：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
+             整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
+             认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
+        <view
+          class="user-card"
+          :class="{ 'user-card--verified': isVerified }"
+          role="button"
+          aria-label="查看我的主页"
+          @tap="onUserCardTap"
+        >
+          <view class="user-card-head">
+            <view class="avatar-wrap">
+              <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
+              <view v-else class="avatar avatar-empty">
+                <IconSvg name="user" :size="60" :color="COLOR_MAP['text-tertiary']" />
+              </view>
             </view>
+            <view class="user-meta">
+              <text class="nickname">
+                {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
+              </text>
+              <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示派生短标识。
+                   `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
+              <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
+              <text v-else class="user-id">游客 {{ guestLabel }}</text>
+            </view>
+            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
           </view>
-          <view class="user-meta">
-            <text class="nickname">
-              {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
-            </text>
-            <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示派生短标识。
-                 `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
-            <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
-            <text v-else class="user-id">游客 {{ guestLabel }}</text>
+        </view>
+
+        <!-- 卡内段间浅分隔线（用户信息 ↔ 功能宫格）；**仅此一处** ——
+             宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除（两卡靠留白分隔，不靠线） -->
+        <view class="card-divider" />
+
+        <!-- 功能宫格模块（卡片 A 内第 2 段 · 本段为卡片 A 最后一块内容，**底部不加分隔线**）：
+             一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；
+             本稿**移除每格独立白卡外壳**（无边框 / 圆角 / 阴影），仅保留图标外层圆形浅底；
+             个人信息编辑已并入「我的主页」页（用户信息模块点击直接进入，无认证拦截） -->
+        <view class="grid">
+          <view
+            v-for="cell in gridCells"
+            :key="cell.key"
+            class="grid-cell"
+            role="button"
+            :aria-label="cell.label"
+            hover-class="pressed"
+            @tap="cell.action"
+          >
+            <view class="grid-cell-icon">
+              <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
+              <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
+              <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
+              <!-- 身份认证：已认证时右上主色圆点（状态徽章） -->
+              <view v-else-if="cell.key === 'cert' && isVerified" class="badge badge-dot badge-cert" aria-hidden="true" />
+            </view>
+            <text class="grid-cell-label">{{ cell.label }}</text>
           </view>
-          <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
         </view>
       </view>
 
-      <!-- 功能宫格：一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；
-           个人信息编辑已并入「我的主页」页（用户卡点击直接进入，无认证拦截） -->
-      <view class="grid">
-        <view
-          v-for="cell in gridCells"
-          :key="cell.key"
-          class="grid-cell"
-          role="button"
-          :aria-label="cell.label"
-          hover-class="pressed"
-          @tap="cell.action"
-        >
-          <view class="grid-cell-icon">
-            <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
-            <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
-            <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
-            <!-- 身份认证：已认证时右上主色圆点（状态徽章） -->
-            <view v-else-if="cell.key === 'cert' && isVerified" class="badge badge-dot badge-cert" aria-hidden="true" />
-          </view>
-          <text class="grid-cell-label">{{ cell.label }}</text>
-        </view>
-      </view>
-
-      <!-- 「其他」分组列表：三行独立入口（用户协议 / 隐私政策 / 注销账号），行间细分隔线；
-           每行整行热区（role="button"），注销行为危险弱化色 -->
+      <!-- 卡片 B：账号设置（独立第二张白卡，与卡片 A 同款 Token；上外边距 --spacing-lg） -->
       <view class="more-group">
-        <view
-          v-for="row in moreRows"
-          :key="row.key"
-          class="more-row"
-          :class="{ 'more-row--danger': row.danger }"
-          role="button"
-          :aria-label="row.label"
-          hover-class="pressed"
-          @tap="row.action"
-        >
-          <text class="more-row-text">{{ row.label }}</text>
-          <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="more-row-arrow" />
+        <!-- 三行独立入口（用户协议 / 隐私政策 / 注销账号），行间细分隔线；
+             每行整行热区（role="button"），注销行为危险弱化色；**底部不加分隔线**（卡片 B 内最后一块） -->
+        <view class="more-card">
+          <view
+            v-for="row in moreRows"
+            :key="row.key"
+            class="more-row"
+            :class="{ 'more-row--danger': row.danger }"
+            role="button"
+            :aria-label="row.label"
+            hover-class="pressed"
+            @tap="row.action"
+          >
+            <text class="more-row-text">{{ row.label }}</text>
+            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="more-row-arrow" />
+          </view>
         </view>
       </view>
 
-      <!-- 版本行：纯展示（aria-hidden），独立于列表之外居中 -->
+      <!-- 版本行：纯展示（aria-hidden），**位于大卡之外**、居中 -->
       <view class="app-footer" aria-hidden="true">
         <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
         <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
@@ -100,6 +116,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
+import { toastError } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
@@ -181,7 +198,8 @@ function onAccountDelete() {
         await deleteAccount()
         uni.showToast({ title: '账号已注销', icon: 'none' })
       } catch (e) {
-        uni.showToast({ title: e instanceof Error && e.message ? e.message : '注销失败，请稍后重试', icon: 'none' })
+        // 失败文案走统一出口 utils/error（e 为 null 时不会崩）
+        toastError(e, '注销失败，请稍后重试')
       } finally {
         userStore.forceLogout()
       }
@@ -215,17 +233,31 @@ const moreRows = [
    `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
    且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
-/* 用户卡（tab-pages-visual-unify）：认证态与游客态**同为**白底一级身份卡 + 柔和投影，
-   与首页卡片表面语言一致。两态差异仅由顶部主色软条纹与卡片内容
-   （昵称/绑定邮箱、游客态副行）表达，不再用「透明 vs 白底」区分。 */
-.user-card {
-  display: flex; flex-direction: column; gap: var(--spacing-md);
-  margin: var(--spacing-md) var(--spacing-md) var(--spacing-md);
-  padding: var(--spacing-lg);
+/* ===== 双卡片外壳（UI 稿「双卡片定稿版」）=====
+   卡片 A（个人信息 + 快捷功能）与卡片 B（账号设置）**共用同一套全局 Token**，视觉完全一致：
+   `--bg-card` + `--shadow-card` + `--radius-card`（与菜品详情页卡片完全一致）；横向外边距 `--spacing-md`。
+   两卡之间留 `--spacing-lg` **留白分隔**（非分隔线 —— 卡片本身已是完整边界，再加线会形成双重边界噪声）。 */
+.mine-card,
+.more-group {
+  margin: var(--spacing-md) var(--spacing-md) 0;
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  border-top: 6rpx solid transparent;
   box-shadow: var(--shadow-card);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+/* 卡片 B 上外边距 = 卡间距 `--spacing-lg`（卡片 A 纵向 margin 为 0，两者叠加 = lg） */
+.more-group { margin-top: var(--spacing-lg); }
+/* 卡内段间浅分隔线（`--border-color` 浅淡线条，**不用深色粗线**）：**仅一处** ——
+   用户信息 ↔ 功能宫格。宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除。 */
+.card-divider { height: 2rpx; background: var(--border-color); }
+
+/* 用户信息模块（卡内第 1 段）：**自身不再是独立卡片**（无 bg / shadow / radius / 外边距），
+   认证态与游客态表面语言一致，差异仅由顶部主色软条纹与内容（昵称 / 邮箱、游客态副行）表达。 */
+.user-card {
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  border-top: 6rpx solid transparent;
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
@@ -246,8 +278,10 @@ const moreRows = [
 .user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-arrow { flex-shrink: 0; }
 
-/* 功能宫格：一行 3 格等宽等高圆角白卡，每格整格热区 */
-.grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); margin: var(--spacing-md) var(--spacing-md) 0; }
+/* 功能宫格模块（卡内第 2 段）：**一行三列内联布局**，**每格去掉独立白卡外壳**
+   （无 background / border-radius 白卡 / box-shadow；本稿修订 2026-09-30）；每格整格热区，
+   按压反馈 = `--bg-soft` 底色（保留 `--radius-btn` 小圆角，使按压底色不露直角）。 */
+.grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-lg); }
 .grid-cell { flex: 0 0 calc((100% - 2 * var(--spacing-md)) / 3); min-width: 0;
   display: flex;
   flex-direction: column;
@@ -255,9 +289,7 @@ const moreRows = [
   justify-content: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-sm);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-btn);
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
@@ -280,14 +312,9 @@ const moreRows = [
 /* 身份认证已认证徽章：主色圆点（区别于通知红点） */
 .badge-cert { background: var(--color-primary); }
 
-/* 「其他」分组列表：白底分组卡 + 三行独立列表项（细分隔线），行内文字 + 右箭头 */
-.more-group {
-  margin: var(--spacing-lg) var(--spacing-md) 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
+/* 「其他」列表 = **卡片 B 的内部列表容器**（`.more-group` 自身即卡片 B 外壳，白卡 Token 已在上面统一定义）：
+   三行独立列表项，行间细分隔线（`.more-row` 的 `border-bottom`）；**底部不加分隔线**（卡片 B 内最后一块）。 */
+.more-card { overflow: hidden; }
 .more-row {
   display: flex;
   align-items: center;
