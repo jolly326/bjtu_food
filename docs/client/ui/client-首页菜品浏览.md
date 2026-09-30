@@ -166,13 +166,13 @@ TabBar（fixed，透明底）
 | ⑦ 在途 | 切类**不触发**「静默加载中」（`HomeContent` 只订阅 `LOADING_KEY_HOME`）⇒ 旧列表继续在屏、无闪白 |
 | ⑧ 结果 | 新数据到达替换列表；失败 → `homeError=true`，有数据则静默保留，空才渲染 `RetryBlock` |
 
-**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchDishViews()`）⇒ 字典失败不阻塞列表，**标签栏判空整体不渲染**（端上不留任何兜底标签 —— 文案是服务端资产，Round 32）；`onShow` 重试（**仅「从未成功」时**）；`fetchDishViews` 内顺带校正选中项（所选视图已不在字典 → 自动回落**字典首项**，即服务端声明的默认视图）。
+**字典可用性**：首屏 `onLoad` **不 await** 字典（`void fetchDishViews()`）⇒ 字典失败不阻塞列表，**标签栏判空整体不渲染**（端上不留任何兜底标签 —— 文案是服务端资产）；`onShow` 重试（**仅「从未成功」时**）；`fetchDishViews` 内顺带校正选中项（所选视图已不在字典 → 自动回落**字典首项**，即服务端声明的默认视图）。
 
 ### 5.4 排序口径（端上无排序入口）
 
 | 项 | 口径 |
 |---|---|
-| 默认视图（「为你推荐」，`sortKind=SEED_RANDOM`） | **会话种子稳定伪随机序**：`ORDER BY CRC32(CONCAT(seed,'-',id)), id`；`seed` 在每次列表 reset 时由端上**重掷**、翻页沿用 ⇒ 每次进入整体重洗、同次浏览顺序稳定（翻页不重不漏） |
+| 默认视图（「为你推荐」，`sortKind=SEED_RANDOM`） | **会话种子稳定伪随机序**：`ORDER BY CRC32(CONCAT(seed,'-',id)), id`；`seed` 由端上**冷启动（重进小程序）生成一次、会话内恒定**（切视图 / 重试**不重掷**）、翻页沿用 ⇒ 同次会话内顺序完全稳定（内容不自变）、重进才整体重洗（翻页不重不漏） |
 | 大类 / 搜索流（`sortKind=HEAT`） | **服务端固定热度倒序**：`heatScoreExpr = view_count × 1 + rating_count × 100 + avg_rating × 20`；带 `keyword` 或非推荐视图时 `seed` 不参与 |
 | 可选排序 | **无**（无按钮 / 面板 / 下拉 / 胶囊，不传任何排序参数） |
 | 传参 | `GET /dishes` 恰 5 项：`page` / `pageSize` / `keyword` / `view` / `seed` |
@@ -327,7 +327,7 @@ TabBar（fixed，透明底）
 
 **落地**：`client/src/theme/tokens.ts`（`COLOR_MAP` / `CSS_VARS` 真源）→ `theme/generated-colors.css` → `App.vue` `@import`（Web 端只同步主色系）。
 
-- **背景**：`--bg-page` `#FFF8EF` ｜ `--bg-card` `#FFFFFF` ｜ `--bg-soft` `#EDE9E5`（chip / 分段槽底色；**图片占位灰底为 `--bg-placeholder`**，Round 31）｜ `--bg-soft-orange` `#FFE8D1` ｜ `--bg-soft-yellow` `#FFF3D6`；
+- **背景**：`--bg-page` `#FFF8EF` ｜ `--bg-card` `#FFFFFF` ｜ `--bg-soft` `#EDE9E5`（chip / 分段槽底色；**图片占位灰底为 `--bg-placeholder`**）｜ `--bg-soft-orange` `#FFE8D1` ｜ `--bg-soft-yellow` `#FFF3D6`；
 - **文字四档**：`--text-title` `#2D1F14`（15.1:1）｜ `--text-body` `#4A3520`（10.9:1）｜ `--text-subtitle` `#7F6A55`（4.86:1）｜ `--text-placeholder` `#B5A594`（2.39:1，**仅作输入占位**）；
 - **功能色**：success `#2E7D32` ｜ warning `#E67E22` ｜ error `#C62828` ｜ info `#1565C0`。
 
@@ -358,7 +358,7 @@ TabBar（fixed，透明底）
 | ② 纱 | 全站 token `--page-wash` = `rgba(255,248,239,0.6)`（唯一定义处 = `App.vue` 的 `page{}`） | 同组件内一个 `<view>` 的 `background-color`，**铺满整张壁纸、处处相同**（无分段 / 无渐变）。**α 是「背景突出度 ↔ 文字可读性」的唯一旋钮**，改一处即全站生效 |
 | ③ 内容 | 标题带 / 滚动区（Banner + 吸顶容器 + 网格）/ TabBar | 壁纸层 `z-index: var(--z-page-bg)`（**−1**）⇒ 天然在内容之下，内容无需补 `z-index` |
 
-**为什么不需要给横条做「表面」**：滚动区被结构性夹在「标题带下沿 ↔ 菜单栏上沿」之间 ⇒ 标题带 / 菜单栏背后**始终只有壁纸本体**，不铺任何表面即天然连续（历史六种表面方案的全部失败记录见 loop 文档）。
+**为什么不需要给横条做「表面」**：滚动区被结构性夹在「标题带下沿 ↔ 菜单栏上沿」之间 ⇒ 标题带 / 菜单栏背后**始终只有壁纸本体**，不铺任何表面即天然连续。
 **唯一例外 = 吸顶容器**（卡片会从它背后滚过）：`v-if="pinned"` 只在吸顶态渲染**背景图原样切片** —— 外层 `overflow: hidden` + 内层页底同款壁纸（**同 `src`**、同实测盒高），按**标题带高 `titleBandPx`** 上移贴回视口原点（与 `AppTitleBand.height`、页面 `padding-top` **三者同源**，不二次测量）；未吸顶时完全透明。
 
 **硬性要求**
@@ -421,7 +421,7 @@ TabBar（fixed，透明底）
 9. **固定标题带**是顶部唯一由端上渲染的文本（位置 / 高度 / 对齐 / 配色跨页一致）；Banner 图上不得出现端上文本；
 10. **Banner 比例锁定 16:10**（含最小高度兜底；左右各 12px + `--radius-card` 圆角 + 上距标题带 12px）；定高取宽**必须与 `App.vue` 宽屏限宽 720px 同源**；
 11. Banner 是正常流首块：滚出后**不得**在任何横条背后残留图片 / 不得做定格背景；标题带独立固定层；
-12. Banner 加载中 / 失败**块高不变**；空 / 失败 / 破图占位一律走公共 **`ImagePlaceholder`**（灰底 `--bg-placeholder` + **图片破损图标 `image-broken`**，Round 31 全站统一 —— SHALL NOT 各页自绘占位、SHALL NOT 再用 `dish` / `empty` 顶替）；
+12. Banner 加载中 / 失败**块高不变**；空 / 失败 / 破图占位一律走公共 **`ImagePlaceholder`**（灰底 `--bg-placeholder` + **图片破损图标 `image-broken`** —— SHALL NOT 各页自绘占位、SHALL NOT 再用 `dish` / `empty` 顶替）；
 13. 首页**不得存在任何筛选入口**；搜索页无食堂 / 价格筛选胶囊；
 14. **搜索区为单颗胶囊**（内嵌「搜索」按钮）：**不得改回「左胶囊 + 右独立按钮」两件结构、不得等分为两块**；
 15. 顶部各块间距以 **§7** 为唯一真源，**不得裸值近似**；纵向间距不得在标签行内外各叠一层；

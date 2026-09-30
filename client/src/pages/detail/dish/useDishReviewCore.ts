@@ -1,9 +1,9 @@
 /**
- * 评价列表 + 删除编排（评价分页 / 只看有图 / 删除本人评价）。
+ * 评价列表 + 删除编排（评价分页 / 删除本人评价）。
  *
  * 分页封底口径与 `usePagedList` 同源（结束判据 = 本页返回条数 < `pageSize`）；
  * 重置式请求在途时由 `reviewPending` 禁止追加下一页（Round 31 竞态修复，守卫在 store 的 `reviewFetchSeq`）。
- * 可变共享态 `myReview` / `imageOnly` 由 `useDishPage` 拥有并注入，本模块只读写，不重新声明。
+ * 本模块**无用户态缓存**（写评价已取消写前判定与「我的评价」态写回，2026-09-30）。
  */
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
@@ -18,12 +18,10 @@ import type { Review, MyReview } from '@/types/review'
 
 export function useDishReviewCore(opts: {
   dishId: Ref<number>
-  myReview: Ref<MyReview | null>
-  imageOnly: Ref<boolean>
 }) {
   const dishStore = useDishStore()
   const userStore = useUserStore()
-  const { dishId, myReview, imageOnly } = opts
+  const { dishId } = opts
 
   const reviewList = computed(() => dishStore.reviewList)
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
@@ -31,9 +29,9 @@ export function useDishReviewCore(opts: {
 
   /**
    * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
-   * 覆盖首屏拉取与「只看有图」切换——先清空再拉取期间不得误闪「暂无带图评价 / 还没有人评价」；
+   * 覆盖首屏拉取 / 重试 / 提交后刷新 —— 先清空再拉取期间不得误闪「暂无评价」；
    * 页面上不呈现任何骨架屏 / loading 指示（§4.8 红线）。
-   * 用计数而非布尔：删除后重拉、提交后重拉可能与切换并发，计数可正确收敛。
+   * 用计数而非布尔：删除后重拉、提交后重拉可能并发，计数可正确收敛。
    */
   const reviewPendingCount = ref(0)
   const reviewPending = computed(() => reviewPendingCount.value > 0)
@@ -48,12 +46,12 @@ export function useDishReviewCore(opts: {
     reviewLoadingMore.value = false
   }
 
-  /** 重置式评价拉取（首屏 / 只看有图切换 / 重试 / 提交后与删除后刷新共用），置 pending 门控 */
+  /** 重置式评价拉取（首屏 / 重试 / 提交后与删除后刷新共用），置 pending 门控 */
   async function fetchReviewsReset() {
     if (!dishId.value) return
     reviewPendingCount.value += 1
     try {
-      await dishStore.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE, hasImage: imageOnly.value })
+      await dishStore.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE })
     } finally {
       reviewPendingCount.value -= 1
     }
@@ -61,7 +59,7 @@ export function useDishReviewCore(opts: {
 
   /** 触底加载下一页评价（**结束判据 = 本页返回条数 < `pageSize`**） */
   async function onReviewsReachBottom() {
-    // 竞态修复（Round 31）：重置式请求（首屏 / 切「全部 ⇄ 有图」）在途时**禁止**追加下一页——
+    // 竞态修复（Round 31）：重置式请求（首屏 / 重试）在途时**禁止**追加下一页——
     // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
     // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容错乱）。
     if (reviewPending.value) return
@@ -73,7 +71,6 @@ export function useDishReviewCore(opts: {
         page: reviewPage.value + 1,
         pageSize: REVIEW_PAGE_SIZE,
         append: true,
-        hasImage: imageOnly.value,
       })
       // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
       if (!res) return
@@ -81,17 +78,6 @@ export function useDishReviewCore(opts: {
       // 结束判据（分页壳只有 records）：本页条数 < 每页条数 ⇒ 已到末页，不再多发空请求
       if (res.list.length < REVIEW_PAGE_SIZE) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
-  }
-
-  /**
-   * 切换「只看有图」：重置分页 + 清空列表后按新口径重拉。
-   * 在途期由 reviewPending 驱动评价区空白静默（不误闪空态）；空态由评价卡按新口径渲染。
-   */
-  function onToggleImageOnly() {
-    imageOnly.value = !imageOnly.value
-    resetReviewPaging()
-    dishStore.clearReviews()
-    void fetchReviewsReset()
   }
 
   /** 评价失败态点击重试（PR-03）：重置分页后从第 1 页重拉，与进入页面同路径 */
@@ -121,16 +107,13 @@ export function useDishReviewCore(opts: {
         try {
           await deleteReview(rv.id)
           uni.showToast({ title: '评价已删除', icon: 'none' })
-          // 删除的若是本人评价：判定态回退为「未评价」
-          if (myReview.value?.id === rv.id) myReview.value = null
           resetReviewPaging()
           await fetchReviewsReset()
           dishStore.fetchDetail(dishId.value)
         } catch (e) {
           if (isResourceNotFound(e)) {
-            // 评价已不存在：本地移除并复位底栏态即可（不提示「删除失败」误导可重试）
+            // 评价已不存在：本地移除即可（不提示「删除失败」误导可重试）
             dishStore.removeReview(rv.id)
-            if (myReview.value?.id === rv.id) myReview.value = null
             uni.showToast({ title: '评价已不存在', icon: 'none' })
             return
           }
@@ -144,11 +127,9 @@ export function useDishReviewCore(opts: {
     reviewList,
     reviewFailed,
     reviewPending,
-    imageOnly,
     resetReviewPaging,
     fetchReviewsReset,
     onReviewsReachBottom,
-    onToggleImageOnly,
     onRetryReviews,
     onDeleteReview,
   }

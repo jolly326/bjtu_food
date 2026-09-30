@@ -20,7 +20,7 @@
      - 或 `createIfMissing=true`，按提交的档口名（及食堂名）新建档口后挂靠。
    > 两段式的意义：学生填的档口名是**自由文本**，直接按名新建会产生同名重复档口；先给候选让管理员确认，是唯一能避免主数据污染的时机。
 
-**写回语义**：按改动项写回 `dish`；**可空字段不覆盖既有值**（未提交的字段保持原样）。写回后纠错归档为 `adopted`，`reply` 落固定文案。
+**写回语义**：按改动项写回 `dish`；**楼层写回所属档口**（`stall.floor`，与 `stallName` 解析出的目标档口一致）；**可空字段不覆盖既有值**（未提交的字段保持原样）。写回后纠错归档为 `adopted`，`reply` 落固定文案。
 
 **拒绝**：`reply` + `rejectReason` 均必填（学生将看到这两项）；纯空白 `400`。
 
@@ -39,7 +39,7 @@
 | 字段名 | 类型 | 必填 | 中文解释 |
 |---|---|---|---|
 | `page` | number | 否 | 页码，默认 1 |
-| `pageSize` | number | 否 | 每页条数，默认 20 |
+| `pageSize` | number | 否 | 每页条数，默认 10 |
 | `status` | string | 否 | `pending` / `adopted` / `rejected`；不传 = 全部 |
 | `dishId` | number | 否 | 按目标菜品筛选 |
 
@@ -76,6 +76,7 @@
 | `price` | number \| null | 提交的现价（分；`null` = 未改动） |
 | `canteenName` | string \| null | 提交的食堂名（自由文本；`null` = 未改动） |
 | `stallName` | string \| null | 提交的档口名（自由文本；`null` = 未改动） |
+| `floor` | string \| null | 提交的楼层（自由文本；`null` = 未改动）。**楼层归属档口**，采纳时写回目标档口 `stall.floor` |
 | `attributes` | object \| null | 提交的描述属性（键 = `fieldKey`，**值 = 中文文本 / 数组**；`null` = 未改动） |
 | `images` | string[] | 提交的配图绝对 URL 数组（无图空数组） |
 | `status` | string | `pending` / `adopted` / `rejected` |
@@ -113,6 +114,6 @@
 
 > 本节集中登记与现有代码的差异；清零即写「无」。
 
-- **新增 `attributes` / `images` 出参**：现有管理端列表不下发这两项，管理员无法核对纠错内容。
+- **管理端出参消费已对齐**：`attributes` / `images` / **`floor`** 均已由管理端列表展示（`web/src/views/CorrectionsView.vue` 的「改动项」列），管理员可核对全部改动项；原「现有管理端列表不下发这两项」的落差已消除。
 - **两段式档口确认改为显式契约**：现有实现已具备该逻辑，但响应「`null` = 成功 / 非 `null` = 需确认」的二义性未文档化，易被误读为「采纳失败」。本功能将其固化为契约。
 - **新增「不接受部分采纳」约束**：明确一次处理要么全采纳、要么全拒绝。

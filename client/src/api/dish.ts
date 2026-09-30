@@ -106,10 +106,17 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
 
 /**
  * 猜你喜欢（`GET /dishes/for-you`）。
- * **每次随机抽取在售菜品名**（服务端已去缓存，否则随机退化为全站同一份）；出参只有 `name`。
+ *
+ * 传入**会话级** `seed`（可选）⇒ 服务端按 `CRC32(seed:ID)` 稳定伪随机序取数：
+ * 同一次会话内多次进入发现态拿到同一批菜品名，**重进小程序**才整体重洗
+ * （2026-09-29 刷新边界收窄）；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
+ * 出参只有 `name`；条数与文案由服务端决定，端上不写死、不排序。
  */
-export async function getGuessLike(): Promise<GuessLike[]> {
-  const raw = await get<GuessLikeVO[]>('/dishes/for-you')
+export async function getGuessLike(seed?: string): Promise<GuessLike[]> {
+  const params: Record<string, unknown> = {}
+  if (seed) params.seed = seed
+
+  const raw = await get<GuessLikeVO[]>('/dishes/for-you', params)
   return (raw || []).map((item) => ({
     name: String(item.name || ''),
   }))

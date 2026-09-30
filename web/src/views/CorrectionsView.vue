@@ -30,6 +30,7 @@ function changes(r: CorrectionAdminVO): { label: string; value: string }[] {
   if (r.price != null) out.push({ label: '现价', value: formatYuan(r.price) })
   if (r.canteenName != null) out.push({ label: '食堂', value: r.canteenName })
   if (r.stallName != null) out.push({ label: '档口', value: r.stallName })
+  if (r.floor != null) out.push({ label: '楼层', value: r.floor })
   if (r.attributes) {
     const parts = Object.entries(r.attributes).map(
       ([k, v]) => `${k}: ${Array.isArray(v) ? v.join('/') : v}`,

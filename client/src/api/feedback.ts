@@ -3,6 +3,7 @@
  *
  * - 意见反馈：`POST /feedback`（纯反馈三类型 bug/suggestion/other）；
  * - 评价举报：`POST /reviews/{id}/report`（RESTful 子资源）；
+ * - 举报原因字典：`GET /report-reasons`（PUB。2026-09-30 P2 自 `/feedback/report-reasons` 迁出）；
  * - 菜品纠错：`POST /dishes/{id}/correction`（本文件下方）。
  */
 import { get, post } from './http'
@@ -19,7 +20,7 @@ export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
 
 /**
  * 提交评价举报：`POST /reviews/{id}/report`（RESTful 子资源，举报对象在路径中）。
- * - 公开可提交（游客允许）；`reason` 必选（字典 `GET /feedback/report-reasons` 下发项）；
+ * - 公开可提交（游客允许）；`reason` 必选（字典 `GET /report-reasons` 下发项）；
  * - 补充文本可空（填写则过安检）；被举报评价不存在 / 不可见 → 4001。
  */
 export async function reportReview(reviewId: number, payload: ReportPayload): Promise<void> {
@@ -40,7 +41,7 @@ export async function submitDishCorrection(
 }
 
 /**
- * 举报原因字典项（`GET /feedback/report-reasons` 出参；真源 = 后端 `FeedbackConst.ReportReason` 记录类）。
+ * 举报原因字典项（`GET /report-reasons` 出参；真源 = 后端 `FeedbackConst.ReportReason` 记录类）。
  *
  * <p><b>直接复用生成契约</b>（2026-09-29）：原手写的 `interface ReportReason { value; label }`
  * 与契约 `ReportReasonVO` 字段完全一致，属**同一端点的第二份类型副本**——两份必然漂移。
@@ -73,7 +74,7 @@ export interface ReportReason {
  * 故在 api 层统一兜底成端上必填，避免 UI 模板处处判空。
  */
 export async function getReportReasons(): Promise<ReportReason[]> {
-  const rows = await get<ReportReasonVO[]>('/feedback/report-reasons')
+  const rows = await get<ReportReasonVO[]>('/report-reasons')
   if (!Array.isArray(rows)) return []
   // 契约字段可空 → 端上必填：一次性归一，避免 UI 模板处处判空
   return rows

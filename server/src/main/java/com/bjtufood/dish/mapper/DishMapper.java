@@ -59,12 +59,15 @@ public interface DishMapper extends BaseMapper<Dish> {
     IPage<DishAdminVO> selectAllForAdmin(Page<DishAdminVO> page);
 
     /**
-     * 猜你喜欢：随机抽取在售菜品名（原「热搜词条」，2026-09-22 改名 + 语义变更）
+     * 猜你喜欢：抽取在售菜品名（原「热搜词条」，2026-09-22 改名 + 语义变更）
      *
      * @param limit 返回条数（由 Service 侧常量传入，避免 SQL 内硬编码）
-     * @return 猜你喜欢词条列表（GuessLikeVO{keyword}）
+     * @param seed  会话随机种子（可选）；非空 ⇒ {@code CRC32(seed:ID)} 稳定伪随机序
+     *              （2026-09-29 刷新边界收窄为「重进小程序」，同 seed 全序恒定）；
+     *              空 ⇒ 退回 {@code ORDER BY RAND()}（向后兼容未传 seed 的调用方）
+     * @return 猜你喜欢词条列表（GuessLikeVO{name}）
      */
-    List<GuessLikeVO> selectGuessLike(@Param("limit") int limit);
+    List<GuessLikeVO> selectGuessLike(@Param("limit") int limit, @Param("seed") String seed);
 
     /**
      * 浏览量原子自增（并发安全：UPDATE ... SET view_count = view_count + 1）

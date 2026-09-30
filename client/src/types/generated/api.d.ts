@@ -20,7 +20,7 @@ export interface paths {
   "/my/notifications/{id}/read": {
     /**
      * 单条已读
-     * @description STU（需邮箱认证）。通知不存在或非本人时静默成功（不报错、不暴露他人通知存在性）。
+     * @description STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
      */
     put: operations["readOne"];
   };
@@ -34,12 +34,12 @@ export interface paths {
   "/auth/profile": {
     /**
      * 获取当前用户资料
-     * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 5 项：id / username / nickname / avatar / bindEmail）。
+     * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。
      */
     get: operations["profile"];
     /**
      * 修改当前用户资料
-     * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/images（返回 URL）后作为 avatar 保存。
+     * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/cloud-image（返回 URL）后作为 avatar 保存。
      */
     put: operations["updateProfile"];
   };
@@ -127,7 +127,6 @@ export interface paths {
      * 菜品评价列表（时间倒序）
      * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
      * 排序唯一为发表时间倒序，不提供排序参数。
-     * hasImage=true 时只返回带图评价，total 按该口径统计；缺省或 false 不过滤。
      * 只返回未隐藏（is_hidden=0）的评价。
      * 测试示例：/dishes/1/reviews?page=1&pageSize=20
      */
@@ -141,7 +140,7 @@ export interface paths {
   "/dishes/{id}/correction": {
     /**
      * 提交菜品信息纠错
-     * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+     * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」（仅改楼层也算有改动）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
      */
     post: operations["submitCorrection"];
   };
@@ -199,9 +198,16 @@ export interface paths {
   "/admin/corrections/{id}/adopt": {
     /**
      * 采纳纠错（两段式档口确认）
-     * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品 → status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
+     * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品（若本次纠错含 floor 改动，则另外写回**目标档口** stall.floor，同档口其他菜品一并生效；菜品无楼层字段）→ status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
      */
     post: operations["adopt"];
+  };
+  "/report-reasons": {
+    /**
+     * 举报原因字典
+     * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons
+     */
+    get: operations["reportReasons"];
   };
   "/my/reviews": {
     /**
@@ -223,13 +229,6 @@ export interface paths {
      * @description STU（需邮箱认证）。驱动首页红点。
      */
     get: operations["unreadCount"];
-  };
-  "/feedback/report-reasons": {
-    /**
-     * 举报原因字典
-     * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。测试示例：/feedback/report-reasons
-     */
-    get: operations["reportReasons"];
   };
   "/dishes": {
     /**
@@ -279,7 +278,7 @@ export interface paths {
   "/dishes/for-you": {
     /**
      * 猜你喜欢
-     * @description 用途：搜索页「猜你喜欢」区块。每次随机抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），故不缓存；出参仅 keyword。公开接口。
+     * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。
      */
     get: operations["guessLike"];
   };
@@ -686,7 +685,7 @@ export interface components {
     /** @description 提交评价举报请求 */
     ReportReq: {
       /**
-       * @description 举报原因（必选，值域 = GET /feedback/report-reasons 下发项）
+       * @description 举报原因（必选，值域 = GET /report-reasons 下发项）
        * @example spam
        */
       reason: string;
@@ -737,7 +736,7 @@ export interface components {
        */
       id?: number;
     };
-    /** @description 改动项 {name,price(分),canteenName,stallName,attributes,images}；均为选填，传入即校验 */
+    /** @description 改动项 {name,price(分),canteenName,stallName,floor,attributes,images}；均为选填，传入即校验 */
     DishCorrectionReq: {
       /**
        * @description 菜品名称（传入时：非空、≤64 字）
@@ -760,6 +759,11 @@ export interface components {
        * @example 学一基本伙食
        */
       stallName?: string;
+      /**
+       * @description 楼层（自由文本，归属档口 stall.floor；传入时：非空、≤16 字）
+       * @example 1F
+       */
+      floor?: string;
       /**
        * @description 动态描述属性（键=维度 fieldKey，值=中文文本/数组；仅传改动维度）
        * @example {
@@ -853,6 +857,35 @@ export interface components {
       message?: string;
       /** @description 数据 */
       data?: Record<string, never>;
+    };
+    /** @description 举报原因字典项 */
+    ReportReasonVO: {
+      /**
+       * @description 机器值（提交举报时作为 sub 上送）
+       * @example spam
+       */
+      value?: string;
+      /**
+       * @description 中文标签（端上直接渲染）
+       * @example 垃圾广告 / 营销刷屏
+       */
+      label?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultListReportReasonVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["ReportReasonVO"][];
     };
     /** @description 我的评价展示信息（本人视角，7 字段） */
     MyReviewVO: {
@@ -965,35 +998,6 @@ export interface components {
        * @example 3
        */
       count?: number;
-    };
-    /** @description 举报原因字典项 */
-    ReportReasonVO: {
-      /**
-       * @description 机器值（提交举报时作为 sub 上送）
-       * @example spam
-       */
-      value?: string;
-      /**
-       * @description 中文标签（端上直接渲染）
-       * @example 垃圾广告 / 营销刷屏
-       */
-      label?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListReportReasonVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["ReportReasonVO"][];
     };
     /** @description 菜品列表查询参数 */
     DishQueryReq: {
@@ -1727,6 +1731,11 @@ export interface components {
       /** @description 提交的档口名称 */
       stallName?: string;
       /**
+       * @description 提交的楼层（归属档口 stall.floor；未改动为 null）
+       * @example 1F
+       */
+      floor?: string;
+      /**
        * @description 提交的描述属性（键=维度 fieldKey，值=机器值/数组；仅改动维度）
        * @example {
        *   "dietType": "veg",
@@ -1899,7 +1908,7 @@ export interface operations {
   };
   /**
    * 单条已读
-   * @description STU（需邮箱认证）。通知不存在或非本人时静默成功（不报错、不暴露他人通知存在性）。
+   * @description STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
    */
   readOne: {
     parameters: {
@@ -1984,7 +1993,7 @@ export interface operations {
   };
   /**
    * 获取当前用户资料
-   * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 5 项：id / username / nickname / avatar / bindEmail）。
+   * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。
    */
   profile: {
     responses: {
@@ -2022,7 +2031,7 @@ export interface operations {
   };
   /**
    * 修改当前用户资料
-   * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/images（返回 URL）后作为 avatar 保存。
+   * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/cloud-image（返回 URL）后作为 avatar 保存。
    */
   updateProfile: {
     requestBody: {
@@ -2633,7 +2642,6 @@ export interface operations {
    * 菜品评价列表（时间倒序）
    * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
    * 排序唯一为发表时间倒序，不提供排序参数。
-   * hasImage=true 时只返回带图评价，total 按该口径统计；缺省或 false 不过滤。
    * 只返回未隐藏（is_hidden=0）的评价。
    * 测试示例：/dishes/1/reviews?page=1&pageSize=20
    */
@@ -2642,11 +2650,6 @@ export interface operations {
       query?: {
         page?: number;
         pageSize?: number;
-        /**
-         * @description 只看有图：true=仅带图评价；缺省/false=不过滤
-         * @example true
-         */
-        hasImage?: boolean;
       };
       path: {
         /**
@@ -2749,7 +2752,7 @@ export interface operations {
   };
   /**
    * 提交菜品信息纠错
-   * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+   * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」（仅改楼层也算有改动）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
    */
   submitCorrection: {
     parameters: {
@@ -3117,7 +3120,7 @@ export interface operations {
   };
   /**
    * 采纳纠错（两段式档口确认）
-   * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品 → status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
+   * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品（若本次纠错含 floor 改动，则另外写回**目标档口** stall.floor，同档口其他菜品一并生效；菜品无楼层字段）→ status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
    */
   adopt: {
     parameters: {
@@ -3139,6 +3142,44 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultObject"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 举报原因字典
+   * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons
+   */
+  reportReasons: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListReportReasonVO"];
         };
       };
       /** @description Bad Request */
@@ -3272,44 +3313,6 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultUnreadCountVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因字典
-   * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。测试示例：/feedback/report-reasons
-   */
-  reportReasons: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListReportReasonVO"];
         };
       };
       /** @description Bad Request */
@@ -3532,9 +3535,18 @@ export interface operations {
   };
   /**
    * 猜你喜欢
-   * @description 用途：搜索页「猜你喜欢」区块。每次随机抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），故不缓存；出参仅 keyword。公开接口。
+   * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。
    */
   guessLike: {
+    parameters: {
+      query?: {
+        /**
+         * @description 会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。不传 ⇒ ORDER BY RAND() 真随机（向后兼容旧端 / 直连调试）
+         * @example m3k9x7q2
+         */
+        seed?: string;
+      };
+    };
     responses: {
       /** @description OK */
       200: {

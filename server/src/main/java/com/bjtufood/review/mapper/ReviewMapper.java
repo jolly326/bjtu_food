@@ -20,15 +20,13 @@ import java.util.List;
 public interface ReviewMapper extends BaseMapper<Review> {
 
     /**
-     * 按菜品查询评价列表（公开列表；时间倒序、可见性过滤、可选只看有图）。
+     * 按菜品查询评价列表（公开列表；时间倒序、可见性过滤）。
      * <p>
      * 可见性规则（2026-09-15 用户拍板取消人工复核、sec_state 全链退役）：唯一判据 is_hidden=0。
      * 排序唯一为 created_at DESC（2026-09-20 拍板：废除「按有用数置顶」第二口径与 sort 参数）。
      * 公开出参不含 dishId / dishName / isHidden（三者仅在「我的评价」返回），故本查询不选这三列。
-     *
-     * @param hasImage true=仅带图评价（images 非空且不为空数组）；false=不过滤
      */
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId, @Param("hasImage") boolean hasImage);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId);
 
     /**
      * 按用户查询「我的评价」列表（本人视角）。

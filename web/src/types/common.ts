@@ -279,6 +279,7 @@ export interface CorrectionAdminVO {
   price: number | null
   canteenName: string | null
   stallName: string | null
+  floor: string | null
   attributes: Record<string, string | string[]> | null
   images: string[]
   status: CorrectionStatus

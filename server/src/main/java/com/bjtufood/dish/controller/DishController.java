@@ -39,12 +39,20 @@ public class DishController {
 
     @Operation(
             summary = "猜你喜欢",
-            description = "用途：搜索页「猜你喜欢」区块。每次随机抽取在售菜品名"
-                    + "（不看热度、不排序、不做个性化推荐算法），故不缓存；出参仅 keyword。公开接口。"
+            description = "用途：搜索页「猜你喜欢」区块。抽取在售菜品名"
+                    + "（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。"
+                    + "刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 "
+                    + "CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条"
+                    + "（内容不会自变），重进小程序才整体重洗（新鲜度）；"
+                    + "不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。"
     )
     @GetMapping("/dishes/for-you")
-    public Result<List<GuessLikeVO>> guessLike() {
-        return Result.success(dishService.guessLike());
+    public Result<List<GuessLikeVO>> guessLike(
+            @Parameter(description = "会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。"
+                    + "不传 ⇒ ORDER BY RAND() 真随机（向后兼容旧端 / 直连调试）", example = "m3k9x7q2")
+            @RequestParam(required = false) String seed
+    ) {
+        return Result.success(dishService.guessLike(seed));
     }
 
     @Operation(

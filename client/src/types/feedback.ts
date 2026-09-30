@@ -57,6 +57,13 @@ export interface DishCorrectionPayload {
   canteenName?: string
   /** 档口名（自由文本） */
   stallName?: string
+  /**
+   * 楼层（自由文本；**归属档口 `stall.floor`**，非菜品字段）。
+   *
+   * <p>契约同源：服务端 `DishCorrectionReq.floor`（传入时非空、≤16 字），采纳时写回目标档口
+   * —— 同档口其他菜品一并生效。端上从详情 `DishDetail.floor` 预填，**仅楼层改动也属有效改动**。
+   */
+  floor?: string
   /** 动态描述属性：键 = 维度 `fieldKey`，值 = 中文文本（single）或中文数组（multi）；仅含改动维度 */
   attributes?: Record<string, string | string[]>
   /** 图片 URL 数组（≤3 张；经 ImagePicker → 上传安检） */
@@ -80,7 +87,7 @@ export interface FeedbackSubmit {
  * 举报对象（被举报评价 ID）在**路径**中；请求体无 `type` / `relatedType` / `relatedId`。
  */
 export interface ReportPayload {
-  /** 举报原因机器值（必选，字典端点 `GET /feedback/report-reasons` 下发项） */
+  /** 举报原因机器值（必选，字典端点 `GET /report-reasons` 下发项） */
   reason: string
   /** 补充说明（可空，≤1000 字） */
   content?: string

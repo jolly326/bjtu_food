@@ -44,7 +44,7 @@
 | A-13 | 邮箱认证 | [client-邮箱认证.md](./client-邮箱认证.md) | 发码 🔓 / 核验 🔑 | ✅ **已完成**（2026-09-25） |
 | A-14 | 注销账号 | [client-注销账号.md](./client-注销账号.md) | 🔑 | ✅ **已完成**（2026-09-25） |
 | A-15 | 隐私政策与用户协议 | [client-隐私政策与用户协议.md](./client-隐私政策与用户协议.md) | 🔓 | ✅ **已完成**（2026-09-25） |
-| A-16 | **菜品信息纠错**（入口仅菜品详情页底栏「反馈错误」） | [client-菜品纠错.md](./client-菜品纠错.md) | 🔓 | ✅ **已完成**（2026-09-28） |
+| A-16 | **菜品信息纠错**（入口仅菜品详情页信息卡名称行「信息有误?」） | [client-菜品纠错.md](./client-菜品纠错.md) | 🔓 | ✅ **已完成**（2026-09-28） |
 
 > **「状态」列口径**：`✅ 已完成` = 该功能文档**已经用户审阅并修改完成**；`—` = 尚未完成审阅。本列只反映**文档审阅状态**，不等于代码落地状态（落地状态见各文档文末「与当前代码的差异」）。
 
@@ -76,7 +76,7 @@
 |---|---|---|
 | `DishListItemVO` | `GET /dishes`（列表 / 搜索共用，**8 字段**） | [client-首页菜品浏览](./client-首页菜品浏览.md) |
 | `DishDetailVO` | `GET /dishes/{id}`（详情，**共 11 字段**） | [client-菜品详情](./client-菜品详情.md) |
-| `GuessLikeVO` | `GET /dishes/for-you`（随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
+| `GuessLikeVO` | `GET /dishes/for-you`（按会话级 `seed` 稳定伪随机推送在售菜品名、**无响应缓存**） | [client-搜索](./client-搜索.md#响应--get-dishesfor-youlistsguesslikevo) |
 | `ReviewVO` | `GET /dishes/{id}/reviews`（**公开视角，8 字段**） | [client-菜品详情](./client-菜品详情.md) |
 | `MyReviewVO` | `GET /my/reviews`（**本人视角，7 字段** = 公开 5（不含 `userId` / `userNickname` / `userAvatar`）+ `dishId` / `dishName`）｜**同一契约两视角 MUST 是两个类型，端上不得复用单一 `ReviewVO`**（R9） | [client-我的评价](./client-我的评价.md) |
 | `NotificationVO` | `/my/notifications*` | [client-系统通知](./client-系统通知.md) |

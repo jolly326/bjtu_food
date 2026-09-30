@@ -52,7 +52,12 @@ public interface FeedbackService {
      * 2026-09-29 审计发现 web 曾直接调用学生端 {@code GET /feedback/report-reasons}
      * （属「一个接口两端调用」）。该端点在学生端白名单内是 {@code permitAll} 故当时能跑，
      * 但一旦学生端接口纳入 JWT 鉴权，管理后台会立刻 401 失效。
-     * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦。
+     * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦
+     * （2026-09-30 实测：该管理端字典端点尚未落地，{@code FeedbackAdminController} 当前只有
+     * 列表 / 处理两个映射；web 侧原因筛选的值域仍待接，见 docs/web/feature/web-举报管理.md）。
+     * <p>
+     * 2026-09-30 P2 迁址：学生端本端点由 {@code GET /feedback/report-reasons} 改为
+     * {@code GET /report-reasons}（字典非「反馈提交」的子资源），无过渡别名。
      * <p>
      * <b>数据仍然同源</b>：两端出参均由 {@code FeedbackConst.REPORT_REASONS} 构造，
      * 构造逻辑下沉到 {@link #reportReasons()} 供两个 Controller 复用，

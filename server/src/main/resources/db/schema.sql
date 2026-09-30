@@ -294,6 +294,7 @@ CREATE TABLE IF NOT EXISTS `dish_correction`
     `price`         INT          NULL DEFAULT NULL COMMENT '提交的现价（单位：分；未改动为 NULL）',
     `canteen_name`  VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的食堂名称（自由文本，无字典端点；未改动为 NULL）',
     `stall_name`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档；未改动为 NULL）',
+    `floor`         VARCHAR(16)  NULL DEFAULT NULL COMMENT '提交的楼层（自由文本；未改动为 NULL；采纳时写回所属档口 stall.floor）',
     `attributes`    JSON         NULL DEFAULT NULL COMMENT '提交的描述属性（JSON：键=维度 field_key，值=中文文本/数组；仅含改动维度）',
     `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤3 张）',
     `status`        VARCHAR(16)  NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/adopted/rejected',
@@ -1183,6 +1184,26 @@ END$$
 DELIMITER ;
 CALL `migrate_dish_correction_attributes`();
 DROP PROCEDURE IF EXISTS `migrate_dish_correction_attributes`;
+
+-- 4.3.2b dish_correction.floor（楼层纠错，2026-09-30 新增）
+--   楼层归属档口（stall.floor）；纠错快照存提交的楼层，采纳时写回目标档口。
+--   幂等：列已存在时跳过，重复执行安全。
+DROP PROCEDURE IF EXISTS `migrate_dish_correction_floor`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_dish_correction_floor`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction' AND COLUMN_NAME = 'floor'
+    ) THEN
+        ALTER TABLE `dish_correction`
+            ADD COLUMN `floor` VARCHAR(16) NULL DEFAULT NULL
+            COMMENT '提交的楼层（自由文本；未改动为 NULL；采纳时写回所属档口 stall.floor）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_dish_correction_floor`();
+DROP PROCEDURE IF EXISTS `migrate_dish_correction_floor`;
 
 -- 4.3.3 属性取值「机器值 → 中文」迁移（方案 A：值即中文，去取值字典）
 --   存量 dish.attributes / dish_correction.attributes 存的是机器值；用 dish_attribute_value 的

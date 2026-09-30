@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
- * 举报原因字典项（GET /feedback/report-reasons 单行出参）。
+ * 举报原因字典项（{@code GET /report-reasons} 单行出参）。
  * <p>
  * 值域与文案的唯一真源 = {@code FeedbackConst.REPORT_REASONS}；端上举报弹层的单选项
  * 与管理端原因翻译**共用本字典，零硬编码**（PR-12）。

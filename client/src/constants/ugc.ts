@@ -2,9 +2,9 @@
  * UGC 配图相关常量（评价 / 反馈 / 纠错共用）。
  *
  * <p><b>为何单独成文件</b>：`UGC_IMAGE_MAX` 此前在 `pages/feedback/IssueForm`、
- * `pages/detail/dish/ReviewComposer`、`pages/correction/UpdateForm`、`pages/correction/useCorrection`
- * 四处各硬编码一份 `3`，与服务端 `@Size(max = 3)` 的契约靠人工同步。任一处改错就会出现
- * 「端上让选 3 张、提交被后端拒」的错位。现收敛为单点。
+ * `pages/detail/dish/ReviewComposer`、`pages/correction/CorrectionForm`（原 `UpdateForm`，2026-09-30 重构更名）、
+ * `pages/correction/useCorrection` 四处各硬编码一份 `3`，与服务端 `@Size(max = 3)` 的契约靠人工同步。
+ * 任一处改错就会出现「端上让选 3 张、提交被后端拒」的错位。现收敛为单点。
  */
 
 /**

@@ -1,0 +1,508 @@
+<template>
+  <!--
+    CorrectionForm（correction 包内私有，页面根组件）——「锚定只读 + 基础信息 + 动态属性 + 图片 + 提交」。
+
+    结构（自上而下，UI 稿「卡片结构」七段；卡片内**不使用分割横线**，靠间距 / 分组区分）：
+      ① 顶部提示横幅 → ② 菜品锚定信息区（只读，无点击无箭头）→ ③ 基础信息（下划线轻量输入）
+      → ④ 属性编辑区（`AttributeGroup` ×N）→ ⑤ 图片（≤3）→ ⑥ 提交说明 → ⑦ 提交按钮。
+    表单值由父级 `useCorrection` 持有（唯一真源），本组件只做渲染与就地写回（**不改结构、不换算金额**）。
+  -->
+  <view class="q-card">
+    <!-- ① 顶部提示横幅（主色浅底 + 提示图标，禁 emoji） -->
+    <view class="banner">
+      <IconSvg name="info" :size="28" :color="COLOR_MAP['primary-text']" />
+      <text class="banner-text">已自动填充菜品原有信息，只修改存在错误的项目即可，提交后等待人工审核</text>
+    </view>
+
+    <!-- ② 菜品锚定信息区（只读）：标题 +「菜品名称 ｜ 食堂 · 楼层 · 档口」+ 辅助小字，无任何交互 -->
+    <view class="anchor">
+      <text class="anchor-title">正在纠错</text>
+      <view class="anchor-line">
+        <text class="anchor-name">{{ dishName || '——' }}</text>
+        <text v-if="dishLocation" class="anchor-sep">｜</text>
+        <text v-if="dishLocation" class="anchor-loc">{{ dishLocation }}</text>
+      </view>
+      <text class="anchor-note">{{ detailLoading ? '正在载入菜品信息…' : '来自菜品详情页，菜品固定不可切换' }}</text>
+    </view>
+
+    <!-- 预填未就绪时只留锚定卡（不渲染半截表单，避免误改 / 误提交） -->
+    <template v-if="!detailLoading">
+      <!-- ③ 基础信息表单（标签在左 + 下划线下框，禁全包围矩形框；**无「原价」行**）
+           **R40 双列并排**：菜品名称跨整行；售价｜食堂名称、楼层｜档口名称各占一行两列。
+           实现用 flex 两列（`.cell` 各 `flex: 1 1 0` + `min-width: 0`），**不用 CSS grid**
+           （本项目 client/src 零 grid 先例，见 UI 稿禁止项 12）。 -->
+      <view class="form">
+<!-- 行 1：菜品名称（跨整行；名称文字长，拆分后每列宽度不足） -->
+        <view class="row" id="f-c-name">
+          <view class="cell cell--full">
+            <text class="row-label">菜品名称<text class="row-req">*</text></text>
+            <!-- 底线状态（聚焦切主色 / 校验错切错误色）挂在**承载底线的容器**上，不在 input 自身 -->
+            <view
+              class="row-field"
+              :class="{
+                'row-field--focus': focused === 'name',
+                'row-field--error': !!errors['form.name'],
+              }"
+            >
+              <input
+                class="row-input"
+                type="text"
+                :value="model.name"
+                placeholder="如：宫保鸡丁"
+                placeholder-class="row-ph"
+                :maxlength="64"
+                :cursor-spacing="40"
+                :adjust-position="true"
+                @input="onFieldInput('name', $event)"
+                @focus="focused = 'name'"
+                @blur="focused = ''"
+              />
+            </view>
+            <text v-if="errors['form.name']" class="row-error">{{ errors['form.name'] }}</text>
+          </view>
+        </view>
+<!-- 行 2（双列）：售价 ｜ 食堂名称 -->
+        <view class="row row--pair">
+          <view class="cell" id="f-c-price">
+            <text class="row-label row-label--narrow">售价<text class="row-req">*</text></text>
+            <view
+              class="row-field"
+              :class="{
+                'row-field--focus': focused === 'price',
+                'row-field--error': !!errors['form.price'],
+              }"
+            >
+              <input
+                class="row-input"
+                type="digit"
+                :value="model.price"
+                placeholder="如 12.5"
+                placeholder-class="row-ph"
+                :maxlength="9"
+                :cursor-spacing="40"
+                :adjust-position="true"
+                @input="onFieldInput('price', $event)"
+                @focus="focused = 'price'"
+                @blur="focused = ''"
+              />
+              <text class="row-unit">元</text>
+            </view>
+            <text v-if="errors['form.price']" class="row-error row-error--narrow">{{ errors['form.price'] }}</text>
+          </view>
+          <view class="cell" id="f-c-canteenName">
+            <text class="row-label row-label--narrow">食堂名称<text class="row-req">*</text></text>
+            <view
+              class="row-field"
+              :class="{
+                'row-field--focus': focused === 'canteenName',
+                'row-field--error': !!errors['form.canteenName'],
+              }"
+            >
+              <input
+                class="row-input"
+                type="text"
+                :value="model.canteenName"
+                placeholder="如：学一食堂"
+                placeholder-class="row-ph"
+                :maxlength="64"
+                :cursor-spacing="40"
+                :adjust-position="true"
+                @input="onFieldInput('canteenName', $event)"
+                @focus="focused = 'canteenName'"
+                @blur="focused = ''"
+              />
+            </view>
+            <text v-if="errors['form.canteenName']" class="row-error row-error--narrow">{{ errors['form.canteenName'] }}</text>
+          </view>
+        </view>
+<!-- 行 3（双列）：楼层（**字典单选单元格**，非 input） ｜ 档口名称 -->
+        <view class="row row--pair">
+          <view class="cell" id="f-c-floor">
+            <text class="row-label row-label--narrow">楼层<text class="row-req">*</text></text>
+            <!-- picker 单元格：汉字文案 + 右箭头；独立可点件（高 88rpx），**无 input、不可键入**（UI 稿禁止项 10）。
+                 底线切错误色：仅必填校验失败时；本控件无「聚焦态」——弹层开合由 BaseSheet 表达。 -->
+            <view
+              class="row-field row-field--picker"
+              :class="{ 'row-field--error': !!errors['form.floor'] }"
+              role="button"
+              :aria-label="`楼层，当前 ${floorLabel}`"
+              hover-class="row-field--picker-pressed"
+              hover-stay-time="80"
+              @tap="openFloorPicker"
+            >
+              <text class="row-picker-text" :class="{ 'row-picker-text--ph': !model.floor }">{{ floorLabel }}</text>
+              <IconSvg name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
+            </view>
+            <!-- 未命中字典的兜底提示（非空但非预设值，如 `B2` / `5F`）：照实展示原值，不清空、不报错 -->
+            <text v-if="floorUnmapped && !errors['form.floor']" class="row-note">不在预设范围</text>
+            <text v-if="errors['form.floor']" class="row-error row-error--narrow">{{ errors['form.floor'] }}</text>
+          </view>
+          <view class="cell" id="f-c-stallName">
+            <text class="row-label row-label--narrow">档口名称<text class="row-req">*</text></text>
+            <view
+              class="row-field"
+              :class="{
+                'row-field--focus': focused === 'stallName',
+                'row-field--error': !!errors['form.stallName'],
+              }"
+            >
+              <input
+                class="row-input"
+                type="text"
+                :value="model.stallName"
+                placeholder="如：麻辣香锅"
+                placeholder-class="row-ph"
+                :maxlength="64"
+                :cursor-spacing="40"
+                :adjust-position="true"
+                @input="onFieldInput('stallName', $event)"
+                @focus="focused = 'stallName'"
+                @blur="focused = ''"
+              />
+            </view>
+            <text v-if="errors['form.stallName']" class="row-error row-error--narrow">{{ errors['form.stallName'] }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 楼层固定字典单选弹层（R40 新增；底座 = 公共 BaseSheet，回抛存储值） -->
+      <FloorPickerSheet
+        :visible="floorPickerOpen"
+        :value="model.floor"
+        :options="FLOOR_OPTIONS"
+        @close="floorPickerOpen = false"
+        @select="onFloorSelect"
+      />
+
+      <!-- ④ 属性编辑区（维度由后端下发：端上零硬编码维度名；候选仅作提示）
+           `:first` 由 index 显式下发：首组去上边距 —— 组间距不依赖跨组件 `.ag:first-child`（mp-weixin 不可靠） -->
+      <view v-if="model.attributes.length" class="attrs">
+        <AttributeGroup
+          v-for="(ed, idx) in model.attributes"
+          :key="ed.fieldKey"
+          :field-key="ed.fieldKey"
+          :name="ed.name"
+          :value-type="ed.valueType"
+          :selected="ed.selected"
+          :candidates="ed.candidates"
+          :first="idx === 0"
+          @change="onAttributeChange"
+        />
+      </view>
+
+      <!-- ⑤ 图片（选填，≤3 张；上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
+      <view class="img-block">
+        <text class="img-title">补充实拍图片（选填，至多上传 3 张）</text>
+        <ImagePicker
+          :model-value="model.images"
+          :max="UGC_IMAGE_MAX"
+          :disabled="!!submitting"
+          @update:model-value="onImagesChange"
+        />
+      </view>
+
+      <!-- ⑥ 提交说明（不暗示提交即生效）+ ⑦ 提交按钮（随内容滚动，非固定底栏） -->
+      <text class="submit-note">提交修改后将进入人工审核，审核通过才会更新菜品信息</text>
+      <view class="submit-area" @tap="onSubmitTap">
+        <AppButton
+          :text="submitting ? '提交中…' : '提交纠错'"
+          :disabled="!canSubmit"
+          :loading="!!submitting"
+          @press="emit('submit')"
+        />
+      </view>
+      <!-- 失败原因（橙字）：页面底部提示，**已填内容完整保留** -->
+      <text v-if="submitError" class="submit-error">{{ submitError }}</text>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+/**
+ * CorrectionForm —— 菜品纠错页根组件（表单数据渲染 + 校验错误呈现 + 提交触发）
+ *
+ * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
+ * 只负责「七段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。
+ * 图标走 `IconSvg`、图片占位走 `ImagePlaceholder`（经 `ImagePicker` 间接消费）、
+ * 事件统一 `@tap`、按压用 hover-class 透明度微降（禁 `transform: scale`）、颜色全语义 token。
+ */
+import { ref, computed } from 'vue'
+import AppButton from '@/components/AppButton.vue'
+import IconSvg from '@/components/IconSvg.vue'
+import ImagePicker from '@/components/ImagePicker.vue'
+import AttributeGroup from './AttributeGroup.vue'
+import FloorPickerSheet from './FloorPickerSheet.vue'
+import { COLOR_MAP } from '@/theme/tokens'
+import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
+import type { CorrectionFormModel } from './useCorrection'
+
+/**
+ * 基础信息字段键（R40 起**逐字段显式渲染**，不再由 `FIELDS` 配置 `v-for` 驱动）。
+ *
+ * 原因：R40 引入**双列并排**（菜品名称跨整行 + 两行双列），行列结构不再等长，
+ * 配置式 `v-for` 无法表达「跨整行 / 双列」混合布局 —— 改为按 UI 稿逐行显式书写，
+ * 换来布局与文档逐行可对照（**字段顺序、占位、maxlength、单位后缀一律以 UI 稿为准**）。
+ */
+type FieldKey = 'name' | 'price' | 'canteenName' | 'stallName'
+
+const props = defineProps<{
+  /** 表单值（预填详情；用户只改动其中的错误项）——父级 reactive 持有唯一真源 */
+  model: CorrectionFormModel
+  /** 锚定菜品名（只读展示） */
+  dishName: string
+  /** 锚定位置「食堂 · 楼层 · 档口」（只读展示） */
+  dishLocation: string
+  /** 详情拉取中（预填未就绪：不渲染表单，只留锚定卡） */
+  detailLoading: boolean
+  /** 字段级错误（键 = `form.<字段名>`） */
+  errors: Record<string, string>
+  /** 提交中：禁选配图、提交区忽略二次点击 */
+  submitting?: boolean
+  /** 是否可提交（必备项齐全 **且** 有改动）——由 `useCorrection` 判定 */
+  canSubmit: boolean
+  /** 置灰态点击提示文案（缺哪项 / 无改动 / 限频倒计时） */
+  gateHint: string
+  /** 提交失败原因（页面底部橙字；空 = 无） */
+  submitError: string
+}>()
+
+const emit = defineEmits<{
+  /** 字段变化：清掉该字段的行内错误（并撤下过期的失败提示） */
+  (e: 'clear', key: string): void
+  /** 提交（仅在可提交时触发；置灰态由外层热区 toast 兜底） */
+  (e: 'submit'): void
+}>()
+
+/** 聚焦字段键（聚焦时底线切主色；空 = 无聚焦） */
+const focused = ref('')
+
+/** 楼层字典弹层开合（R40；底座 = 公共 BaseSheet，懒挂载由 `visible` 驱动） */
+const floorPickerOpen = ref(false)
+
+/**
+ * 楼层单元格展示文案（R40 · 展示层映射）。
+ * `form.floor` 恒存**后端存储值**，此处查表渲染汉字；空串 ⇒ 占位「请选择楼层」。
+ */
+const floorLabel = computed(() => floorDisplay(props.model.floor)[0])
+
+/**
+ * 楼层值**是否非空但未命中字典**（如管理端录入的 `B2` / `5F`）。
+ * 用于挂「不在预设范围」提示 —— **仅提示，不阻断**：原值照实展示、未动即无 diff（UI 稿兜底口径）。
+ */
+const floorUnmapped = computed(() => {
+  const v = props.model.floor.trim()
+  return !!v && !floorDisplay(v)[1]
+})
+
+/** 打开楼层字典弹层（提交中禁开，避免与提交态交互打架） */
+function openFloorPicker() {
+  if (props.submitting) return
+  floorPickerOpen.value = true
+}
+
+/**
+ * 选中字典项：写入**存储值**（非汉字）并撤下该字段的过期错误提示。
+ * 与文本字段口径一致 —— 用户一动内容就撤下上一次提交失败提示。
+ */
+function onFloorSelect(value: string) {
+  props.model.floor = value
+  floorPickerOpen.value = false
+  emit('clear', 'form.floor')
+}
+
+/**
+ * input @input 回调（平台例外：uni input 事件对象由运行时透传，形参取 `Event` 后结构化收窄，避免 `any` 逃逸）。
+ */
+function onFieldInput(key: FieldKey, e: Event) {
+  const detail = (e as unknown as { detail?: { value?: string } })?.detail
+  props.model[key] = detail?.value ?? ''
+  emit('clear', `form.${key}`)
+}
+
+/**
+ * 属性维度选区变化：父级模型就地写回（patch 组装由 `useCorrection` 与基线比对完成）。
+ * 同时回抛 `clear`（键取 `form.attributes.<fieldKey>`）——**与文本字段口径一致**：用户一动内容就
+ * 撤下上一次的提交失败橙字（属性区无字段级错误，故该键在 `fieldErrors` 中恒为空、仅起撤提示作用）。
+ */
+function onAttributeChange(fieldKey: string, selected: string[]) {
+  const ed = props.model.attributes.find((x) => x.fieldKey === fieldKey)
+  if (ed) ed.selected = selected
+  emit('clear', `form.attributes.${fieldKey}`)
+}
+
+/** 图片增删：同上，就地写回 + 回抛 `clear`（撤下过期的失败提示） */
+function onImagesChange(urls: string[]) {
+  props.model.images = urls
+  emit('clear', 'form.images')
+}
+
+/**
+ * 提交区外热区：`AppButton` 在 disabled 态 `pointer-events: none`，点击落到本热区 ⇒ 兜底提示；
+ * 可提交时由 `AppButton` 自身 emit('press')（此处直接返回，避免一次点击提交两次）。
+ */
+function onSubmitTap() {
+  if (props.submitting || props.canSubmit) return
+  uni.showToast({ title: props.gateHint || '还不能提交', icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* ===== 主卡片（圆角 16rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
+.q-card {
+  margin: var(--spacing-md) var(--spacing-md) 0;
+  padding: var(--spacing-lg);
+  background: var(--bg-card);
+  border: 2rpx solid var(--border-color);
+  border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-card);
+  box-sizing: border-box;
+}
+
+/* ===== ① 顶部提示横幅（主色浅底圆角 12rpx 档 → `--radius-xs`，深橙文字 + 提示图标） ===== */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  padding: 12rpx var(--spacing-sm);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-xs);
+  box-sizing: border-box;
+}
+.banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-tiny);
+  line-height: 1.5;
+  color: var(--color-primary-text);
+}
+
+/* ===== ② 菜品锚定信息区（只读：浅米底小卡，无点击、无箭头） ===== */
+.anchor {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-input);
+  border-radius: var(--radius-xs);
+  box-sizing: border-box;
+}
+.anchor-title { font-size: var(--font-tiny); color: var(--color-primary-text); font-weight: var(--weight-medium); }
+.anchor-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--spacing-2xs); margin-top: var(--spacing-2xs); }
+.anchor-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
+.anchor-sep { font-size: var(--font-aux); color: var(--text-placeholder); }
+.anchor-loc { font-size: var(--font-aux); color: var(--text-secondary); }
+.anchor-note { display: block; margin-top: var(--spacing-2xs); font-size: var(--font-tiny); color: var(--text-tertiary); }
+
+/* ===== ③ 基础信息（下划线轻量输入 · R40 双列并排） ===== */
+.form { margin-top: var(--spacing-lg); }
+/* 每行 = 一个 `.row`；R40 起 `.row` 内部装 1（跨整行）或 2（双列）个 `.cell`。
+   **不用 CSS grid**（本项目 client/src 零 grid 先例，UI 稿禁止项 12）—— 双列靠 flex 均分。 */
+.row { display: flex; flex-wrap: wrap; align-items: center; padding: var(--spacing-xs) 0 var(--spacing-sm); }
+/* 双列行：两 `.cell` 等宽均分（`flex: 1 1 0` + `min-width: 0` 允许内部 input 收缩而不撑破列宽） */
+.row--pair { gap: var(--spacing-lg); }
+.cell { flex: 1 1 0; min-width: 0; }
+/* 跨整行单元格：不参与均分（`flex: 1 1 100%` 独占本行） */
+.cell--full { flex: 1 1 100%; }
+/* 单元格内纵向排布：标签 / 输入 / 错误小字依次换行（错误小字换行到下一行而非挤在同行右侧） */
+.cell > .row-label,
+.cell > .row-field,
+.cell > .row-error,
+.cell > .row-note { display: block; width: 100%; }
+.cell > .row-field { display: flex; }
+.row-label {
+  flex: none;
+  /* 跨整行行标签宽 160rpx（4 字标签 + 必填星） */
+  width: 160rpx;
+  font-size: var(--font-aux);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+/* 双列行标签窄档 96rpx（列宽 ≈307rpx，扣标签后余 ≈190rpx 供输入；4 字标签会换行，故窄档） */
+.row-label--narrow { width: 96rpx; }
+.row-req { color: var(--color-error); margin-left: var(--spacing-2xs); font-weight: var(--weight-heavy); }
+.row-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
+  height: 88rpx;
+  /* 输入框背景透明、仅保留底部横线（禁全包围矩形框） */
+  border-bottom: 2rpx solid var(--border-color);
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+/* 聚焦：底线切主色（主色 = 唯一强调色，不用描边框） */
+.row-field--focus { border-bottom-color: var(--color-primary); }
+/* 校验错误：底线切错误色（与行内错误小字同源；错误态规则置于聚焦之后 ⇒ 错误优先可见） */
+.row-field--error { border-bottom-color: var(--color-error); }
+/* 楼层 picker 单元格（R40）：与同行 input 同高同底线形态，但**不可键入**（无 input、无焦点态）。
+   下划线形态 + 整格可点 ⇒ 88rpx 同时满足视觉与触达（独立可点件，不适用属性 chip 的 67rpx 例外）。 */
+.row-field--picker {
+  justify-content: space-between;
+  -webkit-tap-highlight-color: transparent;
+}
+.row-field--picker-pressed { background: var(--bg-soft); }
+.row-picker-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 空值占位（灰字，与 `.row-ph` 同档；`text` 元素不消费 placeholder-class，故显式给类） */
+.row-picker-text--ph { color: var(--text-placeholder); }
+.row-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  /* 等宽数字：售价等数字输入不因字宽抖动（对文本行无害） */
+  font-variant-numeric: tabular-nums;
+}
+.row-ph { color: var(--text-placeholder); }
+.row-unit { flex: none; font-size: var(--font-tiny); color: var(--text-tertiary); }
+/* 校验错误：行内橙（错误色 token）小字，显示在**所属单元格内**、与该单元格输入左边界对齐
+   （跨整行 160rpx / 双列 96rpx 两种缩进，见 UI 稿 §3 交互口径） */
+.row-error {
+  margin-top: var(--spacing-2xs);
+  padding-left: 160rpx;
+  font-size: var(--font-tiny);
+  color: var(--color-error);
+}
+.row-error--narrow { padding-left: 96rpx; }
+/* 「不在预设范围」兜底提示：次要小字（非错误色）—— 仅告知、不阻断提交 */
+.row-note {
+  margin-top: var(--spacing-2xs);
+  padding-left: 96rpx;
+  font-size: var(--font-tiny);
+  color: var(--text-tertiary);
+}
+
+/* ===== ④ 属性编辑区（每个维度一组 AttributeGroup；组成员间距由组件内 `.ag` 承担） ===== */
+.attrs { margin-top: var(--spacing-lg); }
+
+/* ===== ⑤ 图片区 ===== */
+.img-block { margin-top: var(--spacing-lg); }
+.img-title { display: block; margin-bottom: var(--spacing-sm); font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-secondary); }
+
+/* ===== ⑥⑦ 提交说明 + 提交按钮（随内容滚动）+ 失败提示 ===== */
+.submit-note {
+  display: block;
+  margin-top: var(--spacing-lg);
+  font-size: var(--font-tiny);
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+.submit-area { margin-top: var(--spacing-sm); }
+.submit-error {
+  display: block;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-tiny);
+  line-height: 1.5;
+  color: var(--color-error);
+}
+</style>

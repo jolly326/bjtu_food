@@ -2,6 +2,7 @@ package com.bjtufood.correction.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.canteen.dto.StallBriefVO;
@@ -10,6 +11,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.correction.constant.CorrectionConst;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
+import com.bjtufood.correction.dto.DishCorrectionAdminVO;
 import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.dto.StallConfirmVO;
@@ -52,7 +54,9 @@ import static org.mockito.Mockito.when;
  *       若退化成分字段多次送检会把微信额度放大 4 倍）；纯 price/images 改动<b>不送检</b>；</li>
  *   <li><b>采纳幂等与前置校验</b>：非 pending 一律 400（重复点击 = 已处理），菜品物理删除 4001；</li>
  *   <li><b>两段式档口确认</b>：未命中且未确认新建 ⇒ 只返回候选、<b>不得写回 dish</b>；</li>
- *   <li><b>回执投递判据</b>：游客（userId=null）与未认证账号一律不投递。</li>
+ *   <li><b>回执投递判据</b>：游客（userId=null）与未认证账号一律不投递；</li>
+ *   <li><b>楼层纠错（2026-09-30）</b>：floor 传入即非空 / ≤16 字校验；仅改楼层也算「有改动」；
+ *       采纳时 floor 写回<b>目标档口</b>（{@code stall.floor}）而非 dish，且档口未落定前不得写。</li>
  * </ol>
  * 被测类为纯 POJO：{@code @Transactional} 依赖 Spring 代理，单测中不生效，断言的是方法体内业务逻辑。
  */
@@ -242,6 +246,118 @@ class CorrectionServiceImplTest {
         verify(correctionMapper, never()).insert(any());
     }
 
+    // ==================== 楼层纠错：提交校验 / 空改动判据 / 管理端装配 ====================
+
+    @Test
+    @DisplayName("submit：楼层传入为空或纯空白 → 400「楼层不能为空」且不落库（不静默降级为空改动）")
+    void submit_blankFloor_400() {
+        when(dishService.existsOnSale(anyLong())).thenReturn(true);
+        for (String blank : new String[]{"", "   "}) {
+            DishCorrectionReq req = req();
+            req.setFloor(blank);
+            assertThatThrownBy(() -> service().submit(1L, 3L, req))
+                    .satisfies(ex -> {
+                        assertThat(((BusinessException) ex).getCode()).isEqualTo(400);
+                        assertThat(ex.getMessage()).isEqualTo("楼层不能为空");
+                    });
+        }
+        verify(correctionMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("submit：楼层超长（>16 字，与 stall.floor VARCHAR(16) 对齐）→ 400「楼层超长」且不落库")
+    void submit_floorTooLong_400() {
+        when(dishService.existsOnSale(anyLong())).thenReturn(true);
+        DishCorrectionReq req = req();
+        req.setFloor("层".repeat(CorrectionConst.FLOOR_MAX_LENGTH + 1));
+
+        assertThatThrownBy(() -> service().submit(1L, 3L, req))
+                .satisfies(ex -> {
+                    assertThat(((BusinessException) ex).getCode()).isEqualTo(400);
+                    assertThat(ex.getMessage()).isEqualTo("楼层超长");
+                });
+        verify(correctionMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("submit：楼层恰好 16 字 → 放行（边界值，不得误判超长）")
+    void submit_floorAtMaxLength_persists() {
+        when(dishService.existsOnSale(anyLong())).thenReturn(true);
+        String max = "层".repeat(CorrectionConst.FLOOR_MAX_LENGTH);
+        DishCorrectionReq req = req();
+        req.setFloor(max);
+
+        service().submit(1L, 3L, req);
+
+        ArgumentCaptor<DishCorrection> captor = ArgumentCaptor.forClass(DishCorrection.class);
+        verify(correctionMapper).insert(captor.capture());
+        assertThat(captor.getValue().getFloor()).isEqualTo(max);
+    }
+
+    @Test
+    @DisplayName("submit：**仅改楼层**（其余改动项未传）算「有改动」→ 落库 floor 快照，不得判 400「未提交任何改动」")
+    void submit_floorOnly_persistsAsChange() {
+        when(dishService.existsOnSale(anyLong())).thenReturn(true);
+        DishCorrectionReq req = req();
+        req.setFloor("  2F  ");   // 传入值 trim 后落库
+
+        service().submit(1L, 3L, req);
+
+        ArgumentCaptor<DishCorrection> captor = ArgumentCaptor.forClass(DishCorrection.class);
+        verify(correctionMapper).insert(captor.capture());
+        DishCorrection saved = captor.getValue();
+        assertThat(saved.getFloor()).isEqualTo("2F");
+        assertThat(saved.getDishId()).isEqualTo(3L);
+        assertThat(saved.getUserId()).isEqualTo(1L);
+        assertThat(saved.getStatus()).isEqualTo(CorrectionConst.STATUS_PENDING);
+        // 其余改动项保持 NULL（patch 语义：未改动不落库、采纳时不覆盖既有值）
+        assertThat(saved.getName()).isNull();
+        assertThat(saved.getPrice()).isNull();
+        assertThat(saved.getCanteenName()).isNull();
+        assertThat(saved.getStallName()).isNull();
+        assertThat(saved.getAttributes()).isNull();
+    }
+
+    @Test
+    @DisplayName("submit：楼层为自由文本 → 与其他自由文本字段合并为**单次**机审（采纳后进入公开展示）")
+    void submit_floorIncludedInSingleSecCheckCall() {
+        when(dishService.existsOnSale(anyLong())).thenReturn(true);
+        UserAuthContextVO user = new UserAuthContextVO();
+        user.setOpenid("oXxx");
+        when(userService.getAuthContext(7L)).thenReturn(user);
+
+        DishCorrectionReq req = req();
+        req.setStallName("清真面档");
+        req.setFloor("2F");
+        service().submit(7L, 3L, req);
+
+        ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
+        verify(contentSecurityService).checkText(org.mockito.ArgumentMatchers.eq("oXxx"), text.capture(),
+                org.mockito.ArgumentMatchers.eq(2));
+        // 楼层与其它自由文本字段同批送检：漏检即可把违规文本写进公开可见的 stall.floor
+        assertThat(text.getValue()).isEqualTo("清真面档\n2F");
+    }
+
+    @Test
+    @DisplayName("管理端列表：floor 装配进 VO（提交的楼层快照对后台可见，未改动为 null）")
+    void listForAdmin_assemblesFloor() {
+        DishCorrection withFloor = pendingCorrection(1L);
+        withFloor.setFloor("2F");
+        DishCorrection withoutFloor = pendingCorrection(2L);
+        Page<DishCorrection> page = new Page<>(1, 10);
+        page.setRecords(List.of(withFloor, withoutFloor));
+        page.setTotal(2);
+        when(correctionMapper.selectPage(any(), any())).thenReturn(page);
+        when(userService.mapNicknameByIds(any())).thenReturn(Map.of(1L, "交大干饭王", 2L, "食堂常客"));
+        when(dishService.mapNameByIds(any())).thenReturn(Map.of(3L, "牛肉拉面"));
+
+        List<DishCorrectionAdminVO> records = service().listForAdmin(null, 1, 10).getRecords();
+
+        assertThat(records).hasSize(2);
+        assertThat(records.get(0).getFloor()).isEqualTo("2F");
+        assertThat(records.get(1).getFloor()).isNull();
+    }
+
     // ==================== adopt：幂等与两段式档口确认 ====================
 
     @Test
@@ -336,6 +452,92 @@ class CorrectionServiceImplTest {
         assertThat(saved.getValue().getHandledAt()).isNotNull();
 
         verify(notificationService).notify(any(NotificationCmd.class));
+    }
+
+    @Test
+    @DisplayName("adopt：本次纠错含楼层改动 → 写回**目标档口** stall.floor（楼层归属档口，不写 dish）")
+    void adopt_floorChanged_writesBackToResolvedStall() {
+        DishCorrection c = pendingCorrection(1L);
+        c.setFloor("2F");
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        when(stallService.findIdByName(any())).thenReturn(10L);
+        when(stallService.getNameById(10L)).thenReturn("清真面档");
+        when(dishService.applyCorrection(any())).thenReturn(true);
+        when(userService.isVerifiedById(1L)).thenReturn(true);
+
+        assertThat(service().adopt(9L, null)).isNull();
+
+        // 落点 = 本次采纳解析出的目标档口（两段式确认的最终结果），而非提交名对应的档口
+        verify(stallService).updateFloor(10L, "2F");
+        // 楼层不进 dish 写回指令（DishCorrectionCmd 无 floor 字段）：菜品无楼层列
+        ArgumentCaptor<DishCorrectionCmd> cmd = ArgumentCaptor.forClass(DishCorrectionCmd.class);
+        verify(dishService).applyCorrection(cmd.capture());
+        assertThat(cmd.getValue().getStallId()).isEqualTo(10L);
+        verify(correctionMapper).updateById(any());
+    }
+
+    @Test
+    @DisplayName("adopt：档口名未改动（快照 null）+ 管理端指定档口 + 楼层改动 → 写回该档口 floor，且归档不 NPE")
+    void adopt_explicitStallWithFloor_writesBackToThatStall() {
+        DishCorrection c = pendingCorrection(1L);
+        c.setFloor("B1");
+        c.setStallName(null);   // 档口名未改动的局部提交：楼层改动照常写回最终档口
+        c.setCanteenName(null);
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        when(stallService.existsById(22L)).thenReturn(true);
+        when(stallService.getNameById(22L)).thenReturn("留园包点");
+        when(dishService.applyCorrection(any())).thenReturn(true);
+
+        DishCorrectionAdoptReq req = new DishCorrectionAdoptReq();
+        req.setStallId(22L);
+
+        assertThat(service().adopt(9L, req)).isNull();
+
+        verify(stallService).updateFloor(22L, "B1");
+        // 档口名快照为 null 时归档「实际挂靠档口名」也必须成功（原实现在此 NPE ⇒ 采纳 500）
+        ArgumentCaptor<DishCorrection> saved = ArgumentCaptor.forClass(DishCorrection.class);
+        verify(correctionMapper).updateById(saved.capture());
+        assertThat(saved.getValue().getStallName()).isEqualTo("留园包点");
+        assertThat(saved.getValue().getStatus()).isEqualTo(CorrectionConst.STATUS_ADOPTED);
+    }
+
+    @Test
+    @DisplayName("adopt：本次纠错未改楼层（floor=null）→ 不触碰档口楼层（空值不得覆盖既有 stall.floor）")
+    void adopt_floorAbsent_doesNotTouchStallFloor() {
+        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        when(stallService.findIdByName(any())).thenReturn(10L);
+        when(stallService.getNameById(10L)).thenReturn("清真面档");
+        when(dishService.applyCorrection(any())).thenReturn(true);
+
+        assertThat(service().adopt(9L, null)).isNull();
+
+        verify(stallService, never()).updateFloor(any(), any());
+        verify(dishService).applyCorrection(any());
+    }
+
+    @Test
+    @DisplayName("adopt：档口名未命中且未确认新建（含楼层改动）→ 只返回候选，**楼层亦不得写回**")
+    void adopt_unmatchedStallWithFloor_doesNotWriteFloor() {
+        DishCorrection c = pendingCorrection(1L);
+        c.setFloor("2F");
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        when(stallService.findIdByName(any())).thenReturn(null);
+        StallBriefVO s = mock(StallBriefVO.class);
+        when(s.getId()).thenReturn(11L);
+        when(s.getName()).thenReturn("清真面档B");
+        when(stallService.listBriefCandidates(any())).thenReturn(List.of(s));
+
+        StallConfirmVO result = service().adopt(9L, null);
+
+        assertThat(result.needStallConfirm()).isTrue();
+        // 关键：档口未落定前不写 dish、不写 stall.floor、不改纠错状态
+        verify(stallService, never()).updateFloor(any(), any());
+        verify(dishService, never()).applyCorrection(any());
+        verify(correctionMapper, never()).updateById(any());
     }
 
     @Test

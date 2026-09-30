@@ -29,6 +29,15 @@ public interface CorrectionConst {
     /** 提交的档口名称最大长度（字，与 stall.name VARCHAR(64) 一致） */
     int STALL_NAME_MAX_LENGTH = 64;
 
+    /**
+     * 提交的楼层最大长度（字，与 {@code stall.floor} / {@code dish_correction.floor} 的 VARCHAR(16) 一致）。
+     * <p>
+     * 楼层是<b>自由文本</b>（无字典端点，如 1F / 2F / B1 / 三楼 / 二层东侧），故只做长度上限约束；
+     * 该列长度与 {@code stall.floor} 严格对齐——纠错采纳会把提交值<b>原样写回 stall.floor</b>，
+     * 两者上限不一致会在采纳时触发截断或 500（数据被静默改写）。
+     */
+    int FLOOR_MAX_LENGTH = 16;
+
     /** 纠错配图上限（张；与评价 / 反馈的 UGC 配图口径一致） */
     int IMAGE_MAX = 3;
 

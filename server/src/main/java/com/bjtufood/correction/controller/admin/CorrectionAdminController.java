@@ -43,7 +43,8 @@ public class CorrectionAdminController {
             + "①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；"
             + "未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；"
             + "②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。"
-            + "采纳动作：七字段写回目标菜品 → status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，"
+            + "采纳动作：七字段写回目标菜品（若本次纠错含 floor 改动，则另外写回**目标档口** stall.floor，"
+            + "同档口其他菜品一并生效；菜品无楼层字段）→ status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，"
             + "并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。"
             + "采纳已执行时返回 data=null（code=200）。")
     @PostMapping("/{id}/adopt")

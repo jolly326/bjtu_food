@@ -7,11 +7,10 @@
  *
  * 职责拆分（职责内聚、无跨文件可变状态）：
  * - `useDishHeroScroll`：顶部大图滚动模型（sticky 两阶段定格的全部几何量）。
- * - `useDishReviewCore`：评价分页（触底加载，结束判据 = 已加载条数 ≥ total）、删除本人评价、
- *   只看有图切换、失败重试。
- * - `useDishReviewComposer`：写评价 / 重新评价弹层、底栏双态、重评预填、纠错入口。
+ * - `useDishReviewCore`：评价分页（触底加载）、删除本人评价、失败重试。
+ * - `useDishReviewComposer`：写评价弹层（恒空表单）、纠错入口。
  * - `useDishReviewMenu`：评价三点菜单（本人删除 / 他人举报路由）。
- * - 本文件持有跨子模块共享的可变态（dishId / dish / myReview / imageOnly）与生命周期钩子
+ * - 本文件持有跨子模块共享的可变态（dishId / dish）与生命周期钩子
  *   （onLoad / onShow / onShareAppMessage），并把 store 取数、上报浏览、分享态写回编排起来。
  *
  * ⚠️ 全部逻辑在函数体内同步执行：由页面在 <script setup> 中同步调用 useDishPage()，
@@ -25,7 +24,6 @@ import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
-import type { MyReview } from '@/types/review'
 import type { DishDetail } from '@/types/dish'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/back'
@@ -51,11 +49,6 @@ export function useDishPage() {
 
   const dishId = ref(0)
   const dish = computed<DishDetail | null | undefined>(() => dishStore.currentDish)
-  /** 当前用户对本菜的评价（判定底栏双态 + 重评预填）；游客 / 未认证恒为 null */
-  const myReview = ref<MyReview | null>(null)
-  /** 「有图」筛选（服务端过滤 `hasImage`：分页与筛选同口径） */
-  const imageOnly = ref(false)
-
   const detailFailed = computed(() => dishStore.detailError)
   /**
    * 菜品不存在态（后端 `4001`，§7.40 R8，**不可重试**）：与失败态互斥。
@@ -67,11 +60,10 @@ export function useDishPage() {
   const missingDishId = ref(false)
 
   const hero = useDishHeroScroll(dish)
-  const reviewCore = useDishReviewCore({ dishId, myReview, imageOnly })
+  const reviewCore = useDishReviewCore({ dishId })
   const composer = useDishReviewComposer({
     dish,
     dishId,
-    myReview,
     fetchReviewsReset: reviewCore.fetchReviewsReset,
     resetReviewPaging: reviewCore.resetReviewPaging,
   })
@@ -103,8 +95,6 @@ export function useDishPage() {
     missingDishId.value = false
     dishId.value = id
     dishStore.resetDishDetail()
-    myReview.value = null
-    imageOnly.value = false
     void loadDishData()
   })
 
@@ -160,10 +150,6 @@ export function useDishPage() {
     detailFailed,
     detailNotFound,
     missingDishId,
-    imageOnly: reviewCore.imageOnly,
-    reviewButtonText: composer.reviewButtonText,
-    composerPrefill: composer.composerPrefill,
-    composerReviewId: composer.composerReviewId,
     composerOpen: composer.composerOpen,
     reportOpen,
     reportSubmitting,
@@ -171,7 +157,6 @@ export function useDishPage() {
     reviewMoreItems: menu.reviewMoreItems,
     backToHome,
     onRetryDetail,
-    onToggleImageOnly: reviewCore.onToggleImageOnly,
     onReviewMore: menu.onReviewMore,
     onReviewMoreSelect: menu.onReviewMoreSelect,
     onCorrectDishInfo: composer.onCorrectDishInfo,

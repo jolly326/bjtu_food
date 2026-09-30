@@ -32,6 +32,16 @@ public class DishCorrectionReq {
     private String stallName;
 
     /**
+     * 楼层（**归属档口**，非菜品）：楼层是 {@code stall.floor} 的属性，菜品无楼层字段。
+     * <p>
+     * 采纳时写回「目标档口」的 {@code stall.floor}——同档口下的其他菜品<b>一并生效</b>
+     * （楼层是档口级描述，不是单菜属性）。自由文本（无字典端点），传入即校验非空、≤16 字
+     * （与 {@code stall.floor VARCHAR(16)} 对齐）。
+     */
+    @Schema(description = "楼层（自由文本，归属档口 stall.floor；传入时：非空、≤16 字）", example = "1F")
+    private String floor;
+
+    /**
      * 动态描述属性（局部：仅含用户改动的维度项）。键 = 维度 {@code fieldKey}，值 = **中文文本**（或文本数组）；
      * 取值为自由文本、候选仅作提示不限制；命中内容安检则 400。
      */

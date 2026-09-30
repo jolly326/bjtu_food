@@ -11,13 +11,13 @@
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
-| GET | `/feedback/report-reasons` | 🔓 公开 | **举报原因字典**：`[{ value, label }]`（服务端按序下发），弹层打开时实时拉取；值域与文案唯一真源 = 后端常量，端上**零硬编码** |
+| GET | `/report-reasons` | 🔓 公开 | **举报原因字典**：`[{ value, label }]`（服务端按序下发），弹层打开时实时拉取；值域与文案唯一真源 = 后端常量，端上**零硬编码** |
 | POST | `/reviews/{id}/report` | 🔓 公开（游客可提交） | **提交举报**：`{id}` = 被举报评价 ID（RESTful 子资源）；请求体见下 |
 | POST | `/upload/cloud-image` | 🔑 需登录 | **前置调用**（选填）：佐证配图逐张转存（微信内容安检 + 转存 COS） |
 
 ## 字段
 
-### 响应 · `GET /feedback/report-reasons`
+### 响应 · `GET /report-reasons`
 
 | 字段名 | 类型 | 中文解释 |
 |---|---|---|

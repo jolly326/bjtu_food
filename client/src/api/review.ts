@@ -1,5 +1,5 @@
 import type { Review, MyReview } from '@/types/review'
-import { get, post, put, del } from './http'
+import { get, post, del } from './http'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 import {
   recordsOf, type RawPage,
@@ -53,19 +53,16 @@ function toMyReview(raw: MyReviewVO): MyReview {
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
  * - 菜品归属由路径表达（不再用查询参数）；
  * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
- * - `hasImage=true` 时仅返回带图评价（后端布尔契约 `hasImage=true`）；
  * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  */
 export async function getDishReviews(
   dishId: number,
-  options?: { page?: number; pageSize?: number; hasImage?: boolean },
+  options?: { page?: number; pageSize?: number },
 ): Promise<{ list: Review[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
-  // 布尔契约（2026-09-29 由 0/1 改）：true 时服务端仅返回带图评价
-  if (options?.hasImage) params.hasImage = true
   // 强类型：元素类型取自生成契约，后端改 ReviewVO 字段即编译期报错
   const res = await get<RawPage<ReviewVO>>(`/dishes/${dishId}/reviews`, params)
   return { list: recordsOf<ReviewVO>(res).map(toReview) }
@@ -110,18 +107,11 @@ interface ReviewSubmitPayload {
 
 /**
  * 发表评价（POST /dishes/{id}/reviews；需完成学号邮箱认证）。
- * 每个用户对同一菜品仅评价一次，评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
- * 成功返回**新评价 ID**（data.id）——调用方本地写回「我的评价」态，无须回读接口。
+ * **同一用户对同一菜品的重复提交由服务端覆盖旧评价**（端上不区分首评 / 重评，2026-09-30 简化），
+ * 故不再提供 `PUT /reviews/{id}` 的端上封装（零调用即删）。评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
+ * 成功返回评价 ID（data.id）。
  */
 export async function createReview(dishId: number, payload: ReviewSubmitPayload): Promise<number> {
   const res = await post<ReviewCreatedVO>(`/dishes/${dishId}/reviews`, payload)
   return Number(res.id)
-}
-
-/**
- * 重新评价（PUT /reviews/{id}；作者本人 + 需认证）。
- * **覆盖更新同一条评价**（评分 / 文字 / 配图），不新建行；发表时间刷新、隐藏标记重置、聚合重算。
- */
-export async function updateReview(reviewId: number, payload: ReviewSubmitPayload): Promise<void> {
-  await put<void>(`/reviews/${reviewId}`, payload)
 }

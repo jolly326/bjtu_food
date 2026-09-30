@@ -14,6 +14,9 @@ import java.util.List;
  * 对应数据库表：dish_correction（菜品信息纠错，独立于 user_feedback 反馈体系）。
  * 用户在菜品详情页提交的信息纠错快照：提交的七字段为用户修正后的新值，
  * 管理端采纳后整体写回 dish（adopt 路径），拒绝则留存不采纳原因。
+ * <p>
+ * 例外：{@code floor}（楼层纠错，2026-09-30 新增）归属<b>档口</b>而非菜品——菜品无楼层字段，
+ * 采纳时写回目标档口的 {@code stall.floor}（同档口其他菜品一并生效），详情出参的 {@code floor} 亦来自 stall 联表。
  */
 @Data
 @TableName(value = "dish_correction", autoResultMap = true)
@@ -47,6 +50,16 @@ public class DishCorrection {
     /** 提交的档口名称（自由文本，采纳时两段式确认归档） */
     @Schema(description = "提交的档口名称", example = "学一基本伙食")
     private String stallName;
+
+    /**
+     * 提交的楼层（**改动项快照**，自由文本，未改动留 NULL）。
+     * <p>
+     * 楼层归属档口：采纳时写回<b>目标档口</b>的 {@code stall.floor}，而不是 dish
+     * （档口归属与 {@link #stallName} 一致，均经 canteen 域服务写契约下发）。
+     * 长度上限与 {@code stall.floor VARCHAR(16)} 一致，由 correction 侧提交时校验。
+     */
+    @Schema(description = "提交的楼层（自由文本，采纳时写回目标档口 stall.floor）", example = "1F")
+    private String floor;
 
     /**
      * 提交的描述属性（**改动项快照**：仅含用户改动的维度，未改动维度留 NULL）。

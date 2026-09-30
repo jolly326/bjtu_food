@@ -1,18 +1,31 @@
 <template>
   <CardSection>
-    <!-- 菜品信息卡（UI 统一 Loop Round 22 重排 + Round 23 属性块还原）：
-         ① 名称 + 价格组 → ② 评分（左）/ 位置（右）同行 → ③ 简介（`description` 为空则整块隐藏）
+    <!-- 菜品信息卡（**本稿修订 2026-09-30**）：
+         ① **名称行**（菜名 ≤2 行 + **「信息有误?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
+         → ③ 简介（**固定 ≤2 行截断、无展开**；`description` 为空则整块隐藏）
          → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
-         → ⑤ 描述四维（**Round 23 还原 Round 22 之前的样式**：无底色 / 无边框 / 四列等分居中）。
+         → ⑤ 描述四维（无底色 / 无边框 / 四列等分居中）。
          · 模块之间**靠垂直留白区分**（`--spacing-md`），除第 ④ 条外**不加任何分隔线**；
-         · 交互文字（本卡仅「展开 / 收起」）只用文字配色，**禁止实色填充按钮**；
+         · 卡内唯一可点件 = **「信息有误?」**（文字 + 小图标，**禁实色填充按钮**）；
          · 卡片内不做分享按钮（复用微信原生右上角分享）；
-         · **纠错入口已从本卡移除**（R23 移出本卡 → R25 定为**底栏「反馈错误」**，全页入口唯一）；
+         · **「信息有误?」= 全页唯一纠错入口**（本稿自底栏迁入本卡名称行、位于价格左侧）；
          · **不绘制评分进度条、不展示评价人数**（「有无评分」的唯一判据 = `avgRating` 是否为 `null`）。 -->
     <view class="dish-info">
-      <!-- ① 名称 + 价格组：价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
+      <!-- ① 名称行（flex 横向、垂直居中）：菜名（**≤2 行截断**）→「**信息有误?**」入口（价格左侧、视觉权重压低、图标与文字同色 `--text-tertiary`）→ 价格组
+           价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
       <view class="title-row">
         <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
+        <view
+          class="correct-entry"
+          role="button"
+          aria-label="信息有误，前往提交菜品纠错"
+          hover-class="correct-entry--pressed"
+          hover-stay-time="80"
+          @tap="emit('correct')"
+        >
+          <IconSvg name="alert" :size="24" :color="COLOR_MAP['text-tertiary']" class="correct-icon" />
+          <text class="correct-text">信息有误?</text>
+        </view>
         <view class="price-group">
           <text class="price-text">¥{{ formatPrice(dish.price) }}</text>
           <text v-if="hasPromo" class="origin-price">¥{{ formatPrice(dish.originalPrice) }}</text>
@@ -33,16 +46,10 @@
         </view>
       </view>
 
-      <!-- ③ 简介：默认两行 + 右下角「展开 / 收起」；`description` 为空则整块不渲染（不占页面空间） -->
+      <!-- ③ 简介：**固定最多 2 行截断、超出省略**（**已删除「展开 / 收起」**，文本独占卡片整宽 —— 不存在文字与按钮的排版冲突）；
+           `description` 为空则整块不渲染（不占页面空间） -->
       <view v-if="dish.description" class="desc-row">
-        <text class="desc-content" :class="{ 'desc-content--collapsed': !descExpanded }">{{ dish.description }}</text>
-        <text
-          class="desc-toggle"
-          role="button"
-          aria-label="展开或收起简介"
-          :aria-expanded="descExpanded ? 'true' : 'false'"
-          @tap="descExpanded = !descExpanded"
-        >{{ descExpanded ? '收起' : '展开' }}</text>
+        <text class="desc-content">{{ dish.description }}</text>
       </view>
 
       <!-- ④ 全卡**唯一**一条浅灰分隔线：只在简介存在时渲染（简介隐藏 → 这条线一并消失） -->
@@ -50,8 +57,7 @@
 
       <!-- ⑤ 描述属性（`dish.attributes`）：**值即中文 ⇒ 端上直渲 `value`** ——
            无底色 / 无边框 / 无入口，各列水平等分居中；上：中文值（主字号），下：维度名（浅灰小字）；
-           按后端返回顺序逐维渲染、缺项不占位，多值维已用「、」拼接。
-           纠错入口（原本卡右上角）已移出 —— 全页唯一落点为**底栏「反馈错误」**（Round 25）。 -->
+           按后端返回顺序逐维渲染、缺项不占位，多值维已用「、」拼接。 -->
       <view v-if="dims.length > 0" class="dims">
         <view class="dim-col" v-for="d in dims" :key="d.name">
           <text class="dim-val">{{ d.value }}</text>
@@ -63,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
 import type { DishDetail } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -86,9 +92,10 @@ const props = defineProps<{
 /** 均分文案（恒一位小数；走公共口径 `utils/dish.formatRating`） */
 const ratingText = computed(() => formatRating(props.rating))
 
-/** 简介展开/收起（换菜品时复位） */
-const descExpanded = ref(false)
-watch(() => props.dish.name, () => { descExpanded.value = false })
+const emit = defineEmits<{
+  /** 「信息有误?」入口：页面侧跳独立纠错页（`correctionUrl(dishId)`，免认证） */
+  (e: 'correct'): void
+}>()
 
 /** 划线原价显隐：判据统一走 `utils/dish.hasDiscount`（UI 统一 Loop Round 17，与 find 结果同口径） */
 const hasPromo = computed(() => hasDiscount(props.dish.price, props.dish.originalPrice))
@@ -110,15 +117,15 @@ const dims = computed(() => {
   return list
 })
 
-/* 注：纠错入口已从本卡移除（R23 移出本卡，R25 定为底栏「反馈错误」）—— 连同其页面级跳转
-   （反馈页 update 模式 + 预选本菜品）一并移到页面编排 `useDishPage.onCorrectDishInfo`。 */
+/* 注：「信息有误?」为本稿新增（2026-09-30）—— 点击上抛 `correct`，由页面编排
+   `useDishPage.onCorrectDishInfo` 跳独立纠错页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
 </script>
 
 <style scoped>
 /* ===== 模块垂直节奏（唯一来源）：除简介下方那条分隔线外，全部用留白区分 —— 不加任何额外分割线 ===== */
 
-/* ① 名称 + 价格组（同一行、基线对齐）：菜名是卡片内最大字号 */
-.title-row { display: flex; align-items: baseline; gap: var(--spacing-sm); }
+/* ① 名称行（flex 横向、**垂直居中**）：菜名（≤2 行截断）+「信息有误?」入口（价格左侧）+ 价格组 */
+.title-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .dish-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -127,10 +134,37 @@ const dims = computed(() => {
   letter-spacing: var(--tracking-h2);
   line-height: 1.2;
   color: var(--text-primary);
+  /* 本稿修订：最长 2 行、超出省略（原为单行 nowrap）；不与右侧入口 / 价格抢占空间 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
+/* 「信息有误?」入口：文字 + 线性小图标、**视觉权重压低**（图标与文字同色 `--text-tertiary`），
+   位于价格左侧；命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限）。
+   按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。 */
+.correct-entry {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3xs);
+  -webkit-tap-highlight-color: transparent;
+}
+.correct-entry::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 88rpx;
+  transform: translateY(-50%);
+}
+.correct-icon { flex: none; width: 24rpx; height: 24rpx; display: flex; align-items: center; justify-content: center; }
+.correct-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.2; white-space: nowrap; }
+.correct-entry--pressed { opacity: 0.6; }
 .price-group { flex: 0 0 auto; display: flex; align-items: baseline; gap: var(--spacing-xs); }
 .price-text { font-size: var(--font-h2); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
 .origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
@@ -164,8 +198,8 @@ const dims = computed(() => {
 }
 .loc-text { min-width: 0; font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ③ 简介：默认两行 + 右下角「展开 / 收起」（纯文字，无填充） */
-.desc-row { display: flex; align-items: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+/* ③ 简介：**固定最多 2 行截断、超出省略**（本稿修订：已删除「展开 / 收起」，文本独占卡片整宽） */
+.desc-row { display: flex; margin-top: var(--spacing-md); }
 .desc-content {
   flex: 1 1 auto;
   min-width: 0;
@@ -174,30 +208,10 @@ const dims = computed(() => {
   line-height: 1.5;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
   word-break: break-all;
-}
-.desc-content--collapsed { -webkit-line-clamp: 2; line-clamp: 2; }
-.desc-toggle {
-  position: relative;
-  flex: 0 0 auto;
-  align-self: flex-end;
-  font-size: var(--font-aux);
-  color: var(--color-primary);
-  font-weight: var(--weight-medium);
-  padding: var(--spacing-3xs) var(--spacing-xs);
-  line-height: 1.4;
-  -webkit-tap-highlight-color: transparent;
-}
-/* 触达：展开钮命中区经 ::after 扩至 ≥88rpx（不改变视觉尺寸） */
-.desc-toggle::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 88rpx;
-  height: 88rpx;
-  transform: translate(-50%, -50%);
 }
 
 /* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间。

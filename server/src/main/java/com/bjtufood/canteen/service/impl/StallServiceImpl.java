@@ -77,6 +77,31 @@ public class StallServiceImpl implements StallService {
         }
     }
 
+    /**
+     * 定点写回档口楼层（纠错采纳专用，见接口契约）。
+     * <p>
+     * 用<b>部分实体</b>（只带 id + floor）走 {@code updateById}：MyBatis-Plus 的 NOT_NULL 更新策略
+     * 保证 name / canteen_id / location / window_no / sort_order 等既有列原样保留，
+     * 不会把楼层纠错放大成一次整行覆盖。
+     * <p>
+     * {@code updateById} 影响 0 行 ⇒ 目标档口已不存在（档口无删除能力，属并发/脏 id 兜底），
+     * 抛 400 由调用方事务一并回滚。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateFloor(Long stallId, String floor) {
+        String normalized = floor == null ? null : floor.trim();
+        if (stallId == null || !StringUtils.hasText(normalized)) {
+            throw new BusinessException("楼层不能为空");
+        }
+        Stall update = new Stall();
+        update.setId(stallId);
+        update.setFloor(normalized);
+        if (stallMapper.updateById(update) == 0) {
+            throw new BusinessException("档口不存在");
+        }
+    }
+
     @Override
     public Long upsertStallByName(String stallName, String rawCanteenName) {
         Stall existing = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()

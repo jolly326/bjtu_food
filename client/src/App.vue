@@ -115,7 +115,7 @@ page {
   /* 搜索栏高度（SearchBar 单胶囊；UI 统一 Loop Round 20：由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
      ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
   --search-bar-height: 96rpx;
-  /* 详情/表单页底部固定操作栏统一高度（§4.9 / T24，详情 action-bar / review 提交栏 / contact 提交栏同源避让） */
+  /* 表单页底部固定操作栏统一高度（§4.9 / T24，profile 提交栏 / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
   /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
      两段式：页面骨架层（50~999，内容之上、弹层之下）→ 弹层级（2000+）。
@@ -123,7 +123,7 @@ page {
      另有**底层** `--z-page-bg`（−1）：页底壁纸层，不属于骨架层、不参与上述排序。 */
   --z-page-bg: -1;         /* 页底壁纸层（PageWallpaper）：负层级 = 压在父级背景之上、流内内容之下，
                               故接入新页面无需给内容加 z-index（UI 统一 Loop Round 5 token 化） */
-  --z-action-bar: 50;      /* 页面底部固定操作栏（dish action-bar / profile submit-bar 等同语义底栏） */
+  --z-action-bar: 50;      /* 页面底部固定操作栏（profile submit-bar 等同语义底栏） */
 
   --z-tabbar: 100;         /* 自绘底部菜单栏 */
   --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */

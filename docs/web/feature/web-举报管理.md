@@ -19,7 +19,7 @@
 
 **重复处理**：仅 `status='pending'` 可处理；重复提交返回 `400`。
 
-**举报原因**：值域由服务端字典 `GET /feedback/report-reasons` 下发（`value` / `label`），管理端**零硬编码中文**；列表展示用 `reasonLabel`（中文），入参校验用 `reason`（机器值）。
+**举报原因**：值域由服务端字典 `GET /report-reasons` 下发（`value` / `label`；2026-09-30 自 `/feedback/report-reasons` 迁出），管理端**零硬编码中文**；列表展示用 `reasonLabel`（中文），入参校验用 `reason`（机器值）。
 
 ## 接口
 
@@ -35,7 +35,7 @@
 | `page` | number | 否 | 页码，默认 1 |
 | `pageSize` | number | 否 | 每页条数，默认 20 |
 | `status` | string | 否 | `pending` / `handled`；不传 = 全部 |
-| `reason` | string | 否 | 按举报原因筛选（值域 = `GET /feedback/report-reasons`） |
+| `reason` | string | 否 | 按举报原因筛选（值域 = `GET /report-reasons`） |
 
 ### 请求 · `PUT /admin/reports/{id}`（`ReportHandleReq`）
 

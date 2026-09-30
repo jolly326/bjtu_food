@@ -164,7 +164,7 @@ INSERT INTO review (user_id, dish_id, rating, content, is_hidden) VALUES
 --     存量库由 schema.sql 末尾 drop_review_useful_chain 幂等段清理（表基线 10 → 9）。
 
 -- -------------------- 用户反馈（意见反馈/举报，测试反馈处理流；无唯一键，先清后插保证可重复执行） --------------------
--- sub（二级分类）：report 行传举报原因机器值（GET /feedback/report-reasons 字典下发项）；
+-- sub（二级分类）：report 行传举报原因机器值（GET /report-reasons 字典下发项）；
 -- 其他类型该列按 NULL 写入。user_feedback.contact 已于 2026-09-16 用户拍板退役（产品定型「不收集联系方式」）。
 DELETE FROM user_feedback;
 INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, related_id, created_at) VALUES
@@ -175,13 +175,18 @@ INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, re
 (2, 'issue',  NULL,   '首页瀑布流下拉刷新偶发卡死，需要杀掉小程序重进才恢复', 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 HOUR));
 
 -- -------------------- 菜品信息纠错（测试纠错采纳/拒绝流；先清后插保证可重复执行） --------------------
--- 覆盖三种处理路径：#1 档口名精确命中既有档口（可直接采纳）；#2 档口名未命中（触发两段式档口确认，
--- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）。
+-- 覆盖四种处理路径：#1 档口名精确命中既有档口（可直接采纳）；#2 档口名未命中（触发两段式档口确认，
+-- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）；
+-- #4 **仅楼层改动**（name/price/canteen/stall 全 NULL，只有 floor）——演示「仅改楼层也算有改动」，
+--    采纳时把 floor 写回目标档口 stall.floor（该档口下其他菜品一并生效；菜品本身无楼层字段）。
+-- 楼层列 floor（2026-09-30 新增）与 stall_name 同为自由文本；#2 为 NULL（该行演示的是档口两段式确认），
+-- #1 的 '1F' 与种子档口楼层一致（写回为等值更新），#4 的 '2F' 演示真实改动（清真拉面种子楼层为 1F）。
 DELETE FROM dish_correction;
-INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, attributes, images, status, reply, reject_reason, created_at) VALUES
-(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '{"dietType":"半荤","ingredients":["蛋","米"],"flavorTags":["酸","甜"],"serveTemp":"热食"}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
-(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     '{"dietType":"清真","ingredients":["牛","面"],"flavorTags":["咸"],"serveTemp":"热食"}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
-(1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', '{"dietType":"荤","ingredients":["鸡","青菜"],"flavorTags":["辣","酸"],"serveTemp":"热食"}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY));
+INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, floor, attributes, images, status, reply, reject_reason, created_at) VALUES
+(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '1F',   '{"dietType":"半荤","ingredients":["蛋","米"],"flavorTags":["酸","甜"],"serveTemp":"热食"}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     NULL,   '{"dietType":"清真","ingredients":["牛","面"],"flavorTags":["咸"],"serveTemp":"热食"}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', NULL,   '{"dietType":"荤","ingredients":["鸡","青菜"],"flavorTags":["辣","酸"],"serveTemp":"热食"}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(24, 3,    NULL,           NULL, NULL,       NULL,           '2F',   NULL, NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 90 MINUTE));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）

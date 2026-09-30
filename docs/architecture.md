@@ -39,7 +39,7 @@ GitHub / Stripe / 各类 SaaS 均为「一个后端 + 一套 API + 两种鉴权�
 |---|---|---|
 | 筛选视图字典 | `GET /dishes/views` | 公开只读，**两端共用** |
 | 描述属性维度字典 | `GET /dishes/attributes` | 公开只读，**两端共用**（2026-09-29 补齐，见下） |
-| 举报原因字典 | `GET /feedback/report-reasons` | 公开只读，**两端共用** |
+| 举报原因字典 | `GET /report-reasons` | 公开只读，**两端共用**（2026-09-30 自 `/feedback/report-reasons` 迁出：字典不是「反馈提交」的子资源） |
 | 菜品 CRUD / 审核 / 用户状态 | `/admin/dishes/**` 等 | **管理端专属**（口令保护） |
 
 > **`GET /dishes/attributes` 曾长期 404（2026-09-29 修复）**：web 端 `listDishAttributes()`

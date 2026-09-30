@@ -20,7 +20,7 @@ import java.util.List;
 @Schema(description = "提交评价举报请求")
 public class ReportReq {
 
-    @Schema(description = "举报原因（必选，值域 = GET /feedback/report-reasons 下发项）", example = "spam")
+    @Schema(description = "举报原因（必选，值域 = GET /report-reasons 下发项）", example = "spam")
     @NotBlank(message = "举报原因不能为空")
     private String reason;
 

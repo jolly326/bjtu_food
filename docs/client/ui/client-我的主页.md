@@ -6,7 +6,7 @@
 
 - 入口：「我的」页**用户卡点击**（**游客直接进入**，无认证拦截；认证要求仅在发表 / 删除评价时给出）。
 - 页面构成（自上而下，**页头 + 用户信息卡 + 评价区**）：`AppHeader`（标题「**我的主页**」+ **返回**（文字））→ **用户信息卡** → **评价区**（区块标题「我的评价」+ 本人评价列表）。
-- 滚动承载：页根定高 + **`scroll-view`（`flex: 1`）** 承载内容，触底由滚动区 `@scrolltolower` 触发评价列表加载更多（页面自身不滚动，`onReachBottom` 不触发 —— Round 12-A / R17）；底部留 `env(safe-area-inset-bottom)` 安全区留白。二级页，**无 TabBar**。
+- 滚动承载：页根定高 + **`scroll-view`（`flex: 1`）** 承载内容，触底由滚动区 `@scrolltolower` 触发评价列表加载更多（页面自身不滚动，`onReachBottom` 不触发）；底部留 `env(safe-area-inset-bottom)` 安全区留白。二级页，**无 TabBar**。
 
 ### 1. 用户信息卡
 
@@ -79,7 +79,7 @@
 | 8 | `records[].rating` | 同上 | 评分 | `ReviewItem` 星级行（1~5 实心黄星 + 数值） | 1 位小数 |
 | 9 | `records[].content` | 同上 | 评价正文 | `ReviewItem` 正文 | 二级灰，`pre-wrap` |
 | 10 | `records[].images` | 同上 | 评价配图（≤3） | `ReviewItem` 配图网格 | 3 等分小方图，点击预览；破图 → 统一占位 `ImagePlaceholder` |
-| 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDate`（仅 `YYYY-MM-DD` —— 评价条目口径随 `ReviewItem` 全站统一，Round 24） |
+| 11 | `records[].createdAt` | 同上 | 发表时间 | `ReviewItem` meta 行 | `formatDate`（仅 `YYYY-MM-DD` —— 评价条目口径随 `ReviewItem` 全站统一） |
 | 12 | `records[].userNickname` / `userAvatar` | 同上 | 昵称 / 头像 | `ReviewItem` 昵称与头像位 | 昵称空 → 「匿名用户」 |
 | 13 | `records[].userId` | 同上 | 评价者用户 ID | `ReviewItem` 动作显隐判定（与当前用户 `id` 比对 → 本人「删除评价」） | 零可见 UI |
 | 14 | `records[].dishId` | 同上 | 关联菜品 ID | **零界面消费**（仅供详情页 `GET /my/reviews?dishId=` 过滤入参） | — |

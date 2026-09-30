@@ -72,13 +72,13 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 菜品评价公开列表：时间倒序唯一口径（created_at DESC），可选「只看有图」筛选。
+     * 菜品评价公开列表：时间倒序唯一口径（created_at DESC）。
      */
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, boolean hasImage) {
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, hasImage);
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId);
         fillImages(pageResult.getRecords());
         return pageResult;
     }
@@ -97,8 +97,15 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 首次发表评价。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
-     * （{@link ReviewPersister#insertAndPublish}），使微信机审的外呼期间不占用数据库连接。
+     * 发表评价（**重复提交即覆盖**，2026-09-30 简化）。
+     * <p>
+     * 同一用户对同一菜品只有一条评价：不存在则 INSERT，已存在则**覆盖同一行**
+     * （评分 / 文字 / 配图 / created_at 刷新 / is_hidden 重置 0）—— 端上不再区分首评与重评，
+     * 也无需先判定「我是否已评价」。
+     * <p>
+     * <b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * （{@link ReviewPersister#insertAndPublish} / {@link ReviewPersister#updateAndPublish}），
+     * 使微信机审的外呼期间不占用数据库连接。
      */
     @Override
     public Long submitReview(Long userId, Long dishId, ReviewReq req) {
@@ -106,18 +113,12 @@ public class ReviewServiceImpl implements ReviewService {
         if (req.getContent() != null && req.getContent().length() > 500) {
             throw new BusinessException("评论内容不能超过500字");
         }
-        if (reviewMapper.selectCount(new LambdaQueryWrapper<Review>()
+        // 唯一键 uk_review_user_dish：至多一条，取已有行决定 INSERT / 覆盖
+        Review existing = reviewMapper.selectOne(new LambdaQueryWrapper<Review>()
                 .eq(Review::getUserId, userId)
-                .eq(Review::getDishId, dishId)) > 0) {
-            throw new BusinessException("您已评价过该菜品");
-        }
-        Review review = new Review();
-        review.setUserId(userId);
-        review.setDishId(dishId);
-        review.setRating(req.getRating());
+                .eq(Review::getDishId, dishId)
+                .last("LIMIT 1"));
         String filteredContent = localSensitiveFilter.filter(req.getContent());
-        review.setContent(filteredContent);
-        review.setIsHidden(0);
 
         // ---- UGC 准入门槛（project_spec §7.5 / §7.7：verified=1 且 openid 非空）----
         // 微信 msgSecCheck v2 必填 openid，故必须在机检之前前置双约束，否则口子敞开。
@@ -127,7 +128,21 @@ public class ReviewServiceImpl implements ReviewService {
         checkUgcText(reviewUser, filteredContent, 2);
 
         // 配图入库：COS 绝对地址列表 JSON（≤3 张，@Size(max=3) 前置校验，此处兜底）
-        review.setImages(UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil));
+        String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);
+
+        if (existing != null) {
+            // 覆盖旧评价（与 PUT /reviews/{id} 同语义，差异化仅在归属由 token 锁定、无需传评价 ID）
+            reviewPersister.updateAndPublish(existing.getId(), req.getRating(), filteredContent, imagesJson, dishId);
+            return existing.getId();
+        }
+
+        Review review = new Review();
+        review.setUserId(userId);
+        review.setDishId(dishId);
+        review.setRating(req.getRating());
+        review.setContent(filteredContent);
+        review.setIsHidden(0);
+        review.setImages(imagesJson);
 
         // 落库 + 发布重算事件，一并收窄为单一事务（机审已在无事务状态下完成）
         reviewPersister.insertAndPublish(review, dishId, req.getRating());
