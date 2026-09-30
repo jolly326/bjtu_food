@@ -16,7 +16,7 @@
 | PUT | `/my/notifications/{id}/read` | 同上 | 单条标记已读（带归属校验） |
 | PUT | `/my/notifications/read-all` | 同上 | 全部已读（**幂等**） |
 
-> **路径风格登记（2026-09-29 决策）**：`read-all` 为**动作式路径**（非资源化的 `PUT /my/notifications/read-status`）——
+> **路径风格登记**：`read-all` 为**动作式路径**（非资源化的 `PUT /my/notifications/read-status`）——
 > 项目既有惯例允许动作式子路径（如同族的 `/{id}/read`），且该端点是**幂等批量动作、无请求体**，
 > 动作式命名表达能力更强、歧义更小。**保持现状**。
 
