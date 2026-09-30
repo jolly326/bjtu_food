@@ -24,6 +24,9 @@
     @tap="onPick"
   >
     <text class="tag-chip-text">{{ label }}</text>
+    <!-- 勾选标识（仅候选弹层用 `checkable`）：弹层内没有删除叉，「已选」需要底色以外的显式标识
+         （只靠底色 ⇒ 色觉障碍 / 低亮度下不可辨）。与删除叉的使用场景互斥，不会同时出现。 -->
+    <IconSvg v-if="checkable && variant === 'selected'" name="check" :size="24" :color="selectedIconColor" />
     <!-- 删除叉：命中区 64rpx×64rpx（= 32pt；图标视觉 R40 起 24rpx）。
          换算口径：1rpx = 0.5pt（750rpx 设计宽），故 64rpx = 32pt、88rpx = 44pt —— 原文案把
          「44rpx」当成「44pt」是 2 倍换算错误，此处已订正。命中区经负外边距居中抵消 ⇒ 不撑高 chip 视觉。
@@ -38,7 +41,7 @@
       hover-stay-time="80"
       @tap.stop="emit('remove')"
     >
-      <IconSvg name="close" :size="24" :color="closeColor" />
+      <IconSvg name="close" :size="24" :color="selectedIconColor" />
     </view>
   </view>
 </template>
@@ -47,7 +50,8 @@
 /**
  * TagChip —— 属性标签（选中态 / 候选态）
  *
- * 消费方：`AttributeGroup`（已选中区、候选面板两处）。
+ * 消费方：`AttributeGroup`（已选中区、常驻候选区）与 `AttributePickerSheet`（候选弹层全览，
+ * 下发 `size="lg"` + `checkable`）。
  * 颜色全走语义 token（禁裸 hex）；图标走 `IconSvg`（禁 emoji / 文本当图标）；
  * 按压用 hover-class 的透明度微降（禁 transform: scale）。
  */
@@ -67,6 +71,16 @@ const props = withDefaults(defineProps<{
   selectedStyle?: 'soft' | 'solid'
   /** 是否展示右上角删除叉（仅选中态有意义） */
   closable?: boolean
+  /**
+   * 选中态是否展示**勾选标识**（`IconSvg name="check"`）—— 供候选弹层 `AttributePickerSheet` 使用。
+   * 主表单已选区不用（那里「已选」由删除叉表达），禁同时下发 `closable` + `checkable`。
+   */
+  checkable?: boolean
+  /**
+   * 尺寸档：`sm`（默认）= 主表单属性区密集 chip（视觉高 ≈67rpx，走「触达尺寸口径」登记例外）；
+   * `lg` = 弹层内 chip —— 弹层内是**独立可点件**，必须回到 88rpx（44pt）基线，不适用例外。
+   */
+  size?: 'sm' | 'lg'
   /** 无障碍标签（缺省按标签文案） */
   ariaLabel?: string
   /**
@@ -78,6 +92,8 @@ const props = withDefaults(defineProps<{
   variant: 'candidate',
   selectedStyle: 'soft',
   closable: false,
+  checkable: false,
+  size: 'sm',
   ariaLabel: '',
   pickable: true,
 })
@@ -96,14 +112,21 @@ const ariaPressed = computed<boolean | undefined>(() =>
   props.pickable ? props.variant === 'selected' : undefined,
 )
 
-/** 选中态两套视觉的类名分流（候选态一律 `--off`；两套样式由消费方按 `valueType` 决定，禁互串） */
-const chipClass = computed(() => {
-  if (props.variant !== 'selected') return 'tag-chip--off'
-  return props.selectedStyle === 'solid' ? 'tag-chip--on-solid' : 'tag-chip--on'
-})
+/**
+ * 类名分流：① 选中态两套视觉（候选态一律 `--off`；两套由消费方按 `valueType` 决定，禁互串）；
+ * ② 尺寸档（`lg` 仅弹层使用，把视觉高抬到 88rpx 触达基线）。
+ */
+const chipClass = computed(() => [
+  props.variant !== 'selected'
+    ? 'tag-chip--off'
+    : props.selectedStyle === 'solid'
+      ? 'tag-chip--on-solid'
+      : 'tag-chip--on',
+  props.size === 'lg' ? 'tag-chip--lg' : '',
+])
 
-/** 删除叉颜色：实心档随白字用白叉，浅底档用深主色叉 */
-const closeColor = computed(() =>
+/** 选中态内的图标色（删除叉与勾选标识共用一档）：实心档随白字取白，浅底档取深主色 */
+const selectedIconColor = computed(() =>
   props.variant === 'selected' && props.selectedStyle === 'solid'
     ? COLOR_MAP['on-primary']
     : COLOR_MAP['primary-text'],
@@ -146,6 +169,14 @@ function onPick() {
   border: 2rpx solid transparent;
 }
 .tag-chip--pressed { opacity: 0.7; }
+
+/* lg 档（候选弹层专用）：抬到 88rpx = 44pt 触达基线 ——
+   弹层内 chip 是**独立可点件**（不与删除叉热区竞争），不适用主表单属性区的 67rpx 登记例外。
+   只加 `min-height` + 横向留白，**不改圆角 / 字号 / 描边** ⇒ 与主表单 chip 同一视觉语言。 */
+.tag-chip--lg {
+  min-height: 88rpx;
+  padding: var(--spacing-sm) var(--spacing-lg);
+}
 
 .tag-chip-text {
   font-size: var(--font-aux);
