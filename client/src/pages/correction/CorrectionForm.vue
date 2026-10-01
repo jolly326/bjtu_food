@@ -399,7 +399,7 @@ function onSubmitTap() {
   /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
   height: 88rpx;
   /* 输入框背景透明、仅保留底部横线（禁全包围矩形框） */
-  border-bottom: 2rpx solid var(--border-color);
+  border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
   transition: border-color var(--duration-fast) var(--ease-out);
 }

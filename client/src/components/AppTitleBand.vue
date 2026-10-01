@@ -55,7 +55,7 @@
 import { computed } from 'vue'
 import { useNavMetrics } from '@/utils/useNavMetrics'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   /** 页面名称：无返回 ⇒ 显示在左区；有返回 ⇒ 显示在居中区 */
   title?: string
   /** 是否显示返回（文字「返回」，居中区随之显示页面名称） */

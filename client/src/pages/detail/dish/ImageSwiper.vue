@@ -4,18 +4,17 @@
     :style="{ height }"
     :indicator-dots="showIndicator"
     :indicator-color="SWIPER_INDICATOR_COLOR"
-    :indicator-active-color="indicatorActiveColor"
+    :indicator-active-color="SWIPER_INDICATOR_ACTIVE_COLOR"
     :autoplay="autoplay"
-    :interval="interval"
-    :circular="circular"
+    :interval="4000"
+    :circular="true"
     role="group"
     :aria-label="label"
   >
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
       <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
       <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
-      <!-- 无图 / 空位：走**全站统一占位**（灰底 + 图片破损图标，UI 统一 Loop Round 31）。
-           原先本处可传 `placeholderBackground`（详情页曾传白卡色 `--bg-card`）⇒ 同屏出现两种占位底色；已收敛为唯一灰底。 -->
+      <!-- 无图 / 空位：走**全站统一占位**（灰底 + 图片破损图标）。 -->
       <ImagePlaceholder v-else :size="placeholderSize" />
     </swiper-item>
   </swiper>
@@ -31,22 +30,14 @@ import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/t
 const props = withDefaults(defineProps<{
   images: string[]
   height?: string
-  indicatorDots?: boolean
-  indicatorActiveColor?: string
   autoplay?: boolean
-  interval?: number
-  circular?: boolean
   /** 占位图标尺寸（dish-detail-visual-polish：无图大图位放大占位） */
   placeholderSize?: number
   /** 轮播容器可访问标签（a11y：读屏可识别图片区域，默认「菜品图片」） */
   label?: string
 }>(), {
   height: '400rpx',
-  indicatorDots: true,
-  indicatorActiveColor: SWIPER_INDICATOR_ACTIVE_COLOR,
   autoplay: true,
-  interval: 4000,
-  circular: true,
   placeholderSize: 64,
   label: '菜品图片',
 })
@@ -57,7 +48,7 @@ const displayImages = computed(() => {
 })
 
 /** 单张图时不显示指示器 */
-const showIndicator = computed(() => props.indicatorDots && displayImages.value.length > 1)
+const showIndicator = computed(() => displayImages.value.length > 1)
 
 /** 已加载图片集合：onload 后标记，驱动 --duration-slow 淡入（Apple §12 materialize） */
 const loadedSet = ref<Set<number>>(new Set())

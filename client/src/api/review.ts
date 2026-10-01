@@ -55,7 +55,7 @@ function toMyReview(raw: MyReviewVO): MyReview {
  * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
  * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  */
-export async function getDishReviews(
+export async function listDishReviews(
   dishId: number,
   options?: { page?: number; pageSize?: number },
 ): Promise<{ list: Review[] }> {
@@ -82,7 +82,7 @@ export async function deleteReview(reviewId: number): Promise<void> {
  * 行字段 = **本人视角 7 字段**；删除仍走 DELETE /reviews/{id}。
  * 传 `dishId` 时仅返回该菜本人评价——详情页据此判定「我是否已评价」并取回评价 ID（供预填 / 重评）。
  */
-export async function getMyReviews(
+export async function listMyReviews(
   options?: { page?: number; pageSize?: number; dishId?: number },
 ): Promise<{ list: MyReview[] }> {
   const params: Record<string, unknown> = {
@@ -90,7 +90,7 @@ export async function getMyReviews(
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (options?.dishId != null) params.dishId = options.dishId
-  // 强类型：同 getDishReviews，元素类型取自生成契约
+  // 强类型：同 listDishReviews，元素类型取自生成契约
   const res = await get<RawPage<MyReviewVO>>('/my/reviews', params)
   return { list: recordsOf<MyReviewVO>(res).map(toMyReview) }
 }

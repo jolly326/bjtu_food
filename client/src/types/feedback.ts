@@ -2,7 +2,7 @@
  * 反馈 / 举报 / 纠错写入契约（三条互不耦合的链路）。
  *
  * - **意见反馈**（`POST /feedback`）：面向小程序本身的通用反馈，3 类型（`bug` / `suggestion` / `other`）
- *   + 具体描述 + 截图（≤3 张）；
+ *   + 具体描述 + 截图（≤1 张）；
  * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，
  *   请求体 `reason`（必选）+ 可选补充说明 / 配图；
  * - **菜品纠错**（`POST /dishes/{id}/correction`）：依附某条菜品数据的专项修正，
@@ -22,7 +22,7 @@ export const FEEDBACK_TYPES = [
     value: 'bug',
     label: '程序功能Bug',
     hint: '页面、图片、评价等程序异常',
-    placeholder: '请描述bug现象、复现步骤，有截图可以附上',
+    placeholder: '请描述bug现象、复现步骤',
   },
   {
     value: 'suggestion',
@@ -34,7 +34,7 @@ export const FEEDBACK_TYPES = [
     value: 'other',
     label: '其他相关问题',
     hint: '其余平台相关问题反馈',
-    placeholder: '描述你遇到的平台相关问题。若发现菜品资料有误，请前往对应菜品详情页提交纠错',
+    placeholder: '描述你遇到的平台相关问题',
   },
 ] as const
 
@@ -78,7 +78,7 @@ export interface FeedbackSubmit {
   type: 'bug' | 'suggestion' | 'other'
   /** 反馈内容（必填，端上 ≤600 字 / 服务端 ≤1000 字） */
   content: string
-  /** 截图（COS URL，≤3 张；经上传安检后回传） */
+  /** 截图（COS URL，≤1 张；经上传安检后回传） */
   images?: string[]
 }
 
@@ -89,8 +89,4 @@ export interface FeedbackSubmit {
 export interface ReportPayload {
   /** 举报原因机器值（必选，字典端点 `GET /report-reasons` 下发项） */
   reason: string
-  /** 补充说明（可空，≤1000 字） */
-  content?: string
-  /** 佐证配图（COS URL，≤3 张） */
-  images?: string[]
 }

@@ -46,7 +46,7 @@ function toNotification(raw: NotificationVO): Notification | null {
  * 我的消息列表（STU，倒序）。
  * 分页壳只有 `records`：结束判据 = 本页返回条数 < 请求的 `pageSize`。
  */
-export async function getNotifications(params: {
+export async function listNotifications(params: {
   /** 已读过滤：`true`=仅已读 / `false`=仅未读；不传 = 全部（端上当前恒不传） */
   isRead?: boolean
   page?: number

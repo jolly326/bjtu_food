@@ -11,7 +11,7 @@
        ⚠️ 壁纸必须走 `<image>`：小程序 WXSS 的 `background-image: url()` **取不到包内本地路径**
        （真机报「本地资源图片无法通过 WXSS 获取」，开发工具却可能正常预览）。纱是纯渐变，不受该限制。 -->
   <view class="wallpaper" :class="{ 'is-fixed': fixed }" :style="{ height: `${resolvedHeightPx}px` }">
-    <image class="wallpaper-img" :src="src" mode="aspectFill" />
+    <image class="wallpaper-img" src="/static/images/home-bg.jpg" mode="aspectFill" />
     <view class="wallpaper-scrim" />
   </view>
 </template>
@@ -28,12 +28,9 @@ const props = withDefaults(defineProps<{
    * 不传则本组件自测 `wx.getWindowInfo().windowHeight` —— 新页面接入只要 `<PageWallpaper fixed />` 一行。
    */
   heightPx?: number
-  /** 壁纸素材（本地）：落 `client/src/static/images/`，引用写 `/static/...`。换壁纸 = 换文件或改这里 */
-  src?: string
 }>(), {
   fixed: false,
   heightPx: 0,
-  src: '/static/images/home-bg.jpg',
 })
 
 /** 自测视口高（仅在调用方未下发 `heightPx` 时使用） */

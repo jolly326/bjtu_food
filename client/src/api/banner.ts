@@ -12,7 +12,7 @@ import type { BannerVO } from './shared'
  *
  * <p>入参用生成的强类型 {@link BannerVO}。
  */
-export async function getBanners(): Promise<Banner[]> {
+export async function listBanners(): Promise<Banner[]> {
   const raw = await get<BannerVO[]>('/banners')
   return (raw || []).map((item) => ({
     id: Number(item.id),

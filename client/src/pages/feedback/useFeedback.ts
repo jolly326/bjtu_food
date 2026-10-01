@@ -13,7 +13,7 @@
  */
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { submitFeedback } from '@/api/feedback'
+import { createFeedback } from '@/api/feedback'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
@@ -42,7 +42,7 @@ export function useFeedback() {
   /** 描述框占位：随选中类型切换；未选类型给通用引导（不得出现空占位） */
   const typePlaceholder = computed(() => {
     const t = FEEDBACK_TYPES.find((x) => x.value === form.type)
-    return t?.placeholder ?? '先选一个反馈类型，再描述你遇到的问题'
+    return t?.placeholder ?? '先选择反馈类型，再描述你的问题'
   })
 
   function onPickType(value: FeedbackType) {
@@ -152,7 +152,7 @@ export function useFeedback() {
         return
       }
       const images = form.images.filter(Boolean)
-      await submitFeedback({
+      await createFeedback({
         type: form.type as FeedbackType,
         content,
         images: images.length ? images : undefined,

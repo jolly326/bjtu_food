@@ -25,14 +25,15 @@
       <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题）。
            区块标题一律用公共 `SectionTitle`（§4.9 红线）——收敛此处手写副本 -->
       <SectionTitle v-if="list.length" title="我的评价" />
-      <view class="list">
-        <!-- 评价卡 = 公共组件 ReviewItem（与菜品详情评价区**同一实现**）：
-             本人视角专属信息经 dishName 可选 prop 注入 -->
+      <!-- 评价列表：单张白色轻量列表卡收纳全部评价行（与系统通知页同语言）；
+           评价行以 flat 嵌入、行间 1rpx 浅分隔线，最上 / 最下无线；不再逐行套独立白卡 -->
+      <view v-if="list.length" class="review-card">
         <ReviewItem
           v-for="r in list"
           :key="r.id"
           :review="r"
           mine
+          flat
           :dish-name="r.dishName"
           @more="onMore(r)"
         />
@@ -78,7 +79,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { useUserStore } from '@/stores/user'
-import { getMyReviews, deleteReview } from '@/api/review'
+import { listMyReviews, deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
 import type { Review, MyReview } from '@/types/review'
 import { backToHome } from '@/utils/back'
@@ -111,8 +112,8 @@ const emptiedByDelete = ref(false)
  * 第 1 页重拉 / 触底加载更多 / 去重追加 / 失败回退页码 / `loading` 重入守卫 —— 全站一套语义。
  * 本页差异经选项注入：游客跳过（端点需登录，调必 401）、成功后复位「删除导致空列表」标记。
  */
-const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyReview>({
-  fetchPage: async (page, pageSize) => (await getMyReviews({ page, pageSize })).list,
+const { list, loading, loadFailed, load, loadMore } = usePagedList<MyReview>({
+  fetchPage: async (page, pageSize) => (await listMyReviews({ page, pageSize })).list,
   canLoad: () => userStore.isVerified(),
   onLoadSuccess: () => { emptiedByDelete.value = false },
 })
@@ -203,8 +204,16 @@ onShow(() => {
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* 列表容器：卡片间距由容器 gap 承担；卡片本体样式（头像/昵称/星级/正文/配图/三点）由 ReviewItem 统一 */
-.list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+/* 评价列表：单张白卡收纳全部评价行（与系统通知页同语言）；行间 1rpx 浅分隔线，最上 / 最下无线 */
+.review-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+/* 行内距 + 分隔线（经 :deep 穿透到公共 ReviewItem 根；覆写其 flat 的 padding:0） */
+.review-card :deep(.review-item) { padding: var(--spacing-md) var(--spacing-lg); }
+.review-card :deep(.review-item + .review-item) { border-top: 1rpx solid var(--border-color); }
 
 /* 用户信息卡：头像 + 昵称/副行 + 「编辑个人信息」，白底一级卡（与评价卡同语言） */
 /* 区块标题已改用公共 `SectionTitle`（§4.9 红线）——此处不再保留手写副本样式 */

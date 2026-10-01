@@ -46,8 +46,8 @@ export function floorDisplay(raw: string): [string, boolean] {
  */
 import { ref, reactive, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { submitDishCorrection } from '@/api/feedback'
-import { getDishDetail, getDishEditAttributes } from '@/api/dish'
+import { createDishCorrection } from '@/api/feedback'
+import { getDishDetail, listDishEditAttributes } from '@/api/dish'
 import { isResourceNotFound } from '@/api/http'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
@@ -165,7 +165,7 @@ export function useCorrection() {
         getDishDetail(id),
         // 编辑态候选**按需取一次**（仅进本编辑页取，且只含该菜现有维度 —— 端上不预取任何字典）；
         // 失败静默：各组候选为空 ⇒ 隐藏候选入口、仅留自定义输入，不阻塞纠错（文档边界口径）
-        getDishEditAttributes(id).catch(() => []),
+        listDishEditAttributes(id).catch(() => []),
       ])
       dishName.value = detail.name
       // 锚定卡楼层段**同步走字典映射**（R40）：与下方楼层单元格同为汉字，避免同页一处汉字一处 `B1`；
@@ -366,7 +366,7 @@ export function useCorrection() {
     submitError.value = ''
     try {
       // 局部提交：只上传改动项（dishId 在路径；price 元 → 分，金额红线）
-      await submitDishCorrection(dishId.value, diff.value)
+      await createDishCorrection(dishId.value, diff.value)
       clearCooldown()
       toastSuccess('提交成功，等待审核')
       if (goBackTimer) clearTimeout(goBackTimer)

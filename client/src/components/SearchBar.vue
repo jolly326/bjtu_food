@@ -14,7 +14,7 @@
       class="search-bar"
       :class="{ 'is-input': mode === 'input' }"
       role="search"
-      :aria-label="placeholder"
+      aria-label="搜索菜品、食堂、档口"
       :hover-class="mode === 'entry' ? 'search-bar-pressed' : 'none'"
       @tap="onBarTap"
     >
@@ -25,13 +25,13 @@
         :value="modelValue"
         type="text"
         confirm-type="search"
-        :placeholder="placeholder"
+        placeholder="搜索菜品、食堂、档口"
         placeholder-class="search-bar-ph"
         :adjust-position="true"
         @input="onInput"
         @confirm="emit('search')"
       />
-      <text v-else class="search-bar-placeholder">{{ placeholder }}</text>
+      <text v-else class="search-bar-placeholder">搜索菜品、食堂、档口</text>
       <view
         v-if="mode === 'input' && modelValue"
         class="search-bar-clear"
@@ -46,12 +46,12 @@
         class="search-bar-btn"
         :class="{ 'is-searching': searching, 'is-disabled': disabled }"
         role="button"
-        :aria-label="buttonText"
+        aria-label="搜索"
         :aria-disabled="disabled ? 'true' : 'false'"
         :hover-class="searching || disabled ? 'none' : 'search-bar-btn-pressed'"
         @tap.stop="onButtonTap"
       >
-        <text class="search-bar-btn-text">{{ buttonText }}</text>
+        <text class="search-bar-btn-text">搜索</text>
       </view>
     </view>
   </view>
@@ -66,9 +66,6 @@ const props = withDefaults(defineProps<{
   mode?: 'entry' | 'input'
   /** input 模式的双向绑定值 */
   modelValue?: string
-  placeholder?: string
-  /** 内嵌按钮文案（默认「搜索」） */
-  buttonText?: string
   /**
    * 提交中（仅 `input` 模式有意义）：按钮降透明 + 禁点，避免重复提交与「点了没反应」。
    * 依据 ui-ux-pro-max §2 `loading-buttons`（异步操作期间禁用按钮并给出反馈）与
@@ -84,11 +81,6 @@ const props = withDefaults(defineProps<{
 }>(), {
   mode: 'entry',
   modelValue: '',
-  // 占位只列真实可搜维度：服务端仅匹配「菜名 / 档口名 / 食堂名」（§7.35），
-  // 无「套餐」实体（「套餐盖饭」是 meal_type 大类，不参与关键词匹配）——
-  // 见 docs/client/ui/client-搜索.md §1 第 2 条。首页与搜索页共用本默认值，两页同源。
-  placeholder: '搜索菜品、食堂、档口',
-  buttonText: '搜索',
   searching: false,
   disabled: false,
 })

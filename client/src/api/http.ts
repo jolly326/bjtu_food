@@ -448,8 +448,6 @@ export const UPLOAD_TIMEOUT_MS = 15000
  * - 其他端（H5 等）：回退为 uni.uploadFile 上传到后端（需后端可达）。
  */
 export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
-  const token = getToken()
-
   let result!: Promise<{ url: string }>
 
   // ===== 微信小程序端：微信云存储 =====

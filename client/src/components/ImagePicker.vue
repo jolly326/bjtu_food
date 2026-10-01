@@ -12,10 +12,10 @@
     UI 红线（spec §4.9）：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
     图标走 IconSvg（image=添加图片语义、close=删除）。
   -->
-  <view class="ip-grid" :class="{ 'ip-grid--single': single }">
+  <view class="ip-grid">
     <!-- 已上传缩略图行：点击预览大图，右上角删除重选；
          破图切 empty 中性占位（评审 m4，与展示侧 ReviewItem 同构） -->
-    <view v-for="(u, i) in urls" :key="u" class="ip-cell" :class="{ 'ip-cell--single': single }">
+    <view v-for="(u, i) in urls" :key="u" class="ip-cell">
       <view class="ip-box">
         <image
           v-if="!brokenImages.has(i)"
@@ -40,9 +40,8 @@
       </view>
     </view>
 
-    <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。
-         `single` 形态：虚线方框（意见反馈页「上传截图」），尺寸与缩略图一致。 -->
-    <view v-if="urls.length < max" class="ip-cell" :class="{ 'ip-cell--single': single }">
+    <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。 -->
+    <view v-if="urls.length < max" class="ip-cell">
       <view
         class="ip-box ip-add"
         :class="{ uploading, disabled }"
@@ -55,9 +54,8 @@
         <text class="ip-add-text">{{ uploading ? '上传中…' : '添加图片' }}</text>
       </view>
     </view>
-    <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。
-         `single` 形态上限恒为 1 ⇒ 有图即满额，该格不渲染（不占位、不留空格）。 -->
-    <view v-else-if="!single" class="ip-cell">
+    <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。 -->
+    <view v-else class="ip-cell">
       <view class="ip-box ip-count" role="img" :aria-label="`已选满 ${max} 张图片`">
         <text class="ip-count-text">{{ urls.length }}/{{ max }}</text>
       </view>
@@ -84,15 +82,9 @@ const props = withDefaults(defineProps<{
   max?: number
   /** 禁用（如表单提交中） */
   disabled?: boolean
-  /**
-   * 单图形态（意见反馈页「上传截图」）：格放大为 200rpx 方框、添加框虚线、满额不渲染 n/n 计数格。
-   * 上限仍由 `max` 表达（本 prop 只改形态，不改张数）。
-   */
-  single?: boolean
 }>(), {
   max: 3,
   disabled: false,
-  single: false,
 })
 
 const emit = defineEmits<{
@@ -335,12 +327,6 @@ function onPreview(i: number) {
 .ip-cell {
   width: calc((100% - 32rpx) / 3);
 }
-/* 单图形态（`single`）：格放大为 200rpx 方框；添加框沿用 `.ip-add` 既有虚线描边
-   （`2rpx dashed var(--border-bold)`），此处只改尺寸，不再重复声明描边。 */
-.ip-cell--single {
-  width: 200rpx;
-}
-
 /* 正方形容器：padding-bottom 撑高（小程序对 aspect-ratio 支持不稳，用经典等比盒） */
 .ip-box {
   position: relative;
@@ -397,8 +383,9 @@ function onPreview(i: number) {
 
 /* 添加格：浅底虚线框 + 图片语义 icon + 引导文案；上传中降透明度 */
 .ip-add {
-  background: var(--bg-input);
-  border: 2rpx dashed var(--border-bold);
+  /* HIG 轻量化：取消白底、虚线降透明度且非粗线（1rpx --border-color） */
+  background: transparent;
+  border: 1rpx dashed var(--border-color);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;

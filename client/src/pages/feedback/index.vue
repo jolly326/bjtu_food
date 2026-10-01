@@ -9,7 +9,7 @@
     <!-- 页面无页签：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view class="q-card">
-        <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
+        <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 3 选 1 + 具体描述 + 截图（≤1 张）+ 本地草稿；
              纠错表单（`mode=update`：菜品详情底栏「反馈错误」带 dishId 跳入）—— 自动填好这道菜，只改差异项。
              submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
         <IssueForm
@@ -64,7 +64,6 @@ const {
   submitting,
   clearError,
   canSubmit,
-  gateHint,
   onSubmitAreaTap,
   submit,
 } = useFeedback()
@@ -98,8 +97,10 @@ const submitButtonText = computed(() => (submitting.value ? '提交中…' : '�
   box-shadow: var(--shadow-card);
 }
 
-/* ===== 提交反馈（表单最下方，随内容滚动，非固定） ===== */
+/* ===== 提交反馈（表单最下方、卡片外部，随内容滚动，非固定） ===== */
 .submit-area {
-  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  /* 左右留白与卡片边线同轴（--spacing-md），按钮撑满卡片宽度；
+     顶部 --spacing-xl 大留白把按钮与表单在视觉上分开，上下其余 --spacing-lg 呼吸 */
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
 }
 </style>

@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getImageUrl } from '@/utils/image'
@@ -146,7 +146,7 @@ async function save() {
    滚动由组件内部实现，外挂 CSS 只会在 H5 叠出第二根滚动条。 */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
 /* 信息卡：inset 分组卡（Apple 列表分组风格）
-   UI 统一 Loop Round 14（裁决 5A）：圆角由 `--radius-modal`(48rpx) 归档到**全站卡片档** `--radius-card`(32rpx)
+   UI 统一 Loop Round 14（裁决 5A）：圆角由 `--radius-modal`(48rpx) 归档到**全站卡片档** `--radius-card`(16rpx)
    —— 此前它是全站唯一用 modal 档圆角的卡片，与其它卡片不同族。 */
 .info-card {
   margin: 0 var(--spacing-md);

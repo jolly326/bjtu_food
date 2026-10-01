@@ -8,13 +8,13 @@
       <template v-if="userStore.isVerified()" #action>
         <view
           class="read-all"
-          :class="{ 'is-disabled': !hasUnread || readAllBusy }"
+          :class="{ 'is-active': hasUnread && !readAllBusy, 'is-disabled': !hasUnread || readAllBusy }"
           role="button"
           aria-label="全部已读"
           hover-class="pressed"
           @tap="onReadAll"
         >
-          <IconSvg name="check" :size="26" :color="hasUnread ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
+          <IconSvg name="check" :size="26" :color="(hasUnread && !readAllBusy) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
           <text class="read-all-text">全部已读</text>
         </view>
       </template>
@@ -23,35 +23,39 @@
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
-        <!-- 卡片式通知：仅标题 + 内容 + 时间；未读左侧红点 + 浅主色底 -->
-        <CardSection
-          v-for="n in list"
-          :key="n.id"
-          class="msg-item"
-          :class="{ unread: !n.isRead }"
-          flush
-          @tap="onTap(n)"
-        >
-          <view class="msg-dot" :class="{ read: n.isRead }" />
-          <view class="msg-body">
-            <view class="msg-title-row">
-              <text class="msg-title">{{ n.title }}</text>
-              <text class="msg-time">{{ formatDateTime(n.createdAt) }}</text>
+        <!-- 单张白色轻量列表卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线；不再逐行套独立卡 -->
+        <view v-if="list.length" class="list-card">
+          <view
+            v-for="n in list"
+            :key="n.id"
+            class="msg-item"
+            :class="{ unread: !n.isRead }"
+            @tap="onTap(n)"
+          >
+            <!-- 未读左侧暖橙细竖条（与红点共同表达未读，强化层级） -->
+            <view v-if="!n.isRead" class="msg-unread-bar" />
+            <view class="msg-dot" :class="{ read: n.isRead }" />
+            <view class="msg-body">
+              <view class="msg-title-row">
+                <text class="msg-title">{{ n.title }}</text>
+                <text class="msg-time">{{ formatDateTime(n.createdAt) }}</text>
+              </view>
+              <text class="msg-content">{{ n.content }}</text>
             </view>
-            <text class="msg-content">{{ n.content }}</text>
           </view>
-        </CardSection>
+        </view>
       </view>
 
-      <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无通知——
+      <!-- 加载失败重试块（P3-03 公共组件）：首屏请求失败 ≠ 无通知——
            先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap。
-           C1 修复：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态（client-auth-boundary）。 -->
+           C1：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态。 -->
       <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
-      <!-- 空态：仅已认证用户展示轻提示；游客无个人通知一律静默（见 client-auth-boundary）。
-           空态不含重试按钮、错误提示与认证引导。 -->
-      <!-- 统一空态组件：不再本页手写 `.empty-tip` -->
+      <!-- 空态：仅已认证用户展示；铃铛图标（灰色）+ 标题 + 说明，游客静默（client-auth-boundary）。
+           复用公共 EmptyState（不再本页手写 .empty-tip）。 -->
       <EmptyState
         v-else-if="loaded && !list.length && userStore.isVerified()"
+        icon="bell"
+        :icon-size="48"
         title="暂无通知"
         desc="反馈处理结果会在这里通知你"
       />
@@ -70,8 +74,8 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
-import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-import { getNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
+import { toastError, toastSuccess } from '@/utils/error'
+import { listNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
@@ -94,8 +98,8 @@ const loaded = ref(false)
  *
  * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`、游客不触发触底加载。
  */
-const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<Notification>({
-  fetchPage: async (page, pageSize) => (await getNotifications({ page, pageSize })).list,
+const { list, loading, loadFailed, load, loadMore } = usePagedList<Notification>({
+  fetchPage: async (page, pageSize) => (await listNotifications({ page, pageSize })).list,
   canLoadMore: () => userStore.isVerified(),
   onLoadSuccess: () => { notifyStore.fetchUnread() },
   onLoadSettled: () => { loaded.value = true },
@@ -167,29 +171,38 @@ onShow(() => {
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
-.list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* 卡片壳走公共 `CardSection`：内距统一到 `--spacing-md`
-   （原 `--spacing-lg`）；`flush` ⇒ 块间距由 `.list` 的 `gap` 统管；
-   未读态由下方 `.msg-item.unread` 覆写（强调态用 `shadow-warm`）。 */
+/* 列表容器：单张白卡装全部行；`.list` 仅作占位 wrapper（行少时不渲染空卡） */
+.list { display: block; }
+.list-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
 .msg-item {
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
+  min-height: 88rpx;
+  padding: var(--spacing-md) var(--spacing-lg);
+  box-sizing: border-box;
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
-  box-sizing: border-box;
 }
+/* 行间细分隔线（最上 / 最下无线）；统一 --border-color 1rpx */
+.msg-item + .msg-item { border-top: 1rpx solid var(--border-color); }
 .msg-item.pressed { background-color: var(--bg-soft); }
-/* 未读：白卡 + **红点** + 淡主色标题字（UI 统一 Loop Round 13 裁决 7A：左侧主色竖条已删，
-   与右上红点语义重复；红点更轻、与「我的」页角标同语言。`shadow-warm` 保留 = 未读属「强调」态） */
-.msg-item.unread {
-  background: var(--bg-card);
-  box-shadow: var(--shadow-warm);
+/* 未读：红点 + 左侧暖橙细竖条 + 淡主色标题字，共同表达未读层级（竖条依 2026-09 设计补回） */
+.msg-unread-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6rpx;
+  background: var(--color-primary);
 }
-/* （已删除原 `.msg-item.unread::before` 左侧竖条 —— 与红点语义重复） */
-
-/* 未读红点：上偏置走 `--spacing-xs`（8rpx）—— 6A 归档：原裸 10rpx 不在 4pt 栅格 */
+/* 未读红点：上偏置走 `--spacing-xs`（8rpx） */
 .msg-dot { flex-shrink: 0; width: 16rpx; height: 16rpx; border-radius: var(--radius-circle); background: var(--color-primary); margin-top: var(--spacing-xs); }
 .msg-dot.read { background: transparent; }
 
@@ -197,7 +210,6 @@ onShow(() => {
 .msg-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-sm); }
 .msg-title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .msg-item.unread .msg-title { color: var(--color-primary-text); }
-/* 时间收进标题行右侧（次级灰小字），通知只剩「标题 + 内容 + 时间」三要素 */
 .msg-time { flex-shrink: 0; font-size: var(--font-tiny); color: var(--text-tertiary); }
 .msg-content {
   font-size: var(--font-small);
@@ -209,11 +221,10 @@ onShow(() => {
   overflow: hidden;
 }
 
-/* 空态已上提为公共组件 components/EmptyState.vue；
-   失败态为 components/RetryBlock.vue（P3-03）—— 两者样式随之收敛，此处不再保留副本 */
+/* 空态 / 失败态样式由公共组件 EmptyState / RetryBlock 承担，此处不再保留副本 */
 
-/* 「全部已读」胶囊：按压反馈走全局 .pressed(opacity) 兜底，此处再局部覆盖为 bg-soft 底色语言
-   （App.vue 全局注释明确允许页面 scoped 覆盖）；禁用态复用全局 .is-disabled */
+/* 「全部已读」胶囊：默认中性白底灰描边；有未读时（is-active）整体转暖橙描边 + 暖橙文字；
+   禁用态（is-disabled）常驻灰显、不可点；按压走全局 .pressed 兜底 */
 .read-all {
   display: flex;
   align-items: center;
@@ -224,6 +235,13 @@ onShow(() => {
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-card);
   -webkit-tap-highlight-color: transparent;
+}
+.read-all.is-active { border-color: var(--color-primary); }
+.read-all.is-active .read-all-text { color: var(--color-primary-text); }
+.read-all-text {
+  font-size: var(--font-small);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
 }
 .read-all.pressed { background: var(--bg-soft); opacity: 1; }
 

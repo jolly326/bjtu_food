@@ -2,7 +2,7 @@
   <!-- 意见反馈 · 表单字段区：
        ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
        ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
-       ③ 上传截图（选填，≤3 张）
+       ③ 上传截图（选填，≤1 张）
        表单自身不带卡片壳（白卡由页面 .q-card 提供）。 -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
@@ -26,7 +26,7 @@
             <IconSvg
               v-if="model.type === t.value"
               name="check"
-              :size="24"
+              :size="20"
               :color="COLOR_MAP['text-white']"
             />
           </view>
@@ -49,23 +49,26 @@
         id="f-form-content"
         :value="model.content"
         class="content-input"
-        :class="{ 'input-error': errors['form.content'] }"
+        :class="{ focused }"
         :placeholder="placeholder"
         :maxlength="CONTENT_MAX"
         :auto-height="true"
         :cursor-spacing="40"
         :adjust-position="true"
         @input="onTextInput"
+        @focus="focused = true"
+        @blur="focused = false"
       />
       <text v-if="errors['form.content']" class="field-error">{{ errors['form.content'] }}</text>
+      <text v-if="model.type === 'other'" class="field-help">若发现菜品资料有误，请前往对应菜品详情页提交纠错</text>
     </view>
 
-    <!-- ③ 上传截图（选填，**≤3 张**，端上 / 服务端同口径）；破图走统一 ImagePlaceholder -->
+    <!-- ③ 上传截图（选填，**≤1 张**，与文档 / 后端 `images ≤1` 同口径）；破图走统一 ImagePlaceholder -->
     <view class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
         :model-value="model.images"
-        :max="UGC_IMAGE_MAX"
+        :max="1"
         :disabled="submitting"
         @update:model-value="onImagesChange"
       />
@@ -74,10 +77,10 @@
 </template>
 
 <script setup lang="ts">
-import { UGC_IMAGE_MAX } from '@/constants/ugc'
 /** IssueForm（feedback 包内私有）：意见反馈页表单字段区（类型 + 描述 + 截图） */
 import ImagePicker from '@/components/ImagePicker.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import { ref } from 'vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { CONTENT_MAX } from './useFeedback'
@@ -94,6 +97,9 @@ const emit = defineEmits<{
   (e: 'clear', key: string): void
   (e: 'pick', value: FeedbackType): void
 }>()
+
+/** 描述框聚焦态（iOS 焦点反馈：底线高亮主色） */
+const focused = ref(false)
 
 function onPick(value: FeedbackType) {
   emit('pick', value)
@@ -120,40 +126,39 @@ function onImagesChange(urls: string[]) {
 /* 字段级样式（.field / .field-label / .req / .field-error / .content-input / .input-error）统一来自共享 partial */
 @use './form-shared';
 
-/* ===== ① 反馈类型（竖排单选） ===== */
+/* ===== ① 反馈类型（竖排单选；纯白背景整行可点，选项间细线分隔，无灰卡嵌套） ===== */
 .type-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
 }
 .type-row {
-  /* 命中区：整行可点（行高 ≥88rpx 由 padding 撑起，满足 44pt 下限） */
+  /* 命中区：整行可点（min-height ≥88rpx 命中下限）；不套独立灰色背景块 */
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--radius-tag);
-  background: var(--bg-soft);
+  min-height: 88rpx;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   transition: background var(--duration-fast) var(--ease-out);
 }
+.type-row:last-child {
+  border-bottom: none;
+}
 .type-row-pressed {
-  opacity: 0.7;
+  /* iOS 按压质感：瞬时 8% 浅灰底，松手恢复，无永久底色（不用 opacity 以免压暗文字） */
+  background: rgba(0, 0, 0, 0.08);
 }
-/* 选中行：白卡浮起 + 极轻阴影（与全站「选中/强调」语言一致） */
-.type-row--on {
-  background: var(--bg-card);
-  box-shadow: var(--shadow-warm);
-}
-/* 选中标记：圆形描边占位 → 选中填主色 + 白勾（纯图形，对读屏隐藏） */
+/* 选中行：不套灰卡 / 不浮起；仅由左侧橙色勾（.type-check.on）区分选中态 */
+/* 选中标记：1rpx 浅灰细描边空心圆 → 选中填主色 + 白勾（纯图形，对读屏隐藏） */
 .type-check {
   flex: none;
   width: 40rpx;
   height: 40rpx;
   margin-top: 2rpx;
   border-radius: var(--radius-circle);
-  border: 2rpx solid var(--border-bold);
+  border: 1rpx solid var(--border-color);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -173,14 +178,11 @@ function onImagesChange(urls: string[]) {
 }
 .type-label {
   font-size: var(--font-body);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);
   color: var(--text-body);
   line-height: 1.3;
 }
-.type-row--on .type-label {
-  font-weight: var(--weight-semibold);
-  color: var(--text-title);
-}
+/* 选中态仅靠左侧 .type-check.on 区分；label 始终常规字重、不加粗（杜绝权重跳动） */
 .type-hint {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
@@ -200,5 +202,17 @@ function onImagesChange(urls: string[]) {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
+}
+/* 描述框辅助说明：仅 other 类型展示的菜品纠错引导（从 placeholder 移出的业务提示） */
+.field-help {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-aux);
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+/* 描述框聚焦态：底线切换为品牌主色高亮（新增 iOS 焦点反馈） */
+.content-input.focused {
+  border-bottom-color: var(--color-primary);
 }
 </style>

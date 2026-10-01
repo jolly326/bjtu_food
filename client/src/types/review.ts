@@ -47,20 +47,4 @@ export interface MyReview {
   dishName: string
 }
 
-/**
- * 评价提交成功回调载荷（写评价 / 重新评价共用的 UI 事件契约，唯一声明处）。
- * 由 `useDishPage.onReviewSubmitted` 与 `ReviewComposer` 共同消费：
- * - `mode`：`create` 首次发表 / `update` 覆盖式重评（决定是否本地写回「我的评价」态）；
- * - `reviewId`：评价 ID——`update` 为本人评价 ID、`create` 为 POST 出参返回的新评价 ID；
- *   两种模式均**本地写回**底栏态，无须回读「我的评价」；
- * - `rating` / `content` / `images`：提交后的最新值，供底栏态与预填本地写回。
- */
-export interface ReviewSubmittedPayload {
-  mode: 'create' | 'update'
-  reviewId: number
-  rating: number
-  content: string
-  images: string[]
-}
-
 // 评价排序唯一为时间倒序（新评价在前），端上不持有排序状态、不传 sort（PR-02 / PR-05：零消费类型不留存）。

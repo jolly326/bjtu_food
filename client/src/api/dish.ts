@@ -112,7 +112,7 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
  * ；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
  * 出参只有 `name`；条数与文案由服务端决定，端上不写死、不排序。
  */
-export async function getGuessLike(seed?: string): Promise<GuessLike[]> {
+export async function listGuessLike(seed?: string): Promise<GuessLike[]> {
   const params: Record<string, unknown> = {}
   if (seed) params.seed = seed
 
@@ -123,7 +123,7 @@ export async function getGuessLike(seed?: string): Promise<GuessLike[]> {
 }
 
 /** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
-export async function getDishViews(): Promise<DishView[]> {
+export async function listDishViews(): Promise<DishView[]> {
   const raw = await get<DishViewVO[]>('/dishes/views')
   // 端上只认 key + label（无 null 特例：默认视图「为你推荐」也是普通 key）
   return (raw || []).map((item) => ({
@@ -151,7 +151,7 @@ export interface DishEditAttribute {
  * 编辑态属性候选（`GET /dishes/{id}/attributes`）。
  * 失败由调用方静默处理（仍可自由填写），不阻塞编辑。
  */
-export async function getDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
+export async function listDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
   const raw = await get<DishAttributeEditVO[]>(`/dishes/${dishId}/attributes`)
   return (raw || []).map((item) => ({
     fieldKey: String(item.fieldKey || ''),

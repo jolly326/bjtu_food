@@ -19,10 +19,8 @@
  * 故其内部的 onMounted / 回调同样在组件上下文中注册。
  */
 import { ref, computed } from 'vue'
-import type { ComputedRef } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
-import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import type { DishDetail } from '@/types/dish'
 import { sharedDish } from '@/utils/share-state'
@@ -37,7 +35,6 @@ import { useDishReviewMenu } from './useDishReviewMenu'
 
 export function useDishPage() {
   const dishStore = useDishStore()
-  const userStore = useUserStore()
   const authStore = useAuthStore()
 
   /**

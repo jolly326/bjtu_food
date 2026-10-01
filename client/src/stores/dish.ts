@@ -154,7 +154,7 @@ export const useDishStore = defineStore('dish', () => {
     if (viewLoaded.value || viewLoading.value) return
     viewLoading.value = true
     try {
-      const list = await dishApi.getDishViews()
+      const list = await dishApi.listDishViews()
       viewList.value = list
       viewLoaded.value = true
       // 字典首项 = 服务端声明的默认视图（如「为你推荐」）；端上不硬编码其 key
@@ -349,7 +349,7 @@ export const useDishStore = defineStore('dish', () => {
     const pageSize = options?.pageSize ?? REVIEW_PAGE_SIZE
     try {
       const res = await withLoading(REVIEWS_LOADING_KEY, async () =>
-        await reviewApi.getDishReviews(dishId, { page, pageSize }))
+        await reviewApi.listDishReviews(dishId, { page, pageSize }))
       // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
       if (seq !== reviewFetchSeq) return null
       if (options?.append) {
@@ -379,7 +379,7 @@ export const useDishStore = defineStore('dish', () => {
   const guessLikeList = ref<GuessLike[]>([])
   async function fetchGuessLike() {
     try {
-      guessLikeList.value = await dishApi.getGuessLike(guessLikeSeed)
+      guessLikeList.value = await dishApi.listGuessLike(guessLikeSeed)
     } catch (e) {
       console.error('加载猜你喜欢失败', e)
       guessLikeList.value = []

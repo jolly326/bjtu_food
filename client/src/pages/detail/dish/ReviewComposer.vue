@@ -85,8 +85,6 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview } from '@/api/review'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-// 提交成功载荷类型唯一声明处为 types/review.ts（与 useDishPage.onReviewSubmitted 共用，避免重复声明）
-import type { ReviewSubmittedPayload } from '@/types/review'
 
 const props = defineProps<{
   /** 受控显隐（由 BaseSheet close 驱动父级更新后回写） */
@@ -99,8 +97,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  /** 提交成功后通知父级刷新（父级重拉评价列表 + 综合评分 + 本地写回「我的评价」态） */
-  (e: 'submitted', payload: ReviewSubmittedPayload): void
+  /** 提交成功后通知父级刷新（父级重拉评价列表 + 综合评分） */
+  (e: 'submitted'): void
 }>()
 
 /* 表单状态 */
@@ -145,15 +143,9 @@ async function onSubmit() {
       images: images.value.length ? [...images.value] : undefined,
     }
     // 恒 POST：同一用户对同一菜品的重复提交由服务端覆盖旧评价（端上不区分首评 / 重评）
-    const submittedReviewId = await createReview(props.dishId, payload)
+    await createReview(props.dishId, payload)
     toastSuccess('评价成功')
-    emit('submitted', {
-      mode: 'create',
-      reviewId: submittedReviewId,
-      rating: rating.value,
-      content: content.value.trim(),
-      images: images.value.length ? [...images.value] : [],
-    })
+    emit('submitted')
     onClose()
   } catch (e) {
     toastError(e, '发布失败，请稍后重试')

@@ -14,7 +14,7 @@ import type { FeedbackSubmit, ReportPayload, DishCorrectionPayload } from '@/typ
  * 提交意见反馈：payload 整体透传（不逐字段映射）。
  * 仅纯反馈三类型（bug/suggestion/other），`content` 必填 + `images`（≤3 张）。
  */
-export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
+export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
 }
 
@@ -33,7 +33,7 @@ export async function reportReview(reviewId: number, payload: ReportPayload): Pr
  * - price 单位 = 分（端上以元填写，提交前经 yuanToFen 转分，金额红线）；
  * - 公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 message 直透。
  */
-export async function submitDishCorrection(
+export async function createDishCorrection(
   dishId: number,
   payload: DishCorrectionPayload,
 ): Promise<void> {
@@ -73,7 +73,7 @@ export interface ReportReason {
  * 但字典由 `FeedbackConst` 静态常量构造、必带 value/label，
  * 故在 api 层统一兜底成端上必填，避免 UI 模板处处判空。
  */
-export async function getReportReasons(): Promise<ReportReason[]> {
+export async function listReportReasons(): Promise<ReportReason[]> {
   const rows = await get<ReportReasonVO[]>('/report-reasons')
   if (!Array.isArray(rows)) return []
   // 契约字段可空 → 端上必填：一次性归一，避免 UI 模板处处判空

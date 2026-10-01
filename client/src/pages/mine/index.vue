@@ -116,7 +116,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
-import { toastError, toastInfo, toastSuccess } from '@/utils/error'
+import { toastError, toastSuccess } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
@@ -321,7 +321,7 @@ const moreRows = [
   justify-content: space-between;
   min-height: 88rpx;
   padding: 0 var(--spacing-md);
-  border-bottom: 2rpx solid var(--border-color);
+  border-bottom: 1rpx solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--duration-fast) var(--ease-out);
 }

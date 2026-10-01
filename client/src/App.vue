@@ -63,7 +63,7 @@ page {
   --radius-2xs: 8rpx;
   --radius-xs: 16rpx;
   --radius-tag: 16rpx;
-  --radius-card: 32rpx;
+  --radius-card: 16rpx;
   --radius-modal: 48rpx;
   --radius-btn: 16rpx;
   --radius-icon: 24rpx;

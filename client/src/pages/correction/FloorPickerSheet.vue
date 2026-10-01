@@ -47,7 +47,7 @@ export interface FloorOption {
   label: string
 }
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   /** 显隐（父级 `v-if` 懒挂载后由 `visible` 控制开合） */
   visible: boolean
   /** 当前「后端存储值」；未命中字典时为原值（此时无高亮行） */

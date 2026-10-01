@@ -16,6 +16,7 @@
         class="review-avatar"
         :src="getImageUrl(authorAvatar)"
         mode="aspectFill"
+        lazy-load
         role="img"
         :aria-label="`${authorNickname}的头像`"
         @error="avatarOk = false"
@@ -64,6 +65,7 @@
               class="review-image"
               :src="getImageUrl(img)"
               mode="aspectFill"
+              lazy-load
               role="img"
               :aria-label="`评价配图 ${i + 1}`"
               @tap="onPreviewImage(i)"

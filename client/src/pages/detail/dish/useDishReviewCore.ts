@@ -13,7 +13,7 @@ import { deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { REVIEW_PAGE_SIZE } from '@/constants/paging'
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 
 export function useDishReviewCore(opts: {
