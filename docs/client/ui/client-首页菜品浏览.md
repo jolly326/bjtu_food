@@ -289,7 +289,7 @@ TabBar（fixed，透明底）
 | 触底 / 加载更多提示 | `--font-small` 24rpx | `--weight-regular` | `--text-tertiary` |
 
 > **判据**：菜名必须是卡片文字层第一级（位置行 / 评分行不得抢）；「搜索」按钮文案不得小于相邻占位字号；正文级文本**不得低于 12px**。
-> **与设计稿的两处有意偏差**：① 搜索按钮字重用 `--weight-semibold`（小程序端 `500` 多数机型无真字重、会回落 400）；② 卡片圆角取全站 `--radius-card` 32rpx（跨页白卡一致性优先，8rpx 差异在双列小卡上不可辨）。
+> **与设计稿的两处有意偏差**：① 搜索按钮字重用 `--weight-semibold`（小程序端 `500` 多数机型无真字重、会回落 400）；② 卡片圆角取全站 `--radius-card`（16rpx，跨页白卡一致性优先）。
 
 ---
 
@@ -299,7 +299,7 @@ TabBar（fixed，透明底）
 |---|---|---|
 | 搜索胶囊 | `--radius-pill` | `--shadow-card`（极轻） |
 | 搜索按钮 | `--radius-pill` | 无 |
-| 菜品卡片 | `--radius-card` 32rpx | `--shadow-card`（极轻） |
+| 菜品卡片 | `--radius-card`（16rpx） | `--shadow-card`（极轻） |
 | 菜品图 | 与卡片一致（`overflow: hidden`） | 无 |
 | 大类标签栏 | — | **无阴影**（无表面） |
 

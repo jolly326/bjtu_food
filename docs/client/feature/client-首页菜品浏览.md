@@ -75,7 +75,7 @@
 | `stallName` | string | 档口名称（卡片第 3 段位置行） |
 
 > **列表出参恰为 8 字段**：字段集 =「首页卡片四段（图 / 名 / 位置 / 评分 + 价格）」的**真实渲染集合**，加跳转必需的 `id`——不做任何详情专属字段的下发。
-> **详情专属字段不在列表出参中**（字段集与语义**以 `docs/feature/client-菜品详情.md` 为真源，本文档不重复维护**）：`description`（描述）、`images`（多图数组，列表只给首图 `coverImage`）、`floor`（楼层）、`attributes`（动态描述属性，值即中文）。**菜品大类（`mealType`）亦不进公开出参**（见「筛选视图与菜品大类字段决议」节）。
+> **详情专属字段不在列表出参中**（字段集与语义**以 `docs/client/feature/client-菜品详情.md` 为真源，本文档不重复维护**）：`description`（描述）、`images`（多图数组，列表只给首图 `coverImage`）、`floor`（楼层）、`attributes`（动态描述属性，值即中文）。**菜品大类（`mealType`）亦不进公开出参**（见「筛选视图与菜品大类字段决议」节）。
 > **8 字段在消费场景均全量消费**（含位置行渲染）：**列表与搜索共用同一端点与同一 VO**，不为搜索另拆分 VO（多一个 VO 即多一份契约维护成本）。
 > `imagesJson`（图片 JSON 原文）为内部字段、**不出参**。
 
@@ -113,14 +113,14 @@
 | VO | 使用端点 | 字段集 |
 |---|---|---|
 | `DishListItemVO` | `GET /dishes`（首页网格 + 搜索结果），**8 字段** | `id` / `name` / `coverImage` / `price` / `originalPrice` / `avgRating` / `canteenName` / `stallName` |
-| `DishDetailVO` | `GET /dishes/{id}`（详情页；字段集以 `docs/feature/client-菜品详情.md` 为真源） | `id` / `name` / `price` / `originalPrice` / `description` / `images[]` / `stallName` / `canteenName` / `floor` / `avgRating` / `attributes` |
+| `DishDetailVO` | `GET /dishes/{id}`（详情页；字段集以 `docs/client/feature/client-菜品详情.md` 为真源） | `id` / `name` / `price` / `originalPrice` / `description` / `images[]` / `stallName` / `canteenName` / `floor` / `avgRating` / `attributes` |
 
 - **实现要求**：`GET /dishes` 一律返回 `DishListItemVO`（列表只有 `coverImage` 单值，无 `images` 数组）；详情接口保持 `DishDetailVO`；`DishMapper.xml` 按场景拆两份列清单（`listDishColumns` / `detailDishColumns`），**禁止列表查询图省事选全列**；
 - **端上形态**：`client/src/types/dish.ts` 分为 `DishListItem` / `DishDetail` 两型；`api/dish.ts` 的列表 / 详情映射按各自 VO 编写；卡片直读 `coverImage`。
 
 ### C. 首页 UI 口径
 
-> UI 细节（首屏结构、吸顶、色板、间距刻度、硬性约束 13 条）以 [`docs/ui/`](../ui/) 为唯一真源；本节只登记跨端共享的口径。
+> UI 细节（首屏结构、吸顶、色板、间距刻度、硬性约束 13 条）以 [`docs/client/ui/`](../ui/) 为唯一真源；本节只登记跨端共享的口径。
 
 | # | 决议 | 说明 / 影响 |
 |---|---|---|
@@ -200,7 +200,7 @@
 
 ### E. 首页 Banner 轮播接口化决议
 
-> **UI 细节（16:10 定档、标题带、吸顶范围）以 [`docs/ui/`](../ui/) §1 / §3.3 / §11 为唯一真源。**
+> **UI 细节（16:10 定档、标题带、吸顶范围）以 [`docs/client/ui/`](../ui/) §1 / §3.3 / §11 为唯一真源。**
 
 | # | 决议 | 说明 / 影响 |
 |---|---|---|

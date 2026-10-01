@@ -18,7 +18,7 @@
 ### 2. 评价区
 
 - **区块标题「我的评价」仅在评价列表有数据时渲染**（`SectionTitle` 组件）；列表为空时不渲染标题，页面止于信息卡下方的空区。
-- 评价卡复用**公共组件 `ReviewItem`**（与菜品详情评价区**同一实现**，视觉与交互完全一致：头像 / 昵称 / 星级 / 正文 / 配图网格 / 时间 / 右上角三点），本人视角专属信息经组件可选 props 注入：
+- 评价卡复用**公共组件 `ReviewItem`**（与菜品详情评价区**同一实现**，视觉与交互完全一致：头像 / 昵称 / 星级 / 正文 / 配图网格 / 时间 / 右上角三点），本人视角专属信息经组件可选 props 注入；**本页以 `flat` 模式嵌入单张白色列表卡**（圆角 `16rpx` + `--shadow-card`），评价行之间以 `1rpx` `--border-color` 分隔线分隔（最上 / 最下无线）——**与系统通知页同语言**：
   - **菜名行**（`dishName`）：meta 行下展示关联菜品名，辨识是哪道菜的评价。
 - 删除链路（与菜品详情评价区同款）：卡片右上角**三点** → 底部 `ActionSheet`「删除评价」（危险红动作项）→ **二次确认**弹窗 → 调 `DELETE /reviews/{id}`，成功后卡片本地移除；**删空列表后区块标题随之下线**并给轻提示「暂无评价，去菜品详情写一条吧」。
 - 分页：上滑触底加载更多（**时间倒序**，唯一排序、无切换）；加载中**不呈现骨架屏**。
@@ -58,11 +58,11 @@
 | 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「我的主页」+ **返回**（文字）（`@back` → `backToHome`） |
 | 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 信息卡头像（加载失败回退统一占位 `ImagePlaceholder`，禁裂图） |
 | 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 无头像时的 `user` 灰底占位 |
-| 4 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡（**与菜品详情评价区同一实现**）；本人视角专属菜名经 `dish-name` prop 注入；`@more` 上抛三点动作 |
+| 4 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡（`flat` 模式，与菜品详情评价区同一实现）；本人视角专属菜名经 `dish-name` prop 注入；`@more` 上抛三点动作；**嵌入单张白色列表卡、行间 1rpx 分隔线** |
 | 5 | `ActionSheet` | 公共 `components/ActionSheet.vue` | 三点菜单「删除评价」（危险红动作项） |
 | 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 首屏加载失败「加载失败 · 点击重试」 |
 | 7 | 信息卡 `.profile-strip` / 区块标题（页内内联） | `pages/my-reviews/index.vue` 内联 | 头像 + 昵称 / 副行 + 「编辑个人信息」胶囊；「我的评价」标题（**有数据才渲染**） |
-| 8 | 列表容器 `.list`（页内内联） | 页内内联 | 评价卡纵向排列（间距由容器 `gap` 承担） |
+| 8 | 评价列表卡 `.review-card`（页内内联） | 页内内联 | **单张白色轻量列表卡**（圆角 `16rpx` + `--shadow-card`）收纳全部评价行；行间 `1rpx` `--border-color` 分隔线（最上 / 最下无线） |
 | — | 自然文档滚动（`onReachBottom`）+ `uni.showModal` | uni 内置 | 触底分页 + 删除二次确认 |
 
 #### 有哪些数据要显示、显示在哪个组件
@@ -84,7 +84,7 @@
 | 13 | `records[].userId` | 同上 | 评价者用户 ID | `ReviewItem` 动作显隐判定（与当前用户 `id` 比对 → 本人「删除评价」） | 零可见 UI |
 | 14 | `records[].dishId` | 同上 | 关联菜品 ID | **零界面消费**（仅供详情页 `GET /my/reviews?dishId=` 过滤入参） | — |
 | 15 | `records` / `total` | 分页壳 | 当前页行 / 本人评价总条数 | 列表渲染 + `onReachBottom` 加载更多（时间倒序） | 端上以 `records` 为准 |
-| 16 | 空态 / 失败态 | 端上 `isGuest` / `loadFailed` / `emptiedByDelete` | 空 / 失败 / 删空 | 空态 `.empty-tip`（游客「暂无评价，完成身份认证后可发表评价」/ 删空「暂无评价，去菜品详情写一条吧」）· `RetryBlock` | 失败先于空态；游客**无认证拦截** |
+| 16 | 空态 / 失败态 | 端上 `isGuest` / `loadFailed` / `emptiedByDelete` | 空 / 失败 / 删空 | 空态 `EmptyState`（游客「暂无评价，完成身份认证后可发表评价」/ 删空「暂无评价，去菜品详情写一条吧」）· `RetryBlock` | 失败先于空态；游客**无认证拦截** |
 
 **入参提交**：`GET /my/reviews` → `page` / `pageSize=20`（**仅认证态发起**）｜`DELETE /reviews/{id}` → 无请求体（归属由 token 判定）
 **错误码**：`401` 未登录（请求层静默重登重试一次）｜`4031` 邮箱未认证（游客**静默**：不渲染失败态，仅渲染引导空态）｜`403` 非本人｜`400` 评价不存在

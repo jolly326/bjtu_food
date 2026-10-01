@@ -3,7 +3,9 @@
 > 本目录是**管理后台（Web）功能文档**的唯一真源：**每个功能一份独立文档**，文件名以板块前缀开头。
 > 所属端：`web/`（Vue 3 + TypeScript + Element Plus，仅管理员可用）。
 > 与 [`docs/client/feature/`](../../client/feature/README.md) 是**并列的两套体系**：学生端是业务数据的**唯一产生源**，管理后台是数据的**维护与治理侧**，两者通过后端同一份数据协同。
-> **仓库红线 / 产品定型 / 协作纪律见 [`docs/client/feature/README.md`](../../client/feature/README.md) 的「项目约定与红线」段 —— 该段为全仓口径，本目录一并遵守。**
+> **仓库红线 / 产品定型 / 协作纪律见 [`docs/client/feature/README.md`](../../client/feature/README.md) 的「项目约定与红线」段 —— 该段为全仓口径，本目录一并遵守。
+
+> ⚠️ **本管理后台（Web 后台）已软冻结（2026-09-30）**：后端 `/admin/**` 接口已统一标注 `@Deprecated(forRemoval=true)`、待后期整体重构时移除（**保留运行、不删除**）。本目录文档仍描述当前行为，**请勿基于本体系新增设计或扩展**；后续随 `web/` 整体重构一并重写。详见 [项目约定与红线 · 管理端冻结](../../client/feature/README.md)。**
 
 ## 板块与命名规则
 
