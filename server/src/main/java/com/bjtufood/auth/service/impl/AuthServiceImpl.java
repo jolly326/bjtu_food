@@ -19,6 +19,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.auth.support.JwtUtil;
+import com.bjtufood.auth.support.VerifyCodeAttemptGuard;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.auth.event.UserAccountClosedEvent;
 import com.bjtufood.auth.event.UserOwnershipMigratedEvent;
@@ -62,6 +63,12 @@ public class AuthServiceImpl implements AuthService {
     private final LocalSensitiveFilter localSensitiveFilter;
     private final ContentSecurityService contentSecurityService;
     private final TokenBlacklist tokenBlacklist;
+    /**
+     * 验证码校验失败计数护栏（A1：防 6 位码暴力枚举，口径见 {@link VerifyCodeAttemptGuard} 类注释）。
+     * <p>
+     * 刻意放在 final 字段**末尾**：{@code AuthServiceImplTest} 按字段声明顺序显式调用全参构造器。
+     */
+    private final VerifyCodeAttemptGuard verifyCodeAttemptGuard;
 
     @Override
     public void createEmailCode(String username) {
@@ -102,8 +109,20 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("账号状态异常，无法认证");
         }
 
-        // 校验验证码并推导绑定邮箱（验证码记录 purpose=verify、未用、未过期）
-        String email = consumeVerifyCodeAndGetEmail(code);
+        // 防暴力枚举（A1）：封禁窗口内直接拒绝，不进入 BCrypt 比对。
+        // 为何不收窄匹配范围：发码接口是匿名 permitAll，服务端拿不到「谁申请了这条码」的归属信息，
+        // 所以只能让「枚举」本身不成立——本护栏（每用户 10 次/15 分钟）+ Controller 的 IP 限频。
+        verifyCodeAttemptGuard.assertNotLocked(userId);
+        String email;
+        try {
+            // 校验验证码并推导绑定邮箱（验证码记录 purpose=verify、未用、未过期）
+            email = consumeVerifyCodeAndGetEmail(code);
+        } catch (BusinessException e) {
+            // 失败计数（含空码/错误/过期/不存在）：达阈值即封禁窗口内 fail-fast
+            verifyCodeAttemptGuard.recordFailure(userId);
+            throw e;
+        }
+        verifyCodeAttemptGuard.recordSuccess(userId);
 
         // 已认证的微信绑定（bind_email = 邮箱）
         User verifiedBinding = userService.getByBindEmail(email);
