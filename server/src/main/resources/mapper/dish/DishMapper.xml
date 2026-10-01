@@ -174,15 +174,6 @@
         LIMIT 1
     </select>
 
-    <!-- 菜品描述属性 JSON 原文（编辑态按需取「该菜现有维度」的键集合用；不过滤上架态，
-         由 Service 侧统一做存在性校验） -->
-    <select id="selectAttributesJson" resultType="string">
-        SELECT d.attributes
-        FROM dish d
-        WHERE d.id = #{id}
-        LIMIT 1
-    </select>
-
     <!-- 全部在售菜品的描述属性 JSON 原文（编辑候选值「按维度汇总全库已用中文值」用；NULL 行不返回） -->
     <select id="selectAttributesJsonOnSale" resultType="string">
         SELECT d.attributes

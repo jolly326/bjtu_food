@@ -36,14 +36,6 @@ public interface DishMapper extends BaseMapper<Dish> {
     DishDetailVO selectDishDetail(@Param("id") Long id);
 
     /**
-     * 查询菜品的描述属性 JSON 原文（{@code dish.attributes}），供编辑态按需取候选维度。
-     *
-     * @param id 菜品ID
-     * @return JSON 串；菜品不存在或无属性时为 null
-     */
-    String selectAttributesJson(@Param("id") Long id);
-
-    /**
      * 查询全部在售菜品的描述属性 JSON 原文（{@code dish.attributes}）——供编辑候选值
      * 「按维度汇总全库已用中文值」用（{@code GET /dishes/{id}/attributes} / 管理端维度字典）。
      *

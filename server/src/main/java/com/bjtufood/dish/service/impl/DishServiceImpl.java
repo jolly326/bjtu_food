@@ -123,8 +123,8 @@ public class DishServiceImpl implements DishService {
      */
     @Override
     public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
-        // 单次取行同时完成「存在且在售」判定与属性读取：原先 existsOnSale + selectAttributesJson
-        // 为两次查询，在远程库上叠加两次 RTT；合并为一次 selectById（判定口径不变）。
+        // 单次取行同时完成「存在且在售」判定与属性读取（原先是存在性校验 + 单独取 attributes
+        // 两次查询，在远程库上叠加两次 RTT）；判定口径不变。
         Dish dish = dishId == null ? null : dishMapper.selectById(dishId);
         // 不存在与已下架同款处理（与详情口径一致）
         if (dish == null || !DishConst.STATUS_ON.equals(dish.getStatus())) {
@@ -134,29 +134,16 @@ public class DishServiceImpl implements DishService {
         if (raw.isEmpty()) {
             return List.of();
         }
-        Map<String, List<String>> candidates = candidateValuesByFieldKey();
-        return loadDimensions().stream()
+        // 目录数据（维度字典 + 候选值聚合）由独立 bean 提供：直接调用即可命中其上的 @Cacheable，
+        // 缓存口径与失效时机见 DishAttributeCatalog 的类注释。
+        Map<String, List<String>> candidates = attributeCatalog.candidateValuesByFieldKey();
+        return attributeCatalog.dimensions().stream()
                 .filter(dim -> raw.containsKey(dim.getFieldKey()))
                 .map(dim -> new DishAttributeEditVO(
                         dim.getFieldKey(),
                         dim.getValueType(),
                         candidates.getOrDefault(dim.getFieldKey(), List.of())))
                 .toList();
-    }
-
-    /** 维度字典（按 order 升序）；缓存口径见 {@link DishAttributeCatalog#dimensions()} */
-    private List<DishAttributeDimension> loadDimensions() {
-        return attributeCatalog.dimensions();
-    }
-
-    /**
-     * 编辑候选值（数据驱动）：按维度 {@code fieldKey} 汇总全库「已用中文值」并按使用频次倒序去重。
-     * <p>
-     * 聚合本体已迁至 {@link DishAttributeCatalog#candidateValuesByFieldKey()}（带缓存，
-     * 因为它是本域唯一随行数线性增长的计算）；此处仅保留调用点的可读性。
-     */
-    private Map<String, List<String>> candidateValuesByFieldKey() {
-        return attributeCatalog.candidateValuesByFieldKey();
     }
 
     /**
@@ -216,8 +203,8 @@ public class DishServiceImpl implements DishService {
         // 多图 → 绝对 URL（图片列已由 TypeHandler 直出为 List）
         enrichImages(vo);
 
-        // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）
-        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), loadDimensions()));
+        // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）；维度字典走独立 bean（带缓存）
+        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), attributeCatalog.dimensions()));
 
         // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
 
