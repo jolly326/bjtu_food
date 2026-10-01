@@ -1,0 +1,38 @@
+{
+  "_doc": "UI Token 护栏允许项。策略见 docs/client/ui/client-设计变量.md §6：① 物理/渲染量（边框宽、H5 媒体查询、滤镜）与设计标度无关；② 组件私有尺寸（图标盒等）在未收敛标度前按文件登记。新增条目必须在 §6 文档登记理由。",
+  "values": [
+    "1rpx",
+    "2rpx",
+    "3rpx",
+    "2px",
+    "8px",
+    "12px",
+    "16px",
+    "24px",
+    "48px",
+    "720px",
+    "768px"
+  ],
+  "files": {
+    "src/components/AppHeader.vue": ["180rpx"],
+    "src/components/BaseSheet.vue": ["8rpx", "72rpx"],
+    "src/components/ImagePicker.vue": ["44rpx", "56rpx", "180rpx", "240rpx"],
+    "src/components/RetryBlock.vue": ["44rpx"],
+    "src/components/SearchBar.vue": ["40rpx", "56rpx", "96rpx"],
+    "src/components/ReviewItem.vue": ["64rpx"],
+    "src/pages/auth/index.vue": ["24rpx", "64rpx"],
+    "src/pages/correction/AttributePickerSheet.vue": ["12rpx", "14rpx", "18rpx", "20rpx", "22rpx", "28rpx", "34rpx", "40rpx", "54rpx", "56rpx", "72rpx", "240rpx"],
+    "src/pages/correction/CorrectionForm.vue": ["96rpx"],
+    "src/pages/detail/dish/DishInfoCard.vue": ["24rpx", "26rpx", "30rpx", "44rpx", "56rpx"],
+    "src/pages/detail/dish/DishReviewSection.vue": ["26rpx", "44rpx"],
+    "src/pages/detail/dish/ReviewComposer.vue": ["160rpx", "320rpx"],
+    "src/pages/feedback/IssueForm.vue": ["40rpx"],
+    "src/pages/feedback/_form-shared.scss": ["140rpx", "300rpx"],
+    "src/pages/find/DishResultCard.vue": ["36rpx", "160rpx"],
+    "src/pages/find/index.vue": ["360rpx"],
+    "src/pages/my-reviews/index.vue": ["88rpx"],
+    "src/pages/mine/index.vue": ["14rpx"],
+    "src/pages/notifications/index.vue": ["6rpx", "16rpx"],
+    "src/pages/profile/index.vue": ["104rpx"]
+  }
+}

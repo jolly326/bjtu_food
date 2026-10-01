@@ -3,9 +3,7 @@ import { ref } from 'vue'
 import type { UserInfo } from '@/types/user'
 import * as userApi from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
-
-const STORAGE_KEY_TOKEN = 'token'
-const STORAGE_KEY_USER = 'userInfo'
+import { STORAGE_KEY_TOKEN, STORAGE_KEY_USER } from '@/constants/storage'
 
 function loadUserInfo(): UserInfo | null {
   try {

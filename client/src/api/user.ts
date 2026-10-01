@@ -1,20 +1,17 @@
 import type { UserInfo } from '@/types/user'
 import { get, post, put, del } from './http'
 import type { UserInfoVO, LoginVO } from './shared'
+import { DEFAULT_NICKNAME } from '@/constants/copy'
 
 /**
- * 账号信息映射（`UserInfoVO` **4 字段**：id / nickname / avatar / bindEmail）。
- *
- * 已删字段端上不再读取：verified（bindEmail 派生冗余，端上经 useUserStore().isVerified() 单点派生）、
- * email（恒 NULL，校园邮箱唯一来源 = bindEmail）、status、createdAt、guestShortId（端上按 id 现算）、
- * username（两处身份副行统一渲染 bindEmail，裸学号不再展示）。
- *
- * <p>入参用生成的强类型 {@link UserInfoVO}。
+ * 账号信息映射（`UserInfoVO` 4 字段：id / nickname / avatar / bindEmail）。
+ * 不读取：`verified`（由 bindEmail 单点派生）、`email`（恒空，校园邮箱唯一来源 = bindEmail）、
+ * `status` / `createdAt` / `guestShortId` / `username`（身份副行统一渲染 bindEmail，裸学号不展示）。
  */
 function toUserInfo(raw: UserInfoVO): UserInfo {
   return {
     id: Number(raw.id ?? 0),
-    nickname: raw.nickname || '食客',
+    nickname: raw.nickname || DEFAULT_NICKNAME,
     avatar: raw.avatar || '',
     // 微信登录体系（§5.y）：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
     bindEmail: raw.bindEmail || undefined,
@@ -70,8 +67,8 @@ export async function updateProfile(data: { nickname?: string; avatar?: string }
 }
 
 /**
- * 注销账号（合规：DELETE /auth/account）：账号匿名化（评价/反馈保留但去身份化）。
- * skipAuthRetry：401 时禁止「静默登录后重试」——静默登录可能建出新游客号，重试会误删新账号。
+ * 注销账号（合规；账号匿名化 —— 评价 / 反馈保留但去身份化）。
+ * `skipAuthRetry`：401 时禁止「静默登录后重试」—— 静默登录会建出新游客号，重试将误删新账号。
  */
 export async function deleteAccount(): Promise<void> {
   await del('/auth/account', undefined, { skipAuthRetry: true })

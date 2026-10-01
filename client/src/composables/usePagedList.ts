@@ -1,20 +1,13 @@
 /**
- * 分页列表（触底加载更多）—— 全站统一的取数语义
+ * 分页列表（触底加载更多）—— 全站统一的取数语义。
  *
- * 背景：`notifications` 与 `my-reviews` 两页各写了一套
- * **几乎逐字相同**的分页样板：`loading` 重入守卫、第 1 页重拉、`finished` 到底判定、
- * 触底 `page += 1` → 去重 `concat` → 失败 `page -= 1` 回退、首屏失败置 `loadFailed`（失败 ≠ 空数据）。
- * 抽到本 composable 后语义只有一份，页面只注入自己的**差异**（游客跳过 / 成功副作用）。
+ * 与页面的契约：模板用返回的 `list` / `loading` / `loadFailed` / `finished`；首屏重拉走 `load()`；
+ * 触底走 `loadMore()`（`scroll-view` 的 `@scrolltolower`）。
  *
- * 与页面的契约：
- * · 页面模板继续使用返回的 `list` / `loading` / `loadFailed` / `finished`（命名与原实现一致 ⇒ 模板零改动）；
- * · 首屏重拉统一走 `load()`（`onShow` 闸门与失败重试块 @tap 共用同一路径）；
- * · 触底统一走 `loadMore()`（`scroll-view` 的 `@scrolltolower` 或页面 `onReachBottom`）。
- *
- * ⚠️ 约定：把页面滚动容器改为 `scroll-view` / 固定高度布局时，触底事件必须由滚动区承载
- * （页面级 `onReachBottom` 不再触发 —— Round 17 踩坑记录；历史见 git 归档）。
+ * ⚠️ 页面滚动容器若改为 `scroll-view` / 固定高度布局，触底必须由滚动区承载 —— 页面级
+ * `onReachBottom` 不再触发。
  */
-import { ref, type Ref } from 'vue'
+import { computed, onMounted, ref, watch, type Ref } from 'vue'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 
 interface UsePagedListOptions<T extends { id: number }> {
@@ -33,6 +26,8 @@ interface UsePagedListOptions<T extends { id: number }> {
   onLoadSuccess?: (rows: T[]) => void
   /** 首屏结束回调（成功 / 失败均调用；守卫短路路径不算）：如置「已加载完成」驱动空态判定 */
   onLoadSettled?: () => void
+  /** 渲染封顶页数（默认不封顶）：无虚拟化列表按此上限停止追加，避免节点无限增长 */
+  maxPages?: number
 }
 
 interface UsePagedListReturn<T> {
@@ -76,7 +71,15 @@ export function mergePagedRows<T extends { id?: number }>(
 export function usePagedList<T extends { id: number }>(
   options: UsePagedListOptions<T>,
 ): UsePagedListReturn<T> {
-  const { fetchPage, pageSize = DEFAULT_PAGE_SIZE, canLoad, canLoadMore, onLoadSuccess, onLoadSettled } = options
+  const {
+    fetchPage,
+    pageSize = DEFAULT_PAGE_SIZE,
+    canLoad,
+    canLoadMore,
+    onLoadSuccess,
+    onLoadSettled,
+    maxPages = Number.POSITIVE_INFINITY,
+  } = options
 
   const list = ref<T[]>([]) as Ref<T[]>
   const loading = ref(false)
@@ -113,6 +116,11 @@ export function usePagedList<T extends { id: number }>(
   async function loadMore(): Promise<void> {
     if (finished.value || loading.value) return
     if (canLoadMore && !canLoadMore()) return
+    // 页数封顶：达上限即封口到底（无虚拟化列表不无限增长）
+    if (page >= maxPages) {
+      finished.value = true
+      return
+    }
     loading.value = true
     try {
       page += 1
@@ -131,4 +139,192 @@ export function usePagedList<T extends { id: number }>(
   }
 
   return { list, loading, loadFailed, finished, load, loadMore }
+}
+
+/**
+ * 请求序号守卫（纯逻辑，无生命周期）：并发 / 交错请求只允许**最后一次发起**的结果生效。
+ *
+ * 用途：分页与「重置式重拉」交错时丢弃过期响应 —— 否则 append 会推进序号，使在途的 reset 响应
+ * 被判过期丢弃，列表只剩第 2 页（内容错乱）。
+ *
+ * 用法：`const seq = guard.begin()` 发起前取号 → 响应到达后 `if (!guard.isCurrent(seq)) return`。
+ */
+export function createSeqGuard() {
+  let current = 0
+  return {
+    /** 发起请求前取号（自增） */
+    begin: (): number => ++current,
+    /** 响应到达后判定：`false` = 已被更新的请求淘汰，应丢弃本次结果 */
+    isCurrent: (seq: number): boolean => seq === current,
+    /** 作废所有在途请求（只自增不取号）：如重置详情时让旧请求的响应一律失效 */
+    invalidate: (): void => {
+      current += 1
+    },
+  }
+}
+
+/** 结束判据（单一真源）：后端 `PageResult` 无 total ⇒ 本页条数 < `pageSize` 即到底 */
+export function isLastPage(rows: { length: number }, pageSize: number): boolean {
+  return rows.length < pageSize
+}
+
+/**
+ * 虚拟列表（`scroll-view` 专用）：只渲染**可视窗口**内的条目，把长列表 DOM 节点数从 O(n) 降到 O(窗口)。
+ *
+ * <p><b>⚠️ 为什么放在本文件（而非独立的 `useVirtualList.ts`）</b>：mp-weixin 的模块注册只覆盖
+ * **主包入口可达**的模块；仅被**分包**引用的独立模块不进主包模块图 ⇒ 分包 `require` 时报
+ * `module 'composables/xxx.js' is not defined`（与 manifest 中 MP-019「按需注入」是同一类坑）。
+ * 本文件已被主包 `stores/dish.ts` 引用、可稳定从分包加载，故虚拟列表并入此处 ——
+ * **不要再拆成独立文件**，否则三个分包页面（通知 / 我的评价 / 详情评价区）会立刻复发。
+ *
+ * <p><b>适配小程序的两点约束</b>：
+ * <ol>
+ *   <li>`scroll-view` 会渲染全部子节点 ⇒ 用「上下占位 + 窗口切片」模拟整段高度；</li>
+ *   <li>行高不定长 ⇒ 维护**实测高度表**（未实测项用 `estimateHeight` 兜底），随渲染逐项收敛；
+ *       实测取不到（如宿主节点）时保持估算，不阻塞渲染。</li>
+ * </ol>
+ *
+ * <p><b>用法</b>：`scroll-view` 绑 `@scroll="onScroll"` 并加类 `v-scroll`；条目容器内首尾各放一个占位
+ * `view`（`topPad` / `bottomPad`），中间 `v-for="x in visible"`；每个条目根节点加 `class="v-item"`。
+ * 条目数 ≤ `threshold` 时**不虚拟化**（全渲染）⇒ 短列表行为与改造前**逐字一致**（零回归面）。
+ */
+export interface UseVirtualListOptions<T> {
+  /** 全量数据源（分页列表的 `list`） */
+  items: Ref<T[]>
+  /** 未实测条目的估算高度（px）：仅作兜底，实测后逐项收敛 */
+  estimateHeight: number
+  /** 可视窗口上下各多渲染的条数（防快速滚动露白） */
+  overscan?: number
+  /** 条目数 ≤ 该值时不虚拟化（全渲染，零回归面） */
+  threshold?: number
+  /** 列表相对滚动容器的固定偏移（px）；列表为滚动内容首块时为 0 */
+  offset?: number
+  /** 列表容器类名（如 `.review-card`）：提供时动态实测偏移（优先于 `offset`） */
+  offsetSelector?: string
+  /** 实测选择的条目根类名（默认 `v-item`） */
+  itemClass?: string
+  /** 滚动容器的类名（默认 `v-scroll`，须与模板一致） */
+  scrollClass?: string
+  /** 外部滚动量来源（列表无法自行绑定 `@scroll` 时由父级下发）；提供时内建 `onScroll` 不再被使用 */
+  scrollTopSource?: Ref<number>
+  /** 选择器作用域（在**自定义组件内**使用时传 `getCurrentInstance()?.proxy`，否则查询命中不到组件内节点） */
+  scope?: unknown
+}
+
+export function useVirtualList<T>(opts: UseVirtualListOptions<T>) {
+  const { items, estimateHeight, offsetSelector } = opts
+  const overscan = opts.overscan ?? 4
+  const threshold = opts.threshold ?? 60
+  const itemClass = opts.itemClass ?? 'v-item'
+  const scrollClass = opts.scrollClass ?? 'v-scroll'
+
+  /** 内建滚动量（未提供外部来源时使用） */
+  const internalScrollTop = ref(0)
+  /** 当前滚动量：优先外部来源（列表嵌在父级 `scroll-view` 内时由父级下发） */
+  const scrollTop = computed(() => (opts.scrollTopSource ? opts.scrollTopSource.value : internalScrollTop.value))
+  /** 可视高（px）：挂载后实测回填，未量到前用保守缺省 */
+  const viewportH = ref(800)
+  /** 实测高度表（缺省 0 ⇒ 取估算值） */
+  const heights = ref<number[]>([])
+  /** 动态实测的列表偏移（px）：仅 `offsetSelector` 模式下使用 */
+  const measuredOffset = ref(opts.offset ?? 0)
+
+  /** 列表偏移：动态实测优先，否则用固定 `offset` */
+  const offsetRef = computed(() => (offsetSelector ? measuredOffset.value : opts.offset ?? 0))
+
+  /** 是否启用虚拟化：短列表全渲染 */
+  const enabled = computed(() => items.value.length > threshold)
+
+  /** 累计偏移：`offsets[i]` = 前 i 项高度和（未实测取估算） */
+  const offsets = computed(() => {
+    const n = items.value.length
+    const arr = new Array<number>(n + 1)
+    arr[0] = 0
+    for (let i = 0; i < n; i++) arr[i + 1] = arr[i] + (heights.value[i] || estimateHeight)
+    return arr
+  })
+  const totalHeight = computed(() => offsets.value[items.value.length] || 0)
+
+  /** 窗口起点：二分定位可视区首项，再向左多取 `overscan` 项 */
+  const startIndex = computed(() => {
+    if (!enabled.value) return 0
+    const rel = scrollTop.value - offsetRef.value
+    if (rel <= 0) return 0
+    const offs = offsets.value
+    let lo = 0
+    let hi = items.value.length - 1
+    let ans = 0
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (offs[mid + 1] <= rel) {
+        lo = mid + 1
+      } else {
+        ans = mid
+        hi = mid - 1
+      }
+    }
+    return Math.max(0, ans - overscan)
+  })
+
+  /** 窗口终点：从起点向下累积到超出可视底，再向右多取 `overscan` 项 */
+  const endIndex = computed(() => {
+    if (!enabled.value) return items.value.length
+    const rel = Math.max(0, scrollTop.value - offsetRef.value)
+    const bottom = rel + viewportH.value
+    const offs = offsets.value
+    let i = startIndex.value
+    while (i < items.value.length && offs[i] < bottom) i += 1
+    return Math.min(items.value.length, i + overscan)
+  })
+
+  const visible = computed(() => items.value.slice(startIndex.value, endIndex.value))
+  const topPad = computed(() => (enabled.value ? offsets.value[startIndex.value] || 0 : 0))
+  const bottomPad = computed(() =>
+    enabled.value ? Math.max(0, totalHeight.value - (offsets.value[endIndex.value] || 0)) : 0,
+  )
+
+  /** `scroll-view` 的 `@scroll`：驱动窗口重算 */
+  function onScroll(e: { detail: { scrollTop: number } }) {
+    internalScrollTop.value = e.detail.scrollTop || 0
+  }
+
+  /** 实测：量取可视高 + 列表偏移 + 当前窗口内各条目真实高度（量不到的项保持估算） */
+  function measure() {
+    if (!enabled.value) return
+    const query = opts.scope
+      ? uni.createSelectorQuery().in(opts.scope as never)
+      : uni.createSelectorQuery()
+    query.select(`.${scrollClass}`).boundingClientRect()
+    query.select(offsetSelector || `.__vlist-none__`).boundingClientRect()
+    query.selectAll(`.${itemClass}`).boundingClientRect()
+    query.exec((res) => {
+      const arr = res as Array<unknown>
+      const scrollRect = arr[0] as { height?: number; top?: number } | null
+      const offsetRect = arr[1] as { top?: number } | null
+      const sh = scrollRect?.height
+      if (sh && sh > 0) viewportH.value = sh
+      // 偏移 = （列表顶 - 滚动容器顶）+ 已滚动距离（随滚动位置换算，恒定正确）
+      if (offsetSelector && scrollRect?.top != null && offsetRect?.top != null) {
+        measuredOffset.value = Math.max(0, offsetRect.top - scrollRect.top + scrollTop.value)
+      }
+      const rects = (Array.isArray(arr[2]) ? arr[2] : []) as Array<{ height?: number } | null>
+      const base = startIndex.value
+      const next = heights.value.slice()
+      let changed = false
+      rects.forEach((r, i) => {
+        const h = r && typeof r.height === 'number' ? r.height : 0
+        if (h > 0 && Math.abs((next[base + i] || 0) - h) > 0.5) {
+          next[base + i] = h
+          changed = true
+        }
+      })
+      if (changed) heights.value = next
+    })
+  }
+
+  // 窗口变化后（DOM 已更新）量一次；挂载后补一次（首屏可视高与首屏条目）
+  watch([startIndex, endIndex, () => items.value.length], measure, { flush: 'post' })
+  onMounted(measure)
+
+  return { onScroll, visible, topPad, bottomPad, enabled, startIndex, endIndex }
 }

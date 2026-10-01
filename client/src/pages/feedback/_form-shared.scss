@@ -45,7 +45,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-xs);
-  height: 88rpx;
+  height: var(--tap-target-size);
   padding: 0 var(--spacing-md);
   background: var(--bg-input);
   border-radius: var(--radius-icon);

@@ -10,6 +10,7 @@
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE, buildContainerPath } from './config'
 import { getWxApi } from '@/utils/device'
 import { toastInfo } from '@/utils/error'
+import { STORAGE_KEY_TOKEN, STORAGE_KEY_USER } from '@/constants/storage'
 
 /** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
 interface ApiResponse<T = unknown> {
@@ -145,8 +146,8 @@ async function handleUnauthorized(): Promise<void> {
     await useUserStore().silentLogin()
   } catch {
     // 兜底：极端情况下动态 import 失败，直接清 storage
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
+    uni.removeStorageSync(STORAGE_KEY_TOKEN)
+    uni.removeStorageSync(STORAGE_KEY_USER)
   } finally {
     // 延迟复位，确保后续真正失效的 401 能再次触发引导
     setTimeout(() => { _authHandling = false }, 300)
@@ -218,7 +219,7 @@ function handleWechatLoginRequired(msg: string): void {
 }
 
 function getToken(): string {
-  return uni.getStorageSync('token') || ''
+  return uni.getStorageSync(STORAGE_KEY_TOKEN) || ''
 }
 
 /** 解析响应体：兼容 JSON 字符串或已解析对象 */
@@ -438,7 +439,8 @@ export async function del<T>(url: string, data?: RequestData, options?: RequestO
  * 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起。
  * <b>导出供 api/upload.ts 复用</b>——同一超时口径不存两份（此前两处各写 15000，靠注释人工同步）。
  */
-export const UPLOAD_TIMEOUT_MS = 15000
+/** 上传专用超时（仅本模块内部消费：文件更大、链路更久） */
+const UPLOAD_TIMEOUT_MS = 15000
 
 /**
  * 上传图片。

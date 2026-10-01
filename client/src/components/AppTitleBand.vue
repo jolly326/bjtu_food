@@ -135,7 +135,7 @@ const bandStyle = computed(() => ({
   z-index: 1;
   display: flex;
   align-items: center;
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding-right: var(--spacing-sm);
   /* 抬回可点（父层为 pointer-events: none） */
   pointer-events: auto;

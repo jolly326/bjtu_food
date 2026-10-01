@@ -12,14 +12,10 @@ import {
 } from './shared'
 
 /**
- * 列表行归一化（后端 `DishListItemVO` 8 字段 → 端上 `DishListItem`）。
- *
- * <p>入参用生成的强类型 {@link DishListItemVO}：
- * 后端改名/改类型会令本函数**编译期报错**，而非真机上字段变空白。
- *
- * <p>仍需归一化的原因（**不是**契约缺失，而是有意的端上适配）：
- * ① 金额分→元；② `canteenName`→`canteen`、`avgRating`→`rating` 别名；
- * ③ 零值兜底（`''` / `0`）——后端出参可空，端上模板不做空判断。
+ * 列表行归一化（`DishListItemVO` 8 字段 → 端上 `DishListItem`）。
+ * 入参用生成强类型：后端改名 / 改类型会**编译期报错**，而非真机上字段变空白。
+ * 仍需归一化（有意的端上适配，非契约缺失）：① 金额分→元；② `canteenName`→`canteen`、
+ * `avgRating`→`rating` 别名；③ 零值兜底。
  */
 function toDishListItem(raw: DishListItemVO): DishListItem {
   return {
@@ -39,11 +35,8 @@ function toDishListItem(raw: DishListItemVO): DishListItem {
 
 /**
  * 详情描述属性项归一化：中文值**原样透出**（值即中文，端上零翻译）。
- *
- * <p>契约说明：后端 {@code DishAttributeItem.value} 为 {@code Object}（单值为字符串、
- * 多选为字符串数组），`openapi-typescript` 因 OpenAPI 未声明 itemSchema
- * 而降级为 {@code Record<string, never> | ...}，故此处经 {@code unknown} 收窄为
- * 端上渲染所需的两种形态。非 `string`/`string[]` 时降级为 `''`（不抛错、不裂图）。
+ * 后端 `value` 为 Object（单值字符串 / 多选数组），OpenAPI 未声明 itemSchema ⇒ 生成类型降级，
+ * 故此处收窄为端上两种形态；非 `string` / `string[]` 时降级为 `''`（不抛错、不裂图）。
  */
 function toDishAttribute(raw: DishAttributeItem): DishAttribute {
   const value = raw.value

@@ -7,25 +7,28 @@
  */
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
-import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
+import type { DishDetailState } from './useDishDetail'
 import { deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-import { REVIEW_PAGE_SIZE } from '@/constants/paging'
+import { MAX_LIST_PAGES, REVIEW_PAGE_SIZE } from '@/constants/paging'
+import { isLastPage } from '@/composables/usePagedList'
 import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
+import { REVIEW_GONE_TEXT } from '@/constants/copy'
 
 export function useDishReviewCore(opts: {
   dishId: Ref<number>
+  /** 本页私有的详情态（按页实例，脱离全局 store） */
+  detail: DishDetailState
 }) {
-  const dishStore = useDishStore()
   const userStore = useUserStore()
-  const { dishId } = opts
+  const { dishId, detail } = opts
 
-  const reviewList = computed(() => dishStore.reviewList)
+  const reviewList = computed(() => detail.reviewList.value)
   /** 评价首屏/刷新失败态（PR-03）：失败 ≠ 零评价，由评价卡渲染可重试失败块 */
-  const reviewFailed = computed(() => dishStore.reviewError)
+  const reviewFailed = computed(() => detail.reviewError.value)
 
   /**
    * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
@@ -51,7 +54,7 @@ export function useDishReviewCore(opts: {
     if (!dishId.value) return
     reviewPendingCount.value += 1
     try {
-      await dishStore.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE })
+      await detail.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE })
     } finally {
       reviewPendingCount.value -= 1
     }
@@ -63,11 +66,16 @@ export function useDishReviewCore(opts: {
     // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
     // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容错乱）。
     if (reviewPending.value) return
-    if (!dishStore.currentDish || reviewLoadingMore.value || reviewFinished.value) return
+    if (!detail.currentDish.value || reviewLoadingMore.value || reviewFinished.value) return
+    // 页数封顶：评价区无虚拟化，达上限后停止追加（避免深翻节点无限增长）
+    if (reviewPage.value >= MAX_LIST_PAGES) {
+      reviewFinished.value = true
+      return
+    }
     reviewLoadingMore.value = true
     try {
       // 排序唯一时间倒序，端上不传 sort（PR-02）
-      const res = await dishStore.fetchReviews(dishId.value, {
+      const res = await detail.fetchReviews(dishId.value, {
         page: reviewPage.value + 1,
         pageSize: REVIEW_PAGE_SIZE,
         append: true,
@@ -75,8 +83,8 @@ export function useDishReviewCore(opts: {
       // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
       if (!res) return
       reviewPage.value += 1
-      // 结束判据（分页壳只有 records）：本页条数 < 每页条数 ⇒ 已到末页，不再多发空请求
-      if (res.list.length < REVIEW_PAGE_SIZE) reviewFinished.value = true
+      // 结束判据（单一真源 isLastPage）：已到末页 ⇒ 不再多发空请求
+      if (isLastPage(res.list, REVIEW_PAGE_SIZE)) reviewFinished.value = true
     } catch { /* 底部加载失败静默，后续滚动可重试 */ } finally { reviewLoadingMore.value = false }
   }
 
@@ -109,12 +117,12 @@ export function useDishReviewCore(opts: {
           toastSuccess('评价已删除')
           resetReviewPaging()
           await fetchReviewsReset()
-          dishStore.fetchDetail(dishId.value)
+          detail.fetchDetail(dishId.value)
         } catch (e) {
           if (isResourceNotFound(e)) {
             // 评价已不存在：本地移除即可（不提示「删除失败」误导可重试）
-            dishStore.removeReview(rv.id)
-            toastInfo('评价已不存在')
+            detail.removeReview(rv.id)
+            toastInfo(REVIEW_GONE_TEXT)
             return
           }
           toastError(e, '删除失败')

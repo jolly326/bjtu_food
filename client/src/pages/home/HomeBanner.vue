@@ -1,13 +1,9 @@
 <template>
   <!-- 16:10 轮播 Banner（docs/client/ui/client-首页菜品浏览.md §3）
-       · 图片清单来自 `GET /banners`（服务端已按 sort_order 升序、只返回启用项）——
-         端上按返回顺序渲染、不排序、不写死任何 URL 与张数；
-       · 多张：自动轮播（AUTOPLAY_INTERVAL）+ 循环 + 底部居中指示点；仅一张：不轮播、不显示指示点；
-       · 空数组 / 请求失败 / 单张失败 → 灰底（--bg-soft）+ 居中「中性 empty 图标」空态
-         （图标键取中性 `empty`——Banner 是运营位轮播，容器语义 ≠ 菜品，依 project_spec.md §4.9
-          不得用 `dish` 冒充中性占位）；不渲染任何文字说明、不加白卡 / 投影 / 渐变；
-       · 块高由父级下发（恒定按 BANNER_ASPECT 推导）——加载中 / 失败不改变块高，
-         否则吸顶阈值与切换点漂移（§11.2 常量表 H_b 同源）。 -->
+       · 清单来自 `GET /banners`（服务端已按序、只返回启用项）：端上按返回顺序渲染，不排序、不写死 URL 与张数；
+       · 多张自动轮播 + 指示点；仅一张不轮播、不显示指示点；
+       · 空数组 / 请求失败 / 单张失败 → 灰底 + 居中**中性 `empty` 占位**（不得用 `dish` 图标冒充）；
+       · 块高由父级下发（H_b），加载中 / 失败**不改变块高**，否则吸顶阈值漂移。 -->
   <view class="home-banner" :style="{ height: `${heightPx}px` }">
     <swiper
       v-if="list.length > 0"
@@ -19,13 +15,13 @@
       :indicator-color="INDICATOR_COLOR"
       :indicator-active-color="INDICATOR_ACTIVE_COLOR"
     >
-      <swiper-item v-for="b in list" :key="b.id">
+      <swiper-item v-for="(b, i) in list" :key="b.id">
         <image
-          v-if="b.imageUrl && !failedIds.includes(b.id)"
+          v-if="b.imageUrl && !broken.has(i)"
           class="banner-img"
           :src="b.imageUrl"
           mode="aspectFill"
-          @error="onError(b.id)"
+          @error="markBroken(i)"
         />
         <view v-else class="banner-ph">
           <ImagePlaceholder :size="120" />
@@ -43,6 +39,7 @@ import { ref, onMounted } from 'vue'
 import * as bannerApi from '@/api/banner'
 import type { Banner } from '@/types/banner'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import { useBrokenImages } from '@/composables/useBrokenImages'
 // 微信原生 <swiper> 的指示点色不接受 var()（同 ImageSwiper 的原生属性限制例外），必须用真实色值
 import {
   SWIPER_INDICATOR_ACTIVE_COLOR,
@@ -62,17 +59,14 @@ const INDICATOR_COLOR = SWIPER_INDICATOR_COLOR
 const INDICATOR_ACTIVE_COLOR = SWIPER_INDICATOR_ACTIVE_COLOR
 
 const list = ref<Banner[]>([])
-/** 单张加载失败的 banner id（该张退化为空态，其余张不受影响、轮播继续） */
-const failedIds = ref<number[]>([])
-
-function onError(id: number) {
-  if (!failedIds.value.includes(id)) failedIds.value = [...failedIds.value, id]
-}
+/** 单张加载失败的下标（该张退化为空态，其余张不受影响、轮播继续）—— 破图集合走公共 composable */
+const { broken, markBroken, clear: clearBroken } = useBrokenImages()
 
 /** 拉取轮播图：失败**不抛出**（Banner 失败不阻塞首屏网格），退化为空数组 → 整块灰底空态 */
 async function load() {
   try {
     list.value = await bannerApi.listBanners()
+    clearBroken()
   } catch (e) {
     console.error('加载首页轮播图失败', e)
     list.value = []

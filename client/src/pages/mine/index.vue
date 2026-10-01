@@ -17,32 +17,14 @@
              内容与排版真源见 docs/client/ui/README.md §身份卡。
              整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
-        <view
-          class="user-card"
-          :class="{ 'user-card--verified': isVerified }"
-          role="button"
-          aria-label="查看我的主页"
+        <IdentityCard
+          mode="entry"
+          :nickname="userInfo?.nickname"
+          :bind-email="bindEmail"
+          :avatar="userInfo?.avatar"
+          :verified="isVerified"
           @tap="onUserCardTap"
-        >
-          <view class="user-card-head">
-            <view class="avatar-wrap">
-              <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
-              <view v-else class="avatar">
-                <ImagePlaceholder name="user" :size="60" />
-              </view>
-            </view>
-            <view class="user-meta">
-              <text class="nickname">
-                {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
-              </text>
-              <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示认证状态文案。
-                   `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
-              <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
-              <text v-else class="user-id">{{ GUEST_SUB }}</text>
-            </view>
-            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
-          </view>
-        </view>
+        />
 
         <!-- 卡内段间浅分隔线（用户信息 ↔ 功能宫格）；**仅此一处** ——
              宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除（两卡靠留白分隔，不靠线） -->
@@ -114,14 +96,13 @@ import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
-import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
-import ImageFallback from '@/components/ImageFallback.vue'
+import IdentityCard from '@/components/IdentityCard.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
 import { toastError, toastSuccess } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
-import { PATH } from '@/utils/routes'
+import { PATH, TAB_PROFILE } from '@/utils/routes'
 import { deleteAccount } from '@/api/user'
 import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
@@ -133,8 +114,6 @@ const userInfo = computed(() => userStore.userInfo)
 const isVerified = computed(() => userStore.isVerified())
 /** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
 const bindEmail = computed(() => userInfo.value?.bindEmail || '')
-/** 游客态副行文案：端内静态口径（不派生内部编号 —— 游客身份由服务端建号默认昵称承载） */
-const GUEST_SUB = '未完成校园认证'
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
@@ -146,7 +125,7 @@ onLoad(() => {
 // 每次进入「我的」刷新未读通知数（宫格红点角标；消息中心为登录级能力，游客与认证态同权刷新）
 onShow(() => {
   // 锚定底部菜单栏：我的页始终显示并高亮
-  showTab('profile')
+  showTab(TAB_PROFILE)
   notifyStore.fetchUnread()
 })
 
@@ -218,7 +197,7 @@ const moreRows = [
 ]
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 /* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
    页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
@@ -249,30 +228,8 @@ const moreRows = [
    用户信息 ↔ 功能宫格。宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除。 */
 .card-divider { height: 2rpx; background: var(--border-color); }
 
-/* 用户信息模块（卡内第 1 段）：**自身不再是独立卡片**（无 bg / shadow / radius / 外边距），
-   认证态与游客态表面语言一致，差异仅由顶部主色软条纹与内容（昵称 / 邮箱、游客态副行）表达。 */
-.user-card {
-  display: flex; flex-direction: column; gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  border-top: 6rpx solid transparent;
-  transition: background-color var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-/* 已认证：顶部主色软条纹 */
-.user-card--verified {
-  border-top-color: var(--color-primary-soft);
-}
-/* 游客态**不设**额外规则：`.user-card` 的 `border-top` 本就是 transparent，
-   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖 */
-.user-card:active { background-color: var(--bg-soft); }
-.user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
-.avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }
-.avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
-.user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
-/* 游客态不再加类名：昵称色两态一致（`.nickname--guest` 与基类同值，属 no-op，已删） */
-.nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.user-id { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-arrow { flex-shrink: 0; }
+/* 用户信息模块（卡内第 1 段）**已抽为公共组件 `IdentityCard`**（与「我的主页」同源，基线 §三）：
+   条纹 / 头像 / 主副行 / 间距 / 按压反馈全部由组件自持，本页不再维护这组规则。 */
 
 /* 功能宫格模块（卡内第 2 段）：**一行三列内联布局**，**每格去掉独立白卡外壳**
    （无 background / border-radius 白卡 / box-shadow；本稿修订 2026-09-30）；每格整格热区，
@@ -293,8 +250,8 @@ const moreRows = [
 /* 浅粉圆底 + 2px 线性线条图标（复用既有 feature 卡 chip 基线，图标在上、标题在下） */
 .grid-cell-icon {
   position: relative;
-  width: 96rpx;
-  height: 96rpx;
+  width: var(--chip-size);
+  height: var(--chip-size);
   border-radius: var(--radius-pill);
   background: var(--color-primary-soft);
   display: flex;
@@ -315,7 +272,7 @@ const moreRows = [
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: 0 var(--spacing-md);
   border-bottom: 1rpx solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
@@ -342,6 +299,6 @@ const moreRows = [
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .user-card, .grid-cell, .more-row { transition: none; }
+  .grid-cell, .more-row { transition: none; }
 }
 </style>

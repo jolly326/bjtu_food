@@ -1510,6 +1510,13 @@ DROP PROCEDURE IF EXISTS `ensure_perf_indexes`;
 -- ⚠️ 执行顺序：**先跑体检、确认 0 行孤儿，再执行 ensure_integrity_foreign_keys**。
 --   存量库若已有孤儿，ADD FOREIGN KEY 会直接失败（这正是期望行为：宁可迁移失败，
 --   也不要静默删数据）。届时按体检结果人工确认处理策略。
+--
+-- ✅ **已于 2026-10-01 在生产库执行完毕**（TDSQL-C，MySQL 5.7.18-cynos-2.1.14-log）：
+--   前置体检 orphan_review_dish=0 / orphan_notification_user=0，迁移耗时 420ms，
+--   两条约束均已创建且 DELETE_RULE=CASCADE，重跑本段 exit=0（幂等已验证）。
+--   故本段对**当前生产库**而言是 no-op；保留它是为了①新库仍能建成同样结构 ②存量库重建时可复现。
+--   实测记录：MySQL 5.7 的 DELETE_RULE 需查 INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS，
+--   直接在 KEY_COLUMN_USAGE 里取该列会报 Unknown column（5.8+ 才有）——排查时注意。
 -- =============================================================
 -- 体检 1：review 指向已不存在的 dish（菜品被物理删除但评价未级联清理）
 SELECT COUNT(*) AS orphan_review_dish

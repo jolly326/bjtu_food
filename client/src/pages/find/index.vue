@@ -523,8 +523,8 @@ onShow(() => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 88rpx;
-  height: 88rpx;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
 .history-clear:active { opacity: 0.55; }

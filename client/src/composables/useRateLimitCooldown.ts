@@ -1,21 +1,9 @@
 /**
- * 提交限频退避。
+ * 提交限频退避（后端对写入口做 IP 限频：`POST /feedback`、`POST /dishes/{id}/correction`）。
  *
- * <b>解决的问题</b>：后端对写入口做了 IP 限频（`POST /feedback`、`POST /dishes/{id}/correction`
- * 均为 2 次/分钟、10 次/小时），超限返回 400「提交过于频繁，请 N 秒后再试」。而端上此前
- * 只弹一个 toast —— 用户在弱网下手滑连点会**持续撞限频**，把 1 分钟的封锁越拖越长，
- * 体验是「怎么点都没用，也看不出要等多久」。
- *
- * <p><b>本 composable 提供</b>：
- * <ol>
- *   <li><b>倒计时禁用</b>：被限频后 {@link cooldownSeconds} > 0，调用方据此禁用提交按钮并展示剩余秒数；</li>
- *   <li><b>到点自动解锁</b>：无需用户猜「什么时候能再试」；</li>
- *   <li><b>纯 UI 退避，不自动重发请求</b>——用户已填好的表单内容可能已过期（如菜品下架），
- *       静默重发可能写入脏数据，故只解锁、由用户主动再点。</li>
- * </ol>
- *
- * <p><b>数据来源</b>：{@link isRateLimited} + {@link RateLimitedError.retryAfterSeconds}
- * （请求层从后端 message「请 N 秒后再试」解析）。解析不出秒数时用保守缺省值 {@link DEFAULT_COOLDOWN}。
+ * ⚠️ **只做 UI 退避，不自动重发**：用户已填好的表单可能已过期（如菜品下架），静默重发会写入脏数据 ——
+ * 倒计时结束仅解锁按钮，由用户主动再点。
+ * 秒数来源 = 请求层从后端 message「请 N 秒后再试」解析（`isRateLimited` + `retryAfterSeconds`）。
  */
 import { ref, onUnmounted } from 'vue'
 import { isRateLimited } from '@/api/http'

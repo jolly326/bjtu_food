@@ -105,6 +105,7 @@ import { sendEmailCode, deriveCampusEmail } from '@/api/user'
 import { errorMessage, toastInfo, toastSuccess } from '@/utils/error'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
+import { isValidStudentNo } from '@/utils/validate'
 
 const authStore = useAuthStore()
 const userStore = useUserStore()
@@ -125,7 +126,7 @@ const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成身份认
 const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前微信账号绑定，不会用于其他用途'
 
 /** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */
-const usernameValid = computed(() => /^\d+$/.test(form.value.username.trim()))
+const usernameValid = computed(() => isValidStudentNo(form.value.username))
 /** 发码钮可用性：学号合法 && 非冷却 && 无发送在途 */
 const codeActionEnabled = computed(() => usernameValid.value && codeCooldown.value === 0 && !sendingCode.value)
 /** 认证钮可用性：学号合法非空 && 验证码非空 && 无请求在途 */
@@ -155,7 +156,7 @@ function onUsernameBlur() {
   focusField.value = ''
   const v = form.value.username.trim()
   if (!v) setError('请输入学号')
-  else if (!/^\d+$/.test(v)) setError('学号需为纯数字')
+  else if (!isValidStudentNo(v)) setError('学号需为纯数字')
 }
 /** 验证码 @input 净化：仅保留数字并截断 6 位（与 `maxlength=6` 双重兜底） */
 function onCodeInput(e: Event) {
@@ -229,14 +230,14 @@ onUnload(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   background: transparent;
   border: none;
   border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
 }
 .input-field--focus { border-bottom-color: var(--color-primary); }
-.input-control { flex: 1; min-width: 0; height: 88rpx; font-size: var(--font-body); color: var(--text-primary); }
+.input-control { flex: 1; min-width: 0; height: var(--tap-target-size); font-size: var(--font-body); color: var(--text-primary); }
 .input-placeholder { color: var(--text-tertiary); }
 /* 验证码行：与上一输入项（或动态提示）拉开一组间距 */
 .input-field--code { margin-top: var(--spacing-lg); }
@@ -268,7 +269,7 @@ onUnload(() => {
   left: 0;
   right: 0;
   top: 50%;
-  height: 88rpx;
+  height: var(--tap-target-size);
   transform: translateY(-50%);
 }
 .code-action.disabled { color: var(--text-tertiary); border-color: var(--border-color); }

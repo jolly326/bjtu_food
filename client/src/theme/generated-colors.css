@@ -73,4 +73,6 @@ page {
   --border-nav-back-chip: rgba(0, 0, 0, 0.1);
   --nav-back-icon: #1A1A1A;
   --badge-dark-bg: rgba(0, 0, 0, 0.5);
+  /* ===== 页底纱层（PageWallpaper 以 background-color 消费；色值 = --bg-page #FFF8EF + α0.7）===== */
+  --page-wash: rgba(255, 248, 239, 0.7);
 }

@@ -41,13 +41,16 @@
       <template v-else-if="!pending">
         <!-- 有数据：评价列表（无「有用」入口；排序唯一时间倒序） -->
         <view v-if="reviews.length > 0" class="review-list">
+          <view :style="{ height: topPad + 'px' }" />
           <ReviewItem
-            v-for="rv in reviews"
+            v-for="rv in visible"
             :key="rv.id"
+            class="v-item"
             :review="rv"
             flat
             @more="emit('more', $event)"
           />
+          <view :style="{ height: bottomPad + 'px' }" />
         </view>
 
         <!-- 零评价空态：**纯文本「暂无评价」**（无副文案、无引导按钮 —— 写评价入口唯一落点 = 标题行右侧按钮） -->
@@ -59,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, getCurrentInstance } from 'vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
@@ -68,8 +72,9 @@ import IconSvg from '@/components/IconSvg.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
+import { useVirtualList } from '@/composables/usePagedList'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   reviews: Review[]
   /**
    * 标题行展示的评价条数 = **已加载条数**。
@@ -84,7 +89,22 @@ defineProps<{
    * 为真时本区块空白静默，不渲染列表与空态（避免在途瞬间误闪「暂无评价」）。
    */
   pending: boolean
-}>()
+  /** 页面滚动量（px）：驱动评价列表虚拟窗口（由父级 `scroll-view` 的 `@scroll` 下发） */
+  scrollTop?: number
+}>(), {
+  loadFailed: false,
+  scrollTop: 0,
+})
+
+/** 虚拟列表：列表嵌在页面 `scroll-view` 内 ⇒ 外部滚动量 + 组件作用域查询 + 动态偏移（见 composable 文档） */
+const { visible, topPad, bottomPad } = useVirtualList<Review>({
+  items: computed(() => props.reviews),
+  estimateHeight: 200,
+  offsetSelector: '.review-list',
+  scrollClass: 'dish-scroll',
+  scrollTopSource: computed(() => props.scrollTop),
+  scope: getCurrentInstance()?.proxy,
+})
 
 /* 评价条数口径：**恒为已加载条数**（分页壳只有 `records`，服务端不回传总数）；
    数字经 `SectionTitle` 的 `count` 与标题合并渲染为「评价 12」（同色 / 小半号 / 等宽）。 */
@@ -129,7 +149,7 @@ const emit = defineEmits<{
   left: 0;
   right: 0;
   top: 50%;
-  height: 88rpx;
+  height: var(--tap-target-size);
   transform: translateY(-50%);
 }
 .write-entry-icon {

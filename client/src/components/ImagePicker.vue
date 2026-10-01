@@ -317,33 +317,21 @@ function onPreview(i: number) {
 }
 </script>
 
-<style scoped>
-/* 3 列自适应网格：格子宽度随容器等分（sheet / 表单卡宽度不同均可复用） */
+<style scoped lang="scss">
+/* 3 列方形图网格：网格语言来自共享 partial（与 ReviewItem 同源），此处只做类名绑定 */
+@use '../styles/media-grid' as grid;
+
 .ip-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  @include grid.list;
 }
 .ip-cell {
-  width: calc((100% - 32rpx) / 3);
+  @include grid.cell;
 }
-/* 正方形容器：padding-bottom 撑高（小程序对 aspect-ratio 支持不稳，用经典等比盒） */
 .ip-box {
-  position: relative;
-  width: 100%;
-  height: 0;
-  padding-bottom: 100%;
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  background: var(--bg-placeholder);
-  -webkit-tap-highlight-color: transparent;
+  @include grid.box;
 }
 .ip-thumb {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  @include grid.media;
 }
 .ip-thumb:active { opacity: 0.6; }
 /* 破图兜底（评审 m4）：empty 中性占位（浅底居中），与展示侧 ReviewItem 同构 */
@@ -358,8 +346,8 @@ function onPreview(i: number) {
    热区经 ::after 扩至 88rpx（对齐 my-reviews delete-link 的 Apple 44pt 触达下限模式） */
 .ip-remove {
   position: absolute;
-  top: 8rpx;
-  right: 8rpx;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
   width: 44rpx;
   height: 44rpx;
   border-radius: var(--radius-circle);
@@ -375,8 +363,8 @@ function onPreview(i: number) {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 88rpx;
-  height: 88rpx;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
 .ip-remove:active { opacity: 0.7; }

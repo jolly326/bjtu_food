@@ -21,14 +21,15 @@
     </Header>
 
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
-    <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
       <view class="list">
         <!-- 单张白卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线 -->
         <view v-if="list.length" class="list-card">
+          <view :style="{ height: topPad + 'px' }" />
           <view
-            v-for="n in list"
+            v-for="n in visible"
             :key="n.id"
-            class="msg-item"
+            class="msg-item v-item"
             :class="{ unread: !n.isRead }"
             @tap="onTap(n)"
           >
@@ -43,6 +44,7 @@
               <text class="msg-content">{{ n.content }}</text>
             </view>
           </view>
+          <view :style="{ height: bottomPad + 'px' }" />
         </view>
       </view>
 
@@ -76,7 +78,8 @@ import { listNotifications, readNotification, readAllNotifications, type Notific
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
-import { usePagedList } from '@/composables/usePagedList'
+import { usePagedList, useVirtualList } from '@/composables/usePagedList'
+import { MAX_LIST_PAGES } from '@/constants/paging'
 
 const notifyStore = useNotifyStore()
 
@@ -95,8 +98,15 @@ const loaded = ref(false)
  */
 const { list, loading, loadFailed, load, loadMore } = usePagedList<Notification>({
   fetchPage: async (page, pageSize) => (await listNotifications({ page, pageSize })).list,
+  maxPages: MAX_LIST_PAGES,
   onLoadSuccess: () => { notifyStore.fetchUnread() },
   onLoadSettled: () => { loaded.value = true },
+})
+
+/** 虚拟列表（列表为滚动内容首块 ⇒ offset 0）：仅渲染可视窗口，节点数 O(窗口)；≤ 阈值时全渲染、行为不变 */
+const { onScroll, visible, topPad, bottomPad } = useVirtualList<Notification>({
+  items: list,
+  estimateHeight: 96,
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -182,7 +192,7 @@ onShow(() => {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: var(--spacing-md) var(--spacing-lg);
   box-sizing: border-box;
   transition: background-color var(--duration-fast) var(--ease-out);

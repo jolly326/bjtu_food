@@ -1,6 +1,6 @@
 import { ref, computed, onMounted } from 'vue'
-import { getNavBarHeight } from '@/utils/navMetrics'
 import { getWindowInfo, getMenuButtonRect } from '@/utils/device'
+import type { MenuButtonRect } from '@/utils/device'
 
 /**
  * 顶部导航度量（跨页统一实现）
@@ -39,4 +39,12 @@ export function useNavMetrics() {
   const titleBandPx = computed(() => statusBarPx.value + navBarHeightPx.value)
 
   return { statusBarPx, navBarHeightPx, navPadRight, titleBandPx }
+}
+
+/** 导航栏内容区高度（px）= (胶囊.top − 状态栏高) × 2 + 胶囊高 —— 取该值胶囊才在行内垂直居中 */
+function getNavBarHeight(statusBarHeight: number, menu?: MenuButtonRect | null): number {
+  if (menu && menu.height) {
+    return (menu.top - statusBarHeight) * 2 + menu.height
+  }
+  return 56
 }

@@ -175,7 +175,7 @@ function onPrimaryTap() {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
+  height: var(--tap-target-size);
   padding: 0 var(--spacing-xl);
   border-radius: var(--radius-pill);
   background: var(--bg-card);

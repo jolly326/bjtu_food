@@ -189,7 +189,7 @@ async function onSubmit() {
 .rc-field-images { margin-top: var(--spacing-md); }
 
 /* 圆角统一到全局主按钮档位 token（--radius-btn，与 AppButton 一致），不再裸 24rpx */
-.rc-submit { display: flex; align-items: center; justify-content: center; height: 88rpx; margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
+.rc-submit { display: flex; align-items: center; justify-content: center; height: var(--tap-target-size); margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
 .rc-submit.disabled { opacity: 0.5; }
 .rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--color-on-primary); }
 </style>

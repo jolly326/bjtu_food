@@ -74,6 +74,7 @@
           :count="reviewList.length"
           :load-failed="reviewFailed"
           :pending="reviewPending"
+          :scroll-top="scrollTop"
           @more="onReviewMore"
           @retry="onRetryReviews"
           @write="onOpenReviewComposer"
@@ -162,6 +163,7 @@ const {
   heroHeightPx,
   navOpacity,
   onScroll,
+  scrollTop,
   locationText,
   reviewList,
   reviewFailed,

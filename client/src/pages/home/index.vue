@@ -102,7 +102,7 @@ import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { PATH } from '@/utils/routes'
+import { PATH, TAB_HOME } from '@/utils/routes'
 import { useNavMetrics } from '@/utils/useNavMetrics'
 import { getWindowInfo } from '@/utils/device'
 import AppTitleBand from '@/components/AppTitleBand.vue'
@@ -278,7 +278,7 @@ onLoad(() => {
 })
 
 onShow(() => {
-  showTab('home')
+  showTab(TAB_HOME)
   clearShareState()
   // 视图字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `viewLoaded` 守卫），失败不阻塞首屏。
   // 先前注释承诺的守卫并不存在（每次 onShow 都真发一次请求），本轮已在 store 内补齐 ⇒ 注释与实现一致。

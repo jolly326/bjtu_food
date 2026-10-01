@@ -136,7 +136,7 @@ function onImagesChange(urls: string[]) {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: var(--spacing-sm) 0;
   border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;

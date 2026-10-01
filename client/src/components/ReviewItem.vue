@@ -14,7 +14,7 @@
       <image
         v-if="avatarOk && authorAvatar"
         class="review-avatar"
-        :src="getImageUrl(authorAvatar)"
+        :src="getThumbImageUrl(authorAvatar)"
         mode="aspectFill"
         lazy-load
         role="img"
@@ -63,7 +63,7 @@
             <image
               v-if="!brokenImages.has(i)"
               class="review-image"
-              :src="getImageUrl(img)"
+              :src="getThumbImageUrl(img)"
               mode="aspectFill"
               lazy-load
               role="img"
@@ -90,11 +90,12 @@ import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（走 data-uri，见 IconSvg.vue 的 resolveColor），
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'
-import { getImageUrl } from '@/utils/image'
+import { getImageUrl, getThumbImageUrl } from '@/utils/image'
 import { useBrokenImages } from '@/composables/useBrokenImages'
 import { formatRating } from '@/utils/dish'
 import { formatDate } from '@/utils/time'
 import type { Review, MyReview } from '@/types/review'
+import { ANONYMOUS_AUTHOR } from '@/constants/copy'
 
 defineOptions({ name: 'ReviewItem' })
 
@@ -135,7 +136,7 @@ const avatarOk = ref(true)
 const authorAvatar = computed(() => ('userAvatar' in props.review ? props.review.userAvatar : ''))
 const authorNickname = computed(() => {
   const name = 'userNickname' in props.review ? props.review.userNickname : ''
-  return name || '匿名用户'
+  return name || ANONYMOUS_AUTHOR
 })
 
 /**
@@ -153,6 +154,8 @@ watch(
   () => props.review.images,
   () => clear(),
 )
+// 头像破图态同样随数据变化复位（组件实例复用、同 key 换评价时避免旧破图态残留）
+watch(authorAvatar, () => { avatarOk.value = true })
 /** 预览大图（仅未破图可进入；current 定位到点击那张） */
 function onPreviewImage(i: number) {
   if (brokenImages.value.has(i)) return
@@ -169,7 +172,10 @@ function onMore() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 配图网格语言来自共享 partial（与 ImagePicker 同源） */
+@use '../styles/media-grid' as grid;
+
 /* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
    消费方 **2 处**：`DishReviewSection`（传 `flat` ⇒ 嵌在评价卡内的条目）、
    `my-reviews`（默认**非 flat** ⇒ 独立白卡）。两支形态均在实际使用，**均不得删除**。
@@ -204,8 +210,8 @@ function onMore() {
 /* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx）。
    `overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆形内 —— 缺它时占位方块的直角会露在圆外 */
 .review-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: var(--avatar-size-sm);
+  height: var(--avatar-size-sm);
   border-radius: var(--radius-circle);
   overflow: hidden;
   background: var(--bg-soft);
@@ -299,8 +305,8 @@ function onMore() {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 88rpx;
-  height: 88rpx;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
 .review-more:active { opacity: 0.5; }
@@ -314,33 +320,19 @@ function onMore() {
   white-space: pre-wrap;
 }
 
-/* 配图行（≤3 张等比小方图）：与 ImagePicker 同一网格语言（3 等分 + 16rpx gap） */
+/* 配图行（≤3 张等比小方图） */
 .review-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  @include grid.list;
   margin-top: var(--spacing-2xs);
 }
 .review-image-cell {
-  width: calc((100% - 32rpx) / 3);
+  @include grid.cell;
 }
-/* 正方形容器：padding-bottom 等比盒（与 ImagePicker 同法，小程序 aspect-ratio 支持不稳） */
 .review-image-box {
-  position: relative;
-  width: 100%;
-  height: 0;
-  padding-bottom: 100%;
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  background: var(--bg-placeholder);
-  -webkit-tap-highlight-color: transparent;
+  @include grid.box;
 }
 .review-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  @include grid.media;
 }
 .review-image:active { opacity: 0.6; }
 /* 破图兜底：empty 中性占位（浅底居中），可点击但不进预览 */

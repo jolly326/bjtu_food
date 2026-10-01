@@ -1,0 +1,24 @@
+/**
+ * 菜品纠错表单「下划线字段行」共享样式（correction 包内私有，不对外）。
+ *
+ * 背景：`CorrectionForm` 的 `.row-field` 与 `AttributePickerSheet` 的 `.aps-search-box` /
+ * `.aps-custom-box` **三处逐字重复**同一套「透明底 + 仅底部细线」的输入行语言，故归口至此。
+ *
+ * 用法：子件在 `<style scoped lang="scss">` 顶部 `@use './field-shared' as field;` → `@include field.underline;`。
+ * 说明：sass 在 vue 的 scoped 转换之前内联，规则照常带 scoped 作用域，不会泄漏。
+ *
+ * 约束：仅收敛逐字一致的声明；各子件自身特有规则（`.row-field` 的 `flex` 占位、聚焦态换色、
+ *      手册输入区等）仍留在各自组件内。
+ */
+
+/** 下划线字段行：透明底、仅底部 1rpx 细线（禁全包围矩形框）、聚焦由消费方切主色 */
+@mixin underline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
+  height: var(--tap-target-size);
+  border-bottom: 1rpx solid var(--border-color);
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}

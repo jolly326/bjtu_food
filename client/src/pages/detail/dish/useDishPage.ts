@@ -20,7 +20,6 @@
  */
 import { ref, computed } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
-import { useDishStore } from '@/stores/dish'
 import { useAuthStore } from '@/stores/auth'
 import type { DishDetail } from '@/types/dish'
 import { sharedDish } from '@/utils/share-state'
@@ -29,39 +28,42 @@ import { toastInfo } from '@/utils/error'
 import { dishDetailUrl } from '@/utils/routes'
 import { useReport } from './useReport'
 import { useDishHeroScroll } from './useDishHeroScroll'
+import { useDishDetail } from './useDishDetail'
 import { useDishReviewCore } from './useDishReviewCore'
 import { useDishReviewComposer } from './useDishReviewComposer'
 import { useDishReviewMenu } from './useDishReviewMenu'
 
 export function useDishPage() {
-  const dishStore = useDishStore()
+  const detailState = useDishDetail()
   const authStore = useAuthStore()
 
-  /**
-   * 认证页返回续跑（§5.y）：requireAuth 记录的待办（写评价 / 删除评价）
-   * 在认证成功返回本页的 onShow 中续接；无待办时为空操作。首次进入（onLoad 后）pending 恒为空，无副作用。
-   */
-  onShow(() => {
-    authStore.consumePending()
-  })
-
   const dishId = ref(0)
-  const dish = computed<DishDetail | null | undefined>(() => dishStore.currentDish)
-  const detailFailed = computed(() => dishStore.detailError)
+  const dish = computed<DishDetail | null | undefined>(() => detailState.currentDish.value)
+  const detailFailed = computed(() => detailState.detailError.value)
   /**
    * 菜品不存在态（后端 `4001`，§7.40 R8，**不可重试**）：与失败态互斥。
    * 区别对待的缘由：不存在（含已下架）重试也还是不存在，「重新加载」是无效安慰 ——
    * 故只给「返回」，文案明确指出菜品不可见，避免用户反复点重试。
    */
-  const detailNotFound = computed(() => dishStore.detailNotFound)
+  const detailNotFound = computed(() => detailState.detailNotFound.value)
   /** onLoad 缺少 / 非法菜品 id：同样按失败态呈现（不留纯空白页） */
   const missingDishId = ref(false)
+  /** 本页首屏是否已发起加载：供 onShow 闸门区分「首次进入」与「从子页返回」 */
+  const bootstrapped = ref(false)
 
   const hero = useDishHeroScroll(dish)
-  const reviewCore = useDishReviewCore({ dishId })
+
+  /** 页面滚动量（px）：既驱动菜名淡入（hero），也下发评价区虚拟列表 */
+  const pageScrollTop = ref(0)
+  function onScroll(e: { detail?: { scrollTop?: number } }) {
+    hero.onScroll(e)
+    pageScrollTop.value = e?.detail?.scrollTop ?? 0
+  }
+  const reviewCore = useDishReviewCore({ dishId, detail: detailState })
   const composer = useDishReviewComposer({
     dish,
     dishId,
+    fetchDetail: detailState.fetchDetail,
     fetchReviewsReset: reviewCore.fetchReviewsReset,
     resetReviewPaging: reviewCore.resetReviewPaging,
   })
@@ -92,7 +94,7 @@ export function useDishPage() {
     }
     missingDishId.value = false
     dishId.value = id
-    dishStore.resetDishDetail()
+    detailState.resetDishDetail()
     void loadDishData()
   })
 
@@ -103,18 +105,33 @@ export function useDishPage() {
     // 详情页首屏零用户态请求：仅详情 + 公开评价并行（游客与登录行为完全一致）；
     // 「我是否已评价」的判定推迟到用户点击「写评价」时（见 onOpenReviewComposer）
     const tasks: Promise<unknown>[] = [
-      dishStore.fetchDetail(dishId.value),
+      detailState.fetchDetail(dishId.value),
       reviewCore.fetchReviewsReset(),
     ]
     await Promise.all(tasks)
     syncSharedDish()
+    bootstrapped.value = true
   }
+
+  /**
+   * 认证页返回续跑（§5.y）+ 跨页防串：
+   * · `consumePending()` 续接 requireAuth 记录的待办（写评价 / 删除评价），无待办时空操作；
+   * · 若全局详情已被另一详情页覆盖（详情→详情叠层）或已被重置，返回本页时按本页 `dishId` 重拉，
+   *   避免展示上一道菜（首屏由 onLoad 负责，`bootstrapped` 闸门防首次进入重复取数）。
+   */
+  onShow(() => {
+    authStore.consumePending()
+    if (bootstrapped.value && dishId.value && (!dish.value || dish.value.id !== dishId.value)) {
+      detailState.resetDishDetail()
+      void loadDishData()
+    }
+  })
 
   /** 详情请求失败后重试（与进入页面同路径，仅重拉详情）
    *  ⚠️ **返回该 Promise**，供页面等待真实落地后关闭「重新加载」的在途转圈。 */
   function onRetryDetail() {
     if (!dishId.value) return
-    return dishStore.fetchDetail(dishId.value)
+    return detailState.fetchDetail(dishId.value)
   }
 
   /** 写回分享态（供 onShareAppMessage 读取菜名 + 现价） */
@@ -140,7 +157,8 @@ export function useDishPage() {
     heroImages: hero.heroImages,
     heroHeightPx: hero.heroHeightPx,
     navOpacity: hero.navOpacity,
-    onScroll: hero.onScroll,
+    onScroll,
+    scrollTop: pageScrollTop,
     locationText,
     reviewList: reviewCore.reviewList,
     reviewFailed: reviewCore.reviewFailed,

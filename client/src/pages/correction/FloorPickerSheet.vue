@@ -81,7 +81,7 @@ const emit = defineEmits<{
   justify-content: space-between;
   gap: var(--spacing-md);
   /* 独立可点件：视觉高 = 行高，命中区 ≥ 88rpx（与主卡 picker 单元格同口径） */
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: var(--spacing-sm) var(--spacing-lg);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
