@@ -5,7 +5,6 @@ import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.auth.support.SecurityUtil;
-import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.dto.ReportReasonVO;
 import com.bjtufood.feedback.service.FeedbackService;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**

@@ -8,7 +8,9 @@ import java.util.List;
 
 @Data
 @Schema(description = "后台食堂列表展示信息")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class CanteenAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "食堂ID")
     private Long id;

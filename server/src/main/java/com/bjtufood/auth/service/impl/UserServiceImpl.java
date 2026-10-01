@@ -16,7 +16,6 @@ import com.bjtufood.auth.support.AuthStateUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,7 +36,9 @@ public class UserServiceImpl implements UserService {
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<UserVO> listUsers(int page, int pageSize, String status) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
@@ -95,7 +96,9 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void updateStatus(Long id, String status) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
         // 非法值（含 deleted）一律 400，避免垃圾值直接落库
         if (!UserConst.STATUS_ACTIVE.equals(status) && !UserConst.STATUS_DISABLED.equals(status)) {

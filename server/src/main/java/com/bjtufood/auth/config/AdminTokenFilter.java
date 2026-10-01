@@ -6,7 +6,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,7 +35,9 @@ import java.util.List;
  * </ul>
  */
 @Component
+@Deprecated(since = "2026-09", forRemoval = true)
 public class AdminTokenFilter extends OncePerRequestFilter {
+    // ⚠️ 冻结：管理端（Web 后台）口令过滤器，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     /** 管理端口令请求头 */
     public static final String ADMIN_TOKEN_HEADER = "X-Admin-Token";

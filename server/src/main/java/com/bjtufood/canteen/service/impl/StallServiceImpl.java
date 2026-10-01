@@ -45,7 +45,9 @@ public class StallServiceImpl implements StallService {
     //   口径与出参（含无评价时按 0.00 兜底）保持不变。
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public List<StallAdminVO> listAllForAdmin() {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .orderByAsc(Stall::getCanteenId)
                 .orderByAsc(Stall::getSortOrder)
@@ -63,7 +65,9 @@ public class StallServiceImpl implements StallService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void update(Stall stall) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // canteen_id=0 收口：canteenId 显式传入时必须为有效食堂
         // （dish 列表/详情 joinDishSql 对 canteen 为 INNER JOIN，挂 0 的档口菜品会被静默剔除）。
         // null=不修改（MyBatis-Plus updateById NOT_NULL 策略跳过），不校验。

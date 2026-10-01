@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
@@ -272,7 +271,9 @@ public class CorrectionServiceImpl implements CorrectionService {
     // ==================== 管理端列表（GET /admin/corrections） ====================
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<DishCorrectionAdminVO> listForAdmin(String status, int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
@@ -298,11 +299,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 管理端仍需看到菜品名回看内容；菜品已物理删除时不在结果集，VO 保持 null。
         Map<Long, String> dishNameMap = batchDishNames(p.getRecords());
 
-        IPage<DishCorrectionAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream()
-                .map(c -> toAdminVO(c, userMap, dishNameMap))
-                .toList());
-        return result;
+        return PageUtil.toVoPage(p,
+                recs -> recs.stream().map(c -> toAdminVO(c, userMap, dishNameMap)).toList());
     }
 
     /** 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询） */
@@ -348,7 +346,9 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException("纠错不存在");
@@ -454,7 +454,9 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void reject(Long id, DishCorrectionHandleReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException("纠错不存在");

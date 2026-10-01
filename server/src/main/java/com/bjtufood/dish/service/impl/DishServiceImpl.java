@@ -13,7 +13,6 @@ import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishAttributeItem;
-import com.bjtufood.dish.dto.DishAttributeDefVO;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -128,25 +127,6 @@ public class DishServiceImpl implements DishService {
                         dim.getValueType(),
                         candidates.getOrDefault(dim.getFieldKey(), List.of())))
                 .toList();
-    }
-
-    // ==================== 公开只读字典（/dishes/attributes，补齐） ====================
-
-    @Override
-    public List<DishAttributeDefVO> listAllAttributeDefs() {
-        List<DishAttributeDimension> dimensions = loadDimensions();
-        if (dimensions.isEmpty()) {
-            return List.of();
-        }
-        Map<String, List<String>> candidates = candidateValuesByFieldKey();
-        List<DishAttributeDefVO> defs = new ArrayList<>(dimensions.size());
-        for (DishAttributeDimension dim : dimensions) {
-            // options 为参考候选（该维度全库已用中文值去重）；为空 = 暂无参考值（端上仍可自由输入）
-            defs.add(new DishAttributeDefVO(dim.getId(), dim.getFieldKey(), dim.getName(),
-                    dim.getValueType(), dim.getOrder(),
-                    candidates.getOrDefault(dim.getFieldKey(), List.of())));
-        }
-        return defs;
     }
 
     /** 维度字典（按 order 升序） */
@@ -276,21 +256,22 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<DishAdminVO> listAllForAdmin(int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 分页上限统一由 PageUtil 约束，避免一次性全表加载
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
         IPage<DishAdminVO> result = dishMapper.selectAllForAdmin(new Page<>(page, pageSize));
-        result.setRecords(result.getRecords().stream()
-                .map(this::enrichImages)
-                .toList());
-        return result;
+        return PageUtil.toVoPage(result, recs -> recs.stream().map(this::enrichImages).toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void addDish(DishAdminReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
         if (!StringUtils.hasText(req.getName())) {
             throw new BusinessException("菜品名称不能为空");
@@ -324,7 +305,9 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void updateDish(Long id, DishAdminReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
@@ -355,7 +338,9 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void deleteDish(Long id) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");

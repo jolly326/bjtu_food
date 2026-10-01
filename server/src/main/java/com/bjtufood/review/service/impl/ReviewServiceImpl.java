@@ -24,12 +24,10 @@ import com.bjtufood.auth.service.UserService;
 import com.bjtufood.dish.service.DishService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -268,7 +266,9 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
@@ -281,10 +281,7 @@ public class ReviewServiceImpl implements ReviewService {
                 // 关键词模糊匹配评价正文，仅当显式传入时生效
                 .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
                 .orderByDesc(Review::getCreatedAt));
-        List<ReviewAdminVO> vos = enrichAdminBatch(pageResult.getRecords());
-        IPage<ReviewAdminVO> result = new Page<>(pageResult.getCurrent(), pageResult.getSize(), pageResult.getTotal());
-        result.setRecords(vos);
-        return result;
+        return com.bjtufood.common.utils.PageUtil.toVoPage(pageResult, this::enrichAdminBatch);
     }
 
     /**
@@ -315,7 +312,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void setHidden(Long id, boolean hidden) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Review review = reviewMapper.selectById(id);
         if (review == null) {
             throw new BusinessException("Review not found");
@@ -327,7 +326,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void deleteByAdmin(Long id) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Review review = reviewMapper.selectById(id);
         if (review != null) {
             reviewMapper.deleteById(id);

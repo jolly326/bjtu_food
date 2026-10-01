@@ -29,7 +29,9 @@ public class CanteenServiceImpl implements CanteenService {
     private final ImageUrlUtil imageUrlUtil;
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public List<CanteenAdminVO> listAllForAdmin() {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         return canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
                         .orderByAsc(Canteen::getSortOrder)
                         .orderByDesc(Canteen::getUpdatedAt))
@@ -40,7 +42,9 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void update(Canteen canteen) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         if (canteen.getId() == null || canteenMapper.updateById(canteen) == 0) {
             throw new BusinessException("Canteen not found");
         }

@@ -40,8 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       要么是用户私有数据（越权）。这是本护栏的核心价值；</li>
  *   <li><b>client 禁调 /admin/**</b>：管理端口令只在 web 侧配置，小程序持有也无从校验；</li>
  *   <li><b>web 调用的路径必须在后端真实存在</b>——防「前端调了一个不存在的端点却长期 404」
- *       （实测：web 调 {@code GET /dishes/attributes}，而该端点当时<b>后端根本没有</b>，
- *       管理后台「描述四维录入选项」一直是空的就是这么来的）。</li>
+ *       （实测事故：web 曾调用一个后端并不存在的字典端点，管理后台「描述四维录入选项」
+ *       一直是空的就是这么来的）。</li>
  * </ol>
  * <p>
  * <b>为何不用 ArchUnit</b>：ArchUnit 分析编译产物中的类依赖，而本条约束的是
@@ -205,8 +205,8 @@ class FrontendApiIsolationTest {
     @Test
     @DisplayName("web 调用的路径必须在后端真实存在（防「调了不存在的端点却长期 404」）")
     void web_calledPathsExistInBackend() {
-        // 实测事故：web 调 GET /dishes/attributes，而该端点后端**从未存在**
-        // （只有 /dishes/{id}/attributes），管理后台「描述四维录入选项」长期 404 且无人察觉
+        // 实测事故：web 曾调用一个后端并不存在的字典端点（本域只有 /dishes/{id}/attributes），
+        // 管理后台「描述四维录入选项」长期 404 且无人察觉
         // ——因为 404 发生在网关层，后端日志里根本收不到该请求。
         Set<String> backend = collectBackendPaths();
         Map<String, List<String>> web = collect("web/src/api");

@@ -34,7 +34,9 @@ import java.util.Map;
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class CanteenAdminController {
+    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final CanteenService canteenService;
     private final StallService stallService;

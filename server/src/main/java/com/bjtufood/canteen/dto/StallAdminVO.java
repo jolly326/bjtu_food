@@ -9,7 +9,9 @@ import java.util.List;
 
 @Data
 @Schema(description = "后台档口列表展示信息")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class StallAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "档口ID")
     private Long id;

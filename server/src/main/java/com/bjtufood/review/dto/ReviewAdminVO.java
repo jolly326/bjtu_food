@@ -14,7 +14,9 @@ import java.util.List;
  */
 @Data
 @Schema(description = "评价展示信息（管理端专用，含审核标记）")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class ReviewAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "评价ID")
     private Long id;

@@ -151,7 +151,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
@@ -189,9 +191,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         //       菜品已物理删除时不在结果集，VO 保持 null（前端按「菜品已删除」缺省展示）。
         Map<Long, String> dishNameMap = batchRelatedDishNames(p.getRecords());
 
-        IPage<FeedbackAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream().map(f -> toAdminVO(f, userMap, dishNameMap)).toList());
-        return result;
+        return com.bjtufood.common.utils.PageUtil.toVoPage(p,
+                recs -> recs.stream().map(f -> toAdminVO(f, userMap, dishNameMap)).toList());
     }
 
     /**
@@ -253,7 +254,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void handle(Long id, FeedbackHandleReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Feedback feedback = feedbackMapper.selectById(id);
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
