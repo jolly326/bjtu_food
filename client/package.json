@@ -7,6 +7,8 @@
     "type-check": "vue-tsc --noEmit",
     "check:contract": "node scripts/check-contract.mjs",
     "verify": "npm run check:contract && npm run type-check",
+    "measure:perf": "node scripts/measure-perf.mjs",
+    "probe:request": "node scripts/probe-request-layer.mjs",
     "gen:api": "openapi-typescript openapi.json -o src/types/generated/api.d.ts",
     "gen:api:fresh": "node scripts/fetch-openapi.mjs && npm run gen:api"
   },

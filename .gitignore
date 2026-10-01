@@ -117,6 +117,11 @@ mvnrun.log.err
 **/dev_log*.txt
 **/dev_err*.txt
 
+# 性能度量临时产物（scripts/measure-perf.mjs 与 probe-request-layer.mjs）
+# .probe-tmp 是探针为「在 Node 里跑 uni 代码」而生成的中间副本，跑完即弃，绝不可入库
+client/.probe-tmp/
+client/.probe-out.txt
+
 # temp build/verify outputs
 **/build_mp*.txt
 **/build_r*.txt
