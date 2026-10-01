@@ -3,7 +3,7 @@
  *
  * - 意见反馈：`POST /feedback`（纯反馈三类型 bug/suggestion/other）；
  * - 评价举报：`POST /reviews/{id}/report`（RESTful 子资源）；
- * - 举报原因字典：`GET /report-reasons`（PUB。2026-09-30 P2 自 `/feedback/report-reasons` 迁出）；
+ * - 举报原因字典：`GET /report-reasons`（PUB。P2 自 `/feedback/report-reasons` 迁出）；
  * - 菜品纠错：`POST /dishes/{id}/correction`（本文件下方）。
  */
 import { get, post } from './http'
@@ -14,7 +14,7 @@ import type { FeedbackSubmit, ReportPayload, DishCorrectionPayload } from '@/typ
  * 提交意见反馈：payload 整体透传（不逐字段映射）。
  * 仅纯反馈三类型（bug/suggestion/other），`content` 必填 + `images`（≤3 张）。
  */
-export async function submitFeedback(payload: FeedbackSubmit): Promise<void> {
+export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
 }
 
@@ -33,7 +33,7 @@ export async function reportReview(reviewId: number, payload: ReportPayload): Pr
  * - price 单位 = 分（端上以元填写，提交前经 yuanToFen 转分，金额红线）；
  * - 公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 message 直透。
  */
-export async function submitDishCorrection(
+export async function createDishCorrection(
   dishId: number,
   payload: DishCorrectionPayload,
 ): Promise<void> {
@@ -43,7 +43,7 @@ export async function submitDishCorrection(
 /**
  * 举报原因字典项（`GET /report-reasons` 出参；真源 = 后端 `FeedbackConst.ReportReason` 记录类）。
  *
- * <p><b>直接复用生成契约</b>（2026-09-29）：原手写的 `interface ReportReason { value; label }`
+ * <p><b>直接复用生成契约</b>：原手写的 `interface ReportReason { value; label }`
  * 与契约 `ReportReasonVO` 字段完全一致，属**同一端点的第二份类型副本**——两份必然漂移。
  * 现以上游取契约、在此一次性归一为端上必填模型。
  *
@@ -69,11 +69,11 @@ export interface ReportReason {
  * 举报原因字典（PUB）：举报弹层单选项，打开时实时拉取。
  * 展示顺序 = **后端下发顺序**（端上不排序）；本函数**整体透传**后端数组，不做逐字段映射。
  *
- * <p>入参用契约 `ReportReasonVO`（2026-09-29）：后端 record 的分量理论上可空，
+ * <p>入参用契约 `ReportReasonVO`：后端 record 的分量理论上可空，
  * 但字典由 `FeedbackConst` 静态常量构造、必带 value/label，
  * 故在 api 层统一兜底成端上必填，避免 UI 模板处处判空。
  */
-export async function getReportReasons(): Promise<ReportReason[]> {
+export async function listReportReasons(): Promise<ReportReason[]> {
   const rows = await get<ReportReasonVO[]>('/report-reasons')
   if (!Array.isArray(rows)) return []
   // 契约字段可空 → 端上必填：一次性归一，避免 UI 模板处处判空

@@ -19,14 +19,13 @@
  * 故其内部的 onMounted / 回调同样在组件上下文中注册。
  */
 import { ref, computed } from 'vue'
-import type { ComputedRef } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useDishStore } from '@/stores/dish'
-import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import type { DishDetail } from '@/types/dish'
 import { sharedDish } from '@/utils/share-state'
 import { backToHome } from '@/utils/back'
+import { toastInfo } from '@/utils/error'
 import { dishDetailUrl } from '@/utils/routes'
 import { useReport } from './useReport'
 import { useDishHeroScroll } from './useDishHeroScroll'
@@ -36,7 +35,6 @@ import { useDishReviewMenu } from './useDishReviewMenu'
 
 export function useDishPage() {
   const dishStore = useDishStore()
-  const userStore = useUserStore()
   const authStore = useAuthStore()
 
   /**
@@ -89,7 +87,7 @@ export function useDishPage() {
     if (!id) {
       // 缺 ID：同「不存在」按失败态呈现（明确文案 + 返回），不留纯空白页
       missingDishId.value = true
-      uni.showToast({ title: '缺少菜品ID', icon: 'none' })
+      toastInfo('缺少菜品ID')
       return
     }
     missingDishId.value = false
@@ -113,7 +111,7 @@ export function useDishPage() {
   }
 
   /** 详情请求失败后重试（与进入页面同路径，仅重拉详情）
-   *  ⚠️ UI 统一 Loop Round 13：**返回该 Promise**，供页面等待真实落地后关闭「重新加载」的在途转圈。 */
+   *  ⚠️ **返回该 Promise**，供页面等待真实落地后关闭「重新加载」的在途转圈。 */
   function onRetryDetail() {
     if (!dishId.value) return
     return dishStore.fetchDetail(dishId.value)

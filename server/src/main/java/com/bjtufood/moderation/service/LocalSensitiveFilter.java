@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
  * 采用 DFA（Deterministic Finite Automaton，确定性有限自动机）算法，效率高、性能稳定；
  * 词库在启动时（{@code @PostConstruct}）加载进字典树，运行时零 IO。
  * <p>
- * <b>与远端审核的分工（2026-09-29 复核后修订）</b>：
+ * <b>与远端审核的分工</b>：
  * <p>
  * 远端微信机审（{@link ContentSecurityService}）是<b>主防线</b>，覆盖评价、反馈、昵称与上传图片；
  * 但它有<b>三个够不到的场景</b>，本类正是这些场景的兜底：
@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
  *   <li><b>微信凭据未配置</b>（本地开发）：{@code ContentSecurityService} 跳过机审。</li>
  * </ol>
  * <p>
- * 2026-09-29 补齐：<b>菜品纠错链路已于当日接入 {@code msgSecCheck v2}</b>
+ * 补齐：<b>菜品纠错链路已于当日接入 {@code msgSecCheck v2}</b>
  * （{@code CorrectionServiceImpl#submit} 合并四类自由文本字段为单次调用送检），
  * 故纠错不再是本类独自兜底的链路。
  * <p>
@@ -38,7 +38,7 @@ import java.nio.charset.StandardCharsets;
  * <b>与微信服务的区别</b>：本类只做<b>词面精确匹配</b>（DFA 字典树），无网络往返、无调用额度限制，
  * 但查不出谐音/变体/语义违规；微信是语义级模型，覆盖面更广但需联网且 openid 必填。二者互补，不可互相替代。
  * <p>
- * 2026-09-28 架构收口 P1-B：自 {@code common.utils.SensitiveFilter} 迁入 {@code moderation.service}，
+ * 架构收口 P1-B：自 {@code common.utils.SensitiveFilter} 迁入 {@code moderation.service}，
  * 并更名为 {@code LocalSensitiveFilter}。两处改动的原因：
  * <ul>
  *   <li><b>位置</b>：本类与 {@link ContentSecurityService} 是同一条内容安全链路的两级，
@@ -77,7 +77,7 @@ public class LocalSensitiveFilter {
     /**
      * 初始化：项目启动时加载敏感词库到 DFA 字典树。
      *
-     * <p><b>为何空词库要 fail-fast（2026-09-29 修正）</b>：本类是微信机审的
+     * <p><b>为何空词库要 fail-fast</b>：本类是微信机审的
      * <b>必要补丁</b>而非冗余——{@code msgSecCheck v2} 的 {@code openid} 必填，
      * 游客（{@code userId=null}）与历史无 openid 账号一律<b>跳过机审放行</b>；
      * 菜品纠错链路更是<b>完全不走机审</b>。这些场景全靠本类兜底。

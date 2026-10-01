@@ -1,15 +1,14 @@
 <template>
   <view class="section-title" :class="{ 'no-margin': noMargin }">
-    <!-- 左 = 标题块：标题 + 可选计数紧邻（UI 统一 Loop Round 24）。
-         计数**与标题同色**（不是灰字附属）、字号小半号、等宽数字 ⇒ 读作「评价 12」一体；
-         不再用「评价（12）」括号式（括号会让数字显得次要）。 -->
+    <!-- 左 = 标题块：标题 + 可选计数紧邻。
+         计数**与标题同色**（不是灰字附属）、字号小半号、等宽数字 ⇒ 读作「评价 12」一体
+         （括号式会让数字显得次要，不采用）。 -->
     <view class="section-head">
       <text class="section-text">{{ title }}</text>
       <text v-if="count !== null" class="section-count">{{ count }}</text>
     </view>
     <!-- 右侧附加信息：经具名 slot 承载（可点件如评价卡「写评价」轻量入口、find 页「清空」）。
-         ⚠️ UI 统一 Loop Round 17：原 `extraText` 文案 prop 全仓零传入，按「零消费即删」移除；
-         消费方均为本组件的**直接**使用方（不涉及跨层具名 slot 分发），故 slot 方案无塌缩风险。 -->
+         消费方均为本组件的**直接**使用方（不涉及跨层具名 slot 分发），无 slot 塌缩风险。 -->
     <slot name="extra" />
   </view>
 </template>
@@ -17,8 +16,7 @@
 <script setup lang="ts">
 /**
  * 分区标题（全局统一组件，task-13 §0.3/§0.4）
- * 全站分区/模块标题为无竖线纯文本标题，层级由字号/字重承担，
- * 不再渲染左侧品牌色竖条（旧 bar 装饰已移除）。
+ * 全站分区/模块标题为**无竖线纯文本**标题，层级由字号 / 字重承担。
  *
  * 右侧附加信息经 `#extra` 具名 slot 承载（如评价数、find 页「清空」）。
  */
@@ -30,7 +28,7 @@ withDefaults(defineProps<{
    * 传 `null`（默认）不渲染 —— 用于「在途 / 失败时不显示数字，避免 0 值误导」的场景。
    */
   count?: number | null
-  /** 是否去掉左右外边距（用于已自带 padding 的容器内部） */
+  /** 是否去掉标题**下外边距**（用于容器已自带间距、无需额外留白的场景） */
   noMargin?: boolean
 }>(), {
   count: null,
@@ -47,6 +45,8 @@ withDefaults(defineProps<{
   margin-bottom: var(--spacing-sm);
   box-sizing: border-box;
 }
+/* `noMargin`：去掉下外边距（间距交由容器自持，避免与容器内距叠加） */
+.section-title.no-margin { margin-bottom: 0; }
 /* 左侧标题块：增长位放在**块**上（不是标题文字上），保证计数紧跟标题、不跑到右端 */
 .section-head {
   flex: 1;
@@ -67,7 +67,7 @@ withDefaults(defineProps<{
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 计数（Round 24）：与标题**同色**（禁止灰字 —— 灰字会让总数读作附属信息）、小半号（h2 40 → h3 36）、
+/* 计数：与标题**同色**（禁止灰字 —— 灰字会让总数读作附属信息）、小半号（h2 40 → h3 36）、
    等宽数字；与标题 `baseline` 对齐（40/36rpx 共基线，视觉一体） */
 .section-count {
   flex: 0 0 auto;
@@ -76,6 +76,5 @@ withDefaults(defineProps<{
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
-/* 右侧附加内容（`#extra` 槽）的排版由消费方自持：本组件不再内置 `.section-extra`
-   （随 `extraText` prop 一并移除 —— UI 统一 Loop Round 17） */
+/* 右侧附加内容（`#extra` 槽）的排版由消费方自持 */
 </style>

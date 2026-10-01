@@ -89,28 +89,6 @@ public class ReviewController {
         return Result.success(new ReviewCreatedVO(reviewService.submitReview(userId, id, req)));
     }
 
-    @Operation(
-            summary = "重新评价（覆盖式）",
-            description = "用途：作者本人修改自己的评价。覆盖同一行（评分/文字/配图），发表时间刷新为当前（时间倒序列表置顶），隐藏标记重置为未隐藏，并重算菜品评分。需已完成学号邮箱认证；非作者 403。不限次数。",
-            security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
-                    {
-                      "rating": 4,
-                      "content": "重新评一次：味道还行，就是有点咸。"
-                    }
-                    """)))
-    )
-    @RequireVerified
-    @PutMapping("/reviews/{id}")
-    public Result<Void> updateReview(
-            @Parameter(description = "评价ID", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody ReviewReq req) {
-        Long userId = SecurityUtil.getCurrentUserId();
-        reviewService.updateReview(id, userId, req);
-        return Result.success();
-    }
-
     @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))
     @RequireVerified
     @DeleteMapping("/reviews/{id}")

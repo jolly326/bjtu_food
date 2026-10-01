@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 首页轮播图服务接口（公开只读）
  * <p>
- * 2026-09-22 新增：Banner 由端上静态资源改为后端接口下发（多图轮播）。
+ * ：Banner 由端上静态资源改为后端接口下发（多图轮播）。
  * 本期不含推荐算法、不含点击跳转、不含管理端写接口。
  */
 public interface BannerService {

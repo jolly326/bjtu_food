@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.dto.ProfileUpdateReq;
+import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.event.UserAccountClosedEvent;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
@@ -11,7 +12,9 @@ import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.EmailCodeService;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.auth.support.JwtUtil;
+import com.bjtufood.auth.support.VerifyCodeAttemptGuard;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
@@ -24,12 +27,15 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +55,7 @@ class AuthServiceImplTest {
         MapperBuilderAssistant assistant =
                 new MapperBuilderAssistant(new MybatisConfiguration(), AuthServiceImplTest.class.getName());
         TableInfoHelper.initTableInfo(assistant, User.class);
+        TableInfoHelper.initTableInfo(assistant, EmailVerificationCode.class);
     }
 
     private final UserService userService = mock(UserService.class);
@@ -64,13 +71,39 @@ class AuthServiceImplTest {
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
 
-    /** 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致 */
+    /**
+     * 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致。
+     * <p>
+     * D1：{@code AuthServiceImpl} 新增 {@code VerifyCodePersister} 依赖（字段声明在
+     * {@code AuthProfilePersister} 之后），此处按同序传入真实实现——
+     * 与 {@code AuthProfilePersister} 同理：本类断言的是 userMapper 上的可见行为，
+     * 用真实 Persister 包裹 mock mapper 才能让断言原样落在 mock 上（事务边界是代理行为，单测中不生效）。
+     */
     private AuthServiceImpl service() {
-        // 落库 Bean 用**真实实现**包裹 mock 的 mapper：事务边界收窄（机审移出事务）后，
-        // 本类断言仍原样落在 userMapper.update 上 —— 即「可见行为未变」的直接证据。
-        return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper), codeMapper,
-                emailCodeService, passwordEncoder, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
-                localSensitiveFilter, contentSecurityService, tokenBlacklist);
+        return service(new VerifyCodeAttemptGuard());
+    }
+
+    /**
+     * 复用同一个护栏实例：失败计数是**跨调用累积**的状态，验证封禁的用例必须让 Service 与护栏配套，
+     * 否则每次 {@code new} 都从零开始，封禁永远测不出来。
+     */
+    private AuthServiceImpl service(VerifyCodeAttemptGuard guard) {
+        return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
+                new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
+                codeMapper, emailCodeService, passwordEncoder, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
+                localSensitiveFilter, contentSecurityService, tokenBlacklist, guard);
+    }
+
+    /** 待校验的验证码记录（codeHash 为占位值：匹配与否由 PasswordEncoder mock 决定） */
+    private static EmailVerificationCode code(String email) {
+        EmailVerificationCode record = new EmailVerificationCode();
+        record.setId(1L);
+        record.setEmail(email);
+        record.setCodeHash("hash");
+        record.setPurpose("verify");
+        record.setCreatedAt(DateTimeUtil.now());
+        record.setExpiresAt(DateTimeUtil.now().plusMinutes(10));
+        return record;
     }
 
     private static User user(Long id, String status) {
@@ -109,6 +142,86 @@ class AuthServiceImplTest {
                     .isInstanceOf(BusinessException.class);
         }
         verify(userMapper, never()).updateById(any());
+    }
+
+    // ==================== verifyEmail：6 位码防枚举（A1） ====================
+
+    @Test
+    @DisplayName("verifyEmail：同账号连续失败达阈值 → fail-fast 封禁（不再查验证码表、不再做 BCrypt）")
+    void verifyEmailLocksAfterTooManyFailures() {
+        VerifyCodeAttemptGuard guard = new VerifyCodeAttemptGuard();
+        AuthServiceImpl svc = service(guard);
+        when(userMapper.selectById(1L)).thenReturn(user(1L, "active"));
+        when(codeMapper.selectList(any())).thenReturn(List.of(code("20240001@bjtu.edu.cn")));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        for (int i = 0; i < VerifyCodeAttemptGuard.MAX_FAILURES; i++) {
+            assertThatThrownBy(() -> svc.verifyEmail("000000", 1L))
+                    .isInstanceOf(BusinessException.class);
+        }
+        assertThat(guard.isLocked(1L)).isTrue();
+
+        // 第 MAX_FAILURES+1 次：前置闸门拦下，文案告知剩余等待秒数
+        assertThatThrownBy(() -> svc.verifyEmail("000000", 1L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).contains("次数过多"));
+
+        // 关键断言：封禁期内不再消耗校验成本（不查表、不做 BCrypt）——
+        // 这正是「防枚举」成立的依据：攻击者的尝试被前置拒绝，而不是仍然打到 BCrypt 上
+        verify(codeMapper, times(VerifyCodeAttemptGuard.MAX_FAILURES)).selectList(any());
+        verify(passwordEncoder, times(VerifyCodeAttemptGuard.MAX_FAILURES)).matches(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("verifyEmail：校验成功后失败计数清零（偶发输错不会累积成封禁）")
+    void verifyEmailResetsFailureCountOnSuccess() {
+        VerifyCodeAttemptGuard guard = new VerifyCodeAttemptGuard();
+        AuthServiceImpl svc = service(guard);
+        when(userMapper.selectById(1L)).thenReturn(user(1L, "active"));
+        when(codeMapper.selectList(any())).thenReturn(List.of(code("20240001@bjtu.edu.cn")));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        for (int i = 0; i < VerifyCodeAttemptGuard.MAX_FAILURES - 1; i++) {
+            assertThatThrownBy(() -> svc.verifyEmail("000000", 1L)).isInstanceOf(BusinessException.class);
+        }
+
+        // 换用正确验证码：命中记录 → CAS 消费成功（影响行数 1）→ 无历史邮箱冲突 → 仅写 bind_email
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        // 必须打**单参** update(Wrapper) 重载：生产代码走的正是这一个。
+        // 若误桩成两参 update(entity, wrapper)，匹配不上会静默返回 0 →
+        // 被当成「已被并发消费」而继续循环 → 最终误报「验证码错误」，错误信息完全指错方向。
+        // 用无参 any()（而非 any(Wrapper.class)）以免引入原始类型与 unchecked 警告。
+        when(codeMapper.update(any())).thenReturn(1);
+        // D1：不再需要显式桩 getByBindEmail / getByEmail —— 认证写入已移入 VerifyCodePersister
+        // 且直接用 userMapper.selectOne 查重账号，Mockito 未打桩时默认返回 null（即「无历史账号冲突」），
+        // 与原先显式 return null 的语义一致。
+        svc.verifyEmail("123456", 1L);
+
+        assertThat(guard.isLocked(1L)).isFalse();
+        // 成功路径确实写入了绑定邮箱（认证态唯一写入点 = bind_email）
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateById(saved.capture());
+        assertThat(saved.getValue().getBindEmail()).isEqualTo("20240001@bjtu.edu.cn");
+
+        // 之后再失败同样的次数仍不应被封禁：证明计数确实从零重开，而不是残留旧计数
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+        for (int i = 0; i < VerifyCodeAttemptGuard.MAX_FAILURES - 1; i++) {
+            assertThatThrownBy(() -> svc.verifyEmail("000000", 1L)).isInstanceOf(BusinessException.class);
+        }
+        assertThat(guard.isLocked(1L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("verifyEmail：未达阈值前不得封禁（正常输错仍返回「验证码错误」）")
+    void verifyEmailDoesNotLockBelowThreshold() {
+        VerifyCodeAttemptGuard guard = new VerifyCodeAttemptGuard();
+        AuthServiceImpl svc = service(guard);
+        when(userMapper.selectById(1L)).thenReturn(user(1L, "active"));
+        when(codeMapper.selectList(any())).thenReturn(List.of(code("20240001@bjtu.edu.cn")));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> svc.verifyEmail("000000", 1L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).isEqualTo("验证码错误"));
+        assertThat(guard.isLocked(1L)).isFalse();
     }
 
     // ==================== deleteAccount：终态保护 ====================

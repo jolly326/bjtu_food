@@ -18,7 +18,9 @@ import java.util.Map;
  */
 @Data
 @Schema(description = "后台菜品列表展示信息")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class DishAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "菜品ID")
     private Long id;

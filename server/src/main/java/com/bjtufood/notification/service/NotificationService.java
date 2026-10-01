@@ -21,7 +21,7 @@ public interface NotificationService {
      * 写入一条通知（跨域投递契约）
      * <p>
      * 入参为 {@link NotificationCmd} 而非 {@code notify.entity.Notification}：
-     * 2026-09-27 架构收口 P0-1，feedback / correction 等投递方不再 import notify 的实体，
+     * 架构收口 P0-1，feedback / correction 等投递方不再 import notify 的实体，
      * 实体只在 notify 内部构造（{@code isRead} 由实现侧统一置 0，调用方无需关心）。
      *
      * @param cmd 通知入参（type 取 {@code NotificationConst.TYPE_*}）

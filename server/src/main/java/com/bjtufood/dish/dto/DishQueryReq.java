@@ -12,14 +12,14 @@ import lombok.Data;
  * <p>
  * 已下线参数（SHALL NOT 回流）：
  * <ul>
- *   <li>{@code tag} —— 标签整链删除（2026-09-20）；</li>
+ *   <li>{@code tag} —— 标签整链删除；</li>
  *   <li>{@code spiceLevel} —— 由四维描述字段替换（§7.28）；</li>
- *   <li>{@code stallId} —— 无档口筛选入口（2026-09-21 §7.23 第 6 条）；</li>
- *   <li>{@code sortBy} / {@code sortOrder} —— 排序口径收敛为服务端决定（2026-09-21 §7.33；
- *       2026-09-27 起：推荐视图按 {@code seed} 伪随机序、其余按各视图自身口径——{@code seed}
+ *   <li>{@code stallId} —— 无档口筛选入口；</li>
+ *   <li>{@code sortBy} / {@code sortOrder} —— 排序口径收敛为服务端决定（§7.33；
+ *       起：推荐视图按 {@code seed} 伪随机序、其余按各视图自身口径——{@code seed}
  *       是数据顺序种子而非排序参数，端上仍无排序入口）；</li>
- *   <li>{@code canteenId} / {@code minPrice} / {@code maxPrice} —— **食堂 / 价格筛选全量下线（2026-09-22 K3）**：</li>
- *   <li>{@code mealType} —— **2026-09-29 更名为 {@code view}**（筛选是「用户想看什么」的视角，
+ *   <li>{@code canteenId} / {@code minPrice} / {@code maxPrice} —— **食堂 / 价格筛选全量下线**：</li>
+ *   <li>{@code mealType} —— **更名为 {@code view}**（筛选是「用户想看什么」的视角，
  *       而非「菜品是什么」的字段；否则折扣等非食物类型视图无处安放）。</li>
  * </ul>
  */

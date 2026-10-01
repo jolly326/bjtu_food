@@ -90,7 +90,7 @@
 
 ## 3. 用色（唯一真源 = 首页 §10.2「全站色板表」，本节只做本页映射）
 
-> **本节不自立任何色值**：全部 token 与取值以 [client-首页菜品浏览.md](./client-首页菜品浏览.md) **§4.1** 为唯一真源，不在本页重复列值。
+> **本节不自立任何色值**：全部 token 与取值以 [client-首页菜品浏览.md](./client-首页菜品浏览.md) **§10（色板与取色边界）** 为唯一真源，不在本页重复列值。
 
 | 器件 | 取色（token） | 说明 |
 |---|---|---|
@@ -163,18 +163,20 @@
 
 ### 组件清单（本界面需要哪些组件）
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `AppTitleBand`（`back`） | 公共 `components/AppTitleBand.vue` | 固定标题带：左上角**「返回」文字占页面标题位**（`--font-title` + 粗体，命中区撑满导航行高；与微信胶囊同水平带、常驻不随滚动） |
-| 2 | `SearchBar`（`mode="input"`） | 公共 `components/SearchBar.vue` | 搜索行：**单个搜索胶囊**（左放大镜 40rpx 垂直居中 + 可输入 + 有值时清除 ✕ + **右端内嵌「搜索」按钮**）；`searching` 提交中降透明禁用 / `disabled` **空词灰底灰字禁用**；**无下拉箭头** |
-| 3 | `CardSection` | 公共 `components/CardSection.vue` | 白卡外壳（「搜索记录」/「猜你喜欢」两区块） |
-| 4 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 区块标题「搜索记录」（`#extra` 槽承载「清空」）/「猜你喜欢」（无右侧） |
-| 5 | `DishResultCard` | 页内私有 `pages/find/DishResultCard.vue` | 结果卡（布局规格见 §2「结果行布局」）：整卡可点跳菜品详情、`role="button"` + `:aria-label="查看 {菜名}"`；结果态滚动容器与列表由 `find/index` 内联 |
-| 6 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
-| 7 | `IconSvg` | 公共 `components/IconSvg.vue` | 放大镜 / 清除 `close` / 词条删除 `close` / 图片占位经公共 `ImagePlaceholder`（`image-broken`） / 星 `star-filled` |
-| 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | `pages/find/index.vue` 内联 | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏）。`.discover-body` 用 `scroll-view`（`flex: 1 + min-height: 0`）—— 小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓不可靠 |
-| — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | uni 内置控件 | 两态各自滚动 / 关键词输入 / 清空记录二次确认。⚠️ **发现态容器用 `v-show` 常驻、结果态用 `v-if`**：若两态都用 `v-if`，点「清空 X」回发现态时会**重建** `scroll-view`，小程序下新实例可能在父级布局完成前完成测量 ⇒ 高度按 0 计算 ⇒ 发现态整块不可见（返回首页重进才恢复） |
-| — | 搜索历史（本地存储 `find_search_history`，上限 4 条） | `uni.getStorageSync` / `setStorageSync` | **存储为唯一真源**：挂载、`onShow`、**退出结果态**三处重读 ⇒ 页面被页面栈缓存（onMounted 不执行）时「刚搜过的词」也能立即出现在搜索记录里 |
+> 组件自身规格（尺寸 / 圆角 / 颜色 / 状态 / 交互）以 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §二 为唯一真源；**本表只写「本页用法」**。
+
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `AppTitleBand`（`back`） | 固定标题带：左上角**「返回」文字占页面标题位**（命中区撑满导航行高；与微信胶囊同水平带、常驻不随滚动） |
+| 2 | `SearchBar`（`mode="input"`） | 搜索行：**单个搜索胶囊**（左放大镜 + 可输入 + 有值时清除 ✕ + **右端内嵌「搜索」按钮**）；`searching` 提交中降透明禁用 / `disabled` **空词灰底灰字禁用**；**无下拉箭头** |
+| 3 | `CardSection` | 白卡外壳（「搜索记录」/「猜你喜欢」两区块） |
+| 4 | `SectionTitle` | 区块标题「搜索记录」（`#extra` 槽承载「清空」）/「猜你喜欢」（无右侧） |
+| 5 | `DishResultCard`（页内私有 `pages/find/DishResultCard.vue`） | 结果卡（布局规格见 §2「结果行布局」）：整卡可点跳菜品详情、`role="button"` + `:aria-label="查看 {菜名}"`；结果态滚动容器与列表由 `find/index` 内联 |
+| 6 | `RetryBlock` | 搜索失败重试块（`title="搜索加载失败"`；整屏居中，先于空态） |
+| 7 | `IconSvg` | 放大镜 / 清除 `close` / 词条删除 `close` / 星 `star-filled`（图片占位统一由公共 `ImagePlaceholder` 承载） |
+| 8 | 发现态区块 `.discover-body`、词条 chip `.history-chip`(`-hot`)（页内内联） | 两态互斥分支与词条胶囊渲染；chip 与删除叉均带 `role="button"` + `aria-label`（动作可读屏）。`.discover-body` 用 `scroll-view`（`flex: 1 + min-height: 0`）—— 小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓不可靠 |
+| — | `scroll-view`（页内内联 ×2：发现态 `.discover-body` / 结果态 `.results-host`）/ `input` / `uni.showModal` | 两态各自滚动 / 关键词输入 / 清空记录二次确认。⚠️ **发现态容器用 `v-show` 常驻、结果态用 `v-if`**：若两态都用 `v-if`，点「清空 X」回发现态时会**重建** `scroll-view`，小程序下新实例可能在父级布局完成前完成测量 ⇒ 高度按 0 计算 ⇒ 发现态整块不可见（返回首页重进才恢复） |
+| — | 搜索历史（本地存储 `find_search_history`，上限 4 条） | **存储为唯一真源**：挂载、`onShow`、**退出结果态**三处重读 ⇒ 页面被页面栈缓存（onMounted 不执行）时「刚搜过的词」也能立即出现在搜索记录里 |
 
 ### 有哪些数据要显示、显示在哪个组件
 

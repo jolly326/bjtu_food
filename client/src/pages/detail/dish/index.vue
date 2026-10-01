@@ -4,7 +4,7 @@
     <PageWallpaper fixed />
     <!-- 顶部标题带（公共 `AppTitleBand`，与首页 / 搜索页**同源**）：
          左区「返回」（文字）+ 居中区菜名（**随滚动淡入**，`titleOpacity` 只作用于文字）。
-         UI 统一 Loop Round 16（2026-09-27 裁决 c）：本页改为与首页 §11 **同构** ——
+         本页改为与首页 §11 **同构** ——
          标题带恒透明、其下滚动区 ⇒ **没有内容从带背后经过** ⇒ 零切片 / 零实底切换 / 零承接条
          （原自绘 `.dish-nav` 的"透明→实底/渐显"与 `.no-dish-bar` 承接条已退役）。 -->
     <AppTitleBand back :title="dishName" :title-opacity="navOpacity" @back="backToHome" />
@@ -16,7 +16,7 @@
       v-if="!dish && (detailFailed || detailNotFound || missingDishId)"
       class="detail-fail-host"
     >
-      <!-- 统一失败块（UI 统一 Loop Round 13 裁决 9B）：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
+      <!-- 统一失败块：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
            文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
            文案与图标（`name="report"`，唯一近似语义键、非举报语义）由 `RetryBlock` 统一承载。
            在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈，
@@ -59,7 +59,7 @@
 
     <template>
       <!-- 私有组件编排：信息卡（含评分行）/ 评价（卡内触底加载）。
-           UI 统一 Loop Round 19：原「综合评分」独立卡**取消** ——
+           原「综合评分」独立卡**取消** ——
            均分 + 人数 + 分布并入信息卡一行（同源同刻），减少一块版面与一次视觉重复。
            ⚠️ 原 `dishBodyMin`（保证页面可滚动 ≥ pinStart，好让大图定格）已随定格方案退役（R16 口径 c） -->
       <view class="dish-body">
@@ -82,7 +82,7 @@
     </template>
     </scroll-view>
 
-    <!-- 页面底部**无任何常驻操作栏**（本稿修订 2026-09-30：原「写评价 + 反馈错误」双胶囊底栏整体移除）：
+    <!-- 页面底部**无任何常驻操作栏**：
          写评价入口 = 评价标题行右侧按钮；纠错入口 = 信息卡名称行「信息有误?」。 -->
 
     <!-- 写评价底部抽屉（挂 scroll-view 外；BaseSheet 受控显隐，close 回写关闭）。
@@ -131,8 +131,6 @@ import ImageSwiper from './ImageSwiper.vue'
 import ReviewComposer from './ReviewComposer.vue'
 import DishInfoCard from './DishInfoCard.vue'
 import DishReviewSection from './DishReviewSection.vue'
-/* ⚠️ 原 `DishSummaryCard.vue`（综合评分独立卡）已于 UI 统一 Loop Round 19 删除：
-   均分 / 人数 / 分布并入 `DishInfoCard` 的评分行（同源同刻，减少一块版面与一次视觉重复）。 */
 import { useDishPage } from './useDishPage'
 import RetryBlock from '@/components/RetryBlock.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
@@ -142,7 +140,7 @@ import { ref } from 'vue'
 /** 标题带高（px）：页面根 `padding-top` 让出（fixed 标题带不占流内高度）—— 与首页 / 搜索页同源 */
 const { titleBandPx } = useNavMetrics()
 
-/** 详情重拉在途（UI 统一 Loop Round 13 裁决 9B）：驱动 `RetryBlock` 的旋转环。
+/** 详情重拉在途：驱动 `RetryBlock` 的旋转环。
  *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（§4.8 口径已按裁决调整）。
  *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `onRetryDetail`（闭包调用期解析）。 */
 const detailReloading = ref(false)
@@ -194,17 +192,17 @@ const {
    内容溢出时由微信原生页面滚动承接（配合下方 hero 的 position:sticky）。
    底部只预留操作栏高度，防止固定操作栏遮挡最后内容。 */
 /* QA-04 修复：底部避让由裸 160rpx 改为 token 组合（与 me/profile 同源写法） */
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .dish-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  /* Round 26：补 dvh（移动端 H5 地址栏伸缩时 vh > 真实可视高 ⇒ 页根超高 ⇒ 页面自身多出一段可滚区 / 底部露白） */
+  /* 补 dvh（移动端 H5 地址栏伸缩时 vh > 真实可视高 ⇒ 页根超高 ⇒ 页面自身多出一段可滚区 / 底部露白） */
   height: 100dvh;
   /* 底部让位**精确等于**固定操作栏高度（token 已按「8 + 44 + 8 = 60px」定档）——
      不再叠加 `--spacing-lg`（那会在滚动区下沿与操作栏之间留出一条可见空档）。
      内容末端的呼吸感由卡片自身 margin 提供，不靠这里补。 */
-  /* 底部**无固定操作栏**（本稿修订 2026-09-30）：不再预留 `--action-bar-height`，
+  /* 底部**无固定操作栏**：不再预留 `--action-bar-height`，
      仅保留常规底部呼吸位；`env(safe-area-inset-bottom)` 由页面滚动末端自然兜底。 */
   padding-bottom: var(--spacing-md);
 }
@@ -228,7 +226,7 @@ const {
 }
 
 /* ===== 详情失败 / 不存在态：**宿主只做剩余区域内居中**，视觉全部由公共 `RetryBlock` 承担
-   （UI 统一 Loop Round 13 裁决 9B 并入；原自绘图标 / 文案 / 按钮样式已删）。
+   。
    `flex: 1` ⇒ 在「标题带下沿 ↔ 底部操作栏上沿」之间垂直居中（不再用 min-height: 100vh 硬撑）。 ===== */
 .detail-fail-host {
   flex: 1;
@@ -240,10 +238,4 @@ const {
   padding-bottom: var(--spacing-2xl);
   box-sizing: border-box;
 }
-
-/* 原 `.hero-slot`（sticky 两阶段定格）与 `.hero-carry`（承接条）已随口径 c 退役：
-   hero 现为滚动区首块 `.hero-card`（见上），随滚动 1:1 移出、在标题带下沿被裁。 */
-
-/* 底部固定操作栏样式（`.action-bar` / `.bar-btn*`）已随「底栏整体移除」（本稿修订 2026-09-30）**全部删除**：
-   写评价入口移入评价标题行、纠错入口移入信息卡名称行，页面底部不再有常驻操作栏。 */
 </style>

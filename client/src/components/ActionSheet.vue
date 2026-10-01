@@ -41,7 +41,7 @@ interface ActionSheetItem {
   textColor?: string
 }
 
-const props = defineProps<{
+defineProps<{
   open: boolean
   items: ActionSheetItem[]
 }>()

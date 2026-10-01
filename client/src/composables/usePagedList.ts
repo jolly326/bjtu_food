@@ -1,10 +1,10 @@
 /**
  * 分页列表（触底加载更多）—— 全站统一的取数语义
  *
- * 背景（UI 统一 Loop Round 17 · 代码质量轮）：`notifications` 与 `my-reviews` 两页各写了一套
+ * 背景：`notifications` 与 `my-reviews` 两页各写了一套
  * **几乎逐字相同**的分页样板：`loading` 重入守卫、第 1 页重拉、`finished` 到底判定、
  * 触底 `page += 1` → 去重 `concat` → 失败 `page -= 1` 回退、首屏失败置 `loadFailed`（失败 ≠ 空数据）。
- * 抽到本 composable 后语义只有一份，页面只注入自己的**差异**（游客跳过 / 成功副作用 / 失败日志标签）。
+ * 抽到本 composable 后语义只有一份，页面只注入自己的**差异**（游客跳过 / 成功副作用）。
  *
  * 与页面的契约：
  * · 页面模板继续使用返回的 `list` / `loading` / `loadFailed` / `finished`（命名与原实现一致 ⇒ 模板零改动）；
@@ -17,7 +17,7 @@
 import { ref, type Ref } from 'vue'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 
-export interface UsePagedListOptions<T extends { id: number }> {
+interface UsePagedListOptions<T extends { id: number }> {
   /** 拉取第 `page` 页（页码从 1 开始），返回本页行数组 */
   fetchPage: (page: number, pageSize: number) => Promise<T[]>
   /** 每页条数（默认 20，与既有两页一致） */
@@ -33,11 +33,9 @@ export interface UsePagedListOptions<T extends { id: number }> {
   onLoadSuccess?: (rows: T[]) => void
   /** 首屏结束回调（成功 / 失败均调用；守卫短路路径不算）：如置「已加载完成」驱动空态判定 */
   onLoadSettled?: () => void
-  /** 首屏失败的日志标签（保持各页原有文案，便于定位） */
-  loadFailLabel: string
 }
 
-export interface UsePagedListReturn<T> {
+interface UsePagedListReturn<T> {
   list: Ref<T[]>
   /** 请求在途：首屏与分页**共用**（天然互斥，同时兼作重入守卫） */
   loading: Ref<boolean>
@@ -78,7 +76,7 @@ export function mergePagedRows<T extends { id?: number }>(
 export function usePagedList<T extends { id: number }>(
   options: UsePagedListOptions<T>,
 ): UsePagedListReturn<T> {
-  const { fetchPage, pageSize = DEFAULT_PAGE_SIZE, canLoad, canLoadMore, onLoadSuccess, onLoadSettled, loadFailLabel } = options
+  const { fetchPage, pageSize = DEFAULT_PAGE_SIZE, canLoad, canLoadMore, onLoadSuccess, onLoadSettled } = options
 
   const list = ref<T[]>([]) as Ref<T[]>
   const loading = ref(false)
@@ -103,8 +101,8 @@ export function usePagedList<T extends { id: number }>(
       page = 1
       finished.value = rows.length < pageSize
       onLoadSuccess?.(rows)
-    } catch (err) {
-      console.error(loadFailLabel, err)
+    } catch {
+      // 失败仅置态（页面渲染可重试失败块），不再打日志
       loadFailed.value = true
     } finally {
       loading.value = false

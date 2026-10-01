@@ -1,13 +1,16 @@
 package com.bjtufood.auth.config;
 
 import com.bjtufood.auth.support.JwtUtil;
+import com.bjtufood.common.config.CorsProperties;
+import com.bjtufood.common.result.Result;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,7 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -44,10 +47,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final TokenBlacklist tokenBlacklist;
+    /**
+     * CORS 受信任源，与 {@code CorsConfig} <b>共用同一份配置与同一段解析</b>。
+     * <p>
+     * 这里的 Origin 校验是 CSRF 兜底，判据必须与浏览器侧 CORS 放行口径逐字一致：历史实现两处各自
+     * {@code @Value} 绑定，且对「未配置白名单」的处理相反（CorsConfig 放行 {@code Origin: null}，
+     * 本类拒绝），会出现「预检放行、实际请求 403」这类自相矛盾的行为。现统一为一处。
+     */
+    private final CorsProperties corsProperties;
 
-    /** 受信任的前端源白名单（来自 cors.allowed-origins，逗号分隔）；空表示不约束浏览器源 */
-    @Value("${cors.allowed-origins:}")
-    private String allowedOrigins;
+    /** 统一错误响应出口用的 ObjectMapper（与 AdminTokenFilter / SecurityConfig 同口径） */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** 请求头中 Token 的前缀 */
     private static final String TOKEN_PREFIX = "Bearer ";
@@ -64,12 +74,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 0. Origin 白名单二次校验（CSRF 兜底）：仅对带 Origin 头的浏览器请求生效。
         //    微信小程序 wx.request 不发送 Origin，放行；恶意前端即使拿到 token 也无法跨白名单源调用。
         if (!isOriginAllowed(request)) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType("application/json;charset=UTF-8");
-            try {
-                response.getWriter().write("{\"code\":403,\"message\":\"Origin 不在受信任白名单内\",\"data\":null}");
-            } catch (Exception ignored) {
-            }
+            writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                    Result.forbidden("Origin 不在受信任白名单内"));
             return;
         }
 
@@ -84,30 +90,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token)) {
             // 注销黑名单校验：已注销账号的 token 立即失效（task-12.8）
             if (tokenBlacklist.isRevoked(token)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json;charset=UTF-8");
-                try {
-                    response.getWriter().write("{\"code\":401,\"message\":\"账号已注销，请重新登录\",\"data\":null}");
-                } catch (Exception ignored) {
-                }
+                writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        Result.unauthorized("账号已注销，请重新登录"));
                 return;
             }
             // 2. 校验并解析 Token（单次解析，避免重复验签）
             Claims claims = jwtUtil.parseAndValidate(token);
             if (claims != null) {
-                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除，2026-09-15）
+                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除）
                 Long userId = claims.get("userId", Long.class);
 
                 // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效
                 // （管理端拿不到对方 token，只能按 userId 拉黑，故此处补一次判定）
                 // 消息涵盖禁用与注销两种来源：本人注销时也会按 userId 兜底拉黑其余设备的旧 token（AuthService.deleteAccount）
                 if (userId != null && tokenBlacklist.isUserRevoked(userId)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json;charset=UTF-8");
-                    try {
-                        response.getWriter().write("{\"code\":401,\"message\":\"账号已被禁用或注销，请重新登录\",\"data\":null}");
-                    } catch (Exception ignored) {
-                    }
+                    writeError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                            Result.unauthorized("账号已被禁用或注销，请重新登录"));
                     return;
                 }
 
@@ -159,14 +157,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (!StringUtils.hasText(origin)) {
             return true;
         }
-        // 未配置白名单：拒绝任何带 Origin 的浏览器请求
-        if (!StringUtils.hasText(allowedOrigins)) {
-            return false;
-        }
-        List<String> trusted = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .toList();
-        return trusted.contains(origin);
+        // 判据与 CorsConfig 同源：空白名单 ⇒ trustedOrigins() 为空 ⇒ 拒绝任何带 Origin 的请求（fail-closed）
+        return corsProperties.trustedOrigins().contains(origin);
+    }
+
+    /**
+     * 统一的错误响应写出（与 {@code AdminTokenFilter} / {@code SecurityConfig} 同口径）。
+     * <p>
+     * 不再手写 JSON 字符串：本类曾重复三份同样结构的响应块，契约字段（code / message / data）
+     * 一改就要改三处，漏一处即与全局响应壳不一致。
+     */
+    private static void writeError(HttpServletResponse response, int httpStatus, Result<?> body) throws IOException {
+        response.setStatus(httpStatus);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(OBJECT_MAPPER.writeValueAsString(body));
     }
 }

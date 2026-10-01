@@ -1,10 +1,10 @@
 <template>
-  <!-- 本组件承载**带返回的二级页**顶栏：**左「返回」（文字）+ 居中页面名**（2026-09-27 决议）。
+  <!-- 本组件承载**带返回的二级页**顶栏：**左「返回」（文字）+ 居中页面名**。
        与 `AppTitleBand` 的分工（用户裁定：**两个组件、按需显示**，不合并）：
        · 有返回 ⇒ 用本组件：左「返回」文字、标题**居中**（相对导航行真正水平居中）；
        · 无返回 ⇒ 用 `AppTitleBand`：标题**居左**，无返回控件、无右操作。
        ⚠️ 本组件在 `show-back=false` 时退化为「无返回」形态（标题居左），供 TabBar 主根页使用。
-       表面：**恒透明**（2026-09-27 结构性决议）——背后即 `fixed` 页底壁纸；不得加实底 / 蒙版。
+       表面：**恒透明**——背后即 `fixed` 页底壁纸；不得加实底 / 蒙版。
        右操作：默认插槽（如通知页「全部已读」），自动避让微信右上角原生胶囊（`navPadRight`）。 -->
   <view
     class="header-wrap"
@@ -32,7 +32,7 @@
 
       <!-- 右：页面级操作（可选），右边界 = 胶囊避让量。
            同时提供 `action` **具名插槽**：消费方以 `<template #action>` 传入右侧操作
-           （如通知页「全部已读」胶囊）—— 只有默认插槽时该内容会被静默丢弃（Round 31 修复）。 -->
+           （如通知页「全部已读」胶囊）—— 只有默认插槽时该内容会被静默丢弃。 -->
       <view class="nav-actions"><slot /><slot name="action" /></view>
     </view>
   </view>
@@ -65,7 +65,7 @@ const emit = defineEmits<{
   (e: 'back'): void
 }>()
 
-/* 顶部度量：一律走跨页统一实现 `useNavMetrics`（UI 统一 Loop Round 7 收口）。
+/* 顶部度量：一律走跨页统一实现 `useNavMetrics`。
    本组件消费三项：状态栏高（顶部安全区）、导航行高（胶囊所在行）、右侧胶囊避让量（右操作槽用）。 */
 const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight, navPadRight } = useNavMetrics()
 
@@ -75,7 +75,7 @@ function handleBack() {
 </script>
 
 <style scoped>
-/* 恒透明（2026-09-27 结构性决议）：不再有实心主色底 —— 背后即 `fixed` 页底壁纸；
+/* 恒透明：不再有实心主色底 —— 背后即 `fixed` 页底壁纸；
    保留 sticky + `--z-header` 与底部留白（留白 = 全站 header 总高基准 `--spacing-sm`）。 */
 .header-wrap {
   width: 100%;
@@ -107,7 +107,7 @@ function handleBack() {
   -webkit-tap-highlight-color: transparent;
 }
 .back-area.pressed { opacity: 0.6; }
-/* 「返回」文字：与标题**完全同级**（同字号 + 同字重）—— 2026-09-27 裁决「各页统一成首页大小」：
+/* 「返回」文字：与标题**完全同级**（同字号 + 同字重）—— 裁决「各页统一成首页大小」：
    字号 `--font-title`(44rpx) + 粗体，与 `AppTitleBand` / 首页「知行食记」一致。 */
 .back-text {
   font-size: var(--font-title);
@@ -120,7 +120,7 @@ function handleBack() {
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
-  /* 2026-09-27 裁决「各页统一成首页大小」：字号 `--font-title`(44rpx) + 粗体，与首页「知行食记」同档 */
+  /* 裁决「各页统一成首页大小」：字号 `--font-title`(44rpx) + 粗体，与首页「知行食记」同档 */
   font-size: var(--font-title);
   font-weight: var(--weight-bold);
   color: var(--text-primary);

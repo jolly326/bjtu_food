@@ -5,6 +5,12 @@
 server:
   port: 8080                    # 服务端口
   address: 0.0.0.0
+  # ---------- HTTP 响应压缩 ----------
+  # JSON/文本响应体积降约 60-70%，对移动网络收益最大；低于 min-response-size 的响应不压缩。
+  compression:
+    enabled: true
+    mime-types: application/json,application/javascript,text/css,text/html,text/plain
+    min-response-size: 1024
   servlet:
     # 统一接口前缀 = /api + 版本段。
     # 2026-09-28 起启用版本段（业界标准做法）：v1 为首个契约版本。

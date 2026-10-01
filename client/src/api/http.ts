@@ -9,6 +9,7 @@
 
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE, buildContainerPath } from './config'
 import { getWxApi } from '@/utils/device'
+import { toastInfo } from '@/utils/error'
 
 /** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
 interface ApiResponse<T = unknown> {
@@ -59,7 +60,7 @@ interface RawResponse {
 }
 
 /**
- * 「被限频」错误（2026-09-29 新增）。
+ * 「被限频」错误。
  *
  * <p>后端对写入口做了 IP 限频（反馈 / 纠错 2 次每分钟、浏览 30 次每分钟等），
  * 超限返回 {@code 400} 且 message 含「提交过于频繁」/「操作过于频繁」并附剩余秒数。
@@ -138,7 +139,7 @@ async function handleUnauthorized(): Promise<void> {
     const now = Date.now()
     if (now - _lastAuthToastAt > AUTH_TOAST_COOLDOWN_MS) {
       _lastAuthToastAt = now
-      uni.showToast({ title: '登录已失效，正在重新登录', icon: 'none' })
+      toastInfo('登录已失效，正在重新登录')
     }
     // 401 → 重新静默登录（游客态自动恢复）
     await useUserStore().silentLogin()
@@ -159,7 +160,7 @@ async function handleUnauthorized(): Promise<void> {
  * 与普通 403 严格分流：4031 跳认证页，403 不跳（避免误导用户去改邮箱）。
  */
 async function handleUnverified(): Promise<void> {
-  uni.showToast({ title: '请先完成身份认证', icon: 'none' })
+  toastInfo('请先完成身份认证')
   try {
     const { useAuthStore } = await import('@/stores/auth')
     useAuthStore().requestAuth()
@@ -202,16 +203,16 @@ function handleWechatLoginRequired(msg: string): void {
           userStore.forceLogout()
           await userStore.silentLogin(true)
           // 成功仅表示已补齐 openid，原操作需用户自行重试
-          uni.showToast({ title: '已重新登录，请重试', icon: 'none' })
+          toastInfo('已重新登录，请重试')
         } catch {
           // 兜底：重新登录动作失败——仅提示，本地登录态按 401 既有机制自恢复，不在此重复处理
-          uni.showToast({ title: '重新登录未完成，请稍后重试', icon: 'none' })
+          toastInfo('重新登录未完成，请稍后重试')
         }
       })()
     },
     fail: () => {
       // 弹窗调用失败（极端环境）：降级为仅提示后端 message，不换号、不清登录态
-      uni.showToast({ title: msg, icon: 'none' })
+      toastInfo(msg)
     },
   })
 }
@@ -232,6 +233,139 @@ function parseBody<T>(data: unknown): ApiResponse<T> {
   return data as ApiResponse<T>
 }
 
+// ===== 传输层（按端条件编译二选一） =====
+
+// #ifdef MP-WEIXIN
+/**
+ * 微信端传输：云托管 `callContainer`（免域名白名单）。12s 超时兼顾云托管冷启动
+ * （见 `REQUEST_TIMEOUT_MS` 注释）；`settled` 防止超时与回调双重 settle。
+ */
+async function transportWxCloud(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  url: string,
+  data: RequestData | undefined,
+  header: Record<string, string>,
+): Promise<RawResponse> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const done = (fn: () => void) => {
+      if (!settled) {
+        settled = true
+        fn()
+      }
+    }
+    // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
+    const wxApi = getWxApi()
+    if (!wxApi || !wxApi.cloud) {
+      done(() => reject(new Error('当前环境不支持 wx.cloud')))
+      return
+    }
+    const timeoutTimer = setTimeout(() => {
+      done(() => reject(new Error('请求超时')))
+    }, REQUEST_TIMEOUT_MS)
+    const clearTimer = () => { clearTimeout(timeoutTimer) }
+    wxApi.cloud.callContainer({
+      config: { env: WX_CLOUD_ENV },
+      // ：原先硬拼 `/api${url}`，后端 context-path 升为 /api/v1 后小程序全站 404。
+      // 现统一由 buildContainerPath 从 API_BASE_URL 推导前缀（详见 config.ts 的说明）。
+      path: buildContainerPath(url),
+      method,
+      data,
+      header: {
+        'X-WX-SERVICE': WX_SERVICE,
+        ...header,
+      },
+      // 平台例外：微信回调透传，仅取其 data 字段
+      success: (r: any) => { clearTimer(); done(() => resolve({ data: r?.data })) },
+      fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
+    })
+  })
+}
+// #endif
+
+// #ifndef MP-WEIXIN
+/** 其他端（H5 等）传输：回退普通 HTTP。N04：仅对尚未完成的 task abort，且超时定时器 settle 后清理 */
+async function transportHttp(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  url: string,
+  data: RequestData | undefined,
+  header: Record<string, string>,
+): Promise<RawResponse> {
+  return new Promise((resolve, reject) => {
+    let finished = false
+    const timeoutTimer = setTimeout(() => {
+      finished = true
+      if (task && typeof task.abort === 'function') task.abort()
+      reject(new Error('请求超时'))
+    }, REQUEST_TIMEOUT_MS)
+    const clearTimer = () => {
+      if (!finished) clearTimeout(timeoutTimer)
+    }
+    const task = uni.request({
+      url: `${API_BASE_URL}${url}`,
+      method,
+      data,
+      header,
+      success: (r) => { clearTimer(); resolve({ data: r.data }) },
+      fail: (err) => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
+    })
+  })
+}
+// #endif
+
+/**
+ * 401 时尝试静默重登（拿新 token）：成功返回 true（调用方应重试一次原请求）；
+ * 失败返回 false，降级走 `handleUnauthorized`（动态 import store 避免循环依赖）。
+ */
+async function trySilentRelogin(): Promise<boolean> {
+  try {
+    const { useUserStore } = await import('@/stores/user')
+    await useUserStore().silentLogin()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** 非 200 业务码分流：提示 + 抛可识别错误类型（顺序 = 原 request 内 if 链，200 不进入本函数） */
+function throwForErrorBody<T>(body: ApiResponse<T>): never {
+  if (body.code === 4031) {
+    // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
+    // 游客触发需认证的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    void handleUnverified()
+    throw new SurfacedError(body.message || '请先完成学号邮箱认证')
+  }
+  if (body.code === 403) {
+    // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
+    // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
+    //   （提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
+    // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
+    // 两种情形都不跳独立认证页，避免把「需微信登录」误导成「需身份认证」。
+    const msg = body.message || '无权限访问该内容'
+    if (isWechatLoginRequired(msg)) {
+      void handleWechatLoginRequired(msg)
+    } else {
+      toastInfo(msg)
+    }
+    throw new SurfacedError(msg)
+  }
+  if (body.code === 4001) {
+    // 4001 = 资源不存在（细分业务码，§7.40 R8）：抛**可识别**类型、不在此提示 ——
+    // 由页面渲染「不存在」文案 + 返回路径（与网络故障的可重试态区别对待）
+    throw new ResourceNotFoundError(body.message || '内容不存在')
+  }
+  const msg = body.message || '请求失败'
+  // 限频（400 + 「过于频繁」类文案）：**可恢复**错误，抛可识别类型让调用方能做退避
+  // （禁用按钮 + 倒计时），而不是与「参数非法」共用普通 Error 导致无脑重试、延长封锁。
+  // 本层已弹 toast，调用方只需 catch 后做 UI 退避。
+  if (body.code === 400 && RATE_LIMIT_PATTERNS.some((p) => msg.includes(p))) {
+    toastInfo(msg)
+    throw new RateLimitedError(msg, parseRetryAfter(msg))
+  }
+  // 业务错误：由调用方决定提示方式，这里统一抛出 message
+  throw new Error(msg)
+}
+
 async function request<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   url: string,
@@ -246,71 +380,15 @@ async function request<T>(
 
   let res: RawResponse
   try {
-    // ===== 微信小程序端：走云托管内部链路（免域名白名单） =====
     // #ifdef MP-WEIXIN
-    res = await new Promise<RawResponse>((resolve, reject) => {
-      let settled = false
-      const done = (fn: () => void) => {
-        if (!settled) {
-          settled = true
-          fn()
-        }
-      }
-      // 平台句柄统一经 utils/device 取（本文件不再直接触碰全局 wx）
-      const wxApi = getWxApi()
-      if (!wxApi || !wxApi.cloud) {
-        done(() => reject(new Error('当前环境不支持 wx.cloud')))
-        return
-      }
-      // N04 修复：超时定时器保存句柄，settle 后清理；12s 兼顾云托管冷启动（见 REQUEST_TIMEOUT_MS 注释）
-      const timeoutTimer = setTimeout(() => {
-        done(() => reject(new Error('请求超时')))
-      }, REQUEST_TIMEOUT_MS)
-      const clearTimer = () => { clearTimeout(timeoutTimer) }
-      wxApi.cloud.callContainer({
-        config: { env: WX_CLOUD_ENV },
-        // 2026-09-29 修复：原先硬拼 `/api${url}`，后端 context-path 升为 /api/v1 后小程序全站 404。
-        // 现统一由 buildContainerPath 从 API_BASE_URL 推导前缀（详见 config.ts 的说明）。
-        path: buildContainerPath(url),
-        method,
-        data,
-        header: {
-          'X-WX-SERVICE': WX_SERVICE,
-          ...header,
-        },
-        // 平台例外：微信回调透传，仅取其 data 字段
-        success: (r: any) => { clearTimer(); done(() => resolve({ data: r?.data })) },
-        fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
-      })
-    })
+    res = await transportWxCloud(method, url, data, header)
     // #endif
-
-    // ===== 其他端（H5 等）：回退普通 HTTP =====
     // #ifndef MP-WEIXIN
-    res = await new Promise<RawResponse>((resolve, reject) => {
-      let finished = false
-      const timeoutTimer = setTimeout(() => {
-        finished = true
-        // N04 修复：仅对尚未完成的 task abort，避免对已完成任务重复 abort
-        if (task && typeof task.abort === 'function') task.abort()
-        reject(new Error('请求超时'))
-      }, REQUEST_TIMEOUT_MS)
-      const clearTimer = () => {
-        if (!finished) clearTimeout(timeoutTimer)
-      }
-      const task = uni.request({
-        url: `${API_BASE_URL}${url}`,
-        method,
-        data,
-        header,
-        success: (r) => { clearTimer(); resolve({ data: r.data }) },
-        fail: (err) => { clearTimer(); reject(new Error(err.errMsg || '网络请求失败')) },
-      })
-    })
+    res = await transportHttp(method, url, data, header)
     // #endif
   } catch (e) {
     // 网络层错误（超时 / 断网）：不抛出裸错误，统一提示；标记已提示，调用方只需回滚状态
-    uni.showToast({ title: e instanceof Error ? e.message : '网络异常，请稍后重试', icon: 'none' })
+    toastInfo(e instanceof Error ? e.message : '网络异常，请稍后重试')
     throw new SurfacedError(e instanceof Error ? e.message : '网络异常，请稍后重试')
   }
 
@@ -329,55 +407,13 @@ async function request<T>(
     // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
     // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
     // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报（§5.x）。
-    if (!_retried) {
-      try {
-        const { useUserStore } = await import('@/stores/user')
-        await useUserStore().silentLogin()
-        return request<T>(method, url, data, options, true)
-      } catch {
-        // 静默登录失败：降级为原处理
-      }
+    if (!_retried && await trySilentRelogin()) {
+      return request<T>(method, url, data, options, true)
     }
     await handleUnauthorized()
     throw new SurfacedError(body.message || '请先登录')
   }
-  if (body.code === 4031) {
-    // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需认证的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
-    void handleUnverified()
-    throw new SurfacedError(body.message || '请先完成学号邮箱认证')
-  }
-  if (body.code === 403) {
-    // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
-    // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
-    //   （提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
-    // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
-    // 两种情形都不跳独立认证页，避免把「需微信登录」误导成「需身份认证」。
-    const msg = body.message || '无权限访问该内容'
-    if (isWechatLoginRequired(msg)) {
-      void handleWechatLoginRequired(msg)
-    } else {
-      uni.showToast({ title: msg, icon: 'none' })
-    }
-    throw new SurfacedError(msg)
-  }
-  if (body.code === 4001) {
-    // 4001 = 资源不存在（细分业务码，§7.40 R8）：抛**可识别**类型、不在此提示 ——
-    // 由页面渲染「不存在」文案 + 返回路径（与网络故障的可重试态区别对待）
-    throw new ResourceNotFoundError(body.message || '内容不存在')
-  }
-  if (body.code !== 200) {
-    // 限频（400 + 「过于频繁」类文案）：**可恢复**错误，抛可识别类型让调用方能做退避
-    // （禁用按钮 + 倒计时），而不是与「参数非法」共用普通 Error 导致无脑重试、延长封锁。
-    // 本层已弹 toast，故不继承 SurfacedError 语义之外的额外提示——调用方只需 catch 后做 UI 退避。
-    const msg = body.message || '请求失败'
-    if (body.code === 400 && RATE_LIMIT_PATTERNS.some((p) => msg.includes(p))) {
-      uni.showToast({ title: msg, icon: 'none' })
-      throw new RateLimitedError(msg, parseRetryAfter(msg))
-    }
-    // 业务错误：由调用方决定提示方式，这里统一抛出 message
-    throw new Error(msg)
-  }
+  if (body.code !== 200) throwForErrorBody(body)
 
   return body.data as T
 }
@@ -412,8 +448,6 @@ export const UPLOAD_TIMEOUT_MS = 15000
  * - 其他端（H5 等）：回退为 uni.uploadFile 上传到后端（需后端可达）。
  */
 export function uploadFile(tempFilePath: string): Promise<{ url: string }> {
-  const token = getToken()
-
   let result!: Promise<{ url: string }>
 
   // ===== 微信小程序端：微信云存储 =====

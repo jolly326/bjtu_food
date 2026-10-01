@@ -21,14 +21,14 @@ import { computed } from 'vue'
  *
  * 用法：<IconSvg name="thumb" :size="26" :color="COLOR_MAP['text-tertiary']" />
  *
- * **尺寸与颜色的契约（UI 统一 Loop Round 20 明确）**：
+ * **尺寸与颜色的契约**：
  *  - `size`：数字 = **rpx**（`:size="40"` → 40rpx），也可传带单位字符串（`size="20px"`）。
  *  - `color`：**必须传实色**（`COLOR_MAP['xxx']` 或 `#RRGGBB`）。`var(--x)` 与 `currentColor`
  *    都会被回退为兜底近黑色 —— 因为 SVG data-uri 是独立文档，解析不了 `var()`、也继承不到父级文字色。
  *  - **居中 / 防压缩**：根节点 inline-flex + 居中 + `flex: none` **内联自持**（不依赖消费方样式）。
  *    ⚠️ 组件**未开启** `virtualHost` —— 当前 uni-app 版本两种写法（`defineOptions({ options })` /
  *    显式 `<script>` 块）都不会把 `virtualHost` 写入产物 json，且双 `<script>` 会触发 `@/` 别名解析失败
- *    （Round 20c 两次实证，勿盲目重试）。⇒ 组件在 flex 父级里多一层**宿主节点**；若发现图标垂直不居中，
+ *    。⇒ 组件在 flex 父级里多一层**宿主节点**；若发现图标垂直不居中，
  *    用消费方 class 把宿主定为 flex 盒即可（示例见 `SearchBar` 的 `.search-bar-icon`）。
  */
 
@@ -43,7 +43,7 @@ import { computed } from 'vue'
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
   thumb: { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'] },
   // 放大镜：镜片圆心 (11,11)、r=8 + 手柄至 (21,21) ⇒ 含 2px 描边后**包围盒恰为 2→22，几何中心 = 12**（24 网格正中）。
-  // ⚠️ 旧版 r=7 时包围盒为 3→22（中心 12.5），图标在画布内整体偏右下 —— 放大后肉眼可见"不居中"（Round 20 修正）。
+  // ⚠️ 旧版 r=7 时包围盒为 3→22（中心 12.5），图标在画布内整体偏右下 —— 放大后肉眼可见"不居中"。
   search: { path: ['M11 11m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
@@ -65,7 +65,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   check: { path: ['M20 6 9 17l-5-5'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
   image: { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'm21 15-5-5L5 21'] },
-  // 图片破损（UI 统一 Loop Round 31）：`image` 画框 + 山线 + 一条对角断线 ⇒ 读作「图片不可用」。
+  // 图片破损：`image` 画框 + 山线 + 一条对角断线 ⇒ 读作「图片不可用」。
   // 全站图片缺失 / 加载失败的标准占位图标（经 `ImagePlaceholder` 消费），SHALL NOT 再用 `empty` / `dish` 顶替。
   'image-broken': { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'm21 15-5-5L5 21', 'M3 3 21 21'] },
   // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
@@ -137,7 +137,7 @@ if (props.name && !ICONS[props.name]) {
 }
 const icon = computed(() => ICONS[props.name] || ICONS.empty)
 /**
- * 颜色解析（UI 统一 Loop Round 20 补正）：
+ * 颜色解析：
  * SVG 走 data-uri ⇒ 它是一份**独立文档**，既**解析不了 `var()`**，也**继承不到父级文字色**
  * —— 故 `var(...)` 与 `currentColor`（默认值）都统一落到兜底常量 `ICON_FALLBACK_COLOR`（中性近黑）。
  * 需要语义色时**必须传实色**（如 `COLOR_MAP['text-placeholder']`，见 theme/tokens.ts）。

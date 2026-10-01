@@ -1,7 +1,7 @@
 /**
  * 写评价编排（评价标题行右钮 → ReviewComposer 底部抽屉）。
  *
- * **无写前判定**（本稿修订 2026-09-30）：点按钮**直接打开空表单** —— 不调
+ * **无写前判定**：点按钮**直接打开空表单** —— 不调
  * 「我的评价（按菜过滤）」、不预填旧值、无「重新评价」双态；同一用户对同一菜品的
  * 重复提交由**服务端覆盖**旧评价（`POST /dishes/{id}/reviews`）。
  * 共享态仅 `dish` / `dishId`；重拉逻辑复用 `useDishReviewCore` 的
@@ -12,7 +12,6 @@ import type { Ref, ComputedRef } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDishStore } from '@/stores/dish'
 import { correctionUrl } from '@/utils/routes'
-import type { ReviewSubmittedPayload } from '@/types/review'
 import type { DishDetail } from '@/types/dish'
 
 export function useDishReviewComposer(opts: {
@@ -41,7 +40,7 @@ export function useDishReviewComposer(opts: {
    * 提交成功：端上不做「我的评价」态写回（本稿已取消双态与预填）——
    * 仅重置分页并重拉评价列表 + 刷新综合评分（重复提交由服务端覆盖同一行）。
    */
-  function onReviewSubmitted(_payload: ReviewSubmittedPayload) {
+  function onReviewSubmitted() {
     opts.resetReviewPaging()
     void opts.fetchReviewsReset()
     dishStore.fetchDetail(dishId.value)

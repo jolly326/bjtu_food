@@ -1,5 +1,5 @@
 <template>
-  <!-- 全站**唯一**的图片占位视觉（UI 统一 Loop Round 31）：
+  <!-- 全站**唯一**的图片占位视觉：
        灰底（`--bg-placeholder`）+ 居中图标。图片「无值 / 加载失败 / 破图」三种情况一律走本组件，
        SHALL NOT 各页再自绘占位（此前存在 `empty` / `dish` / `user` 三套图标 + `--bg-page` / `--bg-card` /
        `--bg-soft` / `--bg-placeholder` 四种底色，同一屏内观感不一）。 -->

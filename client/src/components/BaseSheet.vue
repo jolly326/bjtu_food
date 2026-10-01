@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onUnmounted } from 'vue'
 import IconSvg from './IconSvg.vue'
 import { useSheetFocus } from '@/composables/useSheetFocus'
 import { COLOR_MAP } from '@/theme/tokens'
@@ -62,11 +62,22 @@ const props = withDefaults(defineProps<{
   title?: string
   /** 内容区是否用 scroll-view 包裹（内容超高时可滚动；默认普通 view） */
   scrollBody?: boolean
+  /**
+   * **键盘避让**（默认关）：弹层内含输入框时开启 —— 监听 `uni.onKeyboardHeightChange`，
+   * 把抽屉的 `bottom` 抬到键盘高度，保证输入框不被键盘遮挡。
+   *
+   * 为什么必须显式接管：`position: fixed` 的抽屉在小程序里**不被** `adjust-position` 稳定顶起
+   * （各端表现不一，常见症状是 grabber / 标题被顶出屏幕），故由本组件统一抬升。
+   * ⚠️ 开启时**弹层内所有输入框须同时设 `:adjust-position="false"`**，否则整页上顶与本抬升叠加成双位移。
+   * 默认关闭 ⇒ 既有调用方（楼层弹层 / 评论 / 身份认证等）行为零变化。
+   */
+  keyboardLift?: boolean
 }>(), {
   zToken: '--z-sheet',
   closable: false,
   title: '',
   scrollBody: false,
+  keyboardLift: false,
 })
 
 const emit = defineEmits<{
@@ -98,7 +109,33 @@ const sheetStyle = computed(() => ({
   transform: `translateY(calc(${sheetOpen.value ? 0 : 100}% + ${dragging.value ? dragOffset.value : 0}px))`,
   transition: 'none',
   zIndex: `var(${props.zToken})`,
+  // 键盘避让：抬起量 = 键盘高度（系统单位 px）；未开启 / 键盘收起 ⇒ 回落到样式表的 bottom: 0
+  ...(keyboardLiftOn.value ? { bottom: `${keyboardHeight.value}px` } : {}),
 }))
+
+/* ===== 键盘避让（仅 keyboardLift 开启且弹层打开期间注册监听，关闭即注销并清零）===== */
+const keyboardHeight = ref(0)
+const keyboardLiftOn = computed(() => props.keyboardLift && props.visible)
+/** 监听注册标记（`off` 必须与 `on` 成对，避免对未注册的回调注销） */
+let keyboardWatching = false
+// 平台例外：uni 键盘事件回调参数按结构类型收窄（MP-08）
+function onKeyboardHeight(res: { height?: number }) {
+  keyboardHeight.value = res?.height ?? 0
+}
+watch(keyboardLiftOn, (on) => {
+  if (on && !keyboardWatching) {
+    uni.onKeyboardHeightChange(onKeyboardHeight)
+    keyboardWatching = true
+  } else if (!on && keyboardWatching) {
+    uni.offKeyboardHeightChange(onKeyboardHeight)
+    keyboardWatching = false
+    keyboardHeight.value = 0
+  }
+})
+// 键盘抬起时组件被卸载（如页面返回）⇒ 补注销，避免回调打到已销毁实例
+onUnmounted(() => {
+  if (keyboardWatching) uni.offKeyboardHeightChange(onKeyboardHeight)
+})
 
 watch(
   () => props.visible,
@@ -126,17 +163,19 @@ let startY = 0
 let lastY = 0
 let lastTime = 0
 let velocity = 0
-// 平台例外：uni touch 事件对象未纳入项目 TS 类型，取 e.touches[0].clientY（MP-08 标注例外）
-function onTouchStart(e: any) {
-  startY = e.touches?.[0]?.clientY ?? 0
+// 平台例外：uni touch 事件对象字段按结构类型收窄（MP-08）
+type TouchLike = { touches?: Array<{ clientY?: number }> }
+function onTouchStart(e: Event) {
+  const touch = (e as unknown as TouchLike).touches?.[0]
+  startY = touch?.clientY ?? 0
   lastY = startY
   lastTime = Date.now()
   velocity = 0
   dragging.value = true
 }
-function onTouchMove(e: any) {
+function onTouchMove(e: Event) {
   if (!dragging.value) return
-  const y = e.touches?.[0]?.clientY ?? 0
+  const y = (e as unknown as TouchLike).touches?.[0]?.clientY ?? 0
   const now = Date.now()
   const dt = Math.max(now - lastTime, 1)
   velocity = ((y - lastY) / dt) * 1000
@@ -174,7 +213,7 @@ function onTouchEnd() {
   transform: translateY(100%);
   display: flex;
   flex-direction: column;
-  /* Round 26：vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
+  /* vh + dvh 双声明 —— 移动端 H5 地址栏伸缩时 `100vh` 大于真实可视高，
      弹层会被顶到屏幕外、内容区滚动范围也跟着失真（同页面根口径） */
   max-height: 88vh;
   max-height: 88dvh;

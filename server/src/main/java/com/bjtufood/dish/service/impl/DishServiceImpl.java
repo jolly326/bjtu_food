@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -13,7 +14,6 @@ import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.dto.DishAdminReq;
 import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishAttributeItem;
-import com.bjtufood.dish.dto.DishAttributeDefVO;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -24,14 +24,15 @@ import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.event.DishDeletedEvent;
-import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.dish.view.DishListQuery;
 import com.bjtufood.dish.view.DishViewConst;
 import com.bjtufood.dish.view.DishViewResolver;
 import com.bjtufood.dish.view.DishViewVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,13 +44,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class DishServiceImpl implements DishService {
 
     /**
-     * 猜你喜欢返回条数（2026-09-22 change search-page-refresh；2026-09-23 由 8 收为 6）。
+     * 猜你喜欢返回条数。
      * <p>
      * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
      * 收为 6 的理由（见 docs/client/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
@@ -66,8 +68,14 @@ public class DishServiceImpl implements DishService {
      */
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    /** 描述属性维度字典（单表），数据驱动、免发版增维度；取值候选由 dish.attributes 全库去重得出 */
-    private final DishAttributeDimensionMapper dishAttributeDimensionMapper;
+    /**
+     * 描述属性的目录数据（维度字典 + 编辑候选值），带缓存。
+     * <p>
+     * 之所以是<b>注入的协作对象</b>而不是本类的私有方法：声明式缓存靠代理生效，
+     * 自调用不过代理，注解会静默失效。缓存放行与否的性能差异见
+     * {@code DishCacheBenchmarkTest}（同一份口径可直接对比）。
+     */
+    private final DishAttributeCatalog attributeCatalog;
 
     @Override
     public IPage<DishListItemVO> listDishes(DishQueryReq req) {
@@ -92,6 +100,10 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    // 缓存的是「在售大类集合」驱动的视图列表：最大陈旧窗口 = TTL 2 分钟。
+    // 取舍：菜品上/下架后筛选 chip 最多晚 2 分钟出现——点进尚未出现的视图只会得到空列表，
+    // 不产生错误数据；换来的是每次进首页省掉一次全表 distinct 查询。
+    @Cacheable(CacheConfig.DISH_VIEWS)
     public List<DishViewVO> listDishViews() {
         // 空类过滤（§7.34）：只对「按大类取数」的视图生效——该大类当前无 status='on' 菜品即不下发，
         // 重新有菜自动出现；其余视图（「为你推荐」等聚合视角）恒下发。
@@ -112,83 +124,27 @@ public class DishServiceImpl implements DishService {
      */
     @Override
     public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
+        // 单次取行同时完成「存在且在售」判定与属性读取（原先是存在性校验 + 单独取 attributes
+        // 两次查询，在远程库上叠加两次 RTT）；判定口径不变。
+        Dish dish = dishId == null ? null : dishMapper.selectById(dishId);
         // 不存在与已下架同款处理（与详情口径一致）
-        if (!existsOnSale(dishId)) {
+        if (dish == null || !DishConst.STATUS_ON.equals(dish.getStatus())) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        Map<String, Object> raw = JsonMapUtil.parseObject(dishMapper.selectAttributesJson(dishId));
+        Map<String, Object> raw = JsonMapUtil.parseObject(dish.getAttributes());
         if (raw.isEmpty()) {
             return List.of();
         }
-        Map<String, List<String>> candidates = candidateValuesByFieldKey();
-        return loadDimensions().stream()
+        // 目录数据（维度字典 + 候选值聚合）由独立 bean 提供：直接调用即可命中其上的 @Cacheable，
+        // 缓存口径与失效时机见 DishAttributeCatalog 的类注释。
+        Map<String, List<String>> candidates = attributeCatalog.candidateValuesByFieldKey();
+        return attributeCatalog.dimensions().stream()
                 .filter(dim -> raw.containsKey(dim.getFieldKey()))
                 .map(dim -> new DishAttributeEditVO(
                         dim.getFieldKey(),
                         dim.getValueType(),
                         candidates.getOrDefault(dim.getFieldKey(), List.of())))
                 .toList();
-    }
-
-    // ==================== 公开只读字典（/dishes/attributes，2026-09-29 补齐） ====================
-
-    @Override
-    public List<DishAttributeDefVO> listAllAttributeDefs() {
-        List<DishAttributeDimension> dimensions = loadDimensions();
-        if (dimensions.isEmpty()) {
-            return List.of();
-        }
-        Map<String, List<String>> candidates = candidateValuesByFieldKey();
-        List<DishAttributeDefVO> defs = new ArrayList<>(dimensions.size());
-        for (DishAttributeDimension dim : dimensions) {
-            // options 为参考候选（该维度全库已用中文值去重）；为空 = 暂无参考值（端上仍可自由输入）
-            defs.add(new DishAttributeDefVO(dim.getId(), dim.getFieldKey(), dim.getName(),
-                    dim.getValueType(), dim.getOrder(),
-                    candidates.getOrDefault(dim.getFieldKey(), List.of())));
-        }
-        return defs;
-    }
-
-    /** 维度字典（按 order 升序） */
-    private List<DishAttributeDimension> loadDimensions() {
-        return dishAttributeDimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>()
-                        .orderByAsc(DishAttributeDimension::getOrder));
-    }
-
-    /**
-     * 编辑候选值（数据驱动）：扫描全库在售菜品的 {@code dish.attributes}，按维度 {@code fieldKey}
-     * 汇总「已用中文值」并按使用频次倒序去重——<b>无独立取值字典表，加值零登记</b>。
-     */
-    private Map<String, List<String>> candidateValuesByFieldKey() {
-        Map<String, Map<String, Integer>> counter = new HashMap<>();
-        for (String json : dishMapper.selectAttributesJsonOnSale()) {
-            JsonMapUtil.parseObject(json).forEach((key, val) -> {
-                Map<String, Integer> perValue = counter.computeIfAbsent(key, k -> new HashMap<>());
-                if (val instanceof List<?> list) {
-                    for (Object v : list) {
-                        if (v != null) {
-                            String s = String.valueOf(v).trim();
-                            if (!s.isEmpty()) {
-                                perValue.merge(s, 1, Integer::sum);
-                            }
-                        }
-                    }
-                } else if (val != null) {
-                    String s = String.valueOf(val).trim();
-                    if (!s.isEmpty()) {
-                        perValue.merge(s, 1, Integer::sum);
-                    }
-                }
-            });
-        }
-        Map<String, List<String>> result = new HashMap<>(counter.size());
-        counter.forEach((key, perValue) -> result.put(key, perValue.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
-                        .thenComparing(Map.Entry.comparingByKey()))
-                .map(Map.Entry::getKey)
-                .toList()));
-        return result;
     }
 
     /**
@@ -248,19 +204,19 @@ public class DishServiceImpl implements DishService {
         // 多图 → 绝对 URL（图片列已由 TypeHandler 直出为 List）
         enrichImages(vo);
 
-        // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）
-        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), loadDimensions()));
+        // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）；维度字典走独立 bean（带缓存）
+        vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), attributeCatalog.dimensions()));
 
         // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
 
-        // hasReviewed（当前用户是否已评价）已于 2026-09-15 下线（三端零消费，连带删除字段与取值查询）。
+        // hasReviewed（当前用户是否已评价）已于下线（三端零消费，连带删除字段与取值查询）。
         // 注：详情出参仍无任何登录态字段；原 userId 入参与 view_log 浏览日志写入已随该链整表退役移除。
         return vo;
     }
 
     /**
      * 猜你喜欢：按端上下发的**会话级** seed 做稳定伪随机取数
-     * （2026-09-29 刷新边界收窄为「重进小程序」）。
+     * 。
      * <p>
      * 语义澄清：用户侧<b>无「主动换一批」入口</b>（全仓无下拉刷新），内容却在会话内自变 ⇒
      * 体验是「界面不稳定」而非「新鲜」；故随机性归于会话——seed 会话内恒定、冷启动才重掷，
@@ -268,29 +224,35 @@ public class DishServiceImpl implements DishService {
      * <p>
      * 仍<b>不加响应缓存</b>：seed 已把「会话内稳定」表达在数据层；若再加 TTL 型缓存，
      * 缓存键必须含 seed 才有意义（否则不同会话互相串味），收益与复杂度不成正比。
-     * 真随机分支（未传 seed）本就与缓存语义冲突，更不能缓存。
+     * 未传 seed 的调用（第三方 / 直连 Swagger / 旧端）由本方法补一次性随机值，
+     * 因此无论是否传 seed，**每次调用都不同** —— 与缓存语义必然冲突，更不能缓存。
      */
     @Override
     public List<GuessLikeVO> guessLike(String seed) {
-        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE, seed);
+        // 缺省 seed 时在此补一个一次性随机值，而不是把「随机」下推到 SQL 的 ORDER BY RAND()：
+        // 后者是全表排序（代价随行数增长、无法用索引），而补 seed 后同一套 CRC32 稳定伪随机序
+        // 就能覆盖旧行为，契约（未传 seed ⇒ 每次不同的随机序）不变。
+        String effectiveSeed = StringUtils.hasText(seed) ? seed : UUID.randomUUID().toString();
+        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE, effectiveSeed);
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<DishAdminVO> listAllForAdmin(int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 分页上限统一由 PageUtil 约束，避免一次性全表加载
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
         IPage<DishAdminVO> result = dishMapper.selectAllForAdmin(new Page<>(page, pageSize));
-        result.setRecords(result.getRecords().stream()
-                .map(this::enrichImages)
-                .toList());
-        return result;
+        return PageUtil.toVoPage(result, recs -> recs.stream().map(this::enrichImages).toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void addDish(DishAdminReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 新增必填校验（DTO 层已放开以支持部分更新，必填在此兜底）
         if (!StringUtils.hasText(req.getName())) {
             throw new BusinessException("菜品名称不能为空");
@@ -317,14 +279,18 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
-        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，2026-09-15 阶段4）——
+        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，阶段4）——
         // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
         dishMapper.insert(dish);
+        // 新菜带来的属性取值会进入「编辑候选值」的全库去重结果 → 显式失效，避免新值最长 2 分钟不可见
+        attributeCatalog.invalidateCandidates();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void updateDish(Long id, DishAdminReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
@@ -340,9 +306,11 @@ public class DishServiceImpl implements DishService {
         if (stallId != null) {
             dish.setStallId(stallId);
         }
-        // 同上（2026-09-15 阶段4）：审核语义退役后编辑路径不再回写审核态，
+        // 同上：审核语义退役后编辑路径不再回写审核态，
         // 「改了信息反而从端上消失」的隐患随 audit_status 列下线一并消除。
         dishMapper.updateById(dish);
+        // 同 addDish：属性写入可能改变候选值集合（详见 DishAttributeCatalog#candidateValuesByFieldKey）
+        attributeCatalog.invalidateCandidates();
         // 契约约定：null/0 表示清空可空的原价（applyReq 已把 0 归一为 null 并写回实体）；
         // updateById 默认 NOT_NULL 策略不落 null，需显式置空
         boolean clearOriginalPrice = dish.getOriginalPrice() == null;
@@ -355,7 +323,9 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void deleteDish(Long id) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Dish dish = dishMapper.selectById(id);
         if (dish == null) {
             throw new BusinessException("菜品不存在");
@@ -369,10 +339,10 @@ public class DishServiceImpl implements DishService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
-    // （原注释关于 @CacheEvict 失效时序的说明已随 2026-09-22 缓存设施整包退役删除）
+    // （原注释关于 @CacheEvict 失效时序的说明已随 缓存设施整包退役删除）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
-        // 计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
+        // 计入口径（Q-110 / 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
         // 内容安全检测 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
         // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
@@ -420,7 +390,7 @@ public class DishServiceImpl implements DishService {
      * 新增路径 null 则落库列默认值（与既有 applyReq 风格一致）。
      * <p>
      * 所有值域校验集中在此（PR-06：非法入参必须 400 报错，不得静默降级落库）。
-     * 价格口径（2026-09-20 拍板 D2）：唯一数据源为 {@code price}（现价，已含折扣），
+     * 价格口径：唯一数据源为 {@code price}（现价，已含折扣），
      * {@code originalPrice} 为可空原价；不再存在 promo_price 第三价格字段。
      */
     private void applyReq(Dish dish, DishAdminReq req) {
@@ -472,7 +442,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 图片相对路径 → 绝对 URL（2026-09-23 R5）。
+     * 图片相对路径 → 绝对 URL。
      * <p>
      * 「JSON 串 ↔ List」的转换已下沉到持久层（{@code StringListTypeHandler}），本方法只负责
      * **业务转换**（相对路径 → 可访问绝对 URL）；空值归一为空列表。
@@ -482,7 +452,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 列表行封面图（2026-09-22 D 项拆分）：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
+     * 列表行封面图：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
      * 无图时为空串（列表不再下发图片数组，故只取首图、不做多图回填）。
      */
     private DishListItemVO enrichCoverImage(DishListItemVO vo) {
@@ -558,6 +528,11 @@ public class DishServiceImpl implements DishService {
         if (cmd.getImages() != null && !cmd.getImages().isEmpty()) {
             update.setImages(JsonListUtil.toJson(cmd.getImages()));
         }
-        return dishMapper.updateById(update) > 0;
+        boolean updated = dishMapper.updateById(update) > 0;
+        if (updated) {
+            // 纠错采纳改写 dish.attributes → 候选值集合同步失效（管理端与端上编辑弹层下次即见新值）
+            attributeCatalog.invalidateCandidates();
+        }
+        return updated;
     }
 }

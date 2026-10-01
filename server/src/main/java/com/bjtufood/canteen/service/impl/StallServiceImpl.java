@@ -36,7 +36,7 @@ public class StallServiceImpl implements StallService {
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
     private final ImageUrlUtil imageUrlUtil;
-    // 2026-09-28 环偿还：此前注入 ReviewQueryService 以填充后台列表的档口均分，导致
+    // 环偿还：此前注入 ReviewQueryService 以填充后台列表的档口均分，导致
     //   canteen -> review -> dish -> canteen 形成包级循环依赖（dish 需 canteen 的档口名）。
     //   档口均分是 review 域按 dish 聚合出的**派生展示值**，不属于 canteen 的自有知识；
     //   由 canteen 主动拉取等于让「属性字典」反向依赖「评价」，方向本就颠倒。
@@ -45,7 +45,9 @@ public class StallServiceImpl implements StallService {
     //   口径与出参（含无评价时按 0.00 兜底）保持不变。
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public List<StallAdminVO> listAllForAdmin() {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .orderByAsc(Stall::getCanteenId)
                 .orderByAsc(Stall::getSortOrder)
@@ -63,8 +65,10 @@ public class StallServiceImpl implements StallService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void update(Stall stall) {
-        // canteen_id=0 收口（2026-09-15）：canteenId 显式传入时必须为有效食堂
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+        // canteen_id=0 收口：canteenId 显式传入时必须为有效食堂
         // （dish 列表/详情 joinDishSql 对 canteen 为 INNER JOIN，挂 0 的档口菜品会被静默剔除）。
         // null=不修改（MyBatis-Plus updateById NOT_NULL 策略跳过），不校验。
         if (stall.getCanteenId() != null) {
@@ -174,7 +178,7 @@ public class StallServiceImpl implements StallService {
      * 按名 upsert 食堂（仅当新建档口时消费）：有效名称查字典命中则复用，未命中自动建档。
      * <p>
      * 空白/「其他」等空值语义名称 <b>不建档也不落 0</b>，返回 null 由调用方 400 拦截
-     * （2026-09-15 收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
+     * （收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
      * joinDishSql 的 INNER JOIN 静默剔除，属隐性数据丢失）。
      *
      * @return 食堂 ID；null=无可解析的有效食堂名（调用方必须 400，不得写库）
@@ -217,7 +221,7 @@ public class StallServiceImpl implements StallService {
         vo.setCanteenId(stall.getCanteenId());
         vo.setName(stall.getName());
         vo.setLocation(stall.getLocation());
-        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于 2026-09-14 §7.14 D 整体下线，
+        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于§7.14 D 整体下线，
         // 此前该值本就未填充（恒为 null），故删除实体/VO 字段不影响后台接口对外语义。
         vo.setFloor(stall.getFloor());
         vo.setWindowNo(stall.getWindowNo());
@@ -227,7 +231,7 @@ public class StallServiceImpl implements StallService {
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
-        // 2026-09-15：createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
+        // createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
         // VO 字段已删除；实体字段与写入侧、stall.created_by 列定义同批退役（阶段4，schema.sql 幂等 DROP）。
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());

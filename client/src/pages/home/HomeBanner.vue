@@ -72,7 +72,7 @@ function onError(id: number) {
 /** 拉取轮播图：失败**不抛出**（Banner 失败不阻塞首屏网格），退化为空数组 → 整块灰底空态 */
 async function load() {
   try {
-    list.value = await bannerApi.getBanners()
+    list.value = await bannerApi.listBanners()
   } catch (e) {
     console.error('加载首页轮播图失败', e)
     list.value = []

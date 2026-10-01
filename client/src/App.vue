@@ -54,10 +54,8 @@ page {
      · 色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写字面量 rgba）。 */
   --page-wash: rgba(255, 248, 239, 0.7);
 
-  /* 注：曾经的「横条表面色 `--bg-wallpaper`」已于 2026-09-27 随**结构性决议**删除：
-     首页改为「常驻工具栏 + 收缩滚动区」（§11）后，任何横条背后都没有内容经过 ⇒
-     全站不需要任何表面 / 切片 / 纯色底。若未来某页必须让内容从横条背后穿过，
-     口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」（实测法见 UI 文档 §11.1 历史记录）。 */
+  /* 若未来某页必须让内容从横条背后穿过：
+     口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」。 */
 
   /* 圆角 */
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
@@ -65,7 +63,7 @@ page {
   --radius-2xs: 8rpx;
   --radius-xs: 16rpx;
   --radius-tag: 16rpx;
-  --radius-card: 32rpx;
+  --radius-card: 16rpx;
   --radius-modal: 48rpx;
   --radius-btn: 16rpx;
   --radius-icon: 24rpx;
@@ -112,7 +110,7 @@ page {
   --weight-heavy: 800;
   /* 布局：主滚动区底部安全留白（.scroll-wrap 消费；命名沿用历史 tabbar 高度，非字面 TabBar） */
   --tabbar-height: 100rpx;
-  /* 搜索栏高度（SearchBar 单胶囊；UI 统一 Loop Round 20：由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
+  /* 搜索栏高度（SearchBar 单胶囊；由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
      ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
   --search-bar-height: 96rpx;
   /* 表单页底部固定操作栏统一高度（§4.9 / T24，profile 提交栏 / review 提交栏 / contact 提交栏同源避让） */
@@ -136,14 +134,14 @@ page {
 page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* ========== 页面基础壳 ==========
-   ⚠️ **页面根不得再有底色**（UI 统一 Loop Round 11 修复）：根层叠上下文中的绘制顺序为
+   ⚠️ **页面根不得再有底色**：根层叠上下文中的绘制顺序为
    ① 负层级子层（`PageWallpaper` 的 `z-index: var(--z-page-bg)` = −1）→ ② 流内块背景。
    若 `.page`（页面根）自带不透明底色，它会在 ② 把 ① 的壁纸层**整块盖住** ⇒ 全站表现为「奶黄底、
    壁纸不可见」。故底色下沉到小程序最低层 `page{}`（见上方 token 块内的 `background`）——
    它天然在所有内容与壁纸之下，仍能兜底防白屏。 */
 .page {
   /* 页面根兜底高度：**vh + dvh 双声明**（同一属性名，后者在支持 dvh 的环境生效）。
-     ⚠️ 为什么必须写 dvh（Round 26 缺陷修复）：移动端 H5 地址栏伸缩时 `100vh` = **最大可视高**，
+     ⚠️ 为什么必须写 dvh：移动端 H5 地址栏伸缩时 `100vh` = **最大可视高**，
      比真实可视区高 ⇒ 页面根比屏幕高出一截 ⇒ ① 页面自身多出一段可滚区（"多余滚动"）；
      ② 固定底栏被顶到屏幕外/底部露出空白。
      ⚠️ 为什么必须是 `min-height` 而不是 `height`：本类与各页根的 `height: 100vh; height: 100dvh`

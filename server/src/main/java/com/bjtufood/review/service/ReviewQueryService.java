@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 评价只读查询端口（跨域读契约）。
  * <p>
- * 2026-09-27 架构收口 P0-1：canteen（档口列表平均分）此前直接 import
+ * 架构收口 P0-1：canteen（档口列表平均分）此前直接 import
  * {@code review.mapper.ReviewMapper} + {@code review.dto.StallAvgRatingVO} 跨模块查库。
  * 现经本端口读取。
  * <p>

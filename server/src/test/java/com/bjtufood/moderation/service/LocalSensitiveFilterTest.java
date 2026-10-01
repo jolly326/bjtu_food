@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 /**
  * {@link LocalSensitiveFilter} 单元测试。
  * <p>
- * <b>为何这条链路必须有测试（2026-09-29 架构评审）</b>：本类<b>不是</b>微信机审的冗余副本，
+ * <b>为何这条链路必须有测试</b>：本类<b>不是</b>微信机审的冗余副本，
  * 而是它<b>够不到的场景</b>的唯一兜底——
  * <ul>
  *   <li>{@code msgSecCheck v2} 的 {@code openid} <b>必填</b>，故登录态缺失
@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  * 这比没有这个类更危险，因为它让「已做本地兜底」这一安全假设悄悄失效。
  * <p>
  * 故本测试不只测算法，更测<b>启动契约</b>：词库必须存在、且有足够覆盖度，
- * 否则应用<b>拒绝启动</b>（init() 已于 2026-09-29 改为 fail-fast）。
+ * 否则应用<b>拒绝启动</b>（init() 已于改为 fail-fast）。
  */
 class LocalSensitiveFilterTest {
 

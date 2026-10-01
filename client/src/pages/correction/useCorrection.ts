@@ -46,12 +46,13 @@ export function floorDisplay(raw: string): [string, boolean] {
  */
 import { ref, reactive, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { submitDishCorrection } from '@/api/feedback'
-import { getDishDetail, getDishEditAttributes } from '@/api/dish'
+import { createDishCorrection } from '@/api/feedback'
+import { getDishDetail, listDishEditAttributes } from '@/api/dish'
 import { isResourceNotFound } from '@/api/http'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
+import { toastInfo, toastSuccess } from '@/utils/error'
 import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { yuanToFen } from '@/utils/money'
 
@@ -91,11 +92,8 @@ export interface CorrectionFormModel {
 const REQUIRED_KEYS = ['name', 'price', 'canteenName', 'floor', 'stallName'] as const
 
 export function useCorrection() {
-  /** 全页唯一返回实现：有返回栈时 navigateBack；无返回栈才 reLaunch 首页 */
-  function goBack() {
-    if (getCurrentPages().length > 1) uni.navigateBack()
-    else backToHome()
-  }
+  /** 全页唯一返回实现 = `backToHome`（有返回栈 navigateBack；无返回栈 reLaunch 首页） */
+  const goBack = backToHome
 
   // 页面级定时器句柄：均登记于此，`onUnload` 统一清理（避免回调打到已销毁页 / 已卸载组件）
   /** 提交成功自动返回 */
@@ -167,7 +165,7 @@ export function useCorrection() {
         getDishDetail(id),
         // 编辑态候选**按需取一次**（仅进本编辑页取，且只含该菜现有维度 —— 端上不预取任何字典）；
         // 失败静默：各组候选为空 ⇒ 隐藏候选入口、仅留自定义输入，不阻塞纠错（文档边界口径）
-        getDishEditAttributes(id).catch(() => []),
+        listDishEditAttributes(id).catch(() => []),
       ])
       dishName.value = detail.name
       // 锚定卡楼层段**同步走字典映射**（R40）：与下方楼层单元格同为汉字，避免同页一处汉字一处 `B1`；
@@ -282,7 +280,7 @@ export function useCorrection() {
     () =>
       !!dishId.value &&
       !loading.value &&
-      // 退避期禁提交：后端 2 次/分钟，连点只会持续延长封锁（2026-09-29）
+      // 退避期禁提交：后端 2 次/分钟，连点只会持续延长封锁
       !cooling() &&
       !firstMissingRequired() &&
       hasChange.value,
@@ -307,7 +305,7 @@ export function useCorrection() {
   const submitting = ref(false)
   /** 提交失败原因（页面底部橙字提示；**保留已填内容**，不清空表单） */
   const submitError = ref('')
-  /** 提交限频退避（2026-09-29）：后端 2 次/分钟，手滑连点会持续撞限频、越拖越长 */
+  /** 提交限频退避：后端 2 次/分钟，手滑连点会持续撞限频、越拖越长 */
   const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 
   /** 字段级错误键 → 滚动定位锚点（id 由 CorrectionForm 各字段行承载） */
@@ -338,27 +336,29 @@ export function useCorrection() {
     if (target) anchorTimer = setTimeout(() => { scrollIntoView.value = target }, 50)
   }
 
+  /** 提交前校验：返回字段级错误集（空 = 通过）。缺 ID / 加载中只记一条、跳过字段校验 */
+  function collectSubmitErrors(): Record<string, string> {
+    const errs: Record<string, string> = {}
+    if (!dishId.value) { errs['form.name'] = '缺少菜品信息'; return errs }
+    if (loading.value) { errs['form.name'] = '菜品信息加载中'; return errs }
+    if (!form.name.trim()) errs['form.name'] = '菜名叫啥？填一下'
+    if (!priceValid()) errs['form.price'] = form.price.trim() ? '售价要像 12.5 这样' : '填一下售价'
+    if (!form.canteenName.trim()) errs['form.canteenName'] = '填一下食堂名称'
+    if (!form.floor.trim()) errs['form.floor'] = '填一下楼层'
+    if (!form.stallName.trim()) errs['form.stallName'] = '填一下档口名称'
+    // 空改动 = 无可提交内容（后端亦 400「未提交任何改动」）——定位到首个必填项以免「点了没反应」
+    if (!Object.keys(errs).length && !hasChange.value) errs['form.name'] = '你还没有改动任何信息'
+    return errs
+  }
+
   async function submit() {
     // 退避期：禁重复提交（弱网手滑连点会持续撞限频、把封锁越拖越长）
     if (submitting.value || cooling()) return
 
-    const errs: Record<string, string> = {}
-    if (!dishId.value) errs['form.name'] = '缺少菜品信息'
-    else if (loading.value) errs['form.name'] = '菜品信息加载中'
-    else {
-      if (!form.name.trim()) errs['form.name'] = '菜名叫啥？填一下'
-      if (!priceValid()) errs['form.price'] = form.price.trim() ? '售价要像 12.5 这样' : '填一下售价'
-      if (!form.canteenName.trim()) errs['form.canteenName'] = '填一下食堂名称'
-      if (!form.floor.trim()) errs['form.floor'] = '填一下楼层'
-      if (!form.stallName.trim()) errs['form.stallName'] = '填一下档口名称'
-      // 空改动 = 无可提交内容（后端亦 400「未提交任何改动」）——定位到首个必填项以免「点了没反应」
-      if (!Object.keys(errs).length && !hasChange.value) {
-        errs['form.name'] = '你还没有改动任何信息'
-      }
-    }
+    const errs = collectSubmitErrors()
     if (Object.keys(errs).length) {
       markErrors(errs)
-      uni.showToast({ title: Object.values(errs)[0], icon: 'none' })
+      toastInfo(Object.values(errs)[0])
       return
     }
 
@@ -366,9 +366,9 @@ export function useCorrection() {
     submitError.value = ''
     try {
       // 局部提交：只上传改动项（dishId 在路径；price 元 → 分，金额红线）
-      await submitDishCorrection(dishId.value, diff.value)
+      await createDishCorrection(dishId.value, diff.value)
       clearCooldown()
-      uni.showToast({ title: '提交成功，等待审核', icon: 'none' })
+      toastSuccess('提交成功，等待审核')
       if (goBackTimer) clearTimeout(goBackTimer)
       goBackTimer = setTimeout(goBack, 1500)
     } catch (e) {
@@ -390,7 +390,7 @@ export function useCorrection() {
       return
     }
     // 缺 dishId：本页不提供跨菜品选择（入口唯一），直接提示并返回
-    uni.showToast({ title: '缺少菜品信息', icon: 'none' })
+    toastInfo('缺少菜品信息')
     goBack()
   })
 

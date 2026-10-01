@@ -7,7 +7,7 @@ import org.springframework.util.StringUtils;
 /**
  * 微信开放平台配置（类型化绑定，单一真源）。
  * <p>
- * <b>归属说明（2026-09-28 架构收口 P2）</b>：本类<b>不</b>放 {@code common.properties}，
+ * <b>归属说明</b>：本类<b>不</b>放 {@code common.properties}，
  * 而随 {@code wechat} 域走。原因有二：
  * <ol>
  *   <li>默认端点值取自 {@link WechatApiConst}（微信平台常量），若置于 {@code common} 则形成

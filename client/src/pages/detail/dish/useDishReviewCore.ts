@@ -2,8 +2,8 @@
  * 评价列表 + 删除编排（评价分页 / 删除本人评价）。
  *
  * 分页封底口径与 `usePagedList` 同源（结束判据 = 本页返回条数 < `pageSize`）；
- * 重置式请求在途时由 `reviewPending` 禁止追加下一页（Round 31 竞态修复，守卫在 store 的 `reviewFetchSeq`）。
- * 本模块**无用户态缓存**（写评价已取消写前判定与「我的评价」态写回，2026-09-30）。
+ * 重置式请求在途时由 `reviewPending` 禁止追加下一页。
+ * 本模块**无用户态缓存**（写评价已取消写前判定与「我的评价」态写回）。
  */
 import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
@@ -11,9 +11,9 @@ import { useDishStore } from '@/stores/dish'
 import { useUserStore } from '@/stores/user'
 import { deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { REVIEW_PAGE_SIZE } from '@/constants/paging'
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 
 export function useDishReviewCore(opts: {
@@ -59,7 +59,7 @@ export function useDishReviewCore(opts: {
 
   /** 触底加载下一页评价（**结束判据 = 本页返回条数 < `pageSize`**） */
   async function onReviewsReachBottom() {
-    // 竞态修复（Round 31）：重置式请求（首屏 / 重试）在途时**禁止**追加下一页——
+    // 竞态修复：重置式请求（首屏 / 重试）在途时**禁止**追加下一页——
     // 否则 append 会推进 store 的 `reviewFetchSeq`，使在途的 reset 响应被判为过期丢弃
     // ⇒ 列表只剩第 2 页、第 1 页消失（列表内容错乱）。
     if (reviewPending.value) return
@@ -106,7 +106,7 @@ export function useDishReviewCore(opts: {
         if (!res.confirm) return
         try {
           await deleteReview(rv.id)
-          uni.showToast({ title: '评价已删除', icon: 'none' })
+          toastSuccess('评价已删除')
           resetReviewPaging()
           await fetchReviewsReset()
           dishStore.fetchDetail(dishId.value)
@@ -114,7 +114,7 @@ export function useDishReviewCore(opts: {
           if (isResourceNotFound(e)) {
             // 评价已不存在：本地移除即可（不提示「删除失败」误导可重试）
             dishStore.removeReview(rv.id)
-            uni.showToast({ title: '评价已不存在', icon: 'none' })
+            toastInfo('评价已不存在')
             return
           }
           toastError(e, '删除失败')

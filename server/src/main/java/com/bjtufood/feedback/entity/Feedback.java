@@ -46,11 +46,11 @@ public class Feedback {
     private String images;
 
     /*
-     * 内容安全状态 sec_state 已随「取消人工复核」（2026-09-15 用户拍板）全链退役：
+     * 内容安全状态 sec_state 已随「取消人工复核」全链退役：
      * 内容安全检测 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
      */
 
-    // user_feedback.contact 已于 2026-09-16 用户拍板「产品定型不收集联系方式」退役：
+    // user_feedback.contact 已于用户拍板「产品定型不收集联系方式」退役：
     // 请求字段（FeedbackReq.contact）、实体字段与落库逻辑同批删除；
     // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
@@ -82,7 +82,7 @@ public class Feedback {
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;
 
-    // user_feedback.handler_id 已于 2026-09-16 用户拍板「零消费即删除」退役
+    // user_feedback.handler_id 已于用户拍板「零消费即删除」退役
     //（§7.10 管理端操作人身份降级为单口令后该列即不写，读侧恒 NULL）；
     // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 

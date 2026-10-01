@@ -1,5 +1,5 @@
 /**
- * 提交限频退避（2026-09-29 新增）。
+ * 提交限频退避。
  *
  * <b>解决的问题</b>：后端对写入口做了 IP 限频（`POST /feedback`、`POST /dishes/{id}/correction`
  * 均为 2 次/分钟、10 次/小时），超限返回 400「提交过于频繁，请 N 秒后再试」。而端上此前
@@ -21,7 +21,7 @@ import { ref, onUnmounted } from 'vue'
 import { isRateLimited } from '@/api/http'
 
 /** 解析不出后端建议秒数时的保守缺省（秒）——宁可多等，不可让用户再撞一次限频 */
-export const DEFAULT_COOLDOWN = 30
+const DEFAULT_COOLDOWN = 30
 
 /** 后端建议秒数的上限：防止异常文案（如「请 99999 秒」）把 UI 锁死 */
 const MAX_COOLDOWN = 300

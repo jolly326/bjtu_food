@@ -27,7 +27,7 @@
   - 评价区：
     - **标题行**：**左 = 「评价 + 数字」合并为一个标题块** —— 数字与标题**同色**（SHALL NOT 用 `--text-tertiary` 灰字：灰字会把总数读成附属信息）、字号小半号（h2 40rpx → h3 36rpx）、等宽数字；**不用「评价（N）」括号式**；在途 / 失败态**不渲染数字**。
       **右 = 「写评价」轻量入口（主色线性笔形图标 `edit` + 主色文字，非按钮形态）** —— **无边框 / 无底色 / 无阴影 / 无胶囊槽**（视觉权重低于任何按钮，只表达「点击可写评价」）；**随评价卡片一同滚动（不吸顶、不固定）**；**文案恒为「写评价」—— 无「重新评价」双态**。
-    - 评价条目（`ReviewItem` 的 `flat` 形态）：① 头像 + 昵称（600 档）+ 右上角 ⋮ 更多（ActionSheet：举报 / 删除）；② 星级（黄色实心）+ 分值 + **日期（仅 `YYYY-MM-DD`，不含时分 —— 菜品评价时效性弱）**同行；③ 正文；④ 配图 ≤3 张（有图才渲染）。**条目之间为纯留白 `--spacing-lg`，SHALL NOT 画分割线、SHALL NOT 加独立卡片边框**。
+    - 评价条目（`ReviewItem` 的 `flat` 形态）：① 头像 + 昵称（600 档）+ 右上角 ⋮ 更多（ActionSheet：举报 / 删除）；② 星级（黄色实心）+ 分值 + **日期（仅 `YYYY-MM-DD`，不含时分 —— 菜品评价时效性弱）**同行；③ 正文；④ 配图 ≤3 张（有图才渲染）。**条目之间为 1rpx `--border-color` 分隔线（`--spacing-md` 行内距），SHALL NOT 加独立卡片边框**。
     - 排序：**时间倒序（新评价在前），唯一排序，无切换**
   - 状态呈现（强制，遵守既有红线）：① **加载中不呈现骨架屏 / loading 指示**（仅限「页面级首屏」；**用户主动点击「重新加载」**时可在公共 `RetryBlock` 内给**转圈**在途反馈）——数据未返回时内容区空白静默；② **菜品不存在 / 详情拉取失败**须给出明确文案与恢复路径（**不得只留纯空白页**）；③ 评价区失败态沿用既有**可重试块**。
   - 交互与无障碍（本模块强制）：可点元素触控目标 **≥ 88rpx（44pt）**；「写评价」入口与「信息有误?」入口均带 `role="button"` + `aria-label`（命中区经 `::after` **仅纵向**扩至 88rpx，视觉尺寸不变）；轮播容器与评价头像带 `aria-label`；`prefers-reduced-motion` 下动效降级为直接显示。
@@ -47,22 +47,24 @@
 
 ### 组件清单（本界面需要哪些组件）
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `ImageSwiper` | 页内私有 `pages/detail/dish/ImageSwiper.vue` | 顶部大图轮播（`autoplay=false` 仅手动滑动；多图显示指示点、单图不显示；无图 / 破图 → 统一占位 `ImagePlaceholder`（灰底 + `image-broken`），块高不变） |
-| 2 | `DishInfoCard` | 页内私有 | 信息卡：① **名称行**（菜名 ≤2 行 + **「信息有误?」入口** + 价格）→ ② 评分 / 位置同行 → ③ 简介（**固定 2 行截断、无展开**）→ ④ **唯一分隔线**（简介存在时）→ ⑤ 描述四维（无底色 4 列等分居中、值在上 / 标签在下） |
-| 3 | `DishReviewSection` | 页内私有 | 评价卡：`SectionTitle`「评价」+ 数字（经 `count`）+ **「写评价」轻量入口**（图标 + 文字，标题行右侧）+ 评价条目列表 / 空态（**纯文本「暂无评价」**）/ 失败态 |
-| 4 | `ReviewComposer` | 页内私有 | 写评价底部弹层（字段与呈现见本文件「页内承载物 · 一、写评价」）—— **只承载评价表单，不含纠错入口**（纠错在信息卡名称行「信息有误?」） |
-| 5 | `ReportModal` | 页内私有 | 举报评价底部弹层（见本文件「页内承载物 · 三、举报评价」） |
-| 6 | `CardSection` | 公共 `components/CardSection.vue` | **两张**卡外壳（信息 / 评价） |
-| 7 | `SectionTitle` | 公共 `components/SectionTitle.vue` | 「评价」标题 + 可选 **`count`**（标题右侧同色 / 小半号 / 等宽数字）；`#extra` 槽承载右侧可点件（本页「**写评价**」轻量入口、find 页「清空」） |
-| 8 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 单条评价卡（头像 / 昵称 / 星级 / 时间 / 正文 / 配图 / 三点） |
-| 9 | `ActionSheet` | 公共 `components/ActionSheet.vue` | 评价三点菜单：本人「删除评价」/ 他人「举报评价」（危险红） |
-| 10 | `RetryBlock` | 公共 `components/RetryBlock.vue` | 评价首屏 / 刷新失败「加载失败 · 点击重试」 |
-| 11 | `ImagePicker` | 公共（经 `ReviewComposer`） | 评价配图 ≤3 张 |
-| 12 | `IconSvg` | 公共 `components/IconSvg.vue` | 导航返回（**文字「返回」**） / 定位 `location` / 星（`star` 线性 · `star-filled`，评分行与评价卡用）/ 三点 `more-v` / **「信息有误?」前导小图标**（线性；与文字同色 `--text-tertiary`）/ 空态与失败示意 `empty` · `report` |
-| 13 | 顶部改用公共 **`AppTitleBand`**（透明；左「返回」+ 居中**菜名随滚动淡入**）、**hero 卡**（滚动区首块）（**页面已无底部操作栏**，`pages/detail/dish/index.vue` 内联） | 公共 + `pages/detail/dish/index.vue` 内联 | 与首页 §11 **同构**：标题带**恒透明**、滚动区从带下沿开始 ⇒ 无内容从带背后经过（**零切片 / 零实底切换 / 零承接条**）；hero **随滚动 1:1 上移、在标题带下沿被裁**（"移出屏幕"，与首页 Banner 同语言）；滚动 JS **只保留菜名淡入 1 项** |
-| — | `swiper`（`ImageSwiper` 内）/ `textarea` / `open-type="share"` button | uni 内置控件 | 图片轮播 / 评价输入 / 分享 |
+> 组件自身规格（尺寸 / 圆角 / 颜色 / 状态 / 交互）以 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §二 为唯一真源；**本表只写「本页用法」**。
+
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `ImageSwiper`（页内私有 `pages/detail/dish/ImageSwiper.vue`） | 顶部大图轮播（`autoplay=false` 仅手动滑动；多图显示指示点、单图不显示；无图 / 破图 → 统一占位，块高不变） |
+| 2 | `DishInfoCard`（页内私有） | 信息卡：① **名称行**（菜名 ≤2 行 + **「信息有误?」入口** + 价格）→ ② 评分 / 位置同行 → ③ 简介（**固定 2 行截断、无展开**）→ ④ **唯一分隔线**（简介存在时）→ ⑤ 描述四维（无底色 4 列等分居中、值在上 / 标签在下） |
+| 3 | `DishReviewSection`（页内私有） | 评价卡：`SectionTitle`「评价」+ 数字（经 `count`）+ **「写评价」轻量入口**（标题行右侧）+ 评价条目列表 / 空态（**纯文本「暂无评价」**）/ 失败态 |
+| 4 | `ReviewComposer`（页内私有） | 写评价底部弹层（字段与呈现见本文件「页内承载物 · 一、写评价」）—— **只承载评价表单，不含纠错入口**（纠错在信息卡名称行「信息有误?」） |
+| 5 | `ReportModal`（页内私有） | 举报评价底部弹层（见本文件「页内承载物 · 三、举报评价」） |
+| 6 | `CardSection` | **两张**卡外壳（信息 / 评价） |
+| 7 | `SectionTitle` | 「评价」标题 + 可选 `count`；`#extra` 槽承载右侧可点件（本页「写评价」轻量入口、find 页「清空」） |
+| 8 | `ReviewItem` | 单条评价卡（头像 / 昵称 / 星级 / 时间 / 正文 / 配图 / 三点） |
+| 9 | `ActionSheet` | 评价三点菜单：本人「删除评价」/ 他人「举报评价」（危险红） |
+| 10 | `RetryBlock` | 评价首屏 / 刷新失败「加载失败 · 点击重试」（**双 CTA 形态**：重新加载 + 返回） |
+| 11 | `ImagePicker`（经 `ReviewComposer`） | 评价配图 ≤3 张 |
+| 12 | `IconSvg` | 导航返回 / 定位 `location` / 星（`star` 线性 · `star-filled`）/ 三点 `more-v` / 「信息有误?」前导小图标 / 失败示意 `report` |
+| 13 | 顶部 `AppTitleBand`（透明；左「返回」+ 居中**菜名随滚动淡入**）+ **hero 卡**（滚动区首块）（`pages/detail/dish/index.vue` 内联） | 与首页 §11 **同构**：标题带**恒透明**、滚动区从带下沿开始 ⇒ 无内容从带背后经过（**零切片 / 零实底切换 / 零承接条**）；hero **随滚动 1:1 上移、在标题带下沿被裁**（"移出屏幕"，与首页 Banner 同语言）；滚动 JS **只保留菜名淡入 1 项** |
+| — | `swiper`（`ImageSwiper` 内）/ `textarea` / `open-type="share"` button | 图片轮播 / 评价输入 / 分享 |
 
 ### 有哪些数据要显示、显示在哪个组件
 
@@ -76,7 +78,6 @@
 | 6 | `description` | 同上 | 菜品描述 | `DishInfoCard` 描述行 `.desc-content`（**无展开 / 收起入口**） | **固定最多 2 行截断**（超出省略）；文本独占卡片整宽 |
 | 7 | `canteenName` / `floor` / `stallName` | 同上（端上别名 `canteen`） | 食堂 / 楼层 / 档口 | `DishInfoCard` 位置行 `.loc-text`（页面派生 `locationText`） | 「食堂 · 楼层 · 档口」；缺项兜底「未知位置」（**本行右侧不挂任何入口**；纠错入口唯一落点 = 上方**名称行「信息有误?」**） |
 | 8 | `dietType` / `ingredients` / `flavorTags` / `serveTemp` | 同上（**机器值**：单值 / 数组 / 数组 / 单值） | 荤素 / 主料 / 口味 / 冷热 | `DishInfoCard` 四维区 `.dim-col`（`dim-val` + `dim-label`） | **逐维渲染、缺项不占位**；多值以 `、` 连接，长值 2 行收起 |
-| 9 | `field` / `value` / `label` / `order` | `GET /dishes/attributes`（经 `stores/dish-attribute`） | 四维字典 | `DishInfoCard` 四维维度名与中文值 | 端上零硬编码映射；未命中 → 该维不渲染 |
 | 10 | `avgRating` / `ratingCount` | 同上（端上别名 `rating`） | 均分 / 评价人数 | `DishInfoCard` 第二行左侧（`.rating-group` / `.rating-empty`） | 均分 1 位小数（`utils/dish.formatRating`）；`ratingCount = 0` → 隐藏星、示浅灰「暂无评分」（不靠字段缺失判断）；**评价人数不渲染** |
 | 11 | `ratingDistribution[].star` / `.count` | 同上 | 星级 / 该星级条数 | **不渲染**（用户规格「不绘制评分进度条」） | 字段保留在接口契约中，端上不消费 |
 | 12 | `records[].id` | `GET /dishes/{id}/reviews`（`PageResult<ReviewVO>`） | 评价 ID | `ReviewItem` 列表 `key` / 删除与举报目标 | 零可见 UI |
@@ -119,14 +120,14 @@
 
 #### 组件清单
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `ReviewComposer` | 页内私有 `pages/detail/dish/ReviewComposer.vue` | 弹层本体：菜名 + 星级 + 正文 + 配图 + 提交（承载表单语义） |
-| 2 | `BaseSheet` | 公共 `components/BaseSheet.vue` | 弹层骨架：遮罩 / grabber / 下滑关闭 / 安全区 / 标题「写评价」/ 右上关闭钮 / `scroll-body`（小屏内部滚动） |
-| 3 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 配图选择：≤3 张、压缩 ≤1MB 且 ≤750×1334、安检上传后回传 COS URL；提交中禁选 |
-| 4 | `IconSvg` | 公共 `components/IconSvg.vue` | 星级图标：未选 `star`（线性浅灰）/ 已选 `star-filled`（实心黄） |
-| 5 | `textarea`（`maxlength=500` + `n/500` 计数） | uni 内置控件 | 正文录入（选填，`auto-height`，上限 320rpx 后由弹层滚动承接） |
-| 6 | 提交钮（页内 `view`） | `ReviewComposer.vue` 内联 | 主色实底；未选星 / 提交中禁用（文案「提交中…」） |
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `ReviewComposer`（页内私有 `pages/detail/dish/ReviewComposer.vue`） | 弹层本体：菜名 + 星级 + 正文 + 配图 + 提交（承载表单语义） |
+| 2 | `BaseSheet` | 弹层骨架：遮罩 / grabber / 下滑关闭 / 安全区 / 标题「写评价」/ 右上关闭钮 / `scroll-body`（小屏内部滚动） |
+| 3 | `ImagePicker` | 配图选择：≤3 张、压缩 ≤1MB 且 ≤750×1334、安检上传后回传 COS URL；提交中禁选 |
+| 4 | `IconSvg` | 星级图标：未选 `star`（线性浅灰）/ 已选 `star-filled`（实心黄） |
+| 5 | `textarea`（`maxlength=500` + `n/500` 计数） | 正文录入（选填，`auto-height`，上限 320rpx 后由弹层滚动承接） |
+| 6 | 提交钮（`ReviewComposer.vue` 内联） | 主色实底；未选星 / 提交中禁用（文案「提交中…」） |
 
 #### 数据映射
 
@@ -164,13 +165,13 @@
 
 #### 组件清单
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `ReviewItem` | 公共 `components/ReviewItem.vue` | 评价卡本体 + **右上角常驻竖三点**（`IconSvg name="more-v"`，触控目标 ≥88rpx）→ `@more` 上抛被点评价 |
-| 2 | `ActionSheet` | 公共 `components/ActionSheet.vue`（骨架 = `BaseSheet`） | 底部动作菜单，「删除评价」动作项（**危险红**：`icon` + `text` 同取错误色） |
-| 3 | `uni.showModal` | uni 内置控件 | 二次确认弹窗：标题「删除评价」/ 正文「确定删除这条评价吗？删除后不可恢复。」/ 确认钮取危险色实值 |
-| 4 | 列表容器（`.review-list` / `.list`） | 宿主页内联 | 删除成功后**本地移除该条**（`list.filter`），不整页重拉 |
-| 5 | `RetryBlock`（仅「我的主页」） | 公共 | 删除后 / 首屏刷新失败的「加载失败 · 点击重试」兜底 |
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `ReviewItem` | 评价卡本体 + **右上角常驻竖三点**（`more-v`，触控目标 ≥88rpx）→ `@more` 上抛被点评价 |
+| 2 | `ActionSheet`（骨架 = `BaseSheet`） | 底部动作菜单，「删除评价」动作项（**危险红**：`icon` + `text` 同取错误色） |
+| 3 | `uni.showModal` | 二次确认弹窗：标题「删除评价」/ 正文「确定删除这条评价吗？删除后不可恢复。」/ 确认钮取危险色实值 |
+| 4 | 列表容器（`.review-list` / `.list`，宿主页内联） | 删除成功后**本地移除该条**（`list.filter`），不整页重拉 |
+| 5 | `RetryBlock`（仅「我的主页」） | 删除后 / 首屏刷新失败的「加载失败 · 点击重试」兜底 |
 
 > **无专属页面与专属弹层组件**：全部落在公共 `ReviewItem` + 公共 `ActionSheet` 上，两个宿主页共用同一链路。
 
@@ -213,14 +214,14 @@
 
 #### 组件清单
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `ReportModal` | 页内私有 `pages/detail/dish/ReportModal.vue` | 弹层本体：处理承诺行 + 原因单选列表 + 提交钮（含字典拉取与选中态） |
-| 2 | `BaseSheet` | 公共 `components/BaseSheet.vue` | 弹层骨架：遮罩 / grabber / 下滑关闭手势 / 安全区 / 标题「举报评价」/ 右上关闭钮 |
-| 3 | 提交钮（页内 `view`） | `ReportModal.vue` 内联 | 主色实底「提交举报」，未选中原因 / 提交中禁用（半透明） |
-| 4 | `ReviewItem`（宿主侧） | 公共 `components/ReviewItem.vue` | 入口所在：评价卡右上角常驻三点（`@more`） |
-| 5 | `ActionSheet`（宿主侧） | 公共 `components/ActionSheet.vue` | 三点动作菜单，「举报评价」动作项（危险红：图标 + 文字） |
-| 6 | `useReport.ts`（宿主侧编排） | 页内私有 | `openReport(reviewId)` / `submitReport(reasonValue)` 与提交中状态 |
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `ReportModal`（页内私有 `pages/detail/dish/ReportModal.vue`） | 弹层本体：处理承诺行 + 原因单选列表 + 提交钮（含字典拉取与选中态） |
+| 2 | `BaseSheet` | 弹层骨架：遮罩 / grabber / 下滑关闭手势 / 安全区 / 标题「举报评价」/ 右上关闭钮 |
+| 3 | 提交钮（`ReportModal.vue` 内联） | 主色实底「提交举报」，未选中原因 / 提交中禁用（半透明） |
+| 4 | `ReviewItem`（宿主侧） | 入口所在：评价卡右上角常驻三点（`@more`） |
+| 5 | `ActionSheet`（宿主侧） | 三点动作菜单，「举报评价」动作项（危险红：图标 + 文字） |
+| 6 | `useReport.ts`（宿主侧编排） | `openReport(reviewId)` / `submitReport(reasonValue)` 与提交中状态 |
 
 #### 数据映射
 

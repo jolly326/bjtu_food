@@ -130,6 +130,9 @@
         <if test="q.keyword != null and q.keyword != ''">
             -- 关键词三路模糊匹配：菜名 / 档口名 / 食堂名（2026-09-22 用户拍板：菜品无搜索别名，
             -- 原 d.alias LIKE 分支随 dish.alias 列全链删除；tags 模糊匹配已于 2026-09-20 随标签整链下线）
+            -- ⚠️ 技术债（按代码审计登记，行为不动）：三处 `%keyword%` 前置通配 + 三表 OR ⇒ 任何索引都用不上，
+            --    执行计划必为全表扫描（菜品表行数增长后是首要慢查询源）。彻底解决需改搜索形态
+            --    （全文索引 / 独立检索服务）或产品侧收紧匹配范围，均属需拍板变更，故此处只登记不改。
             AND (d.name LIKE CONCAT('%', #{q.keyword}, '%')
             OR s.name LIKE CONCAT('%', #{q.keyword}, '%')
             OR c.name LIKE CONCAT('%', #{q.keyword}, '%'))
@@ -174,21 +177,18 @@
         LIMIT 1
     </select>
 
-    <!-- 菜品描述属性 JSON 原文（编辑态按需取「该菜现有维度」的键集合用；不过滤上架态，
-         由 Service 侧统一做存在性校验） -->
-    <select id="selectAttributesJson" resultType="string">
-        SELECT d.attributes
-        FROM dish d
-        WHERE d.id = #{id}
-        LIMIT 1
-    </select>
-
-    <!-- 全部在售菜品的描述属性 JSON 原文（编辑候选值「按维度汇总全库已用中文值」用；NULL 行不返回） -->
+    <!-- 全部在售菜品的描述属性 JSON 原文（编辑候选值「按维度汇总全库已用中文值」用；NULL 行不返回）。
+         带 ORDER BY + LIMIT：本查询把每行 attributes 全量回传后在内存聚合，是读路径上唯一
+         「行数决定返回体积」的查询；排序不是给用户看的，而是保证**截断点稳定**
+         （同一数据多次调用截到同一批行，不会时多时少）。
+         截断只可能影响「参考候选的完整度」——候选在契约里仅为参考、不构成写入约束。 -->
     <select id="selectAttributesJsonOnSale" resultType="string">
         SELECT d.attributes
         FROM dish d
         WHERE d.status = 'on'
           AND d.attributes IS NOT NULL
+        ORDER BY d.id
+        LIMIT #{limit}
     </select>
 
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
@@ -222,7 +222,9 @@
           · 同一次会话内多次进入 ⇒ 同一批词条（内容不会自己变）；
           · 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗（新鲜度）。
         算法与推荐流（selectDishPage 的 SEED_RANDOM 分支）同一套：d.id 作决胜键消除 CRC32 并列乱序。
-        未传 seed（第三方 / 直连 Swagger / 旧端）⇒ 退回 ORDER BY RAND()，契约向后兼容（参数可选）。
+        seed 由 Service 侧保证非空：{@code DishServiceImpl#guessLike} 在未传 seed 时补一个一次性随机值，
+        故这里不再保留 ORDER BY RAND() 兜底（那是全表排序：代价随行数增长且无法使用索引）。
+        契约未变：未传 seed 的调用方仍得到「每次不同的随机序」，只是随机性改由 seed 承载。
         出参仅 name；条数由调用方传入（DishMapper#selectGuessLike(@Param limit, @Param seed)，Service 侧常量）。
         注意：本查询**不得**再走 heatScoreExpr（热度排序已与语义无关）。
     -->
@@ -230,14 +232,7 @@
         SELECT d.name AS name
         FROM dish d
         WHERE d.status = 'on'
-        <choose>
-            <when test="seed != null and seed != ''">
-                ORDER BY CRC32(CONCAT(#{seed}, '-', d.id)), d.id
-            </when>
-            <otherwise>
-                ORDER BY RAND()
-            </otherwise>
-        </choose>
+        ORDER BY CRC32(CONCAT(#{seed}, '-', d.id)), d.id
         LIMIT #{limit}
     </select>
 
@@ -248,6 +243,22 @@
         FROM dish d
         WHERE d.status = 'on'
           AND d.meal_type IS NOT NULL
+    </select>
+
+    <!--
+        评分对账的候选菜品（D3）：只取「缓存列 rating_count > 0」的行。
+        零评价菜品按口径本就恒为 avg_rating=NULL / rating_count=0，无需参与对账，
+        该条件把扫描面收敛到「真正发生过评分事件」的菜品（可用 idx_dish_heat 的 rating_count 定位）。
+        游标分页（id > lastId ORDER BY id LIMIT n）而非 OFFSET：对账期间菜品可能增删，
+        OFFSET 会因行位移漏行/重复行，游标法不受影响。
+    -->
+    <select id="selectDishIdsWithRatings" resultType="long">
+        SELECT d.id
+        FROM dish d
+        WHERE d.rating_count > 0
+          AND d.id > #{lastId}
+        ORDER BY d.id
+        LIMIT #{limit}
     </select>
 
     <!-- 浏览量原子自增（并发安全：读-改-写 → SET view_count = view_count + 1） -->

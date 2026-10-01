@@ -16,7 +16,6 @@ import com.bjtufood.auth.support.AuthStateUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,7 +36,9 @@ public class UserServiceImpl implements UserService {
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<UserVO> listUsers(int page, int pageSize, String status) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
@@ -95,7 +96,9 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void updateStatus(Long id, String status) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
         // 非法值（含 deleted）一律 400，避免垃圾值直接落库
         if (!UserConst.STATUS_ACTIVE.equals(status) && !UserConst.STATUS_DISABLED.equals(status)) {
@@ -105,7 +108,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException("User not found");
         }
-        // 说明：管理端已无登录与角色体系（2026-09-13 定型），用户状态变更不再做「禁止操作自身/越权」判定；
+        // 说明：管理端已无登录与角色体系，用户状态变更不再做「禁止操作自身/越权」判定；
         // 管理端接口整体由 AdminTokenFilter 的口令校验保护。
         user.setStatus(status);
         userMapper.updateById(user);
@@ -139,7 +142,7 @@ public class UserServiceImpl implements UserService {
     /**
      * 游客默认昵称：食客 + ID 尾 4 位（id 不足 4 位时取全量）。
      * <p>
-     * 「游客短标识」不再作为任何接口出参（2026-09-21 spec §7.32）：该值是 `id` 的纯派生，
+     * 「游客短标识」不再作为任何接口出参：该值是 `id` 的纯派生，
      * 学生端与管理端各自按同一规则现算；此处仅用于**建号默认昵称**这一处服务端写入。
      */
     private String buildGuestNickname(Long userId) {

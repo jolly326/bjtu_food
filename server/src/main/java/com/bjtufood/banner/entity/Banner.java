@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 首页顶部 Banner 轮播图实体
  * <p>
- * 对应数据库表：banner（2026-09-22 新增，change「首页 Banner 接口化」）。
+ * 对应数据库表：banner。
  * <ul>
  *   <li>{@code status} 取 {@code on} / {@code off}（与 {@code dish.status} 同风格；**不复活**已随下线删除的
  *       {@code enabled} / {@code disabled} 枚举）；服务端按 {@code status='on'} 过滤，该列不出参。</li>

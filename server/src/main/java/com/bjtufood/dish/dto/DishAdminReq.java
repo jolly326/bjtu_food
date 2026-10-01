@@ -8,7 +8,9 @@ import java.util.Map;
 
 @Data
 @Schema(description = "后台菜品新增/编辑请求参数")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class DishAdminReq {
+    // ⚠️ 冻结：管理端（Web 后台）请求对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     /**
      * 所属档口ID。

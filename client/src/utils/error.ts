@@ -1,5 +1,5 @@
 /**
- * 错误文案与失败提示的**统一出口**（UI 统一 Loop Round 17 · 代码质量轮）
+ * 错误文案与失败提示的**统一出口**
  *
  * 背景：`catch (e: any) { uni.showToast({ title: e?.message || 'xx失败' }) }` 这类样板原先在
  * 认证页 / 资料页 / 我的评价 / 菜品详情 / 评价编辑器 / 图片上传等处各写一份 ——
@@ -21,4 +21,14 @@ export function errorMessage(e: unknown, fallback = '操作失败，请稍后重
 /** 失败提示统一形态：`errorMessage` 文案 + `icon: 'none'` 的 Toast */
 export function toastError(e: unknown, fallback?: string): void {
   uni.showToast({ title: errorMessage(e, fallback), icon: 'none' })
+}
+
+/** 普通提示统一形态（非错误）：固定文案 + `icon: 'none'` */
+export function toastInfo(title: string): void {
+  uni.showToast({ title, icon: 'none' })
+}
+
+/** 成功提示统一形态：固定文案 + `icon: 'success'` */
+export function toastSuccess(title: string): void {
+  uni.showToast({ title, icon: 'success' })
 }

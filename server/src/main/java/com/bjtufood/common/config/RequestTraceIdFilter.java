@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * 请求 traceId 过滤器（2026-09-28 架构收口 D：可观测性）。
+ * 请求 traceId 过滤器。
  * <p>
  * 为每个请求分配一个 {@code traceId} 并写入 SLF4J 的 {@link MDC}，使
  * <b>一次请求内跨 controller / service / 跨域调用的全部日志可用同一 traceId 串联</b>；

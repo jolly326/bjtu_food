@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
@@ -53,7 +52,7 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     private final DishCorrectionMapper correctionMapper;
     /**
-     * 落库事务边界（2026-09-29 性能修正，与 {@link com.bjtufood.feedback.service.impl.FeedbackPersister} 同源）：
+     * 落库事务边界：
      * {@code submit} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）
      * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
      * 现改为「先机审（无事务）→ 再落库（开事务）」。
@@ -64,10 +63,10 @@ public class CorrectionServiceImpl implements CorrectionService {
     private final DishService dishService;
     /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
     private final StallService stallService;
-    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递认证判据（P0-1，替代 UserMapper 直连） */
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     private final LocalSensitiveFilter localSensitiveFilter;
-    /** 微信内容安全检测（2026-09-29 补齐：纠错链路此前是唯一不经微信机审的 UGC 入口） */
+    /** 微信内容安全检测 */
     private final ContentSecurityService contentSecurityService;
     private final NotificationService notificationService;
     private final ImageUrlUtil imageUrlUtil;
@@ -152,7 +151,7 @@ public class CorrectionServiceImpl implements CorrectionService {
             throw new BusinessException(400, "未提交任何改动");
         }
 
-        // ---- 微信内容安全检测（2026-09-29 补齐：纠错是唯一无微信机审的 UGC 入口）----
+        // ---- 微信内容安全检测----
         // 纠错的 name / canteenName / stallName / floor / attributes 均为**用户自由文本**，
         // 且纠错内容会被管理员**采纳并写回**（进入公开展示：菜品经 dish、楼层经 stall.floor），
         // 仅靠本地静态词库不足以覆盖谐音/变体/语义违规。
@@ -200,7 +199,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         return normalized;
     }
 
-    // ==================== 微信内容安全检测（2026-09-29 补齐） ====================
+    // ==================== 微信内容安全检测 ====================
 
     /**
      * 合并纠错中所有<b>用户自由文本</b>字段，拼接为<b>单条</b>待检文本。
@@ -251,7 +250,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 纠错 UGC 文本机检：取提交人 openid 调 {@code msgSecCheck v2}（scene=2 评论场景）。
      * <p>
      * 判定口径与 feedback / review 完全一致：risky 由 {@code checkText} 统一抛 400 拦截；
-     * pass 与 review（疑似）均放行（2026-09-15 已取消人工复核，无待复核落库态）。
+     * pass 与 review（疑似）均放行。
      * <p>
      * <b>边界</b>：纠错为 permitAll 公开入口，登录态缺失时 {@code userId} 为 {@code null}
      * （如微信静默登录失败、非微信端 H5 联调），取不到 openid → {@code msgSecCheck v2}
@@ -272,7 +271,9 @@ public class CorrectionServiceImpl implements CorrectionService {
     // ==================== 管理端列表（GET /admin/corrections） ====================
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<DishCorrectionAdminVO> listForAdmin(String status, int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
@@ -298,11 +299,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 管理端仍需看到菜品名回看内容；菜品已物理删除时不在结果集，VO 保持 null。
         Map<Long, String> dishNameMap = batchDishNames(p.getRecords());
 
-        IPage<DishCorrectionAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream()
-                .map(c -> toAdminVO(c, userMap, dishNameMap))
-                .toList());
-        return result;
+        return PageUtil.toVoPage(p,
+                recs -> recs.stream().map(c -> toAdminVO(c, userMap, dishNameMap)).toList());
     }
 
     /** 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询） */
@@ -348,7 +346,9 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException("纠错不存在");
@@ -401,7 +401,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 不再构造 {@code Dish} 实体、不再注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
      * 属 dish 域落库形态，一并收回 dish 实现。
      * <p>
-     * <b>楼层纠错（2026-09-30 新增）</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
+     * <b>楼层纠错</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
      * （{@code stall.floor}），菜品无楼层字段。故本次纠错携带楼层时，写入上面已解析出的
      * <b>目标档口</b>（{@code resolvedStallId}），同档口下全部菜品的详情楼层一并生效；
      * 写动作经 {@code StallService#updateFloor} 跨域写契约下发（同 P0-1 收口口径）。
@@ -428,7 +428,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setReply(CorrectionConst.ADOPT_REPLY);
         correction.setRejectReason(null);
         correction.setHandledAt(LocalDateTime.now());
-        // 归档实际挂靠档口名（**null-safe，2026-09-30 缺陷修复**）：局部提交下 stallName 快照可为 null
+        // 归档实际挂靠档口名（**null-safe，缺陷修复**）：局部提交下 stallName 快照可为 null
         // （用户未改动档口名），原写法 correction.getStallName().equals(...) 在该情形直接 NPE（采纳 500）。
         // 楼层纠错让这条路径从「罕见」变成常态（仅改楼层的提交 stallName 恒为 null），故必须收口。
         // 语义不变：resolvedStallName 非空且与快照不同（快照为 null 亦属「不同」）时，以实际挂靠档口名归档。
@@ -454,7 +454,9 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void reject(Long id, DishCorrectionHandleReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException("纠错不存在");
@@ -498,8 +500,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 纠错处理回执（采纳/拒绝统一入口，参考 feedback handle 通知实现）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（bind_email 非空，唯一真源 AuthStateUtil）；
-     * 游客（userId 为空）与未认证账号不投递——纠错主路径刻意匿名，不保留可回执身份。
+     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 游客提交的纠错同样保留可回执身份）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      *
      * @param adopted      true=采纳（reply 为固定采纳文案）；false=拒绝（rejectReason 非空）
@@ -512,11 +514,8 @@ public class CorrectionServiceImpl implements CorrectionService {
             return;
         }
         try {
-            // 归属判据与 feedback handle 同源：认证态唯一真源在 auth，经只读契约折算为布尔下发
-            // （用户不存在亦为 false，与「user == null 不投递」同效）
-            if (!userService.isVerifiedById(userId)) {
-                return;
-            }
+            // 投递口径与 feedback handle 同源（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+            // 游客提交的纠错同样收到处理回执。
             // is_read 由 notify 实现侧统一置 0（P0-1：correction 不再 import / 构造 notify 实体）
             notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_CORRECTION_HANDLE,
                     correction.getId(), "菜品信息更新",
@@ -525,6 +524,10 @@ public class CorrectionServiceImpl implements CorrectionService {
                             : "你提交的菜品信息纠错未采纳：" + rejectReason + "。处理说明：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞纠错处理
+            //
+            // D2 澄清（边界）：与 FeedbackServiceImpl 同源——本 catch 只拦得住「提交任务」阶段的异常，
+            // 拦不住「异步线程内写库失败」（@Async 异常不回传）。真正的失败由
+            // NotificationServiceImpl#notify 内部 catch 记 error 日志，不静默。
         }
     }
 }

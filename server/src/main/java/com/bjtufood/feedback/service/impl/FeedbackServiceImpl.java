@@ -44,13 +44,13 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     /**
-     * 落库事务边界（2026-09-29 性能修正）：写路径的 {@code @Transactional} 只包住**落库**本身。
+     * 落库事务边界：写路径的 {@code @Transactional} 只包住**落库**本身。
      * 原先事务从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）⇒ 期间一直占用数据库连接；
      * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。现改为「先机审（无事务）→ 再落库（开事务）」。
      * 必须是**独立 Bean**：Spring 事务靠代理生效，同类的自调用不会开启事务。
      */
     private final FeedbackPersister feedbackPersister;
-    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递的认证判据（P0-1，替代 UserMapper 直连） */
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     /** 跨域只读契约：管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
     private final DishService dishService;
@@ -67,7 +67,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      */
     @Override
     public void submit(Long userId, FeedbackReq req) {
-        // 类型写入白名单（方案 B 2026-09-29）：仅纯反馈三类可写（bug / suggestion / other），
+        // 类型写入白名单（方案 B ）：仅纯反馈三类可写（bug / suggestion / other），
         // 非法 / 历史遗留（issue / add / error / report）→ 400（不再原样落库）；
         // 举报已迁出为 POST /reviews/{id}/report，纠错早前迁出为 POST /dishes/{id}/correction。
         String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
@@ -135,7 +135,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     /**
      * 文本内容安全检测：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
-     * 结果语义（2026-09-15 用户拍板取消人工复核）：risky 由 {@code checkText} 抛 400 拦截；
+     * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
      * pass 与内容安全检测 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
      * 边界：游客（userId=null）与无 openid 账号无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
@@ -151,13 +151,15 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
+    @Deprecated(since = "2026-09", forRemoval = true)
     public IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
         // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
         // 兼容要求：type 白名单含历史遗留 bug/other（QUERY_TYPES），后台按历史类型筛选仍可查到老数据。
-        // 内容安全态筛选入参已随 sec_state 全链退役删除（2026-09-15 取消人工复核，无复核队列）。
+        // 内容安全态筛选入参已随 sec_state 全链退役删除。
         status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
         type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
 
@@ -189,9 +191,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         //       菜品已物理删除时不在结果集，VO 保持 null（前端按「菜品已删除」缺省展示）。
         Map<Long, String> dishNameMap = batchRelatedDishNames(p.getRecords());
 
-        IPage<FeedbackAdminVO> result = new Page<>(page, pageSize, p.getTotal());
-        result.setRecords(p.getRecords().stream().map(f -> toAdminVO(f, userMap, dishNameMap)).toList());
-        return result;
+        return com.bjtufood.common.utils.PageUtil.toVoPage(p,
+                recs -> recs.stream().map(f -> toAdminVO(f, userMap, dishNameMap)).toList());
     }
 
     /**
@@ -224,7 +225,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        // contact 已随列退役（2026-09-16），管理端 VO 不再返回联系方式
+        // contact 已随列退役，管理端 VO 不再返回联系方式
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
@@ -253,19 +254,21 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @Deprecated(since = "2026-09", forRemoval = true)
     public void handle(Long id, FeedbackHandleReq req) {
+        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Feedback feedback = feedbackMapper.selectById(id);
         if (feedback == null) {
             throw new BusinessException("反馈不存在");
         }
-        // §7.16（2026-09-14 用户拍板）：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
+        // §7.16：回复必填——学生收到的处理通知会展示该回复，空回复等于空通知。
         // 纯空白与 null 一律视为未填写：主流仍由 DTO 的 @NotBlank 在 Controller 层拦截（400）；
         // 此处为 Service 层兜底（同口径、同错误码 400），并统一 trim 后落库。
         String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
         if (!StringUtils.hasText(trimmedReply)) {
             throw new BusinessException("请填写处理回复（学生将收到该内容）");
         }
-        // §7.23 第 5 条（2026-09-15）：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
+        // §7.23 第 5 条：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
         // 白名单外一律 400（PR-06），不再静默降级；rejectReason 仅在 rejected 结论下消费与落库。
         String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
                 ? FeedbackConst.OUTCOME_HANDLED
@@ -290,17 +293,17 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
         // §7.10：管理端操作人身份降级（单口令即单人），handler_id 一直未写；
-        // 该列已于 2026-09-16 零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
+        // 该列已于零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
         feedbackMapper.updateById(feedback);
-        // 处理结果回执（携带处理结论与不采纳原因）：仅向「可归属」提交人（提交时为已认证登录用户）投递
+        // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason);
     }
 
     /**
      * 反馈处理结果回执（§7.23 第 5 条：回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（verified=1）。
-     * 游客（userId 为空）与未认证账号不投递——反馈主路径刻意匿名，不保留可回执身份。
+     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 游客提交的反馈同样保留可回执身份）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      *
      * @param rejected    true=处理结论为不采纳/退回（此时 rejectReason 非空，handle 已校验）
@@ -313,11 +316,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             return;
         }
         try {
-            // 仅对已认证用户投递回执（判据 = bind_email 非空，唯一真源在 auth，
-            // 经只读契约折算为布尔下发；用户不存在亦为 false，与原实现同效）
-            if (!userService.isVerifiedById(userId)) {
-                return;
-            }
+            // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+            // 游客提交的反馈同样收到处理回执（此前「仅已认证用户投递」会让游客的消息中心永久空转）。
             // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
             // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文；
             // §7.23 第 5 条：不采纳结论时回执必须带不采纳原因（handle 已保证非空白）。
@@ -328,6 +328,12 @@ public class FeedbackServiceImpl implements FeedbackService {
                             : "你提交的反馈已处理：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理
+            //
+            // D2 澄清（边界）：本 catch 只拦得住「向线程池提交任务」阶段的异常（如池已关闭），
+            // **拦不住「异步线程内写库失败」**——@Async 下异步线程的异常不回传调用方。
+            // 真正的写入失败由 NotificationServiceImpl#notify 内部 catch 就地记 error 日志。
+            // 也就是说「不阻塞主流程」成立，但「失败可被调用方感知」不成立；
+            // 排查丢通知只能看日志（该处已 log.error，不静默）。
         }
     }
 

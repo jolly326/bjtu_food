@@ -118,7 +118,7 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   return segs
 }
 
-/** 菜名 / 位置行的命中拆段结果（Round 28）：原为**模板内调用** —— 每次渲染都重跑拆段与
+/** 菜名 / 位置行的命中拆段结果：原为**模板内调用** —— 每次渲染都重跑拆段与
     `toLowerCase`；改 `computed` 缓存，仅在 `item` / `keyword` 变化时重算（行以 item 为 key 稳定复用）。 */
 const nameSegs = computed(() => splitHighlight(props.item.name))
 const subSegs = computed(() => splitHighlight(props.item.sub || ''))

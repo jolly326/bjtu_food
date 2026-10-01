@@ -6,7 +6,7 @@
          ① 固定标题带：左上角返回 icon（占原页面标题位、与微信胶囊同一水平带）；
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
          两段常驻固定（根层不滚动，滚动只发生在内容区内部）。 -->
-    <!-- 标题带（UI 统一 Loop Round 15 两区版）：有返回 ⇒ 左区「返回」+ 居中区页面名称。
+    <!-- 标题带：有返回 ⇒ 左区「返回」+ 居中区页面名称。
          ⚠️ 页面名称暂定「搜索」（本页语义见 docs/client/ui/client-搜索.md），如需改文案告诉我。 -->
     <AppTitleBand back title="搜索" @back="onBack" />
     <view class="find-search-row">
@@ -25,11 +25,11 @@
 
     <!-- 内容区（find-page-layout-restructure）：双态分支互斥。
          发现态 = 搜索记录 + 猜你喜欢；结果态 = 结果列表。
-         两态**各自**用 `scroll-view` 承载滚动（Round 26 复核）：页面根 `height: 100vh/100dvh + overflow: hidden`
+         两态**各自**用 `scroll-view` 承载滚动：页面根 `height: 100vh/100dvh + overflow: hidden`
          ⇒ 页面自身不滚动；容器 `flex: 1 + min-height: 0` ⇒ 定高 ⇒ 内容未超高时既无滚动条、也无空白可滚区。 -->
     <view class="find-body">
       <!-- ============ 发现主页（搜索记录 + 猜你喜欢）============
-           ⚠️ 用 `v-show` 而非 `v-if`（Round 27 缺陷修复）：`v-if` 会在「点 X 回发现态」时**重建** `scroll-view`
+           ⚠️ 用 `v-show` 而非 `v-if`：`v-if` 会在「点 X 回发现态」时**重建** `scroll-view`
            —— 小程序下新建实例的测量可能早于父级布局完成 ⇒ 高度按 0 计算 ⇒ **整块内容不可见**
            （正是用户报的「回搜索界面看不到搜索记录、返回首页重进才显示」）。常驻 + display 切换
            ⇒ 复用同一个已测量实例，不再重建、不再丢内容。 -->
@@ -103,7 +103,7 @@
       </scroll-view>
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
-           Round 21b：原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
+           原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
            单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/client/ui/client-搜索.md §2「结果行布局」）。 -->
       <!-- ⚠️ 触底事件必须由本 scroll-view 承载：页面根 overflow:hidden + 定高容器下，
            页面级 onReachBottom 不会触发（踩坑记录见 usePagedList 注释） -->
@@ -125,13 +125,13 @@
       </scroll-view>
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
-           Round 28：与空态**共用 `.state-host`**（原 `.find-retry-host` / `.find-empty-host` 两条规则逐字相同）。 -->
+           与空态**共用 `.state-host`**（原 `.find-retry-host` / `.find-empty-host` 两条规则逐字相同）。 -->
       <view v-else-if="inFilter && searchDone && searchFailed" class="state-host">
         <RetryBlock title="搜索加载失败" aria-label="搜索失败，点击重试" :margin="false" @retry="onRetrySearch" />
       </view>
       <!-- 搜索无结果引导（search-no-result-guidance）：请求**已完成**且结果为空才呈现；
            未完成（静默）或失败（走上方重试块）不渲染，避免闪现/误导向。引导把没找到的菜报给我们 -->
-      <!-- 统一空态组件（UI 统一 Loop Round 3）：卡片变体；`.state-host` 只承担整屏居中占位，
+      <!-- 统一空态组件：卡片变体；`.state-host` 只承担整屏居中占位，
            视觉全在公共 `EmptyState` 内（与失败态同语言） -->
       <view v-else-if="inFilter && searchDone" class="state-host">
         <EmptyState
@@ -198,7 +198,7 @@ const HISTORY_MAX = 4
 const historyList = ref<string[]>([])
 
 /** 猜你喜欢词列表（来源：后端 GET /dishes/for-you，由 loadDiscover → fetchGuessLike 拉取）。
-    Round 28：改用 `storeToRefs` —— 原先对 store getter 再包一层 `computed`，属冗余包装。 */
+    改用 `storeToRefs` —— 原先对 store getter 再包一层 `computed`，属冗余包装。 */
 const { guessLikeList } = storeToRefs(dishStore)
 
 function loadHistory() {
@@ -252,12 +252,12 @@ const searchFailed = ref(false)
 // 搜索页不再持有任何筛选状态：不传 canteenId / minPrice / maxPrice，也不传排序参数
 // （排序口径唯一由后端决定：热度优先、不设排序入口）。
 
-/* 搜索结果项类型来自公共 `@/types/dish.MixedResultItem`（UI 统一 Loop Round 17：
+/* 搜索结果项类型来自公共 `@/types/dish.MixedResultItem`（
    原先本页 `MixedResult` 与 FindResults 内 `MixedResultItem` 是逐字段重复的两份定义） */
 const mixedResults = ref<MixedResultItem[]>([])
 
 /**
- * 结果分页（2026-09-29 性能修正）：
+ * 结果分页：
  * 原实现一次性 `pageSize=50` 全量拉取 + 整列渲染 —— 命中多时首屏渲染节点数过大。
  * 改为与首页 / 我的评价一致的**触底增量加载**：首屏只拉 20 条，触底再取下一页。
  * ⚠️ 到底判据只能是「本页返回条数 < pageSize」：后端 `PageResult` 只下发 `records`，无 `total`。
@@ -309,7 +309,7 @@ function clearKeyword() {
 /**
  * 词条点击（搜索记录 / 猜你喜欢）：以该词发起搜索。
  *
- * **写入口径（Round 31 用户口径变更）**：
+ * **写入口径**：
  * · **「猜你喜欢」词条 → 写入搜索记录**（`record = true`）—— 它同样是一次**用户主动发起的搜索**，
  *   与「打字后提交」在用户心智里等价，理应可回溯（此前不写入造成「搜过却没有记录」的困惑）；
  * · **「搜索记录」词条 → 不写入**（`record = false`）—— 该词本就在记录内，重搜无需再置顶；
@@ -408,7 +408,7 @@ function goContributeNotFound() {
 }
 
 /** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口 / 食堂结果 / 详情页）。
-    Round 28：原 `openDishDetail` 仅此一处调用，且与本函数重复判空 ⇒ 合并为单点守卫。 */
+    原 `openDishDetail` 仅此一处调用，且与本函数重复判空 ⇒ 合并为单点守卫。 */
 function goToMixed(id: number) {
   if (!id) return
   uni.navigateTo({ url: dishDetailUrl(id) })
@@ -446,7 +446,7 @@ onMounted(() => {
 
 onShareAppMessage(() => buildSharePayload())
 // 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容；
-// Round 27：同时重读搜索历史 —— 本页被页面栈缓存时 onMounted 不再执行，以存储为真源重读
+// 同时重读搜索历史 —— 本页被页面栈缓存时 onMounted 不再执行，以存储为真源重读
 // 可保证「搜索记录」始终最新（与 exitFilter 时的重读互为兜底）。
 onShow(() => {
   clearShareState()
@@ -455,14 +455,14 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .find-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; box-sizing: border-box; }
 /* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
    搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
 /* 内容区：占满 header 之外的剩余高度；两个分支**各自**自带滚动容器（发现态 discover-body / 结果态 results-host） */
 .find-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-/* 发现态滚动容器（Round 26）：由 `<view>` + `overflow-y:auto` 改为 `scroll-view` ——
+/* 发现态滚动容器：由 `<view>` + `overflow-y:auto` 改为 `scroll-view` ——
    小程序只保证 `scroll-view` 可滚动，`view` 自滚在 iOS / 部分安卓上不可靠，内容超高会被
    `overflow: hidden` 的页根裁掉且不可达。⚠️ `scroll-view` 自身**不写** `overflow-y`
    （滚动由组件内部实现，外挂 CSS 会在 H5 叠出第二根滚动条）。
@@ -478,7 +478,7 @@ onShow(() => {
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
 .discover-card { display: block; margin: 0 var(--spacing-md) var(--spacing-lg); }
-/* 结果态滚动容器（Round 21b：FindResults 并入本页）：
+/* 结果态滚动容器：
    flex 链占满剩余高度；底部留白（原 FindResults .results-scroll）随容器自带 */
 .results-host {
   flex: 1;
@@ -497,7 +497,7 @@ onShow(() => {
   gap: var(--spacing-sm);
 }
 
-/* 空态 / 失败态**共用宿主**（Round 28 合并：两条规则原先逐字重复，仅注释不同）：
+/* 空态 / 失败态**共用宿主**：
    只承担整屏居中占位与边距，视觉分别由公共 `EmptyState`（卡片变体）/ `RetryBlock` 承担。 */
 .state-host {
   flex: 1;

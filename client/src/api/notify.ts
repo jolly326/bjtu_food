@@ -24,12 +24,12 @@ export interface Notification {
   id: number
   title: string
   content: string
-  /** 是否已读：`true`=已读 / `false`=未读（**布尔契约**；2026-09-29 由 0/1 数字改） */
+  /** 是否已读：`true`=已读 / `false`=未读（**布尔契约**；由 0/1 数字改） */
   isRead: boolean
   createdAt?: string
 }
 
-/** 强类型入参（2026-09-29 契约单一真源）：取自生成契约，后端改字段即编译期报错 */
+/** 强类型入参：取自生成契约，后端改字段即编译期报错 */
 function toNotification(raw: NotificationVO): Notification | null {
   if (!raw) return null
   return {
@@ -46,7 +46,7 @@ function toNotification(raw: NotificationVO): Notification | null {
  * 我的消息列表（STU，倒序）。
  * 分页壳只有 `records`：结束判据 = 本页返回条数 < 请求的 `pageSize`。
  */
-export async function getNotifications(params: {
+export async function listNotifications(params: {
   /** 已读过滤：`true`=仅已读 / `false`=仅未读；不传 = 全部（端上当前恒不传） */
   isRead?: boolean
   page?: number

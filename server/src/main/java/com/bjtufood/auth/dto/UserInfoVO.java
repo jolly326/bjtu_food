@@ -17,10 +17,11 @@ import lombok.Data;
  *       端上判据统一为 {@code bindEmail != null}，DB 列 user.verified/verified_at 同批退役；</li>
  *   <li>{@code email}——微信体系下无写入点、恒为 NULL；</li>
  *   <li>{@code status}——端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
- *   <li>{@code guestShortId}——`id` 的纯派生值，改由消费端按 `id` 现算；</li>
+ *   <li>{@code guestShortId}——`id` 的纯派生值，端上不再派生展示
+ *       （游客身份由建号默认 {@code nickname}「食客 + ID 尾 4 位」承载）；</li>
  *   <li>{@code createdAt}——端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）；</li>
- *   <li>{@code username}——**2026-09-29 按「零消费即删」移出出参**：端上两处身份展示
- *       （「我的」页用户卡副行、「我的主页」信息卡 / 编辑页）均已统一渲染
+ *   <li>{@code username}——**按「零消费即删」移出出参**：端上两处身份卡
+ *       （「我的」页用户卡、「我的主页」信息卡）**认证态副行**均已统一渲染
  *       {@code bindEmail}（完整校园邮箱），不再渲染裸学号；`username` 出参端上零消费。
  *       账号标识本身仍保留在 {@code user} 表与 JWT 载荷（{@code username}，仅供日志），
  *       属服务端内部字段，不进公开出参。</li>

@@ -34,9 +34,9 @@ export const WX_SERVICE = 'bjtu-food'
 /**
  * callContainer 请求路径前缀（**从 API_BASE_URL 推导，不再硬编码 `/api`**）。
  *
- * <p><b>为何必须推导而非写死（2026-09-29 修复）</b>：原实现是
+ * <p><b>为何必须推导而非写死</b>：原实现是
  * {@code path: url.startsWith('/api') ? url : `/api${url}`}，即小程序分支**自行拼 `/api` 前缀**、
- * 完全不读 {@code API_BASE_URL}。而后端 {@code context-path} 在 2026-09-28 已由
+ * 完全不读 {@code API_BASE_URL}。而后端 {@code context-path} 在 已由
  * {@code /api} 升级为 {@code /api/v1}，于是：
  *
  * <pre>
@@ -65,7 +65,7 @@ function resolveContainerPathPrefix(): string {
 }
 
 /** callContainer 路径前缀（如 `/api/v1`）；与 {@link API_BASE_URL} 的路径段恒同源 */
-export const WX_PATH_PREFIX = resolveContainerPathPrefix()
+const WX_PATH_PREFIX = resolveContainerPathPrefix()
 
 /**
  * 拼接 callContainer 的最终 path。

@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 档口服务接口
  * <p>
- * 档口已去实体化（2026-09-14）：降级为「菜品筛选属性字典」，生命周期仅「新增 / 改名（编辑）」＋列表查询，
+ * 档口已去实体化：降级为「菜品筛选属性字典」，生命周期仅「新增 / 改名（编辑）」＋列表查询，
  * 无删除、无停业/审核能力；一个档口仍从属于一个食堂（canteen_id）。
  */
 public interface StallService {
@@ -29,7 +29,7 @@ public interface StallService {
     void update(Stall stall);
 
     /**
-     * 写回档口楼层（**跨域写契约：correction → canteen**，2026-09-30 楼层纠错新增）。
+     * 写回档口楼层（**跨域写契约：correction → canteen**，楼层纠错新增）。
      * <p>
      * <b>为何是独立入口而不是复用 {@link #update(Stall)}</b>：
      * <ol>

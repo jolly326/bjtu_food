@@ -30,13 +30,11 @@
 /**
  * EmptyState —— 「暂无数据」空态展示块
  *
- * 消费方（Round 2 首批迁移 3 处，其余见各页设计稿 `docs/client/ui/**`）：
+ * 消费方：
  * - pages/notifications/index.vue（暂无通知）
  * - pages/my-reviews/index.vue（游客态 / 删空后的提示）
- * （原 `pages/detail/dish/DishSummaryCard.vue`「还没有评分」消费方已随该卡移除 —— UI 统一 Loop Round 19；
- *   菜品详情零评价现由 `DishInfoCard` 的评分行以轻文案「暂无评分」表达。）
  *
- * 仅承载展示与 CTA 上抛；数据获取、空/失败判定与重拉路径由各消费方持有（与迁移前一致）。
+ * 仅承载展示与 CTA 上抛；数据获取、空/失败判定与重拉路径由各消费方持有。
  */
 import IconSvg from './IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'

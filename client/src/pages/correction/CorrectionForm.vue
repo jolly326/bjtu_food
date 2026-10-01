@@ -2,32 +2,26 @@
   <!--
     CorrectionForm（correction 包内私有，页面根组件）——「锚定只读 + 基础信息 + 动态属性 + 图片 + 提交」。
 
-    结构（自上而下，UI 稿「卡片结构」七段；卡片内**不使用分割横线**，靠间距 / 分组区分）：
-      ① 顶部提示横幅 → ② 菜品锚定信息区（只读，无点击无箭头）→ ③ 基础信息（下划线轻量输入）
-      → ④ 属性编辑区（`AttributeGroup` ×N）→ ⑤ 图片（≤3）→ ⑥ 提交说明 → ⑦ 提交按钮。
+    结构（自上而下，UI 稿「卡片结构」六段；卡片内**不使用分割横线**，靠间距 / 分组区分）：
+      ① 菜品锚定行（纯文本、只读，无点击无箭头，**页首无提示条**）→ ② 基础信息（下划线轻量输入）
+      → ③ 属性编辑区（`AttributeGroup` ×N）→ ④ 图片（≤3）→ ⑤ 提交说明 → ⑥ 提交按钮。
     表单值由父级 `useCorrection` 持有（唯一真源），本组件只做渲染与就地写回（**不改结构、不换算金额**）。
   -->
   <view class="q-card">
-    <!-- ① 顶部提示横幅（主色浅底 + 提示图标，禁 emoji） -->
-    <view class="banner">
-      <IconSvg name="info" :size="28" :color="COLOR_MAP['primary-text']" />
-      <text class="banner-text">已自动填充菜品原有信息，只修改存在错误的项目即可，提交后等待人工审核</text>
-    </view>
-
-    <!-- ② 菜品锚定信息区（只读）：标题 +「菜品名称 ｜ 食堂 · 楼层 · 档口」+ 辅助小字，无任何交互 -->
+    <!-- ① 菜品锚定行（纯文本 · 只读）：无标题、无底色、无卡片背景；预填未就绪时仅显示载入文案。
+         「正在纠错」标题与「菜品固定不可切换」小字已按 UI 稿移除（禁再补回）。 -->
     <view class="anchor">
-      <text class="anchor-title">正在纠错</text>
-      <view class="anchor-line">
+      <text v-if="detailLoading" class="anchor-loading">正在载入菜品信息…</text>
+      <view v-else class="anchor-line">
         <text class="anchor-name">{{ dishName || '——' }}</text>
         <text v-if="dishLocation" class="anchor-sep">｜</text>
         <text v-if="dishLocation" class="anchor-loc">{{ dishLocation }}</text>
       </view>
-      <text class="anchor-note">{{ detailLoading ? '正在载入菜品信息…' : '来自菜品详情页，菜品固定不可切换' }}</text>
     </view>
 
-    <!-- 预填未就绪时只留锚定卡（不渲染半截表单，避免误改 / 误提交） -->
+    <!-- 预填未就绪时只留锚定行（不渲染半截表单，避免误改 / 误提交） -->
     <template v-if="!detailLoading">
-      <!-- ③ 基础信息表单（标签在左 + 下划线下框，禁全包围矩形框；**无「原价」行**）
+      <!-- ② 基础信息表单（标签在左 + 下划线下框，禁全包围矩形框；**无「原价」行**；**仅字段名，不放附加说明小字**）
            **R40 双列并排**：菜品名称跨整行；售价｜食堂名称、楼层｜档口名称各占一行两列。
            实现用 flex 两列（`.cell` 各 `flex: 1 1 0` + `min-width: 0`），**不用 CSS grid**
            （本项目 client/src 零 grid 先例，见 UI 稿禁止项 12）。 -->
@@ -174,7 +168,7 @@
         @select="onFloorSelect"
       />
 
-      <!-- ④ 属性编辑区（维度由后端下发：端上零硬编码维度名；候选仅作提示）
+      <!-- ③ 属性编辑区（维度由后端下发：端上零硬编码维度名；候选仅作提示）
            `:first` 由 index 显式下发：首组去上边距 —— 组间距不依赖跨组件 `.ag:first-child`（mp-weixin 不可靠） -->
       <view v-if="model.attributes.length" class="attrs">
         <AttributeGroup
@@ -190,9 +184,9 @@
         />
       </view>
 
-      <!-- ⑤ 图片（选填，≤3 张；上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
+      <!-- ④ 图片（选填，≤3 张；上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
       <view class="img-block">
-        <text class="img-title">补充实拍图片（选填，至多上传 3 张）</text>
+        <text class="img-title">补充实拍图片（选填，最多 3 张）</text>
         <ImagePicker
           :model-value="model.images"
           :max="UGC_IMAGE_MAX"
@@ -201,8 +195,8 @@
         />
       </view>
 
-      <!-- ⑥ 提交说明（不暗示提交即生效）+ ⑦ 提交按钮（随内容滚动，非固定底栏） -->
-      <text class="submit-note">提交修改后将进入人工审核，审核通过才会更新菜品信息</text>
+      <!-- ⑤ 提交说明（不暗示提交即生效）+ ⑥ 提交按钮（随内容滚动，非固定底栏） -->
+      <text class="submit-note">提交后人工审核，审核通过更新菜品信息</text>
       <view class="submit-area" @tap="onSubmitTap">
         <AppButton
           :text="submitting ? '提交中…' : '提交纠错'"
@@ -222,7 +216,7 @@
  * CorrectionForm —— 菜品纠错页根组件（表单数据渲染 + 校验错误呈现 + 提交触发）
  *
  * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
- * 只负责「七段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。
+ * 只负责「六段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。
  * 图标走 `IconSvg`、图片占位走 `ImagePlaceholder`（经 `ImagePicker` 间接消费）、
  * 事件统一 `@tap`、按压用 hover-class 透明度微降（禁 `transform: scale`）、颜色全语义 token。
  */
@@ -234,6 +228,7 @@ import AttributeGroup from './AttributeGroup.vue'
 import FloorPickerSheet from './FloorPickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
 
@@ -343,7 +338,7 @@ function onImagesChange(urls: string[]) {
  */
 function onSubmitTap() {
   if (props.submitting || props.canSubmit) return
-  uni.showToast({ title: props.gateHint || '还不能提交', icon: 'none' })
+  toastInfo(props.gateHint || '还不能提交')
 }
 </script>
 
@@ -359,40 +354,16 @@ function onSubmitTap() {
   box-sizing: border-box;
 }
 
-/* ===== ① 顶部提示横幅（主色浅底圆角 12rpx 档 → `--radius-xs`，深橙文字 + 提示图标） ===== */
-.banner {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-xs);
-  padding: 12rpx var(--spacing-sm);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-xs);
-  box-sizing: border-box;
-}
-.banner-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-size: var(--font-tiny);
-  line-height: 1.5;
-  color: var(--color-primary-text);
-}
-
-/* ===== ② 菜品锚定信息区（只读：浅米底小卡，无点击、无箭头） ===== */
-.anchor {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--bg-input);
-  border-radius: var(--radius-xs);
-  box-sizing: border-box;
-}
-.anchor-title { font-size: var(--font-tiny); color: var(--color-primary-text); font-weight: var(--weight-medium); }
-.anchor-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--spacing-2xs); margin-top: var(--spacing-2xs); }
+/* ===== ① 菜品锚定行（纯文本 · 只读：**无底色 / 无卡片背景 / 无标题与辅助小字**，无点击、无箭头）
+   页首即本行，与下方表单的间距由 `.form` 的 margin-top 承担 ⇒ 本行自身不加 margin-top。 */
+.anchor-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--spacing-2xs); }
 .anchor-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
 .anchor-sep { font-size: var(--font-aux); color: var(--text-placeholder); }
 .anchor-loc { font-size: var(--font-aux); color: var(--text-secondary); }
-.anchor-note { display: block; margin-top: var(--spacing-2xs); font-size: var(--font-tiny); color: var(--text-tertiary); }
+/* 预填未就绪态：仅渲染这一行载入文案（表单不渲染，防误改误提交） */
+.anchor-loading { font-size: var(--font-aux); color: var(--text-tertiary); }
 
-/* ===== ③ 基础信息（下划线轻量输入 · R40 双列并排） ===== */
+/* ===== ② 基础信息（下划线轻量输入 · R40 双列并排） ===== */
 .form { margin-top: var(--spacing-lg); }
 /* 每行 = 一个 `.row`；R40 起 `.row` 内部装 1（跨整行）或 2（双列）个 `.cell`。
    **不用 CSS grid**（本项目 client/src 零 grid 先例，UI 稿禁止项 12）—— 双列靠 flex 均分。 */
@@ -428,7 +399,7 @@ function onSubmitTap() {
   /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
   height: 88rpx;
   /* 输入框背景透明、仅保留底部横线（禁全包围矩形框） */
-  border-bottom: 2rpx solid var(--border-color);
+  border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
@@ -482,14 +453,14 @@ function onSubmitTap() {
   color: var(--text-tertiary);
 }
 
-/* ===== ④ 属性编辑区（每个维度一组 AttributeGroup；组成员间距由组件内 `.ag` 承担） ===== */
+/* ===== ③ 属性编辑区（每个维度一组 AttributeGroup；组成员间距由组件内 `.ag` 承担） ===== */
 .attrs { margin-top: var(--spacing-lg); }
 
-/* ===== ⑤ 图片区 ===== */
+/* ===== ④ 图片区 ===== */
 .img-block { margin-top: var(--spacing-lg); }
 .img-title { display: block; margin-bottom: var(--spacing-sm); font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-secondary); }
 
-/* ===== ⑥⑦ 提交说明 + 提交按钮（随内容滚动）+ 失败提示 ===== */
+/* ===== ⑤⑥ 提交说明 + 提交按钮（随内容滚动）+ 失败提示 ===== */
 .submit-note {
   display: block;
   margin-top: var(--spacing-lg);

@@ -13,7 +13,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 /**
  * 反馈管理接口（Web 后台，ADM）
@@ -23,7 +22,9 @@ import java.util.List;
 @RequestMapping("/admin/feedbacks")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class FeedbackAdminController {
+    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final FeedbackService feedbackService;
 

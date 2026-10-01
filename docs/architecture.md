@@ -1,8 +1,6 @@
 # 后端架构说明（server/）
 
-> 建立于 2026-09-28。此前仓库无架构文档（`docs/architecture.md` 于 2026-09-27 删除后未补），
-> 架构约定仅散落在各类的 javadoc 与 agent 指引中。本文是**后端架构的现行真源**。
-> 各域的详细职责/依赖方向以 `server/src/main/java/com/bjtufood/*/package-info.java` 为准。
+> 本文是**后端架构的现行真源**。各域的详细职责 / 依赖方向以 `server/src/main/java/com/bjtufood/*/package-info.java` 为准。
 
 ## 1. 技术栈与形态
 
@@ -19,7 +17,7 @@
 **形态：模块化单体（modular monolith）**——单一部署单元，域间以**进程内契约**协作，不引 MQ、不拆微服务。
 拆分动议出现时，域边界即拆分线（本文的边界约定因此是强制的）。
 
-## 1.1 两端接口边界（2026-09-29 新增，**由 `FrontendApiIsolationTest` 强制**）
+## 1.1 两端接口边界（**由 `FrontendApiIsolationTest` 强制**）
 
 仓库含**两个前端**，消费**同一个后端**但走**两套互不通的鉴权**：
 
@@ -32,20 +30,14 @@
 GitHub / Stripe / 各类 SaaS 均为「一个后端 + 一套 API + 两种鉴权」；真正的隔离在
 **承载写操作与敏感数据的 `/admin/**`**——可在一个地方统一施加 IP 白名单、限频、审计、CORS 策略。
 
-**允许共享**：**非敏感的公开只读字典/枚举端点**。它们在 `SecurityConfig` 内是 `permitAll`，
+**允许共享**：**非敏感的公开只读字典 / 枚举端点**。它们在 `SecurityConfig` 内是 `permitAll`，
 数据本身公开，两端复用不产生安全暴露，也避免为 web 复制冗余出口：
 
 | 数据 | 端点 | 性质 |
 |---|---|---|
 | 筛选视图字典 | `GET /dishes/views` | 公开只读，**两端共用** |
-| 描述属性维度字典 | `GET /dishes/attributes` | 公开只读，**两端共用**（2026-09-29 补齐，见下） |
-| 举报原因字典 | `GET /report-reasons` | 公开只读，**两端共用**（2026-09-30 自 `/feedback/report-reasons` 迁出：字典不是「反馈提交」的子资源） |
+| 举报原因字典 | `GET /report-reasons` | 公开只读，**两端共用**（字典不是「反馈提交」的子资源，故独立于 `/feedback/**`） |
 | 菜品 CRUD / 审核 / 用户状态 | `/admin/dishes/**` 等 | **管理端专属**（口令保护） |
-
-> **`GET /dishes/attributes` 曾长期 404（2026-09-29 修复）**：web 端 `listDishAttributes()`
-> 一直在调这个端点，而**后端从未实现**（本域只有按单菜的 `/dishes/{id}/attributes`），
-> 导致管理后台「描述四维录入选项」始终为空。因 404 发生在网关层、后端日志收不到，该问题
-> 长期无人察觉。现已补齐，并由 `FrontendApiIsolationTest#web_calledPathsExistInBackend` 兜底。
 
 **护栏规则**（`mvn test` 阶段强制）：
 
@@ -78,8 +70,7 @@ com.bjtufood
 └── common       跨域共享层（零业务依赖）
 ```
 
-`common` 内部按**关注点**再分一层（2026-09-28 收口；此前 `config` 一包混装三类关注点，
-读某个 `Config` 还得先判断它属于 Web 还是 DB）：
+`common` 内部按**关注点**再分一层：
 
 | 子包 | 内容 | 判定依据 |
 |---|---|---|
@@ -134,17 +125,16 @@ com.bjtufood
 
 事件一律放**发布方**包内。订阅方在 `event/` 下建 Listener。
 
-> ⚠️ **已知包级环（2026-09-28 复核）**：`beFreeOfCycles()` 仍不可启用，ArchUnit 1.3 无法对其做有效豁免。
+> ⚠️ **已知包级环**：`beFreeOfCycles()` 未启用，ArchUnit 1.3 无法对其做有效豁免。
 >
 > | 环 | 性质 | 处置 |
 > |---|---|---|
-> | `dish → review → dish` | **发布/订阅**：`RatingUpdateListener` 订阅 `ReviewSubmittedEvent` 重算评分，语义单向（review 毫不知情），无技术债 | **保留**。仅因监听器签名引用了 review 的事件类型而成包级环 |
-> | ~~`canteen → review → dish → canteen`~~ | **真实技术债**：canteen（菜品属性字典）反向依赖 review 拉取派生展示值 | **已偿还**：均分上移至 `CanteenAdminController#fillAvgRatings` 编排，由 `ArchTests#canteenBusinessLayers_mustNotDependOnReview` 锁死 |
+> | `dish → review → dish` | **发布 / 订阅**：`RatingUpdateListener` 订阅 `ReviewSubmittedEvent` 重算评分，语义单向（review 毫不知情），无技术债 | **保留**。仅因监听器签名引用了 review 的事件类型而成包级环 |
 >
 > 不把事件类挪到 `common` 来「骗过」检测——那会违背上段「事件归发布方包」的约定，属于为工具而扭曲设计。
-> 待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，即可直接加回并豁免第 1 条。
+> 待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后启用环检测，并对本条环豁免。
 
-**同步 vs 异步**：归属迁移/注销的监听器用同步 `@EventListener`（须与发布方事务同进同退）；
+**同步 vs 异步**：归属迁移 / 注销的监听器用同步 `@EventListener`（须与发布方事务同进同退）；
 评分重算用 `@Async` + `@TransactionalEventListener(AFTER_COMMIT)`（聚合失败只告警，不阻断 UGC 主链路）。
 
 ## 5. 事务边界
@@ -157,8 +147,7 @@ com.bjtufood
 ## 6. 配置管理
 
 **统一用 `@ConfigurationProperties` 类型化绑定**（`@EnableConfigurationProperties` 显式登记于启动类），
-**禁止 `@Value` 散读配置**。理由：`wechat.appid`/`wechat.secret` 曾被两个类各绑一次，
-「是否已配置」判据也分裂成两处独立实现；且类型化后单测可直接构造配置对象，
+**禁止 `@Value` 散读配置**。理由：类型化后「是否已配置」只有一处判据，且单测可直接构造配置对象，
 不必反射改被测类的私有字段。
 
 配置类**随所属域走**，不集中塞进 `common`（否则会违反规则 3）：
@@ -168,7 +157,7 @@ com.bjtufood
 > 本项目**不用** `@ConfigurationPropertiesScan`：切片测试用 `@ContextConfiguration` 取代主配置，
 > 扫描式注册对其无效。
 
-**密钥红线**：一切凭据由环境变量注入，仓库不存明文。`JwtUtil` 启动期 fail-fast 拒绝弱密钥/仓库默认密钥；
+**密钥红线**：一切凭据由环境变量注入，仓库不存明文。`JwtUtil` 启动期 fail-fast 拒绝弱密钥 / 仓库默认密钥；
 `AdminTokenFilter` 未配置口令时 **fail-closed 拒绝全部 `/admin`**。
 
 ## 7. 接口与路径
@@ -180,12 +169,13 @@ com.bjtufood
 - 统一响应 `Result<T>{code,message,data}` / 分页 `PageResult<T>`；错误码仅
   `200/400/401/403/4001/4031/500`（`4001`=资源不存在、`4031`=邮箱未认证，二者为细分码）；
   `GlobalExceptionHandler` 兜底，Controller 不得裸抛。
+- **响应压缩**：`server.compression` 已启用（JSON / 文本类，≥1KB 才压），显著降低移动端传输体积。
 
 ## 8. 可观测性
 
 - **Actuator**（prod 暴露面收敛为 `health`/`info`，路径 `/api/v1/actuator/health`，
   并在 `SecurityConfig` 白名单放行以支持探针）。
-- **日志**：`logback-spring.xml` 按 profile 分环境；prod 异步写文件（按天+100MB 滚动，保留 30 天/上限 10GB）。
+- **日志**：`logback-spring.xml` 按 profile 分环境；prod 异步写文件（按天 + 100MB 滚动，保留 30 天 / 上限 10GB）。
 - **traceId**：`RequestTraceIdFilter`（`HIGHEST_PRECEDENCE+10`）为每个请求分配 `traceId`
   写入 MDC 并回写 `X-Trace-Id` 响应头，使一次请求内跨域调用日志可串联。
   外部传入的 `X-Trace-Id` 仅在匹配 `[A-Za-z0-9_-]{1,64}` 时复用（防日志伪造）。
@@ -199,22 +189,19 @@ com.bjtufood
 | 契约 | `OpenApiContractSyncTest` | **端上生成产物是否仍跟得上 VO**（见 §9.1） |
 | 接口 | `SmokeApiTest`（`@WebMvcTest` 切片） | 六链路契约；显式 `@Import` 被测 Bean，零 DB 依赖 |
 | 单测 | Mockito 打桩 | Service 边界：值域校验、权限判据、跨域契约调用 |
-| 上下文 | `BjtuFoodApplicationTests` | 装配完整性（Bean 缺失/循环依赖即红） |
+| 上下文 | `BjtuFoodApplicationTests` | 装配完整性（Bean 缺失 / 循环依赖即红） |
 | 启动 | `mvn -o -B clean test` | 离线可跑，CI 基线 |
 | 端上 | `npm run verify`（client） | `check:contract` + `vue-tsc --noEmit`，提交前必跑 |
 
-> 架构护栏的价值已被验证：2026-09-28 曾用 ArchUnit 环检测检出 2 个真实包级环
-> （详见第 10 节）。因豁免机制对环检测无效，该规则已撤下并留档待偿还。
+环检测（`beFreeOfCycles()`）因 ArchUnit 豁免机制对其无效而未启用；相关包级环见第 10 节 P1。
 
-### 9.1 契约单一真源（2026-09-29）
+### 9.1 契约单一真源
 
-**要防的具体事故**：端上曾以 `RawRow = Record<string, any>` 承接后端响应，
-**契约无编译期保障**——后端改字段，端上编译全绿，真机上字段变空白。
-这是此前所有数据问题的根因，其余措施都只是治标。
+**目标**：端上响应类型由后端 VO 生成，后端字段变更须在端上编译期暴露——杜绝「后端改字段、端上编译全绿、真机字段变空」。
 
 **方案**：后端 VO 为真源 → SpringDoc 导出 `openapi.json` → `openapi-typescript`
 生成端上 TS 类型 → 端上 `toXxx` 适配器只做**有业务语义的**转换
-（分→元、字段别名、零值兜底），不再承担「猜字段存在与否」的职责。
+（分→元、字段别名、零值兜底），不承担「猜字段存在与否」的职责。
 
 ```
 后端 VO ──(运行中服务 /api/v1/v3/api-docs)──> client/openapi.json
@@ -222,7 +209,7 @@ com.bjtufood
         ──(shared.ts 逐个具名 re-export)──> client/src/api/*.ts 的强类型入参
 ```
 
-**关键：生成类型本身也会过期**，故配了两道拦截（这是本方案能否成立的关键）：
+**生成类型本身也会过期**，故配了拦截：
 
 | 漂移场景 | 后果 | 拦截者 |
 |---|---|---|
@@ -235,11 +222,10 @@ com.bjtufood
 > （如 `client` 的 `ReportReason`——契约字段全 `?`，端上在 api 层兜底成必填；
 > `DishListItem` 更是把 `canteenName`→`canteen`、分→元），那层适配有业务语义，
 > 拦了反而会逼人写 `as any`。
->
-> **判据 2/4 的正则曾静默失效**：生成文件是 **TS 语法**（块尾 `};`、字段 `f?: T;` 带分号），
-> 按 JSON 形态写的正则**永不匹配**且不报错。护栏自身失效比没有护栏更危险，
-> 故每条判据都以**负向测试**（故意注入违规 → 确认为红）验收。
->
+
+> **判据均以负向测试验收**（故意注入违规 → 确认为红）：护栏自身失效比没有护栏更危险。
+> 生成文件是 **TS 语法**（块尾 `};`、字段 `f?: T;` 带分号），按 JSON 形态写的正则不会匹配且不报错。
+
 > **范围**：`client/` + `server/`。`web/` 处于待重构状态，**刻意不施加护栏**——
 > 对一个即将重写的目录做约束只会制造二次清理的噪音。
 
@@ -252,59 +238,30 @@ com.bjtufood
 
 | # | 债务 | 影响 | 偿还路径 |
 |---|---|---|---|
-| P1 | `dish → review` 因事件订阅成包级环 | 包级环编译期不报错、只在运行时爆炸 | 语义单向，属可接受的发布/订阅形态；待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，随环检测规则一并恢复 |
-| P2 | 12 个 Service 实现中 10 个零单测 | 事务边界/权限判据等易错逻辑无回归保护 | 逐个补 Mockito 单测 |
+| P1 | `dish → review` 因事件订阅成包级环 | 包级环编译期不报错、只在运行时爆炸 | 语义单向，属可接受的发布 / 订阅形态；待 ArchUnit 支持对 `beFreeOfCycles()` 生效的豁免后，随环检测规则一并恢复 |
+| P2 | 12 个 Service 实现中 10 个零单测 | 事务边界 / 权限判据等易错逻辑无回归保护 | 逐个补 Mockito 单测 |
 | P2 | `WechatAccessTokenProvider` 失败文案沿用「内容安全检测服务」措辞 | 该类同时服务 upload，上传失败场景措辞不贴切 | 统一为「微信服务」口径（会变更 API 返回文本，需评估） |
-| P2 | `web/`（管理后台）计划整体重构 | 现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文；且未接入契约生成类型（仍是手写 `RawXxx`） | **已明确由用户后期自行重构**，本轮不介入；重构时可复用 `client/openapi.json` 生成产物 |
+| P2 | **`web/`（管理后台）及其后端接口软冻结** | `web/` 计划整体重构；现有 `api/http.ts` 5s 固定超时、无请求取消、`X-Admin-Token` 硬编码在 env 明文；且未接入契约生成类型（仍是手写 `RawXxx`）。后端 `server/` 的 `/admin/**` 接口标注 `@Deprecated(forRemoval=true)` 软冻结（保留运行、待重构移除），详见 `docs/client/feature/README.md`「管理端冻结」段 | **已明确由用户后期自行重构**，本轮不介入；重构时可复用 `client/openapi.json` 生成产物 |
 | P2 | `client/src/types/generated` 未覆盖全部 41 个端点 | 契约共 160 个 schema，端上已 re-export 16 个（dish/review/user/notify/banner/feedback/upload 主链路已强类型化）；管理端专属 VO（`DishAdminVO` / `ReviewAdminVO` 等）与**入参 DTO**（`DishCorrectionReq` / `ReviewReq` 等）仍为手写 | 入参侧优先（写错会直接 400）；逐模块补 re-export，`check:contract` 已阻止 `RawRow` 回潮 |
+| P2 | `web/api/feedback.ts` 的 `ReportReason` 多声明了后端**不存在**的 `order: number`（后端 `record ReportReason(value,label)` 只有 2 字段，运行时该值恒 `undefined`）；`web/api/dish.ts#listMealTypes` 读 `raw.order ?? 0` 得到**恒 0 假值**，其 `.sort()` 退化为**恒返回 0 的比较器**（等于没排） | 字段恒空 / 排序失效 | 留待 web 重构时一并处理 |
 
-> **已偿还（2026-09-29 契约单一真源 + 历史包袱清理）**：
-> - ~~**端上契约无编译期保障（`RawRow = Record<string, any>`）**~~ —— 见 §9.1。
->   `client` 全部 api 模块（dish / review / user / notify / banner / feedback / upload）
->   已改用生成的强类型，`RawRow` 退为纯兜底，并由 `check:contract`（**扫 `src/` 全树**）守卫。
-> - ~~**`web/api/adapter.ts` 的 snake_case 双写死代码**~~ —— 后端 Jackson 全局 camelCase
->   （无 `SNAKE_CASE` 配置，已实测 `GET /dishes/1` 出参确认），故 `raw.canteen_name` 一类
->   兜底**永不命中**。client 侧 `canteenName||canteen`、`bindEmail||bind_email`、
->   `userInfo||user` 三处历史兜底已删除。
-> - ~~**client 侧契约消费缺口**~~ —— `upload.ts` 的 `{ url: string }`、
->   `review.ts` 的 `{ id: number }`、两端各自的 `ReportReason` 手写副本，
->   均改为消费生成契约（`UploadResultVO` / `ReviewCreatedVO` / `ReportReasonVO`）。
+**内容审核覆盖**：四条 UGC 写链路的**文本**均已过微信 `msgSecCheck v2`
+（评价 / 反馈 / 昵称 / **菜品纠错**），**图片**均已过 `imgSecCheck`（`/upload/cloud-image` 上传时统一执行）。
+菜品纠错把 `name` / `canteenName` / `stallName` / `attributes` 四类**用户自由文本**合并为**单次**调用送检
+（`msgSecCheck` 按调用计费，逐字段送检会放大 4 倍额度），`scene=2`；纯 `price` / `images` 改动跳过送检以省额度，
+由 `CorrectionModerationTest`（10 用例）锁定「合并一次 / 四字段全覆盖 / risky 拦截不落库 / 纯结构化跳过」。
+本地词库 `sensitive_words.txt` 共 160 条，`LocalSensitiveFilter#init()` 为 **fail-fast**
+（词库缺失或解析出 0 条即拒绝启动），由 `LocalSensitiveFilterTest` 锁定「≥100 条有效词条」。
 
-> **已撤回（2026-09-29，用户明确 web 后期自行重构）**：本轮曾为 web 接入契约
-> 生成类型并修正 2 处缺陷，现已全部还原（`git checkout -- web/`）：
-> - `web/api/feedback.ts` 的 `ReportReason` 多声明了后端**不存在**的 `order: number`
->   （后端 `record ReportReason(value,label)` 只有 2 字段，运行时该值恒 `undefined`）；
-> - `web/api/dish.ts#listMealTypes` 读 `raw.order ?? 0` 得到**恒 0 假值**，
->   其 `.sort((a,b) => a.order - b.order)` 退化为**恒返回 0 的比较器**（等于没排）。
->
-> 二者均为**真实缺陷**，不因撤回而消失，留待 web 重构时一并处理。
-> 相应的 `web/src/api/contract.d.ts`、`web/src/api/types.ts` 与 web 端门禁判据亦已移除。
-
-> **已偿还（2026-09-29 架构评审 + 内容审核收口）**：
-> - ~~**菜品纠错链路无微信机审**~~ —— `CorrectionServiceImpl#submit` 已接入 `msgSecCheck v2`：
->   把 `name` / `canteenName` / `stallName` / `attributes` 四类**用户自由文本**合并为
->   **单次**调用送检（`msgSecCheck` 按调用计费，逐字段送检会放大 4 倍额度），
->   `scene=2`；纯 `price` / `images` 改动跳过送检以省额度。
->   由 `CorrectionModerationTest`（10 用例）锁定「合并一次 / 四字段全覆盖 / risky 拦截不落库 / 纯结构化跳过」。
-> - ~~**本词库形同虚设**~~ —— `sensitive_words.txt` 由 6 条补至 160 条，
->   且 `LocalSensitiveFilter#init()` 改为 **fail-fast**：词库缺失或解析出 0 条即拒绝启动，
->   杜绝「兜底静默失效」。`LocalSensitiveFilterTest` 锁定「≥100 条有效词条」。
-> - ~~`client/`、`web/` 的 API base 仍为 `/api`~~ —— 三端 7 处已统一为 `/api/v1`，
->   并新增 `ApiVersionPrefixTest` 在 `mvn test` 阶段强制（后端升版时该测试会红，强制同步端上）。
-> - ~~根目录 `.env.example` 与 `server/.env.example` 双份冲突~~ —— 过时的那份已删除。
-> - ~~`canteen → review → dish → canteen` 三方包级环~~ —— 已于 2026-09-28 由
->   `CanteenAdminController#fillAvgRatings` 编排偿还，并由定向护栏锁死。
-
-> **审核覆盖现状（2026-09-29 复核）**：四条 UGC 写链路的**文本**均已过微信 `msgSecCheck v2`
-> （评价 / 反馈 / 昵称 / **菜品纠错**），**图片**均已过 `imgSecCheck`（`/upload/cloud-image` 上传时统一执行）。
-> 唯一残留边界是「**取不到 openid 时跳过机审**」（`msgSecCheck v2` 的 openid 必填），
-> 触发条件为登录态缺失——微信静默登录失败、非微信端 H5 联调。
-> 该场景下由本地 `LocalSensitiveFilter` 词库兜底；**因小程序端强制静默登录，生产环境触发概率极低**，
-> 且产品已按既有口径备案，故不单列为债务。
+唯一残留边界是「**取不到 openid 时跳过机审**」（`msgSecCheck v2` 的 openid 必填），
+触发条件为登录态缺失——微信静默登录失败、非微信端 H5 联调。
+该场景下由本地 `LocalSensitiveFilter` 词库兜底；**因小程序端强制静默登录，生产环境触发概率极低**，
+且产品已按既有口径备案，故不单列为债务。
 
 ## 11. 变更约束
 
-- 涉及表结构变更**只改 `db/schema.sql` / `seed_data.sql`**，禁直连 ALTER。
+- 涉及表结构变更**直连远程库执行**（凭据取 `server/.env` 的 `SPRING_DATASOURCE_URL` / `USERNAME` / `PASSWORD`），
+  并同步回写 `db/schema.sql` / `seed_data.sql`；破坏性操作（`DROP` / `TRUNCATE` / 大范围 `UPDATE`·`DELETE`）
+  执行前须先告知对象与影响，并先用 `information_schema` 核对目标结构。
 - 改跨域依赖前先想：是该加只读契约、还是发领域事件？**不要**新增跨域 Mapper 引用。
 - 破坏性接口变更需评估端上同步（当前端上与后端独立排期）。
-

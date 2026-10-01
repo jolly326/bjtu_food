@@ -5,47 +5,62 @@
     <Header title="我的主页" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
-      <!-- 用户信息卡：主页的身份版面（头像 / 昵称 / 邮箱），右侧「编辑个人信息」→ 独立个人信息编辑页 -->
-      <CardSection class="profile-strip" :class="{ 'is-verified': isVerified }" flush>
-        <view class="strip-avatar-wrap">
-          <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="strip-avatar" />
-          <view v-else class="strip-avatar strip-avatar-empty">
-            <IconSvg name="user" :size="36" :color="COLOR_MAP['text-tertiary']" />
+      <!-- 用户信息卡：主页的身份版面（头像 / 主行 / 副行），内容与排版真源见 docs/client/ui/client-公共组件与形态基线.md §三：
+           认证态副行 = 校园邮箱 + 右侧「编辑个人信息」→ 独立个人信息编辑页；
+           游客态副行 = 「未完成校园认证」且**不渲染动作位**（编辑身份信息是认证态才具备的能力）。
+           ⚠️ 块间距**必须**落在页面自己的节点上 —— mp-weixin 下给自定义组件传的 class 落进**组件宿主节点**
+           （宿主非块级盒 ⇒ `margin` 被静默忽略）；同 `find/index.vue` 的 `discover-card` 落地方式。 -->
+      <view class="strip-section">
+        <CardSection class="profile-strip" :class="{ 'is-verified': isVerified }" flush>
+          <!-- 顶部 6rpx 主色软条纹：通栏贴顶，由卡壳 `overflow: hidden` 裁到卡片圆角内；
+               两态恒在（游客态 transparent ⇒ 两态等高） -->
+          <view class="strip-bar" />
+          <view class="strip-body">
+            <view class="strip-avatar-wrap">
+              <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="strip-avatar" />
+              <view v-else class="strip-avatar">
+                <ImagePlaceholder name="user" :size="60" />
+              </view>
+            </view>
+            <view class="strip-meta">
+              <text class="strip-nickname">{{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}</text>
+              <text class="strip-sub">{{ isVerified ? (bindEmail || '--') : GUEST_SUB }}</text>
+            </view>
+            <view v-if="isVerified" class="strip-edit" role="button" aria-label="编辑个人信息" hover-class="pressed" @tap="goProfileEdit">
+              <text class="strip-edit-text">编辑个人信息</text>
+            </view>
           </view>
-        </view>
-        <view class="strip-meta">
-          <text class="strip-nickname">{{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}</text>
-          <text class="strip-sub">{{ isVerified ? (bindEmail || '--') : guestLabel }}</text>
-        </view>
-        <view class="strip-edit" role="button" aria-label="编辑个人信息" hover-class="pressed" @tap="goProfileEdit">
-          <text class="strip-edit-text">编辑个人信息</text>
-        </view>
-      </CardSection>
+        </CardSection>
+      </view>
 
-      <!-- 评价区：信息卡下方是本人名下评价列表（有数据时才渲染区块标题，避免空榜烘标题）。
-           区块标题一律用公共 `SectionTitle`（§4.9 红线）——UI 统一 Loop Round 1：收敛此处手写副本 -->
+      <!-- 评价区：区块标题「我的评价」与列表卡**仅在列表有数据时渲染**（空榜不渲染标题） -->
       <SectionTitle v-if="list.length" title="我的评价" />
-      <view class="list">
-        <!-- 评价卡 = 公共组件 ReviewItem（与菜品详情评价区**同一实现**）：
-             本人视角专属信息经 dishName 可选 prop 注入 -->
+      <!-- 评价列表：单张白卡收纳全部评价行，行间 1rpx 分隔线（最上 / 最下无线） -->
+      <view v-if="list.length" class="review-card">
         <ReviewItem
           v-for="r in list"
           :key="r.id"
           :review="r"
           mine
+          flat
           :dish-name="r.dishName"
           @more="onMore(r)"
         />
       </view>
 
-      <!-- 加载失败重试块（MP-012 同族，P3-03 上提为公共组件）：首屏请求失败 ≠ 无评价——
-           先于空态渲染，避免网络失败被误读；恢复走重试块 @tap -->
+      <!-- 失败态优先于空态：首屏请求失败 ≠ 无评价，避免网络失败被误读为「暂无评价」 -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
-      <!-- 游客空态：游客可自由进入本页（用户卡直进、无认证拦截），列表空给认证引导 -->
-      <!-- 统一空态组件（UI 统一 Loop Round 2）：不再本页手写 `.empty-tip` -->
-      <EmptyState v-else-if="isGuest" title="暂无评价" desc="完成身份认证后可发表评价" />
-      <!-- 空态：首次进入无评价保持静默；仅「删除最后一条」触发时给轻提示，避免被误解为加载异常 -->
-      <EmptyState v-else-if="emptiedByDelete" title="暂无评价" desc="去菜品详情写一条吧" />
+      <!-- 空态：白卡内垂直居中（`comment` 图标 64rpx + 两级文案），两态均渲染。
+           游客 = 认证引导；认证态「删除最后一条」清空 = 轻提示。
+           认证态**首次进入**无评价 ⇒ 两态均不命中，保持静默（不渲染标题与空态）。 -->
+      <EmptyState
+        v-else-if="isGuest || emptiedByDelete"
+        card
+        icon="comment"
+        :icon-size="64"
+        title="暂无评价"
+        :desc="emptyDesc"
+      />
     </scroll-view>
 
     <!-- 三点菜单（与菜品详情评价区同款交互）：「删除评价」危险红动作项 -->
@@ -56,12 +71,13 @@
 <script setup lang="ts">
 /**
  * 我的主页：个人信息版面 + 名下评价列表的**复合页**（「我的」页用户卡点击进入）。
- * - 上半部 = 用户信息卡（头像 / 昵称 / 邮箱，游客态为短标识）+ 「编辑个人信息」入口 → 独立编辑页；
+ * - 上半部 = 用户信息卡（头像 / 主行 / 副行；认证态副行 = 校园邮箱，游客态副行 = 「未完成校园认证」），
+ *   「编辑个人信息」入口**仅认证态渲染** → 独立编辑页；
  *   下半部 = 本人的评价列表（区块标题「我的评价」），评价卡复用公共组件 ReviewItem（与详情页同一实现），
  *   本人视角专属信息经 dishName 可选 prop 注入
  * - 数据源 GET /my/reviews（后端联表返回 dishName），删除复用 DELETE /reviews/{id}；
  *   删除入口 = 卡片右上角三点 → 底部 ActionSheet「删除评价」→ 二次确认（与详情页同链路）
- * - 空态双口径：首次进入静默；删除导致清空时给轻提示
+ * - 空态两态：游客 = 认证引导；认证态「删除清空」= 轻提示；认证态首次进入静默
  * - 失败态（MP-012）：首屏失败渲染「加载失败 · 点击重试」块；分页失败保持静默，可再触底重试
  */
 import { ref, computed } from 'vue'
@@ -74,18 +90,17 @@ import CardSection from '@/components/CardSection.vue'
 import ReviewItem from '@/components/ReviewItem.vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { useUserStore } from '@/stores/user'
-import { getMyReviews, deleteReview } from '@/api/review'
+import { listMyReviews, deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/http'
 import type { Review, MyReview } from '@/types/review'
 import { backToHome } from '@/utils/back'
 import { PATH } from '@/utils/routes'
-import { deriveGuestLabel } from '@/utils/guest'
 import { usePagedList } from '@/composables/usePagedList'
-import { toastError } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 
@@ -93,10 +108,12 @@ const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
 const isVerified = computed(() => userStore.isVerified())
 const bindEmail = computed(() => userInfo.value?.bindEmail || '')
-/** 游客短标识：端上派生 =「食客 + id 尾 4 位」（与「我的」页同口径，走公共 `utils/guest.deriveGuestLabel`） */
-const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id))
+/** 游客态副行文案：端内静态口径（不派生内部编号 —— 游客身份由服务端建号默认昵称承载） */
+const GUEST_SUB = '未完成校园认证'
 /** 游客态（列表空态分支 + 跳过需登录请求）；认证成功返回本页时 onShow 重拉自动切换为真实列表 */
 const isGuest = computed(() => !userStore.isVerified())
+/** 空态说明文案：游客 = 认证引导；认证态（删除清空）= 写评价引导 */
+const emptyDesc = computed(() => (isGuest.value ? '完成身份认证后可发表评价' : '去菜品详情写一条吧'))
 
 /** 编辑个人信息：独立页（pages/profile/index），保存后自动返回本页 */
 function goProfileEdit() {
@@ -111,11 +128,10 @@ const emptiedByDelete = ref(false)
  * 第 1 页重拉 / 触底加载更多 / 去重追加 / 失败回退页码 / `loading` 重入守卫 —— 全站一套语义。
  * 本页差异经选项注入：游客跳过（端点需登录，调必 401）、成功后复位「删除导致空列表」标记。
  */
-const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyReview>({
-  fetchPage: async (page, pageSize) => (await getMyReviews({ page, pageSize })).list,
+const { list, loading, loadFailed, load, loadMore } = usePagedList<MyReview>({
+  fetchPage: async (page, pageSize) => (await listMyReviews({ page, pageSize })).list,
   canLoad: () => userStore.isVerified(),
   onLoadSuccess: () => { emptiedByDelete.value = false },
-  loadFailLabel: '[my-reviews] 加载评价失败',
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -149,11 +165,17 @@ function onSelect(key: string) {
   if (key === 'delete') onDelete(r)
 }
 
+/** 本地移除一条评价；删空时置位空态标记（删除成功与「已不存在」两条路径共用） */
+function removeLocal(id: number) {
+  list.value = list.value.filter(item => item.id !== id)
+  emptiedByDelete.value = list.value.length === 0
+}
+
 /**
- * 删除本人评价：二次确认 → 删除 → 列表移除（删空后给轻提示）。
+ * 删除本人评价：二次确认 → 删除 → 本地移除（删空后给轻提示）。
  *
- * **4001（评价不存在）**：该评价已在别处删除 ⇒ 重试无意义，
- * 按「已不存在」收尾（本地移除 + 提示），不落到通用「删除失败」误导用户重试。
+ * **4001（评价不存在）**：该评价已在别处删除 ⇒ 重试无意义，按「已不存在」收尾
+ * （本地移除 + 提示），不落到通用「删除失败」误导用户重试。
  */
 function onDelete(r: MyReview) {
   uni.showModal({
@@ -165,14 +187,12 @@ function onDelete(r: MyReview) {
       if (!res.confirm) return
       try {
         await deleteReview(r.id)
-        list.value = list.value.filter(item => item.id !== r.id)
-        uni.showToast({ title: '评价已删除', icon: 'none' })
-        emptiedByDelete.value = list.value.length === 0
+        removeLocal(r.id)
+        toastSuccess('评价已删除')
       } catch (e) {
         if (isResourceNotFound(e)) {
-          list.value = list.value.filter(item => item.id !== r.id)
-          uni.showToast({ title: '评价已不存在', icon: 'none' })
-          emptiedByDelete.value = list.value.length === 0
+          removeLocal(r.id)
+          toastInfo('评价已不存在')
           return
         }
         toastError(e, '删除失败')
@@ -192,42 +212,57 @@ onShow(() => {
   refreshOnShow()
 })
 
-/* 触底加载更多：由模板上 `scroll-view` 的 `@scrolltolower="loadMore"` 触发。
-   ⚠️ Round 17 修复缺陷：本页自 Round 12-A 起为「顶栏 + `scroll-view`（`flex: 1`）+ 页面 `height: 100vh`」
-   ⇒ **页面自身不再滚动**，原先的页面级 `onReachBottom` 永远不会触发（触底分页失效）；现统一走滚动区事件。 */
+/* 触底加载更多由模板 `scroll-view` 的 `@scrolltolower="loadMore"` 触发。
+   本页为「顶栏 + `scroll-view`（`flex: 1`）+ 页面 `height: 100vh`」，**页面自身不滚动** ⇒
+   页面级 `onReachBottom` 不会触发，分页一律走滚动区事件。 */
 </script>
 
 <style scoped>
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
-   结构化收口（Round 12-A，用户裁决）：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
    内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* 列表容器：卡片间距由容器 gap 承担；卡片本体样式（头像/昵称/星级/正文/配图/三点）由 ReviewItem 统一 */
-.list { display: flex; flex-direction: column; gap: var(--spacing-sm); }
-
-/* 用户信息卡：头像 + 昵称/副行 + 「编辑个人信息」，白底一级卡（与评价卡同语言） */
-/* 区块标题已改用公共 `SectionTitle`（§4.9 红线）——此处不再保留手写副本样式 */
-/* 卡片壳走公共 `CardSection`（UI 统一 Loop Round 14 裁决 2B-A 收敛）：内距统一到 `--spacing-md`
-   （原 `--spacing-sm --spacing-md`）；`flush` ⇒ 本处自管块间距。 */
-.profile-strip {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
+/* 评价列表：单张白卡收纳全部评价行（与系统通知页同语言）；行间 1rpx 浅分隔线，最上 / 最下无线 */
+.review-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-btn);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
-/* 认证态顶部 6rpx 主色软条纹（UI 稿：仅认证态显示；游客态透明） */
-.profile-strip.is-verified { border-top: 6rpx solid var(--color-primary-soft); }
+/* 行内距 + 分隔线（经 :deep 穿透到公共 ReviewItem 根；覆写其 flat 的 padding:0） */
+.review-card :deep(.review-item) { padding: var(--spacing-lg); }
+.review-card :deep(.review-item + .review-item) { border-top: 1rpx solid var(--border-color); }
+
+/* 区块标题（公共 `SectionTitle`）：边距按 UI 稿取 `--spacing-md`（覆盖其默认 `--spacing-sm`）；
+   前缀页面根抬高特异度，不动公共组件 */
+.my-reviews-page .section-title { margin-bottom: var(--spacing-md); }
+/* ===== 用户信息卡 =====
+   ⚠️ mp-weixin 下传给自定义组件的 class（`profile-strip`）落进**组件宿主节点**，宿主**非块级盒**
+   ⇒ 在其上写 `margin` / `padding` / `overflow` 全部**不产生布局效果**。故：
+   · 块间距 → 页面自己的外层节点 `.strip-section` 承担；
+   · 卡壳内距归零 + 圆角裁切 → 只能经 `:deep` 打到卡壳**根节点**。 */
+.strip-section { margin-bottom: var(--spacing-xl); }
+.strip-section :deep(.card-section) { padding: 0; overflow: hidden; }
+/* 顶部 6rpx 条纹：通栏贴顶，裁到卡片圆角内；两态恒在（游客态 transparent ⇒ 两态等高） */
+.strip-bar { height: 6rpx; background: transparent; }
+.profile-strip.is-verified .strip-bar { background: var(--color-primary-soft); }
+/* 卡内主体：头像 / 主副行 / 右侧动作位（32rpx 内距；排版参数见基线 §三） */
+.strip-body { display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-lg); }
 .strip-avatar-wrap { flex-shrink: 0; }
-.strip-avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); background: var(--bg-soft); }
-.strip-avatar-empty { display: flex; align-items: center; justify-content: center; }
-.strip-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-3xs); }
+.strip-avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
+.strip-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 .strip-nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.strip-sub { font-size: var(--font-small); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.strip-edit { flex-shrink: 0; padding: var(--spacing-2xs) var(--spacing-md); border-radius: var(--radius-pill); border: 1rpx solid var(--color-primary); }
+.strip-sub { font-size: var(--font-aux); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip-edit { position: relative; flex-shrink: 0; padding: var(--spacing-2xs) var(--spacing-md); border-radius: var(--radius-pill); border: 1rpx solid var(--color-primary); transition: background-color var(--duration-fast) var(--ease-out); }
+/* 命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限；视觉尺寸不变） */
+.strip-edit::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 88rpx; transform: translateY(-50%); }
 .strip-edit.pressed { background-color: var(--bg-soft); }
 .strip-edit-text { font-size: var(--font-tiny); color: var(--color-primary-text); font-weight: var(--weight-medium); }
 
-/* 空态已上提为公共组件 components/EmptyState.vue（UI 统一 Loop Round 2），此处不再保留副本 */
+/* 动效：按压换色走过渡；`prefers-reduced-motion` 下取消过渡（退化为直接换色） */
+@media (prefers-reduced-motion: reduce) { .strip-edit { transition: none; } }
+
+/* 空态样式由公共组件 EmptyState 承担 */
 </style>

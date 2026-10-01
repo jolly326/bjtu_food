@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 菜品列表行视图对象（**列表专用，恰为 8 个字段**）
  * <p>
- * 2026-09-22 用户拍板「列表 / 详情出参拆分」（见 docs/client/feature/client-首页菜品浏览.md D 项）：
+ * 用户拍板「列表 / 详情出参拆分」（见 docs/client/feature/client-首页菜品浏览.md D 项）：
  * 拆分前列表与详情共用 {@link DishDetailVO} 的 15 字段，其中 8 个在列表链路零消费
  * （description / images[1..] / floor / ratingCount / dietType / ingredients / flavorTags / serveTemp），
  * 20 行/页约多下发 160 个字段值 → 拆出本类，列表只装「首页卡片四段 + 搜索结果卡」的真实渲染集合。
@@ -37,8 +37,8 @@ public class DishListItemVO {
      * 该行图片数组（列 ↔ List 转换由 StringListTypeHandler 在持久层完成）。
      * <p>
      * **仅供 Service 派生首图 {@code coverImage}，不出参** —— 列表契约只有 {@code coverImage} 单值
-     * （2026-09-22 列表 / 详情出参拆分）。与旧 {@code String imagesJson} 的区别：后者是**存储形态**
-     * （JSON 串）泄漏进 VO，本字段是语义正确的数据（图片数组），只是不对外输出（2026-09-23 R5）。
+     * 。与旧 {@code String imagesJson} 的区别：后者是**存储形态**
+     * （JSON 串）泄漏进 VO，本字段是语义正确的数据（图片数组），只是不对外输出。
      */
     @JsonIgnore
     @Schema(hidden = true)

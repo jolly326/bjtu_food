@@ -13,7 +13,7 @@ import java.util.Map;
  * 用户管理服务接口
  * <p>
  * 供系统管理员操作，位于 auth 模块中。
- * 管理用户的状态，不依赖其他模块（角色筛选/角色管理已随 user.role 列退役移除，2026-09-15）。
+ * 管理用户的状态，不依赖其他模块（角色筛选/角色管理已随 user.role 列退役移除）。
  * <p>
  * <b>下半区的「跨域只读契约」是 P0-1 分层修复的收口点</b>：review / feedback / correction /
  * 切面等原先直接注入 {@code UserMapper}、读 {@code auth.entity.User}（跨域实体 + 绕过

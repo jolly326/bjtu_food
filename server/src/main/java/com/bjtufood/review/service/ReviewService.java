@@ -74,20 +74,6 @@ public interface ReviewService {
     Long submitReview(Long userId, Long dishId, ReviewReq req);
 
     /**
-     * 重新评价（覆盖式更新同一条评价）
-     * <p>
-     * 覆盖评分 / 文字 / 配图，不新建行；发表时间刷新为当前（时间倒序下自然置顶），
-     * 隐藏标记重置为未隐藏（0），并发布 ReviewSubmittedEvent 重算评分聚合。
-     * 内容安全检测与首次发表同口径（文本送检，违规 400 且原内容不变）；不限次数。
-     *
-     * @param id     评价ID
-     * @param userId 当前用户ID（须为作者本人）
-     * @param req    新的评价内容
-     * @throws com.bjtufood.common.exception.BusinessException 评价不存在/非作者
-     */
-    void updateReview(Long id, Long userId, ReviewReq req);
-
-    /**
      * 删除自己的评价
      *
      * @param id     评价ID

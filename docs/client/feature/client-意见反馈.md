@@ -65,7 +65,7 @@
 | 表 | 变化 | 中文解释 |
 |---|---|---|
 | `user_feedback` | INSERT | `type` = 三类之一、`sub`（无）、`content`、`images`（JSON 串）、`related_type` / `related_id`（无）、`status='pending'` |
-| `notification` | 管理员处理后异步 INSERT | 已认证提交人收 `feedback_handle` 回执；游客不投递 |
+| `notification` | 管理员处理后异步 INSERT | 提交人收 `feedback_handle` 回执（**登录级，含游客**） |
 
 ## 与当前代码的差异
 

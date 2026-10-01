@@ -1,23 +1,22 @@
 package com.bjtufood.auth.config;
 
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * {@link AdminTokenFilter} 路径作用域与 fail-closed 行为的单元测试。
  * <p>
- * <b>存在理由（2026-09-28 架构收口）</b>：本类历史上用
+ * <b>存在理由</b>：本类历史上用
  * {@code request.getRequestURI().contains("/admin/")} 判断作用域——这在
  * {@code context-path=/api} 时属于「碰巧命中」，一旦 context-path 升版为
  * {@code /api/v1} 或出现其他前缀，就可能<b>漏检 → /admin/** 绕过口令校验（严重越权）</b>。
@@ -31,7 +30,7 @@ class AdminTokenFilterTest {
 
     private static final String TOKEN = "test-admin-token";
 
-    /** 受控配置对象（2026-09-28 架构收口 P2：配置由 AdminProperties 承载，不再是过滤器内的 @Value 字段） */
+    /** 受控配置对象 */
     private static AdminProperties props() {
         AdminProperties p = new AdminProperties();
         p.setToken(TOKEN);
@@ -86,6 +85,41 @@ class AdminTokenFilterTest {
 
         // 原 contains 写法会把「含 /admin/ 子串」的任何路径都纳入口令保护（过度拦截）
         assertThat(f.shouldNotFilter(req)).isTrue();
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：精确路径 /admin（无尾斜杠）同样受口令保护（白名单 /admin/** 匹配零段）")
+    void exactAdminPathIsProtected() {
+        AdminTokenFilter f = filter();
+
+        for (String ctx : new String[]{"", "/api", "/api/v1"}) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", ctx + "/admin");
+            req.setContextPath(ctx);
+
+            assertThat(f.shouldNotFilter(req))
+                    .as("contextPath=%s 下 /admin（无尾斜杠）必须受保护——否则给它加一个空路径端点即成越权入口", ctx)
+                    .isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：/adminx 这类同前缀但非管理端路径不得被误判")
+    void similarPrefixIsNotAdmin() {
+        AdminTokenFilter f = filter();
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/v1/adminx");
+        req.setContextPath("/api/v1");
+
+        assertThat(f.shouldNotFilter(req)).isTrue();
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：取不到 URI 时不跳过过滤器（fail-closed；旧行为是跳过即放行）")
+    void nullUriFailsClosed() {
+        AdminTokenFilter f = filter();
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        when(req.getRequestURI()).thenReturn(null);
+
+        assertThat(f.shouldNotFilter(req)).isFalse();
     }
 
     // ==================== fail-closed 行为 ====================

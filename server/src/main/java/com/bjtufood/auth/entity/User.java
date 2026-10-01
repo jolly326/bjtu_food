@@ -10,9 +10,9 @@ import java.time.LocalDateTime;
  * 用户实体类
  * <p>
  * 对应数据库表：user
- * 全量用户即学生（user.role 列已于 2026-09-15 用户拍板退役，管理端走口令体系、无角色数据语义）。
+ * 全量用户即学生（user.role 列已于用户拍板退役，管理端走口令体系、无角色数据语义）。
  * <p>
- * 注：表名 `user` 为 MySQL 保留字，当前 MyBatis-Plus 生成语句与手写 XML 均可正常执行（2026-09-14 评估：
+ * 注：表名 `user` 为 MySQL 保留字，当前 MyBatis-Plus 生成语句与手写 XML 均可正常执行（评估：
  * MybatisPlusConfig 未配置全局表名转义，MP 生成的 FROM user 与 ReviewMapper.xml 的 JOIN user u 实测均正常，
  * 因 `user` 在 MySQL 8 为非保留关键字，仅裸标识符场景需注意），故保持现状不加转义；
  * 若后续引入原生拼接 SQL 需注意转义。
@@ -50,7 +50,7 @@ public class User {
     @Schema(description = "微信 openid（静默登录取号依据，唯一）", example = "oXXXXX...")
     private String openid;
 
-    // user.password / user.unionid 已于 2026-09-16 用户拍板「零消费即删除」退役：
+    // user.password / user.unionid 已于用户拍板「零消费即删除」退役：
     // password 零读（唯一写点=注销置 NULL）、unionid 只写不读（多应用预留撤销）；
     // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 
@@ -58,7 +58,7 @@ public class User {
      * 已认证绑定邮箱（仅存认证关系，可空）——**认证状态的唯一真源**：非空即已认证（可写 UGC），
      * NULL 即游客态；判据见 {@link com.bjtufood.auth.support.AuthStateUtil#isVerified(String)}。
      * <p>
-     * user.verified / user.verified_at 两列已于 2026-09-22 用户拍板退役（与 bind_email 同源冗余、
+     * user.verified / user.verified_at 两列已于用户拍板退役（与 bind_email 同源冗余、
      * 历史写入路径恒成对写）；CREATE TABLE 已移除列定义，存量库由 schema.sql 末尾
      * drop_verified_columns 幂等段清理，两列不得回流。
      */

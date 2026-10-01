@@ -79,7 +79,7 @@ export const useDishStore = defineStore('dish', () => {
   /** 当前选中视图键（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落默认视图）；端上唯一筛选维度 */
   const filterView = ref<string | null>(null)
 
-  /** 首页列表（默认视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），2026-09-28 产品拍板确认保持） */
+  /** 首页列表（默认视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -104,7 +104,7 @@ export const useDishStore = defineStore('dish', () => {
   /**
    * **会话级**种子基准：模块求值时生成一次 ⇒ 小程序**冷启动（重进）才重掷**。
    *
-   * <p>为何是「会话级」而非「每次 reset 重掷」（原方案 C 口径，2026-09-29 推翻）：
+   * <p>为何是「会话级」而非「每次 reset 重掷」（原方案 C 口径，推翻）：
    * 端上**没有任何「主动换一批」入口**（全仓无 `onPullDownRefresh`），内容却在切视图 / 重试后
    * 自己变化 ⇒ 用户只能读成「界面不稳定」，而不是「拿到了新鲜内容」。
    * 随机性应归于**用户主动动作**（重进小程序），不归于「每次读数据」——
@@ -116,7 +116,7 @@ export const useDishStore = defineStore('dish', () => {
   const sessionSeedBase = genSeed()
 
   /**
-   * 首页推荐流种子（`GET /dishes` 的 `seed`，2026-09-27 方案 C）——会话内**恒定**：
+   * 首页推荐流种子（`GET /dishes` 的 `seed`，方案 C）——会话内**恒定**：
    * - 随每次请求一起下发（服务端仅对「推荐类」视图消费它，其余视图忽略 ⇒ 端上无需判断视图语义）；
    * - 同一次会话内翻页沿用同一值 ⇒ 服务端全序恒定，触底加载不跨页重复 / 漏项；
    * - 切视图 / 失败重试**不重掷** ⇒ 回到「为你推荐」拿到的仍是同一顺序（内容不自变）。
@@ -131,7 +131,7 @@ export const useDishStore = defineStore('dish', () => {
   const guessLikeSeed = `${sessionSeedBase}-guess`
 
   /**
-   * 视图字典是否**已成功**加载（UI 统一 Loop Round 17 新增）。
+   * 视图字典是否**已成功**加载。
    * 用于 `fetchDishViews` 去重：字典是静态字典，成功拉到后无需再拉；
    * **失败不置位** ⇒ 页面 onShow 的「兜底重试」仍会重试（与既有注释语义一致）。
    * 本 store 内部状态，不对外暴露。
@@ -149,12 +149,12 @@ export const useDishStore = defineStore('dish', () => {
    * （服务端声明的默认视图），避免请求一个不存在的视图。
    */
   async function fetchDishViews() {
-    // 去重（UI 统一 Loop Round 17）：已成功拉过、或已有同一请求在途，都不再发；
+    // 去重：已成功拉过、或已有同一请求在途，都不再发；
     // 失败路径不置位 ⇒ 页面 onShow 的兜底重试仍会重试（与原注释语义一致）。
     if (viewLoaded.value || viewLoading.value) return
     viewLoading.value = true
     try {
-      const list = await dishApi.getDishViews()
+      const list = await dishApi.listDishViews()
       viewList.value = list
       viewLoaded.value = true
       // 字典首项 = 服务端声明的默认视图（如「为你推荐」）；端上不硬编码其 key
@@ -164,7 +164,7 @@ export const useDishStore = defineStore('dish', () => {
         filterView.value = fallback
       }
     } catch (e) {
-      // 失败**不写任何端上兜底项**（Round 32 用户口径）：标签文案是**服务端资产**
+      // 失败**不写任何端上兜底项**：标签文案是**服务端资产**
       // （含「为你推荐」、将来「折扣」等视图都在服务端装配），端上拼一个同名字符串
       // ⇒ 改文案 / 加视图又要发版，违背「标签栏全量服务端直出」。
       // 故此处只记录：保留上一次结果（若有），标签栏由 `HomeMealTabs` 判空**整体不渲染**；
@@ -185,42 +185,47 @@ export const useDishStore = defineStore('dish', () => {
     await fetchHomeDishes(true, true)
   }
 
+  /** 首页搜索请求（首刷与触底共用同一份参数装配：view / seed / page / pageSize） */
+  function searchHome() {
+    return dishApi.searchDishesPage({
+      view: filterView.value ?? undefined,
+      seed: homeSeed,
+      page: homePage.value,
+      pageSize: HOME_PAGE_SIZE,
+    })
+  }
+
+  /**
+   * reset 的分页状态复位：`keepList`（切视图）旧列表留屏只重置分页；
+   * 其余场景（首屏 / 重试）清列表。失败态同步清（成功后本就为 false，本次失败会再置 true）。
+   * **不重掷种子**——刷新边界 = 重进小程序。
+   */
+  function resetHomePagination(keepList: boolean) {
+    if (!keepList) homeList.value = []
+    homePage.value = 1
+    homeFinished.value = false
+    homePageLimited.value = false
+    homeError.value = false
+  }
+
   /**
    * 首页列表拉取（`reset=true` 表示切视图 / 首屏 / 重试：清列表、回到第 1 页）。
-   * **不重掷种子**（2026-09-29）：`seed` 是会话级的，切视图 / 重试后回到「为你推荐」
-   * 拿到的仍是同一顺序——内容只在**重进小程序**时才整体重洗。
    * 不传任何食堂 / 价格条件，也不传 `sortBy` / `sortOrder`（筛选与排序由所选视图决定）；
    * `seed` 随每次请求一起下发——服务端仅对「推荐类」视图消费它（方案 C），其余视图忽略。
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
       const seq = ++homeFetchSeq
-      if (reset) {
-        // `keepList`（切视图）= 旧列表留在屏上，只重置分页状态；其余场景（首屏 / 重试）清列表
-        if (!keepList) homeList.value = []
-        homePage.value = 1
-        homeFinished.value = false
-        homePageLimited.value = false
-        // 新一次查询开始：先清上次失败态（成功后本就为 false；若本次失败会再置 true）
-        homeError.value = false
-        // 2026-09-29：**不再重掷种子**（原方案 C「每次 reset 重掷」已推翻，见 `sessionSeedBase`）——
-        // seed 为会话级，切视图 / 重试后同一推荐流仍是同一顺序；刷新边界 = 重进小程序。
-      }
+      if (reset) resetHomePagination(keepList)
       try {
-        const pageSize = HOME_PAGE_SIZE
-        const res = await dishApi.searchDishesPage({
-          view: filterView.value ?? undefined,
-          seed: homeSeed,
-          page: homePage.value,
-          pageSize,
-        })
+        const res = await searchHome()
         // 过期响应（期间又切换了视图）直接丢弃，不覆盖新列表
         if (seq !== homeFetchSeq) return
         // append 分支收敛到 mergePagedRows（单一真源）：与 fetchReviews 同口径，补 id 去重防分页跳号重复行
-        homeList.value = reset ? res.list : mergePagedRows(homeList.value, res.list, pageSize).rows
+        homeList.value = reset ? res.list : mergePagedRows(homeList.value, res.list, HOME_PAGE_SIZE).rows
         homeError.value = false
         // 结束判据基于「本页返回条数 < pageSize」
-        if (res.list.length < pageSize) homeFinished.value = true
+        if (res.list.length < HOME_PAGE_SIZE) homeFinished.value = true
       } catch (e) {
         if (seq !== homeFetchSeq) return
         console.error('加载菜品列表失败', e)
@@ -235,7 +240,7 @@ export const useDishStore = defineStore('dish', () => {
    */
   async function loadMoreHomeDishes(): Promise<boolean> {
     if (homeLoadingMore.value || homeFinished.value) return false
-    // 竞态修复（Round 31）：首刷 / 切视图的**重置式请求**在途时禁止翻页 ——
+    // 竞态修复：首刷 / 切视图的**重置式请求**在途时禁止翻页 ——
     // 二者与 loadMore 共用 `homeFetchSeq`，loadMore 推进序号会让在途的重置响应被判过期丢弃，
     // 而第 2 页却按**新筛选**拼到**旧列表**上 ⇒ 列表内容错乱（大类与数据不匹配）。
     if (isLoading(LOADING_KEY_HOME) || isLoading(LOADING_KEY_HOME_SWAP)) return false
@@ -248,19 +253,13 @@ export const useDishStore = defineStore('dish', () => {
     homePage.value += 1
     return withLoading(LOADING_KEY_HOME_MORE, async () => {
       try {
-        const pageSize = HOME_PAGE_SIZE
-        const res = await dishApi.searchDishesPage({
-          view: filterView.value ?? undefined,
-          seed: homeSeed,
-          page: homePage.value,
-          pageSize,
-        })
+        const res = await searchHome()
         if (seq !== homeFetchSeq) {
           homePage.value -= 1
           return false
         }
-        homeList.value = mergePagedRows(homeList.value, res.list, pageSize).rows
-        if (res.list.length < pageSize) {
+        homeList.value = mergePagedRows(homeList.value, res.list, HOME_PAGE_SIZE).rows
+        if (res.list.length < HOME_PAGE_SIZE) {
           homeFinished.value = true
         } else if (homePage.value >= HOME_MAX_PAGES) {
           homeFinished.value = true
@@ -350,7 +349,7 @@ export const useDishStore = defineStore('dish', () => {
     const pageSize = options?.pageSize ?? REVIEW_PAGE_SIZE
     try {
       const res = await withLoading(REVIEWS_LOADING_KEY, async () =>
-        await reviewApi.getDishReviews(dishId, { page, pageSize }))
+        await reviewApi.listDishReviews(dishId, { page, pageSize }))
       // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
       if (seq !== reviewFetchSeq) return null
       if (options?.append) {
@@ -375,12 +374,12 @@ export const useDishStore = defineStore('dish', () => {
   /**
    * 猜你喜欢（会话级稳定伪随机在售菜品名；find 页「猜你喜欢」区块消费）。
    * 传会话级 `guessLikeSeed` ⇒ 同一次会话内多次进入发现态拿到同一批词条（内容不自变）；
-   * 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗（2026-09-29 刷新边界收窄）。
+   * 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗。
    */
   const guessLikeList = ref<GuessLike[]>([])
   async function fetchGuessLike() {
     try {
-      guessLikeList.value = await dishApi.getGuessLike(guessLikeSeed)
+      guessLikeList.value = await dishApi.listGuessLike(guessLikeSeed)
     } catch (e) {
       console.error('加载猜你喜欢失败', e)
       guessLikeList.value = []

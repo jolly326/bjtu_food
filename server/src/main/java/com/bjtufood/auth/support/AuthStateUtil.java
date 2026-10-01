@@ -3,7 +3,7 @@ package com.bjtufood.auth.support;
 import org.springframework.util.StringUtils;
 
 /**
- * 认证状态判据（**唯一真源**，2026-09-22 用户拍板 A 方案收敛）。
+ * 认证状态判据（**唯一真源**，用户拍板 A 方案收敛）。
  * <p>
  * 语义：{@code user.bind_email} 非空即「已认证」（可写 UGC）；为 NULL 即「游客态」。
  * <p>

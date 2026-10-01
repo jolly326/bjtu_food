@@ -40,7 +40,7 @@ class WechatServiceTest {
     private WechatProperties wechatProperties;
 
     /**
-     * 受控配置（2026-09-28 架构收口 P2）：配置改由 {@link WechatProperties} 承载
+     * 受控配置：配置改由 {@link WechatProperties} 承载
      * （生产走 {@code @ConfigurationProperties} 绑定），单测直接 new 出对象赋值，
      * 不再依赖对被测类私有字段的 {@code ReflectionTestUtils} 反射注入。
      */
@@ -89,7 +89,7 @@ class WechatServiceTest {
 
         assertThat(session.openid()).isEqualTo("oX");
         assertThat(session.sessionKey()).isEqualTo("k");
-        // unionid 已随 user.unionid 列退役（2026-09-16 零消费删除），WechatSession 不再携带该字段
+        // unionid 已随 user.unionid 列退役，WechatSession 不再携带该字段
         server.verify();
     }
 
@@ -104,7 +104,7 @@ class WechatServiceTest {
         WechatService.WechatSession session = wechatService.code2Session("code");
 
         assertThat(session.openid()).isEqualTo("oJson");
-        // 响应中的 unionid 字段不再解析（user.unionid 列已随 2026-09-16 零消费退役）
+        // 响应中的 unionid 字段不再解析（user.unionid 列已随 零消费退役）
         assertThat(session.sessionKey()).isEqualTo("sk");
         server.verify();
     }

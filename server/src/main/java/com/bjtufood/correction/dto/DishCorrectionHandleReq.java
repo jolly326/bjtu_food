@@ -14,7 +14,9 @@ import lombok.Data;
  */
 @Data
 @Schema(description = "拒绝菜品纠错请求")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class DishCorrectionHandleReq {
+    // ⚠️ 冻结：管理端（Web 后台）请求对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     /** 管理员回复内容（必填，提交人将收到该内容） */
     @Schema(description = "管理员回复内容（必填）", example = "经核实价格无误", requiredMode = Schema.RequiredMode.REQUIRED)

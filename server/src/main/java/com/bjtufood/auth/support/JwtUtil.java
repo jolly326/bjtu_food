@@ -18,18 +18,18 @@ import java.util.Map;
  * JWT 工具类
  * <p>
  * 负责 JWT Token 的生成、校验和解析。
- * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除，2026-09-15）。
+ * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除）。
  * <p>
  * 流程说明：
  * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
  * 2. 前端每次请求在 Header 中携带 Authorization: Bearer <token>
- * 3. JwtAuthFilter 调用 validateToken() 校验 → 通过则放行
+ * 3. JwtAuthFilter 调用 {@link #parseAndValidate(String)} <b>一次性</b>校验并解析（通过则放行）
  */
 @Component
 @Slf4j
 public class JwtUtil {
 
-    /** JWT 配置（类型化绑定，2026-09-28 架构收口 P2；替代原先两个散落的 {@code @Value}） */
+    /** JWT 配置（类型化绑定，架构收口 P2；替代原先两个散落的 {@code @Value}） */
     private final JwtProperties jwtProperties;
 
     /**
@@ -52,7 +52,7 @@ public class JwtUtil {
      * 启动期 fail-fast（BE-11）：密钥缺失/过短/仍是仓库内置默认弱密钥时阻断启动，
      * 防止误用默认密钥导致任意 userId 的 Token 可被伪造。
      * <p>
-     * 口径（2026-09-15 裁决 B，全 profile 一致）：
+     * 口径：
      * <ul>
      *   <li>缺失或长度 &lt; 32 字节：HMAC-SHA 算法的硬要求（{@code Keys.hmacShaKeyFor} 会直接抛
      *       WeakKeyException），<b>所有 profile 一律拒绝启动</b>；</li>
@@ -139,13 +139,19 @@ public class JwtUtil {
     }
 
     /**
-     * 验证并解析 Token
+     * <b>本类唯一的解析入口</b>：一次性校验并解析 Token。
+     * <p>
+     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次。原先另有两个公开方法
+     * （{@code parseToken} / {@code validateToken} / {@code getUserIdFromToken}）实为同一件事的
+     * 三种叫法：{@code validateToken} 与 {@code getUserIdFromToken} 的<b>唯一调用者</b>就是
+     * 「同一请求里重复解析」的那段旧实现，且它们各自再调一次 {@code parseToken} ⇒ 每请求 3 次验签。
+     * 那次重构后两者即成死方法，现已删除；{@code parseToken} 的实体合并进本方法，避免
+     * 「两个名字一件事」让后续调用者选错。
      *
      * @param token JWT 字符串
-     * @return 解析后的 Claims（包含 userId、username），
-     *         如果 token 无效/过期返回 null
+     * @return 有效则返回 Claims（含 userId / username）；无效 / 过期 / 格式错误 / 签名不符一律返回 null
      */
-    public Claims parseToken(String token) {
+    public Claims parseAndValidate(String token) {
         try {
             return Jwts.parser()
                     .verifyWith(getKey())
@@ -156,40 +162,5 @@ public class JwtUtil {
             // Token 过期、签名错误、格式错误均返回 null
             return null;
         }
-    }
-
-    /**
-     * 一次性校验并解析 Token，返回 Claims。
-     * <p>
-     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次（原实现在 filter 内分别调用
-     * {@link #validateToken}、{@link #getUserIdFromToken} 等多个方法，
-     * 触发 3 次独立验签）。调用方应先判非空，再读取 userId/username，避免重复解析。
-     *
-     * @param token JWT 字符串
-     * @return 有效则返回 Claims，否则返回 null
-     */
-    public Claims parseAndValidate(String token) {
-        return parseToken(token);
-    }
-
-    /**
-     * 判断 Token 是否有效
-     *
-     * @param token JWT 字符串
-     * @return true=有效, false=无效或已过期
-     */
-    public boolean validateToken(String token) {
-        return parseToken(token) != null;
-    }
-
-    /**
-     * 从 Token 中获取用户 ID
-     *
-     * @param token JWT 字符串
-     * @return 用户 ID，无效 token 返回 null
-     */
-    public Long getUserIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        return claims != null ? claims.get("userId", Long.class) : null;
     }
 }

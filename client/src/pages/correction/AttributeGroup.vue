@@ -1,137 +1,88 @@
 <template>
   <!--
-    AttributeGroup（correction 包内私有，**核心复用**）—— 单个「描述属性维度」的编辑分组。
+    AttributeGroup（correction 包内私有，**核心复用**）—— 单个「描述属性维度」的**字段行**入口。
 
-    数据驱动：维度名 / 当前值 / 单多选取自详情，候选取自编辑态端点（端上零硬编码维度）。
-    三段结构（自上而下）：
-      ① 已选中标签区（常驻，永远可见）+ 右上角删除叉；
-      ② 候选折叠面板（默认折叠；候选 ≤4 时**默认直接展开、不显示折叠按钮**；≥5 才给「查看更多候选」入口）；
-         **候选为空（无参考值 / 接口失败）⇒ 整个候选入口隐藏**，仅留自定义输入；
-      ③ 自定义输入（回车或「添加」入已选；自动去重、禁空 / 纯空格、≤10 字；`single` 为替换）。
+    R42 形态（方案①「字段行 + 底部弹层」，UI 稿区域2）：
+      与「楼层」完全同构的一行 —— 左维度名 / 右当前值摘要 / 单多选标注 / 最右箭头 / 底部横线；
+      **整行可点 ⇒ 打开 `AttributePickerSheet`**。候选全览、多选勾选、清空、自定义输入**全部在弹层内**，
+      就地不再呈现候选 chip、也不再呈现自定义输入框
+      ——「同一维度两处都能选、但能选的东西不一样」是误导性的，已整条废除。
+
+    数据驱动：维度名 / 当前值 / 单多选取自详情，候选取自编辑态端点（端上零硬编码维度、零字典）。
+    对外契约与 R41 **完全一致**（props 与 `change` 不变）⇒ `CorrectionForm` / `useCorrection` 零改动。
 
     `first`（P1 返工）：组间距**不再**用 `.ag:first-child` —— `.ag` 是子组件根节点，mp-weixin 下每个
-    实例都被包在各自的宿主节点里 ⇒ `:first-child` 会对**每一组**命中，组间距整体归零、分组不可辨。
+    实例都被包在各自的宿主节点里 ⇒ `:first-child` 会对**每一组**命中、组间距整体归零。
     改为父级 `v-for` 按 index 显式传 `first`（仅首组去上边距），确定性生效、跨端一致。
   -->
   <view class="ag" :class="{ 'ag--first': first }">
-    <!-- 分组标题 + 单值维度小字说明 -->
-    <view class="ag-head">
-      <text class="ag-name">{{ name }}</text>
-      <text v-if="valueType === 'single'" class="ag-tip">仅可选择一项</text>
-    </view>
-    <text class="ag-sub">点击标签增删，支持自定义输入</text>
-
-    <!-- ① 已选中标签区（常驻）：标签体**不可点**（删除只走右上角叉），故不下发 pickable -->
-    <view class="ag-selected">
-      <TagChip
-        v-for="v in selected"
-        :key="v"
-        variant="selected"
-        closable
-        :pickable="false"
-        :label="v"
-        :aria-label="`删除${name}「${v}」`"
-        @remove="removeSelected(v)"
-      />
-      <text v-if="!selected.length" class="ag-placeholder">暂无，可从下方选择或直接输入</text>
-    </view>
-
-    <!-- ② 候选折叠面板（默认折叠 / ≤4 项直接展开；用户展开的长列表定高 240rpx 内滚） -->
-    <view v-if="hasCandidates && panelOpen" class="ag-panel-box">
-      <scroll-view class="ag-panel" :class="{ 'ag-panel--fixed': !autoExpand }" scroll-y :show-scrollbar="false">
-        <view class="ag-chips">
-          <TagChip
-            v-for="c in candidates"
-            :key="c"
-            :variant="selected.includes(c) ? 'selected' : 'candidate'"
-            :label="c"
-            :aria-label="`${name}「${c}」`"
-            @pick="toggleCandidate(c)"
-          />
-        </view>
-      </scroll-view>
-    </view>
-
-    <!-- ③ 候选入口（仅候选 > 4 项时给）+ 自定义输入 -->
-    <view class="ag-entry">
+    <view class="ag-row">
+      <text class="ag-label">{{ name }}</text>
+      <!-- picker 单元格（同 `.row-field--picker`）：整行可点、无 input、不可键入 ⇒ 无聚焦态，
+           开合本身由 BaseSheet 表达（与楼层单元格同源口径） -->
       <view
-        v-if="hasCandidates && !autoExpand"
-        class="ag-more"
+        class="ag-field"
         role="button"
-        :aria-label="panelOpen ? `收起${name}候选` : `查看更多${name}候选`"
-        :aria-expanded="panelOpen ? 'true' : 'false'"
-        hover-class="ag-more--pressed"
+        :aria-label="ariaLabel"
+        hover-class="ag-field--pressed"
         hover-stay-time="80"
-        @tap="expanded = !expanded"
+        @tap="openPicker"
       >
-        <text class="ag-more-text">{{ panelOpen ? `收起候选（共 ${candidates.length} 项）` : `查看更多候选（共 ${candidates.length} 项）` }}</text>
-        <IconSvg :name="panelOpen ? 'arrow-up' : 'arrow-down'" :size="24" :color="COLOR_MAP['text-tertiary']" />
-      </view>
-
-      <view class="ag-input-wrap" :class="{ 'ag-input-wrap--focus': focused }">
-        <input
-          class="ag-input"
-          :value="draft"
-          :placeholder="`输入自定义${name}，回车添加`"
-          placeholder-class="ag-input-ph"
-          maxlength="10"
-          confirm-type="done"
-          :cursor-spacing="40"
-          :adjust-position="true"
-          @input="onInput"
-          @confirm="addCustom"
-          @focus="focused = true"
-          @blur="focused = false"
-        />
-        <!-- 「添加」按钮仅在草稿非空时出现：有内容才给确认 affordance（回车等价）。
-             视觉 56rpx，命中区经 ::after 纵向透明扩展撑满所在行 88rpx（不改变视觉尺寸）。 -->
-        <view
-          v-if="draft.trim()"
-          class="ag-add"
-          role="button"
-          :aria-label="`添加${name}`"
-          hover-class="ag-add--pressed"
-          hover-stay-time="80"
-          @tap="addCustom"
-        >
-          <text class="ag-add-text">添加</text>
-        </view>
+        <text class="ag-text" :class="{ 'ag-text--ph': !hasValue }">{{ summary }}</text>
+        <!-- 单 / 多选标注常驻（不随摘要长短消失、不因省略号挪位）：`flex: none` ⇒ 摘要再长也只省略自己 -->
+        <text class="ag-tip">{{ valueType === 'single' ? '单选' : '多选' }}</text>
+        <IconSvg name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
       </view>
     </view>
+
+    <!-- 属性选择弹层（该维度的唯一选择场所）：首次打开置 `pickerMounted` 常驻，
+         避免候选池达数十项时每次开合都重建子树；开合动画仍由 `visible` 驱动 -->
+    <AttributePickerSheet
+      v-if="pickerMounted"
+      :visible="pickerOpen"
+      :name="name"
+      :value-type="valueType"
+      :selected="selected"
+      :candidates="candidates"
+      :selected-style="selectedStyle"
+      @close="pickerOpen = false"
+      @update="onSheetUpdate"
+    />
   </view>
 </template>
-
 <script setup lang="ts">
 /**
- * AttributeGroup —— 单维度属性分组（选中区 + 候选折叠 + 自定义输入）
+ * AttributeGroup —— 单维度属性字段行（当前值摘要 + 弹层入口）
  *
  * 接口口径（UI 稿「`AttributeGroup` 入参」）：
- * `props: { fieldKey, name, valueType, selected, candidates }`，
+ * `props: { fieldKey, name, valueType, selected, candidates, first }`，
  * `emits: change(fieldKey, selected)` —— **本组件不直接改 props**，一律回抛新数组由父级写回，
- * 保证「表单值唯一真源在父级编排（useCorrection）」。
+ * 保证「表单值唯一真源在父级编排（`useCorrection`）」。
  *
- * 候选仅为**提示**：自定义输入恒可用，且不像候选池回写任何东西。
- * 颜色全走语义 token；图标走 `IconSvg`（禁 emoji / 文本 / `content:'+'` 当图标）；
- * 按压用 hover-class 透明度微降（禁 `transform: scale`）。
+ * 颜色全走语义 token（禁裸 hex）；图标走 `IconSvg`（禁 emoji / 文本当图标）；
+ * 事件统一 `@tap`；按压用 hover-class 透明度微降（禁 `transform: scale`）。
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import IconSvg from '@/components/IconSvg.vue'
-import TagChip from './TagChip.vue'
+import AttributePickerSheet from './AttributePickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
-/** 候选数 ≤ 该值时默认直接展开（不给折叠入口）：少量候选折叠反而多一次点击 */
-const AUTO_EXPAND_MAX = 4
+/**
+ * 摘要最多直出前 3 项、其余折成「等 N 项」：
+ * 超过 3 项仍全列会把右端的「单 / 多选」标注与箭头挤走、或诱导整行换行（行高一跳 ⇒ 表单抖）。
+ */
+const SUMMARY_MAX = 3
 
 const props = withDefaults(defineProps<{
   /** 维度键（camelCase）＝ 提交时 `attributes` 的键 */
   fieldKey: string
-  /** 分组名（维度中文名，如「主料」） */
+  /** 维度中文名（如「食材」），同时是弹层标题与占位文案的词根 */
   name: string
-  /** `single`（单选，仅可选择一项）｜ `multi`（多选） */
+  /** `single`（单选）｜ `multi`（多选）—— 驱动标注文案与选中态视觉档 */
   valueType: 'single' | 'multi'
-  /** 当前已选（预填原始值，可增删） */
+  /** 当前已选（预填原始值；`single` 至多 1 项） */
   selected: string[]
-  /** 参考候选（来自编辑态端点；为空 = 无候选 ⇒ 隐藏候选入口） */
+  /** 参考候选（编辑态端点 `options`；为空 ⇒ 弹层内明示「暂无参考候选，可直接手动输入」） */
   candidates: string[]
   /** 是否首个分组（由父级 `v-for` 按 index 显式传入；首组去上边距） */
   first?: boolean
@@ -140,172 +91,107 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  /** 选区变化：回抛**新的**已选数组（父级写回，组件不改 props） */
+  /** 选区变化：回抛**新的**已选数组（弹层确认后转发；父级写回，组件不改 props） */
   (e: 'change', fieldKey: string, selected: string[]): void
 }>()
 
-/** 候选面板是否展开（仅 `candidates.length > AUTO_EXPAND_MAX` 时由用户控制） */
-const expanded = ref(false)
-/** 少量候选直接展开：无折叠按钮，也无需用户点开 */
-const autoExpand = computed(() => props.candidates.length > 0 && props.candidates.length <= AUTO_EXPAND_MAX)
-const panelOpen = computed(() => autoExpand.value || expanded.value)
-/** 候选为空（无参考值 / 接口失败）⇒ 候选入口整体隐藏，仅留自定义输入 */
-const hasCandidates = computed(() => props.candidates.length > 0)
-
-/** 自定义输入草稿 + 聚焦态（聚焦时底线切主色） */
-const draft = ref('')
-const focused = ref(false)
-
+const hasValue = computed(() => props.selected.length > 0)
 /**
- * input @input 回调（平台例外：uni input 事件对象由运行时透传，形参取 `Event` 后结构化收窄，避免 `any` 逃逸）。
+ * 字段行摘要（不点开也能核对全貌 —— 这是「统一进弹层」多出来的那一次点按的主要补偿）：
+ * · 空值 ⇒ 灰字「请选择<维度名>」（与 input 占位同档）；
+ * · 单选 ⇒ 当前值原文；
+ * · 多选 ⇒ 前 3 项顿号连接，超出折成「等 N 项」（`N` = 总数，不是余数 ⇒ 不产生歧义）。
  */
-function onInput(e: Event) {
-  const detail = (e as unknown as { detail?: { value?: string } })?.detail
-  draft.value = detail?.value ?? ''
+const summary = computed(() => {
+  if (!hasValue.value) return `请选择${props.name}`
+  if (props.valueType === 'single') return props.selected[0]
+  const head = props.selected.slice(0, SUMMARY_MAX).join('、')
+  return props.selected.length > SUMMARY_MAX ? `${head} 等${props.selected.length}项` : head
+})
+/** 读屏文案：维度 + 当前值 + 模式（摘要在 WXML 里被省略号截断，读屏要给全量） */
+const ariaLabel = computed(() => {
+  const cur = hasValue.value ? props.selected.join('、') : '未选择'
+  return `${props.name}，当前${cur}，${props.valueType === 'single' ? '单选' : '可多选'}，共 ${props.candidates.length} 项参考候选，点按选择`
+})
+/** 选中态视觉档：单选组实心（solid）、多选组浅底（soft）——**两套不得互串**，下发给弹层内的 chip */
+const selectedStyle = computed<'soft' | 'solid'>(() => (props.valueType === 'single' ? 'solid' : 'soft'))
+
+/* ===== 弹层编排 =====
+   `pickerMounted` 首次打开后置真并**常驻**（候选池可达数十项，每次开合重建子树代价高），
+   开合动画仍由 `visible` 驱动 ⇒ 不能在挂载的同一 tick 内置真（BaseSheet 依赖 visible 的变化做动画）。 */
+const pickerMounted = ref(false)
+const pickerOpen = ref(false)
+
+/** 打开弹层（本行恒可点：候选为空时也一样要能进弹层手动输入） */
+function openPicker() {
+  pickerMounted.value = true
+  nextTick(() => {
+    pickerOpen.value = true
+  })
 }
 
-/**
- * 候选点选：
- * · `multi` —— 未选则加入、已选则取消（toggle）；
- * · `single` —— 取代已选（**仅保留 1 个**）；再点当前项 = 取消选择（允许清空该维度）。
- */
-function toggleCandidate(value: string) {
-  if (props.valueType === 'single') {
-    emit('change', props.fieldKey, props.selected[0] === value ? [] : [value])
-    return
-  }
-  emit(
-    'change',
-    props.fieldKey,
-    props.selected.includes(value)
-      ? props.selected.filter((x) => x !== value)
-      : [...props.selected, value],
-  )
-}
-
-/** 删除某一项（已选中区右上角叉） */
-function removeSelected(value: string) {
-  emit('change', props.fieldKey, props.selected.filter((x) => x !== value))
-}
-
-/** 自定义输入：去空格后非空、自动去重（已存在则视为已选，不再重复）；`single` 为替换 */
-function addCustom() {
-  const value = draft.value.trim()
-  if (!value) return
-  if (props.valueType === 'single') {
-    if (props.selected[0] !== value) emit('change', props.fieldKey, [value])
-  } else if (!props.selected.includes(value)) {
-    emit('change', props.fieldKey, [...props.selected, value])
-  }
-  draft.value = ''
+/** 弹层回抛新已选（多选确认 / 清空、单选点项 / 添加自定义）⇒ 转发 change；表单真源恒在父级编排 */
+function onSheetUpdate(next: string[]) {
+  emit('change', props.fieldKey, next)
 }
 </script>
 
 <style scoped>
-/* 组间距：`.ag` 恒 spacing-lg，**首组**由 `--first` 去掉上边距（不再用 :first-child 跨组件选择器） */
-.ag { margin-top: var(--spacing-lg); }
-.ag--first { margin-top: 0; }
-
-/* 分组标题（维度名）+ 单值小字说明 */
-.ag-head { display: flex; align-items: baseline; gap: var(--spacing-xs); }
-.ag-name { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); }
-.ag-tip { font-size: var(--font-tiny); color: var(--text-tertiary); }
-.ag-sub { display: block; margin-top: var(--spacing-2xs); font-size: var(--font-tiny); color: var(--text-tertiary); }
-
-/* ===== ① 已选中标签区（常驻）=====
-   间距 sm(16rpx) + chip 视觉高 ≈67rpx（文字行 30.8 + 内边距 32 + 描边 4）⇒ 行节距 ≈83rpx（≥64rpx 返工口径） */
-.ag-selected {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-sm);
-  min-height: 56rpx;
-  margin-top: var(--spacing-sm);
-}
-.ag-placeholder { font-size: var(--font-aux); color: var(--text-placeholder); }
-
-/* ===== ② 候选折叠面板：底比卡片略深一档、最多 240rpx 后纵向滚动 =====
-   `max-height` 在 mp-weixin 下**不保证**给 scroll-view 定高（无定高则内滚失效）：
-   故「用户展开」的长候选列表（>4 项）额外走 `.ag-panel--fixed` 定高，
-   而 ≤4 项自动展开的短列表保留 max-height（引擎不认时退化为自撑高度，内容全可见、不丢候选）。 */
-.ag-panel-box {
+/* 组间距：与本页 `.row` 的纵向节距同档（首组由父级下发 `first` 去掉，避免与 `.attrs` 上边距叠成双份） */
+.ag {
   margin-top: var(--spacing-xs);
-  padding: var(--spacing-xs);
-  background: var(--bg-input);
-  border-radius: var(--radius-xs);
-  box-sizing: border-box;
 }
-.ag-panel { max-height: 240rpx; }
-.ag-panel--fixed { height: 240rpx; }
-.ag-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); padding: var(--spacing-2xs); }
-
-/* ===== ③ 候选入口 + 自定义输入（同一行；窄屏自动换行）=====
-   两个可点件（折叠入口 / 输入行）统一 88rpx = 44pt 触达下限 */
-.ag-entry {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-top: var(--spacing-sm);
+.ag--first {
+  margin-top: 0;
 }
-.ag-more {
+/* 行容器：与 `CorrectionForm` 的 `.row` 同节距（上 xs / 下 sm），保证属性四行与上方五个字段**同一节奏** */
+.ag-row {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2xs);
-  height: 88rpx;
-  padding: 0 var(--spacing-sm);
-  background: var(--bg-input);
-  border-radius: var(--radius-pill);
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+  padding: var(--spacing-xs) 0 var(--spacing-sm);
 }
-.ag-more--pressed { opacity: 0.7; }
-.ag-more-text { font-size: var(--font-aux); color: var(--text-tertiary); }
-
-/* 自定义输入：下划线轻量样式（与基础信息表单同一输入语言，禁全包围框）；
-   行高 88rpx = 44pt（Apple 触达下限） */
-.ag-input-wrap {
-  flex: 1 1 300rpx;
-  min-width: 300rpx;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  border-bottom: 2rpx solid var(--border-color);
-  box-sizing: border-box;
-  transition: border-color var(--duration-fast) var(--ease-out);
+/* 标签列：宽 160rpx（与 `.row-label` 同档，4 字维度名 + 无必填星 ⇒ 不换行）；色档同为次级棕 */
+.ag-label {
+  flex: none;
+  width: 160rpx;
+  font-size: var(--font-aux);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
 }
-.ag-input-wrap--focus { border-bottom-color: var(--color-primary); }
-.ag-input {
+/* picker 单元格（同 `.row-field--picker`）：88rpx = 44pt 触达 + 仅底部横线（禁全包围矩形框）；
+   整行可点 ⇒ 88rpx 是**独立可点件**的基线，不适用旧「密集 chip 67rpx」例外（该例外已作废） */
+.ag-field {
   flex: 1 1 auto;
   min-width: 0;
-  height: 100%;
-  font-size: var(--font-aux);
-  color: var(--text-primary);
-}
-.ag-input-ph { color: var(--text-placeholder); }
-/* 「添加」：文字按钮（非图标），有草稿时才出现；视觉 56rpx，命中区经 ::after 撑满所在行 */
-.ag-add {
-  position: relative;
-  flex: none;
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 56rpx;
-  padding: 0 var(--spacing-sm);
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-soft);
+  gap: var(--spacing-xs);
+  height: 88rpx;
+  border-bottom: 1rpx solid var(--border-color);
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
-/* 命中区扩展：上下各 16rpx（56 + 32 = 88rpx = 44pt），仅纵向、不侵占输入框横向区域 */
-.ag-add::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -16rpx;
-  bottom: -16rpx;
+.ag-field--pressed {
+  background: var(--bg-soft);
 }
-.ag-add--pressed { opacity: 0.7; }
-.ag-add-text { font-size: var(--font-tiny); font-weight: var(--weight-medium); color: var(--color-primary-text); }
+/* 摘要：单行省略（`flex: 1` + `min-width: 0` ⇒ 先省略摘要，标注与箭头恒不被挤走） */
+.ag-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 空值占位（灰字，与 `.row-ph` / `.row-picker-text--ph` 同档；`text` 不消费 placeholder-class ⇒ 显式给类） */
+.ag-text--ph {
+  color: var(--text-placeholder);
+}
+/* 单 / 多选标注：最小字档 + 占位灰（信息性、非强调），`flex: none` ⇒ 不参与省略 */
+.ag-tip {
+  flex: none;
+  font-size: var(--font-tiny);
+  color: var(--text-placeholder);
+}
 </style>

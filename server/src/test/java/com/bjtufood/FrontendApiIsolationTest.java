@@ -21,7 +21,7 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * <b>前后端接口边界护栏</b>（2026-09-29 架构评审，方案 B：<b>安全区隔离</b>而非端点全分离）。
+ * <b>前后端接口边界护栏</b>。
  * <p>
  * <b>业界惯例（本项目采用）</b>：一个后端 + 一套 API + <b>两种鉴权</b>，
  * 而非「给每个客户端复制一份端点」（GitHub / Stripe / 各类 SaaS 均如此）。
@@ -40,8 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       要么是用户私有数据（越权）。这是本护栏的核心价值；</li>
  *   <li><b>client 禁调 /admin/**</b>：管理端口令只在 web 侧配置，小程序持有也无从校验；</li>
  *   <li><b>web 调用的路径必须在后端真实存在</b>——防「前端调了一个不存在的端点却长期 404」
- *       （2026-09-29 实测：web 调 {@code GET /dishes/attributes}，而该端点当时<b>后端根本没有</b>，
- *       管理后台「描述四维录入选项」一直是空的就是这么来的）。</li>
+ *       （实测事故：web 曾调用一个后端并不存在的字典端点，管理后台「描述四维录入选项」
+ *       一直是空的就是这么来的）。</li>
  * </ol>
  * <p>
  * <b>为何不用 ArchUnit</b>：ArchUnit 分析编译产物中的类依赖，而本条约束的是
@@ -120,7 +120,7 @@ class FrontendApiIsolationTest {
     /**
      * 学生端<b>公开只读</b>路径前缀（permitAll，非敏感字典/枚举）——web 允许复用。
      * <p>
-     * 2026-09-30 随 {@code GET /report-reasons} 迁址同步：原 {@code /feedback/} 条目存在的理由是
+     * 随 {@code GET /report-reasons} 迁址同步：原 {@code /feedback/} 条目存在的理由是
      * 让 web 复用「举报原因字典」，字典迁出后 web 已无该前缀的消费方；且反馈<b>写</b>入口本就不该
      * 被 web 复用（管理端走 {@code /admin/feedbacks}），故换为字典的新路径。
      */
@@ -140,7 +140,7 @@ class FrontendApiIsolationTest {
      * {@link #web_calledPathsExistInBackend()} 的 missing 集合中剔除。
      * <p>
      * <b>后端逐一补齐后，必须从此表删除对应项；表清空即护栏恢复全量严格。</b>
-     * 归属：web 重写（2026-09 用户拍板「完全重写」）领先后端；待后端按
+     * 归属：web 重写（用户拍板「完全重写」）领先后端；待后端按
      * {@code docs/web/feature/*} 实现 admin API。
      */
     private static final Set<String> PENDING_BACKEND_ADMIN_PATHS = Set.of(
@@ -205,8 +205,8 @@ class FrontendApiIsolationTest {
     @Test
     @DisplayName("web 调用的路径必须在后端真实存在（防「调了不存在的端点却长期 404」）")
     void web_calledPathsExistInBackend() {
-        // 2026-09-29 实测事故：web 调 GET /dishes/attributes，而该端点后端**从未存在**
-        // （只有 /dishes/{id}/attributes），管理后台「描述四维录入选项」长期 404 且无人察觉
+        // 实测事故：web 曾调用一个后端并不存在的字典端点（本域只有 /dishes/{id}/attributes），
+        // 管理后台「描述四维录入选项」长期 404 且无人察觉
         // ——因为 404 发生在网关层，后端日志里根本收不到该请求。
         Set<String> backend = collectBackendPaths();
         Map<String, List<String>> web = collect("web/src/api");

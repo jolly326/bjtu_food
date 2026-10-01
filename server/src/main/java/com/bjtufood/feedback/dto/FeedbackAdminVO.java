@@ -11,7 +11,9 @@ import java.util.List;
  */
 @Data
 @Schema(description = "反馈管理端展示信息")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class FeedbackAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "反馈ID")
     private Long id;
@@ -34,7 +36,7 @@ public class FeedbackAdminVO {
     @Schema(description = "反馈配图 URL 列表（COS 绝对地址，≤3 张）")
     private List<String> images;
 
-    // contact 已随 user_feedback.contact 列退役删除（2026-09-16 产品定型「不收集联系方式」）；
+    // contact 已随 user_feedback.contact 列退役删除；
     // web 管理端展示列由前端任务同步删除。
 
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")

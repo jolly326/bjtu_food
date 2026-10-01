@@ -1,7 +1,7 @@
 <template>
   <!-- 用户协议：上架合规承载，随包发布（不依赖外部域名与 web-view）。
        入口位于「我的」页「其他」分组列表，与「隐私政策」各自独立页面（见 spec privacy-compliance）。
-       UI 统一 Loop Round 4：外壳与正文排版已抽为包内共享组件 `./DocPage.vue`（与隐私政策页同源），
+       外壳与正文排版已抽为包内共享组件 `./DocPage.vue`（与隐私政策页同源），
        本页只承载**正文数据**（`sections`：小节标题 + 段落）。 -->
   <DocPage
     nav-title="用户协议"

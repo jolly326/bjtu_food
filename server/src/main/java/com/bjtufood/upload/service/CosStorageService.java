@@ -1,7 +1,7 @@
 package com.bjtufood.upload.service;
 
 /**
- * 腾讯云 COS 对象存储服务（UGC 配图最终存储，产品定稿 2026-09-13）。
+ * 腾讯云 COS 对象存储服务（UGC 配图最终存储，产品定稿 ）。
  * <p>
  * URL 规则：{@code https://{bucket}.cos.{region}.myqcloud.com/{key}}
  * key 规则：{@code ugc/{yyyyMMdd}/{uuid}.{ext}}

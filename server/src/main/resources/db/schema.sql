@@ -1495,4 +1495,85 @@ DELIMITER ;
 CALL `ensure_perf_indexes`();
 DROP PROCEDURE IF EXISTS `ensure_perf_indexes`;
 
+-- =============================================================
+-- 孤儿数据体检（D5：外键约束前必须先看清存量是否干净）
+-- =============================================================
+-- 背景：全库此前**零外键**，一致性全靠应用层事件维护
+--   （dish 删除 → ReviewDishCascadeListener 删评价；user 注销 → NotificationAccountCleanListener 删消息；
+--     账号归属迁移 → 各域监听器改挂）。风险：这些监听器一旦被误加 @TransactionalEventListener
+--     或误改注解，对应行就成孤儿，而读侧 JOIN 仍能查出（user 行存在）、只是永远关联不到菜品——
+--     **数据静默腐烂，不报错**。有外键时这类改动会立刻失败。
+--
+-- 下方两条外键只覆盖「应用层已有可靠级联」的关系（review.dish_id / notification.user_id）；
+-- 其余关系**刻意不加**（理由见下方逐条注释），不是遗漏。
+--
+-- ⚠️ 执行顺序：**先跑体检、确认 0 行孤儿，再执行 ensure_integrity_foreign_keys**。
+--   存量库若已有孤儿，ADD FOREIGN KEY 会直接失败（这正是期望行为：宁可迁移失败，
+--   也不要静默删数据）。届时按体检结果人工确认处理策略。
+-- =============================================================
+-- 体检 1：review 指向已不存在的 dish（菜品被物理删除但评价未级联清理）
+SELECT COUNT(*) AS orphan_review_dish
+FROM review r
+         LEFT JOIN dish d ON r.dish_id = d.id
+WHERE d.id IS NULL;
+
+-- 体检 2：notification 指向已不存在的 user
+-- 注：user 行只做匿名化（status='deleted'）从不物理删除，故此孤儿只可能来自「历史上误删过 user 行」
+SELECT COUNT(*) AS orphan_notification_user
+FROM notification n
+         LEFT JOIN `user` u ON n.user_id = u.id
+WHERE u.id IS NULL;
+
+-- =============================================================
+-- 外键约束补齐（D5）
+-- =============================================================
+-- 逐条说明为何「只加这两条」——零外键是既有事实，但并非所有关系都适合加：
+--
+-- ✅ review.dish_id → dish.id（ON DELETE CASCADE）
+--    应用层已由 ReviewDishCascadeListener 同步删除评价，CASCADE 是**第二道防线**而非新行为：
+--    正常路径下 review 行已先被删掉，CASCADE 命中 0 行；只有监听器失效时才由数据库兜底。
+--    两级方向一致（都删），故加约束不改变任何既有语义。
+--
+-- ✅ notification.user_id → user.id（ON DELETE CASCADE）
+--    同理：NotificationAccountCleanListener 已在注销时硬删消息，CASCADE 兜底。
+--    且 user 行实际从不物理删除（注销=匿名化），此约束主要防「误删 user 行」这类未来改动。
+--
+-- ❌ dish_correction.dish_id → dish.id —— **刻意不加**
+--    纠错记录在菜品删除后**有意保留**（它是「用户反馈过什么」的历史痕迹，非菜品附属数据）。
+--    加 CASCADE 会连带删掉纠错记录（改变行为），加 RESTRICT 会让菜品根本删不掉（更是破坏功能）。
+--    schema 中该列注释「逻辑关联 dish，不设外键，与项目现状一致」即此意，保留原状。
+--
+-- ❌ review.user_id / user_feedback.user_id / dish_correction.user_id → user.id —— **刻意不加**
+--    user 行永不物理删除（注销为匿名化），加约束无实际收益；而 dish_correction.user_id 可为 NULL
+--    （匿名提交），加约束需额外处理 NULL 语义，收益与复杂度不成正比。
+--
+-- ❌ dish.stall_id → stall.id —— **刻意不加**
+--    stall/canteen 已去实体化，是「按名 upsert 的属性字典」，存在独立的同名合并/清理语义，
+--    约束化可能干扰 upsert 流程，暂不纳入。
+--
+-- 幂等：先查 INFORMATION_SCHEMA.TABLE_CONSTRAINTS 再 ADD CONSTRAINT，重复执行安全。
+-- =============================================================
+DROP PROCEDURE IF EXISTS `ensure_integrity_foreign_keys`;
+DELIMITER $$
+CREATE PROCEDURE `ensure_integrity_foreign_keys`()
+BEGIN
+    -- 前置断言：存量库若有孤儿，下面两条 ADD 会失败并中止迁移（期望行为，勿用 DELETE 绕过）
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review'
+                     AND CONSTRAINT_NAME = 'fk_review_dish') THEN
+        ALTER TABLE `review`
+            ADD CONSTRAINT `fk_review_dish` FOREIGN KEY (`dish_id`) REFERENCES `dish` (`id`) ON DELETE CASCADE;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification'
+                     AND CONSTRAINT_NAME = 'fk_notification_user') THEN
+        ALTER TABLE `notification`
+            ADD CONSTRAINT `fk_notification_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE;
+    END IF;
+END$$
+DELIMITER ;
+CALL `ensure_integrity_foreign_keys`();
+DROP PROCEDURE IF EXISTS `ensure_integrity_foreign_keys`;
+
 SET FOREIGN_KEY_CHECKS = 1;

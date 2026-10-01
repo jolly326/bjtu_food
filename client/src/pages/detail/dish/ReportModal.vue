@@ -54,7 +54,7 @@
  */
 import { ref, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
-import { getReportReasons, type ReportReason } from '@/api/feedback'
+import { listReportReasons, type ReportReason } from '@/api/feedback'
 
 const props = defineProps<{
   open: boolean
@@ -77,7 +77,7 @@ watch(
     if (!v) return
     selected.value = ''
     reasonsFailed.value = false
-    getReportReasons()
+    listReportReasons()
       .then((rows) => {
         reasons.value = rows
         reasonsFailed.value = rows.length === 0

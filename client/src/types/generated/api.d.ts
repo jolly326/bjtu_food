@@ -7,11 +7,6 @@
 export interface paths {
   "/reviews/{id}": {
     /**
-     * 重新评价（覆盖式）
-     * @description 用途：作者本人修改自己的评价。覆盖同一行（评分/文字/配图），发表时间刷新为当前（时间倒序列表置顶），隐藏标记重置为未隐藏，并重算菜品评分。需已完成学号邮箱认证；非作者 403。不限次数。
-     */
-    put: operations["updateReview"];
-    /**
      * 删除自己的评价
      * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
      */
@@ -281,22 +276,6 @@ export interface paths {
      * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。
      */
     get: operations["guessLike"];
-  };
-  "/dishes/attributes": {
-    /**
-     * 菜品描述属性维度字典（全量）
-     * @description 用途：管理端录入表单 / 筛选器的维度与参考选项数据源。
-     * 2026-09-29 新增：web 端此前调用的 `/dishes/attributes` **后端从未存在**
-     * （本域只有按单菜的 `/dishes/{id}/attributes`），故管理后台的「描述四维录入选项」
-     * 长期 404，本次补齐。
-     * 与 `GET /dishes/{id}/attributes` 的差异：后者按**单菜现有维度**下发编辑候选；
-     * 本端点下发字典表中**全部维度** + 该维度全库已用值去重的**参考候选**
-     * （仅为参考、不构成约束；空数组表示暂无参考值，端上仍可自由输入）。
-     * 公开只读端点（学生端与管理端共用，符合业界「一个 API + 两种鉴权」惯例）；
-     * 管理端写操作仍全部走 `/admin/**`。端上零硬编码映射。
-     * 测试示例：/dishes/attributes
-     */
-    get: operations["listAllDishAttributes"];
   };
   "/banners": {
     /**
@@ -1316,54 +1295,6 @@ export interface components {
       /** @description 数据 */
       data?: components["schemas"]["GuessLikeVO"][];
     };
-    /** @description 菜品描述属性维度定义（公开字典） */
-    DishAttributeDefVO: {
-      /**
-       * Format: int64
-       * @description 维度ID
-       * @example 1
-       */
-      id?: number;
-      /**
-       * @description 维度键（**恒等于**菜品 attributes 的键，camelCase）
-       * @example dietType
-       */
-      fieldKey?: string;
-      /**
-       * @description 维度中文名（端上直接渲染）
-       * @example 饮食属性
-       */
-      name?: string;
-      /**
-       * @description 取值类型：single=单值 / multi=多值
-       * @example single
-       */
-      valueType?: string;
-      /**
-       * Format: int32
-       * @description 维度展示顺序（升序）
-       * @example 1
-       */
-      order?: number;
-      /** @description 该维度的参考候选值（该维度全库已用值去重、按使用频次倒序）；**仅为参考、不构成约束**，空数组表示暂无参考值（端上仍可自由输入） */
-      options?: string[];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishAttributeDefVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishAttributeDefVO"][];
-    };
     /** @description 首页轮播图（公开 2 字段） */
     BannerVO: {
       /**
@@ -1801,64 +1732,6 @@ export type external = Record<string, never>;
 
 export interface operations {
 
-  /**
-   * 重新评价（覆盖式）
-   * @description 用途：作者本人修改自己的评价。覆盖同一行（评分/文字/配图），发表时间刷新为当前（时间倒序列表置顶），隐藏标记重置为未隐藏，并重算菜品评分。需已完成学号邮箱认证；非作者 403。不限次数。
-   */
-  updateReview: {
-    parameters: {
-      path: {
-        /**
-         * @description 评价ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "rating": 4,
-         *   "content": "重新评一次：味道还行，就是有点咸。"
-         * }
-         */
-        "application/json": components["schemas"]["ReviewReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
   /**
    * 删除自己的评价
    * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
@@ -3552,53 +3425,6 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultListGuessLikeVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品描述属性维度字典（全量）
-   * @description 用途：管理端录入表单 / 筛选器的维度与参考选项数据源。
-   * 2026-09-29 新增：web 端此前调用的 `/dishes/attributes` **后端从未存在**
-   * （本域只有按单菜的 `/dishes/{id}/attributes`），故管理后台的「描述四维录入选项」
-   * 长期 404，本次补齐。
-   * 与 `GET /dishes/{id}/attributes` 的差异：后者按**单菜现有维度**下发编辑候选；
-   * 本端点下发字典表中**全部维度** + 该维度全库已用值去重的**参考候选**
-   * （仅为参考、不构成约束；空数组表示暂无参考值，端上仍可自由输入）。
-   * 公开只读端点（学生端与管理端共用，符合业界「一个 API + 两种鉴权」惯例）；
-   * 管理端写操作仍全部走 `/admin/**`。端上零硬编码映射。
-   * 测试示例：/dishes/attributes
-   */
-  listAllDishAttributes: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishAttributeDefVO"];
         };
       };
       /** @description Bad Request */

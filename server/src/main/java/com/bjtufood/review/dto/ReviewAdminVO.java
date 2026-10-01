@@ -10,11 +10,13 @@ import java.util.List;
  * 评价视图对象（管理端专用 VO）
  * <p>
  * 管理端独有语义字段为 {@code isHidden}（是否被隐藏，仅管理端可见/可改）。
- * 内容安全态 {@code secState} 已随「取消人工复核」（2026-09-15 用户拍板）全链退役，不再返回。
+ * 内容安全态 {@code secState} 已随「取消人工复核」全链退役，不再返回。
  */
 @Data
 @Schema(description = "评价展示信息（管理端专用，含审核标记）")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class ReviewAdminVO {
+    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "评价ID")
     private Long id;

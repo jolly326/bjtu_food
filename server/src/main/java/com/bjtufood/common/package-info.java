@@ -5,7 +5,7 @@
  * （{@code config} = Web/Spring 基础设施；{@code persistence} = MyBatis 持久化设施；
  * {@code ratelimit} = 基于 IP 的防滥用频控）。
  * <p>
- * <b>子包划分（2026-09-28 收口）</b>：此前 {@code config} 混装了三类关注点——Web 基础设施
+ * <b>子包划分</b>：此前 {@code config} 混装了三类关注点——Web 基础设施
  * （Cors/Swagger/Jackson/Async/两个 Filter/WebMvc）、MyBatis 持久化设施（MybatisPlusConfig、
  * MybatisMetaObjectHandler）、以及承载业务风控知识的 {@code IpRateLimiter}；另有孤立的
  * {@code handler} 包只放一个 {@code StringListTypeHandler}。现已按关注点拆为三包，

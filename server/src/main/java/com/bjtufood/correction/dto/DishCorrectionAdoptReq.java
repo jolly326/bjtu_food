@@ -17,7 +17,9 @@ import lombok.Data;
  */
 @Data
 @Schema(description = "采纳菜品纠错请求（两段式档口确认）")
+@Deprecated(since = "2026-09", forRemoval = true)
 public class DishCorrectionAdoptReq {
+    // ⚠️ 冻结：管理端（Web 后台）请求对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "档口ID（可选，两段式第二段：管理端选定的既有档口，校验存在后挂靠）", example = "3")
     private Long stallId;

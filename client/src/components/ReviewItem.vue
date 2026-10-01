@@ -16,6 +16,7 @@
         class="review-avatar"
         :src="getImageUrl(authorAvatar)"
         mode="aspectFill"
+        lazy-load
         role="img"
         :aria-label="`${authorNickname}的头像`"
         @error="avatarOk = false"
@@ -64,6 +65,7 @@
               class="review-image"
               :src="getImageUrl(img)"
               mode="aspectFill"
+              lazy-load
               role="img"
               :aria-label="`评价配图 ${i + 1}`"
               @tap="onPreviewImage(i)"
@@ -117,7 +119,7 @@ const props = defineProps<{
 // 按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
 /* 事件**只有一个出口**：`more`（右上角竖三点）。
-   UI 统一 Loop Round 17：原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
+   原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
    —— 本人删除 / 他人举报统一由父页 `ActionSheet` 处理 ⇒ 按「零消费即删」移除。 */
 const emit = defineEmits<{
   (e: 'more', review: Review | MyReview): void
@@ -125,9 +127,6 @@ const emit = defineEmits<{
 
 const pressed = ref(false)
 const avatarOk = ref(true)
-
-/* 注：原 `isOwn` / `canDelete` 两个派生值只服务于已删除的 `delete` 事件（UI 统一 Loop Round 17）；
-   「是否本人评价」的判定现由父页（我的评价 / 菜品详情）自行完成，组件不再重复持有。 */
 
 /**
  * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
@@ -172,7 +171,7 @@ function onMore() {
 
 <style scoped>
 /* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
-   消费方 **2 处**（UI 统一 Loop Round 14 核实修正）：`DishReviewSection`（传 `flat` ⇒ 嵌在评价卡内的条目）、
+   消费方 **2 处**：`DishReviewSection`（传 `flat` ⇒ 嵌在评价卡内的条目）、
    `my-reviews`（默认**非 flat** ⇒ 独立白卡）。两支形态均在实际使用，**均不得删除**。
    口碑层扁平：不设评论/回复/点赞入口，互动仅右上角三点菜单（删除 / 举报）。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
@@ -189,7 +188,7 @@ function onMore() {
   transition: opacity var(--duration-fast) var(--ease-out);
 }
 /* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，只保留条目结构。
-   Round 24：**去掉条目分割线**（原 border-bottom）与上下内边距 —— 条目之间由上层列表容器的
+   **去掉条目分割线**（原 border-bottom）与上下内边距 —— 条目之间由上层列表容器的
    `--spacing-lg` **纯留白**分隔（用户口径「不加分割线」）。 */
 .review-item--flat {
   background: transparent;
@@ -202,11 +201,13 @@ function onMore() {
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx） */
+/* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx）。
+   `overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆形内 —— 缺它时占位方块的直角会露在圆外 */
 .review-avatar {
   width: 64rpx;
   height: 64rpx;
   border-radius: var(--radius-circle);
+  overflow: hidden;
   background: var(--bg-soft);
   flex-shrink: 0;
 }
@@ -243,7 +244,7 @@ function onMore() {
 .review-head-left {
   flex: 1;
   min-width: 0;
-  /* 64rpx 走 `--spacing-2xl`（同值）—— UI 统一 Loop Round 6：为右上「竖三点」留出的避让位 */
+  /* 64rpx 走 `--spacing-2xl`（同值）—— 为右上「竖三点」留出的避让位 */
   padding-right: var(--spacing-2xl);
   display: flex;
   align-items: center;

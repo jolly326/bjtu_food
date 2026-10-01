@@ -58,7 +58,7 @@ public class Dish {
     @Schema(description = "描述属性（JSON：键=维度 fieldKey，值=机器值/数组）", example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\"]}")
     private String attributes;
 
-    /** 菜品大类（2026-09-21 §7.34，单值枚举可空）：值域由 DishViewConst 派生（单一真源）；
+    /** 菜品大类：值域由 DishViewConst 派生（单一真源）；
      *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），
      *  仅供「大类视图」筛选与视图字典下发 */
     @Schema(description = "菜品大类枚举键（值域由 DishViewConst 派生）", example = "noodle")
@@ -68,7 +68,7 @@ public class Dish {
     @Schema(description = "状态", example = "on")
     private String status;
 
-    // dish.reject_reason / dish.created_by 已于 2026-09-16 用户拍板「零消费即删除」退役：
+    // dish.reject_reason / dish.created_by 已于用户拍板「零消费即删除」退役：
     // reject_reason 恒 NULL（审核语义退役后无写入入口）、created_by 只写不读（upsert 留痕撤销）；
     // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
 

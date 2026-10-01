@@ -21,9 +21,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * 实现说明：
  * <ul>
  *   <li>每个 key（scope:ip）维护窗口内请求时间戳升序队列，检查与记录在
- *       synchronized 内原子完成，避免并发请求同时通过；check 全部通过才记录，
+ *       <b>该 key 自己的队列监视器</b>内原子完成，避免并发请求同时通过；check 全部通过才记录，
  *       被拒绝的请求不消耗额度。</li>
- *   <li>限频发生在低频写操作路径（提交反馈/发验证码），方法级锁开销可忽略。</li>
+ *   <li><b>锁粒度 = 单个客户端</b>（P1）：原实现是 {@code synchronized(this)} 全局锁，
+ *       8 线程压测下拒绝分支比放行分支慢约 40%（基线 §3）——所有 IP 的判定串行在一把锁上。
+ *       改为按 key 加锁后，不同 IP 互不阻塞，同一 IP 仍严格串行（限流语义不变）。</li>
  *   <li>规则窗口不得超过 {@link #MAX_WINDOW_MS}（当前业务规则最大 1 小时），
  *       清理线程据此判定过期条目。</li>
  * </ul>
@@ -43,6 +45,9 @@ public class IpRateLimiter {
 
     /** key = scope:ip，value = 该键在窗口内的请求时间戳队列（升序） */
     private final Map<String, Deque<Long>> hits = new ConcurrentHashMap<>();
+
+    /** 撞上清理竞态时的最大重试轮数 */
+    private static final int ACQUIRE_RETRIES = 3;
 
     /**
      * 尝试获取一次配额。
@@ -65,50 +70,65 @@ public class IpRateLimiter {
             cleanup();
         }
         String key = scope + ":" + ip;
-        long waitSeconds = 0L;
-        synchronized (this) {
+        // 至多重试 ACQUIRE_RETRIES 轮：清理线程可能在本线程取到队列之后把它摘出 map
+        // （键已整窗过期）。不校验归属就写队列，那次命中会写进一个已脱离 map 的队列里
+        // ——表现为「静默少计一次配额」，方向偏宽松，正是限流最不该有的偏差。
+        for (int attempt = 0; attempt < ACQUIRE_RETRIES; attempt++) {
             Deque<Long> window = hits.computeIfAbsent(key, k -> new ArrayDeque<>());
-            // 先滑出最老时间戳：队列内只保留最大规则窗口内的记录
-            while (!window.isEmpty() && now - window.peekFirst() > MAX_WINDOW_MS) {
-                window.pollFirst();
-            }
-            for (Rule rule : rules) {
-                if (rule == null || rule.limit() <= 0) {
+            // 锁加在队列对象上：同一客户端严格串行，不同客户端互不阻塞
+            synchronized (window) {
+                if (hits.get(key) != window) {
                     continue;
                 }
-                long count = 0;
-                long oldest = Long.MAX_VALUE;
-                for (Long t : window) {
-                    if (now - t <= rule.windowMs()) {
-                        count++;
-                        oldest = Math.min(oldest, t);
+                // 先滑出最老时间戳：队列内只保留最大规则窗口内的记录
+                while (!window.isEmpty() && now - window.peekFirst() > MAX_WINDOW_MS) {
+                    window.pollFirst();
+                }
+                long waitSeconds = 0L;
+                for (Rule rule : rules) {
+                    if (rule == null || rule.limit() <= 0) {
+                        continue;
+                    }
+                    long count = 0;
+                    long oldest = Long.MAX_VALUE;
+                    for (Long t : window) {
+                        if (now - t <= rule.windowMs()) {
+                            count++;
+                            oldest = Math.min(oldest, t);
+                        }
+                    }
+                    if (count >= rule.limit()) {
+                        // 等待窗口内最早一次命中滑出窗口
+                        long waitMs = rule.windowMs() - (now - oldest);
+                        waitSeconds = Math.max(waitSeconds, (waitMs + 999) / 1000);
                     }
                 }
-                if (count >= rule.limit()) {
-                    // 等待窗口内最早一次命中滑出窗口
-                    long waitMs = rule.windowMs() - (now - oldest);
-                    waitSeconds = Math.max(waitSeconds, (waitMs + 999) / 1000);
+                if (waitSeconds > 0) {
+                    return waitSeconds;
                 }
+                window.addLast(now);
+                return 0L;
             }
-            if (waitSeconds > 0) {
-                return waitSeconds;
-            }
-            window.addLast(now);
         }
+        // 连续 ACQUIRE_RETRIES 轮都撞上清理竞态（实际概率极低）：放行，与「IP 解析失败即放行」同口径
         return 0L;
     }
 
     /**
-     * 每分钟清理滑出最大窗口的队列并移除空 key（与 TokenBlacklist 同节奏），
-     * 防内存缓慢增长。synchronized 与 tryAcquire 互斥，避免遍历期间并发修改。
+     * 每分钟清理滑出最大窗口的队列并移除空 key（与 TokenBlacklist 同节奏），防内存缓慢增长。
+     * <p>
+     * 逐 key 持其队列监视器后判定，因此<b>不再需要全局锁</b>；摘除 key 与 {@code tryAcquire}
+     * 的竞态由后者的归属复检（{@code hits.get(key) == window}）兜住。
      */
     @Scheduled(fixedDelay = 60_000)
-    public synchronized void cleanup() {
+    public void cleanup() {
         long now = System.currentTimeMillis();
         hits.entrySet().removeIf(e -> {
             Deque<Long> q = e.getValue();
-            q.removeIf(t -> now - t > MAX_WINDOW_MS);
-            return q.isEmpty();
+            synchronized (q) {
+                q.removeIf(t -> now - t > MAX_WINDOW_MS);
+                return q.isEmpty();
+            }
         });
     }
 }

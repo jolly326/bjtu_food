@@ -35,7 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link CorrectionServiceImpl#submit} 的<b>微信内容安全检测</b>单测（2026-09-29 补齐机审时新增）。
+ * {@link CorrectionServiceImpl#submit} 的<b>微信内容安全检测</b>单测。
  * <p>
  * <b>为何这条链路原先零测试</b>：纠错是唯一<b>不经微信机审</b>的 UGC 入口（仅靠本地静态词库），
  * 且其内容会被管理员采纳后<b>写回 dish 进入公开展示</b>——风险等级不低，却无任何测试覆盖

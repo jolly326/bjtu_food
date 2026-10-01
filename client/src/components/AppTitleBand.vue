@@ -2,7 +2,7 @@
   <!-- 固定标题带（跨页统一，UI 文档 §1 / 搜索页 §2）
        · `position: fixed`：永久固定在页面左上角，不随页面滚动、不随 Banner 滚出；
        · 与微信右上角**原生胶囊同一条水平线**（行高 = navBarHeight、垂直中心对齐）；
-       · **两个区域、两档字号均可由参数控制**（2026-09-27 用户裁决）：
+       · **两个区域、两档字号均可由参数控制**：
          ── 左区（靠左，与左边缘**留有 `--spacing-md` 内距**）：
               · 无返回（`back=false`）⇒ 显示**页面名称**（默认字档 `--font-title`，粗体大号）；
               · 有返回（`back=true`） ⇒ 显示**文字「返回」**（默认字档 `--font-body`，可点，命中区 ≥88rpx）；
@@ -55,7 +55,7 @@
 import { computed } from 'vue'
 import { useNavMetrics } from '@/utils/useNavMetrics'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   /** 页面名称：无返回 ⇒ 显示在左区；有返回 ⇒ 显示在居中区 */
   title?: string
   /** 是否显示返回（文字「返回」，居中区随之显示页面名称） */
@@ -142,7 +142,7 @@ const bandStyle = computed(() => ({
   -webkit-tap-highlight-color: transparent;
 }
 .band-back-pressed { opacity: 0.55; }
-/* 「返回」与页面名**完全同级**（同字号 + 同字重）：2026-09-27 用户裁决 —— 三处（左页面名 /
+/* 「返回」与页面名**完全同级**（同字号 + 同字重）：用户裁决 —— 三处（左页面名 /
    左「返回」/ 居中页面名）默认均取 `--font-title` + **粗体**，与首页「知行食记」一致。 */
 .band-back-text {
   font-weight: var(--weight-bold);

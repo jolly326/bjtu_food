@@ -13,7 +13,8 @@
          **仅容器结构与视觉** —— 业务逻辑 / 跳转 / 弹窗 / 角标 / 无障碍全部沿用原稿。 ===== -->
       <!-- 卡片 A：个人信息 + 快捷功能 -->
       <view class="mine-card">
-        <!-- 用户信息模块（卡片 A 内第 1 段）：游客（未认证）显示「游客 + 食客短 ID」；已认证显示昵称 + 绑定邮箱。
+        <!-- 用户信息模块（卡片 A 内第 1 段）：认证态 = 昵称 + 校园邮箱；游客态 = 昵称 +「未完成校园认证」。
+             内容与排版真源见 docs/client/ui/README.md §身份卡。
              整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
         <view
@@ -26,18 +27,18 @@
           <view class="user-card-head">
             <view class="avatar-wrap">
               <ImageFallback v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" />
-              <view v-else class="avatar avatar-empty">
-                <IconSvg name="user" :size="60" :color="COLOR_MAP['text-tertiary']" />
+              <view v-else class="avatar">
+                <ImagePlaceholder name="user" :size="60" />
               </view>
             </view>
             <view class="user-meta">
               <text class="nickname">
                 {{ isVerified ? (userInfo?.nickname || '食客') : (userInfo?.nickname || '游客') }}
               </text>
-              <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示派生短标识。
+              <!-- 副行：已认证展示绑定校园邮箱（`bindEmail`，认证判据唯一来源）；游客展示认证状态文案。
                    `username` 仅作账号标识出参，**端上不展示**（游客态它是 `wx_` 内部号） -->
               <text v-if="isVerified" class="user-id">{{ bindEmail || '--' }}</text>
-              <text v-else class="user-id">游客 {{ guestLabel }}</text>
+              <text v-else class="user-id">{{ GUEST_SUB }}</text>
             </view>
             <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="card-arrow" />
           </view>
@@ -63,7 +64,7 @@
           >
             <view class="grid-cell-icon">
               <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
-              <!-- 系统通知：存在未读时右上红点（无未读 / 未登录不显示） -->
+              <!-- 系统通知：存在未读时右上红点（无未读不显示） -->
               <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
               <!-- 身份认证：已认证时右上主色圆点（状态徽章） -->
               <view v-else-if="cell.key === 'cert' && isVerified" class="badge badge-dot badge-cert" aria-hidden="true" />
@@ -113,14 +114,14 @@ import { showTab } from '@/stores/route'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import ImageFallback from '@/components/ImageFallback.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
-import { toastError } from '@/utils/error'
+import { toastError, toastSuccess } from '@/utils/error'
 import { useAuthStore } from '@/stores/auth'
 import { useNotifyStore } from '@/stores/notify'
 import { PATH } from '@/utils/routes'
-import { deriveGuestLabel, getLocalGuestLabel } from '@/utils/guest'
 import { deleteAccount } from '@/api/user'
 import { COLOR_MAP, MODAL_CONFIRM_PRIMARY_COLOR } from '@/theme/tokens'
 
@@ -132,12 +133,8 @@ const userInfo = computed(() => userStore.userInfo)
 const isVerified = computed(() => userStore.isVerified())
 /** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
 const bindEmail = computed(() => userInfo.value?.bindEmail || '')
-/**
- * 游客展示短 ID：由账号 `id` 派生「食客 + ID 尾 4 位」（id 不足 4 位取全量）。
- * spec §7.32：短标识不再由接口出参（纯派生值），展示层现算；
- * `id` 不可得（静默登录未完成 / 失败）时回退本地游客 ID 兜底，保证不空白。
- */
-const guestLabel = computed(() => deriveGuestLabel(userInfo.value?.id, getLocalGuestLabel()))
+/** 游客态副行文案：端内静态口径（不派生内部编号 —— 游客身份由服务端建号默认昵称承载） */
+const GUEST_SUB = '未完成校园认证'
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 
@@ -146,11 +143,11 @@ onLoad(() => {
   userStore.silentLogin()
 })
 
-// 每次进入「我的」刷新未读通知数（宫格红点角标；通知属认证专属，仅认证用户刷新未读数）
+// 每次进入「我的」刷新未读通知数（宫格红点角标；消息中心为登录级能力，游客与认证态同权刷新）
 onShow(() => {
   // 锚定底部菜单栏：我的页始终显示并高亮
   showTab('profile')
-  if (userStore.isVerified()) notifyStore.fetchUnread()
+  notifyStore.fetchUnread()
 })
 
 /** 用户卡点击：查看我的评价（游客直接进入——页内信息条与空态自洽，认证要求仅在评论操作时） */
@@ -164,7 +161,7 @@ function onCertTap() {
     authStore.requestAuth()
     return
   }
-  uni.showToast({ title: '已完成身份认证', icon: 'none' })
+  toastSuccess('已完成身份认证')
 }
 
 /** 功能宫格数据（一行 3 格，顺序固定：意见反馈 / 系统通知 / 身份认证）；每格整格热区 */
@@ -196,7 +193,7 @@ function onAccountDelete() {
       if (!res.confirm) return
       try {
         await deleteAccount()
-        uni.showToast({ title: '账号已注销', icon: 'none' })
+        toastSuccess('账号已注销')
       } catch (e) {
         // 失败文案走统一出口 utils/error（e 为 null 时不会崩）
         toastError(e, '注销失败，请稍后重试')
@@ -224,12 +221,12 @@ const moreRows = [
 <style scoped>
 /* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
    页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
-/* 页面根不带底色（UI 统一 Loop Round 11）：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
-   结构化收口（Round 12-A，用户裁决）：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
+/* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
+   结构化收口：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
    —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
 .mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .mine-scroll { flex: 1; min-height: 0; }
-/* Round 26：容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
+/* 容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
    `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
    且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
@@ -266,12 +263,11 @@ const moreRows = [
   border-top-color: var(--color-primary-soft);
 }
 /* 游客态**不设**额外规则：`.user-card` 的 `border-top` 本就是 transparent，
-   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖（UI 统一 Loop Round 1） */
+   只有认证态（`.user-card--verified`）需要改色 —— 去掉 no-op 覆盖 */
 .user-card:active { background-color: var(--bg-soft); }
 .user-card-head { display: flex; align-items: center; gap: var(--spacing-md); }
 .avatar-wrap { flex-shrink: 0; width: 120rpx; height: 120rpx; }
 .avatar { width: 120rpx; height: 120rpx; border-radius: var(--radius-circle); overflow: hidden; background: var(--bg-soft); }
-.avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .user-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-sm); }
 /* 游客态不再加类名：昵称色两态一致（`.nickname--guest` 与基类同值，属 no-op，已删） */
 .nickname { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -321,7 +317,7 @@ const moreRows = [
   justify-content: space-between;
   min-height: 88rpx;
   padding: 0 var(--spacing-md);
-  border-bottom: 2rpx solid var(--border-color);
+  border-bottom: 1rpx solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--duration-fast) var(--ease-out);
 }

@@ -42,12 +42,12 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 /** 字典项：`value` = 后端存储值（提交用）；`label` = 页面展示汉字（仅渲染用） */
-export interface FloorOption {
+interface FloorOption {
   value: string
   label: string
 }
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   /** 显隐（父级 `v-if` 懒挂载后由 `visible` 控制开合） */
   visible: boolean
   /** 当前「后端存储值」；未命中字典时为原值（此时无高亮行） */

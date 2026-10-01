@@ -57,14 +57,18 @@ export async function request<T>(
     options.timeout ?? 30000,
   )
 
+  const init: RequestInit = {
+    method,
+    headers,
+    signal: controller.signal,
+  }
+  if (payload !== undefined) {
+    init.body = payload
+  }
+
   let res: Response
   try {
-    res = await fetch(url, {
-      method,
-      headers,
-      body: payload,
-      signal: controller.signal,
-    })
+    res = await fetch(url, init)
   } catch {
     clearTimeout(timer)
     throw new ApiError(0, '网络异常，请检查后端是否启动')
