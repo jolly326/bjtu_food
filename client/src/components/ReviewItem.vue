@@ -201,11 +201,13 @@ function onMore() {
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 
-/* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx） */
+/* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx）。
+   `overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆形内 —— 缺它时占位方块的直角会露在圆外 */
 .review-avatar {
   width: 64rpx;
   height: 64rpx;
   border-radius: var(--radius-circle);
+  overflow: hidden;
   background: var(--bg-soft);
   flex-shrink: 0;
 }

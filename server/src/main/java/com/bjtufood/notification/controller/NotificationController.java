@@ -1,6 +1,5 @@
 package com.bjtufood.notification.controller;
 
-import com.bjtufood.common.annotation.RequireVerified;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.auth.support.SecurityUtil;
@@ -20,6 +19,10 @@ import org.springframework.web.bind.annotation.*;
  * <p>
  * P3/ARCH-008：查询/计数/已读逻辑下沉 NotificationService，
  * Controller 只留参数与响应包装，不再注入 Mapper。
+ * <p>
+ * <b>鉴权口径 = 登录级（🔑）</b>：游客（未认证）与已认证用户**同权可用**
+ * —— 邮箱认证只约束 UGC 写操作（写评价 / 删除本人评价 / 「我的评价」），
+ * 不约束站内消息中心；游客提交的反馈 / 举报 / 纠错同样投递处理回执。
  */
 @Tag(name = "09. 消息通知", description = "我的消息列表/未读计数/已读。学生态。")
 @RestController
@@ -29,9 +32,8 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @Operation(summary = "我的消息列表", description = "STU（需邮箱认证）。倒序，支持 isRead 过滤。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的消息列表", description = "STU（需登录；游客态亦可）。倒序，支持 isRead 过滤。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
-    @RequireVerified
     @GetMapping("/my/notifications")
     public Result<PageResult<NotificationVO>> list(
             @Parameter(description = "已读过滤：true=仅已读 / false=仅未读（可空=全部）")
@@ -42,9 +44,8 @@ public class NotificationController {
                 notificationService.listMy(SecurityUtil.getCurrentUserId(), isRead, page, pageSize));
     }
 
-    @Operation(summary = "未读总数", description = "STU（需邮箱认证）。驱动首页红点。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "未读总数", description = "STU（需登录；游客态亦可）。驱动宫格红点。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
-    @RequireVerified
     @GetMapping("/my/notifications/unread-count")
     public Result<UnreadCountVO> unreadCount() {
         long count = notificationService.countUnread(SecurityUtil.getCurrentUserId());
@@ -61,19 +62,17 @@ public class NotificationController {
      * {@code /read}，且 {@code id} 绑定为 {@code Long}（把 {@code read-all} 与 {@code {id}} 直接比较时
      * 会因类型转换失败而不匹配，从而落到本方法）。
      */
-    @Operation(summary = "全部已读", description = "STU（需邮箱认证）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。",
+    @Operation(summary = "全部已读", description = "STU（需登录；游客态亦可）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
-    @RequireVerified
     @PutMapping("/my/notifications/read-all")
     public Result<Void> readAll() {
         notificationService.markAllRead(SecurityUtil.getCurrentUserId());
         return Result.success();
     }
 
-    @Operation(summary = "单条已读", description = "STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "单条已读", description = "STU（需登录；游客态亦可）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
-    @RequireVerified
     @PutMapping("/my/notifications/{id}/read")
     public Result<Void> readOne(
             @Parameter(description = "通知ID", example = "1")

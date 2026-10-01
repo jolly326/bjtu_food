@@ -16,13 +16,11 @@ import com.bjtufood.auth.service.UserService;
 import com.bjtufood.wechat.service.WechatService;
 import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.DateTimeUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.auth.support.JwtUtil;
 import com.bjtufood.auth.support.VerifyCodeAttemptGuard;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.auth.event.UserAccountClosedEvent;
-import com.bjtufood.auth.event.UserOwnershipMigratedEvent;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -46,6 +44,13 @@ public class AuthServiceImpl implements AuthService {
      * 现改为「先机审（无事务）→ 再落库（开事务）」。必须是**独立 Bean**：同类自调用不会开启事务。
      */
     private final AuthProfilePersister profilePersister;
+    /**
+     * 验证码校验与认证写入的事务边界（D1）：原实现里 {@code verifyEmail} 的 {@code @Transactional}
+     * 从方法入口就开始，横跨「逐条 BCrypt 定位验证码」（最近 20 条 × 约 100ms ≈ 最坏 2 秒），
+     * 期间持续占用连接。现拆为「校验（无事务）→ 写入（开事务）」两个事务方法，落在本 Bean 内。
+     * 详见 {@link VerifyCodePersister} 类注释。
+     */
+    private final VerifyCodePersister verifyCodePersister;
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
     private final EmailCodeService emailCodeService;
     private final PasswordEncoder passwordEncoder;
@@ -95,8 +100,20 @@ public class AuthServiceImpl implements AuthService {
         return toLoginVO(user);
     }
 
+    /**
+     * 邮箱验证码认证：<b>先校验（无事务）→ 再写入（开事务）</b>。
+     * <p>
+     * <b>本方法刻意不加 {@code @Transactional}</b>（D1）：原实现的事务从方法入口就开始，
+     * 横跨「逐条 BCrypt 定位验证码」这一次 CPU 密集操作（最近 20 条 × 约 100ms ≈ 最坏 2 秒）
+     * ⇒ 期间持续占用数据库连接；HikariCP 池仅 20 条，并发一高即被占满并拖垮只读请求。
+     * 这与 {@code AuthProfilePersister}（横跨微信机审外呼）、{@code ReviewPersister} /
+     * {@code FeedbackPersister}（横跨微信机审外呼）是<b>同一类问题</b>，此前只在后三处修过，
+     * 此处是同型问题在第四条链路上的遗漏。
+     * <p>
+     * 两个事务方法都落在 {@link VerifyCodePersister}（独立 Bean，Spring 代理事务才生效），
+     * 拆分依据见该类注释：验证码的原子消费与跨域归属迁移语义相反，不应同生共死。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public UserInfoVO verifyEmail(String code, Long userId) {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
@@ -115,8 +132,8 @@ public class AuthServiceImpl implements AuthService {
         verifyCodeAttemptGuard.assertNotLocked(userId);
         String email;
         try {
-            // 校验验证码并推导绑定邮箱（验证码记录 purpose=verify、未用、未过期）
-            email = consumeVerifyCodeAndGetEmail(code);
+            // 校验验证码并原子消费，推导绑定邮箱（purpose=verify、未用、未过期）
+            email = verifyCodePersister.consumeAndGetEmail(code);
         } catch (BusinessException e) {
             // 失败计数（含空码/错误/过期/不存在）：达阈值即封禁窗口内 fail-fast
             verifyCodeAttemptGuard.recordFailure(userId);
@@ -124,31 +141,10 @@ public class AuthServiceImpl implements AuthService {
         }
         verifyCodeAttemptGuard.recordSuccess(userId);
 
-        // 已认证的微信绑定（bind_email = 邮箱）
-        User verifiedBinding = userService.getByBindEmail(email);
-        if (verifiedBinding != null && !verifiedBinding.getId().equals(current.getId())) {
-            // 替换绑定：旧微信 bind_email=NULL（认证态判据即该列非空，清空后自然回落游客态）；业务数据归属迁移到当前微信
-            releaseVerifiedBinding(verifiedBinding);
-            migrateOwnership(verifiedBinding.getId(), current.getId());
-        }
-
-        // 历史邮箱注册账号（email = 邮箱，旧账号密码体系）
-        User legacyAccount = userService.getByEmail(email);
-        if (legacyAccount != null && !legacyAccount.getId().equals(current.getId())) {
-            // 数据归属转移：旧账号业务数据改挂到当前微信
-            migrateOwnership(legacyAccount.getId(), current.getId());
-            // 旧账号清理：标记 deleted 并释放 email 唯一键占用。
-            // email 置 NULL 必须显式 set（updateById 忽略 null 字段不写列）：
-            // NULL 不占用 uk_user_email 唯一索引，空串则会与其它置 '' 的账号冲突。
-            userMapper.update(null, new LambdaUpdateWrapper<User>()
-                    .eq(User::getId, legacyAccount.getId())
-                    .set(User::getStatus, UserConst.STATUS_DELETED)
-                    .set(User::getEmail, null));
-        }
-
-        // 置当前微信为已认证：**认证态唯一写入点 = bind_email**（无布尔列，派生判据见 AuthStateUtil）
-        current.setBindEmail(email);
-        userMapper.updateById(current);
+        // 认证写入（此处才开事务）：释放他微信绑定 + 归属迁移 + 历史邮箱账号清理 + 置当前账号 bind_email。
+        // 四步同生共死——否则会出现「邮箱已释放但业务数据没迁移」的中间态（数据悬在新旧两账号之间）。
+        // 各步实现与判据见 VerifyCodePersister#applyVerifiedBinding（逐字迁移，行为不变）。
+        verifyCodePersister.applyVerifiedBinding(current, email);
 
         return toUserInfo(current);
     }
@@ -289,80 +285,4 @@ public class AuthServiceImpl implements AuthService {
         return new LoginVO(token, toUserInfo(user));
     }
 
-
-    /**
-     * 消费验证码并推导绑定邮箱。
-     * <p>
-     * 入参仅 code，故遍历未使用、未过期、purpose=verify 的验证码记录，
-     * 用 BCrypt 匹配定位邮箱并置 used_at。未命中则视为错误/过期。
-     */
-    private String consumeVerifyCodeAndGetEmail(String code) {
-        if (!StringUtils.hasText(code)) {
-            throw new BusinessException("验证码不能为空");
-        }
-        List<EmailVerificationCode> records = emailVerificationCodeMapper.selectList(
-                new LambdaQueryWrapper<EmailVerificationCode>()
-                        .eq(EmailVerificationCode::getPurpose, "verify")
-                        .isNull(EmailVerificationCode::getUsedAt)
-                        .gt(EmailVerificationCode::getExpiresAt, DateTimeUtil.now())
-                        .orderByDesc(EmailVerificationCode::getCreatedAt)
-                        // 性能防护：验证码 10 分钟内有效，正常活跃未用验证码极少，
-                        // 限定最近 20 条避免验证码量增长时全表 BCrypt 扫描（每条 ~100ms）
-                        .last("LIMIT 20"));
-        if (records.isEmpty()) {
-            throw new BusinessException("验证码不存在或已过期");
-        }
-        for (EmailVerificationCode record : records) {
-            boolean matched;
-            try {
-                matched = passwordEncoder.matches(code, record.getCodeHash());
-            } catch (IllegalArgumentException e) {
-                matched = false;
-            }
-            if (matched) {
-                // M1 修复：原子消费验证码（UPDATE ... WHERE used_at IS NULL）。
-                // 仅当影响行数=1 才视为本次成功消费，避免并发窗口内同一验证码被重复使用两次
-                // （先读未用→后置 used 的 TOCTOU）。
-                int used = emailVerificationCodeMapper.update(new LambdaUpdateWrapper<EmailVerificationCode>()
-                        .eq(EmailVerificationCode::getId, record.getId())
-                        .isNull(EmailVerificationCode::getUsedAt)
-                        .set(EmailVerificationCode::getUsedAt, DateTimeUtil.now()));
-                if (used > 0) {
-                    return record.getEmail();
-                }
-                // 已被并发消费：继续尝试下一条（实际几乎不会出现第二条匹配），全部未抢到则报错
-            }
-        }
-        throw new BusinessException("验证码错误");
-    }
-
-    /**
-     * 释放已被他微信绑定的邮箱：旧微信 bind_email=NULL（认证态判据即该列非空，清空即回落游客态）。
-     * <p>
-     * 必须走 LambdaUpdateWrapper 显式 set NULL：updateById 对 null 字段默认不写列，
-     * bind_email 无法被清空，会导致唯一键占用不释放、替换绑定失效。
-     */
-    private void releaseVerifiedBinding(User binding) {
-        userMapper.update(null, new LambdaUpdateWrapper<User>()
-                .eq(User::getId, binding.getId())
-                .set(User::getBindEmail, null));
-    }
-
-    /**
-     * 数据归属迁移（spec §5.y.3）：把旧账号 user_id/created_by 下的业务数据改挂到新账号。
-     * <p>
-     * 仅在 {@link #verifyEmail}（已标注 @Transactional）内部被同实例调用，属自调用，
-     * 不单独开启事务，统一并入外层事务回滚边界。若被外部 Bean 调用需自行加事务。
-     * <p>
-     * P0-1 架构收口：本方法不再持有 review / feedback / notify 的 Mapper，改为发布
-     * {@link UserOwnershipMigratedEvent}，由各域监听器自理本域表（review 独有的
-     * 「先清理 to 已存在的同 dish 冲突行、再改归属」知识一并收敛回 review 域实现）。
-     * 监听器为同步 {@code @EventListener} → 仍在 verifyEmail 事务内执行，失败整体回滚。
-     */
-    protected void migrateOwnership(Long fromUserId, Long toUserId) {
-        if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
-            return;
-        }
-        eventPublisher.publishEvent(new UserOwnershipMigratedEvent(fromUserId, toUserId));
-    }
 }

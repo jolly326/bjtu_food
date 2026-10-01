@@ -203,17 +203,19 @@
 
 ## 组件拆分
 
-| # | 组件 | 来源 | 职责 |
-|---|---|---|---|
-| 1 | `CorrectionForm` | 页内私有（`pages/correction/`） | 页面根组件：表单数据 + 校验 + patch 组装 + 提交；**承载双列布局** |
-| 2 | `AttributeGroup` | 页内私有（**核心复用**） | 单维度属性**字段行**（当前值摘要 + 单 / 多选标注 + 弹层入口）；**R42 起就地不再渲染 chip 与自定义输入框**；入参见下 |
-| 3 | `TagChip` | 页内私有（**R42 起仅服务 `AttributePickerSheet`**；视觉口径见「触达尺寸口径」） | 弹层内标签：选中态（`soft` = 多选档 / `solid` = 单选档，选中带 `check` 对勾）/ 候选态；视觉高恒 **88rpx**；旧 `size`（双档）/ `closable`（删除叉）/ `pickable` 因无消费方**已删除** |
-| 4 | `AttributePickerSheet` | 页内私有：`BaseSheet` + 搜索 + 「已添加」区 + 候选全览 + 手动输入 + 底部条 | 属性维度的**唯一选择场所**（增 / 删 / 清空 / 自定义全在此层）；**只做选择与回抛，不碰提交路径** |
-| 5 | `FloorPickerSheet` | 页内私有：`BaseSheet` + 5 项单选 + 当前值高亮 | 楼层底部单选弹层；**只管展示与回抛存储值，不做映射决策** |
-| 6 | `ImagePicker` | 复用公共 `components/ImagePicker.vue`（多图形态，`max=3`） | 多图上传 / 预览 / 删除（图标 / 文案 / 删除钮位置随公共组件） |
-| 7 | `AppHeader` / `AppButton` / `IconSvg` / `ImagePlaceholder` | 公共 `components/` | 页头 / 提交按钮 / 图标 / 破图占位 |
-| 8 | `BaseSheet` | 公共 `components/BaseSheet.vue`（底部弹层骨架唯一真源） | 底部弹层骨架（`FloorPickerSheet` 与 `AttributePickerSheet` 共用底座；后者取 `scroll-body` + **`keyboard-lift`**（键盘弹起时抬升抽屉）分支） |
-| 9 | `useCorrection.ts` | 页内私有编排 | 预填 + 候选**并发**取 + 变更比对 + 提交与返回（**楼层映射表常量**） |
+> 组件自身规格（尺寸 / 圆角 / 颜色 / 状态 / 交互）以 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §二 为唯一真源；**本表只写「本页用法」**。
+
+| # | 组件 | 职责 |
+|---|---|---|
+| 1 | `CorrectionForm`（页内私有 `pages/correction/`） | 页面根组件：表单数据 + 校验 + patch 组装 + 提交；**承载双列布局** |
+| 2 | `AttributeGroup`（页内私有，**核心复用**） | 单维度属性**字段行**（当前值摘要 + 单 / 多选标注 + 弹层入口）；**就地不渲染 chip 与自定义输入框**；入参见下 |
+| 3 | `TagChip`（页内私有，**仅服务 `AttributePickerSheet`**；视觉口径见「触达尺寸口径」） | 弹层内标签：选中态（`soft` = 多选档 / `solid` = 单选档，选中带 `check` 对勾）/ 候选态；视觉高恒 **88rpx** |
+| 4 | `AttributePickerSheet`（页内私有：`BaseSheet` + 搜索 + 「已添加」区 + 候选全览 + 手动输入 + 底部条） | 属性维度的**唯一选择场所**（增 / 删 / 清空 / 自定义全在此层）；**只做选择与回抛，不碰提交路径** |
+| 5 | `FloorPickerSheet`（页内私有：`BaseSheet` + 5 项单选 + 当前值高亮） | 楼层底部单选弹层；**只管展示与回抛存储值，不做映射决策** |
+| 6 | `ImagePicker`（公共，多图形态 `max=3`） | 多图上传 / 预览 / 删除（图标 / 文案 / 删除钮位置随公共组件） |
+| 7 | `AppHeader` / `AppButton` / `IconSvg` / `ImagePlaceholder`（公共） | 页头 / 提交按钮 / 图标 / 破图占位 |
+| 8 | `BaseSheet`（公共，底部弹层骨架唯一真源） | 底部弹层骨架（`FloorPickerSheet` 与 `AttributePickerSheet` 共用底座；后者取 `scroll-body` + **`keyboard-lift`**（键盘弹起时抬升抽屉）分支） |
+| 9 | `useCorrection.ts`（页内私有编排） | 预填 + 候选**并发**取 + 变更比对 + 提交与返回（**楼层映射表常量**） |
 
 **`FloorPickerSheet` 入参**：
 
@@ -321,17 +323,19 @@ props: {
 
 ### 组件清单
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：居中标题「菜品信息纠错」+ 返回 |
-| 2 | `CorrectionForm` | 页内私有 `pages/correction/CorrectionForm.vue` | 锚定纯文本行 + 基础信息行 + 属性区 + 图片 + 提交 |
-| 3 | `AttributeGroup` | 页内私有 `pages/correction/AttributeGroup.vue` | 单维度属性**字段行**（当前值摘要 + 单 / 多选标注 + 弹层入口；R42 起就地无 chip、无输入框） |
-| 4 | `TagChip` | 页内私有 | 弹层内标签（选中 `soft` / `solid` + 对勾 / 候选态；恒 88rpx） |
-| 5 | `AttributePickerSheet` | 页内私有 `pages/correction/AttributePickerSheet.vue` | 属性维度的**唯一选择场所**（全览 / ≥12 项本地搜索 / 「已添加」区 / 折叠式手动输入 / 多选草稿确认 / 单选点项即关 / 键盘抬升） |
-| 6 | `ImagePicker` | 公共 `components/ImagePicker.vue` | 多图（`max=3`） |
-| 7 | `AppButton` | 公共 `components/AppButton.vue` | 提交按钮（「提交纠错」/「提交中…」） |
-| 8 | `IconSvg` / `ImagePlaceholder` | 公共 `components/` | 图标 / 破图占位 |
-| 9 | `useCorrection.ts` | 页内私有编排 | 预填 + 候选（与详情**并发**）+ 变更比对 + 提交与返回 |
+> 组件自身规格（尺寸 / 圆角 / 颜色 / 状态 / 交互）以 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §二 为唯一真源；**本表只写「本页用法」**。
+
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `AppHeader` | 页头：居中标题「菜品信息纠错」+ 返回 |
+| 2 | `CorrectionForm` | 锚定纯文本行 + 基础信息行 + 属性区 + 图片 + 提交 |
+| 3 | `AttributeGroup` | 单维度属性**字段行**（当前值摘要 + 单 / 多选标注 + 弹层入口；就地无 chip、无输入框） |
+| 4 | `TagChip` | 弹层内标签（选中 `soft` / `solid` + 对勾 / 候选态；恒 88rpx） |
+| 5 | `AttributePickerSheet` | 属性维度的**唯一选择场所**（全览 / ≥12 项本地搜索 / 「已添加」区 / 折叠式手动输入 / 多选草稿确认 / 单选点项即关 / 键盘抬升） |
+| 6 | `ImagePicker` | 多图（`max=3`） |
+| 7 | `AppButton` | 提交按钮（「提交纠错」/「提交中…」） |
+| 8 | `IconSvg` / `ImagePlaceholder` | 图标 / 破图占位 |
+| 9 | `useCorrection.ts` | 预填 + 候选（与详情**并发**）+ 变更比对 + 提交与返回 |
 
 ### 有哪些数据要显示、显示在哪个组件
 

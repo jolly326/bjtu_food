@@ -50,7 +50,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      * 必须是**独立 Bean**：Spring 事务靠代理生效，同类的自调用不会开启事务。
      */
     private final FeedbackPersister feedbackPersister;
-    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递的认证判据（P0-1，替代 UserMapper 直连） */
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     /** 跨域只读契约：管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
     private final DishService dishService;
@@ -295,15 +295,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         // §7.10：管理端操作人身份降级（单口令即单人），handler_id 一直未写；
         // 该列已于零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
         feedbackMapper.updateById(feedback);
-        // 处理结果回执（携带处理结论与不采纳原因）：仅向「可归属」提交人（提交时为已认证登录用户）投递
+        // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason);
     }
 
     /**
      * 反馈处理结果回执（§7.23 第 5 条：回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（verified=1）。
-     * 游客（userId 为空）与未认证账号不投递——反馈主路径刻意匿名，不保留可回执身份。
+     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 游客提交的反馈同样保留可回执身份）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      *
      * @param rejected    true=处理结论为不采纳/退回（此时 rejectReason 非空，handle 已校验）
@@ -316,11 +316,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             return;
         }
         try {
-            // 仅对已认证用户投递回执（判据 = bind_email 非空，唯一真源在 auth，
-            // 经只读契约折算为布尔下发；用户不存在亦为 false，与原实现同效）
-            if (!userService.isVerifiedById(userId)) {
-                return;
-            }
+            // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+            // 游客提交的反馈同样收到处理回执（此前「仅已认证用户投递」会让游客的消息中心永久空转）。
             // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
             // §7.16：reply 必填（handle 已保证非空白），通知不再存在「无回复」分支，一律携带回复正文；
             // §7.23 第 5 条：不采纳结论时回执必须带不采纳原因（handle 已保证非空白）。
@@ -331,6 +328,12 @@ public class FeedbackServiceImpl implements FeedbackService {
                             : "你提交的反馈已处理：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理
+            //
+            // D2 澄清（边界）：本 catch 只拦得住「向线程池提交任务」阶段的异常（如池已关闭），
+            // **拦不住「异步线程内写库失败」**——@Async 下异步线程的异常不回传调用方。
+            // 真正的写入失败由 NotificationServiceImpl#notify 内部 catch 就地记 error 日志。
+            // 也就是说「不阻塞主流程」成立，但「失败可被调用方感知」不成立；
+            // 排查丢通知只能看日志（该处已 log.error，不静默）。
         }
     }
 

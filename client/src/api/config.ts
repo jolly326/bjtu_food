@@ -65,7 +65,7 @@ function resolveContainerPathPrefix(): string {
 }
 
 /** callContainer 路径前缀（如 `/api/v1`）；与 {@link API_BASE_URL} 的路径段恒同源 */
-export const WX_PATH_PREFIX = resolveContainerPathPrefix()
+const WX_PATH_PREFIX = resolveContainerPathPrefix()
 
 /**
  * 拼接 callContainer 的最终 path。

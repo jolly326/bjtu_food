@@ -107,8 +107,8 @@ interface ReviewSubmitPayload {
 
 /**
  * 发表评价（POST /dishes/{id}/reviews；需完成学号邮箱认证）。
- * **同一用户对同一菜品的重复提交由服务端覆盖旧评价**（端上不区分首评 / 重评，简化），
- * 故不再提供 `PUT /reviews/{id}` 的端上封装（零调用即删）。评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
+ * **同一用户对同一菜品的重复提交由服务端覆盖旧评价**（端上不区分首评 / 重评）。
+ * 评分 1-5 必填；归属由路径决定，请求体不含菜品 ID。
  * 成功返回评价 ID（data.id）。
  */
 export async function createReview(dishId: number, payload: ReviewSubmitPayload): Promise<number> {

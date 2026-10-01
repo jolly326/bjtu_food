@@ -71,7 +71,14 @@ class AuthServiceImplTest {
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
 
-    /** 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致 */
+    /**
+     * 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致。
+     * <p>
+     * D1：{@code AuthServiceImpl} 新增 {@code VerifyCodePersister} 依赖（字段声明在
+     * {@code AuthProfilePersister} 之后），此处按同序传入真实实现——
+     * 与 {@code AuthProfilePersister} 同理：本类断言的是 userMapper 上的可见行为，
+     * 用真实 Persister 包裹 mock mapper 才能让断言原样落在 mock 上（事务边界是代理行为，单测中不生效）。
+     */
     private AuthServiceImpl service() {
         return service(new VerifyCodeAttemptGuard());
     }
@@ -81,10 +88,9 @@ class AuthServiceImplTest {
      * 否则每次 {@code new} 都从零开始，封禁永远测不出来。
      */
     private AuthServiceImpl service(VerifyCodeAttemptGuard guard) {
-        // 落库 Bean 用**真实实现**包裹 mock 的 mapper：事务边界收窄（机审移出事务）后，
-        // 本类断言仍原样落在 userMapper.update 上 —— 即「可见行为未变」的直接证据。
-        return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper), codeMapper,
-                emailCodeService, passwordEncoder, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
+        return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
+                new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
+                codeMapper, emailCodeService, passwordEncoder, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
                 localSensitiveFilter, contentSecurityService, tokenBlacklist, guard);
     }
 
@@ -185,8 +191,9 @@ class AuthServiceImplTest {
         // 被当成「已被并发消费」而继续循环 → 最终误报「验证码错误」，错误信息完全指错方向。
         // 用无参 any()（而非 any(Wrapper.class)）以免引入原始类型与 unchecked 警告。
         when(codeMapper.update(any())).thenReturn(1);
-        when(userService.getByBindEmail(anyString())).thenReturn(null);
-        when(userService.getByEmail(anyString())).thenReturn(null);
+        // D1：不再需要显式桩 getByBindEmail / getByEmail —— 认证写入已移入 VerifyCodePersister
+        // 且直接用 userMapper.selectOne 查重账号，Mockito 未打桩时默认返回 null（即「无历史账号冲突」），
+        // 与原先显式 return null 的语义一致。
         svc.verifyEmail("123456", 1L);
 
         assertThat(guard.isLocked(1L)).isFalse();

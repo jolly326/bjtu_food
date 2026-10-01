@@ -5,7 +5,7 @@
     <Header title="系统通知" @back="backToHome">
       <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
            无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
-      <template v-if="userStore.isVerified()" #action>
+      <template #action>
         <view
           class="read-all"
           :class="{ 'is-active': hasUnread && !readAllBusy, 'is-disabled': !hasUnread || readAllBusy }"
@@ -23,7 +23,7 @@
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
       <view class="list">
-        <!-- 单张白色轻量列表卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线；不再逐行套独立卡 -->
+        <!-- 单张白卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线 -->
         <view v-if="list.length" class="list-card">
           <view
             v-for="n in list"
@@ -47,17 +47,15 @@
       </view>
 
       <!-- 加载失败重试块（P3-03 公共组件）：首屏请求失败 ≠ 无通知——
-           先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap。
-           C1：游客请求被拒（4031/403）SHALL 静默——未认证时不渲染失败态。 -->
-      <RetryBlock v-if="loadFailed && !loading && userStore.isVerified()" @retry="onRetryLoad" />
-      <!-- 空态：仅已认证用户展示；铃铛图标（灰色）+ 标题 + 说明，游客静默（client-auth-boundary）。
-           复用公共 EmptyState（不再本页手写 .empty-tip）。 -->
+           先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap。 -->
+      <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
+      <!-- 空态：零通知时展示（铃铛图标 + 标题 + 说明），避免整页空白被判读为「页面坏了」 -->
       <EmptyState
-        v-else-if="loaded && !list.length && userStore.isVerified()"
+        v-else-if="loaded && !list.length"
         icon="bell"
         :icon-size="48"
         title="暂无通知"
-        desc="反馈处理结果会在这里通知你"
+        :desc="emptyDesc"
       />
     </scroll-view>
   </view>
@@ -71,7 +69,6 @@ import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { useUserStore } from '@/stores/user'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { toastError, toastSuccess } from '@/utils/error'
@@ -81,7 +78,6 @@ import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 import { usePagedList } from '@/composables/usePagedList'
 
-const userStore = useUserStore()
 const notifyStore = useNotifyStore()
 
 /** 全部已读进行中（并发守卫 + 行内禁用态） */
@@ -90,17 +86,15 @@ const readAllBusy = ref(false)
 const loaded = ref(false)
 
 /**
- * 分页列表（公共 composable，UI 统一 Loop Round 17 抽取）。
+ * 分页列表（公共 composable）。
  *
- * 首屏失败语义（MP-012）与认证边界（C1）保持不变：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，
- * 与「暂无通知」区分；游客请求成功时照常得到空列表走空态，未认证被拒（4031/403）由模板 `isVerified()` 门控，
- * 不渲染失败块也不弹认证引导（client-auth-boundary）。
+ * 首屏失败语义（MP-012）：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，与「暂无通知」区分；
+ * 未认证被拒（4031/403）不渲染失败块（认证边界），零通知时由空态给出认证引导。
  *
- * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`、游客不触发触底加载。
+ * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`。
  */
 const { list, loading, loadFailed, load, loadMore } = usePagedList<Notification>({
   fetchPage: async (page, pageSize) => (await listNotifications({ page, pageSize })).list,
-  canLoadMore: () => userStore.isVerified(),
   onLoadSuccess: () => { notifyStore.fetchUnread() },
   onLoadSettled: () => { loaded.value = true },
 })
@@ -113,6 +107,9 @@ function onRetryLoad() {
 /** 是否存在未读：驱动「全部已读」入口的禁用态（无未读时置灰不可点，入口常驻不隐藏） */
 const hasUnread = computed(() => list.value.some(n => !n.isRead))
 
+/** 空态说明文案：消息中心为登录级能力，两态同一句（游客提交的反馈 / 举报 / 纠错同样收到回执） */
+const emptyDesc = '反馈处理结果会在这里通知你'
+
 /**
  * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
  * 成功后重拉列表 + 未读数（不本地乐观改 list，避免与服务端真实态偏差）；
@@ -124,6 +121,8 @@ async function onReadAll() {
   try {
     await readAllNotifications()
     await load()
+    // 「全部已读」属本地读操作：强制刷新未读数（绕过 TTL），确保红点即时归零
+    await notifyStore.fetchUnread({ force: true })
     toastSuccess('已全部标为已读')
   } catch (err) {
     console.error('[notifications] 全部已读失败', err)
@@ -150,7 +149,7 @@ async function onTap(n: Notification) {
   if (!n.isRead) {
     // 乐观更新已读态
     n.isRead = true
-    notifyStore.fetchUnread()
+    notifyStore.fetchUnread({ force: true })
     try {
       await readNotification(n.id)
     } catch {
@@ -158,7 +157,6 @@ async function onTap(n: Notification) {
       markDirty()
     }
   }
-  // 无跳转分支：一律停留本页（端上不读取通知类型）
 }
 
 onShow(() => {
@@ -193,7 +191,7 @@ onShow(() => {
 /* 行间细分隔线（最上 / 最下无线）；统一 --border-color 1rpx */
 .msg-item + .msg-item { border-top: 1rpx solid var(--border-color); }
 .msg-item.pressed { background-color: var(--bg-soft); }
-/* 未读：红点 + 左侧暖橙细竖条 + 淡主色标题字，共同表达未读层级（竖条依 2026-09 设计补回） */
+/* 未读：暖橙细竖条 + 红点 + 淡主色标题字，共同表达未读层级 */
 .msg-unread-bar {
   position: absolute;
   left: 0;
@@ -221,7 +219,7 @@ onShow(() => {
   overflow: hidden;
 }
 
-/* 空态 / 失败态样式由公共组件 EmptyState / RetryBlock 承担，此处不再保留副本 */
+/* 空态 / 失败态样式由公共组件 EmptyState / RetryBlock 承担 */
 
 /* 「全部已读」胶囊：默认中性白底灰描边；有未读时（is-active）整体转暖橙描边 + 暖橙文字；
    禁用态（is-disabled）常驻灰显、不可点；按压走全局 .pressed 兜底 */

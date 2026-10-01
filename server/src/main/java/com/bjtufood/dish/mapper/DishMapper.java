@@ -96,4 +96,19 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return 在售菜品覆盖的大类枚举键（去重）
      */
     List<String> selectInStockMealTypes();
+
+    /**
+     * 列出「有评价」的菜品 ID（评分对账用，D3）。
+     * <p>
+     * 只取 {@code rating_count > 0} 的行：零评价菜品的 {@code avg_rating}/{@code rating_count}
+     * 按口径本就恒为 NULL/0，无需参与对账，可显著缩小扫描面。
+     * <p>
+     * 分批游标推进（{@code id > lastId ORDER BY id LIMIT n}）而非 OFFSET 分页：
+     * 对账期间若菜品被新增/删除，OFFSET 会因行位移而漏行或重复行；游标法不受影响。
+     *
+     * @param lastId  游标：只取 id 大于该值的行（首页传 0）
+     * @param limit   本批最多返回行数（由调用方给出，控制单批内存与事务时长）
+     * @return 菜品 ID 升序列表
+     */
+    List<Long> selectDishIdsWithRatings(@Param("lastId") long lastId, @Param("limit") int limit);
 }

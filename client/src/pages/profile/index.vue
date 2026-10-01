@@ -11,17 +11,25 @@
           <text class="info-label">头像</text>
           <view class="avatar-wrap">
             <image v-if="avatar" :src="getImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
-            <view v-else class="avatar avatar-empty" :class="{ uploading: avatarUploading }">
-              <IconSvg name="user" :size="52" :color="COLOR_MAP['text-tertiary']" />
+            <view v-else class="avatar" :class="{ uploading: avatarUploading }">
+              <ImagePlaceholder name="user" :size="52" />
             </view>
             <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="row-arrow" />
           </view>
         </view>
 
-        <!-- 昵称 -->
-        <view class="info-row">
+        <!-- 昵称：可改行取全站表单**下划线语言** —— 本行 1rpx 底线即输入项底线，聚焦转主色 -->
+        <view class="info-row info-row--field" :class="{ 'is-focused': nicknameFocused }">
           <text class="info-label">昵称</text>
-          <input v-model="nickname" class="nickname-input" placeholder="请输入昵称" maxlength="16" placeholder-class="input-placeholder" />
+          <input
+            v-model="nickname"
+            class="nickname-input"
+            placeholder="请输入昵称"
+            maxlength="16"
+            placeholder-class="input-placeholder"
+            @focus="nicknameFocused = true"
+            @blur="nicknameFocused = false"
+          />
         </view>
 
         <!-- 校园邮箱（只读）：唯一来源 bindEmail（认证判据同源；未认证以 '--' 占位） -->
@@ -34,7 +42,7 @@
 
     <!-- 保存（固定底部，与其他表单页一致） -->
     <view class="submit-bar">
-      <AppButton text="保存" type="primary" :loading="saving" @press="save" />
+      <AppButton text="保存" type="primary" :disabled="!dirty" :loading="saving" @press="save" />
     </view>
   </view>
 </template>
@@ -51,6 +59,7 @@ import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import IconSvg from '@/components/IconSvg.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -64,6 +73,11 @@ const bindEmail = computed(() => userInfo.value?.bindEmail || '')
 const avatar = ref('')
 const nickname = ref('')
 const saving = ref(false)
+/** 昵称输入聚焦态（驱动该行底线转主色） */
+const nicknameFocused = ref(false)
+/** 回填基线：进入 / 外部刷新资料时同步，用于「无改动禁用」判据 */
+const initialNickname = ref('')
+const initialAvatar = ref('')
 
 watch(
   () => userInfo.value,
@@ -71,9 +85,14 @@ watch(
     if (!u) return
     if (u.avatar) avatar.value = u.avatar
     if (u.nickname) nickname.value = u.nickname
+    initialNickname.value = nickname.value
+    initialAvatar.value = avatar.value
   },
   { immediate: true },
 )
+
+/** 有改动才可保存（昵称与头像均与回填基线一致 ⇒ 主按钮禁用） */
+const dirty = computed(() => nickname.value.trim() !== initialNickname.value || avatar.value !== initialAvatar.value)
 /** 头像上传中：禁用重复选择 + 头像半透明反馈 */
 const avatarUploading = ref(false)
 
@@ -163,19 +182,20 @@ async function save() {
   -webkit-tap-highlight-color: transparent;
 }
 .info-row:last-child { border-bottom: none; }
+/* 可改行（昵称）：全站表单**下划线语言** —— 本行 1rpx 底线即输入项底线，聚焦转主色 */
+.info-row--field.is-focused { border-bottom-color: var(--color-primary); }
 /* 可点行（头像）按压反馈 */
 .info-row.info-tappable:active { background-color: var(--bg-soft); }
 .info-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); flex-shrink: 0; }
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像**同语言**（尺寸按各自区块定：本页 104rpx /
-   「我的」页 120rpx —— UI 统一 Loop Round 6 修正：原注释写 112rpx 与实现不符）。
-   可点行按压时头像轻微缩放（Apple 图像 press 反馈，锚定左上避免跳动） */
-.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); transform-origin: top left; }
+   「我的」页 120rpx）；`overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆角内 */
+.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); overflow: hidden; background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); }
 .avatar.uploading { opacity: 0.55; }
-.avatar-empty { display: flex; align-items: center; justify-content: center; background: var(--bg-soft); }
 .row-arrow { flex-shrink: 0; }
-/* 输入框：右侧留白，光标不贴右缘 */
-.nickname-input { flex: 1; min-width: 0; text-align: right; padding-right: var(--spacing-xs); font-size: var(--font-body); color: var(--text-primary); }
+/* 昵称输入：无可改行的浅底容器，取全站表单**下划线语言**（透明底、无边框、右对齐；
+   底线由所在行的行分隔线承担，聚焦转主色见 `.info-row--field.is-focused`） */
+.nickname-input { flex: 1; min-width: 0; text-align: right; padding-right: var(--spacing-xs); font-size: var(--font-body); color: var(--text-primary); background: transparent; border: none; }
 .input-placeholder { color: var(--text-tertiary); }
 .info-value { font-size: var(--font-body); color: var(--text-secondary); }
 /* 邮箱较长：允许右对齐但自动换行不溢出 */

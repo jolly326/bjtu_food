@@ -155,35 +155,6 @@ public class ReviewServiceImpl implements ReviewService {
      * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
      */
     /**
-     * 重新评价。<b>本方法刻意不加 {@code @Transactional}</b>：与 {@link #submitReview} 同理，
-     * 归属校验与机审均在无事务状态下完成，仅落库一步开事务。
-     */
-    @Override
-    public void updateReview(Long id, Long userId, ReviewReq req) {
-        if (req.getContent() != null && req.getContent().length() > 500) {
-            throw new BusinessException("评论内容不能超过500字");
-        }
-        Review review = reviewMapper.selectById(id);
-        if (review == null) {
-            // 错误码口径：200/400/401/403/4031/4001/500（4001 = 资源不存在，，
-            // 见 project_spec.md §7.40 R8）。本端点沿用既有 400 口径未改 —— 4001 首期仅在
-            // GET /dishes/{id} 落地，其余端点随各自变更渐进对齐。
-            throw new BusinessException(400, "评价不存在");
-        }
-        if (!review.getUserId().equals(userId)) {
-            throw new BusinessException(403, "只能修改自己的评价");
-        }
-        String filteredContent = localSensitiveFilter.filter(req.getContent());
-        // 与首次发表同口径：认证 + openid 准入 + 文本走微信内容安全检测 msgSecCheck（图片已在 /upload/cloud-image 链路过 imgSecCheck）
-        UserAuthContextVO reviewUser = requireUgcAuthorizedUser(userId);
-        checkUgcText(reviewUser, filteredContent, 2);
-        String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);
-
-        // 覆盖同一行 + 发布重算事件，一并收窄为单一事务（机审已在无事务状态下完成）
-        reviewPersister.updateAndPublish(id, req.getRating(), filteredContent, imagesJson, review.getDishId());
-    }
-
-    /**
      * UGC 作者准入：已认证（bind_email 非空，判据唯一真源在 auth，经
      * {@link UserService#getAuthContext(Long)} 折算为布尔值下发）且 openid 非空
      * （msgSecCheck v2 必填 openid）。

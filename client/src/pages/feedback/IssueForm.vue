@@ -147,8 +147,9 @@ function onImagesChange(urls: string[]) {
   border-bottom: none;
 }
 .type-row-pressed {
-  /* iOS 按压质感：瞬时 8% 浅灰底，松手恢复，无永久底色（不用 opacity 以免压暗文字） */
-  background: rgba(0, 0, 0, 0.08);
+  /* iOS 按压质感：瞬时浅灰底，松手恢复，无永久底色（不用 opacity 以免压暗文字）。
+     底色取全站按压语言 `--bg-soft`（与「我的」页用户卡 / 通知行 / 搜索胶囊同源），不用裸 rgba。 */
+  background: var(--bg-soft);
 }
 /* 选中行：不套灰卡 / 不浮起；仅由左侧橙色勾（.type-check.on）区分选中态 */
 /* 选中标记：1rpx 浅灰细描边空心圆 → 选中填主色 + 白勾（纯图形，对读屏隐藏） */

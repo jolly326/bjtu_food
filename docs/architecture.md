@@ -169,6 +169,7 @@ com.bjtufood
 - 统一响应 `Result<T>{code,message,data}` / 分页 `PageResult<T>`；错误码仅
   `200/400/401/403/4001/4031/500`（`4001`=资源不存在、`4031`=邮箱未认证，二者为细分码）；
   `GlobalExceptionHandler` 兜底，Controller 不得裸抛。
+- **响应压缩**：`server.compression` 已启用（JSON / 文本类，≥1KB 才压），显著降低移动端传输体积。
 
 ## 8. 可观测性
 

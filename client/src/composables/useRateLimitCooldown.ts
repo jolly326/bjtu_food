@@ -21,7 +21,7 @@ import { ref, onUnmounted } from 'vue'
 import { isRateLimited } from '@/api/http'
 
 /** 解析不出后端建议秒数时的保守缺省（秒）——宁可多等，不可让用户再撞一次限频 */
-export const DEFAULT_COOLDOWN = 30
+const DEFAULT_COOLDOWN = 30
 
 /** 后端建议秒数的上限：防止异常文案（如「请 99999 秒」）把 UI 锁死 */
 const MAX_COOLDOWN = 300

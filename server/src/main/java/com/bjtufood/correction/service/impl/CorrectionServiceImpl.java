@@ -63,7 +63,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     private final DishService dishService;
     /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
     private final StallService stallService;
-    /** 跨域只读契约：管理端「提交人」昵称投影 + 回执投递认证判据（P0-1，替代 UserMapper 直连） */
+    /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     private final LocalSensitiveFilter localSensitiveFilter;
     /** 微信内容安全检测 */
@@ -500,8 +500,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 纠错处理回执（采纳/拒绝统一入口，参考 feedback handle 通知实现）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）且该账号已邮箱认证（bind_email 非空，唯一真源 AuthStateUtil）；
-     * 游客（userId 为空）与未认证账号不投递——纠错主路径刻意匿名，不保留可回执身份。
+     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 游客提交的纠错同样保留可回执身份）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      *
      * @param adopted      true=采纳（reply 为固定采纳文案）；false=拒绝（rejectReason 非空）
@@ -514,11 +514,8 @@ public class CorrectionServiceImpl implements CorrectionService {
             return;
         }
         try {
-            // 归属判据与 feedback handle 同源：认证态唯一真源在 auth，经只读契约折算为布尔下发
-            // （用户不存在亦为 false，与「user == null 不投递」同效）
-            if (!userService.isVerifiedById(userId)) {
-                return;
-            }
+            // 投递口径与 feedback handle 同源（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+            // 游客提交的纠错同样收到处理回执。
             // is_read 由 notify 实现侧统一置 0（P0-1：correction 不再 import / 构造 notify 实体）
             notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_CORRECTION_HANDLE,
                     correction.getId(), "菜品信息更新",
@@ -527,6 +524,10 @@ public class CorrectionServiceImpl implements CorrectionService {
                             : "你提交的菜品信息纠错未采纳：" + rejectReason + "。处理说明：" + reply));
         } catch (Exception ignored) {
             // 回执失败不阻塞纠错处理
+            //
+            // D2 澄清（边界）：与 FeedbackServiceImpl 同源——本 catch 只拦得住「提交任务」阶段的异常，
+            // 拦不住「异步线程内写库失败」（@Async 异常不回传）。真正的失败由
+            // NotificationServiceImpl#notify 内部 catch 记 error 日志，不静默。
         }
     }
 }

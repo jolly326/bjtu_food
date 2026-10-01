@@ -17,7 +17,7 @@
 import { ref, type Ref } from 'vue'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 
-export interface UsePagedListOptions<T extends { id: number }> {
+interface UsePagedListOptions<T extends { id: number }> {
   /** 拉取第 `page` 页（页码从 1 开始），返回本页行数组 */
   fetchPage: (page: number, pageSize: number) => Promise<T[]>
   /** 每页条数（默认 20，与既有两页一致） */
@@ -35,7 +35,7 @@ export interface UsePagedListOptions<T extends { id: number }> {
   onLoadSettled?: () => void
 }
 
-export interface UsePagedListReturn<T> {
+interface UsePagedListReturn<T> {
   list: Ref<T[]>
   /** 请求在途：首屏与分页**共用**（天然互斥，同时兼作重入守卫） */
   loading: Ref<boolean>

@@ -42,7 +42,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 /** 字典项：`value` = 后端存储值（提交用）；`label` = 页面展示汉字（仅渲染用） */
-export interface FloorOption {
+interface FloorOption {
   value: string
   label: string
 }

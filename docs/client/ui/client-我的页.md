@@ -24,9 +24,9 @@
 
 ### 2. 用户信息模块（**卡片 A 内第 1 段**）
 
-- 形态：**卡片 A 内第 1 段**（见上「双卡片外层容器」），顶部 **6rpx 主色软条纹**（`--color-primary-soft`，**仅认证态显示**；游客态透明）。两态**表面语言一致**，差异只由条纹与内容表达。
-- 内容（一行）：头像（120rpx 圆形；无头像时占位经公共 `ImagePlaceholder`（`name="user"`，灰底））→ 昵称 + 副行（**认证态 = 校园邮箱 `bindEmail`** / **游客态 = `游客 {食客XXXX}`**）→ 右侧 `arrow` 图标。
-- 交互：**整段热区**（`role="button"`），点击 → **「我的主页」**（`pages/my-reviews/index`——用户信息卡 + 名下评价列表 + 个人信息编辑入口，见 [client-我的主页.md](./client-我的主页.md)）；**游客直接进入**（无认证拦截——游客在页内看到游客信息卡与认证引导空态；认证要求仅在**评价写操作**时给出）。按压反馈 = `--bg-soft` 底色（**非** scale）。
+- 形态：**卡片 A 内第 1 段**（见上「双卡片外层容器」），顶部 **6rpx 主色软条纹**（`--color-primary-soft`，**仅认证态着色**；游客态 transparent 占位 ⇒ **两态等高**）。两态表面语言一致，差异只由条纹与内容表达。
+- 内容与排版参数（头像 / 主行 / 副行 / 右侧）**以 [README §身份卡](./README.md#身份卡用户信息模块跨页统一) 为唯一真源**；本页唯一差异 = 右侧为 `arrow` 图标（「我的主页」为「编辑个人信息」胶囊）。
+- 交互：**整段热区**（`role="button"`），点击 → **「我的主页」**（`pages/my-reviews/index`——用户信息卡 + 名下评价列表，见 [client-我的主页.md](./client-我的主页.md)）；**游客直接进入**（无认证拦截——游客在页内看到游客信息卡与认证引导空态；认证要求仅在**评价写操作**时给出）。按压反馈 = `--bg-soft` 底色（**非** scale）。
 - 无障碍：`aria-label="查看我的主页"`。
 - 认证动作**单一入口 = 宫格「身份认证」格**（用户信息模块不放「去认证」按钮）。
 - **模块底部**：一条浅细分隔线（`--border-color`），与卡片 A 内下方功能宫格隔开。
@@ -43,7 +43,7 @@
 | 3 | 身份认证 | `badge-check` | 未认证 → 跳转身份认证页 `pages/auth/index`（认证动作单一入口）；已认证 → Toast「已完成身份认证」 | 右上**已认证徽章**（主色圆点，仅认证态显示） |
 
 - 格内：96rpx 圆底 chip（`--color-primary-soft`）内嵌主色图标（图标在上）+ 标签在下（`--font-subtitle`、`--weight-semibold`）。**无副标题**（图标 + 标签自明）。
-- 角标：**「系统通知」右上红点**（14rpx、`--color-error`，贴 chip 右上角、**不遮图标主体**，仅未读数 > 0 且登录态显示）；**「身份认证」已认证主色圆点**（同位、`--color-primary`）。
+- 角标：**「系统通知」右上红点**（14rpx、`--color-error`，贴 chip 右上角、**不遮图标主体**，仅未读数 > 0 显示）；**「身份认证」已认证主色圆点**（同位、`--color-primary`）。
 - 按压反馈：`hover-class="pressed"` → `--bg-soft`（**非** scale）。
 - 无障碍：每格 `role="button"` + `aria-label`（等于标签文案）；角标为装饰，`aria-hidden="true"`。
 - **模块底部**：**不加分隔线** —— 宫格是卡片 A 的**最后一块内容**（**两卡之间靠留白分隔，不靠线**）。
@@ -89,16 +89,16 @@
 
 | 展示项 | 来源 | 说明 |
 |---|---|---|
-| 昵称 | `UserInfoVO.nickname` | 用户卡主标题；未设置时游客显示「游客」、认证态显示「食客」 |
+| 昵称 | `UserInfoVO.nickname` | 用户卡主行；未设置时游客显示「游客」、认证态显示「食客」 |
 | 校园邮箱 | `UserInfoVO.bindEmail` | 认证态用户卡副行（**本页与「我的主页」信息卡统一渲染完整校园邮箱**，同源同字符串；`username` 已移出出参） |
-| 游客短标识 | **端上派生** = 「食客 + `id` 尾 4 位」（id 不可得回退本地游客 ID） | 游客态用户卡副行 |
-| 认证态判据 | `bindEmail` 非空（单点收敛） | 决定用户卡两态与宫格「身份认证」徽章显隐 |
-| 通知未读数 | `GET /my/notifications/unread-count` 的 `count` | 「系统通知」红点（仅未读 > 0 且登录态显示） |
+| 游客态副行 | **端内静态文案**「未完成校园认证」 | 游客态用户卡副行 |
+| 认证态判据 | `bindEmail` 非空（单点收敛） | 决定用户卡条纹**着色**与宫格「身份认证」徽章显隐 |
+| 通知未读数 | `GET /my/notifications/unread-count` 的 `count` | 「系统通知」红点（仅未读 > 0 显示） |
 | 版本号 | 构建期注入 `__APP_VERSION__`（源自 `manifest.json` versionName） | 版本行 |
 
 ### 7. TabBar
 
-- 底部常驻，「我的」高亮（`showTab('profile')`）。TabBar 为**公共组件**（`components/TabBar.vue`，非本页专属），其结构 / 视觉规范见 [client-首页菜品浏览.md](./client-首页菜品浏览.md) 与全站 §4 视觉基线。
+- 底部常驻，「我的」高亮（`showTab('profile')`）。TabBar 为**公共组件**（`components/TabBar.vue`，非本页专属），其结构 / 视觉规范见 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §2.17。
 
 ### 8. 动效
 
@@ -110,19 +110,21 @@
 
 #### 组件清单（本界面需要哪些组件）
 
-| # | 组件 | 来源 | 在本页做什么 |
-|---|---|---|---|
-| 1 | `AppHeader` | 公共 `components/AppHeader.vue` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示**返回**（文字）） |
-| 2 | `ImageFallback` | 公共 `components/ImageFallback.vue` | 用户卡头像（加载失败回退统一占位 `ImagePlaceholder`） |
-| 3 | `IconSvg` | 公共 `components/IconSvg.vue` | 头像空态 `user`、行右箭头 `arrow`、宫格图标（`lightbulb-fill` / `bell` / `badge-check`） |
-| 4 | `TabBar` | 公共 `components/TabBar.vue` | 底部常驻菜单（首页 / 我的，本页高亮 `showTab('profile')`） |
-| 5 | 卡片 A 外壳 `.mine-card`（页内内联） | `pages/mine/index.vue` 内联 | **白卡容器**（`--bg-card` + `--shadow-card` + `--radius-card`），收纳下列两个模块（用户信息 / 功能宫格） |
-| 6 | 用户信息模块 `.user-card`（页内内联） | 页内内联 | **卡片 A 内**第 1 段：头像 + 昵称 / 副行 + 右箭头；整段热区 → 「我的主页」 |
-| 7 | 功能宫格 `.grid`（页内内联） | 页内内联 | **卡片 A 内**第 2 段：**一行三列内联宫格**（**去掉每格独立白卡外壳**）：意见反馈 / 系统通知 / 身份认证（含角标） |
-| 8 | 卡片 B 外壳 =「其他」列表 `.more-group`（页内内联） | 页内内联 | **独立第二张白卡**（与卡片 A 同款 Token，上外边距 `--spacing-lg`）：三行：用户协议 / 隐私政策 / 注销账号（危险弱化） |
-| 9 | 版本行 `.app-footer`（页内内联） | 页内内联 | 「知行食记 v{version}」+ 副文案（`aria-hidden`），**位于大卡之外** |
-| 10 | `useNotifyStore` | `stores/notify` | 未读通知数（宫格红点真源；`onShow` 时仅认证态刷新） |
-| — | `uni.showModal` / `uni.navigateTo` / `uni.reLaunch` | uni 内置 | 注销二次确认 / 各入口跳转 / TabBar 切页 |
+> 组件自身规格（尺寸 / 圆角 / 颜色 / 状态 / 交互）以 [client-公共组件与形态基线.md](./client-公共组件与形态基线.md) §二 为唯一真源；**本表只写「本页用法」**。
+
+| # | 组件 | 在本页做什么 |
+|---|---|---|
+| 1 | `AppHeader` | 页头：标题「我的」，`:show-back="false"`（TabBar 主根页恒不显示返回） |
+| 2 | `ImageFallback` | 用户卡头像（加载失败回退统一占位） |
+| 3 | `ImagePlaceholder` / `IconSvg` | 头像空值占位；行右箭头 `arrow`、宫格图标（`lightbulb-fill` / `bell` / `badge-check`） |
+| 4 | `TabBar` | 底部常驻菜单（首页 / 我的，本页高亮 `showTab('profile')`） |
+| 5 | 卡片 A 外壳 `.mine-card`（页内内联） | **卡片外壳容器**，收纳下列两个模块（用户信息 / 功能宫格） |
+| 6 | 用户信息模块 `.user-card`（页内内联） | 卡片 A 内第 1 段：头像 + 主行 / 副行 + 右箭头；整段热区 → 「我的主页」（内容与排版见 [基线 §三](./client-公共组件与形态基线.md)） |
+| 7 | 功能宫格 `.grid`（页内内联） | 卡片 A 内第 2 段：**一行三列内联宫格**（每格无独立白卡外壳）：意见反馈 / 系统通知 / 身份认证（含角标） |
+| 8 | 卡片 B 外壳 =「其他」列表 `.more-group`（页内内联） | **独立第二张卡片**（与卡片 A 同 Token，上外边距 `--spacing-lg`）：三行：用户协议 / 隐私政策 / 注销账号（危险弱化） |
+| 9 | 版本行 `.app-footer`（页内内联） | 「知行食记 v{version}」+ 副文案（`aria-hidden`），**位于两张卡片之外** |
+| 10 | `useNotifyStore` | 未读通知数（宫格红点真源；`onShow` **恒刷新** —— 消息中心为登录级能力，游客与认证态同权） |
+| — | `uni.showModal` / `uni.navigateTo` / `uni.reLaunch` | 注销二次确认 / 各入口跳转 / TabBar 切页 |
 
 > 本页为**静态短内容页**：页根定高 + **`scroll-view`（`.mine-scroll`）** 承载超高内容（大字体 / 小屏），采用「`min-height` → `height` + 滚动区」形态。
 
@@ -130,14 +132,13 @@
 
 | # | 数据（字段） | 来源 | 中文含义 | 显示在哪个组件 | 呈现位置 / 形式 |
 |---|---|---|---|---|---|
-| 1 | `nickname` | `UserInfoVO`（`stores/user`，源自 `POST /auth/wechat-login` / `GET /auth/profile`） | 昵称 | 用户卡主标题 `.nickname` | 认证态 = 昵称；空值时游客显「游客」、认证态显「食客」 |
-| 2 | `avatar` | 同上 | 头像地址 | 用户卡头像位（`ImageFallback`；空 / 失败 → `IconSvg name="user"` 灰底） | 120rpx 圆形 |
+| 1 | `nickname` | `UserInfoVO`（`stores/user`，源自 `POST /auth/wechat-login` / `GET /auth/profile`） | 昵称 | 用户卡主行 `.nickname` | 认证态 = 昵称；空值时游客显「游客」、认证态显「食客」 |
+| 2 | `avatar` | 同上 | 头像地址 | 用户卡头像位（`ImageFallback`；空 / 失败 → `ImagePlaceholder name="user"`，灰底 `--bg-placeholder`） | 120rpx 圆形 |
 | 3 | `bindEmail` | 同上 | 校园邮箱 | 用户卡副行 `.user-id`（**仅认证态**） | 次级灰小字 |
-| 4 | 游客短标识 | **端上派生** = 「食客 + `id` 尾 4 位」（`id` 不可得回退 `getLocalGuestLabel()`） | 游客标识 | 用户卡副行（**仅游客态**） | 「游客 食客XXXX」 |
-| 5 | `bindEmail` | 同上 | 已绑定校园邮箱 | **认证判据**：用户卡顶部 6rpx 主色软条纹（认证态显示）+ 宫格「身份认证」主色徽章 | 非空 = 已认证 |
-| 6 | `count` | `GET /my/notifications/unread-count`（经 `stores/notify`） | 未读通知总数 | 宫格「系统通知」右上**红点** | 仅认证态且 `> 0` 显示 |
+| 4 | 游客态副行 | **端内静态文案**「未完成校园认证」 | 游客身份状态 | 用户卡副行（**仅游客态**） | 次级灰小字 |
+| 5 | `bindEmail` | 同上 | 已绑定校园邮箱 | **认证判据**：用户卡顶部 6rpx 条纹**着色**（认证态）+ 宫格「身份认证」主色徽章 | 非空 = 已认证 |
+| 6 | `count` | `GET /my/notifications/unread-count`（经 `stores/notify`） | 未读通知总数 | 宫格「系统通知」右上**红点** | `> 0` 时显示 |
 | 7 | 版本号 `appVersion` | **构建期注入** `__APP_VERSION__`（源自 `manifest.json` 的 `versionName`，运行时读不到 manifest） | 版本号 | 版本行 `.app-footer` | 「知行食记 v{version}」+「北京交通大学 · 校园美食分享圈」 |
-| 8 | `createdAt` | `UserInfoVO` | 注册时间 | **本页不展示**（仅「个人信息编辑」页只读展示） | — |
 
 **静态入口（无接口数据）**
 | 区域 | 条目 | 点击行为 | 附加 |

@@ -14,7 +14,7 @@
  */
 
 /** 窗口信息（只声明本项目实际读取的字段） */
-export interface WindowInfoLike {
+interface WindowInfoLike {
   /** 状态栏高（px） */
   statusBarHeight?: number
   /** 视口宽（px） */

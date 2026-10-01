@@ -21,15 +21,19 @@ import static org.mockito.Mockito.when;
 /**
  * {@link NotificationServiceImpl} 单元测试。
  * <p>
- * 聚焦两点：
+ * 聚焦三点：
  * <ul>
  *   <li><b>数据隔离</b>：{@code markRead} 必须校验通知归属，非本人一律静默成功——
  *       这是最容易被改坏的越权防线（若退化为「查到就置已读」即成为横向越权）；</li>
  *   <li><b>失败可观测</b>：{@code notify} 因 {@code @Async} 异常不回传调用方，
  *       故其内部必须就地 log 后再抛，否则通知写入失败将完全静默。</li>
+ *   <li><b>事务传播级别（D2）</b>：{@code notify} 标 {@code @Async}，运行在线程池线程上；
+ *       若再标 {@code REQUIRES_NEW}，在 {@code CallerRunsPolicy} 队列打满时会于调用方事务中
+ *       挂起外层事务再开一条，单请求峰值占 2 条连接（池上限仅 20）⇒ 连接池自锁。
+ *       故必须为默认 {@code REQUIRED}。这是防「有人再加回 REQUIRES_NEW」的回归锁。</li>
  * </ul>
  * 被测类为纯 POJO：{@code @Async} / {@code @Transactional} 依赖 Spring 代理，单测中不生效，
- * 断言的是<b>方法体内的业务逻辑</b>，与代理无关。
+ * 断言的是<b>方法体内的业务逻辑</b>，与代理无关（传播级别经反射读取注解断言）。
  */
 class NotificationServiceImplTest {
 
@@ -37,6 +41,18 @@ class NotificationServiceImplTest {
 
     private NotificationServiceImpl service() {
         return new NotificationServiceImpl(notificationMapper);
+    }
+
+    @Test
+    @DisplayName("D2 回归：notify 不得标 REQUIRES_NEW（@Async + REQUIRES_NEW 在 CallerRuns 下会双倍占用连接）")
+    void notifyMustNotUseRequiresNew() throws NoSuchMethodException {
+        org.springframework.transaction.annotation.Transactional tx = NotificationServiceImpl.class
+                .getMethod("notify", NotificationCmd.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+
+        assertThat(tx).isNotNull();
+        // 默认 REQUIRED（propagation 默认值即 0）⇒ 队列打满时并入调用方事务，只占 1 条连接
+        assertThat(tx.propagation()).isEqualTo(org.springframework.transaction.annotation.Propagation.REQUIRED);
     }
 
     private static Notification notification(Long id, Long userId, int isRead) {

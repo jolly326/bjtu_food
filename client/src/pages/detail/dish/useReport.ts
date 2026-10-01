@@ -8,7 +8,7 @@ import { ref, type Ref } from 'vue'
 import { reportReview } from '@/api/feedback'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 
-export interface UseReportReturn {
+interface UseReportReturn {
   reportOpen: Ref<boolean>
   reportSubmitting: Ref<boolean>
   /** 打开举报弹窗（游客可直达，无需认证）；targetId = 被举报的评价 ID */

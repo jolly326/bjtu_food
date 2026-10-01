@@ -245,6 +245,22 @@
           AND d.meal_type IS NOT NULL
     </select>
 
+    <!--
+        评分对账的候选菜品（D3）：只取「缓存列 rating_count > 0」的行。
+        零评价菜品按口径本就恒为 avg_rating=NULL / rating_count=0，无需参与对账，
+        该条件把扫描面收敛到「真正发生过评分事件」的菜品（可用 idx_dish_heat 的 rating_count 定位）。
+        游标分页（id > lastId ORDER BY id LIMIT n）而非 OFFSET：对账期间菜品可能增删，
+        OFFSET 会因行位移漏行/重复行，游标法不受影响。
+    -->
+    <select id="selectDishIdsWithRatings" resultType="long">
+        SELECT d.id
+        FROM dish d
+        WHERE d.rating_count > 0
+          AND d.id > #{lastId}
+        ORDER BY d.id
+        LIMIT #{limit}
+    </select>
+
     <!-- 浏览量原子自增（并发安全：读-改-写 → SET view_count = view_count + 1） -->
     <update id="increaseViewCount">
         UPDATE dish

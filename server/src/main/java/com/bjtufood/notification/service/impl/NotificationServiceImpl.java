@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -35,19 +34,37 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationMapper notificationMapper;
 
     /**
-     * 写入一条通知。
+     * 写入一条通知（<b>开新事务</b>）。
      * <p>
-     * BE-07：补 {@code @Async("taskExecutor")}——此前仅靠 REQUIRES_NEW 开新事务，
-     * 写入仍发生在调用方请求线程上，通知表慢/抖会直接拖慢业务主流程（反馈处理）。
-     * 现按既定规约走 {@code common/config/AsyncConfig} 的有界线程池（core 4 / max 8 / queue 128 / CallerRuns）。
+     * BE-07：本方法补 {@code @Async("taskExecutor")}——事务边界收窄到异步线程，
+     * 避免通知表慢/抖直接拖慢业务主流程（反馈处理）。
      * <p>
-     * 注意：@Async 依赖 Spring 代理，调用方必须经 {@link NotificationService} Bean 调用（禁止同类自调）；
-     * 且方法返回 void，异步线程内的异常不会回传调用方——调用方原有的 try-catch 兜底保持不变（更稳）。
-     * REQUIRES_NEW 保留：异步线程内独立事务，不并入调用方事务。
+     * <b>D2 变更：移除 {@code Propagation.REQUIRES_NEW}，改回默认 {@code REQUIRED}</b>。
+     * 原注解在此<b>既冗余又危险</b>：
+     * <ul>
+     *   <li><b>冗余</b>：{@code @Async} 方法运行在独立线程，线程池线程本身没有事务上下文，
+     *       {@code REQUIRED} 同样会「无事务则新建」，与 REQUIRES_NEW 的实际效果一致；</li>
+     *   <li><b>危险</b>：{@code AsyncConfig} 的拒绝策略是 {@code CallerRunsPolicy}，
+     *       队列打满时任务<b>在调用方线程同步执行</b>——而调用方
+     *       （{@code FeedbackServiceImpl#handle} / {@code CorrectionServiceImpl#adopt|reject}）
+     *       正处于事务中。此时 REQUIRES_NEW 会<b>挂起外层事务再新开一条</b>，
+     *       即单请求峰值占用 <b>2 条连接</b>。HikariCP 池上限仅 20
+     *       （{@code application.yml}），并发写叠加队列打满即成倍放大连接需求，最坏自锁耗尽。
+     *       改回 REQUIRED 后该场景并入调用方事务，<b>只占 1 条</b>。</li>
+     * </ul>
+     * <p>
+     * <b>关于调用方 try-catch 的真实边界（D2 澄清）</b>：{@code @Async} 下异步线程内的异常
+     * <b>不会</b>传播回调用方，故调用方的 try-catch 捕获不到「通知写入失败」——
+     * 它只能拦住<b>提交任务阶段</b>的异常（如池已关闭）。
+     * 真正的失败只由本方法内部 {@code catch} 记日志暴露（这也是它必须就地 log 的原因）。
+     * 故此注释与调用方 {@code catch (Exception ignored)} 的语义须一并理解：
+     * 「不阻塞主流程」成立，但「失败可被调用方感知」不成立。
+     * <p>
+     * @Async 依赖 Spring 代理，调用方必须经 {@link NotificationService} Bean 调用（禁止同类自调）。
      */
     @Override
     @Async("taskExecutor")
-    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public void notify(NotificationCmd cmd) {
         // 实体只在 notify 内部构造：isRead 恒 0（未读），投递方不再触达实体（P0-1 跨域契约收敛）
         Notification notification = new Notification();

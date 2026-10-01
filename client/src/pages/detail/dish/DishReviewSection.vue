@@ -6,15 +6,13 @@
        数字口径 = **已加载条数**（分页壳只有 `records`，服务端不回传总数）；在途 / 失败态不渲染数字。
        评价卡无「有用」按钮；排序唯一时间倒序、无切换入口；条目之间 1rpx 浅分隔线（与通知页 / 我的评价页同语言）。 -->
   <view class="review-section" id="review-section">
-    <!-- 卡片壳改用公共 `CardSection`：
-         `flush` = 去掉自身外边距（块间距由外层 `.review-section` 统管），
-         内距随即统一到 `--spacing-md`（原先本卡 16/24rpx 与同页另两卡 24rpx 不同轴）。 -->
+    <!-- 卡片壳走公共 `CardSection`：
+         `flush` = 去掉自身外边距（块间距由外层 `.review-section` 统管），内距 `--spacing-md`。 -->
     <CardSection flush>
       <!-- 标题行：
            左 = 「评价」+ 条数，**合并为一个标题块**（经 SectionTitle 的 `count`）：数字与标题同色、小半号、等宽；
                 数字口径 = **已加载条数**；在途 / 失败态不渲染数字（避免 0 值误导，失败 ≠ 零评价）。
-           右 = **「写评价」轻量入口**（主色笔形图标 + 文字，**非按钮形态**；替换原两段式筛选胶囊；
-                文案恒定，无「重新评价」态）。 -->
+           右 = **「写评价」轻量入口**（主色笔形图标 + 文字，**非按钮形态**，文案恒定）。 -->
       <SectionTitle title="评价" :count="(!pending && !loadFailed) ? count : null" no-margin>
         <template #extra>
           <!-- 轻量入口（**非按钮形态**）：主色线性笔形图标 + 主色文字，**无边框 / 无底色 / 无阴影**；

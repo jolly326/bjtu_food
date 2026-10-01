@@ -88,8 +88,8 @@
 /**
  * 身份认证独立页：
  * 学号 + 邮箱验证码两字段表单；发码冷却由 authStore 持有（跨进出页面持久，前端不辅助绕过 60s 冷却）。
- * 认证成功（bindEmail 落库）→ Toast → 返回原页；若进入本页前记录了待办（requireAuth 守卫），
- * 原页 onShow 经 authStore.consumePending() 续接（如重新打开写评价表单）。
+ * 认证成功（bindEmail 落库）→ Toast（**含资料完善引导**：可到「我的主页」完善昵称头像）→ 返回原页；
+ * 若进入本页前记录了待办（requireAuth 守卫），原页 onShow 经 authStore.consumePending() 续接（如重新打开写评价表单）。
  * 未完成认证离开本页（Header 返回 / 手势返回）→ 清除待办，避免过期动作误执行。
  */
 import { ref, computed } from 'vue'
@@ -102,7 +102,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
-import { errorMessage, toastSuccess } from '@/utils/error'
+import { errorMessage, toastInfo, toastSuccess } from '@/utils/error'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -189,7 +189,10 @@ async function submit() {
   try {
     await userStore.verifyEmail(form.value.code.trim())
     verified = true
-    toastSuccess('认证成功')
+    // 资料层引导（登录 / 资料两层分离口径）：认证是低频动作，成功即提示一句「可完善昵称头像」，
+    // 落点 = 「我的主页」身份卡的「编辑个人信息」入口（该入口仅认证态渲染）；不跳转、不打断续接。
+    // 用 `toastInfo`（icon:'none'）：`toastSuccess` 走 icon:'success'，长文案会被截断。
+    toastInfo('认证成功，可到「我的主页」完善昵称头像')
     // 返回原页：待办由原页 onShow 经 consumePending 续接
     if (navTimer) clearTimeout(navTimer)
     navTimer = setTimeout(backToHome, 600)

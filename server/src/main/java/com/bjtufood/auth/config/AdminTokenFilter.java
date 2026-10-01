@@ -1,11 +1,14 @@
 package com.bjtufood.auth.config;
 
 import com.bjtufood.common.result.Result;
+import com.bjtufood.common.utils.ClientIpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,24 +36,47 @@ import java.util.List;
  *   <li>仅作用 {@code /admin} 与 {@code /admin/**}（含管理端图片上传 {@code /admin/upload/image}），
  *       小程序端接口不受任何影响；校验通过后设置 ROLE_ADMIN 认证供授权层使用。</li>
  * </ul>
+ * <p>
+ * <b>本方案的结构性弱点（D4 登记，未根治）</b>——需要如实认识，不要误读为「管理端已加固」：
+ * <ol>
+ *   <li><b>单一共享凭据、无操作人身份</b>：口令一旦泄露即等于全量管理权限（可物理删除菜品并级联删除
+ *       其全部评价、删除任意反馈与纠错，<b>不可逆</b>），且事后无法追溯操作人。
+ *       本次已补的<b>审计日志</b>（见下方 doFilterInternal）只能记录「何时、从哪个 IP、调了哪个接口」，
+ *       <b>不能回答「是谁」</b>——因为方案本身就没有身份概念。</li>
+ *   <li><b>凭据一旦下发到浏览器即等同公开</b>：任何把口令放进前端产物的做法（本地 .env 注入、
+ *       构建时内联、localStorage 存储）都会让「持有 DevTools 的人 = 持有全量管理权限」。
+ *       当前 <b>Web 后台尚未接入该机制</b>（{@code web/src/api/http.ts} 只发 {@code Authorization: Bearer}，
+ *       未发 {@code X-Admin-Token}；{@code VITE_ADMIN_TOKEN} 在 web 源码中零引用），
+ *       故此风险<b>目前尚未成真</b>——但这也意味着管理端调 {@code /admin/**} 实际会直接 403。
+ *       <b>一旦有人「把后台接通」，必须同时决定凭据分发方式</b>，否则等于主动引入上述风险。</li>
+ * </ol>
+ * <b>根治方向</b>（按投入递增，需产品/运维拍板，不在代码层自行决定）：
+ * ① 部署侧限制管理端来源 IP（内网/VPN），口令只在内网可达；② 后端代理的一次性会话
+ * （首次换短时 token，之后只带 token）；③ 换回真实管理员账号体系——本类已标
+ * {@code @Deprecated(forRemoval=true)}，正是为 ③ 预留的。
+ * <p>
+ * 在此之前，本类能提供的确定性改进是：fail-closed、等时比较、路径口径统一、以及<b>操作留痕</b>。
  */
 @Component
 @Deprecated(since = "2026-09", forRemoval = true)
 public class AdminTokenFilter extends OncePerRequestFilter {
     // ⚠️ 冻结：管理端（Web 后台）口令过滤器，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
-    /** 管理端口令请求头 */
+    /**
+     * 管理端口令请求头 */
     public static final String ADMIN_TOKEN_HEADER = "X-Admin-Token";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
-     * 管理端口令配置（类型化绑定，架构收口 P2；替代原先的 {@code @Value}）。
+     * 管理端配置（类型化绑定，架构收口 P2；替代原先的 {@code @Value}）。
      * <p>
      * 「未配置即 fail-closed」的判据现由 {@link AdminProperties#isConfigured()} 承载，
      * 与「是否配置」成为同一份事实，不再是过滤器方法内联的判空逻辑。
      */
     private final AdminProperties adminProperties;
+
+    private static final Logger log = LoggerFactory.getLogger(AdminTokenFilter.class);
 
     public AdminTokenFilter(AdminProperties adminProperties) {
         this.adminProperties = adminProperties;
@@ -110,12 +136,18 @@ public class AdminTokenFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         if (!adminProperties.isConfigured()) {
             // fail-closed：未配置口令即拒绝，防止公网环境下的管理端裸奔
+            log.warn("[ALERT] 管理端口令未配置，拒绝 /admin 请求（fail-closed）：method={} path={} ip={}",
+                    request.getMethod(), request.getRequestURI(), ClientIpUtil.resolve(request));
             writeJson(response, HttpStatus.FORBIDDEN.value(),
                     Result.forbidden("管理端未配置 ADMIN_TOKEN，已拒绝访问（fail-closed）"));
             return;
         }
         String provided = request.getHeader(ADMIN_TOKEN_HEADER);
         if (!constantTimeEquals(adminProperties.getToken(), provided)) {
+            // 失败审计：口令是「唯一凭据」，暴力猜解是本方案最现实的攻击面。
+            // 只记方法/路径/IP，不记请求体与响应体——那些含用户内容，进日志无审计价值且污染检索。
+            log.warn("[ALERT] 管理端口令校验失败：method={} path={} ip={}",
+                    request.getMethod(), request.getRequestURI(), ClientIpUtil.resolve(request));
             writeJson(response, HttpStatus.FORBIDDEN.value(), Result.forbidden("管理端口令无效"));
             return;
         }
@@ -127,6 +159,22 @@ public class AdminTokenFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
+            // 审计（D4）：管理端具备<b>不可逆的破坏性操作</b>（物理删除菜品并级联删除其全部评价、
+            // 删除任意反馈与纠错），而口令是<b>单一共享凭据、无操作人身份</b>——
+            // 一旦凭据泄露，事后无任何线索可查（「谁删的」不可知）。故对全部管理端请求留痕。
+            // 写操作（DELETE / PUT / POST）升为 WARN，读操作 DEBUG（避免列表翻页刷屏）。
+            // 只记方法/路径/IP/结果码：路径已足以区分「删菜品」与「改反馈」，且不含任何用户内容。
+            boolean mutating = !"GET".equals(request.getMethod())
+                    && !"OPTIONS".equals(request.getMethod());
+            if (mutating) {
+                log.warn("[AUDIT] 管理端写操作：method={} path={} ip={} status={}",
+                        request.getMethod(), request.getRequestURI(),
+                        ClientIpUtil.resolve(request), response.getStatus());
+            } else {
+                log.debug("[AUDIT] 管理端读操作：method={} path={} ip={} status={}",
+                        request.getMethod(), request.getRequestURI(),
+                        ClientIpUtil.resolve(request), response.getStatus());
+            }
             // 无状态体系：请求结束后清理上下文，避免容器线程复用导致的认证残留
             SecurityContextHolder.clearContext();
         }
