@@ -8,6 +8,7 @@
 | 侧 | 命令 | 产物 |
 | --- | --- | --- |
 | 服务端 | `cd server && mvn -q test -Dtest=DishReadPathBenchmarkTest,IpRateLimiterBenchmarkTest -Dsurefire.failIfNoSpecifiedTests=false` | 控制台 `METRIC\|key\|value\|unit\|note` 行 + `target/perf-metrics.tsv`（追加写） |
+| 服务端（P1 缓存复测，同口径对照） | `cd server && mvn -q test -Dtest=DishCacheBenchmarkTest -Dsurefire.failIfNoSpecifiedTests=false` | 同上（`*_cached` 系列指标，见 §8） |
 | 客户端（静态） | `cd client && npm run measure:perf` | 同上格式 + `dist/perf-metrics.tsv` |
 | 客户端（请求层运行时） | `cd client && npm run probe:request` | 同上格式（stdout） |
 
@@ -134,7 +135,7 @@
 | `client.unused_exports` | 12 | 0 | P3 |
 | `client.bundle.main_kb` | 315.41 | ≤ 220（`home-bg.jpg` 压缩或改走云存储） | P4 |
 
-## 7. 度量过程中踩到的四个坑（写下来，避免下一轮重犯）
+## 7. 度量与装配过程中踩到的坑（写下来，避免下一轮重犯）
 
 1. **Mockito 的 `mockingDetails().getInvocations().clear()` 不清账本**：它返回的是快照视图，
    clear 不回写 → 首版计数指标读到的是**累积值**（列表页显示 8 次，真实是 1 次）。已改为前后差值。
@@ -153,4 +154,80 @@
 6. **同一工作区存在并行编辑时，结构性指标会漂**：本轮第二次采集中 `client.unused_exports`
    从 12 掉到 6、api 函数从 41 变 40，全部来自另一条工作流的清理，而不是性能改动。
    应对办法就是 §4 开头那条：把 HEAD 与工作区状态一起记进采集记录。
+7. **`SimpleCacheManager` 少了 `initializeCaches()` → `getCache()` 恒返回 `null`，整层缓存静默失效**：
+   Spring 6.1 的 `AbstractCacheManager.getCache()` 已**不再惰性初始化**，而 `AbstractCacheResolver`
+   拿到 `null` 只打一条 debug 日志就把该缓存名跳过。症状是「启动正常、业务正常、命中率永远是 0」。
+   生产里这一步由容器生命周期回调完成，所以只有**自己 new 管理器**（工厂方法、基准测试）才会踩到——
+   已在 `CacheConfig.buildCacheManager()` 内固化，调用方不需要知道这个细节。
+8. **手工 `new` 的 `CacheInterceptor` 不调 `afterSingletonsInstantiated()` 就永远不缓存**：
+   `CacheAspectSupport.execute()` 的**首行**是 `if (!initialized) → 直接执行业务方法`；
+   Spring 6.1 里 `afterPropertiesSet()` 只做 `Assert.state(cacheOperationSource != null)`，
+   `initialized` 由 `SmartInitializingSingleton` 回调置位。容器必然调用，脱离容器手工挂 advice 时没人调。
+   症状最迷惑：**advice 确实挂上了、注解也确实解析出来了（`getCacheOperations()` 能查到）、
+   缓存条目却永远是 0，耗时与完全不缓存时逐毫秒一致，全程零报错**。
+   → 可泛化的两条：① 脱离容器手工装配 Spring 组件时，它实现的每个 `*Aware` / `Initializing*` /
+   `SmartInitializing*` 回调都要补齐（本轮 P1 就在这里连踩了 7、8 两个）；
+   ② 光断言「变快了」不够，必须有一条**直接看缓存里有没有条目**的断言
+   （`DishCacheBenchmarkTest#dishViewsHitCache` 里的 `cachedEntries(...)`），
+   否则装配错误只会以「优化没效果」的形式出现，然后被误读成「这条路没用」。
+
+## 8. P1 实测（服务端读路径：进程内缓存 + 锁粒度 + 出参瘦身）
+
+> 采集时点：`HEAD=444734b6`，工作区含本轮 P1 改动，**同时含其它并行工作流的未提交改动**
+> （评价接口改造、client 文档与 `api.d.ts` 重新生成等）。口径与 §2 完全一致：本机、无 MySQL、
+> 无真机；Mapper 次数是 DB 成本下界，`latency_ms_*` 只用于同算法自比。
+> 每项 **3 轮独立 JVM**（`mvn -Dtest=…` 各起一个进程）取中位数，波动区间一并给出。
+
+| 指标 | 基线 | P1 中位数 | 波动 | 阈值（§6） | 判定 |
+| --- | ---: | ---: | --- | --- | --- |
+| `server.mapper_calls.dish_attributes_edit`（未缓存路径） | 4 | **3** | 稳定 | ≤ 2 | ⚠️ 见读数 1：口径变了，缓存本身不在这条路径上 |
+| `server.mapper_calls.dish_attributes_edit_cached`（热路径） | 3（无缓存 ⇒ 热=冷） | **1.000** | 稳定 | — | ✅ 只剩一次取行 |
+| `server.dish_attributes_edit.latency_ms_warm`（未缓存路径） | 11.67 ms | 10.77 ms | 9.6 ~ 12.9 | — | 与基线同（符合预期：该路径不走缓存） |
+| `server.dish_attributes_edit.latency_ms_warm_cached` | 11.67 ms | **0.72 ms** | 0.43 ~ 0.84 | ≤ 1 ms | ✅ **−94%** |
+| `server.mapper_calls.dish_views_cached`（第二次进首页的增量） | 1 | **0** | 稳定 | 命中时 0 | ✅ |
+| `server.cache.candidates_recompute_after_write` | — | 2 | 稳定 | > 0（失效必须真的发生） | ✅ 护栏 |
+| `server.rate_limiter.throughput_ops_per_sec_abuse` | 1.09M | **3.62M** | 1.59M ~ 4.02M | ≥ 基线 | ✅ **×3.3** |
+| `server.rate_limiter.throughput_ops_per_sec_normal` | 1.87M | **4.93M** | 2.93M ~ 7.44M | ≥ 基线 | ✅ **×2.6** |
+| 出参 `NON_NULL` 已采用（`dish_list_page` / `dish_detail`） | 2502 / 753 B | 2397 / 732 B | 稳定 | 顺手做 | ✅ −4.2% / −2.8% |
+
+**读数结论**：
+
+1. **两处收益必须分开记，否则会高估缓存**。未缓存路径的 Mapper 次数 4 → 3 **不是缓存带来的**，
+   而是 `listDishAttributes` 把「存在性校验」和「读 attributes」两次查询合并成一次 `selectById`
+   （远程库上省一次 RTT，判定口径不变）。缓存的收益记在 `*_cached` 系列：热路径 3 → 1 次调用、
+   warm 11.67ms → 0.72ms。§6 里 `≤ 2` 那条阈值是按「缓存吃掉字典 + 全库聚合两跳」写的，
+   实际合并查询先吃掉了第三跳，因此以 `*_cached = 1` 为准判定达标。
+2. **`dishViews` 缓存换来的是「回访零查询」**（第二次进首页 Mapper 增量 = 0）。
+   代价写在代码注释里：菜品上/下架后筛选 chip 最多晚 2 分钟（TTL）出现，且晚出现的后果是
+   「点进去空列表」而不是错误数据。`guess_like` **刻意不缓存**（按会话种子随机，缓存等于把
+   发现态对所有人冻结成同一批菜——那是产品行为变更）。
+3. **限流器的分支倒挂消失**：基线里拒绝分支比放行分支慢约 40%（1.09M vs 1.87M，因为拒绝路径
+   同样要独占全局锁）；按 key 加锁后拒绝分支不再更慢（3.62M vs 4.93M，差值方向已反过来——
+   拒绝路径提前返回、少写一次命中，本来就该更快）。§6 那条「差值 < 10%」的正确读法是
+   「**拒绝分支不得慢于放行分支**」，现已满足。
+4. **限流吞吐对机器负载极敏感**：同一份代码在全量测试并发跑时采到过 0.87M。因此该指标只在
+   机器空闲、单独 `-Dtest=` 运行时采集，且只看「中位数是否高于基线上界」——
+   abuse 最差样本（1.59M）仍高于基线上界（1.42M），结论稳。
+5. **缓存没有改变任何结果**：`DishCacheBenchmarkTest` 用 `usingRecursiveComparison` 断言热路径
+   返回值与冷路径逐项相等，并断言写后失效确实触发（`candidates_recompute_after_write = 2`）。
+   命中率 33.3% 是**该测试场景自身的**（1 hit / 2 miss：冷一次 + 热一次 + 失效后一次），
+   不是线上期望值，别拿它当 SLO。
+
+**本轮改动清单（服务端）**：
+
+| 文件 | 改了什么 | 判据 |
+| --- | --- | --- |
+| `common/config/CacheConfig.java`（新） | `@EnableCaching` + 三个命名缓存（TTL 2/10/2 分钟、单缓存上限 8 条、`recordStats`）；`buildCacheManager()` 为生产与基准测试**共用的装配入口** | 用 `SimpleCacheManager` 而非 `CaffeineCacheManager`：不动态建缓存 ⇒ 缓存名拼错会暴露，而不是退化成无 TTL 无上限的默认缓存 |
+| `dish/service/DishAttributeCatalog.java`（新） | 维度字典 + 候选值聚合从 `DishServiceImpl` 抽出为独立 bean，`@Cacheable` 落在它身上；写侧 `invalidateCandidates()` | **必须抽类**：自调用不过代理，注解留在原类会静默失效。返回 `List.copyOf` / `unmodifiableXxx`——缓存值跨请求共享，可变即污染 |
+| `dish/service/impl/DishServiceImpl.java` | 注入 catalog；`listDishViews` 加 `@Cacheable`；`listDishAttributes` 两次查询合并为一次 `selectById`；`addDish` / `updateDish` / 纠错采纳后显式失效 | 失效用显式调用而非 `@CacheEvict`：注解式失效在写事务提交前执行，并发读可把旧聚合回填并再陈旧一整个 TTL |
+| `common/ratelimit/IpRateLimiter.java` | `synchronized(this)` → `ConcurrentHashMap` + 每 key 队列监视器；清理线程逐 key 持锁；取队列与清理摘 key 的竞态用「归属复检 + 至多 3 轮重试」兜住 | 限流语义不变：同一 IP 仍严格串行；复检不可省，否则命中会写进已脱离 map 的队列 → **静默少计一次配额**（方向偏宽松，限流最坏的偏差） |
+| `common/config/JacksonConfig.java` | 出参 `NON_NULL` | 前提：端上可空字段一律走兜底，不区分「字段为 null」与「字段缺失」；全量 222 个测试（含契约/冒烟）通过 |
+| `src/test/java/com/bjtufood/perf/DishCacheBenchmarkTest.java`（新） | 无 Spring 上下文、用**生产同一份**缓存装配复现缓存语义；3 条断言：热路径只剩 1 次取行、结果逐项不变、写后失效发生 | 见 §7 第 7、8 条：这一类断言是声明式缓存唯一的照妖镜 |
+
+**给 P2 的接口**：服务端这轮把「重复计算」压掉了，但**重复请求**一次没动——§5 的 9 个场景里
+仍有 11 次属于同一份数据被重复请求。下一轮在 `client/src/api/http.ts` 做请求层缓存 +
+in-flight 去重，验收就是 §5 那张表的「优化后期望」列（四个场景各降到期望值，
+且 `concurrent_same_post` / `concurrent_distinct_get` **必须保持 2 / 2**）。
+服务端这轮的取舍也可以直接复用：缓存对象必须同时满足「全站共享 + 变化极慢 + 重算昂贵」，
+只写显式失效 + TTL 兜底，并且**先写断言再上缓存**。
 

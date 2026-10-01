@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -23,14 +24,15 @@ import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.event.DishDeletedEvent;
-import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.dish.view.DishListQuery;
 import com.bjtufood.dish.view.DishViewConst;
 import com.bjtufood.dish.view.DishViewResolver;
 import com.bjtufood.dish.view.DishViewVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,8 +67,14 @@ public class DishServiceImpl implements DishService {
      */
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
-    /** 描述属性维度字典（单表），数据驱动、免发版增维度；取值候选由 dish.attributes 全库去重得出 */
-    private final DishAttributeDimensionMapper dishAttributeDimensionMapper;
+    /**
+     * 描述属性的目录数据（维度字典 + 编辑候选值），带缓存。
+     * <p>
+     * 之所以是<b>注入的协作对象</b>而不是本类的私有方法：声明式缓存靠代理生效，
+     * 自调用不过代理，注解会静默失效。缓存放行与否的性能差异见
+     * {@code DishCacheBenchmarkTest}（同一份口径可直接对比）。
+     */
+    private final DishAttributeCatalog attributeCatalog;
 
     @Override
     public IPage<DishListItemVO> listDishes(DishQueryReq req) {
@@ -91,6 +99,10 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
+    // 缓存的是「在售大类集合」驱动的视图列表：最大陈旧窗口 = TTL 2 分钟。
+    // 取舍：菜品上/下架后筛选 chip 最多晚 2 分钟出现——点进尚未出现的视图只会得到空列表，
+    // 不产生错误数据；换来的是每次进首页省掉一次全表 distinct 查询。
+    @Cacheable(CacheConfig.DISH_VIEWS)
     public List<DishViewVO> listDishViews() {
         // 空类过滤（§7.34）：只对「按大类取数」的视图生效——该大类当前无 status='on' 菜品即不下发，
         // 重新有菜自动出现；其余视图（「为你推荐」等聚合视角）恒下发。
@@ -111,11 +123,14 @@ public class DishServiceImpl implements DishService {
      */
     @Override
     public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
+        // 单次取行同时完成「存在且在售」判定与属性读取：原先 existsOnSale + selectAttributesJson
+        // 为两次查询，在远程库上叠加两次 RTT；合并为一次 selectById（判定口径不变）。
+        Dish dish = dishId == null ? null : dishMapper.selectById(dishId);
         // 不存在与已下架同款处理（与详情口径一致）
-        if (!existsOnSale(dishId)) {
+        if (dish == null || !DishConst.STATUS_ON.equals(dish.getStatus())) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        Map<String, Object> raw = JsonMapUtil.parseObject(dishMapper.selectAttributesJson(dishId));
+        Map<String, Object> raw = JsonMapUtil.parseObject(dish.getAttributes());
         if (raw.isEmpty()) {
             return List.of();
         }
@@ -129,46 +144,19 @@ public class DishServiceImpl implements DishService {
                 .toList();
     }
 
-    /** 维度字典（按 order 升序） */
+    /** 维度字典（按 order 升序）；缓存口径见 {@link DishAttributeCatalog#dimensions()} */
     private List<DishAttributeDimension> loadDimensions() {
-        return dishAttributeDimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>()
-                        .orderByAsc(DishAttributeDimension::getOrder));
+        return attributeCatalog.dimensions();
     }
 
     /**
-     * 编辑候选值（数据驱动）：扫描全库在售菜品的 {@code dish.attributes}，按维度 {@code fieldKey}
-     * 汇总「已用中文值」并按使用频次倒序去重——<b>无独立取值字典表，加值零登记</b>。
+     * 编辑候选值（数据驱动）：按维度 {@code fieldKey} 汇总全库「已用中文值」并按使用频次倒序去重。
+     * <p>
+     * 聚合本体已迁至 {@link DishAttributeCatalog#candidateValuesByFieldKey()}（带缓存，
+     * 因为它是本域唯一随行数线性增长的计算）；此处仅保留调用点的可读性。
      */
     private Map<String, List<String>> candidateValuesByFieldKey() {
-        Map<String, Map<String, Integer>> counter = new HashMap<>();
-        for (String json : dishMapper.selectAttributesJsonOnSale()) {
-            JsonMapUtil.parseObject(json).forEach((key, val) -> {
-                Map<String, Integer> perValue = counter.computeIfAbsent(key, k -> new HashMap<>());
-                if (val instanceof List<?> list) {
-                    for (Object v : list) {
-                        if (v != null) {
-                            String s = String.valueOf(v).trim();
-                            if (!s.isEmpty()) {
-                                perValue.merge(s, 1, Integer::sum);
-                            }
-                        }
-                    }
-                } else if (val != null) {
-                    String s = String.valueOf(val).trim();
-                    if (!s.isEmpty()) {
-                        perValue.merge(s, 1, Integer::sum);
-                    }
-                }
-            });
-        }
-        Map<String, List<String>> result = new HashMap<>(counter.size());
-        counter.forEach((key, perValue) -> result.put(key, perValue.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
-                        .thenComparing(Map.Entry.comparingByKey()))
-                .map(Map.Entry::getKey)
-                .toList()));
-        return result;
+        return attributeCatalog.candidateValuesByFieldKey();
     }
 
     /**
@@ -301,6 +289,8 @@ public class DishServiceImpl implements DishService {
         // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，阶段4）——
         // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
         dishMapper.insert(dish);
+        // 新菜带来的属性取值会进入「编辑候选值」的全库去重结果 → 显式失效，避免新值最长 2 分钟不可见
+        attributeCatalog.invalidateCandidates();
     }
 
     @Override
@@ -326,6 +316,8 @@ public class DishServiceImpl implements DishService {
         // 同上：审核语义退役后编辑路径不再回写审核态，
         // 「改了信息反而从端上消失」的隐患随 audit_status 列下线一并消除。
         dishMapper.updateById(dish);
+        // 同 addDish：属性写入可能改变候选值集合（详见 DishAttributeCatalog#candidateValuesByFieldKey）
+        attributeCatalog.invalidateCandidates();
         // 契约约定：null/0 表示清空可空的原价（applyReq 已把 0 归一为 null 并写回实体）；
         // updateById 默认 NOT_NULL 策略不落 null，需显式置空
         boolean clearOriginalPrice = dish.getOriginalPrice() == null;
@@ -543,6 +535,11 @@ public class DishServiceImpl implements DishService {
         if (cmd.getImages() != null && !cmd.getImages().isEmpty()) {
             update.setImages(JsonListUtil.toJson(cmd.getImages()));
         }
-        return dishMapper.updateById(update) > 0;
+        boolean updated = dishMapper.updateById(update) > 0;
+        if (updated) {
+            // 纠错采纳改写 dish.attributes → 候选值集合同步失效（管理端与端上编辑弹层下次即见新值）
+            attributeCatalog.invalidateCandidates();
+        }
+        return updated;
     }
 }

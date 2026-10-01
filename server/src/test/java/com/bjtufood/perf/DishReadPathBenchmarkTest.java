@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishAttributeEditVO;
 import com.bjtufood.dish.dto.DishAttributeItem;
 import com.bjtufood.dish.dto.DishDetailVO;
@@ -15,6 +17,7 @@ import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.service.impl.DishServiceImpl;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -105,7 +108,11 @@ class DishReadPathBenchmarkTest {
         ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
         // 图片绝对化不参与本次口径，原样透传即可
         when(imageUrlUtil.toAbsoluteUrls(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, dimensionMapper);
+        // 刻意用「未加代理」的 catalog：@Cacheable 靠 Spring 代理生效，纯 Mockito 下注解惰性无效，
+        // 因此本类度量的始终是**无缓存基线**（缓存生效后的对照见 DishCacheBenchmarkTest）。
+        DishAttributeCatalog catalog =
+                new DishAttributeCatalog(dishMapper, dimensionMapper, CacheConfig.buildCacheManager());
+        dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, catalog);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
     }
 
@@ -119,12 +126,11 @@ class DishReadPathBenchmarkTest {
                 "现状=详情联表 + 浏览计数自增 + 维度字典");
 
         // ---------- GET /dishes/{id}/attributes ----------
-        when(dishMapper.selectCount(any())).thenReturn(1L);
-        when(dishMapper.selectAttributesJson(anyLong())).thenReturn(sampleAttributesJson(0));
+        when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
         when(dishMapper.selectAttributesJsonOnSale()).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
         PerfMetrics.emit("server.mapper_calls.dish_attributes_edit",
                 measureCalls(() -> dishService.listDishAttributes(1L)), "次/请求",
-                "现状=存在性校验 + 单菜attributes + 维度字典 + 全库attributes扫描（rows=" + ON_SALE_ROWS + "）");
+                "现状=单次取行（存在性+在售态+属性）+ 维度字典 + 全库attributes扫描（rows=" + ON_SALE_ROWS + "）");
 
         // ---------- GET /dishes（列表分页） ----------
         when(dishMapper.selectDishPage(any(), any())).thenReturn(dishPage());
@@ -146,8 +152,7 @@ class DishReadPathBenchmarkTest {
     @Test
     @DisplayName("候选值聚合耗时：预热后测冷路径与热路径（无缓存时热 ≈ 冷）")
     void attributeCandidateLatency() {
-        when(dishMapper.selectCount(any())).thenReturn(1L);
-        when(dishMapper.selectAttributesJson(anyLong())).thenReturn(sampleAttributesJson(0));
+        when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
         when(dishMapper.selectAttributesJsonOnSale()).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
         // 预热：让 JIT 完成热点编译，避免把编译成本算进「冷路径」
         for (int i = 0; i < 3; i++) {
@@ -284,6 +289,15 @@ class DishReadPathBenchmarkTest {
         vo.setCanteenName("第一食堂");
         vo.setStallName("面食窗口");
         return vo;
+    }
+
+    /** 在售菜品合成实体：`GET /dishes/{id}/attributes` 单次取行（存在性 + 在售态 + 属性）用 */
+    private static Dish onSaleDish(String attributesJson) {
+        Dish dish = new Dish();
+        dish.setId(1L);
+        dish.setStatus(DishConst.STATUS_ON);
+        dish.setAttributes(attributesJson);
+        return dish;
     }
 
     private static DishDetailVO sampleDetail() {

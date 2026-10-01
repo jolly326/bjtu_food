@@ -37,6 +37,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
+        <!--
+          读路径缓存（P1）：声明式 @Cacheable + 进程内 Caffeine。
+          刻意不用 Redis：本服务单容器云托管部署，缓存对象全是「变化极慢的字典 / 聚合候选」，
+          进程内即可满足；多引入一个外部存储等于多一个故障域与一条运维前提。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
