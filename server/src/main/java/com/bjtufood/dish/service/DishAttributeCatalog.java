@@ -7,6 +7,7 @@ import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
 import com.bjtufood.dish.mapper.DishMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
@@ -31,8 +32,21 @@ import java.util.Map;
  * 缓存名与 TTL 统一取自 {@link CacheConfig}。
  */
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class DishAttributeCatalog {
+
+    /**
+     * 候选聚合的扫描上限（行）。
+     * <p>
+     * 取 20000：远超当前菜品规模（基准合成 5000 行 ≈14ms），又给内存一个硬边界——本查询是读路径上
+     * 唯一「行数决定返回体积」的查询（每行一段 attributes JSON 全量回传后才在内存里解析聚合），
+     * 不设上限即随菜品表行数线性膨胀。
+     * <p>
+     * 触顶的后果是<b>受控</b>的：候选值在契约里仅为参考、不构成写入约束（{@code DishAttributeEditVO#options}），
+     * 少几个长尾建议不会让任何写入变错；因此这里选择「截断 + WARN」而不是「放开无界」或「直接报错」。
+     */
+    public static final int MAX_SCAN_ROWS = 20_000;
 
     private final DishMapper dishMapper;
     private final DishAttributeDimensionMapper dimensionMapper;
@@ -60,8 +74,15 @@ public class DishAttributeCatalog {
      */
     @Cacheable(CacheConfig.ATTRIBUTE_CANDIDATES)
     public Map<String, List<String>> candidateValuesByFieldKey() {
+        List<String> rows = dishMapper.selectAttributesJsonOnSale(MAX_SCAN_ROWS);
+        if (rows.size() >= MAX_SCAN_ROWS) {
+            // 触顶 ⇒ 候选集不完整（长尾取值可能缺失）。**不报错**：候选仅为参考、不约束写入，
+            // 少几个建议远好于让编辑弹层直接 500；但必须留 WARN 并写清下一步动作。
+            log.warn("[ALERT] 在售菜品属性扫描触达上限 {} 行，候选值可能不完整（如需完整候选请提升上限或改分页聚合）",
+                    MAX_SCAN_ROWS);
+        }
         Map<String, Map<String, Integer>> counter = new HashMap<>();
-        for (String json : dishMapper.selectAttributesJsonOnSale()) {
+        for (String json : rows) {
             JsonMapUtil.parseObject(json).forEach((key, val) -> {
                 Map<String, Integer> perValue = counter.computeIfAbsent(key, k -> new HashMap<>());
                 if (val instanceof List<?> list) {

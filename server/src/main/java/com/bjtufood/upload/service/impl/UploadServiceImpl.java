@@ -1,8 +1,10 @@
 package com.bjtufood.upload.service.impl;
 
+import com.bjtufood.common.config.UploadProperties;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.wechat.config.WechatProperties;
 import com.bjtufood.wechat.constant.WechatApiConst;
 import com.bjtufood.wechat.service.WechatAccessTokenProvider;
 import com.bjtufood.upload.dto.UploadResultVO;
@@ -14,7 +16,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -74,15 +75,19 @@ public class UploadServiceImpl implements UploadService {
     /** 云存储图片下载专用 RestTemplate（实例化一次复用；仅 batchdownloadfile / 临时链接下载两个出网点） */
     private final RestTemplate cloudRestTemplate = newCloudRestTemplate();
 
-    @Value("${upload.path:./uploads/images}")
-    private String uploadPath;
+    /**
+     * 本地存储配置（根目录 + URL 前缀），与 {@code WebMvcConfig} 的静态资源映射**共用同一份**——
+     * 此前两处各自 {@code @Value} 绑定同一对键，改一处忘另一处就会「存得进去、访问不到」。
+     */
+    private final UploadProperties uploadProperties;
 
-    @Value("${upload.url-prefix:/images}")
-    private String urlPrefix;
-
-    /** 微信云开发环境 ID；缺省时从 fileID 自动解析（cloud://{env}.{bucket}/path） */
-    @Value("${wechat.cloud-env:}")
-    private String cloudEnv;
+    /**
+     * 微信云开发环境 ID；缺省时从 fileID 自动解析（cloud://{env}.{bucket}/path）。
+     * <p>
+     * 归 {@code wechat} 域的 {@code WechatProperties}：此前本类以 {@code @Value} 自行绑定
+     * {@code wechat.cloud-env}，与该配置类的绑定重复（同一键两处真源）。
+     */
+    private final WechatProperties wechatProperties;
 
     // ==================== 链路一：multipart 直传（保留，H5/独立服务器场景） ====================
 
@@ -134,7 +139,7 @@ public class UploadServiceImpl implements UploadService {
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
         String normalizedExt = extension.toLowerCase(Locale.ROOT);
         String filename = UUID.randomUUID() + "." + normalizedExt;
-        Path dir = Paths.get(uploadPath, datePath).toAbsolutePath().normalize();
+        Path dir = Paths.get(uploadProperties.getPath(), datePath).toAbsolutePath().normalize();
 
         Path target = dir.resolve(filename);
         try {
@@ -160,7 +165,7 @@ public class UploadServiceImpl implements UploadService {
             throw e;
         }
 
-        String relativeUrl = trimEnd(urlPrefix, "/") + "/" + datePath + "/" + filename;
+        String relativeUrl = uploadProperties.urlPrefixWithoutTrailingSlash() + "/" + datePath + "/" + filename;
         String absoluteUrl = imageUrlUtil.toAbsoluteUrl(relativeUrl);
 
         return new UploadResultVO(absoluteUrl, relativeUrl);
@@ -297,8 +302,8 @@ public class UploadServiceImpl implements UploadService {
 
     /** 解析云开发环境 ID：配置优先，缺省从 fileID（cloud://{env}.{bucket}/path）解析 */
     private String resolveCloudEnv(String fileId) {
-        if (StringUtils.hasText(cloudEnv)) {
-            return cloudEnv.trim();
+        if (StringUtils.hasText(wechatProperties.getCloudEnv())) {
+            return wechatProperties.getCloudEnv().trim();
         }
         String body = fileId.substring("cloud://".length());
         int dot = body.indexOf('.');
@@ -432,13 +437,6 @@ public class UploadServiceImpl implements UploadService {
         } catch (IOException ignored) {
             // 清理失败不影响主流程错误返回
         }
-    }
-
-    private String trimEnd(String value, String suffix) {
-        while (value.endsWith(suffix)) {
-            value = value.substring(0, value.length() - suffix.length());
-        }
-        return value;
     }
 
     /**

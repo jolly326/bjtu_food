@@ -2,6 +2,8 @@ package com.bjtufood;
 
 import com.bjtufood.auth.config.AdminProperties;
 import com.bjtufood.auth.config.JwtProperties;
+import com.bjtufood.common.config.CorsProperties;
+import com.bjtufood.common.config.UploadProperties;
 import com.bjtufood.wechat.config.WechatProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -26,6 +28,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * 配置类随所属域走（{@code wechat.config.WechatProperties} / {@code auth.config.JwtProperties} /
  * {@code auth.config.AdminProperties}），不集中塞进 common——避免 common 反向依赖业务域。
  * <p>
+ * 例外：{@code common.config.CorsProperties} / {@code common.config.UploadProperties} 就在 common——
+ * 它们服务的 {@code CorsConfig} / {@code WebMvcConfig} / {@code JwtAuthFilter 的 Origin 校验}
+ * 本身属公共基础设施，放 common 不构成反向依赖，反而是「配置与使用方同域」。
+ * <p>
  * <b>为何显式列举而非 {@code @ConfigurationPropertiesScan}</b>：实测在本项目的切片测试下
  * （{@code SmokeApiTest} 用 {@code @ContextConfiguration} <b>取代</b>主配置来屏蔽全量扫描），
  * 扫描式注册不会生效，而被 {@code @Import} 进切片的 {@code JwtUtil} / {@code AdminTokenFilter}
@@ -35,7 +41,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @MapperScan("com.bjtufood.**.mapper")
 @SpringBootApplication
-@EnableConfigurationProperties({WechatProperties.class, JwtProperties.class, AdminProperties.class})
+@EnableConfigurationProperties({WechatProperties.class, JwtProperties.class, AdminProperties.class,
+        CorsProperties.class, UploadProperties.class})
 @EnableScheduling
 public class BjtuFoodApplication {
 

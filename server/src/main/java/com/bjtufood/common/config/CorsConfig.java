@@ -1,14 +1,10 @@
 package com.bjtufood.common.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * 跨域配置（CORS）
@@ -17,33 +13,32 @@ import java.util.List;
  * <p>
  * 安全约束：
  * 1. 不再使用 {@code addAllowedOriginPattern("*")} + allowCredentials，避免任意源携带凭证。
- * 2. 允许源从环境变量 {@code CORS_ALLOWED_ORIGINS} 注入（逗号分隔），仅放行白名单内的浏览器源。
- * 3. 本项目鉴权使用 Bearer Token（请求头）而非 Cookie，故关闭 allowCredentials。
- * 4. 微信小程序 {@code wx.request} 不发送 Origin 头，浏览器才带 Origin；白名单仅约束带 Origin 的请求，
- *    真正的越权防护仍由 JwtAuthFilter + @PreAuthorize 在后端完成。
+ * 2. 允许源取自 {@link CorsProperties}，<b>与 {@code JwtAuthFilter} 的 Origin 二次校验共用同一份
+ *    配置与同一段解析</b>——此前两处各自 {@code @Value} 绑定，且对「未配置白名单」的处理<b>恰好相反</b>：
+ *    这里 {@code addAllowedOriginPattern("null")}（放行 {@code Origin: null}，即 file:// 与
+ *    sandboxed iframe 的源），那里拒绝一切带 Origin 的请求。当前只是「安全链路先执行」才让拒绝赢下来，
+ *    属依赖执行顺序的巧合；一旦顺序/配置变动，被放行的 null 源就会生效。
+ * 3. 白名单为空 ⇒ <b>不注册任何允许源</b>：带 Origin 的浏览器请求一律被拒（预检 403、实际请求无 CORS 头），
+ *    与 {@code JwtAuthFilter} 的 fail-closed 口径一致；不带 Origin 的请求（{@code wx.request}、
+ *    服务端间调用）本就不属 CORS 范畴，不受影响。
+ * 4. 本项目鉴权用 Bearer Token（请求头）而非 Cookie，故关闭 allowCredentials。
+ * 5. 真正的越权防护仍由 {@code JwtAuthFilter} + {@code @PreAuthorize} 在后端完成，CORS 只是浏览器侧边界。
  */
 @Configuration
 public class CorsConfig {
 
-    /** 受信任的前端源（逗号分隔）；空值表示仅放行不带 Origin 的请求（如小程序原生请求） */
-    @Value("${cors.allowed-origins:}")
-    private String allowedOrigins;
+    private final CorsProperties corsProperties;
+
+    public CorsConfig(CorsProperties corsProperties) {
+        this.corsProperties = corsProperties;
+    }
 
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // 受信任源白名单（仅对带 Origin 头的浏览器请求生效）
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
-        if (origins.isEmpty()) {
-            // 无白名单配置：仅放行不带 Origin 的请求（小程序原生请求），拒绝未知浏览器源
-            config.addAllowedOriginPattern("null");
-        } else {
-            config.setAllowedOrigins(origins);
-        }
+        // 受信任源白名单（仅对带 Origin 头的浏览器请求生效）；空清单 = 全部拒绝（fail-closed）
+        config.setAllowedOrigins(corsProperties.trustedOrigins());
 
         // 允许的 HTTP 方法
         config.addAllowedMethod("GET");
@@ -67,3 +62,4 @@ public class CorsConfig {
         return new CorsFilter(source);
     }
 }
+

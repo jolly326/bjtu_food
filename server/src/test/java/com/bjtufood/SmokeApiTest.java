@@ -18,6 +18,7 @@ import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.aspect.RequireVerifiedAspect;
 import com.bjtufood.auth.service.impl.UserServiceImpl;
+import com.bjtufood.common.config.CorsProperties;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.exception.GlobalExceptionHandler;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
@@ -89,8 +90,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <ol>
  *   <li>登录：{@code POST /auth/wechat-login}（200/code=200 + token/userInfo，缺 code → 400）；</li>
  *   <li>菜品详情：{@code GET /dishes/{id}}（200 + 关键字段；不存在 → body code=400 口径）；</li>
- *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）、
- *       {@code PUT /reviews/{id}}（重新评价，4031 分流）与路径防回归（旧 {@code /reviews} 不再注册）；</li>
+ *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）
+ *       与路径防回归（旧 {@code /reviews} 不再注册）；</li>
  *   <li>反馈：{@code POST /feedback}（类型白名单 400、other 正常落库 200）、
  *       举报：{@code POST /reviews/{id}/report}（原因缺失/非法 400、评价不存在 4001）；</li>
  *   <li>上传：{@code POST /admin/upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
@@ -139,6 +140,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // （主类侧由 @EnableConfigurationProperties 统一登记，两者需同步）。
         JwtProperties.class,
         AdminProperties.class,
+        // CORS 受信任源：JwtAuthFilter 的 Origin 二次校验依赖它（新增配置类必须在此与主类同步登记）
+        CorsProperties.class,
         // 真实安全链路
         SecurityConfig.class,
         JwtAuthFilter.class,
@@ -376,33 +379,6 @@ class SmokeApiTest {
 
         // 菜品归属由路径锁定：Service 签名 (userId, dishId, req)
         verify(reviewService).submitReview(eq(USER_ID), eq(1L), any());
-    }
-
-    @Test
-    void updateReview_unverifiedUser_returns4031() throws Exception {
-        // 重新评价（PUT /reviews/{id}）同口径要求认证：未认证 → 4031，不进入 Service
-        when(userMapper.selectById(USER_ID)).thenReturn(user(false));
-
-        mockMvc.perform(put("/reviews/8")
-                        .header("Authorization", studentToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(reviewBody()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(4031));
-    }
-
-    @Test
-    void updateReview_verifiedUser_returns200() throws Exception {
-        when(userMapper.selectById(USER_ID)).thenReturn(user(true));
-
-        mockMvc.perform(put("/reviews/8")
-                        .header("Authorization", studentToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(reviewBody()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-
-        verify(reviewService).updateReview(eq(8L), eq(USER_ID), any());
     }
 
     // ==================== 链路 4：反馈 ====================

@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -223,11 +224,16 @@ public class DishServiceImpl implements DishService {
      * <p>
      * 仍<b>不加响应缓存</b>：seed 已把「会话内稳定」表达在数据层；若再加 TTL 型缓存，
      * 缓存键必须含 seed 才有意义（否则不同会话互相串味），收益与复杂度不成正比。
-     * 真随机分支（未传 seed）本就与缓存语义冲突，更不能缓存。
+     * 未传 seed 的调用（第三方 / 直连 Swagger / 旧端）由本方法补一次性随机值，
+     * 因此无论是否传 seed，**每次调用都不同** —— 与缓存语义必然冲突，更不能缓存。
      */
     @Override
     public List<GuessLikeVO> guessLike(String seed) {
-        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE, seed);
+        // 缺省 seed 时在此补一个一次性随机值，而不是把「随机」下推到 SQL 的 ORDER BY RAND()：
+        // 后者是全表排序（代价随行数增长、无法用索引），而补 seed 后同一套 CRC32 稳定伪随机序
+        // 就能覆盖旧行为，契约（未传 seed ⇒ 每次不同的随机序）不变。
+        String effectiveSeed = StringUtils.hasText(seed) ? seed : UUID.randomUUID().toString();
+        return dishMapper.selectGuessLike(GUESS_LIKE_SIZE, effectiveSeed);
     }
 
     @Override

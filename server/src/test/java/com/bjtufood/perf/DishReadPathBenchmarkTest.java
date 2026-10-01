@@ -36,6 +36,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
@@ -127,7 +128,7 @@ class DishReadPathBenchmarkTest {
 
         // ---------- GET /dishes/{id}/attributes ----------
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        when(dishMapper.selectAttributesJsonOnSale()).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
         PerfMetrics.emit("server.mapper_calls.dish_attributes_edit",
                 measureCalls(() -> dishService.listDishAttributes(1L)), "次/请求",
                 "现状=单次取行（存在性+在售态+属性）+ 维度字典 + 全库attributes扫描（rows=" + ON_SALE_ROWS + "）");
@@ -153,7 +154,7 @@ class DishReadPathBenchmarkTest {
     @DisplayName("候选值聚合耗时：预热后测冷路径与热路径（无缓存时热 ≈ 冷）")
     void attributeCandidateLatency() {
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        when(dishMapper.selectAttributesJsonOnSale()).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
         // 预热：让 JIT 完成热点编译，避免把编译成本算进「冷路径」
         for (int i = 0; i < 3; i++) {
             dishService.listDishAttributes(1L);

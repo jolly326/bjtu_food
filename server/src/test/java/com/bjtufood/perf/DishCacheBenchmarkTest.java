@@ -35,6 +35,7 @@ import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.when;
@@ -89,7 +90,7 @@ class DishCacheBenchmarkTest {
         dishMapper = mock(DishMapper.class);
         dimensionMapper = mock(DishAttributeDimensionMapper.class);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
-        when(dishMapper.selectAttributesJsonOnSale()).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
         when(dishMapper.selectInStockMealTypes()).thenReturn(List.of("staple", "dish"));
 

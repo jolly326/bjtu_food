@@ -38,10 +38,17 @@ public interface DishMapper extends BaseMapper<Dish> {
     /**
      * 查询全部在售菜品的描述属性 JSON 原文（{@code dish.attributes}）——供编辑候选值
      * 「按维度汇总全库已用中文值」用（{@code GET /dishes/{id}/attributes} / 管理端维度字典）。
+     * <p>
+     * <b>为何带 limit 且按 id 排序</b>：本查询是读路径上唯一「行数决定返回体积」的查询
+     * （每行一段 attributes JSON，全部经网络回传后在内存里解析聚合），不设上限即随菜品量线性膨胀，
+     * 是内存与耗时的无界来源。加上限后：① 行为确定（同一数据多次调用截断点一致，不会时多时少）；
+     * ② 上限只可能影响「参考候选的完整度」——候选值在契约里<u>仅为参考、不构成写入约束</u>
+     * （见 {@code DishAttributeEditVO#options}），故截断不会让任何写入变错。
      *
-     * @return 在售菜品 attributes JSON 串列表（NULL 行不返回）
+     * @param limit 最多返回的行数（上限由 {@code DishAttributeCatalog} 侧常量给出）
+     * @return 在售菜品 attributes JSON 串列表（NULL 行不返回；按 id 升序保证截断点稳定）
      */
-    List<String> selectAttributesJsonOnSale();
+    List<String> selectAttributesJsonOnSale(@Param("limit") int limit);
 
     /**
      * 查询全部菜品列表（含已下架），联表档口和食堂名称

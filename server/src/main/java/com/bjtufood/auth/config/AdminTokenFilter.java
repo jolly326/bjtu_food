@@ -30,7 +30,7 @@ import java.util.List;
  * <ul>
  *   <li>未配置 {@code ADMIN_TOKEN} → **fail-closed 拒绝全部 /admin 请求**（403），避免遗忘配置导致管理端裸奔；</li>
  *   <li>口令比对使用等时比较（MessageDigest.isEqual），降低时序侧信道风险；</li>
- *   <li>仅作用 {@code /admin/**}（含管理端图片上传 {@code /admin/upload/image}），
+ *   <li>仅作用 {@code /admin} 与 {@code /admin/**}（含管理端图片上传 {@code /admin/upload/image}），
  *       小程序端接口不受任何影响；校验通过后设置 ROLE_ADMIN 认证供授权层使用。</li>
  * </ul>
  */
@@ -77,20 +77,32 @@ public class AdminTokenFilter extends OncePerRequestFilter {
      */
     private static final String ADMIN_PATH_PREFIX = "/admin/";
 
+    /**
+     * 管理端根路径本身（无尾斜杠）。
+     * <p>
+     * 必须与 {@code ADMIN_PATH_PREFIX} 一起判：{@code SecurityConfig} 的白名单写的是 {@code "/admin/**"}，
+     * 而 Spring 的 {@code /**} <b>同时匹配零段</b>，即 {@code /admin} 本身也在放行范围内。
+     * 若过滤器只认 {@code "/admin/"}，那么「给 {@code @RequestMapping("/admin")} 的控制器加一个
+     * 空路径端点」就会成为绕过口令校验的管理端入口——今天安全只是因为没有这样的端点。
+     */
+    private static final String ADMIN_PATH = "/admin";
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         // 取「应用内路径」：getRequestURI() 含 context-path，减去 request.getContextPath() 即为应用内路径。
         String uri = request.getRequestURI();
         if (uri == null) {
-            return true;
+            // 取不到 URI ⇒ **不跳过**过滤器（fail-closed）：宁可多校验一次口令，
+            // 也不放行一个来源可疑的请求（此处旧行为是「跳过 = 放行」，方向正好相反）。
+            return false;
         }
         String contextPath = request.getContextPath();
         if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
             uri = uri.substring(contextPath.length());
         }
-        // /admin/** 全量受口令保护（含管理端图片上传 /admin/upload/image）；
+        // /admin 与 /admin/** 同等受口令保护（含管理端图片上传 /admin/upload/image）；
         // 学生端上传 /upload/cloud-image 走 JWT，不在本过滤器范围内。
-        return !uri.startsWith(ADMIN_PATH_PREFIX);
+        return !(ADMIN_PATH.equals(uri) || uri.startsWith(ADMIN_PATH_PREFIX));
     }
 
     @Override

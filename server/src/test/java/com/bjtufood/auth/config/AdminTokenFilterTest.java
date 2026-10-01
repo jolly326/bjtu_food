@@ -1,6 +1,7 @@
 package com.bjtufood.auth.config;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -9,6 +10,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * {@link AdminTokenFilter} 路径作用域与 fail-closed 行为的单元测试。
@@ -82,6 +85,41 @@ class AdminTokenFilterTest {
 
         // 原 contains 写法会把「含 /admin/ 子串」的任何路径都纳入口令保护（过度拦截）
         assertThat(f.shouldNotFilter(req)).isTrue();
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：精确路径 /admin（无尾斜杠）同样受口令保护（白名单 /admin/** 匹配零段）")
+    void exactAdminPathIsProtected() {
+        AdminTokenFilter f = filter();
+
+        for (String ctx : new String[]{"", "/api", "/api/v1"}) {
+            MockHttpServletRequest req = new MockHttpServletRequest("GET", ctx + "/admin");
+            req.setContextPath(ctx);
+
+            assertThat(f.shouldNotFilter(req))
+                    .as("contextPath=%s 下 /admin（无尾斜杠）必须受保护——否则给它加一个空路径端点即成越权入口", ctx)
+                    .isFalse();
+        }
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：/adminx 这类同前缀但非管理端路径不得被误判")
+    void similarPrefixIsNotAdmin() {
+        AdminTokenFilter f = filter();
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/v1/adminx");
+        req.setContextPath("/api/v1");
+
+        assertThat(f.shouldNotFilter(req)).isTrue();
+    }
+
+    @Test
+    @DisplayName("shouldNotFilter：取不到 URI 时不跳过过滤器（fail-closed；旧行为是跳过即放行）")
+    void nullUriFailsClosed() {
+        AdminTokenFilter f = filter();
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        when(req.getRequestURI()).thenReturn(null);
+
+        assertThat(f.shouldNotFilter(req)).isFalse();
     }
 
     // ==================== fail-closed 行为 ====================
