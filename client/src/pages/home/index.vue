@@ -7,7 +7,7 @@
        未吸顶时**完全透明**，吸顶后铺**背景图的原样切片**（位置 = 背景图**去掉顶部标题带那一段**，
        即与页底逐像素同源；偏移基准取**实测**滚动区顶边，消除 1–2px 误差 —— 详见 §11.1）。 -->
   <view class="page home-page" :style="pageStyle">
-    <!-- ===== 壁纸层（UI 文档 §11.1）：本地壁纸 + 纱，`fixed` **视口锚定**、铺满整屏、不随内容滚动 =====
+    <!-- ===== 壁纸层：本地壁纸 + 纱，`fixed` **视口锚定**、铺满整屏、不随内容滚动 =====
          实现 = 公共组件 `components/PageWallpaper.vue`（§12）：本地图必须由 `<image>` 渲染
          （小程序 WXSS `background-image` 取不到包内本地路径）。
          · 这是**页面级**壁纸层（`fixed`、铺满视口、不随内容滚动）；
@@ -102,7 +102,7 @@ import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { showTab } from '@/stores/route'
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { PATH } from '@/utils/routes'
+import { PATH, TAB_HOME } from '@/utils/routes'
 import { useNavMetrics } from '@/utils/useNavMetrics'
 import { getWindowInfo } from '@/utils/device'
 import AppTitleBand from '@/components/AppTitleBand.vue'
@@ -115,7 +115,7 @@ import TabBar from '@/components/TabBar.vue'
 
 const dishStore = useDishStore()
 
-/** Banner 宽高比锁定 **16:10**（UI 文档 §3.3）：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
+/** Banner 宽高比锁定 **16:10**：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
 const BANNER_ASPECT_RATIO = 10 / 16
 /** Banner 与屏幕**左右缘**的间距（px）：与页面级 gutter `--spacing-md` 同值（§3.1 四周留白） */
 const BANNER_GUTTER_PX = 12
@@ -255,7 +255,7 @@ async function onViewSelect(key: string) {
   await dishStore.setHomeView(key)
 }
 
-/** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A-03） */
+/** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A2） */
 function goToSearch() {
   uni.navigateTo({ url: PATH.find })
 }
@@ -278,7 +278,7 @@ onLoad(() => {
 })
 
 onShow(() => {
-  showTab('home')
+  showTab(TAB_HOME)
   clearShareState()
   // 视图字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `viewLoaded` 守卫），失败不阻塞首屏。
   // 先前注释承诺的守卫并不存在（每次 onShow 都真发一次请求），本轮已在 store 内补齐 ⇒ 注释与实现一致。

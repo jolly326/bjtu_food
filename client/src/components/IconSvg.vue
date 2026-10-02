@@ -11,7 +11,7 @@
 import { computed } from 'vue'
 
 /**
- * IconSvg —— 统一矢量图标组件（task-14 W1 / task-13 T27/T29 / ui-design-discussion §0.5）
+ * IconSvg —— 统一矢量图标组件
  *
  * 设计约束：
  *  - 全部图标为线性 SVG（24px 网格、2px 描边、圆角端点一致），替代 Unicode emoji。
@@ -68,7 +68,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   // 图片破损：`image` 画框 + 山线 + 一条对角断线 ⇒ 读作「图片不可用」。
   // 全站图片缺失 / 加载失败的标准占位图标（经 `ImagePlaceholder` 消费），SHALL NOT 再用 `empty` / `dish` 顶替。
   'image-broken': { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'm21 15-5-5L5 21', 'M3 3 21 21'] },
-  // ── task-14 / ui-design-discussion §0.5 补充语义图标 ──
+  // ── 补充语义图标 ──
   // 返回（左箭头，区别于 back 的右箭头）
   'arrow-left': { path: ['m15 18-6-6 6-6'] },
   // 向下箭头（下拉关闭提示：不依赖 rotate，微信小程序 transform 方向不可靠）
@@ -83,7 +83,7 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   bell: { path: ['M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'] },
   // 空状态（无数据 / 空盒子）：中性线性占位，区别于 dish 碗
   empty: { path: ['M3 10.5 12 4l9 6.5', 'M5 9.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5', 'M9 20v-6h6v6'] },
-  // ── task-15 emoji→IconSvg 迁移补充图标 ──
+  // ── emoji→IconSvg 迁移补充图标 ──
   // 档口（店铺）
   stall: { path: ['M3 9l1.5-4.5A2 2 0 0 1 6.4 3h11.2a2 2 0 0 1 1.9 1.5L21 9', 'M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z', 'M9 13h6v4'] },
   // 食堂（楼栋/餐厅）：区别于 stall 店铺、home 房屋；带入口门与二楼窗

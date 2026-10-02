@@ -153,7 +153,7 @@ function onSheetUpdate(next: string[]) {
 /* 标签列：宽 160rpx（与 `.row-label` 同档，4 字维度名 + 无必填星 ⇒ 不换行）；色档同为次级棕 */
 .ag-label {
   flex: none;
-  width: 160rpx;
+  width: var(--form-label-width);
   font-size: var(--font-aux);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
@@ -166,7 +166,7 @@ function onSheetUpdate(next: string[]) {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  height: 88rpx;
+  height: var(--tap-target-size);
   border-bottom: 1rpx solid var(--border-color);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

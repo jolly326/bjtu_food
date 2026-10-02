@@ -91,7 +91,7 @@ function handleClick() {
   transition: opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-/* 按压反馈（§4.9 统一按压语言：小程序端「透明度微降」，与 mt-tab / 搜索卡同族；
+/* 按压反馈（统一按压语言：小程序端「透明度微降」，与 mt-tab / 搜索卡同族；
    不用 transform: scale，避免与卡片内图片淡入的合成层叠加抖动） */
 .dish-card-pressed { opacity: 0.88; }
 .card-image {

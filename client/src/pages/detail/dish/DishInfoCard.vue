@@ -159,7 +159,7 @@ const dims = computed(() => {
   left: 0;
   right: 0;
   top: 50%;
-  height: 88rpx;
+  height: var(--tap-target-size);
   transform: translateY(-50%);
 }
 .correct-icon { flex: none; width: 24rpx; height: 24rpx; display: flex; align-items: center; justify-content: center; }

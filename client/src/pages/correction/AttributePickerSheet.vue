@@ -321,19 +321,15 @@ function onCustomInput(e: Event) {
   customDraft.value = (e as unknown as { detail?: { value?: string } })?.detail?.value ?? ''
 }
 </script>
-<style scoped>
+<style scoped lang="scss">
+/* 下划线字段行样式来自共享 partial（本包内同源） */
+@use './field-shared' as field;
 /* BaseSheet 的 scroll-body 分支已带 `padding: md lg (lg + safe-area)` ⇒ 本层不再叠横向 / 底部留白
    （与 ReviewComposer 同源口径，避免双重缩进）。
    ⚠️ 本层两个输入框都带 `:adjust-position="false"` ⇒ 键盘避让统一由 BaseSheet 的 `keyboard-lift` 承接。 */
 .aps-search { margin-top: var(--spacing-2xs); }
 .aps-search-box {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  border-bottom: 1rpx solid var(--border-color);
-  box-sizing: border-box;
-  transition: border-color var(--duration-fast) var(--ease-out);
+  @include field.underline;
 }
 .aps-search-box--focus { border-bottom-color: var(--color-primary); }
 .aps-search-input { flex: 1 1 auto; min-width: 0; height: 100%; font-size: var(--font-aux); color: var(--text-primary); }
@@ -344,8 +340,8 @@ function onCustomInput(e: Event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 88rpx;
-  height: 88rpx;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
   margin-right: -88rpx;
   -webkit-tap-highlight-color: transparent;
 }
@@ -385,19 +381,13 @@ function onCustomInput(e: Event) {
   display: flex;
   align-items: center;
   gap: var(--spacing-2xs);
-  height: 88rpx;
+  height: var(--tap-target-size);
   -webkit-tap-highlight-color: transparent;
 }
 .aps-custom-entry--pressed { opacity: 0.6; }
 .aps-custom-entry-text { font-size: var(--font-aux); color: var(--color-primary-text); }
 .aps-custom-box {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  height: 88rpx;
-  border-bottom: 1rpx solid var(--border-color);
-  box-sizing: border-box;
-  transition: border-color var(--duration-fast) var(--ease-out);
+  @include field.underline;
 }
 .aps-custom-box--focus { border-bottom-color: var(--color-primary); }
 .aps-custom-input { flex: 1 1 auto; min-width: 0; height: 100%; font-size: var(--font-aux); color: var(--text-primary); }
@@ -419,7 +409,7 @@ function onCustomInput(e: Event) {
   top: 50%;
   right: calc(var(--spacing-2xs) * -1);
   left: calc(var(--spacing-2xs) * -1);
-  height: 88rpx;
+  height: var(--tap-target-size);
   transform: translateY(-50%);
 }
 .aps-custom-add--pressed { opacity: 0.6; }
@@ -441,7 +431,7 @@ function onCustomInput(e: Event) {
 .aps-clear {
   display: flex;
   align-items: center;
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   -webkit-tap-highlight-color: transparent;
@@ -455,7 +445,7 @@ function onCustomInput(e: Event) {
   align-items: center;
   justify-content: center;
   min-width: 240rpx;
-  height: 88rpx;
+  height: var(--tap-target-size);
   padding: 0 var(--spacing-lg);
   background: var(--color-primary);
   border-radius: var(--radius-btn);

@@ -107,7 +107,7 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |---|---|
-| [功能与接口契约](docs/client/feature/README.md) | 学生端功能说明、接口约定与错误码 |
+| [功能与接口契约](docs/client/README.md) | 学生端功能说明、接口约定与错误码 |
 | [UI 设计规范](docs/client/ui/README.md) | 学生端页面设计稿与跨页通用口径 |
 | [后端架构](docs/architecture.md) | 分包模型、依赖规则、测试策略与已知技术债 |
 | [管理后台功能](docs/web/feature/README.md) | 管理后台功能说明 |
@@ -137,7 +137,7 @@ cd client && npm install && npm run dev:mp-weixin
 
 ### 项目约定
 
-- 遵循现有代码风格与目录结构；目录组织、UI 红线与跨端边界见 [docs/client/feature/README.md](docs/client/feature/README.md)
+- 遵循现有代码风格与目录结构；目录组织、UI 红线与跨端边界见 [docs/client/README.md](docs/client/README.md)
 - 涉及后端接口变更时，请同步更新契约产物与相关文档（`cd client && npm run gen:api:fresh`）
 - UI 改动以 [docs/client/ui/](docs/client/ui/) 的设计规范为准
 - 数据库结构变更请改 `server/src/main/resources/db/schema.sql`，不要直连数据库 ALTER

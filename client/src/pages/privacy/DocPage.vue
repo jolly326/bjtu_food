@@ -38,6 +38,16 @@
  * - pages/privacy/agreement.vue（用户协议）
  *
  * 仅承载外壳、文档排版与正文渲染；返回路径固定为「回首页」（与抽离前两页各自的 `backToHome` 行为一致）。
+ *
+ * <p><b>为何只有 2 个消费方仍值得抽取</b>（全站唯一的「2 消费方」私有组件，其余私有组件均 1 消费方）：
+ * 复用的是**白卡文档排版的 40 行 CSS**——恰是最易漏改、且漏改后两页排版不一致的部分，
+ * 收益大于 2 处各 6 行胶水的成本。
+ *
+ * <p><b>为何不上提 `components/`</b>：公共目录只收跨页复用组件，本组件仅服务合规文档两页；
+ * 上提会稀释 `components/` 的语义（同款判断见 `pages/find/DishResultCard.vue`）。
+ *
+ * <p><b>壁纸从哪来</b>：本组件内 `<PageWallpaper fixed />` 提供。两个壳文件不含壁纸，
+ * 也**不应**自行添加 —— 薄壳的模板只有一个组件标签，运行时壁纸由本组件统一承载。
  */
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'

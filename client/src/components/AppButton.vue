@@ -53,7 +53,7 @@ function handleTap() {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 88rpx;
+  height: var(--tap-target-size);
   border-radius: var(--radius-btn);
   box-sizing: border-box;
   gap: var(--spacing-xs);

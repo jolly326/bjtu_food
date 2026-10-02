@@ -342,7 +342,9 @@ function onSubmitTap() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 下划线字段行样式来自共享 partial（本包内同源） */
+@use './field-shared' as field;
 /* ===== 主卡片（圆角 16rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
 .q-card {
   margin: var(--spacing-md) var(--spacing-md) 0;
@@ -382,7 +384,7 @@ function onSubmitTap() {
 .row-label {
   flex: none;
   /* 跨整行行标签宽 160rpx（4 字标签 + 必填星） */
-  width: 160rpx;
+  width: var(--form-label-width);
   font-size: var(--font-aux);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
@@ -393,15 +395,7 @@ function onSubmitTap() {
 .row-field {
   flex: 1 1 auto;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
-  height: 88rpx;
-  /* 输入框背景透明、仅保留底部横线（禁全包围矩形框） */
-  border-bottom: 1rpx solid var(--border-color);
-  box-sizing: border-box;
-  transition: border-color var(--duration-fast) var(--ease-out);
+  @include field.underline;
 }
 /* 聚焦：底线切主色（主色 = 唯一强调色，不用描边框） */
 .row-field--focus { border-bottom-color: var(--color-primary); }
@@ -440,7 +434,7 @@ function onSubmitTap() {
    （跨整行 160rpx / 双列 96rpx 两种缩进，见 UI 稿 §3 交互口径） */
 .row-error {
   margin-top: var(--spacing-2xs);
-  padding-left: 160rpx;
+  padding-left: var(--form-label-width);
   font-size: var(--font-tiny);
   color: var(--color-error);
 }

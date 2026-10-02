@@ -10,6 +10,7 @@
 import { API_BASE_URL, WX_CLOUD_ENV, WX_SERVICE, buildContainerPath } from './config'
 import { getWxApi } from '@/utils/device'
 import { toastInfo } from '@/utils/error'
+import { STORAGE_KEY_TOKEN, STORAGE_KEY_USER } from '@/constants/storage'
 
 /** 响应体外壳（MP-09：仅本模块消费，收敛为模块私有） */
 interface ApiResponse<T = unknown> {
@@ -22,13 +23,13 @@ interface ApiResponse<T = unknown> {
  * 「已由请求层提示过」的错误标记。
  * 请求层对网络异常 / 401 / 4031 / 403 已各自提示（4031 另跳独立认证页；
  * 403 且 message 指向「微信登录」时另弹窗说明 + 用户确认后才重跑微信静默登录补 openid，
- * 依据 spec §7.7 第 1 条：提示 + 用户主动确认，禁止自动重登换登录态），
+ * 依据 spec 第 1 条：提示 + 用户主动确认，禁止自动重登换登录态），
  * 调用方 catch 到本类型时应只做状态回滚，不再重复提示（避免同一失败弹两条提示）。
  */
 export class SurfacedError extends Error {}
 
 /**
- * 「资源不存在」错误（业务码 `4001`，§7.40 R8）：首期落地于 `GET /dishes/{id}`。
+ * 「资源不存在」错误（业务码 `4001`，R8）：首期落地于 `GET /dishes/{id}`。
  *
  * 与网络故障 / 其它业务错误的区别（**必须区别对待**）：本错误表示**请求的对象本身不存在**
  * （已被删除，或已下架 —— 下架对外等价于不存在），**重试无意义**：消费方应给「不存在」文案 +
@@ -119,7 +120,7 @@ let _lastAuthToastAt = 0
 const REQUEST_TIMEOUT_MS = 12000
 
 /**
- * 统一未登录/登录失效处理（§5.x 401 处理）：
+ * 统一未登录 / 登录失效处理：
  * 清本地登录态 + Toast + 重新触发微信静默登录（wechat-login）。
  * 用动态 import 避免 user store ↔ http 的循环依赖；forceLogout 幂等，可安全延迟执行。
  * 不再使用全局 uni.$on/$emit 事件总线，规避 HMR/模块重复加载导致的重复订阅泄漏。
@@ -145,8 +146,8 @@ async function handleUnauthorized(): Promise<void> {
     await useUserStore().silentLogin()
   } catch {
     // 兜底：极端情况下动态 import 失败，直接清 storage
-    uni.removeStorageSync('token')
-    uni.removeStorageSync('userInfo')
+    uni.removeStorageSync(STORAGE_KEY_TOKEN)
+    uni.removeStorageSync(STORAGE_KEY_USER)
   } finally {
     // 延迟复位，确保后续真正失效的 401 能再次触发引导
     setTimeout(() => { _authHandling = false }, 300)
@@ -170,10 +171,10 @@ async function handleUnverified(): Promise<void> {
 }
 
 /**
- * 统一「需微信登录」处理（403 且 message 指向微信登录，spec §7.5 / §7.7 第 1 条）：
+ * 统一「需微信登录」处理（403 且 message 指向微信登录）：
  * 已认证（bindEmail 非空）但账号缺 openid（如仅经邮箱链路建号）时，后端返回 403 +
  * message「请使用微信登录后再发布评价」。端上处置 = 「提示 + 用户主动确认」
- * （依据 spec §7.7 第 1 条，禁止自动重登换登录态）：
+ * （依据 spec 第 1 条，禁止自动重登换登录态）：
  * 弹窗说明 + 用户点「重新登录」确认后，才重跑微信静默登录（wx.login → POST /auth/wechat-login）
  * 补齐 openid；**禁止自动重登**——对「无 openid 的历史学号账号」自动重登会静默切到新游客号
  * （登录态无感知互换，且新号 verified=false，重试仍撞 4031），顺滑收益≈0，静默换号代价真实。
@@ -218,7 +219,7 @@ function handleWechatLoginRequired(msg: string): void {
 }
 
 function getToken(): string {
-  return uni.getStorageSync('token') || ''
+  return uni.getStorageSync(STORAGE_KEY_TOKEN) || ''
 }
 
 /** 解析响应体：兼容 JSON 字符串或已解析对象 */
@@ -331,12 +332,12 @@ async function trySilentRelogin(): Promise<boolean> {
 function throwForErrorBody<T>(body: ApiResponse<T>): never {
   if (body.code === 4031) {
     // 4031 = 邮箱未认证（细分业务码，区别于普通权限拒绝 403）。
-    // 游客触发需认证的 UGC 写接口 → 提示 + 弹认证引导（§5.y/§5.x）。
+    // 游客触发需认证的 UGC 写接口 → 提示 + 弹认证引导（认证 / 登录态一致性）。
     void handleUnverified()
     throw new SurfacedError(body.message || '请先完成学号邮箱认证')
   }
   if (body.code === 403) {
-    // 403 = 普通权限拒绝，**两种子情形分流**（spec §7.5 / §7.7 第 1 条、Q-111）：
+    // 403 = 普通权限拒绝，**两种子情形分流**：
     // ① 已认证但缺 openid（message 含「微信登录」）→ 弹窗说明 + 用户确认后重跑微信静默登录补 openid
     //   （提示 + 主动确认，禁止自动重登换登录态），不弹邮箱认证；
     // ② 其他普通无权限（越权 / 非本人资源 / 账号禁用）→ 仅透传后端 message 提示。
@@ -350,7 +351,7 @@ function throwForErrorBody<T>(body: ApiResponse<T>): never {
     throw new SurfacedError(msg)
   }
   if (body.code === 4001) {
-    // 4001 = 资源不存在（细分业务码，§7.40 R8）：抛**可识别**类型、不在此提示 ——
+    // 4001 = 资源不存在（细分业务码，R8）：抛**可识别**类型、不在此提示 ——
     // 由页面渲染「不存在」文案 + 返回路径（与网络故障的可重试态区别对待）
     throw new ResourceNotFoundError(body.message || '内容不存在')
   }
@@ -406,7 +407,7 @@ async function request<T>(
     }
     // 401 登录失效 / 启动竞态（请求早于静默登录拿到 token）。
     // 策略：先确保静默登录完成（拿到 token），再自动重试一次；
-    // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报（§5.x）。
+    // 重试仍 401 才视为真正失效并提示，避免游客态启动时的误报。
     if (!_retried && await trySilentRelogin()) {
       return request<T>(method, url, data, options, true)
     }
@@ -438,7 +439,8 @@ export async function del<T>(url: string, data?: RequestData, options?: RequestO
  * 上传超时（MP-003）：二进制文件比 JSON 请求慢，在 request 12s 基础上放宽至 15s，避免上传 promise 永久挂起。
  * <b>导出供 api/upload.ts 复用</b>——同一超时口径不存两份（此前两处各写 15000，靠注释人工同步）。
  */
-export const UPLOAD_TIMEOUT_MS = 15000
+/** 上传专用超时（仅本模块内部消费：文件更大、链路更久） */
+const UPLOAD_TIMEOUT_MS = 15000
 
 /**
  * 上传图片。

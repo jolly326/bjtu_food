@@ -94,6 +94,12 @@ export const COLOR_MAP = {
   'shadow-float': '0 6rpx 16rpx rgba(0, 0, 0, 0.12)',
   /* 长条删除按钮（图片移除）暗底（原散落 App.vue，UI-03 收口） */
   'badge-dark-bg': 'rgba(0, 0, 0, 0.5)',
+  /* 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色、无分段），由
+     {@code components/PageWallpaper.vue} 以 `background-color` 消费（全站仅页面级一处壁纸层）。
+     `α` 是唯一旋钮：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚（当前 0.7）。
+     色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写 rgba 字面量）。
+     2026-10-01 规范统一：原声明在 App.vue 的非颜色区（**绕过了颜色真源**），现归位至此。 */
+  'page-wash': 'rgba(255, 248, 239, 0.7)',
 } as const
 
 /* 注：原 `export type IconColorName = keyof typeof COLOR_MAP` 已按「零消费即删」移除
@@ -180,6 +186,8 @@ export const CSS_VARS: Record<string, string> = {
   '--nav-back-icon': COLOR_MAP['nav-back-icon'],
   /* 长条删除按钮暗底 */
   '--badge-dark-bg': COLOR_MAP['badge-dark-bg'],
+  /* 全站页底「纱」（PageWallpaper 消费） */
+  '--page-wash': COLOR_MAP['page-wash'],
 }
 
 // ========== 原生属性例外登记（uni-app 限制） ==========

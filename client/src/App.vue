@@ -19,17 +19,20 @@ onLaunch(() => {
 </script>
 <style>
 /* ========== 全局设计 Token（Apple Design 风格） ==========
-   设计 Token 值以 theme/tokens.ts 为单一事实源。
-   UI-03（spec §4.2）：颜色变量块集中于 theme/generated-colors.css，此处 @import 引入
-   （构建期由 vite/postcss 内联进 app.wxss）。
-   **色值只改 tokens.ts 的 COLOR_MAP / CSS_VARS**；生成脚本
-   `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不再存在，generated-colors.css
-   须**手工同步**（内容与 CSS_VARS 逐键一致），见 spec §4.2 / §7.39。
-   本文件仅保留非颜色 token（圆角/间距/字号/高度/动效/层级）与 var() 派生引用（不含裸色值）。
-   - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须落在 App.vue；
-   - 微信小程序 WXSS 不支持 :root 选择器，故必须以 page 承载；
+   设计变量**全部**经 @import 引入，本文件不再承载任何变量声明（只留 page 底色、
+   var() 派生引用与全局盒模型重置）。两处导入，均为**唯一真源**：
+     · 颜色     → theme/generated-colors.css（手工同步 theme/tokens.ts 的 CSS_VARS）
+     · 非颜色   → theme/design-tokens.css（圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级）
+   → 文档对照表：docs/client/ui/client-设计变量.md
+   **改值只改上述两处真源**；生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens`
+   不在本工作区，generated-colors.css 须**手工同步**（内容与 CSS_VARS 逐键一致），
+   见 spec §4.2 / §7.39。
+   - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须由 page 承载
+     （两个导入文件内部均以 page{…} 声明）；
+   - 微信小程序 WXSS 不支持 :root 选择器；
    - 产品仅一种主体颜色、无深色模式切换，不再保留 .theme-dark 令牌块。 */
 @import './theme/generated-colors.css';
+@import './theme/design-tokens.css';
 
 page {
   /* ===== 全站页面底色（**唯一承载处**）=====
@@ -42,91 +45,16 @@ page {
   /* 提示/占位文字（MP-004 补齐悬空定义）：与全站 placeholder 语言同源，取三阶末档 */
   --text-hint: var(--text-tertiary);
 
-  /* ========== 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色，无分段）==========
-     · 由 `components/PageWallpaper.vue` 以 `background-color` 消费；全站只有**页面级一处**壁纸层
-       （`fixed` 视口锚定；2026-09-26 起不再有任何「横条切片」）—— 因此处处同源，
-       不会出现「某条横带颜色不一样」的突变；
-     · 口径（2026-09-26 三次修正）：**整张壁纸统一压一层**。此前只在顶部一条，会在画面中段留下
-       一条可见的明暗突变（实测：看起来只有「知行食记」那一条有遮罩）；
-     · 作用 = 「降低背景突出度」：壁纸仍可见，但不抢内容 → 标题 / 标签 / 卡片间隙都落在同一层纱上；
-     · **α 是唯一旋钮**：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚。**当前 0.6**（UI 统一 Loop Round 12
-       对齐：原注释写 0.8、UI 文档写 0.4，三处不一致 ⇒ 以本值为唯一真源）；
-     · 色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写字面量 rgba）。 */
-  --page-wash: rgba(255, 248, 239, 0.7);
+  /* 全站页底「纱」（`--page-wash`）：**色值已收口到颜色真源**（theme/generated-colors.css，
+     源自 tokens.ts 的 COLOR_MAP['page-wash']）—— 本文件不再声明任何色值。
+     语义与调参口径（整张壁纸统一压一层、α 是唯一旋钮、由 PageWallpaper 以 background-color 消费）
+     见 tokens.ts 中 'page-wash' 的注释。 */
 
   /* 若未来某页必须让内容从横条背后穿过：
      口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」。 */
 
-  /* 圆角 */
-  /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
-  --radius-none: 0;
-  --radius-2xs: 8rpx;
-  --radius-xs: 16rpx;
-  --radius-tag: 16rpx;
-  --radius-card: 16rpx;
-  --radius-modal: 48rpx;
-  --radius-btn: 16rpx;
-  --radius-icon: 24rpx;
-  /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */
-  --radius-pill: 999rpx;
-  /* 正圆（头像 / 圆点 / 指示器） */
-  --radius-circle: 50%;
-  /* 间距（4pt 基准栅格；2xs=半格，供星标/徽标等紧凑布局，避免裸 4rpx） */
-  --spacing-3xs: 2rpx;
-  --spacing-2xs: 4rpx;
-  --spacing-xs: 8rpx;
-  --spacing-sm: 16rpx;
-  --spacing-md: 24rpx;
-  --spacing-lg: 32rpx;
-  --spacing-xl: 48rpx;
-  /* QA-01 修复：补齐悬空 token（空态上留白 padding 引用，缺失致声明被丢弃、空态贴顶） */
-  --spacing-2xl: 64rpx;
-  /* 字体（尺寸梯度） */
-  --font-tiny: 20rpx;
-  --font-aux: 22rpx;
-  --font-small: 24rpx;
-  --font-body: 28rpx;
-  --font-caption: 30rpx;
-  /* 字号标度（单调升序、同值无别名；32rpx=--font-subtitle，44rpx=--font-title） */
-  --font-subtitle: 32rpx;
-  --font-h3: 36rpx;
-  --font-h2: 40rpx;
-  --font-title: 44rpx;
-  /* 图标尺寸 */
-
-  /* 动效时长（统一，避免散落 0.12s/0.15s/0.2s/0.3s） */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 300ms;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  /* 字距梯度（typo scale，标题负字距收紧、正文不收紧） */
-  --tracking-h2: -0.02em;
-  --tracking-h3: -0.01em;
-  /* 字重梯度（统一，收敛裸 font-weight） */
-  --weight-regular: 400;
-  --weight-medium: 500;
-  --weight-semibold: 600;
-  --weight-bold: 700;
-  --weight-heavy: 800;
-  /* 布局：主滚动区底部安全留白（.scroll-wrap 消费；命名沿用历史 tabbar 高度，非字面 TabBar） */
-  --tabbar-height: 100rpx;
-  /* 搜索栏高度（SearchBar 单胶囊；由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
-     ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
-  --search-bar-height: 96rpx;
-  /* 表单页底部固定操作栏统一高度（§4.9 / T24，profile 提交栏 / review 提交栏 / contact 提交栏同源避让） */
-  --action-bar-height: 120rpx;
-  /* 层级标度：统一浮层 z-index，数值越大越靠上，避免互相遮挡 / 点击穿透。
-     两段式：页面骨架层（50~999，内容之上、弹层之下）→ 弹层级（2000+）。
-     骨架层相对关系保持既有值收编，仅消灭裸值，不改变任何层叠行为。
-     另有**底层** `--z-page-bg`（−1）：页底壁纸层，不属于骨架层、不参与上述排序。 */
-  --z-page-bg: -1;         /* 页底壁纸层（PageWallpaper）：负层级 = 压在父级背景之上、流内内容之下，
-                              故接入新页面无需给内容加 z-index（UI 统一 Loop Round 5 token 化） */
-  --z-action-bar: 50;      /* 页面底部固定操作栏（profile submit-bar 等同语义底栏） */
-
-  --z-tabbar: 100;         /* 自绘底部菜单栏 */
-  --z-header: 100;         /* 全站吸顶顶栏（AppHeader） */
-  --z-sheet: 2000;        /* 底部半屏弹层（BaseSheet 系列选择器，走 BaseSheet 默认 z-token） */
-  --z-actionsheet: 4000;  /* 操作菜单/写评价表单弹层（BaseSheet 系列：ActionSheet / ReviewComposer，zToken=--z-actionsheet） */
+  /* 圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级 token 已**集中到**
+     theme/design-tokens.css（2026-10-01 UI 规范统一：非颜色变量唯一真源，本文件仅 @import）。 */
 
 }
 

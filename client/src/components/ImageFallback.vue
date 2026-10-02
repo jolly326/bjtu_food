@@ -8,8 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { getImageUrl } from '@/utils/image'
+import { computed, ref, watch } from 'vue'
+import { getThumbImageUrl } from '@/utils/image'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 
 const props = withDefaults(defineProps<{
@@ -18,10 +18,14 @@ const props = withDefaults(defineProps<{
   src: '',
 })
 
-const imgSrc = computed(() => getImageUrl(props.src))
+// 本组件专用于**头像小图位**（占位恒为 `user` 人形图标）⇒ 走缩略图推导，避免小图位拉原图
+const imgSrc = computed(() => getThumbImageUrl(props.src))
 
 /** 图片加载状态：失败回退占位，禁止裂图 */
 const imgOk = ref(true)
+// ⚠️ 破图态必须随 `src` 变化复位：组件实例复用（同 key 换图）时旧破图态会残留，
+// 导致换上新有效图仍永久显示占位。
+watch(() => props.src, () => { imgOk.value = true })
 </script>
 
 <style scoped>

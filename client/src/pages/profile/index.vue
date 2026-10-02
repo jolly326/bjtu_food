@@ -10,7 +10,7 @@
         <view class="info-row info-tappable" @tap="changeAvatar">
           <text class="info-label">头像</text>
           <view class="avatar-wrap">
-            <image v-if="avatar" :src="getImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
+            <image v-if="avatar" :src="getThumbImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
             <view v-else class="avatar" :class="{ uploading: avatarUploading }">
               <ImagePlaceholder name="user" :size="52" />
             </view>
@@ -35,7 +35,7 @@
         <!-- 校园邮箱（只读）：唯一来源 bindEmail（认证判据同源；未认证以 '--' 占位） -->
         <view class="info-row">
           <text class="info-label">校园邮箱</text>
-          <text class="info-value info-value-email">{{ bindEmail || '--' }}</text>
+          <text class="info-value info-value-email">{{ bindEmail || EMPTY_FIELD_TEXT }}</text>
         </view>
       </view>
     </scroll-view>
@@ -51,7 +51,7 @@
 import { ref, computed, watch } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
-import { getImageUrl } from '@/utils/image'
+import { getThumbImageUrl } from '@/utils/image'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/back'
@@ -62,6 +62,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 // 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
+import { EMPTY_FIELD_TEXT } from '@/constants/copy'
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
@@ -190,7 +191,7 @@ async function save() {
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像**同语言**（尺寸按各自区块定：本页 104rpx /
    「我的」页 120rpx）；`overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆角内 */
-.avatar { width: 104rpx; height: 104rpx; border-radius: var(--radius-icon); overflow: hidden; background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); }
+.avatar { width: var(--avatar-size-md); height: var(--avatar-size-md); border-radius: var(--radius-icon); overflow: hidden; background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); }
 .avatar.uploading { opacity: 0.55; }
 .row-arrow { flex-shrink: 0; }
 /* 昵称输入：无可改行的浅底容器，取全站表单**下划线语言**（透明底、无边框、右对齐；

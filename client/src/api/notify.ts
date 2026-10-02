@@ -1,10 +1,7 @@
 /**
- * 消息通知接口模块（task-09，ARCH §3.4，STU）
- *
- * GET /my/notifications         我的消息（倒序，isRead 过滤）
- * GET /my/notifications/unread-count 未读总数（红点）
- * PUT /my/notifications/{id}/read  单条已读
- * PUT /my/notifications/read-all   全部已读（幂等，需登录）
+ * 消息通知接口模块（STU，**登录级**：游客与认证态同权）。
+ * 列表 `GET /my/notifications` · 未读总数 `GET …/unread-count` · 单条已读 `PUT …/{id}/read` ·
+ * 全部已读 `PUT …/read-all`（幂等）
  */
 import { get, put } from './http'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
@@ -14,11 +11,9 @@ import {
 } from './shared'
 
 /**
- * 通知行（`NotificationVO`，**5 字段**：id / title / content / isRead / createdAt）。
- *
- * 契约不含 `type` / `relatedId`：端上通知卡只渲染「标题 + 正文 + 时间 + 未读态」，
- * **从不按类型分支、不做类型相关跳转**，故两个字段按「零消费即删」不出参。
- * 将来要做「按类型跳转」，须先由 UI 文档定义交互再扩字段。
+ * 通知行（`NotificationVO`，5 字段：id / title / content / isRead / createdAt）。
+ * 契约不含 `type` / `relatedId` —— 通知卡只渲染「标题 + 正文 + 时间 + 未读态」，**从不按类型分支**；
+ * 将来要做「按类型跳转」须先由 UI 文档定义交互，再扩字段。
  */
 export interface Notification {
   id: number

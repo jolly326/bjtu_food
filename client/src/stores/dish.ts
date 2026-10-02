@@ -1,12 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { DishListItem, DishDetail, DishQuery, GuessLike, DishView } from '@/types/dish'
-import type { Review } from '@/types/review'
+import type { DishListItem, DishQuery, GuessLike, DishView } from '@/types/dish'
 import * as dishApi from '@/api/dish'
-import * as reviewApi from '@/api/review'
-import { isResourceNotFound } from '@/api/http'
-import { HOME_PAGE_SIZE, REVIEW_PAGE_SIZE } from '@/constants/paging'
-import { mergePagedRows } from '@/composables/usePagedList'
+import { HOME_PAGE_SIZE } from '@/constants/paging'
+import { createSeqGuard, isLastPage, mergePagedRows } from '@/composables/usePagedList'
 
 /**
  * 首页列表单页条数（`fetchHomeDishes` / `loadMoreHomeDishes` 共用，防口径漂移）。
@@ -32,25 +29,7 @@ const LOADING_KEY_HOME_MORE = 'homeMore'
  * `scroll-view` 把滚动位置钳回顶部（用户可见 bug：切标签弹回首页顶部）。
  */
 const LOADING_KEY_HOME_SWAP = 'homeSwap'
-/**
- * 评价列表在途登记 key（模块私有）。
- */
-const REVIEWS_LOADING_KEY = 'fetchReviews'
-
 export const useDishStore = defineStore('dish', () => {
-  const currentDish = ref<DishDetail | null>(null)
-  const reviewList = ref<Review[]>([])
-  /**
-   * 详情首屏/刷新是否失败（失败 ≠ 加载中 ≠ 不存在）：
-   * 供详情页区分「静默加载中（空白）」与「请求失败（明确文案 + 重试/返回）」两种态。
-   */
-  const detailError = ref(false)
-  /**
-   * 菜品**不存在**（后端 `4001`，§7.40 R8）—— 与「请求失败」**区别对待**：
-   * 不存在（含已下架，下架对外等价于不存在）**不可重试**，页面应只给「返回」路径；
-   * 网络 / 服务端故障才给「重新加载」。二者**互斥**（同一时刻至多一个为 true）。
-   */
-  const detailNotFound = ref(false)
   /**
    * 在途请求登记：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
    * 必须是**响应式 Set**，否则 `computed(() => inFlight.size > 0)` 取不到依赖。
@@ -90,8 +69,8 @@ export const useDishStore = defineStore('dish', () => {
   /** 列表最近一次请求是否失败（失败 ≠ 空数据）；过期响应不修改本状态 */
   const homeError = ref(false)
 
-  /** 列表请求序号：快速切换视图时丢弃过期响应，避免旧请求晚到覆盖新列表 */
-  let homeFetchSeq = 0
+  /** 列表请求序号守卫：快速切换视图时丢弃过期响应，避免旧请求晚到覆盖新列表 */
+  const homeGuard = createSeqGuard()
 
   /**
    * 生成一个随机种子串（时间戳 base36 + 随机串 base36，约 15 字符）。
@@ -215,19 +194,17 @@ export const useDishStore = defineStore('dish', () => {
    */
   async function fetchHomeDishes(reset = false, keepList = false) {
     return withLoading(keepList ? LOADING_KEY_HOME_SWAP : LOADING_KEY_HOME, async () => {
-      const seq = ++homeFetchSeq
+      const seq = homeGuard.begin()
       if (reset) resetHomePagination(keepList)
       try {
         const res = await searchHome()
-        // 过期响应（期间又切换了视图）直接丢弃，不覆盖新列表
-        if (seq !== homeFetchSeq) return
-        // append 分支收敛到 mergePagedRows（单一真源）：与 fetchReviews 同口径，补 id 去重防分页跳号重复行
+        // 过期响应（期间又切换了视图）：丢弃，不覆盖新列表
+        if (!homeGuard.isCurrent(seq)) return
         homeList.value = reset ? res.list : mergePagedRows(homeList.value, res.list, HOME_PAGE_SIZE).rows
         homeError.value = false
-        // 结束判据基于「本页返回条数 < pageSize」
-        if (res.list.length < HOME_PAGE_SIZE) homeFinished.value = true
+        if (isLastPage(res.list, HOME_PAGE_SIZE)) homeFinished.value = true
       } catch (e) {
-        if (seq !== homeFetchSeq) return
+        if (!homeGuard.isCurrent(seq)) return
         console.error('加载菜品列表失败', e)
         homeError.value = true
       }
@@ -249,17 +226,17 @@ export const useDishStore = defineStore('dish', () => {
       homePageLimited.value = true
       return false
     }
-    const seq = ++homeFetchSeq
+    const seq = homeGuard.begin()
     homePage.value += 1
     return withLoading(LOADING_KEY_HOME_MORE, async () => {
       try {
         const res = await searchHome()
-        if (seq !== homeFetchSeq) {
+        if (!homeGuard.isCurrent(seq)) {
           homePage.value -= 1
           return false
         }
         homeList.value = mergePagedRows(homeList.value, res.list, HOME_PAGE_SIZE).rows
-        if (res.list.length < HOME_PAGE_SIZE) {
+        if (isLastPage(res.list, HOME_PAGE_SIZE)) {
           homeFinished.value = true
         } else if (homePage.value >= HOME_MAX_PAGES) {
           homeFinished.value = true
@@ -287,89 +264,7 @@ export const useDishStore = defineStore('dish', () => {
     }
   }
 
-  // ==================== 详情与评价 ====================
-
-  async function fetchDetail(id: number) {
-    return withLoading('fetchDetail', async () => {
-      currentDish.value = await dishApi.getDishDetail(id)
-      detailError.value = false
-      detailNotFound.value = false
-    }).catch((e) => {
-      console.error('加载菜品详情失败', e)
-      currentDish.value = null
-      // 4001（资源不存在，R8）→ 不存在态（不可重试）；其余（网络 / 5xx）→ 失败态（可重试）
-      detailNotFound.value = isResourceNotFound(e)
-      detailError.value = !detailNotFound.value
-    })
-  }
-
-  /** 进入新菜品前清空旧详情与评价态，避免闪现上一道菜（store 全局状态残留） */
-  function resetDishDetail() {
-    // 使所有在途评价请求失效：旧菜品的触底 append 晚到时不再写入新菜品列表（竞态守卫）
-    reviewFetchSeq++
-    currentDish.value = null
-    detailError.value = false
-    detailNotFound.value = false
-    reviewList.value = []
-    reviewError.value = false
-  }
-
-  /** 清空评价列表：供重置式拉取前先清后拉（避免旧结果短暂残留） */
-  function clearReviews() {
-    reviewList.value = []
-  }
-
-  /**
-   * 本地移除一条评价（删除成功后对齐列表，避免为一行变化重拉整页）。
-   * 「评价已不存在」（后端 4001）时同样走它 —— 该码重试无意义，按已删除收尾。
-   */
-  function removeReview(id: number) {
-    reviewList.value = reviewList.value.filter((x) => x.id !== id)
-  }
-
-  /** 评价首屏/刷新是否失败（失败 ≠ 零评价）；过期响应不修改本状态 */
-  const reviewError = ref(false)
-
-  /** 评价请求序号：翻页 / 进新菜品时丢弃过期响应，防触底 append 与 reset 交错 */
-  let reviewFetchSeq = 0
-
-  /**
-   * 评价区分页（RESTful 子资源 `GET /dishes/{id}/reviews`）。
-   * 排序唯一为时间倒序。
-   *
-   * **契约（唯一）**：过期 / 失败一律返回 `null` —— 调用方据此跳过分页推进（避免永久跳过该页）。
-   * 分页壳只有 `records`，**到底判据 = 本页返回条数 < `pageSize`**（由调用方判定）。
-   */
-  async function fetchReviews(
-    dishId: number,
-    options?: { page?: number; pageSize?: number; append?: boolean },
-  ): Promise<{ list: Review[] } | null> {
-    const seq = ++reviewFetchSeq
-    const page = options?.page ?? 1
-    const pageSize = options?.pageSize ?? REVIEW_PAGE_SIZE
-    try {
-      const res = await withLoading(REVIEWS_LOADING_KEY, async () =>
-        await reviewApi.listDishReviews(dishId, { page, pageSize }))
-      // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
-      if (seq !== reviewFetchSeq) return null
-      if (options?.append) {
-        // 去重追加（单一真源 mergePagedRows）：与 usePagedList 同口径，防分页跳号重复行
-        reviewList.value = mergePagedRows(reviewList.value, res.list, pageSize).rows
-      } else {
-        reviewList.value = res.list
-      }
-      reviewError.value = false
-      return res
-    } catch (e) {
-      console.error('加载评价失败', e)
-      if (seq !== reviewFetchSeq) return null
-      if (!options?.append) {
-        reviewList.value = []
-        reviewError.value = true
-      }
-      return null
-    }
-  }
+  // ==================== 猜你喜欢 ====================
 
   /**
    * 猜你喜欢（会话级稳定伪随机在售菜品名；find 页「猜你喜欢」区块消费）。
@@ -393,10 +288,8 @@ export const useDishStore = defineStore('dish', () => {
     viewList, filterView,
     homeList, homeLoadingMore, homePageLimited, homeError,
     fetchDishViews, setHomeView, fetchHomeDishes, loadMoreHomeDishes,
-    // 搜索 / 详情 / 评价 / 热搜
+    // 搜索 / 猜你喜欢
     search,
-    currentDish, detailError, detailNotFound, fetchDetail, resetDishDetail,
-    reviewList, reviewError, fetchReviews, clearReviews, removeReview,
     guessLikeList, fetchGuessLike,
   }
 })

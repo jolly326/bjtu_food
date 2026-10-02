@@ -3,7 +3,7 @@
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
     <PageWallpaper fixed />
     <Header title="系统通知" @back="backToHome">
-      <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
+      <!-- 全部已读：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
            无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
       <template #action>
         <view
@@ -21,14 +21,15 @@
     </Header>
 
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
-    <scroll-view class="scroll-wrap" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
       <view class="list">
         <!-- 单张白卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线 -->
         <view v-if="list.length" class="list-card">
+          <view :style="{ height: topPad + 'px' }" />
           <view
-            v-for="n in list"
+            v-for="n in visible"
             :key="n.id"
-            class="msg-item"
+            class="msg-item v-item"
             :class="{ unread: !n.isRead }"
             @tap="onTap(n)"
           >
@@ -43,6 +44,7 @@
               <text class="msg-content">{{ n.content }}</text>
             </view>
           </view>
+          <view :style="{ height: bottomPad + 'px' }" />
         </view>
       </view>
 
@@ -76,7 +78,8 @@ import { listNotifications, readNotification, readAllNotifications, type Notific
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
-import { usePagedList } from '@/composables/usePagedList'
+import { usePagedList, useVirtualList } from '@/composables/usePagedList'
+import { MAX_LIST_PAGES } from '@/constants/paging'
 
 const notifyStore = useNotifyStore()
 
@@ -95,8 +98,15 @@ const loaded = ref(false)
  */
 const { list, loading, loadFailed, load, loadMore } = usePagedList<Notification>({
   fetchPage: async (page, pageSize) => (await listNotifications({ page, pageSize })).list,
+  maxPages: MAX_LIST_PAGES,
   onLoadSuccess: () => { notifyStore.fetchUnread() },
   onLoadSettled: () => { loaded.value = true },
+})
+
+/** 虚拟列表（列表为滚动内容首块 ⇒ offset 0）：仅渲染可视窗口，节点数 O(窗口)；≤ 阈值时全渲染、行为不变 */
+const { onScroll, visible, topPad, bottomPad } = useVirtualList<Notification>({
+  items: list,
+  estimateHeight: 96,
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -111,7 +121,7 @@ const hasUnread = computed(() => list.value.some(n => !n.isRead))
 const emptyDesc = '反馈处理结果会在这里通知你'
 
 /**
- * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
+ * 全部已读：PUT /my/notifications/read-all（需登录、幂等）。
  * 成功后重拉列表 + 未读数（不本地乐观改 list，避免与服务端真实态偏差）；
  * 失败只提示、不改变任何本地状态；请求中 readAllBusy 守卫防重复点击。
  */
@@ -182,7 +192,7 @@ onShow(() => {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: var(--spacing-md) var(--spacing-lg);
   box-sizing: border-box;
   transition: background-color var(--duration-fast) var(--ease-out);

@@ -96,7 +96,7 @@ const selectedIconColor = computed(() =>
   display: flex;
   align-items: center;
   gap: var(--spacing-2xs);
-  min-height: 88rpx;
+  min-height: var(--tap-target-size);
   padding: var(--spacing-sm) var(--spacing-lg);
   /* 圆角取 `--radius-icon`(24rpx)（App.vue 无 28rpx 档，取标度内最近档；禁裸写 28rpx）。
      圆角只影响轮廓，不改变盒高。 */

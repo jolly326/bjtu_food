@@ -188,7 +188,20 @@ function contractVoFields(generated, name) {
 if (existsSync(API_DIR) && existsSync(GENERATED)) {
   const generated = readFileSync(GENERATED, 'utf8')
 
-  for (const file of walkTs(API_DIR)) {
+  // 扫描范围与第 3 条（RawRow）**保持一致**：
+  // 2026-10-01 修正 —— 此前只扫 `src/api/`，而 `src/types/`（`feedback.ts` / `dish.ts` 等）
+  // 同样会手写契约副本，那里的重复声明可完全逃逸。现改为全树，两条护栏口径统一。
+  const files = []
+  for (const sub of SCAN_ROOTS) {
+    const dir = join(API_DIR, '..', sub)
+    if (!existsSync(dir)) continue
+    for (const f of walkTs(dir)) {
+      if (f.endsWith('.d.ts')) continue
+      files.push(f)
+    }
+  }
+
+  for (const file of files) {
     const relPath = relative(ROOT, file).replace(/\\/g, '/')
     if (relPath === 'src/api/shared.ts') continue   // re-export 出口本身，非重复声明
     const src = readFileSync(file, 'utf8')

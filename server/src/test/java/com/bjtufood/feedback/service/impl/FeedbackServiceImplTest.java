@@ -47,8 +47,9 @@ import static org.mockito.Mockito.when;
  *       同一登录用户重复举报须 400；游客因无身份标识**不去重**；</li>
  *   <li><b>处理结论与不采纳原因</b>（{@code handle}）：{@code outcome} 白名单、
  *       {@code rejected ⇒ rejectReason 非空且 ≤200 字}、回复必填；</li>
- *   <li><b>回执投递判据</b>：仅「提交时有 userId 且已邮箱认证」才投递；
- *       游客与未认证账号一律不投递（反馈主路径刻意匿名）。</li>
+ *   <li><b>回执投递判据</b>：<b>登录级</b>——userId 非空即投递（2026-10-01 拍板放宽：
+ *       消息中心是登录级能力，游客提交的反馈也应收到处理结果，此前「仅已认证用户投递」
+ *       会让游客的消息中心永久空转）；游客（userId=null）不投递（无归属可投）。</li>
  * </ol>
  * 被测类为纯 POJO：{@code @Transactional} 依赖 Spring 代理，单测中不生效，断言的是方法体内业务逻辑。
  */
@@ -296,7 +297,6 @@ class FeedbackServiceImplTest {
     @DisplayName("handle：正常处理 → 落库 handled + 回复 trim + 结论派生依据（rejectReason 为 NULL）+ 投递回执")
     void handle_handled_persistsAndNotifies() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
-        when(userService.isVerifiedById(1L)).thenReturn(true);
 
         FeedbackHandleReq req = new FeedbackHandleReq();
         req.setReply("  已处理，感谢反馈  ");
@@ -317,22 +317,23 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("handle：游客提交（userId=null）不投递回执（反馈主路径刻意匿名）")
-    void handle_guest_noReceipt() {
-        when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(null));
+    @DisplayName("handle：提交人已登录（userId 非空）→ 投递回执（2026-10-01 拍板：消息中心为登录级能力，不再按邮箱认证过滤）")
+    void handle_loginOnly_deliversReceipt() {
+        when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
 
         FeedbackHandleReq req = new FeedbackHandleReq();
         req.setReply("已处理");
         service().handle(5L, req);
 
-        verify(notificationService, never()).notify(any());
+        // 关键断言：口径已由「仅已认证用户」放宽为「登录即投递」——
+        // 此前游客的消息中心会永久空转（提交的反馈永远收不到处理结果）。
+        verify(notificationService).notify(any());
     }
 
     @Test
-    @DisplayName("handle：提交人未邮箱认证 → 不投递回执")
-    void handle_unverified_noReceipt() {
-        when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
-        when(userService.isVerifiedById(1L)).thenReturn(false);
+    @DisplayName("handle：游客提交（userId=null）不投递回执（反馈主路径刻意匿名，无归属可投）")
+    void handle_guest_noReceipt() {
+        when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(null));
 
         FeedbackHandleReq req = new FeedbackHandleReq();
         req.setReply("已处理");
@@ -345,7 +346,6 @@ class FeedbackServiceImplTest {
     @DisplayName("handle：回执投递失败不影响处理结果（异常不外抛）")
     void handle_notifyFailure_doesNotFailHandle() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
-        when(userService.isVerifiedById(1L)).thenReturn(true);
         org.mockito.Mockito.doThrow(new RuntimeException("notify down"))
                 .when(notificationService).notify(any());
 

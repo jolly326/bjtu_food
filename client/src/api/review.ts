@@ -1,6 +1,7 @@
 import type { Review, MyReview } from '@/types/review'
 import { get, post, del } from './http'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
+import { ANONYMOUS_AUTHOR } from '@/constants/copy'
 import {
   recordsOf, type RawPage,
   type ReviewVO, type MyReviewVO, type ReviewCreatedVO,
@@ -8,15 +9,13 @@ import {
 
 /**
  * 公开视角行映射（`GET /dishes/{id}/reviews`，8 字段）。
- * R9 拆型：本函数**不再**读取 `dishId` / `dishName`（二者属本人视角；`isHidden` 任何视角均不下发，客户端只接收未隐藏评价）。
- *
- * <p>入参用生成的强类型 {@link ReviewVO}。
+ * 不读取 `dishId` / `dishName`（属本人视角）；`isHidden` 不下发 —— 客户端只接收未隐藏评价。
  */
 function toReview(raw: ReviewVO): Review {
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
-    userNickname: raw.userNickname ?? '匿名用户',
+    userNickname: raw.userNickname ?? ANONYMOUS_AUTHOR,
     userAvatar: raw.userAvatar || '',
     rating: Number(raw.rating || 0),
     content: raw.content || '',
@@ -30,10 +29,8 @@ function toReview(raw: ReviewVO): Review {
 }
 
 /**
- * 本人视角行映射（`GET /my/reviews`，**7 字段**）。
- *
- * 后端出参类型为 `MyReviewVO`：公开 5 字段（`id` / `rating` / `content` / `images` / `createdAt`）
- * + `dishId` / `dishName`；**不含 `userId` / `userNickname` / `userAvatar`**（恒等于本人、零信息）。
+ * 本人视角行映射（`GET /my/reviews`，7 字段）：公开 5 字段 + `dishId` / `dishName`；
+ * **不含 `userId` / `userNickname` / `userAvatar`**（恒等于本人、零信息）。
  */
 function toMyReview(raw: MyReviewVO): MyReview {
   return {

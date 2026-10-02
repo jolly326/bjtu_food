@@ -10,19 +10,19 @@
 import { ref } from 'vue'
 import type { Ref, ComputedRef } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { useDishStore } from '@/stores/dish'
 import { correctionUrl } from '@/utils/routes'
 import type { DishDetail } from '@/types/dish'
 
 export function useDishReviewComposer(opts: {
   dish: ComputedRef<DishDetail | null | undefined>
   dishId: Ref<number>
+  /** 本页私有的详情重拉（按页实例，刷新综合评分） */
+  fetchDetail: (id: number) => Promise<void>
   fetchReviewsReset: () => Promise<void>
   resetReviewPaging: () => void
 }) {
   const userStore = useUserStore()
-  const dishStore = useDishStore()
-  const { dish, dishId } = opts
+  const { dish, dishId, fetchDetail } = opts
 
   const composerOpen = ref(false)
 
@@ -43,7 +43,7 @@ export function useDishReviewComposer(opts: {
   function onReviewSubmitted() {
     opts.resetReviewPaging()
     void opts.fetchReviewsReset()
-    dishStore.fetchDetail(dishId.value)
+    fetchDetail(dishId.value)
   }
 
   /**

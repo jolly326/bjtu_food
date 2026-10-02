@@ -73,7 +73,7 @@ function pick(item: ActionSheetItem) {
   justify-content: flex-start;
   gap: var(--spacing-md);
   width: 100%;
-  height: 104rpx;
+  height: var(--avatar-size-md);
   padding: 0 var(--spacing-lg);
   font-size: var(--font-body);
   border-top: 1rpx solid var(--border-color);

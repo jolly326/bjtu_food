@@ -1,12 +1,7 @@
 /**
- * 页面路由集中注册表（R2）。
- *
- * 目标：消除 `/pages/...` 字符串在各页/分享/导航层散落，
- * 分包/页面路径变更时只改这里 + pages.json，避免漏改跳转串。
- * 与 `client/src/pages.json` 严格一致（12 页：主包 3 + 分包 9，其中 pages/detail/ 1、pages/correction/ 1、
- * 个人中心域拆为 6 个独立分包 root：pages/profile/、pages/auth/、pages/notifications/、
- * pages/feedback/、pages/my-reviews/ 各含 1 页，pages/privacy/ 含 2 页——隐私政策与用户协议）。
- * 跳转统一用便捷构造函数（见文件底部），禁止在调用点手拼 URL。
+ * 页面路由集中注册表。
+ * 目的：消除 `/pages/...` 字面量在各页 / 分享 / 导航层散落 —— 分包或路径变更时只改这里 + `pages.json`。
+ * 与 `client/src/pages.json` 严格一致（12 页）；跳转统一用文件底部的便捷构造函数，**禁止调用点手拼 URL**。
  */
 
 /** 静态路径常量（与 pages.json path 完全一致，不含前导斜杠的前缀按页面注册形态书写） */
@@ -28,16 +23,20 @@ export const PATH = {
   agreement: '/pages/privacy/agreement',
 } as const
 
+/** 主区 tab key（唯一真源；`showTab` 实参 / TabBar 渲染 / routeMap 共用，禁止裸写 'home' / 'profile'） */
+export const TAB_HOME = 'home'
+export const TAB_PROFILE = 'profile'
+
 /** tab key → 主根页路径（TabBar 渲染与跳转共用） */
 export const TAB_URL_BY_KEY: Record<'home' | 'profile', string> = {
-  home: PATH.home,
-  profile: PATH.mine,
+  [TAB_HOME]: PATH.home,
+  [TAB_PROFILE]: PATH.mine,
 }
 
 /** 去掉前导斜杠：主根页 route（页面栈 cur.route 不带斜杠，供 TabBar 显隐 routeMap 使用） */
 export const ROUTE_KEY_BY_URL: Record<string, string> = {
-  [PATH.home.slice(1)]: 'home',
-  [PATH.mine.slice(1)]: 'profile',
+  [PATH.home.slice(1)]: TAB_HOME,
+  [PATH.mine.slice(1)]: TAB_PROFILE,
 }
 
 /* ========== 带参路由便捷构造函数（禁止手拼 URL） ========== */

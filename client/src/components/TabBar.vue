@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import IconSvg from './IconSvg.vue'
 import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
-import { TAB_URL_BY_KEY } from '@/utils/routes'
+import { TAB_HOME, TAB_PROFILE, TAB_URL_BY_KEY } from '@/utils/routes'
 import { COLOR_MAP } from '@/theme/tokens'
 
 /* ⚠️ 本组件**无 props**：
@@ -34,8 +34,8 @@ import { COLOR_MAP } from '@/theme/tokens'
      按「零消费即删」移除，透明底成为唯一行为（调用方简化为 `<TabBar />`）。 */
 
 const tabs = [
-  { key: 'home', label: '首页', icon: 'home', url: TAB_URL_BY_KEY.home },
-  { key: 'profile', label: '我的', icon: 'profile', url: TAB_URL_BY_KEY.profile },
+  { key: TAB_HOME, label: '首页', icon: 'home', url: TAB_URL_BY_KEY[TAB_HOME] },
+  { key: TAB_PROFILE, label: '我的', icon: 'profile', url: TAB_URL_BY_KEY[TAB_PROFILE] },
 ] as const
 
 function onTap(item: (typeof tabs)[number]) {

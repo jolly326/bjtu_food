@@ -11,7 +11,7 @@
  * 单条 UGC 的配图张数上限。
  *
  * <b>契约同源</b>：服务端 `FeedbackReq` / `ReportReq` 的 `@Size(max = 3)`、`DishCorrectionReq` 的
- * 图片校验均为 3（见 `docs/client/feature/client-意见反馈.md`、`client-举报评价.md`、`client-菜品纠错.md`）。
+ * 图片校验均为 3（见 `docs/client/B-UGC表达与治理/B5-意见反馈.md`、`B4-举报评价.md`、`B6-菜品信息纠错.md`）。
  * 改动本常量须同步服务端校验，否则会出现「端上能选、提交被拒」。
  */
 export const UGC_IMAGE_MAX = 3

@@ -27,3 +27,10 @@ export const REVIEW_PAGE_SIZE = 10
 
 /** 搜索结果每页条数 */
 export const RESULT_PAGE_SIZE = 20
+
+/**
+ * 列表渲染封顶页数（通知 / 我的评价 / 详情评价区共用）。
+ * 这些列表无虚拟化，深翻会让节点数无上限增长（低端机掉帧、内存攀升）；
+ * 达此页数后置「已到底」停止追加（400 条 @ 每页 20 / 200 条 @ 每页 10，实际不可感知）。
+ */
+export const MAX_LIST_PAGES = 20

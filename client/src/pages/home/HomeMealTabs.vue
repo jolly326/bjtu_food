@@ -1,5 +1,5 @@
 <template>
-  <!-- 首页横向「筛选视图」标签栏（§7.34 运营化解耦）：
+  <!-- 首页横向「筛选视图」标签栏（运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
        ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/views`）——
        含「为你推荐」这类**聚合视图**，端上**零文案、零拼接、零兜底项**：
@@ -80,7 +80,8 @@ function onSelect(key: string) {
 </script>
 
 <style scoped lang="scss">
-/* 标签栏落在页面渐变底色区（与上方白色搜索卡在明度上可区分，见 client-visual-language）。
+/* 标签栏落在页面底色区（与上方白色搜索卡在明度上可区分 —— 形态与色彩口径真源见
+   docs/client/ui/client-公共组件与形态基线.md；色板取色边界见 docs/client/ui/client-首页菜品浏览.md §10）。
    自身上下 padding **归零**：与搜索区、与网格的间距各由
    `.mt-tab` 的行内上偏置 / 吸顶容器 padding 单独承担 —— 两处叠加会把间隙撑到 20px+。 */
 .mt-bar {
@@ -93,11 +94,16 @@ function onSelect(key: string) {
   /* 横向滚动：不换行、不出滚动条（红线：页面不得出现横向滚动条） */
   white-space: nowrap;
 }
+/* 隐藏 H5 端横向滚动条：**仅 H5** —— 小程序不支持 `::-webkit-scrollbar`，且该伪元素经编译会落成
+   tag/属性选择器，触发「selectors are not allowed in component wxss」警告；weapp 的 scroll-view
+   本身不显示滚动条，MP 端无需本规则。uni-app 条件编译在此生效。 */
+/* #ifdef H5 */
 .mt-scroll ::-webkit-scrollbar {
   width: 0;
   height: 0;
   display: none;
 }
+/* #endif */
 /* 轨道：block + nowrap，子项走 inline-flex —— 小程序 scroll-x 下最稳的横排写法
    （避免 flex 轨道被 scroll-view 收缩导致标签塌成一列 / 不可滑动）。
    ⚠️ 轨道**不留左右内边距**（padding: 0）：若在轨道上再加 --spacing-md，会与 .mt-tab 自身
@@ -122,14 +128,14 @@ function onSelect(key: string) {
   justify-content: flex-start;
   /* 命中区：高 88rpx（触达下限，不得压低；= 上偏置 24 + 文字行 ≈34 + 下划线位 14 + 行底余量）；
      宽 = 标签文字 + 左右各 24rpx。最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅。 */
-  height: 88rpx;
+  height: var(--tap-target-size);
   /* 上内距 = `--spacing-md`（24rpx，同值）：UI 统一 Loop Round 6，由裸 24rpx 改为 token */
   padding: var(--spacing-md) var(--spacing-md) 0;
   box-sizing: border-box;
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;
 }
-/* 按压反馈：小程序端统一「透明度微降」（§4.9：废止 transform: scale 按压） */
+/* 按压反馈：小程序端统一「透明度微降」（：废止 transform: scale 按压） */
 .mt-tab-pressed {
   opacity: 0.6;
 }
@@ -149,7 +155,7 @@ function onSelect(key: string) {
    取「图形档」--color-primary-amber（#F5A623）——纯图形装饰，选中语义另由字重承载（§5.1 / §10.1） */
 .mt-underline {
   width: 100%;
-  height: 6rpx;
+  height: var(--strip-height);
   margin-top: var(--spacing-xs);
   border-radius: var(--radius-pill);
   background: var(--color-primary-amber);
