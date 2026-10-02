@@ -113,7 +113,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional(rollbackFor = Exception.class)
     public void markRead(Long userId, Long notificationId) {
         Notification n = notificationMapper.selectById(notificationId);
-        // 错误码口径（docs/client/feature/client-系统通知.md）：不存在 → 4001（资源不存在）；归属不符 → 403
+        // 错误码口径（docs/client/D-系统与合规/D1-系统通知.md）：不存在 → 4001（资源不存在）；归属不符 → 403
         if (n == null) {
             throw new BusinessException(4001, "通知不存在");
         }

@@ -1,5 +1,5 @@
 /**
- * 用户信息 —— 恰 4 字段（口径见 docs/client/feature/client-微信静默登录与游客态.md）。
+ * 用户信息 —— 恰 4 字段（口径见 docs/client/C-账号与身份/C1-微信静默登录与游客态.md）。
  *
  * 与登录 / 资料四条链路（`POST /auth/wechat-login`、`POST /auth/verify-email`、
  * `GET|PUT /auth/profile`）一一对应。契约不含以下字段：

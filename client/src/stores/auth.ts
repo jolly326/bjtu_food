@@ -5,7 +5,7 @@ import { PATH } from '@/utils/routes'
 /**
  * 身份认证流程状态（独立页面形态）：
  * 需要认证的入口（requireAuth 守卫 / 4031 请求层）经 requestAuth 记录待办并跳转独立认证页，
- * 认证成功后由认证页返回原页，原页 onShow 经 consumePending 续接待办（§5.y）。
+ * 认证成功后由认证页返回原页，原页 onShow 经 consumePending 续接待办。
  * 本层不承载任何弹层显隐——认证表单承载于 pages/auth/index。
  */
 export const useAuthStore = defineStore('auth', () => {

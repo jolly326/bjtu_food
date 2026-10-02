@@ -3,7 +3,7 @@
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
     <PageWallpaper fixed />
     <Header title="系统通知" @back="backToHome">
-      <!-- 全部已读（§7.18）：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
+      <!-- 全部已读：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
            无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
       <template #action>
         <view
@@ -121,7 +121,7 @@ const hasUnread = computed(() => list.value.some(n => !n.isRead))
 const emptyDesc = '反馈处理结果会在这里通知你'
 
 /**
- * 全部已读（§7.18）：PUT /my/notifications/read-all（需登录、幂等）。
+ * 全部已读：PUT /my/notifications/read-all（需登录、幂等）。
  * 成功后重拉列表 + 未读数（不本地乐观改 list，避免与服务端真实态偏差）；
  * 失败只提示、不改变任何本地状态；请求中 readAllBusy 守卫防重复点击。
  */

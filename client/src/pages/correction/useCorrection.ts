@@ -51,10 +51,10 @@ import { getDishDetail, listDishEditAttributes } from '@/api/dish'
 import { isResourceNotFound } from '@/api/http'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
+import { buildCorrectionDiff, priceValid as isPriceValid, snapshotAttributes } from './correctionDiff'
 import { backToHome } from '@/utils/back'
 import { toastInfo, toastSuccess } from '@/utils/error'
 import { UGC_IMAGE_MAX } from '@/constants/ugc'
-import { yuanToFen } from '@/utils/money'
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
@@ -206,7 +206,7 @@ export function useCorrection() {
       baseline.stallName = form.stallName
       baseline.images = [...form.images]
       baseline.attributes = {}
-      for (const ed of form.attributes) baseline.attributes[ed.fieldKey] = [...ed.selected]
+      baseline.attributes = snapshotAttributes(form.attributes)
     } catch (e) {
       console.error('[correction] 菜品详情加载失败', e)
       // 4001（菜品不存在 / 已下架）不可重试；其余按可重试失败态呈现
@@ -223,43 +223,17 @@ export function useCorrection() {
   }
 
   // ---- ③ 改动项（局部提交口径）：只上传「当前值 ≠ 预填值」的字段 ----
-  function sameList(a: string[], b: string[]): boolean {
-    if (a.length !== b.length) return false
-    return a.every((x, i) => x === b[i])
-  }
-
   /** 与基线逐项比对得出的**改动集合**（即提交请求体；空对象 = 无改动） */
-  const diff = computed<DishCorrectionPayload>(() => {
-    const payload: DishCorrectionPayload = {}
-    if (!dishName.value) return payload
-    if (form.name.trim() !== baseline.name) payload.name = form.name.trim()
-    if (form.price.trim() !== baseline.price) payload.price = yuanToFen(Number(form.price.trim() || 0))
-    if (form.canteenName.trim() !== baseline.canteenName) payload.canteenName = form.canteenName.trim()
-    if (form.floor.trim() !== baseline.floor) payload.floor = form.floor.trim()
-    if (form.stallName.trim() !== baseline.stallName) payload.stallName = form.stallName.trim()
-    if (!sameList(form.images, baseline.images)) payload.images = form.images.filter(Boolean)
-    const attrs: Record<string, string | string[]> = {}
-    for (const ed of form.attributes) {
-      if (sameList(ed.selected, baseline.attributes[ed.fieldKey] ?? [])) continue
-      attrs[ed.fieldKey] = ed.valueType === 'multi' ? ed.selected : (ed.selected[0] ?? '')
-    }
-    if (Object.keys(attrs).length) payload.attributes = attrs
-    return payload
-  })
+  // 比对口径（有序/无序、金额元→分、维度集合）已抽至 correctionDiff.ts：
+  // 那里是无副作用纯函数，可被单测直接覆盖；此处只负责喂入响应式数据。
+  const diff = computed<DishCorrectionPayload>(() =>
+    buildCorrectionDiff(dishName.value, form, baseline),
+  )
 
   /** 是否有改动（无改动 ⇒ 禁用提交：局部提交下无可提交内容，后端也会 400「未提交任何改动」） */
   const hasChange = computed(() => Object.keys(diff.value).length > 0)
 
   // ---- ④ 提交门禁 ----
-  /** 售价格式：正数、至多两位小数（元），上限 9999 元 */
-  const PRICE_PATTERN = /^(?:\d+)(?:\.\d{1,2})?$/
-
-  function priceValid(): boolean {
-    const p = form.price.trim()
-    if (!p) return false
-    const n = Number(p)
-    return PRICE_PATTERN.test(p) && Number.isFinite(n) && n > 0 && n <= 9999
-  }
 
   /** 必填项校验（五字段；返回首个未过项的中文名，全部通过返回 ''） */
   function firstMissingRequired(): string {
@@ -271,7 +245,7 @@ export function useCorrection() {
       stallName: '档口名称',
     }
     for (const key of REQUIRED_KEYS) {
-      if (key === 'price' ? !priceValid() : !form[key].trim()) return labels[key]
+      if (key === 'price' ? !isPriceValid(form.price) : !form[key].trim()) return labels[key]
     }
     return ''
   }
@@ -342,7 +316,7 @@ export function useCorrection() {
     if (!dishId.value) { errs['form.name'] = '缺少菜品信息'; return errs }
     if (loading.value) { errs['form.name'] = '菜品信息加载中'; return errs }
     if (!form.name.trim()) errs['form.name'] = '菜名叫啥？填一下'
-    if (!priceValid()) errs['form.price'] = form.price.trim() ? '售价要像 12.5 这样' : '填一下售价'
+    if (!isPriceValid(form.price)) errs['form.price'] = form.price.trim() ? '售价要像 12.5 这样' : '填一下售价'
     if (!form.canteenName.trim()) errs['form.canteenName'] = '填一下食堂名称'
     if (!form.floor.trim()) errs['form.floor'] = '填一下楼层'
     if (!form.stallName.trim()) errs['form.stallName'] = '填一下档口名称'

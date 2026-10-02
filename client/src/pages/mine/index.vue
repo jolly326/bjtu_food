@@ -110,7 +110,7 @@ const userStore = useUserStore()
 const authStore = useAuthStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-/** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分（§5.y） */
+/** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分 */
 const isVerified = computed(() => userStore.isVerified())
 /** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
 const bindEmail = computed(() => userInfo.value?.bindEmail || '')

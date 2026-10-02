@@ -36,9 +36,25 @@ import java.util.Map;
  * </ul>
  * 超时口径：与 {@code WechatService}、{@code moderation} 一致取 5s，防止微信接口挂起拖垮调用方主链路。
  * <p>
- * <b>待跟进（不在本次收口范围）</b>：未配置凭据与拉取失败时的提示文案沿用原「内容安全检测服务…」措辞，
- * 以保持 moderation 链路对终端用户返回的文案不变；但本类同时服务 {@code upload}
- * （云存储 batchdownloadfile），该措辞在上传失败场景下不够贴切，可后续统一为「微信服务…」口径。
+ * <b>失败文案口径（2026-10-02 已收口）</b>：本类的失败一律返回「<b>微信服务暂不可用，请稍后重试</b>」，
+ * <b>不再</b>沿用早先的「内容安全检测服务…」措辞。
+ * <p>收口原因：本类是<b>微信平台凭据与 token 生命周期</b>能力，被 {@code moderation}（msgSecCheck /
+ * imgSecCheck）、{@code upload}（云存储 batchdownloadfile）<b>三方共用</b>，而失败点实为
+ * 「取 access_token / 调微信接口」失败，与「内容是否违规」毫无关系。旧措辞导致两个实际问题：
+ * <ol>
+ *   <li><b>上传场景张冠李戴</b>：用户上传图片看到「内容安全检测服务不可用」，实际是取 token 失败
+ *       （凭据 / IP 白名单问题），排查方向被直接带偏；</li>
+ *   <li><b>无法区分链路</b>：同一条文案在 6 个失败点重复出现，终端用户与一线排查都无法据此判断
+ *       是哪条微信链路挂了。</li>
+ * </ol>
+ * 现按<b>调用方域</b>分流：内容安全检测的真实失败仍由 {@link com.bjtufood.moderation.service.impl.ContentSecurityServiceImpl}
+ * 抛「内容安全检测服务暂不可用」，本类抛「微信服务暂不可用」—— 两者不再撞文案。
+ * <p>⚠️ <b>文案仍不足以定位具体原因</b>：本类 6 个失败点共用同一句提示（含 errcode 非 0、响应缺
+ * access_token、上游不可达、调用异常、响应为空、非 JSON）。定位必须读服务端日志里对应的
+ * {@code log.error} 行——它们都带 {@code errcode} / {@code errmsg}。
+ * <p>高频 errcode：{@code 40164} = 出网 IP 不在「API IP 白名单」（小程序认证后启用白名单即可能触发，
+ * 需在公众平台「开发设置 → 开发者 ID → IP 白名单」补配<b>服务器出口 IP</b>，非客户端 IP）；
+ * {@code 40125} = AppSecret 错误；{@code 40013} = AppID 不合法。
  */
 @Slf4j
 @Service
@@ -159,12 +175,12 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
         Integer errcode = asInt(resp.get("errcode"));
         if (errcode != null && errcode != 0) {
             log.error("stable_token 获取失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         }
         String token = (String) resp.get("access_token");
         if (!StringUtils.hasText(token)) {
             log.error("stable_token 响应缺少 access_token");
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         }
         Integer expiresIn = asInt(resp.get("expires_in"));
         long ttl = (expiresIn == null || expiresIn <= 0 ? DEFAULT_TOKEN_TTL_SECONDS : expiresIn)
@@ -185,19 +201,19 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
                     new HttpEntity<>(OBJECT_MAPPER.writeValueAsString(body), headers), String.class);
         } catch (ResourceAccessException e) {
             log.error("调用微信接口不可达（url={}）", maskUrl(url), e);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             log.error("调用微信接口失败（url={}）", maskUrl(url), e);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         }
     }
 
     /** 反序列化微信响应体（非 JSON 视为网关异常，fail-closed 500） */
     private Map<String, Object> parseJson(String body, String api) {
         if (body == null || body.isBlank()) {
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         }
         try {
             Map<String, Object> map = OBJECT_MAPPER.readValue(body, new TypeReference<Map<String, Object>>() {
@@ -208,7 +224,7 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
             return map;
         } catch (Exception e) {
             log.error("{} 响应非 JSON：{}", api, body.length() > 200 ? body.substring(0, 200) : body);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "微信服务暂不可用，请稍后重试");
         }
     }
 

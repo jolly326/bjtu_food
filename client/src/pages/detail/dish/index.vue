@@ -20,7 +20,7 @@
            文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
            文案与图标（`name="report"`，唯一近似语义键、非举报语义）由 `RetryBlock` 统一承载。
            在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈，
-           不是页面级 loading 指示（§4.8 口径已按裁决调整）。 -->
+           不是页面级 loading 指示（口径已按裁决调整）。 -->
       <RetryBlock
         strong
         :title="detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
@@ -142,7 +142,7 @@ import { ref } from 'vue'
 const { titleBandPx } = useNavMetrics()
 
 /** 详情重拉在途：驱动 `RetryBlock` 的旋转环。
- *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（§4.8 口径已按裁决调整）。
+ *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（口径已按裁决调整）。
  *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `onRetryDetail`（闭包调用期解析）。 */
 const detailReloading = ref(false)
 async function onRetryDetailClick() {

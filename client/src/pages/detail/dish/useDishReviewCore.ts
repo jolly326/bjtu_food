@@ -16,8 +16,7 @@ import { MAX_LIST_PAGES, REVIEW_PAGE_SIZE } from '@/constants/paging'
 import { isLastPage } from '@/composables/usePagedList'
 import { MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
-import { REVIEW_GONE_TEXT } from '@/constants/copy'
-
+import { CONFIRM_DELETE_REVIEW, REVIEW_GONE_TEXT, TOAST_REVIEW_DELETED } from '@/constants/copy'
 export function useDishReviewCore(opts: {
   dishId: Ref<number>
   /** 本页私有的详情态（按页实例，脱离全局 store） */
@@ -33,7 +32,7 @@ export function useDishReviewCore(opts: {
   /**
    * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
    * 覆盖首屏拉取 / 重试 / 提交后刷新 —— 先清空再拉取期间不得误闪「暂无评价」；
-   * 页面上不呈现任何骨架屏 / loading 指示（§4.8 红线）。
+   * 页面上不呈现任何骨架屏 / loading 指示（红线）。
    * 用计数而非布尔：删除后重拉、提交后重拉可能并发，计数可正确收敛。
    */
   const reviewPendingCount = ref(0)
@@ -104,17 +103,17 @@ export function useDishReviewCore(opts: {
   function onDeleteReview(rv: Review | MyReview) {
     if (!userStore.requireAuth(() => onDeleteReview(rv))) return
     // 公开视角行才带作者标识（本人视角 MyReviewVO 不含 userId，列表内恒为本人）
-    if ('userId' in rv && userStore.userInfo?.id && rv.userId !== userStore.userInfo.id) return
+    // 归属判据与 `useDishReviewMenu.reviewMoreIsOwn` 同口径：`userInfo` 未回填（`?.id === undefined`）时一律拦截。
+    // 不得写 `userStore.userInfo?.id &&` 的真值短路 —— id 为 0 或资料未回填时该短路会 falsy 放行，删除他人评价。
+    if ('userId' in rv && rv.userId !== userStore.userInfo?.id) return
     uni.showModal({
-      title: '删除评价',
-      content: '确定删除这条评价吗？删除后不可恢复。',
-      confirmText: '删除',
+      ...CONFIRM_DELETE_REVIEW,
       confirmColor: MODAL_CONFIRM_DANGER_COLOR,
       success: async (res) => {
         if (!res.confirm) return
         try {
           await deleteReview(rv.id)
-          toastSuccess('评价已删除')
+          toastSuccess(TOAST_REVIEW_DELETED)
           resetReviewPaging()
           await fetchReviewsReset()
           detail.fetchDetail(dishId.value)

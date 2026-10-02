@@ -13,7 +13,7 @@ function toUserInfo(raw: UserInfoVO): UserInfo {
     id: Number(raw.id ?? 0),
     nickname: raw.nickname || DEFAULT_NICKNAME,
     avatar: raw.avatar || '',
-    // 微信登录体系（§5.y）：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
+    // 微信登录体系：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
     bindEmail: raw.bindEmail || undefined,
   }
 }
@@ -28,13 +28,13 @@ export function deriveCampusEmail(username: string): string {
   return `${username.trim().toLowerCase()}@bjtu.edu.cn`
 }
 
-/** 发送认证验证码（§5.y.5：校园邮箱由学号推导，仅需学号） */
+/** 发送认证验证码 */
 export async function sendEmailCode(username: string): Promise<void> {
   await post('/auth/email-code', { username })
 }
 
 /**
- * 微信静默登录（§5.y.5 POST /auth/wechat-login）：wx.login code → 游客态账号 token+userInfo。
+ * 微信静默登录：wx.login code → 游客态账号 token+userInfo。
  * 出参 `data` = `LoginVO`（`token` + `userInfo`），故此处按包装结构取值。
  */
 export async function wechatLogin(code: string): Promise<AuthResult> {
@@ -46,7 +46,7 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
 }
 
 /**
- * 学号邮箱认证（§5.y.5 POST /auth/verify-email）：验证码绑定当前微信 → 落库 bindEmail
+ * 学号邮箱认证：验证码绑定当前微信 → 落库 bindEmail
  * （认证态唯一写入点）；JWT 不含 bind_email、实时查库，不重发 token。
  * **出参 `data` 直接为 `UserInfoVO`（无 `userInfo` 外层包装）**。
  */
@@ -55,7 +55,7 @@ export async function verifyEmail(code: string): Promise<UserInfo> {
   return toUserInfo(resp)
 }
 
-/** 读取当前账号信息（§5.y.5 GET /auth/profile：游客态亦可读，含 bindEmail —— 认证判据来源） */
+/** 读取当前账号信息 */
 export async function getProfile(): Promise<UserInfo> {
   const resp = await get<UserInfoVO>('/auth/profile')
   return toUserInfo(resp)

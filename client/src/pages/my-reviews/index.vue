@@ -99,7 +99,7 @@ import { MAX_LIST_PAGES } from '@/constants/paging'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 // 图标色须传实色（IconSvg 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
-import { REVIEW_GONE_TEXT } from '@/constants/copy'
+import { CONFIRM_DELETE_REVIEW, REVIEW_GONE_TEXT, TOAST_REVIEW_DELETED } from '@/constants/copy'
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
@@ -182,16 +182,14 @@ function removeLocal(id: number) {
  */
 function onDelete(r: MyReview) {
   uni.showModal({
-    title: '删除评价',
-    content: '确定删除这条评价吗？删除后不可恢复。',
-    confirmText: '删除',
+    ...CONFIRM_DELETE_REVIEW,
     confirmColor: MODAL_CONFIRM_DANGER_COLOR,
     success: async (res) => {
       if (!res.confirm) return
       try {
         await deleteReview(r.id)
         removeLocal(r.id)
-        toastSuccess('评价已删除')
+        toastSuccess(TOAST_REVIEW_DELETED)
       } catch (e) {
         if (isResourceNotFound(e)) {
           removeLocal(r.id)

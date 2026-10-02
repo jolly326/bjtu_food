@@ -41,7 +41,7 @@ export function useDishPage() {
   const dish = computed<DishDetail | null | undefined>(() => detailState.currentDish.value)
   const detailFailed = computed(() => detailState.detailError.value)
   /**
-   * 菜品不存在态（后端 `4001`，§7.40 R8，**不可重试**）：与失败态互斥。
+   * 菜品不存在态（后端 `4001`，R8，**不可重试**）：与失败态互斥。
    * 区别对待的缘由：不存在（含已下架）重试也还是不存在，「重新加载」是无效安慰 ——
    * 故只给「返回」，文案明确指出菜品不可见，避免用户反复点重试。
    */
@@ -114,7 +114,7 @@ export function useDishPage() {
   }
 
   /**
-   * 认证页返回续跑（§5.y）+ 跨页防串：
+   * 认证页返回续跑+ 跨页防串：
    * · `consumePending()` 续接 requireAuth 记录的待办（写评价 / 删除评价），无待办时空操作；
    * · 若全局详情已被另一详情页覆盖（详情→详情叠层）或已被重置，返回本页时按本页 `dishId` 重拉，
    *   避免展示上一道菜（首屏由 onLoad 负责，`bootstrapped` 闸门防首次进入重复取数）。

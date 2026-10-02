@@ -72,6 +72,11 @@ import { uploadUgcImage } from '@/api/upload'
 import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
 import { getWxApi } from '@/utils/device'
+import {
+  normalizeImage,
+  assertSizeWithinLimit,
+  type ImageNormalizeAdapters,
+} from './imageNormalize'
 
 defineOptions({ name: 'ImagePicker' })
 
@@ -106,10 +111,6 @@ watch(
     clear()
   },
 )
-
-/* ===== 校验常量（后端契约：最长边 ≤1334px；文件 ≤1MB） ===== */
-const MAX_EDGE = 1334
-const MAX_SIZE = 1024 * 1024
 
 /* ===== 平台 API Promise 化（wx 句柄为微信运行时对象，平台例外未纳入项目 TS 类型，同 http.ts） ===== */
 /** 选图（微信端 wx.chooseMedia；H5 回退 uni.chooseImage），返回 临时路径 + 初始大小（字节） */
@@ -213,58 +214,27 @@ function getFileSize(filePath: string): Promise<number> {
 }
 
 /**
- * 单张图收敛至规格内（微信端）：首压 → 尺寸超限按比例再压 → 大小超限降质再压（最多 3 轮）。
- * 超出规格（如仍 >1MB）抛错，由调用方 toast 并跳过该张。
+ * 收敛策略（压几轮 / 缩到多少 / 何时判失败）已抽至 imageNormalize.ts：
+ * 那里是无副作用逻辑 + 平台适配器注入，可被单测直接覆盖；此处只做适配器接线。
  */
-async function normalizeMp(input: { path: string; size: number }): Promise<string> {
-  // ① 首次压缩（quality 80）：压缩失败回退原图（仍可走后续校验/上传）
-  let path = input.path
-  try {
-    const first = await compressImage(input.path, { quality: 80 })
-    if (first) path = first
-  } catch { path = input.path }
-
-  // ② 最长边 ≤1334：超出按比例等比缩边（低基础库不支持 compressedWidth 时保持当前结果）
-  try {
-    const info = await getImageInfo(path)
-    if (info.width > 0 && info.height > 0 && Math.max(info.width, info.height) > MAX_EDGE) {
-      const scale = MAX_EDGE / Math.max(info.width, info.height)
-      const scaled = await compressImage(path, {
-        compressedWidth: Math.round(info.width * scale),
-        compressedHeight: Math.round(info.height * scale),
-      })
-      if (scaled) path = scaled
-    }
-  } catch { /* 尺寸读取失败不阻断：交由大小校验兜底 */ }
-
-  // ③ 文件 ≤1MB：超限降质再压（60 → 40），压缩不再收敛即停，仍超限抛错跳过
-  let size = await getFileSize(path)
-  let quality = 60
-  while (size > MAX_SIZE && quality >= 40) {
-    const next = await compressImage(path, { quality }).catch(() => '')
-    if (!next) break
-    const nextSize = await getFileSize(next).catch(() => Number.MAX_SAFE_INTEGER)
-    if (nextSize >= size) break
-    path = next
-    size = nextSize
-    quality -= 20
-  }
-  if (size > MAX_SIZE) throw new Error('图片过大（超1MB），已跳过')
-  return path
+const normalizeAdapters: ImageNormalizeAdapters = {
+  compress: compressImage,
+  getSize: getImageInfo,
+  getFileSize,
 }
 
 /**
  * 选图后的规格收敛入口（平台分派，赋值模式避免条件编译 unreachable）：
- * - 微信端：压缩 + 尺寸/大小校验（normalizeMp）；
+ * - 微信端：压缩 + 尺寸/大小校验（normalizeImage + 平台适配器）；
  * - H5 端：无 wx 压缩链路，仅做大小门禁后直传。
  */
 async function normalizeForPlatform(input: { path: string; size: number }): Promise<string> {
   let path: string
   // #ifdef MP-WEIXIN
-  path = await normalizeMp(input)
+  path = await normalizeImage(input, normalizeAdapters)
   // #endif
   // #ifndef MP-WEIXIN
-  if (input.size > MAX_SIZE) throw new Error('图片过大（超1MB），已跳过')
+  assertSizeWithinLimit(input.size)
   path = input.path
   // #endif
   return path

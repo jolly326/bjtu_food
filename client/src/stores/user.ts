@@ -35,7 +35,7 @@ export const useUserStore = defineStore('user', () => {
   const lastLoginError = ref('')
 
   /**
-   * 微信静默登录（§5.y）：微信打开小程序自动登录为游客态（bindEmail 为空）。
+   * 微信静默登录：微信打开小程序自动登录为游客态（bindEmail 为空）。
    * - 已有 token → 刷新 /auth/profile 资料（游客态即可读），失败则重登；
    * - 无 token → wx.login 拿 code → POST /auth/wechat-login 静默建号/取号。
    * 并发去重：同一时间仅执行一次（App 启动 / 401 重登 / 页面 onLoad 并发安全）。
@@ -46,7 +46,7 @@ export const useUserStore = defineStore('user', () => {
     silentLoginPending.value = true
     silentLoginPromise = (async () => {
       try {
-        // 已有登录态：直接复用，仅尝试刷新资料（游客/认证态均读 GET /auth/profile，见 §5.y.5）
+        // 已有登录态：直接复用，仅尝试刷新资料（游客/认证态均读 GET /auth/profile，见 ）
         if (token.value) {
           try {
             const fresh = await userApi.getProfile()
@@ -88,7 +88,7 @@ export const useUserStore = defineStore('user', () => {
     return silentLoginPromise
   }
 
-  /** 学号邮箱认证（§5.y）：验证码绑定当前微信 → 写入 bindEmail（认证判据即其非空），返回最新 userInfo */
+  /** 学号邮箱认证：验证码绑定当前微信 → 写入 bindEmail（认证判据即其非空），返回最新 userInfo */
   async function verifyEmail(code: string) {
     // 兜底：认证需微信登录态，若静默登录未就绪（如启动竞态）或失败，先补一次。
     // 透传真实失败原因（如「微信登录未配置」/「凭证无效」），避免误导为网络问题。
@@ -120,7 +120,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂。
-   * 同时联动重置各业务 store 的「用户态数据」（通知红点等），避免换用户后串数据（§5.x 登录态一致性）。
+   * 同时联动重置各业务 store 的「用户态数据」（通知红点等），避免换用户后串数据（登录态一致性）。
    * 用动态 import 避免 store 间的循环依赖。
    * 注：评价行不含任何用户维度字段（无用标记重置）。 */
   function forceLogout() {
@@ -140,9 +140,9 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * 是否已邮箱认证（§5.y 权限矩阵）：true 解锁 UGC 写操作；false = 游客态。
+   * 是否已邮箱认证（权限矩阵）：true 解锁 UGC 写操作；false = 游客态。
    * <p>
-   * **唯一判据 = `bindEmail` 非空**（spec §7.32 修订）：出参不含量 `verified` 布尔
+   * **唯一判据 = `bindEmail` 非空**（spec 修订）：出参不含量 `verified` 布尔
    * （与 bindEmail 同源冗余、服务端列同批退役），故全端判定收敛在本方法一处；
    * 页面 / 组件一律调用本方法，不得各自散写 `!!userInfo.bindEmail` 造成判据分裂。
    */
@@ -151,7 +151,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * 需认证入口守卫（§5.y 权限矩阵）：未认证（bindEmail 为空）时跳转独立认证页并返回 false，
+   * 需认证入口守卫（权限矩阵）：未认证（bindEmail 为空）时跳转独立认证页并返回 false，
    * 已认证（bindEmail 非空）返回 true 直接执行 action。
    * 传入 action 时：认证成功返回原页后由原页 onShow 续接该动作（游客操作 → 认证页 → 返回 → 继续原动作）。
    */

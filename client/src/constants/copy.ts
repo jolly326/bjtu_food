@@ -16,3 +16,20 @@ export const EMPTY_FIELD_TEXT = '--'
 export const ANONYMOUS_AUTHOR = '匿名用户'
 /** 「评价已不存在」收尾提示（后端 4001；该码重试无意义） */
 export const REVIEW_GONE_TEXT = '评价已不存在'
+
+/**
+ * 删除评价的二次确认弹窗文案（两条删除路径共用）。
+ *
+ * <p><b>为何共用</b>：删除评价有两条入口 —— 菜品详情页评价区（`useDishReviewCore`）与
+ * 「我的主页」评价列表（`my-reviews/index.vue`）。两者**后续动作不同**（前者需重拉列表 +
+ * 重拉详情以刷新评分，后者只需本地移除），但**用户看到的是同一个动作**，文案必须逐字一致；
+ * 各写一份时改文案必然漏改一处。
+ */
+export const CONFIRM_DELETE_REVIEW = {
+  title: '删除评价',
+  content: '确定删除这条评价吗？删除后不可恢复。',
+  confirmText: '删除',
+} as const
+
+/** 删除评价成功提示（配套 {@link CONFIRM_DELETE_REVIEW}，两处删除路径共用） */
+export const TOAST_REVIEW_DELETED = '评价已删除'

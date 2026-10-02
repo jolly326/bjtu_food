@@ -181,7 +181,7 @@ function onInput(e: Event) {
 .search-bar-clear:active { opacity: 0.55; }
 
 /* ④ 内嵌「搜索」按钮：贴胶囊右端、与胶囊等高（`align-self: stretch` + 上下 `--spacing-xs` 内距）
-   填充档主色 + 白字（实测 5.01:1 ✅，见 UI 文档 §4.4 / §10.2 取色边界）；
+   填充档主色 + 白字（实测 5.01:1 ✅，见 UI 文档 / §10.2 取色边界）；
    ⚠️ 不得改用 --color-primary-orange #E67E22 —— 白字 on 它仅 2.85:1，不达 4.5:1 */
 .search-bar-btn {
   flex: none;

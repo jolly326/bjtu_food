@@ -79,7 +79,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Banner = **四周留白的圆角图片卡**（UI 文档 §3.1）：
+/* Banner = **四周留白的圆角图片卡**：
    左右各 12px 页面级边距（--spacing-md）+ 四角 --radius-card；图片 aspectFill 铺满整卡。
    上间距（与固定标题带之间）由页面滚动内容的顶部占位承担；下方与搜索区相隔 16px（吸顶容器 padding-top）。 */
 .home-banner {

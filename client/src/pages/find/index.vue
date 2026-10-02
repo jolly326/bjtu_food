@@ -62,7 +62,7 @@
                   role="button"
                   :aria-label="`搜索 ${kw}`"
                   hover-class="history-chip-pressed"
-                  @tap="goKeyword(kw)"
+                  @tap="tapKeyword(kw)"
                 >
                   <text class="history-chip-text">{{ kw }}</text>
                   <view
@@ -91,7 +91,7 @@
                   role="button"
                   :aria-label="`搜索 ${kw.name}`"
                   hover-class="history-chip-pressed"
-                  @tap="goKeyword(kw.name, true)"
+                  @tap="tapKeyword(kw.name, true)"
                 >
                   <text class="history-chip-text">{{ kw.name }}</text>
                 </view>
@@ -149,257 +149,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+/**
+ * 搜索页（薄壳）。
+ *
+ * <p><b>本文件只做三件事</b>：① 页面布局与固定头部；② 发现态 / 结果态的互斥渲染；
+ * ③ 把跨态动作转交 `useFindState`。**不含任何业务逻辑**——
+ * 搜索记录、猜你喜欢、检索与分页分别见同目录的 composable。
+ *
+ * <p><b>为何是薄壳而非两个子组件</b>：发现态与结果态各自用 `scroll-view` 承载滚动，
+ * 且发现态**必须常驻**（见下方 `v-show` 说明）——拆成子组件会改变 `v-show` 的作用域，
+ * 有让该处已修复缺陷复现的风险。改为「逻辑拆开、DOM 不动」，同样达成解耦且零 DOM 变更。
+ *
+ * <p><b>导航语义</b>：返回**恒退出本页**（首页 → 本页为 `navigateTo`，返回即回首页）。
+ * 结果态的退出**不由返回键承担**：改由搜索框右侧「清空」承担（清词 + 回发现态）——
+ * 返回键在结果态「先退状态、再退页」的两段语义不可见，用户会读作「按了返回却没退页」。
+ */
+import { onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
-import { useDishStore } from '@/stores/dish'
-import { buildSharePayload, clearShareState } from '@/utils/share-state'
-import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
-import { backToHome } from '@/utils/back'
-import { joinLocation } from '@/utils/dish'
-import type { DishListItem, MixedResultItem } from '@/types/dish'
-import { RESULT_PAGE_SIZE } from '@/constants/paging'
-import IconSvg from '@/components/IconSvg.vue'
-import RetryBlock from '@/components/RetryBlock.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import PageWallpaper from '@/components/PageWallpaper.vue'
+import AppTitleBand from '@/components/AppTitleBand.vue'
+import SearchBar from '@/components/SearchBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
-import AppTitleBand from '@/components/AppTitleBand.vue'
-import PageWallpaper from '@/components/PageWallpaper.vue'
-import SearchBar from '@/components/SearchBar.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import IconSvg from '@/components/IconSvg.vue'
 import DishResultCard from './DishResultCard.vue'
-import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
+import { useFindState } from './useFindState'
+import { useDiscover } from './useDiscover'
+import { backToHome } from '@/utils/back'
+import { dishDetailUrl, feedbackUrl } from '@/utils/routes'
+import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { useNavMetrics } from '@/utils/useNavMetrics'
-import { mergePagedRows } from '@/composables/usePagedList'
+import { COLOR_MAP } from '@/theme/tokens'
 
-const dishStore = useDishStore()
+const {
+  keyword,
+  // 发现态
+  historyList,
+  // 结果态
+  inFilter,
+  searchDone,
+  searchFailed,
+  searching,
+  mixedResults,
+  // 动作
+  loadHistory,
+  removeHistory,
+  clearHistory,
+  tapKeyword,
+  onSearchConfirm,
+  clearKeyword,
+  onRetrySearch,
+  onLoadMoreResults,
+} = useFindState()
+// 猜你喜欢属发现态数据源，独立于两态编排（见 useDiscover 的模块说明）
+const { guessLikeList, load: loadDiscover } = useDiscover()
 
 /** 固定标题带高（px）：带为 `position: fixed`，页面根层须用等量 padding 顶开内容 */
 const { titleBandPx } = useNavMetrics()
 
-/**
- * 返回：**恒退出本页**（首页 → 本页为 `navigateTo`，返回即回首页）。
- *
- * 结果态的退出**不由返回键承担**：改由搜索框右侧「清空 X」承担（清词 + 回发现态，见 `clearKeyword`）。
- * 理由：返回键在结果态「先退状态、再退页」的两段语义**不可见**，用户会读作「按了返回却没退页」。
- */
 function onBack() {
   backToHome()
-}
-
-/* 返回回首页：统一复用 utils/back.backToHome（navigateBack 保留返回动画，无上一页时 reLaunch 首页兜底） */
-
-const keyword = ref('')
-
-// ===== 搜索历史（本地缓存，预留接口位） =====
-const HISTORY_KEY = 'find_search_history'
-/** 搜索记录上限 4 条（find-page-layout-restructure 2.6：缓存与展示一致、无展开收起） */
-const HISTORY_MAX = 4
-const historyList = ref<string[]>([])
-
-/** 猜你喜欢词列表（来源：后端 GET /dishes/for-you，由 loadDiscover → fetchGuessLike 拉取）。
-    改用 `storeToRefs` —— 原先对 store getter 再包一层 `computed`，属冗余包装。 */
-const { guessLikeList } = storeToRefs(dishStore)
-
-function loadHistory() {
-  try {
-    const raw = uni.getStorageSync(HISTORY_KEY)
-    if (Array.isArray(raw)) historyList.value = raw.slice(0, HISTORY_MAX)
-  } catch {
-    /* 读取异常：**保留内存副本**，不清空 —— 本函数自 Round 27 起会在「回发现态 / onShow」时多次调用，
-       瞬时读取失败不应把用户已看到的搜索记录清掉 */
-  }
-}
-function saveHistory() {
-  try { uni.setStorageSync(HISTORY_KEY, historyList.value) } catch { /* ignore */ }
-}
-function pushHistory(kw: string) {
-  const k = kw.trim()
-  if (!k) return
-  historyList.value = [k, ...historyList.value.filter(x => x !== k)].slice(0, HISTORY_MAX)
-  saveHistory()
-}
-function removeHistory(i: number) {
-  historyList.value.splice(i, 1)
-  saveHistory()
-}
-function clearHistory() {
-  // 清空全部历史是破坏性操作，加二次确认防误触（单条删除保留即时，逐条确认会打断）
-  uni.showModal({
-    title: '清空搜索历史',
-    content: '确定要清空全部搜索历史吗？此操作不可恢复。',
-    confirmText: '清空',
-    confirmColor: MODAL_CONFIRM_DANGER_COLOR,
-    success: (res) => {
-      if (!res.confirm) return
-      historyList.value = []
-      saveHistory()
-    },
-  })
-}
-
-// 搜索模式：结果页为复合型混合列表，无排序/筛选
-const inFilter = ref(false)
-/** 搜索请求是否已完成（成功/失败均置真，过期请求不置）：用于区分「静默加载中」与「无结果引导」，避免空态闪现 */
-const searchDone = ref(false)
-/** 提交中（驱动「搜索」按钮禁用态；skill §2 `loading-buttons` / §8 `submit-feedback`）：
-    仅**最新一次**请求可清除——过期请求返回时不得复位，否则会提前解除新请求的禁用态 */
-const searching = ref(false)
-/** 最近一次已完成搜索是否失败（MP-012）：失败 ≠ 无结果，失败渲染重试块而非「没搜到」空态 */
-const searchFailed = ref(false)
-
-// ===== 结果态筛选（食堂 / 价格）不提供 =====
-// 搜索页不再持有任何筛选状态：不传 canteenId / minPrice / maxPrice，也不传排序参数
-// （排序口径唯一由后端决定：热度优先、不设排序入口）。
-
-/* 搜索结果项类型来自公共 `@/types/dish.MixedResultItem`（
-   原先本页 `MixedResult` 与 FindResults 内 `MixedResultItem` 是逐字段重复的两份定义） */
-const mixedResults = ref<MixedResultItem[]>([])
-
-/**
- * 结果分页：
- * 原实现一次性 `pageSize=50` 全量拉取 + 整列渲染 —— 命中多时首屏渲染节点数过大。
- * 改为与首页 / 我的评价一致的**触底增量加载**：首屏只拉 20 条，触底再取下一页。
- * ⚠️ 到底判据只能是「本页返回条数 < pageSize」：后端 `PageResult` 只下发 `records`，无 `total`。
- */
-/** 触底加载是否在途（与首屏 `searching` 分离：分页失败静默回退页码，不打断滚动） */
-const loadingMore = ref(false)
-/** 结果是否已到底 */
-const resultsFinished = ref(false)
-/** 当前已加载到的页码（新搜索重置为 1，触底 +1） */
-let resultPage = 1
-
-/** 菜品行 → 结果卡行（唯一映射口径：图片取列表字段 coverImage，位置行走 utils/dish.joinLocation） */
-function toResults(list: DishListItem[]): MixedResultItem[] {
-  return list
-    .map(d => ({
-      type: 'dish' as const,
-      id: d.id,
-      name: d.name,
-      // 列表唯一图片字段 coverImage（列表 VO 不含 images 数组）
-      image: d.coverImage || '',
-      // B8 副信息：食堂名 + 档口名（口径统一走 `utils/dish.joinLocation`）
-      sub: joinLocation(d.canteen, d.stallName),
-      price: d.price,
-      rating: d.rating,
-      originalPrice: d.originalPrice,
-    }))
-    .filter(r => r.name)
-}
-
-/** 确认/回车搜索（SearchBar input 模式的 @search：回车 / 点「搜索」按钮） */
-function onSearchConfirm() {
-  const kw = keyword.value.trim()
-  if (!kw) return
-  pushHistory(kw)
-  doMixedSearch(kw)
-}
-
-/**
- * 清空关键词 = 「重新开始」：清词 **并** 退出结果态回发现态。
- *
- * ⚠️ 只清 `keyword` 会留下两个坑：① 输入框已空、列表仍是旧结果（状态与内容不一致）；
- * ② 此后点「搜索」无词可搜 —— 旧实现静默 return，用户读作「点了没反应」。
- */
-function clearKeyword() {
-  keyword.value = ''
-  if (inFilter.value) exitFilter()
-}
-
-/**
- * 词条点击（搜索记录 / 猜你喜欢）：以该词发起搜索。
- *
- * **写入口径**：
- * · **「猜你喜欢」词条 → 写入搜索记录**（`record = true`）—— 它同样是一次**用户主动发起的搜索**，
- *   与「打字后提交」在用户心智里等价，理应可回溯（此前不写入造成「搜过却没有记录」的困惑）；
- * · **「搜索记录」词条 → 不写入**（`record = false`）—— 该词本就在记录内，重搜无需再置顶；
- *   上限仅 4 条，重复写入只会打乱既有顺序。
- */
-function goKeyword(kw: string, record = false) {
-  keyword.value = kw
-  if (record) pushHistory(kw)
-  doMixedSearch(kw)
-}
-
-// ===== 复合型搜索（直接复用菜品检索接口） =====
-// C13 竞态守卫：慢请求结果不得覆盖后发的快请求（参照 review.vue searchSeq 模式）
-let mixedSearchSeq = 0
-async function doMixedSearch(kw?: string) {
-  // 搜索页唯一入口 = 关键词（不提供食堂 / 价格筛选，无关键词则不发起检索）
-  if (!kw) return
-  // 竞态守卫（mixedSearchSeq）已保证后发请求覆盖先发结果；此处不设防重入锁，
-  // 否则用户连续搜索新词时会被静默丢弃、界面停留在旧结果。
-  const seq = ++mixedSearchSeq
-  inFilter.value = true
-  searchDone.value = false
-  searchFailed.value = false
-  searching.value = true
-  try {
-    // 复用 store.search（GET /dishes?keyword，返回平铺 DishListItem[]），金额/图片已在 api 层归一；
-    // 端上不传任何筛选 / 排序参数
-    const list = await dishStore.search({
-      keyword: kw,
-      page: 1,
-      pageSize: RESULT_PAGE_SIZE,
-    })
-    // 竞态守卫：若期间发起了更新的搜索，丢弃本次过期结果
-    if (seq !== mixedSearchSeq) return
-    // 结果顺序即后端返回口径（PR-02：端上不排序、不算距离）
-    mixedResults.value = toResults(list)
-    resultPage = 1
-    resultsFinished.value = list.length < RESULT_PAGE_SIZE
-    searchDone.value = true
-  } catch (err) {
-    // MP-012：失败不再伪装成空结果——置 searchFailed 渲染「加载失败 · 点击重试」块，
-    // 与「没搜到」空态区分；结果态恢复走重试块 @tap（onRetrySearch）或重新提交搜索
-    console.error('[find] 搜索失败', err)
-    if (seq !== mixedSearchSeq) return
-    mixedResults.value = []
-    resultPage = 1
-    resultsFinished.value = false
-    searchDone.value = true
-    searchFailed.value = true
-  } finally {
-    // 仅最新一次请求可解除「提交中」：过期请求返回时不得复位，否则新请求的禁用态会被提前清掉
-    if (seq === mixedSearchSeq) searching.value = false
-  }
-}
-
-/** 重试当前检索：结果态失败恢复走此路径（重试块 @tap；按当前关键词重跑，竞态守卫在 doMixedSearch 内） */
-function onRetrySearch() {
-  return doMixedSearch(keyword.value.trim())
-}
-
-/**
- * 触底加载下一页结果（结果态 `scroll-view` 的 @scrolltolower）。
- * 口径与首页 / 我的评价一致：按 id 去重追加；**失败静默**回退页码（不置失败态、
- * 不打断滚动，再次触底即重试同一页）。
- */
-async function onLoadMoreResults() {
-  // 到底 / 分页在途 / 首屏在途 均跳过（首屏在途时页码尚未落定，避免错位）
-  if (resultsFinished.value || loadingMore.value || searching.value) return
-  const kw = keyword.value.trim()
-  if (!kw) return
-  const seq = mixedSearchSeq
-  loadingMore.value = true
-  try {
-    const list = await dishStore.search({
-      keyword: kw,
-      page: resultPage + 1,
-      pageSize: RESULT_PAGE_SIZE,
-    })
-    // 期间若发起了新搜索或退出结果态，丢弃本次过期结果
-    if (seq !== mixedSearchSeq) return
-    resultPage += 1
-    // 合并 + 封底（单一真源 mergePagedRows）：去重追加、0 长度封口、满页未封底
-    const merged = mergePagedRows(mixedResults.value, toResults(list), RESULT_PAGE_SIZE)
-    mixedResults.value = merged.rows
-    resultsFinished.value = merged.finished
-  } catch (err) {
-    console.error('[find] 结果分页加载失败', err)
-  } finally {
-    loadingMore.value = false
-  }
 }
 
 /** 搜索无结果引导 → 反馈页（落默认 issue 模式；落点唯一构造函数） */
@@ -407,36 +218,10 @@ function goContributeNotFound() {
   uni.navigateTo({ url: feedbackUrl() })
 }
 
-/** 结果点击：菜品跳详情页（搜索仅菜品，无独立档口 / 食堂结果 / 详情页）。
-    原 `openDishDetail` 仅此一处调用，且与本函数重复判空 ⇒ 合并为单点守卫。 */
+/** 结果点击 → 菜品详情（搜索仅菜品，无独立档口 / 食堂结果） */
 function goToMixed(id: number) {
   if (!id) return
   uni.navigateTo({ url: dishDetailUrl(id) })
-}
-
-function exitFilter() {
-  inFilter.value = false
-  mixedResults.value = []
-  searchDone.value = false
-  searchFailed.value = false
-  resultsFinished.value = false
-  resultPage = 1
-  // 修复：退出结果态时递增序号使在途旧请求失效，避免其返回后写回 mixedResults 造成数据残留
-  mixedSearchSeq += 1
-  // Round 27 缺陷修复：回发现态时**重读搜索历史**（以存储为唯一真源）。
-  // 此前只在 onMounted 读一次 —— 本页被页面栈缓存（返回再进不重新挂载）时，内存副本一旦滞后于存储，
-  // 搜索记录就不会更新（用户报的「刚搜过的词回发现态看不到」）。
-  loadHistory()
-}
-
-async function loadDiscover() {
-  try {
-    // 发现态数据源只剩「猜你喜欢」词条（无食堂字典端点）
-    await dishStore.fetchGuessLike()
-  } catch (e) {
-    // 静默：发现态加载失败不呈现任何占位，异常仅记录
-    console.error('[find] 发现页加载失败', e)
-  }
 }
 
 onMounted(() => {
@@ -447,7 +232,7 @@ onMounted(() => {
 onShareAppMessage(() => buildSharePayload())
 // 从菜品详情返回搜索页：清掉分享残留，避免右上角分享菜单沿用详情页内容；
 // 同时重读搜索历史 —— 本页被页面栈缓存时 onMounted 不再执行，以存储为真源重读
-// 可保证「搜索记录」始终最新（与 exitFilter 时的重读互为兜底）。
+// 可保证「搜索记录」始终最新（与 clearKeyword 时的重读互为兜底）。
 onShow(() => {
   clearShareState()
   loadHistory()
@@ -515,7 +300,7 @@ onShow(() => {
 
 /* 历史搜索 */
 /* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
-/* 「清空」是**破坏性操作**，需可被发现（UI 文档 §2）：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
+/* 「清空」是**破坏性操作**，需可被发现：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
    视觉仍远弱于分组标题（不抢层级），命中区继续由下方 ::after 扩至 ≥88rpx。 */
 .history-clear { position: relative; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
 .history-clear::after {
@@ -561,8 +346,8 @@ onShow(() => {
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }
-/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**（UI 文档 §3）：推荐词 = 暖黄底 + 深棕字。
-   fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（§7.39）后区分自动生效；
+/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**：推荐词 = 暖黄底 + 深棕字。
+   fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（）后区分自动生效；
    ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款）。 */
 .history-chip-hot { background: var(--bg-soft-yellow, var(--bg-soft)); }
 .history-chip-hot .history-chip-text { color: var(--text-body, var(--text-secondary)); }

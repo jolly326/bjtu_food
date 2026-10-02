@@ -1,5 +1,5 @@
 <template>
-  <!-- 首页横向「筛选视图」标签栏（§7.34 运营化解耦）：
+  <!-- 首页横向「筛选视图」标签栏（运营化解耦）：
        横向可滑动 + 单选 + 橙色短下划线高亮。
        ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/views`）——
        含「为你推荐」这类**聚合视图**，端上**零文案、零拼接、零兜底项**：
@@ -135,7 +135,7 @@ function onSelect(key: string) {
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;
 }
-/* 按压反馈：小程序端统一「透明度微降」（§4.9：废止 transform: scale 按压） */
+/* 按压反馈：小程序端统一「透明度微降」（：废止 transform: scale 按压） */
 .mt-tab-pressed {
   opacity: 0.6;
 }

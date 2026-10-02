@@ -30,7 +30,11 @@ export function useRateLimitCooldown() {
   }
 
   function startCooldown(seconds: number) {
-    const capped = Math.min(Math.max(Math.round(seconds) || DEFAULT_COOLDOWN, 1), MAX_COOLDOWN)
+    // ⚠️ 不可写成 `Math.round(seconds) || DEFAULT_COOLDOWN`：`0` 是 falsy，会被 `||`
+    // 吞掉退回 30 秒，使「下限 1 秒」的后端返 0 场景失效 —— 用户被无谓多锁 29 秒。
+    // 故先归一到 null 再判空（仅 null / undefined / NaN 才用保守缺省）。
+    const n = Number.isFinite(seconds) ? Math.round(seconds) : null
+    const capped = Math.min(Math.max(n ?? DEFAULT_COOLDOWN, 1), MAX_COOLDOWN)
     cooldownSeconds.value = capped
     stopTimer()
     timer = setInterval(() => {
