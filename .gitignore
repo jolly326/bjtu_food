@@ -20,10 +20,23 @@ target/
 # 上传目录一律不进库（运行时由 upload.path 自动创建）。
 uploads/
 **/uploads/
-# 应用运行配置一律不入库（数据源 / JWT / SMTP / 第三方密钥等环境值的注入与默认值都在其中）。
-# 环境变量清单与占位模板见 server/.env.example。
+# ---------- 应用运行配置（server/src/main/resources/application*.yml）----------
+# ⚠️ 历史事故（2026-10-01 起线上全站 401，2026-10-02 定位修复）：
+#    这些文件曾被 `git rm` 移出跟踪并被下面的规则忽略。本地工作树里文件仍在
+#    （故编译、单测、全链路手测全部正常），但**云构建是从 GitHub 克隆的**，
+#    构建上下文里根本没有 application.yml ⇒ jar 不含任何配置 ⇒ Spring Boot 全用默认值
+#    ⇒ `server.servlet.context-path: /api/v1` 未生效（Tomcat 跑在根上下文 `/`）
+#    ⇒ 小程序 GET /api/v1/dishes 前缀不被剥离，命中不到 `/dishes/**` 白名单
+#    ⇒ 落入 anyRequest().authenticated() ⇒ 401「请先登录或重新登录」。
+#    该故障对「本地是否正常」完全不可见，只有部署后才暴露，故以本段显式反选规则钉死。
+# ✅ 可以入库的原因：这三个文件内**没有任何真实凭据**，敏感值一律是 `${ENV_VAR:默认值}`
+#    占位符（数据源口令 / JWT / SMTP / 微信 / COS 全部如此），真实值由环境变量或
+#    server/.env（已忽略、不入库）注入。入库的是「键名 + 占位符」，不是密钥。
 application.yml
 application-*.yml
+!server/src/main/resources/application.yml
+!server/src/main/resources/application-dev.yml
+!server/src/main/resources/application-prod.yml
 
 # Node / uni-app / Vite
 node_modules/
@@ -41,12 +54,17 @@ project.private.config.json
 **/project.private.config.json
 
 # Environment files
-# 规则：仓库只提交**占位模板**（*.example），一切真实环境文件一律不入库。
+# 规则：仓库只提交**占位模板**（*.example）与**不含凭据的公开基址**，真实环境文件一律不入库。
 # 使用前复制模板为真实文件：client/.env.example → client/.env.development|production，
 # server/.env.example → server/.env，web/.env.example → web/.env.local。
+# ⚠️ 同上条 server/application*.yml 的事故：client/.env.production 曾被移出跟踪，
+#    云构建克隆不到 ⇒ 端上 VITE_API_BASE_URL 缺失 ⇒ 静默回落到 127.0.0.1 默认值。
+#    两个 client env 只含公开的云托管 API 地址（无任何密钥），必须入库。
 .env
 .env.*
 !.env.example
+!client/.env.development
+!client/.env.production
 
 # ---------- 凭据 / 密钥类文件（兜底防误提交） ----------
 # 本节是「万一」防线：当前仓库不存在这些文件，新增证书/令牌时无需再改本文件。
