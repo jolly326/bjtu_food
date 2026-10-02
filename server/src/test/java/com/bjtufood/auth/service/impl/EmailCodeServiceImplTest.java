@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -55,8 +56,20 @@ class EmailCodeServiceImplTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final JavaMailSender mailSender = mock(JavaMailSender.class);
 
+    /**
+     * 把裸 {@link JavaMailSender} mock 包成 {@link ObjectProvider}。
+     * <p>被测类改用 {@code ObjectProvider<JavaMailSender>} 惰性注入（2026-10-02 线上事故修复：
+     * 云端漏配 {@code spring.mail.*} 导致 {@code JavaMailSender} Bean 缺失，
+     * 经 {@code authServiceImpl} 传递依赖放大为**整个应用启动失败**）。
+     */
+    private static ObjectProvider<JavaMailSender> providerOf(JavaMailSender sender) {
+        ObjectProvider<JavaMailSender> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(sender);
+        return provider;
+    }
+
     private EmailCodeServiceImpl service() {
-        EmailCodeServiceImpl svc = new EmailCodeServiceImpl(mapper, passwordEncoder, mailSender);
+        EmailCodeServiceImpl svc = new EmailCodeServiceImpl(mapper, passwordEncoder, providerOf(mailSender));
         ReflectionTestUtils.setField(svc, "mailFrom", "noreply@bjtu.edu.cn");
         return svc;
     }
@@ -180,16 +193,36 @@ class EmailCodeServiceImplTest {
     }
 
     @Test
-    @DisplayName("SMTP 发件邮箱未配置 → 明确报错（不静默吞掉），且同样回滚已落库记录")
+    @DisplayName("JavaMailSender Bean 完全缺失（云端漏配 spring.mail.*）→ 明确报错，且**不落库**")
+    void missingMailSenderBeanIsReported() {
+        // 回归 2026-10-02 线上事故：JavaMailSender 缺失时应用启动失败（经 authServiceImpl 传递依赖放大）。
+        // 修复后应「应用能起、发码时报业务错」，且**在落库前**就拦下——不产生孤儿验证码。
+        when(mapper.selectOne(any())).thenReturn(lastRecord(120));
+        EmailCodeServiceImpl svc = new EmailCodeServiceImpl(mapper, passwordEncoder, providerOf(null));
+        ReflectionTestUtils.setField(svc, "mailFrom", "noreply@bjtu.edu.cn");
+
+        assertThatThrownBy(() -> svc.sendCode("20240001"))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).contains("SMTP"));
+
+        // 关键：判空发生在 insert 之前，不得留下占用限流窗口的孤儿码
+        verify(mapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("SMTP 发件邮箱未配置 → 明确报错（不静默吞掉），且**不落库**（无需回滚）")
     void missingMailFromIsReported() {
         when(mapper.selectOne(any())).thenReturn(lastRecord(120));
-        givenInsertBackfillsId(4242L);
-        EmailCodeServiceImpl svc = new EmailCodeServiceImpl(mapper, passwordEncoder, mailSender);
+        EmailCodeServiceImpl svc = new EmailCodeServiceImpl(mapper, passwordEncoder, providerOf(mailSender));
         ReflectionTestUtils.setField(svc, "mailFrom", "");
 
         assertThatThrownBy(() -> svc.sendCode("20240001"))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).contains("SMTP"));
-        // 配置缺失发生在「已落库」之后，同样不能留下占用限流窗口的孤儿码
-        verify(mapper).deleteById(4242L);
+        // 2026-10-02 修复：配置判空已提前到**落库之前**（原实现先 insert 再发信、失败才回滚）。
+        // 提前拦截严格更优——压根不产生孤儿码，也就不需要「回滚」这个补救动作。
+        // 故此处断言 insert 未发生，而非 deleteById(4242L)。
+        verify(mapper, never()).insert(any());
+        // deleteById 有重载（Long / Object），须显式给类型消歧，否则 any() 编译不过
+        verify(mapper, never()).deleteById(any(Long.class));
     }
 }
