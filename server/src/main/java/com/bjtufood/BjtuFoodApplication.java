@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.util.Arrays;
+
 /**
  * 校园食堂信息系统 - 后端启动类
  * <p>
@@ -46,7 +48,54 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class BjtuFoodApplication {
 
+    /**
+     * 启动失败兜底报告（2026-10-02 线上三次部署失败后加入）。
+     *
+     * <p><b>要解决的问题</b>：云托管部署失败时，平台「启动日志」区段会被截断
+     * ——实测三次均停在 {@code Starting BjtuFoodApplication} 之后、{@code Started ...} 之前，
+     * 只看得到 banner 而看不到真正的异常，**无法判断是配置缺失、Bean 装配失败还是资源不足**。
+     * 现象统一为「就绪/存活探针 connection refused」（应用在绑定 8080 之前就退出或卡住）。
+     *
+     * <p><b>为什么直接写 stderr 而不用 logger</b>：
+     * <ol>
+     *   <li>启动失败常常发生在日志系统自身初始化完成之前，用 logger 可能静默无输出；</li>
+     *   <li>容器平台对 <b>stderr</b> 的采集优先级与保真度高于 stdout，这是平台侧最可靠的通道；</li>
+     *   <li>先打<b>单行根因</b>再打堆栈——即使平台截断，也大概率能保住根因那一行。</li>
+     * </ol>
+     *
+     * <p><b>不吞异常</b>：仍以退出码 1 结束，保证容器编排能感知失败（探针与重启策略依赖它）。
+     */
     public static void main(String[] args) {
-        SpringApplication.run(BjtuFoodApplication.class, args);
+        try {
+            SpringApplication.run(BjtuFoodApplication.class, args);
+        } catch (Throwable t) {
+            Throwable root = rootCause(t);
+            // 第一行：根因单行摘要（抗平台截断，排查时先看它）
+            System.err.println();
+            System.err.println("################ STARTUP FAILED ################");
+            System.err.println("ROOT_CAUSE: " + root.getClass().getName() + ": " + root.getMessage());
+            System.err.println("PROFILE   : " + Arrays.stream(args)
+                    .filter(a -> a.startsWith("spring.profiles.active"))
+                    .findFirst().orElse("(未在 args 指定，见 application.yml)"));
+            System.err.println("############ FULL STACK TRACE ############");
+            t.printStackTrace(System.err);
+            System.err.println("#############################################");
+            System.err.flush();
+            System.exit(1);
+        }
+    }
+
+    /**
+     * 剥离包装异常取根因：Spring 的启动失败几乎总被 {@code BeanCreationException} /
+     * {@code IllegalStateException} 层层包裹，真因（密钥缺失、连不上库）在最内层。
+     * 平台日志常只看得到最外层，故必须下钻，否则等于什么都没报。
+     */
+    private static Throwable rootCause(Throwable t) {
+        Throwable cur = t;
+        // 防御：循环引用或过深时停在 32 层，避免异常链异常本身再抛
+        for (int i = 0; i < 32 && cur.getCause() != null && cur.getCause() != cur; i++) {
+            cur = cur.getCause();
+        }
+        return cur;
     }
 }
