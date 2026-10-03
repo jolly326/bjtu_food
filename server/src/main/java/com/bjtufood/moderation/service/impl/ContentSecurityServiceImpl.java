@@ -129,12 +129,10 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
                     throw new TokenInvalidException(errcode);
                 }
                 // 其余 errcode：fail-closed 交由用户重试
-                log.error("msgSecCheck 调用失败 errcode={} errmsg={}", errcode, r.get("errmsg"));
-                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+                throw secCheckUnavailable("msgSecCheck", errcode, r.get("errmsg"));
             }
             return r;
-        });
-
+        }, "msgSecCheck");
         // 红线：以 result.suggest 判定，不只看 errcode；review 已在 SecSuggest.fromValue 归一为 PASS（放行）
         Object result = resp.get("result");
         String suggest = null;
@@ -164,7 +162,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
      *
      * @param action 单次微信调用（须把「取 token → 请求 → 判 errcode」整体包进来，重试才有意义）
      */
-    private <T> T callWithTokenRetry(Supplier<T> action) {
+    private <T> T callWithTokenRetry(Supplier<T> action, String apiName) {
         try {
             return action.get();
         } catch (TokenInvalidException first) {
@@ -174,7 +172,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
                 return action.get();
             } catch (TokenInvalidException second) {
                 log.error("刷新 access_token 后仍返回失效 errcode={}，fail-closed", second.errcode);
-                throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+                throw secCheckUnavailable(apiName, second.errcode, "access_token 刷新后仍失效");
             }
         }
     }
@@ -196,6 +194,44 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         return errcode == 40001 || errcode == 42001;
     }
 
+    /**
+     * 内容安全接口失败的<b>归因提示</b>：把 errcode 直接编进返回给端上的文案。
+     * <p>
+     * <b>为何把 errcode 透出到端上</b>（2026-10-02 起的三次线上事故教训）：
+     * 此前本类 4 个失败点一律抛「内容安全检测服务暂不可用，请稍后重试」，端上与排障都只能
+     * 看到这一句话，必须翻服务端日志才知道是<b>白名单没配（40164）</b>、<b>AppSecret 错（40125）</b>
+     * 还是<b>调用超限（48001）</b>——三次往返都卡在同一个信息缺口上。
+     * 而 errcode 不含任何敏感信息（微信仅回传数字码与固定 errmsg），对非公网的小程序端透出
+     * 无安全风险，却能让「看到提示」与「知道怎么修」之间<b>零日志往返</b>。
+     * <p>
+     * <b>归因映射</b>：
+     * <ul>
+     *   <li>{@code 40164} 出网 IP 未加白名单 → 最高频配置遗漏，直指操作</li>
+     *   <li>{@code 40013}/{@code 40125} AppID/AppSecret 配错 → 指明是凭据而非内容</li>
+     *   <li>{@code 41002} 缺 AppID → 指明环境变量缺失</li>
+     *   <li>{@code 45011}/{@code 48001} 调用频率超限 → 与配置无关，纯限流</li>
+     * </ul>
+     * 其余 errcode 走默认分支，仍附 errcode 与接口名，保证任何新码都能被一眼定位。
+     *
+     * @param api     接口标识（{@code imgSecCheck} / {@code msgSecCheck}），用于日志与默认文案
+     * @param errcode 微信返回的错误码（可能为 {@code null}，此时按未知处理）
+     * @param errmsg  微信原始描述，仅进日志
+     * @return 待抛出的业务异常（调用方直接 {@code throw}）
+     */
+    private BusinessException secCheckUnavailable(String api, Integer errcode, Object errmsg) {
+        log.error("{} 调用失败 errcode={} errmsg={}", api, errcode, errmsg);
+        int code = errcode == null ? -1 : errcode;
+        return new BusinessException(500, switch (code) {
+            case 40164 -> "内容安全检测不可用：微信后台未将本服务出口 IP 加入 IP 白名单（errcode=40164）";
+            case 41002 -> "内容安全检测不可用：未配置微信 AppID（errcode=41002）";
+            case 40013, 40125 ->
+                    "内容安全检测不可用：微信 AppID 与 AppSecret 配置不匹配（errcode=" + code + "）";
+            case 45011, 48001 ->
+                    "内容安全检测调用超出频率限制（errcode=" + code + "），请稍后重试";
+            default -> "内容安全检测不可用（" + api + " errcode=" + code + "），请稍后重试";
+        });
+    }
+
     @Override
     public void checkImage(byte[] image) {
         if (image == null || image.length == 0) {
@@ -214,7 +250,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         callWithTokenRetry(() -> {
             doImgSecCheck(image);
             return null;
-        });
+        }, "imgSecCheck");
     }
 
     private void doImgSecCheck(byte[] image) {
@@ -251,8 +287,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             throw new TokenInvalidException(errcode);
         }
         // 其余 errcode（媒体格式不支持等）：fail-closed，交由用户重试或换图
-        log.error("imgSecCheck 调用失败 errcode={} errmsg={}", errcode, resp.get("errmsg"));
-        throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        throw secCheckUnavailable("imgSecCheck", errcode, resp.get("errmsg"));
     }
 
     // ==================== HTTP / 解析工具 ====================
