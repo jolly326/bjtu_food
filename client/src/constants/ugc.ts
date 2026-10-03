@@ -8,10 +8,19 @@
  */
 
 /**
- * 单条 UGC 的配图张数上限。
+ * 单条 UGC 的配图张数上限（**评价 / 反馈 / 举报**，**不含纠错**）。
  *
- * <b>契约同源</b>：服务端 `FeedbackReq` / `ReportReq` 的 `@Size(max = 3)`、`DishCorrectionReq` 的
- * 图片校验均为 3（见 `docs/client/B-UGC表达与治理/B5-意见反馈.md`、`B4-举报评价.md`、`B6-菜品信息纠错.md`）。
+ * <b>契约同源</b>：服务端 `FeedbackReq` / `ReportReq` 的 `@Size(max = 3)`；
  * 改动本常量须同步服务端校验，否则会出现「端上能选、提交被拒」。
  */
 export const UGC_IMAGE_MAX = 3
+
+/**
+ * **菜品纠错**的配图上限（张）—— 与评价 / 反馈**脱钩**，为 5。
+ *
+ * <p><b>为何纠错更宽</b>：纠错要说明「现场实际是什么样」，常需「菜品 + 价签 + 档口牌」等多张佐证，
+ * 3 张不够用（见 `docs/web/README.md` 待办 #4）。
+ *
+ * <p><b>契约同源</b>：服务端 `CorrectionConst.IMAGE_MAX`（2026-10-03 由 3 改为 5）。
+ */
+export const CORRECTION_IMAGE_MAX = 5

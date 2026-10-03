@@ -67,12 +67,9 @@ if (existsSync(GENERATED) && existsSync(SHARED)) {
 }
 
 /* ---------- 3. RawRow 未回潮 ---------- */
-// 允许清单：仅这些文件可暂用 RawRow（原因随附）。
-// 新增前请先问「为什么不能用 generated 的 XxxVO」——答案通常是「没写」而非「不能」。
-const RAWROW_ALLOWLIST = new Set([
-  // 定义处本身（兜底载体声明与 JSDoc 提及）——路径相对仓库根，与下方 relPath 同口径
-  'src/api/shared.ts',
-])
+// `RawRow`（弱类型兜底载体）已按「零消费即删」自 api/shared.ts 移除，清单现为空：
+// 新增弱类型逃逸前先问「为什么不能用 generated 的 XxxVO」——答案通常是「没写」而非「不能」。
+const RAWROW_ALLOWLIST = new Set([])
 
 /**
  * 扫描范围：**src/ 全树**（api / stores / composables / pages / types）。

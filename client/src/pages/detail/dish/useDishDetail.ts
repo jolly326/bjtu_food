@@ -12,7 +12,7 @@
 import { ref } from 'vue'
 import * as dishApi from '@/api/dish'
 import * as reviewApi from '@/api/review'
-import { isResourceNotFound } from '@/api/http'
+import { isResourceNotFound } from '@/api/errors'
 import { REVIEW_PAGE_SIZE } from '@/constants/paging'
 import { createSeqGuard, mergePagedRows } from '@/composables/usePagedList'
 import type { DishDetail } from '@/types/dish'

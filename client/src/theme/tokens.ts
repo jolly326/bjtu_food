@@ -102,9 +102,6 @@ export const COLOR_MAP = {
   'page-wash': 'rgba(255, 248, 239, 0.7)',
 } as const
 
-/* 注：原 `export type IconColorName = keyof typeof COLOR_MAP` 已按「零消费即删」移除
-   。 */
-
 /**
  * CSS 变量注册表（UI-03 色值唯一真源，spec §4.2）。
  *

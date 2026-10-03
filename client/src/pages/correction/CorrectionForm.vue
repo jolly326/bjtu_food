@@ -184,13 +184,14 @@
         />
       </view>
 
-      <!-- ④ 图片（选填，≤3 张；上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
+      <!-- ④ 图片（选填，**≤5 张** —— 纠正常需「菜品 + 价签 + 档口牌」多张佐证，宽于评价 / 反馈的 3 张；
+           上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
       <view class="img-block">
-        <text class="img-title">补充实拍图片（选填，最多 3 张）</text>
+        <text class="img-title">补充实拍图片（选填，最多 {{ CORRECTION_IMAGE_MAX }} 张）</text>
         <ImagePicker
           ref="imagePickerRef"
           :model-value="model.images"
-          :max="UGC_IMAGE_MAX"
+          :max="CORRECTION_IMAGE_MAX"
           :disabled="!!submitting"
           @update:model-value="onImagesChange"
           @pick="emit('pick-image')"
@@ -229,7 +230,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import AttributeGroup from './AttributeGroup.vue'
 import FloorPickerSheet from './FloorPickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
-import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
 import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'

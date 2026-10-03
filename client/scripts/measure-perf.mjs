@@ -179,10 +179,13 @@ emit('client.unused_exports', unusedExports.length, '个', unusedExports.length 
 
 /* ==================== 4. 请求面（静态调用点） ==================== */
 
+/** api 目录内的非请求模块：契约类型镜像 / 错误类型 / 会话处置（不含任何请求函数） */
+const NON_REQUEST_API = ['shared.ts', 'errors.ts', 'authFlow.ts']
+
 /** api 层导出的请求函数（页面侧每有一处调用 = 一次潜在网络往返） */
 const apiFunctions = []
 for (const [file, text] of sourceTexts) {
-  if (!rel(file).startsWith('src/api/') || file.endsWith('.d.ts') || rel(file).includes('shared.ts')) continue
+  if (!rel(file).startsWith('src/api/') || file.endsWith('.d.ts') || NON_REQUEST_API.some((n) => rel(file).includes(n))) continue
   for (const line of text.split('\n')) {
     const decl = DECL_EXPORT.exec(line)
     if (decl && (decl[1] === 'function' || decl[1] === 'const')) apiFunctions.push({ name: decl[2], file })

@@ -16,7 +16,7 @@
 export type PickSource = 'camera' | 'album'
 
 /** ActionSheet 动作项（结构与 `components/ActionSheet.vue` 的 `ActionSheetItem` 对齐） */
-export interface ImagePickAction {
+interface ImagePickAction {
   key: PickSource
   label: string
   icon: string

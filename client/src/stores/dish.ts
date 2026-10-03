@@ -6,12 +6,6 @@ import { HOME_PAGE_SIZE } from '@/constants/paging'
 import { createSeqGuard, isLastPage, mergePagedRows } from '@/composables/usePagedList'
 
 /**
- * 首页列表单页条数（`fetchHomeDishes` / `loadMoreHomeDishes` 共用，防口径漂移）。
- * 分页口径已收敛至 `constants/paging`（单一真源）。此处保留导出，
- * 供 `pages/home/HomeContent.vue` 等既有消费方继续引用，避免牵连改名。
- */
-export { HOME_PAGE_SIZE }
-/**
  * 首页列表最大保留页数：10 页 × 10 条 = 100 条封顶。
  * 深翻后 `homeList` 无上限增长会让 `HomeContent` 的列分配每次全量重算（低端机掉帧）；
  * 到底不再静默截断，改由 `homePageLimited` 驱动页面给出「已展示前 N 个结果」提示。

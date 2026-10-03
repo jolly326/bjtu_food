@@ -35,12 +35,8 @@
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
-import {
-  useDishStore,
-  LOADING_KEY_HOME,
-  HOME_PAGE_SIZE,
-  HOME_MAX_PAGES,
-} from '@/stores/dish'
+import { useDishStore, LOADING_KEY_HOME, HOME_MAX_PAGES } from '@/stores/dish'
+import { HOME_PAGE_SIZE } from '@/constants/paging'
 import type { DishListItem } from '@/types/dish'
 import { dishDetailUrl } from '@/utils/routes'
 

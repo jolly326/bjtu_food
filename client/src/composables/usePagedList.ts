@@ -188,7 +188,7 @@ export function isLastPage(rows: { length: number }, pageSize: number): boolean 
  * `view`（`topPad` / `bottomPad`），中间 `v-for="x in visible"`；每个条目根节点加 `class="v-item"`。
  * 条目数 ≤ `threshold` 时**不虚拟化**（全渲染）⇒ 短列表行为与改造前**逐字一致**（零回归面）。
  */
-export interface UseVirtualListOptions<T> {
+interface UseVirtualListOptions<T> {
   /** 全量数据源（分页列表的 `list`） */
   items: Ref<T[]>
   /** 未实测条目的估算高度（px）：仅作兜底，实测后逐项收敛 */

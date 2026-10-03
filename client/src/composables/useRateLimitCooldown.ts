@@ -6,7 +6,7 @@
  * 秒数来源 = 请求层从后端 message「请 N 秒后再试」解析（`isRateLimited` + `retryAfterSeconds`）。
  */
 import { ref, onUnmounted } from 'vue'
-import { isRateLimited } from '@/api/http'
+import { isRateLimited } from '@/api/errors'
 
 /** 解析不出后端建议秒数时的保守缺省（秒）——宁可多等，不可让用户再撞一次限频 */
 const DEFAULT_COOLDOWN = 30

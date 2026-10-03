@@ -33,14 +33,6 @@ export type ReportReasonVO = components['schemas']['ReportReasonVO']
 export type UploadResultVO = components['schemas']['UploadResultVO']
 export type ReviewCreatedVO = components['schemas']['ReviewCreatedVO']
 
-/**
- * 后端响应行（**归一化边界的兜底载体**）。
- *
- * ⚠️ 用途收窄：**仅**供尚无生成类型覆盖的场景（后端新增端点但契约未刷新）作 `toXxx` 入参；
- * 凡有对应 VO 的一律用上方强类型。**本类型禁止流出 `api/` 层**，`ApiContractTest` 会对新增用法报警。
- */
-export type RawRow = Record<string, any>
-
 /** 后端分页返回形态：可能是平铺数组，或 `{ records }` */
 type PageLike<T> = T[] | { records?: T[] }
 

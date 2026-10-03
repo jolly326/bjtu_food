@@ -131,7 +131,7 @@ export async function listDishViews(): Promise<DishView[]> {
  * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的参考候选
  * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
  */
-export interface DishEditAttribute {
+interface DishEditAttribute {
   /** 维度键（camelCase），与详情 `attributes[].fieldKey` 对齐 */
   fieldKey: string
   /** 取值类型：`single`（单值）｜ `multi`（多值，值取数组） */

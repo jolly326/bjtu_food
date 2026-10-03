@@ -52,6 +52,13 @@ defineProps<{
   heightPx: number
 }>()
 
+/**
+ * 上报「是否真的有轮播图」：父级（首页）据此决定**是否保留 Banner 占位块**——
+ * 全停用 / 加载失败时整块收起，避免首页顶部长期挂着一块无意义的 16:10 灰块（docs/web/README 待办 #5，方案 A）。
+ * 初始（加载中）父级默认保留槽位，加载完成且无图时再收起。
+ */
+const emit = defineEmits<{ (e: 'ready', has: boolean): void }>()
+
 /** 多图自动轮播间隔（ms）；仅一张时不自动轮播 */
 const AUTOPLAY_INTERVAL = 4000
 /** 指示点色：微信原生 <swiper> 不接受 var()，取 tokens.ts 登记的原生例外常量 */
@@ -71,6 +78,8 @@ async function load() {
     console.error('加载首页轮播图失败', e)
     list.value = []
   }
+  // 无论成功失败都上报真实「有无图」状态，父级据此收起占位块
+  emit('ready', list.value.length > 0)
 }
 
 onMounted(() => {

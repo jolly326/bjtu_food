@@ -48,13 +48,13 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import { createDishCorrection } from '@/api/feedback'
 import { getDishDetail, listDishEditAttributes } from '@/api/dish'
-import { isResourceNotFound } from '@/api/http'
+import { isResourceNotFound } from '@/api/errors'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
 import { buildCorrectionDiff, priceValid as isPriceValid, snapshotAttributes } from './correctionDiff'
 import { backToHome } from '@/utils/back'
 import { toastInfo, toastSuccess } from '@/utils/error'
-import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
@@ -180,7 +180,7 @@ export function useCorrection() {
       form.canteenName = detail.canteen
       form.floor = detail.floor || ''
       form.stallName = detail.stallName
-      form.images = detail.images.slice(0, UGC_IMAGE_MAX)
+      form.images = detail.images.slice(0, CORRECTION_IMAGE_MAX)
 
       // 描述属性：维度名 / 当前值取自详情；候选与单多选取自编辑端点（按 fieldKey 对齐）
       form.attributes = (detail.attributes || [])

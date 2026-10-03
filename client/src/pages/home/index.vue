@@ -43,7 +43,8 @@
              多张自动轮播 + 指示点 / 空与单张失败「灰底 + 中性 empty」空态。
              左右 12px 边距与四角圆角在组件内；上间距（标题带下沿 → Banner 上缘 12px）
              由 `.home-scroll-body` 的 padding-top 承担；块高由本页下发（16:10，§3.3）。 -->
-        <HomeBanner :height-px="bannerHeightPx" />
+        <!-- Banner：有图才占 16:10 槽位；全停用 / 加载失败时**整块收起**（docs/web/README 待办 #5，方案 A） -->
+        <HomeBanner v-if="showBanner" :height-px="bannerHeightPx" @ready="onBannerReady" />
 
         <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏）：**一个组件、一起吸顶** =====
              · **原生粘性定位**（`position: sticky` + `top: 0` = 滚动区顶 = 固定标题带下沿）：
@@ -173,7 +174,13 @@ const bannerHeightPx = computed(() => Math.max(
   BANNER_MIN_HEIGHT_PX,
 ))
 
-/* ===== Banner 数据由其自身组件 `HomeBanner.vue` 拉取（§12 组件拆分）；本页只下发块高 ===== */
+/* ===== Banner 数据由其自身组件 `HomeBanner.vue` 拉取（§12 组件拆分）；本页只下发块高 =====
+   是否保留 Banner 槽位由 `showBanner` 决定（详见 HomeBanner 的 `ready` 事件）：
+   加载中默认保留（避免首屏跳动），加载完成且无图时收起 —— 同步重置吸顶锁定点（lockScrollPx）。 */
+const showBanner = ref(true)
+function onBannerReady(has: boolean) {
+  showBanner.value = has
+}
 
 /**
  * 页面骨架内联样式（§11 结构性决议）：
@@ -193,8 +200,9 @@ const pageStyle = computed(() => ({
 
 /** Banner **上缘**与固定标题带下沿的间距（px）：§3.1（滚动区 `padding-top`） */
 const BANNER_TOP_GAP_PX = 12
-/** 吸顶锁定所需的滚动距离（px）= `H_gap + H_b`（§11 常量 `L`，≈231）：容器流内落点即 Banner 下缘 */
-const lockScrollPx = computed(() => BANNER_TOP_GAP_PX + bannerHeightPx.value)
+/** 吸顶锁定所需的滚动距离（px）= `H_gap + H_b`（§11 常量 `L`，≈231）：容器流内落点即 Banner 下缘。
+ *  Banner 收起（无图）时归零 —— 吸顶容器直接顶到滚动区顶，不会因上方空槽而过早锁死。 */
+const lockScrollPx = computed(() => showBanner.value ? BANNER_TOP_GAP_PX + bannerHeightPx.value : 0)
 
 /* ===== 切片显隐：**只在吸顶态铺**=====
    未吸顶 ⇒ 完全透明（此时容器背后就是页底壁纸本体，天然连续、无接缝）；

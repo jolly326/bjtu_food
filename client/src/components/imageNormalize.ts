@@ -59,7 +59,7 @@ export interface ImageNormalizeAdapters {
 }
 
 /** 选图产物的最小形状（只需路径与初始大小） */
-export interface PickedImage {
+interface PickedImage {
   path: string
   size: number
 }
