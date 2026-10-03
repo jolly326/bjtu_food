@@ -13,12 +13,14 @@
              纠错表单（`mode=update`：菜品详情底栏「反馈错误」带 dishId 跳入）—— 自动填好这道菜，只改差异项。
              submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
         <IssueForm
+          ref="issueFormRef"
           :model="form"
           :errors="fieldErrors"
           :submitting="submitting"
           :placeholder="typePlaceholder"
           @clear="clearError"
           @pick="onPickType"
+          @pick-image="pickSheetOpen = true"
         />
       </view>
 
@@ -34,6 +36,15 @@
         />
       </view>
     </scroll-view>
+
+    <!-- 配图来源弹层（拍照 / 从相册选择）：**必须挂在 scroll-view 之外**（小程序 scroll-view 内
+         fixed 层级会被压扁/裁剪）。动作项取共享真源 imagePickSource，两处宿主页不各写一份。 -->
+    <ActionSheet
+      :open="pickSheetOpen"
+      :items="IMAGE_PICK_ACTIONS"
+      @close="pickSheetOpen = false"
+      @select="onPickImageSource"
+    />
   </view>
 </template>
 
@@ -47,12 +58,14 @@
  * - **菜品纠错已迁出为独立页面** `pages/correction/`（仅菜品详情页底栏「反馈错误」进入）；
  * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件仅 `IssueForm`。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
 import IssueForm from './IssueForm.vue'
 import { useFeedback } from './useFeedback'
+import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/imagePickSource'
 
 const {
   goBack,
@@ -70,6 +83,16 @@ const {
 
 /** 提交按钮文案：直白具体，不用模糊统称 */
 const submitButtonText = computed(() => (submitting.value ? '提交中…' : '提交反馈'))
+
+/* ===== 配图来源弹层（页面根级，因 scroll-view 内 fixed 层级会被裁剪）===== */
+const pickSheetOpen = ref(false)
+/** IssueForm 暴露的 startPick 中转（→ ImagePicker.startPick） */
+const issueFormRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+/** ActionSheet 回抛 key（string）先收窄为 PickSource，未知 key 忽略，不让脏 key 进上传链路 */
+function onPickImageSource(key: string) {
+  if (!isPickSource(key)) return
+  issueFormRef.value?.startPick(key)
+}
 </script>
 
 <style scoped>

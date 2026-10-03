@@ -58,7 +58,13 @@
 
       <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传）；提交中禁选 -->
       <view class="rc-field-images">
-        <ImagePicker v-model="images" :max="UGC_IMAGE_MAX" :disabled="submitting" />
+        <ImagePicker
+          ref="imagePickerRef"
+          v-model="images"
+          :max="UGC_IMAGE_MAX"
+          :disabled="submitting"
+          @pick="pickSheetOpen = true"
+        />
       </view>
 
       <!-- 提交：主色实底；未选星或提交中禁用 -->
@@ -73,14 +79,20 @@
       </view>
     </view>
   </BaseSheet>
+
+  <!-- 配图来源弹层（拍照 / 从相册选择）：与 BaseSheet 同级挂在组件根（宿主页已挂在 scroll-view 外）。
+       ImagePicker 只上抛 pick 意图、不自带弹层——详见 ImagePicker 顶部注释。 -->
+  <ActionSheet :open="pickSheetOpen" :items="IMAGE_PICK_ACTIONS" @close="pickSheetOpen = false" @select="onPickSource" />
 </template>
 
 <script setup lang="ts">
 import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { ref, watch } from 'vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import IconSvg from '@/components/IconSvg.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
+import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/imagePickSource'
 // 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview } from '@/api/review'
@@ -107,6 +119,17 @@ const content = ref('')
 /** 配图（COS URL，≤3 张；经 ImagePicker 安检上传） */
 const images = ref<string[]>([])
 const submitting = ref(false)
+
+/* 配图来源弹层：ImagePicker 上抛 pick → 本层弹 ActionSheet → 选中后回调 startPick 落地 */
+const pickSheetOpen = ref(false)
+/** ImagePicker 暴露的 startPick（拉起选图 → 压缩校验 → 安检上传） */
+const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+
+/** ActionSheet 回抛 key（string）→ 收窄为 PickSource 后落地；未知 key 直接忽略 */
+function onPickSource(key: string) {
+  if (!isPickSource(key)) return
+  imagePickerRef.value?.startPick(key)
+}
 
 // 每次打开重置为**空表单**（本稿取消写前判定与重评模式，不做任何预填）
 watch(

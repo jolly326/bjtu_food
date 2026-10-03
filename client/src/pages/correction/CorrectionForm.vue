@@ -188,10 +188,12 @@
       <view class="img-block">
         <text class="img-title">补充实拍图片（选填，最多 3 张）</text>
         <ImagePicker
+          ref="imagePickerRef"
           :model-value="model.images"
           :max="UGC_IMAGE_MAX"
           :disabled="!!submitting"
           @update:model-value="onImagesChange"
+          @pick="emit('pick-image')"
         />
       </view>
 
@@ -231,6 +233,7 @@ import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
+import type { PickSource } from '@/components/imagePickSource'
 
 /**
  * 基础信息字段键（R40 起**逐字段显式渲染**，不再由 `FIELDS` 配置 `v-for` 驱动）。
@@ -267,7 +270,22 @@ const emit = defineEmits<{
   (e: 'clear', key: string): void
   /** 提交（仅在可提交时触发；置灰态由外层热区 toast 兜底） */
   (e: 'submit'): void
+  /**
+   * 请求选择**配图来源**（拍照 / 相册）——由页面根级弹层承接。
+   * <p>本组件位于 scroll-view 内，不能自带 fixed 弹层（层级会被压扁/裁剪）。
+   */
+  (e: 'pick-image'): void
 }>()
+
+/**
+ * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 安检上传）。
+ * <p>来源弹层在页面根级，故经宿主页选中来源后再透传下来。
+ */
+const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+function startPick(source: PickSource) {
+  imagePickerRef.value?.startPick(source)
+}
+defineExpose({ startPick })
 
 /** 聚焦字段键（聚焦时底线切主色；空 = 无聚焦） */
 const focused = ref('')

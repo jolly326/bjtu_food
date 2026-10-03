@@ -4,10 +4,15 @@
     复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
     写评价（ReviewComposer）/ 意见反馈（IssueForm，max=UGC_IMAGE_MAX，多图）。
 
-    流程（微信端）：wx.chooseMedia(count≤max, image) → 逐张 wx.compressImage(quality 80) 压缩
+    流程（微信端）：点加号 → **上抛 pick 事件**（来源由页面根级 ActionSheet 选：拍照 / 相册）
+    → startPick(source) 调 wx.chooseMedia(count, sourceType=单值) → 逐张 wx.compressImage(quality 80) 压缩
     → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）
     → uploadUgcImage（云存储 fileID → POST /upload/cloud-image 后端安检转存 COS）→ 追加 COS URL 至 v-model。
     违规图片后端 400「图片包含违规内容，无法上传」由 http 层抛 message，此处逐张 toast 透出。
+
+    ⚠️ 为何不自带来源弹层：ActionSheet → BaseSheet 内部是 position: fixed，而本组件在
+    意见反馈 / 菜品纠错两处位于 <scroll-view> 之内（fixed 层级会被压扁/裁剪）。
+    故与 ReviewItem 一致：弹层由页面根级持有，本组件只抛意图 + 经 ref 暴露 startPick。
 
     UI 红线（spec §4.9）：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
     图标走 IconSvg（image=添加图片语义、close=删除）。
@@ -77,6 +82,11 @@ import {
   assertSizeWithinLimit,
   type ImageNormalizeAdapters,
 } from './imageNormalize'
+/**
+ * 配图来源类型（camera / album）与来源弹层动作项的**唯一真源**在 `imagePickSource.ts`——
+ * 本组件只消费类型，具体弹层与动作项由页面根级持有（见 onAdd 注释）。
+ */
+import type { PickSource } from './imagePickSource'
 
 defineOptions({ name: 'ImagePicker' })
 
@@ -94,6 +104,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', urls: string[]): void
+  /** 点加号：上抛「请求选择配图来源」意图，由页面根级弹层承接（见 onAdd 注释） */
+  (e: 'pick'): void
 }>()
 
 /* 本地镜像为唯一写者：避免同一轮上传循环内多次 emit 时读到未刷新的 props 造成丢张 */
@@ -113,8 +125,16 @@ watch(
 )
 
 /* ===== 平台 API Promise 化（wx 句柄为微信运行时对象，平台例外未纳入项目 TS 类型，同 http.ts） ===== */
-/** 选图（微信端 wx.chooseMedia；H5 回退 uni.chooseImage），返回 临时路径 + 初始大小（字节） */
-function pick(count: number): Promise<{ path: string; size: number }[]> {
+/**
+ * 选图（微信端 wx.chooseMedia；H5 回退 uni.chooseImage），返回 临时路径 + 初始大小（字节）
+ * <p>
+ * <b>sourceType 由父页传入</b>：本组件不自带来源选择弹层（见 onAdd 注释），故来源是外部决定的单值。
+ * 拍照时微信一次只返回 1 张，故 camera 分支强制 count=1，避免端上承诺多选却只回一张。
+ */
+function pick(count: number, source: PickSource): Promise<{ path: string; size: number }[]> {
+  const sourceType = source === 'camera' ? ['camera'] : ['album']
+  // 拍照不可多选：微信相机每次仅产出 1 张，此时放宽 count 只会造成「选了 N 张却回 1 张」的困惑
+  const effectiveCount = source === 'camera' ? 1 : count
   // #ifdef MP-WEIXIN
   return new Promise((resolve, reject) => {
     const wxApi = getWxApi()
@@ -123,9 +143,9 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
       return
     }
     wxApi.chooseMedia({
-      count,
+      count: effectiveCount,
       mediaType: ['image'],
-      sourceType: ['album', 'camera'],
+      sourceType,
       sizeType: ['compressed'],
       // 平台例外：微信回调透传（wx 句柄无 TS 声明，按结构类型取所需字段）
       success: (r: { tempFiles?: Array<{ tempFilePath?: string; size?: number }> }) => {
@@ -143,9 +163,9 @@ function pick(count: number): Promise<{ path: string; size: number }[]> {
   // #ifndef MP-WEIXIN
   return new Promise((resolve, reject) => {
     uni.chooseImage({
-      count,
+      count: effectiveCount,
       sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
+      sourceType,
       success: (res) => {
         const paths = res.tempFilePaths || []
         // 平台例外：uni 回调 tempFiles 类型跨端不一致，仅取 size 字段（结构类型收窄，非 any）
@@ -240,16 +260,38 @@ async function normalizeForPlatform(input: { path: string; size: number }): Prom
   return path
 }
 
-/* ===== 添加图片：逐张 校验→上传→追加；单张失败不中断其余 ===== */
+/* ===== 添加图片：来源由父页决定 → 逐张 校验→上传→追加；单张失败不中断其余 ===== */
 const uploading = ref(false)
 
-async function onAdd() {
+/**
+ * 点「添加图片」：**只抛意图，不自己弹层**。
+ * <p>
+ * 原因：来源选择弹层（ActionSheet → BaseSheet）内部是 `position: fixed`，
+ * 而本组件在「意见反馈」「菜品纠错」两处都位于 `<scroll-view>` 之内——
+ * 小程序 scroll-view 内的 fixed 层级会被压扁/裁剪（见 ReviewComposer 顶部注释）。
+ * 故沿用 ReviewItem 的既有范式：弹层由**页面根级**持有，本组件经事件把意图上抛，
+ * 父页拿到来源后再调用 {@link startPick} 落地。
+ */
+function onAdd() {
+  if (props.disabled || uploading.value) return
+  const remain = props.max - urls.value.length
+  if (remain <= 0) return
+  emit('pick')
+}
+
+/**
+ * 按父页给定的来源真正拉起选图（父页在 ActionSheet 选中项后调用）。
+ * <p>
+ * 内部为「拉起 → 逐张压缩校验 → 上传 → 追加」全流程，与加号格直接选图等价；
+ * 拍照一次仅回 1 张，由 {@link pick} 内部强制 count=1 收口。
+ */
+async function startPick(source: PickSource) {
   if (props.disabled || uploading.value) return
   const remain = props.max - urls.value.length
   if (remain <= 0) return
   uploading.value = true
   try {
-    const files = await pick(remain)
+    const files = await pick(remain, source)
     for (const f of files) {
       try {
         const path = await normalizeForPlatform(f)
@@ -269,6 +311,9 @@ async function onAdd() {
     uploading.value = false
   }
 }
+
+/** 供父页经 ref 调用（来源弹层选完后落地） */
+defineExpose({ startPick })
 
 /** 删除已选（本地移除；后端不做回收，孤儿 COS 文件由后端定期清理策略兜底） */
 function onRemove(i: number) {

@@ -67,10 +67,12 @@
     <view class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
+        ref="imagePickerRef"
         :model-value="model.images"
         :max="1"
         :disabled="submitting"
         @update:model-value="onImagesChange"
+        @pick="emit('pick-image')"
       />
     </view>
   </view>
@@ -83,6 +85,7 @@ import IconSvg from '@/components/IconSvg.vue'
 import { ref } from 'vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
+import type { PickSource } from '@/components/imagePickSource'
 import { CONTENT_MAX } from './useFeedback'
 
 const props = defineProps<{
@@ -96,7 +99,24 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'clear', key: string): void
   (e: 'pick', value: FeedbackType): void
+  /**
+   * 请求选择**配图来源**（拍照 / 相册）。
+   * <p>命名带 `-image` 后缀是必须的：本组件已有 `pick` 事件承载「选反馈类型」，
+   * 复用同名会让宿主页两个语义互相顶掉（已实际发生过一次，故登记于此）。
+   */
+  (e: 'pick-image'): void
 }>()
+
+/**
+ * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 安检上传）。
+ * <p>来源弹层必须在页面根级挂载（本组件位于 scroll-view 内，fixed 层级会被裁剪），
+ * 故宿主页拿到来源后再经此透传下去。
+ */
+const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+function startPick(source: PickSource) {
+  imagePickerRef.value?.startPick(source)
+}
+defineExpose({ startPick })
 
 /** 描述框聚焦态（iOS 焦点反馈：底线高亮主色） */
 const focused = ref(false)

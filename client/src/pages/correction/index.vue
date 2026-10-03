@@ -23,6 +23,7 @@
       />
       <CorrectionForm
         v-else
+        ref="correctionFormRef"
         :model="form"
         :dish-name="dishName"
         :dish-location="dishLocation"
@@ -34,10 +35,20 @@
         :submit-error="submitError"
         @clear="clearError"
         @submit="submit"
+        @pick-image="pickSheetOpen = true"
       />
       <!-- 卡片下缘留白（提交按钮随内容滚动，非固定底栏 ⇒ 只需 safe-area 避让） -->
       <view class="bottom-space" />
     </scroll-view>
+
+    <!-- 配图来源弹层（拍照 / 从相册选择）：**必须挂在 scroll-view 之外**（小程序 scroll-view 内
+         fixed 层级会被压扁/裁剪）。动作项取共享真源 imagePickSource，与意见反馈页不各写一份。 -->
+    <ActionSheet
+      :open="pickSheetOpen"
+      :items="IMAGE_PICK_ACTIONS"
+      @close="pickSheetOpen = false"
+      @select="onPickImageSource"
+    />
   </view>
 </template>
 
@@ -49,11 +60,14 @@
  *   提交**仅带上改动项**（patch）走 `POST /dishes/{id}/correction`，与 `POST /feedback` 完全分开；
  * - 编排逻辑抽包内私有 `useCorrection.ts`；包内子件：CorrectionForm / AttributeGroup / TagChip。
  */
+import { ref } from 'vue'
+import ActionSheet from '@/components/ActionSheet.vue'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import CorrectionForm from './CorrectionForm.vue'
 import { useCorrection } from './useCorrection'
+import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/imagePickSource'
 
 const {
   goBack,
@@ -73,6 +87,16 @@ const {
   gateHint,
   submit,
 } = useCorrection()
+
+/* ===== 配图来源弹层（页面根级，因 scroll-view 内 fixed 层级会被裁剪）===== */
+const pickSheetOpen = ref(false)
+/** CorrectionForm 暴露的 startPick 中转（→ ImagePicker.startPick） */
+const correctionFormRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+/** ActionSheet 回抛 key（string）先收窄为 PickSource，未知 key 忽略，不让脏 key 进上传链路 */
+function onPickImageSource(key: string) {
+  if (!isPickSource(key)) return
+  correctionFormRef.value?.startPick(key)
+}
 </script>
 
 <style scoped>
