@@ -54,7 +54,7 @@ public interface FeedbackService {
      * 但一旦学生端接口纳入 JWT 鉴权，管理后台会立刻 401 失效。
      * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦
      * （实测：该管理端字典端点尚未落地，{@code FeedbackAdminController} 当前只有
-     * 列表 / 处理两个映射；web 侧原因筛选的值域仍待接，见 docs/web/feature/web-举报管理.md）。
+     * 列表 / 处理两个映射；web 侧原因筛选的值域仍待接，见 docs/web/B-UGC治理/B3-举报管理.md）。
      * <p>
      * P2 迁址：学生端本端点由 {@code GET /feedback/report-reasons} 改为
      * {@code GET /report-reasons}（字典非「反馈提交」的子资源），无过渡别名。
